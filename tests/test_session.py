@@ -71,5 +71,5 @@ def test_session_roundtrips_unicode(tmp_path, monkeypatch):
     sid = save_session(msgs, "model-zh")
 
     raw = (tmp_path / f"{sid}.json").read_bytes()
-    assert "请帮我修复这个 bug".encode("utf-8") in raw
+    assert "请帮我修复这个 bug".encode() in raw
     assert load_session(sid) == (msgs, "model-zh")

@@ -1,6 +1,7 @@
-"""File creation / overwrite."""
+"""文件创建 / 覆写。"""
 
 from pathlib import Path
+
 from .base import Tool
 from .edit import _changed_files
 
@@ -8,19 +9,19 @@ from .edit import _changed_files
 class WriteFileTool(Tool):
     name = "write_file"
     description = (
-        "Create a new file or completely overwrite an existing one. "
-        "For small edits to existing files, prefer edit_file instead."
+        "创建新文件或完全覆写已有文件。"
+        "对于已有文件的小改动，优先使用 edit_file。"
     )
     parameters = {
         "type": "object",
         "properties": {
             "file_path": {
                 "type": "string",
-                "description": "Path for the file",
+                "description": "文件路径",
             },
             "content": {
                 "type": "string",
-                "description": "Full file content to write",
+                "description": "要写入的完整文件内容",
             },
         },
         "required": ["file_path", "content"],
@@ -33,6 +34,6 @@ class WriteFileTool(Tool):
             p.write_text(content, encoding="utf-8")
             _changed_files.add(str(p))
             n_lines = content.count("\n") + (1 if content and not content.endswith("\n") else 0)
-            return f"Wrote {n_lines} lines to {file_path}"
+            return f"已写入 {n_lines} 行到 {file_path}"
         except Exception as e:
-            return f"Error: {e}"
+            return f"错误：{e}"

@@ -1,69 +1,70 @@
-"""Shell command execution with safety checks.
+"""带安全检查的 Shell 命令执行。
 
-Claude Code's BashTool is 1,143 lines. This is the distilled version:
-- Output capture with truncation (head+tail preserved)
-- Timeout support
-- Dangerous command detection
-- Working directory tracking (cd awareness)
+Claude Code 的 BashTool 有 1,143 行。这是提炼后的版本：
+- 带截断的输出捕获（保留头尾）
+- 超时支持
+- 危险命令检测
+- 工作目录跟踪（cd 感知）
 """
 
 import os
 import re
 import subprocess
 import threading
+
 from .base import Tool
 
-# Track cwd across commands (Claude Code does this too). Thread-local, so that
-# when the agent executes tools in parallel two bash calls never race on one
-# shared global: each worker thread carries its own cwd. See article 05.
+# 跨命令跟踪 cwd（Claude Code 也是这样做的）。线程本地存储，
+# 这样当智能体并行执行工具时，两个 bash 调用不会在共享全局变量上
+# 产生竞态。每个工作线程携带自己的 cwd。详见文章 05。
 _local = threading.local()
 
-# patterns that could wreck the filesystem or leak secrets
+# 可能破坏文件系统或泄露密钥的危险模式
 _DANGEROUS_PATTERNS = [
-    # recursive delete aimed at root/home (force flag optional)
-    (r"\brm\s+(-\w*)?-r\w*\s+(/|~|\$HOME)", "recursive delete on home/root"),
-    # recursive (-r/-R) and force (-f) flags together, in any order or spacing
-    (r"\brm\b(?=(?:.*\s)?-\w*[rR])(?=(?:.*\s)?-\w*f)", "force recursive delete"),
-    # the same, written with long-form flags
-    (r"\brm\b.*--recursive\b.*--force\b|\brm\b.*--force\b.*--recursive\b", "force recursive delete"),
-    (r"\bmkfs\b", "format filesystem"),
-    (r"\bdd\s+.*of=/dev/", "raw disk write"),
-    (r">\s*/dev/sd[a-z]", "overwrite block device"),
-    (r"\bchmod\s+(-R\s+)?777\s+/", "chmod 777 on root"),
-    (r":\(\)\s*\{.*:\|:.*\}", "fork bomb"),
-    (r"\bcurl\b.*\|\s*(sudo\s+)?(ba)?sh\b", "pipe curl to shell"),
-    (r"\bwget\b.*\|\s*(sudo\s+)?(ba)?sh\b", "pipe wget to shell"),
+    # 针对根目录/家目录的递归删除（force 标志可选）
+    (r"\brm\s+(-\w*)?-r\w*\s+(/|~|\$HOME)", "对家目录/根目录的递归删除"),
+    # 同时包含递归（-r/-R）和强制（-f）标志，任意顺序或间距
+    (r"\brm\b(?=(?:.*\s)?-\w*[rR])(?=(?:.*\s)?-\w*f)", "强制递归删除"),
+    # 同上，但使用长格式标志
+    (r"\brm\b.*--recursive\b.*--force\b|\brm\b.*--force\b.*--recursive\b", "强制递归删除"),
+    (r"\bmkfs\b", "格式化文件系统"),
+    (r"\bdd\s+.*of=/dev/", "原始磁盘写入"),
+    (r">\s*/dev/sd[a-z]", "覆盖块设备"),
+    (r"\bchmod\s+(-R\s+)?777\s+/", "对根目录 chmod 777"),
+    (r":\(\)\s*\{.*:\|:.*\}", "fork 炸弹"),
+    (r"\bcurl\b.*\|\s*(sudo\s+)?(ba)?sh\b", "curl 管道到 shell"),
+    (r"\bwget\b.*\|\s*(sudo\s+)?(ba)?sh\b", "wget 管道到 shell"),
 ]
 
 
 class BashTool(Tool):
     name = "bash"
     description = (
-        "Execute a shell command. Returns stdout, stderr, and exit code. "
-        "Use this for running tests, installing packages, git operations, etc."
+        "执行 Shell 命令。返回 stdout、stderr 和退出码。"
+        "用于运行测试、安装包、git 操作等。"
     )
     parameters = {
         "type": "object",
         "properties": {
             "command": {
                 "type": "string",
-                "description": "The shell command to run",
+                "description": "要运行的 Shell 命令",
             },
             "timeout": {
                 "type": "integer",
-                "description": "Timeout in seconds (default 120)",
+                "description": "超时时间，单位秒（默认 120）",
             },
         },
         "required": ["command"],
     }
 
     def execute(self, command: str, timeout: int = 120) -> str:
-        # safety check
+        # 安全检查
         warning = _check_dangerous(command)
         if warning:
-            return f"⚠ Blocked: {warning}\nCommand: {command}\nIf intentional, modify the command to be more specific."
+            return f"⚠ 已阻止：{warning}\n命令：{command}\n如有意执行，请修改命令使其更具体。"
 
-        # use this thread's own tracked working directory
+        # 使用当前线程自己的跟踪工作目录
         cwd = getattr(_local, "cwd", None) or os.getcwd()
 
         try:
@@ -78,30 +79,30 @@ class BashTool(Tool):
                 cwd=cwd,
             )
 
-            # track cd commands so next command runs in the right place
+            # 跟踪 cd 命令，使下一条命令在正确的位置运行
             if proc.returncode == 0:
                 _update_cwd(command, cwd)
             out = proc.stdout
             if proc.stderr:
                 out += f"\n[stderr]\n{proc.stderr}"
             if proc.returncode != 0:
-                out += f"\n[exit code: {proc.returncode}]"
-            # keep head + tail to preserve the most useful info
+                out += f"\n[退出码：{proc.returncode}]"
+            # 保留头尾以保留最有用的信息
             if len(out) > 15_000:
                 out = (
                     out[:6000]
-                    + f"\n\n... truncated ({len(out)} chars total) ...\n\n"
+                    + f"\n\n... 已截断（共 {len(out)} 字符）...\n\n"
                     + out[-3000:]
                 )
-            return out.strip() or "(no output)"
+            return out.strip() or "（无输出）"
         except subprocess.TimeoutExpired:
-            return f"Error: timed out after {timeout}s"
+            return f"错误：在 {timeout} 秒后超时"
         except Exception as e:
-            return f"Error running command: {e}"
+            return f"运行命令时出错：{e}"
 
 
 def _check_dangerous(cmd: str) -> str | None:
-    """Return a warning string if the command looks destructive, else None."""
+    """如果命令看起来具有破坏性，返回警告字符串；否则返回 None。"""
     for pattern, reason in _DANGEROUS_PATTERNS:
         if re.search(pattern, cmd):
             return reason
@@ -109,9 +110,10 @@ def _check_dangerous(cmd: str) -> str | None:
 
 
 def _update_cwd(command: str, current_cwd: str):
-    """Track directory changes from cd commands, per thread."""
-    # walk each cd in a && chain, resolving relative targets against the dir the
-    # previous cd landed in (not the original cwd) so `cd a && cd b` ends in a/b
+    """跟踪 cd 命令导致的目录变更，按线程隔离。"""
+    # 遍历 && 链中的每个 cd，将相对目标路径基于前一个 cd
+    # 到达的目录（而非原始 cwd）进行解析，
+    # 这样 `cd a && cd b` 最终会停在 a/b
     running = current_cwd
     changed = False
     for part in command.split("&&"):

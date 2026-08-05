@@ -1,4 +1,4 @@
-"""Configuration - env vars and defaults."""
+"""配置 - 环境变量和默认值。"""
 
 import os
 from dataclasses import dataclass
@@ -6,10 +6,10 @@ from pathlib import Path
 
 
 def _load_dotenv():
-    """Load .env from cwd, walking up to home dir. No-op if python-dotenv missing."""
+    """从当前目录加载 .env，向上查找到 home 目录。python-dotenv 缺失时无操作。"""
     try:
         from dotenv import load_dotenv
-        # search cwd first, then parent dirs up to ~
+        # 先搜索当前目录，然后向上查找到 ~
         env_path = Path(".env")
         if not env_path.exists():
             cur = Path.cwd()
@@ -22,12 +22,12 @@ def _load_dotenv():
                 cur = cur.parent
         load_dotenv(env_path, override=False)
     except ImportError:
-        pass  # python-dotenv not installed, silently skip
+        pass  # python-dotenv 未安装，静默跳过
 
 
 @dataclass
 class Config:
-    model: str = "gpt-5.5"
+    model: str = "deepseek-v4-flash"
     api_key: str = ""
     base_url: str | None = None
     max_tokens: int = 4096
@@ -37,9 +37,9 @@ class Config:
 
     @classmethod
     def from_env(cls) -> "Config":
-        # load .env if present (won't override existing env vars)
+        # 加载 .env（如果存在，不会覆盖已有的环境变量）
         _load_dotenv()
-        # pick up common env vars automatically
+        # 自动读取常见环境变量
         api_key = (
             os.getenv("CORECODER_API_KEY")
             or os.getenv("OPENAI_API_KEY")
@@ -47,7 +47,7 @@ class Config:
             or ""
         )
         return cls(
-            model=os.getenv("CORECODER_MODEL", "gpt-5.5"),
+            model=os.getenv("CORECODER_MODEL", "deepseek-v4-flash"),
             api_key=api_key,
             base_url=os.getenv("OPENAI_BASE_URL") or os.getenv("CORECODER_BASE_URL"),
             max_tokens=int(os.getenv("CORECODER_MAX_TOKENS", "4096")),
