@@ -1,19 +1,19 @@
-"""LLM provider layer - thin wrapper over OpenAI-compatible APIs.
+"""LLM 提供商层 - OpenAI 兼容 API 的薄封装。
 
-Since most providers (DeepSeek, Qwen, Kimi, GLM, Ollama, etc.) expose an
-OpenAI-compatible endpoint, we just use the openai SDK directly.  Switch
-provider by changing OPENAI_BASE_URL + OPENAI_API_KEY. That's it.
+由于大多数提供商（DeepSeek、Qwen、Kimi、GLM、Ollama 等）都暴露
+OpenAI 兼容的接口，我们直接使用 openai SDK。切换提供商只需修改
+OPENAI_BASE_URL + OPENAI_API_KEY。就这么简单。
 
-For providers that are NOT OpenAI-compatible (AWS Bedrock, Google Vertex,
-etc.), use the LiteLLM backend which routes to 100+ providers through a
-single unified interface. Set CORECODER_PROVIDER=litellm.
+对于不兼容 OpenAI 的提供商（AWS Bedrock、Google Vertex 等），
+使用 LiteLLM 后端，它通过统一接口路由到 100+ 个提供商。
+设置 CORECODER_PROVIDER=litellm。
 """
 
 import json
 import time
 from dataclasses import dataclass, field
 
-from openai import OpenAI, APIError, BadRequestError, RateLimitError, APITimeoutError, APIConnectionError
+from openai import APIConnectionError, APIError, APITimeoutError, BadRequestError, OpenAI, RateLimitError
 
 
 @dataclass
@@ -32,7 +32,7 @@ class LLMResponse:
 
     @property
     def message(self) -> dict:
-        """Convert to OpenAI message format for appending to history."""
+        """转换为 OpenAI 消息格式，用于追加到历史记录。"""
         msg: dict = {"role": "assistant", "content": self.content or None}
         if self.tool_calls:
             msg["tool_calls"] = [
@@ -49,34 +49,37 @@ class LLMResponse:
         return msg
 
 
-# pricing per million tokens: (input, output)
-# sources: openai.com/api/pricing, api-docs.deepseek.com, platform.claude.com,
-#          platform.moonshot.ai, alibabacloud.com/help/en/model-studio
+# 每百万 token 的定价：（输入，输出）
+# 来源：openai.com/api/pricing、api-docs.deepseek.com、platform.claude.com、
+#       platform.moonshot.ai、alibabacloud.com/help/en/model-studio
 _PRICING = {
-    # OpenAI - current flagships
+    # OpenAI - 当前旗舰
     "gpt-5.5": (5, 30),
     "gpt-5.4": (2.5, 15),
     "gpt-5.4-mini": (0.75, 4.5),
     "gpt-5.4-nano": (0.2, 1.25),
     "o4-mini": (1.1, 4.4),
-    # OpenAI - previous gen (still widely used)
+    # OpenAI - 上一代（仍被广泛使用）
     "gpt-4.1": (2, 8),
     "gpt-4.1-mini": (0.4, 1.6),
     "gpt-4.1-nano": (0.1, 0.4),
     "gpt-4o": (2.5, 10),
     "gpt-4o-mini": (0.15, 0.6),
-    # DeepSeek
+    # DeepSeek V4
+    "deepseek-v4-flash": (0.14, 0.28),
+    "deepseek-v4-pro": (0.435, 0.87),
+    # DeepSeek V3 旧版（即将废弃，保留兼容）
     "deepseek-chat": (0.27, 1.10),
     "deepseek-reasoner": (0.55, 2.19),
     # Anthropic Claude
     "claude-opus-4-6": (5, 25),
     "claude-sonnet-4-6": (3, 15),
     "claude-haiku-4-5": (1, 5),
-    # Alibaba Qwen
+    # 阿里 Qwen
     "qwen3-max": (0.78, 3.9),
     "qwen3-plus": (0.26, 0.78),
     "qwen-max": (0.78, 3.9),
-    # Moonshot Kimi
+    # 月之暗面 Kimi
     "kimi-k2.5": (0.6, 3),
 }
 
@@ -91,13 +94,13 @@ class LLM:
     ):
         self.model = model
         self.client = OpenAI(api_key=api_key, base_url=base_url)
-        self.extra = kwargs  # temperature, max_tokens, etc.
+        self.extra = kwargs  # temperature、max_tokens 等
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
 
     @property
     def estimated_cost(self) -> float | None:
-        """Rough cost estimate in USD. Returns None if model not in pricing table."""
+        """粗略的美元成本估算。模型不在定价表中时返回 None。"""
         pricing = _PRICING.get(self.model)
         if not pricing:
             return None
@@ -113,7 +116,7 @@ class LLM:
         tools: list[dict] | None = None,
         on_token=None,
     ) -> LLMResponse:
-        """Send messages, stream back response, handle tool calls."""
+        """发送消息，流式返回响应，处理工具调用。"""
         params: dict = {
             "model": self.model,
             "messages": messages,
@@ -123,9 +126,9 @@ class LLM:
         if tools:
             params["tools"] = tools
 
-        # stream_options is an OpenAI extension; fall back only when the provider
-        # rejects the param (400 BadRequest), not on transient errors that
-        # _call_with_retry already exhausted - otherwise we'd double the retries
+        # stream_options 是 OpenAI 扩展；仅在提供商拒绝该参数（400 BadRequest）
+        # 时回退，而不是在 _call_with_retry 已耗尽的瞬态错误上回退——
+        # 否则重试次数会翻倍
         params["stream_options"] = {"include_usage": True}
         try:
             stream = self._call_with_retry(params)
@@ -134,15 +137,15 @@ class LLM:
             stream = self._call_with_retry(params)
 
         content_parts: list[str] = []
-        tc_map: dict[int, dict] = {}  # index -> {id, name, arguments_str}
+        tc_map: dict[int, dict] = {}  # 索引 -> {id, name, arguments_str}
         prompt_tok = 0
         completion_tok = 0
 
         for chunk in stream:
-            # usage info comes in the final chunk
+            # usage 信息在最后一个分片中
             if chunk.usage:
-                # some providers send usage with null fields; coerce to 0 so the
-                # running totals below don't blow up on int + None
+                # 部分提供商的 usage 字段可能为 null；强制转换为 0
+                # 以免后续累加时报 int + None 错误
                 prompt_tok = chunk.usage.prompt_tokens or 0
                 completion_tok = chunk.usage.completion_tokens or 0
 
@@ -150,13 +153,13 @@ class LLM:
                 continue
             delta = chunk.choices[0].delta
 
-            # accumulate text
+            # 累积文本
             if delta.content:
                 content_parts.append(delta.content)
                 if on_token:
                     on_token(delta.content)
 
-            # accumulate tool calls across chunks
+            # 跨分片累积工具调用
             if delta.tool_calls:
                 for tc_delta in delta.tool_calls:
                     idx = tc_delta.index
@@ -170,7 +173,7 @@ class LLM:
                         if tc_delta.function.arguments:
                             tc_map[idx]["args"] += tc_delta.function.arguments
 
-        # parse accumulated tool calls
+        # 解析累积的工具调用
         parsed: list[ToolCall] = []
         for idx in sorted(tc_map):
             raw = tc_map[idx]
@@ -191,7 +194,7 @@ class LLM:
         )
 
     def _call_with_retry(self, params: dict, max_retries: int = 3):
-        """Retry on transient errors with exponential backoff."""
+        """在瞬态错误时使用指数退避重试。"""
         for attempt in range(max_retries):
             try:
                 return self.client.chat.completions.create(**params)
@@ -201,7 +204,8 @@ class LLM:
                 wait = 2 ** attempt
                 time.sleep(wait)
             except APIError as e:
-                # retry 5xx server errors but not 4xx; base APIError has no status_code so read it defensively
+                # 重试 5xx 服务器错误，但不重试 4xx；基础 APIError 没有
+                # status_code 属性，所以防御性地读取它
                 status_code = getattr(e, "status_code", None)
                 if status_code and status_code >= 500 and attempt < max_retries - 1:
                     time.sleep(2 ** attempt)
@@ -210,16 +214,14 @@ class LLM:
 
 
 class LiteLLM(LLM):
-    """LLM backend via LiteLLM, supporting 100+ providers.
+    """通过 LiteLLM 的 LLM 后端，支持 100+ 个提供商。
 
-    Use this when your target provider is NOT OpenAI-compatible
-    (AWS Bedrock, Google Vertex, Cohere, etc.) or when you want
-    a single interface to switch between any provider by changing
-    the model string.
+    当目标提供商不兼容 OpenAI 时使用此后端（AWS Bedrock、Google Vertex、
+    Cohere 等），或者当你想通过修改模型字符串来切换任意提供商时使用。
 
-    Set CORECODER_PROVIDER=litellm and use LiteLLM model strings
-    like ``anthropic/claude-3-haiku``, ``bedrock/anthropic.claude-v2``,
-    ``vertex_ai/gemini-pro``, etc.
+    设置 CORECODER_PROVIDER=litellm，使用 LiteLLM 模型字符串，
+    如 ``anthropic/claude-3-haiku``、``bedrock/anthropic.claude-v2``、
+    ``vertex_ai/gemini-pro`` 等。
     """
 
     def __init__(
@@ -229,7 +231,7 @@ class LiteLLM(LLM):
         base_url: str | None = None,
         **kwargs,
     ):
-        # skip LLM.__init__ which creates an OpenAI client
+        # 跳过 LLM.__init__，它创建了 OpenAI 客户端
         self.model = model
         self.api_key = api_key
         self.base_url = base_url
@@ -243,7 +245,7 @@ class LiteLLM(LLM):
         tools: list[dict] | None = None,
         on_token=None,
     ) -> LLMResponse:
-        """Send messages via litellm, stream back response, handle tool calls."""
+        """通过 litellm 发送消息，流式返回响应，处理工具调用。"""
         params: dict = {
             "model": self.model,
             "messages": messages,
@@ -253,8 +255,8 @@ class LiteLLM(LLM):
         if tools:
             params["tools"] = tools
 
-        # ask for usage stats in the final chunk; litellm drops this for providers
-        # that don't support it (drop_params), so it's safe to always request
+        # 请求在最后一个分片中包含 usage 统计；litellm 会对不支持此功能的
+        # 提供商自动丢弃该参数（drop_params），所以始终请求是安全的
         params["stream_options"] = {"include_usage": True}
         stream = self._call_with_retry(params)
 
@@ -311,7 +313,7 @@ class LiteLLM(LLM):
         )
 
     def _call_with_retry(self, params: dict, max_retries: int = 3):
-        """Retry on transient errors with exponential backoff via litellm."""
+        """在瞬态错误时通过 litellm 使用指数退避重试。"""
         import litellm
 
         params["drop_params"] = True

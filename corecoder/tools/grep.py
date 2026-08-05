@@ -1,33 +1,34 @@
-"""Content search with regex support."""
+"""支持正则表达式的内容搜索。"""
 
 import re
 from pathlib import Path
+
 from .base import Tool
 
-# skip these dirs to avoid noise
+# 跳过这些目录以减少噪音
 _SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", ".tox", "dist", "build"}
 
 
 class GrepTool(Tool):
     name = "grep"
     description = (
-        "Search file contents with regex. "
-        "Returns matching lines with file path and line number."
+        "使用正则表达式搜索文件内容。"
+        "返回匹配行，包含文件路径和行号。"
     )
     parameters = {
         "type": "object",
         "properties": {
             "pattern": {
                 "type": "string",
-                "description": "Regex pattern to search for",
+                "description": "要搜索的正则表达式模式",
             },
             "path": {
                 "type": "string",
-                "description": "File or directory to search (default: cwd)",
+                "description": "要搜索的文件或目录（默认：当前工作目录）",
             },
             "include": {
                 "type": "string",
-                "description": "Only search files matching this glob (e.g. '*.py')",
+                "description": "仅搜索匹配此 glob 模式的文件（如 '*.py'）",
             },
         },
         "required": ["pattern"],
@@ -37,11 +38,11 @@ class GrepTool(Tool):
         try:
             regex = re.compile(pattern)
         except re.error as e:
-            return f"Invalid regex: {e}"
+            return f"无效的正则表达式：{e}"
 
         base = Path(path).expanduser().resolve()
         if not base.exists():
-            return f"Error: {path} not found"
+            return f"错误：{path} 未找到"
 
         if base.is_file():
             files = [base]
@@ -58,18 +59,18 @@ class GrepTool(Tool):
                 if regex.search(line):
                     matches.append(f"{fp}:{lineno}: {line.rstrip()}")
                     if len(matches) >= 200:
-                        matches.append("... (200 match limit reached)")
+                        matches.append("...（已达到 200 条匹配上限）")
                         return "\n".join(matches)
 
-        return "\n".join(matches) if matches else "No matches found."
+        return "\n".join(matches) if matches else "未找到匹配项。"
 
     @staticmethod
     def _walk(root: Path, include: str | None) -> list[Path]:
-        """Walk dir tree, skipping junk dirs."""
+        """遍历目录树，跳过垃圾目录。"""
         results = []
         for item in root.rglob(include or "*"):
-            # skip junk dirs *inside* the search root - matching item.parts would
-            # also catch an ancestor named e.g. "build" and hide the whole tree
+            # 跳过搜索根目录*内部*的垃圾目录——匹配 item.parts
+            # 也会命中名为 "build" 的祖先目录并隐藏整个树
             if any(part in _SKIP_DIRS for part in item.relative_to(root).parts):
                 continue
             if item.is_file():

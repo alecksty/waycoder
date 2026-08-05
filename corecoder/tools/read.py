@@ -1,29 +1,30 @@
-"""File reading with line numbers."""
+"""带行号的文件读取。"""
 
 from pathlib import Path
+
 from .base import Tool
 
 
 class ReadFileTool(Tool):
     name = "read_file"
     description = (
-        "Read a file's contents with line numbers. "
-        "Always read a file before editing it."
+        "读取文件内容并显示行号。"
+        "修改文件之前始终先读取它。"
     )
     parameters = {
         "type": "object",
         "properties": {
             "file_path": {
                 "type": "string",
-                "description": "Path to the file",
+                "description": "文件路径",
             },
             "offset": {
                 "type": "integer",
-                "description": "Start line (1-based). Default 1.",
+                "description": "起始行（从 1 开始）。默认 1。",
             },
             "limit": {
                 "type": "integer",
-                "description": "Max lines to read. Default 2000.",
+                "description": "最大读取行数。默认 2000。",
             },
         },
         "required": ["file_path"],
@@ -33,9 +34,9 @@ class ReadFileTool(Tool):
         try:
             p = Path(file_path).expanduser().resolve()
             if not p.exists():
-                return f"Error: {file_path} not found"
+                return f"错误：{file_path} 未找到"
             if not p.is_file():
-                return f"Error: {file_path} is a directory, not a file"
+                return f"错误：{file_path} 是目录，不是文件"
 
             text = p.read_text(encoding="utf-8", errors="replace")
             lines = text.splitlines()
@@ -47,7 +48,7 @@ class ReadFileTool(Tool):
             result = "\n".join(numbered)
 
             if total > start + limit:
-                result += f"\n... ({total} lines total, showing {start+1}-{start+len(chunk)})"
-            return result or "(empty file)"
+                result += f"\n...（共 {total} 行，显示第 {start+1}-{start+len(chunk)} 行）"
+            return result or "（空文件）"
         except Exception as e:
-            return f"Error: {e}"
+            return f"错误：{e}"

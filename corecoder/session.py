@@ -1,7 +1,7 @@
-"""Session persistence - save and resume conversations.
+"""会话持久化 - 保存和恢复对话。
 
-Claude Code maintains session state via QueryEngine (1295 lines).
-CoreCoder distills this to: JSON dump of messages + model config.
+Claude Code 通过 QueryEngine（1295 行）维护会话状态。
+CoreCoder 将其提炼为：消息 + 模型配置的 JSON 转储。
 """
 
 import json
@@ -12,7 +12,7 @@ from pathlib import Path
 
 SESSIONS_DIR = Path.home() / ".corecoder" / "sessions"
 _SAFE_SESSION_RE = re.compile(r"[^A-Za-z0-9._-]+")
-_MAX_SESSION_ID_LEN = 100  # keep filenames comfortably under the OS limit
+_MAX_SESSION_ID_LEN = 100  # 保持文件名远低于操作系统限制
 
 
 def _normalize_session_id(session_id: str | None) -> str:
@@ -34,12 +34,12 @@ def _session_path(session_id: str) -> Path:
     path = (SESSIONS_DIR / f"{_normalize_session_id(session_id)}.json").resolve()
     root = SESSIONS_DIR.resolve()
     if root != path.parent:
-        raise ValueError("Invalid session id")
+        raise ValueError("无效的会话 ID")
     return path
 
 
 def save_session(messages: list[dict], model: str, session_id: str | None = None) -> str:
-    """Save conversation to disk. Returns the session ID."""
+    """将对话保存到磁盘。返回会话 ID。"""
     SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
     session_id = _normalize_session_id(session_id)
@@ -57,7 +57,7 @@ def save_session(messages: list[dict], model: str, session_id: str | None = None
 
 
 def load_session(session_id: str) -> tuple[list[dict], str] | None:
-    """Load a saved session. Returns (messages, model) or None."""
+    """加载已保存的会话。返回 (messages, model) 或 None。"""
     path = _session_path(session_id)
     if not path.exists():
         return None
@@ -66,12 +66,12 @@ def load_session(session_id: str) -> tuple[list[dict], str] | None:
         data = json.loads(path.read_text(encoding="utf-8"))
         return data["messages"], data["model"]
     except (json.JSONDecodeError, KeyError, OSError):
-        # a corrupt or truncated session file shouldn't crash resume
+        # 损坏或截断的会话文件不应导致恢复崩溃
         return None
 
 
 def list_sessions() -> list[dict]:
-    """List available sessions, newest first."""
+    """列出可用会话，最新的在前。"""
     if not SESSIONS_DIR.exists():
         return []
 
@@ -79,7 +79,7 @@ def list_sessions() -> list[dict]:
     for f in sorted(SESSIONS_DIR.glob("*.json"), reverse=True):
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
-            # grab first user message as preview
+            # 取第一条用户消息作为预览
             preview = ""
             for m in data.get("messages", []):
                 if m.get("role") == "user" and m.get("content"):
@@ -94,4 +94,4 @@ def list_sessions() -> list[dict]:
         except (json.JSONDecodeError, KeyError):
             continue
 
-    return sessions[:20]  # cap at 20
+    return sessions[:20]  # 最多 20 条
