@@ -1,25 +1,26 @@
-"""File pattern matching."""
+"""文件模式匹配。"""
 
 from pathlib import Path
+
 from .base import Tool
 
 
 class GlobTool(Tool):
     name = "glob"
     description = (
-        "Find files matching a glob pattern. "
-        "Supports ** for recursive matching (e.g. '**/*.py')."
+        "查找匹配 glob 模式的文件。"
+        "支持 ** 进行递归匹配（如 '**/*.py'）。"
     )
     parameters = {
         "type": "object",
         "properties": {
             "pattern": {
                 "type": "string",
-                "description": "Glob pattern, e.g. '**/*.py' or 'src/**/*.ts'",
+                "description": "Glob 模式，如 '**/*.py' 或 'src/**/*.ts'",
             },
             "path": {
                 "type": "string",
-                "description": "Directory to search in (default: cwd)",
+                "description": "搜索目录（默认：当前工作目录）",
             },
         },
         "required": ["pattern"],
@@ -29,10 +30,10 @@ class GlobTool(Tool):
         try:
             base = Path(path).expanduser().resolve()
             if not base.is_dir():
-                return f"Error: {path} is not a directory"
+                return f"错误：{path} 不是目录"
 
             hits = list(base.glob(pattern))
-            # sort by mtime, newest first
+            # 按修改时间排序，最新的在前
             hits.sort(key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
 
             total = len(hits)
@@ -41,7 +42,7 @@ class GlobTool(Tool):
             result = "\n".join(lines)
 
             if total > 100:
-                result += f"\n... ({total} matches, showing first 100)"
-            return result or "No files matched."
+                result += f"\n...（共 {total} 个匹配，仅显示前 100 个）"
+            return result or "没有匹配的文件。"
         except Exception as e:
-            return f"Error: {e}"
+            return f"错误：{e}"

@@ -1,16 +1,15 @@
-"""Tests for the LiteLLM backend."""
+"""LiteLLM 后端测试。"""
 
 import types as builtin_types
 from unittest import mock
 
 import pytest
 
-from corecoder.llm import LLM, LiteLLM, LLMResponse
 from corecoder.config import Config
-
+from corecoder.llm import LLM, LiteLLM, LLMResponse
 
 # ---------------------------------------------------------------------------
-# Fake streaming response (matches OpenAI stream chunk format)
+# 模拟流式响应（匹配 OpenAI 流式分片格式）
 # ---------------------------------------------------------------------------
 
 
@@ -38,7 +37,7 @@ class _Chunk:
 
 
 def _make_stream(contents, usage=None):
-    """Create a fake stream from a list of content strings."""
+    """从内容字符串列表创建模拟流。"""
     chunks = [_Chunk(content=c) for c in contents]
     if usage:
         chunks.append(_Chunk(usage=usage))
@@ -48,7 +47,7 @@ def _make_stream(contents, usage=None):
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# 辅助函数
 # ---------------------------------------------------------------------------
 
 
@@ -72,7 +71,7 @@ def _uninstall_fake_litellm():
 
 
 # ---------------------------------------------------------------------------
-# LiteLLM class basics
+# LiteLLM 类基础测试
 # ---------------------------------------------------------------------------
 
 
@@ -107,7 +106,7 @@ class TestLiteLLMClass:
 
 
 # ---------------------------------------------------------------------------
-# _call_with_retry
+# _call_with_retry 测试
 # ---------------------------------------------------------------------------
 
 
@@ -150,7 +149,7 @@ class TestCallWithRetry:
 
 
 # ---------------------------------------------------------------------------
-# chat() end-to-end (mocked)
+# chat() 端到端测试（模拟）
 # ---------------------------------------------------------------------------
 
 
@@ -191,7 +190,7 @@ class TestChat:
         assert call_kwargs["model"] == "anthropic/claude-3-haiku"
 
     def test_requests_usage_via_stream_options(self):
-        """chat() must ask for usage stats, otherwise token tracking stays zero."""
+        """chat() 必须请求 usage 统计，否则 token 跟踪将始终为零。"""
         llm = LiteLLM(model="openai/gpt-4o")
         llm.chat(messages=[{"role": "user", "content": "hi"}])
         call_kwargs = self.fake.completion.call_args[1]
@@ -199,7 +198,7 @@ class TestChat:
 
 
 # ---------------------------------------------------------------------------
-# Config integration
+# Config 集成
 # ---------------------------------------------------------------------------
 
 
@@ -221,7 +220,7 @@ class TestConfigProvider:
 
 
 # ---------------------------------------------------------------------------
-# Multi-provider model strings
+# 多提供商模型字符串
 # ---------------------------------------------------------------------------
 
 

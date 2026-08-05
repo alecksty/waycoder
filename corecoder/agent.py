@@ -1,22 +1,23 @@
-"""Core agent loop.
+"""核心智能体循环。
 
-This is the heart of CoreCoder.  The pattern is simple:
+这是 CoreCoder 的心脏。模式很简单：
 
-    user message -> LLM (with tools) -> tool calls? -> execute -> loop
-                                      -> text reply? -> return to user
+    用户消息 -> LLM（带工具）-> 有工具调用？-> 执行 -> 循环
+                                 -> 文本回复？-> 返回给用户
 
-It keeps looping until the LLM responds with plain text (no tool calls),
-which means it's done working and ready to report back.
+它会持续循环，直到 LLM 回复纯文本（没有工具调用），
+这意味着它已完成工作并准备报告结果。
 """
 
 import concurrent.futures
 import inspect
-from .llm import LLM
-from .tools import ALL_TOOLS
-from .tools.base import Tool
-from .tools.agent import AgentTool
-from .prompt import system_prompt
+
 from .context import ContextManager
+from .llm import LLM
+from .prompt import system_prompt
+from .tools import ALL_TOOLS
+from .tools.agent import AgentTool
+from .tools.base import Tool
 
 
 class Agent:
@@ -35,7 +36,7 @@ class Agent:
         self.max_rounds = max_rounds
         self._system = system_prompt(self.tools)
 
-        # wire up sub-agent capability
+        # 连接子智能体能力
         for t in self.tools:
             if isinstance(t, AgentTool):
                 t._parent_agent = self
@@ -47,7 +48,7 @@ class Agent:
         return [t.schema() for t in self.tools]
 
     def chat(self, user_input: str, on_token=None, on_tool=None) -> str:
-        """Process one user message. May involve multiple LLM/tool rounds."""
+        """处理一条用户消息。可能涉及多轮 LLM/工具交互。"""
         self.messages.append({"role": "user", "content": user_input})
         self.context.maybe_compress(self.messages, self.llm)
 
@@ -58,13 +59,13 @@ class Agent:
                 on_token=on_token,
             )
 
-            # no tool calls -> LLM is done, return text
+            # 没有工具调用 -> LLM 完成，返回文本
             if not resp.tool_calls:
                 self.messages.append(resp.message)
                 return resp.content
 
-            # tool calls -> execute (parallel when multiple, like Claude Code's
-            # StreamingToolExecutor which runs independent tools concurrently)
+            # 有工具调用 -> 执行（多个时并行，类似 Claude Code 的
+            # StreamingToolExecutor，它并发运行独立的工具）
             self.messages.append(resp.message)
 
             try:
@@ -79,7 +80,7 @@ class Agent:
                         "content": result,
                     })
                 else:
-                    # parallel execution for multiple tool calls
+                    # 多个工具调用时并行执行
                     results = self._exec_tools_parallel(resp.tool_calls, on_tool)
                     for tc, result in zip(resp.tool_calls, results):
                         self.messages.append({
@@ -88,38 +89,37 @@ class Agent:
                             "content": result,
                         })
             except KeyboardInterrupt:
-                # Ctrl+C mid-execution would leave the assistant tool_calls
-                # message without replies, poisoning the next request; backfill
+                # 执行中途按 Ctrl+C 会导致 assistant 的 tool_calls 消息
+                # 没有对应的工具回复，污染下一次请求；回填缺失的回复
                 self._answer_pending_tool_calls(resp.tool_calls)
                 raise
 
-            # compress if tool outputs are big
+            # 如果工具输出太大则压缩上下文
             self.context.maybe_compress(self.messages, self.llm)
 
-        return "(reached maximum tool-call rounds)"
+        return "（已达到最大工具调用轮次）"
 
     def _exec_tool(self, tc) -> str:
-        """Execute a single tool call, returning the result string."""
+        """执行单个工具调用，返回结果字符串。"""
         tool = self._tool_by_name.get(tc.name)
         if tool is None:
-            return f"Error: unknown tool '{tc.name}'"
-        # validate arguments first so a TypeError raised *inside* the tool isn't
-        # mislabelled as a bad-arguments error from the caller
+            return f"错误：未知工具 '{tc.name}'"
+        # 先验证参数，这样工具内部抛出的 TypeError 不会被
+        # 误标为调用者的参数错误
         try:
             inspect.signature(tool.execute).bind(**tc.arguments)
         except TypeError as e:
-            return f"Error: bad arguments for {tc.name}: {e}"
+            return f"错误：{tc.name} 的参数有误：{e}"
         try:
             return tool.execute(**tc.arguments)
         except Exception as e:
-            return f"Error executing {tc.name}: {e}"
+            return f"执行 {tc.name} 时出错：{e}"
 
     def _exec_tools_parallel(self, tool_calls, on_tool=None) -> list[str]:
-        """Run multiple tool calls concurrently using threads.
+        """使用线程并发运行多个工具调用。
 
-        This is inspired by Claude Code's StreamingToolExecutor which starts
-        executing tools while the model is still generating.  We simplify to:
-        when the model returns N tool calls at once, run them in parallel.
+        灵感源自 Claude Code 的 StreamingToolExecutor，它在模型还在生成时
+        就开始执行工具。我们简化为：当模型一次返回 N 个工具调用时，并行运行它们。
         """
         for tc in tool_calls:
             if on_tool:
@@ -130,11 +130,10 @@ class Agent:
             return [f.result() for f in futures]
 
     def _answer_pending_tool_calls(self, tool_calls):
-        """Backfill a tool reply for every call that didn't get one.
+        """为每个未收到回复的工具调用回填一条工具回复。
 
-        OpenAI-compatible APIs reject a request where an assistant message has
-        tool_calls without a matching tool reply for each id, so this keeps the
-        history valid when execution is interrupted partway through.
+        OpenAI 兼容 API 会拒绝包含 tool_calls 但没有对应 tool 回复的
+        assistant 消息，因此在执行被中断时，这能保持历史记录有效。
         """
         answered = {m.get("tool_call_id") for m in self.messages if m.get("role") == "tool"}
         for tc in tool_calls:
@@ -142,9 +141,9 @@ class Agent:
                 self.messages.append({
                     "role": "tool",
                     "tool_call_id": tc.id,
-                    "content": "[interrupted]",
+                    "content": "[已中断]",
                 })
 
     def reset(self):
-        """Clear conversation history."""
+        """清空对话历史。"""
         self.messages.clear()
