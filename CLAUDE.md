@@ -44,6 +44,9 @@ CoreCoderSharp/
 │   ├── TuiPrompt.cs   输入框 (普通/密码/确认)
 │   ├── TuiProgress.cs 进度条 + 分隔线
 │   └── TuiBanner.cs   欢迎横幅 (FigletText + Panel)
+├── Edit/              终端源码编辑器
+│   ├── Editor.cs      编辑器引擎 (光标/缓冲/渲染)
+│   └── Syntax.cs      语法高亮 (14 种语言)
 └── Tools/             29 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
