@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.7.0 (2026-08-06) — 自定义命令 + 自动 Lint 闭环 + YOLO 模式
+
+### ✨ 新增功能
+- **`--yolo` CLI 标志** — 一次性模式跳过所有权限确认，非交互环境可用
+- **自动 Lint 反馈闭环** — `write_file`/`edit_file` 后自动运行 lint，错误注入 LLM 上下文
+- **自定义斜杠命令** — `.corecoder/commands/*.md` 用户可扩展，支持 YAML frontmatter + `$ARGUMENTS`
+- **示例命令** — `.corecoder/commands/review-code.md` 代码审查模板
+
+### 🐛 Bug 修复
+- **JsonNode Parent 冲突** — `FullMessages()` 深克隆消息，修复 "already has a parent" 崩溃
+
+### 🔧 内部
+- `CustomCommands.cs` — 自定义命令加载器
+- 163+ 项自测（+3 项自定义命令测试）
+
 ## v0.6.1 (2026-08-06) — 三个新工具 + 增强语言支持
 
 ### ✨ 新增工具

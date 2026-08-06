@@ -101,6 +101,8 @@ public class Agent
                     var tc = resp.ToolCalls[0];
                     onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
                     var result = await ExecuteToolAsync(tc);
+                    // 自动 lint 反馈闭环：写文件后立即检查，错误注入工具结果
+                    result = await AppendLintFeedbackAsync(tc, result);
                     Messages.Add(new JsonObject
                     {
                         ["role"] = "tool",
@@ -121,11 +123,13 @@ public class Agent
                     var results = await Task.WhenAll(tasks);
                     foreach (var (tc, result) in results)
                     {
+                        // 自动 lint 反馈闭环
+                        var finalResult = await AppendLintFeedbackAsync(tc, result);
                         Messages.Add(new JsonObject
                         {
                             ["role"] = "tool",
                             ["tool_call_id"] = tc.Id,
-                            ["content"] = result,
+                            ["content"] = finalResult,
                         });
                     }
                 }
@@ -169,7 +173,45 @@ public class Agent
     }
 
     /// <summary>
-    /// 为每个未收到回复的工具调用回填一条工具回复。
+    /// 写文件后自动运行 lint，错误注入工具结果，形成自动修复闭环。
+    /// 仅对 write_file / edit_file 触发，lint 无错误则不追加。
+    /// </summary>
+    private async Task<string> AppendLintFeedbackAsync(ToolCall tc, string toolResult)
+    {
+        if (tc.Name is not "write_file" and not "edit_file")
+            return toolResult;
+
+        var filePath = tc.Arguments.GetValueOrDefault("file_path")?.ToString();
+        if (string.IsNullOrWhiteSpace(filePath))
+            return toolResult;
+
+        try
+        {
+            var lang = LintTool.DetectLanguage(filePath);
+            if (lang == null) return toolResult;
+
+            var lintTool = new LintTool();
+            var lintArgs = new Dictionary<string, object?> { ["path"] = filePath };
+            var lintResult = await lintTool.ExecuteAsync(lintArgs);
+
+            // 仅当 lint 发现问题时才追加反馈
+            if (!lintResult.Contains("✅") && !lintResult.Contains("⚠"))
+                return toolResult;
+
+            // 截断过长输出
+            if (lintResult.Length > 1500)
+                lintResult = lintResult[..1500] + "\n... (已截断)";
+
+            return toolResult + $"\n\n--- Lint 自动检查 ({lang}) ---\n{lintResult}";
+        }
+        catch
+        {
+            return toolResult; // lint 失败不影响主流程
+        }
+    }
+
+    /// <summary>
+    /// 为每个未收到工具回复的工具调用回填一条工具回复。
     /// 确保在执行被中断时历史记录保持有效。
     /// </summary>
     private void AnswerPendingToolCalls(List<ToolCall> toolCalls)

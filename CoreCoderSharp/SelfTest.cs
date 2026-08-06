@@ -682,6 +682,33 @@ public static class SelfTest
 
         Console.WriteLine();
 
+        // ---- 自定义命令 ----
+        Console.WriteLine("[自定义命令]");
+        var cmdDir = Path.Combine(Path.GetTempPath(), "cmd_test_" + Guid.NewGuid().ToString("N")[..6]);
+        var corecoderDir = Path.Combine(cmdDir, ".corecoder", "commands");
+        Directory.CreateDirectory(corecoderDir);
+
+        var cmdFile = Path.Combine(corecoderDir, "greet.md");
+        File.WriteAllText(cmdFile, "---\ndescription: 打招呼\n---\n你好 $ARGUMENTS！");
+        var origCwd = Environment.CurrentDirectory;
+        try
+        {
+            Environment.CurrentDirectory = cmdDir;
+            CustomCommands.Load();
+            Check("自定义命令已加载", CustomCommands.Commands.ContainsKey("greet"));
+            Check("自定义命令描述正确", CustomCommands.Commands["greet"].Description == "打招呼");
+            Check("自定义命令内容正确", CustomCommands.Commands["greet"].Content.Contains("你好"));
+        }
+        finally
+        {
+            Environment.CurrentDirectory = origCwd;
+            try { Directory.Delete(cmdDir, true); } catch { }
+        }
+        // 重新加载项目命令
+        CustomCommands.Load();
+
+        Console.WriteLine();
+
         // ---- 结果 ----
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
         return failed == 0;
