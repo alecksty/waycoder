@@ -4,10 +4,22 @@ namespace CoreCoderSharp.UI;
 
 /// <summary>
 /// 输入提示框 —— Spectre.Console TextPrompt 的便捷封装。
-/// 支持普通文本输入和密码输入。
+/// 支持光标移动编辑（← → Home End）、复制粘贴（Ctrl+V）、删除（Backspace / Delete）。
 /// </summary>
 public static class TuiPrompt
 {
+    /// <summary>
+    /// 聊天输入框。简洁的 ❯ 提示符，白色输入文本。
+    /// 支持光标移动编辑、复制粘贴。
+    /// </summary>
+    public static string ChatInput()
+    {
+        return AnsiConsole.Prompt(
+            new TextPrompt<string>($"[{TuiColors.AccentMarkup}]❯[/] ")
+                .AllowEmpty()
+                .PromptStyle(new Style(foreground: Color.White)));
+    }
+
     /// <summary>
     /// 普通文本输入。返回用户输入的文本，空输入返回默认值。
     /// </summary>
