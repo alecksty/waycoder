@@ -203,6 +203,9 @@ public class Agent
         if (tc.Name is not "write_file" and not "edit_file")
             return toolResult;
 
+        // 文件修改后使仓库地图缓存失效
+        RepoMapGenerator.Invalidate();
+
         var filePath = tc.Arguments.GetValueOrDefault("file_path")?.ToString();
         if (string.IsNullOrWhiteSpace(filePath))
             return toolResult;
