@@ -398,73 +398,96 @@ public class Editor
         // ═══════ 顶边 ═══════
         var title = $" /edit: {Path.GetFileName(_filePath)} ";
         if (_modified) title += "[已修改] ";
-        var tw = VW(title);
-        var dashR = Math.Max(0, _tw - tw - 2);
-        sb.Append($"[33m╭─{title}{new string('─', dashR)}╮[0m\r\n");
+        var titleVW = VW(title);
+        var topDash = Math.Max(0, _tw - titleVW - 2); // -2 for ╭─ and ╮
+        sb.Append($"[33m╭─{title}{new string('─', topDash)}╮[0m\r\n");
+
+        // 前缀宽度: │ + 行号(含空格) + │ + 空格
+        // 格式: "│   N │ " = 1 + 4 + 1 + 1 + 1 = 8 或 9 (光标行少一个空格)
+        const int PrefixVisual = 9; // 光标行的前缀视觉宽度
+        var contentMaxVW = _tw - PrefixVisual - 1; // -1 for closing │
 
         // ═══════ 编辑区 ═══════
         for (int i = 0; i < vh; i++)
         {
             var li = _scroll + i;
-            sb.Append("[33m│[0m");
+            var isCursor = li == _cy;
 
+            // 左边框 + 行号
             if (li < _lines.Count)
             {
                 var ln = (li + 1).ToString().PadLeft(4);
-                var isCursor = li == _cy;
-                sb.Append(isCursor
-                    ? $" [36m{ln} [33m│[0m "
-                    : $" [2m{ln}  [22m│ ");
-
-                RenderLine(sb, _lines[li].ToString());
+                sb.Append("[33m│[0m");
+                if (isCursor)
+                    sb.Append($" [36m{ln} [33m│[0m ");
+                else
+                    sb.Append($" [2m{ln}  [22m│ ");
             }
             else
             {
-                sb.Append("      │ [2m~[0m");
+                sb.Append("[33m│[0m      │ [2m~[0m");
             }
 
+            // 内容 + 截断适配终端宽度
+            if (li < _lines.Count)
+            {
+                RenderLineTruncated(sb, _lines[li].ToString(), contentMaxVW);
+            }
+
+            // 右填充到终端边界
             sb.Append("[0m[K\r\n");
         }
 
         // ═══════ 分隔线 ═══════
-        sb.Append($"[33m├{new string('─', _tw - 2)}┤[0m\r\n");
+        var sepW = Math.Max(0, _tw - 2);
+        sb.Append($"[33m├{new string('─', sepW)}┤[0m\r\n");
 
-        // ═══════ 状态行 1 — 位置 / 统计 / 编码 ═══════
+        // ═══════ 状态行 1 ═══════
         var totalChars = _lines.Sum(l => l.Length);
         var totalLines = _lines.Count;
-        var fileSize = new FileInfo(_filePath).Exists
-            ? FormatSize(new FileInfo(_filePath).Length)
-            : FormatSize(System.Text.Encoding.UTF8.GetByteCount(
+        var fileSize = FormatSize(
+            System.Text.Encoding.UTF8.GetByteCount(
                 string.Join("\n", _lines.Select(l => l.ToString()))));
 
         var stat1 = $"  L{_cy + 1}:C{_cx + 1}  │  " +
-                    $"行: {totalLines:N0}  字符: {totalChars:N0}  │  " +
-                    $"大小: {fileSize}  │  " +
-                    $"{_syntax.Name}  ·  UTF-8";
-        var s1w = VW(stat1);
-        var pad1 = Math.Max(0, _tw - s1w - 2);
-        sb.Append($"[33m│[0m [2m{stat1}{new string(' ', pad1)}[0m[33m│[0m\r\n");
+                    $"行:{totalLines:N0}  字符:{totalChars:N0}  │  " +
+                    $"{fileSize}  │  {_syntax.Name}  ·  UTF-8";
+        RenderStatusLine(sb, stat1);
 
-        // ═══════ 状态行 2 — 快捷键 ═══════
-        var modifiedTag = _modified ? " [33m[已修改][0m" : "";
+        // ═══════ 状态行 2 ═══════
+        var modifiedTag = _modified ? "  [已修改]" : "";
         var stat2 = $" ^S保存 ^Z撤销 ^G跳行 ^X剪切 ^C复制 ^V粘贴 ^Y删行 Esc退出{modifiedTag}";
-        var s2w = VW(stat2);
-        var pad2 = Math.Max(0, _tw - s2w - 2);
-        sb.Append($"[33m│[0m [2m{stat2}{new string(' ', pad2)}[0m[33m│[0m\r\n");
+        RenderStatusLine(sb, stat2);
 
         // ═══════ 底边 ═══════
-        sb.Append($"[33m╰{new string('─', _tw - 2)}╯[0m");
+        var botW = Math.Max(0, _tw - 2);
+        sb.Append($"[33m╰{new string('─', botW)}╯[0m");
 
-        // 恢复光标到编辑位置
+        // 恢复光标到编辑位置 (CJK 宽度感知)
         var screenRow = _cy - _scroll + 1;
-        var screenCol = 8 + _cx;
+        var lineBeforeCursor = _lines[_cy].ToString();
+        var cxVisual = _cx > 0 ? VW(lineBeforeCursor[..Math.Min(_cx, lineBeforeCursor.Length)]) : 0;
+        var screenCol = PrefixVisual + cxVisual;
+        // 确保光标不超出终端
+        screenCol = Math.Min(screenCol, _tw - 1);
         sb.Append($"[{screenRow};{screenCol}H");
         sb.Append("[?25h");
 
         Console.Write(sb.ToString());
     }
 
-    private void RenderLine(StringBuilder sb, string line)
+    /// <summary>渲染一行状态，右侧自动填充到终端边界</summary>
+    private void RenderStatusLine(StringBuilder sb, string text)
+    {
+        var textVW = VW(text);
+        // "│ " + text + spaces + " │"
+        // 1 + 1 + textVW + pad + 1 + 1 = textVW + pad + 4 = _tw
+        var pad = Math.Max(0, _tw - textVW - 4);
+        sb.Append($"[33m│[0m [2m{text}{new string(' ', pad)} [0m[33m│[0m\r\n");
+    }
+
+    /// <summary>渲染一行内容，按视觉宽度截断适配终端</summary>
+    private void RenderLineTruncated(StringBuilder sb, string line, int maxVW)
     {
         if (string.IsNullOrEmpty(line))
         {
@@ -472,10 +495,40 @@ public class Editor
             return;
         }
 
-        foreach (var (text, ansiColor) in _syntax.Tokenize(line))
+        var tokens = _syntax.Tokenize(line);
+        var vw = 0;
+        foreach (var (text, ansiColor) in tokens)
         {
+            var textVW = VW(text);
+            if (vw + textVW > maxVW)
+            {
+                // 截断：只显示能容纳的部分
+                var remain = maxVW - vw;
+                if (remain > 0)
+                {
+                    var truncated = TruncateTextByVW(text, remain);
+                    sb.Append($"[{ansiColor}m{truncated}[0m");
+                }
+                break;
+            }
             sb.Append($"[{ansiColor}m{text}[0m");
+            vw += textVW;
         }
+    }
+
+    /// <summary>按视觉宽度截断纯文本</summary>
+    private static string TruncateTextByVW(string text, int maxVW)
+    {
+        var vw = 0;
+        var runes = text.EnumerateRunes().ToList();
+        for (int i = 0; i < runes.Count; i++)
+        {
+            var w = runes[i].Value > 127 ? 2 : 1;
+            if (vw + w > maxVW)
+                return text[..(i > 0 ? i : 0)];
+            vw += w;
+        }
+        return text;
     }
 
     // ================================================================
