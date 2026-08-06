@@ -143,19 +143,23 @@ public class LLM
         // 调试日志：记录发送内容
         DebugLog.LogRequest(messages, tools ?? []);
 
+        // 深克隆消息和工具 schema，防止 JsonNode Parent 冲突
+        var clonedMessages = messages.Select(m => JsonNode.Parse(m.ToJsonString())!).ToList();
+        var clonedTools = tools?.Select(t => JsonNode.Parse(t.ToJsonString())!).ToList();
+
         var body = new JsonObject
         {
             ["model"] = Model,
-            ["messages"] = new JsonArray(messages.Select(m => (JsonNode?)m).ToArray()),
+            ["messages"] = new JsonArray(clonedMessages.ToArray()),
             ["stream"] = true,
             ["temperature"] = Temperature,
             ["max_tokens"] = MaxTokens,
             ["stream_options"] = new JsonObject { ["include_usage"] = true },
         };
 
-        if (tools is { Count: > 0 })
+        if (clonedTools is { Count: > 0 })
         {
-            body["tools"] = new JsonArray(tools.Select(t => (JsonNode?)t).ToArray());
+            body["tools"] = new JsonArray(clonedTools.ToArray());
         }
 
         var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
