@@ -22,12 +22,15 @@ public class Agent
     public ContextManager Context { get; }
 
     private readonly int _maxRounds;
+    private readonly double? _maxBudgetUsd;
     private readonly string _systemPrompt;
 
     public Agent(LLM llm, List<ITool>? tools = null,
-        int maxContextTokens = 128_000, int maxRounds = 50)
+        int maxContextTokens = 128_000, int maxRounds = 50,
+        double? maxBudgetUsd = null)
     {
         LlmClient = llm;
+        _maxBudgetUsd = maxBudgetUsd;
         Tools = tools ?? ToolRegistry.AllTools;
         ToolByName = Tools.ToDictionary(t => t.Name);
         Context = new ContextManager(maxContextTokens);
@@ -77,6 +80,14 @@ public class Agent
         for (int round = 0; round < _maxRounds; round++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            // 预算检查：超过上限则停止
+            if (_maxBudgetUsd != null)
+            {
+                var spent = LlmClient.EstimatedCost ?? 0;
+                if (spent >= _maxBudgetUsd.Value)
+                    return $"🛑 已达到预算上限 ${_maxBudgetUsd:F2}（已花费 ${spent:F4}，{round} 轮）。增加预算请使用 --max-budget-usd。";
+            }
 
             var resp = await LlmClient.ChatAsync(
                 messages: FullMessages(),
@@ -162,7 +173,18 @@ public class Agent
             if (!await PermissionManager.CheckAsync(tc.Name, tc.Arguments))
                 return "用户取消了此操作。";
 
+            // PreToolUse hook
+            var hookBlock = await HooksManager.RunPreToolUseAsync(tc.Name, tc.Arguments);
+            if (hookBlock != null)
+                return $"操作被 Hook 阻止: {hookBlock}";
+
             var result = await tool.ExecuteAsync(tc.Arguments);
+
+            // PostToolUse hook（可修改结果）
+            var hookResult = await HooksManager.RunPostToolUseAsync(tc.Name, tc.Arguments, result);
+            if (hookResult != null)
+                result = hookResult;
+
             DebugLog.LogToolResult(tc.Name, result);
             return result;
         }

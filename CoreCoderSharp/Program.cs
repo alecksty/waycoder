@@ -19,6 +19,7 @@ public class Program
 
         // 手动解析 CLI 参数
         string? model = null, baseUrl = null, apiKey = null, prompt = null, resumeId = null;
+        double? maxBudget = null;
         bool showVersion = false, yoloMode = false;
 
         for (int i = 0; i < args.Length; i++)
@@ -34,16 +35,19 @@ public class Program
                 case "-t" or "--test": SelfTest.Run(); return 0;
                 case "--debug": DebugLog.Enable(); break;
                 case "--yolo": yoloMode = true; break;
+                case "--max-budget-usd" when i + 1 < args.Length:
+                    if (double.TryParse(args[++i], out var b)) maxBudget = b; break;
                 case "-h" or "--help": ShowUsage(); return 0;
             }
         }
 
-        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.7.0"); return 0; }
+        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.8.0"); return 0; }
 
         _config = Config.FromEnv();
         if (model != null) _config.Model = model;
         if (baseUrl != null) _config.BaseUrl = baseUrl;
         if (apiKey != null) _config.ApiKey = apiKey;
+        if (maxBudget != null) _config.MaxBudgetUsd = maxBudget;
 
         // DeepSeek 模型自动设置 base URL
         if (_config.BaseUrl == null && _config.Model.StartsWith("deepseek"))
@@ -67,14 +71,17 @@ public class Program
 
         _llm = new LLM(_config.Model, _config.ApiKey, _config.BaseUrl,
             _config.MaxTokens, _config.Temperature);
-        _agent = new Agent(_llm, maxContextTokens: _config.MaxContextTokens);
+        _agent = new Agent(_llm, maxContextTokens: _config.MaxContextTokens,
+            maxBudgetUsd: _config.MaxBudgetUsd);
 
         // --yolo: 一次性模式下跳过所有权限确认
         if (yoloMode)
             PermissionManager.SetMode("yolo");
 
-        // 加载自定义斜杠命令
+        // 加载自定义斜杠命令、hooks 和 MCP 服务器
         CustomCommands.Load();
+        HooksManager.Init();
+        McpManager.Init();
 
         // 恢复会话
         if (resumeId != null)
@@ -144,7 +151,7 @@ public class Program
                 .Centered()
                 .Color(Color.Yellow));
         MarkupLine("");
-        MarkupLine($"  [bold]CoreCoder[/] [dim]v0.7.0[/]  ·  模型: [green]{E(_config.Model)}[/]  ·  AI 编程智能体");
+        MarkupLine($"  [bold]CoreCoder[/] [dim]v0.8.0[/]  ·  模型: [green]{E(_config.Model)}[/]  ·  AI 编程智能体");
         if (_config.BaseUrl != null)
             MarkupLine($"  API: [dim]{E(_config.BaseUrl)}[/]");
         MarkupLine("  [dim]/help 帮助  quit 退出  Ctrl+C 取消[/]");
@@ -291,6 +298,7 @@ public class Program
         MarkupLine("  [cyan]-t, --test[/]           运行自测");
         MarkupLine("  [cyan]--debug[/]              开启调试日志 (记录到 logs/ 目录)");
         MarkupLine("  [cyan]--yolo[/]              跳过所有权限确认 (非交互模式必备)");
+        MarkupLine("  [cyan]--max-budget-usd[/] <金额> 费用上限（美元），超支自动停止");
         MarkupLine("  [cyan]-h, --help[/]           显示此帮助");
         Console.WriteLine();
         MarkupLine("  [bold]示例:[/]");

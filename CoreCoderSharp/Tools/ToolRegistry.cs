@@ -5,7 +5,7 @@ namespace CoreCoderSharp.Tools;
 /// </summary>
 public static class ToolRegistry
 {
-    public static readonly List<ITool> AllTools =
+    public static readonly List<ITool> BuiltinTools =
     [
         new BashTool(),
         new ReadFileTool(),
@@ -22,6 +22,17 @@ public static class ToolRegistry
         new LintTool(),
         new WebSearchTool(),
     ];
+
+    /// <summary>所有工具（内置 + MCP 自动发现）</summary>
+    public static List<ITool> AllTools
+    {
+        get
+        {
+            var all = new List<ITool>(BuiltinTools);
+            all.AddRange(McpManager.DiscoveredTools);
+            return all;
+        }
+    }
 
     /// <summary>
     /// 按名称查找工具。未找到时返回 null。
