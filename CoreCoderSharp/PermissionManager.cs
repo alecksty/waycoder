@@ -1,3 +1,4 @@
+using CoreCoderSharp.UI;
 using Spectre.Console;
 
 namespace CoreCoderSharp;
@@ -42,30 +43,26 @@ public static class PermissionManager
         if (CurrentMode == Mode.Auto && _autoAllowed.Contains(autoKey))
             return true;
 
-        // 展示操作内容并询问
-        Console.WriteLine();
-        Spectre.Console.AnsiConsole.MarkupLine($"[bold yellow]⚠ 确认操作[/]");
-        Spectre.Console.AnsiConsole.MarkupLine($"  工具: [cyan]{toolName}[/]");
-        PrintArgs(toolName, args);
-        Console.WriteLine();
+        // 收集操作详情
+        var details = FormatArgs(toolName, args);
+        var content = $"[{TuiColors.AccentMarkup}]工具:[/] {TuiHelper.Esc(toolName)}\n" +
+                      $"{TuiHelper.Esc(details)}";
 
-        var choice = Spectre.Console.AnsiConsole.Prompt(
-            new Spectre.Console.SelectionPrompt<string>()
-                .Title("[bold]是否执行？[/]")
-                .AddChoices(["是 (y)", "总是允许 (a)", "否 (n)"]));
+        TuiBox.Warn("确认操作", content);
+
+        var choice = TuiList.Select("是否执行？",
+            ["是 (y)", "总是允许 (a)", "否 (n)"]);
 
         switch (choice)
         {
             case "总是允许 (a)":
                 _autoAllowed.Add(autoKey);
                 CurrentMode = Mode.Auto;
-                Console.WriteLine();
                 return true;
             case "是 (y)":
-                Console.WriteLine();
                 return true;
             default:
-                Spectre.Console.AnsiConsole.MarkupLine("[orange3]已拒绝[/]");
+                AnsiConsole.MarkupLine($"[{TuiColors.WarnMarkup}]已拒绝[/]");
                 Console.WriteLine();
                 return false;
         }
@@ -92,14 +89,14 @@ public static class PermissionManager
             _ => Mode.Ask,
         };
 
-        var label = CurrentMode switch
+        var (label, color) = CurrentMode switch
         {
-            Mode.Yolo => "[red]YOLO (上帝模式)[/]",
-            Mode.Auto => "[green]Auto (智能确认)[/]",
-            _ => "[yellow]Ask (每次确认)[/]",
+            Mode.Yolo => ("YOLO (上帝模式)", TuiColors.ErrorMarkup),
+            Mode.Auto => ("Auto (智能确认)", TuiColors.SuccessMarkup),
+            _ => ("Ask (每次确认)", TuiColors.WarnMarkup),
         };
 
-        Spectre.Console.AnsiConsole.MarkupLine($"权限模式: {label}");
+        AnsiConsole.MarkupLine($"权限模式: [{color}]{label}[/]");
     }
 
     /// <summary>
@@ -107,20 +104,24 @@ public static class PermissionManager
     /// </summary>
     public static void ShowStatus()
     {
-        var label = CurrentMode switch
+        var (label, desc, color) = CurrentMode switch
         {
-            Mode.Yolo => "[red]YOLO[/] — 不确认，直接执行",
-            Mode.Auto => "[green]Auto[/] — 首次确认后自动允许",
-            _ => "[yellow]Ask[/] — 每次都确认",
+            Mode.Yolo => ("YOLO", "不确认，直接执行", TuiColors.ErrorMarkup),
+            Mode.Auto => ("Auto", "首次确认后自动允许", TuiColors.SuccessMarkup),
+            _ => ("Ask", "每次都确认", TuiColors.WarnMarkup),
         };
-        Spectre.Console.AnsiConsole.MarkupLine($"[bold]权限模式:[/] {label}");
-        Spectre.Console.AnsiConsole.MarkupLine($"[dim]需要确认的工具:[/] {string.Join(", ", DangerousTools)}");
-        Spectre.Console.AnsiConsole.MarkupLine($"[dim]安全工具 (直接执行):[/] read_file, glob, grep");
+
+        var content = $"当前模式: [{color}]{label}[/] — {TuiHelper.Esc(desc)}\n" +
+            $"[{TuiColors.DimMarkup}]需要确认:[/] {string.Join(", ", DangerousTools)}\n" +
+            $"[{TuiColors.DimMarkup}]直接放行:[/] read_file, glob, grep, ls, stat 等只读工具";
+
+        TuiBox.Info("权限状态", content);
     }
+
+    // ---- 内部 ----
 
     private static string BuildAutoKey(string toolName, Dictionary<string, object?> args)
     {
-        // 用工具名 + 第一个关键参数构建去重 key
         var key = toolName;
         if (args.TryGetValue("command", out var cmd))
             key += ":" + (cmd?.ToString()?[..Math.Min(60, cmd.ToString()!.Length)] ?? "");
@@ -129,30 +130,36 @@ public static class PermissionManager
         return key;
     }
 
-    private static void PrintArgs(string toolName, Dictionary<string, object?> args)
+    private static string FormatArgs(string toolName, Dictionary<string, object?> args)
     {
         switch (toolName)
         {
             case "bash":
                 var cmd = args.GetValueOrDefault("command")?.ToString() ?? "";
-                Spectre.Console.AnsiConsole.MarkupLine($"  命令: [dim]{Markup.Escape(cmd)}[/]");
-                break;
+                return $"命令: {TuiHelper.Esc(cmd.Length > 200 ? cmd[..200] + "..." : cmd)}";
             case "write_file":
             case "edit_file":
                 var fp = args.GetValueOrDefault("file_path")?.ToString() ?? "";
-                Spectre.Console.AnsiConsole.MarkupLine($"  文件: [dim]{Markup.Escape(fp)}[/]");
+                var result = $"文件: {TuiHelper.Esc(fp)}";
                 if (toolName == "edit_file")
                 {
                     var old = args.GetValueOrDefault("old_string")?.ToString() ?? "";
                     var n = args.GetValueOrDefault("new_string")?.ToString() ?? "";
-                    Spectre.Console.AnsiConsole.MarkupLine($"  旧: [dim]{Markup.Escape(old.Length > 80 ? old[..80] + "..." : old)}[/]");
-                    Spectre.Console.AnsiConsole.MarkupLine($"  新: [dim]{Markup.Escape(n.Length > 80 ? n[..80] + "..." : n)}[/]");
+                    result += $"\n旧: {TuiHelper.Esc(old.Length > 80 ? old[..80] + "..." : old)}";
+                    result += $"\n新: {TuiHelper.Esc(n.Length > 80 ? n[..80] + "..." : n)}";
                 }
-                break;
+                return result;
             case "agent":
                 var task = args.GetValueOrDefault("task")?.ToString() ?? "";
-                Spectre.Console.AnsiConsole.MarkupLine($"  任务: [dim]{Markup.Escape(task.Length > 120 ? task[..120] + "..." : task)}[/]");
-                break;
+                return $"任务: {TuiHelper.Esc(task.Length > 120 ? task[..120] + "..." : task)}";
+            case "kill":
+                var pid = args.GetValueOrDefault("pid")?.ToString() ?? "?";
+                return $"进程 ID: {TuiHelper.Esc(pid)}";
+            case "rm":
+                var path = args.GetValueOrDefault("path")?.ToString() ?? "?";
+                return $"路径: {TuiHelper.Esc(path)}";
+            default:
+                return "";
         }
     }
 }
