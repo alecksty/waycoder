@@ -57,10 +57,10 @@ public class GitTool : ITool
             };
 
             using var proc = Process.Start(psi)!;
-            proc.WaitForExit(15_000);
-
+            // 先读取输出再等待退出，避免缓冲区满导致死锁
             var stdout = proc.StandardOutput.ReadToEnd();
             var stderr = proc.StandardError.ReadToEnd();
+            proc.WaitForExit(15_000);
 
             var result = stdout;
             if (!string.IsNullOrEmpty(stderr))
