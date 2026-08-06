@@ -16,4 +16,9 @@
     <PackageReference Include="Spectre.Console" Version="0.*" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="game/**/*.cs" />
+    <None Remove="game/**/*" />
+  </ItemGroup>
+
 </Project>
