@@ -165,6 +165,11 @@ public class Program
             var lower = userInput.ToLowerInvariant();
             if (lower is "quit" or "exit" or "/quit" or "/exit") break;
 
+            // ---- 输入提示触发 ----
+            if (userInput == "/") { userInput = ShowCommandPalette(); if (string.IsNullOrEmpty(userInput)) continue; }
+            if (userInput == "!") { await RunShellOnceAsync(); continue; }
+            if (userInput == "#") { userInput = await ShowFileHintAsync(); if (string.IsNullOrEmpty(userInput)) continue; }
+
             // 内置命令
             if (userInput == "/help") { ShowHelp(); continue; }
             if (userInput == "/reset") { _agent!.Reset(); MarkupLine("[orange3]♻ 对话已重置[/]"); continue; }
@@ -399,6 +404,76 @@ public class Program
         table.Render();
     }
 
+    // ========================================================================
+    // 输入触发式智能提示
+    // ========================================================================
+
+    /// <summary>/ 触发：弹出命令面板，用方向键选择，回车执行</summary>
+    private static string ShowCommandPalette()
+    {
+        var commands = new List<string>
+        {
+            "/help", "/reset", "/model", "/model <名称>", "/tokens",
+            "/compact", "/diff", "/save", "/sessions",
+            "/debug-on", "/debug-off", "/permissions", "/perm <ask|auto|yolo>",
+            "/plan", "/todo", "/git-status", "/git-log", "/git-diff",
+            "/review", "/lint", "/search <关键词>",
+            "/checkpoint", "/undo [编号]", "/checkpoints",
+            "/repomap", "/pr [标题]", "quit",
+        };
+
+        // 追加自定义命令
+        foreach (var (name, _) in CustomCommands.Commands)
+            commands.Add($"/{name}");
+
+        var choice = TuiList.Select("命令面板 ↑↓ 选择 Enter 执行 Esc 取消", commands);
+        if (choice == null) return "";
+
+        // 对于带参数的命令，截取命令名
+        var spaceIdx = choice.IndexOf(' ');
+        return spaceIdx > 0 ? choice[..spaceIdx] : choice;
+    }
+
+    /// <summary>! 触发：输入 Shell 命令并立即执行</summary>
+    private static async Task<string> RunShellOnceAsync()
+    {
+        var cmd = TuiPrompt.Ask("! 命令");
+        if (string.IsNullOrWhiteSpace(cmd)) return "";
+
+        try
+        {
+            var result = await new Tools.BashTool().ExecuteAsync(
+                new Dictionary<string, object?> { ["command"] = cmd });
+            Console.WriteLine(result);
+        }
+        catch (Exception ex)
+        {
+            TuiBox.Error("Shell 错误", ex.Message);
+        }
+        return ""; // 不回传给 Agent
+    }
+
+    /// <summary># 触发：显示工程文件列表，辅助输入</summary>
+    private static async Task<string> ShowFileHintAsync()
+    {
+        // 快速显示目录结构
+        try
+        {
+            var treeResult = await new Tools.TreeTool().ExecuteAsync(
+                new Dictionary<string, object?> { ["depth"] = 2, ["max"] = 30 });
+            // 只显示前 20 行
+            var lines = treeResult.Split('\n').Take(20);
+            AnsiConsole.MarkupLine($"[{TuiColors.DimMarkup}]── 工程文件 (前 20 行) ──[/]");
+            foreach (var line in lines)
+                Console.WriteLine($"  [{TuiColors.DimMarkup}]{TuiHelper.Esc(line)}[/]");
+            Console.WriteLine();
+        }
+        catch { /* 静默失败 */ }
+
+        var file = TuiPrompt.Ask("# 文件");
+        return string.IsNullOrWhiteSpace(file) ? "" : $"#{file}";
+    }
+
     private static void ShowSessions()
     {
         var sessions = SessionManager.ListSessions();
@@ -608,67 +683,80 @@ public class Program
     private static void M(string markup) => AnsiConsole.Markup(markup);
 
     /// <summary>
-    /// 带状态动画的 ChatAsync 包装器。
-    /// 等待 LLM 时显示 "⏳ 思考中..."，首 token 到达后清除，
-    /// 工具调用时显示 "🔧 工具名"，调用完成后恢复 "⏳ 思考中..."。
+    /// 带旋转动画 + 超时提示的 ChatAsync 包装器。
+    /// 等待 LLM 时显示 "⠋ 思考中..." 旋转动画，网络卡顿无响应时有进度提示。
     /// </summary>
     private static async Task<string> ChatWithStatusAsync(
         string userInput,
         CancellationToken ct,
         Action<bool>? setStreamed = null)
     {
-        var thinking = true;
-        var statusText = $"  [dim]⏳ 思考中...[/]";
+        var spinnerFrames = new[] { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" };
+        var spinnerActive = false;
+        var startTime = DateTime.UtcNow;
+        CancellationTokenSource? spinnerCts = null;
 
-        void ClearStatus()
+        void StartSpinner()
         {
-            if (thinking)
+            if (spinnerActive) return;
+            spinnerActive = true;
+            startTime = DateTime.UtcNow;
+            spinnerCts = new CancellationTokenSource();
+            var token = spinnerCts.Token;
+            _ = Task.Run(async () =>
             {
-                Console.Write("\r" + new string(' ', 40) + "\r");
-                thinking = false;
-            }
+                var i = 0;
+                while (!token.IsCancellationRequested)
+                {
+                    var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
+                    string status;
+                    if (elapsed > 60)
+                        status = $"{spinnerFrames[i % spinnerFrames.Length]} 响应缓慢, 请耐心等待... ({elapsed:F0}s)";
+                    else if (elapsed > 30)
+                        status = $"{spinnerFrames[i % spinnerFrames.Length]} 等待响应中... ({elapsed:F0}s)";
+                    else if (elapsed > 15)
+                        status = $"{spinnerFrames[i % spinnerFrames.Length]} 思考中... ({elapsed:F0}s)";
+                    else
+                        status = $"{spinnerFrames[i % spinnerFrames.Length]} 思考中...";
+
+                    Console.Write($"\r  [2m{status}[0m");
+                    i++;
+                    try { await Task.Delay(120, token); }
+                    catch (OperationCanceledException) { break; }
+                }
+            }, token);
         }
 
-        void ShowStatus()
+        void StopSpinner()
         {
-            if (!thinking)
-            {
-                AnsiConsole.Markup(statusText);
-                thinking = true;
-            }
+            if (!spinnerActive) return;
+            spinnerActive = false;
+            spinnerCts?.Cancel();
+            Console.Write("\r" + new string(' ', 60) + "\r");
         }
 
-        // 初始状态
-        AnsiConsole.Markup(statusText);
+        // 初始动画
+        StartSpinner();
 
         var response = await _agent!.ChatAsync(userInput,
             onToken: tok =>
             {
-                ClearStatus();
+                StopSpinner();
                 Console.Write(tok);
                 if (setStreamed != null) setStreamed(true);
             },
             onTool: (name, brief) =>
             {
-                // 不换行清除状态行
-                if (thinking)
-                    Console.Write("\r" + new string(' ', 40) + "\r");
-                else
-                    Console.WriteLine(); // 结束上一行流式输出
-                thinking = false;
-
+                StopSpinner();
+                Console.WriteLine(); // 结束上一行流式输出
                 var shortBrief = brief.Length > 60 ? brief[..57] + "..." : brief;
                 AnsiConsole.MarkupLine($"  [dim]🔧 {E(name)}({E(shortBrief)})[/]");
-
-                // 为下一轮 LLM 调用显示状态
-                ShowStatus();
-                thinking = true;
+                StartSpinner(); // 下一轮 LLM 等待
             },
             cancellationToken: ct);
 
-        // 清除最后一轮的状态
-        if (thinking)
-            Console.Write("\r" + new string(' ', 40) + "\r");
+        // 清除最后一轮动画
+        StopSpinner();
 
         return response;
     }
