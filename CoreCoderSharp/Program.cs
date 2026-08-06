@@ -214,6 +214,8 @@ public class Program
             if (userInput == "/checkpoints") { ShowCheckpoints(); continue; }
             if (userInput == "/repomap" || userInput == "/map") { ShowRepoMap(); continue; }
             if (userInput.StartsWith("/pr")) { await RunPRAsync(userInput); continue; }
+            if (userInput == "/edit") { await Editor.PickAndRunAsync(); continue; }
+            if (userInput.StartsWith("/edit ")) { await Editor.RunAsync(userInput[6..].Trim()); continue; }
 
             if (userInput.StartsWith('/'))
             {
@@ -342,6 +344,7 @@ public class Program
         table.AddRow("/checkpoints", "列出检查点");
         table.AddRow("/repomap", "刷新仓库地图");
         table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/pr[/] [dim][[标题]][/]", "创建 Pull Request");
+        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/edit[/] [dim][文件][/]", "终端源码编辑器");
         table.AddRow("quit", "退出");
 
         // 自定义命令
@@ -436,7 +439,7 @@ public class Program
             "/plan", "/todo", "/git-status", "/git-log", "/git-diff",
             "/review", "/lint", "/search <关键词>",
             "/checkpoint", "/undo [编号]", "/checkpoints",
-            "/repomap", "/pr [标题]", "quit",
+            "/repomap", "/pr [标题]", "/edit [文件]", "quit",
         };
 
         // 追加自定义命令
