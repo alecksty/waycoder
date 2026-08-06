@@ -1,4 +1,11 @@
-# Changelog
+# 更新日志
+
+## v0.6.0 (2026-08-06) — 纯 C# 版
+
+### 🔥 重大变更
+- **移除 Python 版** — 删除 `corecoder/`、`tests/`、`pyproject.toml` 等全部 Python 代码
+- **C# 版成为唯一版本** — `CoreCoderSharp/` 是项目唯一实现
+- **文档中文化** — README、CLAUDE.md、CHANGELOG 全部改为中文
 
 ## v0.5.0 (2026-08-05) — C# 重构版
 
