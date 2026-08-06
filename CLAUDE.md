@@ -12,7 +12,7 @@ CoreCoder 是一个极简 AI 编程智能体，C# (.NET 10) 实现，AOT 编译�
 # C# 版
 cd CoreCoderSharp
 dotnet publish -c Release            # AOT 编译
-dotnet run -- --test                 # 44 自测
+dotnet run -- --test                 # 245 自测
 dotnet run -- -p "提示词"            # 一次性模式
 ```
 
@@ -34,13 +34,18 @@ CoreCoderSharp/
 ├── MemoryStore.cs     记忆系统
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        44 项自测
-└── Tools/             12 个工具
+├── SelfTest.cs        245 项自测
+└── Tools/             29 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
-    ├── WriteFileTool.cs TodoTool.cs
-    ├── EditFileTool.cs AgentTool.cs
-    ├── GlobTool.cs    GrepTool.cs
+    ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
+    ├── EditFileTool.cs AgentTool.cs  WebSearchTool.cs
+    ├── GlobTool.cs    GrepTool.cs    GitPRTool.cs
+    ├── PsTool.cs      KillTool.cs    LsTool.cs
+    ├── MkdirTool.cs   RmTool.cs      CdTool.cs
+    ├── FindReplaceTool.cs CpTool.cs  MvTool.cs
+    ├── DiffTool.cs    TreeTool.cs    WcTool.cs
+    ├── StatTool.cs    PwdTool.cs
 ```
 
 ## 关键设计决策

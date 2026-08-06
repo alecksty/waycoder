@@ -26,6 +26,8 @@ public interface ITool
     /// </summary>
     JsonObject Schema()
     {
+        // 深拷贝 Parameters 避免 "node already has a parent" 错误
+        var clonedParams = JsonHelper.DeepClone(Parameters);
         return new JsonObject
         {
             ["type"] = "function",
@@ -33,7 +35,7 @@ public interface ITool
             {
                 ["name"] = Name,
                 ["description"] = Description,
-                ["parameters"] = Parameters,
+                ["parameters"] = clonedParams,
             },
         };
     }

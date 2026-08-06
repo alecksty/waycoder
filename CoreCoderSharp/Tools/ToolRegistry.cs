@@ -22,6 +22,20 @@ public static class ToolRegistry
         new LintTool(),
         new WebSearchTool(),
         new GitPRTool(),
+        new PsTool(),
+        new KillTool(),
+        new LsTool(),
+        new MkdirTool(),
+        new RmTool(),
+        new CdTool(),
+        new FindReplaceTool(),
+        new CpTool(),
+        new MvTool(),
+        new DiffTool(),
+        new TreeTool(),
+        new WcTool(),
+        new StatTool(),
+        new PwdTool(),
     ];
 
     /// <summary>所有工具（内置 + MCP 自动发现）</summary>

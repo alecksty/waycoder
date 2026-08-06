@@ -1,0 +1,144 @@
+using System.Diagnostics;
+
+namespace CoreCoderSharp.Tools;
+
+/// <summary>
+/// 进程终止工具 —— 按 PID 或进程名终止进程。
+/// Windows: taskkill，Unix: kill / pkill。
+/// 禁止终止系统关键进程。
+/// </summary>
+public class KillTool : ITool
+{
+    public string Name => "kill";
+    public string Description => "终止指定进程。通过 PID 或进程名（如 'node'、'dotnet'）。禁止终止系统关键进程。";
+
+    public JsonObject Parameters => new()
+    {
+        ["type"] = "object",
+        ["properties"] = new JsonObject
+        {
+            ["pid"] = new JsonObject
+            {
+                ["type"] = "integer",
+                ["description"] = "要终止的进程 PID",
+            },
+            ["name"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "要终止的进程名（如 'node'、'python'）",
+            },
+            ["force"] = new JsonObject
+            {
+                ["type"] = "boolean",
+                ["description"] = "强制终止（默认 false，先尝试优雅终止）",
+            },
+        },
+        ["required"] = new JsonArray(),
+    };
+
+    // 禁止终止的关键系统进程
+    private static readonly HashSet<string> ProtectedNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "System", "smss", "csrss", "wininit", "services", "lsass",
+        "svchost", "winlogon", "Idle", "Registry", "System Idle Process",
+        "kernel32", "ntoskrnl", "PID 0", "PID 4",
+    };
+
+    public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+    {
+        var hasPid = arguments.ContainsKey("pid");
+        var hasName = arguments.ContainsKey("name");
+        var pid = arguments.TryGetValue("pid", out var p) && p != null ? Convert.ToInt32(p) : 0;
+        var name = arguments.GetValueOrDefault("name")?.ToString() ?? "";
+        var force = arguments.TryGetValue("force", out var f) && f is bool fb && fb;
+
+        return Task.FromResult(Execute(hasPid, pid, hasName, name, force));
+    }
+
+    private static string Execute(bool hasPid, int pid, bool hasName, string name, bool force)
+    {
+        // 系统关键 PID 检查（优先于参数缺失检查）
+        if (hasPid && (pid == 0 || pid == 4))
+            return $"⚠ 已阻止：PID {pid} 是系统关键进程，不可终止。";
+
+        if (!hasPid && !hasName)
+            return "错误：必须指定 pid 或 name 参数。";
+
+        if (!string.IsNullOrEmpty(name) && ProtectedNames.Contains(name))
+            return $"⚠ 已阻止：'{name}' 是系统关键进程，不可终止。";
+
+        try
+        {
+            string fileName, args;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                fileName = "cmd.exe";
+                var forceFlag = force ? " /F" : "";
+                if (pid > 0)
+                    args = $"/c \"taskkill{forceFlag} /PID {pid} 2>&1\"";
+                else
+                    args = $"/c \"taskkill{forceFlag} /IM \\\"{name}.exe\\\" 2>&1\"";
+            }
+            else
+            {
+                fileName = "/bin/bash";
+                if (pid > 0)
+                {
+                    var sig = force ? "-9 " : "";
+                    args = $"-c \"kill {sig}{pid} 2>&1\"";
+                }
+                else
+                {
+                    var sig = force ? "-9 " : "";
+                    args = $"-c \"pkill {sig}{EscapeBash(name)} 2>&1\"";
+                }
+            }
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = fileName,
+                Arguments = args,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            using var proc = Process.Start(psi)!;
+            var stdout = new System.Text.StringBuilder();
+            var stderr = new System.Text.StringBuilder();
+            proc.OutputDataReceived += (_, e) => { if (e.Data != null) stdout.AppendLine(e.Data); };
+            proc.ErrorDataReceived += (_, e) => { if (e.Data != null) stderr.AppendLine(e.Data); };
+            proc.BeginOutputReadLine();
+            proc.BeginErrorReadLine();
+
+            if (!proc.WaitForExit(10_000))
+            {
+                proc.Kill(entireProcessTree: true);
+                return "错误：kill 命令超时（10s）";
+            }
+            proc.WaitForExit();
+
+            var result = stdout.ToString();
+            var err = stderr.ToString();
+
+            if (!string.IsNullOrEmpty(err))
+                result += $"\n[stderr]\n{err}";
+
+            var target = pid > 0 ? $"PID {pid}" : name;
+            if (proc.ExitCode != 0)
+                result += $"\n[退出码：{proc.ExitCode}] 终止 {target} 可能失败";
+
+            return string.IsNullOrWhiteSpace(result)
+                ? $"✔ 已终止 {target}"
+                : result.Trim();
+        }
+        catch (Exception ex)
+        {
+            return $"kill 错误：{ex.Message}";
+        }
+    }
+
+    private static string EscapeBash(string s) => s.Replace("'", "'\\''");
+}
