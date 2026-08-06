@@ -126,8 +126,16 @@ public class Program
         }
         catch (OperationCanceledException)
         {
-            MarkupLine("\n[orange3]⚠ 已中断[/]");
-            Environment.Exit(130);
+            if (cts.IsCancellationRequested)
+            {
+                MarkupLine("\n[orange3]⚠ 已中断[/]");
+                Environment.Exit(130);
+            }
+            else
+            {
+                TuiBox.Error("请求超时", "服务器 60s 未响应，请检查网络或 API 配置");
+                Environment.Exit(1);
+            }
         }
         catch (Exception ex)
         {
@@ -260,7 +268,10 @@ public class Program
             }
             catch (OperationCanceledException)
             {
-                MarkupLine("\n[orange3]⚠ 已中断[/]");
+                if (cts.IsCancellationRequested)
+                    MarkupLine("\n[orange3]⚠ 已中断[/]");
+                else
+                    TuiBox.Error("请求超时", "服务器 60s 未响应，请检查网络或 API 配置");
             }
             catch (Exception ex)
             {
@@ -697,6 +708,10 @@ public class Program
         CancellationToken ct,
         Action<bool>? setStreamed = null)
     {
+        // ANSI 控制序列 (显式 ESC 字节, 兼容所有终端)
+        const string DimOn = "[2m";
+        const string DimOff = "[0m";
+        const string ClearLine = "[2K";
         var spinnerFrames = new[] { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" };
         var spinnerActive = false;
         var startTime = DateTime.UtcNow;
@@ -715,17 +730,20 @@ public class Program
                 while (!token.IsCancellationRequested)
                 {
                     var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
+                    var frame = spinnerFrames[i % spinnerFrames.Length];
                     string status;
                     if (elapsed > 60)
-                        status = $"{spinnerFrames[i % spinnerFrames.Length]} 响应缓慢, 请耐心等待... ({elapsed:F0}s)";
+                        status = $"{frame} 响应缓慢, 请耐心等待... ({elapsed:F0}s)";
                     else if (elapsed > 30)
-                        status = $"{spinnerFrames[i % spinnerFrames.Length]} 等待响应中... ({elapsed:F0}s)";
+                        status = $"{frame} 等待响应中... ({elapsed:F0}s)";
                     else if (elapsed > 15)
-                        status = $"{spinnerFrames[i % spinnerFrames.Length]} 思考中... ({elapsed:F0}s)";
+                        status = $"{frame} 思考中... ({elapsed:F0}s)";
                     else
-                        status = $"{spinnerFrames[i % spinnerFrames.Length]} 思考中...";
+                        status = $"{frame} 思考中...";
 
-                    Console.Write($"\r  [2m{status}[0m");
+                    // 清行 + 回行首 + 动画帧 (直接写 stdout，绕过 Spectre 管线)
+                    System.Console.Write($"\r{ClearLine}  {DimOn}{status}{DimOff}");
+                    System.Console.Out.Flush();
                     i++;
                     try { await Task.Delay(120, token); }
                     catch (OperationCanceledException) { break; }
@@ -739,6 +757,7 @@ public class Program
             spinnerActive = false;
             spinnerCts?.Cancel();
             Console.Write("\r" + new string(' ', 60) + "\r");
+            Console.Out.Flush();
         }
 
         // 初始动画

@@ -138,6 +138,12 @@ public class LLM
         Action<ToolCall>? onToolCall = null,
         CancellationToken cancellationToken = default)
     {
+        // 每次 HTTP 请求 60 秒超时，防止服务器无响应无限等待
+        using var requestTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken, requestTimeout.Token);
+        cancellationToken = linked.Token;
+
         var endpoint = (BaseUrl ?? "https://api.openai.com").TrimEnd('/') + "/v1/chat/completions";
 
         // 调试日志：记录发送内容
