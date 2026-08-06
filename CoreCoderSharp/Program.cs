@@ -1,5 +1,6 @@
 using System.Text;
 using CoreCoderSharp.Tools;
+using CoreCoderSharp.UI;
 using Spectre.Console;
 
 namespace CoreCoderSharp;
@@ -41,7 +42,7 @@ public class Program
             }
         }
 
-        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.9.0"); return 0; }
+        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.10.0"); return 0; }
 
         _config = Config.FromEnv();
         if (model != null) _config.Model = model;
@@ -120,10 +121,7 @@ public class Program
         try
         {
             MarkupLine($"[dim]🤖 {E(prompt)}[/]");
-            await _agent!.ChatAsync(prompt,
-                onToken: tok => Console.Write(tok),
-                onTool: (name, brief) => MarkupLine($"  [dim grey]⚙ {E(name)}({E(brief)})[/]"),
-                cancellationToken: cts.Token);
+            await ChatWithStatusAsync(prompt, cts.Token);
             Console.WriteLine();
         }
         catch (OperationCanceledException)
@@ -133,7 +131,7 @@ public class Program
         }
         catch (Exception ex)
         {
-            MarkupLine($"\n[red]✘ 错误: {E(ex.Message)}[/]");
+            TuiBox.Error("错误", ex.Message);
             Environment.Exit(1);
         }
     }
@@ -144,20 +142,9 @@ public class Program
 
     private static async Task RunReplAsync()
     {
-        // 彩色欢迎横幅 + ASCII Art
-        MarkupLine("");
-        AnsiConsole.Write(
-            new FigletText("CoreCoder")
-                .Centered()
-                .Color(Color.Yellow));
-        MarkupLine("");
-        MarkupLine($"  [bold]CoreCoder[/] [dim]v0.9.0[/]  ·  模型: [green]{E(_config.Model)}[/]  ·  AI 编程智能体");
-        if (_config.BaseUrl != null)
-            MarkupLine($"  API: [dim]{E(_config.BaseUrl)}[/]");
-        MarkupLine("  [dim]/help 帮助  quit 退出  Ctrl+C 取消[/]");
-        if (DebugLog.Enabled)
-            MarkupLine("  [bold orange3]🐛 DEBUG 模式已开启 → logs/ 目录[/]");
-        Console.WriteLine();
+        // 欢迎横幅
+        TuiBanner.Show("CoreCoder", "0.10.0", _config.Model,
+            _config.BaseUrl, DebugLog.Enabled);
 
         while (true)
         {
@@ -235,12 +222,8 @@ public class Program
                         try
                         {
                             using var cts2 = new CancellationTokenSource();
-                            var response = await _agent!.ChatAsync(cmdMsg,
-                                onToken: tok => Console.Write(tok),
-                                onTool: (name, brief) => MarkupLine($"  [dim grey]⚙ {E(name)}({E(brief)})[/]"),
-                                cancellationToken: cts2.Token);
+                            await ChatWithStatusAsync(cmdMsg, cts2.Token);
                             Console.WriteLine();
-                            if (!string.IsNullOrEmpty(response)) Console.WriteLine(response);
                         }
                         catch (Exception ex)
                         {
@@ -261,10 +244,8 @@ public class Program
             try
             {
                 var streamed = false;
-                var response = await _agent!.ChatAsync(userInput,
-                    onToken: tok => { Console.Write(tok); streamed = true; },
-                    onTool: (name, brief) => MarkupLine($"  [dim grey]⚙ {E(name)}({E(brief)})[/]"),
-                    cancellationToken: cts.Token);
+                var response = await ChatWithStatusAsync(userInput, cts.Token,
+                    setStreamed: s => streamed = s);
 
                 if (streamed) Console.WriteLine();
                 else if (!string.IsNullOrEmpty(response)) Console.WriteLine(response);
@@ -275,7 +256,7 @@ public class Program
             }
             catch (Exception ex)
             {
-                MarkupLine($"\n[red]✘ 错误: {E(ex.Message)}[/]");
+                TuiBox.Error("错误", ex.Message);
             }
         }
     }
@@ -312,46 +293,51 @@ public class Program
 
     private static void ShowHelp()
     {
-        MarkupLine("[bold yellow]╭─ 命令 ─────────────────────────╮[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/help[/]          显示此帮助   [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/reset[/]         清空对话历史  [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/model[/]         显示当前模型  [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/model[/] [dim]<名称>[/]  切换模型     [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/tokens[/]        显示 Token 用量[b][bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/compact[/]       压缩上下文    [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/diff[/]          修改文件列表  [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/save[/]          保存会话      [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/sessions[/]      已保存的会话  [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/debug-on[/]      开启调试日志  [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/debug-off[/]     关闭调试日志  [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/permissions[/]   权限管理      [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/perm[/] [dim]<ask|auto|yolo>[/]  设置权限模式 [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/plan[/]          计划模式      [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/todo[/]          查看任务列表  [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/git-status[/]    Git 状态      [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/git-log[/]       Git 日志      [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/git-diff[/]      Git 差异      [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/review[/]        代码审查      [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/lint[/]          运行 lint 检查 [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/search[/] [dim]<关键词>[/] 网页搜索      [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/checkpoint[/]    创建检查点    [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/undo[/] [dim][编号][/]     回退检查点    [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/checkpoints[/]   列出检查点    [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/repomap[/]      刷新仓库地图  [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]/pr [标题][/]     创建 Pull Request [bold yellow]│[/]");
-        MarkupLine("[bold yellow]│[/] [cyan]quit[/]           退出          [bold yellow]│[/]");
+        var table = new TuiTable("命令");
+        table.AddColumn("命令");
+        table.AddColumn("说明");
+
+        // 内置命令
+        table.AddRow("/help", "显示此帮助");
+        table.AddRow("/reset", "清空对话历史");
+        table.AddRow("/model", "显示当前模型");
+        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/model[/] [dim]&lt;名称&gt;[/]", "切换模型");
+        table.AddRow("/tokens", "显示 Token 用量");
+        table.AddRow("/compact", "压缩上下文");
+        table.AddRow("/diff", "修改文件列表");
+        table.AddRow("/save", "保存会话");
+        table.AddRow("/sessions", "已保存的会话");
+        table.AddRow("/debug-on / -off", "开启/关闭调试日志");
+        table.AddRow("/permissions", "权限管理");
+        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/perm[/] [dim]&lt;ask|auto|yolo&gt;[/]", "设置权限模式");
+        table.AddRow("/plan", "计划模式");
+        table.AddRow("/todo", "查看任务列表");
+        table.AddRow("/git-status", "Git 状态");
+        table.AddRow("/git-log", "Git 日志");
+        table.AddRow("/git-diff", "Git 差异");
+        table.AddRow("/review", "代码审查");
+        table.AddRow("/lint", "运行 lint 检查");
+        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/search[/] [dim]&lt;关键词&gt;[/]", "网页搜索");
+        table.AddRow("/checkpoint", "创建检查点");
+        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/undo[/] [dim][[编号]][/]", "回退检查点");
+        table.AddRow("/checkpoints", "列出检查点");
+        table.AddRow("/repomap", "刷新仓库地图");
+        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/pr[/] [dim][[标题]][/]", "创建 Pull Request");
+        table.AddRow("quit", "退出");
+
         // 自定义命令
         if (CustomCommands.Commands.Count > 0)
         {
-            MarkupLine("[bold yellow]│[/]                            [bold yellow]│[/]");
-            MarkupLine("[bold yellow]│[/] [dim]自定义命令:[/]                [bold yellow]│[/]");
             foreach (var (name, cmd) in CustomCommands.Commands)
             {
-                var desc = cmd.Description.Length > 20 ? cmd.Description[..17] + "..." : cmd.Description;
-                MarkupLine($"[bold yellow]│[/] [cyan]/{E(name)}[/]  {E(desc),-18} [bold yellow]│[/]");
+                var desc = cmd.Description.Length > 20
+                    ? cmd.Description[..17] + "..."
+                    : cmd.Description;
+                table.AddRow($"/{name}", desc);
             }
         }
-        MarkupLine("[bold yellow]╰────────────────────────────────╯[/]");
+
+        table.Render();
     }
 
     private static void ShowTokens()
@@ -359,13 +345,16 @@ public class Program
         var p = _llm!.TotalPromptTokens;
         var c = _llm!.TotalCompletionTokens;
         var total = p + c;
-        M($"[bold]Token 用量:[/] ");
-        M($"[cyan]{p:N0}[/] 输入 + [cyan]{c:N0}[/] 输出 = [bold green]{total:N0}[/] 总计");
-
         var cost = _llm.EstimatedCost;
+
+        var content = new StringBuilder();
+        content.AppendLine($"[{TuiColors.AccentMarkup}]{p:N0}[/] 输入 " +
+            $"+ [{TuiColors.AccentMarkup}]{c:N0}[/] 输出 " +
+            $"= [bold {TuiColors.SuccessMarkup}]{total:N0}[/] 总计");
         if (cost != null)
-            M($"  [dim]约 ${cost:F4}[/]");
-        Console.WriteLine();
+            content.Append($"约 [dim]${cost:F4}[/]");
+
+        TuiBox.Info("Token 用量", content.ToString().TrimEnd());
     }
 
     private static void SwitchModel(string input)
@@ -403,13 +392,14 @@ public class Program
         if (files.Count == 0)
         {
             MarkupLine("[dim]未修改任何文件[/]");
+            return;
         }
-        else
-        {
-            MarkupLine($"[bold]修改的文件 ([green]{files.Count}[/] 个):[/]");
-            foreach (var f in files.OrderBy(f => f))
-                MarkupLine($"  [cyan]{E(f)}[/]");
-        }
+
+        var table = new TuiTable($"修改的文件 ({files.Count} 个)");
+        table.AddColumn("文件路径");
+        foreach (var f in files.OrderBy(f => f))
+            table.AddRow(f);
+        table.Render();
     }
 
     private static void ShowSessions()
@@ -418,13 +408,19 @@ public class Program
         if (sessions.Count == 0)
         {
             MarkupLine("[dim]没有已保存的会话[/]");
+            return;
         }
-        else
-        {
-            MarkupLine($"[bold]已保存的会话 ([green]{sessions.Count}[/] 个):[/]");
-            foreach (var s in sessions)
-                MarkupLine($"  [cyan]{E(s.Id)}[/] [dim]{E(s.Model)}  {E(s.SavedAt)}[/]  {E(s.Preview)}");
-        }
+
+        var table = new TuiTable($"已保存的会话 ({sessions.Count} 个)");
+        table.AddColumn("ID", 12);
+        table.AddColumn("模型", 20);
+        table.AddColumn("保存时间", 20);
+        table.AddColumn("预览");
+
+        foreach (var s in sessions)
+            table.AddRow(s.Id, s.Model, s.SavedAt, s.Preview);
+
+        table.Render();
     }
 
     // ========================================================================
@@ -446,17 +442,12 @@ public class Program
         using var cts = new CancellationTokenSource();
         try
         {
-            var response = await _agent!.ChatAsync(planPrompt,
-                onToken: tok => Console.Write(tok),
-                onTool: (name, brief) => MarkupLine($"  [dim grey]⚙ {E(name)}({E(brief)})[/]"),
-                cancellationToken: cts.Token);
+            await ChatWithStatusAsync(planPrompt, cts.Token);
             Console.WriteLine();
-            if (!string.IsNullOrEmpty(response))
-                Console.WriteLine(response);
         }
         catch (Exception ex)
         {
-            MarkupLine($"[red]错误: {E(ex.Message)}[/]");
+            TuiBox.Error("错误", ex.Message);
         }
     }
 
@@ -466,25 +457,30 @@ public class Program
         if (items.Count == 0)
         {
             MarkupLine("[dim]（暂无任务）[/]");
+            return;
         }
-        else
+
+        var completed = items.Count(i => i.Status == "completed");
+        var table = new TuiTable($"任务列表 ({completed}/{items.Count} 完成)");
+        table.AddColumn("#", 5);
+        table.AddColumn("状态", 14);
+        table.AddColumn("标题");
+
+        var statusMarkup = new Dictionary<string, string>
         {
-            MarkupLine($"[bold]任务列表 ([green]{items.Count(i => i.Status == "completed")}[/]/{items.Count} 完成):[/]");
-            var icons = new Dictionary<string, string>
-            {
-                ["pending"] = "⏳", ["in_progress"] = "🔄", ["completed"] = "✅", ["cancelled"] = "❌",
-            };
-            foreach (var item in items.OrderBy(i => i.Id))
-            {
-                var icon = icons.GetValueOrDefault(item.Status, "❓");
-                var color = item.Status switch
-                {
-                    "completed" => "[green]", "in_progress" => "[cyan]", "cancelled" => "[dim]",
-                    _ => "[yellow]",
-                };
-                MarkupLine($"  #{item.Id} {icon} {color}[{item.Status}][/] {E(item.Title)}");
-            }
+            ["completed"] = $"[{TuiColors.SuccessMarkup}]✅ 已完成[/]",
+            ["in_progress"] = $"[{TuiColors.AccentMarkup}]🔄 进行中[/]",
+            ["pending"] = $"[{TuiColors.WarnMarkup}]⏳ 待处理[/]",
+            ["cancelled"] = $"[{TuiColors.DimMarkup}]❌ 已取消[/]",
+        };
+
+        foreach (var item in items.OrderBy(i => i.Id))
+        {
+            var status = statusMarkup.GetValueOrDefault(item.Status, $"❓ {item.Status}");
+            table.AddMarkupRow($"#{item.Id}", status, TuiHelper.Esc(item.Title));
         }
+
+        table.Render();
     }
 
     private static async Task RunReviewAsync()
@@ -500,16 +496,12 @@ public class Program
         using var cts = new CancellationTokenSource();
         try
         {
-            var response = await _agent!.ChatAsync(reviewPrompt,
-                onToken: tok => Console.Write(tok),
-                onTool: (name, brief) => MarkupLine($"  [dim grey]⚙ {E(name)}({E(brief)})[/]"),
-                cancellationToken: cts.Token);
+            await ChatWithStatusAsync(reviewPrompt, cts.Token);
             Console.WriteLine();
-            if (!string.IsNullOrEmpty(response)) Console.WriteLine(response);
         }
         catch (Exception ex)
         {
-            MarkupLine($"[red]审查出错: {E(ex.Message)}[/]");
+            TuiBox.Error("审查出错", ex.Message);
         }
     }
 
@@ -607,7 +599,7 @@ public class Program
     }
 
     // ========================================================================
-    // 辅助方法: 安全的 Spectre.Console 输出
+    // 辅助方法: 安全的 Spectre.Console 输出 + 状态动画
     // ========================================================================
 
     /// <summary>转义用户内容中的 Spectre 标记字符</summary>
@@ -618,4 +610,70 @@ public class Program
 
     /// <summary>输出带标记的文本（不换行）</summary>
     private static void M(string markup) => AnsiConsole.Markup(markup);
+
+    /// <summary>
+    /// 带状态动画的 ChatAsync 包装器。
+    /// 等待 LLM 时显示 "⏳ 思考中..."，首 token 到达后清除，
+    /// 工具调用时显示 "🔧 工具名"，调用完成后恢复 "⏳ 思考中..."。
+    /// </summary>
+    private static async Task<string> ChatWithStatusAsync(
+        string userInput,
+        CancellationToken ct,
+        Action<bool>? setStreamed = null)
+    {
+        var thinking = true;
+        var statusText = $"  [dim]⏳ 思考中...[/]";
+
+        void ClearStatus()
+        {
+            if (thinking)
+            {
+                Console.Write("\r" + new string(' ', 40) + "\r");
+                thinking = false;
+            }
+        }
+
+        void ShowStatus()
+        {
+            if (!thinking)
+            {
+                AnsiConsole.Markup(statusText);
+                thinking = true;
+            }
+        }
+
+        // 初始状态
+        AnsiConsole.Markup(statusText);
+
+        var response = await _agent!.ChatAsync(userInput,
+            onToken: tok =>
+            {
+                ClearStatus();
+                Console.Write(tok);
+                if (setStreamed != null) setStreamed(true);
+            },
+            onTool: (name, brief) =>
+            {
+                // 不换行清除状态行
+                if (thinking)
+                    Console.Write("\r" + new string(' ', 40) + "\r");
+                else
+                    Console.WriteLine(); // 结束上一行流式输出
+                thinking = false;
+
+                var shortBrief = brief.Length > 60 ? brief[..57] + "..." : brief;
+                AnsiConsole.MarkupLine($"  [dim]🔧 {E(name)}({E(shortBrief)})[/]");
+
+                // 为下一轮 LLM 调用显示状态
+                ShowStatus();
+                thinking = true;
+            },
+            cancellationToken: ct);
+
+        // 清除最后一轮的状态
+        if (thinking)
+            Console.Write("\r" + new string(' ', 40) + "\r");
+
+        return response;
+    }
 }
