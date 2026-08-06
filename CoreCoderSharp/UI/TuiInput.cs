@@ -32,11 +32,12 @@ public static class TuiInput
 
                 // 计算屏幕行
                 var screenLines = BuildScreenLines(lines, contentWidth);
-                var vh = Math.Clamp(screenLines.Count, 1, MaxScreenLines);
+                var totalScreen = screenLines.Count;
+                // 框高：1~5，内容超出5行时框固定5行
+                var vh = totalScreen <= MaxScreenLines ? Math.Max(1, totalScreen) : MaxScreenLines;
                 var (scrCy, scrCx) = HardToScreen(lines, cy, cx, contentWidth);
 
-                // 调整滚动
-                var totalScreen = screenLines.Count;
+                // 光标超出可见区 → 滚动
                 if (scrCy < screenScroll) screenScroll = scrCy;
                 if (scrCy >= screenScroll + vh) screenScroll = scrCy - vh + 1;
                 screenScroll = Math.Clamp(screenScroll, 0, Math.Max(0, totalScreen - vh));
@@ -308,25 +309,32 @@ public static class TuiInput
         // ---- 顶线 ----
         sb.Append($"[2m╭{new string('─', Math.Max(0, tw - 2))}╮[0m\r\n");
 
-        // ---- 内容区 ----
-        var visibleEnd = Math.Min(screenScroll + vh, screenLines.Count);
-        for (int si = screenScroll; si < visibleEnd; si++)
+        // ---- 内容区 (固定 vh 行高) ----
+        for (int i = 0; i < vh; i++)
         {
-            var sl = screenLines[si];
+            var si = screenScroll + i;
             sb.Append("[2m│[0m ");
 
-            if (sl.Chars > 0)
+            if (si < screenLines.Count)
             {
-                var text = hardLines[sl.HardLine].ToString();
-                var slice = text.Substring(sl.HardOffset,
-                    Math.Min(sl.Chars, text.Length - sl.HardOffset));
-                sb.Append(slice);
-                // 填充到右边界
-                var pad = contentWidth - sl.VW;
-                if (pad > 0) sb.Append(new string(' ', pad));
+                var sl = screenLines[si];
+                if (sl.Chars > 0)
+                {
+                    var text = hardLines[sl.HardLine].ToString();
+                    var slice = text.Substring(sl.HardOffset,
+                        Math.Min(sl.Chars, text.Length - sl.HardOffset));
+                    sb.Append(slice);
+                    var pad = contentWidth - sl.VW;
+                    if (pad > 0) sb.Append(new string(' ', pad));
+                }
+                else
+                {
+                    sb.Append(new string(' ', contentWidth));
+                }
             }
             else
             {
+                // 空行填充
                 sb.Append(new string(' ', contentWidth));
             }
 
