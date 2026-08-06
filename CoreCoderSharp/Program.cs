@@ -151,10 +151,7 @@ public class Program
             string? userInput;
             try
             {
-                userInput = AnsiConsole.Prompt(
-                    new TextPrompt<string>("[bold cyan]You[/] > ")
-                        .AllowEmpty()
-                        .PromptStyle(new Style(foreground: Color.White)));
+                userInput = TuiPrompt.ChatInput();
             }
             catch (OperationCanceledException)
             {
@@ -433,8 +430,7 @@ public class Program
         MarkupLine("[dim]输入你的需求，Agent 会先分析并列出执行计划[/]");
         Console.WriteLine();
 
-        var userInput = AnsiConsole.Prompt(
-            new TextPrompt<string>("[bold cyan]需求[/] > ").AllowEmpty());
+        var userInput = TuiPrompt.Ask("📋 需求");
         if (string.IsNullOrWhiteSpace(userInput)) return;
 
         var planPrompt = $"请分析以下需求，先列出详细的执行计划（分步骤、涉及的文件、可能的风险），再逐步执行。\n\n需求：{userInput}\n\n请先输出计划，然后逐步执行。";
