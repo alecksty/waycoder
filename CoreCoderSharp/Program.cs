@@ -344,7 +344,7 @@ public class Program
         table.AddRow("/checkpoints", "列出检查点");
         table.AddRow("/repomap", "刷新仓库地图");
         table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/pr[/] [dim][[标题]][/]", "创建 Pull Request");
-        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/edit[/] [dim][文件][/]", "终端源码编辑器");
+        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/edit[/] [dim][[文件]][/]", "终端源码编辑器");
         table.AddRow("quit", "退出");
 
         // 自定义命令
