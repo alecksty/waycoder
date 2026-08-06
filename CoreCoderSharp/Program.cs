@@ -19,7 +19,7 @@ public class Program
 
         // 手动解析 CLI 参数
         string? model = null, baseUrl = null, apiKey = null, prompt = null, resumeId = null;
-        bool showVersion = false;
+        bool showVersion = false, yoloMode = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -33,11 +33,12 @@ public class Program
                 case "-v" or "--version": showVersion = true; break;
                 case "-t" or "--test": SelfTest.Run(); return 0;
                 case "--debug": DebugLog.Enable(); break;
+                case "--yolo": yoloMode = true; break;
                 case "-h" or "--help": ShowUsage(); return 0;
             }
         }
 
-        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.6.0"); return 0; }
+        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.7.0"); return 0; }
 
         _config = Config.FromEnv();
         if (model != null) _config.Model = model;
@@ -67,6 +68,13 @@ public class Program
         _llm = new LLM(_config.Model, _config.ApiKey, _config.BaseUrl,
             _config.MaxTokens, _config.Temperature);
         _agent = new Agent(_llm, maxContextTokens: _config.MaxContextTokens);
+
+        // --yolo: 一次性模式下跳过所有权限确认
+        if (yoloMode)
+            PermissionManager.SetMode("yolo");
+
+        // 加载自定义斜杠命令
+        CustomCommands.Load();
 
         // 恢复会话
         if (resumeId != null)
@@ -136,7 +144,7 @@ public class Program
                 .Centered()
                 .Color(Color.Yellow));
         MarkupLine("");
-        MarkupLine($"  [bold]CoreCoder[/] [dim]v0.6.0[/]  ·  模型: [green]{E(_config.Model)}[/]  ·  AI 编程智能体");
+        MarkupLine($"  [bold]CoreCoder[/] [dim]v0.7.0[/]  ·  模型: [green]{E(_config.Model)}[/]  ·  AI 编程智能体");
         if (_config.BaseUrl != null)
             MarkupLine($"  API: [dim]{E(_config.BaseUrl)}[/]");
         MarkupLine("  [dim]/help 帮助  quit 退出  Ctrl+C 取消[/]");
@@ -197,6 +205,42 @@ public class Program
 
             if (userInput.StartsWith('/'))
             {
+                // 检查自定义命令
+                var cmdParts = userInput.Split(' ', 2);
+                var cmdName = cmdParts[0][1..]; // 去掉前导 /
+                if (CustomCommands.Commands.ContainsKey(cmdName))
+                {
+                    var args = cmdParts.Length > 1 ? cmdParts[1] : "";
+                    var (content, replace) = CustomCommands.Execute(cmdName, args, _agent!);
+                    if (replace)
+                    {
+                        // 命令输出替换用户输入
+                        userInput = content;
+                    }
+                    else
+                    {
+                        MarkupLine($"[dim]📋 /{E(cmdName)}[/]");
+                        Console.WriteLine(content);
+                        // 将命令输出注入到 Agent 上下文
+                        var cmdMsg = $"[命令 /{cmdName} 输出]\n{content}";
+                        try
+                        {
+                            using var cts2 = new CancellationTokenSource();
+                            var response = await _agent!.ChatAsync(cmdMsg,
+                                onToken: tok => Console.Write(tok),
+                                onTool: (name, brief) => MarkupLine($"  [dim grey]⚙ {E(name)}({E(brief)})[/]"),
+                                cancellationToken: cts2.Token);
+                            Console.WriteLine();
+                            if (!string.IsNullOrEmpty(response)) Console.WriteLine(response);
+                        }
+                        catch (Exception ex)
+                        {
+                            MarkupLine($"[red]错误: {E(ex.Message)}[/]");
+                        }
+                    }
+                    continue;
+                }
+
                 MarkupLine($"[orange3]未知命令: {E(userInput.Split()[0])}[/] [dim](输入 /help 查看帮助)[/]");
                 continue;
             }
@@ -246,6 +290,7 @@ public class Program
         MarkupLine("  [cyan]-v, --version[/]        显示版本信息");
         MarkupLine("  [cyan]-t, --test[/]           运行自测");
         MarkupLine("  [cyan]--debug[/]              开启调试日志 (记录到 logs/ 目录)");
+        MarkupLine("  [cyan]--yolo[/]              跳过所有权限确认 (非交互模式必备)");
         MarkupLine("  [cyan]-h, --help[/]           显示此帮助");
         Console.WriteLine();
         MarkupLine("  [bold]示例:[/]");
@@ -283,6 +328,17 @@ public class Program
         MarkupLine("[bold yellow]│[/] [cyan]/undo[/] [dim][编号][/]     回退检查点    [bold yellow]│[/]");
         MarkupLine("[bold yellow]│[/] [cyan]/checkpoints[/]   列出检查点    [bold yellow]│[/]");
         MarkupLine("[bold yellow]│[/] [cyan]quit[/]           退出          [bold yellow]│[/]");
+        // 自定义命令
+        if (CustomCommands.Commands.Count > 0)
+        {
+            MarkupLine("[bold yellow]│[/]                            [bold yellow]│[/]");
+            MarkupLine("[bold yellow]│[/] [dim]自定义命令:[/]                [bold yellow]│[/]");
+            foreach (var (name, cmd) in CustomCommands.Commands)
+            {
+                var desc = cmd.Description.Length > 20 ? cmd.Description[..17] + "..." : cmd.Description;
+                MarkupLine($"[bold yellow]│[/] [cyan]/{E(name)}[/]  {E(desc),-18} [bold yellow]│[/]");
+            }
+        }
         MarkupLine("[bold yellow]╰────────────────────────────────╯[/]");
     }
 
