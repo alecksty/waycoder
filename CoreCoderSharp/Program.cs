@@ -162,10 +162,16 @@ public class Program
             userInput = userInput?.Trim() ?? "";
             if (string.IsNullOrEmpty(userInput)) continue;
 
+            // 全角符号 → 半角规范化（中文输入法兼容）
+            userInput = userInput
+                .Replace('／', '/')
+                .Replace('！', '!')
+                .Replace('＃', '#');
+
             var lower = userInput.ToLowerInvariant();
             if (lower is "quit" or "exit" or "/quit" or "/exit") break;
 
-            // ---- 输入提示触发 ----
+            // ---- 输入提示触发 (/ ! #) ----
             if (userInput == "/") { userInput = ShowCommandPalette(); if (string.IsNullOrEmpty(userInput)) continue; }
             if (userInput == "!") { await RunShellOnceAsync(); continue; }
             if (userInput == "#") { userInput = await ShowFileHintAsync(); if (string.IsNullOrEmpty(userInput)) continue; }
