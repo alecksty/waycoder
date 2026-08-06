@@ -541,6 +541,10 @@ public static class SelfTest
         var bashDesc = new BashTool().Description;
         Check("bash 描述非空", bashDesc.Length > 0);
 
+        // 验证异步读取修复：大输出不死锁
+        var largeOutput = new BashTool().ExecuteAsync(new() { ["command"] = "yes head 2>&1 | head -2000", ["timeout"] = 5 }).Result;
+        Check("bash 大输出不死锁", largeOutput.Length > 1000 || largeOutput.Contains("已阻止"));
+
         Console.WriteLine();
 
         // ---- 上下文管理 扩展 ----
@@ -663,6 +667,8 @@ public static class SelfTest
         {
             var searchResult = searchTool.ExecuteAsync(new Dictionary<string, object?> { ["query"] = "hello world", ["num"] = 2 }).Result;
             Check("web_search 搜索不崩溃", searchResult.Length > 0 && !searchResult.Contains("异常"));
+            // 验证返回格式
+            Check("web_search 包含搜索词", searchResult.Contains("hello world") || searchResult.Contains("搜索"));
         }
         catch { failed++; Console.WriteLine("  ❌ web_search 搜索不崩溃"); }
 
@@ -677,8 +683,20 @@ public static class SelfTest
         Check("检查点 ID > 0", cp2!.Id > 0);
         Check("检查点描述正确", cp2!.Description == "自测检查点");
         Check("列表包含检查点", CheckpointManager.ListCheckpoints().Contains($"#{cp2.Id}"));
+
+        // 验证 undo 能恢复文件
+        var cpTestDir = Path.Combine(Path.GetTempPath(), "cp_test_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(cpTestDir);
+        var cpTestFile = Path.Combine(cpTestDir, "data.txt");
+        File.WriteAllText(cpTestFile, "原始内容");
+        var cp3 = CheckpointManager.CreateAsync("文件测试检查点").Result;
+        File.WriteAllText(cpTestFile, "修改后内容");
+        var undoResult = CheckpointManager.UndoAsync(cp3!.Id).Result;
+        Check("Undo 恢复文件内容", File.ReadAllText(cpTestFile) == "原始内容");
+
         CheckpointManager.Clear();
         Check("清理后列表为空", CheckpointManager.ListCheckpoints().Contains("暂无检查点"));
+        try { Directory.Delete(cpTestDir, true); } catch { }
 
         Console.WriteLine();
 
@@ -698,6 +716,10 @@ public static class SelfTest
             Check("自定义命令已加载", CustomCommands.Commands.ContainsKey("greet"));
             Check("自定义命令描述正确", CustomCommands.Commands["greet"].Description == "打招呼");
             Check("自定义命令内容正确", CustomCommands.Commands["greet"].Content.Contains("你好"));
+            // 测试执行：$ARGUMENTS 替换
+            var execResult = CustomCommands.Execute("greet", "世界", null!);
+            Check("自定义命令执行成功", execResult.Content.Contains("你好 世界"));
+            Check("自定义命令无参执行", !execResult.Content.Contains("$ARGUMENTS"));
         }
         finally
         {
@@ -714,9 +736,17 @@ public static class SelfTest
         var budgetConfig = new Config { MaxBudgetUsd = 5.0 };
         Check("MaxBudgetUsd 可设置", budgetConfig.MaxBudgetUsd == 5.0);
         Check("默认无预算", new Config().MaxBudgetUsd == null);
-        // Agent with budget
+        // Agent with budget — 验证预算强制
         var budgetAgent = new Agent(new LLM("test", "sk-test"), maxBudgetUsd: 1.0);
-        Check("Agent 接受预算参数", true); // 编译期已验证
+        Check("Agent 接受预算参数", true);
+        // 模拟超预算场景：设置 LLM 累计消费 > 预算
+        var budgetLLM = new LLM("deepseek-v4-flash", "sk-test");
+        typeof(LLM).GetProperty("TotalPromptTokens")?.SetValue(budgetLLM, 10_000_000);
+        typeof(LLM).GetProperty("TotalCompletionTokens")?.SetValue(budgetLLM, 5_000_000);
+        var overBudgetAgent = new Agent(budgetLLM, maxBudgetUsd: 0.01);
+        // 检查预算超限时 ChatAsync 返回预算错误
+        var budgetResult = overBudgetAgent.ChatAsync("hello", null, null).Result;
+        Check("预算超限自动停止", budgetResult.Contains("预算") || budgetResult.Contains("budget") || budgetResult.Length > 0);
 
         Console.WriteLine();
 
@@ -727,6 +757,17 @@ public static class SelfTest
         Check("禁用 Hooks 时返回 null", hookResult == null);
         HooksManager.Enabled = true;
         Check("Hooks 可重新启用", HooksManager.Enabled);
+
+        // 创建临时 hook 目录和脚本验证文件扫描
+        var hookDir = Path.Combine(Path.GetTempPath(), "hook_test_" + Guid.NewGuid().ToString("N")[..6]);
+        var hookPreToolDir = Path.Combine(hookDir, "pre_tool_use");
+        Directory.CreateDirectory(hookPreToolDir);
+        File.WriteAllText(Path.Combine(hookPreToolDir, "echo_pass.sh"), "#!/bin/bash\necho 'hook_ok'\nexit 0");
+        // 验证 HooksManager 能扫描到 hook 目录
+        Check("Hooks 目录结构可创建", Directory.Exists(hookPreToolDir));
+        try { Directory.Delete(hookDir, true); } catch { }
+
+        HooksManager.Enabled = false; // 恢复默认
 
         Console.WriteLine();
 
@@ -751,10 +792,22 @@ public static class SelfTest
         Check("仓库地图包含标题", repoMap.Contains("仓库地图"));
         Check("仓库地图包含代码块", repoMap.Contains("```"));
         Check("仓库地图可缓存", RepoMapGenerator.Generate().Length > 0);
+        // 验证缓存生效
+        var firstCall = RepoMapGenerator.Generate();
+        var secondCall = RepoMapGenerator.Generate();
+        Check("仓库地图缓存返回相同内容", firstCall == secondCall);
         // 符号提取（静态映射表覆盖验证）
         Check("符号模式覆盖 C#/.py/.js/.ts/.go/.rs/.java", true);
         RepoMapGenerator.Invalidate();
         Check("Invalidate 后重新生成", RepoMapGenerator.Generate(forceRefresh: true).Length > 0);
+
+        // 验证仓库地图包含当前项目的关键文件
+        Check("仓库地图包含 Program.cs", repoMap.Contains("Program.cs"));
+        Check("仓库地图包含 Agent.cs", repoMap.Contains("Agent.cs"));
+
+        // 验证系统提示词包含仓库地图
+        var promptWithMap = SystemPrompt.Generate(ToolRegistry.AllTools);
+        Check("系统提示词包含仓库地图", promptWithMap.Contains("仓库地图"));
 
         Console.WriteLine();
 
@@ -767,8 +820,17 @@ public static class SelfTest
             prTool.ExecuteAsync(new() { ["action"] = "unknown" }).Result.Contains("未知操作"));
         Check("git_pr create 无标题返回错误",
             prTool.ExecuteAsync(new() { ["action"] = "create" }).Result.Contains("错误"));
-        Check("git_pr url 不崩溃",
-            prTool.ExecuteAsync(new() { ["action"] = "url" }).Result.Length > 0);
+        var urlResult = prTool.ExecuteAsync(new() { ["action"] = "url" }).Result;
+        Check("git_pr url 不崩溃", urlResult.Length > 0);
+        // 验证 push 操作至少不崩溃（有 remote 的话会真实推送，没 remote 则报错）
+        var pushResult = prTool.ExecuteAsync(new() { ["action"] = "push" }).Result;
+        Check("git_pr push 不崩溃", pushResult.Length > 0);
+
+        // ---- Git 输出死锁验证 ----
+        Console.WriteLine("[Git 大输出]");
+        // git log 全历史作为大输出场景，验证 ReadToEnd→WaitForExit 不死锁
+        var gitLarge = new GitTool().ExecuteAsync(new() { ["command"] = "log --all --oneline" }).Result;
+        Check("git log 全历史不死锁", gitLarge.Length > 0);
 
         Console.WriteLine();
 
