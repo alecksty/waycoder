@@ -4,22 +4,12 @@
 
 ## 项目概述
 
-CoreCoder 是一个极简 AI 编程智能体，双版本实现：
-
-| 版本 | 语言 | 框架 | 产物 | 测试 |
-|---|---|---|---|---|
-| `corecoder/` | Python 3.10+ | openai + rich | 源码运行 | 86 项 ✅ |
-| `CoreCoderSharp/` | C# (.NET 10) | Spectre.Console | 7.8MB AOT exe | 44 项 ✅ |
+CoreCoder 是一个极简 AI 编程智能体，C# (.NET 10) 实现，AOT 编译为单文件 exe。
 
 ## 常用命令
 
 ```bash
-# === Python 版 ===
-pip install -e ".[dev]"
-pytest tests/ -q                    # 86 测试
-ruff check .                         # lint
-
-# === C# 版 ===
+# C# 版
 cd CoreCoderSharp
 dotnet publish -c Release            # AOT 编译
 dotnet run -- --test                 # 44 自测
@@ -27,22 +17,6 @@ dotnet run -- -p "提示词"            # 一次性模式
 ```
 
 ## 架构
-
-### Python 版 (corecoder/)
-
-```
-corecoder/
-├── agent.py       主循环 (150行)
-├── llm.py         LLM 客户端 + 定价 (336行)
-├── context.py     三层上下文压缩 (210行)
-├── cli.py         REPL (270行)
-├── session.py     会话持久化 (97行)
-├── prompt.py      系统提示词 (33行)
-├── config.py      配置 (57行)
-└── tools/         7个工具
-```
-
-### C# 版 (CoreCoderSharp/)
 
 ```
 CoreCoderSharp/

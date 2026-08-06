@@ -37,7 +37,7 @@ public class Program
             }
         }
 
-        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.2.0"); return 0; }
+        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.6.0"); return 0; }
 
         _config = Config.FromEnv();
         if (model != null) _config.Model = model;
@@ -131,22 +131,17 @@ public class Program
     {
         // 彩色欢迎横幅 + ASCII Art
         MarkupLine("");
-        MarkupLine("  [bold cyan]╔═══════════════════════════════════════════╗[/]");
-        MarkupLine("  [bold cyan]║[/]  [bold yellow]   ██████╗ ██████╗ ██████╗ ███████╗   [/]  [bold cyan]║[/]");
-        MarkupLine("  [bold cyan]║[/]  [bold yellow]  ██╔════╝██╔═══██╗██╔══██╗██╔════╝   [/]  [bold cyan]║[/]");
-        MarkupLine("  [bold cyan]║[/]  [bold yellow]  ██║     ██║   ██║██████╔╝█████╗     [/]  [bold cyan]║[/]");
-        MarkupLine("  [bold cyan]║[/]  [bold yellow]  ██║     ██║   ██║██╔══██╗██╔══╝     [/]  [bold cyan]║[/]");
-        MarkupLine("  [bold cyan]║[/]  [bold yellow]  ╚██████╗╚██████╔╝██║  ██║███████╗   [/]  [bold cyan]║[/]");
-        MarkupLine("  [bold cyan]║[/]  [bold yellow]   ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝   [/]  [bold cyan]║[/]");
-        MarkupLine("  [bold cyan]║[/]                                         [bold cyan]║[/]");
-        MarkupLine("  [bold cyan]║[/]  [bold]CoreCoder[/] [dim]v0.2.0[/]  ·  AI 编程智能体       [bold cyan]║[/]");
-        MarkupLine($"  [bold cyan]║[/]  模型: [green]{E(_config.Model)}[/]                        [bold cyan]║[/]");
+        AnsiConsole.Write(
+            new FigletText("CoreCoder")
+                .Centered()
+                .Color(Color.Yellow));
+        MarkupLine("");
+        MarkupLine($"  [bold]CoreCoder[/] [dim]v0.6.0[/]  ·  模型: [green]{E(_config.Model)}[/]  ·  AI 编程智能体");
         if (_config.BaseUrl != null)
-            MarkupLine($"  [bold cyan]║[/]  API: [dim]{E(_config.BaseUrl)}[/] [bold cyan]║[/]");
-        MarkupLine("  [bold cyan]║[/]  [dim]/help 帮助  quit 退出  Ctrl+C 取消[/]  [bold cyan]║[/]");
+            MarkupLine($"  API: [dim]{E(_config.BaseUrl)}[/]");
+        MarkupLine("  [dim]/help 帮助  quit 退出  Ctrl+C 取消[/]");
         if (DebugLog.Enabled)
-            MarkupLine("  [bold cyan]║[/]  [bold orange3]🐛 DEBUG 模式已开启 → logs/ 目录[/]    [bold cyan]║[/]");
-        MarkupLine("  [bold cyan]╚═══════════════════════════════════════════╝[/]");
+            MarkupLine("  [bold orange3]🐛 DEBUG 模式已开启 → logs/ 目录[/]");
         Console.WriteLine();
 
         while (true)
