@@ -41,7 +41,7 @@ public class Program
             }
         }
 
-        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.8.0"); return 0; }
+        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.9.0"); return 0; }
 
         _config = Config.FromEnv();
         if (model != null) _config.Model = model;
@@ -151,7 +151,7 @@ public class Program
                 .Centered()
                 .Color(Color.Yellow));
         MarkupLine("");
-        MarkupLine($"  [bold]CoreCoder[/] [dim]v0.8.0[/]  ·  模型: [green]{E(_config.Model)}[/]  ·  AI 编程智能体");
+        MarkupLine($"  [bold]CoreCoder[/] [dim]v0.9.0[/]  ·  模型: [green]{E(_config.Model)}[/]  ·  AI 编程智能体");
         if (_config.BaseUrl != null)
             MarkupLine($"  API: [dim]{E(_config.BaseUrl)}[/]");
         MarkupLine("  [dim]/help 帮助  quit 退出  Ctrl+C 取消[/]");
