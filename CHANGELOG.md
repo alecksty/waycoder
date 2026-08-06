@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.6.1 (2026-08-06) — 三个新工具 + 增强语言支持
+
+### ✨ 新增工具
+- **Lint 工具** — 静态检查反馈闭环，支持 25+ 种编程语言（C#、Python、JS/TS、Go、Rust、Java、C/C++、Ruby、PHP、Swift、Kotlin、Lua、Shell、HTML/CSS、Vue、YAML、JSON、Markdown、Dart、R、SQL、Perl、Elixir、Haskell、Zig）
+- **Web 搜索工具** — 通过 DuckDuckGo 进行网页搜索，无需 API 密钥
+- **Checkpoint 系统** — Git stash + 文件备份双轨检查点，支持 `/checkpoint` `/undo` `/checkpoints` 命令
+
+### 🔧 增强
+- Lint 工具自动检测项目类型（通过扩展名和项目文件）
+- AOT 安全的 JSON 序列化（无反射，手写 JSON 构建）
+- 160 项自测全通过（+15 项新增测试）
+
 ## v0.6.0 (2026-08-06) — 纯 C# 版
 
 ### 🔥 重大变更
