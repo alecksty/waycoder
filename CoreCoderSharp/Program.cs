@@ -159,13 +159,15 @@ public class Program
             string? userInput;
             try
             {
-                userInput = TuiPrompt.ChatInput();
+                userInput = TuiInput.ReadInput();
             }
             catch (OperationCanceledException)
             {
                 MarkupLine("\n[dim]👋 再见![/]");
                 break;
             }
+
+            if (userInput == null) continue; // Esc 取消
 
             userInput = userInput?.Trim() ?? "";
             if (string.IsNullOrEmpty(userInput)) continue;
@@ -525,7 +527,7 @@ public class Program
         MarkupLine("[dim]输入你的需求，Agent 会先分析并列出执行计划[/]");
         Console.WriteLine();
 
-        var userInput = TuiPrompt.Ask("📋 需求");
+        var userInput = TuiInput.ReadInput();
         if (string.IsNullOrWhiteSpace(userInput)) return;
 
         var planPrompt = $"请分析以下需求，先列出详细的执行计划（分步骤、涉及的文件、可能的风险），再逐步执行。\n\n需求：{userInput}\n\n请先输出计划，然后逐步执行。";
