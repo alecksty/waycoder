@@ -35,6 +35,15 @@ CoreCoderSharp/
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
 ├── SelfTest.cs        245 项自测
+├── UI/                终端 UI 控件库
+│   ├── TuiHelper.cs   CJK 宽度计算 + 文本工具
+│   ├── TuiColors.cs   统一配色常量
+│   ├── TuiBox.cs      对话框 (Info/Success/Warn/Error)
+│   ├── TuiTable.cs    表格控件 (CJK 自动对齐)
+│   ├── TuiList.cs     列表选单 (单选/多选)
+│   ├── TuiPrompt.cs   输入框 (普通/密码/确认)
+│   ├── TuiProgress.cs 进度条 + 分隔线
+│   └── TuiBanner.cs   欢迎横幅 (FigletText + Panel)
 └── Tools/             29 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
@@ -56,6 +65,8 @@ CoreCoderSharp/
 - **AOT 编译：JSON 手写序列化**，`JsonHelper.SerializeArgs` 替代 `JsonSerializer`
 - **权限系统**：bash/write/edit/agent 默认需确认，`/perm yolo` 跳过
 - **模型回退链**：deepseek-v4-flash → deepseek-v4-pro → gpt-5.4-mini
+- **状态动画**：ChatWithStatusAsync 统一包装 LLM 调用，显示 ⏳ 思考中 / 🔧 工具中
+- **UI 控件库**：`UI/` 目录封装 Spectre.Console 控件，统一配色，内建 CJK 宽度感知
 
 ## 非显而易见的约束
 
