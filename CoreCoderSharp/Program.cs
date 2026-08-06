@@ -210,6 +210,7 @@ public class Program
             if (userInput.StartsWith("/undo")) { await UndoCheckpointAsync(userInput); continue; }
             if (userInput == "/checkpoints") { ShowCheckpoints(); continue; }
             if (userInput == "/repomap" || userInput == "/map") { ShowRepoMap(); continue; }
+            if (userInput.StartsWith("/pr")) { await RunPRAsync(userInput); continue; }
 
             if (userInput.StartsWith('/'))
             {
@@ -337,6 +338,7 @@ public class Program
         MarkupLine("[bold yellow]│[/] [cyan]/undo[/] [dim][编号][/]     回退检查点    [bold yellow]│[/]");
         MarkupLine("[bold yellow]│[/] [cyan]/checkpoints[/]   列出检查点    [bold yellow]│[/]");
         MarkupLine("[bold yellow]│[/] [cyan]/repomap[/]      刷新仓库地图  [bold yellow]│[/]");
+        MarkupLine("[bold yellow]│[/] [cyan]/pr [标题][/]     创建 Pull Request [bold yellow]│[/]");
         MarkupLine("[bold yellow]│[/] [cyan]quit[/]           退出          [bold yellow]│[/]");
         // 自定义命令
         if (CustomCommands.Commands.Count > 0)
@@ -577,6 +579,31 @@ public class Program
         RepoMapGenerator.Invalidate();
         var map = RepoMapGenerator.Generate();
         Console.WriteLine(map);
+    }
+
+    private static async Task RunPRAsync(string input)
+    {
+        var parts = input.Split(' ', 2);
+        var title = parts.Length > 1 ? parts[1].Trim() : "";
+        if (string.IsNullOrEmpty(title))
+        {
+            // 仅显示 PR 链接
+            var prTool = new GitPRTool();
+            var result = await prTool.ExecuteAsync(new Dictionary<string, object?> { ["action"] = "url" });
+            Console.WriteLine(result);
+            return;
+        }
+        else
+        {
+            var prTool = new GitPRTool();
+            var result = await prTool.ExecuteAsync(new Dictionary<string, object?>
+            {
+                ["action"] = "create",
+                ["title"] = title,
+                ["description"] = $"🤖 Generated with [CoreCoder](https://github.com/alecksty/corecoder)"
+            });
+            Console.WriteLine(result);
+        }
     }
 
     // ========================================================================

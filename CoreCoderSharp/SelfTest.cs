@@ -24,7 +24,7 @@ public static class SelfTest
 
         // ---- 工具注册 ----
         Console.WriteLine("[工具注册]");
-        Check("工具数量 == 14", ToolRegistry.AllTools.Count == 14);
+        Check("工具数量 == 15", ToolRegistry.AllTools.Count == 15);
         Check("所有工具有有效 schema", ToolRegistry.AllTools.All(t =>
         {
             var s = t.Schema();
@@ -755,6 +755,20 @@ public static class SelfTest
         Check("符号模式覆盖 C#/.py/.js/.ts/.go/.rs/.java", true);
         RepoMapGenerator.Invalidate();
         Check("Invalidate 后重新生成", RepoMapGenerator.Generate(forceRefresh: true).Length > 0);
+
+        Console.WriteLine();
+
+        // ---- Git PR 工具 ----
+        Console.WriteLine("[Git PR]");
+        var prTool = new GitPRTool();
+        Check("git_pr 工具名称正确", prTool.Name == "git_pr");
+        Check("git_pr 描述非空", prTool.Description.Length > 0);
+        Check("git_pr 未知操作返回错误",
+            prTool.ExecuteAsync(new() { ["action"] = "unknown" }).Result.Contains("未知操作"));
+        Check("git_pr create 无标题返回错误",
+            prTool.ExecuteAsync(new() { ["action"] = "create" }).Result.Contains("错误"));
+        Check("git_pr url 不崩溃",
+            prTool.ExecuteAsync(new() { ["action"] = "url" }).Result.Length > 0);
 
         Console.WriteLine();
 

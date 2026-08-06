@@ -21,6 +21,7 @@ public static class ToolRegistry
         new MemoryTool(),
         new LintTool(),
         new WebSearchTool(),
+        new GitPRTool(),
     ];
 
     /// <summary>所有工具（内置 + MCP 自动发现）</summary>
