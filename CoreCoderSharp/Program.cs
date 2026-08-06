@@ -209,6 +209,7 @@ public class Program
             if (userInput == "/checkpoint") { await CreateCheckpointAsync(); continue; }
             if (userInput.StartsWith("/undo")) { await UndoCheckpointAsync(userInput); continue; }
             if (userInput == "/checkpoints") { ShowCheckpoints(); continue; }
+            if (userInput == "/repomap" || userInput == "/map") { ShowRepoMap(); continue; }
 
             if (userInput.StartsWith('/'))
             {
@@ -335,6 +336,7 @@ public class Program
         MarkupLine("[bold yellow]│[/] [cyan]/checkpoint[/]    创建检查点    [bold yellow]│[/]");
         MarkupLine("[bold yellow]│[/] [cyan]/undo[/] [dim][编号][/]     回退检查点    [bold yellow]│[/]");
         MarkupLine("[bold yellow]│[/] [cyan]/checkpoints[/]   列出检查点    [bold yellow]│[/]");
+        MarkupLine("[bold yellow]│[/] [cyan]/repomap[/]      刷新仓库地图  [bold yellow]│[/]");
         MarkupLine("[bold yellow]│[/] [cyan]quit[/]           退出          [bold yellow]│[/]");
         // 自定义命令
         if (CustomCommands.Commands.Count > 0)
@@ -567,6 +569,14 @@ public class Program
     {
         MarkupLine("[bold]检查点列表:[/]");
         Console.WriteLine(CheckpointManager.ListCheckpoints());
+    }
+
+    private static void ShowRepoMap()
+    {
+        MarkupLine("[bold]仓库地图 (刷新中...)[/]");
+        RepoMapGenerator.Invalidate();
+        var map = RepoMapGenerator.Generate();
+        Console.WriteLine(map);
     }
 
     // ========================================================================

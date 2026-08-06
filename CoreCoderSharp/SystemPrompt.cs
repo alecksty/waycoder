@@ -21,6 +21,9 @@ public static class SystemPrompt
         var project = ProjectContext.DetectProject();
         var projectCtx = project.ToMarkdown();
 
+        // 仓库地图
+        var repoMap = RepoMapGenerator.Generate();
+
         return $"""
                 你是 CoreCoder，一个运行在用户终端中的 AI 编程助手。
                 你帮助完成软件工程任务：编写代码、修复 bug、重构代码、解释代码、运行命令等。
@@ -34,6 +37,8 @@ public static class SystemPrompt
                 {projectCtx}
 
                 {instructions}
+
+                {repoMap}
 
                 # 工具
                 {toolList}

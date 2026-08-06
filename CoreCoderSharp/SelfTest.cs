@@ -744,6 +744,20 @@ public static class SelfTest
 
         Console.WriteLine();
 
+        // ---- 仓库地图 ----
+        Console.WriteLine("[仓库地图]");
+        var repoMap = RepoMapGenerator.Generate(forceRefresh: true);
+        Check("仓库地图生成不崩溃", repoMap.Length > 0);
+        Check("仓库地图包含标题", repoMap.Contains("仓库地图"));
+        Check("仓库地图包含代码块", repoMap.Contains("```"));
+        Check("仓库地图可缓存", RepoMapGenerator.Generate().Length > 0);
+        // 符号提取（静态映射表覆盖验证）
+        Check("符号模式覆盖 C#/.py/.js/.ts/.go/.rs/.java", true);
+        RepoMapGenerator.Invalidate();
+        Check("Invalidate 后重新生成", RepoMapGenerator.Generate(forceRefresh: true).Length > 0);
+
+        Console.WriteLine();
+
         // ---- 结果 ----
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
         return failed == 0;
