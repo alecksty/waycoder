@@ -154,6 +154,7 @@ public class Editor
         {
             // ---- 退出 ----
             case ConsoleKey.Escape:
+            case ConsoleKey.Q when ctrl:
                 if (_modified) PromptSave();
                 return false;
 
@@ -374,34 +375,34 @@ public class Editor
     }
 
     // ================================================================
-    // 渲染
+    // 渲染 — 全屏编辑 + 双行状态栏
+    // ================================================================
+    //  布局:  顶边 (1) + 编辑区 (th-5) + 分隔 (1) + 状态1 (1) + 状态2 (1) + 底边 (1)
     // ================================================================
 
     private void Render()
     {
         (_tw, _th) = (Console.WindowWidth, Console.WindowHeight);
-        var vh = _th - 3; // 可视行数: 顶部边框 + 底部边框 + 状态栏
+        var vh = _th - 5; // 编辑区可视行数
 
         // 调整滚动
         if (_cy < _scroll) _scroll = _cy;
         if (_cy >= _scroll + vh) _scroll = _cy - vh + 1;
         _scroll = Math.Clamp(_scroll, 0, Math.Max(0, _lines.Count - vh));
 
-        var sb = new System.Text.StringBuilder();
-        // 隐藏光标
-        sb.Append("[?25l");
+        var sb = new StringBuilder();
 
-        // 清屏 + 回左上角
-        sb.Append("[2J[H");
+        // 隐藏光标 + 清屏
+        sb.Append("[?25l[2J[H");
 
-        // ---- 顶边 ----
+        // ═══════ 顶边 ═══════
         var title = $" /edit: {Path.GetFileName(_filePath)} ";
         if (_modified) title += "[已修改] ";
-        var titleW = VW(title);
-        var dashR = Math.Max(0, _tw - titleW - 2);
+        var tw = VW(title);
+        var dashR = Math.Max(0, _tw - tw - 2);
         sb.Append($"[33m╭─{title}{new string('─', dashR)}╮[0m\r\n");
 
-        // ---- 内容区 ----
+        // ═══════ 编辑区 ═══════
         for (int i = 0; i < vh; i++)
         {
             var li = _scroll + i;
@@ -409,43 +410,61 @@ public class Editor
 
             if (li < _lines.Count)
             {
-                // 行号
                 var ln = (li + 1).ToString().PadLeft(4);
-                var isCursorLine = li == _cy;
-                sb.Append(isCursorLine
+                var isCursor = li == _cy;
+                sb.Append(isCursor
                     ? $" [36m{ln} [33m│[0m "
                     : $" [2m{ln}  [22m│ ");
 
-                // 内容（语法高亮）
-                var line = _lines[li].ToString();
-                RenderLine(sb, line, isCursorLine);
+                RenderLine(sb, _lines[li].ToString());
             }
             else
             {
-                sb.Append("      │ ");
+                sb.Append("      │ [2m~[0m");
             }
 
-            // 填充到右边界
             sb.Append("[0m[K\r\n");
         }
 
-        // ---- 底边 + 状态栏 ----
-        var status = $" {Path.GetFileName(_filePath)}  L{_cy + 1}:C{_cx + 1}  {_syntax.Name}  " +
-                     $"{( _modified ? "[已修改]" : "")}  Ctrl+S 保存  Ctrl+Q/Esc 退出  Ctrl+G 跳转";
-        var sw = VW(status);
-        var padR = Math.Max(0, _tw - sw - 2);
-        sb.Append($"[33m╰{status}{new string('─', padR)}╯[0m");
+        // ═══════ 分隔线 ═══════
+        sb.Append($"[33m├{new string('─', _tw - 2)}┤[0m\r\n");
+
+        // ═══════ 状态行 1 — 位置 / 统计 / 编码 ═══════
+        var totalChars = _lines.Sum(l => l.Length);
+        var totalLines = _lines.Count;
+        var fileSize = new FileInfo(_filePath).Exists
+            ? FormatSize(new FileInfo(_filePath).Length)
+            : FormatSize(System.Text.Encoding.UTF8.GetByteCount(
+                string.Join("\n", _lines.Select(l => l.ToString()))));
+
+        var stat1 = $"  L{_cy + 1}:C{_cx + 1}  │  " +
+                    $"行: {totalLines:N0}  字符: {totalChars:N0}  │  " +
+                    $"大小: {fileSize}  │  " +
+                    $"{_syntax.Name}  ·  UTF-8";
+        var s1w = VW(stat1);
+        var pad1 = Math.Max(0, _tw - s1w - 2);
+        sb.Append($"[33m│[0m [2m{stat1}{new string(' ', pad1)}[0m[33m│[0m\r\n");
+
+        // ═══════ 状态行 2 — 快捷键 ═══════
+        var modifiedTag = _modified ? " [33m[已修改][0m" : "";
+        var stat2 = $" ^S保存 ^Z撤销 ^G跳行 ^X剪切 ^C复制 ^V粘贴 ^Y删行 Esc退出{modifiedTag}";
+        var s2w = VW(stat2);
+        var pad2 = Math.Max(0, _tw - s2w - 2);
+        sb.Append($"[33m│[0m [2m{stat2}{new string(' ', pad2)}[0m[33m│[0m\r\n");
+
+        // ═══════ 底边 ═══════
+        sb.Append($"[33m╰{new string('─', _tw - 2)}╯[0m");
 
         // 恢复光标到编辑位置
-        var screenRow = _cy - _scroll + 1; // +1 因为顶边占一行
-        var screenCol = 8 + _cx;           // 边框 + 行号 + 分隔
+        var screenRow = _cy - _scroll + 1;
+        var screenCol = 8 + _cx;
         sb.Append($"[{screenRow};{screenCol}H");
-        sb.Append("[?25h"); // 显示光标
+        sb.Append("[?25h");
 
         Console.Write(sb.ToString());
     }
 
-    private void RenderLine(System.Text.StringBuilder sb, string line, bool isCursor)
+    private void RenderLine(StringBuilder sb, string line)
     {
         if (string.IsNullOrEmpty(line))
         {
@@ -453,15 +472,9 @@ public class Editor
             return;
         }
 
-        // 使用语法高亮扫描行
-        var tokens = _syntax.Tokenize(line);
-        foreach (var (text, color) in tokens)
+        foreach (var (text, ansiColor) in _syntax.Tokenize(line))
         {
-            var escaped = text
-                .Replace("", "")
-                .Replace("<", "&lt;")
-                .Replace(">", "&gt;");
-            sb.Append($"[{color}m{escaped}[0m");
+            sb.Append($"[{ansiColor}m{text}[0m");
         }
     }
 
@@ -475,4 +488,11 @@ public class Editor
         foreach (char c in s) w += c > 127 ? 2 : 1;
         return w;
     }
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        < 1024 => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
+        _ => $"{bytes / (1024.0 * 1024):F1} MB",
+    };
 }
