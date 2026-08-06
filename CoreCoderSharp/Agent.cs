@@ -51,7 +51,9 @@ public class Agent
         {
             new() { ["role"] = "system", ["content"] = _systemPrompt },
         };
-        result.AddRange(Messages);
+        // 深克隆消息，避免 JsonNode 的 Parent 冲突（同一消息不能加入两个树）
+        foreach (var m in Messages)
+            result.Add(JsonNode.Parse(m.ToJsonString())!.AsObject());
         return result;
     }
 

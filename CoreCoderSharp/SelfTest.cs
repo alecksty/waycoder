@@ -24,7 +24,7 @@ public static class SelfTest
 
         // ---- 工具注册 ----
         Console.WriteLine("[工具注册]");
-        Check("工具数量 == 12", ToolRegistry.AllTools.Count == 12);
+        Check("工具数量 == 14", ToolRegistry.AllTools.Count == 14);
         Check("所有工具有有效 schema", ToolRegistry.AllTools.All(t =>
         {
             var s = t.Schema();
@@ -609,6 +609,76 @@ public static class SelfTest
         // 可能还在运行或已完成，检查不崩溃即可
         Check("GetOutput 不崩溃", bgOut2 is not null);
         BackgroundTaskManager.Cleanup();
+
+        Console.WriteLine();
+
+        // ---- Lint 工具 ----
+        Console.WriteLine("[Lint 工具]");
+        var lintTool = new LintTool();
+        Check("lint 工具名称正确", lintTool.Name == "lint");
+        Check("lint 描述非空", lintTool.Description.Length > 0);
+
+        var lintDir = Path.Combine(Path.GetTempPath(), "lint_test_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(lintDir);
+        try
+        {
+            Check("DetectLanguage .cs → cs", LintTool.DetectLanguage(Path.Combine(lintDir, "test.cs")) == "cs");
+            Check("DetectLanguage .py → py", LintTool.DetectLanguage(Path.Combine(lintDir, "test.py")) == "py");
+            Check("DetectLanguage .js → js", LintTool.DetectLanguage(Path.Combine(lintDir, "test.js")) == "js");
+            Check("DetectLanguage .ts → ts", LintTool.DetectLanguage(Path.Combine(lintDir, "test.ts")) == "ts");
+            Check("DetectLanguage .go → go", LintTool.DetectLanguage(Path.Combine(lintDir, "test.go")) == "go");
+            Check("DetectLanguage .rs → rs", LintTool.DetectLanguage(Path.Combine(lintDir, "test.rs")) == "rs");
+            Check("DetectLanguage .java → java", LintTool.DetectLanguage(Path.Combine(lintDir, "test.java")) == "java");
+            Check("DetectLanguage .rb → ruby", LintTool.DetectLanguage(Path.Combine(lintDir, "test.rb")) == "ruby");
+            Check("DetectLanguage .php → php", LintTool.DetectLanguage(Path.Combine(lintDir, "test.php")) == "php");
+            Check("DetectLanguage .swift → swift", LintTool.DetectLanguage(Path.Combine(lintDir, "test.swift")) == "swift");
+            Check("DetectLanguage .kt → kotlin", LintTool.DetectLanguage(Path.Combine(lintDir, "test.kt")) == "kotlin");
+            Check("DetectLanguage .lua → lua", LintTool.DetectLanguage(Path.Combine(lintDir, "test.lua")) == "lua");
+            Check("DetectLanguage .sh → shell", LintTool.DetectLanguage(Path.Combine(lintDir, "test.sh")) == "shell");
+            Check("DetectLanguage .html → html", LintTool.DetectLanguage(Path.Combine(lintDir, "test.html")) == "html");
+            Check("DetectLanguage .css → css", LintTool.DetectLanguage(Path.Combine(lintDir, "test.css")) == "css");
+            Check("DetectLanguage .vue → vue", LintTool.DetectLanguage(Path.Combine(lintDir, "test.vue")) == "vue");
+            Check("DetectLanguage .yaml → yaml", LintTool.DetectLanguage(Path.Combine(lintDir, "test.yaml")) == "yaml");
+            Check("DetectLanguage .json → json", LintTool.DetectLanguage(Path.Combine(lintDir, "test.json")) == "json");
+            Check("DetectLanguage .md → markdown", LintTool.DetectLanguage(Path.Combine(lintDir, "test.md")) == "markdown");
+            Check("DetectLanguage .dart → dart", LintTool.DetectLanguage(Path.Combine(lintDir, "test.dart")) == "dart");
+            Check("DetectLanguage .sql → sql", LintTool.DetectLanguage(Path.Combine(lintDir, "test.sql")) == "sql");
+            Check("DetectLanguage 未知 → null", LintTool.DetectLanguage(Path.Combine(lintDir, "test.xyz")) == null);
+
+            var csResult = lintTool.ExecuteAsync(new Dictionary<string, object?>()).Result;
+            Check("lint C# 项目不崩溃", csResult.Length > 0);
+        }
+        finally { try { Directory.Delete(lintDir, true); } catch { } }
+
+        Console.WriteLine();
+
+        // ---- Web 搜索 ----
+        Console.WriteLine("[Web 搜索]");
+        var searchTool = new WebSearchTool();
+        Check("web_search 名称正确", searchTool.Name == "web_search");
+        Check("web_search 描述非空", searchTool.Description.Length > 0);
+        Check("web_search 空查询返回错误",
+            searchTool.ExecuteAsync(new Dictionary<string, object?>()).Result.Contains("错误"));
+        try
+        {
+            var searchResult = searchTool.ExecuteAsync(new Dictionary<string, object?> { ["query"] = "hello world", ["num"] = 2 }).Result;
+            Check("web_search 搜索不崩溃", searchResult.Length > 0 && !searchResult.Contains("异常"));
+        }
+        catch { failed++; Console.WriteLine("  ❌ web_search 搜索不崩溃"); }
+
+        Console.WriteLine();
+
+        // ---- Checkpoint ----
+        Console.WriteLine("[Checkpoint]");
+        CheckpointManager.Clear();
+        Check("初始检查点列表为空", CheckpointManager.ListCheckpoints().Contains("暂无检查点"));
+        var cp2 = CheckpointManager.CreateAsync("自测检查点").Result;
+        Check("创建检查点成功", cp2 != null);
+        Check("检查点 ID > 0", cp2!.Id > 0);
+        Check("检查点描述正确", cp2!.Description == "自测检查点");
+        Check("列表包含检查点", CheckpointManager.ListCheckpoints().Contains($"#{cp2.Id}"));
+        CheckpointManager.Clear();
+        Check("清理后列表为空", CheckpointManager.ListCheckpoints().Contains("暂无检查点"));
 
         Console.WriteLine();
 

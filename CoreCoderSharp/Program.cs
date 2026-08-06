@@ -189,6 +189,11 @@ public class Program
             if (userInput.StartsWith("/job-output ")) { Console.WriteLine(BackgroundTaskManager.GetOutput(int.TryParse(userInput[12..].Trim(), out var jid) ? jid : -1)); continue; }
             if (userInput == "/memory") { Console.WriteLine(MemoryStore.Read()); continue; }
             if (userInput == "/review") { await RunReviewAsync(); continue; }
+            if (userInput == "/lint") { await RunLintAsync(); continue; }
+            if (userInput.StartsWith("/search ")) { await RunSearchAsync(userInput[8..].Trim()); continue; }
+            if (userInput == "/checkpoint") { await CreateCheckpointAsync(); continue; }
+            if (userInput.StartsWith("/undo")) { await UndoCheckpointAsync(userInput); continue; }
+            if (userInput == "/checkpoints") { ShowCheckpoints(); continue; }
 
             if (userInput.StartsWith('/'))
             {
@@ -271,6 +276,12 @@ public class Program
         MarkupLine("[bold yellow]│[/] [cyan]/git-status[/]    Git 状态      [bold yellow]│[/]");
         MarkupLine("[bold yellow]│[/] [cyan]/git-log[/]       Git 日志      [bold yellow]│[/]");
         MarkupLine("[bold yellow]│[/] [cyan]/git-diff[/]      Git 差异      [bold yellow]│[/]");
+        MarkupLine("[bold yellow]│[/] [cyan]/review[/]        代码审查      [bold yellow]│[/]");
+        MarkupLine("[bold yellow]│[/] [cyan]/lint[/]          运行 lint 检查 [bold yellow]│[/]");
+        MarkupLine("[bold yellow]│[/] [cyan]/search[/] [dim]<关键词>[/] 网页搜索      [bold yellow]│[/]");
+        MarkupLine("[bold yellow]│[/] [cyan]/checkpoint[/]    创建检查点    [bold yellow]│[/]");
+        MarkupLine("[bold yellow]│[/] [cyan]/undo[/] [dim][编号][/]     回退检查点    [bold yellow]│[/]");
+        MarkupLine("[bold yellow]│[/] [cyan]/checkpoints[/]   列出检查点    [bold yellow]│[/]");
         MarkupLine("[bold yellow]│[/] [cyan]quit[/]           退出          [bold yellow]│[/]");
         MarkupLine("[bold yellow]╰────────────────────────────────╯[/]");
     }
@@ -439,6 +450,59 @@ public class Program
         MarkupLine($"[dim]git {E(command)}[/]");
         var result = await new Tools.GitTool().ExecuteAsync(new() { ["command"] = command });
         Console.WriteLine(result);
+    }
+
+    // ========================================================================
+    // Lint / Search / Checkpoint 命令 (v0.6.1+)
+    // ========================================================================
+
+    private static async Task RunLintAsync()
+    {
+        MarkupLine("[bold cyan]🔍 Lint 检查中...[/]");
+        var lintTool = new Tools.LintTool();
+        var result = await lintTool.ExecuteAsync(new Dictionary<string, object?>());
+        Console.WriteLine(result);
+    }
+
+    private static async Task RunSearchAsync(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            MarkupLine("[orange3]用法: /search <关键词>[/]");
+            return;
+        }
+        MarkupLine($"[bold cyan]🔍 搜索: {E(query)}[/]");
+        var searchTool = new Tools.WebSearchTool();
+        var result = await searchTool.ExecuteAsync(new Dictionary<string, object?> { ["query"] = query });
+        Console.WriteLine(result);
+    }
+
+    private static async Task CreateCheckpointAsync()
+    {
+        MarkupLine("[bold cyan]📦 创建检查点...[/]");
+        var cp = await CheckpointManager.CreateAsync("手动创建");
+        if (cp != null)
+            MarkupLine($"[green]✔ 检查点 #{cp.Id} 已创建[/] [dim]({cp.Type})[/]");
+        else
+            MarkupLine("[red]✘ 检查点创建失败[/]");
+    }
+
+    private static async Task UndoCheckpointAsync(string input)
+    {
+        var parts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        int? id = null;
+        if (parts.Length > 1 && int.TryParse(parts[1], out var parsed))
+            id = parsed;
+
+        MarkupLine("[bold orange3]⏪ 回退中...[/]");
+        var result = await CheckpointManager.UndoAsync(id);
+        Console.WriteLine(result);
+    }
+
+    private static void ShowCheckpoints()
+    {
+        MarkupLine("[bold]检查点列表:[/]");
+        Console.WriteLine(CheckpointManager.ListCheckpoints());
     }
 
     // ========================================================================
