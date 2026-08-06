@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.8.0 (2026-08-06) — 预算控制 + Hooks 生命周期 + MCP 协议
+
+### ✨ 新增功能
+- **硬预算上限** — `--max-budget-usd` CLI 标志 + `CORECODER_MAX_BUDGET_USD` 环境变量，超支自动停止
+- **Hooks 生命周期** — PreToolUse / PostToolUse 事件，Shell 脚本处理器，退出码 2=阻止
+- **MCP 协议支持** — Stdio 传输，自动发现 MCP 服务器工具，命名空间 `mcp__<server>__<tool>`
+- **MCP 配置** — `.corecoder/mcp_servers.json` 配置服务器
+
+### 🔧 增强
+- `Config.MaxBudgetUsd` — 预算配置字段
+- `ToolRegistry.AllTools` → 动态属性，自动合并 MCP 工具
+- 166+ 项自测（+3 项预算/Hooks/MCP 测试）
+
 ## v0.7.0 (2026-08-06) — 自定义命令 + 自动 Lint 闭环 + YOLO 模式
 
 ### ✨ 新增功能

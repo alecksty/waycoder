@@ -14,6 +14,9 @@ public class Config
     public int MaxContextTokens { get; set; } = 128_000;
     public string Provider { get; set; } = "openai";
 
+    /// <summary>最大预算（美元），null 表示无限制</summary>
+    public double? MaxBudgetUsd { get; set; }
+
     /// <summary>
     /// 从环境变量加载配置。也支持从当前目录向上查找到 home 目录的 .env 文件。
     /// </summary>
@@ -45,6 +48,9 @@ public class Config
 
         var envProvider = Environment.GetEnvironmentVariable("CORECODER_PROVIDER");
         if (envProvider != null) config.Provider = envProvider;
+
+        if (double.TryParse(Environment.GetEnvironmentVariable("CORECODER_MAX_BUDGET_USD"), out var budget))
+            config.MaxBudgetUsd = budget;
 
         return config;
     }
