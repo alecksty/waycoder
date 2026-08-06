@@ -19,6 +19,8 @@ public static class ToolRegistry
         new TodoTool(),
         new LspTool(),
         new MemoryTool(),
+        new LintTool(),
+        new WebSearchTool(),
     ];
 
     /// <summary>
