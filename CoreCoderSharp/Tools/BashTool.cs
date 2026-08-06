@@ -84,6 +84,15 @@ public class BashTool : ITool
             };
 
             using var proc = Process.Start(psi)!;
+
+            // 异步读取输出，避免缓冲区满导致死锁
+            var stdout = new System.Text.StringBuilder();
+            var stderr = new System.Text.StringBuilder();
+            proc.OutputDataReceived += (_, e) => { if (e.Data != null) stdout.AppendLine(e.Data); };
+            proc.ErrorDataReceived += (_, e) => { if (e.Data != null) stderr.AppendLine(e.Data); };
+            proc.BeginOutputReadLine();
+            proc.BeginErrorReadLine();
+
             var exited = proc.WaitForExit(timeout * 1000);
 
             if (!exited)
@@ -92,8 +101,10 @@ public class BashTool : ITool
                 return $"错误：在 {timeout} 秒后超时";
             }
 
-            var stdout = proc.StandardOutput.ReadToEnd();
-            var stderr = proc.StandardError.ReadToEnd();
+            proc.WaitForExit(); // 确保异步读取完成
+
+            var outStr = stdout.ToString();
+            var errStr = stderr.ToString();
 
             // 跟踪 cd 命令
             if (proc.ExitCode == 0)
@@ -101,9 +112,8 @@ public class BashTool : ITool
                 UpdateCwd(command, cwd);
             }
 
-            var outStr = stdout;
-            if (!string.IsNullOrEmpty(stderr))
-                outStr += $"\n[stderr]\n{stderr}";
+            if (!string.IsNullOrEmpty(errStr))
+                outStr += $"\n[stderr]\n{errStr}";
             if (proc.ExitCode != 0)
                 outStr += $"\n[退出码：{proc.ExitCode}]";
 
