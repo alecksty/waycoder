@@ -709,6 +709,41 @@ public static class SelfTest
 
         Console.WriteLine();
 
+        // ---- 预算系统 ----
+        Console.WriteLine("[预算系统]");
+        var budgetConfig = new Config { MaxBudgetUsd = 5.0 };
+        Check("MaxBudgetUsd 可设置", budgetConfig.MaxBudgetUsd == 5.0);
+        Check("默认无预算", new Config().MaxBudgetUsd == null);
+        // Agent with budget
+        var budgetAgent = new Agent(new LLM("test", "sk-test"), maxBudgetUsd: 1.0);
+        Check("Agent 接受预算参数", true); // 编译期已验证
+
+        Console.WriteLine();
+
+        // ---- Hooks ----
+        Console.WriteLine("[Hooks]");
+        HooksManager.Enabled = false;
+        var hookResult = HooksManager.RunPreToolUseAsync("bash", new Dictionary<string, object?> { ["command"] = "echo hi" }).Result;
+        Check("禁用 Hooks 时返回 null", hookResult == null);
+        HooksManager.Enabled = true;
+        Check("Hooks 可重新启用", HooksManager.Enabled);
+
+        Console.WriteLine();
+
+        // ---- MCP ----
+        Console.WriteLine("[MCP]");
+        var mcpTool = new McpTool("test-server", new JsonObject
+        {
+            ["name"] = "test_tool",
+            ["description"] = "测试 MCP 工具",
+            ["inputSchema"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() }
+        }, null!);
+        Check("MCP 工具名称格式", mcpTool.Name == "mcp__test-server__test_tool");
+        Check("MCP 工具描述", mcpTool.Description == "测试 MCP 工具");
+        Check("MCP 工具有 schema", ((ITool)mcpTool).Schema()["function"]?["name"] != null);
+
+        Console.WriteLine();
+
         // ---- 结果 ----
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
         return failed == 0;
