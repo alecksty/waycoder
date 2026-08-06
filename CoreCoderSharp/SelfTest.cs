@@ -24,7 +24,7 @@ public static class SelfTest
 
         // ---- 工具注册 ----
         Console.WriteLine("[工具注册]");
-        Check("工具数量 == 15", ToolRegistry.AllTools.Count == 15);
+        Check("工具数量 == 29", ToolRegistry.BuiltinTools.Count == 29);
         Check("所有工具有有效 schema", ToolRegistry.AllTools.All(t =>
         {
             var s = t.Schema();
@@ -802,8 +802,8 @@ public static class SelfTest
         Check("Invalidate 后重新生成", RepoMapGenerator.Generate(forceRefresh: true).Length > 0);
 
         // 验证仓库地图包含当前项目的关键文件
-        Check("仓库地图包含 Program.cs", repoMap.Contains("Program.cs"));
-        Check("仓库地图包含 Agent.cs", repoMap.Contains("Agent.cs"));
+        Check("仓库地图包含 CoreCoderSharp/", repoMap.Contains("CoreCoderSharp/"));
+        Check("仓库地图包含 Tools/", repoMap.Contains("Tools/"));
 
         // 验证系统提示词包含仓库地图
         var promptWithMap = SystemPrompt.Generate(ToolRegistry.AllTools);

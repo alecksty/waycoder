@@ -21,7 +21,7 @@ public static class PermissionManager
 
     /// <summary>需要确认的工具名列表</summary>
     private static readonly HashSet<string> DangerousTools =
-        ["bash", "write_file", "edit_file", "agent"];
+        ["bash", "write_file", "edit_file", "agent", "kill", "rm"];
 
     /// <summary>
     /// 检查是否需要确认。返回 true 表示允许执行。

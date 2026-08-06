@@ -414,6 +414,15 @@ internal static class JsonHelper
         };
     }
 
+    /// <summary>
+    /// 深拷贝 JsonNode（AOT 安全：通过序列化/反序列化）。
+    /// </summary>
+    public static JsonNode? DeepClone(JsonNode? node)
+    {
+        if (node == null) return null;
+        return JsonNode.Parse(node.ToJsonString());
+    }
+
     private static string EscapeJson(string s)
     {
         var sb = new StringBuilder(s.Length);

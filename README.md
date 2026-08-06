@@ -4,7 +4,7 @@
 
 **极简 AI 编程智能体，C# (.NET 10) 实现，AOT 编译为单文件 exe（7.8 MB），无需运行时。**
 
-*一个 while 循环 + 大模型 + 12 个工具，就是全部*
+*一个 while 循环 + 大模型 + 29 个工具，就是全部*
 
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -34,7 +34,7 @@ dotnet run
 # 一次性模式
 dotnet run -- -p "修复一个 bug"
 
-# 运行自测（44 项）
+# 运行自测（245 项）
 dotnet run -- --test
 ```
 
@@ -64,16 +64,21 @@ CoreCoderSharp/
 ├── MemoryStore.cs     记忆系统
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        44 项自测
-└── Tools/             12 个工具
+├── SelfTest.cs        245 项自测
+└── Tools/             29 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
-    ├── WriteFileTool.cs TodoTool.cs
-    ├── EditFileTool.cs AgentTool.cs
-    ├── GlobTool.cs    GrepTool.cs
+    ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
+    ├── EditFileTool.cs AgentTool.cs  WebSearchTool.cs
+    ├── GlobTool.cs    GrepTool.cs    GitPRTool.cs
+    ├── PsTool.cs      KillTool.cs    LsTool.cs
+    ├── MkdirTool.cs   RmTool.cs      CdTool.cs
+    ├── FindReplaceTool.cs CpTool.cs  MvTool.cs
+    ├── DiffTool.cs    TreeTool.cs    WcTool.cs
+    ├── StatTool.cs    PwdTool.cs
 ```
 
-## 12 个工具
+## 29 个工具
 
 | 工具 | 用途 |
 |---|---|
@@ -84,11 +89,28 @@ CoreCoderSharp/
 | `glob` | 文件模式匹配，按修改时间排序 |
 | `grep` | 正则表达式内容搜索，跳过垃圾目录 |
 | `agent` | 生成子智能体（独立上下文，禁止递归） |
-| `git` | Git 操作（status/log/diff） |
+| `git` | Git 操作（status/log/diff/commit） |
 | `fetch` | Web 抓取，自动提取网页纯文本 |
 | `lsp` | LSP 代码导航（go-to-def, references, hover） |
 | `memory` | 读写项目记忆 |
 | `todo` | 结构化任务列表 |
+| `lint` | 代码静态检查，25+ 种语言 |
+| `web_search` | 网页搜索（通过 DuckDuckGo） |
+| `git_pr` | Git PR 创建/推送/链接 |
+| `ps` | 进程列表（纯 C#） |
+| `kill` | 终止进程，保护系统进程 |
+| `ls` | 目录列表，递归/过滤/深度 |
+| `mkdir` | 递归创建目录 |
+| `rm` | 安全删除文件/目录 |
+| `cd` | 切换工作目录 |
+| `cp` | 复制文件/目录 |
+| `mv` | 移动/重命名文件 |
+| `diff` | 逐行文件差异比对 |
+| `tree` | ASCII 目录树生成 |
+| `wc` | 行/词/字符/字节计数 |
+| `stat` | 文件/目录元数据 |
+| `find_replace` | 跨文件正则查找替换 |
+| `pwd` | 打印工作目录 |
 
 ## REPL 命令
 
