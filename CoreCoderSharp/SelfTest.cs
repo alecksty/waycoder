@@ -51,7 +51,7 @@ public static class SelfTest
                 "[项目检测]","[上下文管理]","[预算系统]","[Hooks]","[自定义命令]","[输入规范化]",
                 "[命令别名]","[错误自恢复]","[Token 性能统计]","[HTTP 代理]","[Sub-Agent",
                 "[Tab 路径补全]","[输入历史]","[模型热键切换]","[对话导出]","[最近文件]",
-                "[会话管理]","[会话 + 检查点]"],
+                "[会话管理]","[会话 + 检查点]","[编辑器 Lint]","[Lint 解析:","[Lint 诊断:","[配置: EditorLint]","[语法: 诊断背景色]","[诊断: Severity]","[诊断: Diagnostic]"],
             _ => null,
         };
     }
@@ -1553,6 +1553,205 @@ public static class SelfTest
         SandboxManager.Reset();
         Check("Reset 后 suggest", SandboxManager.Level == "suggest");
         Check("Reset 后 AllowedDirectory null", SandboxManager.AllowedDirectory == null);
+
+        Console.WriteLine();
+
+        // ---- 编辑器 Lint 诊断 ----
+        Section("[编辑器 Lint 诊断]");
+
+        DiagnosticManager.ClearAll();
+        DiagnosticManager.Enabled = true;
+        Check("DiagnosticManager 默认启用", DiagnosticManager.Enabled);
+
+        // ---- dotnet build 解析 ----
+        Section("[Lint 解析: dotnet build]");
+        var dotnetOutput = @"
+/Users/test/Program.cs(10,5): error CS1002: 应输入 ;
+/Users/test/Program.cs(15,1): warning CS0219: 变量 'x' 已赋值，但其值从未使用过
+/Users/test/Program.cs(20,3): error CS0103: 当前上下文中不存在名称 'foo'
+";
+        var csDiags = DiagnosticManager.ParseLintOutput(dotnetOutput, "cs", "Program.cs");
+        Check("dotnet 解析 3 条诊断", csDiags.Count == 3);
+        Check("dotnet 错误 CS1002 行 10", csDiags.Any(d => d.Line == 10 && d.Code == "CS1002" && d.Severity == Severity.Error));
+        Check("dotnet 警告 CS0219 行 15", csDiags.Any(d => d.Line == 15 && d.Code == "CS0219" && d.Severity == Severity.Warning));
+        Check("dotnet 错误消息包含", csDiags.Any(d => d.Message.Contains("不存在") || d.Message.Contains("输入")));
+
+        // ---- ruff 解析 ----
+        Section("[Lint 解析: ruff]");
+        var ruffOutput = @"
+test.py:5:1: F401 'os' imported but unused
+test.py:10:80: E501 line too long (85 > 79 characters)
+test.py:20:5: W291 trailing whitespace
+";
+        var pyDiags = DiagnosticManager.ParseLintOutput(ruffOutput, "py", "test.py");
+        Check("ruff 解析 3 条诊断", pyDiags.Count == 3);
+        Check("ruff F401 行 5", pyDiags.Any(d => d.Line == 5 && d.Code == "F401"));
+        Check("ruff E501 行 10", pyDiags.Any(d => d.Line == 10 && d.Code == "E501"));
+
+        // ---- eslint 解析 ----
+        Section("[Lint 解析: eslint]");
+        var eslintOutput = @"
+/path/to/app.js
+  1:5  error    'x' is assigned a value but never used  no-unused-vars
+  3:10  warning  Missing semicolon                      semi
+  8:1  error    'foo' is not defined                   no-undef
+";
+        var jsDiags = DiagnosticManager.ParseLintOutput(eslintOutput, "js", "app.js");
+        Check("eslint 解析 3 条诊断", jsDiags.Count == 3);
+        Check("eslint 错误行 1", jsDiags.Any(d => d.Line == 1 && d.Severity == Severity.Error && d.Code == "no-unused-vars"));
+        Check("eslint 警告行 3", jsDiags.Any(d => d.Line == 3 && d.Severity == Severity.Warning && d.Code == "semi"));
+
+        // ---- go vet 解析 ----
+        Section("[Lint 解析: go vet]");
+        var goVetOutput = @"
+main.go:5:2: Printf format %d has arg s of wrong type string
+main.go:12:1: unreachable code
+";
+        var goDiags = DiagnosticManager.ParseLintOutput(goVetOutput, "go", "main.go");
+        Check("go vet 解析 2 条诊断", goDiags.Count == 2);
+        Check("go vet 行 5", goDiags.Any(d => d.Line == 5 && d.Severity == Severity.Error));
+
+        // ---- gcc 解析 ----
+        Section("[Lint 解析: gcc]");
+        var gccOutput = @"
+main.c:10:5: error: expected ';' before 'return'
+main.c:15:1: warning: implicit declaration of function 'foo'
+";
+        var cDiags = DiagnosticManager.ParseLintOutput(gccOutput, "c", "main.c");
+        Check("gcc 解析 2 条诊断", cDiags.Count == 2);
+        Check("gcc error 行 10", cDiags.Any(d => d.Line == 10 && d.Severity == Severity.Error));
+        Check("gcc warning 行 15", cDiags.Any(d => d.Line == 15 && d.Severity == Severity.Warning));
+
+        // ---- shellcheck 解析 ----
+        Section("[Lint 解析: shellcheck]");
+        var shellOutput = @"
+In script.sh line 5:
+echo $UNDEFINED
+^-- SC2154: UNDEFINED is referenced but not assigned.
+
+In script.sh line 10:
+rm -rf /tmp/$DIR
+^-- SC2115: Use ""${DIR:?}"" to ensure this never expands to / .
+";
+        var shDiags = DiagnosticManager.ParseLintOutput(shellOutput, "shell", "script.sh");
+        Check("shellcheck 解析 2 条诊断", shDiags.Count == 2);
+        Check("shellcheck 行 5", shDiags.Any(d => d.Line == 5 && d.Code == "SC"));
+        Check("shellcheck 行 10", shDiags.Any(d => d.Line == 10));
+
+        // ---- ruby 解析 ----
+        Section("[Lint 解析: ruby]");
+        var rubyOutput = @"
+test.rb:5: syntax error, unexpected end-of-input, expecting ')'
+";
+        var rbDiags = DiagnosticManager.ParseLintOutput(rubyOutput, "ruby", "test.rb");
+        Check("ruby 解析 1 条诊断", rbDiags.Count == 1);
+        Check("ruby 行 5 error", rbDiags.Any(d => d.Line == 5 && d.Severity == Severity.Error));
+
+        // ---- php 解析 ----
+        Section("[Lint 解析: php]");
+        var phpOutput = @"
+Parse error: syntax error, unexpected '}' in test.php on line 8
+";
+        var phpDiags = DiagnosticManager.ParseLintOutput(phpOutput, "php", "test.php");
+        Check("php 解析 1 条诊断", phpDiags.Count == 1);
+        Check("php 行 8 error", phpDiags.Any(d => d.Line == 8 && d.Severity == Severity.Error));
+
+        // ---- java 解析 ----
+        Section("[Lint 解析: java]");
+        var javaOutput = @"
+Test.java:5: error: ';' expected
+Test.java:12: warning: [unchecked] unchecked cast
+";
+        var javaDiags = DiagnosticManager.ParseLintOutput(javaOutput, "java", "Test.java");
+        Check("java 解析 2 条诊断", javaDiags.Count == 2);
+        Check("java error 行 5", javaDiags.Any(d => d.Line == 5 && d.Severity == Severity.Error));
+        Check("java warning 行 12", javaDiags.Any(d => d.Line == 12 && d.Severity == Severity.Warning));
+
+        // ---- Rust cargo 解析 ----
+        Section("[Lint 解析: rust cargo]");
+        var rustOutput = @"
+error[E0382]: use of moved value
+ --> src/main.rs:2:20
+  |
+2 |     let y = x;
+  |                    ^ value used here after move
+warning[W0412]: unused variable: `foo`
+ --> src/main.rs:5:9
+";
+        var rsDiags = DiagnosticManager.ParseLintOutput(rustOutput, "rs", "main.rs");
+        Check("rust 解析 2 条诊断", rsDiags.Count == 2);
+        Check("rust error E0382", rsDiags.Any(d => d.Line == 2 && d.Code == "E0382" && d.Severity == Severity.Error));
+        Check("rust warning W0412", rsDiags.Any(d => d.Line == 5 && d.Code == "W0412" && d.Severity == Severity.Warning));
+
+        // ---- 通过/无 linter 情况 ----
+        Section("[Lint 解析: 通过]");
+        var passOutput = "✅ cs: 检查通过\n编译成功";
+        var passDiags = DiagnosticManager.ParseLintOutput(passOutput, "cs", "test.cs");
+        Check("通过时返回空列表", passDiags.Count == 0);
+
+        var noLinterOutput = "⚠ xyz: 无法运行 — （无可用 linter）";
+        var noLinterDiags = DiagnosticManager.ParseLintOutput(noLinterOutput, "xyz", "test.xyz");
+        Check("无 linter 返回空列表", noLinterDiags.Count == 0);
+
+        // ---- GetForLine / GetSummary ----
+        Section("[Lint 诊断: 查询]");
+        DiagnosticManager.ClearAll();
+        var lineQuery = DiagnosticManager.GetForLine("/tmp/nonexistent.cs", 5);
+        Check("无缓存的 GetForLine 返回空", lineQuery.Count == 0);
+        var (noErr, noWarn) = DiagnosticManager.GetSummary("/tmp/nonexistent.cs");
+        Check("无缓存的 GetSummary 返回 0", noErr == 0 && noWarn == 0);
+        DiagnosticManager.Clear("/tmp/nonexistent.cs");
+        Check("Clear 不崩溃", true);
+
+        // ---- 配置: EditorLint ----
+        Section("[配置: EditorLint]");
+        var cfg2 = new Config();
+        Check("EditorLint 默认 true", cfg2.EditorLint);
+        cfg2.EditorLint = false;
+        Check("EditorLint 写入 false", !cfg2.EditorLint);
+        cfg2.EditorLint = true;
+        Check("EditorLint 写入 true", cfg2.EditorLint);
+
+        var schemaCheck2 = Config.SettingSchema();
+        var elDef = schemaCheck2.FirstOrDefault(s => s.Key == "EditorLint");
+        Check("Schema 包含 EditorLint", elDef != null);
+        Check("EditorLint 类型 select", elDef?.Type == "select");
+        Check("EditorLint EnvVar", elDef?.EnvVar == "WAYCODER_EDITOR_LINT");
+        Check("EditorLint 有 Options", elDef?.Options?.Contains("true") == true);
+
+        // ---- 语法颜色: 诊断背景色 ----
+        Section("[语法: 诊断背景色]");
+        Check("ErrorBg = 41", Syntax.ErrorBg == 41);
+        Check("WarningBg = 103", Syntax.WarningBg == 103);
+
+        // ---- Severity 枚举 ----
+        Section("[诊断: Severity 枚举]");
+        Check("Severity 值不重复", (int)Severity.Error != (int)Severity.Warning
+            && (int)Severity.Warning != (int)Severity.Info
+            && (int)Severity.Error != (int)Severity.Info);
+
+        // ---- Diagnostic 记录 ----
+        Section("[诊断: Diagnostic 记录]");
+        var d1 = new Diagnostic(5, 3, Severity.Error, "测试错误", "E001");
+        Check("Diagnostic Line=5", d1.Line == 5);
+        Check("Diagnostic Column=3", d1.Column == 3);
+        Check("Diagnostic Severity=Error", d1.Severity == Severity.Error);
+        Check("Diagnostic Message", d1.Message == "测试错误");
+        Check("Diagnostic Code=E001", d1.Code == "E001");
+
+        var d2 = new Diagnostic(5, 3, Severity.Error, "测试错误", "E001");
+        Check("Diagnostic 值相等", d1 == d2);
+        var d3 = d1 with { Line = 6 };
+        Check("Diagnostic with 修改", d3.Line == 6 && d3.Message == "测试错误");
+
+        // ---- 通用回退解析 ----
+        Section("[Lint 解析: 通用回退]");
+        var genericOutput2 = @"
+somefile.txt:8:12: error: unexpected token
+another.txt:3:1: warning: deprecated API
+";
+        var genDiags = DiagnosticManager.ParseLintOutput(genericOutput2, "swift", "somefile.txt");
+        Check("通用解析找到 ≥1 条", genDiags.Count >= 1);
 
         Console.WriteLine();
 

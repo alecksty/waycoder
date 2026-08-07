@@ -43,6 +43,9 @@ public class Config
     /// <summary>沙箱级别: suggest | auto-edit | full-auto</summary>
     public string SandboxLevel { get; set; } = "suggest";
 
+    /// <summary>编辑器保存后自动 lint 检查（默认开启）</summary>
+    public bool EditorLint { get; set; } = true;
+
     // ---- 界面主题 ----
     /// <summary>边框类型: single | double | rounded | bold</summary>
     public string BorderStyle { get; set; } = "rounded";
@@ -108,6 +111,9 @@ public class Config
 
         var envSandbox = Env("WAYCODER_SANDBOX_LEVEL", "CORECODER_SANDBOX_LEVEL");
         if (envSandbox != null) config.SandboxLevel = envSandbox;
+
+        if (bool.TryParse(Env("WAYCODER_EDITOR_LINT", "CORECODER_EDITOR_LINT"), out var el))
+            config.EditorLint = el;
 
         // 主题
         var envBorder = Env("WAYCODER_BORDER_STYLE", "CORECODER_BORDER_STYLE");
@@ -246,6 +252,8 @@ public class Config
             "select", ["false", "true"], "WAYCODER_PROMPT_CACHE", 3),
         new("SandboxLevel", "沙箱级别", "🔧 系统", "suggest=确认 auto-edit=编自动 full-auto=全自动沙箱",
             "select", ["suggest", "auto-edit", "full-auto"], "WAYCODER_SANDBOX_LEVEL", 4),
+        new("EditorLint", "编辑器 Lint", "🔧 系统", "保存时自动运行 lint 检查并标注错误行",
+            "select", ["false", "true"], "WAYCODER_EDITOR_LINT", 5),
 
         // 界面主题
         new("ColorScheme", "配色方案", "🎨 界面", "预设配色 (覆盖下方颜色设置)",
@@ -283,6 +291,7 @@ public class Config
         ApplyOrAppend(lines, "WAYCODER_WATCH", WatchMode.ToString().ToLowerInvariant());
         ApplyOrAppend(lines, "WAYCODER_PROMPT_CACHE", PromptCaching.ToString().ToLowerInvariant());
         ApplyOrAppend(lines, "WAYCODER_SANDBOX_LEVEL", SandboxLevel);
+        ApplyOrAppend(lines, "WAYCODER_EDITOR_LINT", EditorLint.ToString().ToLowerInvariant());
         ApplyOrAppend(lines, "WAYCODER_BORDER_STYLE", BorderStyle);
         ApplyOrAppend(lines, "WAYCODER_BORDER_COLOR", BorderColor);
         ApplyOrAppend(lines, "WAYCODER_ACCENT_COLOR", AccentColor);

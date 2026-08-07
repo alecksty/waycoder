@@ -19,6 +19,10 @@ public class Syntax
     public const int Red = 31;
     public const int Default = 0;
 
+    // 诊断标注色
+    public const int ErrorBg = 41;    // 红色背景
+    public const int WarningBg = 103; // 亮黄背景
+
     /// <summary>根据文件扩展名选择语法定义</summary>
     public static Syntax ForFile(string filePath)
     {

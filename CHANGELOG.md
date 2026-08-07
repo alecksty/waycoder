@@ -1,5 +1,32 @@
 # 更新日志
 
+## v0.17.2 (2026-08-07) — TUI 编辑器 Lint 诊断集成
+
+### ✨ 新增功能
+- **编辑器 Lint 诊断** — 保存文件时自动运行 lint 检查，行内标注错误和警告
+  - 新增 `DiagnosticManager.cs`：解析 10+ 种 linter 输出格式（dotnet build / eslint / ruff / go vet / gcc / shellcheck / ruby / php / java / rust cargo）
+  - 编辑器 gutter 指示器：有错误的行显示红色 `●`，有警告的行显示黄色 `▲`
+  - 错误行红色背景、警告行黄色背景高亮
+  - 状态栏显示错误/警告计数和当前行诊断消息
+  - 配置开关：`WAYCODER_EDITOR_LINT`（默认开启）
+- 新增 `ErrorBg` / `WarningBg` 颜色常量（ANSI 41 / 103）
+
+### 📝 自测
+- 10 组诊断解析测试（dotnet/eslint/ruff/go vet/gcc/shellcheck/ruby/php/java/rust）
+- 3 组查询/配置/枚举测试
+
+## v0.17.1 (2026-08-07) — 沙箱执行
+
+### ✨ 新增功能
+- **三级沙箱执行** — suggest（确认）/ auto-edit（自动编辑）/ full-auto（全自动沙箱）
+  - 新增 `SandboxManager.cs`：环境变量清理、工作目录锁定、系统目录写保护、内存监控（1GB 限制）
+  - bash 工具集成：沙箱模式下自动创建受保护的进程、异步内存监控
+  - 权限系统联动：full-auto 模式 bash 直接放行
+  - 配置开关：`WAYCODER_SANDBOX_LEVEL`（默认 suggest）
+
+### 📝 自测
+- 30 项沙箱管理测试
+
 ## v0.17.0 (2026-08-07) — Prompt 缓存 + 竞品 P0 清零
 
 ### ✨ 新增功能
