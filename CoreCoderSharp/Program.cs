@@ -208,8 +208,8 @@ public class Program
                     {
                         ScreenManager.PanelTab.Off => ScreenManager.PanelTab.Todo,
                         ScreenManager.PanelTab.Todo => ScreenManager.PanelTab.Files,
-                        ScreenManager.PanelTab.Files => ScreenManager.PanelTab.LSP,
-                        ScreenManager.PanelTab.LSP => ScreenManager.PanelTab.MCP,
+                        ScreenManager.PanelTab.Files => ScreenManager.PanelTab.Locks,
+                        ScreenManager.PanelTab.Locks => ScreenManager.PanelTab.MCP,
                         _ => ScreenManager.PanelTab.Off,
                     };
                     if (sm.ActivePanel == ScreenManager.PanelTab.Files)

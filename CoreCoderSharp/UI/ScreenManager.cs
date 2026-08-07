@@ -33,7 +33,7 @@ public class ScreenManager
     public int SuggestH; // 面板可见行数
 
     // ---- 右侧面板 (多标签) ----
-    public enum PanelTab { Off, Todo, Files, LSP, MCP }
+    public enum PanelTab { Off, Todo, Files, Locks, MCP }
     public PanelTab ActivePanel;
     public List<TodoItem> TodoItems = [];
     public List<string> ModifiedFiles = [];
@@ -64,7 +64,7 @@ public class ScreenManager
         if (row == 0)
         {
             // 标签栏
-            var tabs = new[] { ("📋任务", PanelTab.Todo), ("📁文件", PanelTab.Files), ("🔍LSP", PanelTab.LSP), ("🔌MCP", PanelTab.MCP) };
+            var tabs = new[] { ("📋任务", PanelTab.Todo), ("📁文件", PanelTab.Files), ("🔒锁", PanelTab.Locks), ("🔌MCP", PanelTab.MCP) };
             sb.Append(" [1m");
             foreach (var (name, tab) in tabs)
             {
@@ -115,12 +115,19 @@ public class ScreenManager
                 }
                 break;
 
-            case PanelTab.LSP:
-                if (idx == 0) sb.Append(" [2mLSP 状态[0m");
-                else if (!string.IsNullOrEmpty(LspInfo))
-                    sb.Append($" [2m{LspInfo}[0m");
+            case PanelTab.Locks:
+                if (idx == 0) sb.Append(" 文件锁");
                 else
-                    sb.Append(" [2m检测中...[0m");
+                {
+                    var locks = FileLockManager.GetAllLocks();
+                    if (idx - 1 < locks.Count)
+                    {
+                        var l = locks[idx - 1];
+                        var f = Path.GetFileName(l.FilePath);
+                        if (f.Length > 20) f = f[..17] + "…";
+                        sb.Append($" 🔒 {f} ({l.AgentId})");
+                    }
+                }
                 break;
 
             case PanelTab.MCP:

@@ -1023,6 +1023,25 @@ public static class SelfTest
         Check("再次切换生效", mc.Model == "deepseek-v4-pro");
         Console.WriteLine();
 
+        // ---- 文件锁 ----
+        Console.WriteLine("[文件锁]");
+        var testFile = Path.GetTempFileName();
+        Check("获取锁成功", FileLockManager.TryAcquire(testFile, "agent-A"));
+        Check("同一 agent 可重入", FileLockManager.TryAcquire(testFile, "agent-A"));
+        Check("其他 agent 不能获取", !FileLockManager.TryAcquire(testFile, "agent-B"));
+        Check("被其他 agent 锁定", FileLockManager.IsLockedByOther(testFile, "agent-B"));
+        Check("同一 agent 锁定自己", !FileLockManager.IsLockedByOther(testFile, "agent-A"));
+        Check("锁列表包含文件", FileLockManager.GetAllLocks().Any(l => l.FilePath.Contains(Path.GetFileName(testFile))));
+
+        FileLockManager.Release(testFile, "agent-A");
+        Check("释放后 agent-B 可获取", FileLockManager.TryAcquire(testFile, "agent-B"));
+        FileLockManager.ReleaseAll("agent-B");
+        Check("释放全部后锁列表为空", FileLockManager.GetAllLocks().Count == 0);
+
+        // 清理
+        try { File.Delete(testFile); } catch { }
+        Console.WriteLine();
+
         // ---- 结果 ----
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
         return failed == 0;
