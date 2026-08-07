@@ -51,15 +51,15 @@ public class BashTool : ITool
         (new(@"\bwget\b.*\|\s*(sudo\s+)?(ba)?sh\b"), "wget 管道到 shell"),
     ];
 
-    public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var command = arguments.GetValueOrDefault("command")?.ToString() ?? "";
         var timeout = arguments.TryGetValue("timeout", out var t) && t is int ti ? ti : 120;
 
-        return Task.FromResult(Execute(command, timeout));
+        return await Execute(command, timeout);
     }
 
-    private string Execute(string command, int timeout)
+    private async Task<string> Execute(string command, int timeout)
     {
         // 安全检查
         var warning = CheckDangerous(command);
@@ -68,20 +68,37 @@ public class BashTool : ITool
 
         var cwd = CurrentCwd.Value ?? Directory.GetCurrentDirectory();
 
+        // 沙箱检查（full-auto 模式）
+        if (SandboxManager.IsSandboxed)
+        {
+            var violation = SandboxManager.CheckSandboxViolation(command, cwd);
+            if (violation != null)
+                return $"⛔ 沙箱阻止：{violation}\n命令：{command}";
+        }
+
         try
         {
-            var psi = new ProcessStartInfo
+            ProcessStartInfo psi;
+
+            if (SandboxManager.IsSandboxed)
             {
-                FileName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "cmd.exe" : "/bin/bash",
-                Arguments = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                    ? $"/c \"{command}\""
-                    : $"-c \"{command.Replace("\"", "\\\"")}\"",
-                WorkingDirectory = cwd,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
+                psi = SandboxManager.CreateSandboxedProcess(command, cwd);
+            }
+            else
+            {
+                psi = new ProcessStartInfo
+                {
+                    FileName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "cmd.exe" : "/bin/bash",
+                    Arguments = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                        ? $"/c \"{command}\""
+                        : $"-c \"{command.Replace("\"", "\\\"")}\"",
+                    WorkingDirectory = cwd,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+            }
 
             using var proc = Process.Start(psi)!;
 
@@ -93,7 +110,27 @@ public class BashTool : ITool
             proc.BeginOutputReadLine();
             proc.BeginErrorReadLine();
 
+            // 沙箱模式：后台监控内存
+            var memCts = new CancellationTokenSource();
+            Task<string?>? memTask = null;
+            if (SandboxManager.IsSandboxed)
+                memTask = SandboxManager.MonitorMemoryAsync(proc, memCts.Token);
+
             var exited = proc.WaitForExit(timeout * 1000);
+
+            // 取消内存监控
+            memCts.Cancel();
+
+            // 检查内存超限
+            if (memTask is { IsCompleted: true })
+            {
+                var memResult = await memTask;
+                if (memResult != null)
+                {
+                    proc.Kill(entireProcessTree: true);
+                    return memResult;
+                }
+            }
 
             if (!exited)
             {
