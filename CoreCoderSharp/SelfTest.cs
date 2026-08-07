@@ -904,7 +904,7 @@ public static class SelfTest
         sm.UpdateTokenDisplay(1234, 567, 0.0123, 80000, 128000);
         Check("TokenInfo 非空", sm.TokenInfo.Length > 0);
         Check("Token 包含↑1.2k", sm.TokenInfo.Contains("↑1.2k"));
-        Check("Token 包含缓存%", sm.TokenInfo.Contains("缓存"));
+        Check("Token 包含上下文%", sm.TokenInfo.Contains("上下文"));
 
         // 输入编辑
         sm.InputLines.Clear(); sm.InputLines.Add(new StringBuilder());
