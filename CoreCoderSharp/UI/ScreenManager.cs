@@ -531,6 +531,10 @@ public class ScreenManager
         // 状态栏: 灰色底 + 白字左 + 黄字右
         sb.Append($"[{statusRow};1H[100m[37m{leftStatus}{new string(' ', pad)}[33m{rightInfo}[0m");
 
+        // ---- 快捷键栏 ----
+        int hotkeyRow = statusRow + 1;
+        RenderHotkeyBar(sb, hotkeyRow);
+
         // ---- 光标定位 ----
         var (scrCy, scrCx) = InputHardToScreen(TW - 4);
         var cursorRow = inputRow + 1 + (scrCy - InputScroll);

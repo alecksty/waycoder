@@ -299,7 +299,6 @@ case ConsoleKey.F2:
         if (userInput.StartsWith("/edit ")) { await Editor.RunAsync(userInput[6..].Trim()); sm.Render(); return; }
         if (userInput is "/settings" or "/config") { SettingsPage.Show(); return; }
         if (userInput == "/about") { ScreenManager.ShowAbout(); return; }
-        if (userInput == "/about") { ScreenManager.ShowAbout(); return; }
 
         // 调用 Agent (支持自动回退)
         using var cts = new CancellationTokenSource();
