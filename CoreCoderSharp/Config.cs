@@ -17,7 +17,8 @@ public record SettingDef(
 /// </summary>
 public class Config
 {
-    public string Model { get; set; } = "deepseek-v4-flash";
+    public string Model { get; set; } = "deepseek-v4-flash";       // 大模型
+    public string SmallModel { get; set; } = "deepseek-v4-flash";  // 小模型 (便宜快速)
     public string ApiKey { get; set; } = "";
     public string? BaseUrl { get; set; }
     public int MaxTokens { get; set; } = 4096;
@@ -40,6 +41,9 @@ public class Config
 
         var envModel = Environment.GetEnvironmentVariable("CORECODER_MODEL");
         if (envModel != null) config.Model = envModel;
+
+        var envSmallModel = Environment.GetEnvironmentVariable("CORECODER_SMALL_MODEL");
+        if (envSmallModel != null) config.SmallModel = envSmallModel;
 
         var envApiKey = Environment.GetEnvironmentVariable("CORECODER_API_KEY")
                         ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY")
@@ -135,13 +139,16 @@ public class Config
     public static List<SettingDef> SettingSchema() =>
     [
         // 模型
-        new("Model", "模型名称", "🤖 模型", "deepseek-v4-flash / gpt-5.4-mini ...",
-            "select", ["deepseek-v4-flash","deepseek-v4-pro","gpt-5.4-mini","gpt-5.4","gpt-5.5","gpt-4o","gpt-4o-mini"],
+        new("Model", "大模型 (复杂任务)", "🤖 模型", "架构/重构/调试/多文件",
+            "select", ["deepseek-v4-pro","gpt-5.4","gpt-5.5","deepseek-v4-flash","gpt-4o","gpt-4o-mini"],
             "CORECODER_MODEL", 0),
+        new("SmallModel", "小模型 (简单任务)", "🤖 模型", "补全/摘要/压缩 (便宜快速)",
+            "select", ["deepseek-v4-flash","gpt-5.4-mini","gpt-4o-mini","deepseek-v4-pro"],
+            "CORECODER_SMALL_MODEL", 1),
         new("BaseUrl", "API 地址", "🤖 模型", "API 端点 URL",
-            "text", null, "OPENAI_BASE_URL", 1),
+            "text", null, "OPENAI_BASE_URL", 2),
         new("ApiKey", "API 密钥", "🤖 模型", "API 密钥 (已隐藏)",
-            "secret", null, "CORECODER_API_KEY", 2),
+            "secret", null, "CORECODER_API_KEY", 3),
 
         // 参数
         new("MaxTokens", "最大 Token", "⚙ 参数", "每次请求最大 Token 数",

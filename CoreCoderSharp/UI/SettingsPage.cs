@@ -111,6 +111,7 @@ public static class SettingsPage
     private static string GetValue(string key) => key switch
     {
         "Model" => _config.Model,
+        "SmallModel" => _config.SmallModel,
         "BaseUrl" => _config.BaseUrl ?? "",
         "ApiKey" => _config.ApiKey,
         "MaxTokens" => _config.MaxTokens.ToString(),
@@ -126,6 +127,7 @@ public static class SettingsPage
         switch (key)
         {
             case "Model": _config.Model = value; break;
+            case "SmallModel": _config.SmallModel = value; break;
             case "BaseUrl": _config.BaseUrl = value; break;
             case "ApiKey": _config.ApiKey = value; break;
             case "MaxTokens": if (int.TryParse(value, out var mt)) _config.MaxTokens = mt; break;

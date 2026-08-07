@@ -62,6 +62,16 @@ public class LLM
 {
     private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(5) };
 
+    /// <summary>当前活跃模型 (大模型)</summary>
+    public string Model { get; set; }
+    /// <summary>小模型 (用于压缩/摘要等简单任务)</summary>
+    public string SmallModel { get; set; } = "deepseek-v4-flash";
+    /// <summary>临时覆盖模型 (null=使用 Model)</summary>
+    public string? ModelOverride { get; set; }
+
+    /// <summary>实际使用的模型名</summary>
+    public string EffectiveModel => ModelOverride ?? Model;
+
     // 每百万 token 的定价：（输入，输出）
     private static readonly Dictionary<string, (double Input, double Output)> Pricing = new()
     {
@@ -95,7 +105,6 @@ public class LLM
         ["kimi-k2.5"] = (0.6, 3),
     };
 
-    public string Model { get; set; }
     public string ApiKey { get; }
     public string? BaseUrl { get; }
     public int MaxTokens { get; }
@@ -155,7 +164,7 @@ public class LLM
 
         var body = new JsonObject
         {
-            ["model"] = Model,
+            ["model"] = EffectiveModel,
             ["messages"] = new JsonArray(clonedMessages.ToArray()),
             ["stream"] = true,
             ["temperature"] = Temperature,
