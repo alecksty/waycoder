@@ -221,10 +221,6 @@ case ConsoleKey.F2:
                     SettingsPage.Show();
                     break;
 
-                case ConsoleKey.F5:
-                    SettingsPage.Show();
-                    break;
-
                 // ---- 聊天区滚动 ----
                 case ConsoleKey.PageUp: sm.ChatScrollUp(Math.Max(1, (Console.WindowHeight - 10) / 2)); break;
                 case ConsoleKey.PageDown: sm.ChatScrollDown(Math.Max(1, (Console.WindowHeight - 10) / 2)); break;
