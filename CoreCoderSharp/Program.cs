@@ -181,16 +181,17 @@ public class Program
         // 启动欢迎屏 — ASCII Logo 注入聊天区
         var logo = new[]
         {
-            "   ██████╗ ██████╗ ██████╗ ███████╗",
-            "  ██╔════╝██╔═══██╗██╔══██╗██╔════╝",
-            "  ██║     ██║   ██║██████╔╝█████╗  ",
-            "  ██║     ██║   ██║██╔══██╗██╔══╝  ",
-            "  ╚██████╗╚██████╔╝██║  ██║███████╗",
-            "   ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝",
+            "██╗    ██╗ █████╗ ██╗   ██╗",
+            "██║    ██║██╔══██╗╚██╗ ██╔╝",
+            "██║ █╗ ██║███████║ ╚████╔╝ ",
+            "██║███╗██║██╔══██║  ╚██╔╝  ",
+            "╚███╔███╔╝██║  ██║   ██║   ",
+            " ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝   ",
         };
         foreach (var line in logo)
             sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = line });
-        sm.AddSystemMsg("中文版易用编程智能体 · v0.16.3");
+        sm.AddSystemMsg("WayCoder 道码 · 中文版易用编程智能体 · v0.16.3");
+        sm.AddSystemMsg("深圳市探索智能科技有限公司");
         sm.AddSystemMsg($"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助");
         sm.StatusLeft = $"大:{_config.Model} 小:{_config.SmallModel}";
         _llm!.SmallModel = _config.SmallModel;
@@ -998,7 +999,7 @@ case ConsoleKey.F2:
             var path = Path.Combine(dir, filename);
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"# CoreCoder 对话导出");
+            sb.AppendLine($"# WayCoder 对话导出");
             sb.AppendLine($"- 模型: {_config.Model}");
             sb.AppendLine($"- 时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             sb.AppendLine($"- 消息数: {_agent!.Messages.Count}");
@@ -1170,7 +1171,7 @@ case ConsoleKey.F2:
         var cwd = Directory.GetCurrentDirectory();
         var corecoderDir = Path.Combine(cwd, ".corecoder");
 
-        Console.WriteLine("CoreCoder 项目初始化");
+        Console.WriteLine("WayCoder 项目初始化");
         Console.WriteLine($"目录: {cwd}");
         Console.WriteLine();
 
@@ -1209,7 +1210,7 @@ case ConsoleKey.F2:
         {
             var promptTemplate = @"# 项目提示词
 
-<!-- 在此文件中编写项目专属的 AI 指令。CoreCoder 会自动将其注入系统提示词。 -->
+<!-- 在此文件中编写项目专属的 AI 指令。WayCoder 会自动将其注入系统提示词。 -->
 
 ## 项目概述
 <!-- 简要描述你的项目 -->
