@@ -157,8 +157,8 @@ public class ScreenManager
 
             case PanelTab.MCP:
                 if (idx == 0) sb.Append(" [2mMCP 服务器[0m");
-                else if (!string.IsNullOrEmpty(McpInfo))
-                    sb.Append($" [2m{McpInfo}[0m");
+                else if (!string.IsNullOrEmpty(McpManager.Info))
+                    sb.Append($" [2m{McpManager.Info}[0m");
                 else
                     sb.Append(" [2m未配置[0m");
                 break;
@@ -394,7 +394,7 @@ public class ScreenManager
             "╚███╔███╔╝██║  ██║   ██║   ",
             " ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝   ",
         };
-        var subtitle = "WayCoder 道码 · 中文版易用编程智能体 · v0.16.3";
+        var subtitle = "WayCoder 道码 · 中文版易用编程智能体 · v0.17.3";
         var credit = "C# / .NET 10 · AOT 编译";
         var company = "深圳市探索智能科技有限公司";
 
@@ -567,7 +567,7 @@ public class ScreenManager
         // ---- 顶栏 (主题色底白字) ----
         var topBarBg = ThemeAccentColor switch { "32" => "42", "33" => "43", "34" => "44",
             "35" => "45", "37" => "47", _ => "44" };
-        var topText = $" WayCoder v0.16.3 · {StatusLeft}";
+        var topText = $" WayCoder v0.17.3 · {StatusLeft}";
         if (ActivePanel != PanelTab.Off) topText += $"  [F2 面板:{ActivePanel}]";
         sb.Append($"\x1b[{topBarBg};37m{topText}{new string(' ', Math.Max(0, TW - VW(topText)))}\x1b[0m");
 
