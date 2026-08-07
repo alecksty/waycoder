@@ -1,5 +1,37 @@
 # 更新日志
 
+## v0.17.4 (2026-08-07) — Terminal.Gui v2 默认 TUI
+
+### 🔥 重大变更
+- **Terminal.Gui v2 成为默认 TUI** — 替代手写 ANSI 转义码的 ScreenManager
+  - 原 `--tui-v2` 标志改为 `--tui-v1`（回退到旧版 ANSI TUI）
+  - 移除全部 `#if TERMINAL_GUI` 条件编译守卫
+  - **AOT 编译暂时禁用**：Terminal.Gui v2 不支持 NativeAOT，待 v2 正式版后恢复
+  - PublishAot 设为 false，仍保留单文件发布
+
+### ✨ 新增功能
+- **聊天区彩色多角色渲染** — `ChatView`（View + Label 组合）替代单色 `TextView`
+  - User=亮青 `BrightCyan`、Assistant=白 `White`、System=灰 `Gray`、Tool=亮黄 `BrightYellow`、Welcome=青 `Cyan`
+  - 每行独立 `ColorScheme`，手动 Y 坐标滚动
+  - 流式输出实时追加到最后一行
+- **侧边面板** — F2 切换 32 列右侧面板，4 个标签页：
+  - 任务（Todo 列表）、文件（修改文件列表）、锁（活跃文件锁）、MCP（服务器状态）
+- **输入历史导航** — ↑↓ 键浏览历史输入（单行模式），Ctrl+Enter 插入换行，Esc 清空
+- **自动会话恢复** — 启动时检测 `_auto` 会话，提示 `/resume` 恢复
+- **Scroll 快捷键** — PageUp/Down 滚动聊天区，Ctrl+Home/End 跳转首尾
+
+### 🐛 修复
+- 管道模式误判：`Console.IsInputRedirected` 在 bash 下始终为 true，修复为空 stdin 不触发一次性模式
+- `Tab.View` 为 null 导致 NRE 崩溃（v2 API 变更：Tab 即 View）
+- `Application.Top` 在 `Run()` 之前为 null 导致 NRE 崩溃
+- `Colors.Base` / `Colors.TopLevel` / `Colors.Menu` 在 v2 不存在，改为视图级 `ColorScheme`
+- `verify_build/` 目录混入 git 提交，已清理并加入 `.gitignore`
+
+### 🔧 增强
+- 状态栏快捷键：F1 帮助 / F2 面板 / F5 设置 / F6 编辑 / F10 退出
+- 窗口标题实时显示当前模型名称
+- CJK 字符在 Label 中正常显示（Terminal.Gui 内部处理）
+
 ## v0.17.3 (2026-08-07) — MCP 协议完善
 
 ### ✨ 新增功能
