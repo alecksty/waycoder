@@ -49,6 +49,7 @@ public static class SettingsPage
                 {
                     case ConsoleKey.S when ctrl:
                         _config.SaveToEnvFile();
+                        sm.RefreshTheme();
                         sm.ShowDialog("已保存", "设置已写入 .env 文件", ScreenManager.DialogType.Success);
                         return;
                     case ConsoleKey.Escape: return;
@@ -125,6 +126,10 @@ public static class SettingsPage
         "MaxBudgetUsd" => _config.MaxBudgetUsd?.ToString("F2") ?? "",
         "Provider" => _config.Provider,
         "AutoGitCommit" => _config.AutoGitCommit ? "true" : "false",
+        "BorderStyle" => _config.BorderStyle,
+        "BorderColor" => _config.BorderColor,
+        "AccentColor" => _config.AccentColor,
+        "ColorScheme" => _config.ColorScheme,
         _ => "",
     };
 
@@ -142,6 +147,10 @@ public static class SettingsPage
             case "MaxBudgetUsd": _config.MaxBudgetUsd = double.TryParse(value, out var mb) ? mb : null; break;
             case "Provider": _config.Provider = value; break;
             case "AutoGitCommit": _config.AutoGitCommit = bool.TryParse(value, out var ac) && ac; break;
+            case "BorderStyle": _config.BorderStyle = value; break;
+            case "BorderColor": _config.BorderColor = value; break;
+            case "AccentColor": _config.AccentColor = value; break;
+            case "ColorScheme": Config.ApplyColorScheme(_config, value); break;
             case "SaveSettings": _config.SaveToEnvFile(); return;
         }
     }

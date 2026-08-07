@@ -32,6 +32,16 @@ public class Config
     /// <summary>每次工具执行后自动 git commit（默认关闭）</summary>
     public bool AutoGitCommit { get; set; } = false;
 
+    // ---- 界面主题 ----
+    /// <summary>边框类型: single | double | rounded | bold</summary>
+    public string BorderStyle { get; set; } = "rounded";
+    /// <summary>边框颜色 (ANSI 色号): 36=青 32=绿 33=黄 35=紫 34=蓝 37=白</summary>
+    public string BorderColor { get; set; } = "36";
+    /// <summary>标题/强调色 (ANSI 色号)</summary>
+    public string AccentColor { get; set; } = "36";
+    /// <summary>预设配色方案: default | ocean | forest | sunset | mono | cyberpunk</summary>
+    public string ColorScheme { get; set; } = "default";
+
     /// <summary>
     /// 从环境变量加载配置。也支持从当前目录向上查找到 home 目录的 .env 文件。
     /// </summary>
@@ -72,6 +82,16 @@ public class Config
 
         if (bool.TryParse(Environment.GetEnvironmentVariable("CORECODER_AUTO_COMMIT"), out var ac))
             config.AutoGitCommit = ac;
+
+        // 主题
+        var envBorder = Environment.GetEnvironmentVariable("CORECODER_BORDER_STYLE");
+        if (envBorder != null) config.BorderStyle = envBorder;
+        var envBorderColor = Environment.GetEnvironmentVariable("CORECODER_BORDER_COLOR");
+        if (envBorderColor != null) config.BorderColor = envBorderColor;
+        var envAccent = Environment.GetEnvironmentVariable("CORECODER_ACCENT_COLOR");
+        if (envAccent != null) config.AccentColor = envAccent;
+        var envScheme = Environment.GetEnvironmentVariable("CORECODER_COLOR_SCHEME");
+        if (envScheme != null) { config.ColorScheme = envScheme; ApplyColorScheme(config, envScheme); }
 
         return config;
     }
@@ -141,6 +161,27 @@ public class Config
     // 设置界面元数据 (新增配置项只需加一行)
     // ================================================================
 
+    /// <summary>应用预设配色方案</summary>
+    public static void ApplyColorScheme(Config config, string scheme)
+    {
+        switch (scheme.ToLowerInvariant())
+        {
+            case "ocean":
+                config.BorderColor = "34"; config.AccentColor = "34"; break;
+            case "forest":
+                config.BorderColor = "32"; config.AccentColor = "32"; break;
+            case "sunset":
+                config.BorderColor = "33"; config.AccentColor = "33"; break;
+            case "mono":
+                config.BorderColor = "37"; config.AccentColor = "37"; break;
+            case "cyberpunk":
+                config.BorderColor = "35"; config.AccentColor = "36"; break;
+            default: // "default"
+                config.BorderColor = "36"; config.AccentColor = "36"; break;
+        }
+        config.ColorScheme = scheme;
+    }
+
     /// <summary>所有可配置项的元数据，设置界面自动布局</summary>
     public static List<SettingDef> SettingSchema() =>
     [
@@ -173,6 +214,20 @@ public class Config
             "text", null, "CORECODER_PROVIDER", 0),
         new("AutoGitCommit", "Git 自动提交", "🔧 系统", "工具执行后自动 git commit",
             "select", ["false", "true"], "CORECODER_AUTO_COMMIT", 1),
+
+        // 界面主题
+        new("ColorScheme", "配色方案", "🎨 界面", "预设配色 (覆盖下方颜色设置)",
+            "select", ["default", "ocean", "forest", "sunset", "mono", "cyberpunk"],
+            "CORECODER_COLOR_SCHEME", 0),
+        new("BorderStyle", "边框类型", "🎨 界面", "对话框和面板的边框样式",
+            "select", ["rounded", "single", "double", "bold"],
+            "CORECODER_BORDER_STYLE", 1),
+        new("BorderColor", "边框颜色", "🎨 界面", "ANSI 色号: 36=青 32=绿 33=黄 35=紫 34=蓝 37=白",
+            "select", ["36", "32", "33", "35", "34", "37"],
+            "CORECODER_BORDER_COLOR", 2),
+        new("AccentColor", "强调色", "🎨 界面", "标题和选中高亮的颜色",
+            "select", ["36", "32", "33", "35", "34", "37"],
+            "CORECODER_ACCENT_COLOR", 3),
     ];
 
     /// <summary>将当前配置写回 .env 文件</summary>
@@ -193,6 +248,10 @@ public class Config
         if (MaxBudgetUsd.HasValue) ApplyOrAppend(lines, "CORECODER_MAX_BUDGET_USD", MaxBudgetUsd.Value.ToString("F2"));
         ApplyOrAppend(lines, "CORECODER_PROVIDER", Provider);
         ApplyOrAppend(lines, "CORECODER_AUTO_COMMIT", AutoGitCommit.ToString().ToLowerInvariant());
+        ApplyOrAppend(lines, "CORECODER_BORDER_STYLE", BorderStyle);
+        ApplyOrAppend(lines, "CORECODER_BORDER_COLOR", BorderColor);
+        ApplyOrAppend(lines, "CORECODER_ACCENT_COLOR", AccentColor);
+        ApplyOrAppend(lines, "CORECODER_COLOR_SCHEME", ColorScheme);
         File.WriteAllLines(envPath, lines);
     }
 
