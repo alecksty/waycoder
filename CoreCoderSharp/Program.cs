@@ -665,6 +665,65 @@ case ConsoleKey.F2:
         sm.Render();
     }
 
+    // ========================================================================
+    // 斜杠命令拼写纠错
+    // ========================================================================
+
+    /// <summary>已知斜杠命令名（不含参数），用于拼写纠错。</summary>
+    internal static readonly string[] KnownCommands =
+    [
+        "/help", "/reset", "/model", "/tokens", "/stats", "/watch", "/compact",
+        "/save", "/permissions", "/perm", "/sessions", "/load", "/diff", "/plan",
+        "/search", "/edit", "/settings", "/config", "/about", "/history", "/export",
+        "/recent", "/resume", "/loop", "/test", "/debug-on", "/debug-off", "/todo",
+        "/git-status", "/git-log", "/git-diff", "/review", "/lint", "/checkpoint",
+        "/undo", "/checkpoints", "/repomap", "/pr",
+    ];
+
+    /// <summary>Levenshtein 编辑距离（字符级）。</summary>
+    internal static int Levenshtein(string a, string b)
+    {
+        var dp = new int[a.Length + 1, b.Length + 1];
+        for (int i = 0; i <= a.Length; i++) dp[i, 0] = i;
+        for (int j = 0; j <= b.Length; j++) dp[0, j] = j;
+        for (int i = 1; i <= a.Length; i++)
+        {
+            for (int j = 1; j <= b.Length; j++)
+            {
+                var cost = a[i - 1] == b[j - 1] ? 0 : 1;
+                dp[i, j] = Math.Min(
+                    Math.Min(dp[i - 1, j] + 1, dp[i, j - 1] + 1),
+                    dp[i - 1, j - 1] + cost);
+            }
+        }
+        return dp[a.Length, b.Length];
+    }
+
+    /// <summary>
+    /// 斜杠命令拼写纠错。输入不是已知命令时，返回编辑距离最近（≤2）的命令名并保留参数；
+    /// 否则返回 null。短命令（命令名 &lt;5 字符）仅接受距离 1，避免 /ls→/pr 这类误判。
+    /// </summary>
+    internal static string? SuggestCommand(string input)
+    {
+        if (!input.StartsWith('/')) return null;
+        var spaceIdx = input.IndexOf(' ');
+        var cmd = spaceIdx > 0 ? input[..spaceIdx] : input;
+        if (KnownCommands.Contains(cmd, StringComparer.OrdinalIgnoreCase)) return null;
+
+        string? best = null;
+        var bestDist = int.MaxValue;
+        foreach (var known in KnownCommands)
+        {
+            var dist = Levenshtein(cmd, known);
+            if (dist < bestDist) { bestDist = dist; best = known; }
+        }
+
+        if (best == null || bestDist == 0 || bestDist > 2) return null;
+        // 短命令只接受距离 1（如 /hel→/help），避免 /ls→/pr 误判
+        if (bestDist > 1 && cmd.Length < 5) return null;
+        return spaceIdx > 0 ? best + input[spaceIdx..] : best;
+    }
+
     // ---- 内置命令的聊天内联版本 ----
     /// <summary>Tab 键智能补全文件路径。返回 true 表示已处理。</summary>
     private static bool TabCompletePath(ScreenManager sm)
