@@ -1,4 +1,5 @@
 using System.Text;
+using CoreCoderSharp.Tools;
 
 namespace CoreCoderSharp.UI;
 
@@ -30,11 +31,51 @@ public class ScreenManager
     public int SuggestIdx;
     public int SuggestH; // 面板可见行数
 
+    // ---- 右侧 Todo 面板 ----
+    public bool ShowTodoPanel;
+    public List<TodoItem> TodoItems = [];
+    public class TodoItem { public string Title = ""; public string Status = "pending"; }
+
     // ---- 状态 ----
     public string StatusLeft = "";
     public string StatusRight = "";
     public string TokenInfo = "";
     public bool Running;
+
+    // ---- Todo 面板 ----
+
+    /// <summary>从 TodoTool 同步数据到面板</summary>
+    public void SyncTodos()
+    {
+        TodoItems = TodoTool.Items.Select(i => new TodoItem
+        {
+            Title = i.Title,
+            Status = i.Status
+        }).ToList();
+    }
+
+    private void RenderTodoLine(StringBuilder sb, int row)
+    {
+        if (row == 0)
+        {
+            sb.Append(" [1m📋 任务列表[0m");
+            return;
+        }
+        var idx = row - 1;
+        if (idx >= TodoItems.Count) return;
+
+        var item = TodoItems[idx];
+        var (icon, color) = item.Status switch
+        {
+            "completed" => ("✅", "32"),
+            "in_progress" => ("🔄", "36"),
+            "cancelled" => ("❌", "90"),
+            _ => ("⏳", "33"),
+        };
+        var text = $"{icon} {item.Title}";
+        if (VW(text) > 28) text = TruncateByVW(text, 25) + "…";
+        sb.Append($" [{color}m{text}[0m");
+    }
 
     /// <summary>更新右下角 token/计费/缓存显示</summary>
     public void UpdateTokenDisplay(int promptTok, int compTok, double? cost, int contextUsed, int contextMax)
@@ -245,49 +286,57 @@ public class ScreenManager
         sb.Append("[?25l[H"); // 隐藏光标 + 回左上角
 
         // ---- 布局计算 ----
-        var inputH = ComputeInputScreenH(); // 输入区屏幕行数 (0~5)
+        var inputH = ComputeInputScreenH();
         var statusH = 1;
-        var suggestH = SuggestActive ? Math.Min(Suggestions.Count, 10) + 2 : 0; // 面板+边框
-        var topH = 1; // 顶栏
-        var sepH = 1; // 分隔线
-        var chatH = TH - topH - sepH - suggestH - inputH - 1 - statusH; // 底分隔+状态
+        var suggestH = SuggestActive ? Math.Min(Suggestions.Count, 10) + 2 : 0;
+        var topH = 1;
+        var sepH = 1;
+        var panelW = ShowTodoPanel ? 32 : 0;
+        var chatW = Math.Max(20, TW - panelW);
+        var chatH = TH - topH - sepH - suggestH - inputH - 1 - statusH;
         if (chatH < 3) chatH = 3;
 
-        // 计算聊天区总屏幕行（软折行）
-        var chatScreenLines = BuildChatScreenLines(TW, chatH);
-
-        // 自动滚动到底部（如果用户没有手动上滚）
+        var chatScreenLines = BuildChatScreenLines(chatW, chatH);
         var totalCLines = chatScreenLines.Count;
         var maxScroll = Math.Max(0, totalCLines - chatH);
         _chatScroll = Math.Clamp(_chatScroll, 0, maxScroll);
 
         // ---- 顶栏 (蓝底白字) ----
         var topText = $" CoreCoder v0.11.0 · {StatusLeft}";
-        var topVW = VW(topText);
-        sb.Append($"[44;37m{topText}{new string(' ', Math.Max(0, TW - topVW))}[0m\r\n");
+        if (ShowTodoPanel) topText += "  [F2 关闭面板]";
+        sb.Append($"[44;37m{topText}{new string(' ', Math.Max(0, TW - VW(topText)))}[0m\r\n");
 
         // ---- 分隔线 (青色) ----
         sb.Append($"[36m{new string('─', TW)}[0m\r\n");
 
-        // ---- 聊天区 ----
+        // ---- 聊天区 + 侧边栏 ----
         int chatRow = topH + sepH;
         for (int i = 0; i < chatH; i++)
         {
+            // 聊天内容 (左)
             int si = _chatScroll + i;
-            sb.Append($"[{chatRow + i + 1};1H"); // 绝对定位
+            sb.Append($"[{chatRow + i + 1};1H");
             if (si < chatScreenLines.Count)
             {
                 var cl = chatScreenLines[si];
                 RenderChatLine(sb, cl);
             }
-            sb.Append("[K"); // 清除行尾
+            sb.Append("[K");
+
+            // Todo 面板 (右)
+            if (ShowTodoPanel)
+            {
+                sb.Append($"[{chatRow + i + 1};{chatW + 1}H[90m│[0m");
+                RenderTodoLine(sb, i);
+                sb.Append("[K");
+            }
         }
 
         // ---- 建议面板 ----
         if (SuggestActive && suggestH > 0)
         {
             int suggestRow = chatRow + chatH + sepH;
-            RenderSuggestions(sb, suggestRow, suggestH);
+            RenderSuggestions(sb, suggestRow, suggestH, chatW);
         }
 
         // ---- 输入区 ----
@@ -389,16 +438,16 @@ public class ScreenManager
     // 建议面板渲染
     // ================================================================
 
-    private void RenderSuggestions(StringBuilder sb, int startRow, int h)
+    private void RenderSuggestions(StringBuilder sb, int startRow, int suggestH, int chatW)
     {
-        sb.Append($"[{startRow};1H[36m╭─ 建议 (↑↓选择 Enter确认 Esc取消) {new string('─', Math.Max(0, TW - 23))}╮[0m\r\n");
-        for (int i = 0; i < h - 2; i++)
+        sb.Append($"[{startRow};1H[36m╭─ 建议 (↑↓选择 Enter确认 Esc取消) {new string('─', Math.Max(0, chatW - 23))}╮[0m\r\n");
+        for (int i = 0; i < suggestH - 2; i++)
         {
             sb.Append("[36m│[0m ");
             if (i < Suggestions.Count)
             {
                 var text = Suggestions[i];
-                var maxW = TW - 4;
+                var maxW = chatW - 4;
                 if (VW(text) > maxW) text = TruncateByVW(text, maxW - 1) + "…";
                 sb.Append(i == SuggestIdx ? $"[30;46m {text} [0m" : $" {text} ");
                 var fill = Math.Max(0, TW - 4 - VW(text) - 2);
