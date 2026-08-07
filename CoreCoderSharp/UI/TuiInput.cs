@@ -474,11 +474,11 @@ public static class TuiInput
         // 光标
         var (scrCy, scrCx) = HardToScreen(hardLines, cy, cx, contentW);
         // 光标行 = 建议面板行数 + 顶线(1) + 内容偏移 + 1-based
-        var prefixRows = (_mode == Mode.Suggest ? suggestH + 2 : 0) + 1;
-        var cursorRow = prefixRows + (scrCy - scrScroll);
+        // 光标：相对定位（比绝对定位更可靠，不受建议面板 CJK 宽度影响）
+      var linesUp = vh + 1 - (scrCy - scrScroll);
         var cursorCol = 2 + scrCx + 1;
         cursorCol = Math.Clamp(cursorCol, 2, tw - 2);
-        sb.Append($"[{cursorRow};{cursorCol}H[?25h");
+        sb.Append($"\r[{linesUp}A\r[{cursorCol}C[?25h");
 
         Console.Write(sb.ToString());
     }
@@ -488,7 +488,9 @@ public static class TuiInput
         // 顶线
         var trigger = _suggestions.Count > 0 ? _suggestions[0][0] : '?';
         var title = trigger switch { '/' => "命令", '#' => "文件", '!' => "Shell", _ => "建议" };
-        sb.Append($"[36m╭─ {title} (↑↓选择 Tab/Enter确认 Esc取消) {new string('─', Math.Max(0, tw - title.Length - 20))}╮[0m\r\n");
+        var hint = " ↑↓选择 Tab/Enter确认 Esc取消";
+        var titleVW = 3 + VW(title) + VW(hint) + 1;
+        sb.Append($"[36m╭─ {title}{hint} {new string('─', Math.Max(0, tw - titleVW - 1))}╮[0m\r\n");
 
         for (int i = 0; i < h; i++)
         {
@@ -506,9 +508,11 @@ public static class TuiInput
                     text = text[..ci] + "…";
                 }
                 var isSel = i == _suggestIdx;
-                sb.Append(isSel ? $"[30;46m {text} [0m" : $" {text} ");
                 var fill = Math.Max(0, tw - 4 - VW(text) - 2);
-                if (!isSel) sb.Append(new string(' ', fill));
+                if (isSel)
+                    sb.Append($"[30;46m {text} {new string(' ', fill)}[0m");
+                else
+                    sb.Append($" {text} {new string(' ', fill)}");
             }
             else
             {
