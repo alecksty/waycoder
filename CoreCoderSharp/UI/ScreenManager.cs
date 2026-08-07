@@ -716,7 +716,7 @@ public class ScreenManager
         "/plan", "/todo", "/git-status", "/git-log", "/git-diff",
         "/review", "/lint", "/search <关键词>",
         "/checkpoint", "/undo [编号]", "/checkpoints",
-        "/repomap", "/pr [标题]", "/edit [文件]", "quit",
+        "/repomap", "/pr [标题]", "/edit [文件]", "/settings", "quit",
     ];
 
     private static List<string> GetFileSuggestions(string partial)
