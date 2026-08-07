@@ -37,7 +37,7 @@ public static class DebugLog
         // 写会话头
         Write("header", $"""
                           ╔══════════════════════════════════════╗
-                          ║  CoreCoderSharp Debug Log           ║
+                          ║  WayCoder Debug Log                 ║
                           ║  {DateTime.Now:yyyy-MM-dd HH:mm:ss}                    ║
                           ╚══════════════════════════════════════╝
                           """);

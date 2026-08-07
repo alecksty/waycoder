@@ -50,12 +50,12 @@ public class Program
             }
         }
 
-        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.16.3"); return 0; }
+        if (showVersion) { Console.WriteLine("WayCoder v0.16.3 (道码)"); return 0; }
 
         // 项目初始化向导
         if (initMode) { RunInit(); return 0; }
 
-        // 标准输入管道模式：echo "prompt" | corecoder
+        // 标准输入管道模式：echo "prompt" | waycoder
         if (prompt == null && Console.IsInputRedirected)
         {
             prompt = Console.In.ReadToEnd().Trim();
@@ -190,7 +190,7 @@ public class Program
         };
         foreach (var line in logo)
             sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = line });
-        sm.AddSystemMsg("极简 AI 编程智能体 · v0.16.3");
+        sm.AddSystemMsg("中文版易用编程智能体 · v0.16.3");
         sm.AddSystemMsg($"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助");
         sm.StatusLeft = $"大:{_config.Model} 小:{_config.SmallModel}";
         _llm!.SmallModel = _config.SmallModel;
@@ -1234,14 +1234,14 @@ case ConsoleKey.F2:
         }
 
         Console.WriteLine();
-        Console.WriteLine("初始化完成！现在可以运行 corecoder 开始编码。");
+        Console.WriteLine("初始化完成！现在可以运行 waycoder 开始编码。");
     }
 
     private static void ShowUsage()
     {
-        MarkupLine("[bold yellow]CoreCoderSharp[/] — 极简 AI 编程智能体");
+        MarkupLine("[bold yellow]WayCoder (道码)[/] — 中文版易用编程智能体");
         Console.WriteLine();
-        MarkupLine("[bold]使用方法:[/] [cyan]corecoder [[选项]][/]");
+        MarkupLine("[bold]使用方法:[/] [cyan]waycoder [[选项]][/]");
         Console.WriteLine();
         MarkupLine("  [bold]选项:[/]");
         MarkupLine("  [cyan]-m, --model[/] <名称>   模型名称 (默认: deepseek-v4-flash)");
@@ -1250,7 +1250,7 @@ case ConsoleKey.F2:
         MarkupLine("  [cyan]-p, --prompt[/] <文本>  一次性提示词 (非交互模式)");
         MarkupLine("  [cyan]-r, --resume[/] <ID>    恢复已保存的会话");
         MarkupLine("  [cyan]-v, --version[/]        显示版本信息");
-        MarkupLine("  [cyan]--init[/]              初始化项目 (.corecoder/ 配置目录)");
+        MarkupLine("  [cyan]--init[/]              初始化项目 (.waycoder/ 配置目录)");
         MarkupLine("  [cyan]-t, --test[/]           运行自测");
         MarkupLine("  [cyan]--debug[/]              开启调试日志 (记录到 logs/ 目录)");
         MarkupLine("  [cyan]--yolo[/]              跳过所有权限确认 (非交互模式必备)");
@@ -1258,11 +1258,11 @@ case ConsoleKey.F2:
         MarkupLine("  [cyan]-h, --help[/]           显示此帮助");
         Console.WriteLine();
         MarkupLine("  [bold]示例:[/]");
-        MarkupLine("  [dim]$[/] corecoder                                     [dim]# 交互式 REPL[/]");
-        MarkupLine("  [dim]$[/] corecoder [cyan]-p[/] [green]\"列出当前目录\"[/]               [dim]# 一次性模式[/]");
-        MarkupLine("  [dim]$[/] corecoder [cyan]-m[/] deepseek-v4-pro             [dim]# 指定模型[/]");
-        MarkupLine("  [dim]$[/] corecoder [cyan]-t[/]                              [dim]# 运行自测[/]");
-        MarkupLine("  [dim]$[/] echo [green]\"列出目录\"[/] [dim]|[/] corecoder                   [dim]# 管道模式[/]");
+        MarkupLine("  [dim]$[/] waycoder                                     [dim]# 交互式 REPL[/]");
+        MarkupLine("  [dim]$[/] waycoder [cyan]-p[/] [green]\"列出当前目录\"[/]               [dim]# 一次性模式[/]");
+        MarkupLine("  [dim]$[/] waycoder [cyan]-m[/] deepseek-v4-pro             [dim]# 指定模型[/]");
+        MarkupLine("  [dim]$[/] waycoder [cyan]-t[/]                              [dim]# 运行自测[/]");
+        MarkupLine("  [dim]$[/] echo [green]\"列出目录\"[/] [dim]|[/] waycoder                   [dim]# 管道模式[/]");
     }
 
     private static void ShowHelp()
@@ -1396,7 +1396,7 @@ case ConsoleKey.F2:
     {
         var sid = SessionManager.SaveSession(_agent!.Messages, _config.Model);
         MarkupLine($"[green]✔ 会话已保存:[/] [cyan]{E(sid)}[/]");
-        MarkupLine($"[dim]恢复命令: corecoder -r {E(sid)}[/]");
+        MarkupLine($"[dim]恢复命令: waycoder -r {E(sid)}[/]");
     }
 
     private static void ShowDiff()
@@ -1674,7 +1674,7 @@ case ConsoleKey.F2:
             {
                 ["action"] = "create",
                 ["title"] = title,
-                ["description"] = $"🤖 Generated with [CoreCoder](https://github.com/alecksty/corecoder)"
+                ["description"] = $"🤖 Generated with [WayCoder/道码](https://github.com/alecksty/waycoder)"
             });
             Console.WriteLine(result);
         }

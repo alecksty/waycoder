@@ -1,6 +1,13 @@
 # 更新日志
 
-## v0.16.3 (2026-08-07) — Watch 模式
+## v0.16.3 (2026-08-07) — 更名 WayCoder（道码）+ Watch 模式
+
+### 🔥 重大变更
+- **软件更名** — CoreCoder → **WayCoder（道码）**，因发现与现有商标名称冲突，规避侵权风险
+  - 可执行文件：`corecoder.exe` → `waycoder.exe`
+  - 环境变量前缀：`CORECODER_*` → `WAYCODER_*`（旧名仍兼容）
+  - 配置目录：`.corecoder/` → `.waycoder/`（旧目录仍兼容）
+  - 展示文本全部更新：UI 标题栏 / 帮助文本 / 测试输出 / 调试日志 / User-Agent / MCP 客户端名
 
 ### ✨ 新增功能
 - **Watch 模式 (`--watch` / `-w`)** — 监听外部编辑器文件变更，检测代码注释中 `AI!` / `AI?` 标记自动触发 Agent
