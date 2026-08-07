@@ -445,6 +445,7 @@ case ConsoleKey.F2:
         if (userInput == "/help") { ShowHelpInChat(sm); return; }
         if (userInput == "/reset") { _agent!.Reset(); sm.AddSystemMsg("♻ 对话已重置"); return; }
         if (userInput == "/tokens") { ShowTokensInChat(sm); return; }
+        if (userInput == "/stats") { ShowStatsInChat(sm); return; }
         if (userInput == "/model") { sm.AddSystemMsg($"当前模型: {_config.Model}"); return; }
         if (userInput.StartsWith("/model ")) { SwitchModelInline(userInput, sm); return; }
         if (userInput == "/compact") { await CompactAsync(); sm.AddSystemMsg("✔ 上下文已压缩"); return; }
@@ -724,6 +725,43 @@ case ConsoleKey.F2:
             info += $" | 上次: {latency / 1000:F1}s, {tps:F0} tok/s | 请求: {_llm.TotalRequests} 次";
         sm.AddSystemMsg(info);
     }
+
+    private static void ShowStatsInChat(ScreenManager sm)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("╔══════════ 用量统计 ══════════╗");
+
+        var p = _llm!.TotalPromptTokens;
+        var c = _llm!.TotalCompletionTokens;
+        var cost = _llm.EstimatedCost;
+        var latency = _llm.LastLatencyMs;
+        var tps = _llm.LastTokensPerSec;
+
+        sb.AppendLine($"║ 模型:    {_config.Model,-22} ║");
+        sb.AppendLine($"║ 大模型:  {_config.Model,-22} ║");
+        sb.AppendLine($"║ 小模型:  {_config.SmallModel,-22} ║");
+        sb.AppendLine($"║ ─────────────────────────── ║");
+        sb.AppendLine($"║ 输入:    {p,10:N0} tokens    ║");
+        sb.AppendLine($"║ 输出:    {c,10:N0} tokens    ║");
+        sb.AppendLine($"║ 总计:    {p + c,10:N0} tokens    ║");
+        if (cost.HasValue)
+            sb.AppendLine($"║ 花费:    ${cost.Value,10:F4}          ║");
+        sb.AppendLine($"║ 请求:    {_llm.TotalRequests,10} 次        ║");
+        if (latency > 0)
+        {
+            sb.AppendLine($"║ 延迟:    {latency / 1000,10:F1} s        ║");
+            sb.AppendLine($"║ 速度:    {tps,10:F0} tok/s     ║");
+        }
+        sb.AppendLine($"║ ─────────────────────────── ║");
+        sb.AppendLine($"║ 消息:    {_agent!.Messages.Count,10} 条        ║");
+        sb.AppendLine($"║ 轮次:    {(int)(_agent.Messages.Count / 2.0),10}          ║");
+        sb.AppendLine($"║ 会话:    {SessionManager.ListSessions().Count,10} 个        ║");
+        sb.AppendLine($"║ 权限:    {PermissionManager.CurrentMode,-22} ║");
+        sb.AppendLine("╚══════════════════════════════╝");
+
+        sm.AddSystemMsg(sb.ToString());
+    }
+
     private static void SaveSessionInChat(ScreenManager sm)
     {
         var sid = SessionManager.SaveSession(_agent!.Messages, _config.Model);
