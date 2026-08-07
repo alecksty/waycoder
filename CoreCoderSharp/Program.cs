@@ -190,6 +190,8 @@ public class Program
                     continue;
             }
 
+            sm.SyncTodos(); // 每帧同步 Todo 数据
+
             switch (key.Key)
             {
                 case ConsoleKey.Enter when !ctrl && !shift:
@@ -199,6 +201,10 @@ public class Program
                     sm.SetInput("");
                     sm.Render();
                     await ProcessUserInput(input, sm);
+                    break;
+
+                case ConsoleKey.F2:
+                    sm.ShowTodoPanel = !sm.ShowTodoPanel;
                     break;
 
                 case ConsoleKey.Enter when ctrl || shift:
@@ -268,8 +274,8 @@ public class Program
         if (userInput == "/diff") { ShowDiffInChat(sm); return; }
         if (userInput == "/plan") { sm.AddSystemMsg("📋 计划模式"); await PlanModeAsync(); return; }
         if (userInput.StartsWith("/search ")) { await RunSearchAsync(userInput[8..].Trim()); return; }
-        if (userInput == "/edit") { sm.Exit(); await Editor.PickAndRunAsync(); sm.Enter(); sm.Render(); return; }
-        if (userInput.StartsWith("/edit ")) { sm.Exit(); await Editor.RunAsync(userInput[6..].Trim()); sm.Enter(); sm.Render(); return; }
+        if (userInput == "/edit") { await Editor.PickAndRunAsync(); sm.Render(); return; }
+        if (userInput.StartsWith("/edit ")) { await Editor.RunAsync(userInput[6..].Trim()); sm.Render(); return; }
 
         // 调用 Agent
         using var cts = new CancellationTokenSource();
