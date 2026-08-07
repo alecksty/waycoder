@@ -10,6 +10,7 @@ public class ScreenManager
 {
     // ---- 单例 ----
     public static ScreenManager Instance { get; } = new();
+    public bool IsActive { get; private set; }
 
     // ---- 屏幕 ----
     public int TW, TH;
@@ -164,11 +165,13 @@ public class ScreenManager
     {
         Console.Write("[?1049h[2J[?25l");
         (TW, TH) = (Console.WindowWidth, Console.WindowHeight);
+        IsActive = true;
     }
 
     /// <summary>退出全屏模式</summary>
     public void Exit()
     {
+        IsActive = false;
         Console.Write("[?25h[?1049l[2J");
     }
 
