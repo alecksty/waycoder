@@ -2,6 +2,17 @@
 namespace CoreCoderSharp;
 
 /// <summary>
+/// 设置项元数据 —— 供设置界面自动生成布局。
+/// </summary>
+public record SettingDef(
+    string Key, string Label, string Category, string Desc,
+    string Type = "text",          // text | number | select | secret | toggle
+    string[]? Options = null,      // select 类型的可选项
+    string EnvVar = "",
+    int Order = 0
+);
+
+/// <summary>
 /// 配置 - 环境变量和默认值。
 /// </summary>
 public class Config
@@ -115,4 +126,37 @@ public class Config
 
         return null;
     }
+
+    // ================================================================
+    // 设置界面元数据 (新增配置项只需加一行)
+    // ================================================================
+
+    /// <summary>所有可配置项的元数据，设置界面自动布局</summary>
+    public static List<SettingDef> SettingSchema() =>
+    [
+        // 模型
+        new("Model", "模型名称", "🤖 模型", "deepseek-v4-flash / gpt-5.4-mini ...",
+            "select", ["deepseek-v4-flash","deepseek-v4-pro","gpt-5.4-mini","gpt-5.4","gpt-5.5","gpt-4o","gpt-4o-mini"],
+            "CORECODER_MODEL", 0),
+        new("BaseUrl", "API 地址", "🤖 模型", "API 端点 URL",
+            "text", null, "OPENAI_BASE_URL", 1),
+        new("ApiKey", "API 密钥", "🤖 模型", "API 密钥 (已隐藏)",
+            "secret", null, "CORECODER_API_KEY", 2),
+
+        // 参数
+        new("MaxTokens", "最大 Token", "⚙ 参数", "每次请求最大 Token 数",
+            "number", null, "CORECODER_MAX_TOKENS", 0),
+        new("Temperature", "温度", "⚙ 参数", "0=精确 1=创意",
+            "number", null, "CORECODER_TEMPERATURE", 1),
+        new("MaxContextTokens", "上下文窗口", "⚙ 参数", "上下文窗口大小",
+            "number", null, "CORECODER_MAX_CONTEXT", 2),
+
+        // 预算
+        new("MaxBudgetUsd", "预算上限 ($)", "💰 预算", "超支自动停止，留空=无限制",
+            "number", null, "CORECODER_MAX_BUDGET_USD", 0),
+
+        // 系统
+        new("Provider", "提供商", "🔧 系统", "API 提供商 (openai/deepseek/...)",
+            "text", null, "CORECODER_PROVIDER", 0),
+    ];
 }
