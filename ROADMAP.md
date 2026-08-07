@@ -95,6 +95,7 @@
 | ✅ Prompt 缓存追踪 | v0.17.0 | SHA256 本地检测 + /stats 面板展示节省量 |
 | ✅ 三级沙箱执行 | v0.17.1 | suggest/auto-edit/full-auto + 环境清理 + 内存监控 |
 | ✅ 编辑器 Lint 诊断 | v0.17.2 | 保存时自动 lint + gutter 指示器 + 错误行高亮 + 状态栏 |
+| ✅ MCP 协议完善 | v0.17.3 | HTTP/SSE 传输 + 传输抽象层 + 工具发现缓存 + 面板状态显示 |
 | ✅ Prompt 缓存 | v0.17.0 | SHA256 本地追踪 + /stats 展示 + Config 开关 |
 
 ---
@@ -129,11 +130,13 @@
 - ✅ 保存时自动运行 lint（复用 LintTool，25+ 语言）
 - ✅ 配置开关 WAYCODER_EDITOR_LINT
 
-#### 2.2 MCP 协议完善
+#### 2.2 MCP 协议完善 ✅ (v0.17.3)
 
-- SSE / Streamable HTTP 传输支持
-- MCP 工具市场浏览
-- 工具发现缓存加速启动
+- ✅ SSE / Streamable HTTP 传输支持（HTTP POST + SSE 响应流）
+- ✅ 传输抽象层（McpTransport / StdioMcpTransport / HttpMcpTransport）
+- ✅ 工具发现缓存加速启动（SHA256 键 + 24h TTL）
+- ✅ MCP 面板连接状态显示
+- 📅 MCP 工具市场浏览 → 推迟到 v0.18.0
 
 #### 2.3 语义记忆
 
