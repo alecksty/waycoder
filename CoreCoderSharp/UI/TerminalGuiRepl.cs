@@ -172,25 +172,25 @@ public class TerminalGuiRepl
         // 任务 Tab
         _todoList = new ListView { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
         var taskTab = new Tab { Text = "任务" };
-        taskTab.View.Add(_todoList);
+        taskTab.Add(_todoList);
         _sideTabs.AddTab(taskTab, false);
 
         // 文件 Tab
         _filesList = new ListView { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
         var fileTab = new Tab { Text = "文件" };
-        fileTab.View.Add(_filesList);
+        fileTab.Add(_filesList);
         _sideTabs.AddTab(fileTab, false);
 
         // 锁 Tab
         _locksList = new ListView { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
         var lockTab = new Tab { Text = "锁" };
-        lockTab.View.Add(_locksList);
+        lockTab.Add(_locksList);
         _sideTabs.AddTab(lockTab, false);
 
         // MCP Tab
         _mcpList = new ListView { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
         var mcpTab = new Tab { Text = "MCP" };
-        mcpTab.View.Add(_mcpList);
+        mcpTab.Add(_mcpList);
         _sideTabs.AddTab(mcpTab, false);
 
         _sidePanel.Add(_sideTabs);
