@@ -3,7 +3,8 @@ namespace CoreCoderSharp;
 /// <summary>
 /// 记忆系统 —— Agent 可读写的持久化项目知识库。
 /// 存储在 .corecoder/memory.md，跨会话保留。
-/// Agent 可通过 memory 工具读写。
+///
+/// v0.17.5: TF-IDF 语义搜索，替代逐行子串匹配。
 /// </summary>
 public static class MemoryStore
 {
@@ -21,6 +22,18 @@ public static class MemoryStore
             var dir = Path.GetDirectoryName(_memoryPath)!;
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             return _memoryPath;
+        }
+    }
+
+    /// <summary>记忆条目数量</summary>
+    public static int MemoryCount
+    {
+        get
+        {
+            if (!File.Exists(MemoryPath)) return 0;
+            var content = File.ReadAllText(MemoryPath);
+            var docs = SemanticMemory.ParseDocuments(content);
+            return docs.Count;
         }
     }
 
@@ -60,7 +73,8 @@ public static class MemoryStore
     }
 
     /// <summary>
-    /// 搜索记忆中的关键词。
+    /// 语义搜索：TF-IDF 相关性排序，返回 Top-20。
+    /// 回退：如果 TF-IDF 无结果，回退到关键词子串匹配。
     /// </summary>
     public static string Search(string query)
     {
@@ -70,23 +84,78 @@ public static class MemoryStore
         try
         {
             var content = File.ReadAllText(MemoryPath);
-            var lines = content.Split('\n');
-            var results = new List<string>();
-            for (int i = 0; i < lines.Length; i++)
+            var docs = SemanticMemory.ParseDocuments(content);
+
+            if (docs.Count == 0)
+                return "（无记忆条目可搜索）";
+
+            // TF-IDF 语义搜索
+            var relevant = SemanticMemory.SearchRelevant(docs, query, topN: 20);
+
+            if (relevant.Count > 0)
             {
-                if (lines[i].Contains(query, StringComparison.OrdinalIgnoreCase))
+                var lines = new List<string>();
+                foreach (var (doc, score) in relevant)
                 {
-                    results.Add($"  L{i + 1}: {lines[i].Trim()[..Math.Min(120, lines[i].Trim().Length)]}");
+                    var snippet = doc.Content.Length > 120
+                        ? doc.Content[..120] + "..."
+                        : doc.Content;
+                    var timeStr = doc.Timestamp != DateTime.MinValue
+                        ? doc.Timestamp.ToString("MM-dd HH:mm")
+                        : "";
+                    lines.Add($"  [{score:F2}] {timeStr}  {snippet}");
+                }
+                return $"搜索 \"{query}\" ({relevant.Count} 条相关记忆):\n" + string.Join('\n', lines);
+            }
+
+            // 回退：关键词子串匹配
+            var lines2 = content.Split('\n');
+            var results = new List<string>();
+            for (int i = 0; i < lines2.Length; i++)
+            {
+                if (lines2[i].Contains(query, StringComparison.OrdinalIgnoreCase))
+                {
+                    results.Add($"  L{i + 1}: {lines2[i].Trim()[..Math.Min(120, lines2[i].Trim().Length)]}");
                     if (results.Count >= 20) break;
                 }
             }
             return results.Count > 0
-                ? $"搜索 \"{query}\" ({results.Count} 处):\n" + string.Join('\n', results)
+                ? $"搜索 \"{query}\" (关键词匹配 {results.Count} 处):\n" + string.Join('\n', results)
                 : $"未找到 \"{query}\"";
         }
         catch (Exception ex)
         {
             return $"搜索记忆失败: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// 获取与查询最相关的记忆上下文（用于系统提示词增量注入）。
+    /// </summary>
+    public static string GetRelevantContext(string query, int topN = 5, int maxChars = 2000)
+    {
+        if (!File.Exists(MemoryPath)) return "";
+        try
+        {
+            var content = File.ReadAllText(MemoryPath);
+            return SemanticMemory.GetRelevantContext(content, query, topN, maxChars);
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    /// <summary>
+    /// 清空所有记忆。
+    /// </summary>
+    public static void Clear()
+    {
+        try
+        {
+            if (File.Exists(MemoryPath))
+                File.WriteAllText(MemoryPath, "");
+        }
+        catch { }
     }
 }

@@ -27,7 +27,7 @@ public class Program
         // 手动解析 CLI 参数
         string? model = null, baseUrl = null, apiKey = null, prompt = null, resumeId = null;
         double? maxBudget = null;
-        bool showVersion = false, yoloMode = false, initMode = false, watchMode = false, tuiV1 = false;
+        bool showVersion = false, yoloMode = false, initMode = false, watchMode = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -40,18 +40,19 @@ public class Program
                 case "-r" or "--resume" when i + 1 < args.Length: resumeId = args[++i]; break;
                 case "-v" or "--version": showVersion = true; break;
                 case "-t" or "--test": SelfTest.Run(); return 0;
+                case "--screenshot": RunScreenshot(); return 0;
                 case "--debug": DebugLog.Enable(); break;
                 case "--yolo": yoloMode = true; break;
+                case "--tui-v1": break; // 忽略（已移除 Terminal.Gui v2）
                 case "--init": initMode = true; break;
                 case "-w" or "--watch": watchMode = true; break;
-                case "--tui-v1": tuiV1 = true; break;
                 case "--max-budget-usd" when i + 1 < args.Length:
                     if (double.TryParse(args[++i], out var b)) maxBudget = b; break;
                 case "-h" or "--help": ShowUsage(); return 0;
             }
         }
 
-        if (showVersion) { Console.WriteLine("WayCoder v0.17.3 (道码)"); return 0; }
+        if (showVersion) { Console.WriteLine("WayCoder v0.18.0 (道码)"); return 0; }
 
         // 项目初始化向导
         if (initMode) { RunInit(); return 0; }
@@ -70,6 +71,9 @@ public class Program
         }
 
         _config = Config.FromEnv();
+        // 加载主题（优先 theme.json，回退配置项）
+        if (ThemeConfig.Instance.BorderStyle == "single" && ThemeConfig.Instance.BorderColor == 36)
+            ThemeConfig.ApplyPreset(_config.ThemePreset);
         if (model != null) _config.Model = model;
         if (baseUrl != null) _config.BaseUrl = baseUrl;
         if (apiKey != null) _config.ApiKey = apiKey;
@@ -144,10 +148,8 @@ public class Program
 
         if (!string.IsNullOrEmpty(prompt))
             await RunOnceAsync(prompt);
-        else if (tuiV1)
-            await RunReplAsync();       // 旧版 ANSI TUI（回退）
         else
-            await RunReplV2Async();     // Terminal.Gui v2（默认）
+            await RunReplAsync();
 
         return 0;
     }
@@ -188,28 +190,6 @@ public class Program
     }
 
     // ========================================================================
-    // 交互式 REPL (Terminal.Gui v2 版)
-    // ========================================================================
-
-    private static async Task RunReplV2Async()
-    {
-        _llm!.SmallModel = _config.SmallModel;
-
-        // 尝试恢复上次自动保存的会话
-        try
-        {
-            var auto = SessionManager.LoadSession("_auto");
-            if (auto != null) _pendingRestore = auto;
-        }
-        catch { }
-
-        var v2Repl = new UI.TerminalGuiRepl(_agent!, _llm!, _config);
-        await Task.Run(() => v2Repl.Run());
-
-        AutoSaveSession();
-    }
-
-    // ========================================================================
     // 交互式 REPL
     // ========================================================================
 
@@ -217,7 +197,12 @@ public class Program
     {
         var sm = ScreenManager.Instance;
         sm.Enter();
+        sm.SyncTheme();  // 从主题同步配色
         sm.RefreshTheme();
+
+        // 输入管理器：拦截键盘 + 鼠标 + resize 即时重绘
+        using var inputMgr = new UI.InputManager();
+        inputMgr.Init();
         sm.ChatMessages.Clear();
         sm.InputLines.Clear();
         sm.InputLines.Add(new StringBuilder());
@@ -225,16 +210,16 @@ public class Program
         // 启动欢迎屏 — ASCII Logo 注入聊天区
         var logo = new[]
         {
-            "██╗    ██╗ █████╗ ██╗   ██╗",
-            "██║    ██║██╔══██╗╚██╗ ██╔╝",
-            "██║ █╗ ██║███████║ ╚████╔╝ ",
-            "██║███╗██║██╔══██║  ╚██╔╝  ",
-            "╚███╔███╔╝██║  ██║   ██║   ",
-            " ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝   ",
+            "██╗    ██╗ █████╗ ██╗   ██╗ ██████╗ ██████╗ ██████╗ ███████╗██████╗ ",
+            "██║    ██║██╔══██╗╚██╗ ██╔╝██╔════╝██╔═══██╗██╔══██╗██╔════╝██╔══██╗",
+            "██║ █╗ ██║███████║ ╚████╔╝ ██║     ██║   ██║██║  ██║█████╗  ██████╔╝",
+            "██║███╗██║██╔══██║  ╚██╔╝  ██║     ██║   ██║██║  ██║██╔══╝  ██╔══██╗",
+            "╚███╔███╔╝██║  ██║   ██║   ╚██████╗╚██████╔╝██████╔╝███████╗██║  ██║",
+            " ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝",
         };
         foreach (var line in logo)
             sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = line });
-        sm.AddSystemMsg("WayCoder 道码 · 中文版易用编程智能体 · v0.17.3");
+        sm.AddSystemMsg("WayCoder 道码 · 中文版易用编程智能体 · v0.18.0");
         sm.AddSystemMsg("深圳市探索智能科技有限公司");
         sm.AddSystemMsg($"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助");
         sm.StatusLeft = $"大:{_config.Model} 小:{_config.SmallModel}";
@@ -260,7 +245,7 @@ public class Program
 
         // Ctrl+C 优雅退出（触发 finally 中的自动保存）
         var exitRequested = false;
-        Console.CancelKeyPress += (_, e) => { e.Cancel = true; exitRequested = true; };
+        // Ctrl+C 由 InputManager 拦截为按键事件 (TreatControlCAsInput=true)
 
         var running = true;
         while (running && !exitRequested)
@@ -275,13 +260,31 @@ public class Program
                 await ProcessUserInput(watchPrompt, sm);
             }
 
-            var key = Console.ReadKey(intercept: true);
+            var ev = inputMgr.ReadInput(50);
+
+            // Resize — 即时重绘
+            if (ev.Type == InputType.Resize) { sm.Render(); continue; }
+
+            // 超时 — 继续轮询
+            if (ev.Type == InputType.Timeout) continue;
+
+            // 鼠标 — 滚轮滚动聊天区
+            if (ev.Type == InputType.Mouse)
+            {
+                if (ev.MouseScrollUp) sm.ChatScrollUp(3);
+                else if (ev.MouseScrollDown) sm.ChatScrollDown(3);
+                continue;
+            }
+
+            var key = ev.KeyInfo;
             bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
             bool shift = key.Modifiers.HasFlag(ConsoleModifiers.Shift);
 
-            // 终端 resize 检测
-            var (tw, th) = (Console.WindowWidth, Console.WindowHeight);
-            if (tw != sm.TW || th != sm.TH) { sm.Render(); continue; }
+            // 模态窗口键路由
+            if (WindowManager.Instance.HasModal)
+            {
+                if (WindowManager.Instance.HandleKey(key)) { sm.Render(); continue; }
+            }
 
             // ---- 建议模式 ----
             if (sm.SuggestActive)
@@ -355,6 +358,7 @@ case ConsoleKey.F2:
                     break;
 
                 case ConsoleKey.F10:
+                case ConsoleKey.C when ctrl:  // Ctrl+C → 优雅退出
                     AutoSaveSession();
                     _watchMode?.Dispose();
                     sm.Exit();
@@ -583,9 +587,38 @@ case ConsoleKey.F2:
         if (userInput.StartsWith("/edit ")) { await Editor.RunAsync(userInput[6..].Trim()); sm.Render(); return; }
         if (userInput is "/settings" or "/config") { SettingsPage.Show(); return; }
         if (userInput == "/about") { ScreenManager.ShowAbout(); return; }
+        if (userInput == "/todo") { ShowTodo(); return; }
+        if (userInput.StartsWith("/theme "))
+        {
+            var preset = userInput[7..].Trim();
+            if (ThemeConfig.Presets.ContainsKey(preset))
+            {
+                ThemeConfig.ApplyPreset(preset);
+                _config.ThemePreset = preset;
+                sm.AddSystemMsg($"🎨 主题已切换: {preset}");
+            }
+            else sm.AddSystemMsg($"未知主题: {preset}。可选: {string.Join(", ", ThemeConfig.Presets.Keys)}");
+            return;
+        }
+        if (userInput == "/theme") { sm.AddSystemMsg($"当前主题: {_config.ThemePreset}。可选: {string.Join(", ", ThemeConfig.Presets.Keys)}"); return; }
         if (userInput.StartsWith("/history")) { SearchHistory(userInput, sm); return; }
         if (userInput == "/export") { ExportConversation(sm); return; }
         if (userInput == "/recent") { ShowRecentFiles(sm); return; }
+        if (userInput == "/checkpoint") { await CreateCheckpointAsync(); return; }
+        if (userInput == "/checkpoints") { ShowCheckpoints(); return; }
+        if (userInput == "/undo" || userInput == "/undo -l" || userInput == "/undo --list")
+        {
+            if (userInput.EndsWith("-l") || userInput.EndsWith("--list"))
+                ShowCheckpointFiles();
+            else
+                await UndoCheckpointAsync(userInput);
+            return;
+        }
+        if (userInput.StartsWith("/undo "))
+        {
+            await UndoCheckpointAsync(userInput);
+            return;
+        }
         if (userInput == "/resume" && _pendingRestore != null)
         {
             var (msgs, model) = _pendingRestore.Value;
@@ -710,7 +743,7 @@ case ConsoleKey.F2:
         "/undo", "/checkpoints", "/repomap", "/pr",
     ];
 
-    /// <summary>Levenshtein 编辑距离（字符级）。</summary>
+    /// <summary>Damerau-Levenshtein 编辑距离（支持字符换位）。</summary>
     internal static int Levenshtein(string a, string b)
     {
         var dp = new int[a.Length + 1, b.Length + 1];
@@ -724,6 +757,9 @@ case ConsoleKey.F2:
                 dp[i, j] = Math.Min(
                     Math.Min(dp[i - 1, j] + 1, dp[i, j - 1] + 1),
                     dp[i - 1, j - 1] + cost);
+                // 换位检测: "eu" ↔ "ue" 距离=1
+                if (i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1])
+                    dp[i, j] = Math.Min(dp[i, j], dp[i - 2, j - 2] + cost);
             }
         }
         return dp[a.Length, b.Length];
@@ -1054,8 +1090,81 @@ case ConsoleKey.F2:
     private static void ShowDiffInChat(ScreenManager sm)
     {
         var files = EditFileTool.ChangedFiles;
-        if (files.Count == 0) sm.AddSystemMsg("未修改任何文件");
-        else foreach (var f in files) sm.AddSystemMsg($"  {f}");
+        if (files.Count == 0)
+        {
+            sm.AddSystemMsg("未修改任何文件");
+            return;
+        }
+
+        foreach (var f in files)
+        {
+            try
+            {
+                var diff = RunGitDiff(f);
+                if (string.IsNullOrWhiteSpace(diff))
+                {
+                    sm.AddSystemMsg($"  {f} (无变更)");
+                    continue;
+                }
+                // 注入 diff 标题
+                sm.ChatMessages.Add(new ScreenManager.ChatMsg
+                {
+                    Role = "system",
+                    Content = $"📄 {f}"
+                });
+                // 注入 diff 内容（行内 ANSI 颜色码）
+                var rendered = RenderDiffAsString(diff, f);
+                sm.ChatMessages.Add(new ScreenManager.ChatMsg
+                {
+                    Role = "system",
+                    Content = rendered
+                });
+            }
+            catch
+            {
+                sm.AddSystemMsg($"  {f}");
+            }
+        }
+    }
+
+    private static string RunGitDiff(string filePath)
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "git",
+            Arguments = $"diff -- \"{filePath}\"",
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        using var proc = System.Diagnostics.Process.Start(psi);
+        if (proc == null) return "";
+        var output = proc.StandardOutput.ReadToEnd();
+        proc.WaitForExit(5000);
+        return output;
+    }
+
+    private static string RenderDiffAsString(string diffOutput, string filePath)
+    {
+        var ext = Path.GetExtension(filePath);
+        var lines = UI.DiffRenderer.Render(diffOutput, ext);
+        var sb = new System.Text.StringBuilder();
+        foreach (var line in lines)
+        {
+            foreach (var (text, fg, bg) in line)
+            {
+                if (bg != 0 && fg != 0)
+                    sb.Append($"\x1b[{fg};{bg}m{text}\x1b[0m");
+                else if (fg != 0)
+                    sb.Append($"\x1b[{fg}m{text}\x1b[0m");
+                else if (bg != 0)
+                    sb.Append($"\x1b[{bg}m{text}\x1b[0m");
+                else
+                    sb.Append(text);
+            }
+            sb.Append('\n');
+        }
+        return sb.ToString().TrimEnd();
     }
 
     /// <summary>搜索对话历史中的关键词。</summary>
@@ -1352,6 +1461,53 @@ case ConsoleKey.F2:
         Console.WriteLine("初始化完成！现在可以运行 waycoder 开始编码。");
     }
 
+    /// <summary>截图模式：正常单遍渲染（框+文字一起）</summary>
+    private static void RunScreenshot()
+    {
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        var wm = WindowManager.Instance;
+        var sb = new System.Text.StringBuilder();
+
+        // 方框+中文内容
+        Console.Write("\x1b[2J\x1b[H");
+        var wins = new (int X, int Y, int W, int H, string T, string[] C, int Clr)[] {
+            (2,2,24,6,"纯ASCII",     new[]{"Hello World!","abcdefg 12345","OK"}, 36),
+            (28,2,24,6,"纯中文",      new[]{"你好世界！","中文内容测试"}, 32),
+            (54,2,30,6,"中英混排",    new[]{"ASCII中文Mix测试","ABCD 中文 EFGH"}, 33),
+            (2,10,40,6,"长中文截断",  new[]{"这一行中文非常非常长应该被裁剪掉超出的部分"}, 35),
+            (45,10,20,5,"窄框中文",   new[]{"窄框里写中文","第二行"}, 34),
+        };
+        foreach (var (x,y,w,h,t,c,clr) in wins)
+            wm.RenderWindow(sb, new ManagedWindow { X=x, Y=y, Width=w, Height=h,
+                Title=t, ContentLines=[..c], BorderColor=clr });
+        Console.Write(sb.ToString());
+        Console.WriteLine("\n\x1b[0m===END===");
+
+        // 主题预设展示——每个预设同一样式自动应用
+        wm.CloseAll();
+        sb.Clear(); Console.Write("\x1b[2J\x1b[H");
+        var items = new List<string> { "新建", "打开",
+            WindowManager.MenuSeparator, "保存", "退出" };
+
+        string[] presets = ["default", "ocean", "forest", "sunset", "midnight", "mono"];
+        for (int si = 0; si < presets.Length; si++)
+        {
+            ThemeConfig.ApplyPreset(presets[si]);
+            var mw = new ManagedWindow {
+                X = 2 + si * 20, Y = 2, Width = 18, Height = 8,
+                Title = presets[si], MenuItems = items, SelectedIndex = 0,
+            };
+            ThemeConfig.Instance.ApplyTo(mw);
+            wm.RenderWindow(sb, mw);
+        }
+        // 恢复默认
+        ThemeConfig.ApplyPreset("default");
+        Console.Write(sb.ToString());
+        Console.WriteLine("\n\x1b[0m===END===");
+
+        Console.ResetColor();
+    }
+
     private static void ShowUsage()
     {
         MarkupLine("[bold yellow]WayCoder (道码)[/] — 中文版易用编程智能体");
@@ -1370,7 +1526,6 @@ case ConsoleKey.F2:
         MarkupLine("  [cyan]--debug[/]              开启调试日志 (记录到 logs/ 目录)");
         MarkupLine("  [cyan]--yolo[/]              跳过所有权限确认 (非交互模式必备)");
         MarkupLine("  [cyan]--max-budget-usd[/] <金额> 费用上限（美元），超支自动停止");
-        MarkupLine("  [cyan]--tui-v1[/]             使用旧版 ANSI TUI（回退选项）");
         MarkupLine("  [cyan]-h, --help[/]           显示此帮助");
         Console.WriteLine();
         MarkupLine("  [bold]示例:[/]");
@@ -1749,11 +1904,20 @@ case ConsoleKey.F2:
     {
         var parts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         int? id = null;
-        if (parts.Length > 1 && int.TryParse(parts[1], out var parsed))
+        string? filePath = null;
+        int idx = 1;
+
+        // 解析: /undo [N] [file]
+        if (idx < parts.Length && int.TryParse(parts[idx], out var parsed))
+        {
             id = parsed;
+            idx++;
+        }
+        if (idx < parts.Length)
+            filePath = string.Join(" ", parts.Skip(idx));
 
         MarkupLine("[bold orange3]⏪ 回退中...[/]");
-        var result = await CheckpointManager.UndoAsync(id);
+        var result = await CheckpointManager.UndoAsync(id, filePath);
         Console.WriteLine(result);
     }
 
@@ -1761,6 +1925,20 @@ case ConsoleKey.F2:
     {
         MarkupLine("[bold]检查点列表:[/]");
         Console.WriteLine(CheckpointManager.ListCheckpoints());
+    }
+
+    private static void ShowCheckpointFiles()
+    {
+        var files = CheckpointManager.GetCheckpointFiles();
+        if (files.Count == 0)
+        {
+            MarkupLine("[dim]（最新检查点无文件备份）[/]");
+            return;
+        }
+        var latest = CheckpointManager.ListCheckpoints().Split('\n').LastOrDefault()?.Trim() ?? "最新";
+        MarkupLine($"[bold]检查点文件清单[/] [dim]{latest}[/]");
+        foreach (var f in files)
+            MarkupLine($"  [cyan]{E(f)}[/]");
     }
 
     private static void ShowRepoMap()

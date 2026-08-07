@@ -127,6 +127,11 @@ public static class SettingsPage
         "Provider" => _config.Provider,
         "AutoGitCommit" => _config.AutoGitCommit ? "true" : "false",
         "WatchMode" => _config.WatchMode ? "true" : "false",
+        "ToolTimeoutSec" => _config.ToolTimeoutSec.ToString(),
+        "LintTimeoutSec" => _config.LintTimeoutSec.ToString(),
+        "SubAgentMaxDepth" => _config.SubAgentMaxDepth.ToString(),
+        "MemoryRelevanceTopN" => _config.MemoryRelevanceTopN.ToString(),
+        "ThemePreset" => _config.ThemePreset,
         "BorderStyle" => _config.BorderStyle,
         "BorderColor" => _config.BorderColor,
         "AccentColor" => _config.AccentColor,
@@ -149,6 +154,11 @@ public static class SettingsPage
             case "Provider": _config.Provider = value; break;
             case "AutoGitCommit": _config.AutoGitCommit = bool.TryParse(value, out var ac) && ac; break;
             case "WatchMode": _config.WatchMode = bool.TryParse(value, out var wm) && wm; break;
+            case "ToolTimeoutSec": if (int.TryParse(value, out var tto)) _config.ToolTimeoutSec = tto; break;
+            case "LintTimeoutSec": if (int.TryParse(value, out var lto)) _config.LintTimeoutSec = lto; break;
+            case "SubAgentMaxDepth": if (int.TryParse(value, out var sd)) _config.SubAgentMaxDepth = Math.Clamp(sd, 1, 5); break;
+            case "MemoryRelevanceTopN": if (int.TryParse(value, out var mtn)) _config.MemoryRelevanceTopN = Math.Clamp(mtn, 0, 20); break;
+            case "ThemePreset": _config.ThemePreset = value; ThemeConfig.ApplyPreset(value); break;
             case "BorderStyle": _config.BorderStyle = value; break;
             case "BorderColor": _config.BorderColor = value; break;
             case "AccentColor": _config.AccentColor = value; break;

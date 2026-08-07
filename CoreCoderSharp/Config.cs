@@ -46,6 +46,21 @@ public class Config
     /// <summary>编辑器保存后自动 lint 检查（默认开启）</summary>
     public bool EditorLint { get; set; } = true;
 
+    /// <summary>工具执行超时（秒），默认 120</summary>
+    public int ToolTimeoutSec { get; set; } = 120;
+
+    /// <summary>Lint 检查超时（秒），默认 60</summary>
+    public int LintTimeoutSec { get; set; } = 60;
+
+    /// <summary>子智能体最大递归深度，默认 3（1=单层，范围 1-5）</summary>
+    public int SubAgentMaxDepth { get; set; } = 3;
+
+    /// <summary>记忆相关性注入条数，默认 5（0=关闭语义匹配，回退全量加载）</summary>
+    public int MemoryRelevanceTopN { get; set; } = 5;
+
+    /// <summary>界面主题预设</summary>
+    public string ThemePreset { get; set; } = "default";
+
     // ---- 界面主题 ----
     /// <summary>边框类型: single | double | rounded | bold</summary>
     public string BorderStyle { get; set; } = "rounded";
@@ -114,6 +129,21 @@ public class Config
 
         if (bool.TryParse(Env("WAYCODER_EDITOR_LINT", "CORECODER_EDITOR_LINT"), out var el))
             config.EditorLint = el;
+
+        if (int.TryParse(Env("WAYCODER_TOOL_TIMEOUT", "CORECODER_TOOL_TIMEOUT"), out var tto))
+            config.ToolTimeoutSec = tto;
+
+        if (int.TryParse(Env("WAYCODER_LINT_TIMEOUT", "CORECODER_LINT_TIMEOUT"), out var lto))
+            config.LintTimeoutSec = lto;
+
+        if (int.TryParse(Env("WAYCODER_SUBAGENT_DEPTH", "CORECODER_SUBAGENT_DEPTH"), out var sd))
+            config.SubAgentMaxDepth = Math.Clamp(sd, 1, 5);
+
+        if (int.TryParse(Env("WAYCODER_MEMORY_TOPN", "CORECODER_MEMORY_TOPN"), out var mtn))
+            config.MemoryRelevanceTopN = Math.Clamp(mtn, 0, 20);
+
+        var envTheme = Env("WAYCODER_THEME", "CORECODER_THEME");
+        if (envTheme != null) config.ThemePreset = envTheme;
 
         // 主题
         var envBorder = Env("WAYCODER_BORDER_STYLE", "CORECODER_BORDER_STYLE");
@@ -254,6 +284,17 @@ public class Config
             "select", ["suggest", "auto-edit", "full-auto"], "WAYCODER_SANDBOX_LEVEL", 4),
         new("EditorLint", "编辑器 Lint", "🔧 系统", "保存时自动运行 lint 检查并标注错误行",
             "select", ["false", "true"], "WAYCODER_EDITOR_LINT", 5),
+        new("ToolTimeoutSec", "工具超时 (秒)", "⚙ 参数", "Bash 等工具执行超时，默认 120 秒",
+            "number", null, "WAYCODER_TOOL_TIMEOUT", 3),
+        new("LintTimeoutSec", "Lint 超时 (秒)", "⚙ 参数", "Lint 检查超时，默认 60 秒（大项目可调大）",
+            "number", null, "WAYCODER_LINT_TIMEOUT", 4),
+        new("SubAgentMaxDepth", "子智能体深度", "🤖 模型", "子智能体最大递归层数，1=单层 5=最深",
+            "number", null, "WAYCODER_SUBAGENT_DEPTH", 4),
+        new("MemoryRelevanceTopN", "记忆注入条数", "🔧 系统", "每次注入的最相关记忆数，0=关闭语义匹配",
+            "number", null, "WAYCODER_MEMORY_TOPN", 6),
+        new("ThemePreset", "界面主题", "🎨 界面", "预设配色方案，选中即生效",
+            "select", ["default","ocean","forest","sunset","midnight","mono"],
+            "WAYCODER_THEME", 4),
 
         // 界面主题
         new("ColorScheme", "配色方案", "🎨 界面", "预设配色 (覆盖下方颜色设置)",
@@ -292,6 +333,11 @@ public class Config
         ApplyOrAppend(lines, "WAYCODER_PROMPT_CACHE", PromptCaching.ToString().ToLowerInvariant());
         ApplyOrAppend(lines, "WAYCODER_SANDBOX_LEVEL", SandboxLevel);
         ApplyOrAppend(lines, "WAYCODER_EDITOR_LINT", EditorLint.ToString().ToLowerInvariant());
+        ApplyOrAppend(lines, "WAYCODER_TOOL_TIMEOUT", ToolTimeoutSec.ToString());
+        ApplyOrAppend(lines, "WAYCODER_LINT_TIMEOUT", LintTimeoutSec.ToString());
+        ApplyOrAppend(lines, "WAYCODER_SUBAGENT_DEPTH", SubAgentMaxDepth.ToString());
+        ApplyOrAppend(lines, "WAYCODER_MEMORY_TOPN", MemoryRelevanceTopN.ToString());
+        ApplyOrAppend(lines, "WAYCODER_THEME", ThemePreset);
         ApplyOrAppend(lines, "WAYCODER_BORDER_STYLE", BorderStyle);
         ApplyOrAppend(lines, "WAYCODER_BORDER_COLOR", BorderColor);
         ApplyOrAppend(lines, "WAYCODER_ACCENT_COLOR", AccentColor);
