@@ -291,6 +291,7 @@ public class Program
         if (userInput.StartsWith("/search ")) { await RunSearchAsync(userInput[8..].Trim()); return; }
         if (userInput == "/edit") { await Editor.PickAndRunAsync(); sm.Render(); return; }
         if (userInput.StartsWith("/edit ")) { await Editor.RunAsync(userInput[6..].Trim()); sm.Render(); return; }
+        if (userInput is "/settings" or "/config") { SettingsPage.Show(); return; }
 
         // 调用 Agent
         using var cts = new CancellationTokenSource();
@@ -439,6 +440,7 @@ public class Program
         table.AddRow("/repomap", "刷新仓库地图");
         table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/pr[/] [dim][[标题]][/]", "创建 Pull Request");
         table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/edit[/] [dim][[文件]][/]", "终端源码编辑器");
+        table.AddRow("/settings", "设置界面");
         table.AddRow("quit", "退出");
 
         // 自定义命令
@@ -533,7 +535,7 @@ public class Program
             "/plan", "/todo", "/git-status", "/git-log", "/git-diff",
             "/review", "/lint", "/search <关键词>",
             "/checkpoint", "/undo [编号]", "/checkpoints",
-            "/repomap", "/pr [标题]", "/edit [文件]", "quit",
+            "/repomap", "/pr [标题]", "/edit [文件]", "/settings", "quit",
         };
 
         // 追加自定义命令
