@@ -38,7 +38,7 @@ public class FetchTool : ITool
     static FetchTool()
     {
         _client.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "Mozilla/5.0 CoreCoderSharp/1.0 (compatible; AI coding assistant)");
+            "Mozilla/5.0 WayCoder/1.0 (compatible; AI coding assistant)");
     }
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

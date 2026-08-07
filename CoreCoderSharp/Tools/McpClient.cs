@@ -110,7 +110,7 @@ public static class McpManager
                 ["capabilities"] = new JsonObject(),
                 ["clientInfo"] = new JsonObject
                 {
-                    ["name"] = "CoreCoderSharp",
+                    ["name"] = "WayCoder",
                     ["version"] = "0.7.0",
                 },
             });
