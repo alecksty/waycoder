@@ -17,7 +17,7 @@ public static class ProjectContext
     /// </summary>
     public static string LoadInstructions()
     {
-        var files = FindUpward([".claude", "CLAUDE.md", "AGENTS.md", ".cursorrules"]);
+        var files = FindUpward([".claude", ".corecoder", "CLAUDE.md", "AGENTS.md", ".cursorrules"]);
         if (files.Count == 0) return "";
 
         var sb = new System.Text.StringBuilder();
@@ -75,14 +75,18 @@ public static class ProjectContext
         {
             foreach (var name in names)
             {
-                // 也检查 .claude/CLAUDE.md 路径
-                if (name == ".claude")
+                // 也检查 .claude/CLAUDE.md 和 .corecoder/prompt.md 路径
+                if (name is ".claude" or ".corecoder")
                 {
-                    var claudeDir = Path.Combine(current, ".claude");
-                    if (Directory.Exists(claudeDir))
+                    var dir = Path.Combine(current, name);
+                    if (Directory.Exists(dir))
                     {
-                        foreach (var md in Directory.GetFiles(claudeDir, "*.md"))
+                        foreach (var md in Directory.GetFiles(dir, "*.md"))
                         {
+                            // 排除 memory.md（记忆系统专用，不注入系统提示词）
+                            var fileName = Path.GetFileName(md);
+                            if (fileName.Equals("memory.md", StringComparison.OrdinalIgnoreCase))
+                                continue;
                             if (seen.Add(md)) results.Add(md);
                         }
                     }

@@ -159,12 +159,23 @@ public static class PermissionManager
             case "edit_file":
                 var fp = args.GetValueOrDefault("file_path")?.ToString() ?? "";
                 var result = $"文件: {TuiHelper.Esc(fp)}";
+                if (toolName == "write_file")
+                {
+                    var content = args.GetValueOrDefault("content")?.ToString() ?? "";
+                    var lines = content.Count(c => c == '\n') + 1;
+                    var exists = File.Exists(fp);
+                    var existsNote = exists ? $" (覆盖已有 {new FileInfo(fp).Length} 字节)" : " (新建)";
+                    result += existsNote + $"\n内容: {lines} 行";
+                    // 预览前 100 字符
+                    var preview = content.Length > 100 ? content[..100] + "..." : content;
+                    result += $"\n预览: {TuiHelper.Esc(preview.Replace("\n", "\\n"))}";
+                }
                 if (toolName == "edit_file")
                 {
                     var old = args.GetValueOrDefault("old_string")?.ToString() ?? "";
                     var n = args.GetValueOrDefault("new_string")?.ToString() ?? "";
-                    result += $"\n旧: {TuiHelper.Esc(old.Length > 80 ? old[..80] + "..." : old)}";
-                    result += $"\n新: {TuiHelper.Esc(n.Length > 80 ? n[..80] + "..." : n)}";
+                    result += $"\n-{TuiHelper.Esc(old.Length > 80 ? old[..80] + "..." : old)}";
+                    result += $"\n+{TuiHelper.Esc(n.Length > 80 ? n[..80] + "..." : n)}";
                 }
                 return result;
             case "agent":
