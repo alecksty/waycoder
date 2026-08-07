@@ -155,8 +155,9 @@ public class Program
         sm.ChatMessages.Clear();
         sm.InputLines.Clear();
         sm.InputLines.Add(new StringBuilder());
-        sm.AddSystemMsg($"CoreCoder v0.13.0 · 模型: {_config.Model}  ·  /help 帮助");
-        sm.StatusLeft = _config.Model;
+        sm.AddSystemMsg($"CoreCoder v0.13.0 · 大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助");
+        sm.StatusLeft = $"大:{_config.Model} 小:{_config.SmallModel}";
+        _llm!.SmallModel = _config.SmallModel;
 
         var running = true;
         while (running)
@@ -389,15 +390,30 @@ public class Program
         var m = input[7..].Trim();
         if (string.IsNullOrEmpty(m)) return;
 
-        // 尝试从已知模型列表匹配
         var known = new[] { "deepseek-v4-flash","deepseek-v4-pro","gpt-5.4-mini","gpt-5.4","gpt-5.5","gpt-4o","gpt-4o-mini" };
+
+        // /model big <name> 或 /model small <name>
+        bool isSmall = m.StartsWith("small ", StringComparison.OrdinalIgnoreCase);
+        bool isBig = m.StartsWith("big ", StringComparison.OrdinalIgnoreCase);
+        if (isSmall || isBig) m = m[(m.IndexOf(' ') + 1)..];
+
         var match = known.FirstOrDefault(k => k.StartsWith(m, StringComparison.OrdinalIgnoreCase));
         if (match != null) m = match;
 
-        _llm!.Model = m;
-        _config.Model = m;
-        sm.StatusLeft = m;
-        sm.AddSystemMsg($"✅ 已切换到 {m}");
+        if (isSmall)
+        {
+            _config.SmallModel = m;
+            _llm!.SmallModel = m;
+        }
+        else
+        {
+            _llm!.Model = m;
+            _config.Model = m;
+        }
+
+        sm.StatusLeft = $"大:{_config.Model} 小:{_config.SmallModel}";
+        var label = isSmall ? "小模型" : "大模型";
+        sm.AddSystemMsg($"✅ {label}已切换: {m}");
     }
 
     private static void SaveSessionInteractive(ScreenManager sm)
