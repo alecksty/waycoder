@@ -42,7 +42,7 @@ public class Program
             }
         }
 
-        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.15.0"); return 0; }
+        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.15.1"); return 0; }
 
         _config = Config.FromEnv();
         if (model != null) _config.Model = model;
@@ -155,7 +155,7 @@ public class Program
         sm.ChatMessages.Clear();
         sm.InputLines.Clear();
         sm.InputLines.Add(new StringBuilder());
-        sm.AddSystemMsg($"CoreCoder v0.15.0 · 大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助");
+        sm.AddSystemMsg($"CoreCoder v0.15.1 · 大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助");
         sm.StatusLeft = $"大:{_config.Model} 小:{_config.SmallModel}";
         _llm!.SmallModel = _config.SmallModel;
 
@@ -215,6 +215,10 @@ public class Program
                     };
                     if (sm.ActivePanel == ScreenManager.PanelTab.Files)
                         sm.ModifiedFiles = EditFileTool.ChangedFiles.ToList();
+                    break;
+
+                case ConsoleKey.F5:
+                    SettingsPage.Show();
                     break;
 
                 // ---- 聊天区滚动 ----
@@ -294,6 +298,7 @@ public class Program
         if (userInput == "/edit") { await Editor.PickAndRunAsync(); sm.Render(); return; }
         if (userInput.StartsWith("/edit ")) { await Editor.RunAsync(userInput[6..].Trim()); sm.Render(); return; }
         if (userInput is "/settings" or "/config") { SettingsPage.Show(); return; }
+        if (userInput == "/about") { ScreenManager.ShowAbout(); return; }
 
         // 调用 Agent (支持自动回退)
         using var cts = new CancellationTokenSource();
