@@ -59,9 +59,14 @@ public class Program
         // 标准输入管道模式：echo "prompt" | waycoder
         if (prompt == null && Console.IsInputRedirected)
         {
-            prompt = Console.In.ReadToEnd().Trim();
-            // 管道输入非交互，自动开启 yolo 模式
-            if (!yoloMode) yoloMode = true;
+            var stdinText = Console.In.ReadToEnd().Trim();
+            // 只有当 stdin 真正有内容时才作为管道输入
+            if (!string.IsNullOrEmpty(stdinText))
+            {
+                prompt = stdinText;
+                // 管道输入非交互，自动开启 yolo 模式
+                if (!yoloMode) yoloMode = true;
+            }
         }
 
         _config = Config.FromEnv();
@@ -137,7 +142,7 @@ public class Program
             }
         }
 
-        if (prompt != null)
+        if (!string.IsNullOrEmpty(prompt))
             await RunOnceAsync(prompt);
         else if (tuiV1)
             await RunReplAsync();       // 旧版 ANSI TUI（回退）
