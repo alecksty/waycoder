@@ -60,6 +60,102 @@ public class ScreenManager
     }
 
     // ================================================================
+    // 居中弹窗 (对话框 / 菜单)
+    // ================================================================
+
+    public enum DialogType { Info, Success, Warn, Error }
+
+    /// <summary>显示居中对话框，任意键关闭</summary>
+    public void ShowDialog(string title, string content, DialogType type = DialogType.Info)
+    {
+        var color = type switch
+        {
+            DialogType.Success => "32", // 绿
+            DialogType.Warn => "33",    // 黄
+            DialogType.Error => "31",   // 红
+            _ => "36",                  // 青
+        };
+
+        var lines = content.Replace("\r\n", "\n").Split('\n');
+        var maxW = Math.Min(TW - 8, lines.Max(l => VW(l)) + 4);
+        if (!string.IsNullOrEmpty(title)) maxW = Math.Max(maxW, VW(title) + 4);
+        var w = Math.Max(20, maxW);
+        var h = lines.Length + 4; // 上框 + 标题 + 内容 + padding + 下框
+        var x = (TW - w) / 2;
+        var y = (TH - h) / 2;
+
+        var sb = new StringBuilder();
+        // 遮罩背景
+        for (int i = 0; i < TH; i++)
+            sb.Append($"[{i + 1};1H[100m{new string(' ', TW)}[0m");
+        // 重绘原框架内容（简化：只保留文字区域）
+
+        // 对话框
+        sb.Append($"[{y};{x}H[{color}m╭{new string('─', w - 2)}╮[0m");
+        if (!string.IsNullOrEmpty(title))
+        {
+            sb.Append($"[{y + 1};{x}H[{color}m│[0m [1m{title}[0m" +
+                $"{new string(' ', Math.Max(0, w - VW(title) - 4))}[{color}m│[0m");
+        }
+        for (int i = 0; i < lines.Length; i++)
+            sb.Append($"[{y + 2 + i};{x}H[{color}m│[0m {lines[i]}" +
+                $"{new string(' ', Math.Max(0, w - VW(lines[i]) - 4))}[{color}m│[0m");
+        sb.Append($"[{y + 2 + lines.Length};{x}H[{color}m│[0m 按任意键关闭" +
+            $"{new string(' ', Math.Max(0, w - VW("按任意键关闭") - 6))}[{color}m│[0m");
+        sb.Append($"[{y + h - 1};{x}H[{color}m╰{new string('─', w - 2)}╯[0m");
+
+        Console.Write(sb.ToString());
+        Console.ReadKey(intercept: true);
+    }
+
+    /// <summary>显示居中菜单，返回选择的索引 (-1 表示取消)</summary>
+    public int ShowMenu(string title, List<string> choices)
+    {
+        var w = Math.Min(TW - 8, Math.Max(20, choices.Max(c => VW(c)) + 4));
+        if (!string.IsNullOrEmpty(title)) w = Math.Max(w, VW(title) + 4);
+        var h = choices.Count + 4; // 上框 + title + items + hint + 下框
+        var x = (TW - w) / 2;
+        var y = (TH - h) / 2;
+        int sel = 0;
+
+        while (true)
+        {
+            var sb = new StringBuilder();
+            // 遮罩
+            for (int i = 0; i < TH; i++)
+                sb.Append($"[{i + 1};1H[100m{new string(' ', TW)}[0m");
+
+            // 菜单框
+            sb.Append($"[{y};{x}H[36m╭{new string('─', w - 2)}╮[0m");
+            if (!string.IsNullOrEmpty(title))
+                sb.Append($"[{y + 1};{x}H[36m│[0m [1m{title}[0m" +
+                    $"{new string(' ', Math.Max(0, w - VW(title) - 4))}[36m│[0m");
+            for (int i = 0; i < choices.Count; i++)
+            {
+                var text = choices[i];
+                if (VW(text) > w - 8) text = TruncateByVW(text, w - 9) + "…";
+                sb.Append($"[{y + 2 + i};{x}H[36m│[0m ");
+                sb.Append(i == sel ? $"[30;46m {text} [0m" : $" {text} ");
+                var fill = Math.Max(0, w - 4 - VW(text) - 2);
+                if (i != sel) sb.Append(new string(' ', fill));
+                sb.Append($"[36m│[0m");
+            }
+            sb.Append($"[{y + h - 1};{x}H[36m╰{new string('─', w - 2)}╯[0m");
+            sb.Append("[?25h");
+            Console.Write(sb.ToString());
+
+            var key = Console.ReadKey(intercept: true);
+            switch (key.Key)
+            {
+                case ConsoleKey.UpArrow: if (sel > 0) sel--; break;
+                case ConsoleKey.DownArrow: if (sel < choices.Count - 1) sel++; break;
+                case ConsoleKey.Enter: return sel;
+                case ConsoleKey.Escape: return -1;
+            }
+        }
+    }
+
+    // ================================================================
     // 屏幕控制
     // ================================================================
 
