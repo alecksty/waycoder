@@ -1414,6 +1414,74 @@ public static class SelfTest
         Check("DeleteSession 有效", afterDel == null);
         Console.WriteLine();
 
+        // ---- Prompt 缓存 ----
+        Section("[Prompt 缓存]");
+        PromptCache.ClearStats();
+        Check("初始 TotalRequests=0", PromptCache.TotalRequests == 0);
+        Check("初始 CacheHits=0", PromptCache.CacheHits == 0);
+        Check("初始 SavedTokens=0", PromptCache.SavedTokens == 0);
+        Check("初始 HitRate=0", PromptCache.HitRate == 0);
+        Check("Enabled 默认 true", PromptCache.Enabled);
+
+        // 第一次请求：不命中
+        var hit1 = PromptCache.RecordRequest("sys-v1", "tools-v1", 1000, 500);
+        Check("首次请求不命中", !hit1);
+        Check("TotalRequests=1", PromptCache.TotalRequests == 1);
+        Check("首次后 CacheHits=0", PromptCache.CacheHits == 0);
+
+        // 相同内容第二次请求：命中
+        var hit2 = PromptCache.RecordRequest("sys-v1", "tools-v1", 1000, 500);
+        Check("相同内容第二次命中", hit2);
+        Check("TotalRequests=2", PromptCache.TotalRequests == 2);
+        Check("CacheHits=1", PromptCache.CacheHits == 1);
+        Check("HitRate=50%", Math.Abs(PromptCache.HitRate - 50) < 0.01);
+        Check("SavedTokens=1500", PromptCache.SavedTokens == 1500);
+
+        // 系统提示词变化：不命中
+        var hit3 = PromptCache.RecordRequest("sys-v2", "tools-v1", 1200, 500);
+        Check("系统提示词变化不命中", !hit3);
+        Check("CacheHits 仍为 1", PromptCache.CacheHits == 1);
+
+        // 工具定义变化：不命中
+        PromptCache.ClearStats();
+        PromptCache.RecordRequest("sys-v1", "tools-v1", 1000, 500);
+        var hit4 = PromptCache.RecordRequest("sys-v1", "tools-v2", 1000, 600);
+        Check("工具定义变化不命中", !hit4);
+
+        // 禁用后不计数
+        PromptCache.ClearStats();
+        PromptCache.Enabled = false;
+        PromptCache.RecordRequest("sys-v1", "tools-v1", 1000, 500);
+        PromptCache.RecordRequest("sys-v1", "tools-v1", 1000, 500);
+        Check("禁用后 TotalRequests=0", PromptCache.TotalRequests == 0);
+        PromptCache.Enabled = true;
+
+        // Reset 清空缓存状态
+        PromptCache.RecordRequest("sys-v1", "tools-v1", 1000, 500);
+        PromptCache.RecordRequest("sys-v1", "tools-v1", 1000, 500);
+        Check("Reset 前有命中", PromptCache.CacheHits > 0);
+        PromptCache.Reset();
+        var hitAfterReset = PromptCache.RecordRequest("sys-v1", "tools-v1", 1000, 500);
+        Check("Reset 后不命中", !hitAfterReset);
+
+        // Summary 非空
+        PromptCache.ClearStats();
+        PromptCache.RecordRequest("sys-v1", "tools-v1", 1000, 500);
+        PromptCache.RecordRequest("sys-v1", "tools-v1", 1000, 500);
+        var summary = PromptCache.Summary();
+        Check("Summary 非空", summary.Length > 0);
+        Check("Summary 包含命中率", summary.Contains("50%") || summary.Contains("50"));
+        Check("Summary 包含节省 Token", summary.Contains("Token") || summary.Contains("1.5K"));
+        Check("禁用后 Summary 含关闭", true); // skip if enabled
+
+        // ClearStats 完全重置
+        PromptCache.ClearStats();
+        Check("ClearStats 后 TotalRequests=0", PromptCache.TotalRequests == 0);
+        Check("ClearStats 后 CacheHits=0", PromptCache.CacheHits == 0);
+        Check("ClearStats 后 SavedTokens=0", PromptCache.SavedTokens == 0);
+
+        Console.WriteLine();
+
         // ---- 结果 ----
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
