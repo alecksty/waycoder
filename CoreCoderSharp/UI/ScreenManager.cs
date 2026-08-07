@@ -439,7 +439,7 @@ public class ScreenManager
         var hotkeys = new (string key, string desc)[]
         {
             ("F1", "帮助"), ("F2", "面板"), ("F5", "设置"),
-            ("F6", "编辑"), ("↑↓", "历史"), ("PgUp/Dn", "滚动"),
+            ("F6", "编辑"), ("↑↓", "历史"), ("Ctrl+←→", "单词"),
             ("Ctrl+R", "搜索"), ("Ctrl+M", "切模型"),
         };
 
@@ -892,6 +892,75 @@ public class ScreenManager
         if (InputCy < InputLines.Count - 1)
         { InputCy++; InputCx = Math.Min(InputCx, InputLines[InputCy].Length); }
     }
+
+    /// <summary>Ctrl+Left: 跳到上一个单词开头</summary>
+    public void InputWordLeft()
+    {
+        var text = InputLines[InputCy].ToString();
+        if (InputCx == 0)
+        {
+            if (InputCy > 0) { InputCy--; InputCx = InputLines[InputCy].Length; }
+            return;
+        }
+        // 跳过空白/标点
+        while (InputCx > 0 && !IsWordChar(text[InputCx - 1])) InputCx--;
+        // 跳过单词字符
+        while (InputCx > 0 && IsWordChar(text[InputCx - 1])) InputCx--;
+    }
+
+    /// <summary>Ctrl+Right: 跳到下一个单词开头</summary>
+    public void InputWordRight()
+    {
+        var text = InputLines[InputCy].ToString();
+        if (InputCx >= text.Length)
+        {
+            if (InputCy < InputLines.Count - 1) { InputCy++; InputCx = 0; }
+            return;
+        }
+        // 跳过单词字符
+        while (InputCx < text.Length && IsWordChar(text[InputCx])) InputCx++;
+        // 跳过空白/标点
+        while (InputCx < text.Length && !IsWordChar(text[InputCx])) InputCx++;
+    }
+
+    /// <summary>Ctrl+Backspace: 删除左边一个单词</summary>
+    public void InputDeleteWordLeft()
+    {
+        var oldCx = InputCx;
+        InputWordLeft();
+        if (InputCx < oldCx && InputCy == (oldCx > 0 ? InputCy : InputCy))
+        {
+            var count = oldCx - InputCx;
+            InputLines[InputCy].Remove(InputCx, count);
+        }
+    }
+
+    /// <summary>Ctrl+Delete: 删除右边一个单词</summary>
+    public void InputDeleteWordRight()
+    {
+        var text = InputLines[InputCy].ToString();
+        if (InputCx >= text.Length)
+        {
+            if (InputCy < InputLines.Count - 1)
+            {
+                // 合并下一行到当前行
+                InputLines[InputCy].Append(InputLines[InputCy + 1]);
+                InputLines.RemoveAt(InputCy + 1);
+            }
+            return;
+        }
+        var oldCx = InputCx;
+        InputWordRight();
+        if (InputCx > oldCx)
+        {
+            InputLines[InputCy].Remove(oldCx, InputCx - oldCx);
+            InputCx = oldCx;
+        }
+    }
+
+    /// <summary>判断字符是否为单词字符 (字母/数字/下划线/中文)</summary>
+    private static bool IsWordChar(char c) =>
+        char.IsLetterOrDigit(c) || c == '_' || c > 127;
 
     // ---- 建议更新 ----
     public void UpdateSuggestions()
