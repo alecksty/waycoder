@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.16.3 (2026-08-07) — Watch 模式
+
+### ✨ 新增功能
+- **Watch 模式 (`--watch` / `-w`)** — 监听外部编辑器文件变更，检测代码注释中 `AI!` / `AI?` 标记自动触发 Agent
+  - 兼容 Aider 的 AI 注释语法：`// AI!`、`# AI!`、`-- AI!`、`/* AI? */`、`<!-- AI! -->`
+  - 支持 40+ 种编程语言（.cs .py .ts .js .go .rs .java .kt .swift .c .cpp .rb .php .vue .svelte 等）
+  - 500ms 防抖合并快速连续修改 + 线程安全 `ConcurrentQueue` 队列
+  - `/watch` REPL 命令切换 + `CORECODER_WATCH` 环境变量 + 设置界面集成
+  - 3 处退出路径自动清理（F10 / quit / Ctrl+C）
+
 ## v0.16.2 (2026-08-07) — /stats 用量统计面板
 
 ### ✨ 新增功能

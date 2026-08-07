@@ -4,7 +4,7 @@
 
 **极简 AI 编程智能体，C# (.NET 10) 实现，AOT 编译为单文件 exe（7.8 MB），无需运行时。**
 
-*一个 while 循环 + 大模型 + 29 个工具，就是全部*
+*一个 while 循环 + 大模型 + 29 个工具 + Watch 模式，就是全部*
 
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -34,7 +34,10 @@ dotnet run
 # 一次性模式
 dotnet run -- -p "修复一个 bug"
 
-# 运行自测（245 项）
+# Watch 模式 (监听 AI! 注释自动触发 Agent)
+dotnet run -- --watch
+
+# 运行自测（380 项）
 dotnet run -- --test
 ```
 
@@ -57,6 +60,7 @@ CoreCoderSharp/
 ├── SessionManager.cs  会话持久化
 ├── SystemPrompt.cs    系统提示词 (含项目检测)
 ├── Config.cs          配置 (.env 加载)
+├── WatchMode.cs        Watch 模式 (文件监听 + AI! 注释)
 ├── PermissionManager.cs 权限确认系统
 ├── ProjectContext.cs  项目检测 + CLAUDE.md 加载
 ├── ReviewMode.cs      代码审查模式
