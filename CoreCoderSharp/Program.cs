@@ -13,9 +13,12 @@ public class Program
     private static Config _config = new();
     private static LLM? _llm;
     private static Agent? _agent;
+    private static WatchMode? _watchMode;
     private static (List<JsonObject> Messages, string Model)? _pendingRestore;
     private static readonly List<string> _inputHistory = [];
     private static int _historyIdx = -1;
+    /// <summary>Watch 模式线程安全提示队列</summary>
+    private static readonly System.Collections.Concurrent.ConcurrentQueue<string> _pendingWatchPrompts = new();
 
     public static async Task<int> Main(string[] args)
     {
@@ -24,7 +27,7 @@ public class Program
         // 手动解析 CLI 参数
         string? model = null, baseUrl = null, apiKey = null, prompt = null, resumeId = null;
         double? maxBudget = null;
-        bool showVersion = false, yoloMode = false, initMode = false;
+        bool showVersion = false, yoloMode = false, initMode = false, watchMode = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -40,6 +43,7 @@ public class Program
                 case "--debug": DebugLog.Enable(); break;
                 case "--yolo": yoloMode = true; break;
                 case "--init": initMode = true; break;
+                case "-w" or "--watch": watchMode = true; break;
                 case "--max-budget-usd" when i + 1 < args.Length:
                     if (double.TryParse(args[++i], out var b)) maxBudget = b; break;
                 case "-h" or "--help": ShowUsage(); return 0;
@@ -64,6 +68,7 @@ public class Program
         if (baseUrl != null) _config.BaseUrl = baseUrl;
         if (apiKey != null) _config.ApiKey = apiKey;
         if (maxBudget != null) _config.MaxBudgetUsd = maxBudget;
+        if (watchMode) _config.WatchMode = true;
 
         // DeepSeek 模型自动设置 base URL
         if (_config.BaseUrl == null && _config.Model.StartsWith("deepseek"))
@@ -198,6 +203,13 @@ public class Program
             sm.GitBranch = branch;
         }
 
+        // Watch 模式 — 监听外部编辑器文件变更
+        if (_config.WatchMode)
+        {
+            StartWatchMode(sm);
+            sm.AddSystemMsg("👁 Watch 模式已启动 — 在文件中写 AI! 注释自动触发 Agent");
+        }
+
         // 尝试恢复上次会话
         TryRestoreSession(sm);
 
@@ -209,6 +221,14 @@ public class Program
         while (running && !exitRequested)
         {
             sm.Render();
+
+            // 检查 Watch 模式待处理提示
+            while (_pendingWatchPrompts.TryDequeue(out var watchPrompt))
+            {
+                sm.AddSystemMsg($"👁 Watch: {watchPrompt[..Math.Min(watchPrompt.Length, 80)]}");
+                sm.Render();
+                await ProcessUserInput(watchPrompt, sm);
+            }
 
             var key = Console.ReadKey(intercept: true);
             bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
@@ -291,6 +311,7 @@ case ConsoleKey.F2:
 
                 case ConsoleKey.F10:
                     AutoSaveSession();
+                    _watchMode?.Dispose();
                     sm.Exit();
                     Environment.Exit(0);
                     break;
@@ -373,6 +394,7 @@ case ConsoleKey.F2:
         }
 
         AutoSaveSession();
+        _watchMode?.Dispose();
         sm.Exit();
     }
 
@@ -389,6 +411,44 @@ case ConsoleKey.F2:
             _pendingRestore = auto;
         }
         catch { /* 恢复失败不影响启动 */ }
+    }
+
+    /// <summary>启动 Watch 模式 — 监听文件变更中的 AI! / AI? 注释。</summary>
+    private static void StartWatchMode(ScreenManager sm)
+    {
+        try
+        {
+            var dir = Directory.GetCurrentDirectory();
+            _watchMode = new WatchMode(dir, prompt =>
+            {
+                _pendingWatchPrompts.Enqueue(prompt);
+            });
+            _watchMode.Start();
+        }
+        catch (Exception ex)
+        {
+            sm.AddSystemMsg($"⚠ Watch 模式启动失败: {ex.Message}");
+            DebugLog.Log("watch", $"启动失败: {ex.Message}");
+        }
+    }
+
+    /// <summary>切换 Watch 模式开关。</summary>
+    private static void ToggleWatchMode(ScreenManager sm)
+    {
+        if (_watchMode != null)
+        {
+            _watchMode.Dispose();
+            _watchMode = null;
+            _config.WatchMode = false;
+            sm.AddSystemMsg("👁 Watch 模式已关闭");
+        }
+        else
+        {
+            _config.WatchMode = true;
+            StartWatchMode(sm);
+            if (_watchMode != null)
+                sm.AddSystemMsg("👁 Watch 模式已启动 — 在文件中写 AI! 注释自动触发 Agent");
+        }
     }
 
     /// <summary>退出时自动保存会话，下次启动可恢复。</summary>
@@ -437,6 +497,7 @@ case ConsoleKey.F2:
         if (lower is "quit" or "exit" or "/quit" or "/exit")
         {
             AutoSaveSession();
+            _watchMode?.Dispose();
             sm.Exit();
             Environment.Exit(0);
         }
@@ -450,6 +511,7 @@ case ConsoleKey.F2:
         if (userInput == "/reset") { _agent!.Reset(); sm.AddSystemMsg("♻ 对话已重置"); return; }
         if (userInput == "/tokens") { ShowTokensInChat(sm); return; }
         if (userInput == "/stats") { ShowStatsInChat(sm); return; }
+        if (userInput == "/watch") { ToggleWatchMode(sm); return; }
         if (userInput == "/model") { sm.AddSystemMsg($"当前模型: {_config.Model}"); return; }
         if (userInput.StartsWith("/model ")) { SwitchModelInline(userInput, sm); return; }
         if (userInput == "/compact") { await CompactAsync(); sm.AddSystemMsg("✔ 上下文已压缩"); return; }
