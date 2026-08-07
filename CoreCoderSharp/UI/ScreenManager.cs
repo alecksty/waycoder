@@ -565,11 +565,11 @@ public class ScreenManager
             "35" => "45", "37" => "47", _ => "44" };
         var topText = $" CoreCoder v0.16.1 · {StatusLeft}";
         if (ActivePanel != PanelTab.Off) topText += $"  [F2 面板:{ActivePanel}]";
-        sb.Append($"\x1b[{topBarBg};37m{topText}{new string(' ', Math.Max(0, TW - VW(topText)))}\x1b[0m\r\n");
+        sb.Append($"\x1b[{topBarBg};37m{topText}{new string(' ', Math.Max(0, TW - VW(topText)))}\x1b[0m");
 
         // ---- 分隔线 (主题色) ----
         var (_, _, _, _, bH, _) = BorderChars();
-        sb.Append($"\x1b[{ThemeBorderColor}m{new string(bH[0], TW)}\x1b[0m\r\n");
+        sb.Append($"\x1b[{ThemeBorderColor}m{new string(bH[0], TW)}\x1b[0m");
 
         // ---- 聊天区 + 侧边栏 ----
         int chatRow = topH + sepH;
@@ -622,12 +622,13 @@ public class ScreenManager
         int hotkeyRow = statusRow + 1;
         RenderHotkeyBar(sb, hotkeyRow);
 
-        // ---- 光标定位 ----
+        // ---- 光标定位 (先显示光标再定位，避免 show-cursor 导致位置漂移) ----
         var (scrCy, scrCx) = InputHardToScreen(TW - 4);
         var cursorRow = inputRow + 1 + (scrCy - InputScroll);
         var cursorCol = 2 + scrCx + 1;
         cursorCol = Math.Clamp(cursorCol, 2, TW - 2);
-        sb.Append($"[{cursorRow};{cursorCol}H[?25h");
+        sb.Append($"[?25h[{cursorRow};{cursorCol}H");
+        DebugLog.Log("cursor", $"TH={TH} chatH={chatH} inputRow={inputRow} inputH={inputH} scrCy={scrCy} scroll={InputScroll} cursorRow={cursorRow} cursorCol={cursorCol}");
 
         Console.Write(sb.ToString());
     }
@@ -709,7 +710,7 @@ public class ScreenManager
         var (stl, str, sbl, sbr, sh, sv) = BorderChars();
         var titleText = $"{sh[0]} 建议 (↑↓选择 Enter确认 Esc取消) ";
         var titleVW = VW(titleText) + 2; // tl + tr
-        sb.Append($"\x1b[{startRow};1H\x1b[{ThemeBorderColor}m{stl}{titleText}{new string(sh[0], Math.Max(0, chatW - titleVW))}{str}\x1b[0m\r\n");
+        sb.Append($"\x1b[{startRow};1H\x1b[{ThemeBorderColor}m{stl}{titleText}{new string(sh[0], Math.Max(0, chatW - titleVW))}{str}\x1b[0m");
         for (int i = 0; i < suggestH - 2; i++)
         {
             sb.Append($"\x1b[{ThemeBorderColor}m{sv}\x1b[0m ");
@@ -727,7 +728,7 @@ public class ScreenManager
             {
                 sb.Append(new string(' ', chatW - 4));
             }
-            sb.Append($" \x1b[{ThemeBorderColor}m{sv}\x1b[0m\r\n");
+            sb.Append($" \x1b[{ThemeBorderColor}m{sv}\x1b[0m");
         }
         sb.Append($"\x1b[{ThemeBorderColor}m{sbl}{new string(sh[0], Math.Max(0, chatW - 2))}{sbr}\x1b[0m");
     }
@@ -799,7 +800,7 @@ public class ScreenManager
         var dash = new string(ih[0], Math.Max(0, TW - 2));
 
         // 上边框 — 显式定位，不依赖 \r\n
-        sb.Append($"\x1b[{startRow};1H\x1b[2m{itl}{dash}{itr}\x1b[0m\x1b[K\r\n");
+        sb.Append($"\x1b[{startRow};1H\x1b[2m{itl}{dash}{itr}\x1b[0m\x1b[K");
 
         // 内容行 — 每行显式定位，确保内容位置与光标计算完全一致
         for (int i = 0; i < vh; i++)
@@ -821,11 +822,11 @@ public class ScreenManager
             {
                 sb.Append(new string(' ', cw));
             }
-            sb.Append($" \x1b[2m{iv}\x1b[0m\x1b[K\r\n");
+            sb.Append($" \x1b[2m{iv}\x1b[0m\x1b[K");
         }
 
-        // 下边框 — 显式定位
-        sb.Append($"\x1b[{startRow + 1 + vh};1H\x1b[2m{ibl}{dash}{ibr}\x1b[0m\x1b[K\r\n");
+        // 下边框 — 显式定位，不加 \r\n 避免触底滚动
+        sb.Append($"\x1b[{startRow + 1 + vh};1H\x1b[2m{ibl}{dash}{ibr}\x1b[0m\x1b[K");
     }
 
     // ================================================================
