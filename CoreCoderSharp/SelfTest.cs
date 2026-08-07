@@ -935,6 +935,64 @@ public static class SelfTest
         Check("全角／→半角/", input == "/help");
         Console.WriteLine();
 
+        // ---- 设置界面 Schema ----
+        Console.WriteLine("[设置 Schema]");
+        var schema = Config.SettingSchema();
+        Check("Schema 非空", schema.Count > 0);
+        Check("至少有 5 项设置", schema.Count >= 5);
+
+        // 验证关键设置项存在
+        Check("包含 Model", schema.Any(s => s.Key == "Model"));
+        Check("包含 ApiKey", schema.Any(s => s.Key == "ApiKey"));
+        Check("包含 BaseUrl", schema.Any(s => s.Key == "BaseUrl"));
+        Check("包含 MaxTokens", schema.Any(s => s.Key == "MaxTokens"));
+        Check("包含 Temperature", schema.Any(s => s.Key == "Temperature"));
+        Check("包含 MaxContextTokens", schema.Any(s => s.Key == "MaxContextTokens"));
+        Check("包含 MaxBudgetUsd", schema.Any(s => s.Key == "MaxBudgetUsd"));
+
+        // 验证元数据完整性
+        Check("所有项有 Label", schema.All(s => s.Label.Length > 0));
+        Check("所有项有 Category", schema.All(s => s.Category.Length > 0));
+        Check("所有项有 Desc", schema.All(s => s.Desc.Length > 0));
+        Check("所有项有 Type", schema.All(s => s.Type is "text" or "number" or "select" or "secret" or "toggle"));
+        Check("select 类型有 Options", schema.Where(s => s.Type == "select").All(s => s.Options is { Length: > 0 }));
+
+        // 分类
+        var categories = schema.Select(s => s.Category).Distinct().ToList();
+        Check("至少 3 个分类", categories.Count >= 3);
+        Check("包含模型分类", categories.Any(c => c.Contains("模型")));
+        Check("包含参数分类", categories.Any(c => c.Contains("参数")));
+
+        // 环境变量
+        var modelDef = schema.First(s => s.Key == "Model");
+        Check("Model 是 select 类型", modelDef.Type == "select");
+        Check("Model 有多个选项", modelDef.Options!.Length >= 3);
+        Check("Model 选项含 deepseek", modelDef.Options!.Contains("deepseek-v4-flash"));
+
+        var apiKeyDef = schema.First(s => s.Key == "ApiKey");
+        Check("ApiKey 是 secret 类型", apiKeyDef.Type == "secret");
+
+        var maxTokensDef = schema.First(s => s.Key == "MaxTokens");
+        Check("MaxTokens 是 number 类型", maxTokensDef.Type == "number");
+        Console.WriteLine();
+
+        // ---- 配置读写 ----
+        Console.WriteLine("[配置读写]");
+        var testConfig = new Config();
+        testConfig.Model = "gpt-5.4";
+        testConfig.ApiKey = "sk-test123";
+        testConfig.MaxTokens = 8192;
+        testConfig.Temperature = 0.5f;
+        Check("Model 写入读取", testConfig.Model == "gpt-5.4");
+        Check("ApiKey 写入读取", testConfig.ApiKey == "sk-test123");
+        Check("MaxTokens 写入读取", testConfig.MaxTokens == 8192);
+        Check("Temperature 写入读取", Math.Abs(testConfig.Temperature - 0.5f) < 0.01);
+
+        var configWithBudget = new Config { MaxBudgetUsd = 12.5 };
+        Check("MaxBudget 写入读取", configWithBudget.MaxBudgetUsd == 12.5);
+        Check("MaxBudget 默认 null", new Config().MaxBudgetUsd == null);
+        Console.WriteLine();
+
         // ---- 结果 ----
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
         return failed == 0;
