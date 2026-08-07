@@ -25,12 +25,15 @@ public class Agent
     private readonly double? _maxBudgetUsd;
     private readonly string _systemPrompt;
 
+    private readonly bool _autoCommit;
+
     public Agent(LLM llm, List<ITool>? tools = null,
         int maxContextTokens = 128_000, int maxRounds = 50,
-        double? maxBudgetUsd = null)
+        double? maxBudgetUsd = null, bool autoCommit = false)
     {
         LlmClient = llm;
         _maxBudgetUsd = maxBudgetUsd;
+        _autoCommit = autoCommit;
         Tools = tools ?? ToolRegistry.AllTools;
         ToolByName = Tools.ToDictionary(t => t.Name);
         Context = new ContextManager(maxContextTokens);
@@ -151,6 +154,9 @@ public class Agent
                 AnswerPendingToolCalls(resp.ToolCalls);
                 throw;
             }
+
+            // 自动 git commit（如果启用）
+            if (_autoCommit) await AutoCommitAsync();
 
             // 如果工具输出太大则压缩上下文
             await CompressWithSmallModel();
@@ -284,4 +290,66 @@ public class Agent
         var s = value?.ToString() ?? "null";
         return s.Length > 40 ? s[..40] + "..." : s;
     }
+
+    /// <summary>工具执行后自动 git commit。用小模型生成提交信息。</summary>
+    private async Task AutoCommitAsync()
+    {
+        try
+        {
+            var gitDir = await RunGitAsync("rev-parse --git-dir");
+            if (string.IsNullOrWhiteSpace(gitDir)) return;
+            var status = await RunGitAsync("status --porcelain");
+            if (string.IsNullOrWhiteSpace(status)) return;
+            var files = status.Trim().Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            var changed = files.Select(f => f.Length > 3 ? f[3..].Trim() : f.Trim()).Take(10).ToList();
+            var fileList = string.Join(", ", changed);
+            var msg = await GenerateCommitMsgAsync(fileList);
+            if (string.IsNullOrWhiteSpace(msg)) return;
+            await RunGitAsync("add -A");
+            await RunGitAsync("commit -m \"" + msg.Replace("\"", "\\\"") + "\"");
+        }
+        catch { }
+    }
+
+    private async Task<string> GenerateCommitMsgAsync(string fileList)
+    {
+        try
+        {
+            var saved = LlmClient.ModelOverride;
+            LlmClient.ModelOverride = LlmClient.SmallModel;
+            try
+            {
+                var msgs = new List<JsonObject>
+                {
+                    new() { ["role"] = "system", ["content"] = "Generate a concise git commit message, one line, English, <70 chars. Output only the message." },
+                    new() { ["role"] = "user", ["content"] = "Modified files: " + fileList + "\n\nCommit message:" },
+                };
+                var result = await LlmClient.ChatAsync(msgs, tools: null);
+                var msg = (result?.Content ?? "").Trim();
+                msg = msg.Replace("\"", "").Replace("`", "").Replace("\n", " ").Trim();
+                return msg.Length > 72 ? msg[..72] : msg;
+            }
+            finally { LlmClient.ModelOverride = saved; }
+        }
+        catch { return ""; }
+    }
+
+    private static async Task<string?> RunGitAsync(string args)
+    {
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo("git", args)
+            {
+                RedirectStandardOutput = true, RedirectStandardError = true,
+                UseShellExecute = false, CreateNoWindow = true,
+            };
+            var proc = System.Diagnostics.Process.Start(psi);
+            if (proc == null) return null;
+            var output = await proc.StandardOutput.ReadToEndAsync();
+            await proc.WaitForExitAsync();
+            return proc.ExitCode == 0 ? output.Trim() : null;
+        }
+        catch { return null; }
+    }
+
 }

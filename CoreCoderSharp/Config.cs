@@ -29,6 +29,9 @@ public class Config
     /// <summary>最大预算（美元），null 表示无限制</summary>
     public double? MaxBudgetUsd { get; set; }
 
+    /// <summary>每次工具执行后自动 git commit（默认关闭）</summary>
+    public bool AutoGitCommit { get; set; } = false;
+
     /// <summary>
     /// 从环境变量加载配置。也支持从当前目录向上查找到 home 目录的 .env 文件。
     /// </summary>
@@ -66,6 +69,9 @@ public class Config
 
         if (double.TryParse(Environment.GetEnvironmentVariable("CORECODER_MAX_BUDGET_USD"), out var budget))
             config.MaxBudgetUsd = budget;
+
+        if (bool.TryParse(Environment.GetEnvironmentVariable("CORECODER_AUTO_COMMIT"), out var ac))
+            config.AutoGitCommit = ac;
 
         return config;
     }
@@ -165,5 +171,39 @@ public class Config
         // 系统
         new("Provider", "提供商", "🔧 系统", "API 提供商 (openai/deepseek/...)",
             "text", null, "CORECODER_PROVIDER", 0),
+        new("AutoGitCommit", "Git 自动提交", "🔧 系统", "工具执行后自动 git commit",
+            "select", ["false", "true"], "CORECODER_AUTO_COMMIT", 1),
     ];
+
+    /// <summary>将当前配置写回 .env 文件</summary>
+    public void SaveToEnvFile()
+    {
+        var envPath = FindEnvFile() ?? Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".corecoder", ".env");
+        var dir = Path.GetDirectoryName(envPath);
+        if (dir != null) Directory.CreateDirectory(dir);
+        var lines = File.Exists(envPath) ? File.ReadAllLines(envPath).ToList() : [];
+        ApplyOrAppend(lines, "CORECODER_MODEL", Model);
+        ApplyOrAppend(lines, "CORECODER_SMALL_MODEL", SmallModel);
+        if (!string.IsNullOrEmpty(BaseUrl)) ApplyOrAppend(lines, "OPENAI_BASE_URL", BaseUrl);
+        ApplyOrAppend(lines, "CORECODER_API_KEY", ApiKey);
+        ApplyOrAppend(lines, "CORECODER_MAX_TOKENS", MaxTokens.ToString());
+        ApplyOrAppend(lines, "CORECODER_TEMPERATURE", Temperature.ToString("F1"));
+        ApplyOrAppend(lines, "CORECODER_MAX_CONTEXT", MaxContextTokens.ToString());
+        if (MaxBudgetUsd.HasValue) ApplyOrAppend(lines, "CORECODER_MAX_BUDGET_USD", MaxBudgetUsd.Value.ToString("F2"));
+        ApplyOrAppend(lines, "CORECODER_PROVIDER", Provider);
+        ApplyOrAppend(lines, "CORECODER_AUTO_COMMIT", AutoGitCommit.ToString().ToLowerInvariant());
+        File.WriteAllLines(envPath, lines);
+    }
+
+    private static void ApplyOrAppend(List<string> lines, string key, string value)
+    {
+        for (int i = 0; i < lines.Count; i++)
+        {
+            if (lines[i].TrimStart().StartsWith(key + "=", StringComparison.OrdinalIgnoreCase))
+            { lines[i] = key + "=" + value; return; }
+        }
+        lines.Add(key + "=" + value);
+    }
+
 }

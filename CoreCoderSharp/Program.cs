@@ -42,7 +42,7 @@ public class Program
             }
         }
 
-        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.14.0"); return 0; }
+        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.15.0"); return 0; }
 
         _config = Config.FromEnv();
         if (model != null) _config.Model = model;
@@ -73,7 +73,7 @@ public class Program
         _llm = new LLM(_config.Model, _config.ApiKey, _config.BaseUrl,
             _config.MaxTokens, _config.Temperature);
         _agent = new Agent(_llm, maxContextTokens: _config.MaxContextTokens,
-            maxBudgetUsd: _config.MaxBudgetUsd);
+            maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
 
         // --yolo: 一次性模式下跳过所有权限确认
         if (yoloMode)
@@ -155,7 +155,7 @@ public class Program
         sm.ChatMessages.Clear();
         sm.InputLines.Clear();
         sm.InputLines.Add(new StringBuilder());
-        sm.AddSystemMsg($"CoreCoder v0.14.0 · 大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助");
+        sm.AddSystemMsg($"CoreCoder v0.15.0 · 大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助");
         sm.StatusLeft = $"大:{_config.Model} 小:{_config.SmallModel}";
         _llm!.SmallModel = _config.SmallModel;
 

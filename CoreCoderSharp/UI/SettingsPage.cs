@@ -44,8 +44,13 @@ public static class SettingsPage
                 var cat = _catOrder[_catIdx];
                 var items = _groups[cat];
 
+                var ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
                 switch (key.Key)
                 {
+                    case ConsoleKey.S when ctrl:
+                        _config.SaveToEnvFile();
+                        sm.ShowDialog("已保存", "设置已写入 .env 文件", ScreenManager.DialogType.Success);
+                        return;
                     case ConsoleKey.Escape: return;
                     case ConsoleKey.UpArrow:
                         if (_right && _itemIdx > 0) _itemIdx--;
@@ -119,6 +124,7 @@ public static class SettingsPage
         "MaxContextTokens" => _config.MaxContextTokens.ToString(),
         "MaxBudgetUsd" => _config.MaxBudgetUsd?.ToString("F2") ?? "",
         "Provider" => _config.Provider,
+        "AutoGitCommit" => _config.AutoGitCommit ? "true" : "false",
         _ => "",
     };
 
@@ -135,6 +141,8 @@ public static class SettingsPage
             case "MaxContextTokens": if (int.TryParse(value, out var mc)) _config.MaxContextTokens = mc; break;
             case "MaxBudgetUsd": _config.MaxBudgetUsd = double.TryParse(value, out var mb) ? mb : null; break;
             case "Provider": _config.Provider = value; break;
+            case "AutoGitCommit": _config.AutoGitCommit = bool.TryParse(value, out var ac) && ac; break;
+            case "SaveSettings": _config.SaveToEnvFile(); return;
         }
     }
 
@@ -214,7 +222,7 @@ public static class SettingsPage
         }
 
         // 底栏
-        var hint = " ↑↓ 选择  ←→ 切换面板  Enter 修改  Esc 退出";
+        var hint = " ↑↓ 选择  ←→ 切换面板  Enter 修改  Ctrl+S 保存  Esc 退出";
         sb.Append($"[{th - 1};1H[100m[37m{hint}{new string(' ', Math.Max(0, tw - VW(hint)))}[0m");
         if (_editing)
             sb.Append($"[{th};1H[100m[33m 编辑中: Enter 保存  Esc 取消{new string(' ', Math.Max(0, tw - VW(" 编辑中: Enter 保存  Esc 取消")))}[0m");
