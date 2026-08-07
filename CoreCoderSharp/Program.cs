@@ -27,7 +27,7 @@ public class Program
         // 手动解析 CLI 参数
         string? model = null, baseUrl = null, apiKey = null, prompt = null, resumeId = null;
         double? maxBudget = null;
-        bool showVersion = false, yoloMode = false, initMode = false, watchMode = false, tuiV2 = false;
+        bool showVersion = false, yoloMode = false, initMode = false, watchMode = false, tuiV1 = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -44,9 +44,7 @@ public class Program
                 case "--yolo": yoloMode = true; break;
                 case "--init": initMode = true; break;
                 case "-w" or "--watch": watchMode = true; break;
-#if TERMINAL_GUI
-                case "--tui-v2": tuiV2 = true; break;
-#endif
+                case "--tui-v1": tuiV1 = true; break;
                 case "--max-budget-usd" when i + 1 < args.Length:
                     if (double.TryParse(args[++i], out var b)) maxBudget = b; break;
                 case "-h" or "--help": ShowUsage(); return 0;
@@ -141,12 +139,10 @@ public class Program
 
         if (prompt != null)
             await RunOnceAsync(prompt);
-#if TERMINAL_GUI
-        else if (tuiV2)
-            await RunReplV2Async();
-#endif
+        else if (tuiV1)
+            await RunReplAsync();       // 旧版 ANSI TUI（回退）
         else
-            await RunReplAsync();
+            await RunReplV2Async();     // Terminal.Gui v2（默认）
 
         return 0;
     }
@@ -190,7 +186,6 @@ public class Program
     // 交互式 REPL (Terminal.Gui v2 版)
     // ========================================================================
 
-#if TERMINAL_GUI
     private static async Task RunReplV2Async()
     {
         _llm!.SmallModel = _config.SmallModel;
@@ -208,7 +203,6 @@ public class Program
 
         AutoSaveSession();
     }
-#endif
 
     // ========================================================================
     // 交互式 REPL
@@ -1371,9 +1365,7 @@ case ConsoleKey.F2:
         MarkupLine("  [cyan]--debug[/]              开启调试日志 (记录到 logs/ 目录)");
         MarkupLine("  [cyan]--yolo[/]              跳过所有权限确认 (非交互模式必备)");
         MarkupLine("  [cyan]--max-budget-usd[/] <金额> 费用上限（美元），超支自动停止");
-#if TERMINAL_GUI
-        MarkupLine("  [cyan]--tui-v2[/]             Terminal.Gui 实验性 TUI (仅 Debug)");
-#endif
+        MarkupLine("  [cyan]--tui-v1[/]             使用旧版 ANSI TUI（回退选项）");
         MarkupLine("  [cyan]-h, --help[/]           显示此帮助");
         Console.WriteLine();
         MarkupLine("  [bold]示例:[/]");
