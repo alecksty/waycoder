@@ -32,6 +32,9 @@ public class Config
     /// <summary>每次工具执行后自动 git commit（默认关闭）</summary>
     public bool AutoGitCommit { get; set; } = false;
 
+    /// <summary>Watch 模式 — 监听外部编辑器文件变更，自动处理 AI! / AI? 注释</summary>
+    public bool WatchMode { get; set; } = false;
+
     // ---- 界面主题 ----
     /// <summary>边框类型: single | double | rounded | bold</summary>
     public string BorderStyle { get; set; } = "rounded";
@@ -82,6 +85,9 @@ public class Config
 
         if (bool.TryParse(Environment.GetEnvironmentVariable("CORECODER_AUTO_COMMIT"), out var ac))
             config.AutoGitCommit = ac;
+
+        if (bool.TryParse(Environment.GetEnvironmentVariable("CORECODER_WATCH"), out var wm))
+            config.WatchMode = wm;
 
         // 主题
         var envBorder = Environment.GetEnvironmentVariable("CORECODER_BORDER_STYLE");
@@ -214,6 +220,8 @@ public class Config
             "text", null, "CORECODER_PROVIDER", 0),
         new("AutoGitCommit", "Git 自动提交", "🔧 系统", "工具执行后自动 git commit",
             "select", ["false", "true"], "CORECODER_AUTO_COMMIT", 1),
+        new("WatchMode", "Watch 模式", "🔧 系统", "监听外部编辑器 AI! 注释自动触发 Agent",
+            "select", ["false", "true"], "CORECODER_WATCH", 2),
 
         // 界面主题
         new("ColorScheme", "配色方案", "🎨 界面", "预设配色 (覆盖下方颜色设置)",
@@ -248,6 +256,7 @@ public class Config
         if (MaxBudgetUsd.HasValue) ApplyOrAppend(lines, "CORECODER_MAX_BUDGET_USD", MaxBudgetUsd.Value.ToString("F2"));
         ApplyOrAppend(lines, "CORECODER_PROVIDER", Provider);
         ApplyOrAppend(lines, "CORECODER_AUTO_COMMIT", AutoGitCommit.ToString().ToLowerInvariant());
+        ApplyOrAppend(lines, "CORECODER_WATCH", WatchMode.ToString().ToLowerInvariant());
         ApplyOrAppend(lines, "CORECODER_BORDER_STYLE", BorderStyle);
         ApplyOrAppend(lines, "CORECODER_BORDER_COLOR", BorderColor);
         ApplyOrAppend(lines, "CORECODER_ACCENT_COLOR", AccentColor);
