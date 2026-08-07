@@ -18,7 +18,8 @@ public class ScreenManager
 
     // ---- 聊天历史 ----
     public readonly List<ChatMsg> ChatMessages = [];
-    private int _chatScroll; // 聊天区滚动偏移（行）
+    private int _chatScroll;
+    private bool _autoScroll = true; // 自动跟底
 
     // ---- 输入 ----
     public readonly List<StringBuilder> InputLines = [new()];
@@ -31,9 +32,13 @@ public class ScreenManager
     public int SuggestIdx;
     public int SuggestH; // 面板可见行数
 
-    // ---- 右侧 Todo 面板 ----
-    public bool ShowTodoPanel;
+    // ---- 右侧面板 (多标签) ----
+    public enum PanelTab { Off, Todo, Files, LSP, MCP }
+    public PanelTab ActivePanel;
     public List<TodoItem> TodoItems = [];
+    public List<string> ModifiedFiles = [];
+    public string LspInfo = "";
+    public string McpInfo = "";
     public class TodoItem { public string Title = ""; public string Status = "pending"; }
 
     // ---- 状态 ----
@@ -58,23 +63,63 @@ public class ScreenManager
     {
         if (row == 0)
         {
-            sb.Append(" [1m📋 任务列表[0m");
+            // 标签栏
+            var tabs = new[] { ("📋任务", PanelTab.Todo), ("📁文件", PanelTab.Files), ("🔍LSP", PanelTab.LSP), ("🔌MCP", PanelTab.MCP) };
+            sb.Append(" [1m");
+            foreach (var (name, tab) in tabs)
+            {
+                if (ActivePanel == tab) sb.Append("[30;46m"); // 选中反色
+                sb.Append($"{name} ");
+                if (ActivePanel == tab) sb.Append("[0m[1m");
+            }
+            sb.Append("[0m");
             return;
         }
-        var idx = row - 1;
-        if (idx >= TodoItems.Count) return;
 
-        var item = TodoItems[idx];
-        var (icon, color) = item.Status switch
+        var idx = row - 1;
+        switch (ActivePanel)
         {
-            "completed" => ("✅", "32"),
-            "in_progress" => ("🔄", "36"),
-            "cancelled" => ("❌", "90"),
-            _ => ("⏳", "33"),
-        };
-        var text = $"{icon} {item.Title}";
-        if (VW(text) > 28) text = TruncateByVW(text, 25) + "…";
-        sb.Append($" [{color}m{text}[0m");
+            case PanelTab.Todo:
+                if (idx < TodoItems.Count)
+                {
+                    var item = TodoItems[idx];
+                    var (icon, color) = item.Status switch
+                    {
+                        "completed" => ("✅", "32"), "in_progress" => ("🔄", "36"),
+                        "cancelled" => ("❌", "90"), _ => ("⏳", "33"),
+                    };
+                    var text = $"{icon} {item.Title}";
+                    if (VW(text) > 28) text = TruncateByVW(text, 25) + "…";
+                    sb.Append($" [{color}m{text}[0m");
+                }
+                break;
+
+            case PanelTab.Files:
+                if (idx == 0) sb.Append(" [2m修改的文件:[0m");
+                else if (idx - 1 < ModifiedFiles.Count)
+                {
+                    var f = ModifiedFiles[idx - 1];
+                    if (VW(f) > 26) f = "…" + f[^Math.Min(f.Length, 25)..];
+                    sb.Append($" [36m{f}[0m");
+                }
+                break;
+
+            case PanelTab.LSP:
+                if (idx == 0) sb.Append(" [2mLSP 状态[0m");
+                else if (!string.IsNullOrEmpty(LspInfo))
+                    sb.Append($" [2m{LspInfo}[0m");
+                else
+                    sb.Append(" [2m检测中...[0m");
+                break;
+
+            case PanelTab.MCP:
+                if (idx == 0) sb.Append(" [2mMCP 服务器[0m");
+                else if (!string.IsNullOrEmpty(McpInfo))
+                    sb.Append($" [2m{McpInfo}[0m");
+                else
+                    sb.Append(" [2m未配置[0m");
+                break;
+        }
     }
 
     /// <summary>更新右下角 token/计费/缓存显示</summary>
@@ -92,6 +137,15 @@ public class ScreenManager
     }
 
     private static string FormatK(int n) => n >= 1000 ? $"{n / 1000.0:F1}k" : n.ToString();
+
+    /// <summary>聊天区向上滚动</summary>
+    public void ChatScrollUp(int lines = 1) { _chatScroll -= lines; _autoScroll = false; }
+    /// <summary>聊天区向下滚动</summary>
+    public void ChatScrollDown(int lines = 1) { _chatScroll += lines; var max = Math.Max(0, BuildChatScreenLines(Math.Max(20, TW - (ActivePanel != PanelTab.Off ? 32 : 0)), Math.Max(3, TH - 10)).Count - Math.Max(3, TH - 10)); if (_chatScroll >= max) _autoScroll = true; }
+    /// <summary>聊天区跳到顶部</summary>
+    public void ChatScrollTop() { _chatScroll = 0; _autoScroll = false; }
+    /// <summary>聊天区跳到底部</summary>
+    public void ChatScrollBottom() { _autoScroll = true; }
 
     // ---- 聊天消息定义 ----
     public class ChatMsg
@@ -291,7 +345,7 @@ public class ScreenManager
         var suggestH = SuggestActive ? Math.Min(Suggestions.Count, 10) + 2 : 0;
         var topH = 1;
         var sepH = 1;
-        var panelW = ShowTodoPanel ? 32 : 0;
+        var panelW = ActivePanel != PanelTab.Off ? 32 : 0;
         var chatW = Math.Max(20, TW - panelW);
         var chatH = TH - topH - sepH - suggestH - inputH - 1 - statusH;
         if (chatH < 3) chatH = 3;
@@ -299,11 +353,12 @@ public class ScreenManager
         var chatScreenLines = BuildChatScreenLines(chatW, chatH);
         var totalCLines = chatScreenLines.Count;
         var maxScroll = Math.Max(0, totalCLines - chatH);
+        if (_autoScroll) _chatScroll = maxScroll;
         _chatScroll = Math.Clamp(_chatScroll, 0, maxScroll);
 
         // ---- 顶栏 (蓝底白字) ----
         var topText = $" CoreCoder v0.11.0 · {StatusLeft}";
-        if (ShowTodoPanel) topText += "  [F2 关闭面板]";
+        if (ActivePanel != PanelTab.Off) topText += $"  [F2 面板:{ActivePanel}]";
         sb.Append($"[44;37m{topText}{new string(' ', Math.Max(0, TW - VW(topText)))}[0m\r\n");
 
         // ---- 分隔线 (青色) ----
@@ -324,7 +379,7 @@ public class ScreenManager
             sb.Append("[K");
 
             // Todo 面板 (右)
-            if (ShowTodoPanel)
+            if (ActivePanel != PanelTab.Off)
             {
                 sb.Append($"[{chatRow + i + 1};{chatW + 1}H[90m│[0m");
                 RenderTodoLine(sb, i);
