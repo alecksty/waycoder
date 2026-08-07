@@ -95,12 +95,23 @@ public class ScreenManager
                 break;
 
             case PanelTab.Files:
-                if (idx == 0) sb.Append(" [2m修改的文件:[0m");
+                if (idx == 0) sb.Append(" 修改/工程文件:");
                 else if (idx - 1 < ModifiedFiles.Count)
                 {
                     var f = ModifiedFiles[idx - 1];
                     if (VW(f) > 26) f = "…" + f[^Math.Min(f.Length, 25)..];
-                    sb.Append($" [36m{f}[0m");
+                    sb.Append($" 📄 {f}");
+                }
+                else
+                {
+                    var treeIdx = idx - 1 - ModifiedFiles.Count;
+                    var tree = GetFileTree();
+                    if (treeIdx < tree.Count)
+                    {
+                        var entry = tree[treeIdx];
+                        if (VW(entry) > 26) entry = TruncateByVW(entry, 23) + "…";
+                        sb.Append($" {entry}");
+                    }
                 }
                 break;
 
@@ -120,6 +131,33 @@ public class ScreenManager
                     sb.Append(" [2m未配置[0m");
                 break;
         }
+    }
+
+    private static List<string>? _fileTreeCache;
+    private static DateTime _fileTreeCacheTime;
+
+    private static List<string> GetFileTree()
+    {
+        if (_fileTreeCache != null && (DateTime.Now - _fileTreeCacheTime).TotalSeconds < 5)
+            return _fileTreeCache;
+
+        var files = new List<string>();
+        try
+        {
+            foreach (var entry in Directory.GetFileSystemEntries(".", "*",
+                new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = 2 }))
+            {
+                var rel = Path.GetRelativePath(".", entry);
+                if (rel.StartsWith(".") || rel.StartsWith("obj/") || rel.StartsWith("bin/") || rel.Contains("/.")) continue;
+                var prefix = Directory.Exists(entry) ? "📁 " : "  ";
+                files.Add($"{prefix}{rel}");
+                if (files.Count >= 100) break;
+            }
+            _fileTreeCache = files.OrderBy(f => !f.StartsWith("📁")).ThenBy(f => f).ToList();
+            _fileTreeCacheTime = DateTime.Now;
+        }
+        catch { _fileTreeCache = []; }
+        return _fileTreeCache;
     }
 
     /// <summary>更新右下角 token/计费/缓存显示</summary>
