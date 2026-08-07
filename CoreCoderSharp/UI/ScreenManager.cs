@@ -1046,32 +1046,24 @@ public class ScreenManager
     // 辅助
     // ================================================================
 
+    /// <summary>按视觉宽度截取 text 前缀，返回 (string 索引, 视觉宽度)</summary>
     private static (int chars, int vw) MeasureSlice(string text, int maxVW)
     {
-        int chars = 0, vw = 0;
-        var runes = text.EnumerateRunes().ToList();
-        for (int i = 0; i < runes.Count; i++)
+        int byteIdx = 0, vw = 0;
+        int chars = 0; // string 索引（char 单位）
+        while (byteIdx < text.Length)
         {
-            var w = runes[i].Value > 127 ? 2 : 1;
+            Rune.DecodeFromUtf16(text.AsSpan(byteIdx), out var rune, out var consumed);
+            var w = TuiHelper.RuneWidth(rune);
             if (vw + w > maxVW) break;
             vw += w;
-            chars++;
+            chars += consumed; // consumed = 1 (BMP) 或 2 (supplementary)
+            byteIdx += consumed;
         }
         return (chars, vw);
     }
 
-    private static int VW(string s)
-    {
-        int w = 0;
-        foreach (var r in s.EnumerateRunes()) w += r.Value > 127 ? 2 : 1;
-        return w;
-    }
+    private static int VW(string s) => TuiHelper.DisplayWidth(s);
 
-    private static string TruncateByVW(string text, int maxVW)
-    {
-        int vw = 0, chars = 0;
-        foreach (var r in text.EnumerateRunes())
-        { var w = r.Value > 127 ? 2 : 1; if (vw + w > maxVW) break; vw += w; chars++; }
-        return text[..chars];
-    }
+    private static string TruncateByVW(string text, int maxVW) => TuiHelper.TruncateByWidth(text, maxVW);
 }
