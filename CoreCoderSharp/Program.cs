@@ -14,6 +14,8 @@ public class Program
     private static LLM? _llm;
     private static Agent? _agent;
     private static (List<JsonObject> Messages, string Model)? _pendingRestore;
+    private static readonly List<string> _inputHistory = [];
+    private static int _historyIdx = -1;
 
     public static async Task<int> Main(string[] args)
     {
@@ -22,7 +24,7 @@ public class Program
         // 手动解析 CLI 参数
         string? model = null, baseUrl = null, apiKey = null, prompt = null, resumeId = null;
         double? maxBudget = null;
-        bool showVersion = false, yoloMode = false;
+        bool showVersion = false, yoloMode = false, initMode = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -37,13 +39,25 @@ public class Program
                 case "-t" or "--test": SelfTest.Run(); return 0;
                 case "--debug": DebugLog.Enable(); break;
                 case "--yolo": yoloMode = true; break;
+                case "--init": initMode = true; break;
                 case "--max-budget-usd" when i + 1 < args.Length:
                     if (double.TryParse(args[++i], out var b)) maxBudget = b; break;
                 case "-h" or "--help": ShowUsage(); return 0;
             }
         }
 
-        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.15.1"); return 0; }
+        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.16.0"); return 0; }
+
+        // 项目初始化向导
+        if (initMode) { RunInit(); return 0; }
+
+        // 标准输入管道模式：echo "prompt" | corecoder
+        if (prompt == null && Console.IsInputRedirected)
+        {
+            prompt = Console.In.ReadToEnd().Trim();
+            // 管道输入非交互，自动开启 yolo 模式
+            if (!yoloMode) yoloMode = true;
+        }
 
         _config = Config.FromEnv();
         if (model != null) _config.Model = model;
@@ -157,9 +171,31 @@ public class Program
         sm.ChatMessages.Clear();
         sm.InputLines.Clear();
         sm.InputLines.Add(new StringBuilder());
-        sm.AddSystemMsg($"CoreCoder v0.15.1 · 大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助");
+
+        // 启动欢迎屏 — ASCII Logo 注入聊天区
+        var logo = new[]
+        {
+            "   ██████╗ ██████╗ ██████╗ ███████╗",
+            "  ██╔════╝██╔═══██╗██╔══██╗██╔════╝",
+            "  ██║     ██║   ██║██████╔╝█████╗  ",
+            "  ██║     ██║   ██║██╔══██╗██╔══╝  ",
+            "  ╚██████╗╚██████╔╝██║  ██║███████╗",
+            "   ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝",
+        };
+        foreach (var line in logo)
+            sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = line });
+        sm.AddSystemMsg("极简 AI 编程智能体 · v0.16.0");
+        sm.AddSystemMsg($"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助");
         sm.StatusLeft = $"大:{_config.Model} 小:{_config.SmallModel}";
         _llm!.SmallModel = _config.SmallModel;
+
+        // 检测 git 分支
+        var branch = DetectGitBranch();
+        if (branch != null)
+        {
+            sm.StatusLeft += $" |  {branch}";
+            sm.GitBranch = branch;
+        }
 
         // 尝试恢复上次会话
         TryRestoreSession(sm);
@@ -208,6 +244,11 @@ public class Program
                     var input = sm.GetInputText();
                     if (string.IsNullOrWhiteSpace(input)) continue;
                     sm.AddUserMsg(input);
+                    // 保存到输入历史（去重相邻重复）
+                    if (_inputHistory.Count == 0 || _inputHistory[^1] != input)
+                        _inputHistory.Add(input);
+                    if (_inputHistory.Count > 200) _inputHistory.RemoveAt(0);
+                    _historyIdx = -1;
                     sm.SetInput("");
                     sm.Render();
                     await ProcessUserInput(input, sm);
@@ -230,6 +271,29 @@ case ConsoleKey.F2:
                     SettingsPage.Show();
                     break;
 
+                case ConsoleKey.R when ctrl:
+                    sm.Exit();
+                    var query = TuiPrompt.Ask("搜索对话历史");
+                    sm.Enter();
+                    if (!string.IsNullOrWhiteSpace(query))
+                        SearchHistory("/history " + query, sm);
+                    break;
+
+                case ConsoleKey.M when ctrl:
+                    // 循环切换大模型
+                    CycleModel(sm);
+                    break;
+
+                case ConsoleKey.F1:
+                    ShowHelpInChat(sm);
+                    break;
+
+                case ConsoleKey.F10:
+                    AutoSaveSession();
+                    sm.Exit();
+                    Environment.Exit(0);
+                    break;
+
                 // ---- 聊天区滚动 ----
                 case ConsoleKey.PageUp: sm.ChatScrollUp(Math.Max(1, (Console.WindowHeight - 10) / 2)); break;
                 case ConsoleKey.PageDown: sm.ChatScrollDown(Math.Max(1, (Console.WindowHeight - 10) / 2)); break;
@@ -248,12 +312,40 @@ case ConsoleKey.F2:
                 case ConsoleKey.Delete: sm.InputDelete(); sm.UpdateSuggestions(); break;
                 case ConsoleKey.LeftArrow: sm.InputMoveLeft(); break;
                 case ConsoleKey.RightArrow: sm.InputMoveRight(); break;
-                case ConsoleKey.UpArrow: sm.InputMoveUp(); break;
-                case ConsoleKey.DownArrow: sm.InputMoveDown(); break;
+                case ConsoleKey.UpArrow:
+                    if (sm.InputLines.Count == 1)
+                    {
+                        // 单行输入：浏览历史
+                        if (_inputHistory.Count > 0)
+                        {
+                            if (_historyIdx == -1) _historyIdx = _inputHistory.Count - 1;
+                            else if (_historyIdx > 0) _historyIdx--;
+                            sm.SetInput(_inputHistory[_historyIdx]);
+                        }
+                    }
+                    else sm.InputMoveUp();
+                    break;
+                case ConsoleKey.DownArrow:
+                    if (sm.InputLines.Count == 1)
+                    {
+                        if (_historyIdx >= 0)
+                        {
+                            _historyIdx++;
+                            sm.SetInput(_historyIdx < _inputHistory.Count
+                                ? _inputHistory[_historyIdx] : "");
+                            if (_historyIdx >= _inputHistory.Count) _historyIdx = -1;
+                        }
+                    }
+                    else sm.InputMoveDown();
+                    break;
                 case ConsoleKey.Home: sm.InputCx = 0; break;
                 case ConsoleKey.End: sm.InputCx = sm.InputLines[sm.InputCy].Length; break;
                 case ConsoleKey.Tab:
-                    for (int t = 0; t < 4; t++) sm.InputInsert(' ');
+                    // 文件路径智能补全：如果当前词像路径则补全，否则插入空格
+                    if (!TabCompletePath(sm))
+                    {
+                        for (int t = 0; t < 4; t++) sm.InputInsert(' ');
+                    }
                     sm.UpdateSuggestions();
                     break;
 
@@ -311,6 +403,21 @@ case ConsoleKey.F2:
         // 全角规范化
         userInput = userInput
             .Replace('／', '/').Replace('！', '!').Replace('＃', '#');
+
+        // 命令别名（快捷方式）
+        userInput = userInput switch
+        {
+            "/c" => "/compact",
+            "/m" => "/model",
+            "/r" => "/reset",
+            "/h" => "/help",
+            "/t" => "/tokens",
+            "/d" => "/diff",
+            "/s" => "/save",
+            "/q" => "quit",
+            _ => userInput,
+        };
+
         var lower = userInput.ToLowerInvariant();
 
         // 退出
@@ -344,6 +451,9 @@ case ConsoleKey.F2:
         if (userInput.StartsWith("/edit ")) { await Editor.RunAsync(userInput[6..].Trim()); sm.Render(); return; }
         if (userInput is "/settings" or "/config") { SettingsPage.Show(); return; }
         if (userInput == "/about") { ScreenManager.ShowAbout(); return; }
+        if (userInput.StartsWith("/history")) { SearchHistory(userInput, sm); return; }
+        if (userInput == "/export") { ExportConversation(sm); return; }
+        if (userInput == "/recent") { ShowRecentFiles(sm); return; }
         if (userInput == "/resume" && _pendingRestore != null)
         {
             var (msgs, model) = _pendingRestore.Value;
@@ -358,6 +468,8 @@ case ConsoleKey.F2:
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
         var modelStack = BuildFallbackChain();
+        var startTime = DateTime.UtcNow;
+        var completed = false;
 
         for (int attempt = 0; attempt < modelStack.Length; attempt++)
         {
@@ -392,6 +504,7 @@ case ConsoleKey.F2:
                     cancellationToken: cts.Token);
 
                 sm.FinishAgentMsg();
+                completed = true;
                 break; // 成功
             }
             catch (OperationCanceledException)
@@ -414,30 +527,189 @@ case ConsoleKey.F2:
             }
         }
 
-        // 文件修改确认
+        // 完成通知：耗时 + 终端响铃
+        if (completed)
+        {
+            var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
+            sm.AddSystemMsg($"✅ 完成 ({elapsed:F1}s)");
+            Console.Write('\a'); // 终端响铃
+        }
+
+        // 文件修改确认 + 最近文件跟踪
         var modified = EditFileTool.ChangedFiles;
         if (modified.Count > 0)
         {
-            sm.AddSystemMsg($"📝 已修改 {modified.Count} 个文件 (/diff 查看 /undo 撤销)");
+            sm.AddSystemMsg($"📝 已修改 {modified.Count} 个文件 (/diff 查看 /undo 撤销 /recent 最近)");
+            foreach (var f in modified)
+            {
+                if (!sm.RecentFiles.Contains(f))
+                {
+                    sm.RecentFiles.Add(f);
+                    if (sm.RecentFiles.Count > 50) sm.RecentFiles.RemoveAt(0);
+                }
+            }
         }
 
-        // 更新右下角 token 显示
+        // 更新右下角 token 显示 + 性能
         sm.UpdateTokenDisplay(
             _llm!.TotalPromptTokens, _llm.TotalCompletionTokens,
             _llm.EstimatedCost,
-            ContextManager.EstimateTokens(_agent!.Messages), _config.MaxContextTokens);
+            ContextManager.EstimateTokens(_agent!.Messages), _config.MaxContextTokens,
+            _llm.LastLatencyMs, _llm.LastTokensPerSec);
         sm.Render();
     }
 
     // ---- 内置命令的聊天内联版本 ----
+    /// <summary>Tab 键智能补全文件路径。返回 true 表示已处理。</summary>
+    private static bool TabCompletePath(ScreenManager sm)
+    {
+        try
+        {
+            // 获取当前输入的"词"（光标前的连续非空白字符）
+            var text = sm.GetInputText();
+            var cursorPos = sm.InputCx; // 光标在当前行的位置
+            if (cursorPos == 0) return false;
+
+            // 从光标位置向前找到词的开始
+            var lineText = sm.InputLines[sm.InputCy].ToString();
+            var wordStart = cursorPos - 1;
+            while (wordStart >= 0 && !char.IsWhiteSpace(lineText[wordStart]))
+                wordStart--;
+            wordStart++;
+
+            var partial = lineText[wordStart..cursorPos];
+            if (partial.Length == 0) return false;
+
+            // 检测是否像文件路径（包含 / \ . 或以这些开头）
+            if (!partial.Contains('/') && !partial.Contains('\\') && !partial.StartsWith('.') && !partial.StartsWith('/'))
+                return false;
+
+            // 解析路径
+            var cwd = Directory.GetCurrentDirectory();
+            string dir, prefix;
+            var fullPath = Path.Combine(cwd, partial);
+            var lastSep = partial.LastIndexOfAny(['/', '\\']);
+            if (lastSep >= 0)
+            {
+                dir = Path.Combine(cwd, partial[..lastSep]);
+                prefix = partial[(lastSep + 1)..];
+            }
+            else
+            {
+                dir = cwd;
+                prefix = partial;
+            }
+
+            if (!Directory.Exists(dir)) return false;
+
+            // 查找匹配的文件/目录
+            var matches = Directory.GetFileSystemEntries(dir)
+                .Select(p => Path.GetFileName(p))
+                .Where(n => n.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (matches.Count == 0) return false;
+
+            if (matches.Count == 1)
+            {
+                // 唯一匹配：补全
+                var completion = matches[0];
+                var fullMatch = Path.Combine(dir, completion);
+                if (Directory.Exists(fullMatch)) completion += Path.DirectorySeparatorChar;
+                // 替换到行中
+                var before = lineText[..wordStart];
+                var after = lineText[cursorPos..];
+                sm.InputLines[sm.InputCy] = new StringBuilder(before + completion + after);
+                sm.InputCx = wordStart + completion.Length;
+                return true;
+            }
+            else
+            {
+                // 多个匹配：找最长公共前缀
+                var lcp = FindLongestCommonPrefix(matches);
+                if (lcp.Length > prefix.Length)
+                {
+                    var before = lineText[..wordStart];
+                    var after = lineText[cursorPos..];
+                    sm.InputLines[sm.InputCy] = new StringBuilder(before + lcp + after);
+                    sm.InputCx = wordStart + lcp.Length;
+                }
+                // 显示匹配列表
+                sm.AddSystemMsg("📁 " + string.Join("  ", matches.Take(20)));
+                return true;
+            }
+        }
+        catch { return false; }
+    }
+
+    private static string FindLongestCommonPrefix(List<string> strings)
+    {
+        if (strings.Count == 0) return "";
+        var prefix = strings[0];
+        foreach (var s in strings.Skip(1))
+        {
+            while (!s.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && prefix.Length > 0)
+                prefix = prefix[..^1];
+            if (prefix.Length == 0) break;
+        }
+        return prefix;
+    }
+
+    /// <summary>显示最近访问/修改的文件。</summary>
+    private static void ShowRecentFiles(ScreenManager sm)
+    {
+        var all = new HashSet<string>(EditFileTool.ChangedFiles);
+        foreach (var f in sm.RecentFiles) all.Add(f);
+
+        if (all.Count == 0)
+        {
+            sm.AddSystemMsg("（暂无最近文件）");
+            return;
+        }
+
+        var sorted = all.OrderByDescending(f =>
+        {
+            try { return File.GetLastWriteTime(f); }
+            catch { return DateTime.MinValue; }
+        }).Take(15).ToList();
+
+        sm.AddSystemMsg($"📁 最近文件 ({sorted.Count}):");
+        foreach (var f in sorted)
+        {
+            var relative = Path.GetRelativePath(Directory.GetCurrentDirectory(), f);
+            var icon = File.Exists(f) ? "📄" : "⚠";
+            sm.AddSystemMsg($"  {icon} {relative}");
+        }
+    }
+
+    /// <summary>检测当前目录的 git 分支名。</summary>
+    private static string? DetectGitBranch()
+    {
+        try
+        {
+            var headPath = Path.Combine(Directory.GetCurrentDirectory(), ".git", "HEAD");
+            if (!File.Exists(headPath)) return null;
+            var head = File.ReadAllText(headPath).Trim();
+            if (head.StartsWith("ref: refs/heads/"))
+                return head["ref: refs/heads/".Length..];
+            return head.Length >= 7 ? head[..7] : head; // detached HEAD
+        }
+        catch { return null; }
+    }
+
     private static void ShowHelpInChat(ScreenManager sm)
     {
-        sm.AddSystemMsg("帮助: /help /reset /model /tokens /compact /diff /save /sessions /permissions /perm /plan /todo /git-status /git-log /review /lint /search /edit /repomap /pr quit");
+        sm.AddSystemMsg("帮助: /help /reset /model /tokens /compact /diff /save /resume /history /export /sessions ... Ctrl+R搜索 Ctrl+M切换模型 ↑↓历史");
     }
     private static void ShowTokensInChat(ScreenManager sm)
     {
         var p = _llm!.TotalPromptTokens; var c = _llm!.TotalCompletionTokens;
-        sm.AddSystemMsg($"Token: {p:N0} 输入 + {c:N0} 输出 = {(p + c):N0} 总计");
+        var latency = _llm.LastLatencyMs;
+        var tps = _llm.LastTokensPerSec;
+        var info = $"Token: {p:N0} 输入 + {c:N0} 输出 = {(p + c):N0} 总计";
+        if (latency > 0)
+            info += $" | 上次: {latency / 1000:F1}s, {tps:F0} tok/s | 请求: {_llm.TotalRequests} 次";
+        sm.AddSystemMsg(info);
     }
     private static void SaveSessionInChat(ScreenManager sm)
     {
@@ -554,9 +826,179 @@ case ConsoleKey.F2:
         else foreach (var f in files) sm.AddSystemMsg($"  {f}");
     }
 
+    /// <summary>搜索对话历史中的关键词。</summary>
+    private static void SearchHistory(string input, ScreenManager sm)
+    {
+        var keyword = input.Length > 9 ? input[9..].Trim() : "";
+        if (string.IsNullOrWhiteSpace(keyword))
+        {
+            sm.AddSystemMsg("用法: /history <关键词> 或 Ctrl+R 交互搜索");
+            return;
+        }
+
+        var results = new List<(int Index, string Role, string Preview)>();
+        for (int i = 0; i < _agent!.Messages.Count; i++)
+        {
+            var msg = _agent.Messages[i];
+            var role = msg["role"]?.GetValue<string>() ?? "";
+            var content = msg["content"]?.GetValue<string>() ?? "";
+            if (content.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            {
+                var idx = content.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
+                var start = Math.Max(0, idx - 40);
+                var len = Math.Min(120, content.Length - start);
+                var preview = content.Substring(start, len);
+                if (start > 0) preview = "..." + preview;
+                if (start + len < content.Length) preview += "...";
+                results.Add((i + 1, role, preview.Replace("\n", " ")));
+            }
+        }
+
+        if (results.Count == 0)
+        {
+            sm.AddSystemMsg($"未找到包含 \"{keyword}\" 的消息");
+            return;
+        }
+
+        sm.AddSystemMsg($"🔍 \"{keyword}\" — {results.Count} 条结果:");
+        foreach (var (idx, role, preview) in results.Take(15))
+        {
+            var roleIcon = role switch { "user" => "👤", "assistant" => "🤖", "tool" => "🔧", _ => "  " };
+            sm.AddSystemMsg($"  #{idx} {roleIcon} {preview}");
+        }
+        if (results.Count > 15)
+            sm.AddSystemMsg($"  ... 还有 {results.Count - 15} 条结果");
+    }
+
+    /// <summary>导出当前对话为 Markdown 文件。</summary>
+    private static void ExportConversation(ScreenManager sm)
+    {
+        try
+        {
+            var dir = Path.Combine(Directory.GetCurrentDirectory(), ".corecoder");
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            var filename = $"export_{DateTime.Now:yyyyMMdd_HHmmss}.md";
+            var path = Path.Combine(dir, filename);
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"# CoreCoder 对话导出");
+            sb.AppendLine($"- 模型: {_config.Model}");
+            sb.AppendLine($"- 时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine($"- 消息数: {_agent!.Messages.Count}");
+            sb.AppendLine();
+            sb.AppendLine("---");
+            sb.AppendLine();
+
+            foreach (var msg in _agent.Messages)
+            {
+                var role = msg["role"]?.GetValue<string>() ?? "";
+                var content = msg["content"]?.GetValue<string>() ?? "";
+
+                switch (role)
+                {
+                    case "user":
+                        sb.AppendLine($"### 👤 User\n\n{content}\n");
+                        break;
+                    case "assistant":
+                        if (!string.IsNullOrEmpty(content))
+                            sb.AppendLine($"### 🤖 Assistant\n\n{content}\n");
+                        break;
+                    case "tool":
+                        // 截断很长的工具输出
+                        var toolContent = content.Length > 2000
+                            ? content[..2000] + $"\n\n...（共 {content.Length} 字符）"
+                            : content;
+                        sb.AppendLine($"### 🔧 Tool\n\n```\n{toolContent}\n```\n");
+                        break;
+                }
+            }
+
+            File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
+            var size = new FileInfo(path).Length;
+            sm.AddSystemMsg($"✅ 已导出: .corecoder/{filename} ({size / 1024}KB)");
+        }
+        catch (Exception ex)
+        {
+            sm.AddSystemMsg($"❌ 导出失败: {ex.Message}");
+        }
+    }
+
     // ========================================================================
     // 命令实现
     // ========================================================================
+
+    /// <summary>项目初始化向导：创建 .corecoder/ 配置目录和模板文件。</summary>
+    private static void RunInit()
+    {
+        var cwd = Directory.GetCurrentDirectory();
+        var corecoderDir = Path.Combine(cwd, ".corecoder");
+
+        Console.WriteLine("CoreCoder 项目初始化");
+        Console.WriteLine($"目录: {cwd}");
+        Console.WriteLine();
+
+        if (!Directory.Exists(corecoderDir))
+        {
+            Directory.CreateDirectory(corecoderDir);
+            Console.WriteLine($"✅ 创建 .corecoder/");
+        }
+        else
+        {
+            Console.WriteLine("⏭ .corecoder/ 已存在");
+        }
+
+        // mcp_servers.json 模板
+        var mcpPath = Path.Combine(corecoderDir, "mcp_servers.json");
+        if (!File.Exists(mcpPath))
+        {
+            var mcpTemplate = @"[
+  {
+    ""_comment"": ""MCP 服务器配置示例。name=工具名前缀, command=启动命令, args=参数, env=环境变量(可选)"",
+    ""name"": ""filesystem"",
+    ""command"": ""npx"",
+    ""args"": [""-y"", ""@modelcontextprotocol/server-filesystem"", "".""],
+    ""env"": {}
+  }
+]
+";
+            File.WriteAllText(mcpPath, mcpTemplate, Encoding.UTF8);
+            Console.WriteLine("✅ 创建 mcp_servers.json (MCP 服务器配置)");
+        }
+        else Console.WriteLine("⏭ mcp_servers.json 已存在");
+
+        // prompt.md 模板
+        var promptPath = Path.Combine(corecoderDir, "prompt.md");
+        if (!File.Exists(promptPath))
+        {
+            var promptTemplate = @"# 项目提示词
+
+<!-- 在此文件中编写项目专属的 AI 指令。CoreCoder 会自动将其注入系统提示词。 -->
+
+## 项目概述
+<!-- 简要描述你的项目 -->
+
+## 编码规范
+<!-- 代码风格、命名约定等 -->
+
+## 注意事项
+<!-- AI 需要特别注意的事项 -->
+";
+            File.WriteAllText(promptPath, promptTemplate, Encoding.UTF8);
+            Console.WriteLine("✅ 创建 prompt.md (项目提示词模板)");
+        }
+        else Console.WriteLine("⏭ prompt.md 已存在");
+
+        // memory.md (如果不存在则创建空文件)
+        var memoryPath = Path.Combine(corecoderDir, "memory.md");
+        if (!File.Exists(memoryPath))
+        {
+            File.WriteAllText(memoryPath, "# 项目记忆\n\n", Encoding.UTF8);
+            Console.WriteLine("✅ 创建 memory.md (项目记忆)");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("初始化完成！现在可以运行 corecoder 开始编码。");
+    }
 
     private static void ShowUsage()
     {
@@ -571,6 +1013,7 @@ case ConsoleKey.F2:
         MarkupLine("  [cyan]-p, --prompt[/] <文本>  一次性提示词 (非交互模式)");
         MarkupLine("  [cyan]-r, --resume[/] <ID>    恢复已保存的会话");
         MarkupLine("  [cyan]-v, --version[/]        显示版本信息");
+        MarkupLine("  [cyan]--init[/]              初始化项目 (.corecoder/ 配置目录)");
         MarkupLine("  [cyan]-t, --test[/]           运行自测");
         MarkupLine("  [cyan]--debug[/]              开启调试日志 (记录到 logs/ 目录)");
         MarkupLine("  [cyan]--yolo[/]              跳过所有权限确认 (非交互模式必备)");
@@ -582,6 +1025,7 @@ case ConsoleKey.F2:
         MarkupLine("  [dim]$[/] corecoder [cyan]-p[/] [green]\"列出当前目录\"[/]               [dim]# 一次性模式[/]");
         MarkupLine("  [dim]$[/] corecoder [cyan]-m[/] deepseek-v4-pro             [dim]# 指定模型[/]");
         MarkupLine("  [dim]$[/] corecoder [cyan]-t[/]                              [dim]# 运行自测[/]");
+        MarkupLine("  [dim]$[/] echo [green]\"列出目录\"[/] [dim]|[/] corecoder                   [dim]# 管道模式[/]");
     }
 
     private static void ShowHelp()
@@ -599,6 +1043,9 @@ case ConsoleKey.F2:
         table.AddRow("/compact", "压缩上下文");
         table.AddRow("/diff", "修改文件列表");
         table.AddRow("/save", "保存会话");
+        table.AddRow("/resume", "恢复上次自动保存的会话");
+        table.AddRow("/history", "搜索对话历史 (Ctrl+R)");
+        table.AddRow("/export", "导出对话为 Markdown 文件");
         table.AddRow("/sessions", "会话管理 (浏览/加载/删除)");
         table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/load[/] [dim]&lt;ID&gt;[/]", "加载指定会话");
         table.AddRow("/debug-on / -off", "开启/关闭调试日志");
@@ -662,6 +1109,19 @@ case ConsoleKey.F2:
             _config.Model = newModel;
             MarkupLine($"[green]✔ 已切换到:[/] [bold cyan]{E(newModel)}[/]");
         }
+    }
+
+    /// <summary>Ctrl+M 循环切换大模型</summary>
+    private static void CycleModel(ScreenManager sm)
+    {
+        var models = new[] { "deepseek-v4-flash", "deepseek-v4-pro", "gpt-5.4-mini", "gpt-5.4" };
+        var cur = _config.Model;
+        var idx = Array.IndexOf(models, cur);
+        var next = models[(idx + 1) % models.Length];
+        _llm!.Model = next;
+        _config.Model = next;
+        sm.StatusLeft = $"大:{_config.Model} 小:{_config.SmallModel}";
+        sm.AddSystemMsg($"🔄 大模型 → {next} (Ctrl+M 继续切换)");
     }
 
     private static async Task CompactAsync()
@@ -728,7 +1188,7 @@ case ConsoleKey.F2:
         var commands = new List<string>
         {
             "/help", "/reset", "/model", "/model <名称>", "/tokens",
-            "/compact", "/diff", "/save", "/sessions",
+            "/compact", "/diff", "/save", "/resume", "/sessions",
             "/debug-on", "/debug-off", "/permissions", "/perm <ask|auto|yolo>",
             "/plan", "/todo", "/git-status", "/git-log", "/git-diff",
             "/review", "/lint", "/search <关键词>",

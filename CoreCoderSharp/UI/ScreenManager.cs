@@ -45,6 +45,8 @@ public class ScreenManager
     public string StatusLeft = "";
     public string StatusRight = "";
     public string TokenInfo = "";
+    public string? GitBranch;
+    public readonly List<string> RecentFiles = [];
     public bool Running;
 
     // ---- Todo 面板 ----
@@ -168,11 +170,14 @@ public class ScreenManager
     }
 
     /// <summary>更新右下角 token/计费/缓存显示</summary>
-    public void UpdateTokenDisplay(int promptTok, int compTok, double? cost, int contextUsed, int contextMax)
+    public void UpdateTokenDisplay(int promptTok, int compTok, double? cost, int contextUsed, int contextMax,
+        double latencyMs = 0, double tokensPerSec = 0)
     {
         var parts = new List<string>();
         parts.Add($"↑{FormatK(promptTok)} ↓{FormatK(compTok)}");
         if (cost.HasValue) parts.Add($"${cost.Value:F4}");
+        if (latencyMs > 0)
+            parts.Add($"{latencyMs / 1000:F1}s {tokensPerSec:F0}t/s");
         if (contextMax > 0)
         {
             var pct = (int)(contextUsed * 100.0 / contextMax);
@@ -314,7 +319,7 @@ public class ScreenManager
             "  ╚██████╗╚██████╔╝██║  ██║███████╗",
             "   ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝",
         };
-        var subtitle = "极简 AI 编程智能体 · v0.15.1";
+        var subtitle = "极简 AI 编程智能体 · v0.16.0";
         var credit = "C# / .NET 10 · AOT 编译";
 
         var boxW = 46;
@@ -359,8 +364,7 @@ public class ScreenManager
         var hotkeys = new (string key, string desc)[]
         {
             ("F1", "帮助"), ("F2", "面板"), ("F5", "设置"),
-            ("F6", "编辑"), ("F10", "退出"),
-            ("Ctrl+PgUp", "聊天顶"), ("Ctrl+PgDn", "聊天底"),
+            ("F6", "编辑"), ("↑↓", "历史"), ("Ctrl+R", "搜索"), ("Ctrl+M", "切模型"),
         };
 
         sb.Append($"\x1b[{row};1H\x1b[44m\x1b[37m\x1b[K");
@@ -374,7 +378,7 @@ public class ScreenManager
         sb.Append("\x1b[0m");
     }
 
-    /// <summary>进入全屏模式</summary>
+    /// <summary>进入全屏模式（切换备用屏，退出时自动恢复原终端内容）</summary>
     public void Enter()
     {
         Console.Write("[?1049h[2J[?25l");
@@ -382,11 +386,11 @@ public class ScreenManager
         IsActive = true;
     }
 
-    /// <summary>退出全屏模式</summary>
+    /// <summary>退出全屏模式 — 恢复原始终端内容</summary>
     public void Exit()
     {
         IsActive = false;
-        Console.Write("[?25h[?1049l[2J");
+        Console.Write("[?25h[?1049l");
     }
 
     // ================================================================
@@ -477,7 +481,7 @@ public class ScreenManager
         _chatScroll = Math.Clamp(_chatScroll, 0, maxScroll);
 
         // ---- 顶栏 (蓝底白字) ----
-        var topText = $" CoreCoder v0.15.1 · {StatusLeft}";
+        var topText = $" CoreCoder v0.16.0 · {StatusLeft}";
         if (ActivePanel != PanelTab.Off) topText += $"  [F2 面板:{ActivePanel}]";
         sb.Append($"[44;37m{topText}{new string(' ', Math.Max(0, TW - VW(topText)))}[0m\r\n");
 

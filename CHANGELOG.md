@@ -1,5 +1,38 @@
 # 更新日志
 
+## v0.16.0 (2026-08-07) — 20 项综合增强
+
+### ✨ 新增功能
+- **MCP 环境变量传递** — `mcp_servers.json` 支持 `env` 字段，可向 MCP 进程注入 API Key 等环境变量
+- **标准输入管道模式** — `echo "prompt" | corecoder` 管道输入自动一次性模式 + yolo
+- **记忆自动注入** — MemoryStore 内容自动注入系统提示词，跨会话项目知识持久化
+- **Sub-Agent 增强** — 子智能体使用小模型（省钱）+ 注入父上下文（最近 6 条消息）
+- **自定义提示词模板** — 扫描 `.corecoder/prompt.md` 及 `.corecoder/*.md`（排除 memory.md）自动注入
+- **对话历史搜索** — `/history <关键词>` 搜索 + `Ctrl+R` 交互搜索，含上下文预览
+- **Diff 预览确认增强** — write_file 显示行数/新建/覆盖 + 内容预览，edit_file 显示 +/- 对比
+- **项目初始化向导** — `corecoder --init` 创建 `.corecoder/` + 模板文件（mcp_servers.json, prompt.md, memory.md）
+- **命令别名** — `/c→/compact, /m→/model, /r→/reset, /h→/help, /t→/tokens, /d→/diff, /s→/save, /q→quit`
+- **Token 性能统计** — 每次请求延迟 + tok/s 显示在 `/tokens` 和右下角状态栏
+- **Agent 完成通知** — 耗时显示 + 终端响铃 `\a`
+- **Agent 错误自恢复** — 工具报错时追加修正提示，引导 LLM 自我纠正
+- **对话导出** — `/export` → `.corecoder/export_<date>.md`，Markdown 格式含角色和时间戳
+- **输入历史** — `↑↓` 键浏览历史输入（单行模式），最多 200 条，去重相邻重复
+- **模型热键切换** — `Ctrl+M` 循环切换大模型：deepseek-v4-flash → pro → gpt-5.4-mini → gpt-5.4
+- **HTTP 代理支持** — 读取 `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY` 环境变量配置代理
+- **Tab 路径补全** — 输入像文件路径时 Tab 智能补全（最长公共前缀 + 候选列表）
+- **Git 分支显示** — 启动时检测 `.git/HEAD`，顶栏显示当前分支名
+- **最近文件列表** — `/recent` 显示最近修改文件（最多 50），按时间排序
+- **快捷键完善** — `F1` 帮助，`F10` 自动保存 + 退出
+
+### 🔧 增强
+- CJK 感知 Token 估算（CJK ~1.5 tok/char，ASCII ~0.25 tok/char）
+- Checkpoint 持久化加载（重启后 `/undo` 不丢失）
+- Review 模式改为 git-diff-based（聚焦实际改动）
+- 会话自动保存（退出时保存，启动时 `/resume` 恢复）
+- 欢迎屏 ASCII Logo 注入聊天区
+- 快捷键栏精简：`F1帮助 F2面板 F5设置 F6编辑 ↑↓历史 Ctrl+R搜索 Ctrl+M切模型`
+- 版本号 v0.15.1 → v0.16.0
+
 ## v0.9.0 (2026-08-06) — 14 个内置工具 + 6 个新命令 + 进程管理
 
 ### ✨ 新增功能

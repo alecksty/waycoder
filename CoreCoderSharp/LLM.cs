@@ -60,7 +60,22 @@ public record LLMResponse
 /// </summary>
 public class LLM
 {
-    private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(5) };
+    private static readonly HttpClient _http = CreateHttpClient();
+
+    private static HttpClient CreateHttpClient()
+    {
+        var handler = new HttpClientHandler();
+        // HTTP 代理支持 — 读取环境变量 HTTP_PROXY / HTTPS_PROXY
+        var proxyUrl = Environment.GetEnvironmentVariable("HTTPS_PROXY")
+                    ?? Environment.GetEnvironmentVariable("HTTP_PROXY")
+                    ?? Environment.GetEnvironmentVariable("ALL_PROXY");
+        if (!string.IsNullOrWhiteSpace(proxyUrl))
+        {
+            handler.Proxy = new System.Net.WebProxy(proxyUrl);
+            handler.UseProxy = true;
+        }
+        return new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(5) };
+    }
 
     /// <summary>当前活跃模型 (大模型)</summary>
     public string Model { get; set; }
@@ -113,6 +128,13 @@ public class LLM
     public int TotalPromptTokens { get; private set; }
     public int TotalCompletionTokens { get; private set; }
 
+    /// <summary>最近一次请求的延迟（毫秒）</summary>
+    public double LastLatencyMs { get; private set; }
+    /// <summary>最近一次请求的每秒 token 数</summary>
+    public double LastTokensPerSec { get; private set; }
+    /// <summary>请求总次数</summary>
+    public int TotalRequests { get; private set; }
+
     /// <summary>
     /// 粗略的美元成本估算。模型不在定价表中时返回 null。
     /// </summary>
@@ -147,6 +169,8 @@ public class LLM
         Action<ToolCall>? onToolCall = null,
         CancellationToken cancellationToken = default)
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
         // 每次 HTTP 请求 60 秒超时，防止服务器无响应无限等待
         using var requestTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
@@ -298,6 +322,12 @@ public class LLM
 
         TotalPromptTokens += promptTok;
         TotalCompletionTokens += completionTok;
+
+        // 性能统计
+        LastLatencyMs = sw.Elapsed.TotalMilliseconds;
+        LastTokensPerSec = LastLatencyMs > 0
+            ? (promptTok + completionTok) / (LastLatencyMs / 1000.0) : 0;
+        TotalRequests++;
 
         var llmResp = new LLMResponse
         {

@@ -24,6 +24,21 @@ public static class SystemPrompt
         // 仓库地图
         var repoMap = RepoMapGenerator.Generate();
 
+        // 项目记忆（跨会话持久化知识）
+        var memory = MemoryStore.Read();
+        var memorySection = "";
+        if (memory.Length > 0 && !memory.StartsWith("（暂无记忆"))
+        {
+            // 截断过长记忆
+            if (memory.Length > 3000)
+                memory = memory[..3000] + "\n...（记忆已截断）";
+            memorySection = $"""
+
+                # 项目记忆
+                {memory}
+                """;
+        }
+
         return $"""
                 你是 CoreCoder，一个运行在用户终端中的 AI 编程助手。
                 你帮助完成软件工程任务：编写代码、修复 bug、重构代码、解释代码、运行命令等。
@@ -38,6 +53,7 @@ public static class SystemPrompt
 
                 {instructions}
 
+                {memorySection}
                 {repoMap}
 
                 # 工具
