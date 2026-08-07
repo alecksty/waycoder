@@ -1,0 +1,136 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="using:Tetris"
+        mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="760"
+        x:Class="Tetris.MainWindow"
+        Title="俄罗斯方块 Tetris"
+        Width="700" Height="760"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="#0F0F1A"
+        FontFamily="Inter, PingFang SC, Microsoft YaHei">
+
+    <Grid RowDefinitions="Auto,*" Margin="18,12,18,14" RowSpacing="10">
+
+        <!-- ══ 顶栏：标题 + 信息 ══ -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+            <TextBlock Text="俄 罗 斯 方 块"
+                       FontSize="22" FontWeight="Bold" Foreground="#00E5FF"/>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <Border Background="#141428" BorderBrush="#3A3A5C" BorderThickness="1"
+                        CornerRadius="4" Padding="10,6">
+                    <StackPanel Spacing="0">
+                        <TextBlock Text="得分" FontSize="10" Foreground="#8A8AB0"/>
+                        <TextBlock x:Name="ScoreText" Text="0" FontSize="18" FontWeight="Bold"
+                                   Foreground="#FFD600" HorizontalAlignment="Right"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#141428" BorderBrush="#3A3A5C" BorderThickness="1"
+                        CornerRadius="4" Padding="10,6">
+                    <StackPanel Spacing="0">
+                        <TextBlock Text="等级" FontSize="10" Foreground="#8A8AB0"/>
+                        <TextBlock x:Name="LevelText" Text="1" FontSize="18" FontWeight="Bold"
+                                   Foreground="#69F0AE" HorizontalAlignment="Right"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#141428" BorderBrush="#3A3A5C" BorderThickness="1"
+                        CornerRadius="4" Padding="10,6">
+                    <StackPanel Spacing="0">
+                        <TextBlock Text="消行" FontSize="10" Foreground="#8A8AB0"/>
+                        <TextBlock x:Name="LinesText" Text="0" FontSize="18" FontWeight="Bold"
+                                   Foreground="#FF9100" HorizontalAlignment="Right"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#141428" BorderBrush="#FFD600" BorderThickness="1"
+                        CornerRadius="4" Padding="10,6">
+                    <StackPanel Spacing="0">
+                        <TextBlock Text="最高分" FontSize="10" Foreground="#FFD600"/>
+                        <TextBlock x:Name="BestText" Text="0" FontSize="18" FontWeight="Bold"
+                                   Foreground="#FFD600" HorizontalAlignment="Right"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <!-- ══ 主区域 ══ -->
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto" ColumnSpacing="18">
+
+            <!-- 左：主棋盘 -->
+            <Border Grid.Column="0"
+                    BorderBrush="#3A3A5C" BorderThickness="2" CornerRadius="6"
+                    Padding="4" Background="#141428">
+                <local:GameBoardControl x:Name="GameBoard"
+                                        Width="300" Height="600"
+                                        CellSize="30"/>
+            </Border>
+
+            <!-- 右：面板 -->
+            <StackPanel Grid.Column="1" Spacing="10" VerticalAlignment="Top">
+
+                <!-- Hold 暂存 -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="暂存 [C]" FontSize="12" Foreground="#8A8AB0"/>
+                    <Border BorderBrush="#3A3A5C" BorderThickness="1.5" CornerRadius="4"
+                            Padding="5" Background="#141428">
+                        <local:PreviewControl x:Name="HoldPreview" Width="104" Height="104"/>
+                    </Border>
+                </StackPanel>
+
+                <!-- 下一个 ×3 -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="下一个" FontSize="12" Foreground="#8A8AB0"/>
+                    <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="8">
+                        <Border Grid.Column="0" BorderBrush="#3A3A5C" BorderThickness="1.5"
+                                CornerRadius="4" Padding="5" Background="#141428">
+                            <local:PreviewControl x:Name="Preview1" Width="88" Height="88"/>
+                        </Border>
+                        <Border Grid.Column="1" BorderBrush="#3A3A5C" BorderThickness="1.5"
+                                CornerRadius="4" Padding="4" Background="#141428">
+                            <local:PreviewControl x:Name="Preview2" Width="72" Height="72"/>
+                        </Border>
+                        <Border Grid.Column="2" BorderBrush="#3A3A5C" BorderThickness="1.5"
+                                CornerRadius="4" Padding="4" Background="#141428">
+                            <local:PreviewControl x:Name="Preview3" Width="72" Height="72"/>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+
+                <!-- 控制按钮 -->
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6" Margin="0,2,0,0">
+                    <Button x:Name="PauseButton" Grid.Column="0" Content="暂停"
+                            FontSize="13" Padding="0,6"
+                            Background="#2A2A4A" Foreground="White"
+                            Click="OnPauseClick"/>
+                    <Button Grid.Column="1" Content="重开"
+                            FontSize="13" Padding="0,6"
+                            Background="#2A2A4A" Foreground="White"
+                            Click="OnRestartClick"/>
+                    <Button x:Name="SoundButton" Grid.Column="2" Content="音效:开"
+                            FontSize="13" Padding="0,6"
+                            Background="#2A2A4A" Foreground="White"
+                            Click="OnSoundClick"/>
+                </Grid>
+
+                <!-- 操作说明 -->
+                <Border BorderBrush="#3A3A5C" BorderThickness="1" CornerRadius="4"
+                        Padding="12,10" Background="#141428" Margin="0,2,0,0">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="操作说明" FontSize="12" FontWeight="Bold"
+                                   Foreground="#00E5FF"/>
+                        <TextBlock Text="← →   移动" FontSize="12" Foreground="#C0C0E0"/>
+                        <TextBlock Text="↑     旋转" FontSize="12" Foreground="#C0C0E0"/>
+                        <TextBlock Text="↓     加速下落" FontSize="12" Foreground="#C0C0E0"/>
+                        <TextBlock Text="空格   直接落底" FontSize="12" Foreground="#C0C0E0"/>
+                        <TextBlock Text="C      暂存 / 交换" FontSize="12" Foreground="#C0C0E0"/>
+                        <TextBlock Text="P      暂停 / 继续" FontSize="12" Foreground="#C0C0E0"/>
+                        <TextBlock Text="R      重新开始" FontSize="12" Foreground="#C0C0E0"/>
+                        <TextBlock Text="虚影 = 落点提示" FontSize="12" Foreground="#6A6A90"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

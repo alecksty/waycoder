@@ -42,7 +42,7 @@ public class Program
             }
         }
 
-        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.10.0"); return 0; }
+        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.11.0"); return 0; }
 
         _config = Config.FromEnv();
         if (model != null) _config.Model = model;
@@ -151,7 +151,7 @@ public class Program
     private static async Task RunReplAsync()
     {
         // 欢迎横幅
-        TuiBanner.Show("CoreCoder", "0.10.0", _config.Model,
+        TuiBanner.Show("CoreCoder", "0.11.0", _config.Model,
             _config.BaseUrl, DebugLog.Enabled);
 
         while (true)
