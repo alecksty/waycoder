@@ -46,7 +46,7 @@ public static class SelfTest
             "memory" => ["[记忆]","[记忆自动注入]"],
             "agent" => ["[Agent]","[子智能体]","[权限]","[权限系统","[权限确认]"],
             "review" => ["[代码审查]"],
-            "mcp" => ["[MCP]","[MCP 环境变量]"],
+            "mcp" => ["[MCP]","[MCP 环境变量]","[MCP HTTP]","[MCP 缓存]"],
             "system" => ["[LLM]","[系统提示词]","[JSON 辅助]","[模型回退]","[调试日志]",
                 "[项目检测]","[上下文管理]","[预算系统]","[Hooks]","[自定义命令]","[输入规范化]",
                 "[命令别名]","[错误自恢复]","[Token 性能统计]","[HTTP 代理]","[Sub-Agent",
@@ -1226,6 +1226,53 @@ public static class SelfTest
         // 无 env 的配置
         var noEnv = JsonNode.Parse(@"{ ""name"": ""x"", ""command"": ""y"" }")?.AsObject();
         Check("MCP 无 env 不崩溃", noEnv!["env"]?.AsObject() == null);
+        Console.WriteLine();
+
+        // ---- MCP HTTP 传输 ----
+        Section("[MCP HTTP]");
+
+        Check("HTTP 传输: url 检测",
+            JsonNode.Parse(@"{ ""url"": ""http://localhost:8080/mcp"" }")!["url"]?.GetValue<string>() == "http://localhost:8080/mcp");
+        Check("HTTP 传输: transport=http",
+            JsonNode.Parse(@"{ ""transport"": ""http"", ""url"": ""http://x.com/mcp"" }")!["transport"]?.GetValue<string>() == "http");
+        var stdioCfg = JsonNode.Parse(@"{ ""command"": ""echo"", ""args"": [""hi""] }");
+        Check("Stdio 传输: 向后兼容",
+            stdioCfg!["command"]?.GetValue<string>() == "echo" && stdioCfg["url"] == null);
+
+        Environment.SetEnvironmentVariable("TEST_MCP_VAR", "secret123");
+        Check("MCP 环境变量展开: headers", McpManager.ExpandEnvVars("Bearer ${TEST_MCP_VAR}") == "Bearer secret123");
+        Check("MCP 环境变量展开: url", McpManager.ExpandEnvVars("http://host/${TEST_MCP_VAR}/path") == "http://host/secret123/path");
+        Check("MCP 环境变量展开: 无变量", McpManager.ExpandEnvVars("no-vars-here") == "no-vars-here");
+        Check("MCP 环境变量展开: 空字符串", McpManager.ExpandEnvVars("") == "");
+
+        var hdrObj = new JsonObject { ["Authorization"] = "Bearer ${TEST_MCP_VAR}", ["X-Custom"] = "static" };
+        var parsedHdr = McpManager.ParseHeaders(hdrObj);
+        Check("MCP headers: 展开", parsedHdr != null && parsedHdr["Authorization"] == "Bearer secret123");
+        Check("MCP headers: 静态", parsedHdr != null && parsedHdr["X-Custom"] == "static");
+        Check("MCP headers: null", McpManager.ParseHeaders(null) == null);
+        Environment.SetEnvironmentVariable("TEST_MCP_VAR", null);
+
+        Console.WriteLine();
+
+        // ---- MCP 缓存 ----
+        Section("[MCP 缓存]");
+
+        var k1 = McpCache.ComputeCacheKey("test", "echo|hi");
+        var k2 = McpCache.ComputeCacheKey("test", "echo|hi");
+        var k3 = McpCache.ComputeCacheKey("test", "echo|bye");
+        Check("MCP 缓存键: 稳定性", k1 == k2);
+        Check("MCP 缓存键: 不同配置不同键", k1 != k3);
+        Check("MCP 缓存键: 格式", k1.StartsWith("test|") && k1.Length == 22);
+
+        var sidNode = JsonNode.Parse(@"{ ""command"": ""npx"", ""args"": [""-y"", ""server""] }");
+        Check("MCP 规范ID: stdio", McpCache.GetCanonicalId(sidNode!) == "npx|-y|server");
+        var hidNode = JsonNode.Parse(@"{ ""url"": ""http://example.com/mcp"" }");
+        Check("MCP 规范ID: HTTP", McpCache.GetCanonicalId(hidNode!) == "http://example.com/mcp");
+        var nidNode = JsonNode.Parse(@"{ ""name"": ""x"" }");
+        Check("MCP 规范ID: 无标识符", McpCache.GetCanonicalId(nidNode!) == null);
+
+        Check("McpInfo 初始非空", !string.IsNullOrEmpty(McpManager.Info));
+
         Console.WriteLine();
 
         // ---- Agent 错误自恢复 ----
