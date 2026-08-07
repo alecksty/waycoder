@@ -294,55 +294,71 @@ public class Program
         if (userInput.StartsWith("/edit ")) { await Editor.RunAsync(userInput[6..].Trim()); sm.Render(); return; }
         if (userInput is "/settings" or "/config") { SettingsPage.Show(); return; }
 
-        // 调用 Agent
+        // 调用 Agent (支持自动回退)
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+        var modelStack = BuildFallbackChain();
 
-        try
+        for (int attempt = 0; attempt < modelStack.Length; attempt++)
         {
-            sm.StartAgentMsg();
-            sm.Render();
-
-            await _agent!.ChatAsync(userInput,
-                onToken: tok =>
-                {
-                    sm.AppendToken(tok);
-                    sm.Render();
-                },
-                onTool: (name, brief) =>
-                {
-                    sm.FinishAgentMsg();
-                    sm.AddToolMsg(name, brief.Length > 60 ? brief[..57] + "..." : brief);
-                    sm.StartAgentMsg();
-                    sm.Render();
-                },
-                cancellationToken: cts.Token);
-
-            sm.FinishAgentMsg();
-
-            // 文件修改确认: 检查是否有新修改
-            var modified = EditFileTool.ChangedFiles;
-            if (modified.Count > 0)
+            var model = modelStack[attempt];
+            if (attempt > 0)
             {
-                sm.AddSystemMsg($"📝 已修改 {modified.Count} 个文件:");
-                foreach (var f in modified.Take(5))
-                    sm.AddSystemMsg($"  📄 {f}");
-                if (modified.Count > 5)
-                    sm.AddSystemMsg($"  ... 还有 {modified.Count - 5} 个文件 (输入 /diff 查看完整列表)");
+                _llm!.Model = model;
+                _config.Model = model;
+                sm.StatusLeft = model;
+                sm.AddSystemMsg($"🔄 自动回退到: {model}");
+                sm.StartAgentMsg();
+            }
+
+            try
+            {
+                sm.StartAgentMsg();
+                sm.Render();
+
+                await _agent!.ChatAsync(userInput,
+                    onToken: tok =>
+                    {
+                        sm.AppendToken(tok);
+                        sm.Render();
+                    },
+                    onTool: (name, brief) =>
+                    {
+                        sm.FinishAgentMsg();
+                        sm.AddToolMsg(name, brief.Length > 60 ? brief[..57] + "..." : brief);
+                        sm.StartAgentMsg();
+                        sm.Render();
+                    },
+                    cancellationToken: cts.Token);
+
+                sm.FinishAgentMsg();
+                break; // 成功
+            }
+            catch (OperationCanceledException)
+            {
+                sm.FinishAgentMsg();
+                sm.AddSystemMsg(cts.IsCancellationRequested
+                    ? "⚠ 已中断" : "⏰ 服务器 60s 未响应");
+                break;
+            }
+            catch (Exception ex) when (attempt < modelStack.Length - 1)
+            {
+                sm.FinishAgentMsg();
+                sm.AddSystemMsg($"⚠ {model} 失败: {ex.Message}");
+                // 继续回退链
+            }
+            catch (Exception ex)
+            {
+                sm.FinishAgentMsg();
+                sm.AddSystemMsg($"✘ 所有模型均失败: {ex.Message}");
             }
         }
-        catch (OperationCanceledException)
+
+        // 文件修改确认
+        var modified = EditFileTool.ChangedFiles;
+        if (modified.Count > 0)
         {
-            sm.FinishAgentMsg();
-            sm.AddSystemMsg(cts.IsCancellationRequested
-                ? "⚠ 已中断" : "⏰ 服务器 60s 未响应");
-        }
-        catch (Exception ex)
-        {
-            sm.FinishAgentMsg();
-            sm.AddSystemMsg($"✘ 错误: {ex.Message}");
-            // 错误恢复建议
-            sm.AddSystemMsg("💡 提示: 输入 /model <名称> 切换模型重试");
+            sm.AddSystemMsg($"📝 已修改 {modified.Count} 个文件 (/diff 查看 /undo 撤销)");
         }
 
         // 更新右下角 token 显示
@@ -873,6 +889,17 @@ public class Program
     }
 
     // ========================================================================
+    /// <summary>构建模型回退链：当前模型 + 备选模型</summary>
+    private static string[] BuildFallbackChain()
+    {
+        var primary = _config.Model;
+        var fallbacks = new List<string> { primary };
+        foreach (var fb in new[] { "deepseek-v4-flash", "gpt-5.4-mini", "deepseek-v4-pro", "gpt-5.4" })
+            if (fb != primary && !fallbacks.Contains(fb))
+                fallbacks.Add(fb);
+        return fallbacks.ToArray();
+    }
+
     // 辅助方法: 安全的 Spectre.Console 输出 + 状态动画
     // ========================================================================
 
