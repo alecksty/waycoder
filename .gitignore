@@ -20,3 +20,4 @@ venv/
 .tmp/
 logs/
 .idea/
+verify_build/
