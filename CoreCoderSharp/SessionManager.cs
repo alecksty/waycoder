@@ -65,6 +65,15 @@ public static class SessionManager
         return null;
     }
 
+    /// <summary>删除指定会话</summary>
+    public static bool DeleteSession(string sessionId)
+    {
+        var path = SessionPath(sessionId);
+        if (!File.Exists(path)) return false;
+        File.Delete(path);
+        return true;
+    }
+
     /// <summary>
     /// 列出可用会话，最新的在前，最多 20 条。
     /// </summary>

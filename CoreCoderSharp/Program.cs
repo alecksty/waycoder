@@ -282,10 +282,11 @@ public class Program
         if (userInput == "/model") { sm.AddSystemMsg($"当前模型: {_config.Model}"); return; }
         if (userInput.StartsWith("/model ")) { SwitchModelInline(userInput, sm); return; }
         if (userInput == "/compact") { await CompactAsync(); sm.AddSystemMsg("✔ 上下文已压缩"); return; }
-        if (userInput == "/save") { SaveSessionInChat(sm); return; }
+        if (userInput == "/save") { SaveSessionInteractive(sm); return; }
         if (userInput == "/permissions" || userInput == "/perm") { ShowPermStatusInChat(sm); return; }
         if (userInput.StartsWith("/perm ")) { PermissionManager.SetMode(userInput[6..].Trim()); sm.AddSystemMsg($"权限模式已切换"); return; }
-        if (userInput == "/sessions") { ShowSessionsInChat(sm); return; }
+        if (userInput == "/sessions") { ShowSessionBrowser(sm); return; }
+        if (userInput.StartsWith("/load ")) { LoadSessionInteractive(userInput[6..].Trim(), sm); return; }
         if (userInput == "/diff") { ShowDiffInChat(sm); return; }
         if (userInput == "/plan") { sm.AddSystemMsg("📋 计划模式"); await PlanModeAsync(); return; }
         if (userInput.StartsWith("/search ")) { await RunSearchAsync(userInput[8..].Trim()); return; }
@@ -318,6 +319,17 @@ public class Program
                 cancellationToken: cts.Token);
 
             sm.FinishAgentMsg();
+
+            // 文件修改确认: 检查是否有新修改
+            var modified = EditFileTool.ChangedFiles;
+            if (modified.Count > 0)
+            {
+                sm.AddSystemMsg($"📝 已修改 {modified.Count} 个文件:");
+                foreach (var f in modified.Take(5))
+                    sm.AddSystemMsg($"  📄 {f}");
+                if (modified.Count > 5)
+                    sm.AddSystemMsg($"  ... 还有 {modified.Count - 5} 个文件 (输入 /diff 查看完整列表)");
+            }
         }
         catch (OperationCanceledException)
         {
@@ -329,6 +341,8 @@ public class Program
         {
             sm.FinishAgentMsg();
             sm.AddSystemMsg($"✘ 错误: {ex.Message}");
+            // 错误恢复建议
+            sm.AddSystemMsg("💡 提示: 输入 /model <名称> 切换模型重试");
         }
 
         // 更新右下角 token 显示
@@ -357,18 +371,90 @@ public class Program
     private static void SwitchModelInline(string input, ScreenManager sm)
     {
         var m = input[7..].Trim();
-        if (!string.IsNullOrEmpty(m)) { _llm!.Model = m; _config.Model = m; sm.StatusLeft = m; sm.AddSystemMsg($"已切换到: {m}"); }
+        if (string.IsNullOrEmpty(m)) return;
+
+        // 尝试从已知模型列表匹配
+        var known = new[] { "deepseek-v4-flash","deepseek-v4-pro","gpt-5.4-mini","gpt-5.4","gpt-5.5","gpt-4o","gpt-4o-mini" };
+        var match = known.FirstOrDefault(k => k.StartsWith(m, StringComparison.OrdinalIgnoreCase));
+        if (match != null) m = match;
+
+        _llm!.Model = m;
+        _config.Model = m;
+        sm.StatusLeft = m;
+        sm.AddSystemMsg($"✅ 已切换到 {m}");
     }
+
+    private static void SaveSessionInteractive(ScreenManager sm)
+    {
+        var name = sm.ShowMenu("保存会话 — 输入名称", ["💾 自动命名", "📝 自定义名称..."]);
+        string? sid = null;
+        if (name == 1)
+        {
+            sm.Exit();
+            var input = TuiPrompt.Ask("会话名称");
+            sm.Enter();
+            if (!string.IsNullOrWhiteSpace(input)) sid = input.Trim();
+        }
+        if (sid == null)
+            sid = SessionManager.SaveSession(_agent!.Messages, _config.Model);
+        else
+            sid = SessionManager.SaveSession(_agent!.Messages, _config.Model, sid);
+        sm.AddSystemMsg($"✅ 会话已保存: {sid}");
+    }
+
+    private static void ShowSessionBrowser(ScreenManager sm)
+    {
+        var sessions = SessionManager.ListSessions();
+        if (sessions.Count == 0) { sm.AddSystemMsg("没有已保存的会话"); return; }
+
+        var choices = new List<string>();
+        foreach (var s in sessions)
+            choices.Add($"📁 {s.Id}  [{s.Model}]  {s.SavedAt}");
+        choices.Add("🗑 删除会话...");
+
+        var idx = sm.ShowMenu($"会话列表 ({sessions.Count})", choices);
+        if (idx < 0) return;
+
+        if (idx == sessions.Count) // 删除
+        {
+            var delChoices = sessions.Select(s => $"{s.Id}  [{s.Model}]").ToList();
+            var delIdx = sm.ShowMenu("选择要删除的会话", delChoices);
+            if (delIdx >= 0)
+            {
+                SessionManager.DeleteSession(sessions[delIdx].Id);
+                sm.AddSystemMsg($"✅ 已删除: {sessions[delIdx].Id}");
+            }
+        }
+        else
+        {
+            LoadSessionInteractive(sessions[idx].Id, sm);
+        }
+    }
+
+    private static void LoadSessionInteractive(string id, ScreenManager sm)
+    {
+        var loaded = SessionManager.LoadSession(id);
+        if (loaded == null) { sm.AddSystemMsg($"❌ 会话不存在: {id}"); return; }
+        _agent!.Messages = loaded.Value.Messages;
+        _llm!.Model = loaded.Value.Model;
+        _config.Model = loaded.Value.Model;
+        sm.StatusLeft = loaded.Value.Model;
+        sm.ChatMessages.Clear();
+        foreach (var msg in loaded.Value.Messages)
+        {
+            var role = msg["role"]?.GetValue<string>() ?? "";
+            var content = msg["content"]?.GetValue<string>() ?? "";
+            if (role == "user") sm.AddUserMsg(content);
+            else if (role == "tool") sm.AddToolMsg("tool", content[..Math.Min(content.Length, 40)]);
+            else if (role == "assistant") sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "agent", Content = content });
+        }
+        sm.AddSystemMsg($"✅ 已加载会话: {id} (模型: {loaded.Value.Model})");
+    }
+
     private static void ShowPermStatusInChat(ScreenManager sm)
     {
         var mode = PermissionManager.CurrentMode.ToString();
         sm.AddSystemMsg($"权限模式: {mode} (危险工具需确认: bash/write/edit/agent/kill/rm)");
-    }
-    private static void ShowSessionsInChat(ScreenManager sm)
-    {
-        var sessions = SessionManager.ListSessions();
-        if (sessions.Count == 0) sm.AddSystemMsg("没有已保存的会话");
-        else foreach (var s in sessions) sm.AddSystemMsg($"{s.Id}  {s.Model}  {s.SavedAt}");
     }
     private static void ShowDiffInChat(ScreenManager sm)
     {
@@ -422,7 +508,8 @@ public class Program
         table.AddRow("/compact", "压缩上下文");
         table.AddRow("/diff", "修改文件列表");
         table.AddRow("/save", "保存会话");
-        table.AddRow("/sessions", "已保存的会话");
+        table.AddRow("/sessions", "会话管理 (浏览/加载/删除)");
+        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/load[/] [dim]&lt;ID&gt;[/]", "加载指定会话");
         table.AddRow("/debug-on / -off", "开启/关闭调试日志");
         table.AddRow("/permissions", "权限管理");
         table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/perm[/] [dim]&lt;ask|auto|yolo&gt;[/]", "设置权限模式");

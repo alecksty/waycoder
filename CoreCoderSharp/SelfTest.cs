@@ -993,6 +993,36 @@ public static class SelfTest
         Check("MaxBudget 默认 null", new Config().MaxBudgetUsd == null);
         Console.WriteLine();
 
+        // ---- 会话管理 ----
+        Console.WriteLine("[会话管理]");
+        var testSessionId = $"test_{DateTime.Now:yyyyMMddHHmmss}";
+        var testMsgs = new List<JsonObject>
+        {
+            new() { ["role"] = "user", ["content"] = "test message" },
+            new() { ["role"] = "assistant", ["content"] = "test response" },
+        };
+        var savedId = SessionManager.SaveSession(testMsgs, "deepseek-v4-flash", testSessionId);
+        Check("保存会话返回 ID", savedId == testSessionId);
+        Check("会话列表包含测试会话", SessionManager.ListSessions().Any(s => s.Id == testSessionId));
+
+        var sessLoaded = SessionManager.LoadSession(testSessionId);
+        Check("加载会话非空", sessLoaded != null);
+        Check("加载消息数正确", sessLoaded!.Value.Messages.Count == 2);
+        Check("加载模型正确", sessLoaded!.Value.Model == "deepseek-v4-flash");
+
+        Check("删除会话成功", SessionManager.DeleteSession(testSessionId));
+        Check("删除后不可加载", SessionManager.LoadSession(testSessionId) == null);
+        Console.WriteLine();
+
+        // ---- 模型切换 ----
+        Console.WriteLine("[模型切换]");
+        var mc = new Config();
+        mc.Model = "gpt-5.4";
+        Check("切换模型生效", mc.Model == "gpt-5.4");
+        mc.Model = "deepseek-v4-pro";
+        Check("再次切换生效", mc.Model == "deepseek-v4-pro");
+        Console.WriteLine();
+
         // ---- 结果 ----
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
         return failed == 0;
