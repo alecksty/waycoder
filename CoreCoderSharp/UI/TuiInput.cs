@@ -42,8 +42,9 @@ public static class TuiInput
         _suggestions = [];
         _suggestIdx = 0;
 
+        // 保存光标位置，后续每次渲染从这里开始清除+重绘
         Console.WriteLine();
-        var baseRow = Console.CursorTop;
+        Console.Write("[s"); // ANSI 保存光标位置
 
         try
         {
@@ -56,7 +57,6 @@ public static class TuiInput
                 UpdateSuggestions(lines);
                 var suggestH = _mode == Mode.Suggest
                     ? Math.Min(_suggestions.Count, MaxSuggestions) : 0;
-                var inputStartRow = baseRow + (suggestH > 0 ? suggestH + 2 : 0); // 面板+边线
 
                 var scrLines = BuildScreenLines(lines, contentW);
                 var totalScr = scrLines.Count;
@@ -67,8 +67,7 @@ public static class TuiInput
                 if (scrCy >= scrScroll + vh) scrScroll = scrCy - vh + 1;
                 scrScroll = Math.Clamp(scrScroll, 0, Math.Max(0, totalScr - vh));
 
-                RenderAll(lines, cy, cx, scrScroll, tw, contentW, vh, scrLines,
-                    inputStartRow, suggestH);
+                RenderAll(lines, cy, cx, scrScroll, tw, contentW, vh, scrLines, suggestH);
 
                 var key = Console.ReadKey(intercept: true);
                 bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
@@ -121,12 +120,13 @@ public static class TuiInput
                     key, ctrl, shift);
                 if (key.Key == ConsoleKey.Enter && !ctrl && !shift)
                 {
-                    ClearFrom(baseRow, tw);
+                    Console.Write("[u[J"); // 恢复+清除输入区
+                    Console.WriteLine();
                     return JoinLines(lines);
                 }
                 if (key.Key == ConsoleKey.Escape)
                 {
-                    ClearFrom(baseRow, tw);
+                    Console.Write("[u[J"); // 恢复+清除输入区
                     return null;
                 }
             }
@@ -416,19 +416,21 @@ public static class TuiInput
 
     private static void RenderAll(List<StringBuilder> hardLines, int cy, int cx,
         int scrScroll, int tw, int contentW, int vh,
-        List<ScreenLine> scrLines, int inputStartRow, int suggestH)
+        List<ScreenLine> scrLines, int suggestH)
     {
         Console.CursorVisible = false;
         var sb = new StringBuilder();
 
+        // 恢复保存的光标位置 + 清除到底，防止旧帧累积
+        sb.Append("[u[J");
+
         // ---- 建议面板 ----
         if (_mode == Mode.Suggest && suggestH > 0)
         {
-            RenderSuggestions(sb, tw, inputStartRow - suggestH - 2, suggestH);
+            RenderSuggestions(sb, tw, suggestH);
         }
 
         // ---- 输入区 ----
-        sb.Append($"[{inputStartRow};1H[?25l");
 
         // 顶线
         sb.Append($"[2m╭{new string('─', Math.Max(0, tw - 2))}╮[0m\r\n");
@@ -471,7 +473,9 @@ public static class TuiInput
 
         // 光标
         var (scrCy, scrCx) = HardToScreen(hardLines, cy, cx, contentW);
-        var cursorRow = inputStartRow + 1 + (scrCy - scrScroll);
+        // 光标行 = 建议面板行数 + 顶线(1) + 内容偏移 + 1-based
+        var prefixRows = (_mode == Mode.Suggest ? suggestH + 2 : 0) + 1;
+        var cursorRow = prefixRows + (scrCy - scrScroll);
         var cursorCol = 2 + scrCx + 1;
         cursorCol = Math.Clamp(cursorCol, 2, tw - 2);
         sb.Append($"[{cursorRow};{cursorCol}H[?25h");
@@ -479,9 +483,8 @@ public static class TuiInput
         Console.Write(sb.ToString());
     }
 
-    private static void RenderSuggestions(StringBuilder sb, int tw, int panelTop, int h)
+    private static void RenderSuggestions(StringBuilder sb, int tw, int h)
     {
-        sb.Append($"[{panelTop};1H");
         // 顶线
         var trigger = _suggestions.Count > 0 ? _suggestions[0][0] : '?';
         var title = trigger switch { '/' => "命令", '#' => "文件", '!' => "Shell", _ => "建议" };
@@ -516,11 +519,6 @@ public static class TuiInput
 
         // 底线
         sb.Append($"[36m╰{new string('─', Math.Max(0, tw - 2))}╯[0m");
-    }
-
-    private static void ClearFrom(int startRow, int tw)
-    {
-        Console.Write($"[{startRow};1H[0J");
     }
 
     // ================================================================
