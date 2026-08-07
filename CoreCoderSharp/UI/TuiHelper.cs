@@ -17,13 +17,13 @@ public static class TuiHelper
     /// ASCII/窄字符 = 1 列，CJK/全角字符 = 2 列。
     /// 覆盖范围：CJK 统一汉字、日文假名、韩文、全角标点、emoji（近似）。
     /// </summary>
+    /// <summary>计算纯文本的终端显示宽度（CJK=2, ASCII=1）。不含转义符。</summary>
     public static int DisplayWidth(string text)
     {
+        if (string.IsNullOrEmpty(text)) return 0;
         var width = 0;
         foreach (var rune in text.EnumerateRunes())
-        {
             width += RuneWidth(rune);
-        }
         return width;
     }
 

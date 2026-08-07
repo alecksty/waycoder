@@ -24,19 +24,42 @@ public static class SystemPrompt
         // 仓库地图
         var repoMap = RepoMapGenerator.Generate();
 
-        // 项目记忆（跨会话持久化知识）
-        var memory = MemoryStore.Read();
+        // 项目记忆（TF-IDF 语义匹配，只注入与当前项目最相关的记忆）
         var memorySection = "";
-        if (memory.Length > 0 && !memory.StartsWith("（暂无记忆"))
+        try
         {
-            // 截断过长记忆
-            if (memory.Length > 3000)
-                memory = memory[..3000] + "\n...（记忆已截断）";
-            memorySection = $"""
+            var config = Config.FromEnv();
+            // 用项目上下文作为查询关键词，提取最相关记忆
+            var query = $"{project.PrimaryLanguage} {string.Join(" ", project.BuildTools)} {string.Join(" ", project.Frameworks)}";
+            var relevantMemory = MemoryStore.GetRelevantContext(query,
+                topN: config.MemoryRelevanceTopN, maxChars: 2000);
+            if (!string.IsNullOrWhiteSpace(relevantMemory))
+            {
+                memorySection = $"""
 
-                # 项目记忆
-                {memory}
+                # 项目记忆（自动匹配 {config.MemoryRelevanceTopN} 条）
+                {relevantMemory}
                 """;
+            }
+        }
+        catch
+        {
+            // 回退：加载最新记忆（最多 1500 字符）
+            try
+            {
+                var memory = MemoryStore.Read();
+                if (memory.Length > 0 && !memory.StartsWith("（暂无记忆"))
+                {
+                    if (memory.Length > 1500)
+                        memory = memory[..1500] + "\n...（记忆已截断）";
+                    memorySection = $"""
+
+                        # 项目记忆
+                        {memory}
+                        """;
+                }
+            }
+            catch { }
         }
 
         return $"""

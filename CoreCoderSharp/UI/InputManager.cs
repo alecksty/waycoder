@@ -1,0 +1,178 @@
+namespace CoreCoderSharp.UI;
+
+/// <summary>
+/// 终端输入管理器 —— 拦截键盘、管理鼠标、即时响应窗口 resize。
+///
+/// 功能：
+/// - 拦截所有按键（none 泄露到终端）
+/// - 轮询键盘（非阻塞）+ resize 检测
+/// - 启用鼠标事件（支持点击/滚轮）
+/// - 窗口大小变化时立即触发 OnResize 回调
+/// - 管理终端模式（TreatControlCAsInput、隐藏光标）
+/// </summary>
+public class InputManager : IDisposable
+{
+    private int _lastWidth, _lastHeight;
+    private bool _mouseEnabled;
+    private bool _disposed;
+
+    /// <summary>窗口大小变化时触发（在 ReadInput 返回前调用）</summary>
+    public event Action? OnResize;
+
+    /// <summary>初始化终端输入模式</summary>
+    public void Init()
+    {
+        Console.TreatControlCAsInput = true;
+        Console.CursorVisible = false;
+        (_lastWidth, _lastHeight) = (Console.WindowWidth, Console.WindowHeight);
+
+        // 尝试启用鼠标（部分终端不支持）
+        try
+        {
+            Console.Write("\x1b[?1000h\x1b[?1003h\x1b[?1015h\x1b[?1006h");
+            _mouseEnabled = true;
+        }
+        catch
+        {
+            _mouseEnabled = false;
+        }
+    }
+
+    /// <summary>
+    /// 读取下一个输入事件。非阻塞：timeoutMs 后返回 Timeout 事件。
+    /// 每个轮询周期都会检查窗口大小变化。
+    /// </summary>
+    public InputEvent ReadInput(int timeoutMs = 50)
+    {
+        if (_disposed) return new InputEvent { Type = InputType.Timeout };
+
+        var deadline = Environment.TickCount64 + timeoutMs;
+
+        while (Environment.TickCount64 < deadline)
+        {
+            // 检查窗口大小变化（立即返回）
+            var (w, h) = (Console.WindowWidth, Console.WindowHeight);
+            if (w != _lastWidth || h != _lastHeight)
+            {
+                (_lastWidth, _lastHeight) = (w, h);
+                OnResize?.Invoke();
+                return new InputEvent { Type = InputType.Resize, Width = w, Height = h };
+            }
+
+            // 键盘输入
+            if (Console.KeyAvailable)
+            {
+                var key = Console.ReadKey(intercept: true);
+
+                // 鼠标转义序列解析（SGR extended mouse: \x1b[<...）
+                if (_mouseEnabled && key.KeyChar == '\x1b')
+                {
+                    var mouseEvent = TryParseMouse();
+                    if (mouseEvent != null) return mouseEvent;
+                }
+
+                // Ctrl+C 拦截为 Esc（防止退出）
+                if (key.Key == ConsoleKey.C && key.Modifiers.HasFlag(ConsoleModifiers.Control))
+                {
+                    return new InputEvent { Type = InputType.Key, KeyInfo = key };
+                }
+
+                return new InputEvent { Type = InputType.Key, KeyInfo = key };
+            }
+
+            Thread.Sleep(10); // 10ms 轮询间隔
+        }
+
+        return new InputEvent { Type = InputType.Timeout };
+    }
+
+    /// <summary>尝试解析 SGR 扩展鼠标协议 \x1b[&lt;C;X;Y M/m</summary>
+    private InputEvent? TryParseMouse()
+    {
+        // Non-blocking read of remaining sequence
+        if (!Console.KeyAvailable) return null;
+
+        // Read '['
+        var bracket = Console.ReadKey(intercept: true);
+        if (bracket.KeyChar != '[') return null;
+
+        // Read until we get the terminating character (M or m)
+        var buf = new System.Text.StringBuilder();
+        for (int i = 0; i < 30 && Console.KeyAvailable; i++)
+        {
+            var ch = Console.ReadKey(intercept: true);
+            buf.Append(ch.KeyChar);
+            if (ch.KeyChar == 'M' || ch.KeyChar == 'm') break;
+            Thread.Sleep(1); // 等待下一个字节
+        }
+
+        var seq = buf.ToString();
+        if (seq.Length < 2) return null;
+
+        // Parse C;X;Y M/m
+        var parts = seq.TrimEnd('M', 'm').Split(';');
+        if (parts.Length < 3) return null;
+
+        if (!int.TryParse(parts[0], out var code)) return null;
+        if (!int.TryParse(parts[1], out var x)) return null;
+        if (!int.TryParse(parts[2], out var y)) return null;
+
+        var isRelease = seq.EndsWith('m');
+
+        return new InputEvent
+        {
+            Type = InputType.Mouse,
+            MouseX = x - 1,  // 1-based → 0-based
+            MouseY = y - 1,
+            MouseLeft = !isRelease && (code == 0 || code == 32),
+            MouseRight = !isRelease && (code == 2 || code == 34),
+            MouseScrollUp = code == 64,
+            MouseScrollDown = code == 65,
+            MouseButton = code,
+            MouseRelease = isRelease,
+        };
+    }
+
+    /// <summary>恢复终端设置</summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        // 禁用鼠标
+        if (_mouseEnabled)
+        {
+            try { Console.Write("\x1b[?1006l\x1b[?1015l\x1b[?1003l\x1b[?1000l"); }
+            catch { }
+        }
+
+        Console.CursorVisible = true;
+        Console.TreatControlCAsInput = false;
+    }
+}
+
+/// <summary>输入事件类型</summary>
+public enum InputType
+{
+    Key,        // 键盘按键
+    Mouse,      // 鼠标（点击/移动/滚轮）
+    Resize,     // 窗口大小变化
+    Timeout,    // 超时（无输入）
+}
+
+/// <summary>输入事件数据</summary>
+public class InputEvent
+{
+    public InputType Type { get; set; }
+    public ConsoleKeyInfo KeyInfo { get; set; }
+    public int MouseX { get; set; }
+    public int MouseY { get; set; }
+    public bool MouseLeft { get; set; }
+    public bool MouseRight { get; set; }
+    public bool MouseScrollUp { get; set; }
+    public bool MouseScrollDown { get; set; }
+    public int MouseButton { get; set; }
+    public bool MouseRelease { get; set; }
+    public int Width { get; set; }
+    public int Height { get; set; }
+}

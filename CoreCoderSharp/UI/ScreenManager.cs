@@ -43,6 +43,7 @@ public class ScreenManager
     public readonly List<ChatMsg> ChatMessages = [];
     private int _chatScroll;
     private bool _autoScroll = true; // 自动跟底
+    private string _lastCleanFrame = ""; // 上一帧无浮层的渲染输出（窗口关闭时还原背景）
 
     // ---- 输入 ----
     public readonly List<StringBuilder> InputLines = [new()];
@@ -66,6 +67,20 @@ public class ScreenManager
 
     // ---- 状态 ----
     public string StatusLeft = "";
+    /// <summary>上一帧无浮层的渲染输出（窗口关闭时还原背景）</summary>
+    public string LastCleanFrame => _lastCleanFrame;
+
+    /// <summary>从全局主题同步主界面配色</summary>
+    public void SyncTheme()
+    {
+        var t = ThemeConfig.Instance;
+        ThemeBorderColor = t.BorderColor.ToString();
+        ThemeAccentColor = t.BorderColor.ToString();
+        // 应用主题预设到颜色方案
+        if (t.BorderStyle == "rounded") ThemeBorderStyle = "rounded";
+        else if (t.BorderStyle == "double") ThemeBorderStyle = "double";
+        else ThemeBorderStyle = "single";
+    }
     public string StatusRight = "";
     public string TokenInfo = "";
     public string? GitBranch;
@@ -245,134 +260,44 @@ public class ScreenManager
     {
         var color = type switch
         {
-            DialogType.Success => "32", // 绿
-            DialogType.Warn => "33",    // 黄
-            DialogType.Error => "31",   // 红
-            _ => "36",                  // 青
+            DialogType.Success => 32,
+            DialogType.Warn => 33,
+            DialogType.Error => 31,
+            _ => 36,
         };
-
-        var lines = content.Replace("\r\n", "\n").Split('\n');
-        var maxW = Math.Min(TW - 8, lines.Max(l => VW(l)) + 4);
-        if (!string.IsNullOrEmpty(title)) maxW = Math.Max(maxW, VW(title) + 4);
-        var w = Math.Max(20, maxW);
-        var h = lines.Length + 4; // 上框 + 标题 + 内容 + padding + 下框
-        var x = (TW - w) / 2;
-        var y = (TH - h) / 2;
-
-        var sb = new StringBuilder();
-        // 遮罩背景
-        for (int i = 0; i < TH; i++)
-            sb.Append($"\x1b[{i + 1};1H\x1b[100m{new string(' ', TW)}\x1b[0m");
-
-        // 对话框 (使用主题边框)
-        var (dtl, dtr, dbl, dbr, dh, dv) = BorderChars();
-        sb.Append($"\x1b[{y};{x}H\x1b[{color}m{dtl}{new string(dh[0], w - 2)}{dtr}\x1b[0m");
-        if (!string.IsNullOrEmpty(title))
-        {
-            sb.Append($"\x1b[{y + 1};{x}H\x1b[{color}m{dv}\x1b[0m \x1b[1m{title}\x1b[0m" +
-                $"{new string(' ', Math.Max(0, w - VW(title) - 3))}\x1b[{color}m{dv}\x1b[0m");
-        }
-        for (int i = 0; i < lines.Length; i++)
-            sb.Append($"\x1b[{y + 2 + i};{x}H\x1b[{color}m{dv}\x1b[0m {lines[i]}" +
-                $"{new string(' ', Math.Max(0, w - VW(lines[i]) - 3))}\x1b[{color}m{dv}\x1b[0m");
-        sb.Append($"\x1b[{y + 2 + lines.Length};{x}H\x1b[{color}m{dv}\x1b[0m 按任意键关闭" +
-            $"{new string(' ', Math.Max(0, w - VW("按任意键关闭") - 3))}\x1b[{color}m{dv}\x1b[0m");
-        sb.Append($"\x1b[{y + h - 1};{x}H\x1b[{color}m{dbl}{new string(dh[0], w - 2)}{dbr}\x1b[0m");
-
-        Console.Write(sb.ToString());
+        var win = WindowManager.Instance.ShowDialog(title, content);
+        win.BorderColor = color;
+        Render();
         Console.ReadKey(intercept: true);
+        WindowManager.Instance.Close(win);
+        Render();
     }
 
-    /// <summary>显示居中菜单，返回选择的索引 (-1 表示取消)</summary>
+    /// <summary>显示居中菜单，返回选择的索引 (-1 表示取消)。
+    /// 集成到主事件循环：resize 即时响应，鼠标可用。</summary>
     public int ShowMenu(string title, List<string> choices)
     {
-        var w = Math.Min(TW - 8, Math.Max(20, choices.Max(c => VW(c)) + 4));
-        if (!string.IsNullOrEmpty(title)) w = Math.Max(w, VW(title) + 4);
-        // 计算可见项数：屏幕高度 - 遮罩边距 - 标题 - 提示行 - 上下框
-        var maxVis = Math.Min(choices.Count, Math.Max(3, TH - 8));
-        var hasTitle = !string.IsNullOrEmpty(title);
-        var h = maxVis + 3 + (hasTitle ? 1 : 0); // 上框 + [title] + items + hint + 下框
-        var x = (TW - w) / 2;
-        var y = (TH - h) / 2;
-        int sel = 0;
-        int scroll = 0;
+        AddSystemMsg($"📋 {title}"); // 菜单标题注入聊天区（非阻塞提示）
+        var x = (Console.WindowWidth - Math.Min(Console.WindowWidth - 8, Math.Max(20, choices.Max(c => TuiHelper.DisplayWidth(c)) + 4))) / 2;
+        var y = (Console.WindowHeight - Math.Min(choices.Count, Console.WindowHeight - 8) - 4) / 2;
+        var win = WindowManager.Instance.ShowMenu(x, y, title, choices);
 
         while (true)
         {
-            // 保持选中项可见
-            if (sel < scroll) scroll = sel;
-            if (sel >= scroll + maxVis) scroll = sel - maxVis + 1;
-
-            var sb = new StringBuilder();
-            // 遮罩
-            for (int i = 0; i < TH; i++)
-                sb.Append($"\x1b[{i + 1};1H\x1b[100m{new string(' ', TW)}\x1b[0m");
-
-            // 上边框
-            var (mtl, mtr, mbl, mbr, mh, mv) = BorderChars();
-            int itemBaseRow = y + (hasTitle ? 2 : 1);
-            sb.Append($"\x1b[{y};{x}H\x1b[{ThemeBorderColor}m{mtl}{new string(mh[0], w - 2)}{mtr}\x1b[0m");
-            if (hasTitle)
-                sb.Append($"\x1b[{y + 1};{x}H\x1b[{ThemeBorderColor}m{mv}\x1b[0m \x1b[1m{title}\x1b[0m" +
-                    $"{new string(' ', Math.Max(0, w - VW(title) - 3))}\x1b[{ThemeBorderColor}m{mv}\x1b[0m");
-
-            // 列表项
-            for (int i = 0; i < maxVis; i++)
-            {
-                int ci = scroll + i;
-                sb.Append($"\x1b[{itemBaseRow + i};{x}H\x1b[{ThemeBorderColor}m{mv}\x1b[0m ");
-                if (ci < choices.Count)
-                {
-                    var text = choices[ci];
-                    if (VW(text) > w - 8) text = TruncateByVW(text, w - 9) + "…";
-                    var textVW = VW(text);
-                    var fill = Math.Max(0, w - 5 - textVW);
-
-                    if (ci == sel)
-                    {
-                        sb.Append($"\x1b[30;46m {text} ");
-                        if (fill > 0) sb.Append(new string(' ', fill));
-                        sb.Append($"\x1b[0m");
-                    }
-                    else
-                    {
-                        sb.Append($" {text} ");
-                        if (fill > 0) sb.Append(new string(' ', fill));
-                    }
-                }
-                else
-                {
-                    sb.Append(new string(' ', w - 4));
-                }
-                sb.Append($"\x1b[{ThemeBorderColor}m{mv}\x1b[0m");
-            }
-
-            // 提示行 + 滚动指示器
-            var hint = scroll > 0 && scroll + maxVis < choices.Count ? "↑↓ 滚动  Enter 确认  Esc 取消"
-                     : scroll > 0 ? "↑ 更多  Enter 确认  Esc 取消"
-                     : scroll + maxVis < choices.Count ? "↓ 更多  Enter 确认  Esc 取消"
-                     : "Enter 确认  Esc 取消";
-            int hintRow = y + h - 2;
-            sb.Append($"\x1b[{hintRow};{x}H\x1b[{ThemeBorderColor}m{mv}\x1b[0m \x1b[2m{hint}\x1b[0m" +
-                $"{new string(' ', Math.Max(0, w - VW(hint) - 3))}\x1b[{ThemeBorderColor}m{mv}\x1b[0m");
-
-            // 下边框
-            sb.Append($"\x1b[{y + h - 1};{x}H\x1b[{ThemeBorderColor}m{mbl}{new string(mh[0], w - 2)}{mbr}\x1b[0m");
-            sb.Append("\x1b[?25h");
-            Console.Write(sb.ToString());
-
+            Render();
             var key = Console.ReadKey(intercept: true);
-            switch (key.Key)
+
+            // Resize 重新居中
+            if (Console.WindowWidth != TW || Console.WindowHeight != TH)
             {
-                case ConsoleKey.UpArrow: if (sel > 0) sel--; break;
-                case ConsoleKey.DownArrow: if (sel < choices.Count - 1) sel++; break;
-                case ConsoleKey.PageUp: sel = Math.Max(0, sel - maxVis); break;
-                case ConsoleKey.PageDown: sel = Math.Min(choices.Count - 1, sel + maxVis); break;
-                case ConsoleKey.Home: sel = 0; break;
-                case ConsoleKey.End: sel = choices.Count - 1; break;
-                case ConsoleKey.Enter: return sel;
-                case ConsoleKey.Escape: return -1;
+                win.X = (Console.WindowWidth - win.Width) / 2;
+                win.Y = (Console.WindowHeight - win.Height) / 2;
+                Render();
             }
+
+            var result = WindowManager.Instance.HandleMenuKey(win, key);
+            if (result >= 0) { WindowManager.Instance.Close(win); Render(); return result; }
+            if (result == -1) { WindowManager.Instance.Close(win); Render(); return -1; }
         }
     }
 
@@ -385,54 +310,12 @@ public class ScreenManager
     /// </summary>
     public static void ShowAbout()
     {
-        var logo = new[]
-        {
-            "██╗    ██╗ █████╗ ██╗   ██╗",
-            "██║    ██║██╔══██╗╚██╗ ██╔╝",
-            "██║ █╗ ██║███████║ ╚████╔╝ ",
-            "██║███╗██║██╔══██║  ╚██╔╝  ",
-            "╚███╔███╔╝██║  ██║   ██║   ",
-            " ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝   ",
-        };
-        var subtitle = "WayCoder 道码 · 中文版易用编程智能体 · v0.17.3";
-        var credit = "C# / .NET 10 · AOT 编译";
-        var company = "深圳市探索智能科技有限公司";
-
-        var boxW = 46;
-        var boxH = 13;
-        var boxX = Math.Max(1, (Console.WindowWidth - boxW) / 2);
-        var boxY = Math.Max(1, (Console.WindowHeight - boxH) / 2);
-
-        Console.CursorVisible = false;
-        var sb = new StringBuilder();
-
-        for (int i = 0; i < Console.WindowHeight; i++)
-            sb.Append($"\x1b[{i + 1};1H\x1b[100m{new string(' ', Console.WindowWidth)}\x1b[0m");
-
-        var box = new BoxBuffer
-        {
-            X = boxX, Y = boxY, Width = boxW, Height = boxH,
-            FgColor = "36", Border = BorderStyle.Double,
-        };
-        box.Render(sb);
-
-        for (int i = 0; i < logo.Length; i++)
-            box.WriteAt(sb, i, 1, $"\x1b[1m\x1b[96m{logo[i]}\x1b[0m");
-
-        var subPad = Math.Max(0, (box.ContentWidth - BoxBuffer.VwPlainText(subtitle)) / 2);
-        box.WriteAt(sb, 7, subPad, $"\x1b[37m{subtitle}\x1b[0m");
-
-        var credPad = Math.Max(0, (box.ContentWidth - BoxBuffer.VwPlainText(credit)) / 2);
-        box.WriteAt(sb, 8, credPad, $"\x1b[2m{credit}\x1b[0m");
-
-        var compPad = Math.Max(0, (box.ContentWidth - BoxBuffer.VwPlainText(company)) / 2);
-        box.WriteAt(sb, 9, compPad, $"\x1b[2m{company}\x1b[0m");
-
-        var btnText = " 确 定 ";
-        box.WriteLineHighlight(sb, 11, "30", "46", btnText);
-
-        Console.Write(sb.ToString());
+        var content = "WayCoder 道码 · 中文版易用编程智能体\nC# / .NET 10 · AOT 编译\n深圳市探索智能科技有限公司";
+        var win = WindowManager.Instance.ShowDialog("关于 WayCoder", content, width: 46);
+        Instance.Render();
         Console.ReadKey(intercept: true);
+        WindowManager.Instance.Close(win);
+        Instance.Render();
     }
 
     /// <summary>
@@ -626,6 +509,12 @@ public class ScreenManager
         int hotkeyRow = statusRow + 1;
         RenderHotkeyBar(sb, hotkeyRow);
 
+        // ---- 保存无浮层的帧用于窗口关闭时还原背景 ----
+        _lastCleanFrame = sb.ToString();
+
+        // ---- 浮层窗口（对话框/菜单/提示框）----
+        WindowManager.Instance.RenderOverlay(sb);
+
         // ---- 光标定位 (先显示光标再定位，避免 show-cursor 导致位置漂移) ----
         var (scrCy, scrCx) = InputHardToScreen(TW - 4);
         var cursorRow = inputRow + 1 + (scrCy - InputScroll);
@@ -641,42 +530,37 @@ public class ScreenManager
     // 聊天行渲染
     // ================================================================
 
-    private record ChatScreenLine(ChatMsg Msg, string Text);
+    private record ChatScreenLine(ChatMsg Msg, List<(string Text, int Fg, int Bg)> Segments);
 
     private List<ChatScreenLine> BuildChatScreenLines(int tw, int chatH)
     {
         var result = new List<ChatScreenLine>();
         foreach (var msg in ChatMessages)
         {
-            var prefix = msg.Role switch
-            {
-                "user" => "❯ ",
-                "tool" => "  ",
-                "system" => "  ",
-                _ => "  ",
-            };
-            var prefixVW = VW(prefix);
-            var maxVW = tw - prefixVW - 2;
+            var maxVW = tw - 2; // 减去左右边距
 
-            // 将消息内容按视觉宽度折行
-            var content = msg.Content;
-            if (string.IsNullOrEmpty(content))
+            if (string.IsNullOrEmpty(msg.Content))
             {
-                result.Add(new ChatScreenLine(msg, prefix));
+                result.Add(new ChatScreenLine(msg, new List<(string, int, int)> { ("", 0, 0) }));
                 continue;
             }
 
-            int offset = 0;
-            bool first = true;
-            while (offset < content.Length)
+            // 使用 TuiMarkdown 渲染消息
+            var renderedLines = TuiMarkdown.RenderMessage(msg.Content, msg.Role, maxVW);
+
+            // 为 user 角色添加 ❯ 前缀
+            foreach (var line in renderedLines)
             {
-                var slice = content[offset..];
-                var (vch, vcw) = MeasureSlice(slice, maxVW);
-                var text = first ? prefix + slice[..vch] : "  " + slice[..vch];
-                result.Add(new ChatScreenLine(msg, text));
-                offset += vch;
-                first = false;
-                if (vch == 0) break;
+                if (msg.Role == "user" && line.Count > 0)
+                {
+                    var newLine = new List<(string, int, int)> { ("❯ ", 36, 0) };
+                    newLine.AddRange(line);
+                    result.Add(new ChatScreenLine(msg, newLine));
+                }
+                else
+                {
+                    result.Add(new ChatScreenLine(msg, line));
+                }
             }
         }
         return result;
@@ -685,24 +569,33 @@ public class ScreenManager
     private void RenderChatLine(StringBuilder sb, ChatScreenLine cl)
     {
         var msg = cl.Msg;
-        switch (msg.Role)
+        bool hasContent = false;
+
+        foreach (var (text, fg, bg) in cl.Segments)
         {
-            case "user":
-                sb.Append($"\x1b[{ThemeAccentColor}m{cl.Text}\x1b[0m");
-                break;
-            case "tool":
-                sb.Append($"[2m{cl.Text}[0m");
-                break;
-            case "system":
-                sb.Append($"[2m{cl.Text}[0m");
-                break;
-            default:
-                sb.Append(cl.Text);
-                break;
+            if (string.IsNullOrEmpty(text)) continue;
+            hasContent = true;
+
+            // 构建 ANSI 序列
+            if (bg != 0 && fg != 0)
+                sb.Append($"\x1b[{fg};{bg}m");
+            else if (fg != 0)
+                sb.Append($"\x1b[{fg}m");
+            else if (bg != 0)
+                sb.Append($"\x1b[{bg}m");
+
+            sb.Append(text);
+
+            if (fg != 0 || bg != 0)
+                sb.Append("\x1b[0m");
         }
+
+        if (!hasContent && cl.Segments.Count > 0)
+            sb.Append(cl.Segments[0].Text);
+
         // 如果是流式最后一条，加闪烁光标效果
         if (msg.Streaming && msg == ChatMessages.LastOrDefault())
-            sb.Append("[5m ▏[0m");
+            sb.Append("\x1b[5m ▏\x1b[0m");
     }
 
     // ================================================================

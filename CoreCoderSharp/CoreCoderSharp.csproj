@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -6,23 +6,22 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>CoreCoderSharp</RootNamespace>
-    <!-- AOT 暂时禁用：Terminal.Gui v2 不支持 NativeAOT，待 v2 正式版后恢复 -->
-    <PublishAot>false</PublishAot>
+    <!-- AOT 编译：单文件 NativeAOT 部署，零依赖瞬时启动 -->
+    <PublishAot>true</PublishAot>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <AssemblyName>corecoder</AssemblyName>
-    <!-- Terminal.Gui v2 迁移标志 -->
-    <DefineConstants>$(DefineConstants);TERMINAL_GUI</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Spectre.Console" Version="0.*" />
-    <PackageReference Include="Terminal.Gui" Version="2.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Remove="game/**/*.cs" />
     <None Remove="game/**/*" />
+    <Compile Remove="lottery/**/*.cs" />
+    <None Remove="lottery/**/*" />
   </ItemGroup>
 
 </Project>
