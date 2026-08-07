@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-CoreCoder 是一个极简 AI 编程智能体，C# (.NET 10) 实现，AOT 编译为单文件 exe。
+WayCoder（道码）是一个中文版易用编程智能体，C# (.NET 10) 实现，AOT 编译为单文件 exe。原名 CoreCoder，因商标冲突更名。
 
 ## 常用命令
 

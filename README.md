@@ -1,8 +1,8 @@
 <div align="center">
 
-# CoreCoder
+# WayCoder（道码）
 
-**极简 AI 编程智能体，C# (.NET 10) 实现，AOT 编译为单文件 exe（7.8 MB），无需运行时。**
+**中文版易用编程智能体，C# (.NET 10) 实现，AOT 编译为单文件 exe（~8 MB），无需运行时。**
 
 *一个 while 循环 + 大模型 + 29 个工具 + Watch 模式，就是全部*
 
@@ -12,20 +12,29 @@
 
 </div>
 
+## 改名说明
+
+本项目原名 **CoreCoder**，因发现与现有商标/产品名称冲突，为规避侵权风险，自 v0.16.3 起更名为 **WayCoder（道码）**。
+
+- 代码命名空间暂保留 `CoreCoderSharp`（内部不影响用户）
+- 可执行文件：`corecoder.exe` → `waycoder.exe`
+- 环境变量前缀：`CORECODER_*` → `WAYCODER_*`（旧名仍兼容）
+- 目录名：仓库内部目录暂不重命名，不影响安装使用
+
 ## 这是什么
 
-CoreCoder 是一个极简 AI 编程智能体。把 Claude Code、Cursor 这类工具扒到底，核心是一个 while 循环套着一个大模型，外加十几个让它能真正动手的工具。CoreCoder 就是把这个核心老老实实写出来的最小版本。
+WayCoder（道码）是一个中文版易用编程智能体。把 Claude Code、Cursor 这类工具扒到底，核心是一个 while 循环套着一个大模型，外加二十几个让它能真正动手的工具。WayCoder 就是把这个核心老老实实写出来的开箱即用版本。
 
-C# 版完整移植了 Python 原版的全部功能，并新增了权限确认、Git 集成、Web 抓取、LSP 代码导航、记忆系统、后台任务、代码审查等 12 项功能。AOT 编译为单文件 exe，拷贝到任何 Windows 机器上直接运行，无需安装 .NET 运行时。
+C# 版完整移植了 Python 原版的全部功能，并新增了权限确认、Git 集成、Web 抓取、LSP 代码导航、记忆系统、后台任务、代码审查、Watch 模式等多项功能。AOT 编译为单文件 exe，拷贝到任何 Windows 机器上直接运行，无需安装 .NET 运行时。
 
 ## 先跑一次
 
 ```bash
 # 克隆仓库
-git clone https://github.com/he-yufeng/CoreCoder
-cd CoreCoder/CoreCoderSharp
+git clone https://github.com/he-yufeng/WayCoder
+cd WayCoder/CoreCoderSharp
 
-# AOT 编译（生成单文件 exe）
+# AOT 编译（生成单文件 waycoder.exe）
 dotnet publish -c Release
 
 # 或直接运行
@@ -45,9 +54,11 @@ dotnet run -- --test
 
 | Provider | 环境变量示例 |
 |---|---|
-| DeepSeek（默认 `deepseek-v4-flash`） | `CORECODER_API_KEY=sk-...` |
-| OpenAI | `CORECODER_MODEL=gpt-5.5` `CORECODER_API_KEY=sk-...` |
-| 本地 Ollama | `OPENAI_BASE_URL=http://localhost:11434/v1` `CORECODER_MODEL=qwen2.5-coder` |
+| DeepSeek（默认 `deepseek-v4-flash`） | `WAYCODER_API_KEY=sk-...` |
+| OpenAI | `WAYCODER_MODEL=gpt-5.5` `WAYCODER_API_KEY=sk-...` |
+| 本地 Ollama | `OPENAI_BASE_URL=http://localhost:11434/v1` `WAYCODER_MODEL=qwen2.5-coder` |
+
+> 💡 兼容旧名：`CORECODER_*` 环境变量仍可正常使用，建议逐步迁移至新前缀。
 
 ## 架构
 
@@ -68,7 +79,7 @@ CoreCoderSharp/
 ├── MemoryStore.cs     记忆系统
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        245 项自测
+├── SelfTest.cs        380 项自测
 └── Tools/             29 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
@@ -130,6 +141,7 @@ CoreCoderSharp/
 /git-log         Git 日志
 /git-diff        Git 差异
 /perm ask|auto|yolo  权限模式切换
+/watch           切换 Watch 模式
 /save  /sessions 保存 / 列出会话
 quit / exit      退出
 ```
@@ -142,6 +154,7 @@ quit / exit      退出
 - **AOT 编译：JSON 手写序列化**，不依赖反射
 - **权限系统**：bash/write/edit/agent 默认需确认，`/perm yolo` 跳过
 - **模型回退链**：失败时自动尝试备用模型
+- **Watch 模式**：文件监听 + AI! 注释解析 → 线程安全队列 → REPL 自动执行
 
 ## 贡献 / License
 

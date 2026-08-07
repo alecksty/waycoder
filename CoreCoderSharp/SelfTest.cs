@@ -75,7 +75,7 @@ public static class SelfTest
             else { failed++; Console.WriteLine($"  ❌ {name}"); }
         }
 
-        Console.WriteLine("CoreCoderSharp 自测");
+        Console.WriteLine("WayCoder 自测");
         Console.WriteLine("===================\n");
 
         // ---- 工具注册 ----
@@ -858,7 +858,7 @@ public static class SelfTest
         Check("Invalidate 后重新生成", RepoMapGenerator.Generate(forceRefresh: true).Length > 0);
 
         // 验证仓库地图包含当前项目的关键文件
-        Check("仓库地图包含 CoreCoderSharp/", repoMap.Contains("CoreCoderSharp/"));
+        Check("仓库地图包含 WayCoder/", repoMap.Contains("CoreCoderSharp/"));
         Check("仓库地图包含 Tools/", repoMap.Contains("Tools/"));
 
         // 验证系统提示词包含仓库地图
