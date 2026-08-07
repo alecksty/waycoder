@@ -37,6 +37,12 @@ public class Config
     /// <summary>Watch 模式 — 监听外部编辑器文件变更，自动处理 AI! / AI? 注释</summary>
     public bool WatchMode { get; set; } = false;
 
+    /// <summary>Prompt 缓存 — 追踪系统提示词/工具定义的重复发送，/stats 展示节省量</summary>
+    public bool PromptCaching { get; set; } = true;
+
+    /// <summary>沙箱级别: suggest | auto-edit | full-auto</summary>
+    public string SandboxLevel { get; set; } = "suggest";
+
     // ---- 界面主题 ----
     /// <summary>边框类型: single | double | rounded | bold</summary>
     public string BorderStyle { get; set; } = "rounded";
@@ -96,6 +102,12 @@ public class Config
 
         if (bool.TryParse(Env("WAYCODER_WATCH", "CORECODER_WATCH"), out var wm))
             config.WatchMode = wm;
+
+        if (bool.TryParse(Env("WAYCODER_PROMPT_CACHE", "CORECODER_PROMPT_CACHE"), out var pc))
+            config.PromptCaching = pc;
+
+        var envSandbox = Env("WAYCODER_SANDBOX_LEVEL", "CORECODER_SANDBOX_LEVEL");
+        if (envSandbox != null) config.SandboxLevel = envSandbox;
 
         // 主题
         var envBorder = Env("WAYCODER_BORDER_STYLE", "CORECODER_BORDER_STYLE");
@@ -230,6 +242,10 @@ public class Config
             "select", ["false", "true"], "WAYCODER_AUTO_COMMIT", 1),
         new("WatchMode", "Watch 模式", "🔧 系统", "监听外部编辑器 AI! 注释自动触发 Agent",
             "select", ["false", "true"], "WAYCODER_WATCH", 2),
+        new("PromptCaching", "Prompt 缓存", "🔧 系统", "追踪系统提示词重复发送，/stats 展示节省",
+            "select", ["false", "true"], "WAYCODER_PROMPT_CACHE", 3),
+        new("SandboxLevel", "沙箱级别", "🔧 系统", "suggest=确认 auto-edit=编自动 full-auto=全自动沙箱",
+            "select", ["suggest", "auto-edit", "full-auto"], "WAYCODER_SANDBOX_LEVEL", 4),
 
         // 界面主题
         new("ColorScheme", "配色方案", "🎨 界面", "预设配色 (覆盖下方颜色设置)",
@@ -265,6 +281,8 @@ public class Config
         ApplyOrAppend(lines, "WAYCODER_PROVIDER", Provider);
         ApplyOrAppend(lines, "WAYCODER_AUTO_COMMIT", AutoGitCommit.ToString().ToLowerInvariant());
         ApplyOrAppend(lines, "WAYCODER_WATCH", WatchMode.ToString().ToLowerInvariant());
+        ApplyOrAppend(lines, "WAYCODER_PROMPT_CACHE", PromptCaching.ToString().ToLowerInvariant());
+        ApplyOrAppend(lines, "WAYCODER_SANDBOX_LEVEL", SandboxLevel);
         ApplyOrAppend(lines, "WAYCODER_BORDER_STYLE", BorderStyle);
         ApplyOrAppend(lines, "WAYCODER_BORDER_COLOR", BorderColor);
         ApplyOrAppend(lines, "WAYCODER_ACCENT_COLOR", AccentColor);
