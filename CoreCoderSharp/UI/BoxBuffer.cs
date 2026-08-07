@@ -214,6 +214,22 @@ public class BoxBuffer
         return text;
     }
 
+    /// <summary>在内部相对坐标写入整行，指定前景色和背景色（用于高亮行）</summary>
+    public void WriteLineHighlight(StringBuilder sb, int relRow, string fgColor, string bgColor, string text)
+    {
+        if (relRow < 0 || relRow >= ContentHeight) return;
+        var absRow = ContentTop + relRow;
+        var absCol = ContentLeft;
+        var textVW = VwPlainText(text);
+        var maxLen = ContentWidth;
+        string display; int padLen;
+        if (textVW > maxLen) { display = TruncateByVW(text, maxLen - 1) + "…"; padLen = 0; }
+        else { display = text; padLen = maxLen - textVW; }
+        sb.Append($"\x1b[{absRow};{absCol}H\x1b[{fgColor}m\x1b[{bgColor}m{display}");
+        if (padLen > 0) sb.Append(new string(' ', padLen));
+        sb.Append("\x1b[0m");
+    }
+
     // ================================================================
     // 便捷静态方法 — 在 BoxBuffer 内部绘制文字
     // ================================================================

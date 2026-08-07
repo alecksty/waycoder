@@ -300,6 +300,80 @@ public class ScreenManager
     // 屏幕控制
     // ================================================================
 
+    /// <summary>
+    /// 显示 About 对话框 — ASCII 大字标题 + 确定按钮
+    /// </summary>
+    public static void ShowAbout()
+    {
+        var logo = new[]
+        {
+            "   ██████╗ ██████╗ ██████╗ ███████╗",
+            "  ██╔════╝██╔═══██╗██╔══██╗██╔════╝",
+            "  ██║     ██║   ██║██████╔╝█████╗  ",
+            "  ██║     ██║   ██║██╔══██╗██╔══╝  ",
+            "  ╚██████╗╚██████╔╝██║  ██║███████╗",
+            "   ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝",
+        };
+        var subtitle = "极简 AI 编程智能体 · v0.15.1";
+        var credit = "C# / .NET 10 · AOT 编译";
+
+        var boxW = 46;
+        var boxH = 12;
+        var boxX = Math.Max(1, (Console.WindowWidth - boxW) / 2);
+        var boxY = Math.Max(1, (Console.WindowHeight - boxH) / 2);
+
+        Console.CursorVisible = false;
+        var sb = new StringBuilder();
+
+        for (int i = 0; i < Console.WindowHeight; i++)
+            sb.Append($"\x1b[{i + 1};1H\x1b[100m{new string(' ', Console.WindowWidth)}\x1b[0m");
+
+        var box = new BoxBuffer
+        {
+            X = boxX, Y = boxY, Width = boxW, Height = boxH,
+            FgColor = "36", Border = BorderStyle.Double,
+        };
+        box.Render(sb);
+
+        for (int i = 0; i < logo.Length; i++)
+            box.WriteAt(sb, i, 1, $"\x1b[1m\x1b[96m{logo[i]}\x1b[0m");
+
+        var subPad = Math.Max(0, (box.ContentWidth - BoxBuffer.VwPlainText(subtitle)) / 2);
+        box.WriteAt(sb, 7, subPad, $"\x1b[37m{subtitle}\x1b[0m");
+
+        var credPad = Math.Max(0, (box.ContentWidth - BoxBuffer.VwPlainText(credit)) / 2);
+        box.WriteAt(sb, 8, credPad, $"\x1b[2m{credit}\x1b[0m");
+
+        var btnText = " 确 定 ";
+        box.WriteLineHighlight(sb, 10, "30", "46", btnText);
+
+        Console.Write(sb.ToString());
+        Console.ReadKey(intercept: true);
+    }
+
+    /// <summary>
+    /// 渲染底部快捷键栏
+    /// </summary>
+    private void RenderHotkeyBar(StringBuilder sb, int row)
+    {
+        var hotkeys = new (string key, string desc)[]
+        {
+            ("F1", "帮助"), ("F2", "面板"), ("F5", "设置"),
+            ("F6", "编辑"), ("F10", "退出"),
+            ("Ctrl+PgUp", "聊天顶"), ("Ctrl+PgDn", "聊天底"),
+        };
+
+        sb.Append($"\x1b[{row};1H\x1b[100m");
+        foreach (var (key, desc) in hotkeys)
+        {
+            sb.Append($" \x1b[33m{key}\x1b[0m\x1b[100m\x1b[2m {desc}\x1b[0m\x1b[100m");
+        }
+        var used = hotkeys.Sum(h => 3 + h.key.Length + h.desc.Length);
+        var remain = Console.WindowWidth - used;
+        if (remain > 0) sb.Append(new string(' ', remain));
+        sb.Append("\x1b[0m");
+    }
+
     /// <summary>进入全屏模式</summary>
     public void Enter()
     {
@@ -387,12 +461,13 @@ public class ScreenManager
         // ---- 布局计算 ----
         var inputH = ComputeInputScreenH();
         var statusH = 1;
+        var hotkeyH = 1;
         var suggestH = SuggestActive ? Math.Min(Suggestions.Count, 10) + 2 : 0;
         var topH = 1;
         var sepH = 1;
         var panelW = ActivePanel != PanelTab.Off ? 32 : 0;
         var chatW = Math.Max(20, TW - panelW);
-        var chatH = TH - topH - sepH - suggestH - inputH - 1 - statusH;
+        var chatH = TH - topH - sepH - suggestH - inputH - 1 - statusH - hotkeyH;
         if (chatH < 3) chatH = 3;
 
         var chatScreenLines = BuildChatScreenLines(chatW, chatH);
@@ -402,7 +477,7 @@ public class ScreenManager
         _chatScroll = Math.Clamp(_chatScroll, 0, maxScroll);
 
         // ---- 顶栏 (蓝底白字) ----
-        var topText = $" CoreCoder v0.15.0 · {StatusLeft}";
+        var topText = $" CoreCoder v0.15.1 · {StatusLeft}";
         if (ActivePanel != PanelTab.Off) topText += $"  [F2 面板:{ActivePanel}]";
         sb.Append($"[44;37m{topText}{new string(' ', Math.Max(0, TW - VW(topText)))}[0m\r\n");
 
