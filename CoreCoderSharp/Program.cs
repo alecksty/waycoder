@@ -204,8 +204,23 @@ public class Program
                     break;
 
                 case ConsoleKey.F2:
-                    sm.ShowTodoPanel = !sm.ShowTodoPanel;
+                    sm.ActivePanel = sm.ActivePanel switch
+                    {
+                        ScreenManager.PanelTab.Off => ScreenManager.PanelTab.Todo,
+                        ScreenManager.PanelTab.Todo => ScreenManager.PanelTab.Files,
+                        ScreenManager.PanelTab.Files => ScreenManager.PanelTab.LSP,
+                        ScreenManager.PanelTab.LSP => ScreenManager.PanelTab.MCP,
+                        _ => ScreenManager.PanelTab.Off,
+                    };
+                    if (sm.ActivePanel == ScreenManager.PanelTab.Files)
+                        sm.ModifiedFiles = EditFileTool.ChangedFiles.ToList();
                     break;
+
+                // ---- 聊天区滚动 ----
+                case ConsoleKey.PageUp: sm.ChatScrollUp(Math.Max(1, (Console.WindowHeight - 10) / 2)); break;
+                case ConsoleKey.PageDown: sm.ChatScrollDown(Math.Max(1, (Console.WindowHeight - 10) / 2)); break;
+                case ConsoleKey.Home when ctrl: sm.ChatScrollTop(); break;
+                case ConsoleKey.End when ctrl: sm.ChatScrollBottom(); break;
 
                 case ConsoleKey.Enter when ctrl || shift:
                     sm.InputNewLine();
