@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using CoreCoderSharp.Tools;
 using CoreCoderSharp.UI;
 using Spectre.Console;
@@ -505,6 +505,17 @@ case ConsoleKey.F2:
             "/q" => "quit",
             _ => userInput,
         };
+
+        // 斜杠命令拼写纠错：/rsume → /resume（编辑距离 ≤ 2 自动纠正）
+        if (userInput.StartsWith('/'))
+        {
+            var corrected = SuggestCommand(userInput);
+            if (corrected != null && corrected != userInput)
+            {
+                sm.AddSystemMsg($"💡 命令 [{userInput}] 未识别，已纠正为 [{corrected}]");
+                userInput = corrected;
+            }
+        }
 
         var lower = userInput.ToLowerInvariant();
 
