@@ -12,8 +12,17 @@
     <AssemblyName>corecoder</AssemblyName>
   </PropertyGroup>
 
+  <!-- Debug 构建启用 Terminal.Gui v2 实验性 TUI -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>$(DefineConstants);TERMINAL_GUI</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Spectre.Console" Version="0.*" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageReference Include="Terminal.Gui" Version="2.0.0" />
   </ItemGroup>
 
   <ItemGroup>
