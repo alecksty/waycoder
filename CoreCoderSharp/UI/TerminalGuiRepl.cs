@@ -101,13 +101,23 @@ public class TerminalGuiRepl
 
     private void BuildUI()
     {
-        // 统一配色：白字黑底，高对比度
+        // 全局配色：所有视图默认黑底白字
         var scheme = new ColorScheme
         {
             Normal = new Terminal.Gui.Attribute(Color.White, Color.Black),
-            Focus = new Terminal.Gui.Attribute(Color.White, Color.Blue),
+            Focus = new Terminal.Gui.Attribute(Color.BrightYellow, Color.DarkGray),
             HotNormal = new Terminal.Gui.Attribute(Color.Cyan, Color.Black),
-            HotFocus = new Terminal.Gui.Attribute(Color.BrightCyan, Color.Blue),
+            HotFocus = new Terminal.Gui.Attribute(Color.BrightCyan, Color.DarkGray),
+            Disabled = new Terminal.Gui.Attribute(Color.Gray, Color.Black),
+        };
+
+        // 聊天区专用：黑底白字
+        var chatScheme = new ColorScheme
+        {
+            Normal = new Terminal.Gui.Attribute(Color.White, Color.Black),
+            Focus = new Terminal.Gui.Attribute(Color.White, Color.Black),
+            HotNormal = new Terminal.Gui.Attribute(Color.Cyan, Color.Black),
+            HotFocus = new Terminal.Gui.Attribute(Color.BrightYellow, Color.DarkGray),
             Disabled = new Terminal.Gui.Attribute(Color.Gray, Color.Black),
         };
 
@@ -128,7 +138,7 @@ public class TerminalGuiRepl
             Height = Dim.Fill() - 5,
             ReadOnly = true,
             WordWrap = true,
-            ColorScheme = scheme,
+            ColorScheme = chatScheme,
         };
 
         // --- 输入区 ---
