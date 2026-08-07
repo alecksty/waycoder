@@ -81,9 +81,11 @@ public class Program
             MarkupLine("[bold red]╚══════════════════════════════╝[/]");
             Console.WriteLine();
             Console.WriteLine("请设置以下环境变量之一:");
-            Console.WriteLine("  CORECODER_API_KEY");
-            Console.WriteLine("  OPENAI_API_KEY");
+            Console.WriteLine("  WAYCODER_API_KEY");
             Console.WriteLine("  DEEPSEEK_API_KEY");
+            Console.WriteLine("  OPENAI_API_KEY");
+            Console.WriteLine("  ANTHROPIC_API_KEY");
+            Console.WriteLine("  API_KEY");
             Console.WriteLine();
             Console.WriteLine("或者在项目根目录创建 .env 文件:");
             Console.WriteLine("  CORECODER_API_KEY=sk-你的密钥");
