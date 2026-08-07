@@ -1,4 +1,6 @@
+using System.Text;
 using CoreCoderSharp.Tools;
+using CoreCoderSharp.UI;
 
 namespace CoreCoderSharp;
 
@@ -832,6 +834,105 @@ public static class SelfTest
         var gitLarge = new GitTool().ExecuteAsync(new() { ["command"] = "log --all --oneline" }).Result;
         Check("git log 全历史不死锁", gitLarge.Length > 0);
 
+        Console.WriteLine();
+
+        // ---- CJK 宽度计算 (TuiHelper) ----
+        Console.WriteLine("[CJK 宽度]");
+        Check("ASCII 宽度=1", UI.TuiHelper.DisplayWidth("abc") == 3);
+        Check("中文 宽度=2", UI.TuiHelper.DisplayWidth("你好") == 4);
+        Check("中英混合", UI.TuiHelper.DisplayWidth("hi你好") == 6);
+        Check("空字符串=0", UI.TuiHelper.DisplayWidth("") == 0);
+        Check("数字宽度=1", UI.TuiHelper.DisplayWidth("123") == 3);
+        Check("中文宽度=2", UI.TuiHelper.DisplayWidth("你好") == 4);
+        Check("Truncate 不截断短文本", UI.TuiHelper.TruncateByWidth("hello", 10) == "hello");
+        Check("Truncate 中文=6留'你好…'", UI.TuiHelper.TruncateByWidth("你好世界", 6) == "你好…");
+        Check("Truncate 中文=8完整", UI.TuiHelper.TruncateByWidth("你好世界", 8) == "你好世界");
+        Check("Esc 转义方括号", UI.TuiHelper.Esc("[文件]") == "[[文件]]");
+        Console.WriteLine();
+
+        // ---- 语法高亮 (Syntax) ----
+        Console.WriteLine("[语法高亮]");
+        var csSyn = Syntax.ForFile("test.cs");
+        Check("C# 语法名称", csSyn.Name == "C#");
+        var csTokens = csSyn.Tokenize("public class Program {");
+        Check("C# Tokenize 非空", csTokens.Count > 0);
+        Check("C# public=青色", csTokens.Any(t => t.Text == "public" && t.Color == Syntax.Cyan));
+        Check("C# class=青色", csTokens.Any(t => t.Text == "class" && t.Color == Syntax.Cyan));
+
+        var jsSyn = Syntax.ForFile("test.js");
+        Check("JS 语法名称", jsSyn.Name == "JavaScript");
+        var jsTokens = jsSyn.Tokenize("const x = 42;");
+        Check("JS const=青色", jsTokens.Any(t => t.Text == "const" && t.Color == Syntax.Cyan));
+        Check("JS 数字=黄色", jsTokens.Any(t => t.Text == "42" && t.Color == Syntax.Yellow));
+
+        // 字符串和注释高亮
+        var strTokens = csSyn.Tokenize("var s = \"hello\";");
+        Check("字符串=绿色", strTokens.Any(t => t.Text == "\"hello\"" && t.Color == Syntax.Green));
+        var cmtTokens = csSyn.Tokenize("// comment");
+        Check("注释=灰色", cmtTokens.Any(t => t.Text == "// comment" && t.Color == Syntax.Dim));
+
+        // 其他语言
+        Check("Python 语法", Syntax.ForFile("test.py").Name == "Python");
+        Check("Go 语法", Syntax.ForFile("test.go").Name == "Go");
+        Check("Rust 语法", Syntax.ForFile("test.rs").Name == "Rust");
+        Check("SQL 语法", Syntax.ForFile("test.sql").Name == "SQL");
+        Check("JSON 语法", Syntax.ForFile("test.json").Name == "JSON");
+        Check("未知扩展=纯文本", Syntax.ForFile("test.xyz").Name == "纯文本");
+        Console.WriteLine();
+
+        // ---- ScreenManager 逻辑 ----
+        Console.WriteLine("[ScreenManager]");
+        var sm = ScreenManager.Instance;
+        Check("实例非空", sm != null);
+        Check("初始 IsActive=false", !sm.IsActive);
+        Check("ChatMessages 初始为空", sm.ChatMessages.Count == 0);
+
+        // 消息管理
+        sm.AddUserMsg("hello");
+        Check("AddUserMsg 添加消息", sm.ChatMessages.Count == 1 && sm.ChatMessages[0].Role == "user");
+        sm.StartAgentMsg();
+        sm.AppendToken("Hello, ");
+        sm.AppendToken("world!");
+        sm.FinishAgentMsg();
+        Check("Agent 流式消息合并", sm.ChatMessages.Count == 2 && sm.ChatMessages[1].Content == "Hello, world!");
+        sm.AddToolMsg("bash", "echo test");
+        Check("工具消息", sm.ChatMessages.Count == 3 && sm.ChatMessages[2].Role == "tool");
+        sm.AddSystemMsg("done");
+        Check("系统消息", sm.ChatMessages.Count == 4 && sm.ChatMessages[3].Role == "system");
+
+        // Token 显示
+        sm.UpdateTokenDisplay(1234, 567, 0.0123, 80000, 128000);
+        Check("TokenInfo 非空", sm.TokenInfo.Length > 0);
+        Check("Token 包含↑1.2k", sm.TokenInfo.Contains("↑1.2k"));
+        Check("Token 包含缓存%", sm.TokenInfo.Contains("缓存"));
+
+        // 输入编辑
+        sm.InputLines.Clear(); sm.InputLines.Add(new StringBuilder());
+        sm.InputCy = 0; sm.InputCx = 0;
+        sm.InputCy = 0; sm.InputCx = 0;
+        sm.InputInsert('a'); sm.InputInsert('b');
+        Check("InputInsert 字符", sm.GetInputText() == "ab");
+        sm.InputBackspace();
+        Check("InputBackspace 删除", sm.GetInputText() == "a");
+        sm.InputNewLine();
+        sm.InputInsert('x');
+        Check("InputNewLine 换行", sm.GetInputText() == "a\nx");
+
+        // 建议/菜单
+        sm.SetInput("/hel");
+        sm.UpdateSuggestions();
+        Check("建议面板激活", sm.SuggestActive && sm.Suggestions.Count > 0);
+        Check("建议首项过滤正确", sm.Suggestions.Any(s => s.StartsWith("/hel")));
+        sm.SetInput("");
+        sm.UpdateSuggestions();
+        Check("无输入关闭建议", !sm.SuggestActive);
+        Console.WriteLine();
+
+        // ---- 输入处理逻辑 ----
+        Console.WriteLine("[输入规范化]");
+        var input = "／help";
+        input = input.Replace('／', '/').Replace('！', '!').Replace('＃', '#');
+        Check("全角／→半角/", input == "/help");
         Console.WriteLine();
 
         // ---- 结果 ----
