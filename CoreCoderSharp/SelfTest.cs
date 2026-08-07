@@ -1042,6 +1042,58 @@ public static class SelfTest
         try { File.Delete(testFile); } catch { }
         Console.WriteLine();
 
+        // ---- BoxBuffer ----
+        Console.WriteLine("[BoxBuffer]");
+        Check("VW ASCII = 1", BoxBuffer.VW("a") == 1);
+        Check("VW CJK = 2", BoxBuffer.VW("中") == 2);
+        Check("VW mixed", BoxBuffer.VW("a中b") == 4);
+        Check("VwPlainText 纯文本", BoxBuffer.VwPlainText("hello") == 5);
+        Check("VwPlainText 含 ANSI", BoxBuffer.VwPlainText("[31mhello[0m") == 5);
+        Check("TruncateByVW 不截断", BoxBuffer.TruncateByVW("abc", 5) == "abc");
+
+        var bb = new BoxBuffer { X = 5, Y = 3, Width = 40, Height = 10 };
+        Check("BoxBuffer X/Y", bb.X == 5 && bb.Y == 3);
+        Check("BoxBuffer W/H", bb.Width == 40 && bb.Height == 10);
+        Check("BoxBuffer ContentLeft", bb.ContentLeft == 6);
+        Check("BoxBuffer ContentTop", bb.ContentTop == 4);
+        Check("BoxBuffer ContentWidth", bb.ContentWidth == 38);
+        Check("BoxBuffer ContentHeight", bb.ContentHeight == 8);
+        Check("BoxBuffer None 边框", new BoxBuffer { Border = BorderStyle.None }.ContentLeft == 0);
+
+        var sb = new System.Text.StringBuilder();
+        bb.Render(sb); Check("BoxBuffer Render 不崩溃", sb.Length > 0);
+        sb.Clear(); bb.WriteLine(sb, 0, 0, "test"); Check("BoxBuffer WriteLine 不崩溃", sb.Length > 0);
+        sb.Clear(); bb.Fill(sb); Check("BoxBuffer Fill 不崩溃", sb.Length > 0);
+
+        foreach (var s in new[] { BorderStyle.Single, BorderStyle.Double,
+            BorderStyle.Thick, BorderStyle.None })
+        { sb.Clear(); new BoxBuffer { Width = 10, Height = 5, Border = s }.Render(sb);
+          Check("边框 " + s + " 渲染", sb.Length > 0); }
+
+        Console.WriteLine();
+
+        // ---- Git 自动提交 ----
+        Console.WriteLine("[Git 自动提交]");
+        var gc = new Config();
+        Check("AutoGitCommit 默认 false", !gc.AutoGitCommit);
+        gc.AutoGitCommit = true; Check("AutoGitCommit 写入 true", gc.AutoGitCommit);
+        gc.AutoGitCommit = false; Check("AutoGitCommit 写入 false", !gc.AutoGitCommit);
+
+        var schema2 = Config.SettingSchema();
+        var ac = schema.FirstOrDefault(s => s.Key == "AutoGitCommit");
+        Check("Schema 包含 AutoGitCommit", ac != null);
+        Check("AutoGitCommit 是 select 类型", ac?.Type == "select");
+        Check("AutoGitCommit 有选项", ac?.Options?.Contains("true") == true);
+        Check("AutoGitCommit EnvVar", ac?.EnvVar == "CORECODER_AUTO_COMMIT");
+
+        Console.WriteLine();
+
+        // ---- SaveToEnvFile ----
+        Console.WriteLine("[SaveToEnvFile]");
+        Check("SaveToEnvFile 方法存在", typeof(Config).GetMethod("SaveToEnvFile") != null);
+
+        Console.WriteLine();
+
         // ---- 结果 ----
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
         return failed == 0;
