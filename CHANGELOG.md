@@ -1,5 +1,33 @@
 # 更新日志
 
+## v0.17.3 (2026-08-07) — MCP 协议完善
+
+### ✨ 新增功能
+- **MCP 传输抽象层** — 解耦通信方式与协议层
+  - 新增 `McpTransport` 抽象类：`SendRequestAsync` / `SendNotification` / `DisconnectAsync` / `IsConnected`
+  - `StdioMcpTransport`：从 `McpConnection` 提取子进程管理代码（向后兼容）
+  - `HttpMcpTransport`：HTTP POST + SSE 响应流解析，支持 Streamable HTTP 传输
+  - `McpConnection` 重构为协议层，持有 `McpTransport` 实例委托通信
+- **MCP 配置格式增强**
+  - `mcp_servers.json` 新增 `transport` / `url` / `headers` 字段
+  - 自动检测传输类型：有 `url` → HTTP，否则 → stdio（向后兼容）
+  - `headers` 和 `url` 中的 `${VAR}` 语法自动展开为环境变量
+  - `RunInit()` 模板添加 HTTP MCP 服务器注释示例
+- **工具发现缓存** — 持久化 `tools/list` 结果，加速启动
+  - 新增 `McpCache.cs`：SHA256 缓存键 + 24h TTL
+  - `CachedMcpTool`：缓存命中时立即可用，后台异步刷新
+  - 配置变更自动失效（基于命令/参数/URL 的 SHA256 哈希）
+- **MCP 面板状态显示** — F2 面板 MCP 页显示服务器连接状态和工具数量
+  - `McpManager.Info` 属性 + `ScreenManager` 自动读取渲染
+
+### 🔧 增强
+- MCP 客户端版本号更新为 0.17.3
+- `DiscoveredTools` 支持按服务器前缀移除旧条目（缓存刷新时替换）
+
+### 📝 自测
+- 10+ 项 MCP HTTP 传输测试（传输检测、环境变量展开、headers 解析）
+- 6 项 MCP 缓存测试（缓存键稳定性、规范标识符、格式验证）
+
 ## v0.17.2 (2026-08-07) — TUI 编辑器 Lint 诊断集成
 
 ### ✨ 新增功能
