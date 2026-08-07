@@ -311,9 +311,13 @@ case ConsoleKey.F2:
                     running = false;
                     break;
 
+                case ConsoleKey.Backspace when ctrl: sm.InputDeleteWordLeft(); sm.UpdateSuggestions(); break;
                 case ConsoleKey.Backspace: sm.InputBackspace(); sm.UpdateSuggestions(); break;
+                case ConsoleKey.Delete when ctrl: sm.InputDeleteWordRight(); sm.UpdateSuggestions(); break;
                 case ConsoleKey.Delete: sm.InputDelete(); sm.UpdateSuggestions(); break;
+                case ConsoleKey.LeftArrow when ctrl: sm.InputWordLeft(); break;
                 case ConsoleKey.LeftArrow: sm.InputMoveLeft(); break;
+                case ConsoleKey.RightArrow when ctrl: sm.InputWordRight(); break;
                 case ConsoleKey.RightArrow: sm.InputMoveRight(); break;
                 case ConsoleKey.UpArrow:
                     if (sm.InputLines.Count == 1)
