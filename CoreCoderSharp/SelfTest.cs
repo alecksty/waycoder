@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using CoreCoderSharp.Tools;
 using CoreCoderSharp.UI;
 
@@ -1210,6 +1210,36 @@ public static class SelfTest
             Check($"别名 {alias} → {expected}", resolved == expected);
         }
         Check("非别名不变 /export", ("/export" switch { "/c" => "/compact", "/m" => "/model", _ => "/export" }) == "/export");
+        Console.WriteLine();
+
+        // ---- 斜杠命令拼写纠错 ----
+        Section("[命令纠错]");
+        // /rsume → /resume（漏字符，距离 1）
+        Check("漏字符 /rsume → /resume", Program.SuggestCommand("/rsume") == "/resume");
+        // /hel → /help（短命令距离 1）
+        Check("短命令 /hel → /help", Program.SuggestCommand("/hel") == "/help");
+        // /resuem → /resume（换位，距离 2，长命令允许）
+        Check("换位 /resuem → /resume", Program.SuggestCommand("/resuem") == "/resume");
+        // /tokenss → /tokens（多字符，距离 1）
+        Check("多字符 /tokenss → /tokens", Program.SuggestCommand("/tokenss") == "/tokens");
+        // 已知命令不纠正
+        Check("已知命令 /model 不纠正", Program.SuggestCommand("/model") == null);
+        // 带参数保留
+        Check("带参数 /model x 不纠正", Program.SuggestCommand("/model gpt-5.4") == null);
+        Check("带参数纠正保留", Program.SuggestCommand("/rsume x") == "/resume x");
+        // 非斜杠输入不处理
+        Check("非斜杠输入不纠正", Program.SuggestCommand("hello world") == null);
+        // 短命令距离 2 拒绝（/ls → /pr 距离 2 但过短）
+        Check("短命令距离 2 拒绝 /ls", Program.SuggestCommand("/ls") == null);
+        // 距离太远不纠正
+        Check("距离太远不纠正 /xyzzy", Program.SuggestCommand("/xyzzy") == null);
+        // 编辑距离算法
+        Check("Levenshtein 相同 = 0", Program.Levenshtein("abc", "abc") == 0);
+        Check("Levenshtein 替换 = 1", Program.Levenshtein("abc", "abd") == 1);
+        Check("Levenshtein 插入 = 1", Program.Levenshtein("abc", "abcd") == 1);
+        Check("Levenshtein 删除 = 1", Program.Levenshtein("abcd", "abc") == 1);
+        Check("Levenshtein 空串", Program.Levenshtein("", "abc") == 3);
+        Check("KnownCommands 非空", Program.KnownCommands.Length >= 30);
         Console.WriteLine();
 
         // ---- MCP 环境变量解析 ----
