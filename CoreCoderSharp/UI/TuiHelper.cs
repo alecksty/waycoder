@@ -100,7 +100,7 @@ public static class TuiHelper
     /// 计算单个 Rune 的终端显示宽度。
     /// 参考 Unicode East Asian Width 规范 + wcwidth 实现。
     /// </summary>
-    private static int RuneWidth(Rune rune)
+    internal static int RuneWidth(Rune rune)
     {
         var cp = rune.Value;
 
