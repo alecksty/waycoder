@@ -29,7 +29,8 @@ public class ContextManager
     /// <summary>
     /// 按需应用压缩层。返回是否发生了压缩。
     /// </summary>
-    public async Task<bool> MaybeCompressAsync(List<JsonObject> messages, LLM? llm)
+    public async Task<bool> MaybeCompressAsync(List<JsonObject> messages, LLM? llm,
+        Action<int, string>? onProgress = null)
     {
         var current = EstimateTokens(messages);
         var compressed = false;
@@ -37,28 +38,35 @@ public class ContextManager
         // 第 1 层：裁剪冗长的工具输出
         if (current > _snipAt)
         {
+            onProgress?.Invoke(1, $"裁剪工具输出... ({current}/{MaxTokens})");
             if (SnipToolOutputs(messages))
             {
                 compressed = true;
                 current = EstimateTokens(messages);
+                onProgress?.Invoke(1, $"裁剪完成 → {current}/{MaxTokens}");
             }
         }
 
         // 第 2 层：LLM 驱动的旧对话摘要
         if (current > _summarizeAt && messages.Count > 10)
         {
+            onProgress?.Invoke(2, $"正在摘要旧对话... ({current}/{MaxTokens})");
             if (await SummarizeOldAsync(messages, llm, keepRecent: 8))
             {
                 compressed = true;
                 current = EstimateTokens(messages);
+                onProgress?.Invoke(2, $"摘要完成 → {current}/{MaxTokens}");
             }
         }
 
         // 第 3 层：硬折叠——最后手段
         if (current > _collapseAt && messages.Count > 4)
         {
+            onProgress?.Invoke(3, $"紧急压缩... ({current}/{MaxTokens})");
             await HardCollapseAsync(messages, llm);
             compressed = true;
+            current = EstimateTokens(messages);
+            onProgress?.Invoke(3, $"压缩完成 → {current}/{MaxTokens}");
         }
 
         return compressed;
