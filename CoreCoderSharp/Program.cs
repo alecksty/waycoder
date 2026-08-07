@@ -42,7 +42,7 @@ public class Program
             }
         }
 
-        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.11.0"); return 0; }
+        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.12.0"); return 0; }
 
         _config = Config.FromEnv();
         if (model != null) _config.Model = model;
@@ -155,7 +155,7 @@ public class Program
         sm.ChatMessages.Clear();
         sm.InputLines.Clear();
         sm.InputLines.Add(new StringBuilder());
-        sm.AddSystemMsg($"CoreCoder v0.11.0 · 模型: {_config.Model}  ·  /help 帮助");
+        sm.AddSystemMsg($"CoreCoder v0.12.0 · 模型: {_config.Model}  ·  /help 帮助");
         sm.StatusLeft = _config.Model;
 
         var running = true;
