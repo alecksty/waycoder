@@ -75,7 +75,7 @@ public class Agent
         CancellationToken cancellationToken = default)
     {
         Messages.Add(new JsonObject { ["role"] = "user", ["content"] = userInput });
-        await Context.MaybeCompressAsync(Messages, LlmClient);
+        await CompressWithSmallModel();
 
         for (int round = 0; round < _maxRounds; round++)
         {
@@ -153,10 +153,19 @@ public class Agent
             }
 
             // 如果工具输出太大则压缩上下文
-            await Context.MaybeCompressAsync(Messages, LlmClient);
+            await CompressWithSmallModel();
         }
 
         return "（已达到最大工具调用轮次）";
+    }
+
+    /// <summary>使用小模型执行上下文压缩（省钱）</summary>
+    private async Task CompressWithSmallModel()
+    {
+        var saved = LlmClient.ModelOverride;
+        LlmClient.ModelOverride = LlmClient.SmallModel;
+        try { await Context.MaybeCompressAsync(Messages, LlmClient); }
+        finally { LlmClient.ModelOverride = saved; }
     }
 
     /// <summary>
