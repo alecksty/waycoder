@@ -394,7 +394,7 @@ public class ScreenManager
             "  ╚██████╗╚██████╔╝██║  ██║███████╗",
             "   ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝",
         };
-        var subtitle = "极简 AI 编程智能体 · v0.16.1";
+        var subtitle = "极简 AI 编程智能体 · v0.16.3";
         var credit = "C# / .NET 10 · AOT 编译";
 
         var boxW = 46;
@@ -563,7 +563,7 @@ public class ScreenManager
         // ---- 顶栏 (主题色底白字) ----
         var topBarBg = ThemeAccentColor switch { "32" => "42", "33" => "43", "34" => "44",
             "35" => "45", "37" => "47", _ => "44" };
-        var topText = $" CoreCoder v0.16.1 · {StatusLeft}";
+        var topText = $" CoreCoder v0.16.3 · {StatusLeft}";
         if (ActivePanel != PanelTab.Off) topText += $"  [F2 面板:{ActivePanel}]";
         sb.Append($"\x1b[{topBarBg};37m{topText}{new string(' ', Math.Max(0, TW - VW(topText)))}\x1b[0m");
 
