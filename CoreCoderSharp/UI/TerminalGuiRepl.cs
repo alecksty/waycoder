@@ -1,4 +1,3 @@
-#if TERMINAL_GUI
 using System.Collections.ObjectModel;
 using System.Text;
 using CoreCoderSharp.Tools;
@@ -7,8 +6,8 @@ using Terminal.Gui;
 namespace CoreCoderSharp.UI;
 
 /// <summary>
-/// Terminal.Gui v2 版 REPL — 用成熟控件库替代手写 ANSI 转义码 TUI。
-/// 通过 --tui-v2 启动，仅 Debug 构建可用（AOT 暂不支持 Terminal.Gui）。
+/// Terminal.Gui v2 版 REPL — 默认 TUI，替代手写 ANSI 转义码。
+/// 使用 --tui-v1 可回退到旧版 ScreenManager TUI。
 /// </summary>
 public class TerminalGuiRepl
 {
@@ -23,12 +22,20 @@ public class TerminalGuiRepl
     private TextView _inputView = null!;
     private Terminal.Gui.Label _tokenLabel = null!;
     private StatusBar _statusBar = null!;
+    private FrameView _sidePanel = null!;
+    private TabView _sideTabs = null!;
+    private ListView _todoList = null!;
+    private ListView _filesList = null!;
+    private ListView _locksList = null!;
+    private ListView _mcpList = null!;
 
     // === 状态 ===
     private readonly List<string> _inputHistory = [];
     private int _historyIdx = -1;
     private CancellationTokenSource? _currentCts;
     private int _streamingLineStart = -1;
+    private bool _panelVisible;
+    private (List<JsonObject> Messages, string Model)? _pendingRestore;
 
     public TerminalGuiRepl(Agent agent, LLM llm, Config config)
     {
@@ -46,9 +53,40 @@ public class TerminalGuiRepl
         Application.Init();
         BuildUI();
         ShowWelcome();
+        TryAutoResume();
 
         Application.Run(_mainWin, OnError);
+
+        // 退出时自动保存
+        AutoSaveSession();
         Application.Shutdown();
+    }
+
+    /// <summary>尝试恢复上次自动保存的会话。</summary>
+    private void TryAutoResume()
+    {
+        try
+        {
+            var auto = SessionManager.LoadSession("_auto");
+            if (auto == null) return;
+            var count = auto.Value.Messages.Count;
+            AppendSystem($"💾 发现上次会话 ({count} 条消息)。输入 /resume 恢复，或忽略此消息开始新会话。");
+            _pendingRestore = auto;
+        }
+        catch { /* 恢复失败不影响启动 */ }
+    }
+
+    /// <summary>退出时自动保存会话。</summary>
+    private void AutoSaveSession()
+    {
+        try
+        {
+            if (_agent.Messages.Count == 0) return;
+            var hasUser = _agent.Messages.Any(m => (string?)m["role"] == "user");
+            if (!hasUser) return;
+            SessionManager.SaveSession(_agent.Messages, _config.Model, "_auto");
+        }
+        catch { /* 静默失败 */ }
     }
 
     private static bool OnError(Exception ex)
@@ -106,15 +144,61 @@ public class TerminalGuiRepl
         _statusBar = new StatusBar(new Shortcut[]
         {
             new(Key.F1, "帮助", () => ShowHelp(), ""),
-            new(Key.F2, "面板", () => { }, ""),
+            new(Key.F2, "面板", () => ToggleSidePanel(), ""),
             new(Key.F5, "设置", () => SettingsPage.Show(), ""),
             new(Key.F6, "编辑", () => _ = Editor.PickAndRunAsync(), ""),
             new(Key.F10, "退出", () => Application.RequestStop(), ""),
         });
 
+        // --- 侧边面板 (默认隐藏) ---
+        _sidePanel = new FrameView
+        {
+            Title = "面板",
+            X = Pos.AnchorEnd(32),
+            Y = 0,
+            Width = 32,
+            Height = Dim.Fill() - 5,
+            Visible = false,
+            BorderStyle = LineStyle.Rounded,
+        };
+
+        _sideTabs = new TabView
+        {
+            X = 0, Y = 0,
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
+        };
+
+        // 任务 Tab
+        _todoList = new ListView { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
+        var taskTab = new Tab { Text = "任务" };
+        taskTab.View.Add(_todoList);
+        _sideTabs.AddTab(taskTab, false);
+
+        // 文件 Tab
+        _filesList = new ListView { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
+        var fileTab = new Tab { Text = "文件" };
+        fileTab.View.Add(_filesList);
+        _sideTabs.AddTab(fileTab, false);
+
+        // 锁 Tab
+        _locksList = new ListView { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
+        var lockTab = new Tab { Text = "锁" };
+        lockTab.View.Add(_locksList);
+        _sideTabs.AddTab(lockTab, false);
+
+        // MCP Tab
+        _mcpList = new ListView { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
+        var mcpTab = new Tab { Text = "MCP" };
+        mcpTab.View.Add(_mcpList);
+        _sideTabs.AddTab(mcpTab, false);
+
+        _sidePanel.Add(_sideTabs);
+
         _mainWin.Add(_chatView, _inputView, _tokenLabel);
         Application.Top!.Add(_mainWin);
         Application.Top.Add(_statusBar);
+        Application.Top.Add(_sidePanel); // 叠加在右侧
     }
 
     // ================================================================
@@ -193,13 +277,45 @@ public class TerminalGuiRepl
             return;
         }
 
-        // Escape with empty input → no-op (let default handle)
-        if (key == Key.Esc && string.IsNullOrWhiteSpace(_inputView.Text))
+        // Ctrl+Enter → 插入换行
+        if (key == Key.Enter && key.IsCtrl)
         {
-            return; // let textview handle
+            key.Handled = true;
+            _inputView.Text += "\n";
+            _inputView.MoveEnd();
+            _inputView.SetNeedsDraw();
+            return;
         }
 
-        // Ctrl+R → 搜索历史 (later)
+        // Escape: 输入为空→退出REPL, 输入非空→清空
+        if (key == Key.Esc)
+        {
+            var text = _inputView.Text?.ToString() ?? "";
+            if (string.IsNullOrWhiteSpace(text))
+                return; // let TextView handle
+            key.Handled = true;
+            _inputView.Text = "";
+            _inputView.SetNeedsDraw();
+            return;
+        }
+
+        // Up/Down → 输入历史导航 (仅单行输入时)
+        if (key == Key.CursorUp || key == Key.CursorDown)
+        {
+            var text = _inputView.Text?.ToString() ?? "";
+            if (!text.Contains('\n') && _inputHistory.Count > 0)
+            {
+                key.Handled = true;
+                if (key == Key.CursorUp)
+                    NavigateHistoryUp();
+                else
+                    NavigateHistoryDown();
+                return;
+            }
+            // 多行输入时让 TextView 处理光标移动
+        }
+
+        // Ctrl+R → 搜索历史
         if (key.KeyCode == KeyCode.R && key.IsCtrl)
         {
             key.Handled = true;
@@ -215,13 +331,72 @@ public class TerminalGuiRepl
             return;
         }
 
+        // F2 → 侧边面板
+        if (key == Key.F2)
+        {
+            key.Handled = true;
+            ToggleSidePanel();
+            return;
+        }
+
         // PageUp/PageDown → 滚动聊天区
-        if (key == Key.PageUp) { _chatView.ScrollTo(_chatView.CursorPosition.Y - 1, false); key.Handled = true; return; }
-        if (key == Key.PageDown) { _chatView.ScrollTo(_chatView.CursorPosition.Y + 1, false); key.Handled = true; return; }
+        if (key == Key.PageUp) { ChatScrollUp(5); key.Handled = true; return; }
+        if (key == Key.PageDown) { ChatScrollDown(5); key.Handled = true; return; }
+
+        // Ctrl+Home/End → 跳到顶部/底部
+        if (key.KeyCode == KeyCode.Home && key.IsCtrl) { ChatScrollTop(); key.Handled = true; return; }
+        if (key.KeyCode == KeyCode.End && key.IsCtrl) { ChatScrollBottom(); key.Handled = true; return; }
     }
 
-    // KeyCode enum values for Ctrl+key
-    // (Terminal.Gui v2 uses KeyCode enum + IsCtrl flag)
+    private void NavigateHistoryUp()
+    {
+        if (_historyIdx == -1)
+            _historyIdx = _inputHistory.Count - 1;
+        else if (_historyIdx > 0)
+            _historyIdx--;
+        _inputView.Text = _inputHistory[_historyIdx];
+        _inputView.MoveEnd();
+        _inputView.SetNeedsDraw();
+    }
+
+    private void NavigateHistoryDown()
+    {
+        if (_historyIdx < 0) return;
+        _historyIdx++;
+        if (_historyIdx >= _inputHistory.Count)
+        {
+            _historyIdx = -1;
+            _inputView.Text = "";
+        }
+        else
+        {
+            _inputView.Text = _inputHistory[_historyIdx];
+            _inputView.MoveEnd();
+        }
+        _inputView.SetNeedsDraw();
+    }
+
+    private void ChatScrollUp(int lines)
+    {
+        var row = _chatView.CursorPosition.Y - lines;
+        _chatView.ScrollTo(Math.Max(0, row), false);
+    }
+
+    private void ChatScrollDown(int lines)
+    {
+        var row = _chatView.CursorPosition.Y + lines;
+        _chatView.ScrollTo(row, false);
+    }
+
+    private void ChatScrollTop()
+    {
+        _chatView.ScrollTo(0, false);
+    }
+
+    private void ChatScrollBottom()
+    {
+        _chatView.MoveEnd();
+    }
 
     private async Task SendInputAsync()
     {
@@ -562,12 +737,20 @@ public class TerminalGuiRepl
 
     private async Task ResumeSession()
     {
-        var auto = SessionManager.LoadSession("_auto");
-        if (auto == null) { AppendSystem("没有可恢复的会话"); return; }
-        _agent.Messages = auto.Value.Messages;
-        _llm.Model = auto.Value.Model; _config.Model = auto.Value.Model;
-        _mainWin.Title = $"WayCoder 道码 v0.17.3 — {auto.Value.Model}";
-        AppendSystem($"✅ 已恢复 {auto.Value.Messages.Count} 条");
+        if (_pendingRestore == null)
+        {
+            // 回退：尝试直接加载
+            var auto = SessionManager.LoadSession("_auto");
+            if (auto == null) { AppendSystem("没有可恢复的会话"); return; }
+            _pendingRestore = auto;
+        }
+
+        var (msgs, model) = _pendingRestore.Value;
+        _agent.Messages = msgs;
+        _llm.Model = model; _config.Model = model;
+        _mainWin.Title = $"WayCoder 道码 v0.17.3 — {model}";
+        _pendingRestore = null;
+        AppendSystem($"✅ 已恢复 {msgs.Count} 条消息 (模型: {model})");
     }
 
     private async Task PlanModeAsync()
@@ -727,6 +910,59 @@ public class TerminalGuiRepl
     }
 
     // ================================================================
+    // 侧边面板
+    // ================================================================
+
+    private void ToggleSidePanel()
+    {
+        _panelVisible = !_panelVisible;
+        if (_panelVisible)
+        {
+            RefreshPanelData();
+            _sidePanel.Visible = true;
+        }
+        else
+        {
+            _sidePanel.Visible = false;
+        }
+        _sidePanel.SetNeedsDraw();
+    }
+
+    /// <summary>刷新侧边面板数据：Todo / 修改文件 / 文件锁 / MCP。</summary>
+    private void RefreshPanelData()
+    {
+        // 任务列表
+        var todos = TodoTool.Items;
+        var todoItems = todos.Count == 0
+            ? new List<string> { "（暂无任务）" }
+            : todos.Select(t => $"{(t.Status == "completed" ? "✅" : t.Status == "in_progress" ? "🔄" : "⏳")} {t.Title}").ToList();
+        _todoList.SetSource<string>(new ObservableCollection<string>(todoItems));
+
+        // 修改文件列表
+        var files = EditFileTool.ChangedFiles;
+        var fileItems = files.Count == 0
+            ? new List<string> { "（暂无修改）" }
+            : files.Select(f => Path.GetRelativePath(Directory.GetCurrentDirectory(), f)).ToList();
+        _filesList.SetSource<string>(new ObservableCollection<string>(fileItems));
+
+        // 文件锁列表
+        var locks = FileLockManager.GetAllLocks();
+        var lockItems = locks.Count == 0
+            ? new List<string> { "（无活跃锁）" }
+            : locks.Select(l => $"{Path.GetFileName(l.FilePath)} ({l.AgentId})").ToList();
+        _locksList.SetSource<string>(new ObservableCollection<string>(lockItems));
+
+        // MCP 服务器
+        var mcpInfo = McpManager.Info ?? "未配置";
+        var mcpItems = mcpInfo.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0)
+            .ToList();
+        if (mcpItems.Count == 0) mcpItems.Add("未配置 MCP 服务器");
+        _mcpList.SetSource<string>(new ObservableCollection<string>(mcpItems));
+    }
+
+    // ================================================================
     // 工具
     // ================================================================
 
@@ -743,4 +979,3 @@ public class TerminalGuiRepl
         catch { return null; }
     }
 }
-#endif
