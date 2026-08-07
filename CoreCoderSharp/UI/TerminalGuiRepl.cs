@@ -18,7 +18,7 @@ public class TerminalGuiRepl
 
     // === 视图 ===
     private Window _mainWin = null!;
-    private TextView _chatView = null!;
+    private ChatView _chatView = null!;
     private TextView _inputView = null!;
     private Terminal.Gui.Label _tokenLabel = null!;
     private StatusBar _statusBar = null!;
@@ -33,7 +33,6 @@ public class TerminalGuiRepl
     private readonly List<string> _inputHistory = [];
     private int _historyIdx = -1;
     private CancellationTokenSource? _currentCts;
-    private int _streamingLineStart = -1;
     private bool _panelVisible;
     private (List<JsonObject> Messages, string Model)? _pendingRestore;
 
@@ -101,23 +100,13 @@ public class TerminalGuiRepl
 
     private void BuildUI()
     {
-        // 全局配色：所有视图默认黑底白字
+        // 全局配色
         var scheme = new ColorScheme
         {
             Normal = new Terminal.Gui.Attribute(Color.White, Color.Black),
             Focus = new Terminal.Gui.Attribute(Color.BrightYellow, Color.DarkGray),
             HotNormal = new Terminal.Gui.Attribute(Color.Cyan, Color.Black),
             HotFocus = new Terminal.Gui.Attribute(Color.BrightCyan, Color.DarkGray),
-            Disabled = new Terminal.Gui.Attribute(Color.Gray, Color.Black),
-        };
-
-        // 聊天区专用：黑底白字
-        var chatScheme = new ColorScheme
-        {
-            Normal = new Terminal.Gui.Attribute(Color.White, Color.Black),
-            Focus = new Terminal.Gui.Attribute(Color.White, Color.Black),
-            HotNormal = new Terminal.Gui.Attribute(Color.Cyan, Color.Black),
-            HotFocus = new Terminal.Gui.Attribute(Color.BrightYellow, Color.DarkGray),
             Disabled = new Terminal.Gui.Attribute(Color.Gray, Color.Black),
         };
 
@@ -130,15 +119,12 @@ public class TerminalGuiRepl
             ColorScheme = scheme,
         };
 
-        // --- 聊天区 ---
-        _chatView = new TextView
+        // --- 聊天区（彩色多角色） ---
+        _chatView = new ChatView
         {
             X = 0, Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill() - 5,
-            ReadOnly = true,
-            WordWrap = true,
-            ColorScheme = chatScheme,
         };
 
         // --- 输入区 ---
@@ -220,7 +206,6 @@ public class TerminalGuiRepl
         _sidePanel.Add(_sideTabs);
 
         _mainWin.Add(_chatView, _inputView, _tokenLabel);
-        // SidePanel 叠加在右侧，StatusBar 钉在底部
         _mainWin.Add(_sidePanel);
         _mainWin.Add(_statusBar);
     }
@@ -249,43 +234,20 @@ public class TerminalGuiRepl
     }
 
     // ================================================================
-    // 聊天输出
+    // 聊天输出（委托给 ChatView，每个角色独立配色）
     // ================================================================
 
-    private void AppendLine(string text)
-    {
-        _chatView.Text += text + "\n";
-        _chatView.MoveEnd();
-    }
-
-    private void AppendUser(string text) => AppendLine("❯ " + text);
+    private void AppendLine(string text) => _chatView.Append(text, "assistant");
+    private void AppendUser(string text) => _chatView.Append("❯ " + text, "user");
     private void AppendSystem(string text)
     {
         foreach (var line in text.Split('\n'))
-            AppendLine("  " + line);
+            _chatView.Append("  " + line, "system");
     }
-
-    private void AppendTool(string text) => AppendLine("  🔧 " + text);
-
-    private void StartAssistantStream()
-    {
-        _streamingLineStart = _chatView.Text.Length;
-    }
-
-    private void AppendStreamToken(string token)
-    {
-        if (_streamingLineStart < 0)
-            StartAssistantStream();
-        _chatView.Text += token;
-        _chatView.MoveEnd();
-    }
-
-    private void FinishAssistantStream()
-    {
-        _chatView.Text += "\n";
-        _streamingLineStart = -1;
-        _chatView.MoveEnd();
-    }
+    private void AppendTool(string text) => _chatView.Append("  🔧 " + text, "tool");
+    private void StartAssistantStream() => _chatView.StartStream();
+    private void AppendStreamToken(string token) => _chatView.AppendStream(token);
+    private void FinishAssistantStream() => _chatView.FinishStream();
 
     // ================================================================
     // 键盘输入处理
@@ -336,7 +298,6 @@ public class TerminalGuiRepl
                     NavigateHistoryDown();
                 return;
             }
-            // 多行输入时让 TextView 处理光标移动
         }
 
         // Ctrl+R → 搜索历史
@@ -400,27 +361,10 @@ public class TerminalGuiRepl
         _inputView.SetNeedsDraw();
     }
 
-    private void ChatScrollUp(int lines)
-    {
-        var row = _chatView.CursorPosition.Y - lines;
-        _chatView.ScrollTo(Math.Max(0, row), false);
-    }
-
-    private void ChatScrollDown(int lines)
-    {
-        var row = _chatView.CursorPosition.Y + lines;
-        _chatView.ScrollTo(row, false);
-    }
-
-    private void ChatScrollTop()
-    {
-        _chatView.ScrollTo(0, false);
-    }
-
-    private void ChatScrollBottom()
-    {
-        _chatView.MoveEnd();
-    }
+    private void ChatScrollUp(int lines) => _chatView.ScrollUp(lines);
+    private void ChatScrollDown(int lines) => _chatView.ScrollDown(lines);
+    private void ChatScrollTop() => _chatView.ScrollToTop();
+    private void ChatScrollBottom() => _chatView.ScrollToBottom();
 
     private async Task SendInputAsync()
     {
@@ -763,7 +707,6 @@ public class TerminalGuiRepl
     {
         if (_pendingRestore == null)
         {
-            // 回退：尝试直接加载
             var auto = SessionManager.LoadSession("_auto");
             if (auto == null) { AppendSystem("没有可恢复的会话"); return; }
             _pendingRestore = auto;
@@ -955,28 +898,24 @@ public class TerminalGuiRepl
     /// <summary>刷新侧边面板数据：Todo / 修改文件 / 文件锁 / MCP。</summary>
     private void RefreshPanelData()
     {
-        // 任务列表
         var todos = TodoTool.Items;
         var todoItems = todos.Count == 0
             ? new List<string> { "（暂无任务）" }
             : todos.Select(t => $"{(t.Status == "completed" ? "✅" : t.Status == "in_progress" ? "🔄" : "⏳")} {t.Title}").ToList();
         _todoList.SetSource<string>(new ObservableCollection<string>(todoItems));
 
-        // 修改文件列表
         var files = EditFileTool.ChangedFiles;
         var fileItems = files.Count == 0
             ? new List<string> { "（暂无修改）" }
             : files.Select(f => Path.GetRelativePath(Directory.GetCurrentDirectory(), f)).ToList();
         _filesList.SetSource<string>(new ObservableCollection<string>(fileItems));
 
-        // 文件锁列表
         var locks = FileLockManager.GetAllLocks();
         var lockItems = locks.Count == 0
             ? new List<string> { "（无活跃锁）" }
             : locks.Select(l => $"{Path.GetFileName(l.FilePath)} ({l.AgentId})").ToList();
         _locksList.SetSource<string>(new ObservableCollection<string>(lockItems));
 
-        // MCP 服务器
         var mcpInfo = McpManager.Info ?? "未配置";
         var mcpItems = mcpInfo.Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Select(l => l.Trim())
@@ -1002,4 +941,140 @@ public class TerminalGuiRepl
         }
         catch { return null; }
     }
+}
+
+// ================================================================
+// ChatView — 彩色聊天视图，每个角色独立配色
+// 使用 View + Label 子视图组合，每个 Label 独立 ColorScheme。
+// ================================================================
+
+/// <summary>
+/// 彩色聊天视图。每个消息行是一个 Label，按角色独立配色。
+/// user=亮青, assistant=白, system=灰, tool=亮黄, welcome=青。
+/// </summary>
+internal class ChatView : View
+{
+    private readonly List<Terminal.Gui.Label> _labels = [];
+    private Terminal.Gui.Label? _streamLabel;
+    private int _scrollOffset;
+
+    // ---- 配色方案 ----
+    private static readonly ColorScheme CsUser = new()
+    {
+        Normal = new Terminal.Gui.Attribute(Color.BrightCyan, Color.Black),
+    };
+    private static readonly ColorScheme CsAssistant = new()
+    {
+        Normal = new Terminal.Gui.Attribute(Color.White, Color.Black),
+    };
+    private static readonly ColorScheme CsSystem = new()
+    {
+        Normal = new Terminal.Gui.Attribute(Color.Gray, Color.Black),
+    };
+    private static readonly ColorScheme CsTool = new()
+    {
+        Normal = new Terminal.Gui.Attribute(Color.BrightYellow, Color.Black),
+    };
+    private static readonly ColorScheme CsWelcome = new()
+    {
+        Normal = new Terminal.Gui.Attribute(Color.Cyan, Color.Black),
+    };
+
+    public ChatView()
+    {
+        CanFocus = false;
+    }
+
+    // ---- 公开 API ----
+
+    public void Append(string text, string role)
+    {
+        foreach (var line in text.Split('\n'))
+        {
+            var label = new Terminal.Gui.Label
+            {
+                Text = line,
+                X = 0,
+                Y = _labels.Count,
+                Width = Dim.Fill(),
+                Height = 1,
+                ColorScheme = RoleToScheme(role),
+            };
+            _labels.Add(label);
+            Add(label);
+        }
+        ScrollToBottom();
+    }
+
+    public void StartStream()
+    {
+        _streamLabel = new Terminal.Gui.Label
+        {
+            Text = "",
+            X = 0,
+            Y = _labels.Count,
+            Width = Dim.Fill(),
+            Height = 1,
+            ColorScheme = CsAssistant,
+        };
+        _labels.Add(_streamLabel);
+        Add(_streamLabel);
+        ScrollToBottom();
+    }
+
+    public void AppendStream(string token)
+    {
+        if (_streamLabel == null) { StartStream(); return; }
+        _streamLabel.Text += token;
+    }
+
+    public void FinishStream()
+    {
+        _streamLabel = null;
+    }
+
+    public void ScrollUp(int lines)
+    {
+        _scrollOffset = Math.Max(0, _scrollOffset - lines);
+        RepositionLabels();
+    }
+
+    public void ScrollDown(int lines)
+    {
+        var maxOffset = Math.Max(0, _labels.Count - Viewport.Height);
+        _scrollOffset = Math.Min(maxOffset, _scrollOffset + lines);
+        RepositionLabels();
+    }
+
+    public void ScrollToTop()
+    {
+        _scrollOffset = 0;
+        RepositionLabels();
+    }
+
+    public void ScrollToBottom()
+    {
+        _scrollOffset = Math.Max(0, _labels.Count - Viewport.Height);
+        RepositionLabels();
+    }
+
+    // ---- 内部 ----
+
+    private void RepositionLabels()
+    {
+        for (int i = 0; i < _labels.Count; i++)
+        {
+            _labels[i].Y = i - _scrollOffset;
+        }
+        SetNeedsDraw();
+    }
+
+    private static ColorScheme RoleToScheme(string role) => role switch
+    {
+        "user" => CsUser,
+        "system" => CsSystem,
+        "tool" => CsTool,
+        "welcome" => CsWelcome,
+        _ => CsAssistant,
+    };
 }
