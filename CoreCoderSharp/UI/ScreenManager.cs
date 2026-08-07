@@ -798,12 +798,15 @@ public class ScreenManager
         var (itl, itr, ibl, ibr, ih, iv) = BorderChars();
         var dash = new string(ih[0], Math.Max(0, TW - 2));
 
-        sb.Append($"\x1b[{startRow};1H\x1b[2m{itl}{dash}{itr}\x1b[0m\r\n");
+        // 上边框 — 显式定位，不依赖 \r\n
+        sb.Append($"\x1b[{startRow};1H\x1b[2m{itl}{dash}{itr}\x1b[0m\x1b[K\r\n");
 
+        // 内容行 — 每行显式定位，确保内容位置与光标计算完全一致
         for (int i = 0; i < vh; i++)
         {
+            int contentRow = startRow + 1 + i;
             var si = InputScroll + i;
-            sb.Append($"\x1b[2m{iv}\x1b[0m ");
+            sb.Append($"\x1b[{contentRow};1H\x1b[2m{iv}\x1b[0m ");
             if (si < screenLines.Count && screenLines[si].Chars > 0)
             {
                 var sl = screenLines[si];
@@ -818,10 +821,11 @@ public class ScreenManager
             {
                 sb.Append(new string(' ', cw));
             }
-            sb.Append($" \x1b[2m{iv}\x1b[0m\r\n");
+            sb.Append($" \x1b[2m{iv}\x1b[0m\x1b[K\r\n");
         }
 
-        sb.Append($"\x1b[2m{ibl}{dash}{ibr}\x1b[0m");
+        // 下边框 — 显式定位
+        sb.Append($"\x1b[{startRow + 1 + vh};1H\x1b[2m{ibl}{dash}{ibr}\x1b[0m\x1b[K\r\n");
     }
 
     // ================================================================
