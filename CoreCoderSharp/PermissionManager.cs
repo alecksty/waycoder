@@ -45,25 +45,43 @@ public static class PermissionManager
 
         // 收集操作详情
         var details = FormatArgs(toolName, args);
-        var content = $"[{TuiColors.AccentMarkup}]工具:[/] {TuiHelper.Esc(toolName)}\n" +
-                      $"{TuiHelper.Esc(details)}";
+        var content = $"工具: {TuiHelper.Esc(toolName)}\n{TuiHelper.Esc(details)}";
 
-        TuiBox.Warn("确认操作", content);
-
-        var choice = TuiList.Select("是否执行？",
-            ["是 (y)", "总是允许 (a)", "否 (n)"]);
-
-        switch (choice)
+        int result;
+        if (ScreenManager.Instance.IsActive)
         {
-            case "总是允许 (a)":
+            result = ScreenManager.Instance.ShowMenu("⚠ 确认操作\n" + content,
+                ["是 (y)", "总是允许 (a)", "否 (n)"]);
+        }
+        else
+        {
+            TuiBox.Warn("确认操作", content);
+            var choice = TuiList.Select("是否执行？",
+                ["是 (y)", "总是允许 (a)", "否 (n)"]);
+            result = choice switch
+            {
+                "是 (y)" => 0,
+                "总是允许 (a)" => 1,
+                _ => 2,
+            };
+        }
+
+        switch (result)
+        {
+            case 1:
                 _autoAllowed.Add(autoKey);
                 CurrentMode = Mode.Auto;
                 return true;
-            case "是 (y)":
+            case 0:
                 return true;
             default:
-                AnsiConsole.MarkupLine($"[{TuiColors.WarnMarkup}]已拒绝[/]");
-                Console.WriteLine();
+                if (ScreenManager.Instance.IsActive)
+                    ScreenManager.Instance.AddSystemMsg("已拒绝");
+                else
+                {
+                    AnsiConsole.MarkupLine($"[{TuiColors.WarnMarkup}]已拒绝[/]");
+                    Console.WriteLine();
+                }
                 return false;
         }
     }
