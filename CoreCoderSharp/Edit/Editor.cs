@@ -1,5 +1,6 @@
 using System.Text;
 using CoreCoderSharp.Tools;
+using CoreCoderSharp.UI;
 
 namespace CoreCoderSharp;
 
@@ -111,6 +112,9 @@ public class Editor
         Console.CursorVisible = false;
         Console.TreatControlCAsInput = true;
 
+        // 如果 ScreenManager 已激活，不切换屏幕
+        var smActive = ScreenManager.Instance.IsActive;
+
         try
         {
             Render();
@@ -119,7 +123,6 @@ public class Editor
                 if (!Console.KeyAvailable)
                 {
                     await Task.Delay(30);
-                    // 检测终端尺寸变化
                     if (Console.WindowWidth != _tw || Console.WindowHeight != _th)
                     {
                         (_tw, _th) = (Console.WindowWidth, Console.WindowHeight);
@@ -137,7 +140,7 @@ public class Editor
         {
             Console.CursorVisible = true;
             Console.TreatControlCAsInput = false;
-            Console.Clear();
+            if (!smActive) Console.Clear();
         }
     }
 
