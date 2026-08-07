@@ -29,19 +29,28 @@ public class WriteFileTool : ITool
         ["required"] = new JsonArray("file_path", "content"),
     };
 
-    public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var filePath = arguments.GetValueOrDefault("file_path")?.ToString() ?? "";
         var content = arguments.GetValueOrDefault("content")?.ToString() ?? "";
+        var agentId = arguments.GetValueOrDefault("_agent_id")?.ToString() ?? "main";
 
-        return Task.FromResult(Execute(filePath, content));
+        return await ExecuteAsync(filePath, content, agentId);
     }
 
-    private static string Execute(string filePath, string content)
+    private static async Task<string> ExecuteAsync(string filePath, string content, string agentId)
     {
+        var path = Path.GetFullPath(filePath);
+
+        // 文件锁检查
+        if (!FileLockManager.TryAcquire(path, agentId))
+        {
+            var lockInfo = FileLockManager.GetLockInfo(path);
+            return $"❌ 文件被锁定: {lockInfo?.Status ?? "未知"} — 请等待锁释放或使用其他文件名";
+        }
+
         try
         {
-            var path = Path.GetFullPath(filePath);
             var dir = Path.GetDirectoryName(path);
             if (dir != null) Directory.CreateDirectory(dir);
             File.WriteAllText(path, content, Encoding.UTF8);
@@ -54,6 +63,10 @@ public class WriteFileTool : ITool
         catch (Exception ex)
         {
             return $"错误：{ex.Message}";
+        }
+        finally
+        {
+            FileLockManager.Release(path, agentId);
         }
     }
 }
