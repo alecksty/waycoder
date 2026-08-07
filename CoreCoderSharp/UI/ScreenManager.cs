@@ -387,18 +387,19 @@ public class ScreenManager
     {
         var logo = new[]
         {
-            "   ██████╗ ██████╗ ██████╗ ███████╗",
-            "  ██╔════╝██╔═══██╗██╔══██╗██╔════╝",
-            "  ██║     ██║   ██║██████╔╝█████╗  ",
-            "  ██║     ██║   ██║██╔══██╗██╔══╝  ",
-            "  ╚██████╗╚██████╔╝██║  ██║███████╗",
-            "   ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝",
+            "██╗    ██╗ █████╗ ██╗   ██╗",
+            "██║    ██║██╔══██╗╚██╗ ██╔╝",
+            "██║ █╗ ██║███████║ ╚████╔╝ ",
+            "██║███╗██║██╔══██║  ╚██╔╝  ",
+            "╚███╔███╔╝██║  ██║   ██║   ",
+            " ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝   ",
         };
-        var subtitle = "中文版易用编程智能体 · v0.16.3";
+        var subtitle = "WayCoder 道码 · 中文版易用编程智能体 · v0.16.3";
         var credit = "C# / .NET 10 · AOT 编译";
+        var company = "深圳市探索智能科技有限公司";
 
         var boxW = 46;
-        var boxH = 12;
+        var boxH = 13;
         var boxX = Math.Max(1, (Console.WindowWidth - boxW) / 2);
         var boxY = Math.Max(1, (Console.WindowHeight - boxH) / 2);
 
@@ -424,8 +425,11 @@ public class ScreenManager
         var credPad = Math.Max(0, (box.ContentWidth - BoxBuffer.VwPlainText(credit)) / 2);
         box.WriteAt(sb, 8, credPad, $"\x1b[2m{credit}\x1b[0m");
 
+        var compPad = Math.Max(0, (box.ContentWidth - BoxBuffer.VwPlainText(company)) / 2);
+        box.WriteAt(sb, 9, compPad, $"\x1b[2m{company}\x1b[0m");
+
         var btnText = " 确 定 ";
-        box.WriteLineHighlight(sb, 10, "30", "46", btnText);
+        box.WriteLineHighlight(sb, 11, "30", "46", btnText);
 
         Console.Write(sb.ToString());
         Console.ReadKey(intercept: true);

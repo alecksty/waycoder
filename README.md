@@ -163,3 +163,5 @@ MIT License，欢迎 fork 拿去造更好的东西。
 ---
 
 作者 [何宇峰](https://github.com/he-yufeng)，曾任职 Moonshot AI (Kimi)。
+
+**深圳市探索智能科技有限公司**
