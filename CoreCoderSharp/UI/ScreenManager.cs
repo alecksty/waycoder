@@ -363,10 +363,10 @@ public class ScreenManager
             ("Ctrl+PgUp", "聊天顶"), ("Ctrl+PgDn", "聊天底"),
         };
 
-        sb.Append($"\x1b[{row};1H\x1b[100m");
+        sb.Append($"\x1b[{row};1H\x1b[44m\x1b[37m\x1b[K");
         foreach (var (key, desc) in hotkeys)
         {
-            sb.Append($" \x1b[33m{key}\x1b[0m\x1b[100m\x1b[2m {desc}\x1b[0m\x1b[100m");
+            sb.Append($" \x1b[33m\x1b[1m{key}\x1b[0m\x1b[44m\x1b[37m {desc}");
         }
         var used = hotkeys.Sum(h => 3 + h.key.Length + h.desc.Length);
         var remain = Console.WindowWidth - used;
@@ -374,10 +374,7 @@ public class ScreenManager
         sb.Append("\x1b[0m");
     }
 
-    /// <summary>
-    /// 显示 About 对话框 — ASCII 大字标题 + 确定按钮
-    /// </summary>
-        /// <summary>进入全屏模式</summary>
+    /// <summary>进入全屏模式</summary>
     public void Enter()
     {
         Console.Write("[?1049h[2J[?25l");
