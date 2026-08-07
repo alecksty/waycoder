@@ -1138,7 +1138,7 @@ public static class SelfTest
         Check("Schema 包含 AutoGitCommit", ac != null);
         Check("AutoGitCommit 是 select 类型", ac?.Type == "select");
         Check("AutoGitCommit 有选项", ac?.Options?.Contains("true") == true);
-        Check("AutoGitCommit EnvVar", ac?.EnvVar == "CORECODER_AUTO_COMMIT");
+        Check("AutoGitCommit EnvVar", ac?.EnvVar == "WAYCODER_AUTO_COMMIT");
 
         Console.WriteLine();
 
@@ -1345,7 +1345,7 @@ public static class SelfTest
             new() { ["role"] = "tool", ["content"] = "result", ["tool_call_id"] = "c1" },
         };
         var exportSb = new StringBuilder();
-        exportSb.AppendLine("# CoreCoder 对话导出");
+        exportSb.AppendLine("# WayCoder 对话导出");
         foreach (var msg in exportMsgs)
         {
             var role = msg["role"]?.GetValue<string>() ?? "";
@@ -1355,7 +1355,7 @@ public static class SelfTest
             else if (role == "tool") exportSb.AppendLine($"### 🔧 Tool\n\n```\n{content}\n```\n");
         }
         var exportText = exportSb.ToString();
-        Check("导出含标题", exportText.Contains("CoreCoder 对话导出"));
+        Check("导出含标题", exportText.Contains("WayCoder 对话导出"));
         Check("导出含 User", exportText.Contains("👤 User") && exportText.Contains("hello"));
         Check("导出含 Assistant", exportText.Contains("🤖 Assistant") && exportText.Contains("hi there"));
         Check("导出含 Tool", exportText.Contains("🔧 Tool") && exportText.Contains("result"));

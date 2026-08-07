@@ -40,7 +40,7 @@ public static class SystemPrompt
         }
 
         return $"""
-                你是 CoreCoder，一个运行在用户终端中的 AI 编程助手。
+                你是 WayCoder（道码），一个运行在用户终端中的 AI 编程助手。
                 你帮助完成软件工程任务：编写代码、修复 bug、重构代码、解释代码、运行命令等。
 
                 # 环境
