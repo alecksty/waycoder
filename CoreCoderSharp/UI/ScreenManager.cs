@@ -357,7 +357,7 @@ public class ScreenManager
         _chatScroll = Math.Clamp(_chatScroll, 0, maxScroll);
 
         // ---- 顶栏 (蓝底白字) ----
-        var topText = $" CoreCoder v0.11.0 · {StatusLeft}";
+        var topText = $" CoreCoder v0.12.0 · {StatusLeft}";
         if (ActivePanel != PanelTab.Off) topText += $"  [F2 面板:{ActivePanel}]";
         sb.Append($"[44;37m{topText}{new string(' ', Math.Max(0, TW - VW(topText)))}[0m\r\n");
 
