@@ -320,23 +320,29 @@ public class ScreenManager
             for (int i = 0; i < maxVis; i++)
             {
                 int ci = scroll + i;
-                if (ci >= choices.Count) break;
-                var text = choices[ci];
-                if (VW(text) > w - 8) text = TruncateByVW(text, w - 9) + "…";
-                var textVW = VW(text);
-                var fill = Math.Max(0, w - 5 - textVW); // │+sp + sp+text+sp + fill + │ = w
-
                 sb.Append($"\x1b[{itemBaseRow + i};{x}H\x1b[{ThemeBorderColor}m{mv}\x1b[0m ");
-                if (ci == sel)
+                if (ci < choices.Count)
                 {
-                    sb.Append($"\x1b[30;46m {text} ");
-                    if (fill > 0) sb.Append(new string(' ', fill));
-                    sb.Append($"\x1b[0m");
+                    var text = choices[ci];
+                    if (VW(text) > w - 8) text = TruncateByVW(text, w - 9) + "…";
+                    var textVW = VW(text);
+                    var fill = Math.Max(0, w - 5 - textVW);
+
+                    if (ci == sel)
+                    {
+                        sb.Append($"\x1b[30;46m {text} ");
+                        if (fill > 0) sb.Append(new string(' ', fill));
+                        sb.Append($"\x1b[0m");
+                    }
+                    else
+                    {
+                        sb.Append($" {text} ");
+                        if (fill > 0) sb.Append(new string(' ', fill));
+                    }
                 }
                 else
                 {
-                    sb.Append($" {text} ");
-                    if (fill > 0) sb.Append(new string(' ', fill));
+                    sb.Append(new string(' ', w - 4));
                 }
                 sb.Append($"\x1b[{ThemeBorderColor}m{mv}\x1b[0m");
             }
@@ -541,7 +547,8 @@ public class ScreenManager
         var sepH = 1;
         var panelW = ActivePanel != PanelTab.Off ? 32 : 0;
         var chatW = Math.Max(20, TW - panelW);
-        var chatH = TH - topH - sepH - suggestH - inputH - 1 - statusH - hotkeyH;
+        // inputH 是内容行数，实际占用 inputH + 2（上下边框）
+        var chatH = TH - topH - sepH - suggestH - inputH - 2 - statusH - hotkeyH;
         if (chatH < 3) chatH = 3;
 
         var chatScreenLines = BuildChatScreenLines(chatW, chatH);
@@ -598,8 +605,8 @@ public class ScreenManager
         int inputRow = chatRow + chatH + sepH + suggestH;
         RenderInputArea(sb, inputRow, inputH);
 
-        // ---- 状态栏 ----
-        int statusRow = inputRow + inputH + 1;
+        // ---- 状态栏 (inputH 内容 + 上下边框 = inputH+2 行之后) ----
+        int statusRow = inputRow + inputH + 2;
         var modeLabel = InputLines.Count > 1 ? "多行" : "聊天";
         var chCount = InputLines.Sum(l => l.Length);
         var leftStatus = $"  {modeLabel}  L{InputCy + 1}:C{InputCx + 1}  {chCount}字符  Enter发送 Ctrl+Enter换行 Esc取消";
@@ -609,7 +616,7 @@ public class ScreenManager
         if (VW(leftStatus) > availW) leftStatus = TruncateByVW(leftStatus, availW - 1) + "…";
         var pad = Math.Max(0, availW - VW(leftStatus));
         // 状态栏: 灰色底 + 白字左 + 黄字右
-        sb.Append($"[{statusRow};1H[100m[37m{leftStatus}{new string(' ', pad)}[33m{rightInfo}[0m");
+        sb.Append($"\x1b[{statusRow};1H\x1b[100m\x1b[37m{leftStatus}{new string(' ', pad)}\x1b[33m{rightInfo}\x1b[0m\x1b[K");
 
         // ---- 快捷键栏 ----
         int hotkeyRow = statusRow + 1;
