@@ -191,7 +191,7 @@ public class LLM
             ["model"] = EffectiveModel,
             ["messages"] = new JsonArray(clonedMessages.ToArray()),
             ["stream"] = true,
-            ["temperature"] = Temperature,
+            ["temperature"] = Math.Clamp(Temperature, 0f, 2f),
             ["max_tokens"] = MaxTokens,
             ["stream_options"] = new JsonObject { ["include_usage"] = true },
         };
@@ -268,11 +268,17 @@ public class LLM
             var delta = choices[0]?["delta"];
             if (delta == null) continue;
 
-            // 累积文本
-            if (delta["content"]?.GetValue<string>() is { } text)
+            // 累积文本 — content 字段 + reasoning_content 回退
+            // DeepSeek V4 等推理模型在 reasoning_content 中输出思考内容
+            if (delta["content"]?.GetValue<string>() is { } text && text.Length > 0)
             {
                 contentParts.Add(text);
                 onToken?.Invoke(text);
+            }
+            else if (delta["reasoning_content"]?.GetValue<string>() is { } rtext && rtext.Length > 0)
+            {
+                contentParts.Add(rtext);
+                onToken?.Invoke(rtext);
             }
 
             // 跨分片累积工具调用

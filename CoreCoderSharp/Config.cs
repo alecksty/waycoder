@@ -81,7 +81,7 @@ public class Config
         if (envSmallModel != null) config.SmallModel = envSmallModel;
 
         var envApiKey = EnvMulti("WAYCODER_API_KEY", "CORECODER_API_KEY",
-            "OPENAI_API_KEY", "DEEPSEEK_API_KEY");
+            "OPENAI_API_KEY", "DEEPSEEK_API_KEY", "ANTHROPIC_API_KEY", "API_KEY");
         if (envApiKey != null) config.ApiKey = envApiKey;
 
         var envBaseUrl = EnvMulti("WAYCODER_BASE_URL", "CORECODER_BASE_URL", "OPENAI_BASE_URL");
