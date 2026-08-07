@@ -204,7 +204,7 @@ public class Program
                     await ProcessUserInput(input, sm);
                     break;
 
-                case ConsoleKey.F2:
+case ConsoleKey.F2:
                     sm.ActivePanel = sm.ActivePanel switch
                     {
                         ScreenManager.PanelTab.Off => ScreenManager.PanelTab.Todo,
@@ -215,6 +215,10 @@ public class Program
                     };
                     if (sm.ActivePanel == ScreenManager.PanelTab.Files)
                         sm.ModifiedFiles = EditFileTool.ChangedFiles.ToList();
+                    break;
+
+                case ConsoleKey.F5:
+                    SettingsPage.Show();
                     break;
 
                 case ConsoleKey.F5:
@@ -298,6 +302,7 @@ public class Program
         if (userInput == "/edit") { await Editor.PickAndRunAsync(); sm.Render(); return; }
         if (userInput.StartsWith("/edit ")) { await Editor.RunAsync(userInput[6..].Trim()); sm.Render(); return; }
         if (userInput is "/settings" or "/config") { SettingsPage.Show(); return; }
+        if (userInput == "/about") { ScreenManager.ShowAbout(); return; }
         if (userInput == "/about") { ScreenManager.ShowAbout(); return; }
 
         // 调用 Agent (支持自动回退)
@@ -613,12 +618,32 @@ public class Program
     private static async Task CompactAsync()
     {
         var before = ContextManager.EstimateTokens(_agent!.Messages);
-        var compressed = await _agent.Context.MaybeCompressAsync(_agent.Messages, _llm);
+        var maxTokens = _agent.Context.MaxTokens;
+        AnsiConsole.MarkupLine($"[dim]压缩前: {before:N0} / {maxTokens:N0} tokens[/]");
+
+        var lastLayer = 0;
+        var compressed = await _agent.Context.MaybeCompressAsync(_agent.Messages, _llm,
+            onProgress: (layer, msg) =>
+        {
+            if (layer != lastLayer)
+            {
+                AnsiConsole.MarkupLine($"[cyan]▶ 第 {layer} 层:[/] [dim]{E(msg)}[/]");
+                lastLayer = layer;
+            }
+        });
+
         var after = ContextManager.EstimateTokens(_agent.Messages);
+        var pct = before > 0 ? (int)((before - after) * 100.0 / before) : 0;
         if (compressed)
-            MarkupLine($"[green]✔ 已压缩:[/] {before:N0} → [cyan]{after:N0}[/] tokens ([dim]{_agent.Messages.Count} 条消息[/])");
+        {
+            AnsiConsole.MarkupLine(
+                $"[green]✔ 已压缩:[/] {before:N0} → [cyan]{after:N0}[/] tokens " +
+                $"([green]{pct}%[/] 释放, [dim]{_agent.Messages.Count} 条消息[/])");
+            var barPct = after * 100.0 / maxTokens;
+            AnsiConsole.MarkupLine($"  [dim]上下文使用率:[/] {BoxBuffer.MiniBar(barPct, 10)}");
+        }
         else
-            MarkupLine($"[dim]无需压缩 ({before:N0} tokens, {_agent.Messages.Count} 条消息)[/]");
+            AnsiConsole.MarkupLine($"[dim]无需压缩 ({before:N0} tokens, {_agent.Messages.Count} 条消息)[/]");
     }
 
     private static void SaveSession()
