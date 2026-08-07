@@ -335,10 +335,11 @@ public class LLM
                     continue;
                 }
 
-                // 429 速率限制重试
+                // 429 速率限制重试（解析 Retry-After 头）
                 if (resp.StatusCode == System.Net.HttpStatusCode.TooManyRequests && attempt < maxRetries - 1)
                 {
-                    await Task.Delay((int)Math.Pow(2, attempt) * 1000, cancellationToken);
+                    var delay = ParseRetryAfter(resp) ?? (int)Math.Pow(2, attempt) * 1000;
+                    await Task.Delay(delay, cancellationToken);
                     continue;
                 }
 
@@ -357,6 +358,30 @@ public class LLM
         }
 
         throw new InvalidOperationException("重试耗尽");
+    }
+
+    /// <summary>解析 HTTP Retry-After 头（秒数或 HTTP-date），返回毫秒延迟。</summary>
+    private static int? ParseRetryAfter(HttpResponseMessage resp)
+    {
+        try
+        {
+            var header = resp.Headers.GetValues("Retry-After").FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(header)) return null;
+
+            // 纯数字 = 秒数
+            if (int.TryParse(header, out var seconds))
+                return Math.Min(seconds * 1000, 120_000); // 最多等 2 分钟
+
+            // HTTP-date 格式
+            if (DateTime.TryParse(header, out var retryDate))
+            {
+                var delay = (int)(retryDate.ToUniversalTime() - DateTime.UtcNow).TotalMilliseconds;
+                return delay > 0 ? Math.Min(delay, 120_000) : null;
+            }
+
+            return null;
+        }
+        catch { return null; }
     }
 
     /// <summary>

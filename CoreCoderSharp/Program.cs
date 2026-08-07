@@ -13,6 +13,7 @@ public class Program
     private static Config _config = new();
     private static LLM? _llm;
     private static Agent? _agent;
+    private static (List<JsonObject> Messages, string Model)? _pendingRestore;
 
     public static async Task<int> Main(string[] args)
     {
@@ -79,10 +80,11 @@ public class Program
         if (yoloMode)
             PermissionManager.SetMode("yolo");
 
-        // 加载自定义斜杠命令、hooks 和 MCP 服务器
+        // 加载自定义斜杠命令、hooks、MCP 服务器和检查点
         CustomCommands.Load();
         HooksManager.Init();
         McpManager.Init();
+        CheckpointManager.LoadFromDisk();
 
         // 恢复会话
         if (resumeId != null)
@@ -159,8 +161,15 @@ public class Program
         sm.StatusLeft = $"大:{_config.Model} 小:{_config.SmallModel}";
         _llm!.SmallModel = _config.SmallModel;
 
+        // 尝试恢复上次会话
+        TryRestoreSession(sm);
+
+        // Ctrl+C 优雅退出（触发 finally 中的自动保存）
+        var exitRequested = false;
+        Console.CancelKeyPress += (_, e) => { e.Cancel = true; exitRequested = true; };
+
         var running = true;
-        while (running)
+        while (running && !exitRequested)
         {
             sm.Render();
 
@@ -258,7 +267,42 @@ case ConsoleKey.F2:
             }
         }
 
+        AutoSaveSession();
         sm.Exit();
+    }
+
+    /// <summary>启动时检测上次自动保存的会话，提示用户恢复。</summary>
+    private static void TryRestoreSession(ScreenManager sm)
+    {
+        try
+        {
+            var auto = SessionManager.LoadSession("_auto");
+            if (auto == null) return;
+
+            var count = auto.Value.Messages.Count;
+            sm.AddSystemMsg($"💾 发现上次会话 ({count} 条消息)。输入 /resume 恢复，或忽略此消息开始新会话。");
+            _pendingRestore = auto;
+        }
+        catch { /* 恢复失败不影响启动 */ }
+    }
+
+    /// <summary>退出时自动保存会话，下次启动可恢复。</summary>
+    private static void AutoSaveSession()
+    {
+        try
+        {
+            if (_agent == null || _agent.Messages.Count == 0) return;
+            // 只保存有实际对话的会话（至少一条用户消息）
+            var hasUser = _agent.Messages.Any(m =>
+                (string?)m["role"] == "user");
+            if (!hasUser) return;
+            SessionManager.SaveSession(_agent.Messages, _config.Model, "_auto");
+            DebugLog.Log("session", "会话已自动保存");
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Log("session", $"自动保存失败: {ex.Message}");
+        }
     }
 
     /// <summary>处理用户输入：内置命令或 Agent 调用</summary>
@@ -272,6 +316,7 @@ case ConsoleKey.F2:
         // 退出
         if (lower is "quit" or "exit" or "/quit" or "/exit")
         {
+            AutoSaveSession();
             sm.Exit();
             Environment.Exit(0);
         }
@@ -299,6 +344,15 @@ case ConsoleKey.F2:
         if (userInput.StartsWith("/edit ")) { await Editor.RunAsync(userInput[6..].Trim()); sm.Render(); return; }
         if (userInput is "/settings" or "/config") { SettingsPage.Show(); return; }
         if (userInput == "/about") { ScreenManager.ShowAbout(); return; }
+        if (userInput == "/resume" && _pendingRestore != null)
+        {
+            var (msgs, model) = _pendingRestore.Value;
+            _agent!.Messages.Clear();
+            _agent.Messages.AddRange(msgs);
+            _pendingRestore = null;
+            sm.AddSystemMsg($"✔ 已恢复 {msgs.Count} 条消息 (模型: {model})");
+            return;
+        }
 
         // 调用 Agent (支持自动回退)
         using var cts = new CancellationTokenSource();

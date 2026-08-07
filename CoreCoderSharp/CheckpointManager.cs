@@ -9,6 +9,53 @@ public static class CheckpointManager
     private static int _nextId = 1;
 
     /// <summary>
+    /// 磁盘恢复检查点。启动时调用，从 ~/.corecoder/checkpoints/ 重建内存列表。
+    /// </summary>
+    public static void LoadFromDisk()
+    {
+        var checkpointsDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".corecoder", "checkpoints");
+
+        if (!Directory.Exists(checkpointsDir)) return;
+
+        _checkpoints.Clear();
+        int maxId = 0;
+
+        foreach (var dir in Directory.GetDirectories(checkpointsDir, "ckpt_*"))
+        {
+            var metaPath = Path.Combine(dir, "_checkpoint.json");
+            if (!File.Exists(metaPath)) continue;
+
+            try
+            {
+                var json = File.ReadAllText(metaPath);
+                var data = JsonNode.Parse(json);
+                if (data == null) continue;
+
+                var cp = new Checkpoint
+                {
+                    Id = data["id"]?.GetValue<int>() ?? 0,
+                    Description = data["description"]?.GetValue<string>() ?? "",
+                    Timestamp = DateTime.TryParse(
+                        data["timestamp"]?.GetValue<string>(), out var dt) ? dt : DateTime.MinValue,
+                    Type = CheckpointType.FileBackup
+                };
+
+                if (cp.Id > 0)
+                {
+                    _checkpoints.Add(cp);
+                    if (cp.Id > maxId) maxId = cp.Id;
+                }
+            }
+            catch { /* 跳过损坏的检查点 */ }
+        }
+
+        _checkpoints.Sort((a, b) => a.Id.CompareTo(b.Id));
+        _nextId = maxId + 1;
+    }
+
+    /// <summary>
     /// 是否在写文件前自动创建检查点。
     /// </summary>
     public static bool AutoCheckpoint { get; set; } = false;
