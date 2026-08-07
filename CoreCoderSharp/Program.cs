@@ -50,7 +50,7 @@ public class Program
             }
         }
 
-        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.16.1"); return 0; }
+        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.16.3"); return 0; }
 
         // 项目初始化向导
         if (initMode) { RunInit(); return 0; }
@@ -190,7 +190,7 @@ public class Program
         };
         foreach (var line in logo)
             sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = line });
-        sm.AddSystemMsg("极简 AI 编程智能体 · v0.16.1");
+        sm.AddSystemMsg("极简 AI 编程智能体 · v0.16.3");
         sm.AddSystemMsg($"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助");
         sm.StatusLeft = $"大:{_config.Model} 小:{_config.SmallModel}";
         _llm!.SmallModel = _config.SmallModel;

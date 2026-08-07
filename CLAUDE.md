@@ -12,8 +12,9 @@ CoreCoder 是一个极简 AI 编程智能体，C# (.NET 10) 实现，AOT 编译�
 # C# 版
 cd CoreCoderSharp
 dotnet publish -c Release            # AOT 编译
-dotnet run -- --test                 # 245 自测
+dotnet run -- --test                 # 380 自测
 dotnet run -- -p "提示词"            # 一次性模式
+dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 ```
 
 ## 架构
@@ -27,6 +28,7 @@ CoreCoderSharp/
 ├── SessionManager.cs  会话持久化
 ├── SystemPrompt.cs    系统提示词 (含项目检测)
 ├── Config.cs          配置 (.env 加载)
+├── WatchMode.cs        Watch 模式 (文件监听 + AI! 注释)
 ├── PermissionManager.cs 权限确认系统
 ├── ProjectContext.cs  项目检测 + CLAUDE.md 加载
 ├── ReviewMode.cs      代码审查模式
@@ -73,6 +75,7 @@ CoreCoderSharp/
 - **双模型架构**：大模型做复杂任务，小模型做压缩/摘要，自动分工省钱
 - **模型回退链**：失败自动尝试备选 deepseek-v4-flash→gpt-5.4-mini→deepseek-v4-pro→gpt-5.4
 - **文件锁**：FileLockManager 防止多 Agent 并发修改冲突，30s 超时自动释放
+- **Watch 模式**：FileSystemWatcher 监听文件变更 → 提取 AI! / AI? 注释 → 线程安全队列 → REPL 轮询执行
 - **全屏缓冲 UI**：备用屏 + 每帧重绘 + 弹窗菜单 + 侧栏面板 + 居中对话框
 - **UI 控件库**：`UI/` 目录封装 Spectre.Console 控件，统一配色，内建 CJK 宽度感知
 
