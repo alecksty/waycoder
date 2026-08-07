@@ -101,12 +101,23 @@ public class TerminalGuiRepl
 
     private void BuildUI()
     {
+        // 统一配色：白字黑底，高对比度
+        var scheme = new ColorScheme
+        {
+            Normal = new Terminal.Gui.Attribute(Color.White, Color.Black),
+            Focus = new Terminal.Gui.Attribute(Color.White, Color.Blue),
+            HotNormal = new Terminal.Gui.Attribute(Color.Cyan, Color.Black),
+            HotFocus = new Terminal.Gui.Attribute(Color.BrightCyan, Color.Blue),
+            Disabled = new Terminal.Gui.Attribute(Color.Gray, Color.Black),
+        };
+
         _mainWin = new Window
         {
             Title = $"WayCoder 道码 v0.17.3 — {_config.Model}",
             X = 0, Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
+            ColorScheme = scheme,
         };
 
         // --- 聊天区 ---
@@ -117,6 +128,7 @@ public class TerminalGuiRepl
             Height = Dim.Fill() - 5,
             ReadOnly = true,
             WordWrap = true,
+            ColorScheme = scheme,
         };
 
         // --- 输入区 ---
@@ -126,6 +138,7 @@ public class TerminalGuiRepl
             Y = Pos.AnchorEnd(4),
             Width = Dim.Fill(),
             Height = 3,
+            ColorScheme = scheme,
         };
         _inputView.KeyDown += OnInputKeyDown;
         _inputView.SetFocus();
@@ -138,6 +151,7 @@ public class TerminalGuiRepl
             Width = Dim.Fill(),
             Height = 1,
             Text = " 就绪",
+            ColorScheme = scheme,
         };
 
         // --- 状态栏 ---
