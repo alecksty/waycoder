@@ -6,22 +6,17 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>CoreCoderSharp</RootNamespace>
-    <PublishAot>true</PublishAot>
+    <!-- AOT 暂时禁用：Terminal.Gui v2 不支持 NativeAOT，待 v2 正式版后恢复 -->
+    <PublishAot>false</PublishAot>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <AssemblyName>corecoder</AssemblyName>
-  </PropertyGroup>
-
-  <!-- Debug 构建启用 Terminal.Gui v2 实验性 TUI -->
-  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <!-- Terminal.Gui v2 迁移标志 -->
     <DefineConstants>$(DefineConstants);TERMINAL_GUI</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Spectre.Console" Version="0.*" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageReference Include="Terminal.Gui" Version="2.0.0" />
   </ItemGroup>
 
