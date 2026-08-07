@@ -357,9 +357,12 @@ public class Editor
             File.WriteAllText(_filePath, content, System.Text.Encoding.UTF8);
             _modified = false;
 
-            // 通知模块
-            UI.TuiBox.Success("已保存", _filePath);
-            Thread.Sleep(800);
+            // 异步运行 lint 诊断
+            _ = Task.Run(async () =>
+            {
+                await DiagnosticManager.RunLintAsync(_filePath);
+                Render();
+            });
         }
         catch (Exception ex)
         {
@@ -395,6 +398,10 @@ public class Editor
 
         var sb = new StringBuilder();
 
+        // 获取诊断汇总
+        var (totalErrors, totalWarnings) = DiagnosticManager.GetSummary(_filePath);
+        var cursorDiagnostics = DiagnosticManager.GetForLine(_filePath, _cy + 1);
+
         // 隐藏光标 + 清屏
         sb.Append("[?25l[2J[H");
 
@@ -416,25 +423,34 @@ public class Editor
             var li = _scroll + i;
             var isCursor = li == _cy;
 
-            // 左边框 + 行号
+            // 左边框 + 行号 + gutter 指示器
             if (li < _lines.Count)
             {
+                var lineDiags = DiagnosticManager.GetForLine(_filePath, li + 1);
+                var hasError = lineDiags.Any(d => d.Severity == Severity.Error);
+                var hasWarning = !hasError && lineDiags.Any(d => d.Severity == Severity.Warning);
+                var gutter = hasError ? "[31m●[0m" : hasWarning ? "[33m▲[0m" : " ";
+
                 var ln = (li + 1).ToString().PadLeft(4);
                 sb.Append("[33m│[0m");
                 if (isCursor)
-                    sb.Append($" [36m{ln} [33m│[0m ");
+                    sb.Append($"{gutter}[36m{ln} [33m│[0m ");
                 else
-                    sb.Append($" [2m{ln}  [22m│ ");
+                    sb.Append($"{gutter}[2m{ln}  [22m│ ");
             }
             else
             {
-                sb.Append("[33m│[0m      │ [2m~[0m");
+                sb.Append("[33m│[0m       │ [2m~[0m");
             }
 
-            // 内容 + 截断适配终端宽度
+            // 内容 + 截断适配终端宽度 + 诊断背景色
             if (li < _lines.Count)
             {
-                RenderLineTruncated(sb, _lines[li].ToString(), contentMaxVW);
+                var lineDiags = DiagnosticManager.GetForLine(_filePath, li + 1);
+                var hasError = lineDiags.Any(d => d.Severity == Severity.Error);
+                var hasWarning = !hasError && lineDiags.Any(d => d.Severity == Severity.Warning);
+                var bgColor = hasError ? Syntax.ErrorBg : hasWarning ? Syntax.WarningBg : 0;
+                RenderLineTruncated(sb, _lines[li].ToString(), contentMaxVW, bgColor);
             }
 
             // 右填充到终端边界
@@ -455,11 +471,28 @@ public class Editor
         var stat1 = $"  L{_cy + 1}:C{_cx + 1}  │  " +
                     $"行:{totalLines:N0}  字符:{totalChars:N0}  │  " +
                     $"{fileSize}  │  {_syntax.Name}  ·  UTF-8";
+        // 追加诊断计数
+        if (totalErrors > 0 || totalWarnings > 0)
+        {
+            stat1 += "  │  ";
+            if (totalErrors > 0) stat1 += $"[31m● {totalErrors} errors[0m";
+            if (totalErrors > 0 && totalWarnings > 0) stat1 += "  ";
+            if (totalWarnings > 0) stat1 += $"[33m▲ {totalWarnings} warnings[0m";
+        }
         RenderStatusLine(sb, stat1);
 
         // ═══════ 状态行 2 ═══════
-        var modifiedTag = _modified ? "  [已修改]" : "";
-        var stat2 = $" ^S保存 ^Z撤销 ^G跳行 ^X剪切 ^C复制 ^V粘贴 ^Y删行 Esc退出{modifiedTag}";
+        var stat2 = $" ^S保存 ^Z撤销 ^G跳行 ^X剪切 ^C复制 ^V粘贴 ^Y删行 Esc退出";
+        if (_modified) stat2 += "  [已修改]";
+        // 当前行诊断消息
+        if (cursorDiagnostics.Count > 0)
+        {
+            var firstDiag = cursorDiagnostics[0];
+            var msg = firstDiag.Message.Length > 60
+                ? firstDiag.Message[..57] + "..."
+                : firstDiag.Message;
+            stat2 += $"  │  [{(firstDiag.Severity == Severity.Error ? "31" : "33")}m{msg}[0m";
+        }
         RenderStatusLine(sb, stat2);
 
         // ═══════ 底边 ═══════
@@ -471,7 +504,8 @@ public class Editor
         var lineBeforeCursor = _lines[_cy].ToString();
         var cxVisual = _cx > 0 ? VW(lineBeforeCursor[..Math.Min(_cx, lineBeforeCursor.Length)]) : 0;
         var screenCol = PrefixVisual + cxVisual;
-        // 确保光标不超出终端
+        // gutter 增加 1 个视觉字符宽度
+        screenCol += 1;
         screenCol = Math.Min(screenCol, _tw - 1);
         sb.Append($"[{screenRow};{screenCol}H");
         sb.Append("[?25h");
@@ -489,15 +523,17 @@ public class Editor
         sb.Append($"[33m│[0m [2m{text}{new string(' ', pad)} [0m[33m│[0m\r\n");
     }
 
-    /// <summary>渲染一行内容，按视觉宽度截断适配终端</summary>
-    private void RenderLineTruncated(StringBuilder sb, string line, int maxVW)
+    /// <summary>渲染一行内容，按视觉宽度截断适配终端。bgColor=0 表示无背景。</summary>
+    private void RenderLineTruncated(StringBuilder sb, string line, int maxVW, int bgColor = 0)
     {
         if (string.IsNullOrEmpty(line))
         {
+            if (bgColor > 0) sb.Append($"[{bgColor}m");
             sb.Append(' ');
             return;
         }
 
+        var hasBg = bgColor > 0;
         var tokens = _syntax.Tokenize(line);
         var vw = 0;
         foreach (var (text, ansiColor) in tokens)
@@ -505,16 +541,21 @@ public class Editor
             var textVW = VW(text);
             if (vw + textVW > maxVW)
             {
-                // 截断：只显示能容纳的部分
                 var remain = maxVW - vw;
                 if (remain > 0)
                 {
                     var truncated = TruncateTextByVW(text, remain);
-                    sb.Append($"[{ansiColor}m{truncated}[0m");
+                    if (hasBg)
+                        sb.Append($"[{bgColor};{ansiColor}m{truncated}[0m");
+                    else
+                        sb.Append($"[{ansiColor}m{truncated}[0m");
                 }
                 break;
             }
-            sb.Append($"[{ansiColor}m{text}[0m");
+            if (hasBg)
+                sb.Append($"[{bgColor};{ansiColor}m{text}[0m");
+            else
+                sb.Append($"[{ansiColor}m{text}[0m");
             vw += textVW;
         }
     }
