@@ -26,7 +26,7 @@ public static class TuiInput
         "/plan", "/todo", "/git-status", "/git-log", "/git-diff",
         "/review", "/lint", "/search <关键词>",
         "/checkpoint", "/undo [编号]", "/checkpoints",
-        "/repomap", "/pr [标题]", "/edit [文件]",
+        "/repomap", "/pr [标题]", "/edit [文件]", "/about", "/settings",
         "quit",
     ];
 
