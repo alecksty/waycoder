@@ -196,9 +196,9 @@ public class TerminalGuiRepl
         _sidePanel.Add(_sideTabs);
 
         _mainWin.Add(_chatView, _inputView, _tokenLabel);
-        Application.Top!.Add(_mainWin);
-        Application.Top.Add(_statusBar);
-        Application.Top.Add(_sidePanel); // 叠加在右侧
+        // SidePanel 叠加在右侧，StatusBar 钉在底部
+        _mainWin.Add(_sidePanel);
+        _mainWin.Add(_statusBar);
     }
 
     // ================================================================
