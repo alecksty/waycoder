@@ -305,7 +305,7 @@ public class Agent
             var fileList = string.Join(", ", changed);
             var msg = await GenerateCommitMsgAsync(fileList);
             if (string.IsNullOrWhiteSpace(msg)) return;
-            await RunGitAsync("add -A");
+            await RunGitAsync("add -u");  // -u 仅暂存已跟踪文件，避免意外提交临时文件
             await RunGitAsync("commit -m \"" + msg.Replace("\"", "\\\"") + "\"");
         }
         catch { }
