@@ -1,5 +1,25 @@
 # 更新日志
 
+## v0.16.1 (2026-08-07) — 滚动修复 + /loop + /test + 界面主题
+
+### 🐛 修复
+- **滚动区域重构** — ChatScrollUp 下限 clamp + ChatScrollDown 延迟判底机制
+- **ShowMenu 重写** — 长列表自动滚动 + PgUp/PgDn/Home/End 导航 + 选中项背景填充修复 + 滚动指示器
+- **RenderSuggestions 越界修复** — 边框/填充改用 `chatW` 替代 `TW`，右侧面板激活时不再视觉错乱
+- **ShowDialog 边距修正** — 标题/内容/提示行 fill 计算公式统一
+- **箭头键聊天滚动** — 输入为空时 ↑↓ 滚动聊天区；Ctrl+↑/↓ 随时可滚动
+
+### ✨ 新增功能
+- **`/loop` 循环执行** — `/loop [最大轮次] 提示词` 重复执行 Agent 直到输出含成功标记（SUCCESS/✅/通过 等）
+- **`/test` 分模块测试** — `/test all|tools|ui|git|config|memory|agent|review|mcp|system` 只跑相关模块
+- **界面主题系统** — 6 套预设配色（default/ocean/forest/sunset/mono/cyberpunk）+ 4 种边框类型（rounded/single/double/bold）+ 独立边框色/强调色设置
+- **SettingsPage 新增 `🎨 界面` 分类** — 配色方案/边框类型/边框颜色/强调色 四设置项，选色立即生效
+
+### 🔧 增强
+- 快捷键栏新增 `PgUp/Dn 滚动` 提示
+- SelfTest 新增 Section/RunWithFilter 过滤机制
+- ScreenManager 全面主题化：顶栏/分隔线/输入区/建议面板/菜单/对话框 均使用主题边框和颜色
+
 ## v0.16.0 (2026-08-07) — 20 项综合增强
 
 ### ✨ 新增功能

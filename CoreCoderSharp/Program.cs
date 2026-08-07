@@ -46,7 +46,7 @@ public class Program
             }
         }
 
-        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.16.0"); return 0; }
+        if (showVersion) { Console.WriteLine("CoreCoderSharp v0.16.1"); return 0; }
 
         // 项目初始化向导
         if (initMode) { RunInit(); return 0; }
@@ -168,6 +168,7 @@ public class Program
     {
         var sm = ScreenManager.Instance;
         sm.Enter();
+        sm.RefreshTheme();
         sm.ChatMessages.Clear();
         sm.InputLines.Clear();
         sm.InputLines.Add(new StringBuilder());
@@ -184,7 +185,7 @@ public class Program
         };
         foreach (var line in logo)
             sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = line });
-        sm.AddSystemMsg("极简 AI 编程智能体 · v0.16.0");
+        sm.AddSystemMsg("极简 AI 编程智能体 · v0.16.1");
         sm.AddSystemMsg($"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助");
         sm.StatusLeft = $"大:{_config.Model} 小:{_config.SmallModel}";
         _llm!.SmallModel = _config.SmallModel;
@@ -299,6 +300,8 @@ case ConsoleKey.F2:
                 case ConsoleKey.PageDown: sm.ChatScrollDown(Math.Max(1, (Console.WindowHeight - 10) / 2)); break;
                 case ConsoleKey.Home when ctrl: sm.ChatScrollTop(); break;
                 case ConsoleKey.End when ctrl: sm.ChatScrollBottom(); break;
+                case ConsoleKey.UpArrow when ctrl: sm.ChatScrollUp(3); break;
+                case ConsoleKey.DownArrow when ctrl: sm.ChatScrollDown(3); break;
 
                 case ConsoleKey.Enter when ctrl || shift:
                     sm.InputNewLine();
@@ -315,6 +318,9 @@ case ConsoleKey.F2:
                 case ConsoleKey.UpArrow:
                     if (sm.InputLines.Count == 1)
                     {
+                        // 单行输入 + 空内容: 滚动聊天区
+                        if (string.IsNullOrEmpty(sm.GetInputText()))
+                        { sm.ChatScrollUp(3); break; }
                         // 单行输入：浏览历史
                         if (_inputHistory.Count > 0)
                         {
@@ -328,6 +334,9 @@ case ConsoleKey.F2:
                 case ConsoleKey.DownArrow:
                     if (sm.InputLines.Count == 1)
                     {
+                        // 单行输入 + 空内容: 滚动聊天区
+                        if (string.IsNullOrEmpty(sm.GetInputText()))
+                        { sm.ChatScrollDown(3); break; }
                         if (_historyIdx >= 0)
                         {
                             _historyIdx++;
@@ -463,6 +472,10 @@ case ConsoleKey.F2:
             sm.AddSystemMsg($"✔ 已恢复 {msgs.Count} 条消息 (模型: {model})");
             return;
         }
+        if (userInput.StartsWith("/loop "))
+        { await RunLoopAsync(userInput[6..].Trim(), sm); return; }
+        if (userInput.StartsWith("/test"))
+        { RunModuleTest(userInput, sm); return; }
 
         // 调用 Agent (支持自动回退)
         using var cts = new CancellationTokenSource();
@@ -920,6 +933,126 @@ case ConsoleKey.F2:
         catch (Exception ex)
         {
             sm.AddSystemMsg($"❌ 导出失败: {ex.Message}");
+        }
+    }
+
+    // ========================================================================
+    // /loop — 循环执行直到条件达成
+    // ========================================================================
+
+    /// <summary>
+    /// /loop [最大轮次] 提示词 — 重复执行 Agent，直到输出含成功标记或达到上限。
+    /// </summary>
+    private static async Task RunLoopAsync(string args, ScreenManager sm)
+    {
+        int maxIter = 10;
+        var prompt = args;
+
+        // 解析可选的最大轮次：/loop 5 修复所有编译错误
+        var spaceIdx = prompt.IndexOf(' ');
+        if (spaceIdx > 0 && int.TryParse(prompt[..spaceIdx], out var n) && n > 0 && n <= 50)
+        {
+            maxIter = n;
+            prompt = prompt[(spaceIdx + 1)..].Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(prompt))
+        {
+            sm.AddSystemMsg("用法: /loop [最大轮次] 提示词");
+            return;
+        }
+
+        sm.AddSystemMsg($"🔁 /loop 开始 (最多 {maxIter} 轮)");
+        var startTime = DateTime.UtcNow;
+
+        for (int iter = 1; iter <= maxIter; iter++)
+        {
+            sm.AddSystemMsg($"\n── 第 {iter}/{maxIter} 轮 ──");
+            sm.StatusLeft = $"loop {iter}/{maxIter}";
+
+            using var cts = new CancellationTokenSource();
+
+            try
+            {
+                sm.StartAgentMsg();
+                sm.Render();
+
+                await _agent!.ChatAsync(prompt,
+                    onToken: tok => { sm.AppendToken(tok); sm.Render(); },
+                    onTool: (name, brief) =>
+                    {
+                        sm.FinishAgentMsg();
+                        sm.AddToolMsg(name, brief.Length > 60 ? brief[..57] + "..." : brief);
+                        sm.StartAgentMsg();
+                        sm.Render();
+                    },
+                    cancellationToken: cts.Token);
+
+                sm.FinishAgentMsg();
+            }
+            catch (OperationCanceledException)
+            {
+                sm.FinishAgentMsg();
+                sm.AddSystemMsg("⚠ /loop 已中断");
+                break;
+            }
+            catch (Exception ex)
+            {
+                sm.FinishAgentMsg();
+                sm.AddSystemMsg($"⚠ 第 {iter} 轮出错: {ex.Message}");
+                if (iter == maxIter) break;
+                await Task.Delay(1000);
+                continue;
+            }
+
+            // 检查最近一条 assistant 消息是否含成功标记
+            var lastAssistant = _agent.Messages.LastOrDefault(m =>
+                m["role"]?.GetValue<string>() == "assistant");
+            var lastContent = lastAssistant?["content"]?.GetValue<string>() ?? "";
+
+            var successMarkers = new[] { "SUCCESS", "成功", "✅", "PASS", "通过",
+                "所有测试通过", "0 errors", "0 个错误", "编译成功", "构建成功" };
+            var isSuccess = successMarkers.Any(m =>
+                lastContent.Contains(m, StringComparison.OrdinalIgnoreCase));
+
+            if (isSuccess)
+            {
+                var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
+                sm.AddSystemMsg($"✅ 条件达成！{iter} 轮 / {elapsed:F1}s");
+                Console.Write('\a');
+                return;
+            }
+
+            // 注入继续指令
+            prompt = $"上一轮结果未满足条件，请继续尝试。上次输出摘要：{lastContent[..Math.Min(lastContent.Length, 200)]}";
+        }
+
+        sm.AddSystemMsg($"⏰ 已达上限 {maxIter} 轮，/loop 结束");
+    }
+
+    // ========================================================================
+    // /test — 分模块测试
+    // ========================================================================
+
+    /// <summary>
+    /// /test <模块> — 运行特定模块的自测。
+    /// 模块: all | tools | ui | git | config | memory | agent | review | mcp
+    /// </summary>
+    private static void RunModuleTest(string input, ScreenManager sm)
+    {
+        var module = input.Length > 5 ? input[5..].Trim() : "all";
+        if (string.IsNullOrWhiteSpace(module)) module = "all";
+
+        sm.AddSystemMsg($"🧪 开始测试模块: {module}");
+
+        try
+        {
+            var results = SelfTest.RunModule(module);
+            sm.AddSystemMsg(results);
+        }
+        catch (Exception ex)
+        {
+            sm.AddSystemMsg($"❌ 测试异常: {ex.Message}");
         }
     }
 

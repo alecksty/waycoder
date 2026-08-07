@@ -16,6 +16,29 @@ public class ScreenManager
     // ---- 屏幕 ----
     public int TW, TH;
 
+    // ---- 主题 (从 Config 刷新) ----
+    public string ThemeBorderColor = "36";
+    public string ThemeAccentColor = "36";
+    public string ThemeBorderStyle = "rounded";
+
+    /// <summary>从 Config 刷新主题设置</summary>
+    public void RefreshTheme()
+    {
+        var cfg = Config.FromEnv();
+        ThemeBorderColor = cfg.BorderColor;
+        ThemeAccentColor = cfg.AccentColor;
+        ThemeBorderStyle = cfg.BorderStyle;
+    }
+
+    /// <summary>获取边框字符集</summary>
+    private (string tl, string tr, string bl, string br, string h, string v) BorderChars() => ThemeBorderStyle switch
+    {
+        "double" => ("╔", "╗", "╚", "╝", "═", "║"),
+        "bold" => ("┏", "┓", "┗", "┛", "━", "┃"),
+        "single" => ("┌", "┐", "└", "┘", "─", "│"),
+        _ => ("╭", "╮", "╰", "╯", "─", "│"), // rounded (默认)
+    };
+
     // ---- 聊天历史 ----
     public readonly List<ChatMsg> ChatMessages = [];
     private int _chatScroll;
@@ -189,9 +212,15 @@ public class ScreenManager
     private static string FormatK(int n) => n >= 1000 ? $"{n / 1000.0:F1}k" : n.ToString();
 
     /// <summary>聊天区向上滚动</summary>
-    public void ChatScrollUp(int lines = 1) { _chatScroll -= lines; _autoScroll = false; }
+    public void ChatScrollUp(int lines = 1) { _chatScroll = Math.Max(0, _chatScroll - lines); _autoScroll = false; }
     /// <summary>聊天区向下滚动</summary>
-    public void ChatScrollDown(int lines = 1) { _chatScroll += lines; var max = Math.Max(0, BuildChatScreenLines(Math.Max(20, TW - (ActivePanel != PanelTab.Off ? 32 : 0)), Math.Max(3, TH - 10)).Count - Math.Max(3, TH - 10)); if (_chatScroll >= max) _autoScroll = true; }
+    public void ChatScrollDown(int lines = 1)
+    {
+        _chatScroll += lines;
+        // 延迟到下一次 Render 里判断是否触底，避免重复构建 chatScreenLines
+        _maybeSnapToBottom = true;
+    }
+    private bool _maybeSnapToBottom;
     /// <summary>聊天区跳到顶部</summary>
     public void ChatScrollTop() { _chatScroll = 0; _autoScroll = false; }
     /// <summary>聊天区跳到底部</summary>
@@ -233,22 +262,22 @@ public class ScreenManager
         var sb = new StringBuilder();
         // 遮罩背景
         for (int i = 0; i < TH; i++)
-            sb.Append($"[{i + 1};1H[100m{new string(' ', TW)}[0m");
-        // 重绘原框架内容（简化：只保留文字区域）
+            sb.Append($"\x1b[{i + 1};1H\x1b[100m{new string(' ', TW)}\x1b[0m");
 
-        // 对话框
-        sb.Append($"[{y};{x}H[{color}m╭{new string('─', w - 2)}╮[0m");
+        // 对话框 (使用主题边框)
+        var (dtl, dtr, dbl, dbr, dh, dv) = BorderChars();
+        sb.Append($"\x1b[{y};{x}H\x1b[{color}m{dtl}{new string(dh[0], w - 2)}{dtr}\x1b[0m");
         if (!string.IsNullOrEmpty(title))
         {
-            sb.Append($"[{y + 1};{x}H[{color}m│[0m [1m{title}[0m" +
-                $"{new string(' ', Math.Max(0, w - VW(title) - 4))}[{color}m│[0m");
+            sb.Append($"\x1b[{y + 1};{x}H\x1b[{color}m{dv}\x1b[0m \x1b[1m{title}\x1b[0m" +
+                $"{new string(' ', Math.Max(0, w - VW(title) - 3))}\x1b[{color}m{dv}\x1b[0m");
         }
         for (int i = 0; i < lines.Length; i++)
-            sb.Append($"[{y + 2 + i};{x}H[{color}m│[0m {lines[i]}" +
-                $"{new string(' ', Math.Max(0, w - VW(lines[i]) - 4))}[{color}m│[0m");
-        sb.Append($"[{y + 2 + lines.Length};{x}H[{color}m│[0m 按任意键关闭" +
-            $"{new string(' ', Math.Max(0, w - VW("按任意键关闭") - 6))}[{color}m│[0m");
-        sb.Append($"[{y + h - 1};{x}H[{color}m╰{new string('─', w - 2)}╯[0m");
+            sb.Append($"\x1b[{y + 2 + i};{x}H\x1b[{color}m{dv}\x1b[0m {lines[i]}" +
+                $"{new string(' ', Math.Max(0, w - VW(lines[i]) - 3))}\x1b[{color}m{dv}\x1b[0m");
+        sb.Append($"\x1b[{y + 2 + lines.Length};{x}H\x1b[{color}m{dv}\x1b[0m 按任意键关闭" +
+            $"{new string(' ', Math.Max(0, w - VW("按任意键关闭") - 3))}\x1b[{color}m{dv}\x1b[0m");
+        sb.Append($"\x1b[{y + h - 1};{x}H\x1b[{color}m{dbl}{new string(dh[0], w - 2)}{dbr}\x1b[0m");
 
         Console.Write(sb.ToString());
         Console.ReadKey(intercept: true);
@@ -259,35 +288,71 @@ public class ScreenManager
     {
         var w = Math.Min(TW - 8, Math.Max(20, choices.Max(c => VW(c)) + 4));
         if (!string.IsNullOrEmpty(title)) w = Math.Max(w, VW(title) + 4);
-        var h = choices.Count + 4; // 上框 + title + items + hint + 下框
+        // 计算可见项数：屏幕高度 - 遮罩边距 - 标题 - 提示行 - 上下框
+        var maxVis = Math.Min(choices.Count, Math.Max(3, TH - 8));
+        var hasTitle = !string.IsNullOrEmpty(title);
+        var h = maxVis + 3 + (hasTitle ? 1 : 0); // 上框 + [title] + items + hint + 下框
         var x = (TW - w) / 2;
         var y = (TH - h) / 2;
         int sel = 0;
+        int scroll = 0;
 
         while (true)
         {
+            // 保持选中项可见
+            if (sel < scroll) scroll = sel;
+            if (sel >= scroll + maxVis) scroll = sel - maxVis + 1;
+
             var sb = new StringBuilder();
             // 遮罩
             for (int i = 0; i < TH; i++)
-                sb.Append($"[{i + 1};1H[100m{new string(' ', TW)}[0m");
+                sb.Append($"\x1b[{i + 1};1H\x1b[100m{new string(' ', TW)}\x1b[0m");
 
-            // 菜单框
-            sb.Append($"[{y};{x}H[36m╭{new string('─', w - 2)}╮[0m");
-            if (!string.IsNullOrEmpty(title))
-                sb.Append($"[{y + 1};{x}H[36m│[0m [1m{title}[0m" +
-                    $"{new string(' ', Math.Max(0, w - VW(title) - 4))}[36m│[0m");
-            for (int i = 0; i < choices.Count; i++)
+            // 上边框
+            var (mtl, mtr, mbl, mbr, mh, mv) = BorderChars();
+            int itemBaseRow = y + (hasTitle ? 2 : 1);
+            sb.Append($"\x1b[{y};{x}H\x1b[{ThemeBorderColor}m{mtl}{new string(mh[0], w - 2)}{mtr}\x1b[0m");
+            if (hasTitle)
+                sb.Append($"\x1b[{y + 1};{x}H\x1b[{ThemeBorderColor}m{mv}\x1b[0m \x1b[1m{title}\x1b[0m" +
+                    $"{new string(' ', Math.Max(0, w - VW(title) - 3))}\x1b[{ThemeBorderColor}m{mv}\x1b[0m");
+
+            // 列表项
+            for (int i = 0; i < maxVis; i++)
             {
-                var text = choices[i];
+                int ci = scroll + i;
+                if (ci >= choices.Count) break;
+                var text = choices[ci];
                 if (VW(text) > w - 8) text = TruncateByVW(text, w - 9) + "…";
-                sb.Append($"[{y + 2 + i};{x}H[36m│[0m ");
-                sb.Append(i == sel ? $"[30;46m {text} [0m" : $" {text} ");
-                var fill = Math.Max(0, w - 4 - VW(text) - 2);
-                if (i != sel) sb.Append(new string(' ', fill));
-                sb.Append($"[36m│[0m");
+                var textVW = VW(text);
+                var fill = Math.Max(0, w - 5 - textVW); // │+sp + sp+text+sp + fill + │ = w
+
+                sb.Append($"\x1b[{itemBaseRow + i};{x}H\x1b[{ThemeBorderColor}m{mv}\x1b[0m ");
+                if (ci == sel)
+                {
+                    sb.Append($"\x1b[30;46m {text} ");
+                    if (fill > 0) sb.Append(new string(' ', fill));
+                    sb.Append($"\x1b[0m");
+                }
+                else
+                {
+                    sb.Append($" {text} ");
+                    if (fill > 0) sb.Append(new string(' ', fill));
+                }
+                sb.Append($"\x1b[{ThemeBorderColor}m{mv}\x1b[0m");
             }
-            sb.Append($"[{y + h - 1};{x}H[36m╰{new string('─', w - 2)}╯[0m");
-            sb.Append("[?25h");
+
+            // 提示行 + 滚动指示器
+            var hint = scroll > 0 && scroll + maxVis < choices.Count ? "↑↓ 滚动  Enter 确认  Esc 取消"
+                     : scroll > 0 ? "↑ 更多  Enter 确认  Esc 取消"
+                     : scroll + maxVis < choices.Count ? "↓ 更多  Enter 确认  Esc 取消"
+                     : "Enter 确认  Esc 取消";
+            int hintRow = y + h - 2;
+            sb.Append($"\x1b[{hintRow};{x}H\x1b[{ThemeBorderColor}m{mv}\x1b[0m \x1b[2m{hint}\x1b[0m" +
+                $"{new string(' ', Math.Max(0, w - VW(hint) - 3))}\x1b[{ThemeBorderColor}m{mv}\x1b[0m");
+
+            // 下边框
+            sb.Append($"\x1b[{y + h - 1};{x}H\x1b[{ThemeBorderColor}m{mbl}{new string(mh[0], w - 2)}{mbr}\x1b[0m");
+            sb.Append("\x1b[?25h");
             Console.Write(sb.ToString());
 
             var key = Console.ReadKey(intercept: true);
@@ -295,6 +360,10 @@ public class ScreenManager
             {
                 case ConsoleKey.UpArrow: if (sel > 0) sel--; break;
                 case ConsoleKey.DownArrow: if (sel < choices.Count - 1) sel++; break;
+                case ConsoleKey.PageUp: sel = Math.Max(0, sel - maxVis); break;
+                case ConsoleKey.PageDown: sel = Math.Min(choices.Count - 1, sel + maxVis); break;
+                case ConsoleKey.Home: sel = 0; break;
+                case ConsoleKey.End: sel = choices.Count - 1; break;
                 case ConsoleKey.Enter: return sel;
                 case ConsoleKey.Escape: return -1;
             }
@@ -319,7 +388,7 @@ public class ScreenManager
             "  ╚██████╗╚██████╔╝██║  ██║███████╗",
             "   ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝",
         };
-        var subtitle = "极简 AI 编程智能体 · v0.16.0";
+        var subtitle = "极简 AI 编程智能体 · v0.16.1";
         var credit = "C# / .NET 10 · AOT 编译";
 
         var boxW = 46;
@@ -364,7 +433,8 @@ public class ScreenManager
         var hotkeys = new (string key, string desc)[]
         {
             ("F1", "帮助"), ("F2", "面板"), ("F5", "设置"),
-            ("F6", "编辑"), ("↑↓", "历史"), ("Ctrl+R", "搜索"), ("Ctrl+M", "切模型"),
+            ("F6", "编辑"), ("↑↓", "历史"), ("PgUp/Dn", "滚动"),
+            ("Ctrl+R", "搜索"), ("Ctrl+M", "切模型"),
         };
 
         sb.Append($"\x1b[{row};1H\x1b[44m\x1b[37m\x1b[K");
@@ -478,15 +548,21 @@ public class ScreenManager
         var totalCLines = chatScreenLines.Count;
         var maxScroll = Math.Max(0, totalCLines - chatH);
         if (_autoScroll) _chatScroll = maxScroll;
+        else if (_maybeSnapToBottom && _chatScroll >= maxScroll)
+        { _autoScroll = true; _chatScroll = maxScroll; }
+        _maybeSnapToBottom = false;
         _chatScroll = Math.Clamp(_chatScroll, 0, maxScroll);
 
-        // ---- 顶栏 (蓝底白字) ----
-        var topText = $" CoreCoder v0.16.0 · {StatusLeft}";
+        // ---- 顶栏 (主题色底白字) ----
+        var topBarBg = ThemeAccentColor switch { "32" => "42", "33" => "43", "34" => "44",
+            "35" => "45", "37" => "47", _ => "44" };
+        var topText = $" CoreCoder v0.16.1 · {StatusLeft}";
         if (ActivePanel != PanelTab.Off) topText += $"  [F2 面板:{ActivePanel}]";
-        sb.Append($"[44;37m{topText}{new string(' ', Math.Max(0, TW - VW(topText)))}[0m\r\n");
+        sb.Append($"\x1b[{topBarBg};37m{topText}{new string(' ', Math.Max(0, TW - VW(topText)))}\x1b[0m\r\n");
 
-        // ---- 分隔线 (青色) ----
-        sb.Append($"[36m{new string('─', TW)}[0m\r\n");
+        // ---- 分隔线 (主题色) ----
+        var (_, _, _, _, bH, _) = BorderChars();
+        sb.Append($"\x1b[{ThemeBorderColor}m{new string(bH[0], TW)}\x1b[0m\r\n");
 
         // ---- 聊天区 + 侧边栏 ----
         int chatRow = topH + sepH;
@@ -505,7 +581,7 @@ public class ScreenManager
             // Todo 面板 (右)
             if (ActivePanel != PanelTab.Off)
             {
-                sb.Append($"[{chatRow + i + 1};{chatW + 1}H[90m│[0m");
+                sb.Append($"\x1b[{chatRow + i + 1};{chatW + 1}H\x1b[{ThemeBorderColor}m│\x1b[0m");
                 RenderTodoLine(sb, i);
                 sb.Append("[K");
             }
@@ -600,7 +676,7 @@ public class ScreenManager
         switch (msg.Role)
         {
             case "user":
-                sb.Append($"[36m{cl.Text}[0m");
+                sb.Append($"\x1b[{ThemeAccentColor}m{cl.Text}\x1b[0m");
                 break;
             case "tool":
                 sb.Append($"[2m{cl.Text}[0m");
@@ -623,26 +699,30 @@ public class ScreenManager
 
     private void RenderSuggestions(StringBuilder sb, int startRow, int suggestH, int chatW)
     {
-        sb.Append($"[{startRow};1H[36m╭─ 建议 (↑↓选择 Enter确认 Esc取消) {new string('─', Math.Max(0, chatW - 23))}╮[0m\r\n");
+        var (stl, str, sbl, sbr, sh, sv) = BorderChars();
+        var titleText = $"{sh[0]} 建议 (↑↓选择 Enter确认 Esc取消) ";
+        var titleVW = VW(titleText) + 2; // tl + tr
+        sb.Append($"\x1b[{startRow};1H\x1b[{ThemeBorderColor}m{stl}{titleText}{new string(sh[0], Math.Max(0, chatW - titleVW))}{str}\x1b[0m\r\n");
         for (int i = 0; i < suggestH - 2; i++)
         {
-            sb.Append("[36m│[0m ");
+            sb.Append($"\x1b[{ThemeBorderColor}m{sv}\x1b[0m ");
             if (i < Suggestions.Count)
             {
                 var text = Suggestions[i];
                 var maxW = chatW - 4;
                 if (VW(text) > maxW) text = TruncateByVW(text, maxW - 1) + "…";
-                sb.Append(i == SuggestIdx ? $"[30;46m {text} [0m" : $" {text} ");
-                var fill = Math.Max(0, TW - 4 - VW(text) - 2);
+                var textVW = VW(text);
+                sb.Append(i == SuggestIdx ? $"\x1b[30;46m {text} \x1b[0m" : $" {text} ");
+                var fill = Math.Max(0, chatW - 4 - textVW - 2);
                 if (i != SuggestIdx) sb.Append(new string(' ', fill));
             }
             else
             {
-                sb.Append(new string(' ', TW - 4));
+                sb.Append(new string(' ', chatW - 4));
             }
-            sb.Append(" [36m│[0m\r\n");
+            sb.Append($" \x1b[{ThemeBorderColor}m{sv}\x1b[0m\r\n");
         }
-        sb.Append($"[36m╰{new string('─', Math.Max(0, TW - 2))}╯[0m");
+        sb.Append($"\x1b[{ThemeBorderColor}m{sbl}{new string(sh[0], Math.Max(0, chatW - 2))}{sbr}\x1b[0m");
     }
 
     // ================================================================
@@ -708,14 +788,15 @@ public class ScreenManager
         if (scrCy >= InputScroll + vh) InputScroll = scrCy - vh + 1;
         InputScroll = Math.Clamp(InputScroll, 0, Math.Max(0, total - vh));
 
-        var dash = new string('─', Math.Max(0, TW - 2));
+        var (itl, itr, ibl, ibr, ih, iv) = BorderChars();
+        var dash = new string(ih[0], Math.Max(0, TW - 2));
 
-        sb.Append($"[{startRow};1H[2m╭{dash}╮[0m\r\n");
+        sb.Append($"\x1b[{startRow};1H\x1b[2m{itl}{dash}{itr}\x1b[0m\r\n");
 
         for (int i = 0; i < vh; i++)
         {
             var si = InputScroll + i;
-            sb.Append("[2m│[0m ");
+            sb.Append($"\x1b[2m{iv}\x1b[0m ");
             if (si < screenLines.Count && screenLines[si].Chars > 0)
             {
                 var sl = screenLines[si];
@@ -730,10 +811,10 @@ public class ScreenManager
             {
                 sb.Append(new string(' ', cw));
             }
-            sb.Append(" [2m│[0m\r\n");
+            sb.Append($" \x1b[2m{iv}\x1b[0m\r\n");
         }
 
-        sb.Append($"[2m╰{dash}╯[0m");
+        sb.Append($"\x1b[2m{ibl}{dash}{ibr}\x1b[0m");
     }
 
     // ================================================================
