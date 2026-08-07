@@ -150,138 +150,209 @@ public class Program
 
     private static async Task RunReplAsync()
     {
-        // 欢迎横幅
-        TuiBanner.Show("CoreCoder", "0.11.0", _config.Model,
-            _config.BaseUrl, DebugLog.Enabled);
+        var sm = ScreenManager.Instance;
+        sm.Enter();
+        sm.ChatMessages.Clear();
+        sm.InputLines.Clear();
+        sm.InputLines.Add(new StringBuilder());
+        sm.AddSystemMsg($"CoreCoder v0.11.0 · 模型: {_config.Model}  ·  /help 帮助");
+        sm.StatusLeft = _config.Model;
 
-        while (true)
+        var running = true;
+        while (running)
         {
-            string? userInput;
-            try
+            sm.Render();
+
+            var key = Console.ReadKey(intercept: true);
+            bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
+            bool shift = key.Modifiers.HasFlag(ConsoleModifiers.Shift);
+
+            // 终端 resize 检测
+            var (tw, th) = (Console.WindowWidth, Console.WindowHeight);
+            if (tw != sm.TW || th != sm.TH) { sm.Render(); continue; }
+
+            // ---- 建议模式 ----
+            if (sm.SuggestActive)
             {
-                userInput = TuiInput.ReadInput();
-            }
-            catch (OperationCanceledException)
-            {
-                MarkupLine("\n[dim]👋 再见![/]");
-                break;
-            }
-
-            if (userInput == null) continue; // Esc 取消
-
-            userInput = userInput?.Trim() ?? "";
-            if (string.IsNullOrEmpty(userInput)) continue;
-
-            // 全角符号 → 半角规范化（中文输入法兼容）
-            userInput = userInput
-                .Replace('／', '/')
-                .Replace('！', '!')
-                .Replace('＃', '#');
-
-            var lower = userInput.ToLowerInvariant();
-            if (lower is "quit" or "exit" or "/quit" or "/exit") break;
-
-            // ---- 输入提示触发 (/ ! #) ----
-            if (userInput == "/") { userInput = ShowCommandPalette(); if (string.IsNullOrEmpty(userInput)) continue; }
-            if (userInput == "!") { await RunShellOnceAsync(); continue; }
-            if (userInput == "#") { userInput = await ShowFileHintAsync(); if (string.IsNullOrEmpty(userInput)) continue; }
-
-            // 内置命令
-            if (userInput == "/help") { ShowHelp(); continue; }
-            if (userInput == "/reset") { _agent!.Reset(); MarkupLine("[orange3]♻ 对话已重置[/]"); continue; }
-            if (userInput == "/tokens") { ShowTokens(); continue; }
-            if (userInput == "/model") { MarkupLine($"[dim]当前模型:[/] [green]{E(_config.Model)}[/]"); continue; }
-            if (userInput.StartsWith("/model ")) { SwitchModel(userInput); continue; }
-            if (userInput == "/compact") { await CompactAsync(); continue; }
-            if (userInput == "/save") { SaveSession(); continue; }
-            if (userInput == "/diff") { ShowDiff(); continue; }
-            if (userInput == "/sessions") { ShowSessions(); continue; }
-            if (userInput == "/debug-on") { DebugLog.Enable(); MarkupLine("[green]✔ 调试日志已开启[/] [dim](logs/ 目录)[/]"); continue; }
-            if (userInput == "/debug-off") { DebugLog.Disable(); MarkupLine("[orange3]✔ 调试日志已关闭[/]"); continue; }
-            if (userInput == "/permissions" || userInput == "/perm") { PermissionManager.ShowStatus(); continue; }
-            if (userInput.StartsWith("/perm ")) { PermissionManager.SetMode(userInput[6..].Trim()); continue; }
-            if (userInput == "/plan") { await PlanModeAsync(); continue; }
-            if (userInput == "/todo") { ShowTodo(); continue; }
-            if (userInput == "/git-status") { await RunGitAsync("status"); continue; }
-            if (userInput == "/git-log") { await RunGitAsync("log --oneline -20"); continue; }
-            if (userInput == "/git-diff") { await RunGitAsync("diff"); continue; }
-            if (userInput == "/jobs") { Console.WriteLine(BackgroundTaskManager.ListTasks()); continue; }
-            if (userInput.StartsWith("/job-output ")) { Console.WriteLine(BackgroundTaskManager.GetOutput(int.TryParse(userInput[12..].Trim(), out var jid) ? jid : -1)); continue; }
-            if (userInput == "/memory") { Console.WriteLine(MemoryStore.Read()); continue; }
-            if (userInput == "/review") { await RunReviewAsync(); continue; }
-            if (userInput == "/lint") { await RunLintAsync(); continue; }
-            if (userInput.StartsWith("/search ")) { await RunSearchAsync(userInput[8..].Trim()); continue; }
-            if (userInput == "/checkpoint") { await CreateCheckpointAsync(); continue; }
-            if (userInput.StartsWith("/undo")) { await UndoCheckpointAsync(userInput); continue; }
-            if (userInput == "/checkpoints") { ShowCheckpoints(); continue; }
-            if (userInput == "/repomap" || userInput == "/map") { ShowRepoMap(); continue; }
-            if (userInput.StartsWith("/pr")) { await RunPRAsync(userInput); continue; }
-            if (userInput == "/edit") { await Editor.PickAndRunAsync(); continue; }
-            if (userInput.StartsWith("/edit ")) { await Editor.RunAsync(userInput[6..].Trim()); continue; }
-
-            if (userInput.StartsWith('/'))
-            {
-                // 检查自定义命令
-                var cmdParts = userInput.Split(' ', 2);
-                var cmdName = cmdParts[0][1..]; // 去掉前导 /
-                if (CustomCommands.Commands.ContainsKey(cmdName))
+                switch (key.Key)
                 {
-                    var args = cmdParts.Length > 1 ? cmdParts[1] : "";
-                    var (content, replace) = CustomCommands.Execute(cmdName, args, _agent!);
-                    if (replace)
-                    {
-                        // 命令输出替换用户输入
-                        userInput = content;
-                    }
-                    else
-                    {
-                        MarkupLine($"[dim]📋 /{E(cmdName)}[/]");
-                        Console.WriteLine(content);
-                        // 将命令输出注入到 Agent 上下文
-                        var cmdMsg = $"[命令 /{cmdName} 输出]\n{content}";
-                        try
-                        {
-                            using var cts2 = new CancellationTokenSource();
-                            await ChatWithStatusAsync(cmdMsg, cts2.Token);
-                            Console.WriteLine();
-                        }
-                        catch (Exception ex)
-                        {
-                            MarkupLine($"[red]错误: {E(ex.Message)}[/]");
-                        }
-                    }
-                    continue;
+                    case ConsoleKey.Escape: sm.SuggestActive = false; continue;
+                    case ConsoleKey.UpArrow: if (sm.SuggestIdx > 0) sm.SuggestIdx--; continue;
+                    case ConsoleKey.DownArrow: if (sm.SuggestIdx < sm.Suggestions.Count - 1) sm.SuggestIdx++; continue;
+                    case ConsoleKey.Enter: case ConsoleKey.Tab:
+                        sm.AcceptSuggestion(); sm.UpdateSuggestions(); continue;
+                    case ConsoleKey.Backspace: sm.InputBackspace(); sm.UpdateSuggestions(); break;
+                    case ConsoleKey.LeftArrow: case ConsoleKey.RightArrow:
+                        sm.SuggestActive = false; break;
+                    default: break;
                 }
-
-                MarkupLine($"[orange3]未知命令: {E(userInput.Split()[0])}[/] [dim](输入 /help 查看帮助)[/]");
-                continue;
+                if (key.Key is ConsoleKey.UpArrow or ConsoleKey.DownArrow or ConsoleKey.Enter or ConsoleKey.Tab or ConsoleKey.Escape)
+                    continue;
             }
 
-            // 调用智能体
-            using var cts = new CancellationTokenSource();
-            Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+            switch (key.Key)
+            {
+                case ConsoleKey.Enter when !ctrl && !shift:
+                    var input = sm.GetInputText();
+                    if (string.IsNullOrWhiteSpace(input)) continue;
+                    sm.AddUserMsg(input);
+                    sm.SetInput("");
+                    sm.Render();
+                    await ProcessUserInput(input, sm);
+                    break;
 
-            try
-            {
-                var streamed = false;
-                var response = await ChatWithStatusAsync(userInput, cts.Token,
-                    setStreamed: s => streamed = s);
+                case ConsoleKey.Enter when ctrl || shift:
+                    sm.InputNewLine();
+                    sm.UpdateSuggestions();
+                    break;
+                case ConsoleKey.Escape when string.IsNullOrEmpty(sm.GetInputText()):
+                    running = false;
+                    break;
 
-                if (streamed) Console.WriteLine();
-                else if (!string.IsNullOrEmpty(response)) Console.WriteLine(response);
-            }
-            catch (OperationCanceledException)
-            {
-                if (cts.IsCancellationRequested)
-                    MarkupLine("\n[orange3]⚠ 已中断[/]");
-                else
-                    TuiBox.Error("请求超时", "服务器 60s 未响应，请检查网络或 API 配置");
-            }
-            catch (Exception ex)
-            {
-                TuiBox.Error("错误", ex.Message);
+                case ConsoleKey.Backspace: sm.InputBackspace(); sm.UpdateSuggestions(); break;
+                case ConsoleKey.Delete: sm.InputDelete(); sm.UpdateSuggestions(); break;
+                case ConsoleKey.LeftArrow: sm.InputMoveLeft(); break;
+                case ConsoleKey.RightArrow: sm.InputMoveRight(); break;
+                case ConsoleKey.UpArrow: sm.InputMoveUp(); break;
+                case ConsoleKey.DownArrow: sm.InputMoveDown(); break;
+                case ConsoleKey.Home: sm.InputCx = 0; break;
+                case ConsoleKey.End: sm.InputCx = sm.InputLines[sm.InputCy].Length; break;
+                case ConsoleKey.Tab:
+                    for (int t = 0; t < 4; t++) sm.InputInsert(' ');
+                    sm.UpdateSuggestions();
+                    break;
+
+                default:
+                    if (key.KeyChar >= ' ')
+                    {
+                        sm.InputInsert(key.KeyChar);
+                        sm.UpdateSuggestions();
+                    }
+                    break;
             }
         }
+
+        sm.Exit();
+    }
+
+    /// <summary>处理用户输入：内置命令或 Agent 调用</summary>
+    private static async Task ProcessUserInput(string userInput, ScreenManager sm)
+    {
+        // 全角规范化
+        userInput = userInput
+            .Replace('／', '/').Replace('！', '!').Replace('＃', '#');
+        var lower = userInput.ToLowerInvariant();
+
+        // 退出
+        if (lower is "quit" or "exit" or "/quit" or "/exit")
+        {
+            sm.Exit();
+            Environment.Exit(0);
+        }
+
+        // 触发提示 (已通过建议面板处理，但保留备用)
+        if (userInput == "/") { sm.SetInput(ShowCommandPalette()); sm.Render(); return; }
+        if (userInput == "!") { await RunShellOnceAsync(); return; }
+
+        // 内置命令
+        if (userInput == "/help") { ShowHelpInChat(sm); return; }
+        if (userInput == "/reset") { _agent!.Reset(); sm.AddSystemMsg("♻ 对话已重置"); return; }
+        if (userInput == "/tokens") { ShowTokensInChat(sm); return; }
+        if (userInput == "/model") { sm.AddSystemMsg($"当前模型: {_config.Model}"); return; }
+        if (userInput.StartsWith("/model ")) { SwitchModelInline(userInput, sm); return; }
+        if (userInput == "/compact") { await CompactAsync(); sm.AddSystemMsg("✔ 上下文已压缩"); return; }
+        if (userInput == "/save") { SaveSessionInChat(sm); return; }
+        if (userInput == "/permissions" || userInput == "/perm") { ShowPermStatusInChat(sm); return; }
+        if (userInput.StartsWith("/perm ")) { PermissionManager.SetMode(userInput[6..].Trim()); sm.AddSystemMsg($"权限模式已切换"); return; }
+        if (userInput == "/sessions") { ShowSessionsInChat(sm); return; }
+        if (userInput == "/diff") { ShowDiffInChat(sm); return; }
+        if (userInput == "/plan") { sm.AddSystemMsg("📋 计划模式"); await PlanModeAsync(); return; }
+        if (userInput.StartsWith("/search ")) { await RunSearchAsync(userInput[8..].Trim()); return; }
+        if (userInput == "/edit") { sm.Exit(); await Editor.PickAndRunAsync(); sm.Enter(); sm.Render(); return; }
+        if (userInput.StartsWith("/edit ")) { sm.Exit(); await Editor.RunAsync(userInput[6..].Trim()); sm.Enter(); sm.Render(); return; }
+
+        // 调用 Agent
+        using var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+
+        try
+        {
+            sm.StartAgentMsg();
+            sm.Render();
+
+            await _agent!.ChatAsync(userInput,
+                onToken: tok =>
+                {
+                    sm.AppendToken(tok);
+                    sm.Render();
+                },
+                onTool: (name, brief) =>
+                {
+                    sm.FinishAgentMsg();
+                    sm.AddToolMsg(name, brief.Length > 60 ? brief[..57] + "..." : brief);
+                    sm.StartAgentMsg();
+                    sm.Render();
+                },
+                cancellationToken: cts.Token);
+
+            sm.FinishAgentMsg();
+        }
+        catch (OperationCanceledException)
+        {
+            sm.FinishAgentMsg();
+            sm.AddSystemMsg(cts.IsCancellationRequested
+                ? "⚠ 已中断" : "⏰ 服务器 60s 未响应");
+        }
+        catch (Exception ex)
+        {
+            sm.FinishAgentMsg();
+            sm.AddSystemMsg($"✘ 错误: {ex.Message}");
+        }
+
+        // 更新右下角 token 显示
+        sm.UpdateTokenDisplay(
+            _llm!.TotalPromptTokens, _llm.TotalCompletionTokens,
+            _llm.EstimatedCost,
+            ContextManager.EstimateTokens(_agent!.Messages), _config.MaxContextTokens);
+        sm.Render();
+    }
+
+    // ---- 内置命令的聊天内联版本 ----
+    private static void ShowHelpInChat(ScreenManager sm)
+    {
+        sm.AddSystemMsg("帮助: /help /reset /model /tokens /compact /diff /save /sessions /permissions /perm /plan /todo /git-status /git-log /review /lint /search /edit /repomap /pr quit");
+    }
+    private static void ShowTokensInChat(ScreenManager sm)
+    {
+        var p = _llm!.TotalPromptTokens; var c = _llm!.TotalCompletionTokens;
+        sm.AddSystemMsg($"Token: {p:N0} 输入 + {c:N0} 输出 = {(p + c):N0} 总计");
+    }
+    private static void SaveSessionInChat(ScreenManager sm)
+    {
+        var sid = SessionManager.SaveSession(_agent!.Messages, _config.Model);
+        sm.AddSystemMsg($"✔ 会话已保存: {sid}");
+    }
+    private static void SwitchModelInline(string input, ScreenManager sm)
+    {
+        var m = input[7..].Trim();
+        if (!string.IsNullOrEmpty(m)) { _llm!.Model = m; _config.Model = m; sm.StatusLeft = m; sm.AddSystemMsg($"已切换到: {m}"); }
+    }
+    private static void ShowPermStatusInChat(ScreenManager sm)
+    {
+        var mode = PermissionManager.CurrentMode.ToString();
+        sm.AddSystemMsg($"权限模式: {mode} (危险工具需确认: bash/write/edit/agent/kill/rm)");
+    }
+    private static void ShowSessionsInChat(ScreenManager sm)
+    {
+        var sessions = SessionManager.ListSessions();
+        if (sessions.Count == 0) sm.AddSystemMsg("没有已保存的会话");
+        else foreach (var s in sessions) sm.AddSystemMsg($"{s.Id}  {s.Model}  {s.SavedAt}");
+    }
+    private static void ShowDiffInChat(ScreenManager sm)
+    {
+        var files = EditFileTool.ChangedFiles;
+        if (files.Count == 0) sm.AddSystemMsg("未修改任何文件");
+        else foreach (var f in files) sm.AddSystemMsg($"  {f}");
     }
 
     // ========================================================================
