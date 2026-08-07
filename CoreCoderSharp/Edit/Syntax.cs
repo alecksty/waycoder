@@ -23,6 +23,27 @@ public class Syntax
     public const int ErrorBg = 41;    // 红色背景
     public const int WarningBg = 103; // 亮黄背景
 
+    /// <summary>根据语言名选择语法定义（用于代码块高亮）</summary>
+    public static Syntax ByLanguage(string lang) => (lang.ToLowerInvariant()) switch
+    {
+        "csharp" or "cs" => CSharp(),
+        "javascript" or "js" => JavaScript(),
+        "typescript" or "ts" or "tsx" => JavaScript(),
+        "python" or "py" => Python(),
+        "go" or "golang" => Go(),
+        "rust" or "rs" => Rust(),
+        "java" => Java(),
+        "c" or "cpp" or "c++" or "h" => Cpp(),
+        "json" => Json(),
+        "xml" or "html" or "svg" => Xml(),
+        "markdown" or "md" => Markdown(),
+        "shell" or "sh" or "bash" or "zsh" => Shell(),
+        "yaml" or "yml" => Yaml(),
+        "sql" => Sql(),
+        "css" or "scss" => Css(),
+        _ => Plain(),
+    };
+
     /// <summary>根据文件扩展名选择语法定义</summary>
     public static Syntax ForFile(string filePath)
     {

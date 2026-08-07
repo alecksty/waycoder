@@ -166,8 +166,9 @@ public static class CheckpointManager
 
     /// <summary>
     /// 回退到指定检查点。不指定 id 则回退到最近一个。
+    /// 指定 filePath 则只恢复该文件（支持部分路径匹配）。
     /// </summary>
-    public static async Task<string> UndoAsync(int? checkpointId = null)
+    public static async Task<string> UndoAsync(int? checkpointId = null, string? filePath = null)
     {
         Checkpoint? target;
         if (checkpointId != null)
@@ -182,6 +183,10 @@ public static class CheckpointManager
         {
             if (target.Type == CheckpointType.GitStash)
             {
+                // Git stash 不支持按文件恢复，全量恢复
+                if (filePath != null)
+                    return $"Git Stash 检查点 #{target.Id} 不支持按文件恢复。请回退全部文件后重新修改。";
+
                 var result = await RunBashAsync("git stash pop 2>&1");
                 _checkpoints.Remove(target);
                 return $"已回退到检查点 #{target.Id}: {target.Description}\n{result}";
@@ -201,9 +206,28 @@ public static class CheckpointManager
                 var meta = JsonNode.Parse(File.ReadAllText(metaPath));
                 var files = meta!["files"]!.AsArray().Select(f => f!.GetValue<string>()).ToList();
 
-                var restored = 0;
-                foreach (var file in files)
+                // 按文件过滤：支持部分路径匹配
+                var toRestore = files;
+                if (filePath != null)
                 {
+                    toRestore = files.Where(f =>
+                        f.Equals(filePath, StringComparison.OrdinalIgnoreCase) ||
+                        f.EndsWith(filePath, StringComparison.OrdinalIgnoreCase) ||
+                        f.Contains(filePath, StringComparison.OrdinalIgnoreCase)
+                    ).ToList();
+
+                    if (toRestore.Count == 0)
+                        return $"检查点 #{target.Id} 中未找到匹配 \"{filePath}\" 的文件。\n可用文件:\n  " +
+                               string.Join("\n  ", files);
+                }
+
+                var restored = 0;
+                foreach (var file in toRestore)
+                {
+                    // 文件锁检查
+                    if (FileLockManager.IsLockedByOther(file, "checkpoint"))
+                        return $"⚠ 文件 \"{file}\" 正被其他 Agent 锁定，无法恢复。";
+
                     var backupPath = Path.Combine(backupDir, file.Replace('/', Path.DirectorySeparatorChar));
                     var destPath = Path.GetFullPath(file);
 
@@ -216,8 +240,13 @@ public static class CheckpointManager
                     }
                 }
 
-                _checkpoints.Remove(target);
-                return $"已回退到检查点 #{target.Id}: {target.Description}\n恢复了 {restored} 个文件";
+                // 只有全量恢复时才移除检查点
+                if (filePath == null)
+                    _checkpoints.Remove(target);
+
+                return filePath != null
+                    ? $"已恢复 {restored} 个文件（检查点 #{target.Id} 保留）\n  " + string.Join("\n  ", toRestore)
+                    : $"已回退到检查点 #{target.Id}: {target.Description}\n恢复了 {restored} 个文件";
             }
             else
             {
@@ -228,6 +257,36 @@ public static class CheckpointManager
         catch (Exception ex)
         {
             return $"回退失败: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// 获取指定检查点的文件列表。
+    /// </summary>
+    public static List<string> GetCheckpointFiles(int? checkpointId = null)
+    {
+        Checkpoint? target;
+        if (checkpointId != null)
+            target = _checkpoints.LastOrDefault(c => c.Id == checkpointId.Value);
+        else
+            target = _checkpoints.LastOrDefault();
+
+        if (target == null || target.Type != CheckpointType.FileBackup)
+            return [];
+
+        var backupDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".corecoder", "checkpoints", $"ckpt_{target.Id:000}");
+        var metaPath = Path.Combine(backupDir, "_checkpoint.json");
+        if (!File.Exists(metaPath)) return [];
+
+        try
+        {
+            var meta = JsonNode.Parse(File.ReadAllText(metaPath));
+            return meta!["files"]!.AsArray().Select(f => f!.GetValue<string>()).ToList();
+        }
+        catch
+        {
+            return [];
         }
     }
 

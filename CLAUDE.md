@@ -21,7 +21,7 @@ dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 
 ```
 CoreCoderSharp/
-├── Program.cs         入口 + CLI + REPL (彩色 TUI)
+├── Program.cs         入口 + CLI + REPL (ANSI 全屏 TUI)
 ├── Agent.cs           主循环
 ├── LLM.cs             LLM 客户端 (流式 + 回退)
 ├── ContextManager.cs  三层上下文压缩
@@ -38,7 +38,7 @@ CoreCoderSharp/
 ├── DebugLog.cs        调试日志
 ├── SelfTest.cs        280 项自测
 ├── FileLockManager.cs 文件锁 (防并发修改冲突)
-├── UI/                终端 UI 控件库 (10 文件)
+├── UI/                终端 UI 控件库 (11 文件)
 │   ├── ScreenManager.cs 全屏缓冲 + 弹窗菜单 + 侧栏
 │   ├── SettingsPage.cs  设置界面 (Schema 自动布局)
 │   ├── TuiInput.cs      多行输入区 + 智能提示面板
@@ -48,7 +48,8 @@ CoreCoderSharp/
 │   ├── TuiTable.cs      表格控件 (CJK 自动对齐)
 │   ├── TuiList.cs       列表选单 (单选/多选)
 │   ├── TuiPrompt.cs     输入框 (普通/密码/确认)
-│   └── TuiBanner.cs     欢迎横幅 (FigletText + Panel)
+│   ├── TuiBanner.cs     欢迎横幅 (FigletText + Panel)
+│   └── BoxBuffer.cs     矩形缓冲区基类
 ├── Edit/              终端源码编辑器
 │   ├── Editor.cs      编辑器引擎 (光标/缓冲/渲染)
 │   └── Syntax.cs      语法高亮 (14 种语言)

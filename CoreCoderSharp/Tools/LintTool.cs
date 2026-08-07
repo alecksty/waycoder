@@ -349,10 +349,11 @@ public class LintTool : ITool
             proc.BeginOutputReadLine();
             proc.BeginErrorReadLine();
 
-            if (!proc.WaitForExit(30_000))
+            var lintTimeout = Config.FromEnv().LintTimeoutSec * 1000;
+            if (!proc.WaitForExit(lintTimeout))
             {
                 try { proc.Kill(); } catch { }
-                return $"Lint 超时（30 秒）: {cmd} {args}";
+                return $"Lint 超时（{Config.FromEnv().LintTimeoutSec} 秒）: {cmd} {args}";
             }
 
             var output = stdout.ToString();

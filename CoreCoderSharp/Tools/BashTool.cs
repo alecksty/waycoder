@@ -54,7 +54,8 @@ public class BashTool : ITool
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var command = arguments.GetValueOrDefault("command")?.ToString() ?? "";
-        var timeout = arguments.TryGetValue("timeout", out var t) && t is int ti ? ti : 120;
+        var configTimeout = Config.FromEnv().ToolTimeoutSec;
+        var timeout = arguments.TryGetValue("timeout", out var t) && t is int ti ? ti : configTimeout;
 
         return await Execute(command, timeout);
     }

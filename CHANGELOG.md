@@ -1,5 +1,55 @@
 # 更新日志
 
+## v0.18.0 (2026-08-08) — 窗口系统 + 主题引擎 + TUI 控件库
+
+### 🔥 重大变更
+- **窗口管理器** — Z-order 层叠、裁剪渲染、模态对话框、弹出菜单、Toast
+- **控件系统** — UILabel/UIButton/UIInput，Tab/Shift+Tab 焦点切换
+- **主题引擎** — 6 预设 + 自定义配色 + `~/.corecoder/theme.json` 持久化
+- **Markdown 渲染** — 标题/代码块(14语言高亮)/表格/列表/内联格式
+- **Diff 渲染** — 红绿背景+行号+语法高亮
+- **InputManager** — 全键盘拦截+鼠标滚轮+resize即时重绘
+
+### ✨ 新增
+- 11 种边框风格 + 自定义边框(CustomBorder)
+- 菜单满行高亮条 + 分隔线 + 滚动指示器+滚动条
+- `/theme` 命令 + 设置页主题选择
+- ScreenManager 主题同步
+
+### 🔧 修复
+- DisplayWidth 不计入ANSI转义码宽度
+- 窗口裁剪Clip()修复顶框/左框误裁
+- 右框绝对定位不再因CJK错位
+- 空窗口竖边始终渲染
+
+### 📝 自测: 636项(+35)
+
+## v0.17.5 (2026-08-07) — 移除 Terminal.Gui v2，恢复 AOT，三项短板清零
+
+### 🔥 重大变更
+- **移除 Terminal.Gui v2** — 回退到 ANSI 全屏 TUI（ScreenManager），Terminal.Gui v2 库体验不佳
+- **恢复 AOT 编译** — `PublishAot` 重新启用，恢复零依赖单文件 exe 部署（~8MB）
+- **子智能体递归** — 支持最多 5 层嵌套子智能体，深度可配置，自动移除 agent 工具防止无限递归
+- **`/undo` 按文件精确 revert** — 支持 `/undo [N] <file>` 选择性恢复，`/undo -l` 列出检查点文件
+- **工具/Lint 超时可配置** — 新增 `ToolTimeoutSec`（默认 120s）和 `LintTimeoutSec`（默认 60s）
+
+### 🗑️ 移除
+- 删除 `TerminalGuiRepl.cs` / `Controls.cs` / `ScrollMenu.cs`
+- 删除 `--tui-v1` CLI 参数（仅保留 ANSI TUI）
+- 删除 `TERMINAL_GUI` 编译常量和 Terminal.Gui NuGet 依赖
+- 删除 `RunReplV2Async()` 方法
+
+### ✨ 新增功能
+- **Lint/Tool 超时可配置** — `WAYCODER_TOOL_TIMEOUT` / `WAYCODER_LINT_TIMEOUT` 环境变量
+- **`/undo` 按文件恢复** — `CheckpointManager.UndoAsync(id, filePath)` + `GetCheckpointFiles()`
+- **子智能体递归** — `AgentTool.MaxDepth` + `AsyncLocal<int>` 深度追踪
+- **子智能体深度配置** — `WAYCODER_SUBAGENT_DEPTH`（默认 3，范围 1-5）
+- **`/undo` / `/checkpoint` / `/checkpoints` 命令接入 UI** — 修复死代码问题
+
+### 🔧 保留
+- ScreenManager ANSI TUI 作为唯一交互式 REPL 实现
+- 所有现有功能：侧栏面板、输入历史、彩色渲染、建议补全、弹窗菜单
+
 ## v0.17.4 (2026-08-07) — Terminal.Gui v2 默认 TUI
 
 ### 🔥 重大变更
