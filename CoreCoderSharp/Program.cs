@@ -97,7 +97,19 @@ public class Program
 
         // --yolo: 一次性模式下跳过所有权限确认
         if (yoloMode)
-            PermissionManager.SetMode("yolo");
+        {
+            SandboxManager.SetLevel("full-auto");
+        }
+        else
+        {
+            // 从配置初始化沙箱级别
+            SandboxManager.SetLevel(_config.SandboxLevel);
+            // 同步 PromptCache 设置
+            PromptCache.Enabled = _config.PromptCaching;
+        }
+
+        // 设置沙箱允许的目录（项目根目录）
+        SandboxManager.AllowedDirectory = Directory.GetCurrentDirectory();
 
         // 加载自定义斜杠命令、hooks、MCP 服务器和检查点
         CustomCommands.Load();
@@ -518,7 +530,7 @@ case ConsoleKey.F2:
         if (userInput == "/compact") { await CompactAsync(); sm.AddSystemMsg("✔ 上下文已压缩"); return; }
         if (userInput == "/save") { SaveSessionInteractive(sm); return; }
         if (userInput == "/permissions" || userInput == "/perm") { ShowPermStatusInChat(sm); return; }
-        if (userInput.StartsWith("/perm ")) { PermissionManager.SetMode(userInput[6..].Trim()); sm.AddSystemMsg($"权限模式已切换"); return; }
+        if (userInput.StartsWith("/perm ")) { SandboxManager.SetLevel(userInput[6..].Trim()); sm.AddSystemMsg($"沙箱级别已切换: {SandboxManager.Level}"); return; }
         if (userInput == "/sessions") { ShowSessionBrowser(sm); return; }
         if (userInput.StartsWith("/load ")) { LoadSessionInteractive(userInput[6..].Trim(), sm); return; }
         if (userInput == "/diff") { ShowDiffInChat(sm); return; }
@@ -1288,7 +1300,7 @@ case ConsoleKey.F2:
         table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/load[/] [dim]&lt;ID&gt;[/]", "加载指定会话");
         table.AddRow("/debug-on / -off", "开启/关闭调试日志");
         table.AddRow("/permissions", "权限管理");
-        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/perm[/] [dim]&lt;ask|auto|yolo&gt;[/]", "设置权限模式");
+        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/perm[/] [dim]&lt;suggest|auto-edit|full-auto&gt;[/]", "设置沙箱级别");
         table.AddRow("/plan", "计划模式");
         table.AddRow("/todo", "查看任务列表");
         table.AddRow("/git-status", "Git 状态");
@@ -1427,7 +1439,7 @@ case ConsoleKey.F2:
         {
             "/help", "/reset", "/model", "/model <名称>", "/tokens",
             "/compact", "/diff", "/save", "/resume", "/sessions",
-            "/debug-on", "/debug-off", "/permissions", "/perm <ask|auto|yolo>",
+            "/debug-on", "/debug-off", "/permissions", "/perm <suggest|auto-edit|full-auto>",
             "/plan", "/todo", "/git-status", "/git-log", "/git-diff",
             "/review", "/lint", "/search <关键词>",
             "/checkpoint", "/undo [编号]", "/checkpoints",

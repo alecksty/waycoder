@@ -34,6 +34,10 @@ public static class PermissionManager
         if (!DangerousTools.Contains(toolName))
             return true;
 
+        // 沙箱 full-auto 模式：bash 工具已在沙箱中保护，直接放行
+        if (toolName == "bash" && SandboxManager.IsSandboxed)
+            return true;
+
         // Yolo 模式：直接放行
         if (CurrentMode == Mode.Yolo)
             return true;
@@ -129,7 +133,11 @@ public static class PermissionManager
             _ => ("Ask", "每次都确认", TuiColors.WarnMarkup),
         };
 
-        var content = $"当前模式: [{color}]{label}[/] — {TuiHelper.Esc(desc)}\n" +
+        var sandboxInfo = SandboxManager.IsSandboxed
+            ? $"\n[{TuiColors.AccentMarkup}]沙箱:[/] full-auto（bash 隔离 + 环境清理 + 内存监控）"
+            : "";
+
+        var content = $"当前模式: [{color}]{label}[/] — {TuiHelper.Esc(desc)}{sandboxInfo}\n" +
             $"[{TuiColors.DimMarkup}]需要确认:[/] {string.Join(", ", DangerousTools)}\n" +
             $"[{TuiColors.DimMarkup}]直接放行:[/] read_file, glob, grep, ls, stat 等只读工具";
 
