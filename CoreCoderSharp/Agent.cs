@@ -200,12 +200,16 @@ public class Agent
             if (hookResult != null)
                 result = hookResult;
 
+            // 错误自恢复：工具返回错误时追加修正提示
+            if (result.StartsWith("错误") || result.StartsWith("Error"))
+                result += "\n[请分析错误原因，修正参数后重试]";
+
             DebugLog.LogToolResult(tc.Name, result);
             return result;
         }
         catch (Exception ex)
         {
-            return $"执行 {tc.Name} 时出错：{ex.Message}";
+            return $"执行 {tc.Name} 时出错：{ex.Message}\n[请分析错误原因，尝试其他方式完成目标]";
         }
     }
 

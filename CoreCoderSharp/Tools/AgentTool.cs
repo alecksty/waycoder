@@ -43,12 +43,23 @@ public class AgentTool : ITool
             .Where(t => t.Name != "agent")
             .ToList();
 
-        var subAgent = new Agent(ParentAgent.LlmClient, subTools,
-            ParentAgent.Context.MaxTokens, maxRounds: 20);
+        // 子智能体使用小模型（省钱），继承父模型路径
+        var subLLM = ParentAgent.LlmClient;
+        var savedOverride = subLLM.ModelOverride;
+        subLLM.ModelOverride = subLLM.SmallModel;
 
         try
         {
-            var result = await subAgent.ChatAsync(task, onToken: null, onTool: null);
+            // 注入父上下文摘要（最近几轮对话），让子智能体了解背景
+            var contextSummary = BuildParentContext();
+            var fullTask = string.IsNullOrEmpty(contextSummary)
+                ? task
+                : $"{contextSummary}\n\n---\n## 子任务\n{task}";
+
+            var subAgent = new Agent(subLLM, subTools,
+                ParentAgent.Context.MaxTokens, maxRounds: 20);
+
+            var result = await subAgent.ChatAsync(fullTask, onToken: null, onTool: null);
             // 截断过长结果，避免撑爆父智能体的上下文
             if (result.Length > 5000)
                 result = result[..4500] + "\n...（子智能体输出已截断）";
@@ -57,6 +68,39 @@ public class AgentTool : ITool
         catch (Exception ex)
         {
             return $"子智能体错误：{ex.Message}";
+        }
+        finally
+        {
+            subLLM.ModelOverride = savedOverride;
+        }
+    }
+
+    /// <summary>提取父智能体最近几轮对话作为上下文摘要。</summary>
+    private string BuildParentContext()
+    {
+        try
+        {
+            if (ParentAgent == null || ParentAgent.Messages.Count == 0)
+                return "";
+
+            // 取最近 6 条消息（约 3 轮对话）
+            var recent = ParentAgent.Messages
+                .TakeLast(6)
+                .Select(m =>
+                {
+                    var role = m["role"]?.GetValue<string>() ?? "";
+                    var content = m["content"]?.GetValue<string>() ?? "";
+                    // 截断每条消息
+                    if (content.Length > 300)
+                        content = content[..300] + "...";
+                    return $"[{role}] {content}";
+                });
+
+            return "## 父智能体背景（最近对话）\n" + string.Join("\n", recent);
+        }
+        catch
+        {
+            return "";
         }
     }
 }

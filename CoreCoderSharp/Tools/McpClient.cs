@@ -45,9 +45,22 @@ public static class McpManager
                 var args = server?["args"]?.AsArray()
                     ?.Select(a => a?.GetValue<string>() ?? "").ToArray() ?? [];
 
+                // 解析环境变量（MCP 服务器通常需要 API Key 等）
+                var env = new Dictionary<string, string>();
+                var envObj = server?["env"]?.AsObject();
+                if (envObj != null)
+                {
+                    foreach (var kv in envObj)
+                    {
+                        var val = kv.Value?.GetValue<string>();
+                        if (!string.IsNullOrEmpty(val))
+                            env[kv.Key] = val;
+                    }
+                }
+
                 if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(command))
                 {
-                    _ = ConnectAndDiscoverAsync(name, command, args);
+                    _ = ConnectAndDiscoverAsync(name, command, args, env);
                 }
             }
         }
@@ -60,27 +73,34 @@ public static class McpManager
     /// <summary>
     /// 连接服务器并发现工具（异步，不阻塞启动）。
     /// </summary>
-    private static async Task ConnectAndDiscoverAsync(string name, string command, string[] args)
+    private static async Task ConnectAndDiscoverAsync(string name, string command, string[] args,
+        Dictionary<string, string>? env = null)
     {
         try
         {
             var conn = new McpConnection(name, command, args);
 
             // 启动进程
-            conn.Process = new Process
+            var startInfo = new ProcessStartInfo
             {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = command,
-                    Arguments = string.Join(" ", args.Select(EscapeArg)),
-                    RedirectStandardInput = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    WorkingDirectory = Environment.CurrentDirectory,
-                }
+                FileName = command,
+                Arguments = string.Join(" ", args.Select(EscapeArg)),
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = Environment.CurrentDirectory,
             };
+
+            // 注入环境变量（MCP 服务器 API Key 等）
+            if (env != null)
+            {
+                foreach (var (key, value) in env)
+                    startInfo.EnvironmentVariables[key] = value;
+            }
+
+            conn.Process = new Process { StartInfo = startInfo };
             conn.Process.Start();
 
             // 握手: initialize
