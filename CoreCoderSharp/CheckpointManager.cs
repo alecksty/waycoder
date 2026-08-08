@@ -72,7 +72,7 @@ public static class CheckpointManager
         try
         {
             var stashResult = await RunBashAsync($"git stash push -m \"CoreCoder checkpoint #{id}: {description}\" 2>&1");
-            if (stashResult.Contains("Saved working directory") || stashResult.Contains("No local changes"))
+            if (stashResult.Contains("Saved working directory"))
             {
                 var cp = new Checkpoint
                 {
@@ -114,12 +114,15 @@ public static class CheckpointManager
 
             if (changedFiles.Count == 0)
             {
+                var toolChanged = Tools.EditFileTool.ChangedFiles.Where(File.Exists).ToList();
+                if (toolChanged.Count > 0) changedFiles = toolChanged;
+            }
+
+            if (changedFiles.Count == 0)
+            {
                 var cp = new Checkpoint
                 {
-                    Id = id,
-                    Description = description,
-                    Timestamp = timestamp,
-                    Type = CheckpointType.Empty
+                    Id = id, Description = description, Timestamp = timestamp, Type = CheckpointType.Empty
                 };
                 _checkpoints.Add(cp);
                 return cp;
@@ -129,10 +132,12 @@ public static class CheckpointManager
             var backedUp = 0;
             foreach (var file in changedFiles)
             {
-                var srcPath = Path.GetFullPath(file.Trim());
+                var filePath = file.Trim();
+                var srcPath = Path.GetFullPath(filePath);
                 if (!File.Exists(srcPath)) continue;
 
-                var destPath = Path.Combine(backupDir, file.Trim().Replace('/', Path.DirectorySeparatorChar));
+                var relPath = filePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+                var destPath = Path.Combine(backupDir, relPath);
                 var destDir = Path.GetDirectoryName(destPath);
                 if (destDir != null) Directory.CreateDirectory(destDir);
                 File.Copy(srcPath, destPath, overwrite: true);
@@ -228,7 +233,8 @@ public static class CheckpointManager
                     if (FileLockManager.IsLockedByOther(file, "checkpoint"))
                         return $"⚠ 文件 \"{file}\" 正被其他 Agent 锁定，无法恢复。";
 
-                    var backupPath = Path.Combine(backupDir, file.Replace('/', Path.DirectorySeparatorChar));
+                    var relPath = file.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+                    var backupPath = Path.Combine(backupDir, relPath);
                     var destPath = Path.GetFullPath(file);
 
                     if (File.Exists(backupPath))

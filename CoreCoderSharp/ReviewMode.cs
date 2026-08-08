@@ -26,43 +26,33 @@ public static class ReviewMode
         sb.AppendLine("5. **测试覆盖** — 缺少的测试场景");
         sb.AppendLine();
 
-        // 尝试 git diff（聚焦实际改动）
-        var diff = GetGitDiff();
-        if (!string.IsNullOrWhiteSpace(diff))
+        // 没有修改过的文件，无需审查
+        if (changed.Count == 0)
         {
-            const int maxDiff = 8000;
-            sb.AppendLine("## Git Diff");
-            sb.AppendLine();
-            sb.AppendLine("```diff");
-            if (diff.Length > maxDiff)
-                sb.AppendLine(diff[..maxDiff] + $"\n... (diff 已截断，共 {diff.Length} 字符)");
-            else
-                sb.AppendLine(diff);
-            sb.AppendLine("```");
-        }
-        else if (changed.Count > 0)
-        {
-            // 回退：无法获取 git diff，显示全文件内容
-            sb.AppendLine("## 修改的文件");
-            foreach (var file in changed)
-            {
-                sb.AppendLine($"\n### {file}");
-                try
-                {
-                    var content = File.ReadAllText(file);
-                    sb.AppendLine($"```{Path.GetExtension(file).TrimStart('.')}");
-                    if (content.Length > 2000)
-                        sb.AppendLine(content[..2000] + $"\n... (共 {content.Length} 字符)");
-                    else
-                        sb.AppendLine(content);
-                    sb.AppendLine("```");
-                }
-                catch (Exception ex) { sb.AppendLine($"（无法读取: {ex.Message}）"); }
-            }
+            sb.AppendLine("（没有修改过的文件，无需审查）");
         }
         else
         {
-            sb.AppendLine("（没有修改过的文件，无需审查）");
+            // 始终列出修改的文件名
+            sb.AppendLine("## 修改的文件");
+            foreach (var file in changed)
+                sb.AppendLine($"- `{Path.GetFileName(file)}` ({file})");
+            sb.AppendLine();
+
+            // 尝试 git diff（聚焦实际改动）
+            var diff = GetGitDiff();
+            if (!string.IsNullOrWhiteSpace(diff))
+            {
+                const int maxDiff = 8000;
+                sb.AppendLine("## Git Diff");
+                sb.AppendLine();
+                sb.AppendLine("```diff");
+                if (diff.Length > maxDiff)
+                    sb.AppendLine(diff[..maxDiff] + $"\n... (diff 已截断，共 {diff.Length} 字符)");
+                else
+                    sb.AppendLine(diff);
+                sb.AppendLine("```");
+            }
         }
 
         sb.AppendLine();
