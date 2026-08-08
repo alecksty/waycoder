@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.18.3 (2026-08-08) — 权限对话框行内渲染 + 表格显示修复 + Markdown 渲染缓存
+
+### 🔧 修复
+- **权限对话框卡死不显示**：`PermissionManager.CheckAsync` 从居中弹窗 `ShowMenu`（WindowManager 浮层 + 嵌套 ReadKey 循环）改为行内三行渲染 `ShowInlinePermission`，不依赖浮层机制，稳定可靠
+- **表格输出导致聊天区卡死**：`TuiTable.Render()` 前缀 ANSI 哨兵 `\x1b[0m` 跳过 Markdown 重解析，逐行独立注入，添加后自动刷新屏幕
+- **流式输出每帧重解析全文**：`BuildChatScreenLines` 新增按消息索引 + 内容缓存的渲染缓存，`AppendToken` / `FinishToolProgress` 精准失效，宽度变化或外部清空自动重置
+
+### ⚡ 性能
+- Markdown 渲染缓存：流式输出时只有最后一条消息每帧解析，其余消息走缓存 O(1) 命中，彻底解决大对话卡顿
+
 ## v0.18.2 (2026-08-08) — CJK/Emoji 全宽字符覆盖 + 方块光标
 
 ### 🔧 修复

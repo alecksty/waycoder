@@ -72,12 +72,12 @@ CoreCoderSharp/
 - **上下文压缩三层让步**：50% 裁剪 → 70% LLM 摘要 → 90% 硬折叠
 - **子智能体通过不给 agent 工具来约束**，不靠规则
 - **AOT 编译：JSON 手写序列化**，`JsonHelper.SerializeArgs` 替代 `JsonSerializer`
-- **权限系统**：bash/write/edit/agent 默认需确认，`/perm yolo` 跳过
+- **权限系统**：bash/write/edit/agent 默认行内确认（三行黄底渲染），`/perm yolo` 跳过
 - **双模型架构**：大模型做复杂任务，小模型做压缩/摘要，自动分工省钱
 - **模型回退链**：失败自动尝试备选 deepseek-v4-flash→gpt-5.4-mini→deepseek-v4-pro→gpt-5.4
 - **文件锁**：FileLockManager 防止多 Agent 并发修改冲突，30s 超时自动释放
 - **Watch 模式**：FileSystemWatcher 监听文件变更 → 提取 AI! / AI? 注释 → 线程安全队列 → REPL 轮询执行
-- **全屏缓冲 UI**：备用屏 + 每帧重绘 + 弹窗菜单 + 侧栏面板 + 居中对话框
+- **全屏缓冲 UI**：备用屏 + 每帧重绘 + 行内权限块 + 弹窗菜单 + 侧栏面板 + 居中对话框
 - **UI 控件库**：`UI/` 目录封装 Spectre.Console 控件，统一配色，内建 CJK 宽度感知
 
 ## 非显而易见的约束

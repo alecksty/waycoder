@@ -60,7 +60,7 @@ public class Program
             }
         }
 
-        if (showVersion) { Console.WriteLine("WayCoder v0.18.2 (道码)"); return 0; }
+        if (showVersion) { Console.WriteLine("WayCoder v0.18.3 (道码)"); return 0; }
 
         // 项目初始化向导
         if (initMode) { RunInit(); return 0; }
@@ -227,7 +227,7 @@ public class Program
         };
         foreach (var line in logo)
             sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = line });
-        sm.AddSystemMsg("WayCoder 道码 · 中文版易用编程智能体 · v0.18.1");
+        sm.AddSystemMsg("WayCoder 道码 · 中文版易用编程智能体 · v0.18.3");
         sm.AddSystemMsg("深圳市探索智能科技有限公司");
         sm.AddSystemMsg($"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助");
         sm.StatusLeft = $"{_config.Model}";
@@ -1538,7 +1538,7 @@ case ConsoleKey.F2:
 
         // 模拟输入状态+建议面板
         sm.ChatMessages.Clear();
-        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "WayCoder v0.18.2" });
+        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "WayCoder v0.18.3" });
         sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "user", Content = "/res" });
 
         sm.InputLines.Clear();
