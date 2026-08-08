@@ -1,33 +1,58 @@
 # 更新日志
 
-## v0.18.0 (2026-08-08) — 窗口系统 + 主题引擎 + TUI 控件库
+## v0.18.0 (2026-08-08) — 窗口系统 + 主题引擎 + TUI 控件库 + 终端抽象层
 
 ### 🔥 重大变更
-- **窗口管理器** — Z-order 层叠、裁剪渲染、模态对话框、弹出菜单、Toast
-- **控件系统** — UILabel/UIButton/UIInput，Tab/Shift+Tab 焦点切换
-- **主题引擎** — 6 预设 + 自定义配色 + `~/.corecoder/theme.json` 持久化
-- **Markdown 渲染** — 标题/代码块(14语言高亮)/表格/列表/内联格式
-- **Diff 渲染** — 红绿背景+行号+语法高亮
-- **InputManager** — 全键盘拦截+鼠标滚轮+resize即时重绘
 
-### ✨ 新增
-- 11 种边框风格 + 自定义边框(CustomBorder)
-- 菜单满行高亮条 + 分隔线 + 滚动指示器+滚动条
-- `/theme` 命令 + 设置页主题选择
-- ScreenManager 主题同步
+**窗口管理器** (`UI/WindowManager.cs`)
+- Z-order 层叠窗口、裁剪渲染、模态对话框、弹出菜单、Toast 提示框
+- UIControl 体系：UILabel / UIButton / UIInput，Tab/Shift+Tab 焦点切换
+- 11 种边框风格：single/double/rounded/thick/solid/dotted/dashed/slash/triangle/ascii/custom
+- 菜单满行高亮条、分隔线、滚动指示器 + 滚动条
+- 窗口关闭自动还原背景
+
+**终端抽象层** (`Terminal/`)
+- `TTY` — 屏幕切换/清屏/光标/鼠标/颜色/样式快捷方式
+- `RenderBuffer` — Write/Segment/Fill/SegmentBold/SegmentDim/Blink 零转义符渲染
+- `BoxChars` — 13 种预设 + 自定义边框字符集
+- `AnsiString` — ANSI 检测/剥离/截断/宽度计算
+- `Color` — 命名颜色管理（Color.Cyan 替代数字 36）
+
+**主题引擎** (`ThemeConfig.cs`)
+- 6 个预设主题：default/ocean/forest/sunset/midnight/mono
+- 自定义边框/背景/前景/选中色，持久化到 `~/.corecoder/theme.json`
+- `/theme` 命令 + 设置页面主题选择
+- ScreenManager 主题自动同步
+
+**Markdown 渲染** (`UI/MarkdownRenderer.cs`, `UI/TuiMarkdown.cs`)
+- 标题/段落/代码块(14 语言语法高亮)/表格/列表/内联格式
+
+**Diff 渲染** (`UI/DiffRenderer.cs`)
+- 红绿背景 + 行号 + 语法高亮
+
+**InputManager** (`UI/InputManager.cs`)
+- 全键盘拦截 + 鼠标滚轮 + resize 即时重绘
+
+### ✨ 新增功能
+- 子智能体递归：支持最多 5 层嵌套（`AgentTool.MaxDepth`）
+- `/undo` 按文件精确 revert（`CheckpointManager.UndoAsync(id, filePath)`）
+- TF-IDF 语义记忆（`SemanticMemory.cs`，零依赖纯 C#）
+- Lint/Tool 超时可配置（`ToolTimeoutSec` / `LintTimeoutSec`）
+- `/todo` 命令接入 UI
+- Logo 补齐 "WAY**CODER**" 完整拼写
 
 ### 🔧 修复
-- DisplayWidth 不计入ANSI转义码宽度
-- 窗口裁剪Clip()修复顶框/左框误裁
-- 右框绝对定位不再因CJK错位
+- `DisplayWidth` 不计入 ANSI 转义码宽度
+- 窗口裁剪 `Clip()` 修复顶框/左框被误裁
+- 右框绝对定位，不再因 CJK 文字宽度错位
 - 空窗口竖边始终渲染
+- Damerau-Levenshtein 支持字符换位纠错
+- 历史上限 while 循环修复
+- 建议面板半宽+滚动+不溢出
+- 滚动菜单选中项不被指示器挤出
 
-### 🔧 v0.18.0 补丁
-- 建议面板：半宽+滚动+不溢出
-- 滚动菜单：修复选中项被指示器挤出
-- 窗口底框横线字符
-
-### 📝 自测: 636项(+35)
+### 📝 自测
+- **636 项**（+35 新测试：主题/边框/Diff/InputManager/窗口）
 
 ## v0.17.5 (2026-08-07) — 移除 Terminal.Gui v2，恢复 AOT，三项短板清零
 
