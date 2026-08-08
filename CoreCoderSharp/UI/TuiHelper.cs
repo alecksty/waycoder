@@ -254,9 +254,14 @@ public static class TuiHelper
         if (cp is >= 0xAA4C and <= 0xAA4C) return 0;
         if (cp is >= 0xFE00 and <= 0xFE0F) return 0;
 
-        // ASCII 可打印字符 (0x20-0x7E) = 宽度 1，其他默认 2（CJK/全角/Emoji）
+        // ASCII 可打印字符 (0x20-0x7E) = 宽度 1
         if (cp <= 0x7E) return 1;
 
+        // 终端原生窄字符：盒绘制/方块/箭头，任何终端都是 1 宽
+        if (cp is >= 0x2190 and <= 0x21FF) return 1; // 箭头 (←↑→↓↔↕…)
+        if (cp is >= 0x2500 and <= 0x259F) return 1; // 盒绘制 + 方块元素 (┌┐─│▀▄█…)
+
+        // 默认 2 宽（CJK / 全角 / Emoji / 符号 — 中文终端绝大多数字符）
         return 2;
     }
 }

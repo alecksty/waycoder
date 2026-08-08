@@ -715,22 +715,24 @@ public class ScreenManager
 
         var maxItemVw = Suggestions.Max(s => VW(s));
         var panelW = Math.Min(chatW, Math.Max(maxItemVw + 6, chatW / 2));
-        int itemRows = suggestH - 2;
+        int itemRows = suggestH - 2; // 上下边框各占 1 行
 
+        // 滚动跟随选中项
         if (SuggestIdx < SuggestScroll) SuggestScroll = SuggestIdx;
         else if (SuggestIdx >= SuggestScroll + itemRows) SuggestScroll = SuggestIdx - itemRows + 1;
         SuggestScroll = Math.Clamp(SuggestScroll, 0, Math.Max(0, totalItems - itemRows));
-        bool canUp = SuggestScroll > 0, canDown = SuggestScroll + itemRows < totalItems;
 
         var rb = new Terminal.RenderBuffer();
 
-        // 上边框
+        // 上边框：标题 + 填充横线
+        var titleText = " 建议 ↑↓ Enter ";
+        var titleVW = VW("┌") + VW(titleText);
+        var fillLen = Math.Max(0, panelW - titleVW - VW("┐"));
         rb.MoveTo(startRow, 0);
-        var title = "┌ 建议 ↑↓ Enter " + new string(sh[0], Math.Max(0, panelW - 2 - VW("┌ 建议 ↑↓ Enter "))) + "┐";
-        rb.Segment(title, fg: bc);
+        rb.Segment("┌" + titleText + new string(sh[0], fillLen) + "┐", fg: bc);
 
-        // 内容行
-        int rightCol = panelW - 1; // 0-based
+        // 内容行（无 more 指示器，纯项目列表）
+        int rightCol = panelW - 1;
         for (int i = 0; i < itemRows; i++)
         {
             int ci = SuggestScroll + i;
@@ -739,14 +741,10 @@ public class ScreenManager
             rb.MoveTo(row, 0);
             rb.Segment("│", fg: bc);
 
-            if (i == 0 && canUp)
-                rb.SegmentDim($" ▲ {SuggestScroll} more ");
-            else if (i == itemRows - 1 && canDown)
-                rb.SegmentDim($" ▼ {totalItems - SuggestScroll - itemRows} more ");
-            else if (ci < totalItems)
+            if (ci < totalItems)
             {
                 var text = Suggestions[ci];
-                var maxW = panelW - 3;
+                var maxW = panelW - 3; // 左边框 + 空格 + 右边空格 + 右边框 = 3
                 if (VW(text) > maxW) text = TruncateByVW(text, maxW - 1) + "…";
                 if (ci == SuggestIdx) rb.Segment($" {text} ", fg: 30, bg: 46);
                 else rb.Segment($" {text} ");
