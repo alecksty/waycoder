@@ -55,7 +55,7 @@ public class InputManager : IDisposable
             // 键盘输入
             if (Console.KeyAvailable)
             {
-                var key = Console.ReadKey(intercept: true);
+                var key = TTY.ReadKey();
 
                 // 鼠标转义序列解析（SGR extended mouse: \x1b[<...）
                 if (_mouseEnabled && key.KeyChar == '\x1b')
@@ -86,14 +86,14 @@ public class InputManager : IDisposable
         if (!Console.KeyAvailable) return null;
 
         // Read '['
-        var bracket = Console.ReadKey(intercept: true);
+        var bracket = TTY.ReadKey();
         if (bracket.KeyChar != '[') return null;
 
         // Read until we get the terminating character (M or m)
         var buf = new System.Text.StringBuilder();
         for (int i = 0; i < 30 && Console.KeyAvailable; i++)
         {
-            var ch = Console.ReadKey(intercept: true);
+            var ch = TTY.ReadKey();
             buf.Append(ch.KeyChar);
             if (ch.KeyChar == 'M' || ch.KeyChar == 'm') break;
             Thread.Sleep(1); // 等待下一个字节
