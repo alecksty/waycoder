@@ -97,6 +97,10 @@ public class RenderBuffer
     public RenderBuffer Blink() { _sb.Append("\x1b[5m ▏\x1b[0m"); return this; }
     /// <summary>清除当前行从光标到行尾</summary>
     public RenderBuffer ClearToEndOfLine() { _sb.Append("\x1b[K"); return this; }
+    /// <summary>在指定位置显示光标</summary>
+    public RenderBuffer CursorAt(int row, int col) { _sb.Append($"\x1b[{row + 1};{col + 1}H\x1b[?25h"); return this; }
+    /// <summary>隐藏光标</summary>
+    public RenderBuffer HideCursor() { _sb.Append("\x1b[?25l"); return this; }
 
     /// <summary>追加原始字符串（仅在 Terminal 层内部使用）</summary>
     internal RenderBuffer Raw(string s) { _sb.Append(s); return this; }

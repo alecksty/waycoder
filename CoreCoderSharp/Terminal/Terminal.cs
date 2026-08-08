@@ -100,6 +100,9 @@ public static class TTY
     /// <summary>写入单字符</summary>
     public static void Write(char c) => Console.Write(c);
 
+    /// <summary>写入一行文本（无 ANSI 码）</summary>
+    public static void WriteLine(string text = "") => Console.WriteLine(text);
+
     /// <summary>刷新输出缓冲</summary>
     public static void Flush() => Console.Out.Flush();
 
