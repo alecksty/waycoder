@@ -45,8 +45,8 @@ public class TuiTable
         return this;
     }
 
-    /// <summary>渲染表格为 ANSI 字符串</summary>
-    public string RenderToString()
+    /// <summary>渲染表格为 ANSI 字符串。ansi=true 输出带颜色码，false 输出纯文本。</summary>
+    public string RenderToString(bool ansi = true)
     {
         if (_columns.Count == 0) return "";
 
@@ -67,7 +67,10 @@ public class TuiTable
         // 标题
         if (!string.IsNullOrEmpty(_title))
         {
-            sb.Append($" {AnsiText.BoldFg(_title, TuiColors.Cyan)}");
+            if (ansi)
+                sb.Append($" {AnsiText.BoldFg(_title, TuiColors.Cyan)}");
+            else
+                sb.Append($" {_title}");
         }
         sb.Append('\n');
 
@@ -76,7 +79,10 @@ public class TuiTable
         for (int i = 0; i < _columns.Count; i++)
         {
             var hdr = PadCenter(_columns[i].Header, colWidths[i]);
-            sb.Append($" {AnsiText.Bold(hdr)} │");
+            if (ansi)
+                sb.Append($" {AnsiText.Bold(hdr)} │");
+            else
+                sb.Append($" {hdr} │");
         }
         sb.Append('\n');
 
@@ -100,8 +106,10 @@ public class TuiTable
 
                 if (!isMarkup)
                     cellText = TuiHelper.Esc(cellText);
+                else if (!ansi)
+                    cellText = StripAnsi(cellText);  // TUI 模式去掉内嵌 ANSI，走正常渲染管线
 
-                var displayW = isMarkup
+                var displayW = isMarkup && ansi
                     ? AnsiDisplayWidth(cellText)
                     : TuiHelper.DisplayWidth(cellText);
 
@@ -128,20 +136,30 @@ public class TuiTable
         return sb.ToString();
     }
 
-    /// <summary>渲染表格。TUI 模式下每行单独注入聊天区（绕过 ANSI 批量渲染管线），非 TUI 模式直接写终端。</summary>
+    /// <summary>去掉 ANSI 转义序列，保留纯文本</summary>
+    private static string StripAnsi(string text)
+    {
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (text[i] == '\x1b' && i + 1 < text.Length && text[i + 1] == '[')
+            {
+                while (i < text.Length && text[i] != 'm') i++;
+                continue;
+            }
+            sb.Append(text[i]);
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>渲染表格。TUI 模式下注入聊天区（纯文本，避免 ANSI 码干扰渲染管线），非 TUI 模式直接写终端（带颜色）。</summary>
     public void Render()
     {
-        var output = RenderToString();
+        var ansi = !ScreenManager.Instance.IsActive;
+        var output = RenderToString(ansi);
         if (ScreenManager.Instance.IsActive)
         {
-            // 每行作为独立消息注入，让 BuildChatScreenLines 逐行处理
-            // 避免整个表格字符串进入 ANSI 检测路径后可能的渲染异常
-            foreach (var line in output.Split('\n'))
-            {
-                if (line.Length > 0)
-                    ScreenManager.Instance.AddSystemMsg(line);
-            }
-            // 主循环会在下一次迭代自动 Render()，这里不主动触发
+            ScreenManager.Instance.AddSystemMsg(output);
         }
         else
         {
