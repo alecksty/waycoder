@@ -595,22 +595,15 @@ public class WindowManager
         sb.Append(rb.ToString());
     }
 
-    /// <summary>带裁剪的文本写入（RenderBuffer 版本）——自动处理 ANSI 转义序列</summary>
+    /// <summary>带裁剪的文本写入（RenderBuffer 版本）</summary>
     internal static void WriteClipped(Terminal.RenderBuffer rb,
         int row, int col, string text, ManagedWindow win,
         int fg = 0, int bg = 0)
     {
-        var (clipL, clipT, clipR, clipB) = Clip(win);
-        if (row < clipT || row >= clipB) return;
+        var (_, clipT, _, clipR) = Clip(win);
+        if (row < clipT || row >= clipT + win.Height) return;
         if (col >= clipR) return;
-
-        var textVw = TuiHelper.DisplayWidth(text);
-        var avail = clipR - col;
-        if (avail <= 0) return;
-        if (textVw > avail)
-            text = ClipTextVw(text, avail);
-
-        rb.Write(row, col, text, fg, bg);
+        rb.WriteTruncate(row, col, text, clipR - 1, fg, bg);
     }
 
     /// <summary>按视觉宽度截断文本（保留 ANSI 码）</summary>

@@ -54,6 +54,58 @@ public class RenderBuffer
     }
 
     // ================================================================
+    // 超屏处理：截断 / 换行
+    // ================================================================
+
+    /// <summary>
+    /// 写文本，超出屏幕右边界自动截断。
+    /// maxCol = 屏幕最右可用列（0-based），超出部分丢弃。
+    /// </summary>
+    public RenderBuffer WriteTruncate(int row, int col, string text, int maxCol, int fg = 0, int bg = 0)
+    {
+        var avail = maxCol - col + 1; // 可用列数
+        if (avail <= 0) return this;
+        var vw = AnsiString.DisplayWidth(text);
+        if (vw > avail)
+            text = AnsiString.TruncateByWidth(text, avail);
+        return Write(row, col, text, fg, bg);
+    }
+
+    /// <summary>
+    /// 写文本，超出右边界自动换行。
+    /// 换行后从 indentCol 列开始继续写。
+    /// 返回最后写入的行号。
+    /// </summary>
+    public int WriteWrap(int startRow, int startCol, string text, int maxCol, int indentCol, int fg = 0, int bg = 0)
+    {
+        int row = startRow, col = startCol;
+        int i = 0;
+        while (i < text.Length)
+        {
+            var avail = maxCol - col + 1;
+            if (avail <= 0) { row++; col = indentCol; continue; }
+
+            // 取当前行能放下的子串
+            int chars = 0, vw = 0;
+            while (i + chars < text.Length)
+            {
+                var rune = System.Text.Rune.GetRuneAt(text, i + chars);
+                var w = AnsiString.CharWidth(rune);
+                if (vw + w > avail) break;
+                vw += w;
+                chars += rune.Utf16SequenceLength;
+            }
+            if (chars == 0) chars = 1; // 至少放一个字
+
+            var line = text.Substring(i, chars);
+            Write(row, col, line, fg, bg);
+            i += chars;
+            if (i < text.Length) { row++; col = indentCol; }
+        }
+        return row;
+    }
+
+    // ================================================================
     // Color 流畅 API
     // ================================================================
 
