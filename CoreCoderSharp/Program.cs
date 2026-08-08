@@ -308,7 +308,7 @@ public class Program
                     case ConsoleKey.Home: sm.SuggestIdx = 0; continue;
                     case ConsoleKey.End: sm.SuggestIdx = sm.Suggestions.Count - 1; continue;
                     case ConsoleKey.Enter: case ConsoleKey.Tab:
-                        sm.AcceptSuggestion(); sm.UpdateSuggestions(); continue;
+                        sm.AcceptSuggestion(); continue;
                     case ConsoleKey.Backspace: sm.InputBackspace(); sm.UpdateSuggestions(); break;
                     case ConsoleKey.LeftArrow: case ConsoleKey.RightArrow:
                         sm.SuggestActive = false; break;
