@@ -602,6 +602,8 @@ case ConsoleKey.F2:
         if (userInput.StartsWith("/edit ")) { await Editor.RunAsync(userInput[6..].Trim()); sm.Render(); return; }
         if (userInput is "/settings" or "/config") { SettingsPage.Show(); return; }
         if (userInput == "/about") { ScreenManager.ShowAbout(); return; }
+        if (userInput.StartsWith("/test ")) { ScreenManager.RunTestDemo(userInput[6..].Trim()); return; }
+        if (userInput == "/test") { ScreenManager.RunTestDemo("help"); return; }
         if (userInput == "/todo") { ShowTodo(); return; }
         if (userInput.StartsWith("/theme "))
         {
