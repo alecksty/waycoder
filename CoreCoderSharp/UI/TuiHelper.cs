@@ -254,14 +254,24 @@ public static class TuiHelper
         if (cp is >= 0xAA4C and <= 0xAA4C) return 0;
         if (cp is >= 0xFE00 and <= 0xFE0F) return 0;
 
-        // ASCII 可打印字符 (0x20-0x7E) = 宽度 1
-        if (cp <= 0x7E) return 1;
+        // 全角 / 宽字符（East Asian Wide + Fullwidth + Emoji）
+        if (cp is >= 0x1100 and <= 0x115F) return 2;  // 韩文 Choseong
+        if (cp is >= 0x2010 and <= 0x2027) return 2;  // 通用标点（— … " " ' ' ※ 等 EA Ambiguous）
+        if (cp is >= 0x2030 and <= 0x2043) return 2;  // 补充标点（‰ ′ ″ ※ 等）
+        if (cp is >= 0x2329 and <= 0x232A) return 2;  // 〈 〉
+        if (cp is >= 0x2600 and <= 0x27BF) return 2;  // 杂项符号 + 装饰符号（☀ ★ ❤ ➿ 等）
+        if (cp is >= 0x2E80 and <= 0xA4CF) return 2;  // CJK 部首 ~ 彝文
+        if (cp is >= 0xA960 and <= 0xA97C) return 2;  // 韩文扩展
+        if (cp is >= 0xAC00 and <= 0xD7A3) return 2;  // 韩文音节
+        if (cp is >= 0xF900 and <= 0xFAFF) return 2;  // CJK 兼容汉字
+        if (cp is >= 0xFE10 and <= 0xFE19) return 2;  // 竖排标点
+        if (cp is >= 0xFE30 and <= 0xFE6F) return 2;  // CJK 兼容标点
+        if (cp is >= 0xFF01 and <= 0xFF60) return 2;  // 全角 ASCII
+        if (cp is >= 0xFFE0 and <= 0xFFE6) return 2;  // 全角符号
+        if (cp is >= 0x1F000 and <= 0x1FAFF) return 2; // Emoji / 符号（麻将～补充-A）
+        if (cp is >= 0x20000 and <= 0x2FFFD) return 2; // CJK 扩展 B+
+        if (cp is >= 0x30000 and <= 0x3FFFD) return 2; // CJK 扩展 G+
 
-        // 终端原生窄字符：盒绘制/方块/箭头，任何终端都是 1 宽
-        if (cp is >= 0x2190 and <= 0x21FF) return 1; // 箭头 (←↑→↓↔↕…)
-        if (cp is >= 0x2500 and <= 0x259F) return 1; // 盒绘制 + 方块元素 (┌┐─│▀▄█…)
-
-        // 默认 2 宽（CJK / 全角 / Emoji / 符号 — 中文终端绝大多数字符）
-        return 2;
+        return 1; // 默认窄字符
     }
 }
