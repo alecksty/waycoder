@@ -223,9 +223,11 @@ public class BoxBuffer
         string display; int padLen;
         if (textVW > maxLen) { display = TruncateByVW(text, maxLen - 1) + "…"; padLen = 0; }
         else { display = text; padLen = maxLen - textVW; }
-        sb.Append($"\x1b[{absRow};{absCol}H\x1b[{fgColor}m\x1b[{bgColor}m{display}");
-        if (padLen > 0) sb.Append(new string(' ', padLen));
-        sb.Append("\x1b[0m");
+        var rb = new Terminal.RenderBuffer();
+        rb.Write(absRow, absCol, display + (padLen > 0 ? new string(' ', padLen) : ""),
+            fg: int.TryParse(fgColor, out var _f) ? _f : 0,
+            bg: int.TryParse(bgColor, out var _b) ? _b : 0);
+        sb.Append(rb.ToString());
     }
 
     /// <summary>
