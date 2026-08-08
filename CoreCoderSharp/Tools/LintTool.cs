@@ -360,8 +360,8 @@ public class LintTool : ITool
             var errors = stderr.ToString();
 
             // 去除 ANSI 转义序列
-            output = Regex.Replace(output, @"\x1b\[[0-9;]*m", "");
-            errors = Regex.Replace(errors, @"\x1b\[[0-9;]*m", "");
+            output = Terminal.AnsiString.StripWithRegex(output);
+            errors = Terminal.AnsiString.StripWithRegex(errors);
 
             var combined = (output + "\n" + errors).Trim();
             if (combined.Length == 0)

@@ -613,36 +613,7 @@ public class WindowManager
     }
 
     /// <summary>按视觉宽度截断文本（保留 ANSI 码）</summary>
-    private static string ClipTextVw(string text, int maxVw)
-    {
-        var clean = StripAnsi(text);
-        if (TuiHelper.DisplayWidth(clean) <= maxVw) return text;
-
-        var sb = new System.Text.StringBuilder();
-        int vw = 0;
-        bool inAnsi = false;
-        for (int i = 0; i < text.Length && vw < maxVw; i++)
-        {
-            if (text[i] == '\x1b' && i + 1 < text.Length && text[i + 1] == '[')
-            {
-                int j = i;
-                while (j < text.Length && text[j] != 'm') j++;
-                sb.Append(text[i..(j + 1)]);
-                i = j;
-                continue;
-            }
-            if (!inAnsi)
-            {
-                var rune = System.Text.Rune.GetRuneAt(text, i);
-                var w = TuiHelper.RuneWidth(rune);
-                if (vw + w > maxVw) break;
-                vw += w;
-            }
-            sb.Append(text[i]);
-        }
-        sb.Append("\x1b[0m");
-        return sb.ToString();
-    }
+    private static string ClipTextVw(string text, int maxVw) => Terminal.AnsiString.TruncateByWidth(text, maxVw);
 
     /// <summary>填充一行空格（裁剪安全）</summary>
     private static void FillClipped(System.Text.StringBuilder sb,
@@ -720,23 +691,7 @@ public class WindowManager
         return sb.ToString();
     }
 
-    private static string StripAnsi(string text)
-    {
-        if (!text.Contains('\x1b')) return text;
-        var sb = new System.Text.StringBuilder();
-        for (int i = 0; i < text.Length; i++)
-        {
-            if (text[i] == '\x1b' && i + 1 < text.Length && text[i + 1] == '[')
-            {
-                int j = i + 2;
-                while (j < text.Length && text[j] != 'm') j++;
-                i = j;
-                continue;
-            }
-            sb.Append(text[i]);
-        }
-        return sb.ToString();
-    }
+    private static string StripAnsi(string text) => Terminal.AnsiString.Strip(text);
 
     private static (string tl, string tr, string bl, string br, string h, string v) BoxChars(string? style = null)
         => (style ?? "single") switch

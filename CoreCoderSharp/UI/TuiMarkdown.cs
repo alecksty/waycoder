@@ -277,24 +277,8 @@ public static class TuiMarkdown
         return TuiHelper.DisplayWidth(clean);
     }
 
-    /// <summary>剥离 ANSI 转义码 (\x1b[...m)</summary>
-    public static string StripAnsi(string text)
-    {
-        if (!text.Contains('\x1b')) return text;
-        var sb = new System.Text.StringBuilder();
-        for (int i = 0; i < text.Length; i++)
-        {
-            if (text[i] == '\x1b' && i + 1 < text.Length && text[i + 1] == '[')
-            {
-                int j = i + 2;
-                while (j < text.Length && text[j] != 'm') j++;
-                i = j;
-                continue;
-            }
-            sb.Append(text[i]);
-        }
-        return sb.ToString();
-    }
+    /// <summary>剥离 ANSI 转义码 → Terminal.AnsiString</summary>
+    public static string StripAnsi(string text) => Terminal.AnsiString.Strip(text);
 
     /// <summary>获取角色对应的默认前景色</summary>
     private static int FgForRole(string role) => role switch
