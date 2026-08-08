@@ -1,56 +1,74 @@
-using Spectre.Console;
-
 namespace CoreCoderSharp.UI;
 
 /// <summary>
-/// 列表选单控件 —— Spectre.Console SelectionPrompt 的便捷封装。
+/// 列表选单控件 —— 通过 AnsiText 封装层渲染。
 /// </summary>
 public static class TuiList
 {
-    /// <summary>
-    /// 单选列表。返回用户选择的选项文本，取消返回 null。
-    /// </summary>
+    /// <summary>单选列表，返回选中的项。取消返回 null。</summary>
     public static string? Select(string title, List<string> choices)
     {
         if (choices.Count == 0) return null;
 
-        var escapedTitle = TuiHelper.Esc(title);
-        var escapedChoices = choices.Select(c => TuiHelper.Esc(c)).ToList();
+        Console.WriteLine(AnsiText.Heading(TuiHelper.Esc(title)));
+        for (int i = 0; i < choices.Count; i++)
+            Console.WriteLine($"  [{i + 1}] {TuiHelper.Esc(choices[i])}");
+        Console.Write(AnsiText.Prompt($"选择 (1-{choices.Count}, q=取消): "));
 
-        var choice = AnsiConsole.Prompt(
-            new SelectionPrompt<string>()
-                .Title($"[{TuiColors.HeadingMarkup}]{escapedTitle}[/]")
-                .AddChoices(escapedChoices)
-                .HighlightStyle(TuiColors.Accent));
-
-        // 返回原始文本（非 escaped）
-        var idx = escapedChoices.IndexOf(choice);
-        return idx >= 0 ? choices[idx] : choice;
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true);
+            if (key.KeyChar == 'q' || key.KeyChar == 'Q' || key.Key == ConsoleKey.Escape)
+            {
+                Console.WriteLine("取消");
+                return null;
+            }
+            if (int.TryParse(key.KeyChar.ToString(), out var idx) && idx >= 1 && idx <= choices.Count)
+            {
+                Console.WriteLine(choices[idx - 1]);
+                return choices[idx - 1];
+            }
+        }
     }
 
-    /// <summary>
-    /// 多选列表。返回用户选择的所有选项文本。
-    /// </summary>
+    /// <summary>多选列表。完成按 Enter，取消按 q。</summary>
     public static List<string> MultiSelect(string title, List<string> choices)
     {
         if (choices.Count == 0) return [];
+        var selected = new HashSet<int>();
 
-        var escapedTitle = TuiHelper.Esc(title);
-        var escapedChoices = choices.Select(c => TuiHelper.Esc(c)).ToList();
+        Console.WriteLine(AnsiText.Heading(TuiHelper.Esc(title)));
+        Console.WriteLine(AnsiText.Dim("  空格=切换  回车=确认  q=取消"));
 
-        var selected = AnsiConsole.Prompt(
-            new MultiSelectionPrompt<string>()
-                .Title($"[{TuiColors.HeadingMarkup}]{escapedTitle}[/]")
-                .AddChoices(escapedChoices)
-                .HighlightStyle(TuiColors.Accent));
-
-        // 映射回原始文本
-        var result = new List<string>();
-        foreach (var s in selected)
+        RenderMultiList(choices, selected);
+        while (true)
         {
-            var idx = escapedChoices.IndexOf(s);
-            result.Add(idx >= 0 ? choices[idx] : s);
+            var key = Console.ReadKey(intercept: true);
+            if (key.KeyChar == 'q' || key.KeyChar == 'Q' || key.Key == ConsoleKey.Escape)
+                return [];
+            if (key.Key == ConsoleKey.Enter)
+                break;
+            if (int.TryParse(key.KeyChar.ToString(), out var idx) && idx >= 1 && idx <= choices.Count)
+            {
+                if (selected.Contains(idx - 1)) selected.Remove(idx - 1);
+                else selected.Add(idx - 1);
+            }
+            // 光标回到列表开头
+            Console.CursorTop -= choices.Count;
+            RenderMultiList(choices, selected);
         }
-        return result;
+
+        return choices.Where((_, i) => selected.Contains(i)).ToList();
+    }
+
+    private static void RenderMultiList(List<string> choices, HashSet<int> selected)
+    {
+        foreach (var _ in choices) Console.Write("\r                                   \r");
+        Console.CursorTop -= choices.Count;
+        for (int i = 0; i < choices.Count; i++)
+        {
+            var marker = selected.Contains(i) ? AnsiText.Success("✓") : " ";
+            Console.WriteLine($" [{marker}] {i + 1}. {TuiHelper.Esc(choices[i])}");
+        }
     }
 }

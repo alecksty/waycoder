@@ -49,6 +49,8 @@ public class ScreenManager
     public readonly List<StringBuilder> InputLines = [new()];
     public int InputCy, InputCx;
     public int InputScroll;
+    private int _inputContentRow; // 输入区首行屏幕行号
+    private int _inputH;          // 输入区屏幕行数
 
     // ---- 建议 ----
     public bool SuggestActive;
@@ -101,6 +103,7 @@ public class ScreenManager
     /// </summary>
     public int ShowInlinePermission(string title, string content, List<string> choices)
     {
+        SuggestActive = false;
         var titleLine = title.Replace('\n', ' ').Trim();
         var contentLine = content.Replace('\n', ' ').Trim();
         PermTitle = $"⚠ {titleLine}";
@@ -332,10 +335,12 @@ public class ScreenManager
     /// 集成到主事件循环：resize 即时响应，鼠标可用。</summary>
     public int ShowMenu(string title, List<string> choices)
     {
-        AddSystemMsg($"📋 {title}"); // 菜单标题注入聊天区（非阻塞提示）
+        var cleanTitle = title.Replace('\n', ' ').Trim();
+        SuggestActive = false;
+        AddSystemMsg($"📋 {cleanTitle}");
         var x = (Console.WindowWidth - Math.Min(Console.WindowWidth - 8, Math.Max(20, choices.Max(c => TuiHelper.DisplayWidth(c)) + 4))) / 2;
         var y = (Console.WindowHeight - Math.Min(choices.Count, Console.WindowHeight - 8) - 4) / 2;
-        var win = WindowManager.Instance.ShowMenu(x, y, title, choices);
+        var win = WindowManager.Instance.ShowMenu(x, y, cleanTitle, choices);
 
         while (true)
         {
@@ -643,6 +648,7 @@ public class ScreenManager
     public void AddSystemMsg(string text)
     {
         ChatMessages.Add(new ChatMsg { Role = "system", Content = text });
+        _maybeSnapToBottom = true;
     }
 
     // ================================================================
@@ -660,6 +666,82 @@ public class ScreenManager
 
     public string GetInputText() =>
         string.Join("\n", InputLines.Select(l => l.ToString())).TrimEnd();
+
+    /// <summary>鼠标点击输入区：将屏幕坐标映射到光标位置</summary>
+    public void HandleMouseClick(int mouseX, int mouseY)
+    {
+        int inputTop = _inputContentRow;
+        int inputBottom = _inputContentRow + _inputH;
+        if (mouseY < inputTop || mouseY >= inputBottom) return;
+
+        var cw = TW - 2;
+        var screenLines = BuildInputScreenLines(cw);
+        int si = InputScroll + (mouseY - inputTop);
+        if (si < 0 || si >= screenLines.Count) return;
+
+        var sl = screenLines[si];
+        int colInRow = mouseX - 2; // "> " 或 "  " 前缀各 2 列
+        if (colInRow < 0) colInRow = 0;
+
+        // 将视觉列映射到硬行字符偏移
+        var text = InputLines[sl.HardLine].ToString();
+        int charIdx = sl.HardOffset;
+        int vw = 0;
+        int pos = sl.HardOffset;
+        while (pos < text.Length)
+        {
+            var rune = System.Text.Rune.GetRuneAt(text, pos);
+            var w = TuiHelper.RuneWidth(rune);
+            if (vw + w > colInRow) break;
+            vw += w;
+            charIdx = pos + rune.Utf16SequenceLength;
+            pos = charIdx;
+        }
+
+        InputCy = sl.HardLine;
+        InputCx = charIdx;
+        // 边界修正
+        if (InputCy < 0) InputCy = 0;
+        if (InputCy >= InputLines.Count) InputCy = InputLines.Count - 1;
+        var curLine = InputLines[InputCy].ToString();
+        if (InputCx > curLine.Length) InputCx = curLine.Length;
+        if (InputCx < 0) InputCx = 0;
+
+        Render();
+    }
+
+    /// <summary>在光标处粘贴剪贴板文本</summary>
+    public async Task PasteFromClipboardAsync()
+    {
+        var text = await ClipboardHelper.GetTextAsync();
+        if (string.IsNullOrEmpty(text)) return;
+        // 清理控制字符（保留换行）
+        text = SanitizePasteText(text);
+        foreach (var ch in text)
+        {
+            if (ch == '\n')
+                InputNewLine();
+            else if (ch == '\r')
+                continue;
+            else if (ch >= ' ' || ch == '\t')
+                InputInsert(ch);
+        }
+        UpdateSuggestions();
+        Render();
+    }
+
+    /// <summary>清理粘贴文本中的控制字符</summary>
+    private static string SanitizePasteText(string text)
+    {
+        var sb = new StringBuilder();
+        foreach (var ch in text)
+        {
+            if (ch == '\r') continue;
+            if (ch >= ' ' || ch == '\n' || ch == '\t')
+                sb.Append(ch);
+        }
+        return sb.ToString();
+    }
 
     // ================================================================
     // 全帧渲染
@@ -742,6 +824,8 @@ public class ScreenManager
         sb.Append(rbSepTop.ToString());
         // 输入内容（从下一行开始）
         int inputContentRow = inputTopRow + 1;
+        _inputContentRow = inputContentRow;
+        _inputH = inputH;
         RenderInputArea(sb, inputContentRow, inputH);
         // 下分割线（dim）
         int inputBottomRow = inputContentRow + inputH;

@@ -2,7 +2,6 @@
 using CoreCoderSharp.Tools;
 using CoreCoderSharp.UI;
 using CoreCoderSharp.Terminal;
-using Spectre.Console;
 
 namespace CoreCoderSharp;
 
@@ -277,17 +276,47 @@ public class Program
             // 超时 — 继续轮询
             if (ev.Type == InputType.Timeout) continue;
 
-            // 鼠标 — 滚轮滚动聊天区
+            // 鼠标事件
             if (ev.Type == InputType.Mouse)
             {
-                if (ev.MouseScrollUp) sm.ChatScrollUp(3);
-                else if (ev.MouseScrollDown) sm.ChatScrollDown(3);
+                if (ev.MouseScrollUp)
+                {
+                    if (sm.SuggestActive && sm.SuggestIdx > 0) { sm.SuggestIdx--; sm.Render(); }
+                    else sm.ChatScrollUp(3);
+                    continue;
+                }
+                else if (ev.MouseScrollDown)
+                {
+                    if (sm.SuggestActive && sm.SuggestIdx < sm.Suggestions.Count - 1) { sm.SuggestIdx++; sm.Render(); }
+                    else sm.ChatScrollDown(3);
+                    continue;
+                }
+                // 左键点击 → 光标定位
+                if (ev.MouseLeft && !ev.MouseRelease)
+                {
+                    sm.HandleMouseClick(ev.MouseX, ev.MouseY);
+                    continue;
+                }
+                // 右键点击 → 粘贴
+                if (ev.MouseRight && !ev.MouseRelease)
+                {
+                    _ = sm.PasteFromClipboardAsync();
+                    continue;
+                }
                 continue;
             }
 
             var key = ev.KeyInfo;
             bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
             bool shift = key.Modifiers.HasFlag(ConsoleModifiers.Shift);
+
+            // 粘贴快捷键（所有模式下可用）
+            if ((key.Key == ConsoleKey.V && ctrl && !shift) ||
+                key.Key == ConsoleKey.Insert && shift)
+            {
+                await sm.PasteFromClipboardAsync();
+                continue;
+            }
 
             // 模态窗口键路由
             if (WindowManager.Instance.HasModal)
@@ -325,6 +354,7 @@ public class Program
             switch (key.Key)
             {
                 case ConsoleKey.Enter when !ctrl && !shift:
+                    sm.SuggestActive = false;
                     var input = sm.GetInputText();
                     if (string.IsNullOrWhiteSpace(input)) continue;
                     sm.AddUserMsg(input);
@@ -1589,7 +1619,7 @@ case ConsoleKey.F2:
         table.AddRow("/help", "显示此帮助");
         table.AddRow("/reset", "清空对话历史");
         table.AddRow("/model", "显示当前模型");
-        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/model[/] [dim]&lt;名称&gt;[/]", "切换模型");
+        table.AddMarkupRow($"{AnsiText.Accent("/model")} {AnsiText.Dim("&lt;名称&gt;")}", "切换模型");
         table.AddRow("/tokens", "显示 Token 用量");
         table.AddRow("/compact", "压缩上下文");
         table.AddRow("/diff", "修改文件列表");
@@ -1598,10 +1628,10 @@ case ConsoleKey.F2:
         table.AddRow("/history", "搜索对话历史 (Ctrl+R)");
         table.AddRow("/export", "导出对话为 Markdown 文件");
         table.AddRow("/sessions", "会话管理 (浏览/加载/删除)");
-        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/load[/] [dim]&lt;ID&gt;[/]", "加载指定会话");
+        table.AddMarkupRow($"{AnsiText.Accent("/load")} {AnsiText.Dim("&lt;ID&gt;")}", "加载指定会话");
         table.AddRow("/debug-on / -off", "开启/关闭调试日志");
         table.AddRow("/permissions", "权限管理");
-        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/perm[/] [dim]&lt;suggest|auto-edit|full-auto&gt;[/]", "设置沙箱级别");
+        table.AddMarkupRow($"{AnsiText.Accent("/perm")} {AnsiText.Dim("&lt;suggest|auto-edit|full-auto&gt;")}", "设置沙箱级别");
         table.AddRow("/plan", "计划模式");
         table.AddRow("/todo", "查看任务列表");
         table.AddRow("/git-status", "Git 状态");
@@ -1609,13 +1639,13 @@ case ConsoleKey.F2:
         table.AddRow("/git-diff", "Git 差异");
         table.AddRow("/review", "代码审查");
         table.AddRow("/lint", "运行 lint 检查");
-        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/search[/] [dim]&lt;关键词&gt;[/]", "网页搜索");
+        table.AddMarkupRow($"{AnsiText.Accent("/search")} {AnsiText.Dim("&lt;关键词&gt;")}", "网页搜索");
         table.AddRow("/checkpoint", "创建检查点");
-        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/undo[/] [dim][[编号]][/]", "回退检查点");
+        table.AddMarkupRow($"{AnsiText.Accent("/undo")} {AnsiText.Dim("[[编号]]")}", "回退检查点");
         table.AddRow("/checkpoints", "列出检查点");
         table.AddRow("/repomap", "刷新仓库地图");
-        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/pr[/] [dim][[标题]][/]", "创建 Pull Request");
-        table.AddMarkupRow($"[{TuiColors.AccentMarkup}]/edit[/] [dim][[文件]][/]", "终端源码编辑器");
+        table.AddMarkupRow($"{AnsiText.Accent("/pr")} {AnsiText.Dim("[[标题]]")}", "创建 Pull Request");
+        table.AddMarkupRow($"{AnsiText.Accent("/edit")} {AnsiText.Dim("[[文件]]")}", "终端源码编辑器");
         table.AddRow("/settings", "设置界面");
         table.AddRow("quit", "退出");
 
@@ -1642,11 +1672,11 @@ case ConsoleKey.F2:
         var cost = _llm.EstimatedCost;
 
         var content = new StringBuilder();
-        content.AppendLine($"[{TuiColors.AccentMarkup}]{p:N0}[/] 输入 " +
-            $"+ [{TuiColors.AccentMarkup}]{c:N0}[/] 输出 " +
-            $"= [bold {TuiColors.SuccessMarkup}]{total:N0}[/] 总计");
+        content.AppendLine($"{AnsiText.Accent($"{p:N0} 输入")} + " +
+            $"{AnsiText.Accent($"{c:N0} 输出")} = " +
+            $"{AnsiText.BoldFg($"{total:N0} 总计", TuiColors.Green)}");
         if (cost != null)
-            content.Append($"约 [dim]${cost:F4}[/]");
+            content.Append($"约 {AnsiText.Dim($"${cost:F4}")}");
 
         TuiBox.Info("Token 用量", content.ToString().TrimEnd());
     }
@@ -1679,7 +1709,7 @@ case ConsoleKey.F2:
     {
         var before = ContextManager.EstimateTokens(_agent!.Messages);
         var maxTokens = _agent.Context.MaxTokens;
-        AnsiConsole.MarkupLine($"[dim]压缩前: {before:N0} / {maxTokens:N0} tokens[/]");
+        MarkupLine($"[dim]压缩前: {before:N0} / {maxTokens:N0} tokens[/]");
 
         var lastLayer = 0;
         var compressed = await _agent.Context.MaybeCompressAsync(_agent.Messages, _llm,
@@ -1687,7 +1717,7 @@ case ConsoleKey.F2:
         {
             if (layer != lastLayer)
             {
-                AnsiConsole.MarkupLine($"[cyan]▶ 第 {layer} 层:[/] [dim]{E(msg)}[/]");
+                MarkupLine($"[cyan]▶ 第 {layer} 层:[/] [dim]{E(msg)}[/]");
                 lastLayer = layer;
             }
         });
@@ -1696,14 +1726,14 @@ case ConsoleKey.F2:
         var pct = before > 0 ? (int)((before - after) * 100.0 / before) : 0;
         if (compressed)
         {
-            AnsiConsole.MarkupLine(
+            MarkupLine(
                 $"[green]✔ 已压缩:[/] {before:N0} → [cyan]{after:N0}[/] tokens " +
                 $"([green]{pct}%[/] 释放, [dim]{_agent.Messages.Count} 条消息[/])");
             var barPct = after * 100.0 / maxTokens;
-            AnsiConsole.MarkupLine($"  [dim]上下文使用率:[/] {BoxBuffer.MiniBar(barPct, 10)}");
+            MarkupLine($"  [dim]上下文使用率:[/] {BoxBuffer.MiniBar(barPct, 10)}");
         }
         else
-            AnsiConsole.MarkupLine($"[dim]无需压缩 ({before:N0} tokens, {_agent.Messages.Count} 条消息)[/]");
+            MarkupLine($"[dim]无需压缩 ({before:N0} tokens, {_agent.Messages.Count} 条消息)[/]");
     }
 
     private static void SaveSession()
@@ -1788,9 +1818,9 @@ case ConsoleKey.F2:
                 new Dictionary<string, object?> { ["depth"] = 2, ["max"] = 30 });
             // 只显示前 20 行
             var lines = treeResult.Split('\n').Take(20);
-            AnsiConsole.MarkupLine($"[{TuiColors.DimMarkup}]── 工程文件 (前 20 行) ──[/]");
+            Console.WriteLine(AnsiText.Dim("── 工程文件 (前 20 行) ──"));
             foreach (var line in lines)
-                Console.WriteLine($"  [{TuiColors.DimMarkup}]{TuiHelper.Esc(line)}[/]");
+                Console.WriteLine($"  {AnsiText.Dim(TuiHelper.Esc(line))}");
             Console.WriteLine();
         }
         catch { /* 静默失败 */ }
@@ -1852,7 +1882,10 @@ case ConsoleKey.F2:
         var items = TodoTool.Items;
         if (items.Count == 0)
         {
-            MarkupLine("[dim]（暂无任务）[/]");
+            if (ScreenManager.Instance.IsActive)
+                ScreenManager.Instance.AddSystemMsg(AnsiText.Dim("（暂无任务）"));
+            else
+                Console.WriteLine(AnsiText.Dim("（暂无任务）"));
             return;
         }
 
@@ -1864,10 +1897,10 @@ case ConsoleKey.F2:
 
         var statusMarkup = new Dictionary<string, string>
         {
-            ["completed"] = $"[{TuiColors.SuccessMarkup}]✅ 已完成[/]",
-            ["in_progress"] = $"[{TuiColors.AccentMarkup}]🔄 进行中[/]",
-            ["pending"] = $"[{TuiColors.WarnMarkup}]⏳ 待处理[/]",
-            ["cancelled"] = $"[{TuiColors.DimMarkup}]❌ 已取消[/]",
+            ["completed"] = AnsiText.Success("✅ 已完成"),
+            ["in_progress"] = AnsiText.Accent("🔄 进行中"),
+            ["pending"] = AnsiText.Warn("⏳ 待处理"),
+            ["cancelled"] = AnsiText.Dim("❌ 已取消"),
         };
 
         foreach (var item in items.OrderBy(i => i.Id))
@@ -2029,17 +2062,36 @@ case ConsoleKey.F2:
         return fallbacks.ToArray();
     }
 
-    // 辅助方法: 安全的 Spectre.Console 输出 + 状态动画
+    // 辅助方法: 安全的控制台输出 + 状态动画
     // ========================================================================
 
-    /// <summary>转义用户内容中的 Spectre 标记字符</summary>
-    private static string E(string? text) => Markup.Escape(text ?? "");
+    /// <summary>转义用户内容中的 [ ] 标记字符</summary>
+    private static string E(string? text) => TuiHelper.Esc(text);
 
-    /// <summary>输出带标记的行（纯静态标记，无动态内容）</summary>
-    private static void MarkupLine(string markup) => AnsiConsole.MarkupLine(markup);
+    /// <summary>输出带标记的行（转换 Spectre 标记为 ANSI）</summary>
+    private static void MarkupLine(string markup) => Console.WriteLine(SpectreToAnsi(markup));
 
     /// <summary>输出带标记的文本（不换行）</summary>
-    private static void M(string markup) => AnsiConsole.Markup(markup);
+    private static void M(string markup) => Console.Write(SpectreToAnsi(markup));
+
+    /// <summary>将 Spectre 风格的标记转换为 ANSI 转义码（通过 AnsiText 封装层）</summary>
+    private static string SpectreToAnsi(string markup)
+    {
+        return markup
+            .Replace("[/]", AnsiText.Reset)
+            .Replace("[dim]", AnsiText.DimOn)
+            .Replace("[bold]", AnsiText.BoldOn)
+            .Replace("[cyan]", AnsiText.FgCode(TuiColors.Cyan))
+            .Replace("[green]", AnsiText.FgCode(TuiColors.Green))
+            .Replace("[yellow]", AnsiText.FgCode(TuiColors.Yellow))
+            .Replace("[red]", AnsiText.FgCode(TuiColors.Red))
+            .Replace("[orange3]", AnsiText.FgCode(TuiColors.Yellow))
+            .Replace("[grey]", AnsiText.FgCode(TuiColors.Grey))
+            .Replace("[bold yellow]", AnsiText.BoldFgCode(TuiColors.Yellow))
+            .Replace("[bold cyan]", AnsiText.BoldFgCode(TuiColors.Cyan))
+            .Replace("[bold red]", AnsiText.BoldFgCode(TuiColors.Red))
+            .Replace("[bold orange3]", AnsiText.BoldFgCode(TuiColors.Yellow));
+    }
 
     /// <summary>
     /// 带旋转动画 + 超时提示的 ChatAsync 包装器。
@@ -2050,10 +2102,7 @@ case ConsoleKey.F2:
         CancellationToken ct,
         Action<bool>? setStreamed = null)
     {
-        // ANSI 控制序列 (显式 ESC 字节, 兼容所有终端)
-        const string DimOn = "[2m";
-        const string DimOff = "[0m";
-        const string ClearLine = "[2K";
+        // ANSI 控制序列（通过 AnsiText 封装层）
         var spinnerFrames = new[] { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" };
         var spinnerActive = false;
         var startTime = DateTime.UtcNow;
@@ -2083,8 +2132,8 @@ case ConsoleKey.F2:
                     else
                         status = $"{frame} 思考中...";
 
-                    // 清行 + 回行首 + 动画帧 (直接写 stdout，绕过 Spectre 管线)
-                    System.Console.Write($"\r{ClearLine}  {DimOn}{status}{DimOff}");
+                    // 清行 + 回行首 + 动画帧（直接写 stdout）
+                    System.Console.Write($"\r{AnsiText.ClearLine}  {AnsiText.Dim(status)}");
                     System.Console.Out.Flush();
                     i++;
                     try { await Task.Delay(120, token); }
@@ -2117,7 +2166,7 @@ case ConsoleKey.F2:
                 StopSpinner();
                 Console.WriteLine(); // 结束上一行流式输出
                 var shortBrief = brief.Length > 60 ? brief[..57] + "..." : brief;
-                AnsiConsole.MarkupLine($"  [dim]⚙ {E(name)}({E(shortBrief)})[/]");
+                MarkupLine($"  [dim]⚙ {E(name)}({E(shortBrief)})[/]");
             },
             cancellationToken: ct);
 
