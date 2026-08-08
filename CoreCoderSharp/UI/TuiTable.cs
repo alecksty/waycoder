@@ -128,14 +128,20 @@ public class TuiTable
         return sb.ToString();
     }
 
-    /// <summary>渲染表格。TUI 模式下输出到聊天区，非 TUI 模式直接写终端。</summary>
+    /// <summary>渲染表格。TUI 模式下每行单独注入聊天区（绕过 ANSI 批量渲染管线），非 TUI 模式直接写终端。</summary>
     public void Render()
     {
         var output = RenderToString();
         if (ScreenManager.Instance.IsActive)
         {
-            ScreenManager.Instance.AddSystemMsg(output);
-            ScreenManager.Instance.Render();
+            // 每行作为独立消息注入，让 BuildChatScreenLines 逐行处理
+            // 避免整个表格字符串进入 ANSI 检测路径后可能的渲染异常
+            foreach (var line in output.Split('\n'))
+            {
+                if (line.Length > 0)
+                    ScreenManager.Instance.AddSystemMsg(line);
+            }
+            // 主循环会在下一次迭代自动 Render()，这里不主动触发
         }
         else
         {
