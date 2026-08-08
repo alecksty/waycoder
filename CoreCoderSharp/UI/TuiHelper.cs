@@ -253,23 +253,10 @@ public static class TuiHelper
         if (cp is >= 0xAA43 and <= 0xAA43) return 0;
         if (cp is >= 0xAA4C and <= 0xAA4C) return 0;
         if (cp is >= 0xFE00 and <= 0xFE0F) return 0;
-        if (cp is >= 0x1F000 and <= 0x1F02F) return 0;
 
-        // 全角 / 宽字符（East Asian Wide / Fullwidth）
-        if (cp is >= 0x1100 and <= 0x115F) return 2;  // 韩文 Choseong
-        if (cp is >= 0x2329 and <= 0x232A) return 2;  // 〈 〉
-        if (cp is >= 0x2E80 and <= 0xA4CF) return 2;  // CJK 部首 ~ 彝文
-        if (cp is >= 0xA960 and <= 0xA97C) return 2;  // 韩文扩展
-        if (cp is >= 0xAC00 and <= 0xD7A3) return 2;  // 韩文音节
-        if (cp is >= 0xF900 and <= 0xFAFF) return 2;  // CJK 兼容汉字
-        if (cp is >= 0xFE10 and <= 0xFE19) return 2;  // 竖排标点
-        if (cp is >= 0xFE30 and <= 0xFE6F) return 2;  // CJK 兼容标点
-        if (cp is >= 0xFF01 and <= 0xFF60) return 2;  // 全角 ASCII
-        if (cp is >= 0xFFE0 and <= 0xFFE6) return 2;  // 全角符号
-        if (cp is >= 0x1F100 and <= 0x1F9FF) return 2; // Emoji / 补充符号
-        if (cp is >= 0x20000 and <= 0x2FFFD) return 2; // CJK 扩展 B+
-        if (cp is >= 0x30000 and <= 0x3FFFD) return 2; // CJK 扩展 G+
+        // ASCII 可打印字符 (0x20-0x7E) = 宽度 1，其他默认 2（CJK/全角/Emoji）
+        if (cp <= 0x7E) return 1;
 
-        return 1; // 默认窄字符
+        return 2;
     }
 }
