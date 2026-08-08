@@ -918,6 +918,15 @@ public static class SelfTest
         Check("Smiley U+1F600 width=2", UI.TuiHelper.RuneWidth(new Rune(0x1F600)) == 2);
         Check("Rocket U+1F680 width=2", UI.TuiHelper.RuneWidth(new Rune(0x1F680)) == 2);
         Check("ExtA U+1FA80 width=2", UI.TuiHelper.RuneWidth(new Rune(0x1FA80)) == 2);
+        // 终端原生窄字符：盒绘制/箭头/方块 (U+2190-U+21FF, U+2500-U+259F)
+        Check("BoxCorner U+250C width=1", UI.TuiHelper.RuneWidth(new Rune(0x250C)) == 1);
+        Check("BoxHLine U+2500 width=1", UI.TuiHelper.RuneWidth(new Rune(0x2500)) == 1);
+        Check("ArrowUp U+2191 width=1", UI.TuiHelper.RuneWidth(new Rune(0x2191)) == 1);
+        Check("ArrowDown U+2193 width=1", UI.TuiHelper.RuneWidth(new Rune(0x2193)) == 1);
+        Check("FullBlock U+2588 width=1", UI.TuiHelper.RuneWidth(new Rune(0x2588)) == 1);
+        // 零宽字符
+        Check("ZeroWidthSpace U+200B width=0", UI.TuiHelper.RuneWidth(new Rune(0x200B)) == 0);
+        Check("VariationSel U+FE0F width=0", UI.TuiHelper.RuneWidth(new Rune(0xFE0F)) == 0);
         Check("Truncate 不截断短文本", UI.TuiHelper.TruncateByWidth("hello", 10) == "hello");
         Check("Truncate 中文=6留'你好…'", UI.TuiHelper.TruncateByWidth("你好世界", 6) == "你好…");
         Check("Truncate 中文=8完整", UI.TuiHelper.TruncateByWidth("你好世界", 8) == "你好世界");
