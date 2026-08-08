@@ -40,11 +40,7 @@ public class RenderBuffer
     // 高级写入（自动处理定位+颜色+转义）
     // ================================================================
 
-    /// <summary>
-    /// 在指定位置写纯文本+颜色。
-    /// text 必须是纯文本（不含 ANSI 码）；颜色为 0 时不输出。
-    /// 自动处理：定位 → 颜色 → 文本 → 重置。
-    /// </summary>
+    /// <summary>在指定位置写纯文本+颜色。0=无色。</summary>
     public RenderBuffer Write(int row, int col, string text, int fg = 0, int bg = 0)
     {
         MoveTo(row, col);
@@ -56,6 +52,15 @@ public class RenderBuffer
         if (hasColor) _sb.Append("\x1b[0m");
         return this;
     }
+
+    // ================================================================
+    // Color 流畅 API
+    // ================================================================
+
+    /// <summary>用命名颜色写入（流畅写法）</summary>
+    public RenderBuffer C(Color fg) { _sb.Append($"\x1b[{fg.AnsiCode}m"); return this; }
+    public RenderBuffer C(Color fg, Color bg) { _sb.Append($"\x1b[{fg.AnsiCode};{bg.AnsiCode}m"); return this; }
+    public RenderBuffer BgC(Color bg) { _sb.Append($"\x1b[{bg.AnsiCode}m"); return this; }
 
     /// <summary>在指定行填充 count 列空白（覆盖背景色）</summary>
     public RenderBuffer Fill(int row, int col, int count, int bg = 0)
