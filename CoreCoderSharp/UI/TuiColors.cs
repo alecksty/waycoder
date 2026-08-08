@@ -1,38 +1,34 @@
-using Spectre.Console;
-
 namespace CoreCoderSharp.UI;
 
 /// <summary>
-/// 统一配色常量 —— 黄/青/灰 主色调。
-/// Spectre.Console Style 对象，直接用于 Panel、Table、Markup 等控件。
+/// 统一配色常量 —— ANSI 颜色码，配合 AnsiText 使用。
 /// </summary>
 public static class TuiColors
 {
-    // 面板边框
-    public static readonly Style Border = new(foreground: Color.Yellow);
-    public static readonly Style SuccessBorder = new(foreground: Color.Green);
-    public static readonly Style WarnBorder = new(foreground: Color.Orange3);
-    public static readonly Style ErrorBorder = new(foreground: Color.Red);
+    // 前景色
+    public const int Yellow = 33;
+    public const int Green = 32;
+    public const int Red = 31;
+    public const int Cyan = 36;
+    public const int Grey = 90;
+    public const int White = 37;
+    public const int Black = 30;
 
-    // 标题 / 头部
-    public static readonly Style Heading = new(foreground: Color.Yellow, decoration: Decoration.Bold);
+    // 背景色
+    public const int BgYellow = 43;
+    public const int BgGreen = 42;
+    public const int BgRed = 41;
+    public const int BgCyan = 46;
+    public const int BgGrey = 100;
 
-    // 正文
-    public static readonly Style Accent = new(foreground: Color.Cyan);
-    public static readonly Style Dim = new(foreground: Color.Grey);
-    public static readonly Style Success = new(foreground: Color.Green);
-    public static readonly Style Warn = new(foreground: Color.Orange3);
-    public static readonly Style Error = new(foreground: Color.Red);
-
-    // 表格
-    public static readonly Style TableBorder = new(foreground: Color.Yellow);
-    public static readonly Style TableHeading = new(foreground: Color.Yellow, decoration: Decoration.Bold);
-
-    // Markup 快捷字符串
-    public const string AccentMarkup = "cyan";
-    public const string DimMarkup = "dim";
-    public const string SuccessMarkup = "green";
-    public const string WarnMarkup = "orange3";
-    public const string ErrorMarkup = "red";
-    public const string HeadingMarkup = "bold yellow";
+    // 功能色
+    public const int Border = 33;
+    public const int HeadingFg = 33;
+    public const int AccentFg = 36;
+    public const int DimFg = 90;
+    public const int SuccessFg = 32;
+    public const int WarnFg = 33;
+    public const int ErrorFg = 31;
+    public const int TableBorder = 33;
+    public const int TableHeadingFg = 33;
 }

@@ -238,8 +238,8 @@ public class BoxBuffer
         var clamped = Math.Clamp(percent, 0, 100);
         var filled = (int)(clamped / 100 * width);
         var empty = width - filled;
-        var barColor = clamped switch { < 50 => "32", < 80 => "33", _ => "31" };
-        return $"\x1b[{barColor}m{new string('█', filled)}{new string('░', empty)}\x1b[0m {clamped:F0}%";
+        var barColor = clamped switch { < 50 => TuiColors.Green, < 80 => TuiColors.Yellow, _ => TuiColors.Red };
+        return $"{AnsiText.Fg($"{new string('█', filled)}{new string('░', empty)}", barColor)} {clamped:F0}%";
     }
 
     // ================================================================

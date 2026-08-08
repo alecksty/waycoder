@@ -1,5 +1,4 @@
 using CoreCoderSharp.UI;
-using Spectre.Console;
 
 namespace CoreCoderSharp;
 
@@ -83,7 +82,7 @@ public static class PermissionManager
                     ScreenManager.Instance.AddSystemMsg("已拒绝");
                 else
                 {
-                    AnsiConsole.MarkupLine($"[{TuiColors.WarnMarkup}]已拒绝[/]");
+                    Console.WriteLine(AnsiText.Warn("已拒绝"));
                     Console.WriteLine();
                 }
                 return false;
@@ -111,14 +110,20 @@ public static class PermissionManager
             _ => Mode.Ask,
         };
 
-        var (label, color) = CurrentMode switch
+        int color = CurrentMode switch
         {
-            Mode.Yolo => ("YOLO (上帝模式)", TuiColors.ErrorMarkup),
-            Mode.Auto => ("Auto (智能确认)", TuiColors.SuccessMarkup),
-            _ => ("Ask (每次确认)", TuiColors.WarnMarkup),
+            Mode.Yolo => TuiColors.Red,
+            Mode.Auto => TuiColors.Green,
+            _ => TuiColors.Yellow,
+        };
+        var label = CurrentMode switch
+        {
+            Mode.Yolo => "YOLO (上帝模式)",
+            Mode.Auto => "Auto (智能确认)",
+            _ => "Ask (每次确认)",
         };
 
-        AnsiConsole.MarkupLine($"权限模式: [{color}]{label}[/]");
+        Console.WriteLine($"权限模式: {AnsiText.Fg(label, color)}");
     }
 
     /// <summary>
@@ -128,18 +133,18 @@ public static class PermissionManager
     {
         var (label, desc, color) = CurrentMode switch
         {
-            Mode.Yolo => ("YOLO", "不确认，直接执行", TuiColors.ErrorMarkup),
-            Mode.Auto => ("Auto", "首次确认后自动允许", TuiColors.SuccessMarkup),
-            _ => ("Ask", "每次都确认", TuiColors.WarnMarkup),
+            Mode.Yolo => ("YOLO", "不确认，直接执行", TuiColors.Red),
+            Mode.Auto => ("Auto", "首次确认后自动允许", TuiColors.Green),
+            _ => ("Ask", "每次都确认", TuiColors.Yellow),
         };
 
         var sandboxInfo = SandboxManager.IsSandboxed
-            ? $"\n[{TuiColors.AccentMarkup}]沙箱:[/] full-auto（bash 隔离 + 环境清理 + 内存监控）"
+            ? $"\n{AnsiText.Accent("沙箱:")} full-auto（bash 隔离 + 环境清理 + 内存监控）"
             : "";
 
-        var content = $"当前模式: [{color}]{label}[/] — {TuiHelper.Esc(desc)}{sandboxInfo}\n" +
-            $"[{TuiColors.DimMarkup}]需要确认:[/] {string.Join(", ", DangerousTools)}\n" +
-            $"[{TuiColors.DimMarkup}]直接放行:[/] read_file, glob, grep, ls, stat 等只读工具";
+        var content = $"当前模式: {AnsiText.Fg(label, color)} — {TuiHelper.Esc(desc)}{sandboxInfo}\n" +
+            $"{AnsiText.Dim("需要确认:")} {string.Join(", ", DangerousTools)}\n" +
+            $"{AnsiText.Dim("直接放行:")} read_file, glob, grep, ls, stat 等只读工具";
 
         TuiBox.Info("权限状态", content);
     }
@@ -174,7 +179,6 @@ public static class PermissionManager
                     var exists = File.Exists(fp);
                     var existsNote = exists ? $" (覆盖已有 {new FileInfo(fp).Length} 字节)" : " (新建)";
                     result += existsNote + $"\n内容: {lines} 行";
-                    // 预览前 100 字符
                     var preview = content.Length > 100 ? content[..100] + "..." : content;
                     result += $"\n预览: {TuiHelper.Esc(preview.Replace("\n", "\\n"))}";
                 }

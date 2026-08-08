@@ -681,7 +681,7 @@ public class WindowManager
             sb.Append(text[i]);
         }
         if (vw < maxVw) sb.Append(new string(' ', maxVw - vw));
-        sb.Append("\x1b[0m"); // 确保 ANSI 关闭
+        sb.Append(AnsiText.Reset); // 确保 ANSI 关闭
         return sb.ToString();
     }
 

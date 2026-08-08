@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using Spectre.Console;
 
 namespace CoreCoderSharp.UI;
 
@@ -77,13 +76,41 @@ public static class TuiHelper
         return new string(' ', needed) + text;
     }
 
-    // ---- Spectre 标记安全 ----
+    // ---- 安全转义 ----
 
     /// <summary>
-    /// 转义用户内容中的 Spectre.Console 标记字符 [ 和 ]。
-    /// 等同于 Markup.Escape，作为便捷封装。
+    /// 转义文本中的 [ 和 ] 字符。跳过 ANSI 转义序列（\x1b[...m）中的括号。
     /// </summary>
-    public static string Esc(string? text) => Markup.Escape(text ?? "");
+    public static string Esc(string? text)
+    {
+        if (text == null) return "";
+        var sb = new StringBuilder();
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (text[i] == '\x1b')
+            {
+                // ANSI 序列 — 原样复制
+                int j = i;
+                while (j < text.Length && text[j] != 'm') j++;
+                if (j < text.Length) j++; // include 'm'
+                sb.Append(text[i..j]);
+                i = j - 1;
+            }
+            else if (text[i] == '[')
+            {
+                sb.Append("[["); // 转义左括号
+            }
+            else if (text[i] == ']')
+            {
+                sb.Append("]]"); // 转义右括号
+            }
+            else
+            {
+                sb.Append(text[i]);
+            }
+        }
+        return sb.ToString();
+    }
 
     /// <summary>
     /// 移除 Spectre.Console 标记标签（如 [bold yellow]、[cyan]、[/]），
