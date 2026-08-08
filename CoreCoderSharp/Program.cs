@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using CoreCoderSharp.Tools;
 using CoreCoderSharp.UI;
+using CoreCoderSharp.Terminal;
 using Spectre.Console;
 
 namespace CoreCoderSharp;
@@ -1157,17 +1158,10 @@ case ConsoleKey.F2:
         var sb = new System.Text.StringBuilder();
         foreach (var line in lines)
         {
+            var rb = new Terminal.RenderBuffer();
             foreach (var (text, fg, bg) in line)
-            {
-                if (bg != 0 && fg != 0)
-                    sb.Append($"\x1b[{fg};{bg}m{text}\x1b[0m");
-                else if (fg != 0)
-                    sb.Append($"\x1b[{fg}m{text}\x1b[0m");
-                else if (bg != 0)
-                    sb.Append($"\x1b[{bg}m{text}\x1b[0m");
-                else
-                    sb.Append(text);
-            }
+                rb.Segment(text, fg, bg);
+            sb.Append(rb.ToString());
             sb.Append('\n');
         }
         return sb.ToString().TrimEnd();
@@ -1475,7 +1469,7 @@ case ConsoleKey.F2:
         var sb = new System.Text.StringBuilder();
 
         // 方框+中文内容
-        Console.Write("\x1b[2J\x1b[H");
+        TTY.Clear();
         var wins = new (int X, int Y, int W, int H, string T, string[] C, int Clr)[] {
             (2,2,24,6,"纯ASCII",     new[]{"Hello World!","abcdefg 12345","OK"}, 36),
             (28,2,24,6,"纯中文",      new[]{"你好世界！","中文内容测试"}, 32),
@@ -1487,7 +1481,7 @@ case ConsoleKey.F2:
             wm.RenderWindow(sb, new ManagedWindow { X=x, Y=y, Width=w, Height=h,
                 Title=t, ContentLines=[..c], BorderColor=clr });
         Console.Write(sb.ToString());
-        Console.WriteLine("\n\x1b[0m===END===");
+        Console.WriteLine("\n===END===");
 
         // ===== 建议面板截图验证 =====
         wm.CloseAll();
@@ -1516,21 +1510,21 @@ case ConsoleKey.F2:
         sm.StatusLeft = "大:deepseek-v4-flash";
 
         // 截图1: 建议顶部
-        Console.Write("\x1b[2J\x1b[H");
+        TTY.Clear();
         sm.Render();
-        Console.WriteLine("\n\x1b[0m===END===");
+        Console.WriteLine("\n===END===");
 
         // 截图2: 建议滚动到中间（第6项选中）
         sm.SuggestIdx = 6; sm.SuggestScroll = 3;
-        Console.Write("\x1b[2J\x1b[H");
+        TTY.Clear();
         sm.Render();
-        Console.WriteLine("\n\x1b[0m===END===");
+        Console.WriteLine("\n===END===");
 
         // 截图3: 建议最后一项
         sm.SuggestIdx = 12; sm.SuggestScroll = 5;
-        Console.Write("\x1b[2J\x1b[H");
+        TTY.Clear();
         sm.Render();
-        Console.WriteLine("\n\x1b[0m===END===");
+        Console.WriteLine("\n===END===");
 
         sm.SuggestActive = false;
         Console.ResetColor();
