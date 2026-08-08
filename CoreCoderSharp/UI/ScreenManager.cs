@@ -54,6 +54,7 @@ public class ScreenManager
     public bool SuggestActive;
     public List<string> Suggestions = [];
     public int SuggestIdx;
+    public int SuggestScroll;  // 建议列表滚动偏移
     public int SuggestH; // 面板可见行数
 
     // ---- 右侧面板 (多标签) ----
@@ -429,7 +430,7 @@ public class ScreenManager
         var inputH = ComputeInputScreenH();
         var statusH = 1;
         var hotkeyH = 1;
-        var suggestH = SuggestActive ? Math.Min(Suggestions.Count, 10) + 2 : 0;
+        var suggestH = SuggestActive ? Math.Min(Suggestions.Count, 8) + 2 : 0;
         var topH = 1;
         var sepH = 1;
         var panelW = ActivePanel != PanelTab.Off ? 32 : 0;
@@ -604,30 +605,59 @@ public class ScreenManager
 
     private void RenderSuggestions(StringBuilder sb, int startRow, int suggestH, int chatW)
     {
-        var (stl, str, sbl, sbr, sh, sv) = BorderChars();
-        var titleText = $"{sh[0]} 建议 (↑↓选择 Enter确认 Esc取消) ";
-        var titleVW = VW(titleText) + 2; // tl + tr
-        sb.Append($"\x1b[{startRow};1H\x1b[{ThemeBorderColor}m{stl}{titleText}{new string(sh[0], Math.Max(0, chatW - titleVW))}{str}\x1b[0m");
-        for (int i = 0; i < suggestH - 2; i++)
+        var (_, _, _, _, sh, _) = BorderChars();
+        int totalItems = Suggestions.Count;
+        if (totalItems == 0) return;
+
+        // 宽度：屏幕一半，不小于内容宽度
+        var maxItemVw = Suggestions.Max(s => VW(s));
+        var panelW = Math.Min(chatW, Math.Max(maxItemVw + 6, chatW / 2));
+        int itemRows = suggestH - 2;
+
+        // 确保选中项在视口内
+        if (SuggestIdx < SuggestScroll) SuggestScroll = SuggestIdx;
+        else if (SuggestIdx >= SuggestScroll + itemRows) SuggestScroll = SuggestIdx - itemRows + 1;
+        SuggestScroll = Math.Clamp(SuggestScroll, 0, Math.Max(0, totalItems - itemRows));
+        bool canUp = SuggestScroll > 0;
+        bool canDown = SuggestScroll + itemRows < totalItems;
+
+        // 上边框
+        sb.Append($"\x1b[{startRow};1H\x1b[{ThemeBorderColor}m┌ 建议 ↑↓ Enter ─");
+        sb.Append(new string(sh[0], Math.Max(0, panelW - 2 - VW("┌ 建议 ↑↓ Enter ─"))));
+        sb.Append($"┐\x1b[0m");
+
+        // 内容行
+        for (int i = 0; i < itemRows; i++)
         {
-            sb.Append($"\x1b[{ThemeBorderColor}m{sv}\x1b[0m ");
-            if (i < Suggestions.Count)
+            int ci = SuggestScroll + i;
+            int row = startRow + 1 + i;
+            int rightCol = panelW;  // 右框列号（1-based）
+
+            sb.Append($"\x1b[{row};1H");
+            sb.Append($"\x1b[{ThemeBorderColor}m│\x1b[0m");
+
+            if (i == 0 && canUp)
+                sb.Append($"\x1b[2m ▲ {SuggestScroll} more \x1b[0m");
+            else if (i == itemRows - 1 && canDown)
+                sb.Append($"\x1b[2m ▼ {totalItems - SuggestScroll - itemRows} more \x1b[0m");
+            else if (ci < totalItems)
             {
-                var text = Suggestions[i];
-                var maxW = chatW - 4;
+                var text = Suggestions[ci];
+                var maxW = panelW - 3;
                 if (VW(text) > maxW) text = TruncateByVW(text, maxW - 1) + "…";
-                var textVW = VW(text);
-                sb.Append(i == SuggestIdx ? $"\x1b[30;46m {text} \x1b[0m" : $" {text} ");
-                var fill = Math.Max(0, chatW - 4 - textVW - 2);
-                if (i != SuggestIdx) sb.Append(new string(' ', fill));
+                if (ci == SuggestIdx)
+                    sb.Append($"\x1b[30;46m {text} \x1b[0m");
+                else
+                    sb.Append($" {text} ");
             }
-            else
-            {
-                sb.Append(new string(' ', chatW - 4));
-            }
-            sb.Append($" \x1b[{ThemeBorderColor}m{sv}\x1b[0m");
+
+            // 右框
+            sb.Append($"\x1b[{row};{rightCol}H\x1b[{ThemeBorderColor}m│\x1b[0m");
         }
-        sb.Append($"\x1b[{ThemeBorderColor}m{sbl}{new string(sh[0], Math.Max(0, chatW - 2))}{sbr}\x1b[0m");
+
+        // 下边框
+        sb.Append($"\x1b[{startRow + suggestH - 1};1H");
+        sb.Append($"\x1b[{ThemeBorderColor}m└{new string(sh[0], panelW - 2)}┘\x1b[0m");
     }
 
     // ================================================================
@@ -879,8 +909,9 @@ public class ScreenManager
         };
 
         SuggestActive = Suggestions.Count > 0;
-        SuggestH = Math.Min(Suggestions.Count, 10) + 2;
+        SuggestH = Math.Min(Suggestions.Count, 8) + 2; // 最多8项+边框
         SuggestIdx = 0;
+        SuggestScroll = 0;
     }
 
     public void AcceptSuggestion()
