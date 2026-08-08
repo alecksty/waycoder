@@ -141,7 +141,7 @@ public static class TuiHelper
         if (cp is >= 0x2028 and <= 0x202E) return 0; // 方向控制
         if (cp is >= 0x2060 and <= 0x206F) return 0; // 零宽连接符等
         if (cp is >= 0xFE00 and <= 0xFE0F) return 0; // 变体选择器
-        if (cp is >= 0xFEFF) return 0; // BOM / ZWNBS
+        if (cp == 0xFEFF) return 0; // BOM / ZWNBS
         if (cp is >= 0xFFF9 and <= 0xFFFB) return 0; // 标注控制
         if (cp is >= 0xE0100 and <= 0xE01EF) return 0; // 补充变体选择器
 

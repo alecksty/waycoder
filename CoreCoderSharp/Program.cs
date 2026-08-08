@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using CoreCoderSharp.Tools;
 using CoreCoderSharp.UI;
 using CoreCoderSharp.Terminal;
