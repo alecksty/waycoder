@@ -1,3 +1,4 @@
+using CoreCoderSharp.Terminal;
 namespace CoreCoderSharp.UI;
 
 /// <summary>

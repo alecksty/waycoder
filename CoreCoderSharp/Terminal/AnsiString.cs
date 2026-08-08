@@ -74,14 +74,19 @@ public static class AnsiString
     public static int CharWidth(System.Text.Rune rune)
     {
         int v = rune.Value;
-        if (v < 0x20 || (v >= 0x7F && v <= 0x9F)) return 0;
-        if (v >= 0x4E00 && v <= 0x9FFF) return 2;   // CJK Unified
-        if (v >= 0x2E80 && v <= 0xA4CF) return 2;   // CJK Radicals ~ Yi
-        if (v >= 0xAC00 && v <= 0xD7AF) return 2;   // Hangul
-        if (v >= 0xF900 && v <= 0xFAFF) return 2;   // CJK Compat
-        if (v >= 0xFF01 && v <= 0xFF60) return 2;   // Fullwidth ASCII
-        if (v >= 0xFFE0 && v <= 0xFFE6) return 2;   // Fullwidth signs
-        if (v >= 0x1F100 && v <= 0x1F9FF) return 2; // Emoji
+        if (v < 0x20 || (v >= 0x7F && v < 0xA0)) return 0;
+        if (v >= 0x1100 && v <= 0x115F) return 2;    // Hangul Choseong
+        if (v >= 0x2010 && v <= 0x2027) return 2;    // 通用标点 — … "" '' ※
+        if (v >= 0x2030 && v <= 0x2043) return 2;    // 补充标点 ‰ ′ ″ ※
+        if (v >= 0x2600 && v <= 0x27BF) return 2;    // 杂项符号 ☀ ★ ❤
+        if (v >= 0x2E80 && v <= 0xA4CF) return 2;    // CJK Radicals ~ Yi
+        if (v >= 0xAC00 && v <= 0xD7AF) return 2;    // Hangul Syllables
+        if (v >= 0xF900 && v <= 0xFAFF) return 2;    // CJK Compat
+        if (v >= 0xFF01 && v <= 0xFF60) return 2;    // Fullwidth ASCII
+        if (v >= 0xFFE0 && v <= 0xFFE6) return 2;    // Fullwidth signs
+        if (v >= 0x1F000 && v <= 0x1FAFF) return 2;  // Emoji / Symbols
+        if (v >= 0x20000 && v <= 0x2FFFD) return 2;  // CJK Ext B+
+        if (v >= 0x30000 && v <= 0x3FFFD) return 2;  // CJK Ext G+
         return 1;
     }
 }
