@@ -1,6 +1,0 @@
-﻿hello
-good
-dest
-asdasdasd
-asdasdasddfgdfgdfgdsdfsd
-中华人民共和国
