@@ -87,6 +87,58 @@ public class ScreenManager
     public string? GitBranch;
     public readonly List<string> RecentFiles = [];
     public bool Running;
+    private int _frameCount;  // 用于思考动画闪烁
+
+    // ---- 行内权限确认 (模仿 Claude Code) ----
+    public string? PermTitle;      // 第一行：标题
+    public string? PermContent;    // 第二行：详细内容
+    public List<string> PermissionChoices = [];
+    public int PermissionSelectedIdx;
+
+    /// <summary>
+    /// 行内权限确认（三行模式）—— 在聊天区和输入区之间显示，模仿竞品风格。
+    /// 第一行标题，第二行内容，第三行选择按钮。
+    /// </summary>
+    public int ShowInlinePermission(string title, string content, List<string> choices)
+    {
+        var titleLine = title.Replace('\n', ' ').Trim();
+        var contentLine = content.Replace('\n', ' ').Trim();
+        PermTitle = $"⚠ {titleLine}";
+        PermContent = contentLine;
+        PermissionChoices = choices;
+        PermissionSelectedIdx = 0;
+
+        Render();
+
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true);
+
+            if (Console.WindowWidth != TW || Console.WindowHeight != TH)
+                Render();
+
+            switch (key.Key)
+            {
+                case ConsoleKey.Y: ClearPerm(); Render(); return 0;
+                case ConsoleKey.A: ClearPerm(); Render(); return 1;
+                case ConsoleKey.N: case ConsoleKey.Escape: ClearPerm(); Render(); return -1;
+                case ConsoleKey.Enter: ClearPerm(); Render(); return PermissionSelectedIdx;
+                case ConsoleKey.LeftArrow: case ConsoleKey.UpArrow:
+                    if (PermissionSelectedIdx > 0) { PermissionSelectedIdx--; Render(); }
+                    break;
+                case ConsoleKey.RightArrow: case ConsoleKey.DownArrow:
+                    if (PermissionSelectedIdx < choices.Count - 1) { PermissionSelectedIdx++; Render(); }
+                    break;
+                default:
+                    if (key.KeyChar == 'y' || key.KeyChar == 'Y') { ClearPerm(); Render(); return 0; }
+                    if (key.KeyChar == 'a' || key.KeyChar == 'A') { ClearPerm(); Render(); return 1; }
+                    if (key.KeyChar == 'n' || key.KeyChar == 'N') { ClearPerm(); Render(); return -1; }
+                    break;
+            }
+        }
+    }
+
+    private void ClearPerm() { PermTitle = null; PermContent = null; }
 
     // ---- Todo 面板 ----
 
@@ -220,7 +272,7 @@ public class ScreenManager
         if (contextMax > 0)
         {
             var pct = (int)(contextUsed * 100.0 / contextMax);
-            parts.Add($"上下文 {BoxBuffer.MiniBar(pct, 6)}");
+            parts.Add($"{pct}%上下文");
         }
         TokenInfo = string.Join(" · ", parts);
     }
@@ -248,6 +300,8 @@ public class ScreenManager
         public string Role { get; set; } = "";
         public string Content { get; set; } = "";
         public bool Streaming;
+        /// <summary>工具执行中（用于 tool 角色消息，运行中显示 spinner）</summary>
+        public bool ToolRunning;
     }
 
     // ================================================================
@@ -350,7 +404,7 @@ public class ScreenManager
     /// <summary>进入全屏模式（切换备用屏，退出时自动恢复原终端内容）</summary>
     public void Enter()
     {
-        Console.Write("[?1049h[2J[?25l");
+        Terminal.TTY.EnterAltScreen();
         (TW, TH) = (Console.WindowWidth, Console.WindowHeight);
         IsActive = true;
     }
@@ -359,7 +413,7 @@ public class ScreenManager
     public void Exit()
     {
         IsActive = false;
-        Console.Write("[?25h[?1049l");
+        Terminal.TTY.ExitAltScreen();
     }
 
     // ================================================================
@@ -397,7 +451,34 @@ public class ScreenManager
 
     public void AddToolMsg(string toolName, string brief)
     {
-        ChatMessages.Add(new ChatMsg { Role = "tool", Content = $"🔧 {toolName}({brief})" });
+        ChatMessages.Add(new ChatMsg { Role = "tool", Content = $"  🔧 {toolName}({brief})" });
+    }
+
+    /// <summary>工具开始执行（行内进度消息，RenderChatLine 自动追加闪烁 ⚙）</summary>
+    public void AddToolProgress(string toolName, string brief)
+    {
+        ChatMessages.Add(new ChatMsg
+        {
+            Role = "tool",
+            Content = $"  {toolName}({brief})",
+            ToolRunning = true,
+        });
+    }
+
+    /// <summary>工具执行完成（更新最后一条匹配的运行中工具消息为 💡）</summary>
+    public void FinishToolProgress(string toolName, double elapsedSec)
+    {
+        // 从后往前找第一个 ToolRunning 且匹配 toolName 的消息
+        for (int i = ChatMessages.Count - 1; i >= 0; i--)
+        {
+            var msg = ChatMessages[i];
+            if (msg.ToolRunning && msg.Content.Contains(toolName))
+            {
+                msg.ToolRunning = false;
+                msg.Content = $"  💡 {toolName} ({elapsedSec:F1}s)";
+                return;
+            }
+        }
     }
 
     public void AddSystemMsg(string text)
@@ -428,20 +509,20 @@ public class ScreenManager
     public void Render()
     {
         (TW, TH) = (Console.WindowWidth, Console.WindowHeight);
+        _frameCount++;
         var sb = new StringBuilder();
         sb.Append("[?25l[H"); // 隐藏光标 + 回左上角
 
-        // ---- 布局计算 ----
+        // ---- 布局计算（无顶栏/热键栏，模仿 Claude Code 极简布局）----
         var inputH = ComputeInputScreenH();
         var statusH = 1;
-        var hotkeyH = 1;
         var suggestH = SuggestActive ? Math.Min(Suggestions.Count, 8) + 2 : 0;
-        var topH = 1;
-        var sepH = 1;
+        var permH = PermTitle != null ? 3 : 0;
+        var inputSepH = 2;  // 输入区上下两条 dim 分割线
         var panelW = ActivePanel != PanelTab.Off ? 32 : 0;
         var chatW = Math.Max(20, TW - panelW);
-        // inputH 是内容行数，实际占用 inputH + 2（上下边框）
-        var chatH = TH - topH - sepH - suggestH - inputH - 2 - statusH - hotkeyH;
+        // 可用行数 = 总高 - 建议面板 - 输入行 - 状态栏 - 权限块 - 分割线
+        var chatH = TH - suggestH - inputH - statusH - permH - inputSepH;
         if (chatH < 3) chatH = 3;
 
         var chatScreenLines = BuildChatScreenLines(chatW, chatH);
@@ -453,24 +534,8 @@ public class ScreenManager
         _maybeSnapToBottom = false;
         _chatScroll = Math.Clamp(_chatScroll, 0, maxScroll);
 
-        // ---- 顶栏 (主题色底白字) ----
-        var topBarBg = ThemeAccentColor switch { "32" => "42", "33" => "43", "34" => "44",
-            "35" => "45", "37" => "47", _ => "44" };
-        var topText = $" WayCoder v0.17.3 · {StatusLeft}";
-        if (ActivePanel != PanelTab.Off) topText += $"  [F2 面板:{ActivePanel}]";
-        var rbt = new Terminal.RenderBuffer();
-        rbt.MoveTo(0, 0);
-        rbt.Segment(topText + new string(' ', Math.Max(0, TW - VW(topText))), fg: 37, bg: int.TryParse(topBarBg, out var tbg) ? tbg : 44);
-        sb.Append(rbt.ToString());
-
-        // ---- 分隔线 (主题色) ----
-        var (_, _, _, _, bH, _) = BorderChars();
-        var rbd = new Terminal.RenderBuffer();
-        rbd.Segment(new string(bH[0], TW), fg: int.TryParse(ThemeBorderColor, out var _tbc) ? _tbc : 36);
-        sb.Append(rbd.ToString());
-
-        // ---- 聊天区 + 侧边栏 ----
-        int chatRow = topH + sepH;
+        // ---- 聊天区 + 侧边栏（从第 0 行开始）----
+        int chatRow = 0;
         for (int i = 0; i < chatH; i++)
         {
             // 聊天内容 (左)
@@ -497,36 +562,55 @@ public class ScreenManager
         // ---- 建议面板 ----
         if (SuggestActive && suggestH > 0)
         {
-            int suggestRow = chatRow + chatH + sepH;
+            int suggestRow = chatRow + chatH;
             RenderSuggestions(sb, suggestRow, suggestH, chatW);
         }
 
-        // ---- 输入区 ----
-        int inputRow = chatRow + chatH + sepH + suggestH;
-        RenderInputArea(sb, inputRow, inputH);
+        // ---- 权限确认块 (三行行内渲染) ----
+        int permRow = chatRow + chatH + suggestH;
+        if (PermTitle != null)
+        {
+            RenderPermissionBlock(sb, permRow);
+        }
 
-        // ---- 状态栏 (inputH 内容 + 上下边框 = inputH+2 行之后) ----
-        int statusRow = inputRow + inputH + 2;
-        var modeLabel = InputLines.Count > 1 ? "多行" : "聊天";
-        var chCount = InputLines.Sum(l => l.Length);
-        var leftStatus = $"  {modeLabel}  L{InputCy + 1}:C{InputCx + 1}  {chCount}字符  Enter发送 Ctrl+Enter换行 Esc取消";
-        var rightInfo = TokenInfo.Length > 0 ? $"{TokenInfo}  " : "";
-        var rightW = VW(rightInfo);
-        var availW = TW - rightW - 1;
-        if (VW(leftStatus) > availW) leftStatus = TruncateByVW(leftStatus, availW - 1) + "…";
-        var pad = Math.Max(0, availW - VW(leftStatus));
-        // 状态栏: 灰色底 + 白字左 + 黄字右
+        // ---- 输入区（上下有 dim 分割线）----
+        int inputTopRow = permRow + permH;
+        // 上分割线（dim）
+        var sepLine = new string('─', TW);
+        var rbSepTop = new Terminal.RenderBuffer();
+        rbSepTop.MoveTo(inputTopRow, 0);
+        rbSepTop.Segment(sepLine, fg: 2);
+        sb.Append(rbSepTop.ToString());
+        // 输入内容（从下一行开始）
+        int inputContentRow = inputTopRow + 1;
+        RenderInputArea(sb, inputContentRow, inputH);
+        // 下分割线（dim）
+        int inputBottomRow = inputContentRow + inputH;
+        var rbSepBot = new Terminal.RenderBuffer();
+        rbSepBot.MoveTo(inputBottomRow, 0);
+        rbSepBot.Segment(sepLine, fg: 2);
+        sb.Append(rbSepBot.ToString());
+
+        // ---- 状态栏（极简一行：模型 · token/成本/上下文）----
+        int statusRow = inputBottomRow + 1;
+        var modelInfo = StatusLeft.Length > 0 ? StatusLeft : "";
+        var rightInfo = TokenInfo.Length > 0 ? TokenInfo : "";
+        // 如果左右都有内容，用 · 连接；否则只显示有内容的一边
+        string fullStatus;
+        if (modelInfo.Length > 0 && rightInfo.Length > 0)
+            fullStatus = $" {modelInfo} · {rightInfo}";
+        else if (modelInfo.Length > 0)
+            fullStatus = $" {modelInfo}";
+        else if (rightInfo.Length > 0)
+            fullStatus = $" {rightInfo}";
+        else
+            fullStatus = " WayCoder";
+        if (VW(fullStatus) > TW) fullStatus = TruncateByVW(fullStatus, TW - 1) + "…";
         var rb2 = new Terminal.RenderBuffer();
         rb2.MoveTo(statusRow, 0);
-        rb2.Segment(leftStatus, fg: 37, bg: 100);
-        rb2.Segment(new string(' ', pad), fg: 37, bg: 100);
-        rb2.Segment(rightInfo, fg: 33, bg: 100);
+        rb2.Segment(fullStatus, fg: 37, bg: 100);
         rb2.ClearToEndOfLine();
         sb.Append(rb2.ToString());
-
-        // ---- 快捷键栏 ----
-        int hotkeyRow = statusRow + 1;
-        RenderHotkeyBar(sb, hotkeyRow);
 
         // ---- 保存无浮层的帧用于窗口关闭时还原背景 ----
         _lastCleanFrame = sb.ToString();
@@ -534,13 +618,13 @@ public class ScreenManager
         // ---- 浮层窗口（对话框/菜单/提示框）----
         WindowManager.Instance.RenderOverlay(sb);
 
-        // ---- 光标定位 (先显示光标再定位，避免 show-cursor 导致位置漂移) ----
-        var (scrCy, scrCx) = InputHardToScreen(TW - 4);
-        var cursorRow = inputRow + 1 + (scrCy - InputScroll);
-        var cursorCol = 2 + scrCx + 1;
-        cursorCol = Math.Clamp(cursorCol, 2, TW - 2);
+        // ---- 光标定位 (ANSI 1-based，> 前缀占 2 列) ----
+        var (scrCy, scrCx) = InputHardToScreen(TW - 2);
+        var cursorRow = inputContentRow + (scrCy - InputScroll) + 1; // +1: ANSI 1-based
+        var cursorCol = 2 + scrCx + 1; // "> " 2列 + ANSI 1-based
+        cursorCol = Math.Clamp(cursorCol, 2, TW - 1);
         sb.Append($"[?25h[{cursorRow};{cursorCol}H");
-        DebugLog.Log("cursor", $"TH={TH} chatH={chatH} inputRow={inputRow} inputH={inputH} scrCy={scrCy} scroll={InputScroll} cursorRow={cursorRow} cursorCol={cursorCol}");
+        DebugLog.Log("cursor", $"TH={TH} chatH={chatH} inputContentRow={inputContentRow} inputH={inputH} scrCy={scrCy} scroll={InputScroll} cursorRow={cursorRow} cursorCol={cursorCol}");
 
         Console.Write(sb.ToString());
     }
@@ -554,27 +638,48 @@ public class ScreenManager
     private List<ChatScreenLine> BuildChatScreenLines(int tw, int chatH)
     {
         var result = new List<ChatScreenLine>();
+        string? lastRole = null;
+
         foreach (var msg in ChatMessages)
         {
-            var maxVW = tw - 2; // 减去左右边距
-
+            // 跳过空内容消息
             if (string.IsNullOrEmpty(msg.Content))
-            {
-                result.Add(new ChatScreenLine(msg, new List<(string, int, int)> { ("", 0, 0) }));
                 continue;
-            }
 
-            // 使用 TuiMarkdown 渲染消息
+            // 用户/agent 对话前加空行（角色切换时）
+            if (lastRole != null && msg.Role != lastRole
+                && (msg.Role == "user" || msg.Role == "agent"))
+            {
+                result.Add(new ChatScreenLine(new ChatMsg { Role = "spacer" },
+                    new List<(string, int, int)>()));
+            }
+            lastRole = msg.Role;
+
+            var maxVW = tw - 2;
             var renderedLines = TuiMarkdown.RenderMessage(msg.Content, msg.Role, maxVW);
 
-            // 为 user 角色添加 ❯ 前缀
-            foreach (var line in renderedLines)
+            // 图标前缀
+            var prefix = msg.Role switch
             {
-                if (msg.Role == "user" && line.Count > 0)
+                "agent" => "○ ",
+                "user" => "□ ",
+                _ => ""
+            };
+
+            for (int li = 0; li < renderedLines.Count; li++)
+            {
+                var line = renderedLines[li];
+                if (li == 0 && prefix.Length > 0)
                 {
-                    var newLine = new List<(string, int, int)> { ("❯ ", 36, 0) };
+                    var newLine = new List<(string, int, int)> { (prefix, 2, 0) };
                     newLine.AddRange(line);
                     result.Add(new ChatScreenLine(msg, newLine));
+                }
+                else if (prefix.Length > 0)
+                {
+                    var indentLine = new List<(string, int, int)> { ("  ", 0, 0) };
+                    indentLine.AddRange(line);
+                    result.Add(new ChatScreenLine(msg, indentLine));
                 }
                 else
                 {
@@ -594,8 +699,6 @@ public class ScreenManager
             if (string.IsNullOrEmpty(text)) continue;
             rb.Segment(text, fg, bg);
         }
-        if (msg.Streaming && msg == ChatMessages.LastOrDefault())
-            rb.Blink();
         sb.Append(rb.ToString());
     }
 
@@ -666,7 +769,7 @@ public class ScreenManager
 
     private int ComputeInputScreenH()
     {
-        var cw = TW - 4;
+        var cw = TW - 2; // "> " 前缀占用 2 列
         var screenLines = BuildInputScreenLines(cw);
         return Math.Clamp(screenLines.Count, 1, 5);
     }
@@ -695,7 +798,9 @@ public class ScreenManager
     private (int scrLine, int scrCol) InputHardToScreen(int contentW)
     {
         var lines = BuildInputScreenLines(contentW);
-        for (int i = 0; i < lines.Count; i++)
+        // 从后往前查找：当光标恰好在换行边界（InputCx == 上一行末尾 == 下一行开头），
+        // 光标应该显示在下一行开头（而非上一行末尾），反向遍历确保匹配到正确的行。
+        for (int i = lines.Count - 1; i >= 0; i--)
         {
             var sl = lines[i];
             if (sl.HardLine == InputCy && InputCx >= sl.HardOffset && InputCx <= sl.HardOffset + sl.Chars)
@@ -704,14 +809,82 @@ public class ScreenManager
                 return (i, VW(before));
             }
         }
-        return (lines.Count - 1, lines[^1].VW);
+        if (lines.Count > 0)
+        {
+            var last = lines[^1];
+            var text = InputLines[InputCy].ToString();
+            var before = text.Length >= last.HardOffset ? text[last.HardOffset..] : "";
+            return (lines.Count - 1, VW(before));
+        }
+        return (0, 0);
     }
 
     private record InputScreenLine(int HardLine, int HardOffset, int Chars, int VW);
 
+    /// <summary>
+    /// 无边框行内输入区 —— 模仿 Claude Code 的 > 提示符风格。
+    /// 多行时续行用两个空格缩进，思考中显示闪烁光标。
+    /// </summary>
+    /// <summary>
+    /// 行内权限确认块渲染（三行统一黄底）。
+    /// 第1行：⚠ 标题（黄底黑字）
+    /// 第2行：详细内容（黄底黑字）
+    /// 第3行：选择按钮（选中项青底高亮）
+    /// </summary>
+    private void RenderPermissionBlock(StringBuilder sb, int row)
+    {
+        var rb = new Terminal.RenderBuffer();
+        const int bg = 43; // 统一黄底
+
+        // ---- 第1行：标题 ----
+        var title = PermTitle ?? "";
+        if (VW(title) > TW - 1) title = TruncateByVW(title, TW - 2) + "…";
+        rb.Write(row, 0, title, fg: 30, bg: bg);
+        var pad1 = TW - VW(title);
+        if (pad1 > 0) rb.MoveTo(row, VW(title)).Segment(new string(' ', pad1), bg: bg);
+
+        // ---- 第2行：内容 ----
+        var content = PermContent ?? "";
+        if (VW(content) > TW - 3) content = TruncateByVW(content, TW - 4) + "…";
+        rb.Write(row + 1, 0, $"  {content}", fg: 30, bg: bg);
+        var pad2 = TW - VW(content) - 2;
+        if (pad2 > 0) rb.MoveTo(row + 1, VW(content) + 2).Segment(new string(' ', pad2), bg: bg);
+
+        // ---- 第3行：选择按钮 ----
+        var keyLabels = new[] { "[y]", "[a]", "[n]" };
+        var icons = new[] { "✓", "⭐", "✗" };
+        var parts = new List<(string label, string text)>();
+        for (int i = 0; i < PermissionChoices.Count; i++)
+        {
+            var label = i < keyLabels.Length ? keyLabels[i] : $"[{i}]";
+            var icon = i < icons.Length ? icons[i] : "";
+            parts.Add((label, $"{icon}{PermissionChoices[i]}"));
+        }
+        var curX = 0;
+        for (int i = 0; i < parts.Count; i++)
+        {
+            var (label, text) = parts[i];
+            var btnText = $"{label}{text}  ";
+            var btnVw = VW(btnText);
+            if (curX + btnVw > TW) break;
+
+            if (i == PermissionSelectedIdx)
+                rb.Write(row + 2, curX, btnText, fg: 30, bg: 46); // 选中：青底高亮
+            else
+                rb.Write(row + 2, curX, btnText, fg: 30, bg: bg); // 未选中：黄底黑字
+            curX += btnVw;
+        }
+        // 填满剩余
+        var pad3 = TW - curX;
+        if (pad3 > 0)
+            rb.MoveTo(row + 2, curX).Segment(new string(' ', pad3), bg: bg);
+
+        sb.Append(rb.ToString());
+    }
+
     private void RenderInputArea(StringBuilder sb, int startRow, int vh)
     {
-        var cw = TW - 4;
+        var cw = TW - 2; // "> " 前缀占 2 列
         var screenLines = BuildInputScreenLines(cw);
 
         // 调整滚动
@@ -723,41 +896,59 @@ public class ScreenManager
         if (scrCy >= InputScroll + vh) InputScroll = scrCy - vh + 1;
         InputScroll = Math.Clamp(InputScroll, 0, Math.Max(0, total - vh));
 
-        var (itl, itr, ibl, ibr, ih, iv) = BorderChars();
-        var dash = new string(ih[0], Math.Max(0, TW - 2));
         var rb = new Terminal.RenderBuffer();
-
-        // 上边框
-        rb.MoveTo(startRow, 0);
-        rb.SegmentDim(itl + dash + itr);
-        rb.ClearToEndOfLine();
 
         // 内容行
         for (int i = 0; i < vh; i++)
         {
-            int contentRow = startRow + 1 + i;
+            int contentRow = startRow + i;
             var si = InputScroll + i;
             rb.MoveTo(contentRow, 0);
-            rb.SegmentDim(iv + " ");
+
             if (si < screenLines.Count && screenLines[si].Chars > 0)
             {
                 var sl = screenLines[si];
                 var text = InputLines[sl.HardLine].ToString();
                 var slice = text.Substring(sl.HardOffset,
                     Math.Min(sl.Chars, text.Length - sl.HardOffset));
-                rb.Segment(slice);
+
+                if (si == 0)
+                {
+                    // 首行：青色 > 前缀 + 白色文本 + 思考闪烁块
+                    rb.Segment("> ", fg: 36);
+                    rb.Segment(slice);
+                    if (Running)
+                    {
+                        var blink = (_frameCount / 15) % 2 == 0 ? "▊" : " ";
+                        rb.Segment(blink, fg: 36);
+                    }
+                }
+                else
+                {
+                    // 续行：两个空格缩进（无 > 前缀）
+                    rb.Segment("  ");
+                    rb.Segment(slice);
+                }
                 var pad = cw - sl.VW;
                 if (pad > 0) rb.Raw(new string(' ', pad));
             }
-            else { rb.Raw(new string(' ', cw)); }
-            rb.SegmentDim(" " + iv);
+            else if (si == 0)
+            {
+                // 空输入时显示 > 提示符 + 思考闪烁块
+                rb.Segment("> ", fg: 36);
+                if (Running)
+                {
+                    var blink = (_frameCount / 15) % 2 == 0 ? "▊ 思考中…" : "  思考中…";
+                    rb.Segment(blink, fg: 36);
+                }
+                else rb.Raw(new string(' ', cw));
+            }
+            else
+            {
+                rb.Raw(new string(' ', TW));
+            }
             rb.ClearToEndOfLine();
         }
-
-        // 下边框
-        rb.MoveTo(startRow + 1 + vh, 0);
-        rb.SegmentDim(ibl + dash + ibr);
-        rb.ClearToEndOfLine();
 
         sb.Append(rb.ToString());
     }
