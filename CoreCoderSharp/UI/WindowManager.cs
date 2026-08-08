@@ -1,3 +1,4 @@
+using CoreCoderSharp.Terminal;
 namespace CoreCoderSharp.UI;
 
 // ================================================================
@@ -101,7 +102,7 @@ public class UIInput : UIControl
         rb.Write(row, col, fullText, fg: Focused ? 37 : 0, bg: Focused ? 44 : 0);
         if (!Focused) rb.Raw($"\x1b[{row + 1};{col + 1}H\x1b[2m{fullText}\x1b[0m"); // dim when unfocused
         if (Focused)
-            rb.Raw($"\x1b[{row + 1};{col + Math.Min(TuiHelper.DisplayWidth(displayText), visW - 1) + 1}H\x1b[?25h");
+            rb.CursorAt(row, col + Math.Min(TuiHelper.DisplayWidth(displayText), visW - 1));
         sb.Append(rb.ToString());
     }
 
@@ -166,7 +167,7 @@ public class WindowManager
     {
         var lines = content.Replace("\r\n", "\n").Split('\n');
         var maxLineVw = lines.Max(l => TuiHelper.DisplayWidth(l));
-        var w = Math.Max(20, Math.Min(Console.WindowWidth - 8,
+        var w = Math.Max(20, Math.Min(TTY.Cols - 8,
             width ?? Math.Max(maxLineVw + 4, TuiHelper.DisplayWidth(title) + 4)));
         // 折行长行
         var wrapped = new List<string>();
@@ -177,10 +178,10 @@ public class WindowManager
             else
                 wrapped.Add(line);
         }
-        var h = Math.Min(Console.WindowHeight - 6,
+        var h = Math.Min(TTY.Rows - 6,
             height ?? Math.Max(3, wrapped.Count + 4));
-        var x = (Console.WindowWidth - w) / 2;
-        var y = (Console.WindowHeight - h) / 2;
+        var x = (TTY.Cols - w) / 2;
+        var y = (TTY.Rows - h) / 2;
 
         var win = new ManagedWindow
         {
@@ -207,13 +208,13 @@ public class WindowManager
     public ManagedWindow ShowMenu(int x, int y, string title, List<string> choices)
     {
         var maxVw = choices.Where(c => c != MenuSeparator).Max(c => TuiHelper.DisplayWidth(c));
-        var w = Math.Max(12, Math.Min(Console.WindowWidth - 4, maxVw + 6));
+        var w = Math.Max(12, Math.Min(TTY.Cols - 4, maxVw + 6));
         var itemCount = choices.Count;
-        var maxVisH = Math.Min(itemCount, Console.WindowHeight - y - 4);
+        var maxVisH = Math.Min(itemCount, TTY.Rows - y - 4);
         var h = maxVisH + 3;
 
-        if (x + w > Console.WindowWidth) x = Console.WindowWidth - w - 1;
-        if (y + h > Console.WindowHeight) y = Console.WindowHeight - h - 1;
+        if (x + w > TTY.Cols) x = TTY.Cols - w - 1;
+        if (y + h > TTY.Rows) y = TTY.Rows - h - 1;
         if (x < 1) x = 1;
         if (y < 1) y = 1;
 
@@ -240,9 +241,9 @@ public class WindowManager
     public ManagedWindow ShowToast(string message, int durationMs = 2000)
     {
         var vw = TuiHelper.DisplayWidth(message);
-        var w = Math.Min(Console.WindowWidth - 4, vw + 4);
-        var x = Console.WindowWidth - w - 2;
-        var y = Console.WindowHeight - 4;
+        var w = Math.Min(TTY.Cols - 4, vw + 4);
+        var x = TTY.Cols - w - 2;
+        var y = TTY.Rows - 4;
 
         var win = new ManagedWindow
         {
@@ -362,7 +363,7 @@ public class WindowManager
             for (int row = 0; row < mask.Height; row++)
             {
                 int screenY = mask.Y + row;
-                if (screenY < 0 || screenY >= Console.WindowHeight) continue;
+                if (screenY < 0 || screenY >= TTY.Rows) continue;
                 var rbm = new Terminal.RenderBuffer();
                 rbm.Write(screenY, mask.X, new string(' ', mask.Width), bg: 100);
                 sb.Append(rbm.ToString());
