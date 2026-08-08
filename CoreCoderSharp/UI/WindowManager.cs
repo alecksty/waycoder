@@ -604,36 +604,28 @@ public class WindowManager
         int row, int col, string text, ManagedWindow win,
         int? fg = null, int? bg = null)
     {
-        var (clipL, clipT, clipR, clipB) = Clip(win);
+        // 委托到 RenderBuffer 版本
+        var rb = new Terminal.RenderBuffer();
+        WriteClipped(rb, row, col, text, win, fg ?? 0, bg ?? 0);
+        sb.Append(rb.ToString());
+    }
 
-        // 行超出裁剪区
+    /// <summary>带裁剪的文本写入（RenderBuffer 版本）——自动处理 ANSI 转义序列</summary>
+    internal static void WriteClipped(Terminal.RenderBuffer rb,
+        int row, int col, string text, ManagedWindow win,
+        int fg = 0, int bg = 0)
+    {
+        var (clipL, clipT, clipR, clipB) = Clip(win);
         if (row < clipT || row >= clipB) return;
-        // 列完全超出右边界
         if (col >= clipR) return;
 
-        // 计算文本视觉宽度（text 不含转义符，直接算）
         var textVw = TuiHelper.DisplayWidth(text);
         var avail = clipR - col;
         if (avail <= 0) return;
         if (textVw > avail)
             text = ClipTextVw(text, avail);
 
-        // 颜色（0=无色，等同于不设）
-        bool hasFg = fg.HasValue && fg.Value > 0;
-        bool hasBg = bg.HasValue && bg.Value > 0;
-        if (hasFg || hasBg)
-        {
-            sb.Append($"\x1b[{row + 1};{col + 1}H");
-            if (hasFg && hasBg) sb.Append($"\x1b[{fg};{bg}m");
-            else if (hasFg) sb.Append($"\x1b[{fg}m");
-            else sb.Append($"\x1b[{bg}m");
-            sb.Append(text);
-            sb.Append("\x1b[0m");
-        }
-        else
-        {
-            sb.Append($"\x1b[{row + 1};{col + 1}H{text}");
-        }
+        rb.Write(row, col, text, fg, bg);
     }
 
     /// <summary>按视觉宽度截断文本（保留 ANSI 码）</summary>
