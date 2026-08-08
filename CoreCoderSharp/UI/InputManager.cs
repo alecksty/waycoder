@@ -23,7 +23,8 @@ public class InputManager : IDisposable
     /// <summary>初始化终端输入模式</summary>
     public void Init()
     {
-        Console.TreatControlCAsInput = true;
+        // 不拦截 Ctrl+C——让 OS 信号触发 CancelKeyPress 实现随时退出
+        Console.TreatControlCAsInput = false;
         Console.CursorVisible = false;
         (_lastWidth, _lastHeight) = (TTY.Cols, TTY.Rows);
 
@@ -136,7 +137,6 @@ public class InputManager : IDisposable
 
         if (_mouseEnabled) { try { TTY.DisableMouse(); } catch { } }
         Console.CursorVisible = true;
-        Console.TreatControlCAsInput = false;
     }
 }
 
