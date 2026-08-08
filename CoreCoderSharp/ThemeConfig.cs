@@ -26,18 +26,17 @@ public class ThemeConfig
     public int SelFg { get; set; } = 30;
     public int SelBg { get; set; } = 46;
 
-    /// <summary>将主题应用到窗口（只填充未设置=0的项）</summary>
+    /// <summary>强制应用主题（覆盖所有窗口属性）</summary>
     public void ApplyTo(ManagedWindow win)
     {
-        if (win.BorderStyle == "single" && string.IsNullOrEmpty(win.CustomBorder))
-            win.BorderStyle = BorderStyle;
-        if (win.BorderColor == 36) win.BorderColor = BorderColor;
-        if (win.WinBg == 0) win.WinBg = WinBg;
-        if (win.TitleFg == 0) win.TitleFg = TitleFg;
-        if (win.ContentFg == 0) win.ContentFg = ContentFg;
-        if (win.ItemFg == 0) win.ItemFg = ItemFg;
-        if (win.SelFg == 30) win.SelFg = SelFg;
-        if (win.SelBg == 46) win.SelBg = SelBg;
+        win.BorderStyle = BorderStyle;
+        win.BorderColor = BorderColor;
+        win.WinBg = WinBg;
+        win.TitleFg = TitleFg;
+        win.ContentFg = ContentFg;
+        win.ItemFg = ItemFg;
+        win.SelFg = SelFg;
+        win.SelBg = SelBg;
     }
 
     // ================================================================
