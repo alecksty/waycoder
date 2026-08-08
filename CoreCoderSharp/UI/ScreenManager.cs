@@ -374,6 +374,165 @@ public class ScreenManager
     }
 
     /// <summary>
+    /// /test 命令 —— 测试 UI 组件和模块
+    /// </summary>
+    public static void RunTestDemo(string target)
+    {
+        target = target.Trim().ToLowerInvariant();
+        var sm = Instance;
+
+        switch (target)
+        {
+            case "perm" or "权限框":
+                sm.ShowInlinePermission("⚠ 确认执行危险操作",
+                    "工具: bash\n命令: rm -rf /tmp/build\n工作目录: /home/user/project",
+                    ["允许 (y)", "总是允许 (a)", "拒绝 (n)"]);
+                break;
+
+            case "toast" or "提示框":
+                var toastWin = WindowManager.Instance.ShowToast("✅ 操作已完成 (2s 自动消失)", 2000);
+                Instance.Render();
+                Thread.Sleep(2000);
+                WindowManager.Instance.Close(toastWin);
+                Instance.Render();
+                break;
+
+            case "menu" or "菜单":
+                var menuWin = WindowManager.Instance.ShowMenu(
+                    (Console.WindowWidth - 30) / 2,
+                    (Console.WindowHeight - 10) / 2,
+                    "测试菜单 ↑↓ 选择",
+                    ["选项 Alpha", "选项 Beta", "─", "选项 Gamma", "选项 Delta"]);
+                Instance.Render();
+                while (true)
+                {
+                    var key = Console.ReadKey(intercept: true);
+                    var result = WindowManager.Instance.HandleMenuKey(menuWin, key);
+                    if (result >= 0) { sm.AddSystemMsg($"菜单选中: [{result}] {menuWin.MenuItems[result]}"); break; }
+                    if (result == -1) { sm.AddSystemMsg("菜单已取消"); break; }
+                    Instance.Render();
+                }
+                WindowManager.Instance.Close(menuWin);
+                Instance.Render();
+                break;
+
+            case "dialog" or "对话框":
+                var dlg = WindowManager.Instance.ShowDialog("测试对话框",
+                    "这是对话框内容。\n第二行文本。\n第三行文本。\n\n按任意键关闭。", width: 42);
+                Instance.Render();
+                Console.ReadKey(intercept: true);
+                WindowManager.Instance.Close(dlg);
+                Instance.Render();
+                break;
+
+            case "panel" or "侧边栏":
+                sm.ActivePanel = sm.ActivePanel switch
+                {
+                    PanelTab.Off => PanelTab.Todo,
+                    PanelTab.Todo => PanelTab.Files,
+                    PanelTab.Files => PanelTab.Locks,
+                    PanelTab.Locks => PanelTab.MCP,
+                    _ => PanelTab.Off,
+                };
+                var plabel = sm.ActivePanel switch
+                {
+                    PanelTab.Off => "关闭",
+                    PanelTab.Todo => "Todo 面板",
+                    PanelTab.Files => "修改文件列表",
+                    PanelTab.Locks => "文件锁状态",
+                    PanelTab.MCP => "MCP 服务器",
+                    _ => "?",
+                };
+                sm.AddSystemMsg($"侧边栏: {plabel} (F2 切换)");
+                break;
+
+            case "status" or "状态栏":
+                var oldLeft = sm.StatusLeft;
+                var oldRight = sm.TokenInfo;
+                sm.StatusLeft = "🔧 测试模式";
+                sm.TokenInfo = "gpt-5.4 · ↑12.3k ↓8.7k · $0.0042 · ctx 15%";
+                sm.Render();
+                Thread.Sleep(2000);
+                sm.StatusLeft = oldLeft;
+                sm.TokenInfo = oldRight;
+                sm.Render();
+                break;
+
+            case "suggest" or "建议框":
+                sm.Suggestions = ["/help", "/reset", "/model gpt-5.4", "/model deepseek-v4",
+                    "/tokens", "/diff", "/save", "/plan", "/settings", "/about"];
+                sm.SuggestActive = true;
+                sm.SuggestIdx = 0;
+                sm.SuggestScroll = 0;
+                sm.SuggestH = 10;
+                sm.Render();
+                Thread.Sleep(3000);
+                sm.SuggestActive = false;
+                sm.Render();
+                break;
+
+            case "chat" or "聊天区":
+                sm.AddSystemMsg("=== 聊天区测试开始 ===");
+                sm.ChatMessages.Add(new ChatMsg { Role = "user", Content = "你好，请用中文回答" });
+                sm.ChatMessages.Add(new ChatMsg { Role = "agent", Content = "你好！我是 WayCoder，很高兴为你服务。\n\n有什么我可以帮你的吗？" });
+                sm.ChatMessages.Add(new ChatMsg { Role = "user",
+                    Content = "写一个 C# Hello World 程序，并且解释每一行代码的作用" });
+                sm.ChatMessages.Add(new ChatMsg { Role = "agent",
+                    Content = "## C# Hello World\n\n```csharp\nusing System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine(\"Hello, World!\");\n    }\n}\n```\n\n### 逐行解释\n\n1. `using System;` — 引入 System 命名空间\n2. `class Program` — 定义 Program 类\n3. `static void Main()` — 程序入口点\n4. `Console.WriteLine(...)` — 输出到控制台" });
+                sm.Render();
+                break;
+
+            case "editor" or "编辑器":
+                var testFile = Path.GetTempFileName() + ".cs";
+                File.WriteAllText(testFile, "using System;\n\nclass Test\n{\n    static void Main()\n    {\n        Console.WriteLine(\"test\");\n    }\n}\n");
+                Editor.RunAsync(testFile).GetAwaiter().GetResult();
+                sm.ModifiedFiles = Tools.EditFileTool.ChangedFiles.ToList();
+                sm.Render();
+                break;
+
+            case "settings" or "设置":
+                SettingsPage.Show();
+                break;
+
+            case "theme" or "主题":
+                sm.AddSystemMsg($"可选主题: {string.Join(", ", ThemeConfig.Presets.Keys)}");
+                sm.AddSystemMsg("切换主题: /theme <名称>");
+                break;
+
+            case "help" or "帮助":
+                var helps = new List<string> {
+                    "=== 内置命令 ===",
+                    "/help       显示帮助",
+                    "/reset      重置对话",
+                    "/model      切换模型",
+                    "/tokens     查看用量",
+                    "/diff       查看变更",
+                    "/plan       计划模式",
+                    "/settings   设置界面",
+                    "/test       测试 UI 组件",
+                    "/perm       权限设置",
+                    "/compact    压缩上下文",
+                };
+                foreach (var h in helps) sm.AddSystemMsg(h);
+                break;
+
+            case "all":
+                // 非阻塞的顺序测试
+                foreach (var t in new[] { "status", "chat", "panel", "toast", "menu", "dialog", "suggest", "perm" })
+                    RunTestDemo(t);
+                break;
+
+            default:
+                sm.AddSystemMsg("/test <项目>:");
+                sm.AddSystemMsg("  perm 权限框 / toast 提示框 / menu 菜单 / dialog 对话框");
+                sm.AddSystemMsg("  status 状态栏 / panel 侧边栏 / suggest 建议框 / chat 聊天区");
+                sm.AddSystemMsg("  editor 编辑器 / settings 设置 / theme 主题 / help 帮助");
+                sm.AddSystemMsg("  all 全部测试");
+                break;
+        }
+    }
+
+    /// <summary>
     /// 渲染底部快捷键栏
     /// </summary>
     private void RenderHotkeyBar(StringBuilder sb, int row)
@@ -1129,7 +1288,11 @@ public class ScreenManager
         "/plan", "/todo", "/git-status", "/git-log", "/git-diff",
         "/review", "/lint", "/search <关键词>",
         "/checkpoint", "/undo [编号]", "/checkpoints",
-        "/repomap", "/pr [标题]", "/edit [文件]", "/settings", "quit",
+        "/repomap", "/pr [标题]", "/edit [文件]", "/settings",
+        "/test", "/test perm", "/test toast", "/test menu", "/test dialog",
+        "/test panel", "/test status", "/test suggest", "/test chat",
+        "/test editor", "/test theme", "/test all",
+        "quit",
     ];
 
     private static List<string> GetFileSuggestions(string partial)
