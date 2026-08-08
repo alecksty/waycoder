@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("corecoder")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8f940c41335116ec44893514966856b1f8df30fc")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7f15e67cb68956165a867f44e95bfc01a1bd827a")]
 [assembly: System.Reflection.AssemblyProductAttribute("corecoder")]
 [assembly: System.Reflection.AssemblyTitleAttribute("corecoder")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

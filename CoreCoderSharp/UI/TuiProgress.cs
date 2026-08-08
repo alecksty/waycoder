@@ -1,18 +1,11 @@
-using Spectre.Console;
-
 namespace CoreCoderSharp.UI;
 
 /// <summary>
-/// 进度条/状态条控件 —— 用于 Token 消耗、上下文使用率等可视化。
+/// 进度条/状态条控件 —— 通过 AnsiText 封装层渲染。
 /// </summary>
 public static class TuiProgress
 {
-    /// <summary>
-    /// 渲染一个进度条，带百分比标签。
-    /// </summary>
-    /// <param name="label">标签文本（如 "上下文窗口"）</param>
-    /// <param name="percent">百分比 (0-100)</param>
-    /// <param name="width">进度条总宽度（字符数），默认 30</param>
+    /// <summary>渲染进度条，带百分比标签。</summary>
     public static void Bar(string label, double percent, int width = 30)
     {
         var clamped = Math.Clamp(percent, 0, 100);
@@ -21,26 +14,33 @@ public static class TuiProgress
 
         var barColor = clamped switch
         {
-            < 50 => TuiColors.SuccessMarkup,
-            < 80 => TuiColors.WarnMarkup,
-            _ => TuiColors.ErrorMarkup,
+            < 50 => TuiColors.Green,
+            < 80 => TuiColors.Yellow,
+            _ => TuiColors.Red,
         };
 
-        AnsiConsole.Markup(
-            $"  [{TuiColors.DimMarkup}]{TuiHelper.Esc(label)}[/] " +
-            $"[{barColor}]{new string('█', filled)}{new string('░', empty)}[/] " +
-            $"[{barColor}]{clamped:F0}%[/]");
-        AnsiConsole.WriteLine();
+        var bar = $"{new string('█', filled)}{new string('░', empty)}";
+        Console.Write($"  {AnsiText.Dim(TuiHelper.Esc(label))} " +
+            $"{AnsiText.Fg(bar + " " + $"{clamped:F0}%", barColor)}");
+        Console.WriteLine();
     }
 
-    /// <summary>
-    /// 渲染一个简单的水平分隔线。
-    /// </summary>
+    /// <summary>渲染水平分隔线。</summary>
     public static void Rule(string? title = null)
     {
+        var w = Console.WindowWidth;
         if (title != null)
-            AnsiConsole.Write(new Rule(TuiHelper.Esc(title)).RuleStyle(TuiColors.Border));
+        {
+            var t = $" {TuiHelper.Esc(title)} ";
+            var tw = TuiHelper.DisplayWidth(title) + 2;
+            var half = (w - tw) / 2;
+            Console.WriteLine(AnsiText.Fg(
+                $"{new string('─', half)}{t}{new string('─', w - half - tw)}",
+                TuiColors.Yellow));
+        }
         else
-            AnsiConsole.Write(new Rule().RuleStyle(TuiColors.Border));
+        {
+            Console.WriteLine(AnsiText.Fg(new string('─', w), TuiColors.Yellow));
+        }
     }
 }

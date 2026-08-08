@@ -13,9 +13,6 @@
     <AssemblyName>corecoder</AssemblyName>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Spectre.Console" Version="0.*" />
-  </ItemGroup>
 
   <ItemGroup>
     <Compile Remove="game/**/*.cs" />

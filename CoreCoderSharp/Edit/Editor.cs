@@ -89,7 +89,7 @@ public class Editor
 
         if (File.Exists(_filePath))
         {
-            foreach (var line in File.ReadAllLines(_filePath, System.Text.Encoding.UTF8))
+            foreach (var line in File.ReadAllLines(_filePath, Encoding.UTF8))
                 _lines.Add(new StringBuilder(line));
         }
 
