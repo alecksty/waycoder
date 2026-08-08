@@ -331,15 +331,20 @@ public class ScreenManager
             ("Ctrl+R", "搜索"), ("Ctrl+M", "切模型"),
         };
 
-        sb.Append($"\x1b[{row};1H\x1b[44m\x1b[37m\x1b[K");
+        var rb = new Terminal.RenderBuffer();
+        rb.MoveTo(row, 0).ClearToEndOfLine();
+        rb.Segment("", fg: 37, bg: 44);
         foreach (var (key, desc) in hotkeys)
         {
-            sb.Append($" \x1b[33m\x1b[1m{key}\x1b[0m\x1b[44m\x1b[37m {desc}");
+            rb.Segment(" ", fg: 37, bg: 44);
+            rb.SegmentBold(key);
+            rb.Segment($" {desc}", fg: 37, bg: 44);
         }
         var used = hotkeys.Sum(h => 3 + h.key.Length + h.desc.Length);
         var remain = Console.WindowWidth - used;
-        if (remain > 0) sb.Append(new string(' ', remain));
-        sb.Append("\x1b[0m");
+        if (remain > 0) rb.Raw(new string(' ', remain));
+        rb.Reset();
+        sb.Append(rb.ToString());
     }
 
     /// <summary>进入全屏模式（切换备用屏，退出时自动恢复原终端内容）</summary>
@@ -453,11 +458,16 @@ public class ScreenManager
             "35" => "45", "37" => "47", _ => "44" };
         var topText = $" WayCoder v0.17.3 · {StatusLeft}";
         if (ActivePanel != PanelTab.Off) topText += $"  [F2 面板:{ActivePanel}]";
-        sb.Append($"\x1b[{topBarBg};37m{topText}{new string(' ', Math.Max(0, TW - VW(topText)))}\x1b[0m");
+        var rbt = new Terminal.RenderBuffer();
+        rbt.MoveTo(0, 0);
+        rbt.Segment(topText + new string(' ', Math.Max(0, TW - VW(topText))), fg: 37, bg: int.TryParse(topBarBg, out var tbg) ? tbg : 44);
+        sb.Append(rbt.ToString());
 
         // ---- 分隔线 (主题色) ----
         var (_, _, _, _, bH, _) = BorderChars();
-        sb.Append($"\x1b[{ThemeBorderColor}m{new string(bH[0], TW)}\x1b[0m");
+        var rbd = new Terminal.RenderBuffer();
+        rbd.Segment(new string(bH[0], TW), fg: int.TryParse(ThemeBorderColor, out var _tbc) ? _tbc : 36);
+        sb.Append(rbd.ToString());
 
         // ---- 聊天区 + 侧边栏 ----
         int chatRow = topH + sepH;
@@ -476,7 +486,9 @@ public class ScreenManager
             // Todo 面板 (右)
             if (ActivePanel != PanelTab.Off)
             {
-                sb.Append($"\x1b[{chatRow + i + 1};{chatW + 1}H\x1b[{ThemeBorderColor}m│\x1b[0m");
+                var rpv = new Terminal.RenderBuffer();
+                rpv.Write(chatRow + i, chatW, "│", fg: int.TryParse(ThemeBorderColor, out var _pvbc) ? _pvbc : 36);
+                sb.Append(rpv.ToString());
                 RenderTodoLine(sb, i);
                 sb.Append("[K");
             }
@@ -504,7 +516,13 @@ public class ScreenManager
         if (VW(leftStatus) > availW) leftStatus = TruncateByVW(leftStatus, availW - 1) + "…";
         var pad = Math.Max(0, availW - VW(leftStatus));
         // 状态栏: 灰色底 + 白字左 + 黄字右
-        sb.Append($"\x1b[{statusRow};1H\x1b[100m\x1b[37m{leftStatus}{new string(' ', pad)}\x1b[33m{rightInfo}\x1b[0m\x1b[K");
+        var rb2 = new Terminal.RenderBuffer();
+        rb2.MoveTo(statusRow, 0);
+        rb2.Segment(leftStatus, fg: 37, bg: 100);
+        rb2.Segment(new string(' ', pad), fg: 37, bg: 100);
+        rb2.Segment(rightInfo, fg: 33, bg: 100);
+        rb2.ClearToEndOfLine();
+        sb.Append(rb2.ToString());
 
         // ---- 快捷键栏 ----
         int hotkeyRow = statusRow + 1;
@@ -570,33 +588,15 @@ public class ScreenManager
     private void RenderChatLine(StringBuilder sb, ChatScreenLine cl)
     {
         var msg = cl.Msg;
-        bool hasContent = false;
-
+        var rb = new Terminal.RenderBuffer();
         foreach (var (text, fg, bg) in cl.Segments)
         {
             if (string.IsNullOrEmpty(text)) continue;
-            hasContent = true;
-
-            // 构建 ANSI 序列
-            if (bg != 0 && fg != 0)
-                sb.Append($"\x1b[{fg};{bg}m");
-            else if (fg != 0)
-                sb.Append($"\x1b[{fg}m");
-            else if (bg != 0)
-                sb.Append($"\x1b[{bg}m");
-
-            sb.Append(text);
-
-            if (fg != 0 || bg != 0)
-                sb.Append("\x1b[0m");
+            rb.Segment(text, fg, bg);
         }
-
-        if (!hasContent && cl.Segments.Count > 0)
-            sb.Append(cl.Segments[0].Text);
-
-        // 如果是流式最后一条，加闪烁光标效果
         if (msg.Streaming && msg == ChatMessages.LastOrDefault())
-            sb.Append("\x1b[5m ▏\x1b[0m");
+            rb.Blink();
+        sb.Append(rb.ToString());
     }
 
     // ================================================================
@@ -608,56 +608,56 @@ public class ScreenManager
         var (_, _, _, _, sh, _) = BorderChars();
         int totalItems = Suggestions.Count;
         if (totalItems == 0) return;
+        int bc = int.TryParse(ThemeBorderColor, out var _sbc) ? _sbc : 36;
 
-        // 宽度：屏幕一半，不小于内容宽度
         var maxItemVw = Suggestions.Max(s => VW(s));
         var panelW = Math.Min(chatW, Math.Max(maxItemVw + 6, chatW / 2));
         int itemRows = suggestH - 2;
 
-        // 确保选中项在视口内
         if (SuggestIdx < SuggestScroll) SuggestScroll = SuggestIdx;
         else if (SuggestIdx >= SuggestScroll + itemRows) SuggestScroll = SuggestIdx - itemRows + 1;
         SuggestScroll = Math.Clamp(SuggestScroll, 0, Math.Max(0, totalItems - itemRows));
-        bool canUp = SuggestScroll > 0;
-        bool canDown = SuggestScroll + itemRows < totalItems;
+        bool canUp = SuggestScroll > 0, canDown = SuggestScroll + itemRows < totalItems;
+
+        var rb = new Terminal.RenderBuffer();
 
         // 上边框
-        sb.Append($"\x1b[{startRow};1H\x1b[{ThemeBorderColor}m┌ 建议 ↑↓ Enter ─");
-        sb.Append(new string(sh[0], Math.Max(0, panelW - 2 - VW("┌ 建议 ↑↓ Enter ─"))));
-        sb.Append($"┐\x1b[0m");
+        rb.MoveTo(startRow, 0);
+        var title = "┌ 建议 ↑↓ Enter " + new string(sh[0], Math.Max(0, panelW - 2 - VW("┌ 建议 ↑↓ Enter "))) + "┐";
+        rb.Segment(title, fg: bc);
 
         // 内容行
+        int rightCol = panelW - 1; // 0-based
         for (int i = 0; i < itemRows; i++)
         {
             int ci = SuggestScroll + i;
             int row = startRow + 1 + i;
-            int rightCol = panelW;  // 右框列号（1-based）
 
-            sb.Append($"\x1b[{row};1H");
-            sb.Append($"\x1b[{ThemeBorderColor}m│\x1b[0m");
+            rb.MoveTo(row, 0);
+            rb.Segment("│", fg: bc);
 
             if (i == 0 && canUp)
-                sb.Append($"\x1b[2m ▲ {SuggestScroll} more \x1b[0m");
+                rb.SegmentDim($" ▲ {SuggestScroll} more ");
             else if (i == itemRows - 1 && canDown)
-                sb.Append($"\x1b[2m ▼ {totalItems - SuggestScroll - itemRows} more \x1b[0m");
+                rb.SegmentDim($" ▼ {totalItems - SuggestScroll - itemRows} more ");
             else if (ci < totalItems)
             {
                 var text = Suggestions[ci];
                 var maxW = panelW - 3;
                 if (VW(text) > maxW) text = TruncateByVW(text, maxW - 1) + "…";
-                if (ci == SuggestIdx)
-                    sb.Append($"\x1b[30;46m {text} \x1b[0m");
-                else
-                    sb.Append($" {text} ");
+                if (ci == SuggestIdx) rb.Segment($" {text} ", fg: 30, bg: 46);
+                else rb.Segment($" {text} ");
             }
 
-            // 右框
-            sb.Append($"\x1b[{row};{rightCol}H\x1b[{ThemeBorderColor}m│\x1b[0m");
+            rb.MoveTo(row, rightCol);
+            rb.Segment("│", fg: bc);
         }
 
         // 下边框
-        sb.Append($"\x1b[{startRow + suggestH - 1};1H");
-        sb.Append($"\x1b[{ThemeBorderColor}m└{new string(sh[0], panelW - 2)}┘\x1b[0m");
+        rb.MoveTo(startRow + suggestH - 1, 0);
+        rb.Segment("└" + new string(sh[0], panelW - 2) + "┘", fg: bc);
+
+        sb.Append(rb.ToString());
     }
 
     // ================================================================
@@ -725,35 +725,41 @@ public class ScreenManager
 
         var (itl, itr, ibl, ibr, ih, iv) = BorderChars();
         var dash = new string(ih[0], Math.Max(0, TW - 2));
+        var rb = new Terminal.RenderBuffer();
 
-        // 上边框 — 显式定位，不依赖 \r\n
-        sb.Append($"\x1b[{startRow};1H\x1b[2m{itl}{dash}{itr}\x1b[0m\x1b[K");
+        // 上边框
+        rb.MoveTo(startRow, 0);
+        rb.SegmentDim(itl + dash + itr);
+        rb.ClearToEndOfLine();
 
-        // 内容行 — 每行显式定位，确保内容位置与光标计算完全一致
+        // 内容行
         for (int i = 0; i < vh; i++)
         {
             int contentRow = startRow + 1 + i;
             var si = InputScroll + i;
-            sb.Append($"\x1b[{contentRow};1H\x1b[2m{iv}\x1b[0m ");
+            rb.MoveTo(contentRow, 0);
+            rb.SegmentDim(iv + " ");
             if (si < screenLines.Count && screenLines[si].Chars > 0)
             {
                 var sl = screenLines[si];
                 var text = InputLines[sl.HardLine].ToString();
                 var slice = text.Substring(sl.HardOffset,
                     Math.Min(sl.Chars, text.Length - sl.HardOffset));
-                sb.Append(slice);
+                rb.Segment(slice);
                 var pad = cw - sl.VW;
-                if (pad > 0) sb.Append(new string(' ', pad));
+                if (pad > 0) rb.Raw(new string(' ', pad));
             }
-            else
-            {
-                sb.Append(new string(' ', cw));
-            }
-            sb.Append($" \x1b[2m{iv}\x1b[0m\x1b[K");
+            else { rb.Raw(new string(' ', cw)); }
+            rb.SegmentDim(" " + iv);
+            rb.ClearToEndOfLine();
         }
 
-        // 下边框 — 显式定位，不加 \r\n 避免触底滚动
-        sb.Append($"\x1b[{startRow + 1 + vh};1H\x1b[2m{ibl}{dash}{ibr}\x1b[0m\x1b[K");
+        // 下边框
+        rb.MoveTo(startRow + 1 + vh, 0);
+        rb.SegmentDim(ibl + dash + ibr);
+        rb.ClearToEndOfLine();
+
+        sb.Append(rb.ToString());
     }
 
     // ================================================================

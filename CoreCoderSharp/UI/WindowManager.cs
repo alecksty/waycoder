@@ -36,12 +36,9 @@ public class UILabel : UIControl
     public override void Render(System.Text.StringBuilder sb, int absX, int absY)
     {
         if (!Visible || string.IsNullOrEmpty(Text)) return;
-        var sx = absX + X + 1;
-        var sy = absY + Y + 1;
-        sb.Append($"\x1b[{sy};{sx}H");
-        if (FgColor != 0) sb.Append($"\x1b[{FgColor}m");
-        sb.Append(ClipText(Text, Width));
-        if (FgColor != 0) sb.Append("\x1b[0m");
+        var rb = new Terminal.RenderBuffer();
+        rb.Write(absY + Y, absX + X, " " + ClipText(Text, Width - 1), fg: FgColor);
+        sb.Append(rb.ToString());
     }
 
     private static string ClipText(string t, int w) =>
@@ -57,18 +54,15 @@ public class UIButton : UIControl
     public override void Render(System.Text.StringBuilder sb, int absX, int absY)
     {
         if (!Visible) return;
-        var sx = absX + X + 1;
-        var sy = absY + Y + 1;
         var label = $" {Text} ";
         if (TuiHelper.DisplayWidth(label) > Width)
             label = TuiHelper.TruncateByWidth(Text, Width - 2);
         var pad = Math.Max(0, Width - TuiHelper.DisplayWidth(label));
-
-        sb.Append($"\x1b[{sy};{sx}H");
-        if (Focused)
-            sb.Append($"\x1b[30;46m{label}{new string(' ', pad)}\x1b[0m");
-        else
-            sb.Append($"\x1b[37;44m{label}{new string(' ', pad)}\x1b[0m");
+        var fullText = label + new string(' ', pad);
+        var rb = new Terminal.RenderBuffer();
+        rb.Write(absY + Y, absX + X, fullText,
+            fg: Focused ? 30 : 37, bg: Focused ? 46 : 44);
+        sb.Append(rb.ToString());
     }
 
     public override bool HandleKey(ConsoleKeyInfo key)
@@ -95,31 +89,20 @@ public class UIInput : UIControl
     public override void Render(System.Text.StringBuilder sb, int absX, int absY)
     {
         if (!Visible) return;
-        var sx = absX + X + 1;
-        var sy = absY + Y + 1;
         var displayText = Password ? new string('•', Text.Length) : Text;
-
-        // 滚动确保光标可见
         var visW = Width;
         if (CursorPos >= visW) displayText = displayText[(CursorPos - visW + 1)..];
         if (displayText.Length > visW) displayText = displayText[..visW];
+        var pad = Math.Max(0, visW - TuiHelper.DisplayWidth(displayText));
+        var fullText = displayText + new string(' ', pad);
 
-        sb.Append($"\x1b[{sy};{sx}H");
+        var rb = new Terminal.RenderBuffer();
+        int row = absY + Y, col = absX + X;
+        rb.Write(row, col, fullText, fg: Focused ? 37 : 0, bg: Focused ? 44 : 0);
+        if (!Focused) rb.Raw($"\x1b[{row + 1};{col + 1}H\x1b[2m{fullText}\x1b[0m"); // dim when unfocused
         if (Focused)
-            sb.Append($"\x1b[37;44m"); // 白字蓝底 — 聚焦态
-        else
-            sb.Append($"\x1b[2m");      // 灰色 — 非聚焦态
-
-        sb.Append(displayText);
-        sb.Append(new string(' ', Math.Max(0, visW - TuiHelper.DisplayWidth(displayText))));
-        sb.Append("\x1b[0m");
-
-        // 光标
-        if (Focused)
-        {
-            var cx = sx + Math.Min(TuiHelper.DisplayWidth(displayText), visW - 1);
-            sb.Append($"\x1b[{sy};{cx}H\x1b[?25h");
-        }
+            rb.Raw($"\x1b[{row + 1};{col + Math.Min(TuiHelper.DisplayWidth(displayText), visW - 1) + 1}H\x1b[?25h");
+        sb.Append(rb.ToString());
     }
 
     public override bool HandleKey(ConsoleKeyInfo key)
@@ -380,8 +363,9 @@ public class WindowManager
             {
                 int screenY = mask.Y + row;
                 if (screenY < 0 || screenY >= Console.WindowHeight) continue;
-                sb.Append($"\x1b[{screenY + 1};{mask.X}H");
-                sb.Append($"\x1b[100m{new string(' ', mask.Width)}\x1b[0m");
+                var rbm = new Terminal.RenderBuffer();
+                rbm.Write(screenY, mask.X, new string(' ', mask.Width), bg: 100);
+                sb.Append(rbm.ToString());
             }
         }
 
@@ -669,7 +653,11 @@ public class WindowManager
         if (col >= clipR) return;
         var actual = Math.Min(count, clipR - col);
         if (actual > 0)
-            sb.Append($"\x1b[{row + 1};{col + 1}H{new string(' ', actual)}");
+        {
+            var rbf = new Terminal.RenderBuffer();
+            rbf.Write(row, col, new string(' ', actual));
+            sb.Append(rbf.ToString());
+        }
     }
 
     // ================================================================

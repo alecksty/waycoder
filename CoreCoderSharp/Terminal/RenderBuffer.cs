@@ -68,7 +68,32 @@ public class RenderBuffer
         return this;
     }
 
-    /// <summary>追加原始字符串（仅在底层使用）</summary>
+    // ================================================================
+    // 片段写入（不移动光标，用于同一行多彩色文本）
+    // ================================================================
+
+    /// <summary>写入一个文字片段（不移动光标，仅设置颜色+文本）</summary>
+    public RenderBuffer Segment(string text, int fg = 0, int bg = 0)
+    {
+        if (fg > 0 && bg > 0) _sb.Append($"\x1b[{fg};{bg}m");
+        else if (fg > 0) _sb.Append($"\x1b[{fg}m");
+        else if (bg > 0) _sb.Append($"\x1b[{bg}m");
+        _sb.Append(text);
+        if (fg > 0 || bg > 0) _sb.Append("\x1b[0m");
+        return this;
+    }
+
+    /// <summary>粗体片段（可指定前景色）</summary>
+    public RenderBuffer SegmentBold(string text, int fg = 33) {
+        _sb.Append(fg > 0 ? $"\x1b[1;{fg}m{text}\x1b[0m" : $"\x1b[1m{text}\x1b[0m"); return this; }
+    /// <summary>灰色片段</summary>
+    public RenderBuffer SegmentDim(string text) { _sb.Append($"\x1b[2m{text}\x1b[0m"); return this; }
+    /// <summary>闪烁光标</summary>
+    public RenderBuffer Blink() { _sb.Append("\x1b[5m ▏\x1b[0m"); return this; }
+    /// <summary>清除当前行从光标到行尾</summary>
+    public RenderBuffer ClearToEndOfLine() { _sb.Append("\x1b[K"); return this; }
+
+    /// <summary>追加原始字符串（仅在 Terminal 层内部使用）</summary>
     internal RenderBuffer Raw(string s) { _sb.Append(s); return this; }
 
     /// <summary>获取内部 StringBuilder（用于兼容旧代码）</summary>
