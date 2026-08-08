@@ -54,7 +54,7 @@ public static class PermissionManager
         int result;
         if (ScreenManager.Instance.IsActive)
         {
-            result = ScreenManager.Instance.ShowMenu("⚠ 确认操作\n" + content,
+            result = ScreenManager.Instance.ShowInlinePermission(toolName, details,
                 ["是 (y)", "总是允许 (a)", "否 (n)"]);
         }
         else
@@ -62,12 +62,7 @@ public static class PermissionManager
             TuiBox.Warn("确认操作", content);
             var choice = TuiList.Select("是否执行？",
                 ["是 (y)", "总是允许 (a)", "否 (n)"]);
-            result = choice switch
-            {
-                "是 (y)" => 0,
-                "总是允许 (a)" => 1,
-                _ => 2,
-            };
+            result = choice switch { "是 (y)" => 0, "总是允许 (a)" => 1, _ => 2 };
         }
 
         switch (result)

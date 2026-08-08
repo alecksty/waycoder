@@ -68,8 +68,9 @@ public static class TuiMarkdown
                     RenderParagraph(para, result, maxWidth, FgForRole(role));
                     break;
             }
-            // 节点间空行
-            if (node != nodes.Last())
+            // 只在视觉上需要分隔的节点间加空行
+            var next = nodes.ElementAtOrDefault(nodes.IndexOf(node) + 1);
+            if (NeedsSpacing(node, next))
                 result.Add(new List<(string, int, int)>());
         }
 
@@ -281,6 +282,26 @@ public static class TuiMarkdown
 
     /// <summary>剥离 ANSI 转义码 → Terminal.AnsiString</summary>
     public static string StripAnsi(string text) => Terminal.AnsiString.Strip(text);
+
+    /// <summary>两个相邻节点之间是否需要空行</summary>
+    private static bool NeedsSpacing(MdNode? current, MdNode? next)
+    {
+        if (current == null || next == null) return false;
+        // 标题后留空
+        if (current is MdHeading) return true;
+        // 代码块后留空
+        if (current is MdCodeBlock) return true;
+        // 表格后留空
+        if (current is MdTable) return true;
+        // 分割线后不空
+        if (current is MdRule) return false;
+        // 列表项之间不空
+        if (current is MdListItem && next is MdListItem) return false;
+        // 段落跟标题/代码块/表格之间留空
+        if (current is MdParagraph && (next is MdHeading or MdCodeBlock or MdTable)) return true;
+        // 其他情况不空
+        return false;
+    }
 
     /// <summary>获取角色对应的默认前景色</summary>
     private static int FgForRole(string role) => role switch
