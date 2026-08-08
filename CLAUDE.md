@@ -38,21 +38,30 @@ CoreCoderSharp/
 ├── DebugLog.cs        调试日志
 ├── SelfTest.cs        280 项自测
 ├── FileLockManager.cs 文件锁 (防并发修改冲突)
-├── UI/                终端 UI 控件库 (11 文件)
+├── UI/                 终端 TUI 控件库 (19 文件)
 │   ├── ScreenManager.cs 全屏缓冲 + 弹窗菜单 + 侧栏
 │   ├── SettingsPage.cs  设置界面 (Schema 自动布局)
+│   ├── WindowManager.cs 窗口管理器 (Z-order/模态/Toast)
+│   ├── InputManager.cs  键盘+鼠标+resize 输入拦截
+│   ├── MarkdownRenderer.cs Markdown 解析引擎
+│   ├── TuiMarkdown.cs   Markdown→ANSI 渲染
+│   ├── DiffRenderer.cs  统一 diff 渲染
 │   ├── TuiInput.cs      多行输入区 + 智能提示面板
 │   ├── TuiHelper.cs     CJK 宽度计算 + 文本工具
 │   ├── TuiColors.cs     统一配色常量
-│   ├── TuiBox.cs        对话框 (Info/Success/Warn/Error)
-│   ├── TuiTable.cs      表格控件 (CJK 自动对齐)
-│   ├── TuiList.cs       列表选单 (单选/多选)
-│   ├── TuiPrompt.cs     输入框 (普通/密码/确认)
-│   ├── TuiBanner.cs     欢迎横幅 (FigletText + Panel)
-│   └── BoxBuffer.cs     矩形缓冲区基类
-├── Edit/              终端源码编辑器
-│   ├── Editor.cs      编辑器引擎 (光标/缓冲/渲染)
-│   └── Syntax.cs      语法高亮 (14 种语言)
+│   ├── TuiBox.cs        对话框
+│   ├── TuiTable.cs      表格控件
+│   ├── TuiList.cs       列表选单
+│   ├── TuiPrompt.cs     输入框
+│   ├── TuiProgress.cs   进度条
+│   ├── TuiBanner.cs     欢迎横幅
+│   ├── BoxBuffer.cs     矩形缓冲区基类
+│   └── Gui/            GUI 占位（预留扩展）
+├── Edit/               终端源码编辑器 (4 文件)
+│   ├── Editor.cs       编辑器引擎 (光标/缓冲/渲染)
+│   ├── Syntax.cs       语法高亮 (14 种语言)
+│   ├── DiagnosticManager.cs Lint 诊断集成
+│   └── Gui/            GUI 编辑器占位（预留扩展）
 └── Tools/             29 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
@@ -78,7 +87,7 @@ CoreCoderSharp/
 - **文件锁**：FileLockManager 防止多 Agent 并发修改冲突，30s 超时自动释放
 - **Watch 模式**：FileSystemWatcher 监听文件变更 → 提取 AI! / AI? 注释 → 线程安全队列 → REPL 轮询执行
 - **全屏缓冲 UI**：备用屏 + 每帧重绘 + 行内权限块 + 弹窗菜单 + 侧栏面板 + 居中对话框
-- **UI 控件库**：`UI/` 目录封装 Spectre.Console 控件，统一配色，内建 CJK 宽度感知
+- **UI 控件库**：`UI/` 目录封装 TUI 控件（未来拆分 Tty 底层 + View 视图），`UI/Gui/` 预留 GUI 扩展
 
 ## 非显而易见的约束
 
