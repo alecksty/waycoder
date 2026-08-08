@@ -902,6 +902,22 @@ public static class SelfTest
         Check("空字符串=0", UI.TuiHelper.DisplayWidth("") == 0);
         Check("数字宽度=1", UI.TuiHelper.DisplayWidth("123") == 3);
         Check("中文宽度=2", UI.TuiHelper.DisplayWidth("你好") == 4);
+        // EA Ambiguous 中文标点 (U+2010-U+2027, U+2030-U+2043)
+        Check("EmDash U+2014 width=2", UI.TuiHelper.RuneWidth(new Rune(0x2014)) == 2);
+        Check("Ellipsis U+2026 width=2", UI.TuiHelper.RuneWidth(new Rune(0x2026)) == 2);
+        Check("LeftDblQuote U+201C width=2", UI.TuiHelper.RuneWidth(new Rune(0x201C)) == 2);
+        Check("RightDblQuote U+201D width=2", UI.TuiHelper.RuneWidth(new Rune(0x201D)) == 2);
+        Check("ReferenceMark U+203B width=2", UI.TuiHelper.RuneWidth(new Rune(0x203B)) == 2);
+        // Emoji / 符号 (U+2600-U+27BF, U+1F000-U+1FAFF)
+        Check("Star U+2605 width=2", UI.TuiHelper.RuneWidth(new Rune(0x2605)) == 2);
+        Check("Heart U+2665 width=2", UI.TuiHelper.RuneWidth(new Rune(0x2665)) == 2);
+        Check("CheckMark U+2713 width=2", UI.TuiHelper.RuneWidth(new Rune(0x2713)) == 2);
+        Check("MahjongTile U+1F000 width=2", UI.TuiHelper.RuneWidth(new Rune(0x1F000)) == 2);
+        Check("DominoTile U+1F030 width=2", UI.TuiHelper.RuneWidth(new Rune(0x1F030)) == 2);
+        Check("PlayingCard U+1F0A0 width=2", UI.TuiHelper.RuneWidth(new Rune(0x1F0A0)) == 2);
+        Check("Smiley U+1F600 width=2", UI.TuiHelper.RuneWidth(new Rune(0x1F600)) == 2);
+        Check("Rocket U+1F680 width=2", UI.TuiHelper.RuneWidth(new Rune(0x1F680)) == 2);
+        Check("ExtA U+1FA80 width=2", UI.TuiHelper.RuneWidth(new Rune(0x1FA80)) == 2);
         Check("Truncate 不截断短文本", UI.TuiHelper.TruncateByWidth("hello", 10) == "hello");
         Check("Truncate 中文=6留'你好…'", UI.TuiHelper.TruncateByWidth("你好世界", 6) == "你好…");
         Check("Truncate 中文=8完整", UI.TuiHelper.TruncateByWidth("你好世界", 8) == "你好世界");
