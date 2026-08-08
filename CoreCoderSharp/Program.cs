@@ -14,6 +14,9 @@ public class Program
     private static LLM? _llm;
     private static Agent? _agent;
     private static WatchMode? _watchMode;
+    private static volatile bool _agentBusy;
+    private static CancellationTokenSource? _agentCts;
+    private static bool _pendingExitConfirm;
     private static (List<JsonObject> Messages, string Model)? _pendingRestore;
     private static readonly List<string> _inputHistory = [];
     private static int _historyIdx = -1;
@@ -251,9 +254,15 @@ public class Program
         // 尝试恢复上次会话
         TryRestoreSession(sm);
 
-        // Ctrl+C 优雅退出（触发 finally 中的自动保存）
+        // Ctrl+C 随时退出——闲时直接退，忙时中断后确认
         var exitRequested = false;
-        // Ctrl+C 由 InputManager 拦截为按键事件 (TreatControlCAsInput=true)
+        _pendingExitConfirm = false;
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            if (_agentBusy) { _pendingExitConfirm = true; _agentCts?.Cancel(); }
+            else exitRequested = true;
+        };
 
         var running = true;
         while (running && !exitRequested)
@@ -403,7 +412,6 @@ case ConsoleKey.F2:
                     break;
 
                 case ConsoleKey.F10:
-                case ConsoleKey.C when ctrl:  // Ctrl+C → 优雅退出
                     AutoSaveSession();
                     _watchMode?.Dispose();
                     sm.Exit();
@@ -682,7 +690,9 @@ case ConsoleKey.F2:
 
         // 调用 Agent (支持自动回退)
         using var cts = new CancellationTokenSource();
+        _agentCts = cts; _agentBusy = true;
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+        try {
         var modelStack = BuildFallbackChain();
         var startTime = DateTime.UtcNow;
         var completed = false;
@@ -779,6 +789,16 @@ case ConsoleKey.F2:
             ContextManager.EstimateTokens(_agent!.Messages), _config.MaxContextTokens,
             _llm.LastLatencyMs, _llm.LastTokensPerSec);
         sm.Render();
+        } finally { _agentBusy = false; _agentCts = null; }
+
+        // 忙时按了 Ctrl+C——确认是否退出
+        if (_pendingExitConfirm)
+        {
+            _pendingExitConfirm = false;
+            var choice = sm.ShowInlinePermission("确认退出", "正在处理中的任务将被中断",
+                ["退出程序", "继续运行"]);
+            if (choice == 0) { AutoSaveSession(); sm.Exit(); Environment.Exit(0); }
+        }
     }
 
     // ========================================================================
