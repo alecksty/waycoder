@@ -749,6 +749,27 @@ public class ScreenManager
 
     public void Render()
     {
+        try
+        {
+            RenderInternal();
+        }
+        catch (Exception ex)
+        {
+            // 渲染崩溃不杀死进程——写错误到聊天区以便诊断
+            DebugLog.Log("render-crash", ex.ToString());
+            try
+            {
+                ChatMessages.Add(new ChatMsg { Role = "system",
+                    Content = $"⚠ 渲染错误: {ex.Message}" });
+                _maybeSnapToBottom = true;
+                RenderInternal();
+            }
+            catch { /* 二次失败放弃 */ }
+        }
+    }
+
+    private void RenderInternal()
+    {
         (TW, TH) = (Console.WindowWidth, Console.WindowHeight);
         _frameCount++;
         var sb = new StringBuilder();

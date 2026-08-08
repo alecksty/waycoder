@@ -41,7 +41,8 @@ public class InputManager : IDisposable
 
         var deadline = Environment.TickCount64 + timeoutMs;
 
-        while (Environment.TickCount64 < deadline)
+        // 至少执行一轮检查，防止 Render() 耗时导致 deadline 过期后跳过所有输入检测
+        do
         {
             // 检查窗口大小变化（立即返回）
             var (w, h) = (TTY.Cols, TTY.Rows);
@@ -75,6 +76,7 @@ public class InputManager : IDisposable
 
             Thread.Sleep(10); // 10ms 轮询间隔
         }
+        while (Environment.TickCount64 < deadline);
 
         return new InputEvent { Type = InputType.Timeout };
     }

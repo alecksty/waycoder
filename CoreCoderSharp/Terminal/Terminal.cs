@@ -5,15 +5,33 @@ namespace CoreCoderSharp.Terminal;
 /// </summary>
 public static class TTY
 {
+    /// <summary>是否已进入备用屏</summary>
+    private static bool _altScreen;
+
+    static TTY()
+    {
+        // 进程退出时自动恢复终端（即使崩溃）
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            if (_altScreen) ExitAltScreenDirect();
+        };
+    }
+
+    /// <summary>静默恢复终端（进程退出时调用，忽略错误）</summary>
+    private static void ExitAltScreenDirect()
+    {
+        try { Console.Write("\x1b[?25h\x1b[?1049l"); Console.Out.Flush(); }
+        catch { /* 进程即将退出，忽略所有错误 */ }
+    }
     // ================================================================
     // 屏幕切换
     // ================================================================
 
     /// <summary>进入备用屏：保存终端内容、清屏、隐藏光标</summary>
-    public static void EnterAltScreen() => Write("\x1b[?1049h\x1b[2J\x1b[?25l");
+    public static void EnterAltScreen() { _altScreen = true; Write("\x1b[?1049h\x1b[2J\x1b[?25l"); }
 
     /// <summary>退出备用屏：显示光标、恢复原始终端内容</summary>
-    public static void ExitAltScreen() => Write("\x1b[?25h\x1b[?1049l");
+    public static void ExitAltScreen() { _altScreen = false; Write("\x1b[?25h\x1b[?1049l"); }
 
     /// <summary>清屏并归位光标</summary>
     public static void Clear() => Write("\x1b[2J\x1b[H");
