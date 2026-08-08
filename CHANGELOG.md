@@ -1,5 +1,25 @@
 # 更新日志
 
+## v0.18.4 (2026-08-08) — 终端抽象层 + 窗口系统 + 主题引擎
+
+### 🔥 新增
+- **终端抽象层** (`Terminal/`): TTY 屏幕控制 / RenderBuffer 零转义符渲染 / BoxChars 13种边框 / AnsiString 检测剥离 / Color 命名颜色 / AnsiText 快捷格式化
+- **窗口管理器** (`UI/WindowManager.cs`): Z-order 层叠 / 裁剪渲染 / 模态对话框 / 弹出菜单 / Toast / UIControl 控件体系 (UILabel/UIButton/UIInput) / 11种边框风格 / 自定义边框
+- **主题引擎** (`ThemeConfig.cs`): 6预设主题 / 自定义配色 / `~/.corecoder/theme.json` 持久化 / `/theme` 命令 / 设置页主题选择
+- **Markdown 渲染**: 标题/代码块(14语言高亮)/表格/多级列表 / 内联格式
+- **Diff 渲染**: 红绿背景 + 行号 + 语法高亮
+- **InputManager**: 全键盘拦截 + 鼠标滚轮 + resize 即时重绘
+
+### 🔧 修复
+- **权限对话框**: `CheckAsync` 改用 `ShowInlinePermission` 行内渲染，不再卡死不显示
+- **多级列表**: `MdListItem.Level` 字段，每2前导空格=1级缩进
+- **减少空行**: 只在标题/代码块/表格后留空，段落间列表间不留
+- **Emoji 宽度**: `cp >= 0xFEFF` → `cp == 0xFEFF`，修复所有 Emoji 被误判零宽
+- **AnsiText 补全**: BoldFg/Reset/DimOn/BoldOn/FgCode/BoldFgCode/ClearLine/BorderOpen/Heading/Prompt
+- **ClipboardHelper**: 跨平台剪贴板读取
+
+### 📝 自测: 649/658
+
 ## v0.18.3 (2026-08-08) — 权限对话框行内渲染 + 表格显示修复 + Markdown 渲染缓存
 
 ### 🔧 修复
