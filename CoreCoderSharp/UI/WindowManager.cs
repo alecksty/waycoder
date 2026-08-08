@@ -297,7 +297,7 @@ public class WindowManager
         var cleanFrame = ScreenManager.Instance.LastCleanFrame;
         if (!string.IsNullOrEmpty(cleanFrame))
         {
-            Console.Write(cleanFrame);
+            TTY.Write(cleanFrame);
         }
 
         win.OnClosed?.Invoke();
