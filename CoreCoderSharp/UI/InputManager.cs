@@ -1,4 +1,5 @@
 namespace CoreCoderSharp.UI;
+using CoreCoderSharp.Terminal;
 
 /// <summary>
 /// 终端输入管理器 —— 拦截键盘、管理鼠标、即时响应窗口 resize。
@@ -24,18 +25,10 @@ public class InputManager : IDisposable
     {
         Console.TreatControlCAsInput = true;
         Console.CursorVisible = false;
-        (_lastWidth, _lastHeight) = (Console.WindowWidth, Console.WindowHeight);
+        (_lastWidth, _lastHeight) = (TTY.Cols, TTY.Rows);
 
-        // 尝试启用鼠标（部分终端不支持）
-        try
-        {
-            Console.Write("\x1b[?1000h\x1b[?1003h\x1b[?1015h\x1b[?1006h");
-            _mouseEnabled = true;
-        }
-        catch
-        {
-            _mouseEnabled = false;
-        }
+        try { TTY.EnableMouse(); _mouseEnabled = true; }
+        catch { _mouseEnabled = false; }
     }
 
     /// <summary>
@@ -51,7 +44,7 @@ public class InputManager : IDisposable
         while (Environment.TickCount64 < deadline)
         {
             // 检查窗口大小变化（立即返回）
-            var (w, h) = (Console.WindowWidth, Console.WindowHeight);
+            var (w, h) = (TTY.Cols, TTY.Rows);
             if (w != _lastWidth || h != _lastHeight)
             {
                 (_lastWidth, _lastHeight) = (w, h);
@@ -139,13 +132,7 @@ public class InputManager : IDisposable
         if (_disposed) return;
         _disposed = true;
 
-        // 禁用鼠标
-        if (_mouseEnabled)
-        {
-            try { Console.Write("\x1b[?1006l\x1b[?1015l\x1b[?1003l\x1b[?1000l"); }
-            catch { }
-        }
-
+        if (_mouseEnabled) { try { TTY.DisableMouse(); } catch { } }
         Console.CursorVisible = true;
         Console.TreatControlCAsInput = false;
     }
