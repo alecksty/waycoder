@@ -294,6 +294,10 @@ public class Program
                     case ConsoleKey.Escape: sm.SuggestActive = false; continue;
                     case ConsoleKey.UpArrow: if (sm.SuggestIdx > 0) sm.SuggestIdx--; continue;
                     case ConsoleKey.DownArrow: if (sm.SuggestIdx < sm.Suggestions.Count - 1) sm.SuggestIdx++; continue;
+                    case ConsoleKey.PageUp: sm.SuggestIdx = Math.Max(0, sm.SuggestIdx - 5); continue;
+                    case ConsoleKey.PageDown: sm.SuggestIdx = Math.Min(sm.Suggestions.Count - 1, sm.SuggestIdx + 5); continue;
+                    case ConsoleKey.Home: sm.SuggestIdx = 0; continue;
+                    case ConsoleKey.End: sm.SuggestIdx = sm.Suggestions.Count - 1; continue;
                     case ConsoleKey.Enter: case ConsoleKey.Tab:
                         sm.AcceptSuggestion(); sm.UpdateSuggestions(); continue;
                     case ConsoleKey.Backspace: sm.InputBackspace(); sm.UpdateSuggestions(); break;
@@ -301,7 +305,9 @@ public class Program
                         sm.SuggestActive = false; break;
                     default: break;
                 }
-                if (key.Key is ConsoleKey.UpArrow or ConsoleKey.DownArrow or ConsoleKey.Enter or ConsoleKey.Tab or ConsoleKey.Escape)
+                if (key.Key is ConsoleKey.UpArrow or ConsoleKey.DownArrow or ConsoleKey.PageUp
+                    or ConsoleKey.PageDown or ConsoleKey.Home or ConsoleKey.End
+                    or ConsoleKey.Enter or ConsoleKey.Tab or ConsoleKey.Escape)
                     continue;
             }
 
@@ -1483,27 +1489,51 @@ case ConsoleKey.F2:
         Console.Write(sb.ToString());
         Console.WriteLine("\n\x1b[0m===END===");
 
-        // 主题预设展示——每个预设同一样式自动应用
+        // ===== 建议面板截图验证 =====
         wm.CloseAll();
-        sb.Clear(); Console.Write("\x1b[2J\x1b[H");
-        var items = new List<string> { "新建", "打开",
-            WindowManager.MenuSeparator, "保存", "退出" };
+        var sm = ScreenManager.Instance;
 
-        string[] presets = ["default", "ocean", "forest", "sunset", "midnight", "mono"];
-        for (int si = 0; si < presets.Length; si++)
-        {
-            ThemeConfig.ApplyPreset(presets[si]);
-            var mw = new ManagedWindow {
-                X = 2 + si * 20, Y = 2, Width = 18, Height = 8,
-                Title = presets[si], MenuItems = items, SelectedIndex = 0,
-            };
-            ThemeConfig.Instance.ApplyTo(mw);
-            wm.RenderWindow(sb, mw);
-        }
-        // 恢复默认
-        ThemeConfig.ApplyPreset("default");
-        Console.Write(sb.ToString());
+        // 模拟输入状态+建议面板
+        sm.ChatMessages.Clear();
+        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "WayCoder v0.18.0" });
+        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "user", Content = "/res" });
+
+        sm.InputLines.Clear();
+        sm.InputLines.Add(new StringBuilder("/res"));
+        sm.InputCy = 0; sm.InputCx = 4;
+
+        // 模拟建议列表
+        sm.Suggestions = new List<string> {
+            "/reset", "/resume", "/restart-agent", "/restore-checkpoint",
+            "/reset-all-config", "/reset-cache", "/restart-service",
+            "/restore-session", "/reset-password", "/resize-window",
+            "/restore-defaults", "/reset-token", "/restricted-mode"
+        };
+        sm.SuggestActive = true;
+        sm.SuggestIdx = 1;
+        sm.SuggestScroll = 0;
+        sm.SuggestH = Math.Min(sm.Suggestions.Count, 8) + 2;
+        sm.StatusLeft = "大:deepseek-v4-flash";
+
+        // 截图1: 建议顶部
+        Console.Write("\x1b[2J\x1b[H");
+        sm.Render();
         Console.WriteLine("\n\x1b[0m===END===");
+
+        // 截图2: 建议滚动到中间（第6项选中）
+        sm.SuggestIdx = 6; sm.SuggestScroll = 3;
+        Console.Write("\x1b[2J\x1b[H");
+        sm.Render();
+        Console.WriteLine("\n\x1b[0m===END===");
+
+        // 截图3: 建议最后一项
+        sm.SuggestIdx = 12; sm.SuggestScroll = 5;
+        Console.Write("\x1b[2J\x1b[H");
+        sm.Render();
+        Console.WriteLine("\n\x1b[0m===END===");
+
+        sm.SuggestActive = false;
+        Console.ResetColor();
 
         Console.ResetColor();
     }
