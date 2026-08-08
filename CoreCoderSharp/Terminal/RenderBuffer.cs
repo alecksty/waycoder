@@ -106,6 +106,86 @@ public class RenderBuffer
     }
 
     // ================================================================
+    // 区域文本：多行 + 水平对齐 + 垂直对齐
+    // ================================================================
+
+    public enum HAlign { Left, Center, Right }
+    public enum VAlign { Top, Middle, Bottom }
+
+    /// <summary>
+    /// 在矩形区域内渲染多行文本。
+    /// 超出宽度自动折行，超出高度自动截断。
+    /// 支持水平/垂直对齐。
+    /// </summary>
+    /// <param name="row">区域起始行（0-based）</param>
+    /// <param name="col">区域起始列（0-based）</param>
+    /// <param name="width">区域宽度（列数）</param>
+    /// <param name="height">区域高度（行数）</param>
+    /// <param name="text">要渲染的文本（可含 \n）</param>
+    /// <param name="hAlign">水平对齐</param>
+    /// <param name="vAlign">垂直对齐</param>
+    /// <param name="fg">前景色</param>
+    /// <param name="bg">背景色</param>
+    public void WriteRegion(int row, int col, int width, int height, string text,
+        HAlign hAlign = HAlign.Left, VAlign vAlign = VAlign.Top,
+        int fg = 0, int bg = 0)
+    {
+        if (width <= 0 || height <= 0) return;
+
+        // 1. 将文本按区域宽度折行
+        var lines = new List<string>();
+        foreach (var paragraph in text.Replace("\r\n", "\n").Split('\n'))
+        {
+            if (string.IsNullOrEmpty(paragraph))
+            {
+                lines.Add("");
+                continue;
+            }
+            int i = 0;
+            while (i < paragraph.Length)
+            {
+                int chars = 0, vw = 0;
+                while (i + chars < paragraph.Length)
+                {
+                    var rune = System.Text.Rune.GetRuneAt(paragraph, i + chars);
+                    var w = AnsiString.CharWidth(rune);
+                    if (vw + w > width) break;
+                    vw += w;
+                    chars += rune.Utf16SequenceLength;
+                }
+                if (chars == 0) chars = 1;
+                lines.Add(paragraph.Substring(i, chars));
+                i += chars;
+            }
+        }
+
+        // 2. 裁剪到区域高度
+        while (lines.Count > height) lines.RemoveAt(lines.Count - 1);
+
+        // 3. 垂直对齐
+        int topPad = 0;
+        if (vAlign == VAlign.Middle)
+            topPad = (height - lines.Count) / 2;
+        else if (vAlign == VAlign.Bottom)
+            topPad = height - lines.Count;
+
+        // 4. 逐行渲染（水平对齐）
+        for (int li = 0; li < lines.Count; li++)
+        {
+            int r = row + topPad + li;
+            if (r >= row + height) break;
+
+            var line = lines[li];
+            var lineVw = AnsiString.DisplayWidth(line);
+            int c = col;
+            if (hAlign == HAlign.Center) c += (width - lineVw) / 2;
+            else if (hAlign == HAlign.Right) c += width - lineVw;
+
+            Write(r, c, line, fg, bg);
+        }
+    }
+
+    // ================================================================
     // Color 流畅 API
     // ================================================================
 
