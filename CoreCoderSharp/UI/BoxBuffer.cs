@@ -78,23 +78,21 @@ public class BoxBuffer
     public void Render(StringBuilder sb)
     {
         var (tl, tr, bl, br, h, v) = BorderChars();
-        var colorOn  = string.IsNullOrEmpty(FgColor) ? "" : $"\x1b[{FgColor}m";
-        var bgOn     = string.IsNullOrEmpty(BgColor) ? "" : $"\x1b[{BgColor}m";
-        var colorOff = string.IsNullOrEmpty(FgColor) && string.IsNullOrEmpty(BgColor) ? "" : "\x1b[0m";
+        int fg = int.TryParse(FgColor, out var f) ? f : 0;
+        int bg = int.TryParse(BgColor, out var b) ? b : 0;
+        var rb = new Terminal.RenderBuffer();
 
         // 上边框
-        sb.Append($"\x1b[{Y};{X}H{colorOn}{bgOn}{tl}{new string(h[0], Width - 2)}{tr}{colorOff}");
-
-        // 中间行 (左边框 + 背景填充 + 右边框)
+        rb.Write(Y, X, tl + new string(h[0], Width - 2) + tr, fg: fg, bg: bg);
+        // 中间行
         var fill = new string(' ', Width - 2);
         for (int i = 1; i < Height - 1; i++)
-        {
-            sb.Append($"\x1b[{Y + i};{X}H{colorOn}{bgOn}{v}{fill}{v}{colorOff}");
-        }
-
+            rb.Write(Y + i, X, v + fill + v, fg: fg, bg: bg);
         // 下边框
         if (Height > 1)
-            sb.Append($"\x1b[{Y + Height - 1};{X}H{colorOn}{bgOn}{bl}{new string(h[0], Width - 2)}{br}{colorOff}");
+            rb.Write(Y + Height - 1, X, bl + new string(h[0], Width - 2) + br, fg: fg, bg: bg);
+
+        sb.Append(rb.ToString());
     }
 
     /// <summary>在内部相对坐标写入文本（自动裁剪到内容区域）</summary>
