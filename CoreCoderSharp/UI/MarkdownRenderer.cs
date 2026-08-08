@@ -41,6 +41,7 @@ public class MdListItem : MdNode
     public string Text { get; set; } = "";
     public bool Ordered { get; set; }
     public int OrderNum { get; set; }
+    public int Level { get; set; }  // 缩进级别 (0/1/2...)
 }
 
 /// <summary>分割线 ---</summary>
@@ -119,10 +120,12 @@ public static class MarkdownParser
                 i++; continue;
             }
 
-            // 列表项 - 或 * 或 1.
+            // 列表项 - 或 * 或 1.（根据前导空格判断层级）
             if (IsListItem(line.TrimStart(), out var isOrdered, out var orderNum, out var itemText))
             {
-                nodes.Add(new MdListItem { Text = itemText.Trim(), Ordered = isOrdered, OrderNum = orderNum });
+                var leading = line.Length - line.TrimStart().Length;
+                var level = leading / 2; // 每2空格=1级缩进
+                nodes.Add(new MdListItem { Text = itemText.Trim(), Ordered = isOrdered, OrderNum = orderNum, Level = level });
                 i++; continue;
             }
 

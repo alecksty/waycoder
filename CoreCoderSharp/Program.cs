@@ -1532,9 +1532,41 @@ case ConsoleKey.F2:
         Console.Write(sb.ToString());
         Console.WriteLine("\n===END===");
 
-        // ===== 建议面板截图验证 =====
+        // ===== Markdown 表格 + 多级列表 =====
         wm.CloseAll();
         var sm = ScreenManager.Instance;
+        sm.ChatMessages.Clear();
+        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "WayCoder v0.18.3" });
+        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "user", Content = "对比模型价格和功能" });
+        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "agent", Content = @"### 价格对比
+
+| 模型 | 输入/1M | 输出/1M | 上下文 |
+|------|---------|---------|--------|
+| deepseek-v4-flash | $0.14 | $0.28 | 128K |
+| gpt-5.4-mini | $0.075 | $0.15 | 200K |
+
+### 功能清单
+
+- 代码生成
+  - C# / .NET 项目
+  - Python 脚本
+  - 前端 React/Vue
+- 代码审查
+  - Diff 级别审查
+  - 安全漏洞扫描
+- 自动化任务
+  1. Git 提交管理
+  2. 文件批量处理
+  3. 测试用例生成
+
+deepseek 性价比最高。" });
+        sm.StatusLeft = "大:deepseek-v4-flash";
+        Console.Write("\x1b[2J\x1b[H");
+        sm.Render();
+        Console.WriteLine("\n===END===");
+
+        // ===== 建议面板截图验证 =====
+        wm.CloseAll();
 
         // 模拟输入状态+建议面板
         sm.ChatMessages.Clear();

@@ -200,7 +200,9 @@ public static class TuiMarkdown
     private static void RenderListItem(MdListItem li,
         List<List<(string, int, int)>> result, int maxWidth, int defaultFg)
     {
-        var prefix = li.Ordered ? $"  {li.OrderNum}. " : "  • ";
+        var indent = new string(' ', li.Level * 2);  // 每级缩进2格
+        var bullet = li.Ordered ? $"{li.OrderNum}." : "•";
+        var prefix = $"{indent}  {bullet} ";
         var line = new List<(string, int, int)>();
         line.Add((prefix, 33, 0));
         foreach (var seg in MarkdownParser.ParseInline(li.Text, defaultFg))
