@@ -40,7 +40,15 @@ public class Program
                 case "-p" or "--prompt" when i + 1 < args.Length: prompt = args[++i]; break;
                 case "-r" or "--resume" when i + 1 < args.Length: resumeId = args[++i]; break;
                 case "-v" or "--version": showVersion = true; break;
-                case "-t" or "--test": SelfTest.Run(); return 0;
+                case "-t" or "--test":
+                    var testModule = (i + 1 < args.Length && !args[i + 1].StartsWith('-'))
+                        ? args[++i] : null;
+                    if (testModule != null)
+                    {
+                        Console.WriteLine(SelfTest.RunModule(testModule));
+                    }
+                    else SelfTest.Run();
+                    return 0;
                 case "--screenshot": RunScreenshot(); return 0;
                 case "--debug": DebugLog.Enable(); break;
                 case "--yolo": yoloMode = true; break;
@@ -53,7 +61,7 @@ public class Program
             }
         }
 
-        if (showVersion) { Console.WriteLine("WayCoder v0.18.0 (道码)"); return 0; }
+        if (showVersion) { Console.WriteLine("WayCoder v0.18.1 (道码)"); return 0; }
 
         // 项目初始化向导
         if (initMode) { RunInit(); return 0; }
@@ -220,17 +228,17 @@ public class Program
         };
         foreach (var line in logo)
             sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = line });
-        sm.AddSystemMsg("WayCoder 道码 · 中文版易用编程智能体 · v0.18.0");
+        sm.AddSystemMsg("WayCoder 道码 · 中文版易用编程智能体 · v0.18.1");
         sm.AddSystemMsg("深圳市探索智能科技有限公司");
         sm.AddSystemMsg($"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助");
-        sm.StatusLeft = $"大:{_config.Model} 小:{_config.SmallModel}";
+        sm.StatusLeft = $"{_config.Model}";
         _llm!.SmallModel = _config.SmallModel;
 
         // 检测 git 分支
         var branch = DetectGitBranch();
         if (branch != null)
         {
-            sm.StatusLeft += $" |  {branch}";
+            sm.StatusLeft += $" ·  {branch}";
             sm.GitBranch = branch;
         }
 
@@ -483,7 +491,7 @@ case ConsoleKey.F2:
         }
         catch (Exception ex)
         {
-            sm.AddSystemMsg($"⚠ Watch 模式启动失败: {ex.Message}");
+            sm.AddSystemMsg($"  ⚠ Watch 模式启动失败: {ex.Message}");
             DebugLog.Log("watch", $"启动失败: {ex.Message}");
         }
     }
@@ -661,30 +669,39 @@ case ConsoleKey.F2:
 
             try
             {
+                sm.Running = true;
                 sm.StartAgentMsg();
                 sm.Render();
 
                 await _agent!.ChatAsync(userInput,
                     onToken: tok =>
                     {
+                        sm.Running = false; // 首 token 到达，思考结束
                         sm.AppendToken(tok);
                         sm.Render();
                     },
                     onTool: (name, brief) =>
                     {
                         sm.FinishAgentMsg();
-                        sm.AddToolMsg(name, brief.Length > 60 ? brief[..57] + "..." : brief);
+                        sm.AddToolProgress(name, brief.Length > 60 ? brief[..57] + "..." : brief);
                         sm.StartAgentMsg();
+                        sm.Render();
+                    },
+                    onToolDone: (name, elapsed) =>
+                    {
+                        sm.FinishToolProgress(name, elapsed);
                         sm.Render();
                     },
                     cancellationToken: cts.Token);
 
+                sm.Running = false;
                 sm.FinishAgentMsg();
                 completed = true;
                 break; // 成功
             }
             catch (OperationCanceledException)
             {
+                sm.Running = false;
                 sm.FinishAgentMsg();
                 sm.AddSystemMsg(cts.IsCancellationRequested
                     ? "⚠ 已中断" : "⏰ 服务器 60s 未响应");
@@ -692,14 +709,16 @@ case ConsoleKey.F2:
             }
             catch (Exception ex) when (attempt < modelStack.Length - 1)
             {
+                sm.Running = false;
                 sm.FinishAgentMsg();
-                sm.AddSystemMsg($"⚠ {model} 失败: {ex.Message}");
+                sm.AddSystemMsg($"  ⚠ {model} 失败: {ex.Message}");
                 // 继续回退链
             }
             catch (Exception ex)
             {
+                sm.Running = false;
                 sm.FinishAgentMsg();
-                sm.AddSystemMsg($"✘ 所有模型均失败: {ex.Message}");
+                sm.AddSystemMsg($"  💔 所有模型均失败: {ex.Message}");
             }
         }
 
@@ -707,7 +726,7 @@ case ConsoleKey.F2:
         if (completed)
         {
             var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
-            sm.AddSystemMsg($"✅ 完成 ({elapsed:F1}s)");
+            sm.AddSystemMsg($"  💡 完成 ({elapsed:F1}s)");
             Console.Write('\a'); // 终端响铃
         }
 
@@ -1017,9 +1036,9 @@ case ConsoleKey.F2:
             _config.Model = m;
         }
 
-        sm.StatusLeft = $"大:{_config.Model} 小:{_config.SmallModel}";
+        sm.StatusLeft = $"{_config.Model}";
         var label = isSmall ? "小模型" : "大模型";
-        sm.AddSystemMsg($"✅ {label}已切换: {m}");
+        sm.AddSystemMsg($"  💡 {label}已切换: {m}");
     }
 
     private static void SaveSessionInteractive(ScreenManager sm)
@@ -1037,7 +1056,7 @@ case ConsoleKey.F2:
             sid = SessionManager.SaveSession(_agent!.Messages, _config.Model);
         else
             sid = SessionManager.SaveSession(_agent!.Messages, _config.Model, sid);
-        sm.AddSystemMsg($"✅ 会话已保存: {sid}");
+        sm.AddSystemMsg($"  💡 会话已保存: {sid}");
     }
 
     private static void ShowSessionBrowser(ScreenManager sm)
@@ -1060,7 +1079,7 @@ case ConsoleKey.F2:
             if (delIdx >= 0)
             {
                 SessionManager.DeleteSession(sessions[delIdx].Id);
-                sm.AddSystemMsg($"✅ 已删除: {sessions[delIdx].Id}");
+                sm.AddSystemMsg($"  💡 已删除: {sessions[delIdx].Id}");
             }
         }
         else
@@ -1086,7 +1105,7 @@ case ConsoleKey.F2:
             else if (role == "tool") sm.AddToolMsg("tool", content[..Math.Min(content.Length, 40)]);
             else if (role == "assistant") sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "agent", Content = content });
         }
-        sm.AddSystemMsg($"✅ 已加载会话: {id} (模型: {loaded.Value.Model})");
+        sm.AddSystemMsg($"  💡 已加载会话: {id} (模型: {loaded.Value.Model})");
     }
 
     private static void ShowPermStatusInChat(ScreenManager sm)
@@ -1256,7 +1275,7 @@ case ConsoleKey.F2:
 
             File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
             var size = new FileInfo(path).Length;
-            sm.AddSystemMsg($"✅ 已导出: .corecoder/{filename} ({size / 1024}KB)");
+            sm.AddSystemMsg($"  💡 已导出: .corecoder/{filename} ({size / 1024}KB)");
         }
         catch (Exception ex)
         {
@@ -1302,24 +1321,32 @@ case ConsoleKey.F2:
 
             try
             {
+                sm.Running = true;
                 sm.StartAgentMsg();
                 sm.Render();
 
                 await _agent!.ChatAsync(prompt,
-                    onToken: tok => { sm.AppendToken(tok); sm.Render(); },
+                    onToken: tok => { sm.Running = false; sm.AppendToken(tok); sm.Render(); },
                     onTool: (name, brief) =>
                     {
                         sm.FinishAgentMsg();
-                        sm.AddToolMsg(name, brief.Length > 60 ? brief[..57] + "..." : brief);
+                        sm.AddToolProgress(name, brief.Length > 60 ? brief[..57] + "..." : brief);
                         sm.StartAgentMsg();
+                        sm.Render();
+                    },
+                    onToolDone: (name, elapsed) =>
+                    {
+                        sm.FinishToolProgress(name, elapsed);
                         sm.Render();
                     },
                     cancellationToken: cts.Token);
 
+                sm.Running = false;
                 sm.FinishAgentMsg();
             }
             catch (OperationCanceledException)
             {
+                sm.Running = false;
                 sm.FinishAgentMsg();
                 sm.AddSystemMsg("⚠ /loop 已中断");
                 break;
@@ -1327,7 +1354,7 @@ case ConsoleKey.F2:
             catch (Exception ex)
             {
                 sm.FinishAgentMsg();
-                sm.AddSystemMsg($"⚠ 第 {iter} 轮出错: {ex.Message}");
+                sm.AddSystemMsg($"  ⚠ 第 {iter} 轮出错: {ex.Message}");
                 if (iter == maxIter) break;
                 await Task.Delay(1000);
                 continue;
@@ -1346,7 +1373,7 @@ case ConsoleKey.F2:
             if (isSuccess)
             {
                 var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
-                sm.AddSystemMsg($"✅ 条件达成！{iter} 轮 / {elapsed:F1}s");
+                sm.AddSystemMsg($"  💡 条件达成！{iter} 轮 / {elapsed:F1}s");
                 Console.Write('\a');
                 return;
             }
@@ -1489,7 +1516,7 @@ case ConsoleKey.F2:
 
         // 模拟输入状态+建议面板
         sm.ChatMessages.Clear();
-        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "WayCoder v0.18.0" });
+        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "WayCoder v0.18.1" });
         sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "user", Content = "/res" });
 
         sm.InputLines.Clear();
@@ -1507,7 +1534,7 @@ case ConsoleKey.F2:
         sm.SuggestIdx = 1;
         sm.SuggestScroll = 0;
         sm.SuggestH = Math.Min(sm.Suggestions.Count, 8) + 2;
-        sm.StatusLeft = "大:deepseek-v4-flash";
+        sm.StatusLeft = "deepseek-v4-flash";
 
         // 截图1: 建议顶部
         TTY.Clear();
@@ -1652,7 +1679,7 @@ case ConsoleKey.F2:
         var next = models[(idx + 1) % models.Length];
         _llm!.Model = next;
         _config.Model = next;
-        sm.StatusLeft = $"大:{_config.Model} 小:{_config.SmallModel}";
+        sm.StatusLeft = $"{_config.Model}";
         sm.AddSystemMsg($"🔄 大模型 → {next} (Ctrl+M 继续切换)");
     }
 
@@ -2098,8 +2125,12 @@ case ConsoleKey.F2:
                 StopSpinner();
                 Console.WriteLine(); // 结束上一行流式输出
                 var shortBrief = brief.Length > 60 ? brief[..57] + "..." : brief;
-                AnsiConsole.MarkupLine($"  [dim]🔧 {E(name)}({E(shortBrief)})[/]");
-                StartSpinner(); // 下一轮 LLM 等待
+                AnsiConsole.MarkupLine($"  [dim]⚙ {E(name)}({E(shortBrief)})[/]");
+            },
+            onToolDone: (name, elapsed) =>
+            {
+                AnsiConsole.MarkupLine($"  [green]💡 {E(name)} ({elapsed:F1}s)[/]");
+                StartSpinner(); // 恢复等待动画（下一轮 LLM）
             },
             cancellationToken: ct);
 
