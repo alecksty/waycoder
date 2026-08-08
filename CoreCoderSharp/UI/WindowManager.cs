@@ -482,12 +482,22 @@ public class WindowManager
         if (visRows <= 0) return;
         var vv = GetBorder(win).v;
 
+        // 计算滚动：最多可见项 = visRows - 2（预留首尾指示器行）
+        int maxItems = Math.Max(1, visRows - 2);
         int scroll = win.ScrollOffset;
-        if (win.SelectedIndex < scroll) scroll = win.SelectedIndex;
-        else if (win.SelectedIndex >= scroll + visRows) scroll = win.SelectedIndex - visRows + 1;
-        scroll = Math.Clamp(scroll, 0, Math.Max(0, totalItems - visRows));
+
+        // 确保选中项在可见项范围内
+        if (win.SelectedIndex < scroll)
+            scroll = win.SelectedIndex;
+        else if (win.SelectedIndex >= scroll + maxItems)
+            scroll = win.SelectedIndex - maxItems + 1;
+        scroll = Math.Clamp(scroll, 0, Math.Max(0, totalItems - maxItems));
         win.ScrollOffset = scroll;
-        bool canUp = scroll > 0, canDown = scroll + visRows < totalItems;
+
+        // 根据实际位置确定指示器
+        bool canUp = scroll > 0;
+        bool canDown = scroll + maxItems < totalItems;
+        int itemCount = maxItems;  // 固定最大项数，指示器复用预留行
 
         for (int i = 0; i < visRows; i++)
         {
@@ -501,11 +511,11 @@ public class WindowManager
             // 滚动指示器 / 内容
             if (i == 0 && canUp)
             {
-                WriteClipped(sb, row, col, $" ▲ {scroll} more ", win, fg: 2);
+                WriteClipped(sb, row, col, $" ▲ {scroll} prev ", win, fg: 2);
             }
             else if (i == visRows - 1 && canDown)
             {
-                var remaining = totalItems - scroll - visRows;
+                var remaining = totalItems - scroll - itemCount;
                 WriteClipped(sb, row, col, $" ▼ {remaining} more ", win, fg: 2);
             }
             else if (ci < totalItems)
@@ -535,10 +545,10 @@ public class WindowManager
         }
 
         // 滚动条
-        if (totalItems > visRows)
+        if (totalItems > itemCount)
         {
-            var barH = Math.Max(1, visRows * visRows / totalItems);
-            var barPos = visRows * scroll / Math.Max(1, totalItems - visRows);
+            var barH = Math.Max(1, visRows * itemCount / totalItems);
+            var barPos = visRows * scroll / Math.Max(1, totalItems - itemCount);
             barPos = Math.Clamp(barPos, 0, visRows - barH);
             for (int i = 0; i < visRows; i++)
             {
@@ -560,8 +570,8 @@ public class WindowManager
             ConsoleKey.DownArrow => Nav(1),
             ConsoleKey.Home => Nav(-win.SelectedIndex),
             ConsoleKey.End => Nav(win.MenuItems.Count - 1 - win.SelectedIndex),
-            ConsoleKey.PageUp => Nav(-5),
-            ConsoleKey.PageDown => Nav(5),
+            ConsoleKey.PageUp => Nav(-Math.Max(1, (win.Height - 4))),
+            ConsoleKey.PageDown => Nav(Math.Max(1, (win.Height - 4))),
             ConsoleKey.Enter => win.MenuItems![win.SelectedIndex] == MenuSeparator ? -2 : win.SelectedIndex,
             ConsoleKey.Escape => -1,
             _ => -2,  // 未处理
