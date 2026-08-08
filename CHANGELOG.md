@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.18.5 (2026-08-09) — Plan 模式 + 稳定性修复
+
+### 新增
+- **Plan 模式** (`PlanMode.cs`): 14 个只读工具 + 规划提示词 + IsApproval 确认判断
+
+### 修复
+- **ReviewMode**: 始终列出文件名，git diff 优先
+- **BashTool**: ReadToEndAsync 替代事件回调，避免管道死锁
+- **CheckpointManager**: 路径 TrimStart('/') 修正 + ChangedFiles 回退
+- **SelfTest**: Cwd 重置、缓存键断言修正、沙箱断言修正
+
+### 操作
+- Ctrl+C 闲时直接退，忙时中断后确认
+- 自测: 656/657
+
 ## v0.18.4 (2026-08-08) — 终端抽象层 + 窗口系统 + 主题引擎
 
 ### 🔥 新增
