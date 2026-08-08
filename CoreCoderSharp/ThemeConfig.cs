@@ -1,5 +1,6 @@
 namespace CoreCoderSharp;
 using CoreCoderSharp.UI;
+using CoreCoderSharp.Terminal;
 
 /// <summary>
 /// 全局主题配置——控制所有窗口/菜单的默认外观。
@@ -45,44 +46,43 @@ public class ThemeConfig
 
     public static ThemeConfig Default => new()
     {
-        BorderStyle = "single", BorderColor = 36,
-        WinBg = 0, TitleFg = 0, ContentFg = 0, ItemFg = 0,
-        SelFg = 30, SelBg = 46,
+        BorderStyle = "single", BorderColor = Color.Cyan,
+        SelFg = Color.Black, SelBg = Color.BgCyan,
     };
 
     public static ThemeConfig Ocean => new()
     {
-        BorderStyle = "rounded", BorderColor = 36,
-        WinBg = 44, TitleFg = 37, ContentFg = 37, ItemFg = 36,
-        SelFg = 30, SelBg = 46,
+        BorderStyle = "rounded", BorderColor = Color.Cyan,
+        WinBg = Color.BgBlue, TitleFg = Color.White, ContentFg = Color.White, ItemFg = Color.Cyan,
+        SelFg = Color.Black, SelBg = Color.BgCyan,
     };
 
     public static ThemeConfig Forest => new()
     {
-        BorderStyle = "double", BorderColor = 32,
-        WinBg = 42, TitleFg = 37, ContentFg = 37, ItemFg = 32,
-        SelFg = 30, SelBg = 43,
+        BorderStyle = "double", BorderColor = Color.Green,
+        WinBg = Color.BgGreen, TitleFg = Color.White, ContentFg = Color.White, ItemFg = Color.Green,
+        SelFg = Color.Black, SelBg = Color.BgYellow,
     };
 
     public static ThemeConfig Sunset => new()
     {
-        BorderStyle = "thick", BorderColor = 33,
-        WinBg = 43, TitleFg = 31, ContentFg = 33, ItemFg = 33,
-        SelFg = 30, SelBg = 41,
+        BorderStyle = "thick", BorderColor = Color.Yellow,
+        WinBg = Color.BgYellow, TitleFg = Color.Red, ContentFg = Color.Yellow, ItemFg = Color.Yellow,
+        SelFg = Color.Black, SelBg = Color.BgRed,
     };
 
     public static ThemeConfig Midnight => new()
     {
-        BorderStyle = "single", BorderColor = 35,
-        WinBg = 45, TitleFg = 37, ContentFg = 37, ItemFg = 35,
-        SelFg = 37, SelBg = 44,
+        BorderStyle = "single", BorderColor = Color.Magenta,
+        WinBg = Color.BgMagenta, TitleFg = Color.White, ContentFg = Color.White, ItemFg = Color.Magenta,
+        SelFg = Color.White, SelBg = Color.BgBlue,
     };
 
     public static ThemeConfig Mono => new()
     {
-        BorderStyle = "ascii", BorderColor = 37,
-        WinBg = 0, TitleFg = 1, ContentFg = 0, ItemFg = 37,
-        SelFg = 37, SelBg = 40,
+        BorderStyle = "ascii", BorderColor = Color.White,
+        WinBg = 0, TitleFg = Color.White, ContentFg = 0, ItemFg = Color.White,
+        SelFg = Color.White, SelBg = Color.BgBlack,
     };
 
     internal static readonly Dictionary<string, ThemeConfig> Presets = new()
