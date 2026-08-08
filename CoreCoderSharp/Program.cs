@@ -687,11 +687,6 @@ case ConsoleKey.F2:
                         sm.StartAgentMsg();
                         sm.Render();
                     },
-                    onToolDone: (name, elapsed) =>
-                    {
-                        sm.FinishToolProgress(name, elapsed);
-                        sm.Render();
-                    },
                     cancellationToken: cts.Token);
 
                 sm.Running = false;
@@ -1332,11 +1327,6 @@ case ConsoleKey.F2:
                         sm.FinishAgentMsg();
                         sm.AddToolProgress(name, brief.Length > 60 ? brief[..57] + "..." : brief);
                         sm.StartAgentMsg();
-                        sm.Render();
-                    },
-                    onToolDone: (name, elapsed) =>
-                    {
-                        sm.FinishToolProgress(name, elapsed);
                         sm.Render();
                     },
                     cancellationToken: cts.Token);
@@ -2126,11 +2116,6 @@ case ConsoleKey.F2:
                 Console.WriteLine(); // 结束上一行流式输出
                 var shortBrief = brief.Length > 60 ? brief[..57] + "..." : brief;
                 AnsiConsole.MarkupLine($"  [dim]⚙ {E(name)}({E(shortBrief)})[/]");
-            },
-            onToolDone: (name, elapsed) =>
-            {
-                AnsiConsole.MarkupLine($"  [green]💡 {E(name)} ({elapsed:F1}s)[/]");
-                StartSpinner(); // 恢复等待动画（下一轮 LLM）
             },
             cancellationToken: ct);
 
