@@ -80,7 +80,7 @@ public static class SelfTest
 
         // ---- 工具注册 ----
         Section("[工具注册]");
-        Check("工具数量 == 30", ToolRegistry.BuiltinTools.Count == 30);
+        Check("工具数量 == 31", ToolRegistry.BuiltinTools.Count == 31);
         Check("所有工具有有效 schema", ToolRegistry.AllTools.All(t =>
         {
             var s = t.Schema();
@@ -260,13 +260,39 @@ public static class SelfTest
         PermissionManager.SetMode("ask");
         Console.WriteLine();
 
-        // ---- 记忆系统 ----
+        // ---- 记忆系统（临时目录隔离，避免污染真实 memory.md）----
         Section("[记忆]");
-        var memRead = MemoryStore.Read();
-        Check("memory read 有效返回", memRead is not null);
-        MemoryStore.Append("自测写入");
-        var memSearch = MemoryStore.Search("自测");
-        Check("memory search 找到", memSearch.Contains("自测"));
+        var savedMemCwd = Directory.GetCurrentDirectory();
+        var memTestDir = Path.Combine(Path.GetTempPath(), "waycoder_memtest_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(memTestDir);
+        try
+        {
+            Directory.SetCurrentDirectory(memTestDir);
+            MemoryStore.ResetCache();
+
+            var memRead = MemoryStore.Read();
+            Check("memory read 有效返回", memRead is not null);
+            MemoryStore.Append("自测写入");
+            var memSearch = MemoryStore.Search("自测");
+            Check("memory search 找到", memSearch.Contains("自测"));
+
+            var e1 = StructuredMemory.Create("dotnet-aot", "项目使用 .NET 10 AOT 编译", "project", "C# AOT 单文件编译");
+            Check("结构化创建", e1.Name == "dotnet-aot");
+            Check("结构化读取", StructuredMemory.Get("dotnet-aot")?.Type == "project");
+            StructuredMemory.Create("user-pref", "用户偏好中文界面", "user", "终端青色主题");
+            Check("结构化搜索", StructuredMemory.Search("中文").Count == 1);
+            Check("索引文件存在", File.Exists(StructuredMemory.IndexPath));
+            var upd = StructuredMemory.Update("dotnet-aot", content: "C# AOT 单文件 ~8MB");
+            Check("结构化更新", upd != null && upd.Content.Contains("8MB"));
+            Check("结构化删除", StructuredMemory.Delete("user-pref"));
+            Check("结构化计数", StructuredMemory.Count == 1);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(savedMemCwd);
+            MemoryStore.ResetCache();
+            try { Directory.Delete(memTestDir, true); } catch { }
+        }
         Console.WriteLine();
 
         // ---- 后台任务 ----
@@ -572,6 +598,41 @@ public static class SelfTest
             ft.ExecuteAsync(new() { ["url"] = "just-a-string" }).Result.Contains("错误"));
         Check("fetch 拒绝 javascript: URL",
             ft.ExecuteAsync(new() { ["url"] = "javascript:alert(1)" }).Result.Contains("错误"));
+
+        Console.WriteLine();
+
+        // ---- Doc 工具 ----
+        Section("[Doc 工具]");
+        var docTool = new DocTool();
+        Check("doc 工具名称正确", docTool.Name == "doc");
+        Check("doc 拒绝空 query",
+            docTool.ExecuteAsync(new() { ["action"] = "search" }).Result.Contains("错误"));
+        Check("doc 拒绝空 url",
+            docTool.ExecuteAsync(new() { ["action"] = "fetch" }).Result.Contains("错误"));
+        Check("doc 拒绝非 http url",
+            docTool.ExecuteAsync(new() { ["action"] = "fetch", ["url"] = "file:///etc/passwd" }).Result.Contains("错误"));
+        Check("doc 拒绝无协议 url",
+            docTool.ExecuteAsync(new() { ["action"] = "fetch", ["url"] = "javascript:alert(1)" }).Result.Contains("错误"));
+
+        Console.WriteLine();
+
+        // ---- Diff 预览（纯函数，不进入交互 UI）----
+        Section("[Diff 预览]");
+        const string oldDoc = "line1\nline2\nline3\nline4\nline5";
+        const string newDoc = "line1\nline2-changed\nline3\nline4\nline5-added";
+        var hunks = DiffPreview.BuildHunks(oldDoc, newDoc);
+        Check("diff 构建 hunk 数 > 0", hunks.Count > 0);
+        var allAccepted = new HashSet<int>(Enumerable.Range(0, hunks.Count));
+        var noneAccepted = new HashSet<int>();
+        Check("diff 全接受 = 新内容",
+            DiffPreview.ApplyAccepted(oldDoc, hunks, allAccepted) == newDoc);
+        Check("diff 全拒绝 = 旧内容",
+            DiffPreview.ApplyAccepted(oldDoc, hunks, noneAccepted) == oldDoc);
+        Check("diff 无变更返回空 hunk", DiffPreview.BuildHunks(oldDoc, oldDoc).Count == 0);
+        var uni = DiffPreview.GenerateUnifiedDiff(oldDoc, newDoc, "t.txt");
+        Check("diff unified 包含增减标记", uni.Contains("-line2") && uni.Contains("+line2-changed"));
+        Check("diff Show 无变更直接放行",
+            DiffPreview.Show(oldDoc, oldDoc, "t.txt").Decision == DiffPreview.Decision.AcceptAll);
 
         Console.WriteLine();
 
@@ -1279,12 +1340,24 @@ public static class SelfTest
         Check("混合估算 > 纯 ASCII 同等长度", mixedEst > "same length text only".Length / 3);
         Console.WriteLine();
 
-        // ---- 记忆自动注入 ----
+        // ---- 记忆自动注入（隔离 cwd，避免迁移真实 memory.md）----
         Section("[记忆自动注入]");
-        var sysPrompt = SystemPrompt.Generate(Tools.ToolRegistry.AllTools);
-        Check("系统提示词非空", sysPrompt.Length > 0);
-        Check("系统提示词包含工具列表", sysPrompt.Contains("read_file") || sysPrompt.Contains("write_file"));
-        Check("系统提示词包含规则", sysPrompt.Contains("先读后改"));
+        var savedPromptCwd = Directory.GetCurrentDirectory();
+        var promptTestDir = Path.Combine(Path.GetTempPath(), "waycoder_prompt_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(promptTestDir);
+        try
+        {
+            Directory.SetCurrentDirectory(promptTestDir);
+            var sysPrompt = SystemPrompt.Generate(Tools.ToolRegistry.AllTools);
+            Check("系统提示词非空", sysPrompt.Length > 0);
+            Check("系统提示词包含工具列表", sysPrompt.Contains("read_file") || sysPrompt.Contains("write_file"));
+            Check("系统提示词包含规则", sysPrompt.Contains("先读后改"));
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(savedPromptCwd);
+            try { Directory.Delete(promptTestDir, true); } catch { }
+        }
         Console.WriteLine();
 
         // ---- 语义记忆 ----
@@ -1299,15 +1372,15 @@ public static class SelfTest
         Check("过滤停用词 the", !SemanticMemory.Tokenize("the test").Contains("the"));
         Check("过滤短词", !SemanticMemory.Tokenize("a b c").Contains("a"));
 
-        // 文档解析测试
+        // 文档解析测试（样本时间戳选远期日期，避免新近加分影响无关查询断言）
         var sampleMd = @"
 ---
-## 2026-08-01 10:00
+## 2025-01-01 10:00
 
 项目使用 C# .NET 10 AOT 编译
 
 ---
-## 2026-08-02 14:00
+## 2025-01-02 14:00
 
 用户偏好中文界面，终端配色青色主题
 ";
@@ -1324,10 +1397,10 @@ public static class SelfTest
         var results3 = SemanticMemory.SearchRelevant(docs, "Python");
         Check("TF-IDF 搜索无相关", results3.Count == 0 || results3[0].Score < 0.3);
 
-        // MemoryStore 新功能
-        Check("MemoryCount > 0", MemoryStore.MemoryCount > 0);
-        var ctx = MemoryStore.GetRelevantContext(".NET C# 编译", topN: 2);
+        // SemanticMemory 上下文生成（纯函数，不依赖真实记忆文件）
+        var ctx = SemanticMemory.GetRelevantContext(sampleMd, ".NET C# 编译", topN: 2, maxChars: 500);
         Check("GetRelevantContext 返回内容", ctx.Length > 0);
+        Check("GetRelevantContext 无关查询为空", SemanticMemory.GetRelevantContext(sampleMd, "python ai", topN: 2, maxChars: 500).Length == 0);
         Console.WriteLine();
 
         // ---- 自定义提示词模板 ----

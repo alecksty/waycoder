@@ -36,7 +36,8 @@ public static class SystemPrompt
             var config = Config.FromEnv();
             // 用项目上下文作为查询关键词，提取最相关记忆
             var query = $"{project.PrimaryLanguage} {string.Join(" ", project.BuildTools)} {string.Join(" ", project.Frameworks)}";
-            var relevantMemory = MemoryStore.GetRelevantContext(query,
+            StructuredMemory.MigrateFromOldFormat();
+            var relevantMemory = StructuredMemory.GetRelevantContext(query,
                 topN: config.MemoryRelevanceTopN, maxChars: 2000);
             if (!string.IsNullOrWhiteSpace(relevantMemory))
             {
@@ -52,9 +53,11 @@ public static class SystemPrompt
             // 回退：加载最新记忆（最多 1500 字符）
             try
             {
-                var memory = MemoryStore.Read();
-                if (memory.Length > 0 && !memory.StartsWith("（暂无记忆"))
+                var all = StructuredMemory.ListAll();
+                if (all.Count > 0)
                 {
+                    var memory = string.Join("\n", all.Take(5)
+                        .Select(e => $"- {e.Description}: {e.Content}"));
                     if (memory.Length > 1500)
                         memory = memory[..1500] + "\n...（记忆已截断）";
                     memorySection = $"""

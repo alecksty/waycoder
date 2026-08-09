@@ -425,6 +425,54 @@ public static class DiffPreview
         return result;
     }
 
+    /// <summary>
+    /// 将接受的 hunks 应用到旧内容，生成最终内容。
+    /// 拒绝的 hunk 保留原行；接受的 hunk 应用删除/添加。
+    /// 相邻 hunk 共享的上下文行只输出一次。
+    /// </summary>
+    public static string ApplyAccepted(string oldContent, List<Hunk> hunks, HashSet<int> accepted)
+    {
+        var oldLines = oldContent.Replace("\r\n", "\n").Split('\n');
+        var result = new List<string>();
+        int oldIdx = 0;
+
+        foreach (var (h, hi) in hunks.Select((h, i) => (h, i)))
+        {
+            bool accept = accepted.Contains(hi);
+            int hunkStart = h.Lines.Where(l => l.OldLine > 0).Min(l => l.OldLine) - 1;
+
+            while (oldIdx < hunkStart && oldIdx < oldLines.Length)
+                result.Add(oldLines[oldIdx++]);
+
+            foreach (var l in h.Lines)
+            {
+                if (l.Kind == '-' || l.Kind == ' ')
+                {
+                    int lineIdx = l.OldLine - 1;
+                    if (oldIdx > lineIdx) continue;
+                    if (l.Kind == '-' && accept)
+                    {
+                        oldIdx++;
+                    }
+                    else
+                    {
+                        if (oldIdx < oldLines.Length) result.Add(oldLines[oldIdx]);
+                        oldIdx++;
+                    }
+                }
+                else if (accept)
+                {
+                    result.Add(l.Text);
+                }
+            }
+        }
+
+        while (oldIdx < oldLines.Length)
+            result.Add(oldLines[oldIdx++]);
+
+        return string.Join('\n', result);
+    }
+
     // ================================================================
     // 工具方法
     // ================================================================

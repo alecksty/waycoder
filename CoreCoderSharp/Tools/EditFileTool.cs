@@ -1,4 +1,5 @@
 using System.Text;
+using CoreCoderSharp.UI;
 
 namespace CoreCoderSharp.Tools;
 
@@ -92,6 +93,18 @@ public class EditFileTool : ITool
             }
 
             var newContent = content.ReplaceFirst(oldString, newString);
+
+            // Diff 预览：仅当开关开启且非交互模式（管道/重定向/测试）时
+            var cfg = Config.FromEnv();
+            if (cfg.DiffPreview && !Console.IsInputRedirected && !Console.IsOutputRedirected)
+            {
+                var (decision, accepted) = DiffPreview.Show(content, newContent, filePath);
+                if (decision == DiffPreview.Decision.RejectAll)
+                    return $"已取消编辑 {filePath}（用户拒绝变更）";
+                if (decision == DiffPreview.Decision.Partial && accepted != null)
+                    newContent = DiffPreview.ApplyAccepted(content, DiffPreview.BuildHunks(content, newContent), accepted);
+            }
+
             File.WriteAllText(path, newContent, Encoding.UTF8);
             ChangedFiles.Add(path);
 
