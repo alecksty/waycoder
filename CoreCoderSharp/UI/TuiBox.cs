@@ -69,10 +69,11 @@ public static class TuiBox
 
         try
         {
-            if (ScreenManager.Instance.IsActive)
+            var chatScreen = TuiManager.Instance.ActiveScreen as ChatScreen;
+            if (chatScreen != null)
             {
-                ScreenManager.Instance.AddSystemMsg(output);
-                ScreenManager.Instance.Render();
+                chatScreen.AddSystemMsg(output);
+                TuiManager.Instance.Render();
             }
             else Console.WriteLine(output);
         }

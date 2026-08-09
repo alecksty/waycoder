@@ -114,7 +114,7 @@ public class Editor
         Console.TreatControlCAsInput = true;
 
         // 如果 ScreenManager 已激活，不切换屏幕
-        var smActive = ScreenManager.Instance.IsActive;
+        var smActive = TuiManager.Instance.ActiveScreen is ChatScreen;
 
         try
         {

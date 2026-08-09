@@ -156,11 +156,12 @@ public class TuiTable
     /// <summary>渲染表格。TUI 模式下注入聊天区（纯文本，避免 ANSI 码干扰渲染管线），非 TUI 模式直接写终端（带颜色）。</summary>
     public void Render()
     {
-        var ansi = !ScreenManager.Instance.IsActive;
+        var chatScreen = TuiManager.Instance.ActiveScreen as ChatScreen;
+        var ansi = chatScreen == null;
         var output = RenderToString(ansi);
-        if (ScreenManager.Instance.IsActive)
+        if (chatScreen != null)
         {
-            ScreenManager.Instance.AddSystemMsg(output);
+            chatScreen.AddSystemMsg(output);
         }
         else
         {

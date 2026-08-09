@@ -46,7 +46,7 @@ public static class DiffPreview
         if (hunks.Count == 0 || hunks.All(h => h.Lines.All(l => l.Kind == ' ')))
             return (Decision.AcceptAll, null);
 
-        return ScreenManager.Instance.IsActive
+        return TuiManager.Instance.ActiveScreen is ChatScreen
             ? ShowFullScreen(oldContent, newContent, filePath, hunks)
             : ShowFallback(oldContent, newContent, filePath);
     }
@@ -58,7 +58,6 @@ public static class DiffPreview
     private static (Decision, HashSet<int>?) ShowFullScreen(
         string oldContent, string newContent, string filePath, List<Hunk> hunks)
     {
-        var sm = ScreenManager.Instance;
         var accepted = new HashSet<int>();
         int currentHunk = 0;
         int scrollOffset = 0;

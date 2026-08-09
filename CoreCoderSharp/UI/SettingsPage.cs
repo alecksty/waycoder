@@ -20,8 +20,8 @@ public static class SettingsPage
 
     public static void Show()
     {
-        var sm = ScreenManager.Instance;
-        var wasActive = sm.IsActive;
+        var chatScreen = TuiManager.Instance.ActiveScreen as ChatScreen;
+        var wasActive = chatScreen != null;
         _config = Config.FromEnv();
 
         // 从 schema 自动生成分类
@@ -32,7 +32,7 @@ public static class SettingsPage
 
         _catIdx = 0; _itemIdx = 0; _right = false; _editing = false;
 
-        if (!wasActive) sm.Enter();
+        if (wasActive) TuiManager.Instance.Exit();
 
         try
         {
@@ -51,8 +51,9 @@ public static class SettingsPage
                 {
                     case ConsoleKey.S when ctrl:
                         _config.SaveToEnvFile();
-                        sm.RefreshTheme();
-                        sm.ShowDialog("已保存", "设置已写入 .env 文件", ScreenManager.DialogType.Success);
+                        chatScreen?.SyncTheme();
+                        Console.Write($"\x1b[{TTY.Rows};1H\x1b[30;42m 已保存 — 设置已写入 .env 文件 \x1b[0m");
+                        Thread.Sleep(800);
                         return;
                     case ConsoleKey.Escape: return;
                     case ConsoleKey.UpArrow:
@@ -69,8 +70,9 @@ public static class SettingsPage
                         var s = items[_itemIdx];
                         if (s.Type == "select" && s.Options != null)
                         {
-                            var idx = sm.ShowMenu(s.Label, [.. s.Options]);
-                            if (idx >= 0) SetValue(s.Key, s.Options[idx]);
+                            Console.Write("\x1b[2J\x1b[H");
+                            var choice = TuiList.Select(s.Label, [.. s.Options]);
+                            if (choice != null) SetValue(s.Key, choice);
                         }
                         else if (s.Type is "text" or "number" or "secret")
                         {
@@ -85,7 +87,7 @@ public static class SettingsPage
         }
         finally
         {
-            if (!wasActive) sm.Exit(); else sm.Render();
+            if (wasActive) TuiManager.Instance.Enter();
         }
     }
 
