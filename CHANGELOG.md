@@ -1,5 +1,53 @@
 # 更新日志
 
+## v0.22.0 (2026-08-09) — Editor/Settings 迁移到新 TUI 架构
+
+### 🔥 新增
+
+**EditorCore 纯数据模型** (`Edit/EditorCore.cs`, ~280 行)
+- 从旧 Editor.cs 提取纯数据层：文本缓冲区、光标、滚动、撤销栈、剪贴板、语法、诊断
+- 零渲染依赖、零键盘依赖、零 TUI 依赖，可独立单测
+- `InsertText/Backspace/Delete/NewLine/InsertTab` — 编辑操作
+- `MoveCursor/MoveHome/MoveEnd/MovePageUp/MovePageDown/JumpToLine` — 光标导航
+- `CopyLine/CutLine/PasteClipboard/DeleteLine` — 剪贴板操作
+- `Undo` 完整撤销栈，`Save/SaveAsync` 文件持久化 + 异步 Lint 诊断触发
+- `GetDiagnosticsAtLine/GetDiagSummary` — 诊断查询（委托 DiagnosticManager）
+
+**TuiRichEditor 富文本编辑控件** (`UI/TuiControls/TuiRichEditor.cs`, ~277 行)
+- 增强版源码编辑控件，TuiControl 子类，绑定 EditorCore 数据模型
+- 行号列（右对齐 4 位）+ Gutter 诊断指示符（● 错误 / ▲ 警告 / · 无诊断）
+- 语法高亮内容渲染（通过 Syntax.Tokenize），CJK 宽度感知截断
+- 光标行整行高亮，诊断行背景色覆盖（错误红 41 / 警告黄 103）
+- 完整键盘：↑↓←→ Home End PgUp PgDn / Backspace Delete Enter Tab
+- Ctrl+Z/X/C/V/Y/G/S 组合键 → 事件回调（OnSaveRequested/OnJumpRequested/OnExitRequested）
+- 自动滚动确保光标可见
+
+**EditorScreen 编辑器屏幕** (`UI/TuiScreens/EditorScreen.cs`, ~275 行)
+- 完整 TuiScreen 实现：TitleBar + TuiRichEditor + StatusBar1 + StatusBar2
+- 全局键盘：Ctrl+S 保存 / Ctrl+G 跳行 / Escape 退出（脏文件三选一确认）
+- 文件选择对话框：无 FilePath 时弹出 TuiDialog.Select 选择最近文件（最多 9 个）
+- 动态状态栏：光标位置、行/字符统计、文件大小、语言、诊断摘要
+- 保存后异步触发 Lint 诊断
+
+**SettingsScreen 设置屏幕重写** (`UI/TuiScreens/SettingsScreen.cs`, ~360 行)
+- 从旧 SettingsPage.Show() 重写为纯 TuiScreen + 控件树
+- 左侧 TuiList 类别切换 + 右侧 VBox 设置项详情（TuiLabel + TuiDialog）
+- select 类型 → TuiDialog.Select 下拉选择 / text/number/secret → TuiDialog.Input 输入
+- Ctrl+S 保存写入 .env + Toast 通知 / Escape 退出 / ↑↓←→ Tab 导航
+- 从 Config.SettingSchema() 自动生成布局，配置读写沿用原有 switch 逻辑
+
+### 🔧 变更
+
+- **Program.cs**: `/edit` `/edit <path>` `/settings` `/config` `Ctrl+O` → `TuiManager.PushScreen`
+- **EditorCore Undo**: 修复 NewLine 撤销时删除错误行的问题（原来从末尾删除，改为从 Line+1 删除）
+- **SettingsScreen.cs**: 移除旧的 EditorScreen 桩类（现在独立为 EditorScreen.cs）
+
+### 📊 测试
+
+- 自测：756 → 819 项（+63 项）
+
+---
+
 ## v0.21.0 (2026-08-09) — 新增 6 个 TUI 控件
 
 ### 🔥 新增
