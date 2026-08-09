@@ -12,7 +12,7 @@ WayCoder（道码）是一个中文版易用编程智能体，C# (.NET 10) 实�
 # C# 版
 cd CoreCoderSharp
 dotnet publish -c Release            # AOT 编译
-dotnet run -- --test                 # 704 自测
+dotnet run -- --test                 # 705 自测
 dotnet run -- -p "提示词"            # 一次性模式
 dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 ```
@@ -38,7 +38,7 @@ CoreCoderSharp/
 ├── StructuredMemory.cs 结构化记忆 (frontmatter 多文件 + MEMORY.md 索引)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        704 项自测
+├── SelfTest.cs        705 项自测
 ├── FileLockManager.cs 文件锁 (防并发修改冲突)
 ├── UI/                 终端 TUI 控件库 (19 文件)
 │   ├── ScreenManager.cs 全屏缓冲 + 弹窗菜单 + 侧栏

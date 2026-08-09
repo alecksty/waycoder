@@ -65,7 +65,7 @@ public class Program
             }
         }
 
-        if (showVersion) { Console.WriteLine("WayCoder v0.19.2 (道码)"); return 0; }
+        if (showVersion) { Console.WriteLine(Global.AppNameVersion); return 0; }
 
         // 项目初始化向导
         if (initMode) { RunInit(); return 0; }
@@ -236,7 +236,7 @@ public class Program
         };
         foreach (var line in logo)
             slot0.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = line });
-        slot0.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "WayCoder 道码 · 中文版易用编程智能体 · v0.19.2" });
+        slot0.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = $"{Global.AppFullName} · {Global.Version}" });
         slot0.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "深圳市探索智能科技有限公司" });
         slot0.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = $"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助" });
         slot0.StatusLeft = $"{_config.Model}";
@@ -1647,7 +1647,7 @@ public class Program
         wm.CloseAll();
         var sm = ScreenManager.Instance;
         sm.ChatMessages.Clear();
-        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "WayCoder v0.19.2" });
+        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = Global.AppNameVersion });
         sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "user", Content = "对比模型价格和功能" });
         sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "agent", Content = @"### 价格对比
 
@@ -1681,7 +1681,7 @@ deepseek 性价比最高。" });
 
         // 模拟输入状态+建议面板
         sm.ChatMessages.Clear();
-        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "WayCoder v0.19.2" });
+        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = Global.AppNameVersion });
         sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "user", Content = "/res" });
 
         sm.InputLines.Clear();
