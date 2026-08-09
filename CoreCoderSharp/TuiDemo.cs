@@ -52,6 +52,9 @@ public static class TuiDemo
                 "- `F7` — 长滚动菜单\n" +
                 "- `F8` — 右键快捷菜单\n" +
                 "- `F9` — Markdown 表格\n" +
+                "- `F10` — 树形视图\n" +
+                "- `F11` — 控件合集\n" +
+                "- `F12` — 面板布局\n" +
                 "- `Ctrl+D` 或 `Esc` — 退出\n" +
                 "- 输入文字后 `Enter` 发送",
                 "assistant");
@@ -99,6 +102,15 @@ public static class TuiDemo
                         return true;
                     case ConsoleKey.F9:
                         ShowTableDemo(screen);
+                        return true;
+                    case ConsoleKey.F10:
+                        ShowTreeDemo(screen);
+                        return true;
+                    case ConsoleKey.F11:
+                        ShowControlsDemo(screen);
+                        return true;
+                    case ConsoleKey.F12:
+                        ShowPanelDemo(screen);
                         return true;
                 }
 
@@ -324,5 +336,198 @@ public static class TuiDemo
             "| `gpt-5.4` | $2.50 | $10.00 | 128K |\n\n" +
             "> 💡 提示：终端宽度不足时，表格列会自动等比缩放。",
             "assistant");
+    }
+
+    /// <summary>F10 — 树形视图演示（层级目录结构）</summary>
+    private static void ShowTreeDemo(ChatScreen screen)
+    {
+        var tree = new TuiTreeView { Width = 45, Height = 14, X = 1, Y = 0 };
+
+        // 项目结构
+        var src = tree.AddRoot("📁 CoreCoderSharp", "📁");
+        var ui = new TuiTreeNode("📁 UI", "📁");
+        var controls = new TuiTreeNode("📁 TuiControls", "📁");
+        var tools = new TuiTreeNode("📁 Tools", "📁");
+        src.AddRange(ui, controls, tools);
+
+        ui.Add(new("TuiManager.cs", "📄"));
+        ui.Add(new("TuiScreen.cs", "📄"));
+        ui.Add(new("TuiWindow.cs", "📄"));
+        ui.Add(new("TuiView.cs", "📄"));
+
+        controls.Add(new("TuiButton.cs", "📄"));
+        controls.Add(new("TuiInput.cs", "📄"));
+        controls.Add(new("TuiCheckbox.cs", "📄"));
+        controls.Add(new("TuiComboBox.cs", "📄"));
+        controls.Add(new("TuiRadioGroup.cs", "📄"));
+        controls.Add(new("TuiSeekBar.cs", "📄"));
+        controls.Add(new("TuiTreeView.cs", "📄"));
+        controls.Add(new("TuiPanel.cs", "📄"));
+        controls.Add(new("TuiSeparator.cs", "📄"));
+
+        tools.Add(new("BashTool.cs", "📄"));
+        tools.Add(new("ReadFileTool.cs", "📄"));
+        tools.Add(new("WriteFileTool.cs", "📄"));
+        tools.Add(new("EditFileTool.cs", "📄"));
+
+        src.AddRange(
+            new("Program.cs", "📄"),
+            new("Agent.cs", "📄"),
+            new("Config.cs", "📄"),
+            new("SelfTest.cs", "📄")
+        );
+
+        // 展开第一层
+        src.IsExpanded = true;
+
+        tree.OnNodeActivated = node =>
+        {
+            screen.AddMessage($"📌 选中: **{node.Text}** (子节点: {node.Children.Count})", "system");
+        };
+
+        var rootView = new TuiVBox();
+        rootView.Add(tree);
+
+        var win = new TuiWindow
+        {
+            Title = "🌲 树形视图 — F10 演示",
+            RootView = rootView,
+            Width = 49, Height = 17,
+            X = 4, Y = 2,
+            Modal = true, HasMask = false,
+            Border = WindowBorder.Rounded,
+            BorderColor = 33, WinBg = 7,
+        };
+        win.RegisterShortcut(ConsoleKey.Escape, () => win.OnClosed?.Invoke());
+        screen.ShowWindow(win);
+    }
+
+    /// <summary>F11 — 控件合集演示（RadioGroup + ComboBox + SeekBar + Checkbox）</summary>
+    private static void ShowControlsDemo(ChatScreen screen)
+    {
+        // 使用 VBox 布局
+        var vbox = new TuiVBox { Width = 44, Height = 19, X = 1, Y = 0 };
+
+        // 单选按钮组
+        var radio = new TuiRadioGroup(["🔵 深海蓝", "🟢 翡翠绿", "🟠 琥珀橙", "🟣 薰衣紫"], 0)
+        { Height = 4, Width = 40 };
+        vbox.Add(radio);
+
+        vbox.Add(new TuiSeparator { Width = 42 });
+
+        // 组合框
+        var combo = new TuiComboBox(["C# (.NET 10)", "Python 3.12", "Rust 1.85", "TypeScript 5.7", "Go 1.24"], 0)
+        { Width = 36 };
+        vbox.Add(combo);
+
+        vbox.Add(new TuiSeparator { Width = 42 });
+
+        // 滑块
+        var seek = new TuiSeekBar(0, 100, 75) { Width = 40 };
+        vbox.Add(seek);
+
+        vbox.Add(new TuiSeparator { Width = 42 });
+
+        // 复选框
+        var cb1 = new TuiCheckbox("✅ 启用 AOT 编译", true);
+        var cb2 = new TuiCheckbox("✅ 启用 Watch 模式", false);
+        var cb3 = new TuiCheckbox("✅ 启用 Diff 预览", true);
+        vbox.Add(cb1);
+        vbox.Add(cb2);
+        vbox.Add(cb3);
+
+        vbox.Add(new TuiSeparator { Width = 42 });
+
+        // 按钮
+        var btn = new TuiButton("  应用设置  ") { Fg = 30, Bg = 46 };
+        btn.OnClick = () =>
+        {
+            var labels = new[] { "深海蓝", "翡翠绿", "琥珀橙", "薰衣紫" };
+            screen.AddMessage(
+                $"### ⚙️ 设置已应用\n\n" +
+                $"- 主题：**{labels[radio.SelectedIndex]}**\n" +
+                $"- 语言：**{combo.Options[combo.SelectedIndex]}**\n" +
+                $"- 音量：**{seek.Value}/100**\n" +
+                $"- AOT：**{(cb1.Checked ? "开" : "关")}**  Watch：**{(cb2.Checked ? "开" : "关")}**  Diff：**{(cb3.Checked ? "开" : "关")}**",
+                "assistant");
+        };
+        vbox.Add(btn);
+
+        var win = new TuiWindow
+        {
+            Title = "🎛️ 控件合集 — F11 演示",
+            RootView = vbox,
+            Width = 46, Height = 21,
+            X = 4, Y = 1,
+            Modal = true, HasMask = false,
+            Border = WindowBorder.Rounded,
+            BorderColor = 35, WinBg = 7,
+        };
+        win.RegisterShortcut(ConsoleKey.Escape, () => win.OnClosed?.Invoke());
+        screen.ShowWindow(win);
+        vbox.FocusNext(); // 给第一个控件焦点
+    }
+
+    /// <summary>F12 — 面板布局演示（嵌套 Panel）</summary>
+    private static void ShowPanelDemo(ChatScreen screen)
+    {
+        // 外层面板
+        var outer = new TuiPanel
+        {
+            Title = "📦 外层容器",
+            Width = 48, Height = 16,
+            X = 0, Y = 0,
+            BorderStyle = WindowBorder.Double,
+            BorderColor = 33
+        };
+
+        // 内部水平布局 — 两个并列面板
+        var left = new TuiPanel
+        {
+            Title = "📋 列表",
+            Width = 20, Height = 8,
+            X = 1, Y = 2,
+            BorderColor = 36
+        };
+        var listView = new TuiListView { Width = 17, Height = 5, X = 1, Y = 0 };
+        left.Add(listView);
+
+        var right = new TuiPanel
+        {
+            Title = "📊 进度",
+            Width = 22, Height = 8,
+            X = 23, Y = 2,
+            BorderColor = 35
+        };
+        var progressLabel = new TuiLabel("████████░░░ 67%") { X = 1, Y = 1, Fg = 32 };
+        right.Add(progressLabel);
+
+        // 底部面板
+        var bottom = new TuiPanel
+        {
+            Title = "📝 日志",
+            Width = 44, Height = 4,
+            X = 1, Y = 11,
+            BorderColor = 90
+        };
+        var log = new TuiLabel("[2026-08-09 14:32:01] ✅ 编译成功") { X = 1, Y = 0, Fg = 32 };
+        bottom.Add(log);
+
+        outer.Add(left);
+        outer.Add(right);
+        outer.Add(bottom);
+
+        var win = new TuiWindow
+        {
+            Title = "🗂️ 面板布局 — F12 演示",
+            RootView = outer,
+            Width = 50, Height = 18,
+            X = 4, Y = 1,
+            Modal = true, HasMask = false,
+            Border = WindowBorder.Rounded,
+            BorderColor = 33, WinBg = 7,
+        };
+        win.RegisterShortcut(ConsoleKey.Escape, () => win.OnClosed?.Invoke());
+        screen.ShowWindow(win);
     }
 }
