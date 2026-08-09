@@ -413,6 +413,14 @@ public class Program
                     SwitchAgentSlot(key.Key - ConsoleKey.F1, screen);
                     break;
 
+                case ConsoleKey.F11:
+                    TuiManager.Instance.PushScreen(new EditorScreen());
+                    break;
+
+                case ConsoleKey.F12:
+                    TuiManager.Instance.PushScreen(new SettingsScreen());
+                    break;
+
                 case ConsoleKey.B when ctrl:
                     screen.ActivePanel = screen.ActivePanel switch
                     {
@@ -644,7 +652,7 @@ public class Program
             slot.ChatMessages.Add(new ChatMsg
             {
                 Role = "system",
-                Content = $"🤖 Agent 槽位 F{idx + 1} — 独立会话，Ctrl+H 帮助，Ctrl+B 面板，Ctrl+O 设置，Ctrl+Q 退出",
+                Content = $"🤖 Agent 槽位 F{idx + 1} — 独立会话，F11编辑器 F12设置 Ctrl+H帮助 Ctrl+B面板 Ctrl+O设置 Ctrl+Q退出",
             });
         }
 
@@ -1094,7 +1102,7 @@ public class Program
 
     private static void ShowHelpInChat(ChatScreen screen)
     {
-        screen.AddSystemMsg("帮助: /help /reset /model /tokens /compact /diff /save /resume /history /export /sessions ... F1-F10切换Agent Ctrl+R搜索 Ctrl+M切模型 Ctrl+H帮助 Ctrl+B面板 Ctrl+O设置 Ctrl+Q退出 ↑↓历史");
+        screen.AddSystemMsg("帮助: /help /reset /model /tokens /compact /diff /save /resume /history /export /sessions ... F1-F10切换Agent F11编辑器 F12设置 Ctrl+R搜索 Ctrl+M切模型 Ctrl+H帮助 Ctrl+B面板 Ctrl+O设置 Ctrl+Q退出 ↑↓历史");
     }
     private static void ShowAboutInChat(ChatScreen screen)
     {
