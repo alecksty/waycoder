@@ -85,28 +85,27 @@ public class InputManager : IDisposable
     /// <summary>尝试解析 SGR 扩展鼠标协议 \x1b[&lt;C;X;Y M/m</summary>
     private InputEvent? TryParseMouse()
     {
-        // Non-blocking read of remaining sequence
-        if (!Console.KeyAvailable) return null;
-
-        // Read '['
+        // 等待 '[' 到达（最多 20ms）
+        if (!WaitForChar(20)) return null;
         var bracket = TTY.ReadKey();
         if (bracket.KeyChar != '[') return null;
 
-        // Read until we get the terminating character (M or m)
+        // 逐字符读取序列，每字符最多等待 10ms
         var buf = new System.Text.StringBuilder();
-        for (int i = 0; i < 30 && Console.KeyAvailable; i++)
+        for (int i = 0; i < 30; i++)
         {
+            if (!WaitForChar(10)) break;
             var ch = TTY.ReadKey();
             buf.Append(ch.KeyChar);
             if (ch.KeyChar == 'M' || ch.KeyChar == 'm') break;
-            Thread.Sleep(1); // 等待下一个字节
         }
 
         var seq = buf.ToString();
         if (seq.Length < 2) return null;
 
-        // Parse C;X;Y M/m
-        var parts = seq.TrimEnd('M', 'm').Split(';');
+        // 去掉终止符再解析 C;X;Y
+        var body = seq.TrimEnd('M', 'm');
+        var parts = body.Split(';');
         if (parts.Length < 3) return null;
 
         if (!int.TryParse(parts[0], out var code)) return null;
@@ -127,6 +126,19 @@ public class InputManager : IDisposable
             MouseButton = code,
             MouseRelease = isRelease,
         };
+    }
+
+    /// <summary>等待键盘输入到达（忙等），最多 timeoutMs 毫秒</summary>
+    private static bool WaitForChar(int timeoutMs)
+    {
+        int waited = 0;
+        while (!Console.KeyAvailable)
+        {
+            if (waited >= timeoutMs) return false;
+            Thread.Sleep(1);
+            waited++;
+        }
+        return true;
     }
 
     /// <summary>恢复终端设置</summary>

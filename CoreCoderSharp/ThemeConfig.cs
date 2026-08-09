@@ -27,9 +27,21 @@ public class ThemeConfig
     public int SelBg { get; set; } = 46;
 
     /// <summary>强制应用主题（覆盖所有窗口属性）</summary>
-    public void ApplyTo(ManagedWindow win)
+    public void ApplyTo(TuiWindow win)
     {
-        win.BorderStyle = BorderStyle;
+        win.Border = BorderStyle switch
+        {
+            "double" => WindowBorder.Double,
+            "rounded" => WindowBorder.Rounded,
+            "thick" => WindowBorder.Thick,
+            "dotted" => WindowBorder.Dotted,
+            "dashed" => WindowBorder.Dashed,
+            "ascii" => WindowBorder.Ascii,
+            "slash" => WindowBorder.Slash,
+            "triangle" => WindowBorder.Triangle,
+            "none" => WindowBorder.None,
+            _ => WindowBorder.Single,
+        };
         win.BorderColor = BorderColor;
         win.WinBg = WinBg;
         win.TitleFg = TitleFg;
@@ -164,7 +176,7 @@ public class ThemeConfig
         {
             Instance = preset;
             preset.Save();
-            try { ScreenManager.Instance.SyncTheme(); } catch { }
+            try { (TuiManager.Instance.ActiveScreen as ChatScreen)?.SyncTheme(); } catch { }
         }
     }
 }

@@ -44,12 +44,15 @@ public class RenderBuffer
     public RenderBuffer Write(int row, int col, string text, int fg = 0, int bg = 0)
     {
         MoveTo(row, col);
-        bool hasColor = fg > 0 || bg > 0;
-        if (fg > 0 && bg > 0) _sb.Append($"\x1b[{fg};{bg}m");
-        else if (fg > 0) _sb.Append($"\x1b[{fg}m");
-        else if (bg > 0) _sb.Append($"\x1b[{bg}m");
+        bool hasFg = fg > 0, hasBg = bg > 0;
+        if (hasFg && hasBg) _sb.Append($"\x1b[{fg};{bg}m");
+        else if (hasFg) _sb.Append($"\x1b[{fg}m");
+        else if (hasBg) _sb.Append($"\x1b[{bg}m");
         _sb.Append(text);
-        if (hasColor) _sb.Append("\x1b[0m");
+        // 精确重置：fg/bg 都设了才全量重置，否则只重置变更的属性
+        if (hasFg && hasBg) _sb.Append("\x1b[0m");
+        else if (hasFg) _sb.Append("\x1b[39m");  // 仅重置前景色，不动背景
+        else if (hasBg) _sb.Append("\x1b[49m");  // 仅重置背景色，不动前景
         return this;
     }
 
@@ -201,7 +204,7 @@ public class RenderBuffer
         MoveTo(row, col);
         if (bg > 0) _sb.Append($"\x1b[{bg}m");
         _sb.Append(new string(' ', count));
-        if (bg > 0) _sb.Append("\x1b[0m");
+        if (bg > 0) _sb.Append("\x1b[49m");  // 仅重置背景色，不动前景
         return this;
     }
 

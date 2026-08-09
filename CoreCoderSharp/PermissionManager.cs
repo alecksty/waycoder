@@ -58,9 +58,10 @@ public static class PermissionManager
 
         int result;
         PermissionPromptStarted?.Invoke(toolName);
-        if (ScreenManager.Instance.IsActive)
+        var activeScreen = TuiManager.Instance.ActiveScreen as ChatScreen;
+        if (activeScreen != null)
         {
-            result = ScreenManager.Instance.ShowInlinePermission(toolName, details,
+            result = activeScreen.ShowInlinePermission(toolName, details,
                 ["是 (y)", "总是允许 (a)", "否 (n)"]);
         }
         else
@@ -80,8 +81,8 @@ public static class PermissionManager
             case 0:
                 break;
             default:
-                if (ScreenManager.Instance.IsActive)
-                    ScreenManager.Instance.AddSystemMsg("已拒绝");
+                if (activeScreen != null)
+                    activeScreen.AddSystemMsg("已拒绝");
                 else
                 {
                     Console.WriteLine(AnsiText.Warn("已拒绝"));
