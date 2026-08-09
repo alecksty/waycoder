@@ -148,7 +148,7 @@ public class ChatScreen : TuiScreen
         {
             Width = TW,
             Height = TH - 4,
-            AutoScroll = true,
+            IsAutoScrollToEnd = true,
             ItemSpacing = 0
         };
         RootView.Add(ChatList);
@@ -215,7 +215,7 @@ public class ChatScreen : TuiScreen
         {
             last.AppendContent(delta);
             ChatList.ReLayout();
-            if (ChatList.AutoScroll)
+            if (ChatList.IsAutoScrollToEnd)
                 ChatList.ScrollToBottom();
         }
     }
