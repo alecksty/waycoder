@@ -273,11 +273,15 @@ public class TuiScrollView : TuiView
     public int ContentHeight { get; protected set; }
     /// <summary>当前滚动偏移（行数），0=顶部</summary>
     public int ScrollOffset { get; set; }
-    /// <summary>是否自动跟底（内容变化时自动滚到底部）</summary>
-    public bool AutoScroll { get; set; } = true;
+    /// <summary>是否自动滚到底部（内容增长时自动跟底）</summary>
+    public bool IsAutoScrollToEnd { get; set; } = true;
+    /// <summary>已弃用，请使用 IsAutoScrollToEnd</summary>
+    [Obsolete("请使用 IsAutoScrollToEnd")]
+    public bool AutoScroll { get => IsAutoScrollToEnd; set => IsAutoScrollToEnd = value; }
 
     public override void Layout()
     {
+        var prevContentHeight = ContentHeight;
         int y = 0;
         foreach (var child in Children)
         {
@@ -288,6 +292,12 @@ public class TuiScrollView : TuiView
             y += child.Height + child.Margin.Vertical;
         }
         ContentHeight = y;
+
+        // 内容增长时自动跟底
+        if (IsAutoScrollToEnd && ContentHeight > prevContentHeight)
+        {
+            ScrollOffset = Math.Max(0, ContentHeight - Height);
+        }
     }
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)
@@ -318,7 +328,7 @@ public class TuiScrollView : TuiView
     /// <summary>向上滚动</summary>
     public void ScrollUp(int lines = 1)
     {
-        AutoScroll = false;
+        IsAutoScrollToEnd = false;
         ScrollOffset = Math.Max(0, ScrollOffset - lines);
     }
 
@@ -329,7 +339,7 @@ public class TuiScrollView : TuiView
         if (ScrollOffset + lines >= maxScroll)
         {
             ScrollOffset = maxScroll;
-            AutoScroll = true;
+            IsAutoScrollToEnd = true;
         }
         else
         {
@@ -338,16 +348,16 @@ public class TuiScrollView : TuiView
     }
 
     /// <summary>滚到顶部</summary>
-    public void ScrollToTop() { ScrollOffset = 0; AutoScroll = false; }
+    public void ScrollToTop() { ScrollOffset = 0; IsAutoScrollToEnd = false; }
 
     /// <summary>滚到底部</summary>
-    public void ScrollToBottom() { ScrollOffset = Math.Max(0, ContentHeight - Height); AutoScroll = true; }
+    public void ScrollToBottom() { ScrollOffset = Math.Max(0, ContentHeight - Height); IsAutoScrollToEnd = true; }
 
     /// <summary>添加子控件后自动跟底</summary>
     public override void Add(TuiControl child)
     {
         base.Add(child);
-        if (AutoScroll)
+        if (IsAutoScrollToEnd)
             ScrollToBottom();
     }
 
@@ -355,7 +365,7 @@ public class TuiScrollView : TuiView
     public void RefreshLayout()
     {
         Layout();
-        if (AutoScroll)
+        if (IsAutoScrollToEnd)
             ScrollToBottom();
     }
 
