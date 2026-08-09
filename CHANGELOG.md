@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.19.3 (2026-08-09) — 稳定性修复 + 控制台安全
+
+### 🐛 修复
+- **控制台无句柄崩溃**: `TTY.Cols`/`TTY.Rows` 属性在无真实控制台（管道/重定向/CI）时捕获 `IOException` 返回安全默认值 80×24，全局替换 8 个文件中 22 处直接 `Console.WindowWidth/Height` 调用
+- **语义记忆文档拆分失败**: `ParseDocuments` 增加 `\r\n` → `\n` 规范化，修复 Windows 换行符下 `---` 分割线无法识别的问题
+- **项目检测递归查找**: `DetectBuildTools`/`DetectFrameworks` 改用 `SafeGetFiles` 递归搜索 `.csproj`，修复 git 根目录下子目录项目无法检测到 dotnet/.NET SDK 的问题
+- **自测参数越界崩溃**: 语义记忆测试访问 `docs[1]` 前增加 `Count >= 2` 守卫，避免拆分失败时 `ArgumentOutOfRangeException`
+
+### 📝 自测: 705/705
+
 ## v0.19.2 (2026-08-09) — 多 Agent 工作区（F1-F10）
 
 ### 🔥 新增

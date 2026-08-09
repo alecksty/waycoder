@@ -173,12 +173,12 @@ public static class ProjectContext
             catch { }
         }
 
-        if (Directory.GetFiles(root, "*.csproj").Length > 0)
+        var csprojFiles = SafeGetFiles(root, 100).Where(f => f.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (csprojFiles.Count > 0)
         {
             try
             {
-                var csproj = Directory.GetFiles(root, "*.csproj").First();
-                var content = File.ReadAllText(csproj);
+                var content = File.ReadAllText(csprojFiles.First());
                 if (content.Contains("Microsoft.NET.Sdk.Web")) frameworks.Add("ASP.NET Core");
                 if (content.Contains("Microsoft.NET.Sdk")) frameworks.Add(".NET SDK");
                 if (content.Contains("Microsoft.NET.Sdk.Blazor")) frameworks.Add("Blazor");
@@ -204,7 +204,7 @@ public static class ProjectContext
     {
         var tools = new List<string>();
         if (File.Exists(Path.Combine(root, "Makefile"))) tools.Add("make");
-        if (Directory.GetFiles(root, "*.csproj").Length > 0) tools.Add("dotnet");
+        if (SafeGetFiles(root, 100).Any(f => f.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))) tools.Add("dotnet");
         if (File.Exists(Path.Combine(root, "package.json"))) tools.Add("npm/yarn/pnpm");
         if (File.Exists(Path.Combine(root, "go.mod"))) tools.Add("go");
         if (File.Exists(Path.Combine(root, "Cargo.toml"))) tools.Add("cargo");
