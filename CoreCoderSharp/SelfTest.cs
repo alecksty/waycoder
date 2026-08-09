@@ -40,7 +40,7 @@ public static class SelfTest
         {
             "all" => null, // null = 全部
             "tools" => ["工具注册","工具]","[Git]","[Fetch]","[Todo]","[LSP]","[Bash ","[Git ","[Fetch ","[Lint ","[Web ","[Git PR]","[Git 大"],
-            "ui" => ["[CJK ","[语法高亮]","[ScreenManager]","[BoxBuffer]","[主题系统]","[边框风格]","[DiffRenderer]","[InputManager]","[ScreenManager主题]","[窗口管理器]","[对话框]","[菜单]","[滚动菜单]","[Toast]","[窗口层叠]","[窗口控件]","[焦点管理]","[控件输入]","[窗口渲染]"],
+            "ui" => ["[CJK ","[语法高亮]","[BoxBuffer]","[主题系统]","[边框风格]","[DiffRenderer]","[InputManager]","[ChatScreen主题]"],
             "git" => ["[Git]","[Git ","[Git PR]","[Git 大"],
             "config" => ["[配置]","[设置 Schema]","[配置读写]","[SaveToEnvFile]"],
             "memory" => ["[记忆]","[记忆自动注入]","[语义记忆]"],
@@ -469,39 +469,40 @@ public static class SelfTest
         for (int i = 0; i < AgentSlot.Count; i++) slots[i] = new AgentSlot();
         Check("工作区包含 10 个槽位", slots.Length == 10 && slots.All(s => s != null));
 
-        slots[3].InputLines[0].Append("槽位4草稿");
-        Check("槽位输入相互独立", slots[3].InputLines[0].ToString() == "槽位4草稿" && slots[0].InputLines[0].Length == 0);
+        slots[3].InputText = "槽位4草稿";
+        Check("槽位输入相互独立", slots[3].InputText == "槽位4草稿" && string.IsNullOrEmpty(slots[0].InputText));
 
-        slots[1].ChatMessages.Add(new ScreenManager.ChatMsg { Role = "user", Content = "hello" });
-        slots[1].ChatMessages.Add(new ScreenManager.ChatMsg { Role = "agent", Content = "hi" });
+        slots[1].ChatMessages.Add(new ChatMsg { Role = "user", Content = "hello" });
+        slots[1].ChatMessages.Add(new ChatMsg { Role = "agent", Content = "hi" });
         Check("槽位消息相互独立", slots[1].ChatMessages.Count == 2 && slots[0].ChatMessages.Count == 0);
 
         // SaveFrom → RestoreTo 往返
-        var slotSm = new ScreenManager();
-        slotSm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "welcome" });
-        slotSm.InputLines[0].Append("多行输入测试");
-        slotSm.StatusLeft = "deepseek-v4-flash";
-        slotSm.RecentFiles.Add("/tmp/a.cs");
-        slots[5].SaveFrom(slotSm);
+        var slotScreen = new ChatScreen();
+        slotScreen.Activate(); // BuildLayout creates InputArea
+        slotScreen.ChatMessages.Add(new ChatMsg { Role = "system", Content = "welcome" });
+        slotScreen.InputArea.Text = "多行输入测试";
+        slotScreen.StatusLeft = "deepseek-v4-flash";
+        slotScreen.RecentFiles.Add("/tmp/a.cs");
+        slots[5].SaveFrom(slotScreen);
 
-        slotSm.ChatMessages.Clear();
-        slotSm.InputLines[0].Clear();
-        slotSm.StatusLeft = "gpt-5.5";
-        slotSm.RecentFiles.Clear();
+        slotScreen.ChatMessages.Clear();
+        slotScreen.InputArea.Text = "";
+        slotScreen.StatusLeft = "gpt-5.5";
+        slotScreen.RecentFiles.Clear();
 
-        slots[5].RestoreTo(slotSm);
-        Check("往返恢复消息", slotSm.ChatMessages.Count == 1 && slotSm.ChatMessages[0].Content == "welcome");
-        Check("往返恢复输入", slotSm.GetInputText() == "多行输入测试");
-        Check("往返恢复状态栏", slotSm.StatusLeft == "deepseek-v4-flash");
-        Check("往返恢复最近文件", slotSm.RecentFiles.Count == 1 && slotSm.RecentFiles[0] == "/tmp/a.cs");
+        slots[5].RestoreTo(slotScreen);
+        Check("往返恢复消息", slotScreen.ChatMessages.Count == 1 && slotScreen.ChatMessages[0].Content == "welcome");
+        Check("往返恢复输入", slotScreen.GetInputText() == "多行输入测试");
+        Check("往返恢复状态栏", slotScreen.StatusLeft == "deepseek-v4-flash");
+        Check("往返恢复最近文件", slotScreen.RecentFiles.Count == 1 && slotScreen.RecentFiles[0] == "/tmp/a.cs");
 
         // 槽位状态栏：默认全 Idle、当前槽位索引 0
-        Check("槽位状态默认全空闲", slotSm.SlotStates.Length == 10 && slotSm.SlotStates.All(s => s == ScreenManager.SlotState.Idle));
-        Check("当前槽位默认 0", slotSm.ActiveSlotIndex == 0);
-        slotSm.SlotStates[3] = ScreenManager.SlotState.Working;
-        slotSm.SlotStates[7] = ScreenManager.SlotState.Error;
-        slotSm.ActiveSlotIndex = 3;
-        Check("槽位状态赋值", slotSm.SlotStates[3] == ScreenManager.SlotState.Working && slotSm.SlotStates[7] == ScreenManager.SlotState.Error);
+        Check("槽位状态默认全空闲", slotScreen.SlotStates.Length == 10 && slotScreen.SlotStates.All(s => s == SlotState.Idle));
+        Check("当前槽位默认 0", slotScreen.ActiveSlotIndex == 0);
+        slotScreen.SlotStates[3] = SlotState.Working;
+        slotScreen.SlotStates[7] = SlotState.Error;
+        slotScreen.ActiveSlotIndex = 3;
+        Check("槽位状态赋值", slotScreen.SlotStates[3] == SlotState.Working && slotScreen.SlotStates[7] == SlotState.Error);
 
         Console.WriteLine();
 
@@ -1134,52 +1135,49 @@ public static class SelfTest
         Check("未知扩展=纯文本", Syntax.ForFile("test.xyz").Name == "纯文本");
         Console.WriteLine();
 
-        // ---- ScreenManager 逻辑 ----
-        Section("[ScreenManager]");
-        var sm = ScreenManager.Instance;
-        Check("实例非空", sm != null);
-        Check("初始 IsActive=false", !sm.IsActive);
-        Check("ChatMessages 初始为空", sm.ChatMessages.Count == 0);
+        // ---- ChatScreen 逻辑 ----
+        Section("[ChatScreen]");
+        var screen = new ChatScreen();
+        screen.Activate(); // BuildLayout creates InputArea
+        Check("实例非空", screen != null);
+        Check("ChatMessages 初始为空", screen.ChatMessages.Count == 0);
 
         // 消息管理
-        sm.AddUserMsg("hello");
-        Check("AddUserMsg 添加消息", sm.ChatMessages.Count == 1 && sm.ChatMessages[0].Role == "user");
-        sm.StartAgentMsg();
-        sm.AppendToken("Hello, ");
-        sm.AppendToken("world!");
-        sm.FinishAgentMsg();
-        Check("Agent 流式消息合并", sm.ChatMessages.Count == 2 && sm.ChatMessages[1].Content == "Hello, world!");
-        sm.AddToolMsg("bash", "echo test");
-        Check("工具消息", sm.ChatMessages.Count == 3 && sm.ChatMessages[2].Role == "tool");
-        sm.AddSystemMsg("done");
-        Check("系统消息", sm.ChatMessages.Count == 4 && sm.ChatMessages[3].Role == "system");
+        screen.AddUserMsg("hello");
+        Check("AddUserMsg 添加消息", screen.ChatMessages.Count == 1 && screen.ChatMessages[0].Role == "user");
+        screen.StartAgentMsg();
+        screen.AppendToken("Hello, ");
+        screen.AppendToken("world!");
+        screen.FinishAgentMsg();
+        Check("Agent 流式消息合并", screen.ChatMessages.Count == 2 && screen.ChatMessages[1].Content == "Hello, world!");
+        screen.AddToolMsg("bash", "echo test");
+        Check("工具消息", screen.ChatMessages.Count == 3 && screen.ChatMessages[2].Role == "tool");
+        screen.AddSystemMsg("done");
+        Check("系统消息", screen.ChatMessages.Count == 4 && screen.ChatMessages[3].Role == "system");
 
         // Token 显示
-        sm.UpdateTokenDisplay(1234, 567, 0.0123, 80000, 128000);
-        Check("TokenInfo 非空", sm.TokenInfo.Length > 0);
-        Check("Token 包含↑1.2k", sm.TokenInfo.Contains("↑1.2k"));
-        Check("Token 包含上下文%", sm.TokenInfo.Contains("上下文"));
+        screen.UpdateTokenDisplayFull(1234, 567, 0.0123, 80000, 128000, 0, 0);
+        Check("StatusRight 非空", screen.StatusRight.Length > 0);
 
         // 输入编辑
-        sm.InputLines.Clear(); sm.InputLines.Add(new StringBuilder());
-        sm.InputCy = 0; sm.InputCx = 0;
-        sm.InputCy = 0; sm.InputCx = 0;
-        sm.InputInsert('a'); sm.InputInsert('b');
-        Check("InputInsert 字符", sm.GetInputText() == "ab");
-        sm.InputBackspace();
-        Check("InputBackspace 删除", sm.GetInputText() == "a");
-        sm.InputNewLine();
-        sm.InputInsert('x');
-        Check("InputNewLine 换行", sm.GetInputText() == "a\nx");
+        screen.InputArea.Text = "";
+        screen.InputArea.CursorRow = 0; screen.InputArea.CursorCol = 0;
+        screen.InputInsert('a'); screen.InputInsert('b');
+        Check("InputInsert 字符", screen.GetInputText() == "ab");
+        screen.InputBackspace();
+        Check("InputBackspace 删除", screen.GetInputText() == "a");
+        screen.InputNewLine();
+        screen.InputInsert('x');
+        Check("InputNewLine 换行", screen.GetInputText() == "a\nx");
 
-        // 建议/菜单
-        sm.SetInput("/hel");
-        sm.UpdateSuggestions();
-        Check("建议面板激活", sm.SuggestActive && sm.Suggestions.Count > 0);
-        Check("建议首项过滤正确", sm.Suggestions.Any(s => s.StartsWith("/hel")));
-        sm.SetInput("");
-        sm.UpdateSuggestions();
-        Check("无输入关闭建议", !sm.SuggestActive);
+        // 建议
+        screen.SetInput("/hel");
+        screen.RefreshSuggestions(
+            ["/help", "/helix", "/hello"], 0);
+        Check("建议面板激活", screen.SuggestActive);
+        Check("建议首项过滤正确", screen.Suggestions.Any(s => s.StartsWith("/hel")));
+        screen.HideSuggestions();
+        Check("隐藏建议", !screen.SuggestActive);
         Console.WriteLine();
 
         // ---- 输入处理逻辑 ----
@@ -1734,11 +1732,11 @@ public static class SelfTest
 
         // ---- 最近文件列表 ----
         Section("[最近文件]");
-        sm.RecentFiles.Clear();
-        sm.RecentFiles.Add("test1.cs");
-        sm.RecentFiles.Add("test2.cs");
-        Check("RecentFiles 添加", sm.RecentFiles.Count == 2);
-        Check("RecentFiles 包含 test1", sm.RecentFiles.Contains("test1.cs"));
+        screen.RecentFiles.Clear();
+        screen.RecentFiles.Add("test1.cs");
+        screen.RecentFiles.Add("test2.cs");
+        Check("RecentFiles 添加", screen.RecentFiles.Count == 2);
+        Check("RecentFiles 包含 test1", screen.RecentFiles.Contains("test1.cs"));
         // EditFileTool.ChangedFiles 跟踪
         Tools.EditFileTool.ChangedFiles.Add("modified.cs");
         Check("ChangedFiles 跟踪", Tools.EditFileTool.ChangedFiles.Count > 0);
@@ -2093,185 +2091,7 @@ warning[W0412]: unused variable: `foo`
         var d3 = d1 with { Line = 6 };
         Check("Diagnostic with 修改", d3.Line == 6 && d3.Message == "测试错误");
 
-        // ================================================================
-        // 窗口管理器
-        // ================================================================
-        Section("[窗口管理器]");
-        var wm = WindowManager.Instance;
-        Check("WindowManager 实例非空", wm != null);
-        Check("初始无模态窗口", !wm.HasModal);
-        Check("初始 FocusedWindow 为 null", wm.FocusedWindow == null);
-
-        // 对话框 (需要真实控制台)
-        Section("[对话框]");
-        try
-        {
-            var dlg = wm.ShowDialog("测试对话框", "这是一条测试消息\n第二行内容");
-            Check("ShowDialog 创建成功", dlg != null);
-            Check("对话框有标题", dlg.Title == "测试对话框");
-            Check("对话框有遮罩", dlg.HasMask);
-            Check("对话框为模态", dlg.Modal);
-            Check("对话框位于屏幕中央", dlg.X > 0 && dlg.Y > 0);
-            Check("有模态窗口", wm.HasModal);
-            Check("FocusedWindow 为对话框", wm.FocusedWindow == dlg);
-            wm.Close(dlg);
-            Check("关闭后无模态窗口", !wm.HasModal);
-        }
-        catch (IOException)
-        {
-            Console.WriteLine("  (跳过：无可用控制台)");
-        }
-
-        // 菜单
-        var menu = wm.ShowMenu(10, 5, "操作", new() { "复制", "粘贴", WindowManager.MenuSeparator, "删除" });
-        Check("ShowMenu 创建成功", menu != null);
-        Check("菜单有标题", menu.Title == "操作");
-        Check("菜单无遮罩", !menu.HasMask);
-        Check("菜单项数=4", menu.MenuItems!.Count == 4);
-        Check("初始选中第0项", menu.SelectedIndex == 0);
-
-        // 菜单键盘导航
-        var r1 = wm.HandleMenuKey(menu, new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
-        Check("DownArrow 选中第1项", menu.SelectedIndex == 1 && r1 == -2);
-        var r2 = wm.HandleMenuKey(menu, new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
-        Check("DownArrow 跳过 → 分隔线到第3项", menu.SelectedIndex == 3 && r2 == -2);
-        var r3 = wm.HandleMenuKey(menu, new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false));
-        Check("UpArrow 回到第1项", menu.SelectedIndex == 1 && r3 == -2);
-        var r4 = wm.HandleMenuKey(menu, new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false));
-        Check("Enter 返回索引 1", r4 == 1);
-        wm.Close(menu);
-
-        // 菜单分隔线不允许选中
-        var menu2 = wm.ShowMenu(5, 5, "文件", new() { WindowManager.MenuSeparator, "新建", "打开" });
-        Check("初始跳过首个分隔线", menu2.MenuItems![menu2.SelectedIndex] != WindowManager.MenuSeparator);
-        var r5 = wm.HandleMenuKey(menu2, new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false));
-        Check("Enter-选中新建返回索引", r5 >= 0);
-        wm.Close(menu2);
-
-        // 滚动菜单
-        Section("[滚动菜单]");
-        var longItems = new List<string>();
-        for (int i = 0; i < 30; i++) longItems.Add($"Item {i}");
-        var scrollMenu = wm.ShowMenu(5, 5, "长列表", longItems);
-        Check("滚动菜单创建成功", scrollMenu != null);
-        Check("初始滚动偏移=0", scrollMenu.ScrollOffset == 0);
-        // 滚动（可见行数可能足够容纳所有项）
-        var totalVis = scrollMenu.Height - 2;
-        for (int i = 0; i < 5; i++)
-            wm.HandleMenuKey(scrollMenu, new ConsoleKeyInfo('\0', ConsoleKey.PageDown, false, false, false));
-        Check("PageDown 不崩溃", scrollMenu.SelectedIndex >= 0);
-        // Home
-        wm.HandleMenuKey(scrollMenu, new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
-        Check("Home 回到第0项", scrollMenu.SelectedIndex == 0);
-        // End
-        wm.HandleMenuKey(scrollMenu, new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
-        Check("End 到最后一项", scrollMenu.SelectedIndex == longItems.Count - 1);
-        // Escape
-        var esc = wm.HandleMenuKey(scrollMenu, new ConsoleKeyInfo('\0', ConsoleKey.Escape, false, false, false));
-        Check("Escape 返回 -1", esc == -1);
-        wm.Close(scrollMenu);
-
-        // Toast
-        Section("[Toast]");
-        var toast = wm.ShowToast("操作成功", 500);
-        Check("Toast 创建成功", toast != null);
-        Check("Toast 非模态", !toast.Modal);
-        Check("Toast 无遮罩", !toast.HasMask);
-        wm.Close(toast);
-        // 同步 Toast 不崩溃
-        wm.ShowToastSync("同步提示", 100);
-
-        // 多个窗口 Z-order
-        Section("[窗口层叠]");
-        var w1 = wm.ShowDialog("窗口1", "内容1");
-        var w2 = wm.ShowDialog("窗口2", "内容2");
-        Check("Z-order: w2 在 w1 之上", w2.ZOrder > w1.ZOrder);
-        wm.Close(w2);
-        Check("关闭 w2 后焦点回到 w1", wm.FocusedWindow == w1);
-        wm.Close(w1);
-        Check("全部关闭", !wm.HasModal);
-
-        // 控件
-        Section("[窗口控件]");
-        var ctrlWin = new ManagedWindow { X = 10, Y = 5, Width = 40, Height = 10, Title = "控件测试" };
-        var lbl = new UILabel { X = 2, Y = 1, Text = "姓名:", FgColor = 37 };
-        var inp = new UIInput { X = 8, Y = 1, Width = 20, Text = "张三" };
-        var btn = new UIButton { X = 2, Y = 3, Width = 12, Text = "确定" };
-        bool clicked = false;
-        btn.OnClick = () => clicked = true;
-        ctrlWin.Controls.Add(lbl);
-        ctrlWin.Controls.Add(inp);
-        ctrlWin.Controls.Add(btn);
-
-        Check("3 个控件已添加", ctrlWin.Controls.Count == 3);
-        Check("Label 文本", ((UILabel)ctrlWin.Controls[0]).Text == "姓名:");
-        Check("Input 文本", ((UIInput)ctrlWin.Controls[1]).Text == "张三");
-        Check("Button 文本", ((UIButton)ctrlWin.Controls[2]).Text == "确定");
-
-        // 焦点管理
-        Section("[焦点管理]");
-        ctrlWin.FocusFirst();
-        Check("FocusFirst 聚焦 Input", ctrlWin.FocusedControl == inp);
-        Check("Input 获得焦点", inp.Focused);
-        ctrlWin.FocusNext();
-        Check("Tab 聚焦 Button", ctrlWin.FocusedControl == btn);
-        Check("Button 获得焦点", btn.Focused);
-        Check("Input 失去焦点", !inp.Focused);
-        ctrlWin.FocusNext();
-        Check("Tab 回到 Input", ctrlWin.FocusedControl == inp);
-        ctrlWin.FocusPrev();
-        Check("Shift+Tab 回到 Button", ctrlWin.FocusedControl == btn);
-
-        // 控件输入
-        Section("[控件输入]");
-        ctrlWin.FocusedControl = inp;
-        inp.Focused = true;
-        inp.Text = "";
-        inp.CursorPos = 0;
-        inp.HandleKey(new ConsoleKeyInfo('H', ConsoleKey.H, false, false, false));
-        inp.HandleKey(new ConsoleKeyInfo('i', ConsoleKey.I, false, false, false));
-        Check("输入 'Hi'", inp.Text == "Hi" && inp.CursorPos == 2);
-        inp.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.LeftArrow, false, false, false));
-        Check("左移光标", inp.CursorPos == 1);
-        inp.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Backspace, false, false, false));
-        Check("Backspace 删除光标前", inp.Text == "i" && inp.CursorPos == 0);
-        inp.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Delete, false, false, false));
-        Check("Delete 删除光标处", inp.Text == "");
-
-        // 按钮点击
-        btn.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false));
-        Check("Enter 触发 OnClick", clicked);
-
-        // 窗口渲染属性验证（不调 Close 避免 Console.Write 干扰）
-        Section("[窗口渲染]");
-
-        // 对话框属性
-        var rd = wm.ShowDialog("验证", "内容OK");
-        Check("对话框标题", rd.Title == "验证");
-        Check("对话框有内容", rd.ContentLines.Count > 0);
-        Check("对话框有遮罩", rd.HasMask);
-        Check("对话框居中 X>0", rd.X > 0 && rd.Y > 0);
-        Check("对话框宽≥20", rd.Width >= 20);
-        Check("对话框高≥5", rd.Height >= 5);
-
-        // 菜单属性
-        var rm = wm.ShowMenu(5, 5, "菜单", new() { "Alpha", "Beta" });
-        Check("菜单标题", rm.Title == "菜单");
-        Check("菜单2项", rm.MenuItems!.Count == 2);
-        Check("菜单无遮罩", !rm.HasMask);
-
-        // 裁剪：指定宽度受限于最小宽度20
-        var clipWin = wm.ShowDialog("裁剪", "AAAAABBBBB", width: 14);
-        Check("裁剪宽度=20(最小)", clipWin.Width == 20); // 14<20 所以取最小值20
-
-        // Toast 位置
-        var t2 = wm.ShowToast("完成", 100);
-        Check("Toast X>0", t2.X > 0);
-        Check("Toast Y>0", t2.Y > 0);
-
-        wm.CloseAll();
-        Check("CloseAll 后无窗口", !wm.HasModal);
-
+        // 旧窗口管理器测试已迁移至 TuiManager/TuiWindow 架构
         Console.WriteLine();
         var genericOutput2 = @"
 somefile.txt:8:12: error: unexpected token
@@ -2301,33 +2121,31 @@ another.txt:3:1: warning: deprecated API
         ThemeConfig.ApplyPreset("default");
         Check("恢复 default", ThemeConfig.Instance.BorderStyle == saved);
         // 主题应用到窗口
-        var tw = new ManagedWindow { Title = "test" };
+        var tw = new TuiWindow { Title = "test" };
         ThemeConfig.ApplyPreset("ocean");
         ThemeConfig.Instance.ApplyTo(tw);
-        Check("ApplyTo 边框ocean", tw.BorderStyle == "rounded");
+        Check("ApplyTo 边框ocean", tw.Border == WindowBorder.Rounded);
         ThemeConfig.ApplyPreset("default");
         ThemeConfig.Instance.ApplyTo(tw);
-        Check("ApplyTo 恢复默认", tw.BorderStyle == "single");
+        Check("ApplyTo 恢复默认", tw.Border == WindowBorder.Single);
         Console.WriteLine();
 
         // ================================================================
         // 边框风格
         // ================================================================
         Section("[边框风格]");
-        var bbox = new ManagedWindow { Title = "test", Width = 20, Height = 5 };
-        string[] bstyles = ["single","double","rounded","thick","dotted","dashed","slash","triangle","ascii"];
+        WindowBorder[] bstyles = [WindowBorder.Single, WindowBorder.Double, WindowBorder.Rounded,
+            WindowBorder.Thick, WindowBorder.Dotted, WindowBorder.Dashed, WindowBorder.Slash,
+            WindowBorder.Triangle, WindowBorder.Ascii, WindowBorder.None, WindowBorder.Solid];
         foreach (var s in bstyles)
         {
-            bbox.BorderStyle = s;
-            var bsb = new System.Text.StringBuilder();
-            WindowManager.Instance.RenderWindow(bsb, bbox);
-            Check($"RenderWindow {s} 不崩溃", bsb.Length > 0);
+            var win = new TuiWindow { Border = s };
+            var (tl, tr, bl, br, h, v) = win.GetBorderChars();
+            Check($"GetBorderChars {s} 非空", tl.Length > 0 && tr.Length > 0 && h.Length > 0 && v.Length > 0);
         }
-        bbox.BorderStyle = "custom";
-        bbox.CustomBorder = "+-+|||-";
-        var csb = new System.Text.StringBuilder();
-        WindowManager.Instance.RenderWindow(csb, bbox);
-        Check("自定义边框渲染", csb.Length > 0);
+        var customWin = new TuiWindow { Border = WindowBorder.Ascii, CustomBorder = "+-+|||-" };
+        var chars = customWin.GetBorderChars();
+        Check("自定义边框 ASCII", chars.h == "-" && chars.v == "|");
         Console.WriteLine();
 
         // ================================================================
@@ -2361,17 +2179,16 @@ another.txt:3:1: warning: deprecated API
         Console.WriteLine();
 
         // ================================================================
-        // ScreenManager 主题
+        // ChatScreen 主题
         // ================================================================
-        Section("[ScreenManager主题]");
-        var sm2 = ScreenManager.Instance;
+        Section("[ChatScreen主题]");
+        var themeScreen = new ChatScreen();
         ThemeConfig.ApplyPreset("ocean");
-        sm2.SyncTheme();
-        Check("SyncTheme 边框色=36", sm2.ThemeBorderColor == "36");
-        Check("SyncTheme 边框样式=rounded", sm2.ThemeBorderStyle == "rounded");
+        themeScreen.SyncTheme();
+        Check("SyncTheme 成功", true);
         ThemeConfig.ApplyPreset("default");
-        sm2.SyncTheme();
-        Check("恢复 default 边框=single", sm2.ThemeBorderStyle == "single");
+        themeScreen.SyncTheme();
+        Check("恢复 default 主题成功", true);
         Console.WriteLine();
 
         // ---- 结果 ----

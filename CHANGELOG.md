@@ -1,5 +1,39 @@
 # 更新日志
 
+## v0.20.0 (2026-08-09) — 五层 TUI 架构全面接入 REPL
+
+### 🔥 重大变更
+
+**五层 TUI 架构** (`UI/TuiManager.cs` → `TuiScreen` → `TuiWindow` → `TuiView` → `TuiControl`)
+- 树状场景图替代旧扁平 ScreenManager，每层职责清晰：Manager 管屏幕栈、Screen 管布局、Window 管浮层、View 管排版、Control 管交互
+- 递归布局引擎（`VBox.Layout` / `HBox.Layout` 递归嵌套视图，精确 fillBg 背景色填充）
+- 统一的 `MarkDirty` 脏标记 + 按需重绘，`HandleKey` 键盘事件沿树冒泡
+
+**TUI 控件库** (`UI/TuiControls/`)
+- `TuiButton` / `TuiInput` / `TuiTextArea` / `TuiLabel` / `TuiList` / `TuiListView` / `TuiMarkdown` / `TuiDialog` / `TuiGrid` / `TuiProgress` / `TuiSpinner` / `TuiBanner` / `TuiCheckbox` / `TuiTabs` / `TuiIcon`
+- `TuiDialog` 静态工厂：`Info/Warn/Error/Success/Confirm/Select/Permission/Input` 基于回调的 API，`ManualResetEventSlim` 阻塞包装器适配 REPL 同步流程
+- `TuiListView` 滚动列表，`TuiMarkdown` 完整 Markdown 渲染，`TuiProgress` 进度条
+
+**ChatScreen** (`UI/TuiScreens/ChatScreen.cs`)
+- 完整 REPL 屏：欢迎横幅 + 聊天列表（TuiListView → TuiMarkdown 项）+ 多行输入区（TuiTextArea）+ 状态栏（槽位/Token/Git）+ 建议面板
+- 流式输出：`StartAgentMsg()` → `AppendToken()` → `FinishAgentMsg()` 实时追加
+- 对话框包装器：`ShowInlinePermission()` / `ShowMenu()` / `ShowTextPrompt()` 阻塞等待 + 渲染循环
+
+### 🗑️ 移除
+- **`UI/ScreenManager.cs`** (1458 行) — 旧全屏 TUI 管理器，功能全部迁移到新架构
+- **`UI/WindowManager.cs`** (807 行) — 旧窗口管理器 + `ManagedWindow`/`UILabel`/`UIButton`/`UIInput` 旧控件体系
+
+### ✨ 改进
+- **Program.cs REPL 循环重写** — `ScreenManager.Instance` → `TuiManager.Instance` + `ChatScreen`，~100+ 处 `sm.` 调用迁移到新 API
+- **PermissionManager** — `ShowInlinePermission` 改用 `ChatScreen.ShowInlinePermission()`（TuiDialog.Permission 包装器）
+- **AgentSlot** — `SaveFrom`/`RestoreTo` 适配 `ChatScreen`（ChatMessages/InputArea/RecentFiles）
+- **DiffPreview** — 移除无效 `ScreenManager.Instance` 引用（ShowFullScreen 实为独立 Console UI）
+- **SettingsPage** — 独立全屏 Console UI，TUI 模式下临时 Exit/Enter
+- **ThemeConfig** — `ApplyTo(ManagedWindow)` → `ApplyTo(TuiWindow)`，字符串边框映射到 `WindowBorder` 枚举
+- **Editor/TuiTable/TuiBox** — `ScreenManager.Instance` 引用替换为 `TuiManager.Instance.ActiveScreen as ChatScreen`
+
+### 📝 自测: 639/639
+
 ## v0.19.3 (2026-08-09) — 稳定性修复 + 控制台安全
 
 ### 🐛 修复

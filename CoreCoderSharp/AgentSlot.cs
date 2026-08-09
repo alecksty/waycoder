@@ -15,59 +15,68 @@ public class AgentSlot
     public Agent? Agent { get; set; }
 
     // ---- 独立屏幕状态 ----
-    public List<ScreenManager.ChatMsg> ChatMessages { get; } = [];
-    public List<StringBuilder> InputLines { get; } = [new()];
-    public int InputCy, InputCx, InputScroll;
+    public List<ChatMsg> ChatMessages { get; } = [];
+    public string InputText { get; set; } = "";
+    public int InputCursorRow, InputCursorCol;
     public string StatusLeft = "";
     public string StatusRight = "";
     public string TokenInfo = "";
     public string? GitBranch;
     public List<string> RecentFiles { get; } = [];
-    public ScreenManager.PanelTab ActivePanel;
+    public PanelTab ActivePanel;
 
     /// <summary>是否已显示欢迎屏（每个槽位首次激活时显示一次）</summary>
     public bool HasWelcome { get; set; }
 
     /// <summary>
-    /// 从 ScreenManager 快照当前 UI 状态到本槽位。
-    /// 注意：ChatMessages/InputLines 按值拷贝（不共享引用）。
+    /// 从 ChatScreen 快照当前 UI 状态到本槽位。
     /// </summary>
-    public void SaveFrom(ScreenManager sm)
+    public void SaveFrom(ChatScreen screen)
     {
         ChatMessages.Clear();
-        ChatMessages.AddRange(sm.ChatMessages);
-        InputLines.Clear();
-        InputLines.AddRange(sm.InputLines.Select(l => new StringBuilder(l.ToString())));
-        InputCy = sm.InputCy;
-        InputCx = sm.InputCx;
-        InputScroll = sm.InputScroll;
-        StatusLeft = sm.StatusLeft;
-        StatusRight = sm.StatusRight;
-        TokenInfo = sm.TokenInfo;
-        GitBranch = sm.GitBranch;
+        ChatMessages.AddRange(screen.ChatMessages);
+        InputText = screen.InputArea.Text;
+        InputCursorRow = screen.InputArea.CursorRow;
+        InputCursorCol = screen.InputArea.CursorCol;
+        StatusLeft = screen.StatusLeft;
+        StatusRight = screen.StatusRight;
+        TokenInfo = screen.StatusRight;
+        GitBranch = screen.GitBranch;
         RecentFiles.Clear();
-        RecentFiles.AddRange(sm.RecentFiles);
-        ActivePanel = sm.ActivePanel;
+        RecentFiles.AddRange(screen.RecentFiles);
+        ActivePanel = screen.ActivePanel;
     }
 
-    /// <summary>将本槽位状态恢复到 ScreenManager（切换回该槽位时调用）</summary>
-    public void RestoreTo(ScreenManager sm)
+    /// <summary>将本槽位状态恢复到 ChatScreen（切换回该槽位时调用）</summary>
+    public void RestoreTo(ChatScreen screen)
     {
-        sm.ChatMessages.Clear();
-        sm.ChatMessages.AddRange(ChatMessages);
-        sm.InputLines.Clear();
-        sm.InputLines.AddRange(InputLines.Select(l => new StringBuilder(l.ToString())));
-        sm.InputCy = InputCy;
-        sm.InputCx = InputCx;
-        sm.InputScroll = InputScroll;
-        sm.StatusLeft = StatusLeft;
-        sm.StatusRight = StatusRight;
-        sm.TokenInfo = TokenInfo;
-        sm.GitBranch = GitBranch;
-        sm.RecentFiles.Clear();
-        sm.RecentFiles.AddRange(RecentFiles);
-        sm.ActivePanel = ActivePanel;
-        sm.SuggestActive = false;
-        sm.ChatScrollBottom();
+        // 清空聊天列表并重建
+        screen.ClearChat();
+        screen.ChatMessages.Clear();
+        screen.ChatMessages.AddRange(ChatMessages);
+
+        // 重建聊天列表项
+        foreach (var msg in ChatMessages)
+            screen.AddMessage(msg.Content, msg.Role);
+
+        // 恢复输入状态
+        screen.InputArea.Text = InputText;
+        screen.InputArea.CursorRow = Math.Min(InputCursorRow, Math.Max(0, screen.InputArea.Lines.Count - 1));
+        screen.InputArea.CursorCol = Math.Min(InputCursorCol,
+            screen.InputArea.Lines.Count > 0 ? screen.InputArea.Lines[screen.InputArea.CursorRow].Length : 0);
+
+        screen.StatusLeft = StatusLeft;
+        screen.StatusRight = StatusRight;
+        screen.GitBranch = GitBranch;
+        screen.RecentFiles.Clear();
+        screen.RecentFiles.AddRange(RecentFiles);
+        screen.ActivePanel = ActivePanel;
+
+        // 隐藏建议面板，滚动到底部
+        screen.HideSuggestions();
+        screen.SuggestActive = false;
+        screen.ChatScrollBottom();
+
+        screen.MarkDirty();
     }
 }
