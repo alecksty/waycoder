@@ -15,8 +15,11 @@ public class TuiListView : TuiView
     /// <summary>垂直滚动偏移（像素行）</summary>
     public int ScrollOffset { get; set; }
 
-    /// <summary>是否自动滚到底部</summary>
-    public bool AutoScroll { get; set; } = true;
+    /// <summary>是否自动滚到底部（内容增长时自动跟底）</summary>
+    public bool IsAutoScrollToEnd { get; set; } = true;
+    /// <summary>已弃用，请使用 IsAutoScrollToEnd</summary>
+    [Obsolete("请使用 IsAutoScrollToEnd")]
+    public bool AutoScroll { get => IsAutoScrollToEnd; set => IsAutoScrollToEnd = value; }
 
     /// <summary>项间距</summary>
     public int ItemSpacing { get; set; }
@@ -51,7 +54,7 @@ public class TuiListView : TuiView
         item.Width = Width;
         Children.Add(item);
         ReLayout();
-        if (AutoScroll) ScrollToBottom();
+        if (IsAutoScrollToEnd) ScrollToBottom();
     }
 
     /// <summary>批量添加项</summary>
@@ -64,7 +67,7 @@ public class TuiListView : TuiView
             Children.Add(item);
         }
         ReLayout();
-        if (AutoScroll) ScrollToBottom();
+        if (IsAutoScrollToEnd) ScrollToBottom();
     }
 
     /// <summary>移除指定索引的项</summary>
@@ -92,6 +95,9 @@ public class TuiListView : TuiView
 
     // ── 布局 ──
 
+    /// <summary>内容总高度（布局后更新）</summary>
+    public int ContentHeight { get; private set; } = 1;
+
     /// <summary>重新计算所有项位置</summary>
     public void ReLayout()
     {
@@ -103,45 +109,40 @@ public class TuiListView : TuiView
             child.Width = Width;
             y += child.Height + ItemSpacing;
         }
-        Height = Math.Max(1, y - ItemSpacing);
+        ContentHeight = Math.Max(1, y - ItemSpacing);
+        // Height 由父容器设置作为视口高度，不在此覆盖
     }
 
     public override void Layout() => ReLayout();
 
     // ── 滚动 ──
 
-    /// <summary>实际可见区域高度</summary>
-    public int ViewportHeight => Height; // Will be overridden by parent clip
+    /// <summary>实际可见区域高度（由父容器设置的视口）</summary>
+    public int ViewportHeight => Height;
 
     public void ScrollUp(int lines = 3)
     {
-        AutoScroll = false;
+        IsAutoScrollToEnd = false;
         ScrollOffset = Math.Max(0, ScrollOffset - lines);
     }
 
     public void ScrollDown(int lines = 3)
     {
-        int totalContentH = Children.Count > 0
-            ? Children[^1].Y + Children[^1].Height
-            : 0;
-        int maxScroll = Math.Max(0, totalContentH - Height);
+        int maxScroll = Math.Max(0, ContentHeight - Height);
         if (ScrollOffset + lines >= maxScroll)
         {
             ScrollOffset = maxScroll;
-            AutoScroll = true;
+            IsAutoScrollToEnd = true;
         }
         else ScrollOffset += lines;
     }
 
-    public void ScrollToTop() { ScrollOffset = 0; AutoScroll = false; }
+    public void ScrollToTop() { ScrollOffset = 0; IsAutoScrollToEnd = false; }
 
     public void ScrollToBottom()
     {
-        int totalContentH = Children.Count > 0
-            ? Children[^1].Y + Children[^1].Height
-            : 0;
-        ScrollOffset = Math.Max(0, totalContentH - Height);
-        AutoScroll = true;
+        ScrollOffset = Math.Max(0, ContentHeight - Height);
+        IsAutoScrollToEnd = true;
     }
 
     // ── 渲染 ──
