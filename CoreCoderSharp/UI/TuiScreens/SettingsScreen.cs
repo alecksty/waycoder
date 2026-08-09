@@ -1,6 +1,4 @@
 using CoreCoderSharp.UI.Controls;
-using TuiListCtrl = CoreCoderSharp.UI.Controls.TuiList;
-using TuiSep = CoreCoderSharp.UI.Controls.TuiSeparator;
 
 namespace CoreCoderSharp.UI;
 
