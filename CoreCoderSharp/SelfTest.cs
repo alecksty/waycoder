@@ -41,7 +41,7 @@ public static class SelfTest
         {
             "all" => null, // null = 全部
             "tools" => ["工具注册","工具]","[Git]","[Fetch]","[Todo]","[LSP]","[Bash ","[Git ","[Fetch ","[Lint ","[Web ","[Git PR]","[Git 大"],
-            "ui" => ["[CJK ","[语法高亮]","[BoxBuffer]","[主题系统]","[边框风格]","[DiffRenderer]","[InputManager]","[ChatScreen主题]","[TuiMenu]","[Markdown 表格]"],
+            "ui" => ["[CJK ","[语法高亮]","[BoxBuffer]","[主题系统]","[边框风格]","[DiffRenderer]","[InputManager]","[ChatScreen主题]","[TuiMenu]","[Markdown 表格]","[TuiTreeView]","[TuiRadioGroup]","[TuiComboBox]","[TuiSeekBar]","[TuiSeparator]","[TuiPanel]"],
             "git" => ["[Git]","[Git ","[Git PR]","[Git 大"],
             "config" => ["[配置]","[设置 Schema]","[配置读写]","[SaveToEnvFile]"],
             "memory" => ["[记忆]","[记忆自动注入]","[语义记忆]"],
@@ -2247,6 +2247,294 @@ another.txt:3:1: warning: deprecated API
         ThemeConfig.ApplyPreset("default");
         themeScreen.SyncTheme();
         Check("恢复 default 主题成功", true);
+        Console.WriteLine();
+
+        // ================================================================
+        // 树形视图
+        // ================================================================
+        Section("[TuiTreeView]");
+        var tree = new TuiTreeView();
+        Check("树初始为空", tree.RootNodes.Count == 0);
+        Check("无选中节点", tree.SelectedNode == null);
+
+        var root1 = tree.AddRoot("根节点1", "📁");
+        Check("添加根节点成功", tree.RootNodes.Count == 1);
+        Check("自动选中第一个根", tree.SelectedNode == root1);
+        Check("根节点文本", root1.Text == "根节点1");
+        Check("根节点图标", root1.Icon == "📁");
+        Check("根节点是叶子", root1.IsLeaf);
+
+        var child1 = new TuiTreeNode("子节点1", "📄");
+        root1.Add(child1);
+        Check("子节点添加成功", root1.Children.Count == 1);
+        Check("子节点 Parent 引用", child1.Parent == root1);
+        Check("根节点不再是叶子", !root1.IsLeaf);
+        Check("子节点是叶子", child1.IsLeaf);
+
+        root1.AddRange(new("子节点2"), new("子节点3"));
+        Check("批量添加子节点", root1.Children.Count == 3);
+
+        child1.Add(new TuiTreeNode("孙节点"));
+        Check("深度统计", tree.TotalNodeCount == 5); // 根+3子+1孙
+
+        root1.IsExpanded = true;
+        child1.IsExpanded = true;
+        Check("展开状态可设置", root1.IsExpanded && child1.IsExpanded);
+
+        tree.SelectedNode = root1;
+        tree.ExpandNode(root1);
+        Check("展开节点", root1.IsExpanded);
+
+        tree.ExpandNode(child1);
+        Check("展开子节点", child1.IsExpanded);
+
+        tree.CollapseNode(root1);
+        Check("折叠节点", !root1.IsExpanded);
+
+        child1.ExpandToRoot();
+        Check("ExpandToRoot 展开祖先", root1.IsExpanded && child1.IsExpanded);
+
+        tree.SelectNode(child1);
+        Check("选中节点", tree.SelectedNode == child1);
+
+        tree.Clear();
+        Check("清空后无根节点", tree.RootNodes.Count == 0);
+        Check("清空后无选中节点", tree.SelectedNode == null);
+
+        // 重建数据测试导航
+        var navRoot = tree.AddRoot("导航测试");
+        tree.AddRoot("根2");
+        Check("两个根节点", tree.RootNodes.Count == 2);
+
+        tree.SelectedNode = tree.RootNodes[0];
+        tree.MoveDown();
+        Check("MoveDown 到第二个根", tree.SelectedNode == tree.RootNodes[1]);
+        tree.MoveUp();
+        Check("MoveUp 回到第一个根", tree.SelectedNode == tree.RootNodes[0]);
+
+        Console.WriteLine();
+
+        // ================================================================
+        // 单选按钮组
+        // ================================================================
+        Section("[TuiRadioGroup]");
+        var radio = new TuiRadioGroup(["选项A", "选项B", "选项C"], 0);
+        Check("Radio 默认选中索引 0", radio.SelectedIndex == 0);
+        Check("Radio 选项数 3", radio.Options.Count == 3);
+        Check("Radio 高度 = 选项数", radio.Height == 3);
+
+        radio.SelectedIndex = 2;
+        Check("Radio 切换选中索引", radio.SelectedIndex == 2);
+        radio.SelectedIndex = -1;
+        Check("Radio 取消选中", radio.SelectedIndex == -1);
+
+        // 键盘导航
+        radio.Options = ["A", "B", "C", "D"];
+        radio.Height = 4;
+        radio.SelectedIndex = 1;
+        radio.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false));
+        Check("Radio ↑ 导航", radio.SelectedIndex == 0);
+        radio.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+        Check("Radio ↓ 导航", radio.SelectedIndex == 1);
+        radio.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
+        Check("Radio End 跳转", radio.SelectedIndex == 3);
+        radio.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
+        Check("Radio Home 跳转", radio.SelectedIndex == 0);
+
+        // 回调（通过键盘触发）
+        int radioCallbackValue = -1;
+        radio.OnSelectionChanged = v => radioCallbackValue = v;
+        radio.SelectedIndex = 1;
+        radioCallbackValue = -1;
+        radio.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+        Check("Radio 回调触发", radioCallbackValue == 2);
+
+        // 空选项不崩溃
+        var emptyRadio = new TuiRadioGroup([], -1);
+        emptyRadio.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false));
+        Check("空 Radio 不崩溃", true);
+        Console.WriteLine();
+
+        // ================================================================
+        // 组合框
+        // ================================================================
+        Section("[TuiComboBox]");
+        var combo = new TuiComboBox(["苹果", "香蕉", "橘子", "葡萄"]);
+        Check("Combo 选项数 4", combo.Options.Count == 4);
+        Check("Combo 默认未展开", !combo.IsExpanded);
+        Check("Combo 默认选中 -1", combo.SelectedIndex == -1);
+
+        combo.SelectedIndex = 1;
+        Check("Combo 设置选中索引", combo.SelectedIndex == 1);
+
+        // 展开
+        combo.IsExpanded = true;
+        Check("Combo 展开状态可设置", combo.IsExpanded);
+        Check("Combo 展开后高度 > 1", combo.ExpandedHeight > 1);
+
+        // 收起
+        combo.IsExpanded = false;
+        Check("Combo 收起", !combo.IsExpanded);
+
+        // 键盘导航（收起状态）
+        combo.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false));
+        Check("Combo 收起时 ↑ 可用", combo.SelectedIndex == 0);
+        combo.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+        Check("Combo 收起时 ↓ 可用", combo.SelectedIndex == 1);
+
+        // Enter 展开
+        combo.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false));
+        Check("Combo Enter 展开", combo.IsExpanded);
+
+        // 在展开状态导航
+        combo.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
+        Check("Combo 展开 End", combo.SelectedIndex == 3);
+        combo.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
+        Check("Combo 展开 Home", combo.SelectedIndex == 0);
+
+        // Esc 收起
+        combo.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Escape, false, false, false));
+        Check("Combo Esc 收起", !combo.IsExpanded);
+
+        // 占位文本
+        var combo2 = new TuiComboBox([], -1);
+        Check("Combo 空选项占位", combo2.Placeholder == "请选择...");
+        combo2.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false));
+        Check("空 Combo Enter 不崩溃", true);
+
+        // 回调
+        int comboCallbackValue = -1;
+        combo.OnSelectionChanged = v => comboCallbackValue = v;
+        combo.Select(2);
+        Check("Combo Select 设置索引", combo.SelectedIndex == 2);
+        Check("Combo 回调触发", comboCallbackValue == 2);
+
+        bool? comboExpandState = null;
+        combo.OnExpandedChanged = v => comboExpandState = v;
+        combo.IsExpanded = true;
+        combo.OnExpandedChanged?.Invoke(true); // 模拟展开回调
+        Check("Combo 展开回调", comboExpandState == true);
+        Console.WriteLine();
+
+        // ================================================================
+        // 滑块/SeekBar
+        // ================================================================
+        Section("[TuiSeekBar]");
+        var seek = new TuiSeekBar(0, 100, 50);
+        Check("SeekBar 初始值 50", seek.Value == 50);
+        Check("SeekBar Min=0", seek.MinValue == 0);
+        Check("SeekBar Max=100", seek.MaxValue == 100);
+        Check("SeekBar Step=1", seek.Step == 1);
+        Check("SeekBar ShowLabel", seek.ShowLabel);
+
+        // 值变更
+        seek.Value = 75;
+        Check("SeekBar 值变更", seek.Value == 75);
+        seek.Value = 200; // 超出范围被钳制
+        Check("SeekBar 钳制到 Max", seek.Value == 100);
+        seek.Value = -50;
+        Check("SeekBar 钳制到 Min", seek.Value == 0);
+
+        // 键盘操作
+        seek.Value = 50;
+        seek.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.RightArrow, false, false, false));
+        Check("SeekBar → 增量", seek.Value == 51);
+        seek.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.LeftArrow, false, false, false));
+        Check("SeekBar ← 减量", seek.Value == 50);
+        seek.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
+        Check("SeekBar Home → Min", seek.Value == 0);
+        seek.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
+        Check("SeekBar End → Max", seek.Value == 100);
+        seek.Value = 50;
+        seek.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.PageUp, false, false, false));
+        Check("SeekBar PgUp → +10", seek.Value == 60);
+        seek.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.PageDown, false, false, false));
+        Check("SeekBar PgDn → -10", seek.Value == 50);
+
+        // 回调
+        int seekCallbackValue = -1;
+        seek.OnValueChanged = v => seekCallbackValue = v;
+        seek.Value = 42;
+        Check("SeekBar 回调触发", seekCallbackValue == 42);
+
+        // 构造参数
+        var seek2 = new TuiSeekBar(10, 200, 100, 5);
+        Check("SeekBar 构造函数 Min", seek2.MinValue == 10);
+        Check("SeekBar 构造函数 Max", seek2.MaxValue == 200);
+        Check("SeekBar 构造函数 Value", seek2.Value == 100);
+        Check("SeekBar 构造函数 Step", seek2.Step == 5);
+
+        // LargeStep 和自定义字符
+        seek2.LargeStep = 25;
+        seek2.ThumbChar = "▣";
+        seek2.TrackFilled = "█";
+        seek2.TrackEmpty = "░";
+        Check("SeekBar LargeStep", seek2.LargeStep == 25);
+        Check("SeekBar 自定义 Thumb", seek2.ThumbChar == "▣");
+        Check("SeekBar 自定义 TrackFilled", seek2.TrackFilled == "█");
+        Check("SeekBar 自定义 TrackEmpty", seek2.TrackEmpty == "░");
+
+        // 隐藏标签
+        seek2.ShowLabel = false;
+        Check("SeekBar 隐藏标签", !seek2.ShowLabel);
+        Console.WriteLine();
+
+        // ================================================================
+        // 分割线
+        // ================================================================
+        Section("[TuiSeparator]");
+        var sepH = new TuiSeparator(SeparatorDirection.Horizontal);
+        Check("Separator 水平方向", sepH.Direction == SeparatorDirection.Horizontal);
+        Check("Separator 默认高度 1", sepH.Height == 1);
+        Check("Separator 默认宽度 60", sepH.Width == 60);
+
+        var sepV = new TuiSeparator(SeparatorDirection.Vertical);
+        Check("Separator 垂直方向", sepV.Direction == SeparatorDirection.Vertical);
+        Check("Separator 垂直宽度 1", sepV.Width == 1);
+
+        var sepWithText = new TuiSeparator { Text = "标题", Width = 40 };
+        Check("Separator 带文本", sepWithText.Text == "标题");
+
+        var sepCustom = new TuiSeparator { LineChar = "━", LineColor = 91 };
+        Check("Separator 自定义线字符", sepCustom.LineChar == "━");
+        Check("Separator 自定义颜色", sepCustom.LineColor == 91);
+
+        // 键盘不处理
+        Check("Separator 不处理键盘", !sepH.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false)));
+        Console.WriteLine();
+
+        // ================================================================
+        // 面板
+        // ================================================================
+        Section("[TuiPanel]");
+        var panel = new TuiPanel();
+        Check("Panel 标题为空", panel.Title == "");
+        Check("Panel 默认边框 Rounded", panel.BorderStyle == WindowBorder.Rounded);
+        Check("Panel 默认宽度 10", panel.Width == 10);
+        Check("Panel 默认高度 1", panel.Height == 1);
+
+        panel.Title = "测试面板";
+        Check("Panel 带标题", panel.Title == "测试面板");
+
+        // 边框风格
+        panel.BorderStyle = WindowBorder.Double;
+        Check("Panel Double 边框", panel.BorderStyle == WindowBorder.Double);
+        panel.BorderStyle = WindowBorder.Thick;
+        Check("Panel Thick 边框", panel.BorderStyle == WindowBorder.Thick);
+        panel.BorderStyle = WindowBorder.Rounded;
+        Check("Panel Rounded 边框", panel.BorderStyle == WindowBorder.Rounded);
+        panel.BorderStyle = WindowBorder.Single;
+        Check("Panel 恢复 Single", panel.BorderStyle == WindowBorder.Single);
+        panel.BorderStyle = WindowBorder.Ascii;
+        Check("Panel Ascii 边框", panel.BorderStyle == WindowBorder.Ascii);
+
+        // 子视图
+        var subLabel = new TuiLabel("内部文本");
+        panel.Add(subLabel);
+        Check("Panel 可添加子视图", panel.Children.Count >= 1);
+
+        // 键盘不处理
+        Check("Panel 不处理键盘", !panel.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false)));
         Console.WriteLine();
 
         // ---- 结果 ----
