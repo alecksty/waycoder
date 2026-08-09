@@ -1,4 +1,5 @@
 using System.Text;
+using CoreCoderSharp.UI;
 
 namespace CoreCoderSharp.Tools;
 
@@ -53,6 +54,19 @@ public class WriteFileTool : ITool
         {
             var dir = Path.GetDirectoryName(path);
             if (dir != null) Directory.CreateDirectory(dir);
+
+            // Diff 预览：仅当开关开启、非交互模式（管道/重定向/测试）、且文件已存在时
+            var cfg = Config.FromEnv();
+            if (cfg.DiffPreview && !Console.IsInputRedirected && !Console.IsOutputRedirected && File.Exists(path))
+            {
+                var oldContent = File.ReadAllText(path, Encoding.UTF8);
+                var (decision, accepted) = DiffPreview.Show(oldContent, content, filePath);
+                if (decision == DiffPreview.Decision.RejectAll)
+                    return $"已取消写入 {filePath}（用户拒绝变更）";
+                if (decision == DiffPreview.Decision.Partial && accepted != null)
+                    content = DiffPreview.ApplyAccepted(oldContent, DiffPreview.BuildHunks(oldContent, content), accepted);
+            }
+
             File.WriteAllText(path, content, Encoding.UTF8);
 
             EditFileTool.ChangedFiles.Add(path);

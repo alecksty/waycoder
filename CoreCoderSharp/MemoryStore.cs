@@ -11,6 +11,11 @@ public static class MemoryStore
     private static string? _memoryPath;
 
     /// <summary>
+    /// 仅供自测：重置缓存的记忆路径，使下次访问重新解析 cwd。
+    /// </summary>
+    public static void ResetCache() => _memoryPath = null;
+
+    /// <summary>
     /// 获取记忆文件路径（自动创建目录）。
     /// </summary>
     public static string MemoryPath

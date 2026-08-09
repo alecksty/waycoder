@@ -12,7 +12,7 @@ WayCoder（道码）是一个中文版易用编程智能体，C# (.NET 10) 实�
 # C# 版
 cd CoreCoderSharp
 dotnet publish -c Release            # AOT 编译
-dotnet run -- --test                 # 380 自测
+dotnet run -- --test                 # 694 自测
 dotnet run -- -p "提示词"            # 一次性模式
 dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 ```
@@ -33,10 +33,11 @@ CoreCoderSharp/
 ├── ProjectContext.cs  项目检测 + CLAUDE.md 加载
 ├── ReviewMode.cs      代码审查模式
 ├── FallbackLLM.cs     模型回退链
-├── MemoryStore.cs     记忆系统
+├── MemoryStore.cs     记忆系统 (旧格式, 迁移源)
+├── StructuredMemory.cs 结构化记忆 (frontmatter 多文件 + MEMORY.md 索引)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        280 项自测
+├── SelfTest.cs        694 项自测
 ├── FileLockManager.cs 文件锁 (防并发修改冲突)
 ├── UI/                 终端 TUI 控件库 (19 文件)
 │   ├── ScreenManager.cs 全屏缓冲 + 弹窗菜单 + 侧栏
@@ -46,6 +47,7 @@ CoreCoderSharp/
 │   ├── MarkdownRenderer.cs Markdown 解析引擎
 │   ├── TuiMarkdown.cs   Markdown→ANSI 渲染
 │   ├── DiffRenderer.cs  统一 diff 渲染
+│   ├── DiffPreview.cs   diff 预览 + 逐 hunk 确认
 │   ├── TuiInput.cs      多行输入区 + 智能提示面板
 │   ├── TuiHelper.cs     CJK 宽度计算 + 文本工具
 │   ├── TuiColors.cs     统一配色常量
@@ -62,7 +64,7 @@ CoreCoderSharp/
 │   ├── Syntax.cs       语法高亮 (14 种语言)
 │   ├── DiagnosticManager.cs Lint 诊断集成
 │   └── Gui/            GUI 编辑器占位（预留扩展）
-└── Tools/             29 个工具
+└── Tools/             31 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
     ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
@@ -72,7 +74,8 @@ CoreCoderSharp/
     ├── MkdirTool.cs   RmTool.cs      CdTool.cs
     ├── FindReplaceTool.cs CpTool.cs  MvTool.cs
     ├── DiffTool.cs    TreeTool.cs    WcTool.cs
-    ├── StatTool.cs    PwdTool.cs
+    ├── StatTool.cs    PwdTool.cs     SkillTool.cs
+    └── DocTool.cs     文档查询 (搜索+抓取)
 ```
 
 ## 关键设计决策
@@ -88,6 +91,8 @@ CoreCoderSharp/
 - **Watch 模式**：FileSystemWatcher 监听文件变更 → 提取 AI! / AI? 注释 → 线程安全队列 → REPL 轮询执行
 - **全屏缓冲 UI**：备用屏 + 每帧重绘 + 行内权限块 + 弹窗菜单 + 侧栏面板 + 居中对话框
 - **UI 控件库**：`UI/` 目录封装 TUI 控件（未来拆分 Tty 底层 + View 视图），`UI/Gui/` 预留 GUI 扩展
+- **结构化记忆**：`.corecoder/memory/*.md` frontmatter 多文件 + MEMORY.md 索引，`memory` 工具与系统提示词注入均走结构化格式，首次使用自动从旧 memory.md 迁移
+- **Diff 预览**：`WAYCODER_DIFF_PREVIEW=1` 开启，write_file/edit_file 写前逐 hunk 确认（Y/N/A/Q），非交互模式（管道/重定向/测试）自动跳过
 
 ## 非显而易见的约束
 

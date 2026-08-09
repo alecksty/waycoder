@@ -67,7 +67,8 @@ User Input → Agent.ChatAsync()
 | `RepoMapGenerator.cs` | ASCII tree + symbol extraction for LLM context |
 | `ProjectContext.cs` | Detects project type, language, framework, reads instruction files |
 | `McpManager.cs` | MCP client (stdio/HTTP), tool discovery, lives in `Tools/McpClient.cs` |
-| `MemoryStore.cs` | Persistent memory in `.corecoder/memory.md` |
+| `MemoryStore.cs` | Legacy memory in `.corecoder/memory.md` (migration source) |
+| `StructuredMemory.cs` | Structured memory in `.corecoder/memory/*.md` with MEMORY.md index |
 | `CustomCommands.cs` | Slash commands from `.corecoder/commands/*.md` |
 | `CheckpointManager.cs` | Git stash / file backup snapshots |
 | `WatchMode.cs` | File watcher for `AI!` / `AI?` annotations |
@@ -91,8 +92,8 @@ All implement `ITool` (`Name`, `Description`, `Parameters`, `ExecuteAsync`, `Sch
 
 Classified by risk:
 - **Dangerous** (require confirmation): `bash`, `write_file`, `edit_file`, `agent`, `kill`, `rm`
-- **Safe** (no confirmation): `read_file`, `glob`, `grep`, `ls`, `stat`, `fetch`, `todo`, `lsp`, `memory`, `lint`, `web_search`, `git_pr`, `ps`, `mkdir`, `cd`, `find_replace`, `cp`, `mv`, `diff`, `tree`, `wc`, `pwd`, `skill`
-- **Skeleton (unregistered)**: `doc` (`Tools/DocTool.cs`), `StructuredMemory.cs`, `UI/DiffPreview.cs` — files exist but not wired in
+- **Safe** (no confirmation): `read_file`, `glob`, `grep`, `ls`, `stat`, `fetch`, `todo`, `lsp`, `memory`, `lint`, `web_search`, `git_pr`, `ps`, `mkdir`, `cd`, `find_replace`, `cp`, `mv`, `diff`, `tree`, `wc`, `pwd`, `skill`, `doc`
+- `doc` performs network lookups only (read-only), so it is Safe
 
 ## NativeAOT Gotchas
 
