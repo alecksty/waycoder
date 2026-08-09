@@ -89,10 +89,10 @@ public class TuiWindow
 
     // ── 对话框结果 ──
     /// <summary>
-    /// 对话框返回值。弹窗代码读取此属性获取用户选择。
-    /// 类型因对话框而异：Permission→DialogResult, Select→int, Input→string, Confirm→bool。
+    /// 对话框返回值。默认 -1 表示未选择/取消，有效选择 ≥ 0。
+    /// 弹窗代码读取此属性获取用户选择。
     /// </summary>
-    public object? Result { get; set; }
+    public object? Result { get; set; } = -1;
 
     // ── 键盘快捷键 ──
     /// <summary>

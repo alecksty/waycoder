@@ -11,13 +11,32 @@
 
 **TUI 控件库** (`UI/TuiControls/`)
 - `TuiButton` / `TuiInput` / `TuiTextArea` / `TuiLabel` / `TuiList` / `TuiListView` / `TuiMarkdown` / `TuiDialog` / `TuiGrid` / `TuiProgress` / `TuiSpinner` / `TuiBanner` / `TuiCheckbox` / `TuiTabs` / `TuiIcon`
-- `TuiDialog` 静态工厂：`Info/Warn/Error/Success/Confirm/Select/Permission/Input` 基于回调的 API，`ManualResetEventSlim` 阻塞包装器适配 REPL 同步流程
-- `TuiListView` 滚动列表，`TuiMarkdown` 完整 Markdown 渲染，`TuiProgress` 进度条
+- `TuiDialog` 静态工厂：`Info/Warn/Error/Success/Confirm/Confirm3/Select/MultiSelect/Permission/Input` 基于回调的 API，`ManualResetEventSlim` 阻塞包装器适配 REPL 同步流程
+- `TuiListView` 可滚动列表 + 键盘/鼠标导航，`TuiMarkdown` 完整 Markdown 渲染，`TuiProgress` 进度条
 
 **ChatScreen** (`UI/TuiScreens/ChatScreen.cs`)
-- 完整 REPL 屏：欢迎横幅 + 聊天列表（TuiListView → TuiMarkdown 项）+ 多行输入区（TuiTextArea）+ 状态栏（槽位/Token/Git）+ 建议面板
+- 完整 REPL 屏：欢迎横幅 + 聊天列表（TuiListView → TuiListItem → TuiMarkdown）+ 多行输入区（TuiTextArea）+ 状态栏（槽位/Token/Git）+ 建议面板
 - 流式输出：`StartAgentMsg()` → `AppendToken()` → `FinishAgentMsg()` 实时追加
-- 对话框包装器：`ShowInlinePermission()` / `ShowMenu()` / `ShowTextPrompt()` 阻塞等待 + 渲染循环
+- 对话框包装器：`ShowInlinePermission()` / `ShowMenu()` / `RenderWait` 阻塞等待 + 渲染循环
+
+**对话框增强**
+- **键盘快捷键注册**：`TuiWindow.KeyShortcuts` 字典 + `RegisterShortcut(ConsoleKey, Action)` + `HandleKey` 优先快捷键拦截
+- **对话框返回值**：`TuiWindow.Result` 属性，默认 -1（未选择），选择 ≥ 0
+- 所有工厂方法（Permission/Confirm/Select/Input 等）自动注册 Y/N/A/Esc/Enter 快捷键并设置 Result
+- **TuiScreen Esc 路由修复**：Esc 先路由到模态窗口快捷键（取消回调），未处理才关闭，防止 RenderWait 死锁
+
+**TuiMenu 弹出菜单** (`UI/TuiControls/TuiMenu.cs`)
+- 可滚动弹出菜单控件（~240 行），支持标题栏 + 窗口边框 + 滚动条指示器
+- 键盘导航：↑↓ Home End PgUp/PgDn Enter Esc，1-9 数字键快速选择
+- 分隔线（空字符串或 "---"），跳过键盘选中
+- 位置自动 Clamp，屏幕边界不溢出
+- `TuiDemo` F6=短菜单 F7=长滚动菜单(28项) F8=右键菜单
+
+**Markdown 表格渲染**
+- 完整 GFM 表格语法解析（`| cell | cell |`），Unicode 边框字符（┌┬┐├┼┤└┴┘）
+- 列宽自适应内容 + 终端宽度不足时等比缩放
+- **单元格内联格式**：`**加粗**` 和 `` `代码` `` 在表格单元格内正确渲染颜色
+- `TuiDemo` F9=表格演示（语言对比 + 模型价格两张表）
 
 ### 🗑️ 移除
 - **`UI/ScreenManager.cs`** (1458 行) — 旧全屏 TUI 管理器，功能全部迁移到新架构
@@ -27,12 +46,12 @@
 - **Program.cs REPL 循环重写** — `ScreenManager.Instance` → `TuiManager.Instance` + `ChatScreen`，~100+ 处 `sm.` 调用迁移到新 API
 - **PermissionManager** — `ShowInlinePermission` 改用 `ChatScreen.ShowInlinePermission()`（TuiDialog.Permission 包装器）
 - **AgentSlot** — `SaveFrom`/`RestoreTo` 适配 `ChatScreen`（ChatMessages/InputArea/RecentFiles）
-- **DiffPreview** — 移除无效 `ScreenManager.Instance` 引用（ShowFullScreen 实为独立 Console UI）
+- **DiffPreview** — 移除无效 `ScreenManager.Instance` 引用
 - **SettingsPage** — 独立全屏 Console UI，TUI 模式下临时 Exit/Enter
-- **ThemeConfig** — `ApplyTo(ManagedWindow)` → `ApplyTo(TuiWindow)`，字符串边框映射到 `WindowBorder` 枚举
+- **ThemeConfig** — `ApplyTo(ManagedWindow)` → `ApplyTo(TuiWindow)`
 - **Editor/TuiTable/TuiBox** — `ScreenManager.Instance` 引用替换为 `TuiManager.Instance.ActiveScreen as ChatScreen`
 
-### 📝 自测: 639/639
+### 📝 自测: 658/658
 
 ## v0.19.3 (2026-08-09) — 稳定性修复 + 控制台安全
 

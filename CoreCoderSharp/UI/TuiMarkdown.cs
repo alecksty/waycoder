@@ -134,18 +134,18 @@ public static class TuiMarkdown
     {
         if (t.Headers.Count == 0) return;
 
-        // 计算每列的视觉宽度
+        // 计算每列的视觉宽度（解析内联格式后）
         var colCount = t.Headers.Count;
         var colWidths = new int[colCount];
         for (int c = 0; c < colCount; c++)
         {
-            colWidths[c] = VwPlainText(t.Headers[c]);
+            colWidths[c] = InlineVw(t.Headers[c]);
         }
         foreach (var row in t.Rows)
         {
             for (int c = 0; c < Math.Min(colCount, row.Count); c++)
             {
-                var w = VwPlainText(row[c]);
+                var w = InlineVw(row[c]);
                 if (w > colWidths[c]) colWidths[c] = w;
             }
         }
@@ -188,11 +188,40 @@ public static class TuiMarkdown
     {
         var line = new List<(string, int, int)>();
         line.Add(("│", 2, 0));
+        int defaultFg = isHeader ? 1 : 0;
+
         for (int c = 0; c < widths.Length; c++)
         {
             var text = c < cells.Count ? cells[c] : "";
-            var padded = PadByWidth(text, widths[c], center: isHeader);
-            line.Add((padded, isHeader ? 1 : 0, 0));
+
+            // 解析单元格内联格式（**加粗**、`代码` 等）
+            var segments = MarkdownParser.ParseInline(text, defaultFg, 0);
+
+            // 计算已渲染片段的视觉总宽
+            int segVw = 0;
+            foreach (var (segText, _, _) in segments)
+                segVw += VwPlainText(segText);
+
+            int pad = widths[c] - segVw;
+            int padLeft = 0, padRight = pad;
+            if (isHeader && pad > 0)
+            {
+                padLeft = pad / 2;
+                padRight = pad - padLeft;
+            }
+
+            // 左边距（仅居中时使用）
+            if (padLeft > 0)
+                line.Add((new string(' ', padLeft), defaultFg, 0));
+
+            // 内联格式化片段
+            foreach (var seg in segments)
+                line.Add(seg);
+
+            // 右边距
+            if (padRight > 0)
+                line.Add((new string(' ', padRight), defaultFg, 0));
+
             line.Add(("│", 2, 0));
         }
         return line;
@@ -278,6 +307,16 @@ public static class TuiMarkdown
         // 剥离 ANSI 转义码
         var clean = StripAnsi(text);
         return TuiHelper.DisplayWidth(clean);
+    }
+
+    /// <summary>计算内联格式化文本的视觉宽度（排除标记符如 ** ` 等）</summary>
+    private static int InlineVw(string text)
+    {
+        var segments = MarkdownParser.ParseInline(text, 0, 0);
+        int total = 0;
+        foreach (var (t, _, _) in segments)
+            total += VwPlainText(t);
+        return total;
     }
 
     /// <summary>剥离 ANSI 转义码 → Terminal.AnsiString</summary>
