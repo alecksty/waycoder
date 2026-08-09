@@ -1,4 +1,5 @@
 using System.Text;
+using CoreCoderSharp.Terminal;
 using CoreCoderSharp.Tools;
 
 namespace CoreCoderSharp.UI;
@@ -123,7 +124,7 @@ public class ScreenManager
         {
             var key = Console.ReadKey(intercept: true);
 
-            if (Console.WindowWidth != TW || Console.WindowHeight != TH)
+            if (TTY.Cols != TW || TTY.Rows != TH)
                 Render();
 
             switch (key.Key)
@@ -344,8 +345,8 @@ public class ScreenManager
         var cleanTitle = title.Replace('\n', ' ').Trim();
         SuggestActive = false;
         AddSystemMsg($"📋 {cleanTitle}");
-        var x = (Console.WindowWidth - Math.Min(Console.WindowWidth - 8, Math.Max(20, choices.Max(c => TuiHelper.DisplayWidth(c)) + 4))) / 2;
-        var y = (Console.WindowHeight - Math.Min(choices.Count, Console.WindowHeight - 8) - 4) / 2;
+        var x = (TTY.Cols - Math.Min(TTY.Cols - 8, Math.Max(20, choices.Max(c => TuiHelper.DisplayWidth(c)) + 4))) / 2;
+        var y = (TTY.Rows - Math.Min(choices.Count, TTY.Rows - 8) - 4) / 2;
         var win = WindowManager.Instance.ShowMenu(x, y, cleanTitle, choices);
 
         while (true)
@@ -354,10 +355,10 @@ public class ScreenManager
             var key = Console.ReadKey(intercept: true);
 
             // Resize 重新居中
-            if (Console.WindowWidth != TW || Console.WindowHeight != TH)
+            if (TTY.Cols != TW || TTY.Rows != TH)
             {
-                win.X = (Console.WindowWidth - win.Width) / 2;
-                win.Y = (Console.WindowHeight - win.Height) / 2;
+                win.X = (TTY.Cols - win.Width) / 2;
+                win.Y = (TTY.Rows - win.Height) / 2;
                 Render();
             }
 
@@ -410,8 +411,8 @@ public class ScreenManager
 
             case "menu" or "菜单":
                 var menuWin = WindowManager.Instance.ShowMenu(
-                    (Console.WindowWidth - 30) / 2,
-                    (Console.WindowHeight - 10) / 2,
+                    (TTY.Cols - 30) / 2,
+                    (TTY.Rows - 10) / 2,
                     "测试菜单 ↑↓ 选择",
                     ["选项 Alpha", "选项 Beta", "─", "选项 Gamma", "选项 Delta"]);
                 Instance.Render();
@@ -565,7 +566,7 @@ public class ScreenManager
             rb.Segment($" {desc}", fg: 37, bg: 44);
         }
         var used = hotkeys.Sum(h => 3 + h.key.Length + h.desc.Length);
-        var remain = Console.WindowWidth - used;
+        var remain = TTY.Cols - used;
         if (remain > 0) rb.Raw(new string(' ', remain));
         rb.Reset();
         sb.Append(rb.ToString());
@@ -575,7 +576,7 @@ public class ScreenManager
     public void Enter()
     {
         Terminal.TTY.EnterAltScreen();
-        (TW, TH) = (Console.WindowWidth, Console.WindowHeight);
+        (TW, TH) = (TTY.Cols, TTY.Rows);
         IsActive = true;
     }
 
@@ -755,7 +756,7 @@ public class ScreenManager
 
     public void Render()
     {
-        (TW, TH) = (Console.WindowWidth, Console.WindowHeight);
+        (TW, TH) = (TTY.Cols, TTY.Rows);
         _frameCount++;
         var sb = new StringBuilder();
         sb.Append("[?25l[H"); // 隐藏光标 + 回左上角

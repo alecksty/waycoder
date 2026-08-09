@@ -30,7 +30,7 @@ public static class TuiBanner
         infoLines.Add(AnsiText.Dim("  /help 帮助  quit 退出  Ctrl+C 取消"));
 
         var maxVw = infoLines.Max(l => AnsiVW(l));
-        var w = Math.Min(Console.WindowWidth - 4, maxVw + 4);
+        var w = Math.Min(TTY.Cols - 4, maxVw + 4);
 
         // 顶边框
         sb.AppendLine($"{AnsiText.BorderOpen(TuiColors.Border)}╭{new string('─', w - 2)}╮{AnsiText.Reset}");
@@ -57,7 +57,7 @@ public static class TuiBanner
     /// <summary>构建 ASCII 大字标题</summary>
     private static string BuildAsciiTitle(string name)
     {
-        int w = Console.WindowWidth;
+        int w = TTY.Cols;
         var pad = Math.Max(0, (w - name.Length * 2) / 2);
         var indent = new string(' ', pad);
         var sb = new StringBuilder();

@@ -29,7 +29,7 @@ public static class TuiProgress
     /// <summary>渲染水平分隔线。</summary>
     public static void Rule(string? title = null)
     {
-        var w = Console.WindowWidth;
+        var w = TTY.Cols;
         if (title != null)
         {
             var t = $" {TuiHelper.Esc(title)} ";
