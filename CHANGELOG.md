@@ -1,5 +1,32 @@
 # 更新日志
 
+## v0.23.0 (2026-08-09) — TUI 控件系统增强
+
+### 🔥 新增
+
+**EdgeInsets 布局属性** (`UI/TuiControl.cs`)
+- 新增 `EdgeInsets` 结构体（Top/Right/Bottom/Left），`Horizontal`/`Vertical` 快捷属性
+- `TuiControl` 新增 `Margin` 和 `Padding` 属性（默认 0,0,0,0）
+- `Padding` 自动内移渲染裁剪区 + 偏移 OnRender 原点
+- VBox/HBox 布局自动计算 Margin 偏移
+
+**Continuation 续接消息** (`UI/TuiControls/TuiListItem.cs`)
+- `Continuation` 属性：同角色连续消息跳过头部（Icon + RoleLabel + TimeLabel）
+- `IsPlainText` 模式：逐行渲染不走 Markdown 解析，避免系统消息行合并
+- 正文 `Padding.Left = 2` 对齐标题文本
+
+**OnClick sender 模式** (`UI/TuiControls/TuiButton.cs`)
+- `OnClick` 从 `Action?` 改为 `Action<TuiButton>?`，按钮点击时传入自身引用
+- 所有对话框按钮回调适配
+
+### 🔧 变更
+
+- **F1-F10 切换修复**：`Program.cs` 增加 `SwitchAgentSlot` 调用
+- **角色图标**：所有图标从 emoji 改为 ● 纯色圆点（User=绿, Assistant=青, System=黄, Tool=灰）
+- **聊天滚动**：`TuiListView` 新增 `ContentHeight` 属性，自动滚底 + PgUp/PgDn 手动滚动
+- **IsAutoScrollToEnd**：`TuiScrollView` 和 `TuiListView` 重命名 `AutoScroll` → `IsAutoScrollToEnd`，旧属性标记 `[Obsolete]`
+- **消息间距**：`ItemSpacing = 1`，所有消息之间自动空行
+
 ## v0.22.0 (2026-08-09) — Editor/Settings 迁移到新 TUI 架构
 
 ### 🔥 新增

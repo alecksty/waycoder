@@ -8,10 +8,10 @@ namespace CoreCoderSharp.UI.Controls;
 public class TuiButton : TuiControl
 {
     public string Text { get; set; } = "OK";
-    public Action? OnClick { get; set; }
+    public Action<TuiButton>? OnClick { get; set; }
 
     public TuiButton() { Height = 1; Width = 10; }
-    public TuiButton(string text, Action? onClick = null)
+    public TuiButton(string text, Action<TuiButton>? onClick = null)
     {
         Text = text; OnClick = onClick; Height = 1;
         Width = TuiHelper.DisplayWidth(text) + 4;
@@ -41,7 +41,7 @@ public class TuiButton : TuiControl
         {
             case ConsoleKey.Enter:
             case ConsoleKey.Spacebar:
-                OnClick?.Invoke();
+                OnClick?.Invoke(this);
                 return true;
 
             case ConsoleKey.LeftArrow:

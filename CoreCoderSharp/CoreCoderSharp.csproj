@@ -11,12 +11,16 @@
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <AssemblyName>corecoder</AssemblyName>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
 
 
   <ItemGroup>
     <Compile Remove="game/**/*.cs" />
+    <Compile Remove="games/**/*.cs" />
     <None Remove="game/**/*" />
+    <None Remove="games/**/*" />
     <Compile Remove="lottery/**/*.cs" />
     <None Remove="lottery/**/*" />
     <Compile Remove="subs/**/*.cs" />

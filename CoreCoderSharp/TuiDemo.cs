@@ -440,7 +440,7 @@ public static class TuiDemo
 
         // 按钮
         var btn = new TuiButton("  应用设置  ") { Fg = 30, Bg = 46 };
-        btn.OnClick = () =>
+        btn.OnClick = _ =>
         {
             var labels = new[] { "深海蓝", "翡翠绿", "琥珀橙", "薰衣紫" };
             screen.AddMessage(

@@ -22,7 +22,7 @@ public static class TuiDialog
             Border = WindowBorder.Rounded,
             WinBg = 0,  // 不填充，控件自带背景，遮罩提供层次
         };
-        BuildContent(win, message, ("确定", () => win.OnClosed?.Invoke()));
+        BuildContent(win, message, ("确定", _ => win.OnClosed?.Invoke()));
         return win;
     }
 
@@ -71,8 +71,8 @@ public static class TuiDialog
         var hbox = new TuiHBox { Spacing = 2, Width = 38, ContentHAlign = HAlign.Center };
         var yesBtn = new TuiButton("是 (Y)") { Width = 12, Focused = true };
         var noBtn = new TuiButton("否 (N)") { Width = 12 };
-        yesBtn.OnClick = () => { win.Result = true; onResult(true); win.OnClosed?.Invoke(); };
-        noBtn.OnClick = () => { win.Result = false; onResult(false); win.OnClosed?.Invoke(); };
+        yesBtn.OnClick = _ => { win.Result = true; onResult(true); win.OnClosed?.Invoke(); };
+        noBtn.OnClick = _ => { win.Result = false; onResult(false); win.OnClosed?.Invoke(); };
         hbox.Add(yesBtn); hbox.Add(noBtn);
         vbox.Add(hbox);
 
@@ -108,9 +108,9 @@ public static class TuiDialog
         var yesBtn = new TuiButton("是 (Y)") { Width = 12, Focused = true };
         var noBtn = new TuiButton("否 (N)") { Width = 12 };
         var cancelBtn = new TuiButton("取消 (Esc)") { Width = 14 };
-        yesBtn.OnClick = () => { win.Result = DialogResult.Yes; onResult(DialogResult.Yes); win.OnClosed?.Invoke(); };
-        noBtn.OnClick = () => { win.Result = DialogResult.No; onResult(DialogResult.No); win.OnClosed?.Invoke(); };
-        cancelBtn.OnClick = () => { win.Result = DialogResult.Cancel; onResult(DialogResult.Cancel); win.OnClosed?.Invoke(); };
+        yesBtn.OnClick = _ => { win.Result = DialogResult.Yes; onResult(DialogResult.Yes); win.OnClosed?.Invoke(); };
+        noBtn.OnClick = _ => { win.Result = DialogResult.No; onResult(DialogResult.No); win.OnClosed?.Invoke(); };
+        cancelBtn.OnClick = _ => { win.Result = DialogResult.Cancel; onResult(DialogResult.Cancel); win.OnClosed?.Invoke(); };
         hbox.Add(yesBtn); hbox.Add(noBtn); hbox.Add(cancelBtn);
         vbox.Add(hbox);
 
@@ -153,8 +153,8 @@ public static class TuiDialog
         var hbox = new TuiHBox { Spacing = 2, Width = 42, ContentHAlign = HAlign.Center };
         var okBtn = new TuiButton("确定") { Width = 10 };
         var cancelBtn = new TuiButton("取消") { Width = 10 };
-        okBtn.OnClick = () => { win.Result = input.Text; onConfirm(input.Text); win.OnClosed?.Invoke(); };
-        cancelBtn.OnClick = () => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
+        okBtn.OnClick = _ => { win.Result = input.Text; onConfirm(input.Text); win.OnClosed?.Invoke(); };
+        cancelBtn.OnClick = _ => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
         hbox.Add(okBtn); hbox.Add(cancelBtn);
         vbox.Add(hbox);
 
@@ -194,7 +194,7 @@ public static class TuiDialog
 
         var hbox = new TuiHBox { Spacing = 2, Width = listW, ContentHAlign = HAlign.Center };
         var cancelBtn = new TuiButton("取消 (Esc)") { Width = 14 };
-        cancelBtn.OnClick = () => { win.Result = -1; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
+        cancelBtn.OnClick = _ => { win.Result = -1; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
         hbox.Add(cancelBtn);
         vbox.Add(hbox);
 
@@ -232,8 +232,8 @@ public static class TuiDialog
         var hbox = new TuiHBox { Spacing = 2, Width = listW, ContentHAlign = HAlign.Center };
         var okBtn = new TuiButton("确定") { Width = 10 };
         var cancelBtn = new TuiButton("取消") { Width = 10 };
-        okBtn.OnClick = () => { win.Result = list.CheckedIndices; onConfirm(list.CheckedIndices); win.OnClosed?.Invoke(); };
-        cancelBtn.OnClick = () => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
+        okBtn.OnClick = _ => { win.Result = list.CheckedIndices; onConfirm(list.CheckedIndices); win.OnClosed?.Invoke(); };
+        cancelBtn.OnClick = _ => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
         hbox.Add(okBtn); hbox.Add(cancelBtn);
         vbox.Add(hbox);
 
@@ -276,9 +276,9 @@ public static class TuiDialog
         var yesBtn = new TuiButton("允许 (Y)") { Width = 14, Fg = 32, Focused = true };
         var noBtn = new TuiButton("拒绝 (N)") { Width = 14, Fg = 31 };
         var allBtn = new TuiButton("全部允许 (A)") { Width = 18, Fg = 33 };
-        yesBtn.OnClick = () => { win.Result = DialogResult.Yes; onResult(DialogResult.Yes); win.OnClosed?.Invoke(); };
-        noBtn.OnClick = () => { win.Result = DialogResult.No; onResult(DialogResult.No); win.OnClosed?.Invoke(); };
-        allBtn.OnClick = () => { win.Result = DialogResult.Ok; onResult(DialogResult.Ok); win.OnClosed?.Invoke(); };
+        yesBtn.OnClick = _ => { win.Result = DialogResult.Yes; onResult(DialogResult.Yes); win.OnClosed?.Invoke(); };
+        noBtn.OnClick = _ => { win.Result = DialogResult.No; onResult(DialogResult.No); win.OnClosed?.Invoke(); };
+        allBtn.OnClick = _ => { win.Result = DialogResult.Ok; onResult(DialogResult.Ok); win.OnClosed?.Invoke(); };
         hbox.Add(yesBtn); hbox.Add(noBtn); hbox.Add(allBtn);
         vbox.Add(hbox);
 
@@ -297,7 +297,7 @@ public static class TuiDialog
 
     // ── 内部工具 ──
 
-    private static void BuildContent(TuiWindow win, string message, (string label, Action onClick) button)
+    private static void BuildContent(TuiWindow win, string message, (string label, Action<TuiButton> onClick) button)
     {
         var lines = message.Replace("\r\n", "\n").Split('\n');
         var maxVw = lines.Max(l => TuiHelper.DisplayWidth(l));
@@ -308,14 +308,15 @@ public static class TuiDialog
             vbox.Add(new TuiLabel(line) { Width = w - 6 });
         vbox.Add(new TuiLabel("") { Height = 1 });
 
-        var btn = new TuiButton(button.label, () =>
-        {
-            win.Result = DialogResult.Ok;
-            button.onClick();
-        })
+        var btn = new TuiButton(button.label)
         {
             Width = Math.Max(8, TuiHelper.DisplayWidth(button.label) + 4),
             Focused = true  // 默认按钮获得焦点，Enter/Space 触发
+        };
+        btn.OnClick = _ =>
+        {
+            win.Result = DialogResult.Ok;
+            button.onClick(btn);
         };
         vbox.Add(btn);
 
@@ -329,7 +330,7 @@ public static class TuiDialog
         win.RegisterShortcut(ConsoleKey.Enter, () =>
         {
             win.Result = DialogResult.Ok;
-            button.onClick();
+            button.onClick(btn);
         });
     }
 }
