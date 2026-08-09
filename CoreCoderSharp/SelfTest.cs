@@ -41,7 +41,7 @@ public static class SelfTest
         {
             "all" => null, // null = 全部
             "tools" => ["工具注册","工具]","[Git]","[Fetch]","[Todo]","[LSP]","[Bash ","[Git ","[Fetch ","[Lint ","[Web ","[Git PR]","[Git 大"],
-            "ui" => ["[CJK ","[语法高亮]","[BoxBuffer]","[主题系统]","[边框风格]","[DiffRenderer]","[InputManager]","[ChatScreen主题]","[TuiMenu]","[Markdown 表格]","[TuiTreeView]","[TuiRadioGroup]","[TuiComboBox]","[TuiSeekBar]","[TuiSeparator]","[TuiPanel]"],
+            "ui" => ["[CJK ","[语法高亮]","[BoxBuffer]","[主题系统]","[边框风格]","[DiffRenderer]","[InputManager]","[ChatScreen主题]","[TuiMenu]","[Markdown 表格]","[TuiTreeView]","[TuiRadioGroup]","[TuiComboBox]","[TuiSeekBar]","[TuiSeparator]","[TuiPanel]","[EditorCore]","[TuiRichEditor]","[EditorScreen]","[SettingsScreen]"],
             "git" => ["[Git]","[Git ","[Git PR]","[Git 大"],
             "config" => ["[配置]","[设置 Schema]","[配置读写]","[SaveToEnvFile]"],
             "memory" => ["[记忆]","[记忆自动注入]","[语义记忆]"],
@@ -2535,6 +2535,192 @@ another.txt:3:1: warning: deprecated API
 
         // 键盘不处理
         Check("Panel 不处理键盘", !panel.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false)));
+        Console.WriteLine();
+
+        // ================================================================
+        // EditorCore 测试
+        // ================================================================
+        Section("[EditorCore]");
+        var tmpFileEc = Path.GetTempFileName();
+        File.WriteAllText(tmpFileEc, "line1\nline2\nline3");
+        var core = new EditorCore();
+        core.LoadFile(tmpFileEc);
+        Check("EditorCore 加载 3 行", core.TotalLines == 3);
+        Check("EditorCore 未修改", !core.Modified);
+        Check("EditorCore 光标 0,0", core.Cy == 0 && core.Cx == 0);
+        Check("EditorCore FilePath 设置", core.FilePath == Path.GetFullPath(tmpFileEc));
+
+        // 光标移动
+        core.MoveCursor(0, 1);
+        Check("MoveCursor 下 Cy=1", core.Cy == 1);
+        core.MoveCursor(5, 0);
+        Check("MoveCursor 右 Cx=5", core.Cx == 5);
+        core.MoveHome();
+        Check("MoveHome Cx=0", core.Cx == 0);
+        core.MoveEnd();
+        Check("MoveEnd Cx=line2.Length", core.Cx == 5);
+
+        // 插入文本
+        core.InsertText("hello");
+        Check("InsertText 标记已修改", core.Modified);
+        Check("InsertText 内容正确", core.Lines[1].ToString() == "line2hello");
+
+        // 撤销
+        core.Undo();
+        Check("Undo 恢复行内容", core.Lines[1].ToString() == "line2");
+
+        // 删除
+        core.Cx = 2;
+        core.Backspace();
+        Check("Backspace 删除字符", core.Lines[1].ToString() == "lne2");
+        core.Delete();
+        Check("Delete 删除字符", core.Lines[1].ToString() == "le2");
+
+        // 换行
+        core.Cx = 1;
+        core.NewLine();
+        Check("NewLine 分割行", core.Cy == 2);
+        Check("NewLine 新增行数", core.TotalLines == 4);
+
+        // 撤销换行
+        core.Undo();
+        Check("Undo 恢复行数", core.TotalLines == 3);
+
+        // 跳行
+        Check("JumpToLine 有效", core.JumpToLine(3));
+        Check("JumpToLine 光标 Cy=2", core.Cy == 2);
+        Check("JumpToLine 无效返回 false", !core.JumpToLine(999));
+
+        // 剪贴板
+        core.CopyLine();
+        core.CutLine();
+        Check("CutLine 删除行", core.TotalLines == 2);
+        core.PasteClipboard();
+        Check("PasteClipboard 粘贴", core.Lines[1].ToString().Contains("line3"));
+
+        // Tab
+        core.Cx = 0;
+        core.InsertTab();
+        Check("InsertTab 插入 4 空格", core.Lines[1].ToString().StartsWith("    "));
+
+        // 保存
+        core.Save();
+        Check("Save 后不脏", !core.Modified);
+        var savedContent = File.ReadAllText(tmpFileEc);
+        Check("Save 文件内容正确", savedContent.Contains("line1"));
+
+        // 统计
+        Check("TotalChars > 0", core.TotalChars > 0);
+        Check("FileSizeBytes > 0", core.FileSizeBytes > 0);
+        Check("FormatSize B", EditorCore.FormatSize(500) == "500 B");
+        Check("FormatSize KB", EditorCore.FormatSize(2048) == "2.0 KB");
+
+        // 诊断
+        var (e, w) = core.GetDiagSummary();
+        Check("GetDiagSummary 返回元组", e >= 0 && w >= 0);
+
+        // 清理
+        File.Delete(tmpFileEc);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiRichEditor 测试
+        // ================================================================
+        Section("[TuiRichEditor]");
+        var editor = new TuiRichEditor();
+        Check("TuiRichEditor 创建", editor != null);
+        Check("TuiRichEditor 默认宽度 80", editor.Width == 80);
+        Check("TuiRichEditor 默认高度 24", editor.Height == 24);
+        Check("TuiRichEditor Focused", editor.Focused);
+        Check("TuiRichEditor 有 Core", editor.Core != null);
+        Check("TuiRichEditor LineNumberWidth=5", editor.LineNumberWidth == 5);
+        Check("TuiRichEditor GutterWidth=1", editor.GutterWidth == 1);
+        Check("TuiRichEditor VisibleLines", editor.VisibleLines == 24);
+
+        // 键盘：光标移动
+        var core2 = new EditorCore();
+        var tmp2 = Path.GetTempFileName();
+        File.WriteAllText(tmp2, "abc\ndef\nghi");
+        core2.LoadFile(tmp2);
+        editor.Core = core2;
+        Check("TuiRichEditor 绑定 Core", editor.Core == core2);
+
+        editor.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+        Check("HandleKey DownArrow", core2.Cy == 1);
+
+        editor.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.RightArrow, false, false, false));
+        Check("HandleKey RightArrow", core2.Cx == 1);
+
+        editor.HandleKey(new ConsoleKeyInfo('x', ConsoleKey.X, false, false, false));
+        Check("HandleKey 插入字符", core2.Lines[1].ToString().Contains("x"));
+
+        editor.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
+        Check("HandleKey Home", core2.Cx == 0);
+
+        // 事件
+        bool saveFired = false;
+        editor.OnSaveRequested += () => saveFired = true;
+        editor.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.S, false, false, true));
+        Check("OnSaveRequested 触发", saveFired);
+
+        bool jumpFired = false;
+        editor.OnJumpRequested += () => jumpFired = true;
+        editor.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.G, false, false, true));
+        Check("OnJumpRequested 触发", jumpFired);
+
+        // Resize
+        editor.OnResize(100, 30);
+        Check("OnResize Width=100", editor.Width == 100);
+        Check("OnResize Height=30", editor.Height == 30);
+
+        // LoadFile
+        editor.LoadFile(tmp2);
+        Check("LoadFile 加载内容", editor.Core.TotalLines == 3);
+
+        File.Delete(tmp2);
+        Console.WriteLine();
+
+        // ================================================================
+        // EditorScreen 测试
+        // ================================================================
+        Section("[EditorScreen]");
+        var editScreen = new EditorScreen();
+        Check("EditorScreen 创建", editScreen != null);
+        Check("EditorScreen Name=editor", editScreen.Name == "editor");
+        Check("EditorScreen FilePath 为空", string.IsNullOrEmpty(editScreen.FilePath));
+
+        var editScreen2 = new EditorScreen("/test/path.cs");
+        Check("EditorScreen 带路径", editScreen2.FilePath == "/test/path.cs");
+        Check("EditorScreen WasSaved=false", !editScreen2.WasSaved);
+        Check("EditorScreen RootView 存在", editScreen2.RootView != null);
+        Console.WriteLine();
+
+        // ================================================================
+        // SettingsScreen 测试
+        // ================================================================
+        Section("[SettingsScreen]");
+        var setScreen = new SettingsScreen();
+        Check("SettingsScreen 创建", setScreen != null);
+        Check("SettingsScreen Name=settings", setScreen.Name == "settings");
+        Check("SettingsScreen RootView 存在", setScreen.RootView != null);
+
+        // Schema
+        var settingSchema = Config.SettingSchema();
+        Check("SettingSchema 非空", settingSchema.Count > 0);
+        var groups = settingSchema.GroupBy(s => s.Category).ToList();
+        Check("有分类分组", groups.Count >= 3);
+
+        // 配置读写
+        var cfg = Config.FromEnv();
+        var modelVal = cfg.Model;
+        Check("Config.Model 可读取", !string.IsNullOrEmpty(modelVal));
+
+        // SettingDef 属性
+        var firstDef = settingSchema[0];
+        Check("SettingDef Key 非空", !string.IsNullOrEmpty(firstDef.Key));
+        Check("SettingDef Label 非空", !string.IsNullOrEmpty(firstDef.Label));
+        Check("SettingDef Category 非空", !string.IsNullOrEmpty(firstDef.Category));
+        Check("SettingDef Type 有效", firstDef.Type is "text" or "number" or "select" or "secret");
         Console.WriteLine();
 
         // ---- 结果 ----

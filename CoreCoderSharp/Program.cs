@@ -427,7 +427,7 @@ public class Program
                     break;
 
                 case ConsoleKey.O when ctrl:
-                    SettingsPage.Show();
+                    TuiManager.Instance.PushScreen(new SettingsScreen());
                     break;
 
                 case ConsoleKey.R when ctrl:
@@ -717,9 +717,9 @@ public class Program
         if (userInput == "/diff") { ShowDiffInChat(screen); return; }
         if (userInput == "/plan") { screen.AddSystemMsg("📋 计划模式"); await PlanModeAsync(); return; }
         if (userInput.StartsWith("/search ")) { await RunSearchAsync(userInput[8..].Trim()); return; }
-        if (userInput == "/edit") { await Editor.PickAndRunAsync(); screen.Render(); return; }
-        if (userInput.StartsWith("/edit ")) { await Editor.RunAsync(userInput[6..].Trim()); screen.Render(); return; }
-        if (userInput is "/settings" or "/config") { SettingsPage.Show(); return; }
+        if (userInput == "/edit") { TuiManager.Instance.PushScreen(new EditorScreen()); return; }
+        if (userInput.StartsWith("/edit ")) { TuiManager.Instance.PushScreen(new EditorScreen(userInput[6..].Trim())); return; }
+        if (userInput is "/settings" or "/config") { TuiManager.Instance.PushScreen(new SettingsScreen()); return; }
         if (userInput == "/about") { ShowAboutInChat(screen); return; }
         if (userInput.StartsWith("/test ")) { RunTestDemo(userInput[6..].Trim(), screen); return; }
         if (userInput == "/test") { RunTestDemo("help", screen); return; }
