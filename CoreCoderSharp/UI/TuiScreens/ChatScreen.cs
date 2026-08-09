@@ -1,4 +1,7 @@
+using System.Collections.Concurrent;
 using System.Text;
+using CoreCoderSharp.Terminal;
+using CoreCoderSharp.Tools;
 using CoreCoderSharp.UI.Controls;
 
 namespace CoreCoderSharp.UI;
@@ -182,11 +185,24 @@ public class ChatScreen : TuiScreen
 
     // ── 消息管理 ──
 
-    /// <summary>添加一条消息到聊天列表（TuiListItem → Icon + Label + TuiMarkdown）</summary>
+    /// <summary>添加一条消息到聊天列表。system/tool 消息使用纯文本模式避免 Markdown 行合并，连续同角色自动续接。</summary>
     public void AddMessage(string content, string role = "assistant")
     {
-        var item = new TuiListItem(role, content, ChatList.Width - 2);
-        item.SetTime(DateTime.Now);
+        bool continuation = false;
+        bool plainText = role is "system" or "tool";
+        if (plainText)
+        {
+            var last = ChatList.GetItem(ChatList.ItemCount - 1) as TuiListItem;
+            if (last != null && last.Role == role)
+                continuation = true;
+        }
+
+        var item = new TuiListItem(role, content, ChatList.Width - 2, continuation)
+        {
+            IsPlainText = plainText
+        };
+        if (!continuation)
+            item.SetTime(DateTime.Now);
         ChatList.AddItem(item);
         MarkDirty();
     }
@@ -545,53 +561,211 @@ public class ChatScreen : TuiScreen
 
     // ── 输入 ──
 
+    /// <summary>待提交消息队列（Enter 键 → Program.cs 异步处理）</summary>
+    public readonly ConcurrentQueue<string> PendingSubmissions = new();
+
+    /// <summary>输入历史（↑↓ 浏览）</summary>
+    internal readonly List<string> InputHistory = [];
+    internal int HistoryIdx = -1;
+
+    /// <summary>回调：切换模型（Program.cs 注入）</summary>
+    public Action? OnCycleModel;
+    /// <summary>回调：显示帮助（Program.cs 注入）</summary>
+    public Action? OnShowHelp;
+    /// <summary>回调：搜索历史（Program.cs 注入，参数=查询字符串）</summary>
+    public Action<string>? OnSearchHistory;
+
+    /// <summary>显示退出确认对话框</summary>
+    private void ShowExitConfirmDialog()
+    {
+        var win = Controls.TuiDialog.Confirm("退出 WayCoder", "确定要退出道码吗？", confirmed =>
+        {
+            if (confirmed)
+                PendingSubmissions.Enqueue("\x1b"); // 特殊标记：退出请求
+        });
+        ShowWindow(win);
+    }
+
     public override bool HandleKey(ConsoleKeyInfo key)
     {
-        // Esc 关闭建议
-        if (key.Key == ConsoleKey.Escape && SuggestPanel.Visible)
+        bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
+        bool shift = key.Modifiers.HasFlag(ConsoleModifiers.Shift);
+
+        // ── 1. 建议面板可见 → 建议导航 ──
+        if (SuggestActive)
         {
-            HideSuggestions();
+            switch (key.Key)
+            {
+                case ConsoleKey.Escape:
+                    HideSuggestions(); return true;
+                case ConsoleKey.UpArrow:
+                    SuggestIndex = Math.Max(0, SuggestIndex - 1);
+                    UpdateSuggestions(Suggestions, SuggestIndex); return true;
+                case ConsoleKey.DownArrow:
+                    SuggestIndex = Math.Min(Suggestions.Count - 1, SuggestIndex + 1);
+                    UpdateSuggestions(Suggestions, SuggestIndex); return true;
+                case ConsoleKey.PageUp:
+                    SuggestIndex = Math.Max(0, SuggestIndex - 5);
+                    UpdateSuggestions(Suggestions, SuggestIndex); return true;
+                case ConsoleKey.PageDown:
+                    SuggestIndex = Math.Min(Suggestions.Count - 1, SuggestIndex + 5);
+                    UpdateSuggestions(Suggestions, SuggestIndex); return true;
+                case ConsoleKey.Home:
+                    SuggestIndex = 0;
+                    UpdateSuggestions(Suggestions, SuggestIndex); return true;
+                case ConsoleKey.End:
+                    SuggestIndex = Suggestions.Count - 1;
+                    UpdateSuggestions(Suggestions, SuggestIndex); return true;
+                case ConsoleKey.Enter: case ConsoleKey.Tab:
+                    AcceptSuggestion(); return true;
+                case ConsoleKey.Backspace:
+                    InputBackspace();
+                    UpdateSuggestions(Suggestions, SuggestIndex);
+                    break; // 继续处理（可能输入更多字符）
+                case ConsoleKey.LeftArrow: case ConsoleKey.RightArrow:
+                    SuggestActive = false;
+                    break; // 继续处理，让光标移动生效
+            }
+        }
+
+        // ── 2. 模态窗口优先 ──
+        if (HasModal) return base.HandleKey(key);
+
+        // ── 3. 屏幕级快捷键（Ctrl+组合，不依赖输入焦点）──
+        if (ctrl)
+        {
+            switch (key.Key)
+            {
+                case ConsoleKey.E:
+                    Manager?.PushScreen(new EditorScreen()); return true;
+                case ConsoleKey.T:
+                case ConsoleKey.O:
+                    Manager?.PushScreen(new SettingsScreen()); return true;
+                case ConsoleKey.B:
+                    ActivePanel = ActivePanel switch
+                    {
+                        PanelTab.Off => PanelTab.Todo,
+                        PanelTab.Todo => PanelTab.Files,
+                        PanelTab.Files => PanelTab.Locks,
+                        PanelTab.Locks => PanelTab.MCP,
+                        _ => PanelTab.Off,
+                    };
+                    if (ActivePanel == PanelTab.Files)
+                        ModifiedFiles = EditFileTool.ChangedFiles.ToList();
+                    return true;
+                case ConsoleKey.R:
+                    Manager?.Exit();
+                    var query = TuiPrompt.Ask("搜索对话历史");
+                    Manager?.Enter();
+                    Manager?.PushScreen(this);
+                    if (!string.IsNullOrWhiteSpace(query))
+                        OnSearchHistory?.Invoke("/history " + query);
+                    return true;
+                case ConsoleKey.M:
+                    OnCycleModel?.Invoke(); return true;
+                case ConsoleKey.H:
+                    OnShowHelp?.Invoke(); return true;
+                case ConsoleKey.Q:
+                    ShowExitConfirmDialog(); return true;
+                // 聊天滚动
+                case ConsoleKey.Home:   ChatScrollTop(); return true;
+                case ConsoleKey.End:    ChatScrollBottom(); return true;
+                case ConsoleKey.UpArrow:   ChatScrollUp(3); return true;
+                case ConsoleKey.DownArrow: ChatScrollDown(3); return true;
+            }
+        }
+
+        // ── 4. 聊天滚动（不依赖输入焦点）──
+        if (key.Key == ConsoleKey.PageUp)
+            { ChatScrollUp(Math.Max(1, (TTY.Rows - 10) / 2)); return true; }
+        if (key.Key == ConsoleKey.PageDown)
+            { ChatScrollDown(Math.Max(1, (TTY.Rows - 10) / 2)); return true; }
+
+        // ── 5. Enter 提交消息 ──
+        if (key.Key == ConsoleKey.Enter && !ctrl && !shift)
+        {
+            SuggestActive = false;
+            var input = GetInputText();
+            if (string.IsNullOrWhiteSpace(input)) return true;
+            AddUserMsg(input);
+            if (InputHistory.Count == 0 || InputHistory[^1] != input)
+                InputHistory.Add(input);
+            if (InputHistory.Count > 200) InputHistory.RemoveAt(0);
+            HistoryIdx = -1;
+            SetInput("");
+            PendingSubmissions.Enqueue(input);
             return true;
         }
 
-        // 建议面板导航
-        if (SuggestPanel.Visible)
+        // ── 6. Escape 空输入 → 退出确认 ──
+        if (key.Key == ConsoleKey.Escape && string.IsNullOrEmpty(GetInputText()))
         {
-            if (key.Key == ConsoleKey.Tab || key.Key == ConsoleKey.Enter)
+            ShowExitConfirmDialog();
+            return true;
+        }
+
+        // ── 7. 输入区按键 ──
+        if (InputArea.Focused)
+        {
+            // 粘贴快捷键
+            if ((key.Key == ConsoleKey.V && ctrl && !shift) ||
+                (key.Key == ConsoleKey.Insert && shift))
             {
-                if (SuggestIndex >= 0 && SuggestIndex < Suggestions.Count)
-                {
-                    // 选中的建议替换输入
-                    SetInput(Suggestions[SuggestIndex]);
-                    HideSuggestions();
-                    return true;
-                }
+                _ = PasteAsync();
+                return true;
             }
+
+            // Ctrl+Enter / Shift+Enter → 换行
+            if (key.Key == ConsoleKey.Enter && (ctrl || shift))
+                { InputNewLine(); return true; }
+
+            // ↑↓ — 历史浏览 / 多行移动 / 空输入滚动
             if (key.Key == ConsoleKey.UpArrow)
             {
-                SuggestIndex = Math.Max(0, SuggestIndex - 1);
-                UpdateSuggestions(Suggestions, SuggestIndex);
+                if (InputArea.Lines.Count == 1)
+                {
+                    if (string.IsNullOrEmpty(GetInputText()))
+                        { ChatScrollUp(3); return true; }
+                    if (InputHistory.Count > 0)
+                    {
+                        if (HistoryIdx == -1) HistoryIdx = InputHistory.Count - 1;
+                        else if (HistoryIdx > 0) HistoryIdx--;
+                        SetInput(InputHistory[HistoryIdx]);
+                    }
+                }
+                else InputMoveUp();
                 return true;
             }
             if (key.Key == ConsoleKey.DownArrow)
             {
-                SuggestIndex = Math.Min(Suggestions.Count - 1, SuggestIndex + 1);
-                UpdateSuggestions(Suggestions, SuggestIndex);
+                if (InputArea.Lines.Count == 1)
+                {
+                    if (string.IsNullOrEmpty(GetInputText()))
+                        { ChatScrollDown(3); return true; }
+                    if (HistoryIdx >= 0)
+                    {
+                        HistoryIdx++;
+                        SetInput(HistoryIdx < InputHistory.Count ? InputHistory[HistoryIdx] : "");
+                        if (HistoryIdx >= InputHistory.Count) HistoryIdx = -1;
+                    }
+                }
+                else InputMoveDown();
                 return true;
             }
+
+            // Tab — 路径补全或 4 空格
+            if (key.Key == ConsoleKey.Tab)
+            {
+                // 简单版：插入 4 空格（路径补全后续增强）
+                for (int t = 0; t < 4; t++) InputInsert(' ');
+                return true;
+            }
+
+            // 其他全部委托给 InputArea（← → Home End Backspace Delete Ctrl+组合 可打印字符）
+            return InputArea.HandleKey(key);
         }
 
-        // 模态窗口优先
-        if (HasModal) return base.HandleKey(key);
-
-        // PageUp/Down 滚动聊天
-        if (key.Key == ConsoleKey.PageUp) { ChatList.ScrollUp(TH / 2); return true; }
-        if (key.Key == ConsoleKey.PageDown) { ChatList.ScrollDown(TH / 2); return true; }
-
-        // 输入区按键
-        if (InputArea.Focused)
-            return InputArea.HandleKey(key);
-
+        // ── 8. 兜底 ──
         return base.HandleKey(key);
     }
 

@@ -17,6 +17,9 @@ public class TuiMarkdown : TuiControl
     /// <summary>角色（用于默认颜色：user/assistant/system）</summary>
     public string Role { get; set; } = "assistant";
 
+    /// <summary>纯文本模式：逐行渲染，不走 Markdown 解析</summary>
+    public bool IsPlainText { get; set; }
+
     /// <summary>最大渲染宽度（自动折行）</summary>
     public int MaxWidth { get; set; } = 80;
 
@@ -93,7 +96,7 @@ public class TuiMarkdown : TuiControl
         }
 
         // 使用旧的静态渲染器生成带色段列表
-        _rendered = OldMd.RenderMessage(Content, Role, effectiveMaxW);
+        _rendered = OldMd.RenderMessage(Content, Role, effectiveMaxW, IsPlainText);
         Height = Math.Max(1, _rendered.Count);
         _parsed = true;
     }
@@ -115,12 +118,13 @@ public class TuiMarkdown : TuiControl
     // ── 静态缓存（避免重复解析） ──
 
     /// <summary>快速创建 Markdown 控件</summary>
-    public static TuiMarkdown Create(string content, string role = "assistant", int maxWidth = 80)
+    public static TuiMarkdown Create(string content, string role = "assistant", int maxWidth = 80, bool plainText = false)
     {
         var md = new TuiMarkdown(content, role)
         {
             MaxWidth = maxWidth,
-            Width = maxWidth
+            Width = maxWidth,
+            IsPlainText = plainText
         };
         md.EnsureParsed();
         return md;

@@ -36,17 +36,24 @@ public class TuiListItem : TuiVBox
     public int PaddingLeft { get; set; } = 1;
     public int PaddingRight { get; set; } = 1;
 
+    /// <summary>续接消息（不渲染角色头部，直接追加内容）</summary>
+    public bool Continuation { get; set; }
+
+    /// <summary>纯文本模式：逐行渲染，不走 Markdown 解析（避免行合并）</summary>
+    public bool IsPlainText { get; set; }
+
     public TuiListItem()
     {
         Width = 60;
     }
 
     /// <summary>从角色和内容构建完整列表项</summary>
-    public TuiListItem(string role, string content, int maxWidth = 80)
+    public TuiListItem(string role, string content, int maxWidth = 80, bool continuation = false)
     {
         Role = role;
         MarkdownContent = content;
         Width = maxWidth;
+        Continuation = continuation;
         BuildContent(maxWidth);
     }
 
@@ -56,54 +63,66 @@ public class TuiListItem : TuiVBox
         Clear();
         int innerW = maxWidth - PaddingLeft - PaddingRight;
 
-        // ── Header 行: Icon + Role + Time ──
-        var header = new TuiHBox
+        // ── Header 行: Icon + Role + Time（续接消息跳过）──
+        if (!Continuation)
         {
-            Width = innerW,
-            Height = 1,
-            ChildVAlign = VAlign.Middle
-        };
+            var header = new TuiHBox
+            {
+                Width = innerW,
+                Height = 1,
+                ChildVAlign = VAlign.Middle
+            };
 
-        Icon = Role switch
+            Icon = Role switch
+            {
+                "user" => TuiIcon.User(),
+                "assistant" => TuiIcon.Assistant(),
+                "system" => TuiIcon.System(),
+                "tool" => TuiIcon.Tool(),
+                _ => TuiIcon.Info()
+            };
+            header.Add(Icon);
+
+            var roleName = Role switch
+            {
+                "user" => "You",
+                "assistant" => "Assistant",
+                "system" => "System",
+                "tool" => "Tool",
+                _ => Role
+            };
+            RoleLabel = new TuiLabel(roleName)
+            {
+                Width = 12,
+                Height = 1,
+                Fg = Role switch { "user" => 32, "assistant" => 36, "system" => 33, _ => 37 }
+            };
+            header.Add(RoleLabel);
+
+            TimeLabel = new TuiLabel(DateTime.Now.ToString("HH:mm"))
+            {
+                Width = 8,
+                Height = 1,
+                Fg = 90 // Dim
+            };
+            header.Add(TimeLabel);
+
+            header.Layout();
+            Add(header);
+        }
+        else
         {
-            "user" => TuiIcon.User(),
-            "assistant" => TuiIcon.Assistant(),
-            "system" => TuiIcon.System(),
-            "tool" => TuiIcon.Tool(),
-            _ => TuiIcon.Info()
-        };
-        header.Add(Icon);
+            // 续接消息占位：空 Icon/Name/Time（仅用于布局兼容）
+            Icon = TuiIcon.System();
+            RoleLabel = new TuiLabel("") { Width = 0, Height = 1 };
+            TimeLabel = new TuiLabel("") { Width = 0, Height = 1 };
+        }
 
-        var roleName = Role switch
-        {
-            "user" => "You",
-            "assistant" => "Assistant",
-            "system" => "System",
-            "tool" => "Tool",
-            _ => Role
-        };
-        RoleLabel = new TuiLabel(roleName)
-        {
-            Width = 12,
-            Height = 1,
-            Fg = Role switch { "user" => 32, "assistant" => 36, "system" => 33, _ => 37 }
-        };
-        header.Add(RoleLabel);
-
-        TimeLabel = new TuiLabel(DateTime.Now.ToString("HH:mm"))
-        {
-            Width = 8,
-            Height = 1,
-            Fg = 90 // Dim
-        };
-        header.Add(TimeLabel);
-
-        header.Layout();
-        Add(header);
-
-        // ── Body: Markdown 正文 ──
-        Body = TuiMarkdown.Create(MarkdownContent, Role, innerW);
-        Body.Width = innerW;
+        // ── Body: Markdown 正文，左缩进 2 格对齐标题 ──
+        const int bodyIndent = 2;
+        Body = TuiMarkdown.Create(MarkdownContent, Role, innerW - bodyIndent, IsPlainText);
+        Body.Width = innerW - bodyIndent;
+        Body.X = PaddingLeft + bodyIndent;
         Add(Body);
 
         // ── 重新计算整体高度 ──
@@ -116,8 +135,8 @@ public class TuiListItem : TuiVBox
         MarkdownContent += delta;
         Body.Content += delta;
         Body.Invalidate();
-        Body.Width = Width - PaddingLeft - PaddingRight;
-        Body.MaxWidth = Width - PaddingLeft - PaddingRight;
+        Body.Width = Width - PaddingLeft - PaddingRight - 2;
+        Body.MaxWidth = Width - PaddingLeft - PaddingRight - 2;
         Body.EnsureParsed();
         ReLayout();
     }
@@ -153,8 +172,17 @@ public class TuiListItem : TuiVBox
     {
         foreach (var child in Children)
         {
-            child.X = PaddingLeft;
-            child.Width = Math.Min(child.Width, Width - PaddingLeft - PaddingRight);
+            // Body 保持左缩进 2 格对齐标题，其他子控件贴左边距
+            if (child == Body)
+            {
+                child.X = PaddingLeft + 2;
+                child.Width = Math.Min(child.Width, Width - PaddingLeft - PaddingRight - 2);
+            }
+            else
+            {
+                child.X = PaddingLeft;
+                child.Width = Math.Min(child.Width, Width - PaddingLeft - PaddingRight);
+            }
         }
         Layout();
     }

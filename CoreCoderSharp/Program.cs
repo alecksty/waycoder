@@ -18,10 +18,7 @@ public class Program
     private static WatchMode? _watchMode;
     private static volatile bool _agentBusy;
     private static CancellationTokenSource? _agentCts;
-    private static bool _pendingExitConfirm;
     private static (List<JsonObject> Messages, string Model)? _pendingRestore;
-    private static readonly List<string> _inputHistory = [];
-    private static int _historyIdx = -1;
     /// <summary>Watch 模式线程安全提示队列</summary>
     private static readonly System.Collections.Concurrent.ConcurrentQueue<string> _pendingWatchPrompts = new();
 
@@ -176,7 +173,6 @@ public class Program
     private static async Task RunOnceAsync(string prompt)
     {
         using var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
         try
         {
@@ -216,6 +212,9 @@ public class Program
         mgr.PushScreen(screen);
         screen.SyncTheme();
         screen.RefreshTheme();
+
+        // Ctrl+C 全局强制退出（抑制 OS 提示 "Terminate batch job?"）
+        Console.CancelKeyPress += (_, e) => { e.Cancel = true; Environment.Exit(0); };
 
         // 输入管理器：拦截键盘 + 鼠标 + resize 即时重绘
         using var inputMgr = new UI.InputManager();
@@ -277,20 +276,30 @@ public class Program
         // 尝试恢复上次会话
         TryRestoreSession(screen);
 
-        // Ctrl+C 随时退出——闲时直接退，忙时中断后确认
-        var exitRequested = false;
-        _pendingExitConfirm = false;
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            if (_agentBusy) { _pendingExitConfirm = true; _agentCts?.Cancel(); }
-            else exitRequested = true;
-        };
+        // 注入 ChatScreen 回调
+        screen.OnCycleModel = () => CycleModel(screen);
+        screen.OnShowHelp = () => ShowHelpInChat(screen);
+        screen.OnSearchHistory = query => SearchHistory(query, screen);
 
         var running = true;
-        while (running && !exitRequested)
+        while (running)
         {
             mgr.Render();
+
+            // 处理 ChatScreen 提交的消息（Enter 键 → async LLM 调用）
+            while (screen.PendingSubmissions.TryDequeue(out var submission))
+            {
+                // "\x1b" 特殊标记：退出请求
+                if (submission == "\x1b")
+                {
+                    AutoSaveSession();
+                    _watchMode?.Dispose();
+                    mgr.Exit();
+                    Environment.Exit(0);
+                }
+                mgr.Render();
+                await ProcessUserInput(submission, screen);
+            }
 
             // 检查 Watch 模式待处理提示
             while (_pendingWatchPrompts.TryDequeue(out var watchPrompt))
@@ -308,232 +317,39 @@ public class Program
             // 超时 — 继续轮询
             if (ev.Type == InputType.Timeout) continue;
 
-            // 鼠标事件
+            // 鼠标 → 下发到活跃 Screen → Window → 控件冒泡
             if (ev.Type == InputType.Mouse)
             {
-                if (ev.MouseScrollUp)
-                {
-                    if (screen.SuggestActive && screen.SuggestIndex > 0) { screen.SuggestIndex--; mgr.Render(); }
-                    else screen.ChatScrollUp(3);
-                    continue;
-                }
-                else if (ev.MouseScrollDown)
-                {
-                    if (screen.SuggestActive && screen.SuggestIndex < screen.Suggestions.Count - 1) { screen.SuggestIndex++; mgr.Render(); }
-                    else screen.ChatScrollDown(3);
-                    continue;
-                }
-                // 左键点击 → 光标定位
-                if (ev.MouseLeft && !ev.MouseRelease)
-                {
-                    screen.HandleMouseClick(ev.MouseX, ev.MouseY);
-                    continue;
-                }
-                // 右键点击 → 粘贴
-                if (ev.MouseRight && !ev.MouseRelease)
-                {
-                    _ = screen.PasteAsync();
-                    continue;
-                }
+                mgr.HandleMouse(ev);
+                mgr.Render();
                 continue;
             }
 
+            // 按键
             var key = ev.KeyInfo;
             bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
-            bool shift = key.Modifiers.HasFlag(ConsoleModifiers.Shift);
 
-            // 粘贴快捷键（所有模式下可用）
-            if ((key.Key == ConsoleKey.V && ctrl && !shift) ||
-                key.Key == ConsoleKey.Insert && shift)
+            // 系统级：Ctrl+C 强制退出，不管任何状态
+            if (key.Key == ConsoleKey.C && ctrl)
             {
-                await screen.PasteAsync();
+                Environment.Exit(0);
+            }
+
+            // 系统级：F1~F10 切换 Agent 槽位
+            if (key.Key >= ConsoleKey.F1 && key.Key <= ConsoleKey.F10)
+            {
+                int slotIdx = key.Key - ConsoleKey.F1;
+                // 先确保回到 ChatScreen（弹出其他 screen 直至根）
+                while (mgr.ActiveScreen != screen && mgr.ActiveScreen != null)
+                    mgr.PopScreen();
+                SwitchAgentSlot(slotIdx, screen);
+                mgr.Render();
                 continue;
             }
 
-            // 模态窗口键路由
-            if (screen.HasModal)
-            {
-                if (screen.HandleKey(key)) { mgr.Render(); continue; }
-            }
-
-            // ---- 建议模式 ----
-            if (screen.SuggestActive)
-            {
-                switch (key.Key)
-                {
-                    case ConsoleKey.Escape: screen.SuggestActive = false; continue;
-                    case ConsoleKey.UpArrow: if (screen.SuggestIndex > 0) screen.SuggestIndex--; continue;
-                    case ConsoleKey.DownArrow: if (screen.SuggestIndex < screen.Suggestions.Count - 1) screen.SuggestIndex++; continue;
-                    case ConsoleKey.PageUp: screen.SuggestIndex = Math.Max(0, screen.SuggestIndex - 5); continue;
-                    case ConsoleKey.PageDown: screen.SuggestIndex = Math.Min(screen.Suggestions.Count - 1, screen.SuggestIndex + 5); continue;
-                    case ConsoleKey.Home: screen.SuggestIndex = 0; continue;
-                    case ConsoleKey.End: screen.SuggestIndex = screen.Suggestions.Count - 1; continue;
-                    case ConsoleKey.Enter: case ConsoleKey.Tab:
-                        screen.AcceptSuggestion(); continue;
-                    case ConsoleKey.Backspace: screen.InputBackspace(); screen.UpdateSuggestions(screen.Suggestions, screen.SuggestIndex); break;
-                    case ConsoleKey.LeftArrow: case ConsoleKey.RightArrow:
-                        screen.SuggestActive = false; break;
-                    default: break;
-                }
-                if (key.Key is ConsoleKey.UpArrow or ConsoleKey.DownArrow or ConsoleKey.PageUp
-                    or ConsoleKey.PageDown or ConsoleKey.Home or ConsoleKey.End
-                    or ConsoleKey.Enter or ConsoleKey.Tab or ConsoleKey.Escape)
-                    continue;
-            }
-
-            screen.SyncTodos(); // 每帧同步 Todo 数据
-
-            switch (key.Key)
-            {
-                case ConsoleKey.Enter when !ctrl && !shift:
-                    screen.SuggestActive = false;
-                    var input = screen.GetInputText();
-                    if (string.IsNullOrWhiteSpace(input)) continue;
-                    screen.AddUserMsg(input);
-                    // 保存到输入历史（去重相邻重复）
-                    if (_inputHistory.Count == 0 || _inputHistory[^1] != input)
-                        _inputHistory.Add(input);
-                    if (_inputHistory.Count > 200) _inputHistory.RemoveAt(0);
-                    _historyIdx = -1;
-                    screen.SetInput("");
-                    mgr.Render();
-                    await ProcessUserInput(input, screen);
-                    break;
-
-                case ConsoleKey.F1:
-                case ConsoleKey.F2:
-                case ConsoleKey.F3:
-                case ConsoleKey.F4:
-                case ConsoleKey.F5:
-                case ConsoleKey.F6:
-                case ConsoleKey.F7:
-                case ConsoleKey.F8:
-                case ConsoleKey.F9:
-                case ConsoleKey.F10:
-                    SwitchAgentSlot(key.Key - ConsoleKey.F1, screen);
-                    break;
-
-                case ConsoleKey.F11:
-                    TuiManager.Instance.PushScreen(new EditorScreen());
-                    break;
-
-                case ConsoleKey.F12:
-                    TuiManager.Instance.PushScreen(new SettingsScreen());
-                    break;
-
-                case ConsoleKey.B when ctrl:
-                    screen.ActivePanel = screen.ActivePanel switch
-                    {
-                        PanelTab.Off => PanelTab.Todo,
-                        PanelTab.Todo => PanelTab.Files,
-                        PanelTab.Files => PanelTab.Locks,
-                        PanelTab.Locks => PanelTab.MCP,
-                        _ => PanelTab.Off,
-                    };
-                    if (screen.ActivePanel == PanelTab.Files)
-                        screen.ModifiedFiles = EditFileTool.ChangedFiles.ToList();
-                    break;
-
-                case ConsoleKey.O when ctrl:
-                    TuiManager.Instance.PushScreen(new SettingsScreen());
-                    break;
-
-                case ConsoleKey.R when ctrl:
-                    mgr.Exit();
-                    var query = TuiPrompt.Ask("搜索对话历史");
-                    mgr.Enter();
-                    mgr.PushScreen(screen);
-                    if (!string.IsNullOrWhiteSpace(query))
-                        SearchHistory("/history " + query, screen);
-                    break;
-
-                case ConsoleKey.M when ctrl:
-                    CycleModel(screen);
-                    break;
-
-                case ConsoleKey.H when ctrl:
-                    ShowHelpInChat(screen);
-                    break;
-
-                case ConsoleKey.Q when ctrl:
-                    AutoSaveSession();
-                    _watchMode?.Dispose();
-                    mgr.Exit();
-                    Environment.Exit(0);
-                    break;
-
-                // ---- 聊天区滚动 ----
-                case ConsoleKey.PageUp: screen.ChatScrollUp(Math.Max(1, (TTY.Rows - 10) / 2)); break;
-                case ConsoleKey.PageDown: screen.ChatScrollDown(Math.Max(1, (TTY.Rows - 10) / 2)); break;
-                case ConsoleKey.Home when ctrl: screen.ChatScrollTop(); break;
-                case ConsoleKey.End when ctrl: screen.ChatScrollBottom(); break;
-                case ConsoleKey.UpArrow when ctrl: screen.ChatScrollUp(3); break;
-                case ConsoleKey.DownArrow when ctrl: screen.ChatScrollDown(3); break;
-
-                case ConsoleKey.Enter when ctrl || shift:
-                    screen.InputNewLine();
-                    break;
-                case ConsoleKey.Escape when string.IsNullOrEmpty(screen.GetInputText()):
-                    running = false;
-                    break;
-
-                case ConsoleKey.Backspace when ctrl: screen.InputDeleteWordLeft(); break;
-                case ConsoleKey.Backspace: screen.InputBackspace(); break;
-                case ConsoleKey.Delete when ctrl: screen.InputDeleteWordRight(); break;
-                case ConsoleKey.Delete: screen.InputDelete(); break;
-                case ConsoleKey.LeftArrow when ctrl: screen.InputWordLeft(); break;
-                case ConsoleKey.LeftArrow: screen.InputCursorLeft(); break;
-                case ConsoleKey.RightArrow when ctrl: screen.InputWordRight(); break;
-                case ConsoleKey.RightArrow: screen.InputCursorRight(); break;
-                case ConsoleKey.UpArrow:
-                    if (screen.InputArea.Lines.Count == 1)
-                    {
-                        // 单行输入 + 空内容: 滚动聊天区
-                        if (string.IsNullOrEmpty(screen.GetInputText()))
-                        { screen.ChatScrollUp(3); break; }
-                        // 单行输入：浏览历史
-                        if (_inputHistory.Count > 0)
-                        {
-                            if (_historyIdx == -1) _historyIdx = _inputHistory.Count - 1;
-                            else if (_historyIdx > 0) _historyIdx--;
-                            screen.SetInput(_inputHistory[_historyIdx]);
-                        }
-                    }
-                    else screen.InputMoveUp();
-                    break;
-                case ConsoleKey.DownArrow:
-                    if (screen.InputArea.Lines.Count == 1)
-                    {
-                        // 单行输入 + 空内容: 滚动聊天区
-                        if (string.IsNullOrEmpty(screen.GetInputText()))
-                        { screen.ChatScrollDown(3); break; }
-                        if (_historyIdx >= 0)
-                        {
-                            _historyIdx++;
-                            screen.SetInput(_historyIdx < _inputHistory.Count
-                                ? _inputHistory[_historyIdx] : "");
-                            if (_historyIdx >= _inputHistory.Count) _historyIdx = -1;
-                        }
-                    }
-                    else screen.InputMoveDown();
-                    break;
-                case ConsoleKey.Home: screen.InputHome(); break;
-                case ConsoleKey.End: screen.InputEnd(); break;
-                case ConsoleKey.Tab:
-                    // 文件路径智能补全：如果当前词像路径则补全，否则插入空格
-                    if (!TabCompletePath(screen))
-                    {
-                        for (int t = 0; t < 4; t++) screen.InputInsert(' ');
-                    }
-                    break;
-
-                default:
-                    if (key.KeyChar >= ' ')
-                    {
-                        screen.InputInsert(key.KeyChar);
-                    }
-                    break;
-            }
+            // 其余全部下发到活跃 Screen → Window → 控件冒泡
+            mgr.HandleKey(key);
+            mgr.Render();
         }
 
         AutoSaveSession();
@@ -652,7 +468,7 @@ public class Program
             slot.ChatMessages.Add(new ChatMsg
             {
                 Role = "system",
-                Content = $"🤖 Agent 槽位 F{idx + 1} — 独立会话，F11编辑器 F12设置 Ctrl+H帮助 Ctrl+B面板 Ctrl+O设置 Ctrl+Q退出",
+                Content = $"🤖 Agent 槽位 F{idx + 1} — 独立会话，Ctrl+E编辑器 Ctrl+T设置 Ctrl+H帮助 Ctrl+B面板 Ctrl+Q退出",
             });
         }
 
@@ -781,7 +597,6 @@ public class Program
         using var cts = new CancellationTokenSource();
         _agentCts = cts; _agentBusy = true;
         screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Working;
-        Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
         try {
         var modelStack = BuildFallbackChain();
         var startTime = DateTime.UtcNow;
@@ -890,14 +705,7 @@ public class Program
             screen.Render();
         }
 
-        // 忙时按了 Ctrl+C——确认是否退出
-        if (_pendingExitConfirm)
-        {
-            _pendingExitConfirm = false;
-            var choice = screen.ShowInlinePermission("确认退出", "正在处理中的任务将被中断",
-                ["退出程序", "继续运行"]);
-            if (choice == 0) { AutoSaveSession(); TuiManager.Instance.Exit(); Environment.Exit(0); }
-        }
+        // 忙时 Ctrl+C 已由系统级 Ctrl+C 处理（直接强制退出），无需额外确认
     }
 
     // ========================================================================
@@ -1102,7 +910,7 @@ public class Program
 
     private static void ShowHelpInChat(ChatScreen screen)
     {
-        screen.AddSystemMsg("帮助: /help /reset /model /tokens /compact /diff /save /resume /history /export /sessions ... F1-F10切换Agent F11编辑器 F12设置 Ctrl+R搜索 Ctrl+M切模型 Ctrl+H帮助 Ctrl+B面板 Ctrl+O设置 Ctrl+Q退出 ↑↓历史");
+        screen.AddSystemMsg("帮助: /help /reset /model /tokens /compact /diff /save /resume /history /export /sessions ... F1-F10切换Agent Ctrl+E编辑器 Ctrl+T设置 Ctrl+R搜索 Ctrl+M切模型 Ctrl+H帮助 Ctrl+B面板 Ctrl+Q退出 ↑↓历史");
     }
     private static void ShowAboutInChat(ChatScreen screen)
     {

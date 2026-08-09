@@ -12,16 +12,17 @@ public static class TuiMarkdown
     /// 每行是 (文本, 前景色, 背景色) 片段列表。
     /// </summary>
     public static List<List<(string Text, int Fg, int Bg)>> RenderMessage(
-        string content, string role, int maxWidth)
+        string content, string role, int maxWidth, bool plainText = false)
     {
         var result = new List<List<(string Text, int Fg, int Bg)>>();
 
-        // 含 ANSI 转义码的内容直接原样渲染（如 diff 输出）
-        if (content.Contains('\x1b'))
+        // 纯文本模式 + ANSI 内容：按行原样渲染，不做 Markdown 解析
+        if (plainText || content.Contains('\x1b'))
         {
+            int defaultFg = FgForRole(role);
             foreach (var rawLine in content.Split('\n'))
             {
-                result.Add(new List<(string, int, int)> { (rawLine, 0, 0) });
+                result.Add(new List<(string, int, int)> { (rawLine, defaultFg, 0) });
             }
             return result;
         }
