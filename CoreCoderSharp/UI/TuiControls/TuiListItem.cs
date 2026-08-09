@@ -118,11 +118,10 @@ public class TuiListItem : TuiVBox
             TimeLabel = new TuiLabel("") { Width = 0, Height = 1 };
         }
 
-        // ── Body: Markdown 正文，左缩进 2 格对齐标题 ──
-        const int bodyIndent = 2;
-        Body = TuiMarkdown.Create(MarkdownContent, Role, innerW - bodyIndent, IsPlainText);
-        Body.Width = innerW - bodyIndent;
-        Body.X = PaddingLeft + bodyIndent;
+        // ── Body: Markdown 正文，Padding.Left = 2 格对齐标题 ──
+        Body = TuiMarkdown.Create(MarkdownContent, Role, innerW, IsPlainText);
+        Body.Width = innerW;
+        Body.Padding = new EdgeInsets(0, 0, 0, 2);
         Add(Body);
 
         // ── 重新计算整体高度 ──
@@ -135,8 +134,8 @@ public class TuiListItem : TuiVBox
         MarkdownContent += delta;
         Body.Content += delta;
         Body.Invalidate();
-        Body.Width = Width - PaddingLeft - PaddingRight - 2;
-        Body.MaxWidth = Width - PaddingLeft - PaddingRight - 2;
+        Body.Width = Width - PaddingLeft - PaddingRight;
+        Body.MaxWidth = Width - PaddingLeft - PaddingRight;
         Body.EnsureParsed();
         ReLayout();
     }
@@ -170,20 +169,6 @@ public class TuiListItem : TuiVBox
     /// <summary>重新布局所有子控件</summary>
     public void ReLayout()
     {
-        foreach (var child in Children)
-        {
-            // Body 保持左缩进 2 格对齐标题，其他子控件贴左边距
-            if (child == Body)
-            {
-                child.X = PaddingLeft + 2;
-                child.Width = Math.Min(child.Width, Width - PaddingLeft - PaddingRight - 2);
-            }
-            else
-            {
-                child.X = PaddingLeft;
-                child.Width = Math.Min(child.Width, Width - PaddingLeft - PaddingRight);
-            }
-        }
         Layout();
     }
 

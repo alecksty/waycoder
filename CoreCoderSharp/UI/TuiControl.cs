@@ -3,11 +3,26 @@ using CoreCoderSharp.Terminal;
 
 namespace CoreCoderSharp.UI;
 
+/// <summary>外边距 / 内边距（上右下左，默认 0）</summary>
+public struct EdgeInsets
+{
+    public int Top, Right, Bottom, Left;
+    public EdgeInsets(int all = 0) => Top = Right = Bottom = Left = all;
+    public EdgeInsets(int top, int right, int bottom, int left)
+    {
+        Top = top; Right = right; Bottom = bottom; Left = left;
+    }
+    public int Horizontal => Left + Right;
+    public int Vertical => Top + Bottom;
+}
+
 /// <summary>
 /// 控件基类 —— 所有 TUI 控件的抽象根。
 /// 控件位于其父容器（View 或 Window）内，坐标相对于父容器原点。
 /// 内建裁剪：渲染内容不会超出控件边界（Width × Height）。
 /// 内建底色/前景色：Fg/Bg 设置控件的默认前后景色。
+/// Margin 控制父容器在布局时为本控件留出的外部间距。
+/// Padding 控制控件内部内容区的缩进（渲染时自动内移裁剪区）。
 /// </summary>
 public abstract class TuiControl
 {
@@ -16,6 +31,12 @@ public abstract class TuiControl
     public int Y { get; set; }
     public int Width { get; set; } = 10;
     public int Height { get; set; } = 1;
+
+    /// <summary>外部间距（父容器布局时在四周留出的空白）</summary>
+    public EdgeInsets Margin { get; set; }
+
+    /// <summary>内部间距（内容区向内缩进，渲染裁剪区自动扣除）</summary>
+    public EdgeInsets Padding { get; set; }
 
     // ── 状态 ──
     public bool Visible { get; set; } = true;
@@ -54,9 +75,9 @@ public abstract class TuiControl
     // ── 渲染入口（模板方法） ──
 
     /// <summary>
-    /// <summary>
     /// 渲染控件。计算裁剪区域 → 填充底色 → 调用子类 OnRender。
     /// clipL/T/R/B 为父容器的裁剪约束（可选），控件实际裁剪区取交集。
+    /// Padding 自动内移裁剪区，Margin 由父容器布局时处理。
     /// </summary>
     public void Render(StringBuilder sb, int parentAbsX, int parentAbsY,
         int clipL = int.MinValue, int clipT = int.MinValue,
@@ -67,11 +88,11 @@ public abstract class TuiControl
         var absX = parentAbsX + X;
         var absY = parentAbsY + Y;
 
-        // 控件自身裁剪区
-        var selfL = absX;
-        var selfT = absY;
-        var selfR = absX + Width;
-        var selfB = absY + Height;
+        // 控件自身裁剪区（含 Padding 内缩）
+        var selfL = absX + Padding.Left;
+        var selfT = absY + Padding.Top;
+        var selfR = absX + Width - Padding.Right;
+        var selfB = absY + Height - Padding.Bottom;
 
         // 与父容器约束取交集
         ClipLeft   = Math.Max(selfL, clipL);
@@ -96,8 +117,8 @@ public abstract class TuiControl
             }
         }
 
-        // 调用子类渲染
-        OnRender(sb, absX, absY);
+        // 调用子类渲染（内容原点右移 Padding.Left、下移 Padding.Top）
+        OnRender(sb, absX + Padding.Left, absY + Padding.Top);
     }
 
     /// <summary>子类实现：绘制内容。absX/absY 为控件左上角绝对坐标。</summary>
