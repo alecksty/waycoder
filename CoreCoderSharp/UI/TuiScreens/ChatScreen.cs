@@ -756,35 +756,29 @@ public class ChatScreen : TuiScreen
     /// <summary>显示选择菜单对话框，返回选中索引（-1=取消）</summary>
     public int ShowMenu(string title, List<string> choices)
     {
-        int result = -1;
         using var evt = new ManualResetEventSlim(false);
         var win = TuiDialog.Select(title, choices,
-            onSelect: idx => { result = idx; evt.Set(); },
-            onCancel: () => { result = -1; evt.Set(); });
+            onSelect: _ => evt.Set(),
+            onCancel: () => evt.Set());
         ShowWindow(win);
         RenderWait(evt);
-        return result;
+        return win.Result is int idx ? idx : -1;
     }
 
-    /// <summary>显示行内权限确认对话框，返回选中索引</summary>
+    /// <summary>显示行内权限确认对话框，返回选中索引（0=允许, 1=全部允许, -1=拒绝）</summary>
     public int ShowInlinePermission(string title, string content, List<string> choices)
     {
-        int result = -1;
         using var evt = new ManualResetEventSlim(false);
         var win = TuiDialog.Permission(title, content,
-            onResult: r =>
-            {
-                result = r switch
-                {
-                    TuiDialog.DialogResult.Yes => 0,
-                    TuiDialog.DialogResult.Ok => 1,
-                    _ => -1,
-                };
-                evt.Set();
-            });
+            onResult: _ => evt.Set());
         ShowWindow(win);
         RenderWait(evt);
-        return result;
+        return win.Result switch
+        {
+            TuiDialog.DialogResult.Yes => 0,
+            TuiDialog.DialogResult.Ok => 1,
+            _ => -1,
+        };
     }
 
     /// <summary>渲染循环等待对话框关闭</summary>

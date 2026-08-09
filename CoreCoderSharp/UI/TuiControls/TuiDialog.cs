@@ -71,8 +71,8 @@ public static class TuiDialog
         var hbox = new TuiHBox { Spacing = 2, Width = 38, ContentHAlign = HAlign.Center };
         var yesBtn = new TuiButton("是 (Y)") { Width = 12, Focused = true };
         var noBtn = new TuiButton("否 (N)") { Width = 12 };
-        yesBtn.OnClick = () => { onResult(true); win.OnClosed?.Invoke(); };
-        noBtn.OnClick = () => { onResult(false); win.OnClosed?.Invoke(); };
+        yesBtn.OnClick = () => { win.Result = true; onResult(true); win.OnClosed?.Invoke(); };
+        noBtn.OnClick = () => { win.Result = false; onResult(false); win.OnClosed?.Invoke(); };
         hbox.Add(yesBtn); hbox.Add(noBtn);
         vbox.Add(hbox);
 
@@ -81,6 +81,10 @@ public static class TuiDialog
         win.Height = vbox.Height + 4;
         win.RootView = vbox;
         win.Center();
+
+        // 快捷键：Y=是 N=否
+        win.RegisterShortcut(ConsoleKey.Y, () => { win.Result = true; onResult(true); win.OnClosed?.Invoke(); });
+        win.RegisterShortcut(ConsoleKey.N, () => { win.Result = false; onResult(false); win.OnClosed?.Invoke(); });
         return win;
     }
 
@@ -104,9 +108,9 @@ public static class TuiDialog
         var yesBtn = new TuiButton("是 (Y)") { Width = 12, Focused = true };
         var noBtn = new TuiButton("否 (N)") { Width = 12 };
         var cancelBtn = new TuiButton("取消 (Esc)") { Width = 14 };
-        yesBtn.OnClick = () => { onResult(DialogResult.Yes); win.OnClosed?.Invoke(); };
-        noBtn.OnClick = () => { onResult(DialogResult.No); win.OnClosed?.Invoke(); };
-        cancelBtn.OnClick = () => { onResult(DialogResult.Cancel); win.OnClosed?.Invoke(); };
+        yesBtn.OnClick = () => { win.Result = DialogResult.Yes; onResult(DialogResult.Yes); win.OnClosed?.Invoke(); };
+        noBtn.OnClick = () => { win.Result = DialogResult.No; onResult(DialogResult.No); win.OnClosed?.Invoke(); };
+        cancelBtn.OnClick = () => { win.Result = DialogResult.Cancel; onResult(DialogResult.Cancel); win.OnClosed?.Invoke(); };
         hbox.Add(yesBtn); hbox.Add(noBtn); hbox.Add(cancelBtn);
         vbox.Add(hbox);
 
@@ -115,6 +119,10 @@ public static class TuiDialog
         win.Height = vbox.Height + 4;
         win.RootView = vbox;
         win.Center();
+
+        // 快捷键：Y=是 N=否 Escape=取消（TuiScreen 已处理 Esc 关闭模态，此处注册确保一致性）
+        win.RegisterShortcut(ConsoleKey.Y, () => { win.Result = DialogResult.Yes; onResult(DialogResult.Yes); win.OnClosed?.Invoke(); });
+        win.RegisterShortcut(ConsoleKey.N, () => { win.Result = DialogResult.No; onResult(DialogResult.No); win.OnClosed?.Invoke(); });
         return win;
     }
 
@@ -145,8 +153,8 @@ public static class TuiDialog
         var hbox = new TuiHBox { Spacing = 2, Width = 42, ContentHAlign = HAlign.Center };
         var okBtn = new TuiButton("确定") { Width = 10 };
         var cancelBtn = new TuiButton("取消") { Width = 10 };
-        okBtn.OnClick = () => { onConfirm(input.Text); win.OnClosed?.Invoke(); };
-        cancelBtn.OnClick = () => { onCancel?.Invoke(); win.OnClosed?.Invoke(); };
+        okBtn.OnClick = () => { win.Result = input.Text; onConfirm(input.Text); win.OnClosed?.Invoke(); };
+        cancelBtn.OnClick = () => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
         hbox.Add(okBtn); hbox.Add(cancelBtn);
         vbox.Add(hbox);
 
@@ -181,12 +189,12 @@ public static class TuiDialog
             Items = items, SelectedIndex = 0,
             Width = listW, Height = visItems, Focused = true
         };
-        list.OnSelect = idx => { onSelect(idx); win.OnClosed?.Invoke(); };
+        list.OnSelect = idx => { win.Result = idx; onSelect(idx); win.OnClosed?.Invoke(); };
         vbox.Add(list);
 
         var hbox = new TuiHBox { Spacing = 2, Width = listW, ContentHAlign = HAlign.Center };
         var cancelBtn = new TuiButton("取消 (Esc)") { Width = 14 };
-        cancelBtn.OnClick = () => { onCancel?.Invoke(); win.OnClosed?.Invoke(); };
+        cancelBtn.OnClick = () => { win.Result = -1; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
         hbox.Add(cancelBtn);
         vbox.Add(hbox);
 
@@ -224,8 +232,8 @@ public static class TuiDialog
         var hbox = new TuiHBox { Spacing = 2, Width = listW, ContentHAlign = HAlign.Center };
         var okBtn = new TuiButton("确定") { Width = 10 };
         var cancelBtn = new TuiButton("取消") { Width = 10 };
-        okBtn.OnClick = () => { onConfirm(list.CheckedIndices); win.OnClosed?.Invoke(); };
-        cancelBtn.OnClick = () => { onCancel?.Invoke(); win.OnClosed?.Invoke(); };
+        okBtn.OnClick = () => { win.Result = list.CheckedIndices; onConfirm(list.CheckedIndices); win.OnClosed?.Invoke(); };
+        cancelBtn.OnClick = () => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
         hbox.Add(okBtn); hbox.Add(cancelBtn);
         vbox.Add(hbox);
 
@@ -240,7 +248,8 @@ public static class TuiDialog
     // ── 权限确认对话框 ──
 
     /// <summary>
-    /// 权限确认对话框 —— 带颜色编码的 Yes / No / Yes-to-all 三选项
+    /// 权限确认对话框 —— 带颜色编码的 Yes / No / Yes-to-all 三选项。
+    /// 快捷键：Y=允许 N=拒绝 A=全部允许
     /// </summary>
     public static TuiWindow Permission(string title, string message,
         Action<DialogResult> onResult)
@@ -267,9 +276,9 @@ public static class TuiDialog
         var yesBtn = new TuiButton("允许 (Y)") { Width = 14, Fg = 32, Focused = true };
         var noBtn = new TuiButton("拒绝 (N)") { Width = 14, Fg = 31 };
         var allBtn = new TuiButton("全部允许 (A)") { Width = 18, Fg = 33 };
-        yesBtn.OnClick = () => { onResult(DialogResult.Yes); win.OnClosed?.Invoke(); };
-        noBtn.OnClick = () => { onResult(DialogResult.No); win.OnClosed?.Invoke(); };
-        allBtn.OnClick = () => { onResult(DialogResult.Ok); win.OnClosed?.Invoke(); };
+        yesBtn.OnClick = () => { win.Result = DialogResult.Yes; onResult(DialogResult.Yes); win.OnClosed?.Invoke(); };
+        noBtn.OnClick = () => { win.Result = DialogResult.No; onResult(DialogResult.No); win.OnClosed?.Invoke(); };
+        allBtn.OnClick = () => { win.Result = DialogResult.Ok; onResult(DialogResult.Ok); win.OnClosed?.Invoke(); };
         hbox.Add(yesBtn); hbox.Add(noBtn); hbox.Add(allBtn);
         vbox.Add(hbox);
 
@@ -278,6 +287,11 @@ public static class TuiDialog
         win.Height = vbox.Height + 4;
         win.RootView = vbox;
         win.Center();
+
+        // 快捷键注册：按钮上已标注 (Y)/(N)/(A)，窗口级拦截确保无需 Tab 切换
+        win.RegisterShortcut(ConsoleKey.Y, () => { win.Result = DialogResult.Yes; onResult(DialogResult.Yes); win.OnClosed?.Invoke(); });
+        win.RegisterShortcut(ConsoleKey.N, () => { win.Result = DialogResult.No; onResult(DialogResult.No); win.OnClosed?.Invoke(); });
+        win.RegisterShortcut(ConsoleKey.A, () => { win.Result = DialogResult.Ok; onResult(DialogResult.Ok); win.OnClosed?.Invoke(); });
         return win;
     }
 
@@ -294,7 +308,11 @@ public static class TuiDialog
             vbox.Add(new TuiLabel(line) { Width = w - 6 });
         vbox.Add(new TuiLabel("") { Height = 1 });
 
-        var btn = new TuiButton(button.label, button.onClick)
+        var btn = new TuiButton(button.label, () =>
+        {
+            win.Result = DialogResult.Ok;
+            button.onClick();
+        })
         {
             Width = Math.Max(8, TuiHelper.DisplayWidth(button.label) + 4),
             Focused = true  // 默认按钮获得焦点，Enter/Space 触发
@@ -306,5 +324,12 @@ public static class TuiDialog
         win.Height = vbox.Height + 4;
         win.RootView = vbox;
         win.Center();
+
+        // 单按钮对话框：Enter 快捷键 = 点击确定
+        win.RegisterShortcut(ConsoleKey.Enter, () =>
+        {
+            win.Result = DialogResult.Ok;
+            button.onClick();
+        });
     }
 }

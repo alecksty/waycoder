@@ -87,6 +87,26 @@ public class TuiWindow
     // ── 内容文本（简单模式，无控件树时使用） ──
     public List<string> ContentLines { get; set; } = [];
 
+    // ── 对话框结果 ──
+    /// <summary>
+    /// 对话框返回值。弹窗代码读取此属性获取用户选择。
+    /// 类型因对话框而异：Permission→DialogResult, Select→int, Input→string, Confirm→bool。
+    /// </summary>
+    public object? Result { get; set; }
+
+    // ── 键盘快捷键 ──
+    /// <summary>
+    /// 窗口级键盘快捷键映射。优先于控件树路由。
+    /// 对话框注册 Y/N/A/Enter/Esc 等快捷键，用户无需 Tab 切换到按钮即可触发。
+    /// </summary>
+    public Dictionary<ConsoleKey, Action> KeyShortcuts { get; } = [];
+
+    /// <summary>注册一个键盘快捷键</summary>
+    public void RegisterShortcut(ConsoleKey key, Action action)
+    {
+        KeyShortcuts[key] = action;
+    }
+
     // ── 关闭回调 ──
     public Action? OnClosed { get; set; }
 
@@ -204,9 +224,31 @@ public class TuiWindow
         RootView.OnResize(ContentWidth, ContentHeight);
     }
 
-    /// <summary>路由按键到控件树</summary>
+    /// <summary>路由按键到控件树。快捷键优先于控件路由。</summary>
     public bool HandleKey(ConsoleKeyInfo key)
     {
+        // ── 1. 窗口级快捷键（优先，无需控件焦点）──
+        if (KeyShortcuts.Count > 0)
+        {
+            // 先精确匹配 ConsoleKey（区分大小写和修饰符）
+            if (KeyShortcuts.TryGetValue(key.Key, out var action))
+            {
+                action();
+                return true;
+            }
+            // 如果 KeyChar 是字母，再尝试以大写 ConsoleKey 匹配（'y'→ConsoleKey.Y）
+            if (key.KeyChar >= 'a' && key.KeyChar <= 'z')
+            {
+                var upperKey = (ConsoleKey)char.ToUpperInvariant(key.KeyChar);
+                if (KeyShortcuts.TryGetValue(upperKey, out var upperAction))
+                {
+                    upperAction();
+                    return true;
+                }
+            }
+        }
+
+        // ── 2. 路由到控件树（Tab 切换、按钮 Enter/Space 等）──
         return RootView.HandleKey(key);
     }
 
