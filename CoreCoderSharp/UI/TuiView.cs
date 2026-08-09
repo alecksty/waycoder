@@ -176,7 +176,7 @@ public class TuiVBox : TuiView
 
     public override void Layout()
     {
-        // 第一遍：计算总高度，递归布局嵌套视图
+        // 第一遍：计算总高度（含 child margin），递归布局嵌套视图
         int totalH = 0;
         foreach (var child in Children)
         {
@@ -184,7 +184,7 @@ public class TuiVBox : TuiView
                 child.Width = Width;
             if (child is TuiView childView)
                 childView.Layout();
-            totalH += child.Height + Spacing;
+            totalH += child.Height + child.Margin.Vertical + Spacing;
         }
         if (totalH > 0) totalH -= Spacing;
 
@@ -196,13 +196,13 @@ public class TuiVBox : TuiView
             _ => 0
         };
 
-        // 第二遍：设置位置
+        // 第二遍：设置位置（Margin.Top 偏移，Margin.Left 水平对齐）
         int y = Math.Max(0, contentOffset);
         foreach (var child in Children)
         {
-            child.Y = y;
-            child.X = AlignX(child.Width);
-            y += child.Height + Spacing;
+            child.Y = y + child.Margin.Top;
+            child.X = AlignX(child.Width) + child.Margin.Left;
+            y += child.Height + child.Margin.Vertical + Spacing;
         }
 
         // 如果内容超出容器，更新 Height
@@ -224,7 +224,7 @@ public class TuiHBox : TuiView
 
     public override void Layout()
     {
-        // 第一遍：计算总宽度和最大行高，递归布局嵌套视图
+        // 第一遍：计算总宽度（含 child margin）和最大行高，递归布局嵌套视图
         int totalW = 0;
         int maxH = 1;
         foreach (var child in Children)
@@ -233,8 +233,8 @@ public class TuiHBox : TuiView
                 child.Height = Height;
             if (child is TuiView childView)
                 childView.Layout();
-            totalW += child.Width + Spacing;
-            maxH = Math.Max(maxH, child.Height);
+            totalW += child.Width + child.Margin.Horizontal + Spacing;
+            maxH = Math.Max(maxH, child.Height + child.Margin.Vertical);
         }
         if (totalW > 0) totalW -= Spacing;
 
@@ -247,13 +247,13 @@ public class TuiHBox : TuiView
             _ => 0
         };
 
-        // 第二遍：设置位置
+        // 第二遍：设置位置（Margin.Left/Right/Top 偏移）
         int x = Math.Max(0, contentOffset);
         foreach (var child in Children)
         {
-            child.X = x;
-            child.Y = AlignY(child.Height, maxH);
-            x += child.Width + Spacing;
+            child.X = x + child.Margin.Left;
+            child.Y = AlignY(child.Height + child.Margin.Vertical, maxH) + child.Margin.Top;
+            x += child.Width + child.Margin.Horizontal + Spacing;
         }
 
         Height = maxH;
@@ -283,9 +283,9 @@ public class TuiScrollView : TuiView
         {
             if (ChildHAlign == HAlign.Stretch)
                 child.Width = Width;
-            child.X = AlignX(child.Width);
-            child.Y = y;
-            y += child.Height;
+            child.X = AlignX(child.Width) + child.Margin.Left;
+            child.Y = y + child.Margin.Top;
+            y += child.Height + child.Margin.Vertical;
         }
         ContentHeight = y;
     }
