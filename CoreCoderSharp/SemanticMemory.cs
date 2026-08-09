@@ -32,8 +32,9 @@ public static class SemanticMemory
         var docs = new List<MemoryDocument>();
         if (string.IsNullOrWhiteSpace(rawMarkdown)) return docs;
 
-        // 按 --- 分割（独立成行的分割线）
-        var parts = rawMarkdown.Split("\n---\n", StringSplitOptions.RemoveEmptyEntries);
+        // 按 --- 分割（独立成行的分割线），先规范化换行符
+        var normalized = rawMarkdown.Replace("\r\n", "\n");
+        var parts = normalized.Split("\n---\n", StringSplitOptions.RemoveEmptyEntries);
         int idx = 0;
 
         foreach (var part in parts)

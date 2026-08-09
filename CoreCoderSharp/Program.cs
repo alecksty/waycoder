@@ -452,8 +452,8 @@ public class Program
                     break;
 
                 // ---- 聊天区滚动 ----
-                case ConsoleKey.PageUp: sm.ChatScrollUp(Math.Max(1, (Console.WindowHeight - 10) / 2)); break;
-                case ConsoleKey.PageDown: sm.ChatScrollDown(Math.Max(1, (Console.WindowHeight - 10) / 2)); break;
+                case ConsoleKey.PageUp: sm.ChatScrollUp(Math.Max(1, (TTY.Rows - 10) / 2)); break;
+                case ConsoleKey.PageDown: sm.ChatScrollDown(Math.Max(1, (TTY.Rows - 10) / 2)); break;
                 case ConsoleKey.Home when ctrl: sm.ChatScrollTop(); break;
                 case ConsoleKey.End when ctrl: sm.ChatScrollBottom(); break;
                 case ConsoleKey.UpArrow when ctrl: sm.ChatScrollUp(3); break;

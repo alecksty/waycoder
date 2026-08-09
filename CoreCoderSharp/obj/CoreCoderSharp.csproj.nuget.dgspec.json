@@ -1,25 +1,27 @@
 {
   "format": 1,
   "restore": {
-    "/Users/shitanyu/Desktop/source/mycoder/my-coder/CoreCoderSharp/CoreCoderSharp.csproj": {}
+    "D:\\code-agents\\CoreCoder\\CoreCoderSharp\\CoreCoderSharp.csproj": {}
   },
   "projects": {
-    "/Users/shitanyu/Desktop/source/mycoder/my-coder/CoreCoderSharp/CoreCoderSharp.csproj": {
+    "D:\\code-agents\\CoreCoder\\CoreCoderSharp\\CoreCoderSharp.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/shitanyu/Desktop/source/mycoder/my-coder/CoreCoderSharp/CoreCoderSharp.csproj",
+        "projectUniqueName": "D:\\code-agents\\CoreCoder\\CoreCoderSharp\\CoreCoderSharp.csproj",
         "projectName": "corecoder",
-        "projectPath": "/Users/shitanyu/Desktop/source/mycoder/my-coder/CoreCoderSharp/CoreCoderSharp.csproj",
-        "packagesPath": "/Users/shitanyu/.nuget/packages/",
-        "outputPath": "/Users/shitanyu/Desktop/source/mycoder/my-coder/CoreCoderSharp/obj/",
+        "projectPath": "D:\\code-agents\\CoreCoder\\CoreCoderSharp\\CoreCoderSharp.csproj",
+        "packagesPath": "C:\\Users\\aleck\\.nuget\\packages\\",
+        "outputPath": "D:\\code-agents\\CoreCoder\\CoreCoderSharp\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/Users/shitanyu/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\aleck\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -72,19 +74,23 @@
           "warn": true,
           "downloadDependencies": [
             {
-              "name": "Microsoft.AspNetCore.App.Runtime.osx-arm64",
+              "name": "Microsoft.AspNetCore.App.Runtime.win-x64",
               "version": "[10.0.10, 10.0.10]"
             },
             {
-              "name": "Microsoft.NETCore.App.Runtime.NativeAOT.osx-arm64",
+              "name": "Microsoft.NETCore.App.Runtime.NativeAOT.win-x64",
               "version": "[10.0.10, 10.0.10]"
             },
             {
-              "name": "Microsoft.NETCore.App.Runtime.osx-arm64",
+              "name": "Microsoft.NETCore.App.Runtime.win-x64",
               "version": "[10.0.10, 10.0.10]"
             },
             {
-              "name": "runtime.osx-arm64.Microsoft.DotNet.ILCompiler",
+              "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
+              "version": "[10.0.10, 10.0.10]"
+            },
+            {
+              "name": "runtime.win-x64.Microsoft.DotNet.ILCompiler",
               "version": "[10.0.10, 10.0.10]"
             }
           ],
@@ -93,7 +99,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/10.0.302/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.302/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
@@ -371,7 +377,7 @@
         }
       },
       "runtimes": {
-        "osx-arm64": {
+        "win-x64": {
           "#import": []
         }
       }
