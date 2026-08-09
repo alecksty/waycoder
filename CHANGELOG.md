@@ -1,5 +1,50 @@
 # 更新日志
 
+## v0.21.0 (2026-08-09) — 新增 6 个 TUI 控件
+
+### 🔥 新增
+
+**TuiTreeView 树形视图** (`UI/TuiControls/TuiTreeView.cs`, ~390 行)
+- `TuiTreeNode` 树节点：Text/Icon/Children/Tag/Parent/IsLeaf/IsExpanded
+- 递归构建可见节点列表（expand/collapse），≥200 个节点无障碍
+- 树线渲染：`├─` `└─` `│` 缩进线 + `▼` `▶` 展开指示符
+- 键盘全导航：↑↓ 移动焦点，←→ 展开/折叠/跳转父节点，Space 切换，Enter 激活
+- 滚动：自动滚动使选中节点可见，`_scrollOffset` 偏移管理
+- `ExpandToRoot()` 展开所有祖先使深层节点可见
+
+**TuiRadioGroup 单选按钮组** (`UI/TuiControls/TuiRadioGroup.cs`, ~96 行)
+- 互斥选项列表，`◉`/`○` 符号渲染选中/未选中
+- 键盘：↑↓ Home End 导航，Enter/Spacebar 确认
+- `OnSelectionChanged` 回调，自动装填选项数作为高度
+
+**TuiComboBox 组合框** (`UI/TuiControls/TuiComboBox.cs`, ~177 行)
+- 收起时显示选中项 + `▼`，展开时弹出下拉列表（最多 10 项可见）
+- 键盘：Enter/Spacebar 展开，↑↓ Home End 在列表内导航，Enter 确认选择，Esc 收起
+- `OnExpandedChanged` + `OnSelectionChanged` 双向回调
+- RenderBuffer 背景填充，占位文本支持
+
+**TuiSeekBar 滑块** (`UI/TuiControls/TuiSeekBar.cs`, ~163 行)
+- `━●──` 风格滑块，比例计算滑块位置
+- Value/MinValue/MaxValue/Step/LargeStep 可配置
+- 键盘：←→ 步进微调，Home/End 跳边界，PgUp/PgDn 大步跳
+- 可选数字标签 "50/100"，自定义字符（Thumb/TrackFilled/TrackEmpty）
+- `OnValueChanged` 回调，值自动钳制
+
+**TuiSeparator 分割线** (`UI/TuiControls/TuiSeparator.cs`, ~71 行)
+- 水平/垂直两种方向，可选居中文本（`─── 标题 ───`）
+- 自定义线字符和颜色
+
+**TuiPanel 面板** (`UI/TuiControls/TuiPanel.cs`, ~139 行)
+- 带边框 + 标题栏的嵌入式容器（TuiView 子类可选 12 种边框风格）
+- 标题栏 `┤` 分隔线，内容区域 Padding，递归布局子控件
+
+### ✨ 改进
+- **TuiTreeView**: `MoveUp`/`MoveDown` 内部调用 `BuildFlatList()` 确保数据同步
+- **TuiSeekBar**: 添加 `using CoreCoderSharp.Terminal` 修复 RenderBuffer 引用
+- **TuiDemo**: F10=树形视图 F11=控件合集 F12=面板布局
+
+### 📝 自测: 756/756
+
 ## v0.20.0 (2026-08-09) — 五层 TUI 架构全面接入 REPL
 
 ### 🔥 重大变更
