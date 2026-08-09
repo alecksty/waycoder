@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.19.1 (2026-08-09) — 三骨架接入 + 记忆系统升级
+
+### 🔥 新增
+- **文档查询工具接入** (`Tools/DocTool.cs`): 注册为第 31 个工具，`action='search'` 定向抓取官方文档（React/Next.js/Vue/DotNET/Rust/Go 等 30+ 库），`action='fetch'` 抓取指定页面，15 分钟会话级缓存
+- **Diff 预览接入** (`UI/DiffPreview.cs`): `WAYCODER_DIFF_PREVIEW=1` 开启，`write_file`/`edit_file` 写前逐 hunk 确认（Y 接受/N 跳过/A 全接受/Q 取消），新增 `ApplyAccepted` 按接受集合重建内容；非交互模式（管道/重定向/测试）自动跳过
+
+### ✨ 改进
+- **记忆系统升级为结构化格式**: `MemoryTool` 从单文件 memory.md 切换到 `.corecoder/memory/*.md` frontmatter 多文件（read/write/search/delete 四操作，支持 name/description/type 参数）；`SystemPrompt` 记忆注入同步切换并自动迁移旧格式
+- **自测隔离**: 记忆段与系统提示词段在临时目录运行，不再污染真实 `memory.md`；自测新增 Doc 校验、结构化记忆、Diff 纯函数测试
+
+### 📝 自测: 694/694
+
 ## v0.19.0 (2026-08-09) — 技能系统 + 并行子代理 + CI
 
 ### 🔥 新增

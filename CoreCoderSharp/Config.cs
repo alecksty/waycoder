@@ -46,6 +46,9 @@ public class Config
     /// <summary>编辑器保存后自动 lint 检查（默认开启）</summary>
     public bool EditorLint { get; set; } = true;
 
+    /// <summary>Diff 预览 — 写文件前展示差异并逐 hunk 确认（默认关闭）</summary>
+    public bool DiffPreview { get; set; } = false;
+
     /// <summary>工具执行超时（秒），默认 120</summary>
     public int ToolTimeoutSec { get; set; } = 120;
 
@@ -129,6 +132,9 @@ public class Config
 
         if (bool.TryParse(Env("WAYCODER_EDITOR_LINT", "CORECODER_EDITOR_LINT"), out var el))
             config.EditorLint = el;
+
+        if (bool.TryParse(Env("WAYCODER_DIFF_PREVIEW", "CORECODER_DIFF_PREVIEW"), out var dp))
+            config.DiffPreview = dp;
 
         if (int.TryParse(Env("WAYCODER_TOOL_TIMEOUT", "CORECODER_TOOL_TIMEOUT"), out var tto))
             config.ToolTimeoutSec = tto;
