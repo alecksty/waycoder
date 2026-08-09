@@ -44,24 +44,23 @@ public class EditorScreen : TuiScreen
     {
         base.Activate();
 
-        // 确定文件路径
-        var path = FilePath;
-        if (string.IsNullOrWhiteSpace(path))
+        if (string.IsNullOrWhiteSpace(FilePath))
         {
-            path = PickFileViaDialog();
-            if (path == null)
-            {
-                Manager?.PopScreen();
-                return;
-            }
+            ShowFilePicker();
+            // 不阻塞 — 对话框回调会触发 LoadAndBuild 或 PopScreen
         }
+        else
+        {
+            LoadAndBuild(FilePath);
+        }
+    }
 
+    /// <summary>加载文件并构建编辑器布局</summary>
+    private void LoadAndBuild(string path)
+    {
         Core = new EditorCore();
         Core.LoadFile(path);
-
-        // 订阅事件
         Core.OnContentChanged += () => MarkDirty();
-
         BuildLayout();
     }
 
@@ -219,52 +218,54 @@ public class EditorScreen : TuiScreen
         }
     }
 
-    // ── 文件选择（无文件路径时） ──
+    // ── 文件选择（纯回调驱动，不阻塞 Activate） ──
 
-    private string? PickFileViaDialog()
+    /// <summary>显示文件选择对话框，选好后加载文件构建布局</summary>
+    private void ShowFilePicker()
     {
         var recent = EditFileTool.ChangedFiles.Take(9).ToList();
-        var choices = new List<string> { "输入文件路径..." };
-        choices.AddRange(recent);
-
-        string? result = null;
-
-        // 先声明，再设置回调
-        TuiWindow? selectWin = null;
-        selectWin = TuiDialog.Select("选择要编辑的文件", choices, idx =>
+        var choices = new List<string> { "📝 输入文件路径..." };
+        if (recent.Count > 0)
         {
+            choices.Add("── 最近编辑 ──");
+            choices.AddRange(recent);
+        }
+
+        var selectWin = TuiDialog.Select("选择要编辑的文件", choices, idx =>
+        {
+            if (choices[idx].StartsWith("──"))
+                return; // 分隔线，不处理
+
             if (idx == 0)
             {
-                CloseWindow(selectWin!);
-                var inputWin = TuiDialog.Input("文件路径", "输入要编辑的文件路径", "",
-                    path => { result = string.IsNullOrWhiteSpace(path) ? null : path.Trim(); });
+                // "输入文件路径..." → 弹出输入框
+                var inputWin = TuiDialog.Input("文件路径",
+                    "输入要编辑的文件路径（相对或绝对路径）", "",
+                    path =>
+                    {
+                        var trimmed = path?.Trim();
+                        if (!string.IsNullOrWhiteSpace(trimmed))
+                            LoadAndBuild(trimmed);
+                        else
+                            Manager?.PopScreen();
+                    });
                 ShowWindow(inputWin);
             }
             else
             {
-                result = recent[idx - 1];
-                CloseWindow(selectWin!);
+                // 最近文件
+                var file = recent[idx - (recent.Count > 0 ? 2 : 1)];
+                LoadAndBuild(file);
             }
         });
-        ShowWindow(selectWin);
 
-        // 轮询等待选择完成
-        int waited = 0;
-        while (result == null && waited < 30000)
+        // 用户 Esc 关闭选择对话框 → 返回聊天界面
+        selectWin.OnClosed = () =>
         {
-            if (Console.KeyAvailable)
-            {
-                var key = Console.ReadKey(intercept: true);
-                HandleKey(key);
-            }
-            else
-            {
-                Thread.Sleep(30);
-                waited += 30;
-            }
-        }
-
-        return result;
+            if (Core == null)   // 没选文件
+                Manager?.PopScreen();
+        };
+        ShowWindow(selectWin);
     }
 
     public override void Deactivate()
