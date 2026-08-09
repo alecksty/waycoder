@@ -205,13 +205,17 @@ public abstract class TuiScreen
     /// </summary>
     public virtual bool HandleKey(ConsoleKeyInfo key)
     {
-        // Esc 关闭顶层模态窗口
+        // Esc 路由：先给模态窗口处理（快捷键拦截），未处理则关闭窗口
         if (key.Key == ConsoleKey.Escape && HasModal)
         {
             var topModal = Windows.LastOrDefault(w => w.Modal);
             if (topModal != null)
             {
-                CloseWindow(topModal);
+                // 窗口级快捷键优先（如 Esc 注册为取消回调）
+                if (topModal.HandleKey(key))
+                    return true;
+                // 未处理 → 默认关闭（OnClosed 触发 ChatScreen 的 RenderWait 退出）
+                topModal.OnClosed?.Invoke();
                 return true;
             }
         }

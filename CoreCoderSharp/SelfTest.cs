@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using CoreCoderSharp.Tools;
 using CoreCoderSharp.UI;
+using CoreCoderSharp.UI.Controls;
 
 namespace CoreCoderSharp;
 
@@ -40,7 +41,7 @@ public static class SelfTest
         {
             "all" => null, // null = 全部
             "tools" => ["工具注册","工具]","[Git]","[Fetch]","[Todo]","[LSP]","[Bash ","[Git ","[Fetch ","[Lint ","[Web ","[Git PR]","[Git 大"],
-            "ui" => ["[CJK ","[语法高亮]","[BoxBuffer]","[主题系统]","[边框风格]","[DiffRenderer]","[InputManager]","[ChatScreen主题]"],
+            "ui" => ["[CJK ","[语法高亮]","[BoxBuffer]","[主题系统]","[边框风格]","[DiffRenderer]","[InputManager]","[ChatScreen主题]","[TuiMenu]","[Markdown 表格]"],
             "git" => ["[Git]","[Git ","[Git PR]","[Git 大"],
             "config" => ["[配置]","[设置 Schema]","[配置读写]","[SaveToEnvFile]"],
             "memory" => ["[记忆]","[记忆自动注入]","[语义记忆]"],
@@ -1178,6 +1179,63 @@ public static class SelfTest
         Check("建议首项过滤正确", screen.Suggestions.Any(s => s.StartsWith("/hel")));
         screen.HideSuggestions();
         Check("隐藏建议", !screen.SuggestActive);
+        Console.WriteLine();
+
+        // ---- TuiMenu ----
+        Section("[TuiMenu]");
+        var menuItems = new List<string> { "复制", "粘贴", "---", "删除", "全选" };
+        var menuWin = TuiMenu.Show("编辑", menuItems, 10, 5);
+        Check("TuiMenu 窗口非空", menuWin != null);
+        Check("TuiMenu 标题=编辑", menuWin.Title == "编辑");
+        Check("TuiMenu 模态", menuWin.Modal);
+        Check("TuiMenu 尺寸>0", menuWin.Width > 0 && menuWin.Height > 0);
+        Check("TuiMenu Result默认-1", menuWin.Result is int r && r == -1);
+        // 快捷键注册
+        Check("TuiMenu 快捷键1已注册", menuWin.KeyShortcuts.ContainsKey(ConsoleKey.D1));
+        Check("TuiMenu 快捷键Esc已注册", menuWin.KeyShortcuts.ContainsKey(ConsoleKey.Escape));
+        // RootView 是 MenuView
+        Check("TuiMenu RootView=MenuView", menuWin.RootView is TuiMenu.MenuView);
+        // 长菜单滚动测试
+        var longItems = new List<string>();
+        for (int i = 0; i < 30; i++) longItems.Add($"第{i}项");
+        var longMenu = TuiMenu.Show("长列表", longItems, 5, 2);
+        Check("长菜单高度有限", longMenu.Height < 30);
+        Check("长菜单可滚动", longMenu.Height <= 18); // 14项 + 标题栏 + 边框
+        Console.WriteLine();
+
+        // ---- Markdown 表格 ----
+        Section("[Markdown 表格]");
+        var mdTable = @"
+| 语言 | 速度 | 评分 |
+|------|------|------|
+| C# | 快 | 9.5 |
+| Python | 慢 | 6.5 |
+";
+        var rendered = UI.TuiMarkdown.RenderMessage(mdTable, "assistant", 80);
+        Check("表格渲染非空", rendered.Count > 0);
+        // 顶部边框 + 表头 + 分隔线 + 2行数据 + 底部边框 = 6
+        Check("表格渲染 = 6 行", rendered.Count == 6);
+        // 顶部边框含 ┌
+        var topLine = string.Concat(rendered[0].Select(s => s.Text));
+        Check("表格顶部边框含 ┌", topLine.Contains('┌'));
+        // 分隔线含 ┼
+        var sepLine = string.Concat(rendered[2].Select(s => s.Text));
+        Check("表格分隔线含 ┼", sepLine.Contains('┼'));
+        // 底部边框含 └
+        var botLine = string.Concat(rendered[^1].Select(s => s.Text));
+        Check("表格底部边框含 └", botLine.Contains('└'));
+        // 表头含"语言"
+        var headerLine = string.Concat(rendered[1].Select(s => s.Text));
+        Check("表头含 语言", headerLine.Contains("语言"));
+        // 内联格式 **加粗** 测试（1表头 + 1数据行 = 5 行）
+        var mdBold = UI.TuiMarkdown.RenderMessage("| **粗体** | `代码` |\n|-----|-----|\n| 正常 | 测试 |", "assistant", 80);
+        Check("内联加粗表格 = 5 行", mdBold.Count == 5);
+        // 两列表格（1表头 + 1数据行 = 5 行）
+        var md2Col = UI.TuiMarkdown.RenderMessage("| A | B |\n|---|---|\n| 1 | 2 |", "assistant", 80);
+        Check("2列表格渲染 = 5 行", md2Col.Count == 5);
+        // 空表格（仅表头无数据行 = 4 行：顶部+表头+分隔+底部）
+        var mdEmpty = UI.TuiMarkdown.RenderMessage("| H |\n|---|", "assistant", 80);
+        Check("空数据表格 = 4 行", mdEmpty.Count == 4);
         Console.WriteLine();
 
         // ---- 输入处理逻辑 ----
