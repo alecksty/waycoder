@@ -31,15 +31,15 @@ public class TuiIcon : TuiControl
 
     // ── 预设图标 ──
 
-    public static TuiIcon User() => new("👤") { Fg = 32 };     // Green
-    public static TuiIcon Assistant() => new("🤖") { Fg = 36 }; // Cyan
-    public static TuiIcon System() => new("⚙️") { Fg = 33 };   // Yellow
-    public static TuiIcon Tool() => new("🔧") { Fg = 90 };     // Gray
-    public static TuiIcon Error() => new("❌") { Fg = 31 };     // Red
-    public static TuiIcon Warn() => new("⚠️") { Fg = 33 };     // Yellow
-    public static TuiIcon Ok() => new("✅") { Fg = 32 };       // Green
-    public static TuiIcon Info() => new("ℹ️") { Fg = 36 };     // Cyan
-    public static TuiIcon File() => new("📄") { Fg = 37 };     // White
-    public static TuiIcon Folder() => new("📁") { Fg = 33 };   // Yellow
-    public static TuiIcon Lock() => new("🔒") { Fg = 31 };     // Red
+    public static TuiIcon User() => new("●") { Fg = 32 };        // Green
+    public static TuiIcon Assistant() => new("●") { Fg = 36 };    // Cyan
+    public static TuiIcon System() => new("●") { Fg = 33 };       // Yellow
+    public static TuiIcon Tool() => new("●") { Fg = 90 };         // Gray
+    public static TuiIcon Error() => new("●") { Fg = 31 };        // Red
+    public static TuiIcon Warn() => new("●") { Fg = 33 };         // Yellow
+    public static TuiIcon Ok() => new("●") { Fg = 32 };           // Green
+    public static TuiIcon Info() => new("●") { Fg = 36 };         // Cyan
+    public static TuiIcon File() => new("●") { Fg = 37 };         // White
+    public static TuiIcon Folder() => new("●") { Fg = 33 };       // Yellow
+    public static TuiIcon Lock() => new("●") { Fg = 31 };         // Red
 }
