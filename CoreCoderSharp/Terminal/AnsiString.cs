@@ -63,7 +63,7 @@ public static class AnsiString
             vw += w;
             sb.Append(text[i]);
         }
-        sb.Append("\x1b[0m");
+        sb.Append(AnsiTty.SgrReset);
         return sb.ToString();
     }
 

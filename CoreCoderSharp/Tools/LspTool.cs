@@ -47,6 +47,9 @@ public class LspTool : ITool
         ["required"] = new JsonArray("action", "file_path", "line", "character"),
     };
 
+    /// <summary>支持的语言服务器列表（供 UI 展示）</summary>
+    public static IReadOnlyDictionary<string, (string Command, string[] Args)> SupportedServers => ServerConfigs;
+
     // 已知的语言服务器配置
     private static readonly Dictionary<string, (string Command, string[] Args)> ServerConfigs = new()
     {

@@ -74,24 +74,68 @@ public abstract class TuiView : TuiControl
         };
     }
 
-    /// <summary>递归渲染所有子控件，自动裁剪到 View 边界</summary>
+    /// <summary>递归渲染所有子控件，自动裁剪到 View 边界。跳过非脏且父容器也非脏的子控件。</summary>
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
+        bool parentDirty = IsDirty;
         foreach (var child in Children)
         {
-            if (child.Visible)
+            // 只有控件自身脏 或 父容器脏（全量刷新）时才渲染
+            if (child.Visible && (child.IsDirty || parentDirty))
                 child.Render(sb, absX, absY, ClipLeft, ClipTop, ClipRight, ClipBottom);
         }
     }
 
-    /// <summary>路由按键到焦点子控件</summary>
-    public override bool HandleKey(ConsoleKeyInfo key)
+    /// <summary>强制刷新：递归标记视图及其所有子控件为脏。</summary>
+    public override void Invalidate()
     {
+        IsDirty = true;
+        foreach (var child in Children)
+            child.Invalidate();
+    }
+
+    /// <summary>
+    /// 按键路由：丢给子焦点子对象 → 都不处理返回 false。
+    /// </summary>
+    public override bool OnKey(ConsoleKeyInfo key)
+    {
+        if (!IsEnabled) return false;
+        // 丢给子焦点子对象（直接聚焦的子控件，或内部有聚焦控件的子视图）
         foreach (var child in Children)
         {
-            if (child.Focused && child.HandleKey(key))
+            if ((child.Focused || (child is TuiView v && v.FindFocused() != null))
+                && child.OnKey(key))
                 return true;
         }
+        return false;
+    }
+
+    /// <summary>递归命中测试：按子控件列表逆序（后添加在上层），返回最深命中控件</summary>
+    public override TuiControl? HitTest(int absX, int absY)
+    {
+        if (!Visible || !IsEnabled) return null;
+        // 先检查自身区域
+        int myAbsX = Parent != null ? GetAbsoluteX() : X;
+        int myAbsY = Parent != null ? GetAbsoluteY() : Y;
+        if (absX < myAbsX || absX >= myAbsX + Width ||
+            absY < myAbsY || absY >= myAbsY + Height)
+            return null;
+        // 逆序遍历子控件（后面的在上层）
+        for (int i = Children.Count - 1; i >= 0; i--)
+        {
+            var hit = Children[i].HitTest(absX, absY);
+            if (hit != null) return hit;
+        }
+        return this;
+    }
+
+    /// <summary>鼠标事件处理：命中测试 → 路由到子控件</summary>
+    public override bool HandleMouse(InputEvent ev)
+    {
+        if (ev.Type != InputType.Mouse) return false;
+        var hit = HitTest(ev.MouseX, ev.MouseY);
+        if (hit != null && hit != this)
+            return hit.HandleMouse(ev);
         return false;
     }
 
@@ -158,6 +202,7 @@ public abstract class TuiView : TuiControl
     {
         foreach (var c in view.Children)
         {
+            if (!c.IsEnabled || !c.CanFocus) continue;
             if (c is TuiView v)
                 CollectFocusable(v, list);
             else

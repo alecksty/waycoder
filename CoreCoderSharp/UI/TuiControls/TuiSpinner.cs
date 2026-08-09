@@ -14,6 +14,9 @@ public class TuiSpinner : TuiControl
 
     private int _frame;
 
+    /// <summary>加载动画是纯展示控件，不可获得焦点</summary>
+    public override bool CanFocus => false;
+
     public TuiSpinner()
     {
         Width = 20;
@@ -38,8 +41,7 @@ public class TuiSpinner : TuiControl
         var display = string.IsNullOrEmpty(Label)
             ? $" {Frame} "
             : $"{Frame} {Label}";
-        if (TuiHelper.DisplayWidth(display) > Width)
-            display = TuiHelper.TruncateByWidth(display, Width);
-        WriteLine(sb, 0, 0, display, Fg > 0 ? Fg : 36);
+        ControlRenderer.DrawLabelLine(sb, this, absX, absY,
+            display, HAlign.Left, TuiTheme.Current.SpinnerFg, 0);
     }
 }

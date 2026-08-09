@@ -29,14 +29,14 @@ public class TuiRichEditor : TuiControl
     // ── 外观 ──
     public int LineNumberWidth { get; set; } = 5;
     public int GutterWidth { get; set; } = 1;
-    public int CursorFg { get; set; } = 30;
-    public int CursorBg { get; set; } = 46;
-    public int TitleFg { get; set; } = 33;
-    public int SeparatorFg { get; set; } = 33;
-    public int GutterErrorFg { get; set; } = 31;
-    public int GutterWarningFg { get; set; } = 33;
-    public int LineNumFg { get; set; } = 2;
-    public int BorderFg { get; set; } = 33;
+    public int CursorFg { get; set; }
+    public int CursorBg { get; set; }
+    public int TitleFg { get; set; }
+    public int SeparatorFg { get; set; }
+    public int GutterErrorFg { get; set; }
+    public int GutterWarningFg { get; set; }
+    public int LineNumFg { get; set; }
+    public int BorderFg { get; set; }
 
     // ── 事件 ──
     public event Action? OnSaveRequested;
@@ -49,12 +49,22 @@ public class TuiRichEditor : TuiControl
     /// <summary>内容区起始列（跳过行号和 Gutter）</summary>
     private int ContentStart => LineNumberWidth + GutterWidth;
 
+    public override bool HasCursor => true;
+
     public TuiRichEditor()
     {
         Width = 80;
         Height = 24;
         Focused = true;
-        Fg = 37;
+        Fg = TuiTheme.Current.ControlFg;
+        CursorFg = TuiTheme.Current.ControlFocusedFg;
+        CursorBg = TuiTheme.Current.ControlFocusedBg;
+        TitleFg = TuiTheme.Current.ChatSystemFg;
+        SeparatorFg = TuiTheme.Current.ChatSystemFg;
+        GutterErrorFg = TuiTheme.Current.IconErrorFg;
+        GutterWarningFg = TuiTheme.Current.IconWarnFg;
+        LineNumFg = TuiTheme.Current.TextAreaLineNumFg;
+        BorderFg = TuiTheme.Current.ChatSystemFg;
     }
 
     // ── 渲染 ──
@@ -72,16 +82,19 @@ public class TuiRichEditor : TuiControl
             int row = absY + i;
             if (row < ClipTop || row >= ClipBottom) continue;
 
-            bool isCursor = li == Core.Cy;
+            bool isCursor = li == Core.Cy && IsEnabled;
             int contentW = Math.Max(0, Width - prefixW);
 
-            // ── 光标行整行高亮 ──
+            // ── 光标行整行高亮（仅启用且聚焦时） ──
             if (isCursor)
             {
                 var rbBg = new RenderBuffer();
                 rbBg.Write(row, absX, new string(' ', Width), bg: CursorBg);
                 sb.Append(rbBg.ToString());
             }
+
+            // 禁用状态下所有文字变灰
+            int textFg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg) : 0;
 
             if (li < Core.Lines.Count)
             {
@@ -146,6 +159,10 @@ public class TuiRichEditor : TuiControl
             return;
         }
 
+        // 禁用时全部使用禁用前景色
+        bool disabled = !IsEnabled;
+        int disabledFg = DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg;
+
         var tokens = Core.Syntax.Tokenize(line);
         int vw = 0;
         foreach (var (text, ansiColor) in tokens)
@@ -157,12 +174,12 @@ public class TuiRichEditor : TuiControl
                 if (remain > 0)
                 {
                     var truncated = TruncateByVw(text, remain);
-                    int c = ansiColor > 0 ? ansiColor : (bg > 0 ? 37 : Fg);
+                    int c = disabled ? disabledFg : (ansiColor > 0 ? ansiColor : (bg > 0 ? 37 : Fg));
                     WriteAt(sb, row, col + vw, truncated, c, bg);
                 }
                 break;
             }
-            int color = ansiColor > 0 ? ansiColor : (bg > 0 ? 37 : Fg);
+            int color = disabled ? disabledFg : (ansiColor > 0 ? ansiColor : (bg > 0 ? 37 : Fg));
             WriteAt(sb, row, col + vw, text, color, bg);
             vw += textVw;
         }
@@ -196,8 +213,9 @@ public class TuiRichEditor : TuiControl
 
     // ── 键盘处理 ──
 
-    public override bool HandleKey(ConsoleKeyInfo key)
+    public override bool OnKey(ConsoleKeyInfo key)
     {
+        if (!IsEnabled) return false;
         bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
 
         switch (key.Key)

@@ -38,10 +38,51 @@ public abstract class TuiControl
     /// <summary>内部间距（内容区向内缩进，渲染裁剪区自动扣除）</summary>
     public EdgeInsets Padding { get; set; }
 
+    /// <summary>文本对齐方式（子控件在渲染时读取）</summary>
+    public HAlign TextAlign { get; set; } = HAlign.Left;
+
     // ── 状态 ──
     public bool Visible { get; set; } = true;
+
+    /// <summary>是否可用。禁用时跳过渲染且不响应输入。</summary>
+    public bool IsEnabled { get; set; } = true;
+
+    /// <summary>是否可获得键盘焦点。展示控件应设为 false。</summary>
+    public virtual bool CanFocus => true;
+
+    /// <summary>是否在获得焦点时显示终端光标。仅输入类控件应覆写为 true。</summary>
+    public virtual bool HasCursor => false;
+
     public bool Focused { get; set; }
     public TuiView? Parent { get; set; }
+
+    /// <summary>用户数据挂载点（任意对象）</summary>
+    public object? Tag { get; set; }
+
+    // ── 增量渲染 ──
+
+    /// <summary>是否需要重绘。true=下一帧重新渲染此控件。</summary>
+    public bool IsDirty { get; set; } = true;
+
+    /// <summary>标记控件需要重绘，沿 Parent 链向上传播到根。</summary>
+    public void MarkDirty()
+    {
+        if (IsDirty) return; // 已标记，避免重复遍历
+        IsDirty = true;
+        Parent?.MarkDirty();
+    }
+
+    /// <summary>清除脏标记（渲染完成后由框架调用）</summary>
+    public void ClearDirty()
+    {
+        IsDirty = false;
+    }
+
+    /// <summary>强制刷新：递归标记控件及其所有子控件为脏，确保下一帧完全重绘。</summary>
+    public virtual void Invalidate()
+    {
+        IsDirty = true;
+    }
 
     /// <summary>
     /// 是否拥有光标控制权。每屏只有一个控件拥有光标。
@@ -63,8 +104,60 @@ public abstract class TuiControl
     /// <summary>默认背景色（ANSI 色码，0=透明/继承）</summary>
     public int Bg { get; set; }
 
-    /// <summary>渲染上下文中继承的背景色（由窗口填充设置，WriteAt 在 Bg=0 时自动使用）</summary>
-    public static int EffectiveBg { get; set; }
+    /// <summary>获得焦点时的前景色（0=使用 Fg）</summary>
+    public int FocusedFg { get; set; }
+    /// <summary>获得焦点时的背景色（0=使用 Bg）</summary>
+    public int FocusedBg { get; set; }
+
+    /// <summary>禁用时的前景色（0=自动变灰）</summary>
+    public int DisabledFg { get; set; }
+    /// <summary>禁用时的背景色（0=使用 Bg）</summary>
+    public int DisabledBg { get; set; }
+
+    /// <summary>
+    /// 获取当前有效的前景色（自动根据 Focused/IsEnabled 状态选择）。
+    /// 子控件在 OnRender 中调用此方法获取正确颜色。
+    /// </summary>
+    public int EffectiveFg
+    {
+        get
+        {
+            if (!IsEnabled) return DisabledFg > 0 ? DisabledFg : 90; // 默认灰色
+            if (Focused && FocusedFg > 0) return FocusedFg;
+            return Fg;
+        }
+    }
+
+    /// <summary>
+    /// 获取当前有效的背景色（自动根据 Focused/IsEnabled 状态选择）。
+    /// </summary>
+    public int EffectiveBg
+    {
+        get
+        {
+            if (!IsEnabled) return DisabledBg > 0 ? DisabledBg : Bg;
+            if (Focused && FocusedBg > 0) return FocusedBg;
+            return Bg;
+        }
+    }
+
+    /// <summary>继承/级联的背景色（由窗口/父容器设置，WriteAt 在 Bg=0 时自动使用）</summary>
+    public static int CascadedBg { get; set; }
+
+    /// <summary>
+    /// 沿 Parent 链向上查找第一个非零背景色。
+    /// 递归到 Window 为止，若全链为 0 则返回 CascadedBg。
+    /// </summary>
+    public int GetInheritedBg()
+    {
+        var p = Parent;
+        while (p != null)
+        {
+            if (p.Bg > 0) return p.Bg;
+            p = p.Parent;
+        }
+        return CascadedBg;
+    }
 
     // ── 裁剪区域（绝对值，每帧由 Render 计算；子类可覆写以支持滚动等效果） ──
     protected int ClipLeft { get; set; }
@@ -107,12 +200,14 @@ public abstract class TuiControl
         _showCursor = false;
 
         // 渲染底色（只在控件自身区域内填充，受父约束裁剪）
-        if (Bg > 0)
+        // 禁用状态使用 DisabledBg（若有设置），否则使用默认 Bg
+        int effectiveBg = !IsEnabled && DisabledBg > 0 ? DisabledBg : Bg;
+        if (effectiveBg > 0)
         {
             for (int r = ClipTop; r < ClipBottom; r++)
             {
                 var rb = new RenderBuffer();
-                rb.Write(r, ClipLeft, new string(' ', ClipRight - ClipLeft), bg: Bg);
+                rb.Write(r, ClipLeft, new string(' ', ClipRight - ClipLeft), bg: effectiveBg);
                 sb.Append(rb.ToString());
             }
         }
@@ -125,8 +220,75 @@ public abstract class TuiControl
     protected abstract void OnRender(StringBuilder sb, int absX, int absY);
 
     // ── 输入 ──
-    public virtual bool HandleKey(ConsoleKeyInfo key) => false;
+
+    /// <summary>
+    /// 按键入口。检查 Enabled/CanFocus 后交给子类处理。
+    /// 容器子类（TuiView）覆写此方法以加入子节点路由。
+    /// </summary>
+    public virtual bool OnKey(ConsoleKeyInfo key)
+    {
+        if (!IsEnabled) return false;
+        if (!CanFocus) return false;
+        return false;
+    }
+    /// <summary>鼠标事件处理。子类覆写以支持点击等交互。</summary>
+    public virtual bool HandleMouse(InputEvent ev) => false;
     public virtual void OnResize(int newParentW, int newParentH) { }
+
+    // ── 命中测试 ──
+
+    /// <summary>
+    /// 检测指定绝对坐标是否命中本控件。
+    /// 返回最深层的命中控件（默认返回自身），子类（如容器）可覆写以递归到子控件。
+    /// </summary>
+    public virtual TuiControl? HitTest(int absX, int absY)
+    {
+        if (!Visible || !IsEnabled) return null;
+        // 计算控件在屏幕上的绝对位置（需要父容器坐标）
+        int myAbsX = 0, myAbsY = 0;
+        if (Parent != null)
+        {
+            // 父容器坐标由 Render 时传入的 parentAbsX/Y 确定，
+            // 但 HitTest 时没有该上下文。使用 X/Y + 递归查找根坐标。
+            myAbsX = GetAbsoluteX();
+            myAbsY = GetAbsoluteY();
+        }
+        else
+        {
+            myAbsX = X;
+            myAbsY = Y;
+        }
+        if (absX >= myAbsX && absX < myAbsX + Width &&
+            absY >= myAbsY && absY < myAbsY + Height)
+            return this;
+        return null;
+    }
+
+    /// <summary>沿 Parent 链计算绝对 X 坐标</summary>
+    protected int GetAbsoluteX()
+    {
+        int x = X;
+        var p = Parent;
+        while (p != null)
+        {
+            x += p.X;
+            p = p.Parent;
+        }
+        return x;
+    }
+
+    /// <summary>沿 Parent 链计算绝对 Y 坐标</summary>
+    protected int GetAbsoluteY()
+    {
+        int y = Y;
+        var p = Parent;
+        while (p != null)
+        {
+            y += p.Y;
+            p = p.Parent;
+        }
+        return y;
+    }
 
     // ── 裁剪写入工具 ──
 
@@ -166,7 +328,7 @@ public abstract class TuiControl
         if (string.IsNullOrEmpty(text)) return;
 
         var rb = new RenderBuffer();
-        var effectiveBg = bg > 0 ? bg : (Bg > 0 ? Bg : EffectiveBg);
+        var effectiveBg = bg > 0 ? bg : (Bg > 0 ? Bg : GetInheritedBg());
         rb.Write(row, col, text, fg: fg > 0 ? fg : Fg, bg: effectiveBg);
         sb.Append(rb.ToString());
     }

@@ -15,8 +15,17 @@ public abstract class TuiScreen
     /// <summary>所属管理器引用（由 PushScreen 自动设置）</summary>
     public TuiManager? Manager { get; set; }
 
-    /// <summary>标记需要重绘</summary>
-    public void MarkDirty() { if (Manager != null) Manager.IsDirty = true; }
+    /// <summary>标记需要重绘（通知 Manager + 根视图）</summary>
+    public void MarkDirty() {
+        if (Manager != null) Manager.IsDirty = true;
+        RootView.IsDirty = true;
+    }
+
+    /// <summary>强制全屏刷新：递归标记所有控件为脏，确保下一帧完全重绘。</summary>
+    public void InvalidateView() {
+        RootView.Invalidate();
+        MarkDirty();
+    }
 
     /// <summary>立即渲染整个屏幕（便捷方法）</summary>
     public void Render() { Manager?.Render(); }
@@ -45,6 +54,9 @@ public abstract class TuiScreen
     /// <summary>当前终端尺寸</summary>
     public int TW { get; protected set; }
     public int TH { get; protected set; }
+
+    /// <summary>最近一次 Escape 关闭模态框的时间戳（防按键重复触发退出框）</summary>
+    public DateTime LastModalEscapeTime { get; protected set; } = DateTime.MinValue;
 
     // ── 生命周期 ──
 
@@ -150,7 +162,8 @@ public abstract class TuiScreen
 
     /// <summary>
     /// 在渲染前确定光标所有者。每屏只有一个控件拥有光标。
-    /// 优先级：模态窗口内的焦点控件 → 根视图的焦点控件。
+    /// 优先级：模态窗口内的焦点控件 → 根视图的焦点控件（仅当无浮层窗口时）。
+    /// 有浮层窗口（含 Toast）时，隐藏根视图光标，防止白块穿透。
     /// </summary>
     public void SetCursorOwner()
     {
@@ -158,13 +171,19 @@ public abstract class TuiScreen
         if (_cursorOwner != null)
             _cursorOwner.IsCursorOwner = false;
 
-        TuiControl? focused;
+        TuiControl? focused = null;
         if (HasModal && FocusedWindow != null)
+        {
             focused = FocusedWindow.FocusedControl;
-        else
+        }
+        else if (Windows.Count == 0)
+        {
+            // 仅在没有浮层窗口时才从根视图取光标（避免 Toast 等窗口下穿透显示）
             focused = RootView.FindFocused();
+        }
 
-        _cursorOwner = focused;
+        // 仅当焦点控件是输入类控件（HasCursor=true）时才赋予光标
+        _cursorOwner = (focused != null && focused.IsEnabled && focused.HasCursor) ? focused : null;
         if (_cursorOwner != null)
             _cursorOwner.IsCursorOwner = true;
     }
@@ -194,17 +213,19 @@ public abstract class TuiScreen
                 return true;
         }
 
-        return false;
+        // Fallback：路由给根视图（控件级鼠标交互）
+        return RootView.HandleMouse(ev);
     }
 
     // ── 输入 ──
 
     /// <summary>
     /// 处理按键。返回 true 表示已处理。
-    /// 优先：Esc 关闭顶层模态窗口 → 路由给焦点窗口 → 路由给根视图。
     /// </summary>
-    public virtual bool HandleKey(ConsoleKeyInfo key)
+    public virtual bool OnKey(ConsoleKeyInfo key)
     {
+        // ── 屏幕自身处理：Escape 关模态、Tab 切焦点 ──
+
         // Esc 路由：先给模态窗口处理（快捷键拦截），未处理则关闭窗口
         if (key.Key == ConsoleKey.Escape && HasModal)
         {
@@ -212,10 +233,11 @@ public abstract class TuiScreen
             if (topModal != null)
             {
                 // 窗口级快捷键优先（如 Esc 注册为取消回调）
-                if (topModal.HandleKey(key))
+                if (topModal.OnKey(key))
                     return true;
                 // 未处理 → 默认关闭（OnClosed 触发 ChatScreen 的 RenderWait 退出）
                 topModal.OnClosed?.Invoke();
+                LastModalEscapeTime = DateTime.UtcNow; // 记录时间戳，防按键重复
                 return true;
             }
         }
@@ -230,16 +252,14 @@ public abstract class TuiScreen
             return true;
         }
 
-        // 优先路由给焦点窗口（模态窗口拦截所有输入）
+        // ── 路由到子节点：模态窗口 → 焦点窗口 → 根视图 ──
         if (FocusedWindow?.Modal == true)
-            return FocusedWindow.HandleKey(key);
+            return FocusedWindow.OnKey(key);
 
-        // 路由给非模态焦点窗口
-        if (FocusedWindow != null && FocusedWindow.HandleKey(key))
+        if (FocusedWindow != null && FocusedWindow.OnKey(key))
             return true;
 
-        // 最后路由给根视图
-        return RootView.HandleKey(key);
+        return RootView.OnKey(key);
     }
 
     // ── 渲染 ──
@@ -291,13 +311,27 @@ public abstract class TuiScreen
                 sb.Append(rb.ToString());
             }
         }
+
+        // 5. 渲染完成后清除脏标记
+        ClearDirtyRecursive(RootView);
+    }
+
+    /// <summary>递归清除控件树的脏标记</summary>
+    private static void ClearDirtyRecursive(TuiControl control)
+    {
+        control.ClearDirty();
+        if (control is TuiView view)
+        {
+            foreach (var child in view.Children)
+                ClearDirtyRecursive(child);
+        }
     }
 
     /// <summary>渲染单个窗口（边框 + 标题栏 + 内部控件树）</summary>
     protected virtual void RenderWindow(StringBuilder sb, TuiWindow win)
     {
         int bc = win.EffectiveBorderColor;
-        int fillBg = win.WinBg > 0 ? win.WinBg : 100; // 边框背景与遮罩一致
+        int fillBg = win.WinBg > 0 ? win.WinBg : 100; // WinBg=0 时透明不填充
 
         // 无边框模式：直接渲染控件树 + 背景
         if (win.Border == WindowBorder.None)
@@ -307,18 +341,19 @@ public abstract class TuiScreen
                 {
                     int screenY = win.Y + r;
                     if (screenY < 0 || screenY >= TH) continue;
-                    sb.Append($"\x1b[{screenY + 1};{win.X + 1}H");
-                    sb.Append($"\x1b[{fillBg}m");
+                    sb.Append(AnsiTty.CursorPos(screenY + 1, win.X + 1));
+                    sb.Append(AnsiTty.BgCode(fillBg));
                     sb.Append(new string(' ', win.Width));
                 }
-            if (win.RootView.Children.Count > 0)
+            // 总是渲染 RootView（无边框窗口）。无子控件时 RootView 自身
+            // 的 OnRender 可能绘制自定义内容（如 MenuView 直接画菜单项）。
             {
-                var savedEffectiveBg = TuiControl.EffectiveBg;
-                TuiControl.EffectiveBg = fillBg;
+                var savedEffectiveBg = TuiControl.CascadedBg;
+                TuiControl.CascadedBg = fillBg;
                 win.RootView.Render(sb, win.X, win.Y);
-                TuiControl.EffectiveBg = savedEffectiveBg;
+                TuiControl.CascadedBg = savedEffectiveBg;
             }
-            else if (win.ContentLines.Count > 0)
+            if (win.ContentLines.Count > 0)
                 for (int i = 0; i < Math.Min(win.ContentLines.Count, win.Height); i++)
                     WriteAt(sb, win.Y + i, win.X, win.ContentLines[i], win.ContentFg);
             return;
@@ -333,7 +368,21 @@ public abstract class TuiScreen
         if (drawTitle)
         {
             var titleText = $" {win.Title} ";
-            WriteAt(sb, win.Y, win.X + 1, titleText, win.TitleFg > 0 ? win.TitleFg : bc, win.TitleBg > 0 ? win.TitleBg : fillBg);
+            int tFg = win.TitleFg > 0 ? win.TitleFg : bc;
+            int tBg = win.TitleBg > 0 ? win.TitleBg : fillBg;
+            // 标题粗体：直接用 AnsiTty BoldFg
+            if (win.TitleBold)
+            {
+                sb.Append(AnsiTty.CursorPos(win.Y + 1, win.X + 2));
+                sb.Append(AnsiTty.BoldFg(tFg));
+                if (tBg > 0) sb.Append(AnsiTty.BgCode(tBg));
+                sb.Append(titleText);
+                sb.Append(AnsiTty.SgrReset);
+            }
+            else
+            {
+                WriteAt(sb, win.Y, win.X + 1, titleText, tFg, tBg);
+            }
             var rem = win.Width - 2 - TuiHelper.DisplayWidth(titleText);
             if (rem > 0) WriteAt(sb, win.Y, win.X + 1 + TuiHelper.DisplayWidth(titleText), new string(hh[0], rem), bc, fillBg);
         }
@@ -346,8 +395,8 @@ public abstract class TuiScreen
         int contentTop = win.Y + 1;       // 上边框下面一行
         int innerHeight = win.Height - 2; // 边框内部高度
 
-        // 如果有标题栏，标题行下面是分隔线，内容再下一行
-        if (drawTitle)
+        // 标题栏分隔线（仅当 ShowTitleSeparator 时绘制）
+        if (drawTitle && win.ShowTitleSeparator)
         {
             WriteAt(sb, win.Y + 1, win.X, vv, bc, fillBg);
             WriteAt(sb, win.Y + 1, win.X + 1, new string(hh[0], win.Width - 2), bc, fillBg);
@@ -364,9 +413,9 @@ public abstract class TuiScreen
                 int screenY = contentTop + r;
                 if (screenY < 0 || screenY >= TH) continue;
                 // 直接写 ANSI：定位 + 设背景色 + 填空格，不重置
-                sb.Append($"\x1b[{screenY + 1};{win.X + 2}H");
-                sb.Append($"\x1b[{fillBg}m");
-                sb.Append(new string(' ', win.Width - 2));
+                sb.Append(AnsiTty.CursorPos(screenY + 1, win.ContentLeft + 1));
+                sb.Append(AnsiTty.BgCode(fillBg));
+                sb.Append(new string(' ', win.ContentWidth));
             }
         }
 
@@ -379,7 +428,8 @@ public abstract class TuiScreen
         }
 
         // ── 内容区域 ──
-        if (win.RootView.Children.Count > 0)
+        // 总是渲染 RootView。无子控件时 RootView 自身的 OnRender
+        // 可能绘制自定义内容（如 MenuView 直接画菜单项）。
         {
             // 设置 RootView 尺寸为内容区，确保裁剪
             win.RootView.Width = win.ContentWidth;
@@ -387,16 +437,16 @@ public abstract class TuiScreen
 
             // 控件树渲染：从内容区原点开始，传入窗口裁剪约束
             // 渲染在竖边框之后，控件 CursorAt 不会被边框覆盖
-            // 设置 EffectiveBg，让控件的 WriteAt 自动继承窗口底色
-            var savedEffectiveBg = TuiControl.EffectiveBg;
-            TuiControl.EffectiveBg = fillBg;
+            // 设置 CascadedBg，让控件的 WriteAt 自动继承窗口底色
+            var savedEffectiveBg = TuiControl.CascadedBg;
+            TuiControl.CascadedBg = fillBg;
             win.RootView.Render(sb, win.ContentLeft, contentTop,
                 clipL: win.ContentLeft, clipT: contentTop,
                 clipR: win.ContentLeft + win.ContentWidth,
                 clipB: contentTop + innerHeight);
-            TuiControl.EffectiveBg = savedEffectiveBg;
+            TuiControl.CascadedBg = savedEffectiveBg;
         }
-        else if (win.ContentLines.Count > 0)
+        if (win.ContentLines.Count > 0)
         {
             for (int i = 0; i < Math.Min(innerHeight, win.ContentLines.Count); i++)
             {
@@ -442,8 +492,8 @@ public abstract class TuiScreen
             ContentLines = [..lines],
             Modal = true,
             HasMask = true,
-            BorderColor = 36,
-            WinBg = 0,     // 对话框默认透明背景
+            BorderColor = TuiColors.Cyan,
+            WinBg = TuiColors.BgWhite,    // 对话框默认背景
         };
         win.Center();
         AddWindow(win);
@@ -460,9 +510,11 @@ public abstract class TuiScreen
             X = TTY.Cols - w - 2, Y = TTY.Rows - 4,
             Width = w, Height = 3,
             ContentLines = [message],
+            ContentFg = 37,
             Modal = false,
             HasMask = false,
-            BorderColor = 32, // Green
+            WinBg = TuiColors.BgBrightBlack,     // 深灰底色
+            BorderColor = TuiColors.Green,
         };
         AddWindow(win);
         Task.Delay(durationMs).ContinueWith(_ => CloseWindow(win));

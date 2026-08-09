@@ -10,32 +10,25 @@ public class TuiButton : TuiControl
     public string Text { get; set; } = "OK";
     public Action<TuiButton>? OnClick { get; set; }
 
-    public TuiButton() { Height = 1; Width = 10; }
+    public TuiButton() { Height = 1; Width = 10; TextAlign = HAlign.Center; }
     public TuiButton(string text, Action<TuiButton>? onClick = null)
     {
         Text = text; OnClick = onClick; Height = 1;
         Width = TuiHelper.DisplayWidth(text) + 4;
+        TextAlign = HAlign.Center;
     }
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
-        var label = $" {Text} ";
-        if (TuiHelper.DisplayWidth(label) > Width)
-            label = TuiHelper.TruncateByWidth(label, Width);
-        var pad = Math.Max(0, Width - TuiHelper.DisplayWidth(label));
-        var display = label + new string(' ', pad);
-
-        int fg = Focused ? 30 : (Fg > 0 ? Fg : 37);
-        int bg = Focused ? 46 : (Bg > 0 ? Bg : 44);
-
-        var rb = new Terminal.RenderBuffer();
-        rb.Write(absY, absX, display, fg: fg, bg: bg);
-        sb.Append(rb.ToString());
+        var t = TuiTheme.Current;
+        ControlRenderer.DrawButtonLine(sb, this, absX, absY,
+            ControlRenderer.PadText(Text), TextAlign,
+            t.ButtonFg, t.ButtonBg, t.ControlFocusedFg, t.ControlFocusedBg);
     }
 
-    public override bool HandleKey(ConsoleKeyInfo key)
+    public override bool OnKey(ConsoleKeyInfo key)
     {
-        if (!Focused) return false;
+        if (!IsEnabled || !Focused) return false;
 
         switch (key.Key)
         {
@@ -63,5 +56,18 @@ public class TuiButton : TuiControl
         TuiView? p = Parent;
         while (p?.Parent != null) p = p.Parent;
         return p ?? Parent;
+    }
+
+    /// <summary>鼠标左键点击触发按钮</summary>
+    public override bool HandleMouse(InputEvent ev)
+    {
+        if (!IsEnabled) return false;
+        if (ev.Type == InputType.Mouse && ev.MouseLeft)
+        {
+            Focused = true;
+            OnClick?.Invoke(this);
+            return true;
+        }
+        return false;
     }
 }

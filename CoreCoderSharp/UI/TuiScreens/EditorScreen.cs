@@ -1,4 +1,5 @@
 using System.Text;
+using CoreCoderSharp.Terminal;
 using CoreCoderSharp.Tools;
 using CoreCoderSharp.UI.Controls;
 
@@ -16,7 +17,7 @@ namespace CoreCoderSharp.UI;
 ///
 /// 生命周期：
 ///   Activate() → 有路径: LoadAndBuild / 无路径: ShowFilePicker（不阻塞）
-///   HandleKey → 模态窗口优先 → 路由 EditorView → 未处理回退基类
+///   OnKey → 模态窗口优先 → 路由 EditorView → 未处理回退基类
 ///   OnResize  → 重建布局 + 重新绑定事件
 ///   Deactivate → 基础清理
 /// </summary>
@@ -112,7 +113,7 @@ public class EditorScreen : TuiScreen
         RootView.Add(EditorView);
 
         // ── 状态栏 1 — 光标 + 统计 + 诊断 ──
-        StatusBar1 = new TuiLabel("") { Width = TW, Height = 1, Bg = 7 };
+        StatusBar1 = new TuiLabel("") { Width = TW, Height = 1, Bg = 47 };
         RootView.Add(StatusBar1);
 
         // ── 状态栏 2 — 文件路径 + 快捷键 ──
@@ -147,8 +148,8 @@ public class EditorScreen : TuiScreen
 
         var (errors, warnings) = Core.GetDiagSummary();
         var diagPart = "";
-        if (errors > 0) diagPart = $" | \x1b[31m● {errors} errors";
-        else if (warnings > 0) diagPart = $" | \x1b[33m▲ {warnings} warnings";
+        if (errors > 0) diagPart = $" | {AnsiTty.Fg(31)}● {errors} errors";
+        else if (warnings > 0) diagPart = $" | {AnsiTty.Fg(33)}▲ {warnings} warnings";
 
         StatusBar1.Text = $" L{Core.Cy + 1}:C{Core.Cx + 1} | " +
                           $"行:{Core.TotalLines} 字符:{Core.TotalChars} | " +
@@ -165,18 +166,18 @@ public class EditorScreen : TuiScreen
     // 键盘路由
     // ════════════════════════════════════════════════════════════════
 
-    public override bool HandleKey(ConsoleKeyInfo key)
+    public override bool OnKey(ConsoleKeyInfo key)
     {
         // 模态窗口优先
         if (HasModal)
-            return base.HandleKey(key);
+            return base.OnKey(key);
 
         // 未加载完成（文件选择器打开中）
         if (EditorView == null)
-            return base.HandleKey(key);
+            return base.OnKey(key);
 
         // 路由 EditorView → 未处理回退基类
-        return EditorView.HandleKey(key) || base.HandleKey(key);
+        return EditorView.OnKey(key) || base.OnKey(key);
     }
 
     // ════════════════════════════════════════════════════════════════

@@ -187,11 +187,11 @@ public class SettingsScreen : TuiScreen
     // 键盘
     // ════════════════════════════════════════════════════════════════
 
-    public override bool HandleKey(ConsoleKeyInfo key)
+    public override bool OnKey(ConsoleKeyInfo key)
     {
         // 模态窗口优先
         if (HasModal)
-            return base.HandleKey(key);
+            return base.OnKey(key);
 
         bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
         var items = GetCurrentItems();
@@ -256,9 +256,9 @@ public class SettingsScreen : TuiScreen
 
             // ── 类别列表获得 ↑↓ 时自行处理 ──
             default:
-                if (!_focusOnDetail && _catList.HandleKey(key))
+                if (!_focusOnDetail && _catList.OnKey(key))
                     return true;
-                return base.HandleKey(key);
+                return base.OnKey(key);
         }
     }
 
@@ -288,7 +288,7 @@ public class SettingsScreen : TuiScreen
         else
         {
             // 焦点在类别列表 → 让 TuiList 处理
-            _catList.HandleKey(new ConsoleKeyInfo(
+            _catList.OnKey(new ConsoleKeyInfo(
                 delta < 0 ? '\0' : '\0',
                 delta < 0 ? ConsoleKey.UpArrow : ConsoleKey.DownArrow,
                 false, false, false));

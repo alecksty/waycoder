@@ -23,7 +23,7 @@ public class AgentSlot
     public string TokenInfo = "";
     public string? GitBranch;
     public List<string> RecentFiles { get; } = [];
-    public PanelTab ActivePanel;
+    public bool SidePanelVisible;
 
     /// <summary>是否已显示欢迎屏（每个槽位首次激活时显示一次）</summary>
     public bool HasWelcome { get; set; }
@@ -44,7 +44,7 @@ public class AgentSlot
         GitBranch = screen.GitBranch;
         RecentFiles.Clear();
         RecentFiles.AddRange(screen.RecentFiles);
-        ActivePanel = screen.ActivePanel;
+        SidePanelVisible = screen.SidePanelVisible;
     }
 
     /// <summary>将本槽位状态恢复到 ChatScreen（切换回该槽位时调用）</summary>
@@ -70,7 +70,7 @@ public class AgentSlot
         screen.GitBranch = GitBranch;
         screen.RecentFiles.Clear();
         screen.RecentFiles.AddRange(RecentFiles);
-        screen.ActivePanel = ActivePanel;
+        screen.SidePanelVisible = SidePanelVisible;
 
         // 隐藏建议面板，滚动到底部
         screen.HideSuggestions();

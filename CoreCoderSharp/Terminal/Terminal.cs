@@ -1,4 +1,4 @@
-namespace CoreCoderSharp.Terminal;
+﻿namespace CoreCoderSharp.Terminal;
 
 /// <summary>
 /// TTY 终端抽象层 —— 所有终端操作通过此 API，不手写转义符。
@@ -20,7 +20,7 @@ public static class TTY
     /// <summary>静默恢复终端（进程退出时调用，忽略错误）</summary>
     private static void ExitAltScreenDirect()
     {
-        try { Console.Write("\x1b[?25h\x1b[?1049l"); Console.Out.Flush(); }
+        try { Console.Write($"{AnsiTty.CursorShow}{AnsiTty.ExitAlt}"); Console.Out.Flush(); }
         catch { /* 进程即将退出，忽略所有错误 */ }
     }
     // ================================================================
@@ -28,48 +28,48 @@ public static class TTY
     // ================================================================
 
     /// <summary>进入备用屏：保存终端内容、清屏、隐藏光标</summary>
-    public static void EnterAltScreen() { _altScreen = true; Write("\x1b[?1049h\x1b[2J\x1b[?25l"); }
+    public static void EnterAltScreen() { _altScreen = true; Write($"{AnsiTty.EnterAlt}{AnsiTty.ClearScreen}{AnsiTty.CursorHide}"); }
 
     /// <summary>退出备用屏：显示光标、恢复原始终端内容</summary>
-    public static void ExitAltScreen() { _altScreen = false; Write("\x1b[?25h\x1b[?1049l"); }
+    public static void ExitAltScreen() { _altScreen = false; Write($"{AnsiTty.CursorShow}{AnsiTty.ExitAlt}"); }
 
     /// <summary>清屏并归位光标</summary>
-    public static void Clear() => Write("\x1b[2J\x1b[H");
+    public static void Clear() => Write($"{AnsiTty.ClearScreen}{AnsiTty.Home}");
 
     /// <summary>清除当前行从光标到行尾</summary>
-    public static void ClearToEndOfLine() => Write("\x1b[K");
+    public static void ClearToEndOfLine() => Write(AnsiTty.ClearToEnd);
 
     /// <summary>清除当前行</summary>
-    public static void ClearLine() => Write("\x1b[2K");
+    public static void ClearLine() => Write(AnsiTty.ClearLine);
 
     // ================================================================
     // 光标
     // ================================================================
 
     /// <summary>移动光标到指定位置（1-based 终端坐标）</summary>
-    public static void MoveTo(int row, int col) => Write($"\x1b[{row};{col}H");
+    public static void MoveTo(int row, int col) => Write(AnsiTty.CursorPos(row, col));
 
     /// <summary>隐藏光标</summary>
-    public static void HideCursor() => Write("\x1b[?25l");
+    public static void HideCursor() => Write(AnsiTty.CursorHide);
 
     /// <summary>显示光标</summary>
-    public static void ShowCursor() => Write("\x1b[?25h");
+    public static void ShowCursor() => Write(AnsiTty.CursorShow);
 
     /// <summary>保存光标位置</summary>
-    public static void SaveCursor() => Write("\x1b[s");
+    public static void SaveCursor() => Write(AnsiTty.CursorSave);
 
     /// <summary>恢复光标位置</summary>
-    public static void RestoreCursor() => Write("\x1b[u");
+    public static void RestoreCursor() => Write(AnsiTty.CursorRestore);
 
     // ================================================================
     // 滚动
     // ================================================================
 
     /// <summary>向上滚动 n 行</summary>
-    public static void ScrollUp(int n = 1) => Write($"\x1b[{n}S");
+    public static void ScrollUp(int n = 1) => Write(AnsiTty.ScrollUp(n));
 
     /// <summary>向下滚动 n 行</summary>
-    public static void ScrollDown(int n = 1) => Write($"\x1b[{n}T");
+    public static void ScrollDown(int n = 1) => Write(AnsiTty.ScrollDown(n));
 
     // ================================================================
     // 尺寸
@@ -114,13 +114,48 @@ public static class TTY
     /// <summary>读取一个按键（不回显）</summary>
     public static ConsoleKeyInfo ReadKey() => Console.ReadKey(intercept: true);
 
+    /// <summary>等待按键到达（忙等），最多 timeoutMs 毫秒；超时返回 false</summary>
+    public static bool WaitForKey(int timeoutMs)
+    {
+        int waited = 0;
+        while (!Console.KeyAvailable)
+        {
+            if (waited >= timeoutMs) return false;
+            Thread.Sleep(1);
+            waited++;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// 吞掉 \x1b 开头的转义序列（SGR 鼠标 \x1b[&lt;...、其他 CSI \x1b[...），防止泄漏为文本。
+    /// 调用前提：\x1b 已被读取。
+    /// 返回 true = 序列被完整吞掉；false = 不是转义序列（\x1b 是独立按键）。
+    /// 注意：若 \x1b 后跟的是非 '[' 字符（如 Alt+字母），该字符已被消费且无法退回，调用方应丢弃。
+    /// </summary>
+    public static bool ConsumeEscapeSequence()
+    {
+        if (!WaitForKey(20)) return false;
+        var bracket = Console.ReadKey(intercept: true);
+        if (bracket.KeyChar != '[') return false;
+
+        // 读到终止字节为止：CSI 以 0x40-0x7E 结尾，SGR 鼠标以 M/m 结尾
+        for (int i = 0; i < 40; i++)
+        {
+            if (!WaitForKey(10)) break;
+            var c = Console.ReadKey(intercept: true);
+            if (c.KeyChar == 'M' || c.KeyChar == 'm' ||
+                (c.KeyChar >= 0x40 && c.KeyChar <= 0x7E))
+                return true;
+        }
+        return true;
+    }
+
     /// <summary>启用鼠标跟踪（SGR 扩展协议）</summary>
-    public static void EnableMouse() =>
-        Write("\x1b[?1000h\x1b[?1003h\x1b[?1015h\x1b[?1006h");
+    public static void EnableMouse() => Write(AnsiTty.MouseEnable);
 
     /// <summary>禁用鼠标跟踪</summary>
-    public static void DisableMouse() =>
-        Write("\x1b[?1006l\x1b[?1015l\x1b[?1003l\x1b[?1000l");
+    public static void DisableMouse() => Write(AnsiTty.MouseDisable);
 
     // ================================================================
     // 输出
@@ -173,20 +208,20 @@ public static class TTY
     // 样式快捷方式
     // ================================================================
 
-    public static void SetBold()    => Write("\x1b[1m");
-    public static void SetDim()     => Write("\x1b[2m");
-    public static void SetItalic()  => Write("\x1b[3m");
-    public static void SetUnderline()=>Write("\x1b[4m");
-    public static void SetBlink()   => Write("\x1b[5m");
-    public static void ResetStyle() => Write("\x1b[0m");
+    public static void SetBold()    => Write(AnsiTty.SgrBold);
+    public static void SetDim()     => Write(AnsiTty.SgrDim);
+    public static void SetItalic()  => Write(AnsiTty.SgrItalic);
+    public static void SetUnderline()=>Write(AnsiTty.SgrUnderline);
+    public static void SetBlink()   => Write(AnsiTty.SgrBlink);
+    public static void ResetStyle() => Write(AnsiTty.SgrReset);
 }
 
 /// <summary>ANSI 颜色值（不可变）</summary>
 public readonly record struct AnsiColor(int Code)
 {
-    public string Fg() => $"\x1b[{Code}m";
-    public string Bg() => $"\x1b[{Code + 10}m";
-    public string FgBg(AnsiColor bg) => $"\x1b[{Code};{bg.Code}m";
+    public string Fg() => AnsiTty.Fg(Code);
+    public string Bg() => AnsiTty.Bg(Code + 10);
+    public string FgBg(AnsiColor bg) => AnsiTty.FgBg(Code, bg.Code);
     public string SgrCode => Code.ToString();
 
     public static implicit operator int(AnsiColor c) => c.Code;

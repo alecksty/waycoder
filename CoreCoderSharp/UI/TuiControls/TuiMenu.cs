@@ -56,8 +56,8 @@ public static class TuiMenu
             Modal = true,
             HasMask = false,
             Border = WindowBorder.Rounded,
-            BorderColor = 36,
-            WinBg = 7,
+            BorderColor = TuiTheme.Current.WindowBorderFocused,
+            WinBg = TuiTheme.Current.WindowBg,
         };
         // 确保不超出屏幕
         ClampPosition(win);
@@ -191,14 +191,18 @@ public static class TuiMenu
                 {
                     var sep = new string('─', _state.ContentWidth);
                     var rbSep = new RenderBuffer();
-                    rbSep.Write(row, absX, sep, fg: 8); // dim
+                    rbSep.Write(row, absX, sep, fg: 8); // dim separator
                     sb.Append(rbSep.ToString());
                     continue;
                 }
 
                 bool sel = idx == _state.SelectedIndex;
-                int fg = sel ? 30 : 37;
-                int bg = sel ? 46 : 0;
+                int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
+                       : sel ? TuiTheme.Current.ListSelFg : TuiTheme.Current.ListFg;
+                // 非选中项用继承背景色（窗口填充色），避免 \x1b[0m 重置后变黑
+                int inheritedBg = GetInheritedBg();
+                int bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : inheritedBg)
+                       : sel ? TuiTheme.Current.ListSelBg : inheritedBg;
 
                 // 快捷键提示（前 9 项）
                 var shortcut = idx < 9 ? $" {idx + 1}" : "  ";
@@ -243,10 +247,13 @@ public static class TuiMenu
             }
         }
 
-        public override bool HandleKey(ConsoleKeyInfo key)
+        public override bool OnKey(ConsoleKeyInfo key)
         {
             var items = _state.Items;
             if (items.Count == 0) return false;
+
+            // 禁用状态不响应输入
+            if (!IsEnabled) return false;
 
             switch (key.Key)
             {

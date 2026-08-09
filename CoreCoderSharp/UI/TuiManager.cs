@@ -41,7 +41,7 @@ public class TuiManager : IDisposable
     {
         TTY.EnterAltScreen();
         TTY.HideCursor();
-        TTY.EnableMouse();
+        // TTY.EnableMouse(); // TODO: 鼠标暂不开启
         (TW, TH) = (TTY.Cols, TTY.Rows);
         IsActive = true;
     }
@@ -120,7 +120,10 @@ public class TuiManager : IDisposable
         ActiveScreen?.SetCursorOwner();
 
         var sb = new StringBuilder();
-        sb.Append("\x1b[?25l\x1b[H\x1b[2J"); // 隐藏光标 + 归位 + 清屏
+        sb.Append(AnsiTty.CursorHide).Append(AnsiTty.Home).Append(AnsiTty.ClearScreen);
+
+        // 清屏后强制根视图全量重绘（所有控件标记脏，确保不丢内容）
+        ActiveScreen?.RootView.Invalidate();
 
         // 1. 渲染活跃屏幕
         ActiveScreen?.Render(sb);
@@ -142,7 +145,7 @@ public class TuiManager : IDisposable
     // ── 输入路由 ──
 
     /// <summary>处理按键。返回 true 表示已处理。</summary>
-    public bool HandleKey(ConsoleKeyInfo key)
+    public bool OnKey(ConsoleKeyInfo key)
     {
         IsDirty = true;
         // 全局热键优先
@@ -151,10 +154,10 @@ public class TuiManager : IDisposable
 
         // 活跃屏幕的模态窗口优先
         if (ActiveScreen?.HasModal == true && ActiveScreen.FocusedWindow != null)
-            return ActiveScreen.HandleKey(key);
+            return ActiveScreen.OnKey(key);
 
         // 活跃屏幕处理
-        return ActiveScreen?.HandleKey(key) ?? false;
+        return ActiveScreen?.OnKey(key) ?? false;
     }
 
     /// <summary>路由鼠标事件给活跃屏幕</summary>

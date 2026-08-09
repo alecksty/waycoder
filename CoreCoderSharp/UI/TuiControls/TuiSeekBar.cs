@@ -48,13 +48,13 @@ public class TuiSeekBar : TuiControl
     public string TrackEmpty { get; set; } = "─";
 
     /// <summary>轨道前景色</summary>
-    public int TrackFg { get; set; } = 36;
+    public int TrackFg { get; set; }
 
     /// <summary>空轨道前景色</summary>
-    public int EmptyFg { get; set; } = 90;
+    public int EmptyFg { get; set; }
 
     /// <summary>滑块前景色</summary>
-    public int ThumbFg { get; set; } = 33;
+    public int ThumbFg { get; set; }
 
     /// <summary>是否显示数字标签</summary>
     public bool ShowLabel { get; set; } = true;
@@ -67,6 +67,9 @@ public class TuiSeekBar : TuiControl
         Width = 30;
         Height = 1;
         Focused = true;
+        TrackFg = TuiTheme.Current.SeekBarFilledFg;
+        EmptyFg = TuiTheme.Current.SeekBarEmptyFg;
+        ThumbFg = TuiTheme.Current.SeekBarThumbFg;
     }
 
     public TuiSeekBar(int min, int max, int initial, int step = 1)
@@ -92,14 +95,17 @@ public class TuiSeekBar : TuiControl
             : 0;
         int thumbPos = (int)(ratio * (trackW - 1));
 
-        int fg = Focused ? TrackFg : EmptyFg;
-        int bg = Focused && Bg == 0 ? 7 : Bg; // 聚焦时浅灰背景
+        bool isFocused = Focused && IsEnabled;
+        int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
+               : isFocused ? TrackFg : EmptyFg;
+        int bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : Bg)
+               : isFocused && Bg == 0 ? TuiTheme.Current.WindowBg : Bg;
 
         // 背景填充
-        if (Focused && Bg == 0)
+        if (bg > 0 && Focused)
         {
             var rbBg = new RenderBuffer();
-            rbBg.Write(absY, absX, new string(' ', Width), bg: 7);
+            rbBg.Write(absY, absX, new string(' ', Width), bg: bg);
             sb.Append(rbBg.ToString());
         }
 
@@ -129,12 +135,13 @@ public class TuiSeekBar : TuiControl
         if (ShowLabel)
         {
             string label = $" {Value}/{MaxValue}";
-            WriteAt(sb, absY, absX + trackW, label, 37, bg);
+            WriteAt(sb, absY, absX + trackW, label, TuiTheme.Current.ControlFg, bg);
         }
     }
 
-    public override bool HandleKey(ConsoleKeyInfo key)
+    public override bool OnKey(ConsoleKeyInfo key)
     {
+        if (!IsEnabled) return false;
         switch (key.Key)
         {
             case ConsoleKey.RightArrow:
@@ -157,6 +164,28 @@ public class TuiSeekBar : TuiControl
                 return true;
         }
         return false;
+    }
+
+    /// <summary>鼠标点击 / 拖拽跳转到对应位置</summary>
+    public override bool HandleMouse(InputEvent ev)
+    {
+        if (ev.Type != InputType.Mouse || !ev.MouseLeft) return false;
+        if (!IsEnabled || !Visible) return false;
+
+        int trackW = Width;
+        if (ShowLabel) trackW -= 8;
+        if (trackW < 4) trackW = 4;
+
+        // 计算鼠标在轨道内的位置
+        int relX = ev.MouseX - GetAbsoluteX();
+        int thumbPos = Math.Clamp(relX, 0, trackW - 1);
+
+        // 映射为值
+        double ratio = (double)thumbPos / (trackW - 1);
+        Value = MinValue + (int)Math.Round(ratio * (MaxValue - MinValue));
+
+        Focused = true;
+        return true;
     }
 
     public override void OnResize(int newParentW, int newParentH) { }

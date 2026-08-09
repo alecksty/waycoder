@@ -2332,13 +2332,13 @@ another.txt:3:1: warning: deprecated API
         radio.Options = ["A", "B", "C", "D"];
         radio.Height = 4;
         radio.SelectedIndex = 1;
-        radio.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false));
+        radio.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false));
         Check("Radio ↑ 导航", radio.SelectedIndex == 0);
-        radio.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+        radio.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
         Check("Radio ↓ 导航", radio.SelectedIndex == 1);
-        radio.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
+        radio.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
         Check("Radio End 跳转", radio.SelectedIndex == 3);
-        radio.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
+        radio.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
         Check("Radio Home 跳转", radio.SelectedIndex == 0);
 
         // 回调（通过键盘触发）
@@ -2346,12 +2346,12 @@ another.txt:3:1: warning: deprecated API
         radio.OnSelectionChanged = v => radioCallbackValue = v;
         radio.SelectedIndex = 1;
         radioCallbackValue = -1;
-        radio.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+        radio.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
         Check("Radio 回调触发", radioCallbackValue == 2);
 
         // 空选项不崩溃
         var emptyRadio = new TuiRadioGroup([], -1);
-        emptyRadio.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false));
+        emptyRadio.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false));
         Check("空 Radio 不崩溃", true);
         Console.WriteLine();
 
@@ -2377,29 +2377,29 @@ another.txt:3:1: warning: deprecated API
         Check("Combo 收起", !combo.IsExpanded);
 
         // 键盘导航（收起状态）
-        combo.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false));
+        combo.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false));
         Check("Combo 收起时 ↑ 可用", combo.SelectedIndex == 0);
-        combo.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+        combo.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
         Check("Combo 收起时 ↓ 可用", combo.SelectedIndex == 1);
 
         // Enter 展开
-        combo.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false));
+        combo.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false));
         Check("Combo Enter 展开", combo.IsExpanded);
 
         // 在展开状态导航
-        combo.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
+        combo.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
         Check("Combo 展开 End", combo.SelectedIndex == 3);
-        combo.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
+        combo.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
         Check("Combo 展开 Home", combo.SelectedIndex == 0);
 
         // Esc 收起
-        combo.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Escape, false, false, false));
+        combo.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Escape, false, false, false));
         Check("Combo Esc 收起", !combo.IsExpanded);
 
         // 占位文本
         var combo2 = new TuiComboBox([], -1);
         Check("Combo 空选项占位", combo2.Placeholder == "请选择...");
-        combo2.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false));
+        combo2.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false));
         Check("空 Combo Enter 不崩溃", true);
 
         // 回调
@@ -2437,18 +2437,18 @@ another.txt:3:1: warning: deprecated API
 
         // 键盘操作
         seek.Value = 50;
-        seek.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.RightArrow, false, false, false));
+        seek.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.RightArrow, false, false, false));
         Check("SeekBar → 增量", seek.Value == 51);
-        seek.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.LeftArrow, false, false, false));
+        seek.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.LeftArrow, false, false, false));
         Check("SeekBar ← 减量", seek.Value == 50);
-        seek.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
+        seek.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
         Check("SeekBar Home → Min", seek.Value == 0);
-        seek.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
+        seek.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
         Check("SeekBar End → Max", seek.Value == 100);
         seek.Value = 50;
-        seek.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.PageUp, false, false, false));
+        seek.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.PageUp, false, false, false));
         Check("SeekBar PgUp → +10", seek.Value == 60);
-        seek.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.PageDown, false, false, false));
+        seek.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.PageDown, false, false, false));
         Check("SeekBar PgDn → -10", seek.Value == 50);
 
         // 回调
@@ -2500,7 +2500,7 @@ another.txt:3:1: warning: deprecated API
         Check("Separator 自定义颜色", sepCustom.LineColor == 91);
 
         // 键盘不处理
-        Check("Separator 不处理键盘", !sepH.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false)));
+        Check("Separator 不处理键盘", !sepH.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false)));
         Console.WriteLine();
 
         // ================================================================
@@ -2534,7 +2534,7 @@ another.txt:3:1: warning: deprecated API
         Check("Panel 可添加子视图", panel.Children.Count >= 1);
 
         // 键盘不处理
-        Check("Panel 不处理键盘", !panel.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false)));
+        Check("Panel 不处理键盘", !panel.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false)));
         Console.WriteLine();
 
         // ================================================================
@@ -2645,27 +2645,27 @@ another.txt:3:1: warning: deprecated API
         editor.Core = core2;
         Check("TuiRichEditor 绑定 Core", editor.Core == core2);
 
-        editor.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
-        Check("HandleKey DownArrow", core2.Cy == 1);
+        editor.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+        Check("OnKey DownArrow", core2.Cy == 1);
 
-        editor.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.RightArrow, false, false, false));
-        Check("HandleKey RightArrow", core2.Cx == 1);
+        editor.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.RightArrow, false, false, false));
+        Check("OnKey RightArrow", core2.Cx == 1);
 
-        editor.HandleKey(new ConsoleKeyInfo('x', ConsoleKey.X, false, false, false));
-        Check("HandleKey 插入字符", core2.Lines[1].ToString().Contains("x"));
+        editor.OnKey(new ConsoleKeyInfo('x', ConsoleKey.X, false, false, false));
+        Check("OnKey 插入字符", core2.Lines[1].ToString().Contains("x"));
 
-        editor.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
-        Check("HandleKey Home", core2.Cx == 0);
+        editor.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
+        Check("OnKey Home", core2.Cx == 0);
 
         // 事件
         bool saveFired = false;
         editor.OnSaveRequested += () => saveFired = true;
-        editor.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.S, false, false, true));
+        editor.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.S, false, false, true));
         Check("OnSaveRequested 触发", saveFired);
 
         bool jumpFired = false;
         editor.OnJumpRequested += () => jumpFired = true;
-        editor.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.G, false, false, true));
+        editor.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.G, false, false, true));
         Check("OnJumpRequested 触发", jumpFired);
 
         // Resize

@@ -58,11 +58,11 @@ public class Editor
         {
             var choices = new List<string> { "📁 输入文件路径..." };
             choices.AddRange(recent.Take(9));
-            var pick = UI.TuiList.Select("选择要编辑的文件 ↑↓", choices);
+            var pick = UxHelper.Select("选择要编辑的文件 ↑↓", choices);
             if (pick == null) return;
             if (pick.StartsWith("📁"))
             {
-                var path = UI.TuiPrompt.Ask("文件路径");
+                var path = UxHelper.Ask("文件路径");
                 if (string.IsNullOrWhiteSpace(path)) return;
                 await RunAsync(path.Trim());
             }
@@ -73,7 +73,7 @@ public class Editor
         }
         else
         {
-            var path = UI.TuiPrompt.Ask("文件路径 (可创建新文件)");
+            var path = UxHelper.Ask("文件路径 (可创建新文件)");
             if (string.IsNullOrWhiteSpace(path)) return;
             await RunAsync(path.Trim());
         }
@@ -315,7 +315,7 @@ public class Editor
 
     private void JumpToLine()
     {
-        var input = UI.TuiPrompt.Ask($"跳转到行 (1-{_lines.Count})");
+        var input = UxHelper.Ask($"跳转到行 (1-{_lines.Count})");
         if (int.TryParse(input, out var ln) && ln >= 1 && ln <= _lines.Count)
         {
             _cy = ln - 1;
@@ -367,7 +367,7 @@ public class Editor
         }
         catch (Exception ex)
         {
-            UI.TuiBox.Error("保存失败", ex.Message);
+            UxHelper.Error("保存失败", ex.Message);
             Thread.Sleep(1200);
         }
     }
@@ -375,7 +375,7 @@ public class Editor
     private void PromptSave()
     {
         if (!_modified) return;
-        var choice = UI.TuiList.Select("文件已修改，是否保存？",
+        var choice = UxHelper.Select("文件已修改，是否保存？",
             ["💾 保存并退出", "🗑 不保存退出", "↩ 继续编辑"]);
         if (choice == null || choice.StartsWith("↩")) return;
         if (choice.StartsWith("💾")) Save();

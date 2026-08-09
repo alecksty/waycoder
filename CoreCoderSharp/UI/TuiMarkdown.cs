@@ -69,10 +69,7 @@ public static class TuiMarkdown
                     RenderParagraph(para, result, maxWidth, FgForRole(role));
                     break;
             }
-            // 只在视觉上需要分隔的节点间加空行
-            var next = nodes.ElementAtOrDefault(nodes.IndexOf(node) + 1);
-            if (NeedsSpacing(node, next))
-                result.Add(new List<(string, int, int)>());
+            // 消息内部节点间不加空行（消息间空行由 TuiListView.ItemSpacing 统一控制）
         }
 
         return result.Count > 0 ? result

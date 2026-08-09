@@ -55,6 +55,7 @@ public class Program
                 case "--yolo": yoloMode = true; break;
                 case "--tui-v1": break; // 忽略（已移除 Terminal.Gui v2）
                 case "--tui-demo": TuiDemo.Run(); return 0;
+                case "--theme-verify": ThemeVerify.Run(); return 0;
                 case "--init": initMode = true; break;
                 case "-w" or "--watch": watchMode = true; break;
                 case "--max-budget-usd" when i + 1 < args.Length:
@@ -189,13 +190,13 @@ public class Program
             }
             else
             {
-                TuiBox.Error("请求超时", "服务器 60s 未响应，请检查网络或 API 配置");
+                UxHelper.Error("请求超时", "服务器 60s 未响应，请检查网络或 API 配置");
                 Environment.Exit(1);
             }
         }
         catch (Exception ex)
         {
-            TuiBox.Error("错误", ex.Message);
+            UxHelper.Error("错误", ex.Message);
             Environment.Exit(1);
         }
     }
@@ -226,18 +227,16 @@ public class Program
         _activeSlot = 0;
         var slot0 = _slots[0];
 
-        // 启动欢迎屏 — ASCII Logo 注入槽位 0
-        var logo = new[]
-        {
+        // 启动欢迎屏 — ASCII Logo 注入槽位 0（多行合并避免 ItemSpacing 空行）
+        var logo = string.Join("\n",
             "██╗    ██╗ █████╗ ██╗   ██╗ ██████╗ ██████╗ ██████╗ ███████╗██████╗ ",
             "██║    ██║██╔══██╗╚██╗ ██╔╝██╔════╝██╔═══██╗██╔══██╗██╔════╝██╔══██╗",
             "██║ █╗ ██║███████║ ╚████╔╝ ██║     ██║   ██║██║  ██║█████╗  ██████╔╝",
             "██║███╗██║██╔══██║  ╚██╔╝  ██║     ██║   ██║██║  ██║██╔══╝  ██╔══██╗",
             "╚███╔███╔╝██║  ██║   ██║   ╚██████╗╚██████╔╝██████╔╝███████╗██║  ██║",
-            " ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝",
-        };
-        foreach (var line in logo)
-            slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = line });
+            " ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝"
+        );
+        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = logo });
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"{Global.AppFullName} · {Global.Version}" });
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = "深圳市探索智能科技有限公司" });
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助" });
@@ -317,11 +316,12 @@ public class Program
             // 超时 — 继续轮询
             if (ev.Type == InputType.Timeout) continue;
 
-            // 鼠标 → 下发到活跃 Screen → Window → 控件冒泡
+            // 鼠标 — 暂不开启，待后续稳定后通过 WAYCODER_MOUSE=1 启用
             if (ev.Type == InputType.Mouse)
             {
-                mgr.HandleMouse(ev);
-                mgr.Render();
+                // if (Environment.GetEnvironmentVariable("WAYCODER_MOUSE") != "1") continue;
+                // mgr.HandleMouse(ev);
+                // mgr.Render();
                 continue;
             }
 
@@ -348,7 +348,7 @@ public class Program
             }
 
             // 其余全部下发到活跃 Screen → Window → 控件冒泡
-            mgr.HandleKey(key);
+            mgr.OnKey(key);
             mgr.Render();
         }
 
@@ -1040,7 +1040,7 @@ public class Program
         if (name == 1)
         {
             TuiManager.Instance.Exit();
-            var input = TuiPrompt.Ask("会话名称");
+            var input = UxHelper.Ask("会话名称");
             TuiManager.Instance.Enter();
             if (!string.IsNullOrWhiteSpace(input)) sid = input.Trim();
         }
@@ -1634,7 +1634,7 @@ deepseek 性价比最高。" });
         if (cost != null)
             content.Append($"约 {AnsiText.Dim($"${cost:F4}")}");
 
-        TuiBox.Info("Token 用量", content.ToString().TrimEnd());
+        UxHelper.Info("Token 用量", content.ToString().TrimEnd());
     }
 
     private static void SwitchModel(string input)
@@ -1737,7 +1737,7 @@ deepseek 性价比最高。" });
         foreach (var (name, _) in CustomCommands.Commands)
             commands.Add($"/{name}");
 
-        var choice = TuiList.Select("命令面板 ↑↓ 选择 Enter 执行 Esc 取消", commands);
+        var choice = UxHelper.Select("命令面板 ↑↓ 选择 Enter 执行 Esc 取消", commands);
         if (choice == null) return "";
 
         // 对于带参数的命令，截取命令名
@@ -1748,7 +1748,7 @@ deepseek 性价比最高。" });
     /// <summary>! 触发：输入 Shell 命令并立即执行</summary>
     private static async Task<string> RunShellOnceAsync()
     {
-        var cmd = TuiPrompt.Ask("! 命令");
+        var cmd = UxHelper.Ask("! 命令");
         if (string.IsNullOrWhiteSpace(cmd)) return "";
 
         try
@@ -1759,7 +1759,7 @@ deepseek 性价比最高。" });
         }
         catch (Exception ex)
         {
-            TuiBox.Error("Shell 错误", ex.Message);
+            UxHelper.Error("Shell 错误", ex.Message);
         }
         return ""; // 不回传给 Agent
     }
@@ -1781,7 +1781,7 @@ deepseek 性价比最高。" });
         }
         catch { /* 静默失败 */ }
 
-        var file = TuiPrompt.Ask("# 文件");
+        var file = UxHelper.Ask("# 文件");
         return string.IsNullOrWhiteSpace(file) ? "" : $"#{file}";
     }
 
@@ -1829,7 +1829,7 @@ deepseek 性价比最高。" });
         }
         catch (Exception ex)
         {
-            TuiBox.Error("错误", ex.Message);
+            UxHelper.Error("错误", ex.Message);
         }
     }
 
@@ -1883,7 +1883,7 @@ deepseek 性价比最高。" });
         }
         catch (Exception ex)
         {
-            TuiBox.Error("审查出错", ex.Message);
+            UxHelper.Error("审查出错", ex.Message);
         }
     }
 

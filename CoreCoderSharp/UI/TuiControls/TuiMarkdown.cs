@@ -14,6 +14,9 @@ public class TuiMarkdown : TuiControl
     /// <summary>Markdown 源文本</summary>
     public string Content { get; set; } = "";
 
+    /// <summary>Markdown 渲染控件是展示控件，不可获得焦点</summary>
+    public override bool CanFocus => false;
+
     /// <summary>角色（用于默认颜色：user/assistant/system）</summary>
     public string Role { get; set; } = "assistant";
 
@@ -68,7 +71,7 @@ public class TuiMarkdown : TuiControl
             foreach (var (text, fg, bg) in segments)
             {
                 if (string.IsNullOrEmpty(text)) continue;
-                int effFg = fg > 0 ? fg : (Fg > 0 ? Fg : 37);
+                int effFg = fg > 0 ? fg : (Fg > 0 ? Fg : TuiTheme.Current.ControlFg);
                 int effBg = bg > 0 ? bg : (Bg > 0 ? Bg : 0);
 
                 WriteAt(sb, row, col, text, effFg, effBg);
@@ -102,7 +105,7 @@ public class TuiMarkdown : TuiControl
     }
 
     /// <summary>强制重新解析</summary>
-    public void Invalidate()
+    public override void Invalidate()
     {
         _parsed = false;
     }

@@ -11,6 +11,9 @@ public class TuiIcon : TuiControl
     /// <summary>图标字符</summary>
     public string Glyph { get; set; } = "•";
 
+    /// <summary>图标是纯展示控件，不可获得焦点</summary>
+    public override bool CanFocus => false;
+
     public TuiIcon()
     {
         Width = 2;
@@ -26,20 +29,21 @@ public class TuiIcon : TuiControl
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
-        WriteLine(sb, 0, 0, Glyph, Fg > 0 ? Fg : 37);
+        ControlRenderer.DrawLabelLine(sb, this, absX, absY,
+            Glyph, HAlign.Left, TuiTheme.Current.ControlFg, 0);
     }
 
     // ── 预设图标 ──
 
-    public static TuiIcon User() => new("●") { Fg = 32 };        // Green
-    public static TuiIcon Assistant() => new("●") { Fg = 36 };    // Cyan
-    public static TuiIcon System() => new("●") { Fg = 33 };       // Yellow
-    public static TuiIcon Tool() => new("●") { Fg = 90 };         // Gray
-    public static TuiIcon Error() => new("●") { Fg = 31 };        // Red
-    public static TuiIcon Warn() => new("●") { Fg = 33 };         // Yellow
-    public static TuiIcon Ok() => new("●") { Fg = 32 };           // Green
-    public static TuiIcon Info() => new("●") { Fg = 36 };         // Cyan
-    public static TuiIcon File() => new("●") { Fg = 37 };         // White
-    public static TuiIcon Folder() => new("●") { Fg = 33 };       // Yellow
-    public static TuiIcon Lock() => new("●") { Fg = 31 };         // Red
+    public static TuiIcon User() => new("●") { Fg = TuiTheme.Current.IconUserFg };
+    public static TuiIcon Assistant() => new("●") { Fg = TuiTheme.Current.IconAssistantFg };
+    public static TuiIcon System() => new("●") { Fg = TuiTheme.Current.IconSystemFg };
+    public static TuiIcon Tool() => new("●") { Fg = TuiTheme.Current.IconToolFg };
+    public static TuiIcon Error() => new("●") { Fg = TuiTheme.Current.IconErrorFg };
+    public static TuiIcon Warn() => new("●") { Fg = TuiTheme.Current.IconWarnFg };
+    public static TuiIcon Ok() => new("●") { Fg = TuiTheme.Current.IconOkFg };
+    public static TuiIcon Info() => new("●") { Fg = TuiTheme.Current.IconInfoFg };
+    public static TuiIcon File() => new("●") { Fg = TuiTheme.Current.IconFileFg };
+    public static TuiIcon Folder() => new("●") { Fg = TuiTheme.Current.IconFolderFg };
+    public static TuiIcon Lock() => new("●") { Fg = TuiTheme.Current.IconLockFg };
 }

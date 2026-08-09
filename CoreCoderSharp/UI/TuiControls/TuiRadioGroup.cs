@@ -16,10 +16,10 @@ public class TuiRadioGroup : TuiControl
     public int SelectedIndex { get; set; } = -1;
 
     /// <summary>选中符号前景色</summary>
-    public int SelFg { get; set; } = 36;
+    public int SelFg { get; set; }
 
     /// <summary>常规前景色</summary>
-    public int ItemFg { get; set; } = 37;
+    public int ItemFg { get; set; }
 
     /// <summary>选择变化回调</summary>
     public Action<int>? OnSelectionChanged { get; set; }
@@ -29,6 +29,8 @@ public class TuiRadioGroup : TuiControl
         Width = 30;
         Height = 1;
         Focused = true;
+        SelFg = TuiTheme.Current.ControlFocusedBg;
+        ItemFg = TuiTheme.Current.ControlFg;
     }
 
     public TuiRadioGroup(List<string> options, int defaultIdx = 0)
@@ -49,7 +51,8 @@ public class TuiRadioGroup : TuiControl
 
             bool sel = i == SelectedIndex;
             string bullet = sel ? "◉" : "○";
-            int fg = sel ? SelFg : ItemFg;
+            int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
+                   : sel ? SelFg : ItemFg;
 
             WriteAt(sb, row, absX, $"{bullet} {Options[i]}", fg, Bg);
         }
@@ -58,9 +61,9 @@ public class TuiRadioGroup : TuiControl
             Height = Options.Count;
     }
 
-    public override bool HandleKey(ConsoleKeyInfo key)
+    public override bool OnKey(ConsoleKeyInfo key)
     {
-        if (Options.Count == 0) return false;
+        if (!IsEnabled || Options.Count == 0) return false;
 
         switch (key.Key)
         {
