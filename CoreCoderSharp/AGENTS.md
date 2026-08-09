@@ -84,7 +84,7 @@ User Input → Agent.ChatAsync()
 | `UI/TuiHelper.cs` | CJK-aware width calculation, Spectre markup helpers |
 | `UI/TuiColors.cs` | Color constants using Spectre styles |
 | `UI/TuiBox.cs`, `TuiInput.cs`, `TuiList.cs`, `TuiTable.cs`, `TuiPrompt.cs`, `TuiProgress.cs`, `TuiBanner.cs` | Reusable UI widgets |
-| `UI/SettingsPage.cs` | Interactive settings page (F5) |
+| `UI/SettingsPage.cs` | Interactive settings page (Ctrl+O) |
 
 ### Tools (30+ in `Tools/`)
 

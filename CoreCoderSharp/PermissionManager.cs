@@ -17,6 +17,11 @@ public static class PermissionManager
 
     public static Mode CurrentMode { get; set; } = Mode.Ask;
 
+    /// <summary>权限确认框显示时触发（用于状态栏槽位标记"等待权限"）</summary>
+    public static event Action<string>? PermissionPromptStarted;
+    /// <summary>权限确认框关闭后触发（恢复"工作"状态）</summary>
+    public static event Action<string>? PermissionPromptResolved;
+
     /// <summary>本轮已自动允许的工具调用 ID 集合（Auto 模式用）</summary>
     private static readonly HashSet<string> _autoAllowed = [];
 
@@ -52,6 +57,7 @@ public static class PermissionManager
         var content = $"工具: {TuiHelper.Esc(toolName)}\n{TuiHelper.Esc(details)}";
 
         int result;
+        PermissionPromptStarted?.Invoke(toolName);
         if (ScreenManager.Instance.IsActive)
         {
             result = ScreenManager.Instance.ShowInlinePermission(toolName, details,
@@ -70,9 +76,9 @@ public static class PermissionManager
             case 1:
                 _autoAllowed.Add(autoKey);
                 CurrentMode = Mode.Auto;
-                return true;
+                break;
             case 0:
-                return true;
+                break;
             default:
                 if (ScreenManager.Instance.IsActive)
                     ScreenManager.Instance.AddSystemMsg("已拒绝");
@@ -81,8 +87,10 @@ public static class PermissionManager
                     Console.WriteLine(AnsiText.Warn("已拒绝"));
                     Console.WriteLine();
                 }
-                return false;
+                break;
         }
+        PermissionPromptResolved?.Invoke(toolName);
+        return result switch { 0 => true, 1 => true, _ => false };
     }
 
     /// <summary>
