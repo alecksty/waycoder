@@ -451,17 +451,67 @@ public class Agent
             {
                 var msgs = new List<JsonObject>
                 {
-                    new() { ["role"] = "system", ["content"] = "Generate a concise git commit message, one line, English, <70 chars. Output only the message." },
+                    new() { ["role"] = "system", ["content"] = "You are a git commit message generator. Output a single line, English, conventional-commit style with a valid prefix (feat/fix/docs/style/refactor/perf/test/chore/build/ci/revert), <70 chars. Do NOT include any quotes, backticks, or extra text." },
                     new() { ["role"] = "user", ["content"] = "Modified files: " + fileList + "\n\nCommit message:" },
                 };
                 var result = await LlmClient.ChatAsync(msgs, tools: null);
-                var msg = (result?.Content ?? "").Trim();
-                msg = msg.Replace("\"", "").Replace("`", "").Replace("\n", " ").Trim();
+                var msg = CleanCommitMsg(result?.Content ?? "");
+
+                // 质量校验：不合格则重试一次
+                if (!IsValidCommitMsg(msg))
+                {
+                    msgs[0]["content"] = "Your previous output was invalid. Strict rules: exactly one line, English, conventional-commit prefix (feat/fix/docs/style/refactor/perf/test/chore/build/ci/revert), no quotes/backticks/code fences, <70 chars. Output only the message.";
+                    result = await LlmClient.ChatAsync(msgs, tools: null);
+                    msg = CleanCommitMsg(result?.Content ?? "");
+                }
+
+                // 重试后仍不合格：回退到安全默认信息
+                if (!IsValidCommitMsg(msg))
+                {
+                    var firstFile = fileList.Split(',')[0].Trim();
+                    msg = "chore: update " + firstFile;
+                }
                 return msg.Length > 72 ? msg[..72] : msg;
             }
             finally { LlmClient.ModelOverride = saved; }
         }
         catch { return ""; }
+    }
+
+    /// <summary>清理提交信息：去引号/反引号/换行/多余空白。</summary>
+    private static string CleanCommitMsg(string raw)
+    {
+        var msg = (raw ?? "").Trim();
+        // 去掉代码围栏和常见的模板包裹
+        msg = msg.Replace("```", "").Replace("`", "");
+        msg = msg.Replace("\"", "").Replace("'", "");
+        msg = msg.Replace("\n", " ").Replace("\r", " ").Trim();
+        // 去掉 "Here is the commit message:" 之类的 AI 模板前缀
+        var colonIdx = msg.IndexOf(":");
+        if (colonIdx > 0 && colonIdx < 30)
+        {
+            var prefix = msg[..colonIdx].ToLowerInvariant();
+            if (prefix.Contains("commit") || prefix.Contains("message") || prefix.Contains("here"))
+                msg = msg[(colonIdx + 1)..].Trim();
+        }
+        return msg;
+    }
+
+    /// <summary>校验提交信息质量：必须有合法 conventional 前缀、非空、不含中文。</summary>
+    private static bool IsValidCommitMsg(string msg)
+    {
+        if (string.IsNullOrWhiteSpace(msg)) return false;
+        if (msg.Length < 5) return false;
+        // 拒绝中文（提交信息约定为英文）
+        if (System.Text.RegularExpressions.Regex.IsMatch(msg, @"[\u4e00-\u9fff]")) return false;
+        // 拒绝继续出现的模板短语
+        var lower = msg.ToLowerInvariant();
+        if (lower.Contains("here is") || lower.Contains("generate a") || lower.Contains("i will"))
+            return false;
+        // 必须匹配 conventional-commit 前缀
+        var firstWord = msg.Split(' ')[0].Split(':')[0].Trim().ToLowerInvariant();
+        return firstWord is "feat" or "fix" or "docs" or "style" or "refactor"
+            or "perf" or "test" or "chore" or "build" or "ci" or "revert";
     }
 
     private static async Task<string?> RunGitAsync(string args)

@@ -4,7 +4,7 @@
 
 **中文版易用编程智能体，C# (.NET 10) 实现，AOT 编译为单文件 exe（~8 MB），无需运行时。**
 
-*一个 while 循环 + 大模型 + 29 个工具 + Watch 模式，就是全部*
+*一个 while 循环 + 大模型 + 30 个工具 + Watch 模式，就是全部*
 
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -69,7 +69,7 @@ CoreCoderSharp/
 ├── LLM.cs             LLM 客户端 (流式 + 回退)
 ├── ContextManager.cs  三层上下文压缩
 ├── SessionManager.cs  会话持久化
-├── SystemPrompt.cs    系统提示词 (含项目检测)
+├── SystemPrompt.cs    系统提示词 (含项目检测 + 技能列表)
 ├── Config.cs          配置 (.env 加载)
 ├── WatchMode.cs        Watch 模式 (文件监听 + AI! 注释)
 ├── PermissionManager.cs 权限确认系统
@@ -77,10 +77,13 @@ CoreCoderSharp/
 ├── ReviewMode.cs      代码审查模式
 ├── FallbackLLM.cs     模型回退链
 ├── MemoryStore.cs     记忆系统
+├── StructuredMemory.cs 结构化记忆 (骨架)
+├── SkillsManager.cs   技能系统 (SKILL.md 发现与解析)
+├── WorktreeIsolation.cs Git Worktree 隔离
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        380 项自测
-└── Tools/             29 个工具
+├── SelfTest.cs        676 项自测
+└── Tools/             30 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
     ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
@@ -90,10 +93,11 @@ CoreCoderSharp/
     ├── MkdirTool.cs   RmTool.cs      CdTool.cs
     ├── FindReplaceTool.cs CpTool.cs  MvTool.cs
     ├── DiffTool.cs    TreeTool.cs    WcTool.cs
-    ├── StatTool.cs    PwdTool.cs
+    ├── StatTool.cs    PwdTool.cs    SkillTool.cs
+    └── DocTool.cs     (未注册)
 ```
 
-## 29 个工具
+## 30 个工具
 
 | 工具 | 用途 |
 |---|---|
@@ -103,7 +107,7 @@ CoreCoderSharp/
 | `edit_file` | 精确匹配查找替换，输出 diff |
 | `glob` | 文件模式匹配，按修改时间排序 |
 | `grep` | 正则表达式内容搜索，跳过垃圾目录 |
-| `agent` | 生成子智能体（独立上下文，禁止递归） |
+| `agent` | 生成子智能体（独立上下文，禁止递归；支持 tasks 数组并行，最多 4 个并发） |
 | `git` | Git 操作（status/log/diff/commit） |
 | `fetch` | Web 抓取，自动提取网页纯文本 |
 | `lsp` | LSP 代码导航（go-to-def, references, hover） |
@@ -126,6 +130,8 @@ CoreCoderSharp/
 | `stat` | 文件/目录元数据 |
 | `find_replace` | 跨文件正则查找替换 |
 | `pwd` | 打印工作目录 |
+| `skill` | 按需加载 SKILL.md 技能完整内容（名称+描述见系统提示词） |
+| `doc` | 查最新库/框架文档（搜索+抓取），获取最新 API 和用法 (未注册) |
 
 ## REPL 命令
 
@@ -150,7 +156,10 @@ quit / exit      退出
 
 - **edit_file 使用唯一子串匹配**，不用行号，安全可审查
 - **上下文压缩三层让步**：50% 裁剪 → 70% LLM 摘要 → 90% 硬折叠
-- **子智能体通过不给 agent 工具来约束**，不靠规则
+- **子智能体并行**：tasks 数组最多 4 并发，聚合返回；通过不给 agent 工具约束递归
+- **技能系统**：标准 SKILL.md 格式（`skills/<name>/SKILL.md`），系统提示词只给名称+描述，`skill` 工具按需加载完整内容
+- **Git 自动提交质量校验**：conventional-commit 前缀强制 + 不合格重试一次 + 兜底默认信息
+- **Worktree 隔离**：bash 自动检测 worktree 路径并切换 cwd
 - **AOT 编译：JSON 手写序列化**，不依赖反射
 - **权限系统**：bash/write/edit/agent 默认需确认，`/perm yolo` 跳过
 - **模型回退链**：失败时自动尝试备用模型

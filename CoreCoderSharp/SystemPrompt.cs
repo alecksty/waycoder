@@ -24,6 +24,11 @@ public static class SystemPrompt
         // 仓库地图
         var repoMap = RepoMapGenerator.Generate();
 
+        // 技能列表（仅名称 + 描述，不加载完整 body）
+        var skillsSection = SkillsManager.GetSkillsSection();
+        if (!string.IsNullOrEmpty(skillsSection))
+            skillsSection = "\n" + skillsSection;
+
         // 项目记忆（TF-IDF 语义匹配，只注入与当前项目最相关的记忆）
         var memorySection = "";
         try
@@ -77,6 +82,7 @@ public static class SystemPrompt
                 {instructions}
 
                 {memorySection}
+                {skillsSection}
                 {repoMap}
 
                 # 工具

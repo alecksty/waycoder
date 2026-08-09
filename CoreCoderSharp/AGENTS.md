@@ -91,7 +91,8 @@ All implement `ITool` (`Name`, `Description`, `Parameters`, `ExecuteAsync`, `Sch
 
 Classified by risk:
 - **Dangerous** (require confirmation): `bash`, `write_file`, `edit_file`, `agent`, `kill`, `rm`
-- **Safe** (no confirmation): `read_file`, `glob`, `grep`, `ls`, `stat`, `fetch`, `todo`, `lsp`, `memory`, `lint`, `web_search`, `git_pr`, `ps`, `mkdir`, `cd`, `find_replace`, `cp`, `mv`, `diff`, `tree`, `wc`, `pwd`
+- **Safe** (no confirmation): `read_file`, `glob`, `grep`, `ls`, `stat`, `fetch`, `todo`, `lsp`, `memory`, `lint`, `web_search`, `git_pr`, `ps`, `mkdir`, `cd`, `find_replace`, `cp`, `mv`, `diff`, `tree`, `wc`, `pwd`, `skill`
+- **Skeleton (unregistered)**: `doc` (`Tools/DocTool.cs`), `StructuredMemory.cs`, `UI/DiffPreview.cs` — files exist but not wired in
 
 ## NativeAOT Gotchas
 

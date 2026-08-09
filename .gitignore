@@ -21,3 +21,10 @@ venv/
 logs/
 .idea/
 verify_build/
+
+# Agent session state (never commit)
+.omo/
+*.bak
+*.patch
+excalidraw.log
+CoreCoderSharp/.corecoder/memory/

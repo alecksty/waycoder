@@ -1,5 +1,25 @@
 # 更新日志
 
+## v0.19.0 (2026-08-09) — 技能系统 + 并行子代理 + CI
+
+### 🔥 新增
+- **技能系统** (`SkillsManager.cs` + `Tools/SkillTool.cs`): 标准 SKILL.md 格式发现与解析（`skills/<name>/SKILL.md`），SystemPrompt 注入精简技能列表，`skill` 工具按需加载完整 body 与打包文件
+- **并行子代理** (`Tools/AgentTool.cs`): `tasks` 数组参数，最多 4 个并发，结果聚合返回；保留多层递归深度限制
+- **GitHub Actions CI** (`.github/workflows/ci.yml`): 自动构建 + 全量自测
+- **Git Worktree 隔离** (`WorktreeIsolation.cs`): 检测 worktree 路径并自动切换 bash cwd，`BashTool` 已接入
+- **结构化记忆骨架** (`StructuredMemory.cs`): 对标 Claude Code frontmatter 记忆设计（未接入，预留）
+- **Diff 预览骨架** (`UI/DiffPreview.cs`): 逐 Hunk 确认对话框（未接入，预留）
+- **文档查询工具** (`Tools/DocTool.cs`): 搜索+抓取最新库/框架文档（未注册，预留）
+
+### ✨ 改进
+- **AutoGitCommit 质量校验**: conventional-commit 前缀强制 + 引号/代码围栏清理 + 不合格重试一次 + 兜底默认信息，杜绝乱提交
+
+### 🔧 修复
+- **SelfTest Checkpoint 段**（根因修复）: 原在仓库内执行 `git stash push` 会清空工作树且累积垃圾 stash（曾达 101 个），现隔离到临时非 git 目录执行
+- **移除有风险的 Undo 测试**: FileBackup 还原路径会把备份拷回工作树，解析出错即覆盖真实文件，改为标注风险不测试
+
+### 📝 自测: 676/676
+
 ## v0.18.5 (2026-08-09) — Plan 模式 + 稳定性修复
 
 ### 新增

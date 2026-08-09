@@ -1,6 +1,6 @@
 # WayCoder（道码）竞品分析与路线图
 
-> 版本：v0.18.4 | 日期：2026-08-08
+> 版本：v0.19.0 | 日期：2026-08-09
 
 ---
 
@@ -16,8 +16,8 @@
 | **双模型架构** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **模型灵活度** | OpenAI 兼容 | 仅 Anthropic | OSS 模式 | 100+ 模型 | 15+ 提供商 | 仅 Gemini |
 | **Git 自动提交** | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ |
-| **子智能体** | ✅ 单层 | ✅ Teams | ✅ V2 | ❌ | ✅ via MCP | ❌ |
-| **沙箱执行** | ✅ 三级 | ❌ | ✅ 三级 | ❌ | ❌ | ❌ |
+| **子智能体** | ✅ 并行 4 并发 | ✅ Teams | ✅ V2 | ❌ | ✅ via MCP | ❌ |
+| **沙箱执行** | ✅ 三级¹ | ❌ | ✅ 三级 | ❌ | ❌ | ❌ |
 | **自动 Lint 反馈** | ✅ | ✅ | ✅ | ✅ lint+test | ❌ | ❌ |
 | **自动 Test 循环** | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
 | **Prompt 缓存** | ✅ | ✅ | ✅ 75% | ❌ | ❌ | ❌ |
@@ -25,15 +25,19 @@
 | **多模态** | ❌ | ❌ | ✅ 图片+音频 | ❌ | ❌ | ✅ |
 | **IDE 集成** | ❌ | ✅ beta | ✅ | ✅ watch | ✅ 桌面 | ❌ |
 | **上下文窗口** | 128K | 1M | 200K | 模型决定 | 模型决定 | 1M |
-| **中文原生** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **中文原生** | ✅² | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **MCP 支持** | ✅ HTTP+SSE | ✅ 800+ | ✅ | ❌ | ✅ 原生 | ✅ |
-| **彩色聊天 TUI** | ✅ v2 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **彩色聊天 TUI** | ✅ v2 | ❌³ | ❌ | ❌ | ❌ | ❌ |
 | **侧栏面板** | ✅ 4 标签页 | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **自测** | 380 项 | 无 | 无 | 无 | 无 | 无 |
+| **自测** | 676 项 | 无 | 无 | 无 | 无 | 无 |
 | **安装** | 单 exe | npm | npm/brew | pip | brew/cargo | npm/brew |
 | **用量统计面板** | ✅ /stats | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **设置持久化** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **Checkpoint 持久化** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+> ¹ WayCoder 为软件级沙箱（环境清理 + 内存监控），Codex CLI 为内核级沙箱（Seatbelt / Landlock），安全层级不同。
+> ² 中文原生渐成标配（通义灵码、Trae 等亦中文优先），已非独家护城河。
+> ³ Claude Code 支持 ANSI 富文本聊天渲染，但非 WayCoder 级的全屏缓冲 TUI 控件库体系。
 
 ### 各竞品一句话总结
 
@@ -64,12 +68,12 @@
 
 | # | 优势 | 竞品情况 |
 |---|------|------|
-| 7 | **29 个内置工具** | Claude Code 相当，Aider 仅文件编辑，Goose 靠 MCP |
+| 7 | **30 个内置工具** | Claude Code 相当，Aider 仅文件编辑，Goose 靠 MCP |
 | 8 | **四层安全防护** | bash/git/rm/kill 四个工具各有独立拦截规则 |
 | 9 | **模型回退链** | Claude Code 有，Codex/Aider/Goose 无自动回退 |
 | 10 | **Hooks 生命周期** | Claude Code 更成熟，Codex 有，Aider/Goose 无 |
 | 11 | **自定义命令** | Claude Code 有 slash commands，Codex 有 |
-| 12 | **380 项自测** | 所有竞品均无内置自测 |
+| 12 | **676 项自测** | 所有竞品均无内置自测 |
 
 ---
 
@@ -104,6 +108,11 @@
 | ✅ 子智能体递归 | v0.17.5 | 多层嵌套 + AsyncLocal 深度追踪 + 可配置深度（1-5） |
 | ✅ `/undo` 按文件恢复 | v0.17.5 | filePath 参数 + 文件锁检查 + `/undo -l` 列出文件 |
 | ✅ Lint/Tool 超时可配置 | v0.17.5 | ToolTimeoutSec (120s) + LintTimeoutSec (60s) 环境变量 |
+| ✅ 并行子代理 | v0.19.0 | tasks 数组最多 4 并发 + 结果聚合，对齐 Claude Code Teams |
+| ✅ SKILL.md 技能系统 | v0.19.0 | 标准技能格式发现 + 按需加载，对齐 Claude Code/Copilot/OpenCode |
+| ✅ Git Worktree 隔离 | v0.19.0 | bash 自动检测 worktree 路径切换 cwd，对齐 Claude Code isolation |
+| ✅ GitHub Actions CI | v0.19.0 | 自动构建 + 全量自测 |
+| ✅ AutoGitCommit 质量校验 | v0.19.0 | conventional-commit 前缀强制 + 重试 + 兜底 |
 
 ---
 

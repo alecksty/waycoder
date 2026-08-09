@@ -36,6 +36,7 @@ public static class ToolRegistry
         new WcTool(),
         new StatTool(),
         new PwdTool(),
+        new SkillTool(),
     ];
 
     /// <summary>所有工具（内置 + MCP 自动发现）</summary>
