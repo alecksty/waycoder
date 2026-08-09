@@ -1,3 +1,4 @@
+using CoreCoderSharp.Terminal;
 using CoreCoderSharp.UI;
 using CoreCoderSharp.UI.Controls;
 
@@ -47,6 +48,10 @@ public static class TuiDemo
                 "- `F3` — 输入对话框\n" +
                 "- `F4` — 列表选择\n" +
                 "- `F5` — 确认框\n" +
+                "- `F6` — 短菜单（弹出式）\n" +
+                "- `F7` — 长滚动菜单\n" +
+                "- `F8` — 右键快捷菜单\n" +
+                "- `F9` — Markdown 表格\n" +
                 "- `Ctrl+D` 或 `Esc` — 退出\n" +
                 "- 输入文字后 `Enter` 发送",
                 "assistant");
@@ -64,7 +69,7 @@ public static class TuiDemo
                 if (key.Key == ConsoleKey.Escape)
                     return false;
 
-                if (screen.HasModal) return false; // 有模态窗口时不处理 F1-F5
+                if (screen.HasModal) return false; // 有模态窗口时不处理 F 键
 
                 switch (key.Key)
                 {
@@ -82,6 +87,18 @@ public static class TuiDemo
                         return true;
                     case ConsoleKey.F5:
                         ShowConfirmDemo(screen);
+                        return true;
+                    case ConsoleKey.F6:
+                        ShowShortMenuDemo(screen);
+                        return true;
+                    case ConsoleKey.F7:
+                        ShowLongMenuDemo(screen);
+                        return true;
+                    case ConsoleKey.F8:
+                        ShowContextMenuDemo(screen);
+                        return true;
+                    case ConsoleKey.F9:
+                        ShowTableDemo(screen);
                         return true;
                 }
 
@@ -196,5 +213,116 @@ public static class TuiDemo
                 screen.AddMessage(result ? "🗑️ 已确认删除" : "🚫 已取消", "system");
             });
         screen.ShowWindow(dialog);
+    }
+
+    // ── 菜单演示 ──
+
+    /// <summary>F6 — 短弹出菜单（5-6 项，含分隔线）</summary>
+    private static void ShowShortMenuDemo(ChatScreen screen)
+    {
+        var items = new List<string>
+        {
+            "📄 新建文件",
+            "📁 打开文件夹",
+            "---",
+            "🔍 查找符号",
+            "🔄 重新加载",
+            "⚙️ 设置...",
+        };
+        var win = TuiMenu.Show("快捷操作", items, 8, 4,
+            idx =>
+            {
+                screen.AddMessage($"📋 菜单选择了：**{items[idx]}**", "system");
+            },
+            onCancel: () =>
+            {
+                screen.AddMessage("🚫 菜单已取消", "system");
+            });
+        screen.ShowWindow(win);
+    }
+
+    /// <summary>F7 — 长滚动菜单（25+ 项，测试滚动条）</summary>
+    private static void ShowLongMenuDemo(ChatScreen screen)
+    {
+        var items = new List<string>();
+        for (int i = 1; i <= 28; i++)
+        {
+            var icon = (i % 5) switch
+            {
+                1 => "📄", 2 => "📁", 3 => "🔍", 4 => "⚡", _ => "🔧"
+            };
+            items.Add($"{icon} 操作项目 第 {i} 项");
+        }
+
+        var win = TuiMenu.Show("长列表菜单 (PgUp/PgDn 滚动)", items, 10, 2,
+            idx =>
+            {
+                screen.AddMessage($"📋 选中了第 **{idx + 1}** 项", "system");
+            },
+            onCancel: () =>
+            {
+                screen.AddMessage("🚫 长菜单已取消", "system");
+            });
+        screen.ShowWindow(win);
+    }
+
+    /// <summary>F8 — 右键快捷菜单（模拟上下文菜单，含多分隔线分组）</summary>
+    private static void ShowContextMenuDemo(ChatScreen screen)
+    {
+        var items = new List<string>
+        {
+            "📋 复制",
+            "📌 粘贴",
+            "✂️ 剪切",
+            "---",
+            "🔍 查找定义",
+            "📖 查看引用",
+            "🔄 重命名符号",
+            "---",
+            "🧪 运行测试",
+            "🐛 调试选中",
+            "---",
+            "🗑️ 删除此行",
+            "📝 格式化文档",
+        };
+        // 模拟右键位置：屏幕中右区域
+        var x = Math.Max(0, TTY.Cols - 30);
+        var y = 5;
+        var win = TuiMenu.Show("右键菜单", items, x, y,
+            idx =>
+            {
+                screen.AddMessage($"🖱️ 右键菜单选择了：**{items[idx]}**", "system");
+            },
+            onCancel: () =>
+            {
+                screen.AddMessage("🚫 右键菜单已关闭", "system");
+            });
+        screen.ShowWindow(win);
+    }
+
+    /// <summary>F9 — Markdown 表格演示（含标题/代码块/表格/列表混合）</summary>
+    private static void ShowTableDemo(ChatScreen screen)
+    {
+        screen.AddMessage(
+            "## 📊 Markdown 表格渲染\n\n" +
+            "WayCoder 的 Markdown 引擎支持 **完整的 GFM 表格语法**，\n" +
+            "使用 Unicode 边框字符渲染。\n\n" +
+            "### 语言性能对比\n\n" +
+            "| 语言 | 启动速度 | 内存占用 | 类型安全 | 综合评分 |\n" +
+            "|------|----------|----------|----------|----------|\n" +
+            "| **C# AOT** | ⚡ 极快 | 💚 低 | ✅ 强 | **9.5/10** |\n" +
+            "| Go | 快 | 低 | ✅ 强 | 9.0/10 |\n" +
+            "| Rust | 快 | 极低 | ✅ 极强 | 9.3/10 |\n" +
+            "| Python | 慢 | 高 | ❌ 弱 | 6.5/10 |\n" +
+            "| JavaScript | 中 | 中 | ❌ 弱 | 7.0/10 |\n\n" +
+            "### 模型价格表\n\n" +
+            "| 模型 | 输入 $/Mtok | 输出 $/Mtok | 上下文 |\n" +
+            "|------|-------------|-------------|--------|\n" +
+            "| `deepseek-v4-flash` | $0.28 | $0.56 | 128K |\n" +
+            "| `deepseek-v4-pro` | $1.10 | $2.20 | 256K |\n" +
+            "| `gpt-5.4-mini` | $0.15 | $0.60 | 256K |\n" +
+            "| `gpt-5.4` | $2.50 | $10.00 | 128K |\n\n" +
+            "> 💡 提示：终端宽度不足时，表格列会自动等比缩放。",
+            "assistant");
     }
 }
