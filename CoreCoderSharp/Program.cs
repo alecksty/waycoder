@@ -13,6 +13,8 @@ public class Program
     private static Config _config = new();
     private static LLM? _llm;
     private static Agent? _agent;
+    private static readonly AgentSlot[] _slots = new AgentSlot[AgentSlot.Count];
+    private static int _activeSlot; // 当前活跃槽位索引（F1 对应 0）
     private static WatchMode? _watchMode;
     private static volatile bool _agentBusy;
     private static CancellationTokenSource? _agentCts;
@@ -63,7 +65,7 @@ public class Program
             }
         }
 
-        if (showVersion) { Console.WriteLine("WayCoder v0.19.1 (道码)"); return 0; }
+        if (showVersion) { Console.WriteLine("WayCoder v0.19.2 (道码)"); return 0; }
 
         // 项目初始化向导
         if (initMode) { RunInit(); return 0; }
@@ -117,6 +119,7 @@ public class Program
             _config.MaxTokens, _config.Temperature);
         _agent = new Agent(_llm, maxContextTokens: _config.MaxContextTokens,
             maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
+        _slots[0] = new AgentSlot { Agent = _agent }; // 槽位 0 持有主 Agent
 
         // --yolo: 一次性模式下跳过所有权限确认
         if (yoloMode)
@@ -214,11 +217,14 @@ public class Program
         // 输入管理器：拦截键盘 + 鼠标 + resize 即时重绘
         using var inputMgr = new UI.InputManager();
         inputMgr.Init();
-        sm.ChatMessages.Clear();
-        sm.InputLines.Clear();
-        sm.InputLines.Add(new StringBuilder());
 
-        // 启动欢迎屏 — ASCII Logo 注入聊天区
+        // 初始化 10 个槽位（槽位 0 已在 Main 中持有主 Agent）
+        for (int i = 0; i < AgentSlot.Count; i++) _slots[i] ??= new AgentSlot();
+        if (_slots[0].Agent == null) _slots[0].Agent = _agent;
+        _activeSlot = 0;
+        var slot0 = _slots[0];
+
+        // 启动欢迎屏 — ASCII Logo 注入槽位 0
         var logo = new[]
         {
             "██╗    ██╗ █████╗ ██╗   ██╗ ██████╗ ██████╗ ██████╗ ███████╗██████╗ ",
@@ -229,20 +235,34 @@ public class Program
             " ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝",
         };
         foreach (var line in logo)
-            sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = line });
-        sm.AddSystemMsg("WayCoder 道码 · 中文版易用编程智能体 · v0.19.1");
-        sm.AddSystemMsg("深圳市探索智能科技有限公司");
-        sm.AddSystemMsg($"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助");
-        sm.StatusLeft = $"{_config.Model}";
+            slot0.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = line });
+        slot0.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "WayCoder 道码 · 中文版易用编程智能体 · v0.19.2" });
+        slot0.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "深圳市探索智能科技有限公司" });
+        slot0.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = $"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助" });
+        slot0.StatusLeft = $"{_config.Model}";
+        slot0.HasWelcome = true;
         _llm!.SmallModel = _config.SmallModel;
 
         // 检测 git 分支
         var branch = DetectGitBranch();
         if (branch != null)
         {
-            sm.StatusLeft += $" ·  {branch}";
-            sm.GitBranch = branch;
+            slot0.StatusLeft += $" ·  {branch}";
+            slot0.GitBranch = branch;
         }
+
+        // 槽位 0 状态灌入屏幕（欢迎屏即首屏）
+        slot0.RestoreTo(sm);
+        sm.ActiveSlotIndex = 0;
+
+        // 权限确认框信号 → 槽位状态栏标记"等待权限"
+        PermissionManager.PermissionPromptStarted += _ =>
+            sm.SlotStates[sm.ActiveSlotIndex] = ScreenManager.SlotState.WaitingPerm;
+        PermissionManager.PermissionPromptResolved += _ =>
+        {
+            if (sm.SlotStates[sm.ActiveSlotIndex] == ScreenManager.SlotState.WaitingPerm)
+                sm.SlotStates[sm.ActiveSlotIndex] = ScreenManager.SlotState.Working;
+        };
 
         // Watch 模式 — 监听外部编辑器文件变更
         if (_config.WatchMode)
@@ -377,7 +397,20 @@ public class Program
                     await ProcessUserInput(input, sm);
                     break;
 
-case ConsoleKey.F2:
+                case ConsoleKey.F1:
+                case ConsoleKey.F2:
+                case ConsoleKey.F3:
+                case ConsoleKey.F4:
+                case ConsoleKey.F5:
+                case ConsoleKey.F6:
+                case ConsoleKey.F7:
+                case ConsoleKey.F8:
+                case ConsoleKey.F9:
+                case ConsoleKey.F10:
+                    SwitchAgentSlot(key.Key - ConsoleKey.F1, sm);
+                    break;
+
+                case ConsoleKey.B when ctrl:
                     sm.ActivePanel = sm.ActivePanel switch
                     {
                         ScreenManager.PanelTab.Off => ScreenManager.PanelTab.Todo,
@@ -390,7 +423,7 @@ case ConsoleKey.F2:
                         sm.ModifiedFiles = EditFileTool.ChangedFiles.ToList();
                     break;
 
-                case ConsoleKey.F5:
+                case ConsoleKey.O when ctrl:
                     SettingsPage.Show();
                     break;
 
@@ -407,11 +440,11 @@ case ConsoleKey.F2:
                     CycleModel(sm);
                     break;
 
-                case ConsoleKey.F1:
+                case ConsoleKey.H when ctrl:
                     ShowHelpInChat(sm);
                     break;
 
-                case ConsoleKey.F10:
+                case ConsoleKey.Q when ctrl:
                     AutoSaveSession();
                     _watchMode?.Dispose();
                     sm.Exit();
@@ -572,6 +605,54 @@ case ConsoleKey.F2:
         }
     }
 
+    /// <summary>
+    /// 切换 Agent 槽位（F1-F10）。保存当前槽位 UI 状态，懒创建目标槽位 Agent，
+    /// 恢复目标槽位状态到屏幕。Agent 运行中禁止切换。
+    /// </summary>
+    private static void SwitchAgentSlot(int idx, ScreenManager sm)
+    {
+        if (idx < 0 || idx >= AgentSlot.Count || idx == _activeSlot) return;
+        if (_agentBusy)
+        {
+            sm.AddSystemMsg("⚠ Agent 正在运行，请等待完成后再切换槽位");
+            return;
+        }
+
+        // 保存当前槽位状态
+        _slots[_activeSlot].SaveFrom(sm);
+
+        // 懒创建目标槽位 Agent
+        _activeSlot = idx;
+        var slot = _slots[idx];
+        if (slot.Agent == null)
+        {
+            slot.Agent = new Agent(_llm!, maxContextTokens: _config.MaxContextTokens,
+                maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
+        }
+        _agent = slot.Agent;
+
+        // 重绑子智能体父引用（所有 Agent 共享 AgentTool 实例）
+        foreach (var t in _agent.Tools)
+        {
+            if (t is AgentTool agentTool) agentTool.ParentAgent = _agent;
+        }
+
+        // 首次激活显示欢迎提示
+        if (!slot.HasWelcome)
+        {
+            slot.HasWelcome = true;
+            slot.ChatMessages.Add(new ScreenManager.ChatMsg
+            {
+                Role = "system",
+                Content = $"🤖 Agent 槽位 F{idx + 1} — 独立会话，Ctrl+H 帮助，Ctrl+B 面板，Ctrl+O 设置，Ctrl+Q 退出",
+            });
+        }
+
+        slot.RestoreTo(sm);
+        sm.ActiveSlotIndex = idx;
+        sm.Render();
+    }
+
     /// <summary>处理用户输入：内置命令或 Agent 调用</summary>
     private static async Task ProcessUserInput(string userInput, ScreenManager sm)
     {
@@ -691,6 +772,7 @@ case ConsoleKey.F2:
         // 调用 Agent (支持自动回退)
         using var cts = new CancellationTokenSource();
         _agentCts = cts; _agentBusy = true;
+        sm.SlotStates[sm.ActiveSlotIndex] = ScreenManager.SlotState.Working;
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
         try {
         var modelStack = BuildFallbackChain();
@@ -740,8 +822,11 @@ case ConsoleKey.F2:
             {
                 sm.Running = false;
                 sm.FinishAgentMsg();
-                sm.AddSystemMsg(cts.IsCancellationRequested
+                var cancelled = cts.IsCancellationRequested;
+                sm.AddSystemMsg(cancelled
                     ? "⚠ 已中断" : "⏰ 服务器 60s 未响应");
+                if (!cancelled)
+                    sm.SlotStates[sm.ActiveSlotIndex] = ScreenManager.SlotState.Error;
                 break;
             }
             catch (Exception ex) when (attempt < modelStack.Length - 1)
@@ -756,6 +841,7 @@ case ConsoleKey.F2:
                 sm.Running = false;
                 sm.FinishAgentMsg();
                 sm.AddSystemMsg($"  💔 所有模型均失败: {ex.Message}");
+                sm.SlotStates[sm.ActiveSlotIndex] = ScreenManager.SlotState.Error;
             }
         }
 
@@ -789,7 +875,12 @@ case ConsoleKey.F2:
             ContextManager.EstimateTokens(_agent!.Messages), _config.MaxContextTokens,
             _llm.LastLatencyMs, _llm.LastTokensPerSec);
         sm.Render();
-        } finally { _agentBusy = false; _agentCts = null; }
+        } finally {
+            _agentBusy = false; _agentCts = null;
+            if (sm.SlotStates[sm.ActiveSlotIndex] != ScreenManager.SlotState.Error)
+                sm.SlotStates[sm.ActiveSlotIndex] = ScreenManager.SlotState.Idle;
+            sm.Render();
+        }
 
         // 忙时按了 Ctrl+C——确认是否退出
         if (_pendingExitConfirm)
@@ -1003,7 +1094,7 @@ case ConsoleKey.F2:
 
     private static void ShowHelpInChat(ScreenManager sm)
     {
-        sm.AddSystemMsg("帮助: /help /reset /model /tokens /compact /diff /save /resume /history /export /sessions ... Ctrl+R搜索 Ctrl+M切换模型 ↑↓历史");
+        sm.AddSystemMsg("帮助: /help /reset /model /tokens /compact /diff /save /resume /history /export /sessions ... F1-F10切换Agent Ctrl+R搜索 Ctrl+M切模型 Ctrl+H帮助 Ctrl+B面板 Ctrl+O设置 Ctrl+Q退出 ↑↓历史");
     }
     private static void ShowTokensInChat(ScreenManager sm)
     {
@@ -1556,7 +1647,7 @@ case ConsoleKey.F2:
         wm.CloseAll();
         var sm = ScreenManager.Instance;
         sm.ChatMessages.Clear();
-        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "WayCoder v0.19.1" });
+        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "WayCoder v0.19.2" });
         sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "user", Content = "对比模型价格和功能" });
         sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "agent", Content = @"### 价格对比
 
@@ -1590,7 +1681,7 @@ deepseek 性价比最高。" });
 
         // 模拟输入状态+建议面板
         sm.ChatMessages.Clear();
-        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "WayCoder v0.19.1" });
+        sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "WayCoder v0.19.2" });
         sm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "user", Content = "/res" });
 
         sm.InputLines.Clear();
