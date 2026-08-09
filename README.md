@@ -83,7 +83,7 @@ CoreCoderSharp/
 ├── WorktreeIsolation.cs Git Worktree 隔离
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        694 项自测
+├── SelfTest.cs        704 项自测
 └── Tools/             31 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
