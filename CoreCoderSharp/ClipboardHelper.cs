@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace CoreCoderSharp;
 
-/// <summary>跨平台剪贴板读取</summary>
+/// <summary>跨平台剪贴板读写</summary>
 public static class ClipboardHelper
 {
     public static async Task<string> GetTextAsync()
@@ -20,6 +20,36 @@ public static class ClipboardHelper
         }
         catch { }
         return "";
+    }
+
+    /// <summary>同步读取剪贴板（键盘处理等同步上下文中使用）</summary>
+    public static string GetText()
+    {
+        try { return GetTextAsync().GetAwaiter().GetResult(); }
+        catch { return ""; }
+    }
+
+    /// <summary>异步写入剪贴板</summary>
+    public static async Task SetTextAsync(string text)
+    {
+        try
+        {
+            var escaped = text.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            if (OperatingSystem.IsMacOS())
+                await RunAsync($"echo \"{escaped}\" | pbcopy");
+            else if (OperatingSystem.IsLinux())
+                await RunAsync($"echo \"{escaped}\" | xclip -selection clipboard 2>/dev/null");
+            else if (OperatingSystem.IsWindows())
+                await RunAsync($"powershell -command \"Set-Clipboard -Value '{escaped}'\"");
+        }
+        catch { /* 剪贴板不可用时静默忽略 */ }
+    }
+
+    /// <summary>同步写入剪贴板</summary>
+    public static void SetText(string text)
+    {
+        try { SetTextAsync(text).GetAwaiter().GetResult(); }
+        catch { /* 静默忽略 */ }
     }
 
     private static async Task<string?> RunAsync(string cmd)

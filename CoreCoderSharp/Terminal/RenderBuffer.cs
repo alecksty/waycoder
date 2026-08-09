@@ -15,7 +15,7 @@ public class RenderBuffer
     /// <summary>光标移到 (row, col) — 0-based，内部转 1-based</summary>
     public RenderBuffer MoveTo(int row, int col)
     {
-        _sb.Append($"\x1b[{row + 1};{col + 1}H");
+        _sb.Append(AnsiTty.CursorPos0(row, col));
         return this;
     }
 
@@ -23,36 +23,44 @@ public class RenderBuffer
     // 颜色/样式
     // ================================================================
 
-    /// <summary>设置前景色</summary>
-    public RenderBuffer Fg(int ansiCode) { _sb.Append($"\x1b[{ansiCode}m"); return this; }
+    /// <summary>设置前景色（支持 16/256/True Color）</summary>
+    public RenderBuffer Fg(int ansiCode) { _sb.Append(AnsiColorSeq(ansiCode, isBg: false)); return this; }
     /// <summary>设置前景+背景色</summary>
-    public RenderBuffer FgBg(int fgCode, int bgCode) { _sb.Append($"\x1b[{fgCode};{bgCode}m"); return this; }
-    /// <summary>仅背景色</summary>
-    public RenderBuffer Bg(int ansiCode) { _sb.Append($"\x1b[{ansiCode}m"); return this; }
+    public RenderBuffer FgBg(int fgCode, int bgCode) { _sb.Append(AnsiColorPairSeq(fgCode, bgCode)); return this; }
+    /// <summary>仅背景色（支持 16/256/True Color）</summary>
+    public RenderBuffer Bg(int ansiCode) { _sb.Append(AnsiColorSeq(ansiCode, isBg: true)); return this; }
     /// <summary>粗体</summary>
-    public RenderBuffer Bold() { _sb.Append("\x1b[1m"); return this; }
+    public RenderBuffer Bold() { _sb.Append(AnsiTty.SgrBold); return this; }
     /// <summary>灰色/淡化</summary>
-    public RenderBuffer Dim() { _sb.Append("\x1b[2m"); return this; }
+    public RenderBuffer Dim() { _sb.Append(AnsiTty.SgrDim); return this; }
     /// <summary>重置所有颜色/样式</summary>
-    public RenderBuffer Reset() { _sb.Append("\x1b[0m"); return this; }
+    public RenderBuffer Reset() { _sb.Append(AnsiTty.SgrReset); return this; }
 
     // ================================================================
     // 高级写入（自动处理定位+颜色+转义）
     // ================================================================
+
+    // ── 颜色序列构建 ──
+
+    /// <summary>为单个颜色码生成 ANSI 序列片段（委托给 AnsiTty）。</summary>
+    private static string AnsiColorSeq(int code, bool isBg)
+        => isBg ? AnsiTty.BgCode(code) : AnsiTty.FgCode(code);
+
+    /// <summary>为前景+背景颜色码生成组合 ANSI 序列（委托给 AnsiTty）。</summary>
+    private static string AnsiColorPairSeq(int fg, int bg)
+        => AnsiTty.FgBgCode(fg, bg);
 
     /// <summary>在指定位置写纯文本+颜色。0=无色。</summary>
     public RenderBuffer Write(int row, int col, string text, int fg = 0, int bg = 0)
     {
         MoveTo(row, col);
         bool hasFg = fg > 0, hasBg = bg > 0;
-        if (hasFg && hasBg) _sb.Append($"\x1b[{fg};{bg}m");
-        else if (hasFg) _sb.Append($"\x1b[{fg}m");
-        else if (hasBg) _sb.Append($"\x1b[{bg}m");
+        if (hasFg || hasBg)
+            _sb.Append(AnsiColorPairSeq(fg, bg));
         _sb.Append(text);
-        // 精确重置：fg/bg 都设了才全量重置，否则只重置变更的属性
-        if (hasFg && hasBg) _sb.Append("\x1b[0m");
-        else if (hasFg) _sb.Append("\x1b[39m");  // 仅重置前景色，不动背景
-        else if (hasBg) _sb.Append("\x1b[49m");  // 仅重置背景色，不动前景
+        // 精确重置：分别重置 fg/bg，避免 SgrReset 全复位冲掉窗口底色
+        if (hasFg) _sb.Append(AnsiTty.SgrResetFg);
+        if (hasBg) _sb.Append(AnsiTty.SgrResetBg);
         return this;
     }
 
@@ -189,53 +197,58 @@ public class RenderBuffer
     }
 
     // ================================================================
-    // Color 流畅 API
+    // 区域填充 / 片段写入
     // ================================================================
-
-    /// <summary>用命名颜色写入（流畅写法）</summary>
-    public RenderBuffer C(Color fg) { _sb.Append($"\x1b[{fg.AnsiCode}m"); return this; }
-    public RenderBuffer C(Color fg, Color bg) { _sb.Append($"\x1b[{fg.AnsiCode};{bg.AnsiCode}m"); return this; }
-    public RenderBuffer BgC(Color bg) { _sb.Append($"\x1b[{bg.AnsiCode}m"); return this; }
 
     /// <summary>在指定行填充 count 列空白（覆盖背景色）</summary>
     public RenderBuffer Fill(int row, int col, int count, int bg = 0)
     {
         if (count <= 0) return this;
         MoveTo(row, col);
-        if (bg > 0) _sb.Append($"\x1b[{bg}m");
+        if (bg > 0) _sb.Append(AnsiTty.BgCode(bg));
         _sb.Append(new string(' ', count));
-        if (bg > 0) _sb.Append("\x1b[49m");  // 仅重置背景色，不动前景
+        if (bg > 0) _sb.Append(AnsiTty.SgrResetBg);
         return this;
     }
 
-    // ================================================================
-    // 片段写入（不移动光标，用于同一行多彩色文本）
-    // ================================================================
+    // ── Color 流畅 API ──
 
     /// <summary>写入一个文字片段（不移动光标，仅设置颜色+文本）</summary>
     public RenderBuffer Segment(string text, int fg = 0, int bg = 0)
     {
-        if (fg > 0 && bg > 0) _sb.Append($"\x1b[{fg};{bg}m");
-        else if (fg > 0) _sb.Append($"\x1b[{fg}m");
-        else if (bg > 0) _sb.Append($"\x1b[{bg}m");
+        if (fg > 0 || bg > 0)
+            _sb.Append(AnsiTty.FgBgCode(fg, bg));
         _sb.Append(text);
-        if (fg > 0 || bg > 0) _sb.Append("\x1b[0m");
+        if (fg > 0) _sb.Append(AnsiTty.SgrResetFg);
+        if (bg > 0) _sb.Append(AnsiTty.SgrResetBg);
         return this;
     }
 
     /// <summary>粗体片段（可指定前景色）</summary>
     public RenderBuffer SegmentBold(string text, int fg = 33) {
-        _sb.Append(fg > 0 ? $"\x1b[1;{fg}m{text}\x1b[0m" : $"\x1b[1m{text}\x1b[0m"); return this; }
+        _sb.Append(fg > 0
+            ? $"{AnsiTty.SgrBold}{AnsiTty.FgCode(fg)}{text}{AnsiTty.SgrReset}"
+            : $"{AnsiTty.SgrBold}{text}{AnsiTty.SgrReset}");
+        return this;
+    }
     /// <summary>灰色片段</summary>
-    public RenderBuffer SegmentDim(string text) { _sb.Append($"\x1b[2m{text}\x1b[0m"); return this; }
+    public RenderBuffer SegmentDim(string text) {
+        _sb.Append($"{AnsiTty.SgrDim}{text}{AnsiTty.SgrReset}");
+        return this;
+    }
+
+    /// <summary>用命名颜色写入（流畅写法）</summary>
+    public RenderBuffer C(Color fg) { _sb.Append(AnsiTty.FgCode(fg.AnsiCode)); return this; }
+    public RenderBuffer C(Color fg, Color bg) { _sb.Append(AnsiTty.FgBgCode(fg.AnsiCode, bg.AnsiCode)); return this; }
+    public RenderBuffer BgC(Color bg) { _sb.Append(AnsiTty.BgCode(bg.AnsiCode)); return this; }
     /// <summary>闪烁光标</summary>
-    public RenderBuffer Blink() { _sb.Append("\x1b[5m ▏\x1b[0m"); return this; }
+    public RenderBuffer Blink() { _sb.Append($"{AnsiTty.SgrBlink} ▏{AnsiTty.SgrReset}"); return this; }
     /// <summary>清除当前行从光标到行尾</summary>
-    public RenderBuffer ClearToEndOfLine() { _sb.Append("\x1b[K"); return this; }
+    public RenderBuffer ClearToEndOfLine() { _sb.Append(AnsiTty.ClearToEnd); return this; }
     /// <summary>在指定位置显示光标</summary>
-    public RenderBuffer CursorAt(int row, int col) { _sb.Append($"\x1b[{row + 1};{col + 1}H\x1b[?25h"); return this; }
+    public RenderBuffer CursorAt(int row, int col) { _sb.Append($"{AnsiTty.CursorPos0(row, col)}{AnsiTty.CursorShow}"); return this; }
     /// <summary>隐藏光标</summary>
-    public RenderBuffer HideCursor() { _sb.Append("\x1b[?25l"); return this; }
+    public RenderBuffer HideCursor() { _sb.Append(AnsiTty.CursorHide); return this; }
 
     /// <summary>追加原始字符串（仅在 Terminal 层内部使用）</summary>
     internal RenderBuffer Raw(string s) { _sb.Append(s); return this; }

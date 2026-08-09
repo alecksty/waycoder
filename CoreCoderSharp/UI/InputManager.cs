@@ -1,4 +1,4 @@
-namespace CoreCoderSharp.UI;
+﻿namespace CoreCoderSharp.UI;
 using CoreCoderSharp.Terminal;
 
 /// <summary>
@@ -17,6 +17,9 @@ public class InputManager : IDisposable
     private bool _mouseEnabled;
     private bool _disposed;
 
+    /// <summary>ESC 序列解析时暂读的非鼠标字符（保证 Alt+字母 等组合键不丢失）</summary>
+    private readonly Queue<ConsoleKeyInfo> _pendingKeys = new();
+
     /// <summary>窗口大小变化时触发（在 ReadInput 返回前调用）</summary>
     public event Action? OnResize;
 
@@ -28,8 +31,13 @@ public class InputManager : IDisposable
         Console.CursorVisible = false;
         (_lastWidth, _lastHeight) = (TTY.Cols, TTY.Rows);
 
-        try { TTY.EnableMouse(); _mouseEnabled = true; }
-        catch { _mouseEnabled = false; }
+        // 无论是否启用鼠标，先发送禁用序列：清除上一个程序（如崩溃退出）残留在
+        // 终端里的鼠标追踪模式，否则 SGR 鼠标事件会被逐字符当作普通按键敲进输入框。
+        try { TTY.DisableMouse(); } catch { }
+
+        // TODO: 鼠标暂不开启，后续通过 WAYCODER_MOUSE=1 启用
+        // try { TTY.EnableMouse(); _mouseEnabled = true; }
+        // catch { _mouseEnabled = false; }
     }
 
     /// <summary>
@@ -54,16 +62,25 @@ public class InputManager : IDisposable
                 return new InputEvent { Type = InputType.Resize, Width = w, Height = h };
             }
 
+            // 先返回 ESC 序列解析时暂存的字符（如 Alt+x 的 'x'），保证按键顺序
+            if (_pendingKeys.Count > 0)
+            {
+                return new InputEvent { Type = InputType.Key, KeyInfo = _pendingKeys.Dequeue() };
+            }
+
             // 键盘输入
             if (Console.KeyAvailable)
             {
                 var key = TTY.ReadKey();
 
-                // 鼠标转义序列解析（SGR extended mouse: \x1b[<...）
-                if (_mouseEnabled && key.KeyChar == '\x1b')
+                // 转义序列解析（SGR 鼠标 \x1b[<...、其他 CSI \x1b[...）
+                // 无论鼠标是否启用都必须尝试：终端可能残留鼠标上报模式，
+                // 若不吞掉，\x1b 被当 ESC、后面的 [<35;95;28M 被逐字符敲进输入框。
+                if (key.KeyChar == '\x1b')
                 {
-                    var mouseEvent = TryParseMouse();
-                    if (mouseEvent != null) return mouseEvent;
+                    var ev = TryParseEscapeSequence();
+                    if (ev != null) return ev;
+                    return new InputEvent { Type = InputType.Key, KeyInfo = key };
                 }
 
                 // Ctrl+C 拦截为 Esc（防止退出）
@@ -82,15 +99,36 @@ public class InputManager : IDisposable
         return new InputEvent { Type = InputType.Timeout };
     }
 
-    /// <summary>尝试解析 SGR 扩展鼠标协议 \x1b[&lt;C;X;Y M/m</summary>
-    private InputEvent? TryParseMouse()
+    /// <summary>
+    /// 解析 \x1b 开头的转义序列（调用时 \x1b 已被读取）：
+    /// - SGR 鼠标 \x1b[&lt;C;X;Y M/m → 返回 Mouse 事件
+    /// - 其他 CSI 序列（\x1b[1;5A 等）→ 吞掉整个序列，返回 null（调用方把 \x1b 当 ESC 键）
+    /// - Alt+字符（\x1b x）→ 字符退回 _pendingKeys，返回 null
+    /// </summary>
+    private InputEvent? TryParseEscapeSequence()
     {
-        // 等待 '[' 到达（最多 20ms）
+        // 等待 '['（最多 20ms）；超时 = 用户单独按了 ESC
         if (!WaitForChar(20)) return null;
         var bracket = TTY.ReadKey();
-        if (bracket.KeyChar != '[') return null;
+        if (bracket.KeyChar != '[')
+        {
+            // Alt+字符 组合：\x1b x —— 退回字符，\x1b 单独作为 ESC 键返回
+            _pendingKeys.Enqueue(bracket);
+            return null;
+        }
 
-        // 逐字符读取序列，每字符最多等待 10ms
+        // \x1b[ 后无内容（极少见）→ 退回 '['，让 \x1b 单独作为 ESC 键
+        if (!WaitForChar(10)) { _pendingKeys.Enqueue(bracket); return null; }
+        var lt = TTY.ReadKey();
+
+        // 非 SGR 鼠标的 CSI 序列（如 \x1b[1;5A 带修饰键方向键）→ 吞掉至终止字节
+        if (lt.KeyChar != '<')
+        {
+            ConsumeCsi();
+            return null;
+        }
+
+        // SGR 鼠标：\x1b[<Cb;Cx;CyM（按下）/ \x1b[<Cb;Cx;Cym（释放）
         var buf = new System.Text.StringBuilder();
         for (int i = 0; i < 30; i++)
         {
@@ -126,6 +164,17 @@ public class InputManager : IDisposable
             MouseButton = code,
             MouseRelease = isRelease,
         };
+    }
+
+    /// <summary>吞掉 CSI 序列剩余部分直到终止字节（0x40-0x7E），防止泄漏为文本。</summary>
+    private void ConsumeCsi()
+    {
+        for (int i = 0; i < 30; i++)
+        {
+            if (!WaitForChar(10)) break;
+            var ch = TTY.ReadKey();
+            if (ch.KeyChar >= 0x40 && ch.KeyChar <= 0x7E) break; // CSI 终止字节
+        }
     }
 
     /// <summary>等待键盘输入到达（忙等），最多 timeoutMs 毫秒</summary>

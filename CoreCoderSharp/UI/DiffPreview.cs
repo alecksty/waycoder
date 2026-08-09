@@ -96,21 +96,21 @@ public static class DiffPreview
 
             // 渲染
             var sb = new System.Text.StringBuilder();
-            sb.Append("\x1b[?25l\x1b[H");
+            sb.Append(AnsiTty.CursorHide).Append(AnsiTty.Home);
 
             // 标题栏
             var title = $"Diff 预览: {filePath}  ({hunks.Count} hunks)";
-            var titleBg = 44; // 蓝底
-            sb.Append($"\x1b[30;{titleBg}m");
+            var titleBg = TuiColors.BgBlue; // 蓝底
+            sb.Append(AnsiTty.FgBg(30, titleBg));
             sb.Append(title);
             sb.Append(new string(' ', Math.Max(0, tw - VW(title))));
-            sb.Append("\x1b[0m\n");
+            sb.Append(AnsiTty.SgrReset).Append('\n');
 
             // Diff 内容
             for (int i = 0; i < contentH - 1; i++)
             {
                 int li = scrollOffset + i;
-                sb.Append($"\x1b[{i + 2};1H\x1b[K");
+                sb.Append(AnsiTty.CursorPos(i + 2, 1)).Append(AnsiTty.ClearToEnd);
 
                 if (li >= allLines.Count) continue;
 
@@ -119,45 +119,47 @@ public static class DiffPreview
                 if (hi == -1)
                 {
                     // hunk 间分隔
-                    sb.Append($"\x1b[2m{new string('─', Math.Min(tw, 60))}\x1b[0m");
+                    sb.Append(AnsiTty.SgrDim);
+                    sb.Append(new string('─', Math.Min(tw, 60)));
+                    sb.Append(AnsiTty.SgrReset);
                 }
                 else if (hi == -2)
                 {
                     // hunk 头
                     var hdr = TruncateByVW(line.Text, tw - 1);
-                    sb.Append($"\x1b[36m{hdr}\x1b[0m");
+                    sb.Append(AnsiTty.Fg(36)).Append(hdr).Append(AnsiTty.SgrReset);
                 }
                 else
                 {
                     bool isCurrentHunk = hi == currentHunk;
                     bool isAccepted = accepted.Contains(hi);
 
-                    string prefix, fgBg;
+                    string prefix, fgBgSeq;
                     if (line.Kind == '-')
                     {
                         prefix = $"{Padding(line.OldLine),4} -";
-                        fgBg = isCurrentHunk ? "\x1b[30;41;1m" : "\x1b[37;41m";
+                        fgBgSeq = isCurrentHunk ? AnsiTty.Sgr(30, 41, 1) : AnsiTty.FgBg(37, 41);
                     }
                     else if (line.Kind == '+')
                     {
                         prefix = $"     +";
-                        fgBg = isCurrentHunk ? "\x1b[30;42;1m" : "\x1b[37;42m";
+                        fgBgSeq = isCurrentHunk ? AnsiTty.Sgr(30, 42, 1) : AnsiTty.FgBg(37, 42);
                     }
                     else
                     {
                         prefix = $"{Padding(line.OldLine),4}  ";
-                        fgBg = isCurrentHunk ? "\x1b[30;46m" : (isAccepted ? "\x1b[2m" : "");
+                        fgBgSeq = isCurrentHunk ? AnsiTty.FgBg(30, 46) : (isAccepted ? AnsiTty.SgrDim : "");
                     }
 
                     var maxTextW = tw - 7;
                     var text = TruncateByVW(line.Text, maxTextW);
-                    sb.Append($"{fgBg}{prefix} {text}\x1b[0m");
+                    sb.Append(fgBgSeq).Append(prefix).Append(' ').Append(text).Append(AnsiTty.SgrReset);
                 }
             }
 
             // 状态栏
             int statusRow = contentH + 1;
-            sb.Append($"\x1b[{statusRow};1H\x1b[30;47m"); // 白底黑字
+            sb.Append(AnsiTty.CursorPos(statusRow, 1)).Append(AnsiTty.FgBg(30, 47)); // 白底黑字
 
             if (mode == "all")
             {
@@ -171,13 +173,13 @@ public static class DiffPreview
                 sb.Append("[Y]接受 [N]跳过 [A]全接受 [Q]取消  ");
             }
             sb.Append(new string(' ', Math.Max(0, tw - 80)));
-            sb.Append("\x1b[0m");
+            sb.Append(AnsiTty.SgrReset);
 
             // 滚动指示器
             if (allLines.Count > contentH)
             {
                 var pct = allLines.Count > 0 ? (int)((float)scrollOffset / (allLines.Count - contentH) * 100) : 0;
-                sb.Append($"\x1b[{statusRow};{tw - 8}H\x1b[30;47m{pct}%\x1b[0m");
+                sb.Append(AnsiTty.CursorPos(statusRow, tw - 8)).Append(AnsiTty.FgBg(30, 47)).Append(pct).Append('%').Append(AnsiTty.SgrReset);
             }
 
             Console.Write(sb.ToString());
@@ -259,7 +261,7 @@ public static class DiffPreview
         Console.WriteLine(diff);
         Console.WriteLine();
 
-        var choice = TuiList.Select("如何处理此变更？",
+        var choice = UxHelper.Select("如何处理此变更？",
             ["全部接受 (Y)", "全部拒绝 (N)", "逐项审查 (R)"]);
         return choice switch
         {

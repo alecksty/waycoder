@@ -39,8 +39,12 @@ public class TuiList : TuiControl
             if (TuiHelper.DisplayWidth(display) > Width)
                 display = TuiHelper.TruncateByWidth(display, Width);
 
-            int fg = idx == SelectedIndex ? 30 : (Fg > 0 ? Fg : 37);
-            int bg = idx == SelectedIndex ? 46 : (Bg > 0 ? Bg : 0);
+            int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
+                   : idx == SelectedIndex ? TuiTheme.Current.ListSelFg
+                   : (Fg > 0 ? Fg : TuiTheme.Current.ListFg);
+            int bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : 0)
+                   : idx == SelectedIndex ? TuiTheme.Current.ListSelBg
+                   : (Bg > 0 ? Bg : 0);
 
             rb.Write(row, absX, display + new string(' ', Math.Max(0, Width - TuiHelper.DisplayWidth(display))), fg: fg, bg: bg);
         }
@@ -61,8 +65,9 @@ public class TuiList : TuiControl
         sb.Append(rb.ToString());
     }
 
-    public override bool HandleKey(ConsoleKeyInfo key)
+    public override bool OnKey(ConsoleKeyInfo key)
     {
+        if (!IsEnabled) return false;
         switch (key.Key)
         {
             case ConsoleKey.UpArrow:

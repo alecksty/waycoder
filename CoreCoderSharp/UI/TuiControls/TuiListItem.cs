@@ -48,12 +48,13 @@ public class TuiListItem : TuiVBox
     }
 
     /// <summary>从角色和内容构建完整列表项</summary>
-    public TuiListItem(string role, string content, int maxWidth = 80, bool continuation = false)
+    public TuiListItem(string role, string content, int maxWidth = 80, bool continuation = false, bool isPlainText = false)
     {
         Role = role;
         MarkdownContent = content;
         Width = maxWidth;
         Continuation = continuation;
+        IsPlainText = isPlainText;
         BuildContent(maxWidth);
     }
 
@@ -95,7 +96,7 @@ public class TuiListItem : TuiVBox
             {
                 Width = 12,
                 Height = 1,
-                Fg = Role switch { "user" => 32, "assistant" => 36, "system" => 33, _ => 37 }
+                Fg = Role switch { "user" => TuiTheme.Current.ChatUserFg, "assistant" => TuiTheme.Current.ChatAssistantFg, "system" => TuiTheme.Current.ChatSystemFg, _ => TuiTheme.Current.ControlFg }
             };
             header.Add(RoleLabel);
 
@@ -103,7 +104,7 @@ public class TuiListItem : TuiVBox
             {
                 Width = 8,
                 Height = 1,
-                Fg = 90 // Dim
+                Fg = TuiTheme.Current.ChatTimeFg // Dim
             };
             header.Add(TimeLabel);
 
@@ -155,7 +156,7 @@ public class TuiListItem : TuiVBox
             {
                 Width = Width - PaddingLeft - PaddingRight,
                 Height = 1,
-                Fg = 90
+                Fg = TuiTheme.Current.ChatFooterFg
             };
             Add(Footer);
         }

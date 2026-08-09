@@ -1,8 +1,12 @@
 namespace CoreCoderSharp.Terminal;
 
 /// <summary>
-/// 终端颜色 —— 用名字代替 ANSI 数字码。
-/// 用法：Color.Cyan, Color.BgBlue, Color.BrightYellow
+/// 终端颜色 —— 支持 16 标准色、256 色调色板、True Color (RGB)。
+/// 色码语义：
+///   0 = 默认
+///   1-15, 30-37, 40-47, 90-97, 100-107 = 标准 16 色 ANSI
+///   16-255 = 256 色调色板
+///   >= 0x1000000 (16,777,216) = True Color RGB（编码为 0xRRGGBB + 0x1000000）
 /// </summary>
 public readonly struct Color
 {
@@ -10,8 +14,37 @@ public readonly struct Color
     public int Fg => AnsiCode;
     public int Bg { get; }
 
+    /// <summary>是否为 True Color (24-bit RGB)</summary>
+    public bool IsTrueColor => AnsiCode >= 0x1000000;
+
+    /// <summary>True Color 的 RGB 分量</summary>
+    public (byte R, byte G, byte B) Rgb => IsTrueColor
+        ? ((byte)(((AnsiCode - 0x1000000) >> 16) & 0xFF), (byte)(((AnsiCode - 0x1000000) >> 8) & 0xFF), (byte)((AnsiCode - 0x1000000) & 0xFF))
+        : ((byte)0, (byte)0, (byte)0);
+
+    /// <summary>是否为 256 色调色板颜色</summary>
+    public bool IsPalette256 => AnsiCode >= 16 && AnsiCode < 256;
+
     public Color(int code) { AnsiCode = code; Bg = 0; }
     public Color(int fg, int bg) { AnsiCode = fg; Bg = bg; }
+
+    // ── 工厂方法 ──
+
+    /// <summary>从 256 色调色板创建前景色 (16-255)</summary>
+    public static Color From256(int index) => new(Math.Clamp(index, 16, 255));
+
+    /// <summary>从 RGB 创建 True Color (0-255 each)</summary>
+    public static Color FromRgb(byte r, byte g, byte b) => new(0x1000000 | (r << 16) | (g << 8) | b);
+
+    /// <summary>从灰度值创建 True Color</summary>
+    public static Color FromGray(byte gray) => FromRgb(gray, gray, gray);
+
+    // ── 常用 True Color 预置 ──
+    public static readonly Color RgbOrange = FromRgb(255, 165, 0);
+    public static readonly Color RgbPink = FromRgb(255, 105, 180);
+    public static readonly Color RgbTeal = FromRgb(0, 128, 128);
+    public static readonly Color RgbGold = FromRgb(255, 215, 0);
+    public static readonly Color RgbDarkBg = FromRgb(30, 30, 30);
 
     // ================================================================
     // 前景色 (30-37, 90-97)
@@ -64,5 +97,7 @@ public readonly struct Color
     public Color On(Color bg) => new(AnsiCode, bg.AnsiCode);
 
     public static implicit operator int(Color c) => c.AnsiCode;
-    public override string ToString() => Bg > 0 ? $"{AnsiCode}/{Bg}" : $"{AnsiCode}";
+    public override string ToString() => IsTrueColor
+        ? $"#{Rgb.R:X2}{Rgb.G:X2}{Rgb.B:X2}"
+        : Bg > 0 ? $"{AnsiCode}/{Bg}" : $"{AnsiCode}";
 }

@@ -52,7 +52,7 @@ public static class SettingsPage
                     case ConsoleKey.S when ctrl:
                         _config.SaveToEnvFile();
                         chatScreen?.SyncTheme();
-                        Console.Write($"\x1b[{TTY.Rows};1H\x1b[30;42m 已保存 — 设置已写入 .env 文件 \x1b[0m");
+                        Console.Write($"{AnsiTty.CursorPos(TTY.Rows, 1)}{AnsiTty.FgBg(30, 42)} 已保存 — 设置已写入 .env 文件 {AnsiTty.SgrReset}");
                         Thread.Sleep(800);
                         return;
                     case ConsoleKey.Escape: return;
@@ -70,8 +70,8 @@ public static class SettingsPage
                         var s = items[_itemIdx];
                         if (s.Type == "select" && s.Options != null)
                         {
-                            Console.Write("\x1b[2J\x1b[H");
-                            var choice = TuiList.Select(s.Label, [.. s.Options]);
+                            Console.Write($"{AnsiTty.ClearScreen}{AnsiTty.Home}");
+                            var choice = UxHelper.Select(s.Label, [.. s.Options]);
                             if (choice != null) SetValue(s.Key, choice);
                         }
                         else if (s.Type is "text" or "number" or "secret")

@@ -35,6 +35,12 @@ public class TuiWindow
     /// <summary>是否显示标题栏。即使有标题文本，设为 false 也不显示标题栏。</summary>
     public bool ShowTitle { get; set; } = true;
 
+    /// <summary>是否在标题栏下方绘制分隔线（默认 true；对话框通常设为 false）</summary>
+    public bool ShowTitleSeparator { get; set; } = true;
+
+    /// <summary>标题文字是否粗体</summary>
+    public bool TitleBold { get; set; }
+
     // ── 焦点状态 ──
 
     /// <summary>窗口是否拥有焦点。影响边框渲染颜色。</summary>
@@ -66,7 +72,7 @@ public class TuiWindow
 
     // ── 样式 ──
     /// <summary>窗口背景色（ANSI 色码，0=透明，默认 7=浅灰）</summary>
-    public int WinBg { get; set; } = 7;
+    public int WinBg { get; set; } = 47;
 
     /// <summary>标题前景色（0=使用边框色）</summary>
     public int TitleFg { get; set; }
@@ -106,6 +112,13 @@ public class TuiWindow
     {
         KeyShortcuts[key] = action;
     }
+
+    /// <summary>
+    /// 对话框是否用方向键（↑↓）在控件间移动焦点。
+    /// 设为 true 时，Up/Down 箭头的效果与 Tab/Shift+Tab 相同。
+    /// 默认为 false，由各对话框按需开启。
+    /// </summary>
+    public bool ArrowKeysNavigate { get; set; }
 
     // ── 关闭回调 ──
     public Action? OnClosed { get; set; }
@@ -225,7 +238,7 @@ public class TuiWindow
     }
 
     /// <summary>路由按键到控件树。快捷键优先于控件路由。</summary>
-    public bool HandleKey(ConsoleKeyInfo key)
+    public bool OnKey(ConsoleKeyInfo key)
     {
         // ── 1. 窗口级快捷键（优先，无需控件焦点）──
         if (KeyShortcuts.Count > 0)
@@ -248,8 +261,18 @@ public class TuiWindow
             }
         }
 
-        // ── 2. 路由到控件树（Tab 切换、按钮 Enter/Space 等）──
-        return RootView.HandleKey(key);
+        // ── 2. 先路由到控件树，让控件先处理（输入框方向键、列表导航等）──
+        if (RootView.OnKey(key))
+            return true;
+
+        // ── 3. 控件未处理的方向键 → 在控件间移动焦点（对话框开启时）──
+        if (ArrowKeysNavigate)
+        {
+            if (key.Key == ConsoleKey.UpArrow) { FocusPrev(); return true; }
+            if (key.Key == ConsoleKey.DownArrow) { FocusNext(); return true; }
+        }
+
+        return false;
     }
 
     /// <summary>
