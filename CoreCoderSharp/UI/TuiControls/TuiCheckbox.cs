@@ -33,23 +33,32 @@ public class TuiCheckbox : TuiControl
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
+        var t = TuiTheme.Current;
         var marker = Checked ? "☑" : "☐";
-        var display = $"{marker} {Label}";
-        if (TuiHelper.DisplayWidth(display) > Width)
-            display = TuiHelper.TruncateByWidth(display, Width);
-
-        int fg = Focused ? 30 : (Fg > 0 ? Fg : 37);
-        int bg = Focused ? 46 : (Bg > 0 ? Bg : 0);
-
-        // Pad to fill
-        var pad = Math.Max(0, Width - TuiHelper.DisplayWidth(display));
-        WriteLine(sb, 0, 0, display + new string(' ', pad), fg, bg);
+        ControlRenderer.DrawCheckLine(sb, this, absX, absY,
+            marker, Label, TextAlign,
+            t.ControlFg, 0, t.ControlFocusedFg, t.ControlFocusedBg);
     }
 
-    public override bool HandleKey(ConsoleKeyInfo key)
+    public override bool OnKey(ConsoleKeyInfo key)
     {
+        if (!IsEnabled) return false;
         if (key.Key is ConsoleKey.Enter or ConsoleKey.Spacebar)
         {
+            Checked = !Checked;
+            OnChanged?.Invoke(Checked);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>鼠标左键点击切换复选框状态</summary>
+    public override bool HandleMouse(InputEvent ev)
+    {
+        if (!IsEnabled) return false;
+        if (ev.Type == InputType.Mouse && ev.MouseLeft)
+        {
+            Focused = true;
             Checked = !Checked;
             OnChanged?.Invoke(Checked);
             return true;

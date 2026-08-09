@@ -91,13 +91,13 @@ public class TuiTreeView : TuiControl
     public int IndentWidth { get; set; } = 2;
 
     /// <summary>选中前景色</summary>
-    public int SelFg { get; set; } = 30;
+    public int SelFg { get; set; }
 
     /// <summary>选中背景色</summary>
-    public int SelBg { get; set; } = 46;
+    public int SelBg { get; set; }
 
     /// <summary>树线颜色</summary>
-    public int LineColor { get; set; } = 90;
+    public int LineColor { get; set; }
 
     /// <summary>节点激活（Enter）回调</summary>
     public Action<TuiTreeNode>? OnNodeActivated { get; set; }
@@ -121,6 +121,9 @@ public class TuiTreeView : TuiControl
         Width = 40;
         Height = 10;
         Focused = true;
+        SelFg = TuiTheme.Current.ListSelFg;
+        SelBg = TuiTheme.Current.TreeViewSelBg;
+        LineColor = TuiTheme.Current.ControlDisabledFg;
     }
 
     // ── 渲染 ──
@@ -159,8 +162,10 @@ public class TuiTreeView : TuiControl
             bool sel = node == SelectedNode;
             int depth = _depthCache.GetValueOrDefault(node, 0);
 
-            int fg = sel ? SelFg : 37;
-            int bg = sel ? SelBg : (Bg > 0 ? Bg : 0);
+            int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
+                   : sel ? SelFg : (Fg > 0 ? Fg : TuiTheme.Current.TreeViewFg);
+            int bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : 0)
+                   : sel ? SelBg : (Bg > 0 ? Bg : 0);
 
             // 行背景
             if (sel)
@@ -173,19 +178,15 @@ public class TuiTreeView : TuiControl
             // 构建缩进 + 树线
             var lineBuilder = new StringBuilder();
 
-            // 缩进级别
+            // 缩进级别：跳过父级（父级视觉连接由 ├─/└─ 表达）
             var ancestors = GetAncestors(node);
-            for (int d = 0; d < depth; d++)
+            for (int d = 0; d < depth - 1; d++)
             {
                 if (d < ancestors.Count)
                 {
                     var ancestor = ancestors[d];
-                    bool isLastChild = IsLastChild(ancestor);
-                    lineBuilder.Append(isLastChild ? "  " : "│ ");
-                }
-                else
-                {
-                    lineBuilder.Append(new string(' ', IndentWidth));
+                    bool isLastSibling = IsLastChild(ancestor);
+                    lineBuilder.Append(isLastSibling ? "  " : "│ ");
                 }
             }
 
@@ -196,14 +197,14 @@ public class TuiTreeView : TuiControl
                 lineBuilder.Append(last ? "└─" : "├─");
             }
 
-            // 展开指示符
+            // 展开指示符（三角形）
             if (!node.IsLeaf)
             {
                 lineBuilder.Append(node.IsExpanded ? "▼ " : "▶ ");
             }
 
-            // 图标 + 文本
-            var nodeText = string.IsNullOrEmpty(node.Icon)
+            // 图标 + 文本（图标已含在 Text 中时不重复添加）
+            var nodeText = string.IsNullOrEmpty(node.Icon) || node.Text.StartsWith(node.Icon)
                 ? node.Text
                 : $"{node.Icon} {node.Text}";
 
@@ -255,8 +256,9 @@ public class TuiTreeView : TuiControl
 
     // ── 输入 ──
 
-    public override bool HandleKey(ConsoleKeyInfo key)
+    public override bool OnKey(ConsoleKeyInfo key)
     {
+        if (!IsEnabled) return false;
         BuildFlatList();
 
         switch (key.Key)

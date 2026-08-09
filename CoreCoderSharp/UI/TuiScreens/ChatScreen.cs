@@ -9,9 +9,6 @@ namespace CoreCoderSharp.UI;
 /// <summary>槽位状态</summary>
 public enum SlotState : byte { Idle = 0, Working = 1, WaitingPerm = 2, Error = 3 }
 
-/// <summary>侧栏面板标签</summary>
-public enum PanelTab { Off, Todo, Files, Locks, MCP }
-
 /// <summary>
 /// 聊天 REPL 屏幕 —— 主交互界面。
 ///
@@ -28,8 +25,11 @@ public class ChatScreen : TuiScreen
 {
     // ── 子视图 ──
 
-    /// <summary>状态栏（顶行）</summary>
-    public TuiLabel StatusBar { get; private set; } = null!;
+    /// <summary>标题栏（顶行）</summary>
+    public TuiTitleBar TitleBar { get; private set; } = null!;
+
+    /// <summary>底部状态栏</summary>
+    public TuiStatusBar StatusBar { get; private set; } = null!;
 
     /// <summary>聊天列表（TuiListView → TuiMarkdown 项）</summary>
     public TuiListView ChatList { get; private set; } = null!;
@@ -37,11 +37,17 @@ public class ChatScreen : TuiScreen
     /// <summary>多行输入区</summary>
     public TuiTextArea InputArea { get; private set; } = null!;
 
+    /// <summary>输入区上分隔线</summary>
+    public TuiSeparator InputTopBorder { get; private set; } = null!;
+
+    /// <summary>输入区下分隔线</summary>
+    public TuiSeparator InputBotBorder { get; private set; } = null!;
+
     /// <summary>建议下拉面板</summary>
     public TuiVBox SuggestPanel { get; private set; } = null!;
 
     /// <summary>右侧信息面板</summary>
-    public TuiVBox SidePanel { get; private set; } = null!;
+    public TuiSidePanel SidePanel { get; private set; } = null!;
 
     // ── 状态 ──
 
@@ -54,8 +60,8 @@ public class ChatScreen : TuiScreen
     /// <summary>侧栏是否可见</summary>
     public bool SidePanelVisible { get; set; }
 
-    /// <summary>侧栏内容</summary>
-    public List<string> SidePanelContent { get; set; } = [];
+    /// <summary>侧栏分区内容</summary>
+    public List<PanelSection> SidePanelSections { get; set; } = [];
 
     /// <summary>进度条（null=隐藏）</summary>
     public double? ProgressPercent { get; set; }
@@ -82,9 +88,6 @@ public class ChatScreen : TuiScreen
 
     /// <summary>Git 分支名</summary>
     public string? GitBranch { get; set; }
-
-    /// <summary>侧栏活跃标签</summary>
-    public PanelTab ActivePanel { get; set; }
 
     /// <summary>建议面板是否活跃</summary>
     public bool SuggestActive { get; set; }
@@ -126,6 +129,10 @@ public class ChatScreen : TuiScreen
             InputArea.CursorCol = Math.Min(cursorCol, InputArea.Lines[InputArea.CursorRow].Length);
         }
 
+        // 恢复分隔线宽度
+        InputTopBorder.Width = TW;
+        InputBotBorder.Width = TW;
+
         // 通知所有浮层窗口
         foreach (var win in Windows)
             win.OnResize(newW, newH);
@@ -136,33 +143,56 @@ public class ChatScreen : TuiScreen
         RootView.Clear();
         RootView = new TuiVBox { Width = TW, Height = TH };
 
-        // ── 状态栏 ──
-        StatusBar = new TuiLabel(StatusText.Length > 0 ? StatusText : "WayCoder")
+        // ── 标题栏（顶行）──
+        TitleBar = new TuiTitleBar
         {
-            Width = TW, Height = 1, Bg = 44, Fg = 37
+            Width = TW, Height = 1,
+            Bg = TuiTheme.Current.StatusBarBg, Fg = TuiTheme.Current.StatusBarFg
         };
-        RootView.Add(StatusBar);
+        RootView.Add(TitleBar);
 
-        // ── 聊天列表（TuiListView 容纳 TuiMarkdown）──
+        // ── 中间区域：ChatList + SidePanel（HBox 水平排列）──
+        int chatH = Math.Max(1, TH - 1 - 1 - 3 - 1 - 1); // TH - title(1) - topBorder(1) - input(3) - botBorder(1) - status(1)
+        var middleHBox = new TuiHBox { Width = TW, Height = chatH };
+
         ChatList = new TuiListView
         {
-            Width = TW,
-            Height = TH - 4,
+            Width = TW,  // 初始全宽，侧栏打开时 Render 会缩小
+            Height = chatH,
             IsAutoScrollToEnd = true,
             ItemSpacing = 1
         };
-        RootView.Add(ChatList);
+        middleHBox.Add(ChatList);
 
-        // ── 建议面板（覆盖在聊天区底部）──
+        SidePanel = new TuiSidePanel
+        {
+            Width = Math.Min(30, TW / 3),
+            Height = chatH,
+            Visible = false,
+            Bg = TuiTheme.Current.WindowBg,
+            BorderColor = TuiTheme.Current.SeparatorFg,
+        };
+        middleHBox.Add(SidePanel);
+
+        RootView.Add(middleHBox);
+
+        // ── 建议面板 ──
         SuggestPanel = new TuiVBox
         {
             Width = Math.Min(TW, 60),
             Height = 0,
             Visible = false,
-            Bg = 7
+            Bg = 47
         };
-        // 建议面板作为独立元素添加，在 Render 中定位
         RootView.Add(SuggestPanel);
+
+        // ── 输入区上分隔线 ──
+        InputTopBorder = new TuiSeparator
+        {
+            Width = TW, Height = 1,
+            LineChar = "━", LineColor = TuiTheme.Current.SeparatorFg
+        };
+        RootView.Add(InputTopBorder);
 
         // ── 输入区 ──
         InputArea = new TuiTextArea
@@ -179,6 +209,23 @@ public class ChatScreen : TuiScreen
                 OnSubmit?.Invoke(text);
         };
         RootView.Add(InputArea);
+
+        // ── 输入区下分隔线 ──
+        InputBotBorder = new TuiSeparator
+        {
+            Width = TW, Height = 1,
+            LineChar = "━", LineColor = TuiTheme.Current.SeparatorFg
+        };
+        RootView.Add(InputBotBorder);
+
+        // ── 底部状态栏 ──
+        StatusBar = new TuiStatusBar
+        {
+            Width = TW, Height = 1,
+            Bg = TuiTheme.Current.StatusBarBg, Fg = TuiTheme.Current.StatusBarFg,
+            HintText = "Enter 发送 · Tab 补全 · ↑↓ 历史 · Ctrl+H 帮助 · Ctrl+Q 退出"
+        };
+        RootView.Add(StatusBar);
 
         RootView.Layout();
     }
@@ -197,10 +244,7 @@ public class ChatScreen : TuiScreen
                 continuation = true;
         }
 
-        var item = new TuiListItem(role, content, ChatList.Width - 2, continuation)
-        {
-            IsPlainText = plainText
-        };
+        var item = new TuiListItem(role, content, ChatList.Width - 2, continuation, plainText);
         if (!continuation)
             item.SetTime(DateTime.Now);
         ChatList.AddItem(item);
@@ -380,42 +424,42 @@ public class ChatScreen : TuiScreen
     /// <summary>输入区退格</summary>
     public void InputBackspace()
     {
-        InputArea.HandleKey(new ConsoleKeyInfo('\b', ConsoleKey.Backspace, false, false, false));
+        InputArea.OnKey(new ConsoleKeyInfo('\b', ConsoleKey.Backspace, false, false, false));
         MarkDirty();
     }
 
     /// <summary>输入区删除</summary>
     public void InputDelete()
     {
-        InputArea.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Delete, false, false, false));
+        InputArea.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Delete, false, false, false));
         MarkDirty();
     }
 
     /// <summary>输入区左移光标</summary>
     public void InputCursorLeft()
     {
-        InputArea.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.LeftArrow, false, false, false));
+        InputArea.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.LeftArrow, false, false, false));
         MarkDirty();
     }
 
     /// <summary>输入区右移光标</summary>
     public void InputCursorRight()
     {
-        InputArea.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.RightArrow, false, false, false));
+        InputArea.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.RightArrow, false, false, false));
         MarkDirty();
     }
 
     /// <summary>输入区移到行首</summary>
     public void InputHome()
     {
-        InputArea.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
+        InputArea.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
         MarkDirty();
     }
 
     /// <summary>输入区移到行尾</summary>
     public void InputEnd()
     {
-        InputArea.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
+        InputArea.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
         MarkDirty();
     }
 
@@ -480,83 +524,146 @@ public class ChatScreen : TuiScreen
 
     // ── 侧栏 ──
 
-    public void UpdateSidePanel(List<string> content)
+    /// <summary>刷新侧栏所有分区内容</summary>
+    public void RefreshSidePanel()
     {
-        SidePanelVisible = content.Count > 0;
-        SidePanelContent = content;
+        var sections = new List<PanelSection>();
+
+        // ── 品牌区 ──
+        sections.Add(new PanelSection
+        {
+            Title = "🏷 道码",
+            Lines = [
+                $"  WayCoder v{Global.Version}",
+                "  中文版 AI 编程助手",
+                "  C# (.NET 10) AOT",
+            ]
+        });
+
+        // ── Todo 区 ──
+        var todoItems = TodoTool.Items;
+        var todoLines = new List<string>();
+        if (todoItems.Count == 0)
+        {
+            todoLines.Add("  (无)");
+        }
+        else
+        {
+            var completed = todoItems.Count(i => i.Status == "completed");
+            foreach (var item in todoItems.OrderBy(i => i.Id).Take(15))
+            {
+                var icon = item.Status switch
+                {
+                    "completed" => "✅",
+                    "in_progress" => "🔄",
+                    "cancelled" => "❌",
+                    _ => "⏳",
+                };
+                var title = item.Title.Length > 20 ? item.Title[..17] + "..." : item.Title;
+                todoLines.Add($"  {icon} {title}");
+            }
+        }
+        sections.Add(new PanelSection
+        {
+            Title = $"📋 Todo ({todoItems.Count(i => i.Status == "completed")}/{todoItems.Count})",
+            Lines = todoLines,
+        });
+
+        // ── 文件区 ──
+        var fileLines = new List<string>();
+        if (ModifiedFiles.Count == 0)
+            fileLines.Add("  (无)");
+        else
+            foreach (var f in ModifiedFiles.Take(15))
+                fileLines.Add($"  📄 {Path.GetFileName(f)}");
+        sections.Add(new PanelSection
+        {
+            Title = $"📁 文件 ({ModifiedFiles.Count})",
+            Lines = fileLines,
+        });
+
+        // ── MCP 区 ──
+        var mcpLines = new List<string>();
+        var mcpTools = McpManager.DiscoveredTools;
+        if (mcpTools.Count == 0)
+            mcpLines.Add($"  {McpManager.Info}");
+        else
+            foreach (var t in mcpTools.Take(15))
+                mcpLines.Add($"  🔌 {t.Name}");
+        sections.Add(new PanelSection
+        {
+            Title = $"🔌 MCP ({mcpTools.Count})",
+            Lines = mcpLines,
+        });
+
+        // ── LSP 区 ──
+        var lspLines = new List<string>();
+        foreach (var kv in LspTool.SupportedServers)
+            lspLines.Add($"  📦 {kv.Key}: {kv.Value.Command}");
+        sections.Add(new PanelSection
+        {
+            Title = $"🔍 LSP ({LspTool.SupportedServers.Count})",
+            Lines = lspLines,
+        });
+
+        SidePanelSections = sections;
     }
 
     // ── 渲染 ──
 
     public override void Render(StringBuilder sb)
     {
-        // 构建状态栏文本
-        var left = StatusLeft.Length > 0 ? $" {StatusLeft}" : " WayCoder";
-        var right = StatusRight.Length > 0 ? StatusRight : "";
-        StatusBar.Text = TruncateStatus(left, TW - TuiHelper.DisplayWidth(right) - 2) +
-                         (right.Length > 0 ? new string(' ', Math.Max(1, TW - TuiHelper.DisplayWidth(left) - TuiHelper.DisplayWidth(right) - 2)) + right : "");
+        // ── 同步标题栏数据 ──
+        TitleBar.Width = TW;
+        TitleBar.Bg = TuiTheme.Current.StatusBarBg;
+        TitleBar.Fg = TuiTheme.Current.StatusBarFg;
+        TitleBar.Title = StatusLeft;
+        TitleBar.GitBranch = GitBranch;
+        TitleBar.Version = Global.Version;
+
+        // ── 同步底部状态栏数据 ──
         StatusBar.Width = TW;
+        StatusBar.Bg = TuiTheme.Current.StatusBarBg;
+        StatusBar.Fg = TuiTheme.Current.StatusBarFg;
+        StatusBar.ActiveSlotIndex = ActiveSlotIndex;
+        StatusBar.AgentBusy = AgentBusy;
+        StatusBar.RightText = StatusRight;
+        Array.Copy(SlotStates, StatusBar.SlotStates, 10);
 
-        // 布局计算
+        // ── 动态尺寸 ──
         int panelW = SidePanelVisible ? Math.Min(30, TW / 3) : 0;
-        int chatW = TW - panelW;
         int inputH = Math.Max(1, Math.Min(10, InputArea.Lines.Count + 1));
+        int chatH = Math.Max(1, TH - 1 - 1 - inputH - 1 - 1); // TH - title - topBorder - input - botBorder - status
 
-        ChatList.Width = chatW;
-        ChatList.Height = Math.Max(1, TH - inputH - 1);
+        // ── 输入区 ──
         InputArea.Width = TW;
         InputArea.Height = inputH;
-        InputArea.Y = TH - inputH;
 
-        // 建议面板定位（浮在聊天区底部）
+        // ── 分隔线 ──
+        InputTopBorder.Width = TW;
+        InputBotBorder.Width = TW;
+
+        // ── 中间区域（ChatList + SidePanel HBox）──
+        ChatList.Width = panelW > 0 ? TW - panelW : TW;
+        ChatList.Height = chatH;
+
+        SidePanel.Visible = SidePanelVisible;
+        SidePanel.Width = panelW;
+        SidePanel.Height = chatH;
+        if (SidePanelVisible)
+            SidePanel.Sections = SidePanelSections;
+
+        // ── 建议面板定位（浮层，手动定位）──
         if (SuggestPanel.Visible)
         {
             SuggestPanel.X = 0;
-            SuggestPanel.Y = TH - inputH - SuggestPanel.Height - 1;
+            int topBorderY = 1 + chatH;
+            SuggestPanel.Y = topBorderY - SuggestPanel.Height;
         }
 
-        // 侧栏
-        if (SidePanelVisible && panelW > 0)
-        {
-            SidePanel.X = chatW;
-            SidePanel.Y = 1;
-            SidePanel.Width = panelW;
-            SidePanel.Height = TH - inputH - 1;
-            SidePanel.Clear();
-            foreach (var line in SidePanelContent)
-                SidePanel.Add(new TuiLabel(line) { Width = panelW - 1, Height = 1, Fg = 37 });
-            SidePanel.Bg = 0;
-            if (!RootView.Children.Contains(SidePanel))
-                RootView.Add(SidePanel);
-        }
-        else
-        {
-            RootView.Children.Remove(SidePanel);
-        }
-
+        // VBox/HBox 自动处理 Y 坐标
         RootView.Layout();
         base.Render(sb);
-    }
-
-    private string BuildSlotBar()
-    {
-        if (SlotStates.All(s => s == SlotState.Idle)) return "";
-        var sb = new System.Text.StringBuilder();
-        for (int i = 0; i < 10; i++)
-        {
-            int fg = SlotStates[i] switch
-            {
-                SlotState.Working => 32,      // Green
-                SlotState.WaitingPerm => 33,  // Yellow
-                SlotState.Error => 31,        // Red
-                _ => 90,                      // Dim
-            };
-            bool isActive = i == ActiveSlotIndex;
-            if (isActive) sb.Append($"\x1b[1;{fg}m{i + 1}\x1b[0m");
-            else sb.Append($"\x1b[{fg}m{i + 1}\x1b[0m");
-            if (i < 9) sb.Append(' ');
-        }
-        return sb.ToString();
     }
 
     // ── 输入 ──
@@ -586,52 +693,125 @@ public class ChatScreen : TuiScreen
         ShowWindow(win);
     }
 
-    public override bool HandleKey(ConsoleKeyInfo key)
+    /// <summary>Ctrl+Shift+F1：弹出主题选择对话框</summary>
+    private void ShowThemePicker()
+    {
+        var names = new List<string>(TuiTheme.PresetNames);
+        var win = Controls.TuiDialog.Select("选择主题", names, idx =>
+        {
+            if (idx >= 0 && idx < TuiTheme.Presets.Length)
+            {
+                TuiTheme.Apply(TuiTheme.Presets[idx], idx);
+                ApplyThemeToScreen();
+                ShowToast($"主题已切换：{TuiTheme.PresetNames[idx]}");
+            }
+        });
+        ShowWindow(win);
+    }
+
+    /// <summary>Ctrl+Shift+F2：直接轮转到下一个主题</summary>
+    private void CycleThemeDirect()
+    {
+        var name = TuiTheme.CycleNext();
+        ApplyThemeToScreen();
+        ShowToast($"主题：{name}");
+    }
+
+    /// <summary>将当前主题颜色应用到屏幕各组件并强制重绘</summary>
+    private void ApplyThemeToScreen()
+    {
+        var t = TuiTheme.Current;
+        // 标题栏 + 底部状态栏
+        if (TitleBar != null)
+        {
+            TitleBar.Bg = t.StatusBarBg;
+            TitleBar.Fg = t.StatusBarFg;
+        }
+        if (StatusBar != null)
+        {
+            StatusBar.Bg = t.StatusBarBg;
+            StatusBar.Fg = t.StatusBarFg;
+        }
+        // 分隔线
+        if (InputTopBorder != null) InputTopBorder.LineColor = t.SeparatorFg;
+        if (InputBotBorder != null) InputBotBorder.LineColor = t.SeparatorFg;
+        // 输入区
+        if (InputArea != null)
+        {
+            InputArea.Fg = t.TextAreaFg;
+            InputArea.CursorLineBg = t.TextAreaCursorLineBg;
+        }
+        InvalidateView();
+    }
+
+    public override bool OnKey(ConsoleKeyInfo key)
     {
         bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
         bool shift = key.Modifiers.HasFlag(ConsoleModifiers.Shift);
 
-        // ── 1. 建议面板可见 → 建议导航 ──
-        if (SuggestActive)
-        {
-            switch (key.Key)
-            {
-                case ConsoleKey.Escape:
-                    HideSuggestions(); return true;
-                case ConsoleKey.UpArrow:
-                    SuggestIndex = Math.Max(0, SuggestIndex - 1);
-                    UpdateSuggestions(Suggestions, SuggestIndex); return true;
-                case ConsoleKey.DownArrow:
-                    SuggestIndex = Math.Min(Suggestions.Count - 1, SuggestIndex + 1);
-                    UpdateSuggestions(Suggestions, SuggestIndex); return true;
-                case ConsoleKey.PageUp:
-                    SuggestIndex = Math.Max(0, SuggestIndex - 5);
-                    UpdateSuggestions(Suggestions, SuggestIndex); return true;
-                case ConsoleKey.PageDown:
-                    SuggestIndex = Math.Min(Suggestions.Count - 1, SuggestIndex + 5);
-                    UpdateSuggestions(Suggestions, SuggestIndex); return true;
-                case ConsoleKey.Home:
-                    SuggestIndex = 0;
-                    UpdateSuggestions(Suggestions, SuggestIndex); return true;
-                case ConsoleKey.End:
-                    SuggestIndex = Suggestions.Count - 1;
-                    UpdateSuggestions(Suggestions, SuggestIndex); return true;
-                case ConsoleKey.Enter: case ConsoleKey.Tab:
-                    AcceptSuggestion(); return true;
-                case ConsoleKey.Backspace:
-                    InputBackspace();
-                    UpdateSuggestions(Suggestions, SuggestIndex);
-                    break; // 继续处理（可能输入更多字符）
-                case ConsoleKey.LeftArrow: case ConsoleKey.RightArrow:
-                    SuggestActive = false;
-                    break; // 继续处理，让光标移动生效
-            }
-        }
+        // ── 1. 建议面板可见 → 建议导航（始终优先）──
+        if (HandleSuggestPanelKey(key, ctrl, shift)) return true;
 
         // ── 2. 模态窗口优先 ──
-        if (HasModal) return base.HandleKey(key);
+        if (HasModal) return base.OnKey(key);
 
-        // ── 3. 屏幕级快捷键（Ctrl+组合，不依赖输入焦点）──
+        // ── 3. 聊天自身处理（全局快捷键 + 导航 + 提交 + 输入编辑）──
+        if (HandleGlobalShortcut(key, ctrl, shift)
+            || HandleChatNavigation(key, ctrl, shift)
+            || HandleSpecial(key, ctrl, shift)
+            || HandleInputEditing(key, ctrl, shift))
+            return true;
+
+        // ── 4. Fall through：基类路由到窗口 / RootView / 输入区 ──
+        return base.OnKey(key);
+    }
+
+    // ── OnKey 子方法 ──
+
+    /// <summary>处理建议面板导航（可见时拦截方向键/Enter/Tab/Esc）</summary>
+    private bool HandleSuggestPanelKey(ConsoleKeyInfo key, bool ctrl, bool shift)
+    {
+        if (!SuggestActive) return false;
+
+        switch (key.Key)
+        {
+            case ConsoleKey.Escape:
+                HideSuggestions(); return true;
+            case ConsoleKey.UpArrow:
+                SuggestIndex = Math.Max(0, SuggestIndex - 1);
+                UpdateSuggestions(Suggestions, SuggestIndex); return true;
+            case ConsoleKey.DownArrow:
+                SuggestIndex = Math.Min(Suggestions.Count - 1, SuggestIndex + 1);
+                UpdateSuggestions(Suggestions, SuggestIndex); return true;
+            case ConsoleKey.PageUp:
+                SuggestIndex = Math.Max(0, SuggestIndex - 5);
+                UpdateSuggestions(Suggestions, SuggestIndex); return true;
+            case ConsoleKey.PageDown:
+                SuggestIndex = Math.Min(Suggestions.Count - 1, SuggestIndex + 5);
+                UpdateSuggestions(Suggestions, SuggestIndex); return true;
+            case ConsoleKey.Home:
+                SuggestIndex = 0;
+                UpdateSuggestions(Suggestions, SuggestIndex); return true;
+            case ConsoleKey.End:
+                SuggestIndex = Suggestions.Count - 1;
+                UpdateSuggestions(Suggestions, SuggestIndex); return true;
+            case ConsoleKey.Enter: case ConsoleKey.Tab:
+                AcceptSuggestion(); return true;
+            case ConsoleKey.Backspace:
+                InputBackspace();
+                UpdateSuggestions(Suggestions, SuggestIndex);
+                return true; // 已处理，不再向下传递
+            case ConsoleKey.LeftArrow: case ConsoleKey.RightArrow:
+                SuggestActive = false;
+                return false; // 继续传递，让光标移动生效
+        }
+        return false;
+    }
+
+    /// <summary>全局快捷键：Ctrl+E/T/O/B/R/M/H/Q, F1-F10, Ctrl+Home/End/Up/Down</summary>
+    private bool HandleGlobalShortcut(ConsoleKeyInfo key, bool ctrl, bool shift)
+    {
+        // ── Ctrl 组合键 ──
         if (ctrl)
         {
             switch (key.Key)
@@ -642,20 +822,13 @@ public class ChatScreen : TuiScreen
                 case ConsoleKey.O:
                     Manager?.PushScreen(new SettingsScreen()); return true;
                 case ConsoleKey.B:
-                    ActivePanel = ActivePanel switch
-                    {
-                        PanelTab.Off => PanelTab.Todo,
-                        PanelTab.Todo => PanelTab.Files,
-                        PanelTab.Files => PanelTab.Locks,
-                        PanelTab.Locks => PanelTab.MCP,
-                        _ => PanelTab.Off,
-                    };
-                    if (ActivePanel == PanelTab.Files)
-                        ModifiedFiles = EditFileTool.ChangedFiles.ToList();
+                    SidePanelVisible = !SidePanelVisible;
+                    if (SidePanelVisible)
+                        RefreshSidePanel();
                     return true;
                 case ConsoleKey.R:
                     Manager?.Exit();
-                    var query = TuiPrompt.Ask("搜索对话历史");
+                    var query = UxHelper.Ask("搜索对话历史");
                     Manager?.Enter();
                     Manager?.PushScreen(this);
                     if (!string.IsNullOrWhiteSpace(query))
@@ -675,13 +848,59 @@ public class ChatScreen : TuiScreen
             }
         }
 
-        // ── 4. 聊天滚动（不依赖输入焦点）──
-        if (key.Key == ConsoleKey.PageUp)
-            { ChatScrollUp(Math.Max(1, (TTY.Rows - 10) / 2)); return true; }
-        if (key.Key == ConsoleKey.PageDown)
-            { ChatScrollDown(Math.Max(1, (TTY.Rows - 10) / 2)); return true; }
+        // ── Ctrl+Shift+F1 主题选择 / Ctrl+Shift+F2 直接轮转 ──
+        if (ctrl && shift)
+        {
+            switch (key.Key)
+            {
+                case ConsoleKey.F1:
+                    ShowThemePicker(); return true;
+                case ConsoleKey.F2:
+                    CycleThemeDirect(); return true;
+            }
+        }
 
-        // ── 5. Enter 提交消息 ──
+        // ── F1-F10 槽位切换 ──
+        if (key.Key >= ConsoleKey.F1 && key.Key <= ConsoleKey.F10)
+        {
+            int slot = key.Key - ConsoleKey.F1;
+            if (slot != ActiveSlotIndex)
+                SwitchToSlot(slot);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>切换到指定槽位</summary>
+    private void SwitchToSlot(int slot)
+    {
+        if (slot < 0 || slot >= 10) return;
+        if (SlotStates[ActiveSlotIndex] == SlotState.Working) return; // 运行时禁止切换
+        ActiveSlotIndex = slot;
+        MarkDirty();
+    }
+
+    /// <summary>聊天滚动：PgUp/PgDn（非 Ctrl）</summary>
+    private bool HandleChatNavigation(ConsoleKeyInfo key, bool ctrl, bool shift)
+    {
+        if (key.Key == ConsoleKey.PageUp)
+        {
+            ChatScrollUp(Math.Max(1, (TTY.Rows - 10) / 2));
+            return true;
+        }
+        if (key.Key == ConsoleKey.PageDown)
+        {
+            ChatScrollDown(Math.Max(1, (TTY.Rows - 10) / 2));
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>消息提交 / 退出确认</summary>
+    private bool HandleSpecial(ConsoleKeyInfo key, bool ctrl, bool shift)
+    {
+        // Enter → 提交消息
         if (key.Key == ConsoleKey.Enter && !ctrl && !shift)
         {
             SuggestActive = false;
@@ -697,76 +916,233 @@ public class ChatScreen : TuiScreen
             return true;
         }
 
-        // ── 6. Escape 空输入 → 退出确认 ──
+        // Escape 空输入 → 退出确认（300ms 冷却：防止关闭模态框的 Escape 按键重复触发）
         if (key.Key == ConsoleKey.Escape && string.IsNullOrEmpty(GetInputText()))
         {
+            if ((DateTime.UtcNow - LastModalEscapeTime).TotalMilliseconds < 300)
+                return true; // 吞掉按键重复，不弹窗
             ShowExitConfirmDialog();
             return true;
         }
 
-        // ── 7. 输入区按键 ──
-        if (InputArea.Focused)
+        return false;
+    }
+
+    /// <summary>输入区编辑：粘贴/换行/历史/补全/委托给 InputArea</summary>
+    private bool HandleInputEditing(ConsoleKeyInfo key, bool ctrl, bool shift)
+    {
+        if (!InputArea.Focused) return base.OnKey(key);
+
+        // 粘贴快捷键
+        if ((key.Key == ConsoleKey.V && ctrl && !shift) ||
+            (key.Key == ConsoleKey.Insert && shift))
         {
-            // 粘贴快捷键
-            if ((key.Key == ConsoleKey.V && ctrl && !shift) ||
-                (key.Key == ConsoleKey.Insert && shift))
-            {
-                _ = PasteAsync();
-                return true;
-            }
-
-            // Ctrl+Enter / Shift+Enter → 换行
-            if (key.Key == ConsoleKey.Enter && (ctrl || shift))
-                { InputNewLine(); return true; }
-
-            // ↑↓ — 历史浏览 / 多行移动 / 空输入滚动
-            if (key.Key == ConsoleKey.UpArrow)
-            {
-                if (InputArea.Lines.Count == 1)
-                {
-                    if (string.IsNullOrEmpty(GetInputText()))
-                        { ChatScrollUp(3); return true; }
-                    if (InputHistory.Count > 0)
-                    {
-                        if (HistoryIdx == -1) HistoryIdx = InputHistory.Count - 1;
-                        else if (HistoryIdx > 0) HistoryIdx--;
-                        SetInput(InputHistory[HistoryIdx]);
-                    }
-                }
-                else InputMoveUp();
-                return true;
-            }
-            if (key.Key == ConsoleKey.DownArrow)
-            {
-                if (InputArea.Lines.Count == 1)
-                {
-                    if (string.IsNullOrEmpty(GetInputText()))
-                        { ChatScrollDown(3); return true; }
-                    if (HistoryIdx >= 0)
-                    {
-                        HistoryIdx++;
-                        SetInput(HistoryIdx < InputHistory.Count ? InputHistory[HistoryIdx] : "");
-                        if (HistoryIdx >= InputHistory.Count) HistoryIdx = -1;
-                    }
-                }
-                else InputMoveDown();
-                return true;
-            }
-
-            // Tab — 路径补全或 4 空格
-            if (key.Key == ConsoleKey.Tab)
-            {
-                // 简单版：插入 4 空格（路径补全后续增强）
-                for (int t = 0; t < 4; t++) InputInsert(' ');
-                return true;
-            }
-
-            // 其他全部委托给 InputArea（← → Home End Backspace Delete Ctrl+组合 可打印字符）
-            return InputArea.HandleKey(key);
+            _ = PasteAsync();
+            return true;
         }
 
-        // ── 8. 兜底 ──
-        return base.HandleKey(key);
+        // Ctrl+Enter / Shift+Enter → 换行
+        if (key.Key == ConsoleKey.Enter && (ctrl || shift))
+        {
+            InputNewLine();
+            return true;
+        }
+
+        // ↑↓ — 历史浏览 / 多行移动 / 空输入滚动
+        if (key.Key == ConsoleKey.UpArrow)
+        {
+            return HandleInputUpArrow();
+        }
+        if (key.Key == ConsoleKey.DownArrow)
+        {
+            return HandleInputDownArrow();
+        }
+
+        // Tab — 路径补全
+        if (key.Key == ConsoleKey.Tab)
+        {
+            return HandleTabCompletion();
+        }
+
+        // 其他全部委托给 InputArea
+        return InputArea.OnKey(key);
+    }
+
+    /// <summary>输入区 ↑ 箭头：历史/多行移动/滚动</summary>
+    private bool HandleInputUpArrow()
+    {
+        if (InputArea.Lines.Count == 1)
+        {
+            if (string.IsNullOrEmpty(GetInputText()))
+            {
+                ChatScrollUp(3);
+                return true;
+            }
+            if (InputHistory.Count > 0)
+            {
+                if (HistoryIdx == -1) HistoryIdx = InputHistory.Count - 1;
+                else if (HistoryIdx > 0) HistoryIdx--;
+                SetInput(InputHistory[HistoryIdx]);
+            }
+        }
+        else InputMoveUp();
+        return true;
+    }
+
+    /// <summary>输入区 ↓ 箭头：历史/多行移动/滚动</summary>
+    private bool HandleInputDownArrow()
+    {
+        if (InputArea.Lines.Count == 1)
+        {
+            if (string.IsNullOrEmpty(GetInputText()))
+            {
+                ChatScrollDown(3);
+                return true;
+            }
+            if (HistoryIdx >= 0)
+            {
+                HistoryIdx++;
+                SetInput(HistoryIdx < InputHistory.Count ? InputHistory[HistoryIdx] : "");
+                if (HistoryIdx >= InputHistory.Count) HistoryIdx = -1;
+            }
+        }
+        else InputMoveDown();
+        return true;
+    }
+
+    /// <summary>Tab 路径补全：检测 @文件名 模式 → glob 文件系统 → 显示建议</summary>
+    private bool HandleTabCompletion()
+    {
+        var input = GetInputText();
+        int cursorPos = InputArea.CursorCol;
+        if (InputArea.Lines.Count == 1)
+            cursorPos = Math.Min(cursorPos, input.Length);
+
+        // 找光标前最近的 @ 符号
+        int atPos = -1;
+        for (int i = cursorPos - 1; i >= 0; i--)
+        {
+            if (input[i] == '@' && (i == 0 || input[i - 1] == ' ' || input[i - 1] == '\n'))
+            {
+                atPos = i;
+                break;
+            }
+            if (input[i] == ' ' || input[i] == '\n') break;
+        }
+
+        if (atPos < 0)
+        {
+            // 无 @ 模式：插入 4 空格
+            for (int t = 0; t < 4; t++) InputInsert(' ');
+            return true;
+        }
+
+        // 提取 @ 后的部分路径
+        var partial = input[(atPos + 1)..cursorPos];
+        if (string.IsNullOrEmpty(partial))
+        {
+            // 仅 @：列出当前目录文件
+            var files = ListFilesForCompletion("");
+            if (files.Count > 0)
+            {
+                RefreshSuggestions(files, 0);
+                SuggestActive = true;
+            }
+            return true;
+        }
+
+        // 有部分路径： glob 匹配
+        var matches = ListFilesForCompletion(partial);
+        if (matches.Count == 0)
+        {
+            // 无匹配：插入空格
+            InputInsert(' ');
+            return true;
+        }
+        if (matches.Count == 1)
+        {
+            // 唯一匹配：直接补全
+            ReplaceAtPrefix(atPos + 1, cursorPos, matches[0]);
+            return true;
+        }
+
+        // 多个匹配：显示建议面板，并补全公共前缀
+        var commonPrefix = GetCommonPrefix(matches);
+        if (commonPrefix.Length > partial.Length)
+        {
+            ReplaceAtPrefix(atPos + 1, cursorPos, commonPrefix);
+        }
+        RefreshSuggestions(matches, 0);
+        SuggestActive = true;
+        return true;
+    }
+
+    /// <summary>列出匹配前缀的文件/目录</summary>
+    private List<string> ListFilesForCompletion(string partial)
+    {
+        var results = new List<string>();
+        string dir = ".";
+        string prefix = partial;
+
+        // 解析目录部分
+        int lastSlash = partial.LastIndexOf('/');
+        if (lastSlash >= 0)
+        {
+            dir = partial[..(lastSlash + 1)];
+            prefix = partial[(lastSlash + 1)..];
+        }
+
+        // 确保 dir 是有效路径
+        if (!Directory.Exists(dir))
+            dir = ".";
+
+        try
+        {
+            // 匹配文件和目录
+            foreach (var entry in Directory.EnumerateFileSystemEntries(dir))
+            {
+                var name = Path.GetFileName(entry);
+                if (name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    string display = lastSlash >= 0
+                        ? partial[..(lastSlash + 1)] + name
+                        : name;
+                    if (Directory.Exists(entry))
+                        display += "/";
+                    results.Add(display);
+                }
+            }
+        }
+        catch { /* 权限不足等错误静默忽略 */ }
+
+        results.Sort(StringComparer.OrdinalIgnoreCase);
+        return results;
+    }
+
+    /// <summary>获取字符串列表的公共前缀</summary>
+    private static string GetCommonPrefix(List<string> items)
+    {
+        if (items.Count == 0) return "";
+        if (items.Count == 1) return items[0];
+        var first = items[0];
+        int len = 0;
+        for (int i = 0; i < first.Length; i++)
+        {
+            char c = first[i];
+            if (items.Any(s => s.Length <= i || s[i] != c)) break;
+            len++;
+        }
+        return first[..len];
+    }
+
+    /// <summary>替换从 start 到 end 位置的文本（在单行输入中）</summary>
+    private void ReplaceAtPrefix(int start, int end, string replacement)
+    {
+        var text = GetInputText();
+        if (start < 0 || end > text.Length || start > end) return;
+        var newText = text[..start] + replacement + text[end..];
+        SetInput(newText);
+        InputArea.CursorCol = start + replacement.Length;
     }
 
     // ── Agent 运行状态 ──
@@ -809,14 +1185,14 @@ public class ChatScreen : TuiScreen
     /// <summary>插入换行</summary>
     public void InputNewLine()
     {
-        InputArea.HandleKey(new ConsoleKeyInfo('\n', ConsoleKey.Enter, false, false, false));
+        InputArea.OnKey(new ConsoleKeyInfo('\n', ConsoleKey.Enter, false, false, false));
         MarkDirty();
     }
 
     /// <summary>删除光标前一个词</summary>
     public void InputDeleteWordLeft()
     {
-        InputArea.HandleKey(new ConsoleKeyInfo('\b', ConsoleKey.Backspace,
+        InputArea.OnKey(new ConsoleKeyInfo('\b', ConsoleKey.Backspace,
             false, false, true));
         MarkDirty();
     }
@@ -824,7 +1200,7 @@ public class ChatScreen : TuiScreen
     /// <summary>删除光标后一个词</summary>
     public void InputDeleteWordRight()
     {
-        InputArea.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Delete,
+        InputArea.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Delete,
             false, false, true));
         MarkDirty();
     }
@@ -855,7 +1231,7 @@ public class ChatScreen : TuiScreen
     /// <summary>在光标位置插入字符</summary>
     public void InputInsert(char ch)
     {
-        InputArea.HandleKey(new ConsoleKeyInfo(ch, (ConsoleKey)ch, false, false, false));
+        InputArea.OnKey(new ConsoleKeyInfo(ch, (ConsoleKey)ch, false, false, false));
         MarkDirty();
     }
 
@@ -870,29 +1246,7 @@ public class ChatScreen : TuiScreen
     /// <summary>同步 Todo 数据到侧栏</summary>
     public void SyncTodos()
     {
-        var items = Tools.TodoTool.Items;
-        if (items.Count > 0)
-        {
-            var completed = items.Count(i => i.Status == "completed");
-            var lines = new List<string>
-            {
-                $"📋 任务 ({completed}/{items.Count})",
-                new string('─', 28),
-            };
-            foreach (var item in items.OrderBy(i => i.Id).Take(20))
-            {
-                var icon = item.Status switch
-                {
-                    "completed" => "✅",
-                    "in_progress" => "🔄",
-                    "cancelled" => "❌",
-                    _ => "⏳",
-                };
-                var title = item.Title.Length > 22 ? item.Title[..19] + "..." : item.Title;
-                lines.Add($"{icon} {title}");
-            }
-            UpdateSidePanel(lines);
-        }
+        RefreshSidePanel();
     }
 
     /// <summary>同步主题配色</summary>
@@ -965,7 +1319,7 @@ public class ChatScreen : TuiScreen
             if (Console.KeyAvailable)
             {
                 var key = Console.ReadKey(intercept: true);
-                HandleKey(key);
+                OnKey(key);
             }
             else
             {

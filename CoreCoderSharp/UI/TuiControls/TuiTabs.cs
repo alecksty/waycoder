@@ -29,19 +29,19 @@ public class TuiTabs : TuiControl
     public int TabBarHeight => 1;
 
     /// <summary>标签栏背景色</summary>
-    public int TabBarBg { get; set; } = 44;
+    public int TabBarBg { get; set; }
 
     /// <summary>标签栏前景色</summary>
-    public int TabBarFg { get; set; } = 37;
+    public int TabBarFg { get; set; }
 
     /// <summary>选中标签背景色</summary>
     public int ActiveTabBg { get; set; }
 
     /// <summary>选中标签前景色</summary>
-    public int ActiveTabFg { get; set; } = 30;
+    public int ActiveTabFg { get; set; }
 
     /// <summary>非选中标签前景色</summary>
-    public int InactiveTabFg { get; set; } = 90;
+    public int InactiveTabFg { get; set; }
 
     /// <summary>标签最小宽度</summary>
     public int MinTabWidth { get; set; } = 6;
@@ -53,6 +53,11 @@ public class TuiTabs : TuiControl
     {
         Height = 1;
         Width = 40;
+        TabBarBg = TuiTheme.Current.TabsBarBg;
+        TabBarFg = TuiTheme.Current.TabsBarFg;
+        ActiveTabFg = TuiTheme.Current.TabsActiveFg;
+        ActiveTabBg = TuiTheme.Current.TabsActiveBg;
+        InactiveTabFg = TuiTheme.Current.TabsInactiveFg;
     }
 
     /// <summary>当前激活的内容面板</summary>
@@ -122,16 +127,20 @@ public class TuiTabs : TuiControl
             var label = _tabLabels[i];
             bool active = i == SelectedIndex;
 
-            // 裁剪标签文本
-            int maxTextW = tabW - 1;
+            // 裁剪标签文本并居中
+            int maxTextW = tabW - 2;
             if (TuiHelper.DisplayWidth(label) > maxTextW)
                 label = TuiHelper.TruncateByWidth(label, maxTextW);
-            var pad = Math.Max(0, tabW - TuiHelper.DisplayWidth(label));
-            var display = label + new string(' ', pad);
+            int labelVw = TuiHelper.DisplayWidth(label);
+            int leftPad = Math.Max(0, (tabW - labelVw) / 2);
+            int rightPad = Math.Max(0, tabW - leftPad - labelVw);
+            var display = new string(' ', leftPad) + label + new string(' ', rightPad);
 
-            int fg = active ? ActiveTabFg : InactiveTabFg;
-            int bg = active ? ActiveTabBg : TabBarBg;
-            if (active && ActiveTabBg == 0) bg = Bg > 0 ? Bg : 0;
+            int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
+                   : active ? ActiveTabFg : InactiveTabFg;
+            int bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : TabBarBg)
+                   : active ? (ActiveTabBg > 0 ? ActiveTabBg : (Bg > 0 ? Bg : 0))
+                   : TabBarBg;
 
             WriteAt(sb, absY, x, display, fg, bg);
         }
@@ -144,9 +153,9 @@ public class TuiTabs : TuiControl
 
     // ── 输入 ──
 
-    public override bool HandleKey(ConsoleKeyInfo key)
+    public override bool OnKey(ConsoleKeyInfo key)
     {
-        if (!Focused) return false;
+        if (!IsEnabled || !Focused) return false;
 
         switch (key.Key)
         {

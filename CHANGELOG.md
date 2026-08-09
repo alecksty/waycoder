@@ -1,5 +1,44 @@
 # 更新日志
 
+## v0.24.0 (2026-08-10) — 侧栏面板 + 按键架构简化
+
+### 🔥 新增
+
+**侧栏面板** (`UI/TuiControls/TuiSidePanel.cs`)
+- 多分区同时显示：品牌、Todo、文件、MCP、LSP，无需标签切换
+- `PanelSection` 数据模型：Title + Lines + Collapsed
+- 左边框竖线分隔，每分区标题 + ─ 分隔线 + 内容行
+- Ctrl+B 一键切换显示/隐藏
+
+**标题栏 + 状态栏** (`UI/TuiControls/TuiTitleBar.cs`, `TuiStatusBar.cs`)
+- 顶部 TitleBar：应用名 + Git 分支 + 版本号右对齐
+- 底部 StatusBar：F1-F10 槽位指示（颜色区分状态）+ 提示文本 + Token
+- 活跃槽位白底黑字，工作中绿色，等待权限黄色，出错红色
+
+**输入区上下分隔线**
+- InputTopBorder / InputBotBorder（━ 分隔线）包裹输入区
+- BuildLayout 嵌套布局：VBox(外层) + HBox(ChatList+SidePanel 中间层)
+
+### 🔧 变更
+
+- **按键架构简化**：`HandleKey` → `OnKey` / `OnOwnKey` 统一模型
+  - TuiControl 基类新增 `OnOwnKey`（控件自身按键），`OnKey` 负责路由
+  - TuiView.OnKey 简化为：自己先处理 → 单焦点子节点路由
+  - TuiWindow.HandleKey → OnKey，TuiScreen.HandleKey → OnKey + OnOwnKey
+  - ChatScreen 6 个子方法合并到 OnOwnKey
+  - 14 个控件 HandleKey override → OnOwnKey override
+  - TuiPanel / TuiSeparator 删除 pass-through HandleKey override
+- **LspTool**：新增 `SupportedServers` 公共属性供侧栏展示
+- **AgentSlot**：`PanelTab ActivePanel` → `bool SidePanelVisible`
+- **RenderBuffer.Write** 增强：精确 SGR 重置（SgrResetFg/SgrResetBg），避免冲掉底色
+- **TitleBar/StatusBar 底色修复**：全部改用 `RenderBuffer.Write(fg, bg)` 传前景+背景色
+
+### ❌ 移除
+
+- `PanelTab` 枚举和标签切换系统
+- 旧的 `TuiBanner.cs`、`TuiProgress.cs`（已迁移到 TuiControls 目录）
+- `TuiView.OnSelfKey`（被 OnOwnKey 替代）
+
 ## v0.23.0 (2026-08-09) — TUI 控件系统增强
 
 ### 🔥 新增

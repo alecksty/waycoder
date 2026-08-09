@@ -18,9 +18,10 @@ public static class TuiDialog
         var win = new TuiWindow
         {
             Title = title,
-            Modal = true, HasMask = true, BorderColor = 36,
+            ShowTitleSeparator = false,
+            Modal = true, HasMask = true, BorderColor = TuiTheme.Current.DialogInfoBorder,
             Border = WindowBorder.Rounded,
-            WinBg = 0,  // 不填充，控件自带背景，遮罩提供层次
+            WinBg = TuiTheme.Current.WindowBg,
         };
         BuildContent(win, message, ("确定", _ => win.OnClosed?.Invoke()));
         return win;
@@ -30,7 +31,7 @@ public static class TuiDialog
     public static TuiWindow Success(string title, string message)
     {
         var win = Info(title, message);
-        win.BorderColor = 32;
+        win.BorderColor = TuiTheme.Current.DialogSuccessBorder;
         return win;
     }
 
@@ -38,7 +39,7 @@ public static class TuiDialog
     public static TuiWindow Warn(string title, string message)
     {
         var win = Info(title, message);
-        win.BorderColor = 33;
+        win.BorderColor = TuiTheme.Current.DialogWarnBorder;
         return win;
     }
 
@@ -46,7 +47,7 @@ public static class TuiDialog
     public static TuiWindow Error(string title, string message)
     {
         var win = Info(title, message);
-        win.BorderColor = 31;
+        win.BorderColor = TuiTheme.Current.DialogErrorBorder;
         return win;
     }
 
@@ -59,9 +60,10 @@ public static class TuiDialog
         var win = new TuiWindow
         {
             Title = title,
-            Modal = true, HasMask = true, BorderColor = 33,
+            ShowTitleSeparator = false,
+            Modal = true, HasMask = true, BorderColor = TuiTheme.Current.DialogConfirmBorder,
             Border = WindowBorder.Rounded,
-            WinBg = 0,
+            WinBg = TuiTheme.Current.WindowBg,
         };
 
         var vbox = new TuiVBox { Width = 40 };
@@ -95,9 +97,10 @@ public static class TuiDialog
         var win = new TuiWindow
         {
             Title = title,
-            Modal = true, HasMask = true, BorderColor = 33,
+            ShowTitleSeparator = false,
+            Modal = true, HasMask = true, BorderColor = TuiTheme.Current.DialogConfirmBorder,
             Border = WindowBorder.Rounded,
-            WinBg = 0,
+            WinBg = TuiTheme.Current.WindowBg,
         };
 
         var vbox = new TuiVBox { Width = 48 };
@@ -135,13 +138,14 @@ public static class TuiDialog
         var win = new TuiWindow
         {
             Title = title,
-            Modal = true, HasMask = true, BorderColor = 36,
+            ShowTitleSeparator = false,
+            Modal = true, HasMask = true, BorderColor = TuiTheme.Current.DialogInfoBorder,
             Border = WindowBorder.Rounded,
-            WinBg = 0,
+            WinBg = TuiTheme.Current.WindowBg,
         };
 
         var vbox = new TuiVBox { Width = 44 };
-        vbox.Add(new TuiLabel(prompt) { Width = 42, Fg = 37 });
+        vbox.Add(new TuiLabel(prompt) { Width = 42, Fg = TuiTheme.Current.ControlFg });
 
         var input = new TuiInput
         {
@@ -179,7 +183,8 @@ public static class TuiDialog
         var win = new TuiWindow
         {
             Title = title,
-            Modal = true, HasMask = true, BorderColor = 36,
+            ShowTitleSeparator = false,
+            Modal = true, HasMask = true, BorderColor = TuiTheme.Current.DialogInfoBorder,
             Border = WindowBorder.Rounded,
         };
 
@@ -217,7 +222,8 @@ public static class TuiDialog
         var win = new TuiWindow
         {
             Title = title,
-            Modal = true, HasMask = true, BorderColor = 36,
+            ShowTitleSeparator = false,
+            Modal = true, HasMask = true, BorderColor = TuiTheme.Current.DialogInfoBorder,
             Border = WindowBorder.Rounded,
         };
 
@@ -248,18 +254,28 @@ public static class TuiDialog
     // ── 权限确认对话框 ──
 
     /// <summary>
-    /// 权限确认对话框 —— 带颜色编码的 Yes / No / Yes-to-all 三选项。
+    /// 权限确认对话框 —— 黄色警告背景 + 黑色文字 + 粗体标题 + 淡蓝按钮。
     /// 快捷键：Y=允许 N=拒绝 A=全部允许
     /// </summary>
     public static TuiWindow Permission(string title, string message,
         Action<DialogResult> onResult)
     {
+        const int warnBg = TuiColors.BgYellow;    // 黄色警告背景
+        const int blackFg = TuiColors.Black;      // 黑色文字
+        const int btnBg = TuiColors.BgCyan;       // 淡蓝按钮底
+        const int btnFocusBg = TuiColors.BgWhite; // 选中白底
+
         var win = new TuiWindow
         {
             Title = title,
-            Modal = true, HasMask = true, BorderColor = 35, // Magenta
+            TitleBold = true,
+            TitleFg = blackFg,
+            TitleBg = warnBg,
+            ShowTitleSeparator = false,
+            Modal = true, HasMask = true,
+            BorderColor = TuiColors.Yellow, // 黄色边框
             Border = WindowBorder.Single,
-            WinBg = 0,
+            WinBg = warnBg,   // 黄色背景
         };
 
         var lines = message.Replace("\r\n", "\n").Split('\n');
@@ -269,13 +285,24 @@ public static class TuiDialog
 
         var vbox = new TuiVBox { Width = w - 4 };
         foreach (var line in lines)
-            vbox.Add(new TuiLabel(line) { Width = w - 6, Fg = 37 });
+            vbox.Add(new TuiLabel(line) { Width = w - 6, Fg = blackFg });
         vbox.Add(new TuiLabel("") { Height = 1 });
 
         var hbox = new TuiHBox { Spacing = 2, Width = w - 4, ContentHAlign = HAlign.Center };
-        var yesBtn = new TuiButton("允许 (Y)") { Width = 14, Fg = 32, Focused = true };
-        var noBtn = new TuiButton("拒绝 (N)") { Width = 14, Fg = 31 };
-        var allBtn = new TuiButton("全部允许 (A)") { Width = 18, Fg = 33 };
+
+        // 按钮：淡蓝底黑字 / 选中白底黑字
+        TuiButton MakeBtn(string text, int wd)
+        {
+            var b = new TuiButton(text) { Width = wd };
+            b.Fg = blackFg; b.Bg = btnBg;
+            b.FocusedFg = blackFg; b.FocusedBg = btnFocusBg;
+            return b;
+        }
+
+        var yesBtn = MakeBtn("允许 (Y)", 14);
+        var noBtn = MakeBtn("拒绝 (N)", 14);
+        var allBtn = MakeBtn("全部允许 (A)", 18);
+        yesBtn.Focused = true;
         yesBtn.OnClick = _ => { win.Result = DialogResult.Yes; onResult(DialogResult.Yes); win.OnClosed?.Invoke(); };
         noBtn.OnClick = _ => { win.Result = DialogResult.No; onResult(DialogResult.No); win.OnClosed?.Invoke(); };
         allBtn.OnClick = _ => { win.Result = DialogResult.Ok; onResult(DialogResult.Ok); win.OnClosed?.Invoke(); };

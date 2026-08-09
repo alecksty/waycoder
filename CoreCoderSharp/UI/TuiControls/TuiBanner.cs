@@ -7,28 +7,21 @@ public class TuiBanner : TuiControl
     public string Title { get; set; } = "";
     public string Subtitle { get; set; } = "";
 
-    public TuiBanner() { Height = 3; Width = 60; }
+    /// <summary>横幅是纯展示控件，不可获得焦点</summary>
+    public override bool CanFocus => false;
+
+    public TuiBanner() { Height = 3; Width = 60; TextAlign = HAlign.Center; }
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
         if (string.IsNullOrEmpty(Title)) return;
 
-        var rb = new Terminal.RenderBuffer();
-        int fg = Fg > 0 ? Fg : 36;
+        var t = TuiTheme.Current;
+        ControlRenderer.DrawLabelLine(sb, this, absX, absY,
+            Title, TextAlign, t.BannerFg, 0);
 
-        // 标题居中
-        var titleVw = TuiHelper.DisplayWidth(Title);
-        var titleX = absX + Math.Max(0, (Width - titleVw) / 2);
-        rb.Write(absY, titleX, Title, fg: fg);
-
-        // 副标题
         if (!string.IsNullOrEmpty(Subtitle))
-        {
-            var subVw = TuiHelper.DisplayWidth(Subtitle);
-            var subX = absX + Math.Max(0, (Width - subVw) / 2);
-            rb.Write(absY + 1, subX, Subtitle, fg: 90);
-        }
-
-        sb.Append(rb.ToString());
+            ControlRenderer.DrawLabelLine(sb, this, absX, absY + 1,
+                Subtitle, TextAlign, t.BannerSubFg, 0);
     }
 }

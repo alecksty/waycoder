@@ -118,9 +118,9 @@ public class BoxBuffer
             display = text;
         }
 
-        var bgOn = string.IsNullOrEmpty(BgColor) ? "" : $"\x1b[{BgColor}m";
-        var bgOff = string.IsNullOrEmpty(BgColor) ? "" : "\x1b[0m";
-        sb.Append($"\x1b[{absRow};{absCol}H{bgOn}{display}{bgOff}");
+        var bgOn = string.IsNullOrEmpty(BgColor) ? "" : AnsiTty.Bg(int.Parse(BgColor));
+        var bgOff = string.IsNullOrEmpty(BgColor) ? "" : AnsiTty.SgrReset;
+        sb.Append(AnsiTty.CursorPos(absRow, absCol)).Append(bgOn).Append(display).Append(bgOff);
     }
 
     /// <summary>在内部相对坐标写入，右侧填充空格到内容区右边界</summary>
@@ -148,9 +148,9 @@ public class BoxBuffer
             padLen = maxLen - textVW;
         }
 
-        var bgOn = string.IsNullOrEmpty(BgColor) ? "" : $"\x1b[{BgColor}m";
-        var bgOff = string.IsNullOrEmpty(BgColor) ? "" : "\x1b[0m";
-        sb.Append($"\x1b[{absRow};{absCol}H{bgOn}{display}");
+        var bgOn = string.IsNullOrEmpty(BgColor) ? "" : AnsiTty.Bg(int.Parse(BgColor));
+        var bgOff = string.IsNullOrEmpty(BgColor) ? "" : AnsiTty.SgrReset;
+        sb.Append(AnsiTty.CursorPos(absRow, absCol)).Append(bgOn).Append(display);
         if (padLen > 0) sb.Append(new string(' ', padLen));
         sb.Append(bgOff);
     }
@@ -159,11 +159,11 @@ public class BoxBuffer
     public void Fill(StringBuilder sb, char ch = ' ')
     {
         var fill = new string(ch, ContentWidth);
-        var bgOn = string.IsNullOrEmpty(BgColor) ? "" : $"\x1b[{BgColor}m";
-        var bgOff = string.IsNullOrEmpty(BgColor) ? "" : "\x1b[0m";
+        var bgOn = string.IsNullOrEmpty(BgColor) ? "" : AnsiTty.Bg(int.Parse(BgColor));
+        var bgOff = string.IsNullOrEmpty(BgColor) ? "" : AnsiTty.SgrReset;
         for (int i = 0; i < ContentHeight; i++)
         {
-            sb.Append($"\x1b[{ContentTop + i};{ContentLeft}H{bgOn}{fill}{bgOff}");
+            sb.Append(AnsiTty.CursorPos(ContentTop + i, ContentLeft)).Append(bgOn).Append(fill).Append(bgOff);
         }
     }
 
@@ -261,9 +261,9 @@ public class BoxBuffer
 
         var display = VW(text) > maxW ? TruncateByVW(text, maxW - 1) + "…" : text;
         var sb = new StringBuilder();
-        sb.Append($"\x1b[{absRow};{absCol}H");
-        if (!string.IsNullOrEmpty(buf.BgColor)) sb.Append($"\x1b[{buf.BgColor}m");
-        sb.Append($"\x1b[{color}m{display}\x1b[0m");
+        sb.Append(AnsiTty.CursorPos(absRow, absCol));
+        if (!string.IsNullOrEmpty(buf.BgColor)) sb.Append(AnsiTty.Bg(int.Parse(buf.BgColor)));
+        sb.Append(AnsiTty.Fg(color)).Append(display).Append(AnsiTty.SgrReset);
         Console.Write(sb.ToString());
     }
 
@@ -283,12 +283,12 @@ public class BoxBuffer
         var display = VW(text) > maxW ? TruncateByVW(text, maxW - 1) + "…" : text;
         var remain = maxW - VW(display);
         var sb = new StringBuilder();
-        sb.Append($"\x1b[{absRow};{absCol}H");
-        sb.Append($"\x1b[{foreColor}m");
-        if (backColor > 0) sb.Append($"\x1b[{backColor}m");
+        sb.Append(AnsiTty.CursorPos(absRow, absCol));
+        sb.Append(AnsiTty.Fg(foreColor));
+        if (backColor > 0) sb.Append(AnsiTty.Bg(backColor));
         sb.Append(display);
         if (remain > 0) sb.Append(new string(' ', remain));
-        sb.Append("\x1b[0m");
+        sb.Append(AnsiTty.SgrReset);
         Console.Write(sb.ToString());
     }
 }

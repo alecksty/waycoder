@@ -14,7 +14,12 @@ public class TuiPanel : TuiView
     public string Title { get; set; } = "";
 
     /// <summary>边框颜色（ANSI 色码）</summary>
-    public int BorderColor { get; set; } = 36;
+    public int BorderColor { get; set; }
+
+    public TuiPanel()
+    {
+        BorderColor = TuiTheme.Current.WindowBorderFocused;
+    }
 
     /// <summary>标题前景色（0=使用边框色）</summary>
     public int TitleFg { get; set; }
@@ -57,7 +62,7 @@ public class TuiPanel : TuiView
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
-        int bc = BorderColor > 0 ? BorderColor : 36;
+        int bc = BorderColor > 0 ? BorderColor : TuiTheme.Current.WindowBorderFocused;
         int tf = TitleFg > 0 ? TitleFg : bc;
         int w = Width;
         int h = Height;
@@ -135,5 +140,5 @@ public class TuiPanel : TuiView
             _ => ("╭", "╮", "╰", "╯", "─", "│"), // Rounded
         };
 
-    public override bool HandleKey(ConsoleKeyInfo key) => base.HandleKey(key);
+    // OnKey 继承自 TuiView，自动路由到子焦点控件
 }

@@ -140,13 +140,13 @@ public static class TuiDemo
                         else if (ev.KeyInfo is { Key: ConsoleKey.Escape })
                         {
                             if (screen.HasModal)
-                                mgr.HandleKey(ev.KeyInfo);
+                                mgr.OnKey(ev.KeyInfo);
                             else
                                 running = false;
                         }
                         else
                         {
-                            mgr.HandleKey(ev.KeyInfo);
+                            mgr.OnKey(ev.KeyInfo);
                         }
                         break;
 

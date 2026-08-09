@@ -66,8 +66,8 @@ public static class PermissionManager
         }
         else
         {
-            TuiBox.Warn("确认操作", content);
-            var choice = TuiList.Select("是否执行？",
+            UxHelper.Warn("确认操作", content);
+            var choice = UxHelper.Select("是否执行？",
                 ["是 (y)", "总是允许 (a)", "否 (n)"]);
             result = choice switch { "是 (y)" => 0, "总是允许 (a)" => 1, _ => 2 };
         }
@@ -151,7 +151,7 @@ public static class PermissionManager
             $"{AnsiText.Dim("需要确认:")} {string.Join(", ", DangerousTools)}\n" +
             $"{AnsiText.Dim("直接放行:")} read_file, glob, grep, ls, stat 等只读工具";
 
-        TuiBox.Info("权限状态", content);
+        UxHelper.Info("权限状态", content);
     }
 
     // ---- 内部 ----

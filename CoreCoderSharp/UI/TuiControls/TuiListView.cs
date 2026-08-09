@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace CoreCoderSharp.UI;
+namespace CoreCoderSharp.UI.Controls;
 
 /// <summary>
 /// 列表视图 —— 可滚动的视图项列表。
@@ -25,10 +25,10 @@ public class TuiListView : TuiView
     public int ItemSpacing { get; set; }
 
     /// <summary>选中项背景色</summary>
-    public int SelBg { get; set; } = 46;
+    public int SelBg { get; set; }
 
     /// <summary>选中项前景色</summary>
-    public int SelFg { get; set; } = 30;
+    public int SelFg { get; set; }
 
     /// <summary>选择变化回调</summary>
     public Action<int>? OnSelectionChanged { get; set; }
@@ -40,6 +40,8 @@ public class TuiListView : TuiView
     {
         Height = 10;
         Width = 60;
+        SelBg = TuiTheme.Current.ListSelBg;
+        SelFg = TuiTheme.Current.ListSelFg;
     }
 
     // ── 项管理 ──
@@ -182,9 +184,9 @@ public class TuiListView : TuiView
 
     // ── 输入 ──
 
-    public override bool HandleKey(ConsoleKeyInfo key)
+    public override bool OnKey(ConsoleKeyInfo key)
     {
-        if (Children.Count == 0) return false;
+        if (!IsEnabled || Children.Count == 0) return false;
 
         switch (key.Key)
         {
