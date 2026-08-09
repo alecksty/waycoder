@@ -8,11 +8,12 @@ namespace CoreCoderSharp.Tools;
 /// 子智能体运行至完成，返回文本摘要。
 ///
 /// v0.17.5: 支持多层递归（最多 MaxDepth 层），深度达到上限时自动移除 agent 工具。
+/// v0.18.0: 支持并行子智能体（tasks 数组参数），最多 4 个并发，结果聚合返回。
 /// </summary>
 public class AgentTool : ITool
 {
     public string Name => "agent";
-    public string Description => "生成一个子智能体来独立处理复杂的子任务。子智能体拥有自己的上下文和工具访问权限，支持最多多层递归委派。适用于：研究代码库、独立实现多步骤变更，或任何能从全新上下文中获益的任务。";
+    public string Description => "生成子智能体来独立处理复杂任务。支持单个任务（task）或并行批量任务（tasks 数组，最多 4 个并发）。子智能体拥有自己的上下文和工具访问权限，支持多层递归委派。适用于：研究代码库、独立实现多步骤变更，或任何能从全新上下文中获益的任务。并行模式适合同时探索多个独立方向。";
 
     public JsonObject Parameters => new()
     {
@@ -22,10 +23,19 @@ public class AgentTool : ITool
             ["task"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "子智能体应完成的任务",
+                ["description"] = "子智能体应完成的任务（单任务模式）",
+            },
+            ["tasks"] = new JsonObject
+            {
+                ["type"] = "array",
+                ["items"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["description"] = "单个并行子任务",
+                },
+                ["description"] = "并行子任务数组（最多 4 个），各任务独立上下文并行执行",
             },
         },
-        ["required"] = new JsonArray("task"),
     };
 
     /// <summary>
@@ -35,6 +45,9 @@ public class AgentTool : ITool
 
     /// <summary>最大递归深度（可通过 Config 修改）</summary>
     public static int MaxDepth = 3;
+
+    /// <summary>并行子任务数量上限</summary>
+    private const int MaxParallelTasks = 4;
 
     /// <summary>当前递归深度（线程安全，AsyncLocal 确保异步上下文隔离）</summary>
     private static readonly AsyncLocal<int> _currentDepth = new();
@@ -52,13 +65,90 @@ public class AgentTool : ITool
         var depth = _currentDepth.Value;
         var maxDepth = MaxDepth;
 
-        // 子智能体的工具集：深度未达上限时保留 agent（允许递归），否则移除
-        var subTools = depth < maxDepth - 1
-            ? ParentAgent.Tools.ToList()  // 允许递归委派
-            : ParentAgent.Tools.Where(t => t.Name != "agent").ToList();  // 最深一层禁止
+        // 并行批量任务模式：tasks 数组存在且非空时优先
+        if (arguments.TryGetValue("tasks", out var tasksObj) && tasksObj != null)
+        {
+            return await ExecuteParallelAsync(tasksObj, depth);
+        }
+
+        if (string.IsNullOrWhiteSpace(task))
+            return "错误：请提供 task（单任务）或 tasks 数组（并行任务）参数";
+
+        return await RunSubAgentAsync(task, depth, maxDepth);
+    }
+
+    /// <summary>并行批量执行多个子任务，结果按序聚合返回。</summary>
+    private async Task<string> ExecuteParallelAsync(object tasksObj, int depth)
+    {
+        var taskList = new List<string>();
+
+        if (tasksObj is JsonArray jsonArr)
+        {
+            foreach (var item in jsonArr)
+            {
+                var t = item?.GetValue<string>();
+                if (!string.IsNullOrWhiteSpace(t))
+                    taskList.Add(t);
+            }
+        }
+        else if (tasksObj is System.Collections.IEnumerable enumerable)
+        {
+            foreach (var item in enumerable)
+            {
+                var t = item?.ToString();
+                if (!string.IsNullOrWhiteSpace(t))
+                    taskList.Add(t);
+            }
+        }
+
+        if (taskList.Count == 0)
+            return "错误：tasks 数组不能为空，请提供至少一个子任务";
+
+        if (taskList.Count > MaxParallelTasks)
+            return $"错误：并行子任务数量不能超过 {MaxParallelTasks} 个，当前提供了 {taskList.Count} 个。请减少子任务数量或分批次执行。";
+
+        var maxDepth = MaxDepth;
 
         // 子智能体使用小模型（省钱），继承父模型路径
-        var subLLM = ParentAgent.LlmClient;
+        var subLLM = ParentAgent!.LlmClient;
+        var savedOverride = subLLM.ModelOverride;
+        subLLM.ModelOverride = subLLM.SmallModel;
+
+        try
+        {
+            var runningTasks = taskList
+                .Select(t => RunSubAgentAsync(t, depth, maxDepth))
+                .ToList();
+            var results = await Task.WhenAll(runningTasks);
+
+            var sb = new System.Text.StringBuilder();
+            for (var i = 0; i < results.Length; i++)
+            {
+                sb.AppendLine($"--- 子任务 {i + 1} ---");
+                sb.AppendLine(results[i]);
+            }
+            return $"[并行子智能体完成 · {results.Length} 个任务]\n{sb}";
+        }
+        catch (Exception ex)
+        {
+            return $"并行子智能体错误（深度 {depth + 1}）：{ex.Message}";
+        }
+        finally
+        {
+            subLLM.ModelOverride = savedOverride;
+        }
+    }
+
+    /// <summary>执行单个子任务（单任务模式与并行模式共用）。</summary>
+    private async Task<string> RunSubAgentAsync(string task, int depth, int maxDepth)
+    {
+        // 子智能体的工具集：深度未达上限时保留 agent（允许递归），否则移除
+        var subTools = depth < maxDepth - 1
+            ? ParentAgent!.Tools.ToList()  // 允许递归委派
+            : ParentAgent!.Tools.Where(t => t.Name != "agent").ToList();  // 最深一层禁止
+
+        // 子智能体使用小模型（省钱），继承父模型路径
+        var subLLM = ParentAgent!.LlmClient;
         var savedOverride = subLLM.ModelOverride;
         subLLM.ModelOverride = subLLM.SmallModel;
 

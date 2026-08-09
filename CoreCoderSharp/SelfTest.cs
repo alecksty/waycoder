@@ -80,7 +80,7 @@ public static class SelfTest
 
         // ---- 工具注册 ----
         Section("[工具注册]");
-        Check("工具数量 == 29", ToolRegistry.BuiltinTools.Count == 29);
+        Check("工具数量 == 30", ToolRegistry.BuiltinTools.Count == 30);
         Check("所有工具有有效 schema", ToolRegistry.AllTools.All(t =>
         {
             var s = t.Schema();
@@ -735,30 +735,36 @@ public static class SelfTest
         Section("[Checkpoint]");
         CheckpointManager.Clear();
         Check("初始检查点列表为空", CheckpointManager.ListCheckpoints().Contains("暂无检查点"));
-        var cp2 = CheckpointManager.CreateAsync("自测检查点").Result;
-        Check("创建检查点成功", cp2 != null);
-        Check("检查点 ID > 0", cp2!.Id > 0);
-        Check("检查点描述正确", cp2!.Description == "自测检查点");
-        Check("列表包含检查点", CheckpointManager.ListCheckpoints().Contains($"#{cp2.Id}"));
 
-        // 验证 undo 能恢复文件
-        var cpTestDir = Path.Combine(Path.GetTempPath(), "cp_test_" + Guid.NewGuid().ToString("N")[..6]);
-        Directory.CreateDirectory(cpTestDir);
-        var cpTestFile = Path.Combine(cpTestDir, "data.txt");
-        File.WriteAllText(cpTestFile, "原始内容");
-        Tools.EditFileTool.ChangedFiles.Add(cpTestFile);
-        var cp3 = CheckpointManager.CreateAsync("文件测试检查点").Result;
-        File.WriteAllText(cpTestFile, "修改后内容");
-        var undoResult = CheckpointManager.UndoAsync(cp3!.Id).Result;
-        Check("Undo 恢复文件内容", File.ReadAllText(cpTestFile) == "原始内容");
+        // 在临时非 git 目录中执行，避免 git stash 触碰真实仓库工作树
+        // （CheckpointManager 优先用 git stash push 创建快照，若在仓库内运行会把
+        //   所有未提交改动 stash 走且测试后不 pop，导致工作树被清空）
+        var cpWorkDir = Path.Combine(Path.GetTempPath(), "cp_work_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(cpWorkDir);
+        var cpSavedCwd = Environment.CurrentDirectory;
+        Environment.CurrentDirectory = cpWorkDir;
+        try
+        {
+            var cp2 = CheckpointManager.CreateAsync("自测检查点").Result;
+            Check("创建检查点成功", cp2 != null);
+            Check("检查点 ID > 0", cp2!.Id > 0);
+            Check("检查点描述正确", cp2!.Description == "自测检查点");
+            Check("列表包含检查点", CheckpointManager.ListCheckpoints().Contains($"#{cp2.Id}"));
 
-        CheckpointManager.Clear();
-        Check("清理后列表为空", CheckpointManager.ListCheckpoints().Contains("暂无检查点"));
-        try { Directory.Delete(cpTestDir, true); } catch { }
+            // 不测试 UndoAsync：FileBackup 恢复路径会把备份拷贝回工作树，
+            // 若备份路径/文件列表解析出错可能覆盖真实文件，风险大于收益（曾误伤工作树）
+            CheckpointManager.Clear();
+            Check("清理后列表为空", CheckpointManager.ListCheckpoints().Contains("暂无检查点"));
+        }
+        finally
+        {
+            Environment.CurrentDirectory = cpSavedCwd;
+            try { Directory.Delete(cpWorkDir, true); } catch { }
+        }
 
-        // 测试 GetCheckpointFiles 和 UndoAsync(filePath) API
+        // 测试 GetCheckpointFiles（只读，安全）；UndoAsync 不做测试——测试有风险：
+        // FileBackup 还原会向工作树写文件，一旦备份路径/文件列表解析出错即覆盖真实文件
         Check("GetCheckpointFiles 返回 List", CheckpointManager.GetCheckpointFiles() is List<string>);
-        Check("UndoAsync 接受 filePath 参数", true); // 编译期验证
 
         Console.WriteLine();
 
@@ -790,6 +796,65 @@ public static class SelfTest
         }
         // 重新加载项目命令
         CustomCommands.Load();
+
+        // ---- 技能系统 ----
+        Section("[技能系统]");
+        var skillBaseDir = Path.Combine(Path.GetTempPath(), "skill_test_" + Guid.NewGuid().ToString("N")[..6]);
+        var skillDir = Path.Combine(skillBaseDir, ".waycoder", "skills", "my-skill");
+        var claudeSkillDir = Path.Combine(skillBaseDir, ".claude", "skills", "claude-skill");
+        Directory.CreateDirectory(skillDir);
+        Directory.CreateDirectory(claudeSkillDir);
+        File.WriteAllText(Path.Combine(skillDir, "SKILL.md"),
+            "---\nname: my-skill\ndescription: 我的测试技能\n---\n# My Skill\n技能正文内容，仅按需加载。");
+        File.WriteAllText(Path.Combine(skillDir, "helper.py"), "print('helper')");
+        File.WriteAllText(Path.Combine(claudeSkillDir, "SKILL.md"), "# Claude Skill\n无 frontmatter 时回退目录名。");
+        var origSkillCwd = Environment.CurrentDirectory;
+        try
+        {
+            Environment.CurrentDirectory = skillBaseDir;
+            SkillsManager.Load();
+            Check("技能: 发现 2 个技能", SkillsManager.Skills.Count == 2);
+            Check("技能: 包含 my-skill", SkillsManager.Skills.ContainsKey("my-skill"));
+            Check("技能: 包含 claude-skill", SkillsManager.Skills.ContainsKey("claude-skill"));
+            Check("技能: my-skill 名称正确", SkillsManager.Skills["my-skill"].Name == "my-skill");
+            Check("技能: my-skill 描述正确", SkillsManager.Skills["my-skill"].Description == "我的测试技能");
+            Check("技能: my-skill body 正确", SkillsManager.Skills["my-skill"].Body.Contains("技能正文内容"));
+            Check("技能: my-skill 打包文件", SkillsManager.Skills["my-skill"].BundledFiles.Contains("helper.py"));
+            Check("技能: claude-skill 回退目录名", SkillsManager.Skills["claude-skill"].Name == "claude-skill");
+            Check("技能: claude-skill 描述为空", SkillsManager.Skills["claude-skill"].Description == "");
+
+            var skillSection = SkillsManager.GetSkillsSection();
+            Check("技能: GetSkillsSection 非空", skillSection.Length > 0);
+            Check("技能: section 包含 my-skill", skillSection.Contains("my-skill"));
+            Check("技能: section 包含 claude-skill", skillSection.Contains("claude-skill"));
+
+            var skillTool = new SkillTool();
+            Check("技能: SkillTool 名称", skillTool.Name == "skill");
+            Check("技能: SkillTool 描述非空", skillTool.Description.Length > 0);
+            var skillToolResult = skillTool.ExecuteAsync(new Dictionary<string, object?> { ["name"] = "my-skill" }).Result;
+            Check("技能: SkillTool 加载成功", skillToolResult.Contains("技能正文内容"));
+            Check("技能: SkillTool 含打包文件", skillToolResult.Contains("helper.py"));
+            var skillToolMissing = skillTool.ExecuteAsync(new Dictionary<string, object?> { ["name"] = "不存在" }).Result;
+            Check("技能: SkillTool 未知技能报错", skillToolMissing.Contains("未找到技能"));
+
+            var promptWithSkills = SystemPrompt.Generate(ToolRegistry.AllTools);
+            Check("技能: 系统提示词包含技能段", promptWithSkills.Contains("技能 (Skills)"));
+            Check("技能: 系统提示词包含 my-skill", promptWithSkills.Contains("my-skill"));
+            Check("技能: 系统提示词不加载 body", !promptWithSkills.Contains("技能正文内容"));
+
+            // 空目录不加载为技能
+            var emptySkillDir = Path.Combine(skillBaseDir, ".waycoder", "skills", "empty-skill");
+            Directory.CreateDirectory(emptySkillDir);
+            SkillsManager.Load();
+            Check("技能: 空目录不加载为技能", !SkillsManager.Skills.ContainsKey("empty-skill"));
+        }
+        finally
+        {
+            Environment.CurrentDirectory = origSkillCwd;
+            try { Directory.Delete(skillBaseDir, true); } catch { }
+        }
+        // 重新加载项目技能
+        SkillsManager.Load();
 
         Console.WriteLine();
 

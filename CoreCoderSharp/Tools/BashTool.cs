@@ -67,7 +67,9 @@ public class BashTool : ITool
         if (warning != null)
             return $"⚠ 已阻止：{warning}\n命令：{command}\n如有意执行，请修改命令使其更具体。";
 
-        var cwd = CurrentCwd.Value ?? Directory.GetCurrentDirectory();
+        // Worktree 隔离：检测 worktree 路径，自动切换 cwd
+        var worktreePath = WorktreeIsolation.CurrentWorktree;
+        var cwd = worktreePath ?? CurrentCwd.Value ?? Directory.GetCurrentDirectory();
 
         // 沙箱检查（full-auto 模式）
         if (SandboxManager.IsSandboxed)
