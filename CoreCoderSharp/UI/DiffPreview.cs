@@ -67,7 +67,7 @@ public static class DiffPreview
         while (true)
         {
             bool isHunkAccepted = accepted.Contains(currentHunk);
-            var (tw, th) = (Console.WindowWidth, Console.WindowHeight);
+            var (tw, th) = (TTY.Cols, TTY.Rows);
             var statusH = 2;
             var contentH = Math.Max(5, th - statusH);
 

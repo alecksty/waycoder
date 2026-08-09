@@ -1,3 +1,5 @@
+using CoreCoderSharp.Terminal;
+
 namespace CoreCoderSharp.UI;
 
 /// <summary>
@@ -173,7 +175,7 @@ public static class SettingsPage
 
     private static void Render()
     {
-        var (tw, th) = (Console.WindowWidth, Console.WindowHeight);
+        var (tw, th) = (TTY.Cols, TTY.Rows);
         var sb = new System.Text.StringBuilder();
         sb.Append("[?25l[2J[H");
 

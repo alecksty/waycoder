@@ -1,4 +1,5 @@
 using System.Text;
+using CoreCoderSharp.Terminal;
 using CoreCoderSharp.Tools;
 using CoreCoderSharp.UI;
 
@@ -108,7 +109,7 @@ public class Editor
 
     private async Task RunLoopAsync()
     {
-        (_tw, _th) = (Console.WindowWidth, Console.WindowHeight);
+        (_tw, _th) = (TTY.Cols, TTY.Rows);
         Console.CursorVisible = false;
         Console.TreatControlCAsInput = true;
 
@@ -123,9 +124,9 @@ public class Editor
                 if (!Console.KeyAvailable)
                 {
                     await Task.Delay(30);
-                    if (Console.WindowWidth != _tw || Console.WindowHeight != _th)
+                    if (TTY.Cols != _tw || TTY.Rows != _th)
                     {
-                        (_tw, _th) = (Console.WindowWidth, Console.WindowHeight);
+                        (_tw, _th) = (TTY.Cols, TTY.Rows);
                         Render();
                     }
                     continue;
@@ -388,7 +389,7 @@ public class Editor
 
     private void Render()
     {
-        (_tw, _th) = (Console.WindowWidth, Console.WindowHeight);
+        (_tw, _th) = (TTY.Cols, TTY.Rows);
         var vh = _th - 5; // 编辑区可视行数
 
         // 调整滚动

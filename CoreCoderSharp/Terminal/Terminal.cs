@@ -75,11 +75,25 @@ public static class TTY
     // 尺寸
     // ================================================================
 
-    /// <summary>终端宽度（列数）</summary>
-    public static int Cols => Console.WindowWidth;
+    /// <summary>终端宽度（列数），无控制台时返回 80 安全默认值</summary>
+    public static int Cols
+    {
+        get
+        {
+            try { return Console.WindowWidth; }
+            catch (IOException) { return 80; }
+        }
+    }
 
-    /// <summary>终端高度（行数）</summary>
-    public static int Rows => Console.WindowHeight;
+    /// <summary>终端高度（行数），无控制台时返回 24 安全默认值</summary>
+    public static int Rows
+    {
+        get
+        {
+            try { return Console.WindowHeight; }
+            catch (IOException) { return 24; }
+        }
+    }
 
     /// <summary>检测尺寸变化，变化时更新 lastW/lastH 并返回 true</summary>
     public static bool SizeChanged(ref int lastW, ref int lastH)

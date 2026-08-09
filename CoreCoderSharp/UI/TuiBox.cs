@@ -27,7 +27,7 @@ public static class TuiBox
         var maxVw = lines.Max(l => TuiHelper.DisplayWidth(l));
         var titleVw = string.IsNullOrEmpty(title) ? 0 : TuiHelper.DisplayWidth(title) + 2;
         var w = Math.Max(Math.Max(20, maxVw + 4), titleVw + 4);
-        w = Math.Min(w, Console.WindowWidth - 4);
+        w = Math.Min(w, TTY.Cols - 4);
 
         var sb = new System.Text.StringBuilder();
         var border = AnsiText.BorderOpen(borderFg);
