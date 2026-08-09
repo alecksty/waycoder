@@ -5,17 +5,20 @@ using CoreCoderSharp.UI.Controls;
 namespace CoreCoderSharp.UI;
 
 /// <summary>
-/// 编辑器屏幕 —— 终端内源码编辑器，使用新 TUI 架构。
+/// 编辑器屏幕 —— 终端内源码编辑器，与 ChatScreen 平级。
 ///
 /// 布局：
 ///   RootView (VBox)
 ///   ├─ TitleBar      TuiLabel      " /edit: filename.cs [已修改] "
-///   ├─ EditorView    TuiRichEditor  编辑区域
+///   ├─ EditorView    TuiRichEditor  编辑区域（TH-4 行）
 ///   ├─ StatusBar1    TuiLabel      " L1:C10 | 行:42 字符:2048 | C# · UTF-8"
 ///   └─ StatusBar2    TuiLabel      " ^S保存 ^Z撤销 ^G跳行 Esc退出"
 ///
-/// 键盘：编辑键 → TuiRichEditor → EditorCore
-///       全局键 → Ctrl+S(保存) Ctrl+G(跳行) Escape(退出)
+/// 生命周期：
+///   Activate() → 有路径: LoadAndBuild / 无路径: ShowFilePicker（不阻塞）
+///   HandleKey → 模态窗口优先 → 路由 EditorView → 未处理回退基类
+///   OnResize  → 重建布局 + 重新绑定事件
+///   Deactivate → 基础清理
 /// </summary>
 public class EditorScreen : TuiScreen
 {
@@ -26,10 +29,10 @@ public class EditorScreen : TuiScreen
     public TuiLabel StatusBar1 { get; private set; } = null!;
     public TuiLabel StatusBar2 { get; private set; } = null!;
 
-    /// <summary>要编辑的文件路径（空 = 提示输入）</summary>
+    /// <summary>要编辑的文件路径（空 = 弹出文件选择器）</summary>
     public string FilePath { get; set; }
 
-    /// <summary>退出后是否已保存（供调用方检查）</summary>
+    /// <summary>退出前是否已保存</summary>
     public bool WasSaved { get; private set; }
 
     public EditorScreen(string filePath = "")
@@ -38,24 +41,46 @@ public class EditorScreen : TuiScreen
         FilePath = filePath;
     }
 
-    // ── 生命周期 ──
+    // ════════════════════════════════════════════════════════════════
+    // 生命周期
+    // ════════════════════════════════════════════════════════════════
 
     public override void Activate()
     {
         base.Activate();
 
         if (string.IsNullOrWhiteSpace(FilePath))
-        {
-            ShowFilePicker();
-            // 不阻塞 — 对话框回调会触发 LoadAndBuild 或 PopScreen
-        }
+            ShowFilePicker();   // 纯回调驱动，不阻塞
         else
-        {
             LoadAndBuild(FilePath);
-        }
     }
 
-    /// <summary>加载文件并构建编辑器布局</summary>
+    public override void OnResize(int newW, int newH)
+    {
+        base.OnResize(newW, newH);
+
+        // 如果还没加载完（文件选择器打开中），跳过
+        if (EditorView == null) return;
+
+        // 重建布局以适应新尺寸
+        TitleBar.Width = TW;
+        EditorView.Width = TW;
+        EditorView.Height = Math.Max(5, TH - 4);
+        StatusBar1.Width = TW;
+        StatusBar2.Width = TW;
+        RootView.Layout();
+        MarkDirty();
+    }
+
+    public override void Deactivate()
+    {
+        base.Deactivate();
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // 文件加载 + 布局构建
+    // ════════════════════════════════════════════════════════════════
+
     private void LoadAndBuild(string path)
     {
         Core = new EditorCore();
@@ -86,11 +111,11 @@ public class EditorScreen : TuiScreen
         EditorView.OnExitRequested += HandleExit;
         RootView.Add(EditorView);
 
-        // ── 状态栏 1（文件信息 + 诊断） ──
+        // ── 状态栏 1 — 光标 + 统计 + 诊断 ──
         StatusBar1 = new TuiLabel("") { Width = TW, Height = 1, Bg = 7 };
         RootView.Add(StatusBar1);
 
-        // ── 状态栏 2（文件路径 + 快捷键提示） ──
+        // ── 状态栏 2 — 文件路径 + 快捷键 ──
         StatusBar2 = new TuiLabel("") { Width = TW, Height = 1 };
         RootView.Add(StatusBar2);
 
@@ -98,17 +123,28 @@ public class EditorScreen : TuiScreen
         MarkDirty();
     }
 
-    // ── 渲染前更新动态文本 ──
+    // ════════════════════════════════════════════════════════════════
+    // 渲染
+    // ════════════════════════════════════════════════════════════════
 
-    private void UpdateDynamicText()
+    public override void Render(StringBuilder sb)
     {
-        // 标题栏
+        if (EditorView == null) { base.Render(sb); return; }
+
+        UpdateStatusBars();
+        // 确保编辑区尺寸跟随终端
+        EditorView.Height = Math.Max(5, TH - 4);
+        EditorView.Width = TW;
+        base.Render(sb);
+    }
+
+    private void UpdateStatusBars()
+    {
         var fileName = Path.GetFileName(Core.FilePath);
         var title = $" /edit: {fileName} ";
         if (Core.Modified) title += "[已修改] ";
         TitleBar.Text = title;
 
-        // 状态栏 1: 光标位置 + 统计 + 诊断摘要
         var (errors, warnings) = Core.GetDiagSummary();
         var diagPart = "";
         if (errors > 0) diagPart = $" | \x1b[31m● {errors} errors";
@@ -119,46 +155,40 @@ public class EditorScreen : TuiScreen
                           $"{EditorCore.FormatSize(Core.FileSizeBytes)} | " +
                           $"{Core.Syntax.Name} · UTF-8{diagPart}";
 
-        // 状态栏 2: 路径 + 快捷键
         var pathDisplay = Core.FilePath;
         if (pathDisplay.Length > 60) pathDisplay = "..." + pathDisplay[^57..];
         StatusBar2.Text = $" {pathDisplay}  " +
                           "^S保存 ^Z撤销 ^G跳行 ^X剪切 ^C复制 ^V粘贴 Esc退出";
     }
 
-    public override void Render(StringBuilder sb)
-    {
-        UpdateDynamicText();
-        AdjustScrollForEditor();
-        base.Render(sb);
-    }
-
-    private void AdjustScrollForEditor()
-    {
-        EditorView.Height = Math.Max(5, TH - 4);
-        EditorView.Width = TW;
-    }
-
-    // ── 全局键盘处理 ──
+    // ════════════════════════════════════════════════════════════════
+    // 键盘路由
+    // ════════════════════════════════════════════════════════════════
 
     public override bool HandleKey(ConsoleKeyInfo key)
     {
-        // 有模态窗口时，让基类处理
+        // 模态窗口优先
         if (HasModal)
             return base.HandleKey(key);
 
-        // 路由给 EditorView
-        return EditorView.HandleKey(key);
+        // 未加载完成（文件选择器打开中）
+        if (EditorView == null)
+            return base.HandleKey(key);
+
+        // 路由 EditorView → 未处理回退基类
+        return EditorView.HandleKey(key) || base.HandleKey(key);
     }
 
-    // ── 事件处理 ──
+    // ════════════════════════════════════════════════════════════════
+    // 事件处理
+    // ════════════════════════════════════════════════════════════════
 
     private void HandleSave()
     {
         try
         {
             Core.Save();
-            _ = Core.SaveAsync(); // 异步触发 lint
+            _ = Core.SaveAsync();   // 异步触发 lint
             WasSaved = true;
             ShowToast("已保存", 1200);
         }
@@ -176,51 +206,48 @@ public class EditorScreen : TuiScreen
             input =>
             {
                 if (int.TryParse(input, out var ln) && ln >= 1 && ln <= Core.TotalLines)
-                {
                     if (Core.JumpToLine(ln))
                         MarkDirty();
-                }
             });
         ShowWindow(win);
     }
 
     private void HandleExit()
     {
-        if (Core.Modified)
-        {
-            var win = TuiDialog.Confirm3("文件已修改",
-                "是否保存更改？",
-                result =>
-                {
-                    switch (result)
-                    {
-                        case TuiDialog.DialogResult.Yes:
-                            try { Core.Save(); WasSaved = true; }
-                            catch (Exception ex)
-                            {
-                                ShowWindow(TuiDialog.Error("保存失败", ex.Message));
-                                return;
-                            }
-                            Manager?.PopScreen();
-                            break;
-                        case TuiDialog.DialogResult.No:
-                            Manager?.PopScreen();
-                            break;
-                        case TuiDialog.DialogResult.Cancel:
-                            break; // 继续编辑
-                    }
-                });
-            ShowWindow(win);
-        }
-        else
+        if (!Core.Modified)
         {
             Manager?.PopScreen();
+            return;
         }
+
+        var win = TuiDialog.Confirm3("文件已修改",
+            "是否保存更改？",
+            result =>
+            {
+                switch (result)
+                {
+                    case TuiDialog.DialogResult.Yes:
+                        try { Core.Save(); WasSaved = true; }
+                        catch (Exception ex)
+                        {
+                            ShowWindow(TuiDialog.Error("保存失败", ex.Message));
+                            return;
+                        }
+                        Manager?.PopScreen();
+                        break;
+                    case TuiDialog.DialogResult.No:
+                        Manager?.PopScreen();
+                        break;
+                    // Cancel → 继续编辑
+                }
+            });
+        ShowWindow(win);
     }
 
-    // ── 文件选择（纯回调驱动，不阻塞 Activate） ──
+    // ════════════════════════════════════════════════════════════════
+    // 文件选择器（纯回调驱动）
+    // ════════════════════════════════════════════════════════════════
 
-    /// <summary>显示文件选择对话框，选好后加载文件构建布局</summary>
     private void ShowFilePicker()
     {
         var recent = EditFileTool.ChangedFiles.Take(9).ToList();
@@ -234,11 +261,10 @@ public class EditorScreen : TuiScreen
         var selectWin = TuiDialog.Select("选择要编辑的文件", choices, idx =>
         {
             if (choices[idx].StartsWith("──"))
-                return; // 分隔线，不处理
+                return;
 
             if (idx == 0)
             {
-                // "输入文件路径..." → 弹出输入框
                 var inputWin = TuiDialog.Input("文件路径",
                     "输入要编辑的文件路径（相对或绝对路径）", "",
                     path =>
@@ -253,23 +279,15 @@ public class EditorScreen : TuiScreen
             }
             else
             {
-                // 最近文件
                 var file = recent[idx - (recent.Count > 0 ? 2 : 1)];
                 LoadAndBuild(file);
             }
         });
 
-        // 用户 Esc 关闭选择对话框 → 返回聊天界面
         selectWin.OnClosed = () =>
         {
-            if (Core == null)   // 没选文件
-                Manager?.PopScreen();
+            if (Core == null) Manager?.PopScreen();
         };
         ShowWindow(selectWin);
-    }
-
-    public override void Deactivate()
-    {
-        base.Deactivate();
     }
 }
