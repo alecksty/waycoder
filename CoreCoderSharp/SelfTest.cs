@@ -462,6 +462,49 @@ public static class SelfTest
 
         Console.WriteLine();
 
+        // ---- Agent 工作区（F1-F10 槽位） ----
+        Section("[Agent 工作区]");
+
+        var slots = new AgentSlot[AgentSlot.Count];
+        for (int i = 0; i < AgentSlot.Count; i++) slots[i] = new AgentSlot();
+        Check("工作区包含 10 个槽位", slots.Length == 10 && slots.All(s => s != null));
+
+        slots[3].InputLines[0].Append("槽位4草稿");
+        Check("槽位输入相互独立", slots[3].InputLines[0].ToString() == "槽位4草稿" && slots[0].InputLines[0].Length == 0);
+
+        slots[1].ChatMessages.Add(new ScreenManager.ChatMsg { Role = "user", Content = "hello" });
+        slots[1].ChatMessages.Add(new ScreenManager.ChatMsg { Role = "agent", Content = "hi" });
+        Check("槽位消息相互独立", slots[1].ChatMessages.Count == 2 && slots[0].ChatMessages.Count == 0);
+
+        // SaveFrom → RestoreTo 往返
+        var slotSm = new ScreenManager();
+        slotSm.ChatMessages.Add(new ScreenManager.ChatMsg { Role = "system", Content = "welcome" });
+        slotSm.InputLines[0].Append("多行输入测试");
+        slotSm.StatusLeft = "deepseek-v4-flash";
+        slotSm.RecentFiles.Add("/tmp/a.cs");
+        slots[5].SaveFrom(slotSm);
+
+        slotSm.ChatMessages.Clear();
+        slotSm.InputLines[0].Clear();
+        slotSm.StatusLeft = "gpt-5.5";
+        slotSm.RecentFiles.Clear();
+
+        slots[5].RestoreTo(slotSm);
+        Check("往返恢复消息", slotSm.ChatMessages.Count == 1 && slotSm.ChatMessages[0].Content == "welcome");
+        Check("往返恢复输入", slotSm.GetInputText() == "多行输入测试");
+        Check("往返恢复状态栏", slotSm.StatusLeft == "deepseek-v4-flash");
+        Check("往返恢复最近文件", slotSm.RecentFiles.Count == 1 && slotSm.RecentFiles[0] == "/tmp/a.cs");
+
+        // 槽位状态栏：默认全 Idle、当前槽位索引 0
+        Check("槽位状态默认全空闲", slotSm.SlotStates.Length == 10 && slotSm.SlotStates.All(s => s == ScreenManager.SlotState.Idle));
+        Check("当前槽位默认 0", slotSm.ActiveSlotIndex == 0);
+        slotSm.SlotStates[3] = ScreenManager.SlotState.Working;
+        slotSm.SlotStates[7] = ScreenManager.SlotState.Error;
+        slotSm.ActiveSlotIndex = 3;
+        Check("槽位状态赋值", slotSm.SlotStates[3] == ScreenManager.SlotState.Working && slotSm.SlotStates[7] == ScreenManager.SlotState.Error);
+
+        Console.WriteLine();
+
         // ---- 代码审查 ----
         Section("[代码审查]");
         // 没有修改文件时

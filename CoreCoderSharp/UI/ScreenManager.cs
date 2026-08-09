@@ -70,6 +70,12 @@ public class ScreenManager
 
     // ---- 状态 ----
     public string StatusLeft = "";
+    /// <summary>槽位状态（用于状态栏指示条）</summary>
+    public enum SlotState : byte { Idle = 0, Working = 1, WaitingPerm = 2, Error = 3 }
+    /// <summary>10 个槽位的状态（索引 9 显示为 0，Program 维护）</summary>
+    public SlotState[] SlotStates = new SlotState[10];
+    /// <summary>当前活跃槽位索引（状态栏高亮用，Program 维护）</summary>
+    public int ActiveSlotIndex;
     /// <summary>上一帧无浮层的渲染输出（窗口关闭时还原背景）</summary>
     public string LastCleanFrame => _lastCleanFrame;
 
@@ -851,6 +857,21 @@ public class ScreenManager
         if (VW(fullStatus) > TW) fullStatus = TruncateByVW(fullStatus, TW - 1) + "…";
         var rb2 = new Terminal.RenderBuffer();
         rb2.MoveTo(statusRow, 0);
+        for (int i = 0; i < SlotStates.Length; i++)
+        {
+            char c = i == 9 ? '0' : (char)('1' + i);
+            int fg = SlotStates[i] switch
+            {
+                SlotState.Working => 2,      // 绿
+                SlotState.WaitingPerm => 3,  // 黄
+                SlotState.Error => 1,        // 红
+                _ => 243,                    // 灰
+            };
+            if (i == ActiveSlotIndex) rb2.Segment($"{c}", fg, 47); // 当前屏幕：白底
+            else rb2.Segment($"{c}", fg);
+            rb2.Segment(" ");
+        }
+        rb2.Segment("│ ", fg: 243);
         rb2.Segment(fullStatus, fg: 37, bg: 100);
         rb2.ClearToEndOfLine();
         sb.Append(rb2.ToString());

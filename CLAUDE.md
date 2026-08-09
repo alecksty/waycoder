@@ -12,7 +12,7 @@ WayCoder（道码）是一个中文版易用编程智能体，C# (.NET 10) 实�
 # C# 版
 cd CoreCoderSharp
 dotnet publish -c Release            # AOT 编译
-dotnet run -- --test                 # 694 自测
+dotnet run -- --test                 # 704 自测
 dotnet run -- -p "提示词"            # 一次性模式
 dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 ```
@@ -23,6 +23,7 @@ dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 CoreCoderSharp/
 ├── Program.cs         入口 + CLI + REPL (ANSI 全屏 TUI)
 ├── Agent.cs           主循环
+├── AgentSlot.cs       多 Agent 工作区 (F1-F10 槽位切换)
 ├── LLM.cs             LLM 客户端 (流式 + 回退)
 ├── ContextManager.cs  三层上下文压缩
 ├── SessionManager.cs  会话持久化
@@ -37,7 +38,7 @@ CoreCoderSharp/
 ├── StructuredMemory.cs 结构化记忆 (frontmatter 多文件 + MEMORY.md 索引)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        694 项自测
+├── SelfTest.cs        704 项自测
 ├── FileLockManager.cs 文件锁 (防并发修改冲突)
 ├── UI/                 终端 TUI 控件库 (19 文件)
 │   ├── ScreenManager.cs 全屏缓冲 + 弹窗菜单 + 侧栏
@@ -83,6 +84,7 @@ CoreCoderSharp/
 - **edit_file 使用唯一子串匹配**，不用行号，安全可审查
 - **上下文压缩三层让步**：50% 裁剪 → 70% LLM 摘要 → 90% 硬折叠
 - **子智能体通过不给 agent 工具来约束**，不靠规则
+- **多 Agent 工作区**：F1-F10 切换 10 个独立会话槽位，各占各的屏幕；状态栏 10 数字指示条（白底=当前屏，灰=空闲 绿=工作 黄=等权限 红=出错）；Agent 运行时禁止切换；AgentTool.ParentAgent 切槽位时重绑
 - **AOT 编译：JSON 手写序列化**，`JsonHelper.SerializeArgs` 替代 `JsonSerializer`
 - **权限系统**：bash/write/edit/agent 默认行内确认（三行黄底渲染），`/perm yolo` 跳过
 - **双模型架构**：大模型做复杂任务，小模型做压缩/摘要，自动分工省钱

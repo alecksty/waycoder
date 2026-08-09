@@ -46,7 +46,7 @@ dotnet run -- -p "修复一个 bug"
 # Watch 模式 (监听 AI! 注释自动触发 Agent)
 dotnet run -- --watch
 
-# 运行自测（694 项）
+# 运行自测（704 项）
 dotnet run -- --test
 ```
 
@@ -66,6 +66,7 @@ dotnet run -- --test
 CoreCoderSharp/
 ├── Program.cs         入口 + CLI + REPL (彩色 TUI)
 ├── Agent.cs           主循环
+├── AgentSlot.cs       多 Agent 工作区 (F1-F10 槽位切换)
 ├── LLM.cs             LLM 客户端 (流式 + 回退)
 ├── ContextManager.cs  三层上下文压缩
 ├── SessionManager.cs  会话持久化
@@ -152,11 +153,26 @@ CoreCoderSharp/
 quit / exit      退出
 ```
 
+## 多 Agent 工作区
+
+**F1-F10** 一键切换 10 个独立 Agent 槽位，各占各的屏幕（聊天历史、输入草稿、状态栏各自独立），互不干扰。状态栏左侧 10 个数字实时显示各槽位状态：
+
+| 显示 | 含义 |
+|---|---|
+| 底色白 | 当前显示的屏幕 |
+| 灰色 | 空闲 |
+| 绿色 | 工作中 |
+| 黄色 | 等待权限确认 |
+| 红色 | 出错 |
+
+> 热键迁移：帮助 `Ctrl+H`、面板 `Ctrl+B`、设置 `Ctrl+O`、退出 `Ctrl+Q`
+
 ## 关键设计决策
 
 - **edit_file 使用唯一子串匹配**，不用行号，安全可审查
 - **上下文压缩三层让步**：50% 裁剪 → 70% LLM 摘要 → 90% 硬折叠
 - **子智能体并行**：tasks 数组最多 4 并发，聚合返回；通过不给 agent 工具约束递归
+- **多 Agent 工作区**：F1-F10 切换 10 个独立会话槽位，各占各的屏幕，状态栏实时显示工作状态
 - **技能系统**：标准 SKILL.md 格式（`skills/<name>/SKILL.md`），系统提示词只给名称+描述，`skill` 工具按需加载完整内容
 - **Git 自动提交质量校验**：conventional-commit 前缀强制 + 不合格重试一次 + 兜底默认信息
 - **Worktree 隔离**：bash 自动检测 worktree 路径并切换 cwd
