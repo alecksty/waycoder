@@ -1,0 +1,119 @@
+using System.Text;
+
+namespace WayCoder.Tools;
+
+/// <summary>
+/// 目录树工具 —— 纯 C# 实现，生成 ASCII 目录结构。
+/// 类似 Unix tree 命令的简化版。
+/// </summary>
+public class TreeTool : ITool
+{
+    public string Name => "tree";
+    public string Description => "以树状图显示目录结构。可限制深度和最大条目数。纯 C# 实现。";
+
+    public JsonObject Parameters => new()
+    {
+        ["type"] = "object",
+        ["properties"] = new JsonObject
+        {
+            ["path"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "起始目录路径（默认当前目录）",
+            },
+            ["depth"] = new JsonObject
+            {
+                ["type"] = "integer",
+                ["description"] = "最大深度（默认 3）",
+            },
+            ["max"] = new JsonObject
+            {
+                ["type"] = "integer",
+                ["description"] = "最大显示条目数（默认 100）",
+            },
+        },
+        ["required"] = new JsonArray(),
+    };
+
+    public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+    {
+        var path = arguments.GetValueOrDefault("path")?.ToString();
+        var depth = arguments.TryGetValue("depth", out var d) && d is int di ? di : 3;
+        var max = arguments.TryGetValue("max", out var m) && m is int mi ? mi : 100;
+
+        return Task.FromResult(Execute(path, depth, max));
+    }
+
+    private static string Execute(string? path, int maxDepth, int max)
+    {
+        try
+        {
+            path ??= BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory();
+            path = Path.GetFullPath(path);
+            if (!Directory.Exists(path))
+                return $"错误：目录不存在 — {path}";
+
+            var sb = new StringBuilder();
+            sb.AppendLine(path);
+            var remaining = max;
+            BuildTree(sb, path, "", maxDepth, ref remaining);
+            if (remaining <= 0)
+                sb.AppendLine("... (已达显示上限)");
+
+            var result = sb.ToString();
+            if (result.Length > 8000)
+                result = result[..6000] + "\n... (已截断) ...\n" + result[^1000..];
+            return result.TrimEnd();
+        }
+        catch (Exception ex)
+        {
+            return $"tree 错误：{ex.GetType().Name}: {ex.Message}";
+        }
+    }
+
+    private static void BuildTree(StringBuilder sb, string dir, string prefix,
+        int maxDepth, ref int remaining)
+    {
+        if (maxDepth <= 0 || remaining <= 0) return;
+
+        try
+        {
+            var entries = new List<string>();
+            entries.AddRange(Directory.GetDirectories(dir));
+            entries.AddRange(Directory.GetFiles(dir));
+            entries.Sort(StringComparer.OrdinalIgnoreCase);
+
+            for (int i = 0; i < entries.Count && remaining > 0; i++)
+            {
+                var isLast = i == entries.Count - 1;
+                var name = Path.GetFileName(entries[i]);
+                if (name.StartsWith('.')) continue;
+
+                var connector = isLast ? "└── " : "├── ";
+                var childPrefix = prefix + (isLast ? "    " : "│   ");
+
+                var isDir = Directory.Exists(entries[i]);
+                if (isDir)
+                {
+                    sb.AppendLine($"{prefix}{connector}📁 {name}/");
+                    remaining--;
+                    BuildTree(sb, entries[i], childPrefix, maxDepth - 1, ref remaining);
+                }
+                else
+                {
+                    var fi = new FileInfo(entries[i]);
+                    sb.AppendLine($"{prefix}{connector}{name}  ({FormatSize(fi.Length)})");
+                    remaining--;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        < 1024 => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
+        _ => $"{bytes / (1024.0 * 1024):F1} MB",
+    };
+}

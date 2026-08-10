@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "WayCoder": {
+      "commandName": "Project",
+      "commandLineArgs": "-tui-demo\r\n"
+    },
+    "配置文件 1": {
+      "commandName": "Executable"
+    }
+  }
+}

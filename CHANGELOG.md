@@ -1,5 +1,32 @@
 # 更新日志
 
+## v0.25.8 (2026-08-10) — 去 CoreCoder 品牌化
+
+### 🔄 品牌重命名
+为避免商标侵权，代码库中彻底移除 "CoreCoder" 品牌名称：
+
+- **命名空间重命名**: `CoreCoderSharp` → `WayCoder`（~177 个 .cs 文件 + 项目文件 + CI）
+  - `.csproj` `<RootNamespace>` / `<AssemblyName>` → `WayCoder` / `waycoder`
+  - `.sln` 项目名和路径同步更新
+  - CI workflows 路径更新
+- **配置目录迁移**: `.corecoder/` → `.waycoder/`（~16 个文件）
+  - 写操作一律用 `.waycoder/`，读操作先试新目录回退旧目录
+  - `Global.cs` 新增集中式辅助方法: `WriteConfigPath` / `ReadConfigPath` / `GlobalConfigPath` / `ConfigDirSearchOrder`
+  - 环境变量: 新增 `WAYCODER_*` 前缀，保留 `CORECODER_*` 兼容回退
+  - 涉及文件: StructuredMemory, SessionManager, CheckpointManager, CustomCommands, ThemeConfig, Config, Program, WatchMode, SharedMemoryManager, ProjectContext, HooksManager, McpCache, McpClient, ExportCommand, MemoryTool, SkillsManager, SelfTest
+- **注释与文档去 CoreCoder 化**:
+  - 代码注释: Agent.cs, ContextManager.cs, SessionManager.cs, CheckpointManager.cs
+  - 文档: CLAUDE.md, README.md, AGENTS.md, .gitignore
+  - 二进制名: `corecoder.exe` → `waycoder.exe`（输出文件）
+
+### ⚠️ 破坏性变更
+- 新配置写入 `.waycoder/`，首次启动自动创建新目录
+- 旧 `.corecoder/` 目录可安全保留或删除（读操作仍兼容）
+
+### 🧪 测试
+- 844 项自测全部通过，0 失败
+- 编译 0 错误（仅 23 个预存在 nullability/AOT 警告）
+
 ## v0.25.7 (2026-08-10) — TuiBase 统一基类 + Bug 修复
 
 ### 🏗️ 架构重构

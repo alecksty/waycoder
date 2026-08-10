@@ -16,10 +16,10 @@
 
 本项目原名 **CoreCoder**，因发现与现有商标/产品名称冲突，为规避侵权风险，自 v0.16.3 起更名为 **WayCoder（道码）**。
 
-- 代码命名空间暂保留 `CoreCoderSharp`（内部不影响用户）
+- 代码命名空间已重命名为 `WayCoder`
 - 可执行文件：`corecoder.exe` → `waycoder.exe`
 - 环境变量前缀：`CORECODER_*` → `WAYCODER_*`（旧名仍兼容）
-- 目录名：仓库内部目录暂不重命名，不影响安装使用
+- 目录名：仓库内部目录已同步重命名
 
 ## 这是什么
 
@@ -32,7 +32,7 @@ C# 版完整移植了 Python 原版的全部功能，并新增了权限确认、
 ```bash
 # 克隆仓库
 git clone https://github.com/he-yufeng/WayCoder
-cd WayCoder/CoreCoderSharp
+cd WayCoder
 
 # AOT 编译（生成单文件 waycoder.exe）
 dotnet publish -c Release
@@ -63,7 +63,7 @@ dotnet run -- --test
 ## 架构
 
 ```
-CoreCoderSharp/
+WayCoder/
 ├── Program.cs         入口 + CLI + REPL (彩色 TUI)
 ├── Agent.cs           主循环
 ├── AgentSlot.cs       多 Agent 工作区 (F1-F10 槽位切换)
