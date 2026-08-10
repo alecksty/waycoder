@@ -23,7 +23,7 @@ public static class GitRunner
         return psi;
     }
 
-    /// <summary>同步执行，返回完整的 (退出码, stdout, stderr)</summary>
+    /// <summary>同步执行（内部异步，供调用链已处于 Task.Run 的上下文使用）</summary>
     public static (int ExitCode, string Stdout, string Stderr) Run(string args, string? cwd = null)
     {
         try
@@ -31,7 +31,7 @@ public static class GitRunner
             using var proc = Process.Start(BuildStartInfo(args, cwd))!;
             var stdout = proc.StandardOutput.ReadToEnd();
             var stderr = proc.StandardError.ReadToEnd();
-            proc.WaitForExit(DefaultTimeoutMs);
+            proc.WaitForExitAsync().GetAwaiter().GetResult();
             return (proc.ExitCode, stdout, stderr);
         }
         catch (Exception ex)

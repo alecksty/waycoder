@@ -594,21 +594,57 @@ public class Program
         }
     }
 
-    /// <summary>在 onToken/onTool 回调中检查热键（Esc 取消 / Ctrl+Q 紧急退出）</summary>
-    private static void CheckHotkeyInCallback(CancellationTokenSource cts)
+    /// <summary>在 Agent 后台执行期间保持 TUI 渲染 + 响应热键（Esc 取消 / Ctrl+Q 紧急退出）</summary>
+    /// <returns>Agent 的 ChatAsync 任务，调用方需 await 以获取异常</returns>
+    private static async Task RunAgentWithRenderLoop(CancellationTokenSource cts)
     {
-        if (!Console.KeyAvailable) return;
-        var key = Console.ReadKey(intercept: true);
-        if (key.Key == ConsoleKey.Escape)
+        var agentTask = Task.Run(async () =>
         {
-            cts.Cancel();
-        }
-        else if (key.Key == ConsoleKey.Q && key.Modifiers.HasFlag(ConsoleModifiers.Control))
+            await _agent!.ChatAsync(_currentUserInput!,
+                onToken: tok =>
+                {
+                    screen_!.Running = false;
+                    screen_!.AppendToken(tok);
+                },
+                onTool: (name, brief) =>
+                {
+                    screen_!.FinishAgentMsg();
+                    screen_!.AddToolProgress(name, brief.Length > 60 ? brief[..57] + "..." : brief);
+                    screen_!.StartAgentMsg();
+                    // 每 3 次工具调用自动保存
+                    if (++_toolCallCount % 3 == 0)
+                        AutoSaveSession();
+                },
+                cancellationToken: cts.Token);
+        });
+
+        var mgr = TuiManager.Instance;
+        while (!agentTask.IsCompleted)
         {
-            cts.Cancel();
-            PanicExit("Agent 运行中 Ctrl+Q 紧急退出");
+            mgr.Render();
+            if (Console.KeyAvailable)
+            {
+                var key = Console.ReadKey(intercept: true);
+                if (key.Key == ConsoleKey.Escape)
+                    cts.Cancel();
+                else if (key.Key == ConsoleKey.Q && key.Modifiers.HasFlag(ConsoleModifiers.Control))
+                {
+                    cts.Cancel();
+                    PanicExit("Agent 运行中 Ctrl+Q 紧急退出");
+                }
+            }
+            else
+            {
+                await Task.Delay(30);
+            }
         }
+        await agentTask; // 传播异常
     }
+
+    // 当前正在处理的用户输入 + 屏幕引用（供 RunAgentWithRenderLoop 使用）
+    private static string? _currentUserInput;
+    private static ChatScreen? screen_;
+    private static int _toolCallCount;
 
     /// <summary>
     /// 切换 Agent 槽位（F1-F10）。保存当前槽位 UI 状态，懒创建目标槽位 Agent，
@@ -799,34 +835,11 @@ public class Program
                     screen.StartAgentMsg();
                     screen.Render();
 
-                    // 工具调用计数：每 3 次工具调用自动保存一次
-                    var toolCallCount = 0;
-                    await _agent!.ChatAsync(userInput,
-                        onToken: tok =>
-                        {
-                            screen.Running = false; // 首 token 到达，思考结束
-                            screen.AppendToken(tok);
-                            if (Tty.SizeChanged(ref _lastStreamW, ref _lastStreamH))
-                                TuiManager.Instance.OnResize();
-                            // 检查 Esc 取消 / Ctrl+Q 紧急退出
-                            CheckHotkeyInCallback(cts);
-                            screen.Render();
-                        },
-                        onTool: (name, brief) =>
-                        {
-                            screen.FinishAgentMsg();
-                            screen.AddToolProgress(name, brief.Length > 60 ? brief[..57] + "..." : brief);
-                            screen.StartAgentMsg();
-                            if (Tty.SizeChanged(ref _lastStreamW, ref _lastStreamH))
-                                TuiManager.Instance.OnResize();
-                            // 每 3 次工具调用自动保存（防止崩溃丢失进度）
-                            if (++toolCallCount % 3 == 0)
-                                AutoSaveSession();
-                            // 检查 Esc 取消 / Ctrl+Q 紧急退出
-                            CheckHotkeyInCallback(cts);
-                            screen.Render();
-                        },
-                        cancellationToken: cts.Token);
+                    // 后台执行 Agent（主线程保持渲染 + 响应热键）
+                    _currentUserInput = userInput;
+                    screen_ = screen;
+                    _toolCallCount = 0;
+                    await RunAgentWithRenderLoop(cts);
 
                     screen.Running = false;
                     screen.FinishAgentMsg();
@@ -1174,21 +1187,11 @@ public class Program
                 screen.StartAgentMsg();
                 screen.Render();
 
-                await _agent!.ChatAsync(prompt,
-                    onToken: tok =>
-                    {
-                        screen.Running = false;
-                        screen.AppendToken(tok);
-                        screen.Render();
-                    },
-                    onTool: (name, brief) =>
-                    {
-                        screen.FinishAgentMsg();
-                        screen.AddToolProgress(name, brief.Length > 60 ? brief[..57] + "..." : brief);
-                        screen.StartAgentMsg();
-                        screen.Render();
-                    },
-                    cancellationToken: cts.Token);
+                // 后台执行 Agent（主线程保持渲染 + 响应热键）
+                _currentUserInput = prompt;
+                screen_ = screen;
+                _toolCallCount = 0;
+                await RunAgentWithRenderLoop(cts);
 
                 screen.Running = false;
                 screen.FinishAgentMsg();
