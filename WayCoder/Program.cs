@@ -1097,7 +1097,7 @@ public class Program
 
     private static void ShowHelpInChat(ChatScreen screen)
     {
-        screen.AddSystemMsg("帮助: /help /reset /model /tokens /compact /diff /save /resume /history /export /sessions ... F1-F10切换Agent Ctrl+E编辑器 Ctrl+T设置 Ctrl+R搜索 Ctrl+M切模型 Ctrl+H帮助 Ctrl+B面板 Ctrl+Q紧急保存退出 Esc中断 ↑↓历史 · 如副屏卡死，终端执行 reset 恢复");
+        screen.AddSystemMsg("快捷键: F1-F10槽位 Shift+Tab切模式 Esc中断 Ctrl+E编辑器 Ctrl+T设置 Ctrl+R搜索 Ctrl+M模型 Ctrl+P提示 Ctrl+B侧栏 Ctrl+H帮助 Ctrl+Q退出 PgUp/PgDn翻页 Ctrl+Home/End首尾 ↑↓历史 Ctrl+V粘贴 Ctrl+Shift+F1/F2主题 · 命令: /help /model /tokens /compact /diff /save /resume /history /sessions");
     }
 
     /// <summary>搜索对话历史中的关键词。</summary>
