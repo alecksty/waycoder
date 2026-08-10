@@ -1,3 +1,5 @@
+using CoreCoderSharp.Terminal;
+
 namespace CoreCoderSharp.UI;
 
 /// <summary>
@@ -29,6 +31,46 @@ public class TuiTheme
     public int DialogWarnBorder { get; set; } = TuiColors.Yellow;        // 警告框边框
     public int DialogErrorBorder { get; set; } = TuiColors.Red;          // 错误框边框
     public int DialogConfirmBorder { get; set; } = TuiColors.Yellow;     // 确认框边框
+
+    // ── 渐变预设（TrueColor RGB 码）──
+    /// <summary>青→蓝渐变（信息框默认）</summary>
+    public (int start, int end) GradCyanBlue => (
+        AnsiTty.RgbCode(0, 230, 255),
+        AnsiTty.RgbCode(0, 100, 220));
+    /// <summary>绿→青渐变（成功框默认）</summary>
+    public (int start, int end) GradGreenCyan => (
+        AnsiTty.RgbCode(0, 255, 150),
+        AnsiTty.RgbCode(0, 180, 200));
+    /// <summary>橙→黄渐变（警告框默认）</summary>
+    public (int start, int end) GradOrangeYellow => (
+        AnsiTty.RgbCode(255, 180, 0),
+        AnsiTty.RgbCode(255, 255, 80));
+    /// <summary>红→橙渐变（错误框默认）</summary>
+    public (int start, int end) GradRedOrange => (
+        AnsiTty.RgbCode(255, 60, 60),
+        AnsiTty.RgbCode(255, 150, 0));
+    /// <summary>紫→粉渐变</summary>
+    public (int start, int end) GradPurplePink => (
+        AnsiTty.RgbCode(180, 80, 255),
+        AnsiTty.RgbCode(255, 100, 200));
+
+    // ── 按钮渐变预设（比边框亮 30%，层次区分）──
+    /// <summary>按钮青→蓝（比边框亮）</summary>
+    public (int start, int end) BtnCyanBlue => (
+        AnsiTty.LightenRgb(AnsiTty.RgbCode(0, 230, 255), 0.3f),
+        AnsiTty.LightenRgb(AnsiTty.RgbCode(0, 100, 220), 0.3f));
+    /// <summary>按钮绿→青（比边框亮）</summary>
+    public (int start, int end) BtnGreenCyan => (
+        AnsiTty.LightenRgb(AnsiTty.RgbCode(0, 255, 150), 0.3f),
+        AnsiTty.LightenRgb(AnsiTty.RgbCode(0, 180, 200), 0.3f));
+    /// <summary>按钮橙→黄（比边框亮）</summary>
+    public (int start, int end) BtnOrangeYellow => (
+        AnsiTty.LightenRgb(AnsiTty.RgbCode(255, 180, 0), 0.3f),
+        AnsiTty.LightenRgb(AnsiTty.RgbCode(255, 255, 80), 0.3f));
+    /// <summary>按钮红→橙（比边框亮）</summary>
+    public (int start, int end) BtnRedOrange => (
+        AnsiTty.LightenRgb(AnsiTty.RgbCode(255, 60, 60), 0.3f),
+        AnsiTty.LightenRgb(AnsiTty.RgbCode(255, 150, 0), 0.3f));
 
     // ── 控件通用 ──
     public int ControlFg { get; set; } = TuiColors.White;                // 默认前景（白）

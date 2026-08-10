@@ -2198,7 +2198,7 @@ another.txt:3:1: warning: deprecated API
         foreach (var s in bstyles)
         {
             var win = new TuiWindow { Border = s };
-            var (tl, tr, bl, br, h, v) = win.GetBorderChars();
+            var (tl, tr, bl, br, h, v, hTop, hBot) = win.GetBorderChars();
             Check($"GetBorderChars {s} 非空", tl.Length > 0 && tr.Length > 0 && h.Length > 0 && v.Length > 0);
         }
         var customWin = new TuiWindow { Border = WindowBorder.Ascii, CustomBorder = "+-+|||-" };

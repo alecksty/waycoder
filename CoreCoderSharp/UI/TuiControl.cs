@@ -222,11 +222,22 @@ public abstract class TuiControl
     // ── 输入 ──
 
     /// <summary>
-    /// 按键入口。检查 Enabled/CanFocus 后交给子类处理。
+    /// 按键钩子。返回 true 表示已消费按键（不再继续处理）。
+    /// 在 OnKey 最前面调用，优先级高于 Enabled/CanFocus/Focused 检查。
+    /// 典型用途：PromptBar 钩住 InputArea 拦截 ↑↓/Enter/Esc。
+    /// </summary>
+    public Func<ConsoleKeyInfo, bool>? KeyHook { get; set; }
+
+    /// <summary>
+    /// 按键入口。检查 Hook → Enabled/CanFocus → 交给子类处理。
     /// 容器子类（TuiView）覆写此方法以加入子节点路由。
     /// </summary>
     public virtual bool OnKey(ConsoleKeyInfo key)
     {
+        // Hook 优先拦截（不受 Enabled/CanFocus 限制）
+        if (KeyHook != null && KeyHook(key))
+            return true;
+
         if (!IsEnabled) return false;
         if (!CanFocus) return false;
         return false;

@@ -490,6 +490,10 @@ public class TuiTextArea : TuiControl
 
     public override bool OnKey(ConsoleKeyInfo key)
     {
+        // Hook 优先拦截（不受 Focused/ReadOnly 限制）
+        if (KeyHook != null && KeyHook(key))
+            return true;
+
         if (!IsEnabled || !Focused || ReadOnly) return false;
 
         bool shift = key.Modifiers.HasFlag(ConsoleModifiers.Shift);

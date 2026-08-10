@@ -24,6 +24,9 @@ public class TuiSidePanel : TuiControl
     /// <summary>左边框颜色</summary>
     public int BorderColor { get; set; } = TuiColors.BrightBlack;
 
+    /// <summary>边框样式（控制竖线/分隔线字符）</summary>
+    public WindowBorder BorderStyle { get; set; } = WindowBorder.Rounded;
+
     /// <summary>分区标题颜色</summary>
     public int SectionHeaderFg { get; set; } = TuiColors.Cyan;
 
@@ -45,6 +48,7 @@ public class TuiSidePanel : TuiControl
         int contentW = Width - BorderWidth;
         if (contentW <= 0) return;
 
+        var bc = TuiHelper.GetBorderChars(BorderStyle);
         int bg = Bg > 0 ? Bg : TuiTheme.Current.WindowBg;
         int fg = Fg > 0 ? Fg : TuiTheme.Current.ControlFg;
         int row = absY;
@@ -59,7 +63,7 @@ public class TuiSidePanel : TuiControl
             if (screenRow < ClipTop || screenRow >= ClipBottom) continue;
             if (borderCol < ClipLeft || borderCol >= ClipRight) continue;
             var rb = new RenderBuffer();
-            rb.Write(screenRow, borderCol, "│", fg: BorderColor, bg: bg);
+            rb.Write(screenRow, borderCol, bc.V, fg: BorderColor, bg: bg);
             sb.Append(rb.ToString());
         }
 
@@ -117,7 +121,7 @@ public class TuiSidePanel : TuiControl
                 {
                     var sepRb = new RenderBuffer();
                     int sepLen = Math.Min(contentW - 1, 20);
-                    sepRb.Write(curRow, contentX + 1, new string('─', sepLen), fg: SeparatorColor, bg: bg);
+                    sepRb.Write(curRow, contentX + 1, new string(bc.H[0], sepLen), fg: SeparatorColor, bg: bg);
                     sb.Append(sepRb.ToString());
                 }
                 curRow++;

@@ -129,6 +129,33 @@ public static class ControlRenderer
     }
 
     /// <summary>
+    /// 绘制带渐变背景的按钮行。单次定位，逐字变色，避免错位。
+    /// </summary>
+    public static void DrawButtonGradientLine(StringBuilder sb, TuiControl c,
+        int absX, int absY, string text, HAlign align,
+        int themeFg, int themeFocusFg, int themeDisabledFg,
+        int startBg, int endBg)
+    {
+        int fg = ResolveFg(c, themeFg, themeFocusFg, themeDisabledFg);
+        var display = FormatAligned(text, c.Width, align);
+        if (display.Length == 0) return;
+
+        // 单次定位，逐字换背景色，中间不重置不重定位
+        sb.Append(AnsiTty.CursorPos0(absY, absX));
+        for (int i = 0; i < display.Length; i++)
+        {
+            float t = display.Length > 1 ? (float)i / (display.Length - 1) : 0;
+            int bg = AnsiTty.LerpRgb(startBg, endBg, t);
+            sb.Append(AnsiTty.FgBgCode(fg, bg));
+            sb.Append(display[i]);
+        }
+        // 末尾重置
+        bool hasFg = fg > 0;
+        if (hasFg) sb.Append(AnsiTty.SgrResetFg);
+        sb.Append(AnsiTty.SgrResetBg);
+    }
+
+    /// <summary>
     /// 绘制纯展示标签行（无 focus 状态）。
     /// 用于 TuiLabel、TuiIcon、TuiSpinner 等。
     /// </summary>

@@ -70,6 +70,16 @@ public class TuiWindow
 
     public string CustomBorder { get; set; } = "";  // 6 字符自定义边框
 
+    // ── 渐变边框 ──
+    /// <summary>是否启用渐变色边框（仅为 TrueColor ≥0x1000000 时生效）</summary>
+    public bool GradientBorder { get; set; }
+
+    /// <summary>渐变起始色（TrueColor 码，默认亮青）</summary>
+    public int GradientStart { get; set; } = AnsiTty.RgbCode(0, 255, 255);
+
+    /// <summary>渐变终止色（TrueColor 码，默认亮蓝）</summary>
+    public int GradientEnd { get; set; } = AnsiTty.RgbCode(0, 128, 255);
+
     // ── 样式 ──
     /// <summary>窗口背景色（ANSI 色码，0=透明，默认 7=浅灰）</summary>
     public int WinBg { get; set; } = 47;
@@ -124,20 +134,11 @@ public class TuiWindow
     public Action? OnClosed { get; set; }
 
     // ── 边框字符解析 ──
-    public (string tl, string tr, string bl, string br, string h, string v) GetBorderChars() => Border switch
+    public (string tl, string tr, string bl, string br, string h, string v, string hTop, string hBot) GetBorderChars()
     {
-        WindowBorder.None     => (" ", " ", " ", " ", " ", " "),
-        WindowBorder.Double   => ("╔", "╗", "╚", "╝", "═", "║"),
-        WindowBorder.Thick    => ("┏", "┓", "┗", "┛", "━", "┃"),
-        WindowBorder.Single   => ("┌", "┐", "└", "┘", "─", "│"),
-        WindowBorder.Solid    => ("█", "█", "█", "█", "█", "█"),
-        WindowBorder.Dotted   => ("┌", "┐", "└", "┘", "┄", "┆"),
-        WindowBorder.Dashed   => ("┌", "┐", "└", "┘", "┅", "┇"),
-        WindowBorder.Ascii    => ("+", "+", "+", "+", "-", "|"),
-        WindowBorder.Slash    => ("/", "\\", "\\", "/", "-", "|"),
-        WindowBorder.Triangle => ("▶", "◀", "◀", "▶", "─", "│"),
-        _                     => ("╭", "╮", "╰", "╯", "─", "│"), // Rounded
-    };
+        var bc = TuiHelper.GetBorderChars(Border);
+        return (bc.TL, bc.TR, bc.BL, bc.BR, bc.H, bc.V, bc.HT, bc.HB);
+    }
 
     /// <summary>当前有效边框色（考虑焦点状态）</summary>
     public int EffectiveBorderColor => Focused ? BorderColor :
@@ -153,8 +154,8 @@ public class TuiWindow
         get
         {
             if (Border == WindowBorder.None) return Y;
-            // 有边框 + 标题栏 → 跳过标题行
-            return ShowTitle && !string.IsNullOrEmpty(Title) ? Y + 2 : Y + 1;
+            // 标题栏有分隔线时才独占一行；否则标题与上边框同行
+            return ShowTitle && !string.IsNullOrEmpty(Title) && ShowTitleSeparator ? Y + 2 : Y + 1;
         }
     }
     /// <summary>内容可绘制区域宽度（不含边框）</summary>
@@ -166,7 +167,8 @@ public class TuiWindow
         {
             if (Border == WindowBorder.None) return Height;
             var h = Height - 2; // 上下边框
-            if (ShowTitle && !string.IsNullOrEmpty(Title)) h -= 1; // 标题行
+            // 标题栏有分隔线时才扣除标题行高度
+            if (ShowTitle && !string.IsNullOrEmpty(Title) && ShowTitleSeparator) h -= 1;
             return Math.Max(0, h);
         }
     }
