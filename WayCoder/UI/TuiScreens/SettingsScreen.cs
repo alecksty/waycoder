@@ -34,7 +34,7 @@ public class SettingsScreen : TuiScreen
     private bool _focusOnDetail;
 
     // ── 控件引用 ──
-    private TuiLabel _header = null!;
+    private TuiTitleBar _header = null!;
     private TuiControls.TuiList _catList = null!;
     private TuiVBox _detailPanel = null!;
     private TuiLabel _hintBar = null!;
@@ -90,8 +90,7 @@ public class SettingsScreen : TuiScreen
         RootView = new TuiVBox { Width = TW, Height = TH };
 
         // ── 顶栏 ──
-        _header = new TuiLabel(" ⚙ 设置 / 配置")
-            { Width = TW, Height = 1, Bg = 44, Fg = 37 };
+        _header = new TuiTitleBar { Width = TW, Height = 1, Bg = 44, Fg = 37, CenterText = "⚙ 设置 / 配置" };
         RootView.Add(_header);
 
         // ── 主区域 ──

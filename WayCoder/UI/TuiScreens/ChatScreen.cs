@@ -280,7 +280,7 @@ public class ChatScreen : TuiScreen
         {
             Width = TW, Height = 1,
             Bg = TuiTheme.Current.StatusBarBg, Fg = TuiTheme.Current.StatusBarFg,
-            HintText = "Enter 发送 · Tab 补全 · ↑↓ 历史 · Ctrl+H 帮助 · Ctrl+Q 退出"
+            HintText = "Enter 发送 · Shift+Tab 切模式 · ↑↓ 历史 · Tab 补全 · F1-F10 槽位 · Ctrl+H 帮助"
         };
         RootView.Add(StatusBar);
 
@@ -812,6 +812,7 @@ public class ChatScreen : TuiScreen
         TitleBar.Title = StatusLeft;
         TitleBar.GitBranch = GitBranch;
         TitleBar.Version = Global.Version;
+        TitleBar.CenterText = $"💬 智能体 {ActiveSlotIndex + 1}";
 
         // ── 同步底部状态栏数据 ──
         StatusBar.Width = TW;
@@ -1042,12 +1043,9 @@ public class ChatScreen : TuiScreen
                         RefreshSidePanel();
                     return true;
                 case ConsoleKey.R:
-                    Manager?.Exit();
-                    var query = UxHelper.Ask("搜索对话历史");
-                    Manager?.Enter();
-                    Manager?.PushScreen(this);
-                    if (!string.IsNullOrWhiteSpace(query))
-                        OnSearchHistory?.Invoke("/history " + query);
+                    var searchQuery = UxHelper.Ask("搜索对话历史");
+                    if (!string.IsNullOrWhiteSpace(searchQuery))
+                        OnSearchHistory?.Invoke("/history " + searchQuery);
                     return true;
                 case ConsoleKey.M:
                     OnCycleModel?.Invoke();
