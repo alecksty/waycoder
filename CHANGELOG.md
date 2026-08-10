@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.25.1 (2026-08-10) — 代码质量修复
+
+### 🐛 Bug 修复
+- **Esc 转义方括号**: `TuiHelper.Esc` 中 `]` 被错误转义为 `[[]` 而非 `]]`，修复后 830/830 自测全过
+
+### 🔧 P1 改进
+- **SettingSchema 补全**: 新增 `DiffPreview` 和 `EmbeddingDimensions` 设置界面入口
+- **PlanMode 接入**: `/plan` 命令升级使用 `PlanMode.GetPlanSystemPrompt()`（含项目上下文 + 仓库地图 + 两阶段确认）
+- **MemoryStore 标记废弃**: 添加 `[Obsolete]` 属性，指向 `StructuredMemory`
+
 ## v0.25.0 (2026-08-10) — 语义记忆（P1 补全）
 
 ### 🔥 P1 语义记忆

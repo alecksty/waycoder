@@ -212,7 +212,7 @@ public static class TuiHelper
             }
             else if (text[i] == ']')
             {
-                sb.Append($"[{AnsiTty.AnsiCharEscape}]"); // 转义右括号
+                sb.Append("]]"); // 转义右括号
             }
             else
             {
