@@ -131,7 +131,7 @@ public class AgentTool : ITool
         }
         catch (Exception ex)
         {
-            return $"并行子智能体错误（深度 {depth + 1}）：{ex.Message}";
+            return $"并行子智能体错误（深度 {depth + 1}）：{ex.GetType().Name}: {ex.Message}";
         }
         finally
         {
@@ -178,7 +178,7 @@ public class AgentTool : ITool
         }
         catch (Exception ex)
         {
-            return $"子智能体错误（深度 {depth + 1}）：{ex.Message}";
+            return $"子智能体错误（深度 {depth + 1}）：{ex.GetType().Name}: {ex.Message}";
         }
         finally
         {

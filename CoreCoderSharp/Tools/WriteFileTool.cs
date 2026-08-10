@@ -76,7 +76,7 @@ public class WriteFileTool : ITool
         }
         catch (Exception ex)
         {
-            return $"错误：{ex.Message}";
+            return $"错误：{ex.GetType().Name}: {ex.Message}";
         }
         finally
         {

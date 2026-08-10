@@ -92,7 +92,7 @@ public static class McpManager
         }
         catch (Exception ex)
         {
-            DebugLog.Log("mcp", $"MCP 初始化失败: {ex.Message}");
+            DebugLog.Log("mcp", $"MCP 初始化失败: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -152,7 +152,7 @@ public static class McpManager
         }
         catch (Exception ex)
         {
-            DebugLog.Log("mcp", $"MCP {name} 连接失败: {ex.Message}");
+            DebugLog.Log("mcp", $"MCP {name} 连接失败: {ex.GetType().Name}: {ex.Message}");
             Info += $"\n  {name} ✗ 连接失败";
         }
     }
@@ -173,7 +173,7 @@ public static class McpManager
         }
         catch (Exception ex)
         {
-            DebugLog.Log("mcp", $"MCP {name} (HTTP) 连接失败: {ex.Message}");
+            DebugLog.Log("mcp", $"MCP {name} (HTTP) 连接失败: {ex.GetType().Name}: {ex.Message}");
             Info += $"\n  {name} ✗ 连接失败";
         }
     }
@@ -372,7 +372,7 @@ internal class StdioMcpTransport : McpTransport
         }
         catch (Exception ex)
         {
-            DebugLog.Log("mcp", $"stdio 请求 {method} 失败: {ex.Message}");
+            DebugLog.Log("mcp", $"stdio 请求 {method} 失败: {ex.GetType().Name}: {ex.Message}");
         }
 
         return null;
@@ -399,7 +399,7 @@ internal class StdioMcpTransport : McpTransport
         }
         catch (Exception ex)
         {
-            DebugLog.Log("mcp", $"stdio 通知 {method} 失败: {ex.Message}");
+            DebugLog.Log("mcp", $"stdio 通知 {method} 失败: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -517,7 +517,7 @@ internal class HttpMcpTransport : McpTransport
         }
         catch (Exception ex)
         {
-            DebugLog.Log("mcp", $"HTTP 请求 {method} 失败: {ex.Message}");
+            DebugLog.Log("mcp", $"HTTP 请求 {method} 失败: {ex.GetType().Name}: {ex.Message}");
         }
 
         return null;
@@ -559,7 +559,7 @@ internal class HttpMcpTransport : McpTransport
         }
         catch (Exception ex)
         {
-            DebugLog.Log("mcp", $"HTTP 通知失败: {ex.Message}");
+            DebugLog.Log("mcp", $"HTTP 通知失败: {ex.GetType().Name}: {ex.Message}");
         }
     }
 

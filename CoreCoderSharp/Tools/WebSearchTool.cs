@@ -82,11 +82,11 @@ public class WebSearchTool : ITool
         }
         catch (HttpRequestException ex)
         {
-            return $"错误: 网络请求失败 — {ex.Message}";
+            return $"错误: 网络请求失败 — {ex.GetType().Name}: {ex.Message}";
         }
         catch (Exception ex)
         {
-            return $"错误: 搜索异常 — {ex.Message}";
+            return $"错误: 搜索异常 — {ex.GetType().Name}: {ex.Message}";
         }
     }
 

@@ -132,7 +132,7 @@ public class DocTool : ITool
         }
         catch (Exception ex)
         {
-            return $"文档搜索失败：{ex.Message}";
+            return $"文档搜索失败：{ex.GetType().Name}: {ex.Message}";
         }
     }
 
@@ -177,7 +177,7 @@ public class DocTool : ITool
         }
         catch (HttpRequestException ex)
         {
-            return $"请求失败：{ex.Message}";
+            return $"请求失败：{ex.GetType().Name}: {ex.Message}";
         }
         catch (TaskCanceledException)
         {
@@ -185,7 +185,7 @@ public class DocTool : ITool
         }
         catch (Exception ex)
         {
-            return $"抓取错误：{ex.Message}";
+            return $"抓取错误：{ex.GetType().Name}: {ex.Message}";
         }
     }
 
