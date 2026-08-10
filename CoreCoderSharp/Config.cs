@@ -68,6 +68,11 @@ public class Config
     /// <summary>嵌入向量维度（0=模型默认）</summary>
     public int EmbeddingDimensions { get; set; } = 0;
 
+    /// <summary>团队知识库共享开关（默认关闭，需 git 仓库）</summary>
+    public bool TeamMemoryEnabled { get; set; } = false;
+    /// <summary>启动时自动拉取共享记忆</summary>
+    public bool TeamMemoryAutoSync { get; set; } = true;
+
     /// <summary>界面主题预设</summary>
     public string ThemePreset { get; set; } = "default";
 
@@ -162,6 +167,12 @@ public class Config
         if (embModel != null) config.EmbeddingModel = embModel;
         if (int.TryParse(Env("WAYCODER_EMBEDDING_DIMS", "CORECODER_EMBEDDING_DIMS"), out var embDims))
             config.EmbeddingDimensions = Math.Clamp(embDims, 0, 4096);
+
+        // 团队记忆
+        if (bool.TryParse(Env("WAYCODER_TEAM_MEMORY", "CORECODER_TEAM_MEMORY"), out var tm))
+            config.TeamMemoryEnabled = tm;
+        if (bool.TryParse(Env("WAYCODER_TEAM_AUTO_SYNC", "CORECODER_TEAM_AUTO_SYNC"), out var tas))
+            config.TeamMemoryAutoSync = tas;
 
         var envTheme = Env("WAYCODER_THEME", "CORECODER_THEME");
         if (envTheme != null) config.ThemePreset = envTheme;
@@ -321,6 +332,10 @@ public class Config
             "text", null, "WAYCODER_EMBEDDING_MODEL", 8),
         new("EmbeddingDimensions", "嵌入维度", "🔧 系统", "向量维度（0=模型默认，如 text-embedding-3-small=1536）",
             "number", null, "WAYCODER_EMBEDDING_DIMS", 9),
+        new("TeamMemoryEnabled", "团队记忆共享", "🔧 系统", "通过 git 同步 .corecoder/memory/ 共享记忆（需仓库支持）",
+            "select", ["false", "true"], "WAYCODER_TEAM_MEMORY", 10),
+        new("TeamMemoryAutoSync", "启动自动同步", "🔧 系统", "启动时自动 git pull 拉取团队共享记忆",
+            "select", ["false", "true"], "WAYCODER_TEAM_AUTO_SYNC", 11),
         new("ThemePreset", "界面主题", "🎨 界面", "预设配色方案，选中即生效",
             "select", ["default","ocean","forest","sunset","midnight","mono"],
             "WAYCODER_THEME", 4),
@@ -369,6 +384,8 @@ public class Config
         ApplyOrAppend(lines, "WAYCODER_EMBEDDING", EmbeddingEnabled.ToString().ToLowerInvariant());
         ApplyOrAppend(lines, "WAYCODER_EMBEDDING_MODEL", EmbeddingModel);
         ApplyOrAppend(lines, "WAYCODER_EMBEDDING_DIMS", EmbeddingDimensions.ToString());
+        ApplyOrAppend(lines, "WAYCODER_TEAM_MEMORY", TeamMemoryEnabled.ToString().ToLowerInvariant());
+        ApplyOrAppend(lines, "WAYCODER_TEAM_AUTO_SYNC", TeamMemoryAutoSync.ToString().ToLowerInvariant());
         ApplyOrAppend(lines, "WAYCODER_THEME", ThemePreset);
         ApplyOrAppend(lines, "WAYCODER_BORDER_STYLE", BorderStyle);
         ApplyOrAppend(lines, "WAYCODER_BORDER_COLOR", BorderColor);

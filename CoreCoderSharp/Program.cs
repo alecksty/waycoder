@@ -163,6 +163,24 @@ public class Program
         // 设置沙箱允许的目录（项目根目录）
         SandboxManager.AllowedDirectory = Directory.GetCurrentDirectory();
 
+        // 团队知识库共享：启动时自动拉取远程共享记忆
+        SharedMemoryManager.Enabled = _config.TeamMemoryEnabled;
+        if (_config.TeamMemoryEnabled && _config.TeamMemoryAutoSync)
+        {
+            try
+            {
+                var pullResult = await SharedMemoryManager.PullSharedAsync();
+                if (pullResult.Success && (pullResult.NewFiles.Count > 0 || pullResult.UpdatedFiles.Count > 0))
+                {
+                    Console.WriteLine($"📥 团队记忆同步: {pullResult.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLog.Log("Program", $"团队记忆自动同步失败: {ex.Message}");
+            }
+        }
+
         // 加载自定义斜杠命令、hooks、MCP 服务器和检查点
         CustomCommands.Load();
         HooksManager.Init();

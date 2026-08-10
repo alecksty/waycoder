@@ -48,6 +48,9 @@ public static class StructuredMemory
         public DateTime CreatedAt { get; set; } = DateTime.MinValue;
         public DateTime UpdatedAt { get; set; } = DateTime.MinValue;
 
+        /// <summary>是否为团队共享记忆（git 同步）</summary>
+        public bool IsShared { get; set; }
+
         /// <summary>提取交叉引用（[[name]] 格式）</summary>
         public List<string> GetLinks()
         {
@@ -141,6 +144,22 @@ public static class StructuredMemory
         File.Delete(path);
         RebuildIndex();
         return true;
+    }
+
+    /// <summary>设置记忆的共享状态（团队共享）</summary>
+    public static void SetShared(string name, bool shared)
+    {
+        var entry = Get(name);
+        if (entry == null) return;
+        entry.IsShared = shared;
+        WriteFile(entry);
+        RebuildIndex();
+    }
+
+    /// <summary>列出所有共享记忆</summary>
+    public static List<MemoryEntry> ListShared()
+    {
+        return ListAll().Where(e => e.IsShared).ToList();
     }
 
     /// <summary>
@@ -329,11 +348,12 @@ public static class StructuredMemory
                 Description = fm.GetValueOrDefault("description") ?? "",
                 Type = NormalizeType(fm.GetValueOrDefault("type") ?? "reference"),
                 Content = body.Trim(),
-                Metadata = fm.Where(kv => kv.Key != "name" && kv.Key != "description" && kv.Key != "type")
+                Metadata = fm.Where(kv => kv.Key != "name" && kv.Key != "description" && kv.Key != "type" && kv.Key != "shared")
                     .ToDictionary(kv => kv.Key, kv => kv.Value),
                 FilePath = path,
                 CreatedAt = fi.CreationTime,
                 UpdatedAt = fi.LastWriteTime,
+                IsShared = fm.TryGetValue("shared", out var sv) && sv == "true",
             };
         }
         catch
@@ -350,6 +370,7 @@ public static class StructuredMemory
         sb.AppendLine($"name: {entry.Name}");
         sb.AppendLine($"description: {entry.Description}");
         sb.AppendLine($"type: {entry.Type}");
+        sb.AppendLine($"shared: {entry.IsShared.ToString().ToLowerInvariant()}");
         sb.AppendLine($"created: {entry.CreatedAt:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine($"updated: {entry.UpdatedAt:yyyy-MM-dd HH:mm:ss}");
         foreach (var kv in entry.Metadata)
