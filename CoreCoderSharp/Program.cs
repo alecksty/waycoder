@@ -2088,20 +2088,41 @@ deepseek 性价比最高。"
 
     private static async Task PlanModeAsync()
     {
-        MarkupLine("[bold cyan]📋 计划模式[/] — Agent 将先规划再执行");
+        MarkupLine("[bold cyan]📋 计划模式[/] — 只读分析，Agent 先规划再执行");
         MarkupLine("[dim]输入你的需求，Agent 会先分析并列出执行计划[/]");
         Console.WriteLine();
 
         var userInput = TuiInput.ReadInput();
         if (string.IsNullOrWhiteSpace(userInput)) return;
 
-        var planPrompt = $"请分析以下需求，先列出详细的执行计划（分步骤、涉及的文件、可能的风险），再逐步执行。\n\n需求：{userInput}\n\n请先输出计划，然后逐步执行。";
+        // 使用 PlanMode 结构化系统提示词（含项目上下文、仓库地图）
+        var planPrompt = PlanMode.GetPlanSystemPrompt() +
+            $"\n\n# 用户需求\n\n{userInput}\n\n请按上述格式输出你的分析和执行计划。";
 
         using var cts = new CancellationTokenSource();
         try
         {
             await ChatWithStatusAsync(planPrompt, cts.Token);
             Console.WriteLine();
+
+            // 计划输出后询问是否执行
+            Console.WriteLine();
+            MarkupLine("[bold yellow]是否执行此计划？[/]");
+            MarkupLine("[dim]  y = 执行  |  n = 放弃  |  输入修改意见[/]");
+            var confirm = TuiInput.ReadInput();
+            if (!string.IsNullOrWhiteSpace(confirm) && PlanMode.IsApproval(confirm))
+            {
+                Console.WriteLine();
+                MarkupLine("[bold green]▶ 执行模式[/]");
+                var execPrompt = $"按照之前制定的计划，逐步执行以下需求：\n\n{userInput}";
+                await ChatWithStatusAsync(execPrompt, cts.Token);
+                Console.WriteLine();
+            }
+            else if (!string.IsNullOrWhiteSpace(confirm))
+            {
+                if (TuiManager.Instance.ActiveScreen is ChatScreen cs)
+                    cs.AddSystemMsg($"📋 计划待修改：{confirm}");
+            }
         }
         catch (Exception ex)
         {

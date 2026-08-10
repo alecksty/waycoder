@@ -1,11 +1,11 @@
 namespace CoreCoderSharp;
 
 /// <summary>
-/// 记忆系统 —— Agent 可读写的持久化项目知识库。
-/// 存储在 .corecoder/memory.md，跨会话保留。
-///
-/// v0.17.5: TF-IDF 语义搜索，替代逐行子串匹配。
+/// 记忆系统（已废弃）—— 旧单文件格式。
+/// 请使用 StructuredMemory（v0.19.1+ 多文件 frontmatter 格式）。
+/// 仅保留用于自测中的迁移兼容验证。
 /// </summary>
+[Obsolete("请使用 StructuredMemory（v0.19.1+ 多文件 frontmatter 格式）")]
 public static class MemoryStore
 {
     private static string? _memoryPath;
