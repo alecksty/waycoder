@@ -1,5 +1,6 @@
 using System.Text;
 using CoreCoderSharp.Terminal;
+using CoreCoderSharp.UI.TuiBase;
 
 namespace CoreCoderSharp.UI;
 
@@ -39,19 +40,19 @@ public class TuiManager : IDisposable
     /// <summary>初始化终端（备用屏 + 鼠标 + 尺寸）</summary>
     public void Enter()
     {
-        TTY.EnterAltScreen();
-        TTY.HideCursor();
+        Tty.EnterAltScreen();
+        Tty.HideCursor();
         // TTY.EnableMouse(); // TODO: 鼠标暂不开启
-        (TW, TH) = (TTY.Cols, TTY.Rows);
+        (TW, TH) = (Tty.Cols, Tty.Rows);
         IsActive = true;
     }
 
     /// <summary>恢复终端</summary>
     public void Exit()
     {
-        TTY.DisableMouse();
-        TTY.ShowCursor();
-        TTY.ExitAltScreen();
+        Tty.DisableMouse();
+        Tty.ShowCursor();
+        Tty.ExitAltScreen();
         IsActive = false;
     }
 
@@ -114,7 +115,7 @@ public class TuiManager : IDisposable
         if (!IsDirty) return;  // 没有变化，跳过渲染
         IsDirty = false;
 
-        (TW, TH) = (TTY.Cols, TTY.Rows);
+        (TW, TH) = (Tty.Cols, Tty.Rows);
 
         // 确定当前光标所有者（每屏一个光标）
         ActiveScreen?.SetCursorOwner();
@@ -132,14 +133,14 @@ public class TuiManager : IDisposable
         LastCleanFrame = sb.ToString();
 
         // 3. 全局输出
-        TTY.Write(sb.ToString());
+        Tty.Write(sb.ToString());
     }
 
     /// <summary>写入干净帧（窗口关闭后还原背景）</summary>
     public void RestoreCleanFrame()
     {
         if (!string.IsNullOrEmpty(LastCleanFrame))
-            TTY.Write(LastCleanFrame);
+            Tty.Write(LastCleanFrame);
     }
 
     // ── 输入路由 ──
@@ -171,7 +172,7 @@ public class TuiManager : IDisposable
     public void OnResize()
     {
         IsDirty = true;
-        (TW, TH) = (TTY.Cols, TTY.Rows);
+        (TW, TH) = (Tty.Cols, Tty.Rows);
         ActiveScreen?.OnResize(TW, TH);
     }
 

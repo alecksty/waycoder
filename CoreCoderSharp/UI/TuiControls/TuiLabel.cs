@@ -1,5 +1,6 @@
 using System.Text;
-namespace CoreCoderSharp.UI.Controls;
+
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>静态文本标签 —— 单行文本，可设前景色。</summary>
 public class TuiLabel : TuiControl

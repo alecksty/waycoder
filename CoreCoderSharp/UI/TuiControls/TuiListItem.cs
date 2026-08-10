@@ -1,4 +1,4 @@
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 列表项 —— 聊天消息的结构化容器。

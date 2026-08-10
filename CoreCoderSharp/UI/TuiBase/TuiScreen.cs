@@ -1,7 +1,7 @@
 using System.Text;
 using CoreCoderSharp.Terminal;
 
-namespace CoreCoderSharp.UI;
+namespace CoreCoderSharp.UI.TuiBase;
 
 /// <summary>
 /// 屏幕 —— 一个完整的终端场景。
@@ -63,8 +63,8 @@ public abstract class TuiScreen
     /// <summary>屏幕激活时调用（初始化控件树、设置布局）</summary>
     public virtual void Activate()
     {
-        TW = TTY.Cols;
-        TH = TTY.Rows;
+        TW = Tty.Cols;
+        TH = Tty.Rows;
         RootView.Width = TW;
         RootView.Height = TH;
         RootView.Layout();
@@ -594,7 +594,7 @@ public abstract class TuiScreen
     protected static void WriteAt(StringBuilder sb, int row, int col, string text,
         int fg = 0, int bg = 0)
     {
-        if (row < 0 || row >= TTY.Rows) return;
+        if (row < 0 || row >= Tty.Rows) return;
         var rb = new RenderBuffer();
         rb.Write(row, col, text, fg: fg, bg: bg);
         sb.Append(rb.ToString());
@@ -607,9 +607,9 @@ public abstract class TuiScreen
     {
         var lines = content.Replace("\r\n", "\n").Split('\n');
         var maxLineVw = lines.Max(l => TuiHelper.DisplayWidth(l));
-        var w = Math.Max(20, Math.Min(TTY.Cols - 8,
+        var w = Math.Max(20, Math.Min(Tty.Cols - 8,
             width ?? Math.Max(maxLineVw + 4, TuiHelper.DisplayWidth(title) + 4)));
-        var h = Math.Min(TTY.Rows - 6, height ?? Math.Max(3, lines.Length + 4));
+        var h = Math.Min(Tty.Rows - 6, height ?? Math.Max(3, lines.Length + 4));
 
         var win = new TuiWindow
         {
@@ -630,10 +630,10 @@ public abstract class TuiScreen
     public TuiWindow ShowToast(string message, int durationMs = 2000)
     {
         var vw = TuiHelper.DisplayWidth(message);
-        var w = Math.Min(TTY.Cols - 4, vw + 4);
+        var w = Math.Min(Tty.Cols - 4, vw + 4);
         var win = new TuiWindow
         {
-            X = TTY.Cols - w - 2, Y = TTY.Rows - 4,
+            X = Tty.Cols - w - 2, Y = Tty.Rows - 4,
             Width = w, Height = 3,
             ContentLines = [message],
             ContentFg = 37,

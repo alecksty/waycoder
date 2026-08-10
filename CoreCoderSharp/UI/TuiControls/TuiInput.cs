@@ -1,7 +1,6 @@
 using System.Text;
-using CoreCoderSharp.Terminal;
 
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>单行文本输入框 —— 支持光标移动、插入、删除、文本选择、撤销重做。</summary>
 public class TuiInput : TuiControl

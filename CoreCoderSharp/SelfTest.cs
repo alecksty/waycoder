@@ -2,6 +2,8 @@
 using CoreCoderSharp.Tools;
 using CoreCoderSharp.UI;
 using CoreCoderSharp.UI.Controls;
+using CoreCoderSharp.UI.TuiControls;
+using CoreCoderSharp.UI.TuiScreens;
 
 namespace CoreCoderSharp;
 

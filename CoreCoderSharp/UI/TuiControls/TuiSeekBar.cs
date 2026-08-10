@@ -1,7 +1,7 @@
 using System.Text;
 using CoreCoderSharp.Terminal;
 
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 滑块/Seek Bar —— 范围值选择控件。
@@ -30,6 +30,7 @@ public class TuiSeekBar : TuiControl
             }
         }
     }
+
     private int _value;
 
     /// <summary>步长（键盘微调的量）</summary>
@@ -97,9 +98,9 @@ public class TuiSeekBar : TuiControl
 
         bool isFocused = Focused && IsEnabled;
         int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
-               : isFocused ? TrackFg : EmptyFg;
+            : isFocused ? TrackFg : EmptyFg;
         int bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : Bg)
-               : isFocused && Bg == 0 ? TuiTheme.Current.WindowBg : Bg;
+            : isFocused && Bg == 0 ? TuiTheme.Current.WindowBg : Bg;
 
         // 背景填充
         if (bg > 0 && Focused)
@@ -128,6 +129,7 @@ public class TuiSeekBar : TuiControl
                 ch = TrackEmpty;
                 cf = EmptyFg;
             }
+
             WriteAt(sb, absY, absX + i, ch, cf, bg);
         }
 
@@ -163,6 +165,7 @@ public class TuiSeekBar : TuiControl
                 Value -= LargeStep;
                 return true;
         }
+
         return false;
     }
 
@@ -188,5 +191,7 @@ public class TuiSeekBar : TuiControl
         return true;
     }
 
-    public override void OnResize(int newParentW, int newParentH) { }
+    public override void OnResize(int newParentW, int newParentH)
+    {
+    }
 }

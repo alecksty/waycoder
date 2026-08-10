@@ -2,6 +2,7 @@ using System.Text;
 using CoreCoderSharp.Terminal;
 using CoreCoderSharp.Tools;
 using CoreCoderSharp.UI;
+using CoreCoderSharp.UI.TuiScreens;
 
 namespace CoreCoderSharp;
 
@@ -109,7 +110,7 @@ public class Editor
 
     private async Task RunLoopAsync()
     {
-        (_tw, _th) = (TTY.Cols, TTY.Rows);
+        (_tw, _th) = (Tty.Cols, Tty.Rows);
         Console.CursorVisible = false;
         Console.TreatControlCAsInput = true;
 
@@ -124,9 +125,9 @@ public class Editor
                 if (!Console.KeyAvailable)
                 {
                     await Task.Delay(30);
-                    if (TTY.Cols != _tw || TTY.Rows != _th)
+                    if (Tty.Cols != _tw || Tty.Rows != _th)
                     {
-                        (_tw, _th) = (TTY.Cols, TTY.Rows);
+                        (_tw, _th) = (Tty.Cols, Tty.Rows);
                         Render();
                     }
                     continue;
@@ -389,7 +390,7 @@ public class Editor
 
     private void Render()
     {
-        (_tw, _th) = (TTY.Cols, TTY.Rows);
+        (_tw, _th) = (Tty.Cols, Tty.Rows);
         var vh = _th - 5; // 编辑区可视行数
 
         // 调整滚动

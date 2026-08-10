@@ -82,7 +82,7 @@ public static class ControlRenderer
         int leftPad = align switch
         {
             HAlign.Center => (width - vw) / 2,
-            HAlign.Right  => width - vw,
+            HAlign.Right => width - vw,
             _ => 0
         };
         leftPad = Math.Max(0, leftPad);
@@ -105,8 +105,7 @@ public static class ControlRenderer
     /// 绘制单行文本到 Screen StringBuilder。
     /// 这是最底层的绘制调用——所有简单控件都用它。
     /// </summary>
-    public static void DrawLine(StringBuilder sb, int absRow, int absCol,
-        string text, int fg, int bg)
+    public static void DrawLine(StringBuilder sb, int absRow, int absCol, string text, int fg, int bg)
     {
         var rb = new RenderBuffer();
         rb.Write(absRow, absCol, text, fg: fg, bg: bg);
@@ -149,6 +148,7 @@ public static class ControlRenderer
             sb.Append(AnsiTty.FgBgCode(fg, bg));
             sb.Append(display[i]);
         }
+
         // 末尾重置
         bool hasFg = fg > 0;
         if (hasFg) sb.Append(AnsiTty.SgrResetFg);

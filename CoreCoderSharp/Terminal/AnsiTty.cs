@@ -13,88 +13,97 @@ namespace CoreCoderSharp.Terminal;
 /// </summary>
 public static class AnsiTty
 {
+    public const char AnsiCharPrefix = '\x1b';
+    public const char AnsiCharEscape = '[';
+
     // ═══════════════════════════════════════════════════════════════
     // 光标控制
     // ═══════════════════════════════════════════════════════════════
 
     /// <summary>移动光标到 (row, col) — 1-based 终端坐标</summary>
-    public static string CursorPos(int row, int col) => $"\x1b[{row};{col}H";
+    public static string CursorPos(int row, int col) => $"{AnsiCharPrefix}{AnsiCharEscape}{row};{col}H";
 
     /// <summary>移动光标到 (row, col) — 0-based 自动转 1-based</summary>
-    public static string CursorPos0(int row, int col) => $"\x1b[{row + 1};{col + 1}H";
+    public static string CursorPos0(int row, int col) => $"{AnsiCharPrefix}{AnsiCharEscape}{row + 1};{col + 1}H";
 
-    public const string CursorHide   = "\x1b[?25l";
-    public const string CursorShow   = "\x1b[?25h";
-    public const string CursorSave   = "\x1b[s";
-    public const string CursorRestore = "\x1b[u";
+    /// <summary>隐藏光标</summary>
+    public static string CursorHide = $"{AnsiCharPrefix}{AnsiCharEscape}?25l";
+
+    /// <summary>显示光标</summary>
+    public static string CursorShow = $"{AnsiCharPrefix}{AnsiCharEscape}?25h";
+
+    /// <summary>保存光标位置</summary>
+    public static string CursorSave = $"{AnsiCharPrefix}{AnsiCharEscape}s";
+
+    /// <summary>恢复光标位置</summary>
+    public static string CursorRestore = $"{AnsiCharPrefix}{AnsiCharEscape}u";
 
     // ═══════════════════════════════════════════════════════════════
     // 屏幕控制
     // ═══════════════════════════════════════════════════════════════
 
-    public const string ClearScreen  = "\x1b[2J";
-    public const string ClearToEnd   = "\x1b[K";
-    public const string ClearLine    = "\x1b[2K";
-    public const string Home         = "\x1b[H";
-    public const string EnterAlt     = "\x1b[?1049h";
-    public const string ExitAlt      = "\x1b[?1049l";
+    public static readonly string ClearScreen = $"{AnsiCharPrefix}{AnsiCharEscape}2J";
+    public static readonly string ClearToEnd = $"{AnsiCharPrefix}{AnsiCharEscape}K";
+    public static readonly string ClearLine = $"{AnsiCharPrefix}{AnsiCharEscape}2K";
+    public static readonly string Home = $"{AnsiCharPrefix}{AnsiCharEscape}H";
+    public static readonly string EnterAlt = $"{AnsiCharPrefix}{AnsiCharEscape}?1049h";
+    public static readonly string ExitAlt = $"{AnsiCharPrefix}{AnsiCharEscape}?1049l";
 
-    public static string ScrollUp(int n = 1)   => $"\x1b[{n}S";
-    public static string ScrollDown(int n = 1) => $"\x1b[{n}T";
+    public static string ScrollUp(int n = 1) => $"{AnsiCharPrefix}{AnsiCharEscape}{n}S";
+    public static string ScrollDown(int n = 1) => $"{AnsiCharPrefix}{AnsiCharEscape}{n}T";
 
     // ═══════════════════════════════════════════════════════════════
     // 鼠标协议
     // ═══════════════════════════════════════════════════════════════
 
-    public const string MouseEnable  = "\x1b[?1000h\x1b[?1003h\x1b[?1015h\x1b[?1006h";
-    public const string MouseDisable = "\x1b[?1006l\x1b[?1015l\x1b[?1003l\x1b[?1000l";
+    public static readonly string MouseEnable = $"{AnsiCharPrefix}{AnsiCharEscape}?1000h{AnsiCharPrefix}{AnsiCharEscape}?1003h{AnsiCharPrefix}{AnsiCharEscape}?1015h{AnsiCharPrefix}{AnsiCharEscape}?1006h";
+    public static readonly string MouseDisable = $"{AnsiCharPrefix}{AnsiCharEscape}?1006l{AnsiCharPrefix}{AnsiCharEscape}?1015l{AnsiCharPrefix}{AnsiCharEscape}?1003l{AnsiCharPrefix}{AnsiCharEscape}?1000l";
 
     // ═══════════════════════════════════════════════════════════════
     // SGR 样式（字符属性）
     // ═══════════════════════════════════════════════════════════════
 
-    public const string SgrReset   = "\x1b[0m";
-    public const string SgrBold    = "\x1b[1m";
-    public const string SgrDim     = "\x1b[2m";
-    public const string SgrItalic  = "\x1b[3m";
-    public const string SgrUnderline = "\x1b[4m";
-    public const string SgrBlink   = "\x1b[5m";
-    public const string SgrResetFg = "\x1b[39m";
-    public const string SgrResetBg = "\x1b[49m";
+    public static readonly string SgrReset = $"{AnsiCharPrefix}{AnsiCharEscape}0m";
+    public static readonly string SgrBold = $"{AnsiCharPrefix}{AnsiCharEscape}1m";
+    public static readonly string SgrDim = $"{AnsiCharPrefix}{AnsiCharEscape}2m";
+    public static readonly string SgrItalic = $"{AnsiCharPrefix}{AnsiCharEscape}3m";
+    public static readonly string SgrUnderline = $"{AnsiCharPrefix}{AnsiCharEscape}4m";
+    public static readonly string SgrBlink = $"{AnsiCharPrefix}{AnsiCharEscape}5m";
+    public static readonly string SgrResetFg = $"{AnsiCharPrefix}{AnsiCharEscape}39m";
+    public static readonly string SgrResetBg = $"{AnsiCharPrefix}{AnsiCharEscape}49m";
 
     // ═══════════════════════════════════════════════════════════════
     // SGR 颜色（标准 16 色 ANSI）
     // ═══════════════════════════════════════════════════════════════
 
     /// <summary>前景色序列 \x1b[CODE m</summary>
-    public static string Fg(int code) => $"\x1b[{code}m";
+    public static string Fg(int code) => $"{AnsiCharPrefix}{AnsiCharEscape}{code}m";
 
     /// <summary>背景色序列 \x1b[CODE m（code 应为 40-47/100-107）</summary>
-    public static string Bg(int code) => $"\x1b[{code}m";
+    public static string Bg(int code) => $"{AnsiCharPrefix}{AnsiCharEscape}{code}m";
 
     /// <summary>前景+背景组合 \x1b[FG;BG m</summary>
-    public static string FgBg(int fg, int bg) => $"\x1b[{fg};{bg}m";
+    public static string FgBg(int fg, int bg) => $"{AnsiCharPrefix}{AnsiCharEscape}{fg};{bg}m";
 
     /// <summary>粗体前景色 \x1b[1;CODE m</summary>
-    public static string BoldFg(int code) => $"\x1b[1;{code}m";
+    public static string BoldFg(int code) => $"{AnsiCharPrefix}{AnsiCharEscape}1;{code}m";
 
     /// <summary>组合 SGR 参数 \x1b[A;B;... m</summary>
-    public static string Sgr(params int[] codes) =>
-        $"\x1b[{string.Join(";", codes)}m";
+    public static string Sgr(params int[] codes) => $"{AnsiCharPrefix}{AnsiCharEscape}{string.Join(";", codes)}m";
 
     // ═══════════════════════════════════════════════════════════════
     // 256 色调色板
     // ═══════════════════════════════════════════════════════════════
 
-    public static string Fg256(int code)  => $"\x1b[38;5;{code}m";
-    public static string Bg256(int code)  => $"\x1b[48;5;{code}m";
+    public static string Fg256(int code) => $"{AnsiCharPrefix}{AnsiCharEscape}38;5;{code}m";
+    public static string Bg256(int code) => $"{AnsiCharPrefix}{AnsiCharEscape}48;5;{code}m";
 
     // ═══════════════════════════════════════════════════════════════
     // True Color (24-bit RGB)
     // ═══════════════════════════════════════════════════════════════
 
-    public static string FgRgb(int r, int g, int b) => $"\x1b[38;2;{r};{g};{b}m";
-    public static string BgRgb(int r, int g, int b) => $"\x1b[48;2;{r};{g};{b}m";
+    public static string FgRgb(int r, int g, int b) => $"{AnsiCharPrefix}{AnsiCharEscape}38;2;{r};{g};{b}m";
+    public static string BgRgb(int r, int g, int b) => $"{AnsiCharPrefix}{AnsiCharEscape}48;2;{r};{g};{b}m";
 
     /// <summary>将 RGB 编码为内部 TrueColor 颜色码（≥0x1000000），可透传给 FgCode/BgCode</summary>
     public static int RgbCode(int r, int g, int b) => 0x1000000 | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
@@ -140,8 +149,9 @@ public static class AnsiTty
             int rgb = code - 0x1000000;
             return FgRgb((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
         }
+
         // 标准 ANSI 前景色 30-37 和 亮前景 90-97
-        if ((code >= 30 && code <= 37) || (code >= 90 && code <= 97))
+        if (code is >= 30 and <= 37 || code is >= 90 and <= 97)
             return Fg(code);
         if (code >= 16) return Fg256(code);
         return Fg(code);
@@ -156,8 +166,9 @@ public static class AnsiTty
             int rgb = code - 0x1000000;
             return BgRgb((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
         }
+
         // 标准 ANSI 背景色 40-47 和 亮背景 100-107
-        if ((code >= 40 && code <= 47) || (code >= 100 && code <= 107))
+        if (code is >= 40 and <= 47 or >= 100 and <= 107)
             return Bg(code);
         if (code >= 16) return Bg256(code);
         return Bg(code);
@@ -172,7 +183,7 @@ public static class AnsiTty
 
         // 两者都是标准 ANSI 16 色可合并为 \x1b[fg;bg m
         bool bothStd = fg < 256 && bg < 256 && fg < 0x1000000 && bg < 0x1000000;
-        if (bothStd) return $"\x1b[{fg};{bg}m";
+        if (bothStd) return $"{FgBg(fg, bg)}";
 
         return FgCode(fg) + BgCode(bg);
     }
@@ -185,12 +196,11 @@ public static class AnsiTty
     public static string FgBgText(string text, int fg, int bg) => $"{FgBg(fg, bg)}{text}{SgrReset}";
     public static string BoldFgText(string text, int color) => $"{BoldFg(color)}{text}{SgrReset}";
     public static string Accent(string text) => $"{Fg(36)}{text}{SgrReset}";
-    public static string Warn(string text)   => $"{Fg(33)}{text}{SgrReset}";
-    public static string Error(string text)  => $"{Fg(31)}{text}{SgrReset}";
+    public static string Warn(string text) => $"{Fg(33)}{text}{SgrReset}";
+    public static string Error(string text) => $"{Fg(31)}{text}{SgrReset}";
     public static string Success(string text) => $"{Fg(32)}{text}{SgrReset}";
     public static string DimText(string text) => $"{SgrDim}{text}{SgrReset}";
     public static string BoldText(string text) => $"{SgrBold}{text}{SgrReset}";
     public static string HeadingText(string text) => $"{BoldFg(33)}{text}{SgrReset}";
     public static string PromptText(string text) => $"{Fg(36)}{text}{SgrReset}";
-
 }

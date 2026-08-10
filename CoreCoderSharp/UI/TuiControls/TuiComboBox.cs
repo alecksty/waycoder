@@ -1,7 +1,7 @@
 using System.Text;
 using CoreCoderSharp.Terminal;
 
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 组合框 —— 点击展开下拉列表选择。

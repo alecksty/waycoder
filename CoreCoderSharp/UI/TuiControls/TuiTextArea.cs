@@ -1,7 +1,7 @@
 using System.Text;
 using CoreCoderSharp.Terminal;
 
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 多行文本编辑控件 —— 支持光标自由移动、自动换行、滚动、文本选择、撤销重做。
@@ -487,7 +487,6 @@ public class TuiTextArea : TuiControl
     }
 
     // ── 输入处理 ──
-
     public override bool OnKey(ConsoleKeyInfo key)
     {
         // Hook 优先拦截（不受 Focused/ReadOnly 限制）

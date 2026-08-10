@@ -1,5 +1,6 @@
 using System.Text;
-namespace CoreCoderSharp.UI.Controls;
+
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 按钮控件 —— 可点击，有焦点高亮。

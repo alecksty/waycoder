@@ -2,6 +2,7 @@ using System.Text;
 using CoreCoderSharp.Tools;
 using CoreCoderSharp.UI;
 using CoreCoderSharp.Terminal;
+using CoreCoderSharp.UI.TuiScreens;
 
 namespace CoreCoderSharp;
 
@@ -19,6 +20,7 @@ public class Program
     private static volatile bool _agentBusy;
     private static CancellationTokenSource? _agentCts;
     private static (List<JsonObject> Messages, string Model)? _pendingRestore;
+
     /// <summary>Watch 模式线程安全提示队列</summary>
     private static readonly System.Collections.Concurrent.ConcurrentQueue<string> _pendingWatchPrompts = new();
 
@@ -43,31 +45,50 @@ public class Program
                 case "-v" or "--version": showVersion = true; break;
                 case "-t" or "--test":
                     var testModule = (i + 1 < args.Length && !args[i + 1].StartsWith('-'))
-                        ? args[++i] : null;
+                        ? args[++i]
+                        : null;
                     if (testModule != null)
                     {
                         Console.WriteLine(SelfTest.RunModule(testModule));
                     }
                     else SelfTest.Run();
+
                     return 0;
-                case "--screenshot": RunScreenshot(); return 0;
+                case "--screenshot":
+                    RunScreenshot();
+                    return 0;
                 case "--debug": DebugLog.Enable(); break;
                 case "--yolo": yoloMode = true; break;
                 case "--tui-v1": break; // 忽略（已移除 Terminal.Gui v2）
-                case "--tui-demo": TuiDemo.Run(); return 0;
-                case "--theme-verify": ThemeVerify.Run(); return 0;
+                case "--tui-demo":
+                    TuiDemo.Run();
+                    return 0;
+                case "--theme-verify":
+                    ThemeVerify.Run();
+                    return 0;
                 case "--init": initMode = true; break;
                 case "-w" or "--watch": watchMode = true; break;
                 case "--max-budget-usd" when i + 1 < args.Length:
-                    if (double.TryParse(args[++i], out var b)) maxBudget = b; break;
-                case "-h" or "--help": ShowUsage(); return 0;
+                    if (double.TryParse(args[++i], out var b)) maxBudget = b;
+                    break;
+                case "-h" or "--help":
+                    ShowUsage();
+                    return 0;
             }
         }
 
-        if (showVersion) { Console.WriteLine(Global.AppNameVersion); return 0; }
+        if (showVersion)
+        {
+            Console.WriteLine(Global.AppNameVersion);
+            return 0;
+        }
 
         // 项目初始化向导
-        if (initMode) { RunInit(); return 0; }
+        if (initMode)
+        {
+            RunInit();
+            return 0;
+        }
 
         // 标准输入管道模式：echo "prompt" | waycoder
         if (prompt == null && Console.IsInputRedirected)
@@ -149,7 +170,12 @@ public class Program
             if (loaded != null)
             {
                 _agent.Messages = loaded.Value.Messages;
-                if (model == null) { _llm.Model = loaded.Value.Model; _config.Model = loaded.Value.Model; }
+                if (model == null)
+                {
+                    _llm.Model = loaded.Value.Model;
+                    _config.Model = loaded.Value.Model;
+                }
+
                 MarkupLine($"[green]✔ 已恢复会话:[/] [cyan]{E(resumeId)}[/] [dim](模型: {E(_llm.Model)})[/]");
             }
             else
@@ -215,7 +241,11 @@ public class Program
         screen.RefreshTheme();
 
         // Ctrl+C 全局强制退出（抑制 OS 提示 "Terminate batch job?"）
-        Console.CancelKeyPress += (_, e) => { e.Cancel = true; Environment.Exit(0); };
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            Environment.Exit(0);
+        };
 
         // 输入管理器：拦截键盘 + 鼠标 + resize 即时重绘
         using var inputMgr = new UI.InputManager();
@@ -296,6 +326,7 @@ public class Program
                     mgr.Exit();
                     Environment.Exit(0);
                 }
+
                 mgr.Render();
                 await ProcessUserInput(submission, screen);
             }
@@ -311,7 +342,11 @@ public class Program
             var ev = inputMgr.ReadInput(50);
 
             // Resize — 即时重绘
-            if (ev.Type == InputType.Resize) { mgr.Render(); continue; }
+            if (ev.Type == InputType.Resize)
+            {
+                mgr.Render();
+                continue;
+            }
 
             // 超时 — 继续轮询
             if (ev.Type == InputType.Timeout) continue;
@@ -369,7 +404,10 @@ public class Program
             screen.AddSystemMsg($"💾 发现上次会话 ({count} 条消息)。输入 /resume 恢复，或忽略此消息开始新会话。");
             _pendingRestore = auto;
         }
-        catch { /* 恢复失败不影响启动 */ }
+        catch
+        {
+            /* 恢复失败不影响启动 */
+        }
     }
 
     /// <summary>启动 Watch 模式 — 监听文件变更中的 AI! / AI? 注释。</summary>
@@ -378,10 +416,7 @@ public class Program
         try
         {
             var dir = Directory.GetCurrentDirectory();
-            _watchMode = new WatchMode(dir, prompt =>
-            {
-                _pendingWatchPrompts.Enqueue(prompt);
-            });
+            _watchMode = new WatchMode(dir, prompt => { _pendingWatchPrompts.Enqueue(prompt); });
             _watchMode.Start();
         }
         catch (Exception ex)
@@ -453,6 +488,7 @@ public class Program
             slot.Agent = new Agent(_llm!, maxContextTokens: _config.MaxContextTokens,
                 maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
         }
+
         _agent = slot.Agent;
 
         // 重绑子智能体父引用（所有 Agent 共享 AgentTool 实例）
@@ -521,33 +557,162 @@ public class Program
         }
 
         // 触发提示 (已通过建议面板处理，但保留备用)
-        if (userInput == "/") { screen.SetInput(ShowCommandPalette()); screen.Render(); return; }
-        if (userInput == "!") { await RunShellOnceAsync(); return; }
+        if (userInput == "/")
+        {
+            screen.SetInput(ShowCommandPalette());
+            screen.Render();
+            return;
+        }
+
+        if (userInput == "!")
+        {
+            await RunShellOnceAsync();
+            return;
+        }
 
         // 内置命令
-        if (userInput == "/help") { ShowHelpInChat(screen); return; }
-        if (userInput == "/reset") { _agent!.Reset(); screen.AddSystemMsg("♻ 对话已重置"); return; }
-        if (userInput == "/tokens") { ShowTokensInChat(screen); return; }
-        if (userInput == "/stats") { ShowStatsInChat(screen); return; }
-        if (userInput == "/watch") { ToggleWatchMode(screen); return; }
-        if (userInput == "/model") { screen.AddSystemMsg($"当前模型: {_config.Model}"); return; }
-        if (userInput.StartsWith("/model ")) { SwitchModelInline(userInput, screen); return; }
-        if (userInput == "/compact") { await CompactAsync(); screen.AddSystemMsg("✔ 上下文已压缩"); return; }
-        if (userInput == "/save") { SaveSessionInteractive(screen); return; }
-        if (userInput == "/permissions" || userInput == "/perm") { ShowPermStatusInChat(screen); return; }
-        if (userInput.StartsWith("/perm ")) { SandboxManager.SetLevel(userInput[6..].Trim()); screen.AddSystemMsg($"沙箱级别已切换: {SandboxManager.Level}"); return; }
-        if (userInput == "/sessions") { ShowSessionBrowser(screen); return; }
-        if (userInput.StartsWith("/load ")) { LoadSessionInteractive(userInput[6..].Trim(), screen); return; }
-        if (userInput == "/diff") { ShowDiffInChat(screen); return; }
-        if (userInput == "/plan") { screen.AddSystemMsg("📋 计划模式"); await PlanModeAsync(); return; }
-        if (userInput.StartsWith("/search ")) { await RunSearchAsync(userInput[8..].Trim()); return; }
-        if (userInput == "/edit") { TuiManager.Instance.PushScreen(new EditorScreen()); return; }
-        if (userInput.StartsWith("/edit ")) { TuiManager.Instance.PushScreen(new EditorScreen(userInput[6..].Trim())); return; }
-        if (userInput is "/settings" or "/config") { TuiManager.Instance.PushScreen(new SettingsScreen()); return; }
-        if (userInput == "/about") { ShowAboutInChat(screen); return; }
-        if (userInput.StartsWith("/test ")) { RunTestDemo(userInput[6..].Trim(), screen); return; }
-        if (userInput == "/test") { RunTestDemo("help", screen); return; }
-        if (userInput == "/todo") { ShowTodo(); return; }
+        if (userInput == "/help")
+        {
+            ShowHelpInChat(screen);
+            return;
+        }
+
+        if (userInput == "/reset")
+        {
+            _agent!.Reset();
+            screen.AddSystemMsg("♻ 对话已重置");
+            return;
+        }
+
+        if (userInput == "/tokens")
+        {
+            ShowTokensInChat(screen);
+            return;
+        }
+
+        if (userInput == "/stats")
+        {
+            ShowStatsInChat(screen);
+            return;
+        }
+
+        if (userInput == "/watch")
+        {
+            ToggleWatchMode(screen);
+            return;
+        }
+
+        if (userInput == "/model")
+        {
+            screen.AddSystemMsg($"当前模型: {_config.Model}");
+            return;
+        }
+
+        if (userInput.StartsWith("/model "))
+        {
+            SwitchModelInline(userInput, screen);
+            return;
+        }
+
+        if (userInput == "/compact")
+        {
+            await CompactAsync();
+            screen.AddSystemMsg("✔ 上下文已压缩");
+            return;
+        }
+
+        if (userInput == "/save")
+        {
+            SaveSessionInteractive(screen);
+            return;
+        }
+
+        if (userInput == "/permissions" || userInput == "/perm")
+        {
+            ShowPermStatusInChat(screen);
+            return;
+        }
+
+        if (userInput.StartsWith("/perm "))
+        {
+            SandboxManager.SetLevel(userInput[6..].Trim());
+            screen.AddSystemMsg($"沙箱级别已切换: {SandboxManager.Level}");
+            return;
+        }
+
+        if (userInput == "/sessions")
+        {
+            ShowSessionBrowser(screen);
+            return;
+        }
+
+        if (userInput.StartsWith("/load "))
+        {
+            LoadSessionInteractive(userInput[6..].Trim(), screen);
+            return;
+        }
+
+        if (userInput == "/diff")
+        {
+            ShowDiffInChat(screen);
+            return;
+        }
+
+        if (userInput == "/plan")
+        {
+            screen.AddSystemMsg("📋 计划模式");
+            await PlanModeAsync();
+            return;
+        }
+
+        if (userInput.StartsWith("/search "))
+        {
+            await RunSearchAsync(userInput[8..].Trim());
+            return;
+        }
+
+        if (userInput == "/edit")
+        {
+            TuiManager.Instance.PushScreen(new EditorScreen());
+            return;
+        }
+
+        if (userInput.StartsWith("/edit "))
+        {
+            TuiManager.Instance.PushScreen(new EditorScreen(userInput[6..].Trim()));
+            return;
+        }
+
+        if (userInput is "/settings" or "/config")
+        {
+            TuiManager.Instance.PushScreen(new SettingsScreen());
+            return;
+        }
+
+        if (userInput == "/about")
+        {
+            ShowAboutInChat(screen);
+            return;
+        }
+
+        if (userInput.StartsWith("/test "))
+        {
+            RunTestDemo(userInput[6..].Trim(), screen);
+            return;
+        }
+
+        if (userInput == "/test")
+        {
+            RunTestDemo("help", screen);
+            return;
+        }
+
+        if (userInput == "/todo")
+        {
+            ShowTodo();
+            return;
+        }
+
         if (userInput.StartsWith("/theme "))
         {
             var preset = userInput[7..].Trim();
@@ -558,14 +723,46 @@ public class Program
                 screen.AddSystemMsg($"🎨 主题已切换: {preset}");
             }
             else screen.AddSystemMsg($"未知主题: {preset}。可选: {string.Join(", ", ThemeConfig.Presets.Keys)}");
+
             return;
         }
-        if (userInput == "/theme") { screen.AddSystemMsg($"当前主题: {_config.ThemePreset}。可选: {string.Join(", ", ThemeConfig.Presets.Keys)}"); return; }
-        if (userInput.StartsWith("/history")) { SearchHistory(userInput, screen); return; }
-        if (userInput == "/export") { ExportConversation(screen); return; }
-        if (userInput == "/recent") { ShowRecentFiles(screen); return; }
-        if (userInput == "/checkpoint") { await CreateCheckpointAsync(); return; }
-        if (userInput == "/checkpoints") { ShowCheckpoints(); return; }
+
+        if (userInput == "/theme")
+        {
+            screen.AddSystemMsg($"当前主题: {_config.ThemePreset}。可选: {string.Join(", ", ThemeConfig.Presets.Keys)}");
+            return;
+        }
+
+        if (userInput.StartsWith("/history"))
+        {
+            SearchHistory(userInput, screen);
+            return;
+        }
+
+        if (userInput == "/export")
+        {
+            ExportConversation(screen);
+            return;
+        }
+
+        if (userInput == "/recent")
+        {
+            ShowRecentFiles(screen);
+            return;
+        }
+
+        if (userInput == "/checkpoint")
+        {
+            await CreateCheckpointAsync();
+            return;
+        }
+
+        if (userInput == "/checkpoints")
+        {
+            ShowCheckpoints();
+            return;
+        }
+
         if (userInput == "/undo" || userInput == "/undo -l" || userInput == "/undo --list")
         {
             if (userInput.EndsWith("-l") || userInput.EndsWith("--list"))
@@ -574,11 +771,13 @@ public class Program
                 await UndoCheckpointAsync(userInput);
             return;
         }
+
         if (userInput.StartsWith("/undo "))
         {
             await UndoCheckpointAsync(userInput);
             return;
         }
+
         if (userInput == "/resume" && _pendingRestore != null)
         {
             var (msgs, model) = _pendingRestore.Value;
@@ -588,118 +787,132 @@ public class Program
             screen.AddSystemMsg($"✔ 已恢复 {msgs.Count} 条消息 (模型: {model})");
             return;
         }
+
         if (userInput.StartsWith("/loop "))
-        { await RunLoopAsync(userInput[6..].Trim(), screen); return; }
+        {
+            await RunLoopAsync(userInput[6..].Trim(), screen);
+            return;
+        }
+
         if (userInput.StartsWith("/test"))
-        { RunModuleTest(userInput, screen); return; }
+        {
+            RunModuleTest(userInput, screen);
+            return;
+        }
 
         // 调用 Agent (支持自动回退)
         using var cts = new CancellationTokenSource();
-        _agentCts = cts; _agentBusy = true;
+        _agentCts = cts;
+        _agentBusy = true;
         screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Working;
-        try {
-        var modelStack = BuildFallbackChain();
-        var startTime = DateTime.UtcNow;
-        var completed = false;
-
-        for (int attempt = 0; attempt < modelStack.Length; attempt++)
+        try
         {
-            var model = modelStack[attempt];
-            if (attempt > 0)
-            {
-                _llm!.Model = model;
-                _config.Model = model;
-                screen.StatusLeft = model;
-                screen.AddSystemMsg($"🔄 自动回退到: {model}");
-                screen.StartAgentMsg();
-            }
+            var modelStack = BuildFallbackChain();
+            var startTime = DateTime.UtcNow;
+            var completed = false;
 
-            try
+            for (int attempt = 0; attempt < modelStack.Length; attempt++)
             {
-                screen.Running = true;
-                screen.StartAgentMsg();
-                screen.Render();
-
-                await _agent!.ChatAsync(userInput,
-                    onToken: tok =>
-                    {
-                        screen.Running = false; // 首 token 到达，思考结束
-                        screen.AppendToken(tok);
-                        screen.Render();
-                    },
-                    onTool: (name, brief) =>
-                    {
-                        screen.FinishAgentMsg();
-                        screen.AddToolProgress(name, brief.Length > 60 ? brief[..57] + "..." : brief);
-                        screen.StartAgentMsg();
-                        screen.Render();
-                    },
-                    cancellationToken: cts.Token);
-
-                screen.Running = false;
-                screen.FinishAgentMsg();
-                completed = true;
-                break; // 成功
-            }
-            catch (OperationCanceledException)
-            {
-                screen.Running = false;
-                screen.FinishAgentMsg();
-                var cancelled = cts.IsCancellationRequested;
-                screen.AddSystemMsg(cancelled
-                    ? "⚠ 已中断" : "⏰ 服务器 60s 未响应");
-                if (!cancelled)
-                    screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Error;
-                break;
-            }
-            catch (Exception ex) when (attempt < modelStack.Length - 1)
-            {
-                screen.Running = false;
-                screen.FinishAgentMsg();
-                screen.AddSystemMsg($"  ⚠ {model} 失败: {ex.Message}");
-                // 继续回退链
-            }
-            catch (Exception ex)
-            {
-                screen.Running = false;
-                screen.FinishAgentMsg();
-                screen.AddSystemMsg($"  💔 所有模型均失败: {ex.Message}");
-                screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Error;
-            }
-        }
-
-        // 完成通知：耗时 + 终端响铃
-        if (completed)
-        {
-            var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
-            screen.AddSystemMsg($"  💡 完成 ({elapsed:F1}s)");
-            Console.Write('\a'); // 终端响铃
-        }
-
-        // 文件修改确认 + 最近文件跟踪
-        var modified = EditFileTool.ChangedFiles;
-        if (modified.Count > 0)
-        {
-            screen.AddSystemMsg($"📝 已修改 {modified.Count} 个文件 (/diff 查看 /undo 撤销 /recent 最近)");
-            foreach (var f in modified)
-            {
-                if (!screen.RecentFiles.Contains(f))
+                var model = modelStack[attempt];
+                if (attempt > 0)
                 {
-                    screen.RecentFiles.Add(f);
-                    if (screen.RecentFiles.Count > 50) screen.RecentFiles.RemoveAt(0);
+                    _llm!.Model = model;
+                    _config.Model = model;
+                    screen.StatusLeft = model;
+                    screen.AddSystemMsg($"🔄 自动回退到: {model}");
+                    screen.StartAgentMsg();
+                }
+
+                try
+                {
+                    screen.Running = true;
+                    screen.StartAgentMsg();
+                    screen.Render();
+
+                    await _agent!.ChatAsync(userInput,
+                        onToken: tok =>
+                        {
+                            screen.Running = false; // 首 token 到达，思考结束
+                            screen.AppendToken(tok);
+                            screen.Render();
+                        },
+                        onTool: (name, brief) =>
+                        {
+                            screen.FinishAgentMsg();
+                            screen.AddToolProgress(name, brief.Length > 60 ? brief[..57] + "..." : brief);
+                            screen.StartAgentMsg();
+                            screen.Render();
+                        },
+                        cancellationToken: cts.Token);
+
+                    screen.Running = false;
+                    screen.FinishAgentMsg();
+                    completed = true;
+                    break; // 成功
+                }
+                catch (OperationCanceledException)
+                {
+                    screen.Running = false;
+                    screen.FinishAgentMsg();
+                    var cancelled = cts.IsCancellationRequested;
+                    screen.AddSystemMsg(cancelled
+                        ? "⚠ 已中断"
+                        : "⏰ 服务器 60s 未响应");
+                    if (!cancelled)
+                        screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Error;
+                    break;
+                }
+                catch (Exception ex) when (attempt < modelStack.Length - 1)
+                {
+                    screen.Running = false;
+                    screen.FinishAgentMsg();
+                    screen.AddSystemMsg($"  ⚠ {model} 失败: {ex.Message}");
+                    // 继续回退链
+                }
+                catch (Exception ex)
+                {
+                    screen.Running = false;
+                    screen.FinishAgentMsg();
+                    screen.AddSystemMsg($"  💔 所有模型均失败: {ex.Message}");
+                    screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Error;
                 }
             }
-        }
 
-        // 更新右下角 token 显示 + 性能
-        screen.UpdateTokenDisplayFull(
-            _llm!.TotalPromptTokens, _llm.TotalCompletionTokens,
-            _llm.EstimatedCost,
-            ContextManager.EstimateTokens(_agent!.Messages), _config.MaxContextTokens,
-            _llm.LastLatencyMs, _llm.LastTokensPerSec);
-        screen.Render();
-        } finally {
-            _agentBusy = false; _agentCts = null;
+            // 完成通知：耗时 + 终端响铃
+            if (completed)
+            {
+                var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
+                screen.AddSystemMsg($"  💡 完成 ({elapsed:F1}s)");
+                Console.Write('\a'); // 终端响铃
+            }
+
+            // 文件修改确认 + 最近文件跟踪
+            var modified = EditFileTool.ChangedFiles;
+            if (modified.Count > 0)
+            {
+                screen.AddSystemMsg($"📝 已修改 {modified.Count} 个文件 (/diff 查看 /undo 撤销 /recent 最近)");
+                foreach (var f in modified)
+                {
+                    if (!screen.RecentFiles.Contains(f))
+                    {
+                        screen.RecentFiles.Add(f);
+                        if (screen.RecentFiles.Count > 50) screen.RecentFiles.RemoveAt(0);
+                    }
+                }
+            }
+
+            // 更新右下角 token 显示 + 性能
+            screen.UpdateTokenDisplayFull(
+                _llm!.TotalPromptTokens, _llm.TotalCompletionTokens,
+                _llm.EstimatedCost,
+                ContextManager.EstimateTokens(_agent!.Messages), _config.MaxContextTokens,
+                _llm.LastLatencyMs, _llm.LastTokensPerSec);
+            screen.Render();
+        }
+        finally
+        {
+            _agentBusy = false;
+            _agentCts = null;
             if (screen.SlotStates[screen.ActiveSlotIndex] != SlotState.Error)
                 screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Idle;
             screen.Render();
@@ -742,6 +955,7 @@ public class Program
                     dp[i, j] = Math.Min(dp[i, j], dp[i - 2, j - 2] + cost);
             }
         }
+
         return dp[a.Length, b.Length];
     }
 
@@ -761,7 +975,11 @@ public class Program
         foreach (var known in KnownCommands)
         {
             var dist = Levenshtein(cmd, known);
-            if (dist < bestDist) { bestDist = dist; best = known; }
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                best = known;
+            }
         }
 
         if (best == null || bestDist == 0 || bestDist > 2) return null;
@@ -845,12 +1063,16 @@ public class Program
                     screen.InputArea.Lines[screen.InputArea.CursorRow] = before + lcp + after;
                     screen.InputArea.CursorCol = wordStart + lcp.Length;
                 }
+
                 // 显示匹配列表
                 screen.AddSystemMsg("📁 " + string.Join("  ", matches.Take(20)));
                 return true;
             }
         }
-        catch { return false; }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string FindLongestCommonPrefix(List<string> strings)
@@ -863,6 +1085,7 @@ public class Program
                 prefix = prefix[..^1];
             if (prefix.Length == 0) break;
         }
+
         return prefix;
     }
 
@@ -880,8 +1103,14 @@ public class Program
 
         var sorted = all.OrderByDescending(f =>
         {
-            try { return File.GetLastWriteTime(f); }
-            catch { return DateTime.MinValue; }
+            try
+            {
+                return File.GetLastWriteTime(f);
+            }
+            catch
+            {
+                return DateTime.MinValue;
+            }
         }).Take(15).ToList();
 
         screen.AddSystemMsg($"📁 最近文件 ({sorted.Count}):");
@@ -905,18 +1134,23 @@ public class Program
                 return head["ref: refs/heads/".Length..];
             return head.Length >= 7 ? head[..7] : head; // detached HEAD
         }
-        catch { return null; }
+        catch
+        {
+            return null;
+        }
     }
 
     private static void ShowHelpInChat(ChatScreen screen)
     {
         screen.AddSystemMsg("帮助: /help /reset /model /tokens /compact /diff /save /resume /history /export /sessions ... F1-F10切换Agent Ctrl+E编辑器 Ctrl+T设置 Ctrl+R搜索 Ctrl+M切模型 Ctrl+H帮助 Ctrl+B面板 Ctrl+Q退出 ↑↓历史");
     }
+
     private static void ShowAboutInChat(ChatScreen screen)
     {
         var content = $"WayCoder 道码 · 中文版易用编程智能体\nC# / .NET 10 · AOT 编译\n{Global.AppFullName}\n深圳市探索智能科技有限公司";
         screen.ShowDialog("关于 WayCoder", content, width: 46);
     }
+
     private static void RunTestDemo(string target, ChatScreen screen)
     {
         target = target.Trim().ToLowerInvariant();
@@ -947,12 +1181,15 @@ public class Program
                 {
                     screen.AddSystemMsg($"❌ 测试异常: {ex.Message}");
                 }
+
                 break;
         }
     }
+
     private static void ShowTokensInChat(ChatScreen screen)
     {
-        var p = _llm!.TotalPromptTokens; var c = _llm!.TotalCompletionTokens;
+        var p = _llm!.TotalPromptTokens;
+        var c = _llm!.TotalCompletionTokens;
         var latency = _llm.LastLatencyMs;
         var tps = _llm.LastTokensPerSec;
         var info = $"Token: {p:N0} 输入 + {c:N0} 输出 = {(p + c):N0} 总计";
@@ -987,6 +1224,7 @@ public class Program
             sb.AppendLine($"║ 延迟:    {latency / 1000,10:F1} s        ║");
             sb.AppendLine($"║ 速度:    {tps,10:F0} tok/s     ║");
         }
+
         sb.AppendLine($"║ ─────────────────────────── ║");
         sb.AppendLine($"║ 消息:    {_agent!.Messages.Count,10} 条        ║");
         sb.AppendLine($"║ 轮次:    {(int)(_agent.Messages.Count / 2.0),10}          ║");
@@ -1002,12 +1240,13 @@ public class Program
         var sid = SessionManager.SaveSession(_agent!.Messages, _config.Model);
         screen.AddSystemMsg($"✔ 会话已保存: {sid}");
     }
+
     private static void SwitchModelInline(string input, ChatScreen screen)
     {
         var m = input[7..].Trim();
         if (string.IsNullOrEmpty(m)) return;
 
-        var known = new[] { "deepseek-v4-flash","deepseek-v4-pro","gpt-5.4-mini","gpt-5.4","gpt-5.5","gpt-4o","gpt-4o-mini" };
+        var known = new[] { "deepseek-v4-flash", "deepseek-v4-pro", "gpt-5.4-mini", "gpt-5.4", "gpt-5.5", "gpt-4o", "gpt-4o-mini" };
 
         // /model big <name> 或 /model small <name>
         bool isSmall = m.StartsWith("small ", StringComparison.OrdinalIgnoreCase);
@@ -1044,6 +1283,7 @@ public class Program
             TuiManager.Instance.Enter();
             if (!string.IsNullOrWhiteSpace(input)) sid = input.Trim();
         }
+
         if (sid == null)
             sid = SessionManager.SaveSession(_agent!.Messages, _config.Model);
         else
@@ -1054,7 +1294,11 @@ public class Program
     private static void ShowSessionBrowser(ChatScreen screen)
     {
         var sessions = SessionManager.ListSessions();
-        if (sessions.Count == 0) { screen.AddSystemMsg("没有已保存的会话"); return; }
+        if (sessions.Count == 0)
+        {
+            screen.AddSystemMsg("没有已保存的会话");
+            return;
+        }
 
         var choices = new List<string>();
         foreach (var s in sessions)
@@ -1083,7 +1327,12 @@ public class Program
     private static void LoadSessionInteractive(string id, ChatScreen screen)
     {
         var loaded = SessionManager.LoadSession(id);
-        if (loaded == null) { screen.AddSystemMsg($"❌ 会话不存在: {id}"); return; }
+        if (loaded == null)
+        {
+            screen.AddSystemMsg($"❌ 会话不存在: {id}");
+            return;
+        }
+
         _agent!.Messages = loaded.Value.Messages;
         _llm!.Model = loaded.Value.Model;
         _config.Model = loaded.Value.Model;
@@ -1097,6 +1346,7 @@ public class Program
             else if (role == "tool") screen.AddToolMsg("tool", content[..Math.Min(content.Length, 40)]);
             else if (role == "assistant") screen.ChatMessages.Add(new ChatMsg { Role = "agent", Content = content });
         }
+
         screen.AddSystemMsg($"  💡 已加载会话: {id} (模型: {loaded.Value.Model})");
     }
 
@@ -1105,6 +1355,7 @@ public class Program
         var mode = PermissionManager.CurrentMode.ToString();
         screen.AddSystemMsg($"权限模式: {mode} (危险工具需确认: bash/write/edit/agent/kill/rm)");
     }
+
     private static void ShowDiffInChat(ChatScreen screen)
     {
         var files = EditFileTool.ChangedFiles;
@@ -1124,6 +1375,7 @@ public class Program
                     screen.AddSystemMsg($"  {f} (无变更)");
                     continue;
                 }
+
                 // 注入 diff 标题
                 screen.ChatMessages.Add(new ChatMsg
                 {
@@ -1175,6 +1427,7 @@ public class Program
             sb.Append(rb.ToString());
             sb.Append('\n');
         }
+
         return sb.ToString().TrimEnd();
     }
 
@@ -1218,6 +1471,7 @@ public class Program
             var roleIcon = role switch { "user" => "👤", "assistant" => "🤖", "tool" => "🔧", _ => "  " };
             screen.AddSystemMsg($"  #{idx} {roleIcon} {preview}");
         }
+
         if (results.Count > 15)
             screen.AddSystemMsg($"  ... 还有 {results.Count - 15} 条结果");
     }
@@ -1318,7 +1572,12 @@ public class Program
                 screen.Render();
 
                 await _agent!.ChatAsync(prompt,
-                    onToken: tok => { screen.Running = false; screen.AppendToken(tok); screen.Render(); },
+                    onToken: tok =>
+                    {
+                        screen.Running = false;
+                        screen.AppendToken(tok);
+                        screen.Render();
+                    },
                     onTool: (name, brief) =>
                     {
                         screen.FinishAgentMsg();
@@ -1352,8 +1611,11 @@ public class Program
                 m["role"]?.GetValue<string>() == "assistant");
             var lastContent = lastAssistant?["content"]?.GetValue<string>() ?? "";
 
-            var successMarkers = new[] { "SUCCESS", "成功", "✅", "PASS", "通过",
-                "所有测试通过", "0 errors", "0 个错误", "编译成功", "构建成功" };
+            var successMarkers = new[]
+            {
+                "SUCCESS", "成功", "✅", "PASS", "通过",
+                "所有测试通过", "0 errors", "0 个错误", "编译成功", "构建成功"
+            };
             var isSuccess = successMarkers.Any(m =>
                 lastContent.Contains(m, StringComparison.OrdinalIgnoreCase));
 
@@ -1489,7 +1751,9 @@ public class Program
         // 添加测试消息
         screen.ChatMessages.Add(new ChatMsg { Role = "system", Content = Global.AppNameVersion });
         screen.ChatMessages.Add(new ChatMsg { Role = "user", Content = "对比模型价格和功能" });
-        screen.ChatMessages.Add(new ChatMsg { Role = "agent", Content = @"### 价格对比
+        screen.ChatMessages.Add(new ChatMsg
+        {
+            Role = "agent", Content = @"### 价格对比
 
 | 模型 | 输入/1M | 输出/1M | 上下文 |
 |------|---------|---------|--------|
@@ -1505,7 +1769,8 @@ public class Program
 - 代码审查
   - Diff 级别审查
   - 安全漏洞扫描
-deepseek 性价比最高。" });
+deepseek 性价比最高。"
+        });
         screen.StatusLeft = "大:deepseek-v4-flash";
         mgr.Render();
         Console.WriteLine("\n===END===");
@@ -1513,7 +1778,8 @@ deepseek 性价比最高。" });
         // 建议面板截图验证
         screen.AddSystemMsg("建议列表：/reset /resume /restart-agent /restore-checkpoint");
         screen.SetInput("/res");
-        screen.Suggestions = new List<string> {
+        screen.Suggestions = new List<string>
+        {
             "/reset", "/resume", "/restart-agent", "/restore-checkpoint",
             "/reset-all-config", "/reset-cache", "/restart-service",
             "/restore-session", "/reset-password", "/resize-window",
@@ -1629,8 +1895,8 @@ deepseek 性价比最高。" });
 
         var content = new StringBuilder();
         content.AppendLine($"{AnsiText.Accent($"{p:N0} 输入")} + " +
-            $"{AnsiText.Accent($"{c:N0} 输出")} = " +
-            $"{AnsiText.BoldFg($"{total:N0} 总计", TuiColors.Green)}");
+                           $"{AnsiText.Accent($"{c:N0} 输出")} = " +
+                           $"{AnsiText.BoldFg($"{total:N0} 总计", TuiColors.Green)}");
         if (cost != null)
             content.Append($"约 {AnsiText.Dim($"${cost:F4}")}");
 
@@ -1670,13 +1936,13 @@ deepseek 性价比最高。" });
         var lastLayer = 0;
         var compressed = await _agent.Context.MaybeCompressAsync(_agent.Messages, _llm,
             onProgress: (layer, msg) =>
-        {
-            if (layer != lastLayer)
             {
-                MarkupLine($"[cyan]▶ 第 {layer} 层:[/] [dim]{E(msg)}[/]");
-                lastLayer = layer;
-            }
-        });
+                if (layer != lastLayer)
+                {
+                    MarkupLine($"[cyan]▶ 第 {layer} 层:[/] [dim]{E(msg)}[/]");
+                    lastLayer = layer;
+                }
+            });
 
         var after = ContextManager.EstimateTokens(_agent.Messages);
         var pct = before > 0 ? (int)((before - after) * 100.0 / before) : 0;
@@ -1761,6 +2027,7 @@ deepseek 性价比最高。" });
         {
             UxHelper.Error("Shell 错误", ex.Message);
         }
+
         return ""; // 不回传给 Agent
     }
 
@@ -1779,7 +2046,10 @@ deepseek 性价比最高。" });
                 Console.WriteLine($"  {AnsiText.Dim(TuiHelper.Esc(line))}");
             Console.WriteLine();
         }
-        catch { /* 静默失败 */ }
+        catch
+        {
+            /* 静默失败 */
+        }
 
         var file = UxHelper.Ask("# 文件");
         return string.IsNullOrWhiteSpace(file) ? "" : $"#{file}";
@@ -1913,6 +2183,7 @@ deepseek 性价比最高。" });
             MarkupLine("[orange3]用法: /search <关键词>[/]");
             return;
         }
+
         MarkupLine($"[bold cyan]🔍 搜索: {E(query)}[/]");
         var searchTool = new Tools.WebSearchTool();
         var result = await searchTool.ExecuteAsync(new Dictionary<string, object?> { ["query"] = query });
@@ -1942,6 +2213,7 @@ deepseek 性价比最高。" });
             id = parsed;
             idx++;
         }
+
         if (idx < parts.Length)
             filePath = string.Join(" ", parts.Skip(idx));
 
@@ -1964,6 +2236,7 @@ deepseek 性价比最高。" });
             MarkupLine("[dim]（最新检查点无文件备份）[/]");
             return;
         }
+
         var latest = CheckpointManager.ListCheckpoints().Split('\n').LastOrDefault()?.Trim() ?? "最新";
         MarkupLine($"[bold]检查点文件清单[/] [dim]{latest}[/]");
         foreach (var f in files)
@@ -2031,19 +2304,19 @@ deepseek 性价比最高。" });
     private static string SpectreToAnsi(string markup)
     {
         return markup
-            .Replace("[/]", AnsiText.Reset)
-            .Replace("[dim]", AnsiText.DimOn)
-            .Replace("[bold]", AnsiText.BoldOn)
-            .Replace("[cyan]", AnsiText.FgCode(TuiColors.Cyan))
-            .Replace("[green]", AnsiText.FgCode(TuiColors.Green))
-            .Replace("[yellow]", AnsiText.FgCode(TuiColors.Yellow))
-            .Replace("[red]", AnsiText.FgCode(TuiColors.Red))
-            .Replace("[orange3]", AnsiText.FgCode(TuiColors.Yellow))
-            .Replace("[grey]", AnsiText.FgCode(TuiColors.Grey))
-            .Replace("[bold yellow]", AnsiText.BoldFgCode(TuiColors.Yellow))
-            .Replace("[bold cyan]", AnsiText.BoldFgCode(TuiColors.Cyan))
-            .Replace("[bold red]", AnsiText.BoldFgCode(TuiColors.Red))
-            .Replace("[bold orange3]", AnsiText.BoldFgCode(TuiColors.Yellow));
+            .Replace("[/]", AnsiTty.SgrReset)
+            .Replace("[dim]", AnsiTty.SgrDim)
+            .Replace("[bold]", AnsiTty.SgrBold)
+            .Replace("[cyan]", AnsiTty.FgCode(TuiColors.Cyan))
+            .Replace("[green]", AnsiTty.FgCode(TuiColors.Green))
+            .Replace("[yellow]", AnsiTty.FgCode(TuiColors.Yellow))
+            .Replace("[red]", AnsiTty.FgCode(TuiColors.Red))
+            .Replace("[orange3]", AnsiTty.FgCode(TuiColors.Yellow))
+            .Replace("[grey]", AnsiTty.FgCode(TuiColors.Grey))
+            .Replace("[bold yellow]", AnsiTty.FgCode(TuiColors.Yellow))
+            .Replace("[bold cyan]", AnsiTty.FgCode(TuiColors.Cyan))
+            .Replace("[bold red]", AnsiTty.FgCode(TuiColors.Red))
+            .Replace("[bold orange3]", AnsiTty.FgCode(TuiColors.Yellow));
     }
 
     /// <summary>
@@ -2086,11 +2359,17 @@ deepseek 性价比最高。" });
                         status = $"{frame} 思考中...";
 
                     // 清行 + 回行首 + 动画帧（直接写 stdout）
-                    System.Console.Write($"\r{AnsiText.ClearLine}  {AnsiText.Dim(status)}");
-                    System.Console.Out.Flush();
+                    Console.Write($"\r{AnsiTty.ClearToEnd}  {AnsiTty.SgrDim}{status}");
+                    await Console.Out.FlushAsync(token);
                     i++;
-                    try { await Task.Delay(120, token); }
-                    catch (OperationCanceledException) { break; }
+                    try
+                    {
+                        await Task.Delay(120, token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
                 }
             }, token);
         }

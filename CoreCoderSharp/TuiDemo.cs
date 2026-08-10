@@ -1,6 +1,8 @@
 using CoreCoderSharp.Terminal;
 using CoreCoderSharp.UI;
 using CoreCoderSharp.UI.Controls;
+using CoreCoderSharp.UI.TuiControls;
+using CoreCoderSharp.UI.TuiScreens;
 
 namespace CoreCoderSharp;
 
@@ -298,7 +300,7 @@ public static class TuiDemo
             "📝 格式化文档",
         };
         // 模拟右键位置：屏幕中右区域
-        var x = Math.Max(0, TTY.Cols - 30);
+        var x = Math.Max(0, Tty.Cols - 30);
         var y = 5;
         var win = TuiMenu.Show("右键菜单", items, x, y,
             idx =>

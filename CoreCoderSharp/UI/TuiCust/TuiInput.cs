@@ -37,7 +37,7 @@ public static class TuiInput
         var lines = new List<StringBuilder> { new() };
         int cy = 0, cx = 0;
         int scrScroll = 0;
-        int tw = TTY.Cols;
+        int tw = Tty.Cols;
         int contentW = Math.Max(20, tw - 4);
         _mode = Mode.Normal;
         _suggestions = [];
@@ -51,7 +51,7 @@ public static class TuiInput
         {
             while (true)
             {
-                tw = TTY.Cols;
+                tw = Tty.Cols;
                 contentW = Math.Max(20, tw - 4);
 
                 // 计算建议面板
@@ -143,7 +143,7 @@ public static class TuiInput
         ref int cy, ref int cx, ref int _,
         ConsoleKeyInfo key, bool ctrl, bool shift)
     {
-        int cw = Math.Max(20, TTY.Cols - 4);
+        int cw = Math.Max(20, Tty.Cols - 4);
 
         switch (key.Key)
         {

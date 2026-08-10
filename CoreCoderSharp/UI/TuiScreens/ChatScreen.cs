@@ -2,12 +2,19 @@ using System.Collections.Concurrent;
 using System.Text;
 using CoreCoderSharp.Terminal;
 using CoreCoderSharp.Tools;
-using CoreCoderSharp.UI.Controls;
+using CoreCoderSharp.UI.TuiBase;
+using CoreCoderSharp.UI.TuiControls;
 
-namespace CoreCoderSharp.UI;
+namespace CoreCoderSharp.UI.TuiScreens;
 
 /// <summary>槽位状态</summary>
-public enum SlotState : byte { Idle = 0, Working = 1, WaitingPerm = 2, Error = 3 }
+public enum SlotState : byte
+{
+    Idle = 0,
+    Working = 1,
+    WaitingPerm = 2,
+    Error = 3
+}
 
 /// <summary>
 /// 聊天 REPL 屏幕 —— 主交互界面。
@@ -58,6 +65,7 @@ public class ChatScreen : TuiScreen
 
     /// <summary>建议列表项</summary>
     public List<string> Suggestions { get; set; } = [];
+
     public int SuggestIndex { get; set; }
 
     /// <summary>侧栏是否可见</summary>
@@ -98,6 +106,9 @@ public class ChatScreen : TuiScreen
     /// <summary>Agent 正在执行（显示旋转指示）</summary>
     public bool AgentBusy { get; set; }
 
+    /// <summary>
+    /// 初始化聊天屏幕
+    /// </summary>
     public ChatScreen()
     {
         Name = "chat";
@@ -142,6 +153,9 @@ public class ChatScreen : TuiScreen
             win.OnResize(newW, newH);
     }
 
+    /// <summary>
+    /// 构建聊天屏幕布局
+    /// </summary>
     private void BuildLayout()
     {
         RootView.Clear();
@@ -150,18 +164,21 @@ public class ChatScreen : TuiScreen
         // ── 标题栏（顶行）──
         TitleBar = new TuiTitleBar
         {
-            Width = TW, Height = 1,
-            Bg = TuiTheme.Current.StatusBarBg, Fg = TuiTheme.Current.StatusBarFg
+            Width = TW,
+            Height = 1,
+            Bg = TuiTheme.Current.StatusBarBg,
+            Fg = TuiTheme.Current.StatusBarFg
         };
         RootView.Add(TitleBar);
 
         // ── 中间区域：ChatList + SidePanel（HBox 水平排列）──
-        int chatH = Math.Max(1, TH - 1 - 0 - 1 - 3 - 1 - 1); // TH - title(1) - prompt(0) - topBorder(1) - input(3) - botBorder(1) - status(1)
+        var chatH = Math.Max(1, TH - 1 - 0 - 1 - 3 - 1 - 1);
+        // TH - title(1) - prompt(0) - topBorder(1) - input(3) - botBorder(1) - status(1)
         var middleHBox = new TuiHBox { Width = TW, Height = chatH };
 
         ChatList = new TuiListView
         {
-            Width = TW,  // 初始全宽，侧栏打开时 Render 会缩小
+            Width = TW, // 初始全宽，侧栏打开时 Render 会缩小
             Height = chatH,
             IsAutoScrollToEnd = true,
             ItemSpacing = 1
@@ -178,6 +195,7 @@ public class ChatScreen : TuiScreen
         };
         middleHBox.Add(SidePanel);
 
+        //  添加横向面板到根布局
         RootView.Add(middleHBox);
 
         // ── 建议面板 ──
@@ -204,9 +222,12 @@ public class ChatScreen : TuiScreen
         // ── 输入区上分隔线 ──
         InputTopBorder = new TuiSeparator
         {
-            Width = TW, Height = 1,
-            LineChar = "━", LineColor = TuiTheme.Current.SeparatorFg
+            Width = TW,
+            Height = 1,
+            LineChar = "━",
+            LineColor = TuiTheme.Current.SeparatorFg
         };
+
         RootView.Add(InputTopBorder);
 
         // ── 输入区 ──
@@ -218,12 +239,12 @@ public class ChatScreen : TuiScreen
             CursorLineBg = 0,
             Focused = true,
             Placeholder = "输入消息… (Enter 发送, Ctrl+Enter 换行)",
-            ShowLineNumbers = false
-        };
-        InputArea.OnSubmit = text =>
-        {
-            if (!string.IsNullOrWhiteSpace(text))
-                OnSubmit?.Invoke(text);
+            ShowLineNumbers = false,
+            OnSubmit = text =>
+            {
+                if (!string.IsNullOrWhiteSpace(text))
+                    OnSubmit?.Invoke(text);
+            }
         };
         RootView.Add(InputArea);
 
@@ -400,6 +421,7 @@ public class ChatScreen : TuiScreen
                     vw += rw;
                     charIdx += rune.Utf16SequenceLength;
                 }
+
                 InputArea.CursorRow = lineIdx;
                 InputArea.CursorCol = charIdx;
                 MarkDirty();
@@ -420,7 +442,10 @@ public class ChatScreen : TuiScreen
                 MarkDirty();
             }
         }
-        catch { /* 忽略粘贴错误 */ }
+        catch
+        {
+            /* 忽略粘贴错误 */
+        }
     }
 
     // ── 输入操作 ──
@@ -526,6 +551,7 @@ public class ChatScreen : TuiScreen
             };
             SuggestPanel.Add(label);
         }
+
         SuggestPanel.Width = panelW;
         SuggestPanel.Height = panelH;
         SuggestPanel.Layout();
@@ -550,7 +576,8 @@ public class ChatScreen : TuiScreen
         sections.Add(new PanelSection
         {
             Title = "🏷 道码",
-            Lines = [
+            Lines =
+            [
                 $"  WayCoder v{Global.Version}",
                 "  中文版 AI 编程助手",
                 "  C# (.NET 10) AOT",
@@ -580,6 +607,7 @@ public class ChatScreen : TuiScreen
                 todoLines.Add($"  {icon} {title}");
             }
         }
+
         sections.Add(new PanelSection
         {
             Title = $"📋 Todo ({todoItems.Count(i => i.Status == "completed")}/{todoItems.Count})",
@@ -681,6 +709,7 @@ public class ChatScreen : TuiScreen
                         SetInput(item.Value);
                     HidePromptBar();
                 }
+
                 return true;
             case ConsoleKey.Tab:
                 if (PromptBar.SelectedIndex >= 0 && PromptBar.SelectedIndex < PromptBar.Items.Count)
@@ -690,8 +719,10 @@ public class ChatScreen : TuiScreen
                         SetInput(item.Value);
                     MarkDirty();
                 }
+
                 return true;
         }
+
         // 其他键透传，让 InputArea 正常处理（CheckPrefixHints 会自动刷新）
         return false;
     }
@@ -801,22 +832,25 @@ public class ChatScreen : TuiScreen
 
     /// <summary>输入历史（↑↓ 浏览）</summary>
     internal readonly List<string> InputHistory = [];
+
     internal int HistoryIdx = -1;
 
     /// <summary>回调：切换模型（Program.cs 注入）</summary>
     public Action? OnCycleModel;
+
     /// <summary>回调：显示帮助（Program.cs 注入）</summary>
     public Action? OnShowHelp;
+
     /// <summary>回调：搜索历史（Program.cs 注入，参数=查询字符串）</summary>
     public Action<string>? OnSearchHistory;
 
     /// <summary>显示退出确认对话框</summary>
     private void ShowExitConfirmDialog()
     {
-        var win = Controls.TuiDialog.Confirm("退出 WayCoder", "确定要退出道码吗？", confirmed =>
+        var win = TuiDialog.Confirm("退出 WayCoder", "确定要退出道码吗？", confirmed =>
         {
             if (confirmed)
-                PendingSubmissions.Enqueue("\x1b"); // 特殊标记：退出请求
+                PendingSubmissions.Enqueue(AnsiTty.SgrReset); // 特殊标记：退出请求
         });
         ShowWindow(win);
     }
@@ -825,7 +859,7 @@ public class ChatScreen : TuiScreen
     private void ShowThemePicker()
     {
         var names = new List<string>(TuiTheme.PresetNames);
-        var win = Controls.TuiDialog.Select("选择主题", names, idx =>
+        var win = TuiDialog.Select("选择主题", names, idx =>
         {
             if (idx >= 0 && idx < TuiTheme.Presets.Length)
             {
@@ -855,11 +889,13 @@ public class ChatScreen : TuiScreen
             TitleBar.Bg = t.StatusBarBg;
             TitleBar.Fg = t.StatusBarFg;
         }
+
         if (StatusBar != null)
         {
             StatusBar.Bg = t.StatusBarBg;
             StatusBar.Fg = t.StatusBarFg;
         }
+
         // 分隔线
         if (InputTopBorder != null) InputTopBorder.LineColor = t.SeparatorFg;
         if (InputBotBorder != null) InputBotBorder.LineColor = t.SeparatorFg;
@@ -869,6 +905,7 @@ public class ChatScreen : TuiScreen
             InputArea.Fg = t.TextAreaFg;
             InputArea.CursorLineBg = t.TextAreaCursorLineBg;
         }
+
         InvalidateView();
     }
 
@@ -904,35 +941,46 @@ public class ChatScreen : TuiScreen
         switch (key.Key)
         {
             case ConsoleKey.Escape:
-                HideSuggestions(); return true;
+                HideSuggestions();
+                return true;
             case ConsoleKey.UpArrow:
                 SuggestIndex = Math.Max(0, SuggestIndex - 1);
-                UpdateSuggestions(Suggestions, SuggestIndex); return true;
+                UpdateSuggestions(Suggestions, SuggestIndex);
+                return true;
             case ConsoleKey.DownArrow:
                 SuggestIndex = Math.Min(Suggestions.Count - 1, SuggestIndex + 1);
-                UpdateSuggestions(Suggestions, SuggestIndex); return true;
+                UpdateSuggestions(Suggestions, SuggestIndex);
+                return true;
             case ConsoleKey.PageUp:
                 SuggestIndex = Math.Max(0, SuggestIndex - 5);
-                UpdateSuggestions(Suggestions, SuggestIndex); return true;
+                UpdateSuggestions(Suggestions, SuggestIndex);
+                return true;
             case ConsoleKey.PageDown:
                 SuggestIndex = Math.Min(Suggestions.Count - 1, SuggestIndex + 5);
-                UpdateSuggestions(Suggestions, SuggestIndex); return true;
+                UpdateSuggestions(Suggestions, SuggestIndex);
+                return true;
             case ConsoleKey.Home:
                 SuggestIndex = 0;
-                UpdateSuggestions(Suggestions, SuggestIndex); return true;
+                UpdateSuggestions(Suggestions, SuggestIndex);
+                return true;
             case ConsoleKey.End:
                 SuggestIndex = Suggestions.Count - 1;
-                UpdateSuggestions(Suggestions, SuggestIndex); return true;
-            case ConsoleKey.Enter: case ConsoleKey.Tab:
-                AcceptSuggestion(); return true;
+                UpdateSuggestions(Suggestions, SuggestIndex);
+                return true;
+            case ConsoleKey.Enter:
+            case ConsoleKey.Tab:
+                AcceptSuggestion();
+                return true;
             case ConsoleKey.Backspace:
                 InputBackspace();
                 UpdateSuggestions(Suggestions, SuggestIndex);
                 return true; // 已处理，不再向下传递
-            case ConsoleKey.LeftArrow: case ConsoleKey.RightArrow:
+            case ConsoleKey.LeftArrow:
+            case ConsoleKey.RightArrow:
                 SuggestActive = false;
                 return false; // 继续传递，让光标移动生效
         }
+
         return false;
     }
 
@@ -945,10 +993,12 @@ public class ChatScreen : TuiScreen
             switch (key.Key)
             {
                 case ConsoleKey.E:
-                    Manager?.PushScreen(new EditorScreen()); return true;
+                    Manager?.PushScreen(new EditorScreen());
+                    return true;
                 case ConsoleKey.T:
                 case ConsoleKey.O:
-                    Manager?.PushScreen(new SettingsScreen()); return true;
+                    Manager?.PushScreen(new SettingsScreen());
+                    return true;
                 case ConsoleKey.B:
                     SidePanelVisible = !SidePanelVisible;
                     if (SidePanelVisible)
@@ -963,20 +1013,36 @@ public class ChatScreen : TuiScreen
                         OnSearchHistory?.Invoke("/history " + query);
                     return true;
                 case ConsoleKey.M:
-                    OnCycleModel?.Invoke(); return true;
+                    OnCycleModel?.Invoke();
+                    return true;
                 case ConsoleKey.H:
-                    OnShowHelp?.Invoke(); return true;
+                    OnShowHelp?.Invoke();
+                    return true;
                 case ConsoleKey.P:
-                    if (PromptBarVisible) { HidePromptBar(); return true; }
+                    if (PromptBarVisible)
+                    {
+                        HidePromptBar();
+                        return true;
+                    }
+
                     ShowPromptBar(BuildDefaultHints());
                     return true;
                 case ConsoleKey.Q:
-                    ShowExitConfirmDialog(); return true;
+                    ShowExitConfirmDialog();
+                    return true;
                 // 聊天滚动
-                case ConsoleKey.Home:   ChatScrollTop(); return true;
-                case ConsoleKey.End:    ChatScrollBottom(); return true;
-                case ConsoleKey.UpArrow:   ChatScrollUp(3); return true;
-                case ConsoleKey.DownArrow: ChatScrollDown(3); return true;
+                case ConsoleKey.Home:
+                    ChatScrollTop();
+                    return true;
+                case ConsoleKey.End:
+                    ChatScrollBottom();
+                    return true;
+                case ConsoleKey.UpArrow:
+                    ChatScrollUp(3);
+                    return true;
+                case ConsoleKey.DownArrow:
+                    ChatScrollDown(3);
+                    return true;
             }
         }
 
@@ -986,9 +1052,11 @@ public class ChatScreen : TuiScreen
             switch (key.Key)
             {
                 case ConsoleKey.F1:
-                    ShowThemePicker(); return true;
+                    ShowThemePicker();
+                    return true;
                 case ConsoleKey.F2:
-                    CycleThemeDirect(); return true;
+                    CycleThemeDirect();
+                    return true;
             }
         }
 
@@ -1018,14 +1086,16 @@ public class ChatScreen : TuiScreen
     {
         if (key.Key == ConsoleKey.PageUp)
         {
-            ChatScrollUp(Math.Max(1, (TTY.Rows - 10) / 2));
+            ChatScrollUp(Math.Max(1, (Tty.Rows - 10) / 2));
             return true;
         }
+
         if (key.Key == ConsoleKey.PageDown)
         {
-            ChatScrollDown(Math.Max(1, (TTY.Rows - 10) / 2));
+            ChatScrollDown(Math.Max(1, (Tty.Rows - 10) / 2));
             return true;
         }
+
         return false;
     }
 
@@ -1083,6 +1153,7 @@ public class ChatScreen : TuiScreen
         {
             return HandleInputUpArrow();
         }
+
         if (key.Key == ConsoleKey.DownArrow)
         {
             return HandleInputDownArrow();
@@ -1134,6 +1205,7 @@ public class ChatScreen : TuiScreen
                     break;
                 }
             }
+
             if (c == ' ' || c == '\n') break;
         }
 
@@ -1189,6 +1261,7 @@ public class ChatScreen : TuiScreen
                         cmd.Contains(q, StringComparison.OrdinalIgnoreCase))
                         items.Add(new PromptItem { Kind = PromptKind.Slash, Label = cmd, Detail = desc, Value = cmd + " " });
                 }
+
                 break;
 
             case '@': // 文件引用
@@ -1202,6 +1275,7 @@ public class ChatScreen : TuiScreen
                         dir = q[..(lastSlash + 1)];
                         fileQuery = q[(lastSlash + 1)..];
                     }
+
                     if (Directory.Exists(dir))
                     {
                         foreach (var entry in Directory.EnumerateFileSystemEntries(dir).Take(20))
@@ -1222,7 +1296,11 @@ public class ChatScreen : TuiScreen
                         }
                     }
                 }
-                catch { /* 权限不足忽略 */ }
+                catch
+                {
+                    /* 权限不足忽略 */
+                }
+
                 // 也加入最近修改的文件
                 if (string.IsNullOrEmpty(q))
                 {
@@ -1232,6 +1310,7 @@ public class ChatScreen : TuiScreen
                         items.Add(new PromptItem { Kind = PromptKind.Recent, Label = name, Detail = "最近修改", Value = "@\"" + f + "\" " });
                     }
                 }
+
                 break;
 
             case '!': // Shell 命令
@@ -1258,6 +1337,7 @@ public class ChatScreen : TuiScreen
                         cmd.StartsWith(q, StringComparison.OrdinalIgnoreCase))
                         items.Add(new PromptItem { Kind = PromptKind.Shell, Label = cmd, Detail = desc, Value = "!" + cmd });
                 }
+
                 break;
 
             case '#': // 标签/Issue/PR 引用
@@ -1281,6 +1361,7 @@ public class ChatScreen : TuiScreen
                 ChatScrollUp(3);
                 return true;
             }
+
             if (InputHistory.Count > 0)
             {
                 if (HistoryIdx == -1) HistoryIdx = InputHistory.Count - 1;
@@ -1289,6 +1370,7 @@ public class ChatScreen : TuiScreen
             }
         }
         else InputMoveUp();
+
         return true;
     }
 
@@ -1302,6 +1384,7 @@ public class ChatScreen : TuiScreen
                 ChatScrollDown(3);
                 return true;
             }
+
             if (HistoryIdx >= 0)
             {
                 HistoryIdx++;
@@ -1310,6 +1393,7 @@ public class ChatScreen : TuiScreen
             }
         }
         else InputMoveDown();
+
         return true;
     }
 
@@ -1330,6 +1414,7 @@ public class ChatScreen : TuiScreen
                 atPos = i;
                 break;
             }
+
             if (input[i] == ' ' || input[i] == '\n') break;
         }
 
@@ -1351,6 +1436,7 @@ public class ChatScreen : TuiScreen
                 RefreshSuggestions(files, 0);
                 SuggestActive = true;
             }
+
             return true;
         }
 
@@ -1362,6 +1448,7 @@ public class ChatScreen : TuiScreen
             InputInsert(' ');
             return true;
         }
+
         if (matches.Count == 1)
         {
             // 唯一匹配：直接补全
@@ -1375,6 +1462,7 @@ public class ChatScreen : TuiScreen
         {
             ReplaceAtPrefix(atPos + 1, cursorPos, commonPrefix);
         }
+
         RefreshSuggestions(matches, 0);
         SuggestActive = true;
         return true;
@@ -1416,7 +1504,10 @@ public class ChatScreen : TuiScreen
                 }
             }
         }
-        catch { /* 权限不足等错误静默忽略 */ }
+        catch
+        {
+            /* 权限不足等错误静默忽略 */
+        }
 
         results.Sort(StringComparer.OrdinalIgnoreCase);
         return results;
@@ -1435,6 +1526,7 @@ public class ChatScreen : TuiScreen
             if (items.Any(s => s.Length <= i || s[i] != c)) break;
             len++;
         }
+
         return first[..len];
     }
 
@@ -1470,6 +1562,7 @@ public class ChatScreen : TuiScreen
             InputArea.CursorCol = Math.Min(InputArea.CursorCol,
                 InputArea.Lines[InputArea.CursorRow].Length);
         }
+
         MarkDirty();
     }
 
@@ -1482,6 +1575,7 @@ public class ChatScreen : TuiScreen
             InputArea.CursorCol = Math.Min(InputArea.CursorCol,
                 InputArea.Lines[InputArea.CursorRow].Length);
         }
+
         MarkDirty();
     }
 
@@ -1629,6 +1723,7 @@ public class ChatScreen : TuiScreen
                 Thread.Sleep(30);
             }
         }
+
         Manager?.Render();
     }
 
@@ -1638,7 +1733,8 @@ public class ChatScreen : TuiScreen
     {
         if (string.IsNullOrEmpty(text)) return "";
         return TuiHelper.DisplayWidth(text) <= maxVw
-            ? text : TuiHelper.TruncateByWidth(text, maxVw);
+            ? text
+            : TuiHelper.TruncateByWidth(text, maxVw);
     }
 }
 

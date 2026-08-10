@@ -3,12 +3,12 @@
 /// <summary>
 /// TTY 终端抽象层 —— 所有终端操作通过此 API，不手写转义符。
 /// </summary>
-public static class TTY
+public static class Tty
 {
     /// <summary>是否已进入备用屏</summary>
     private static bool _altScreen;
 
-    static TTY()
+    static Tty()
     {
         // 进程退出时自动恢复终端（即使崩溃）
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>

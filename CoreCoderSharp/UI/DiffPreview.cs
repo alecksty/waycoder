@@ -1,4 +1,5 @@
 using CoreCoderSharp.Terminal;
+using CoreCoderSharp.UI.TuiScreens;
 
 namespace CoreCoderSharp.UI;
 
@@ -66,7 +67,7 @@ public static class DiffPreview
         while (true)
         {
             bool isHunkAccepted = accepted.Contains(currentHunk);
-            var (tw, th) = (TTY.Cols, TTY.Rows);
+            var (tw, th) = (Tty.Cols, Tty.Rows);
             var statusH = 2;
             var contentH = Math.Max(5, th - statusH);
 

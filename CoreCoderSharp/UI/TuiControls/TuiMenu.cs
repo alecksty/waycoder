@@ -1,7 +1,7 @@
 using System.Text;
 using CoreCoderSharp.Terminal;
 
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 弹出菜单 —— 带标题栏的可滚动选项列表。
@@ -32,16 +32,21 @@ public static class TuiMenu
     /// <param name="onSelect">选中回调（传入索引，-1=取消）</param>
     /// <param name="onCancel">取消回调</param>
     /// <param name="maxVisible">最大可见项数（默认 14）</param>
-    public static TuiWindow Show(string title, List<string> items, int x, int y,
-        Action<int>? onSelect = null, Action? onCancel = null, int maxVisible = MaxVisible)
+    public static TuiWindow Show(
+        string title,
+        List<string> items,
+        int x, int y,
+        Action<int>? onSelect = null,
+        Action? onCancel = null,
+        int maxVisible = MaxVisible)
     {
         var visCount = Math.Min(items.Count, Math.Max(5, maxVisible));
         var maxVw = items.Count > 0
             ? items.Where(i => !string.IsNullOrEmpty(i) && i != "---")
-                   .Max(i => TuiHelper.DisplayWidth(i))
+                .Max(i => TuiHelper.DisplayWidth(i))
             : 10;
         // 宽度：内容 + 左边距" 1."(3) + 右边距(2) + 快捷键提示(4) + 滚动条(2)
-        var contentW = Math.Max(16, Math.Min(maxVw + 11, TTY.Cols - 8));
+        var contentW = Math.Max(16, Math.Min(maxVw + 11, Tty.Cols - 8));
 
         var hasTitle = !string.IsNullOrEmpty(title);
         var titleH = hasTitle ? 1 : 0;
@@ -59,6 +64,7 @@ public static class TuiMenu
             BorderColor = TuiTheme.Current.WindowBorderFocused,
             WinBg = TuiTheme.Current.WindowBg,
         };
+
         // 确保不超出屏幕
         ClampPosition(win);
 
@@ -74,21 +80,19 @@ public static class TuiMenu
             OnSelect = onSelect,
             OnCancel = onCancel,
             // 关闭窗口回调（由 MenuView 在选中/取消时调用）
-            CloseMenu = () =>
-            {
-                win.OnClosed?.Invoke();
-            },
+            CloseMenu = () => { win.OnClosed?.Invoke(); },
         };
         // 跳过首个分隔线
         while (state.SelectedIndex < items.Count && IsSeparator(items[state.SelectedIndex]))
             state.SelectedIndex++;
-        if (state.SelectedIndex >= items.Count) state.SelectedIndex = 0;
+        if (state.SelectedIndex >= items.Count)
+            state.SelectedIndex = 0;
 
         win.ContentLines = []; // 不使用 ContentLines
         win.RootView = new MenuView(state);
 
         // 快捷键：1-9 快速选择
-        for (int i = 0; i < Math.Min(9, items.Count); i++)
+        for (var i = 0; i < Math.Min(9, items.Count); i++)
         {
             var idx = i;
             if (!IsSeparator(items[i]))
@@ -116,15 +120,24 @@ public static class TuiMenu
 
     // ── 内部 ──
 
+    /// <summary>
+    /// 判断是否为分隔线（空字符串或 "---"）。
+    /// </summary>
+    /// <param name="item">菜单项内容。</param>
+    /// <returns>是否为分隔线。</returns>
     private static bool IsSeparator(string item)
         => string.IsNullOrEmpty(item) || item == "---";
 
+    /// <summary>
+    /// 确保菜单窗口位置不超出屏幕范围。
+    /// </summary>
+    /// <param name="win">菜单窗口。</param>
     private static void ClampPosition(TuiWindow win)
     {
-        if (win.X + win.Width > TTY.Cols)
-            win.X = Math.Max(0, TTY.Cols - win.Width);
-        if (win.Y + win.Height > TTY.Rows)
-            win.Y = Math.Max(0, TTY.Rows - win.Height);
+        if (win.X + win.Width > Tty.Cols)
+            win.X = Math.Max(0, Tty.Cols - win.Width);
+        if (win.Y + win.Height > Tty.Rows)
+            win.Y = Math.Max(0, Tty.Rows - win.Height);
         if (win.X < 0) win.X = 0;
         if (win.Y < 0) win.Y = 0;
     }
@@ -140,6 +153,7 @@ public static class TuiMenu
         public bool HasTitle;
         public Action<int>? OnSelect;
         public Action? OnCancel;
+
         /// <summary>关闭菜单窗口（由 MenuView 在选中/取消后调用，确保窗口关闭 + 脏区域重绘）</summary>
         public Action? CloseMenu;
     }
@@ -152,6 +166,10 @@ public static class TuiMenu
     {
         private readonly MenuState _state;
 
+        /// <summary>
+        /// 初始化菜单视图。
+        /// </summary>
+        /// <param name="state">菜单状态。</param>
         public MenuView(MenuState state)
         {
             _state = state;
@@ -160,11 +178,21 @@ public static class TuiMenu
             Focused = true;
         }
 
-        public override void Layout() { /* 菜单固定尺寸，无需递归布局 */ }
+        public override void Layout()
+        {
+            /* 菜单固定尺寸，无需递归布局 */
+        }
 
+
+        /// <summary>
+        /// 渲染菜单项列表 + 滚动条。
+        /// </summary>
+        /// <param name="sb">渲染缓冲区。</param>
+        /// <param name="absX">绝对 X 坐标。</param>
+        /// <param name="absY">绝对 Y 坐标。</param>
         protected override void OnRender(StringBuilder sb, int absX, int absY)
         {
-            int visH = _state.VisibleCount;
+            var visH = _state.VisibleCount;
             var items = _state.Items;
 
             // 确保选中项可见
@@ -196,13 +224,13 @@ public static class TuiMenu
                     continue;
                 }
 
-                bool sel = idx == _state.SelectedIndex;
-                int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
-                       : sel ? TuiTheme.Current.ListSelFg : TuiTheme.Current.ListFg;
-                // 非选中项用继承背景色（窗口填充色），避免 \x1b[0m 重置后变黑
-                int inheritedBg = GetInheritedBg();
-                int bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : inheritedBg)
-                       : sel ? TuiTheme.Current.ListSelBg : inheritedBg;
+                var sel = idx == _state.SelectedIndex;
+                var fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
+                    : sel ? TuiTheme.Current.ListSelFg : TuiTheme.Current.ListFg;
+                // 非选中项用继承背景色（窗口填充色），避免 AnsiTty.SgrReset 重置后变黑
+                var inheritedBg = GetInheritedBg();
+                var bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : inheritedBg)
+                    : sel ? TuiTheme.Current.ListSelBg : inheritedBg;
 
                 // 快捷键提示（前 9 项）
                 var shortcut = idx < 9 ? $" {idx + 1}" : "  ";
@@ -221,14 +249,14 @@ public static class TuiMenu
             // 滚动指示器
             if (items.Count > visH)
             {
-                int barH = Math.Max(1, visH * visH / Math.Max(1, items.Count));
-                int maxScroll = Math.Max(0, items.Count - visH);
-                int barPos = maxScroll > 0 ? visH * _state.ScrollOffset / maxScroll : 0;
+                var barH = Math.Max(1, visH * visH / Math.Max(1, items.Count));
+                var maxScroll = Math.Max(0, items.Count - visH);
+                var barPos = maxScroll > 0 ? visH * _state.ScrollOffset / maxScroll : 0;
                 barPos = Math.Clamp(barPos, 0, visH - barH);
 
                 for (int i = 0; i < visH; i++)
                 {
-                    int row = absY + i;
+                    var row = absY + i;
                     var ch = (i >= barPos && i < barPos + barH) ? "█" : "│";
                     var rb = new RenderBuffer();
                     rb.Write(row, absX + _state.ContentWidth, ch, fg: 8);
@@ -247,6 +275,11 @@ public static class TuiMenu
             }
         }
 
+        /// <summary>
+        /// 处理键盘输入。
+        /// </summary>
+        /// <param name="key">按下的键。</param>
+        /// <returns>是否处理了该键。</returns>
         public override bool OnKey(ConsoleKeyInfo key)
         {
             var items = _state.Items;
@@ -285,8 +318,10 @@ public static class TuiMenu
                         _state.OnSelect?.Invoke(_state.SelectedIndex);
                         _state.CloseMenu?.Invoke();
                     }
+
                     return true;
             }
+
             return false;
         }
 
@@ -300,6 +335,7 @@ public static class TuiMenu
                 if (!IsSeparator(items[_state.SelectedIndex]))
                     return;
             }
+
             _state.SelectedIndex = 0;
         }
 

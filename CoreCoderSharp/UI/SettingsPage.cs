@@ -1,4 +1,5 @@
 using CoreCoderSharp.Terminal;
+using CoreCoderSharp.UI.TuiScreens;
 
 namespace CoreCoderSharp.UI;
 
@@ -30,7 +31,10 @@ public static class SettingsPage
             .ToDictionary(g => g.Key, g => g.OrderBy(s => s.Order).ToList());
         _catOrder = schema.Select(s => s.Category).Distinct().ToArray();
 
-        _catIdx = 0; _itemIdx = 0; _right = false; _editing = false;
+        _catIdx = 0;
+        _itemIdx = 0;
+        _right = false;
+        _editing = false;
 
         if (wasActive) TuiManager.Instance.Exit();
 
@@ -41,7 +45,11 @@ public static class SettingsPage
                 Render();
                 var key = Console.ReadKey(intercept: true);
 
-                if (_editing) { HandleEditKey(key); continue; }
+                if (_editing)
+                {
+                    HandleEditKey(key);
+                    continue;
+                }
 
                 var cat = _catOrder[_catIdx];
                 var items = _groups[cat];
@@ -52,7 +60,7 @@ public static class SettingsPage
                     case ConsoleKey.S when ctrl:
                         _config.SaveToEnvFile();
                         chatScreen?.SyncTheme();
-                        Console.Write($"{AnsiTty.CursorPos(TTY.Rows, 1)}{AnsiTty.FgBg(30, 42)} 已保存 — 设置已写入 .env 文件 {AnsiTty.SgrReset}");
+                        Console.Write($"{AnsiTty.CursorPos(Tty.Rows, 1)}{AnsiTty.FgBg(30, 42)} 已保存 — 设置已写入 .env 文件 {AnsiTty.SgrReset}");
                         Thread.Sleep(800);
                         return;
                     case ConsoleKey.Escape: return;
@@ -64,7 +72,10 @@ public static class SettingsPage
                         if (_right && _itemIdx < items.Count - 1) _itemIdx++;
                         else if (!_right && _catIdx < _catOrder.Length - 1) _catIdx++;
                         break;
-                    case ConsoleKey.LeftArrow: _right = false; _itemIdx = 0; break;
+                    case ConsoleKey.LeftArrow:
+                        _right = false;
+                        _itemIdx = 0;
+                        break;
                     case ConsoleKey.RightArrow: _right = true; break;
                     case ConsoleKey.Enter:
                         var s = items[_itemIdx];
@@ -80,6 +91,7 @@ public static class SettingsPage
                             _editBuf = s.Type == "secret" ? "" : GetValue(s.Key);
                             _editPos = _editBuf.Length;
                         }
+
                         // toggle 等类型后续扩展
                         break;
                 }
@@ -95,19 +107,37 @@ public static class SettingsPage
     {
         switch (key.Key)
         {
-            case ConsoleKey.Enter: SaveEdit(); _editing = false; break;
+            case ConsoleKey.Enter:
+                SaveEdit();
+                _editing = false;
+                break;
             case ConsoleKey.Escape: _editing = false; break;
             case ConsoleKey.Backspace:
-                if (_editPos > 0) { _editBuf = _editBuf[..(_editPos - 1)] + _editBuf[_editPos..]; _editPos--; } break;
+                if (_editPos > 0)
+                {
+                    _editBuf = _editBuf[..(_editPos - 1)] + _editBuf[_editPos..];
+                    _editPos--;
+                }
+
+                break;
             case ConsoleKey.Delete:
-                if (_editPos < _editBuf.Length) _editBuf = _editBuf.Remove(_editPos, 1); break;
-            case ConsoleKey.LeftArrow: if (_editPos > 0) _editPos--; break;
-            case ConsoleKey.RightArrow: if (_editPos < _editBuf.Length) _editPos++; break;
+                if (_editPos < _editBuf.Length) _editBuf = _editBuf.Remove(_editPos, 1);
+                break;
+            case ConsoleKey.LeftArrow:
+                if (_editPos > 0) _editPos--;
+                break;
+            case ConsoleKey.RightArrow:
+                if (_editPos < _editBuf.Length) _editPos++;
+                break;
             case ConsoleKey.Home: _editPos = 0; break;
             case ConsoleKey.End: _editPos = _editBuf.Length; break;
             default:
                 if (key.KeyChar >= ' ' && key.KeyChar <= '~')
-                { _editBuf = _editBuf[.._editPos] + key.KeyChar + _editBuf[_editPos..]; _editPos++; }
+                {
+                    _editBuf = _editBuf[.._editPos] + key.KeyChar + _editBuf[_editPos..];
+                    _editPos++;
+                }
+
                 break;
         }
     }
@@ -151,23 +181,42 @@ public static class SettingsPage
             case "SmallModel": _config.SmallModel = value; break;
             case "BaseUrl": _config.BaseUrl = value; break;
             case "ApiKey": _config.ApiKey = value; break;
-            case "MaxTokens": if (int.TryParse(value, out var mt)) _config.MaxTokens = mt; break;
-            case "Temperature": if (float.TryParse(value, out var ft)) _config.Temperature = ft; break;
-            case "MaxContextTokens": if (int.TryParse(value, out var mc)) _config.MaxContextTokens = mc; break;
+            case "MaxTokens":
+                if (int.TryParse(value, out var mt)) _config.MaxTokens = mt;
+                break;
+            case "Temperature":
+                if (float.TryParse(value, out var ft)) _config.Temperature = ft;
+                break;
+            case "MaxContextTokens":
+                if (int.TryParse(value, out var mc)) _config.MaxContextTokens = mc;
+                break;
             case "MaxBudgetUsd": _config.MaxBudgetUsd = double.TryParse(value, out var mb) ? mb : null; break;
             case "Provider": _config.Provider = value; break;
             case "AutoGitCommit": _config.AutoGitCommit = bool.TryParse(value, out var ac) && ac; break;
             case "WatchMode": _config.WatchMode = bool.TryParse(value, out var wm) && wm; break;
-            case "ToolTimeoutSec": if (int.TryParse(value, out var tto)) _config.ToolTimeoutSec = tto; break;
-            case "LintTimeoutSec": if (int.TryParse(value, out var lto)) _config.LintTimeoutSec = lto; break;
-            case "SubAgentMaxDepth": if (int.TryParse(value, out var sd)) _config.SubAgentMaxDepth = Math.Clamp(sd, 1, 5); break;
-            case "MemoryRelevanceTopN": if (int.TryParse(value, out var mtn)) _config.MemoryRelevanceTopN = Math.Clamp(mtn, 0, 20); break;
-            case "ThemePreset": _config.ThemePreset = value; ThemeConfig.ApplyPreset(value); break;
+            case "ToolTimeoutSec":
+                if (int.TryParse(value, out var tto)) _config.ToolTimeoutSec = tto;
+                break;
+            case "LintTimeoutSec":
+                if (int.TryParse(value, out var lto)) _config.LintTimeoutSec = lto;
+                break;
+            case "SubAgentMaxDepth":
+                if (int.TryParse(value, out var sd)) _config.SubAgentMaxDepth = Math.Clamp(sd, 1, 5);
+                break;
+            case "MemoryRelevanceTopN":
+                if (int.TryParse(value, out var mtn)) _config.MemoryRelevanceTopN = Math.Clamp(mtn, 0, 20);
+                break;
+            case "ThemePreset":
+                _config.ThemePreset = value;
+                ThemeConfig.ApplyPreset(value);
+                break;
             case "BorderStyle": _config.BorderStyle = value; break;
             case "BorderColor": _config.BorderColor = value; break;
             case "AccentColor": _config.AccentColor = value; break;
             case "ColorScheme": Config.ApplyColorScheme(_config, value); break;
-            case "SaveSettings": _config.SaveToEnvFile(); return;
+            case "SaveSettings":
+                _config.SaveToEnvFile();
+                return;
         }
     }
 
@@ -177,7 +226,7 @@ public static class SettingsPage
 
     private static void Render()
     {
-        var (tw, th) = (TTY.Cols, TTY.Rows);
+        var (tw, th) = (Tty.Cols, Tty.Rows);
         var sb = new System.Text.StringBuilder();
         sb.Append("[?25l[2J[H");
 
@@ -265,5 +314,10 @@ public static class SettingsPage
         Console.Write(sb.ToString());
     }
 
-    private static int VW(string s) { int w = 0; foreach (var r in s.EnumerateRunes()) w += r.Value > 127 ? 2 : 1; return w; }
+    private static int VW(string s)
+    {
+        int w = 0;
+        foreach (var r in s.EnumerateRunes()) w += r.Value > 127 ? 2 : 1;
+        return w;
+    }
 }

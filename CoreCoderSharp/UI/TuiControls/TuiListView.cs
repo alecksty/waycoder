@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 列表视图 —— 可滚动的视图项列表。
