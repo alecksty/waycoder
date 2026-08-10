@@ -58,7 +58,7 @@ public class AgentSlot
 
         // 重建聊天列表项
         foreach (var msg in ChatMessages)
-            screen.AddMessage(msg.Content, msg.Role);
+            screen.AddMessage(msg.Content, msg.Role, msg.Centered);
 
         // 恢复输入状态
         screen.InputArea.Text = InputText;
