@@ -1,5 +1,12 @@
 # 更新日志
 
+## v0.25.3 (2026-08-10) — 工具错误信息改进
+
+### 🔧 P2 改进
+- **26 个工具 catch 块添加异常类型**: `ex.Message` → `ex.GetType().Name: ex.Message`
+  - 覆盖 Tools/ 下全部 26 处错误返回点
+  - 区分 NullReferenceException / IOException / UnauthorizedAccessException 等
+
 ## v0.25.2 (2026-08-10) — 错误处理加固
 
 ### 🔧 P2 改进

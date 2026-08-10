@@ -136,7 +136,7 @@ public class KillTool : ITool
         }
         catch (Exception ex)
         {
-            return $"kill 错误：{ex.Message}";
+            return $"kill 错误：{ex.GetType().Name}: {ex.Message}";
         }
     }
 

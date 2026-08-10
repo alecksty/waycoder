@@ -40,7 +40,7 @@ public class MkdirTool : ITool
         }
         catch (Exception ex)
         {
-            return Task.FromResult($"mkdir 错误：{ex.Message}");
+            return Task.FromResult($"mkdir 错误：{ex.GetType().Name}: {ex.Message}");
         }
     }
 }

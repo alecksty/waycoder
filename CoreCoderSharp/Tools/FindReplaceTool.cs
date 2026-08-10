@@ -182,7 +182,7 @@ public class FindReplaceTool : ITool
         }
         catch (Exception ex)
         {
-            return $"find_replace 错误：{ex.Message}";
+            return $"find_replace 错误：{ex.GetType().Name}: {ex.Message}";
         }
     }
 

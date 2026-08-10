@@ -113,7 +113,7 @@ public class LspTool : ITool
         }
         catch (Exception ex)
         {
-            return $"LSP 错误：{ex.Message}";
+            return $"LSP 错误：{ex.GetType().Name}: {ex.Message}";
         }
     }
 

@@ -164,7 +164,7 @@ public class BashTool : ITool
         }
         catch (Exception ex)
         {
-            return $"运行命令时出错：{ex.Message}";
+            return $"运行命令时出错：{ex.GetType().Name}: {ex.Message}";
         }
     }
 

@@ -91,7 +91,7 @@ public class GitTool : ITool
         }
         catch (Exception ex)
         {
-            return $"Git 错误：{ex.Message}";
+            return $"Git 错误：{ex.GetType().Name}: {ex.Message}";
         }
     }
 }

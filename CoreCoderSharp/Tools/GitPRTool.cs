@@ -265,7 +265,7 @@ public class GitPRTool : ITool
         }
         catch (Exception ex)
         {
-            return $"error: {ex.Message}";
+            return $"error: {ex.GetType().Name}: {ex.Message}";
         }
     }
 }

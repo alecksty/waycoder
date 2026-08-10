@@ -47,7 +47,7 @@ public class CdTool : ITool
         }
         catch (Exception ex)
         {
-            return Task.FromResult($"cd 错误：{ex.Message}");
+            return Task.FromResult($"cd 错误：{ex.GetType().Name}: {ex.Message}");
         }
     }
 }

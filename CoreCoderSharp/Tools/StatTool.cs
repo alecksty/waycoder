@@ -79,7 +79,7 @@ public class StatTool : ITool
         }
         catch (Exception ex)
         {
-            return $"stat 错误：{ex.Message}";
+            return $"stat 错误：{ex.GetType().Name}: {ex.Message}";
         }
     }
 

@@ -48,7 +48,7 @@ public class LintTool : ITool
         }
         catch (Exception ex)
         {
-            return Task.FromResult($"Lint 执行异常: {ex.Message}");
+            return Task.FromResult($"Lint 执行异常: {ex.GetType().Name}: {ex.Message}");
         }
     }
 

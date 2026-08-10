@@ -71,7 +71,7 @@ internal static class McpCache
         }
         catch (Exception ex)
         {
-            DebugLog.Log("mcp", $"MCP 缓存加载失败: {ex.Message}");
+            DebugLog.Log("mcp", $"MCP 缓存加载失败: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -141,7 +141,7 @@ internal static class McpCache
         }
         catch (Exception ex)
         {
-            DebugLog.Log("mcp", $"MCP 缓存保存失败: {ex.Message}");
+            DebugLog.Log("mcp", $"MCP 缓存保存失败: {ex.GetType().Name}: {ex.Message}");
         }
     }
 

@@ -100,7 +100,7 @@ public class PsTool : ITool
         }
         catch (Exception ex)
         {
-            return $"ps 错误：{ex.Message}";
+            return $"ps 错误：{ex.GetType().Name}: {ex.Message}";
         }
     }
 

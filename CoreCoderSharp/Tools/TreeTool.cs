@@ -67,7 +67,7 @@ public class TreeTool : ITool
         }
         catch (Exception ex)
         {
-            return $"tree 错误：{ex.Message}";
+            return $"tree 错误：{ex.GetType().Name}: {ex.Message}";
         }
     }
 
