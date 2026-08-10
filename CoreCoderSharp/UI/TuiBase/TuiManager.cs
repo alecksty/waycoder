@@ -30,6 +30,9 @@ public class TuiManager : IDisposable
     /// <summary>脏标记：有输入或状态变化时置 true，Render 后置 false</summary>
     public bool IsDirty { get; set; } = true;
 
+    /// <summary>是否需要全屏清除+重绘（首帧/Resize/切屏=true，增量更新=false）</summary>
+    private bool _needsFullRefresh = true;
+
     // ── 主题 ──
     public string ThemeBorderColor { get; set; } = "36";
     public string ThemeAccentColor { get; set; } = "36";
@@ -76,6 +79,7 @@ public class TuiManager : IDisposable
     public void PushScreen(TuiScreen screen)
     {
         IsDirty = true;
+        _needsFullRefresh = true;
         ActiveScreen?.Deactivate();
         _screenStack.Push(screen);
         ActiveScreen = screen;
@@ -87,6 +91,8 @@ public class TuiManager : IDisposable
     public TuiScreen? PopScreen()
     {
         if (_screenStack.Count == 0) return null;
+        IsDirty = true;
+        _needsFullRefresh = true;
         var popped = _screenStack.Pop();
         popped.Deactivate();
         ActiveScreen = _screenStack.Count > 0 ? _screenStack.Peek() : null;
@@ -107,7 +113,8 @@ public class TuiManager : IDisposable
     // ── 渲染 ──
 
     /// <summary>
-    /// 全帧渲染：根屏幕 + 浮层窗口 + 光标定位。
+    /// 全帧渲染。增量模式下仅重绘脏控件（跳过 ClearScreen），避免焦点切换时全屏闪烁。
+    /// 全刷新模式下 ClearScreen + RootView 全量重绘。
     /// </summary>
     public void Render()
     {
@@ -121,10 +128,20 @@ public class TuiManager : IDisposable
         ActiveScreen?.SetCursorOwner();
 
         var sb = new StringBuilder();
-        sb.Append(AnsiTty.CursorHide).Append(AnsiTty.Home).Append(AnsiTty.ClearScreen);
+        sb.Append(AnsiTty.CursorHide).Append(AnsiTty.Home);
 
-        // 清屏后强制根视图全量重绘（所有控件标记脏，确保不丢内容）
-        ActiveScreen?.RootView.Invalidate();
+        // 全刷新：首帧 / 切屏 / Resize / RootView 被整体标记脏
+        bool fullRefresh = _needsFullRefresh || (ActiveScreen?.RootView.IsDirty == true);
+        if (fullRefresh)
+        {
+            sb.Append(AnsiTty.ClearScreen);
+            ActiveScreen?.RootView.Invalidate();
+            _needsFullRefresh = false;
+        }
+
+        // 通知 Screen 当前是否为增量更新（仅脏控件刷新）
+        if (ActiveScreen != null)
+            ActiveScreen.IsIncrementalUpdate = !fullRefresh;
 
         // 1. 渲染活跃屏幕
         ActiveScreen?.Render(sb);
@@ -172,6 +189,7 @@ public class TuiManager : IDisposable
     public void OnResize()
     {
         IsDirty = true;
+        _needsFullRefresh = true;
         (TW, TH) = (Tty.Cols, Tty.Rows);
         ActiveScreen?.OnResize(TW, TH);
     }

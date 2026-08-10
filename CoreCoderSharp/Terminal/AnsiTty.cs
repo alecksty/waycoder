@@ -136,6 +136,16 @@ public static class AnsiTty
             Math.Min(255, (int)(b + (255 - b) * amount)));
     }
 
+    /// <summary>将 TrueColor 向黑色方向调暗（amount=0 不变，1 全黑）</summary>
+    public static int DarkenRgb(int code, float amount)
+    {
+        var (r, g, b) = DecodeRgb(code);
+        return RgbCode(
+            Math.Max(0, (int)(r * (1 - amount))),
+            Math.Max(0, (int)(g * (1 - amount))),
+            Math.Max(0, (int)(b * (1 - amount))));
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // 颜色码 → 序列（自动识别 16色/256色/TrueColor）
     // ═══════════════════════════════════════════════════════════════
