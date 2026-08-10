@@ -113,6 +113,7 @@ public class Agent
         string userInput,
         Action<string>? onToken = null,
         Action<string, string>? onTool = null,
+        Action<string>? onToolOutput = null,
         CancellationToken cancellationToken = default)
     {
         Messages.Add(new JsonObject { ["role"] = "user", ["content"] = userInput });
@@ -172,7 +173,7 @@ public class Agent
                 {
                     var tc = resp.ToolCalls[0];
                     onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
-                    var result = await ExecuteToolAsync(tc);
+                    var result = await ExecuteToolAsync(tc, onToolOutput);
                     // 自动 lint 反馈闭环：写文件后立即检查，错误注入工具结果
                     result = await AppendLintFeedbackAsync(tc, result);
                     // 自动 test 反馈闭环：写源码文件后跑测试，失败注入工具结果
@@ -186,7 +187,7 @@ public class Agent
                 }
                 else
                 {
-                    // 多个工具调用时并行执行
+                    // 多个工具调用时并行执行（不流式输出，避免交叉混乱）
                     var tasks = resp.ToolCalls.Select(async tc =>
                     {
                         onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
@@ -238,7 +239,7 @@ public class Agent
     /// <summary>
     /// 执行单个工具调用，返回结果字符串。
     /// </summary>
-    private async Task<string> ExecuteToolAsync(ToolCall tc)
+    private async Task<string> ExecuteToolAsync(ToolCall tc, Action<string>? onToolOutput = null)
     {
         if (!ToolByName.TryGetValue(tc.Name, out var tool))
             return $"错误：未知工具 '{tc.Name}'";
@@ -259,7 +260,10 @@ public class Agent
             if (hookBlock != null)
                 return $"操作被 Hook 阻止: {hookBlock}";
 
-            var result = await tool.ExecuteAsync(tc.Arguments);
+            var result = tool is BashTool bashTool && onToolOutput != null
+                ? await bashTool.ExecuteStreamingAsync(tc.Arguments,
+                    async line => { onToolOutput(line); await Task.CompletedTask; })
+                : await tool.ExecuteAsync(tc.Arguments);
 
             // 追踪修改的文件（用于自动 commit 精准暂存）
             if (tc.Name is "write_file" or "edit_file" or "notebook_edit")

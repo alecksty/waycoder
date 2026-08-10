@@ -608,16 +608,21 @@ public class Program
                 onToken: tok =>
                 {
                     screen_!.Running = false;
+                    screen_!.EnsureAgentStreaming();
                     screen_!.AppendToken(tok);
                 },
                 onTool: (name, brief) =>
                 {
                     screen_!.FinishAgentMsg();
                     screen_!.AddToolProgress(name, brief.Length > 60 ? brief[..57] + "..." : brief);
-                    screen_!.StartAgentMsg();
+                    // 不立刻 StartAgentMsg，等 onToolOutput 流式输出完毕再懒启动
                     // 每 3 次工具调用自动保存
                     if (++_toolCallCount % 3 == 0)
                         AutoSaveSession();
+                },
+                onToolOutput: line =>
+                {
+                    screen_!.AppendToLast(line + "\n");
                 },
                 cancellationToken: cts.Token);
         });
