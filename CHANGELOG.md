@@ -42,6 +42,14 @@
 - 新增 16 语言 import/include 引用图分析
 - PageRank 风格核心文件评分 + ⭐ 标记
 
+**💬 AskUserQuestion 用户交互工具**
+- LLM 可主动弹窗向用户提问：单选（多选一）、多选（多选多）、文本输入
+- 每次可问 1-4 个问题，依次模态弹窗，阻塞 Agent 等待响应
+- 支持选项描述文本（如 `"React — Popular UI library"`）
+- 非 TUI 模式自动回退到 Console I/O
+- 分类为 Safe 工具，SmartAuto 下自动放行无需确认
+- `UxHelper.RenderWait` 重构为公开方法，timeout 可配置，供工具层复用
+
 ### 🖥️ TUI 改进
 - **状态栏心跳动画**：⣾⣽⣻⢿⡿⣟⣯⣷ braille 旋转，证明 UI 渲染循环存活
 - **光标定位修复**：`EnsureCursorPosition()` 后备机制，增量渲染模式下光标位置不丢失
@@ -55,8 +63,8 @@
 - `AgentSlot` 新增：`WorkMode`、`PendingMessages`、`DeliverMessage()`、`FlushPendingMessages()`
 
 ### 🧪 测试
-- 新增 85 项测试（总计 1289 项，从 1199 增长），全部通过
-- 覆盖：AutoMode 分类器、工作模式约束/切换/事件、AutoCommit 属性/校验/清洗/EscArg、跨槽位投递/排队、光标状态
+- 新增 95 项测试（总计 1299 项，从 1199 增长），全部通过
+- 覆盖：AutoMode 分类器、工作模式约束/切换/事件、AutoCommit 属性/校验/清洗/EscArg、跨槽位投递/排队、光标状态、AskUserQuestion 工具 Schema/注册/安全分类
 
 ### 🗂️ 新增文件
 | 文件 | 功能 |
@@ -70,6 +78,7 @@
 | `Commands/ArchitectCommand.cs` | `/architect` 双模型 |
 | `Commands/ImportCommand.cs` | `/import` 导入 |
 | `Infra/ImportHelper.cs` | 四源导入引擎 (~750行) |
+| `Tools/AskUserQuestionTool.cs` | LLM 用户交互工具 (~360行) |
 
 ## v0.25.9 (2026-08-10) — TUI 控件完善 + 测试全覆盖 + Bug 修复
 

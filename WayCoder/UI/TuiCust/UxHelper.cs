@@ -198,7 +198,12 @@ public static class UxHelper
 
     // ── 事件循环 ──
 
-    private static void RenderWait(TuiScreen? screen, ManualResetEventSlim evt)
+    /// <summary>
+    /// 渲染等待循环 —— 阻塞当前线程，轮询渲染 + 处理输入直到 evt 被设置或超时。
+    /// 由 ShowInputDialog/ShowSelectDialog 等内部调用，也可由工具（如 AskUserQuestion）外部调用。
+    /// </summary>
+    /// <param name="timeoutMs">超时毫秒数（默认 30s，AskUserQuestion 等需更长超时）</param>
+    public static void RenderWait(TuiScreen? screen, ManualResetEventSlim evt, int timeoutMs = 30_000)
     {
         if (screen == null) { evt.Wait(TimeSpan.FromSeconds(30)); return; }
         var manager = TuiManager.Instance;
@@ -215,7 +220,7 @@ public static class UxHelper
             {
                 Thread.Sleep(30);
             }
-            if (Environment.TickCount64 - start > 30_000) break;
+            if (Environment.TickCount64 - start > timeoutMs) break;
         }
         manager?.Render();
     }
