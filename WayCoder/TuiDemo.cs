@@ -1,6 +1,5 @@
 using WayCoder.Terminal;
 using WayCoder.UI;
-using WayCoder.UI.Controls;
 using WayCoder.UI.TuiControls;
 using WayCoder.UI.TuiScreens;
 

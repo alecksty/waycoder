@@ -1,7 +1,7 @@
 using System.Text;
 using WayCoder.Terminal;
 
-namespace WayCoder.UI.Controls;
+namespace WayCoder.UI.TuiControls;
 
 /// <summary>
 /// 增强版富文本编辑控件 —— 语法高亮、行号、诊断 Gutter、CJK 感知光标。

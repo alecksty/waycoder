@@ -1,8 +1,6 @@
 using System.Text;
 using WayCoder.Terminal;
 using WayCoder.Tools;
-using WayCoder.UI.Controls;
-
 using WayCoder.UI.TuiControls;
 
 namespace WayCoder.UI.TuiScreens;

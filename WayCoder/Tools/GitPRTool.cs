@@ -245,27 +245,6 @@ public class GitPRTool : ITool
 
     private static string RunGit(string workingDir, string arguments)
     {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "git",
-                Arguments = arguments,
-                WorkingDirectory = workingDir,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-
-            using var proc = Process.Start(psi)!;
-            var stdout = proc.StandardOutput.ReadToEnd();
-            proc.WaitForExit(10_000);
-            return stdout;
-        }
-        catch (Exception ex)
-        {
-            return $"error: {ex.GetType().Name}: {ex.Message}";
-        }
+        return GitRunner.Output(arguments, workingDir);
     }
 }
