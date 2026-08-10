@@ -120,12 +120,18 @@ public class LLM
         ["kimi-k2.5"] = (0.6, 3),
     };
 
+    /// <summary>API 密钥（Bearer Token）</summary>
     public string ApiKey { get; }
+    /// <summary>API 基础 URL（默认 https://api.openai.com）</summary>
     public string? BaseUrl { get; }
+    /// <summary>每次请求最大输出 token 数</summary>
     public int MaxTokens { get; }
+    /// <summary>采样温度（0=精确，1=创意）</summary>
     public float Temperature { get; }
 
+    /// <summary>累计输入 token 数（用于成本估算）</summary>
     public int TotalPromptTokens { get; private set; }
+    /// <summary>累计输出 token 数（用于成本估算）</summary>
     public int TotalCompletionTokens { get; private set; }
 
     /// <summary>最近一次请求的延迟（毫秒）</summary>
@@ -159,9 +165,14 @@ public class LLM
     }
 
     /// <summary>
-    /// 发送消息，流式返回响应，处理工具调用。
-    /// onToolCall: 流式执行回调——每个工具调用参数接收完整后立即触发，不用等 LLM 说完。
+    /// 发送消息到 LLM，流式返回响应，处理工具调用。
     /// </summary>
+    /// <param name="messages">对话历史（OpenAI 格式消息数组）</param>
+    /// <param name="tools">可选工具定义列表</param>
+    /// <param name="onToken">流式 token 回调（每收到一个 token 文本即触发）</param>
+    /// <param name="onToolCall">流式工具调用回调（参数完整接收后立即触发，不等 LLM 说完）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>LLM 响应（文本 + 工具调用 + token 用量）</returns>
     public async Task<LLMResponse> ChatAsync(
         List<JsonObject> messages,
         List<JsonObject>? tools = null,
@@ -351,8 +362,11 @@ public class LLM
 
     /// <summary>
     /// 通过 /v1/embeddings 端点生成文本的嵌入向量。
-    /// 返回 float[] 或 null（API 不可用/出错时）。
     /// </summary>
+    /// <param name="text">要嵌入的文本</param>
+    /// <param name="model">嵌入模型名（默认 text-embedding-3-small）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>浮点向量数组，或 null（API 不可用/出错/不支持时）</returns>
     public async Task<float[]?> GetEmbeddingAsync(
         string text, string? model = null, CancellationToken cancellationToken = default)
     {
