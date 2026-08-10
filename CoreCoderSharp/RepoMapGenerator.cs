@@ -147,7 +147,7 @@ public static class RepoMapGenerator
                     patterns.Add(trimmed);
             }
         }
-        catch { }
+        catch (Exception ex) { DebugLog.Log("RepoMap", $"解析 .gitignore 失败: {ex.Message}"); }
 
         return patterns;
     }
@@ -220,7 +220,7 @@ public static class RepoMapGenerator
                 entries.Add(new FileEntry(relPath, name, false, fi.Length, fi.LastWriteTime, symbolInfo));
             }
         }
-        catch { }
+        catch (Exception ex) { DebugLog.Log("RepoMap", $"目录扫描失败: {ex.Message}"); }
 
         return entries;
     }
@@ -263,7 +263,7 @@ public static class RepoMapGenerator
             if (names.Count == 0) return "";
             return $"[{pair.kind}] " + string.Join(" ", names.OrderBy(n => n).Take(12));
         }
-        catch { return ""; }
+        catch (Exception ex) { DebugLog.Log("RepoMap", $"LSP 符号提取失败: {ex.Message}"); return ""; }
     }
 
     private static string BuildTree(List<FileEntry> allEntries, string root)

@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.25.2 (2026-08-10) — 错误处理加固
+
+### 🔧 P2 改进
+- **空 catch 块添加日志**: 10+ 个静默异常捕获点增加 `DebugLog.Log()` 调用
+  - `ProjectContext.cs` 6 处（指令文件/package.json/csproj/go.mod/Git/SafeGetFiles）
+  - `SandboxManager.cs` 2 处（路径解析 + OperationCanceledException）
+  - `RepoMapGenerator.cs` 3 处（.gitignore/目录扫描/LSP 符号提取）
+  - `CheckpointManager.cs` 3 处（Git stash/Git status/变更文件）
+
 ## v0.25.1 (2026-08-10) — 代码质量修复
 
 ### 🐛 Bug 修复

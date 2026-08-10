@@ -200,7 +200,7 @@ public static class SandboxManager
                         ? target.Replace("~", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))
                         : target));
             }
-            catch { continue; }
+            catch (Exception ex) { DebugLog.Log("SandboxManager", $"路径解析失败: {ex.Message}"); continue; }
 
             // 规范化路径
             var normalizedTarget = Path.GetFullPath(resolved).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -276,7 +276,7 @@ public static class SandboxManager
                 }
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException ex) { DebugLog.Log("SandboxManager", $"进程等待取消/超时: {ex.Message}"); }
 
         return null;
     }
