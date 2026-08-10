@@ -10,8 +10,11 @@ obj/
 .venv/
 venv/
 
-# CoreCoder
+# WayCoder
 .corecoder_history
+
+# Legacy
+CoreCoderSharp/
 
 # OS
 .DS_Store
@@ -27,4 +30,4 @@ verify_build/
 *.bak
 *.patch
 excalidraw.log
-CoreCoderSharp/.corecoder/memory/
+WayCoder/.waycoder/memory/
