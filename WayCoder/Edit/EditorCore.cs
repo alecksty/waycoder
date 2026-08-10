@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace WayCoder;
 
@@ -59,6 +60,7 @@ public class EditorCore
 
         Cy = 0; Cx = 0; Scroll = 0; Modified = false;
         _undo.Clear();
+        _outlineDirty = true;
     }
 
     /// <summary>同步保存（写文件）</summary>
@@ -130,6 +132,7 @@ public class EditorCore
         Lines[Cy].Insert(Cx, text);
         Cx += text.Length;
         Modified = true;
+        _outlineDirty = true;
         OnContentChanged?.Invoke();
     }
 
@@ -152,6 +155,7 @@ public class EditorCore
             Cy--;
             Modified = true;
         }
+        _outlineDirty = true;
         OnContentChanged?.Invoke();
     }
 
@@ -171,6 +175,7 @@ public class EditorCore
             Lines.RemoveAt(Cy + 1);
             Modified = true;
         }
+        _outlineDirty = true;
         OnContentChanged?.Invoke();
     }
 
@@ -183,6 +188,7 @@ public class EditorCore
         Cy++;
         Cx = 0;
         Modified = true;
+        _outlineDirty = true;
         OnContentChanged?.Invoke();
     }
 
@@ -216,6 +222,7 @@ public class EditorCore
             Cx = 0;
             Modified = true;
         }
+        _outlineDirty = true;
         OnContentChanged?.Invoke();
     }
 
@@ -250,6 +257,7 @@ public class EditorCore
         Cy = act.Line;
         Cx = act.Col;
         Modified = true;
+        _outlineDirty = true;
         OnContentChanged?.Invoke();
     }
 
@@ -279,4 +287,184 @@ public class EditorCore
         < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
         _ => $"{bytes / (1024.0 * 1024):F1} MB",
     };
+
+    // ================================================================
+    // 大纲 / 符号提取
+    // ================================================================
+
+    /// <summary>代码大纲项</summary>
+    public record OutlineItem(string Name, int Line, string Kind, string Icon);
+
+    private List<OutlineItem>? _cachedOutline;
+    private bool _outlineDirty = true;
+
+    /// <summary>提取当前文件的大纲（带缓存）</summary>
+    public List<OutlineItem> ExtractOutline()
+    {
+        if (!_outlineDirty && _cachedOutline != null)
+            return _cachedOutline;
+
+        var ext = Path.GetExtension(FilePath).ToLowerInvariant();
+        _cachedOutline = OutlineExtractor.Extract(Lines, ext);
+        _outlineDirty = false;
+        return _cachedOutline;
+    }
+
+    /// <summary>标记大纲缓存失效（内容变更时调用）</summary>
+    public void InvalidateOutline()
+    {
+        _outlineDirty = true;
+    }
+}
+
+/// <summary>
+/// 大纲提取器 —— 按文件扩展名用正则提取函数/类/方法等符号。
+/// 模式借鉴自 RepoMapGenerator.SymbolPatterns。
+/// </summary>
+public static class OutlineExtractor
+{
+    private static readonly Dictionary<string, (Regex Regex, string Kind, string Icon)[]> Patterns = new()
+    {
+        [".cs"] = new[]
+        {
+            (new Regex(@"^\s*(?:public|private|protected|internal|static|sealed|abstract|partial|readonly|async|override|virtual)?\s*class\s+(\w+)"), "class", "📦"),
+            (new Regex(@"^\s*(?:public|private|protected|internal|static|sealed|abstract|partial|readonly|async|override|virtual)?\s*interface\s+(\w+)"), "interface", "📐"),
+            (new Regex(@"^\s*(?:public|private|protected|internal|static|sealed|abstract|partial|readonly|async|override|virtual)?\s*struct\s+(\w+)"), "struct", "🏗"),
+            (new Regex(@"^\s*(?:public|private|protected|internal|static|sealed|abstract|partial|readonly|async|override|virtual)?\s*enum\s+(\w+)"), "enum", "📋"),
+            (new Regex(@"^\s*(?:public|private|protected|internal|static|sealed|abstract|partial|readonly|async|override|virtual)?\s*record\s+(\w+)"), "record", "📋"),
+            (new Regex(@"^\s*(?:public|private|protected|internal|static|sealed|abstract|partial|readonly|async|override|virtual)?\s*(?:\w+(?:<[^>]*>)?\s+)?(\w+)\s*\("), "method", "🔧"),
+            (new Regex(@"^\s*(?:public|private|protected|internal|static|sealed|abstract|partial|readonly|async|override|virtual)?\s*(?:\w+(?:<[^>]*>)?\s+)(\w+)\s*\{?\s*(?:get|set|=>)"), "property", "🔑"),
+        },
+        [".py"] = new[]
+        {
+            (new Regex(@"^\s*class\s+(\w+)"), "class", "📦"),
+            (new Regex(@"^\s*(?:async\s+)?def\s+(\w+)"), "method", "🔧"),
+        },
+        [".js"] = new[]
+        {
+            (new Regex(@"^\s*(?:export\s+)?class\s+(\w+)"), "class", "📦"),
+            (new Regex(@"^\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)"), "function", "𝑓"),
+            (new Regex(@"^\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\("), "function", "𝑓"),
+            (new Regex(@"^\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*="), "variable", "📌"),
+        },
+        [".ts"] = new[]
+        {
+            (new Regex(@"^\s*(?:export\s+)?(?:abstract\s+)?class\s+(\w+)"), "class", "📦"),
+            (new Regex(@"^\s*(?:export\s+)?interface\s+(\w+)"), "interface", "📐"),
+            (new Regex(@"^\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)"), "function", "𝑓"),
+            (new Regex(@"^\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\("), "function", "𝑓"),
+            (new Regex(@"^\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*="), "variable", "📌"),
+        },
+        [".go"] = new[]
+        {
+            (new Regex(@"^\s*type\s+(\w+)\s+struct"), "struct", "🏗"),
+            (new Regex(@"^\s*type\s+(\w+)\s+interface"), "interface", "📐"),
+            (new Regex(@"^\s*func\s+(?:\([^)]*\)\s+)?(\w+)"), "function", "𝑓"),
+        },
+        [".rs"] = new[]
+        {
+            (new Regex(@"^\s*(?:pub\s+)?struct\s+(\w+)"), "struct", "🏗"),
+            (new Regex(@"^\s*(?:pub\s+)?enum\s+(\w+)"), "enum", "📋"),
+            (new Regex(@"^\s*(?:pub\s+)?trait\s+(\w+)"), "trait", "📐"),
+            (new Regex(@"^\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)"), "function", "𝑓"),
+            (new Regex(@"^\s*(?:pub\s+)?impl\s+(\w+)"), "impl", "🔧"),
+        },
+        [".java"] = new[]
+        {
+            (new Regex(@"^\s*(?:public|private|protected)?\s*(?:static|final|abstract)?\s*class\s+(\w+)"), "class", "📦"),
+            (new Regex(@"^\s*(?:public|private|protected)?\s*(?:static|final|abstract)?\s*interface\s+(\w+)"), "interface", "📐"),
+            (new Regex(@"^\s*(?:public|private|protected)?\s*(?:static|final|abstract)?\s*enum\s+(\w+)"), "enum", "📋"),
+            (new Regex(@"^\s*(?:public|private|protected)?\s*(?:static|final|abstract)?\s*(?:\w+(?:<[^>]*>)?\s+)?(\w+)\s*\("), "method", "🔧"),
+        },
+        [".c"] = new[] { (new Regex(@"^\s*\w[\w\s*]+\s+(\w+)\s*\("), "function", "𝑓"), },
+        [".cpp"] = new[]
+        {
+            (new Regex(@"^\s*(?:class|struct)\s+(\w+)"), "class", "📦"),
+            (new Regex(@"^\s*\w[\w\s*:]+\s+(\w+)\s*\("), "function", "𝑓"),
+        },
+        [".h"] = new[]
+        {
+            (new Regex(@"^\s*(?:class|struct)\s+(\w+)"), "class", "📦"),
+            (new Regex(@"^\s*\w[\w\s*]+\s+(\w+)\s*\("), "function", "𝑓"),
+        },
+        [".swift"] = new[]
+        {
+            (new Regex(@"^\s*(?:public\s+)?class\s+(\w+)"), "class", "📦"),
+            (new Regex(@"^\s*(?:public\s+)?struct\s+(\w+)"), "struct", "🏗"),
+            (new Regex(@"^\s*(?:public\s+)?func\s+(\w+)"), "function", "𝑓"),
+        },
+        [".kt"] = new[]
+        {
+            (new Regex(@"^\s*(?:data\s+)?class\s+(\w+)"), "class", "📦"),
+            (new Regex(@"^\s*object\s+(\w+)"), "object", "📦"),
+            (new Regex(@"^\s*(?:suspend\s+)?fun\s+(\w+)"), "function", "𝑓"),
+        },
+        [".sh"] = new[]
+        {
+            (new Regex(@"^\s*function\s+(\w+)"), "function", "𝑓"),
+            (new Regex(@"^(\w+)\s*\(\s*\)"), "function", "𝑓"),
+        },
+        [".sql"] = new[]
+        {
+            (new Regex(@"^\s*CREATE\s+(?:TABLE|INDEX|VIEW|PROCEDURE|FUNCTION)\s+(\w+)", RegexOptions.IgnoreCase), "ddl", "📋"),
+        },
+        [".md"] = new[]
+        {
+            (new Regex(@"^#+\s+(.+)"), "heading", "📝"),
+        },
+        // .tsx / .jsx 复用 .ts / .js
+        [".tsx"] = null!, [".jsx"] = null!,
+    };
+
+    // 需要过滤的关键字（防止把类型名当方法名）
+    private static readonly HashSet<string> FilterWords = new()
+    {
+        "if", "for", "while", "return", "class", "struct", "interface", "enum",
+        "public", "private", "protected", "static", "void", "int", "string",
+        "bool", "var", "let", "const", "function", "export", "import", "from",
+        "async", "await", "new", "this", "super", "extends", "implements",
+        "override", "virtual", "abstract", "record", "sealed", "internal",
+        "readonly", "partial", "get", "set", "throw", "throws", "catch", "try",
+        "switch", "case", "default", "break", "continue", "typeof", "instanceof",
+        "namespace", "using", "yield", "Task", "void", "object", "dynamic",
+    };
+
+    public static List<EditorCore.OutlineItem> Extract(List<System.Text.StringBuilder> lines, string ext)
+    {
+        var results = new List<EditorCore.OutlineItem>();
+
+        // .tsx/.jsx 复用 .ts/.js 模式
+        if (ext == ".tsx") ext = ".ts";
+        if (ext == ".jsx") ext = ".js";
+
+        if (!Patterns.TryGetValue(ext, out var patterns) || patterns == null!)
+            return results;
+
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var line = lines[i].ToString();
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            foreach (var (regex, kind, icon) in patterns)
+            {
+                var m = regex.Match(line);
+                if (!m.Success) continue;
+
+                // 取第一个命名组
+                foreach (Group g in m.Groups)
+                {
+                    if (!g.Success || g.Index == 0 || string.IsNullOrEmpty(g.Value)) continue;
+                    var name = g.Value;
+                    if (name.Length <= 1) continue;
+                    if (FilterWords.Contains(name)) continue;
+                    // 跳过以 _ 开头的私有成员（可选：保留 _ 开头的）
+                    results.Add(new EditorCore.OutlineItem(name, i + 1, kind, icon));
+                    break; // 每行只取一个匹配
+                }
+                break; // 匹配到第一个模式就停止
+            }
+        }
+
+        return results;
+    }
 }
