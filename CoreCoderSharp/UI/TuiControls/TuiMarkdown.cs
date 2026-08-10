@@ -22,6 +22,9 @@ public class TuiMarkdown : TuiControl
     /// <summary>纯文本模式：逐行渲染，不走 Markdown 解析</summary>
     public bool IsPlainText { get; set; }
 
+    /// <summary>内容横向对齐（默认左对齐，欢迎消息用居中）</summary>
+    public HAlign ContentAlign { get; set; } = HAlign.Left;
+
     /// <summary>最大渲染宽度（自动折行）</summary>
     public int MaxWidth { get; set; } = 80;
 
@@ -66,6 +69,15 @@ public class TuiMarkdown : TuiControl
 
             var segments = _rendered[i];
             int col = absX;
+
+            // 横向居中：计算本行总视觉宽度，偏移到居中位置
+            if (ContentAlign == HAlign.Center)
+            {
+                int totalVw = 0;
+                foreach (var (text, _, _) in segments)
+                    totalVw += TuiHelper.DisplayWidth(text);
+                col += Math.Max(0, (Width - totalVw) / 2);
+            }
 
             foreach (var (text, fg, bg) in segments)
             {

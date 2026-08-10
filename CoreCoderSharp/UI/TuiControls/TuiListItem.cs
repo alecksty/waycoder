@@ -42,19 +42,23 @@ public class TuiListItem : TuiVBox
     /// <summary>纯文本模式：逐行渲染，不走 Markdown 解析（避免行合并）</summary>
     public bool IsPlainText { get; set; }
 
+    /// <summary>内容横向对齐（默认左对齐）</summary>
+    public HAlign ContentAlign { get; set; } = HAlign.Left;
+
     public TuiListItem()
     {
         Width = 60;
     }
 
     /// <summary>从角色和内容构建完整列表项</summary>
-    public TuiListItem(string role, string content, int maxWidth = 80, bool continuation = false, bool isPlainText = false)
+    public TuiListItem(string role, string content, int maxWidth = 80, bool continuation = false, bool isPlainText = false, HAlign contentAlign = HAlign.Left)
     {
         Role = role;
         MarkdownContent = content;
         Width = maxWidth;
         Continuation = continuation;
         IsPlainText = isPlainText;
+        ContentAlign = contentAlign;
         BuildContent(maxWidth);
     }
 
@@ -122,6 +126,7 @@ public class TuiListItem : TuiVBox
         // ── Body: Markdown 正文，Padding.Left = 2 格对齐标题 ──
         Body = TuiMarkdown.Create(MarkdownContent, Role, innerW, IsPlainText);
         Body.Width = innerW;
+        Body.ContentAlign = ContentAlign;
         Body.Padding = new EdgeInsets(0, 0, 0, 2);
         Add(Body);
 

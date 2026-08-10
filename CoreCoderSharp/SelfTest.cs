@@ -8,14 +8,64 @@ using CoreCoderSharp.UI.TuiScreens;
 namespace CoreCoderSharp;
 
 /// <summary>
+/// 标记测试模块归属，用于 SelfTest 自动推导 ModuleToSections。
+/// 每个 Section("...") 对应的模块由 _sectionModuleMap 字典定义。
+/// </summary>
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+public class TestModuleAttribute(string module) : Attribute
+{
+    public string Module { get; } = module;
+}
+
+/// <summary>
 /// 内置自测，通过 --test 或 -t 运行。
 /// 无需外部测试框架，保持极简主义。
+///
+/// 新增 Section 时，只需在 _sectionModuleMap 中加一行（section 名 → 模块名），
+/// ModuleToSections 自动推导，无需手动维护 switch。
 /// </summary>
 public static class SelfTest
 {
     public static bool Run()
     {
         return RunWithFilter(null);
+    }
+
+    /// <summary>
+    /// /test <模块> — 将测试结果捕获为字符串，返回聊天用文本。
+    /// 模块: all | tools | ui | git | config | memory | agent | review | mcp | system
+    /// </summary>
+    public static string RunToChat(string module)
+    {
+        // "all" → null（全部），未知模块 → 错误
+        HashSet<string>? sections;
+        if (module.Equals("all", StringComparison.OrdinalIgnoreCase))
+            sections = null;
+        else
+        {
+            sections = ModuleToSections(module);
+            if (sections == null)
+                return $"❌ 未知模块: {module}\n可用: all, tools, ui, git, config, memory, agent, review, mcp, system";
+        }
+
+        var sb = new StringBuilder();
+        var originalOut = Console.Out;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
+        try
+        {
+            using var writer = new StringWriter(sb) { NewLine = "\n" };
+            Console.SetOut(writer);
+            RunWithFilter(sections);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+
+        sw.Stop();
+        sb.AppendLine($"\n 耗时: {sw.Elapsed.TotalSeconds:F1}s");
+        return sb.ToString();
     }
 
     /// <summary>
@@ -37,26 +87,72 @@ public static class SelfTest
         return sb.ToString();
     }
 
-    private static HashSet<string>? ModuleToSections(string module)
+    // ════════════════════════════════════════════════════════════
+    // Section 名前缀 → 模块名 映射
+    // 新增 Section 只加这里一行即可，ModuleToSections 自动推导。
+    // 模块可通过 _moduleIncludes 包含其他模块的 sections（如 tools 包含 git）。
+    // ════════════════════════════════════════════════════════════
+    static readonly Dictionary<string, string> _sectionModuleMap = new()
     {
-        return module.ToLowerInvariant() switch
+        // tools（独立工具测试）
+        ["[工具注册"] = "tools",   ["[工具]"] = "tools",
+        ["[Fetch]"] = "tools",     ["[Todo]"] = "tools",      ["[LSP]"] = "tools",
+        ["[Bash "] = "tools",      ["[Lint "] = "tools",      ["[Web "] = "tools",
+        // ui
+        ["[CJK "] = "ui",          ["[语法高亮]"] = "ui",     ["[BoxBuffer]"] = "ui",
+        ["[主题系统]"] = "ui",     ["[边框风格]"] = "ui",     ["[DiffRenderer]"] = "ui",
+        ["[InputManager]"] = "ui", ["[ChatScreen主题]"] = "ui",["[TuiMenu]"] = "ui",
+        ["[Markdown 表格]"] = "ui",["[TuiTreeView]"] = "ui",  ["[TuiRadioGroup]"] = "ui",
+        ["[TuiComboBox]"] = "ui",  ["[TuiSeekBar]"] = "ui",   ["[TuiSeparator]"] = "ui",
+        ["[TuiPanel]"] = "ui",     ["[EditorCore]"] = "ui",   ["[TuiRichEditor]"] = "ui",
+        ["[EditorScreen]"] = "ui", ["[SettingsScreen]"] = "ui",
+        // git
+        ["[Git]"] = "git",         ["[Git "] = "git",         ["[Git PR]"] = "git",     ["[Git 大"] = "git",
+        // config
+        ["[配置]"] = "config",     ["[设置 Schema]"] = "config",["[配置读写]"] = "config",["[SaveToEnvFile]"] = "config",
+        // memory
+        ["[记忆]"] = "memory",     ["[记忆自动注入]"] = "memory",["[语义记忆]"] = "memory",
+        // agent
+        ["[Agent]"] = "agent",     ["[子智能体]"] = "agent",  ["[权限]"] = "agent",
+        ["[权限系统"] = "agent",   ["[权限确认]"] = "agent",
+        // review
+        ["[代码审查]"] = "review",
+        // mcp
+        ["[MCP]"] = "mcp",         ["[MCP 环境变量]"] = "mcp",["[MCP HTTP]"] = "mcp",   ["[MCP 缓存]"] = "mcp",
+        // system
+        ["[LLM]"] = "system",      ["[系统提示词]"] = "system",["[JSON 辅助]"] = "system",
+        ["[模型回退]"] = "system", ["[调试日志]"] = "system",  ["[项目检测]"] = "system",
+        ["[上下文管理]"] = "system",["[预算系统]"] = "system",  ["[Hooks]"] = "system",
+        ["[自定义命令]"] = "system",["[输入规范化]"] = "system",["[命令别名]"] = "system",
+        ["[错误自恢复]"] = "system",["[Token 性能统计]"] = "system",["[HTTP 代理]"] = "system",
+        ["[Sub-Agent"] = "system", ["[Tab 路径补全]"] = "system",["[输入历史]"] = "system",
+        ["[模型热键切换]"] = "system",["[对话导出]"] = "system",["[最近文件]"] = "system",
+        ["[会话管理]"] = "system", ["[会话 + 检查点]"] = "system",["[编辑器 Lint]"] = "system",
+        ["[Lint 解析:"] = "system",["[Lint 诊断:"] = "system", ["[配置: EditorLint]"] = "system",
+        ["[语法: 诊断背景色]"] = "system",["[诊断: Severity]"] = "system",["[诊断: Diagnostic]"] = "system",
+    };
+
+    // 模块包含关系（如 tools 测试也跑 git 的工具测试）
+    static readonly Dictionary<string, string[]> _moduleIncludes = new()
+    {
+        ["tools"] = ["tools", "git"], // tools 模块包含 git 工具测试
+    };
+
+    /// <summary>
+    /// 模块名 → Section 前缀集合。新增 section 只需修改 _sectionModuleMap。
+    /// </summary>
+    static HashSet<string>? ModuleToSections(string module)
+    {
+        if (module.Equals("all", StringComparison.OrdinalIgnoreCase)) return null;
+        var names = _moduleIncludes.TryGetValue(module, out var includes)
+            ? includes : new[] { module };
+        var set = new HashSet<string>();
+        foreach (var name in names)
         {
-            "all" => null, // null = 全部
-            "tools" => ["工具注册","工具]","[Git]","[Fetch]","[Todo]","[LSP]","[Bash ","[Git ","[Fetch ","[Lint ","[Web ","[Git PR]","[Git 大"],
-            "ui" => ["[CJK ","[语法高亮]","[BoxBuffer]","[主题系统]","[边框风格]","[DiffRenderer]","[InputManager]","[ChatScreen主题]","[TuiMenu]","[Markdown 表格]","[TuiTreeView]","[TuiRadioGroup]","[TuiComboBox]","[TuiSeekBar]","[TuiSeparator]","[TuiPanel]","[EditorCore]","[TuiRichEditor]","[EditorScreen]","[SettingsScreen]"],
-            "git" => ["[Git]","[Git ","[Git PR]","[Git 大"],
-            "config" => ["[配置]","[设置 Schema]","[配置读写]","[SaveToEnvFile]"],
-            "memory" => ["[记忆]","[记忆自动注入]","[语义记忆]"],
-            "agent" => ["[Agent]","[子智能体]","[权限]","[权限系统","[权限确认]"],
-            "review" => ["[代码审查]"],
-            "mcp" => ["[MCP]","[MCP 环境变量]","[MCP HTTP]","[MCP 缓存]"],
-            "system" => ["[LLM]","[系统提示词]","[JSON 辅助]","[模型回退]","[调试日志]",
-                "[项目检测]","[上下文管理]","[预算系统]","[Hooks]","[自定义命令]","[输入规范化]",
-                "[命令别名]","[错误自恢复]","[Token 性能统计]","[HTTP 代理]","[Sub-Agent",
-                "[Tab 路径补全]","[输入历史]","[模型热键切换]","[对话导出]","[最近文件]",
-                "[会话管理]","[会话 + 检查点]","[编辑器 Lint]","[Lint 解析:","[Lint 诊断:","[配置: EditorLint]","[语法: 诊断背景色]","[诊断: Severity]","[诊断: Diagnostic]"],
-            _ => null,
-        };
+            foreach (var prefix in _sectionModuleMap.Where(kv => kv.Value == name).Select(kv => kv.Key))
+                set.Add(prefix);
+        }
+        return set.Count > 0 ? set : null;
     }
 
     private static bool RunWithFilter(HashSet<string>? filter)
@@ -1541,6 +1637,7 @@ public static class SelfTest
 
         // ---- 斜杠命令拼写纠错 ----
         Section("[命令纠错]");
+        SlashCommandRegistry.RegisterAll(); // 填充 KnownCommands 供纠错测试
         // /rsume → /resume（漏字符，距离 1）
         Check("漏字符 /rsume → /resume", Program.SuggestCommand("/rsume") == "/resume");
         // /hel → /help（短命令距离 1）
