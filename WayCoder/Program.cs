@@ -74,6 +74,10 @@ public class Program
                     else SelfTest.Run();
 
                     return 0;
+                case "--benchmark":
+                case "--perf":
+                    Benchmark.Run();
+                    return 0;
                 case "--screenshot":
                     RunScreenshot();
                     return 0;
@@ -1398,6 +1402,7 @@ deepseek 性价比最高。"
         MarkupLine("  [cyan]-v, --version[/]        显示版本信息");
         MarkupLine("  [cyan]--init[/]              初始化项目 (.waycoder/ 配置目录)");
         MarkupLine("  [cyan]-t, --test[/]           运行自测");
+        MarkupLine("  [cyan]--benchmark, --perf[/]  运行性能测评");
         MarkupLine("  [cyan]--debug[/]              开启调试日志 (记录到 logs/ 目录)");
         MarkupLine("  [cyan]--yolo[/]              跳过所有权限确认 (非交互模式必备)");
         MarkupLine("  [cyan]--max-budget-usd[/] <金额> 费用上限（美元），超支自动停止");
