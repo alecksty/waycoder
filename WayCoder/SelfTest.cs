@@ -191,7 +191,7 @@ public static class SelfTest
 
         // ---- 工具注册 ----
         Section("[工具注册]");
-        Check("工具数量 == 32", ToolRegistry.BuiltinTools.Count == 32);
+        Check("工具数量 == 33", ToolRegistry.BuiltinTools.Count == 33);
         Check("所有工具有有效 schema", ToolRegistry.AllTools.All(t =>
         {
             var s = t.Schema();
@@ -4194,6 +4194,33 @@ another.txt:3:1: warning: deprecated API
         // ── UxHelper 测试 ──
         Section("[UxHelper]");
         Check("UxHelper.IsTuiMode 可调用", new Action(() => { var _ = UxHelper.IsTuiMode; }) != null);
+        Console.WriteLine();
+
+        // ── AskUserQuestion 工具 ──
+        Section("[AskUserQuestion 工具]");
+        ITool auqTool = new AskUserQuestionTool();
+        Check("AskUserQuestion.Name", auqTool.Name == "ask_user_question");
+        Check("AskUserQuestion.Description 非空", !string.IsNullOrEmpty(auqTool.Description));
+        // Schema 校验
+        var auqSchema = auqTool.Schema();
+        Check("AskUserQuestion.Schema type=function", (string?)auqSchema["type"] == "function");
+        var auqFunc = auqSchema["function"];
+        Check("AskUserQuestion.Schema name", (string?)auqFunc?["name"] == "ask_user_question");
+        var auqParams = auqFunc?["parameters"];
+        Check("AskUserQuestion.Schema parameters 非空", auqParams != null);
+        Check("AskUserQuestion.Schema required=questions",
+            auqParams?["required"] is JsonArray reqArr && reqArr.Count == 1 && (string?)reqArr[0] == "questions");
+        // 空 questions → 错误
+        var auqEmptyResult = auqTool.ExecuteAsync(new() { ["questions"] = new JsonArray() }).Result;
+        Check("AskUserQuestion 空数组返回错误", auqEmptyResult.Contains("错误"));
+        // 缺少 questions 参数
+        var auqMissingResult = auqTool.ExecuteAsync(new()).Result;
+        Check("AskUserQuestion 缺少参数返回错误", auqMissingResult.Contains("错误"));
+        // 工具注册
+        Check("AskUserQuestion 在 ToolRegistry 中", ToolRegistry.GetTool("ask_user_question") != null);
+        // 安全分类
+        Check("AskUserQuestion 分类为 Safe",
+            AutoModeClassifier.Classify("ask_user_question") == AutoModeClassifier.RiskLevel.Safe);
         Console.WriteLine();
 
         // ---- 结果 ----
