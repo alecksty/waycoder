@@ -61,6 +61,13 @@ public class Config
     /// <summary>记忆相关性注入条数，默认 5（0=关闭语义匹配，回退全量加载）</summary>
     public int MemoryRelevanceTopN { get; set; } = 5;
 
+    /// <summary>向量嵌入功能开关（默认关闭，需 API 支持 /v1/embeddings）</summary>
+    public bool EmbeddingEnabled { get; set; } = false;
+    /// <summary>嵌入模型名称</summary>
+    public string EmbeddingModel { get; set; } = "text-embedding-3-small";
+    /// <summary>嵌入向量维度（0=模型默认）</summary>
+    public int EmbeddingDimensions { get; set; } = 0;
+
     /// <summary>界面主题预设</summary>
     public string ThemePreset { get; set; } = "default";
 
@@ -147,6 +154,14 @@ public class Config
 
         if (int.TryParse(Env("WAYCODER_MEMORY_TOPN", "CORECODER_MEMORY_TOPN"), out var mtn))
             config.MemoryRelevanceTopN = Math.Clamp(mtn, 0, 20);
+
+        // Embedding 配置
+        if (bool.TryParse(Env("WAYCODER_EMBEDDING", "CORECODER_EMBEDDING"), out var emb))
+            config.EmbeddingEnabled = emb;
+        var embModel = Env("WAYCODER_EMBEDDING_MODEL", "CORECODER_EMBEDDING_MODEL");
+        if (embModel != null) config.EmbeddingModel = embModel;
+        if (int.TryParse(Env("WAYCODER_EMBEDDING_DIMS", "CORECODER_EMBEDDING_DIMS"), out var embDims))
+            config.EmbeddingDimensions = Math.Clamp(embDims, 0, 4096);
 
         var envTheme = Env("WAYCODER_THEME", "CORECODER_THEME");
         if (envTheme != null) config.ThemePreset = envTheme;
@@ -298,6 +313,10 @@ public class Config
             "number", null, "WAYCODER_SUBAGENT_DEPTH", 4),
         new("MemoryRelevanceTopN", "记忆注入条数", "🔧 系统", "每次注入的最相关记忆数，0=关闭语义匹配",
             "number", null, "WAYCODER_MEMORY_TOPN", 6),
+        new("EmbeddingEnabled", "向量嵌入", "🔧 系统", "启用语义向量嵌入搜索（需 API 支持 /v1/embeddings）",
+            "select", ["false", "true"], "WAYCODER_EMBEDDING", 7),
+        new("EmbeddingModel", "嵌入模型", "🔧 系统", "向量嵌入模型名称",
+            "text", null, "WAYCODER_EMBEDDING_MODEL", 8),
         new("ThemePreset", "界面主题", "🎨 界面", "预设配色方案，选中即生效",
             "select", ["default","ocean","forest","sunset","midnight","mono"],
             "WAYCODER_THEME", 4),
@@ -343,6 +362,9 @@ public class Config
         ApplyOrAppend(lines, "WAYCODER_LINT_TIMEOUT", LintTimeoutSec.ToString());
         ApplyOrAppend(lines, "WAYCODER_SUBAGENT_DEPTH", SubAgentMaxDepth.ToString());
         ApplyOrAppend(lines, "WAYCODER_MEMORY_TOPN", MemoryRelevanceTopN.ToString());
+        ApplyOrAppend(lines, "WAYCODER_EMBEDDING", EmbeddingEnabled.ToString().ToLowerInvariant());
+        ApplyOrAppend(lines, "WAYCODER_EMBEDDING_MODEL", EmbeddingModel);
+        ApplyOrAppend(lines, "WAYCODER_EMBEDDING_DIMS", EmbeddingDimensions.ToString());
         ApplyOrAppend(lines, "WAYCODER_THEME", ThemePreset);
         ApplyOrAppend(lines, "WAYCODER_BORDER_STYLE", BorderStyle);
         ApplyOrAppend(lines, "WAYCODER_BORDER_COLOR", BorderColor);

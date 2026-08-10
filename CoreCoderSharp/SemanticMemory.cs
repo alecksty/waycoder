@@ -145,6 +145,40 @@ public static class SemanticMemory
     }
 
     /// <summary>
+    /// TF-IDF 搜索 StructuredMemory 条目（新格式）。
+    /// 内部转换为 MemoryDocument 后复用统一的 TF-IDF 引擎。
+    /// 返回按分数降序排列的 (条目, 分数) 列表。
+    /// </summary>
+    public static List<(StructuredMemory.MemoryEntry Entry, double Score)> SearchEntries(
+        List<StructuredMemory.MemoryEntry> entries, string query, int topN = 20)
+    {
+        if (entries.Count == 0 || string.IsNullOrWhiteSpace(query))
+            return [];
+
+        // 将 MemoryEntry 转换为 MemoryDocument（复用现有 TF-IDF 引擎）
+        var docs = new List<MemoryDocument>();
+        var entryMap = new Dictionary<int, StructuredMemory.MemoryEntry>();
+        for (int i = 0; i < entries.Count; i++)
+        {
+            var e = entries[i];
+            docs.Add(new MemoryDocument
+            {
+                Title = $"{e.Name} {e.Description}".Trim(),
+                Content = e.Content,
+                Timestamp = e.UpdatedAt != DateTime.MinValue ? e.UpdatedAt : e.CreatedAt,
+                Index = i,
+            });
+            entryMap[i] = e;
+        }
+
+        var results = SearchRelevant(docs, query, topN);
+        // 映射回 MemoryEntry
+        return results
+            .Select(r => (entryMap[r.Doc.Index], r.Score))
+            .ToList();
+    }
+
+    /// <summary>
     /// 计算查询与每个文档的 TF-IDF 相关性分数。
     /// 返回按分数降序排列的 (文档, 分数) 列表。
     /// </summary>
@@ -201,16 +235,20 @@ public static class SemanticMemory
                 totalScore += tf * idf;
             }
 
-            // 根据结果是否包含查询原文加分（精确匹配奖励）
-            if (docs[i].Content.Contains(query, StringComparison.OrdinalIgnoreCase))
-                totalScore += 0.2;
-
-            // 新近记忆微幅加分
-            if (docs[i].Timestamp != DateTime.MinValue)
+            // 仅当有 TF-IDF 命中时才加时间新鲜度加权
+            if (totalScore > 0)
             {
-                var age = DateTime.Now - docs[i].Timestamp;
-                if (age.TotalDays < 7) totalScore += 0.1;
-                if (age.TotalDays < 1) totalScore += 0.1;
+                // 根据结果是否包含查询原文加分（精确匹配奖励）
+                if (docs[i].Content.Contains(query, StringComparison.OrdinalIgnoreCase))
+                    totalScore += 0.2;
+
+                // 新近记忆微幅加分
+                if (docs[i].Timestamp != DateTime.MinValue)
+                {
+                    var age = DateTime.Now - docs[i].Timestamp;
+                    if (age.TotalDays < 7) totalScore += 0.1;
+                    if (age.TotalDays < 1) totalScore += 0.1;
+                }
             }
 
             if (totalScore > 0)

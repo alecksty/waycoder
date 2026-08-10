@@ -143,12 +143,22 @@ public static class StructuredMemory
         return true;
     }
 
-    /// <summary>搜索记忆（在名称、描述、正文中匹配）</summary>
+    /// <summary>
+    /// 搜索记忆（TF-IDF 语义搜索 + 子串匹配兜底）。
+    /// 优先使用 CJK bigram + TF-IDF 评分，无结果时回退到子串匹配。
+    /// </summary>
     public static List<MemoryEntry> Search(string query)
     {
         var all = ListAll();
         if (string.IsNullOrWhiteSpace(query)) return all;
+        if (all.Count == 0) return [];
 
+        // 优先 TF-IDF 语义搜索
+        var scored = SemanticMemory.SearchEntries(all, query, topN: 50);
+        if (scored.Count > 0)
+            return scored.Select(x => x.Entry).ToList();
+
+        // 兜底：原始子串匹配（TF-IDF 无结果时，如纯符号查询）
         var q = query.ToLowerInvariant();
         return all.Where(e =>
             e.Name.ToLowerInvariant().Contains(q) ||
@@ -157,45 +167,24 @@ public static class StructuredMemory
         ).ToList();
     }
 
-    /// <summary>获取与查询相关的记忆上下文（用于系统提示词注入）</summary>
+    /// <summary>
+    /// 获取与查询相关的记忆上下文（用于系统提示词注入）。
+    /// 使用 TF-IDF 语义评分（CJK bigram + 英文分词 + 时间新鲜度加权）。
+    /// </summary>
     public static string GetRelevantContext(string query, int topN = 5, int maxChars = 2000)
     {
         var all = ListAll();
         if (all.Count == 0) return "";
 
-        // 简单的相关性评分：名称匹配 + 描述匹配 + 内容匹配
-        var q = query.ToLowerInvariant();
-        var scored = all.Select(e =>
-        {
-            var score = 0;
-            if (e.Name.ToLowerInvariant().Contains(q)) score += 10;
-            if (e.Description.ToLowerInvariant().Contains(q)) score += 5;
-            // TF-IDF-like: count keyword occurrences in content
-            var contentLower = e.Content.ToLowerInvariant();
-            var words = q.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            foreach (var w in words)
-            {
-                var idx = 0;
-                while ((idx = contentLower.IndexOf(w, idx, StringComparison.Ordinal)) >= 0)
-                {
-                    score++;
-                    idx += w.Length;
-                }
-            }
-            return (Entry: e, Score: score);
-        })
-        .Where(x => x.Score > 0)
-        .OrderByDescending(x => x.Score)
-        .Take(topN)
-        .ToList();
-
+        // TF-IDF 语义评分
+        var scored = SemanticMemory.SearchEntries(all, query, topN);
         if (scored.Count == 0) return "";
 
         var sb = new System.Text.StringBuilder();
         var totalChars = 0;
         foreach (var (entry, score) in scored)
         {
-            var snippet = $"- **{entry.Description}** (相关度: {score})";
+            var snippet = $"- **{entry.Description}** (相关度: {score:F2})";
             if (totalChars + snippet.Length > maxChars) break;
             sb.AppendLine(snippet);
             totalChars += snippet.Length;
