@@ -183,6 +183,7 @@ public class Program
 
         // 加载自定义斜杠命令、hooks、MCP 服务器和检查点
         CustomCommands.Load();
+        SlashCommandRegistry.RegisterAll();
         HooksManager.Init();
         McpManager.Init();
         CheckpointManager.LoadFromDisk();
@@ -290,10 +291,10 @@ public class Program
             "╚███╔███╔╝██║  ██║   ██║   ╚██████╗╚██████╔╝██████╔╝███████╗██║  ██║",
             " ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝"
         );
-        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = logo });
-        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"{Global.AppFullName} · {Global.Version}" });
-        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = "深圳市探索智能科技有限公司" });
-        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助" });
+        slot0.ChatMessages.Add(new ChatMsg { Role = "banner", Content = logo, Centered = true });
+        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"{Global.AppFullName} · {Global.Version}", Centered = true });
+        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = "深圳市探索智能科技有限公司", Centered = true });
+        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助", Centered = true });
         slot0.StatusLeft = $"{_config.Model}";
         slot0.HasWelcome = true;
         _llm!.SmallModel = _config.SmallModel;
@@ -594,211 +595,10 @@ public class Program
             return;
         }
 
-        // 内置命令
-        if (userInput == "/help")
-        {
-            ShowHelpInChat(screen);
-            return;
-        }
-
-        if (userInput == "/reset")
-        {
-            _agent!.Reset();
-            screen.AddSystemMsg("♻ 对话已重置");
-            return;
-        }
-
-        if (userInput == "/tokens")
-        {
-            ShowTokensInChat(screen);
-            return;
-        }
-
-        if (userInput == "/stats")
-        {
-            ShowStatsInChat(screen);
-            return;
-        }
-
+        // 需要 Program 私有状态的特殊命令（在注册表分发之前）
         if (userInput == "/watch")
         {
             ToggleWatchMode(screen);
-            return;
-        }
-
-        if (userInput == "/model")
-        {
-            screen.AddSystemMsg($"当前模型: {_config.Model}");
-            return;
-        }
-
-        if (userInput.StartsWith("/model "))
-        {
-            SwitchModelInline(userInput, screen);
-            return;
-        }
-
-        if (userInput == "/compact")
-        {
-            await CompactAsync();
-            screen.AddSystemMsg("✔ 上下文已压缩");
-            return;
-        }
-
-        if (userInput == "/save")
-        {
-            SaveSessionInteractive(screen);
-            return;
-        }
-
-        if (userInput == "/permissions" || userInput == "/perm")
-        {
-            ShowPermStatusInChat(screen);
-            return;
-        }
-
-        if (userInput.StartsWith("/perm "))
-        {
-            SandboxManager.SetLevel(userInput[6..].Trim());
-            screen.AddSystemMsg($"沙箱级别已切换: {SandboxManager.Level}");
-            return;
-        }
-
-        if (userInput == "/sessions")
-        {
-            ShowSessionBrowser(screen);
-            return;
-        }
-
-        if (userInput.StartsWith("/load "))
-        {
-            LoadSessionInteractive(userInput[6..].Trim(), screen);
-            return;
-        }
-
-        if (userInput == "/diff")
-        {
-            ShowDiffInChat(screen);
-            return;
-        }
-
-        if (userInput == "/plan")
-        {
-            screen.AddSystemMsg("📋 计划模式");
-            await PlanModeAsync();
-            return;
-        }
-
-        if (userInput.StartsWith("/search "))
-        {
-            await RunSearchAsync(userInput[8..].Trim());
-            return;
-        }
-
-        if (userInput == "/edit")
-        {
-            TuiManager.Instance.PushScreen(new EditorScreen());
-            return;
-        }
-
-        if (userInput.StartsWith("/edit "))
-        {
-            TuiManager.Instance.PushScreen(new EditorScreen(userInput[6..].Trim()));
-            return;
-        }
-
-        if (userInput is "/settings" or "/config")
-        {
-            TuiManager.Instance.PushScreen(new SettingsScreen());
-            return;
-        }
-
-        if (userInput == "/about")
-        {
-            ShowAboutInChat(screen);
-            return;
-        }
-
-        if (userInput.StartsWith("/test "))
-        {
-            RunTestDemo(userInput[6..].Trim(), screen);
-            return;
-        }
-
-        if (userInput == "/test")
-        {
-            RunTestDemo("help", screen);
-            return;
-        }
-
-        if (userInput == "/todo")
-        {
-            ShowTodo();
-            return;
-        }
-
-        if (userInput.StartsWith("/theme "))
-        {
-            var preset = userInput[7..].Trim();
-            if (ThemeConfig.Presets.ContainsKey(preset))
-            {
-                ThemeConfig.ApplyPreset(preset);
-                _config.ThemePreset = preset;
-                screen.AddSystemMsg($"🎨 主题已切换: {preset}");
-            }
-            else screen.AddSystemMsg($"未知主题: {preset}。可选: {string.Join(", ", ThemeConfig.Presets.Keys)}");
-
-            return;
-        }
-
-        if (userInput == "/theme")
-        {
-            screen.AddSystemMsg($"当前主题: {_config.ThemePreset}。可选: {string.Join(", ", ThemeConfig.Presets.Keys)}");
-            return;
-        }
-
-        if (userInput.StartsWith("/history"))
-        {
-            SearchHistory(userInput, screen);
-            return;
-        }
-
-        if (userInput == "/export")
-        {
-            ExportConversation(screen);
-            return;
-        }
-
-        if (userInput == "/recent")
-        {
-            ShowRecentFiles(screen);
-            return;
-        }
-
-        if (userInput == "/checkpoint")
-        {
-            await CreateCheckpointAsync();
-            return;
-        }
-
-        if (userInput == "/checkpoints")
-        {
-            ShowCheckpoints();
-            return;
-        }
-
-        if (userInput == "/undo" || userInput == "/undo -l" || userInput == "/undo --list")
-        {
-            if (userInput.EndsWith("-l") || userInput.EndsWith("--list"))
-                ShowCheckpointFiles();
-            else
-                await UndoCheckpointAsync(userInput);
-            return;
-        }
-
-        if (userInput.StartsWith("/undo "))
-        {
-            await UndoCheckpointAsync(userInput);
             return;
         }
 
@@ -818,9 +618,28 @@ public class Program
             return;
         }
 
-        if (userInput.StartsWith("/test"))
+        if (userInput == "/plan")
         {
-            RunModuleTest(userInput, screen);
+            screen.AddSystemMsg("📋 计划模式");
+            await PlanModeAsync();
+            return;
+        }
+
+        // 统一斜杠命令分发（SlashCommandRegistry）
+        var (cmd, args) = SlashCommandRegistry.Match(userInput);
+        if (cmd != null)
+        {
+            await cmd.ExecuteAsync(args, screen);
+            return;
+        }
+
+        // 自定义命令 (来自 .corecoder/commands/*.md)
+        var customCmdName = userInput.TrimStart('/').Split(' ')[0].ToLowerInvariant();
+        if (CustomCommands.Commands.ContainsKey(customCmdName))
+        {
+            var (content, _) = CustomCommands.Execute(customCmdName,
+                userInput.Contains(' ') ? userInput[(userInput.IndexOf(' ') + 1)..] : "", _agent!);
+            screen.AddSystemMsg(content);
             return;
         }
 
@@ -949,16 +768,9 @@ public class Program
     // 斜杠命令拼写纠错
     // ========================================================================
 
-    /// <summary>已知斜杠命令名（不含参数），用于拼写纠错。</summary>
-    internal static readonly string[] KnownCommands =
-    [
-        "/help", "/reset", "/model", "/tokens", "/stats", "/watch", "/compact",
-        "/save", "/permissions", "/perm", "/sessions", "/load", "/diff", "/plan",
-        "/search", "/edit", "/settings", "/config", "/about", "/history", "/export",
-        "/recent", "/resume", "/loop", "/test", "/debug-on", "/debug-off", "/todo",
-        "/git-status", "/git-log", "/git-diff", "/review", "/lint", "/checkpoint",
-        "/undo", "/checkpoints", "/repomap", "/pr",
-    ];
+    /// <summary>已知斜杠命令名（不含参数），用于拼写纠错。——仅主名，不含短别名。</summary>
+    internal static string[] KnownCommands =>
+        SlashCommandRegistry.Commands.Select(c => c.Name).ToArray();
 
     /// <summary>Damerau-Levenshtein 编辑距离（支持字符换位）。</summary>
     internal static int Levenshtein(string a, string b)
@@ -1113,39 +925,6 @@ public class Program
         return prefix;
     }
 
-    /// <summary>显示最近访问/修改的文件。</summary>
-    private static void ShowRecentFiles(ChatScreen screen)
-    {
-        var all = new HashSet<string>(EditFileTool.ChangedFiles);
-        foreach (var f in screen.RecentFiles) all.Add(f);
-
-        if (all.Count == 0)
-        {
-            screen.AddSystemMsg("（暂无最近文件）");
-            return;
-        }
-
-        var sorted = all.OrderByDescending(f =>
-        {
-            try
-            {
-                return File.GetLastWriteTime(f);
-            }
-            catch
-            {
-                return DateTime.MinValue;
-            }
-        }).Take(15).ToList();
-
-        screen.AddSystemMsg($"📁 最近文件 ({sorted.Count}):");
-        foreach (var f in sorted)
-        {
-            var relative = Path.GetRelativePath(Directory.GetCurrentDirectory(), f);
-            var icon = File.Exists(f) ? "📄" : "⚠";
-            screen.AddSystemMsg($"  {icon} {relative}");
-        }
-    }
-
     /// <summary>检测当前目录的 git 分支名。</summary>
     private static string? DetectGitBranch()
     {
@@ -1167,292 +946,6 @@ public class Program
     private static void ShowHelpInChat(ChatScreen screen)
     {
         screen.AddSystemMsg("帮助: /help /reset /model /tokens /compact /diff /save /resume /history /export /sessions ... F1-F10切换Agent Ctrl+E编辑器 Ctrl+T设置 Ctrl+R搜索 Ctrl+M切模型 Ctrl+H帮助 Ctrl+B面板 Ctrl+Q退出 ↑↓历史");
-    }
-
-    private static void ShowAboutInChat(ChatScreen screen)
-    {
-        var content = $"WayCoder 道码 · 中文版易用编程智能体\nC# / .NET 10 · AOT 编译\n{Global.AppFullName}\n深圳市探索智能科技有限公司";
-        screen.ShowDialog("关于 WayCoder", content, width: 46);
-    }
-
-    private static void RunTestDemo(string target, ChatScreen screen)
-    {
-        target = target.Trim().ToLowerInvariant();
-        switch (target)
-        {
-            case "perm" or "权限框":
-                screen.ShowInlinePermission("⚠ 确认执行危险操作",
-                    "工具: bash\n命令: rm -rf /tmp/build\n工作目录: /home/user/project",
-                    ["允许 (y)", "总是允许 (a)", "拒绝 (n)"]);
-                break;
-            case "toast" or "提示框":
-                screen.ShowToast("✅ 操作已完成 (2s 自动消失)", 2000);
-                break;
-            case "menu" or "菜单":
-                screen.ShowMenu("测试菜单", ["选项 A", "选项 B", "选项 C"]);
-                break;
-            case "help" or "":
-                screen.AddSystemMsg("/test <模块>: perm(权限框) toast(提示框) menu(菜单)");
-                break;
-            default:
-                // 尝试运行 SelfTest 模块
-                try
-                {
-                    var results = SelfTest.RunModule(target);
-                    screen.AddSystemMsg(results);
-                }
-                catch (Exception ex)
-                {
-                    screen.AddSystemMsg($"❌ 测试异常: {ex.Message}");
-                }
-
-                break;
-        }
-    }
-
-    private static void ShowTokensInChat(ChatScreen screen)
-    {
-        var p = _llm!.TotalPromptTokens;
-        var c = _llm!.TotalCompletionTokens;
-        var latency = _llm.LastLatencyMs;
-        var tps = _llm.LastTokensPerSec;
-        var info = $"Token: {p:N0} 输入 + {c:N0} 输出 = {(p + c):N0} 总计";
-        if (latency > 0)
-            info += $" | 上次: {latency / 1000:F1}s, {tps:F0} tok/s | 请求: {_llm.TotalRequests} 次";
-        screen.AddSystemMsg(info);
-    }
-
-    private static void ShowStatsInChat(ChatScreen screen)
-    {
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("╔══════════ 用量统计 ══════════╗");
-
-        var p = _llm!.TotalPromptTokens;
-        var c = _llm!.TotalCompletionTokens;
-        var cost = _llm.EstimatedCost;
-        var latency = _llm.LastLatencyMs;
-        var tps = _llm.LastTokensPerSec;
-
-        sb.AppendLine($"║ 模型:    {_config.Model,-22} ║");
-        sb.AppendLine($"║ 大模型:  {_config.Model,-22} ║");
-        sb.AppendLine($"║ 小模型:  {_config.SmallModel,-22} ║");
-        sb.AppendLine($"║ ─────────────────────────── ║");
-        sb.AppendLine($"║ 输入:    {p,10:N0} tokens    ║");
-        sb.AppendLine($"║ 输出:    {c,10:N0} tokens    ║");
-        sb.AppendLine($"║ 总计:    {p + c,10:N0} tokens    ║");
-        if (cost.HasValue)
-            sb.AppendLine($"║ 花费:    ${cost.Value,10:F4}          ║");
-        sb.AppendLine($"║ 请求:    {_llm.TotalRequests,10} 次        ║");
-        if (latency > 0)
-        {
-            sb.AppendLine($"║ 延迟:    {latency / 1000,10:F1} s        ║");
-            sb.AppendLine($"║ 速度:    {tps,10:F0} tok/s     ║");
-        }
-
-        sb.AppendLine($"║ ─────────────────────────── ║");
-        sb.AppendLine($"║ 消息:    {_agent!.Messages.Count,10} 条        ║");
-        sb.AppendLine($"║ 轮次:    {(int)(_agent.Messages.Count / 2.0),10}          ║");
-        sb.AppendLine($"║ 会话:    {SessionManager.ListSessions().Count,10} 个        ║");
-        sb.AppendLine($"║ 权限:    {PermissionManager.CurrentMode,-22} ║");
-        sb.AppendLine("╚══════════════════════════════╝");
-
-        screen.AddSystemMsg(sb.ToString());
-    }
-
-    private static void SaveSessionInChat(ChatScreen screen)
-    {
-        var sid = SessionManager.SaveSession(_agent!.Messages, _config.Model);
-        screen.AddSystemMsg($"✔ 会话已保存: {sid}");
-    }
-
-    private static void SwitchModelInline(string input, ChatScreen screen)
-    {
-        var m = input[7..].Trim();
-        if (string.IsNullOrEmpty(m)) return;
-
-        var known = new[] { "deepseek-v4-flash", "deepseek-v4-pro", "gpt-5.4-mini", "gpt-5.4", "gpt-5.5", "gpt-4o", "gpt-4o-mini" };
-
-        // /model big <name> 或 /model small <name>
-        bool isSmall = m.StartsWith("small ", StringComparison.OrdinalIgnoreCase);
-        bool isBig = m.StartsWith("big ", StringComparison.OrdinalIgnoreCase);
-        if (isSmall || isBig) m = m[(m.IndexOf(' ') + 1)..];
-
-        var match = known.FirstOrDefault(k => k.StartsWith(m, StringComparison.OrdinalIgnoreCase));
-        if (match != null) m = match;
-
-        if (isSmall)
-        {
-            _config.SmallModel = m;
-            _llm!.SmallModel = m;
-        }
-        else
-        {
-            _llm!.Model = m;
-            _config.Model = m;
-        }
-
-        screen.StatusLeft = $"{_config.Model}";
-        var label = isSmall ? "小模型" : "大模型";
-        screen.AddSystemMsg($"  💡 {label}已切换: {m}");
-    }
-
-    private static void SaveSessionInteractive(ChatScreen screen)
-    {
-        var name = screen.ShowMenu("保存会话 — 输入名称", ["💾 自动命名", "📝 自定义名称..."]);
-        string? sid = null;
-        if (name == 1)
-        {
-            TuiManager.Instance.Exit();
-            var input = UxHelper.Ask("会话名称");
-            TuiManager.Instance.Enter();
-            if (!string.IsNullOrWhiteSpace(input)) sid = input.Trim();
-        }
-
-        if (sid == null)
-            sid = SessionManager.SaveSession(_agent!.Messages, _config.Model);
-        else
-            sid = SessionManager.SaveSession(_agent!.Messages, _config.Model, sid);
-        screen.AddSystemMsg($"  💡 会话已保存: {sid}");
-    }
-
-    private static void ShowSessionBrowser(ChatScreen screen)
-    {
-        var sessions = SessionManager.ListSessions();
-        if (sessions.Count == 0)
-        {
-            screen.AddSystemMsg("没有已保存的会话");
-            return;
-        }
-
-        var choices = new List<string>();
-        foreach (var s in sessions)
-            choices.Add($"📁 {s.Id}  [{s.Model}]  {s.SavedAt}");
-        choices.Add("🗑 删除会话...");
-
-        var idx = screen.ShowMenu($"会话列表 ({sessions.Count})", choices);
-        if (idx < 0) return;
-
-        if (idx == sessions.Count) // 删除
-        {
-            var delChoices = sessions.Select(s => $"{s.Id}  [{s.Model}]").ToList();
-            var delIdx = screen.ShowMenu("选择要删除的会话", delChoices);
-            if (delIdx >= 0)
-            {
-                SessionManager.DeleteSession(sessions[delIdx].Id);
-                screen.AddSystemMsg($"  💡 已删除: {sessions[delIdx].Id}");
-            }
-        }
-        else
-        {
-            LoadSessionInteractive(sessions[idx].Id, screen);
-        }
-    }
-
-    private static void LoadSessionInteractive(string id, ChatScreen screen)
-    {
-        var loaded = SessionManager.LoadSession(id);
-        if (loaded == null)
-        {
-            screen.AddSystemMsg($"❌ 会话不存在: {id}");
-            return;
-        }
-
-        _agent!.Messages = loaded.Value.Messages;
-        _llm!.Model = loaded.Value.Model;
-        _config.Model = loaded.Value.Model;
-        screen.StatusLeft = loaded.Value.Model;
-        screen.ChatMessages.Clear();
-        foreach (var msg in loaded.Value.Messages)
-        {
-            var role = msg["role"]?.GetValue<string>() ?? "";
-            var content = msg["content"]?.GetValue<string>() ?? "";
-            if (role == "user") screen.AddUserMsg(content);
-            else if (role == "tool") screen.AddToolMsg("tool", content[..Math.Min(content.Length, 40)]);
-            else if (role == "assistant") screen.ChatMessages.Add(new ChatMsg { Role = "agent", Content = content });
-        }
-
-        screen.AddSystemMsg($"  💡 已加载会话: {id} (模型: {loaded.Value.Model})");
-    }
-
-    private static void ShowPermStatusInChat(ChatScreen screen)
-    {
-        var mode = PermissionManager.CurrentMode.ToString();
-        screen.AddSystemMsg($"权限模式: {mode} (危险工具需确认: bash/write/edit/agent/kill/rm)");
-    }
-
-    private static void ShowDiffInChat(ChatScreen screen)
-    {
-        var files = EditFileTool.ChangedFiles;
-        if (files.Count == 0)
-        {
-            screen.AddSystemMsg("未修改任何文件");
-            return;
-        }
-
-        foreach (var f in files)
-        {
-            try
-            {
-                var diff = RunGitDiff(f);
-                if (string.IsNullOrWhiteSpace(diff))
-                {
-                    screen.AddSystemMsg($"  {f} (无变更)");
-                    continue;
-                }
-
-                // 注入 diff 标题
-                screen.ChatMessages.Add(new ChatMsg
-                {
-                    Role = "system",
-                    Content = $"📄 {f}"
-                });
-                // 注入 diff 内容（行内 ANSI 颜色码）
-                var rendered = RenderDiffAsString(diff, f);
-                screen.ChatMessages.Add(new ChatMsg
-                {
-                    Role = "system",
-                    Content = rendered
-                });
-            }
-            catch
-            {
-                screen.AddSystemMsg($"  {f}");
-            }
-        }
-    }
-
-    private static string RunGitDiff(string filePath)
-    {
-        var psi = new System.Diagnostics.ProcessStartInfo
-        {
-            FileName = "git",
-            Arguments = $"diff -- \"{filePath}\"",
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-        using var proc = System.Diagnostics.Process.Start(psi);
-        if (proc == null) return "";
-        var output = proc.StandardOutput.ReadToEnd();
-        proc.WaitForExit(5000);
-        return output;
-    }
-
-    private static string RenderDiffAsString(string diffOutput, string filePath)
-    {
-        var ext = Path.GetExtension(filePath);
-        var lines = UI.DiffRenderer.Render(diffOutput, ext);
-        var sb = new System.Text.StringBuilder();
-        foreach (var line in lines)
-        {
-            var rb = new Terminal.RenderBuffer();
-            foreach (var (text, fg, bg) in line)
-                rb.Segment(text, fg, bg);
-            sb.Append(rb.ToString());
-            sb.Append('\n');
-        }
-
-        return sb.ToString().TrimEnd();
     }
 
     /// <summary>搜索对话历史中的关键词。</summary>
@@ -1498,59 +991,6 @@ public class Program
 
         if (results.Count > 15)
             screen.AddSystemMsg($"  ... 还有 {results.Count - 15} 条结果");
-    }
-
-    /// <summary>导出当前对话为 Markdown 文件。</summary>
-    private static void ExportConversation(ChatScreen screen)
-    {
-        try
-        {
-            var dir = Path.Combine(Directory.GetCurrentDirectory(), ".corecoder");
-            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-            var filename = $"export_{DateTime.Now:yyyyMMdd_HHmmss}.md";
-            var path = Path.Combine(dir, filename);
-
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"# WayCoder 对话导出");
-            sb.AppendLine($"- 模型: {_config.Model}");
-            sb.AppendLine($"- 时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            sb.AppendLine($"- 消息数: {_agent!.Messages.Count}");
-            sb.AppendLine();
-            sb.AppendLine("---");
-            sb.AppendLine();
-
-            foreach (var msg in _agent.Messages)
-            {
-                var role = msg["role"]?.GetValue<string>() ?? "";
-                var content = msg["content"]?.GetValue<string>() ?? "";
-
-                switch (role)
-                {
-                    case "user":
-                        sb.AppendLine($"### 👤 User\n\n{content}\n");
-                        break;
-                    case "assistant":
-                        if (!string.IsNullOrEmpty(content))
-                            sb.AppendLine($"### 🤖 Assistant\n\n{content}\n");
-                        break;
-                    case "tool":
-                        // 截断很长的工具输出
-                        var toolContent = content.Length > 2000
-                            ? content[..2000] + $"\n\n...（共 {content.Length} 字符）"
-                            : content;
-                        sb.AppendLine($"### 🔧 Tool\n\n```\n{toolContent}\n```\n");
-                        break;
-                }
-            }
-
-            File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
-            var size = new FileInfo(path).Length;
-            screen.AddSystemMsg($"  💡 已导出: .corecoder/{filename} ({size / 1024}KB)");
-        }
-        catch (Exception ex)
-        {
-            screen.AddSystemMsg($"❌ 导出失败: {ex.Message}");
-        }
     }
 
     // ========================================================================
@@ -1663,31 +1103,6 @@ public class Program
     // ========================================================================
 
     /// <summary>
-    /// /test <模块> — 运行特定模块的自测。
-    /// 模块: all | tools | ui | git | config | memory | agent | review | mcp
-    /// </summary>
-    private static void RunModuleTest(string input, ChatScreen screen)
-    {
-        var module = input.Length > 5 ? input[5..].Trim() : "all";
-        if (string.IsNullOrWhiteSpace(module)) module = "all";
-
-        screen.AddSystemMsg($"🧪 开始测试模块: {module}");
-
-        try
-        {
-            var results = SelfTest.RunModule(module);
-            screen.AddSystemMsg(results);
-        }
-        catch (Exception ex)
-        {
-            screen.AddSystemMsg($"❌ 测试异常: {ex.Message}");
-        }
-    }
-
-    // ========================================================================
-    // 命令实现
-    // ========================================================================
-
     /// <summary>项目初始化向导：创建 .corecoder/ 配置目录和模板文件。</summary>
     private static void RunInit()
     {
@@ -1855,89 +1270,6 @@ deepseek 性价比最高。"
         MarkupLine("  [dim]$[/] echo [green]\"列出目录\"[/] [dim]|[/] waycoder                   [dim]# 管道模式[/]");
     }
 
-    private static void ShowHelp()
-    {
-        var table = new TuiTable("命令");
-        table.AddColumn("命令");
-        table.AddColumn("说明");
-
-        // 内置命令
-        table.AddRow("/help", "显示此帮助");
-        table.AddRow("/reset", "清空对话历史");
-        table.AddRow("/model", "显示当前模型");
-        table.AddMarkupRow($"{AnsiText.Accent("/model")} {AnsiText.Dim("&lt;名称&gt;")}", "切换模型");
-        table.AddRow("/tokens", "显示 Token 用量");
-        table.AddRow("/compact", "压缩上下文");
-        table.AddRow("/diff", "修改文件列表");
-        table.AddRow("/save", "保存会话");
-        table.AddRow("/resume", "恢复上次自动保存的会话");
-        table.AddRow("/history", "搜索对话历史 (Ctrl+R)");
-        table.AddRow("/export", "导出对话为 Markdown 文件");
-        table.AddRow("/sessions", "会话管理 (浏览/加载/删除)");
-        table.AddMarkupRow($"{AnsiText.Accent("/load")} {AnsiText.Dim("&lt;ID&gt;")}", "加载指定会话");
-        table.AddRow("/debug-on / -off", "开启/关闭调试日志");
-        table.AddRow("/permissions", "权限管理");
-        table.AddMarkupRow($"{AnsiText.Accent("/perm")} {AnsiText.Dim("&lt;suggest|auto-edit|full-auto&gt;")}", "设置沙箱级别");
-        table.AddRow("/plan", "计划模式");
-        table.AddRow("/todo", "查看任务列表");
-        table.AddRow("/git-status", "Git 状态");
-        table.AddRow("/git-log", "Git 日志");
-        table.AddRow("/git-diff", "Git 差异");
-        table.AddRow("/review", "代码审查");
-        table.AddRow("/lint", "运行 lint 检查");
-        table.AddMarkupRow($"{AnsiText.Accent("/search")} {AnsiText.Dim("&lt;关键词&gt;")}", "网页搜索");
-        table.AddRow("/checkpoint", "创建检查点");
-        table.AddMarkupRow($"{AnsiText.Accent("/undo")} {AnsiText.Dim("[[编号]]")}", "回退检查点");
-        table.AddRow("/checkpoints", "列出检查点");
-        table.AddRow("/repomap", "刷新仓库地图");
-        table.AddMarkupRow($"{AnsiText.Accent("/pr")} {AnsiText.Dim("[[标题]]")}", "创建 Pull Request");
-        table.AddMarkupRow($"{AnsiText.Accent("/edit")} {AnsiText.Dim("[[文件]]")}", "终端源码编辑器");
-        table.AddRow("/settings", "设置界面");
-        table.AddRow("quit", "退出");
-
-        // 自定义命令
-        if (CustomCommands.Commands.Count > 0)
-        {
-            foreach (var (name, cmd) in CustomCommands.Commands)
-            {
-                var desc = cmd.Description.Length > 20
-                    ? cmd.Description[..17] + "..."
-                    : cmd.Description;
-                table.AddRow($"/{name}", desc);
-            }
-        }
-
-        table.Render();
-    }
-
-    private static void ShowTokens()
-    {
-        var p = _llm!.TotalPromptTokens;
-        var c = _llm!.TotalCompletionTokens;
-        var total = p + c;
-        var cost = _llm.EstimatedCost;
-
-        var content = new StringBuilder();
-        content.AppendLine($"{AnsiText.Accent($"{p:N0} 输入")} + " +
-                           $"{AnsiText.Accent($"{c:N0} 输出")} = " +
-                           $"{AnsiText.BoldFg($"{total:N0} 总计", TuiColors.Green)}");
-        if (cost != null)
-            content.Append($"约 {AnsiText.Dim($"${cost:F4}")}");
-
-        UxHelper.Info("Token 用量", content.ToString().TrimEnd());
-    }
-
-    private static void SwitchModel(string input)
-    {
-        var newModel = input[7..].Trim();
-        if (!string.IsNullOrEmpty(newModel))
-        {
-            _llm!.Model = newModel;
-            _config.Model = newModel;
-            MarkupLine($"[green]✔ 已切换到:[/] [bold cyan]{E(newModel)}[/]");
-        }
-    }
-
     /// <summary>Ctrl+M 循环切换大模型</summary>
     private static void CycleModel(ChatScreen screen)
     {
@@ -1951,77 +1283,15 @@ deepseek 性价比最高。"
         screen.AddSystemMsg($"🔄 大模型 → {next} (Ctrl+M 继续切换)");
     }
 
-    private static async Task CompactAsync()
-    {
-        var before = ContextManager.EstimateTokens(_agent!.Messages);
-        var maxTokens = _agent.Context.MaxTokens;
-        MarkupLine($"[dim]压缩前: {before:N0} / {maxTokens:N0} tokens[/]");
-
-        var lastLayer = 0;
-        var compressed = await _agent.Context.MaybeCompressAsync(_agent.Messages, _llm,
-            onProgress: (layer, msg) =>
-            {
-                if (layer != lastLayer)
-                {
-                    MarkupLine($"[cyan]▶ 第 {layer} 层:[/] [dim]{E(msg)}[/]");
-                    lastLayer = layer;
-                }
-            });
-
-        var after = ContextManager.EstimateTokens(_agent.Messages);
-        var pct = before > 0 ? (int)((before - after) * 100.0 / before) : 0;
-        if (compressed)
-        {
-            MarkupLine(
-                $"[green]✔ 已压缩:[/] {before:N0} → [cyan]{after:N0}[/] tokens " +
-                $"([green]{pct}%[/] 释放, [dim]{_agent.Messages.Count} 条消息[/])");
-            var barPct = after * 100.0 / maxTokens;
-            MarkupLine($"  [dim]上下文使用率:[/] {BoxBuffer.MiniBar(barPct, 10)}");
-        }
-        else
-            MarkupLine($"[dim]无需压缩 ({before:N0} tokens, {_agent.Messages.Count} 条消息)[/]");
-    }
-
-    private static void SaveSession()
-    {
-        var sid = SessionManager.SaveSession(_agent!.Messages, _config.Model);
-        MarkupLine($"[green]✔ 会话已保存:[/] [cyan]{E(sid)}[/]");
-        MarkupLine($"[dim]恢复命令: waycoder -r {E(sid)}[/]");
-    }
-
-    private static void ShowDiff()
-    {
-        var files = EditFileTool.ChangedFiles;
-        if (files.Count == 0)
-        {
-            MarkupLine("[dim]未修改任何文件[/]");
-            return;
-        }
-
-        var table = new TuiTable($"修改的文件 ({files.Count} 个)");
-        table.AddColumn("文件路径");
-        foreach (var f in files.OrderBy(f => f))
-            table.AddRow(f);
-        table.Render();
-    }
-
-    // ========================================================================
-    // 输入触发式智能提示
-    // ========================================================================
-
     /// <summary>/ 触发：弹出命令面板，用方向键选择，回车执行</summary>
     private static string ShowCommandPalette()
     {
-        var commands = new List<string>
-        {
-            "/help", "/reset", "/model", "/model <名称>", "/tokens",
-            "/compact", "/diff", "/save", "/resume", "/sessions",
-            "/debug-on", "/debug-off", "/permissions", "/perm <suggest|auto-edit|full-auto>",
-            "/plan", "/todo", "/git-status", "/git-log", "/git-diff",
-            "/review", "/lint", "/search <关键词>",
-            "/checkpoint", "/undo [编号]", "/checkpoints",
-            "/repomap", "/pr [标题]", "/edit [文件]", "/settings", "quit",
-        };
+        var commands = new List<string>();
+
+        // 从注册表生成命令列表（优先显示 Usage，其次 Name）
+        foreach (var cmd in SlashCommandRegistry.Commands)
+            commands.Add(cmd.Usage ?? cmd.Name);
+        commands.Add("quit");
 
         // 追加自定义命令
         foreach (var (name, _) in CustomCommands.Commands)
@@ -2054,55 +1324,6 @@ deepseek 性价比最高。"
 
         return ""; // 不回传给 Agent
     }
-
-    /// <summary># 触发：显示工程文件列表，辅助输入</summary>
-    private static async Task<string> ShowFileHintAsync()
-    {
-        // 快速显示目录结构
-        try
-        {
-            var treeResult = await new Tools.TreeTool().ExecuteAsync(
-                new Dictionary<string, object?> { ["depth"] = 2, ["max"] = 30 });
-            // 只显示前 20 行
-            var lines = treeResult.Split('\n').Take(20);
-            Console.WriteLine(AnsiText.Dim("── 工程文件 (前 20 行) ──"));
-            foreach (var line in lines)
-                Console.WriteLine($"  {AnsiText.Dim(TuiHelper.Esc(line))}");
-            Console.WriteLine();
-        }
-        catch
-        {
-            /* 静默失败 */
-        }
-
-        var file = UxHelper.Ask("# 文件");
-        return string.IsNullOrWhiteSpace(file) ? "" : $"#{file}";
-    }
-
-    private static void ShowSessions()
-    {
-        var sessions = SessionManager.ListSessions();
-        if (sessions.Count == 0)
-        {
-            MarkupLine("[dim]没有已保存的会话[/]");
-            return;
-        }
-
-        var table = new TuiTable($"已保存的会话 ({sessions.Count} 个)");
-        table.AddColumn("ID", 12);
-        table.AddColumn("模型", 20);
-        table.AddColumn("保存时间", 20);
-        table.AddColumn("预览");
-
-        foreach (var s in sessions)
-            table.AddRow(s.Id, s.Model, s.SavedAt, s.Preview);
-
-        table.Render();
-    }
-
-    // ========================================================================
-    // 计划模式 / Todo / Git 命令
-    // ========================================================================
 
     private static async Task PlanModeAsync()
     {
@@ -2148,179 +1369,6 @@ deepseek 性价比最高。"
         }
     }
 
-    private static void ShowTodo()
-    {
-        var items = TodoTool.Items;
-        if (items.Count == 0)
-        {
-            Console.WriteLine(AnsiText.Dim("（暂无任务）"));
-            return;
-        }
-
-        var completed = items.Count(i => i.Status == "completed");
-        var table = new TuiTable($"任务列表 ({completed}/{items.Count} 完成)");
-        table.AddColumn("#", 5);
-        table.AddColumn("状态", 14);
-        table.AddColumn("标题");
-
-        var statusMarkup = new Dictionary<string, string>
-        {
-            ["completed"] = AnsiText.Success("✅ 已完成"),
-            ["in_progress"] = AnsiText.Accent("🔄 进行中"),
-            ["pending"] = AnsiText.Warn("⏳ 待处理"),
-            ["cancelled"] = AnsiText.Dim("❌ 已取消"),
-        };
-
-        foreach (var item in items.OrderBy(i => i.Id))
-        {
-            var status = statusMarkup.GetValueOrDefault(item.Status, $"❓ {item.Status}");
-            table.AddMarkupRow($"#{item.Id}", status, TuiHelper.Esc(item.Title));
-        }
-
-        table.Render();
-    }
-
-    private static async Task RunReviewAsync()
-    {
-        var reviewPrompt = ReviewMode.BuildReviewPrompt();
-        if (reviewPrompt.StartsWith("（没有修改过"))
-        {
-            MarkupLine($"[dim]{E(reviewPrompt)}[/]");
-            return;
-        }
-
-        MarkupLine("[bold cyan]🔍 代码审查中...[/]");
-        using var cts = new CancellationTokenSource();
-        try
-        {
-            await ChatWithStatusAsync(reviewPrompt, cts.Token);
-            Console.WriteLine();
-        }
-        catch (Exception ex)
-        {
-            UxHelper.Error("审查出错", ex.Message);
-        }
-    }
-
-    private static async Task RunGitAsync(string command)
-    {
-        MarkupLine($"[dim]git {E(command)}[/]");
-        var result = await new Tools.GitTool().ExecuteAsync(new() { ["command"] = command });
-        Console.WriteLine(result);
-    }
-
-    // ========================================================================
-    // Lint / Search / Checkpoint 命令 (v0.6.1+)
-    // ========================================================================
-
-    private static async Task RunLintAsync()
-    {
-        MarkupLine("[bold cyan]🔍 Lint 检查中...[/]");
-        var lintTool = new Tools.LintTool();
-        var result = await lintTool.ExecuteAsync(new Dictionary<string, object?>());
-        Console.WriteLine(result);
-    }
-
-    private static async Task RunSearchAsync(string query)
-    {
-        if (string.IsNullOrWhiteSpace(query))
-        {
-            MarkupLine("[orange3]用法: /search <关键词>[/]");
-            return;
-        }
-
-        MarkupLine($"[bold cyan]🔍 搜索: {E(query)}[/]");
-        var searchTool = new Tools.WebSearchTool();
-        var result = await searchTool.ExecuteAsync(new Dictionary<string, object?> { ["query"] = query });
-        Console.WriteLine(result);
-    }
-
-    private static async Task CreateCheckpointAsync()
-    {
-        MarkupLine("[bold cyan]📦 创建检查点...[/]");
-        var cp = await CheckpointManager.CreateAsync("手动创建");
-        if (cp != null)
-            MarkupLine($"[green]✔ 检查点 #{cp.Id} 已创建[/] [dim]({cp.Type})[/]");
-        else
-            MarkupLine("[red]✘ 检查点创建失败[/]");
-    }
-
-    private static async Task UndoCheckpointAsync(string input)
-    {
-        var parts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        int? id = null;
-        string? filePath = null;
-        int idx = 1;
-
-        // 解析: /undo [N] [file]
-        if (idx < parts.Length && int.TryParse(parts[idx], out var parsed))
-        {
-            id = parsed;
-            idx++;
-        }
-
-        if (idx < parts.Length)
-            filePath = string.Join(" ", parts.Skip(idx));
-
-        MarkupLine("[bold orange3]⏪ 回退中...[/]");
-        var result = await CheckpointManager.UndoAsync(id, filePath);
-        Console.WriteLine(result);
-    }
-
-    private static void ShowCheckpoints()
-    {
-        MarkupLine("[bold]检查点列表:[/]");
-        Console.WriteLine(CheckpointManager.ListCheckpoints());
-    }
-
-    private static void ShowCheckpointFiles()
-    {
-        var files = CheckpointManager.GetCheckpointFiles();
-        if (files.Count == 0)
-        {
-            MarkupLine("[dim]（最新检查点无文件备份）[/]");
-            return;
-        }
-
-        var latest = CheckpointManager.ListCheckpoints().Split('\n').LastOrDefault()?.Trim() ?? "最新";
-        MarkupLine($"[bold]检查点文件清单[/] [dim]{latest}[/]");
-        foreach (var f in files)
-            MarkupLine($"  [cyan]{E(f)}[/]");
-    }
-
-    private static void ShowRepoMap()
-    {
-        MarkupLine("[bold]仓库地图 (刷新中...)[/]");
-        RepoMapGenerator.Invalidate();
-        var map = RepoMapGenerator.Generate();
-        Console.WriteLine(map);
-    }
-
-    private static async Task RunPRAsync(string input)
-    {
-        var parts = input.Split(' ', 2);
-        var title = parts.Length > 1 ? parts[1].Trim() : "";
-        if (string.IsNullOrEmpty(title))
-        {
-            // 仅显示 PR 链接
-            var prTool = new GitPRTool();
-            var result = await prTool.ExecuteAsync(new Dictionary<string, object?> { ["action"] = "url" });
-            Console.WriteLine(result);
-            return;
-        }
-        else
-        {
-            var prTool = new GitPRTool();
-            var result = await prTool.ExecuteAsync(new Dictionary<string, object?>
-            {
-                ["action"] = "create",
-                ["title"] = title,
-                ["description"] = $"🤖 Generated with [WayCoder/道码](https://github.com/alecksty/waycoder)"
-            });
-            Console.WriteLine(result);
-        }
-    }
-
     // ========================================================================
     /// <summary>构建模型回退链：当前模型 + 备选模型</summary>
     private static string[] BuildFallbackChain()
@@ -2341,9 +1389,6 @@ deepseek 性价比最高。"
 
     /// <summary>输出带标记的行（转换 Spectre 标记为 ANSI）</summary>
     private static void MarkupLine(string markup) => Console.WriteLine(SpectreToAnsi(markup));
-
-    /// <summary>输出带标记的文本（不换行）</summary>
-    private static void M(string markup) => Console.Write(SpectreToAnsi(markup));
 
     /// <summary>将 Spectre 风格的标记转换为 ANSI 转义码（通过 AnsiText 封装层）</summary>
     private static string SpectreToAnsi(string markup)
