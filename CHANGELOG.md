@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.25.6 (2026-08-10) — NotebookEdit 工具 + 工具总数 32
+
+### 🚀 P3 新功能
+- **NotebookEditTool.cs** (NEW): Jupyter Notebook (.ipynb) 编辑工具
+  - `replace`: 替换指定 cell 的源代码（自动清理旧 outputs）
+  - `insert`: 在指定位置后插入新 cell（支持 code/markdown/raw 类型）
+  - `delete`: 删除指定 cell
+  - 基于 cell 索引（0-based），兼容 .ipynb v4 格式
+  - AOT 兼容: 手写 JSON 节点操作，零反射依赖
+- **ToolRegistry**: 工具总数 31 → 32
+- **PermissionManager**: notebook_edit 加入写工具确认列表
+- **SelfTest**: 9 项 NotebookEdit 测试（replace/insert/delete/边界）
+
 ## v0.25.5 (2026-08-10) — 团队知识库共享
 
 ### 🚀 P3 新功能
