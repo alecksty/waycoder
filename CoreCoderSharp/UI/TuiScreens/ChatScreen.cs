@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Text;
 using CoreCoderSharp.Terminal;
 using CoreCoderSharp.Tools;
-using CoreCoderSharp.UI.TuiBase;
+
 using CoreCoderSharp.UI.TuiControls;
 
 namespace CoreCoderSharp.UI.TuiScreens;
@@ -122,18 +122,34 @@ public class ChatScreen : TuiScreen
         BuildLayout();
     }
 
-    /// <summary>终端尺寸变化——重建完整布局，保留输入状态</summary>
+    /// <summary>终端尺寸变化——重建完整布局，保留输入状态和全部聊天消息</summary>
     public override void OnResize(int newW, int newH)
     {
         var inputText = InputArea?.Text ?? "";
         int cursorRow = InputArea?.CursorRow ?? 0;
         int cursorCol = InputArea?.CursorCol ?? 0;
 
+        // 保存旧 ChatList 的全部消息数据（BuildLayout 会创建新的空 ChatList）
+        var savedMessages = new List<(string Role, string Content, bool Centered)>();
+        if (ChatList != null)
+        {
+            for (int i = 0; i < ChatList.ItemCount; i++)
+            {
+                var item = ChatList.GetItem(i) as TuiListItem;
+                if (item != null)
+                    savedMessages.Add((item.Role, item.MarkdownContent, item.ContentAlign == HAlign.Center));
+            }
+        }
+
         TW = newW;
         TH = newH;
 
         // 重建整个控件树
         BuildLayout();
+
+        // 恢复聊天消息（通过 AddMessage 走正常流程，自动处理续接/纯文本逻辑）
+        foreach (var (role, content, centered) in savedMessages)
+            AddMessage(content, role, centered);
 
         // 恢复输入状态
         if (!string.IsNullOrEmpty(inputText))

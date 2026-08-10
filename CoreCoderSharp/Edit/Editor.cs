@@ -16,6 +16,7 @@ public class Editor
     private readonly List<StringBuilder> _lines = [];
     private string _filePath = "";
     private bool _modified;
+    private volatile bool _pendingRender;
 
     // ---- 光标 (0-based) ----
     private int _cy, _cx;
@@ -114,8 +115,9 @@ public class Editor
         Console.CursorVisible = false;
         Console.TreatControlCAsInput = true;
 
-        // 如果 ScreenManager 已激活，不切换屏幕
+        // 如果 TUI 已激活，挂起备用屏以便编辑器独占终端
         var smActive = TuiManager.Instance.ActiveScreen is ChatScreen;
+        if (smActive) TuiManager.Instance.Exit();
 
         try
         {
@@ -125,6 +127,12 @@ public class Editor
                 if (!Console.KeyAvailable)
                 {
                     await Task.Delay(30);
+                    // 检查 lint 完成标志（后台线程设置，主线程渲染）
+                    if (_pendingRender)
+                    {
+                        _pendingRender = false;
+                        Render();
+                    }
                     if (Tty.Cols != _tw || Tty.Rows != _th)
                     {
                         (_tw, _th) = (Tty.Cols, Tty.Rows);
@@ -142,7 +150,12 @@ public class Editor
         {
             Console.CursorVisible = true;
             Console.TreatControlCAsInput = false;
-            if (!smActive) Console.Clear();
+            _lintCts?.Cancel();
+            _lintCts?.Dispose();
+            if (smActive)
+                TuiManager.Instance.Enter(); // 重新进入 TUI 备用屏
+            else
+                Console.Clear();
         }
     }
 
@@ -347,6 +360,8 @@ public class Editor
     // 保存
     // ================================================================
 
+    private CancellationTokenSource? _lintCts;
+
     private void Save()
     {
         try
@@ -359,12 +374,24 @@ public class Editor
             File.WriteAllText(_filePath, content, System.Text.Encoding.UTF8);
             _modified = false;
 
-            // 异步运行 lint 诊断
+            // 取消上一次 lint 任务，启动新的（后台只更新数据，不调 Render 避免线程竞争）
+            _lintCts?.Cancel();
+            _lintCts?.Dispose();
+            _lintCts = new CancellationTokenSource();
+            var token = _lintCts.Token;
             _ = Task.Run(async () =>
             {
-                await DiagnosticManager.RunLintAsync(_filePath);
-                Render();
-            });
+                try
+                {
+                    await DiagnosticManager.RunLintAsync(_filePath);
+                    if (!token.IsCancellationRequested)
+                        _pendingRender = true; // 仅设标志，主循环下次迭代时渲染
+                }
+                catch
+                {
+                    // lint 失败不影响编辑
+                }
+            }, token);
         }
         catch (Exception ex)
         {

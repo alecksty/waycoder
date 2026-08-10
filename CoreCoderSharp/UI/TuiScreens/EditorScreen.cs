@@ -2,7 +2,7 @@ using System.Text;
 using CoreCoderSharp.Terminal;
 using CoreCoderSharp.Tools;
 using CoreCoderSharp.UI.Controls;
-using CoreCoderSharp.UI.TuiBase;
+
 using CoreCoderSharp.UI.TuiControls;
 
 namespace CoreCoderSharp.UI.TuiScreens;
@@ -31,6 +31,8 @@ public class EditorScreen : TuiScreen
     public TuiLabel TitleBar { get; private set; } = null!;
     public TuiLabel StatusBar1 { get; private set; } = null!;
     public TuiLabel StatusBar2 { get; private set; } = null!;
+
+    private Action? _onContentChangedHandler;
 
     /// <summary>要编辑的文件路径（空 = 弹出文件选择器）</summary>
     public string FilePath { get; set; }
@@ -88,7 +90,8 @@ public class EditorScreen : TuiScreen
     {
         Core = new EditorCore();
         Core.LoadFile(path);
-        Core.OnContentChanged += () => MarkDirty();
+        _onContentChangedHandler = () => MarkDirty();
+        Core.OnContentChanged += _onContentChangedHandler;
         BuildLayout();
     }
 
@@ -124,6 +127,20 @@ public class EditorScreen : TuiScreen
 
         RootView.Layout();
         MarkDirty();
+    }
+
+    /// <summary>屏幕销毁时取消所有事件订阅，避免泄漏</summary>
+    public override void OnDestroy()
+    {
+        if (Core != null && _onContentChangedHandler != null)
+            Core.OnContentChanged -= _onContentChangedHandler;
+        if (EditorView != null)
+        {
+            EditorView.OnSaveRequested -= HandleSave;
+            EditorView.OnJumpRequested -= HandleJump;
+            EditorView.OnExitRequested -= HandleExit;
+        }
+        base.OnDestroy();
     }
 
     // ════════════════════════════════════════════════════════════════

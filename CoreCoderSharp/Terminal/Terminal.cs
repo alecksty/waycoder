@@ -20,7 +20,7 @@ public static class Tty
     /// <summary>静默恢复终端（进程退出时调用，忽略错误）</summary>
     private static void ExitAltScreenDirect()
     {
-        try { Console.Write($"{AnsiTty.CursorShow}{AnsiTty.ExitAlt}"); Console.Out.Flush(); }
+        try { Console.Write($"{AnsiTty.MouseDisable}{AnsiTty.CursorShow}{AnsiTty.ExitAlt}"); Console.Out.Flush(); }
         catch { /* 进程即将退出，忽略所有错误 */ }
     }
     // ================================================================

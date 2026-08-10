@@ -18,6 +18,8 @@ public class Program
     private static int _activeSlot; // 当前活跃槽位索引（F1 对应 0）
     private static WatchMode? _watchMode;
     private static volatile bool _agentBusy;
+    private static volatile bool _exitRequested;
+    private static int _lastStreamW, _lastStreamH;
     private static CancellationTokenSource? _agentCts;
     private static (List<JsonObject> Messages, string Model)? _pendingRestore;
 
@@ -265,11 +267,11 @@ public class Program
         screen.SyncTheme();
         screen.RefreshTheme();
 
-        // Ctrl+C 全局强制退出（抑制 OS 提示 "Terminate batch job?"）
+        // Ctrl+C 设置退出标志，走正常清理路径（AutoSaveSession + mgr.Exit）
         Console.CancelKeyPress += (_, e) =>
         {
             e.Cancel = true;
-            Environment.Exit(0);
+            _exitRequested = true;
         };
 
         // 输入管理器：拦截键盘 + 鼠标 + resize 即时重绘
@@ -336,7 +338,7 @@ public class Program
         screen.OnSearchHistory = query => SearchHistory(query, screen);
 
         var running = true;
-        while (running)
+        while (running && !_exitRequested)
         {
             mgr.Render();
 
@@ -366,9 +368,10 @@ public class Program
 
             var ev = inputMgr.ReadInput(50);
 
-            // Resize — 即时重绘
+            // Resize — 通知全控件树重新布局 + 全屏刷新
             if (ev.Type == InputType.Resize)
             {
+                mgr.OnResize();
                 mgr.Render();
                 continue;
             }
@@ -389,10 +392,11 @@ public class Program
             var key = ev.KeyInfo;
             bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
 
-            // 系统级：Ctrl+C 强制退出，不管任何状态
+            // 系统级：Ctrl+C 设置退出标志，走正常清理路径
             if (key.Key == ConsoleKey.C && ctrl)
             {
-                Environment.Exit(0);
+                _exitRequested = true;
+                continue;
             }
 
             // 系统级：F1~F10 切换 Agent 槽位
@@ -677,6 +681,8 @@ public class Program
                         {
                             screen.Running = false; // 首 token 到达，思考结束
                             screen.AppendToken(tok);
+                            if (Tty.SizeChanged(ref _lastStreamW, ref _lastStreamH))
+                                TuiManager.Instance.OnResize();
                             screen.Render();
                         },
                         onTool: (name, brief) =>
@@ -684,6 +690,8 @@ public class Program
                             screen.FinishAgentMsg();
                             screen.AddToolProgress(name, brief.Length > 60 ? brief[..57] + "..." : brief);
                             screen.StartAgentMsg();
+                            if (Tty.SizeChanged(ref _lastStreamW, ref _lastStreamH))
+                                TuiManager.Instance.OnResize();
                             screen.Render();
                         },
                         cancellationToken: cts.Token);
@@ -721,12 +729,11 @@ public class Program
                 }
             }
 
-            // 完成通知：耗时 + 终端响铃
+            // 完成通知
             if (completed)
             {
                 var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
                 screen.AddSystemMsg($"  💡 完成 ({elapsed:F1}s)");
-                Console.Write('\a'); // 终端响铃
             }
 
             // 文件修改确认 + 最近文件跟踪
@@ -1087,7 +1094,6 @@ public class Program
             {
                 var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
                 screen.AddSystemMsg($"  💡 条件达成！{iter} 轮 / {elapsed:F1}s");
-                Console.Write('\a');
                 return;
             }
 
@@ -1305,9 +1311,12 @@ deepseek 性价比最高。"
         return spaceIdx > 0 ? choice[..spaceIdx] : choice;
     }
 
-    /// <summary>! 触发：输入 Shell 命令并立即执行</summary>
     private static async Task<string> RunShellOnceAsync()
     {
+        var needRestore = TuiManager.Instance.IsActive;
+        if (needRestore) TuiManager.Instance.Exit();
+        try
+        {
         var cmd = UxHelper.Ask("! 命令");
         if (string.IsNullOrWhiteSpace(cmd)) return "";
 
@@ -1323,10 +1332,19 @@ deepseek 性价比最高。"
         }
 
         return ""; // 不回传给 Agent
+        }
+        finally
+        {
+            if (needRestore) { TuiManager.Instance.Enter(); TuiManager.Instance.Render(); }
+        }
     }
 
     private static async Task PlanModeAsync()
     {
+        var needRestore = TuiManager.Instance.IsActive;
+        if (needRestore) TuiManager.Instance.Exit();
+        try
+        {
         MarkupLine("[bold cyan]📋 计划模式[/] — 只读分析，Agent 先规划再执行");
         MarkupLine("[dim]输入你的需求，Agent 会先分析并列出执行计划[/]");
         Console.WriteLine();
@@ -1366,6 +1384,11 @@ deepseek 性价比最高。"
         catch (Exception ex)
         {
             UxHelper.Error("错误", ex.Message);
+        }
+        }
+        finally
+        {
+            if (needRestore) { TuiManager.Instance.Enter(); TuiManager.Instance.Render(); }
         }
     }
 

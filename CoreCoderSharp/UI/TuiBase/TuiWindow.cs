@@ -21,13 +21,14 @@ public enum WindowBorder
 /// - 可以有标题栏（ShowTitle），独立于边框存在
 /// - 可以有外框（Border），None 时无边框
 /// </summary>
-public class TuiWindow
+public class TuiWindow : TuiBase
 {
-    // ── 位置与大小 ──
-    public int X { get; set; }
-    public int Y { get; set; }
-    public int Width { get; set; } = 30;
-    public int Height { get; set; } = 10;
+    // ── 构造函数 ──
+    public TuiWindow()
+    {
+        Width = 30;
+        Height = 10;
+    }
 
     // ── 标题 ──
     public string Title { get; set; } = "";
@@ -133,6 +134,19 @@ public class TuiWindow
     // ── 关闭回调 ──
     public Action? OnClosed { get; set; }
 
+    // ── 生命周期 ──
+
+    /// <summary>窗口创建/显示时调用。初始化 RootView 控件树。</summary>
+    public override void OnCreate() => RootView?.OnCreate();
+
+    /// <summary>窗口关闭/销毁时调用。清理 RootView 控件树和事件订阅。</summary>
+    public override void OnDestroy()
+    {
+        RootView?.OnDestroy();
+        KeyShortcuts.Clear();
+        OnClosed = null;
+    }
+
     // ── 边框字符解析 ──
     public (string tl, string tr, string bl, string br, string h, string v, string hTop, string hBot) GetBorderChars()
     {
@@ -227,7 +241,7 @@ public class TuiWindow
     /// 终端尺寸变化通知。重新计算窗口位置、大小，
     /// 并将变化传播给控件树。
     /// </summary>
-    public virtual void OnResize(int newTermW, int newTermH)
+    public override void OnResize(int newTermW, int newTermH)
     {
         // 自动居中
         if (AutoCenter)
@@ -240,7 +254,7 @@ public class TuiWindow
     }
 
     /// <summary>路由按键到控件树。快捷键优先于控件路由。</summary>
-    public bool OnKey(ConsoleKeyInfo key)
+    public override bool OnKey(ConsoleKeyInfo key)
     {
         // ── 1. 窗口级快捷键（优先，无需控件焦点）──
         if (KeyShortcuts.Count > 0)
@@ -281,7 +295,7 @@ public class TuiWindow
     /// 处理鼠标事件。返回 true 表示事件被窗口消费。
     /// 支持：标题栏拖拽移动、边缘拖拽缩放。
     /// </summary>
-    public bool HandleMouse(InputEvent ev)
+    public override bool HandleMouse(InputEvent ev)
     {
         if (ev.Type != InputType.Mouse) return false;
 

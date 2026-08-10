@@ -458,7 +458,7 @@ public class Agent
             await RunGitAsync("add -u");  // -u 仅暂存已跟踪文件，避免意外提交临时文件
             await RunGitAsync("commit -m \"" + msg.Replace("\"", "\\\"") + "\"");
         }
-        catch { }
+        catch (Exception ex) { DebugLog.Log("auto-commit", $"AutoCommitAsync failed: {ex.Message}"); }
     }
 
     private async Task<string> GenerateCommitMsgAsync(string fileList)
