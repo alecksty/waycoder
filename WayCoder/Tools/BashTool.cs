@@ -60,7 +60,22 @@ public class BashTool : ITool
         return await Execute(command, timeout);
     }
 
-    private async Task<string> Execute(string command, int timeout)
+    /// <summary>
+    /// 流式执行命令，每读到一行就调用 onLine 回调。
+    /// 返回完整输出（与 ExecuteAsync 格式一致）。
+    /// </summary>
+    public async Task<string> ExecuteStreamingAsync(
+        Dictionary<string, object?> arguments,
+        Func<string, Task>? onLine)
+    {
+        var command = arguments.GetValueOrDefault("command")?.ToString() ?? "";
+        var configTimeout = Config.FromEnv().ToolTimeoutSec;
+        var timeout = arguments.TryGetValue("timeout", out var t) && t is int ti ? ti : configTimeout;
+
+        return await Execute(command, timeout, onLine);
+    }
+
+    private async Task<string> Execute(string command, int timeout, Func<string, Task>? onLine = null)
     {
         // 安全检查
         var warning = CheckDangerous(command);
@@ -105,6 +120,11 @@ public class BashTool : ITool
 
             using var proc = Process.Start(psi)!;
 
+            // 流式模式：逐行读取 stdout 并回调（沙箱模式不支持流式）
+            if (onLine != null && !SandboxManager.IsSandboxed)
+                return await ExecuteStreaming(proc, command, cwd, timeout, onLine);
+
+            // 非流式模式：保持原有 ReadToEndAsync 逻辑
             // 立即启动异步读取（防止管道缓冲区满导致死锁）
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
@@ -170,6 +190,54 @@ public class BashTool : ITool
         {
             return $"运行命令时出错：{ex.GetType().Name}: {ex.Message}";
         }
+    }
+
+    /// <summary>流式执行：逐行读取 stdout 并回调，最后返回完整输出</summary>
+    private async Task<string> ExecuteStreaming(
+        Process proc, string command, string cwd, int timeout, Func<string, Task> onLine)
+    {
+        var outBuilder = new System.Text.StringBuilder();
+        var stderrStream = proc.StandardError.ReadToEndAsync();
+
+        // 逐行读取 stdout，每行回调
+        while (true)
+        {
+            var line = await proc.StandardOutput.ReadLineAsync();
+            if (line == null) break;
+            outBuilder.AppendLine(line);
+            try { await onLine(line); } catch { /* 回调异常不影响执行 */ }
+        }
+
+        // 等待进程退出
+        var exitStream = proc.WaitForExitAsync();
+        var delayStream = Task.Delay(timeout * 1000);
+        var completedStream = await Task.WhenAny(exitStream, delayStream);
+        var exitedStream = completedStream == exitStream && exitStream.IsCompletedSuccessfully;
+
+        if (!exitedStream)
+        {
+            proc.Kill(entireProcessTree: true);
+            return $"错误：在 {timeout} 秒后超时";
+        }
+
+        var outStream = outBuilder.ToString();
+        var errStream = await stderrStream;
+
+        if (proc.ExitCode == 0) UpdateCwd(command, cwd);
+
+        if (!string.IsNullOrEmpty(errStream))
+            outStream += $"\n[stderr]\n{errStream}";
+        if (proc.ExitCode != 0)
+            outStream += $"\n[退出码：{proc.ExitCode}]";
+
+        if (outStream.Length > 15_000)
+        {
+            outStream = outStream[..6000]
+                         + $"\n\n... 已截断（共 {outStream.Length} 字符）...\n\n"
+                         + outStream[^3000..];
+        }
+
+        return string.IsNullOrWhiteSpace(outStream) ? "（无输出）" : outStream.Trim();
     }
 
     /// <summary>

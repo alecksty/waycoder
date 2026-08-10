@@ -22,6 +22,9 @@ public class TuiMarkdown : TuiControl
     /// <summary>纯文本模式：逐行渲染，不走 Markdown 解析</summary>
     public bool IsPlainText { get; set; }
 
+    /// <summary>错误模式：文本使用红色渲染（用于工具错误输出）</summary>
+    public bool IsError { get; set; }
+
     /// <summary>内容横向对齐（默认左对齐，欢迎消息用居中）</summary>
     public HAlign ContentAlign { get; set; } = HAlign.Left;
 
@@ -82,7 +85,8 @@ public class TuiMarkdown : TuiControl
             foreach (var (text, fg, bg) in segments)
             {
                 if (string.IsNullOrEmpty(text)) continue;
-                int effFg = fg > 0 ? fg : (Fg > 0 ? Fg : TuiTheme.Current.ControlFg);
+                int defaultFg = IsError ? 31 : TuiTheme.Current.ControlFg;
+                int effFg = fg > 0 ? fg : (Fg > 0 ? Fg : defaultFg);
                 int effBg = bg > 0 ? bg : (Bg > 0 ? Bg : 0);
 
                 WriteAt(sb, row, col, text, effFg, effBg);
