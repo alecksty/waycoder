@@ -18,18 +18,14 @@ public static class TuiInput
     private static List<string> _suggestions = [];
     private static int _suggestIdx;
 
-    // 内置命令列表
-    private static readonly string[] _commands =
-    [
-        "/help", "/reset", "/model", "/model <名称>", "/tokens",
-        "/compact", "/diff", "/save", "/sessions",
-        "/debug-on", "/debug-off", "/permissions", "/perm <模式>",
-        "/plan", "/todo", "/git-status", "/git-log", "/git-diff",
-        "/review", "/lint", "/search <关键词>",
-        "/checkpoint", "/undo [编号]", "/checkpoints",
-        "/repomap", "/pr [标题]", "/edit [文件]", "/about", "/settings",
-        "quit",
-    ];
+    // 内置命令列表（从注册表自动推导）
+    private static string[] _commands => SlashCommandRegistry.AllNames
+        .Concat(SlashCommandRegistry.Commands
+            .Where(c => c.Usage != null)
+            .Select(c => c.Usage!))
+        .Append("quit")
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
 
     /// <summary>读取输入，Enter 发送返回文本，Esc 取消返回 null</summary>
     public static string? ReadInput()
