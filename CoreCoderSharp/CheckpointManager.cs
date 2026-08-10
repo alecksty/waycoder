@@ -48,7 +48,7 @@ public static class CheckpointManager
                     if (cp.Id > maxId) maxId = cp.Id;
                 }
             }
-            catch { /* 跳过损坏的检查点 */ }
+            catch (Exception ex) { DebugLog.Log("Checkpoint", $"加载检查点出错: {ex.Message}"); }
         }
 
         _checkpoints.Sort((a, b) => a.Id.CompareTo(b.Id));
@@ -85,7 +85,7 @@ public static class CheckpointManager
                 return cp;
             }
         }
-        catch { }
+        catch (Exception ex) { DebugLog.Log("Checkpoint", $"Git stash 失败: {ex.Message}"); }
 
         // 回退：复制修改过的文件
         try
@@ -110,7 +110,7 @@ public static class CheckpointManager
                     changedFiles.AddRange(gitUntracked.Split('\n', StringSplitOptions.RemoveEmptyEntries));
                 }
             }
-            catch { }
+            catch (Exception ex) { DebugLog.Log("Checkpoint", $"获取 Git 变更文件失败: {ex.Message}"); }
 
             if (changedFiles.Count == 0)
             {

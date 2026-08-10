@@ -35,7 +35,7 @@ public static class ProjectContext
                 else
                     sb.AppendLine(content);
             }
-            catch { /* 读取失败跳过 */ }
+            catch (Exception ex) { DebugLog.Log("ProjectContext", $"读取指令文件失败 {file}: {ex.Message}"); }
         }
         return sb.ToString();
     }
@@ -170,7 +170,7 @@ public static class ProjectContext
                 if (json.Contains("\"vue\"")) frameworks.Add("Vue");
                 if (json.Contains("\"express\"")) frameworks.Add("Express");
             }
-            catch { }
+            catch (Exception ex) { DebugLog.Log("ProjectContext", $"解析 package.json 失败: {ex.Message}"); }
         }
 
         var csprojFiles = SafeGetFiles(root, 100).Where(f => f.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -183,7 +183,7 @@ public static class ProjectContext
                 if (content.Contains("Microsoft.NET.Sdk")) frameworks.Add(".NET SDK");
                 if (content.Contains("Microsoft.NET.Sdk.Blazor")) frameworks.Add("Blazor");
             }
-            catch { }
+            catch (Exception ex) { DebugLog.Log("ProjectContext", $"解析 csproj 失败: {ex.Message}"); }
         }
 
         if (File.Exists(Path.Combine(root, "go.mod")))
@@ -194,7 +194,7 @@ public static class ProjectContext
                 var m = Regex.Match(gomod, @"module\s+(\S+)");
                 if (m.Success) frameworks.Add($"Go ({m.Groups[1].Value})");
             }
-            catch { }
+            catch (Exception ex) { DebugLog.Log("ProjectContext", $"解析 go.mod 失败: {ex.Message}"); }
         }
 
         info.Frameworks = frameworks;
@@ -234,7 +234,7 @@ public static class ProjectContext
                 if (match.Success) info.GitRemote = match.Groups[1].Value;
             }
         }
-        catch { }
+        catch (Exception ex) { DebugLog.Log("ProjectContext", $"读取 Git 信息失败: {ex.Message}"); }
     }
 
     private static List<string> SafeGetFiles(string root, int maxFiles)
@@ -252,7 +252,7 @@ public static class ProjectContext
                 if (files.Count >= maxFiles) break;
             }
         }
-        catch { }
+        catch (Exception ex) { DebugLog.Log("ProjectContext", $"SafeGetFiles 失败: {ex.Message}"); }
         return files;
     }
 }
