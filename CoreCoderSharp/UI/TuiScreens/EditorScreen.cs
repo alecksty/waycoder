@@ -2,8 +2,10 @@ using System.Text;
 using CoreCoderSharp.Terminal;
 using CoreCoderSharp.Tools;
 using CoreCoderSharp.UI.Controls;
+using CoreCoderSharp.UI.TuiBase;
+using CoreCoderSharp.UI.TuiControls;
 
-namespace CoreCoderSharp.UI;
+namespace CoreCoderSharp.UI.TuiScreens;
 
 /// <summary>
 /// 编辑器屏幕 —— 终端内源码编辑器，与 ChatScreen 平级。

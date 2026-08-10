@@ -1,7 +1,7 @@
 using System.Text;
 using CoreCoderSharp.Terminal;
 
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 标题栏控件 —— 顶行应用标识。
@@ -26,16 +26,21 @@ public class TuiTitleBar : TuiControl
         Height = 1;
     }
 
+    /// <summary>
+    /// 渲染标题栏
+    /// </summary>
+    /// <param name="sb">输出缓冲区</param>
+    /// <param name="absX">绝对列坐标</param>
+    /// <param name="absY">绝对行坐标</param>
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
-        int fg = TuiTheme.Current.StatusBarFg;
-        int bg = TuiTheme.Current.StatusBarBg;
-        int row = absY;
-
+        var fg = TuiTheme.Current.StatusBarFg;
+        var bg = TuiTheme.Current.StatusBarBg;
+        var row = absY;
         var rb = new RenderBuffer();
 
         // ── 左侧：应用名 ──
-        string title = Title.Length > 0 ? Title : Global.AppFullName;
+        var title = Title.Length > 0 ? Title : Global.AppFullName;
         rb.Write(row, absX, $" {title}", fg: fg, bg: bg);
 
         int col = absX + 1 + TuiHelper.DisplayWidth(title);

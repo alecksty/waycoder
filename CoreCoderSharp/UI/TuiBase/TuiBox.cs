@@ -1,4 +1,6 @@
 using CoreCoderSharp.Terminal;
+using CoreCoderSharp.UI.TuiScreens;
+
 namespace CoreCoderSharp.UI;
 
 /// <summary>
@@ -21,13 +23,20 @@ public static class TuiBox
     public static void Simple(string content, int? borderColor = null)
         => Render("", content, borderColor ?? TuiColors.Border, TuiColors.Border);
 
+    /// <summary>
+    /// 渲染对话框/提示框控件。
+    /// </summary>
+    /// <param name="title">标题框标题。</param>
+    /// <param name="content">内容框内容。</param>
+    /// <param name="borderFg">边框颜色。</param>
+    /// <param name="titleFg">标题颜色。</param>
     private static void Render(string title, string content, int borderFg, int titleFg)
     {
         var lines = content.Replace("\r\n", "\n").Split('\n');
         var maxVw = lines.Max(l => TuiHelper.DisplayWidth(l));
         var titleVw = string.IsNullOrEmpty(title) ? 0 : TuiHelper.DisplayWidth(title) + 2;
         var w = Math.Max(Math.Max(20, maxVw + 4), titleVw + 4);
-        w = Math.Min(w, TTY.Cols - 4);
+        w = Math.Min(w, Tty.Cols - 4);
 
         var sb = new System.Text.StringBuilder();
         var border = AnsiText.BorderOpen(borderFg);
@@ -37,14 +46,15 @@ public static class TuiBox
         sb.Append("╭─");
         if (!string.IsNullOrEmpty(title))
         {
-            sb.Append(AnsiText.Reset);
+            sb.Append(AnsiTty.SgrReset);
             sb.Append(' ').Append(AnsiText.BoldFg(title, titleFg)).Append(' ');
             sb.Append(border);
         }
+
         var topFill = w - 2 - (string.IsNullOrEmpty(title) ? 0 : titleVw + 2);
         if (topFill > 0) sb.Append(new string('─', topFill));
         sb.Append("╮");
-        sb.Append(AnsiText.Reset);
+        sb.Append(AnsiTty.SgrReset);
         sb.Append('\n');
 
         // 内容行
@@ -52,17 +62,17 @@ public static class TuiBox
         {
             var lw = TuiHelper.DisplayWidth(line);
             var pad = Math.Max(0, w - 4 - lw);
-            sb.Append(border).Append("│").Append(AnsiText.Reset);
+            sb.Append(border).Append("│").Append(AnsiTty.SgrReset);
             sb.Append(' ').Append(line);
             if (pad > 0) sb.Append(new string(' ', pad));
-            sb.Append(' ').Append(border).Append("│").Append(AnsiText.Reset);
+            sb.Append(' ').Append(border).Append("│").Append(AnsiTty.SgrReset);
             sb.Append('\n');
         }
 
         // 底边框
         sb.Append(border);
         sb.Append("╰").Append(new string('─', w - 2)).Append("╯");
-        sb.Append(AnsiText.Reset);
+        sb.Append(AnsiTty.SgrReset);
         sb.Append('\n');
 
         var output = sb.ToString();
@@ -77,6 +87,9 @@ public static class TuiBox
             }
             else Console.WriteLine(output);
         }
-        catch { Console.WriteLine(output); }
+        catch
+        {
+            Console.WriteLine(output);
+        }
     }
 }

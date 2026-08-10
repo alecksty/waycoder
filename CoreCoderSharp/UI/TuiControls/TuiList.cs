@@ -1,5 +1,6 @@
 using System.Text;
-namespace CoreCoderSharp.UI.Controls;
+
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>可滚动列表选单 —— 单选/多选，键盘导航。</summary>
 public class TuiList : TuiControl
@@ -11,7 +12,11 @@ public class TuiList : TuiControl
     public int ScrollOffset { get; set; }
     public Action<int>? OnSelect { get; set; }
 
-    public TuiList() { Height = 5; Width = 30; }
+    public TuiList()
+    {
+        Height = 5;
+        Width = 30;
+    }
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
@@ -40,11 +45,11 @@ public class TuiList : TuiControl
                 display = TuiHelper.TruncateByWidth(display, Width);
 
             int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
-                   : idx == SelectedIndex ? TuiTheme.Current.ListSelFg
-                   : (Fg > 0 ? Fg : TuiTheme.Current.ListFg);
+                : idx == SelectedIndex ? TuiTheme.Current.ListSelFg
+                : (Fg > 0 ? Fg : TuiTheme.Current.ListFg);
             int bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : 0)
-                   : idx == SelectedIndex ? TuiTheme.Current.ListSelBg
-                   : (Bg > 0 ? Bg : 0);
+                : idx == SelectedIndex ? TuiTheme.Current.ListSelBg
+                : (Bg > 0 ? Bg : 0);
 
             rb.Write(row, absX, display + new string(' ', Math.Max(0, Width - TuiHelper.DisplayWidth(display))), fg: fg, bg: bg);
         }
@@ -62,6 +67,7 @@ public class TuiList : TuiControl
                 rb.Write(row, absX + Width, ch, fg: 2);
             }
         }
+
         sb.Append(rb.ToString());
     }
 
@@ -77,9 +83,11 @@ public class TuiList : TuiControl
                 if (SelectedIndex < Items.Count - 1) SelectedIndex++;
                 return true;
             case ConsoleKey.Home:
-                SelectedIndex = 0; return true;
+                SelectedIndex = 0;
+                return true;
             case ConsoleKey.End:
-                SelectedIndex = Items.Count - 1; return true;
+                SelectedIndex = Items.Count - 1;
+                return true;
             case ConsoleKey.Spacebar when MultiSelect:
                 if (CheckedIndices.Contains(SelectedIndex))
                     CheckedIndices.Remove(SelectedIndex);
@@ -90,6 +98,7 @@ public class TuiList : TuiControl
                 OnSelect?.Invoke(SelectedIndex);
                 return true;
         }
+
         return false;
     }
 }

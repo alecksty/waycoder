@@ -1,5 +1,6 @@
 using CoreCoderSharp.Terminal;
 using CoreCoderSharp.UI;
+using CoreCoderSharp.UI.TuiScreens;
 
 namespace CoreCoderSharp;
 
@@ -23,7 +24,7 @@ public static class PermissionManager
     public static event Action<string>? PermissionPromptResolved;
 
     /// <summary>本轮已自动允许的工具调用 ID 集合（Auto 模式用）</summary>
-    private static readonly HashSet<string> _autoAllowed = [];
+    private static readonly HashSet<string> AutoAllowed = [];
 
     /// <summary>需要确认的工具名列表</summary>
     private static readonly HashSet<string> DangerousTools =
@@ -49,7 +50,7 @@ public static class PermissionManager
 
         // Auto 模式：首次确认后记住
         var autoKey = BuildAutoKey(toolName, args);
-        if (CurrentMode == Mode.Auto && _autoAllowed.Contains(autoKey))
+        if (CurrentMode == Mode.Auto && AutoAllowed.Contains(autoKey))
             return true;
 
         // 收集操作详情
@@ -75,7 +76,7 @@ public static class PermissionManager
         switch (result)
         {
             case 1:
-                _autoAllowed.Add(autoKey);
+                AutoAllowed.Add(autoKey);
                 CurrentMode = Mode.Auto;
                 break;
             case 0:
@@ -99,7 +100,7 @@ public static class PermissionManager
     /// </summary>
     public static void Reset()
     {
-        _autoAllowed.Clear();
+        AutoAllowed.Clear();
     }
 
     /// <summary>

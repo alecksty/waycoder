@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 图标控件 —— 单字符图标，固定 2×1 大小。

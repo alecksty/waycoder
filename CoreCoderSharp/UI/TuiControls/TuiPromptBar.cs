@@ -1,10 +1,18 @@
 using System.Text;
 using CoreCoderSharp.Terminal;
 
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>提示条目的类型</summary>
-public enum PromptKind { Command, File, Shell, Slash, History, Recent }
+public enum PromptKind
+{
+    Command,
+    File,
+    Shell,
+    Slash,
+    History,
+    Recent
+}
 
 /// <summary>提示条目</summary>
 public class PromptItem
@@ -14,14 +22,18 @@ public class PromptItem
     public string? Detail { get; set; }
     public string? Value { get; set; }
 
+    /// <summary>
+    /// 获取提示条目的图标。
+    /// </summary>
+    /// <returns>图标文本。</returns>
     public string Icon => Kind switch
     {
         PromptKind.Command => "⌘",
-        PromptKind.File    => "📄",
-        PromptKind.Shell   => "⚡",
-        PromptKind.Slash   => "/",
+        PromptKind.File => "📄",
+        PromptKind.Shell => "⚡",
+        PromptKind.Slash => "/",
         PromptKind.History => "↺",
-        PromptKind.Recent  => "⏱",
+        PromptKind.Recent => "⏱",
         _ => "·",
     };
 }
@@ -63,6 +75,12 @@ public class TuiPromptBar : TuiControl
         Height = 1;
     }
 
+    /// <summary>
+    /// 渲染提示栏。
+    /// </summary>
+    /// <param name="sb">渲染缓冲区</param>
+    /// <param name="absX">绝对 X 坐标</param>
+    /// <param name="absY">绝对 Y 坐标</param>
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
         bool bordered = Bg == 0;
@@ -74,7 +92,9 @@ public class TuiPromptBar : TuiControl
 
         int highlightBg = bordered
             ? TuiTheme.Current.ControlFocusedBg > 0 ? TuiTheme.Current.ControlFocusedBg : TuiColors.BgBlue
-            : TuiTheme.Current.ControlFocusedBg > 0 ? TuiTheme.Current.ControlFocusedBg : TuiColors.BgBlue;
+            : TuiTheme.Current.ControlFocusedBg > 0
+                ? TuiTheme.Current.ControlFocusedBg
+                : TuiColors.BgBlue;
         int highlightFg = TuiColors.BgWhite;
 
         // ── 上边框 ──
@@ -99,8 +119,9 @@ public class TuiPromptBar : TuiControl
                 bool selected = i == SelectedIndex;
 
                 int itemFg = selected ? highlightFg : fg;
-                int rowBg = bordered ? (selected ? highlightBg : 0)
-                           : (selected ? highlightBg : (Bg > 0 ? Bg : TuiTheme.Current.WindowBg));
+                int rowBg = bordered
+                    ? (selected ? highlightBg : 0)
+                    : (selected ? highlightBg : (Bg > 0 ? Bg : TuiTheme.Current.WindowBg));
 
                 // Bg>0 模式下全行填充
                 if (!bordered)
@@ -127,7 +148,8 @@ public class TuiPromptBar : TuiControl
                 col += TuiHelper.DisplayWidth(iconStr);
 
                 // 标签（截断）
-                int detailW = string.IsNullOrEmpty(item.Detail) ? 0
+                int detailW = string.IsNullOrEmpty(item.Detail)
+                    ? 0
                     : TuiHelper.DisplayWidth(item.Detail) + 3;
                 int labelMax = Width - leftPad * 2 - (col - absX) - detailW - 2;
                 var label = item.Label;
@@ -186,6 +208,18 @@ public class TuiPromptBar : TuiControl
         }
     }
 
+    /// <summary>
+    /// 渲染边框。
+    /// 用于绘制提示栏的边框，支持自定义字符和颜色。
+    /// </summary>
+    /// <param name="sb">渲染缓冲区</param>
+    /// <param name="row">行坐标</param>
+    /// <param name="col">列坐标</param>
+    /// <param name="left">左框字符</param>
+    /// <param name="mid">中间框字符</param>
+    /// <param name="right">右框字符</param>
+    /// <param name="width">宽度</param>
+    /// <param name="fg">前景颜色</param>
     private static void WriteBorder(StringBuilder sb, int row, int col,
         string left, string mid, string right, int width, int fg)
     {
@@ -194,6 +228,11 @@ public class TuiPromptBar : TuiControl
         sb.Append(rb.ToString());
     }
 
+    /// <summary>
+    /// 处理键盘输入。
+    /// </summary>
+    /// <param name="key">按下的键</param>
+    /// <returns>是否处理了该键</returns>
     public override bool OnKey(ConsoleKeyInfo key)
     {
         if (!IsEnabled || !CanFocus) return false;
@@ -218,6 +257,7 @@ public class TuiPromptBar : TuiControl
                     OnSelect?.Invoke(Items[SelectedIndex]);
                 return true;
         }
+
         return false;
     }
 }

@@ -24,17 +24,46 @@ public class RenderBuffer
     // ================================================================
 
     /// <summary>设置前景色（支持 16/256/True Color）</summary>
-    public RenderBuffer Fg(int ansiCode) { _sb.Append(AnsiColorSeq(ansiCode, isBg: false)); return this; }
+    public RenderBuffer Fg(int ansiCode)
+    {
+        _sb.Append(AnsiColorSeq(ansiCode, isBg: false));
+        return this;
+    }
+
     /// <summary>设置前景+背景色</summary>
-    public RenderBuffer FgBg(int fgCode, int bgCode) { _sb.Append(AnsiColorPairSeq(fgCode, bgCode)); return this; }
+    public RenderBuffer FgBg(int fgCode, int bgCode)
+    {
+        _sb.Append(AnsiColorPairSeq(fgCode, bgCode));
+        return this;
+    }
+
     /// <summary>仅背景色（支持 16/256/True Color）</summary>
-    public RenderBuffer Bg(int ansiCode) { _sb.Append(AnsiColorSeq(ansiCode, isBg: true)); return this; }
+    public RenderBuffer Bg(int ansiCode)
+    {
+        _sb.Append(AnsiColorSeq(ansiCode, isBg: true));
+        return this;
+    }
+
     /// <summary>粗体</summary>
-    public RenderBuffer Bold() { _sb.Append(AnsiTty.SgrBold); return this; }
+    public RenderBuffer Bold()
+    {
+        _sb.Append(AnsiTty.SgrBold);
+        return this;
+    }
+
     /// <summary>灰色/淡化</summary>
-    public RenderBuffer Dim() { _sb.Append(AnsiTty.SgrDim); return this; }
+    public RenderBuffer Dim()
+    {
+        _sb.Append(AnsiTty.SgrDim);
+        return this;
+    }
+
     /// <summary>重置所有颜色/样式</summary>
-    public RenderBuffer Reset() { _sb.Append(AnsiTty.SgrReset); return this; }
+    public RenderBuffer Reset()
+    {
+        _sb.Append(AnsiTty.SgrReset);
+        return this;
+    }
 
     // ================================================================
     // 高级写入（自动处理定位+颜色+转义）
@@ -94,7 +123,12 @@ public class RenderBuffer
         while (i < text.Length)
         {
             var avail = maxCol - col + 1;
-            if (avail <= 0) { row++; col = indentCol; continue; }
+            if (avail <= 0)
+            {
+                row++;
+                col = indentCol;
+                continue;
+            }
 
             // 取当前行能放下的子串
             int chars = 0, vw = 0;
@@ -106,13 +140,19 @@ public class RenderBuffer
                 vw += w;
                 chars += rune.Utf16SequenceLength;
             }
+
             if (chars == 0) chars = 1; // 至少放一个字
 
             var line = text.Substring(i, chars);
             Write(row, col, line, fg, bg);
             i += chars;
-            if (i < text.Length) { row++; col = indentCol; }
+            if (i < text.Length)
+            {
+                row++;
+                col = indentCol;
+            }
         }
+
         return row;
     }
 
@@ -120,8 +160,19 @@ public class RenderBuffer
     // 区域文本：多行 + 水平对齐 + 垂直对齐
     // ================================================================
 
-    public enum HAlign { Left, Center, Right }
-    public enum VAlign { Top, Middle, Bottom }
+    public enum HAlign
+    {
+        Left,
+        Center,
+        Right
+    }
+
+    public enum VAlign
+    {
+        Top,
+        Middle,
+        Bottom
+    }
 
     /// <summary>
     /// 在矩形区域内渲染多行文本。
@@ -152,6 +203,7 @@ public class RenderBuffer
                 lines.Add("");
                 continue;
             }
+
             int i = 0;
             while (i < paragraph.Length)
             {
@@ -164,6 +216,7 @@ public class RenderBuffer
                     vw += w;
                     chars += rune.Utf16SequenceLength;
                 }
+
                 if (chars == 0) chars = 1;
                 lines.Add(paragraph.Substring(i, chars));
                 i += chars;
@@ -225,36 +278,77 @@ public class RenderBuffer
     }
 
     /// <summary>粗体片段（可指定前景色）</summary>
-    public RenderBuffer SegmentBold(string text, int fg = 33) {
+    public RenderBuffer SegmentBold(string text, int fg = 33)
+    {
         _sb.Append(fg > 0
             ? $"{AnsiTty.SgrBold}{AnsiTty.FgCode(fg)}{text}{AnsiTty.SgrReset}"
             : $"{AnsiTty.SgrBold}{text}{AnsiTty.SgrReset}");
         return this;
     }
+
     /// <summary>灰色片段</summary>
-    public RenderBuffer SegmentDim(string text) {
+    public RenderBuffer SegmentDim(string text)
+    {
         _sb.Append($"{AnsiTty.SgrDim}{text}{AnsiTty.SgrReset}");
         return this;
     }
 
     /// <summary>用命名颜色写入（流畅写法）</summary>
-    public RenderBuffer C(Color fg) { _sb.Append(AnsiTty.FgCode(fg.AnsiCode)); return this; }
-    public RenderBuffer C(Color fg, Color bg) { _sb.Append(AnsiTty.FgBgCode(fg.AnsiCode, bg.AnsiCode)); return this; }
-    public RenderBuffer BgC(Color bg) { _sb.Append(AnsiTty.BgCode(bg.AnsiCode)); return this; }
+    public RenderBuffer C(Color fg)
+    {
+        _sb.Append(AnsiTty.FgCode(fg.AnsiCode));
+        return this;
+    }
+
+    public RenderBuffer C(Color fg, Color bg)
+    {
+        _sb.Append(AnsiTty.FgBgCode(fg.AnsiCode, bg.AnsiCode));
+        return this;
+    }
+
+    public RenderBuffer BgC(Color bg)
+    {
+        _sb.Append(AnsiTty.BgCode(bg.AnsiCode));
+        return this;
+    }
+
     /// <summary>闪烁光标</summary>
-    public RenderBuffer Blink() { _sb.Append($"{AnsiTty.SgrBlink} ▏{AnsiTty.SgrReset}"); return this; }
+    public RenderBuffer Blink()
+    {
+        _sb.Append($"{AnsiTty.SgrBlink} ▏{AnsiTty.SgrReset}");
+        return this;
+    }
+
     /// <summary>清除当前行从光标到行尾</summary>
-    public RenderBuffer ClearToEndOfLine() { _sb.Append(AnsiTty.ClearToEnd); return this; }
+    public RenderBuffer ClearToEndOfLine()
+    {
+        _sb.Append(AnsiTty.ClearToEnd);
+        return this;
+    }
+
     /// <summary>在指定位置显示光标</summary>
-    public RenderBuffer CursorAt(int row, int col) { _sb.Append($"{AnsiTty.CursorPos0(row, col)}{AnsiTty.CursorShow}"); return this; }
+    public RenderBuffer CursorAt(int row, int col)
+    {
+        _sb.Append($"{AnsiTty.CursorPos0(row, col)}{AnsiTty.CursorShow}");
+        return this;
+    }
+
     /// <summary>隐藏光标</summary>
-    public RenderBuffer HideCursor() { _sb.Append(AnsiTty.CursorHide); return this; }
+    public RenderBuffer HideCursor()
+    {
+        _sb.Append(AnsiTty.CursorHide);
+        return this;
+    }
 
     /// <summary>追加原始字符串（仅在 Terminal 层内部使用）</summary>
-    internal RenderBuffer Raw(string s) { _sb.Append(s); return this; }
+    internal RenderBuffer Raw(string s)
+    {
+        _sb.Append(s);
+        return this;
+    }
 
     /// <summary>获取内部 StringBuilder（用于兼容旧代码）</summary>
-    public System.Text.StringBuilder SB => _sb;
+    public System.Text.StringBuilder Sb => _sb;
 
     // ================================================================
     // 输出
@@ -262,6 +356,7 @@ public class RenderBuffer
 
     /// <summary>写入终端</summary>
     public void Flush() => Console.Write(_sb.ToString());
+
     public override string ToString() => _sb.ToString();
     public void Clear() => _sb.Clear();
     public int Length => _sb.Length;

@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 单选按钮组 —— 互斥选项列表。
@@ -52,7 +52,7 @@ public class TuiRadioGroup : TuiControl
             bool sel = i == SelectedIndex;
             string bullet = sel ? "◉" : "○";
             int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
-                   : sel ? SelFg : ItemFg;
+                : sel ? SelFg : ItemFg;
 
             WriteAt(sb, row, absX, $"{bullet} {Options[i]}", fg, Bg);
         }
@@ -85,6 +85,7 @@ public class TuiRadioGroup : TuiControl
                     OnSelectionChanged?.Invoke(SelectedIndex);
                 return true;
         }
+
         return false;
     }
 
@@ -95,5 +96,7 @@ public class TuiRadioGroup : TuiControl
         OnSelectionChanged?.Invoke(idx);
     }
 
-    public override void OnResize(int newParentW, int newParentH) { }
+    public override void OnResize(int newParentW, int newParentH)
+    {
+    }
 }

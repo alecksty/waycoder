@@ -1,8 +1,7 @@
 using System.Text;
-using CoreCoderSharp.Terminal;
 using OldMd = CoreCoderSharp.UI.TuiMarkdown;
 
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// Markdown 渲染控件 —— 将 Markdown 文本渲染为格式化的终端输出。
