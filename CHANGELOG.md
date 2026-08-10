@@ -1,5 +1,24 @@
 # 更新日志
 
+## v0.25.9 (2026-08-10) — TUI 控件完善 + 测试全覆盖 + Bug 修复
+
+### ✨ 新功能
+- **TuiDialog.Secret()**: 新增密码输入对话框，支持掩码回显
+- **UxHelper.Secret()**: 新增密码输入辅助方法，TUI/控制台双模式适配
+
+### 🧪 测试
+- **29 个 TUI 组件测试全覆盖**: TuiButton, TuiCheckbox, TuiInput, TuiTextArea, TuiLabel, TuiIcon, TuiList, TuiListView, TuiProgress, TuiSpinner, TuiStatusBar, TuiTabs, TuiTitleBar, TuiBanner, TuiGrid, TuiWrapPanel, TuiSidePanel, TuiPromptBar, TuiDialog (11 工厂方法), TuiControl, TuiView, TuiScreen, BoxBuffer, TuiColors, TuiTheme, MarkdownRenderer, TuiTable, DiffPreview, UxHelper
+- 新增 362 项测试（总计 1199 项），全部通过
+- `/test ui` 可一键运行所有 UI 组件测试
+
+### 🐛 Bug 修复
+- **侧边栏背景色修复**: TuiSidePanel 默认背景从 WindowBg 改为 TerminalBg，与聊天区黑色背景统一
+- **开机 Logo 间距**: 上方增加 3 行空白，视觉居中对齐
+- **彩虹色偏移修复**: 横幅彩虹渐变基于视觉行号（非空行）而非绝对行索引，避免空白行消耗颜色锚点
+
+### 🔄 重构
+- Program.cs 中 `TuiInput.ReadInput()` → `TuiChatInput.ReadInput()`，统一输入入口
+
 ## v0.25.8 (2026-08-10) — 去 CoreCoder 品牌化
 
 ### 🔄 品牌重命名
