@@ -51,6 +51,9 @@ public abstract class TuiScreen
     /// <summary>需要重绘的脏区域（窗口关闭时记录其覆盖区）</summary>
     private readonly List<(int x, int y, int w, int h)> _dirtyRects = [];
 
+    /// <summary>是否为增量更新（仅脏控件刷新，跳过全屏清除和窗口背景/边框重绘）</summary>
+    public bool IsIncrementalUpdate { get; set; }
+
     /// <summary>当前终端尺寸</summary>
     public int TW { get; protected set; }
     public int TH { get; protected set; }
@@ -266,30 +269,45 @@ public abstract class TuiScreen
 
     /// <summary>
     /// 渲染整个屏幕（根视图 + 浮层窗口）到 StringBuilder。
+    /// 增量模式下仅渲染脏控件，跳过遮罩和窗口背景/边框重绘。
     /// </summary>
     public virtual void Render(StringBuilder sb)
     {
+        bool incremental = IsIncrementalUpdate;
+
         // 1. 渲染根视图（光标先隐藏，仅记录位置）
+        //    增量模式：仅脏控件输出；全量模式：全量输出
         RootView.Render(sb, 0, 0);
 
-        // 2. 渲染模态窗口遮罩
-        foreach (var win in Windows.Where(w => w.HasMask))
+        // 2. 渲染模态窗口遮罩（全量模式才需要，增量模式遮罩未变）
+        if (!incremental)
         {
-            for (int row = 0; row < win.Height; row++)
+            foreach (var win in Windows.Where(w => w.HasMask))
             {
-                int screenY = win.Y + row;
-                if (screenY < 0 || screenY >= TH) continue;
-                var rb = new RenderBuffer();
-                int maskBg = win.WinBg > 0 ? win.WinBg : 100;
-                rb.Write(screenY, win.X, new string(' ', win.Width), bg: maskBg);
-                sb.Append(rb.ToString());
+                for (int row = 0; row < win.Height; row++)
+                {
+                    int screenY = win.Y + row;
+                    if (screenY < 0 || screenY >= TH) continue;
+                    var rb = new RenderBuffer();
+                    int maskBg = win.WinBg > 0 ? win.WinBg : 100;
+                    rb.Write(screenY, win.X, new string(' ', win.Width), bg: maskBg);
+                    sb.Append(rb.ToString());
+                }
             }
         }
 
         // 3. 按 Z-order 渲染窗口
         foreach (var win in Windows.OrderBy(w => w.ZOrder))
         {
-            RenderWindow(sb, win);
+            // 增量模式 + 窗口整体无变化 → 仅渲染窗口内脏控件
+            if (incremental && !win.RootView.IsDirty)
+            {
+                RenderWindowDirtyControls(sb, win);
+            }
+            else
+            {
+                RenderWindow(sb, win);
+            }
         }
 
         // 3.5 重绘脏区域（窗口关闭后，补绘被遮挡的根视图控件）
@@ -327,6 +345,33 @@ public abstract class TuiScreen
         }
     }
 
+    /// <summary>
+    /// 增量渲染窗口内脏控件 —— 不重绘背景、边框、遮罩。
+    /// 仅对 RootView 中标记为脏的子控件（如焦点切换的按钮）进行渲染。
+    /// </summary>
+    private void RenderWindowDirtyControls(StringBuilder sb, TuiWindow win)
+    {
+        if (win.RootView == null) return;
+
+        int contentTop = win.ContentTop;
+        int innerHeight = win.ContentHeight;
+        if (innerHeight <= 0) return;
+
+        // 设置裁剪区域 = 窗口内容区
+        var savedEffectiveBg = TuiControl.CascadedBg;
+        int fillBg = win.WinBg > 0 ? win.WinBg : 100;
+        TuiControl.CascadedBg = fillBg;
+
+        win.RootView.Width = win.ContentWidth;
+        win.RootView.Height = innerHeight;
+        win.RootView.Render(sb, win.ContentLeft, contentTop,
+            clipL: win.ContentLeft, clipT: contentTop,
+            clipR: win.ContentLeft + win.ContentWidth,
+            clipB: contentTop + innerHeight);
+
+        TuiControl.CascadedBg = savedEffectiveBg;
+    }
+
     /// <summary>渲染单个窗口（边框 + 标题栏 + 内部控件树）</summary>
     protected virtual void RenderWindow(StringBuilder sb, TuiWindow win)
     {
@@ -354,8 +399,11 @@ public abstract class TuiScreen
                 TuiControl.CascadedBg = savedEffectiveBg;
             }
             if (win.ContentLines.Count > 0)
+            {
+                int toastBg = win.WinBg > 0 ? win.WinBg : 100;
                 for (int i = 0; i < Math.Min(win.ContentLines.Count, win.Height); i++)
-                    WriteAt(sb, win.Y + i, win.X, win.ContentLines[i], win.ContentFg);
+                    WriteAt(sb, win.Y + i, win.X, win.ContentLines[i], win.ContentFg, toastBg);
+            }
             return;
         }
 
@@ -485,14 +533,14 @@ public abstract class TuiScreen
             }
         }
 
-        // ── 竖边框：左=渐变起始色，右=渐变终止色，背景同前景防断线 ──
+        // ── 竖边框：左=渐变起始色，右=渐变终止色，背景用窗口底色 ──
         if (grad)
         {
             for (int i = 0; i < innerHeight; i++)
             {
                 int row = contentTop + i;
-                WriteAt(sb, row, win.X, vv, gs, gs);
-                WriteAt(sb, row, win.X + win.Width - 1, vv, ge, ge);
+                WriteAt(sb, row, win.X, vv, gs, fillBg);
+                WriteAt(sb, row, win.X + win.Width - 1, vv, ge, fillBg);
             }
         }
         else
@@ -500,8 +548,8 @@ public abstract class TuiScreen
             for (int i = 0; i < innerHeight; i++)
             {
                 int row = contentTop + i;
-                WriteAt(sb, row, win.X, vv, bc, bc);
-                WriteAt(sb, row, win.X + win.Width - 1, vv, bc, bc);
+                WriteAt(sb, row, win.X, vv, bc, fillBg);
+                WriteAt(sb, row, win.X + win.Width - 1, vv, bc, fillBg);
             }
         }
 
@@ -532,15 +580,14 @@ public abstract class TuiScreen
                 var line = win.ContentLines[i];
                 if (TuiHelper.DisplayWidth(line) > win.Width - 3)
                     line = TuiHelper.TruncateByWidth(line, win.Width - 3);
-                WriteAt(sb, row, win.X + 1, $" {line}", win.ContentFg);
+                WriteAt(sb, row, win.X + 1, $" {line}", win.ContentFg, fillBg);
             }
         }
 
-        // ── 底边框：两角 bg=fg 防断线 ──
+        // ── 底边框：背景统一用窗口底色，不污染相邻区域 ──
         if (grad)
         {
-            // 左下角（bg 同前景防断线）
-            WriteAt(sb, win.Y + win.Height - 1, win.X, bl, gs, gs);
+            WriteAt(sb, win.Y + win.Height - 1, win.X, bl, gs, fillBg);
             // 中间横线渐变色
             int midLen = win.Width - 2;
             for (int i = 0; i < midLen; i++)
@@ -548,14 +595,13 @@ public abstract class TuiScreen
                 float t = midLen > 1 ? (float)i / (midLen - 1) : 0;
                 WriteAt(sb, win.Y + win.Height - 1, win.X + 1 + i, hBot, AnsiTty.LerpRgb(gs, ge, t), fillBg);
             }
-            // 右下角（bg 同前景防断线）
-            WriteAt(sb, win.Y + win.Height - 1, win.X + win.Width - 1, br, ge, ge);
+            WriteAt(sb, win.Y + win.Height - 1, win.X + win.Width - 1, br, ge, fillBg);
         }
         else
         {
-            WriteAt(sb, win.Y + win.Height - 1, win.X, bl, bc, bc);
+            WriteAt(sb, win.Y + win.Height - 1, win.X, bl, bc, fillBg);
             WriteAt(sb, win.Y + win.Height - 1, win.X + 1, new string(hBot[0], win.Width - 2), bc, fillBg);
-            WriteAt(sb, win.Y + win.Height - 1, win.X + win.Width - 1, br, bc, bc);
+            WriteAt(sb, win.Y + win.Height - 1, win.X + win.Width - 1, br, bc, fillBg);
         }
     }
 

@@ -1,5 +1,36 @@
 # 更新日志
 
+## v0.24.2 (2026-08-10) — 渐变增强 + 增量渲染
+
+### 🔥 新增
+
+**标题栏/状态栏金色渐变**
+- `TuiTheme` 新增 `GradTitleBar`：暖金 `#FFD700` → 琥珀 `#FF8C00`
+- `ControlRenderer` 新增 `DrawGradientBarFill` + `WriteGradientTextAt` 渐变条绘制
+- `TuiTitleBar` / `TuiStatusBar` 整行金色渐变背景，黑字金底
+
+**按钮焦点渐变差异**
+- `AnsiTty` 新增 `DarkenRgb` 向黑色调暗
+- `DrawButtonGradientLine` 非焦点时暗化渐变 55%，焦点保持完整亮色
+- 焦点/非焦点视觉差异明显，Tab 切换即时响应
+
+### 🔧 变更
+
+**增量渲染（消除焦点切换闪烁）**
+- `TuiView.FocusNext/FocusPrev` 标记丢失/获得焦点控件为脏
+- `TuiManager` 条件全刷新：首帧/切屏/Resize → ClearScreen，增量时跳过
+- `TuiScreen` 增量窗口渲染 `RenderWindowDirtyControls`：仅渲染脏控件，跳过背景/边框/遮罩
+- `TuiWindow` 拖拽/缩放后 `RootView.MarkDirty()` 确保全量重绘
+
+**边框背景修复**
+- 竖边框/底角背景从 `bg=边框色` 改为 `bg=窗口底色`，不影响其他窗口外观
+- Toast 文字背景跟随窗口底色，不再显示黑色
+
+**CJK 修复**
+- `WriteGradientTextAt` 改为 Rune 迭代 + `RuneWidth` 计算列偏移，修复汉字丢失
+
+---
+
 ## v0.24.1 (2026-08-10) — 真彩渐变边框 + 按钮美化
 
 ### 🔥 新增

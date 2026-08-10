@@ -174,6 +174,11 @@ public abstract class TuiView : TuiControl
         if (list.Count == 0) return;
         var idx = focused != null ? list.IndexOf(focused) : -1;
         var next = (idx + 1) % list.Count;
+
+        // 增量渲染：仅标记丢失焦点和获得焦点的控件为脏
+        if (focused != null) focused.MarkDirty();
+        list[next].MarkDirty();
+
         foreach (var c in list) c.Focused = false;
         list[next].Focused = true;
     }
@@ -186,6 +191,11 @@ public abstract class TuiView : TuiControl
         if (list.Count == 0) return;
         var idx = focused != null ? list.IndexOf(focused) : 0;
         var prev = (idx - 1 + list.Count) % list.Count;
+
+        // 增量渲染：仅标记丢失焦点和获得焦点的控件为脏
+        if (focused != null) focused.MarkDirty();
+        list[prev].MarkDirty();
+
         foreach (var c in list) c.Focused = false;
         list[prev].Focused = true;
     }
@@ -222,7 +232,7 @@ public class TuiVBox : TuiView
     public override void Layout()
     {
         // 第一遍：计算总高度（含 child margin），递归布局嵌套视图
-        int totalH = 0;
+        var totalH = 0;
         foreach (var child in Children)
         {
             if (ChildHAlign == HAlign.Stretch)
@@ -234,7 +244,7 @@ public class TuiVBox : TuiView
         if (totalH > 0) totalH -= Spacing;
 
         // 内容垂直对齐偏移
-        int contentOffset = ContentVAlign switch
+        var contentOffset = ContentVAlign switch
         {
             VAlign.Middle => (Height - totalH) / 2,
             VAlign.Bottom => Height - totalH,
@@ -242,7 +252,7 @@ public class TuiVBox : TuiView
         };
 
         // 第二遍：设置位置（Margin.Top 偏移，Margin.Left 水平对齐）
-        int y = Math.Max(0, contentOffset);
+        var y = Math.Max(0, contentOffset);
         foreach (var child in Children)
         {
             child.Y = y + child.Margin.Top;

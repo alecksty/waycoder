@@ -38,16 +38,22 @@ public class TuiStatusBar : TuiControl
         Height = 1;
     }
 
+    /// <summary>
+    /// 渲染状态栏（金色渐变背景）
+    /// </summary>
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
-        int fg = TuiTheme.Current.StatusBarFg;
-        int bg = TuiTheme.Current.StatusBarBg;
+        var t = TuiTheme.Current;
+        var (gs, ge) = t.GradTitleBar;
+        int fg = TuiColors.Black;
+        int dimFg = TuiColors.BrightBlack;
         int row = absY;
 
-        var rb = new RenderBuffer();
+        // 1. 整行渐变背景填充
+        ControlRenderer.DrawGradientBarFill(sb, row, absX, Width, gs, ge);
 
-        // ── 左侧：槽位指示条 F1-F10 ──
-        rb.Write(row, absX, " ", fg: fg, bg: bg);
+        // 2. 左侧：槽位指示条 F1-F10
+        ControlRenderer.WriteGradientTextAt(sb, row, absX, " ", fg, gs, ge, absX, Width);
         int col = absX + 1;
 
         for (int i = 0; i < 10; i++)
@@ -55,44 +61,46 @@ public class TuiStatusBar : TuiControl
             var state = SlotStates[i];
             int slotFg = state switch
             {
-                SlotState.Working    => TuiColors.Green,
+                SlotState.Working     => TuiColors.Green,
                 SlotState.WaitingPerm => TuiColors.Yellow,
-                SlotState.Error      => TuiColors.Red,
+                SlotState.Error       => TuiColors.Red,
                 _ => TuiColors.BrightBlack
             };
 
             string slotNum = (i + 1).ToString();
             if (i == ActiveSlotIndex)
             {
-                // 活跃槽位：白底黑字
-                rb.Write(row, col, slotNum, fg: TuiColors.Black, bg: TuiColors.BgWhite);
-            }
-            else if (state != SlotState.Idle)
-            {
-                rb.Write(row, col, slotNum, fg: slotFg, bg: bg);
+                // 活跃槽位：白底黑字（不跟随渐变）
+                sb.Append(AnsiTty.CursorPos0(row, col));
+                sb.Append(AnsiTty.FgBgCode(TuiColors.Black, TuiColors.BgWhite));
+                sb.Append(slotNum);
+                sb.Append(AnsiTty.SgrReset);
             }
             else
             {
-                rb.Write(row, col, slotNum, fg: slotFg, bg: bg);
+                ControlRenderer.WriteGradientTextAt(sb, row, col, slotNum,
+                    slotFg, gs, ge, absX, Width);
             }
             col += 1;
 
             // 数字间空格
             if (i < 9)
             {
-                rb.Write(row, col, " ", fg: fg, bg: bg);
+                ControlRenderer.WriteGradientTextAt(sb, row, col, " ",
+                    dimFg, gs, ge, absX, Width);
                 col += 1;
             }
         }
 
-        // ── 中间：提示文本 ──
+        // 3. 中间：提示文本
         if (!string.IsNullOrEmpty(HintText))
         {
             col += 2;
-            rb.Write(row, col, HintText, fg: TuiColors.BrightBlack, bg: bg);
+            ControlRenderer.WriteGradientTextAt(sb, row, col, HintText,
+                dimFg, gs, ge, absX, Width);
         }
 
-        // ── 右侧：Agent busy + Token ──
+        // 4. 右侧：Agent busy + Token
         var rightParts = new List<string>();
         if (AgentBusy)
         {
@@ -110,9 +118,8 @@ public class TuiStatusBar : TuiControl
             int rVw = TuiHelper.DisplayWidth(rightStr);
             int rightCol = absX + Width - rVw - 1;
             if (rightCol > col)
-                rb.Write(row, rightCol, rightStr, fg: fg, bg: bg);
+                ControlRenderer.WriteGradientTextAt(sb, row, rightCol, rightStr,
+                    dimFg, gs, ge, absX, Width);
         }
-
-        sb.Append(rb.ToString());
     }
 }

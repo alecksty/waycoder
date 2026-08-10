@@ -27,21 +27,22 @@ public class TuiTitleBar : TuiControl
     }
 
     /// <summary>
-    /// 渲染标题栏
+    /// 渲染标题栏（金色渐变背景）
     /// </summary>
-    /// <param name="sb">输出缓冲区</param>
-    /// <param name="absX">绝对列坐标</param>
-    /// <param name="absY">绝对行坐标</param>
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
-        var fg = TuiTheme.Current.StatusBarFg;
-        var bg = TuiTheme.Current.StatusBarBg;
-        var row = absY;
-        var rb = new RenderBuffer();
+        var t = TuiTheme.Current;
+        var (gs, ge) = t.GradTitleBar;
+        int fg = TuiColors.Black; // 金色底用黑字
+        int row = absY;
 
-        // ── 左侧：应用名 ──
+        // 1. 整行渐变背景填充
+        ControlRenderer.DrawGradientBarFill(sb, row, absX, Width, gs, ge);
+
+        // 2. 左侧：应用名
         var title = Title.Length > 0 ? Title : Global.AppFullName;
-        rb.Write(row, absX, $" {title}", fg: fg, bg: bg);
+        ControlRenderer.WriteGradientTextAt(sb, row, absX + 1, title,
+            fg, gs, ge, absX, Width);
 
         int col = absX + 1 + TuiHelper.DisplayWidth(title);
 
@@ -49,19 +50,19 @@ public class TuiTitleBar : TuiControl
         if (!string.IsNullOrEmpty(GitBranch))
         {
             var gitText = $"  🌿 {GitBranch}";
-            rb.Write(row, col, gitText, fg: fg, bg: bg);
+            ControlRenderer.WriteGradientTextAt(sb, row, col, gitText,
+                fg, gs, ge, absX, Width);
             col += TuiHelper.DisplayWidth(gitText);
         }
 
-        // ── 右侧：版本号 ──
+        // 3. 右侧：版本号
         if (!string.IsNullOrEmpty(Version))
         {
             int vw = TuiHelper.DisplayWidth(Version);
             int rightCol = absX + Width - vw - 1;
             if (rightCol > col)
-                rb.Write(row, rightCol, Version, fg: fg, bg: bg);
+                ControlRenderer.WriteGradientTextAt(sb, row, rightCol, Version,
+                    fg, gs, ge, absX, Width);
         }
-
-        sb.Append(rb.ToString());
     }
 }
