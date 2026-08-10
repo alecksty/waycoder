@@ -1,5 +1,26 @@
 # 更新日志
 
+## v0.25.5 (2026-08-10) — 团队知识库共享
+
+### 🚀 P3 新功能
+- **SharedMemoryManager.cs** (NEW): 通过 git 同步 `.corecoder/memory/` 共享记忆
+  - `IsGitRepo()`: 检测当前目录是否在 git 仓库中
+  - `GetStatus()`: 获取本地共享记忆数 + 远程变更数 + 变更文件列表
+  - `PullSharedAsync()`: 从远程拉取共享记忆（fetch + checkout 仅 memory 文件）
+  - `PushSharedAsync()`: 推送本地共享记忆到远程（add + commit + push）
+  - `ShareAsync()`: 标记记忆为共享 + 推送到远程
+  - `Unshare()`: 取消记忆共享状态
+  - 安全措施: 只操作 .corecoder/memory/*.md，不触碰其他 git 内容
+- **StructuredMemory.cs**: 新增 `IsShared` / `SetShared()` / `ListShared()`
+  - `shared: true` frontmatter 字段持久化
+- **MemoryTool.cs**: 新增 `share` / `unshare` / `sync` 三个操作
+  - `share`: 标记团队共享并推送
+  - `unshare`: 取消共享
+  - `sync`: 拉取（默认）或推送（sync push）远程共享记忆
+- **Config.cs**: 新增 `TeamMemoryEnabled` + `TeamMemoryAutoSync` 配置项
+  - 环境变量: `WAYCODER_TEAM_MEMORY` / `WAYCODER_TEAM_AUTO_SYNC`
+- **Program.cs**: 启动时自动拉取远程共享记忆（需开启 TeamMemoryEnabled + TeamMemoryAutoSync）
+
 ## v0.25.4 (2026-08-10) — 核心 API 文档补全
 
 ### 📝 P2 改进

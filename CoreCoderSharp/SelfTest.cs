@@ -289,6 +289,17 @@ public static class SelfTest
             Check("结构化更新", upd != null && upd.Content.Contains("8MB"));
             Check("结构化删除", StructuredMemory.Delete("user-pref"));
             Check("结构化计数", StructuredMemory.Count == 1);
+
+            // 共享记忆
+            StructuredMemory.SetShared("dotnet-aot", true);
+            var sharedEntry = StructuredMemory.Get("dotnet-aot");
+            Check("SetShared 标记为共享", sharedEntry?.IsShared == true);
+            Check("ListShared 返回共享记忆", StructuredMemory.ListShared().Count == 1);
+            StructuredMemory.SetShared("dotnet-aot", false);
+            Check("Unshare 取消共享", StructuredMemory.Get("dotnet-aot")?.IsShared == false);
+            Check("取消后 ListShared 为空", StructuredMemory.ListShared().Count == 0);
+            Check("IsGitRepo 可调用", SharedMemoryManager.IsGitRepo() is true or false);
+            SharedMemoryManager.ResetCache();
         }
         finally
         {
