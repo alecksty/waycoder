@@ -1502,6 +1502,47 @@ public static class SelfTest
         var ctx = SemanticMemory.GetRelevantContext(sampleMd, ".NET C# 编译", topN: 2, maxChars: 500);
         Check("GetRelevantContext 返回内容", ctx.Length > 0);
         Check("GetRelevantContext 无关查询为空", SemanticMemory.GetRelevantContext(sampleMd, "python ai", topN: 2, maxChars: 500).Length == 0);
+
+        // SearchEntries 测试（MemoryEntry → TF-IDF）
+        var testEntries = new List<StructuredMemory.MemoryEntry>
+        {
+            new() { Name = "dotnet-aot", Description = ".NET AOT 编译", Content = "项目使用 C# .NET 10 NativeAOT 编译为单文件 exe", UpdatedAt = DateTime.Now },
+            new() { Name = "ui-theme", Description = "中文终端主题", Content = "用户偏好中文界面，终端配色青色主题，深色背景", UpdatedAt = DateTime.Now },
+            new() { Name = "git-workflow", Description = "Git 工作流", Content = "自动 git commit 使用 conventional commit 格式", UpdatedAt = DateTime.Now.AddDays(-10) },
+        };
+        var searchResults = SemanticMemory.SearchEntries(testEntries, ".NET AOT 编译", topN: 3);
+        Check("SearchEntries 返回结果", searchResults.Count > 0);
+        Check("SearchEntries 排序正确", searchResults.Count >= 1 && searchResults[0].Entry.Name == "dotnet-aot");
+        Check("SearchEntries 有分数", searchResults[0].Score > 0);
+        var noResults = SemanticMemory.SearchEntries(testEntries, "python django flask", topN: 3);
+        Check("SearchEntries 无关查询无结果", noResults.Count == 0 || noResults.All(r => r.Score < 0.2));
+
+        // EmbeddingStore: 余弦相似度
+        var vecA = new float[] { 1, 0, 0 };
+        var vecB = new float[] { 0, 1, 0 };
+        var vecC = new float[] { 1, 0, 0 };
+        Check("余弦相似度 相同=1", Math.Abs(EmbeddingStore.CosineSimilarity(vecA, vecC) - 1.0) < 0.001);
+        Check("余弦相似度 正交=0", Math.Abs(EmbeddingStore.CosineSimilarity(vecA, vecB)) < 0.001);
+        Check("余弦相似度 null返回0", EmbeddingStore.CosineSimilarity(null, vecA) == 0);
+        Check("余弦相似度 维度不匹配返回0", EmbeddingStore.CosineSimilarity(new float[] { 1, 2 }, new float[] { 1, 2, 3 }) == 0);
+
+        // EmbeddingStore: .vec 二进制 I/O 往返
+        var tmpMd = Path.Combine(Path.GetTempPath(), $"test_mem_{Guid.NewGuid():N}.md");
+        try
+        {
+            File.WriteAllText(tmpMd, "test");
+            var original = new float[] { 0.1f, 0.2f, 0.3f, -0.5f, 0.0f };
+            EmbeddingStore.SaveEmbedding(tmpMd, original);
+            var vecLoaded = EmbeddingStore.LoadEmbedding(tmpMd);
+            Check(".vec 保存+加载", vecLoaded != null && vecLoaded.Length == original.Length);
+            Check(".vec 数据一致", vecLoaded != null && Math.Abs(vecLoaded[0] - 0.1f) < 0.001f && Math.Abs(vecLoaded[3] + 0.5f) < 0.001f);
+            EmbeddingStore.DeleteEmbedding(tmpMd);
+            Check(".vec 删除后加载为null", EmbeddingStore.LoadEmbedding(tmpMd) == null);
+        }
+        finally
+        {
+            try { File.Delete(tmpMd); EmbeddingStore.DeleteEmbedding(tmpMd); } catch { }
+        }
         Console.WriteLine();
 
         // ---- 自定义提示词模板 ----
