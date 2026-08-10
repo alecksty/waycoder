@@ -1,3 +1,5 @@
+using CoreCoderSharp.Terminal;
+
 namespace CoreCoderSharp.UI;
 
 /// <summary>
@@ -15,6 +17,21 @@ public static class TuiMarkdown
         string content, string role, int maxWidth, bool plainText = false)
     {
         var result = new List<List<(string Text, int Fg, int Bg)>>();
+
+        // 彩虹横幅（role == "banner"）：逐行生成逐字 TrueColor 渐变片段
+        // 横向居中由 TuiMarkdown.ContentAlign 在 OnRender 时处理
+        if (plainText && role == "banner")
+        {
+            var lines = content.Split('\n');
+            int totalLines = lines.Length;
+            for (int li = 0; li < totalLines; li++)
+            {
+                var line = lines[li];
+                if (line.Length == 0) { result.Add([]); continue; }
+                result.Add(BuildRainbowSegments(line, li, totalLines));
+            }
+            return result;
+        }
 
         // 纯文本模式 + ANSI 内容：按行原样渲染，不做 Markdown 解析
         if (plainText || content.Contains('\x1b'))
@@ -351,4 +368,45 @@ public static class TuiMarkdown
 
     /// <summary>按语言名获取 Syntax 实例（代码块高亮）</summary>
     private static Syntax GetSyntax(string lang) => Syntax.ByLanguage(lang);
+
+    // ════════════════════════════════════════════════════════════
+    // 彩虹横幅渲染
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>彩虹七色锚点（红→橙→金→绿→青→蓝→紫）</summary>
+    private static readonly int[] _rainbowStops =
+    {
+        AnsiTty.RgbCode(255, 0, 0),     // Red
+        AnsiTty.RgbCode(255, 140, 0),   // Orange
+        AnsiTty.RgbCode(255, 215, 0),   // Gold
+        AnsiTty.RgbCode(0, 200, 0),     // Green
+        AnsiTty.RgbCode(0, 200, 255),   // Cyan
+        AnsiTty.RgbCode(100, 100, 255), // Blue
+        AnsiTty.RgbCode(180, 0, 255),   // Purple
+    };
+
+    /// <summary>
+    /// 为单行文本生成逐字 TrueColor 彩虹渐变片段列表。
+    /// 第 lineIndex 行从 _rainbowStops[lineIndex] 渐变到 _rainbowStops[lineIndex+1]。
+    /// 每个字符一个片段 (文本, 前景色, 0)，走标准 WriteAt 渲染路径。
+    /// </summary>
+    private static List<(string Text, int Fg, int Bg)> BuildRainbowSegments(
+        string text, int lineIndex, int totalLines)
+    {
+        var segments = new List<(string, int, int)>();
+
+        // 将行索引映射到彩虹色锚点（line 0→Red, line 5→Purple）
+        int startIdx = Math.Min(lineIndex, _rainbowStops.Length - 2);
+        int endIdx = Math.Min(lineIndex + 1, _rainbowStops.Length - 1);
+        int startColor = _rainbowStops[startIdx];
+        int endColor = _rainbowStops[endIdx];
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            float t = text.Length > 1 ? (float)i / (text.Length - 1) : 0;
+            int color = AnsiTty.LerpRgb(startColor, endColor, t);
+            segments.Add((text[i].ToString(), color, 0));
+        }
+        return segments;
+    }
 }
