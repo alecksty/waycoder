@@ -59,7 +59,7 @@ public class GrepTool : ITool
         }
         catch (RegexParseException ex)
         {
-            return $"无效的正则表达式：{ex.Message}";
+            return $"无效的正则表达式：{ex.GetType().Name}: {ex.Message}";
         }
 
         var basePath = Path.GetFullPath(searchPath);
