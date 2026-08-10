@@ -39,6 +39,7 @@ public static class ToolRegistry
         new SkillTool(),
         new DocTool(),
         new NotebookEditTool(),
+        new AskUserQuestionTool(),
     ];
 
     /// <summary>所有工具（内置 + MCP 自动发现）</summary>

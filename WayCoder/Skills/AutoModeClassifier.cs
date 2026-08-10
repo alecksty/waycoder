@@ -39,6 +39,8 @@ public static class AutoModeClassifier
         "skill",
         // 进程查看
         "ps",
+        // 用户交互（只问不执行）
+        "ask_user_question",
     };
 
     /// <summary>Cautious 级 —— 文件修改，首次确认后可记住</summary>
