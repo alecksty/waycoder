@@ -310,9 +310,20 @@ public class ChatScreen : TuiScreen
             centered ? HAlign.Center : HAlign.Left);
         if (!continuation)
             item.SetTime(DateTime.Now);
+
+        // 错误输出红色显示
+        if (plainText && IsErrorOutput(content))
+            item.Body.IsError = true;
+
         ChatList.AddItem(item);
         MarkDirty();
     }
+
+    /// <summary>检测工具输出内容是否包含错误标记</summary>
+    private static bool IsErrorOutput(string text)
+        => text.Contains("[退出码：") || text.Contains("[stderr]") ||
+           text.Contains("错误：") || text.Contains("Error") ||
+           text.Contains("❌") || text.Contains("⛔");
 
     /// <summary>追加文本到最后一条消息（流式输出）</summary>
     public void AppendToLast(string delta)
@@ -320,6 +331,10 @@ public class ChatScreen : TuiScreen
         var last = ChatList.GetItem(ChatList.ItemCount - 1) as TuiListItem;
         if (last != null)
         {
+            // 检测错误输出，自动切换为红色
+            if (last.IsPlainText && !last.Body.IsError && IsErrorOutput(delta))
+                last.Body.IsError = true;
+
             last.AppendContent(delta);
             ChatList.ReLayout();
             if (ChatList.IsAutoScrollToEnd)
@@ -399,6 +414,16 @@ public class ChatScreen : TuiScreen
             if (!last.Streaming) return;
             last.Content += delta;
             AppendToLast(delta);
+        }
+    }
+
+    /// <summary>确保有活跃的流式 Agent 消息（如没有则创建一个）。线程安全。</summary>
+    public void EnsureAgentStreaming()
+    {
+        lock (_chatLock)
+        {
+            if (ChatMessages.Count == 0 || !ChatMessages[^1].Streaming)
+                StartAgentMsg();
         }
     }
 
