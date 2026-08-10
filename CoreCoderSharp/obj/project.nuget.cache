@@ -1,17 +1,16 @@
 {
   "version": 2,
-  "dgSpecHash": "ilI4GlTVgnI=",
+  "dgSpecHash": "DL4G5bCpEFE=",
   "success": true,
-  "projectFilePath": "D:\\code-agents\\CoreCoder\\CoreCoderSharp\\CoreCoderSharp.csproj",
+  "projectFilePath": "/Users/shitanyu/Desktop/source/mycoder/my-coder/CoreCoderSharp/CoreCoderSharp.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\aleck\\.nuget\\packages\\microsoft.dotnet.ilcompiler\\10.0.10\\microsoft.dotnet.ilcompiler.10.0.10.nupkg.sha512",
-    "C:\\Users\\aleck\\.nuget\\packages\\microsoft.net.illink.tasks\\10.0.10\\microsoft.net.illink.tasks.10.0.10.nupkg.sha512",
-    "C:\\Users\\aleck\\.nuget\\packages\\runtime.win-x64.microsoft.dotnet.ilcompiler\\10.0.10\\runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.10.nupkg.sha512",
-    "C:\\Users\\aleck\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\10.0.10\\microsoft.netcore.app.runtime.win-x64.10.0.10.nupkg.sha512",
-    "C:\\Users\\aleck\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\10.0.10\\microsoft.windowsdesktop.app.runtime.win-x64.10.0.10.nupkg.sha512",
-    "C:\\Users\\aleck\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\10.0.10\\microsoft.aspnetcore.app.runtime.win-x64.10.0.10.nupkg.sha512",
-    "C:\\Users\\aleck\\.nuget\\packages\\microsoft.netcore.app.runtime.nativeaot.win-x64\\10.0.10\\microsoft.netcore.app.runtime.nativeaot.win-x64.10.0.10.nupkg.sha512",
-    "C:\\Users\\aleck\\.nuget\\packages\\runtime.win-x64.microsoft.dotnet.ilcompiler\\10.0.10\\runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.10.nupkg.sha512"
+    "/Users/shitanyu/.nuget/packages/microsoft.dotnet.ilcompiler/10.0.10/microsoft.dotnet.ilcompiler.10.0.10.nupkg.sha512",
+    "/Users/shitanyu/.nuget/packages/microsoft.net.illink.tasks/10.0.10/microsoft.net.illink.tasks.10.0.10.nupkg.sha512",
+    "/Users/shitanyu/.nuget/packages/runtime.osx-arm64.microsoft.dotnet.ilcompiler/10.0.10/runtime.osx-arm64.microsoft.dotnet.ilcompiler.10.0.10.nupkg.sha512",
+    "/Users/shitanyu/.nuget/packages/microsoft.netcore.app.runtime.osx-arm64/10.0.10/microsoft.netcore.app.runtime.osx-arm64.10.0.10.nupkg.sha512",
+    "/Users/shitanyu/.nuget/packages/microsoft.aspnetcore.app.runtime.osx-arm64/10.0.10/microsoft.aspnetcore.app.runtime.osx-arm64.10.0.10.nupkg.sha512",
+    "/Users/shitanyu/.nuget/packages/microsoft.netcore.app.runtime.nativeaot.osx-arm64/10.0.10/microsoft.netcore.app.runtime.nativeaot.osx-arm64.10.0.10.nupkg.sha512",
+    "/Users/shitanyu/.nuget/packages/runtime.osx-arm64.microsoft.dotnet.ilcompiler/10.0.10/runtime.osx-arm64.microsoft.dotnet.ilcompiler.10.0.10.nupkg.sha512"
   ],
   "logs": []
 }
