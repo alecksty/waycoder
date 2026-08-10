@@ -15,10 +15,15 @@ namespace CoreCoderSharp;
 /// </summary>
 public class Agent
 {
+    /// <summary>LLM 客户端（大模型做复杂任务，小模型做压缩/摘要）</summary>
     public LLM LlmClient { get; }
+    /// <summary>已注册的工具列表</summary>
     public List<ITool> Tools { get; }
+    /// <summary>工具名 → 工具实例的快速查找字典</summary>
     public Dictionary<string, ITool> ToolByName { get; }
+    /// <summary>对话消息历史（OpenAI 格式）</summary>
     public List<JsonObject> Messages { get; set; } = [];
+    /// <summary>上下文管理器（三层压缩 + token 预算）</summary>
     public ContextManager Context { get; }
 
     private readonly int _maxRounds;
@@ -27,6 +32,15 @@ public class Agent
 
     private readonly bool _autoCommit;
 
+    /// <summary>
+    /// 创建 Agent 实例。
+    /// </summary>
+    /// <param name="llm">LLM 客户端</param>
+    /// <param name="tools">工具列表（默认使用 ToolRegistry.AllTools）</param>
+    /// <param name="maxContextTokens">上下文窗口上限</param>
+    /// <param name="maxRounds">最大对话轮次</param>
+    /// <param name="maxBudgetUsd">最大美元预算（null=无限制）</param>
+    /// <param name="autoCommit">工具执行后自动 git commit</param>
     public Agent(LLM llm, List<ITool>? tools = null,
         int maxContextTokens = 128_000, int maxRounds = 50,
         double? maxBudgetUsd = null, bool autoCommit = false)
@@ -69,8 +83,13 @@ public class Agent
     private List<JsonObject> ToolSchemas() => Tools.Select(t => t.Schema()).ToList();
 
     /// <summary>
-    /// 处理一条用户消息。可能涉及多轮 LLM/工具交互。
+    /// 处理一条用户消息，执行 Agent 主循环（多轮 LLM/工具交互直到完成或超限）。
     /// </summary>
+    /// <param name="userInput">用户输入文本</param>
+    /// <param name="onToken">流式 token 回调</param>
+    /// <param name="onTool">工具调用回调（工具名, 结果摘要）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>Agent 最终回复文本</returns>
     public async Task<string> ChatAsync(
         string userInput,
         Action<string>? onToken = null,
@@ -407,6 +426,7 @@ public class Agent
     /// <summary>
     /// 清空对话历史。
     /// </summary>
+    /// <summary>清空对话历史，重置 Agent 状态。</summary>
     public void Reset() => Messages.Clear();
 
     private static string FormatBrief(Dictionary<string, object?> args, int maxLen = 80)
