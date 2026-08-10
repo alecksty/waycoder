@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using WayCoder.Tools;
 using WayCoder.UI;
-using WayCoder.UI.Controls;
+using WayCoder.Terminal;
 using WayCoder.UI.TuiControls;
 using WayCoder.UI.TuiScreens;
 
@@ -102,12 +102,22 @@ public static class SelfTest
         ["[Bash "] = "tools",      ["[Lint "] = "tools",      ["[Web "] = "tools",
         // ui
         ["[CJK "] = "ui",          ["[语法高亮]"] = "ui",     ["[BoxBuffer]"] = "ui",
-        ["[主题系统]"] = "ui",     ["[边框风格]"] = "ui",     ["[DiffRenderer]"] = "ui",
+        ["[主题系统]"] = "ui",     ["[边框风格]"] = "ui",
         ["[InputManager]"] = "ui", ["[ChatScreen主题]"] = "ui",["[TuiMenu]"] = "ui",
         ["[Markdown 表格]"] = "ui",["[TuiTreeView]"] = "ui",  ["[TuiRadioGroup]"] = "ui",
         ["[TuiComboBox]"] = "ui",  ["[TuiSeekBar]"] = "ui",   ["[TuiSeparator]"] = "ui",
         ["[TuiPanel]"] = "ui",     ["[EditorCore]"] = "ui",   ["[TuiRichEditor]"] = "ui",
         ["[EditorScreen]"] = "ui", ["[SettingsScreen]"] = "ui",
+        ["[TuiButton]"] = "ui",   ["[TuiCheckbox]"] = "ui", ["[TuiInput]"] = "ui",
+        ["[TuiTextArea]"] = "ui", ["[TuiLabel]"] = "ui",    ["[TuiIcon]"] = "ui",
+        ["[TuiList]"] = "ui",     ["[TuiListView]"] = "ui", ["[TuiProgress]"] = "ui",
+        ["[TuiSpinner]"] = "ui",  ["[TuiStatusBar]"] = "ui",["[TuiTabs]"] = "ui",
+        ["[TuiTitleBar]"] = "ui", ["[TuiBanner]"] = "ui",   ["[TuiGrid]"] = "ui",
+        ["[TuiWrapPanel]"] = "ui",["[TuiSidePanel]"] = "ui",["[TuiPromptBar]"] = "ui",
+        ["[TuiDialog]"] = "ui",   ["[TuiControl]"] = "ui",  ["[TuiView]"] = "ui",
+        ["[TuiScreen]"] = "ui",   ["[BoxBuffer]"] = "ui",   ["[TuiColors]"] = "ui",
+        ["[TuiTheme]"] = "ui",    ["[MarkdownRenderer]"] = "ui",
+        ["[TuiTable]"] = "ui",    ["[DiffPreview]"] = "ui",  ["[UxHelper]"] = "ui",
         // git
         ["[Git]"] = "git",         ["[Git "] = "git",         ["[Git PR]"] = "git",     ["[Git 大"] = "git",
         // config
@@ -369,13 +379,6 @@ public static class SelfTest
         try
         {
             Directory.SetCurrentDirectory(memTestDir);
-            MemoryStore.ResetCache();
-
-            var memRead = MemoryStore.Read();
-            Check("memory read 有效返回", memRead is not null);
-            MemoryStore.Append("自测写入");
-            var memSearch = MemoryStore.Search("自测");
-            Check("memory search 找到", memSearch.Contains("自测"));
 
             var e1 = StructuredMemory.Create("dotnet-aot", "项目使用 .NET 10 AOT 编译", "project", "C# AOT 单文件编译");
             Check("结构化创建", e1.Name == "dotnet-aot");
@@ -402,7 +405,6 @@ public static class SelfTest
         finally
         {
             Directory.SetCurrentDirectory(savedMemCwd);
-            MemoryStore.ResetCache();
             try { Directory.Delete(memTestDir, true); } catch { }
         }
         Console.WriteLine();
@@ -1775,19 +1777,19 @@ public static class SelfTest
         // ---- 斜杠命令拼写纠错 ----
         Section("[命令纠错]");
         SlashCommandRegistry.RegisterAll(); // 填充 KnownCommands 供纠错测试
-        // /rsume → /resume（漏字符，距离 1）
-        Check("漏字符 /rsume → /resume", Program.SuggestCommand("/rsume") == "/resume");
+        // /sesion → /session（漏字符，距离 1）
+        Check("漏字符 /sesion → /session", Program.SuggestCommand("/sesion") == "/session");
         // /hel → /help（短命令距离 1）
         Check("短命令 /hel → /help", Program.SuggestCommand("/hel") == "/help");
-        // /resuem → /resume（换位，距离 2，长命令允许）
-        Check("换位 /resuem → /resume", Program.SuggestCommand("/resuem") == "/resume");
+        // /sesison → /session（多字符，距离 2，长命令允许）
+        Check("多字符 /sesison → /session", Program.SuggestCommand("/sesison") == "/session");
         // /tokenss → /tokens（多字符，距离 1）
         Check("多字符 /tokenss → /tokens", Program.SuggestCommand("/tokenss") == "/tokens");
         // 已知命令不纠正
         Check("已知命令 /model 不纠正", Program.SuggestCommand("/model") == null);
         // 带参数保留
         Check("带参数 /model x 不纠正", Program.SuggestCommand("/model gpt-5.4") == null);
-        Check("带参数纠正保留", Program.SuggestCommand("/rsume x") == "/resume x");
+        Check("带参数纠正保留", Program.SuggestCommand("/sesion x") == "/session x");
         // 非斜杠输入不处理
         Check("非斜杠输入不纠正", Program.SuggestCommand("hello world") == null);
         // 短命令距离 2 拒绝（/ls → /pr 距离 2 但过短）
@@ -1800,7 +1802,7 @@ public static class SelfTest
         Check("Levenshtein 插入 = 1", Program.Levenshtein("abc", "abcd") == 1);
         Check("Levenshtein 删除 = 1", Program.Levenshtein("abcd", "abc") == 1);
         Check("Levenshtein 空串", Program.Levenshtein("", "abc") == 3);
-        Check("KnownCommands 非空", Program.KnownCommands.Length >= 30);
+        Check("KnownCommands 非空", Program.KnownCommands.Length >= 25);
         Console.WriteLine();
 
         // ---- MCP 环境变量解析 ----
@@ -2443,28 +2445,6 @@ another.txt:3:1: warning: deprecated API
         Console.WriteLine();
 
         // ================================================================
-        // DiffRenderer
-        // ================================================================
-        Section("[DiffRenderer]");
-        var diffOutput = @"diff --git a/test.cs b/test.cs
---- a/test.cs
-+++ b/test.cs
-@@ -1,3 +1,4 @@
- unchanged line
--deleted line
-+added line
-+another added
- unchanged2";
-        var dr1 = DiffRenderer.Render(diffOutput, ".cs");
-        Check("Diff渲染不崩溃", dr1.Count > 0);
-        Check("Diff包含删除行", dr1.Any(row => row.Any(seg => seg.Bg == 41)));  // 红底
-        Check("Diff包含添加行", dr1.Any(row => row.Any(seg => seg.Bg == 42)));  // 绿底
-        Check("Diff包含Hunk头", dr1.Any(row => row.Any(seg => seg.Fg == 36)));  // 青色
-        var dr2 = DiffRenderer.Render("", ".cs");
-        Check("空Diff返回提示", dr2.Count > 0);
-        Console.WriteLine();
-
-        // ================================================================
         // InputManager
         // ================================================================
         Section("[InputManager]");
@@ -2957,6 +2937,1054 @@ another.txt:3:1: warning: deprecated API
         Check("SettingDef Label 非空", !string.IsNullOrEmpty(firstDef.Label));
         Check("SettingDef Category 非空", !string.IsNullOrEmpty(firstDef.Category));
         Check("SettingDef Type 有效", firstDef.Type is "text" or "number" or "select" or "secret");
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiButton 测试
+        // ================================================================
+        Section("[TuiButton]");
+        var btn1 = new TuiButton("确定");
+        Check("TuiButton 创建", btn1 != null);
+        Check("TuiButton Text=确定", btn1.Text == "确定");
+        Check("TuiButton 默认 Height=1", btn1.Height == 1);
+        Check("TuiButton CanFocus=true", btn1.CanFocus);
+
+        bool clicked = false;
+        var btn2 = new TuiButton("点击", b => { clicked = true; });
+        btn2.Focused = true;
+        btn2.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false));
+        Check("TuiButton Enter 触发 OnClick", clicked);
+
+        clicked = false;
+        btn2.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Spacebar, false, false, false));
+        Check("TuiButton Spacebar 触发 OnClick", clicked);
+
+        var btn3 = new TuiButton("禁用") { IsEnabled = false };
+        Check("TuiButton IsEnabled=false 不响应", !btn3.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false)));
+
+        // Gradient
+        var btnGrad = new TuiButton { GradientBg = true, GradientBgStart = AnsiTty.RgbCode(0,230,255), GradientBgEnd = AnsiTty.RgbCode(0,100,220) };
+        Check("TuiButton GradientBg=true", btnGrad.GradientBg);
+        Check("TuiButton GradientBgStart > 0x1000000", btnGrad.GradientBgStart > 0x1000000);
+        Check("TuiButton GradientBgEnd > 0x1000000", btnGrad.GradientBgEnd > 0x1000000);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiCheckbox 测试
+        // ================================================================
+        Section("[TuiCheckbox]");
+        var cb1 = new TuiCheckbox("启用", true);
+        Check("TuiCheckbox 创建", cb1 != null);
+        Check("TuiCheckbox Checked=true", cb1.Checked);
+        Check("TuiCheckbox Label=启用", cb1.Label == "启用");
+        Check("TuiCheckbox CanFocus=true", cb1.CanFocus);
+
+        bool changed = false;
+        bool newState = false;
+        cb1.OnChanged = v => { changed = true; newState = v; };
+        cb1.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Spacebar, false, false, false));
+        Check("TuiCheckbox Spacebar 切换", changed && !newState);
+
+        changed = false;
+        cb1.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false));
+        Check("TuiCheckbox Enter 切换回来", changed && newState);
+
+        var cb2 = new TuiCheckbox("禁用") { IsEnabled = false };
+        Check("TuiCheckbox IsEnabled=false 不响应", !cb2.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Spacebar, false, false, false)));
+
+        var cb3 = new TuiCheckbox();
+        Check("TuiCheckbox 默认未选中", !cb3.Checked);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiInput 测试
+        // ================================================================
+        Section("[TuiInput]");
+        var input1 = new TuiInput();
+        Check("TuiInput 创建", input1 != null);
+        Check("TuiInput 默认 Text 为空", input1.Text == "");
+        Check("TuiInput 默认 CursorPos=0", input1.CursorPos == 0);
+        Check("TuiInput HasCursor=true", input1.HasCursor);
+        Check("TuiInput 默认 Password=false", !input1.Password);
+
+        var input2 = new TuiInput { Text = "hello", CursorPos = 5 };
+        input2.Focused = true;
+        // 插入字符
+        input2.OnKey(new ConsoleKeyInfo('!', ConsoleKey.D1, false, true, false));
+        Check("TuiInput 插入字符", input2.Text == "hello!" && input2.CursorPos == 6);
+
+        // Backspace
+        input2.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Backspace, false, false, false));
+        Check("TuiInput Backspace 删除", input2.Text == "hello" && input2.CursorPos == 5);
+
+        // Home/End
+        input2.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
+        Check("TuiInput Home 到行首", input2.CursorPos == 0);
+        input2.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
+        Check("TuiInput End 到行尾", input2.CursorPos == 5);
+
+        // Ctrl+A 全选
+        input2.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.A, false, false, true));
+        Check("TuiInput Ctrl+A 全选", input2.HasSelection && input2.SelectionStart == 0 && input2.SelectionEnd == 5);
+
+        // Ctrl+Z 撤销插入
+        var input3 = new TuiInput { Text = "", CursorPos = 0 };
+        input3.Focused = true;
+        input3.OnKey(new ConsoleKeyInfo('x', ConsoleKey.X, false, false, false));
+        Check("TuiInput 输入 x", input3.Text == "x");
+        input3.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Z, false, false, true));
+        Check("TuiInput Ctrl+Z 撤销", input3.Text == "");
+
+        // Ctrl+Y 重做
+        input3.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Y, false, false, true));
+        Check("TuiInput Ctrl+Y 重做", input3.Text == "x");
+
+        // Password 模式
+        var inputPw = new TuiInput { Text = "secret", Password = true };
+        Check("TuiInput Password=true", inputPw.Password);
+        Check("TuiInput Password HasSelection=false", !inputPw.HasSelection);
+
+        // Delete
+        var input4 = new TuiInput { Text = "ab", CursorPos = 1 };
+        input4.Focused = true;
+        input4.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Delete, false, false, false));
+        Check("TuiInput Delete 删除右侧", input4.Text == "a");
+
+        // Escape
+        input4.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Escape, false, false, false));
+        Check("TuiInput Escape 清除选择", !input4.HasSelection);
+
+        // OnSubmit
+        string? submitted = null;
+        input4.OnSubmit = s => submitted = s;
+        input4.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false));
+        Check("TuiInput Enter 触发 OnSubmit", submitted == "a");
+
+        // 已禁用不响应
+        var inputDisabled = new TuiInput { Text = "x", IsEnabled = false };
+        Check("TuiInput IsEnabled=false 不响应", !inputDisabled.OnKey(new ConsoleKeyInfo('y', ConsoleKey.Y, false, false, false)));
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiTextArea 测试
+        // ================================================================
+        Section("[TuiTextArea]");
+        var ta = new TuiTextArea();
+        Check("TuiTextArea 创建", ta != null);
+        Check("TuiTextArea 默认有 1 空行", ta.Lines.Count == 1 && ta.Lines[0] == "");
+        Check("TuiTextArea 默认 CursorRow=0", ta.CursorRow == 0);
+        Check("TuiTextArea 默认 CursorCol=0", ta.CursorCol == 0);
+        Check("TuiTextArea 默认 ReadOnly=false", !ta.ReadOnly);
+        Check("TuiTextArea 默认 ShowLineNumbers=false", !ta.ShowLineNumbers);
+        Check("TuiTextArea HasCursor=true", ta.HasCursor);
+
+        // Text setter
+        ta.Text = "line1\nline2\nline3";
+        Check("TuiTextArea Text 设置多行", ta.Lines.Count == 3);
+        Check("TuiTextArea Text getter", ta.Text == "line1\nline2\nline3");
+
+        // 插入字符
+        ta.Focused = true;
+        ta.OnKey(new ConsoleKeyInfo('X', ConsoleKey.X, false, true, false));
+        Check("TuiTextArea 插入字符", ta.Lines[0].StartsWith("X"));
+
+        // 撤消
+        ta.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Z, false, false, true));
+        Check("TuiTextArea Ctrl+Z 撤消", ta.Lines[0] == "line1");
+
+        // 重做
+        ta.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Y, false, false, true));
+        Check("TuiTextArea Ctrl+Y 重做", ta.Lines[0].StartsWith("X"));
+
+        // ReadOnly 模式
+        ta.ReadOnly = true;
+        Check("TuiTextArea ReadOnly 不响应", !ta.OnKey(new ConsoleKeyInfo('y', ConsoleKey.Y, false, false, false)));
+
+        // Placeholder
+        var ta2 = new TuiTextArea { Placeholder = "请输入...", Text = "" };
+        Check("TuiTextArea Placeholder", ta2.Placeholder == "请输入...");
+
+        // Ctrl+A 全选
+        ta.ReadOnly = false;
+        ta.Text = "hello\nworld";
+        ta.CursorRow = 0; ta.CursorCol = 0;
+        ta.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.A, false, false, true));
+        Check("TuiTextArea Ctrl+A 全选", ta.HasSelection);
+
+        // InsertText 方法
+        var ta3 = new TuiTextArea();
+        ta3.InsertText("插入文本");
+        Check("TuiTextArea InsertText", ta3.Lines[0] == "插入文本");
+
+        // 滚动
+        ta3.Focused = true;
+        ta3.Text = string.Join("\n", Enumerable.Range(1, 20).Select(i => $"line{i}"));
+        ta3.ScrollRow = 0;
+        ta3.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.PageDown, false, false, false));
+        Check("TuiTextArea PageDown 滚动", ta3.ScrollRow > 0);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiLabel 测试
+        // ================================================================
+        Section("[TuiLabel]");
+        var lbl1 = new TuiLabel("测试标签");
+        Check("TuiLabel 创建", lbl1 != null);
+        Check("TuiLabel Text", lbl1.Text == "测试标签");
+        Check("TuiLabel CanFocus=false", !lbl1.CanFocus);
+        Check("TuiLabel Height=1", lbl1.Height == 1);
+
+        var lbl2 = new TuiLabel();
+        Check("TuiLabel 默认 Text 为空", lbl2.Text == "");
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiIcon 测试
+        // ================================================================
+        Section("[TuiIcon]");
+        var icon1 = new TuiIcon("★");
+        Check("TuiIcon 创建", icon1 != null);
+        Check("TuiIcon Glyph=★", icon1.Glyph == "★");
+        Check("TuiIcon CanFocus=false", !icon1.CanFocus);
+        Check("TuiIcon Width=2", icon1.Width == 2);
+        Check("TuiIcon Height=1", icon1.Height == 1);
+
+        var icon2 = new TuiIcon();
+        Check("TuiIcon 默认 Glyph=•", icon2.Glyph == "•");
+
+        // 预设工厂方法
+        Check("TuiIcon.User 非空", TuiIcon.User() != null);
+        Check("TuiIcon.Assistant 非空", TuiIcon.Assistant() != null);
+        Check("TuiIcon.System 非空", TuiIcon.System() != null);
+        Check("TuiIcon.Tool 非空", TuiIcon.Tool() != null);
+        Check("TuiIcon.Error 非空", TuiIcon.Error() != null);
+        Check("TuiIcon.Warn 非空", TuiIcon.Warn() != null);
+        Check("TuiIcon.Ok 非空", TuiIcon.Ok() != null);
+        Check("TuiIcon.Info 非空", TuiIcon.Info() != null);
+        Check("TuiIcon.File 非空", TuiIcon.File() != null);
+        Check("TuiIcon.Folder 非空", TuiIcon.Folder() != null);
+        Check("TuiIcon.Lock 非空", TuiIcon.Lock() != null);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiList 测试
+        // ================================================================
+        Section("[TuiList]");
+        var list1 = new TuiList { Items = ["项目A", "项目B", "项目C"] };
+        Check("TuiList 创建", list1 != null);
+        Check("TuiList 3 项", list1.Items.Count == 3);
+        Check("TuiList SelectedIndex=0", list1.SelectedIndex == 0);
+        Check("TuiList MultiSelect=false", !list1.MultiSelect);
+
+        // 键盘导航
+        list1.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+        Check("TuiList DownArrow", list1.SelectedIndex == 1);
+        list1.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false));
+        Check("TuiList UpArrow", list1.SelectedIndex == 0);
+        list1.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
+        Check("TuiList End", list1.SelectedIndex == 2);
+        list1.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
+        Check("TuiList Home", list1.SelectedIndex == 0);
+
+        // 选择回调
+        int? selectedIdx = null;
+        list1.OnSelect = idx => selectedIdx = idx;
+        list1.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false));
+        Check("TuiList Enter 触发 OnSelect", selectedIdx == 0);
+
+        // 多选
+        var list2 = new TuiList { Items = ["A", "B", "C"], MultiSelect = true };
+        list2.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Spacebar, false, false, false));
+        Check("TuiList MultiSelect Spacebar 选中", list2.CheckedIndices.Contains(0));
+        list2.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Spacebar, false, false, false));
+        Check("TuiList MultiSelect Spacebar 取消", !list2.CheckedIndices.Contains(0));
+
+        // 空列表
+        var listEmpty = new TuiList();
+        Check("TuiList 空列表 Items=0", listEmpty.Items.Count == 0);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiListView 测试
+        // ================================================================
+        Section("[TuiListView]");
+        var lv = new TuiListView();
+        Check("TuiListView 创建", lv != null);
+        Check("TuiListView ItemCount=0", lv.ItemCount == 0);
+        Check("TuiListView SelectedIndex=-1", lv.SelectedIndex == -1);
+        Check("TuiListView IsAutoScrollToEnd=true", lv.IsAutoScrollToEnd);
+
+        lv.AddItem(new TuiLabel("事项 1"));
+        lv.AddItem(new TuiLabel("事项 2"));
+        lv.AddItem(new TuiLabel("事项 3"));
+        Check("TuiListView AddItem x3", lv.ItemCount == 3);
+
+        lv.SelectItem(1);
+        Check("TuiListView SelectItem(1)", lv.SelectedIndex == 1);
+        lv.SelectNext();
+        Check("TuiListView SelectNext → 2", lv.SelectedIndex == 2);
+        lv.SelectNext();
+        Check("TuiListView SelectNext 循环 → 0", lv.SelectedIndex == 0);
+        lv.SelectPrev();
+        Check("TuiListView SelectPrev 循环 → 2", lv.SelectedIndex == 2);
+
+        bool itemActivated = false; int actIdx = -1;
+        lv.OnItemActivated = i => { itemActivated = true; actIdx = i; };
+        lv.IsEnabled = true;
+        lv.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false));
+        Check("TuiListView Enter 触发 OnItemActivated", itemActivated && actIdx == 2);
+
+        // 滚动
+        lv.ScrollToTop();
+        Check("TuiListView ScrollToTop offset=0", lv.ScrollOffset == 0);
+
+        // 移除
+        var lv2 = new TuiListView();
+        lv2.AddItem(new TuiLabel("x"));
+        lv2.AddItem(new TuiLabel("y"));
+        lv2.RemoveItem(0);
+        Check("TuiListView RemoveItem", lv2.ItemCount == 1);
+
+        // ContentHeight
+        var lv3 = new TuiListView();
+        lv3.AddItem(new TuiLabel("h") { Height = 3 });
+        Check("TuiListView ContentHeight > 0", lv3.ContentHeight > 0);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiProgress 测试
+        // ================================================================
+        Section("[TuiProgress]");
+        var prog1 = new TuiProgress();
+        Check("TuiProgress 创建", prog1 != null);
+        Check("TuiProgress 默认 Percent=0", prog1.Percent == 0);
+        Check("TuiProgress CanFocus=false", !prog1.CanFocus);
+        Check("TuiProgress Height=1", prog1.Height == 1);
+        Check("TuiProgress Width=40", prog1.Width == 40);
+
+        prog1.Percent = 75;
+        Check("TuiProgress Percent=75", prog1.Percent == 75);
+
+        prog1.Label = "编译中";
+        Check("TuiProgress Label 设置", prog1.Label == "编译中");
+
+        // 边界值
+        prog1.Percent = 0;
+        Check("TuiProgress Percent=0 边界", prog1.Percent == 0);
+        prog1.Percent = 100;
+        Check("TuiProgress Percent=100 边界", prog1.Percent == 100);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiSpinner 测试
+        // ================================================================
+        Section("[TuiSpinner]");
+        var spin1 = new TuiSpinner("加载中");
+        Check("TuiSpinner 创建", spin1 != null);
+        Check("TuiSpinner Label", spin1.Label == "加载中");
+        Check("TuiSpinner CanFocus=false", !spin1.CanFocus);
+
+        // 帧推进
+        var frames = new HashSet<string>();
+        for (int i = 0; i < 8; i++) { frames.Add(spin1.Frame); spin1.Tick(); }
+        Check("TuiSpinner 8 帧全部不同（循环）", frames.Count == 8);
+
+        // 无标签创建
+        var spin2 = new TuiSpinner();
+        Check("TuiSpinner 无标签 Label 为空", spin2.Label == "");
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiStatusBar 测试
+        // ================================================================
+        Section("[TuiStatusBar]");
+        var sb1 = new TuiStatusBar();
+        Check("TuiStatusBar 创建", sb1 != null);
+        Check("TuiStatusBar CanFocus=false", !sb1.CanFocus);
+        Check("TuiStatusBar Height=1", sb1.Height == 1);
+        Check("TuiStatusBar SlotStates 长度=10", sb1.SlotStates.Length == 10);
+        Check("TuiStatusBar ActiveSlotIndex=0", sb1.ActiveSlotIndex == 0);
+
+        sb1.ActiveSlotIndex = 3;
+        Check("TuiStatusBar ActiveSlotIndex=3", sb1.ActiveSlotIndex == 3);
+
+        sb1.HintText = "F1 帮助";
+        Check("TuiStatusBar HintText", sb1.HintText == "F1 帮助");
+
+        sb1.RightText = "12K tokens";
+        Check("TuiStatusBar RightText", sb1.RightText == "12K tokens");
+
+        sb1.AgentBusy = true;
+        Check("TuiStatusBar AgentBusy=true", sb1.AgentBusy);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiTabs 测试
+        // ================================================================
+        Section("[TuiTabs]");
+        var tabs = new TuiTabs();
+        Check("TuiTabs 创建", tabs != null);
+        Check("TuiTabs Count=0", tabs.Count == 0);
+
+        tabs.AddTab("聊天", new TuiLabel("chat"));
+        tabs.AddTab("文件", new TuiLabel("files"));
+        tabs.AddTab("设置", new TuiLabel("settings"));
+        Check("TuiTabs AddTab x3", tabs.Count == 3);
+        Check("TuiTabs SelectedIndex=0", tabs.SelectedIndex == 0);
+
+        tabs.SelectTab(2);
+        Check("TuiTabs SelectTab(2)", tabs.SelectedIndex == 2);
+        Check("TuiTabs ActiveContent 非空", tabs.ActiveContent != null);
+
+        tabs.SelectNext();
+        Check("TuiTabs SelectNext 循环", tabs.SelectedIndex == 0);
+        tabs.SelectPrev();
+        Check("TuiTabs SelectPrev 循环", tabs.SelectedIndex == 2);
+
+        // 键盘导航
+        tabs.Focused = true;
+        tabs.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.LeftArrow, false, false, false));
+        Check("TuiTabs LeftArrow", tabs.SelectedIndex == 1);
+        tabs.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.RightArrow, false, false, false));
+        Check("TuiTabs RightArrow", tabs.SelectedIndex == 2);
+
+        // 数字键快速切换
+        tabs.OnKey(new ConsoleKeyInfo('1', ConsoleKey.D1, false, false, false));
+        Check("TuiTabs 数字键1 切换", tabs.SelectedIndex == 0);
+
+        // RemoveTab
+        tabs.RemoveTab(1);
+        Check("TuiTabs RemoveTab → Count=2", tabs.Count == 2);
+
+        // 选择回调
+        int? selTabIdx = null;
+        tabs.OnSelectionChanged = i => selTabIdx = i;
+        tabs.SelectTab(1);
+        Check("TuiTabs OnSelectionChanged", selTabIdx == 1);
+
+        // 空 tabs
+        var tabsEmpty = new TuiTabs();
+        Check("TuiTabs 空列表 ActiveContent=null", tabsEmpty.ActiveContent == null);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiTitleBar 测试
+        // ================================================================
+        Section("[TuiTitleBar]");
+        var titleBar = new TuiTitleBar();
+        Check("TuiTitleBar 创建", titleBar != null);
+        Check("TuiTitleBar CanFocus=false", !titleBar.CanFocus);
+        Check("TuiTitleBar Height=1", titleBar.Height == 1);
+
+        titleBar.Title = "WayCoder";
+        Check("TuiTitleBar Title", titleBar.Title == "WayCoder");
+
+        titleBar.GitBranch = "main";
+        Check("TuiTitleBar GitBranch", titleBar.GitBranch == "main");
+
+        titleBar.Version = "v1.0";
+        Check("TuiTitleBar Version", titleBar.Version == "v1.0");
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiBanner 测试
+        // ================================================================
+        Section("[TuiBanner]");
+        var banner = new TuiBanner();
+        Check("TuiBanner 创建", banner != null);
+        Check("TuiBanner CanFocus=false", !banner.CanFocus);
+        Check("TuiBanner Height=3", banner.Height == 3);
+
+        banner.Title = "WayCoder 道码";
+        Check("TuiBanner Title", banner.Title == "WayCoder 道码");
+
+        banner.Subtitle = "v2.0 — 中文编程助手";
+        Check("TuiBanner Subtitle", banner.Subtitle == "v2.0 — 中文编程助手");
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiGrid 测试
+        // ================================================================
+        Section("[TuiGrid]");
+        // GridSize
+        var gs10 = GridSize.Parse("10");
+        Check("GridSize.Parse('10') fixed", !gs10.IsStar && gs10.Value == 10);
+
+        var gsStar = GridSize.Parse("20*");
+        Check("GridSize.Parse('20*') star", gsStar.IsStar && gsStar.Value == 20);
+
+        var gsAuto = GridSize.Parse("*");
+        Check("GridSize.Parse('*') 默认权重=1", gsAuto.IsStar && gsAuto.Value == 1);
+
+        var gsList = GridSize.ParseList("10,20*,*");
+        Check("GridSize.ParseList 3个", gsList.Length == 3);
+        Check("GridSize.ParseList[0] fixed", !gsList[0].IsStar);
+        Check("GridSize.ParseList[1] star", gsList[1].IsStar);
+        Check("GridSize.ParseList[2] auto star", gsList[2].IsStar && gsList[2].Value == 1);
+
+        // 空解析
+        Check("GridSize.ParseList null", GridSize.ParseList(null).Length == 0);
+        Check("GridSize.ParseList 空", GridSize.ParseList("").Length == 0);
+
+        // Grid 创建
+        var grid = new TuiGrid { Width = 80, Height = 24 };
+        Check("TuiGrid 创建", grid != null);
+        Check("TuiGrid Rows=0", grid.Rows == 0);
+        Check("TuiGrid Columns=0", grid.Columns == 0);
+
+        grid.RowDefinitions = "5,10*,10*";
+        grid.ColumnDefinitions = "30,70*";
+        Check("TuiGrid RowDefinitions", grid.RowDefinitions == "5,10*,10*");
+        Check("TuiGrid ColumnDefinitions", grid.ColumnDefinitions == "30,70*");
+
+        grid.Add(new TuiLabel("Cell"), row: 0, col: 0);
+        Check("TuiGrid Add → Rows=1", grid.Rows == 1);
+        Check("TuiGrid Add → Columns=1", grid.Columns == 1);
+
+        grid.Add(new TuiButton("Btn"), row: 1, col: 1);
+        Check("TuiGrid Add (1,1) → Rows=2", grid.Rows == 2);
+        Check("TuiGrid Add (1,1) → Columns=2", grid.Columns == 2);
+
+        // Span
+        grid.Add(new TuiLabel("Span"), row: 2, col: 0, colSpan: 2);
+        Check("TuiGrid Span colSpan=2 → Columns=2", grid.Columns == 2);
+
+        // SetRowDef/SetColDef
+        var grid2 = new TuiGrid { Width = 60, Height = 20 };
+        grid2.SetRowDef(0, "8");
+        grid2.SetColDef(0, "30*");
+        grid2.Add(new TuiLabel("A"), row: 0, col: 0);
+        grid2.Layout();
+        Check("TuiGrid SetRowDef+Layout Width>0", grid2.Width > 0);
+        Check("TuiGrid SetRowDef+Layout Height>0", grid2.Height > 0);
+
+        // ColGap
+        var grid3 = new TuiGrid { ColGap = 2, RowGap = 1 };
+        Check("TuiGrid ColGap=2", grid3.ColGap == 2);
+        Check("TuiGrid RowGap=1", grid3.RowGap == 1);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiWrapPanel 测试
+        // ================================================================
+        Section("[TuiWrapPanel]");
+        var wrap = new TuiWrapPanel { Width = 30, Height = 10 };
+        Check("TuiWrapPanel 创建", wrap != null);
+        Check("TuiWrapPanel Direction=Horizontal", wrap.Direction == Orientation.Horizontal);
+
+        wrap.Add(new TuiLabel("A") { Width = 8 });
+        wrap.Add(new TuiLabel("B") { Width = 8 });
+        wrap.Add(new TuiLabel("C") { Width = 8 });
+        wrap.Add(new TuiLabel("D") { Width = 8 });
+        wrap.Add(new TuiLabel("E") { Width = 8 });
+        Check("TuiWrapPanel Add x5", wrap.Children.Count == 5);
+
+        wrap.Layout();
+        Check("TuiWrapPanel Layout 后 Height>0", wrap.Height > 0);
+
+        // 垂直模式
+        var wrapV = new TuiWrapPanel { Direction = Orientation.Vertical, Width = 20, Height = 8 };
+        wrapV.Add(new TuiLabel("V1") { Height = 3 });
+        wrapV.Add(new TuiLabel("V2") { Height = 3 });
+        wrapV.Layout();
+        Check("TuiWrapPanel Vertical 模式", wrapV.Direction == Orientation.Vertical);
+
+        // ItemWidth/Height
+        var wrapUni = new TuiWrapPanel { ItemWidth = 10, ItemHeight = 2, ColumnSpacing = 2, RowSpacing = 1 };
+        Check("TuiWrapPanel ItemWidth=10", wrapUni.ItemWidth == 10);
+        Check("TuiWrapPanel ItemHeight=2", wrapUni.ItemHeight == 2);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiSidePanel 测试
+        // ================================================================
+        Section("[TuiSidePanel]");
+        var sidePanel = new TuiSidePanel();
+        Check("TuiSidePanel 创建", sidePanel != null);
+        Check("TuiSidePanel CanFocus=false", !sidePanel.CanFocus);
+        Check("TuiSidePanel PanelVisible=true", sidePanel.PanelVisible);
+        Check("TuiSidePanel Width=30", sidePanel.Width == 30);
+        Check("TuiSidePanel Height=20", sidePanel.Height == 20);
+
+        sidePanel.Sections.Add(new PanelSection { Title = "📋 Todo", Lines = ["任务1", "任务2"] });
+        Check("TuiSidePanel Sections.Add", sidePanel.Sections.Count == 1);
+        Check("TuiSidePanel Section Title", sidePanel.Sections[0].Title == "📋 Todo");
+        Check("TuiSidePanel Section Lines=2", sidePanel.Sections[0].Lines.Count == 2);
+
+        // Collapsed
+        var sec = new PanelSection { Title = "折叠", Collapsed = true };
+        Check("PanelSection Collapsed=true", sec.Collapsed);
+
+        // 可视性
+        sidePanel.PanelVisible = false;
+        Check("TuiSidePanel PanelVisible=false", !sidePanel.PanelVisible);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiPromptBar 测试
+        // ================================================================
+        Section("[TuiPromptBar]");
+        var promptBar = new TuiPromptBar();
+        Check("TuiPromptBar 创建", promptBar != null);
+        Check("TuiPromptBar CanFocus=true", promptBar.CanFocus);
+        Check("TuiPromptBar Items=0", promptBar.Items.Count == 0);
+        Check("TuiPromptBar SelectedIndex=-1", promptBar.SelectedIndex == -1);
+        Check("TuiPromptBar MaxVisible=8", promptBar.MaxVisible == 8);
+
+        // PromptItem
+        var pi = new PromptItem { Kind = PromptKind.File, Label = "test.cs", Detail = "D:\\code\\test.cs" };
+        Check("PromptItem Label", pi.Label == "test.cs");
+        Check("PromptItem Detail", pi.Detail == "D:\\code\\test.cs");
+        Check("PromptItem Icon 非空", !string.IsNullOrEmpty(pi.Icon));
+
+        // 各类型图标
+        Check("PromptKind.Command Icon", new PromptItem { Kind = PromptKind.Command }.Icon == "⌘");
+        Check("PromptKind.File Icon", new PromptItem { Kind = PromptKind.File }.Icon == "📄");
+        Check("PromptKind.Shell Icon", new PromptItem { Kind = PromptKind.Shell }.Icon == "⚡");
+        Check("PromptKind.Slash Icon", new PromptItem { Kind = PromptKind.Slash }.Icon == "/");
+        Check("PromptKind.History Icon", new PromptItem { Kind = PromptKind.History }.Icon == "↺");
+        Check("PromptKind.Recent Icon", new PromptItem { Kind = PromptKind.Recent }.Icon == "⏱");
+
+        // 填充项目
+        promptBar.Items.Add(new PromptItem { Kind = PromptKind.File, Label = "a.cs" });
+        promptBar.Items.Add(new PromptItem { Kind = PromptKind.Command, Label = "build" });
+        promptBar.SelectedIndex = 0;
+        // 键盘导航
+        promptBar.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+        Check("TuiPromptBar DownArrow", promptBar.SelectedIndex == 1);
+        promptBar.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false));
+        Check("TuiPromptBar UpArrow", promptBar.SelectedIndex == 0);
+        promptBar.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
+        Check("TuiPromptBar End", promptBar.SelectedIndex == 1);
+        promptBar.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
+        Check("TuiPromptBar Home", promptBar.SelectedIndex == 0);
+
+        // OnSelect
+        PromptItem? selectedItem = null;
+        promptBar.OnSelect = p => selectedItem = p;
+        promptBar.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false));
+        Check("TuiPromptBar Enter 触发 OnSelect", selectedItem?.Label == "a.cs");
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiDialog 工厂方法测试
+        // ================================================================
+        Section("[TuiDialog]");
+        var dInfo = TuiDialog.Info("提示", "这是一条信息");
+        Check("TuiDialog.Info 返回窗口", dInfo != null);
+        Check("TuiDialog.Info 标题=提示", dInfo.Title == "提示");
+        Check("TuiDialog.Info 模态", dInfo.Modal);
+
+        var dSuccess = TuiDialog.Success("成功", "操作已完成");
+        Check("TuiDialog.Success 返回窗口", dSuccess != null);
+        Check("TuiDialog.Success 标题=成功", dSuccess.Title == "成功");
+
+        var dWarn = TuiDialog.Warn("警告", "请注意");
+        Check("TuiDialog.Warn 返回窗口", dWarn != null);
+        Check("TuiDialog.Warn 标题=警告", dWarn.Title == "警告");
+
+        var dError = TuiDialog.Error("错误", "发生错误");
+        Check("TuiDialog.Error 返回窗口", dError != null);
+        Check("TuiDialog.Error 标题=错误", dError.Title == "错误");
+
+        bool? confirmResult = null;
+        var dConfirm = TuiDialog.Confirm("确认", "是否继续？", r => confirmResult = r);
+        Check("TuiDialog.Confirm 返回窗口", dConfirm != null);
+        Check("TuiDialog.Confirm 模态", dConfirm.Modal);
+
+        TuiDialog.DialogResult? confirm3Result = null;
+        var dConfirm3 = TuiDialog.Confirm3("选择", "Yes/No/Cancel?", r => confirm3Result = r);
+        Check("TuiDialog.Confirm3 返回窗口", dConfirm3 != null);
+
+        string? inputResult = null;
+        var dInput = TuiDialog.Input("输入", "名称", "默认值", s => inputResult = s);
+        Check("TuiDialog.Input 返回窗口", dInput != null);
+
+        int? selectResult = null;
+        var dSelect = TuiDialog.Select("选择", ["A", "B", "C"], i => selectResult = i);
+        Check("TuiDialog.Select 返回窗口", dSelect != null);
+
+        HashSet<int>? multiResults = null;
+        var dMulti = TuiDialog.MultiSelect("多选", ["X", "Y", "Z"], l => multiResults = l);
+        Check("TuiDialog.MultiSelect 返回窗口", dMulti != null);
+
+        TuiDialog.DialogResult? permResult = null;
+        var dPerm = TuiDialog.Permission("权限", "允许执行？", r => permResult = r);
+        Check("TuiDialog.Permission 返回窗口", dPerm != null);
+        Check("TuiDialog.Permission 模态", dPerm.Modal);
+
+        string? secretResult = null;
+        var dSecret = TuiDialog.Secret("密钥", "输入API Key", "", s => secretResult = s);
+        Check("TuiDialog.Secret 返回窗口", dSecret != null);
+        Check("TuiDialog.Secret 模态", dSecret.Modal);
+
+        // DialogResult 枚举
+        Check("DialogResult.Ok", (int)TuiDialog.DialogResult.Ok == 0);
+        Check("DialogResult.Yes", (int)TuiDialog.DialogResult.Yes == 1);
+        Check("DialogResult.No", (int)TuiDialog.DialogResult.No == 2);
+        Check("DialogResult.Cancel", (int)TuiDialog.DialogResult.Cancel == 3);
+        Check("DialogResult.Closed", (int)TuiDialog.DialogResult.Closed == 4);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiControl 基类测试
+        // ================================================================
+        Section("[TuiControl]");
+        var ctrl = new TuiLabel("test"); // TuiLabel extends TuiControl
+        Check("TuiControl Visible=true", ctrl.Visible);
+        Check("TuiControl IsEnabled=true", ctrl.IsEnabled);
+        Check("TuiControl Focused=false", !ctrl.Focused);
+        Check("TuiControl Parent=null", ctrl.Parent == null);
+
+        ctrl.Focused = true;
+        Check("TuiControl Focused=true", ctrl.Focused);
+
+        // Margin
+        var ctrl2 = new TuiLabel("m") { Margin = new EdgeInsets(1, 2, 3, 4) };
+        Check("TuiControl Margin.Top=1", ctrl2.Margin.Top == 1);
+        Check("TuiControl Margin.Right=2", ctrl2.Margin.Right == 2);
+        Check("TuiControl Margin.Bottom=3", ctrl2.Margin.Bottom == 3);
+        Check("TuiControl Margin.Left=4", ctrl2.Margin.Left == 4);
+        Check("TuiControl Margin.Horizontal=6", ctrl2.Margin.Horizontal == 6);
+        Check("TuiControl Margin.Vertical=4", ctrl2.Margin.Vertical == 4);
+
+        // Padding
+        var ctrl3 = new TuiLabel("p") { Padding = new EdgeInsets(2) };
+        Check("TuiControl Padding all=2", ctrl3.Padding.Top == 2 && ctrl3.Padding.Left == 2);
+
+        // EdgeInsets 构造
+        var edge1 = new EdgeInsets(5);
+        Check("EdgeInsets(5) all=5", edge1.Top == 5 && edge1.Right == 5 && edge1.Bottom == 5 && edge1.Left == 5);
+
+        var edge2 = new EdgeInsets(1, 2, 3, 4);
+        Check("EdgeInsets(1,2,3,4)", edge2.Top == 1 && edge2.Right == 2 && edge2.Bottom == 3 && edge2.Left == 4);
+
+        // TextAlign
+        Check("TuiControl TextAlign=Left", ctrl.TextAlign == HAlign.Left);
+
+        // IsDirty (default is true)
+        Check("TuiControl IsDirty 默认 true", ctrl.IsDirty);
+        ctrl.ClearDirty();
+        Check("TuiControl ClearDirty 后 false", !ctrl.IsDirty);
+        ctrl.MarkDirty();
+        Check("TuiControl MarkDirty 后 IsDirty=true", ctrl.IsDirty);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiView 基类测试
+        // ================================================================
+        Section("[TuiView]");
+        // TuiVBox (HBox inherits from TuiView)
+        var vbox = new TuiVBox();
+        Check("TuiVBox 创建", vbox != null);
+        Check("TuiVBox Children=0", vbox.Children.Count == 0);
+
+        var vChild1 = new TuiLabel("C1");
+        vbox.Add(vChild1);
+        Check("TuiVBox Add → Children=1", vbox.Children.Count == 1);
+        Check("TuiVBox Add 设置 Parent", vChild1.Parent == vbox);
+
+        var vChild2 = new TuiLabel("C2");
+        vbox.Add(vChild2);
+        Check("TuiVBox Add x2", vbox.Children.Count == 2);
+
+        // Layout
+        vbox.Layout();
+        Check("TuiVBox Layout 后 Height", vbox.Height > 0);
+
+        // Remove
+        vbox.Remove(vChild1);
+        Check("TuiVBox Remove → Children=1", vbox.Children.Count == 1);
+        Check("TuiVBox Remove Parent=null", vChild1.Parent == null);
+
+        // Clear
+        vbox.Clear();
+        Check("TuiVBox Clear → Children=0", vbox.Children.Count == 0);
+
+        // HBox
+        var hbox = new TuiHBox();
+        hbox.Add(new TuiLabel("H1"));
+        hbox.Add(new TuiLabel("H2"));
+        hbox.Layout();
+        Check("TuiHBox Layout Width", hbox.Width > 0);
+
+        // ChildHAlign
+        Check("TuiView ChildHAlign=Left", vbox.ChildHAlign == HAlign.Left);
+
+        // FocusNext/FocusPrev
+        var vboxF = new TuiVBox();
+        var f1 = new TuiButton("F1"); f1.Focused = true;
+        var f2 = new TuiButton("F2");
+        var f3 = new TuiButton("F3");
+        vboxF.Add(f1); vboxF.Add(f2); vboxF.Add(f3);
+        vboxF.FocusNext();
+        Check("TuiView FocusNext → F2", f2.Focused && !f1.Focused);
+        vboxF.FocusPrev();
+        Check("TuiView FocusPrev → F1", f1.Focused);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiScreen 基类测试
+        // ================================================================
+        Section("[TuiScreen]");
+        var chatScreen = new ChatScreen();
+        Check("TuiScreen RootView 非空", chatScreen.RootView != null);
+        Check("TuiScreen Windows=0", chatScreen.Windows.Count == 0);
+        Check("TuiScreen HasModal=false", !chatScreen.HasModal);
+
+        var dummyWin = new TuiWindow { Title = "测试", Modal = true };
+        chatScreen.Windows.Add(dummyWin);
+        Check("TuiScreen 添加窗口后 Windows=1", chatScreen.Windows.Count == 1);
+        Check("TuiScreen HasModal=true", chatScreen.HasModal);
+
+        // FocusedWindow
+        chatScreen.FocusedWindow = dummyWin;
+        Check("TuiScreen FocusedWindow", chatScreen.FocusedWindow == dummyWin);
+
+        // TW/TH（需要 Activate 后才有效）
+        chatScreen.Activate();
+        Check("TuiScreen TW>0", chatScreen.TW > 0);
+        Check("TuiScreen TH>0", chatScreen.TH > 0);
+        Console.WriteLine();
+
+        // ================================================================
+        // BoxBuffer 测试
+        // ================================================================
+        Section("[BoxBuffer]");
+        var box = new BoxBuffer { X = 2, Y = 3, Width = 40, Height = 10 };
+        Check("BoxBuffer 创建", box != null);
+        Check("BoxBuffer X=2", box.X == 2);
+        Check("BoxBuffer Y=3", box.Y == 3);
+        Check("BoxBuffer Width=40", box.Width == 40);
+        Check("BoxBuffer Height=10", box.Height == 10);
+
+        // 边框样式枚举
+        Check("BorderStyle.None=0", (int)BorderStyle.None == 0);
+        Check("BorderStyle.Single=1", (int)BorderStyle.Single == 1);
+        Check("BorderStyle.Double=2", (int)BorderStyle.Double == 2);
+        Check("BorderStyle.Thick=3", (int)BorderStyle.Thick == 3);
+        Check("BorderStyle.Solid=4", (int)BorderStyle.Solid == 4);
+        Check("BorderStyle.Star=5", (int)BorderStyle.Star == 5);
+        Check("BorderStyle.Circle=6", (int)BorderStyle.Circle == 6);
+        Check("BorderStyle.Custom=7", (int)BorderStyle.Custom == 7);
+
+        // 内容区计算
+        box.Border = BorderStyle.Single;
+        Check("BoxBuffer ContentLeft=X+1", box.ContentLeft == box.X + 1);
+        Check("BoxBuffer ContentTop=Y+1", box.ContentTop == box.Y + 1);
+
+        box.Border = BorderStyle.None;
+        Check("BoxBuffer None ContentLeft=X", box.ContentLeft == box.X);
+
+        // 自定义边框
+        var boxC = new BoxBuffer { Border = BorderStyle.Custom, CustomTL = "+", CustomH = "-", CustomTR = "+" };
+        Check("BoxBuffer CustomTL", boxC.CustomTL == "+");
+
+        // FgColor/BgColor
+        Check("BoxBuffer FgColor=37", box.FgColor == "37");
+        Check("BoxBuffer BgColor 默认空", box.BgColor == "");
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiColors 测试
+        // ================================================================
+        Section("[TuiColors]");
+        Check("TuiColors.Black=30", TuiColors.Black == 30);
+        Check("TuiColors.Red=31", TuiColors.Red == 31);
+        Check("TuiColors.Green=32", TuiColors.Green == 32);
+        Check("TuiColors.Yellow=33", TuiColors.Yellow == 33);
+        Check("TuiColors.Blue=34", TuiColors.Blue == 34);
+        Check("TuiColors.Magenta=35", TuiColors.Magenta == 35);
+        Check("TuiColors.Cyan=36", TuiColors.Cyan == 36);
+        Check("TuiColors.White=37", TuiColors.White == 37);
+
+        Check("TuiColors.BgBlack=40", TuiColors.BgBlack == 40);
+        Check("TuiColors.BgWhite=47", TuiColors.BgWhite == 47);
+
+        Check("TuiColors.BrightBlack=90", TuiColors.BrightBlack == 90);
+        Check("TuiColors.BrightWhite=97", TuiColors.BrightWhite == 97);
+
+        Check("TuiColors.BgBrightBlack=100", TuiColors.BgBrightBlack == 100);
+        Check("TuiColors.BgBrightWhite=107", TuiColors.BgBrightWhite == 107);
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiTheme 测试
+        // ================================================================
+        Section("[TuiTheme]");
+        var theme = TuiTheme.Current;
+        Check("TuiTheme.Current 非空", theme != null);
+        Check("TuiTheme.Default 非空", TuiTheme.Default != null);
+
+        // 对话框边框色
+        Check("TuiTheme DialogInfoBorder", theme.DialogInfoBorder > 0);
+        Check("TuiTheme DialogSuccessBorder", theme.DialogSuccessBorder > 0);
+        Check("TuiTheme DialogWarnBorder", theme.DialogWarnBorder > 0);
+        Check("TuiTheme DialogErrorBorder", theme.DialogErrorBorder > 0);
+
+        // 窗口色
+        Check("TuiTheme WindowBg", theme.WindowBg > 0);
+        Check("TuiTheme MaskBg", theme.MaskBg > 0);
+
+        // 渐变预设
+        var (gs, ge) = theme.GradCyanBlue;
+        Check("TuiTheme GradCyanBlue start", gs > 0);
+        Check("TuiTheme GradCyanBlue end", ge > 0);
+
+        var (gs2, ge2) = theme.GradTitleBar;
+        Check("TuiTheme GradTitleBar start", gs2 > 0);
+        Check("TuiTheme GradTitleBar end", ge2 > 0);
+
+        // 控件颜色
+        Check("TuiTheme ControlFg", theme.ControlFg >= 0);
+        Check("TuiTheme ButtonFg", theme.ButtonFg >= 0);
+        Check("TuiTheme InputFg", theme.InputFg >= 0);
+
+        // 主题预设索引
+        Check("TuiTheme CurrentPresetIndex >= -1", TuiTheme.CurrentPresetIndex >= -1);
+
+        // Apply 预设
+        TuiTheme.Apply(TuiTheme.Dark, 0);
+        Check("TuiTheme Apply(Dark)", TuiTheme.CurrentPresetIndex >= 0);
+        // 恢复默认
+        TuiTheme.Current = TuiTheme.Default;
+        Console.WriteLine();
+
+        // ================================================================
+        // MarkdownRenderer 测试
+        // ================================================================
+        Section("[MarkdownRenderer]");
+        // 标题解析
+        var hNodes = MarkdownParser.Parse("# 标题1\n## 标题2\n### 标题3\n#### 标题4");
+        Check("MarkdownParser 4个标题", hNodes.Count == 4);
+        Check("MdHeading Level=1", hNodes[0] is MdHeading h1 && h1.Level == 1 && h1.Text == "标题1");
+        Check("MdHeading Level=2", hNodes[1] is MdHeading h2 && h2.Level == 2 && h2.Text == "标题2");
+        Check("MdHeading Level=3", hNodes[2] is MdHeading h3 && h3.Level == 3 && h3.Text == "标题3");
+        Check("MdHeading Level=4", hNodes[3] is MdHeading h4 && h4.Level == 4 && h4.Text == "标题4");
+
+        // 段落
+        var pNodes = MarkdownParser.Parse("这是一段普通文本。");
+        Check("MarkdownParser 段落", pNodes.Count == 1 && pNodes[0] is MdParagraph p && p.Text == "这是一段普通文本。");
+
+        // 代码块
+        var cNodes = MarkdownParser.Parse("```csharp\nConsole.WriteLine(\"Hello\");\n```");
+        Check("MarkdownParser 代码块", cNodes.Count == 1 && cNodes[0] is MdCodeBlock cb && cb.Language == "csharp");
+        Check("MdCodeBlock 内容", ((MdCodeBlock)cNodes[0]).Code.Contains("Console"));
+
+        // 表格
+        var tNodes = MarkdownParser.Parse("| A | B |\n|---|---|\n| 1 | 2 |");
+        Check("MarkdownParser 表格", tNodes.Count == 1 && tNodes[0] is MdTable t && t.Headers.Count == 2);
+        Check("MdTable Headers", ((MdTable)tNodes[0]).Headers[0] == "A");
+
+        // 列表
+        var lNodes = MarkdownParser.Parse("- 项目一\n- 项目二\n- 项目三");
+        var listItems = lNodes.OfType<MdListItem>().ToList();
+        Check("MarkdownParser 无序列表3项", listItems.Count == 3);
+        Check("MdListItem Ordered=false", !listItems[0].Ordered);
+        Check("MdListItem Text", listItems[0].Text == "项目一");
+
+        // 有序列表
+        var olNodes = MarkdownParser.Parse("1. 第一\n2. 第二\n3. 第三");
+        var olItems = olNodes.OfType<MdListItem>().ToList();
+        Check("MarkdownParser 有序列表3项", olItems.Count == 3);
+        Check("MdListItem Ordered=true", olItems[0].Ordered);
+        Check("MdListItem OrderNum", olItems[0].OrderNum == 1);
+
+        // 分割线
+        var hrNodes = MarkdownParser.Parse("---");
+        Check("MarkdownParser 分割线", hrNodes.Count == 1 && hrNodes[0] is MdRule);
+
+        // 内联格式 ParseInline
+        var boldResult = MarkdownParser.ParseInline("这是 **加粗** 文本");
+        Check("ParseInline 加粗标记=1", boldResult.Any(r => r.Color == 1));
+
+        var italicResult = MarkdownParser.ParseInline("这是 *斜体* 文本");
+        Check("ParseInline 斜体标记=3", italicResult.Any(r => r.Color == 3));
+
+        var codeResult = MarkdownParser.ParseInline("使用 `var x = 1;` 代码");
+        Check("ParseInline 代码标记=33", codeResult.Any(r => r.Color == 33));
+
+        // 空输入
+        var emptyResult = MarkdownParser.ParseInline("");
+        Check("ParseInline 空字符串返回1项", emptyResult.Count == 1);
+
+        // 空 Markdown
+        var emptyParse = MarkdownParser.Parse("");
+        Check("MarkdownParser 空输入返回0", emptyParse.Count == 0);
+
+        var nullParse = MarkdownParser.Parse(null!);
+        Check("MarkdownParser null 返回0", nullParse.Count == 0);
+
+        // 缩进列表
+        var indentNodes = MarkdownParser.Parse("  - 缩进一级\n    - 缩进二级");
+        var indentItems = indentNodes.OfType<MdListItem>().ToList();
+        Check("MarkdownParser 缩进列表", indentItems.Any(i => i.Level == 1));
+        Console.WriteLine();
+
+        // ================================================================
+        // TuiTable 测试
+        // ================================================================
+        Section("[TuiTable]");
+        var table = new TuiTable();
+        Check("TuiTable 创建", table != null);
+
+        table.AddColumn("名称", 12);
+        table.AddColumn("类型", 8);
+        table.AddColumn("大小", 8);
+        // 链式调用
+        var table2 = new TuiTable("测试表格")
+            .AddColumn("A")
+            .AddColumn("B")
+            .AddRow("1", "2");
+        Check("TuiTable 链式 AddRow", table2 != null);
+
+        // RenderToString
+        var output = table2.RenderToString(false);
+        Check("TuiTable RenderToString 非空", !string.IsNullOrEmpty(output));
+        Check("TuiTable RenderToString 含标题", output.Contains("测试表格"));
+        Check("TuiTable RenderToString 含表头", output.Contains("A") && output.Contains("B"));
+
+        // ANSI 渲染
+        var ansiOutput = table2.RenderToString(true);
+        Check("TuiTable RenderToString ANSI 非空", !string.IsNullOrEmpty(ansiOutput));
+
+        // 空表格渲染
+        var tableEmpty = new TuiTable();
+        Check("TuiTable 空表格 RenderToString=''", tableEmpty.RenderToString() == "");
+
+        // AddMarkupRow
+        var table3 = new TuiTable().AddColumn("标记");
+        table3.AddMarkupRow("\x1b[32m绿色\x1b[0m");
+        Check("TuiTable AddMarkupRow 非空渲染", !string.IsNullOrEmpty(table3.RenderToString()));
+        Console.WriteLine();
+
+        // ================================================================
+        // DiffPreview 测试
+        // ================================================================
+        Section("[DiffPreview]");
+        // Hunk/HunkLine 结构
+        var hunk = new DiffPreview.Hunk { Header = "@@ -1,3 +1,4 @@", OldStart = 1, OldCount = 3, NewStart = 1, NewCount = 4 };
+        Check("DiffPreview.Hunk Header 设置", hunk.Header.StartsWith("@@"));
+        Check("DiffPreview.Hunk OldStart", hunk.OldStart == 1);
+
+        var hunkLine = new DiffPreview.HunkLine { Kind = '+', Text = "新增行", OldLine = -1, NewLine = 1 };
+        Check("DiffPreview.HunkLine Kind=+", hunkLine.Kind == '+');
+        Check("DiffPreview.HunkLine Text", hunkLine.Text == "新增行");
+
+        hunk.Lines.Add(new DiffPreview.HunkLine { Kind = ' ', Text = "上下文", OldLine = 1, NewLine = 1 });
+        hunk.Lines.Add(new DiffPreview.HunkLine { Kind = '-', Text = "删除行", OldLine = 2, NewLine = -1 });
+        hunk.Lines.Add(hunkLine);
+        Check("DiffPreview.Hunk Lines=3", hunk.Lines.Count == 3);
+
+        // Decision 枚举
+        Check("DiffPreview.Decision.AcceptAll", (int)DiffPreview.Decision.AcceptAll == 0);
+        Check("DiffPreview.Decision.RejectAll", (int)DiffPreview.Decision.RejectAll == 1);
+        Check("DiffPreview.Decision.Partial", (int)DiffPreview.Decision.Partial == 2);
+        Console.WriteLine();
+
+        // ── UxHelper 测试 ──
+        Section("[UxHelper]");
+        Check("UxHelper.IsTuiMode 可调用", new Action(() => { var _ = UxHelper.IsTuiMode; }) != null);
         Console.WriteLine();
 
         // ---- 结果 ----

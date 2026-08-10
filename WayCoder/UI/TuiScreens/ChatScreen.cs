@@ -206,7 +206,7 @@ public class ChatScreen : TuiScreen
             Width = Math.Min(30, TW / 3),
             Height = chatH,
             Visible = false,
-            Bg = TuiTheme.Current.WindowBg,
+            Bg = 0,
             BorderColor = TuiTheme.Current.SeparatorFg,
         };
         middleHBox.Add(SidePanel);

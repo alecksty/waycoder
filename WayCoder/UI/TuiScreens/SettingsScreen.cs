@@ -1,9 +1,7 @@
-using WayCoder.UI.Controls;
-
 using WayCoder.UI.TuiControls;
 using WayCoder.UI.TuiScreens;
 
-namespace WayCoder.UI;
+namespace WayCoder.UI.TuiScreens;
 
 /// <summary>
 /// 设置屏幕 —— 配置编辑器，与 ChatScreen 平级。

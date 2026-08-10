@@ -1,7 +1,6 @@
 using WayCoder.Terminal;
-using WayCoder.UI.Controls;
-
 using WayCoder.UI.TuiControls;
+using WayCoder.UI.TuiScreens;
 
 namespace WayCoder.UI;
 
@@ -23,68 +22,61 @@ public static class UxHelper
 
     // ── 通知消息 ──
 
-    /// <summary>信息提示（TUI: 弹出对话框, Console: 旧 TuiBox）</summary>
     public static void Info(string title, string message)
     {
         if (IsTuiMode)
             ShowNotification(TuiDialog.Info(title, message));
         else
-            TuiBox.Info(title, message);
+            Console.WriteLine($"\x1b[36m[ℹ {title}]\x1b[0m {message}");
     }
 
-    /// <summary>成功提示</summary>
     public static void Success(string title, string message)
     {
         if (IsTuiMode)
             ShowNotification(TuiDialog.Success(title, message));
         else
-            TuiBox.Success(title, message);
+            Console.WriteLine($"\x1b[32m[✓ {title}]\x1b[0m {message}");
     }
 
-    /// <summary>警告提示</summary>
     public static void Warn(string title, string message)
     {
         if (IsTuiMode)
             ShowNotification(TuiDialog.Warn(title, message));
         else
-            TuiBox.Warn(title, message);
+            Console.WriteLine($"\x1b[33m[⚠ {title}]\x1b[0m {message}");
     }
 
-    /// <summary>错误提示</summary>
     public static void Error(string title, string message)
     {
         if (IsTuiMode)
             ShowNotification(TuiDialog.Error(title, message));
         else
-            TuiBox.Error(title, message);
+            Console.WriteLine($"\x1b[31m[✘ {title}]\x1b[0m {message}");
     }
 
-    /// <summary>TUI 模式下显示通知对话框（非阻塞，fire-and-forget）</summary>
     private static void ShowNotification(TuiWindow win)
     {
         try
         {
             var screen = TuiManager.Instance?.ActiveScreen;
-            if (screen != null)
-            {
-                screen.ShowWindow(win);
-                // 非阻塞 — 用户关闭对话框后自动消失
-            }
+            screen?.ShowWindow(win);
         }
         catch { /* 静默回退 */ }
     }
 
     // ── 文本输入 ──
 
-    /// <summary>普通文本输入（TUI: 弹出输入框, Console: 行读取）</summary>
     public static string Ask(string prompt, string? defaultValue = null)
     {
         if (IsTuiMode)
             return ShowInputDialog(prompt, defaultValue ?? "") ?? defaultValue ?? "";
-        return TuiPrompt.Ask(prompt, defaultValue);
+
+        var defSuffix = defaultValue != null ? $" [\x1b[2m{defaultValue}\x1b[0m]" : "";
+        Console.Write($"\x1b[1m{prompt}\x1b[0m{defSuffix} ");
+        var result = Console.ReadLine() ?? "";
+        return string.IsNullOrEmpty(result) ? (defaultValue ?? "") : result;
     }
 
-    /// <summary>TUI 模式下弹出输入对话框并等待结果</summary>
     private static string? ShowInputDialog(string prompt, string defaultValue)
     {
         string? result = null;
@@ -104,18 +96,89 @@ public static class UxHelper
         return result;
     }
 
+    // ── 密码输入 ──
+
+    /// <summary>密码/密钥输入 —— TUI 下打开掩码对话框，非 TUI 回退到 Console 掩码读取</summary>
+    public static string Secret(string prompt, string? defaultValue = null)
+    {
+        if (IsTuiMode)
+            return ShowSecretDialog(prompt, defaultValue ?? "") ?? defaultValue ?? "";
+
+        var defSuffix = defaultValue != null ? $" [\x1b[2m***\x1b[0m]" : "";
+        Console.Write($"\x1b[1m{prompt}\x1b[0m{defSuffix} ");
+        var result = ReadPassword();
+        return string.IsNullOrEmpty(result) ? (defaultValue ?? "") : result;
+    }
+
+    private static string ReadPassword()
+    {
+        var pass = new System.Text.StringBuilder();
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true);
+            if (key.Key == ConsoleKey.Enter) { Console.WriteLine(); break; }
+            if (key.Key == ConsoleKey.Backspace && pass.Length > 0)
+                pass.Length--;
+            else if (key.KeyChar >= ' ' && key.Key != ConsoleKey.Escape)
+                pass.Append(key.KeyChar);
+        }
+        return pass.ToString();
+    }
+
+    private static string? ShowSecretDialog(string prompt, string defaultValue)
+    {
+        string? result = null;
+        using var evt = new ManualResetEventSlim(false);
+        try
+        {
+            var win = TuiDialog.Secret("输入密钥", prompt, defaultValue, val =>
+            {
+                result = val;
+                evt.Set();
+            },
+            onCancel: () =>
+            {
+                result = null;
+                evt.Set();
+            });
+            var screen = TuiManager.Instance?.ActiveScreen;
+            screen?.ShowWindow(win);
+            RenderWait(screen, evt);
+        }
+        catch { evt.Set(); }
+        return result;
+    }
+
     // ── 选择列表 ──
 
-    /// <summary>单选列表（TUI: 弹出 Select 对话框, Console: 数字选择）</summary>
     public static string? Select(string title, List<string> choices)
     {
         if (choices.Count == 0) return null;
+
         if (IsTuiMode)
             return ShowSelectDialog(title, choices);
-        return TuiList.Select(title, choices);
+
+        Console.WriteLine($"\x1b[1m{title}\x1b[0m");
+        for (int i = 0; i < choices.Count; i++)
+            Console.WriteLine($"  [{i + 1}] {choices[i]}");
+        Console.Write($"选择 (1-{choices.Count}, q=取消): ");
+
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true);
+            if (key.KeyChar == 'q' || key.KeyChar == 'Q' || key.Key == ConsoleKey.Escape)
+            {
+                Console.WriteLine("取消");
+                return null;
+            }
+            if (int.TryParse(key.KeyChar.ToString(), out var idx) && idx >= 1 && idx <= choices.Count)
+            {
+                Console.WriteLine(choices[idx - 1]);
+                return choices[idx - 1];
+            }
+        }
     }
 
-    /// <summary>TUI 模式下弹出选择对话框</summary>
     private static string? ShowSelectDialog(string title, List<string> choices)
     {
         string? result = null;
@@ -135,7 +198,6 @@ public static class UxHelper
 
     // ── 事件循环 ──
 
-    /// <summary>渲染等待对话框关闭（带键盘事件循环）</summary>
     private static void RenderWait(TuiScreen? screen, ManualResetEventSlim evt)
     {
         if (screen == null) { evt.Wait(TimeSpan.FromSeconds(30)); return; }
@@ -153,7 +215,6 @@ public static class UxHelper
             {
                 Thread.Sleep(30);
             }
-            // 超时保护：30s
             if (Environment.TickCount64 - start > 30_000) break;
         }
         manager?.Render();

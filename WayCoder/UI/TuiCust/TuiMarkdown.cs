@@ -23,12 +23,14 @@ public static class TuiMarkdown
         if (plainText && role == "banner")
         {
             var lines = content.Split('\n');
-            int totalLines = lines.Length;
-            for (int li = 0; li < totalLines; li++)
+            int visualLines = lines.Count(l => l.Length > 0);
+            int visualIdx = 0;
+            for (int li = 0; li < lines.Length; li++)
             {
                 var line = lines[li];
                 if (line.Length == 0) { result.Add([]); continue; }
-                result.Add(BuildRainbowSegments(line, li, totalLines));
+                result.Add(BuildRainbowSegments(line, visualIdx, visualLines));
+                visualIdx++;
             }
             return result;
         }
