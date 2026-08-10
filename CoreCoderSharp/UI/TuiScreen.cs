@@ -359,20 +359,62 @@ public abstract class TuiScreen
             return;
         }
 
-        var (tl, tr, bl, br, hh, vv) = win.GetBorderChars();
+        var (tl, tr, bl, br, hh, vv, hTop, hBot) = win.GetBorderChars();
+
+        // 渐变色模式
+        bool grad = win.GradientBorder && win.GradientStart >= 0x1000000 && win.GradientEnd >= 0x1000000;
+        int gs = win.GradientStart, ge = win.GradientEnd;
 
         // ── 上边框 + 标题栏 ──
-        WriteAt(sb, win.Y, win.X, tl, bc, fillBg);
-
         bool drawTitle = win.ShowTitle && !string.IsNullOrEmpty(win.Title);
-        if (drawTitle)
+        if (grad)
         {
-            var titleText = $" {win.Title} ";
-            int tFg = win.TitleFg > 0 ? win.TitleFg : bc;
-            int tBg = win.TitleBg > 0 ? win.TitleBg : fillBg;
-            // 标题粗体：直接用 AnsiTty BoldFg
-            if (win.TitleBold)
+            // ── 渐变上边框（文字与线框一起渐变）──
+            if (drawTitle && !win.TitleBold)
             {
+                // 标题嵌在渐变横线上，居中
+                var titleText = $" {win.Title} ";
+                int titleVw = TuiHelper.DisplayWidth(titleText);
+                int innerW = win.Width - 2;
+                int leftPad = (innerW - titleVw) / 2;
+                int rightPad = innerW - titleVw - leftPad;
+
+                // 左角
+                WriteAt(sb, win.Y, win.X, tl, gs, fillBg);
+                // 标题左侧横线（start → 标题位置的渐变色）
+                if (leftPad > 0)
+                {
+                    float leftEndT = (float)leftPad / Math.Max(1, innerW - 1);
+                    for (int i = 0; i < leftPad; i++)
+                    {
+                        float t = leftPad > 1 ? leftEndT * i / (leftPad - 1) : 0;
+                        WriteAt(sb, win.Y, win.X + 1 + i, hTop, AnsiTty.LerpRgb(gs, ge, t), fillBg);
+                    }
+                }
+                // 标题（渐变中间色 ≈50%）
+                int tFg = win.TitleFg > 0 ? win.TitleFg : AnsiTty.LerpRgb(gs, ge, 0.5f);
+                int tBg = win.TitleBg > 0 ? win.TitleBg : fillBg;
+                WriteAt(sb, win.Y, win.X + 1 + leftPad, titleText, tFg, tBg);
+                // 标题右侧横线（标题位置 → end 的渐变色）
+                if (rightPad > 0)
+                {
+                    float rightStartT = (float)(leftPad + titleVw) / Math.Max(1, innerW - 1);
+                    for (int i = 0; i < rightPad; i++)
+                    {
+                        float t = rightPad > 1 ? rightStartT + (1 - rightStartT) * i / (rightPad - 1) : rightStartT;
+                        WriteAt(sb, win.Y, win.X + 1 + leftPad + titleVw + i, hTop, AnsiTty.LerpRgb(gs, ge, t), fillBg);
+                    }
+                }
+                // 右角
+                WriteAt(sb, win.Y, win.X + win.Width - 1, tr, ge, fillBg);
+            }
+            else if (drawTitle && win.TitleBold)
+            {
+                // 粗体标题独占第二行 → 边框行纯渐变线
+                WriteGradientHLine(sb, win.Y, win.X, win.Width, tl, hTop, tr, gs, ge, fillBg);
+                var titleText = $" {win.Title} ";
+                int tFg = win.TitleFg > 0 ? win.TitleFg : gs;
+                int tBg = win.TitleBg > 0 ? win.TitleBg : fillBg;
                 sb.Append(AnsiTty.CursorPos(win.Y + 1, win.X + 2));
                 sb.Append(AnsiTty.BoldFg(tFg));
                 if (tBg > 0) sb.Append(AnsiTty.BgCode(tBg));
@@ -381,16 +423,40 @@ public abstract class TuiScreen
             }
             else
             {
-                WriteAt(sb, win.Y, win.X + 1, titleText, tFg, tBg);
+                // 无标题：整行渐变线
+                WriteGradientHLine(sb, win.Y, win.X, win.Width, tl, hTop, tr, gs, ge, fillBg);
             }
-            var rem = win.Width - 2 - TuiHelper.DisplayWidth(titleText);
-            if (rem > 0) WriteAt(sb, win.Y, win.X + 1 + TuiHelper.DisplayWidth(titleText), new string(hh[0], rem), bc, fillBg);
         }
         else
         {
-            WriteAt(sb, win.Y, win.X + 1, new string(hh[0], win.Width - 2), bc, fillBg);
+            // ── 非渐变上边框（原逻辑）──
+            WriteAt(sb, win.Y, win.X, tl, bc, fillBg);
+            if (drawTitle)
+            {
+                var titleText = $" {win.Title} ";
+                int tFg = win.TitleFg > 0 ? win.TitleFg : bc;
+                int tBg = win.TitleBg > 0 ? win.TitleBg : fillBg;
+                if (win.TitleBold)
+                {
+                    sb.Append(AnsiTty.CursorPos(win.Y + 1, win.X + 2));
+                    sb.Append(AnsiTty.BoldFg(tFg));
+                    if (tBg > 0) sb.Append(AnsiTty.BgCode(tBg));
+                    sb.Append(titleText);
+                    sb.Append(AnsiTty.SgrReset);
+                }
+                else
+                {
+                    WriteAt(sb, win.Y, win.X + 1, titleText, tFg, tBg);
+                }
+                var rem = win.Width - 2 - TuiHelper.DisplayWidth(titleText);
+                if (rem > 0) WriteAt(sb, win.Y, win.X + 1 + TuiHelper.DisplayWidth(titleText), new string(hTop[0], rem), bc, fillBg);
+            }
+            else
+            {
+                WriteAt(sb, win.Y, win.X + 1, new string(hTop[0], win.Width - 2), bc, fillBg);
+            }
+            WriteAt(sb, win.Y, win.X + win.Width - 1, tr, bc, fillBg);
         }
-        WriteAt(sb, win.Y, win.X + win.Width - 1, tr, bc, fillBg);
 
         int contentTop = win.Y + 1;       // 上边框下面一行
         int innerHeight = win.Height - 2; // 边框内部高度
@@ -419,12 +485,24 @@ public abstract class TuiScreen
             }
         }
 
-        // ── 竖边框：先于内容绘制（内容的光标位置不会被边框覆盖）──
-        for (int i = 0; i < innerHeight; i++)
+        // ── 竖边框：左=渐变起始色，右=渐变终止色，背景同前景防断线 ──
+        if (grad)
         {
-            int row = contentTop + i;
-            WriteAt(sb, row, win.X, vv, bc, fillBg);
-            WriteAt(sb, row, win.X + win.Width - 1, vv, bc, fillBg);
+            for (int i = 0; i < innerHeight; i++)
+            {
+                int row = contentTop + i;
+                WriteAt(sb, row, win.X, vv, gs, gs);
+                WriteAt(sb, row, win.X + win.Width - 1, vv, ge, ge);
+            }
+        }
+        else
+        {
+            for (int i = 0; i < innerHeight; i++)
+            {
+                int row = contentTop + i;
+                WriteAt(sb, row, win.X, vv, bc, bc);
+                WriteAt(sb, row, win.X + win.Width - 1, vv, bc, bc);
+            }
         }
 
         // ── 内容区域 ──
@@ -458,10 +536,58 @@ public abstract class TuiScreen
             }
         }
 
-        // ── 底边框 ──
-        WriteAt(sb, win.Y + win.Height - 1, win.X, bl, bc, fillBg);
-        WriteAt(sb, win.Y + win.Height - 1, win.X + 1, new string(hh[0], win.Width - 2), bc, fillBg);
-        WriteAt(sb, win.Y + win.Height - 1, win.X + win.Width - 1, br, bc, fillBg);
+        // ── 底边框：两角 bg=fg 防断线 ──
+        if (grad)
+        {
+            // 左下角（bg 同前景防断线）
+            WriteAt(sb, win.Y + win.Height - 1, win.X, bl, gs, gs);
+            // 中间横线渐变色
+            int midLen = win.Width - 2;
+            for (int i = 0; i < midLen; i++)
+            {
+                float t = midLen > 1 ? (float)i / (midLen - 1) : 0;
+                WriteAt(sb, win.Y + win.Height - 1, win.X + 1 + i, hBot, AnsiTty.LerpRgb(gs, ge, t), fillBg);
+            }
+            // 右下角（bg 同前景防断线）
+            WriteAt(sb, win.Y + win.Height - 1, win.X + win.Width - 1, br, ge, ge);
+        }
+        else
+        {
+            WriteAt(sb, win.Y + win.Height - 1, win.X, bl, bc, bc);
+            WriteAt(sb, win.Y + win.Height - 1, win.X + 1, new string(hBot[0], win.Width - 2), bc, fillBg);
+            WriteAt(sb, win.Y + win.Height - 1, win.X + win.Width - 1, br, bc, bc);
+        }
+    }
+
+    /// <summary>绘制渐变水平线：左角 + N×横线(渐变色) + 右角</summary>
+    private static void WriteGradientHLine(StringBuilder sb, int row, int col, int width,
+        string leftChar, string midChar, string rightChar,
+        int startColor, int endColor, int bg)
+    {
+        // 左角
+        WriteAt(sb, row, col, leftChar, startColor, bg);
+        // 中间横线逐字渐变色
+        int midLen = width - 2;
+        for (int i = 0; i < midLen; i++)
+        {
+            float t = midLen > 1 ? (float)i / (midLen - 1) : 0;
+            int c = AnsiTty.LerpRgb(startColor, endColor, t);
+            WriteAt(sb, row, col + 1 + i, midChar, c, bg);
+        }
+        // 右角
+        WriteAt(sb, row, col + width - 1, rightChar, endColor, bg);
+    }
+
+    /// <summary>绘制渐变竖线：height 行逐行渐变色</summary>
+    private static void WriteGradientVLine(StringBuilder sb, int startRow, int col, int height,
+        string vChar, int startColor, int endColor, int bg)
+    {
+        for (int i = 0; i < height; i++)
+        {
+            float t = height > 1 ? (float)i / (height - 1) : 0;
+            int c = AnsiTty.LerpRgb(startColor, endColor, t);
+            WriteAt(sb, startRow + i, col, vChar, c, bg);
+        }
     }
 
     /// <summary>在指定位置写入 ANSI 文本</summary>
