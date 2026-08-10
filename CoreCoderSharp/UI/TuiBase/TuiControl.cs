@@ -24,13 +24,9 @@ public struct EdgeInsets
 /// Margin 控制父容器在布局时为本控件留出的外部间距。
 /// Padding 控制控件内部内容区的缩进（渲染时自动内移裁剪区）。
 /// </summary>
-public abstract class TuiControl
+public abstract class TuiControl : TuiBase
 {
-    // ── 布局 ──
-    public int X { get; set; }
-    public int Y { get; set; }
-    public int Width { get; set; } = 10;
-    public int Height { get; set; } = 1;
+    // ── 布局（X/Y 来自 TuiBase） ──
 
     /// <summary>外部间距（父容器布局时在四周留出的空白）</summary>
     public EdgeInsets Margin { get; set; }
@@ -56,30 +52,18 @@ public abstract class TuiControl
     public bool Focused { get; set; }
     public TuiView? Parent { get; set; }
 
-    /// <summary>用户数据挂载点（任意对象）</summary>
-    public object? Tag { get; set; }
-
     // ── 增量渲染 ──
 
-    /// <summary>是否需要重绘。true=下一帧重新渲染此控件。</summary>
-    public bool IsDirty { get; set; } = true;
-
     /// <summary>标记控件需要重绘，沿 Parent 链向上传播到根。</summary>
-    public void MarkDirty()
+    public override void MarkDirty()
     {
         if (IsDirty) return; // 已标记，避免重复遍历
         IsDirty = true;
         Parent?.MarkDirty();
     }
 
-    /// <summary>清除脏标记（渲染完成后由框架调用）</summary>
-    public void ClearDirty()
-    {
-        IsDirty = false;
-    }
-
     /// <summary>强制刷新：递归标记控件及其所有子控件为脏，确保下一帧完全重绘。</summary>
-    public virtual void Invalidate()
+    public override void Invalidate()
     {
         IsDirty = true;
     }
@@ -232,7 +216,7 @@ public abstract class TuiControl
     /// 按键入口。检查 Hook → Enabled/CanFocus → 交给子类处理。
     /// 容器子类（TuiView）覆写此方法以加入子节点路由。
     /// </summary>
-    public virtual bool OnKey(ConsoleKeyInfo key)
+    public override bool OnKey(ConsoleKeyInfo key)
     {
         // Hook 优先拦截（不受 Enabled/CanFocus 限制）
         if (KeyHook != null && KeyHook(key))
@@ -243,8 +227,16 @@ public abstract class TuiControl
         return false;
     }
     /// <summary>鼠标事件处理。子类覆写以支持点击等交互。</summary>
-    public virtual bool HandleMouse(InputEvent ev) => false;
-    public virtual void OnResize(int newParentW, int newParentH) { }
+    public override bool HandleMouse(InputEvent ev) => false;
+    public override void OnResize(int newParentW, int newParentH) { }
+
+    // ── 生命周期 ──
+
+    /// <summary>控件加入控件树时调用（Add 设置 Parent 后）。初始化子对象、订阅事件。</summary>
+    public override void OnCreate() { }
+
+    /// <summary>控件从控件树移除时调用（Remove/Clear 前）。取消订阅、释放资源。</summary>
+    public override void OnDestroy() { }
 
     // ── 命中测试 ──
 

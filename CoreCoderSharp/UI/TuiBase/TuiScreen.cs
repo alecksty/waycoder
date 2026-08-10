@@ -1,24 +1,22 @@
 using System.Text;
 using CoreCoderSharp.Terminal;
 
-namespace CoreCoderSharp.UI.TuiBase;
+namespace CoreCoderSharp.UI;
 
 /// <summary>
 /// 屏幕 —— 一个完整的终端场景。
 /// 持有根视图（内联控件树）和浮层窗口列表。
 /// </summary>
-public abstract class TuiScreen
+public abstract class TuiScreen : TuiBase
 {
-    /// <summary>屏幕名称（用于切换标识）</summary>
-    public string Name { get; set; } = "";
-
     /// <summary>所属管理器引用（由 PushScreen 自动设置）</summary>
     public TuiManager? Manager { get; set; }
 
     /// <summary>标记需要重绘（通知 Manager + 根视图）</summary>
-    public void MarkDirty() {
+    public override void MarkDirty() {
         if (Manager != null) Manager.IsDirty = true;
         RootView.IsDirty = true;
+        base.MarkDirty();
     }
 
     /// <summary>强制全屏刷新：递归标记所有控件为脏，确保下一帧完全重绘。</summary>
@@ -71,17 +69,34 @@ public abstract class TuiScreen
         RootView.Width = TW;
         RootView.Height = TH;
         RootView.Layout();
+        OnCreate();
     }
 
     /// <summary>屏幕失活时调用</summary>
     public virtual void Deactivate()
     {
+        OnDestroy();
         Windows.Clear();
         FocusedWindow = null;
     }
 
+    /// <summary>屏幕创建 —— 递归初始化 RootView 和所有浮层窗口</summary>
+    public override void OnCreate()
+    {
+        RootView.OnCreate();
+        foreach (var win in Windows) win.OnCreate();
+    }
+
+    /// <summary>屏幕销毁 —— 递归清理所有浮层窗口和 RootView</summary>
+    public override void OnDestroy()
+    {
+        foreach (var win in Windows) win.OnDestroy();
+        RootView.OnDestroy();
+        _savedRootFocus = null;
+    }
+
     /// <summary>终端尺寸变化。递归通知根视图和所有浮层窗口。</summary>
-    public virtual void OnResize(int newW, int newH)
+    public override void OnResize(int newW, int newH)
     {
         TW = newW;
         TH = newH;
@@ -116,6 +131,7 @@ public abstract class TuiScreen
         win.Focused = true;
         Windows.Add(win);
         FocusedWindow = win;
+        win.OnCreate();
     }
 
     /// <summary>添加浮层窗口并自动绑定关闭回调</summary>
@@ -132,6 +148,7 @@ public abstract class TuiScreen
         // 记录窗口覆盖区域，用于关闭后重绘被遮挡的控件
         _dirtyRects.Add((win.X, win.Y, win.Width, win.Height));
 
+        win.OnDestroy();
         bool wasModal = win.Modal;
         win.Focused = false;
         Windows.Remove(win);
@@ -197,7 +214,7 @@ public abstract class TuiScreen
     /// 处理鼠标事件。优先级：顶层模态窗口 → 顶层窗口（Z-order）→ 根视图。
     /// 返回 true 表示事件已被消费。
     /// </summary>
-    public virtual bool HandleMouse(InputEvent ev)
+    public override bool HandleMouse(InputEvent ev)
     {
         // 有模态窗口时，只路由给顶层模态窗口
         if (HasModal)
@@ -225,7 +242,7 @@ public abstract class TuiScreen
     /// <summary>
     /// 处理按键。返回 true 表示已处理。
     /// </summary>
-    public virtual bool OnKey(ConsoleKeyInfo key)
+    public override bool OnKey(ConsoleKeyInfo key)
     {
         // ── 屏幕自身处理：Escape 关模态、Tab 切焦点 ──
 
@@ -689,7 +706,11 @@ public abstract class TuiScreen
             BorderColor = TuiColors.Green,
         };
         AddWindow(win);
-        Task.Delay(durationMs).ContinueWith(_ => CloseWindow(win));
+        // 使用 Windows.Contains 守卫：屏幕销毁后不再关闭窗口
+        Task.Delay(durationMs).ContinueWith(_ =>
+        {
+            if (Windows.Contains(win)) CloseWindow(win);
+        });
         return win;
     }
 }

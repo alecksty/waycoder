@@ -1,6 +1,6 @@
 using System.Text;
 using CoreCoderSharp.Terminal;
-using CoreCoderSharp.UI.TuiBase;
+
 
 namespace CoreCoderSharp.UI;
 
@@ -70,7 +70,12 @@ public class TuiManager : IDisposable
 
     public void Dispose()
     {
-        if (IsActive) Exit();
+        if (IsActive)
+        {
+            ActiveScreen?.Deactivate();
+            _screenStack.Clear();
+            Exit();
+        }
     }
 
     // ── 屏幕管理 ──
