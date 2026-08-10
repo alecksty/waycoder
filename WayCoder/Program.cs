@@ -286,6 +286,9 @@ public class Program
 
         // 启动欢迎屏 — ASCII Logo 注入槽位 0（多行合并避免 ItemSpacing 空行）
         var logo = string.Join("\n",
+            "",
+            "",
+            "",
             "██╗    ██╗ █████╗ ██╗   ██╗ ██████╗ ██████╗ ██████╗ ███████╗██████╗ ",
             "██║    ██║██╔══██╗╚██╗ ██╔╝██╔════╝██╔═══██╗██╔══██╗██╔════╝██╔══██╗",
             "██║ █╗ ██║███████║ ╚████╔╝ ██║     ██║   ██║██║  ██║█████╗  ██████╔╝",
@@ -1349,7 +1352,7 @@ deepseek 性价比最高。"
         MarkupLine("[dim]输入你的需求，Agent 会先分析并列出执行计划[/]");
         Console.WriteLine();
 
-        var userInput = TuiInput.ReadInput();
+        var userInput = TuiChatInput.ReadInput();
         if (string.IsNullOrWhiteSpace(userInput)) return;
 
         // 使用 PlanMode 结构化系统提示词（含项目上下文、仓库地图）
@@ -1366,7 +1369,7 @@ deepseek 性价比最高。"
             Console.WriteLine();
             MarkupLine("[bold yellow]是否执行此计划？[/]");
             MarkupLine("[dim]  y = 执行  |  n = 放弃  |  输入修改意见[/]");
-            var confirm = TuiInput.ReadInput();
+            var confirm = TuiChatInput.ReadInput();
             if (!string.IsNullOrWhiteSpace(confirm) && PlanMode.IsApproval(confirm))
             {
                 Console.WriteLine();

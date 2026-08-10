@@ -117,28 +117,21 @@ public static class SlashCommandRegistry
         Register(new Commands.TokensCommand());
         Register(new Commands.StatsCommand());
         Register(new Commands.CompactCommand());
-        Register(new Commands.SaveCommand());
 
         // P1 — 会话/上下文
-        Register(new Commands.SessionsCommand());
-        Register(new Commands.LoadCommand());
-        Register(new Commands.ResumeCommand());
+        Register(new Commands.SessionCommand());
         Register(new Commands.HistoryCommand());
         Register(new Commands.ExportCommand());
 
         // 编辑/工具
         Register(new Commands.EditCommand());
         Register(new Commands.SearchCommand());
-        Register(new Commands.DiffCommand());
         Register(new Commands.RecentCommand());
         Register(new Commands.TodoCommand());
         Register(new Commands.LintCommand());
-        Register(new Commands.ReviewCommand());
 
         // Git
-        Register(new Commands.GitStatusCommand());
-        Register(new Commands.GitLogCommand());
-        Register(new Commands.GitDiffCommand());
+        Register(new Commands.GitCommand());
         Register(new Commands.PrCommand());
 
         // 检查点
@@ -152,9 +145,6 @@ public static class SlashCommandRegistry
         Register(new Commands.PermCommand());
         Register(new Commands.AboutCommand());
         Register(new Commands.RepomapCommand());
-        Register(new Commands.WatchCommand());
-        Register(new Commands.PlanCommand());
-        Register(new Commands.LoopCommand());
         Register(new Commands.DebugCommand());
     }
 

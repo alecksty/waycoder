@@ -34,7 +34,7 @@ public static class McpManager
         if (_initialized) return;
         _initialized = true;
 
-        var configPath = FindConfigFile();
+        var configPath = Global.FindConfigFileInTree(Environment.CurrentDirectory, "mcp_servers.json");
         if (configPath == null) return;
 
         try
@@ -262,23 +262,7 @@ public static class McpManager
         DiscoveredTools.Clear();
     }
 
-    private static string? FindConfigFile()
-    {
-        var cwd = Environment.CurrentDirectory;
-        var dir = cwd;
-        while (dir != null)
-        {
-            foreach (var dirName in Global.ConfigDirSearchOrder)
-            {
-                var candidate = Path.Combine(dir, dirName, "mcp_servers.json");
-                if (File.Exists(candidate)) return candidate;
-            }
-            var parent = Path.GetDirectoryName(dir);
-            if (parent == dir) break;
-            dir = parent;
-        }
-        return null;
-    }
+    // FindConfigFileInTree defined in Global.cs (shared with McpCache)
 }
 
 // ============================================================

@@ -80,7 +80,7 @@ internal static class McpCache
     {
         if (discoveredTools.Count == 0) return;
 
-        var configPath = McpManagerFindConfigFile();
+        var configPath = Global.FindConfigFileInTree(Environment.CurrentDirectory, "mcp_servers.json");
         if (configPath == null) return;
 
         try
@@ -187,24 +187,7 @@ internal static class McpCache
         return null;
     }
 
-    /// <summary>查找 mcp_servers.json（与 McpManager.FindConfigFile 相同逻辑）</summary>
-    private static string? McpManagerFindConfigFile()
-    {
-        var cwd = Environment.CurrentDirectory;
-        var dir = cwd;
-        while (dir != null)
-        {
-            foreach (var dirName in Global.ConfigDirSearchOrder)
-            {
-                var candidate = Path.Combine(dir, dirName, "mcp_servers.json");
-                if (File.Exists(candidate)) return candidate;
-            }
-            var parent = Path.GetDirectoryName(dir);
-            if (parent == dir) break;
-            dir = parent;
-        }
-        return null;
-    }
+    // FindConfigFileInTree defined in Global.cs (shared with McpClient)
 }
 
 /// <summary>

@@ -46,42 +46,13 @@ public class GitTool : ITool
 
         try
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "git",
-                Arguments = command,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-
-            using var proc = Process.Start(psi)!;
-
-            // 异步读取输出，避免缓冲区满导致死锁
-            var stdout = new System.Text.StringBuilder();
-            var stderr = new System.Text.StringBuilder();
-            proc.OutputDataReceived += (_, e) => { if (e.Data != null) stdout.AppendLine(e.Data); };
-            proc.ErrorDataReceived += (_, e) => { if (e.Data != null) stderr.AppendLine(e.Data); };
-            proc.BeginOutputReadLine();
-            proc.BeginErrorReadLine();
-
-            var exited = proc.WaitForExit(15_000);
-            if (!exited)
-            {
-                proc.Kill(entireProcessTree: true);
-                return "Git 错误：在 15 秒后超时";
-            }
-            proc.WaitForExit(); // 确保异步读取完成
-
-            var outStr = stdout.ToString();
-            var errStr = stderr.ToString();
+            var (exitCode, outStr, errStr) = GitRunner.Run(command);
 
             var result = outStr;
             if (!string.IsNullOrEmpty(errStr))
                 result += $"\n[stderr]\n{errStr}";
-            if (proc.ExitCode != 0)
-                result += $"\n[退出码：{proc.ExitCode}]";
+            if (exitCode != 0)
+                result += $"\n[退出码：{exitCode}]";
 
             // 截断长输出
             if (result.Length > 8000)

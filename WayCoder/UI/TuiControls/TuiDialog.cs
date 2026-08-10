@@ -1,5 +1,5 @@
 using WayCoder.Terminal;
-using WayCoder.UI.Controls;
+using WayCoder.UI.TuiControls;
 
 namespace WayCoder.UI.TuiControls;
 
@@ -312,6 +312,72 @@ public static class TuiDialog
         {
             Text = defaultValue, CursorPos = defaultValue.Length,
             Width = w - 6, Focused = true
+        };
+        vbox.Add(input);
+
+        var hbox = new TuiHBox { Spacing = 2, Width = w - 6, ContentHAlign = HAlign.Center };
+        var okBtn = new TuiButton("确定") { Width = 10 };
+        var cancelBtn = new TuiButton("取消") { Width = 10 };
+        okBtn.OnClick = _ =>
+        {
+            win.Result = input.Text;
+            onConfirm(input.Text);
+            win.OnClosed?.Invoke();
+        };
+        cancelBtn.OnClick = _ =>
+        {
+            win.Result = null;
+            onCancel?.Invoke();
+            win.OnClosed?.Invoke();
+        };
+        hbox.Add(okBtn);
+        hbox.Add(cancelBtn);
+        NormalizeButtons(okBtn, cancelBtn);
+        ApplyButtonGradient(TuiTheme.Current.BtnCyanBlue, okBtn, cancelBtn);
+        vbox.Add(hbox);
+
+        vbox.Layout();
+        win.Width = vbox.Width + 4;
+        win.Height = vbox.Height + 3;
+        win.RootView = vbox;
+        win.Center();
+        ApplyGradient(win, TuiTheme.Current.GradCyanBlue);
+        return win;
+    }
+
+    // ── 密码输入对话框 ──
+
+    /// <summary>密码/密钥输入对话框 —— 字符显示为 • 掩码</summary>
+    public static TuiWindow Secret(string title, string prompt, string defaultValue,
+        Action<string> onConfirm, Action? onCancel = null)
+    {
+        var win = new TuiWindow
+        {
+            Title = title,
+            ShowTitleSeparator = false,
+            Modal = true, HasMask = true, BorderColor = TuiTheme.Current.DialogInfoBorder,
+            Border = WindowBorder.Solid,
+            WinBg = TuiTheme.Current.WindowBg,
+        };
+
+        int maxMsgW = CalcMaxMsgWidth();
+        var msgLabels = BuildMessageLabels(prompt, maxMsgW);
+        int maxVw = msgLabels.Count > 0 ? msgLabels.Max(l => TuiHelper.DisplayWidth(l.Text)) : 10;
+        int inputW = Math.Max(20, defaultValue.Length + 4);
+        int w = Math.Clamp(Math.Max(30, Math.Max(maxVw, inputW) + 6), 30, Tty.Cols * MaxWidthNum / MaxWidthDen);
+        int labelW = w - 6;
+
+        var vbox = new TuiVBox { Width = w - 4 };
+        foreach (var lbl in msgLabels)
+        {
+            lbl.Width = labelW;
+            vbox.Add(lbl);
+        }
+
+        var input = new TuiInput
+        {
+            Text = defaultValue, CursorPos = defaultValue.Length,
+            Width = w - 6, Focused = true, Password = true
         };
         vbox.Add(input);
 

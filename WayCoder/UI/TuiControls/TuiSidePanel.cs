@@ -49,7 +49,7 @@ public class TuiSidePanel : TuiControl
         if (contentW <= 0) return;
 
         var bc = TuiHelper.GetBorderChars(BorderStyle);
-        int bg = Bg > 0 ? Bg : TuiTheme.Current.WindowBg;
+        int bg = Bg > 0 ? Bg : TuiTheme.Current.TerminalBg;
         int fg = Fg > 0 ? Fg : TuiTheme.Current.ControlFg;
         int row = absY;
 
