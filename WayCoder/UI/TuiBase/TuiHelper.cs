@@ -189,7 +189,8 @@ public static class TuiHelper
     // ---- 安全转义 ----
 
     /// <summary>
-    /// 转义文本中的 [ 和 ] 字符。跳过 ANSI 转义序列（\x1b[...m）中的括号。
+    /// 转义文本中的 « » 标记字符（避免与 markup 标签 «color»text«/» 冲突）。
+    /// 跳过 ANSI 转义序列。 [ ] 不再需要转义（markup 已改用 « »）。
     /// </summary>
     public static string Esc(string? text)
     {
@@ -206,13 +207,13 @@ public static class TuiHelper
                 sb.Append(text[i..j]);
                 i = j - 1;
             }
-            else if (text[i] == AnsiTty.AnsiCharEscape)
+            else if (text[i] == '\xAB') // « — 转义左书名号（极罕见）
             {
-                sb.Append($"[{AnsiTty.AnsiCharEscape}"); // 转义左括号
+                sb.Append("««");
             }
-            else if (text[i] == ']')
+            else if (text[i] == '\xBB') // » — 转义右书名号（极罕见）
             {
-                sb.Append("]]"); // 转义右括号
+                sb.Append("»»");
             }
             else
             {
@@ -224,12 +225,12 @@ public static class TuiHelper
     }
 
     /// <summary>
-    /// 移除 Spectre.Console 标记标签（如 [bold yellow]、[cyan]、[/]），
+    /// 移除类 Spectre 标记标签（如 «bold yellow»、«cyan»、«/»），
     /// 返回纯文本。用于从带标记的字符串中提取显示文本以计算宽度。
     /// </summary>
     public static string StripMarkup(string markup)
     {
-        return Regex.Replace(markup, @"\[/?[a-z#0-9 ]+\]", "");
+        return Regex.Replace(markup, @"\xAB/?[a-z#0-9 ]+\xBB", "");
     }
 
     // ---- 内部 ----
