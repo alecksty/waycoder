@@ -1,4 +1,6 @@
 ﻿using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using CoreCoderSharp.Tools;
 using CoreCoderSharp.UI;
 using CoreCoderSharp.UI.Controls;
@@ -83,7 +85,7 @@ public static class SelfTest
 
         // ---- 工具注册 ----
         Section("[工具注册]");
-        Check("工具数量 == 31", ToolRegistry.BuiltinTools.Count == 31);
+        Check("工具数量 == 32", ToolRegistry.BuiltinTools.Count == 32);
         Check("所有工具有有效 schema", ToolRegistry.AllTools.All(t =>
         {
             var s = t.Schema();
@@ -1556,6 +1558,84 @@ public static class SelfTest
         }
         Console.WriteLine();
 
+        // ---- NotebookEdit 工具 ----
+        Section("[NotebookEdit]");
+        var nbTestDir = Path.Combine(Path.GetTempPath(), "waycoder_nbtest_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(nbTestDir);
+        try
+        {
+            var nbPath = Path.Combine(nbTestDir, "test.ipynb");
+            // 创建一个最小 notebook
+            var nb = new JsonObject
+            {
+                ["nbformat"] = 4,
+                ["nbformat_minor"] = 5,
+                ["metadata"] = new JsonObject(),
+                ["cells"] = new JsonArray(),
+            };
+            var cell0 = new JsonObject { ["cell_type"] = "code", ["metadata"] = new JsonObject(), ["outputs"] = new JsonArray() };
+            cell0["execution_count"] = null;
+            var cell0Source = new JsonArray(); cell0Source.Add((JsonNode?)JsonValue.Create("print('hello')\n")); cell0["source"] = cell0Source;
+            var cell1 = new JsonObject { ["cell_type"] = "markdown", ["metadata"] = new JsonObject() };
+            var cell1Source = new JsonArray(); cell1Source.Add((JsonNode?)JsonValue.Create("# Title\n")); cell1["source"] = cell1Source;
+            nb["cells"]!.AsArray().Add(cell0); nb["cells"]!.AsArray().Add(cell1);
+            File.WriteAllText(nbPath, nb.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+
+            var notebookTool = new NotebookEditTool();
+            Check("notebook_edit 工具名称", notebookTool.Name == "notebook_edit");
+            Check("notebook_edit 描述非空", notebookTool.Description.Length > 20);
+
+            // 测试 replace
+            var replaceResult = notebookTool.ExecuteAsync(new Dictionary<string, object?>
+            {
+                ["notebook_path"] = nbPath,
+                ["cell_index"] = 0,
+                ["new_source"] = "print('replaced')",
+            }).Result;
+            Check("Replace cell", replaceResult.Contains("已替换"));
+            var nbAfterReplace = JsonNode.Parse(File.ReadAllText(nbPath))!.AsObject();
+            Check("Replace 内容变更", GetNotebookSource(nbAfterReplace, 0).Contains("replaced"));
+
+            // 测试 insert
+            var insertResult = notebookTool.ExecuteAsync(new Dictionary<string, object?>
+            {
+                ["notebook_path"] = nbPath,
+                ["cell_index"] = 0,
+                ["new_source"] = "## New MD Cell",
+                ["cell_type"] = "markdown",
+                ["edit_mode"] = "insert",
+            }).Result;
+            Check("Insert cell", insertResult.Contains("已插入"));
+            var nbAfterInsert = JsonNode.Parse(File.ReadAllText(nbPath))!.AsObject();
+            Check("Insert 后 cells 数量", nbAfterInsert["cells"]!.AsArray().Count == 3);
+
+            // 测试 delete
+            var deleteResult = notebookTool.ExecuteAsync(new Dictionary<string, object?>
+            {
+                ["notebook_path"] = nbPath,
+                ["cell_index"] = 1,
+                ["new_source"] = "",
+                ["edit_mode"] = "delete",
+            }).Result;
+            Check("Delete cell", deleteResult.Contains("已删除"));
+            var nbAfterDelete = JsonNode.Parse(File.ReadAllText(nbPath))!.AsObject();
+            Check("Delete 后 cells 数量", nbAfterDelete["cells"]!.AsArray().Count == 2);
+
+            // 测试非 .ipynb 文件拒绝
+            var badResult = notebookTool.ExecuteAsync(new Dictionary<string, object?>
+            {
+                ["notebook_path"] = Path.Combine(nbTestDir, "test.txt"),
+                ["cell_index"] = 0,
+                ["new_source"] = "x",
+            }).Result;
+            Check("非 ipynb 文件拒绝", badResult.Contains("不是 .ipynb"));
+        }
+        finally
+        {
+            try { Directory.Delete(nbTestDir, true); } catch { }
+        }
+        Console.WriteLine();
+
         // ---- 自定义提示词模板 ----
         Section("[自定义提示词模板]");
         var customInstructions = ProjectContext.LoadInstructions();
@@ -2781,5 +2861,20 @@ another.txt:3:1: warning: deprecated API
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
         return failed == 0;
+    }
+
+    /// <summary>获取 notebook cell 的 source 文本（测试助手）</summary>
+    private static string GetNotebookSource(JsonObject notebook, int cellIndex)
+    {
+        var cells = notebook["cells"]?.AsArray();
+        if (cells == null || cellIndex >= cells.Count) return "";
+        var source = cells[cellIndex]?["source"];
+        if (source is JsonArray arr)
+        {
+            var sb = new StringBuilder();
+            foreach (var line in arr) sb.Append(line?.ToString() ?? "");
+            return sb.ToString();
+        }
+        return source?.ToString() ?? "";
     }
 }

@@ -38,6 +38,7 @@ public static class ToolRegistry
         new PwdTool(),
         new SkillTool(),
         new DocTool(),
+        new NotebookEditTool(),
     ];
 
     /// <summary>所有工具（内置 + MCP 自动发现）</summary>
