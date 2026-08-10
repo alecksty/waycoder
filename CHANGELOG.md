@@ -1,5 +1,34 @@
 # 更新日志
 
+## v0.25.7 (2026-08-10) — TuiBase 统一基类 + Bug 修复
+
+### 🏗️ 架构重构
+- **TuiBase.cs** (NEW): 统一 UI 元素基类，提炼所有界面通用属性和方法
+  - 公共属性: `X`, `Y`, `Width`(默认10), `Height`(默认1), `Name`, `Tag`, `IsDirty`
+  - 脏标记管线: `MarkDirty()`(virtual), `ClearDirty()`, `Invalidate()`
+  - 生命周期: `OnCreate()`, `OnDestroy()` (virtual)
+  - 输入路由: `OnKey(ConsoleKeyInfo)`(virtual→bool), `HandleMouse(InputEvent)`(virtual→bool)
+  - 尺寸变化: `OnResize(int newW, int newH)`(virtual)
+- **TuiControl** → 继承 TuiBase，移除重复属性，virtual → override
+  - 保留 `MarkDirty()` Parent 传播逻辑
+  - 保留 KeyHook 模式 + Render 管线 + 颜色系统
+- **TuiWindow** → 继承 TuiBase，构造函数默认 30×10，移除重复 X/Y/W/H
+- **TuiScreen** → 继承 TuiBase
+  - Namespace 统一: `CoreCoderSharp.UI.TuiBase` → `CoreCoderSharp.UI`
+  - `MarkDirty()` override 增强: 同步标记 Manager.IsDirty + RootView.IsDirty
+- **TuiView** → 无需改动，继承链自动传递 (TuiView→TuiControl→TuiBase)
+- 5 个调用方移除旧 `using CoreCoderSharp.UI.TuiBase;` 导入
+
+### 🐛 Bug 修复
+- **Bug #1**: `/plan` 命令 — PlanModeAsync 加 try-finally 包裹 Enter/Exit 备用屏
+- **Bug #2**: `!` shell 命令 — RunShellOnceAsync 加 try-finally 包裹 Enter/Exit 备用屏
+- **Bug #8**: Agent.AutoCommitAsync 空 `catch { }` → `catch (Exception ex) { DebugLog.Log(...) }`
+- **Bug #9**: Terminal.ExitAltScreenDirect 缺少 `MouseDisable` → 退出前先禁用鼠标
+
+### 🧪 测试
+- 844 项自测全部通过，0 失败
+- 编译 0 错误（仅 23 个预存在 nullability/AOT 警告）
+
 ## v0.25.6 (2026-08-10) — NotebookEdit 工具 + 工具总数 32
 
 ### 🚀 P3 新功能

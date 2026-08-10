@@ -26,25 +26,42 @@ public abstract class TuiView : TuiControl
     /// <summary>内容整体对齐方式（当子控件总尺寸小于容器尺寸时）</summary>
     public VAlign ContentVAlign { get; set; } = VAlign.Top;
 
-    /// <summary>添加子控件并设置 Parent 引用</summary>
+    /// <summary>添加子控件，设置 Parent 引用并触发 OnCreate 生命周期</summary>
     public virtual void Add(TuiControl child)
     {
         child.Parent = this;
         Children.Add(child);
+        child.OnCreate();
     }
 
-    /// <summary>移除子控件</summary>
+    /// <summary>移除子控件，触发 OnDestroy 后清除 Parent 引用</summary>
     public void Remove(TuiControl child)
     {
+        child.OnDestroy();
         child.Parent = null;
         Children.Remove(child);
     }
 
-    /// <summary>清空所有子控件</summary>
+    /// <summary>清空所有子控件，递归触发各子控件的 OnDestroy</summary>
     public void Clear()
     {
+        foreach (var c in Children) c.OnDestroy();
         foreach (var c in Children) c.Parent = null;
         Children.Clear();
+    }
+
+    /// <summary>递归初始化所有子控件的生命周期</summary>
+    public override void OnCreate()
+    {
+        foreach (var child in Children) child.OnCreate();
+        base.OnCreate();
+    }
+
+    /// <summary>递归清理所有子控件的生命周期</summary>
+    public override void OnDestroy()
+    {
+        foreach (var child in Children) child.OnDestroy();
+        base.OnDestroy();
     }
 
     /// <summary>重新计算子控件布局（子类实现排列算法）</summary>
