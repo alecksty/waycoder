@@ -305,6 +305,7 @@ public class TuiWindow
             int dy = ev.MouseY - _dragStartY;
             X = Math.Clamp(_winStartX + dx, 0, Tty.Cols - Width);
             Y = Math.Clamp(_winStartY + dy, 0, Tty.Rows - Height);
+            RootView.MarkDirty(); // 位置变化 → 需要全量重绘窗口
             return true;
         }
 
@@ -314,6 +315,7 @@ public class TuiWindow
             int dx = ev.MouseX - _dragStartX;
             int dy = ev.MouseY - _dragStartY;
             ApplyResize(_resizeEdge, dx, dy);
+            RootView.MarkDirty(); // 尺寸变化 → 需要全量重绘窗口
             return true;
         }
 

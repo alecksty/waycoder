@@ -54,6 +54,11 @@ public class TuiTheme
         AnsiTty.RgbCode(180, 80, 255),
         AnsiTty.RgbCode(255, 100, 200));
 
+    /// <summary>金色渐变（标题栏/状态栏默认）—— 暖金 → 琥珀</summary>
+    public (int start, int end) GradTitleBar => (
+        AnsiTty.RgbCode(255, 215, 0),
+        AnsiTty.RgbCode(255, 140, 0));
+
     // ── 按钮渐变预设（比边框亮 30%，层次区分）──
     /// <summary>按钮青→蓝（比边框亮）</summary>
     public (int start, int end) BtnCyanBlue => (

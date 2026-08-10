@@ -54,24 +54,17 @@ public static class TuiDialog
         foreach (var b in buttons) b.Width = maxW;
     }
 
-    /// <summary>给按钮启用渐变背景</summary>
+    /// <summary>给按钮启用渐变背景。焦点/非焦点的视觉差异由 ControlRenderer 渲染时动态处理。</summary>
+    /// <param name="grad">渐变颜色对</param>
+    /// <param name="buttons">要启用渐变背景的按钮列表</param>
     private static void ApplyButtonGradient((int start, int end) grad, params TuiButton[] buttons)
     {
         foreach (var btn in buttons)
         {
             if (btn == null) continue;
-            if (btn.Focused)
-            {
-                btn.GradientBg = false;
-                // btn.GradientBgStart = grad.start;
-                // btn.GradientBgEnd = grad.end;    
-            }
-            else
-            {
-                btn.GradientBg = true;
-                btn.GradientBgStart = grad.start;
-                btn.GradientBgEnd = grad.end;
-            }
+            btn.GradientBg = true;
+            btn.GradientBgStart = grad.start;
+            btn.GradientBgEnd = grad.end;
         }
     }
 
@@ -565,6 +558,7 @@ public static class TuiDialog
             onResult(DialogResult.Ok);
             win.OnClosed?.Invoke();
         });
+        
         return win;
 
         TuiButton MakeBtn(string text, int wd)

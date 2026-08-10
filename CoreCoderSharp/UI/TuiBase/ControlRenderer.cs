@@ -129,6 +129,7 @@ public static class ControlRenderer
 
     /// <summary>
     /// 绘制带渐变背景的按钮行。单次定位，逐字变色，避免错位。
+    /// 焦点按钮：完整亮色渐变；非焦点按钮：暗化 50% 的渐变，视觉差异明显。
     /// </summary>
     public static void DrawButtonGradientLine(StringBuilder sb, TuiControl c,
         int absX, int absY, string text, HAlign align,
@@ -136,6 +137,14 @@ public static class ControlRenderer
         int startBg, int endBg)
     {
         int fg = ResolveFg(c, themeFg, themeFocusFg, themeDisabledFg);
+
+        // 非焦点按钮：渐变大幅暗化，与焦点按钮形成明显反差
+        if (!c.Focused)
+        {
+            startBg = AnsiTty.DarkenRgb(startBg, 0.55f);
+            endBg = AnsiTty.DarkenRgb(endBg, 0.55f);
+        }
+
         var display = FormatAligned(text, c.Width, align);
         if (display.Length == 0) return;
 
@@ -230,5 +239,58 @@ public static class ControlRenderer
         {
             DrawLine(sb, absY, absX, new string(lineChar, c.Width), fg, bg);
         }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // 渐变条绘制（用于标题栏/状态栏整行渐变背景）
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 绘制整行渐变背景条（填充空格）。单次定位，逐字变色。
+    /// 后续可调用 WriteGradientTextAt 在渐变条上叠写文本。
+    /// </summary>
+    public static void DrawGradientBarFill(StringBuilder sb, int row, int col, int width,
+        int startBg, int endBg)
+    {
+        if (width <= 0) return;
+        sb.Append(AnsiTty.CursorPos0(row, col));
+        for (int i = 0; i < width; i++)
+        {
+            float t = width > 1 ? (float)i / (width - 1) : 0;
+            int bg = AnsiTty.LerpRgb(startBg, endBg, t);
+            sb.Append(AnsiTty.BgCode(bg));
+            sb.Append(' ');
+        }
+        sb.Append(AnsiTty.SgrResetBg);
+    }
+
+    /// <summary>
+    /// 在渐变背景条上写入文本。按 Rune 迭代，正确处理 CJK 双宽字符。
+    /// col 为起始列，barCol/barWidth 用于计算渐变位置比例。
+    /// </summary>
+    public static void WriteGradientTextAt(StringBuilder sb, int row, int col, string text,
+        int fg, int startBg, int endBg, int barCol, int barWidth)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        int charCol = col;
+        foreach (var rune in text.EnumerateRunes())
+        {
+            int rw = TuiHelper.RuneWidth(rune);
+            if (rw <= 0) continue; // 零宽字符跳过
+
+            // 字符在渐变条范围内才绘制
+            if (charCol >= barCol && charCol + rw <= barCol + barWidth)
+            {
+                float t = barWidth > 1 ? (float)(charCol - barCol) / (barWidth - 1) : 0;
+                int bg = AnsiTty.LerpRgb(startBg, endBg, t);
+                sb.Append(AnsiTty.CursorPos0(row, charCol));
+                sb.Append(AnsiTty.FgBgCode(fg, bg));
+                sb.Append(rune.ToString());
+            }
+            charCol += rw;
+        }
+        // 末尾重置
+        if (fg > 0) sb.Append(AnsiTty.SgrResetFg);
+        sb.Append(AnsiTty.SgrResetBg);
     }
 }
