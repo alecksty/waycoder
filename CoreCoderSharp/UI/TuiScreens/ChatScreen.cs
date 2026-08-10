@@ -271,18 +271,24 @@ public class ChatScreen : TuiScreen
     // ── 消息管理 ──
 
     /// <summary>添加一条消息到聊天列表。system/tool 消息使用纯文本模式避免 Markdown 行合并，连续同角色自动续接。</summary>
-    public void AddMessage(string content, string role = "assistant")
+    public void AddMessage(string content, string role = "assistant", bool centered = false)
     {
         bool continuation = false;
-        bool plainText = role is "system" or "tool";
-        if (plainText)
+        bool plainText = role is "system" or "tool" or "banner";
+        if (plainText && role != "banner")
         {
             var last = ChatList.GetItem(ChatList.ItemCount - 1) as TuiListItem;
             if (last != null && last.Role == role)
+            {
                 continuation = true;
+                // 续接消息继承前一条的对齐设置
+                centered = last.ContentAlign == HAlign.Center;
+            }
         }
 
-        var item = new TuiListItem(role, content, ChatList.Width - 2, continuation, plainText);
+        var item = new TuiListItem(role, content, ChatList.Width - 2,
+            role == "banner" ? true : continuation, plainText,
+            centered ? HAlign.Center : HAlign.Left);
         if (!continuation)
             item.SetTime(DateTime.Now);
         ChatList.AddItem(item);
@@ -1747,4 +1753,6 @@ public class ChatMsg
     public DateTime Time { get; set; } = DateTime.Now;
     public int TokenCount { get; set; }
     public bool Streaming { get; set; }
+    /// <summary>内容横向居中（仅欢迎消息使用）</summary>
+    public bool Centered { get; set; }
 }
