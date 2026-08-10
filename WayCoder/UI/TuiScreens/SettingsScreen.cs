@@ -36,7 +36,7 @@ public class SettingsScreen : TuiScreen
     // ── 控件引用 ──
     private TuiTitleBar _header = null!;
     private TuiControls.TuiList _catList = null!;
-    private TuiVBox _detailPanel = null!;
+    private TuiScrollView _detailPanel = null!;
     private TuiLabel _hintBar = null!;
     private readonly List<TuiControl> _detailControls = [];   // 每组 3 个: label, value, desc
 
@@ -120,14 +120,14 @@ public class SettingsScreen : TuiScreen
 
         // 右侧详情
         int detailW = TW - catW - 2;
-        _detailPanel = new TuiVBox { Width = detailW, Height = mainH };
+        _detailPanel = new TuiScrollView { Width = detailW, Height = mainH, IsAutoScrollToEnd = false };
         hbox.Add(_detailPanel);
 
         RootView.Add(hbox);
 
         // ── 底栏 ──
         _hintBar = new TuiLabel(" ↑↓ 选择  ←→ 切换面板  PgUp/PgDn 翻页  Enter 修改  Ctrl+S 保存  Esc 退出")
-            { Width = TW, Height = 1, Bg = 100, Fg = 37 };
+            { Width = TW, Height = 1, Bg = TuiTheme.Current.StatusBarBg, Fg = TuiTheme.Current.StatusBarFg };
         RootView.Add(_hintBar);
 
         RebuildDetailPanel();
@@ -299,7 +299,7 @@ public class SettingsScreen : TuiScreen
     // 高亮
     // ════════════════════════════════════════════════════════════════
 
-    /// <summary>应用高亮：选中项的三行全部着色，未选中项恢复默认</summary>
+    /// <summary>应用高亮：选中项的三行全部着色，未选中项恢复默认。同时滚动保证选中项可见。</summary>
     private void ApplyHighlight()
     {
         for (int i = 0; i < _detailControls.Count; i++)
@@ -325,6 +325,17 @@ public class SettingsScreen : TuiScreen
                 c.Bg = sel ? 46 : 0;
                 c.Fg = sel ? 30 : 90;
             }
+        }
+
+        // 滚动详情面板使选中项可见（每项 3 行）
+        if (_focusOnDetail)
+        {
+            int itemTop = _itemIdx * 3;
+            int panelH = _detailPanel.Height;
+            if (itemTop < _detailPanel.ScrollOffset)
+                _detailPanel.ScrollOffset = itemTop;
+            else if (itemTop + 3 > _detailPanel.ScrollOffset + panelH)
+                _detailPanel.ScrollOffset = Math.Max(0, itemTop + 3 - panelH);
         }
     }
 
@@ -396,10 +407,16 @@ public class SettingsScreen : TuiScreen
         "PromptCaching"      => _config.PromptCaching ? "true" : "false",
         "SandboxLevel"       => _config.SandboxLevel,
         "EditorLint"         => _config.EditorLint ? "true" : "false",
+        "DiffPreview"        => _config.DiffPreview ? "true" : "false",
         "ToolTimeoutSec"     => _config.ToolTimeoutSec.ToString(),
         "LintTimeoutSec"     => _config.LintTimeoutSec.ToString(),
         "SubAgentMaxDepth"   => _config.SubAgentMaxDepth.ToString(),
         "MemoryRelevanceTopN" => _config.MemoryRelevanceTopN.ToString(),
+        "EmbeddingEnabled"   => _config.EmbeddingEnabled ? "true" : "false",
+        "EmbeddingModel"     => _config.EmbeddingModel,
+        "EmbeddingDimensions" => _config.EmbeddingDimensions.ToString(),
+        "TeamMemoryEnabled"  => _config.TeamMemoryEnabled ? "true" : "false",
+        "TeamMemoryAutoSync" => _config.TeamMemoryAutoSync ? "true" : "false",
         "ThemePreset"        => _config.ThemePreset,
         "BorderStyle"        => _config.BorderStyle,
         "BorderColor"        => _config.BorderColor,
@@ -426,10 +443,16 @@ public class SettingsScreen : TuiScreen
             case "PromptCaching":      _config.PromptCaching = bool.TryParse(value, out var b3) && b3; break;
             case "SandboxLevel":       _config.SandboxLevel = value; break;
             case "EditorLint":         _config.EditorLint = bool.TryParse(value, out var b4) && b4; break;
+            case "DiffPreview":        _config.DiffPreview = bool.TryParse(value, out var b5) && b5; break;
             case "ToolTimeoutSec":     if (int.TryParse(value, out var v3)) _config.ToolTimeoutSec = v3; break;
             case "LintTimeoutSec":     if (int.TryParse(value, out var v4)) _config.LintTimeoutSec = v4; break;
             case "SubAgentMaxDepth":   if (int.TryParse(value, out var v5)) _config.SubAgentMaxDepth = Math.Clamp(v5, 1, 5); break;
             case "MemoryRelevanceTopN": if (int.TryParse(value, out var v6)) _config.MemoryRelevanceTopN = Math.Clamp(v6, 0, 20); break;
+            case "EmbeddingEnabled":   _config.EmbeddingEnabled = bool.TryParse(value, out var b6) && b6; break;
+            case "EmbeddingModel":     _config.EmbeddingModel = value; break;
+            case "EmbeddingDimensions": if (int.TryParse(value, out var v7)) _config.EmbeddingDimensions = v7; break;
+            case "TeamMemoryEnabled":  _config.TeamMemoryEnabled = bool.TryParse(value, out var b7) && b7; break;
+            case "TeamMemoryAutoSync": _config.TeamMemoryAutoSync = bool.TryParse(value, out var b8) && b8; break;
             case "ThemePreset":        _config.ThemePreset = value; ThemeConfig.ApplyPreset(value); break;
             case "BorderStyle":        _config.BorderStyle = value; break;
             case "BorderColor":        _config.BorderColor = value; break;
