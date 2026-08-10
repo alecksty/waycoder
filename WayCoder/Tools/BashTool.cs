@@ -115,7 +115,11 @@ public class BashTool : ITool
             if (SandboxManager.IsSandboxed)
                 memTask = SandboxManager.MonitorMemoryAsync(proc, memCts.Token);
 
-            var exited = proc.WaitForExit(timeout * 1000);
+            // 异步等待进程退出（不阻塞线程）
+            var exitTask = proc.WaitForExitAsync();
+            var delayTask = Task.Delay(timeout * 1000);
+            var completed = await Task.WhenAny(exitTask, delayTask);
+            var exited = completed == exitTask && exitTask.IsCompletedSuccessfully;
 
             // 取消内存监控
             memCts.Cancel();
@@ -126,7 +130,7 @@ public class BashTool : ITool
                 var memResult = await memTask;
                 if (memResult != null)
                 {
-                    proc.Kill(entireProcessTree: true);
+                    if (!exited) proc.Kill(entireProcessTree: true);
                     return memResult;
                 }
             }

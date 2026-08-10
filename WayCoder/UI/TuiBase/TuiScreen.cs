@@ -188,8 +188,9 @@ public abstract class TuiScreen : TuiBase
     public void SetCursorOwner()
     {
         // 清除旧所有者
-        if (_cursorOwner != null)
-            _cursorOwner.IsCursorOwner = false;
+        var oldOwner = _cursorOwner;
+        if (oldOwner != null)
+            oldOwner.IsCursorOwner = false;
 
         TuiControl? focused = null;
         if (HasModal && FocusedWindow != null)
@@ -205,7 +206,12 @@ public abstract class TuiScreen : TuiBase
         // 仅当焦点控件是输入类控件（HasCursor=true）时才赋予光标
         _cursorOwner = (focused != null && focused.IsEnabled && focused.HasCursor) ? focused : null;
         if (_cursorOwner != null)
+        {
             _cursorOwner.IsCursorOwner = true;
+            // 光标所有者变更时强制重绘，确保 _cursorRow/_cursorCol 在 Render 中更新
+            if (_cursorOwner != oldOwner)
+                _cursorOwner.Invalidate();
+        }
     }
 
     // ── 鼠标 ──

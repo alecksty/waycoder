@@ -29,13 +29,13 @@ public class GitTool : ITool
         ["push --force", "push -f", "reset --hard", "clean -f", "clean -fd",
          "checkout -- .", "stash drop", "branch -D"];
 
-    public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var command = arguments.GetValueOrDefault("command")?.ToString() ?? "";
-        return Task.FromResult(Execute(command));
+        return await Execute(command);
     }
 
-    private static string Execute(string command)
+    private static async Task<string> Execute(string command)
     {
         // 安全检查
         foreach (var blocked in BlockedPatterns)
@@ -46,7 +46,7 @@ public class GitTool : ITool
 
         try
         {
-            var (exitCode, outStr, errStr) = GitRunner.Run(command);
+            var (exitCode, outStr, errStr) = await GitRunner.RunAsync(command);
 
             var result = outStr;
             if (!string.IsNullOrEmpty(errStr))

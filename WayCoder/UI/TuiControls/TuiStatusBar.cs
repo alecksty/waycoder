@@ -30,8 +30,14 @@ public class TuiStatusBar : TuiControl
     /// <summary>Agent 是否忙碌（显示旋转指示）</summary>
     public bool AgentBusy { get; set; }
 
-    /// <summary>旋转动画帧</summary>
+    /// <summary>旋转动画帧（Agent 忙碌时）</summary>
     private int _spinFrame;
+
+    /// <summary>全局心跳帧（始终自增，表示 UI 渲染循环存活）</summary>
+    private static int _heartbeat;
+
+    /// <summary>当前工作模式（Build/Plan/Review/Auto）</summary>
+    public WorkMode CurrentWorkMode { get; set; } = WorkMode.Build;
 
     public TuiStatusBar()
     {
@@ -90,6 +96,24 @@ public class TuiStatusBar : TuiControl
                     dimFg, gs, ge, absX, Width);
                 col += 1;
             }
+        }
+
+        // 2.5 心跳动画（始终跳动，证明 UI 渲染循环存活）
+        {
+            string[] heartbeatFrames = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"];
+            _heartbeat = (_heartbeat + 1) % heartbeatFrames.Length;
+            col += 1;
+            ControlRenderer.WriteGradientTextAt(sb, row, col, heartbeatFrames[_heartbeat],
+                AgentBusy ? TuiColors.Green : dimFg, gs, ge, absX, Width);
+            col += 2;
+        }
+
+        // 2.6 工作模式指示（Shift+Tab 切换）
+        {
+            var modeStr = WorkModeManager.Emojis.GetValueOrDefault(CurrentWorkMode, "?");
+            ControlRenderer.WriteGradientTextAt(sb, row, col, $" {modeStr}",
+                TuiColors.Cyan, gs, ge, absX, Width);
+            col += TuiHelper.DisplayWidth(modeStr) + 1;
         }
 
         // 3. 中间：提示文本

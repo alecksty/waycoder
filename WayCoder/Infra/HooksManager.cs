@@ -161,7 +161,10 @@ public static class HooksManager
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
 
-            if (!proc.WaitForExit(10_000))
+            var exitTask = proc.WaitForExitAsync();
+            var delayTask = Task.Delay(10_000);
+            var completed = await Task.WhenAny(exitTask, delayTask);
+            if (completed != exitTask || !exitTask.IsCompletedSuccessfully)
             {
                 try { proc.Kill(); } catch { }
                 return (-1, "Hook 超时（10 秒）");
