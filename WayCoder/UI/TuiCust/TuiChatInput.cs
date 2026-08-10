@@ -557,7 +557,7 @@ public static class TuiChatInput
             };
             using var p = System.Diagnostics.Process.Start(psi);
             var output = p?.StandardOutput.ReadToEnd();
-            p?.WaitForExit(2000);
+            p?.WaitForExitAsync(new CancellationTokenSource(2000).Token).GetAwaiter().GetResult();
             return output?.TrimEnd();
         }
         catch { return null; }
