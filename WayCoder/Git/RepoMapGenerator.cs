@@ -3,14 +3,14 @@ using System.Text.RegularExpressions;
 namespace WayCoder;
 
 /// <summary>
-/// 仓库地图生成器 — 扫描项目结构，提取关键符号，
-/// 生成简洁的 ASCII 树状图供 LLM 理解代码库布局。
+/// 仓库地图生成器 — 扫描项目结构，提取关键符号，构建引用图谱。
 ///
 /// 灵感源自 aider 的 repomap，但完全从零实现。
 /// 特点：
 ///   - 尊重 .gitignore 规则
 ///   - 按语言提取函数/类/方法等关键符号
-///   - 按修改时间排序（最近修改的文件优先展示细节）
+///   - 扫描 import/using 构建文件间引用关系
+///   - PageRank 排序：被引用最多的文件优先展示
 ///   - 自动缓存，文件变更时自动刷新
 /// </summary>
 public static class RepoMapGenerator
@@ -72,6 +72,35 @@ public static class RepoMapGenerator
         [".md"] = (new Regex(@"^#+\s+(.+)", RegexOptions.Multiline), "heading"),
     };
 
+    // ---- 引用扫描：import/using/include 正则 ----
+
+    private static readonly Dictionary<string, Regex> ImportPatterns = new()
+    {
+        [".cs"] = new Regex(@"^\s*using\s+(\S+)", RegexOptions.Multiline),
+        [".py"] = new Regex(@"^\s*(?:from\s+(\S+)\s+import|import\s+(\S+))", RegexOptions.Multiline),
+        [".js"] = new Regex(@"^\s*(?:import\s+.*\s+from\s+['""]([^'""]+)|require\s*\(\s*['""]([^'""]+))", RegexOptions.Multiline),
+        [".ts"] = new Regex(@"^\s*(?:import\s+.*\s+from\s+['""]([^'""]+)|require\s*\(\s*['""]([^'""]+))", RegexOptions.Multiline),
+        [".jsx"] = new Regex(@"^\s*(?:import\s+.*\s+from\s+['""]([^'""]+)|require\s*\(\s*['""]([^'""]+))", RegexOptions.Multiline),
+        [".tsx"] = new Regex(@"^\s*(?:import\s+.*\s+from\s+['""]([^'""]+)|require\s*\(\s*['""]([^'""]+))", RegexOptions.Multiline),
+        [".go"] = new Regex(@"^\s*import\s+(?:\(\s*)?(?:""([^""]+)""|(\S+)\s+""([^""]+)"")", RegexOptions.Multiline),
+        [".rs"] = new Regex(@"^\s*(?:use\s+(\S+)|mod\s+(\S+))", RegexOptions.Multiline),
+        [".java"] = new Regex(@"^\s*import\s+(\S+)", RegexOptions.Multiline),
+        [".kt"] = new Regex(@"^\s*import\s+(\S+)", RegexOptions.Multiline),
+        [".rb"] = new Regex(@"^\s*(?:require\s+['""]([^'""]+)|require_relative\s+['""]([^'""]+))", RegexOptions.Multiline),
+        [".php"] = new Regex(@"^\s*(?:use\s+(\S+)|require(?:_once)?\s+['""]([^'""]+))", RegexOptions.Multiline),
+        [".c"] = new Regex(@"^\s*#include\s*[<""]([^>""]+)", RegexOptions.Multiline),
+        [".cpp"] = new Regex(@"^\s*#include\s*[<""]([^>""]+)", RegexOptions.Multiline),
+        [".h"] = new Regex(@"^\s*#include\s*[<""]([^>""]+)", RegexOptions.Multiline),
+        [".swift"] = new Regex(@"^\s*import\s+(\S+)", RegexOptions.Multiline),
+        [".dart"] = new Regex(@"^\s*import\s+['""]([^'""]+)", RegexOptions.Multiline),
+    };
+
+    /// <summary>文件引用图谱：文件名 → 它引用了哪些文件</summary>
+    private static readonly Dictionary<string, HashSet<string>> FileRefs = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>文件被引用计数：文件名 → 被多少其他文件引用</summary>
+    private static readonly Dictionary<string, int> FileRank = new(StringComparer.OrdinalIgnoreCase);
+
     // ---- 公共 API ----
 
     /// <summary>
@@ -90,10 +119,51 @@ public static class RepoMapGenerator
         sb.AppendLine("## 仓库地图");
         sb.AppendLine();
 
-        // 收集文件树 + 符号
+        // 1. 收集文件树 + 符号 + 引用
+        FileRefs.Clear();
+        FileRank.Clear();
         var entries = CollectEntries(root, root);
-        var tree = BuildTree(entries, root);
 
+        // 2. 构建引用图谱（扫描 import/using）
+        foreach (var entry in entries.Where(e => !e.IsDir))
+        {
+            var fullPath = Path.Combine(root, entry.RelativePath);
+            ScanReferences(entry.RelativePath, fullPath);
+        }
+
+        // 3. PageRank 排序：计算每个文件的 rank（被引用次数）
+        foreach (var (_, refs) in FileRefs)
+        {
+            foreach (var refFile in refs)
+            {
+                if (!FileRank.ContainsKey(refFile)) FileRank[refFile] = 0;
+                FileRank[refFile]++;
+            }
+        }
+
+        // 4. 添加排名摘要
+        var topRanked = FileRank
+            .OrderByDescending(kv => kv.Value)
+            .Take(15)
+            .Where(kv => kv.Value >= 2) // 至少被引用 2 次才显示
+            .ToList();
+
+        if (topRanked.Count > 0)
+        {
+            sb.AppendLine("### 🔗 核心文件（按引用热度排序）");
+            sb.AppendLine();
+            foreach (var (file, count) in topRanked)
+            {
+                var symbols = entries.FirstOrDefault(e =>
+                    e.RelativePath.Equals(file, StringComparison.OrdinalIgnoreCase))?.SymbolInfo;
+                var symStr = symbols != null ? $" — {symbols}" : "";
+                sb.AppendLine($"- `{file}` ← 被 **{count}** 个文件引用{symStr}");
+            }
+            sb.AppendLine();
+        }
+
+        // 5. 文件树
+        var tree = BuildTree(entries, root, topRanked.Select(t => t.Key).ToHashSet(StringComparer.OrdinalIgnoreCase));
         sb.Append(tree);
         sb.AppendLine();
 
@@ -266,7 +336,51 @@ public static class RepoMapGenerator
         catch (Exception ex) { DebugLog.Log("RepoMap", $"LSP 符号提取失败: {ex.Message}"); return ""; }
     }
 
-    private static string BuildTree(List<FileEntry> allEntries, string root)
+    /// <summary>扫描文件的 import/using 语句，构建引用图谱</summary>
+    private static void ScanReferences(string relPath, string fullPath)
+    {
+        var ext = Path.GetExtension(fullPath).ToLowerInvariant();
+        if (!ImportPatterns.TryGetValue(ext, out var regex)) return;
+
+        if (!FileRefs.ContainsKey(relPath))
+            FileRefs[relPath] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var content = File.ReadAllText(fullPath);
+            if (content.Length > 65536) content = content[..65536];
+
+            var matches = regex.Matches(content);
+            foreach (Match m in matches)
+            {
+                foreach (Group g in m.Groups)
+                {
+                    if (!g.Success || g.Index == 0 || string.IsNullOrEmpty(g.Value)) continue;
+                    var import = g.Value;
+
+                    // 只保留项目内部引用（不以 @ / 等外部前缀开头）
+                    if (import.StartsWith('@') || import.StartsWith("http") || import.StartsWith("node:")) continue;
+
+                    // 尝试匹配项目内文件
+                    var importBase = import.Replace('.', '/').Replace("\\", "/");
+                    // 对于 C# using，匹配命名空间 → 文件路径
+                    if (ext == ".cs")
+                    {
+                        // using WayCoder.UI.TuiScreens → WayCoder/UI/TuiScreens/*.cs
+                        var nsPath = import.Replace('.', '/');
+                        FileRefs[relPath].Add(nsPath);
+                    }
+                    else
+                    {
+                        FileRefs[relPath].Add(importBase);
+                    }
+                }
+            }
+        }
+        catch { /* 读取失败，跳过 */ }
+    }
+
+    private static string BuildTree(List<FileEntry> allEntries, string root, HashSet<string>? coreFiles = null)
     {
         // 按修改时间排序文件（最近的在前）
         // 目录按字母排序始终在最前
@@ -310,8 +424,10 @@ public static class RepoMapGenerator
                 shownFiles.Add(file.RelativePath);
 
                 var fIndent = new string(' ', (depth + 1) * 2);
+                var isCore = coreFiles?.Contains(file.RelativePath) == true;
                 var marker = file.SymbolInfo != null ? " ▶" : "";
-                sb.Append($"{fIndent}{file.Name}{marker}");
+                var star = isCore ? "⭐" : "";
+                sb.Append($"{fIndent}{star}{file.Name}{marker}");
 
                 if (file.SymbolInfo != null)
                 {
@@ -331,8 +447,10 @@ public static class RepoMapGenerator
 
         foreach (var file in rootFiles)
         {
+            var isCore = coreFiles?.Contains(file.RelativePath) == true;
             var marker = file.SymbolInfo != null ? " ▶" : "";
-            sb.Append($"  {file.Name}{marker}");
+            var star = isCore ? "⭐" : "";
+            sb.Append($"  {star}{file.Name}{marker}");
             if (file.SymbolInfo != null)
                 sb.Append($"  {file.SymbolInfo}");
             sb.AppendLine();

@@ -27,6 +27,9 @@ public static class SandboxManager
     /// <summary>是否处于沙箱模式（full-auto）</summary>
     public static bool IsSandboxed => Level == "full-auto";
 
+    /// <summary>是否处于智能自动模式</summary>
+    public static bool IsSmartAuto => Level == "smart-auto";
+
     /// <summary>内存上限（字节），默认 1GB</summary>
     public static long MaxMemoryBytes { get; set; } = 1024L * 1024 * 1024;
 
@@ -289,6 +292,7 @@ public static class SandboxManager
         Level = level.ToLowerInvariant() switch
         {
             "full-auto" or "yolo" => "full-auto",
+            "smart-auto" or "smartauto" or "smart" => "smart-auto",
             "auto-edit" or "auto" => "auto-edit",
             _ => "suggest",
         };
@@ -297,6 +301,7 @@ public static class SandboxManager
         PermissionManager.SetMode(Level switch
         {
             "full-auto" => "yolo",
+            "smart-auto" => "smartauto",
             "auto-edit" => "auto",
             _ => "ask",
         });

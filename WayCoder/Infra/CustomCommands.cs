@@ -58,7 +58,7 @@ public static class CustomCommands
             {
                 var bashResult = new Tools.BashTool().ExecuteAsync(
                     new Dictionary<string, object?> { ["command"] = match.Groups[1].Value }
-                ).Result;
+                ).GetAwaiter().GetResult();
                 return bashResult;
             }
             catch (Exception ex)

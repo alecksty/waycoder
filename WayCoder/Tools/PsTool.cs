@@ -30,15 +30,15 @@ public class PsTool : ITool
         ["required"] = new JsonArray(),
     };
 
-    public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var name = arguments.GetValueOrDefault("name")?.ToString() ?? "";
         var top = arguments.TryGetValue("top", out var t) && t is int ti ? ti : 30;
 
-        return Task.FromResult(Execute(name, top));
+        return await Execute(name, top);
     }
 
-    private static string Execute(string name, int top)
+    private static async Task<string> Execute(string name, int top)
     {
         try
         {
@@ -72,23 +72,22 @@ public class PsTool : ITool
             };
 
             using var proc = Process.Start(psi)!;
-            var stdout = new System.Text.StringBuilder();
-            var stderr = new System.Text.StringBuilder();
-            proc.OutputDataReceived += (_, e) => { if (e.Data != null) stdout.AppendLine(e.Data); };
-            proc.ErrorDataReceived += (_, e) => { if (e.Data != null) stderr.AppendLine(e.Data); };
-            proc.BeginOutputReadLine();
-            proc.BeginErrorReadLine();
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+            var stderrTask = proc.StandardError.ReadToEndAsync();
 
-            if (!proc.WaitForExit(10_000))
+            var exitTask = proc.WaitForExitAsync();
+            var delayTask = Task.Delay(10_000);
+            var completed = await Task.WhenAny(exitTask, delayTask);
+            if (completed != exitTask || !exitTask.IsCompletedSuccessfully)
             {
                 proc.Kill(entireProcessTree: true);
                 return "错误：ps 命令超时（10s）";
             }
-            proc.WaitForExit();
 
-            var result = stdout.ToString();
+            var result = await stdoutTask;
+            var errResult = await stderrTask;
             if (string.IsNullOrWhiteSpace(result))
-                result = stderr.ToString();
+                result = errResult;
             if (string.IsNullOrWhiteSpace(result))
                 return "（无进程匹配）";
 

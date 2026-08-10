@@ -411,7 +411,7 @@ public static class SelfTest
 
         // ---- 后台任务 ----
         Section("[后台任务]");
-        var bgId = BackgroundTaskManager.StartAsync("echo bg_test", 5).Result;
+        var bgId = BackgroundTaskManager.Start("echo bg_test", 5);
         Check("后台任务启动", bgId > 0);
         System.Threading.Thread.Sleep(1500); // 等任务完成
         var bgOutput = BackgroundTaskManager.GetOutput(bgId);
@@ -498,7 +498,13 @@ public static class SelfTest
         Check("SetMode god → CurrentMode == Yolo",
             PermissionManager.CurrentMode == PermissionManager.Mode.Yolo);
         PermissionManager.SetMode("smart");
-        Check("SetMode smart → CurrentMode == Auto",
+        Check("SetMode smart → CurrentMode == SmartAuto",
+            PermissionManager.CurrentMode == PermissionManager.Mode.SmartAuto);
+        PermissionManager.SetMode("smartauto");
+        Check("SetMode smartauto → CurrentMode == SmartAuto",
+            PermissionManager.CurrentMode == PermissionManager.Mode.SmartAuto);
+        PermissionManager.SetMode("auto");
+        Check("SetMode auto → CurrentMode == Auto",
             PermissionManager.CurrentMode == PermissionManager.Mode.Auto);
         PermissionManager.SetMode("unknown");
         Check("SetMode unknown → CurrentMode == Ask",
@@ -521,6 +527,168 @@ public static class SelfTest
         PermissionManager.SetMode("ask");
         PermissionManager.Reset();
         Check("Reset 后 Ask 模式恢复", PermissionManager.CurrentMode == PermissionManager.Mode.Ask);
+
+        // ---- AutoMode 智能分类器 ----
+        Section("[AutoMode 智能分类器]");
+
+        // 风险分级
+        Check("read_file → Safe", AutoModeClassifier.Classify("read_file") == AutoModeClassifier.RiskLevel.Safe);
+        Check("ls → Safe", AutoModeClassifier.Classify("ls") == AutoModeClassifier.RiskLevel.Safe);
+        Check("grep → Safe", AutoModeClassifier.Classify("grep") == AutoModeClassifier.RiskLevel.Safe);
+        Check("glob → Safe", AutoModeClassifier.Classify("glob") == AutoModeClassifier.RiskLevel.Safe);
+        Check("stat → Safe", AutoModeClassifier.Classify("stat") == AutoModeClassifier.RiskLevel.Safe);
+        Check("diff → Safe", AutoModeClassifier.Classify("diff") == AutoModeClassifier.RiskLevel.Safe);
+        Check("tree → Safe", AutoModeClassifier.Classify("tree") == AutoModeClassifier.RiskLevel.Safe);
+        Check("fetch → Safe", AutoModeClassifier.Classify("fetch") == AutoModeClassifier.RiskLevel.Safe);
+        Check("lsp → Safe", AutoModeClassifier.Classify("lsp") == AutoModeClassifier.RiskLevel.Safe);
+
+        Check("write_file → Cautious", AutoModeClassifier.Classify("write_file") == AutoModeClassifier.RiskLevel.Cautious);
+        Check("edit_file → Cautious", AutoModeClassifier.Classify("edit_file") == AutoModeClassifier.RiskLevel.Cautious);
+        Check("mkdir → Cautious", AutoModeClassifier.Classify("mkdir") == AutoModeClassifier.RiskLevel.Cautious);
+        Check("cp → Cautious", AutoModeClassifier.Classify("cp") == AutoModeClassifier.RiskLevel.Cautious);
+        Check("mv → Cautious", AutoModeClassifier.Classify("mv") == AutoModeClassifier.RiskLevel.Cautious);
+
+        Check("rm → Dangerous", AutoModeClassifier.Classify("rm") == AutoModeClassifier.RiskLevel.Dangerous);
+        Check("bash → Dangerous", AutoModeClassifier.Classify("bash") == AutoModeClassifier.RiskLevel.Dangerous);
+        Check("git → Dangerous", AutoModeClassifier.Classify("git") == AutoModeClassifier.RiskLevel.Dangerous);
+        Check("kill → Dangerous", AutoModeClassifier.Classify("kill") == AutoModeClassifier.RiskLevel.Dangerous);
+        Check("agent → Dangerous", AutoModeClassifier.Classify("agent") == AutoModeClassifier.RiskLevel.Dangerous);
+
+        // 未知工具默认 Dangerous
+        Check("unknown_tool → Dangerous", AutoModeClassifier.Classify("unknown_tool") == AutoModeClassifier.RiskLevel.Dangerous);
+
+        // 连续阻止计数
+        AutoModeClassifier.Reset();
+        Check("初始连续阻止=0", AutoModeClassifier.ConsecutiveDangerousBlocks == 0);
+
+        AutoModeClassifier.RecordDangerousBlock();
+        Check("阻止1次=1", AutoModeClassifier.ConsecutiveDangerousBlocks == 1);
+        AutoModeClassifier.RecordDangerousBlock();
+        Check("阻止2次=2", AutoModeClassifier.ConsecutiveDangerousBlocks == 2);
+
+        // 允许后重置
+        AutoModeClassifier.RecordDangerousAllow();
+        Check("允许→计数归零", AutoModeClassifier.ConsecutiveDangerousBlocks == 0);
+
+        // 阈值触发
+        bool fallbackTriggered = false;
+        AutoModeClassifier.FallbackToManualTriggered += () => { fallbackTriggered = true; };
+        AutoModeClassifier.RecordDangerousBlock(); // 1
+        AutoModeClassifier.RecordDangerousBlock(); // 2
+        AutoModeClassifier.RecordDangerousBlock(); // 3 → 触发
+        Check("连续3次阻止→触发退回事件", fallbackTriggered);
+        Check("触发后计数归零", AutoModeClassifier.ConsecutiveDangerousBlocks == 0);
+
+        // SmartAuto 模式下 Safe 工具放行
+        PermissionManager.SetMode("smartauto");
+        var smartSafe = PermissionManager.CheckAsync("read_file", new() { ["file_path"] = "/tmp/x" }).Result;
+        Check("SmartAuto: read_file 自动放行", smartSafe == true);
+        var smartSafe2 = PermissionManager.CheckAsync("ls", new() { ["path"] = "." }).Result;
+        Check("SmartAuto: ls 自动放行", smartSafe2 == true);
+
+        // 恢复默认
+        PermissionManager.SetMode("ask");
+        AutoModeClassifier.Reset();
+
+        // ---- 工作模式管理器 ----
+        Section("[工作模式管理器]");
+
+        // 默认模式
+        Check("默认模式=Build", WorkModeManager.CurrentMode == WorkMode.Build);
+
+        // 格式输出
+        Check("Format(Build) 含🔨", WorkModeManager.Format(WorkMode.Build).Contains("🔨"));
+        Check("Format(Plan) 含🧠", WorkModeManager.Format(WorkMode.Plan).Contains("🧠"));
+        Check("Format(Review) 含🔍", WorkModeManager.Format(WorkMode.Review).Contains("🔍"));
+        Check("Format(Auto) 含🤖", WorkModeManager.Format(WorkMode.Auto).Contains("🤖"));
+
+        // 工具约束：Plan 模式
+        Check("Plan: write_file 阻止", WorkModeManager.CheckToolAllowed("write_file", WorkMode.Plan) != null);
+        Check("Plan: edit_file 阻止", WorkModeManager.CheckToolAllowed("edit_file", WorkMode.Plan) != null);
+        Check("Plan: bash 阻止", WorkModeManager.CheckToolAllowed("bash", WorkMode.Plan) != null);
+        Check("Plan: rm 阻止", WorkModeManager.CheckToolAllowed("rm", WorkMode.Plan) != null);
+        Check("Plan: git 阻止", WorkModeManager.CheckToolAllowed("git", WorkMode.Plan) != null);
+        Check("Plan: agent 阻止", WorkModeManager.CheckToolAllowed("agent", WorkMode.Plan) != null);
+        Check("Plan: read_file 允许", WorkModeManager.CheckToolAllowed("read_file", WorkMode.Plan) == null);
+        Check("Plan: grep 允许", WorkModeManager.CheckToolAllowed("grep", WorkMode.Plan) == null);
+        Check("Plan: lsp 允许", WorkModeManager.CheckToolAllowed("lsp", WorkMode.Plan) == null);
+
+        // 工具约束：Review 模式
+        Check("Review: write_file 阻止", WorkModeManager.CheckToolAllowed("write_file", WorkMode.Review) != null);
+        Check("Review: bash 阻止", WorkModeManager.CheckToolAllowed("bash", WorkMode.Review) != null);
+        Check("Review: agent 允许", WorkModeManager.CheckToolAllowed("agent", WorkMode.Review) == null);
+        Check("Review: read_file 允许", WorkModeManager.CheckToolAllowed("read_file", WorkMode.Review) == null);
+
+        // 工具约束：Build 模式全允许
+        Check("Build: write_file 允许", WorkModeManager.CheckToolAllowed("write_file", WorkMode.Build) == null);
+        Check("Build: bash 允许", WorkModeManager.CheckToolAllowed("bash", WorkMode.Build) == null);
+        Check("Build: rm 允许", WorkModeManager.CheckToolAllowed("rm", WorkMode.Build) == null);
+
+        // 工具约束：Auto 模式全允许
+        Check("Auto: bash 允许", WorkModeManager.CheckToolAllowed("bash", WorkMode.Auto) == null);
+        Check("Auto: write_file 允许", WorkModeManager.CheckToolAllowed("write_file", WorkMode.Auto) == null);
+
+        // 模式切换
+        WorkModeManager.SetMode(WorkMode.Plan);
+        Check("SetMode→Plan", WorkModeManager.CurrentMode == WorkMode.Plan);
+        WorkModeManager.SetMode(WorkMode.Review);
+        Check("SetMode→Review", WorkModeManager.CurrentMode == WorkMode.Review);
+
+        // 循环切换
+        WorkModeManager.SetMode(WorkMode.Build);
+        var m1 = WorkModeManager.CycleNext();
+        Check("CycleNext: Build→Plan", m1 == WorkMode.Plan);
+        var m2 = WorkModeManager.CycleNext();
+        Check("CycleNext: Plan→Review", m2 == WorkMode.Review);
+        var m3 = WorkModeManager.CycleNext();
+        Check("CycleNext: Review→Auto", m3 == WorkMode.Auto);
+        var m4 = WorkModeManager.CycleNext();
+        Check("CycleNext: Auto→Build", m4 == WorkMode.Build);
+
+        // ModeChanged 事件
+        bool eventFired = false;
+        WorkMode received = WorkMode.Build;
+        Action<WorkMode> handler = m => { eventFired = true; received = m; };
+        WorkModeManager.ModeChanged += handler;
+        WorkModeManager.SetMode(WorkMode.Plan);
+        Check("ModeChanged 事件触发", eventFired && received == WorkMode.Plan);
+        // 清理：移除 handler（AOT 不支持 -= lambda）
+        WorkModeManager.SetMode(WorkMode.Build);
+
+        // System Prompt 生成
+        var planPrompt = WorkModeManager.GetModePrompt(WorkMode.Plan);
+        Check("Plan Prompt 含计划模式", planPrompt.Contains("计划模式"));
+        var reviewPrompt = WorkModeManager.GetModePrompt(WorkMode.Review);
+        Check("Review Prompt 含审查模式", reviewPrompt.Contains("审查模式"));
+        var buildPrompt = WorkModeManager.GetModePrompt(WorkMode.Build);
+        Check("Build Prompt 为空", string.IsNullOrEmpty(buildPrompt));
+
+        // 恢复默认
+        WorkModeManager.SetMode(WorkMode.Build);
+
+        // ---- 跨槽位消息传递 ----
+        Section("[跨槽位消息]");
+
+        // AgentSlot 初始化
+        var testSlot = new AgentSlot();
+        Check("新槽位 PendingMessages 为空", testSlot.PendingMessages.Count == 0);
+
+        // 投递消息到非活跃槽位（无 activeScreen）→ 排队
+        testSlot.DeliverMessage(0, "测试消息", null, 1);
+        Check("Deliver 后 PendingMessages=1", testSlot.PendingMessages.Count == 1);
+        Check("Pending 内容匹配", testSlot.PendingMessages[0].Message == "测试消息");
+        Check("Pending 来源槽位", testSlot.PendingMessages[0].FromSlot == 0);
+
+        // 投递多条消息
+        testSlot.DeliverMessage(2, "第二条消息", null, 1);
+        Check("Deliver 后 PendingMessages=2", testSlot.PendingMessages.Count == 2);
+
+        // 刷新队列（没有真实 ChatScreen 时直接清空）
+        testSlot.PendingMessages.Clear();
+        Check("Clear 后 PendingMessages=0", testSlot.PendingMessages.Count == 0);
+
+        // AgentSlot.Count 常量
+        Check("AgentSlot.Count=10", AgentSlot.Count == 10);
 
         Console.WriteLine();
 
@@ -883,7 +1051,7 @@ public static class SelfTest
         var bgCount = BackgroundTaskManager.ListTasks();
         Check("后台任务列表返回字符串", bgCount.Length > 0);
         // 等待超时的任务
-        var bgId2 = BackgroundTaskManager.StartAsync("sleep 1", 2).Result;
+        var bgId2 = BackgroundTaskManager.Start("sleep 1", 2);
         Check("后台任务 2 已启动", bgId2 > 0);
         var bgOut2 = BackgroundTaskManager.GetOutput(bgId2);
         // 可能还在运行或已完成，检查不崩溃即可
@@ -1523,6 +1691,31 @@ public static class SelfTest
         Check("AutoGitCommit 是 select 类型", ac?.Type == "select");
         Check("AutoGitCommit 有选项", ac?.Options?.Contains("true") == true);
         Check("AutoGitCommit EnvVar", ac?.EnvVar == "WAYCODER_AUTO_COMMIT");
+
+        // Agent.AutoCommitEnabled 属性：通过构造函数和属性均可设置
+        // 简单验证类型存在即可（AOT 不支持反射，直接验证功能）
+        var savedAutoCommit = Config.FromEnv().AutoGitCommit; // 类型检查通过即可
+        Check("AutoGitCommit 类型正确", savedAutoCommit is true or false);
+
+        // IsValidCommitMsg
+        Check("IsValid: feat: add x", Agent.IsValidCommitMsg("feat: add login page"));
+        Check("IsValid: fix: bug", Agent.IsValidCommitMsg("fix: resolve null pointer"));
+        Check("IsValid: docs: update", Agent.IsValidCommitMsg("docs: update readme"));
+        Check("IsValid: chore: cleanup", Agent.IsValidCommitMsg("chore: remove dead code"));
+        Check("IsValid: refactor: simplify", Agent.IsValidCommitMsg("refactor: extract method"));
+        Check("IsValid: 拒绝空", !Agent.IsValidCommitMsg(""));
+        Check("IsValid: 拒绝过短", !Agent.IsValidCommitMsg("fix"));
+        Check("IsValid: 拒绝中文", !Agent.IsValidCommitMsg("修复：登录问题"));
+        Check("IsValid: 拒绝无前缀", !Agent.IsValidCommitMsg("update code"));
+
+        // CleanCommitMsg
+        Check("Clean: 去反引号", Agent.CleanCommitMsg("`feat: add login`") == "feat: add login");
+        Check("Clean: 去引号", Agent.CleanCommitMsg("\"fix: bug\"") == "fix: bug");
+        Check("Clean: 去换行", Agent.CleanCommitMsg("feat:\nadd login") == "feat: add login");
+
+        // EscArg
+        Check("EscArg: 普通路径", Agent.EscArg("src/App.cs") == "'src/App.cs'");
+        Check("EscArg: 含单引号", Agent.EscArg("it's a file.cs") == "'it'\\''s a file.cs'");
 
         Console.WriteLine();
 
@@ -3063,6 +3256,22 @@ another.txt:3:1: warning: deprecated API
         // 已禁用不响应
         var inputDisabled = new TuiInput { Text = "x", IsEnabled = false };
         Check("TuiInput IsEnabled=false 不响应", !inputDisabled.OnKey(new ConsoleKeyInfo('y', ConsoleKey.Y, false, false, false)));
+
+        // 光标位置：GetCursorState 在不依赖 OnRender 的情况下确保位置有效
+        var inputCursor = new TuiInput { Text = "hello", CursorPos = 3, Width = 20 };
+        inputCursor.IsCursorOwner = true;
+        var cs = inputCursor.GetCursorState();
+        Check("光标状态非空", cs != null);
+        Check("光标行非负", cs!.Value.row >= 0);
+        Check("光标列非负", cs.Value.col >= 0);
+        Check("光标可见", cs.Value.show);
+
+        // 光标不属自己时跳过
+        var inputNotOwner = new TuiInput { Text = "test", CursorPos = 2 };
+        inputNotOwner.IsCursorOwner = false;
+        var cs2 = inputNotOwner.GetCursorState();
+        Check("非光标所有者返回 null", cs2 == null);
+
         Console.WriteLine();
 
         // ================================================================

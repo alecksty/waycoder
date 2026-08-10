@@ -134,6 +134,11 @@ public class InputManager : IDisposable
         }
 
         var lt = Tty.ReadKey();
+
+        // Shift+Tab：\x1b[Z
+        if (lt.KeyChar == 'Z')
+            return new InputEvent { Type = InputType.ShiftTab };
+
         // 非 SGR 鼠标的 CSI 序列（如 AnsiTty.AnsiCharPrefix[1;5A 带修饰键方向键）→ 吞掉至终止字节
         if (lt.KeyChar != '<')
         {
@@ -232,6 +237,7 @@ public enum InputType
     Mouse, // 鼠标（点击/移动/滚轮）
     Resize, // 窗口大小变化
     Timeout, // 超时（无输入）
+    ShiftTab, // Shift+Tab（模式切换）
 }
 
 /// <summary>输入事件数据</summary>

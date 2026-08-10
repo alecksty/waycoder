@@ -30,7 +30,20 @@ public class Agent
     private readonly double? _maxBudgetUsd;
     private readonly string _systemPrompt;
 
-    private readonly bool _autoCommit;
+    private bool _autoCommit;
+
+    /// <summary>本轮修改过的文件（用于精准 git add）</summary>
+    private readonly HashSet<string> _modifiedFiles = [];
+
+    /// <summary>Architect 双模型模式：大模型出计划，小模型执行</summary>
+    public bool ArchitectMode { get; set; }
+
+    /// <summary>是否启用自动 Git Commit（可运行时切换）</summary>
+    public bool AutoCommitEnabled
+    {
+        get => _autoCommit;
+        set => _autoCommit = value;
+    }
 
     /// <summary>
     /// 创建 Agent 实例。
@@ -63,13 +76,19 @@ public class Agent
     }
 
     /// <summary>
-    /// 构建完整消息列表（包含系统提示词）。
+    /// 构建完整消息列表（包含系统提示词 + 模式提示）。
     /// </summary>
     private List<JsonObject> FullMessages()
     {
+        // 模式专用提示（Plan/Review/Auto 模式会在主提示词前注入约束）
+        var modePrompt = WorkModeManager.GetModePrompt(WorkModeManager.CurrentMode);
+        var systemContent = string.IsNullOrEmpty(modePrompt)
+            ? _systemPrompt
+            : modePrompt + "\n" + _systemPrompt;
+
         var result = new List<JsonObject>
         {
-            new() { ["role"] = "system", ["content"] = _systemPrompt },
+            new() { ["role"] = "system", ["content"] = systemContent },
         };
         // 深克隆消息，避免 JsonNode 的 Parent 冲突（同一消息不能加入两个树）
         foreach (var m in Messages)
@@ -98,6 +117,26 @@ public class Agent
     {
         Messages.Add(new JsonObject { ["role"] = "user", ["content"] = userInput });
         await CompressWithSmallModel();
+
+        // ── Architect 模式：大模型出计划 → 小模型执行 ──
+        if (ArchitectMode && LlmClient.EffectiveModel != LlmClient.SmallModel)
+        {
+            var plan = await GenerateArchitectPlanAsync(onToken, cancellationToken);
+            if (plan == null)
+            {
+                Messages.RemoveAt(Messages.Count - 1); // 回滚用户消息
+                return "⚠ Architect 模式：大模型计划生成失败，已取消。";
+            }
+            // 将计划作为 system 消息注入，小模型继续执行
+            Messages.Add(new JsonObject
+            {
+                ["role"] = "system",
+                ["content"] = $"## 执行计划\n\n以下是 Architect 的分析和执行计划，请按步骤逐一执行：\n\n{plan}",
+            });
+            // 切换回小模型执行
+            LlmClient.ModelOverride = LlmClient.SmallModel;
+            onToken?.Invoke("\n📋 **计划已生成，切换到小模型执行...**\n\n");
+        }
 
         for (int round = 0; round < _maxRounds; round++)
         {
@@ -206,6 +245,11 @@ public class Agent
 
         try
         {
+            // 工作模式约束检查：Plan/Review 模式下阻止修改性工具
+            var modeBlock = WorkModeManager.CheckToolAllowed(tc.Name, WorkModeManager.CurrentMode);
+            if (modeBlock != null)
+                return modeBlock;
+
             // 权限检查：危险操作需要用户确认
             if (!await PermissionManager.CheckAsync(tc.Name, tc.Arguments))
                 return "用户取消了此操作。";
@@ -216,6 +260,16 @@ public class Agent
                 return $"操作被 Hook 阻止: {hookBlock}";
 
             var result = await tool.ExecuteAsync(tc.Arguments);
+
+            // 追踪修改的文件（用于自动 commit 精准暂存）
+            if (tc.Name is "write_file" or "edit_file" or "notebook_edit")
+            {
+                if (tc.Arguments.TryGetValue("file_path", out var fp) && fp is string path && !string.IsNullOrWhiteSpace(path))
+                {
+                    lock (_modifiedFiles)
+                        _modifiedFiles.Add(path);
+                }
+            }
 
             // PostToolUse hook（可修改结果）
             var hookResult = await HooksManager.RunPostToolUseAsync(tc.Name, tc.Arguments, result);
@@ -448,18 +502,69 @@ public class Agent
         {
             var gitDir = await RunGitAsync("rev-parse --git-dir");
             if (string.IsNullOrWhiteSpace(gitDir)) return;
-            var status = await RunGitAsync("status --porcelain");
-            if (string.IsNullOrWhiteSpace(status)) return;
-            var files = status.Trim().Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            var changed = files.Select(f => f.Length > 3 ? f[3..].Trim() : f.Trim()).Take(10).ToList();
-            var fileList = string.Join(", ", changed);
-            var msg = await GenerateCommitMsgAsync(fileList);
-            if (string.IsNullOrWhiteSpace(msg)) return;
-            await RunGitAsync("add -u");  // -u 仅暂存已跟踪文件，避免意外提交临时文件
-            await RunGitAsync("commit -m \"" + msg.Replace("\"", "\\\"") + "\"");
+
+            // 收集本轮修改的文件列表
+            string[] modifiedFiles;
+            lock (_modifiedFiles)
+            {
+                modifiedFiles = _modifiedFiles.ToArray();
+                _modifiedFiles.Clear();
+            }
+
+            // 如果没有追踪到文件修改，检查 git status 兜底
+            if (modifiedFiles.Length == 0)
+            {
+                var status = await RunGitAsync("status --porcelain");
+                if (string.IsNullOrWhiteSpace(status)) return;
+                var lines = status.Trim().Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                modifiedFiles = lines.Select(f => f.Length > 3 ? f[3..].Trim() : f.Trim()).Take(10).ToArray();
+                if (modifiedFiles.Length == 0) return;
+            }
+
+            // 获取简要 diff 统计作为提交正文
+            var fileList = string.Join(", ", modifiedFiles);
+            var diffStat = await RunGitAsync($"diff --stat --cached {string.Join(" ", modifiedFiles.Select(EscArg))}");
+            if (string.IsNullOrWhiteSpace(diffStat))
+                diffStat = await RunGitAsync($"diff --stat {string.Join(" ", modifiedFiles.Select(EscArg))}");
+
+            // 小模型生成 conventional-commit 标题
+            var summary = await GenerateCommitMsgAsync(fileList);
+            if (string.IsNullOrWhiteSpace(summary)) return;
+
+            // 构建提交信息：标题 + 空行 + diff 统计
+            var commitMsg = summary;
+            if (!string.IsNullOrWhiteSpace(diffStat) && diffStat.Length < 500)
+                commitMsg += "\n\n" + diffStat.Trim();
+
+            // 精准暂存：只 add 实际修改的文件
+            foreach (var f in modifiedFiles)
+            {
+                if (File.Exists(f))
+                    await RunGitAsync($"add {EscArg(f)}");
+            }
+
+            // 提交
+            var msgFile = Path.GetTempFileName();
+            await File.WriteAllTextAsync(msgFile, commitMsg);
+            await RunGitAsync($"commit -F {EscArg(msgFile)}");
+            try { File.Delete(msgFile); } catch { }
+
+            // 用户反馈
+            _onAutoCommit?.Invoke(summary, modifiedFiles.Length);
+
+            DebugLog.Log("auto-commit", $"Committed: {summary} ({modifiedFiles.Length} files)");
         }
         catch (Exception ex) { DebugLog.Log("auto-commit", $"AutoCommitAsync failed: {ex.Message}"); }
     }
+
+    /// <summary>给 shell 参数做安全转义（单引号包裹，内部单引号替换为 '\''）</summary>
+    internal static string EscArg(string s) => $"'{s.Replace("'", "'\\''")}'";
+
+    /// <summary>自动提交完成后的回调</summary>
+    private Action<string, int>? _onAutoCommit;
+
+    /// <summary>注册自动提交回调（用于 UI 反馈）</summary>
+    public void OnAutoCommit(Action<string, int> callback) => _onAutoCommit = callback;
 
     private async Task<string> GenerateCommitMsgAsync(string fileList)
     {
@@ -499,7 +604,7 @@ public class Agent
     }
 
     /// <summary>清理提交信息：去引号/反引号/换行/多余空白。</summary>
-    private static string CleanCommitMsg(string raw)
+    internal static string CleanCommitMsg(string raw)
     {
         var msg = (raw ?? "").Trim();
         // 去掉代码围栏和常见的模板包裹
@@ -518,7 +623,7 @@ public class Agent
     }
 
     /// <summary>校验提交信息质量：必须有合法 conventional 前缀、非空、不含中文。</summary>
-    private static bool IsValidCommitMsg(string msg)
+    internal static bool IsValidCommitMsg(string msg)
     {
         if (string.IsNullOrWhiteSpace(msg)) return false;
         if (msg.Length < 5) return false;
@@ -538,6 +643,53 @@ public class Agent
     {
         var (exitCode, stdout, _) = await GitRunner.RunAsync(args);
         return exitCode == 0 ? stdout.Trim() : null;
+    }
+
+    // ── Architect 双模型模式 ──
+
+    /// <summary>
+    /// 用大模型生成执行计划（无工具调用，纯思考输出）。
+    /// 返回 null 表示失败/取消。
+    /// </summary>
+    private async Task<string?> GenerateArchitectPlanAsync(
+        Action<string>? onToken,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var architectPrompt = SystemPrompt.GenerateArchitectPrompt();
+            var msgs = new List<JsonObject>
+            {
+                new() { ["role"] = "system", ["content"] = architectPrompt },
+            };
+            // 克隆历史消息（不含工具往返）给 Architect 做上下文
+            foreach (var m in Messages)
+            {
+                var role = (string?)m["role"];
+                if (role is "tool" or "assistant_tool_calls") continue;
+                msgs.Add(JsonNode.Parse(m.ToJsonString())!.AsObject());
+            }
+
+            // 切换到大模型，不带工具
+            var savedOverride = LlmClient.ModelOverride;
+            LlmClient.ModelOverride = LlmClient.Model; // 大模型
+
+            var resp = await LlmClient.ChatAsync(
+                messages: msgs,
+                tools: null, // 不给工具，纯分析
+                onToken: onToken,
+                cancellationToken: cancellationToken);
+
+            LlmClient.ModelOverride = savedOverride;
+
+            return string.IsNullOrWhiteSpace(resp.Content) ? null : resp.Content.Trim();
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            DebugLog.Log("architect", $"计划生成异常: {ex.Message}");
+            return null;
+        }
     }
 
 }

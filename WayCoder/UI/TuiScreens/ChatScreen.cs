@@ -91,6 +91,9 @@ public class ChatScreen : TuiScreen
     /// <summary>聊天消息列表（直接访问，用于会话保存/恢复/槽位切换）</summary>
     public List<ChatMsg> ChatMessages { get; } = [];
 
+    /// <summary>聊天消息锁（保护后台线程回调中的 ChatMessages/ChatList 写入）</summary>
+    private readonly object _chatLock = new();
+
     /// <summary>状态栏左侧（模型名、git 分支等）</summary>
     public string StatusLeft { get; set; } = "";
 
@@ -360,42 +363,54 @@ public class ChatScreen : TuiScreen
         AddMessage(content, "user");
     }
 
-    /// <summary>添加系统消息</summary>
+    /// <summary>添加系统消息。线程安全：可从后台线程调用。</summary>
     public void AddSystemMsg(string content)
     {
-        var msg = new ChatMsg { Role = "system", Content = content };
-        ChatMessages.Add(msg);
-        AddMessage(content, "system");
+        lock (_chatLock)
+        {
+            var msg = new ChatMsg { Role = "system", Content = content };
+            ChatMessages.Add(msg);
+            AddMessage(content, "system");
+        }
     }
 
-    /// <summary>开始 Agent 流式回复（占位消息）</summary>
+    /// <summary>开始 Agent 流式回复（占位消息）。线程安全：可从后台线程调用。</summary>
     public void StartAgentMsg()
     {
-        var msg = new ChatMsg { Role = "agent", Content = "", Streaming = true };
-        ChatMessages.Add(msg);
-        // 在 ChatList 中添加空白占位项
-        var item = new TuiListItem("agent", "", ChatList.Width - 2);
-        item.SetTime(DateTime.Now);
-        ChatList.AddItem(item);
+        lock (_chatLock)
+        {
+            var msg = new ChatMsg { Role = "agent", Content = "", Streaming = true };
+            ChatMessages.Add(msg);
+            // 在 ChatList 中添加空白占位项
+            var item = new TuiListItem("agent", "", ChatList.Width - 2);
+            item.SetTime(DateTime.Now);
+            ChatList.AddItem(item);
+        }
         MarkDirty();
     }
 
-    /// <summary>追加 token 到流式消息</summary>
+    /// <summary>追加 token 到流式消息。线程安全：可从后台线程调用。</summary>
     public void AppendToken(string delta)
     {
-        if (ChatMessages.Count == 0) return;
-        var last = ChatMessages[^1];
-        if (!last.Streaming) return;
-        last.Content += delta;
-        AppendToLast(delta);
+        lock (_chatLock)
+        {
+            if (ChatMessages.Count == 0) return;
+            var last = ChatMessages[^1];
+            if (!last.Streaming) return;
+            last.Content += delta;
+            AppendToLast(delta);
+        }
     }
 
-    /// <summary>完成 Agent 流式回复</summary>
+    /// <summary>完成 Agent 流式回复。线程安全：可从后台线程调用。</summary>
     public void FinishAgentMsg()
     {
-        if (ChatMessages.Count == 0) return;
-        var last = ChatMessages[^1];
-        last.Streaming = false;
+        lock (_chatLock)
+        {
+            if (ChatMessages.Count == 0) return;
+            var last = ChatMessages[^1];
+            last.Streaming = false;
+        }
         MarkDirty();
     }
 

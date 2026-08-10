@@ -7,14 +7,15 @@ namespace WayCoder;
 /// <summary>
 /// 权限确认系统 —— 危险操作执行前弹窗确认。
 ///
-/// 三种模式：
-///   Ask    — 每次都确认（默认）
-///   Auto   — 首次确认后会话内自动允许
-///   Yolo   — 不确认直接执行（上帝模式）
+/// 四种模式：
+///   Ask       — 每次都确认（默认）
+///   Auto      — 首次确认后会话内自动允许
+///   SmartAuto — 智能分级：Safe 放行 / Cautious 记一次 / Dangerous 每次确认，连续 3 次阻止退回 Ask
+///   Yolo      — 不确认直接执行（上帝模式）
 /// </summary>
 public static class PermissionManager
 {
-    public enum Mode { Ask, Auto, Yolo }
+    public enum Mode { Ask, Auto, SmartAuto, Yolo }
 
     public static Mode CurrentMode { get; set; } = Mode.Ask;
 
@@ -23,12 +24,27 @@ public static class PermissionManager
     /// <summary>权限确认框关闭后触发（恢复"工作"状态）</summary>
     public static event Action<string>? PermissionPromptResolved;
 
-    /// <summary>本轮已自动允许的工具调用 ID 集合（Auto 模式用）</summary>
+    /// <summary>智能模式退回手动时触发（用于 UI 提示）</summary>
+    public static event Action<string>? ModeFallbackTriggered;
+
+    /// <summary>本轮已自动允许的工具调用 ID 集合（Auto / SmartAuto 模式用）</summary>
     private static readonly HashSet<string> AutoAllowed = [];
 
-    /// <summary>需要确认的工具名列表</summary>
+    /// <summary>需要确认的工具名列表（传统模式用）</summary>
     private static readonly HashSet<string> DangerousTools =
         ["bash", "write_file", "edit_file", "notebook_edit", "agent", "kill", "rm"];
+
+    static PermissionManager()
+    {
+        // 订阅智能分类器的退回事件
+        AutoModeClassifier.FallbackToManualTriggered += () =>
+        {
+            CurrentMode = Mode.Ask;
+            AutoAllowed.Clear();
+            var msg = $"⚠ 连续 {AutoModeClassifier.BlockThreshold} 次拒绝危险操作，已自动退回「Ask（每次确认）」模式";
+            ModeFallbackTriggered?.Invoke(msg);
+        };
+    }
 
     /// <summary>
     /// 检查是否需要确认。返回 true 表示允许执行。
@@ -36,10 +52,6 @@ public static class PermissionManager
     /// </summary>
     public static async Task<bool> CheckAsync(string toolName, Dictionary<string, object?> args)
     {
-        // 非危险工具直接放行
-        if (!DangerousTools.Contains(toolName))
-            return true;
-
         // 沙箱 full-auto 模式：bash 工具已在沙箱中保护，直接放行
         if (toolName == "bash" && SandboxManager.IsSandboxed)
             return true;
@@ -48,12 +60,62 @@ public static class PermissionManager
         if (CurrentMode == Mode.Yolo)
             return true;
 
-        // Auto 模式：首次确认后记住
-        var autoKey = BuildAutoKey(toolName, args);
-        if (CurrentMode == Mode.Auto && AutoAllowed.Contains(autoKey))
+        // ── SmartAuto 模式：三级智能分类 ──
+        if (CurrentMode == Mode.SmartAuto)
+        {
+            var risk = AutoModeClassifier.Classify(toolName);
+
+            // Safe → 自动放行
+            if (risk == AutoModeClassifier.RiskLevel.Safe)
+                return true;
+
+            // Cautious → 首次确认后记住（同 Auto 模式逻辑）
+            if (risk == AutoModeClassifier.RiskLevel.Cautious)
+            {
+                var autoKey = BuildAutoKey(toolName, args);
+                if (AutoAllowed.Contains(autoKey))
+                    return true;
+
+                var allowed = await ShowConfirmDialog(toolName, args, isDangerous: false);
+                if (allowed)
+                    AutoAllowed.Add(autoKey);
+                return allowed;
+            }
+
+            // Dangerous → 每次确认，追踪连续阻止
+            if (risk == AutoModeClassifier.RiskLevel.Dangerous)
+            {
+                var allowed = await ShowConfirmDialog(toolName, args, isDangerous: true);
+                if (allowed)
+                    AutoModeClassifier.RecordDangerousAllow();
+                else
+                    AutoModeClassifier.RecordDangerousBlock();
+                return allowed;
+            }
+        }
+
+        // ── 传统模式（Ask / Auto）──
+
+        // 非危险工具直接放行
+        if (!DangerousTools.Contains(toolName))
             return true;
 
-        // 收集操作详情
+        // Auto 模式：首次确认后记住
+        var legacyAutoKey = BuildAutoKey(toolName, args);
+        if (CurrentMode == Mode.Auto && AutoAllowed.Contains(legacyAutoKey))
+            return true;
+
+        var legacyAllowed = await ShowConfirmDialog(toolName, args, isDangerous: true);
+        if (legacyAllowed && CurrentMode == Mode.Auto)
+            AutoAllowed.Add(legacyAutoKey);
+        return legacyAllowed;
+    }
+
+    /// <summary>
+    /// 显示确认对话框。返回 true 表示用户允许。
+    /// </summary>
+    private static async Task<bool> ShowConfirmDialog(string toolName, Dictionary<string, object?> args, bool isDangerous)
+    {
         var details = FormatArgs(toolName, args);
         var content = $"工具: {TuiHelper.Esc(toolName)}\n{TuiHelper.Esc(details)}";
 
@@ -62,26 +124,36 @@ public static class PermissionManager
         var activeScreen = TuiManager.Instance.ActiveScreen as ChatScreen;
         if (activeScreen != null)
         {
-            result = activeScreen.ShowInlinePermission(toolName, details,
-                ["是 (y)", "总是允许 (a)", "否 (n)"]);
+            List<string> options = isDangerous
+                ? new List<string> { "是 (y)", "否 (n)" }  // 危险操作：不给"总是允许"
+                : new List<string> { "是 (y)", "总是允许 (a)", "否 (n)" };
+            result = activeScreen.ShowInlinePermission(toolName, details, options);
+            // 映射：危险操作选项少一个，需要调整索引
+            if (isDangerous)
+                result = result switch { 0 => 0, 1 => 2, _ => 2 }; // "否" → 索引 2（拒绝）
         }
         else
         {
             UxHelper.Warn("确认操作", content);
-            var choice = UxHelper.Select("是否执行？",
-                ["是 (y)", "总是允许 (a)", "否 (n)"]);
-            result = choice switch { "是 (y)" => 0, "总是允许 (a)" => 1, _ => 2 };
+            List<string> choices = isDangerous
+                ? new List<string> { "是 (y)", "否 (n)" }
+                : new List<string> { "是 (y)", "总是允许 (a)", "否 (n)" };
+            var choice = UxHelper.Select("是否执行？", choices);
+            result = choice switch
+            {
+                "是 (y)" => 0,
+                "总是允许 (a)" => 1,
+                _ => 2
+            };
         }
 
         switch (result)
         {
-            case 1:
-                AutoAllowed.Add(autoKey);
-                CurrentMode = Mode.Auto;
+            case 1: // "总是允许" — 仅 Cautious 工具会走到这里
                 break;
-            case 0:
+            case 0: // "是"
                 break;
-            default:
+            default: // "否"
                 if (activeScreen != null)
                     activeScreen.AddSystemMsg("已拒绝");
                 else
@@ -101,6 +173,7 @@ public static class PermissionManager
     public static void Reset()
     {
         AutoAllowed.Clear();
+        AutoModeClassifier.Reset();
     }
 
     /// <summary>
@@ -112,19 +185,22 @@ public static class PermissionManager
         CurrentMode = modeName.ToLowerInvariant() switch
         {
             "yolo" or "god" => Mode.Yolo,
-            "auto" or "smart" => Mode.Auto,
+            "smartauto" or "smart-auto" or "smart" => Mode.SmartAuto,
+            "auto" => Mode.Auto,
             _ => Mode.Ask,
         };
 
         int color = CurrentMode switch
         {
             Mode.Yolo => TuiColors.Red,
+            Mode.SmartAuto => TuiColors.Cyan,
             Mode.Auto => TuiColors.Green,
             _ => TuiColors.Yellow,
         };
         var label = CurrentMode switch
         {
             Mode.Yolo => "YOLO (上帝模式)",
+            Mode.SmartAuto => "SmartAuto (智能分级)",
             Mode.Auto => "Auto (智能确认)",
             _ => "Ask (每次确认)",
         };
@@ -140,6 +216,7 @@ public static class PermissionManager
         var (label, desc, color) = CurrentMode switch
         {
             Mode.Yolo => ("YOLO", "不确认，直接执行", TuiColors.Red),
+            Mode.SmartAuto => ("SmartAuto", "智能分级：Safe 放行 / Cautious 记一次 / Dangerous 每次确认", TuiColors.Cyan),
             Mode.Auto => ("Auto", "首次确认后自动允许", TuiColors.Green),
             _ => ("Ask", "每次都确认", TuiColors.Yellow),
         };
@@ -148,7 +225,11 @@ public static class PermissionManager
             ? $"\n{AnsiText.Accent("沙箱:")} full-auto（bash 隔离 + 环境清理 + 内存监控）"
             : "";
 
-        var content = $"当前模式: {AnsiText.Fg(label, color)} — {TuiHelper.Esc(desc)}{sandboxInfo}\n" +
+        var classifierInfo = CurrentMode == Mode.SmartAuto
+            ? $"\n{AnsiText.Dim("分级:")} {AutoModeClassifier.GetStats()}"
+            : "";
+
+        var content = $"当前模式: {AnsiText.Fg(label, color)} — {TuiHelper.Esc(desc)}{sandboxInfo}{classifierInfo}\n" +
             $"{AnsiText.Dim("需要确认:")} {string.Join(", ", DangerousTools)}\n" +
             $"{AnsiText.Dim("直接放行:")} read_file, glob, grep, ls, stat 等只读工具";
 

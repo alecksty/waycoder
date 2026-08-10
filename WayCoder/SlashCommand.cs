@@ -122,6 +122,7 @@ public static class SlashCommandRegistry
         Register(new Commands.SessionCommand());
         Register(new Commands.HistoryCommand());
         Register(new Commands.ExportCommand());
+        Register(new Commands.ArchitectCommand());
 
         // 编辑/工具
         Register(new Commands.EditCommand());
@@ -130,9 +131,14 @@ public static class SlashCommandRegistry
         Register(new Commands.TodoCommand());
         Register(new Commands.LintCommand());
 
+        // 跨槽位消息
+        Register(new Commands.SendCommand());
+        Register(new Commands.BroadcastCommand());
+
         // Git
         Register(new Commands.GitCommand());
         Register(new Commands.PrCommand());
+        Register(new Commands.AutoCommitCommand());
 
         // 检查点
         Register(new Commands.CheckpointCommand());
@@ -143,6 +149,9 @@ public static class SlashCommandRegistry
         Register(new Commands.SettingsCommand());
         Register(new Commands.ThemeCommand());
         Register(new Commands.PermCommand());
+        Register(new Commands.AutoCommand());
+        Register(new Commands.ModeCommand());
+        Register(new Commands.ImportCommand());
         Register(new Commands.AboutCommand());
         Register(new Commands.RepomapCommand());
         Register(new Commands.DebugCommand());

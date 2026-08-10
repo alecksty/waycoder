@@ -171,7 +171,7 @@ public class LspTool : ITool
             ["textDocument"] = new JsonObject { ["uri"] = FileToUri(file) },
             ["position"] = new JsonObject { ["line"] = line - 1, ["character"] = ch - 1 },
         });
-        Initialize(proc, file);
+        await Initialize(proc, file);
         SendMessage(proc, req);
         var resp = await ReadResponse(proc);
         return FormatLocationResult(resp, "定义");
@@ -185,7 +185,7 @@ public class LspTool : ITool
             ["position"] = new JsonObject { ["line"] = line - 1, ["character"] = ch - 1 },
             ["context"] = new JsonObject { ["includeDeclaration"] = true },
         });
-        Initialize(proc, file);
+        await Initialize(proc, file);
         SendMessage(proc, req);
         var resp = await ReadResponse(proc);
         return FormatLocationResult(resp, "引用");
@@ -198,7 +198,7 @@ public class LspTool : ITool
             ["textDocument"] = new JsonObject { ["uri"] = FileToUri(file) },
             ["position"] = new JsonObject { ["line"] = line - 1, ["character"] = ch - 1 },
         });
-        Initialize(proc, file);
+        await Initialize(proc, file);
         SendMessage(proc, req);
         var resp = await ReadResponse(proc);
         if (resp?["result"]?["contents"]?["value"]?.GetValue<string>() is { } text)
@@ -214,7 +214,7 @@ public class LspTool : ITool
         {
             ["textDocument"] = new JsonObject { ["uri"] = FileToUri(file) },
         });
-        Initialize(proc, file);
+        await Initialize(proc, file);
         SendMessage(proc, req);
         var resp = await ReadResponse(proc);
 
@@ -242,7 +242,7 @@ public class LspTool : ITool
         return $"Content-Length: {Encoding.UTF8.GetByteCount(msg.ToJsonString())}\r\n\r\n{msg.ToJsonString()}";
     }
 
-    private static void Initialize(Process proc, string rootFile)
+    private static async Task Initialize(Process proc, string rootFile)
     {
         var root = Path.GetDirectoryName(rootFile) ?? ".";
         var initReq = BuildRequest("initialize", new JsonObject
@@ -252,12 +252,12 @@ public class LspTool : ITool
             ["capabilities"] = new JsonObject(),
         });
         SendMessage(proc, initReq);
-        ReadResponse(proc).Wait();
+        await ReadResponse(proc);
         // 发送 initialized 通知
         var notif = new JsonObject { ["jsonrpc"] = "2.0", ["method"] = "initialized", ["params"] = new JsonObject() };
         var notifStr = $"Content-Length: {Encoding.UTF8.GetByteCount(notif.ToJsonString())}\r\n\r\n{notif.ToJsonString()}";
         SendMessage(proc, notifStr);
-        ReadResponse(proc).Wait();
+        await ReadResponse(proc);
 
         // 打开文档
         var didOpen = new JsonObject
@@ -277,7 +277,7 @@ public class LspTool : ITool
         };
         var openStr = $"Content-Length: {Encoding.UTF8.GetByteCount(didOpen.ToJsonString())}\r\n\r\n{didOpen.ToJsonString()}";
         SendMessage(proc, openStr);
-        ReadResponse(proc).Wait();
+        await ReadResponse(proc);
     }
 
     private static void SendMessage(Process proc, string message)

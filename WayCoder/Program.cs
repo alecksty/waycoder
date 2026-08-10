@@ -16,6 +16,12 @@ public class Program
     private static Agent? _agent;
     private static readonly AgentSlot[] _slots = new AgentSlot[AgentSlot.Count];
     private static int _activeSlot; // 当前活跃槽位索引（F1 对应 0）
+
+    /// <summary>当前活跃槽位索引（供外部命令访问）</summary>
+    public static int ActiveSlotIndex => _activeSlot;
+
+    /// <summary>所有槽位数组（供外部命令访问）</summary>
+    public static AgentSlot[] GetSlots() => _slots;
     private static WatchMode? _watchMode;
     private static volatile bool _agentBusy;
     private static volatile bool _exitRequested;
@@ -29,6 +35,18 @@ public class Program
     public static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
+
+        // 全局异常处理：恢复终端 + 保存会话
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            try { Tty.ExitAltScreen(); } catch { }
+            try { AutoSaveException(e.ExceptionObject as Exception); } catch { }
+        };
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            try { AutoSaveException(e.Exception); } catch { }
+            e.SetObserved();
+        };
 
         // 手动解析 CLI 参数
         string? model = null, baseUrl = null, apiKey = null, prompt = null, resumeId = null;
@@ -105,6 +123,10 @@ public class Program
             }
         }
 
+        // -p 一次性模式：非交互，自动放行权限
+        if (prompt != null)
+            yoloMode = true;
+
         _config = Config.FromEnv();
         // 加载主题（优先 theme.json，回退配置项）
         if (ThemeConfig.Instance.BorderStyle == "single" && ThemeConfig.Instance.BorderColor == 36)
@@ -147,12 +169,14 @@ public class Program
 
         _agent = new Agent(_llm, maxContextTokens: _config.MaxContextTokens,
             maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
+        ProgramContext.Agent = _agent;
         _slots[0] = new AgentSlot { Agent = _agent }; // 槽位 0 持有主 Agent
 
-        // --yolo: 一次性模式下跳过所有权限确认
+        // --yolo / -p / 管道输入: 非交互模式下跳过所有权限确认
         if (yoloMode)
         {
             SandboxManager.SetLevel("full-auto");
+            PermissionManager.CurrentMode = PermissionManager.Mode.Yolo;
         }
         else
         {
@@ -300,7 +324,7 @@ public class Program
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"{Global.AppFullName} · {Global.Version}", Centered = true });
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = "深圳市探索智能科技有限公司", Centered = true });
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助", Centered = true });
-        slot0.StatusLeft = $"{_config.Model}";
+        slot0.StatusLeft = Global.AppFullName;
         slot0.HasWelcome = true;
         _llm!.SmallModel = _config.SmallModel;
 
@@ -402,6 +426,23 @@ public class Program
                 continue;
             }
 
+            // 系统级：Ctrl+Q 紧急退出（强制保存所有槽位 + 恢复终端）
+            if (key.Key == ConsoleKey.Q && ctrl)
+            {
+                PanicExit("用户 Ctrl+Q 紧急退出");
+            }
+
+            // 系统级：Shift+Tab 切换工作模式（Build → Plan → Review → Auto）
+            if (ev.Type == InputType.ShiftTab)
+            {
+                var newMode = WorkModeManager.CycleNext();
+                _slots[_activeSlot].WorkMode = newMode;
+                screen.StatusBar.CurrentWorkMode = newMode;
+                screen.AddSystemMsg($"工作模式: {WorkModeManager.Format(newMode)}（Shift+Tab 切换）");
+                mgr.Render();
+                continue;
+            }
+
             // 系统级：F1~F10 切换 Agent 槽位
             if (key.Key >= ConsoleKey.F1 && key.Key <= ConsoleKey.F10)
             {
@@ -424,11 +465,20 @@ public class Program
         mgr.Exit();
     }
 
-    /// <summary>启动时检测上次自动保存的会话，提示用户恢复。</summary>
+    /// <summary>启动时检测上次自动保存的会话 + 崩溃恢复标记。</summary>
     private static void TryRestoreSession(ChatScreen screen)
     {
         try
         {
+            // 检测崩溃恢复标记
+            var crashFile = Path.Combine(Global.GlobalConfigPath("sessions"), ".crash_recovery");
+            if (File.Exists(crashFile))
+            {
+                var crashInfo = File.ReadAllText(crashFile).Trim();
+                screen.AddSystemMsg($"⚠ 检测到上次异常退出 ({crashInfo.Split('\n')[0]})。输入 /resume 恢复工作。");
+                try { File.Delete(crashFile); } catch { }
+            }
+
             var auto = SessionManager.LoadSession("_auto");
             if (auto == null) return;
 
@@ -496,6 +546,70 @@ public class Program
         }
     }
 
+    /// <summary>异常崩溃时紧急保存所有槽位</summary>
+    private static void AutoSaveException(Exception? ex)
+    {
+        try
+        {
+            if (ex != null)
+                DebugLog.Log("crash", $"异常: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+            // 保存所有非空槽位
+            for (int i = 0; i < AgentSlot.Count; i++)
+            {
+                var slot = _slots[i];
+                if (slot?.Agent?.Messages == null || slot.Agent.Messages.Count == 0) continue;
+                var hasUser = slot.Agent.Messages.Any(m => (string?)m["role"] == "user");
+                if (!hasUser) continue;
+                var slotSuffix = i == 0 ? "_auto" : $"_auto_slot{i}";
+                try { SessionManager.SaveSession(slot.Agent.Messages, _config.Model, slotSuffix); } catch { }
+            }
+            // 写入崩溃标记文件
+            var crashFile = Path.Combine(Global.GlobalConfigPath("sessions"), ".crash_recovery");
+            File.WriteAllText(crashFile, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\n{ex?.GetType().Name}: {ex?.Message}");
+        }
+        catch { /* 崩溃恢复本身不应再抛异常 */ }
+    }
+
+    /// <summary>紧急退出：保存数据 + 恢复终端 + 退出进程</summary>
+    private static void PanicExit(string reason)
+    {
+        try
+        {
+            DebugLog.Log("panic", $"紧急退出: {reason}");
+            AutoSaveSession();
+            // 也保存其他槽位
+            for (int i = 1; i < AgentSlot.Count; i++)
+            {
+                var slot = _slots[i];
+                if (slot?.Agent?.Messages == null || slot.Agent.Messages.Count == 0) continue;
+                var slotSuffix = $"_auto_slot{i}";
+                try { SessionManager.SaveSession(slot.Agent.Messages, _config.Model, slotSuffix); } catch { }
+            }
+        }
+        catch { }
+        finally
+        {
+            try { Tty.ExitAltScreen(); } catch { }
+            Environment.Exit(1);
+        }
+    }
+
+    /// <summary>在 onToken/onTool 回调中检查热键（Esc 取消 / Ctrl+Q 紧急退出）</summary>
+    private static void CheckHotkeyInCallback(CancellationTokenSource cts)
+    {
+        if (!Console.KeyAvailable) return;
+        var key = Console.ReadKey(intercept: true);
+        if (key.Key == ConsoleKey.Escape)
+        {
+            cts.Cancel();
+        }
+        else if (key.Key == ConsoleKey.Q && key.Modifiers.HasFlag(ConsoleModifiers.Control))
+        {
+            cts.Cancel();
+            PanicExit("Agent 运行中 Ctrl+Q 紧急退出");
+        }
+    }
+
     /// <summary>
     /// 切换 Agent 槽位（F1-F10）。保存当前槽位 UI 状态，懒创建目标槽位 Agent，
     /// 恢复目标槽位状态到屏幕。Agent 运行中禁止切换。
@@ -522,6 +636,7 @@ public class Program
         }
 
         _agent = slot.Agent;
+        ProgramContext.Agent = slot.Agent;
 
         // 重绑子智能体父引用（所有 Agent 共享 AgentTool 实例）
         foreach (var t in _agent.Tools)
@@ -542,6 +657,11 @@ public class Program
 
         slot.RestoreTo(screen);
         screen.ActiveSlotIndex = idx;
+
+        // 恢复目标槽位的工作模式
+        WorkModeManager.CurrentMode = slot.WorkMode;
+        screen.StatusBar.CurrentWorkMode = slot.WorkMode;
+
         screen.Render();
     }
 
@@ -679,6 +799,8 @@ public class Program
                     screen.StartAgentMsg();
                     screen.Render();
 
+                    // 工具调用计数：每 3 次工具调用自动保存一次
+                    var toolCallCount = 0;
                     await _agent!.ChatAsync(userInput,
                         onToken: tok =>
                         {
@@ -686,6 +808,8 @@ public class Program
                             screen.AppendToken(tok);
                             if (Tty.SizeChanged(ref _lastStreamW, ref _lastStreamH))
                                 TuiManager.Instance.OnResize();
+                            // 检查 Esc 取消 / Ctrl+Q 紧急退出
+                            CheckHotkeyInCallback(cts);
                             screen.Render();
                         },
                         onTool: (name, brief) =>
@@ -695,6 +819,11 @@ public class Program
                             screen.StartAgentMsg();
                             if (Tty.SizeChanged(ref _lastStreamW, ref _lastStreamH))
                                 TuiManager.Instance.OnResize();
+                            // 每 3 次工具调用自动保存（防止崩溃丢失进度）
+                            if (++toolCallCount % 3 == 0)
+                                AutoSaveSession();
+                            // 检查 Esc 取消 / Ctrl+Q 紧急退出
+                            CheckHotkeyInCallback(cts);
                             screen.Render();
                         },
                         cancellationToken: cts.Token);
@@ -955,7 +1084,7 @@ public class Program
 
     private static void ShowHelpInChat(ChatScreen screen)
     {
-        screen.AddSystemMsg("帮助: /help /reset /model /tokens /compact /diff /save /resume /history /export /sessions ... F1-F10切换Agent Ctrl+E编辑器 Ctrl+T设置 Ctrl+R搜索 Ctrl+M切模型 Ctrl+H帮助 Ctrl+B面板 Ctrl+Q退出 ↑↓历史");
+        screen.AddSystemMsg("帮助: /help /reset /model /tokens /compact /diff /save /resume /history /export /sessions ... F1-F10切换Agent Ctrl+E编辑器 Ctrl+T设置 Ctrl+R搜索 Ctrl+M切模型 Ctrl+H帮助 Ctrl+B面板 Ctrl+Q紧急保存退出 Esc中断 ↑↓历史 · 如副屏卡死，终端执行 reset 恢复");
     }
 
     /// <summary>搜索对话历史中的关键词。</summary>

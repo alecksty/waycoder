@@ -26,8 +26,44 @@ public class AgentSlot
     public List<string> RecentFiles { get; } = [];
     public bool SidePanelVisible;
 
+    /// <summary>当前槽位的工作模式</summary>
+    public WorkMode WorkMode { get; set; } = WorkMode.Build;
+
     /// <summary>是否已显示欢迎屏（每个槽位首次激活时显示一次）</summary>
     public bool HasWelcome { get; set; }
+
+    /// <summary>待投递的跨槽位消息（从其他槽位发送来）</summary>
+    public readonly List<(int FromSlot, string Message)> PendingMessages = [];
+
+    /// <summary>
+    /// 投递一条跨槽位消息。若目标槽位是当前活跃槽位，直接显示；否则排队。
+    /// </summary>
+    public void DeliverMessage(int fromSlot, string message, ChatScreen? activeScreen, int targetIdx)
+    {
+        if (activeScreen != null && activeScreen.ActiveSlotIndex == targetIdx)
+        {
+            // 目标槽位正在显示 → 直接投递
+            activeScreen.AddSystemMsg($"📨 **F{fromSlot + 1} → 你**：{message}");
+        }
+        else
+        {
+            // 目标槽位不在前台 → 排队
+            PendingMessages.Add((fromSlot, message));
+        }
+    }
+
+    /// <summary>
+    /// 将队列中的跨槽位消息刷新到屏幕（切换回本槽位时调用）。
+    /// </summary>
+    public void FlushPendingMessages(ChatScreen? screen, int slotIdx)
+    {
+        if (PendingMessages.Count == 0 || screen == null) return;
+        foreach (var (fromSlot, msg) in PendingMessages)
+        {
+            screen.AddSystemMsg($"📨 **F{fromSlot + 1} → 你**：{msg}");
+        }
+        PendingMessages.Clear();
+    }
 
     /// <summary>
     /// 从 ChatScreen 快照当前 UI 状态到本槽位。
@@ -46,6 +82,7 @@ public class AgentSlot
         RecentFiles.Clear();
         RecentFiles.AddRange(screen.RecentFiles);
         SidePanelVisible = screen.SidePanelVisible;
+        WorkMode = WorkModeManager.CurrentMode;
     }
 
     /// <summary>将本槽位状态恢复到 ChatScreen（切换回该槽位时调用）</summary>
@@ -77,6 +114,9 @@ public class AgentSlot
         screen.HideSuggestions();
         screen.SuggestActive = false;
         screen.ChatScrollBottom();
+
+        // 投递跨槽位待处理消息
+        FlushPendingMessages(screen, screen.ActiveSlotIndex);
 
         screen.MarkDirty();
     }

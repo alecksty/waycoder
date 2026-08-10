@@ -208,7 +208,7 @@ public static class EmbeddingStore
     /// 无 .vec 文件的条目：纯 TF-IDF 评分
     /// 返回按分数降序排列的 topN 结果。
     /// </summary>
-    public static List<(StructuredMemory.MemoryEntry Entry, double Score)> SearchHybrid(
+    public static async Task<List<(StructuredMemory.MemoryEntry Entry, double Score)>> SearchHybrid(
         List<StructuredMemory.MemoryEntry> entries, string query, int topN = 20,
         CancellationToken ct = default)
     {
@@ -230,9 +230,7 @@ public static class EmbeddingStore
         {
             try
             {
-                var genTask = GenerateEmbeddingAsync(query, ct);
-                genTask.Wait(ct);
-                queryVec = genTask.Result;
+                queryVec = await GenerateEmbeddingAsync(query, ct);
             }
             catch
             {

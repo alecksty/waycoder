@@ -80,7 +80,25 @@ public abstract class TuiControl : TuiBase
 
     /// <summary>获取光标状态（仅光标所有者返回有效值）</summary>
     public virtual (int row, int col, bool show)? GetCursorState()
-        => _showCursor ? (_cursorRow, _cursorCol, true) : null;
+    {
+        // 每次取光标状态时强制刷新位置——不依赖 OnRender 是否被调用
+        if (IsCursorOwner)
+            EnsureCursorPosition();
+        return _showCursor ? (_cursorRow, _cursorCol, true) : null;
+    }
+
+    /// <summary>
+    /// 确保光标坐标是最新的。子类覆写以提供精确的光标位置计算。
+    /// 如果 OnRender 已设置光标（_showCursor=true），跳过以节省计算。
+    /// 默认实现：基于绝对坐标。
+    /// </summary>
+    protected virtual void EnsureCursorPosition()
+    {
+        if (!IsCursorOwner || _showCursor) return; // 已由 OnRender 设置
+        _cursorRow = GetAbsoluteY();
+        _cursorCol = GetAbsoluteX();
+        _showCursor = true;
+    }
 
     // ── 颜色 ──
     /// <summary>默认前景色（ANSI 色码，0=继承父容器）</summary>
