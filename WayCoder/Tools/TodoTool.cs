@@ -1,5 +1,7 @@
 namespace WayCoder.Tools;
 
+using WayCoder.UI;
+
 /// <summary>
 /// Todo 任务追踪工具 —— Agent 可以创建和管理结构化任务列表。
 /// </summary>
@@ -55,13 +57,30 @@ public class TodoTool : ITool
     {
         var action = arguments.GetValueOrDefault("action")?.ToString() ?? "list";
 
-        return Task.FromResult(action switch
+        var result = action switch
         {
             "create" => Create(arguments),
             "update" => Update(arguments),
             "clear" => Clear(),
             _ => List(),
-        });
+        };
+
+        // 修改后刷新侧边栏 Todo 面板
+        if (action is "create" or "update" or "clear")
+            RefreshSidebar();
+
+        return Task.FromResult(result);
+    }
+
+    /// <summary>刷新 TUI 侧边栏 Todo 面板（如果当前屏幕是 ChatScreen）</summary>
+    private static void RefreshSidebar()
+    {
+        try
+        {
+            if (TuiManager.Instance?.ActiveScreen is WayCoder.UI.TuiScreens.ChatScreen screen)
+                screen.RefreshSidePanel();
+        }
+        catch { /* 非 TUI 模式，静默忽略 */ }
     }
 
     private static string Create(Dictionary<string, object?> args)
