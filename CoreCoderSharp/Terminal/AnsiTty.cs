@@ -96,6 +96,37 @@ public static class AnsiTty
     public static string FgRgb(int r, int g, int b) => $"\x1b[38;2;{r};{g};{b}m";
     public static string BgRgb(int r, int g, int b) => $"\x1b[48;2;{r};{g};{b}m";
 
+    /// <summary>将 RGB 编码为内部 TrueColor 颜色码（≥0x1000000），可透传给 FgCode/BgCode</summary>
+    public static int RgbCode(int r, int g, int b) => 0x1000000 | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
+
+    /// <summary>从 TrueColor 颜色码解码 RGB 分量</summary>
+    public static (int r, int g, int b) DecodeRgb(int code)
+    {
+        int rgb = code - 0x1000000;
+        return ((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+    }
+
+    /// <summary>在两个 TrueColor 颜色码之间线性插值</summary>
+    public static int LerpRgb(int from, int to, float t)
+    {
+        var (r1, g1, b1) = DecodeRgb(from);
+        var (r2, g2, b2) = DecodeRgb(to);
+        return RgbCode(
+            (int)(r1 + (r2 - r1) * t),
+            (int)(g1 + (g2 - g1) * t),
+            (int)(b1 + (b2 - b1) * t));
+    }
+
+    /// <summary>将 TrueColor 向白色方向调亮（amount=0 不变，1 全白）</summary>
+    public static int LightenRgb(int code, float amount)
+    {
+        var (r, g, b) = DecodeRgb(code);
+        return RgbCode(
+            Math.Min(255, (int)(r + (255 - r) * amount)),
+            Math.Min(255, (int)(g + (255 - g) * amount)),
+            Math.Min(255, (int)(b + (255 - b) * amount)));
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // 颜色码 → 序列（自动识别 16色/256色/TrueColor）
     // ═══════════════════════════════════════════════════════════════

@@ -1,5 +1,38 @@
 # 更新日志
 
+## v0.24.1 (2026-08-10) — 真彩渐变边框 + 按钮美化
+
+### 🔥 新增
+
+**真彩渐变边框**
+- 对话框上下横边支持 24-bit TrueColor 渐变（青→蓝 / 绿→青 / 橙→黄 / 红→橙）
+- 竖边框：左=起始色、右=终止色，纯色不断线
+- `WriteGradientHLine` 逐字 Lerp 插值渲染
+- `TuiTheme` 5 组渐变预设（`GradCyanBlue` / `GradGreenCyan` / `GradOrangeYellow` / `GradRedOrange` / `GradPurplePink`）
+
+**按钮渐变背景**
+- `DrawButtonGradientLine` 单次定位 + 逐字换背景色 + 末尾统一重置
+- 按钮渐变独立于边框（比边框亮 30%），`TuiTheme` 4 组 `Btn*` 预设
+- `TuiButton` 新增 `GradientBg` / `GradientBgStart` / `GradientBgEnd` 属性
+
+**对话框美化**
+- 边框默认改为 `Solid`（▀▄█ 半高块），粗线更显眼
+- 四角改用全块 `█` 字符，防断线
+- 竖边框 + 底角 bg=fg 防行间间隙
+- 标题居中 + 渐变色（取 50% 位置）
+- 内容文字 `TextAlign = HAlign.Center` 居中
+- 按钮等宽居中（`NormalizeButtons` 统一取最宽者）
+- 按钮 HBox 左右各留 1 字符间距，不贴边框
+
+### 🔧 变更
+
+- `AnsiTty` 新增 `RgbCode` / `DecodeRgb` / `LerpRgb` / `LightenRgb` TrueColor 工具
+- `BorderChars` 支持 `HTop` / `HBottom` 独立字符
+- `TuiWindow` 新增 `GradientBorder` / `GradientStart` / `GradientEnd` 属性
+- `TuiScreen.RenderWindow` 渐变渲染逻辑重构
+
+---
+
 ## v0.24.0 (2026-08-10) — 侧栏面板 + 按键架构简化
 
 ### 🔥 新增

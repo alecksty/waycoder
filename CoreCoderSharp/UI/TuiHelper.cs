@@ -54,6 +54,112 @@ public static class TuiHelper
     }
 
     /// <summary>
+    /// 按 maxWidth 折行文本，支持显式换行符（\n）和自动折行。
+    /// 英文文本尽量在空格处断行，CJK 文本在字符边界断行。
+    /// 超出 maxLines 时最后一行末尾追加 "…"。
+    /// </summary>
+    /// <param name="maxWidth">终端显示宽度上限</param>
+    /// <param name="maxLines">最大行数（默认 10）</param>
+    /// <returns>折行后的文本行列表（不含换行符）</returns>
+    public static List<string> WrapText(string text, int maxWidth, int maxLines = 10)
+    {
+        if (string.IsNullOrEmpty(text)) return [""];
+        if (maxWidth <= 0) return [text];
+
+        var result = new List<string>();
+        var rawLines = text.Replace("\r\n", "\n").Split('\n');
+
+        foreach (var line in rawLines)
+        {
+            if (result.Count >= maxLines) break;
+            WrapLine(line, maxWidth, result, maxLines);
+        }
+
+        // 总行数超出 maxLines：截断并给最后一行加 …
+        if (result.Count > maxLines)
+        {
+            result = result.Take(maxLines).ToList();
+            var last = result[^1];
+            var lastVw = DisplayWidth(last);
+            if (lastVw + 1 > maxWidth)
+                last = TruncateByWidth(last, maxWidth - 1);
+            result[^1] = TruncateByWidth(last, maxWidth);
+        }
+
+        return result;
+    }
+
+    /// <summary>折行单行（不含 \n）</summary>
+    private static void WrapLine(string line, int maxWidth, List<string> result, int maxLines)
+    {
+        if (result.Count >= maxLines) return;
+
+        if (DisplayWidth(line) <= maxWidth)
+        {
+            result.Add(line);
+            return;
+        }
+
+        // 长行需要折行
+        while (line.Length > 0 && result.Count < maxLines)
+        {
+            if (DisplayWidth(line) <= maxWidth)
+            {
+                result.Add(line);
+                break;
+            }
+
+            // 查找断点：优先在空格处、否则在字符边界
+            int breakIdx = FindBreakIndex(line, maxWidth);
+            if (breakIdx <= 0) breakIdx = 1; // 安全兜底
+
+            result.Add(line[..breakIdx]);
+            line = line[breakIdx..].TrimStart(); // 去掉段首空格
+        }
+    }
+
+    /// <summary>在 maxWidth 内查找最佳断行点（优先空格，其次字符边界）</summary>
+    private static int FindBreakIndex(string text, int maxWidth)
+    {
+        var runes = text.EnumerateRunes().ToList();
+        int width = 0;
+        int lastSpace = -1;
+
+        for (int i = 0; i < runes.Count; i++)
+        {
+            int rw = RuneWidth(runes[i]);
+            if (width + rw > maxWidth)
+            {
+                // 超了：优先在最后一个空格处断
+                if (lastSpace > 0) return lastSpace;
+                // 否则在当前字符前断
+                // 需要回溯到前一个字符的结束位置（即 i 个 rune 的 string 长度）
+                return RuneIndexToStringIndex(text, i);
+            }
+            width += rw;
+
+            // 记录空格位置（英文词边界）
+            if (runes[i].Value == ' ')
+                lastSpace = RuneIndexToStringIndex(text, i) + 1; // 断在空格之后
+        }
+        return text.Length; // 全放下了
+    }
+
+    /// <summary>将 rune 索引转换为 string 的 char 索引</summary>
+    private static int RuneIndexToStringIndex(string text, int runeIdx)
+    {
+        int ri = 0;
+        int si = 0;
+        foreach (var r in text.EnumerateRunes())
+        {
+            if (ri >= runeIdx) return si;
+            ri++;
+            si += r.ToString().Length; // Rune 转 string 可能占 1~4 个 char
+        }
+        return text.Length;
+    }
+
+    /// <summary>
     /// 按显示宽度右填充空格，使总显示宽度达到 totalWidth。
     /// 用于终端文本手动对齐（Spectre Table 自动对齐时不需要此方法）。
     /// </summary>
@@ -301,4 +407,32 @@ public static class TuiHelper
 
         return 1; // 默认窄字符
     }
+
+    // ── 边框字符映射 ──
+
+    /// <summary>边框字符集：左上 右上 左下 右下 水平 垂直，上水平 下水平（默认同 H）</summary>
+    public record struct BorderChars(string TL, string TR, string BL, string BR, string H, string V,
+        string? HTop = null, string? HBottom = null)
+    {
+        /// <summary>上边框水平线（默认同 H）</summary>
+        public string HT => HTop ?? H;
+        /// <summary>下边框水平线（默认同 H）</summary>
+        public string HB => HBottom ?? H;
+    }
+
+    /// <summary>根据边框样式获取对应的 Unicode 边框字符集</summary>
+    public static BorderChars GetBorderChars(WindowBorder border) => border switch
+    {
+        WindowBorder.None     => new(" ", " ", " ", " ", " ", " "),
+        WindowBorder.Double   => new("╔", "╗", "╚", "╝", "═", "║"),
+        WindowBorder.Thick    => new("┏", "┓", "┗", "┛", "━", "┃"),
+        WindowBorder.Single   => new("┌", "┐", "└", "┘", "─", "│"),
+        WindowBorder.Solid    => new("█", "█", "█", "█", "█", "█", HTop: "▀", HBottom: "▄"),
+        WindowBorder.Dotted   => new("┌", "┐", "└", "┘", "┄", "┆"),
+        WindowBorder.Dashed   => new("┌", "┐", "└", "┘", "┅", "┇"),
+        WindowBorder.Ascii    => new("+", "+", "+", "+", "-", "|"),
+        WindowBorder.Slash    => new("/", "\\", "\\", "/", "-", "|"),
+        WindowBorder.Triangle => new("▶", "◀", "◀", "▶", "─", "│"),
+        _                     => new("╭", "╮", "╰", "╯", "─", "│"), // Rounded
+    };
 }

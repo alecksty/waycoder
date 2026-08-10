@@ -10,6 +10,13 @@ public class TuiButton : TuiControl
     public string Text { get; set; } = "OK";
     public Action<TuiButton>? OnClick { get; set; }
 
+    /// <summary>是否启用渐变背景</summary>
+    public bool GradientBg { get; set; }
+    /// <summary>渐变背景起始色（TrueColor 码）</summary>
+    public int GradientBgStart { get; set; }
+    /// <summary>渐变背景终止色（TrueColor 码）</summary>
+    public int GradientBgEnd { get; set; }
+
     public TuiButton() { Height = 1; Width = 10; TextAlign = HAlign.Center; }
     public TuiButton(string text, Action<TuiButton>? onClick = null)
     {
@@ -21,9 +28,19 @@ public class TuiButton : TuiControl
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
         var t = TuiTheme.Current;
-        ControlRenderer.DrawButtonLine(sb, this, absX, absY,
-            ControlRenderer.PadText(Text), TextAlign,
-            t.ButtonFg, t.ButtonBg, t.ControlFocusedFg, t.ControlFocusedBg);
+        if (GradientBg && GradientBgStart >= 0x1000000 && GradientBgEnd >= 0x1000000)
+        {
+            ControlRenderer.DrawButtonGradientLine(sb, this, absX, absY,
+                ControlRenderer.PadText(Text), TextAlign,
+                t.ButtonFg, t.ControlFocusedFg, t.ControlDisabledFg,
+                GradientBgStart, GradientBgEnd);
+        }
+        else
+        {
+            ControlRenderer.DrawButtonLine(sb, this, absX, absY,
+                ControlRenderer.PadText(Text), TextAlign,
+                t.ButtonFg, t.ButtonBg, t.ControlFocusedFg, t.ControlFocusedBg);
+        }
     }
 
     public override bool OnKey(ConsoleKeyInfo key)

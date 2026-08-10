@@ -37,6 +37,9 @@ public class ChatScreen : TuiScreen
     /// <summary>多行输入区</summary>
     public TuiTextArea InputArea { get; private set; } = null!;
 
+    /// <summary>提示栏（输入框上方）</summary>
+    public TuiPromptBar PromptBar { get; private set; } = null!;
+
     /// <summary>输入区上分隔线</summary>
     public TuiSeparator InputTopBorder { get; private set; } = null!;
 
@@ -130,6 +133,7 @@ public class ChatScreen : TuiScreen
         }
 
         // 恢复分隔线宽度
+        PromptBar.Width = TW;
         InputTopBorder.Width = TW;
         InputBotBorder.Width = TW;
 
@@ -152,7 +156,7 @@ public class ChatScreen : TuiScreen
         RootView.Add(TitleBar);
 
         // ── 中间区域：ChatList + SidePanel（HBox 水平排列）──
-        int chatH = Math.Max(1, TH - 1 - 1 - 3 - 1 - 1); // TH - title(1) - topBorder(1) - input(3) - botBorder(1) - status(1)
+        int chatH = Math.Max(1, TH - 1 - 0 - 1 - 3 - 1 - 1); // TH - title(1) - prompt(0) - topBorder(1) - input(3) - botBorder(1) - status(1)
         var middleHBox = new TuiHBox { Width = TW, Height = chatH };
 
         ChatList = new TuiListView
@@ -186,6 +190,17 @@ public class ChatScreen : TuiScreen
         };
         RootView.Add(SuggestPanel);
 
+        // ── 提示栏（默认隐藏，输入时动态显示）──
+        PromptBar = new TuiPromptBar
+        {
+            Width = TW,
+            Height = 0,
+            Visible = false,
+            Bg = 0,
+            MaxVisible = 6,
+        };
+        RootView.Add(PromptBar);
+
         // ── 输入区上分隔线 ──
         InputTopBorder = new TuiSeparator
         {
@@ -199,6 +214,8 @@ public class ChatScreen : TuiScreen
         {
             Width = TW,
             Height = 3,
+            Bg = 0,
+            CursorLineBg = 0,
             Focused = true,
             Placeholder = "输入消息… (Enter 发送, Ctrl+Enter 换行)",
             ShowLineNumbers = false
@@ -609,6 +626,113 @@ public class ChatScreen : TuiScreen
         SidePanelSections = sections;
     }
 
+    // ── 提示栏 ──
+
+    /// <summary>显示提示栏（命令/文件/Shell 等建议列表）</summary>
+    public void ShowPromptBar(List<PromptItem> items)
+    {
+        PromptBar.Items = items;
+        PromptBar.SelectedIndex = items.Count > 0 ? 0 : -1;
+        PromptBar.Visible = true;
+        int h = Math.Min(items.Count, PromptBar.MaxVisible);
+        // Bg==0 边框模式需 +2（上下边框），Bg>0 填充模式需 +1（底部分隔线）
+        int extra = PromptBar.Bg == 0 ? 2 : 1;
+        PromptBar.Height = h * PromptBar.ItemHeight + extra;
+
+        // 在 InputArea 上挂 KeyHook：拦截 ↑↓/Enter/Esc/Tab，透传其他键
+        InputArea.KeyHook = PromptKeyHook;
+
+        MarkDirty();
+    }
+
+    /// <summary>隐藏提示栏</summary>
+    public void HidePromptBar()
+    {
+        PromptBar.Visible = false;
+        PromptBar.Height = 0;
+        PromptBar.Items.Clear();
+        PromptBar.SelectedIndex = -1;
+        InputArea.KeyHook = null;
+        MarkDirty();
+    }
+
+    /// <summary>挂载在 InputArea 上的按键钩子：↑↓/Enter/Esc 导航提示栏</summary>
+    private bool PromptKeyHook(ConsoleKeyInfo key)
+    {
+        if (!PromptBarVisible) return false;
+
+        switch (key.Key)
+        {
+            case ConsoleKey.Escape:
+                HidePromptBar();
+                return true;
+            case ConsoleKey.UpArrow:
+            case ConsoleKey.DownArrow:
+            case ConsoleKey.Home:
+            case ConsoleKey.End:
+                PromptBar.OnKey(key);
+                MarkDirty();
+                return true;
+            case ConsoleKey.Enter:
+                if (PromptBar.SelectedIndex >= 0 && PromptBar.SelectedIndex < PromptBar.Items.Count)
+                {
+                    var item = PromptBar.Items[PromptBar.SelectedIndex];
+                    if (!string.IsNullOrEmpty(item.Value))
+                        SetInput(item.Value);
+                    HidePromptBar();
+                }
+                return true;
+            case ConsoleKey.Tab:
+                if (PromptBar.SelectedIndex >= 0 && PromptBar.SelectedIndex < PromptBar.Items.Count)
+                {
+                    var item = PromptBar.Items[PromptBar.SelectedIndex];
+                    if (!string.IsNullOrEmpty(item.Value))
+                        SetInput(item.Value);
+                    MarkDirty();
+                }
+                return true;
+        }
+        // 其他键透传，让 InputArea 正常处理（CheckPrefixHints 会自动刷新）
+        return false;
+    }
+
+    /// <summary>提示栏是否可见</summary>
+    public bool PromptBarVisible => PromptBar.Visible;
+
+    /// <summary>构建默认提示列表（命令 + 最近文件 + 快捷操作）</summary>
+    private List<PromptItem> BuildDefaultHints()
+    {
+        var items = new List<PromptItem>();
+
+        // ── 快捷命令 ──
+        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "帮助", Detail = "显示帮助信息", Value = "/help" });
+        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "切换模型", Detail = "轮换 LLM", Value = "/model" });
+        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "清空对话", Detail = "重置上下文", Value = "/clear" });
+        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "历史搜索", Detail = "搜索对话记录", Value = "/history " });
+        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "YOLO 模式", Detail = "跳过权限确认", Value = "/perm yolo" });
+        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "Diff 预览", Detail = "切换 diff 预览", Value = "/diff" });
+
+        // ── 文件操作 ──
+        items.Add(new PromptItem { Kind = PromptKind.Slash, Label = "/edit", Detail = "编辑文件", Value = "/edit " });
+        items.Add(new PromptItem { Kind = PromptKind.Slash, Label = "/read", Detail = "读取文件", Value = "/read " });
+        items.Add(new PromptItem { Kind = PromptKind.Slash, Label = "/write", Detail = "写入文件", Value = "/write " });
+
+        // ── 最近修改文件 ──
+        if (ModifiedFiles.Count > 0)
+        {
+            foreach (var f in ModifiedFiles.Take(4))
+                items.Add(new PromptItem { Kind = PromptKind.File, Label = Path.GetFileName(f), Detail = "最近修改", Value = $"@\"{f}\" " });
+        }
+
+        // ── Shell ──
+        items.Add(new PromptItem { Kind = PromptKind.Shell, Label = "dotnet build", Detail = "编译项目", Value = "!dotnet build" });
+        items.Add(new PromptItem { Kind = PromptKind.Shell, Label = "dotnet test", Detail = "运行测试", Value = "!dotnet test" });
+        items.Add(new PromptItem { Kind = PromptKind.Shell, Label = "git status", Detail = "查看状态", Value = "!git status" });
+        items.Add(new PromptItem { Kind = PromptKind.Shell, Label = "git diff", Detail = "查看变更", Value = "!git diff" });
+
+        return items;
+    }
+
     // ── 渲染 ──
 
     public override void Render(StringBuilder sb)
@@ -632,12 +756,16 @@ public class ChatScreen : TuiScreen
 
         // ── 动态尺寸 ──
         int panelW = SidePanelVisible ? Math.Min(30, TW / 3) : 0;
-        int inputH = Math.Max(1, Math.Min(10, InputArea.Lines.Count + 1));
-        int chatH = Math.Max(1, TH - 1 - 1 - inputH - 1 - 1); // TH - title - topBorder - input - botBorder - status
+        int inputH = Math.Clamp(InputArea.Lines.Count + 1, 3, 5);
+        int promptH = PromptBar.Visible ? PromptBar.Height : 0;
+        int chatH = Math.Max(1, TH - 1 - promptH - 1 - inputH - 1 - 1); // TH - title - prompt - topBorder - input - botBorder - status
 
         // ── 输入区 ──
         InputArea.Width = TW;
         InputArea.Height = inputH;
+
+        // ── 提示栏 ──
+        PromptBar.Width = TW;
 
         // ── 分隔线 ──
         InputTopBorder.Width = TW;
@@ -755,7 +883,7 @@ public class ChatScreen : TuiScreen
         // ── 2. 模态窗口优先 ──
         if (HasModal) return base.OnKey(key);
 
-        // ── 3. 聊天自身处理（全局快捷键 + 导航 + 提交 + 输入编辑）──
+        // ── 4. 聊天自身处理（全局快捷键 + 导航 + 提交 + 输入编辑）──
         if (HandleGlobalShortcut(key, ctrl, shift)
             || HandleChatNavigation(key, ctrl, shift)
             || HandleSpecial(key, ctrl, shift)
@@ -838,6 +966,10 @@ public class ChatScreen : TuiScreen
                     OnCycleModel?.Invoke(); return true;
                 case ConsoleKey.H:
                     OnShowHelp?.Invoke(); return true;
+                case ConsoleKey.P:
+                    if (PromptBarVisible) { HidePromptBar(); return true; }
+                    ShowPromptBar(BuildDefaultHints());
+                    return true;
                 case ConsoleKey.Q:
                     ShowExitConfirmDialog(); return true;
                 // 聊天滚动
@@ -931,8 +1063,6 @@ public class ChatScreen : TuiScreen
     /// <summary>输入区编辑：粘贴/换行/历史/补全/委托给 InputArea</summary>
     private bool HandleInputEditing(ConsoleKeyInfo key, bool ctrl, bool shift)
     {
-        if (!InputArea.Focused) return base.OnKey(key);
-
         // 粘贴快捷键
         if ((key.Key == ConsoleKey.V && ctrl && !shift) ||
             (key.Key == ConsoleKey.Insert && shift))
@@ -964,8 +1094,181 @@ public class ChatScreen : TuiScreen
             return HandleTabCompletion();
         }
 
-        // 其他全部委托给 InputArea
-        return InputArea.OnKey(key);
+        // 先委托给 InputArea 处理字符输入
+        var handled = InputArea.OnKey(key);
+
+        // 输入后检测前缀符号，弹出对应提示
+        CheckPrefixHints();
+
+        return handled;
+    }
+
+    /// <summary>检测输入中的 / # @ ! 前缀，弹出对应提示栏</summary>
+    private void CheckPrefixHints()
+    {
+        var text = GetInputText();
+        int cursorPos = InputArea.CursorCol;
+        if (InputArea.Lines.Count == 1)
+            cursorPos = Math.Min(cursorPos, text.Length);
+
+        // 单行模式才触发（多行输入不弹提示）
+        if (InputArea.Lines.Count != 1)
+        {
+            if (PromptBarVisible) HidePromptBar();
+            return;
+        }
+
+        // 从光标位置向前找最近的前缀符号
+        char prefix = '\0';
+        int prefixPos = -1;
+        for (int i = cursorPos - 1; i >= 0; i--)
+        {
+            char c = text[i];
+            if (c == '/' || c == '@' || c == '!' || c == '#')
+            {
+                // 确保前缀在行首或空格后
+                if (i == 0 || text[i - 1] == ' ' || text[i - 1] == '\n')
+                {
+                    prefix = c;
+                    prefixPos = i;
+                    break;
+                }
+            }
+            if (c == ' ' || c == '\n') break;
+        }
+
+        if (prefix == '\0' || prefixPos < 0)
+        {
+            if (PromptBarVisible) HidePromptBar();
+            return;
+        }
+
+        // 提取前缀后的部分文本作为过滤词
+        var query = text[(prefixPos + 1)..cursorPos];
+
+        // 根据前缀构建提示
+        var items = BuildPrefixHints(prefix, query);
+        if (items.Count == 0)
+        {
+            HidePromptBar();
+            return;
+        }
+
+        ShowPromptBar(items);
+    }
+
+    /// <summary>根据前缀符号和查询构建提示列表</summary>
+    private List<PromptItem> BuildPrefixHints(char prefix, string query)
+    {
+        var items = new List<PromptItem>();
+        var q = query.TrimStart();
+
+        switch (prefix)
+        {
+            case '/': // 斜杠命令
+                var slashCmds = new (string cmd, string desc)[]
+                {
+                    ("/help", "显示帮助信息"),
+                    ("/model", "切换 LLM 模型"),
+                    ("/clear", "清空对话上下文"),
+                    ("/history", "搜索对话历史"),
+                    ("/perm yolo", "跳过权限确认"),
+                    ("/perm ask", "恢复权限确认"),
+                    ("/diff", "切换 diff 预览"),
+                    ("/edit", "编辑文件"),
+                    ("/read", "读取文件"),
+                    ("/write", "写入文件"),
+                    ("/todo", "显示任务列表"),
+                    ("/theme", "切换主题"),
+                    ("/tokens", "显示 Token 用量"),
+                    ("/status", "显示系统状态"),
+                };
+                foreach (var (cmd, desc) in slashCmds)
+                {
+                    if (string.IsNullOrEmpty(q) ||
+                        cmd.Contains(q, StringComparison.OrdinalIgnoreCase))
+                        items.Add(new PromptItem { Kind = PromptKind.Slash, Label = cmd, Detail = desc, Value = cmd + " " });
+                }
+                break;
+
+            case '@': // 文件引用
+                try
+                {
+                    string dir = ".";
+                    string fileQuery = q;
+                    int lastSlash = q.LastIndexOf('/');
+                    if (lastSlash >= 0)
+                    {
+                        dir = q[..(lastSlash + 1)];
+                        fileQuery = q[(lastSlash + 1)..];
+                    }
+                    if (Directory.Exists(dir))
+                    {
+                        foreach (var entry in Directory.EnumerateFileSystemEntries(dir).Take(20))
+                        {
+                            var name = Path.GetFileName(entry);
+                            if (!string.IsNullOrEmpty(fileQuery) &&
+                                !name.StartsWith(fileQuery, StringComparison.OrdinalIgnoreCase))
+                                continue;
+                            var display = lastSlash >= 0 ? q[..(lastSlash + 1)] + name : name;
+                            if (Directory.Exists(entry)) display += "/";
+                            items.Add(new PromptItem
+                            {
+                                Kind = PromptKind.File,
+                                Label = display,
+                                Detail = Directory.Exists(entry) ? "目录" : "文件",
+                                Value = "@" + display + " "
+                            });
+                        }
+                    }
+                }
+                catch { /* 权限不足忽略 */ }
+                // 也加入最近修改的文件
+                if (string.IsNullOrEmpty(q))
+                {
+                    foreach (var f in ModifiedFiles.Take(5))
+                    {
+                        var name = Path.GetFileName(f);
+                        items.Add(new PromptItem { Kind = PromptKind.Recent, Label = name, Detail = "最近修改", Value = "@\"" + f + "\" " });
+                    }
+                }
+                break;
+
+            case '!': // Shell 命令
+                var shellCmds = new (string cmd, string desc)[]
+                {
+                    ("dotnet build", "编译项目"),
+                    ("dotnet run", "运行项目"),
+                    ("dotnet test", "运行测试"),
+                    ("dotnet publish -c Release", "AOT 发布"),
+                    ("git status", "查看仓库状态"),
+                    ("git diff", "查看变更"),
+                    ("git add -A", "暂存所有变更"),
+                    ("git commit -m", "提交"),
+                    ("git push", "推送"),
+                    ("git pull", "拉取"),
+                    ("git log --oneline", "查看日志"),
+                    ("ls -la", "列出文件"),
+                    ("find . -name", "搜索文件"),
+                    ("grep -r", "搜索内容"),
+                };
+                foreach (var (cmd, desc) in shellCmds)
+                {
+                    if (string.IsNullOrEmpty(q) ||
+                        cmd.StartsWith(q, StringComparison.OrdinalIgnoreCase))
+                        items.Add(new PromptItem { Kind = PromptKind.Shell, Label = cmd, Detail = desc, Value = "!" + cmd });
+                }
+                break;
+
+            case '#': // 标签/Issue/PR 引用
+                items.Add(new PromptItem { Kind = PromptKind.Command, Label = "#todo", Detail = "待办事项", Value = "#todo " });
+                items.Add(new PromptItem { Kind = PromptKind.Command, Label = "#fix", Detail = "修复", Value = "#fix " });
+                items.Add(new PromptItem { Kind = PromptKind.Command, Label = "#wip", Detail = "进行中", Value = "#wip " });
+                items.Add(new PromptItem { Kind = PromptKind.Command, Label = "#done", Detail = "已完成", Value = "#done " });
+                break;
+        }
+
+        return items;
     }
 
     /// <summary>输入区 ↑ 箭头：历史/多行移动/滚动</summary>
