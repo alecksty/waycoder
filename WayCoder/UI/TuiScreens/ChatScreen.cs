@@ -109,6 +109,12 @@ public class ChatScreen : TuiScreen
     /// <summary>Agent 正在执行（显示旋转指示）</summary>
     public bool AgentBusy { get; set; }
 
+    /// <summary>聊天显示风格：detailed=全显示 auto=智能折叠 concise=极简一行</summary>
+    public string ChatDisplayStyle { get; set; } = "auto";
+
+    /// <summary>当前工具调用已流式输出的行数（用于 auto 模式折叠）</summary>
+    private int _toolOutputLineCount;
+
     /// <summary>
     /// 初始化聊天屏幕
     /// </summary>
@@ -329,17 +335,41 @@ public class ChatScreen : TuiScreen
     public void AppendToLast(string delta)
     {
         var last = ChatList.GetItem(ChatList.ItemCount - 1) as TuiListItem;
-        if (last != null)
-        {
-            // 检测错误输出，自动切换为红色
-            if (last.IsPlainText && !last.Body.IsError && IsErrorOutput(delta))
-                last.Body.IsError = true;
+        if (last == null) return;
 
-            last.AppendContent(delta);
-            ChatList.ReLayout();
-            if (ChatList.IsAutoScrollToEnd)
-                ChatList.ScrollToBottom();
+        // 检测错误输出，自动切换为红色
+        if (last.IsPlainText && !last.Body.IsError && IsErrorOutput(delta))
+            last.Body.IsError = true;
+
+        // 仅对工具输出（system 消息）应用显示风格控制
+        if (last.Role == "system")
+        {
+            switch (ChatDisplayStyle)
+            {
+                case "concise":
+                    // 极简模式：不显示工具流式输出，仅保留 ⚙ 一行
+                    return;
+                case "auto":
+                    // 自动模式：最多保留 20 行，超出折叠
+                    _toolOutputLineCount++;
+                    if (_toolOutputLineCount == 21)
+                    {
+                        last.AppendContent($"\n  ... (后续输出已折叠) ...\n");
+                        ChatList.ReLayout();
+                        if (ChatList.IsAutoScrollToEnd)
+                            ChatList.ScrollToBottom();
+                    }
+                    if (_toolOutputLineCount > 20)
+                        return;
+                    break;
+                // detailed 模式：不限制，全量显示
+            }
         }
+
+        last.AppendContent(delta);
+        ChatList.ReLayout();
+        if (ChatList.IsAutoScrollToEnd)
+            ChatList.ScrollToBottom();
     }
 
     /// <summary>清空聊天</summary>
@@ -1697,7 +1727,12 @@ public class ChatScreen : TuiScreen
     /// <summary>添加工具调用进度（流式输出期间的占位）</summary>
     public void AddToolProgress(string toolName, string brief)
     {
-        AddSystemMsg($"  ⚙ {toolName}({brief})");
+        // 简洁模式：仅一行 "⚙ tool(brief)"，不附加流式输出
+        string label = ChatDisplayStyle == "concise"
+            ? $"  ⚙ {toolName}({brief})"
+            : $"  ⚙ {toolName}({brief})";
+        AddSystemMsg(label);
+        _toolOutputLineCount = 0;
     }
 
     /// <summary>同步 Todo 数据到侧栏</summary>
@@ -1709,6 +1744,8 @@ public class ChatScreen : TuiScreen
     /// <summary>同步主题配色</summary>
     public void SyncTheme()
     {
+        // 从环境变量重新读取显示风格（设置变更后生效）
+        ChatDisplayStyle = Config.FromEnv().ChatDisplayStyle;
         // 主题配色已在 ThemeConfig 中管理，此方法为兼容旧 API
     }
 

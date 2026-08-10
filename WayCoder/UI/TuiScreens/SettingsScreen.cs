@@ -422,6 +422,7 @@ public class SettingsScreen : TuiScreen
         "BorderColor"        => _config.BorderColor,
         "AccentColor"        => _config.AccentColor,
         "ColorScheme"        => _config.ColorScheme,
+        "ChatDisplayStyle"   => _config.ChatDisplayStyle,
         _ => "",
     };
 
@@ -458,6 +459,7 @@ public class SettingsScreen : TuiScreen
             case "BorderColor":        _config.BorderColor = value; break;
             case "AccentColor":        _config.AccentColor = value; break;
             case "ColorScheme":        Config.ApplyColorScheme(_config, value); break;
+            case "ChatDisplayStyle":  _config.ChatDisplayStyle = value; break;
         }
     }
 }

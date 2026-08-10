@@ -75,6 +75,7 @@ public class Config
     public string BorderColor { get; set; } = "36";
     public string AccentColor { get; set; } = "36";
     public string ColorScheme { get; set; } = "default";
+    public string ChatDisplayStyle { get; set; } = "auto";
 
     // ════════════════════════════════════════════════════════════
     // 单一 Schema 定义（新增配置项只加这里一行）
@@ -248,6 +249,11 @@ public class Config
               "强调色", "🎨 界面", "标题和选中高亮的颜色",
               "select", ["36","32","33","35","34","37"], 3,
               c => c.AccentColor, (c, v) => c.AccentColor = v, "36"),
+
+            P("ChatDisplayStyle", "WAYCODER_CHAT_STYLE",        "CORECODER_CHAT_STYLE",
+              "聊天显示风格", "🎨 界面", "detailed=全显示 auto=智能简洁=极简（隐藏工具详情）",
+              "select", ["auto","detailed","concise"], 5,
+              c => c.ChatDisplayStyle, (c, v) => c.ChatDisplayStyle = v, "auto"),
         ];
     }
 

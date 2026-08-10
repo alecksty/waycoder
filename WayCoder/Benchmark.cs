@@ -4,6 +4,8 @@ using System.Text.Json.Nodes;
 using WayCoder.Terminal;
 using WayCoder.Tools;
 using WayCoder.UI;
+using WayCoder.UI.TuiControls;
+using WayCoder.UI.TuiScreens;
 
 namespace WayCoder;
 
@@ -788,6 +790,84 @@ public static class Benchmark
             }
         });
         Bench("1000 行 ANSI 着色", ms4, mem4, warnMs: 100, failMs: 500);
+
+        // ── 8.5 10000 行聊天记录压力 ──
+        ChatMessageStress();
+    }
+
+    /// <summary>10000 行聊天记录压力测试：创建、渲染、滚动</summary>
+    private static void ChatMessageStress()
+    {
+        const int N = 10_000;
+
+        // 生成真实模拟数据
+        var roles = new[] { "user", "assistant", "system", "tool" };
+        var sampleMessages = new List<(string role, string content)>();
+        var rng = new Random(42);
+        for (int i = 0; i < N; i++)
+        {
+            string role = roles[i % 4];
+            int len = rng.Next(30, 300);
+            string content = role switch
+            {
+                "user" => $"用户消息 #{i}: " + new string('测', len),
+                "assistant" => $"### 回复 #{i}\n\n这是第 {i} 条助手回复。包含 **粗体** `代码` 和列表：\n- 项目 A\n- 项目 B\n\n```cs\nvar x = {i};\n```",
+                "system" => $"  ⚙ bash(command --arg={i})",
+                "tool" => $"stdout line 1\nstdout line 2\n... result #{i} OK",
+                _ => $"消息 #{i}"
+            };
+            sampleMessages.Add((role, content));
+        }
+
+        // 8.5.1 10000 条 ChatMsg 创建
+        var (ms5a, mem5a) = TimeIt(() =>
+        {
+            var list = new List<ChatMsg>(N);
+            foreach (var (role, content) in sampleMessages)
+                list.Add(new ChatMsg { Role = role, Content = content, Time = DateTime.Now });
+        });
+        Bench("10000 条 ChatMsg 创建", ms5a, mem5a, warnMs: 500, failMs: 2000, warnMemKb: 5120, failMemKb: 20480);
+
+        // 8.5.2 10000 条 TuiListItem 创建（含 Markdown 解析）
+        var (ms5b, mem5b) = TimeIt(() =>
+        {
+            var list = new List<TuiListItem>(N);
+            foreach (var (role, content) in sampleMessages)
+            {
+                bool isPlain = role is "system" or "tool";
+                var item = new TuiListItem(role, content, maxWidth: 80, isPlainText: isPlain);
+                list.Add(item);
+            }
+        });
+        Bench("10000 项 TuiListItem + Markdown 解析", ms5b, mem5b, warnMs: 2000, failMs: 8000, warnMemKb: 40960, failMemKb: 102400);
+
+        // 8.5.3 10000 项 TuiListView 布局性能
+        TuiListView? listView = null;
+        var (ms5c, mem5c) = TimeIt(() =>
+        {
+            listView = new TuiListView { Width = 80, Height = 30, IsAutoScrollToEnd = false };
+            foreach (var (role, content) in sampleMessages)
+            {
+                bool isPlain = role is "system" or "tool";
+                listView.AddItem(new TuiListItem(role, content, maxWidth: 80, isPlainText: isPlain));
+            }
+            listView.ReLayout();
+        });
+        Bench("10000 项 TuiListView 布局", ms5c, mem5c, warnMs: 3000, failMs: 10000, warnMemKb: 81920, failMemKb: 204800);
+
+        // 8.5.4 快速滚动性能（模拟用户翻页）
+        if (listView != null)
+        {
+            var (ms5d, _) = TimeIt(() =>
+            {
+                for (int i = 0; i < 500; i++)
+                {
+                    listView.ScrollDown(3);  // 向下翻 3 行
+                    listView.ScrollUp(3);    // 向上翻 3 行
+                }
+            });
+            Bench("1000 次快速翻页滚动", ms5d, 0, warnMs: 200, failMs: 1000);
+        }
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -847,5 +927,483 @@ public static class Benchmark
             : warn > 0
                 ? $"\n⚠️ 测评完成：{warn} 项接近上限，建议关注。"
                 : $"\n✅ 测评完成：全部 {Results.Count} 项通过！");
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // 上限报告（--limits）
+    // ════════════════════════════════════════════════════════════════
+
+    private enum LimitSev { HardBlock, SoftDegrade, Graceful, NoLimit }
+
+    private record LimitItem(
+        string Name, string Category, string CurrentValue,
+        string ExceedBehavior, LimitSev Severity, string Source,
+        bool IsConfigurable = false);
+
+    private static readonly List<LimitItem> _limitsList = [];
+
+    public static void LimitsReport()
+    {
+        Console.OutputEncoding = Encoding.UTF8;
+        Console.WriteLine("\n╔══════════════════════════════════════════════════════════╗");
+        Console.WriteLine("║              WayCoder 上限报告 (Limits Report)           ║");
+        Console.WriteLine("╚══════════════════════════════════════════════════════════╝");
+        Console.WriteLine($"  时间: {DateTime.Now:yyyy-MM-dd HH:mm}");
+        Console.WriteLine();
+
+        _limitsList.Clear();
+        _limitsList.AddRange(ProbeAgentLimits());
+        _limitsList.AddRange(ProbeContextLimits());
+        _limitsList.AddRange(ProbeToolLimits());
+        _limitsList.AddRange(ProbeSandboxLimits());
+        _limitsList.AddRange(ProbeTuiLimits());
+        _limitsList.AddRange(ProbeConfigLimits());
+
+        PrintLimitsReport();
+    }
+
+    // ── 格式化辅助 ──
+
+    private static string SevLabel(LimitSev s) => s switch
+    {
+        LimitSev.HardBlock => "🔴硬阻断",
+        LimitSev.SoftDegrade => "🟡降级",
+        LimitSev.Graceful => "🟢优雅",
+        LimitSev.NoLimit => "⚪无限制",
+        _ => "?"
+    };
+
+    // ════════════════════════════════════════════════════════════════
+    // 1. 🤖 智能体上限
+    // ════════════════════════════════════════════════════════════════
+
+    private static List<LimitItem> ProbeAgentLimits()
+    {
+        var items = new List<LimitItem>();
+        const string cat = "🤖 智能体";
+        var cfg = Config.FromEnv();
+
+        AddLimit(items, "槽位数量 (F1-F10)", cat,
+            "10 个 (AgentSlot.Count=10)",
+            "超出 F10 无响应，SwitchAgentSlot 越界直接 return",
+            LimitSev.HardBlock, "AgentSlot.cs:13");
+
+        AddLimit(items, "子智能体最大深度", cat,
+            $"AgentTool.MaxDepth=3, Config.SubAgentMaxDepth={cfg.SubAgentMaxDepth} (Clamp 1-5)",
+            "最深一层移除 agent 工具禁止继续递归，子Agent轮次衰减 max(5,20-depth*5)",
+            LimitSev.SoftDegrade, "AgentTool.cs:47,144-156", configurable: true);
+
+        AddLimit(items, "并行子任务上限", cat,
+            "4 个 (MaxParallelTasks, const)",
+            "超出返回错误提示 '不能超过 4 个，请减少或分批次执行'",
+            LimitSev.Graceful, "AgentTool.cs:50,107-108");
+
+        AddLimit(items, "Agent 运行中禁止切换槽位", cat,
+            "_agentBusy=true 时阻止",
+            "提示 'Agent 正在运行，请等待完成后再切换槽位'，无数据丢失",
+            LimitSev.Graceful, "Program.cs:666-669");
+
+        AddLimit(items, "最大对话轮次", cat,
+            "默认 50 轮 (Agent 构造器 _maxRounds)",
+            "达到上限返回 '(已达到最大工具调用轮次)'，Agent 正常停止",
+            LimitSev.SoftDegrade, "Agent.cs:58,227");
+
+        AddLimit(items, "预算上限", cat,
+            cfg.MaxBudgetUsd.HasValue ? $"${cfg.MaxBudgetUsd:F2}" : "无限制 (null)",
+            "超支返回 '已达到预算上限' + 已花费金额 + 建议增加预算",
+            LimitSev.Graceful, "Agent.cs:147-152", configurable: true);
+
+        AddLimit(items, "FallbackLLM 预算", cat,
+            "$5.00 (FallbackLLM.MaxBudget)",
+            "超支抛出 InvalidOperationException 异常（非优雅处理）",
+            LimitSev.HardBlock, "FallbackLLM.cs:17,55");
+
+        AddLimit(items, "子Agent 输出截断", cat,
+            "5000 字符 → 截断至 4500",
+            "超出 5000 字符截断为前 4500 + '子智能体输出已截断'",
+            LimitSev.SoftDegrade, "AgentTool.cs:175-176");
+
+        return items;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // 2. 📨 上下文 / 消息上限
+    // ════════════════════════════════════════════════════════════════
+
+    private static List<LimitItem> ProbeContextLimits()
+    {
+        var items = new List<LimitItem>();
+        const string cat = "📨 上下文";
+        var cfg = Config.FromEnv();
+        int ctx = cfg.MaxContextTokens;
+
+        AddLimit(items, "LLM 上下文窗口", cat,
+            $"{ctx:N0} tokens (MaxContextTokens)",
+            "超出触发三层压缩：50%裁剪 → 70%LLM摘要 → 90%硬折叠",
+            LimitSev.SoftDegrade, "Config.cs:53 / ContextManager.cs:24-26", configurable: true);
+
+        AddLimit(items, "一层压缩：工具输出裁剪 (50%)", cat,
+            $"{ctx * 50 / 100:N0} tokens 触发",
+            "裁剪 >1500 字符 + >6 行的工具结果为 首3+尾3行+截断提示",
+            LimitSev.SoftDegrade, "ContextManager.cs:24,123-137");
+
+        AddLimit(items, "二层压缩：LLM 摘要 (70%)", cat,
+            $"{ctx * 70 / 100:N0} tokens 触发",
+            "用小模型摘要旧消息（保留最近8条），LLM失败则回退到关键词提取",
+            LimitSev.SoftDegrade, "ContextManager.cs:25,51-59");
+
+        AddLimit(items, "三层压缩：硬折叠 (90%)", cat,
+            $"{ctx * 90 / 100:N0} tokens 触发",
+            "只保留最近 4 条消息 + 摘要，其余全部丢弃。信息损失较大",
+            LimitSev.HardBlock, "ContextManager.cs:26,63-70");
+
+        AddLimit(items, "单工具输出裁剪阈值", cat,
+            "1500 字符 + 6 行",
+            "单条工具结果超出则裁剪为首3+尾3行+行数提示",
+            LimitSev.SoftDegrade, "ContextManager.cs:123-126");
+
+        AddLimit(items, "摘要 LLM 输入上限", cat,
+            "15000 字符",
+            "拼合消息平铺文本超过 15K 字符直接截断，单条消息限制 400 字符",
+            LimitSev.HardBlock, "ContextManager.cs:226,249");
+
+        AddLimit(items, "Token 估算公式", cat,
+            "CJK=1.5 tok/char, ASCII=0.25 tok/char",
+            "精度 ±15%，作为压缩触发判断的近似值。非精确计数",
+            LimitSev.SoftDegrade, "ContextManager.cs:93-110");
+
+        AddLimit(items, "会话消息列表", cat,
+            "无硬上限 (List<ChatMsg>)",
+            "消息无限累积，仅受内存约束。大量消息可通过 /compact 清理",
+            LimitSev.NoLimit, "AgentSlot.cs:19 / Agent.cs:25");
+
+        return items;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // 3. 📁 工具 / 文件上限
+    // ════════════════════════════════════════════════════════════════
+
+    private static List<LimitItem> ProbeToolLimits()
+    {
+        var items = new List<LimitItem>();
+        const string cat = "📁 工具/文件";
+        var cfg = Config.FromEnv();
+
+        AddLimit(items, "Bash 输出截断", cat,
+            "15K 字符 (首 6000 + 尾 3000)",
+            "超出 15K 字符截断，保留头尾。流式和非流式路径行为一致",
+            LimitSev.SoftDegrade, "BashTool.cs:180,233");
+
+        AddLimit(items, "Bash 危险命令阻止", cat,
+            "9 种模式 (rm -rf /, mkfs, dd, fork炸弹, curl|sh 等)",
+            "匹配危险模式直接阻止，返回 '已阻止' + 原因 + 建议",
+            LimitSev.HardBlock, "BashTool.cs:41-52");
+
+        AddLimit(items, "文件锁获取超时", cat,
+            "30 秒 (DefaultTimeout)",
+            "超时后锁自动过期，其他 Agent 可强制获取",
+            LimitSev.Graceful, "FileLockManager.cs:12,16");
+
+        AddLimit(items, "文件锁等待超时", cat,
+            "10 秒 (WaitForLockAsync 默认)",
+            "每 200ms 轮询一次，10秒后返回 false，调用方获得 '文件被锁定'",
+            LimitSev.Graceful, "FileLockManager.cs:96-108");
+
+        AddLimit(items, "工具执行超时", cat,
+            $"{cfg.ToolTimeoutSec} 秒 (ToolTimeoutSec)",
+            "超时 kill 进程树，返回 '错误：在 N 秒后超时'",
+            LimitSev.Graceful, "Config.cs:62 / BashTool.cs:140-161", configurable: true);
+
+        AddLimit(items, "Lint 执行超时", cat,
+            $"{cfg.LintTimeoutSec} 秒 (LintTimeoutSec)",
+            "超时 kill lint 进程，不影响 Agent 主流程",
+            LimitSev.Graceful, "Config.cs:63", configurable: true);
+
+        AddLimit(items, "Fetch 最大字符", cat,
+            "8000 字符 (可配置 max_chars 参数)",
+            "超出截断 + '已截断，原始共 N 字符'",
+            LimitSev.SoftDegrade, "FetchTool.cs:47,69-70");
+
+        AddLimit(items, "Grep 匹配上限", cat,
+            "200 结果 + 5000 文件",
+            "达到上限停止搜索，返回 '已达到上限' 提示",
+            LimitSev.SoftDegrade, "GrepTool.cs:92-95,123");
+
+        AddLimit(items, "Glob 结果上限", cat,
+            "100 条",
+            "只返回前 100 条 + '仅显示前 100 个' 提示",
+            LimitSev.SoftDegrade, "GlobTool.cs:57");
+
+        AddLimit(items, "GitTool 输出截断", cat,
+            "8000 字符 / 危险命令阻止",
+            "超出截断为首 6000 + 尾 1000。push --force 等危险命令直接阻止",
+            LimitSev.SoftDegrade, "GitTool.cs:28-31,58-59");
+
+        AddLimit(items, "LintTool 输出截断", cat,
+            "4000 字符",
+            "超出截断 + '输出已截断'",
+            LimitSev.SoftDegrade, "LintTool.cs:367-368");
+
+        AddLimit(items, "WebSearch 超时 + 结果数", cat,
+            "15s 超时, 1-10 结果 (默认5)",
+            "超时返回 '搜索超时'；结果数超出 10 自动 clamp",
+            LimitSev.Graceful, "WebSearchTool.cs:28,43,55");
+
+        AddLimit(items, "LLM HTTP 请求超时 + 重试", cat,
+            "60s/请求, 3 次重试, 指数退避",
+            "3 次重试后抛出 '重试耗尽'；429 限流最多等 120s",
+            LimitSev.HardBlock, "LLM.cs:186,418,469");
+
+        AddLimit(items, "LSP 结果截断", cat,
+            "20 条 + 200字符 header + 10s 超时",
+            "超出 20 条显示前 20 + '还有 N 处'",
+            LimitSev.SoftDegrade, "LspTool.cs:293,300,341");
+
+        return items;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // 4. 🔒 沙箱 / 资源上限
+    // ════════════════════════════════════════════════════════════════
+
+    private static List<LimitItem> ProbeSandboxLimits()
+    {
+        var items = new List<LimitItem>();
+        const string cat = "🔒 沙箱/资源";
+
+        AddLimit(items, "沙箱内存上限", cat,
+            "1 GB (MaxMemoryBytes)",
+            "超限 kill 进程树，返回 '沙箱终止：内存超限'；仅 full-auto 模式生效",
+            LimitSev.HardBlock, "SandboxManager.cs:34,268-273");
+
+        AddLimit(items, "沙箱 CPU 时间", cat,
+            "300 秒 (MaxCpuTimeSeconds, 声明未实施)",
+            "已声明但代码中无实际监控逻辑，依赖 OS 级别 ulimit",
+            LimitSev.NoLimit, "SandboxManager.cs:37");
+
+        AddLimit(items, "沙箱网络访问", cat,
+            "默认禁用 (AllowNetwork=false)",
+            "通过命令模式检测阻止 curl/wget/ssh 等；localhost 例外放行",
+            LimitSev.HardBlock, "SandboxManager.cs:40,65-72");
+
+        AddLimit(items, "沙箱阻止命令", cat,
+            "12 种模式 (sudo/su/mount/iptables/nc/ssh 等)",
+            "匹配直接阻止，返回 '沙箱阻止' + 原因。仅 full-auto 模式生效",
+            LimitSev.HardBlock, "SandboxManager.cs:47-62");
+
+        AddLimit(items, "自动测试超时 + 节流", cat,
+            "30s 超时 / 60s 节流",
+            "超时 kill 测试进程不追加反馈；同项目 60s 内不重复执行测试",
+            LimitSev.SoftDegrade, "Agent.cs:338-339,388-393");
+
+        AddLimit(items, "Worktree 隔离深度", cat,
+            "2 层 (MaxIsolationDepth=2, 当前实际=1)",
+            "已在 worktree 内部时 Create 返回 null，防止无限嵌套。Agent ID 截断 20 字符",
+            LimitSev.HardBlock, "WorktreeIsolation.cs:25,197");
+
+        return items;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // 5. 🖥 TUI / 编辑器上限
+    // ════════════════════════════════════════════════════════════════
+
+    private static List<LimitItem> ProbeTuiLimits()
+    {
+        var items = new List<LimitItem>();
+        const string cat = "🖥 TUI/编辑器";
+
+        AddLimit(items, "聊天消息列表", cat,
+            "无硬上限 (List<ChatMsg>)",
+            "消息无限累积，仅受内存约束。万行级别验证通过 (74ms 解析, 258ms 布局)",
+            LimitSev.NoLimit, "ChatScreen.ChatMessages / TuiListView");
+
+        AddLimit(items, "编辑撤销历史", cat,
+            "100 步 (MaxUndoHistory)",
+            "超出后最旧记录被静默移除 (TrimStack)",
+            LimitSev.SoftDegrade, "TuiTextArea.cs:118");
+
+        AddLimit(items, "最近文件列表", cat,
+            "50 个 (FIFO 移除最旧)",
+            "超出 50 个移除第一个 (RemoveAt(0))，静默丢弃",
+            LimitSev.SoftDegrade, "Program.cs:904");
+
+        AddLimit(items, "历史搜索显示", cat,
+            "15 条 (Take(15))",
+            "只显示前 15 条 + '还有 N 条结果'",
+            LimitSev.SoftDegrade, "Program.cs:1148-1155");
+
+        AddLimit(items, "/loop 最大轮次", cat,
+            "50 轮",
+            "超出 50 回退为普通提示词（不执行循环），达到上限显示 '已达上限 N 轮'",
+            LimitSev.Graceful, "Program.cs:1172,1249");
+
+        AddLimit(items, "工具输出自动折叠 (auto 模式)", cat,
+            "20 行",
+            "auto 模式第 21 行起折叠为 '后续输出已折叠'；concise 全隐藏；detailed 全显示",
+            LimitSev.SoftDegrade, "ChatScreen.cs:347-366", configurable: true);
+
+        AddLimit(items, "Diff 预览截断", cat,
+            "3000 字符 → 2500",
+            "EditFileTool/DiffPreview 统一 diff 输出截断为 2500 字符",
+            LimitSev.SoftDegrade, "EditFileTool.cs:160 / DiffPreview.cs:425");
+
+        AddLimit(items, "代码块渲染宽度", cat,
+            "60 列 (Math.Min(maxWidth, 60))",
+            "代码块边框/分隔线强制上限 60 列，长代码行可超出但边框受限",
+            LimitSev.SoftDegrade, "TuiMarkdown.cs:85,119,146");
+
+        AddLimit(items, "输入历史上限", cat,
+            "200 条",
+            "超出移除最旧条目，静默丢弃",
+            LimitSev.SoftDegrade, "ChatScreen.cs:1204");
+
+        return items;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // 6. ⚙ 配置 / 杂项上限
+    // ════════════════════════════════════════════════════════════════
+
+    private static List<LimitItem> ProbeConfigLimits()
+    {
+        var items = new List<LimitItem>();
+        const string cat = "⚙ 配置/杂项";
+        var cfg = Config.FromEnv();
+
+        AddLimit(items, "记忆注入条数", cat,
+            $"{cfg.MemoryRelevanceTopN} (Clamp 0-20, 默认 5)",
+            "超出 20 硬截断；设为 0 关闭语义匹配",
+            LimitSev.HardBlock, "Config.cs:196", configurable: true);
+
+        AddLimit(items, "嵌入维度", cat,
+            $"{cfg.EmbeddingDimensions} (Clamp 0-4096)",
+            "超出 4096 硬截断；0=使用模型默认值",
+            LimitSev.HardBlock, "Config.cs:213 / EmbeddingStore.cs:99", configurable: true);
+
+        AddLimit(items, "记忆注入内容长度", cat,
+            "2000 字符 (结构化) / 1500 字符 (回退)",
+            "超出截断，静默丢弃超出部分",
+            LimitSev.SoftDegrade, "SystemPrompt.cs:41,62");
+
+        AddLimit(items, "会话列表显示", cat,
+            "20 条",
+            "ListSessions 枚举到 20 条即停止，旧会话仍在磁盘但不可见",
+            LimitSev.SoftDegrade, "SessionManager.cs:132-134");
+
+        AddLimit(items, "会话 ID 长度", cat,
+            "100 字符",
+            "超出截断为 name[..100]，静默截断",
+            LimitSev.SoftDegrade, "SessionManager.cs:20,148");
+
+        AddLimit(items, "Auto-commit 文件数", cat,
+            "10 个",
+            "git status 回退路径只取前 10 个文件",
+            LimitSev.SoftDegrade, "Agent.cs:524");
+
+        AddLimit(items, "Commit 消息长度", cat,
+            "72 字符",
+            "LLM 生成的 commit 消息超出 72 字符硬截断",
+            LimitSev.HardBlock, "Agent.cs:603");
+
+        AddLimit(items, "子Agent 上下文消息", cat,
+            "300 字符/条",
+            "注入给子Agent的父上下文消息每条截断为 300 字符",
+            LimitSev.SoftDegrade, "AgentTool.cs:206-207");
+
+        AddLimit(items, "Watch 模式扩展名过滤", cat,
+            "45 种扩展名 (硬编码)",
+            "非匹配扩展名的文件静默忽略；不支持自定义扩展名",
+            LimitSev.SoftDegrade, "WatchMode.cs:25-34");
+
+        AddLimit(items, "Watch 模式忽略目录", cat,
+            "14 个目录 (bin/obj/.git/node_modules 等)",
+            "忽略目录下的文件静默跳过；不支持自定义忽略",
+            LimitSev.SoftDegrade, "WatchMode.cs:17-22");
+
+        return items;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // 汇总输出
+    // ════════════════════════════════════════════════════════════════
+
+    private static void AddLimit(List<LimitItem> list, string name, string cat,
+        string val, string behavior, LimitSev sev, string src, bool configurable = false)
+        => list.Add(new LimitItem(name, cat, val, behavior, sev, src, configurable));
+
+    private static void PrintLimitsReport()
+    {
+        foreach (var group in _limitsList.GroupBy(i => i.Category))
+        {
+            var items = group.ToList();
+            Console.WriteLine($"\n── {group.Key} ({items.Count} 项) ──");
+            Console.WriteLine($"  {"项目",-28} {"当前值",-30} {"评级",-12} {"配置",-8} 超出行为");
+            Console.WriteLine($"  {new string('─', 28)} {new string('─', 30)} {new string('─', 12)} {new string('─', 8)} {new string('─', 48)}");
+
+            foreach (var item in items)
+            {
+                string sev = SevLabel(item.Severity);
+                string cfg = item.IsConfigurable ? "⚙可配" : "🔒硬编";
+                Console.WriteLine($"  {item.Name,-28} {item.CurrentValue,-30} {sev,-12} {cfg,-8} {item.ExceedBehavior}");
+                Console.WriteLine($"  {' ',28} {' ',30} {' ',12} {' ',8} 📍 {item.Source}");
+            }
+        }
+
+        int hard = _limitsList.Count(i => i.Severity == LimitSev.HardBlock);
+        int soft = _limitsList.Count(i => i.Severity == LimitSev.SoftDegrade);
+        int graceful = _limitsList.Count(i => i.Severity == LimitSev.Graceful);
+        int nolimit = _limitsList.Count(i => i.Severity == LimitSev.NoLimit);
+        int configurable = _limitsList.Count(i => i.IsConfigurable);
+        int hardcoded = _limitsList.Count(i => !i.IsConfigurable);
+
+        Console.WriteLine($"\n╔══════════════════════════════════════════════════════════╗");
+        Console.WriteLine($"║                    上限报告总结                         ║");
+        Console.WriteLine($"╠══════════════════════════════════════════════════════════╣");
+        Console.WriteLine($"║  总上限项: {_limitsList.Count,2}                                          ║");
+        Console.WriteLine($"║  🔴 硬阻断: {hard,2} 项 — 达上限后拒绝/崩溃/截断                    ║");
+        Console.WriteLine($"║  🟡 降级:   {soft,2} 项 — 达上限后裁剪/摘要/限流                    ║");
+        Console.WriteLine($"║  🟢 优雅:   {graceful,2} 项 — 达上限后友好提示/自动恢复              ║");
+        Console.WriteLine($"║  ⚪ 无限制:  {nolimit,2} 项 — 无硬上限，仅受内存/OS 约束              ║");
+        Console.WriteLine($"╠══════════════════════════════════════════════════════════╣");
+        Console.WriteLine($"║  ⚙ 可配:   {configurable,2} 项 — 支持环境变量/设置界面修改            ║");
+        Console.WriteLine($"║  🔒 硬编:   {hardcoded,2} 项 — 需修改源码才能调整                    ║");
+        Console.WriteLine($"╚══════════════════════════════════════════════════════════╝");
+
+        if (hard > 0)
+        {
+            Console.WriteLine("\n⚠️ 硬阻断风险项（达上限可能导致崩溃或数据丢失）：");
+            foreach (var item in _limitsList.Where(i => i.Severity == LimitSev.HardBlock))
+                Console.WriteLine($"  - {item.Name}: {item.ExceedBehavior}");
+        }
+
+        // 列出所有可配置项
+        var configItems = _limitsList.Where(i => i.IsConfigurable).ToList();
+        if (configItems.Count > 0)
+        {
+            Console.WriteLine("\n── ⚙ 可配置上限（可通过设置界面或环境变量调整）──");
+            Console.WriteLine($"  {"项目",-28} {"环境变量",-32} 设置路径");
+            Console.WriteLine($"  {new string('─', 28)} {new string('─', 32)} {new string('─', 36)}");
+            Console.WriteLine($"  {"预算上限",-28} {"WAYCODER_MAX_BUDGET_USD",-32} 设置 → 💰 预算 → 预算上限");
+            Console.WriteLine($"  {"子智能体最大深度",-28} {"WAYCODER_SUBAGENT_DEPTH",-32} 设置 → 🤖 模型 → 子智能体深度");
+            Console.WriteLine($"  {"LLM 上下文窗口",-28} {"WAYCODER_MAX_CONTEXT",-32} 设置 → ⚙ 参数 → 上下文窗口");
+            Console.WriteLine($"  {"工具执行超时",-28} {"WAYCODER_TOOL_TIMEOUT",-32} 设置 → ⚙ 参数 → 工具超时");
+            Console.WriteLine($"  {"Lint 执行超时",-28} {"WAYCODER_LINT_TIMEOUT",-32} 设置 → ⚙ 参数 → Lint 超时");
+            Console.WriteLine($"  {"记忆注入条数",-28} {"WAYCODER_MEMORY_TOPN",-32} 设置 → 🔧 系统 → 记忆注入条数");
+            Console.WriteLine($"  {"嵌入维度",-28} {"WAYCODER_EMBEDDING_DIMS",-32} 设置 → 🔧 系统 → 嵌入维度");
+            Console.WriteLine($"  {"工具输出折叠风格",-28} {"WAYCODER_CHAT_STYLE",-32} 设置 → 🎨 界面 → 聊天显示风格");
+            Console.WriteLine();
+            Console.WriteLine("  💡 修改方式：设置界面 Ctrl+S 保存，或手动编辑 .env 文件后重启。");
+        }
+
+        Console.WriteLine("\n── 🐛 发现的潜在问题 ──");
+        Console.WriteLine("  ⚠ AgentTool.MaxDepth (运行时) 与 Config.SubAgentMaxDepth (用户配置) 不同步");
+        Console.WriteLine("    - AgentTool.MaxDepth = 3 (AgentTool.cs:47)，运行时实际使用");
+        Console.WriteLine("    - Config.SubAgentMaxDepth = Clamp(1,5) (Config.cs:141)，仅设置界面显示");
+        Console.WriteLine("    - 修改 WAYCODER_SUBAGENT_DEPTH 不会影响子Agent深度限制，用户配置不生效");
+        Console.WriteLine();
+        Console.WriteLine("  ⚠ SandboxManager.MaxCpuTimeSeconds = 300 已声明但无实际监控代码");
+        Console.WriteLine("    - 沙箱 CPU 时间限制未实施，仅依赖 OS 级别 ulimit");
     }
 }

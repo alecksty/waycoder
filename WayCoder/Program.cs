@@ -78,6 +78,9 @@ public class Program
                 case "--perf":
                     Benchmark.Run();
                     return 0;
+                case "--limits":
+                    Benchmark.LimitsReport();
+                    return 0;
                 case "--screenshot":
                     RunScreenshot();
                     return 0;
@@ -147,9 +150,9 @@ public class Program
 
         if (string.IsNullOrEmpty(_config.ApiKey))
         {
-            MarkupLine("[bold red]╔══════════════════════════════╗[/]");
-            MarkupLine("[bold red]║  API 密钥未设置！           ║[/]");
-            MarkupLine("[bold red]╚══════════════════════════════╝[/]");
+            MarkupLine("«bold red»╔══════════════════════════════╗«/»");
+            MarkupLine("«bold red»║  API 密钥未设置！           ║«/»");
+            MarkupLine("«bold red»╚══════════════════════════════╝«/»");
             Console.WriteLine();
             Console.WriteLine("请设置以下环境变量之一:");
             Console.WriteLine("  WAYCODER_API_KEY");
@@ -231,11 +234,11 @@ public class Program
                     _config.Model = loaded.Value.Model;
                 }
 
-                MarkupLine($"[green]✔ 已恢复会话:[/] [cyan]{E(resumeId)}[/] [dim](模型: {E(_llm.Model)})[/]");
+                MarkupLine($"«green»✔ 已恢复会话:«/» «cyan»{E(resumeId)}«/» «dim»(模型: {E(_llm.Model)})«/»");
             }
             else
             {
-                MarkupLine($"[red]✘ 会话 '{E(resumeId)}' 未找到[/]");
+                MarkupLine($"«red»✘ 会话 '{E(resumeId)}' 未找到«/»");
                 return 1;
             }
         }
@@ -258,7 +261,7 @@ public class Program
 
         try
         {
-            MarkupLine($"[dim]🤖 {E(prompt)}[/]");
+            MarkupLine($"«dim»🤖 {E(prompt)}«/»");
             await ChatWithStatusAsync(prompt, cts.Token);
             Console.WriteLine();
         }
@@ -266,7 +269,7 @@ public class Program
         {
             if (cts.IsCancellationRequested)
             {
-                MarkupLine("\n[orange3]⚠ 已中断[/]");
+                MarkupLine("\n«orange3»⚠ 已中断«/»");
                 Environment.Exit(130);
             }
             else
@@ -290,6 +293,7 @@ public class Program
     {
         var mgr = TuiManager.Instance;
         var screen = new ChatScreen();
+        screen.ChatDisplayStyle = _config.ChatDisplayStyle;
         mgr.Enter();
         mgr.PushScreen(screen);
         screen.SyncTheme();
@@ -1334,6 +1338,7 @@ public class Program
         // 使用新 TUI 架构进行截图
         var mgr = TuiManager.Instance;
         var screen = new ChatScreen();
+        screen.ChatDisplayStyle = _config.ChatDisplayStyle;
         mgr.Enter();
         mgr.PushScreen(screen);
 
@@ -1394,31 +1399,32 @@ deepseek 性价比最高。"
 
     private static void ShowUsage()
     {
-        MarkupLine("[bold yellow]WayCoder (道码)[/] — 中文版易用编程智能体");
+        MarkupLine("«bold yellow»WayCoder (道码)«/» — 中文版易用编程智能体");
         Console.WriteLine();
-        MarkupLine("[bold]使用方法:[/] [cyan]waycoder [[选项]][/]");
+        MarkupLine("«bold»使用方法:«/» «cyan»waycoder [选项]«/»");
         Console.WriteLine();
-        MarkupLine("  [bold]选项:[/]");
-        MarkupLine("  [cyan]-m, --model[/] <名称>   模型名称 (默认: deepseek-v4-flash)");
-        MarkupLine("  [cyan]--base-url[/] <URL>     API 基础 URL");
-        MarkupLine("  [cyan]--api-key[/] <密钥>     API 密钥");
-        MarkupLine("  [cyan]-p, --prompt[/] <文本>  一次性提示词 (非交互模式)");
-        MarkupLine("  [cyan]-r, --resume[/] <ID>    恢复已保存的会话");
-        MarkupLine("  [cyan]-v, --version[/]        显示版本信息");
-        MarkupLine("  [cyan]--init[/]              初始化项目 (.waycoder/ 配置目录)");
-        MarkupLine("  [cyan]-t, --test[/]           运行自测");
-        MarkupLine("  [cyan]--benchmark, --perf[/]  运行性能测评");
-        MarkupLine("  [cyan]--debug[/]              开启调试日志 (记录到 logs/ 目录)");
-        MarkupLine("  [cyan]--yolo[/]              跳过所有权限确认 (非交互模式必备)");
-        MarkupLine("  [cyan]--max-budget-usd[/] <金额> 费用上限（美元），超支自动停止");
-        MarkupLine("  [cyan]-h, --help[/]           显示此帮助");
+        MarkupLine("  «bold»选项:«/»");
+        MarkupLine("  «cyan»-m, --model«/» <名称>   模型名称 (默认: deepseek-v4-flash)");
+        MarkupLine("  «cyan»--base-url«/» <URL>     API 基础 URL");
+        MarkupLine("  «cyan»--api-key«/» <密钥>     API 密钥");
+        MarkupLine("  «cyan»-p, --prompt«/» <文本>  一次性提示词 (非交互模式)");
+        MarkupLine("  «cyan»-r, --resume«/» <ID>    恢复已保存的会话");
+        MarkupLine("  «cyan»-v, --version«/»        显示版本信息");
+        MarkupLine("  «cyan»--init«/»              初始化项目 (.waycoder/ 配置目录)");
+        MarkupLine("  «cyan»-t, --test«/»           运行自测");
+        MarkupLine("  «cyan»--benchmark, --perf«/»  运行性能测评");
+        MarkupLine("  «cyan»--limits«/»           运行系统上限报告");
+        MarkupLine("  «cyan»--debug«/»              开启调试日志 (记录到 logs/ 目录)");
+        MarkupLine("  «cyan»--yolo«/»              跳过所有权限确认 (非交互模式必备)");
+        MarkupLine("  «cyan»--max-budget-usd«/» <金额> 费用上限（美元），超支自动停止");
+        MarkupLine("  «cyan»-h, --help«/»           显示此帮助");
         Console.WriteLine();
-        MarkupLine("  [bold]示例:[/]");
-        MarkupLine("  [dim]$[/] waycoder                                     [dim]# 交互式 REPL[/]");
-        MarkupLine("  [dim]$[/] waycoder [cyan]-p[/] [green]\"列出当前目录\"[/]               [dim]# 一次性模式[/]");
-        MarkupLine("  [dim]$[/] waycoder [cyan]-m[/] deepseek-v4-pro             [dim]# 指定模型[/]");
-        MarkupLine("  [dim]$[/] waycoder [cyan]-t[/]                              [dim]# 运行自测[/]");
-        MarkupLine("  [dim]$[/] echo [green]\"列出目录\"[/] [dim]|[/] waycoder                   [dim]# 管道模式[/]");
+        MarkupLine("  «bold»示例:«/»");
+        MarkupLine("  «dim»$«/» waycoder                                     «dim»# 交互式 REPL«/»");
+        MarkupLine("  «dim»$«/» waycoder «cyan»-p«/» «green»\"列出当前目录\"«/»               «dim»# 一次性模式«/»");
+        MarkupLine("  «dim»$«/» waycoder «cyan»-m«/» deepseek-v4-pro             «dim»# 指定模型«/»");
+        MarkupLine("  «dim»$«/» waycoder «cyan»-t«/»                              «dim»# 运行自测«/»");
+        MarkupLine("  «dim»$«/» echo «green»\"列出目录\"«/» «dim»|«/» waycoder                   «dim»# 管道模式«/»");
     }
 
     /// <summary>Ctrl+M 循环切换大模型</summary>
@@ -1490,8 +1496,8 @@ deepseek 性价比最高。"
         if (needRestore) TuiManager.Instance.Exit();
         try
         {
-        MarkupLine("[bold cyan]📋 计划模式[/] — 只读分析，Agent 先规划再执行");
-        MarkupLine("[dim]输入你的需求，Agent 会先分析并列出执行计划[/]");
+        MarkupLine("«bold cyan»📋 计划模式«/» — 只读分析，Agent 先规划再执行");
+        MarkupLine("«dim»输入你的需求，Agent 会先分析并列出执行计划«/»");
         Console.WriteLine();
 
         var userInput = TuiChatInput.ReadInput();
@@ -1509,13 +1515,13 @@ deepseek 性价比最高。"
 
             // 计划输出后询问是否执行
             Console.WriteLine();
-            MarkupLine("[bold yellow]是否执行此计划？[/]");
-            MarkupLine("[dim]  y = 执行  |  n = 放弃  |  输入修改意见[/]");
+            MarkupLine("«bold yellow»是否执行此计划？«/»");
+            MarkupLine("«dim»  y = 执行  |  n = 放弃  |  输入修改意见«/»");
             var confirm = TuiChatInput.ReadInput();
             if (!string.IsNullOrWhiteSpace(confirm) && PlanMode.IsApproval(confirm))
             {
                 Console.WriteLine();
-                MarkupLine("[bold green]▶ 执行模式[/]");
+                MarkupLine("«bold green»▶ 执行模式«/»");
                 var execPrompt = $"按照之前制定的计划，逐步执行以下需求：\n\n{userInput}";
                 await ChatWithStatusAsync(execPrompt, cts.Token);
                 Console.WriteLine();
@@ -1558,23 +1564,24 @@ deepseek 性价比最高。"
     /// <summary>输出带标记的行（转换 Spectre 标记为 ANSI）</summary>
     private static void MarkupLine(string markup) => Console.WriteLine(SpectreToAnsi(markup));
 
-    /// <summary>将 Spectre 风格的标记转换为 ANSI 转义码（通过 AnsiText 封装层）</summary>
+    /// <summary>将类 Spectre 风格标记（使用 «» 符号）转换为 ANSI 转义码（通过 AnsiText 封装层）</summary>
     private static string SpectreToAnsi(string markup)
     {
         return markup
-            .Replace("[/]", AnsiTty.SgrReset)
-            .Replace("[dim]", AnsiTty.SgrDim)
-            .Replace("[bold]", AnsiTty.SgrBold)
-            .Replace("[cyan]", AnsiTty.FgCode(TuiColors.Cyan))
-            .Replace("[green]", AnsiTty.FgCode(TuiColors.Green))
-            .Replace("[yellow]", AnsiTty.FgCode(TuiColors.Yellow))
-            .Replace("[red]", AnsiTty.FgCode(TuiColors.Red))
-            .Replace("[orange3]", AnsiTty.FgCode(TuiColors.Yellow))
-            .Replace("[grey]", AnsiTty.FgCode(TuiColors.Grey))
-            .Replace("[bold yellow]", AnsiTty.FgCode(TuiColors.Yellow))
-            .Replace("[bold cyan]", AnsiTty.FgCode(TuiColors.Cyan))
-            .Replace("[bold red]", AnsiTty.FgCode(TuiColors.Red))
-            .Replace("[bold orange3]", AnsiTty.FgCode(TuiColors.Yellow));
+            .Replace("«/»", AnsiTty.SgrReset)
+            .Replace("«dim»", AnsiTty.SgrDim)
+            .Replace("«bold»", AnsiTty.SgrBold)
+            .Replace("«cyan»", AnsiTty.FgCode(TuiColors.Cyan))
+            .Replace("«green»", AnsiTty.FgCode(TuiColors.Green))
+            .Replace("«yellow»", AnsiTty.FgCode(TuiColors.Yellow))
+            .Replace("«red»", AnsiTty.FgCode(TuiColors.Red))
+            .Replace("«orange3»", AnsiTty.FgCode(TuiColors.Yellow))
+            .Replace("«grey»", AnsiTty.FgCode(TuiColors.Grey))
+            .Replace("«bold yellow»", AnsiTty.FgCode(TuiColors.Yellow))
+            .Replace("«bold cyan»", AnsiTty.FgCode(TuiColors.Cyan))
+            .Replace("«bold red»", AnsiTty.FgCode(TuiColors.Red))
+            .Replace("«bold green»", AnsiTty.FgCode(TuiColors.Green))
+            .Replace("«bold orange3»", AnsiTty.FgCode(TuiColors.Yellow));
     }
 
     /// <summary>
@@ -1656,7 +1663,7 @@ deepseek 性价比最高。"
                 StopSpinner();
                 Console.WriteLine(); // 结束上一行流式输出
                 var shortBrief = brief.Length > 60 ? brief[..57] + "..." : brief;
-                MarkupLine($"  [dim]⚙ {E(name)}({E(shortBrief)})[/]");
+                MarkupLine($"  «dim»⚙ {E(name)}({E(shortBrief)})«/»");
             },
             cancellationToken: ct);
 
