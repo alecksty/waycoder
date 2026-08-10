@@ -137,6 +137,12 @@ public class Program
 
         _llm = new LLM(_config.Model, _config.ApiKey, _config.BaseUrl,
             _config.MaxTokens, _config.Temperature);
+
+        // 语义记忆：向量嵌入初始化
+        EmbeddingStore.LlmClient = _llm;
+        EmbeddingStore.Enabled = _config.EmbeddingEnabled;
+        EmbeddingStore.EmbeddingModel = _config.EmbeddingModel;
+
         _agent = new Agent(_llm, maxContextTokens: _config.MaxContextTokens,
             maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
         _slots[0] = new AgentSlot { Agent = _agent }; // 槽位 0 持有主 Agent

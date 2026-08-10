@@ -1,5 +1,31 @@
 # 更新日志
 
+## v0.25.0 (2026-08-10) — 语义记忆（P1 补全）
+
+### 🔥 P1 语义记忆
+
+**TF-IDF 语义搜索替换关键词匹配**
+- `StructuredMemory.Search()` 和 `GetRelevantContext()` 升级为 CJK bigram + TF-IDF 评分
+- `SemanticMemory` 新增 `SearchEntries(List<MemoryEntry>)` 重载，支持新结构化格式
+- 旧式 `SearchRelevant(MemoryDocument)` 保持不变，向后兼容
+- TF-IDF 无结果时自动兜底到原始子串匹配
+
+**可选向量嵌入 (Embedding API)**
+- 新增 `EmbeddingStore` 静态类：`.vec` 二进制向量文件 I/O + 余弦相似度 + 混合搜索
+- `LLM.GetEmbeddingAsync()` 调用 `/v1/embeddings` 端点生成向量
+- Hybrid 搜索：embedding 余弦相似度 ×0.7 + TF-IDF ×0.3
+- 懒加载向量生成：搜索时 fire-and-forget，最多 3 并发
+- 原子写入（临时文件 + 重命名）防并发冲突
+
+**配置**
+- `WAYCODER_EMBEDDING` 开关（默认 false，需 API 支持 `/v1/embeddings`）
+- `WAYCODER_EMBEDDING_MODEL` 模型名（默认 `text-embedding-3-small`）
+- `WAYCODER_EMBEDDING_DIMS` 维度（0=模型默认）
+
+### 🔧 修复
+
+- `SemanticMemory.SearchRelevant()` 时间新鲜度加权不再错误应用到零匹配文档
+
 ## v0.24.2 (2026-08-10) — 渐变增强 + 增量渲染
 
 ### 🔥 新增

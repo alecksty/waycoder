@@ -350,6 +350,52 @@ public class LLM
     }
 
     /// <summary>
+    /// 通过 /v1/embeddings 端点生成文本的嵌入向量。
+    /// 返回 float[] 或 null（API 不可用/出错时）。
+    /// </summary>
+    public async Task<float[]?> GetEmbeddingAsync(
+        string text, string? model = null, CancellationToken cancellationToken = default)
+    {
+        var embeddingModel = model ?? "text-embedding-3-small";
+        var endpoint = (BaseUrl ?? "https://api.openai.com").TrimEnd('/') + "/v1/embeddings";
+
+        var body = new JsonObject
+        {
+            ["model"] = embeddingModel,
+            ["input"] = text,
+        };
+
+        try
+        {
+            var response = await CallWithRetryAsync(() =>
+            {
+                var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
+                {
+                    Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"),
+                };
+                req.Headers.Add("Authorization", $"Bearer {ApiKey}");
+                return req;
+            }, cancellationToken);
+
+            var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
+            var node = JsonNode.Parse(responseText);
+            var embeddingArray = node?["data"]?.AsArray()?[0]?["embedding"]?.AsArray();
+            if (embeddingArray == null || embeddingArray.Count == 0) return null;
+
+            var result = new float[embeddingArray.Count];
+            for (int i = 0; i < embeddingArray.Count; i++)
+            {
+                result[i] = (float)(embeddingArray[i]?.GetValue<double>() ?? 0.0);
+            }
+            return result;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// 在瞬态错误时使用指数退避重试（最多 3 次）。
     /// </summary>
     private async Task<HttpResponseMessage> CallWithRetryAsync(
