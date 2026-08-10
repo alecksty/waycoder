@@ -10,7 +10,7 @@ WayCoder（道码）是一个中文版易用编程智能体，C# (.NET 10) 实�
 
 ```bash
 # C# 版
-cd CoreCoderSharp
+cd WayCoder
 dotnet publish -c Release            # AOT 编译
 dotnet run -- --test                 # 705 自测
 dotnet run -- -p "提示词"            # 一次性模式
@@ -20,7 +20,7 @@ dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 ## 架构
 
 ```
-CoreCoderSharp/
+WayCoder/
 ├── Program.cs         入口 + CLI + REPL (ANSI 全屏 TUI)
 ├── Agent.cs           主循环
 ├── AgentSlot.cs       多 Agent 工作区 (F1-F10 槽位切换)
