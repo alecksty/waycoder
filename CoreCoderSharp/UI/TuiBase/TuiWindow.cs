@@ -219,8 +219,8 @@ public class TuiWindow
     /// <summary>让窗口居中于终端</summary>
     public void Center()
     {
-        X = (TTY.Cols - Width) / 2;
-        Y = (TTY.Rows - Height) / 2;
+        X = (Tty.Cols - Width) / 2;
+        Y = (Tty.Rows - Height) / 2;
     }
 
     /// <summary>
@@ -303,8 +303,8 @@ public class TuiWindow
         {
             int dx = ev.MouseX - _dragStartX;
             int dy = ev.MouseY - _dragStartY;
-            X = Math.Clamp(_winStartX + dx, 0, TTY.Cols - Width);
-            Y = Math.Clamp(_winStartY + dy, 0, TTY.Rows - Height);
+            X = Math.Clamp(_winStartX + dx, 0, Tty.Cols - Width);
+            Y = Math.Clamp(_winStartY + dy, 0, Tty.Rows - Height);
             return true;
         }
 
@@ -420,14 +420,14 @@ public class TuiWindow
         }
 
         // 尺寸约束
-        newW = Math.Clamp(newW, MinWidth, MaxWidth > 0 ? MaxWidth : TTY.Cols);
-        newH = Math.Clamp(newH, MinHeight, MaxHeight > 0 ? MaxHeight : TTY.Rows);
+        newW = Math.Clamp(newW, MinWidth, MaxWidth > 0 ? MaxWidth : Tty.Cols);
+        newH = Math.Clamp(newH, MinHeight, MaxHeight > 0 ? MaxHeight : Tty.Rows);
 
         // 位置约束
         if (newX < 0) { newW += newX; newX = 0; }
         if (newY < 0) { newH += newY; newY = 0; }
-        if (newX + newW > TTY.Cols) newW = TTY.Cols - newX;
-        if (newY + newH > TTY.Rows) newH = TTY.Rows - newY;
+        if (newX + newW > Tty.Cols) newW = Tty.Cols - newX;
+        if (newY + newH > Tty.Rows) newH = Tty.Rows - newY;
 
         Width = newW; Height = newH; X = newX; Y = newY;
 

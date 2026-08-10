@@ -1,5 +1,6 @@
 using System.Text;
 using CoreCoderSharp.UI;
+using CoreCoderSharp.UI.TuiScreens;
 
 namespace CoreCoderSharp;
 

@@ -1,4 +1,6 @@
 using CoreCoderSharp.Terminal;
+using CoreCoderSharp.UI.TuiScreens;
+
 namespace CoreCoderSharp.UI;
 
 /// <summary>

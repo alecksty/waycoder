@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 标签页控件 —— 水平标签栏，可切换内容面板。
@@ -17,6 +17,7 @@ public class TuiTabs : TuiControl
 {
     /// <summary>标签定义列表</summary>
     private readonly List<string> _tabLabels = [];
+
     private readonly List<TuiControl> _tabContents = [];
 
     /// <summary>当前选中标签索引</summary>
@@ -63,7 +64,8 @@ public class TuiTabs : TuiControl
     /// <summary>当前激活的内容面板</summary>
     public TuiControl? ActiveContent =>
         SelectedIndex >= 0 && SelectedIndex < _tabContents.Count
-            ? _tabContents[SelectedIndex] : null;
+            ? _tabContents[SelectedIndex]
+            : null;
 
     /// <summary>添加标签页</summary>
     public void AddTab(string label, TuiControl content)
@@ -137,10 +139,10 @@ public class TuiTabs : TuiControl
             var display = new string(' ', leftPad) + label + new string(' ', rightPad);
 
             int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
-                   : active ? ActiveTabFg : InactiveTabFg;
+                : active ? ActiveTabFg : InactiveTabFg;
             int bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : TabBarBg)
-                   : active ? (ActiveTabBg > 0 ? ActiveTabBg : (Bg > 0 ? Bg : 0))
-                   : TabBarBg;
+                : active ? (ActiveTabBg > 0 ? ActiveTabBg : (Bg > 0 ? Bg : 0))
+                : TabBarBg;
 
             WriteAt(sb, absY, x, display, fg, bg);
         }
@@ -174,6 +176,7 @@ public class TuiTabs : TuiControl
                         SelectTab(idx);
                     return true;
                 }
+
                 return false;
         }
     }

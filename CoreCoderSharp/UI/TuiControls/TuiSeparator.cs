@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 分割线 —— 水平或垂直分隔符。
@@ -25,7 +25,8 @@ public class TuiSeparator : TuiControl
 
     public TuiSeparator()
     {
-        Height = 1; Width = 60;
+        Height = 1;
+        Width = 60;
     }
 
     public TuiSeparator(SeparatorDirection dir)
@@ -47,6 +48,7 @@ public class TuiSeparator : TuiControl
                 if (row < ClipTop || row >= ClipBottom) continue;
                 ControlRenderer.DrawLine(sb, row, absX, "│", fg, Bg);
             }
+
             return;
         }
 
@@ -60,8 +62,14 @@ public class TuiSeparator : TuiControl
         => LineColor > 0 ? LineColor : (Fg > 0 ? Fg : TuiTheme.Current.SeparatorFg);
 
 
-    public override void OnResize(int newParentW, int newParentH) { }
+    public override void OnResize(int newParentW, int newParentH)
+    {
+    }
 }
 
 /// <summary>分割线方向</summary>
-public enum SeparatorDirection { Horizontal, Vertical }
+public enum SeparatorDirection
+{
+    Horizontal,
+    Vertical
+}

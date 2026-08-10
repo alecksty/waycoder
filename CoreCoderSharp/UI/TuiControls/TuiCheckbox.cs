@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 复选框控件 —— ☑/☐ 切换。

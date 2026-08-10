@@ -1,5 +1,7 @@
 using CoreCoderSharp.Terminal;
 using CoreCoderSharp.UI.Controls;
+using CoreCoderSharp.UI.TuiBase;
+using CoreCoderSharp.UI.TuiControls;
 
 namespace CoreCoderSharp.UI;
 

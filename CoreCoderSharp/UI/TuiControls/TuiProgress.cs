@@ -1,5 +1,6 @@
 using System.Text;
-namespace CoreCoderSharp.UI.Controls;
+
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>进度条控件 —— 百分比条形显示。</summary>
 public class TuiProgress : TuiControl

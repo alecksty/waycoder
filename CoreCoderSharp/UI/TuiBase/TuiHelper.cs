@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using CoreCoderSharp.Terminal;
 
 namespace CoreCoderSharp.UI;
 
@@ -136,12 +137,14 @@ public static class TuiHelper
                 // 需要回溯到前一个字符的结束位置（即 i 个 rune 的 string 长度）
                 return RuneIndexToStringIndex(text, i);
             }
+
             width += rw;
 
             // 记录空格位置（英文词边界）
             if (runes[i].Value == ' ')
                 lastSpace = RuneIndexToStringIndex(text, i) + 1; // 断在空格之后
         }
+
         return text.Length; // 全放下了
     }
 
@@ -156,6 +159,7 @@ public static class TuiHelper
             ri++;
             si += r.ToString().Length; // Rune 转 string 可能占 1~4 个 char
         }
+
         return text.Length;
     }
 
@@ -193,7 +197,7 @@ public static class TuiHelper
         var sb = new StringBuilder();
         for (int i = 0; i < text.Length; i++)
         {
-            if (text[i] == '\x1b')
+            if (text[i] == AnsiTty.AnsiCharPrefix)
             {
                 // ANSI 序列 — 原样复制
                 int j = i;
@@ -202,19 +206,20 @@ public static class TuiHelper
                 sb.Append(text[i..j]);
                 i = j - 1;
             }
-            else if (text[i] == '[')
+            else if (text[i] == AnsiTty.AnsiCharEscape)
             {
-                sb.Append("[["); // 转义左括号
+                sb.Append($"[{AnsiTty.AnsiCharEscape}"); // 转义左括号
             }
             else if (text[i] == ']')
             {
-                sb.Append("]]"); // 转义右括号
+                sb.Append($"[{AnsiTty.AnsiCharEscape}]"); // 转义右括号
             }
             else
             {
                 sb.Append(text[i]);
             }
         }
+
         return sb.ToString();
     }
 
@@ -388,19 +393,19 @@ public static class TuiHelper
         if (cp is >= 0xFE00 and <= 0xFE0F) return 0;
 
         // 全角 / 宽字符（East Asian Wide + Fullwidth + Emoji）
-        if (cp is >= 0x1100 and <= 0x115F) return 2;  // 韩文 Choseong
-        if (cp is >= 0x2010 and <= 0x2027) return 2;  // 通用标点（— … " " ' ' ※ 等 EA Ambiguous）
-        if (cp is >= 0x2030 and <= 0x2043) return 2;  // 补充标点（‰ ′ ″ ※ 等）
-        if (cp is >= 0x2329 and <= 0x232A) return 2;  // 〈 〉
-        if (cp is >= 0x2600 and <= 0x27BF) return 2;  // 杂项符号 + 装饰符号（☀ ★ ❤ ➿ 等）
-        if (cp is >= 0x2E80 and <= 0xA4CF) return 2;  // CJK 部首 ~ 彝文
-        if (cp is >= 0xA960 and <= 0xA97C) return 2;  // 韩文扩展
-        if (cp is >= 0xAC00 and <= 0xD7A3) return 2;  // 韩文音节
-        if (cp is >= 0xF900 and <= 0xFAFF) return 2;  // CJK 兼容汉字
-        if (cp is >= 0xFE10 and <= 0xFE19) return 2;  // 竖排标点
-        if (cp is >= 0xFE30 and <= 0xFE6F) return 2;  // CJK 兼容标点
-        if (cp is >= 0xFF01 and <= 0xFF60) return 2;  // 全角 ASCII
-        if (cp is >= 0xFFE0 and <= 0xFFE6) return 2;  // 全角符号
+        if (cp is >= 0x1100 and <= 0x115F) return 2; // 韩文 Choseong
+        if (cp is >= 0x2010 and <= 0x2027) return 2; // 通用标点（— … " " ' ' ※ 等 EA Ambiguous）
+        if (cp is >= 0x2030 and <= 0x2043) return 2; // 补充标点（‰ ′ ″ ※ 等）
+        if (cp is >= 0x2329 and <= 0x232A) return 2; // 〈 〉
+        if (cp is >= 0x2600 and <= 0x27BF) return 2; // 杂项符号 + 装饰符号（☀ ★ ❤ ➿ 等）
+        if (cp is >= 0x2E80 and <= 0xA4CF) return 2; // CJK 部首 ~ 彝文
+        if (cp is >= 0xA960 and <= 0xA97C) return 2; // 韩文扩展
+        if (cp is >= 0xAC00 and <= 0xD7A3) return 2; // 韩文音节
+        if (cp is >= 0xF900 and <= 0xFAFF) return 2; // CJK 兼容汉字
+        if (cp is >= 0xFE10 and <= 0xFE19) return 2; // 竖排标点
+        if (cp is >= 0xFE30 and <= 0xFE6F) return 2; // CJK 兼容标点
+        if (cp is >= 0xFF01 and <= 0xFF60) return 2; // 全角 ASCII
+        if (cp is >= 0xFFE0 and <= 0xFFE6) return 2; // 全角符号
         if (cp is >= 0x1F000 and <= 0x1FAFF) return 2; // Emoji / 符号（麻将～补充-A）
         if (cp is >= 0x20000 and <= 0x2FFFD) return 2; // CJK 扩展 B+
         if (cp is >= 0x30000 and <= 0x3FFFD) return 2; // CJK 扩展 G+
@@ -411,11 +416,27 @@ public static class TuiHelper
     // ── 边框字符映射 ──
 
     /// <summary>边框字符集：左上 右上 左下 右下 水平 垂直，上水平 下水平（默认同 H）</summary>
-    public record struct BorderChars(string TL, string TR, string BL, string BR, string H, string V,
-        string? HTop = null, string? HBottom = null)
+    /// <param name="TL">左上角字符</param>
+    /// <param name="TR">右上角字符</param>
+    /// <param name="BL">左下角字符</param>
+    /// <param name="BR">右下角字符</param>
+    /// <param name="H">水平字符</param>
+    /// <param name="V">垂直字符</param>
+    /// <param name="HTop">上水平字符（默认同 H）</param>
+    /// <param name="HBottom">下水平字符（默认同 H）</param>
+    public record struct BorderChars(
+        string TL,
+        string TR,
+        string BL,
+        string BR,
+        string H,
+        string V,
+        string? HTop = null,
+        string? HBottom = null)
     {
         /// <summary>上边框水平线（默认同 H）</summary>
         public string HT => HTop ?? H;
+
         /// <summary>下边框水平线（默认同 H）</summary>
         public string HB => HBottom ?? H;
     }
@@ -423,16 +444,16 @@ public static class TuiHelper
     /// <summary>根据边框样式获取对应的 Unicode 边框字符集</summary>
     public static BorderChars GetBorderChars(WindowBorder border) => border switch
     {
-        WindowBorder.None     => new(" ", " ", " ", " ", " ", " "),
-        WindowBorder.Double   => new("╔", "╗", "╚", "╝", "═", "║"),
-        WindowBorder.Thick    => new("┏", "┓", "┗", "┛", "━", "┃"),
-        WindowBorder.Single   => new("┌", "┐", "└", "┘", "─", "│"),
-        WindowBorder.Solid    => new("█", "█", "█", "█", "█", "█", HTop: "▀", HBottom: "▄"),
-        WindowBorder.Dotted   => new("┌", "┐", "└", "┘", "┄", "┆"),
-        WindowBorder.Dashed   => new("┌", "┐", "└", "┘", "┅", "┇"),
-        WindowBorder.Ascii    => new("+", "+", "+", "+", "-", "|"),
-        WindowBorder.Slash    => new("/", "\\", "\\", "/", "-", "|"),
+        WindowBorder.None => new(" ", " ", " ", " ", " ", " "),
+        WindowBorder.Double => new("╔", "╗", "╚", "╝", "═", "║"),
+        WindowBorder.Thick => new("┏", "┓", "┗", "┛", "━", "┃"),
+        WindowBorder.Single => new("┌", "┐", "└", "┘", "─", "│"),
+        WindowBorder.Solid => new("█", "█", "█", "█", "█", "█", HTop: "▀", HBottom: "▄"),
+        WindowBorder.Dotted => new("┌", "┐", "└", "┘", "┄", "┆"),
+        WindowBorder.Dashed => new("┌", "┐", "└", "┘", "┅", "┇"),
+        WindowBorder.Ascii => new("+", "+", "+", "+", "-", "|"),
+        WindowBorder.Slash => new("/", "\\", "\\", "/", "-", "|"),
         WindowBorder.Triangle => new("▶", "◀", "◀", "▶", "─", "│"),
-        _                     => new("╭", "╮", "╰", "╯", "─", "│"), // Rounded
+        _ => new("╭", "╮", "╰", "╯", "─", "│"), // Rounded
     };
 }

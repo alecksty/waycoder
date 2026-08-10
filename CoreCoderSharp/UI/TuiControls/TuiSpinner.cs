@@ -1,4 +1,4 @@
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 加载动画控件 —— 旋转指示器。
@@ -7,6 +7,9 @@ namespace CoreCoderSharp.UI.Controls;
 /// </summary>
 public class TuiSpinner : TuiControl
 {
+    /// <summary>
+    /// 加载动画帧字符序列。
+    /// </summary>
     private static readonly string[] Frames = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"];
 
     /// <summary>标签文本（显示在动画左侧）</summary>

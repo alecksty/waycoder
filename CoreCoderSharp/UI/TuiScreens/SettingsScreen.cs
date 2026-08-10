@@ -1,4 +1,7 @@
 using CoreCoderSharp.UI.Controls;
+using CoreCoderSharp.UI.TuiBase;
+using CoreCoderSharp.UI.TuiControls;
+using CoreCoderSharp.UI.TuiScreens;
 
 namespace CoreCoderSharp.UI;
 
@@ -34,7 +37,7 @@ public class SettingsScreen : TuiScreen
 
     // ── 控件引用 ──
     private TuiLabel _header = null!;
-    private Controls.TuiList _catList = null!;
+    private TuiControls.TuiList _catList = null!;
     private TuiVBox _detailPanel = null!;
     private TuiLabel _hintBar = null!;
     private readonly List<TuiControl> _detailControls = [];   // 每组 3 个: label, value, desc
@@ -99,7 +102,7 @@ public class SettingsScreen : TuiScreen
 
         // 左侧类别列表
         int catW = Math.Min(18, TW / 3);
-        _catList = new Controls.TuiList
+        _catList = new TuiControls.TuiList
         {
             Width = catW,
             Height = mainH,
@@ -116,7 +119,7 @@ public class SettingsScreen : TuiScreen
         hbox.Add(_catList);
 
         // 竖分隔
-        hbox.Add(new Controls.TuiSeparator(SeparatorDirection.Vertical) { Height = mainH });
+        hbox.Add(new TuiSeparator(SeparatorDirection.Vertical) { Height = mainH });
 
         // 右侧详情
         int detailW = TW - catW - 2;

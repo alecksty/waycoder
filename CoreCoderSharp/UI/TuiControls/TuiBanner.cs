@@ -1,5 +1,6 @@
 using System.Text;
-namespace CoreCoderSharp.UI.Controls;
+
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>横幅控件 —— 居中展示 ASCII 艺术标题。</summary>
 public class TuiBanner : TuiControl

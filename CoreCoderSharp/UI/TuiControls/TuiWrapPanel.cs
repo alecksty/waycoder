@@ -1,4 +1,4 @@
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 流式布局面板 —— 子控件从左到右排列，超出宽度自动换行。

@@ -1,7 +1,8 @@
 using System.Text;
 using CoreCoderSharp.Terminal;
+using CoreCoderSharp.UI.TuiScreens;
 
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 底部状态栏控件 —— 动态状态信息条。

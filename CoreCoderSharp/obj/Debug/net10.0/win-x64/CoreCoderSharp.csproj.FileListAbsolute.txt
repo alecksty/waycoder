@@ -1,3 +1,5 @@
+D:\code-agents\CoreCoder\CoreCoderSharp\obj\Debug\net10.0\win-x64\CoreCoderSharp.GeneratedMSBuildEditorConfig.editorconfig
+D:\code-agents\CoreCoder\CoreCoderSharp\obj\Debug\net10.0\win-x64\CoreCoderSharp.csproj.CoreCompileInputs.cache
 D:\code-agents\CoreCoder\CoreCoderSharp\bin\Debug\net10.0\win-x64\corecoder.exe
 D:\code-agents\CoreCoder\CoreCoderSharp\bin\Debug\net10.0\win-x64\corecoder.deps.json
 D:\code-agents\CoreCoder\CoreCoderSharp\bin\Debug\net10.0\win-x64\corecoder.runtimeconfig.json
@@ -190,10 +192,6 @@ D:\code-agents\CoreCoder\CoreCoderSharp\bin\Debug\net10.0\win-x64\mscordaccore_a
 D:\code-agents\CoreCoder\CoreCoderSharp\bin\Debug\net10.0\win-x64\mscordbi.dll
 D:\code-agents\CoreCoder\CoreCoderSharp\bin\Debug\net10.0\win-x64\mscorrc.dll
 D:\code-agents\CoreCoder\CoreCoderSharp\bin\Debug\net10.0\win-x64\msquic.dll
-D:\code-agents\CoreCoder\CoreCoderSharp\obj\Debug\net10.0\win-x64\CoreCoderSharp.GeneratedMSBuildEditorConfig.editorconfig
-D:\code-agents\CoreCoder\CoreCoderSharp\obj\Debug\net10.0\win-x64\CoreCoderSharp.AssemblyInfoInputs.cache
-D:\code-agents\CoreCoder\CoreCoderSharp\obj\Debug\net10.0\win-x64\CoreCoderSharp.AssemblyInfo.cs
-D:\code-agents\CoreCoder\CoreCoderSharp\obj\Debug\net10.0\win-x64\CoreCoderSharp.csproj.CoreCompileInputs.cache
 D:\code-agents\CoreCoder\CoreCoderSharp\obj\Debug\net10.0\win-x64\CoreCode.2BA273FE.Up2Date
 D:\code-agents\CoreCoder\CoreCoderSharp\obj\Debug\net10.0\win-x64\corecoder.dll
 D:\code-agents\CoreCoder\CoreCoderSharp\obj\Debug\net10.0\win-x64\refint\corecoder.dll

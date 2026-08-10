@@ -187,7 +187,7 @@ public class BoxBuffer
         var span = text.AsSpan();
         for (int i = 0; i < span.Length; i++)
         {
-            if (span[i] == '\x1b' && i + 1 < span.Length && span[i + 1] == '[')
+            if (span[i] == AnsiTty.AnsiCharPrefix && i + 1 < span.Length && span[i + 1] == AnsiTty.AnsiCharEscape)
             {
                 i += 2;
                 while (i < span.Length && span[i] != 'm') i++;

@@ -1,4 +1,4 @@
-namespace CoreCoderSharp.UI.Controls;
+namespace CoreCoderSharp.UI.TuiControls;
 
 /// <summary>
 /// 单元格尺寸定义 —— 固定像素或按权重分配。
