@@ -1385,7 +1385,8 @@ public static class SelfTest
         Check("Truncate 不截断短文本", UI.TuiHelper.TruncateByWidth("hello", 10) == "hello");
         Check("Truncate 中文=6留'你好…'", UI.TuiHelper.TruncateByWidth("你好世界", 6) == "你好…");
         Check("Truncate 中文=8完整", UI.TuiHelper.TruncateByWidth("你好世界", 8) == "你好世界");
-        Check("Esc 转义方括号", UI.TuiHelper.Esc("[文件]") == "[[文件]]");
+        Check("Esc 方括号不再需要转义", UI.TuiHelper.Esc("[文件]") == "[文件]");
+        Check("Esc 转义书名号 «»", UI.TuiHelper.Esc("«文本»") == "««文本»»");
         Console.WriteLine();
 
         // ---- 语法高亮 (Syntax) ----

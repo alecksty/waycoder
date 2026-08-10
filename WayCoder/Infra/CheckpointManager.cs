@@ -332,7 +332,7 @@ public static class CheckpointManager
                 CheckpointType.Empty => "📭",
                 _ => "❓"
             };
-            lines.Add($"  {icon} #{cp.Id}  {cp.Description}  [dim]{cp.Timestamp:HH:mm:ss}[/]  ({cp.Type})");
+            lines.Add($"  {icon} #{cp.Id}  {cp.Description}  «dim»{cp.Timestamp:HH:mm:ss}«/»  ({cp.Type})");
         }
         return string.Join("\n", lines);
     }

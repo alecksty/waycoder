@@ -148,7 +148,7 @@ public class FindReplaceTool : ITool
                         var context = content.Substring(start, length).Replace("\r", "").Replace("\n", "\\n");
                         var marker = new string(' ', Math.Min(30, match.Index - start));
                         sb.AppendLine($"  `{context.Trim()}`");
-                        sb.AppendLine($"  {marker}[bold]^{new string('~', Math.Max(0, match.Length - 1))}[/]");
+                        sb.AppendLine($"  {marker}«bold»^{new string('~', Math.Max(0, match.Length - 1))}«/»");
                         lineCount++;
                     }
 

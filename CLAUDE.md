@@ -100,7 +100,7 @@ WayCoder/
 
 - **孤立的工具消息是非法的**：压缩时必须保持 tool 消息紧跟其 assistant 消息
 - **AOT 禁止反射**：不能用 `GetMethod`/`GetType` 等运行时反射
-- **Spectre.Console 标记**：`[` `]` 会被解析为格式标签，中文方括号需双写 `[[选项]]`
+- **Markup 标记**：使用 `«»` 书名号 (`«color»text«/»`)，不与方括号 `[` `]` 冲突，无需双写转义
 - **异步上下文**：`AsyncLocal<string>` 替代 `threading.local()` 用于 bash cwd 跟踪
 
 ## 添加新工具 (C# 版)
