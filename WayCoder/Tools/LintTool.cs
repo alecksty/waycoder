@@ -25,7 +25,7 @@ public class LintTool : ITool
         }
     };
 
-    public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var rawPath = arguments.GetValueOrDefault("path")?.ToString();
         var path = string.IsNullOrWhiteSpace(rawPath) ? Environment.CurrentDirectory : rawPath;
@@ -35,20 +35,19 @@ public class LintTool : ITool
             path = Path.GetFullPath(path);
 
         if (!File.Exists(path) && !Directory.Exists(path))
-            return Task.FromResult($"错误: 路径不存在: {path}");
+            return $"错误: 路径不存在: {path}";
 
         var lang = DetectLanguage(path);
         if (lang == null)
-            return Task.FromResult($"未能识别语言: {path}\n支持的文件类型: .cs .py .js .ts .go .rs .java .c .cpp .rb .php .swift .kt .lua .sh .html .css .vue .yaml .json .md .dart .r .toml .sql");
+            return $"未能识别语言: {path}\n支持的文件类型: .cs .py .js .ts .go .rs .java .c .cpp .rb .php .swift .kt .lua .sh .html .css .vue .yaml .json .md .dart .r .toml .sql";
 
         try
         {
-            var result = RunLinter(lang, path);
-            return Task.FromResult(result);
+            return await RunLinter(lang, path);
         }
         catch (Exception ex)
         {
-            return Task.FromResult($"Lint 执行异常: {ex.GetType().Name}: {ex.Message}");
+            return $"Lint 执行异常: {ex.GetType().Name}: {ex.Message}";
         }
     }
 
@@ -235,7 +234,7 @@ public class LintTool : ITool
     /// <summary>
     /// 运行对应语言的 linter，返回 stdout + stderr（截断后）。
     /// </summary>
-    private static string RunLinter(string lang, string target)
+    private static async Task<string> RunLinter(string lang, string target)
     {
         var (cmd, args) = lang switch
         {
@@ -271,7 +270,7 @@ public class LintTool : ITool
             _ => ("echo", "\"（无可用 linter）\"")
         };
 
-        return RunProcess(cmd, args, lang);
+        return await RunProcess(cmd, args, lang);
     }
 
     private static string FindProjectFile(string target, string filename)
@@ -321,7 +320,7 @@ public class LintTool : ITool
         return ("sqlite3", $":memory: \".read '{target.Replace("'", "\\'")}'\"");
     }
 
-    private static string RunProcess(string cmd, string args, string lang)
+    private static async Task<string> RunProcess(string cmd, string args, string lang)
     {
         try
         {
@@ -339,25 +338,22 @@ public class LintTool : ITool
                 }
             };
 
-            var stdout = new System.Text.StringBuilder();
-            var stderr = new System.Text.StringBuilder();
-
-            proc.OutputDataReceived += (_, e) => { if (e.Data != null) stdout.AppendLine(e.Data); };
-            proc.ErrorDataReceived += (_, e) => { if (e.Data != null) stderr.AppendLine(e.Data); };
-
             proc.Start();
-            proc.BeginOutputReadLine();
-            proc.BeginErrorReadLine();
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+            var stderrTask = proc.StandardError.ReadToEndAsync();
 
             var lintTimeout = Config.FromEnv().LintTimeoutSec * 1000;
-            if (!proc.WaitForExit(lintTimeout))
+            var exitTask = proc.WaitForExitAsync();
+            var delayTask = Task.Delay(lintTimeout);
+            var completed = await Task.WhenAny(exitTask, delayTask);
+            if (completed != exitTask || !exitTask.IsCompletedSuccessfully)
             {
                 try { proc.Kill(); } catch { }
                 return $"Lint 超时（{Config.FromEnv().LintTimeoutSec} 秒）: {cmd} {args}";
             }
 
-            var output = stdout.ToString();
-            var errors = stderr.ToString();
+            var output = await stdoutTask;
+            var errors = await stderrTask;
 
             // 去除 ANSI 转义序列
             output = Terminal.AnsiString.StripWithRegex(output);

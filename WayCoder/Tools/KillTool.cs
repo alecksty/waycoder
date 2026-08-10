@@ -44,7 +44,7 @@ public class KillTool : ITool
         "kernel32", "ntoskrnl", "PID 0", "PID 4",
     };
 
-    public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var hasPid = arguments.ContainsKey("pid");
         var hasName = arguments.ContainsKey("name");
@@ -52,10 +52,10 @@ public class KillTool : ITool
         var name = arguments.GetValueOrDefault("name")?.ToString() ?? "";
         var force = arguments.TryGetValue("force", out var f) && f is bool fb && fb;
 
-        return Task.FromResult(Execute(hasPid, pid, hasName, name, force));
+        return await Execute(hasPid, pid, hasName, name, force);
     }
 
-    private static string Execute(bool hasPid, int pid, bool hasName, string name, bool force)
+    private static async Task<string> Execute(bool hasPid, int pid, bool hasName, string name, bool force)
     {
         // 系统关键 PID 检查（优先于参数缺失检查）
         if (hasPid && (pid == 0 || pid == 4))
@@ -106,22 +106,20 @@ public class KillTool : ITool
             };
 
             using var proc = Process.Start(psi)!;
-            var stdout = new System.Text.StringBuilder();
-            var stderr = new System.Text.StringBuilder();
-            proc.OutputDataReceived += (_, e) => { if (e.Data != null) stdout.AppendLine(e.Data); };
-            proc.ErrorDataReceived += (_, e) => { if (e.Data != null) stderr.AppendLine(e.Data); };
-            proc.BeginOutputReadLine();
-            proc.BeginErrorReadLine();
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+            var stderrTask = proc.StandardError.ReadToEndAsync();
 
-            if (!proc.WaitForExit(10_000))
+            var exitTask = proc.WaitForExitAsync();
+            var delayTask = Task.Delay(10_000);
+            var completed = await Task.WhenAny(exitTask, delayTask);
+            if (completed != exitTask || !exitTask.IsCompletedSuccessfully)
             {
                 proc.Kill(entireProcessTree: true);
                 return "错误：kill 命令超时（10s）";
             }
-            proc.WaitForExit();
 
-            var result = stdout.ToString();
-            var err = stderr.ToString();
+            var result = await stdoutTask;
+            var err = await stderrTask;
 
             if (!string.IsNullOrEmpty(err))
                 result += $"\n[stderr]\n{err}";

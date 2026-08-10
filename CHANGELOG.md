@@ -1,5 +1,76 @@
 # 更新日志
 
+## v0.26.0 (2026-08-11) — 智能工作模式 + 跨槽位协作 + 光标修复
+
+### ✨ 新功能
+
+**🤖 智能 Auto Mode 分类器**
+- 三级风险分级引擎：Safe（只读自动放行）→ Cautious（首次确认后记住）→ Dangerous（每次确认）
+- 连续 3 次拒绝危险操作 → 自动退回 Ask 手动模式，防止误操作疲劳
+- `/auto` 一键切换，别名 `/自动`
+
+**🔨 工作模式系统（Shift+Tab 切换）**
+- 四种模式：🔨Build 建造 / 🧠Plan 计划 / 🔍Review 审查 / 🤖Auto 自动
+- 每个 Agent 槽位独立记忆工作模式
+- **Plan 模式**：封锁 write/edit/bash/rm/git/agent，System Prompt 注入分析引导
+- **Review 模式**：只读 + agent 可用，封锁写工具
+- **Auto 模式**：全工具 + SmartAuto 分级确认
+- 快捷键 **Shift+Tab** 循环切换，`/mode` 命令查看/直达
+- 状态栏显示当前模式 emoji
+
+**📦 自动 Git Commit 增强**
+- `/autocommit` 开关命令，别名 `/自动提交`
+- 精准暂存：只 `git add` AI 实际修改的文件（通过 `write_file`/`edit_file` 追踪）
+- 提交正文含 `git diff --stat` 摘要
+- 用户可见反馈：提交后在聊天区显示 `📦 自动提交 [N 文件]: msg`
+
+**📨 跨槽位消息传递**
+- `/send <槽位号> <消息>` —— 向其他 Agent 槽位发送消息
+- `/broadcast <消息>` —— 向所有其他槽位广播
+- 非活跃槽位的消息自动排队，切换回该槽位时投递
+- 别名：`/发送` `/广播` `/to` `/bc`
+
+**🧠 Architect 双模型模式**
+- `/architect` 开关，大模型出计划 + 小模型执行
+- 大模型不带工具，纯分析输出结构化计划
+
+**📥 配置导入**
+- `/import` 一键导入 Claude Code / OpenCode / Cursor / Cline 配置
+- 支持：模型/API 配置、MCP 服务器、项目上下文、会话数据
+
+**🗺️ Repository Map 升级**
+- 新增 16 语言 import/include 引用图分析
+- PageRank 风格核心文件评分 + ⭐ 标记
+
+### 🖥️ TUI 改进
+- **状态栏心跳动画**：⣾⣽⣻⢿⡿⣟⣯⣷ braille 旋转，证明 UI 渲染循环存活
+- **光标定位修复**：`EnsureCursorPosition()` 后备机制，增量渲染模式下光标位置不丢失
+- **Shift+Tab 终端序列**：`\x1b[Z` → `InputType.ShiftTab`，模式切换
+- **ProgramContext.Agent 同步**：槽位切换时自动更新，所有命令可用
+
+### 🔄 重构
+- `PermissionManager` 重构：提取 `ShowConfirmDialog()`，新增 `SmartAuto` 模式
+- `SandboxManager` 新增 `smart-auto` 级别映射 + `IsSmartAuto` 属性
+- `BackgroundTask` 完全异步化：`WaitForExit` → `WaitForExitAsync`，消除同步阻塞
+- `AgentSlot` 新增：`WorkMode`、`PendingMessages`、`DeliverMessage()`、`FlushPendingMessages()`
+
+### 🧪 测试
+- 新增 85 项测试（总计 1289 项，从 1199 增长），全部通过
+- 覆盖：AutoMode 分类器、工作模式约束/切换/事件、AutoCommit 属性/校验/清洗/EscArg、跨槽位投递/排队、光标状态
+
+### 🗂️ 新增文件
+| 文件 | 功能 |
+|------|------|
+| `Skills/AutoModeClassifier.cs` | 三级风险分类引擎 |
+| `Agent/WorkModeManager.cs` | 四模式定义 + 约束 + Prompt |
+| `Commands/AutoCommand.cs` | `/auto` 切换命令 |
+| `Commands/ModeCommand.cs` | `/mode` 模式命令 |
+| `Commands/AutoCommitCommand.cs` | `/autocommit` 开关 |
+| `Commands/SendCommand.cs` | `/send` + `/broadcast` |
+| `Commands/ArchitectCommand.cs` | `/architect` 双模型 |
+| `Commands/ImportCommand.cs` | `/import` 导入 |
+| `Infra/ImportHelper.cs` | 四源导入引擎 (~750行) |
+
 ## v0.25.9 (2026-08-10) — TUI 控件完善 + 测试全覆盖 + Bug 修复
 
 ### ✨ 新功能

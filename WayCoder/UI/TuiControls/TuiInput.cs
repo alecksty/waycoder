@@ -114,6 +114,49 @@ public class TuiInput : TuiControl
 
     public override bool HasCursor => true;
 
+    /// <summary>
+    /// 确保光标坐标精确（不依赖 OnRender 调用）。
+    /// 每次 GetCursorState 时自动调用，保证即使控件未被重绘光标位置也不丢失。
+    /// </summary>
+    protected override void EnsureCursorPosition()
+    {
+        if (!IsCursorOwner) return;
+
+        var absX = GetAbsoluteX();
+        var absY = GetAbsoluteY();
+        var originalText = Password ? new string('•', Text.Length) : Text;
+        var visW = Width;
+
+        // 光标在完整文本中的视觉宽度
+        int cursorVisualEnd = TuiHelper.DisplayWidth(
+            originalText[..Math.Min(CursorPos, originalText.Length)]);
+
+        // 计算滚动偏移：保证光标在可见区域内
+        int scrollStart = 0;
+        if (cursorVisualEnd >= visW && visW > 0)
+        {
+            // 简化滚动：回退足够的字符使光标落入可见区
+            int needSkip = cursorVisualEnd - visW + 1;
+            int skipped = 0;
+            int charIdx = 0;
+            foreach (var r in originalText.EnumerateRunes())
+            {
+                if (skipped >= needSkip) break;
+                skipped += TuiHelper.RuneWidth(r);
+                charIdx += r.ToString().Length;
+                scrollStart = charIdx;
+            }
+        }
+
+        // 光标在可见区域内的偏移
+        int cursorInVisible = TuiHelper.DisplayWidth(
+            originalText[scrollStart..Math.Min(CursorPos, originalText.Length)]);
+
+        _cursorRow = absY;
+        _cursorCol = absX + Math.Min(cursorInVisible, visW - 1);
+        _showCursor = true;
+    }
+
     public TuiInput() { Height = 1; Width = 20; }
 
     // ── 渲染 ──

@@ -23,20 +23,21 @@ public static class BackgroundTaskManager
     }
 
     /// <summary>
-    /// 启动后台任务，返回任务 ID。
+    /// 启动后台任务，返回任务 ID。任务在后台异步执行，不阻塞调用方。
     /// </summary>
-    public static async Task<int> StartAsync(string command, int timeoutSec = 600)
+    public static int Start(string command, int timeoutSec = 600)
     {
         var id = Interlocked.Increment(ref _nextId);
         var task = new BgTask(id, command, DateTime.Now);
         _tasks[id] = task;
 
-        _ = Task.Run(() => RunTask(task, timeoutSec));
+        // 后台异步执行，不阻塞；异常由 RunTaskAsync 内部捕获
+        _ = RunTaskAsync(task, timeoutSec);
 
-        return await Task.FromResult(id);
+        return id;
     }
 
-    private static void RunTask(BgTask task, int timeoutSec)
+    private static async Task RunTaskAsync(BgTask task, int timeoutSec)
     {
         try
         {
@@ -53,33 +54,35 @@ public static class BackgroundTaskManager
                 WorkingDirectory = Directory.GetCurrentDirectory(),
             };
 
-            task.Process = Process.Start(psi)!;
+            using var proc = Process.Start(psi)!;
+            task.Process = proc;
 
-            var output = new System.Text.StringBuilder();
-            task.Process.OutputDataReceived += (_, e) =>
-            {
-                if (e.Data != null) output.AppendLine(e.Data);
-            };
-            task.Process.ErrorDataReceived += (_, e) =>
-            {
-                if (e.Data != null) output.AppendLine("[stderr] " + e.Data);
-            };
-            task.Process.BeginOutputReadLine();
-            task.Process.BeginErrorReadLine();
+            // 异步读取输出（防止管道缓冲区满死锁）
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+            var stderrTask = proc.StandardError.ReadToEndAsync();
 
-            var exited = task.Process.WaitForExit(timeoutSec * 1000);
+            // 异步等待退出（带超时）
+            var exitTask = proc.WaitForExitAsync();
+            var delayTask = Task.Delay(timeoutSec * 1000);
+            var completed = await Task.WhenAny(exitTask, delayTask);
+            var exited = completed == exitTask && exitTask.IsCompletedSuccessfully;
+
             if (!exited)
             {
-                task.Process.Kill(true);
+                try { proc.Kill(entireProcessTree: true); } catch { }
                 task.Status = "timeout";
-                task.Output = output.ToString() + "\n[超时]";
+                var outStr = await stdoutTask;
+                var errStr = await stderrTask;
+                task.Output = (outStr + "\n" + errStr).Trim() + "\n[超时]";
             }
             else
             {
-                task.Process.WaitForExit(1000); // flush async output
-                task.Status = task.Process.ExitCode == 0 ? "completed" : "failed";
-                task.ExitCode = task.Process.ExitCode;
-                task.Output = output.ToString();
+                // 进程已退出，等待异步 IO 完成
+                var outStr = await stdoutTask;
+                var errStr = await stderrTask;
+                task.Status = proc.ExitCode == 0 ? "completed" : "failed";
+                task.ExitCode = proc.ExitCode;
+                task.Output = (outStr + "\n" + errStr).Trim();
                 if (task.ExitCode != 0)
                     task.Output += $"\n[退出码: {task.ExitCode}]";
             }
@@ -88,10 +91,12 @@ public static class BackgroundTaskManager
         {
             task.Status = "error";
             task.Output = $"启动失败: {ex.Message}";
+            DebugLog.Log("bgtask", $"后台任务 #{task.Id} 异常: {ex.Message}");
         }
         finally
         {
             task.CompletedAt = DateTime.Now;
+            task.Process = null; // proc 已被 using 释放
         }
     }
 
@@ -145,7 +150,6 @@ public static class BackgroundTaskManager
         {
             if (task.Status != "running")
             {
-                task.Process?.Dispose();
                 _tasks.TryRemove(id, out _);
             }
         }
