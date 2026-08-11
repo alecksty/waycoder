@@ -91,16 +91,32 @@ public abstract class TuiView : TuiControl
         };
     }
 
-    /// <summary>递归渲染所有子控件，自动裁剪到 View 边界。跳过非脏且父容器也非脏的子控件。</summary>
+    /// <summary>
+    /// 渲染子控件。全刷新模式下所有子控件渲染；增量模式下仅渲染脏的叶子控件，
+    /// 但始终遍历子视图容器（TuiView）以递归查找脏后代。
+    /// </summary>
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
         bool parentDirty = IsDirty;
         foreach (var child in Children)
         {
-            // 只有控件自身脏 或 父容器脏（全量刷新）时才渲染
-            if (child.Visible && (child.IsDirty || parentDirty))
+            if (!child.Visible) continue;
+
+            if (child is TuiView)
+            {
+                // 始终遍历视图容器：全刷新时需重绘所有后代，增量时需递归查找脏叶子
                 child.Render(sb, absX, absY, ClipLeft, ClipTop, ClipRight, ClipBottom);
+            }
+            else if (child.IsDirty || parentDirty)
+            {
+                // 叶子控件：仅脏时渲染，渲染后清除脏标记
+                child.Render(sb, absX, absY, ClipLeft, ClipTop, ClipRight, ClipBottom);
+            }
+
+            // 渲染后清除脏标记（无论视图还是叶子）
+            child.IsDirty = false;
         }
+        IsDirty = false;
     }
 
     /// <summary>强制刷新：递归标记视图及其所有子控件为脏。</summary>
