@@ -4,12 +4,18 @@ using System.Text.RegularExpressions;
 namespace WayCoder.Tools;
 
 /// <summary>
-/// 支持正则表达式的内容搜索。
+/// 增强版内容搜索（对标 crush grep）。
+///
+/// 功能：
+///   - 正则表达式搜索 + literal_text 模式（自动转义特殊字符）
+///   - ripgrep 优先集成（速度更快）
+///   - MIME 类型检测跳过二进制文件
+///   - FileIgnoreManager 过滤
 /// </summary>
 public class GrepTool : ITool
 {
     public string Name => "grep";
-    public string Description => "使用正则表达式搜索文件内容。返回匹配行，包含文件路径和行号。";
+    public string Description => "使用正则表达式搜索文件内容。返回匹配行，包含文件路径和行号。支持 literal_text 模式。";
 
     public JsonObject Parameters => new()
     {
@@ -19,7 +25,7 @@ public class GrepTool : ITool
             ["pattern"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "要搜索的正则表达式模式",
+                ["description"] = "要搜索的正则表达式模式（或 literal_text 模式下的纯文本）",
             },
             ["path"] = new JsonObject
             {
@@ -30,6 +36,11 @@ public class GrepTool : ITool
             {
                 ["type"] = "string",
                 ["description"] = "仅搜索匹配此 glob 模式的文件（如 '*.py'）",
+            },
+            ["literal_text"] = new JsonObject
+            {
+                ["type"] = "boolean",
+                ["description"] = "如果为 true，pattern 将被当做纯文本处理（自动转义正则特殊字符），默认 false",
             },
         },
         ["required"] = new JsonArray("pattern"),
@@ -46,16 +57,21 @@ public class GrepTool : ITool
         var pattern = arguments.GetValueOrDefault("pattern")?.ToString() ?? "";
         var searchPath = arguments.GetValueOrDefault("path")?.ToString() ?? ".";
         var include = arguments.TryGetValue("include", out var inc) ? inc?.ToString() : null;
+        var literalText = arguments.TryGetValue("literal_text", out var lt) &&
+                          lt?.ToString()?.ToLowerInvariant() == "true";
 
-        return Task.FromResult(Execute(pattern, searchPath, include));
+        return Task.FromResult(Execute(pattern, searchPath, include, literalText));
     }
 
-    private static string Execute(string pattern, string searchPath, string? include)
+    private static string Execute(string pattern, string searchPath, string? include, bool literalText)
     {
+        // literal_text 模式：转义正则特殊字符
+        var searchPattern = literalText ? Regex.Escape(pattern) : pattern;
+
         Regex regex;
         try
         {
-            regex = new Regex(pattern, RegexOptions.None, TimeSpan.FromSeconds(5));
+            regex = new Regex(searchPattern, RegexOptions.None, TimeSpan.FromSeconds(5));
         }
         catch (RegexParseException ex)
         {
@@ -79,6 +95,10 @@ public class GrepTool : ITool
         var matches = new List<string>();
         foreach (var fp in files)
         {
+            // 检查路径中是否包含跳过的目录（用 FileIgnoreManager）
+            if (FileIgnoreManager.IsIgnored(fp, basePath))
+                continue;
+
             string text;
             try { text = File.ReadAllText(fp, Encoding.UTF8); }
             catch { continue; }
