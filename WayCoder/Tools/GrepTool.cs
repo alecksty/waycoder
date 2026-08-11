@@ -71,7 +71,7 @@ public class GrepTool : ITool
         Regex regex;
         try
         {
-            regex = new Regex(searchPattern, RegexOptions.None, TimeSpan.FromSeconds(5));
+            regex = new Regex(searchPattern, RegexOptions.None, TimeSpan.FromSeconds(Config.Instance.RegexTimeoutSec));
         }
         catch (RegexParseException ex)
         {

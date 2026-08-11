@@ -53,6 +53,8 @@ public static class FallbackLLM
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.Error.WriteLine($"[fallback] 模型 {originalLlm.Model} 失败: {ex.Message}");
+            ErrorLog.LlmError(originalLlm.Model, originalLlm.Endpoint,
+                $"主模型失败，启动回退链: {ex.Message}", ex);
         }
 
         // 回退链
@@ -85,11 +87,14 @@ public static class FallbackLLM
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 Console.Error.WriteLine($"[fallback] {model} 也失败: {ex.Message}");
+                ErrorLog.LlmError(model, fallbackLlm.Endpoint,
+                    $"回退模型也失败: {ex.Message}", ex);
                 continue;
             }
         }
 
         Console.Error.WriteLine("[fallback] 所有回退模型均已失败，请检查网络或 API 密钥。");
+        ErrorLog.Error("FallbackLLM", "所有回退模型均已失败（包括主模型），请检查网络或 API 密钥");
         return new LLMResponse
         {
             Content = "[错误] 所有模型（含回退链）均已失败，请检查网络或 API 密钥。",

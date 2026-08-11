@@ -397,7 +397,7 @@ public class AskUserQuestionTool : ITool
         }
 
         screen.ShowWindow(win);
-        // 用户交互等待 120s（比常规确认框更长）
-        UxHelper.RenderWait(screen, evt, timeoutMs: 120_000);
+        // 用户交互等待（比常规确认框更长）
+        UxHelper.RenderWait(screen, evt, timeoutMs: Config.Instance.AskUserTimeoutSec * 1000);
     }
 }

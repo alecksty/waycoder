@@ -87,6 +87,62 @@ public static class DiagnosticManager
     }
 
     /// <summary>
+    /// 格式化诊断信息供 LLM 使用（紧凑文本格式）。
+    /// 仅当缓存中有诊断时返回非空字符串。
+    /// </summary>
+    public static string? FormatForLLM(string filePath)
+    {
+        if (!_diagnostics.TryGetValue(filePath, out var list) || list.Count == 0)
+            return null;
+
+        var fileName = Path.GetFileName(filePath);
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"📋 **诊断信息 ({fileName})：**");
+
+        var errors = list.Where(d => d.Severity == Severity.Error).Take(8).ToList();
+        var warnings = list.Where(d => d.Severity == Severity.Warning).Take(8).ToList();
+
+        foreach (var d in errors)
+            sb.AppendLine($"  ❌ 行 {d.Line}: {d.Message}{(d.Code != null ? $" [{d.Code}]" : "")}");
+        foreach (var d in warnings)
+            sb.AppendLine($"  ⚠ 行 {d.Line}: {d.Message}{(d.Code != null ? $" [{d.Code}]" : "")}");
+
+        var totalErrors = list.Count(d => d.Severity == Severity.Error);
+        var totalWarnings = list.Count(d => d.Severity == Severity.Warning);
+        if (totalErrors > 8 || totalWarnings > 8)
+            sb.AppendLine($"  ... 及其他（共 {totalErrors} 错误, {totalWarnings} 警告）");
+
+        return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// 带超时的 lint 运行（用于工具集成）。
+    /// 在超时内完成的 lint 结果会更新到缓存。
+    /// </summary>
+    public static async Task<string?> TryRunLintWithTimeout(string filePath, int timeoutMs = 3000)
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(timeoutMs);
+            var lintTask = RunLintAsync(filePath);
+            var completed = await Task.WhenAny(lintTask, Task.Delay(timeoutMs, cts.Token));
+
+            if (completed == lintTask)
+            {
+                await lintTask; // 等待完成以获取异常
+                return FormatForLLM(filePath);
+            }
+
+            // 超时：不等待
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// 清除指定文件的诊断缓存。
     /// </summary>
     public static void Clear(string filePath)

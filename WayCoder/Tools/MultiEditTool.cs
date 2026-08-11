@@ -173,13 +173,21 @@ public class MultiEditTool : ITool
 
         File.WriteAllText(path, content, Encoding.UTF8);
         EditFileTool.ChangedFiles.Add(path);
+        FileTracker.RecordWrite(path);
 
         var total = edits.Count;
         var failedMsg = failed.Count > 0
             ? $"\n⚠ {failed.Count} 个编辑失败:\n{FormatFailedEdits(failed)}"
             : "";
 
-        return $"✅ 已创建 {path}（{applied}/{total} 编辑成功，+{CountLines(content)} 行）{failedMsg}";
+        var multiResult1 = $"✅ 已创建 {path}（{applied}/{total} 编辑成功，+{CountLines(content)} 行）{failedMsg}";
+
+        // LSP 诊断自动附加
+        var multiDiag1 = await DiagnosticManager.TryRunLintWithTimeout(path, 3000);
+        if (multiDiag1 != null)
+            multiResult1 += "\n\n" + multiDiag1;
+
+        return multiResult1;
     }
 
     // ========================================================================
@@ -230,6 +238,7 @@ public class MultiEditTool : ITool
 
         File.WriteAllText(path, newContent, Encoding.UTF8);
         EditFileTool.ChangedFiles.Add(path);
+        FileTracker.RecordWrite(path);
 
         // 生成 diff
         var diff = EditFileTool_GenerateDiff(oldContent, newContent, path);
@@ -242,7 +251,14 @@ public class MultiEditTool : ITool
         var additions = CountNewlines(newContent) - CountNewlines(oldContent);
         var removal = CountNewlines(oldContent) - CountNewlines(newContent);
 
-        return $"✅ 已编辑 {path}（{applied}/{total} 编辑成功，+{additions}/-{removal} 行）{failedMsg}\n{diff}";
+        var multiResult2 = $"✅ 已编辑 {path}（{applied}/{total} 编辑成功，+{additions}/-{removal} 行）{failedMsg}\n{diff}";
+
+        // LSP 诊断自动附加
+        var multiDiag2 = await DiagnosticManager.TryRunLintWithTimeout(path, 3000);
+        if (multiDiag2 != null)
+            multiResult2 += "\n\n" + multiDiag2;
+
+        return multiResult2;
     }
 
     // ========================================================================

@@ -60,6 +60,11 @@ public static class PermissionManager
         if (CurrentMode == Mode.Yolo)
             return true;
 
+        // Bash 安全只读命令：自动放行（对标 crush safeCommands 白名单）
+        if (toolName == "bash" && args.TryGetValue("command", out var cmdObj) &&
+            cmdObj is string cmdStr && BashGuard.IsSafeReadOnly(cmdStr))
+            return true;
+
         // ── SmartAuto 模式：三级智能分类 ──
         if (CurrentMode == Mode.SmartAuto)
         {

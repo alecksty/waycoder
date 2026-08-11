@@ -70,9 +70,17 @@ public class WriteFileTool : ITool
             File.WriteAllText(path, content, Encoding.UTF8);
 
             EditFileTool.ChangedFiles.Add(path);
+            FileTracker.RecordWrite(path);
 
             var lineCount = content.Count(c => c == '\n') + (string.IsNullOrEmpty(content) || content.EndsWith('\n') ? 0 : 1);
-            return $"已写入 {lineCount} 行到 {filePath}";
+            var writeResult = $"已写入 {lineCount} 行到 {filePath}";
+
+            // LSP 诊断自动附加：运行 lint 检查新写入文件的错误
+            var writeDiag = await DiagnosticManager.TryRunLintWithTimeout(path, 3000);
+            if (writeDiag != null)
+                writeResult += "\n\n" + writeDiag;
+
+            return writeResult;
         }
         catch (Exception ex)
         {

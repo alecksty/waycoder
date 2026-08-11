@@ -8,7 +8,7 @@ namespace WayCoder;
 /// </summary>
 public static class GitRunner
 {
-    const int DefaultTimeoutMs = 15_000;
+    static int DefaultTimeoutMs => Config.Instance.GitTimeoutSec * 1000;
 
     static ProcessStartInfo BuildStartInfo(string args, string? cwd)
     {

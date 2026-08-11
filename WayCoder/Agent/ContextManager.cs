@@ -9,6 +9,9 @@ namespace WayCoder;
 ///   - 第 1 层（tool_snip）：用截断版本替换冗长的工具结果
 ///   - 第 2 层（summarize）：LLM 驱动的旧对话摘要
 ///   - 第 3 层（hard_collapse）：最后手段：仅保留摘要 + 最近消息
+///
+/// 此外支持 Crush 风格的 StopWhen：基于真实 API token 使用量，
+/// 当剩余窗口低于阈值时提前触发摘要（而非等估算值超限）。
 /// </summary>
 public class ContextManager
 {
@@ -18,12 +21,57 @@ public class ContextManager
     private readonly int _summarizeAt;  // 70% -> LLM 摘要
     private readonly int _collapseAt;   // 90% -> 硬折叠
 
+    /// <summary>累计 prompt tokens（来自 API usage）</summary>
+    public int CumulativePromptTokens { get; private set; }
+    /// <summary>累计 completion tokens（来自 API usage）</summary>
+    public int CumulativeCompletionTokens { get; private set; }
+
+    /// <summary>上次摘要后是否已注入继续提示</summary>
+    public bool ContinuePromptInjected { get; set; }
+
     public ContextManager(int maxTokens = 128_000)
     {
         MaxTokens = maxTokens;
         _snipAt = maxTokens * Config.Instance.ContextSnipRatio / 100;
         _summarizeAt = maxTokens * Config.Instance.ContextSummarizeRatio / 100;
         _collapseAt = maxTokens * Config.Instance.ContextCollapseRatio / 100;
+    }
+
+    /// <summary>
+    /// 从 LLM 响应中累积真实 token 使用量。
+    /// </summary>
+    public void AddUsage(int promptTokens, int completionTokens)
+    {
+        CumulativePromptTokens += promptTokens;
+        CumulativeCompletionTokens += completionTokens;
+    }
+
+    /// <summary>
+    /// Crush 风格 StopWhen：检查真实 token 使用量是否接近窗口上限。
+    /// 大窗口用固定 buffer，小窗口用比例阈值。
+    /// </summary>
+    /// <returns>剩余 token 数低于阈值时应触发摘要</returns>
+    public bool ShouldStopAndSummarize()
+    {
+        var cfg = Config.Instance;
+        var used = CumulativePromptTokens + CumulativeCompletionTokens;
+        var remaining = MaxTokens - used;
+
+        long threshold;
+        if (MaxTokens > cfg.ContextWindowLargeThreshold)
+            threshold = cfg.ContextWindowLargeBuffer;       // 大窗口：固定 20K buffer
+        else
+            threshold = (long)(MaxTokens * cfg.ContextWindowSmallRatio);  // 小窗口：20% 比例
+
+        return remaining <= threshold;
+    }
+
+    /// <summary>重置累计 token 计数（摘要后调用）</summary>
+    public void ResetUsage()
+    {
+        CumulativePromptTokens = 0;
+        CumulativeCompletionTokens = 0;
+        ContinuePromptInjected = false;
     }
 
     /// <summary>

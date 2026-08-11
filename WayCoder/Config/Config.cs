@@ -89,11 +89,11 @@ public class Config
     // 属性声明（保持原有类型和默认值，全项目兼容）
     // ════════════════════════════════════════════════════════════
 
-    public string Model { get; set; } = "deepseek-v4-flash";
-    public string SmallModel { get; set; } = "deepseek-v4-flash";
+    public string Model { get; set; } = "deepseek-chat";
+    public string SmallModel { get; set; } = "deepseek-chat";
     public string ApiKey { get; set; } = "";
     public string? BaseUrl { get; set; }
-    public int MaxTokens { get; set; } = 4096;
+    public int MaxTokens { get; set; } = 32768;
     public float Temperature { get; set; } = 0.1f;
     public int MaxContextTokens { get; set; } = 1_048_576;
     public string Provider { get; set; } = "openai";
@@ -138,7 +138,7 @@ public class Config
     public int SubAgentOutputMaxChars { get; set; } = 5000;
 
     // ── LLM 连接 ──
-    public int LlmHttpTimeoutSec { get; set; } = 60;
+    public int LlmHttpTimeoutSec { get; set; } = 300;
     public int LlmMaxRetries { get; set; } = 3;
     public int LlmConnectionTimeoutSec { get; set; } = 300;
     public int LlmRateLimitMaxWaitSec { get; set; } = 120;
@@ -149,10 +149,31 @@ public class Config
     // ── 文件锁 ──
     public int FileLockTimeoutSec { get; set; } = 30;
 
+    // ── 超时参数（集中管理，所有超时均可通过环境变量/设置界面修改） ──
+    public int BackgroundTaskTimeoutSec { get; set; } = 600;
+    public int AutoTestTimeoutSec { get; set; } = 30;
+    public int AutoTestDebounceSec { get; set; } = 60;
+    public int GitTimeoutSec { get; set; } = 15;
+    public int KillTimeoutSec { get; set; } = 10;
+    public int DownloadTimeoutSec { get; set; } = 60;
+    public int HookTimeoutSec { get; set; } = 10;
+    public int AskUserTimeoutSec { get; set; } = 120;
+    public int RegexTimeoutSec { get; set; } = 5;
+    public int FetchTimeoutSec { get; set; } = 30;
+
     // ── 上下文压缩 ──
     public int ContextSnipRatio { get; set; } = 50;
     public int ContextSummarizeRatio { get; set; } = 70;
     public int ContextCollapseRatio { get; set; } = 90;
+
+    // Crush-style: 基于真实 token 数的自动摘要阈值
+    // 大窗口 (>200K) 用固定 buffer，小窗口用比例
+    public int ContextWindowLargeThreshold { get; set; } = 200_000;
+    public int ContextWindowLargeBuffer { get; set; } = 20_000;
+    public double ContextWindowSmallRatio { get; set; } = 0.2;
+
+    // 自动摘要后是否注入继续提示（Crush 风格 auto-requeue）
+    public bool AutoContinueAfterSummarize { get; set; } = true;
 
     // ════════════════════════════════════════════════════════════
     // 单一 Schema 定义（新增配置项只加这里一行）
@@ -166,13 +187,13 @@ public class Config
             // ── 模型 ──
             P("Model",        "WAYCODER_MODEL",           "CORECODER_MODEL",
               "大模型 (复杂任务)", "🤖 模型", "架构/重构/调试/多文件",
-              "select", ["deepseek-v4-pro","gpt-5.4","gpt-5.5","deepseek-v4-flash","gpt-4o","gpt-4o-mini"], 0,
-              c => c.Model, (c, v) => c.Model = v, "deepseek-v4-flash"),
+              "select", ["deepseek-chat","deepseek-v4-pro","gpt-5.4","gpt-5.5","deepseek-v4-flash","gpt-4o","gpt-4o-mini"], 0,
+              c => c.Model, (c, v) => c.Model = v, "deepseek-chat"),
 
             P("SmallModel",   "WAYCODER_SMALL_MODEL",     "CORECODER_SMALL_MODEL",
               "小模型 (简单任务)", "🤖 模型", "补全/摘要/压缩 (便宜快速)",
-              "select", ["deepseek-v4-flash","gpt-5.4-mini","gpt-4o-mini","deepseek-v4-pro"], 1,
-              c => c.SmallModel, (c, v) => c.SmallModel = v, "deepseek-v4-flash"),
+              "select", ["deepseek-chat","deepseek-v4-flash","gpt-5.4-mini","gpt-4o-mini","deepseek-v4-pro"], 1,
+              c => c.SmallModel, (c, v) => c.SmallModel = v, "deepseek-chat"),
 
             P("BaseUrl",      "WAYCODER_BASE_URL",        "CORECODER_BASE_URL",
               "API 地址", "🤖 模型", "API 端点 URL",
@@ -189,7 +210,7 @@ public class Config
             P("MaxTokens",        "WAYCODER_MAX_TOKENS",        "CORECODER_MAX_TOKENS",
               "最大 Token", "⚙ 参数", "每次请求最大 Token 数",
               "number", null, 0,
-              c => c.MaxTokens.ToString(), (c, v) => c.MaxTokens = int.Parse(v), "4096"),
+              c => c.MaxTokens.ToString(), (c, v) => c.MaxTokens = Math.Clamp(int.Parse(v), 512, 65536), "32768"),
 
             P("Temperature",      "WAYCODER_TEMPERATURE",       "CORECODER_TEMPERATURE",
               "温度", "⚙ 参数", "0=精确 1=创意",
@@ -245,7 +266,7 @@ public class Config
               "LLM 请求超时 (秒)", "⚙ 参数", "单次 HTTP 请求超时",
               "number", null, 7,
               c => c.LlmHttpTimeoutSec.ToString(),
-              (c, v) => c.LlmHttpTimeoutSec = Math.Clamp(int.Parse(v), 5, 600), "60"),
+              (c, v) => c.LlmHttpTimeoutSec = Math.Clamp(int.Parse(v), 10, 900), "300"),
 
             P("LlmMaxRetries",    "WAYCODER_LLM_MAX_RETRIES",   "CORECODER_LLM_MAX_RETRIES",
               "LLM 最大重试", "⚙ 参数", "HTTP 失败最大重试次数",
@@ -265,6 +286,67 @@ public class Config
               c => c.LlmRateLimitMaxWaitSec.ToString(),
               (c, v) => c.LlmRateLimitMaxWaitSec = Math.Clamp(int.Parse(v), 10, 600), "120"),
 
+            // ── 超时参数（集中管理） ──
+            P("BackgroundTaskTimeoutSec", "WAYCODER_BG_TASK_TIMEOUT_SEC", null,
+              "后台任务超时 (秒)", "⏱ 超时", "后台 Shell 任务最大运行时间",
+              "number", null, 11,
+              c => c.BackgroundTaskTimeoutSec.ToString(),
+              (c, v) => c.BackgroundTaskTimeoutSec = Math.Clamp(int.Parse(v), 30, 3600), "600"),
+
+            P("AutoTestTimeoutSec", "WAYCODER_AUTO_TEST_TIMEOUT_SEC", null,
+              "自动测试超时 (秒)", "⏱ 超时", "Agent 自动跑测试的超时时间",
+              "number", null, 12,
+              c => c.AutoTestTimeoutSec.ToString(),
+              (c, v) => c.AutoTestTimeoutSec = Math.Clamp(int.Parse(v), 5, 300), "30"),
+
+            P("AutoTestDebounceSec", "WAYCODER_AUTO_TEST_DEBOUNCE_SEC", null,
+              "自动测试防抖 (秒)", "⏱ 超时", "同项目自动测试最小间隔",
+              "number", null, 13,
+              c => c.AutoTestDebounceSec.ToString(),
+              (c, v) => c.AutoTestDebounceSec = Math.Clamp(int.Parse(v), 10, 600), "60"),
+
+            P("GitTimeoutSec", "WAYCODER_GIT_TIMEOUT_SEC", null,
+              "Git 操作超时 (秒)", "⏱ 超时", "Git 命令执行超时",
+              "number", null, 14,
+              c => c.GitTimeoutSec.ToString(),
+              (c, v) => c.GitTimeoutSec = Math.Clamp(int.Parse(v), 5, 120), "15"),
+
+            P("KillTimeoutSec", "WAYCODER_KILL_TIMEOUT_SEC", null,
+              "Kill 命令超时 (秒)", "⏱ 超时", "进程终止等待超时",
+              "number", null, 15,
+              c => c.KillTimeoutSec.ToString(),
+              (c, v) => c.KillTimeoutSec = Math.Clamp(int.Parse(v), 3, 60), "10"),
+
+            P("DownloadTimeoutSec", "WAYCODER_DOWNLOAD_TIMEOUT_SEC", null,
+              "下载超时 (秒)", "⏱ 超时", "HTTP 下载默认超时",
+              "number", null, 16,
+              c => c.DownloadTimeoutSec.ToString(),
+              (c, v) => c.DownloadTimeoutSec = Math.Clamp(int.Parse(v), 5, 600), "60"),
+
+            P("HookTimeoutSec", "WAYCODER_HOOK_TIMEOUT_SEC", null,
+              "Hook 超时 (秒)", "⏱ 超时", "事件钩子脚本执行超时",
+              "number", null, 17,
+              c => c.HookTimeoutSec.ToString(),
+              (c, v) => c.HookTimeoutSec = Math.Clamp(int.Parse(v), 2, 120), "10"),
+
+            P("AskUserTimeoutSec", "WAYCODER_ASK_USER_TIMEOUT_SEC", null,
+              "用户等待超时 (秒)", "⏱ 超时", "弹窗问用户的最长等待时间",
+              "number", null, 18,
+              c => c.AskUserTimeoutSec.ToString(),
+              (c, v) => c.AskUserTimeoutSec = Math.Clamp(int.Parse(v), 10, 600), "120"),
+
+            P("RegexTimeoutSec", "WAYCODER_REGEX_TIMEOUT_SEC", null,
+              "正则超时 (秒)", "⏱ 超时", "正则匹配超时保护",
+              "number", null, 19,
+              c => c.RegexTimeoutSec.ToString(),
+              (c, v) => c.RegexTimeoutSec = Math.Clamp(int.Parse(v), 1, 30), "5"),
+
+            P("FetchTimeoutSec", "WAYCODER_FETCH_TIMEOUT_SEC", null,
+              "网页抓取超时 (秒)", "⏱ 超时", "URL 内容抓取超时",
+              "number", null, 20,
+              c => c.FetchTimeoutSec.ToString(),
+              (c, v) => c.FetchTimeoutSec = Math.Clamp(int.Parse(v), 5, 120), "30"),
+
             P("ContextSnipRatio", "WAYCODER_CTX_SNIP_RATIO",   "CORECODER_CTX_SNIP_RATIO",
               "上下文裁剪比例 (%)", "⚙ 参数", "工具输出裁剪触发比例",
               "number", null, 11,
@@ -283,11 +365,35 @@ public class Config
               c => c.ContextCollapseRatio.ToString(),
               (c, v) => c.ContextCollapseRatio = Math.Clamp(int.Parse(v), 30, 99), "90"),
 
+            P("ContextWindowLargeThreshold", "WAYCODER_CTX_LARGE_THRESHOLD", null,
+              "大窗口阈值 (tokens)", "⚙ 参数", "超过此值视为大上下文窗口，用固定 buffer",
+              "number", null, 14,
+              c => c.ContextWindowLargeThreshold.ToString(),
+              (c, v) => c.ContextWindowLargeThreshold = Math.Clamp(int.Parse(v), 50000, 1_000_000), "200000"),
+
+            P("ContextWindowLargeBuffer", "WAYCODER_CTX_LARGE_BUFFER", null,
+              "大窗口缓冲 (tokens)", "⚙ 参数", "大窗口剩余低于此值触发自动摘要",
+              "number", null, 15,
+              c => c.ContextWindowLargeBuffer.ToString(),
+              (c, v) => c.ContextWindowLargeBuffer = Math.Clamp(int.Parse(v), 5000, 100_000), "20000"),
+
+            P("ContextWindowSmallRatio", "WAYCODER_CTX_SMALL_RATIO", null,
+              "小窗口摘要比例", "⚙ 参数", "小窗口剩余比例低于此值触发自动摘要 (0.1-0.5)",
+              "number", null, 16,
+              c => c.ContextWindowSmallRatio.ToString("F2"),
+              (c, v) => c.ContextWindowSmallRatio = Math.Clamp(double.Parse(v), 0.1, 0.5), "0.2"),
+
+            P("AutoContinueAfterSummarize", "WAYCODER_AUTO_CONTINUE", null,
+              "自动继续", "⚙ 参数", "摘要后自动注入继续提示（Crush 风格）",
+              "select", ["false","true"], 17,
+              c => c.AutoContinueAfterSummarize.ToString().ToLowerInvariant(),
+              (c, v) => c.AutoContinueAfterSummarize = bool.Parse(v), "true"),
+
             P("FallbackChain", "WAYCODER_FALLBACK_CHAIN",     "CORECODER_FALLBACK_CHAIN",
               "回退模型链", "🤖 模型", "逗号分隔的备选模型列表",
               "text", null, 7,
               c => c.FallbackChain, (c, v) => c.FallbackChain = v,
-              "deepseek-v4-flash,deepseek-v4-pro,deepseek-chat,gpt-5.4-mini"),
+              "deepseek-chat,deepseek-v4-flash,deepseek-v4-pro,gpt-5.4-mini"),
 
             P("FallbackMaxBudget", "WAYCODER_FALLBACK_MAX_BUDGET", "CORECODER_FALLBACK_MAX_BUDGET",
               "回退预算 ($)", "💰 预算", "回退链最大花费，null=无限制",
