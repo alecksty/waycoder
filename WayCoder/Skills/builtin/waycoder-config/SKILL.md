@@ -40,6 +40,8 @@ WayCoder 通过环境变量和配置文件进行配置。
 | `WAYCODER_SUB_AGENT_MAX_PARALLEL` | 子 Agent 最大并行数（默认 4） |
 | `WAYCODER_MAX_BUDGET_USD` | 金额上限（美元） |
 | `WAYCODER_TOOL_TIMEOUT_SEC` | 工具超时（默认 120） |
+| `WAYCODER_ALLOWED_TOOLS` | 工具白名单（逗号分隔，空=全部允许） |
+| `WAYCODER_DISABLED_TOOLS` | 工具黑名单（逗号分隔，空=不禁用） |
 
 ### 沙箱
 
