@@ -63,6 +63,7 @@ public static class DiffPreview
         int currentHunk = 0;
         int scrollOffset = 0;
         var mode = "review"; // "review" | "all"
+        var syntax = GetSyntaxForFile(filePath);
 
         while (true)
         {
@@ -134,7 +135,7 @@ public static class DiffPreview
                     int li = scrollOffset + i;
                     sb.Append(AnsiTty.CursorPos(i + 2, 1)).Append(AnsiTty.ClearToEnd);
                     if (li >= splitRows!.Count) continue;
-                    RenderSplitRow(sb, splitRows[li], tw, currentHunk, accepted);
+                    RenderSplitRow(sb, splitRows[li], tw, currentHunk, accepted, syntax);
                 }
             }
             else
@@ -164,26 +165,55 @@ public static class DiffPreview
                         bool isCurrentHunk = hi == currentHunk;
                         bool isAccepted = accepted.Contains(hi);
 
-                        string prefix, fgBgSeq;
                         if (line.Kind == '-')
                         {
-                            prefix = $"{Padding(line.OldLine),4} -";
-                            fgBgSeq = isCurrentHunk ? AnsiTty.Sgr(30, 41, 1) : AnsiTty.FgBg(37, 41);
+                            var prefix = $"{Padding(line.OldLine),4} -";
+                            int fg = isCurrentHunk ? 30 : 37;
+                            int bg = 41;
+                            var maxTextW = tw - 7;
+                            sb.Append(isCurrentHunk ? AnsiTty.Sgr(fg, bg, 1) : AnsiTty.FgBg(fg, bg));
+                            sb.Append(prefix).Append(' ');
+                            AppendHighlightedCode(sb, line.Text, syntax, fg, bg, isCurrentHunk, maxTextW);
+                            sb.Append(AnsiTty.SgrReset);
                         }
                         else if (line.Kind == '+')
                         {
-                            prefix = $"     +";
-                            fgBgSeq = isCurrentHunk ? AnsiTty.Sgr(30, 42, 1) : AnsiTty.FgBg(37, 42);
+                            var prefix = "     +";
+                            int fg = isCurrentHunk ? 30 : 37;
+                            int bg = 42;
+                            var maxTextW = tw - 7;
+                            sb.Append(isCurrentHunk ? AnsiTty.Sgr(fg, bg, 1) : AnsiTty.FgBg(fg, bg));
+                            sb.Append(prefix).Append(' ');
+                            AppendHighlightedCode(sb, line.Text, syntax, fg, bg, isCurrentHunk, maxTextW);
+                            sb.Append(AnsiTty.SgrReset);
                         }
                         else
                         {
-                            prefix = $"{Padding(line.OldLine),4}  ";
-                            fgBgSeq = isCurrentHunk ? AnsiTty.FgBg(30, 46) : (isAccepted ? AnsiTty.SgrDim : "");
+                            var prefix = $"{Padding(line.OldLine),4}  ";
+                            var maxTextW = tw - 7;
+                            if (isCurrentHunk)
+                            {
+                                sb.Append(AnsiTty.FgBg(30, 46));
+                                sb.Append(prefix).Append(' ');
+                                AppendHighlightedCode(sb, line.Text, syntax, 30, 46, false, maxTextW);
+                                sb.Append(AnsiTty.SgrReset);
+                            }
+                            else if (isAccepted)
+                            {
+                                sb.Append(AnsiTty.SgrDim);
+                                sb.Append(prefix).Append(' ');
+                                // 已接受的上下文行：不语法高亮，直接 dim
+                                var t = TruncateByVW(line.Text, maxTextW);
+                                sb.Append(t);
+                                sb.Append(AnsiTty.SgrReset);
+                            }
+                            else
+                            {
+                                // 普通上下文行：语法高亮，无背景色
+                                sb.Append(prefix).Append(' ');
+                                AppendHighlightedCode(sb, line.Text, syntax, 37, 0, false, maxTextW);
+                            }
                         }
-
-                        var maxTextW = tw - 7;
-                        var text = TruncateByVW(line.Text, maxTextW);
-                        sb.Append(fgBgSeq).Append(prefix).Append(' ').Append(text).Append(AnsiTty.SgrReset);
                     }
                 }
             }
@@ -607,13 +637,12 @@ public static class DiffPreview
     /// 格式：lnno - 旧内容... │ lnno + 新内容...
     /// </summary>
     private static void RenderSplitRow(System.Text.StringBuilder sb, SplitRow row,
-        int tw, int currentHunk, HashSet<int> accepted)
+        int tw, int currentHunk, HashSet<int> accepted, Syntax? syntax)
     {
         int panelWidth = (tw - 3) / 2;
 
         if (row.IsHeader)
         {
-            // hunk 头横跨整行
             var hdr = TruncateByVW(row.HeaderText, tw - 1);
             sb.Append(AnsiTty.Fg(36)).Append(hdr).Append(AnsiTty.SgrReset);
             return;
@@ -623,39 +652,127 @@ public static class DiffPreview
         bool isAccepted = accepted.Contains(row.HunkIdx);
 
         // ── 左面板 ──
-        string leftFgBg, rightFgBg;
+        int leftFg, leftBg;
+        bool leftBold = isCurrentHunk && row.LeftKind == '-';
         if (row.LeftKind == '-')
-            leftFgBg = isCurrentHunk ? AnsiTty.Sgr(30, 41, 1) : AnsiTty.FgBg(37, 41); // 红色背景
+            { leftFg = isCurrentHunk ? 30 : 37; leftBg = 41; }
+        else if (isCurrentHunk)
+            { leftFg = 30; leftBg = 46; leftBold = false; }
         else
-            leftFgBg = isCurrentHunk ? AnsiTty.FgBg(30, 46) : (isAccepted ? AnsiTty.SgrDim : "");
+            { leftFg = 37; leftBg = 0; }
 
-        if (row.RightKind == '+')
-            rightFgBg = isCurrentHunk ? AnsiTty.Sgr(30, 42, 1) : AnsiTty.FgBg(37, 42); // 绿色背景
-        else
-            rightFgBg = isCurrentHunk ? AnsiTty.FgBg(30, 46) : (isAccepted ? AnsiTty.SgrDim : "");
-
-        // 左面板：行号 + 标记 + 文本
         var leftPrefix = row.LeftKind == '-'
             ? $"{Padding(row.LeftLineNo),4} -"
             : row.LeftText.Length > 0 ? $"{Padding(row.LeftLineNo),4}  " : "      ";
-        var leftContent = leftPrefix + " " + row.LeftText;
-        var leftPad = Math.Max(0, panelWidth - VW(leftContent));
-        sb.Append(leftFgBg).Append(leftContent).Append(new string(' ', leftPad)).Append(AnsiTty.SgrReset);
+
+        if (isAccepted && !isCurrentHunk && row.LeftKind != '-')
+        {
+            // 已接受的上下文：dim 渲染，不高亮
+            sb.Append(AnsiTty.SgrDim);
+            var lc = leftPrefix + " " + row.LeftText;
+            var lp = Math.Max(0, panelWidth - VW(lc));
+            sb.Append(lc).Append(new string(' ', lp)).Append(AnsiTty.SgrReset);
+        }
+        else
+        {
+            sb.Append(leftBold ? AnsiTty.Sgr(leftFg, leftBg, 1) :
+                     leftBg > 0 ? AnsiTty.FgBg(leftFg, leftBg) : "");
+            sb.Append(leftPrefix).Append(' ');
+            int maxCodeW = panelWidth - VW(leftPrefix) - 1;
+            var leftCode = TruncateByVW(row.LeftText, maxCodeW);
+            int codeVW = VW(leftCode);
+            AppendHighlightedCode(sb, leftCode, syntax, leftFg, leftBg, leftBold, int.MaxValue);
+            int leftPad = Math.Max(0, panelWidth - VW(leftPrefix) - 1 - codeVW);
+            sb.Append(new string(' ', leftPad));
+            sb.Append(AnsiTty.SgrReset);
+        }
 
         // 分隔符
         sb.Append(AnsiTty.SgrDim).Append(" │ ").Append(AnsiTty.SgrReset);
 
-        // 右面板：行号 + 标记 + 文本
+        // ── 右面板 ──
+        int rightFg, rightBg;
+        bool rightBold = isCurrentHunk && row.RightKind == '+';
+        if (row.RightKind == '+')
+            { rightFg = isCurrentHunk ? 30 : 37; rightBg = 42; }
+        else if (isCurrentHunk)
+            { rightFg = 30; rightBg = 46; rightBold = false; }
+        else
+            { rightFg = 37; rightBg = 0; }
+
         var rightPrefix = row.RightKind == '+'
             ? $"{Padding(row.RightLineNo),4} +"
             : row.RightText.Length > 0 ? $"{Padding(row.RightLineNo),4}  " : "      ";
-        var rightContent = rightPrefix + " " + row.RightText;
-        sb.Append(rightFgBg).Append(rightContent).Append(AnsiTty.SgrReset);
+
+        if (isAccepted && !isCurrentHunk && row.RightKind != '+')
+        {
+            sb.Append(AnsiTty.SgrDim);
+            sb.Append(rightPrefix).Append(' ').Append(row.RightText);
+            sb.Append(AnsiTty.SgrReset);
+        }
+        else
+        {
+            sb.Append(rightBold ? AnsiTty.Sgr(rightFg, rightBg, 1) :
+                     rightBg > 0 ? AnsiTty.FgBg(rightFg, rightBg) : "");
+            sb.Append(rightPrefix).Append(' ');
+            int maxCodeW = panelWidth - VW(rightPrefix) - 1;
+            var rightCode = TruncateByVW(row.RightText, maxCodeW);
+            AppendHighlightedCode(sb, rightCode, syntax, rightFg, rightBg, rightBold, int.MaxValue);
+            sb.Append(AnsiTty.SgrReset);
+        }
     }
 
     // ================================================================
     // 工具方法
     // ================================================================
+
+    // ================================================================
+    // 语法高亮
+    // ================================================================
+
+    /// <summary>根据文件路径获取语法定义（缓存友好，一次 diff 仅调用一次）</summary>
+    private static Syntax? GetSyntaxForFile(string filePath)
+    {
+        if (string.IsNullOrEmpty(filePath)) return null;
+        try { return Syntax.ForFile(filePath); }
+        catch { return null; }
+    }
+
+    /// <summary>
+    /// 在 diff 背景色上渲染语法高亮代码。
+    /// 每个 token 使用语法颜色作为前景色，diff 背景色作为背景色。
+    /// </summary>
+    private static void AppendHighlightedCode(System.Text.StringBuilder sb, string code,
+        Syntax? syntax, int baseFg, int bgColor, bool bold, int maxWidth)
+    {
+        if (syntax == null || string.IsNullOrEmpty(code))
+        {
+            var t = TruncateByVW(code, maxWidth);
+            if (bold) sb.Append(AnsiTty.Sgr(baseFg, bgColor, 1));
+            else if (bgColor > 0) sb.Append(AnsiTty.FgBg(baseFg, bgColor));
+            sb.Append(t);
+            return;
+        }
+
+        var tokens = syntax.Tokenize(code);
+        int remaining = maxWidth;
+        foreach (var (text, tokFg) in tokens)
+        {
+            if (remaining <= 0) break;
+            var t = TruncateByVW(text, remaining);
+            if (t.Length == 0) continue;
+            remaining -= VW(t);
+
+            int fg = tokFg > 0 ? tokFg : baseFg;
+            if (bold)
+                sb.Append(AnsiTty.Sgr(fg, bgColor, 1));
+            else if (bgColor > 0)
+                sb.Append(AnsiTty.FgBg(fg, bgColor));
+            else
+                sb.Append(AnsiTty.Fg(fg));
+            sb.Append(t);
+        }
+    }
 
     private static int VW(string text) => TuiHelper.DisplayWidth(text);
     private static string TruncateByVW(string text, int maxVW)

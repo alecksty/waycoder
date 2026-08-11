@@ -1,5 +1,25 @@
 # 更新日志
 
+## v0.31.11 (2026-08-11) — Diff 语法高亮
+
+### 🎨 Diff 语法高亮
+
+- **Token 级语法高亮**：Diff 中的代码行按语言（14 种）进行 token 级着色
+- 关键字（蓝）、字符串（绿）、数字（黄）、注释（灰）等在 diff 背景上正确显示
+- **Unified 模式**：`-`/`+` 行的代码在红/绿背景上保留语法颜色
+- **Split 模式**：左右面板代码各自独立语法高亮
+- 上下文行在蓝底（当前 hunk）上也语法高亮
+- `GetSyntaxForFile()` 根据文件扩展名自动选择语法定义
+- `AppendHighlightedCode()` 将 Tokenize 结果渲染到 diff 背景色上
+
+| 文件 | 变更 |
+|------|------|
+| `UI/TuiCust/DiffPreview.cs` | GetSyntaxForFile + AppendHighlightedCode + unified/split 渲染改造 |
+| `Config/Global.cs` | v0.31.10 → v0.31.11 |
+
+### 🧪 测试
+- 1348 项自测全部通过
+
 ## v0.31.10 (2026-08-11) — Diff 双模式（Unified/Split）
 
 ### 📊 Diff 双模式渲染
