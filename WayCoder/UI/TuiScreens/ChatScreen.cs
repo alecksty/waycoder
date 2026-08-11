@@ -48,6 +48,9 @@ public class ChatScreen : TuiScreen
     /// <summary>提示栏（输入框上方）</summary>
     public TuiPromptBar PromptBar { get; private set; } = null!;
 
+    /// <summary>动态栏（聊天列表下方、输入区上方，始终可见）</summary>
+    public TuiDynamicBar DynamicBar { get; private set; } = null!;
+
     /// <summary>输入区上分隔线</summary>
     public TuiSeparator InputTopBorder { get; private set; } = null!;
 
@@ -116,6 +119,11 @@ public class ChatScreen : TuiScreen
     /// <summary>当前工具调用已流式输出的行数（用于 auto 模式折叠）</summary>
     private int _toolOutputLineCount;
 
+    /// <summary>当前正在执行的工具名（null=无工具在执行），用于动态栏显示</summary>
+    private string? _currentToolName;
+    /// <summary>当前工具参数摘要</summary>
+    private string? _currentToolBrief;
+
     /// <summary>
     /// 初始化聊天屏幕
     /// </summary>
@@ -130,6 +138,128 @@ public class ChatScreen : TuiScreen
     {
         base.Activate();
         BuildLayout();
+
+        // 订阅上下文压缩进度事件（用于显示进度条）
+        ContextManager.CompressProgress += OnCompressProgress;
+    }
+
+    public override void Deactivate()
+    {
+        ContextManager.CompressProgress -= OnCompressProgress;
+        base.Deactivate();
+    }
+
+    private void OnCompressProgress(int layer, string message, double percent)
+    {
+        if (ContextManager.IsCompressing && DynamicBar != null)
+        {
+            DynamicBar.Status = AgentStatus.Compressing;
+            DynamicBar.ProgressPercent = percent;
+            DynamicBar.ProgressLabel = $"[L{layer}] {message}";
+            MarkDirty();
+        }
+        else if (DynamicBar != null)
+        {
+            DynamicBar.ProgressPercent = null;
+            DynamicBar.ProgressLabel = "";
+        }
+    }
+
+    /// <summary>
+    /// 同步动态栏状态（Render 每帧调用）
+    /// </summary>
+    private void SyncDynamicBar()
+    {
+        if (DynamicBar == null) return;
+        DynamicBar.Width = TW;
+
+        // 压缩中（从 CompressProgress 事件已设置，保持不变）
+        if (DynamicBar.Status == AgentStatus.Compressing && ContextManager.IsCompressing)
+            return;
+        if (DynamicBar.Status == AgentStatus.Compressing && !ContextManager.IsCompressing)
+            DynamicBar.ProgressPercent = null; // 压缩完成，清理
+
+        // 等待权限
+        if (_pendingPermissionTool != null)
+        {
+            DynamicBar.Status = AgentStatus.WaitingPerm;
+            DynamicBar.LeftText = $"等待确认: {_pendingPermissionTool}";
+            DynamicBar.ToolText = "";
+            return;
+        }
+
+        // 工具执行中
+        if (_currentToolName != null)
+        {
+            DynamicBar.Status = AgentStatus.ToolRunning;
+            DynamicBar.LeftText = _currentToolName;
+            DynamicBar.ToolText = _currentToolBrief ?? "";
+            return;
+        }
+
+        // Agent 思考中
+        if (AgentBusy)
+        {
+            DynamicBar.Status = AgentStatus.Thinking;
+            DynamicBar.LeftText = StatusLeft;
+            DynamicBar.ToolText = "";
+            return;
+        }
+
+        // 非 Build 模式时显示当前工作模式（Build=默认，不特殊显示）
+        var mode = WorkModeManager.CurrentMode;
+        if (mode != WorkMode.Build)
+        {
+            var (emoji, label, tooltip) = mode switch
+            {
+                WorkMode.Plan => ("🧠", "计划模式", "只读分析 · 阻止写操作"),
+                WorkMode.Review => ("🔍", "审查模式", "只读审查 · 阻止写操作"),
+                WorkMode.Auto => ("🤖", "自动模式", "全自动执行 · 不确认"),
+                _ => ("", "未知", ""),
+            };
+            DynamicBar.Status = AgentStatus.Planning;
+            DynamicBar.LeftText = $"{emoji} {label}";
+            DynamicBar.ToolText = $"{tooltip} · Shift+Tab 切换";
+            return;
+        }
+
+        // 空闲
+        DynamicBar.Status = AgentStatus.Idle;
+        DynamicBar.LeftText = StatusLeft;
+        DynamicBar.ToolText = "";
+    }
+
+    /// <summary>等待权限的工具名（非 null = 正在等待）</summary>
+    private string? _pendingPermissionTool;
+
+    /// <summary>标记工具开始执行</summary>
+    public void OnToolStarted(string toolName, string brief)
+    {
+        _currentToolName = toolName;
+        _currentToolBrief = brief;
+        MarkDirty();
+    }
+
+    /// <summary>标记工具执行结束</summary>
+    public void OnToolFinished()
+    {
+        _currentToolName = null;
+        _currentToolBrief = null;
+        MarkDirty();
+    }
+
+    /// <summary>标记权限等待开始</summary>
+    public void OnPermissionWaiting(string toolName)
+    {
+        _pendingPermissionTool = toolName;
+        MarkDirty();
+    }
+
+    /// <summary>标记权限等待结束</summary>
+    public void OnPermissionResolved()
+    {
+        _pendingPermissionTool = null;
+        MarkDirty();
     }
 
     /// <summary>终端尺寸变化——重建完整布局，保留输入状态和全部聊天消息</summary>
@@ -171,6 +301,7 @@ public class ChatScreen : TuiScreen
 
         // 恢复分隔线宽度
         PromptBar.Width = TW;
+        DynamicBar.Width = TW;
         InputTopBorder.Width = TW;
         InputBotBorder.Width = TW;
 
@@ -202,8 +333,8 @@ public class ChatScreen : TuiScreen
         RootView.Add(TitleBar);
 
         // ── 中间区域：ChatList + SidePanel（HBox 水平排列）──
-        var chatH = Math.Max(1, TH - 1 - 0 - 1 - 3 - 1 - 1);
-        // TH - title(1) - prompt(0) - topBorder(1) - input(3) - botBorder(1) - status(1)
+        var chatH = Math.Max(1, TH - 1 - 0 - 1 - 1 - 3 - 1 - 1);
+        // TH - title(1) - prompt(0) - dynamicBar(1) - topBorder(1) - input(3) - botBorder(1) - status(1)
         var middleHBox = new TuiHBox { Width = TW, Height = chatH };
 
         ChatList = new TuiListView
@@ -248,6 +379,15 @@ public class ChatScreen : TuiScreen
             MaxVisible = 6,
         };
         RootView.Add(PromptBar);
+
+        // ── 动态栏（始终可见，对标 Claude Code SpinnerWithVerb）──
+        DynamicBar = new TuiDynamicBar
+        {
+            Width = TW,
+            Height = 1,
+            Bg = 0,
+        };
+        RootView.Add(DynamicBar);
 
         // ── 输入区上分隔线 ──
         InputTopBorder = new TuiSeparator
@@ -556,6 +696,33 @@ public class ChatScreen : TuiScreen
         {
             /* 忽略粘贴错误 */
         }
+    }
+
+    /// <summary>
+    /// 处理 bracketed paste 检测到的粘贴文本（终端自动包裹，无需读剪贴板）。
+    /// </summary>
+    public void HandleBracketedPaste(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+
+        var normalized = text.Replace("\r\n", "\n");
+        var lines = normalized.Split('\n');
+
+        // 粘贴确认：超长(>500字符)或多行(>3行)时弹出确认
+        if (text.Length > 500 || lines.Length > 3)
+        {
+            var preview = text.Length > 200 ? text[..200] + "..." : text;
+            using var evt = new ManualResetEventSlim(false);
+            bool confirmed = false;
+            ShowWindow(TuiDialog.Confirm("粘贴确认",
+                $"将粘贴 {lines.Length} 行 / {text.Length} 字符:\n{preview}",
+                result => { confirmed = result; evt.Set(); }));
+            RenderWait(evt);
+            if (!confirmed) return;
+        }
+
+        InputArea.InsertText(normalized);
+        MarkDirty();
     }
 
     // ── 输入操作 ──
@@ -901,11 +1068,30 @@ public class ChatScreen : TuiScreen
         StatusBar.RightText = StatusRight;
         Array.Copy(SlotStates, StatusBar.SlotStates, 10);
 
+        // ── 同步动态栏 ──
+        SyncDynamicBar();
+
         // ── 动态尺寸 ──
         int panelW = SidePanelVisible ? Math.Min(30, TW / 3) : 0;
         int inputH = Math.Clamp(InputArea.Lines.Count + 1, 3, 5);
         int promptH = PromptBar.Visible ? PromptBar.Height : 0;
-        int chatH = Math.Max(1, TH - 1 - promptH - 1 - inputH - 1 - 1); // TH - title - prompt - topBorder - input - botBorder - status
+        int progressH = (ProgressPercent.HasValue && ContextManager.IsCompressing) ? 1 : 0;
+        int chatH = Math.Max(1, TH - 1 - promptH - 1 - inputH - 1 - progressH - 1); // TH - title - prompt - topBorder - input - botBorder - progress - status
+
+        // ── 压缩进度条 ──
+        if (progressH > 0)
+        {
+            var pct = ProgressPercent!.Value;
+            var barW = TW - 12;
+            var filled = Math.Clamp((int)Math.Round(barW * pct / 100.0), 0, barW);
+            var empty = barW - filled;
+            var progressY = TH - 2; // 状态栏上方一行
+            var barText = $"«{new string('█', filled)}{new string('░', empty)}» {pct,3:F0}%";
+            sb.Append(AnsiTty.CursorPos(progressY, 0))
+              .Append(AnsiTty.Fg(TuiColors.Yellow))
+              .Append(StatusText.Length > TW - 2 ? StatusText[..(TW - 2)] : StatusText.PadRight(TW))
+              .Append(AnsiTty.SgrReset);
+        }
 
         // ── 输入区 ──
         InputArea.Width = TW;
@@ -987,7 +1173,7 @@ public class ChatScreen : TuiScreen
             {
                 TuiTheme.Apply(TuiTheme.Presets[idx], idx);
                 ApplyThemeToScreen();
-                ShowToast($"主题已切换：{TuiTheme.PresetNames[idx]}");
+                TuiToastQueue.Enqueue($"主题已切换：{TuiTheme.PresetNames[idx]}", TuiToastQueue.ToastType.Success);
             }
         });
         ShowWindow(win);
@@ -998,7 +1184,7 @@ public class ChatScreen : TuiScreen
     {
         var name = TuiTheme.CycleNext();
         ApplyThemeToScreen();
-        ShowToast($"主题：{name}");
+        TuiToastQueue.Enqueue($"主题：{name}", TuiToastQueue.ToastType.Info);
     }
 
     /// <summary>将当前主题颜色应用到屏幕各组件并强制重绘</summary>

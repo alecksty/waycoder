@@ -18,7 +18,11 @@ public class StatsCommand : SlashCommand
         sb.AppendLine();
         sb.AppendLine($"  模型:     {ProgramContext.Config.Model}");
         sb.AppendLine($"  Token:    {llm.TotalPromptTokens:N0} 入 / {llm.TotalCompletionTokens:N0} 出 / {llm.TotalPromptTokens + llm.TotalCompletionTokens:N0} 合计");
-        sb.AppendLine($"  花费:     ${llm.EstimatedCost?.ToString("F4") ?? "N/A"}");
+        sb.AppendLine($"  总花费:   ${llm.EstimatedCost?.ToString("F4") ?? "N/A"}");
+        if (llm.TaskPromptTokens > 0 || llm.TaskCompletionTokens > 0)
+        {
+            sb.AppendLine($"  当前任务: {llm.TaskPromptTokens:N0}+{llm.TaskCompletionTokens:N0} tokens · ${llm.TaskCost?.ToString("F4") ?? "N/A"}");
+        }
         sb.AppendLine($"  延迟:     {llm.LastLatencyMs}ms");
         sb.AppendLine($"  消息:     {agent?.Messages.Count ?? 0} 条");
         sb.AppendLine($"  会话:     {SessionManager.ListSessions().Count} 个");
