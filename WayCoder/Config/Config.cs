@@ -89,8 +89,8 @@ public class Config
     // 属性声明（保持原有类型和默认值，全项目兼容）
     // ════════════════════════════════════════════════════════════
 
-    public string Model { get; set; } = "deepseek-chat";
-    public string SmallModel { get; set; } = "deepseek-chat";
+    public string Model { get; set; } = "deepseek-v4-flash";
+    public string SmallModel { get; set; } = "deepseek-v4-flash";
     public string ApiKey { get; set; } = "";
     public string? BaseUrl { get; set; }
     public int MaxTokens { get; set; } = 32768;
@@ -144,7 +144,7 @@ public class Config
     public int LlmRateLimitMaxWaitSec { get; set; } = 120;
 
     // ── 回退链 ──
-    public string FallbackChain { get; set; } = "deepseek-v4-flash,deepseek-v4-pro,deepseek-chat,gpt-5.4-mini";
+    public string FallbackChain { get; set; } = "deepseek-v4-flash,deepseek-v4-pro,gpt-5.4-mini";
 
     // ── 文件锁 ──
     public int FileLockTimeoutSec { get; set; } = 30;
