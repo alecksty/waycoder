@@ -83,78 +83,108 @@ public static class DiffPreview
                     allLines.Add((hi, l));
             }
 
+            // 判断是否使用分屏模式（宽度 >= 120 列时自动切换）
+            var useSplitMode = tw >= 120;
+            var splitRows = useSplitMode ? BuildSplitRows(hunks, tw) : null;
+            var totalVisualLines = useSplitMode ? splitRows!.Count : allLines.Count;
+
             // 自动滚动到当前 hunk
             int currentLine = 0;
-            for (int i = 0; i < allLines.Count; i++)
+            if (useSplitMode)
             {
-                if (allLines[i].hunkIdx == currentHunk && allLines[i].line.Kind != '@')
-                { currentLine = i; break; }
+                for (int i = 0; i < splitRows!.Count; i++)
+                {
+                    if (splitRows[i].HunkIdx == currentHunk && !splitRows[i].IsHeader)
+                    { currentLine = i; break; }
+                }
             }
-            scrollOffset = Math.Clamp(scrollOffset, 0, Math.Max(0, allLines.Count - contentH));
+            else
+            {
+                for (int i = 0; i < allLines.Count; i++)
+                {
+                    if (allLines[i].hunkIdx == currentHunk && allLines[i].line.Kind != '@')
+                    { currentLine = i; break; }
+                }
+            }
+            scrollOffset = Math.Clamp(scrollOffset, 0, Math.Max(0, totalVisualLines - contentH));
             if (currentLine < scrollOffset) scrollOffset = currentLine;
             if (currentLine >= scrollOffset + contentH) scrollOffset = currentLine - contentH + 1;
-            scrollOffset = Math.Clamp(scrollOffset, 0, Math.Max(0, allLines.Count - contentH));
+            scrollOffset = Math.Clamp(scrollOffset, 0, Math.Max(0, totalVisualLines - contentH));
 
             // 渲染
             var sb = new System.Text.StringBuilder();
             sb.Append(AnsiTty.CursorHide).Append(AnsiTty.Home);
 
             // 标题栏
-            var title = $"Diff 预览: {filePath}  ({hunks.Count} hunks)";
+            var title = useSplitMode
+                ? $"Diff 预览 (分屏): {filePath}  ({hunks.Count} hunks)"
+                : $"Diff 预览: {filePath}  ({hunks.Count} hunks)";
             var titleBg = TuiColors.BgBlue; // 蓝底
             sb.Append(AnsiTty.FgBg(30, titleBg));
             sb.Append(title);
             sb.Append(new string(' ', Math.Max(0, tw - VW(title))));
             sb.Append(AnsiTty.SgrReset).Append('\n');
 
-            // Diff 内容
-            for (int i = 0; i < contentH - 1; i++)
+            // Diff 内容 — 根据终端宽度选择统一或分屏模式
+            if (useSplitMode)
             {
-                int li = scrollOffset + i;
-                sb.Append(AnsiTty.CursorPos(i + 2, 1)).Append(AnsiTty.ClearToEnd);
-
-                if (li >= allLines.Count) continue;
-
-                var (hi, line) = allLines[li];
-
-                if (hi == -1)
+                // ── 分屏模式（宽度 >= 120 列）──
+                for (int i = 0; i < contentH - 1; i++)
                 {
-                    // hunk 间分隔
-                    sb.Append(AnsiTty.SgrDim);
-                    sb.Append(new string('─', Math.Min(tw, 60)));
-                    sb.Append(AnsiTty.SgrReset);
+                    int li = scrollOffset + i;
+                    sb.Append(AnsiTty.CursorPos(i + 2, 1)).Append(AnsiTty.ClearToEnd);
+                    if (li >= splitRows!.Count) continue;
+                    RenderSplitRow(sb, splitRows[li], tw, currentHunk, accepted);
                 }
-                else if (hi == -2)
+            }
+            else
+            {
+                // ── 统一模式 ──
+                for (int i = 0; i < contentH - 1; i++)
                 {
-                    // hunk 头
-                    var hdr = TruncateByVW(line.Text, tw - 1);
-                    sb.Append(AnsiTty.Fg(36)).Append(hdr).Append(AnsiTty.SgrReset);
-                }
-                else
-                {
-                    bool isCurrentHunk = hi == currentHunk;
-                    bool isAccepted = accepted.Contains(hi);
+                    int li = scrollOffset + i;
+                    sb.Append(AnsiTty.CursorPos(i + 2, 1)).Append(AnsiTty.ClearToEnd);
+                    if (li >= allLines.Count) continue;
 
-                    string prefix, fgBgSeq;
-                    if (line.Kind == '-')
+                    var (hi, line) = allLines[li];
+
+                    if (hi == -1)
                     {
-                        prefix = $"{Padding(line.OldLine),4} -";
-                        fgBgSeq = isCurrentHunk ? AnsiTty.Sgr(30, 41, 1) : AnsiTty.FgBg(37, 41);
+                        sb.Append(AnsiTty.SgrDim);
+                        sb.Append(new string('─', Math.Min(tw, 60)));
+                        sb.Append(AnsiTty.SgrReset);
                     }
-                    else if (line.Kind == '+')
+                    else if (hi == -2)
                     {
-                        prefix = $"     +";
-                        fgBgSeq = isCurrentHunk ? AnsiTty.Sgr(30, 42, 1) : AnsiTty.FgBg(37, 42);
+                        var hdr = TruncateByVW(line.Text, tw - 1);
+                        sb.Append(AnsiTty.Fg(36)).Append(hdr).Append(AnsiTty.SgrReset);
                     }
                     else
                     {
-                        prefix = $"{Padding(line.OldLine),4}  ";
-                        fgBgSeq = isCurrentHunk ? AnsiTty.FgBg(30, 46) : (isAccepted ? AnsiTty.SgrDim : "");
-                    }
+                        bool isCurrentHunk = hi == currentHunk;
+                        bool isAccepted = accepted.Contains(hi);
 
-                    var maxTextW = tw - 7;
-                    var text = TruncateByVW(line.Text, maxTextW);
-                    sb.Append(fgBgSeq).Append(prefix).Append(' ').Append(text).Append(AnsiTty.SgrReset);
+                        string prefix, fgBgSeq;
+                        if (line.Kind == '-')
+                        {
+                            prefix = $"{Padding(line.OldLine),4} -";
+                            fgBgSeq = isCurrentHunk ? AnsiTty.Sgr(30, 41, 1) : AnsiTty.FgBg(37, 41);
+                        }
+                        else if (line.Kind == '+')
+                        {
+                            prefix = $"     +";
+                            fgBgSeq = isCurrentHunk ? AnsiTty.Sgr(30, 42, 1) : AnsiTty.FgBg(37, 42);
+                        }
+                        else
+                        {
+                            prefix = $"{Padding(line.OldLine),4}  ";
+                            fgBgSeq = isCurrentHunk ? AnsiTty.FgBg(30, 46) : (isAccepted ? AnsiTty.SgrDim : "");
+                        }
+
+                        var maxTextW = tw - 7;
+                        var text = TruncateByVW(line.Text, maxTextW);
+                        sb.Append(fgBgSeq).Append(prefix).Append(' ').Append(text).Append(AnsiTty.SgrReset);
+                    }
                 }
             }
 
@@ -177,9 +207,9 @@ public static class DiffPreview
             sb.Append(AnsiTty.SgrReset);
 
             // 滚动指示器
-            if (allLines.Count > contentH)
+            if (totalVisualLines > contentH)
             {
-                var pct = allLines.Count > 0 ? (int)((float)scrollOffset / (allLines.Count - contentH) * 100) : 0;
+                var pct = totalVisualLines > 0 ? (int)((float)scrollOffset / (totalVisualLines - contentH) * 100) : 0;
                 sb.Append(AnsiTty.CursorPos(statusRow, tw - 8)).Append(AnsiTty.FgBg(30, 47)).Append(pct).Append('%').Append(AnsiTty.SgrReset);
             }
 
@@ -473,6 +503,154 @@ public static class DiffPreview
             result.Add(oldLines[oldIdx++]);
 
         return string.Join('\n', result);
+    }
+
+    // ================================================================
+    // 分屏 Diff 渲染（终端宽度 >= 120 列时自动启用）
+    // ================================================================
+
+    /// <summary>
+    /// 分屏模式的一行数据：左右各一段文本。
+    /// </summary>
+    private class SplitRow
+    {
+        public int HunkIdx;
+        public string LeftText = "";   // 旧文件内容（删除行或上下文）
+        public int LeftLineNo;
+        public char LeftKind;          // '-' 或 ' '
+        public string RightText = "";  // 新文件内容（添加行或上下文）
+        public int RightLineNo;
+        public char RightKind;         // '+' 或 ' '
+        public bool IsHeader;          // hunk 头部
+        public string HeaderText = "";
+    }
+
+    /// <summary>
+    /// 将 hunk 列表转换为分屏行对（左旧右新）。
+    /// 删除行显示在左侧、添加行显示在右侧、上下文行左右同时显示。
+    /// </summary>
+    private static List<SplitRow> BuildSplitRows(List<Hunk> hunks, int terminalWidth)
+    {
+        var rows = new List<SplitRow>();
+        int panelWidth = (terminalWidth - 3) / 2; // 3 = " │ " 分隔符
+        int textWidth = Math.Max(20, panelWidth - 6); // 6 = 行号(4) + 标记(1) + 空格(1)
+
+        foreach (var (h, hi) in hunks.Select((h, i) => (h, i)))
+        {
+            // hunk 头
+            rows.Add(new SplitRow { IsHeader = true, HeaderText = h.Header });
+
+            // 将 hunk 内的行配对
+            var adds = h.Lines.Where(l => l.Kind == '+').ToList();
+
+            // 将删除行和添加行按顺序配对
+            int ai = 0;
+            var consumedAdds = new HashSet<int>();
+            foreach (var line in h.Lines)
+            {
+                if (line.Kind == ' ')
+                {
+                    // 上下文行：左右同时显示
+                    rows.Add(new SplitRow
+                    {
+                        HunkIdx = hi,
+                        LeftText = TruncateByVW(line.Text, textWidth),
+                        LeftLineNo = line.OldLine, LeftKind = ' ',
+                        RightText = TruncateByVW(line.Text, textWidth),
+                        RightLineNo = line.NewLine, RightKind = ' ',
+                    });
+                }
+                else if (line.Kind == '-')
+                {
+                    // 删除行：左边显示，尝试配对一个添加行到右边
+                    string? rightText = null;
+                    int rightLine = 0;
+                    while (ai < adds.Count && consumedAdds.Contains(ai))
+                        ai++;
+                    if (ai < adds.Count)
+                    {
+                        rightText = TruncateByVW(adds[ai].Text, textWidth);
+                        rightLine = adds[ai].NewLine;
+                        consumedAdds.Add(ai);
+                        ai++;
+                    }
+                    rows.Add(new SplitRow
+                    {
+                        HunkIdx = hi,
+                        LeftText = TruncateByVW(line.Text, textWidth),
+                        LeftLineNo = line.OldLine, LeftKind = '-',
+                        RightText = rightText ?? "",
+                        RightLineNo = rightLine, RightKind = rightText != null ? '+' : ' ',
+                    });
+                }
+            }
+            // 处理未配对的添加行（右边显示，左留空）
+            for (int i = 0; i < adds.Count; i++)
+            {
+                if (!consumedAdds.Contains(i))
+                {
+                    rows.Add(new SplitRow
+                    {
+                        HunkIdx = hi,
+                        LeftText = "", LeftLineNo = 0, LeftKind = ' ',
+                        RightText = TruncateByVW(adds[i].Text, textWidth),
+                        RightLineNo = adds[i].NewLine, RightKind = '+',
+                    });
+                }
+            }
+        }
+        return rows;
+    }
+
+    /// <summary>
+    /// 渲染分屏模式的一行。
+    /// 格式：lnno - 旧内容... │ lnno + 新内容...
+    /// </summary>
+    private static void RenderSplitRow(System.Text.StringBuilder sb, SplitRow row,
+        int tw, int currentHunk, HashSet<int> accepted)
+    {
+        int panelWidth = (tw - 3) / 2;
+
+        if (row.IsHeader)
+        {
+            // hunk 头横跨整行
+            var hdr = TruncateByVW(row.HeaderText, tw - 1);
+            sb.Append(AnsiTty.Fg(36)).Append(hdr).Append(AnsiTty.SgrReset);
+            return;
+        }
+
+        bool isCurrentHunk = row.HunkIdx == currentHunk;
+        bool isAccepted = accepted.Contains(row.HunkIdx);
+
+        // ── 左面板 ──
+        string leftFgBg, rightFgBg;
+        if (row.LeftKind == '-')
+            leftFgBg = isCurrentHunk ? AnsiTty.Sgr(30, 41, 1) : AnsiTty.FgBg(37, 41); // 红色背景
+        else
+            leftFgBg = isCurrentHunk ? AnsiTty.FgBg(30, 46) : (isAccepted ? AnsiTty.SgrDim : "");
+
+        if (row.RightKind == '+')
+            rightFgBg = isCurrentHunk ? AnsiTty.Sgr(30, 42, 1) : AnsiTty.FgBg(37, 42); // 绿色背景
+        else
+            rightFgBg = isCurrentHunk ? AnsiTty.FgBg(30, 46) : (isAccepted ? AnsiTty.SgrDim : "");
+
+        // 左面板：行号 + 标记 + 文本
+        var leftPrefix = row.LeftKind == '-'
+            ? $"{Padding(row.LeftLineNo),4} -"
+            : row.LeftText.Length > 0 ? $"{Padding(row.LeftLineNo),4}  " : "      ";
+        var leftContent = leftPrefix + " " + row.LeftText;
+        var leftPad = Math.Max(0, panelWidth - VW(leftContent));
+        sb.Append(leftFgBg).Append(leftContent).Append(new string(' ', leftPad)).Append(AnsiTty.SgrReset);
+
+        // 分隔符
+        sb.Append(AnsiTty.SgrDim).Append(" │ ").Append(AnsiTty.SgrReset);
+
+        // 右面板：行号 + 标记 + 文本
+        var rightPrefix = row.RightKind == '+'
+            ? $"{Padding(row.RightLineNo),4} +"
+            : row.RightText.Length > 0 ? $"{Padding(row.RightLineNo),4}  " : "      ";
+        var rightContent = rightPrefix + " " + row.RightText;
+        sb.Append(rightFgBg).Append(rightContent).Append(AnsiTty.SgrReset);
     }
 
     // ================================================================
