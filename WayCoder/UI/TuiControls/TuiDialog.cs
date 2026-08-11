@@ -281,7 +281,7 @@ public static class TuiDialog
 
     // ── 输入对话框 ──
 
-    /// <summary>文本输入对话框</summary>
+    /// <summary>文本输入对话框（多行 TuiTextArea + 历史）</summary>
     public static TuiWindow Input(string title, string prompt, string defaultValue,
         Action<string> onConfirm, Action? onCancel = null)
     {
@@ -297,8 +297,7 @@ public static class TuiDialog
         int maxMsgW = CalcMaxMsgWidth();
         var msgLabels = BuildMessageLabels(prompt, maxMsgW);
         int maxVw = msgLabels.Count > 0 ? msgLabels.Max(l => TuiHelper.DisplayWidth(l.Text)) : 10;
-        int inputW = Math.Max(20, defaultValue.Length + 4);
-        int w = Math.Clamp(Math.Max(30, Math.Max(maxVw, inputW) + 6), 30, Tty.Cols * MaxWidthNum / MaxWidthDen);
+        int w = Math.Clamp(Math.Max(30, maxVw + 6), 30, Tty.Cols * MaxWidthNum / MaxWidthDen);
         int labelW = w - 6;
 
         var vbox = new TuiVBox { Width = w - 4 };
@@ -308,11 +307,19 @@ public static class TuiDialog
             vbox.Add(lbl);
         }
 
-        var input = new TuiInput
+        // 多行 TuiTextArea（3行高，支持 Ctrl+Enter 换行）
+        var input = new TuiTextArea
         {
-            Text = defaultValue, CursorPos = defaultValue.Length,
-            Width = w - 6, Focused = true
+            Width = w - 6, Height = 3,
+            Focused = true,
+            Placeholder = "输入... (Ctrl+Enter 换行)",
         };
+        // 预填默认值或最近历史
+        var hist = TuiInputHistory.Get(title);
+        var initVal = !string.IsNullOrEmpty(defaultValue) ? defaultValue
+            : hist.Count > 0 ? hist[0] : "";
+        if (!string.IsNullOrEmpty(initVal))
+            input.Text = initVal;
         vbox.Add(input);
 
         var hbox = new TuiHBox { Spacing = 2, Width = w - 6, ContentHAlign = HAlign.Center };
@@ -320,8 +327,10 @@ public static class TuiDialog
         var cancelBtn = new TuiButton("取消") { Width = 10 };
         okBtn.OnClick = _ =>
         {
-            win.Result = input.Text;
-            onConfirm(input.Text);
+            var text = input.Text;
+            win.Result = text;
+            if (!string.IsNullOrWhiteSpace(text)) TuiInputHistory.Add(title, text);
+            onConfirm(text);
             win.OnClosed?.Invoke();
         };
         cancelBtn.OnClick = _ =>

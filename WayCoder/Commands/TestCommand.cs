@@ -22,9 +22,10 @@ public class TestCommand : SlashCommand
         switch (args)
         {
             case "perm" or "权限框":
-                screen.ShowInlinePermission("⚠ 确认执行危险操作",
-                    "工具: bash\n命令: rm -rf /tmp/build\n工作目录: /home/user/project",
-                    ["允许 (y)", "总是允许 (a)", "拒绝 (n)"]);
+                screen.ShowInlinePermission("bash",
+                    "rm -rf /tmp/build",
+                    "command: rm -rf /tmp/build\ncwd: /home/user/project",
+                    isDangerous: true);
                 return Task.CompletedTask;
 
             case "toast" or "提示框":
