@@ -274,6 +274,39 @@ public static class SelfTest
         Check("PdfExtractResult 有 ToMarkdown",
             typeof(WayCoder.Infra.PdfExtractResult).GetMethod("ToMarkdown") != null);
 
+        // OfficeExtractor 结构
+        Check("OfficeExtractor.ExtractDocx 方法存在",
+            typeof(WayCoder.Infra.OfficeExtractor).GetMethod("ExtractDocx") != null);
+        Check("OfficeExtractor.ExtractXlsx 方法存在",
+            typeof(WayCoder.Infra.OfficeExtractor).GetMethod("ExtractXlsx") != null);
+        Check("OfficeExtractor.ExtractPptx 方法存在",
+            typeof(WayCoder.Infra.OfficeExtractor).GetMethod("ExtractPptx") != null);
+        Check("OfficeExtractor.ParseCsv 方法存在",
+            typeof(WayCoder.Infra.OfficeExtractor).GetMethod("ParseCsv") != null);
+
+        // CSV 解析
+        var csvResult = WayCoder.Infra.OfficeExtractor.ParseCsv("name,age\nAlice,30\nBob,25");
+        Check("CSV 解析含表头", csvResult.Contains("name") && csvResult.Contains("Alice"));
+
+        // DOCX/XLSX/PPTX 无效文件友好报错
+        try
+        {
+            var tmpDocx = Path.GetTempFileName();
+            File.Delete(tmpDocx);
+            tmpDocx = Path.ChangeExtension(tmpDocx, ".docx");
+            File.WriteAllText(tmpDocx, "not a real docx");
+            var badDocx = WayCoder.Infra.OfficeExtractor.ExtractDocx(tmpDocx);
+            Check("无效 DOCX 友好报错", badDocx.Contains("错误") || badDocx.Contains("无效") || badDocx.Contains("读取"));
+            File.Delete(tmpDocx);
+        }
+        catch { failed++; Console.WriteLine("  ❌ Office 错误处理"); }
+
+        // read_file 描述含 Office
+        Check("read_file 描述含 docx",
+            ToolRegistry.GetTool("read_file")!.Description.Contains("docx"));
+        Check("read_file 描述含 CSV",
+            ToolRegistry.GetTool("read_file")!.Description.Contains("CSV"));
+
         // write_file
         try
         {

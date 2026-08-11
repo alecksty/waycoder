@@ -20,7 +20,7 @@ namespace WayCoder.Tools;
 public class ReadFileTool : ITool
 {
     public string Name => "read_file";
-    public string Description => "读取文件内容并显示行号。支持代码文件、PDF（文本提取，分页）、Markdown（结构化渲染）。修改文件之前始终先读取它。";
+    public string Description => "读取文件内容。支持代码文件（行号）、PDF（文本提取分页）、Office文档（docx/xlsx/pptx文本提取）、Markdown（结构化渲染）、CSV（表格）、HTML（标签剥离）。修改文件之前始终先读取它。";
 
     private const int MaxFileSize = 100 * 1024; // 100KB for text, PDF handles separately
     private const int DefaultLimit = 2000;
@@ -80,9 +80,25 @@ public class ReadFileTool : ITool
             if (ext == ".pdf")
                 return ReadPdfFile(path, offset, limit);
 
+            // ── Office 文档 ──
+            if (ext == ".docx")
+                return ReadOfficeDoc(path, "DOCX", OfficeExtractor.ExtractDocx(path));
+            if (ext == ".xlsx")
+                return ReadOfficeDoc(path, "XLSX", OfficeExtractor.ExtractXlsx(path));
+            if (ext == ".pptx")
+                return ReadOfficeDoc(path, "PPTX", OfficeExtractor.ExtractPptx(path));
+
             // ── Markdown 文件 ──
             if (ext == ".md" || ext == ".markdown")
                 return ReadMarkdownFile(path, offset, limit);
+
+            // ── CSV 文件 ──
+            if (ext == ".csv")
+                return ReadCsvFile(path);
+
+            // ── HTML 文件 ──
+            if (ext is ".html" or ".htm")
+                return ReadHtmlFile(path);
 
             // ── 图片文件 ──
             if (ext is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".ico" or ".svg")
@@ -283,6 +299,113 @@ public class ReadFileTool : ITool
         }
 
         sb.Append("</file>");
+        return sb.ToString();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // Office 文档读取
+    // ════════════════════════════════════════════════════════════
+    private static string ReadOfficeDoc(string path, string format, string content)
+    {
+        var info = new FileInfo(path);
+        FileTracker.RecordRead(path);
+
+        if (content.StartsWith("错误") || content.StartsWith(format))
+            return content;
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"<{format.ToLower()}>");
+        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatSize(info.Length)} | 格式: {format}");
+        sb.AppendLine();
+        sb.Append(content);
+        sb.AppendLine();
+        sb.Append($"</{format.ToLower()}>");
+        return sb.ToString();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // CSV 文件读取（表格格式）
+    // ════════════════════════════════════════════════════════════
+    private static string ReadCsvFile(string path)
+    {
+        var info = new FileInfo(path);
+        if (info.Length > MaxFileSize * 5)
+            return $"⚠ 文件过大: {FormatSize(info.Length)}（最大 {FormatSize(MaxFileSize * 5)}）";
+
+        byte[] raw;
+        try { raw = File.ReadAllBytes(path); }
+        catch { return $"错误：无法读取 {path}"; }
+
+        try { _ = Encoding.UTF8.GetString(raw); }
+        catch { return $"错误：{path} 不是 UTF-8 文本文件"; }
+
+        FileTracker.RecordRead(path);
+        var text = File.ReadAllText(path, Encoding.UTF8);
+        var table = OfficeExtractor.ParseCsv(text);
+
+        var sb = new StringBuilder();
+        sb.AppendLine("<csv>");
+        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatSize(info.Length)}");
+        sb.AppendLine();
+        sb.Append(table);
+        sb.Append("</csv>");
+        return sb.ToString();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // HTML 文件读取（去除标签，保留结构）
+    // ════════════════════════════════════════════════════════════
+    private static string ReadHtmlFile(string path)
+    {
+        var info = new FileInfo(path);
+        if (info.Length > MaxFileSize * 5)
+            return $"⚠ 文件过大: {FormatSize(info.Length)}（最大 {FormatSize(MaxFileSize * 5)}）";
+
+        byte[] raw;
+        try { raw = File.ReadAllBytes(path); }
+        catch { return $"错误：无法读取 {path}"; }
+
+        try { _ = Encoding.UTF8.GetString(raw); }
+        catch { return $"错误：{path} 不是 UTF-8 文本文件"; }
+
+        FileTracker.RecordRead(path);
+        var html = File.ReadAllText(path, Encoding.UTF8);
+
+        // 提取 title
+        string? title = null;
+        var titleMatch = System.Text.RegularExpressions.Regex.Match(html,
+            @"<title[^>]*>(.*?)</title>",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+        if (titleMatch.Success)
+            title = System.Net.WebUtility.HtmlDecode(titleMatch.Groups[1].Value.Trim());
+
+        // 移除 script, style, head
+        html = System.Text.RegularExpressions.Regex.Replace(html,
+            @"<(script|style|head|nav|footer|header|aside|noscript|iframe|svg)[^>]*>.*?</\1>",
+            "", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        // 解码常见实体
+        html = System.Net.WebUtility.HtmlDecode(html);
+
+        // 标签 → 结构化
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"<br\s*/?>", "\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"</?(p|div|tr|h[1-6]|li|section|article)[^>]*>", "\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"<[^>]+>", ""); // 移除所有标签
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\n{3,}", "\n\n"); // 压缩多空行
+        html = html.Trim();
+
+        if (html.Length > 10_000)
+            html = html[..10_000] + $"\n...(截断于 10,000 字符，原始 {info.Length:N0} 字节)";
+
+        var sb = new StringBuilder();
+        sb.AppendLine("<html>");
+        if (title != null)
+            sb.AppendLine($"# {title}");
+        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatSize(info.Length)}");
+        sb.AppendLine();
+        sb.Append(html);
+        sb.AppendLine();
+        sb.Append("</html>");
         return sb.ToString();
     }
 
