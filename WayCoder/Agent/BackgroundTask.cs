@@ -25,14 +25,15 @@ public static class BackgroundTaskManager
     /// <summary>
     /// 启动后台任务，返回任务 ID。任务在后台异步执行，不阻塞调用方。
     /// </summary>
-    public static int Start(string command, int timeoutSec = 600)
+    public static int Start(string command, int timeoutSec = -1)
     {
+        var effectiveTimeout = timeoutSec > 0 ? timeoutSec : Config.Instance.BackgroundTaskTimeoutSec;
         var id = Interlocked.Increment(ref _nextId);
         var task = new BgTask(id, command, DateTime.Now);
         _tasks[id] = task;
 
         // 后台异步执行，不阻塞；异常由 RunTaskAsync 内部捕获
-        _ = RunTaskAsync(task, timeoutSec);
+        _ = RunTaskAsync(task, effectiveTimeout);
 
         return id;
     }
@@ -74,6 +75,7 @@ public static class BackgroundTaskManager
                 var outStr = await stdoutTask;
                 var errStr = await stderrTask;
                 task.Output = (outStr + "\n" + errStr).Trim() + "\n[超时]";
+                ErrorLog.Warning("BackgroundTask", $"后台任务超时 (id={task.Id}, timeout={timeoutSec}s): {task.Command}");
             }
             else
             {
@@ -92,6 +94,7 @@ public static class BackgroundTaskManager
             task.Status = "error";
             task.Output = $"启动失败: {ex.Message}";
             DebugLog.Log("bgtask", $"后台任务 #{task.Id} 异常: {ex.Message}");
+            ErrorLog.Error("BackgroundTask", $"后台任务 #{task.Id} 异常: {task.Command}", ex);
         }
         finally
         {

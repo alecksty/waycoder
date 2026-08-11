@@ -9,7 +9,7 @@ namespace WayCoder.Tools;
 public class BashTool : ITool
 {
     public string Name => "bash";
-    public string Description => "执行 Shell 命令。返回 stdout、stderr 和退出码。用于运行测试、安装包、git 操作等。";
+    public string Description => "执行 Shell 命令。返回 stdout、stderr 和退出码。\n⚠ 禁止执行：网络下载工具(curl/wget/ssh)、包管理器安装(apt/pip/npm install 等)、权限提升(sudo/su)、系统修改。\n✅ 安全免确认：ls/cat/grep/find/git log/dotnet --version 等只读操作自动放行。";
 
     public JsonObject Parameters => new()
     {
@@ -101,7 +101,12 @@ public class BashTool : ITool
 
     private async Task<string> Execute(string command, int timeout, Func<string, Task>? onLine = null)
     {
-        // 安全检查
+        // BashGuard 命令黑名单检查（对标 crush 三层防护）
+        var (blocked, reason) = BashGuard.CheckBanned(command);
+        if (blocked)
+            return $"{reason}\n命令：{command}";
+
+        // 已有危险模式检查
         var warning = CheckDangerous(command);
         if (warning != null)
             return $"⚠ 已阻止：{warning}\n命令：{command}\n如有意执行，请修改命令使其更具体。";
@@ -223,10 +228,17 @@ public class BashTool : ITool
                          + outStr[^tailLen..];
             }
 
+            // 文件追踪：检查已读取文件是否被此外部命令修改
+            var changeWarning = FileTracker.GetChangeWarning();
+            if (changeWarning != null)
+                outStr += "\n\n" + changeWarning;
+
             return string.IsNullOrWhiteSpace(outStr) ? "（无输出）" : outStr.Trim();
         }
         catch (Exception ex)
         {
+            ErrorLog.ToolError("bash", $"命令执行异常: {command}", ex,
+                new Dictionary<string, object?> { ["command"] = command, ["cwd"] = cwd });
             return $"运行命令时出错：{ex.GetType().Name}: {ex.Message}";
         }
     }
@@ -287,6 +299,11 @@ public class BashTool : ITool
                          + $"\n\n... 已截断（共 {outStream.Length} 字符）...\n\n"
                          + outStream[^tailLen..];
         }
+
+        // 文件追踪：检查已读取文件是否被此外部命令修改
+        var streamChangeWarning = FileTracker.GetChangeWarning();
+        if (streamChangeWarning != null)
+            outStream += "\n\n" + streamChangeWarning;
 
         return string.IsNullOrWhiteSpace(outStream) ? "（无输出）" : outStream.Trim();
     }

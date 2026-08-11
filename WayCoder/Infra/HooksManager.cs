@@ -167,7 +167,7 @@ public static class HooksManager
             if (completed != exitTask || !exitTask.IsCompletedSuccessfully)
             {
                 try { proc.Kill(); } catch { }
-                return (-1, "Hook 超时（10 秒）");
+                return (-1, $"Hook 超时（{Config.Instance.HookTimeoutSec} 秒）");
             }
 
             var stdout = await stdoutTask;

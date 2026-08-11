@@ -124,6 +124,8 @@ public class LLM
     public string ApiKey { get; }
     /// <summary>API 基础 URL（默认 https://api.openai.com）</summary>
     public string? BaseUrl { get; }
+    /// <summary>有效的 API endpoint URL</summary>
+    public string Endpoint => (BaseUrl ?? "https://api.openai.com").TrimEnd('/') + "/v1/chat/completions";
     /// <summary>每次请求最大输出 token 数</summary>
     public int MaxTokens { get; }
     /// <summary>采样温度（0=精确，1=创意）</summary>
@@ -141,6 +143,9 @@ public class LLM
     /// <summary>请求总次数</summary>
     public int TotalRequests { get; private set; }
 
+    /// <summary>当前流式响应是否已开始输出推理内容</summary>
+    private bool _reasoningShown;
+
     /// <summary>
     /// 粗略的美元成本估算。模型不在定价表中时返回 null。
     /// </summary>
@@ -155,7 +160,7 @@ public class LLM
     }
 
     public LLM(string model, string apiKey, string? baseUrl = null,
-        int maxTokens = 4096, float temperature = 0.1f)
+        int maxTokens = 32768, float temperature = 0.1f)
     {
         Model = model;
         ApiKey = apiKey;
@@ -181,6 +186,7 @@ public class LLM
         CancellationToken cancellationToken = default)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
+        _reasoningShown = false; // 每次请求重置推理标记
 
         // 每次 HTTP 请求 60 秒超时，防止服务器无响应无限等待
         using var requestTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(Config.Instance.LlmHttpTimeoutSec));
@@ -279,22 +285,40 @@ public class LLM
             var delta = choices[0]?["delta"];
             if (delta == null) continue;
 
-            // 累积文本 — content 字段 + reasoning_content 回退
-            // DeepSeek V4 等推理模型在 reasoning_content 中输出思考内容
+            // 累积文本 — 只取 content 字段存入对话历史
             if (delta["content"]?.GetValue<string>() is { } text && text.Length > 0)
             {
+                // 从推理模式切换到正式输出：关闭暗色样式
+                if (_reasoningShown)
+                {
+                    _reasoningShown = false;
+                    onToken?.Invoke("«/»\n");
+                }
                 contentParts.Add(text);
                 onToken?.Invoke(text);
             }
-            else if (delta["reasoning_content"]?.GetValue<string>() is { } rtext && rtext.Length > 0)
+            // reasoning / reasoning_content：显示给用户（暗色），但不存入 contentParts
+            // DeepSeek 用 reasoning_content，Ollama/qwen 用 reasoning
+            // 显示 = 让用户看到思考过程  不存 = 不污染对话历史
+            else if (TryGetReasoningText(delta, out var rtext))
             {
-                contentParts.Add(rtext);
+                if (!_reasoningShown)
+                {
+                    _reasoningShown = true;
+                    onToken?.Invoke("\n«dim»");
+                }
                 onToken?.Invoke(rtext);
             }
 
             // 跨分片累积工具调用
             if (delta["tool_calls"]?.AsArray() is { } tcDeltas)
             {
+                // 从推理模式切换到工具调用：关闭暗色样式
+                if (_reasoningShown)
+                {
+                    _reasoningShown = false;
+                    onToken?.Invoke("«/»\n");
+                }
                 foreach (var tc in tcDeltas)
                 {
                     if (tc == null) continue;
@@ -308,13 +332,11 @@ public class LLM
                     if (tc["function"]?["arguments"]?.GetValue<string>() is { } targs) args += targs;
                     tcMap[idx] = (id, name, args);
 
-                    // 流式执行：参数接收完整时，立即触发回调
-                    if (onToolCall != null && id != "" && name != "" && args.EndsWith('}'))
+                    // 流式执行：用 JSON 解析器验证参数完整性（不靠 } 结尾，避免 C# 代码中的 } 误判）
+                    if (onToolCall != null && id != "" && name != "" && args.Length > 0)
                     {
-                        Dictionary<string, object?> parsedArgs;
-                        try { parsedArgs = ParseArgs(args); }
-                        catch { continue; }
-                        onToolCall(new ToolCall(id, name, parsedArgs));
+                        if (TryParseCompleteJson(args, out var parsedArgs))
+                            onToolCall(new ToolCall(id, name, parsedArgs!));
                     }
                 }
             }
@@ -335,6 +357,13 @@ public class LLM
                 parsedArgs = [];
             }
             parsed.Add(new ToolCall(id, name, parsedArgs));
+        }
+
+        // 流结束：如果推理样式未关闭则兜底关闭
+        if (_reasoningShown)
+        {
+            _reasoningShown = false;
+            onToken?.Invoke("«/»\n");
         }
 
         TotalPromptTokens += promptTok;
@@ -445,15 +474,22 @@ public class LLM
             catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 // 超时
-                if (attempt == effectiveMaxRetries - 1) throw;
+                if (attempt == effectiveMaxRetries - 1)
+                {
+                    ErrorLog.LlmError(Model, Endpoint, $"请求超时（{attempt + 1}/{effectiveMaxRetries} 次尝试）");
+                    throw;
+                }
+                ErrorLog.Warning("LLM", $"请求超时，重试 {attempt + 1}/{effectiveMaxRetries}");
                 await Task.Delay((int)Math.Pow(2, attempt) * 1000, cancellationToken);
             }
-            catch (HttpRequestException) when (attempt < effectiveMaxRetries - 1)
+            catch (HttpRequestException ex) when (attempt < effectiveMaxRetries - 1)
             {
+                ErrorLog.Warning("LLM", $"网络错误，重试 {attempt + 1}/{effectiveMaxRetries}: {ex.Message}");
                 await Task.Delay((int)Math.Pow(2, attempt) * 1000, cancellationToken);
             }
         }
 
+        ErrorLog.LlmError(Model, Endpoint, $"重试耗尽（{effectiveMaxRetries} 次）");
         throw new InvalidOperationException("重试耗尽");
     }
 
@@ -485,6 +521,54 @@ public class LLM
     /// <summary>
     /// AOT 兼容：将 JSON 字符串解析为参数字典。
     /// </summary>
+    /// <summary>
+    /// 从流式 chunk 的 delta 中提取推理文本。
+    /// DeepSeek 用 "reasoning_content"，Ollama/qwen 用 "reasoning"。
+    /// </summary>
+    private static bool TryGetReasoningText(JsonNode delta, out string text)
+    {
+        text = "";
+        // DeepSeek: reasoning_content
+        if (delta["reasoning_content"]?.GetValue<string>() is { } t1 && t1.Length > 0)
+        { text = t1; return true; }
+        // Ollama / qwen: reasoning
+        if (delta["reasoning"]?.GetValue<string>() is { } t2 && t2.Length > 0)
+        { text = t2; return true; }
+        return false;
+    }
+
+    /// <summary>
+    /// 尝试将 JSON 字符串解析为参数字典。仅当 JSON 完整且为有效对象时返回 true。
+    /// 与 ParseArgs 不同：它不吞异常，调用方可据此判断 JSON 是否尚未接收完整。
+    /// </summary>
+    internal static bool TryParseCompleteJson(string json, out Dictionary<string, object?>? result)
+    {
+        result = null;
+        try
+        {
+            var node = JsonNode.Parse(json);
+            if (node is JsonObject obj && obj.Count > 0)
+            {
+                result = new Dictionary<string, object?>();
+                foreach (var (key, value) in obj)
+                {
+                    result[key] = value switch
+                    {
+                        null => null,
+                        JsonValue jv => jv.GetValue<object>(),
+                        _ => value.ToJsonString(),
+                    };
+                }
+                return true;
+            }
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public static Dictionary<string, object?> ParseArgs(string json)
     {
         var result = new Dictionary<string, object?>();

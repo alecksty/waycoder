@@ -36,7 +36,10 @@ public class Program
     {
         Console.OutputEncoding = Encoding.UTF8;
 
-        // 全局异常处理：恢复终端 + 保存会话
+        // 错误日志系统（自动追踪所有错误，写入 logs/error_YYYYMMDD.log）
+        ErrorLog.Initialize(catchAllExceptions: true);
+
+        // 全局异常处理：恢复终端 + 保存会话 + ErrorLog
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
         {
             try { Tty.ExitAltScreen(); } catch { }
@@ -112,11 +115,20 @@ public class Program
         if (maxBudget != null) _config.MaxBudgetUsd = maxBudget;
         if (watchMode) _config.WatchMode = true;
 
-        // DeepSeek 模型自动设置 base URL
-        if (_config.BaseUrl == null && _config.Model.StartsWith("deepseek"))
-            _config.BaseUrl = "https://api.deepseek.com";
+        // 从模型目录自动设置 base URL（支持 Ollama/DeepSeek/OpenAI 等所有模型）
+        if (_config.BaseUrl == null)
+        {
+            var catInfo = ModelCatalog.Find(_config.Model);
+            if (catInfo?.DefaultBaseUrl != null)
+                _config.BaseUrl = catInfo.DefaultBaseUrl;
+        }
 
-        if (string.IsNullOrEmpty(_config.ApiKey))
+        // Local/Ollama 模型不需要 API key
+        var isLocalModel = _config.Model.Contains("ollama", StringComparison.OrdinalIgnoreCase)
+            || (_config.BaseUrl?.Contains("localhost") == true)
+            || (_config.BaseUrl?.Contains("127.0.0.1") == true);
+
+        if (string.IsNullOrEmpty(_config.ApiKey) && !isLocalModel)
         {
             MarkupLine("«bold red»╔══════════════════════════════╗«/»");
             MarkupLine("«bold red»║  API 密钥未设置！           ║«/»");
@@ -179,6 +191,7 @@ public class Program
             catch (Exception ex)
             {
                 DebugLog.Log("Program", $"团队记忆自动同步失败: {ex.Message}");
+            ErrorLog.Warning("Program", $"团队记忆自动同步失败: {ex.Message}", ex);
             }
         }
 
@@ -242,12 +255,14 @@ public class Program
             }
             else
             {
-                UxHelper.Error("请求超时", "服务器 60s 未响应，请检查网络或 API 配置");
+                ErrorLog.Error("Program.RunOnce", $"LLM 请求超时（{Config.Instance.LlmHttpTimeoutSec}s）");
+                UxHelper.Error("请求超时", $"服务器 {Config.Instance.LlmHttpTimeoutSec}s 未响应，请检查网络或 API 配置");
                 Environment.Exit(1);
             }
         }
         catch (Exception ex)
         {
+            ErrorLog.Fatal("Program.RunOnce", $"一次性模式崩溃: {ex.Message}", ex);
             UxHelper.Error("错误", ex.Message);
             Environment.Exit(1);
         }
@@ -485,6 +500,7 @@ public class Program
         {
             screen.AddSystemMsg($"  ⚠ Watch 模式启动失败: {ex.Message}");
             DebugLog.Log("watch", $"启动失败: {ex.Message}");
+            ErrorLog.Error("Program.WatchMode", $"Watch 模式启动失败: {ex.Message}", ex);
         }
     }
 
@@ -523,6 +539,7 @@ public class Program
         catch (Exception ex)
         {
             DebugLog.Log("session", $"自动保存失败: {ex.Message}");
+            ErrorLog.Warning("Program.AutoSave", $"会话自动保存失败: {ex.Message}", ex);
         }
     }
 
@@ -876,9 +893,11 @@ public class Program
                     screen.Running = false;
                     screen.FinishAgentMsg();
                     var cancelled = cts.IsCancellationRequested;
+                    if (!cancelled)
+                        ErrorLog.Error("Program.REPL", $"LLM 请求超时（{Config.Instance.LlmHttpTimeoutSec}s）");
                     screen.AddSystemMsg(cancelled
                         ? "⚠ 已中断"
-                        : "⏰ 服务器 60s 未响应");
+                        : $"⏰ 服务器 {Config.Instance.LlmHttpTimeoutSec}s 未响应");
                     if (!cancelled)
                         screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Error;
                     break;
@@ -888,6 +907,7 @@ public class Program
                     screen.Running = false;
                     screen.FinishAgentMsg();
                     screen.AddSystemMsg($"  ⚠ {model} 失败: {ex.Message}");
+                    ErrorLog.Warning("Program.REPL", $"模型 {model} 失败，尝试回退: {ex.Message}", ex);
                     // 继续回退链
                 }
                 catch (Exception ex)
@@ -896,6 +916,7 @@ public class Program
                     screen.FinishAgentMsg();
                     screen.AddSystemMsg($"  💔 所有模型均失败: {ex.Message}");
                     screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Error;
+                    ErrorLog.Error("Program.REPL", $"所有模型均失败: {ex.Message}", ex);
                 }
             }
 
@@ -1233,6 +1254,7 @@ public class Program
             {
                 screen.FinishAgentMsg();
                 screen.AddSystemMsg($"  ⚠ 第 {iter} 轮出错: {ex.Message}");
+                ErrorLog.Error("Program.Loop", $"/loop 第 {iter} 轮异常: {ex.Message}", ex);
                 if (iter == maxIter) break;
                 await Task.Delay(1000);
                 continue;
@@ -1484,6 +1506,7 @@ deepseek 性价比最高。"
         }
         catch (Exception ex)
         {
+            ErrorLog.Error("Program.ShellCmd", $"Shell 命令执行异常: {ex.Message}", ex);
             UxHelper.Error("Shell 错误", ex.Message);
         }
 
@@ -1539,6 +1562,7 @@ deepseek 性价比最高。"
         }
         catch (Exception ex)
         {
+            ErrorLog.Error("Program.PlanMode", $"计划模式异常: {ex.Message}", ex);
             UxHelper.Error("错误", ex.Message);
         }
         }

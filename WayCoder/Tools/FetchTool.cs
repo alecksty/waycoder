@@ -41,10 +41,10 @@ public class FetchTool : ITool
         ["required"] = new JsonArray("url"),
     };
 
-    private static readonly HttpClient _client = new()
-    {
-        Timeout = TimeSpan.FromSeconds(30),
-    };
+    private static HttpClient _client => _lazyClient.Value;
+    private static readonly Lazy<HttpClient> _lazyClient = new(() => new HttpClient(
+        new HttpClientHandler { AllowAutoRedirect = true, MaxAutomaticRedirections = 5 })
+    { Timeout = TimeSpan.FromSeconds(Config.Instance.FetchTimeoutSec) });
 
     /// <summary>需移除的噪音 HTML 元素（对标 crush）</summary>
     private static readonly string[] NoisyElements =
@@ -113,7 +113,8 @@ public class FetchTool : ITool
         }
         catch (TaskCanceledException)
         {
-            return "错误：请求超时（30 秒）";
+            ErrorLog.ToolError("fetch", $"请求超时（{Config.Instance.FetchTimeoutSec} 秒）");
+            return $"错误：请求超时（{Config.Instance.FetchTimeoutSec} 秒）";
         }
         catch (Exception ex)
         {

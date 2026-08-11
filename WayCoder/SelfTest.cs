@@ -204,7 +204,7 @@ public static class SelfTest
         // ---- Config ----
         Section("[配置]");
         var config = new Config();
-        Check("默认模型 deepseek-v4-flash", config.Model == "deepseek-v4-flash");
+        Check("默认模型 deepseek-chat", config.Model == "deepseek-chat");
         Console.WriteLine();
 
         // ---- ContextManager ----
@@ -958,6 +958,54 @@ public static class SelfTest
 
         // 清理
         try { Directory.Delete(debugDir, true); } catch { }
+        Console.WriteLine();
+
+        // ---- 错误日志 ----
+        Section("[错误日志]");
+        Check("ErrorLog 已初始化", ErrorLog.Initialized);
+
+        // 写入各级别日志（ErrorLog 已在 Program.Main 中初始化）
+        ErrorLog.Info("SelfTest", "自测信息日志");
+        ErrorLog.Warning("SelfTest", "自测警告日志", new InvalidOperationException("测试异常"));
+        ErrorLog.Error("SelfTest", "自测错误日志");
+        ErrorLog.Fatal("SelfTest", "自测致命日志");
+        ErrorLog.ToolError("test_tool", "工具测试错误",
+            new ArgumentException("参数无效"),
+            new Dictionary<string, object?> { ["file_path"] = "/test/path", ["command"] = "test_cmd" });
+        ErrorLog.LlmError("test-model", "http://localhost:11434/v1", "LLM API 连接失败");
+
+        // 强制刷盘
+        ErrorLog.Flush();
+
+        // 验证日志文件存在且包含测试内容
+        var errorLogsDir = Path.Combine(Directory.GetCurrentDirectory(), ErrorLog.LogDirName);
+        var errorLogFiles = Directory.GetFiles(errorLogsDir, "error_*.log");
+        Check("错误日志文件已创建", errorLogFiles.Length > 0);
+
+        if (errorLogFiles.Length > 0)
+        {
+            var latestFile = errorLogFiles.OrderByDescending(f => f).First();
+            var errorContent = File.ReadAllText(latestFile, System.Text.Encoding.UTF8);
+            var hasInfo = errorContent.Contains("INFO") && errorContent.Contains("SelfTest");
+            var hasWarn = errorContent.Contains("WARN");
+            var hasError = errorContent.Contains("ERROR");
+            var hasFatal = errorContent.Contains("FATAL");
+            var hasTool = errorContent.Contains("[Tool:test_tool]");
+            var hasLlm = errorContent.Contains("[LLM]") && errorContent.Contains("test-model");
+            var hasException = errorContent.Contains("InvalidOperationException");
+            var hasStack = errorContent.Contains("Stack:");
+
+            Check("日志包含 INFO + SelfTest", hasInfo);
+            Check("日志包含 WARN", hasWarn);
+            Check("日志包含 ERROR", hasError);
+            Check("日志包含 FATAL", hasFatal);
+            Check("日志包含工具前缀 [Tool:test_tool]", hasTool);
+            Check("日志包含 LLM model", hasLlm);
+            Check("日志包含异常类型", hasException);
+            Check("日志包含堆栈信息", hasStack);
+        }
+        else { failed++; Console.WriteLine("  ❌ 错误日志文件已创建"); }
+
         Console.WriteLine();
 
         // ---- 项目检测 ----

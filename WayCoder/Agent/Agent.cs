@@ -161,10 +161,45 @@ public class Agent
                 onToken: onToken,
                 cancellationToken: cancellationToken);
 
+            // 累积真实 token 使用量（Crush 风格）
+            Context.AddUsage(resp.PromptTokens, resp.CompletionTokens);
+
             // 没有工具调用 -> LLM 完成，返回文本
             if (resp.ToolCalls.Count == 0)
             {
                 Messages.Add(resp.ToMessage());
+                // 自动继续检测：
+                // 1. 模型首轮只输出分析不调用工具（toolCallCount==0, content>100）
+                // 2. 模型用了一些工具后开始"口述代码"而非写入文件（content 包含代码特征 >300 字符）
+                var toolCallCount = Messages.Count(m => m["role"]?.GetValue<string>() == "tool");
+                var contentLen = resp.Content?.Length ?? 0;
+                var hasCodeContent = contentLen > 300 &&
+                    (resp.Content!.Contains("```") || resp.Content.Contains("class ") ||
+                     resp.Content.Contains("public ") || resp.Content.Contains("def ") ||
+                     resp.Content.Contains("func ") || resp.Content.Contains("function "));
+
+                if (toolCallCount == 0 && contentLen > 100)
+                {
+                    // 首轮分析但未行动
+                    Messages.Add(new JsonObject
+                    {
+                        ["role"] = "user",
+                        ["content"] = "请立即用工具执行上述计划。直接调用 write_file/edit_file/bash 等工具，不要再输出分析。"
+                    });
+                    continue;
+                }
+
+                if (hasCodeContent && !resp.Content!.Contains("✅") && Messages.Count < 40)
+                {
+                    // 模型在"口述"代码而非写入文件 — 追问使其用工具
+                    Messages.Add(new JsonObject
+                    {
+                        ["role"] = "user",
+                        ["content"] = "不要用文字输出代码。立即调用 write_file 工具将上述代码写入文件。"
+                    });
+                    continue;
+                }
+
                 return resp.Content;
             }
 
@@ -223,6 +258,38 @@ public class Agent
 
             // 自动 git commit（如果启用）
             if (_autoCommit) await AutoCommitAsync();
+
+            // ── Crush 风格上下文预算检查 ──
+            // 基于真实 API token 使用量，当剩余窗口低于阈值时提前触发摘要
+            if (Config.Instance.AutoContinueAfterSummarize
+                && Context.ShouldStopAndSummarize()
+                && Messages.Count > 8)
+            {
+                var beforeCount = Messages.Count;
+                var beforeTokens = ContextManager.EstimateTokens(Messages);
+                await CompressWithSmallModel();
+                var afterCount = Messages.Count;
+                var afterTokens = ContextManager.EstimateTokens(Messages);
+                DebugLog.Log("context", $"Crush-style auto-summarize: {beforeCount}→{afterCount} msgs, {beforeTokens}→{afterTokens} est.tokens");
+
+                // 如果 Agent 正在执行任务中（有工具调用历史），注入继续提示
+                if (!Context.ContinuePromptInjected && afterCount < beforeCount)
+                {
+                    Context.ContinuePromptInjected = true;
+                    var originalUserMsg = Messages.FirstOrDefault(m =>
+                        m["role"]?.GetValue<string>() == "user")?["content"]?.GetValue<string>() ?? "";
+                    if (originalUserMsg.Length > 200)
+                        originalUserMsg = originalUserMsg[..200] + "...";
+
+                    Messages.Add(new JsonObject
+                    {
+                        ["role"] = "user",
+                        ["content"] = $"之前的会话因上下文过长而被压缩。原始用户请求是：`{originalUserMsg}`\n请从中断处继续，完成未完成的工作。",
+                    });
+                    Context.ResetUsage(); // 重置计数器，给新一轮足够的空间
+                    onToken?.Invoke("\n🔄 **上下文已自动压缩，继续执行...**\n\n");
+                }
+            }
 
             // 如果工具输出太大则压缩上下文
             await CompressWithSmallModel();
@@ -293,6 +360,7 @@ public class Agent
         }
         catch (Exception ex)
         {
+            ErrorLog.ToolError(tc.Name, $"工具执行异常: {ex.Message}", ex, tc.Arguments);
             return $"执行 {tc.Name} 时出错：{ex.Message}\n[请分析错误原因，尝试其他方式完成目标]";
         }
     }
@@ -358,9 +426,9 @@ public class Agent
         var srcExts = new[] { ".cs", ".py", ".ts", ".js", ".go", ".rs", ".java", ".kt", ".swift", ".c", ".cpp", ".rb" };
         if (!srcExts.Contains(ext)) return toolResult;
 
-        // 防抖：同一项目 60s 内不重复跑
+        // 防抖：同一项目 N 秒内不重复跑
         var cwd = Directory.GetCurrentDirectory();
-        if (_lastTestProject == cwd && (DateTime.UtcNow - _lastTestRun).TotalSeconds < 60)
+        if (_lastTestProject == cwd && (DateTime.UtcNow - _lastTestRun).TotalSeconds < Config.Instance.AutoTestDebounceSec)
             return toolResult;
 
         var testCmd = DetectTestCommand();
@@ -387,13 +455,14 @@ public class Agent
             using var proc = System.Diagnostics.Process.Start(psi);
             if (proc == null) return toolResult;
 
-            // 最多等 30 秒
+            // 最多等 N 秒
             var readTask = proc.StandardOutput.ReadToEndAsync();
-            var timeoutTask = Task.Delay(30_000);
+            var timeoutTask = Task.Delay(Config.Instance.AutoTestTimeoutSec * 1000);
             var completed = await Task.WhenAny(readTask, timeoutTask);
             if (completed == timeoutTask)
             {
                 try { proc.Kill(); } catch { }
+                ErrorLog.Warning("Agent", $"自动测试超时（{Config.Instance.AutoTestTimeoutSec}s），已终止进程");
                 return toolResult;
             }
 

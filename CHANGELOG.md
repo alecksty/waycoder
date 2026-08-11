@@ -1,5 +1,82 @@
 # 更新日志
 
+## v0.31.5 (2026-08-11) — DeepSeek V4 推理修复 + Crush 上下文管理 + 安全/追踪/诊断/本地模型
+
+### 🧠 DeepSeek V4 推理内容修复（关键 Bug）
+- **reasoning_content 污染对话历史**：DeepSeek V4 的 `reasoning_content` + Ollama/qwen 的 `reasoning` 字段不再存入 `contentParts`
+- `TryGetReasoningText()` 统一处理两种字段名（`reasoning_content` / `reasoning`）
+- 推理内容以暗色（«dim»）实时显示给用户，但不存入对话历史，不送入下一轮 API 调用
+- tool_calls 到达时自动关闭暗色样式
+- 流结束后安全关闭推理标记（防御性代码）
+- **根因**：推理 token 计入 `max_tokens` 预算 → V4 消耗全部预算在推理上 → 零正式输出 → 修复后 Snake2（292 行）生成成功
+
+### 🔄 Crush 风格上下文管理
+- **真实 token 追踪**：`ContextManager.AddUsage()` 累积每次 API 返回的 prompt/completion tokens
+- **自动摘要触发**：`ShouldStopAndSummarize()` — 大窗口（>200K）用 20K buffer，小窗口用 20% 比例
+- **Auto-Continue**：摘要后自动注入继续提示（`ContinuePromptInjected`），防止 Agent 丢失任务上下文
+- **自动续写增强**：检测"口述代码"（content >300 字符 + 代码标记）→ 追问使其写文件
+- **首轮停滞检测**：模型首轮只分析不调用工具 → 自动追问执行
+- 新增配置：`ContextWindowLargeThreshold=200K`、`ContextWindowLargeBuffer=20K`、`ContextWindowSmallRatio=0.2`、`AutoContinueAfterSummarize=true`
+
+### 🛡️ Bash 命令安全系统（对标 crush bannedCommands + safeCommands）
+- `BashGuard` 三层防护：禁止命令名拦截 + 参数级拦截 + 安全只读白名单
+- 70+ 禁止命令（网络下载/系统修改/包管理器/网络配置）
+- 47+ 安全只读命令自动放行（免权限确认）
+- 参数级规则：阻止 `pip install`（允许 `--user`）、`npm install -g` 等
+- 管道中每个命令独立检查（`|`, `;`, `&` 分割）
+
+### 📊 文件追踪 / Stale-Read 检测（对标 crush filetracker）
+- `FileTracker`：SHA256 哈希记录 + 外部变更检测 + LRU 淘汰（200 文件）
+- 集成到 `ReadFileTool`/`WriteFileTool`/`EditFileTool`/`MultiEditTool`/`BashTool`
+
+### 🔍 LSP 诊断自动附加（对标 crush diagnostics auto-attachment）
+- `DiagnosticManager.FormatForLLM()` + `TryRunLintWithTimeout()`（3s 超时）
+- 编辑/创建文件后自动附加 lint 错误/警告
+
+### 🖥️ Ollama 本地模型支持
+- 新增 6 个 Ollama 模型 + 通用 BaseUrl 自动解析 + 本地模型免 API Key
+- **实测结论**：`qwen3.x:4b`（thinking 内置，全部 token 耗尽）→ 不可用；`qwen2.5-coder:1.5b`（无 thinking，快但 1.5B 太小无法工具调用）→ 需 7B+ 模型
+
+### 📝 统一错误日志系统
+- `ErrorLog` 四级日志 + 按天轮转 + 内存缓冲 + 全局异常捕获 + 噪音过滤
+
+### ⚙️ 配置变更
+- **默认模型**：`deepseek-v4-flash` → `deepseek-chat`（V4 推理有缺陷）
+- **SmallModel**：同改为 `deepseek-chat`
+- **MaxTokens**：4096 → 32768（推理模型需要更多预算）
+- **LlmHttpTimeoutSec**：60 → 300（大窗口请求慢）
+- **回退链**：`deepseek-chat,deepseek-v4-flash,deepseek-v4-pro,gpt-5.4-mini`
+- **超时参数集中管理**：9 个超时配置项（BackgroundTask/AutoTest/Git/Kill/Download/Hook/AskUser/Regex/Fetch）
+- **SystemPrompt 规则 10/11**：复杂任务先列 todo 清单，不要输出思考过程
+
+### 🗂️ 新增 + 修改文件
+| 文件 | 说明 |
+|------|------|
+| `Agent/LLM.cs` | reasoning_content 显示不存 + TryGetReasoningText + Endpoint + ErrorLog |
+| `Agent/Agent.cs` | token 追踪 + Crush 自动摘要 + 自动续写增强 + ErrorLog |
+| `Agent/ContextManager.cs` | AddUsage() + ShouldStopAndSummarize() + ResetUsage() |
+| `Agent/SystemPrompt.cs` | 规则 10（todo 清单）+ 规则 11（不输出思考过程） |
+| `Agent/FallbackLLM.cs` | 回退链 ErrorLog + 模型更新 |
+| `Agent/BackgroundTask.cs` | 输出缓冲区增强 + ErrorLog |
+| `Infra/BashGuard.cs` | Bash 命令安全防护（三层拦截 + 安全白名单） |
+| `Infra/FileTracker.cs` | 文件追踪器（SHA256 哈希 + 变更检测） |
+| `Infra/ErrorLog.cs` | 统一错误日志系统（四级日志 + 自动轮转 + 全局异常） |
+| `Config/Config.cs` | 默认模型/MaxTokens/超时 + ContextWindow 阈值 + 超时参数集中管理 |
+| `Config/ModelCatalog.cs` | 新增 6 个 Ollama 模型 + deepseek-chat 优先 + BaseUrl 修正 |
+| `Config/Global.cs` | 版本号 v0.31.5 |
+| `Edit/DiagnosticManager.cs` | FormatForLLM() + TryRunLintWithTimeout() |
+| `Program.cs` | ModelCatalog BaseUrl 解析 + 本地模型免 API Key + ErrorLog |
+| `Tools/BashTool.cs` | BashGuard 集成 + FileTracker 变更警告 + ErrorLog |
+| `Tools/EditFileTool.cs` | FileTracker + LSP 诊断自动附加 |
+| `Tools/WriteFileTool.cs` | FileTracker + LSP 诊断自动附加 |
+| `Tools/ReadFileTool.cs` | FileTracker + 缓存诊断附加 |
+| `Tools/MultiEditTool.cs` | FileTracker + LSP 诊断自动附加 |
+| `SelfTest.cs` | 测试更新（默认模型 deepseek-chat） |
+| `.gitignore` | 添加 games/ chess-test/ |
+
+### 🧪 测试
+- 1321+ 项自测全部通过
+
 ## v0.31.4 (2026-08-11) — 竞品对标强化：Skills 升级 + 工具全面增强 + 温度/上下文默认调整
 
 ### ✨ 新增功能

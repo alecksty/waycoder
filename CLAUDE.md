@@ -25,7 +25,7 @@ WayCoder/
 ├── Agent.cs           主循环
 ├── AgentSlot.cs       多 Agent 工作区 (F1-F10 槽位切换)
 ├── LLM.cs             LLM 客户端 (流式 + 回退)
-├── ContextManager.cs  三层上下文压缩
+├── ContextManager.cs  Crush 风格上下文管理 (token 追踪 + 自动摘要)
 ├── SessionManager.cs  会话持久化
 ├── SystemPrompt.cs    系统提示词 (含项目检测)
 ├── Config.cs          配置 (.env 加载)
@@ -38,7 +38,7 @@ WayCoder/
 ├── StructuredMemory.cs 结构化记忆 (frontmatter 多文件 + MEMORY.md 索引)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        705 项自测
+├── SelfTest.cs        1321+ 项自测
 ├── FileLockManager.cs 文件锁 (防并发修改冲突)
 ├── UI/                 终端 TUI 控件库 (19 文件)
 │   ├── ScreenManager.cs 全屏缓冲 + 弹窗菜单 + 侧栏
@@ -65,7 +65,13 @@ WayCoder/
 │   ├── Syntax.cs       语法高亮 (14 种语言)
 │   ├── DiagnosticManager.cs Lint 诊断集成
 │   └── Gui/            GUI 编辑器占位（预留扩展）
-└── Tools/             31 个工具
+├── Infra/              基础设施 (5 文件)
+│   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
+│   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)
+│   ├── ErrorLog.cs      统一错误日志 (四级 + 自动轮转)
+│   ├── FileIgnoreManager.cs .gitignore + .waycoderignore 规则引擎
+│   └── DesktopNotifier.cs  桌面通知 (终端闪烁 + 响铃 + Toast)
+└── Tools/             34 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
     ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
@@ -76,25 +82,31 @@ WayCoder/
     ├── FindReplaceTool.cs CpTool.cs  MvTool.cs
     ├── DiffTool.cs    TreeTool.cs    WcTool.cs
     ├── StatTool.cs    PwdTool.cs     SkillTool.cs
-    └── DocTool.cs     文档查询 (搜索+抓取)
+    ├── DocTool.cs      DownloadTool.cs MultiEditTool.cs
+    └── JobOutputTool.cs JobKillTool.cs 后台任务管理
 ```
 
 ## 关键设计决策
 
 - **edit_file 使用唯一子串匹配**，不用行号，安全可审查
-- **上下文压缩三层让步**：50% 裁剪 → 70% LLM 摘要 → 90% 硬折叠
+- **上下文压缩三层让步**：50% 裁剪 → 70% LLM 摘要 → 90% 硬折叠；Crush 风格真实 token 追踪（AddUsage/ShouldStopAndSummarize），大窗口 20K buffer / 小窗口 20% 比例
+- **推理内容处理**：`reasoning_content`（DeepSeek V4）/ `reasoning`（Ollama/qwen）实时显示但不存入对话历史 — 显示=让用户看到思考过程，不存=不污染 API 调用
 - **子智能体通过不给 agent 工具来约束**，不靠规则
 - **多 Agent 工作区**：F1-F10 切换 10 个独立会话槽位，各占各的屏幕；状态栏 10 数字指示条（白底=当前屏，灰=空闲 绿=工作 黄=等权限 红=出错）；Agent 运行时禁止切换；AgentTool.ParentAgent 切槽位时重绑
 - **AOT 编译：JSON 手写序列化**，`JsonHelper.SerializeArgs` 替代 `JsonSerializer`
 - **权限系统**：bash/write/edit/agent 默认行内确认（三行黄底渲染），`/perm yolo` 跳过
 - **双模型架构**：大模型做复杂任务，小模型做压缩/摘要，自动分工省钱
-- **模型回退链**：失败自动尝试备选 deepseek-v4-flash→gpt-5.4-mini→deepseek-v4-pro→gpt-5.4
+- **模型回退链**：失败自动尝试备选 deepseek-chat→deepseek-v4-flash→deepseek-v4-pro→gpt-5.4-mini
 - **文件锁**：FileLockManager 防止多 Agent 并发修改冲突，30s 超时自动释放
 - **Watch 模式**：FileSystemWatcher 监听文件变更 → 提取 AI! / AI? 注释 → 线程安全队列 → REPL 轮询执行
 - **全屏缓冲 UI**：备用屏 + 每帧重绘 + 行内权限块 + 弹窗菜单 + 侧栏面板 + 居中对话框
 - **UI 控件库**：`UI/` 目录封装 TUI 控件（未来拆分 Tty 底层 + View 视图），`UI/Gui/` 预留 GUI 扩展
 - **结构化记忆**：`.corecoder/memory/*.md` frontmatter 多文件 + MEMORY.md 索引，`memory` 工具与系统提示词注入均走结构化格式，首次使用自动从旧 memory.md 迁移
 - **Diff 预览**：`WAYCODER_DIFF_PREVIEW=1` 开启，write_file/edit_file 写前逐 hunk 确认（Y/N/A/Q），非交互模式（管道/重定向/测试）自动跳过
+- **Bash 安全防护**：`BashGuard` 三层拦截（命令名 + 参数 + 安全白名单），70+ 禁止命令，47 安全只读命令免确认
+- **文件追踪**：`FileTracker` SHA256 哈希记录 + 外部变更检测 + LRU 淘汰，防止 Stale-Read
+- **自动续写**：检测"口述代码"（content >300 字符 + 代码标记）→ 追问使其写文件；首轮只分析不动手 → 追问执行
+- **自动摘要**：Crush 风格上下文预算检查 → 触发小模型压缩 → 注入继续提示 → 重置计数器
 
 ## 非显而易见的约束
 
