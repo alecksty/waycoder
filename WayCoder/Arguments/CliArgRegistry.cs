@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace WayCoder.Parameters;
+namespace WayCoder.Arguments;
 
 /// <summary>
 /// CLI 参数注册表 —— 集中管理所有 CliArg 子类实例。
