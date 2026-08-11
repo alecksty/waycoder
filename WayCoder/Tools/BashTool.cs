@@ -26,6 +26,16 @@ public class BashTool : ITool
                 ["type"] = "integer",
                 ["description"] = "超时时间，单位秒（默认 120）",
             },
+            ["run_in_background"] = new JsonObject
+            {
+                ["type"] = "boolean",
+                ["description"] = "设为 true 则后台运行，立即返回 shell_id。之后用 job_output 读取输出，用 job_kill 终止。默认 60 秒后自动转入后台。",
+            },
+            ["auto_background_after"] = new JsonObject
+            {
+                ["type"] = "integer",
+                ["description"] = "前台等待 N 秒后自动转入后台（默认 60 秒）。仅 run_in_background=true 时生效。",
+            },
         },
         ["required"] = new JsonArray("command"),
     };
@@ -56,6 +66,20 @@ public class BashTool : ITool
         var command = arguments.GetValueOrDefault("command")?.ToString() ?? "";
         var configTimeout = Config.Instance.ToolTimeoutSec;
         var timeout = arguments.TryGetValue("timeout", out var t) && t is int ti ? ti : configTimeout;
+
+        // 后台运行模式
+        var runInBackground = arguments.TryGetValue("run_in_background", out var bg) && bg is true;
+        if (runInBackground)
+        {
+            var autoBgAfter = arguments.TryGetValue("auto_background_after", out var aba) && aba is int abaVal
+                ? abaVal : 60;
+            var bgId = BackgroundTaskManager.Start(command, Math.Max(timeout, autoBgAfter + 30));
+            return $"✅ 后台任务已启动\n" +
+                   $"Shell ID: {bgId}\n" +
+                   $"命令: {command}\n" +
+                   $"使用 job_output 工具读取输出（参数 shell_id={bgId}）\n" +
+                   $"使用 job_kill 工具终止任务（参数 shell_id={bgId}）";
+        }
 
         return await Execute(command, timeout);
     }

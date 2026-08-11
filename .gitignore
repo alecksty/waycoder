@@ -19,6 +19,10 @@ CoreCoderSharp/
 # OS
 .DS_Store
 
+# Reference code (crush competitor analysis)
+crush/
+test_game/
+
 # Temp
 .tmp/
 logs/
@@ -30,4 +34,9 @@ verify_build/
 *.bak
 *.patch
 excalidraw.log
-WayCoder/.waycoder/memory/
+.waycoder/
+__pycache__/
+*.pyc
+# WayCoder 工作区和测试产物
+WayCoder/works/
+WayCoder/test/

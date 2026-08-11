@@ -41,6 +41,8 @@ public static class AutoModeClassifier
         "ps",
         // 用户交互（只问不执行）
         "ask_user_question",
+        // 后台任务查询（只读）
+        "job_output",
     };
 
     /// <summary>Cautious 级 —— 文件修改，首次确认后可记住</summary>
@@ -54,6 +56,7 @@ public static class AutoModeClassifier
     private static readonly HashSet<string> DangerousTools = new(StringComparer.OrdinalIgnoreCase)
     {
         "rm", "bash", "git", "kill", "agent",
+        "download", "job_kill",
     };
 
     /// <summary>连续拒绝危险操作的计数</summary>
