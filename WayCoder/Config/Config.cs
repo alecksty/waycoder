@@ -106,6 +106,8 @@ public class Config
     public bool DiffPreview { get; set; } = false;
     public bool DesktopNotifications { get; set; } = false;
     public int ToolTimeoutSec { get; set; } = 120;
+    public string AllowedTools { get; set; } = "";     // 逗号分隔白名单，空=全部允许
+    public string DisabledTools { get; set; } = "";    // 逗号分隔黑名单
     public int LintTimeoutSec { get; set; } = 60;
     public int SubAgentMaxDepth { get; set; } = 3;
     public int BashOutputMaxChars { get; set; } = 50_000;
@@ -226,6 +228,16 @@ public class Config
               "工具超时 (秒)", "⚙ 参数", "Bash 等工具执行超时，默认 120 秒",
               "number", null, 3,
               c => c.ToolTimeoutSec.ToString(), (c, v) => c.ToolTimeoutSec = int.Parse(v), "120"),
+
+            P("AllowedTools",    "WAYCODER_ALLOWED_TOOLS",     "CORECODER_ALLOWED_TOOLS",
+              "工具白名单", "🔒 安全", "逗号分隔的工具名列表，仅允许这些工具可用（空=全部允许）",
+              "text", null, 4,
+              c => c.AllowedTools, (c, v) => c.AllowedTools = v, ""),
+
+            P("DisabledTools",   "WAYCODER_DISABLED_TOOLS",    "CORECODER_DISABLED_TOOLS",
+              "工具黑名单", "🔒 安全", "逗号分隔的工具名列表，禁止这些工具（空=不禁用）",
+              "text", null, 5,
+              c => c.DisabledTools, (c, v) => c.DisabledTools = v, ""),
 
             P("LintTimeoutSec",   "WAYCODER_LINT_TIMEOUT",      "CORECODER_LINT_TIMEOUT",
               "Lint 超时 (秒)", "⚙ 参数", "Lint 检查超时，默认 60 秒（大项目可调大）",
