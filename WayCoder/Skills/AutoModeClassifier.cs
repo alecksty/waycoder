@@ -48,7 +48,7 @@ public static class AutoModeClassifier
     /// <summary>Cautious 级 —— 文件修改，首次确认后可记住</summary>
     private static readonly HashSet<string> CautiousTools = new(StringComparer.OrdinalIgnoreCase)
     {
-        "write_file", "edit_file", "notebook_edit",
+        "write_file", "edit_file", "notebook_edit", "multiedit",
         "mkdir", "cp", "mv", "cd",
     };
 

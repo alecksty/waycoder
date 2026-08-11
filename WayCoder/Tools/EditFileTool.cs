@@ -12,7 +12,7 @@ namespace WayCoder.Tools;
 public class EditFileTool : ITool
 {
     public string Name => "edit_file";
-    public string Description => "通过替换精确匹配的字符串来编辑文件。为安全起见，old_string 必须在文件中恰好出现一次。包含足够的上下文以确保唯一性。";
+    public string Description => "通过替换精确匹配的字符串来编辑文件。old_string 需唯一匹配（除非指定 replace_all）。包含足够的上下文以确保唯一性。";
 
     public JsonObject Parameters => new()
     {
@@ -27,12 +27,17 @@ public class EditFileTool : ITool
             ["old_string"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "要查找的精确文本（必须在文件中唯一）",
+                ["description"] = "要查找的精确文本（必须在文件中唯一，除非设置 replace_all）",
             },
             ["new_string"] = new JsonObject
             {
                 ["type"] = "string",
                 ["description"] = "替换文本",
+            },
+            ["replace_all"] = new JsonObject
+            {
+                ["type"] = "boolean",
+                ["description"] = "替换所有匹配项（默认 false，仅替换单个唯一匹配项）",
             },
         },
         ["required"] = new JsonArray("file_path", "old_string", "new_string"),
@@ -49,12 +54,14 @@ public class EditFileTool : ITool
         var filePath = arguments.GetValueOrDefault("file_path")?.ToString() ?? "";
         var oldString = arguments.GetValueOrDefault("old_string")?.ToString() ?? "";
         var newString = arguments.GetValueOrDefault("new_string")?.ToString() ?? "";
+        var replaceAll = arguments.TryGetValue("replace_all", out var ra) &&
+                         ra?.ToString()?.ToLowerInvariant() == "true";
         var agentId = arguments.GetValueOrDefault("_agent_id")?.ToString() ?? "main";
 
-        return await ExecuteAsync(filePath, oldString, newString, agentId);
+        return await ExecuteAsync(filePath, oldString, newString, replaceAll, agentId);
     }
 
-    private static async Task<string> ExecuteAsync(string filePath, string oldString, string newString, string agentId)
+    private static async Task<string> ExecuteAsync(string filePath, string oldString, string newString, bool replaceAll, string agentId)
     {
         var path = Path.GetFullPath(filePath);
 
@@ -79,6 +86,9 @@ public class EditFileTool : ITool
             catch { return $"错误：{filePath} 不是 UTF-8 文本文件（edit_file 只能编辑文本文件）"; }
 
             var content = File.ReadAllText(path, Encoding.UTF8);
+            // 检测原始行尾格式（CRLF 保留，对标 crush）
+            var hasCrlf = raw.AsSpan().IndexOf("\r\n"u8) >= 0;
+
             var occurrences = CountOccurrences(content, oldString);
 
             if (occurrences == 0)
@@ -87,12 +97,19 @@ public class EditFileTool : ITool
                 return $"错误：在 {filePath} 中未找到 old_string。\n文件开头内容：\n{preview}";
             }
 
-            if (occurrences > 1)
+            string newContent;
+            if (replaceAll)
             {
-                return $"错误：old_string 在 {filePath} 中出现了 {occurrences} 次。请包含更多上下文行以确保唯一性。";
+                newContent = content.Replace(oldString, newString);
             }
-
-            var newContent = content.ReplaceFirst(oldString, newString);
+            else
+            {
+                if (occurrences > 1)
+                {
+                    return $"错误：old_string 在 {filePath} 中出现了 {occurrences} 次。请包含更多上下文行以确保唯一性，或设置 replace_all=true。";
+                }
+                newContent = content.ReplaceFirst(oldString, newString);
+            }
 
             // Diff 预览：仅当开关开启且非交互模式（管道/重定向/测试）时
             var cfg = Config.Instance;
@@ -105,11 +122,18 @@ public class EditFileTool : ITool
                     newContent = DiffPreview.ApplyAccepted(content, DiffPreview.BuildHunks(content, newContent), accepted);
             }
 
+            // CRLF 行尾保留：如果原文件是 CRLF，保持 CRLF
+            if (hasCrlf)
+                newContent = newContent.Replace("\n", "\r\n");
+
             File.WriteAllText(path, newContent, Encoding.UTF8);
             ChangedFiles.Add(path);
 
             var diff = UnifiedDiff(content, newContent, path);
-            return $"已编辑 {filePath}\n{diff}";
+            var replacedMsg = replaceAll && occurrences > 1
+                ? $"（{occurrences} 处替换）"
+                : "";
+            return $"已编辑 {filePath}{replacedMsg}\n{diff}";
         }
         catch (Exception ex)
         {

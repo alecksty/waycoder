@@ -24,8 +24,8 @@ public static class SystemPrompt
         // 仓库地图
         var repoMap = RepoMapGenerator.Generate();
 
-        // 技能列表（仅名称 + 描述，不加载完整 body）
-        var skillsSection = SkillsManager.GetSkillsSection();
+        // 技能列表（XML 格式，仅名称 + 描述 + 位置，不加载完整 body）
+        var skillsSection = SkillsManager.GetSkillsXml();
         if (!string.IsNullOrEmpty(skillsSection))
             skillsSection = "\n" + skillsSection;
 

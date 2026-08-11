@@ -32,7 +32,7 @@ public static class PermissionManager
 
     /// <summary>需要确认的工具名列表（传统模式用）</summary>
     private static readonly HashSet<string> DangerousTools =
-        ["bash", "write_file", "edit_file", "notebook_edit", "agent", "kill", "rm", "download"];
+        ["bash", "write_file", "edit_file", "notebook_edit", "multiedit", "agent", "kill", "rm", "download"];
 
     static PermissionManager()
     {

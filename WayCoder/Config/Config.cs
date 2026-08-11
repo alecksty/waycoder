@@ -94,8 +94,8 @@ public class Config
     public string ApiKey { get; set; } = "";
     public string? BaseUrl { get; set; }
     public int MaxTokens { get; set; } = 4096;
-    public float Temperature { get; set; } = 0.0f;
-    public int MaxContextTokens { get; set; } = 128_000;
+    public float Temperature { get; set; } = 0.1f;
+    public int MaxContextTokens { get; set; } = 1_048_576;
     public string Provider { get; set; } = "openai";
     public double? MaxBudgetUsd { get; set; }
     public bool AutoGitCommit { get; set; } = false;
@@ -104,6 +104,7 @@ public class Config
     public string SandboxLevel { get; set; } = "suggest";
     public bool EditorLint { get; set; } = true;
     public bool DiffPreview { get; set; } = false;
+    public bool DesktopNotifications { get; set; } = false;
     public int ToolTimeoutSec { get; set; } = 120;
     public int LintTimeoutSec { get; set; } = 60;
     public int SubAgentMaxDepth { get; set; } = 3;
@@ -193,7 +194,7 @@ public class Config
             P("Temperature",      "WAYCODER_TEMPERATURE",       "CORECODER_TEMPERATURE",
               "温度", "⚙ 参数", "0=精确 1=创意",
               "number", null, 1,
-              c => c.Temperature.ToString("F1"), (c, v) => c.Temperature = float.Parse(v), "0.0"),
+              c => c.Temperature.ToString("F1"), (c, v) => c.Temperature = float.Parse(v), "0.1"),
 
             P("MaxContextTokens", "WAYCODER_MAX_CONTEXT",       "CORECODER_MAX_CONTEXT",
               "上下文窗口", "⚙ 参数", "上下文窗口大小",
@@ -343,6 +344,12 @@ public class Config
               "select", ["false","true"], 6,
               c => c.DiffPreview.ToString().ToLowerInvariant(),
               (c, v) => c.DiffPreview = bool.Parse(v), "false"),
+
+            P("DesktopNotifications", "WAYCODER_ENABLE_NOTIFICATIONS", "CORECODER_ENABLE_NOTIFICATIONS",
+              "桌面通知", "🔧 系统", "Agent 完成/权限等待时发送桌面通知（默认关闭）",
+              "select", ["false","true"], 7,
+              c => c.DesktopNotifications.ToString().ToLowerInvariant(),
+              (c, v) => c.DesktopNotifications = bool.Parse(v), "false"),
 
             P("MemoryRelevanceTopN", "WAYCODER_MEMORY_TOPN",    "CORECODER_MEMORY_TOPN",
               "记忆注入条数", "🔧 系统", "每次注入的最相关记忆数，0=关闭语义匹配",

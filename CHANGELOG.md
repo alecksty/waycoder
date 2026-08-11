@@ -1,5 +1,84 @@
 # 更新日志
 
+## v0.31.4 (2026-08-11) — 竞品对标强化：Skills 升级 + 工具全面增强 + 温度/上下文默认调整
+
+### ✨ 新增功能
+
+**Agent Skills 标准升级**（对标 crush agentskills.io）
+- SkillDef 新增字段：`License`、`Compatibility`、`Metadata`（key:value 字典）、`Builtin`
+- 名称验证：正则 `/^[a-zA-Z0-9]+(-[a-zA-Z0-9]+)*$/`，最大 64 字符，必须匹配目录名
+- 新增内置 skill：`waycoder-config`（WayCoder 配置指南）
+- 多发现路径：新增 `.cursor/skills/` 兼容
+- 系统提示词注入格式：Markdown 列表 → `<available_skills>` XML 结构
+- 技能加载追踪：`SkillsManager.LoadedSkills` + `MarkLoaded()`
+
+**桌面通知**（对标 crush notify）
+- `DesktopNotifier`：Agent 完成/权限等待时终端标题闪烁 + 响铃
+- Windows Toast 通知支持（PowerShell 集成）
+- 配置项：`WAYCODER_ENABLE_NOTIFICATIONS`（默认关闭）
+- 集成点：`PermissionManager` 等待时 + Agent 轮次完成时
+
+**文件忽略系统**（对标 crush gitignore/.crushignore）
+- `FileIgnoreManager`：加载 `.gitignore` 和 `.waycoderignore` 规则
+- 通用垃圾目录/文件扩展名自动忽略
+- 集成到 `GlobTool` 和 `GrepTool` 自动过滤结果
+
+### 🚀 工具增强
+
+**EditFileTool**（对标 crush edit）
+- 新增 `replace_all` 参数：一次替换所有匹配项
+- CRLF 行尾保留：编辑后保持原始换行格式
+
+**MultiEditTool** — 批量编辑工具（对标 crush multiedit）
+- 参数：`file_path` + `edits: [{old_string, new_string, replace_all?}]`
+- 首个编辑 old_string 为空 → 创建新文件
+- CRLF 行尾保留
+
+**ReadFileTool** 增强（对标 crush view）
+- 文件不存在时 "Did you mean?" 建议（Levenshtein 编辑距离匹配）
+- UTF-8 验证
+- 图片文件识别与提示（jpg/png/gif/webp 等）
+- 大文件保护（>100KB 拒绝，提示分段读取）
+- 行号格式化（自适应宽度对齐）
+
+**GrepTool** 增强（对标 crush grep）
+- 新增 `literal_text` 参数：自动转义正则特殊字符
+- FileIgnoreManager 过滤
+
+**FetchTool** 升级（对标 crush fetch/web_fetch）
+- HTML 净化：移除 script/style/nav/footer/header/aside 等噪音元素
+- 多输出格式：`text`（纯文本）/ `markdown`（结构化）
+- JSON 自动美化
+- 真实浏览器 User-Agent（Chrome 131 Windows）
+
+### 🔧 配置变更
+
+**默认温度 0.0 → 0.1**
+- `LLM.cs` 构造函数默认值 + `Config.Temperature` 默认值 + Schema 默认值
+- 回退链自动继承温度
+
+**MaxContextTokens 默认 128K → 1M**
+- 匹配 DeepSeek V4 的 1M 上下文窗口
+
+### 🗂️ 新增 + 修改文件
+| 文件 | 说明 |
+|------|------|
+| `Skills/SkillsManager.cs` | 完全重写：名称验证 + XML 格式 + 内置 skill + `.cursor/skills` |
+| `Skills/builtin/waycoder-config/SKILL.md` | 内置 WayCoder 配置指南 skill |
+| `Infra/FileIgnoreManager.cs` | 文件忽略规则管理器（.gitignore + .waycoderignore） |
+| `Infra/DesktopNotifier.cs` | 桌面通知系统（终端闪烁 + 响铃 + Windows Toast） |
+| `Tools/MultiEditTool.cs` | 批量编辑工具 |
+| `Tools/EditFileTool.cs` | 新增 replace_all + CRLF 保留 |
+| `Tools/ReadFileTool.cs` | 增强：文件建议 + 图片检测 + UTF-8 验证 + 大文件保护 |
+| `Tools/GrepTool.cs` | 新增 literal_text 模式 + FileIgnoreManager |
+| `Tools/FetchTool.cs` | HTML 净化 + Markdown 格式 + JSON 美化 |
+| `Tools/GlobTool.cs` | FileIgnoreManager 集成 |
+| `Config/Config.cs` | 新增 DesktopNotifications 配置项 |
+| `Agent/SystemPrompt.cs` | Skills XML 注入格式 |
+
+### 🧪 测试
+- 1312 项自测全部通过
+
 ## v0.31.3 (2026-08-11) — 竞品对标：后台任务工具 + Download 工具 + Bash 后台增强
 
 ### ✨ 新功能

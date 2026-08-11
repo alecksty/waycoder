@@ -45,6 +45,9 @@ public class GlobTool : ITool
 
             var files = MatchGlob(basePath, pattern);
 
+            // 过滤被忽略的文件
+            files = FileIgnoreManager.FilterIgnored(files, basePath);
+
             // 按修改时间排序，最新的在前
             files.Sort((a, b) =>
             {
