@@ -271,6 +271,21 @@ public class Agent
             // 相同哈希重复出现 3+ 次说明 Agent 陷入循环，注入反循环提示。
             DetectAndBreakLoop(resp, Messages);
 
+            // ── Stale-Read 文件变更检测（Crush 风格）──
+            // bash 等外部命令可能修改 Agent 已读取的文件，
+            // 检测到变更时注入警告让 LLM 重新读取过期文件。
+            var changeWarning = FileTracker.GetChangeWarning();
+            if (changeWarning != null)
+            {
+                Messages.Add(new JsonObject
+                {
+                    ["role"] = "tool",
+                    ["tool_call_id"] = "file_tracker",
+                    ["content"] = changeWarning,
+                });
+                DebugLog.Log("file-tracker", $"文件变更警告已注入");
+            }
+
             // 自动 git commit（如果启用）
             if (_autoCommit) await AutoCommitAsync();
 

@@ -20,6 +20,35 @@
 | `Agent/Agent.cs` | 新增 `FilterTools()` 方法 |
 | `Config/Global.cs` | v0.31.7 → v0.31.8 |
 
+## v0.31.8-v0.31.9 (2026-08-11) — 工具白名单/黑名单 + FileTracker 集成 + 测试覆盖
+
+### 🔒 工具白名单/黑名单
+
+- `Config.AllowedTools`：白名单（环境变量 `WAYCODER_ALLOWED_TOOLS`）
+- `Config.DisabledTools`：黑名单（环境变量 `WAYCODER_DISABLED_TOOLS`）
+- Agent 构造函数中 `FilterTools()` 过滤，主 Agent 和子 Agent 均生效
+
+### 📁 Stale-Read 文件变更检测集成
+
+- Agent 主循环集成 `FileTracker.GetChangeWarning()`（对标 Crush 的 stale-read 保护）
+- 每轮工具执行后检查已读取文件是否被外部修改
+- 检测到变更时注入 tool 消息警告 LLM 重新读取过期文件
+- 通过 `DebugLog.Log("file-tracker", ...)` 记录
+
+### 🧪 测试增强
+
+- SystemPrompt 新增 9 项结构化区块检查（`critical_rules` / `workflow` / `editing_files` / `exact_matching` / `task_completion` / `error_handling` / `testing` / `code_conventions` / 15 条规则）
+
+| 文件 | 变更 |
+|------|------|
+| `Agent/Agent.cs` | FileTracker 变更检测集成 + 工具过滤 `FilterTools()` |
+| `Config/Config.cs` | AllowedTools / DisabledTools 属性 + Settings UI |
+| `SelfTest.cs` | SystemPrompt 区块验证（9 项新检查） |
+| `Config/Global.cs` | v0.31.7 → v0.31.9 |
+
+### 🧪 测试
+- 1348 项自测全部通过
+
 ## v0.31.7 (2026-08-11) — 对标 Crush：SystemPrompt 重写 + 循环检测 + 工具描述增强
 
 ### 🧠 SystemPrompt 重写（对标 Crush coder.md.tpl）
