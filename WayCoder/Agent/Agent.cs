@@ -35,6 +35,12 @@ public class Agent
     /// <summary>本轮修改过的文件（用于精准 git add）</summary>
     private readonly HashSet<string> _modifiedFiles = [];
 
+    /// <summary>SHA256 循环检测：最近几轮的哈希值（检测 Agent 是否陷入重复操作循环）</summary>
+    private readonly List<string> _recentActionHashes = [];
+    private const int LoopDetectionWindow = 8;
+    private const int LoopDetectionThreshold = 3;
+    private int _loopNudgeCount;
+
     /// <summary>Architect 双模型模式：大模型出计划，小模型执行</summary>
     public bool ArchitectMode { get; set; }
 
@@ -255,6 +261,11 @@ public class Agent
                 AnswerPendingToolCalls(resp.ToolCalls);
                 throw;
             }
+
+            // ── SHA256 循环检测（Crush 风格）──
+            // 对最近几轮的（assistant 内容 + 工具结果）做哈希，
+            // 相同哈希重复出现 3+ 次说明 Agent 陷入循环，注入反循环提示。
+            DetectAndBreakLoop(resp, Messages);
 
             // 自动 git commit（如果启用）
             if (_autoCommit) await AutoCommitAsync();
@@ -766,6 +777,66 @@ public class Agent
         {
             DebugLog.Log("architect", $"计划生成异常: {ex.Message}");
             return null;
+        }
+    }
+
+    /// <summary>
+    /// SHA256 循环检测（Crush 风格）。
+    /// 对最近几轮的 assistant 消息内容 + 工具结果做哈希，
+    /// 相同哈希重复出现 LoopDetectionThreshold+ 次说明 Agent 陷入循环。
+    /// 此时注入反循环提示，强制 Agent 换策略。
+    /// </summary>
+    private void DetectAndBreakLoop(LLMResponse resp, List<JsonObject> messages)
+    {
+        // 构建本轮指纹：最后一条 assistant 消息 + 本轮新增的 tool 消息
+        var lastAssistant = messages.LastOrDefault(m =>
+            m["role"]?.GetValue<string>() == "assistant");
+        var lastAssistantContent = lastAssistant?["content"]?.GetValue<string>() ?? "";
+
+        // 取本轮新增的 tool 消息（tool_call_id 匹配 resp.ToolCalls 的 Id）
+        var toolIds = new HashSet<string>(resp.ToolCalls.Select(tc => tc.Id));
+        var toolContents = new List<string>();
+        foreach (var m in messages)
+        {
+            if (m["role"]?.GetValue<string>() == "tool")
+            {
+                var tcId = m["tool_call_id"]?.GetValue<string>() ?? "";
+                if (toolIds.Contains(tcId))
+                    toolContents.Add(m["content"]?.GetValue<string>() ?? "");
+            }
+        }
+
+        var fingerprint = lastAssistantContent + "\x00" + string.Join("\x00", toolContents);
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(fingerprint)));
+
+        _recentActionHashes.Add(hash);
+        while (_recentActionHashes.Count > LoopDetectionWindow)
+            _recentActionHashes.RemoveAt(0);
+
+        // 统计最近窗口内相同哈希的出现次数
+        var count = _recentActionHashes.Count(h => h == hash);
+        if (count >= LoopDetectionThreshold)
+        {
+            _loopNudgeCount++;
+            DebugLog.Log("loop", $"循环检测：哈希 {hash[..8]} 在最近 {_recentActionHashes.Count} 轮中出现 {count} 次（第 {_loopNudgeCount} 次反循环提示）");
+
+            // 逐步升级的反循环提示
+            var nudge = _loopNudgeCount switch
+            {
+                1 => "检测到你似乎在重复相同的操作。请换一种不同的方法或工具来完成任务。如果之前的方案反复失败，请尝试完全不同的思路。",
+                2 => "你仍在重复相同的操作模式。请停下来，重新评估问题，尝试一种完全不同的策略。检查之前的工具输出，找出失败的原因。",
+                _ => "严重警告：你已经多次重复相同的无效操作。立即停止当前方法。回顾整个任务目标，从第一步重新开始，使用完全不同的工具或顺序。如有必要，向用户报告卡住的原因。",
+            };
+
+            messages.Add(new JsonObject
+            {
+                ["role"] = "user",
+                ["content"] = nudge,
+            });
+
+            // 重置计数器避免连续触发（给 Agent 几轮时间调整）
+            _recentActionHashes.Clear();
         }
     }
 

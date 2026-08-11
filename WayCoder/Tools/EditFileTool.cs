@@ -12,7 +12,7 @@ namespace WayCoder.Tools;
 public class EditFileTool : ITool
 {
     public string Name => "edit_file";
-    public string Description => "通过替换精确匹配的字符串来编辑文件。old_string 需唯一匹配（除非指定 replace_all）。包含足够的上下文以确保唯一性。";
+    public string Description => "精确字符串替换式编辑（先读后改）。old_string 必须与文件原文逐字符匹配（空格、Tab、换行），包含 3-5 行上下文确保唯一。仅首次匹配会被替换，设 replace_all=true 替换全部。不确定空白符时多含上下文。编辑前务必先 read_file 获取精确文本，不要凭记忆猜测。";
 
     public JsonObject Parameters => new()
     {
@@ -22,22 +22,22 @@ public class EditFileTool : ITool
             ["file_path"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "要编辑的文件路径",
+                ["description"] = "要编辑的文件路径（绝对路径）。编辑前必须先 read_file 此文件。",
             },
             ["old_string"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "要查找的精确文本（必须在文件中唯一，除非设置 replace_all）",
+                ["description"] = "要查找并替换的精确文本。必须逐字符匹配原文，包括所有空白符、缩进、换行。含 3-5 行上下文行以确保唯一匹配（除非 replace_all=true）。从 read_file 输出中精确复制，不要凭记忆或近似猜测。",
             },
             ["new_string"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "替换文本",
+                ["description"] = "替换后的新文本。保持与周围代码一致的缩进和风格。",
             },
             ["replace_all"] = new JsonObject
             {
                 ["type"] = "boolean",
-                ["description"] = "替换所有匹配项（默认 false，仅替换单个唯一匹配项）",
+                ["description"] = "设为 true 替换文件中该文本的所有匹配项。默认 false 仅替换首次匹配，且要求该文本在文件中唯一出现。",
             },
         },
         ["required"] = new JsonArray("file_path", "old_string", "new_string"),
