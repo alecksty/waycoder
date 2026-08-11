@@ -1,6 +1,53 @@
 # 更新日志
 
-## v0.31.6 (2026-08-11) — PDF/Markdown 文档读取 + 多模型测试脚本 + 免费模型回退链
+## v0.31.7 (2026-08-11) — 对标 Crush：SystemPrompt 重写 + 循环检测 + 工具描述增强
+
+### 🧠 SystemPrompt 重写（对标 Crush coder.md.tpl）
+
+**从 107 行扩展到 ~350 行，15 个结构化 XML 区块**
+
+- `<critical_rules>` — 15 条硬规则（先读后改 / 自主行动 / 每次修改后测试 / 极简输出 / 精确匹配）
+- `<code_references>` — `file_path:line_number` 引用规范
+- `<workflow>` — 行动前（搜索/读取/检查记忆）→ 行动中（编辑/测试/修复）→ 完成前（验证/对照需求/lint）
+- `<decision_making>` — 自主决策原则 + 停止条件（能查到就不问 / 绝不因任务大而停下）
+- `<editing_files>` — 编辑工具使用指南（edit_file / multi_edit / write_file 选择 + 7 步编辑流程 + 常见错误）
+- `<exact_matching>` — 精确匹配避坑指南（空格 vs Tab / 花括号前空格 / 注释后空格 / 编辑失败修复流程）
+- `<task_completion>` — 端到端完成检查清单（行动前思考 → 完整接线所有组件 → 逐项验证原始需求）
+- `<error_handling>` — 错误恢复流程（读错误 → 隔离 → 3 种方案 → 修复 → 测试）
+- `<testing>` — 测试规范（具体到宽泛 / 自我验证 / lint + 类型检查）
+- `<tool_usage>` — 工具使用最佳实践 + bash 非交互命令优先
+- `<code_conventions>` — 先读后写 / 匹配风格 / 野心 vs 精确
+- `<proactiveness>` — 自主性平衡（被要求就做完 / 不描述直接做 / 被问"如何"只解释不实现）
+- `<final_answers>` — 回复详细程度分级（默认 3 行 / 复杂任务 10-15 行 / 避免废话）
+
+**技术修复**：使用无 `$` 前缀的 `"""` 原始字符串 + `.Replace()` 注入变量，避免代码示例中 `{` 花括号导致 C# 插值解析错误
+
+### 🔄 SHA256 循环检测（Crush 风格）
+
+- `Agent/Agent.cs` 新增 `DetectAndBreakLoop()` 方法
+- 每轮对（assistant 消息 + 工具结果）做 SHA256 哈希，8 轮窗口内相同哈希出现 3+ 次触发
+- 3 级递进式反循环提示（换方法 → 重新评估 → 严重警告重置）
+- 触发后清空窗口给 Agent 几轮调整时间
+- 通过 `DebugLog.Log("loop", ...)` 记录检测事件
+
+### 📝 编辑工具描述增强
+
+- `EditFileTool.Description` 重写：强调"先读后改"、"逐字符匹配（空格、Tab、换行）"、"3-5 行上下文确保唯一"
+- `EditFileTool` 参数级描述增强：`old_string` 提示"从 read_file 输出精确复制，不要凭记忆或近似猜测"
+- `WriteFileTool.Description` 重写：强调"仅用于新建或整体重写 / 局部编辑用 edit_file / 覆写前先 read_file"
+
+### 🔧 Agent 架构更新
+
+| 文件 | 变更 |
+|------|------|
+| `Agent/SystemPrompt.cs` | 完全重写，107→350 行，15 个结构化区块 |
+| `Agent/Agent.cs` | 新增 SHA256 循环检测（`DetectAndBreakLoop`） |
+| `Tools/EditFileTool.cs` | 描述 + 参数描述大幅增强 |
+| `Tools/WriteFileTool.cs` | 描述 + 参数描述增强 |
+| `Config/Global.cs` | v0.31.6 → v0.31.7 |
+
+### 🧪 测试
+- 1339 项自测全部通过
 
 ### 📄 文档读取增强
 

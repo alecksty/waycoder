@@ -12,7 +12,7 @@ WayCoder（道码）是一个中文版易用编程智能体，C# (.NET 10) 实�
 # C# 版
 cd WayCoder
 dotnet publish -c Release            # AOT 编译
-dotnet run -- --test                 # 1199 自测
+dotnet run -- --test                 # 1339 自测
 dotnet run -- -p "提示词"            # 一次性模式
 dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 ```
@@ -27,7 +27,7 @@ WayCoder/
 ├── LLM.cs             LLM 客户端 (流式 + 回退)
 ├── ContextManager.cs  Crush 风格上下文管理 (token 追踪 + 自动摘要)
 ├── SessionManager.cs  会话持久化
-├── SystemPrompt.cs    系统提示词 (含项目检测)
+├── SystemPrompt.cs    系统提示词 (对标 Crush coder.md.tpl，15 个结构化区块)
 ├── Config.cs          配置 (.env 加载)
 ├── WatchMode.cs        Watch 模式 (文件监听 + AI! 注释)
 ├── PermissionManager.cs 权限确认系统
@@ -38,7 +38,7 @@ WayCoder/
 ├── StructuredMemory.cs 结构化记忆 (frontmatter 多文件 + MEMORY.md 索引)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1321+ 项自测
+├── SelfTest.cs        1339+ 项自测
 ├── FileLockManager.cs 文件锁 (防并发修改冲突)
 ├── UI/                 终端 TUI 控件库 (19 文件)
 │   ├── ScreenManager.cs 全屏缓冲 + 弹窗菜单 + 侧栏
@@ -65,12 +65,14 @@ WayCoder/
 │   ├── Syntax.cs       语法高亮 (14 种语言)
 │   ├── DiagnosticManager.cs Lint 诊断集成
 │   └── Gui/            GUI 编辑器占位（预留扩展）
-├── Infra/              基础设施 (5 文件)
+├── Infra/              基础设施 (7 文件)
 │   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
 │   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)
 │   ├── ErrorLog.cs      统一错误日志 (四级 + 自动轮转)
 │   ├── FileIgnoreManager.cs .gitignore + .waycoderignore 规则引擎
-│   └── DesktopNotifier.cs  桌面通知 (终端闪烁 + 响铃 + Toast)
+│   ├── DesktopNotifier.cs  桌面通知 (终端闪烁 + 响铃 + Toast)
+│   ├── PdfExtractor.cs  PDF 文本提取 (PdfPig, AOT 兼容，分页)
+│   └── OfficeExtractor.cs  Office 文档提取 (DOCX/XLSX/PPTX, 零依赖)
 └── Tools/             34 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
@@ -107,7 +109,9 @@ WayCoder/
 - **文件追踪**：`FileTracker` SHA256 哈希记录 + 外部变更检测 + LRU 淘汰，防止 Stale-Read
 - **自动续写**：检测"口述代码"（content >300 字符 + 代码标记）→ 追问使其写文件；首轮只分析不动手 → 追问执行
 - **自动摘要**：Crush 风格上下文预算检查 → 触发小模型压缩 → 注入继续提示 → 重置计数器
-- **文档读取**：PDF 文本提取（PdfPig，AOT 兼容）+ Markdown 结构化渲染（标题/代码块/表格/列表）
+- **文档读取**：PDF 文本提取（PdfPig，AOT 兼容）+ Office 文档提取（DOCX/XLSX/PPTX，ZipArchive + XmlReader 零依赖）+ Markdown 结构化渲染 + CSV 表格解析 + HTML 标签剥离
+- **SystemPrompt 对标 Crush**：`$"""` 原始字符串改用无 `$` 前缀+`.Replace()` 注入，避免代码示例中 `{` / `{{` 花括号导致 C# 插值解析错误。15 个结构化 XML 区块覆盖编辑/测试/错误恢复/任务完成完整指南
+- **SHA256 循环检测**：每轮对（assistant 消息 + 工具结果）做哈希，8 轮窗口内相同哈希出现 3+ 次触发 3 级递进式反循环提示（换方法→重新评估→严重警告重置）
 
 ## 非显而易见的约束
 
