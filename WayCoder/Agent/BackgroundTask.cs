@@ -142,6 +142,31 @@ public static class BackgroundTaskManager
     }
 
     /// <summary>
+    /// 终止指定后台任务。
+    /// </summary>
+    public static string Kill(int id)
+    {
+        if (!_tasks.TryGetValue(id, out var task))
+            return $"未找到任务 #{id}";
+
+        if (task.Status != "running")
+            return $"任务 #{id} 已结束（状态: {task.Status}）";
+
+        try
+        {
+            task.Process?.Kill(entireProcessTree: true);
+            task.Status = "killed";
+            task.Output += "\n[已被用户终止]";
+            task.CompletedAt = DateTime.Now;
+            return $"已终止任务 #{id}: {task.Command}";
+        }
+        catch (Exception ex)
+        {
+            return $"终止任务 #{id} 失败: {ex.Message}";
+        }
+    }
+
+    /// <summary>
     /// 清理已完成的任务。
     /// </summary>
     public static void Cleanup()

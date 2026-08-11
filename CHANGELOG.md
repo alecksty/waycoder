@@ -1,5 +1,45 @@
 # 更新日志
 
+## v0.31.3 (2026-08-11) — 竞品对标：后台任务工具 + Download 工具 + Bash 后台增强
+
+### ✨ 新功能
+
+**后台任务工具**（对标 Crush 竞品分析）
+- `JobOutputTool` (`job_output`) — LLM 可读取后台运行 bash 任务的输出，支持 timeout 等待
+- `JobKillTool` (`job_kill`) — LLM 可终止指定的后台 bash 任务
+- `BackgroundTask.Kill()` — 新增进程终止方法（`entireProcessTree: true`）
+
+**Download 工具**
+- `DownloadTool` (`download`) — HTTP GET 下载文件到本地
+  - 安全检查：拒绝 `file:///`、仅允许 http/https、最大 500MB、自动创建父目录
+  - 超时：默认 60s，最大 600s
+  - 权限：需要确认（危险操作）
+
+**Bash 后台运行增强**
+- `BashTool` 新增参数：`run_in_background` (bool)、`auto_background_after` (int)
+- 后台模式：启动 BackgroundTask → 返回 shell_id → LLM 后续可通过 job_output/job_kill 管理
+
+### 🔧 权限分类
+- `download` 加入 PermissionManager.DangerousTools 列表
+- `job_output` 加入 AutoModeClassifier.SafeTools（只读操作）
+- `job_kill` 加入 AutoModeClassifier.DangerousTools（破坏性操作）
+
+### 🗂 新增 + 修改文件
+| 文件 | 说明 |
+|------|------|
+| `Tools/JobOutputTool.cs` | 后台任务输出读取工具 |
+| `Tools/JobKillTool.cs` | 后台任务终止工具 |
+| `Tools/DownloadTool.cs` | HTTP 下载工具 |
+| `Agent/BackgroundTask.cs` | 新增 Kill 方法 + 增强输出缓冲 |
+| `Tools/BashTool.cs` | 新增后台运行参数 |
+| `Tools/ToolRegistry.cs` | 工具数量 33→36 |
+| `Skills/AutoModeClassifier.cs` | 新工具风险分类 |
+| `Skills/PermissionManager.cs` | download 确认规则 |
+| `.gitignore` | 忽略 crush/ 和 test_game/ 参考目录 |
+
+### 🧪 测试
+- 1307 项自测全部通过
+
 ## v0.31.2 (2026-08-11) — TUI 增量渲染优化
 
 ### 🐛 修复
