@@ -40,3 +40,5 @@ __pycache__/
 # WayCoder 工作区和测试产物
 WayCoder/works/
 WayCoder/test/
+games/
+chess-test/

@@ -41,7 +41,7 @@ public class DownloadTool : ITool
         var filePath = arguments.GetValueOrDefault("file_path")?.ToString() ?? "";
         var timeout = arguments.TryGetValue("timeout", out var t) && t is int timeoutVal
             ? Math.Clamp(timeoutVal, 1, 600)
-            : 60;
+            : Config.Instance.DownloadTimeoutSec;
 
         // 安全检查：仅允许 http/https
         if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&

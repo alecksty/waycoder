@@ -43,10 +43,10 @@ public class DocTool : ITool
         ["required"] = new JsonArray("action"),
     };
 
-    private static readonly HttpClient _client = new()
-    {
-        Timeout = TimeSpan.FromSeconds(25),
-    };
+    private static HttpClient _client => _lazyClient.Value;
+    private static readonly Lazy<HttpClient> _lazyClient = new(() => new HttpClient(
+        new HttpClientHandler { AllowAutoRedirect = true, MaxAutomaticRedirections = 5 })
+    { Timeout = TimeSpan.FromSeconds(Config.Instance.FetchTimeoutSec) });
 
     /// <summary>会话级缓存：避免重复查询相同内容</summary>
     private static readonly Dictionary<string, (string Result, DateTime Time)> _cache = [];
@@ -181,7 +181,8 @@ public class DocTool : ITool
         }
         catch (TaskCanceledException)
         {
-            return "错误：请求超时（25 秒）";
+            ErrorLog.ToolError("doc", $"请求超时（{Config.Instance.FetchTimeoutSec} 秒）");
+            return $"错误：请求超时（{Config.Instance.FetchTimeoutSec} 秒）";
         }
         catch (Exception ex)
         {

@@ -128,12 +128,20 @@ public class EditFileTool : ITool
 
             File.WriteAllText(path, newContent, Encoding.UTF8);
             ChangedFiles.Add(path);
+            FileTracker.RecordWrite(path);
 
             var diff = UnifiedDiff(content, newContent, path);
             var replacedMsg = replaceAll && occurrences > 1
                 ? $"（{occurrences} 处替换）"
                 : "";
-            return $"已编辑 {filePath}{replacedMsg}\n{diff}";
+            var result = $"已编辑 {filePath}{replacedMsg}\n{diff}";
+
+            // LSP 诊断自动附加：运行 lint 检查新引入的错误
+            var diagnostics = await DiagnosticManager.TryRunLintWithTimeout(path, 3000);
+            if (diagnostics != null)
+                result += "\n\n" + diagnostics;
+
+            return result;
         }
         catch (Exception ex)
         {

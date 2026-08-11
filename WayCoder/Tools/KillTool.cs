@@ -115,7 +115,8 @@ public class KillTool : ITool
             if (completed != exitTask || !exitTask.IsCompletedSuccessfully)
             {
                 proc.Kill(entireProcessTree: true);
-                return "错误：kill 命令超时（10s）";
+                ErrorLog.ToolError("kill", $"进程终止超时（{Config.Instance.KillTimeoutSec}s）");
+                return $"错误：kill 命令超时（{Config.Instance.KillTimeoutSec}s）";
             }
 
             var result = await stdoutTask;

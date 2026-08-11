@@ -96,6 +96,9 @@ public class ReadFileTool : ITool
             var lines = text.Split('\n');
             var total = lines.Length;
 
+            // 文件追踪：记录读取时的哈希，用于后续变更检测
+            FileTracker.RecordRead(path);
+
             var start = Math.Max(0, offset - 1);
             var chunk = lines.Skip(start).Take(limit).ToArray();
 
@@ -120,6 +123,15 @@ public class ReadFileTool : ITool
             }
 
             sb.Append("</file>");
+
+            // 附加缓存的 LSP 诊断信息
+            var diag = DiagnosticManager.FormatForLLM(path);
+            if (diag != null)
+            {
+                sb.AppendLine();
+                sb.Append(diag);
+            }
+
             return sb.ToString();
         }
         catch (Exception ex)

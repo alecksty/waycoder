@@ -78,7 +78,8 @@ public class WebSearchTool : ITool
         }
         catch (TaskCanceledException)
         {
-            return "错误: 搜索超时（15 秒），请稍后重试。";
+            ErrorLog.ToolError("web_search", $"搜索超时（{Config.Instance.FetchTimeoutSec} 秒）");
+            return $"错误: 搜索超时（{Config.Instance.FetchTimeoutSec} 秒），请稍后重试。";
         }
         catch (HttpRequestException ex)
         {
