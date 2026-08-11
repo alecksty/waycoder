@@ -3332,6 +3332,29 @@ another.txt:3:1: warning: deprecated API
         ta3.ScrollRow = 0;
         ta3.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.PageDown, false, false, false));
         Check("TuiTextArea PageDown 滚动", ta3.ScrollRow > 0);
+
+        // MaxColumnWidth 自动换行
+        var ta4 = new TuiTextArea { MaxColumnWidth = 10, Focused = true };
+        ta4.Text = "hello world this is a long sentence";
+        Check("TuiTextArea MaxColumnWidth 默认不折行(已有文本)", ta4.Lines.Count == 1);
+        ta4.Text = "";
+        // 逐字输入触发折行
+        foreach (var c in "hello world test wrap")
+            ta4.OnKey(new ConsoleKeyInfo(c, ConsoleKey.None, false, false, false));
+        Check("TuiTextArea MaxColumnWidth 输入折行", ta4.Lines.Count >= 2);
+
+        // MaxLines 行数裁剪
+        var ta5 = new TuiTextArea { MaxLines = 3, Focused = true };
+        ta5.Text = "line1\nline2\nline3\nline4\nline5";
+        Check("TuiTextArea MaxLines 裁剪前", ta5.Lines.Count == 5);
+        ta5.OnKey(new ConsoleKeyInfo('x', ConsoleKey.X, false, false, false)); // 触发 TrimExcessLines
+        Check("TuiTextArea MaxLines 裁剪后", ta5.Lines.Count == 3);
+        Check("TuiTextArea MaxLines 保留最后几行", ta5.Lines[0] == "line3");
+
+        // MaxColumnWidth = 0 不限宽
+        var ta6 = new TuiTextArea { MaxColumnWidth = 0 };
+        ta6.Text = new string('A', 200);
+        Check("TuiTextArea MaxColumnWidth=0 不折行", ta6.Lines.Count == 1);
         Console.WriteLine();
 
         // ================================================================

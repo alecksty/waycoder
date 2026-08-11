@@ -21,7 +21,7 @@ namespace WayCoder.UI.TuiControls;
 ///   Ctrl+S — 保存（触发 OnSaveRequested）
 ///   可打印字符 — 插入
 /// </summary>
-public class TuiRichEditor : TuiControl
+public class TuiRichEditor : TuiEditBase
 {
     // ── 数据模型 ──
     public EditorCore Core { get; set; } = new();
@@ -43,13 +43,14 @@ public class TuiRichEditor : TuiControl
     public event Action? OnJumpRequested;
     public event Action? OnExitRequested;
 
+    /// <summary>富文本编辑器接受 Tab 键作为缩进输入。</summary>
+    protected override bool AcceptsTab => true;
+
     /// <summary>可见行数（从 Height 推导）</summary>
     public int VisibleLines => Height > 0 ? Height : 10;
 
     /// <summary>内容区起始列（跳过行号和 Gutter）</summary>
     private int ContentStart => LineNumberWidth + GutterWidth;
-
-    public override bool HasCursor => true;
 
     public TuiRichEditor()
     {
@@ -133,6 +134,17 @@ public class TuiRichEditor : TuiControl
                 // ── 语法高亮内容 ──
                 RenderSyntaxLine(sb, row, absX + prefixW, Core.Lines[li].ToString(),
                     contentW, isCursor ? CursorBg : (diagBg > 0 ? diagBg : Bg));
+
+                // ── 光标位置 ──
+                if (IsCursorOwner && isCursor && IsEnabled)
+                {
+                    var line = Core.Lines[li].ToString();
+                    var preCursor = line.Length > 0
+                        ? line[..Math.Min(Core.Cx, line.Length)]
+                        : "";
+                    int cursorVisualOffset = TuiHelper.DisplayWidth(preCursor);
+                    RecordCursorPos(row, absX + prefixW + cursorVisualOffset);
+                }
             }
             else
             {
@@ -140,6 +152,12 @@ public class TuiRichEditor : TuiControl
                 var tildeFg = isCursor ? CursorFg : 2;
                 var tildeBg = isCursor ? CursorBg : Bg;
                 WriteAt(sb, row, absX, "    ~", tildeFg, tildeBg);
+
+                // ── 光标位置（空行） ──
+                if (IsCursorOwner && isCursor && IsEnabled)
+                {
+                    RecordCursorPos(row, absX + prefixW);
+                }
             }
         }
     }
@@ -209,6 +227,38 @@ public class TuiRichEditor : TuiControl
         if (Core.Cy < Core.Scroll) Core.Scroll = Core.Cy;
         if (Core.Cy >= Core.Scroll + vh) Core.Scroll = Core.Cy - vh + 1;
         Core.Scroll = Math.Clamp(Core.Scroll, 0, Math.Max(0, Core.Lines.Count - vh));
+    }
+
+    /// <summary>
+    /// 计算并设置光标屏幕坐标（基于 EditorCore 数据模型）。
+    /// 不依赖 OnRender 调用，保证即使控件未被重绘光标位置也正确。
+    /// </summary>
+    protected override void GotoCursorPos()
+    {
+        if (!IsCursorOwner) return;
+
+        var absX = GetAbsoluteX();
+        var absY = GetAbsoluteY();
+        int prefixW = LineNumberWidth + GutterWidth;
+        int vh = VisibleLines;
+
+        // 确保光标在视口内
+        if (Core.Cy < Core.Scroll) Core.Scroll = Core.Cy;
+        if (Core.Cy >= Core.Scroll + vh) Core.Scroll = Core.Cy - vh + 1;
+        Core.Scroll = Math.Clamp(Core.Scroll, 0, Math.Max(0, Core.Lines.Count - vh));
+
+        int screenRow = absY + (Core.Cy - Core.Scroll);
+
+        // 计算光标列偏移
+        string line = Core.Cy < Core.Lines.Count ? Core.Lines[Core.Cy].ToString() : "";
+        var preCursor = line.Length > 0
+            ? line[..Math.Min(Core.Cx, line.Length)]
+            : "";
+        int cursorVisualOffset = TuiHelper.DisplayWidth(preCursor);
+
+        _cursorRow = Math.Clamp(screenRow, absY, absY + vh - 1);
+        _cursorCol = absX + prefixW + cursorVisualOffset;
+        _showCursor = true;
     }
 
     // ── 键盘处理 ──
@@ -292,4 +342,53 @@ public class TuiRichEditor : TuiControl
             filePath += ".txt";
         Core.LoadFile(filePath);
     }
+
+    // ── 抽象原语（委托给 EditorCore）──
+
+    protected override void MoveCursorLeft()      => Core.MoveCursor(-1, 0);
+    protected override void MoveCursorRight()     => Core.MoveCursor(1, 0);
+    protected override void MoveCursorUp()        => Core.MoveCursor(0, -1);
+    protected override void MoveCursorDown()      => Core.MoveCursor(0, 1);
+    protected override void MoveCursorHome()      => Core.MoveHome();
+    protected override void MoveCursorEnd()       => Core.MoveEnd();
+    protected override void MoveCursorPageUp()    => Core.MovePageUp(VisibleLines);
+    protected override void MoveCursorPageDown()  => Core.MovePageDown(VisibleLines);
+
+    protected override void InsertChar(char ch)        => Core.InsertText(ch.ToString());
+    protected override void DeleteCharBefore()          => Core.Backspace();
+    protected override void DeleteCharAfter()           => Core.Delete();
+    protected override void InsertNewLine()             => Core.NewLine();
+    protected override void Undo()                      => Core.Undo();
+    protected override void Redo()                      => Core.Undo(); // EditorCore 无双栈
+    protected override void PasteText(string text)      => Core.InsertText(text);
+    protected override string GetText()                 => string.Join("\n", Core.Lines.Select(l => l.ToString()));
+
+    protected override void DeleteWordBefore()
+    {
+        var line = Core.Lines[Core.Cy].ToString();
+        int pos = Core.Cx;
+        while (pos > 0 && line[pos - 1] == ' ') pos--;
+        while (pos > 0 && line[pos - 1] != ' ') pos--;
+        var deleted = line[pos..Core.Cx];
+        Core.Lines[Core.Cy] = new StringBuilder(line[..pos] + line[Core.Cx..]);
+        Core.Cx = pos;
+        if (deleted.Length > 0) Core.Undo(); // push undo
+    }
+
+    protected override void DeleteToLineEnd()
+    {
+        var line = Core.Lines[Core.Cy].ToString();
+        int col = Math.Min(Core.Cx, line.Length);
+        if (col >= line.Length) return;
+        Core.Lines[Core.Cy] = new StringBuilder(line[..col]);
+    }
+
+    // 选择（简化实现 —— TuiRichEditor 不使用基类的选择分发）
+    public override bool HasSelection => false;
+    public override string? GetSelectedText() => null;
+    protected override void SelectAll() { }
+    protected override void ClearSelection() { }
+    protected override void StartSelection() { }
+    protected override void ExtendSelection() { }
+    protected override void DeleteSelection() { }
 }

@@ -7,7 +7,7 @@ namespace WayCoder.UI.TuiControls;
 /// 多行文本编辑控件 —— 支持光标自由移动、自动换行、滚动、文本选择、撤销重做。
 /// 可嵌入任何 View 容器中。
 /// </summary>
-public class TuiTextArea : TuiControl
+public class TuiTextArea : TuiEditBase
 {
     // ── 文本缓冲 ──
 
@@ -44,19 +44,14 @@ public class TuiTextArea : TuiControl
     /// <summary>是否显示行号</summary>
     public bool ShowLineNumbers { get; set; }
 
-    /// <summary>是否只读</summary>
-    public bool ReadOnly { get; set; }
-
     /// <summary>占位文本（内容为空时显示）</summary>
     public string Placeholder { get; set; } = "";
 
-    // ── 事件 ──
+    /// <summary>最大行数（0 = 不限）。超出时从顶部裁剪旧行。</summary>
+    public int MaxLines { get; set; } = 0;
 
-    /// <summary>文本变化时触发</summary>
-    public Action? OnTextChanged { get; set; }
-
-    /// <summary>Ctrl+Enter 提交时触发</summary>
-    public Action<string>? OnSubmit { get; set; }
+    /// <summary>文字自动换行列宽（0 = 不限）。超出此列宽自动折行，可视区 Width 可小于此值以实现水平滚动。</summary>
+    public int MaxColumnWidth { get; set; } = 0;
 
     // ── 样式 ──
 
@@ -78,18 +73,16 @@ public class TuiTextArea : TuiControl
     public int SelEndCol { get; set; } = -1;
 
     /// <summary>是否有活动的文本选择</summary>
-    public bool HasSelection =>
+    public override bool HasSelection =>
         SelStartRow >= 0 && SelEndRow >= 0 &&
         !(SelStartRow == SelEndRow && SelStartCol == SelEndCol);
 
-    /// <summary>清除选择</summary>
-    private void ClearSelection()
+    protected override void ClearSelection()
     {
         SelStartRow = SelEndRow = SelStartCol = SelEndCol = -1;
     }
 
-    /// <summary>从光标位置开始选择</summary>
-    private void StartSelection()
+    protected override void StartSelection()
     {
         SelStartRow = CursorRow;
         SelStartCol = CursorCol;
@@ -97,8 +90,7 @@ public class TuiTextArea : TuiControl
         SelEndCol = CursorCol;
     }
 
-    /// <summary>更新选择终点</summary>
-    private void ExtendSelection()
+    protected override void ExtendSelection()
     {
         SelEndRow = CursorRow;
         SelEndCol = CursorCol;
@@ -115,7 +107,6 @@ public class TuiTextArea : TuiControl
 
     private readonly Stack<EditAction> _undoStack = new();
     private readonly Stack<EditAction> _redoStack = new();
-    private const int MaxUndoHistory = 100;
 
     private void RecordEdit(char type, int row, int col, string text)
     {
@@ -125,15 +116,7 @@ public class TuiTextArea : TuiControl
         _redoStack.Clear();
     }
 
-    private static void TrimStack(Stack<EditAction> stack, int max)
-    {
-        if (stack.Count <= max) return;
-        var arr = stack.ToArray();
-        stack.Clear();
-        for (int i = arr.Length - 2; i >= 0; i--) stack.Push(arr[i]);
-    }
-
-    private void Undo()
+    protected override void Undo()
     {
         if (_undoStack.Count == 0) return;
         var action = _undoStack.Pop();
@@ -171,7 +154,7 @@ public class TuiTextArea : TuiControl
         NotifyChange();
     }
 
-    private void Redo()
+    protected override void Redo()
     {
         if (_redoStack.Count == 0) return;
         var action = _redoStack.Pop();
@@ -272,8 +255,6 @@ public class TuiTextArea : TuiControl
         Lines[row] = cur + next;
         Lines.RemoveAt(row + 1);
     }
-
-    public override bool HasCursor => true;
 
     public TuiTextArea()
     {
@@ -406,9 +387,7 @@ public class TuiTextArea : TuiControl
                 int cursorScreenCol = absX + lineNumW + cursorVisualOffset;
                 if (cursorScreenCol < absX + Width && cursorScreenCol >= absX + lineNumW)
                 {
-                    _cursorRow = screenRow;
-                    _cursorCol = cursorScreenCol;
-                    _showCursor = true;
+                    RecordCursorPos(screenRow, cursorScreenCol);
                 }
             }
             else if (IsCursorOwner && !isCursorLine)
@@ -434,7 +413,7 @@ public class TuiTextArea : TuiControl
     }
 
     /// <summary>获取选中的文本</summary>
-    public string? GetSelectedText()
+    public override string? GetSelectedText()
     {
         if (!HasSelection) return null;
         NormalizeSelection(out int sr, out int sc, out int er, out int ec);
@@ -455,7 +434,7 @@ public class TuiTextArea : TuiControl
     }
 
     /// <summary>删除选中文本</summary>
-    private void DeleteSelection()
+    protected override void DeleteSelection()
     {
         if (!HasSelection) return;
         NormalizeSelection(out int sr, out int sc, out int er, out int ec);
@@ -486,212 +465,47 @@ public class TuiTextArea : TuiControl
         NotifyChange();
     }
 
-    // ── 输入处理 ──
-    public override bool OnKey(ConsoleKeyInfo key)
+    // ── 光标移动原语 ──
+
+    protected override void MoveCursorLeft()  => MoveCursorCol(-1);
+    protected override void MoveCursorRight() => MoveCursorCol(1);
+    protected override void MoveCursorUp()    => MoveCursorRow(-1);
+    protected override void MoveCursorDown()  => MoveCursorRow(1);
+    protected override void MoveCursorHome()  { CursorCol = 0; }
+    protected override void MoveCursorEnd()   { CursorCol = SafeLine(CursorRow).Length; }
+    protected override void MoveCursorPageUp()
     {
-        // Hook 优先拦截（不受 Focused/ReadOnly 限制）
-        if (KeyHook != null && KeyHook(key))
-            return true;
-
-        if (!IsEnabled || !Focused || ReadOnly) return false;
-
-        bool shift = key.Modifiers.HasFlag(ConsoleModifiers.Shift);
-        bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
-
-        // Ctrl 组合键
-        if (ctrl)
-            return HandleCtrlKey(key);
-
-        // Shift + 方向键（选择扩展）
-        if (shift)
-        {
-            switch (key.Key)
-            {
-                case ConsoleKey.LeftArrow:
-                    if (!HasSelection) StartSelection();
-                    MoveCursorCol(-1);
-                    ExtendSelection();
-                    return true;
-                case ConsoleKey.RightArrow:
-                    if (!HasSelection) StartSelection();
-                    MoveCursorCol(1);
-                    ExtendSelection();
-                    return true;
-                case ConsoleKey.UpArrow:
-                    if (!HasSelection) StartSelection();
-                    MoveCursorRow(-1);
-                    ExtendSelection();
-                    return true;
-                case ConsoleKey.DownArrow:
-                    if (!HasSelection) StartSelection();
-                    MoveCursorRow(1);
-                    ExtendSelection();
-                    return true;
-                case ConsoleKey.Home:
-                    if (!HasSelection) StartSelection();
-                    CursorCol = 0;
-                    ExtendSelection();
-                    return true;
-                case ConsoleKey.End:
-                    if (!HasSelection) StartSelection();
-                    CursorCol = SafeLine(CursorRow).Length;
-                    ExtendSelection();
-                    return true;
-            }
-        }
-
-        switch (key.Key)
-        {
-            case ConsoleKey.LeftArrow:
-                if (HasSelection)
-                {
-                    NormalizeSelection(out int sr, out int sc, out _, out _);
-                    CursorRow = sr; CursorCol = sc;
-                    ClearSelection();
-                }
-                else MoveCursorCol(-1);
-                return true;
-            case ConsoleKey.RightArrow:
-                if (HasSelection)
-                {
-                    NormalizeSelection(out _, out _, out int er, out int ec);
-                    CursorRow = er; CursorCol = ec;
-                    ClearSelection();
-                }
-                else MoveCursorCol(1);
-                return true;
-            case ConsoleKey.UpArrow:
-                if (HasSelection) { NormalizeSelection(out int sr2, out int sc2, out _, out _); CursorRow = sr2; CursorCol = sc2; ClearSelection(); }
-                else MoveCursorRow(-1);
-                return true;
-            case ConsoleKey.DownArrow:
-                if (HasSelection) { NormalizeSelection(out _, out _, out int er2, out int ec2); CursorRow = er2; CursorCol = ec2; ClearSelection(); }
-                else MoveCursorRow(1);
-                return true;
-            case ConsoleKey.Home:
-                CursorCol = 0; ClearSelection(); return true;
-            case ConsoleKey.End:
-                CursorCol = SafeLine(CursorRow).Length; ClearSelection(); return true;
-            case ConsoleKey.PageUp:
-                ScrollRow = Math.Max(0, ScrollRow - Height);
-                CursorRow = Math.Max(0, CursorRow - Height);
-                ClearSelection();
-                return true;
-            case ConsoleKey.PageDown:
-                ScrollRow = Math.Min(Math.Max(0, Lines.Count - 1), ScrollRow + Height);
-                CursorRow = Math.Min(Lines.Count - 1, CursorRow + Height);
-                ClearSelection();
-                return true;
-            case ConsoleKey.Backspace:
-                if (HasSelection) DeleteSelection();
-                else DeleteBefore();
-                return true;
-            case ConsoleKey.Delete:
-                if (HasSelection) DeleteSelection();
-                else DeleteAfter();
-                return true;
-            case ConsoleKey.Enter:
-                if (HasSelection) DeleteSelection();
-                InsertNewline();
-                return true;
-            case ConsoleKey.Escape:
-                ClearSelection();
-                return true;
-            default:
-                if (key.KeyChar >= ' ')
-                {
-                    if (HasSelection) DeleteSelection();
-                    InsertChar(key.KeyChar);
-                    return true;
-                }
-                return false;
-        }
+        ScrollRow = Math.Max(0, ScrollRow - Height);
+        CursorRow = Math.Max(0, CursorRow - Height);
+    }
+    protected override void MoveCursorPageDown()
+    {
+        ScrollRow = Math.Min(Math.Max(0, Lines.Count - 1), ScrollRow + Height);
+        CursorRow = Math.Min(Lines.Count - 1, CursorRow + Height);
     }
 
-    private bool HandleCtrlKey(ConsoleKeyInfo key)
+    protected override void JumpToSelStart()
     {
-        switch (key.Key)
-        {
-            case ConsoleKey.A: // 全选
-                SelStartRow = 0; SelStartCol = 0;
-                SelEndRow = Lines.Count - 1;
-                SelEndCol = SafeLine(Lines.Count - 1).Length;
-                CursorRow = SelEndRow;
-                CursorCol = SelEndCol;
-                return true;
-            case ConsoleKey.C: // 复制
-                if (HasSelection)
-                {
-                    var st = GetSelectedText();
-                    if (!string.IsNullOrEmpty(st))
-                        CopyToClipboard(st);
-                }
-                return true;
-            case ConsoleKey.X: // 剪切
-                if (HasSelection)
-                {
-                    var st = GetSelectedText();
-                    if (!string.IsNullOrEmpty(st))
-                        CopyToClipboard(st);
-                    DeleteSelection();
-                }
-                return true;
-            case ConsoleKey.V: // 粘贴
-                var pasteText = GetClipboardText();
-                if (!string.IsNullOrEmpty(pasteText))
-                {
-                    if (HasSelection) DeleteSelection();
-                    InsertTextAt(CursorRow, CursorCol, pasteText);
-                    int newLines = pasteText.Count(c => c == '\n');
-                    CursorRow += newLines;
-                    int lastNL = pasteText.LastIndexOf('\n');
-                    CursorCol = lastNL >= 0 ? pasteText.Length - lastNL - 1 : CursorCol + pasteText.Length;
-                    RecordEdit('I', CursorRow - newLines, lastNL >= 0 ? 0 : CursorCol - pasteText.Length, pasteText);
-                    NotifyChange();
-                }
-                return true;
-            case ConsoleKey.Z: // 撤销
-                Undo();
-                return true;
-            case ConsoleKey.Y: // 重做
-                Redo();
-                return true;
-            case ConsoleKey.E: // 行尾
-                ClearSelection();
-                CursorCol = SafeLine(CursorRow).Length;
-                return true;
-            case ConsoleKey.K: // 删至行尾
-                {
-                    ClearSelection();
-                    var line = SafeLine(CursorRow);
-                    int col = Math.Min(CursorCol, line.Length);
-                    var deleted = line[col..];
-                    Lines[CursorRow] = line[..col];
-                    RecordEdit('D', CursorRow, col, deleted);
-                    NotifyChange();
-                    return true;
-                }
-            case ConsoleKey.Enter:
-                ClearSelection();
-                OnSubmit?.Invoke(Text);
-                return true;
-            case ConsoleKey.Backspace: // Ctrl+Backspace: 删一个词
-                ClearSelection();
-                DeleteWordBefore();
-                return true;
-        }
-        return false;
+        NormalizeSelection(out int sr, out int sc, out _, out _);
+        CursorRow = sr; CursorCol = sc;
+    }
+    protected override void JumpToSelEnd()
+    {
+        NormalizeSelection(out _, out _, out int er, out int ec);
+        CursorRow = er; CursorCol = ec;
     }
 
-    // ── 编辑操作 ──
+    // ── 编辑原语 ──
 
-    private void InsertChar(char ch)
+    protected override void InsertChar(char ch)
     {
         var line = SafeLine(CursorRow);
         int pos = Math.Min(CursorCol, line.Length);
         Lines[CursorRow] = line[..pos] + ch + line[pos..];
         RecordEdit('I', CursorRow, CursorCol, ch.ToString());
         CursorCol++;
+        WrapCurrentLine();
+        TrimExcessLines();
         NotifyChange();
     }
 
@@ -700,18 +514,19 @@ public class TuiTextArea : TuiControl
     {
         if (string.IsNullOrEmpty(text)) return;
         ClearSelection();
-        InsertTextAt(CursorRow, CursorCol, text);
+        var processed = ApplyColumnWrap(text);
+        InsertTextAt(CursorRow, CursorCol, processed);
         RecordEdit('I', CursorRow, CursorCol, text);
-        int newLines = text.Count(c => c == '\n');
+        int newLines = processed.Count(c => c == '\n');
         CursorRow += newLines;
-        int lastNL = text.LastIndexOf('\n');
-        CursorCol = lastNL >= 0 ? text.Length - lastNL - 1 : CursorCol + text.Length;
+        int lastNL = processed.LastIndexOf('\n');
+        CursorCol = lastNL >= 0 ? processed.Length - lastNL - 1 : CursorCol + processed.Length;
+        TrimExcessLines();
         NotifyChange();
     }
 
-    private void DeleteBefore()
+    protected override void DeleteCharBefore()
     {
-        ClearSelection();
         if (CursorCol > 0)
         {
             var line = SafeLine(CursorRow);
@@ -738,9 +553,8 @@ public class TuiTextArea : TuiControl
         }
     }
 
-    private void DeleteAfter()
+    protected override void DeleteCharAfter()
     {
-        ClearSelection();
         var line = SafeLine(CursorRow);
         if (CursorCol < line.Length)
         {
@@ -760,19 +574,7 @@ public class TuiTextArea : TuiControl
         }
     }
 
-    private void InsertNewline()
-    {
-        var line = SafeLine(CursorRow);
-        var indent = GetIndent(line);
-        Lines[CursorRow] = line[..Math.Min(CursorCol, line.Length)];
-        Lines.Insert(CursorRow + 1, indent + line[Math.Min(CursorCol, line.Length)..]);
-        RecordEdit('S', CursorRow, CursorCol, "\n" + indent);
-        CursorRow++;
-        CursorCol = indent.Length;
-        NotifyChange();
-    }
-
-    private void DeleteWordBefore()
+    protected override void DeleteWordBefore()
     {
         var line = SafeLine(CursorRow);
         int pos = CursorCol;
@@ -785,6 +587,135 @@ public class TuiTextArea : TuiControl
         NotifyChange();
     }
 
+    protected override void DeleteToLineEnd()
+    {
+        var line = SafeLine(CursorRow);
+        int col = Math.Min(CursorCol, line.Length);
+        var deleted = line[col..];
+        if (deleted.Length == 0) return;
+        Lines[CursorRow] = line[..col];
+        RecordEdit('D', CursorRow, col, deleted);
+        NotifyChange();
+    }
+
+    protected override void InsertNewLine()
+    {
+        var line = SafeLine(CursorRow);
+        var indent = GetIndent(line);
+        Lines[CursorRow] = line[..Math.Min(CursorCol, line.Length)];
+        Lines.Insert(CursorRow + 1, indent + line[Math.Min(CursorCol, line.Length)..]);
+        RecordEdit('S', CursorRow, CursorCol, "\n" + indent);
+        CursorRow++;
+        CursorCol = indent.Length;
+        TrimExcessLines();
+        NotifyChange();
+    }
+
+    protected override void SelectAll()
+    {
+        SelStartRow = 0; SelStartCol = 0;
+        SelEndRow = Lines.Count - 1;
+        SelEndCol = SafeLine(Lines.Count - 1).Length;
+        CursorRow = SelEndRow;
+        CursorCol = SelEndCol;
+    }
+
+    protected override void PasteText(string text)
+    {
+        var processed = ApplyColumnWrap(text);
+        InsertTextAt(CursorRow, CursorCol, processed);
+        int newLines = processed.Count(c => c == '\n');
+        CursorRow += newLines;
+        int lastNL = processed.LastIndexOf('\n');
+        CursorCol = lastNL >= 0 ? processed.Length - lastNL - 1 : CursorCol + processed.Length;
+        RecordEdit('I', CursorRow - newLines, lastNL >= 0 ? 0 : CursorCol - processed.Length, text);
+        TrimExcessLines();
+        NotifyChange();
+    }
+
+    protected override string GetText() => Text;
+
+    // ── 自动换行 & 行数裁剪 ──
+
+    /// <summary>对当前光标行检测是否需要按 MaxColumnWidth 折行，并执行折行。</summary>
+    private void WrapCurrentLine()
+    {
+        if (MaxColumnWidth <= 0) return;
+        var line = SafeLine(CursorRow);
+        if (line.Length <= MaxColumnWidth) return;
+        // 在 MaxColumnWidth 附近找空格作为折行点
+        int breakCol = MaxColumnWidth;
+        for (int i = MaxColumnWidth; i > 0; i--)
+        {
+            if (i < line.Length && line[i] == ' ')
+            {
+                breakCol = i + 1; // 在空格后断开
+                break;
+            }
+        }
+        // 如果找不到空格就直接在 MaxColumnWidth 处硬断
+        if (breakCol >= line.Length) return;
+        var left = line[..breakCol];
+        var right = line[breakCol..].TrimStart();
+        Lines[CursorRow] = left;
+        Lines.Insert(CursorRow + 1, right);
+        // 调整光标
+        if (CursorCol >= breakCol)
+        {
+            CursorRow++;
+            CursorCol -= breakCol;
+        }
+    }
+
+    /// <summary>对多行文本按 MaxColumnWidth 逐行折行，返回折行后的文本。</summary>
+    private string ApplyColumnWrap(string text)
+    {
+        if (MaxColumnWidth <= 0) return text;
+        var parts = text.Replace("\r\n", "\n").Split('\n');
+        var result = new List<string>();
+        foreach (var part in parts)
+        {
+            if (part.Length <= MaxColumnWidth)
+            {
+                result.Add(part);
+            }
+            else
+            {
+                // 逐段折行
+                var remaining = part;
+                while (remaining.Length > MaxColumnWidth)
+                {
+                    int breakCol = MaxColumnWidth;
+                    for (int i = MaxColumnWidth; i > 0; i--)
+                    {
+                        if (i < remaining.Length && remaining[i] == ' ')
+                        {
+                            breakCol = i + 1;
+                            break;
+                        }
+                    }
+                    result.Add(remaining[..breakCol]);
+                    remaining = remaining[breakCol..].TrimStart();
+                }
+                if (remaining.Length > 0)
+                    result.Add(remaining);
+            }
+        }
+        return string.Join("\n", result);
+    }
+
+    /// <summary>行数超出 MaxLines 时从顶部裁剪旧行，同步调整光标行。</summary>
+    private void TrimExcessLines()
+    {
+        if (MaxLines <= 0 || Lines.Count <= MaxLines) return;
+        int toRemove = Lines.Count - MaxLines;
+        for (int i = 0; i < toRemove; i++)
+            Lines.RemoveAt(0);
+        CursorRow = Math.Max(0, CursorRow - toRemove);
+        // 也调整滚动偏移
+        ScrollRow = Math.Max(0, ScrollRow - toRemove);
+    }
+
     private static string GetIndent(string line)
     {
         int i = 0;
@@ -792,7 +723,7 @@ public class TuiTextArea : TuiControl
         return line[..i];
     }
 
-    // ── 光标移动 ──
+    // ── 光标移动辅助 ──
 
     private void MoveCursorCol(int delta)
     {
@@ -822,20 +753,45 @@ public class TuiTextArea : TuiControl
 
     private void NotifyChange()
     {
-        OnTextChanged?.Invoke();
-        base.MarkDirty(); // 沿 Parent 链传播脏标记到屏幕
+        NotifyChanged();
     }
 
-    /// <summary>复制文本到系统剪贴板（尽力而为）</summary>
-    private static void CopyToClipboard(string text)
+    /// <summary>
+    /// 计算并设置光标屏幕坐标（多行 CJK 感知 + 滚动偏移）。
+    /// 不依赖 OnRender 调用，保证即使控件未被重绘光标位置也正确。
+    /// </summary>
+    protected override void GotoCursorPos()
     {
-        ClipboardHelper.SetText(text);
-    }
+        if (!IsCursorOwner) return;
 
-    /// <summary>从系统剪贴板获取文本（尽力而为）</summary>
-    private static string? GetClipboardText()
-    {
-        var text = ClipboardHelper.GetText();
-        return string.IsNullOrEmpty(text) ? null : text;
+        var absX = GetAbsoluteX();
+        var absY = GetAbsoluteY();
+        int lineNumW = ShowLineNumbers ? (Lines.Count > 0 ? Lines.Count.ToString().Length + 1 : 3) : 0;
+
+        // 确保光标在当前视口内
+        int visRows = Height;
+        EnsureCursorVisible(visRows);
+
+        // 计算光标所在行在屏幕上的位置
+        int screenRow = absY + (CursorRow - ScrollRow);
+        int textW = Math.Max(1, Width - lineNumW);
+
+        var line = SafeLine(CursorRow);
+        int displayStart = ScrollCol;
+        var preCursorText = line.Length > displayStart
+            ? line[displayStart..Math.Min(CursorCol, line.Length)]
+            : "";
+        int cursorVisualOffset = TuiHelper.DisplayWidth(preCursorText);
+        int cursorScreenCol = absX + lineNumW + cursorVisualOffset;
+
+        // 保持在可视范围内
+        if (cursorScreenCol < absX + lineNumW)
+            cursorScreenCol = absX + lineNumW;
+        if (cursorScreenCol >= absX + Width)
+            cursorScreenCol = absX + Width - 1;
+
+        _cursorRow = Math.Clamp(screenRow, absY, absY + visRows - 1);
+        _cursorCol = cursorScreenCol;
+        _showCursor = true;
     }
 }

@@ -1,6 +1,31 @@
 # 更新日志
 
-## v0.30.0 (2026-08-11) — 系统上限报告 + Markup 符号重构 + 聊天显示风格
+## v0.30.1 (2026-08-11) — TuiEditBase 键盘引擎 + TuiTextArea 自动换行
+
+### ✨ 新功能
+
+**⌨ TuiTextArea 自动换行与行数限制**
+- `MaxColumnWidth` 属性：文字自动折行宽度（按空格智能断词），可视区 `Width` 可小于此值实现水平滚动
+- `MaxLines` 属性：最大行数限制，超出时从顶部自动裁剪旧行，同步调整光标和滚动偏移
+
+### 🔄 重构
+
+**🏗 TuiEditBase 统一键盘分发引擎**
+- 基类新增 18 个抽象编辑原语（光标移动、文本编辑、选择管理、撤销重做、粘贴）
+- 基类实现完整键盘分发：`OnKey` → `HandleCtrlKey` / `HandleShiftKey` / `HandleRegularKey`
+- 子类只需实现数据模型相关的底层原语（每方法 1-5 行），不再需要重复编写键盘处理
+- TuiInput：删除 ~160 行 OnKey，新增 12 个原语实现
+- TuiTextArea：删除 ~175 行 OnKey + HandleCtrlKey，新增 18 个原语实现 + 多行光标移动
+- TuiRichEditor：保留独立的 OnKey 覆写（委托 EditorCore），新增糖衣原语适配基类
+- 消除 ~335 行重复代码
+
+**🔀 按键冲突消除**
+- `AcceptsTab` 虚属性：默认 `false`（Tab 切换焦点），TuiRichEditor 覆写为 `true`（Tab 输入缩进）
+- `InsertNewLine()` 虚方法：默认提交（OnSubmit），TuiTextArea/TuiRichEditor 覆写为实际换行
+- 基类 Tab 分发：`AcceptsTab ? InsertChar('\t') : return false`（交父容器切换焦点）
+
+**🧪 自测**
+- 1306 项自测全部通过（新增 6 项：MaxColumnWidth 折行、MaxLines 裁剪、Tab/Enter 按键差异）
 
 ### ✨ 新功能
 

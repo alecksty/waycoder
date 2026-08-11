@@ -3,31 +3,26 @@ using System.Text;
 namespace WayCoder.UI.TuiControls;
 
 /// <summary>单行文本输入框 —— 支持光标移动、插入、删除、文本选择、撤销重做。</summary>
-public class TuiInput : TuiControl
+public class TuiInput : TuiEditBase
 {
     public string Text { get; set; } = "";
     public int CursorPos { get; set; }
-    public Action<string>? OnSubmit { get; set; }
     public bool Password { get; set; }
 
     // ── 撤销 / 重做 ──
     private record struct EditAction(char Type, int Position, string Text); // 'I'=插入 'D'=删除
     private readonly Stack<EditAction> _undoStack = new();
     private readonly Stack<EditAction> _redoStack = new();
-    private const int MaxUndoHistory = 100;
-
     /// <summary>记录一次编辑操作并清空重做栈</summary>
     private void RecordEdit(char type, int pos, string text)
     {
         _undoStack.Push(new EditAction(type, pos, text));
-        if (_undoStack.Count > MaxUndoHistory)
-            _undoStack.TryPop(out _); // 实际 Stack 没有 TryPop，用循环
-        while (_undoStack.Count > MaxUndoHistory) { var arr = _undoStack.ToArray(); _undoStack.Clear(); for (int i = arr.Length - 2; i >= 0; i--) _undoStack.Push(arr[i]); }
+        TrimStack(_undoStack, MaxUndoHistory);
         _redoStack.Clear();
     }
 
     /// <summary>撤销最近一次操作</summary>
-    private void Undo()
+    protected override void Undo()
     {
         if (_undoStack.Count == 0) return;
         var action = _undoStack.Pop();
@@ -49,7 +44,7 @@ public class TuiInput : TuiControl
     }
 
     /// <summary>重做最近一次撤销</summary>
-    private void Redo()
+    protected override void Redo()
     {
         if (_redoStack.Count == 0) return;
         var action = _redoStack.Pop();
@@ -75,50 +70,39 @@ public class TuiInput : TuiControl
     public int SelectionEnd { get; set; } = -1;
 
     /// <summary>是否有活动的文本选择</summary>
-    public bool HasSelection => SelectionStart >= 0 && SelectionEnd >= 0 && SelectionStart != SelectionEnd;
+    public override bool HasSelection => SelectionStart >= 0 && SelectionEnd >= 0 && SelectionStart != SelectionEnd;
 
     /// <summary>获取选中的文本</summary>
-    public string? SelectedText
-    {
-        get
-        {
-            if (!HasSelection) return null;
-            int s = Math.Min(SelectionStart, SelectionEnd);
-            int e = Math.Max(SelectionStart, SelectionEnd);
-            if (s < 0 || e > Text.Length) return null;
-            return Text[s..e];
-        }
-    }
-
-    /// <summary>清除选择</summary>
-    private void ClearSelection() { SelectionStart = SelectionEnd = -1; }
-
-    /// <summary>从光标位置开始选择</summary>
-    private void StartSelection() { SelectionStart = CursorPos; SelectionEnd = CursorPos; }
-
-    /// <summary>更新选择终点（保持起点不变）</summary>
-    private void ExtendSelection() { SelectionEnd = CursorPos; }
-
-    /// <summary>删除选中文本并返回删除的文本</summary>
-    private string? DeleteSelection()
+    public override string? GetSelectedText()
     {
         if (!HasSelection) return null;
+        int s = Math.Min(SelectionStart, SelectionEnd);
+        int e = Math.Max(SelectionStart, SelectionEnd);
+        if (s < 0 || e > Text.Length) return null;
+        return Text[s..e];
+    }
+
+    protected override void ClearSelection() { SelectionStart = SelectionEnd = -1; }
+    protected override void StartSelection() { SelectionStart = CursorPos; SelectionEnd = CursorPos; }
+    protected override void ExtendSelection() { SelectionEnd = CursorPos; }
+
+    protected override void DeleteSelection()
+    {
+        if (!HasSelection) return;
         int s = Math.Min(SelectionStart, SelectionEnd);
         int e = Math.Max(SelectionStart, SelectionEnd);
         var deleted = Text[s..e];
         Text = Text[..s] + Text[e..];
         CursorPos = s;
         ClearSelection();
-        return deleted;
+        RecordEdit('D', s, deleted);
     }
 
-    public override bool HasCursor => true;
-
     /// <summary>
-    /// 确保光标坐标精确（不依赖 OnRender 调用）。
-    /// 每次 GetCursorState 时自动调用，保证即使控件未被重绘光标位置也不丢失。
+    /// 计算并设置光标屏幕坐标（CJK 感知 + 滚动偏移）。
+    /// 不依赖 OnRender 调用，保证即使控件未被重绘光标位置也正确。
     /// </summary>
-    protected override void EnsureCursorPosition()
+    protected override void GotoCursorPos()
     {
         if (!IsCursorOwner) return;
 
@@ -256,9 +240,7 @@ public class TuiInput : TuiControl
         {
             int cursorInVisible = TuiHelper.DisplayWidth(
                 originalText[scrollStart..Math.Min(CursorPos, originalText.Length)]);
-            _cursorRow = absY;
-            _cursorCol = absX + Math.Min(cursorInVisible, visW - 1);
-            _showCursor = true;
+            RecordCursorPos(absY, absX + Math.Min(cursorInVisible, visW - 1));
         }
         else
         {
@@ -266,174 +248,48 @@ public class TuiInput : TuiControl
         }
     }
 
-    // ── 输入 ──
+    // ── 光标移动原语 ──
 
-    public override bool OnKey(ConsoleKeyInfo key)
+    protected override void MoveCursorLeft()  { if (CursorPos > 0) CursorPos--; }
+    protected override void MoveCursorRight() { if (CursorPos < Text.Length) CursorPos++; }
+    protected override void MoveCursorHome()  { CursorPos = 0; }
+    protected override void MoveCursorEnd()   { CursorPos = Text.Length; }
+
+    protected override void JumpToSelStart() => CursorPos = Math.Min(SelectionStart, SelectionEnd);
+    protected override void JumpToSelEnd()   => CursorPos = Math.Max(SelectionStart, SelectionEnd);
+
+    // ── 编辑原语 ──
+
+    protected override void InsertChar(char ch)
     {
-        if (!IsEnabled || !Focused) return false;
-
-        bool shift = key.Modifiers.HasFlag(ConsoleModifiers.Shift);
-        bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
-
-        // Ctrl 组合键（不依赖 Shift）
-        if (ctrl)
-        {
-            switch (key.Key)
-            {
-                case ConsoleKey.A: // 全选
-                    SelectionStart = 0;
-                    SelectionEnd = Text.Length;
-                    CursorPos = Text.Length;
-                    return true;
-                case ConsoleKey.C: // 复制选中文本到剪贴板
-                    if (HasSelection)
-                    {
-                        var st = SelectedText;
-                        if (st != null)
-                            CopyToClipboard(st);
-                    }
-                    return true;
-                case ConsoleKey.X: // 剪切
-                    if (HasSelection)
-                    {
-                        var st = SelectedText;
-                        if (st != null)
-                            CopyToClipboard(st);
-                    }
-                    DeleteSelection();
-                    return true;
-                case ConsoleKey.V: // 粘贴
-                    var pasteText = GetClipboardText();
-                    if (!string.IsNullOrEmpty(pasteText))
-                    {
-                        var deleted = DeleteSelection(); // 先删除选中内容
-                        if (deleted != null) RecordEdit('D', CursorPos, deleted);
-                        var singleLine = pasteText.Replace("\r\n", " ").Replace("\n", " ");
-                        Text = Text[..CursorPos] + singleLine + Text[CursorPos..];
-                        RecordEdit('I', CursorPos, singleLine);
-                        CursorPos += singleLine.Length;
-                    }
-                    return true;
-                case ConsoleKey.Z: // 撤销
-                    Undo();
-                    return true;
-                case ConsoleKey.Y: // 重做
-                    Redo();
-                    return true;
-                case ConsoleKey.Backspace: // Ctrl+Backspace 删除一个词
-                    DeleteWordBefore();
-                    return true;
-            }
-        }
-
-        // 方向键（含 Shift 选择扩展）
-        if (shift)
-        {
-            switch (key.Key)
-            {
-                case ConsoleKey.LeftArrow:
-                    if (!HasSelection) StartSelection();
-                    if (CursorPos > 0) CursorPos--;
-                    ExtendSelection();
-                    return true;
-                case ConsoleKey.RightArrow:
-                    if (!HasSelection) StartSelection();
-                    if (CursorPos < Text.Length) CursorPos++;
-                    ExtendSelection();
-                    return true;
-                case ConsoleKey.Home:
-                    if (!HasSelection) StartSelection();
-                    CursorPos = 0;
-                    ExtendSelection();
-                    return true;
-                case ConsoleKey.End:
-                    if (!HasSelection) StartSelection();
-                    CursorPos = Text.Length;
-                    ExtendSelection();
-                    return true;
-            }
-        }
-
-        switch (key.Key)
-        {
-            case ConsoleKey.LeftArrow:
-                if (HasSelection)
-                {
-                    // 有选择时按非 Shift 方向键：跳到选择边界并清除选择
-                    CursorPos = Math.Min(SelectionStart, SelectionEnd);
-                    ClearSelection();
-                }
-                else if (CursorPos > 0) CursorPos--;
-                return true;
-            case ConsoleKey.RightArrow:
-                if (HasSelection)
-                {
-                    CursorPos = Math.Max(SelectionStart, SelectionEnd);
-                    ClearSelection();
-                }
-                else if (CursorPos < Text.Length) CursorPos++;
-                return true;
-            case ConsoleKey.Home:
-                CursorPos = 0; ClearSelection(); return true;
-            case ConsoleKey.End:
-                CursorPos = Text.Length; ClearSelection(); return true;
-            case ConsoleKey.Backspace:
-                if (HasSelection)
-                {
-                    var deleted = DeleteSelection();
-                    if (deleted != null) RecordEdit('D', CursorPos, deleted);
-                }
-                else if (CursorPos > 0)
-                {
-                    var ch = Text[CursorPos - 1].ToString();
-                    Text = Text[..(CursorPos - 1)] + Text[CursorPos..];
-                    CursorPos--;
-                    RecordEdit('D', CursorPos, ch);
-                }
-                return true;
-            case ConsoleKey.Delete:
-                if (HasSelection)
-                {
-                    var deleted = DeleteSelection();
-                    if (deleted != null) RecordEdit('D', CursorPos, deleted);
-                }
-                else if (CursorPos < Text.Length)
-                {
-                    var ch = Text[CursorPos].ToString();
-                    Text = Text[..CursorPos] + Text[(CursorPos + 1)..];
-                    RecordEdit('D', CursorPos, ch);
-                }
-                return true;
-            case ConsoleKey.Enter:
-                ClearSelection();
-                OnSubmit?.Invoke(Text);
-                return true;
-            case ConsoleKey.Escape:
-                ClearSelection();
-                return true;
-            case ConsoleKey.Tab:
-                ClearSelection();
-                return false; // 让父容器处理焦点切换
-            default:
-                if (key.KeyChar >= ' ')
-                {
-                    var deleted = DeleteSelection(); // 输入前先删除选中内容
-                    if (deleted != null) RecordEdit('D', CursorPos, deleted);
-                    Text = Text[..CursorPos] + key.KeyChar + Text[CursorPos..];
-                    RecordEdit('I', CursorPos, key.KeyChar.ToString());
-                    CursorPos++;
-                    return true;
-                }
-                return false;
-        }
+        Text = Text[..CursorPos] + ch + Text[CursorPos..];
+        RecordEdit('I', CursorPos, ch.ToString());
+        CursorPos++;
+        NotifyChanged();
     }
 
-    // ── 工具 ──
+    protected override void DeleteCharBefore()
+    {
+        if (CursorPos <= 0) return;
+        var ch = Text[CursorPos - 1].ToString();
+        Text = Text[..(CursorPos - 1)] + Text[CursorPos..];
+        CursorPos--;
+        RecordEdit('D', CursorPos, ch);
+        NotifyChanged();
+    }
 
-    private void DeleteWordBefore()
+    protected override void DeleteCharAfter()
+    {
+        if (CursorPos >= Text.Length) return;
+        var ch = Text[CursorPos].ToString();
+        Text = Text[..CursorPos] + Text[(CursorPos + 1)..];
+        RecordEdit('D', CursorPos, ch);
+        NotifyChanged();
+    }
+
+    protected override void DeleteWordBefore()
     {
         if (CursorPos == 0) return;
-        ClearSelection();
         int pos = CursorPos;
         while (pos > 0 && Text[pos - 1] == ' ') pos--;
         while (pos > 0 && Text[pos - 1] != ' ') pos--;
@@ -441,25 +297,33 @@ public class TuiInput : TuiControl
         Text = Text[..pos] + Text[CursorPos..];
         RecordEdit('D', pos, deleted);
         CursorPos = pos;
+        NotifyChanged();
     }
 
-    /// <summary>复制文本到系统剪贴板（尽力而为）</summary>
-    private static void CopyToClipboard(string text)
+    protected override void DeleteToLineEnd()
     {
-        try
-        {
-            ClipboardHelper.SetText(text);
-        }
-        catch { /* 剪贴板不可用时静默忽略 */ }
+        if (CursorPos >= Text.Length) return;
+        var deleted = Text[CursorPos..];
+        Text = Text[..CursorPos];
+        RecordEdit('D', CursorPos, deleted);
+        NotifyChanged();
     }
 
-    /// <summary>从系统剪贴板获取文本（尽力而为）</summary>
-    private static string? GetClipboardText()
+    protected override void SelectAll()
     {
-        try
-        {
-            return ClipboardHelper.GetText();
-        }
-        catch { return null; }
+        SelectionStart = 0;
+        SelectionEnd = Text.Length;
+        CursorPos = Text.Length;
     }
+
+    protected override void PasteText(string text)
+    {
+        var singleLine = text.Replace("\r\n", " ").Replace("\n", " ");
+        Text = Text[..CursorPos] + singleLine + Text[CursorPos..];
+        RecordEdit('I', CursorPos, singleLine);
+        CursorPos += singleLine.Length;
+        NotifyChanged();
+    }
+
+    protected override string GetText() => Text;
 }
