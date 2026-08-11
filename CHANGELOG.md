@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.30.2 (2026-08-11) — Bash 流式输出增强 + 上限报告同步
+
+### ✨ 新功能
+
+**📟 Bash stderr 流式输出**
+- 原仅 stdout 逐行流式，stderr 全缓冲到退出后一次性追加
+- 现 stdout/stderr 并行异步逐行读取，stderr 行带 `[stderr]` 前缀
+- UI 中通过 `IsErrorOutput` 自动标红错误行
+- 管道模式（非 TUI）也新增 `onToolOutput` 回调，逐行输出到控制台
+
+**📊 上限报告同步更新 (55→60 项)**
+- 新增 5 项：TuiTextArea 最大行数、自动换行列宽、TuiEditBase 撤销栈、Tab 键行为标志、Bash 流式 stderr
+
 ## v0.30.1 (2026-08-11) — TuiEditBase 键盘引擎 + TuiTextArea 自动换行
 
 ### ✨ 新功能
