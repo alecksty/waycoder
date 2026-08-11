@@ -158,15 +158,15 @@ public class BashTool : ITool
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
 
-            // 沙箱模式：后台监控内存 + CPU 时间
-            var memCts = new CancellationTokenSource();
+            // 沙箱模式：后台监控内存 + CPU 时间（使用实际处理器时间，非墙上时钟）
+            var sandboxCts = new CancellationTokenSource();
             Task<string?>? memTask = null;
+            Task<string?>? cpuTask = null;
             if (SandboxManager.IsSandboxed)
-                memTask = SandboxManager.MonitorMemoryAsync(proc, memCts.Token);
-
-            // CPU 时间监控（沙箱模式下的 CPU 时间限制）
-            var cpuStartTime = DateTime.UtcNow;
-            var cpuLimit = SandboxManager.MaxCpuTimeSeconds;
+            {
+                memTask = SandboxManager.MonitorMemoryAsync(proc, sandboxCts.Token);
+                cpuTask = SandboxManager.MonitorCpuAsync(proc, sandboxCts.Token);
+            }
 
             // 异步等待进程退出（不阻塞线程）
             var exitTask = proc.WaitForExitAsync();
@@ -174,26 +174,15 @@ public class BashTool : ITool
             var completed = await Task.WhenAny(exitTask, delayTask);
             var exited = completed == exitTask && exitTask.IsCompletedSuccessfully;
 
-            // 取消内存监控
-            memCts.Cancel();
+            // 取消沙箱监控
+            sandboxCts.Cancel();
 
-            // 检查内存超限
-            if (memTask is { IsCompleted: true })
-            {
-                var memResult = await memTask;
-                if (memResult != null)
-                {
-                    if (!exited) proc.Kill(entireProcessTree: true);
-                    return memResult;
-                }
-            }
-
-            // 检查 CPU 时间超限（沙箱模式）
-            var cpuElapsed = (DateTime.UtcNow - cpuStartTime).TotalSeconds;
-            if (SandboxManager.IsSandboxed && cpuElapsed > cpuLimit)
+            // 检查沙箱资源超限（内存 / CPU）
+            var sandboxViolation = await CheckSandboxMonitorsAsync(memTask, cpuTask);
+            if (sandboxViolation != null)
             {
                 if (!exited) proc.Kill(entireProcessTree: true);
-                return $"⛔ 沙箱 CPU 时间超限：进程运行 {cpuElapsed:F1} 秒，超过上限 {cpuLimit} 秒";
+                return sandboxViolation;
             }
 
             if (!exited)
@@ -306,6 +295,24 @@ public class BashTool : ITool
             outStream += "\n\n" + streamChangeWarning;
 
         return string.IsNullOrWhiteSpace(outStream) ? "（无输出）" : outStream.Trim();
+    }
+
+    /// <summary>
+    /// 检查沙箱监控任务（内存 + CPU），返回违规消息，null 表示通过。
+    /// </summary>
+    private static async Task<string?> CheckSandboxMonitorsAsync(Task<string?>? memTask, Task<string?>? cpuTask)
+    {
+        if (memTask is { IsCompleted: true })
+        {
+            var memResult = await memTask;
+            if (memResult != null) return memResult;
+        }
+        if (cpuTask is { IsCompleted: true })
+        {
+            var cpuResult = await cpuTask;
+            if (cpuResult != null) return cpuResult;
+        }
+        return null;
     }
 
     /// <summary>

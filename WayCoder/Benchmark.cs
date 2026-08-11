@@ -989,7 +989,7 @@ public static class Benchmark
             LimitSev.HardBlock, "AgentSlot.cs:13");
 
         AddLimit(items, "子智能体最大深度", cat,
-            $"AgentTool.MaxDepth=3, Config.SubAgentMaxDepth={cfg.SubAgentMaxDepth} (Clamp 1-5)",
+            $"AgentTool.MaxDepth={AgentTool.MaxDepth}, Config.SubAgentMaxDepth={cfg.SubAgentMaxDepth} (Clamp 1-5)",
             "最深一层移除 agent 工具禁止继续递归，子Agent轮次衰减 max(5,20-depth*5)",
             LimitSev.SoftDegrade, "AgentTool.cs:47,144-156", configurable: true);
 
@@ -1423,12 +1423,6 @@ public static class Benchmark
         }
 
         Console.WriteLine("\n── 🐛 发现的潜在问题 ──");
-        Console.WriteLine("  ⚠ AgentTool.MaxDepth (运行时) 与 Config.SubAgentMaxDepth (用户配置) 不同步");
-        Console.WriteLine("    - AgentTool.MaxDepth = 3 (AgentTool.cs:47)，运行时实际使用");
-        Console.WriteLine("    - Config.SubAgentMaxDepth = Clamp(1,5) (Config.cs:141)，仅设置界面显示");
-        Console.WriteLine("    - 修改 WAYCODER_SUBAGENT_DEPTH 不会影响子Agent深度限制，用户配置不生效");
-        Console.WriteLine();
-        Console.WriteLine("  ⚠ SandboxManager.MaxCpuTimeSeconds = 300 已声明但无实际监控代码");
-        Console.WriteLine("    - 沙箱 CPU 时间限制未实施，仅依赖 OS 级别 ulimit");
+        Console.WriteLine("  （当前无已知问题）");
     }
 }
