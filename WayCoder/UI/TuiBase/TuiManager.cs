@@ -135,8 +135,9 @@ public class TuiManager : IDisposable
         var sb = new StringBuilder();
         sb.Append(AnsiTty.CursorHide).Append(AnsiTty.Home);
 
-        // 全刷新：首帧 / 切屏 / Resize / RootView 被整体标记脏
-        bool fullRefresh = _needsFullRefresh || (ActiveScreen?.RootView.IsDirty == true);
+        // 全刷新仅首帧 / 切屏 / Resize 时清除整个屏幕。
+        // RootView 因子控件变化而标记脏时走增量路径：不清屏，控件原地重绘覆盖。
+        bool fullRefresh = _needsFullRefresh;
         if (fullRefresh)
         {
             sb.Append(AnsiTty.ClearScreen);

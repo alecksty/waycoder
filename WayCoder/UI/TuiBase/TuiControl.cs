@@ -54,12 +54,11 @@ public abstract class TuiControl : TuiBase
 
     // ── 增量渲染 ──
 
-    /// <summary>标记控件需要重绘，沿 Parent 链向上传播到根。</summary>
+    /// <summary>标记控件需要重绘。仅标记自身，不传播到父链（增量渲染按需遍历子控件）。</summary>
     public override void MarkDirty()
     {
-        if (IsDirty) return; // 已标记，避免重复遍历
+        if (IsDirty) return;
         IsDirty = true;
-        Parent?.MarkDirty();
     }
 
     /// <summary>强制刷新：递归标记控件及其所有子控件为脏，确保下一帧完全重绘。</summary>
