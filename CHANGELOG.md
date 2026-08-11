@@ -1,5 +1,45 @@
 # 更新日志
 
+## v0.31.1 (2026-08-11) — CLI 参数注册系统 + DeepSeek V4 上下文修正
+
+### ✨ 新功能
+
+**📋 CLI 参数注册系统**
+- 新建 `Parameters/` 目录，结构化参数定义：
+  - `CliArg` 抽象基类 — 统一 Key / Names / Description / ValueCount / OnMatch 元数据
+  - `CliArgRegistry` 注册表 — Register 自动重复检测（长短名冲突立即报错）、Parse 解析引擎、HelpText 自动生成
+  - `BuiltinArgs` — 18 个内置参数子类，每个 5-10 行继承基类
+- Program.cs Main：删除 ~50 行手动 switch，改为 15 行注册 + 解析
+- `--help` 输出从注册表自动生成，排除内部/开发参数
+- 支持 `--key=value` 等号格式
+- 大小写敏感：`-b` (base-url) 和 `-B` (max-budget) 不冲突
+
+**🏷 全部参数长短双名**
+- 7 个参数新增强短名：`-b` (`--base-url`), `-k` (`--api-key`), `-i` (`--init`), `-d` (`--debug`), `-y` (`--yolo`), `-B` (`--max-budget-usd`)
+- `--benchmark`/`--perf` 新增 `--bench` 别名
+- 18 个参数全部支持短名或别名
+
+### 🐛 修复
+
+**DeepSeek V4 上下文窗口修正**
+- `deepseek-v4-pro` / `deepseek-v4-flash` 上下文窗口：128K → 1M (1,048,576 tokens)
+- 模型列表 `/model list` 显示正确：`1M ctx`
+
+### 🔄 重构
+
+- CLI 参数从手写 switch 重构为结构化注册表
+- `BuiltinArgs.RegisterAll()` 幂等注册，重复名称自动检测报错
+
+### 🗂️ 新增文件
+| 文件 | 功能 |
+|------|------|
+| `Parameters/CliArg.cs` | CLI 参数抽象基类 |
+| `Parameters/CliArgRegistry.cs` | 注册表 + 解析引擎 + 帮助生成 |
+| `Parameters/BuiltinArgs.cs` | 18 个内置参数定义 |
+
+### 🧪 测试
+- 1306 项自测全部通过
+
 ## v0.31.0 (2026-08-11) — 统一配置系统 + 多模型管理 + 槽位独立记忆
 
 ### ✨ 新功能
