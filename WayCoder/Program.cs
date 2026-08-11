@@ -48,69 +48,38 @@ public class Program
             e.SetObserved();
         };
 
-        // 手动解析 CLI 参数
-        string? model = null, baseUrl = null, apiKey = null, prompt = null, resumeId = null;
+        // 注册 + 解析 CLI 参数（重复名称自动报错）
+        Parameters.BuiltinArgs.RegisterAll();
+        var (parsed, exitCode) = Parameters.CliArgRegistry.Parse(args);
+        if (exitCode.HasValue) return exitCode.Value;
+
+        // 读取值参数
+        string? model = Parameters.CliArgRegistry.Get(parsed, "model");
+        string? baseUrl = Parameters.CliArgRegistry.Get(parsed, "base-url");
+        string? apiKey = Parameters.CliArgRegistry.Get(parsed, "api-key");
+        string? prompt = Parameters.CliArgRegistry.Get(parsed, "prompt");
+        string? resumeId = Parameters.CliArgRegistry.Get(parsed, "resume");
         double? maxBudget = null;
-        bool showVersion = false, yoloMode = false, initMode = false, watchMode = false;
+        var budgetStr = Parameters.CliArgRegistry.Get(parsed, "max-budget-usd");
+        if (budgetStr != null && double.TryParse(budgetStr, out var b)) maxBudget = b;
 
-        for (int i = 0; i < args.Length; i++)
-        {
-            switch (args[i])
-            {
-                case "-m" or "--model" when i + 1 < args.Length: model = args[++i]; break;
-                case "-b" or "--base-url" when i + 1 < args.Length: baseUrl = args[++i]; break;
-                case "-k" or "--api-key" when i + 1 < args.Length: apiKey = args[++i]; break;
-                case "-p" or "--prompt" when i + 1 < args.Length: prompt = args[++i]; break;
-                case "-r" or "--resume" when i + 1 < args.Length: resumeId = args[++i]; break;
-                case "-v" or "--version": showVersion = true; break;
-                case "-t" or "--test":
-                    var testModule = (i + 1 < args.Length && !args[i + 1].StartsWith('-'))
-                        ? args[++i]
-                        : null;
-                    if (testModule != null)
-                    {
-                        Console.WriteLine(SelfTest.RunModule(testModule));
-                    }
-                    else SelfTest.Run();
+        bool yoloMode = Parameters.CliArgRegistry.Has(parsed, "yolo");
+        bool watchMode = Parameters.CliArgRegistry.Has(parsed, "watch");
 
-                    return 0;
-                case "--bench" or "--benchmark" or "--perf":
-                    Benchmark.Run();
-                    return 0;
-                case "--limits":
-                    Benchmark.LimitsReport();
-                    return 0;
-                case "--screenshot":
-                    RunScreenshot();
-                    return 0;
-                case "-d" or "--debug": DebugLog.Enable(); break;
-                case "-y" or "--yolo": yoloMode = true; break;
-                case "--tui-v1": break; // 忽略（已移除 Terminal.Gui v2）
-                case "--tui-demo":
-                    TuiDemo.Run();
-                    return 0;
-                case "--theme-verify":
-                    ThemeVerify.Run();
-                    return 0;
-                case "-i" or "--init": initMode = true; break;
-                case "-w" or "--watch": watchMode = true; break;
-                case "-B" or "--max-budget-usd" when i + 1 < args.Length:
-                    if (double.TryParse(args[++i], out var b)) maxBudget = b;
-                    break;
-                case "-h" or "--help":
-                    ShowUsage();
-                    return 0;
-            }
-        }
-
-        if (showVersion)
+        if (Parameters.CliArgRegistry.Has(parsed, "version"))
         {
             Console.WriteLine(Global.AppNameVersion);
             return 0;
         }
 
+        if (Parameters.CliArgRegistry.Has(parsed, "help"))
+        {
+            ShowUsage();
+            return 0;
+        }
+
         // 项目初始化向导
-        if (initMode)
+        if (Parameters.CliArgRegistry.Has(parsed, "init"))
         {
             RunInit();
             return 0;
@@ -1371,7 +1340,7 @@ public class Program
     }
 
     /// <summary>截图模式：TUI 控件截图验证</summary>
-    private static void RunScreenshot()
+    internal static void RunScreenshot()
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
@@ -1444,24 +1413,12 @@ deepseek 性价比最高。"
         MarkupLine("«bold»使用方法:«/» «cyan»waycoder [选项]«/»");
         Console.WriteLine();
         MarkupLine("  «bold»选项:«/»");
-        MarkupLine("  «cyan»-m, --model«/» <名称>      模型名称 (默认: deepseek-v4-flash)");
-        MarkupLine("  «cyan»-b, --base-url«/» <URL>    API 基础 URL");
-        MarkupLine("  «cyan»-k, --api-key«/» <密钥>    API 密钥");
-        MarkupLine("  «cyan»-p, --prompt«/» <文本>     一次性提示词 (非交互模式)");
-        MarkupLine("  «cyan»-r, --resume«/» <ID>       恢复已保存的会话");
-        MarkupLine("  «cyan»-v, --version«/»           显示版本信息");
-        MarkupLine("  «cyan»-i, --init«/»              初始化项目 (.waycoder/ 配置目录)");
-        MarkupLine("  «cyan»-t, --test«/» [模块名]     运行自测 (可选指定模块)");
-        MarkupLine("  «cyan»--bench, --benchmark, --perf«/»  运行性能测评");
-        MarkupLine("  «cyan»--limits«/»                运行系统上限报告");
-        MarkupLine("  «cyan»-d, --debug«/»             开启调试日志 (记录到 logs/ 目录)");
-        MarkupLine("  «cyan»-y, --yolo«/»             跳过所有权限确认 (非交互模式必备)");
-        MarkupLine("  «cyan»-w, --watch«/»             Watch 模式 (监听 AI! 注释)");
-        MarkupLine("  «cyan»-B, --max-budget-usd«/» <金额> 费用上限（美元），超支自动停止");
-        MarkupLine("  «cyan»--tui-demo«/»              TUI 控件演示");
-        MarkupLine("  «cyan»--theme-verify«/»          主题配色验证");
-        MarkupLine("  «cyan»--screenshot«/»            截图模式");
-        MarkupLine("  «cyan»-h, --help«/»              显示此帮助");
+        // 从参数注册表自动生成（排除内部/开发参数）
+        foreach (var line in Parameters.CliArgRegistry.HelpText(2, 36).Split('\n'))
+        {
+            if (!string.IsNullOrWhiteSpace(line))
+                Console.WriteLine(line);
+        }
         Console.WriteLine();
         MarkupLine("  «bold»示例:«/»");
         MarkupLine("  «dim»$«/» waycoder                                     «dim»# 交互式 REPL«/»");
