@@ -1,5 +1,23 @@
 # 更新日志
 
+## v0.31.10 (2026-08-11) — Diff 双模式（Unified/Split）
+
+### 📊 Diff 双模式渲染
+
+- **Split 侧边对照**：终端宽度 ≥ 120 时自动启用，删除（左红）↔ 新增（右绿）并排对照
+- **Unified 统览**：窄屏自动回退传统 unified diff
+- `BuildSplitRows()`：将 diff hunk 中的删除/新增行配对为 SplitRow（LeftText/RightText + LeftKind/RightKind）
+- `RenderSplitRow()`：左面板 + ` │ ` 分隔符 + 右面板渲染，带行号偏移
+- 滚动计算兼容两种模式（`totalVisualLines` = splitRows.Count 或 allLines.Count）
+
+| 文件 | 变更 |
+|------|------|
+| `UI/TuiCust/DiffPreview.cs` | SplitRow 类 + BuildSplitRows/RenderSplitRow + useSplitMode 自动切换 |
+| `Config/Global.cs` | v0.31.9 → v0.31.10 |
+
+### 🧪 测试
+- 1348 项自测全部通过
+
 ## v0.31.8 (2026-08-11) — 工具白名单/黑名单 + 配置完善
 
 ### 🔒 工具白名单/黑名单
