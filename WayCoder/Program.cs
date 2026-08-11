@@ -58,8 +58,8 @@ public class Program
             switch (args[i])
             {
                 case "-m" or "--model" when i + 1 < args.Length: model = args[++i]; break;
-                case "--base-url" when i + 1 < args.Length: baseUrl = args[++i]; break;
-                case "--api-key" when i + 1 < args.Length: apiKey = args[++i]; break;
+                case "-b" or "--base-url" when i + 1 < args.Length: baseUrl = args[++i]; break;
+                case "-k" or "--api-key" when i + 1 < args.Length: apiKey = args[++i]; break;
                 case "-p" or "--prompt" when i + 1 < args.Length: prompt = args[++i]; break;
                 case "-r" or "--resume" when i + 1 < args.Length: resumeId = args[++i]; break;
                 case "-v" or "--version": showVersion = true; break;
@@ -74,8 +74,7 @@ public class Program
                     else SelfTest.Run();
 
                     return 0;
-                case "--benchmark":
-                case "--perf":
+                case "--bench" or "--benchmark" or "--perf":
                     Benchmark.Run();
                     return 0;
                 case "--limits":
@@ -84,8 +83,8 @@ public class Program
                 case "--screenshot":
                     RunScreenshot();
                     return 0;
-                case "--debug": DebugLog.Enable(); break;
-                case "--yolo": yoloMode = true; break;
+                case "-d" or "--debug": DebugLog.Enable(); break;
+                case "-y" or "--yolo": yoloMode = true; break;
                 case "--tui-v1": break; // 忽略（已移除 Terminal.Gui v2）
                 case "--tui-demo":
                     TuiDemo.Run();
@@ -93,9 +92,9 @@ public class Program
                 case "--theme-verify":
                     ThemeVerify.Run();
                     return 0;
-                case "--init": initMode = true; break;
+                case "-i" or "--init": initMode = true; break;
                 case "-w" or "--watch": watchMode = true; break;
-                case "--max-budget-usd" when i + 1 < args.Length:
+                case "-B" or "--max-budget-usd" when i + 1 < args.Length:
                     if (double.TryParse(args[++i], out var b)) maxBudget = b;
                     break;
                 case "-h" or "--help":
@@ -1445,20 +1444,24 @@ deepseek 性价比最高。"
         MarkupLine("«bold»使用方法:«/» «cyan»waycoder [选项]«/»");
         Console.WriteLine();
         MarkupLine("  «bold»选项:«/»");
-        MarkupLine("  «cyan»-m, --model«/» <名称>   模型名称 (默认: deepseek-v4-flash)");
-        MarkupLine("  «cyan»--base-url«/» <URL>     API 基础 URL");
-        MarkupLine("  «cyan»--api-key«/» <密钥>     API 密钥");
-        MarkupLine("  «cyan»-p, --prompt«/» <文本>  一次性提示词 (非交互模式)");
-        MarkupLine("  «cyan»-r, --resume«/» <ID>    恢复已保存的会话");
-        MarkupLine("  «cyan»-v, --version«/»        显示版本信息");
-        MarkupLine("  «cyan»--init«/»              初始化项目 (.waycoder/ 配置目录)");
-        MarkupLine("  «cyan»-t, --test«/»           运行自测");
-        MarkupLine("  «cyan»--benchmark, --perf«/»  运行性能测评");
-        MarkupLine("  «cyan»--limits«/»           运行系统上限报告");
-        MarkupLine("  «cyan»--debug«/»              开启调试日志 (记录到 logs/ 目录)");
-        MarkupLine("  «cyan»--yolo«/»              跳过所有权限确认 (非交互模式必备)");
-        MarkupLine("  «cyan»--max-budget-usd«/» <金额> 费用上限（美元），超支自动停止");
-        MarkupLine("  «cyan»-h, --help«/»           显示此帮助");
+        MarkupLine("  «cyan»-m, --model«/» <名称>      模型名称 (默认: deepseek-v4-flash)");
+        MarkupLine("  «cyan»-b, --base-url«/» <URL>    API 基础 URL");
+        MarkupLine("  «cyan»-k, --api-key«/» <密钥>    API 密钥");
+        MarkupLine("  «cyan»-p, --prompt«/» <文本>     一次性提示词 (非交互模式)");
+        MarkupLine("  «cyan»-r, --resume«/» <ID>       恢复已保存的会话");
+        MarkupLine("  «cyan»-v, --version«/»           显示版本信息");
+        MarkupLine("  «cyan»-i, --init«/»              初始化项目 (.waycoder/ 配置目录)");
+        MarkupLine("  «cyan»-t, --test«/» [模块名]     运行自测 (可选指定模块)");
+        MarkupLine("  «cyan»--bench, --benchmark, --perf«/»  运行性能测评");
+        MarkupLine("  «cyan»--limits«/»                运行系统上限报告");
+        MarkupLine("  «cyan»-d, --debug«/»             开启调试日志 (记录到 logs/ 目录)");
+        MarkupLine("  «cyan»-y, --yolo«/»             跳过所有权限确认 (非交互模式必备)");
+        MarkupLine("  «cyan»-w, --watch«/»             Watch 模式 (监听 AI! 注释)");
+        MarkupLine("  «cyan»-B, --max-budget-usd«/» <金额> 费用上限（美元），超支自动停止");
+        MarkupLine("  «cyan»--tui-demo«/»              TUI 控件演示");
+        MarkupLine("  «cyan»--theme-verify«/»          主题配色验证");
+        MarkupLine("  «cyan»--screenshot«/»            截图模式");
+        MarkupLine("  «cyan»-h, --help«/»              显示此帮助");
         Console.WriteLine();
         MarkupLine("  «bold»示例:«/»");
         MarkupLine("  «dim»$«/» waycoder                                     «dim»# 交互式 REPL«/»");
