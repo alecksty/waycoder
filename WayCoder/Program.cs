@@ -17,6 +17,12 @@ public class Program
     private static readonly AgentSlot[] _slots = new AgentSlot[AgentSlot.Count];
     private static int _activeSlot; // 当前活跃槽位索引（F1 对应 0）
 
+    /// <summary>待投递的槽位任务队列：槽位索引 → 任务列表（同一槽位多次 -pN 可排队）</summary>
+    private static readonly Dictionary<int, List<string>> _pendingSlotQueues = [];
+
+    /// <summary>所有槽位任务的共享前缀（-pa 传入）</summary>
+    private static string _pendingSlotPrefix = "";
+
     /// <summary>当前活跃槽位索引（供外部命令访问）</summary>
     public static int ActiveSlotIndex => _activeSlot;
 
@@ -65,6 +71,30 @@ public class Program
         string? apiKey = Arguments.CliArgRegistry.Get(parsed, "api-key");
         string? prompt = Arguments.CliArgRegistry.Get(parsed, "prompt");
         string? resumeId = Arguments.CliArgRegistry.Get(parsed, "resume");
+
+        // 共享前缀（-pa "前缀" → 拼到每个 -pN 任务前面）
+        _pendingSlotPrefix = Arguments.CliArgRegistry.Get(parsed, "prompt-all") ?? "";
+
+        // 收集槽位专项任务队列（-p1 ~ -p9, -p0=F10，同一槽位多次可排队）
+        for (int n = 0; n <= 9; n++)
+        {
+            var values = Arguments.CliArgRegistry.GetAll(parsed, $"slot-prompt-{n}");
+            if (values == null || values.Count == 0) continue;
+
+            var slotIdx = n == 0 ? 9 : n - 1; // -p1→0, -p2→1, ..., -p0→9
+            if (!_pendingSlotQueues.ContainsKey(slotIdx))
+                _pendingSlotQueues[slotIdx] = [];
+
+            foreach (var v in values)
+            {
+                if (!string.IsNullOrWhiteSpace(v))
+                    _pendingSlotQueues[slotIdx].Add(v);
+            }
+        }
+
+        // -p1~-p0 槽位任务 → 强制进入 REPL 交互模式（而非一次性模式）
+        if (_pendingSlotQueues.Count > 0 && prompt == null)
+            prompt = null; // 保持 null，走 REPL 分支
         double? maxBudget = null;
         var budgetStr = Arguments.CliArgRegistry.Get(parsed, "max-budget-usd");
         if (budgetStr != null && double.TryParse(budgetStr, out var b)) maxBudget = b;
@@ -91,8 +121,8 @@ public class Program
             return 0;
         }
 
-        // 标准输入管道模式：echo "prompt" | waycoder
-        if (prompt == null && Console.IsInputRedirected)
+        // 标准输入管道模式：echo "prompt" | waycoder（槽位任务优先，不抢 stdin）
+        if (prompt == null && _pendingSlotQueues.Count == 0 && Console.IsInputRedirected)
         {
             var stdinText = Console.In.ReadToEnd().Trim();
             // 只有当 stdin 真正有内容时才作为管道输入
@@ -105,7 +135,8 @@ public class Program
         }
 
         // -p 一次性模式：非交互，自动放行权限
-        if (prompt != null)
+        // -p1~-p0 槽位任务也自动放行
+        if (prompt != null || _pendingSlotQueues.Count > 0)
             yoloMode = true;
 
         _config = Config.FromEnv();
@@ -204,12 +235,14 @@ public class Program
         CustomCommands.Load();
         SlashCommandRegistry.RegisterAll();
         HooksManager.Init();
+        HooksManager.RunSessionStart("startup");
         McpManager.Init();
         CheckpointManager.LoadFromDisk();
 
         // 恢复会话
         if (resumeId != null)
         {
+            HooksManager.RunSessionStart("resume");
             var loaded = SessionManager.LoadSession(resumeId);
             if (loaded != null)
             {
@@ -341,12 +374,14 @@ public class Program
         PermissionManager.PermissionPromptStarted += toolName =>
         {
             screen.SlotStates[screen.ActiveSlotIndex] = SlotState.WaitingPerm;
+            screen.OnPermissionWaiting(toolName);
             DesktopNotifier.NotifyPermissionWaiting(toolName);
         };
         PermissionManager.PermissionPromptResolved += _ =>
         {
             if (screen.SlotStates[screen.ActiveSlotIndex] == SlotState.WaitingPerm)
                 screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Working;
+            screen.OnPermissionResolved();
         };
 
         // Watch 模式 — 监听外部编辑器文件变更
@@ -365,6 +400,43 @@ public class Program
         screen.OnSearchHistory = query => SearchHistory(query, screen);
         screen.OnOpenSessions = () => OpenSessions(screen);
         screen.OnReasoningEffort = () => PickReasoningEffort(screen);
+
+        // ── 自动投递命令行槽位任务队列（-p1 ~ -p0，同一槽位可排队）──
+        foreach (var (slotIdx, tasks) in _pendingSlotQueues.OrderBy(kv => kv.Key))
+        {
+            // 切换到目标槽位
+            if (slotIdx != _activeSlot)
+            {
+                SwitchAgentSlot(slotIdx, screen);
+                mgr.Render();
+            }
+
+            // 确保目标槽位有 Agent
+            if (_slots[slotIdx].Agent == null)
+            {
+                var slotLlm = GetSlotLlm(slotIdx);
+                _slots[slotIdx].Agent = new Agent(slotLlm, maxContextTokens: _config.MaxContextTokens,
+                    maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
+                _agent = _slots[slotIdx].Agent;
+                ProgramContext.Agent = _agent;
+            }
+
+            var prefix = string.IsNullOrWhiteSpace(_pendingSlotPrefix)
+                ? "" : _pendingSlotPrefix + " ";
+
+            screen.AddSystemMsg($"📨 槽位 F{slotIdx + 1} 收到 {tasks.Count} 个任务（来自命令行）");
+            mgr.Render();
+
+            foreach (var task in tasks)
+            {
+                var fullPrompt = prefix + task;
+                screen.AddSystemMsg($"  → {fullPrompt.Truncate(80)}");
+                mgr.Render();
+                await ProcessUserInput(fullPrompt, screen);
+            }
+        }
+        _pendingSlotQueues.Clear();
+        _pendingSlotPrefix = "";
 
         var running = true;
         while (running && !_exitRequested)
@@ -412,6 +484,15 @@ public class Program
             if (ev.Type == InputType.Mouse)
             {
                 mgr.HandleMouse(ev);
+                mgr.Render();
+                continue;
+            }
+
+            // 粘贴 — bracketed paste 自动检测
+            if (ev.Type == InputType.Paste)
+            {
+                if (!string.IsNullOrEmpty(ev.PasteText))
+                    screen.HandleBracketedPaste(ev.PasteText);
                 mgr.Render();
                 continue;
             }
@@ -534,6 +615,9 @@ public class Program
     {
         try
         {
+            HooksManager.RunSessionEnd("exit");
+            HooksManager.ClearSessionHooks();
+
             if (_agent == null || _agent.Messages.Count == 0) return;
             // 只保存有实际对话的会话（至少一条用户消息）
             var hasUser = _agent.Messages.Any(m =>
@@ -607,6 +691,7 @@ public class Program
                 onToken: tok =>
                 {
                     screen_!.Running = false;
+                    screen_!.OnToolFinished(); // token 开始流入 = 回到思考状态
                     screen_!.EnsureAgentStreaming();
                     screen_!.AppendToken(tok);
                 },
@@ -614,6 +699,7 @@ public class Program
                 {
                     screen_!.FinishAgentMsg();
                     screen_!.AddToolProgress(name, brief.Length > 60 ? brief[..57] + "..." : brief);
+                    screen_!.OnToolStarted(name, brief.Length > 40 ? brief[..37] + "..." : brief);
                     // 不立刻 StartAgentMsg，等 onToolOutput 流式输出完毕再懒启动
                     // 每 3 次工具调用自动保存
                     if (++_toolCallCount % 3 == 0)
@@ -622,6 +708,7 @@ public class Program
                 onToolOutput: line =>
                 {
                     screen_!.AppendToLast(line + "\n");
+                    screen_!.OnToolFinished(); // 流式输出 = 工具已执行完毕，回到思考
                 },
                 cancellationToken: cts.Token);
         });
@@ -859,6 +946,9 @@ public class Program
         _agentCts = cts;
         _agentBusy = true;
         screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Working;
+
+        // 记录任务开始时的累计花费，用于任务完成后展示单次花费
+        _llm!.SnapshotTaskCost();
         try
         {
             var modelStack = BuildFallbackChain();
@@ -930,7 +1020,8 @@ public class Program
             if (completed)
             {
                 var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
-                screen.AddSystemMsg($"  💡 完成 ({elapsed:F1}s)");
+                var costMsg = FormatTaskCost(_llm!);
+                screen.AddSystemMsg($"  ✅ 完成 · 耗时 {elapsed:F1}s · {costMsg}");
                 DesktopNotifier.NotifyAgentFinished();
             }
 
@@ -967,6 +1058,36 @@ public class Program
         }
 
         // 忙时 Ctrl+C 已由系统级 Ctrl+C 处理（直接强制退出），无需额外确认
+    }
+
+    /// <summary>
+    /// 格式化单次任务的花费信息。包含输入/输出 token 数和美元成本。
+    /// </summary>
+    private static string FormatTaskCost(LLM llm)
+    {
+        var input = llm.TaskPromptTokens;
+        var output = llm.TaskCompletionTokens;
+        var cost = llm.TaskCost;
+
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"📊 {input}+{output}={input + output} tokens");
+
+        if (cost.HasValue)
+        {
+            if (cost.Value < 0.01)
+                sb.Append($" · 💰 ${cost.Value:F4}");
+            else if (cost.Value < 1.0)
+                sb.Append($" · 💰 ${cost.Value:F3}");
+            else
+                sb.Append($" · 💰 ${cost.Value:F2}");
+        }
+        else
+        {
+            // 模型不在定价表中，仅显示 token 数
+            sb.Append(" · 💰 未知定价");
+        }
+
+        return sb.ToString();
     }
 
     // ========================================================================

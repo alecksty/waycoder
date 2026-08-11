@@ -12,7 +12,7 @@ WayCoder（道码）是一个中文版易用编程智能体，C# (.NET 10) 实�
 # C# 版
 cd WayCoder
 dotnet publish -c Release            # AOT 编译
-dotnet run -- --test                 # 1339 自测
+dotnet run -- --test                 # 1407 自测
 dotnet run -- -p "提示词"            # 一次性模式
 dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 ```
@@ -22,10 +22,10 @@ dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 ```
 WayCoder/
 ├── Program.cs         入口 + CLI + REPL (ANSI 全屏 TUI)
-├── Agent.cs           主循环
+├── Agent.cs           主循环 (Stop Hook + WorkReporter + 10 阶段流水线)
 ├── AgentSlot.cs       多 Agent 工作区 (F1-F10 槽位切换)
-├── LLM.cs             LLM 客户端 (流式 + 回退)
-├── ContextManager.cs  Crush 风格上下文管理 (token 追踪 + 自动摘要)
+├── LLM.cs             LLM 客户端 (流式 + 渐进超时重试 + 任务花费追踪)
+├── ContextManager.cs  Crush 风格上下文管理 (token 追踪 + 自动摘要 + 进度事件)
 ├── SessionManager.cs  会话持久化
 ├── SystemPrompt.cs    系统提示词 (对标 Crush coder.md.tpl，15 个结构化区块)
 ├── Config.cs          配置 (.env 加载)
@@ -36,9 +36,12 @@ WayCoder/
 ├── FallbackLLM.cs     模型回退链
 ├── MemoryStore.cs     记忆系统 (旧格式, 迁移源)
 ├── StructuredMemory.cs 结构化记忆 (frontmatter 多文件 + MEMORY.md 索引)
+├── MemoryRetrieval.cs  跨会话记忆检索 (TF-IDF + 时间衰减)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1339+ 项自测
+├── SelfTest.cs        1407+ 项自测
+├── WorkReporter.cs    工作总结报告生成器
+├── TaskProgress.cs    任务进度追踪
 ├── FileLockManager.cs 文件锁 (防并发修改冲突)
 ├── UI/                 终端 TUI 控件库 (36+ 文件)
 │   ├── TuiCust/              自定义控件 + 对话框 (8 文件)
@@ -50,10 +53,13 @@ WayCoder/
 │   │   ├── DialogOverlay.cs    栈式对话框管理器
 │   │   ├── DiffPreview.cs      diff 预览 + 逐 hunk 确认
 │   │   └── DiffRenderer.cs     统一 diff 渲染
-│   ├── TuiControls/          基础控件库 (14+ 文件)
+│   ├── TuiControls/          基础控件库 (17+ 文件)
 │   │   ├── TuiButton.cs        增强按钮 (快捷键下划线/悬停)
 │   │   ├── TuiButtonGroup.cs  按钮组 (水平/垂直/Tab导航)
 │   │   ├── TuiScrollbar.cs    独立滚动条 (拖拽/滑块/自动隐藏)
+│   │   ├── TuiDynamicBar.cs   动态状态栏 (Agent状态/工具/压缩进度)
+│   │   ├── TuiKeybindHelp.cs  键盘快捷键帮助面板
+│   │   ├── TuiToastQueue.cs   Toast 通知队列
 │   │   ├── TuiMarkdown.cs     Markdown→ANSI 渲染 (ILazyItem)
 │   │   ├── TuiListView.cs     懒列表 (二分查找+提前终止)
 │   │   ├── TuiInput.cs        多行输入区 + 智能提示面板
@@ -80,15 +86,21 @@ WayCoder/
 │   ├── Syntax.cs       语法高亮 (14 种语言)
 │   ├── DiagnosticManager.cs Lint 诊断集成
 │   └── Gui/            GUI 编辑器占位（预留扩展）
-├── Infra/              基础设施 (7 文件)
+├── Infra/              基础设施 (16+ 文件)
 │   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
 │   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)
 │   ├── ErrorLog.cs      统一错误日志 (四级 + 自动轮转)
 │   ├── FileIgnoreManager.cs .gitignore + .waycoderignore 规则引擎
 │   ├── DesktopNotifier.cs  桌面通知 (终端闪烁 + 响铃 + Toast)
 │   ├── PdfExtractor.cs  PDF 文本提取 (PdfPig, AOT 兼容，分页)
-│   └── OfficeExtractor.cs  Office 文档提取 (DOCX/XLSX/PPTX, 零依赖)
-└── Tools/             34 个工具
+│   ├── OfficeExtractor.cs  Office 文档提取 (DOCX/XLSX/PPTX, 零依赖)
+│   ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议 + 匹配器)
+│   ├── IdGenerator.cs     加密安全 ID 生成
+│   ├── LruCache.cs        线程安全 LRU 缓存 (TTL 过期)
+│   ├── RetryPolicy.cs     智能重试策略 (指数退避 + 异常过滤)
+│   ├── SnippetStore.cs    代码片段管理
+│   └── Logging/           结构化日志系统 (9 文件: ILogSink/Console/File/JSON)
+└── Tools/             39 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
     ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
@@ -100,11 +112,20 @@ WayCoder/
     ├── DiffTool.cs    TreeTool.cs    WcTool.cs
     ├── StatTool.cs    PwdTool.cs     SkillTool.cs
     ├── DocTool.cs      DownloadTool.cs MultiEditTool.cs
-    └── JobOutputTool.cs JobKillTool.cs 后台任务管理
+    ├── AskUserQuestionTool.cs ExportTool.cs StructTodoTool.cs
+    └── JobOutputTool.cs JobKillTool.cs NotebookEditTool.cs 后台任务管理
 ```
 
 ## 关键设计决策
 
+- **系统化流水线**：复杂任务自动走 10 阶段（调查→分析→规划→拆分→分工→执行→调试→审核→提交→总结），`<systematic_phases>` 内部流水线不向用户叙述
+- **渐进超时重试**：LLM 超时逐次加长（1x→1.5x→2x→3x→4x→6x→8x 倍率），每次重试独立 CTS，最多 5 次
+- **任务级花费追踪**：`LLM.TaskPromptTokens/TaskCompletionTokens/TaskCost`，每轮对话独立统计
+- **Hook 系统**：8 种事件（PreToolUse/PostToolUse/PostToolUseFailure/SessionStart/SessionEnd/Stop/PreCompact/Notification），JSON 结构化输出协议（Decision/Reason/SystemMessage/AdditionalContext）
+- **动态状态栏**：`TuiDynamicBar` 实时显示 Agent 状态/工具执行/上下文压缩进度，Braille 旋转动画，6 种状态
+- **终端协议增强**：Bracketed Paste + Kitty Keyboard 协议，CSI 统一解析器
+- **槽位任务队列**：`-p1`~`-p0` 槽位专项任务 + `-pa` 共享前缀，同一槽位多次排队
+- **跨会话记忆检索**：`MemoryRetrieval` TF-IDF + 时间衰减排序，系统提示词自动注入匹配记忆
 - **edit_file 使用唯一子串匹配**，不用行号，安全可审查
 - **上下文压缩三层让步**：50% 裁剪 → 70% LLM 摘要 → 90% 硬折叠；Crush 风格真实 token 追踪（AddUsage/ShouldStopAndSummarize），大窗口 20K buffer / 小窗口 20% 比例
 - **推理内容处理**：`reasoning_content`（DeepSeek V4）/ `reasoning`（Ollama/qwen）实时显示但不存入对话历史 — 显示=让用户看到思考过程，不存=不污染 API 调用
@@ -145,6 +166,10 @@ WayCoder/
 - **AOT 禁止反射**：不能用 `GetMethod`/`GetType` 等运行时反射
 - **Markup 标记**：使用 `«»` 书名号 (`«color»text«/»`)，不与方括号 `[` `]` 冲突，无需双写转义
 - **异步上下文**：`AsyncLocal<string>` 替代 `threading.local()` 用于 bash cwd 跟踪
+- **每个重试独立 CTS**：渐进超时要求每 attempt 创建新的 `CancellationTokenSource`，不能用外部传入的单一 CTS
+- **Hook 脚本兼容性**：stdout 非 JSON 时视为纯文本 `SystemMessage`，JSON 时按 `HookOutput` 协议解析；Decision 仅 PreToolUse 事件生效
+- **DynamicBar 动画无定时器**：Braille 帧基于 `DateTime.UtcNow` 计算（不依赖定时器），ChatScreen 30ms 渲染循环确保动画流畅
+- **Snip 阈值 4000 字符**：裁剪工具输出时保留首尾各 2000 字符 + 错误行（编译错误、异常堆栈），确保 Agent 能看到关键诊断信息
 
 ## 添加新工具 (C# 版)
 

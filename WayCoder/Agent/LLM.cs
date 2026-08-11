@@ -136,6 +136,44 @@ public class LLM
     /// <summary>累计输出 token 数（用于成本估算）</summary>
     public int TotalCompletionTokens { get; private set; }
 
+    /// <summary>当前任务开始时已用的输入 token 数（快照）</summary>
+    private int _taskStartPromptTokens;
+    /// <summary>当前任务开始时已用的输出 token 数（快照）</summary>
+    private int _taskStartCompletionTokens;
+
+    /// <summary>当前任务的输入 token 数（从快照点至今）</summary>
+    public int TaskPromptTokens => TotalPromptTokens - _taskStartPromptTokens;
+    /// <summary>当前任务的输出 token 数（从快照点至今）</summary>
+    public int TaskCompletionTokens => TotalCompletionTokens - _taskStartCompletionTokens;
+
+    /// <summary>
+    /// 当前任务的花费估算（美元）。
+    /// 模型不在定价表中时返回 null。
+    /// </summary>
+    public double? TaskCost
+    {
+        get
+        {
+            if (!Pricing.TryGetValue(Model, out var price)) return null;
+            return TaskPromptTokens * price.Input / 1_000_000.0
+                   + TaskCompletionTokens * price.Output / 1_000_000.0;
+        }
+    }
+
+    /// <summary>保存当前累计用量快照，用于后续计算单次任务花费。</summary>
+    public void SnapshotTaskCost()
+    {
+        _taskStartPromptTokens = TotalPromptTokens;
+        _taskStartCompletionTokens = TotalCompletionTokens;
+    }
+
+    /// <summary>重置任务快照（任务取消或异常时调用）。</summary>
+    public void ResetTaskCost()
+    {
+        _taskStartPromptTokens = 0;
+        _taskStartCompletionTokens = 0;
+    }
+
     /// <summary>最近一次请求的延迟（毫秒）</summary>
     public double LastLatencyMs { get; private set; }
     /// <summary>最近一次请求的每秒 token 数</summary>
@@ -188,12 +226,7 @@ public class LLM
         var sw = System.Diagnostics.Stopwatch.StartNew();
         _reasoningShown = false; // 每次请求重置推理标记
 
-        // 每次 HTTP 请求 60 秒超时，防止服务器无响应无限等待
-        using var requestTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(Config.Instance.LlmHttpTimeoutSec));
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(
-            cancellationToken, requestTimeout.Token);
-        cancellationToken = linked.Token;
-
+        // 超时由 CallWithRetryAsync 内部逐次加长管理，外部仅传取消令牌
         var endpoint = (BaseUrl ?? "https://api.openai.com").TrimEnd('/') + "/v1/chat/completions";
 
         // 调试日志：记录发送内容
@@ -446,20 +479,37 @@ public class LLM
     }
 
     /// <summary>
-    /// 在瞬态错误时使用指数退避重试（最多 3 次）。
+    /// 在瞬态错误时使用指数退避重试。超时时自动加长超时（1x→1.5x→2x→3x→4x…），
+    /// 以适应模型深度思考导致的长时间无响应。
     /// </summary>
     private async Task<HttpResponseMessage> CallWithRetryAsync(
         Func<HttpRequestMessage> createRequest,
         CancellationToken cancellationToken,
+        int timeoutSeconds = -1,
         int maxRetries = -1)
     {
         var effectiveMaxRetries = maxRetries > 0 ? maxRetries : Config.Instance.LlmMaxRetries;
+        var baseTimeoutSec = timeoutSeconds > 0 ? timeoutSeconds : Config.Instance.LlmHttpTimeoutSec;
+        var originalTimeout = _http.Timeout;
+
         for (int attempt = 0; attempt < effectiveMaxRetries; attempt++)
         {
+            var multiplier = GetTimeoutMultiplier(attempt);
+            var thisTimeoutSec = baseTimeoutSec * multiplier;
+            _http.Timeout = TimeSpan.FromSeconds(thisTimeoutSec);
+
+            // 每次尝试创建新的内部 CTS，超时逐次加长
+            using var internalCts = new CancellationTokenSource(TimeSpan.FromSeconds(thisTimeoutSec + 30));
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken, internalCts.Token);
+
             try
             {
                 var req = createRequest();
-                var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, linked.Token);
+
+                // 恢复原始超时
+                _http.Timeout = originalTimeout;
 
                 // 5xx 服务器错误重试
                 if ((int)resp.StatusCode >= 500 && attempt < effectiveMaxRetries - 1)
@@ -480,25 +530,40 @@ public class LLM
             }
             catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                // 超时
+                // 内部超时（非外部取消）——下一次自动加长时间
                 if (attempt == effectiveMaxRetries - 1)
                 {
-                    ErrorLog.LlmError(Model, Endpoint, $"请求超时（{attempt + 1}/{effectiveMaxRetries} 次尝试）");
+                    _http.Timeout = originalTimeout;
+                    ErrorLog.LlmError(Model, Endpoint,
+                        $"请求超时（{attempt + 1}/{effectiveMaxRetries} 次尝试，最终超时 {thisTimeoutSec:F0}s）");
                     throw;
                 }
-                ErrorLog.Warning("LLM", $"请求超时，重试 {attempt + 1}/{effectiveMaxRetries}");
+                var nextTimeout = baseTimeoutSec * GetTimeoutMultiplier(attempt + 1);
+                ErrorLog.Warning("LLM",
+                    $"请求超时 {thisTimeoutSec:F0}s，第 {attempt + 2}/{effectiveMaxRetries} 次加长至 {nextTimeout:F0}s");
                 await Task.Delay((int)Math.Pow(2, attempt) * 1000, cancellationToken);
             }
             catch (HttpRequestException ex) when (attempt < effectiveMaxRetries - 1)
             {
+                _http.Timeout = originalTimeout;
                 ErrorLog.Warning("LLM", $"网络错误，重试 {attempt + 1}/{effectiveMaxRetries}: {ex.Message}");
                 await Task.Delay((int)Math.Pow(2, attempt) * 1000, cancellationToken);
             }
         }
 
+        _http.Timeout = originalTimeout;
         ErrorLog.LlmError(Model, Endpoint, $"重试耗尽（{effectiveMaxRetries} 次）");
         throw new InvalidOperationException("重试耗尽");
     }
+
+    /// <summary>超时逐次加长倍率（索引 = 尝试次数）。</summary>
+    internal static readonly double[] TimeoutMultipliers = [1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0];
+
+    /// <summary>计算第 attempt 次尝试（从 0 开始）的超时倍率。</summary>
+    internal static double GetTimeoutMultiplier(int attempt) =>
+        attempt < TimeoutMultipliers.Length
+            ? TimeoutMultipliers[attempt]
+            : TimeoutMultipliers[^1] + (attempt - TimeoutMultipliers.Length + 1);
 
     /// <summary>解析 HTTP Retry-After 头（秒数或 HTTP-date），返回毫秒延迟。</summary>
     private static int? ParseRetryAfter(HttpResponseMessage resp)

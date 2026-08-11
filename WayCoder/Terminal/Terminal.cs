@@ -157,6 +157,18 @@ public static class Tty
     /// <summary>禁用鼠标跟踪</summary>
     public static void DisableMouse() => Write(AnsiTty.MouseDisable);
 
+    /// <summary>启用 bracketed paste 模式</summary>
+    public static void EnableBracketedPaste() => Write(AnsiTty.BracketedPasteEnable);
+
+    /// <summary>禁用 bracketed paste 模式</summary>
+    public static void DisableBracketedPaste() => Write(AnsiTty.BracketedPasteDisable);
+
+    /// <summary>启用 Kitty 键盘协议</summary>
+    public static void EnableKittyKeyboard() => Write(AnsiTty.KittyEnable);
+
+    /// <summary>禁用 Kitty 键盘协议</summary>
+    public static void DisableKittyKeyboard() => Write(AnsiTty.KittyDisable);
+
     // ================================================================
     // 输出
     // ================================================================

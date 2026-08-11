@@ -41,6 +41,9 @@ public class Agent
     private const int LoopDetectionThreshold = 3;
     private int _loopNudgeCount;
 
+    /// <summary>本轮对话开始时间（供 WorkReporter 计算耗时）</summary>
+    private DateTime _chatStartedAt;
+
     /// <summary>Architect 双模型模式：大模型出计划，小模型执行</summary>
     public bool ArchitectMode { get; set; }
 
@@ -130,8 +133,9 @@ public class Agent
         Action<string>? onToolOutput = null,
         CancellationToken cancellationToken = default)
     {
+        _chatStartedAt = DateTime.UtcNow;
         Messages.Add(new JsonObject { ["role"] = "user", ["content"] = userInput });
-        await CompressWithSmallModel();
+        await CompressWithSmallModel(onToken);
 
         // ── Architect 模式：大模型出计划 → 小模型执行 ──
         if (ArchitectMode && LlmClient.EffectiveModel != LlmClient.SmallModel)
@@ -210,6 +214,7 @@ public class Agent
                     continue;
                 }
 
+                SaveWorkReport();
                 return resp.Content;
             }
 
@@ -297,7 +302,8 @@ public class Agent
             {
                 var beforeCount = Messages.Count;
                 var beforeTokens = ContextManager.EstimateTokens(Messages);
-                await CompressWithSmallModel();
+                onToken?.Invoke($"\n⏳ **上下文压缩中... ({beforeTokens} tokens)**\n\n");
+                await CompressWithSmallModel(onToken);
                 var afterCount = Messages.Count;
                 var afterTokens = ContextManager.EstimateTokens(Messages);
                 DebugLog.Log("context", $"Crush-style auto-summarize: {beforeCount}→{afterCount} msgs, {beforeTokens}→{afterTokens} est.tokens");
@@ -322,19 +328,65 @@ public class Agent
             }
 
             // 如果工具输出太大则压缩上下文
-            await CompressWithSmallModel();
+            await CompressWithSmallModel(onToken);
+
+            // ── Stop hook（每轮完成后触发）──
+            var stopContext = await HooksManager.RunStopAsync();
+            if (stopContext != null)
+            {
+                Messages.Add(new JsonObject
+                {
+                    ["role"] = "user",
+                    ["content"] = stopContext,
+                });
+            }
         }
 
+        SaveWorkReport();
         return "（已达到最大工具调用轮次）";
     }
 
-    /// <summary>使用小模型执行上下文压缩（省钱）</summary>
-    private async Task CompressWithSmallModel()
+    /// <summary>
+    /// 保存工作总结报告到 .waycoder/reports/latest.md。
+    /// </summary>
+    private void SaveWorkReport()
     {
+        try
+        {
+            var report = WorkReporter.Generate(Messages, _chatStartedAt);
+            var dir = Path.Combine(Environment.CurrentDirectory, ".waycoder", "reports");
+            Directory.CreateDirectory(dir);
+            var path = Path.Combine(dir, "latest.md");
+            File.WriteAllText(path, report);
+        }
+        catch { /* 报告生成失败不影响主流程 */ }
+    }
+
+    /// <summary>使用小模型执行上下文压缩（省钱）</summary>
+    private async Task CompressWithSmallModel(Action<string>? onProgress = null)
+    {
+        // PreCompact hook
+        var preCompactCtx = await HooksManager.RunPreCompactAsync(
+            $"est.tokens={ContextManager.EstimateTokens(Messages)}/{Context.MaxTokens}");
+
         var saved = LlmClient.ModelOverride;
         LlmClient.ModelOverride = LlmClient.SmallModel;
-        try { await Context.MaybeCompressAsync(Messages, LlmClient); }
+        try
+        {
+            await Context.MaybeCompressAsync(Messages, LlmClient,
+                onProgress: (layer, msg) => onProgress?.Invoke($"🔄 [{layer}/3] {msg}"));
+        }
         finally { LlmClient.ModelOverride = saved; }
+
+        // 注入 PreCompact 返回的额外上下文
+        if (preCompactCtx != null)
+        {
+            Messages.Add(new JsonObject
+            {
+                ["role"] = "user",
+                ["content"] = preCompactCtx,
+            });
+        }
     }
 
     /// <summary>
@@ -390,6 +442,9 @@ public class Agent
         }
         catch (Exception ex)
         {
+            // PostToolUseFailure hook
+            await HooksManager.RunPostToolUseFailureAsync(tc.Name, tc.Arguments, ex.Message);
+
             ErrorLog.ToolError(tc.Name, $"工具执行异常: {ex.Message}", ex, tc.Arguments);
             return $"执行 {tc.Name} 时出错：{ex.Message}\n[请分析错误原因，尝试其他方式完成目标]";
         }

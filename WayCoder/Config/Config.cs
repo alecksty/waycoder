@@ -145,7 +145,7 @@ public class Config
 
     // ── LLM 连接 ──
     public int LlmHttpTimeoutSec { get; set; } = 300;
-    public int LlmMaxRetries { get; set; } = 3;
+    public int LlmMaxRetries { get; set; } = 5;
     public int LlmConnectionTimeoutSec { get; set; } = 300;
     public int LlmRateLimitMaxWaitSec { get; set; } = 120;
 
@@ -287,13 +287,13 @@ public class Config
               "LLM 请求超时 (秒)", "⚙ 参数", "单次 HTTP 请求超时",
               "number", null, 7,
               c => c.LlmHttpTimeoutSec.ToString(),
-              (c, v) => c.LlmHttpTimeoutSec = Math.Clamp(int.Parse(v), 10, 900), "300"),
+              (c, v) => c.LlmHttpTimeoutSec = Math.Clamp(int.Parse(v), 10, 3600), "300"),
 
             P("LlmMaxRetries",    "WAYCODER_LLM_MAX_RETRIES",   "CORECODER_LLM_MAX_RETRIES",
               "LLM 最大重试", "⚙ 参数", "HTTP 失败最大重试次数",
               "number", null, 8,
               c => c.LlmMaxRetries.ToString(),
-              (c, v) => c.LlmMaxRetries = Math.Clamp(int.Parse(v), 0, 10), "3"),
+              (c, v) => c.LlmMaxRetries = Math.Clamp(int.Parse(v), 0, 10), "5"),
 
             P("LlmConnectionTimeoutSec", "WAYCODER_LLM_CONNECTION_TIMEOUT_SEC", "CORECODER_LLM_CONNECTION_TIMEOUT_SEC",
               "LLM 连接超时 (秒)", "⚙ 参数", "HTTP 连接总超时",
@@ -448,6 +448,18 @@ public class Config
               "select", ["false","true"], 2,
               c => c.WatchMode.ToString().ToLowerInvariant(),
               (c, v) => c.WatchMode = bool.Parse(v), "false"),
+
+            P("WatchExtensions",  "WAYCODER_WATCH_EXTENSIONS",  "CORECODER_WATCH_EXTENSIONS",
+              "Watch 扩展名", "🔧 系统", "监听的源文件扩展名（逗号分隔，默认 .cs .fs .py .js .ts .go .rs）",
+              "text", null, 6,
+              c => c.WatchExtensions,
+              (c, v) => c.WatchExtensions = v, ".cs,.fs,.py,.js,.ts,.go,.rs"),
+
+            P("WatchIgnoreDirs",  "WAYCODER_WATCH_IGNORE_DIRS","CORECODER_WATCH_IGNORE_DIRS",
+              "Watch 忽略目录", "🔧 系统", "不监听的目录名（逗号分隔，默认 obj,bin,node_modules,.git）",
+              "text", null, 7,
+              c => c.WatchIgnoreDirs,
+              (c, v) => c.WatchIgnoreDirs = v, "obj,bin,node_modules,.git"),
 
             P("PromptCaching",    "WAYCODER_PROMPT_CACHE",      "CORECODER_PROMPT_CACHE",
               "Prompt 缓存", "🔧 系统", "追踪系统提示词重复发送，/stats 展示节省",

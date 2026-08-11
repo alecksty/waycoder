@@ -173,6 +173,11 @@ public static class TuiDemo
                         mgr.HandleMouse(ev);
                         break;
 
+                    case InputType.Paste:
+                        if (!string.IsNullOrEmpty(ev.PasteText))
+                            screen.HandleBracketedPaste(ev.PasteText);
+                        break;
+
                     case InputType.Resize:
                         mgr.OnResize();
                         break;

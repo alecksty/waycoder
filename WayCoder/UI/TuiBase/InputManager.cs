@@ -45,9 +45,16 @@ public class InputManager : IDisposable
             Debug.Print("Couldn't disable mouse");
         }
 
-        // TODO: 鼠标暂不开启，后续通过 WAYCODER_MOUSE=1 启用
         try { Tty.EnableMouse(); _mouseEnabled = true; }
         catch { _mouseEnabled = false; }
+
+        // 启用 bracketed paste：终端自动包裹粘贴内容为 \x1b[200~...\x1b[201~
+        try { Tty.EnableBracketedPaste(); }
+        catch { /* 非关键功能 */ }
+
+        // 启用 Kitty 键盘协议：现代终端（iTerm2/Kitty/WezTerm）支持修饰键完整报告
+        try { Tty.EnableKittyKeyboard(); }
+        catch { /* 非关键功能 */ }
     }
 
     /// <summary>
@@ -111,8 +118,9 @@ public class InputManager : IDisposable
     /// <summary>
     /// 解析 AnsiTty.AnsiCharPrefix 开头的转义序列（调用时 AnsiTty.AnsiCharPrefix 已被读取）：
     /// - SGR 鼠标 AnsiTty.AnsiCharPrefix[&lt;C;X;Y M/m → 返回 Mouse 事件
-    /// - 修饰键功能键 CSI 序列（如 AnsiTty.AnsiCharPrefix[1;2P = Shift+F1）→ 返回对应 Key 事件
-    /// - 其他 CSI 序列（如 AnsiTty.AnsiCharPrefix[1;5A 带修饰键方向键）→ 吞掉整个序列，返回 null
+    /// - Bracketed paste AnsiTty.AnsiCharPrefix[200~ ... AnsiTty.AnsiCharPrefix[201~ → 返回 Paste 事件
+    /// - Kitty 键盘协议 AnsiTty.AnsiCharPrefix[keycode;mod u → 返回 Key 事件
+    /// - xterm 功能键 AnsiTty.AnsiCharPrefix[num;mod P/~ → 返回 Key 事件
     /// - Alt+字符（AnsiTty.AnsiCharPrefix x）→ 字符退回 _pendingKeys，返回 null
     /// </summary>
     private InputEvent? TryParseEscapeSequence()
@@ -140,16 +148,10 @@ public class InputManager : IDisposable
         if (lt.KeyChar == 'Z')
             return new InputEvent { Type = InputType.ShiftTab };
 
-        // 非 SGR 鼠标的 CSI 序列
+        // 非 SGR 鼠标的 CSI 序列：统一解析（bracketed paste / Kitty / xterm 功能键）
         if (lt.KeyChar != '<')
         {
-            // 尝试解析为带修饰符的功能键
-            // 格式：CSI num;mod term （xterm 风格，如 \x1b[1;2P = Shift+F1）
-            var funcKeyEvent = TryParseCsiFunctionKey(lt.KeyChar);
-            if (funcKeyEvent != null) return funcKeyEvent;
-
-            ConsumeCsi(lt.KeyChar);
-            return null;
+            return TryParseCsiFunctionKey(lt.KeyChar);
         }
 
         // SGR 鼠标：\x1b[<Cb;Cx;CyM（按下）/ \x1b[<Cb;Cx;Cym（释放）
@@ -193,6 +195,7 @@ public class InputManager : IDisposable
 
     /// <summary>
     /// 尝试解析 CSI 功能键序列（如 \x1b[1;2P = Shift+F1）。
+    /// 同时处理 bracketed paste（\x1b[200~）和 Kitty 键盘协议（CSI ... u）。
     /// firstChar 是 '[' 之后的第一个字符（已被 ReadKey 读取）。
     /// 返回解析后的 InputEvent，若无法识别则返回 null。
     /// </summary>
@@ -202,26 +205,45 @@ public class InputManager : IDisposable
         var paramStr = new System.Text.StringBuilder();
         paramStr.Append(firstChar);
 
-        // 如果 firstChar 本身就是终止字节（如 \x1b[P = F1 老旧格式 \x1bOP）
+        char terminator;
         if (firstChar >= 0x40 && firstChar <= 0x7E)
         {
-            return ParseCsiFuncKey(paramStr.ToString(), firstChar);
+            terminator = firstChar;
         }
-
-        // 继续读取参数
-        for (int i = 0; i < 20; i++)
+        else
         {
-            if (!WaitForChar(10)) break;
-            var ch = Tty.ReadKey();
-            paramStr.Append(ch.KeyChar);
-            if (ch.KeyChar >= 0x40 && ch.KeyChar <= 0x7E)
+            terminator = '\0';
+            for (int i = 0; i < 20; i++)
             {
-                // 终止字节到达，解析
-                return ParseCsiFuncKey(paramStr.ToString(), ch.KeyChar);
+                if (!WaitForChar(10)) break;
+                var ch = Tty.ReadKey();
+                paramStr.Append(ch.KeyChar);
+                if (ch.KeyChar >= 0x40 && ch.KeyChar <= 0x7E)
+                {
+                    terminator = ch.KeyChar;
+                    break;
+                }
             }
+            if (terminator == '\0') return null; // 无终止符，损坏的序列
         }
 
-        return null;
+        var paramBody = paramStr.ToString();
+
+        // Bracketed paste：\x1b[200~（开始）/ \x1b[201~（结束）
+        if (terminator == '~')
+        {
+            if (paramBody == "200~") return ReadPasteContent();
+            if (paramBody == "201~") return null; // 孤立的粘贴结束标记，忽略
+        }
+
+        // Kitty 键盘协议：CSI keycode[:alternate];modifiers u
+        if (terminator == 'u')
+        {
+            return ParseKittyKeySequence(paramBody.TrimEnd('u'));
+        }
+
+        // xterm 功能键格式：num;mod P 或 num;mod ~
+        return ParseCsiFuncKey(paramBody, terminator);
     }
 
     /// <summary>
@@ -296,19 +318,160 @@ public class InputManager : IDisposable
         return new InputEvent { Type = InputType.Key, KeyInfo = keyInfo };
     }
 
-    /// <summary>吞掉 CSI 序列剩余部分直到终止字节（0x40-0x7E），防止泄漏为文本。
-    /// firstChar 是已经读取的第一个参数字符。</summary>
-    private void ConsumeCsi(char firstChar)
+    /// <summary>
+    /// 读取 bracketed paste 内容，直到遇到 \x1b[201~ 结束标记。
+    /// 调用时 \x1b[200~ 已被完整消费。
+    /// </summary>
+    private InputEvent ReadPasteContent()
     {
-        // 如果第一个字符就是终止字节，无需继续读取
-        if (firstChar >= 0x40 && firstChar <= 0x7E) return;
+        var sb = new System.Text.StringBuilder();
+        const string endMarker = "\x1b[201~";
 
-        for (int i = 0; i < 30; i++)
+        while (true)
         {
-            if (!WaitForChar(10)) break;
+            if (!Console.KeyAvailable)
+            {
+                Thread.Sleep(1);
+                continue;
+            }
+
             var ch = Tty.ReadKey();
-            if (ch.KeyChar >= 0x40 && ch.KeyChar <= 0x7E) break; // CSI 终止字节
+            sb.Append(ch.KeyChar);
+
+            // 检查缓冲区末尾是否匹配结束标记
+            if (sb.Length >= endMarker.Length)
+            {
+                var match = true;
+                for (int i = 0; i < endMarker.Length; i++)
+                {
+                    if (sb[sb.Length - endMarker.Length + i] != endMarker[i])
+                    { match = false; break; }
+                }
+                if (match)
+                {
+                    var text = sb.ToString(0, sb.Length - endMarker.Length);
+                    return new InputEvent { Type = InputType.Paste, PasteText = text };
+                }
+            }
         }
+    }
+
+    /// <summary>
+    /// 解析 Kitty 键盘协议 CSI 序列参数（不含终止符 'u'）。
+    /// 格式：keycode[:alternate];modifiers
+    /// Kitty 修饰键编码：1=Shift, 2=Alt, 4=Ctrl, 8=Super(Meta/Cmd)
+    /// 功能键在 Unicode Private Use Area：57344-57355 = F1-F12
+    /// </summary>
+    private static InputEvent? ParseKittyKeySequence(string body)
+    {
+        if (string.IsNullOrEmpty(body)) return null;
+
+        // 按 ';' 分割：前半部分=keycode[:alternate]，后半部分=modifiers
+        var semicolonIdx = body.LastIndexOf(';');
+        string keyPart;
+        int modifiers = 0;
+
+        if (semicolonIdx >= 0)
+        {
+            keyPart = body.Substring(0, semicolonIdx);
+            if (!int.TryParse(body.Substring(semicolonIdx + 1), out modifiers))
+                modifiers = 0;
+        }
+        else
+        {
+            keyPart = body;
+        }
+
+        // 提取 keycode（可选 ':' 后的 alternate key 忽略）
+        var colonIdx = keyPart.IndexOf(':');
+        var keycodeStr = colonIdx >= 0 ? keyPart.Substring(0, colonIdx) : keyPart;
+        if (!int.TryParse(keycodeStr, out var keycode)) return null;
+
+        // Kitty 修饰键位掩码 → bool
+        bool shift = (modifiers & 1) != 0;
+        bool alt   = (modifiers & 2) != 0;
+        bool ctrl  = (modifiers & 4) != 0;
+        // Super (8) 忽略，因为 .NET ConsoleKeyInfo 无 Super 修饰键
+
+        // 映射 keycode → ConsoleKey + keyChar
+        ConsoleKey consoleKey;
+        char keyChar = '\0';
+
+        if (keycode >= 57344 && keycode <= 57355)
+        {
+            // 功能键 F1-F12：57344 = F1
+            consoleKey = (ConsoleKey)((int)ConsoleKey.F1 + (keycode - 57344));
+        }
+        else if (keycode >= 57356 && keycode <= 57399)
+        {
+            // 特殊命名键（方向键、Home/End/PgUp/PgDn/Insert/Delete 等）
+            consoleKey = keycode switch
+            {
+                57356 => ConsoleKey.UpArrow,
+                57357 => ConsoleKey.DownArrow,
+                57358 => ConsoleKey.LeftArrow,
+                57359 => ConsoleKey.RightArrow,
+                57360 => ConsoleKey.Home,
+                57361 => ConsoleKey.End,
+                57362 => ConsoleKey.PageUp,
+                57363 => ConsoleKey.PageDown,
+                57364 => ConsoleKey.Insert,
+                57365 => ConsoleKey.Delete,
+                57366 => ConsoleKey.Backspace,
+                57367 => ConsoleKey.Tab,
+                57368 => ConsoleKey.Enter,
+                57369 => ConsoleKey.Escape,
+                _ => ConsoleKey.NoName,
+            };
+        }
+        else
+        {
+            // 普通按键：keycode = Unicode 码点
+            switch (keycode)
+            {
+                case 13: // Enter（回车键也作为标准键处理）
+                    consoleKey = ConsoleKey.Enter; keyChar = '\r'; break;
+                case 27: // Escape
+                    consoleKey = ConsoleKey.Escape; keyChar = '\x1b'; break;
+                case 9: // Tab
+                    consoleKey = ConsoleKey.Tab; keyChar = '\t'; break;
+                case 127: // Backspace
+                    consoleKey = ConsoleKey.Backspace; keyChar = '\b'; break;
+                case 32: // Space
+                    consoleKey = ConsoleKey.Spacebar; keyChar = ' '; break;
+                default:
+                    if (keycode >= 33 && keycode <= 126)
+                    {
+                        keyChar = (char)keycode;
+                        // 映射 ASCII 可打印字符 → ConsoleKey
+                        if (keyChar >= 'a' && keyChar <= 'z')
+                            consoleKey = (ConsoleKey)((int)ConsoleKey.A + (keyChar - 'a'));
+                        else if (keyChar >= 'A' && keyChar <= 'Z')
+                            consoleKey = (ConsoleKey)((int)ConsoleKey.A + (keyChar - 'A'));
+                        else if (keyChar >= '0' && keyChar <= '9')
+                            consoleKey = (ConsoleKey)((int)ConsoleKey.D0 + (keyChar - '0'));
+                        else
+                            consoleKey = keyChar switch
+                            {
+                                '`' => ConsoleKey.Oem3,   '-' => ConsoleKey.OemMinus,
+                                '=' => ConsoleKey.OemPlus, '[' => ConsoleKey.Oem4,
+                                ']' => ConsoleKey.Oem6,   '\\' => ConsoleKey.Oem5,
+                                ';' => ConsoleKey.Oem1,   '\'' => ConsoleKey.Oem7,
+                                ',' => ConsoleKey.OemComma, '.' => ConsoleKey.OemPeriod,
+                                '/' => ConsoleKey.Oem2,
+                                _ => ConsoleKey.NoName,
+                            };
+                    }
+                    else
+                    {
+                        return null; // 无法识别的键码
+                    }
+                    break;
+            }
+        }
+
+        var keyInfo = new ConsoleKeyInfo(keyChar, consoleKey, shift, alt, ctrl);
+        return new InputEvent { Type = InputType.Key, KeyInfo = keyInfo };
     }
 
     /// <summary>等待键盘输入到达（忙等），最多 timeoutMs 毫秒</summary>
@@ -333,13 +496,14 @@ public class InputManager : IDisposable
 
         if (_mouseEnabled)
         {
-            try
-            {
-                Tty.DisableMouse();
-            }
-            catch
-            {
-            }
+            try { Tty.DisableMouse(); }
+            catch { }
+
+            try { Tty.DisableBracketedPaste(); }
+            catch { }
+
+            try { Tty.DisableKittyKeyboard(); }
+            catch { }
         }
 
         Console.CursorVisible = true;
@@ -354,6 +518,7 @@ public enum InputType
     Resize, // 窗口大小变化
     Timeout, // 超时（无输入）
     ShiftTab, // Shift+Tab（模式切换）
+    Paste, // 粘贴事件（bracketed paste 检测）
 }
 
 /// <summary>输入事件数据</summary>
@@ -372,4 +537,6 @@ public class InputEvent
     public bool MouseRelease { get; set; }
     public int Width { get; set; }
     public int Height { get; set; }
+    /// <summary>粘贴文本内容（仅 InputType.Paste 时有效）</summary>
+    public string? PasteText { get; set; }
 }

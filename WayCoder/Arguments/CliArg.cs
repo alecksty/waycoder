@@ -29,6 +29,9 @@ public class CliArg
     /// <summary>值标签（帮助中显示在名称后），null 则不显示</summary>
     public virtual string? ValueLabel => null;
 
+    /// <summary>多次出现时累积值而非覆盖（用于排队场景）</summary>
+    public virtual bool AllowMultiple => false;
+
     /// <summary>是否为内部/开发参数（默认不在帮助中显示）</summary>
     public virtual bool Internal => false;
 
