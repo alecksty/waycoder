@@ -1,5 +1,51 @@
 # 更新日志
 
+## v0.33.1 (2026-08-11) — 对话框刷新修复 + CSI 功能键解析 + TuiDemo 重构
+
+### 🐛 对话框关闭 → 背景刷新修复
+
+三处联动修复，解决关闭模态窗口后背景残留窗口残影的问题：
+
+- **TuiManager `_needsFullRefresh`**：`RequestFullRefresh()` 设置标志，`Render()` 检测该标志时跳过增量渲染、发送 `ClearScreen` ANSI
+- **TuiScreen `MarkDirtyInRect`**：关闭窗口时递归标记被遮挡区域的控件为脏，正确处理滚动容器坐标偏移
+- **TuiView/TuiListView `EffectiveScrollOffset`**：虚拟属性抽象，`MarkDirtyInRect` 用于计算滚动容器中子控件的真实屏幕坐标
+
+### ⌨️ CSI 功能键解析器（InputManager）
+
+- **`TryParseCsiFunctionKey(char firstChar)`**：读取完整 CSI 参数串（`\x1b[num;modP/~`），委托给解析方法
+- **`ParseCsiFuncKey(string, char)`**：解析 xterm 修饰键编码（2=Shift, 3=Alt, 4=Shift+Alt, 5=Ctrl, 6=Ctrl+Shift, 7=Ctrl+Alt, 8=Ctrl+Shift+Alt），支持 `P` 终止符（F1-F4）和 `~` 终止符（F5-F12 + 旧编码 F1-F24）
+- 非 SGR 鼠标的 CSI 序列现在先尝试解析为功能键，失败后才吞掉序列
+- **注**：macOS 终端（Terminal.app / iTerm2）默认不发送 `Shift+Fx` 序列，此功能为支持这些序列的终端提供正确解析
+
+### 🎮 TuiDemo 重构
+
+- **Slash 命令**：6 个全屏对话框改为 `/m /s /r /c /f /b` 输入框命令触发，跨平台兼容
+- **PendingSubmissions 消费循环**：主循环新增 `TryDequeue` 逻辑，修复 Enter 提交的消息从未被 `OnSubmit` 处理的 bug
+- **欢迎消息**：更新为 Slash 命令说明 + 全屏对话框列表
+
+### 📋 文件清单
+
+| 文件 | 变更 |
+|------|------|
+| `UI/TuiBase/TuiManager.cs` | 修改：`_needsFullRefresh` + `RequestFullRefresh()` 公共方法 |
+| `UI/TuiBase/TuiScreen.cs` | 修改：`CloseWindow` dirty rects + `MarkDirtyInRect` 递归标记 |
+| `UI/TuiBase/TuiView.cs` | 修改：`EffectiveScrollOffset` 虚拟属性 (default 0) |
+| `UI/TuiBase/InputManager.cs` | 修改：`TryParseCsiFunctionKey` + `ParseCsiFuncKey` + `ConsumeCsi(char)` |
+| `UI/TuiControls/TuiListView.cs` | 修改：`EffectiveScrollOffset` override |
+| `UI/TuiControls/TuiDialog.cs` | 修改：try/finally `RequestFullRefresh` |
+| `UI/TuiCust/ModelPicker.cs` | 修改：try/finally `RequestFullRefresh` |
+| `UI/TuiCust/SessionPicker.cs` | 修改：try/finally `RequestFullRefresh` |
+| `UI/TuiCust/ReasoningPicker.cs` | 修改：try/finally `RequestFullRefresh` |
+| `UI/TuiCust/CommandPalette.cs` | 修改：try/finally `RequestFullRefresh` |
+| `UI/TuiCust/FilePicker.cs` | 修改：try/finally `RequestFullRefresh` |
+| `TuiDemo.cs` | 重构：Slash 命令 + PendingSubmissions 消费 + 欢迎消息更新 |
+| `Config/Global.cs` | v0.33.0 → v0.33.1 |
+
+### 🧪 测试
+- 编译 0 错误
+
+---
+
 ## v0.33.0 (2026-08-11) — 鼠标全面修复 + 推理深度 + 会话管理
 
 ### 🖱️ 鼠标全面修复（对标 Crush 鼠标系统）

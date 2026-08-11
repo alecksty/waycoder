@@ -30,6 +30,8 @@ public static class FilePicker
 
         var (tw, th) = (Tty.Cols, Tty.Rows);
 
+        try
+        {
         while (true)
         {
             // 过滤
@@ -179,6 +181,11 @@ public static class FilePicker
                     }
                     break;
             }
+        }
+        }
+        finally
+        {
+            TuiManager.RequestFullRefresh();
         }
     }
 

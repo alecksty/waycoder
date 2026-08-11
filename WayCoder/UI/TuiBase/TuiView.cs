@@ -17,6 +17,9 @@ public abstract class TuiView : TuiControl
     /// <summary>子控件列表</summary>
     public readonly List<TuiControl> Children = [];
 
+    /// <summary>当前视图的有效滚动偏移（非滚动容器返回 0）。用于脏标记时计算子控件真实屏幕坐标。</summary>
+    public virtual int EffectiveScrollOffset => 0;
+
     /// <summary>子控件水平对齐方式（在布局容器内）</summary>
     public HAlign ChildHAlign { get; set; } = HAlign.Left;
 
@@ -374,6 +377,8 @@ public class TuiScrollView : TuiView
     public int ContentHeight { get; protected set; }
     /// <summary>当前滚动偏移（行数），0=顶部</summary>
     public int ScrollOffset { get; set; }
+    /// <inheritdoc/>
+    public override int EffectiveScrollOffset => ScrollOffset;
     /// <summary>是否自动滚到底部（内容增长时自动跟底）</summary>
     public bool IsAutoScrollToEnd { get; set; } = true;
     /// <summary>已弃用，请使用 IsAutoScrollToEnd</summary>

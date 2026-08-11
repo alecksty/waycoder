@@ -21,11 +21,29 @@ public static class TuiDemo
             mgr.RefreshTheme();
 
             var screen = new ChatScreen();
-            screen.StatusText = "WayCoder TUI Demo — 五层架构展示 | Ctrl+D 退出 | F1 对话框 | F2 Toast | F3 输入";
+            screen.StatusText = "WayCoder TUI Demo | F1-F12 控件 | Esc 退出 | 输入 /m /s /r /c /f /b 打开全屏对话框";
             screen.OnSubmit = text =>
             {
-                // 用户消息
-                screen.AddMessage(text, "user");
+                // ── Slash 命令：打开全屏对话框 ──
+                var trimmed = text.Trim();
+                switch (trimmed.ToLowerInvariant())
+                {
+                    case "/m": case "/model":
+                        ShowModelPickerDemo(screen); return;
+                    case "/s": case "/session":
+                        ShowSessionPickerDemo(screen); return;
+                    case "/r": case "/reasoning":
+                        ShowReasoningPickerDemo(screen); return;
+                    case "/c": case "/command":
+                        ShowCommandPaletteDemo(screen); return;
+                    case "/f": case "/file":
+                        ShowFilePickerDemo(screen); return;
+                    case "/b": case "/buttons":
+                        ShowButtonGroupDemo(screen); return;
+                }
+
+                // 注：ChatScreen 已通过 HandleSpecial 添加了用户消息（AddUserMsg），
+                // 此处仅模拟 AI 回复，不重复添加用户消息。
 
                 // 模拟 AI 回复
                 Task.Delay(300).ContinueWith(_ =>
@@ -44,20 +62,20 @@ public static class TuiDemo
             // 添加欢迎消息
             screen.AddMessage("## 👋 欢迎使用 WayCoder TUI Demo\n\n" +
                 "**五层架构**：TuiManager → TuiScreen → TuiWindow → TuiView → TuiControl\n\n" +
-                "- `F1` — 权限确认对话框\n" +
-                "- `F2` — Toast 通知\n" +
-                "- `F3` — 输入对话框\n" +
-                "- `F4` — 列表选择\n" +
-                "- `F5` — 确认框\n" +
-                "- `F6` — 短菜单（弹出式）\n" +
-                "- `F7` — 长滚动菜单\n" +
-                "- `F8` — 右键快捷菜单\n" +
-                "- `F9` — Markdown 表格\n" +
-                "- `F10` — 树形视图\n" +
-                "- `F11` — 控件合集\n" +
-                "- `F12` — 面板布局\n" +
-                "- `Ctrl+D` 或 `Esc` — 退出\n" +
-                "- 输入文字后 `Enter` 发送",
+                "### 基础控件\n" +
+                "- `F1` — 权限确认  `F2` — Toast  `F3` — 输入框\n" +
+                "- `F4` — 列表选择  `F5` — 确认框\n" +
+                "- `F6` — 短菜单  `F7` — 长滚动菜单  `F8` — 右键菜单\n" +
+                "- `F9` — Markdown 表格  `F10` — 树形视图\n" +
+                "- `F11` — 控件合集  `F12` — 面板布局\n\n" +
+                "### 全屏对话框（输入框输入命令，Enter 打开）\n" +
+                "- `/m` 或 `/model` — 模型选择器\n" +
+                "- `/s` 或 `/session` — 会话管理器\n" +
+                "- `/r` 或 `/reasoning` — 推理深度\n" +
+                "- `/c` 或 `/command` — 命令面板\n" +
+                "- `/f` 或 `/file` — 文件选择器\n" +
+                "- `/b` 或 `/buttons` — 按钮组+滚动条\n\n" +
+                "`Esc` — 退出  |  输入文字后 `Enter` 发送",
                 "assistant");
 
             // 全局热键
@@ -73,7 +91,7 @@ public static class TuiDemo
                 if (key.Key == ConsoleKey.Escape)
                     return false;
 
-                if (screen.HasModal) return false; // 有模态窗口时不处理 F 键
+                if (screen.HasModal) return false; // 有模态窗口时不处理
 
                 switch (key.Key)
                 {
@@ -161,6 +179,12 @@ public static class TuiDemo
                 }
 
                 mgr.Render();
+
+                // 处理待提交消息（Enter 后 ChatScreen 会将文本入队到此队列）
+                while (screen.PendingSubmissions.TryDequeue(out var submitted))
+                {
+                    screen.OnSubmit?.Invoke(submitted);
+                }
             }
         }
         finally
@@ -527,6 +551,169 @@ public static class TuiDemo
             Modal = true, HasMask = false,
             Border = WindowBorder.Rounded,
             BorderColor = 33, WinBg = 7,
+        };
+        win.RegisterShortcut(ConsoleKey.Escape, () => win.OnClosed?.Invoke());
+        screen.ShowWindow(win);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // 全屏 ANSI 对话框（对标 Crush）—— Ctrl+字母 触发
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>Ctrl+M — 模型选择对话框（对标 Crush models.go）</summary>
+    private static void ShowModelPickerDemo(ChatScreen screen)
+    {
+        var result = ModelPicker.Show();
+if (result != null)
+            screen.AddMessage($"🔄 选择了 **{(result.IsLarge ? "大模型" : "小模型")}** → `{result.ModelId}`", "system");
+        else
+            screen.AddMessage("🚫 模型选择已取消", "system");
+    }
+
+    /// <summary>Ctrl+S — 会话管理对话框（对标 Crush sessions.go）</summary>
+    private static void ShowSessionPickerDemo(ChatScreen screen)
+    {
+        var result = SessionPicker.Show();
+if (result == null)
+        {
+            screen.AddMessage("🚫 会话管理已取消", "system");
+            return;
+        }
+        var actionText = result.Action switch
+        {
+            "switch" => "切换",
+            "rename" => $"重命名 → {result.NewName}",
+            "delete" => "删除",
+            _ => result.Action
+        };
+        screen.AddMessage($"📂 会话操作：**{actionText}** — `{result.SessionId}`", "system");
+    }
+
+    /// <summary>Ctrl+G — 推理深度选择器（对标 Crush reasoning.go）</summary>
+    private static void ShowReasoningPickerDemo(ChatScreen screen)
+    {
+        var result = ReasoningPicker.Show(currentLevel: "", modelName: "deepseek-v4-pro");
+if (result != null)
+        {
+            var levelText = string.IsNullOrEmpty(result.Level) ? "默认（清除）" : result.Level;
+            screen.AddMessage($"🧠 推理深度 → **{levelText}**", "system");
+        }
+        else
+            screen.AddMessage("🚫 推理深度选择已取消", "system");
+    }
+
+    /// <summary>Ctrl+P — 命令面板（对标 Crush command palette）</summary>
+    private static void ShowCommandPaletteDemo(ChatScreen screen)
+    {
+        var commands = new List<CommandPalette.Command>
+        {
+            new("model", "🤖 切换模型", "模型", "Ctrl+M", "打开模型选择对话框",
+                () => screen.AddMessage("📋 执行：切换模型", "system")),
+            new("session", "📂 管理会话", "会话", "Ctrl+S", "打开会话管理器",
+                () => screen.AddMessage("📋 执行：管理会话", "system")),
+            new("reasoning", "🧠 推理深度", "模型", "Ctrl+G", "设置推理深度",
+                () => screen.AddMessage("📋 执行：推理深度", "system")),
+            new("file", "📁 打开文件", "文件", "Ctrl+O", "选择并打开文件",
+                () => screen.AddMessage("📋 执行：打开文件", "system")),
+            new("save", "💾 保存会话", "文件", "Ctrl+S", "保存当前会话到磁盘",
+                () => screen.AddMessage("📋 执行：保存会话", "system")),
+            new("compact", "🗜️ 压缩上下文", "工具", "", "压缩对话历史释放 Token",
+                () => screen.AddMessage("📋 执行：压缩上下文", "system")),
+            new("diff", "📊 查看差异", "工具", "", "显示当前变更的 diff",
+                () => screen.AddMessage("📋 执行：查看差异", "system")),
+            new("help", "❓ 帮助", "帮助", "Ctrl+H", "显示使用帮助",
+                () => screen.AddMessage("📋 执行：帮助", "system")),
+            new("quit", "🚪 退出", "系统", "Ctrl+Q", "退出 WayCoder",
+                () => screen.AddMessage("📋 执行：退出", "system")),
+        };
+        CommandPalette.Show(commands);
+        screen.InvalidateView(); // 全屏 ANSI 对话框覆盖了 TUI 画面，强制全刷新
+    }
+
+    /// <summary>Ctrl+F — 文件选择器（对标 Crush filepicker）</summary>
+    private static void ShowFilePickerDemo(ChatScreen screen)
+    {
+        var result = FilePicker.Show(
+            startDir: Environment.CurrentDirectory,
+            filter: null,
+            title: "选择文件 — TUI Demo");
+if (result != null)
+            screen.AddMessage($"📁 选择了文件：`{result}`", "system");
+        else
+            screen.AddMessage("🚫 文件选择已取消", "system");
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // TUI 控件对话框 —— Ctrl+B 触发
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>Ctrl+B — 按钮组 + 滚动条演示（对标 Crush button.go/scrollbar.go）</summary>
+    private static void ShowButtonGroupDemo(ChatScreen screen)
+    {
+        var vbox = new TuiVBox { Width = 46, Height = 22, X = 1, Y = 0 };
+
+        var label1 = new TuiLabel("水平按钮组（Tab 导航 / 字母快捷键）：") { Fg = 37 };
+        vbox.Add(label1);
+
+        var hGroup = new TuiButtonGroup { Direction = TuiButtonGroup.LayoutMode.Horizontal, Width = 44, Height = 3 };
+        hGroup.Add("编译 (C)", onClick: _ => screen.AddMessage("🔨 **编译**", "system"));
+        hGroup.Add("运行 (R)", onClick: _ => screen.AddMessage("▶️ **运行**", "system"));
+        hGroup.Add("测试 (T)", onClick: _ => screen.AddMessage("🧪 **测试**", "system"));
+        hGroup.Add("调试 (D)", onClick: _ => screen.AddMessage("🐛 **调试**", "system"));
+        vbox.Add(hGroup);
+
+        vbox.Add(new TuiSeparator { Width = 44 });
+
+        var label2 = new TuiLabel("垂直按钮组（↑↓ 导航 / Enter 确认）：") { Fg = 37 };
+        vbox.Add(label2);
+
+        var vGroup = new TuiButtonGroup { Direction = TuiButtonGroup.LayoutMode.Vertical, Width = 44, Height = 6 };
+        vGroup.Add("📄 新建文件", onClick: _ => screen.AddMessage("📄 **新建文件**", "system"));
+        vGroup.Add("📁 打开文件夹", onClick: _ => screen.AddMessage("📁 **打开文件夹**", "system"));
+        vGroup.Add("💾 全部保存", onClick: _ => screen.AddMessage("💾 **全部保存**", "system"));
+        vGroup.Add("🗑️ 删除选中", onClick: _ => screen.AddMessage("🗑️ **删除选中**", "system"));
+        vbox.Add(vGroup);
+
+        vbox.Add(new TuiSeparator { Width = 44 });
+
+        var label3 = new TuiLabel("独立滚动条（拖拽滑块 / 鼠标滚轮）：") { Fg = 37 };
+        vbox.Add(label3);
+
+        var allLines = new[]
+        {
+            "  📄 第 1 行：项目概览", "  📄 第 2 行：架构设计文档",
+            "  📄 第 3 行：API 接口规范", "  📄 第 4 行：数据库设计",
+            "  📄 第 5 行：部署运维指南", "  📄 第 6 行：测试用例清单",
+            "  📄 第 7 行：变更日志", "  📄 第 8 行：性能基准报告",
+            "  📄 第 9 行：安全审计结果", "  📄 第 10 行：团队协作规范",
+            "  📄 第 11 行：FAQ 常见问题", "  📄 第 12 行：贡献者指南",
+        };
+
+        var contentLabel = new TuiLabel(
+            string.Join("\n", allLines.Take(7))) { Width = 40, Height = 7, Fg = 90 };
+
+        var scrollRow = new TuiHBox { Width = 44, Height = 7 };
+        scrollRow.Add(contentLabel);
+
+        var scrollbar = new TuiScrollbar
+            { ContentHeight = allLines.Length, ViewportHeight = 7, ScrollOffset = 0, Width = 1, Height = 7 };
+        scrollbar.OnScroll = pos =>
+        {
+            var visible = allLines.Skip(pos).Take(7).ToList();
+            while (visible.Count < 7) visible.Add("");
+            contentLabel.Text = string.Join("\n", visible);
+        };
+        scrollRow.Add(scrollbar);
+        vbox.Add(scrollRow);
+
+        var win = new TuiWindow
+        {
+            Title = "🔘 按钮组 + 滚动条 — Ctrl+B 演示",
+            RootView = vbox, Width = 48, Height = 24,
+            X = 2, Y = 1,
+            Modal = true, HasMask = false,
+            Border = WindowBorder.Rounded,
+            BorderColor = 36, WinBg = 7,
         };
         win.RegisterShortcut(ConsoleKey.Escape, () => win.OnClosed?.Invoke());
         screen.ShowWindow(win);

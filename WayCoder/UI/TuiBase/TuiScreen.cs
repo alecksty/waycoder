@@ -145,8 +145,11 @@ public abstract class TuiScreen : TuiBase
     /// <summary>关闭窗口</summary>
     public void CloseWindow(TuiWindow win)
     {
-        // 记录窗口覆盖区域，用于关闭后重绘被遮挡的控件
+        // 1. 记录窗口覆盖区域，用于关闭后裁剪重绘被遮挡的根视图控件（安全网）
         _dirtyRects.Add((win.X, win.Y, win.Width, win.Height));
+
+        // 2. 遍历控件树精准标记被窗口遮挡的叶子控件为脏（增量渲染优化）
+        MarkDirtyInRect(RootView, 0, 0, win.X, win.Y, win.Width, win.Height);
 
         win.OnDestroy();
         bool wasModal = win.Modal;
@@ -170,6 +173,36 @@ public abstract class TuiScreen : TuiBase
         // 注意：不在此处调用 win.OnClosed，避免无限递归。
         // OnClosed 是窗口主动请求关闭的通知，由窗口内控件触发，
         // 调用方（如 TuiDialog 按钮）先触发 OnClosed，再到达此处。
+    }
+
+    /// <summary>
+    /// 递归标记与指定矩形区域重叠的控件为脏。
+    /// 通过 TuiView.EffectiveScrollOffset 正确处理滚动容器的坐标偏移。
+    /// 同时标记 TuiView 容器自身，保证增量渲染时 parentDirty 级联生效。
+    /// </summary>
+    private static void MarkDirtyInRect(TuiControl control, int absX, int absY,
+        int rectX, int rectY, int rectW, int rectH)
+    {
+        int left = absX + control.X;
+        int top = absY + control.Y;
+        int right = left + control.Width;
+        int bottom = top + control.Height;
+
+        // 不重叠则跳过整棵子树
+        if (right <= rectX || left >= rectX + rectW ||
+            bottom <= rectY || top >= rectY + rectH)
+            return;
+
+        // 标记自身（TuiView 容器也需要标记，保证 OnRender 中 parentDirty 级联）
+        control.MarkDirty();
+
+        if (control is TuiView view)
+        {
+            int scrollOff = view.EffectiveScrollOffset;
+            foreach (var child in view.Children)
+                MarkDirtyInRect(child, left, top - scrollOff,
+                    rectX, rectY, rectW, rectH);
+        }
     }
 
     /// <summary>关闭所有模态窗口</summary>
@@ -334,8 +367,18 @@ public abstract class TuiScreen : TuiBase
         }
 
         // 3.5 重绘脏区域（窗口关闭后，补绘被遮挡的根视图控件）
+        // 先擦除窗口残影（默认背景），再裁剪重绘根视图，保证背景不残留。
         foreach (var (x, y, w, h) in _dirtyRects)
         {
+            // 用默认背景清除脏区域（擦除窗口 Mask / 边框 / 背景）
+            for (int row = y; row < y + h && row < TH; row++)
+            {
+                if (row < 0) continue;
+                var rb = new RenderBuffer();
+                rb.Write(row, x, new string(' ', w));
+                sb.Append(rb.ToString());
+            }
+            // 裁剪重绘根视图控件
             RootView.Render(sb, 0, 0,
                 clipL: x, clipT: y, clipR: x + w, clipB: y + h);
         }

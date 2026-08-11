@@ -56,6 +56,8 @@ public static class SessionPicker
             }
         }
 
+        try
+        {
         while (true)
         {
             // 过滤
@@ -260,6 +262,11 @@ public static class SessionPicker
             {
                 return Result.SwitchTo(filtered[selectedIdx].Id);
             }
+        }
+        }
+        finally
+        {
+            TuiManager.RequestFullRefresh();
         }
     }
 
