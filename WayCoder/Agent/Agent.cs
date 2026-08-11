@@ -71,6 +71,10 @@ public class Agent
         _maxBudgetUsd = maxBudgetUsd;
         _autoCommit = autoCommit;
         Tools = tools ?? ToolRegistry.AllTools;
+
+        // 工具白名单/黑名单过滤
+        Tools = FilterTools(Tools);
+
         ToolByName = Tools.ToDictionary(t => t.Name);
         Context = new ContextManager(maxContextTokens);
         _maxRounds = maxRounds;
@@ -778,6 +782,29 @@ public class Agent
             DebugLog.Log("architect", $"计划生成异常: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// 根据配置过滤工具列表（白名单 + 黑名单）。
+    /// </summary>
+    private static List<ITool> FilterTools(List<ITool> tools)
+    {
+        var config = Config.Instance;
+        var allowed = config.AllowedTools?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(s => s.Trim().ToLowerInvariant()).ToHashSet();
+        var disabled = config.DisabledTools?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(s => s.Trim().ToLowerInvariant()).ToHashSet();
+
+        var result = tools;
+        if (allowed is { Count: > 0 })
+            result = result.Where(t => allowed.Contains(t.Name.ToLowerInvariant())).ToList();
+        if (disabled is { Count: > 0 })
+            result = result.Where(t => !disabled.Contains(t.Name.ToLowerInvariant())).ToList();
+
+        if (result.Count < tools.Count)
+            DebugLog.Log("tool-filter", $"工具过滤: {tools.Count} → {result.Count} (白名单={allowed?.Count ?? 0}, 黑名单={disabled?.Count ?? 0})");
+
+        return result;
     }
 
     /// <summary>

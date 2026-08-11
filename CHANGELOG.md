@@ -1,5 +1,25 @@
 # 更新日志
 
+## v0.31.8 (2026-08-11) — 工具白名单/黑名单 + 配置完善
+
+### 🔒 工具白名单/黑名单
+
+- `Config.AllowedTools`：逗号分隔白名单，仅允许列表中的工具可用（空=全部允许）
+- `Config.DisabledTools`：逗号分隔黑名单，禁止列表中工具（空=不禁用）
+- 环境变量：`WAYCODER_ALLOWED_TOOLS` / `WAYCODER_DISABLED_TOOLS`
+- 过滤发生在 Agent 构造函数（`FilterTools` 方法），对 Agent 和子 Agent 均生效
+- 过滤后通过 `DebugLog.Log("tool-filter", ...)` 记录工具数量变化
+
+### 🔧 配置完善
+
+- Settings UI 新增"工具白名单"和"工具黑名单"两个配置项（`🔒 安全` 分类）
+
+| 文件 | 变更 |
+|------|------|
+| `Config/Config.cs` | 新增 AllowedTools / DisabledTools 属性 + Settings 注册 |
+| `Agent/Agent.cs` | 新增 `FilterTools()` 方法 |
+| `Config/Global.cs` | v0.31.7 → v0.31.8 |
+
 ## v0.31.7 (2026-08-11) — 对标 Crush：SystemPrompt 重写 + 循环检测 + 工具描述增强
 
 ### 🧠 SystemPrompt 重写（对标 Crush coder.md.tpl）
