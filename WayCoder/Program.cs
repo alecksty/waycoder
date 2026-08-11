@@ -317,9 +317,12 @@ public class Program
         slot0.RestoreTo(screen);
         screen.ActiveSlotIndex = 0;
 
-        // 权限确认框信号 → 槽位状态栏标记"等待权限"
-        PermissionManager.PermissionPromptStarted += _ =>
+        // 权限确认框信号 → 槽位状态栏标记"等待权限" + 桌面通知
+        PermissionManager.PermissionPromptStarted += toolName =>
+        {
             screen.SlotStates[screen.ActiveSlotIndex] = SlotState.WaitingPerm;
+            DesktopNotifier.NotifyPermissionWaiting(toolName);
+        };
         PermissionManager.PermissionPromptResolved += _ =>
         {
             if (screen.SlotStates[screen.ActiveSlotIndex] == SlotState.WaitingPerm)
@@ -901,6 +904,7 @@ public class Program
             {
                 var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
                 screen.AddSystemMsg($"  💡 完成 ({elapsed:F1}s)");
+                DesktopNotifier.NotifyAgentFinished();
             }
 
             // 文件修改确认 + 最近文件跟踪

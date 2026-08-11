@@ -191,7 +191,7 @@ public static class SelfTest
 
         // ---- 工具注册 ----
         Section("[工具注册]");
-        Check("工具数量 == 36", ToolRegistry.BuiltinTools.Count == 36);
+        Check("工具数量 == 37", ToolRegistry.BuiltinTools.Count == 37);
         Check("所有工具有有效 schema", ToolRegistry.AllTools.All(t =>
         {
             var s = t.Schema();
@@ -283,6 +283,96 @@ public static class SelfTest
             File.Delete(tmpFile4);
         }
         catch { failed++; Console.WriteLine("  ❌ edit_file 未找到返回错误"); }
+
+        // edit_file — replace_all
+        try
+        {
+            var tmpReplaceAll = Path.GetTempFileName();
+            File.WriteAllText(tmpReplaceAll, "x x x\n");
+            var editResult = new EditFileTool().ExecuteAsync(new()
+            {
+                ["file_path"] = tmpReplaceAll, ["old_string"] = "x", ["new_string"] = "y", ["replace_all"] = true,
+            }).Result;
+            var content = File.ReadAllText(tmpReplaceAll);
+            Check("edit_file replace_all", editResult.Contains("已编辑") && content == "y y y\n");
+            File.Delete(tmpReplaceAll);
+        }
+        catch { failed++; Console.WriteLine("  ❌ edit_file replace_all"); }
+
+        // multiedit — 编辑已有文件
+        try
+        {
+            var tmpMultiEdit = Path.GetTempFileName();
+            File.WriteAllText(tmpMultiEdit, "line one\nline two\nline three\n");
+            var multiResult = new MultiEditTool().ExecuteAsync(new()
+            {
+                ["file_path"] = tmpMultiEdit,
+                ["edits"] = new JsonArray
+                {
+                    new JsonObject { ["old_string"] = "line one", ["new_string"] = "第一行" },
+                    new JsonObject { ["old_string"] = "line two", ["new_string"] = "第二行" },
+                },
+            }).Result;
+            var content = File.ReadAllText(tmpMultiEdit);
+            Check("multiedit 多编辑替换", multiResult.Contains("编辑成功") && content.Contains("第一行") && content.Contains("第二行"));
+            File.Delete(tmpMultiEdit);
+        }
+        catch { failed++; Console.WriteLine("  ❌ multiedit 多编辑替换"); }
+
+        // multiedit — 创建新文件
+        try
+        {
+            var tmpMultiNew = Path.Combine(Path.GetTempPath(), $"waycoder_multiedit_new_{Guid.NewGuid():N}.txt");
+            var multiResult = new MultiEditTool().ExecuteAsync(new()
+            {
+                ["file_path"] = tmpMultiNew,
+                ["edits"] = new JsonArray
+                {
+                    new JsonObject { ["old_string"] = "", ["new_string"] = "initial content\n" },
+                    new JsonObject { ["old_string"] = "initial", ["new_string"] = "创建的" },
+                },
+            }).Result;
+            Check("multiedit 创建新文件", multiResult.Contains("已创建") && File.Exists(tmpMultiNew) && File.ReadAllText(tmpMultiNew).Contains("创建的"));
+            File.Delete(tmpMultiNew);
+        }
+        catch { failed++; Console.WriteLine("  ❌ multiedit 创建新文件"); }
+
+        // multiedit — replace_all
+        try
+        {
+            var tmpMultiAll = Path.GetTempFileName();
+            File.WriteAllText(tmpMultiAll, "x x x\n");
+            var multiResult = new MultiEditTool().ExecuteAsync(new()
+            {
+                ["file_path"] = tmpMultiAll,
+                ["edits"] = new JsonArray
+                {
+                    new JsonObject { ["old_string"] = "x", ["new_string"] = "y", ["replace_all"] = true },
+                },
+            }).Result;
+            var content = File.ReadAllText(tmpMultiAll);
+            Check("multiedit replace_all", content == "y y y\n");
+            File.Delete(tmpMultiAll);
+        }
+        catch { failed++; Console.WriteLine("  ❌ multiedit replace_all"); }
+
+        // multiedit — 编辑失败
+        try
+        {
+            var tmpMultiFail = Path.GetTempFileName();
+            File.WriteAllText(tmpMultiFail, "hello\n");
+            var multiResult = new MultiEditTool().ExecuteAsync(new()
+            {
+                ["file_path"] = tmpMultiFail,
+                ["edits"] = new JsonArray
+                {
+                    new JsonObject { ["old_string"] = "NOTFOUND", ["new_string"] = "x" },
+                },
+            }).Result;
+            Check("multiedit 编辑失败报告", multiResult.Contains("失败"));
+            File.Delete(tmpMultiFail);
+        }
+        catch { failed++; Console.WriteLine("  ❌ multiedit 编辑失败报告"); }
 
         // glob - 在临时目录中创建文件后测试
         try
@@ -1226,7 +1316,7 @@ public static class SelfTest
             Check("技能: SkillTool 未知技能报错", skillToolMissing.Contains("未找到技能"));
 
             var promptWithSkills = SystemPrompt.Generate(ToolRegistry.AllTools);
-            Check("技能: 系统提示词包含技能段", promptWithSkills.Contains("技能 (Skills)"));
+            Check("技能: 系统提示词包含技能段", promptWithSkills.Contains("<available_skills>"));
             Check("技能: 系统提示词包含 my-skill", promptWithSkills.Contains("my-skill"));
             Check("技能: 系统提示词不加载 body", !promptWithSkills.Contains("技能正文内容"));
 

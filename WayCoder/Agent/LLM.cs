@@ -155,7 +155,7 @@ public class LLM
     }
 
     public LLM(string model, string apiKey, string? baseUrl = null,
-        int maxTokens = 4096, float temperature = 0.0f)
+        int maxTokens = 4096, float temperature = 0.1f)
     {
         Model = model;
         ApiKey = apiKey;
