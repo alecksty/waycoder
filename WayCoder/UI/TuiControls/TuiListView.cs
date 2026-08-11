@@ -147,6 +147,47 @@ public class TuiListView : TuiView
         IsAutoScrollToEnd = true;
     }
 
+    // ── 鼠标 ──
+
+    /// <summary>
+    /// 鼠标滚轮滚动列表（3 行/格）；鼠标左键选中项。
+    /// </summary>
+    public override bool HandleMouse(InputEvent ev)
+    {
+        if (ev.Type != InputType.Mouse) return false;
+
+        // 检查鼠标是否在列表区域内
+        int absX = GetAbsoluteX();
+        int absY = GetAbsoluteY();
+        if (ev.MouseX < absX || ev.MouseX >= absX + Width ||
+            ev.MouseY < absY || ev.MouseY >= absY + Height)
+            return false;
+
+        // 滚轮滚动
+        if (ev.MouseScrollUp) { ScrollUp(3); return true; }
+        if (ev.MouseScrollDown) { ScrollDown(3); return true; }
+
+        // 左键点击：定位选中项
+        if (ev.MouseLeft)
+        {
+            int relY = ev.MouseY - absY + ScrollOffset;
+            for (int i = 0; i < Children.Count; i++)
+            {
+                var child = Children[i];
+                if (relY >= child.Y && relY < child.Y + child.Height)
+                {
+                    SelectedIndex = i;
+                    OnItemActivated?.Invoke(i);
+                    MarkDirty();
+                    return true;
+                }
+            }
+            return true; // 在区域内消费事件
+        }
+
+        return base.HandleMouse(ev);
+    }
+
     // ── 渲染 ──
 
     /// <summary>二分查找第一个可见项（scrollOffset 对应的 children 索引）</summary>

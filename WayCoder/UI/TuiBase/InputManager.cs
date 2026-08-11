@@ -46,8 +46,8 @@ public class InputManager : IDisposable
         }
 
         // TODO: 鼠标暂不开启，后续通过 WAYCODER_MOUSE=1 启用
-        // try { TTY.EnableMouse(); _mouseEnabled = true; }
-        // catch { _mouseEnabled = false; }
+        try { Tty.EnableMouse(); _mouseEnabled = true; }
+        catch { _mouseEnabled = false; }
     }
 
     /// <summary>
@@ -179,6 +179,7 @@ public class InputManager : IDisposable
             MouseRight = !isRelease && (code == 2 || code == 34),
             MouseScrollUp = code == 64,
             MouseScrollDown = code == 65,
+            MouseMotion = code == 35 || code == 36 || code == 39, // SGR motion (no button / with button / release motion)
             MouseButton = code,
             MouseRelease = isRelease,
         };
@@ -252,6 +253,7 @@ public class InputEvent
     public bool MouseScrollUp { get; set; }
     public bool MouseScrollDown { get; set; }
     public int MouseButton { get; set; }
+    public bool MouseMotion { get; set; }
     public bool MouseRelease { get; set; }
     public int Width { get; set; }
     public int Height { get; set; }
