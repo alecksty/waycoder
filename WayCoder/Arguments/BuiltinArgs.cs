@@ -1,4 +1,4 @@
-namespace WayCoder.Parameters;
+namespace WayCoder.Arguments;
 
 // ═══════════════════════════════════════════════════════════════
 // 模型参数

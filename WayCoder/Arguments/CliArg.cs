@@ -1,4 +1,4 @@
-namespace WayCoder.Parameters;
+namespace WayCoder.Arguments;
 
 /// <summary>
 /// CLI 参数基类 —— 所有命令行参数定义继承此类。

@@ -49,37 +49,37 @@ public class Program
         };
 
         // 注册 + 解析 CLI 参数（重复名称自动报错）
-        Parameters.BuiltinArgs.RegisterAll();
-        var (parsed, exitCode) = Parameters.CliArgRegistry.Parse(args);
+        Arguments.BuiltinArgs.RegisterAll();
+        var (parsed, exitCode) = Arguments.CliArgRegistry.Parse(args);
         if (exitCode.HasValue) return exitCode.Value;
 
         // 读取值参数
-        string? model = Parameters.CliArgRegistry.Get(parsed, "model");
-        string? baseUrl = Parameters.CliArgRegistry.Get(parsed, "base-url");
-        string? apiKey = Parameters.CliArgRegistry.Get(parsed, "api-key");
-        string? prompt = Parameters.CliArgRegistry.Get(parsed, "prompt");
-        string? resumeId = Parameters.CliArgRegistry.Get(parsed, "resume");
+        string? model = Arguments.CliArgRegistry.Get(parsed, "model");
+        string? baseUrl = Arguments.CliArgRegistry.Get(parsed, "base-url");
+        string? apiKey = Arguments.CliArgRegistry.Get(parsed, "api-key");
+        string? prompt = Arguments.CliArgRegistry.Get(parsed, "prompt");
+        string? resumeId = Arguments.CliArgRegistry.Get(parsed, "resume");
         double? maxBudget = null;
-        var budgetStr = Parameters.CliArgRegistry.Get(parsed, "max-budget-usd");
+        var budgetStr = Arguments.CliArgRegistry.Get(parsed, "max-budget-usd");
         if (budgetStr != null && double.TryParse(budgetStr, out var b)) maxBudget = b;
 
-        bool yoloMode = Parameters.CliArgRegistry.Has(parsed, "yolo");
-        bool watchMode = Parameters.CliArgRegistry.Has(parsed, "watch");
+        bool yoloMode = Arguments.CliArgRegistry.Has(parsed, "yolo");
+        bool watchMode = Arguments.CliArgRegistry.Has(parsed, "watch");
 
-        if (Parameters.CliArgRegistry.Has(parsed, "version"))
+        if (Arguments.CliArgRegistry.Has(parsed, "version"))
         {
             Console.WriteLine(Global.AppNameVersion);
             return 0;
         }
 
-        if (Parameters.CliArgRegistry.Has(parsed, "help"))
+        if (Arguments.CliArgRegistry.Has(parsed, "help"))
         {
             ShowUsage();
             return 0;
         }
 
         // 项目初始化向导
-        if (Parameters.CliArgRegistry.Has(parsed, "init"))
+        if (Arguments.CliArgRegistry.Has(parsed, "init"))
         {
             RunInit();
             return 0;
@@ -1414,7 +1414,7 @@ deepseek 性价比最高。"
         Console.WriteLine();
         MarkupLine("  «bold»选项:«/»");
         // 从参数注册表自动生成（排除内部/开发参数）
-        foreach (var line in Parameters.CliArgRegistry.HelpText(2, 36).Split('\n'))
+        foreach (var line in Arguments.CliArgRegistry.HelpText(2, 36).Split('\n'))
         {
             if (!string.IsNullOrWhiteSpace(line))
                 Console.WriteLine(line);
