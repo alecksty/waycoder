@@ -266,6 +266,42 @@ public static class SandboxManager
     }
 
     /// <summary>
+    /// 监控进程 CPU 处理器时间，超限则 kill。返回 CPU 超限的消息，null 表示正常。
+    /// </summary>
+    public static async Task<string?> MonitorCpuAsync(Process proc, CancellationToken cancel)
+    {
+        if (!IsSandboxed) return null;
+
+        try
+        {
+            while (!proc.HasExited)
+            {
+                await Task.Delay(2000, cancel);
+                if (proc.HasExited) break;
+
+                try
+                {
+                    proc.Refresh();
+                    var cpuSeconds = proc.TotalProcessorTime.TotalSeconds;
+                    if (cpuSeconds > MaxCpuTimeSeconds)
+                    {
+                        proc.Kill(entireProcessTree: true);
+                        return $"⛔ 沙箱终止：CPU 时间超限（{cpuSeconds:F1}秒 > {MaxCpuTimeSeconds}秒）";
+                    }
+                }
+                catch
+                {
+                    // 进程可能已退出
+                    break;
+                }
+            }
+        }
+        catch (OperationCanceledException ex) { DebugLog.Log("SandboxManager", $"CPU 监控取消: {ex.Message}"); }
+
+        return null;
+    }
+
+    /// <summary>
     /// 监控进程内存使用，超限则 kill。返回内存超限进程的消息，null 表示正常。
     /// </summary>
     public static async Task<string?> MonitorMemoryAsync(Process proc, CancellationToken cancel)
