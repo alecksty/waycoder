@@ -1,5 +1,144 @@
 # 更新日志
 
+## v0.34.0 (2026-08-12) — 系统化流水线 + 渐进超时重试 + Hook 系统 + 动态栏
+
+### 🧠 10 阶段系统化流水线（`<systematic_phases>`）
+
+SystemPrompt 新增 `<systematic_phases>` 区块，复杂任务（3+ 文件、多步骤、新建项目）强制按 10 阶段执行：
+**调查→分析→规划→拆分→分工→执行→调试→审核→提交→总结**。每个阶段内部完成，不向用户叙述过程，只交付结果。
+
+### ⏱ 渐进超时 + 自适应重试
+
+- **逐次加长超时**：1x→1.5x→2x→3x→4x→6x→8x 倍率，每次重试独立 `CancellationTokenSource`
+- `GetTimeoutMultiplier(attempt)` 计算当前尝试的超时倍率，超出内置数组后线性递增
+- 超时日志记录当前超时秒数 + 下次尝试的超时秒数，便于诊断
+- 每次 HTTP 调用入口恢复原始 `_http.Timeout`，确保并发请求不受影响
+- 默认重试次数：3→5，HTTP 超时上限：900s→3600s
+
+### 🎣 Hook 系统全面升级（对标 Claude Code Hooks）
+
+**8 种事件类型**：
+- `PreToolUse` — 工具调用前（可阻止/批准/拒绝）
+- `PostToolUse` — 工具调用成功后
+- `PostToolUseFailure` — 工具调用失败后
+- `SessionStart` — 会话启动时
+- `SessionEnd` — 会话结束时
+- `Stop` — Agent 完成一轮后（可注入额外上下文）
+- `PreCompact` — 上下文压缩前
+- `Notification` — 通知事件（权限提示等）
+
+**结构化输出协议**：
+- `HookOutput` JSON 格式：`Continue`（继续/阻止）、`Decision`（approve/block）、`Reason`、`SystemMessage`、`AdditionalContext`
+- `HookMatcherConfig` 匹配器：支持管道分隔 `"bash|git"`、正则 `"^Write"`、通配符 `"*"`
+- 向后兼容纯文本 stdout（非 JSON 视为 SystemMessage）
+
+### 📊 动态状态栏（对标 Claude Code Status Line）
+
+- **`TuiDynamicBar`** 1 行控件：左段（模型状态 + 旋转动画）、中段（当前工具/任务）、右段（上下文压缩进度条）
+- **6 种状态**：Idle / Thinking / ToolRunning / Compressing / WaitingPerm / Error
+- **Braille 旋转动画**：⣾⣽⣻⢿⡿⣟⣯⣷ 基于 `DateTime.UtcNow` 计算帧（不依赖定时器）
+- **上下文压缩进度条**：`████░░░░ 45%` 迷你 8 字符进度条
+- 订阅 `ContextManager.CompressProgress` 事件，实时层号和进度百分比
+
+### 💰 任务级花费追踪
+
+- `LLM.TaskPromptTokens` / `TaskCompletionTokens`：当前任务的 token 消耗（从快照点计）
+- `LLM.TaskCost`：当前任务的花费估算（美元），模型在定价表中时返回
+- `LLM.SnapshotTaskCost()`：Agent 每轮对话开始时调用，建立快照
+- `LLM.ResetTaskCost()`：任务取消或异常时重置
+
+### 📝 工作总结报告 + 结构化 Todo
+
+- **`WorkReporter`**：Agent 完成一轮后自动生成结构化摘要，包含新增/修改/删除文件、关键决策、下一步
+- 报告保存到 `.waycoder/reports/latest.md`，失败不影响主流程
+- **`ExportTool`**：对话导出工具（Markdown / JSON / HTML），Agent 可在用户请求时调用
+- **`StructTodoTool`**：增强版 Todo 工具，支持优先级、依赖关系、状态追踪
+
+### 📟 终端协议增强
+
+- **Bracketed Paste**：启用 `\x1b[200~...\x1b[201~` 包裹粘贴内容，`ReadPasteContent()` 安全读取
+- **Kitty 键盘协议**：`AnsiTty.EnableKittyKeyboard()` 启用修饰键完整报告
+- **CSI 功能键解析器**：统一处理 Bracketed Paste + Kitty + xterm 功能键序列
+- 粘贴内容通过 `InputType.Paste` 事件路由，自动过滤 ANSI 转义序列
+
+### 🗂 槽位任务队列（`-p1`~`-p0`）
+
+- **槽位专项任务**：`-p1 "提示词"` ~ `-p9`、`-p0`=F10，同一槽位多次 `-pN` 可排队
+- **共享前缀**：`-pa "前缀"` 拼到每个 `-pN` 任务前面
+- 槽位任务自动强制进入 REPL 交互模式（非一次性模式）
+- `BuiltinArgs` 新增 11 个 `slot-prompt-N` 参数注册
+
+### 🧠 跨会话记忆检索
+
+- **`MemoryRetrieval`**：跨会话记忆检索，使用 TF-IDF + 时间衰减排序
+- 系统提示词生成时自动加载匹配记忆（最多 5 条），与结构化记忆合并注入
+- 防抖机制：相同查询 60 秒内不重复检索
+
+### 🔧 上下文压缩改进
+
+- **Snip 阈值**：1500→4000 字符（保留更多工具输出信息）
+- **错误行保留**：裁剪时保留编译错误、异常堆栈等关键诊断信息
+- **IsCompressing 状态**：静态属性标记压缩进行中，UI 可据此显示进度
+- **`CompressProgress` 事件**：每层压缩完成时触发，包含层号、消息、百分比
+- **`ProgressBar()`**：8 字符迷你进度条生成器
+
+### 🏗 基础设施新增
+
+| 文件 | 说明 |
+|------|------|
+| `Agent/TaskProgress.cs` | 任务进度追踪（并发安全） |
+| `Agent/WorkReporter.cs` | 工作总结报告生成器 |
+| `Infra/IdGenerator.cs` | 加密安全 ID 生成 |
+| `Infra/LruCache.cs` | 线程安全 LRU 缓存（支持 TTL 过期） |
+| `Infra/MemoryRetrieval.cs` | 跨会话记忆检索 |
+| `Infra/RetryPolicy.cs` | 智能重试策略（指数退避 + 异常过滤） |
+| `Infra/SnippetStore.cs` | 代码片段管理器 |
+| `Infra/Logging/` (9 文件) | 结构化日志系统（ILogSink/File/Console/JSON + 指标） |
+| `Tools/ExportTool.cs` | 对话导出工具 |
+| `Tools/StructTodoTool.cs` | 结构化 Todo 工具 |
+| `UI/TuiControls/TuiDynamicBar.cs` | 动态状态栏控件 |
+| `UI/TuiControls/TuiKeybindHelp.cs` | 键盘快捷键帮助面板 |
+| `UI/TuiControls/TuiToastQueue.cs` | Toast 通知队列 |
+
+### ⚙ 配置变更
+
+- `LlmMaxRetries`：3→5（更多重试机会）
+- `LlmHttpTimeoutSec` 上限：900→3600（1 小时，适应深度思考模型）
+- `WatchExtensions` + `WatchIgnoreDirs`：新注册到设置界面（67/67 全部可配）
+- `ToolTimeout` 默认：300s
+- `BackgroundTaskTimeoutSec` 默认：1200s
+
+### 📋 修改文件清单
+
+| 文件 | 变更 |
+|------|------|
+| `Agent/Agent.cs` | Stop hook + WorkReporter + CompressWithSmallModel 进度回调 |
+| `Agent/ContextManager.cs` | CompressProgress 事件 + Snip 4000→4000 字符 + 错误行保留 + ProgressBar |
+| `Agent/LLM.cs` | 渐进超时 + 任务花费追踪 + CallWithRetryAsync 重构 |
+| `Agent/SystemPrompt.cs` | `<systematic_phases>` 10 阶段流水线 + MemoryRetrieval 整合 |
+| `Arguments/BuiltinArgs.cs` | 新增 11 个 `slot-prompt-N` 参数 + `prompt-all` |
+| `Arguments/CliArg.cs` | `GetAll` 静态方法 |
+| `Arguments/CliArgRegistry.cs` | `GetAll` 多值获取 |
+| `Commands/StatsCommand.cs` | 任务花费显示 |
+| `Config/Config.cs` | MaxRetries 3→5 + TimeoutSec max 900→3600 + Watch 配置注册 |
+| `Config/Global.cs` | v0.33.1 → v0.34.0 |
+| `Infra/HooksManager.cs` | 全面重构：8 事件 + JSON 协议 + 匹配器 + 并发安全队列 |
+| `Program.cs` | 槽位任务队列 + Bracketed Paste/Kitty 键盘启用 |
+| `SelfTest.cs` | +23 项测试（系统化流水线 + 渐进超时 + 花费追踪 + 配置默认值） |
+| `Terminal/AnsiTty.cs` | EnableBracketedPaste + EnableKittyKeyboard |
+| `Terminal/Terminal.cs` | BracketedPaste + KittyKeyboard 封装 |
+| `Tools/ToolRegistry.cs` | 注册 ExportTool + StructTodoTool |
+| `TuiDemo.cs` | 动态栏演示 |
+| `UI/TuiBase/BoxBuffer.cs` | 清理冗余代码 |
+| `UI/TuiBase/InputManager.cs` | Bracketed Paste + Kitty Keyboard + CSI 统一解析 |
+| `UI/TuiScreens/ChatScreen.cs` | 动态栏集成 + 状态同步 + CompressProgress 订阅 |
+
+### 🧪 测试
+
+- 1407 项自测全部通过（+23 项新增）
+
+---
+
 ## v0.33.1 (2026-08-11) — 对话框刷新修复 + CSI 功能键解析 + TuiDemo 重构
 
 ### 🐛 对话框关闭 → 背景刷新修复

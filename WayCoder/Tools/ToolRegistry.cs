@@ -44,6 +44,8 @@ public static class ToolRegistry
         new JobKillTool(),
         new DownloadTool(),
         new MultiEditTool(),
+        new StructTodoTool(),
+        new ExportTool(),
     ];
 
     /// <summary>所有工具（内置 + MCP 自动发现）</summary>

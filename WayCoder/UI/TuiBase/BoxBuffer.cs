@@ -244,51 +244,6 @@ public class BoxBuffer
     }
 
     // ================================================================
-    // 便捷静态方法 — 在 BoxBuffer 内部绘制文字
+    // 静态方法
     // ================================================================
-
-    /// <summary>
-    /// 在 BoxBuffer 内部相对坐标 (x,y) 处绘制文字，指定前景色。
-    /// 超出内容区域自动裁剪。
-    /// </summary>
-    public static void ShowText(BoxBuffer buf, int x, int y, int color, string text)
-    {
-        if (y < 0 || y >= buf.ContentHeight) return;
-        var absRow = buf.ContentTop + y;
-        var absCol = buf.ContentLeft + x;
-        var maxW = buf.ContentWidth - x;
-        if (maxW <= 0) return;
-
-        var display = VW(text) > maxW ? TruncateByVW(text, maxW - 1) + "…" : text;
-        var sb = new StringBuilder();
-        sb.Append(AnsiTty.CursorPos(absRow, absCol));
-        if (!string.IsNullOrEmpty(buf.BgColor)) sb.Append(AnsiTty.Bg(int.Parse(buf.BgColor)));
-        sb.Append(AnsiTty.Fg(color)).Append(display).Append(AnsiTty.SgrReset);
-        Console.Write(sb.ToString());
-    }
-
-    /// <summary>
-    /// 在 BoxBuffer 内部相对坐标 (x,y) 处绘制文字，限制宽度，指定前后景颜色。
-    /// 超出内容区域自动裁剪。
-    /// </summary>
-    public static void ShowTextLimit(BoxBuffer buf, int x, int y, int limitWidth,
-        int foreColor, int backColor, string text)
-    {
-        if (y < 0 || y >= buf.ContentHeight) return;
-        var absRow = buf.ContentTop + y;
-        var absCol = buf.ContentLeft + x;
-        var maxW = Math.Min(buf.ContentWidth - x, limitWidth);
-        if (maxW <= 0) return;
-
-        var display = VW(text) > maxW ? TruncateByVW(text, maxW - 1) + "…" : text;
-        var remain = maxW - VW(display);
-        var sb = new StringBuilder();
-        sb.Append(AnsiTty.CursorPos(absRow, absCol));
-        sb.Append(AnsiTty.Fg(foreColor));
-        if (backColor > 0) sb.Append(AnsiTty.Bg(backColor));
-        sb.Append(display);
-        if (remain > 0) sb.Append(new string(' ', remain));
-        sb.Append(AnsiTty.SgrReset);
-        Console.Write(sb.ToString());
-    }
 }

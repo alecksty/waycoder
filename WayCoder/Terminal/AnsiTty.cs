@@ -60,6 +60,26 @@ public static class AnsiTty
     public static readonly string MouseDisable = $"{AnsiCharPrefix}{AnsiCharEscape}?1006l{AnsiCharPrefix}{AnsiCharEscape}?1015l{AnsiCharPrefix}{AnsiCharEscape}?1003l{AnsiCharPrefix}{AnsiCharEscape}?1000l";
 
     // ═══════════════════════════════════════════════════════════════
+    // 粘贴协议 (bracketed paste)
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>启用 bracketed paste：终端包裹粘贴内容为 \x1b[200~...\x1b[201~</summary>
+    public static readonly string BracketedPasteEnable = $"{AnsiCharPrefix}{AnsiCharEscape}?2004h";
+    /// <summary>禁用 bracketed paste</summary>
+    public static readonly string BracketedPasteDisable = $"{AnsiCharPrefix}{AnsiCharEscape}?2004l";
+
+    // ═══════════════════════════════════════════════════════════════
+    // Kitty 键盘协议
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>查询 Kitty 键盘协议支持</summary>
+    public static readonly string KittyQuery = $"{AnsiCharPrefix}{AnsiCharEscape}>q";
+    /// <summary>启用 Kitty 键盘协议 Level 1（修饰键 + 功能键报告为 CSI u 序列）</summary>
+    public static readonly string KittyEnable = $"{AnsiCharPrefix}{AnsiCharEscape}>1u";
+    /// <summary>禁用 Kitty 键盘协议</summary>
+    public static readonly string KittyDisable = $"{AnsiCharPrefix}{AnsiCharEscape}>0u";
+
+    // ═══════════════════════════════════════════════════════════════
     // SGR 样式（字符属性）
     // ═══════════════════════════════════════════════════════════════
 

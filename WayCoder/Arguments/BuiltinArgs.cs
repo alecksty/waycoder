@@ -34,7 +34,7 @@ public class ApiKeyArg : CliArg
 
 public class PromptArg : CliArg
 {
-    public override string Description => "一次性提示词（非交互模式）";
+    public override string Description => "一次性提示词。-p1~-p0 投递槽位, -pa 共享前缀, 同槽位可排队";
     public override int ValueCount => 1;
     public override string? ValueLabel => "文本";
     public PromptArg() : base("prompt", "-p", "--prompt") { }
@@ -156,6 +156,43 @@ public class ThemeVerifyArg : CliArg
 }
 
 // ═══════════════════════════════════════════════════════════════
+// 槽位任务参数 — -p1 ~ -p0 对应 F1~F10
+// ═══════════════════════════════════════════════════════════════
+
+/// <summary>所有槽位任务的共享前缀（-pa "前缀" → 自动拼到每个 -pN 任务前面）</summary>
+public class SlotPromptAllArg : CliArg
+{
+    public override string Description => "所有槽位任务的共享前缀（自动拼到每个 -pN 前面）";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "前缀";
+    public SlotPromptAllArg() : base("prompt-all", "-pa", "--prompt-all") { }
+}
+
+public class SlotPromptArg : CliArg
+{
+    /// <summary>目标槽位索引（0-based，-p1→0, -p2→1, ..., -p0→9）</summary>
+    public int SlotIndex { get; }
+    public override string Description => $"投递任务到槽位 F{SlotIndex + 1}（-p1~-p9, -p0=F10）";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "文本";
+    public override bool Internal => true; // 10 个参数不逐行显示
+    public override bool AllowMultiple => true; // 同一槽位多次 -pN 可排队
+
+    /// <param name="slotNum">用户输入的槽位号（1-9, 0=10），内部转为 0-based 索引</param>
+    public SlotPromptArg(int slotNum) : base(
+        $"slot-prompt-{slotNum}",
+        $"-p{slotNum}",
+        $"--prompt-slot-{slotNum}")
+    {
+        SlotIndex = slotNum switch
+        {
+            0 => 9,       // -p0 → F10 → 索引 9
+            _ => slotNum - 1,  // -p1 → F1 → 索引 0, ...
+        };
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // 注册入口 —— 应用启动时调用一次
 // ═══════════════════════════════════════════════════════════════
 
@@ -187,5 +224,10 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new ScreenshotArg());
         CliArgRegistry.Register(new TuiDemoArg());
         CliArgRegistry.Register(new ThemeVerifyArg());
+
+        // 槽位任务参数：-pa 共享前缀 + -p1 ~ -p9, -p0(=F10)
+        CliArgRegistry.Register(new SlotPromptAllArg());
+        for (int n = 0; n <= 9; n++)
+            CliArgRegistry.Register(new SlotPromptArg(n));
     }
 }

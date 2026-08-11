@@ -32,6 +32,17 @@ public static class SystemPrompt
             StructuredMemory.MigrateFromOldFormat();
             var relevantMemory = StructuredMemory.GetRelevantContext(query,
                 topN: config.MemoryRelevanceTopN, maxChars: 2000);
+
+            // 同时从跨会话检索加载匹配记忆
+            MemoryRetrieval.Load();
+            if (MemoryRetrieval.IsLoaded)
+            {
+                var retrieved = MemoryRetrieval.GetRelevant(query, maxResults: 5);
+                var retrievedText = MemoryRetrieval.FormatForPrompt(retrieved);
+                if (!string.IsNullOrWhiteSpace(retrievedText))
+                    relevantMemory = (relevantMemory ?? "") + retrievedText;
+            }
+
             if (!string.IsNullOrWhiteSpace(relevantMemory))
                 memorySection = $"""
 
@@ -137,6 +148,23 @@ public static class SystemPrompt
                 - 验证所有改动正常
                 - 保持回复在 3 行以内
                 </workflow>
+
+                <systematic_phases>
+                复杂任务（涉及 3+ 文件、多步骤、新建项目）必须按以下流水线执行。每个阶段内部完成，不向用户叙述过程——只交付结果。
+
+                **1. 调查** — 搜索代码库、读取关键文件、理解架构、依赖关系和现有模式。
+                **2. 分析** — 确定根因或需求本质、识别所有受影响组件和边界情况。
+                **3. 规划** — 用 todo_write 列出 3-7 项清单，确定执行顺序和依赖关系。
+                **4. 拆分** — 大任务拆成独立子任务，每个子任务可独立验证、独立提交。
+                **5. 分工** — 可并行的子任务用 Agent 工具分派并发执行；串行依赖则逐个执行。
+                **6. 执行** — 逐项完成子任务：读文件→编辑→测试→验证。每项完成立即标记 todo 为 completed。
+                **7. 调试** — 遇到错误→阅读完整错误消息→理解根因→尝试 2-3 种不同修复策略→验证通过。
+                **8. 审核** — 对照原始需求逐项检查、检查边界情况和错误处理、确保无遗漏或未接线代码。
+                **9. 提交** — 用户明确要求时用 git commit 提交（不主动提交）。
+                **10. 总结** — 完成后简要报告：做了什么、涉及哪些文件、关键决策。默认不超过 3 行。
+
+                关键：这些阶段是内部流水线，用户只看到最终结果。绝不输出"我在调查…""下一步我要…"等叙述。
+                </systematic_phases>
 
                 <decision_making>
                 **自主决策** — 能查到就不问：

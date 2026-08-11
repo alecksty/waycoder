@@ -52,9 +52,11 @@ public static class CliArgRegistry
             {
                 def = eqDef;
                 var embedded = arg[(eqIdx + 1)..];
-                var list = new List<string> { embedded };
-                values[def.Key] = list;
-                var eqExit = def.OnMatch(list);
+                if (def is { AllowMultiple: true } && values.TryGetValue(def.Key, out var prevEq))
+                    prevEq.Add(embedded);
+                else
+                    values[def.Key] = [embedded];
+                var eqExit = def.OnMatch([embedded]);
                 if (eqExit.HasValue) return (values, eqExit.Value);
                 continue;
             }
@@ -76,6 +78,13 @@ public static class CliArgRegistry
             }
 
             values[def.Key] = consumed;
+            // 允许累积：同一参数多次出现时追加而非覆盖（如 -p1 "A" -p1 "B" → [A, B]）
+            if (!values.ContainsKey(def.Key))
+                values[def.Key] = consumed;
+            else if (def is { AllowMultiple: true })
+                values[def.Key].AddRange(consumed);
+            else
+                values[def.Key] = consumed; // 覆盖
             var exit = def.OnMatch(consumed);
             if (exit.HasValue) return (values, exit.Value);
         }
