@@ -1093,7 +1093,12 @@ public static class Benchmark
         AddLimit(items, "Bash 输出截断", cat,
             "15K 字符 (首 6000 + 尾 3000)",
             "超出 15K 字符截断，保留头尾。流式和非流式路径行为一致",
-            LimitSev.SoftDegrade, "BashTool.cs:180,233");
+            LimitSev.SoftDegrade, "BashTool.cs:180,247");
+
+        AddLimit(items, "Bash 流式 stderr", cat,
+            "逐行流式输出，[stderr] 前缀标记",
+            "stderr 与 stdout 并行异步读取，逐行回调；UI 中通过 IsErrorOutput 自动标红",
+            LimitSev.NoLimit, "BashTool.cs:212-217");
 
         AddLimit(items, "Bash 危险命令阻止", cat,
             "9 种模式 (rm -rf /, mkfs, dd, fork炸弹, curl|sh 等)",
@@ -1258,6 +1263,26 @@ public static class Benchmark
             "200 条",
             "超出移除最旧条目，静默丢弃",
             LimitSev.SoftDegrade, "ChatScreen.cs:1204");
+
+        AddLimit(items, "TuiTextArea 最大行数", cat,
+            $"MaxLines={(new TuiTextArea().MaxLines > 0 ? "有上限" : "0=不限")}",
+            "超出 MaxLines 从顶部静默裁剪旧行，光标行同步下调",
+            LimitSev.SoftDegrade, "TuiTextArea.cs:51", configurable: true);
+
+        AddLimit(items, "TuiTextArea 自动换行列宽", cat,
+            "MaxColumnWidth=0 不限",
+            "超出列宽按空格自动折行；可视区 Width 小于列宽时水平滚动",
+            LimitSev.SoftDegrade, "TuiTextArea.cs:54", configurable: true);
+
+        AddLimit(items, "TuiEditBase 撤销历史栈", cat,
+            "100 步 (MaxUndoHistory=100)",
+            "超出后 TrimStack 保留最近 99 条，最旧静默移除；AOT 兼容 const 常量",
+            LimitSev.SoftDegrade, "TuiEditBase.cs:113");
+
+        AddLimit(items, "Tab 键行为标志", cat,
+            "AcceptsTab (默认 false)",
+            "false: 清除选择→返回 false 交父容器切换焦点；true: 输入 \\t 缩进字符",
+            LimitSev.NoLimit, "TuiEditBase.cs:130 / TuiRichEditor.cs:47");
 
         return items;
     }

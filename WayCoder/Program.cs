@@ -1665,6 +1665,11 @@ deepseek 性价比最高。"
                 var shortBrief = brief.Length > 60 ? brief[..57] + "..." : brief;
                 MarkupLine($"  «dim»⚙ {E(name)}({E(shortBrief)})«/»");
             },
+            onToolOutput: line =>
+            {
+                // 管道模式：逐行输出 bash 结果到控制台
+                Console.WriteLine($"  «dim»│ {E(line)}«/»");
+            },
             cancellationToken: ct);
 
         // 清除最后一轮动画

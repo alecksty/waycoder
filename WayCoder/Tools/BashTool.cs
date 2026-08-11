@@ -192,23 +192,32 @@ public class BashTool : ITool
         }
     }
 
-    /// <summary>流式执行：逐行读取 stdout 并回调，最后返回完整输出</summary>
+    /// <summary>流式执行：逐行读取 stdout 和 stderr 并回调，最后返回完整输出</summary>
     private async Task<string> ExecuteStreaming(
         Process proc, string command, string cwd, int timeout, Func<string, Task> onLine)
     {
         var outBuilder = new System.Text.StringBuilder();
-        var stderrStream = proc.StandardError.ReadToEndAsync();
 
-        // 逐行读取 stdout，每行回调
-        while (true)
+        // 同时逐行读取 stdout 和 stderr
+        async Task ReadStream(StreamReader reader, string prefix)
         {
-            var line = await proc.StandardOutput.ReadLineAsync();
-            if (line == null) break;
-            outBuilder.AppendLine(line);
-            try { await onLine(line); } catch { /* 回调异常不影响执行 */ }
+            while (true)
+            {
+                var line = await reader.ReadLineAsync();
+                if (line == null) break;
+                var output = prefix == "" ? line : $"{prefix}{line}";
+                lock (outBuilder)
+                {
+                    outBuilder.AppendLine(output);
+                }
+                try { await onLine(output); } catch { /* 回调异常不影响执行 */ }
+            }
         }
 
-        // 等待进程退出
+        var stdoutTask = ReadStream(proc.StandardOutput, "");
+        var stderrTask = ReadStream(proc.StandardError, "[stderr] ");
+
+        // 等待进程退出（同时 stdout/stderr 继续流式读取）
         var exitStream = proc.WaitForExitAsync();
         var delayStream = Task.Delay(timeout * 1000);
         var completedStream = await Task.WhenAny(exitStream, delayStream);
@@ -220,13 +229,13 @@ public class BashTool : ITool
             return $"错误：在 {timeout} 秒后超时";
         }
 
+        // 给流读取一个收尾窗口
+        await Task.WhenAll(stdoutTask, stderrTask);
+
         var outStream = outBuilder.ToString();
-        var errStream = await stderrStream;
 
         if (proc.ExitCode == 0) UpdateCwd(command, cwd);
 
-        if (!string.IsNullOrEmpty(errStream))
-            outStream += $"\n[stderr]\n{errStream}";
         if (proc.ExitCode != 0)
             outStream += $"\n[退出码：{proc.ExitCode}]";
 
