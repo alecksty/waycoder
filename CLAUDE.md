@@ -40,25 +40,39 @@ WayCoder/
 ├── DebugLog.cs        调试日志
 ├── SelfTest.cs        1339+ 项自测
 ├── FileLockManager.cs 文件锁 (防并发修改冲突)
-├── UI/                 终端 TUI 控件库 (30+ 文件)
-│   ├── TuiCust/ToolRenderers/ 工具输出渲染器 (7 文件, IToolRenderer 接口+工厂)
+├── UI/                 终端 TUI 控件库 (36+ 文件)
+│   ├── TuiCust/              自定义控件 + 对话框 (8 文件)
+│   │   ├── ToolRenderers/      工具输出渲染器 (7 文件)
+│   │   ├── ModelPicker.cs      模型选择对话框 (全屏 ANSI)
+│   │   ├── FilePicker.cs       文件选择对话框
+│   │   ├── CommandPalette.cs   命令面板
+│   │   ├── DialogAction.cs     类型化 Action 结果
+│   │   ├── DialogOverlay.cs    栈式对话框管理器
+│   │   ├── DiffPreview.cs      diff 预览 + 逐 hunk 确认
+│   │   └── DiffRenderer.cs     统一 diff 渲染
+│   ├── TuiControls/          基础控件库 (14+ 文件)
+│   │   ├── TuiButton.cs        增强按钮 (快捷键下划线/悬停)
+│   │   ├── TuiButtonGroup.cs  按钮组 (水平/垂直/Tab导航)
+│   │   ├── TuiScrollbar.cs    独立滚动条 (拖拽/滑块/自动隐藏)
+│   │   ├── TuiMarkdown.cs     Markdown→ANSI 渲染 (ILazyItem)
+│   │   ├── TuiListView.cs     懒列表 (二分查找+提前终止)
+│   │   ├── TuiInput.cs        多行输入区 + 智能提示面板
+│   │   ├── TuiComboBox.cs     下拉选择框
+│   │   ├── TuiGrid.cs         网格布局
+│   │   ├── TuiList.cs         列表选单
+│   │   ├── TuiTable.cs        表格控件
+│   │   ├── TuiBox.cs          对话框
+│   │   ├── TuiPrompt.cs       输入框
+│   │   ├── TuiProgress.cs     进度条
+│   │   ├── TuiBanner.cs       欢迎横幅
+│   │   └── ILazyItem.cs       懒渲染项接口
 │   ├── ScreenManager.cs 全屏缓冲 + 弹窗菜单 + 侧栏
 │   ├── SettingsPage.cs  设置界面 (Schema 自动布局)
 │   ├── WindowManager.cs 窗口管理器 (Z-order/模态/Toast)
 │   ├── InputManager.cs  键盘+鼠标+resize 输入拦截
 │   ├── MarkdownRenderer.cs Markdown 解析引擎
-│   ├── TuiMarkdown.cs   Markdown→ANSI 渲染
-│   ├── DiffRenderer.cs  统一 diff 渲染
-│   ├── DiffPreview.cs   diff 预览 + 逐 hunk 确认
-│   ├── TuiInput.cs      多行输入区 + 智能提示面板
 │   ├── TuiHelper.cs     CJK 宽度计算 + 文本工具
 │   ├── TuiColors.cs     统一配色常量
-│   ├── TuiBox.cs        对话框
-│   ├── TuiTable.cs      表格控件
-│   ├── TuiList.cs       列表选单
-│   ├── TuiPrompt.cs     输入框
-│   ├── TuiProgress.cs   进度条
-│   ├── TuiBanner.cs     欢迎横幅
 │   ├── BoxBuffer.cs     矩形缓冲区基类
 │   └── Gui/            GUI 占位（预留扩展）
 ├── Edit/               终端源码编辑器 (4 文件)
@@ -108,6 +122,9 @@ WayCoder/
 - **Dialog Overlay 栈**：`DialogOverlay` 栈式对话框管理 + `DialogAction` 类型化结果（对标 Crush overlay + typed actions），Push/Pop/按 ID 替换 + Esc 关闭栈顶
 - **懒渲染列表**：`ILazyItem` 接口（`MeasureHeight`/`IsRenderCached`）+ `TuiListView` 二分查找首可见项 O(log n)（对标 Crush List + Item 接口）
 - **渲染缓存**：`TuiMarkdown._parsed` + `_lastContent` + `_lastMaxWidth` 三级缓存，`EnsureParsed()` 仅在内容/宽度变更时重解析（对标 Crush cachedMessageItem）
+- **模型选择对话框**：`ModelPicker.Show()` 全屏 ANSI 直写，21+ 模型按供应商分组，Tab 切大/小模型，实时搜索过滤，Ctrl+M 打开（对标 Crush models.go）
+- **按钮组 + 独立滚动条**：`TuiButtonGroup` 水平/垂直布局 + Tab 导航 + 字母快捷键（对标 Crush button.go）；`TuiScrollbar` 拖拽滑块 + 鼠标滚轮 + 自动隐藏（对标 Crush scrollbar.go）
+- **文件选择 + 命令面板**：`FilePicker.Show()` 目录浏览 + 文件搜索（对标 Crush filepicker）；`CommandPalette.Show()` 分类分组 + 模糊搜索 + 快捷键显示
 - **结构化记忆**：`.corecoder/memory/*.md` frontmatter 多文件 + MEMORY.md 索引，`memory` 工具与系统提示词注入均走结构化格式，首次使用自动从旧 memory.md 迁移
 - **Diff 预览**：`WAYCODER_DIFF_PREVIEW=1` 开启，write_file/edit_file 写前逐 hunk 确认（Y/N/A/Q），非交互模式（管道/重定向/测试）自动跳过
 - **Bash 安全防护**：`BashGuard` 三层拦截（命令名 + 参数 + 安全白名单），70+ 禁止命令，47 安全只读命令免确认
