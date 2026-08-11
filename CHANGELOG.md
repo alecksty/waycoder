@@ -1,5 +1,65 @@
 # 更新日志
 
+## v0.32.1 (2026-08-11) — 补齐 UI 控件与对话框
+
+### 🎨 模型选择对话框（对标 Crush models.go）
+
+- **`ModelPicker.Show()`**：全屏 ANSI 直写模式，21+ 模型按供应商分组（DeepSeek/OpenAI/Anthropic/Google/Qwen/Zhipu）
+- **Tab 切换大/小模型**：标题栏实时显示当前选择类型，Tab 键切换并重置搜索
+- **实时搜索过滤**：输入即过滤，按模型名/ID/供应商名匹配
+- **键盘导航**：↑↓ 导航、Enter 确认、Esc 取消、Home/End/PgUp/PgDn
+- **当前使用标记**：当前正在使用的模型带 ✓ 标记，自动定位到当前选择
+- **Ctrl+M 接入**：由原来的 4 模型轮换改为打开 ModelPicker 对话框
+- **Settings 接入**：设置页面的模型下拉打开 ModelPicker 而非基础 TuiList
+
+### 🕹️ 按钮控件增强（对标 Crush button.go）
+
+- **`TuiButton` 增强**：新增 `UnderlineIndex` 快捷键下划线、`IsSelected` 选中高亮、`IsHovered` 悬停状态、`MinWidth` 最小宽度
+- **`TuiButtonGroup`**：按钮组容器，水平/垂直布局、Tab/Shift+Tab 切换、方向键导航、字母快捷键识别
+- **`TuiButtonGroup.AddRange()`**：批量添加按钮，自动检测大写字母为快捷键
+
+### 📜 TuiScrollbar 独立滚动条（对标 Crush scrollbar.go）
+
+- **`TuiScrollbar`**：独立垂直滚动条，bar/dot/block 三种样式
+- **滑块拖拽**：鼠标拖拽滑块精确定位，`OffsetFromMouse()` 坐标换算
+- **鼠标滚轮**：`HandleMouse(InputEvent)` 支持 ScrollUp/ScrollDown
+- **自动隐藏**：`AutoHide=true` 时内容无需滚动自动隐藏
+- **键盘支持**：PgUp/PgDn/Home/End 控制滚动
+
+### 📁 文件选择对话框（对标 Crush filepicker）
+
+- **`FilePicker.Show()`**：全屏 ANSI 直写，目录浏览 + 文件选择
+- **目录导航**：Enter 进入子目录、Backspace 返回上级、".." 快捷项
+- **文件信息**：显示 📁/📄 图标、文件大小(K/M/G)、修改时间(MM-dd HH:mm)
+- **搜索过滤**：输入文件名过滤，大小写不敏感
+- **多级排序**：目录优先 → ".." 最前 → 字母序
+
+### 🔍 命令面板（对标 Crush command palette）
+
+- **`CommandPalette.Show()`**：通用命令面板框架，全屏 ANSI 直写
+- **分类分组**：命令按 Category 分组，蓝色粗体类别标题分隔
+- **模糊搜索**：搜索标签/类别/描述/快捷键，实时显示匹配数/总数
+- **快捷键显示**：每个命令右侧黄色粗体显示快捷键
+
+### 📋 文件清单
+
+| 文件 | 变更 |
+|------|------|
+| `UI/TuiCust/ModelPicker.cs` | 新增：模型选择对话框 |
+| `UI/TuiControls/TuiButton.cs` | 增强：UnderlineIndex/IsSelected/IsHovered/MinWidth |
+| `UI/TuiControls/TuiButtonGroup.cs` | 新增：按钮组容器 |
+| `UI/TuiControls/TuiScrollbar.cs` | 新增：独立滚动条 |
+| `UI/TuiCust/FilePicker.cs` | 新增：文件选择对话框 |
+| `UI/TuiCust/CommandPalette.cs` | 新增：命令面板 |
+| `Program.cs` | 修改：Ctrl+M 接入 ModelPicker |
+| `UI/TuiScreens/SettingsScreen.cs` | 修改：模型下拉接入 ModelPicker |
+| `Config/Global.cs` | v0.32.0 → v0.32.1 |
+
+### 🧪 测试
+- 1348 项自测全部通过
+
+---
+
 ## v0.32.0 (2026-08-11) — 对标 Crush TUI 四大模式
 
 ### 🔧 ToolRenderer 接口（对标 Crush ToolMessageItem）

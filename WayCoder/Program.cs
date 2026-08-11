@@ -1456,17 +1456,16 @@ deepseek 性价比最高。"
         MarkupLine("  «dim»$«/» echo «green»\"列出目录\"«/» «dim»|«/» waycoder                   «dim»# 管道模式«/»");
     }
 
-    /// <summary>Ctrl+M 循环切换大模型</summary>
+    /// <summary>Ctrl+M 打开模型选择对话框</summary>
     private static void CycleModel(ChatScreen screen)
     {
-        var models = new[] { "deepseek-v4-flash", "deepseek-v4-pro", "gpt-5.4-mini", "gpt-5.4" };
-        var cur = _config.Model;
-        var idx = Array.IndexOf(models, cur);
-        var next = models[(idx + 1) % models.Length];
-        _llm!.Model = next;
-        _config.Model = next;
-        screen.StatusLeft = $"{_config.Model}";
-        screen.AddSystemMsg($"🔄 大模型 → {next} (Ctrl+M 继续切换)");
+        var result = ModelPicker.Show();
+        if (result != null)
+        {
+            _llm!.Model = _config.Model;
+            screen.StatusLeft = $"{_config.Model}";
+            screen.AddSystemMsg($"🔄 {(result.IsLarge ? "大模型" : "小模型")} → {result.ModelId}");
+        }
     }
 
     /// <summary>/ 触发：弹出命令面板，用方向键选择，回车执行</summary>
