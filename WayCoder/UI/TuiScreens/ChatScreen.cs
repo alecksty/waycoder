@@ -187,6 +187,10 @@ public class ChatScreen : TuiScreen
         RootView.Clear();
         RootView = new TuiVBox { Width = TW, Height = TH };
 
+        // 输入历史持久化
+        var histPath = Global.GlobalReadConfigPath("input_history.txt");
+        TuiInputHistory.SetPersistPath(histPath);
+
         // ── 标题栏（顶行）──
         TitleBar = new TuiTitleBar
         {
@@ -529,11 +533,24 @@ public class ChatScreen : TuiScreen
         try
         {
             var text = await ClipboardHelper.GetTextAsync();
-            if (!string.IsNullOrEmpty(text))
+            if (string.IsNullOrEmpty(text)) return;
+
+            // 粘贴确认：超长(>500字符)或多行(>3行)时弹出确认
+            var lines = text.Replace("\r\n", "\n").Split('\n');
+            if (text.Length > 500 || lines.Length > 3)
             {
-                InputArea.InsertText(text);
-                MarkDirty();
+                var preview = text.Length > 200 ? text[..200] + "..." : text;
+                using var evt = new ManualResetEventSlim(false);
+                bool confirmed = false;
+                ShowWindow(TuiDialog.Confirm("粘贴确认",
+                    $"将粘贴 {lines.Length} 行 / {text.Length} 字符:\n{preview}",
+                    result => { confirmed = result; evt.Set(); }));
+                RenderWait(evt);
+                if (!confirmed) return;
             }
+
+            InputArea.InsertText(text);
+            MarkDirty();
         }
         catch
         {
@@ -831,9 +848,14 @@ public class ChatScreen : TuiScreen
         // ── 快捷命令 ──
         items.Add(new PromptItem { Kind = PromptKind.Command, Label = "帮助", Detail = "显示帮助信息", Value = "/help" });
         items.Add(new PromptItem { Kind = PromptKind.Command, Label = "切换模型", Detail = "轮换 LLM", Value = "/model" });
+        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "/model set <id>", Detail = "设置大模型", Value = "/model set " });
+        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "/model list", Detail = "列出所有模型", Value = "/model list" });
+        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "/model import <path>", Detail = "导入外部配置", Value = "/model import " });
         items.Add(new PromptItem { Kind = PromptKind.Command, Label = "清空对话", Detail = "重置上下文", Value = "/clear" });
         items.Add(new PromptItem { Kind = PromptKind.Command, Label = "历史搜索", Detail = "搜索对话记录", Value = "/history " });
         items.Add(new PromptItem { Kind = PromptKind.Command, Label = "YOLO 模式", Detail = "跳过权限确认", Value = "/perm yolo" });
+        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "/perm ask", Detail = "每次确认模式", Value = "/perm ask" });
+        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "/perm auto", Detail = "首次后自动允许", Value = "/perm auto" });
         items.Add(new PromptItem { Kind = PromptKind.Command, Label = "Diff 预览", Detail = "切换 diff 预览", Value = "/diff" });
 
         // ── 文件操作 ──
@@ -1203,6 +1225,7 @@ public class ChatScreen : TuiScreen
             if (InputHistory.Count == 0 || InputHistory[^1] != input)
                 InputHistory.Add(input);
             if (InputHistory.Count > 200) InputHistory.RemoveAt(0);
+            TuiInputHistory.Add("chat", input);
             HistoryIdx = -1;
             SetInput("");
             PendingSubmissions.Enqueue(input);
@@ -1786,20 +1809,31 @@ public class ChatScreen : TuiScreen
         return win.Result is int idx ? idx : -1;
     }
 
-    /// <summary>显示行内权限确认对话框，返回选中索引（0=允许, 1=全部允许, -1=拒绝）</summary>
-    public int ShowInlinePermission(string title, string content, List<string> choices)
+    /// <summary>显示行内权限确认 —— 在聊天流中嵌入交互式权限控件</summary>
+    public int ShowInlinePermission(string toolName, string argsSummary, string argsDetail, bool isDangerous)
     {
         using var evt = new ManualResetEventSlim(false);
-        var win = TuiDialog.Permission(title, content,
-            onResult: _ => evt.Set());
-        ShowWindow(win);
-        RenderWait(evt);
-        return win.Result switch
+        int resolved = -1;
+
+        var perm = new InlinePermission
         {
-            TuiDialog.DialogResult.Yes => 0,
-            TuiDialog.DialogResult.Ok => 1,
-            _ => -1,
+            ToolName = toolName,
+            ArgsSummary = argsSummary,
+            ArgsDetail = argsDetail,
+            IsDangerous = isDangerous,
+            Width = ChatList.Width - 2,
         };
+        perm.OnResolved = r => { resolved = r; evt.Set(); };
+
+        lock (_chatLock)
+        {
+            ChatList.AddItem(perm);
+            perm.Focused = true;
+        }
+        MarkDirty();
+
+        RenderWait(evt);
+        return resolved;
     }
 
     /// <summary>渲染循环等待对话框关闭</summary>
