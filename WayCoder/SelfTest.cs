@@ -204,7 +204,7 @@ public static class SelfTest
         // ---- Config ----
         Section("[配置]");
         var config = new Config();
-        Check("默认模型 deepseek-chat", config.Model == "deepseek-chat");
+        Check("默认模型 deepseek-v4-flash", config.Model == "deepseek-v4-flash");
         Console.WriteLine();
 
         // ---- ContextManager ----
