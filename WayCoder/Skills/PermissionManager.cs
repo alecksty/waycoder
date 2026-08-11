@@ -129,13 +129,11 @@ public static class PermissionManager
         var activeScreen = TuiManager.Instance.ActiveScreen as ChatScreen;
         if (activeScreen != null)
         {
-            List<string> options = isDangerous
-                ? new List<string> { "是 (y)", "否 (n)" }  // 危险操作：不给"总是允许"
-                : new List<string> { "是 (y)", "总是允许 (a)", "否 (n)" };
-            result = activeScreen.ShowInlinePermission(toolName, details, options);
-            // 映射：危险操作选项少一个，需要调整索引
-            if (isDangerous)
-                result = result switch { 0 => 0, 1 => 2, _ => 2 }; // "否" → 索引 2（拒绝）
+            // 提取简短摘要（第一行）和完整详情
+            var lines = details.Split('\n');
+            var summary = lines.Length > 0 ? lines[0] : details;
+            var fullDetail = string.Join("\n", lines);
+            result = activeScreen.ShowInlinePermission(toolName, summary, fullDetail, isDangerous);
         }
         else
         {

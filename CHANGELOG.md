@@ -1,5 +1,50 @@
 # 更新日志
 
+## v0.32.2 (2026-08-11) — 权限/输入/聊天 三大对标
+
+### 🛡️ 权限行内渲染（对标 Crush inline permission）
+
+- **`InlinePermission`**：在聊天流中直接嵌入 3 行黄色背景交互确认块，无需弹模态窗口
+- **Y/N/A/D 快捷键**：Y=允许 N=拒绝 A=全允 D=展开详情，直接在消息列表中响应
+- **工具参数着色**：bash 命令绿色高亮、write_file/edit_file 路径青色高亮
+- **展开/折叠详情**：按 D 展开完整参数，再次按 D 折叠
+- **已解决状态**：确认后自动变为灰色决议标记（✅/❌）
+- `PermissionManager.ShowConfirmDialog` 更新：调用新的 `ChatScreen.ShowInlinePermission(toolName, summary, detail, isDangerous)`
+- `TestCommand` 权限演示适配新接口
+
+### ✏️ TuiDialog 多行输入升级（对标 Crush textarea）
+
+- **`TuiDialog.Input()`** 从单行 `TuiInput` 升级为 3 行高 `TuiTextArea`，支持 Ctrl+Enter 硬换行
+- **输入历史**：新建 `TuiInputHistory` 静态类，按字段名记录最近 50 条输入
+- **自动预填**：对话框打开时自动填充该字段最近一次输入
+- **AOT 安全持久化**：简单文本格式 `field|value` 保存到 `~/.waycoder/input_history.txt`
+- **全局裁剪**：500 条全局上限 + 每字段 50 条上限 + 自动去重
+
+### 💬 聊天输入增强
+
+- **输入历史持久化**：`ChatScreen` Enter 发送时保存到 `TuiInputHistory`，重启后恢复
+- **粘贴确认**：`ChatScreen.PasteAsync()` 超长(>500字符)或多行(>3行)弹出确认对话框
+- **粘贴确认（旧）**：`TuiChatInput.Paste()` 同样增加 Y/N 确认
+- **斜杠命令补全**：`BuildDefaultHints` 增加 `/model set`/`/model list`/`/model import`/`/perm ask`/`/perm auto` 等子命令提示
+
+### 📋 文件清单
+
+| 文件 | 变更 |
+|------|------|
+| `UI/TuiCust/InlinePermission.cs` | 新增：行内权限确认控件 |
+| `UI/TuiInputHistory.cs` | 新增：输入历史管理器 + 持久化 |
+| `Skills/PermissionManager.cs` | 修改：ShowConfirmDialog 使用新 InlinePermission |
+| `UI/TuiScreens/ChatScreen.cs` | 修改：ShowInlinePermission 内嵌控件/粘贴确认/历史持久化/子命令提示 |
+| `UI/TuiControls/TuiDialog.cs` | 修改：Input() 升级为 TuiTextArea 多行 + 历史预填 |
+| `UI/TuiCust/TuiChatInput.cs` | 修改：Paste() 增加 Y/N 确认 |
+| `Commands/TestCommand.cs` | 修改：权限演示适配新接口 |
+| `Config/Global.cs` | v0.32.1 → v0.32.2 |
+
+### 🧪 测试
+- 1348 项自测全部通过
+
+---
+
 ## v0.32.1 (2026-08-11) — 补齐 UI 控件与对话框
 
 ### 🎨 模型选择对话框（对标 Crush models.go）

@@ -399,7 +399,21 @@ public static class TuiChatInput
     {
         var clip = ReadClipboard();
         if (string.IsNullOrEmpty(clip)) return;
-        foreach (var line in clip.Replace("\r\n", "\n").Split('\n'))
+
+        // 粘贴确认：超长或多行时确认
+        var pasteLines = clip.Replace("\r\n", "\n").Split('\n');
+        if (clip.Length > 500 || pasteLines.Length > 3)
+        {
+            var preview = clip.Length > 200 ? clip[..200] + "..." : clip;
+            Console.Write($"\x1b[u\x1b[J"); // restore + clear
+            Console.Write($"粘贴 {pasteLines.Length} 行 / {clip.Length} 字符? ");
+            Console.WriteLine(preview);
+            Console.Write("[Y] 确认粘贴  [N] 取消 ");
+            var confirm = Console.ReadKey(intercept: true);
+            if (char.ToUpperInvariant(confirm.KeyChar) != 'Y') return;
+        }
+
+        foreach (var line in pasteLines)
         {
             if (lines.Count > 1 || lines[0].Length > 0 || cy > 0)
                 NewHardLine(lines, ref cy, ref cx);
