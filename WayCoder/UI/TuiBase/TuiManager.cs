@@ -68,6 +68,20 @@ public class TuiManager : IDisposable
         ThemeBorderStyle = cfg.BorderStyle;
     }
 
+    /// <summary>
+    /// 标记活跃屏幕所有控件为脏（全屏 ANSI 对话框关闭后自动调用，还原被覆盖的 TUI 画面）。
+    /// 与 ClearScreen 不同：不闪烁，仅让控件逐一重绘覆盖。
+    /// </summary>
+    public static void RequestFullRefresh()
+    {
+        if (Instance is { IsActive: true, ActiveScreen: not null })
+        {
+            Instance.IsDirty = true;
+            Instance._needsFullRefresh = true;
+            Instance.ActiveScreen.RootView.Invalidate();
+        }
+    }
+
     public void Dispose()
     {
         if (IsActive)
@@ -124,7 +138,7 @@ public class TuiManager : IDisposable
     public void Render()
     {
         if (!IsActive) return;
-        if (!IsDirty) return;  // 没有变化，跳过渲染
+        if (!IsDirty && !_needsFullRefresh) return;  // 没有变化，跳过渲染（全刷新请求除外）
         IsDirty = false;
 
         (TW, TH) = (Tty.Cols, Tty.Rows);
