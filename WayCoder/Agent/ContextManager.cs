@@ -21,9 +21,9 @@ public class ContextManager
     public ContextManager(int maxTokens = 128_000)
     {
         MaxTokens = maxTokens;
-        _snipAt = maxTokens * 50 / 100;
-        _summarizeAt = maxTokens * 70 / 100;
-        _collapseAt = maxTokens * 90 / 100;
+        _snipAt = maxTokens * Config.Instance.ContextSnipRatio / 100;
+        _summarizeAt = maxTokens * Config.Instance.ContextSummarizeRatio / 100;
+        _collapseAt = maxTokens * Config.Instance.ContextCollapseRatio / 100;
     }
 
     /// <summary>

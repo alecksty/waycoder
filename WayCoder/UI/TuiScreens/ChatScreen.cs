@@ -1745,7 +1745,7 @@ public class ChatScreen : TuiScreen
     public void SyncTheme()
     {
         // 从环境变量重新读取显示风格（设置变更后生效）
-        ChatDisplayStyle = Config.FromEnv().ChatDisplayStyle;
+        ChatDisplayStyle = Config.Instance.ChatDisplayStyle;
         // 主题配色已在 ThemeConfig 中管理，此方法为兼容旧 API
     }
 

@@ -9,8 +9,8 @@ namespace WayCoder.Commands;
 public class SessionCommand : SlashCommand
 {
     public override string Name => "/session";
-    public override string Description => "会话管理 (list|save|load|resume)";
-    public override string? Usage => "/session <list|save|load <id>|resume>";
+    public override string Description => "会话管理 (list|save|load|resume)，list 支持 --limit N --page N";
+    public override string? Usage => "/session <list|save|load <id>|resume> [--limit N] [--page N]";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {
@@ -22,7 +22,7 @@ public class SessionCommand : SlashCommand
         {
             case "":
             case "list":
-                ListSessions(screen);
+                ListSessions(screen, rest);
                 break;
             case "save":
                 SaveSession(screen);
@@ -41,17 +41,32 @@ public class SessionCommand : SlashCommand
         return Task.CompletedTask;
     }
 
-    static void ListSessions(ChatScreen screen)
+    static void ListSessions(ChatScreen screen, string args = "")
     {
-        var sessions = SessionManager.ListSessions();
+        // 解析 --limit 和 --page 参数
+        var limit = 20;
+        var page = 1;
+        var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        for (int i = 0; i < parts.Length; i++)
+        {
+            if (parts[i] == "--limit" && i + 1 < parts.Length && int.TryParse(parts[i + 1], out var l))
+                limit = Math.Clamp(l, 1, 500);
+            if (parts[i] == "--page" && i + 1 < parts.Length && int.TryParse(parts[i + 1], out var p))
+                page = Math.Max(1, p);
+        }
+        var offset = (page - 1) * limit;
+
+        var sessions = SessionManager.ListSessions(limit, offset);
         if (sessions.Count == 0)
         {
-            screen.AddSystemMsg("📂 没有已保存的会话");
+            screen.AddSystemMsg(page > 1 ? $"📂 第 {page} 页无更多会话" : "📂 没有已保存的会话");
             return;
         }
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("📂 **已保存的会话**");
+        sb.AppendLine(page > 1
+            ? $"📂 **已保存的会话**（第 {page} 页，每页 {limit} 条）"
+            : $"📂 **已保存的会话**（共 {sessions.Count} 条）");
         foreach (var s in sessions)
             sb.AppendLine($"  {s.Id}  [{s.Model}]  {s.SavedAt}");
         screen.AddSystemMsg(sb.ToString());

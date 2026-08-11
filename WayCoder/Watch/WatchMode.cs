@@ -13,16 +13,16 @@ public class WatchMode : IDisposable
     private Timer? _debounceTimer;
     private bool _disposed;
 
-    /// <summary>忽略的目录模式</summary>
-    private static readonly HashSet<string> IgnoreDirs = new(StringComparer.OrdinalIgnoreCase)
+    /// <summary>默认忽略的目录模式（可被 Config.WatchIgnoreDirs 追加）</summary>
+    private static readonly HashSet<string> DefaultIgnoreDirs = new(StringComparer.OrdinalIgnoreCase)
     {
         "bin", "obj", ".git", "node_modules", ".corecoder", ".waycoder", "logs",
         ".idea", ".vs", "vendor", "__pycache__", ".pytest_cache",
         "dist", "build", "target", ".next", ".nuget",
     };
 
-    /// <summary>关注的文件扩展名</summary>
-    private static readonly HashSet<string> WatchExtensions = new(StringComparer.OrdinalIgnoreCase)
+    /// <summary>默认关注的文件扩展名（可被 Config.WatchExtensions 追加）</summary>
+    private static readonly HashSet<string> DefaultWatchExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".cs", ".py", ".ts", ".js", ".tsx", ".jsx", ".go", ".rs", ".java",
         ".kt", ".swift", ".c", ".cpp", ".h", ".hpp", ".rb", ".php",
@@ -32,6 +32,36 @@ public class WatchMode : IDisposable
         ".r", ".m", ".scala", ".clj", ".ex", ".exs", ".dart",
         ".lua", ".zig", ".nim", ".fs", ".fsx", ".csx",
     };
+
+    /// <summary>运行时合并后的忽略目录（默认 + 用户配置）</summary>
+    private static HashSet<string> GetIgnoreDirs()
+    {
+        var dirs = new HashSet<string>(DefaultIgnoreDirs, StringComparer.OrdinalIgnoreCase);
+        var cfg = Config.Instance;
+        if (!string.IsNullOrWhiteSpace(cfg.WatchIgnoreDirs))
+        {
+            foreach (var d in cfg.WatchIgnoreDirs.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                dirs.Add(d.Trim());
+        }
+        return dirs;
+    }
+
+    /// <summary>运行时合并后的扩展名（默认 + 用户配置）</summary>
+    private static HashSet<string> GetWatchExtensions()
+    {
+        var exts = new HashSet<string>(DefaultWatchExtensions, StringComparer.OrdinalIgnoreCase);
+        var cfg = Config.Instance;
+        if (!string.IsNullOrWhiteSpace(cfg.WatchExtensions))
+        {
+            foreach (var e in cfg.WatchExtensions.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var ext = e.Trim();
+                if (!ext.StartsWith('.')) ext = "." + ext;
+                exts.Add(ext);
+            }
+        }
+        return exts;
+    }
 
     public WatchMode(string directory, Action<string> onAiPrompt)
     {
@@ -89,16 +119,18 @@ public class WatchMode : IDisposable
     {
         // 扩展名过滤
         var ext = Path.GetExtension(path);
-        if (string.IsNullOrEmpty(ext) || !WatchExtensions.Contains(ext))
+        var watchExts = GetWatchExtensions();
+        if (string.IsNullOrEmpty(ext) || !watchExts.Contains(ext))
             return false;
 
         // 目录过滤
         var dir = Path.GetDirectoryName(path);
         if (dir != null)
         {
+            var ignoreDirs = GetIgnoreDirs();
             foreach (var part in dir.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
             {
-                if (IgnoreDirs.Contains(part)) return false;
+                if (ignoreDirs.Contains(part)) return false;
             }
         }
 

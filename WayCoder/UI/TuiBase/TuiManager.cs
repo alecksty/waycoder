@@ -62,7 +62,7 @@ public class TuiManager : IDisposable
     /// <summary>刷新主题设置</summary>
     public void RefreshTheme()
     {
-        var cfg = Config.FromEnv();
+        var cfg = Config.Instance;
         ThemeBorderColor = cfg.BorderColor;
         ThemeAccentColor = cfg.AccentColor;
         ThemeBorderStyle = cfg.BorderStyle;
