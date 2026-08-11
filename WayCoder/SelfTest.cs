@@ -247,6 +247,33 @@ public static class SelfTest
         Check("read_file 文件不存在返回错误",
             new ReadFileTool().ExecuteAsync(new() { ["file_path"] = "/nonexistent" }).Result.Contains("错误"));
 
+        // read_file PDF + Markdown
+        Check("read_file 描述含 PDF",
+            ToolRegistry.GetTool("read_file")!.Description.Contains("PDF"));
+        Check("read_file 描述含 Markdown",
+            ToolRegistry.GetTool("read_file")!.Description.Contains("Markdown"));
+        Check("read_file PDF 不存在友好提示",
+            new ReadFileTool().ExecuteAsync(new() { ["file_path"] = "/nonexistent.pdf" }).Result.Contains("错误"));
+
+        // Markdown 读取
+        try
+        {
+            var mdFile = Path.GetTempFileName();
+            File.Delete(mdFile);
+            mdFile = Path.ChangeExtension(mdFile, ".md");
+            File.WriteAllText(mdFile, "# 标题\n\n一段文字\n\n- 项目1\n- 项目2\n\n```cs\ncode\n```\n");
+            var mdResult = new ReadFileTool().ExecuteAsync(new() { ["file_path"] = mdFile }).Result;
+            Check("read_file Markdown 结构化输出", mdResult.Contains("<markdown>") && mdResult.Contains("标题"));
+            File.Delete(mdFile);
+        }
+        catch { failed++; Console.WriteLine("  ❌ read_file Markdown"); }
+
+        // PdfExtractor 结构
+        Check("PdfExtractor.Extract 方法存在",
+            typeof(WayCoder.Infra.PdfExtractor).GetMethod("Extract") != null);
+        Check("PdfExtractResult 有 ToMarkdown",
+            typeof(WayCoder.Infra.PdfExtractResult).GetMethod("ToMarkdown") != null);
+
         // write_file
         try
         {
@@ -904,10 +931,14 @@ public static class SelfTest
         // ---- 模型回退 ----
         Section("[模型回退]");
         FallbackLLM.Reset();
-        Check("默认回退链长度 == 4", FallbackLLM.DefaultFallbackChain.Length == 4);
+        Check("默认回退链长度 >= 3", FallbackLLM.DefaultFallbackChain.Length >= 3);
         Check("回退链包含 deepseek-v4-flash", FallbackLLM.DefaultFallbackChain.Contains("deepseek-v4-flash"));
         Check("回退链包含 deepseek-v4-pro", FallbackLLM.DefaultFallbackChain.Contains("deepseek-v4-pro"));
+        Check("回退链包含 gemini-2.0-flash (免费)", FallbackLLM.DefaultFallbackChain.Contains("gemini-2.0-flash"));
+        Check("回退链包含 qwen-turbo (超低价)", FallbackLLM.DefaultFallbackChain.Contains("qwen-turbo"));
+        Check("回退链包含 glm-4-flash (低价)", FallbackLLM.DefaultFallbackChain.Contains("glm-4-flash"));
         Check("回退链包含 gpt-5.4-mini", FallbackLLM.DefaultFallbackChain.Contains("gpt-5.4-mini"));
+        Check("回退链长度 >= 6", FallbackLLM.DefaultFallbackChain.Length >= 6);
         Check("默认最大预算 == 5.0", Math.Abs((FallbackLLM.MaxBudget ?? 0) - 5.0) < 0.01);
         Check("初始 TotalSpent == 0", Math.Abs(FallbackLLM.TotalSpent) < 0.001);
         Check("初始 FallbackIndex == -1", FallbackLLM.FallbackIndex == -1);

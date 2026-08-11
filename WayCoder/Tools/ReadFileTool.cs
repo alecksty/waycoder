@@ -1,4 +1,6 @@
 using System.Text;
+using WayCoder.Infra;
+using WayCoder.UI;
 
 namespace WayCoder.Tools;
 
@@ -7,6 +9,8 @@ namespace WayCoder.Tools;
 ///
 /// 功能：
 ///   - 带行号的文件内容读取
+///   - PDF 文本提取（PdfPig，支持分页）
+///   - Markdown 结构化渲染（标题/代码块/表格/列表）
 ///   - 文件不存在时提供相似文件名建议（"Did you mean?"）
 ///   - UTF-8 验证
 ///   - 图片文件识别与提示
@@ -16,11 +20,12 @@ namespace WayCoder.Tools;
 public class ReadFileTool : ITool
 {
     public string Name => "read_file";
-    public string Description => "读取文件内容并显示行号。修改文件之前始终先读取它。支持代码文件和图片文件识别。";
+    public string Description => "读取文件内容并显示行号。支持代码文件、PDF（文本提取，分页）、Markdown（结构化渲染）。修改文件之前始终先读取它。";
 
-    private const int MaxFileSize = 100 * 1024; // 100KB
+    private const int MaxFileSize = 100 * 1024; // 100KB for text, PDF handles separately
     private const int DefaultLimit = 2000;
     private const int MaxLineLength = 2000;
+    private const int PdfMaxPages = 20;
 
     public JsonObject Parameters => new()
     {
@@ -30,17 +35,17 @@ public class ReadFileTool : ITool
             ["file_path"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "文件路径",
+                ["description"] = "文件路径。支持 .cs .py .js .ts .md .pdf .html .json .txt 等。",
             },
             ["offset"] = new JsonObject
             {
                 ["type"] = "integer",
-                ["description"] = "起始行（从 1 开始）。默认 1。",
+                ["description"] = "起始行（从 1 开始）。PDF 文件此参数表示起始页码。默认 1。",
             },
             ["limit"] = new JsonObject
             {
                 ["type"] = "integer",
-                ["description"] = "最大读取行数。默认 2000。",
+                ["description"] = "最大读取行数。PDF 文件此参数表示最大页数（默认 20）。默认 2000。",
             },
         },
         ["required"] = new JsonArray("file_path"),
@@ -69,70 +74,25 @@ public class ReadFileTool : ITool
             if (!File.Exists(path))
                 return FileNotFoundMessage(filePath, path);
 
-            // 图片检测
             var ext = Path.GetExtension(path).ToLowerInvariant();
+
+            // ── PDF 文件 ──
+            if (ext == ".pdf")
+                return ReadPdfFile(path, offset, limit);
+
+            // ── Markdown 文件 ──
+            if (ext == ".md" || ext == ".markdown")
+                return ReadMarkdownFile(path, offset, limit);
+
+            // ── 图片文件 ──
             if (ext is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".ico" or ".svg")
             {
                 var info = new FileInfo(path);
                 return $"📷 这是一个图片文件: {filePath}\n大小: {FormatSize(info.Length)}\n格式: {ext.TrimStart('.')}\n\n💡 提示：使用 view 查看或 download 下载。";
             }
 
-            // 大文件检查
-            var fileInfo = new FileInfo(path);
-            if (fileInfo.Length > MaxFileSize)
-            {
-                return $"⚠ 文件过大: {FormatSize(fileInfo.Length)}（最大 {FormatSize(MaxFileSize)}）\n💡 提示：使用 offset/limit 分段读取。";
-            }
-
-            // 读取 + UTF-8 验证
-            byte[] raw;
-            try { raw = File.ReadAllBytes(path); }
-            catch { return $"错误：无法读取 {filePath}"; }
-
-            try { _ = Encoding.UTF8.GetString(raw); }
-            catch { return $"错误：{filePath} 不是 UTF-8 文本文件（read_file 只能读取文本文件）"; }
-
-            var text = File.ReadAllText(path, Encoding.UTF8);
-            var lines = text.Split('\n');
-            var total = lines.Length;
-
-            // 文件追踪：记录读取时的哈希，用于后续变更检测
-            FileTracker.RecordRead(path);
-
-            var start = Math.Max(0, offset - 1);
-            var chunk = lines.Skip(start).Take(limit).ToArray();
-
-            var sb = new StringBuilder();
-            sb.AppendLine("<file>");
-            int lineNumWidth = total >= 100000 ? 6 : total >= 10000 ? 5 : total >= 1000 ? 4 : total >= 100 ? 3 : total >= 10 ? 2 : 1;
-
-            for (int i = 0; i < chunk.Length; i++)
-            {
-                var line = chunk[i].TrimEnd('\r');
-                if (line.Length > MaxLineLength)
-                    line = line[..MaxLineLength] + "...";
-                var numStr = (start + i + 1).ToString().PadLeft(lineNumWidth);
-                sb.AppendLine($"{numStr}|{line}");
-            }
-
-            var hasMore = total > start + limit;
-            if (hasMore)
-            {
-                sb.AppendLine();
-                sb.AppendLine($"(文件还有更多行。使用 offset={start + chunk.Length + 1} 读取后续内容)");
-            }
-
-            sb.Append("</file>");
-
-            // 附加缓存的 LSP 诊断信息
-            var diag = DiagnosticManager.FormatForLLM(path);
-            if (diag != null)
-            {
-                sb.AppendLine();
-                sb.Append(diag);
-            }
-
-            return sb.ToString();
+            // ── 普通文本文件 ──
+            return ReadTextFile(path, filePath, offset, limit);
         }
         catch (Exception ex)
         {
@@ -140,9 +100,196 @@ public class ReadFileTool : ITool
         }
     }
 
-    /// <summary>
-    /// 文件不存在时，搜索同级目录提供相似文件名建议。
-    /// </summary>
+    // ════════════════════════════════════════════════════════════
+    // PDF 文件读取
+    // ════════════════════════════════════════════════════════════
+    private static string ReadPdfFile(string path, int startPage, int pageLimit)
+    {
+        var info = new FileInfo(path);
+        // PDF 文件不再受 100KB 限制
+        if (info.Length > 50 * 1024 * 1024)
+            return $"⚠ PDF 文件过大: {FormatSize(info.Length)}（最大 50 MB）";
+
+        pageLimit = Math.Min(pageLimit, PdfMaxPages);
+        var result = PdfExtractor.Extract(path, startPage, pageLimit);
+
+        // PDF 文件追踪
+        FileTracker.RecordRead(path);
+
+        return result.ToMarkdown();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // Markdown 文件读取（结构化渲染）
+    // ════════════════════════════════════════════════════════════
+    private static string ReadMarkdownFile(string path, int offset, int limit)
+    {
+        var fileInfo = new FileInfo(path);
+        if (fileInfo.Length > MaxFileSize * 5) // Markdown 给 500KB
+            return $"⚠ 文件过大: {FormatSize(fileInfo.Length)}（最大 {FormatSize(MaxFileSize * 5)}）";
+
+        try { _ = Encoding.UTF8.GetString(File.ReadAllBytes(path)); }
+        catch { return $"错误：{path} 不是 UTF-8 文本文件"; }
+
+        // 文件追踪
+        FileTracker.RecordRead(path);
+
+        var text = File.ReadAllText(path, Encoding.UTF8);
+
+        // 按行 limit 限制（只渲染需要的部分）
+        var allLines = text.Split('\n');
+        var start = Math.Max(0, offset - 1);
+        var chunk = allLines.Skip(start).Take(limit).ToArray();
+        var chunkText = string.Join("\n", chunk);
+
+        // 使用 MarkdownParser 解析
+        var nodes = MarkdownParser.Parse(chunkText);
+
+        if (nodes.Count == 0)
+        {
+            // 回退到纯文本格式（无 markdown 结构）
+            return FormatAsTextFile(chunk, start, allLines.Length);
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine("<markdown>");
+        sb.AppendLine($"文件: {Path.GetFileName(path)} | 行 {offset}-{offset + chunk.Length - 1} / {allLines.Length}");
+        sb.AppendLine();
+
+        foreach (var node in nodes)
+        {
+            switch (node)
+            {
+                case MdHeading h:
+                    sb.AppendLine(new string('#', h.Level) + " " + h.Text);
+                    break;
+                case MdCodeBlock cb:
+                    sb.AppendLine($"```{cb.Language}");
+                    // 代码块限制行数
+                    var codeLines = cb.Code.Split('\n');
+                    if (codeLines.Length > 80)
+                    {
+                        sb.AppendLine(string.Join("\n", codeLines.Take(80)));
+                        sb.AppendLine($"... (省略 {codeLines.Length - 80} 行)");
+                    }
+                    else
+                        sb.AppendLine(cb.Code.TrimEnd());
+                    sb.AppendLine("```");
+                    break;
+                case MdTable t:
+                    sb.Append("| " + string.Join(" | ", t.Headers) + " |");
+                    sb.AppendLine();
+                    sb.Append("|" + string.Join("|", t.Headers.Select(_ => "---")) + "|");
+                    sb.AppendLine();
+                    foreach (var row in t.Rows.Take(30))
+                    {
+                        sb.Append("| " + string.Join(" | ", row) + " |");
+                        sb.AppendLine();
+                    }
+                    if (t.Rows.Count > 30)
+                        sb.AppendLine($"... (省略 {t.Rows.Count - 30} 行)");
+                    break;
+                case MdListItem li:
+                    var prefix = li.Ordered ? $"{li.OrderNum}. " : "- ";
+                    sb.AppendLine(prefix + li.Text);
+                    break;
+                case MdParagraph p:
+                    if (!string.IsNullOrWhiteSpace(p.Text))
+                        sb.AppendLine(p.Text);
+                    break;
+                default:
+                    sb.AppendLine(node.ToString() ?? "");
+                    break;
+            }
+        }
+
+        var hasMore = allLines.Length > start + limit;
+        if (hasMore)
+            sb.AppendLine($"\n(文件还有更多行。使用 offset={start + chunk.Length + 1} 读取后续内容)");
+
+        sb.Append("</markdown>");
+
+        // 附加缓存的 LSP 诊断信息
+        var diag = DiagnosticManager.FormatForLLM(path);
+        if (diag != null)
+        {
+            sb.AppendLine();
+            sb.Append(diag);
+        }
+
+        return sb.ToString();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // 普通文本文件读取
+    // ════════════════════════════════════════════════════════════
+    private static string ReadTextFile(string path, string filePath, int offset, int limit)
+    {
+        // 大文件检查
+        var fileInfo = new FileInfo(path);
+        if (fileInfo.Length > MaxFileSize)
+        {
+            return $"⚠ 文件过大: {FormatSize(fileInfo.Length)}（最大 {FormatSize(MaxFileSize)}）\n💡 提示：使用 offset/limit 分段读取。";
+        }
+
+        // 读取 + UTF-8 验证
+        byte[] raw;
+        try { raw = File.ReadAllBytes(path); }
+        catch { return $"错误：无法读取 {filePath}"; }
+
+        try { _ = Encoding.UTF8.GetString(raw); }
+        catch { return $"错误：{filePath} 不是 UTF-8 文本文件（read_file 只能读取文本文件）"; }
+
+        var text = File.ReadAllText(path, Encoding.UTF8);
+        var lines = text.Split('\n');
+        var total = lines.Length;
+
+        // 文件追踪
+        FileTracker.RecordRead(path);
+
+        var start = Math.Max(0, offset - 1);
+        var chunk = lines.Skip(start).Take(limit).ToArray();
+
+        var result = FormatAsTextFile(chunk, start, total);
+
+        // 附加缓存的 LSP 诊断信息
+        var diag = DiagnosticManager.FormatForLLM(path);
+        if (diag != null)
+            result += "\n" + diag;
+
+        return result;
+    }
+
+    private static string FormatAsTextFile(string[] chunk, int start, int total)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<file>");
+        int lineNumWidth = total >= 100000 ? 6 : total >= 10000 ? 5 : total >= 1000 ? 4 : total >= 100 ? 3 : total >= 10 ? 2 : 1;
+
+        for (int i = 0; i < chunk.Length; i++)
+        {
+            var line = chunk[i].TrimEnd('\r');
+            if (line.Length > MaxLineLength)
+                line = line[..MaxLineLength] + "...";
+            var numStr = (start + i + 1).ToString().PadLeft(lineNumWidth);
+            sb.AppendLine($"{numStr}|{line}");
+        }
+
+        var hasMore = total > start + chunk.Length;
+        if (hasMore)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"(文件还有更多行。使用 offset={start + chunk.Length + 1} 读取后续内容)");
+        }
+
+        sb.Append("</file>");
+        return sb.ToString();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // 文件不存在建议
+    // ════════════════════════════════════════════════════════════
+
     private static string FileNotFoundMessage(string originalPath, string fullPath)
     {
         var dir = Path.GetDirectoryName(fullPath);
@@ -166,7 +313,6 @@ public class ReadFileTool : ITool
                     entryName.ToLowerInvariant(),
                     baseName.ToLowerInvariant());
 
-                // 编辑距离小或包含关系 → 建议
                 if (distance <= 3 ||
                     entryName.Contains(baseName, StringComparison.OrdinalIgnoreCase))
                 {
@@ -187,9 +333,6 @@ public class ReadFileTool : ITool
         return $"错误：{originalPath} 未找到";
     }
 
-    /// <summary>
-    /// Levenshtein 编辑距离。
-    /// </summary>
     private static int ComputeEditDistance(string a, string b)
     {
         if (string.IsNullOrEmpty(a)) return b.Length;

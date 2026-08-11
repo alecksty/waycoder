@@ -137,8 +137,10 @@ public class Program
             Console.WriteLine("请设置以下环境变量之一:");
             Console.WriteLine("  WAYCODER_API_KEY");
             Console.WriteLine("  DEEPSEEK_API_KEY");
+            Console.WriteLine("  GEMINI_API_KEY (Google 免费层)");
             Console.WriteLine("  OPENAI_API_KEY");
             Console.WriteLine("  ANTHROPIC_API_KEY");
+            Console.WriteLine("  DASHSCOPE_API_KEY (阿里千问)");
             Console.WriteLine("  API_KEY");
             Console.WriteLine();
             Console.WriteLine("或者在项目根目录创建 .env 文件:");
