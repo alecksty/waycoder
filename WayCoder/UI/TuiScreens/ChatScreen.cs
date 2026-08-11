@@ -476,7 +476,7 @@ public class ChatScreen : TuiScreen
            text.Contains("错误：") || text.Contains("Error") ||
            text.Contains("❌") || text.Contains("⛔");
 
-    /// <summary>追加文本到最后一条消息（流式输出）</summary>
+    /// <summary>追加文本到最后一条消息（流式输出）。线程安全：可从后台线程调用。</summary>
     public void AppendToLast(string delta)
     {
         var last = ChatList.GetItem(ChatList.ItemCount - 1) as TuiListItem;
@@ -503,6 +503,8 @@ public class ChatScreen : TuiScreen
                         ChatList.ReLayout();
                         if (ChatList.IsAutoScrollToEnd)
                             ChatList.ScrollToBottom();
+                        // 折叠提示也需要刷新
+                        MarkDirty();
                     }
                     if (_toolOutputLineCount > 20)
                         return;
@@ -515,6 +517,10 @@ public class ChatScreen : TuiScreen
         ChatList.ReLayout();
         if (ChatList.IsAutoScrollToEnd)
             ChatList.ScrollToBottom();
+
+        // 流式输出实时刷新：必须置脏才能让 30ms 渲染循环的下一帧不跳过
+        // TuiView 子容器（ChatList）总是被遍历，ChatList.OnRender 渲染所有可见子项 → 无需单独标记
+        if (Manager != null) Manager.IsDirty = true;
     }
 
     /// <summary>清空聊天</summary>
