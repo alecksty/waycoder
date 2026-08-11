@@ -607,9 +607,17 @@ public static class SelfTest
         Check("包含 read_file", prompt.Contains("read_file"));
         Check("包含 edit_file", prompt.Contains("edit_file"));
         Check("包含当前目录", prompt.Contains(Directory.GetCurrentDirectory()));
+        // 新结构化区块检查
+        Check("包含 critical_rules", prompt.Contains("<critical_rules>"));
+        Check("包含 workflow", prompt.Contains("<workflow>"));
+        Check("包含 editing_files", prompt.Contains("<editing_files>"));
+        Check("包含 exact_matching", prompt.Contains("<exact_matching>"));
+        Check("包含 task_completion", prompt.Contains("<task_completion>"));
+        Check("包含 error_handling", prompt.Contains("<error_handling>"));
+        Check("包含 testing", prompt.Contains("<testing>"));
+        Check("包含 code_conventions", prompt.Contains("<code_conventions>"));
+        Check("包含 15 条规则", prompt.Contains("15."));
         Console.WriteLine();
-
-        // ---- Agent ----
         Section("[Agent]");
         var agent = new Agent(new LLM("test", "sk-test"));
         agent.Messages.Add(new JsonObject { ["role"] = "user", ["content"] = "x" });
