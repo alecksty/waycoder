@@ -98,10 +98,10 @@
 | **无多模态支持** | Codex CLI、Gemini CLI |
 | **品牌认知度低** | Cursor 200万+用户, Copilot 无处不在 |
 
-### 🟣 已发现的 Bug
+### 🟣 已发现并修复的 Bug
 
-1. `AgentTool.MaxDepth`（硬编码 3）与 `Config.SubAgentMaxDepth` 不同步
-2. `SandboxManager.MaxCpuTimeSeconds = 300` 声明但未实现
+1. ~~`AgentTool.MaxDepth`（硬编码 3）与 `Config.SubAgentMaxDepth` 不同步~~ ✅ 已修复 — v0.31.0 改为动态读取 Config
+2. ~~`SandboxManager.MaxCpuTimeSeconds = 300` 声明但未实现~~ ✅ 已修复 — 添加 MonitorCpuAsync，监控真实 CPU 处理器时间
 
 ---
 
