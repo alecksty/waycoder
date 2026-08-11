@@ -56,7 +56,7 @@ public class WriteFileTool : ITool
             if (dir != null) Directory.CreateDirectory(dir);
 
             // Diff 预览：仅当开关开启、非交互模式（管道/重定向/测试）、且文件已存在时
-            var cfg = Config.FromEnv();
+            var cfg = Config.Instance;
             if (cfg.DiffPreview && !Console.IsInputRedirected && !Console.IsOutputRedirected && File.Exists(path))
             {
                 var oldContent = File.ReadAllText(path, Encoding.UTF8);

@@ -53,7 +53,7 @@ public class SettingsScreen : TuiScreen
     {
         base.Activate();
 
-        _config = Config.FromEnv();
+        _config = Config.Instance;
 
         var schema = Config.SettingSchema();
         _groups = schema.GroupBy(s => s.Category)

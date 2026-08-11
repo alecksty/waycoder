@@ -6,15 +6,25 @@ namespace WayCoder;
 /// </summary>
 public static class FallbackLLM
 {
-    /// <summary>默认回退链（按优先级）</summary>
-    public static readonly string[] DefaultFallbackChain =
-        ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat", "gpt-5.4-mini"];
+    /// <summary>默认回退链（从 Config.Instance.FallbackChain 读取）</summary>
+    public static string[] DefaultFallbackChain =>
+        Config.Instance.FallbackChain.Split(',').Select(m => m.Trim()).Where(m => m.Length > 0).ToArray();
 
     /// <summary>当前回退链</summary>
-    public static string[] FallbackChain { get; set; } = DefaultFallbackChain;
+    public static string[] FallbackChain { get; set; } = null!;  // 首次使用时从 DefaultFallbackChain 读取
 
-    /// <summary>最大总花费（美元），null 表示无限制</summary>
-    public static double? MaxBudget { get; set; } = 5.0;
+    static FallbackLLM()
+    {
+        FallbackChain = DefaultFallbackChain;
+    }
+
+    /// <summary>最大总花费（美元），null 表示无限制。优先从 WAYCODER_FALLBACK_MAX_BUDGET 读取</summary>
+    public static double? MaxBudget
+    {
+        get => Config.Instance.FallbackMaxBudget;
+        set => _maxBudget = value;
+    }
+    private static double? _maxBudget = 5.0;
 
     /// <summary>总花费跟踪</summary>
     public static double TotalSpent { get; private set; }
@@ -50,9 +60,12 @@ public static class FallbackLLM
         {
             if (model == originalLlm.Model) continue;
 
-            // 预算检查
+            // 预算检查：超过预算时记录警告并跳过回退（优雅降级，不崩溃）
             if (MaxBudget != null && TotalSpent >= MaxBudget)
-                throw new InvalidOperationException($"已达最大预算 ${MaxBudget:F2}");
+            {
+                Console.Error.WriteLine($"[fallback] ⚠ 已达回退预算上限 ${MaxBudget:F2}，停止尝试备选模型");
+                break;
+            }
 
             FallbackIndex = idx;
             var fallbackLlm = new LLM(model, originalLlm.ApiKey, originalLlm.BaseUrl,
@@ -76,7 +89,11 @@ public static class FallbackLLM
             }
         }
 
-        throw new InvalidOperationException("所有回退模型均已失败，请检查网络或 API 密钥。");
+        Console.Error.WriteLine("[fallback] 所有回退模型均已失败，请检查网络或 API 密钥。");
+        return new LLMResponse
+        {
+            Content = "[错误] 所有模型（含回退链）均已失败，请检查网络或 API 密钥。",
+        };
     }
 
     /// <summary>重置统计</summary>

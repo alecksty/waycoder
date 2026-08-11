@@ -54,7 +54,7 @@ public class BashTool : ITool
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var command = arguments.GetValueOrDefault("command")?.ToString() ?? "";
-        var configTimeout = Config.FromEnv().ToolTimeoutSec;
+        var configTimeout = Config.Instance.ToolTimeoutSec;
         var timeout = arguments.TryGetValue("timeout", out var t) && t is int ti ? ti : configTimeout;
 
         return await Execute(command, timeout);
@@ -69,7 +69,7 @@ public class BashTool : ITool
         Func<string, Task>? onLine)
     {
         var command = arguments.GetValueOrDefault("command")?.ToString() ?? "";
-        var configTimeout = Config.FromEnv().ToolTimeoutSec;
+        var configTimeout = Config.Instance.ToolTimeoutSec;
         var timeout = arguments.TryGetValue("timeout", out var t) && t is int ti ? ti : configTimeout;
 
         return await Execute(command, timeout, onLine);
@@ -129,11 +129,15 @@ public class BashTool : ITool
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
 
-            // 沙箱模式：后台监控内存
+            // 沙箱模式：后台监控内存 + CPU 时间
             var memCts = new CancellationTokenSource();
             Task<string?>? memTask = null;
             if (SandboxManager.IsSandboxed)
                 memTask = SandboxManager.MonitorMemoryAsync(proc, memCts.Token);
+
+            // CPU 时间监控（沙箱模式下的 CPU 时间限制）
+            var cpuStartTime = DateTime.UtcNow;
+            var cpuLimit = SandboxManager.MaxCpuTimeSeconds;
 
             // 异步等待进程退出（不阻塞线程）
             var exitTask = proc.WaitForExitAsync();
@@ -153,6 +157,14 @@ public class BashTool : ITool
                     if (!exited) proc.Kill(entireProcessTree: true);
                     return memResult;
                 }
+            }
+
+            // 检查 CPU 时间超限（沙箱模式）
+            var cpuElapsed = (DateTime.UtcNow - cpuStartTime).TotalSeconds;
+            if (SandboxManager.IsSandboxed && cpuElapsed > cpuLimit)
+            {
+                if (!exited) proc.Kill(entireProcessTree: true);
+                return $"⛔ 沙箱 CPU 时间超限：进程运行 {cpuElapsed:F1} 秒，超过上限 {cpuLimit} 秒";
             }
 
             if (!exited)
@@ -177,11 +189,14 @@ public class BashTool : ITool
                 outStr += $"\n[退出码：{proc.ExitCode}]";
 
             // 保留头尾以保留最有用的信息
-            if (outStr.Length > 15_000)
+            var maxChars = Config.Instance.BashOutputMaxChars;
+            if (maxChars > 0 && outStr.Length > maxChars)
             {
-                outStr = outStr[..6000]
+                var headLen = maxChars * 40 / 100;
+                var tailLen = maxChars * 40 / 100;
+                outStr = outStr[..headLen]
                          + $"\n\n... 已截断（共 {outStr.Length} 字符）...\n\n"
-                         + outStr[^3000..];
+                         + outStr[^tailLen..];
             }
 
             return string.IsNullOrWhiteSpace(outStr) ? "（无输出）" : outStr.Trim();
@@ -239,11 +254,14 @@ public class BashTool : ITool
         if (proc.ExitCode != 0)
             outStream += $"\n[退出码：{proc.ExitCode}]";
 
-        if (outStream.Length > 15_000)
+        var maxStreamChars = Config.Instance.BashOutputMaxChars;
+        if (maxStreamChars > 0 && outStream.Length > maxStreamChars)
         {
-            outStream = outStream[..6000]
+            var headLen = maxStreamChars * 40 / 100;
+            var tailLen = maxStreamChars * 40 / 100;
+            outStream = outStream[..headLen]
                          + $"\n\n... 已截断（共 {outStream.Length} 字符）...\n\n"
-                         + outStream[^3000..];
+                         + outStream[^tailLen..];
         }
 
         return string.IsNullOrWhiteSpace(outStream) ? "（无输出）" : outStream.Trim();

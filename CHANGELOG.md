@@ -1,5 +1,68 @@
 # 更新日志
 
+## v0.31.0 (2026-08-11) — 统一配置系统 + 多模型管理 + 槽位独立记忆
+
+### ✨ 新功能
+
+**⚙ 统一配置系统**
+- Config 改为单例模式 (`Config.Instance`)，全局唯一实例，支持 `Reload()`
+- 新增 19 个可配置属性，均绑定环境变量 + Schema 驱动设置界面
+  - 沙箱：`SandboxMaxMemoryMb`、`SandboxMaxCpuSeconds`、`SandboxAllowNetwork`
+  - Agent：`MaxRounds`、`SubAgentMaxParallel`、`SubAgentOutputMaxChars`
+  - LLM：`LlmHttpTimeoutSec`、`LlmMaxRetries`、`LlmConnectionTimeoutSec`、`LlmRateLimitMaxWaitSec`
+  - 回退：`FallbackChain`（逗号分隔模型列表）
+  - 文件锁：`FileLockTimeoutSec`
+  - 上下文压缩：`ContextSnipRatio`、`ContextSummarizeRatio`、`ContextCollapseRatio`
+- 9 个模块全量重构，从硬编码/分散静态字段改为 `Config.Instance` 读取
+  - `SandboxManager`、`AgentTool`、`Agent`、`LLM`、`FallbackLLM`、`ContextManager`、`FileLockManager`、`BashTool`、`WatchMode`
+- 双环境变量兼容：`WAYCODER_*`（新）+ `CORECODER_*`（旧）
+
+**🤖 多模型目录与槽位独立选模型**
+- `ModelCatalog` — 内置 50+ 模型，覆盖 12+ 提供商（OpenAI、Anthropic、DeepSeek、Google、Qwen、智谱、豆包、Moonshot、Mistral、xAI、Ollama 等）
+- 每模型含：上下文窗口、输入/输出价格、默认 API 地址、分类标签
+- 外部配置导入：OpenCode / Crush / Cline / Continue JSON 格式一键导入
+- `ApiKeyStore` — 多模型 API Key 持久化（`~/.waycoder/api_keys.json`），按提供商独立存储，跨会话保留
+- `AgentSlotConfig` — 10 槽位 (F1-F10) 各自独立选择大小模型
+  - 统一模式：一键设置所有槽位为同一模型
+  - 模型继承：未设置槽位默认使用 F1 的模型
+  - API Key 三级优先：槽位直设 → ApiKeyStore → 全局 Config.ApiKey
+  - BaseUrl 三级优先：槽位 → 模型默认 → 全局 Config.BaseUrl
+
+**📟 `/model` 命令重写**
+- 子命令：`list`（浏览目录）、`set`（当前槽位）、`uniform`（全槽位统一）、`import`（外部导入）、`keys`（管理 API Key）、`slot`（指定槽位）
+- `#N` 快捷语法：`/model #1 deepseek-v4-pro sk-xxx` 一键配置
+- 本地模型检测：`localhost:port` 自动转换为 `http://localhost:port/v1` BaseUrl，无需 API Key
+- 向后兼容：`/model <id>` 快速切换大模型
+
+**🧠 槽位独立记忆系统**
+- 每个 Agent 槽位 (F1-F10) 独立记忆存储目录（`.waycoder/memory/slot_N/`）
+- 共享记忆目录（`.waycoder/memory/`）所有槽位可见
+- 切换槽位时记忆空间自动切换
+- `StructuredMemory` 读写操作自动路由到当前槽位
+- `ListAll` / `Search` / `GetRelevantContext` 合并共享 + 槽位独立记忆
+- `Count` 合并计数（排除 MEMORY.md 索引文件）
+
+### 🔄 重构
+
+- `Config.FromEnv()` 调用点全部改为 `Config.Instance`（`BashTool` 4 处、`WatchMode` 2 处、`LintTool` 3 处、`WriteFileTool`、`EditFileTool`、`ChatScreen`、`SettingsScreen`、`TuiManager`、`SystemPrompt`）
+- `SandboxManager` 静态字段改为 Config-backed getter（保留 setter 供测试）
+- `AgentTool.MaxParallelTasks` 从 `const` 改为 Config 读取
+- `FileLockManager.DefaultTimeout` 从硬编码改为 Config 读取
+- `LLM` 超时/重试/连接超时全部从 Config 读取
+- `FallbackLLM.FallbackChain` 从 Config 逗号分隔解析
+- `ContextManager` 压缩比从 Config 读取
+- `StructuredMemory` 目录结构重构为共享 + 槽位双层
+
+### 🗂️ 新增文件
+| 文件 | 功能 |
+|------|------|
+| `Config/ModelCatalog.cs` | 模型目录（50+ 内置 + 导入引擎 + 搜索） |
+| `Config/ApiKeyStore.cs` | 多模型 API Key 持久化 |
+| `Config/AgentSlotConfig.cs` | 10 槽位独立模型配置 + 统一模式 |
+
+### 🧪 测试
+- 1306 项自测全部通过
+
 ## v0.30.2 (2026-08-11) — Bash 流式输出增强 + 上限报告同步
 
 ### ✨ 新功能
