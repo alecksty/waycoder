@@ -1,5 +1,58 @@
 # 更新日志
 
+## v0.33.0 (2026-08-11) — 鼠标全面修复 + 推理深度 + 会话管理
+
+### 🖱️ 鼠标全面修复（对标 Crush 鼠标系统）
+
+- **启用鼠标追踪**：取消 `Tty.EnableMouse()` 的注释，终端可正常上报 SGR 鼠标事件
+- **主循环路由**：鼠标事件不再被吞掉，通过 `TuiManager → TuiScreen → 控件树` 正常路由
+- **窗口内控件路由**：`TuiWindow.HandleMouse` 新增子控件点击/滚动/悬停路由
+- **事件冒泡**：`TuiView.HandleMouse` 支持从最深命中控件向上冒泡，确保父容器（如 TuiListView）可处理子控件未消费的事件
+- **SGR 运动事件**：`InputEvent` 新增 `MouseMotion` 属性，解析 SGR 代码 35/36/39（鼠标移动追踪）
+- **TuiListView 滚轮**：鼠标滚轮滚动列表（3 行/格），点击可选中列表项
+- **TuiButton hover**：鼠标悬停自动高亮按钮（蓝底白字）
+
+### 🧠 推理深度选择器（对标 Crush reasoning.go）
+
+- **`ReasoningPicker`**：全屏 ANSI 对话框，5 级推理深度（Minimal / Low / Medium / High / Max）
+- **实时搜索** / **当前级别 ✓ 标记** / **清除恢复默认**
+- **`Config.ReasoningEffort`**：新增配置属性 + `WAYCODER_REASONING_EFFORT` 环境变量
+- **`LLM.cs`**：请求体中自动携带 `reasoning_effort` 参数（DeepSeek V4 / OpenAI o-series）
+- **快捷键**：`Ctrl+G` 打开推理深度选择器
+
+### 📂 会话管理器（对标 Crush sessions.go）
+
+- **`SessionPicker`**：全屏 ANSI 对话框，浏览 / 切换 / 重命名 / 删除历史会话
+- **三种模式**：Normal（选择）→ Renaming（内联重命名）→ Deleting（确认删除）
+- **实时搜索** / **当前会话 ✓ 标记** / **相对时间显示**
+- **`SessionManager.RenameSession`**：新增重命名方法（更新 JSON 内 id + 文件重命名）
+- **`SessionManager.CreateNewSessionId`**：公开的 ID 生成方法
+- **快捷键**：`Ctrl+S` 打开会话管理器
+
+### 📋 文件清单
+
+| 文件 | 变更 |
+|------|------|
+| `UI/TuiCust/ReasoningPicker.cs` | 新增：推理深度选择对话框 |
+| `UI/TuiCust/SessionPicker.cs` | 新增：会话管理对话框 |
+| `Config/Config.cs` | 修改：新增 ReasoningEffort 属性 + Schema 项 |
+| `Agent/LLM.cs` | 修改：请求体添加 reasoning_effort 参数 |
+| `Memory/SessionManager.cs` | 修改：新增 RenameSession / CreateNewSessionId |
+| `UI/TuiBase/InputManager.cs` | 修改：启用鼠标追踪 + MouseMotion 解析 |
+| `UI/TuiBase/TuiManager.cs` | 修改：Enter() 中启用鼠标 |
+| `UI/TuiBase/TuiView.cs` | 修改：HandleMouse 新增事件冒泡 |
+| `UI/TuiBase/TuiWindow.cs` | 修改：HandleMouse 新增子控件路由 + 滚轮处理 |
+| `UI/TuiControls/TuiListView.cs` | 修改：新增鼠标滚轮/点击处理 |
+| `UI/TuiControls/TuiButton.cs` | 修改：新增鼠标悬停高亮 |
+| `UI/TuiScreens/ChatScreen.cs` | 修改：新增 OnOpenSessions / OnReasoningEffort 回调 + Ctrl+S/Ctrl+G |
+| `Program.cs` | 修改：启用鼠标路由 + 新对话框回调 |
+| `Config/Global.cs` | v0.32.2 → v0.33.0 |
+
+### 🧪 测试
+- 1348 项自测全部通过
+
+---
+
 ## v0.32.2 (2026-08-11) — 权限/输入/聊天 三大对标
 
 ### 🛡️ 权限行内渲染（对标 Crush inline permission）

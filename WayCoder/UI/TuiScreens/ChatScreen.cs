@@ -957,6 +957,12 @@ public class ChatScreen : TuiScreen
     /// <summary>回调：显示帮助（Program.cs 注入）</summary>
     public Action? OnShowHelp;
 
+    /// <summary>回调：打开会话管理（Program.cs 注入）</summary>
+    public Action? OnOpenSessions;
+
+    /// <summary>回调：选择推理深度（Program.cs 注入）</summary>
+    public Action? OnReasoningEffort;
+
     /// <summary>回调：搜索历史（Program.cs 注入，参数=查询字符串）</summary>
     public Action<string>? OnSearchHistory;
 
@@ -1127,6 +1133,12 @@ public class ChatScreen : TuiScreen
                     return true;
                 case ConsoleKey.M:
                     OnCycleModel?.Invoke();
+                    return true;
+                case ConsoleKey.S:
+                    OnOpenSessions?.Invoke();
+                    return true;
+                case ConsoleKey.G:
+                    OnReasoningEffort?.Invoke();
                     return true;
                 case ConsoleKey.H:
                     OnShowHelp?.Invoke();

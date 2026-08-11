@@ -122,6 +122,10 @@ public class Config
     public bool TeamMemoryAutoSync { get; set; } = true;
     public string ThemePreset { get; set; } = "default";
 
+    // ── 推理深度 ──
+    /// <summary>推理深度级别（minimal/low/medium/high/max），空字符串=不设置（模型默认）</summary>
+    public string ReasoningEffort { get; set; } = "";
+
     // 界面主题
     public string BorderStyle { get; set; } = "rounded";
     public string BorderColor { get; set; } = "36";
@@ -207,6 +211,11 @@ public class Config
               "API 密钥", "🤖 模型", "API 密钥 (已隐藏)",
               "secret", null, 3,
               c => c.ApiKey, (c, v) => c.ApiKey = v, "", skipIfEmpty: true),
+
+            P("ReasoningEffort", "WAYCODER_REASONING_EFFORT", null,
+              "推理深度", "🤖 模型", "推理模型的思考深度 (minimal/low/medium/high/max)，空=默认",
+              "select", ["","minimal","low","medium","high","max"], 4,
+              c => c.ReasoningEffort, (c, v) => c.ReasoningEffort = v, "", skipIfEmpty: true),
 
             // ── 参数 ──
             P("MaxTokens",        "WAYCODER_MAX_TOKENS",        "CORECODER_MAX_TOKENS",
