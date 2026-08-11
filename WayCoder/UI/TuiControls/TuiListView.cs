@@ -149,6 +149,23 @@ public class TuiListView : TuiView
 
     // ── 渲染 ──
 
+    /// <summary>二分查找第一个可见项（scrollOffset 对应的 children 索引）</summary>
+    private int FindFirstVisibleIndex()
+    {
+        if (Children.Count == 0) return 0;
+        int lo = 0, hi = Children.Count - 1;
+        while (lo < hi)
+        {
+            int mid = (lo + hi) / 2;
+            var child = Children[mid];
+            if (child.Y + child.Height <= ScrollOffset)
+                lo = mid + 1;
+            else
+                hi = mid;
+        }
+        return lo;
+    }
+
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
         int visH = Height;
@@ -165,16 +182,22 @@ public class TuiListView : TuiView
             ScrollOffset = Math.Max(0, ScrollOffset);
         }
 
-        foreach (var child in Children)
+        // 二分查找起始项，避免遍历所有子项
+        int startIdx = FindFirstVisibleIndex();
+        int screenBottom = absY + visH;
+
+        for (int i = startIdx; i < Children.Count; i++)
         {
+            var child = Children[i];
             if (!child.Visible) continue;
 
             int childScreenY = absY + child.Y - ScrollOffset;
+            if (childScreenY >= screenBottom) break; // 后续项更远，直接停止
+
             int childScreenBottom = childScreenY + child.Height;
 
             // 裁剪：完全不可见则跳过
-            if (childScreenBottom <= absY || childScreenY >= absY + visH)
-                continue;
+            if (childScreenBottom <= absY) continue;
 
             // 渲染子项
             child.Render(sb, absX, absY - ScrollOffset,
