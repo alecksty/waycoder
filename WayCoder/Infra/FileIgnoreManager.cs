@@ -36,7 +36,7 @@ public static class FileIgnoreManager
         ".zip", ".tar", ".gz", ".bz2", ".7z", ".rar",
         ".jpg", ".jpeg", ".png", ".gif", ".ico", ".svg", ".webp", ".bmp",
         ".mp3", ".mp4", ".avi", ".mov", ".wmv", ".flv",
-        ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+        ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
         ".lock", ".sum",
     };
 

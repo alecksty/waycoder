@@ -96,7 +96,7 @@ WayCoder/
 - **AOT 编译：JSON 手写序列化**，`JsonHelper.SerializeArgs` 替代 `JsonSerializer`
 - **权限系统**：bash/write/edit/agent 默认行内确认（三行黄底渲染），`/perm yolo` 跳过
 - **双模型架构**：大模型做复杂任务，小模型做压缩/摘要，自动分工省钱
-- **模型回退链**：失败自动尝试备选 deepseek-chat→deepseek-v4-flash→deepseek-v4-pro→gpt-5.4-mini
+- **模型回退链**：失败自动尝试备选 deepseek-v4-flash→deepseek-v4-pro→gemini-2.0-flash(免费)→qwen-turbo→glm-4-flash→gpt-5.4-mini，自动解析跨供应商 API Key
 - **文件锁**：FileLockManager 防止多 Agent 并发修改冲突，30s 超时自动释放
 - **Watch 模式**：FileSystemWatcher 监听文件变更 → 提取 AI! / AI? 注释 → 线程安全队列 → REPL 轮询执行
 - **全屏缓冲 UI**：备用屏 + 每帧重绘 + 行内权限块 + 弹窗菜单 + 侧栏面板 + 居中对话框
@@ -107,6 +107,7 @@ WayCoder/
 - **文件追踪**：`FileTracker` SHA256 哈希记录 + 外部变更检测 + LRU 淘汰，防止 Stale-Read
 - **自动续写**：检测"口述代码"（content >300 字符 + 代码标记）→ 追问使其写文件；首轮只分析不动手 → 追问执行
 - **自动摘要**：Crush 风格上下文预算检查 → 触发小模型压缩 → 注入继续提示 → 重置计数器
+- **文档读取**：PDF 文本提取（PdfPig，AOT 兼容）+ Markdown 结构化渲染（标题/代码块/表格/列表）
 
 ## 非显而易见的约束
 
