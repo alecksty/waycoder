@@ -59,6 +59,8 @@ public static class ReasoningPicker
             }
         }
 
+        try
+        {
         while (true)
         {
             // 过滤
@@ -207,6 +209,11 @@ public static class ReasoningPicker
                     }
                     break;
             }
+        }
+        }
+        finally
+        {
+            TuiManager.RequestFullRefresh();
         }
     }
 

@@ -14,6 +14,8 @@ public class TuiListView : TuiView
 
     /// <summary>垂直滚动偏移（像素行）</summary>
     public int ScrollOffset { get; set; }
+    /// <inheritdoc/>
+    public override int EffectiveScrollOffset => ScrollOffset;
 
     /// <summary>是否自动滚到底部（内容增长时自动跟底）</summary>
     public bool IsAutoScrollToEnd { get; set; } = true;

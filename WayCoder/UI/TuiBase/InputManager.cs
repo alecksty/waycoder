@@ -111,7 +111,8 @@ public class InputManager : IDisposable
     /// <summary>
     /// 解析 AnsiTty.AnsiCharPrefix 开头的转义序列（调用时 AnsiTty.AnsiCharPrefix 已被读取）：
     /// - SGR 鼠标 AnsiTty.AnsiCharPrefix[&lt;C;X;Y M/m → 返回 Mouse 事件
-    /// - 其他 CSI 序列（AnsiTty.AnsiCharPrefix[1;5A 等）→ 吞掉整个序列，返回 null（调用方把 AnsiTty.AnsiCharPrefix 当 ESC 键）
+    /// - 修饰键功能键 CSI 序列（如 AnsiTty.AnsiCharPrefix[1;2P = Shift+F1）→ 返回对应 Key 事件
+    /// - 其他 CSI 序列（如 AnsiTty.AnsiCharPrefix[1;5A 带修饰键方向键）→ 吞掉整个序列，返回 null
     /// - Alt+字符（AnsiTty.AnsiCharPrefix x）→ 字符退回 _pendingKeys，返回 null
     /// </summary>
     private InputEvent? TryParseEscapeSequence()
@@ -139,10 +140,15 @@ public class InputManager : IDisposable
         if (lt.KeyChar == 'Z')
             return new InputEvent { Type = InputType.ShiftTab };
 
-        // 非 SGR 鼠标的 CSI 序列（如 AnsiTty.AnsiCharPrefix[1;5A 带修饰键方向键）→ 吞掉至终止字节
+        // 非 SGR 鼠标的 CSI 序列
         if (lt.KeyChar != '<')
         {
-            ConsumeCsi();
+            // 尝试解析为带修饰符的功能键
+            // 格式：CSI num;mod term （xterm 风格，如 \x1b[1;2P = Shift+F1）
+            var funcKeyEvent = TryParseCsiFunctionKey(lt.KeyChar);
+            if (funcKeyEvent != null) return funcKeyEvent;
+
+            ConsumeCsi(lt.KeyChar);
             return null;
         }
 
@@ -185,9 +191,118 @@ public class InputManager : IDisposable
         };
     }
 
-    /// <summary>吞掉 CSI 序列剩余部分直到终止字节（0x40-0x7E），防止泄漏为文本。</summary>
-    private void ConsumeCsi()
+    /// <summary>
+    /// 尝试解析 CSI 功能键序列（如 \x1b[1;2P = Shift+F1）。
+    /// firstChar 是 '[' 之后的第一个字符（已被 ReadKey 读取）。
+    /// 返回解析后的 InputEvent，若无法识别则返回 null。
+    /// </summary>
+    private InputEvent? TryParseCsiFunctionKey(char firstChar)
     {
+        // 读取 CSI 参数串：从 firstChar 开始，直到终止字节（0x40-0x7E）
+        var paramStr = new System.Text.StringBuilder();
+        paramStr.Append(firstChar);
+
+        // 如果 firstChar 本身就是终止字节（如 \x1b[P = F1 老旧格式 \x1bOP）
+        if (firstChar >= 0x40 && firstChar <= 0x7E)
+        {
+            return ParseCsiFuncKey(paramStr.ToString(), firstChar);
+        }
+
+        // 继续读取参数
+        for (int i = 0; i < 20; i++)
+        {
+            if (!WaitForChar(10)) break;
+            var ch = Tty.ReadKey();
+            paramStr.Append(ch.KeyChar);
+            if (ch.KeyChar >= 0x40 && ch.KeyChar <= 0x7E)
+            {
+                // 终止字节到达，解析
+                return ParseCsiFuncKey(paramStr.ToString(), ch.KeyChar);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 解析 CSI 参数串为功能键事件。
+    /// 支持格式：
+    ///   num;mod term  →  xterm 修饰键格式（如 1;2P = Shift+F1）
+    ///   num term      →  无修饰键格式（如 1P = F1, 15~ = F5）
+    /// term: P = F1-F4, ~ = F5+ 或 Home/End/Insert/Delete/PgUp/PgDn
+    /// </summary>
+    private static InputEvent? ParseCsiFuncKey(string paramBody, char terminator)
+    {
+        // 去掉终止符，解析数字参数
+        var body = paramBody.TrimEnd(terminator);
+        if (body.Length == 0) return null;
+
+        var parts = body.Split(';');
+        if (!int.TryParse(parts[0], out var num)) return null;
+
+        int mod = parts.Length >= 2 && int.TryParse(parts[1], out var m) ? m : 0;
+
+        // 映射功能键编号：xterm 有两种编码
+        // 编码1：F1-F4=1-4(P) / F5+=5-12(~)
+        // 编码2：F1-F12=11-24(~)
+        int funcNum;
+        if (terminator == 'P' && num >= 1 && num <= 4)
+        {
+            funcNum = num; // F1=1, F2=2, F3=3, F4=4
+        }
+        else if (terminator == '~')
+        {
+            if (num >= 1 && num <= 12)
+            {
+                // 部分终端 F1=1~, F2=2~, ..., F12=12~
+                // 也有 F1=11~, F2=12~, ..., F12=24~
+                // 但 num=1~6 可能是 Home/Insert/Delete/End/PgUp/PgDn
+                // 仅当有修饰键时才解析为功能键
+                if (mod != 0 && num >= 1 && num <= 12)
+                    funcNum = num;
+                else if (num >= 11 && num <= 24)
+                    funcNum = num - 10; // F1=11, F2=12, ...
+                else if (num >= 5 && num <= 12)
+                    funcNum = num; // F5=5, F6=6, ...
+                else
+                    return null;
+            }
+            else
+                return null;
+        }
+        else
+        {
+            return null; // 不认识的终止符（如 A/B/C/D 方向键，已在 .NET 层处理）
+        }
+
+        if (funcNum < 1 || funcNum > 12) return null;
+
+        // xterm modifier encoding:
+        // 2=Shift, 3=Alt, 4=Shift+Alt, 5=Ctrl, 6=Ctrl+Shift, 7=Ctrl+Alt, 8=Ctrl+Shift+Alt
+        bool shift = mod == 2 || mod == 4 || mod == 6 || mod == 8;
+        bool alt   = mod == 3 || mod == 4 || mod == 7 || mod == 8;
+        bool ctrl  = mod == 5 || mod == 6 || mod == 7 || mod == 8;
+
+        var consoleKey = funcNum switch
+        {
+            1 => ConsoleKey.F1, 2 => ConsoleKey.F2, 3 => ConsoleKey.F3,
+            4 => ConsoleKey.F4, 5 => ConsoleKey.F5, 6 => ConsoleKey.F6,
+            7 => ConsoleKey.F7, 8 => ConsoleKey.F8, 9 => ConsoleKey.F9,
+            10 => ConsoleKey.F10, 11 => ConsoleKey.F11, 12 => ConsoleKey.F12,
+            _ => ConsoleKey.F1
+        };
+
+        var keyInfo = new ConsoleKeyInfo('\0', consoleKey, shift, alt, ctrl);
+        return new InputEvent { Type = InputType.Key, KeyInfo = keyInfo };
+    }
+
+    /// <summary>吞掉 CSI 序列剩余部分直到终止字节（0x40-0x7E），防止泄漏为文本。
+    /// firstChar 是已经读取的第一个参数字符。</summary>
+    private void ConsumeCsi(char firstChar)
+    {
+        // 如果第一个字符就是终止字节，无需继续读取
+        if (firstChar >= 0x40 && firstChar <= 0x7E) return;
+
         for (int i = 0; i < 30; i++)
         {
             if (!WaitForChar(10)) break;

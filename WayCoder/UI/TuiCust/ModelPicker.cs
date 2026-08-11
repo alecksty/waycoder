@@ -40,6 +40,8 @@ public static class ModelPicker
 
         var (tw, th) = (Tty.Cols, Tty.Rows);
 
+        try
+        {
         while (true)
         {
             // 过滤后的模型列表
@@ -222,6 +224,11 @@ public static class ModelPicker
                     }
                     break;
             }
+        }
+        }
+        finally
+        {
+            TuiManager.RequestFullRefresh();
         }
     }
 

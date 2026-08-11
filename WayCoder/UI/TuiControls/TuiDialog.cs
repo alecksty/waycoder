@@ -285,6 +285,9 @@ public static class TuiDialog
     public static TuiWindow Input(string title, string prompt, string defaultValue,
         Action<string> onConfirm, Action? onCancel = null)
     {
+        const int minWidth = 50;   // 输入框需要更多空间
+        const int inputHeight = 5; // 多行输入区高度
+
         var win = new TuiWindow
         {
             Title = title,
@@ -297,7 +300,8 @@ public static class TuiDialog
         int maxMsgW = CalcMaxMsgWidth();
         var msgLabels = BuildMessageLabels(prompt, maxMsgW);
         int maxVw = msgLabels.Count > 0 ? msgLabels.Max(l => TuiHelper.DisplayWidth(l.Text)) : 10;
-        int w = Math.Clamp(Math.Max(30, maxVw + 6), 30, Tty.Cols * MaxWidthNum / MaxWidthDen);
+        // 输入区至少 40 字符宽
+        int w = Math.Clamp(Math.Max(minWidth, Math.Max(maxVw, 40) + 6), minWidth, Tty.Cols * MaxWidthNum / MaxWidthDen);
         int labelW = w - 6;
 
         var vbox = new TuiVBox { Width = w - 4 };
@@ -307,10 +311,11 @@ public static class TuiDialog
             vbox.Add(lbl);
         }
 
-        // 多行 TuiTextArea（3行高，支持 Ctrl+Enter 换行）
+        // 多行 TuiTextArea（支持 Ctrl+Enter 换行）
         var input = new TuiTextArea
         {
-            Width = w - 6, Height = 3,
+            Width = w - 6, Height = inputHeight,
+            Bg = TuiColors.BgBrightBlack,  // 灰色背景，确保输入区可见
             Focused = true,
             Placeholder = "输入... (Ctrl+Enter 换行)",
         };
@@ -321,6 +326,9 @@ public static class TuiDialog
         if (!string.IsNullOrEmpty(initVal))
             input.Text = initVal;
         vbox.Add(input);
+
+        // 按钮与输入区间距
+        vbox.Add(new TuiLabel("") { Height = 1 });
 
         var hbox = new TuiHBox { Spacing = 2, Width = w - 6, ContentHAlign = HAlign.Center };
         var okBtn = new TuiButton("确定") { Width = 10 };

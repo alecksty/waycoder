@@ -22,6 +22,8 @@ public static class CommandPalette
 
         var (tw, th) = (Tty.Cols, Tty.Rows);
 
+        try
+        {
         while (true)
         {
             var filtered = string.IsNullOrEmpty(filter)
@@ -151,6 +153,11 @@ public static class CommandPalette
                     }
                     break;
             }
+        }
+        }
+        finally
+        {
+            TuiManager.RequestFullRefresh();
         }
     }
 
