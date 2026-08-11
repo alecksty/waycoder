@@ -144,7 +144,7 @@ public class Config
     public int LlmRateLimitMaxWaitSec { get; set; } = 120;
 
     // ── 回退链 ──
-    public string FallbackChain { get; set; } = "deepseek-v4-flash,deepseek-v4-pro,gpt-5.4-mini";
+    public string FallbackChain { get; set; } = "deepseek-v4-flash,deepseek-v4-pro,gemini-2.0-flash,qwen-turbo,glm-4-flash,gpt-5.4-mini";
 
     // ── 文件锁 ──
     public int FileLockTimeoutSec { get; set; } = 30;
@@ -393,7 +393,7 @@ public class Config
               "回退模型链", "🤖 模型", "逗号分隔的备选模型列表",
               "text", null, 7,
               c => c.FallbackChain, (c, v) => c.FallbackChain = v,
-              "deepseek-chat,deepseek-v4-flash,deepseek-v4-pro,gpt-5.4-mini"),
+              "deepseek-v4-flash,deepseek-v4-pro,gemini-2.0-flash,qwen-turbo,glm-4-flash,gpt-5.4-mini"),
 
             P("FallbackMaxBudget", "WAYCODER_FALLBACK_MAX_BUDGET", "CORECODER_FALLBACK_MAX_BUDGET",
               "回退预算 ($)", "💰 预算", "回退链最大花费，null=无限制",

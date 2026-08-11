@@ -70,7 +70,16 @@ public static class FallbackLLM
             }
 
             FallbackIndex = idx;
-            var fallbackLlm = new LLM(model, originalLlm.ApiKey, originalLlm.BaseUrl,
+
+            // 解析跨供应商 API Key 和 BaseUrl
+            var (fbKey, fbUrl) = ResolveKeyAndUrl(model, originalLlm.ApiKey);
+            if (string.IsNullOrEmpty(fbKey))
+            {
+                Console.Error.WriteLine($"[fallback] ⏭ 跳过 {model}（无 API Key，设置 {GetKeyEnvName(model)} 环境变量）");
+                continue;
+            }
+
+            var fallbackLlm = new LLM(model, fbKey, fbUrl,
                 originalLlm.MaxTokens, originalLlm.Temperature);
 
             try
@@ -107,4 +116,70 @@ public static class FallbackLLM
         TotalSpent = 0;
         FallbackIndex = -1;
     }
+
+    /// <summary>
+    /// 根据模型查找其供应商，解析对应的 API Key 和 BaseUrl。
+    /// </summary>
+    private static (string? key, string? baseUrl) ResolveKeyAndUrl(string model, string originalKey)
+    {
+        var info = ModelCatalog.Find(model);
+        var provider = info?.ProviderId ?? "";
+
+        // 从 ModelCatalog 获取 BaseUrl
+        var baseUrl = info?.DefaultBaseUrl;
+
+        // 按供应商查找专用密钥，回退到通用密钥
+        var key = provider switch
+        {
+            "deepseek" => Env("DEEPSEEK_API_KEY"),
+            "openai" => Env("OPENAI_API_KEY"),
+            "google" => Env("GEMINI_API_KEY") ?? Env("GOOGLE_API_KEY"),
+            "anthropic" => Env("ANTHROPIC_API_KEY"),
+            "qwen" => Env("DASHSCOPE_API_KEY"),
+            "zhipu" => Env("ZHIPU_API_KEY") ?? Env("GLM_API_KEY"),
+            "bytedance" => Env("ARK_API_KEY") ?? Env("DOUBAO_API_KEY"),
+            "moonshot" => Env("MOONSHOT_API_KEY"),
+            "mistral" => Env("MISTRAL_API_KEY"),
+            "xai" => Env("XAI_API_KEY") ?? Env("GROK_API_KEY"),
+            "siliconflow" => Env("SILICONFLOW_API_KEY"),
+            "groq" => Env("GROQ_API_KEY"),
+            "together" => Env("TOGETHER_API_KEY"),
+            "openrouter" => Env("OPENROUTER_API_KEY"),
+            "local" => "ollama",   // 本地模型不需要密钥
+            _ => null,
+        };
+
+        // 回退: WAYCODER_API_KEY → API_KEY → 原始密钥
+        key ??= Env("WAYCODER_API_KEY") ?? Env("API_KEY") ?? originalKey;
+
+        return (key, baseUrl);
+    }
+
+    /// <summary>获取模型对应的 API Key 环境变量名（用于提示）</summary>
+    private static string GetKeyEnvName(string model)
+    {
+        var info = ModelCatalog.Find(model);
+        return info?.ProviderId switch
+        {
+            "deepseek" => "DEEPSEEK_API_KEY",
+            "openai" => "OPENAI_API_KEY",
+            "google" => "GEMINI_API_KEY",
+            "anthropic" => "ANTHROPIC_API_KEY",
+            "qwen" => "DASHSCOPE_API_KEY",
+            "zhipu" => "ZHIPU_API_KEY",
+            "bytedance" => "ARK_API_KEY",
+            "moonshot" => "MOONSHOT_API_KEY",
+            "mistral" => "MISTRAL_API_KEY",
+            "xai" => "XAI_API_KEY",
+            "siliconflow" => "SILICONFLOW_API_KEY",
+            "groq" => "GROQ_API_KEY",
+            "together" => "TOGETHER_API_KEY",
+            "openrouter" => "OPENROUTER_API_KEY",
+            "local" => "(本地模型无需密钥)",
+            _ => "WAYCODER_API_KEY",
+        };
+    }
+
+    private static string? Env(string name) =>
+        Environment.GetEnvironmentVariable(name) is { Length: > 0 } v ? v : null;
 }

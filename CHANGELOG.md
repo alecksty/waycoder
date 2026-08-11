@@ -1,5 +1,53 @@
 # 更新日志
 
+## v0.31.6 (2026-08-11) — PDF/Markdown 文档读取 + 多模型测试脚本 + 免费模型回退链
+
+### 📄 文档读取增强
+
+**PDF 文本提取**（PdfPig 库，开源 + AOT 兼容）
+- `Infra/PdfExtractor.cs`：提取 PDF 纯文本，分页返回，压缩连续空行
+- `ReadFileTool` 新增 `.pdf` 处理：自动调用 PdfExtractor，支持 `offset`（起始页）/ `limit`（最大页数）
+- PDF 上限 50 MB，单次最多 20 页
+- `FileIgnoreManager` 移除 `.pdf` 过滤（现在 PDF 可被 glob/grep 发现）
+
+**Markdown 结构化渲染**
+- `ReadFileTool` 新增 `.md` 处理：使用 `MarkdownParser` 解析 AST
+- 输出结构化：标题层级 / 代码块（带语言标注）+ 80 行截断 / 表格（30 行截断） / 列表 / 段落
+- Markdown 上限 500 KB
+
+### 🤖 模型回退链增强
+
+**跨供应商 API Key 自动解析**
+- `FallbackLLM.ResolveKeyAndUrl()`：根据 ModelCatalog 供应商自动查找对应 API Key
+- 14 个供应商映射：DEEPSEEK / OPENAI / GEMINI / ANTHROPIC / DASHSCOPE / ZHIPU / ARK / MOONSHOT / MISTRAL / XAI / SILICONFLOW / GROQ / TOGETHER / OPENROUTER
+- 无 Key 时优雅跳过（不崩溃）+ 提示设置环境变量
+
+**回退链新增免费模型**
+- `gemini-2.0-flash`（Google 免费层 15 RPM）
+- `qwen-turbo`（阿里超低价 $0.05/$0.15）
+- `glm-4-flash`（智谱低价 $0.07/$0.14）
+- 新链：`deepseek-v4-flash → deepseek-v4-pro → gemini-2.0-flash → qwen-turbo → glm-4-flash → gpt-5.4-mini`
+
+### 🧪 测试脚本
+- `scripts/` 目录 7 个脚本：bench-models.sh / bench-local.sh / bench-models.ps1 / bench-quick.bat / quick-test.sh / stress-test.sh / run-all-tests.sh
+- 支持云端 + Ollama 本地模型一键基准测试
+
+### 🗂️ 新增 + 修改文件
+| 文件 | 说明 |
+|------|------|
+| `Infra/PdfExtractor.cs` | PDF 文本提取器（PdfPig，AOT 兼容） |
+| `Tools/ReadFileTool.cs` | 重构：PDF + Markdown + 文本三模式 |
+| `Agent/FallbackLLM.cs` | 跨供应商 Key 解析 + 优雅跳过 |
+| `Config/Config.cs` | 回退链 3→6 模型 + 默认 V4 Flash |
+| `Infra/FileIgnoreManager.cs` | 移除 .pdf 过滤 |
+| `Program.cs` | API Key 提示增加 Gemini/DashScope |
+| `SelfTest.cs` | +10 测试（PDF/MD/回退链） |
+| `WayCoder.csproj` | 新增 PdfPig NuGet 依赖 |
+| `.gitignore` | 添加 games/ chess-test/ |
+
+### 🧪 测试
+- 1331 项自测全部通过
+
 ## v0.31.5 (2026-08-11) — DeepSeek V4 推理修复 + Crush 上下文管理 + 安全/追踪/诊断/本地模型
 
 ### 🧠 DeepSeek V4 推理内容修复（关键 Bug）
