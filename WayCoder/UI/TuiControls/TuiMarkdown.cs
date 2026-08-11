@@ -8,7 +8,7 @@ namespace WayCoder.UI.TuiControls;
 /// 支持标题、代码块（语法高亮）、表格、列表、分割线、内联格式。
 /// 作为 TuiListView 的子项使用。
 /// </summary>
-public class TuiMarkdown : TuiControl
+public class TuiMarkdown : TuiControl, ILazyItem
 {
     /// <summary>Markdown 源文本</summary>
     public string Content { get; set; } = "";
@@ -124,6 +124,29 @@ public class TuiMarkdown : TuiControl
     {
         _parsed = false;
     }
+
+    // ── ILazyItem ──
+
+    /// <summary>预估渲染高度（无需完整渲染）</summary>
+    public int MeasureHeight(int width)
+    {
+        int effectiveMaxW = MaxWidth > 0 ? MaxWidth : width;
+        if (_parsed && _lastContent == Content && _lastMaxWidth == effectiveMaxW)
+            return Height;
+        // 内容未解析时，用字符数粗略估算
+        if (string.IsNullOrEmpty(Content)) return 0;
+        int lines = Content.Count(c => c == '\n') + 1;
+        int wrappedLines = 0;
+        foreach (var line in Content.Split('\n'))
+            wrappedLines += Math.Max(1, (TuiHelper.DisplayWidth(line) + effectiveMaxW - 1) / Math.Max(1, effectiveMaxW));
+        return Math.Max(1, wrappedLines);
+    }
+
+    /// <summary>渲染是否已缓存</summary>
+    public bool IsRenderCached => _parsed;
+
+    /// <summary>清除渲染缓存</summary>
+    public void InvalidateCache() => Invalidate();
 
     /// <summary>尺寸变化时重新以新宽度解析</summary>
     public override void OnResize(int newParentW, int newParentH)

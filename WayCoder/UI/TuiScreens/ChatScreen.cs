@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text;
 using WayCoder.Terminal;
 using WayCoder.Tools;
+using WayCoder.UI.ToolRenderers;
 
 using WayCoder.UI.TuiControls;
 
@@ -1727,10 +1728,8 @@ public class ChatScreen : TuiScreen
     /// <summary>添加工具调用进度（流式输出期间的占位）</summary>
     public void AddToolProgress(string toolName, string brief)
     {
-        // 简洁模式：仅一行 "⚙ tool(brief)"，不附加流式输出
-        string label = ChatDisplayStyle == "concise"
-            ? $"  ⚙ {toolName}({brief})"
-            : $"  ⚙ {toolName}({brief})";
+        var renderer = ToolRendererFactory.Get(toolName);
+        string label = $"  {renderer.FormatHeader(brief)}";
         AddSystemMsg(label);
         _toolOutputLineCount = 0;
     }

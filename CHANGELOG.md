@@ -1,5 +1,61 @@
 # 更新日志
 
+## v0.32.0 (2026-08-11) — 对标 Crush TUI 四大模式
+
+### 🔧 ToolRenderer 接口（对标 Crush ToolMessageItem）
+
+- **`IToolRenderer`** 接口：每种工具类型独立渲染器，`FormatHeader` + `FormatOutput`
+- **`ToolRendererFactory`**：按工具名分发（含 MCP 工具名解析），支持别名注册
+- **6 个具体渲染器**：
+  - `BashToolRenderer`：💻 图标 + 退出码着色（绿=成功/红=失败）+ stderr 红色标记
+  - `EditToolRenderer`：✏️ 图标 + diff 着色（红底删除/绿底新增/青色 hunk 头）
+  - `WriteToolRenderer`：📝 图标 + 成功绿色/错误红色
+  - `AgentToolRenderer`：🤖 图标 + 深度标记蓝色 + 子任务分隔线黄色
+  - `ReadFileToolRenderer`：📖 图标
+  - `GlobGrepToolRenderer`：🔍 图标（glob + grep 共用）
+- `ChatScreen.AddToolProgress` 集成：工具调用头自动使用对应 emoji 和格式
+
+### 🪟 Dialog Overlay 栈（对标 Crush Overlay + typed Action）
+
+- **`DialogOverlay`**：栈式对话框管理器，Push/Pop/Clear 操作
+- **按 ID 管理**：同 ID 自动替换，支持嵌套对话框（确认→文件选择→权限）
+- **类型化 Action 结果**：`DialogAction.Close` / `Confirm` / `Cancel` / `Select<T>` / `Permission` / `FilePicked` / `MultiSelect<T>` / `TextInput`
+- Esc 自动关闭栈顶，焦点自动恢复
+- 与现有 TuiScreen/TuiWindow 系统无缝兼容
+
+### 📜 懒渲染列表（对标 Crush List + Item 接口）
+
+- **`ILazyItem`** 接口：`MeasureHeight(width)` 预估高度 + `IsRenderCached` 缓存标记 + `InvalidateCache()`
+- **`TuiMarkdown` 实现 `ILazyItem`**：已缓存时 O(1) 高度，未缓存时按字符折行估算
+- **`TuiListView.FindFirstVisibleIndex()`**：二分查找 O(log n) 定位首个可见项
+- **`OnRender` 优化**：从 firstVisibleIndex 开始遍历，`childScreenY >= screenBottom` 提前终止
+
+### 💾 渲染缓存（对标 Crush cachedMessageItem）
+
+- **已有实现**：`TuiMarkdown._parsed` + `_lastContent` + `_lastMaxWidth` 三级缓存
+- `EnsureParsed()` 仅在内容或宽度变化时重新解析
+- `ILazyItem.IsRenderCached` 对外暴露缓存状态
+
+| 文件 | 变更 |
+|------|------|
+| `UI/TuiCust/ToolRenderers/IToolRenderer.cs` | 新增：接口 + 工厂（含 MCP 支持） |
+| `UI/TuiCust/ToolRenderers/BashToolRenderer.cs` | 新增：bash 输出着色 |
+| `UI/TuiCust/ToolRenderers/EditToolRenderer.cs` | 新增：diff 红绿着色 |
+| `UI/TuiCust/ToolRenderers/WriteToolRenderer.cs` | 新增：文件创建摘要 |
+| `UI/TuiCust/ToolRenderers/AgentToolRenderer.cs` | 新增：子智能体状态 |
+| `UI/TuiCust/ToolRenderers/ReadFileToolRenderer.cs` | 新增：read/glob/grep 渲染 |
+| `UI/TuiCust/ToolRenderers/DefaultToolRenderer.cs` | 新增：默认直通 |
+| `UI/TuiCust/DialogAction.cs` | 新增：类型化 Action 结果 |
+| `UI/TuiCust/DialogOverlay.cs` | 新增：栈式叠层管理器 |
+| `UI/TuiControls/ILazyItem.cs` | 新增：懒渲染项接口 |
+| `UI/TuiControls/TuiMarkdown.cs` | 修改：实现 ILazyItem + MeasureHeight |
+| `UI/TuiControls/TuiListView.cs` | 修改：二分查找首个可见项 + 提前终止 |
+| `UI/TuiScreens/ChatScreen.cs` | 修改：AddToolProgress 使用 ToolRenderer |
+| `Config/Global.cs` | v0.31.11 → v0.32.0 |
+
+### 🧪 测试
+- 1348 项自测全部通过
+
 ## v0.31.11 (2026-08-11) — Diff 语法高亮
 
 ### 🎨 Diff 语法高亮
