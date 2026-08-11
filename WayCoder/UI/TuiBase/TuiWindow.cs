@@ -293,7 +293,7 @@ public class TuiWindow : TuiBase
 
     /// <summary>
     /// 处理鼠标事件。返回 true 表示事件被窗口消费。
-    /// 支持：标题栏拖拽移动、边缘拖拽缩放。
+    /// 支持：标题栏拖拽移动、边缘拖拽缩放、子控件点击/滚动。
     /// </summary>
     public override bool HandleMouse(InputEvent ev)
     {
@@ -302,6 +302,10 @@ public class TuiWindow : TuiBase
         bool insideX = ev.MouseX >= X && ev.MouseX < X + Width;
         bool insideY = ev.MouseY >= Y && ev.MouseY < Y + Height;
         bool inside = insideX && insideY;
+
+        // ── 鼠标在窗口外部：只处理拖拽/缩放中止，不消费事件 ──
+        if (!inside && !_dragging && _resizeEdge == ResizeEdge.None)
+            return false;
 
         // ── 鼠标释放：停止拖拽/缩放 ──
         if (ev.MouseRelease)
@@ -333,10 +337,18 @@ public class TuiWindow : TuiBase
             return true;
         }
 
+        // ── 鼠标滚轮：优先路由到子控件 ──
+        if ((ev.MouseScrollUp || ev.MouseScrollDown) && inside)
+        {
+            if (RootView.HandleMouse(ev))
+                return true;
+            return true; // 消费滚轮事件（防止穿透到背景）
+        }
+
         // ── 鼠标按下 ──
         if (ev.MouseLeft)
         {
-            // 1. 检测边框缩放
+            // 1. 检测边框缩放（仅在 Resizeable 窗口 + 鼠标在边缘时）
             if (IsResizeable)
             {
                 var edge = DetectResizeEdge(ev.MouseX, ev.MouseY);
@@ -353,7 +365,7 @@ public class TuiWindow : TuiBase
                 }
             }
 
-            // 2. 检测标题栏拖拽
+            // 2. 检测标题栏拖拽（仅在 Moveable 窗口 + 鼠标在标题栏时）
             if (IsMoveable && InsideTitleBar(ev.MouseX, ev.MouseY))
             {
                 _dragging = true;
@@ -364,8 +376,19 @@ public class TuiWindow : TuiBase
                 return true;
             }
 
-            // 点击在窗口内，消费事件
+            // 3. 路由给子控件（按钮、列表等）
+            if (inside && RootView.HandleMouse(ev))
+                return true;
+
+            // 点击在窗口内，消费事件（防止穿透到背景）
             if (inside) return true;
+        }
+
+        // ── 鼠标移动（hover 效果）：路由给子控件 ──
+        if (ev.MouseMotion && inside)
+        {
+            RootView.HandleMouse(ev);
+            return true;
         }
 
         return false;

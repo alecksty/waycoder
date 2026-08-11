@@ -162,13 +162,26 @@ public abstract class TuiView : TuiControl
         return this;
     }
 
-    /// <summary>鼠标事件处理：命中测试 → 路由到子控件</summary>
+    /// <summary>
+    /// 鼠标事件处理：命中测试 → 路由到最深子控件。
+    /// 若子控件不处理，沿控件树向上冒泡。
+    /// </summary>
     public override bool HandleMouse(InputEvent ev)
     {
         if (ev.Type != InputType.Mouse) return false;
         var hit = HitTest(ev.MouseX, ev.MouseY);
         if (hit != null && hit != this)
-            return hit.HandleMouse(ev);
+        {
+            // 尝试让最深命中的控件处理
+            if (hit.HandleMouse(ev)) return true;
+            // 冒泡：逐级向上查找父控件，直到遇到自己或有人消费事件
+            var current = hit.Parent;
+            while (current != null && current != this)
+            {
+                if (current.HandleMouse(ev)) return true;
+                current = current.Parent;
+            }
+        }
         return false;
     }
 

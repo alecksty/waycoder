@@ -45,7 +45,7 @@ public class TuiManager : IDisposable
     {
         Tty.EnterAltScreen();
         Tty.HideCursor();
-        // TTY.EnableMouse(); // TODO: 鼠标暂不开启
+        Tty.EnableMouse();
         (TW, TH) = (Tty.Cols, Tty.Rows);
         IsActive = true;
     }

@@ -218,6 +218,13 @@ public class LLM
             body["tools"] = new JsonArray(clonedTools.ToArray());
         }
 
+        // 推理深度：DeepSeek V4 / OpenAI o-series 支持 reasoning_effort 参数
+        var reasoningEffort = Config.Instance.ReasoningEffort;
+        if (!string.IsNullOrEmpty(reasoningEffort))
+        {
+            body["reasoning_effort"] = reasoningEffort;
+        }
+
         var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
         {
             Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"),

@@ -83,6 +83,43 @@ public static class SessionManager
         return true;
     }
 
+    /// <summary>重命名会话</summary>
+    public static bool RenameSession(string oldId, string newId)
+    {
+        var oldPath = SessionPath(oldId);
+        if (!File.Exists(oldPath)) return false;
+
+        var newIdNormalized = NormalizeSessionId(newId);
+        var newPath = SessionPath(newIdNormalized);
+
+        // 如果新路径已存在，不覆盖
+        if (File.Exists(newPath) && !string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        try
+        {
+            // 更新文件中的 id 字段
+            var json = File.ReadAllText(oldPath);
+            var data = JsonNode.Parse(json);
+            if (data != null)
+            {
+                data["id"] = newIdNormalized;
+                data["saved_at"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            }
+            File.WriteAllText(newPath, data?.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }) ?? json);
+
+            // 删除旧文件（如果路径不同）
+            if (!string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
+                File.Delete(oldPath);
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     /// <summary>
     /// 列出可用会话，最新的在前。支持 limit/offset 分页。
     /// </summary>
@@ -162,6 +199,9 @@ public static class SessionManager
     {
         return $"session_{DateTime.Now:yyyyMMdd_HHmmss}_{Guid.NewGuid().ToString("N")[..8]}";
     }
+
+    /// <summary>生成新的会话 ID（公开，供外部使用）</summary>
+    public static string CreateNewSessionId() => NewSessionId();
 
     private static string SessionPath(string sessionId)
     {

@@ -112,11 +112,29 @@ public class TuiButton : TuiControl
         return p ?? Parent;
     }
 
-    /// <summary>鼠标左键点击触发按钮</summary>
+    /// <summary>鼠标左键点击触发按钮，hover 高亮</summary>
     public override bool HandleMouse(InputEvent ev)
     {
         if (!IsEnabled) return false;
-        if (ev.Type == InputType.Mouse && ev.MouseLeft)
+        if (ev.Type != InputType.Mouse) return false;
+
+        // 悬停检测（鼠标移动事件）
+        if (ev.MouseMotion)
+        {
+            int absX = GetAbsoluteX();
+            int absY = GetAbsoluteY();
+            bool inside = ev.MouseX >= absX && ev.MouseX < absX + Width &&
+                          ev.MouseY >= absY && ev.MouseY < absY + Height;
+            if (inside != IsHovered)
+            {
+                IsHovered = inside;
+                MarkDirty();
+            }
+            return inside;
+        }
+
+        // 左键点击
+        if (ev.MouseLeft)
         {
             Focused = true;
             OnClick?.Invoke(this);

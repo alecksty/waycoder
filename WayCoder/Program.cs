@@ -29,6 +29,9 @@ public class Program
     private static CancellationTokenSource? _agentCts;
     private static (List<JsonObject> Messages, string Model)? _pendingRestore;
 
+    /// <summary>当前会话 ID（用于 SessionPicker 标记）</summary>
+    private static string _currentSessionId = "_auto";
+
     /// <summary>Watch 模式线程安全提示队列</summary>
     private static readonly System.Collections.Concurrent.ConcurrentQueue<string> _pendingWatchPrompts = new();
 
@@ -360,6 +363,8 @@ public class Program
         screen.OnCycleModel = () => CycleModel(screen);
         screen.OnShowHelp = () => ShowHelpInChat(screen);
         screen.OnSearchHistory = query => SearchHistory(query, screen);
+        screen.OnOpenSessions = () => OpenSessions(screen);
+        screen.OnReasoningEffort = () => PickReasoningEffort(screen);
 
         var running = true;
         while (running && !_exitRequested)
@@ -403,12 +408,11 @@ public class Program
             // 超时 — 继续轮询
             if (ev.Type == InputType.Timeout) continue;
 
-            // 鼠标 — 暂不开启，待后续稳定后通过 WAYCODER_MOUSE=1 启用
+            // 鼠标 — 路由给 TuiManager → 活跃屏幕 → 控件树
             if (ev.Type == InputType.Mouse)
             {
-                // if (Environment.GetEnvironmentVariable("WAYCODER_MOUSE") != "1") continue;
-                // mgr.HandleMouse(ev);
-                // mgr.Render();
+                mgr.HandleMouse(ev);
+                mgr.Render();
                 continue;
             }
 
@@ -1146,7 +1150,7 @@ public class Program
 
     private static void ShowHelpInChat(ChatScreen screen)
     {
-        screen.AddSystemMsg("快捷键: F1-F10槽位 Shift+Tab切模式 Esc中断 Ctrl+E编辑器 Ctrl+T设置 Ctrl+R搜索 Ctrl+M模型 Ctrl+P提示 Ctrl+B侧栏 Ctrl+H帮助 Ctrl+Q退出 PgUp/PgDn翻页 Ctrl+Home/End首尾 ↑↓历史 Ctrl+V粘贴 Ctrl+Shift+F1/F2主题 · 命令: /help /model /tokens /compact /diff /save /resume /history /sessions");
+        screen.AddSystemMsg("快捷键: F1-F10槽位 Shift+Tab切模式 Esc中断 Ctrl+E编辑器 Ctrl+T设置 Ctrl+R搜索 Ctrl+M模型 Ctrl+G推理深度 Ctrl+S会话管理 Ctrl+P提示 Ctrl+B侧栏 Ctrl+H帮助 Ctrl+Q退出 PgUp/PgDn翻页 Ctrl+Home/End首尾 ↑↓历史 Ctrl+V粘贴 Ctrl+Shift+F1/F2主题 · 命令: /help /model /tokens /compact /diff /save /resume /history /sessions");
     }
 
     /// <summary>搜索对话历史中的关键词。</summary>
@@ -1465,6 +1469,77 @@ deepseek 性价比最高。"
             _llm!.Model = _config.Model;
             screen.StatusLeft = $"{_config.Model}";
             screen.AddSystemMsg($"🔄 {(result.IsLarge ? "大模型" : "小模型")} → {result.ModelId}");
+        }
+    }
+
+    /// <summary>Ctrl+S 打开会话管理对话框</summary>
+    private static void OpenSessions(ChatScreen screen)
+    {
+        var result = SessionPicker.Show(currentSessionId: _currentSessionId);
+        if (result == null) return;
+
+        switch (result.Action)
+        {
+            case "switch":
+                if (result.SessionId != _currentSessionId)
+                {
+                    AutoSaveSession();
+                    var loaded = SessionManager.LoadSession(result.SessionId);
+                    if (loaded != null)
+                    {
+                        var (messages, model) = loaded.Value;
+                        _currentSessionId = result.SessionId;
+                        _config.Model = model;
+                        _llm!.Model = model;
+                        _agent!.Messages.Clear();
+                        _agent.Messages.AddRange(messages);
+                        // 重建 ChatScreen 消息列表
+                        screen.ClearChat();
+                        foreach (var msg in messages)
+                        {
+                            var role = msg["role"]?.GetValue<string>() ?? "";
+                            var content = msg["content"]?.GetValue<string>() ?? "";
+                            if (role == "user") screen.AddMessage(content, "user");
+                            else if (role == "assistant") screen.AddMessage(content, "assistant");
+                            else if (role == "tool") screen.AddMessage(content, "tool");
+                        }
+                        screen.StatusLeft = $"{_config.Model}";
+                        screen.AddSystemMsg($"📂 已切换到会话: {result.SessionId}");
+                    }
+                }
+                break;
+            case "rename":
+                screen.AddSystemMsg($"✏ 会话已重命名: {result.SessionId} → {result.NewName}");
+                break;
+            case "delete":
+                SessionManager.DeleteSession(result.SessionId);
+                if (result.SessionId == _currentSessionId)
+                {
+                    _currentSessionId = SessionManager.CreateNewSessionId();
+                    _agent!.Messages.Clear();
+                    screen.ClearChat();
+                    screen.AddSystemMsg("🗑 当前会话已删除，已创建新会话");
+                }
+                else
+                {
+                    screen.AddSystemMsg($"🗑 会话已删除: {result.SessionId}");
+                }
+                break;
+        }
+    }
+
+    /// <summary>Ctrl+G 打开推理深度选择对话框</summary>
+    private static void PickReasoningEffort(ChatScreen screen)
+    {
+        var result = ReasoningPicker.Show(
+            currentLevel: _config.ReasoningEffort,
+            modelName: _config.Model);
+        if (result != null)
+        {
+            if (string.IsNullOrEmpty(result.Level))
+                screen.AddSystemMsg("🧠 推理深度 → 已清除（使用模型默认）");
+            else
+                screen.AddSystemMsg($"🧠 推理深度 → {result.Level}");
         }
     }
 
