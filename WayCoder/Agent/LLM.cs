@@ -74,7 +74,7 @@ public class LLM
             handler.Proxy = new System.Net.WebProxy(proxyUrl);
             handler.UseProxy = true;
         }
-        return new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(5) };
+        return new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(Config.Instance.LlmConnectionTimeoutSec) };
     }
 
     /// <summary>当前活跃模型 (大模型)</summary>
@@ -183,7 +183,7 @@ public class LLM
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
         // 每次 HTTP 请求 60 秒超时，防止服务器无响应无限等待
-        using var requestTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        using var requestTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(Config.Instance.LlmHttpTimeoutSec));
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken, requestTimeout.Token);
         cancellationToken = linked.Token;
@@ -415,9 +415,10 @@ public class LLM
     private async Task<HttpResponseMessage> CallWithRetryAsync(
         Func<HttpRequestMessage> createRequest,
         CancellationToken cancellationToken,
-        int maxRetries = 3)
+        int maxRetries = -1)
     {
-        for (int attempt = 0; attempt < maxRetries; attempt++)
+        var effectiveMaxRetries = maxRetries > 0 ? maxRetries : Config.Instance.LlmMaxRetries;
+        for (int attempt = 0; attempt < effectiveMaxRetries; attempt++)
         {
             try
             {
@@ -425,14 +426,14 @@ public class LLM
                 var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 
                 // 5xx 服务器错误重试
-                if ((int)resp.StatusCode >= 500 && attempt < maxRetries - 1)
+                if ((int)resp.StatusCode >= 500 && attempt < effectiveMaxRetries - 1)
                 {
                     await Task.Delay((int)Math.Pow(2, attempt) * 1000, cancellationToken);
                     continue;
                 }
 
                 // 429 速率限制重试（解析 Retry-After 头）
-                if (resp.StatusCode == System.Net.HttpStatusCode.TooManyRequests && attempt < maxRetries - 1)
+                if (resp.StatusCode == System.Net.HttpStatusCode.TooManyRequests && attempt < effectiveMaxRetries - 1)
                 {
                     var delay = ParseRetryAfter(resp) ?? (int)Math.Pow(2, attempt) * 1000;
                     await Task.Delay(delay, cancellationToken);
@@ -444,10 +445,10 @@ public class LLM
             catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 // 超时
-                if (attempt == maxRetries - 1) throw;
+                if (attempt == effectiveMaxRetries - 1) throw;
                 await Task.Delay((int)Math.Pow(2, attempt) * 1000, cancellationToken);
             }
-            catch (HttpRequestException) when (attempt < maxRetries - 1)
+            catch (HttpRequestException) when (attempt < effectiveMaxRetries - 1)
             {
                 await Task.Delay((int)Math.Pow(2, attempt) * 1000, cancellationToken);
             }
@@ -466,13 +467,14 @@ public class LLM
 
             // 纯数字 = 秒数
             if (int.TryParse(header, out var seconds))
-                return Math.Min(seconds * 1000, 120_000); // 最多等 2 分钟
+                return Math.Min(seconds * 1000, Config.Instance.LlmRateLimitMaxWaitSec * 1000);
 
             // HTTP-date 格式
             if (DateTime.TryParse(header, out var retryDate))
             {
                 var delay = (int)(retryDate.ToUniversalTime() - DateTime.UtcNow).TotalMilliseconds;
-                return delay > 0 ? Math.Min(delay, 120_000) : null;
+                var maxWaitMs = Config.Instance.LlmRateLimitMaxWaitSec * 1000;
+                return delay > 0 ? Math.Min(delay, maxWaitMs) : null;
             }
 
             return null;

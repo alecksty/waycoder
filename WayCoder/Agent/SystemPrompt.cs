@@ -33,7 +33,7 @@ public static class SystemPrompt
         var memorySection = "";
         try
         {
-            var config = Config.FromEnv();
+            var config = Config.Instance;
             // 用项目上下文作为查询关键词，提取最相关记忆
             var query = $"{project.PrimaryLanguage} {string.Join(" ", project.BuildTools)} {string.Join(" ", project.Frameworks)}";
             StructuredMemory.MigrateFromOldFormat();

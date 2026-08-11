@@ -19,8 +19,11 @@ namespace WayCoder;
 /// </summary>
 public static class StructuredMemory
 {
-    /// <summary>记忆目录路径</summary>
-    public static string MemoryDir
+    /// <summary>当前活跃的槽位索引（0-9），由 Program.cs 在切换槽位时设置</summary>
+    public static int CurrentSlotIndex { get; set; }
+
+    /// <summary>共享记忆目录（所有槽位可见）</summary>
+    public static string SharedMemoryDir
     {
         get
         {
@@ -30,8 +33,22 @@ public static class StructuredMemory
         }
     }
 
-    /// <summary>索引文件路径</summary>
-    public static string IndexPath => Path.Combine(MemoryDir, "..", "MEMORY.md");
+    /// <summary>当前槽位的独立记忆目录（仅本槽位可见）</summary>
+    public static string SlotMemoryDir
+    {
+        get
+        {
+            var dir = Global.WriteConfigPath(Directory.GetCurrentDirectory(), $"memory{Path.DirectorySeparatorChar}slot_{CurrentSlotIndex}");
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            return dir;
+        }
+    }
+
+    /// <summary>记忆目录路径（当前槽位独立目录，向后兼容）</summary>
+    public static string MemoryDir => SlotMemoryDir;
+
+    /// <summary>索引文件路径（基于槽位目录）</summary>
+    public static string IndexPath => Path.Combine(SlotMemoryDir, "..", "MEMORY.md");
 
     /// <summary>旧格式记忆文件路径（兼容迁移用）</summary>
     public static string OldMemoryPath => Path.Combine(Directory.GetCurrentDirectory(), Global.LegacyConfigDirName, "memory.md");
@@ -75,20 +92,34 @@ public static class StructuredMemory
 
     // ---- 读写操作 ----
 
-    /// <summary>列出所有记忆条目</summary>
+    /// <summary>列出所有记忆条目（共享 + 当前槽位独立）</summary>
     public static List<MemoryEntry> ListAll()
     {
         var entries = new List<MemoryEntry>();
-        if (!Directory.Exists(MemoryDir)) return entries;
+        var seen = new HashSet<string>();
 
-        foreach (var file in Directory.GetFiles(MemoryDir, "*.md"))
-        {
-            var entry = ReadFile(file);
-            if (entry != null) entries.Add(entry);
-        }
+        // 1. 共享记忆（.waycoder/memory/）
+        LoadFromDir(SharedMemoryDir, entries, seen);
+
+        // 2. 槽位独立记忆（.waycoder/memory/slot_N/）
+        LoadFromDir(SlotMemoryDir, entries, seen);
 
         entries.Sort((a, b) => b.UpdatedAt.CompareTo(a.UpdatedAt));
         return entries;
+    }
+
+    private static void LoadFromDir(string dir, List<MemoryEntry> entries, HashSet<string> seen)
+    {
+        if (!Directory.Exists(dir)) return;
+        foreach (var file in Directory.GetFiles(dir, "*.md"))
+        {
+            // 跳过索引文件本身（MEMORY.md）
+            if (Path.GetFileName(file).Equals("MEMORY.md", StringComparison.OrdinalIgnoreCase))
+                continue;
+            var entry = ReadFile(file);
+            if (entry != null && seen.Add(entry.Name))
+                entries.Add(entry);
+        }
     }
 
     /// <summary>按名称查找一条记忆</summary>
@@ -242,10 +273,34 @@ public static class StructuredMemory
         return sb.ToString();
     }
 
-    /// <summary>记忆总数</summary>
-    public static int Count => Directory.Exists(MemoryDir)
-        ? Directory.GetFiles(MemoryDir, "*.md").Length
-        : 0;
+    /// <summary>记忆总数（共享 + 当前槽位独立，排除 MEMORY.md 索引文件）</summary>
+    public static int Count
+    {
+        get
+        {
+            var seen = new HashSet<string>();
+            int c = 0;
+            if (Directory.Exists(SharedMemoryDir))
+            {
+                foreach (var f in Directory.GetFiles(SharedMemoryDir, "*.md"))
+                {
+                    if (Path.GetFileName(f).Equals("MEMORY.md", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (seen.Add(Path.GetFileNameWithoutExtension(f))) c++;
+                }
+            }
+            if (Directory.Exists(SlotMemoryDir))
+            {
+                foreach (var f in Directory.GetFiles(SlotMemoryDir, "*.md"))
+                {
+                    if (Path.GetFileName(f).Equals("MEMORY.md", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (seen.Add(Path.GetFileNameWithoutExtension(f))) c++;
+                }
+            }
+            return c;
+        }
+    }
 
     // ---- 迁移 ----
 

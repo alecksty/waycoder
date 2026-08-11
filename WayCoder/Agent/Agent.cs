@@ -38,6 +38,9 @@ public class Agent
     /// <summary>Architect 双模型模式：大模型出计划，小模型执行</summary>
     public bool ArchitectMode { get; set; }
 
+    /// <summary>最大对话轮次（-1 表示从 Config.Instance.MaxRounds 读取）</summary>
+    private readonly int _effectiveMaxRounds;
+
     /// <summary>是否启用自动 Git Commit（可运行时切换）</summary>
     public bool AutoCommitEnabled
     {
@@ -55,7 +58,7 @@ public class Agent
     /// <param name="maxBudgetUsd">最大美元预算（null=无限制）</param>
     /// <param name="autoCommit">工具执行后自动 git commit</param>
     public Agent(LLM llm, List<ITool>? tools = null,
-        int maxContextTokens = 128_000, int maxRounds = 50,
+        int maxContextTokens = 128_000, int maxRounds = -1,
         double? maxBudgetUsd = null, bool autoCommit = false)
     {
         LlmClient = llm;
@@ -65,6 +68,7 @@ public class Agent
         ToolByName = Tools.ToDictionary(t => t.Name);
         Context = new ContextManager(maxContextTokens);
         _maxRounds = maxRounds;
+        _effectiveMaxRounds = maxRounds > 0 ? maxRounds : Config.Instance.MaxRounds;
         _systemPrompt = SystemPrompt.Generate(Tools);
 
         // 连接子智能体能力
@@ -139,7 +143,7 @@ public class Agent
             onToken?.Invoke("\n📋 **计划已生成，切换到小模型执行...**\n\n");
         }
 
-        for (int round = 0; round < _maxRounds; round++)
+        for (int round = 0; round < _effectiveMaxRounds; round++)
         {
             cancellationToken.ThrowIfCancellationRequested();
 

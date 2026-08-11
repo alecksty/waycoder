@@ -43,11 +43,11 @@ public class AgentTool : ITool
     /// </summary>
     public Agent? ParentAgent { get; set; }
 
-    /// <summary>最大递归深度（可通过 Config 修改）</summary>
-    public static int MaxDepth = 3;
+    /// <summary>最大递归深度（从 Config.Instance.SubAgentMaxDepth 动态读取，可通过 WAYCODER_SUBAGENT_DEPTH 环境变量配置）</summary>
+    public static int MaxDepth => Config.Instance.SubAgentMaxDepth;
 
-    /// <summary>并行子任务数量上限</summary>
-    private const int MaxParallelTasks = 4;
+    /// <summary>并行子任务数量上限（从 Config.Instance.SubAgentMaxParallel 动态读取）</summary>
+    public static int MaxParallelTasks => Config.Instance.SubAgentMaxParallel;
 
     /// <summary>当前递归深度（线程安全，AsyncLocal 确保异步上下文隔离）</summary>
     private static readonly AsyncLocal<int> _currentDepth = new();
@@ -172,8 +172,9 @@ public class AgentTool : ITool
 
             var result = await subAgent.ChatAsync(fullTask, onToken: null, onTool: null);
             // 截断过长结果，避免撑爆父智能体的上下文
-            if (result.Length > 5000)
-                result = result[..4500] + "\n...（子智能体输出已截断）";
+            var outputMax = Config.Instance.SubAgentOutputMaxChars;
+            if (outputMax > 0 && result.Length > outputMax)
+                result = result[..(outputMax * 90 / 100)] + "\n...（子智能体输出已截断）";
             return $"[子智能体已完成 · 深度 {depth + 1}]\n{result}";
         }
         catch (Exception ex)

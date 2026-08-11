@@ -33,13 +33,58 @@ record ConfigProp(
 );
 
 /// <summary>
-/// 配置 - 环境变量和默认值。
+/// 配置 - 环境变量和默认值。单例模式，所有模块通过 Config.Instance 统一读取。
 ///
 /// 新增配置项只需在 _schema 列表中加一行，SettingSchema/FromEnv/SaveToEnvFile 全部自动推导。
 /// 环境变量优先读取 WAYCODER_*（新名），回退到 CORECODER_*（旧名，兼容 v0.16.2 及之前版本）。
+/// API Key 不保存到 .env 文件（密钥独立管理）。
 /// </summary>
 public class Config
 {
+    // ════════════════════════════════════════════════════════════
+    // 单例
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>全局配置单例（首次访问时初始化）</summary>
+    public static Config Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                LoadDotEnv();
+                _instance = new Config();
+                // Schema 驱动的批量加载
+                foreach (var p in _schema)
+                {
+                    var val = Env(p.EnvVar, p.OldEnvVar);
+                    if (val != null) p.Setter(_instance, val);
+                }
+                // 特殊处理：ApiKey 多路回退
+                if (string.IsNullOrEmpty(_instance.ApiKey))
+                {
+                    _instance.ApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
+                        ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY")
+                        ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
+                        ?? Environment.GetEnvironmentVariable("API_KEY")
+                        ?? "";
+                }
+                // 特殊处理：BaseUrl 多路回退
+                if (string.IsNullOrEmpty(_instance.BaseUrl))
+                {
+                    _instance.BaseUrl = Environment.GetEnvironmentVariable("OPENAI_BASE_URL");
+                }
+            }
+            return _instance;
+        }
+    }
+    private static Config? _instance;
+
+    /// <summary>重新加载配置（读取最新的环境变量和 .env 文件）</summary>
+    public static void Reload() { _instance = null; }
+
+    /// <summary>从环境变量加载配置（兼容旧调用，返回单例）</summary>
+    public static Config FromEnv() => Instance;
     // ════════════════════════════════════════════════════════════
     // 属性声明（保持原有类型和默认值，全项目兼容）
     // ════════════════════════════════════════════════════════════
@@ -62,6 +107,10 @@ public class Config
     public int ToolTimeoutSec { get; set; } = 120;
     public int LintTimeoutSec { get; set; } = 60;
     public int SubAgentMaxDepth { get; set; } = 3;
+    public int BashOutputMaxChars { get; set; } = 50_000;
+    public string WatchExtensions { get; set; } = "";
+    public string WatchIgnoreDirs { get; set; } = "";
+    public double? FallbackMaxBudget { get; set; } = 5.0;
     public int MemoryRelevanceTopN { get; set; } = 5;
     public bool EmbeddingEnabled { get; set; } = false;
     public string EmbeddingModel { get; set; } = "text-embedding-3-small";
@@ -76,6 +125,33 @@ public class Config
     public string AccentColor { get; set; } = "36";
     public string ColorScheme { get; set; } = "default";
     public string ChatDisplayStyle { get; set; } = "auto";
+
+    // ── 沙箱 ──
+    public int SandboxMaxMemoryMb { get; set; } = 1024;
+    public int SandboxMaxCpuSeconds { get; set; } = 300;
+    public bool SandboxAllowNetwork { get; set; } = false;
+
+    // ── Agent/SubAgent ──
+    public int MaxRounds { get; set; } = 50;
+    public int SubAgentMaxParallel { get; set; } = 4;
+    public int SubAgentOutputMaxChars { get; set; } = 5000;
+
+    // ── LLM 连接 ──
+    public int LlmHttpTimeoutSec { get; set; } = 60;
+    public int LlmMaxRetries { get; set; } = 3;
+    public int LlmConnectionTimeoutSec { get; set; } = 300;
+    public int LlmRateLimitMaxWaitSec { get; set; } = 120;
+
+    // ── 回退链 ──
+    public string FallbackChain { get; set; } = "deepseek-v4-flash,deepseek-v4-pro,deepseek-chat,gpt-5.4-mini";
+
+    // ── 文件锁 ──
+    public int FileLockTimeoutSec { get; set; } = 30;
+
+    // ── 上下文压缩 ──
+    public int ContextSnipRatio { get; set; } = 50;
+    public int ContextSummarizeRatio { get; set; } = 70;
+    public int ContextCollapseRatio { get; set; } = 90;
 
     // ════════════════════════════════════════════════════════════
     // 单一 Schema 定义（新增配置项只加这里一行）
@@ -139,6 +215,85 @@ public class Config
               "number", null, 4,
               c => c.SubAgentMaxDepth.ToString(),
               (c, v) => c.SubAgentMaxDepth = Math.Clamp(int.Parse(v), 1, 5), "3"),
+
+            P("SubAgentMaxParallel", "WAYCODER_SUBAGENT_MAX_PARALLEL", "CORECODER_SUBAGENT_MAX_PARALLEL",
+              "子智能体并行数", "🤖 模型", "并行子任务数量上限",
+              "number", null, 5,
+              c => c.SubAgentMaxParallel.ToString(),
+              (c, v) => c.SubAgentMaxParallel = Math.Clamp(int.Parse(v), 1, 10), "4"),
+
+            P("SubAgentOutputMaxChars", "WAYCODER_SUBAGENT_OUTPUT_MAX_CHARS", "CORECODER_SUBAGENT_OUTPUT_MAX_CHARS",
+              "子智能体输出上限", "🤖 模型", "子智能体输出截断阈值（字符数），0=不截断",
+              "number", null, 6,
+              c => c.SubAgentOutputMaxChars.ToString(),
+              (c, v) => c.SubAgentOutputMaxChars = Math.Max(0, int.Parse(v)), "5000"),
+
+            P("MaxRounds",     "WAYCODER_MAX_ROUNDS",         "CORECODER_MAX_ROUNDS",
+              "最大对话轮次", "⚙ 参数", "每轮对话最大工具调用次数",
+              "number", null, 5,
+              c => c.MaxRounds.ToString(),
+              (c, v) => c.MaxRounds = Math.Clamp(int.Parse(v), 5, 500), "50"),
+
+            P("BashOutputMaxChars", "WAYCODER_BASH_OUTPUT_MAX_CHARS", "CORECODER_BASH_OUTPUT_MAX_CHARS",
+              "Bash 输出上限", "⚙ 参数", "Bash 输出截断阈值（字符数），0=不截断",
+              "number", null, 6,
+              c => c.BashOutputMaxChars.ToString(),
+              (c, v) => c.BashOutputMaxChars = Math.Max(0, int.Parse(v)), "50000"),
+
+            P("LlmHttpTimeoutSec", "WAYCODER_LLM_HTTP_TIMEOUT_SEC", "CORECODER_LLM_HTTP_TIMEOUT_SEC",
+              "LLM 请求超时 (秒)", "⚙ 参数", "单次 HTTP 请求超时",
+              "number", null, 7,
+              c => c.LlmHttpTimeoutSec.ToString(),
+              (c, v) => c.LlmHttpTimeoutSec = Math.Clamp(int.Parse(v), 5, 600), "60"),
+
+            P("LlmMaxRetries",    "WAYCODER_LLM_MAX_RETRIES",   "CORECODER_LLM_MAX_RETRIES",
+              "LLM 最大重试", "⚙ 参数", "HTTP 失败最大重试次数",
+              "number", null, 8,
+              c => c.LlmMaxRetries.ToString(),
+              (c, v) => c.LlmMaxRetries = Math.Clamp(int.Parse(v), 0, 10), "3"),
+
+            P("LlmConnectionTimeoutSec", "WAYCODER_LLM_CONNECTION_TIMEOUT_SEC", "CORECODER_LLM_CONNECTION_TIMEOUT_SEC",
+              "LLM 连接超时 (秒)", "⚙ 参数", "HTTP 连接总超时",
+              "number", null, 9,
+              c => c.LlmConnectionTimeoutSec.ToString(),
+              (c, v) => c.LlmConnectionTimeoutSec = Math.Clamp(int.Parse(v), 10, 3600), "300"),
+
+            P("LlmRateLimitMaxWaitSec", "WAYCODER_LLM_RATE_LIMIT_MAX_WAIT_SEC", "CORECODER_LLM_RATE_LIMIT_MAX_WAIT_SEC",
+              "LLM 限速最大等待 (秒)", "⚙ 参数", "429 限速后最大等待时间",
+              "number", null, 10,
+              c => c.LlmRateLimitMaxWaitSec.ToString(),
+              (c, v) => c.LlmRateLimitMaxWaitSec = Math.Clamp(int.Parse(v), 10, 600), "120"),
+
+            P("ContextSnipRatio", "WAYCODER_CTX_SNIP_RATIO",   "CORECODER_CTX_SNIP_RATIO",
+              "上下文裁剪比例 (%)", "⚙ 参数", "工具输出裁剪触发比例",
+              "number", null, 11,
+              c => c.ContextSnipRatio.ToString(),
+              (c, v) => c.ContextSnipRatio = Math.Clamp(int.Parse(v), 10, 80), "50"),
+
+            P("ContextSummarizeRatio", "WAYCODER_CTX_SUMMARIZE_RATIO", "CORECODER_CTX_SUMMARIZE_RATIO",
+              "上下文摘要比例 (%)", "⚙ 参数", "LLM 摘要触发比例",
+              "number", null, 12,
+              c => c.ContextSummarizeRatio.ToString(),
+              (c, v) => c.ContextSummarizeRatio = Math.Clamp(int.Parse(v), 20, 90), "70"),
+
+            P("ContextCollapseRatio", "WAYCODER_CTX_COLLAPSE_RATIO", "CORECODER_CTX_COLLAPSE_RATIO",
+              "上下文折叠比例 (%)", "⚙ 参数", "硬折叠触发比例",
+              "number", null, 13,
+              c => c.ContextCollapseRatio.ToString(),
+              (c, v) => c.ContextCollapseRatio = Math.Clamp(int.Parse(v), 30, 99), "90"),
+
+            P("FallbackChain", "WAYCODER_FALLBACK_CHAIN",     "CORECODER_FALLBACK_CHAIN",
+              "回退模型链", "🤖 模型", "逗号分隔的备选模型列表",
+              "text", null, 7,
+              c => c.FallbackChain, (c, v) => c.FallbackChain = v,
+              "deepseek-v4-flash,deepseek-v4-pro,deepseek-chat,gpt-5.4-mini"),
+
+            P("FallbackMaxBudget", "WAYCODER_FALLBACK_MAX_BUDGET", "CORECODER_FALLBACK_MAX_BUDGET",
+              "回退预算 ($)", "💰 预算", "回退链最大花费，null=无限制",
+              "number", null, 0,
+              c => c.FallbackMaxBudget?.ToString("F2") ?? "",
+              (c, v) => c.FallbackMaxBudget = string.IsNullOrEmpty(v) ? null : double.Parse(v),
+              skipIfEmpty: true),
 
             // ── 预算 ──
             P("MaxBudgetUsd",     "WAYCODER_MAX_BUDGET_USD",    "CORECODER_MAX_BUDGET_USD",
@@ -224,6 +379,30 @@ public class Config
               c => c.TeamMemoryAutoSync.ToString().ToLowerInvariant(),
               (c, v) => c.TeamMemoryAutoSync = bool.Parse(v), "true"),
 
+            P("SandboxMaxMemoryMb", "WAYCODER_SANDBOX_MAX_MEMORY_MB", "CORECODER_SANDBOX_MAX_MEMORY_MB",
+              "沙箱最大内存 (MB)", "🔧 系统", "子进程最大内存，超限自动 kill",
+              "number", null, 12,
+              c => c.SandboxMaxMemoryMb.ToString(),
+              (c, v) => c.SandboxMaxMemoryMb = Math.Clamp(int.Parse(v), 64, 65536), "1024"),
+
+            P("SandboxMaxCpuSeconds", "WAYCODER_SANDBOX_MAX_CPU_SEC", "CORECODER_SANDBOX_MAX_CPU_SEC",
+              "沙箱最大 CPU (秒)", "🔧 系统", "子进程最大 CPU 时间，超限自动 kill",
+              "number", null, 13,
+              c => c.SandboxMaxCpuSeconds.ToString(),
+              (c, v) => c.SandboxMaxCpuSeconds = Math.Clamp(int.Parse(v), 5, 86400), "300"),
+
+            P("SandboxAllowNetwork", "WAYCODER_SANDBOX_ALLOW_NETWORK", "CORECODER_SANDBOX_ALLOW_NETWORK",
+              "沙箱网络", "🔧 系统", "允许沙箱子进程访问网络",
+              "select", ["false","true"], 14,
+              c => c.SandboxAllowNetwork.ToString().ToLowerInvariant(),
+              (c, v) => c.SandboxAllowNetwork = bool.Parse(v), "false"),
+
+            P("FileLockTimeoutSec", "WAYCODER_FILE_LOCK_TIMEOUT_SEC", "CORECODER_FILE_LOCK_TIMEOUT_SEC",
+              "文件锁超时 (秒)", "🔧 系统", "防多 Agent 并发写冲突的锁超时",
+              "number", null, 15,
+              c => c.FileLockTimeoutSec.ToString(),
+              (c, v) => c.FileLockTimeoutSec = Math.Clamp(int.Parse(v), 5, 600), "30"),
+
             // ── 界面 ──
             P("ThemePreset",      "WAYCODER_THEME",             "CORECODER_THEME",
               "界面主题", "🎨 界面", "预设配色方案，选中即生效",
@@ -275,41 +454,6 @@ public class Config
     static string? Env(string newName, string? oldName) =>
         Environment.GetEnvironmentVariable(newName)
         ?? (oldName != null ? Environment.GetEnvironmentVariable(oldName) : null);
-
-    /// <summary>
-    /// 从环境变量加载配置。也支持从当前目录向上查找到 home 目录的 .env 文件。
-    /// </summary>
-    public static Config FromEnv()
-    {
-        LoadDotEnv();
-
-        var config = new Config();
-
-        // Schema 驱动的批量加载
-        foreach (var p in _schema)
-        {
-            var val = Env(p.EnvVar, p.OldEnvVar);
-            if (val != null) p.Setter(config, val);
-        }
-
-        // 特殊处理：ApiKey 多路回退
-        if (string.IsNullOrEmpty(config.ApiKey))
-        {
-            config.ApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-                ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY")
-                ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
-                ?? Environment.GetEnvironmentVariable("API_KEY")
-                ?? "";
-        }
-
-        // 特殊处理：BaseUrl 多路回退
-        if (string.IsNullOrEmpty(config.BaseUrl))
-        {
-            config.BaseUrl = Environment.GetEnvironmentVariable("OPENAI_BASE_URL");
-        }
-
-        return config;
-    }
 
     // ════════════════════════════════════════════════════════════
     // 设置界面元数据（从 Schema 自动生成）

@@ -95,7 +95,7 @@ public class EditFileTool : ITool
             var newContent = content.ReplaceFirst(oldString, newString);
 
             // Diff 预览：仅当开关开启且非交互模式（管道/重定向/测试）时
-            var cfg = Config.FromEnv();
+            var cfg = Config.Instance;
             if (cfg.DiffPreview && !Console.IsInputRedirected && !Console.IsOutputRedirected)
             {
                 var (decision, accepted) = DiffPreview.Show(content, newContent, filePath);

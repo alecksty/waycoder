@@ -15,6 +15,13 @@ public class AgentSlot
     /// <summary>槽位对应的 Agent（懒创建：首次激活时由 Program 创建）</summary>
     public Agent? Agent { get; set; }
 
+    /// <summary>槽位专用的 LLM 客户端（null=使用全局 LLM）</summary>
+    public LLM? LlmClient { get; set; }
+
+    /// <summary>上次使用的槽位模型 ID（用于检测模型变更）</summary>
+    public string? LastLargeModel { get; set; }
+    public string? LastSmallModel { get; set; }
+
     // ---- 独立屏幕状态 ----
     public List<ChatMsg> ChatMessages { get; } = [];
     public string InputText { get; set; } = "";

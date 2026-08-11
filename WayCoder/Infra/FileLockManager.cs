@@ -9,7 +9,8 @@ namespace WayCoder;
 public static class FileLockManager
 {
     private static readonly ConcurrentDictionary<string, FileLock> _locks = new();
-    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
+    /// <summary>默认锁超时（从 Config.Instance.FileLockTimeoutSec 读取，默认 30 秒）</summary>
+    private static TimeSpan DefaultTimeout => TimeSpan.FromSeconds(Config.Instance.FileLockTimeoutSec);
 
     public record FileLock(string FilePath, string AgentId, DateTime AcquiredAt, TimeSpan Timeout)
     {

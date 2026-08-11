@@ -30,14 +30,31 @@ public static class SandboxManager
     /// <summary>是否处于智能自动模式</summary>
     public static bool IsSmartAuto => Level == "smart-auto";
 
-    /// <summary>内存上限（字节），默认 1GB</summary>
-    public static long MaxMemoryBytes { get; set; } = 1024L * 1024 * 1024;
+    // 可覆写的私有字段（测试可用），默认从 Config.Instance 读取
+    private static long? _maxMemoryBytesOverride;
+    private static int? _maxCpuTimeSecondsOverride;
+    private static bool? _allowNetworkOverride;
 
-    /// <summary>CPU 时间上限（秒），默认 300</summary>
-    public static int MaxCpuTimeSeconds { get; set; } = 300;
+    /// <summary>内存上限（字节），默认从 WAYCODER_SANDBOX_MAX_MEMORY_MB 读取（默认 1GB）</summary>
+    public static long MaxMemoryBytes
+    {
+        get => _maxMemoryBytesOverride ?? (long)Config.Instance.SandboxMaxMemoryMb * 1024 * 1024;
+        set => _maxMemoryBytesOverride = value;
+    }
 
-    /// <summary>是否允许网络访问（沙箱模式下默认禁止）</summary>
-    public static bool AllowNetwork { get; set; } = false;
+    /// <summary>CPU 时间上限（秒），默认从 WAYCODER_SANDBOX_MAX_CPU_SEC 读取（默认 300）</summary>
+    public static int MaxCpuTimeSeconds
+    {
+        get => _maxCpuTimeSecondsOverride ?? Config.Instance.SandboxMaxCpuSeconds;
+        set => _maxCpuTimeSecondsOverride = value;
+    }
+
+    /// <summary>是否允许网络访问，默认从 WAYCODER_SANDBOX_ALLOW_NETWORK 读取（默认 false）</summary>
+    public static bool AllowNetwork
+    {
+        get => _allowNetworkOverride ?? Config.Instance.SandboxAllowNetwork;
+        set => _allowNetworkOverride = value;
+    }
 
     /// <summary>允许的根目录（null = 不限制）</summary>
     public static string? AllowedDirectory { get; set; }

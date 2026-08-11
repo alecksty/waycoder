@@ -314,6 +314,7 @@ public class Program
         for (int i = 0; i < AgentSlot.Count; i++) _slots[i] ??= new AgentSlot();
         if (_slots[0].Agent == null) _slots[0].Agent = _agent;
         _activeSlot = 0;
+        StructuredMemory.CurrentSlotIndex = 0;
         var slot0 = _slots[0];
 
         // 启动欢迎屏 — ASCII Logo 注入槽位 0（多行合并避免 ItemSpacing 空行）
@@ -663,6 +664,38 @@ public class Program
     /// 切换 Agent 槽位（F1-F10）。保存当前槽位 UI 状态，懒创建目标槽位 Agent，
     /// 恢复目标槽位状态到屏幕。Agent 运行中禁止切换。
     /// </summary>
+    /// <summary>根据槽位配置获取或创建对应的 LLM 客户端</summary>
+    private static LLM GetSlotLlm(int slotIdx)
+    {
+        var slotCfg = AgentSlotConfig.Get(slotIdx);
+        if (slotCfg.UseGlobal) return _llm!;
+
+        var slot = _slots[slotIdx];
+        var largeModel = AgentSlotConfig.ResolveLargeModel(slotCfg, slotIdx);
+        var smallModel = AgentSlotConfig.ResolveSmallModel(slotCfg, slotIdx);
+
+        // 模型未变 → 复用已有 LLM
+        if (slot.LlmClient != null
+            && slot.LastLargeModel == largeModel
+            && slot.LastSmallModel == smallModel)
+            return slot.LlmClient;
+
+        // 创建新的 LLM（使用槽位专属 API Key 和 BaseUrl）
+        var apiKey = AgentSlotConfig.ResolveApiKey(slotCfg);
+        var baseUrl = AgentSlotConfig.ResolveBaseUrl(slotCfg, largeModel);
+        var llm = new LLM(largeModel, apiKey, baseUrl,
+            _config.MaxTokens, _config.Temperature)
+        {
+            SmallModel = smallModel,
+        };
+
+        slot.LlmClient = llm;
+        slot.LastLargeModel = largeModel;
+        slot.LastSmallModel = smallModel;
+
+        return llm;
+    }
+
     private static void SwitchAgentSlot(int idx, ChatScreen screen)
     {
         if (idx < 0 || idx >= AgentSlot.Count || idx == _activeSlot) return;
@@ -677,11 +710,19 @@ public class Program
 
         // 懒创建目标槽位 Agent
         _activeSlot = idx;
+        StructuredMemory.CurrentSlotIndex = idx;
         var slot = _slots[idx];
+        var slotLlm = GetSlotLlm(idx);
         if (slot.Agent == null)
         {
-            slot.Agent = new Agent(_llm!, maxContextTokens: _config.MaxContextTokens,
+            slot.Agent = new Agent(slotLlm, maxContextTokens: _config.MaxContextTokens,
                 maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
+        }
+        else
+        {
+            // 更新已存在的 Agent 的 LLM（模型可能已变更）
+            slot.Agent.LlmClient.Model = AgentSlotConfig.ResolveLargeModel(AgentSlotConfig.Get(idx), idx);
+            slot.Agent.LlmClient.SmallModel = AgentSlotConfig.ResolveSmallModel(AgentSlotConfig.Get(idx), idx);
         }
 
         _agent = slot.Agent;

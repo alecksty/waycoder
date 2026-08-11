@@ -342,14 +342,14 @@ public class LintTool : ITool
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
 
-            var lintTimeout = Config.FromEnv().LintTimeoutSec * 1000;
+            var lintTimeout = Config.Instance.LintTimeoutSec * 1000;
             var exitTask = proc.WaitForExitAsync();
             var delayTask = Task.Delay(lintTimeout);
             var completed = await Task.WhenAny(exitTask, delayTask);
             if (completed != exitTask || !exitTask.IsCompletedSuccessfully)
             {
                 try { proc.Kill(); } catch { }
-                return $"Lint 超时（{Config.FromEnv().LintTimeoutSec} 秒）: {cmd} {args}";
+                return $"Lint 超时（{Config.Instance.LintTimeoutSec} 秒）: {cmd} {args}";
             }
 
             var output = await stdoutTask;

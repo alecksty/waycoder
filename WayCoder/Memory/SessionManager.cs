@@ -84,11 +84,12 @@ public static class SessionManager
     }
 
     /// <summary>
-    /// 列出可用会话，最新的在前，最多 20 条。
+    /// 列出可用会话，最新的在前。支持 limit/offset 分页。
     /// </summary>
-    public static List<SessionInfo> ListSessions()
+    public static List<SessionInfo> ListSessions(int limit = 20, int offset = 0)
     {
         var sessions = new List<SessionInfo>();
+        var skipped = 0;
         // 扫描新目录和旧目录
         foreach (var dir in new[] { SessionsDir, LegacySessionsDir })
         {
@@ -118,6 +119,13 @@ public static class SessionManager
                         }
                     }
 
+                    // 分页：跳过 offset 条再开始收集
+                    if (skipped < offset)
+                    {
+                        skipped++;
+                        continue;
+                    }
+
                     sessions.Add(new SessionInfo(
                         id,
                         data["model"]?.GetValue<string>() ?? "?",
@@ -129,9 +137,9 @@ public static class SessionManager
                     continue;
                 }
 
-                if (sessions.Count >= 20) break;
+                if (sessions.Count >= limit) break;
             }
-            if (sessions.Count >= 20) break;
+            if (sessions.Count >= limit) break;
         }
 
         return sessions;
