@@ -353,7 +353,18 @@ public class SettingsScreen : TuiScreen
         var setting = items[_itemIdx];
         string cur = GetValue(setting.Key);
 
-        if (setting.Type == "select" && setting.Options != null)
+        // 模型选择使用 ModelPicker 对话框
+        if (setting.Key is "Model" or "SmallModel")
+        {
+            var result = ModelPicker.Show();
+            if (result != null)
+            {
+                // ModelPicker 已经更新了 Config 属性，刷新显示
+                RebuildDetailPanel();
+                MarkDirty();
+            }
+        }
+        else if (setting.Type == "select" && setting.Options != null)
         {
             ShowWindow(TuiDialog.Select(setting.Label, [.. setting.Options], idx =>
             {
