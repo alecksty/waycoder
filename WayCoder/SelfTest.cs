@@ -191,7 +191,7 @@ public static class SelfTest
 
         // ---- 工具注册 ----
         Section("[工具注册]");
-        Check("工具数量 == 33", ToolRegistry.BuiltinTools.Count == 33);
+        Check("工具数量 == 36", ToolRegistry.BuiltinTools.Count == 36);
         Check("所有工具有有效 schema", ToolRegistry.AllTools.All(t =>
         {
             var s = t.Schema();

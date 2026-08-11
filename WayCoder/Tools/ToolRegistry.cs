@@ -40,6 +40,9 @@ public static class ToolRegistry
         new DocTool(),
         new NotebookEditTool(),
         new AskUserQuestionTool(),
+        new JobOutputTool(),
+        new JobKillTool(),
+        new DownloadTool(),
     ];
 
     /// <summary>所有工具（内置 + MCP 自动发现）</summary>
