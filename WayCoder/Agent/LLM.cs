@@ -663,12 +663,7 @@ public class LLM
                 result = new Dictionary<string, object?>();
                 foreach (var (key, value) in obj)
                 {
-                    result[key] = value switch
-                    {
-                        null => null,
-                        JsonValue jv => jv.GetValue<object>(),
-                        _ => value.ToJsonString(),
-                    };
+                    result[key] = JsonNodeToObject(value);
                 }
                 return true;
             }
@@ -712,6 +707,58 @@ public class LLM
         return braceDepth == 0 && bracketDepth == 0 && !inString;
     }
 
+    /// <summary>
+    /// 递归将 JsonNode 转换为普通对象：标量→原生类型，数组→List，对象→Dictionary。
+    /// v0.38.0 修复：此前 JsonArray/JsonObject 被 ToJsonString() 序列化成字符串，
+    /// 导致 agent 工具的 tasks 数组退化成一个大字符串，进而在 ExecuteParallelAsync
+    /// 中被当作 IEnumerable&lt;char&gt; 逐字符遍历，产生"16639 个任务"的 bug。
+    /// </summary>
+    internal static object? JsonNodeToObject(JsonNode? node)
+    {
+        return node switch
+        {
+            null => null,
+            JsonValue jv => JsonValueToNative(jv),
+            JsonArray arr => arr.Select(JsonNodeToObject).ToList(),
+            JsonObject obj => obj.ToDictionary(kv => kv.Key, kv => JsonNodeToObject(kv.Value)),
+            _ => node.ToJsonString(),
+        };
+    }
+
+    /// <summary>
+    /// 将 JsonValue 转换为真正的原生类型（string/bool/long/double/null），
+    /// 而非 GetValue&lt;object&gt;() 返回的 JsonElement。
+    /// 保证工具参数可直接 (long)x / (bool)x 强转，无需二次拆箱。
+    /// </summary>
+    private static object? JsonValueToNative(JsonValue jv)
+    {
+        return jv.GetValueKind() switch
+        {
+            System.Text.Json.JsonValueKind.Null or System.Text.Json.JsonValueKind.Undefined => null,
+            System.Text.Json.JsonValueKind.True => true,
+            System.Text.Json.JsonValueKind.False => false,
+            System.Text.Json.JsonValueKind.String => jv.GetValue<string>(),
+            System.Text.Json.JsonValueKind.Number => ParseJsonNumber(jv),
+            _ => jv.GetValue<object>(),
+        };
+    }
+
+    /// <summary>
+    /// 将 JSON 数字转换为 long（整数）或 double（小数）。
+    /// 不能依赖 TryGetValue&lt;long&gt;：System.Text.Json 对整数 JSON 值也会走 double 反序列化路径，
+    /// 导致 (long)x 强转抛 InvalidCastException。改用原始文本精确判断整数/小数。
+    /// </summary>
+    private static object ParseJsonNumber(JsonValue jv)
+    {
+        var raw = jv.ToJsonString();
+        if (long.TryParse(raw, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var l))
+            return l;
+        if (double.TryParse(raw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d))
+            return d;
+        // 超大整数或异常数字：退回原始文本，避免精度丢失
+        return raw;
+    }
+
     public static Dictionary<string, object?> ParseArgs(string json)
     {
         var result = new Dictionary<string, object?>();
@@ -722,12 +769,7 @@ public class LLM
             {
                 foreach (var (key, value) in obj)
                 {
-                    result[key] = value switch
-                    {
-                        null => null,
-                        JsonValue jv => jv.GetValue<object>(),
-                        _ => value.ToJsonString(),
-                    };
+                    result[key] = JsonNodeToObject(value);
                 }
             }
         }

@@ -1,5 +1,35 @@
 # 更新日志
 
+## v0.38.0 (2026-08-12) — Agent 工具 tasks 数组解析 Bug 修复
+
+### 🐛 修复：agent 工具 tasks 数组退化成字符串（16639 任务 bug）
+
+- **问题**：调用 `agent` 工具传 `tasks` 数组时，3 个任务被拆成 16639 个「单字符任务」
+- **根因**：`LLM.ParseArgs` 把 `JsonArray`/`JsonObject` 用 `ToJsonString()` 序列化成字符串，`AgentTool.ExecuteParallelAsync` 再把字符串当 `IEnumerable<char>` 逐字符遍历
+- **修复**：新增 `JsonNodeToObject` 递归转换（数组→`List<object?>`、对象→`Dictionary<string, object?>`、标量→原生类型），`ParseArgs`/`TryParseCompleteJson` 两处解析入口统一走该转换
+
+### 🐛 修复：JSON 数字类型保真（自测崩溃中断）
+
+- **问题**：JSON 整数被解析成 `JsonElement` 或 `double`，`(long)x` 强转抛 `InvalidCastException`，导致自测进程 `AppDomain.UnhandledException` 崩溃中断
+- **根因**：`JsonValue.GetValue<object>()` 返回 `JsonElement`；`TryGetValue<long>` 对整数 JSON 值也走 double 路径
+- **修复**：新增 `JsonValueToNative` + `ParseJsonNumber`，基于原始文本 `long.TryParse`/`double.TryParse` 精确区分整数/小数，>2^53 的大整数也不丢精度
+
+### 🔧 加固：AgentTool 字符串防御
+
+- `IEnumerable` 分支加 `is not string` 守卫，杜绝字符串被逐字符遍历
+- 新增 `string` 防御分支，兼容 LLM 直接返回单个字符串或旧版序列化 JSON 字符串
+
+### 🧪 新自测（7 项）+ 修 3 项自测自身 bug
+
+- ParseArgs 数组解析为 List、嵌套对象解析为 Dictionary、小数/负整数/大整数类型保真、混合数组保序保类型、嵌套数组递归解析
+- AgentTool Schema 含 tasks 并行数组
+- 修复：超时默认值测试改用 `new Config()` 测代码默认值（不再受 `.env` 600 覆盖影响）；仓库地图根路径测试支持 macOS 绝对路径
+
+### 📊 评分
+
+- v0.37.0: 80/100
+- v0.38.0: **82/100** ✅（Agent 工具并行 bug 修复 + 数字类型保真 +2 分）
+
 ## v0.37.1 (2026-08-12) — 对话框首次显示 Bug 修复
 
 ### 🐛 修复：首次打开对话框尺寸/位置不计算 + 按钮不显示

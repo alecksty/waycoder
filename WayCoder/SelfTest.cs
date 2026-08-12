@@ -495,6 +495,55 @@ public static class SelfTest
         Check("ParseArgs 有效 JSON 正常解析",
             validArgs.ContainsKey("file_path") && validArgs["file_path"]?.ToString() == "test.html");
 
+        // ── v0.38.0: ParseArgs 正确解析 JsonArray（agent tasks 数组 bug 修复）──
+        // 此前 JsonArray 被 ToJsonString() 序列化成字符串，导致 agent 工具逐字符遍历
+        var arrayArgs = LLM.ParseArgs("{\"tasks\": [\"任务A\", \"任务B\", \"任务C\"]}");
+        Check("ParseArgs 数组解析为 List（而非字符串）",
+            arrayArgs.ContainsKey("tasks") &&
+            arrayArgs["tasks"] is List<object?> taskListParsed &&
+            taskListParsed.Count == 3 &&
+            taskListParsed[0]?.ToString() == "任务A" &&
+            taskListParsed[2]?.ToString() == "任务C");
+
+        // 嵌套对象也应递归解析为 Dictionary
+        var nestedArgs = LLM.ParseArgs("{\"config\": {\"depth\": 2, \"enabled\": true}}");
+        Check("ParseArgs 嵌套对象解析为 Dictionary",
+            nestedArgs.ContainsKey("config") &&
+            nestedArgs["config"] is Dictionary<string, object?> cfgDict &&
+            cfgDict.Count == 2 &&
+            (long)cfgDict["depth"]! == 2 &&
+            (bool)cfgDict["enabled"]! == true);
+
+        // 数字类型保真：整数→long，小数→double，负数/大整数不丢精度
+        var numArgs = LLM.ParseArgs("{\"pi\": 3.14, \"neg\": -42, \"big\": 9007199254740993}");
+        Check("ParseArgs 小数解析为 double",
+            numArgs.ContainsKey("pi") && numArgs["pi"] is double piVal && Math.Abs(piVal - 3.14) < 0.0001);
+        Check("ParseArgs 负整数解析为 long",
+            numArgs.ContainsKey("neg") && numArgs["neg"] is long negVal && negVal == -42);
+        // 9007199254740993 = 2^53 + 1，超出 double 精确范围，long 解析才能保真
+        Check("ParseArgs 大整数解析为 long（不丢精度）",
+            numArgs.ContainsKey("big") && numArgs["big"] is long bigVal && bigVal == 9007199254740993L);
+
+        // 混合类型数组：保序、保类型（数字/字符串/布尔/null/小数）
+        var mixedArgs = LLM.ParseArgs("{\"mix\": [1, \"two\", true, null, 3.5]}");
+        Check("ParseArgs 混合数组保序保类型",
+            mixedArgs["mix"] is List<object?> mixList &&
+            mixList.Count == 5 &&
+            mixList[0] is long && (long)mixList[0]! == 1 &&
+            (string)mixList[1]! == "two" &&
+            mixList[2] is bool && (bool)mixList[2]! == true &&
+            mixList[3] == null &&
+            mixList[4] is double && (double)mixList[4]! > 3.49);
+
+        // 嵌套数组递归解析
+        var deepArgs = LLM.ParseArgs("{\"grid\": [[1,2],[3,4]]}");
+        Check("ParseArgs 嵌套数组递归解析",
+            deepArgs["grid"] is List<object?> outerGrid &&
+            outerGrid.Count == 2 &&
+            outerGrid[0] is List<object?> row0 && row0.Count == 2 &&
+            (long)row0[0]! == 1 && (long)row0[1]! == 2 &&
+            outerGrid[1] is List<object?> row1 && (long)row1[0]! == 3);
+
         // ── v0.36.0: LLMResponse.ReasoningTokens 字段 ──
         var testResp = new LLMResponse
         {
@@ -698,8 +747,10 @@ public static class SelfTest
 
         // ---- LLM 重试/超时配置 ----
         Check("默认重试次数 = 5", Config.Instance.LlmMaxRetries == 5);
-        Check("默认 HTTP 超时 = 300", Config.Instance.LlmHttpTimeoutSec == 300);
-        Check("默认连接超时 = 300", Config.Instance.LlmConnectionTimeoutSec == 300);
+        // 全新实例 = 代码默认值，不受 .env 覆盖影响（.env 可合法地把超时调到 600 等）
+        var defaultConfig = new Config();
+        Check("默认 HTTP 超时 = 300", defaultConfig.LlmHttpTimeoutSec == 300);
+        Check("默认连接超时 = 300", defaultConfig.LlmConnectionTimeoutSec == 300);
 
         // ---- LLM 渐进超时倍率 ----
         Check("TimeoutMultipliers[0] = 1.0", Math.Abs(LLM.TimeoutMultipliers[0] - 1.0) < 0.01);
@@ -1654,7 +1705,9 @@ public static class SelfTest
 
         // 验证仓库地图包含有效内容（跨平台/跨仓库结构兼容）
         Check("仓库地图包含文件树条目", repoMap.Contains(".cs") || repoMap.Contains(".md") || repoMap.Contains(".json"));
-        Check("仓库地图包含根路径", repoMap.Contains(":/") || repoMap.Contains(":\\"));
+        // 跨平台：Windows 盘符 (C:/ 或 C:\)，macOS/Linux 绝对路径以 / 开头（树首行单独打印根路径）
+        Check("仓库地图包含根路径",
+            repoMap.Contains(":/") || repoMap.Contains(":\\") || repoMap.Contains("\n/"));
 
         // 验证系统提示词包含仓库地图
         var promptWithMap = SystemPrompt.Generate(ToolRegistry.AllTools);
@@ -2437,6 +2490,8 @@ public static class SelfTest
         Check("AgentTool Name", agentTool.Name == "agent");
         Check("AgentTool Description 非空", agentTool.Description.Length > 0);
         Check("AgentTool Schema 含 task", agentTool.Parameters["properties"]?.AsObject().ContainsKey("task") == true);
+        // v0.38.0: 并行 tasks 数组 schema
+        Check("AgentTool Schema 含 tasks（并行数组）", agentTool.Parameters["properties"]?.AsObject().ContainsKey("tasks") == true);
         // BuildParentContext via reflection-like test
         Check("AgentTool ParentAgent 初始 null", agentTool.ParentAgent == null);
         // 递归深度
