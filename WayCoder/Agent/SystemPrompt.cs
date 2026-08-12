@@ -11,6 +11,8 @@ public static class SystemPrompt
 {
     public static string Generate(List<ITool> tools)
     {
+        if (Config.Instance.TinyMode) return GenerateTiny(tools);
+
         var cwd = Directory.GetCurrentDirectory();
         var toolList = string.Join("\n", tools.Select(t => $"- **{t.Name}**：{t.Description}"));
         var os = $"{RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})";
@@ -374,6 +376,40 @@ public static class SystemPrompt
             .Replace("__TOOL_LIST__", toolList)
             .Replace("__WORKFLOW_CONTENT__", s_standardWorkflow)
             .Replace("__RULE_READ_BEFORE_WRITE__", s_standardRule1);
+    }
+
+    /// <summary>
+    /// Tiny 模式极简系统提示词：4K 上下文窗口下保留「写程序」的核心能力。
+    /// 砍掉 RepoMap/记忆/技能/10 阶段流水线/冗长规则区块，只留身份+环境+工具+8 条核心规则。
+    /// </summary>
+    private static string GenerateTiny(List<ITool> tools)
+    {
+        var cwd = Directory.GetCurrentDirectory();
+        var os = $"{RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})";
+        var toolList = string.Join("\n", tools.Select(t =>
+        {
+            var desc = t.Description ?? "";
+            if (desc.Length > 24) desc = desc[..24] + "…";
+            return $"- {t.Name}：{desc}";
+        }));
+
+        return $"""
+            你是 WayCoder（道码），终端 AI 编程助手。
+            工作目录：{cwd}；OS：{os}。
+
+            # 工具
+            {toolList}
+
+            # 规则
+            1. 自主行动：不要问问题，搜索→读→改→测，直到任务完成。
+            2. 先读后改：edit_file 前必须 read_file；old_string 精确匹配原文（含缩进/空行/花括号）。
+            3. 每次改后运行测试；失败立即修复。
+            4. 极简输出：默认回复 ≤3 行。
+            5. 文件操作用绝对路径；只用上面列出的工具。
+            6. 不主动 git commit（除非用户要求）。
+            7. 复杂任务（3+ 文件）先用 todo_write 列 3-7 项清单。
+            8. 创建新文件用 write_file；改已有文件用 edit_file。
+            """;
     }
 
     /// <summary>标准工作流文本（公开，供 Agent.FullMessages 做快速模式替换）</summary>

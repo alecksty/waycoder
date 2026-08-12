@@ -184,6 +184,12 @@ public class Config
     // 撞 MaxRounds 上限后自动压缩 + 续跑的次数（0=关闭自动续跑）
     public int MaxAutoRequeue { get; set; } = 3;
 
+    // Tiny 模式：4K 上下文窗口 + 精简系统提示词（省 token / 压力测试）
+    public bool TinyMode { get; set; } = false;
+
+    /// <summary>Tiny 模式的上下文窗口大小（4K）</summary>
+    public const int TinyContextWindow = 4096;
+
     // ════════════════════════════════════════════════════════════
     // 单一 Schema 定义（新增配置项只加这里一行）
     // ════════════════════════════════════════════════════════════
@@ -417,6 +423,12 @@ public class Config
               "自动续跑次数", "⚙ 参数", "撞 MaxRounds 上限后自动压缩+续跑的次数（0=关闭）",
               "number", null, 18,
               c => c.MaxAutoRequeue.ToString(), (c, v) => c.MaxAutoRequeue = Math.Clamp(int.Parse(v), 0, 20), "3"),
+
+            P("TinyMode", "WAYCODER_TINY", null,
+              "Tiny 模式", "⚙ 参数", "4K 上下文窗口 + 精简提示词（省 token / 压力测试）",
+              "select", ["false","true"], 19,
+              c => c.TinyMode.ToString().ToLowerInvariant(),
+              (c, v) => c.TinyMode = bool.Parse(v), "false"),
 
             P("FallbackChain", "WAYCODER_FALLBACK_CHAIN",     null,
               "回退模型链", "🤖 模型", "逗号分隔的备选模型列表",

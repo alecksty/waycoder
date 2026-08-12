@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.41.0 (2026-08-13) — Tiny 模式：4K 上下文窗口也能写程序
+
+### 🐭 Tiny 模式（`--tiny` / `WAYCODER_TINY=1`）
+
+- **新增** `--tiny` CLI 参数 + `WAYCODER_TINY` 配置：4K 上下文窗口 + 极简系统提示词，省 token / 压力测试
+- **窗口固定 4K**：`Config.TinyContextWindow=4096`，`ModelCatalog.ResolveContextWindow` 在 Tiny 模式下忽略模型窗口返回 4K
+- **极简提示词** `SystemPrompt.GenerateTiny`：砍掉 RepoMap/记忆/技能/10 阶段流水线/冗长规则区块，只留身份+环境+工具+8 条核心规则，从 1 万+ token 压到 <3K 字符
+- **依赖压缩 + 自动续跑**：4K 窗口下压缩更频繁、自动续跑接管，持续写程序不中断
+
+### 🧪 自测 +8
+
+- 新增 `TestTinyMode`（窗口常量 / 固定 4K / 提示词精简 / 核心规则保留）
+
 ## v0.40.0 (2026-08-13) — 自动续跑 + 压缩保真度 + 上下文窗口按模型切换
 
 ### 🔁 自动续跑（撞 MaxRounds 上限不再退出）

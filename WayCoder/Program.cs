@@ -100,6 +100,7 @@ public class Program
 
         bool yoloMode = Arguments.CliArgRegistry.Has(parsed, "yolo");
         bool watchMode = Arguments.CliArgRegistry.Has(parsed, "watch");
+        bool tinyMode = Arguments.CliArgRegistry.Has(parsed, "tiny");
 
         if (Arguments.CliArgRegistry.Has(parsed, "version"))
         {
@@ -153,6 +154,11 @@ public class Program
         if (apiKey != null) _config.ApiKey = apiKey;
         if (maxBudget != null) _config.MaxBudgetUsd = maxBudget;
         if (watchMode) _config.WatchMode = true;
+        if (tinyMode)
+        {
+            _config.TinyMode = true;
+            _config.MaxContextTokens = Config.TinyContextWindow; // 4K
+        }
 
         // 从模型目录自动设置 base URL（支持 Ollama/DeepSeek/OpenAI 等所有模型）
         if (_config.BaseUrl == null)
