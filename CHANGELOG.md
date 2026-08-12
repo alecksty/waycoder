@@ -1,5 +1,66 @@
 # 更新日志
 
+## v0.34.1 (2026-08-12) — 稳定性修复 8 项 + 竞品分析
+
+### 🧪 Roguelike 稳定性测试
+
+WayCoder 编写 10,418 行 Roguelike 游戏项目（35 文件），期间发现并修复 8 个问题。
+
+### 🐛 P0 修复：工具参数静默丢失（LLM.cs）
+
+- **根因**：`ParseArgs()` JSON 解析失败时静默返回空字典 `{}`，工具调用参数丢失
+- **修复 1**：`ParseArgs` 失败时返回 `_parse_error` 标记字典 + 原始 JSON 片段，调用方可检测
+- **修复 2**：`TryParseCompleteJson` 新增 `IsJsonProbablyComplete()` 完整性预检：花括号平衡、不以逗号/冒号结尾、引号成对
+- **修复 3**：流式结束后检查 `[DONE]` 标记，未收到则记录截断警告
+- **修复 4**：最终解析循环中检测 `_parse_error` 标记并记录日志
+
+### 🐛 P0 修复：系统提示词强制探索模式（SystemPrompt.cs + Agent.cs）
+
+- **根因**：`critical_rules` 第 1 条和 `workflow` 强制"先读后改"，与用户"不要读文件"指令冲突
+- **修复**：新增快速模式 — 检测用户消息中的关键词（不要读文件/不要ls/不要规划/直接用write_file），自动替换工作流和规则 1 为"直接执行"版本
+- `SystemPrompt.DetectFastMode()` 关键词检测 + `StandardWorkflow/FastModeWorkflow/StandardRule1/FastModeRule1` 公开属性
+- `Agent.FullMessages()` 快速模式时替换工作流文本
+
+### 🐛 P1 修复：思考流代码丢失（LLM.cs + SystemPrompt.cs）
+
+- **根因**：`reasoning_content` 显示但不存储，模型在思考中生成 400 行代码 → 流截断后零落盘
+- **修复 1**：新增 `_reasoningBuffer` StringBuilder 旁路缓冲区，累积推理文本
+- **修复 2**：流结束后检测代码特征（`;` `{` 计数 > 20），警告可能丢失代码
+- **修复 3**：推理内容保存到 `DebugLog.Log("reasoning", ...)` 供调试恢复
+- **修复 4**：SystemPrompt `critical_rules` 新增第 16 条：不要在思考流中生成代码
+
+### 🐛 P1 修复：最大轮次静默退出（Agent.cs）
+
+- **根因**：达到 `_effectiveMaxRounds` 后返回固定消息，不报告完成状态
+- **修复**：检测最近 10 条消息中的 `✅ 已写入/✅ 编辑完成` 标记，区分"正在写文件时退出"和"已完成退出"，输出差异化提示
+
+### 🐛 P1 修复：ContinuePrompt 缩小已有文件（Agent.cs）
+
+- **根因**：压缩后的继续提示不说"不要重写"，模型重新读取后可能用更短版本覆盖
+- **修复 1**：ContinuePrompt 追加"不要重写或缩小已有文件"
+- **修复 2**：自动收集已创建/修改的文件清单（从 write_file/edit_file 工具结果提取）注入继续提示
+
+### 🐛 P1 修复：过度规划无渐进催促（Agent.cs）
+
+- **根因**：首轮分析不行动只催促一次，模型继续分析时没有逐次加强的迫使
+- **修复**：新增 `_analysisOnlyStreak` 计数器，第 1 次温和催促 → 第 2 次严肃要求 → 第 3+ 次严重警告。工具调用时自动重置
+
+### 🐛 P1 修复：FallbackLLM 静默失败（LLM.cs + FallbackLLM.cs + Agent.cs）
+
+- **根因**：所有回退模型失败后返回纯文本错误，Agent 当成正常回复退出
+- **修复 1**：`LLMResponse` 新增 `IsFatalError` 标记
+- **修复 2**：`FallbackLLM` 错误响应设置 `IsFatalError = true`
+- **修复 3**：`Agent` 检测到致命错误时自动调用 `SessionManager.SaveSession()` 保存会话
+
+### 📊 竞品对比分析
+
+对比分析 Crush（Go）和 Claude Code（TypeScript）两大竞品，输出 15 项可借鉴改进，优先级排序：
+- **P0**：孤立工具调用修复、per-tool 循环检测、编辑 mtime 检查、任务 CRUD 系统
+- **P1**：流式工具执行、bash 自动后台、Agent 类型注册表、摘要保 todo、Hook 扩展
+- **P2**：Worktree 隔离、工具描述缩短、工具结果磁盘持久化、文件建议、花费追踪
+
+---
+
 ## v0.34.0 (2026-08-12) — 系统化流水线 + 渐进超时重试 + Hook 系统 + 动态栏
 
 ### 🐛 聊天列表不实时刷新（修复）

@@ -189,7 +189,7 @@ public static class SandboxManager
         return upper.Contains("API_KEY") || upper.Contains("TOKEN")
             || upper.Contains("SECRET") || upper.Contains("PASSWORD")
             || upper.Contains("CREDENTIAL") || upper.Contains("AUTH")
-            || upper.StartsWith("WAYCODER_") || upper.StartsWith("CORECODER_")
+            || upper.StartsWith("WAYCODER_")
             || upper.StartsWith("OPENAI_") || upper.StartsWith("DEEPSEEK_")
             || upper.StartsWith("ANTHROPIC_") || upper.StartsWith("GITHUB_TOKEN")
             || upper.StartsWith("GITLAB_TOKEN");

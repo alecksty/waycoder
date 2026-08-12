@@ -10,13 +10,13 @@ public static class ClipboardHelper
         try
         {
             if (OperatingSystem.IsMacOS())
-                return await RunAsync("pbpaste");
+                return await RunAsync("pbpaste") ?? "";
             if (OperatingSystem.IsLinux())
                 return await RunAsync("xclip -o -selection clipboard 2>/dev/null")
                     ?? await RunAsync("xsel --clipboard --output 2>/dev/null")
                     ?? "";
             if (OperatingSystem.IsWindows())
-                return await RunAsync("powershell -command \"Get-Clipboard\"");
+                return await RunAsync("powershell -command \"Get-Clipboard\"") ?? "";
         }
         catch { }
         return "";

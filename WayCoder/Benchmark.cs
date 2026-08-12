@@ -29,8 +29,6 @@ public static class Benchmark
     private static string _currentCat = "";
     private static int _catPass, _catWarn, _catFail;
     private static bool _catEnabled = true;
-    private static Process? _currentProc;
-
     // ── 内存基准 ──
 
     private static long GetMemKb()

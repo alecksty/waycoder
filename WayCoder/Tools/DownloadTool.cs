@@ -53,6 +53,8 @@ public class DownloadTool : ITool
             return "错误：出于安全原因，不允许下载本地文件";
 
         // 将相对路径转为绝对路径
+        if (string.IsNullOrWhiteSpace(filePath))
+            return "错误：file_path 不能为空 — 请提供有效的文件路径。";
         if (!Path.IsPathRooted(filePath))
             filePath = Path.GetFullPath(filePath);
 

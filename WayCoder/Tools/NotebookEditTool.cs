@@ -83,6 +83,9 @@ public class NotebookEditTool : ITool
         string notebookPath, int cellIndex, string newSource,
         string cellType, string editMode, string agentId)
     {
+        if (string.IsNullOrWhiteSpace(notebookPath))
+            return "错误：notebook_path 不能为空 — 请提供有效的文件路径。";
+
         var path = Path.GetFullPath(notebookPath);
 
         // 验证扩展名

@@ -58,6 +58,7 @@ public static class FallbackLLM
         }
 
         // 回退链
+        int skipped = 0;
         foreach (var (model, idx) in FallbackChain.Select((m, i) => (m, i)))
         {
             if (model == originalLlm.Model) continue;
@@ -76,6 +77,7 @@ public static class FallbackLLM
             if (string.IsNullOrEmpty(fbKey))
             {
                 Console.Error.WriteLine($"[fallback] ⏭ 跳过 {model}（无 API Key，设置 {GetKeyEnvName(model)} 环境变量）");
+                skipped++;
                 continue;
             }
 
@@ -102,11 +104,28 @@ public static class FallbackLLM
             }
         }
 
+        // 全部回退模型失败或跳过 → 给原始模型最后一次重试机会（临时错误可能已恢复）
+        string skipMsg = skipped > 0 ? $"（{skipped} 个因无 Key 跳过）" : "";
+        Console.Error.WriteLine($"[fallback] 所有回退模型均失败{skipMsg}，最后一次重试原始模型 {originalLlm.Model}...");
+        try
+        {
+            var resp = await originalLlm.ChatAsync(messages, tools, onToken, cancellationToken: ct);
+            TotalSpent += originalLlm.EstimatedCost ?? 0;
+            FallbackIndex = -1;
+            Console.Error.WriteLine($"[fallback] ✓ 原始模型 {originalLlm.Model} 重试成功");
+            return resp;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Console.Error.WriteLine($"[fallback] 原始模型 {originalLlm.Model} 重试也失败: {ex.Message}");
+        }
+
         Console.Error.WriteLine("[fallback] 所有回退模型均已失败，请检查网络或 API 密钥。");
         ErrorLog.Error("FallbackLLM", "所有回退模型均已失败（包括主模型），请检查网络或 API 密钥");
         return new LLMResponse
         {
-            Content = "[错误] 所有模型（含回退链）均已失败，请检查网络或 API 密钥。",
+            Content = "[错误] 所有模型（含回退链）均已失败，请检查网络或 API 密钥。会话已自动保存，修复网络/API Key 后可恢复。",
+            IsFatalError = true,
         };
     }
 

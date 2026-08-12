@@ -96,7 +96,7 @@ public class FindReplaceTool : ITool
             {
                 regex = new Regex(pattern, regexOptions);
             }
-            catch (RegexParseException ex)
+            catch (RegexParseException)
             {
                 // 不是有效正则，当作纯文本搜索
                 regex = new Regex(Regex.Escape(pattern), regexOptions);
@@ -158,7 +158,7 @@ public class FindReplaceTool : ITool
                     // 执行替换
                     if (hasReplacement && !dryRun)
                     {
-                        var newContent = regex.Replace(content, replacement);
+                        var newContent = regex.Replace(content, replacement!);
                         File.WriteAllText(file, newContent, Encoding.UTF8);
                         filesChanged++;
                         sb.AppendLine($"  ✔ 已替换");

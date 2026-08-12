@@ -294,7 +294,7 @@ public class ChatScreen : TuiScreen
         // 恢复输入状态
         if (!string.IsNullOrEmpty(inputText))
         {
-            InputArea.Text = inputText;
+            InputArea!.Text = inputText;
             InputArea.CursorRow = Math.Min(cursorRow, InputArea.Lines.Count - 1);
             InputArea.CursorCol = Math.Min(cursorCol, InputArea.Lines[InputArea.CursorRow].Length);
         }
@@ -1987,12 +1987,12 @@ public class ChatScreen : TuiScreen
         double lastLatencyMs, double lastTokensPerSec)
     {
         var sb = new System.Text.StringBuilder();
-        sb.Append($"📊 {promptTokens + completionTokens}");
+        sb.Append($"📊 {FormatNum(promptTokens + completionTokens)}");
         if (maxContext > 0)
-            sb.Append($"/{maxContext}");
-        sb.Append(" tokens");
+            sb.Append($"/{FormatNum(maxContext)}");
+        sb.Append(" 词元");
         if (estimatedCost.HasValue)
-            sb.Append($" · ${estimatedCost.Value:F4}");
+            sb.Append($" · ¥{estimatedCost.Value * 7.25:F2}");
         if (lastLatencyMs > 0)
             sb.Append($" · {lastLatencyMs / 1000:F1}s");
         StatusRight = sb.ToString();
@@ -2070,6 +2070,14 @@ public class ChatScreen : TuiScreen
             ? text
             : TuiHelper.TruncateByWidth(text, maxVw);
     }
+
+    /// <summary>数字自动换算 K/M（如 128000→128K, 1000000→1M）</summary>
+    private static string FormatNum(int n) => n switch
+    {
+        >= 1_000_000 => $"{n / 1_000_000.0:0.#}M",
+        >= 1_000 => $"{n / 1_000.0:0.#}K",
+        _ => n.ToString()
+    };
 }
 
 /// <summary>聊天消息数据结构</summary>

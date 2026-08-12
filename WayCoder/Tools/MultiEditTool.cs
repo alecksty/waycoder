@@ -67,6 +67,9 @@ public class MultiEditTool : ITool
         if (edits.Count == 0)
             return "❌ 错误：至少需要一个编辑操作";
 
+        if (string.IsNullOrWhiteSpace(filePath))
+            return "错误：file_path 不能为空 — 请提供有效的文件路径。";
+
         var path = Path.GetFullPath(filePath);
 
         // 验证编辑列表

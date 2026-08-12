@@ -96,7 +96,7 @@ public static class SystemPrompt
                 <critical_rules>
                 以下规则优先级最高，必须严格遵守：
 
-                1. **先读后改。** 绝不编辑未在本轮对话中读取过的文件。读取后注意精确的格式、缩进和空白符——编辑时必须完全匹配。
+                1. **__RULE_READ_BEFORE_WRITE__**
                 2. **自主行动。** 不要问问题——搜索、阅读、思考、决定、行动。复杂任务拆解为步骤并全部完成。系统地尝试替代方案（不同命令、搜索词、工具、重构方向），直到任务完成或遇到硬性外部限制。
                 3. **每次修改后测试。** 修改代码后立即运行相关测试。编辑失败→重读文件获取精确文本。测试失败→立即修复。
                 4. **极简输出。** 默认回复不超过 3 行文本（工具调用不计）。简洁指文字输出，不影响工作彻底性。
@@ -111,6 +111,7 @@ public static class SystemPrompt
                 13. **加载匹配的技能。** 如果 <available_skills> 中有与当前任务匹配的条目，在采取任何其他行动之前先读取其 SKILL.md。
                 14. **复杂任务先列清单。** 超过 100 行的新建文件、多文件重构、跨模块改动——第一步用 todo_write 列出 3-7 项清单，然后逐项完成。
                 15. **不要输出思考过程。** 不要解释"我在想…"或"让我分析…"。思考在内部完成，结果 = todo 清单 + 工具调用。
+                16. **不要在思考流中生成代码。** 思考（reasoning）用于简短分析——绝不能在其中逐行生成完整代码。代码必须通过 write_file 工具写入实际文件。思考中的代码会在流截断时完全丢失。
                 </critical_rules>
 
                 <code_references>
@@ -122,31 +123,7 @@ public static class SystemPrompt
                 <workflow>
                 每个任务按以下流程执行（内部完成，不要叙述）：
 
-                **行动前：**
-                - 搜索代码库找到相关文件
-                - 读取文件理解当前状态
-                - 检查记忆中的命令和偏好
-                - 确定需要改动的内容
-                - 必要时用 git log / git blame 获取额外上下文
-
-                **行动中：**
-                - 编辑前先读取完整文件
-                - 编辑前：从 read_file 输出验证精确的空白符和缩进
-                - 使用精确文本进行查找/替换（包含空白符）
-                - 每次做一个逻辑改动
-                - 每次改动后运行测试
-                - 测试失败→立即修复
-                - 编辑失败→读取更多上下文，不要猜测——文本必须完全匹配
-                - 持续工作直到查询完全解决，不要中途停止
-                - 对于长任务，不发送进度更新——直接继续工作直到完成
-
-                **完成前：**
-                - 验证整个查询已解决（不仅是第一步）
-                - 所有描述的后续步骤必须完成
-                - 对照原始需求逐项检查
-                - 运行 lint/类型检查
-                - 验证所有改动正常
-                - 保持回复在 3 行以内
+                __WORKFLOW_CONTENT__
                 </workflow>
 
                 <systematic_phases>
@@ -389,8 +366,97 @@ public static class SystemPrompt
             .Replace("__MEMORY__", memorySection)
             .Replace("__SKILLS__", skillsSection)
             .Replace("__REPO_MAP__", repoMap)
-            .Replace("__TOOL_LIST__", toolList);
+            .Replace("__TOOL_LIST__", toolList)
+            .Replace("__WORKFLOW_CONTENT__", s_standardWorkflow)
+            .Replace("__RULE_READ_BEFORE_WRITE__", s_standardRule1);
     }
+
+    /// <summary>标准工作流文本（公开，供 Agent.FullMessages 做快速模式替换）</summary>
+    public static string StandardWorkflow => s_standardWorkflow;
+    /// <summary>快速模式工作流文本</summary>
+    public static string FastModeWorkflow => s_fastModeWorkflow;
+    /// <summary>标准规则 1</summary>
+    public static string StandardRule1 => s_standardRule1;
+    /// <summary>快速模式规则 1</summary>
+    public static string FastModeRule1 => s_fastModeRule1;
+
+    private const string s_standardWorkflow = """
+        每个任务按以下流程执行（内部完成，不要叙述）：
+
+        **行动前：**
+        - 搜索代码库找到相关文件
+        - 读取文件理解当前状态
+        - 检查记忆中的命令和偏好
+        - 确定需要改动的内容
+        - 必要时用 git log / git blame 获取额外上下文
+
+        **行动中：**
+        - 编辑前先读取完整文件
+        - 编辑前：从 read_file 输出验证精确的空白符和缩进
+        - 使用精确文本进行查找/替换（包含空白符）
+        - 每次做一个逻辑改动
+        - 每次改动后运行测试
+        - 测试失败→立即修复
+        - 编辑失败→读取更多上下文，不要猜测——文本必须完全匹配
+        - 持续工作直到查询完全解决，不要中途停止
+        - 对于长任务，不发送进度更新——直接继续工作直到完成
+
+        **完成前：**
+        - 验证整个查询已解决（不仅是第一步）
+        - 所有描述的后续步骤必须完成
+        - 对照原始需求逐项检查
+        - 运行 lint/类型检查
+        - 验证所有改动正常
+        - 保持回复在 3 行以内
+        """;
+
+    /// <summary>快速模式工作流（跳过探索，直接执行）</summary>
+    private const string s_fastModeWorkflow = """
+        用户已明确要求跳过探索—直接执行。
+
+        **行动前：**
+        - 检查记忆中的命令和偏好
+        - 确定需要创建/修改的内容
+
+        **行动中：**
+        - 创建新文件时直接调用 write_file，不要先读文件
+        - 修改已有文件时仍需读取以获取精确内容
+        - 使用精确文本进行查找/替换（包含空白符）
+        - 每次做一个逻辑改动
+        - 每次改动后运行测试
+        - 测试失败→立即修复
+        - 持续工作直到查询完全解决，不要中途停止
+        - 对于长任务，不发送进度更新——直接继续工作直到完成
+
+        **完成前：**
+        - 验证整个查询已解决（不仅是第一步）
+        - 所有描述的后续步骤必须完成
+        - 对照原始需求逐项检查
+        - 运行 lint/类型检查
+        - 验证所有改动正常
+        - 保持回复在 3 行以内
+        """;
+
+    /// <summary>标准规则 1（先读后改）</summary>
+    private const string s_standardRule1 = "先读后改。 绝不编辑未在本轮对话中读取过的文件。读取后注意精确的格式、缩进和空白符——编辑时必须完全匹配。";
+
+    /// <summary>快速模式规则 1（读旧写新）</summary>
+    private const string s_fastModeRule1 = "读旧写新。 修改已有文件前需读取，创建新文件时直接使用 write_file——不要先读不存在的文件。读取后注意精确的格式、缩进和空白符——编辑时必须完全匹配。";
+
+    /// <summary>
+    /// 检测用户消息是否包含"跳过探索"关键词。
+    /// 匹配：不要读文件、不要 ls、不要规划、不要读已有代码、直接写、跳过探索
+    /// </summary>
+    public static bool DetectFastMode(string userMessage)
+    {
+        if (string.IsNullOrWhiteSpace(userMessage)) return false;
+        var msg = userMessage;
+        return msg.Contains("不要读文件") || msg.Contains("不要ls") || msg.Contains("不要规划")
+            || msg.Contains("不要读已有代码") || msg.Contains("不用读") || msg.Contains("跳过探索")
+            || (msg.Contains("直接用write_file") && msg.Contains("不要"))
+            || (msg.Contains("直接写") && !msg.Contains("直接写文件")); // "直接写"但不是"直接写文件xxx"
+    }
+
 
     /// <summary>
     /// 生成 Architect 模式的大模型专用提示词。

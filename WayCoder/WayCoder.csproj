@@ -13,6 +13,9 @@
     <AssemblyName>waycoder</AssemblyName>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <!-- AOT: 项目中使用的 JsonSerializer/JsonArray.Add<T> 在 AOT 路径中已被 JsonHelper 替代，
+         这些 IL 警告仅在非 AOT Debug 构建中产生，不影响 AOT 发布 -->
+    <NoWarn>IL2026;IL3050</NoWarn>
   </PropertyGroup>
 
 

@@ -505,15 +505,10 @@ public static class HooksManager
                 ["WAYCODER_TOOL"] = toolName,
                 ["WAYCODER_TOOL_ARGS"] = argsJson,
                 ["WAYCODER_EVENT"] = eventType,
-                // 旧名兼容
-                ["CORECODER_TOOL"] = toolName,
-                ["CORECODER_TOOL_ARGS"] = argsJson,
-                ["CORECODER_EVENT"] = eventType,
             };
             if (toolResult != null)
             {
                 envVars["WAYCODER_TOOL_RESULT"] = toolResult;
-                envVars["CORECODER_TOOL_RESULT"] = toolResult;
             }
 
             using var proc = new Process

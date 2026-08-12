@@ -16,6 +16,8 @@ public record LLMResponse
     public List<ToolCall> ToolCalls { get; init; } = [];
     public int PromptTokens { get; init; }
     public int CompletionTokens { get; init; }
+    /// <summary>标记为致命错误（如所有模型失败）— Agent 应在退出前保存会话</summary>
+    public bool IsFatalError { get; init; }
 
     /// <summary>
     /// 转换为 OpenAI 消息格式，用于追加到历史记录。
@@ -74,11 +76,13 @@ public class LLM
             handler.Proxy = new System.Net.WebProxy(proxyUrl);
             handler.UseProxy = true;
         }
-        return new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(Config.Instance.LlmConnectionTimeoutSec) };
+        // Timeout 由内部 CancellationTokenSource 逐次控制，不通过 HttpClient.Timeout
+        // （HttpClient.Timeout 发送首次请求后不可修改，渐进重试会报错）
+        return new HttpClient(handler) { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
     }
 
     /// <summary>当前活跃模型 (大模型)</summary>
-    public string Model { get; set; }
+    public string Model { get; set; } = "deepseek-v4-flash";
     /// <summary>小模型 (用于压缩/摘要等简单任务)</summary>
     public string SmallModel { get; set; } = "deepseek-v4-flash";
     /// <summary>临时覆盖模型 (null=使用 Model)</summary>
@@ -183,6 +187,8 @@ public class LLM
 
     /// <summary>当前流式响应是否已开始输出推理内容</summary>
     private bool _reasoningShown;
+    /// <summary>推理内容缓冲区（旁路保存，不进入对话历史，供调试恢复）</summary>
+    private readonly StringBuilder _reasoningBuffer = new();
 
     /// <summary>
     /// 粗略的美元成本估算。模型不在定价表中时返回 null。
@@ -225,6 +231,7 @@ public class LLM
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         _reasoningShown = false; // 每次请求重置推理标记
+        _reasoningBuffer.Clear();
 
         // 超时由 CallWithRetryAsync 内部逐次加长管理，外部仅传取消令牌
         var endpoint = (BaseUrl ?? "https://api.openai.com").TrimEnd('/') + "/v1/chat/completions";
@@ -294,6 +301,7 @@ public class LLM
 
         var contentParts = new List<string>();
         var tcMap = new Dictionary<int, (string Id, string Name, string Args)>();
+        var streamEndedGracefully = false;
         int promptTok = 0, completionTok = 0;
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -307,7 +315,7 @@ public class LLM
             if (!line.StartsWith("data: ")) continue;
 
             var data = line[6..];
-            if (data == "[DONE]") continue;
+            if (data == "[DONE]") { streamEndedGracefully = true; continue; }
 
             JsonNode? chunk;
             try { chunk = JsonNode.Parse(data); }
@@ -348,6 +356,7 @@ public class LLM
                     onToken?.Invoke("\n«dim»");
                 }
                 onToken?.Invoke(rtext);
+                _reasoningBuffer.Append(rtext);
             }
 
             // 跨分片累积工具调用
@@ -391,12 +400,25 @@ public class LLM
             try
             {
                 parsedArgs = ParseArgs(args);
+                // 检测截断：如果 ParseArgs 返回了错误标记，说明 JSON 不完整
+                if (parsedArgs.ContainsKey("_parse_error"))
+                {
+                    DebugLog.Log("llm", $"工具调用 [{name}] JSON 不完整（流式截断？），args 长度={args.Length}" +
+                        (streamEndedGracefully ? "" : "，流未以 [DONE] 结束"));
+                }
             }
             catch
             {
+                DebugLog.Log("llm", $"工具调用 [{name}] 解析异常，args 长度={args.Length}");
                 parsedArgs = [];
             }
             parsed.Add(new ToolCall(id, name, parsedArgs));
+        }
+
+        // 流未正常结束警告
+        if (!streamEndedGracefully && tcMap.Count > 0)
+        {
+            DebugLog.Log("llm", $"流未以 [DONE] 结束，{tcMap.Count} 个工具调用可能被截断");
         }
 
         // 流结束：如果推理样式未关闭则兜底关闭
@@ -404,6 +426,19 @@ public class LLM
         {
             _reasoningShown = false;
             onToken?.Invoke("«/»\n");
+        }
+
+        // 保存推理内容到旁路日志（不进入对话历史，供调试和代码恢复）
+        if (_reasoningBuffer.Length > 0)
+        {
+            var reasoning = _reasoningBuffer.ToString();
+            // 检测推理中是否包含大量代码（可能因流截断等原因未写入文件）
+            var codeLines = reasoning.Count(c => c == ';') + reasoning.Count(c => c == '{');
+            if (codeLines > 20)
+            {
+                DebugLog.Log("llm", $"推理内容包含大量代码特征（{codeLines} 个代码标记，{reasoning.Length} 字符）— 如果流被截断，这些代码可能丢失。");
+            }
+            DebugLog.Log("reasoning", reasoning);
         }
 
         TotalPromptTokens += promptTok;
@@ -490,13 +525,11 @@ public class LLM
     {
         var effectiveMaxRetries = maxRetries > 0 ? maxRetries : Config.Instance.LlmMaxRetries;
         var baseTimeoutSec = timeoutSeconds > 0 ? timeoutSeconds : Config.Instance.LlmHttpTimeoutSec;
-        var originalTimeout = _http.Timeout;
 
         for (int attempt = 0; attempt < effectiveMaxRetries; attempt++)
         {
             var multiplier = GetTimeoutMultiplier(attempt);
             var thisTimeoutSec = baseTimeoutSec * multiplier;
-            _http.Timeout = TimeSpan.FromSeconds(thisTimeoutSec);
 
             // 每次尝试创建新的内部 CTS，超时逐次加长
             using var internalCts = new CancellationTokenSource(TimeSpan.FromSeconds(thisTimeoutSec + 30));
@@ -507,9 +540,6 @@ public class LLM
             {
                 var req = createRequest();
                 var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, linked.Token);
-
-                // 恢复原始超时
-                _http.Timeout = originalTimeout;
 
                 // 5xx 服务器错误重试
                 if ((int)resp.StatusCode >= 500 && attempt < effectiveMaxRetries - 1)
@@ -533,10 +563,10 @@ public class LLM
                 // 内部超时（非外部取消）——下一次自动加长时间
                 if (attempt == effectiveMaxRetries - 1)
                 {
-                    _http.Timeout = originalTimeout;
                     ErrorLog.LlmError(Model, Endpoint,
                         $"请求超时（{attempt + 1}/{effectiveMaxRetries} 次尝试，最终超时 {thisTimeoutSec:F0}s）");
-                    throw;
+                    throw new HttpRequestException(
+                        $"请求超时（{attempt + 1}/{effectiveMaxRetries} 次尝试，最终超时 {thisTimeoutSec:F0}s）");
                 }
                 var nextTimeout = baseTimeoutSec * GetTimeoutMultiplier(attempt + 1);
                 ErrorLog.Warning("LLM",
@@ -545,13 +575,11 @@ public class LLM
             }
             catch (HttpRequestException ex) when (attempt < effectiveMaxRetries - 1)
             {
-                _http.Timeout = originalTimeout;
                 ErrorLog.Warning("LLM", $"网络错误，重试 {attempt + 1}/{effectiveMaxRetries}: {ex.Message}");
                 await Task.Delay((int)Math.Pow(2, attempt) * 1000, cancellationToken);
             }
         }
 
-        _http.Timeout = originalTimeout;
         ErrorLog.LlmError(Model, Endpoint, $"重试耗尽（{effectiveMaxRetries} 次）");
         throw new InvalidOperationException("重试耗尽");
     }
@@ -612,10 +640,12 @@ public class LLM
     /// <summary>
     /// 尝试将 JSON 字符串解析为参数字典。仅当 JSON 完整且为有效对象时返回 true。
     /// 与 ParseArgs 不同：它不吞异常，调用方可据此判断 JSON 是否尚未接收完整。
+    /// 增加基础完整性检查：JSON 不以逗号/冒号结尾，引号匹配，花括号平衡。
     /// </summary>
     internal static bool TryParseCompleteJson(string json, out Dictionary<string, object?>? result)
     {
         result = null;
+        if (!IsJsonProbablyComplete(json)) return false;
         try
         {
             var node = JsonNode.Parse(json);
@@ -641,6 +671,38 @@ public class LLM
         }
     }
 
+    /// <summary>
+    /// 基础 JSON 完整性检查：花括号平衡、不以逗号/冒号结尾、引号成对。
+    /// 用于检测流式传输中尚未接收完整的 JSON 片段。
+    /// </summary>
+    private static bool IsJsonProbablyComplete(string json)
+    {
+        if (string.IsNullOrEmpty(json)) return false;
+        var trimmed = json.AsSpan().TrimEnd();
+        if (trimmed.IsEmpty) return false;
+
+        // 不以逗号或冒号结尾（说明还有字段/值未接收完）
+        var lastChar = trimmed[^1];
+        if (lastChar == ',' || lastChar == ':') return false;
+
+        // 检查花括号是否平衡
+        int braceDepth = 0, bracketDepth = 0;
+        bool inString = false, escaped = false;
+        foreach (var c in trimmed)
+        {
+            if (escaped) { escaped = false; continue; }
+            if (c == '\\') { escaped = true; continue; }
+            if (c == '"') { inString = !inString; continue; }
+            if (inString) continue;
+            if (c == '{') braceDepth++;
+            if (c == '}') braceDepth--;
+            if (c == '[') bracketDepth++;
+            if (c == ']') bracketDepth--;
+        }
+        // 花括号未闭合，或仍在字符串中 = JSON 不完整
+        return braceDepth == 0 && bracketDepth == 0 && !inString;
+    }
+
     public static Dictionary<string, object?> ParseArgs(string json)
     {
         var result = new Dictionary<string, object?>();
@@ -660,9 +722,13 @@ public class LLM
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // 解析失败返回空字典
+            // 解析失败返回带错误标记的字典，让调用方知道 JSON 有问题
+            DebugLog.Log("llm", $"ParseArgs 失败 — JSON 不完整或无效: {ex.Message} — raw: {(json.Length > 200 ? json[..200] + "..." : json)}");
+            result["_parse_error"] = true;
+            result["_parse_error_type"] = ex.GetType().Name;
+            result["_raw_json_snippet"] = json.Length > 500 ? json[..500] + "..." : json;
         }
         return result;
     }

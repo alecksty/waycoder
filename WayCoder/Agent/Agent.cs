@@ -32,6 +32,12 @@ public class Agent
 
     private bool _autoCommit;
 
+    /// <summary>是否启用快速模式（跳过探索，直接执行）</summary>
+    private bool _fastMode;
+
+    /// <summary>连续纯文本轮次计数（用于渐进式催促）</summary>
+    private int _analysisOnlyStreak;
+
     /// <summary>本轮修改过的文件（用于精准 git add）</summary>
     private readonly HashSet<string> _modifiedFiles = [];
 
@@ -103,6 +109,14 @@ public class Agent
             ? _systemPrompt
             : modePrompt + "\n" + _systemPrompt;
 
+        // 快速模式：替换工作流和规则 1 为直接执行版本
+        if (_fastMode)
+        {
+            systemContent = systemContent
+                .Replace(SystemPrompt.StandardWorkflow, SystemPrompt.FastModeWorkflow)
+                .Replace(SystemPrompt.StandardRule1, SystemPrompt.FastModeRule1);
+        }
+
         var result = new List<JsonObject>
         {
             new() { ["role"] = "system", ["content"] = systemContent },
@@ -134,6 +148,14 @@ public class Agent
         CancellationToken cancellationToken = default)
     {
         _chatStartedAt = DateTime.UtcNow;
+
+        // 检测快速模式：用户明确要求跳过探索（不要读文件/不要ls/不要规划等）
+        if (SystemPrompt.DetectFastMode(userInput))
+        {
+            _fastMode = true;
+            DebugLog.Log("agent", "检测到快速模式关键词，跳过探索工作流");
+        }
+
         Messages.Add(new JsonObject { ["role"] = "user", ["content"] = userInput });
         await CompressWithSmallModel(onToken);
 
@@ -181,6 +203,13 @@ public class Agent
             // 没有工具调用 -> LLM 完成，返回文本
             if (resp.ToolCalls.Count == 0)
             {
+                // 致命错误（如所有模型失败）：保存会话后退出
+                if (resp.IsFatalError)
+                {
+                    try { SessionManager.SaveSession(Messages, LlmClient.EffectiveModel); } catch { }
+                    return resp.Content ?? "[致命错误] 所有模型失败，会话已保存。";
+                }
+
                 Messages.Add(resp.ToMessage());
                 // 自动继续检测：
                 // 1. 模型首轮只输出分析不调用工具（toolCallCount==0, content>100）
@@ -194,11 +223,18 @@ public class Agent
 
                 if (toolCallCount == 0 && contentLen > 100)
                 {
-                    // 首轮分析但未行动
+                    // 首轮分析但未行动 — 渐进式催促（逐次加强）
+                    _analysisOnlyStreak++;
+                    string nudge = _analysisOnlyStreak switch
+                    {
+                        1 => "请立即用工具执行上述计划。直接调用 write_file/edit_file/bash 等工具，不要再输出分析。",
+                        2 => "你已连续两轮只输出分析不调用工具。请立即行动——调用 write_file 或 bash 执行具体操作。不要再做任何分析。",
+                        _ => "⚠️ 严重警告：你已连续多轮不调用工具，浪费了大量上下文。立即调用工具执行任务，不要输出任何文字——只输出工具调用。",
+                    };
                     Messages.Add(new JsonObject
                     {
                         ["role"] = "user",
-                        ["content"] = "请立即用工具执行上述计划。直接调用 write_file/edit_file/bash 等工具，不要再输出分析。"
+                        ["content"] = nudge,
                     });
                     continue;
                 }
@@ -215,10 +251,11 @@ public class Agent
                 }
 
                 SaveWorkReport();
-                return resp.Content;
+                return resp.Content ?? "";
             }
 
             // 有工具调用 -> 执行（多个时并行）
+            _analysisOnlyStreak = 0; // 重置分析-不动手计数器
             Messages.Add(resp.ToMessage());
 
             try
@@ -317,10 +354,31 @@ public class Agent
                     if (originalUserMsg.Length > 200)
                         originalUserMsg = originalUserMsg[..200] + "...";
 
+                    // 收集已创建/修改的文件清单（从 write_file/edit_file 工具结果中提取）
+                    var fileList = new List<string>();
+                    foreach (var m in Messages)
+                    {
+                        if (m["role"]?.GetValue<string>() != "tool") continue;
+                        var c = m["content"]?.GetValue<string>() ?? "";
+                        // 匹配 "✅ 已写入: path" 或 "保存至：path" 等格式
+                        foreach (var line in c.Split('\n'))
+                        {
+                            var trimmed = line.Trim();
+                            if (trimmed.Contains("✅ 已写入") || trimmed.Contains("✅ 编辑完成") ||
+                                trimmed.Contains("保存至：") || trimmed.Contains("写入到 "))
+                            {
+                                fileList.Add(trimmed);
+                            }
+                        }
+                    }
+                    var fileListStr = fileList.Count > 0
+                        ? "\n\n已确认创建/修改的文件：\n" + string.Join("\n", fileList.Take(20))
+                        : "";
+
                     Messages.Add(new JsonObject
                     {
                         ["role"] = "user",
-                        ["content"] = $"之前的会话因上下文过长而被压缩。原始用户请求是：`{originalUserMsg}`\n请从中断处继续，完成未完成的工作。",
+                        ["content"] = $"之前的会话因上下文过长而被压缩。原始用户请求是：`{originalUserMsg}`\n请从中断处继续，完成未完成的工作。不要重写或缩小已有文件——只创建新文件或向已有文件追加缺失内容。{fileListStr}",
                     });
                     Context.ResetUsage(); // 重置计数器，给新一轮足够的空间
                     onToken?.Invoke("\n🔄 **上下文已自动压缩，继续执行...**\n\n");
@@ -343,7 +401,25 @@ public class Agent
         }
 
         SaveWorkReport();
-        return "（已达到最大工具调用轮次）";
+
+        // 检测任务是否可能仍在进行中（最近 5 轮有 write_file/edit_file 调用）
+        var recentTools = Messages.TakeLast(10)
+            .Where(m => m["role"]?.GetValue<string>() == "tool")
+            .Select(m => m["content"]?.GetValue<string>() ?? "")
+            .ToList();
+        var wasWriting = recentTools.Any(c => c.Contains("✅ 已写入") || c.Contains("✅ 编辑完成"));
+        var lastMsg = Messages.LastOrDefault(m => m["role"]?.GetValue<string>() == "assistant")
+            ?["content"]?.GetValue<string>() ?? "";
+
+        if (wasWriting)
+        {
+            return $"（已达到 {_effectiveMaxRounds} 轮工具调用上限 — ⚠ 任务可能未完成，最近仍在写文件。输入「继续」以恢复。）";
+        }
+        if (lastMsg.Length > 200)
+        {
+            return $"（已达到 {_effectiveMaxRounds} 轮工具调用上限 — 输入「继续」以从中断处恢复。）";
+        }
+        return $"（已达到 {_effectiveMaxRounds} 轮工具调用上限）";
     }
 
     /// <summary>
