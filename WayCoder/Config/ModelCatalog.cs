@@ -151,6 +151,7 @@ public static class ModelCatalog
     /// </summary>
     public static int ResolveContextWindow(string? modelId, int fallback = 1_048_576)
     {
+        if (Config.Instance.TinyMode) return Config.TinyContextWindow;
         if (string.IsNullOrWhiteSpace(modelId)) return fallback;
         var info = Find(modelId);
         return info != null && info.ContextWindow > 0 ? info.ContextWindow : fallback;

@@ -247,6 +247,8 @@ public static class SelfTest
         Check("MaxAutoRequeue 默认 = 3", new Config().MaxAutoRequeue == 3);
         // 上下文窗口按模型切换测试
         TestContextWindowSwitch(Check);
+        // Tiny 模式测试（4K 窗口 + 精简提示词）
+        TestTinyMode(Check);
         Console.WriteLine();
 
         // ---- 工具 ----
@@ -5377,6 +5379,29 @@ another.txt:3:1: warning: deprecated API
         Check("窗口: UpdateMaxTokens(-5) 忽略", cm.MaxTokens == 1000);
         cm.UpdateMaxTokens(2048);
         Check("窗口: UpdateMaxTokens(2048) 生效", cm.MaxTokens == 2048);
+    }
+
+    /// <summary>Tiny 模式测试（4K 窗口 + 精简提示词）</summary>
+    private static void TestTinyMode(Action<string, bool> Check)
+    {
+        Check("Tiny: 窗口常量 = 4096", Config.TinyContextWindow == 4096);
+        Check("Tiny: 默认关闭", new Config().TinyMode == false);
+
+        // ResolveContextWindow 在 TinyMode 下固定 4K，忽略模型窗口
+        var saved = Config.Instance.TinyMode;
+        Config.Instance.TinyMode = true;
+        Check("Tiny: 窗口固定 4K（忽略模型）", ModelCatalog.ResolveContextWindow("deepseek-v4-pro") == 4096);
+        Config.Instance.TinyMode = false;
+        Check("Tiny: 关闭后恢复模型窗口", ModelCatalog.ResolveContextWindow("deepseek-v4-pro") == 1_048_576);
+
+        // 系统提示词精简
+        Config.Instance.TinyMode = true;
+        var tinyPrompt = SystemPrompt.Generate(ToolRegistry.AllTools);
+        Config.Instance.TinyMode = saved;
+        Check("Tiny: 提示词精简 <3000 字符", tinyPrompt.Length < 3000);
+        Check("Tiny: 含工具列表", tinyPrompt.Contains("bash"));
+        Check("Tiny: 含先读后改规则", tinyPrompt.Contains("先读后改"));
+        Check("Tiny: 含工作目录", tinyPrompt.Contains("工作目录"));
     }
 
     /// <summary>ExtractKeyInfo 增强版测试</summary>
