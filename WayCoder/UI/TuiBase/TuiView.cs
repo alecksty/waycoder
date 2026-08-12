@@ -280,6 +280,42 @@ public class TuiVBox : TuiView
 
     public override void Layout()
     {
+        // ── 0. Flex 弹性分配（在测量之前设置 Flex>0 子控件的高度）──
+        int totalFlex = 0;
+        int totalFixedH = 0;
+        foreach (var child in Children)
+        {
+            if (child.Flex > 0)
+                totalFlex += child.Flex;
+            else
+                totalFixedH += child.Height + child.Margin.Vertical;
+        }
+        if (totalFlex > 0)
+        {
+            int flexMarginH = 0;
+            foreach (var child in Children)
+                if (child.Flex > 0)
+                    flexMarginH += child.Margin.Vertical;
+            int remaining = Height - totalFixedH - flexMarginH - (Children.Count - 1) * Spacing;
+            if (remaining > 0)
+            {
+                int allocated = 0;
+                TuiBase? lastFlexChild = null;
+                foreach (var child in Children)
+                {
+                    if (child.Flex > 0)
+                    {
+                        int h = Math.Max(1, remaining * child.Flex / totalFlex);
+                        child.Height = h;
+                        allocated += h;
+                        lastFlexChild = child;
+                    }
+                }
+                if (lastFlexChild != null && remaining > allocated)
+                    lastFlexChild.Height += remaining - allocated;
+            }
+        }
+
         // 第一遍：计算总高度（含 child margin），递归布局嵌套视图
         var totalH = 0;
         foreach (var child in Children)
@@ -328,6 +364,44 @@ public class TuiHBox : TuiView
 
     public override void Layout()
     {
+        // ── 0. Flex 弹性分配（在测量之前设置 Flex>0 子控件的宽度）──
+        int totalFlex = 0;
+        int totalFixedW = 0;
+        foreach (var child in Children)
+        {
+            if (child.Flex > 0)
+                totalFlex += child.Flex;
+            else
+                totalFixedW += child.Width + child.Margin.Horizontal;
+        }
+        if (totalFlex > 0)
+        {
+            int flexMarginW = 0;
+            foreach (var child in Children)
+                if (child.Flex > 0)
+                    flexMarginW += child.Margin.Horizontal;
+            int remaining = Width - totalFixedW - flexMarginW - (Children.Count - 1) * Spacing;
+            if (remaining > 0)
+            {
+                int allocated = 0;
+                // 最后一个 Flex 子控件拿剩余，避免取整损失
+                TuiBase? lastFlexChild = null;
+                foreach (var child in Children)
+                {
+                    if (child.Flex > 0)
+                    {
+                        int w = Math.Max(1, remaining * child.Flex / totalFlex);
+                        child.Width = w;
+                        allocated += w;
+                        lastFlexChild = child;
+                    }
+                }
+                // 修正取整误差：最后一个 Flex 子控件补齐
+                if (lastFlexChild != null && remaining > allocated)
+                    lastFlexChild.Width += remaining - allocated;
+            }
+        }
+
         // 第一遍：计算总宽度（含 child margin）和最大行高，递归布局嵌套视图
         int totalW = 0;
         int maxH = 1;

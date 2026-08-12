@@ -42,10 +42,10 @@ public class PromptArg : CliArg
 
 public class ResumeArg : CliArg
 {
-    public override string Description => "恢复已保存的会话";
-    public override int ValueCount => 1;
-    public override string? ValueLabel => "ID";
-    public ResumeArg() : base("resume", "-r", "--resume") { }
+    public override string Description => "恢复会话（-c 无参=最近会话，-c 名称=指定会话）";
+    public override int ValueCount => -1; // 可选值：无参时恢复最近会话
+    public override string? ValueLabel => "会话名";
+    public ResumeArg() : base("resume", "-r", "--resume", "-c", "--continue") { }
 }
 
 public class MaxBudgetArg : CliArg
@@ -192,6 +192,13 @@ public class SlotPromptArg : CliArg
     }
 }
 
+public class SessionListArg : CliArg
+{
+    public override string Description => "列出所有已保存会话";
+    public override int ValueCount => 0;
+    public SessionListArg() : base("session-list", "--session-list", "--sessions") { }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // 注册入口 —— 应用启动时调用一次
 // ═══════════════════════════════════════════════════════════════
@@ -211,6 +218,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new ApiKeyArg());
         CliArgRegistry.Register(new PromptArg());
         CliArgRegistry.Register(new ResumeArg());
+        CliArgRegistry.Register(new SessionListArg());
         CliArgRegistry.Register(new MaxBudgetArg());
         CliArgRegistry.Register(new VersionArg());
         CliArgRegistry.Register(new InitArg());

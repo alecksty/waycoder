@@ -107,6 +107,12 @@ public class Program
             return 0;
         }
 
+        if (Arguments.CliArgRegistry.Has(parsed, "session-list"))
+        {
+            ShowSessionList();
+            return 0;
+        }
+
         if (Arguments.CliArgRegistry.Has(parsed, "help"))
         {
             ShowUsage();
@@ -238,9 +244,33 @@ public class Program
         McpManager.Init();
         CheckpointManager.LoadFromDisk();
 
-        // 恢复会话
-        if (resumeId != null)
+        // 恢复会话（-c/--continue/--resume）
+        var hasResumeFlag = Arguments.CliArgRegistry.Has(parsed, "resume");
+        if (hasResumeFlag)
         {
+            // 无参数时：优先 _auto，回退最新会话
+            if (string.IsNullOrEmpty(resumeId))
+            {
+                var autoLoaded = SessionManager.LoadSession("_auto");
+                if (autoLoaded != null)
+                {
+                    resumeId = "_auto";
+                }
+                else
+                {
+                    // 找最新保存的会话
+                    var sessions = SessionManager.ListSessions(1);
+                    if (sessions.Count > 0)
+                        resumeId = sessions[0].Id;
+                }
+
+                if (resumeId == null)
+                {
+                    MarkupLine("«yellow»⚠ 没有找到可恢复的会话«/»");
+                    return 1;
+                }
+            }
+
             HooksManager.RunSessionStart("resume");
             var loaded = SessionManager.LoadSession(resumeId);
             if (loaded != null)
@@ -252,11 +282,12 @@ public class Program
                     _config.Model = loaded.Value.Model;
                 }
 
-                MarkupLine($"«green»✔ 已恢复会话:«/» «cyan»{E(resumeId)}«/» «dim»(模型: {E(_llm.Model)})«/»");
+                MarkupLine($"«green»✔ 已恢复会话:«/» «cyan»{E(resumeId)}«/» «dim»({_agent.Messages.Count} 条消息, 模型: {E(_llm.Model)})«/»");
             }
             else
             {
                 MarkupLine($"«red»✘ 会话 '{E(resumeId)}' 未找到«/»");
+                MarkupLine("«dim»可用 /sessions 命令查看所有已保存会话«/»");
                 return 1;
             }
         }
@@ -920,7 +951,7 @@ public class Program
             return;
         }
 
-        if (userInput == "/resume" && _pendingRestore != null)
+        if ((userInput == "/resume" || userInput == "/continue") && _pendingRestore != null)
         {
             var (msgs, model) = _pendingRestore.Value;
             _agent!.Messages.Clear();
@@ -1577,6 +1608,32 @@ deepseek 性价比最高。"
 
         screen.SuggestActive = false;
         mgr.Exit();
+    }
+
+    /// <summary>列出所有已保存的会话（--session-list）</summary>
+    private static void ShowSessionList()
+    {
+        var sessions = SessionManager.ListSessions(50);
+        if (sessions.Count == 0)
+        {
+            Console.WriteLine("（没有已保存的会话）");
+            Console.WriteLine("会话在正常退出或输入 /save 时自动保存。");
+            return;
+        }
+
+        Console.WriteLine($"📋 已保存的会话 ({sessions.Count} 个)");
+        Console.WriteLine(new string('─', 60));
+        Console.WriteLine($"{"会话名",-24} {"消息数",-8} {"模型",-16} {"保存时间"}");
+        Console.WriteLine(new string('─', 60));
+        foreach (var s in sessions)
+        {
+            var name = s.Id.Length > 22 ? s.Id[..19] + "..." : s.Id;
+            var msgCount = s.MessageCount.ToString();
+            var model = s.Model?.Length > 14 ? s.Model[..11] + "..." : (s.Model ?? "?");
+            Console.WriteLine($"{name,-24} {msgCount,-8} {model,-16} {s.SavedAt}");
+        }
+        Console.WriteLine(new string('─', 60));
+        Console.WriteLine("恢复: waycoder -c <会话名>  或  waycoder -c (恢复最近)");
     }
 
     private static void ShowUsage()

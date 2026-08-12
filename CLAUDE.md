@@ -39,7 +39,7 @@ WayCoder/
 ├── MemoryRetrieval.cs  跨会话记忆检索 (TF-IDF + 时间衰减)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1407+ 项自测
+├── SelfTest.cs        1499+ 项自测
 ├── WorkReporter.cs    工作总结报告生成器
 ├── TaskProgress.cs    任务进度追踪
 ├── FileLockManager.cs 文件锁 (防并发修改冲突)

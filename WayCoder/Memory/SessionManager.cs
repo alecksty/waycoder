@@ -144,8 +144,10 @@ public static class SessionManager
                     if (sessions.Any(s => s.Id == id)) continue;
 
                     var preview = "";
+                    int msgCount = 0;
                     if (data["messages"]?.AsArray() is { } arr)
                     {
+                        msgCount = arr.Count;
                         foreach (var m in arr)
                         {
                             if (m?["role"]?.GetValue<string>() == "user" && m["content"]?.GetValue<string>() is { } c)
@@ -167,7 +169,8 @@ public static class SessionManager
                         id,
                         data["model"]?.GetValue<string>() ?? "?",
                         data["saved_at"]?.GetValue<string>() ?? "?",
-                        preview));
+                        preview,
+                        msgCount));
                 }
                 catch
                 {
@@ -229,4 +232,4 @@ public static class SessionManager
 /// <summary>
 /// 会话摘要信息。
 /// </summary>
-public record SessionInfo(string Id, string Model, string SavedAt, string Preview);
+public record SessionInfo(string Id, string Model, string SavedAt, string Preview, int MessageCount = 0);

@@ -1,5 +1,95 @@
 # 更新日志
 
+## v0.35.0 (2026-08-12) — Flex 弹性布局 + 窗口比例缩放 + 位置对齐 + 对话框标准化
+
+### ✨ Flex 弹性布局系统
+
+- **`TuiBase.Flex`**：所有 UI 元素新增 `Flex` 属性（默认 0=固定尺寸，>0=按比例分配父容器剩余空间）
+- **`TuiHBox.Layout()`**：水平容器支持 Flex — Flex=0 固定宽度，Flex>0 按权重比例分配剩余空间
+- **`TuiVBox.Layout()`**：垂直容器支持 Flex — 同算法垂直方向
+- **后向兼容**：所有现有控件 Flex=0，行为完全不变
+
+### ✨ 窗口比例缩放（XScale / YScale）
+
+- **`TuiWindow.XScale`**：窗口宽度 = 终端宽度 × 比例（0=禁用，如 0.5=半屏宽）
+- **`TuiWindow.YScale`**：窗口高度 = 终端高度 × 比例（0=禁用，如 0.4=40%屏高）
+- **约束支持**：`MinWidth`/`MinHeight`/`MaxWidth`/`MaxHeight` 自动钳制缩放结果
+- **手动拖拽清零**：鼠标拖拽缩放窗口后自动清零 XScale/YScale，切换到固定尺寸
+
+### ✨ 窗口位置对齐（WindowHAlign / WindowVAlign）
+
+- **`TuiWindow.WindowHAlign`**：`Left`/`Center`/`Right`/`Stretch`(不定位)，resize 时自动重算 X
+- **`TuiWindow.WindowVAlign`**：`Top`/`Middle`/`Bottom`/`Stretch`(不定位)，resize 时自动重算 Y
+- **`TuiWindow.ScreenMargin`**：窗口与屏幕边缘偏移（Toast 右下角 + 偏移等场景）
+- **移除 `AutoCenter`**：`WindowHAlign=Center + WindowVAlign=Middle` 等效替代
+
+### ✨ 对话框全面标准化
+
+- **全部 11 种对话框重构**（Info/Success/Warn/Error/Confirm/Confirm3/Input/Secret/Select/MultiSelect/Permission）
+- 使用 `XScale` 替代手动 `CalcMaxMsgWidth()` + clamp 宽度计算
+- 使用 `WindowHAlign`/`WindowVAlign` 替代 `win.Center()`
+- 按钮使用 `Flex=1` 均分替代 `NormalizeButtons()` 手动统一宽度
+- **移除 `OnResizeContent` 完全重建**：框架自动处理 resize → 窗口缩放 → Flex 重分配 → 重绘
+- 代码量 914 行 → 338 行（-63%）
+
+### 🧪 测试
+
+- Flex 布局测试 16 项（含 HBox/VBox Flex 分配、Margin/Spacing 配合、后向兼容）
+- 窗口比例缩放测试 10 项（XScale/YScale、Min/Max 约束、两维同时、手动保持）
+- 窗口位置对齐测试 12 项（9 种对齐组合 + AutoCenter 兼容 + ScreenMargin Offset）
+- 端到端集成测试 9 项（终端 resize → Screen → Window → Flex 全链路）
+- 总计 **1499 通过 / 0 失败**
+
+---
+
+## v0.34.2 (2026-08-12) — 对话框 Resize 刷新 + 4 项 P0 修复
+
+### 🐛 对话框 Resize 不刷新（修复）
+
+- **根因**：`TuiWindow.OnResize()` 不调用 `RootView.MarkDirty()`，增量渲染可能跳过窗口重绘；窗口保持创建时尺寸，缩小终端时溢出、扩大终端时不利用额外空间
+- **修复 1**：`TuiWindow.OnResize()` 新增 `RootView.MarkDirty()` 强制下一帧重绘窗口
+- **修复 2**：`TuiWindow.OnResize()` 新增窗口位置 clamp（防止缩小终端时溢出）
+- **修复 3**：新增 `TuiWindow.OnResizeContent` 回调，`TuiDialog` 各工厂方法设置此回调以在 resize 时重建控件
+- **修复 4**：全部 `TuiDialog` 方法（Info/Success/Warn/Error/Confirm/Confirm3/Input/Secret/Select/MultiSelect/Permission）均已改造，状态型对话框（Input/Secret/Select/MultiSelect）保留用户输入/选择状态
+- **设计**：每次 resize 重建控件树（`CalcMaxMsgWidth()` 重新按 `Tty.Cols` 计算宽度）→ 窗口尺寸自适应新的终端尺寸
+
+### 🐛 P0-1：孤立工具调用/结果修复（Agent.cs）
+
+- **根因**：Agent 中断（Ctrl+C）、会话恢复或 LLM 输出截断导致 assistant tool-call 无对应 tool-result，下轮 API 拒绝请求
+- **修复**：实现 `RepairOrphanedToolPairs()`（对标 Crush `filterOrphanedToolResults` + `syntheticToolResultsForOrphanedCalls`）
+  - 收集所有 assistant 消息的 tool_call ID → `callIds`
+  - 收集所有 tool 消息的 tool_call_id → `resultIds`
+  - 无结果的 tool-call → 注入合成错误 tool-result：`[工具执行被中断] 工具 "{name}" 的调用未能完成执行...`
+  - 无对应 tool-call 的 tool-result → 从 Messages 中删除
+- **效果**：中断后恢复的会话不再因孤例配对而 API 报错
+
+### 🐛 P0-2：循环检测改 per-tool 级（Agent.cs）
+
+- **根因**：旧方案对整轮做哈希，同轮中其他工具不同会掩盖某个工具的重复调用
+- **修复**：重写 `DetectAndBreakLoop()` 为 per-tool-call 级
+  - 每个工具单独哈希：`tool_name + args_json + output[..2000]`
+  - 滑动窗口 10，阈值 5 → 循环警告；批量检测提示"共 N 个模式重复"
+- **效果**：更精准检测 write→lint-error→rewrite 等单工具重复模式
+
+### 🐛 P0-3：编辑前 mtime 检查（Agent.cs）
+
+- **根因**：Agent 读文件后、编辑前，文件可能被 bash 外部修改，导致基于过期内容编辑
+- **修复**：`ExecuteToolAsync()` 中 edit_file/write_file 前检查 `FileTracker.GetStatus()`
+  - 文件 stale → 返回警告要求先 re-read（对标 Crush edit guard）
+  - 第二次调用确认后放行；成功写入自动更新 FileTracker 哈希
+- **效果**：防止 Agent 基于过期文件内容做编辑决策
+
+### 🐛 P0-4：任务系统升级 — CRUD + 依赖（TodoTool.cs）
+
+- **根因**：旧 TodoTool 无依赖、无描述、无持久化、int ID
+- **修复**：重写为对标 Crush todos + Claude Code TaskCreate 的完整 CRUD 工具
+  - string ID / description 字段 / deps 依赖列表 / 5 种状态含 blocked
+  - 依赖检测：blocked→in_progress 需依赖完成；完成自动解除阻塞任务
+  - 持久化 `.waycoder/todos.json`；兼容旧 `Items` API（侧栏、/todo 命令、自测）
+- **效果**：Agent 可规划依赖型多步骤工作，任务跨会话持久保留
+
+---
+
 ## v0.34.1 (2026-08-12) — 稳定性修复 8 项 + 竞品分析
 
 ### 🧪 Roguelike 稳定性测试

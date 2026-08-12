@@ -43,8 +43,8 @@ public class Agent
 
     /// <summary>SHA256 循环检测：最近几轮的哈希值（检测 Agent 是否陷入重复操作循环）</summary>
     private readonly List<string> _recentActionHashes = [];
-    private const int LoopDetectionWindow = 8;
-    private const int LoopDetectionThreshold = 3;
+    private const int PerToolLoopWindow = 10;
+    private const int PerToolLoopThreshold = 5;
     private int _loopNudgeCount;
 
     /// <summary>本轮对话开始时间（供 WorkReporter 计算耗时）</summary>
@@ -100,9 +100,13 @@ public class Agent
 
     /// <summary>
     /// 构建完整消息列表（包含系统提示词 + 模式提示）。
+    /// 发送前自动修复孤立的工具调用/结果配对（对标 Crush filterOrphanedToolResults + syntheticToolResultsForOrphanedCalls）。
     /// </summary>
     private List<JsonObject> FullMessages()
     {
+        // 修复孤立的 tool-call/tool-result 配对（防止中断后对话损坏）
+        RepairOrphanedToolPairs();
+
         // 模式专用提示（Plan/Review/Auto 模式会在主提示词前注入约束）
         var modePrompt = WorkModeManager.GetModePrompt(WorkModeManager.CurrentMode);
         var systemContent = string.IsNullOrEmpty(modePrompt)
@@ -124,6 +128,211 @@ public class Agent
         // 深克隆消息，避免 JsonNode 的 Parent 冲突（同一消息不能加入两个树）
         foreach (var m in Messages)
             result.Add(JsonNode.Parse(m.ToJsonString())!.AsObject());
+        return result;
+    }
+
+    /// <summary>
+    /// 修复孤立的工具调用/结果配对（对标 Crush filterOrphanedToolResults + syntheticToolResultsForOrphanedCalls）。
+    ///
+    /// 两种孤例：
+    /// 1. 有 tool-call 但无对应 tool-result → 注入合成错误结果，防止下轮 API 拒绝请求
+    /// 2. 有 tool-result 但无对应 tool-call → 删除该结果，避免污染上下文
+    ///
+    /// 场景：Agent 中断（Ctrl+C）、会话恢复、LLM 输出截断导致 tool-call 不完整。
+    /// </summary>
+    private void RepairOrphanedToolPairs()
+    {
+        // 1. 收集所有 assistant 消息中的 tool_call ID
+        var callIds = new HashSet<string>();
+        foreach (var msg in Messages)
+        {
+            if (msg["role"]?.GetValue<string>() != "assistant") continue;
+            var toolCalls = msg["tool_calls"]?.AsArray();
+            if (toolCalls == null) continue;
+            foreach (var tc in toolCalls)
+            {
+                var id = tc?["id"]?.GetValue<string>();
+                if (!string.IsNullOrEmpty(id))
+                    callIds.Add(id);
+            }
+        }
+
+        if (callIds.Count == 0) return; // 无工具调用，无需修复
+
+        // 2. 收集所有 tool 结果消息的 tool_call_id
+        var resultIds = new HashSet<string>();
+        foreach (var msg in Messages)
+        {
+            if (msg["role"]?.GetValue<string>() != "tool") continue;
+            var id = msg["tool_call_id"]?.GetValue<string>();
+            if (!string.IsNullOrEmpty(id))
+                resultIds.Add(id);
+        }
+
+        // 3. 对无结果的 tool-call 注入合成错误结果
+        var orphanCalls = callIds.Except(resultIds).ToList();
+        foreach (var orphanId in orphanCalls)
+        {
+            // 找到该 tool-call 的 assistant 消息位置，在其后插入合成 tool-result
+            int callMsgIdx = -1;
+            string? toolName = null;
+            for (int i = 0; i < Messages.Count; i++)
+            {
+                var msg = Messages[i];
+                if (msg["role"]?.GetValue<string>() != "assistant") continue;
+                var tcs = msg["tool_calls"]?.AsArray();
+                if (tcs == null) continue;
+                foreach (var tc in tcs)
+                {
+                    if (tc?["id"]?.GetValue<string>() == orphanId)
+                    {
+                        callMsgIdx = i;
+                        toolName = tc["function"]?["name"]?.GetValue<string>() ?? "unknown";
+                        break;
+                    }
+                }
+                if (callMsgIdx >= 0) break;
+            }
+
+            if (callMsgIdx < 0) continue;
+
+            var errorMsg = $"[工具执行被中断] 工具 \"{toolName}\" 的调用未能完成执行。" +
+                           $"可能原因：Agent 被中断、网络问题或进程异常退出。请重试或使用其他方法完成此操作。";
+
+            var syntheticResult = new JsonObject
+            {
+                ["role"] = "tool",
+                ["tool_call_id"] = orphanId,
+                ["content"] = errorMsg,
+            };
+
+            // 插入到 assistant 消息之后
+            Messages.Insert(callMsgIdx + 1, syntheticResult);
+            resultIds.Add(orphanId);
+
+            DebugLog.Log("agent",
+                $"RepairOrphaned: 为孤立 tool-call [{orphanId}] ({toolName}) 注入合成错误结果");
+        }
+
+        // 4. 删除无对应 tool-call 的 tool-result（反向遍历，安全删除）
+        for (int i = Messages.Count - 1; i >= 0; i--)
+        {
+            var msg = Messages[i];
+            if (msg["role"]?.GetValue<string>() != "tool") continue;
+            var id = msg["tool_call_id"]?.GetValue<string>();
+            if (!string.IsNullOrEmpty(id) && !callIds.Contains(id))
+            {
+                DebugLog.Log("agent",
+                    $"RepairOrphaned: 删除孤立 tool-result [{id}]（无对应 tool-call）");
+                Messages.RemoveAt(i);
+            }
+        }
+    }
+
+    /// <summary>测试钩子: 循环检测窗口大小</summary>
+    public int LoopWindowForTest => PerToolLoopWindow;
+    /// <summary>测试钩子: 循环检测阈值</summary>
+    public int LoopThresholdForTest => PerToolLoopThreshold;
+
+    /// <summary>孤儿修复结果 (测试用)</summary>
+    public sealed class OrphanRepairResult
+    {
+        public int OrphanCallsDetected;
+        public int OrphanCallsFixed;
+        public int OrphanResultsDetected;
+        public int OrphanResultsRemoved;
+    }
+
+    /// <summary>测试钩子: 对给定消息列表执行孤儿修复并返回统计</summary>
+    public static OrphanRepairResult TestOrphanRepair(List<JsonObject> messages)
+    {
+        var result = new OrphanRepairResult();
+
+        // 收集所有 tool_call ID
+        var callIds = new HashSet<string>();
+        foreach (var msg in messages)
+        {
+            if (msg["role"]?.GetValue<string>() != "assistant") continue;
+            var toolCalls = msg["tool_calls"]?.AsArray();
+            if (toolCalls == null) continue;
+            foreach (var tc in toolCalls)
+            {
+                var id = tc?["id"]?.GetValue<string>();
+                if (!string.IsNullOrEmpty(id)) callIds.Add(id);
+            }
+        }
+
+        // 收集所有 tool result 的 tool_call_id
+        var resultIds = new HashSet<string>();
+        foreach (var msg in messages)
+        {
+            if (msg["role"]?.GetValue<string>() != "tool") continue;
+            var id = msg["tool_call_id"]?.GetValue<string>();
+            if (!string.IsNullOrEmpty(id)) resultIds.Add(id);
+        }
+
+        // 统计孤儿调用
+        var orphanCalls = callIds.Except(resultIds).ToList();
+        result.OrphanCallsDetected = orphanCalls.Count;
+
+        // 为每个孤儿调用注入合成错误
+        foreach (var orphanId in orphanCalls)
+        {
+            int callMsgIdx = -1;
+            string? toolName = null;
+            for (int i = 0; i < messages.Count; i++)
+            {
+                var msg = messages[i];
+                if (msg["role"]?.GetValue<string>() != "assistant") continue;
+                var tcs = msg["tool_calls"]?.AsArray();
+                if (tcs == null) continue;
+                foreach (var tc in tcs)
+                {
+                    if (tc?["id"]?.GetValue<string>() == orphanId)
+                    {
+                        callMsgIdx = i;
+                        toolName = tc["function"]?["name"]?.GetValue<string>() ?? "unknown";
+                        break;
+                    }
+                }
+                if (callMsgIdx >= 0) break;
+            }
+
+            if (callMsgIdx < 0) continue;
+            messages.Insert(callMsgIdx + 1, new JsonObject
+            {
+                ["role"] = "tool",
+                ["tool_call_id"] = orphanId,
+                ["content"] = $"[工具执行被中断] 工具 \"{toolName}\" 的调用未能完成执行。",
+            });
+            result.OrphanCallsFixed++;
+        }
+
+        // 删除孤立 tool-result
+        for (int i = messages.Count - 1; i >= 0; i--)
+        {
+            var msg = messages[i];
+            if (msg["role"]?.GetValue<string>() != "tool") continue;
+            var id = msg["tool_call_id"]?.GetValue<string>();
+            if (!string.IsNullOrEmpty(id) && !callIds.Contains(id))
+            {
+                result.OrphanResultsDetected++;
+            }
+        }
+
+        // 实际删除
+        for (int i = messages.Count - 1; i >= 0; i--)
+        {
+            var msg = messages[i];
+            if (msg["role"]?.GetValue<string>() != "tool") continue;
+            var id = msg["tool_call_id"]?.GetValue<string>();
+            if (!string.IsNullOrEmpty(id) && !callIds.Contains(id))
+            {
+                messages.RemoveAt(i);
+                result.OrphanResultsRemoved++;
+            }
+        }
+
         return result;
     }
 
@@ -489,18 +698,47 @@ public class Agent
             if (hookBlock != null)
                 return $"操作被 Hook 阻止: {hookBlock}";
 
+            // Stale-read 检查：编辑/写入前确认文件未被外部修改（对标 Crush filetracker edit guard）
+            string? staleWarning = null;
+            if (tc.Name is "edit_file" or "write_file")
+            {
+                if (tc.Arguments.TryGetValue("file_path", out var fpObj) && fpObj is string fp && !string.IsNullOrWhiteSpace(fp))
+                {
+                    var (isTracked, isStale) = FileTracker.GetStatus(fp);
+                    if (isTracked && isStale)
+                    {
+                        staleWarning =
+                            $"⚠️ **Stale-Read 警告**：文件 `{fp}` 自上次读取后被外部修改。\n" +
+                            $"请先用 read_file 重新读取该文件的最新内容，确认变更后再编辑。\n" +
+                            $"如确认无需重新读取，可再次调用 edit_file（第二次调用会略过此检查）。";
+                        DebugLog.Log("file-tracker", $"Stale-read 阻止: {fp}");
+                    }
+                    // 未追踪的文件：记录一次写入前的状态（即使没读过，也追踪写入后的哈希）
+                    else if (!isTracked)
+                    {
+                        FileTracker.RecordWrite(fp);
+                    }
+                }
+            }
+
+            // 文件被外部修改 → 返回错误，强制重读（首次触发时）
+            if (staleWarning != null)
+                return staleWarning;
+
             var result = tool is BashTool bashTool && onToolOutput != null
                 ? await bashTool.ExecuteStreamingAsync(tc.Arguments,
                     async line => { onToolOutput(line); await Task.CompletedTask; })
                 : await tool.ExecuteAsync(tc.Arguments);
 
-            // 追踪修改的文件（用于自动 commit 精准暂存）
+            // 追踪修改的文件（用于自动 commit 精准暂存 + FileTracker 哈希更新）
             if (tc.Name is "write_file" or "edit_file" or "notebook_edit")
             {
                 if (tc.Arguments.TryGetValue("file_path", out var fp) && fp is string path && !string.IsNullOrWhiteSpace(path))
                 {
                     lock (_modifiedFiles)
                         _modifiedFiles.Add(path);
+                    // 更新 FileTracker 哈希，防止下次编辑时误报 stale
+                    FileTracker.RecordWrite(path);
                 }
             }
 
@@ -959,47 +1197,82 @@ public class Agent
     /// 相同哈希重复出现 LoopDetectionThreshold+ 次说明 Agent 陷入循环。
     /// 此时注入反循环提示，强制 Agent 换策略。
     /// </summary>
+    /// <summary>
+    /// Per-tool-call 级循环检测（对标 Crush per-tool loop detection）。
+    ///
+    /// 对每一轮中每个已执行的工具调用，哈希 (tool_name + args + output 前 2000 字符)，
+    /// 相同指纹在窗口内出现 5+ 次 → 循环警告。
+    ///
+    /// 与旧 per-round 方案的区别：更细粒度 — 同轮中其他工具不同不会掩盖
+    /// 某个特定工具的重复调用模式。
+    /// </summary>
     private void DetectAndBreakLoop(LLMResponse resp, List<JsonObject> messages)
     {
-        // 构建本轮指纹：最后一条 assistant 消息 + 本轮新增的 tool 消息
-        var lastAssistant = messages.LastOrDefault(m =>
-            m["role"]?.GetValue<string>() == "assistant");
-        var lastAssistantContent = lastAssistant?["content"]?.GetValue<string>() ?? "";
+        const int outputSnipLen = 2000;
 
-        // 取本轮新增的 tool 消息（tool_call_id 匹配 resp.ToolCalls 的 Id）
+        // 收集本轮已执行的 tool 消息（tool_call_id 匹配 resp.ToolCalls 的 Id）
         var toolIds = new HashSet<string>(resp.ToolCalls.Select(tc => tc.Id));
-        var toolContents = new List<string>();
-        foreach (var m in messages)
+        var executedCalls = new List<(string Name, string Args, string Output)>();
+        foreach (var tc in resp.ToolCalls)
         {
-            if (m["role"]?.GetValue<string>() == "tool")
+            foreach (var m in messages)
             {
-                var tcId = m["tool_call_id"]?.GetValue<string>() ?? "";
-                if (toolIds.Contains(tcId))
-                    toolContents.Add(m["content"]?.GetValue<string>() ?? "");
+                if (m["role"]?.GetValue<string>() == "tool"
+                    && m["tool_call_id"]?.GetValue<string>() == tc.Id)
+                {
+                    var output = m["content"]?.GetValue<string>() ?? "";
+                    executedCalls.Add((tc.Name,
+                        JsonHelper.SerializeArgs(tc.Arguments),
+                        output.Length > outputSnipLen ? output[..outputSnipLen] : output));
+                    break;
+                }
             }
         }
 
-        var fingerprint = lastAssistantContent + "\x00" + string.Join("\x00", toolContents);
-        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
-            System.Text.Encoding.UTF8.GetBytes(fingerprint)));
+        if (executedCalls.Count == 0) return;
 
-        _recentActionHashes.Add(hash);
-        while (_recentActionHashes.Count > LoopDetectionWindow)
+        // 对每个已执行的工具调用，生成 per-tool 指纹并加入滑动窗口
+        foreach (var (name, args, output) in executedCalls)
+        {
+            var fingerprint = $"{name}\x00{args}\x00{output}";
+            var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(fingerprint)));
+
+            _recentActionHashes.Add(hash);
+        }
+
+        // 保持滑动窗口大小
+        while (_recentActionHashes.Count > PerToolLoopWindow)
             _recentActionHashes.RemoveAt(0);
 
-        // 统计最近窗口内相同哈希的出现次数
-        var count = _recentActionHashes.Count(h => h == hash);
-        if (count >= LoopDetectionThreshold)
+        // 统计窗口内每个哈希的出现次数，任一超过阈值即触发
+        var hashCounts = new Dictionary<string, int>();
+        foreach (var h in _recentActionHashes)
+        {
+            hashCounts.TryGetValue(h, out var c);
+            hashCounts[h] = c + 1;
+        }
+
+        var offendingHash = hashCounts
+            .FirstOrDefault(kv => kv.Value >= PerToolLoopThreshold);
+
+        if (offendingHash.Key != null)
         {
             _loopNudgeCount++;
-            DebugLog.Log("loop", $"循环检测：哈希 {hash[..8]} 在最近 {_recentActionHashes.Count} 轮中出现 {count} 次（第 {_loopNudgeCount} 次反循环提示）");
+            DebugLog.Log("loop",
+                $"Per-tool 循环检测：哈希 {offendingHash.Key[..8]} 在最近 {_recentActionHashes.Count} 个工具调用中出现 {offendingHash.Value} 次（第 {_loopNudgeCount} 次反循环提示）");
 
-            // 逐步升级的反循环提示
+            // 批量循环：显示涉及的重复工具数
+            var duplicateCount = hashCounts.Values.Count(v => v >= PerToolLoopThreshold);
+            var dupNote = duplicateCount > 1
+                ? $"（共 {duplicateCount} 个工具调用模式在重复）"
+                : "";
+
             var nudge = _loopNudgeCount switch
             {
-                1 => "检测到你似乎在重复相同的操作。请换一种不同的方法或工具来完成任务。如果之前的方案反复失败，请尝试完全不同的思路。",
-                2 => "你仍在重复相同的操作模式。请停下来，重新评估问题，尝试一种完全不同的策略。检查之前的工具输出，找出失败的原因。",
-                _ => "严重警告：你已经多次重复相同的无效操作。立即停止当前方法。回顾整个任务目标，从第一步重新开始，使用完全不同的工具或顺序。如有必要，向用户报告卡住的原因。",
+                1 => $"检测到重复的工具调用模式{dupNote}。请换一种不同的方法或工具来完成任务。如果之前的方案反复失败，请尝试完全不同的思路。",
+                2 => $"你仍在重复相同的操作模式{dupNote}。请停下来，重新评估问题，尝试一种完全不同的策略。检查之前的工具输出，找出失败的原因。",
+                _ => $"严重警告：你已经多次重复相同的无效操作{dupNote}。立即停止当前方法。回顾整个任务目标，从第一步重新开始，使用完全不同的工具或顺序。如有必要，向用户报告卡住的原因。",
             };
 
             messages.Add(new JsonObject
@@ -1008,7 +1281,7 @@ public class Agent
                 ["content"] = nudge,
             });
 
-            // 重置计数器避免连续触发（给 Agent 几轮时间调整）
+            // 重置窗口避免连续触发（给 Agent 几轮时间调整）
             _recentActionHashes.Clear();
         }
     }
