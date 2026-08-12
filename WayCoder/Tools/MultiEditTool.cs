@@ -202,6 +202,11 @@ public class MultiEditTool : ITool
         if (!File.Exists(path))
             return $"❌ 错误：文件未找到: {path}";
 
+        // 先读后改保护
+        var preEditWarning = FileTracker.ValidatePreEdit(path);
+        if (preEditWarning != null)
+            return preEditWarning;
+
         // 检测非 UTF-8
         byte[] raw;
         try { raw = File.ReadAllBytes(path); }

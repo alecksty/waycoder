@@ -325,6 +325,7 @@ public static class SelfTest
         try
         {
             var tmpFile2 = Path.GetTempFileName();
+            FileTracker.RecordRead(tmpFile2);
             var writeResult = new WriteFileTool().ExecuteAsync(new() { ["file_path"] = tmpFile2, ["content"] = "hi\n" }).Result;
             Check("write_file 基本功能", writeResult.Contains("已写入") && File.ReadAllText(tmpFile2) == "hi\n");
             File.Delete(tmpFile2);
@@ -336,6 +337,7 @@ public static class SelfTest
         {
             var tmpFile3 = Path.GetTempFileName();
             File.WriteAllText(tmpFile3, "hello world\n");
+            FileTracker.RecordRead(tmpFile3);
             var editResult = new EditFileTool().ExecuteAsync(new()
             {
                 ["file_path"] = tmpFile3, ["old_string"] = "world", ["new_string"] = "地球",
@@ -349,6 +351,7 @@ public static class SelfTest
         {
             var tmpFile4 = Path.GetTempFileName();
             File.WriteAllText(tmpFile4, "aa\n");
+            FileTracker.RecordRead(tmpFile4);
             var editResult = new EditFileTool().ExecuteAsync(new()
             {
                 ["file_path"] = tmpFile4, ["old_string"] = "NOTFOUND", ["new_string"] = "x",
@@ -363,6 +366,7 @@ public static class SelfTest
         {
             var tmpReplaceAll = Path.GetTempFileName();
             File.WriteAllText(tmpReplaceAll, "x x x\n");
+            FileTracker.RecordRead(tmpReplaceAll);
             var editResult = new EditFileTool().ExecuteAsync(new()
             {
                 ["file_path"] = tmpReplaceAll, ["old_string"] = "x", ["new_string"] = "y", ["replace_all"] = true,
@@ -378,6 +382,7 @@ public static class SelfTest
         {
             var tmpMultiEdit = Path.GetTempFileName();
             File.WriteAllText(tmpMultiEdit, "line one\nline two\nline three\n");
+            FileTracker.RecordRead(tmpMultiEdit);
             var multiResult = new MultiEditTool().ExecuteAsync(new()
             {
                 ["file_path"] = tmpMultiEdit,
@@ -416,6 +421,7 @@ public static class SelfTest
         {
             var tmpMultiAll = Path.GetTempFileName();
             File.WriteAllText(tmpMultiAll, "x x x\n");
+            FileTracker.RecordRead(tmpMultiAll);
             var multiResult = new MultiEditTool().ExecuteAsync(new()
             {
                 ["file_path"] = tmpMultiAll,
@@ -435,6 +441,7 @@ public static class SelfTest
         {
             var tmpMultiFail = Path.GetTempFileName();
             File.WriteAllText(tmpMultiFail, "hello\n");
+            FileTracker.RecordRead(tmpMultiFail);
             var multiResult = new MultiEditTool().ExecuteAsync(new()
             {
                 ["file_path"] = tmpMultiFail,
@@ -5018,6 +5025,81 @@ another.txt:3:1: warning: deprecated API
         Check("孤儿修复: 检测到孤儿结果", testResult.OrphanResultsDetected == 1); // extra_result_no_call
         Check("孤儿修复: 注入合成错误", testResult.OrphanCallsFixed == 1);
         Check("孤儿修复: 移除多余结果", testResult.OrphanResultsRemoved == 1);
+        Console.WriteLine();
+
+        // ── v0.36.0: FileTracker 先读后改保护 ──
+        var ftTestFile2 = Path.Combine(Path.GetTempPath(), "waycoder_ft_test2.txt");
+        try
+        {
+            File.WriteAllText(ftTestFile2, "original content");
+            FileTracker.Reset();
+
+            // 未读取就编辑 → 应返回警告
+            var warn = FileTracker.ValidatePreEdit(ftTestFile2);
+            Check("FileTracker 未读先改返回警告", warn != null && warn.Contains("尚未被 read_file"));
+
+            // 读取后编辑 → 应通过
+            FileTracker.RecordRead(ftTestFile2);
+            var warn2 = FileTracker.ValidatePreEdit(ftTestFile2);
+            Check("FileTracker 已读后编辑通过", warn2 == null);
+
+            // 外部修改后编辑 → 应返回警告
+            Thread.Sleep(1100); // 确保时间戳差超过 1 秒
+            File.WriteAllText(ftTestFile2, "modified externally");
+            var warn3 = FileTracker.ValidatePreEdit(ftTestFile2);
+            Check("FileTracker 外部修改后编辑返回警告", warn3 != null && warn3.Contains("外部修改"));
+
+            // 新文件（不存在）→ 通过
+            var warn4 = FileTracker.ValidatePreEdit("/nonexistent/file_xyz.txt");
+            Check("FileTracker 新文件无需读取", warn4 == null);
+
+            // Reset 清空 LastReadTimes
+            FileTracker.Reset();
+            var warn5 = FileTracker.ValidatePreEdit(ftTestFile2);
+            Check("FileTracker Reset 后未读先改警告", warn5 != null);
+        }
+        finally
+        {
+            try { File.Delete(ftTestFile2); } catch { }
+        }
+        FileTracker.Reset();
+
+        // ── v0.36.0: Agent 工具集分层 ──
+        Check("SubAgentDeniedTools 包含 bash",
+            ToolRegistry.SubAgentDeniedTools.Contains("bash"));
+        Check("SubAgentDeniedTools 包含 rm",
+            ToolRegistry.SubAgentDeniedTools.Contains("rm"));
+        Check("SubAgentDeniedTools 包含 kill",
+            ToolRegistry.SubAgentDeniedTools.Contains("kill"));
+        Check("SubAgentDeniedTools 包含 git",
+            ToolRegistry.SubAgentDeniedTools.Contains("git"));
+
+        // 深度 0（允许 agent 递归）
+        var depth0Tools = ToolRegistry.GetSubAgentTools(ToolRegistry.AllTools, 0, 5);
+        var depth0Names = depth0Tools.Select(t => t.Name).ToHashSet();
+        Check("子Agent深度0 无 bash", !depth0Names.Contains("bash"));
+        Check("子Agent深度0 无 rm", !depth0Names.Contains("rm"));
+        Check("子Agent深度0 有 agent", depth0Names.Contains("agent"));
+        Check("子Agent深度0 有 write_file", depth0Names.Contains("write_file"));
+        Check("子Agent深度0 有 read_file", depth0Names.Contains("read_file"));
+        Check("子Agent深度0 有 grep", depth0Names.Contains("grep"));
+
+        // 最大深度（禁止 agent）
+        var maxDepthTools = ToolRegistry.GetSubAgentTools(ToolRegistry.AllTools, 4, 5);
+        var maxDepthNames = maxDepthTools.Select(t => t.Name).ToHashSet();
+        Check("子Agent最大深度 无 agent", !maxDepthNames.Contains("agent"));
+        Check("子Agent最大深度 仍有 read_file", maxDepthNames.Contains("read_file"));
+
+        // ── v0.36.0: Git 状态注入提示词 ──
+        var gitStatusResult = SystemPrompt.GenerateGitStatus();
+        Check("Git 状态注入: 非 null", gitStatusResult != null);
+        // 当前在 git 仓库中，应包含分支信息
+        if (!string.IsNullOrEmpty(gitStatusResult))
+        {
+            Check("Git 状态注入: 包含仓库信息",
+                gitStatusResult.Contains("分支") || gitStatusResult.Contains("branch")
+                || gitStatusResult.Contains("Git 仓库状态"));
+        }
         Console.WriteLine();
 
         // ---- 结果 ----

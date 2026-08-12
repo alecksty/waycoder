@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using WayCoder.Tools;
 
 namespace WayCoder;
@@ -20,6 +21,7 @@ public static class SystemPrompt
         var projectCtx = project.ToMarkdown();
         var repoMap = RepoMapGenerator.Generate();
 
+        var gitSection = GenerateGitStatus();
         var skillsSection = SkillsManager.GetSkillsXml();
         if (!string.IsNullOrEmpty(skillsSection))
             skillsSection = "\n" + skillsSection;
@@ -83,6 +85,8 @@ public static class SystemPrompt
 
                 项目上下文
                 __PROJECT_CTX__
+
+                __GIT_STATUS__
 
                 __INSTRUCTIONS__
 
@@ -362,6 +366,7 @@ public static class SystemPrompt
             .Replace("__OS__", os)
             .Replace("__DOTNET__", dotnetVersion)
             .Replace("__PROJECT_CTX__", projectCtx)
+            .Replace("__GIT_STATUS__", gitSection)
             .Replace("__INSTRUCTIONS__", instructions)
             .Replace("__MEMORY__", memorySection)
             .Replace("__SKILLS__", skillsSection)
@@ -442,6 +447,99 @@ public static class SystemPrompt
 
     /// <summary>快速模式规则 1（读旧写新）</summary>
     private const string s_fastModeRule1 = "读旧写新。 修改已有文件前需读取，创建新文件时直接使用 write_file——不要先读不存在的文件。读取后注意精确的格式、缩进和空白符——编辑时必须完全匹配。";
+
+    /// <summary>
+    /// 生成 Git 仓库状态摘要（对标 Crush git status 注入提示词）。
+    /// 包含当前分支、工作区状态和最近提交。
+    /// </summary>
+    internal static string GenerateGitStatus()
+    {
+        try
+        {
+            // 检测是否在 git 仓库中
+            var psi = new ProcessStartInfo
+            {
+                FileName = "git",
+                Arguments = "rev-parse --git-dir",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            using var testProcess = Process.Start(psi);
+            if (testProcess == null) return "";
+            testProcess.WaitForExit(5000);
+            if (testProcess.ExitCode != 0) return "";
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("# Git 仓库状态");
+
+            // 当前分支
+            var branch = RunGitCommand("branch --show-current");
+            if (!string.IsNullOrWhiteSpace(branch))
+                sb.AppendLine($"- 当前分支：**{branch}**");
+
+            // 工作区状态
+            var status = RunGitCommand("status --short");
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                var statusLines = status.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                if (statusLines.Length > 0)
+                {
+                    sb.AppendLine($"- 工作区变更（{statusLines.Length} 项）：");
+                    foreach (var line in statusLines.Take(15))
+                        sb.AppendLine($"  - `{line.TrimEnd('\r')}`");
+                    if (statusLines.Length > 15)
+                        sb.AppendLine($"  - ... 及其他 {statusLines.Length - 15} 项");
+                }
+                else
+                {
+                    sb.AppendLine("- 工作区：干净（无未提交变更）");
+                }
+            }
+
+            // 最近提交
+            var log = RunGitCommand("log --oneline -n 3");
+            if (!string.IsNullOrWhiteSpace(log))
+            {
+                sb.AppendLine("- 最近提交：");
+                foreach (var line in log.Split('\n', StringSplitOptions.RemoveEmptyEntries).Take(3))
+                    sb.AppendLine($"  - `{line.TrimEnd('\r')}`");
+            }
+
+            return sb.ToString();
+        }
+        catch
+        {
+            return ""; // 非 git 仓库或 git 不可用
+        }
+    }
+
+    /// <summary>运行 git 命令并返回 stdout（去除首尾空白）</summary>
+    private static string RunGitCommand(string arguments)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "git",
+                Arguments = arguments,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            using var process = Process.Start(psi);
+            if (process == null) return "";
+            var output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit(5000);
+            return output.Trim();
+        }
+        catch
+        {
+            return "";
+        }
+    }
 
     /// <summary>
     /// 检测用户消息是否包含"跳过探索"关键词。
