@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WayOS - 网页操作系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-user-select:none}
+:root{--mh:28px;--dh:66px;--acc:#0a84ff;--win:0 12px 40px rgba(0,0,0,.45);--r:10px}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC",sans-serif;background:#111}
+#desktop{position:fixed;inset:0;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 30%,#0f3460 60%,#533483 100%);overflow:hidden}
+#desktop::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 20% 10%,rgba(255,255,255,.08),transparent 50%),radial-gradient(ellipse at 80% 30%,rgba(80,140,255,.06),transparent 50%)}
+/* ===== Menu Bar ===== */
+#menubar{position:fixed;top:0;left:0;right:0;height:var(--mh);display:flex;align-items:center;padding:0 12px;gap:18px;background:rgba(30,30,35,.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);z-index:9999;color:#fff;font-size:13px}
+#menubar .logo{font-weight:700;font-size:15px}
+#menubar .menu-item{padding:3px 10px;border-radius:5px;cursor:pointer;position:relative}
+#menubar .menu-item:hover,#menubar .menu-item.open{background:rgba(255,255,255,.15)}
+#menubar .menu-item.open .dropdown{display:block}
+#menubar .dropdown{display:none;position:absolute;top:100%;left:0;min-width:180px;background:rgba(40,40,45,.95);backdrop-filter:blur(20px);border-radius:8px;padding:5px;box-shadow:var(--win);margin-top:4px}
+#menubar .dropdown .dd-item{padding:6px 12px;border-radius:5px;cursor:pointer;font-size:13px}
+#menubar .dropdown .dd-item:hover{background:var(--acc)}
+#menubar .dropdown .dd-sep{height:1px;background:rgba(255,255,255,.1);margin:4px 8px}
+#menubar .right{margin-left:auto;display:flex;align-items:center;gap:14px}
+#menubar .clock{font-variant-numeric:tabular-nums}
+/* ===== Desktop Icons ===== */
+#icons{position:absolute;top:calc(var(--mh) + 20px);left:20px;display:flex;flex-direction:column;flex-wrap:wrap;gap:20px;max-height:calc(100% - var(--mh) - var(--dh) - 40px);z-index:5}
+.desktop-icon{width:80px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px;border-radius:8px;cursor:pointer;transition:background .15s}
+.desktop-icon:hover{background:rgba(255,255,255,.12)}
+.desktop-icon.selected{background:rgba(255,255,255,.2)}
+.desktop-icon .icon{width:52px;height:52px;display:flex;align-items:center;justify-content:center;font-size:28px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))}
+.desktop-icon .label{font-size:11px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);text-align:center;line-height:1.3;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+/* ===== Dock ===== */
+#dock{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);display:flex;align-items:flex-end;gap:6px;padding:6px 10px;background:rgba(30,30,35,.6);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:16px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.dock-item{width:48px;height:48px;display:flex;align-items:center;justify-content:center;font-size:26px;border-radius:12px;cursor:pointer;position:relative;transition:transform .15s cubic-bezier(.34,1.56,.64,1);background:linear-gradient(145deg,rgba(255,255,255,.2),rgba(255,255,255,.08))}
+.dock-item:hover{transform:translateY(-8px) scale(1.2);z-index:10}
+.dock-item .dot{position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:#fff;opacity:0;transition:opacity .2s}
+.dock-item.running .dot{opacity:1}
+.dock-sep{width:1px;height:40px;background:rgba(255,255,255,.2);margin:0 4px;align-self:center}
+/* ===== Windows ===== */
+.window{position:absolute;background:rgba(245,245,248,.98);border-radius:var(--r);box-shadow:var(--win);display:flex;flex-direction:column;min-width:320px;min-height:200px;z-index:100;overflow:hidden}
+.window.active{z-index:1000;box-shadow:0 16px 50px rgba(0,0,0,.55)}
+.window.closing{animation:winClose .25s ease forwards}
+.window.opening{animation:winOpen .3s cubic-bezier(.34,1.4,.64,1)}
+@keyframes winOpen{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+@keyframes winClose{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(.85)}}
+.window.fullscreen{top:var(--mh)!important;left:0!important;width:100%!important;height:calc(100% - var(--mh) - var(--dh) - 8px)!important;border-radius:0}
+.win-titlebar{height:38px;display:flex;align-items:center;padding:0 12px;background:rgba(245,245,248,.95);border-bottom:1px solid rgba(0,0,0,.06);cursor:grab;flex-shrink:0}
+.window.fullscreen .win-titlebar{cursor:default}
+.win-titlebar:active{cursor:grabbing}
+.win-controls{display:flex;gap:8px;margin-right:12px}
+.win-btn{width:12px;height:12px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:8px;color:transparent;line-height:1;transition:color .1s}
+.win-btn:hover{color:rgba(0,0,0,.5)}
+.win-btn.red{background:#ff5f57}
+.win-btn.yellow{background:#febc2e}
+.win-btn.green{background:#28c840}
+.win-btn.green:hover::before{content:"+";font-size:10px;font-weight:700}
+.win-title{flex:1;text-align:center;font-size:13px;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.win-body{flex:1;overflow:auto;display:flex;flex-direction:column;position:relative}
+.win-resize{position:absolute;width:16px;height:16px;cursor:nwse-resize}
+.win-resize.tl{top:-2px;left:-2px;cursor:nwse-resize}
+.win-resize.tr{top:-2px;right:-2px;cursor:nesw-resize}
+.win-resize.bl{bottom:-2px;left:-2px;cursor:nesw-resize}
+.win-resize.br{bottom:-2px;right:-2px;cursor:nwse-resize}
+/* ===== Context Menu ===== */
+#ctxmenu{position:fixed;display:none;min-width:160px;background:rgba(40,40,45,.95);backdrop-filter:blur(20px);border-radius:8px;padding:5px;box-shadow:var(--win);z-index:99999;font-size:13px;color:#fff}
+#ctxmenu .cm-item{padding:6px 12px;border-radius:5px;cursor:pointer}
+#ctxmenu .cm-item:hover{background:var(--acc)}
+#ctxmenu .cm-sep{height:1px;background:rgba(255,255,255,.1);margin:4px 8px}
+/* ===== Finder ===== */
+.finder{display:flex;height:100%}
+.finder-sidebar{width:160px;background:rgba(240,240,245,.8);border-right:1px solid rgba(0,0,0,.06);padding:10px 8px;overflow-y:auto;flex-shrink:0}
+.finder-sidebar .fs-title{font-size:11px;color:#888;font-weight:600;padding:6px 8px 4px}
+.finder-sidebar .fs-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px;color:#333}
+.finder-sidebar .fs-item:hover{background:rgba(0,0,0,.06)}
+.finder-sidebar .fs-item.active{background:var(--acc);color:#fff}
+.finder-sidebar .fs-icon{font-size:16px;width:20px;text-align:center}
+.finder-main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.finder-toolbar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(0,0,0,.06);background:rgba(250,250,252,.9)}
+.finder-toolbar .nav-btn{width:28px;height:28px;border-radius:6px;border:none;background:transparent;cursor:pointer;font-size:14px;color:#555;display:flex;align-items:center;justify-content:center}
+.finder-toolbar .nav-btn:hover{background:rgba(0,0,0,.08)}
+.finder-toolbar .path{flex:1;font-size:13px;color:#333;padding:4px 10px;background:rgba(0,0,0,.05);border-radius:6px}
+.finder-grid{flex:1;overflow-y:auto;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;align-content:start}
+.finder-file{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 4px;border-radius:8px;cursor:pointer;text-align:center}
+.finder-file:hover{background:rgba(0,0,0,.05)}
+.finder-file .ff-icon{font-size:36px}
+.finder-file .ff-name{font-size:11px;color:#333;word-break:break-all;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* ===== Terminal ===== */
+.terminal{background:#1e1e2e;flex:1;display:flex;flex-direction:column;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:13px;color:#cdd6f4}
+.term-output{flex:1;overflow-y:auto;padding:10px;line-height:1.5;white-space:pre-wrap;word-break:break-all}
+.term-line{color:#cdd6f4}
+.term-line .prompt{color:#a6e3a1}
+.term-line .cmd{color:#cdd6f4}
+.term-line.error{color:#f38ba8}
+.term-line.success{color:#a6e3a1}
+.term-line.info{color:#89b4fa}
+.term-input-row{display:flex;align-items:center;padding:2px 10px 10px}
+.term-input-row .prompt{color:#a6e3a1;margin-right:6px;white-space:nowrap}
+.term-input{flex:1;background:transparent;border:none;outline:none;color:#cdd6f4;font:inherit;caret-color:#cdd6f4}
+/* ===== Text Editor ===== */
+.editor-toolbar{display:flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(250,250,252,.9);border-bottom:1px solid rgba(0,0,0,.06)}
+.editor-toolbar .et-btn{padding:4px 10px;border-radius:5px;border:none;background:rgba(0,0,0,.06);cursor:pointer;font-size:12px;color:#333}
+.editor-toolbar .et-btn:hover{background:rgba(0,0,0,.12)}
+.editor-text{flex:1;overflow-y:auto;padding:16px;outline:none;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:14px;line-height:1.6;color:#333;background:#fff;white-space:pre-wrap;word-break:break-all}
+.editor-text:focus{outline:none}
+.editor-status{display:flex;align-items:center;gap:16px;padding:4px 12px;background:rgba(240,240,245,.9);border-top:1px solid rgba(0,0,0,.06);font-size:11px;color:#888}
+/* ===== Calculator ===== */
+.calculator{display:flex;flex-direction:column;background:#2d2d35;flex:1;font-family:'SF Mono',Menlo,monospace}
+.calc-display{flex:1;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end;padding:16px;color:#fff;min-height:80px}
+.calc-expression{font-size:14px;color:rgba(255,255,255,.5);min-height:18px}
+.calc-result{font-size:36px;font-weight:300;word-break:break-all;text-align:right}
+.calc-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(0,0,0,.3);padding:1px}
+.calc-btn{height:52px;border:none;background:#3a3a45;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .1s}
+.calc-btn:hover{background:#4a4a58}
+.calc-btn:active{background:#555}
+.calc-btn.op{background:#ff9f0a;color:#fff}
+.calc-btn.op:hover{background:#ffb340}
+.calc-btn.fn{background:#5e5e6e}
+.calc-btn.zero{grid-column:span 2}
+/* ===== Safari ===== */
+.safari{display:flex;flex-direction:column;flex:1;background:#fff}
+.safari-toolbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(240,240,245,.95);border-bottom:1px solid rgba(0,0,0,.06)}
+.safari-toolbar .nav-btn{width:30px;height:30px;border-radius:50%;border:none;background:rgba(0,0,0,.06);cursor:pointer;font-size:14px}
+.safari-toolbar .nav-btn:hover{background:rgba(0,0,0,.12)}
+.safari-toolbar .nav-btn:disabled{opacity:.4;cursor:default}
+.safari-address{flex:1;padding:6px 14px;border-radius:8px;border:1px solid rgba(0,0,0,.1);background:#fff;font-size:13px;color:#333;outline:none}
+.safari-tabs{display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(240,240,245,.7);border-bottom:1px solid rgba(0,0,0,.06);overflow-x:auto}
+.safari-tab{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:6px;background:rgba(0,0,0,.05);font-size:12px;color:#555;cursor:pointer;white-space:nowrap}
+.safari-tab.active{background:#fff;color:#333;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.safari-tab .close-tab{width:14px;height:14px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer}
+.safari-tab .close-tab:hover{background:rgba(0,0,0,.1)}
+.safari-content{flex:1;overflow-y:auto;background:#fff}
+.safari-page{padding:40px;text-align:center;color:#666}
+.safari-page h1{font-size:28px;color:#333;margin-bottom:20px}
+.safari-page .sp-links{display:flex;flex-wrap:wrap;justify-content:center;gap:20px;margin-top:30px}
+.safari-page .sp-link{width:100px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 8px;border-radius:12px;cursor:pointer;transition:all .2s}
+.safari-page .sp-link:hover{background:rgba(0,0,0,.05);transform:scale(1.05)}
+.safari-page .sp-link .sp-icon{font-size:32px}
+.safari-page .sp-link .sp-name{font-size:12px;color:#333}
+.safari-page .sp-search{width:60%;max-width:500px;padding:12px 20px;border-radius:24px;border:2px solid #ddd;font-size:15px;outline:none;margin:20px auto;display:block}
+.safari-page .sp-search:focus{border-color:var(--acc)}
+/* ===== Settings ===== */
+.settings{display:flex;height:100%;background:#f5f5f7}
+.settings-sidebar{width:180px;background:rgba(240,240,245,.8);padding:10px 8px;border-right:1px solid rgba(0,0,0,.06);overflow-y:auto;flex-shrink:0}
+.settings-sidebar .ss-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:#333}
+.settings-sidebar .ss-item:hover{background:rgba(0,0,0,.06)}
+.settings-sidebar .ss-item.active{background:var(--acc);color:#fff}
+.settings-sidebar .ss-icon{font-size:18px;width:24px;text-align:center}
+.settings-content{flex:1;overflow-y:auto;padding:24px}
+.settings-content h2{font-size:18px;color:#333;margin-bottom:16px}
+.settings-section{margin-bottom:24px}
+.settings-section h3{font-size:14px;color:#555;margin-bottom:10px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(0,0,0,.06)}
+.setting-row .s-label{font-size:13px;color:#333}
+.setting-row .s-desc{font-size:11px;color:#888}
+.toggle{width:44px;height:24px;border-radius:12px;background:#e0e0e5;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle.on{background:#34c759}
+.toggle::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s}
+.toggle.on::after{left:22px}
+.slider{width:200px;accent-color:var(--acc)}
+.color-swatch{width:36px;height:36px;border-radius:8px;cursor:pointer;border:2px solid transparent;display:flex;align-items:center;justify-content:center}
+.color-swatch.selected{border-color:var(--acc)}
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,.2);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.3)}
+/* ===== Responsive ===== */
+@media(max-width:768px){
+  #icons{display:none}
+  .finder-sidebar{width:120px}
+}
+</style>
+</head>
+<body>
+<div id="desktop">
+  <div id="menubar">
+    <div class="logo">&#63743; WayOS</div>
+    <div class="menu-item" data-menu="apple">&#63743;
+      <div class="dropdown">
+        <div class="dd-item" onclick="openApp('settings')">系统设置...</div>
+        <div class="dd-sep"></div>
+        <div class="dd-item" onclick="aboutDialog()">关于本机</div>
+      </div>
+    </div>
+    <div class="menu-item" data-menu="finder">文件
+      <div class="dropdown">
+        <div class="dd-item" onclick="openApp('finder')">新建 Finder 窗口</div>
+        <div class="dd-sep"></div>
+        <div class="dd-item" onclick="openApp('terminal')">打开终端</div>
+      </div>
+    </div>
+    <div class="menu-item" data-menu="edit">编辑
+      <div class="dropdown">
+        <div class="dd-item" onclick="document.execCommand('undo')">撤销</div>
+        <div class="dd-item" onclick="document.execCommand('redo')">重做</div>
+        <div class="dd-sep"></div>
+        <div class="dd-item" onclick="document.execCommand('copy')">拷贝</div>
+        <div class="dd-item" onclick="document.execCommand('cut')">剪切</div>
+        <div class="dd-item" onclick="document.execCommand('paste')">粘贴</div>
+      </div>
+    </div>
+    <div class="menu-item" data-menu="view">显示
+      <div class="dropdown">
+        <div class="dd-item" onclick="refreshDesktop()">刷新桌面</div>
+        <div class="dd-item" onclick="arrangeIcons()">整理图标</div>
+      </div>
+    </div>
+    <div class="right">
+      <div class="menu-item" data-menu="wifi">&#128225;
+        <div class="dropdown">
+          <div class="dd-item" style="display:flex;justify-content:space-between">Wi-Fi<span style="color:#a6e3a1">&#10003;</span></div>
+          <div class="dd-item">WayOS_5G</div>
+          <div class="dd-sep"></div>
+          <div class="dd-item" onclick="openApp('settings')">打开网络设置...</div>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="bt">&#128225;
+        <div class="dropdown">
+          <div class="dd-item" style="display:flex;justify-content:space-between">蓝牙<span style="color:#a6e3a1">&#10003;</span></div>
+          <div class="dd-item">未连接设备</div>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="bat">&#128267; 100%
+        <div class="dropdown">
+          <div class="dd-item">电池: 已充满</div>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="search" onclick="openApp('safari')">&#128269;</div>
+      <div class="menu-item" data-menu="ctrl">&#9881;</div>
+      <div class="clock" id="clock"></div>
+    </div>
+  </div>
+
+  <div id="icons"></div>
+
+  <!-- Dock -->
+  <div id="dock"></div>
+
+  <!-- Context Menu -->
+  <div id="ctxmenu"></div>
+</div>
+
+<script>
+'use strict';
+// ===== App Registry =====
+const APPS = {
+  finder: {name:'访达', icon:'📁', color:'#4a90d9'},
+  terminal: {name:'终端', icon:'>_', color:'#1e1e2e', text:true},
+  editor: {name:'文本编辑', icon:'📝', color:'#fff'},
+  calculator: {name:'计算器', icon:'🧮', color:'#2d2d35'},
+  safari: {name:'Safari', icon:'🧭', color:'#0a84ff'},
+  settings: {name:'系统设置', icon:'⚙️', color:'#8e8e93'},
+  trash: {name:'废纸篓', icon:'🗑️', color:'#8e8e93'},
+  photos: {name:'照片', icon:'🖼️', color:'#ff9f0a'},
+  music: {name:'音乐', icon:'🎵', color:'#fa243c'},
+  mail: {name:'邮件', icon:'✉️', color:'#0a84ff'},
+  calendar: {name:'日历', icon:'📅', color:'#ff3b30'},
+  notes: {name:'备忘录', icon:'📋', color:'#ffd60a'},
+  messages: {name:'信息', icon:'💬', color:'#34c759'},
+  maps: {name:'地图', icon:'🗺️', color:'#34c759'}
+};
+
+// ===== State =====
+const state = {
+  windows: [],
+  zIndex: 100,
+  activeWindow: null,
+  runningApps: new Set(),
+  dockOrder: ['finder','terminal','editor','calculator','safari','settings'],
+  desktopIcons: ['finder','photos','music','mail','calendar','notes','messages','maps','editor','terminal','safari','settings'],
+  finderPath: ['Macintosh HD'],
+  finderFiles: {
+    'Macintosh HD': [
+      {name:'应用程序', icon:'📁', type:'folder', children:['实用工具','开发工具']},
+      {name:'文稿', icon:'📁', type:'folder', children:['报告.docx','计划.md']},
+      {name:'图片', icon:'📁', type:'folder', children:['海景.png','日落.jpg']},
+      {name:'下载', icon:'📁', type:'folder', children:['安装包.dmg']},
+      {name:'音乐', icon:'📁', type:'folder', children:['歌曲.mp3']},
+      {name:'项目', icon:'📁', type:'folder', children:['index.html','style.css','app.js']},
+      {name:'README.md', icon:'📄', type:'file'},
+      {name:'笔记.txt', icon:'📄', type:'file'},
+      {name:'照片.png', icon:'🖼️', type:'file'}
+    ],
+    '实用工具': [
+      {name:'终端.app', icon:'>_', type:'app'},
+      {name:'计算器.app', icon:'🧮', type:'app'},
+      {name:'活动监视器.app', icon:'📊', type:'app'}
+    ],
+    '开发工具': [
+      {name:'Xcode', icon:'🔨', type:'app'},
+      {name:'VS Code', icon:'💻', type:'app'},
+      {name:'Git', icon:'🔀', type:'app'}
+    ],
+    '文稿': [
+      {name:'报告.docx', icon:'📄', type:'file'},
+      {name:'计划.md', icon:'📄', type:'file'},
+      {name:'简历.pdf', icon:'📄', type:'file'}
+    ],
+    '下载': [
+      {name:'安装包.dmg', icon:'📦', type:'file'},
+      {name:'照片.zip', icon:'🗜️', type:'file'}
+    ]
+  },
+  safariTabs: [{title:'新标签页', url:'', history:['']}],
+  safariActiveTab: 0,
+  calc: {expr:'', display:'0', prev:null, op:null}
+};
+
+// ===== Window Management =====
+function createWindow(appId, opts={}) {
+  const app = APPS[appId];
+  const w = document.createElement('div');
+  w.className = 'window opening';
+  w.dataset.app = appId;
+  w.style.width = opts.width || 600;
+  w.style.height = opts.height || 400;
+  w.style.left = opts.left || (100 + Math.random()*150);
+  w.style.top = opts.top || (50 + Math.random()*80);
+  w.style.zIndex = ++state.zIndex;
+
+  let titleHtml = '';
+  if (appId === 'terminal') {
+    titleHtml = `<div class="win-body terminal">${termInit()}</div>`;
+  } else if (appId === 'editor') {
+    titleHtml = `<div class="win-body">${editorInit()}</div>`;
+  } else if (appId === 'calculator') {
+    titleHtml = `<div class="win-body">${calcInit()}</div>`;
+  } else if (appId === 'safari') {
+    titleHtml = `<div class="win-body">${safariInit()}</div>`;
+  } else if (appId === 'settings') {
+    titleHtml = `<div class="win-body">${settingsInit()}</div>`;
+  } else {
+    titleHtml = `<div class="win-body">${finderInit()}</div>`;
+  }
+
+  w.innerHTML = `
+    <div class="win-titlebar">
+      <div class="win-controls">
+        <button class="win-btn red" onclick="closeWindow(this)" title="关闭">✕</button>
+        <button class="win-btn yellow" onclick="minimizeWindow(this)" title="最小化">−</button>
+        <button class="win-btn green" onclick="toggleFullscreen(this)" title="全屏"></button>
+      </div>
+      <div class="win-title">${app.icon} ${app.name}</div>
+    </div>
+    ${titleHtml}
+    <div class="win-resize tl" data-dir="tl"></div>
+    <div class="win-resize tr" data-dir="tr"></div>
+    <div class="win-resize bl" data-dir="bl"></div>
+    <div class="win-resize br" data-dir="br"></div>
+  `;
+
+  document.getElementById('desktop').appendChild(w);
+  state.windows.push(w);
+  state.runningApps.add(appId);
+  updateDock();
+
+  // Drag titlebar
+  const tb = w.querySelector('.win-titlebar');
+  tb.addEventListener('mousedown', (e) => {
+    if (w.classList.contains('fullscreen')) return;
+    if (e.target.closest('.win-btn')) return;
+    focusWindow(w);
+    startDrag(e, w);
+  });
+
+  // Resize handles
+  w.querySelectorAll('.win-resize').forEach(h => {
+    h.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      startResize(e, w, h.dataset.dir);
+    });
+  });
+
+  // Focus
+  w.addEventListener('mousedown', () => focusWindow(w));
+
+  // Remove opening animation class after it completes
+  setTimeout(() => w.classList.remove('opening'), 300);
+
+  focusWindow(w);
+  return w;
+}
+
+function closeWindow(btn) {
+  const w = btn.closest('.window');
+  if (!w) return;
+  w.classList.add('closing');
+  state.runningApps.delete(w.dataset.app);
+  updateDock();
+  setTimeout(() => {
+    w.remove();
+    state.windows = state.windows.filter(x => x !== w);
+    if (state.activeWindow === w) state.activeWindow = null;
+  }, 250);
+}
+
+function minimizeWindow(btn) {
+  const w = btn.closest('.window');
+  w.style.display = 'none';
+  if (state.activeWindow === w) state.activeWindow = null;
+}
+
+function toggleFullscreen(btn) {
+  const w = btn.closest('.window');
+  w.classList.toggle('fullscreen');
+  if (w.classList.contains('fullscreen')) {
+    w.style.width = '100%';
+    w.style.height = 'calc(100% - var(--mh) - var(--dh) - 8px)';
+    w.style.left = '0';
+    w.style.top = 'var(--mh)';
+  }
+}
+
+function focusWindow(w) {
+  state.windows.forEach(x => x.classList.remove('active'));
+  w.classList.add('active');
+  state.activeWindow = w;
+  w.style.zIndex = ++state.zIndex;
+}
+
+function startDrag(e, w) {
+  const startX = e.clientX, startY = e.clientY;
+  const origX = w.offsetLeft, origY = w.offsetTop;
+  const move = (ev) => {
+    w.style.left = (origX + ev.clientX - startX) + 'px';
+    w.style.top = (origY + ev.clientY - startY) + 'px';
+  };
+  const up = () => {
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup', up);
+  };
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup', up);
+}
+
+function startResize(e, w, dir) {
+  const startX = e.clientX, startY = e.clientY;
+  const origW = w.offsetWidth, origH = w.offsetHeight;
+  const origX = w.offsetLeft, origY = w.offsetTop;
+  const move = (ev) => {
+    const dx = ev.clientX - startX, dy = ev.clientY - startY;
+    if (dir.includes('r')) w.style.width = Math.max(320, origW + dx) + 'px';
+    if (dir.includes('b')) w.style.height = Math.max(200, origH + dy) + 'px';
+    if (dir.includes('l')) {
+      w.style.width = Math.max(320, origW - dx) + 'px';
+      w.style.left = (origX + dx) + 'px';
+    }
+    if (dir.includes('t')) {
+      w.style.height = Math.max(200, origH - dy) + 'px';
+      w.style.top = (origY + dy) + 'px';
+    }
+  };
+  const up = () => {
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup', up);
+  };
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup', up);
+}
+// ===== Finder =====
+function finderInit() {
+  return `
+  <div class="finder">
+    <div class="finder-sidebar" id="fs-sidebar"></div>
+    <div class="finder-main">
+      <div class="finder-toolbar">
+        <button class="nav-btn" onclick="finderBack()">←</button>
+        <button class="nav-btn" onclick="finderForward()">→</button>
+        <div class="path" id="fs-path"></div>
+      </div>
+      <div class="finder-grid" id="fs-grid"></div>
+    </div>
+  </div>`;
+}
+
+function renderFinderSidebar() {
+  const sb = document.querySelector('.finder-sidebar');
+  if (!sb) return;
+  const items = [
+    {icon:'⭐', label:'个人收藏'},
+    {icon:'🏠', label:'Macintosh HD', path:['Macintosh HD']},
+    {icon:'📄', label:'文稿'},
+    {icon:'⬇️', label:'下载'},
+    {icon:'🖼️', label:'图片'},
+    {icon:'iCloud', label:'iCloud'},
+    {icon:'💽', label:'外部磁盘'}
+  ];
+  sb.innerHTML = items.map(it => `
+    <div class="fs-item ${state.finderPath.join('/') === it.path?.join('/') ? 'active' : ''}" onclick="finderNav('${it.label}')">
+      <span class="fs-icon">${it.icon}</span>${it.label}
+    </div>
+  `).join('');
+}
+
+function finderNav(folder) {
+  state.finderPath = [folder];
+  renderFinder();
+}
+
+function renderFinder() {
+  renderFinderSidebar();
+  const path = document.getElementById('fs-path');
+  const grid = document.getElementById('fs-grid');
+  if (!path || !grid) return;
+  path.textContent = state.finderPath.join(' / ');
+  const files = state.finderFiles[state.finderPath.join('/')] || state.finderFiles[state.finderPath[0]] || [];
+  grid.innerHTML = files.map(f => `
+    <div class="finder-file" ondblclick="finderOpen('${f.name}','${f.type}')">
+      <div class="ff-icon">${f.icon}</div>
+      <div class="ff-name">${f.name}</div>
+    </div>
+  `).join('');
+}
+
+function finderOpen(name, type) {
+  if (type === 'folder') {
+    state.finderPath.push(name);
+    renderFinder();
+  } else if (type === 'app') {
+    const appMap = {终端:openApp.bind(null,'terminal'), '计算器':openApp.bind(null,'calculator')};
+    const target = Object.keys(appMap).find(k => name.includes(k));
+    if (target) appMap[target]();
+  } else {
+    openApp('editor');
+  }
+}
+
+function finderBack() {
+  if (state.finderPath.length > 1) {
+    state.finderPath.pop();
+    renderFinder();
+  }
+}
+
+function finderForward() {}
+
+// ===== Terminal =====
+function termInit() {
+  return `
+  <div class="term-output" id="term-out"></div>
+  <div class="term-input-row">
+    <span class="prompt">wayos:~$</span>
+    <input class="term-input" id="term-in" autocomplete="off" spellcheck="false">
+  </div>`;
+}
+
+function termPrint(text, cls='') {
+  const out = document.getElementById('term-out');
+  if (!out) return;
+  const line = document.createElement('div');
+  line.className = 'term-line ' + cls;
+  line.innerHTML = text;
+  out.appendChild(line);
+  out.scrollTop = out.scrollHeight;
+}
+
+function termPrintPrompt() {
+  termPrint('<span class="prompt">wayos:~$</span> ');
+}
+
+function initTerminal() {
+  const inp = document.getElementById('term-in');
+  if (!inp) return;
+  termPrint('WayOS Terminal v1.0', 'info');
+  termPrint('输入 <span class="cmd">help</span> 查看可用命令', 'info');
+  termPrint('');
+  termPrintPrompt();
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const cmd = inp.value.trim();
+      inp.value = '';
+      const out = document.getElementById('term-out');
+      // Update last prompt line with command
+      const lines = out.querySelectorAll('.term-line');
+      if (lines.length > 0) {
+        const last = lines[lines.length-1];
+        last.innerHTML = `<span class="prompt">wayos:~$</span> <span class="cmd">${escapeHtml(cmd)}</span>`;
+      }
+      runCommand(cmd);
+    }
+  });
+}
+
+function runCommand(cmd) {
+  const parts = cmd.split(/\s+/);
+  const cmdName = parts[0].toLowerCase();
+  const args = parts.slice(1);
+
+  switch(cmdName) {
+    case 'help':
+      termPrint('可用命令:', 'info');
+      termPrint('  help    - 显示此帮助');
+      termPrint('  ls      - 列出文件');
+      termPrint('  pwd     - 显示当前目录');
+      termPrint('  whoami  - 显示当前用户');
+      termPrint('  date    - 显示当前时间');
+      termPrint('  echo    - 输出文本');
+      termPrint('  clear   - 清屏');
+      termPrint('  open    - 打开应用 (finder/terminal/editor/calculator/safari/settings)');
+      termPrint('  calc    - 计算表达式');
+      termPrint('  neofetch- 显示系统信息');
+      termPrint('  exit    - 关闭终端');
+      break;
+    case 'ls':
+      termPrint('Applications   Desktop   Documents   Downloads   Pictures   Music', 'success');
+      break;
+    case 'pwd':
+      termPrint('/Users/waycoder', 'success');
+      break;
+    case 'whoami':
+      termPrint('waycoder', 'success');
+      break;
+    case 'date':
+      termPrint(new Date().toString(), 'success');
+      break;
+    case 'echo':
+      termPrint(args.join(' ') || '', 'success');
+      break;
+    case 'clear':
+      document.getElementById('term-out').innerHTML = '';
+      break;
+    case 'open':
+      if (args[0] && APPS[args[0]]) {
+        openApp(args[0]);
+        termPrint('打开 ' + APPS[args[0]].name + '...', 'success');
+      } else {
+        termPrint('用法: open [finder|terminal|editor|calculator|safari|settings]', 'error');
+      }
+      break;
+    case 'calc':
+      try {
+        const result = Function('"use strict";return (' + args.join(' ') + ')')();
+        termPrint('= ' + result, 'success');
+      } catch(e) {
+        termPrint('计算错误: ' + e.message, 'error');
+      }
+      break;
+    case 'neofetch':
+      termPrint('    /\_/\    waycoder@wayos', 'info');
+      termPrint('   ( o.o )   ------------', 'info');
+      termPrint('    > ^ <    OS: WayOS 1.0', 'info');
+      termPrint('              Shell: bash (simulated)', 'info');
+      termPrint('              Resolution: ' + window.innerWidth + 'x' + window.innerHeight, 'info');
+      termPrint('              Uptime: ' + Math.floor(performance.now()/60000) + ' min', 'info');
+      break;
+    case 'exit':
+      const win = document.getElementById('term-in').closest('.window');
+      if (win) closeWindow(win.querySelector('.win-btn.red'));
+      break;
+    case '':
+      break;
+    default:
+      termPrint('bash: ' + cmdName + ': command not found', 'error');
+  }
+  termPrint('');
+  termPrintPrompt();
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+// ===== Text Editor =====
+function editorInit() {
+  return `
+  <div class="editor-toolbar">
+    <button class="et-btn" onclick="editorBold()"><b>B</b></button>
+    <button class="et-btn" onclick="editorItalic()"><i>I</i></button>
+    <button class="et-btn" onclick="editorUnderline()"><u>U</u></button>
+    <button class="et-btn" onclick="editorAlign('left')">⬅</button>
+    <button class="et-btn" onclick="editorAlign('center')">⬌</button>
+    <button class="et-btn" onclick="editorAlign('right')">➡</button>
+    <button class="et-btn" onclick="editorColor()">🎨</button>
+    <button class="et-btn" style="margin-left:auto" onclick="editorNew()">新建</button>
+    <button class="et-btn" onclick="editorSave()">保存</button>
+  </div>
+  <div class="editor-text" id="editor-text" contenteditable="true" spellcheck="false">
+    <h1>新文档</h1>
+    <p>开始输入文本...</p>
+    <p><br></p>
+    <p>支持富文本编辑：<b>粗体</b>、<i>斜体</i>、<u>下划线</u>。</p>
+  </div>
+  <div class="editor-status">
+    <span id="ed-char">字符: 0</span>
+    <span id="ed-word">字数: 0</span>
+    <span id="ed-line">行: 1</span>
+    <span style="margin-left:auto">文本编辑</span>
+  </div>`;
+}
+
+function editorBold() { document.execCommand('bold'); }
+function editorItalic() { document.execCommand('italic'); }
+function editorUnderline() { document.execCommand('underline'); }
+function editorAlign(a) { document.execCommand('justify' + a.charAt(0).toUpperCase() + a.slice(1)); }
+function editorColor() {
+  const c = prompt('输入颜色 (如 red, #ff0000):', '#ff0000');
+  if (c) document.execCommand('foreColor', false, c);
+}
+function editorNew() {
+  const el = document.getElementById('editor-text');
+  if (el) el.innerHTML = '<h1>新文档</h1><p><br></p>';
+}
+function editorSave() {
+  const el = document.getElementById('editor-text');
+  if (!el) return;
+  const blob = new Blob([el.innerHTML], {type:'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'document.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// Update editor status
+document.addEventListener('input', function(e) {
+  if (e.target && e.target.id === 'editor-text') {
+    const text = e.target.innerText;
+    document.getElementById('ed-char').textContent = '字符: ' + text.length;
+    document.getElementById('ed-word').textContent = '字数: ' + text.trim().split(/\s+/).filter(Boolean).length;
+    document.getElementById('ed-line').textContent = '行: ' + text.split('\n').length;
+  }
+});
+
+// ===== Calculator =====
+function calcInit() {
+  const btns = [
+    {t:'AC', c:'fn'}, {t:'±', c:'fn'}, {t:'%', c:'fn'}, {t:'÷', c:'op'},
+    {t:'7', c:''}, {t:'8', c:''}, {t:'9', c:''}, {t:'×', c:'op'},
+    {t:'4', c:''}, {t:'5', c:''}, {t:'6', c:''}, {t:'−', c:'op'},
+    {t:'1', c:''}, {t:'2', c:''}, {t:'3', c:''}, {t:'+', c:'op'},
+    {t:'0', c:'zero'}, {t:'.', c:''}, {t:'=', c:'op'}
+  ];
+  return `
+  <div class="calc-display">
+    <div class="calc-expression" id="calc-expr">&nbsp;</div>
+    <div class="calc-result" id="calc-result">0</div>
+  </div>
+  <div class="calc-buttons">
+    ${btns.map(b => `<button class="calc-btn ${b.c}" onclick="calcPress('${b.t}')">${b.t}</button>`).join('')}
+  </div>`;
+}
+
+function calcPress(key) {
+  const result = document.getElementById('calc-result');
+  const expr = document.getElementById('calc-expr');
+  if (!result) return;
+
+  if (key === 'AC') {
+    state.calc = {expr:'', display:'0', prev:null, op:null};
+    result.textContent = '0';
+    expr.innerHTML = '&nbsp;';
+    return;
+  }
+  if (key === '±') {
+    if (state.calc.display !== '0') {
+      state.calc.display = state.calc.display.startsWith('-') ? state.calc.display.slice(1) : '-' + state.calc.display;
+      result.textContent = state.calc.display;
+    }
+    return;
+  }
+  if (key === '%') {
+    state.calc.display = String(parseFloat(state.calc.display) / 100);
+    result.textContent = state.calc.display;
+    return;
+  }
+  if (['+','−','×','÷'].includes(key)) {
+    const ops = {'+':'+','−':'-','×':'*','÷':'/'};
+    state.calc.expr = (state.calc.prev !== null ? state.calc.prev : state.calc.display) + ' ' + key + ' ';
+    state.calc.op = ops[key];
+    state.calc.prev = parseFloat(state.calc.display);
+    expr.textContent = state.calc.expr;
+    return;
+  }
+  if (key === '=') {
+    if (state.calc.op && state.calc.prev !== null) {
+      const a = state.calc.prev;
+      const b = parseFloat(state.calc.display);
+      let val;
+      switch(state.calc.op) {
+        case '+': val = a + b; break;
+        case '-': val = a - b; break;
+        case '*': val = a * b; break;
+        case '/': val = b === 0 ? 'Error' : a / b; break;
+      }
+      expr.textContent = state.calc.expr + state.calc.display + ' =';
+      result.textContent = val;
+      state.calc.prev = null;
+      state.calc.op = null;
+      state.calc.display = String(val);
+    }
+    return;
+  }
+  // Number or dot
+  if (key === '.' && state.calc.display.includes('.')) return;
+  if (state.calc.display === '0' && key !== '.') {
+    state.calc.display = key;
+  } else {
+    state.calc.display += key;
+  }
+  result.textContent = state.calc.display;
+}
+// ===== Safari =====
+function safariInit() {
+  return `
+  <div class="safari-toolbar">
+    <button class="nav-btn" onclick="safariNav(-1)">←</button>
+    <button class="nav-btn" onclick="safariNav(1)">→</button>
+    <button class="nav-btn" onclick="safariReload()">↻</button>
+    <input class="safari-address" id="safari-url" placeholder="搜索或输入网址" onkeydown="if(event.key==='Enter')safariGo()">
+    <button class="nav-btn" onclick="safariAddTab()">+</button>
+  </div>
+  <div class="safari-tabs" id="safari-tabs"></div>
+  <div class="safari-content" id="safari-content"></div>`;
+}
+
+function renderSafari() {
+  const tabs = document.getElementById('safari-tabs');
+  const content = document.getElementById('safari-content');
+  const url = document.getElementById('safari-url');
+  if (!tabs || !content) return;
+
+  tabs.innerHTML = state.safariTabs.map((t, i) => `
+    <div class="safari-tab ${i === state.safariActiveTab ? 'active' : ''}" onclick="safariSwitchTab(${i})">
+      ${t.title}
+      <span class="close-tab" onclick="event.stopPropagation();safariCloseTab(${i})">✕</span>
+    </div>
+  `).join('');
+
+  const tab = state.safariTabs[state.safariActiveTab];
+  if (url) url.value = tab.url;
+
+  if (!tab.url) {
+    content.innerHTML = `
+    <div class="safari-page">
+      <h1>🧭 Safari</h1>
+      <input class="sp-search" placeholder="搜索或输入网址..." onkeydown="if(event.key==='Enter')safariGoFromInput(this.value)">
+      <div class="sp-links">
+        <div class="sp-link" onclick="safariGo('https://www.apple.com')"><span class="sp-icon">🍎</span><span class="sp-name">Apple</span></div>
+        <div class="sp-link" onclick="safariGo('https://www.github.com')"><span class="sp-icon">🐙</span><span class="sp-name">GitHub</span></div>
+        <div class="sp-link" onclick="safariGo('https://www.wikipedia.org')"><span class="sp-icon">📚</span><span class="sp-name">Wikipedia</span></div>
+        <div class="sp-link" onclick="safariGo('https://www.bing.com')"><span class="sp-icon">🔍</span><span class="sp-name">Bing</span></div>
+        <div class="sp-link" onclick="safariGo('https://news.ycombinator.com')"><span class="sp-icon">💬</span><span class="sp-name">HN</span></div>
+        <div class="sp-link" onclick="safariGo('https://www.mozilla.org')"><span class="sp-icon">🦊</span><span class="sp-name">Mozilla</span></div>
+      </div>
+    </div>`;
+  } else {
+    content.innerHTML = `
+    <div class="safari-page" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60%">
+      <div style="font-size:48px;margin-bottom:16px">🌐</div>
+      <h1>${escapeHtml(tab.url)}</h1>
+      <p style="margin-top:12px">Safari 模拟器 - 此页面为模拟内容</p>
+      <p style="margin-top:8px;color:#aaa">由于安全限制，无法在 iframe 中加载外部页面</p>
+      <div style="margin-top:24px">
+        <a href="${escapeHtml(tab.url)}" target="_blank" style="color:var(--acc);text-decoration:none;font-size:14px">在浏览器中打开 →</a>
+      </div>
+    </div>`;
+  }
+}
+
+function safariGo(url) {
+  if (!url) return;
+  if (!url.startsWith('http')) url = 'https://' + url;
+  const tab = state.safariTabs[state.safariActiveTab];
+  tab.url = url;
+  tab.history.push(url);
+  tab.title = url.replace('https://','').replace('www.','').split('/')[0];
+  renderSafari();
+}
+
+function safariGoFromInput(v) {
+  if (!v) return;
+  if (v.includes('.') && !v.includes(' ')) {
+    safariGo(v);
+  } else {
+    safariGo('https://www.bing.com/search?q=' + encodeURIComponent(v));
+  }
+}
+
+function safariNav(dir) {
+  const tab = state.safariTabs[state.safariActiveTab];
+  const idx = tab.history.length - 1 + dir;
+  if (idx >= 0 && idx < tab.history.length) {
+    tab.url = tab.history[idx];
+    renderSafari();
+  }
+}
+
+function safariReload() {
+  renderSafari();
+}
+
+function safariAddTab() {
+  state.safariTabs.push({title:'新标签页', url:'', history:['']});
+  state.safariActiveTab = state.safariTabs.length - 1;
+  renderSafari();
+}
+
+function safariCloseTab(i) {
+  state.safariTabs.splice(i, 1);
+  if (state.safariTabs.length === 0) {
+    state.safariTabs.push({title:'新标签页', url:'', history:['']});
+  }
+  if (state.safariActiveTab >= state.safariTabs.length) {
+    state.safariActiveTab = state.safariTabs.length - 1;
+  }
+  renderSafari();
+}
+
+function safariSwitchTab(i) {
+  state.safariActiveTab = i;
+  renderSafari();
+}
+// ===== Settings =====
+function settingsInit() {
+  return `
+  <div class="settings">
+    <div class="settings-sidebar" id="set-sidebar"></div>
+    <div class="settings-content" id="set-content"></div>
+  </div>`;
+}
+
+const SETTINGS_SECTIONS = [
+  {id:'general', icon:'⚙️', name:'通用', content:`
+    <div class="settings-section">
+      <h3>外观</h3>
+      <div class="setting-row">
+        <div><div class="s-label">深色模式</div><div class="s-desc">切换系统深色外观</div></div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="s-label">强调色</div><div class="s-desc">选择系统强调色</div></div>
+        <div style="display:flex;gap:8px">
+          <div class="color-swatch selected" style="background:#0a84ff" onclick="selectColor(this,'#0a84ff')"></div>
+          <div class="color-swatch" style="background:#ff3b30" onclick="selectColor(this,'#ff3b30')"></div>
+          <div class="color-swatch" style="background:#34c759" onclick="selectColor(this,'#34c759')"></div>
+          <div class="color-swatch" style="background:#ff9f0a" onclick="selectColor(this,'#ff9f0a')"></div>
+          <div class="color-swatch" style="background:#af52de" onclick="selectColor(this,'#af52de')"></div>
+        </div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h3>桌面</h3>
+      <div class="setting-row">
+        <div><div class="s-label">显示桌面图标</div><div class="s-desc">在桌面显示应用图标</div></div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="s-label">壁纸</div><div class="s-desc">选择桌面壁纸</div></div>
+        <select style="padding:6px;border-radius:6px;border:1px solid #ddd;font-size:13px">
+          <option selected>渐变紫蓝</option>
+          <option>深空黑</option>
+          <option>海洋蓝</option>
+          <option>森林绿</option>
+        </select>
+      </div>
+    </div>
+  `},
+  {id:'display', icon:'🖥️', name:'显示器', content:`
+    <div class="settings-section">
+      <h3>分辨率</h3>
+      <div class="setting-row">
+        <div><div class="s-label">分辨率</div></div>
+        <select style="padding:6px;border-radius:6px;border:1px solid #ddd">
+          <option>默认</option>
+          <option>更大文字</option>
+          <option selected>更多空间</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div><div class="s-label">亮度</div></div>
+        <input type="range" class="slider" min="0" max="100" value="80">
+      </div>
+      <div class="setting-row">
+        <div><div class="s-label">夜览</div><div class="s-desc">减少蓝光</div></div>
+        <div class="toggle" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+  `},
+  {id:'sound', icon:'🔊', name:'声音', content:`
+    <div class="settings-section">
+      <h3>输出</h3>
+      <div class="setting-row">
+        <div><div class="s-label">输出音量</div></div>
+        <input type="range" class="slider" min="0" max="100" value="70">
+      </div>
+      <div class="setting-row">
+        <div><div class="s-label">输入音量</div></div>
+        <input type="range" class="slider" min="0" max="100" value="50">
+      </div>
+      <div class="setting-row">
+        <div><div class="s-label">启动提示音</div></div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+  `},
+  {id:'network', icon:'🌐', name:'网络', content:`
+    <div class="settings-section">
+      <h3>Wi-Fi</h3>
+      <div class="setting-row">
+        <div><div class="s-label">Wi-Fi</div></div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="s-label">当前网络: <b>WayOS_5G</b></div></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="s-label">IP 地址</div></div>
+        <div style="font-size:13px;color:#888">192.168.1.100</div>
+      </div>
+    </div>
+  `},
+  {id:'bluetooth', icon:'🅱️', name:'蓝牙', content:`
+    <div class="settings-section">
+      <h3>蓝牙</h3>
+      <div class="setting-row">
+        <div><div class="s-label">蓝牙</div></div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="s-label">设备</div></div>
+        <div style="font-size:13px;color:#888">无已连接设备</div>
+      </div>
+    </div>
+  `},
+  {id:'about', icon:'ℹ️', name:'关于本机', content:`
+    <div class="settings-section" style="text-align:center;padding-top:20px">
+      <div style="font-size:64px;margin-bottom:16px">&#63743;</div>
+      <h2 style="font-size:22px">WayOS</h2>
+      <p style="color:#888;margin-top:8px">版本 1.0 (构建 24A1)</p>
+      <p style="color:#888;margin-top:4px">处理器: Web JavaScript Engine</p>
+      <p style="color:#888;margin-top:4px">内存: ${Math.floor((navigator.deviceMemory||8)*1000)} GB</p>
+      <p style="color:#888;margin-top:4px">序列号: WAY-OS-2024-001</p>
+    </div>
+  `}
+];
+
+function renderSettings() {
+  const sb = document.getElementById('set-sidebar');
+  const content = document.getElementById('set-content');
+  if (!sb || !content) return;
+  sb.innerHTML = SETTINGS_SECTIONS.map(s => `
+    <div class="ss-item ${s.id === 'general' ? 'active' : ''}" onclick="showSettingsSection('${s.id}')">
+      <span class="ss-icon">${s.icon}</span>${s.name}
+    </div>
+  `).join('');
+  content.innerHTML = SETTINGS_SECTIONS[0].content;
+}
+
+function showSettingsSection(id) {
+  const sb = document.getElementById('set-sidebar');
+  const content = document.getElementById('set-content');
+  if (!sb || !content) return;
+  sb.querySelectorAll('.ss-item').forEach(el => el.classList.remove('active'));
+  sb.querySelectorAll('.ss-item').forEach(el => {
+    if (el.textContent.includes(SETTINGS_SECTIONS.find(s=>s.id===id).name)) {
+      el.classList.add('active');
+    }
+  });
+  const section = SETTINGS_SECTIONS.find(s => s.id === id);
+  if (section) content.innerHTML = section.content;
+}
+
+function selectColor(el, color) {
+  document.querySelectorAll('.color-swatch').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.documentElement.style.setProperty('--acc', color);
+}
+// ===== Dock =====
+function updateDock() {
+  const dock = document.getElementById('dock');
+  if (!dock) return;
+  dock.innerHTML = state.dockOrder.map(id => {
+    const app = APPS[id];
+    return `
+    <div class="dock-item ${state.runningApps.has(id) ? 'running' : ''}" onclick="openApp('${id}')" title="${app.name}">
+      <span style="${app.text ? `font-family:monospace;font-weight:700;font-size:16px;color:#fff` : ''}">${app.icon}</span>
+      <div class="dot"></div>
+    </div>`;
+  }).join('') + `
+    <div class="dock-sep"></div>
+    <div class="dock-item" onclick="openApp('trash')" title="废纸篓">🗑️</div>`;
+}
+
+// ===== Desktop Icons =====
+function renderDesktopIcons() {
+  const icons = document.getElementById('icons');
+  if (!icons) return;
+  icons.innerHTML = state.desktopIcons.map(id => {
+    const app = APPS[id];
+    return `
+    <div class="desktop-icon" ondblclick="openApp('${id}')" data-app="${id}">
+      <div class="icon">${app.icon}</div>
+      <div class="label">${app.name}</div>
+    </div>`;
+  }).join('') + `
+    <div class="desktop-icon" ondblclick="openApp('trash')" data-app="trash">
+      <div class="icon">🗑️</div>
+      <div class="label">废纸篓</div>
+    </div>`;
+}
+
+// ===== Open App =====
+function openApp(appId) {
+  if (appId === 'trash') {
+    alert('废纸篓是空的');
+    return;
+  }
+  if (!APPS[appId]) return;
+
+  // If already open, focus it
+  const existing = state.windows.find(w => w.dataset.app === appId);
+  if (existing) {
+    if (existing.style.display === 'none') existing.style.display = 'flex';
+    focusWindow(existing);
+    return;
+  }
+
+  const defaults = {
+    finder: {width:700, height:450},
+    terminal: {width:560, height:380},
+    editor: {width:620, height:480},
+    calculator: {width:320, height:440},
+    safari: {width:720, height:500},
+    settings: {width:680, height:480}
+  };
+  const d = defaults[appId] || {};
+  const w = createWindow(appId, d);
+
+  // Post-init for specific apps
+  if (appId === 'finder') renderFinder();
+  if (appId === 'terminal') setTimeout(initTerminal, 50);
+  if (appId === 'safari') renderSafari();
+  if (appId === 'settings') renderSettings();
+}
+
+// ===== Context Menu =====
+function showContextMenu(x, y) {
+  const cm = document.getElementById('ctxmenu');
+  if (!cm) return;
+  cm.style.display = 'block';
+  cm.style.left = Math.min(x, window.innerWidth - 180) + 'px';
+  cm.style.top = Math.min(y, window.innerHeight - 120) + 'px';
+  cm.innerHTML = `
+    <div class="cm-item" onclick="newFolder()">新建文件夹</div>
+    <div class="cm-item" onclick="refreshDesktop()">刷新</div>
+    <div class="cm-sep"></div>
+    <div class="cm-item" onclick="changeWallpaper()">更改壁纸...</div>
+    <div class="cm-item" onclick="openApp('settings')">系统设置...</div>
+  `;
+}
+
+function hideContextMenu() {
+  document.getElementById('ctxmenu').style.display = 'none';
+}
+
+function newFolder() {
+  alert('新建文件夹功能演示');
+}
+
+function refreshDesktop() {
+  renderDesktopIcons();
+  updateDock();
+}
+
+function arrangeIcons() {
+  renderDesktopIcons();
+}
+
+function changeWallpaper() {
+  const colors = [
+    ['#1a1a2e,#16213e,#0f3460,#533483', '渐变紫蓝'],
+    ['#0f0f13,#1a1a2e', '深空黑'],
+    ['#0072ff,#00c6ff', '海洋蓝'],
+    ['#134e5e,#71b280', '森林绿']
+  ];
+  const pick = prompt('选择壁纸 (1-4):\n1. 渐变紫蓝\n2. 深空黑\n3. 海洋蓝\n4. 森林绿', '1');
+  const idx = parseInt(pick) - 1;
+  if (idx >= 0 && idx < colors.length) {
+    document.getElementById('desktop').style.background = 'linear-gradient(135deg,' + colors[idx][0] + ')';
+  }
+}
+
+function aboutDialog() {
+  alert('WayOS 1.0\n\n一个基于 Web 技术的 macOS 风格操作系统模拟器\n\n© 2024 WayCoder');
+}
+
+// ===== Menu Bar =====
+function initMenuBar() {
+  document.querySelectorAll('#menubar .menu-item[data-menu]').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('#menubar .menu-item.open').forEach(m => m.classList.remove('open'));
+      item.classList.toggle('open');
+    });
+  });
+  document.addEventListener('click', () => {
+    document.querySelectorAll('#menubar .menu-item.open').forEach(m => m.classList.remove('open'));
+  });
+}
+
+// ===== Clock =====
+function updateClock() {
+  const clock = document.getElementById('clock');
+  if (clock) {
+    const now = new Date();
+    const days = ['周日','周一','周二','周三','周四','周五','周六'];
+    const h = now.getHours().toString().padStart(2,'0');
+    const m = now.getMinutes().toString().padStart(2,'0');
+    clock.textContent = `${days[now.getDay()]} ${now.getMonth()+1}月${now.getDate()}日 ${h}:${m}`;
+  }
+}
+
+// ===== Init =====
+document.addEventListener('DOMContentLoaded', () => {
+  renderDesktopIcons();
+  updateDock();
+  initMenuBar();
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // Desktop click - clear selection
+  document.getElementById('desktop').addEventListener('click', (e) => {
+    if (e.target.id === 'desktop' || e.target.id === 'icons') {
+      document.querySelectorAll('.desktop-icon.selected').forEach(i => i.classList.remove('selected'));
+    }
+  });
+
+  // Right-click context menu
+  document.getElementById('desktop').addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showContextMenu(e.clientX, e.clientY);
+  });
+  document.addEventListener('click', hideContextMenu);
+  document.addEventListener('contextmenu', hideContextMenu);
+
+  // Click on desktop icon to select
+  document.getElementById('icons').addEventListener('click', (e) => {
+    const icon = e.target.closest('.desktop-icon');
+    if (icon) {
+      document.querySelectorAll('.desktop-icon.selected').forEach(i => i.classList.remove('selected'));
+      icon.classList.add('selected');
+    }
+  });
+});
+
+// Open Finder by default
+setTimeout(() => openApp('finder'), 300);
+</script>
+</body>
+</html>

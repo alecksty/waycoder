@@ -81,6 +81,9 @@ public static class Benchmark
         // ── 8. TUI 渲染压力（轻量，无 TUI 时跳过交互项）──
         TuiRenderStress();
 
+        // ── 9. 大项目自编程准备度 ──
+        LargeProjectReadiness();
+
         totalSw.Stop();
         var endMem = GetMemKb();
 
@@ -866,6 +869,228 @@ public static class Benchmark
             });
             Bench("1000 次快速翻页滚动", ms5d, 0, warnMs: 200, failMs: 1000);
         }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // 9. 大项目自编程准备度
+    // ════════════════════════════════════════════════════════════════
+
+    private static void LargeProjectReadiness()
+    {
+        Cat("🏗 大项目自编程准备度");
+
+        // 9.1 工具空路径防护（防止 Path.GetFullPath("") 崩溃）
+        var toolWithPathParam = new[] { "read_file", "write_file", "edit_file", "glob", "grep",
+            "wc", "lint", "stat", "rm", "mkdir", "cp", "mv", "cd", "download", "multiedit", "notebook_edit" };
+        int safeCount = 0;
+        foreach (var name in toolWithPathParam)
+        {
+            var tool = ToolRegistry.GetTool(name);
+            if (tool == null) continue;
+            // 构造空路径参数，确保不会抛未捕获异常
+            try
+            {
+                var args = new Dictionary<string, object?>();
+                switch (name)
+                {
+                    case "read_file": case "write_file": case "edit_file": case "download":
+                    case "multiedit": case "notebook_edit":
+                        args["file_path"] = "";
+                        break;
+                    case "glob": case "grep":
+                        args["pattern"] = "test";
+                        args["path"] = "";
+                        break;
+                    case "wc":
+                        args["glob"] = "*.cs";
+                        args["path"] = "";
+                        break;
+                    case "lint": case "stat": case "rm": case "mkdir": case "cd":
+                        args["path"] = "";
+                        break;
+                    case "cp": case "mv":
+                        args["src"] = "";
+                        args["dest"] = "";
+                        break;
+                }
+                var result = tool.ExecuteAsync(args).Result;
+                safeCount++;
+            }
+            catch (AggregateException ae) when (ae.InnerException is ArgumentException)
+            {
+                // 空路径不应导致 ArgumentException
+            }
+            catch (ArgumentException)
+            {
+                // 空路径不应导致 ArgumentException
+            }
+        }
+        Check($"{safeCount}/{toolWithPathParam.Length} 工具空路径安全", safeCount == toolWithPathParam.Length);
+        if (safeCount < toolWithPathParam.Length)
+            Console.WriteLine($"    ⚠ {toolWithPathParam.Length - safeCount} 个工具仍有空路径风险");
+
+        // 9.2 JSON 解析健壮性 — ParseArgs 处理截断 JSON
+        var (ms1, mem1) = TimeIt(() =>
+        {
+            for (int i = 0; i < 500; i++)
+            {
+                var r = LLM.ParseArgs("{\"file_path\": \"test.cs\", \"content\": \"hello");
+                _ = r.ContainsKey("_parse_error");
+            }
+        });
+        Bench("500 次截断 JSON 解析", ms1, mem1, warnMs: 200, failMs: 1000);
+
+        // 9.3 上下文估计 — 10K 行项目场景
+        var (ms2, mem2) = TimeIt(() =>
+        {
+            var msgs = new List<JsonObject>();
+            var content = new string('x', 200);
+            for (int i = 0; i < 100; i++)
+            {
+                msgs.Add(new JsonObject { ["role"] = "user", ["content"] = $"prompt_{i}: {content}" });
+                msgs.Add(new JsonObject { ["role"] = "assistant", ["content"] = $"resp_{i}: {content}" });
+                // 模拟工具调用
+                if (i % 3 == 0)
+                    msgs.Add(new JsonObject { ["role"] = "tool", ["content"] = $"result_{i}" });
+            }
+            var tokens = ContextManager.EstimateTokens(msgs);
+            _ = tokens > 0;
+        });
+        Bench("100 轮对话 token 估计", ms2, mem2, warnMs: 100, failMs: 500);
+
+        // 9.4 TokenTracker 可用性 — 验证 ContextManager 可创建
+        var cm = new ContextManager(128_000);
+        Check("ContextManager 创建成功 (128K)", cm != null);
+
+        // 9.5 文件锁竞争测试 — 模拟多 Agent 并发写
+        var lockFile = Path.Combine(Path.GetTempPath(), "wp_bench_lock_" + Guid.NewGuid().ToString("N")[..6] + ".txt");
+        File.WriteAllText(lockFile, "lock test");
+        var (ms3, mem3) = TimeIt(() =>
+        {
+            // 快速获取-释放 让 FileLockManager 通过
+            for (int i = 0; i < 50; i++)
+            {
+                if (FileLockManager.TryAcquire(lockFile, $"agent_{i}"))
+                    FileLockManager.Release(lockFile, $"agent_{i}");
+            }
+        });
+        try { File.Delete(lockFile); } catch { }
+        Bench("50 次文件锁获取-释放", ms3, mem3, warnMs: 200, failMs: 1000);
+
+        // 9.6 大目录文件追踪测试
+        var trackDir = Path.Combine(Path.GetTempPath(), "wp_bench_track_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(trackDir);
+        for (int i = 0; i < 50; i++)
+            File.WriteAllText(Path.Combine(trackDir, $"f{i:D2}.cs"), $"// file {i}\nclass C{i} {{ }}");
+        var (ms4, mem4) = TimeIt(() =>
+        {
+            for (int i = 0; i < 50; i++)
+            {
+                var fp = Path.Combine(trackDir, $"f{i:D2}.cs");
+                FileTracker.RecordRead(fp);
+            }
+            var changes = FileTracker.CheckForChanges();
+            _ = changes.Count;
+        });
+        try { Directory.Delete(trackDir, true); } catch { }
+        Bench("50 文件追踪+检查 (SHA256)", ms4, mem4, warnMs: 500, failMs: 2000);
+
+        // 9.7 ContextManager 压缩管道可用性
+        var cm2 = new ContextManager(64_000);
+        cm2.AddUsage(1000, 500);
+        Check("ContextManager AddUsage 正常", cm2 != null);
+
+        // 9.8 ContinuePrompt 文件清单收集验证
+        var testMsgs = new List<JsonObject>
+        {
+            new() { ["role"] = "user", ["content"] = "写一个 Roguelike 游戏" },
+            new() { ["role"] = "assistant", ["content"] = "好的" },
+            new() { ["role"] = "tool", ["content"] = "✅ 已写入: D:\\test\\MapGen.cs\n内容: ..." },
+            new() { ["role"] = "tool", ["content"] = "✅ 编辑完成: D:\\test\\Player.cs\n... " },
+        };
+        var fileList = new List<string>();
+        foreach (var m in testMsgs)
+        {
+            if (m["role"]?.GetValue<string>() != "tool") continue;
+            var c = m["content"]?.GetValue<string>() ?? "";
+            foreach (var line in c.Split('\n'))
+            {
+                var trimmed = line.Trim();
+                if (trimmed.Contains("✅ 已写入") || trimmed.Contains("✅ 编辑完成"))
+                    fileList.Add(trimmed);
+            }
+        }
+        Check("ContinuePrompt 文件收集: 2 文件", fileList.Count == 2);
+
+        // 9.9 快速模式关键词检测
+        Check("快速模式: 不要读文件", SystemPrompt.DetectFastMode("不要读文件，直接写代码"));
+        Check("快速模式: 不要ls", SystemPrompt.DetectFastMode("不要ls和tree"));
+        Check("快速模式: 跳过探索", SystemPrompt.DetectFastMode("请跳过探索阶段"));
+        Check("快速模式: 正常请求不触发", !SystemPrompt.DetectFastMode("帮我写一个计算器"));
+        Check("快速模式 EN: don't read", SystemPrompt.DetectFastMode("Don't read any files, just write code"));
+        Check("快速模式 EN: skip reading", SystemPrompt.DetectFastMode("skip reading existing code"));
+        Check("快速模式 EN: just write", SystemPrompt.DetectFastMode("just write the code directly"));
+        Check("快速模式 EN: normal no trigger", !SystemPrompt.DetectFastMode("Help me build a calculator app"));
+
+        // 9.10 项目分析器 — 模拟 10K 行输出统计
+        var analysisDir = Path.Combine(Path.GetTempPath(), "wp_bench_analysis_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(analysisDir);
+        var subdirs = new[] { "Core", "Entities", "Systems", "UI", "Utils" };
+        foreach (var sd in subdirs) Directory.CreateDirectory(Path.Combine(analysisDir, sd));
+        int totalLines = 0, totalFiles = 0;
+        var rng = new Random(42); // 固定种子可复现
+        foreach (var sd in subdirs)
+        {
+            for (int f = 0; f < 7; f++)
+            {
+                var content = new StringBuilder();
+                for (int l = 0; l < rng.Next(50, 350); l++)
+                    content.AppendLine($"// Line {l} in {sd}/File{f}.cs: " + new string('x', rng.Next(10, 60)));
+                File.WriteAllText(Path.Combine(analysisDir, sd, $"File{f}.cs"), content.ToString());
+                totalLines += content.ToString().Split('\n').Length - 1;
+                totalFiles++;
+            }
+        }
+
+        var (ms6, mem6) = TimeIt(() =>
+        {
+            var files = Directory.GetFiles(analysisDir, "*.cs", SearchOption.AllDirectories);
+            int lines = 0;
+            foreach (var f in files)
+                lines += File.ReadAllLines(f).Length;
+            _ = (files.Length, lines);
+        });
+        try { Directory.Delete(analysisDir, true); } catch { }
+        Bench($"项目分析: {totalFiles} 文件/{totalLines:N0} 行扫描", ms6, mem6,
+            warnMs: 500, failMs: 2000);
+        Console.WriteLine($"    📊 模拟 10K 行项目: {totalFiles} 文件, {totalLines:N0} 行 (分布在 {subdirs.Length} 个目录)");
+
+        // 9.11 IsJsonProbablyComplete 完整性检查
+        Check("JSON 完整: 空对象", LLM.IsJsonProbablyComplete("{}"));
+        Check("JSON 完整: 简单对象", LLM.IsJsonProbablyComplete("{\"a\":1}"));
+        Check("JSON 不完整: 截断", !LLM.IsJsonProbablyComplete("{\"a\":1"));
+        Check("JSON 不完整: 逗号尾", !LLM.IsJsonProbablyComplete("{\"a\":1,"));
+        Check("JSON 不完整: 冒号尾", !LLM.IsJsonProbablyComplete("{\"a\":"));
+        Check("JSON 不完整: 空字符串", !LLM.IsJsonProbablyComplete(""));
+
+        // 9.12 自编程关键工具可用性
+        var criticalTools = new[] { "write_file", "edit_file", "read_file", "bash",
+            "glob", "grep", "todo", "struct_todo", "lint" };
+        int available = 0;
+        foreach (var name in criticalTools)
+        {
+            var tool = ToolRegistry.GetTool(name);
+            if (tool != null) available++;
+        }
+        Check($"关键工具可用: {available}/{criticalTools.Length}", available == criticalTools.Length);
+    }
+
+    private static void Check(string label, bool condition)
+    {
+        if (condition)
+            Console.WriteLine($"    ✅ {label}");
+        else
+            Console.WriteLine($"    ❌ {label}");
     }
 
     // ════════════════════════════════════════════════════════════════

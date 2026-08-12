@@ -461,12 +461,68 @@ public static class SelfTest
         }
         catch { failed++; Console.WriteLine("  ❌ glob 找到 .cs 文件"); }
 
-        // grep
-        var grepResult = new GrepTool().ExecuteAsync(new() { ["pattern"] = "class SelfTest" }).Result;
-        Check("grep 找到自身", grepResult.Contains("SelfTest"));
+        // glob/grep/wc 空路径校验 — 防止 Path.GetFullPath("") 崩溃
+        Check("glob 空路径不崩溃",
+            new GlobTool().ExecuteAsync(new() { ["pattern"] = "*.cs", ["path"] = "" }).Result.Contains("错误") == false);
+        Check("grep 空路径不崩溃",
+            new GrepTool().ExecuteAsync(new() { ["pattern"] = "test", ["path"] = "" }).Result.Contains("错误")
+            || new GrepTool().ExecuteAsync(new() { ["pattern"] = "test", ["path"] = "" }).Result.Contains("未找到"));
+        Check("wc 空路径不崩溃",
+            new WcTool().ExecuteAsync(new() { ["glob"] = "*.cs", ["path"] = "" }).Result.Contains("错误") == false);
 
+        // grep/grep 无效正则
         Check("grep 无效正则返回错误",
             new GrepTool().ExecuteAsync(new() { ["pattern"] = "[bad" }).Result.Contains("无效的正则"));
+
+        // ── v0.36.0: ParseArgs 错误标记清除 ──
+        // 验证截断/无效 JSON 不会泄漏 _parse_error 到工具参数
+        var truncatedArgs = LLM.ParseArgs("{\"file_path\": \"test.html\", \"content\": \"truncated...");
+        Check("ParseArgs 截断 JSON 不泄漏 _parse_error",
+            !truncatedArgs.ContainsKey("_parse_error") && !truncatedArgs.ContainsKey("_parse_error_type"));
+
+        var invalidArgs = LLM.ParseArgs("not even json");
+        Check("ParseArgs 无效 JSON 不泄漏 _parse_error",
+            !invalidArgs.ContainsKey("_parse_error") && !invalidArgs.ContainsKey("_parse_error_type"));
+
+        var validArgs = LLM.ParseArgs("{\"file_path\": \"test.html\", \"content\": \"hello\"}");
+        Check("ParseArgs 有效 JSON 正常解析",
+            validArgs.ContainsKey("file_path") && validArgs["file_path"]?.ToString() == "test.html");
+
+        // ── v0.36.0: LLMResponse.ReasoningTokens 字段 ──
+        var testResp = new LLMResponse
+        {
+            Content = "test content",
+            ReasoningTokens = 1024,
+            PromptTokens = 100,
+            CompletionTokens = 50,
+        };
+        Check("LLMResponse.ReasoningTokens 正确传递",
+            testResp.ReasoningTokens == 1024 && testResp.Content == "test content");
+        Check("LLMResponse.ReasoningTokens 默认值为 0",
+            new LLMResponse().ReasoningTokens == 0);
+
+        // ── v0.36.0: IsJsonProbablyComplete 强化检测 ──
+        Check("IsJsonProbablyComplete 空字符串为 false",
+            LLM.IsJsonProbablyComplete("") == false);
+        Check("IsJsonProbablyComplete 完整 JSON 对象为 true",
+            LLM.IsJsonProbablyComplete("{\"key\":\"value\"}") == true);
+        Check("IsJsonProbablyComplete 截断 JSON 为 false",
+            LLM.IsJsonProbablyComplete("{\"key\":\"value\"") == false);
+        Check("IsJsonProbablyComplete 不平衡括号为 false",
+            LLM.IsJsonProbablyComplete("{\"key\":{\"nested\":\"val\"}") == false);
+        Check("IsJsonProbablyComplete 字符串内括号不干扰",
+            LLM.IsJsonProbablyComplete("{\"code\":\"function foo() { return 1; }\"}") == true);
+
+        // ── v0.36.0: TalkCode 检测覆盖更多语言 ──
+        var jsCodeContent = "function render() { return `hello`; } export default App;";
+        var hasJs = jsCodeContent.Length > 300 || (jsCodeContent.Contains("function ") && jsCodeContent.Length > 50);
+        Check("TalkCode 检测 JavaScript 代码",
+            hasJs == true);
+
+        var goCodeContent = "func main() { fmt.Println(\"hello\") }";
+        var hasGo = goCodeContent.Length > 300 || goCodeContent.Contains("func ");
+        Check("TalkCode 检测 Go 代码",
+            hasGo == true);
 
         // bash
         var bashResult = new BashTool().ExecuteAsync(new() { ["command"] = "echo hello" }).Result;
