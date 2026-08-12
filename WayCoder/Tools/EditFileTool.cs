@@ -80,6 +80,11 @@ public class EditFileTool : ITool
             if (!File.Exists(path))
                 return $"错误：{filePath} 未找到";
 
+            // 先读后改保护：确保文件已被 read_file 读取且未被外部修改
+            var preEditWarning = FileTracker.ValidatePreEdit(path);
+            if (preEditWarning != null)
+                return preEditWarning;
+
             // 检测非 UTF-8 文件
             byte[] raw;
             try { raw = File.ReadAllBytes(path); }
