@@ -132,6 +132,7 @@ public abstract class TuiScreen : TuiBase
         Windows.Add(win);
         FocusedWindow = win;
         win.OnCreate();
+        win.OnResize(TW, TH);
     }
 
     /// <summary>添加浮层窗口并自动绑定关闭回调</summary>

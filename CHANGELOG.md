@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.37.1 (2026-08-12) — 对话框首次显示 Bug 修复
+
+### 🐛 修复：首次打开对话框尺寸/位置不计算 + 按钮不显示
+
+- **问题**：启动后第一次打开对话框，窗口以默认 30×10 尺寸渲染在屏幕左上角 (0,0)，按钮全部堆叠不可见
+- **根因**：`TuiScreen.AddWindow()` 只调用了 `win.OnCreate()`（生命周期），从未调用 `win.OnResize(TW, TH)`
+  - `OnResize` 是唯一执行 XScale→Width、YScale→Height、WindowHAlign/WindowVAlign→居中定位、RootView.Layout()→Flex 按钮布局的地方
+  - 终端 resize 事件会触发 `OnResize`，但首次创建时不会
+- **修复**：`AddWindow()` 中 `win.OnCreate()` 之后添加一行 `win.OnResize(TW, TH)`
+- **影响**：所有对话框（设置、模型选择、确认框、输入框等）首次打开即正确居中、比例缩放、按钮可见
+
 ## v0.37.0 (2026-08-12) — 文件先读后改保护 + Git 状态注入 + Agent 工具分层
 
 ### 🔧 改进 1：文件先读后改保护（对标 Crush last_read_time）
