@@ -2,6 +2,12 @@
 
 ## v0.34.0 (2026-08-12) — 系统化流水线 + 渐进超时重试 + Hook 系统 + 动态栏
 
+### 🐛 聊天列表不实时刷新（修复）
+
+- **根因**：`AppendToLast()` 在流式 token/tool 输出时更新内容但未设脏标记，`TuiManager.Render()` 的 `IsDirty` 检查跳过渲染
+- **修复**：`AppendToLast()` 尾部新增 `Manager.IsDirty = true`，折叠提示同步 `MarkDirty()`
+- **原理**：只需标记 Manager — TuiView 子容器总是被遍历，`ChatList.OnRender` 渲染所有可见子项无需单独标记
+
 ### 🧠 10 阶段系统化流水线（`<systematic_phases>`）
 
 SystemPrompt 新增 `<systematic_phases>` 区块，复杂任务（3+ 文件、多步骤、新建项目）强制按 10 阶段执行：
