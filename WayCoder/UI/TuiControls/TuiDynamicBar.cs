@@ -63,6 +63,9 @@ public class TuiDynamicBar : TuiControl
     /// <summary>压缩进度标签</summary>
     public string ProgressLabel { get; set; } = "";
 
+    /// <summary>上下文占用百分比（null=不显示，常驻右段，绿→黄→红）</summary>
+    public double? ContextPercent { get; set; }
+
     /// <summary>是否处于任务活跃状态（显示 spinner）</summary>
     public bool IsActive => Status != AgentStatus.Idle;
 
@@ -190,14 +193,27 @@ public class TuiDynamicBar : TuiControl
                 label = TuiHelper.TruncateByWidth(label, maxW - 1) + "…";
             rb.Write(absY, col, label, fg: TuiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
         }
-        else if (Status == AgentStatus.Idle)
+        else
         {
-            // 空闲时显示模型名
-            var modelDisplay = LeftText;
-            if (!string.IsNullOrEmpty(modelDisplay) && TuiHelper.DisplayWidth(modelDisplay) > 25)
-                modelDisplay = TuiHelper.TruncateByWidth(modelDisplay, 22) + "…";
-            rb.Write(absY, col, modelDisplay ?? "",
-                fg: TuiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
+            // 常驻上下文占用%（空闲/思考/工具态均显示，绿→黄→红）
+            if (ContextPercent.HasValue)
+            {
+                var pct = ContextPercent.Value;
+                var ctxFg = pct switch { < 30 => TuiColors.Green, < 70 => TuiColors.Yellow, _ => TuiColors.Red };
+                var ctxStr = $"📊 {pct,3:F0}%";
+                rb.Write(absY, col, ctxStr, fg: ctxFg, bg: TuiTheme.Current.WindowBg);
+                col += TuiHelper.DisplayWidth(ctxStr) + 1;
+            }
+
+            // 空闲时显示模型名（在上下文%之后）
+            if (Status == AgentStatus.Idle)
+            {
+                var modelDisplay = LeftText;
+                if (!string.IsNullOrEmpty(modelDisplay) && TuiHelper.DisplayWidth(modelDisplay) > 25)
+                    modelDisplay = TuiHelper.TruncateByWidth(modelDisplay, 22) + "…";
+                rb.Write(absY, col, modelDisplay ?? "",
+                    fg: TuiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
+            }
         }
 
         sb.Append(rb.ToString());
