@@ -1,5 +1,22 @@
 # 更新日志
 
+## v0.39.0 (2026-08-13) — 界面对标：`/` 补全接注册表 + 上下文用量 Gauge
+
+### ✨ `/` 斜杠命令补全接 SlashCommandRegistry
+
+- **问题**：`/` 补全用硬编码 14 条命令数组，新增斜杠命令不会自动出现在补全里
+- **修复**：`ChatScreen.BuildPrefixHints` 的 `case '/'` 改为遍历 `SlashCommandRegistry.Commands`，`Name`/`Aliases` 参与匹配，`Usage` 作标签，`Value` 用主命令名
+
+### ✨ 上下文用量彩色 Gauge（动态栏右段常驻）
+
+- **新增**：`TuiDynamicBar.ContextPercent` 属性，右段常驻 `📊 {pct}%`，颜色绿(≤30%)→黄(≤70%)→红(>70%)
+- **数据桥**：`ChatScreen.UpdateTokenDisplayFull` 计算 `_contextPercent`，`SyncDynamicBar()` 每帧同步；空闲态模型名与上下文% 并存
+
+### 🧪 自测 + 修复 flaky 测试
+
+- 新增 4 项 `SlashCommandRegistry` 测试（非空 / 含 `/help` / 含 `/model` / 数量 ≥14）
+- 修复「日志包含堆栈信息」flaky 测试：`new` 出来的异常 `StackTrace` 为 null，改为 throw/catch 生成真实堆栈，不再依赖历史崩溃日志残留
+
 ## v0.38.0 (2026-08-12) — Agent 工具 tasks 数组解析 Bug 修复
 
 ### 🐛 修复：agent 工具 tasks 数组退化成字符串（16639 任务 bug）
