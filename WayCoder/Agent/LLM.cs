@@ -16,6 +16,8 @@ public record LLMResponse
     public List<ToolCall> ToolCalls { get; init; } = [];
     public int PromptTokens { get; init; }
     public int CompletionTokens { get; init; }
+    /// <summary>推理/思维链内容长度（字符数）。DeepSeek V4 等模型的 reasoning_content 不含在 Content 中。</summary>
+    public int ReasoningTokens { get; init; }
     /// <summary>标记为致命错误（如所有模型失败）— Agent 应在退出前保存会话</summary>
     public bool IsFatalError { get; init; }
 
@@ -400,11 +402,17 @@ public class LLM
             try
             {
                 parsedArgs = ParseArgs(args);
-                // 检测截断：如果 ParseArgs 返回了错误标记，说明 JSON 不完整
+                // 关键修复：当 ParseArgs 返回 _parse_error 伪参数时，清除它们
+                // 防止 _parse_error / _parse_error_type / _raw_json_snippet 被当作工具参数传递
                 if (parsedArgs.ContainsKey("_parse_error"))
                 {
-                    DebugLog.Log("llm", $"工具调用 [{name}] JSON 不完整（流式截断？），args 长度={args.Length}" +
-                        (streamEndedGracefully ? "" : "，流未以 [DONE] 结束"));
+                    var errType = parsedArgs.GetValueOrDefault("_parse_error_type")?.ToString() ?? "未知";
+                    parsedArgs.Remove("_parse_error");
+                    parsedArgs.Remove("_parse_error_type");
+                    parsedArgs.Remove("_raw_json_snippet");
+                    DebugLog.Log("llm", $"工具调用 [{name}] JSON 不完整（{errType}），args 长度={args.Length}" +
+                        (streamEndedGracefully ? "" : "，流未以 [DONE] 结束") +
+                        (parsedArgs.Count > 0 ? $"，部分解析成功: {parsedArgs.Count} 个参数" : "，所有参数丢失"));
                 }
             }
             catch
@@ -456,6 +464,7 @@ public class LLM
             ToolCalls = parsed,
             PromptTokens = promptTok,
             CompletionTokens = completionTok,
+            ReasoningTokens = _reasoningBuffer.Length,
         };
 
         // 调试日志：记录收到内容
@@ -675,7 +684,7 @@ public class LLM
     /// 基础 JSON 完整性检查：花括号平衡、不以逗号/冒号结尾、引号成对。
     /// 用于检测流式传输中尚未接收完整的 JSON 片段。
     /// </summary>
-    private static bool IsJsonProbablyComplete(string json)
+    internal static bool IsJsonProbablyComplete(string json)
     {
         if (string.IsNullOrEmpty(json)) return false;
         var trimmed = json.AsSpan().TrimEnd();
@@ -724,11 +733,10 @@ public class LLM
         }
         catch (Exception ex)
         {
-            // 解析失败返回带错误标记的字典，让调用方知道 JSON 有问题
+            // 解析失败 — 记录日志，返回空字典（不再暴露 _parse_error 伪参数）
+            // v0.36.0 修复：此前返回 _parse_error/_parse_error_type/_raw_json_snippet，
+            // 被上层当作工具参数传递，导致 write_file(_parse_error=True, ...) 幻觉
             DebugLog.Log("llm", $"ParseArgs 失败 — JSON 不完整或无效: {ex.Message} — raw: {(json.Length > 200 ? json[..200] + "..." : json)}");
-            result["_parse_error"] = true;
-            result["_parse_error_type"] = ex.GetType().Name;
-            result["_raw_json_snippet"] = json.Length > 500 ? json[..500] + "..." : json;
         }
         return result;
     }

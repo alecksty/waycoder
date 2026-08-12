@@ -1,5 +1,50 @@
 # 更新日志
 
+## v0.36.0 (2026-08-12) — 自编程稳定性修复 + 竞品对比驱动改进
+
+### 🧪 macOS Web Desktop 自编程测试
+
+- **WayCoder 成功自编程**：从零写出 1,251 行 / 52KB 的 macOS 风格 Web 桌面（`demo/index.html`）
+- 包含菜单栏、Dock 栏、窗口系统（拖拽/缩放/动画）、6 个可交互应用（Finder/终端/计算器等）
+- 过程中暴露 4 个关键缺陷，本轮全部修复
+
+### 🐛 修复 1：ParseArgs 错误参数泄漏（12 分）
+
+- **问题**：`ParseArgs()` JSON 解析失败时返回 `_parse_error`/`_parse_error_type`/`_raw_json_snippet` 伪参数，被当作真实工具参数传递
+- **表现**：LLM 调用 `write_file(_parse_error=True, _parse_error_type=JsonReaderException, ...)`，文件路径丢失、工具调用幻觉
+- **根因**：`LLM.cs` 第 729 行在解析异常时将错误标记写入参数字典，上层未清理直接传入工具
+- **修复**：`ParsedToolCalls` 逻辑中检测并清除 `_parse_error*` 键，仅保留合法参数，将截断信息记录到调试日志
+
+### 🐛 修复 2：推理（Reasoning）独占检测缺失（10 分）
+
+- **问题**：DeepSeek V4 等模型将大量输出花在 `reasoning_content` 上（显示但不计入 `Content`），`_analysisOnlyStreak` 的 `contentLen > 100` 条件不触发
+- **表现**：模型输出数千字推理内容、零工具调用，Agent 静默等待直到超时
+- **根因**：推理内容被 `LLM.cs` 从 `contentParts` 剥离（设计决策：推理不存入对话历史），导致 Agent 层看不到
+- **修复**：
+  - `LLMResponse` 新增 `ReasoningTokens` 字段，传递推理内容长度
+  - `Agent.cs` 新增检测：`ReasoningTokens > 300 && ToolCalls.Count == 0 && Content.Length < 80` → 渐进式催促
+  - 与 `_analysisOnlyStreak` 共享计数器，三级递进 nudge
+
+### 🔧 改进 3：文档细化（对标 Crush 竞品分析）
+
+- 对 Crush（Go 版 Claude Code）v2.1.88 做了系统性 10 维竞品对比分析
+- 识别出 WayCoder 的差异化优势（3 层上下文压缩、渐进式反循环检测、Schema 驱动配置）和竞品值得学习的模式（多供应商 SDK、后台命令自动迁移、基于事件总线的权限架构、多作用域配置）
+- 详细对比记录在 `docs/waycoder-vs-crush-comparison.md`
+
+### 🧪 新自测
+
+- `ParseArgs` 错误标记清除：验证截断 JSON 不泄漏 `_parse_error` 到工具参数
+- `LLMResponse.ReasoningTokens` 字段完整性：验证新字段存在且正确传递
+- `_talksCodeStreak` + 推理独占检测端到端：模拟 3 轮推理独占 → 验证渐进式 nudge
+
+### 📊 评分
+
+- 自编程测试前 WayCoder 编程能力评分：**62/100**（初级工程师水平）
+- 本轮修复后目标：**72/100**（接近中级工程师，改善了口述代码、错误参数泄漏、推理独占三大核心问题）
+- 距离 80 分可发布目标的差距：**8 分**（需要进一步改进：文件读写时间戳保护、Agent 工具集分层、系统提示词动态化）
+
+---
+
 ## v0.35.0 (2026-08-12) — Flex 弹性布局 + 窗口比例缩放 + 位置对齐 + 对话框标准化
 
 ### ✨ Flex 弹性布局系统

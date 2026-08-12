@@ -30,7 +30,9 @@ public class GlobTool : ITool
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var pattern = arguments.GetValueOrDefault("pattern")?.ToString() ?? "";
-        var searchPath = arguments.GetValueOrDefault("path")?.ToString() ?? ".";
+        var searchPath = arguments.GetValueOrDefault("path")?.ToString() ?? "";
+        if (string.IsNullOrWhiteSpace(searchPath))
+            searchPath = ".";
 
         return Task.FromResult(Execute(pattern, searchPath));
     }
