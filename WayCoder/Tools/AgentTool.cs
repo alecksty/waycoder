@@ -91,14 +91,39 @@ public class AgentTool : ITool
                     taskList.Add(t);
             }
         }
-        else if (tasksObj is System.Collections.IEnumerable enumerable)
+        else if (tasksObj is System.Collections.IEnumerable enumerable && tasksObj is not string)
         {
+            // JsonArray 递归解析后此处收到 List<object?>，每个元素为标量或嵌套结构
             foreach (var item in enumerable)
             {
                 var t = item?.ToString();
                 if (!string.IsNullOrWhiteSpace(t))
                     taskList.Add(t);
             }
+        }
+        else if (tasksObj is string s)
+        {
+            // 防御：string 不是字符集合，绝不逐字符遍历。
+            // 兼容 LLM 直接返回单个字符串，或旧版把数组序列化成 JSON 字符串的情况。
+            var trimmed = s.Trim();
+            if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+            {
+                try
+                {
+                    if (JsonNode.Parse(trimmed) is JsonArray arr)
+                    {
+                        foreach (var item in arr)
+                        {
+                            var t = item?.GetValue<string>();
+                            if (!string.IsNullOrWhiteSpace(t))
+                                taskList.Add(t);
+                        }
+                    }
+                }
+                catch { /* 解析失败则退回单任务 */ }
+            }
+            if (taskList.Count == 0 && !string.IsNullOrWhiteSpace(trimmed))
+                taskList.Add(trimmed);
         }
 
         if (taskList.Count == 0)
