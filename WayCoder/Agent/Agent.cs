@@ -37,9 +37,13 @@ public class Agent
 
     /// <summary>连续纯文本轮次计数（用于渐进式催促）</summary>
     private int _analysisOnlyStreak;
+    private int _talksCodeStreak; // 模型口述代码而非写入文件的连续次数
 
-    /// <summary>本轮修改过的文件（用于精准 git add）</summary>
+    /// <summary>本轮修改过的文件（用于精准 git add，每轮 AutoCommit 后清空）</summary>
     private readonly HashSet<string> _modifiedFiles = [];
+
+    /// <summary>会话中所有修改过的文件（不清空，用于 ContinuePrompt 等需要全量清单的场景）</summary>
+    private readonly HashSet<string> _allSessionFiles = [];
 
     /// <summary>SHA256 循环检测：最近几轮的哈希值（检测 Agent 是否陷入重复操作循环）</summary>
     private readonly List<string> _recentActionHashes = [];
@@ -421,14 +425,35 @@ public class Agent
 
                 Messages.Add(resp.ToMessage());
                 // 自动继续检测：
+                // 0. 模型输出大量推理内容但不产生实际输出（DeepSeek V4 等模型的常见问题）
                 // 1. 模型首轮只输出分析不调用工具（toolCallCount==0, content>100）
                 // 2. 模型用了一些工具后开始"口述代码"而非写入文件（content 包含代码特征 >300 字符）
                 var toolCallCount = Messages.Count(m => m["role"]?.GetValue<string>() == "tool");
                 var contentLen = resp.Content?.Length ?? 0;
+                var reasoningLen = resp.ReasoningTokens;
                 var hasCodeContent = contentLen > 300 &&
                     (resp.Content!.Contains("```") || resp.Content.Contains("class ") ||
                      resp.Content.Contains("public ") || resp.Content.Contains("def ") ||
                      resp.Content.Contains("func ") || resp.Content.Contains("function "));
+
+                // 检测 0：DeepSeek V4 等模型将大量输出花在推理（reasoning）上而不产生实际内容
+                // reasoning 被显示但不计入 Content，所以 contentLen 可能极短
+                if (reasoningLen > 300 && toolCallCount == 0 && contentLen < 80)
+                {
+                    _analysisOnlyStreak++;
+                    string nudge = _analysisOnlyStreak switch
+                    {
+                        1 => $"你的推理思考已消耗 {reasoningLen} 字符，但没有产生任何工具调用。请立即调用 write_file 或 bash 工具执行任务，不要再进行冗长的内部推理。",
+                        2 => $"你已连续 {_analysisOnlyStreak} 轮只输出推理而不调用工具（本轮推理 {reasoningLen} 字符）。请立即调用工具——不要只思考不行动。",
+                        _ => $"⚠️ 严重警告：连续 {_analysisOnlyStreak} 轮纯推理无行动（累计数万字推理内容）。立即停止思考，只输出工具调用。",
+                    };
+                    Messages.Add(new JsonObject
+                    {
+                        ["role"] = "user",
+                        ["content"] = nudge,
+                    });
+                    continue;
+                }
 
                 if (toolCallCount == 0 && contentLen > 100)
                 {
@@ -448,13 +473,20 @@ public class Agent
                     continue;
                 }
 
-                if (hasCodeContent && !resp.Content!.Contains("✅") && Messages.Count < 40)
+                if (hasCodeContent && !resp.Content!.Contains("✅"))
                 {
-                    // 模型在"口述"代码而非写入文件 — 追问使其用工具
+                    // 模型在"口述"代码而非写入文件 — 渐进式追问使其用工具
+                    _talksCodeStreak++;
+                    string nudge = _talksCodeStreak switch
+                    {
+                        1 => "不要用文字输出代码。立即调用 write_file 工具将上述代码写入文件。",
+                        2 => "你已连续两次只输出代码文字而不调用 write_file。请立即使用 write_file 工具将代码写入磁盘。不要再输出代码文字。",
+                        _ => "⚠️ 严重警告：你已连续多次在文字中输出代码而不使用工具。代码必须通过 write_file 写入文件——请立即调用 write_file，不要输出任何文字。",
+                    };
                     Messages.Add(new JsonObject
                     {
                         ["role"] = "user",
-                        ["content"] = "不要用文字输出代码。立即调用 write_file 工具将上述代码写入文件。"
+                        ["content"] = nudge,
                     });
                     continue;
                 }
@@ -465,6 +497,7 @@ public class Agent
 
             // 有工具调用 -> 执行（多个时并行）
             _analysisOnlyStreak = 0; // 重置分析-不动手计数器
+            _talksCodeStreak = 0;    // 重置口述代码计数器
             Messages.Add(resp.ToMessage());
 
             try
@@ -563,25 +596,13 @@ public class Agent
                     if (originalUserMsg.Length > 200)
                         originalUserMsg = originalUserMsg[..200] + "...";
 
-                    // 收集已创建/修改的文件清单（从 write_file/edit_file 工具结果中提取）
-                    var fileList = new List<string>();
-                    foreach (var m in Messages)
-                    {
-                        if (m["role"]?.GetValue<string>() != "tool") continue;
-                        var c = m["content"]?.GetValue<string>() ?? "";
-                        // 匹配 "✅ 已写入: path" 或 "保存至：path" 等格式
-                        foreach (var line in c.Split('\n'))
-                        {
-                            var trimmed = line.Trim();
-                            if (trimmed.Contains("✅ 已写入") || trimmed.Contains("✅ 编辑完成") ||
-                                trimmed.Contains("保存至：") || trimmed.Contains("写入到 "))
-                            {
-                                fileList.Add(trimmed);
-                            }
-                        }
-                    }
-                    var fileListStr = fileList.Count > 0
-                        ? "\n\n已确认创建/修改的文件：\n" + string.Join("\n", fileList.Take(20))
+                    // 收集已创建/修改的文件清单（从 _allSessionFiles，比文本解析更准确）
+                    string[] fileArray;
+                    lock (_allSessionFiles)
+                        fileArray = _allSessionFiles.ToArray();
+                    var fileListStr = fileArray.Length > 0
+                        ? "\n\n已确认创建/修改的文件（" + fileArray.Length + " 个）：\n" + string.Join("\n", fileArray.Take(20).Select(f => $"  - {f}"))
+                            + (fileArray.Length > 20 ? $"\n  ...（共 {fileArray.Length} 个）" : "")
                         : "";
 
                     Messages.Add(new JsonObject
@@ -736,7 +757,10 @@ public class Agent
                 if (tc.Arguments.TryGetValue("file_path", out var fp) && fp is string path && !string.IsNullOrWhiteSpace(path))
                 {
                     lock (_modifiedFiles)
+                    {
                         _modifiedFiles.Add(path);
+                        _allSessionFiles.Add(path);
+                    }
                     // 更新 FileTracker 哈希，防止下次编辑时误报 stale
                     FileTracker.RecordWrite(path);
                 }

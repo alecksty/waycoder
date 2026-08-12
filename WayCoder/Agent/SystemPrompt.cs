@@ -445,16 +445,31 @@ public static class SystemPrompt
 
     /// <summary>
     /// 检测用户消息是否包含"跳过探索"关键词。
-    /// 匹配：不要读文件、不要 ls、不要规划、不要读已有代码、直接写、跳过探索
+    /// 中文：不要读文件、不要 ls、不要规划、不要读已有代码、直接写、跳过探索
+    /// 英文：don't read, skip reading, skip exploration, just write, no ls, stop reading
     /// </summary>
     public static bool DetectFastMode(string userMessage)
     {
         if (string.IsNullOrWhiteSpace(userMessage)) return false;
         var msg = userMessage;
-        return msg.Contains("不要读文件") || msg.Contains("不要ls") || msg.Contains("不要规划")
+        var msgLower = msg.ToLowerInvariant();
+
+        // 中文关键词
+        if (msg.Contains("不要读文件") || msg.Contains("不要ls") || msg.Contains("不要规划")
             || msg.Contains("不要读已有代码") || msg.Contains("不用读") || msg.Contains("跳过探索")
             || (msg.Contains("直接用write_file") && msg.Contains("不要"))
-            || (msg.Contains("直接写") && !msg.Contains("直接写文件")); // "直接写"但不是"直接写文件xxx"
+            || (msg.Contains("直接写") && !msg.Contains("直接写文件")))
+            return true;
+
+        // 英文关键词
+        if (msgLower.Contains("don't read") || msgLower.Contains("skip reading")
+            || msgLower.Contains("skip exploration") || msgLower.Contains("no need to read")
+            || msgLower.Contains("just write the code") || msgLower.Contains("don't use ls")
+            || msgLower.Contains("stop reading") || msgLower.Contains("directly write")
+            || (msgLower.Contains("don't") && msgLower.Contains("read file")))
+            return true;
+
+        return false;
     }
 
 

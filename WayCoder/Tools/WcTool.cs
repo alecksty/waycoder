@@ -39,8 +39,9 @@ public class WcTool : ITool
     {
         var file = arguments.GetValueOrDefault("file")?.ToString();
         var glob = arguments.GetValueOrDefault("glob")?.ToString();
-        var path = arguments.GetValueOrDefault("path")?.ToString()
-            ?? BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory();
+        var path = arguments.GetValueOrDefault("path")?.ToString() ?? "";
+        if (string.IsNullOrWhiteSpace(path))
+            path = BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory();
 
         return Task.FromResult(Execute(file, glob, path));
     }

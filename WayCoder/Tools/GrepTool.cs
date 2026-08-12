@@ -55,7 +55,9 @@ public class GrepTool : ITool
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var pattern = arguments.GetValueOrDefault("pattern")?.ToString() ?? "";
-        var searchPath = arguments.GetValueOrDefault("path")?.ToString() ?? ".";
+        var searchPath = arguments.GetValueOrDefault("path")?.ToString() ?? "";
+        if (string.IsNullOrWhiteSpace(searchPath))
+            searchPath = ".";
         var include = arguments.TryGetValue("include", out var inc) ? inc?.ToString() : null;
         var literalText = arguments.TryGetValue("literal_text", out var lt) &&
                           lt?.ToString()?.ToLowerInvariant() == "true";
