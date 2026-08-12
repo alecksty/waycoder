@@ -1214,12 +1214,20 @@ public static class SelfTest
         Check("ErrorLog 已初始化", ErrorLog.Initialized);
 
         // 写入各级别日志（ErrorLog 已在 Program.Main 中初始化）
+        // 注：new 出来的异常 StackTrace 为 null，需 throw/catch 生成真实堆栈，才能测试"堆栈信息"记录
+        Exception warnEx;
+        try { throw new InvalidOperationException("测试异常"); }
+        catch (InvalidOperationException thrownWarn) { warnEx = thrownWarn; }
+        Exception toolEx;
+        try { throw new ArgumentException("参数无效"); }
+        catch (ArgumentException thrownTool) { toolEx = thrownTool; }
+
         ErrorLog.Info("SelfTest", "自测信息日志");
-        ErrorLog.Warning("SelfTest", "自测警告日志", new InvalidOperationException("测试异常"));
+        ErrorLog.Warning("SelfTest", "自测警告日志", warnEx);
         ErrorLog.Error("SelfTest", "自测错误日志");
         ErrorLog.Fatal("SelfTest", "自测致命日志");
         ErrorLog.ToolError("test_tool", "工具测试错误",
-            new ArgumentException("参数无效"),
+            toolEx,
             new Dictionary<string, object?> { ["file_path"] = "/test/path", ["command"] = "test_cmd" });
         ErrorLog.LlmError("test-model", "http://localhost:11434/v1", "LLM API 连接失败");
 
@@ -2386,6 +2394,11 @@ public static class SelfTest
         Check("Levenshtein 删除 = 1", Program.Levenshtein("abcd", "abc") == 1);
         Check("Levenshtein 空串", Program.Levenshtein("", "abc") == 3);
         Check("KnownCommands 非空", Program.KnownCommands.Length >= 25);
+        // v0.38.0: / 补全数据源改为 SlashCommandRegistry（此前硬编码 14 条）
+        Check("SlashCommandRegistry 非空", SlashCommandRegistry.Commands.Count > 0);
+        Check("SlashCommandRegistry 含 /help", SlashCommandRegistry.Commands.Any(c => c.Name == "/help"));
+        Check("SlashCommandRegistry 含 /model", SlashCommandRegistry.Commands.Any(c => c.Name == "/model"));
+        Check("SlashCommandRegistry 覆盖原硬编码 14 条", SlashCommandRegistry.Commands.Count >= 14);
         Console.WriteLine();
 
         // ---- MCP 环境变量解析 ----

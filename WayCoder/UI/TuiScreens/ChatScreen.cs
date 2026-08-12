@@ -172,6 +172,7 @@ public class ChatScreen : TuiScreen
     {
         if (DynamicBar == null) return;
         DynamicBar.Width = TW;
+        DynamicBar.ContextPercent = _contextPercent; // 常驻上下文占用%
 
         // 压缩中（从 CompressProgress 事件已设置，保持不变）
         if (DynamicBar.Status == AgentStatus.Compressing && ContextManager.IsCompressing)
@@ -231,6 +232,9 @@ public class ChatScreen : TuiScreen
 
     /// <summary>等待权限的工具名（非 null = 正在等待）</summary>
     private string? _pendingPermissionTool;
+
+    /// <summary>上下文占用百分比（null=未知，用于动态栏常驻显示）</summary>
+    private double? _contextPercent;
 
     /// <summary>标记工具开始执行</summary>
     public void OnToolStarted(string toolName, string brief)
@@ -1555,29 +1559,22 @@ public class ChatScreen : TuiScreen
 
         switch (prefix)
         {
-            case '/': // 斜杠命令
-                var slashCmds = new (string cmd, string desc)[]
-                {
-                    ("/help", "显示帮助信息"),
-                    ("/model", "切换 LLM 模型"),
-                    ("/clear", "清空对话上下文"),
-                    ("/history", "搜索对话历史"),
-                    ("/perm yolo", "跳过权限确认"),
-                    ("/perm ask", "恢复权限确认"),
-                    ("/diff", "切换 diff 预览"),
-                    ("/edit", "编辑文件"),
-                    ("/read", "读取文件"),
-                    ("/write", "写入文件"),
-                    ("/todo", "显示任务列表"),
-                    ("/theme", "切换主题"),
-                    ("/tokens", "显示 Token 用量"),
-                    ("/status", "显示系统状态"),
-                };
-                foreach (var (cmd, desc) in slashCmds)
+            case '/': // 斜杠命令 —— 从注册表动态生成（新增命令自动出现在补全）
+                foreach (var cmd in SlashCommandRegistry.Commands)
                 {
                     if (string.IsNullOrEmpty(q) ||
-                        cmd.Contains(q, StringComparison.OrdinalIgnoreCase))
-                        items.Add(new PromptItem { Kind = PromptKind.Slash, Label = cmd, Detail = desc, Value = cmd + " " });
+                        cmd.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                        cmd.Aliases.Any(a => a.Contains(q, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        var label = cmd.Usage ?? cmd.Name; // 有参数提示则显示 "/perm [yolo|ask]"
+                        items.Add(new PromptItem
+                        {
+                            Kind = PromptKind.Slash,
+                            Label = label,
+                            Detail = cmd.Description,
+                            Value = cmd.Name + " ",
+                        });
+                    }
                 }
 
                 break;
@@ -1996,6 +1993,10 @@ public class ChatScreen : TuiScreen
         if (lastLatencyMs > 0)
             sb.Append($" · {lastLatencyMs / 1000:F1}s");
         StatusRight = sb.ToString();
+
+        // 上下文占用百分比（供动态栏常驻显示，绿→黄→红）
+        _contextPercent = maxContext > 0 ? contextTokens * 100.0 / maxContext : null;
+
         MarkDirty();
     }
 
