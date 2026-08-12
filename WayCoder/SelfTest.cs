@@ -1,6 +1,5 @@
 ﻿using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using WayCoder.Tools;
 using WayCoder.UI;
 using WayCoder.Terminal;
@@ -559,7 +558,7 @@ public static class SelfTest
             StructuredMemory.SetShared("dotnet-aot", false);
             Check("Unshare 取消共享", StructuredMemory.Get("dotnet-aot")?.IsShared == false);
             Check("取消后 ListShared 为空", StructuredMemory.ListShared().Count == 0);
-            Check("IsGitRepo 可调用", SharedMemoryManager.IsGitRepo() is true or false);
+            Check("IsGitRepo 可调用", SharedMemoryManager.IsGitRepo() || !SharedMemoryManager.IsGitRepo());
             SharedMemoryManager.ResetCache();
         }
         finally
@@ -1694,7 +1693,7 @@ public static class SelfTest
         var screen = new ChatScreen();
         screen.Activate(); // BuildLayout creates InputArea
         Check("实例非空", screen != null);
-        Check("ChatMessages 初始为空", screen.ChatMessages.Count == 0);
+        Check("ChatMessages 初始为空", screen!.ChatMessages.Count == 0);
 
         // 消息管理
         screen.AddUserMsg("hello");
@@ -1739,7 +1738,7 @@ public static class SelfTest
         var menuItems = new List<string> { "复制", "粘贴", "---", "删除", "全选" };
         var menuWin = TuiMenu.Show("编辑", menuItems, 10, 5);
         Check("TuiMenu 窗口非空", menuWin != null);
-        Check("TuiMenu 标题=编辑", menuWin.Title == "编辑");
+        Check("TuiMenu 标题=编辑", menuWin!.Title == "编辑");
         Check("TuiMenu 模态", menuWin.Modal);
         Check("TuiMenu 尺寸>0", menuWin.Width > 0 && menuWin.Height > 0);
         Check("TuiMenu Result默认-1", menuWin.Result is int r && r == -1);
@@ -1966,7 +1965,7 @@ public static class SelfTest
         // Agent.AutoCommitEnabled 属性：通过构造函数和属性均可设置
         // 简单验证类型存在即可（AOT 不支持反射，直接验证功能）
         var savedAutoCommit = Config.FromEnv().AutoGitCommit; // 类型检查通过即可
-        Check("AutoGitCommit 类型正确", savedAutoCommit is true or false);
+        Check("AutoGitCommit 类型正确", savedAutoCommit || !savedAutoCommit);
 
         // IsValidCommitMsg
         Check("IsValid: feat: add x", Agent.IsValidCommitMsg("feat: add login page"));
@@ -2213,7 +2212,7 @@ public static class SelfTest
                 var mdFiles = Directory.GetFiles(ccdDir, "*.md");
                 var promptMd = mdFiles.FirstOrDefault(f => Path.GetFileName(f).Equals("prompt.md", StringComparison.OrdinalIgnoreCase));
                 if (promptMd != null)
-                    Check($"扫描到 {dirName}/prompt.md", customInstructions.Contains("prompt.md") || customInstructions.Length > 0);
+                    Check($"扫描到 {dirName}/prompt.md", customInstructions!.Contains("prompt.md") || customInstructions.Length > 0);
             }
         }
         Console.WriteLine();
@@ -2865,7 +2864,7 @@ another.txt:3:1: warning: deprecated API
         // ================================================================
         Section("[主题系统]");
         Check("ThemeConfig Instance 非空", ThemeConfig.Instance != null);
-        Check("默认边框=single", ThemeConfig.Instance.BorderStyle == "single");
+        Check("默认边框=single", ThemeConfig.Instance!.BorderStyle == "single");
         Check("默认选中 SelFg=30", ThemeConfig.Instance.SelFg == 30);
         Check("默认选中 SelBg=46", ThemeConfig.Instance.SelBg == 46);
         Check("Presets 含6个", ThemeConfig.Presets.Count >= 6);
@@ -3309,7 +3308,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiRichEditor]");
         var editor = new TuiRichEditor();
         Check("TuiRichEditor 创建", editor != null);
-        Check("TuiRichEditor 默认宽度 80", editor.Width == 80);
+        Check("TuiRichEditor 默认宽度 80", editor!.Width == 80);
         Check("TuiRichEditor 默认高度 24", editor.Height == 24);
         Check("TuiRichEditor Focused", editor.Focused);
         Check("TuiRichEditor 有 Core", editor.Core != null);
@@ -3366,7 +3365,7 @@ another.txt:3:1: warning: deprecated API
         Section("[EditorScreen]");
         var editScreen = new EditorScreen();
         Check("EditorScreen 创建", editScreen != null);
-        Check("EditorScreen Name=editor", editScreen.Name == "editor");
+        Check("EditorScreen Name=editor", editScreen!.Name == "editor");
         Check("EditorScreen FilePath 为空", string.IsNullOrEmpty(editScreen.FilePath));
 
         var editScreen2 = new EditorScreen("/test/path.cs");
@@ -3381,7 +3380,7 @@ another.txt:3:1: warning: deprecated API
         Section("[SettingsScreen]");
         var setScreen = new SettingsScreen();
         Check("SettingsScreen 创建", setScreen != null);
-        Check("SettingsScreen Name=settings", setScreen.Name == "settings");
+        Check("SettingsScreen Name=settings", setScreen!.Name == "settings");
         Check("SettingsScreen RootView 存在", setScreen.RootView != null);
 
         // Schema
@@ -3409,7 +3408,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiButton]");
         var btn1 = new TuiButton("确定");
         Check("TuiButton 创建", btn1 != null);
-        Check("TuiButton Text=确定", btn1.Text == "确定");
+        Check("TuiButton Text=确定", btn1!.Text == "确定");
         Check("TuiButton 默认 Height=1", btn1.Height == 1);
         Check("TuiButton CanFocus=true", btn1.CanFocus);
 
@@ -3439,7 +3438,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiCheckbox]");
         var cb1 = new TuiCheckbox("启用", true);
         Check("TuiCheckbox 创建", cb1 != null);
-        Check("TuiCheckbox Checked=true", cb1.Checked);
+        Check("TuiCheckbox Checked=true", cb1!.Checked);
         Check("TuiCheckbox Label=启用", cb1.Label == "启用");
         Check("TuiCheckbox CanFocus=true", cb1.CanFocus);
 
@@ -3466,7 +3465,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiInput]");
         var input1 = new TuiInput();
         Check("TuiInput 创建", input1 != null);
-        Check("TuiInput 默认 Text 为空", input1.Text == "");
+        Check("TuiInput 默认 Text 为空", input1!.Text == "");
         Check("TuiInput 默认 CursorPos=0", input1.CursorPos == 0);
         Check("TuiInput HasCursor=true", input1.HasCursor);
         Check("TuiInput 默认 Password=false", !input1.Password);
@@ -3551,7 +3550,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiTextArea]");
         var ta = new TuiTextArea();
         Check("TuiTextArea 创建", ta != null);
-        Check("TuiTextArea 默认有 1 空行", ta.Lines.Count == 1 && ta.Lines[0] == "");
+        Check("TuiTextArea 默认有 1 空行", ta!.Lines.Count == 1 && ta.Lines[0] == "");
         Check("TuiTextArea 默认 CursorRow=0", ta.CursorRow == 0);
         Check("TuiTextArea 默认 CursorCol=0", ta.CursorCol == 0);
         Check("TuiTextArea 默认 ReadOnly=false", !ta.ReadOnly);
@@ -3633,7 +3632,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiLabel]");
         var lbl1 = new TuiLabel("测试标签");
         Check("TuiLabel 创建", lbl1 != null);
-        Check("TuiLabel Text", lbl1.Text == "测试标签");
+        Check("TuiLabel Text", lbl1!.Text == "测试标签");
         Check("TuiLabel CanFocus=false", !lbl1.CanFocus);
         Check("TuiLabel Height=1", lbl1.Height == 1);
 
@@ -3647,7 +3646,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiIcon]");
         var icon1 = new TuiIcon("★");
         Check("TuiIcon 创建", icon1 != null);
-        Check("TuiIcon Glyph=★", icon1.Glyph == "★");
+        Check("TuiIcon Glyph=★", icon1!.Glyph == "★");
         Check("TuiIcon CanFocus=false", !icon1.CanFocus);
         Check("TuiIcon Width=2", icon1.Width == 2);
         Check("TuiIcon Height=1", icon1.Height == 1);
@@ -3675,7 +3674,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiList]");
         var list1 = new TuiList { Items = ["项目A", "项目B", "项目C"] };
         Check("TuiList 创建", list1 != null);
-        Check("TuiList 3 项", list1.Items.Count == 3);
+        Check("TuiList 3 项", list1!.Items.Count == 3);
         Check("TuiList SelectedIndex=0", list1.SelectedIndex == 0);
         Check("TuiList MultiSelect=false", !list1.MultiSelect);
 
@@ -3713,7 +3712,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiListView]");
         var lv = new TuiListView();
         Check("TuiListView 创建", lv != null);
-        Check("TuiListView ItemCount=0", lv.ItemCount == 0);
+        Check("TuiListView ItemCount=0", lv!.ItemCount == 0);
         Check("TuiListView SelectedIndex=-1", lv.SelectedIndex == -1);
         Check("TuiListView IsAutoScrollToEnd=true", lv.IsAutoScrollToEnd);
 
@@ -3760,7 +3759,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiProgress]");
         var prog1 = new TuiProgress();
         Check("TuiProgress 创建", prog1 != null);
-        Check("TuiProgress 默认 Percent=0", prog1.Percent == 0);
+        Check("TuiProgress 默认 Percent=0", prog1!.Percent == 0);
         Check("TuiProgress CanFocus=false", !prog1.CanFocus);
         Check("TuiProgress Height=1", prog1.Height == 1);
         Check("TuiProgress Width=40", prog1.Width == 40);
@@ -3784,7 +3783,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiSpinner]");
         var spin1 = new TuiSpinner("加载中");
         Check("TuiSpinner 创建", spin1 != null);
-        Check("TuiSpinner Label", spin1.Label == "加载中");
+        Check("TuiSpinner Label", spin1!.Label == "加载中");
         Check("TuiSpinner CanFocus=false", !spin1.CanFocus);
 
         // 帧推进
@@ -3803,7 +3802,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiStatusBar]");
         var sb1 = new TuiStatusBar();
         Check("TuiStatusBar 创建", sb1 != null);
-        Check("TuiStatusBar CanFocus=false", !sb1.CanFocus);
+        Check("TuiStatusBar CanFocus=false", !sb1!.CanFocus);
         Check("TuiStatusBar Height=1", sb1.Height == 1);
         Check("TuiStatusBar SlotStates 长度=10", sb1.SlotStates.Length == 10);
         Check("TuiStatusBar ActiveSlotIndex=0", sb1.ActiveSlotIndex == 0);
@@ -3827,7 +3826,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiTabs]");
         var tabs = new TuiTabs();
         Check("TuiTabs 创建", tabs != null);
-        Check("TuiTabs Count=0", tabs.Count == 0);
+        Check("TuiTabs Count=0", tabs!.Count == 0);
 
         tabs.AddTab("聊天", new TuiLabel("chat"));
         tabs.AddTab("文件", new TuiLabel("files"));
@@ -3876,7 +3875,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiTitleBar]");
         var titleBar = new TuiTitleBar();
         Check("TuiTitleBar 创建", titleBar != null);
-        Check("TuiTitleBar CanFocus=false", !titleBar.CanFocus);
+        Check("TuiTitleBar CanFocus=false", !titleBar!.CanFocus);
         Check("TuiTitleBar Height=1", titleBar.Height == 1);
 
         titleBar.Title = "WayCoder";
@@ -3895,7 +3894,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiBanner]");
         var banner = new TuiBanner();
         Check("TuiBanner 创建", banner != null);
-        Check("TuiBanner CanFocus=false", !banner.CanFocus);
+        Check("TuiBanner CanFocus=false", !banner!.CanFocus);
         Check("TuiBanner Height=3", banner.Height == 3);
 
         banner.Title = "WayCoder 道码";
@@ -3932,7 +3931,7 @@ another.txt:3:1: warning: deprecated API
         // Grid 创建
         var grid = new TuiGrid { Width = 80, Height = 24 };
         Check("TuiGrid 创建", grid != null);
-        Check("TuiGrid Rows=0", grid.Rows == 0);
+        Check("TuiGrid Rows=0", grid!.Rows == 0);
         Check("TuiGrid Columns=0", grid.Columns == 0);
 
         grid.RowDefinitions = "5,10*,10*";
@@ -3973,7 +3972,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiWrapPanel]");
         var wrap = new TuiWrapPanel { Width = 30, Height = 10 };
         Check("TuiWrapPanel 创建", wrap != null);
-        Check("TuiWrapPanel Direction=Horizontal", wrap.Direction == Orientation.Horizontal);
+        Check("TuiWrapPanel Direction=Horizontal", wrap!.Direction == Orientation.Horizontal);
 
         wrap.Add(new TuiLabel("A") { Width = 8 });
         wrap.Add(new TuiLabel("B") { Width = 8 });
@@ -4004,7 +4003,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiSidePanel]");
         var sidePanel = new TuiSidePanel();
         Check("TuiSidePanel 创建", sidePanel != null);
-        Check("TuiSidePanel CanFocus=false", !sidePanel.CanFocus);
+        Check("TuiSidePanel CanFocus=false", !sidePanel!.CanFocus);
         Check("TuiSidePanel PanelVisible=true", sidePanel.PanelVisible);
         Check("TuiSidePanel Width=30", sidePanel.Width == 30);
         Check("TuiSidePanel Height=20", sidePanel.Height == 20);
@@ -4029,7 +4028,7 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiPromptBar]");
         var promptBar = new TuiPromptBar();
         Check("TuiPromptBar 创建", promptBar != null);
-        Check("TuiPromptBar CanFocus=true", promptBar.CanFocus);
+        Check("TuiPromptBar CanFocus=true", promptBar!.CanFocus);
         Check("TuiPromptBar Items=0", promptBar.Items.Count == 0);
         Check("TuiPromptBar SelectedIndex=-1", promptBar.SelectedIndex == -1);
         Check("TuiPromptBar MaxVisible=8", promptBar.MaxVisible == 8);
@@ -4075,25 +4074,25 @@ another.txt:3:1: warning: deprecated API
         Section("[TuiDialog]");
         var dInfo = TuiDialog.Info("提示", "这是一条信息");
         Check("TuiDialog.Info 返回窗口", dInfo != null);
-        Check("TuiDialog.Info 标题=提示", dInfo.Title == "提示");
+        Check("TuiDialog.Info 标题=提示", dInfo!.Title == "提示");
         Check("TuiDialog.Info 模态", dInfo.Modal);
 
         var dSuccess = TuiDialog.Success("成功", "操作已完成");
         Check("TuiDialog.Success 返回窗口", dSuccess != null);
-        Check("TuiDialog.Success 标题=成功", dSuccess.Title == "成功");
+        Check("TuiDialog.Success 标题=成功", dSuccess!.Title == "成功");
 
         var dWarn = TuiDialog.Warn("警告", "请注意");
         Check("TuiDialog.Warn 返回窗口", dWarn != null);
-        Check("TuiDialog.Warn 标题=警告", dWarn.Title == "警告");
+        Check("TuiDialog.Warn 标题=警告", dWarn!.Title == "警告");
 
         var dError = TuiDialog.Error("错误", "发生错误");
         Check("TuiDialog.Error 返回窗口", dError != null);
-        Check("TuiDialog.Error 标题=错误", dError.Title == "错误");
+        Check("TuiDialog.Error 标题=错误", dError!.Title == "错误");
 
         bool? confirmResult = null;
         var dConfirm = TuiDialog.Confirm("确认", "是否继续？", r => confirmResult = r);
         Check("TuiDialog.Confirm 返回窗口", dConfirm != null);
-        Check("TuiDialog.Confirm 模态", dConfirm.Modal);
+        Check("TuiDialog.Confirm 模态", dConfirm!.Modal);
 
         TuiDialog.DialogResult? confirm3Result = null;
         var dConfirm3 = TuiDialog.Confirm3("选择", "Yes/No/Cancel?", r => confirm3Result = r);
@@ -4114,12 +4113,12 @@ another.txt:3:1: warning: deprecated API
         TuiDialog.DialogResult? permResult = null;
         var dPerm = TuiDialog.Permission("权限", "允许执行？", r => permResult = r);
         Check("TuiDialog.Permission 返回窗口", dPerm != null);
-        Check("TuiDialog.Permission 模态", dPerm.Modal);
+        Check("TuiDialog.Permission 模态", dPerm!.Modal);
 
         string? secretResult = null;
         var dSecret = TuiDialog.Secret("密钥", "输入API Key", "", s => secretResult = s);
         Check("TuiDialog.Secret 返回窗口", dSecret != null);
-        Check("TuiDialog.Secret 模态", dSecret.Modal);
+        Check("TuiDialog.Secret 模态", dSecret!.Modal);
 
         // DialogResult 枚举
         Check("DialogResult.Ok", (int)TuiDialog.DialogResult.Ok == 0);
@@ -4180,7 +4179,7 @@ another.txt:3:1: warning: deprecated API
         // TuiVBox (HBox inherits from TuiView)
         var vbox = new TuiVBox();
         Check("TuiVBox 创建", vbox != null);
-        Check("TuiVBox Children=0", vbox.Children.Count == 0);
+        Check("TuiVBox Children=0", vbox!.Children.Count == 0);
 
         var vChild1 = new TuiLabel("C1");
         vbox.Add(vChild1);
@@ -4256,7 +4255,7 @@ another.txt:3:1: warning: deprecated API
         Section("[BoxBuffer]");
         var box = new BoxBuffer { X = 2, Y = 3, Width = 40, Height = 10 };
         Check("BoxBuffer 创建", box != null);
-        Check("BoxBuffer X=2", box.X == 2);
+        Check("BoxBuffer X=2", box!.X == 2);
         Check("BoxBuffer Y=3", box.Y == 3);
         Check("BoxBuffer Width=40", box.Width == 40);
         Check("BoxBuffer Height=10", box.Height == 10);
@@ -4320,7 +4319,7 @@ another.txt:3:1: warning: deprecated API
         Check("TuiTheme.Default 非空", TuiTheme.Default != null);
 
         // 对话框边框色
-        Check("TuiTheme DialogInfoBorder", theme.DialogInfoBorder > 0);
+        Check("TuiTheme DialogInfoBorder", theme!.DialogInfoBorder > 0);
         Check("TuiTheme DialogSuccessBorder", theme.DialogSuccessBorder > 0);
         Check("TuiTheme DialogWarnBorder", theme.DialogWarnBorder > 0);
         Check("TuiTheme DialogErrorBorder", theme.DialogErrorBorder > 0);
@@ -4350,7 +4349,7 @@ another.txt:3:1: warning: deprecated API
         TuiTheme.Apply(TuiTheme.Dark, 0);
         Check("TuiTheme Apply(Dark)", TuiTheme.CurrentPresetIndex >= 0);
         // 恢复默认
-        TuiTheme.Current = TuiTheme.Default;
+        TuiTheme.Current = TuiTheme.Default!;
         Console.WriteLine();
 
         // ================================================================
@@ -4431,7 +4430,7 @@ another.txt:3:1: warning: deprecated API
         var table = new TuiTable();
         Check("TuiTable 创建", table != null);
 
-        table.AddColumn("名称", 12);
+        table!.AddColumn("名称", 12);
         table.AddColumn("类型", 8);
         table.AddColumn("大小", 8);
         // 链式调用
@@ -4442,7 +4441,7 @@ another.txt:3:1: warning: deprecated API
         Check("TuiTable 链式 AddRow", table2 != null);
 
         // RenderToString
-        var output = table2.RenderToString(false);
+        var output = table2!.RenderToString(false);
         Check("TuiTable RenderToString 非空", !string.IsNullOrEmpty(output));
         Check("TuiTable RenderToString 含标题", output.Contains("测试表格"));
         Check("TuiTable RenderToString 含表头", output.Contains("A") && output.Contains("B"));

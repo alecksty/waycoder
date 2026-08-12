@@ -63,6 +63,9 @@ public class EditFileTool : ITool
 
     private static async Task<string> ExecuteAsync(string filePath, string oldString, string newString, bool replaceAll, string agentId)
     {
+        if (string.IsNullOrWhiteSpace(filePath))
+            return "错误：file_path 不能为空 — 请提供有效的文件路径。";
+
         var path = Path.GetFullPath(filePath);
 
         // 文件锁检查

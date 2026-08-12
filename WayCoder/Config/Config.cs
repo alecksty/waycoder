@@ -19,7 +19,7 @@ public record SettingDef(
 record ConfigProp(
     string Key,                        // 属性名 "Model"
     string EnvVar,                     // "WAYCODER_MODEL"
-    string? OldEnvVar,                 // "CORECODER_MODEL"（旧名兼容，null = 无）
+    string? OldEnvVar,                 // null（旧名兼容，null = 无）
     string Label,                      // "大模型 (复杂任务)"
     string Category,                   // "🤖 模型"
     string Desc,                       // "架构/重构/调试/多文件"
@@ -36,7 +36,7 @@ record ConfigProp(
 /// 配置 - 环境变量和默认值。单例模式，所有模块通过 Config.Instance 统一读取。
 ///
 /// 新增配置项只需在 _schema 列表中加一行，SettingSchema/FromEnv/SaveToEnvFile 全部自动推导。
-/// 环境变量优先读取 WAYCODER_*（新名），回退到 CORECODER_*（旧名，兼容 v0.16.2 及之前版本）。
+/// 环境变量读取 WAYCODER_* 前缀。
 /// API Key 不保存到 .env 文件（密钥独立管理）。
 /// </summary>
 public class Config
@@ -150,7 +150,7 @@ public class Config
     public int LlmRateLimitMaxWaitSec { get; set; } = 120;
 
     // ── 回退链 ──
-    public string FallbackChain { get; set; } = "deepseek-v4-flash,deepseek-v4-pro,gemini-2.0-flash,qwen-turbo,glm-4-flash,gpt-5.4-mini";
+    public string FallbackChain { get; set; } = "deepseek-v4-pro,deepseek-v4-flash,qwen-turbo,glm-4-flash";
 
     // ── 文件锁 ──
     public int FileLockTimeoutSec { get; set; } = 30;
@@ -191,23 +191,23 @@ public class Config
     {
         _schema = [
             // ── 模型 ──
-            P("Model",        "WAYCODER_MODEL",           "CORECODER_MODEL",
+            P("Model",        "WAYCODER_MODEL",           null,
               "大模型 (复杂任务)", "🤖 模型", "架构/重构/调试/多文件",
               "select", ["deepseek-chat","deepseek-v4-pro","gpt-5.4","gpt-5.5","deepseek-v4-flash","gpt-4o","gpt-4o-mini"], 0,
               c => c.Model, (c, v) => c.Model = v, "deepseek-chat"),
 
-            P("SmallModel",   "WAYCODER_SMALL_MODEL",     "CORECODER_SMALL_MODEL",
+            P("SmallModel",   "WAYCODER_SMALL_MODEL",     null,
               "小模型 (简单任务)", "🤖 模型", "补全/摘要/压缩 (便宜快速)",
               "select", ["deepseek-chat","deepseek-v4-flash","gpt-5.4-mini","gpt-4o-mini","deepseek-v4-pro"], 1,
               c => c.SmallModel, (c, v) => c.SmallModel = v, "deepseek-chat"),
 
-            P("BaseUrl",      "WAYCODER_BASE_URL",        "CORECODER_BASE_URL",
+            P("BaseUrl",      "WAYCODER_BASE_URL",        null,
               "API 地址", "🤖 模型", "API 端点 URL",
               "text", null, 2,
               c => c.BaseUrl ?? "", (c, v) => c.BaseUrl = string.IsNullOrEmpty(v) ? null : v,
               skipIfEmpty: true),
 
-            P("ApiKey",       "WAYCODER_API_KEY",         "CORECODER_API_KEY",
+            P("ApiKey",       "WAYCODER_API_KEY",         null,
               "API 密钥", "🤖 模型", "API 密钥 (已隐藏)",
               "secret", null, 3,
               c => c.ApiKey, (c, v) => c.ApiKey = v, "", skipIfEmpty: true),
@@ -218,90 +218,90 @@ public class Config
               c => c.ReasoningEffort, (c, v) => c.ReasoningEffort = v, "", skipIfEmpty: true),
 
             // ── 参数 ──
-            P("MaxTokens",        "WAYCODER_MAX_TOKENS",        "CORECODER_MAX_TOKENS",
+            P("MaxTokens",        "WAYCODER_MAX_TOKENS",        null,
               "最大 Token", "⚙ 参数", "每次请求最大 Token 数",
               "number", null, 0,
               c => c.MaxTokens.ToString(), (c, v) => c.MaxTokens = Math.Clamp(int.Parse(v), 512, 65536), "32768"),
 
-            P("Temperature",      "WAYCODER_TEMPERATURE",       "CORECODER_TEMPERATURE",
+            P("Temperature",      "WAYCODER_TEMPERATURE",       null,
               "温度", "⚙ 参数", "0=精确 1=创意",
               "number", null, 1,
               c => c.Temperature.ToString("F1"), (c, v) => c.Temperature = float.Parse(v), "0.1"),
 
-            P("MaxContextTokens", "WAYCODER_MAX_CONTEXT",       "CORECODER_MAX_CONTEXT",
+            P("MaxContextTokens", "WAYCODER_MAX_CONTEXT",       null,
               "上下文窗口", "⚙ 参数", "上下文窗口大小",
               "number", null, 2,
               c => c.MaxContextTokens.ToString(), (c, v) => c.MaxContextTokens = int.Parse(v), "128000"),
 
-            P("ToolTimeoutSec",   "WAYCODER_TOOL_TIMEOUT",      "CORECODER_TOOL_TIMEOUT",
+            P("ToolTimeoutSec",   "WAYCODER_TOOL_TIMEOUT",      null,
               "工具超时 (秒)", "⚙ 参数", "Bash 等工具执行超时，默认 120 秒",
               "number", null, 3,
               c => c.ToolTimeoutSec.ToString(), (c, v) => c.ToolTimeoutSec = int.Parse(v), "120"),
 
-            P("AllowedTools",    "WAYCODER_ALLOWED_TOOLS",     "CORECODER_ALLOWED_TOOLS",
+            P("AllowedTools",    "WAYCODER_ALLOWED_TOOLS",     null,
               "工具白名单", "🔒 安全", "逗号分隔的工具名列表，仅允许这些工具可用（空=全部允许）",
               "text", null, 4,
               c => c.AllowedTools, (c, v) => c.AllowedTools = v, ""),
 
-            P("DisabledTools",   "WAYCODER_DISABLED_TOOLS",    "CORECODER_DISABLED_TOOLS",
+            P("DisabledTools",   "WAYCODER_DISABLED_TOOLS",    null,
               "工具黑名单", "🔒 安全", "逗号分隔的工具名列表，禁止这些工具（空=不禁用）",
               "text", null, 5,
               c => c.DisabledTools, (c, v) => c.DisabledTools = v, ""),
 
-            P("LintTimeoutSec",   "WAYCODER_LINT_TIMEOUT",      "CORECODER_LINT_TIMEOUT",
+            P("LintTimeoutSec",   "WAYCODER_LINT_TIMEOUT",      null,
               "Lint 超时 (秒)", "⚙ 参数", "Lint 检查超时，默认 60 秒（大项目可调大）",
               "number", null, 4,
               c => c.LintTimeoutSec.ToString(), (c, v) => c.LintTimeoutSec = int.Parse(v), "60"),
 
-            P("SubAgentMaxDepth", "WAYCODER_SUBAGENT_DEPTH",    "CORECODER_SUBAGENT_DEPTH",
+            P("SubAgentMaxDepth", "WAYCODER_SUBAGENT_DEPTH",    null,
               "子智能体深度", "🤖 模型", "子智能体最大递归层数，1=单层 5=最深",
               "number", null, 4,
               c => c.SubAgentMaxDepth.ToString(),
               (c, v) => c.SubAgentMaxDepth = Math.Clamp(int.Parse(v), 1, 5), "3"),
 
-            P("SubAgentMaxParallel", "WAYCODER_SUBAGENT_MAX_PARALLEL", "CORECODER_SUBAGENT_MAX_PARALLEL",
+            P("SubAgentMaxParallel", "WAYCODER_SUBAGENT_MAX_PARALLEL", null,
               "子智能体并行数", "🤖 模型", "并行子任务数量上限",
               "number", null, 5,
               c => c.SubAgentMaxParallel.ToString(),
               (c, v) => c.SubAgentMaxParallel = Math.Clamp(int.Parse(v), 1, 10), "4"),
 
-            P("SubAgentOutputMaxChars", "WAYCODER_SUBAGENT_OUTPUT_MAX_CHARS", "CORECODER_SUBAGENT_OUTPUT_MAX_CHARS",
+            P("SubAgentOutputMaxChars", "WAYCODER_SUBAGENT_OUTPUT_MAX_CHARS", null,
               "子智能体输出上限", "🤖 模型", "子智能体输出截断阈值（字符数），0=不截断",
               "number", null, 6,
               c => c.SubAgentOutputMaxChars.ToString(),
               (c, v) => c.SubAgentOutputMaxChars = Math.Max(0, int.Parse(v)), "5000"),
 
-            P("MaxRounds",     "WAYCODER_MAX_ROUNDS",         "CORECODER_MAX_ROUNDS",
+            P("MaxRounds",     "WAYCODER_MAX_ROUNDS",         null,
               "最大对话轮次", "⚙ 参数", "每轮对话最大工具调用次数",
               "number", null, 5,
               c => c.MaxRounds.ToString(),
               (c, v) => c.MaxRounds = Math.Clamp(int.Parse(v), 5, 500), "50"),
 
-            P("BashOutputMaxChars", "WAYCODER_BASH_OUTPUT_MAX_CHARS", "CORECODER_BASH_OUTPUT_MAX_CHARS",
+            P("BashOutputMaxChars", "WAYCODER_BASH_OUTPUT_MAX_CHARS", null,
               "Bash 输出上限", "⚙ 参数", "Bash 输出截断阈值（字符数），0=不截断",
               "number", null, 6,
               c => c.BashOutputMaxChars.ToString(),
               (c, v) => c.BashOutputMaxChars = Math.Max(0, int.Parse(v)), "50000"),
 
-            P("LlmHttpTimeoutSec", "WAYCODER_LLM_HTTP_TIMEOUT_SEC", "CORECODER_LLM_HTTP_TIMEOUT_SEC",
+            P("LlmHttpTimeoutSec", "WAYCODER_LLM_HTTP_TIMEOUT_SEC", null,
               "LLM 请求超时 (秒)", "⚙ 参数", "单次 HTTP 请求超时",
               "number", null, 7,
               c => c.LlmHttpTimeoutSec.ToString(),
               (c, v) => c.LlmHttpTimeoutSec = Math.Clamp(int.Parse(v), 10, 3600), "300"),
 
-            P("LlmMaxRetries",    "WAYCODER_LLM_MAX_RETRIES",   "CORECODER_LLM_MAX_RETRIES",
+            P("LlmMaxRetries",    "WAYCODER_LLM_MAX_RETRIES",   null,
               "LLM 最大重试", "⚙ 参数", "HTTP 失败最大重试次数",
               "number", null, 8,
               c => c.LlmMaxRetries.ToString(),
               (c, v) => c.LlmMaxRetries = Math.Clamp(int.Parse(v), 0, 10), "5"),
 
-            P("LlmConnectionTimeoutSec", "WAYCODER_LLM_CONNECTION_TIMEOUT_SEC", "CORECODER_LLM_CONNECTION_TIMEOUT_SEC",
+            P("LlmConnectionTimeoutSec", "WAYCODER_LLM_CONNECTION_TIMEOUT_SEC", null,
               "LLM 连接超时 (秒)", "⚙ 参数", "HTTP 连接总超时",
               "number", null, 9,
               c => c.LlmConnectionTimeoutSec.ToString(),
               (c, v) => c.LlmConnectionTimeoutSec = Math.Clamp(int.Parse(v), 10, 3600), "300"),
 
-            P("LlmRateLimitMaxWaitSec", "WAYCODER_LLM_RATE_LIMIT_MAX_WAIT_SEC", "CORECODER_LLM_RATE_LIMIT_MAX_WAIT_SEC",
+            P("LlmRateLimitMaxWaitSec", "WAYCODER_LLM_RATE_LIMIT_MAX_WAIT_SEC", null,
               "LLM 限速最大等待 (秒)", "⚙ 参数", "429 限速后最大等待时间",
               "number", null, 10,
               c => c.LlmRateLimitMaxWaitSec.ToString(),
@@ -368,19 +368,19 @@ public class Config
               c => c.FetchTimeoutSec.ToString(),
               (c, v) => c.FetchTimeoutSec = Math.Clamp(int.Parse(v), 5, 120), "30"),
 
-            P("ContextSnipRatio", "WAYCODER_CTX_SNIP_RATIO",   "CORECODER_CTX_SNIP_RATIO",
+            P("ContextSnipRatio", "WAYCODER_CTX_SNIP_RATIO",   null,
               "上下文裁剪比例 (%)", "⚙ 参数", "工具输出裁剪触发比例",
               "number", null, 11,
               c => c.ContextSnipRatio.ToString(),
               (c, v) => c.ContextSnipRatio = Math.Clamp(int.Parse(v), 10, 80), "50"),
 
-            P("ContextSummarizeRatio", "WAYCODER_CTX_SUMMARIZE_RATIO", "CORECODER_CTX_SUMMARIZE_RATIO",
+            P("ContextSummarizeRatio", "WAYCODER_CTX_SUMMARIZE_RATIO", null,
               "上下文摘要比例 (%)", "⚙ 参数", "LLM 摘要触发比例",
               "number", null, 12,
               c => c.ContextSummarizeRatio.ToString(),
               (c, v) => c.ContextSummarizeRatio = Math.Clamp(int.Parse(v), 20, 90), "70"),
 
-            P("ContextCollapseRatio", "WAYCODER_CTX_COLLAPSE_RATIO", "CORECODER_CTX_COLLAPSE_RATIO",
+            P("ContextCollapseRatio", "WAYCODER_CTX_COLLAPSE_RATIO", null,
               "上下文折叠比例 (%)", "⚙ 参数", "硬折叠触发比例",
               "number", null, 13,
               c => c.ContextCollapseRatio.ToString(),
@@ -410,13 +410,13 @@ public class Config
               c => c.AutoContinueAfterSummarize.ToString().ToLowerInvariant(),
               (c, v) => c.AutoContinueAfterSummarize = bool.Parse(v), "true"),
 
-            P("FallbackChain", "WAYCODER_FALLBACK_CHAIN",     "CORECODER_FALLBACK_CHAIN",
+            P("FallbackChain", "WAYCODER_FALLBACK_CHAIN",     null,
               "回退模型链", "🤖 模型", "逗号分隔的备选模型列表",
               "text", null, 7,
               c => c.FallbackChain, (c, v) => c.FallbackChain = v,
               "deepseek-v4-flash,deepseek-v4-pro,gemini-2.0-flash,qwen-turbo,glm-4-flash,gpt-5.4-mini"),
 
-            P("FallbackMaxBudget", "WAYCODER_FALLBACK_MAX_BUDGET", "CORECODER_FALLBACK_MAX_BUDGET",
+            P("FallbackMaxBudget", "WAYCODER_FALLBACK_MAX_BUDGET", null,
               "回退预算 ($)", "💰 预算", "回退链最大花费，null=无限制",
               "number", null, 0,
               c => c.FallbackMaxBudget?.ToString("F2") ?? "",
@@ -424,7 +424,7 @@ public class Config
               skipIfEmpty: true),
 
             // ── 预算 ──
-            P("MaxBudgetUsd",     "WAYCODER_MAX_BUDGET_USD",    "CORECODER_MAX_BUDGET_USD",
+            P("MaxBudgetUsd",     "WAYCODER_MAX_BUDGET_USD",    null,
               "预算上限 ($)", "💰 预算", "超支自动停止，留空=无限制",
               "number", null, 0,
               c => c.MaxBudgetUsd?.ToString("F2") ?? "",
@@ -432,150 +432,150 @@ public class Config
               skipIfEmpty: true),
 
             // ── 系统 ──
-            P("Provider",         "WAYCODER_PROVIDER",          "CORECODER_PROVIDER",
+            P("Provider",         "WAYCODER_PROVIDER",          null,
               "提供商", "🔧 系统", "API 提供商 (openai/deepseek/...)",
               "text", null, 0,
               c => c.Provider, (c, v) => c.Provider = v, "openai"),
 
-            P("AutoGitCommit",    "WAYCODER_AUTO_COMMIT",       "CORECODER_AUTO_COMMIT",
+            P("AutoGitCommit",    "WAYCODER_AUTO_COMMIT",       null,
               "Git 自动提交", "🔧 系统", "工具执行后自动 git commit",
               "select", ["false","true"], 1,
               c => c.AutoGitCommit.ToString().ToLowerInvariant(),
               (c, v) => c.AutoGitCommit = bool.Parse(v), "false"),
 
-            P("WatchMode",        "WAYCODER_WATCH",             "CORECODER_WATCH",
+            P("WatchMode",        "WAYCODER_WATCH",             null,
               "Watch 模式", "🔧 系统", "监听外部编辑器 AI! 注释自动触发 Agent",
               "select", ["false","true"], 2,
               c => c.WatchMode.ToString().ToLowerInvariant(),
               (c, v) => c.WatchMode = bool.Parse(v), "false"),
 
-            P("WatchExtensions",  "WAYCODER_WATCH_EXTENSIONS",  "CORECODER_WATCH_EXTENSIONS",
+            P("WatchExtensions",  "WAYCODER_WATCH_EXTENSIONS",  null,
               "Watch 扩展名", "🔧 系统", "监听的源文件扩展名（逗号分隔，默认 .cs .fs .py .js .ts .go .rs）",
               "text", null, 6,
               c => c.WatchExtensions,
               (c, v) => c.WatchExtensions = v, ".cs,.fs,.py,.js,.ts,.go,.rs"),
 
-            P("WatchIgnoreDirs",  "WAYCODER_WATCH_IGNORE_DIRS","CORECODER_WATCH_IGNORE_DIRS",
+            P("WatchIgnoreDirs",  "WAYCODER_WATCH_IGNORE_DIRS",null,
               "Watch 忽略目录", "🔧 系统", "不监听的目录名（逗号分隔，默认 obj,bin,node_modules,.git）",
               "text", null, 7,
               c => c.WatchIgnoreDirs,
               (c, v) => c.WatchIgnoreDirs = v, "obj,bin,node_modules,.git"),
 
-            P("PromptCaching",    "WAYCODER_PROMPT_CACHE",      "CORECODER_PROMPT_CACHE",
+            P("PromptCaching",    "WAYCODER_PROMPT_CACHE",      null,
               "Prompt 缓存", "🔧 系统", "追踪系统提示词重复发送，/stats 展示节省",
               "select", ["false","true"], 3,
               c => c.PromptCaching.ToString().ToLowerInvariant(),
               (c, v) => c.PromptCaching = bool.Parse(v), "true"),
 
-            P("SandboxLevel",     "WAYCODER_SANDBOX_LEVEL",     "CORECODER_SANDBOX_LEVEL",
+            P("SandboxLevel",     "WAYCODER_SANDBOX_LEVEL",     null,
               "沙箱级别", "🔧 系统", "suggest=确认 auto-edit=编自动 full-auto=全自动沙箱",
               "select", ["suggest","auto-edit","full-auto"], 4,
               c => c.SandboxLevel, (c, v) => c.SandboxLevel = v, "suggest"),
 
-            P("EditorLint",       "WAYCODER_EDITOR_LINT",       "CORECODER_EDITOR_LINT",
+            P("EditorLint",       "WAYCODER_EDITOR_LINT",       null,
               "编辑器 Lint", "🔧 系统", "保存时自动运行 lint 检查并标注错误行",
               "select", ["false","true"], 5,
               c => c.EditorLint.ToString().ToLowerInvariant(),
               (c, v) => c.EditorLint = bool.Parse(v), "true"),
 
-            P("DiffPreview",      "WAYCODER_DIFF_PREVIEW",      "CORECODER_DIFF_PREVIEW",
+            P("DiffPreview",      "WAYCODER_DIFF_PREVIEW",      null,
               "Diff 预览", "🔧 系统", "写文件前展示差异并逐 hunk 确认（非交互模式自动跳过）",
               "select", ["false","true"], 6,
               c => c.DiffPreview.ToString().ToLowerInvariant(),
               (c, v) => c.DiffPreview = bool.Parse(v), "false"),
 
-            P("DesktopNotifications", "WAYCODER_ENABLE_NOTIFICATIONS", "CORECODER_ENABLE_NOTIFICATIONS",
+            P("DesktopNotifications", "WAYCODER_ENABLE_NOTIFICATIONS", null,
               "桌面通知", "🔧 系统", "Agent 完成/权限等待时发送桌面通知（默认关闭）",
               "select", ["false","true"], 7,
               c => c.DesktopNotifications.ToString().ToLowerInvariant(),
               (c, v) => c.DesktopNotifications = bool.Parse(v), "false"),
 
-            P("MemoryRelevanceTopN", "WAYCODER_MEMORY_TOPN",    "CORECODER_MEMORY_TOPN",
+            P("MemoryRelevanceTopN", "WAYCODER_MEMORY_TOPN",    null,
               "记忆注入条数", "🔧 系统", "每次注入的最相关记忆数，0=关闭语义匹配",
               "number", null, 6,
               c => c.MemoryRelevanceTopN.ToString(),
               (c, v) => c.MemoryRelevanceTopN = Math.Clamp(int.Parse(v), 0, 20), "5"),
 
-            P("EmbeddingEnabled",  "WAYCODER_EMBEDDING",       "CORECODER_EMBEDDING",
+            P("EmbeddingEnabled",  "WAYCODER_EMBEDDING",       null,
               "向量嵌入", "🔧 系统", "启用语义向量嵌入搜索（需 API 支持 /v1/embeddings）",
               "select", ["false","true"], 7,
               c => c.EmbeddingEnabled.ToString().ToLowerInvariant(),
               (c, v) => c.EmbeddingEnabled = bool.Parse(v), "false"),
 
-            P("EmbeddingModel",    "WAYCODER_EMBEDDING_MODEL", "CORECODER_EMBEDDING_MODEL",
+            P("EmbeddingModel",    "WAYCODER_EMBEDDING_MODEL", null,
               "嵌入模型", "🔧 系统", "向量嵌入模型名称",
               "text", null, 8,
               c => c.EmbeddingModel, (c, v) => c.EmbeddingModel = v, "text-embedding-3-small"),
 
-            P("EmbeddingDimensions", "WAYCODER_EMBEDDING_DIMS", "CORECODER_EMBEDDING_DIMS",
+            P("EmbeddingDimensions", "WAYCODER_EMBEDDING_DIMS", null,
               "嵌入维度", "🔧 系统", "向量维度（0=模型默认，如 text-embedding-3-small=1536）",
               "number", null, 9,
               c => c.EmbeddingDimensions.ToString(),
               (c, v) => c.EmbeddingDimensions = Math.Clamp(int.Parse(v), 0, 4096), "0"),
 
-            P("TeamMemoryEnabled", "WAYCODER_TEAM_MEMORY",     "CORECODER_TEAM_MEMORY",
+            P("TeamMemoryEnabled", "WAYCODER_TEAM_MEMORY",     null,
               "团队记忆共享", "🔧 系统", "通过 git 同步 .waycoder/memory/ 共享记忆（需仓库支持）",
               "select", ["false","true"], 10,
               c => c.TeamMemoryEnabled.ToString().ToLowerInvariant(),
               (c, v) => c.TeamMemoryEnabled = bool.Parse(v), "false"),
 
-            P("TeamMemoryAutoSync", "WAYCODER_TEAM_AUTO_SYNC", "CORECODER_TEAM_AUTO_SYNC",
+            P("TeamMemoryAutoSync", "WAYCODER_TEAM_AUTO_SYNC", null,
               "启动自动同步", "🔧 系统", "启动时自动 git pull 拉取团队共享记忆",
               "select", ["false","true"], 11,
               c => c.TeamMemoryAutoSync.ToString().ToLowerInvariant(),
               (c, v) => c.TeamMemoryAutoSync = bool.Parse(v), "true"),
 
-            P("SandboxMaxMemoryMb", "WAYCODER_SANDBOX_MAX_MEMORY_MB", "CORECODER_SANDBOX_MAX_MEMORY_MB",
+            P("SandboxMaxMemoryMb", "WAYCODER_SANDBOX_MAX_MEMORY_MB", null,
               "沙箱最大内存 (MB)", "🔧 系统", "子进程最大内存，超限自动 kill",
               "number", null, 12,
               c => c.SandboxMaxMemoryMb.ToString(),
               (c, v) => c.SandboxMaxMemoryMb = Math.Clamp(int.Parse(v), 64, 65536), "1024"),
 
-            P("SandboxMaxCpuSeconds", "WAYCODER_SANDBOX_MAX_CPU_SEC", "CORECODER_SANDBOX_MAX_CPU_SEC",
+            P("SandboxMaxCpuSeconds", "WAYCODER_SANDBOX_MAX_CPU_SEC", null,
               "沙箱最大 CPU (秒)", "🔧 系统", "子进程最大 CPU 时间，超限自动 kill",
               "number", null, 13,
               c => c.SandboxMaxCpuSeconds.ToString(),
               (c, v) => c.SandboxMaxCpuSeconds = Math.Clamp(int.Parse(v), 5, 86400), "300"),
 
-            P("SandboxAllowNetwork", "WAYCODER_SANDBOX_ALLOW_NETWORK", "CORECODER_SANDBOX_ALLOW_NETWORK",
+            P("SandboxAllowNetwork", "WAYCODER_SANDBOX_ALLOW_NETWORK", null,
               "沙箱网络", "🔧 系统", "允许沙箱子进程访问网络",
               "select", ["false","true"], 14,
               c => c.SandboxAllowNetwork.ToString().ToLowerInvariant(),
               (c, v) => c.SandboxAllowNetwork = bool.Parse(v), "false"),
 
-            P("FileLockTimeoutSec", "WAYCODER_FILE_LOCK_TIMEOUT_SEC", "CORECODER_FILE_LOCK_TIMEOUT_SEC",
+            P("FileLockTimeoutSec", "WAYCODER_FILE_LOCK_TIMEOUT_SEC", null,
               "文件锁超时 (秒)", "🔧 系统", "防多 Agent 并发写冲突的锁超时",
               "number", null, 15,
               c => c.FileLockTimeoutSec.ToString(),
               (c, v) => c.FileLockTimeoutSec = Math.Clamp(int.Parse(v), 5, 600), "30"),
 
             // ── 界面 ──
-            P("ThemePreset",      "WAYCODER_THEME",             "CORECODER_THEME",
+            P("ThemePreset",      "WAYCODER_THEME",             null,
               "界面主题", "🎨 界面", "预设配色方案，选中即生效",
               "select", ["default","ocean","forest","sunset","midnight","mono"], 4,
               c => c.ThemePreset, (c, v) => c.ThemePreset = v, "default"),
 
-            P("ColorScheme",      "WAYCODER_COLOR_SCHEME",      "CORECODER_COLOR_SCHEME",
+            P("ColorScheme",      "WAYCODER_COLOR_SCHEME",      null,
               "配色方案", "🎨 界面", "预设配色 (覆盖下方颜色设置)",
               "select", ["default","ocean","forest","sunset","mono","cyberpunk"], 0,
               c => c.ColorScheme, (c, v) => { c.ColorScheme = v; ApplyColorScheme(c, v); }, "default"),
 
-            P("BorderStyle",      "WAYCODER_BORDER_STYLE",      "CORECODER_BORDER_STYLE",
+            P("BorderStyle",      "WAYCODER_BORDER_STYLE",      null,
               "边框类型", "🎨 界面", "对话框和面板的边框样式",
               "select", ["rounded","single","double","bold"], 1,
               c => c.BorderStyle, (c, v) => c.BorderStyle = v, "rounded"),
 
-            P("BorderColor",      "WAYCODER_BORDER_COLOR",      "CORECODER_BORDER_COLOR",
+            P("BorderColor",      "WAYCODER_BORDER_COLOR",      null,
               "边框颜色", "🎨 界面", "ANSI 色号: 36=青 32=绿 33=黄 35=紫 34=蓝 37=白",
               "select", ["36","32","33","35","34","37"], 2,
               c => c.BorderColor, (c, v) => c.BorderColor = v, "36"),
 
-            P("AccentColor",      "WAYCODER_ACCENT_COLOR",      "CORECODER_ACCENT_COLOR",
+            P("AccentColor",      "WAYCODER_ACCENT_COLOR",      null,
               "强调色", "🎨 界面", "标题和选中高亮的颜色",
               "select", ["36","32","33","35","34","37"], 3,
               c => c.AccentColor, (c, v) => c.AccentColor = v, "36"),
 
-            P("ChatDisplayStyle", "WAYCODER_CHAT_STYLE",        "CORECODER_CHAT_STYLE",
+            P("ChatDisplayStyle", "WAYCODER_CHAT_STYLE",        null,
               "聊天显示风格", "🎨 界面", "detailed=全显示 auto=智能简洁=极简（隐藏工具详情）",
               "select", ["auto","detailed","concise"], 5,
               c => c.ChatDisplayStyle, (c, v) => c.ChatDisplayStyle = v, "auto"),

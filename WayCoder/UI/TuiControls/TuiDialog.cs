@@ -285,52 +285,70 @@ public static class TuiDialog
     public static TuiWindow Input(string title, string prompt, string defaultValue,
         Action<string> onConfirm, Action? onCancel = null)
     {
-        const int minWidth = 50;   // 输入框需要更多空间
-        const int inputHeight = 5; // 多行输入区高度
+        const int inputHeight = 5;
+        const int maxPromptLines = 5;
+
+        // 标题默认"请输入"
+        var displayTitle = string.IsNullOrEmpty(title) || title == "输入" ? "请输入" : title;
 
         var win = new TuiWindow
         {
-            Title = title,
+            Title = displayTitle,
             ShowTitleSeparator = false,
-            Modal = true, HasMask = true, BorderColor = TuiTheme.Current.DialogInfoBorder,
+            Modal = true, 
+            HasMask = true, 
+            BorderColor = TuiTheme.Current.DialogInfoBorder,
             Border = WindowBorder.Solid,
             WinBg = TuiTheme.Current.WindowBg,
         };
 
-        int maxMsgW = CalcMaxMsgWidth();
-        var msgLabels = BuildMessageLabels(prompt, maxMsgW);
-        int maxVw = msgLabels.Count > 0 ? msgLabels.Max(l => TuiHelper.DisplayWidth(l.Text)) : 10;
-        // 输入区至少 40 字符宽
-        int w = Math.Clamp(Math.Max(minWidth, Math.Max(maxVw, 40) + 6), minWidth, Tty.Cols * MaxWidthNum / MaxWidthDen);
-        int labelW = w - 6;
+        // 最大宽度 2/3 屏宽
+        int maxW = Math.Max(32, Tty.Cols * 3 / 4);
+        int maxContentW = maxW - 2; // 2 边框 + 2 边距（各 1 字符）
 
-        var vbox = new TuiVBox { Width = w - 4 };
-        foreach (var lbl in msgLabels)
+        // 提示文本折行（最多 5 行，黑字）
+        var promptLines = TuiHelper.WrapText(prompt, maxContentW, maxPromptLines);
+        int maxLineVw = promptLines.Count > 0 ? promptLines.Max(l => TuiHelper.DisplayWidth(l)) : 10;
+
+        // 自适应宽度
+        int w = Math.Clamp(Math.Max(maxLineVw + 4, 40), 30, maxW);
+        int cw = w - 2; // 内容区宽度（左右各 1 字符边距）
+
+        // ChildHAlign=Center: TuiWindow.OnCreate 会将 vbox.Width 覆写为 ContentWidth=win.Width-2=cw+2，
+        // 子控件比 vbox 窄 2 字符，居中后自然产生左右各 1 字符边距
+        var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
+        foreach (var line in promptLines)
         {
-            lbl.Width = labelW;
-            vbox.Add(lbl);
+            vbox.Add(new TuiLabel(line) {
+                Margin = new EdgeInsets(1),
+                Width = cw, 
+                Fg = TuiColors.Black 
+            });
         }
 
-        // 多行 TuiTextArea（支持 Ctrl+Enter 换行）
+        // 多行 TuiTextArea
         var input = new TuiTextArea
         {
-            Width = w - 6, Height = inputHeight,
-            Bg = TuiColors.BgBrightBlack,  // 灰色背景，确保输入区可见
+            Margin = new EdgeInsets(0, 1, 0, 1),
+            Width = cw, Height = inputHeight,
+            Fg = TuiColors.White,
+            Bg = TuiColors.BgBlack,
             Focused = true,
-            Placeholder = "输入... (Ctrl+Enter 换行)",
+            //Placeholder = "输入... (Ctrl+Enter 换行)",
         };
-        // 预填默认值或最近历史
         var hist = TuiInputHistory.Get(title);
         var initVal = !string.IsNullOrEmpty(defaultValue) ? defaultValue
             : hist.Count > 0 ? hist[0] : "";
+        
         if (!string.IsNullOrEmpty(initVal))
             input.Text = initVal;
+
         vbox.Add(input);
 
-        // 按钮与输入区间距
+        // 按钮与输入区空一行
         vbox.Add(new TuiLabel("") { Height = 1 });
 
-        var hbox = new TuiHBox { Spacing = 2, Width = w - 6, ContentHAlign = HAlign.Center };
+        var hbox = new TuiHBox { Spacing = 2, Width = cw, ContentHAlign = HAlign.Center };
         var okBtn = new TuiButton("确定") { Width = 10 };
         var cancelBtn = new TuiButton("取消") { Width = 10 };
         okBtn.OnClick = _ =>
@@ -350,7 +368,7 @@ public static class TuiDialog
         hbox.Add(okBtn);
         hbox.Add(cancelBtn);
         NormalizeButtons(okBtn, cancelBtn);
-        ApplyButtonGradient(TuiTheme.Current.BtnCyanBlue, okBtn, cancelBtn);
+        ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, okBtn, cancelBtn);
         vbox.Add(hbox);
 
         vbox.Layout();
@@ -358,7 +376,7 @@ public static class TuiDialog
         win.Height = vbox.Height + 3;
         win.RootView = vbox;
         win.Center();
-        ApplyGradient(win, TuiTheme.Current.GradCyanBlue);
+        ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
         return win;
     }
 
@@ -368,37 +386,52 @@ public static class TuiDialog
     public static TuiWindow Secret(string title, string prompt, string defaultValue,
         Action<string> onConfirm, Action? onCancel = null)
     {
+        const int maxPromptLines = 5;
+
+        // 标题默认"请输入"
+        var displayTitle = string.IsNullOrEmpty(title) || title == "输入密钥" ? "请输入" : title;
+
         var win = new TuiWindow
         {
-            Title = title,
+            Title = displayTitle,
             ShowTitleSeparator = false,
             Modal = true, HasMask = true, BorderColor = TuiTheme.Current.DialogInfoBorder,
             Border = WindowBorder.Solid,
             WinBg = TuiTheme.Current.WindowBg,
         };
 
-        int maxMsgW = CalcMaxMsgWidth();
-        var msgLabels = BuildMessageLabels(prompt, maxMsgW);
-        int maxVw = msgLabels.Count > 0 ? msgLabels.Max(l => TuiHelper.DisplayWidth(l.Text)) : 10;
-        int inputW = Math.Max(20, defaultValue.Length + 4);
-        int w = Math.Clamp(Math.Max(30, Math.Max(maxVw, inputW) + 6), 30, Tty.Cols * MaxWidthNum / MaxWidthDen);
-        int labelW = w - 6;
+        // 最大宽度 2/3 屏宽
+        int maxW = Math.Max(30, Tty.Cols * 2 / 3);
+        int maxContentW = maxW - 4;
 
-        var vbox = new TuiVBox { Width = w - 4 };
-        foreach (var lbl in msgLabels)
+        // 提示文本折行（最多 5 行，黑字）
+        var promptLines = TuiHelper.WrapText(prompt, maxContentW, maxPromptLines);
+        int maxLineVw = promptLines.Count > 0 ? promptLines.Max(l => TuiHelper.DisplayWidth(l)) : 10;
+        int inputMinW = Math.Max(20, defaultValue.Length + 4);
+
+        // 自适应宽度
+        int w = Math.Clamp(Math.Max(Math.Max(maxLineVw, inputMinW) + 4, 30), 30, maxW);
+        int cw = w - 4; // 内容区宽度（左右各 1 字符边距）
+
+        // ChildHAlign=Center: TuiWindow.OnCreate 会将 vbox.Width 覆写为 ContentWidth=win.Width-2=cw+2，
+        // 子控件比 vbox 窄 2 字符，居中后自然产生左右各 1 字符边距
+        var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
+        foreach (var line in promptLines)
         {
-            lbl.Width = labelW;
-            vbox.Add(lbl);
+            vbox.Add(new TuiLabel(line) { Width = cw, Fg = TuiColors.Black });
         }
 
         var input = new TuiInput
         {
             Text = defaultValue, CursorPos = defaultValue.Length,
-            Width = w - 6, Focused = true, Password = true
+            Width = cw, Focused = true, Password = true
         };
         vbox.Add(input);
 
-        var hbox = new TuiHBox { Spacing = 2, Width = w - 6, ContentHAlign = HAlign.Center };
+        // 按钮与输入区空一行
+        vbox.Add(new TuiLabel("") { Height = 1 });
+
+        var hbox = new TuiHBox { Spacing = 2, Width = cw, ContentHAlign = HAlign.Center };
         var okBtn = new TuiButton("确定") { Width = 10 };
         var cancelBtn = new TuiButton("取消") { Width = 10 };
         okBtn.OnClick = _ =>
@@ -416,7 +449,7 @@ public static class TuiDialog
         hbox.Add(okBtn);
         hbox.Add(cancelBtn);
         NormalizeButtons(okBtn, cancelBtn);
-        ApplyButtonGradient(TuiTheme.Current.BtnCyanBlue, okBtn, cancelBtn);
+        ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, okBtn, cancelBtn);
         vbox.Add(hbox);
 
         vbox.Layout();
@@ -424,7 +457,7 @@ public static class TuiDialog
         win.Height = vbox.Height + 3;
         win.RootView = vbox;
         win.Center();
-        ApplyGradient(win, TuiTheme.Current.GradCyanBlue);
+        ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
         return win;
     }
 

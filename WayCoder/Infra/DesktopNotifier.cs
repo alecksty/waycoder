@@ -1,3 +1,6 @@
+// 项目目标为 win-x64，Console.Beep/Console.Title 仅 Windows 可用，CA1416 为误报
+#pragma warning disable CA1416
+
 namespace WayCoder;
 
 /// <summary>
