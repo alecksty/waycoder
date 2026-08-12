@@ -13,6 +13,9 @@ public static class FileTracker
     /// <summary>已追踪的文件及其 SHA256 哈希</summary>
     private static readonly Dictionary<string, string> Tracked = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>文件上次读取时间（用于强制"先读后改"保护，对标 Crush last_read_time）</summary>
+    private static readonly Dictionary<string, DateTime> LastReadTimes = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>最多追踪的文件数</summary>
     private const int MaxTracked = 200;
 
@@ -40,6 +43,7 @@ public static class FileTracker
 
             var hash = ComputeHash(absPath);
             Tracked[absPath] = hash;
+            LastReadTimes[absPath] = DateTime.UtcNow;
         }
         catch
         {
@@ -150,11 +154,46 @@ public static class FileTracker
     }
 
     /// <summary>
+    /// 编辑前校验：确保文件先被 read_file 读取过，且读取后未被外部修改。
+    /// 对标 Crush last_read_time 保护。
+    /// 返回 null 表示通过，返回非 null 字符串表示警告/错误消息。
+    /// </summary>
+    public static string? ValidatePreEdit(string filePath)
+    {
+        if (!Enabled || string.IsNullOrWhiteSpace(filePath)) return null;
+
+        try
+        {
+            var absPath = Path.GetFullPath(filePath);
+
+            // 文件不存在 = 新建文件，不需要先读
+            if (!File.Exists(absPath)) return null;
+
+            // 从未被 read_file 读取过
+            if (!LastReadTimes.TryGetValue(absPath, out var lastRead))
+                return $"⚠️ 文件 \"{filePath}\" 尚未被 read_file 读取。请先读取文件内容后再编辑，以确保编辑准确。";
+
+            // 文件自上次读取后被外部修改
+            var fileModTime = File.GetLastWriteTimeUtc(absPath);
+            if (fileModTime > lastRead.AddSeconds(1))
+                return $"⚠️ 文件 \"{filePath}\" 自上次读取（{lastRead:HH:mm:ss}）后被外部修改（{fileModTime:HH:mm:ss}）。请重新 read_file 获取最新内容后再编辑。";
+
+            return null;
+        }
+        catch
+        {
+            // 静默失败 — 文件追踪不应阻断正常工具执行
+            return null;
+        }
+    }
+
+    /// <summary>
     /// 清除所有追踪记录（Agent 重置时调用）。
     /// </summary>
     public static void Reset()
     {
         Tracked.Clear();
+        LastReadTimes.Clear();
     }
 
     /// <summary>SHA256 哈希计算</summary>

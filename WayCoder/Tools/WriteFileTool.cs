@@ -55,6 +55,14 @@ public class WriteFileTool : ITool
 
         try
         {
+            // 覆写已有文件前检查：确保先读后改
+            if (File.Exists(path))
+            {
+                var preEditWarning = FileTracker.ValidatePreEdit(path);
+                if (preEditWarning != null)
+                    return preEditWarning;
+            }
+
             var dir = Path.GetDirectoryName(path);
             if (dir != null) Directory.CreateDirectory(dir);
 

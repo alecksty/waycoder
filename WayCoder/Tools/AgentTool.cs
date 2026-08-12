@@ -142,10 +142,8 @@ public class AgentTool : ITool
     /// <summary>执行单个子任务（单任务模式与并行模式共用）。</summary>
     private async Task<string> RunSubAgentAsync(string task, int depth, int maxDepth)
     {
-        // 子智能体的工具集：深度未达上限时保留 agent（允许递归），否则移除
-        var subTools = depth < maxDepth - 1
-            ? ParentAgent!.Tools.ToList()  // 允许递归委派
-            : ParentAgent!.Tools.Where(t => t.Name != "agent").ToList();  // 最深一层禁止
+        // 子智能体的工具集：排除危险工具 + 深度限制下排除 agent
+        var subTools = ToolRegistry.GetSubAgentTools(ParentAgent!.Tools, depth, maxDepth);
 
         // 子智能体使用小模型（省钱），继承父模型路径
         var subLLM = ParentAgent!.LlmClient;

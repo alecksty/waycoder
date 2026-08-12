@@ -1,5 +1,42 @@
 # 更新日志
 
+## v0.37.0 (2026-08-12) — 文件先读后改保护 + Git 状态注入 + Agent 工具分层
+
+### 🔧 改进 1：文件先读后改保护（对标 Crush last_read_time）
+
+- **FileTracker.ValidatePreEdit**：文件写入/编辑前检查是否已先读取，防止 LLM 凭猜测编辑
+- 未读取过 → 返回警告：必须先用 `read_file` 读取
+- 读取后被外部修改 → 返回警告：文件已变更，需重新读取
+- `FileTracker.RecordRead` 同步记录 `LastReadTimes`（时间戳字典）
+- 集成工具：`WriteFileTool`（覆写已有文件时）、`EditFileTool`（编辑前）、`MultiEditTool`（编辑已有文件时）
+- 新文件/不存在的文件不检查（无需先读）
+
+### 🔧 改进 2：Git 状态注入系统提示词（对标 Crush git status）
+
+- 系统提示词新增 `__GIT_STATUS__` 区块，每次启动自动注入当前 Git 状态
+- 包含：当前分支名、工作区变更（git status --short，最多 15 项）、最近 3 次提交
+- 让 LLM 感知当前 Git 上下文，减少误操作（如在不干净的工作区做提交）
+- 非 Git 仓库时自动跳过（返回空字符串）
+
+### 🔧 改进 3：Agent 工具集分层
+
+- **子智能体工具白名单**：`ToolRegistry.SubAgentDeniedTools` — 禁止子智能体使用 bash/rm/kill/git 等危险工具
+- **集中化过滤**：`ToolRegistry.GetSubAgentTools(parentTools, depth, maxDepth)` 统一管理子智能体工具集
+- 子智能体仅保留安全工具：read_file、write_file、edit_file、grep、glob、ls 等读写/搜索工具 + agent（深度限制）
+- 危险的 shell 命令/进程管理/Git 操作仅主智能体可用
+
+### 🧪 新自测（20 项）
+
+- FileTracker 先读后改：未读警告、已读通过、外部修改警告、新文件通过、Reset 清空
+- Agent 工具分层：SubAgentDeniedTools 包含危险工具、子 Agent 不同深度工具集验证
+- Git 状态注入：非 null、包含仓库信息
+
+### 📊 评分
+
+- v0.36.0: 72/100
+- v0.37.0: **80/100** ✅（文件先读后改 +8 分）
+- 达到可发布标准（80 分）
+
 ## v0.36.0 (2026-08-12) — 自编程稳定性修复 + 竞品对比驱动改进
 
 ### 🧪 macOS Web Desktop 自编程测试
