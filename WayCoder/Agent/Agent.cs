@@ -103,6 +103,13 @@ public class Agent
     }
 
     /// <summary>
+    /// 运行时更新上下文窗口上限（切换模型时窗口大小随模型变化）。
+    /// 转发给 ContextManager 重算三层压缩阈值。
+    /// </summary>
+    /// <param name="maxTokens">新的窗口上限（token）。</param>
+    public void UpdateContextWindow(int maxTokens) => Context.UpdateMaxTokens(maxTokens);
+
+    /// <summary>
     /// 构建完整消息列表（包含系统提示词 + 模式提示）。
     /// 发送前自动修复孤立的工具调用/结果配对（对标 Crush filterOrphanedToolResults + syntheticToolResultsForOrphanedCalls）。
     /// </summary>
@@ -392,6 +399,8 @@ public class Agent
             onToken?.Invoke("\n📋 **计划已生成，切换到小模型执行...**\n\n");
         }
 
+        int requeueCount = 0;
+    Requeue:
         for (int round = 0; round < _effectiveMaxRounds; round++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -590,27 +599,7 @@ public class Agent
                 // 如果 Agent 正在执行任务中（有工具调用历史），注入继续提示
                 if (!Context.ContinuePromptInjected && afterCount < beforeCount)
                 {
-                    Context.ContinuePromptInjected = true;
-                    var originalUserMsg = Messages.FirstOrDefault(m =>
-                        m["role"]?.GetValue<string>() == "user")?["content"]?.GetValue<string>() ?? "";
-                    if (originalUserMsg.Length > 200)
-                        originalUserMsg = originalUserMsg[..200] + "...";
-
-                    // 收集已创建/修改的文件清单（从 _allSessionFiles，比文本解析更准确）
-                    string[] fileArray;
-                    lock (_allSessionFiles)
-                        fileArray = _allSessionFiles.ToArray();
-                    var fileListStr = fileArray.Length > 0
-                        ? "\n\n已确认创建/修改的文件（" + fileArray.Length + " 个）：\n" + string.Join("\n", fileArray.Take(20).Select(f => $"  - {f}"))
-                            + (fileArray.Length > 20 ? $"\n  ...（共 {fileArray.Length} 个）" : "")
-                        : "";
-
-                    Messages.Add(new JsonObject
-                    {
-                        ["role"] = "user",
-                        ["content"] = $"之前的会话因上下文过长而被压缩。原始用户请求是：`{originalUserMsg}`\n请从中断处继续，完成未完成的工作。不要重写或缩小已有文件——只创建新文件或向已有文件追加缺失内容。{fileListStr}",
-                    });
-                    Context.ResetUsage(); // 重置计数器，给新一轮足够的空间
+                    InjectContinuePrompt("之前的会话因上下文过长而被压缩");
                     onToken?.Invoke("\n🔄 **上下文已自动压缩，继续执行...**\n\n");
                 }
             }
@@ -640,6 +629,16 @@ public class Agent
         var wasWriting = recentTools.Any(c => c.Contains("✅ 已写入") || c.Contains("✅ 编辑完成"));
         var lastMsg = Messages.LastOrDefault(m => m["role"]?.GetValue<string>() == "assistant")
             ?["content"]?.GetValue<string>() ?? "";
+
+        // 自动续跑：仍在写文件（任务未完成）且未超续跑上限 → 压缩 + 注入继续提示后重新跑
+        if (wasWriting && requeueCount < Config.Instance.MaxAutoRequeue)
+        {
+            requeueCount++;
+            onToken?.Invoke($"\n🔁 **已达到 {_effectiveMaxRounds} 轮上限，自动续跑（第 {requeueCount}/{Config.Instance.MaxAutoRequeue} 次）...**\n\n");
+            await CompressWithSmallModel(onToken);
+            InjectContinuePrompt($"已达到 {_effectiveMaxRounds} 轮工具调用上限，自动续跑");
+            goto Requeue;
+        }
 
         if (wasWriting)
         {
@@ -693,6 +692,36 @@ public class Agent
                 ["content"] = preCompactCtx,
             });
         }
+    }
+
+    /// <summary>
+    /// 注入"继续"提示：原始用户请求 + 已完成文件清单，
+    /// 让 Agent 在上下文压缩或撞轮次上限后续跑时继续完成未完成工作。
+    /// </summary>
+    private void InjectContinuePrompt(string reason)
+    {
+        Context.ContinuePromptInjected = true;
+
+        var originalUserMsg = Messages.FirstOrDefault(m =>
+            m["role"]?.GetValue<string>() == "user")?["content"]?.GetValue<string>() ?? "";
+        if (originalUserMsg.Length > 200)
+            originalUserMsg = originalUserMsg[..200] + "...";
+
+        // 收集已创建/修改的文件清单（从 _allSessionFiles，比文本解析更准确）
+        string[] fileArray;
+        lock (_allSessionFiles)
+            fileArray = _allSessionFiles.ToArray();
+        var fileListStr = fileArray.Length > 0
+            ? "\n\n已确认创建/修改的文件（" + fileArray.Length + " 个）：\n" + string.Join("\n", fileArray.Take(20).Select(f => $"  - {f}"))
+                + (fileArray.Length > 20 ? $"\n  ...（共 {fileArray.Length} 个）" : "")
+            : "";
+
+        Messages.Add(new JsonObject
+        {
+            ["role"] = "user",
+            ["content"] = $"{reason}。原始用户请求是：`{originalUserMsg}`\n请从中断处继续，完成未完成的工作。不要重写或缩小已有文件——只创建新文件或向已有文件追加缺失内容。{fileListStr}",
+        });
+        Context.ResetUsage(); // 重置计数器，给新一轮足够的空间
     }
 
     /// <summary>

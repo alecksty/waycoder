@@ -15,11 +15,11 @@ namespace WayCoder;
 /// </summary>
 public class ContextManager
 {
-    public int MaxTokens { get; }
+    public int MaxTokens { get; private set; }
 
-    private readonly int _snipAt;       // 50% -> 裁剪工具输出
-    private readonly int _summarizeAt;  // 70% -> LLM 摘要
-    private readonly int _collapseAt;   // 90% -> 硬折叠
+    private int _snipAt;       // 50% -> 裁剪工具输出
+    private int _summarizeAt;  // 70% -> LLM 摘要
+    private int _collapseAt;   // 90% -> 硬折叠
 
     /// <summary>累计 prompt tokens（来自 API usage）</summary>
     public int CumulativePromptTokens { get; private set; }
@@ -36,6 +36,19 @@ public class ContextManager
 
     public ContextManager(int maxTokens = 128_000)
     {
+        MaxTokens = maxTokens;
+        _snipAt = maxTokens * Config.Instance.ContextSnipRatio / 100;
+        _summarizeAt = maxTokens * Config.Instance.ContextSummarizeRatio / 100;
+        _collapseAt = maxTokens * Config.Instance.ContextCollapseRatio / 100;
+    }
+
+    /// <summary>
+    /// 运行时更新上下文窗口上限（切换模型时窗口大小随之变化），并重算三层压缩阈值。
+    /// </summary>
+    /// <param name="maxTokens">新的窗口上限（token）。≤0 时忽略。</param>
+    public void UpdateMaxTokens(int maxTokens)
+    {
+        if (maxTokens <= 0) return;
         MaxTokens = maxTokens;
         _snipAt = maxTokens * Config.Instance.ContextSnipRatio / 100;
         _summarizeAt = maxTokens * Config.Instance.ContextSummarizeRatio / 100;
@@ -472,10 +485,14 @@ public class ContextManager
         var filesSeen = new HashSet<string>();
         var errors = new List<string>();
         var namespaces = new HashSet<string>();
+        var todos = new List<string>();
         var fileRegex = new Regex(@"(?:^|\s|[/""'`])([\w./\-]+\.\w{1,10})", RegexOptions.None, TimeSpan.FromSeconds(1));
         var nsRegex = new Regex(@"namespace\s+([\w.]+)", RegexOptions.None, TimeSpan.FromSeconds(1));
         var csErrorRegex = new Regex(@"CS\d{4}", RegexOptions.None, TimeSpan.FromSeconds(1));
         var funcRegex = new Regex(@"(?:public|private|protected|internal|static|async\s+)?\s*[\w<>[\],]+\s+(\w+)\s*\([^)]*\)", RegexOptions.None, TimeSpan.FromSeconds(1));
+        var reqRegex = new Regex(@"(?:需求|Requirement)\s*(\d+)\s*[：:]\s*(.+)", RegexOptions.None, TimeSpan.FromSeconds(1));
+        var todoRegex = new Regex(@"-\s*\[\s*\]\s+(.+)", RegexOptions.None, TimeSpan.FromSeconds(1));
+        var todoKwRegex = new Regex(@"(?:TODO|待办|待完成)\s*[：:]\s*(.+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
 
         foreach (var m in messages)
         {
@@ -510,6 +527,14 @@ public class ContextManager
                     errors.Add(trimmed[..Math.Min(200, trimmed.Length)]);
                 }
             }
+
+            // 提取需求/todo 条目（压缩保真度：保留"未完成任务清单"）
+            foreach (Match match in reqRegex.Matches(text))
+                todos.Add($"需求 {match.Groups[1].Value}: {match.Groups[2].Value.Trim()}");
+            foreach (Match match in todoRegex.Matches(text))
+                todos.Add(match.Groups[1].Value.Trim());
+            foreach (Match match in todoKwRegex.Matches(text))
+                todos.Add(match.Groups[1].Value.Trim());
         }
 
         var parts = new List<string>();
@@ -524,6 +549,11 @@ public class ContextManager
         var uniqueErrors = errors.Distinct().Take(8).ToList();
         if (uniqueErrors.Count > 0)
             parts.Add($"遇到的错误：{string.Join("；", uniqueErrors)}");
+
+        // 需求/todo 清单（压缩保真度：保留未完成任务）
+        var uniqueTodos = todos.Distinct().Take(10).ToList();
+        if (uniqueTodos.Count > 0)
+            parts.Add($"待完成需求：{string.Join("；", uniqueTodos)}");
 
         return parts.Count > 0 ? string.Join("\n", parts) : "（无可提取的上下文）";
     }

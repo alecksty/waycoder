@@ -195,7 +195,7 @@ public class Program
         EmbeddingStore.Enabled = _config.EmbeddingEnabled;
         EmbeddingStore.EmbeddingModel = _config.EmbeddingModel;
 
-        _agent = new Agent(_llm, maxContextTokens: _config.MaxContextTokens,
+        _agent = new Agent(_llm, maxContextTokens: ModelCatalog.ResolveContextWindow(_config.Model, _config.MaxContextTokens),
             maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
         ProgramContext.Agent = _agent;
         _slots[0] = new AgentSlot { Agent = _agent }; // 槽位 0 持有主 Agent
@@ -462,7 +462,7 @@ public class Program
             if (_slots[slotIdx].Agent == null)
             {
                 var slotLlm = GetSlotLlm(slotIdx);
-                _slots[slotIdx].Agent = new Agent(slotLlm, maxContextTokens: _config.MaxContextTokens,
+                _slots[slotIdx].Agent = new Agent(slotLlm, maxContextTokens: ModelCatalog.ResolveContextWindow(slotLlm.Model, _config.MaxContextTokens),
                     maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
                 _agent = _slots[slotIdx].Agent;
                 ProgramContext.Agent = _agent;
@@ -847,14 +847,16 @@ public class Program
         var slotLlm = GetSlotLlm(idx);
         if (slot.Agent == null)
         {
-            slot.Agent = new Agent(slotLlm, maxContextTokens: _config.MaxContextTokens,
+            slot.Agent = new Agent(slotLlm, maxContextTokens: ModelCatalog.ResolveContextWindow(slotLlm.Model, _config.MaxContextTokens),
                 maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
         }
         else
         {
             // 更新已存在的 Agent 的 LLM（模型可能已变更）
-            slot.Agent.LlmClient.Model = AgentSlotConfig.ResolveLargeModel(AgentSlotConfig.Get(idx), idx);
+            var large = AgentSlotConfig.ResolveLargeModel(AgentSlotConfig.Get(idx), idx);
+            slot.Agent.LlmClient.Model = large;
             slot.Agent.LlmClient.SmallModel = AgentSlotConfig.ResolveSmallModel(AgentSlotConfig.Get(idx), idx);
+            slot.Agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(large, _config.MaxContextTokens));
         }
 
         _agent = slot.Agent;
@@ -1715,6 +1717,8 @@ deepseek 性价比最高。"
             var modelName = result.ModelId;
             _llm!.Model = _config.Model;
             _llm.SmallModel = _config.SmallModel;
+            if (result.IsLarge)
+                _agent?.UpdateContextWindow(ModelCatalog.ResolveContextWindow(_config.Model, _config.MaxContextTokens));
 
             // 更新受影响的槽位 LLM
             if (result.TargetSlot == -2) // 全部槽位

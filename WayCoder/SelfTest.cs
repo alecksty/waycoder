@@ -242,6 +242,11 @@ public static class SelfTest
         TestGenerateProjectSnapshot(Check);
         // FlattenMessages 测试（通过 ExtractKeyInfo 间接验证）
         TestTokenEstimation(Check);
+        // 压缩保真度测试（超多需求 + 自动续跑）
+        TestCompressionFidelity(Check);
+        Check("MaxAutoRequeue 默认 = 3", new Config().MaxAutoRequeue == 3);
+        // 上下文窗口按模型切换测试
+        TestContextWindowSwitch(Check);
         Console.WriteLine();
 
         // ---- 工具 ----
@@ -5280,6 +5285,98 @@ another.txt:3:1: warning: deprecated API
         Check("Snip: 用户消息不变", mixedMsgs[0]["content"]!.GetValue<string>() == "请编译项目");
         Check("Snip: 短tool不裁剪", mixedMsgs[1]["content"]!.GetValue<string>().Length < 300);
         Check("Snip: 长tool被裁剪", mixedMsgs[2]["content"]!.GetValue<string>().Contains("省略") || mixedMsgs[2]["content"]!.GetValue<string>().Contains("裁剪"));
+    }
+
+    /// <summary>压缩保真度测试：超多需求压缩后关键信息仍保留（无 LLM 回退路径）</summary>
+    private static void TestCompressionFidelity(Action<string, bool> Check)
+    {
+        // 构造"超多需求"消息：30 条需求 + 关联文件路径/命名空间/API 签名/错误码
+        var msgs = new List<JsonObject>
+        {
+            new() { ["role"] = "user", ["content"] = "为 WayCoder 实现 30 个新工具，每个工具一个文件，全部完成后编译。" }
+        };
+        for (int i = 1; i <= 30; i++)
+        {
+            msgs.Add(new JsonObject
+            {
+                ["role"] = "user",
+                ["content"] = $"需求 {i}：实现 Tools/{i:D2}Tool.cs 工具，namespace WayCoder.Tools，" +
+                              $"提供 public async Task<string> Execute(Dictionary<string, object?> args) 方法，处理业务逻辑。"
+            });
+        }
+        // 冗余长工具输出（触发第 1 层裁剪）
+        msgs.Add(new JsonObject
+        {
+            ["role"] = "tool",
+            ["content"] = string.Join("\n", Enumerable.Range(0, 150).Select(i => $"冗余输出行 {i:D4}：{new string('x', 60)}"))
+        });
+        // 编译错误信息
+        msgs.Add(new JsonObject
+        {
+            ["role"] = "tool",
+            ["content"] = "编译失败：Program.cs(45,12): error CS0103: 当前上下文中不存在名称 'doesNotExist'"
+        });
+
+        var before = msgs.Count;
+        var cm = new ContextManager(2000); // 极小 maxTokens 压低三层阈值
+        var compressed = cm.MaybeCompressAsync(msgs, null).GetAwaiter().GetResult();
+
+        Check("压缩保真: 压缩确实发生", compressed);
+        Check("压缩保真: 消息数减少", msgs.Count < before);
+
+        var flat = string.Join("\n", msgs.Select(m => m["content"]?.GetValue<string>() ?? ""));
+
+        // 保真度：文件路径 / 命名空间 / 错误码保留
+        Check("压缩保真: 保留文件路径", flat.Contains("Tool.cs"));
+        Check("压缩保真: 保留命名空间", flat.Contains("WayCoder.Tools"));
+        Check("压缩保真: 保留错误码 CS0103", flat.Contains("CS0103"));
+        // 保真度：需求条目保留（A2 增强）
+        Check("压缩保真: 保留待完成需求段", flat.Contains("待完成需求"));
+        Check("压缩保真: 保留具体需求条目", flat.Contains("需求 1"));
+    }
+
+    /// <summary>上下文窗口按模型切换测试</summary>
+    private static void TestContextWindowSwitch(Action<string, bool> Check)
+    {
+        // ── 1. ResolveContextWindow 按模型解析窗口 ──
+        Check("窗口: deepseek-v4-pro = 1M", ModelCatalog.ResolveContextWindow("deepseek-v4-pro") == 1_048_576);
+        Check("窗口: deepseek-chat = 64K", ModelCatalog.ResolveContextWindow("deepseek-chat") == 64_000);
+        Check("窗口: ollama 本地模型 = 128K", ModelCatalog.ResolveContextWindow("deepseek-coder-v2:latest") == 128_000);
+        Check("窗口: 未知模型回退 1M", ModelCatalog.ResolveContextWindow("no-such-model") == 1_048_576);
+        Check("窗口: null 回退 1M", ModelCatalog.ResolveContextWindow(null) == 1_048_576);
+        Check("窗口: 空字符串回退 1M", ModelCatalog.ResolveContextWindow("") == 1_048_576);
+        Check("窗口: 自定义回退值生效", ModelCatalog.ResolveContextWindow("unknown", 64_000) == 64_000);
+
+        // ── 2. UpdateMaxTokens 重算阈值：小窗口压缩、放大后不再压缩 ──
+        var longTool = new List<JsonObject>
+        {
+            new() { ["role"] = "tool", ["content"] = string.Join("\n", Enumerable.Range(0, 100).Select(i => $"行{i}: {new string('x', 60)}")) }
+        };
+
+        var smallCm = new ContextManager(200);
+        var smallCopy = new List<JsonObject>
+        {
+            new() { ["role"] = "tool", ["content"] = longTool[0]["content"]!.GetValue<string>() }
+        };
+        var compressedSmall = smallCm.MaybeCompressAsync(smallCopy, null).GetAwaiter().GetResult();
+        Check("窗口: 小窗口触发压缩", compressedSmall);
+
+        smallCm.UpdateMaxTokens(100_000);
+        var largeCopy = new List<JsonObject>
+        {
+            new() { ["role"] = "tool", ["content"] = longTool[0]["content"]!.GetValue<string>() }
+        };
+        var compressedLarge = smallCm.MaybeCompressAsync(largeCopy, null).GetAwaiter().GetResult();
+        Check("窗口: 放大后不再压缩", !compressedLarge);
+
+        // ── 3. UpdateMaxTokens 边界：非正值忽略 ──
+        var cm = new ContextManager(1000);
+        cm.UpdateMaxTokens(0);
+        Check("窗口: UpdateMaxTokens(0) 忽略", cm.MaxTokens == 1000);
+        cm.UpdateMaxTokens(-5);
+        Check("窗口: UpdateMaxTokens(-5) 忽略", cm.MaxTokens == 1000);
+        cm.UpdateMaxTokens(2048);
+        Check("窗口: UpdateMaxTokens(2048) 生效", cm.MaxTokens == 2048);
     }
 
     /// <summary>ExtractKeyInfo 增强版测试</summary>

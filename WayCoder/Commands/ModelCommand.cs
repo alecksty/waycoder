@@ -139,7 +139,12 @@ public class ModelCommand : SlashCommand
         if (type == "large")
         {
             slotCfg.LargeModel = info.Id;
-            if (ProgramContext.Agent != null) ProgramContext.Agent.LlmClient.Model = info.Id;
+            if (ProgramContext.Agent != null)
+            {
+                ProgramContext.Agent.LlmClient.Model = info.Id;
+                ProgramContext.Agent.UpdateContextWindow(
+                    info.ContextWindow > 0 ? info.ContextWindow : Config.Instance.MaxContextTokens);
+            }
         }
         else
         {
@@ -252,6 +257,8 @@ public class ModelCommand : SlashCommand
             ProgramContext.LLM.Model = info.Id;
             ProgramContext.LLM.SmallModel = info.Id;
         }
+        ProgramContext.Agent?.UpdateContextWindow(
+            info.ContextWindow > 0 ? info.ContextWindow : Config.Instance.MaxContextTokens);
 
         screen.AddSystemMsg($"All 10 slots (UNIFORM) -> **{info.DisplayName}** (`{info.Id}`)");
     }
