@@ -181,6 +181,9 @@ public class Config
     // 自动摘要后是否注入继续提示（Crush 风格 auto-requeue）
     public bool AutoContinueAfterSummarize { get; set; } = true;
 
+    // 撞 MaxRounds 上限后自动压缩 + 续跑的次数（0=关闭自动续跑）
+    public int MaxAutoRequeue { get; set; } = 3;
+
     // ════════════════════════════════════════════════════════════
     // 单一 Schema 定义（新增配置项只加这里一行）
     // ════════════════════════════════════════════════════════════
@@ -231,7 +234,7 @@ public class Config
             P("MaxContextTokens", "WAYCODER_MAX_CONTEXT",       null,
               "上下文窗口", "⚙ 参数", "上下文窗口大小",
               "number", null, 2,
-              c => c.MaxContextTokens.ToString(), (c, v) => c.MaxContextTokens = int.Parse(v), "128000"),
+              c => c.MaxContextTokens.ToString(), (c, v) => c.MaxContextTokens = int.Parse(v), "1048576"),
 
             P("ToolTimeoutSec",   "WAYCODER_TOOL_TIMEOUT",      null,
               "工具超时 (秒)", "⚙ 参数", "Bash 等工具执行超时，默认 120 秒",
@@ -409,6 +412,11 @@ public class Config
               "select", ["false","true"], 17,
               c => c.AutoContinueAfterSummarize.ToString().ToLowerInvariant(),
               (c, v) => c.AutoContinueAfterSummarize = bool.Parse(v), "true"),
+
+            P("MaxAutoRequeue", "WAYCODER_MAX_REQUEUE", null,
+              "自动续跑次数", "⚙ 参数", "撞 MaxRounds 上限后自动压缩+续跑的次数（0=关闭）",
+              "number", null, 18,
+              c => c.MaxAutoRequeue.ToString(), (c, v) => c.MaxAutoRequeue = Math.Clamp(int.Parse(v), 0, 20), "3"),
 
             P("FallbackChain", "WAYCODER_FALLBACK_CHAIN",     null,
               "回退模型链", "🤖 模型", "逗号分隔的备选模型列表",

@@ -1,5 +1,28 @@
 # 更新日志
 
+## v0.40.0 (2026-08-13) — 自动续跑 + 压缩保真度 + 上下文窗口按模型切换
+
+### 🔁 自动续跑（撞 MaxRounds 上限不再退出）
+
+- **问题**：大任务撞 `MaxRounds=50` 就 `return` 提示「输入继续」，一次性模式（`-p`）无交互通道，进程直接退出，只能手动开新实例接力
+- **修复**：撞上限且仍在写文件时，自动压缩 + 注入「继续 + 已完成文件清单」提示后重跑；`WAYCODER_MAX_REQUEUE` 控制次数（默认 3，0=关闭，上限 20）
+- **提取** `InjectContinuePrompt`：压缩后自动继续与撞上限续跑共用同一注入模板
+
+### 🧠 压缩保真度增强：无 LLM 回退摘要保留需求清单
+
+- **问题**：无 LLM 的离线回退摘要 `ExtractKeyInfo` 只提取文件路径/命名空间/错误码，压缩后 Agent 会「忘记」还剩哪些需求没做
+- **修复**：新增正则提取「需求 N：/Requirement N：/`- [ ]` 未完成勾选/TODO/待办」条目，摘要输出「待完成需求」段（去重取前 10）
+
+### 📏 上下文窗口按模型切换（不再写死）
+
+- **问题**：`MaxContextTokens` 全局写死 1M，切换模型不更新窗口 —— 切到 64K/128K 小窗口模型时压缩触发过晚，模型先报 `context length exceeded`
+- **修复**：`ModelCatalog.ResolveContextWindow` 按模型目录 `ContextWindow` 解析窗口；`ContextManager.UpdateMaxTokens` 运行时重算三层压缩阈值；切模型入口（`/model`、ModelPicker、槽位切换、启动初始化）统一同步
+- **修正**：Schema 默认串 `128000` → `1048576`（与代码默认一致）
+
+### 🧪 自测 +22
+
+- 新增 `TestCompressionFidelity`（30 需求压缩后保留路径/命名空间/错误码/需求清单）+ `TestContextWindowSwitch`（按模型解析 + 阈值重算 + 边界）+ `MaxAutoRequeue` 默认值
+
 ## v0.39.0 (2026-08-13) — 界面对标：`/` 补全接注册表 + 上下文用量 Gauge
 
 ### ✨ `/` 斜杠命令补全接 SlashCommandRegistry
