@@ -134,6 +134,13 @@ public class TuiWindow : TuiBase
     // ── 关闭回调 ──
     public Action? OnClosed { get; set; }
 
+    /// <summary>
+    /// 终端尺寸变化时重建对话框内容的回调。
+    /// 由 TuiDialog 工厂方法设置，用于在 resize 时重新计算
+    /// 控件尺寸和窗口大小，使其适配新的终端尺寸。
+    /// </summary>
+    public Action? OnResizeContent { get; set; }
+
     // ── 生命周期 ──
 
     /// <summary>窗口创建/显示时调用。初始化 RootView 控件树。</summary>
@@ -187,8 +194,15 @@ public class TuiWindow : TuiBase
         }
     }
 
-    /// <summary>窗口是否在终端 resize 时自动居中</summary>
-    public bool AutoCenter { get; set; } = true;
+    /// <summary>窗口水平停靠位置。Stretch=不自动定位（手动），Left/Center/Right=自动对齐。</summary>
+    public HAlign WindowHAlign { get; set; } = HAlign.Center;
+
+    /// <summary>窗口垂直停靠位置。Stretch=不自动定位（手动），Top/Middle/Bottom=自动对齐。</summary>
+    public VAlign WindowVAlign { get; set; } = VAlign.Middle;
+
+    /// <summary>窗口与屏幕边缘的偏移量。在 WindowHAlign/WindowVAlign 对齐时生效，
+    /// Left 偏移左边缘、Right 偏移右边缘、Top 偏移上边缘、Bottom 偏移下边缘。</summary>
+    public EdgeInsets ScreenMargin { get; set; } = new();
 
     // ── 鼠标拖拽与缩放 ──
 
@@ -205,6 +219,12 @@ public class TuiWindow : TuiBase
     /// <summary>最大窗口尺寸（0=无限制）</summary>
     public int MaxWidth { get; set; }
     public int MaxHeight { get; set; }
+
+    /// <summary>窗口宽度占终端宽度的比例（0=禁用，使用固定 Width）。如 0.5 = 终端宽度的一半。</summary>
+    public double XScale { get; set; }
+
+    /// <summary>窗口高度占终端高度的比例（0=禁用，使用固定 Height）。如 0.5 = 终端高度的一半。</summary>
+    public double YScale { get; set; }
 
     /// <summary>拖拽/缩放的边缘检测宽度（像素）</summary>
     public int ResizeBorderWidth { get; set; } = 2;
@@ -243,14 +263,57 @@ public class TuiWindow : TuiBase
     /// </summary>
     public override void OnResize(int newTermW, int newTermH)
     {
-        // 自动居中
-        if (AutoCenter)
-            Center();
+        // 0. 根据 XScale/YScale 比例重新计算窗口尺寸
+        if (XScale > 0)
+        {
+            Width = Math.Max(MinWidth, (int)(newTermW * XScale));
+            if (MaxWidth > 0) Width = Math.Min(Width, MaxWidth);
+        }
+        if (YScale > 0)
+        {
+            Height = Math.Max(MinHeight, (int)(newTermH * YScale));
+            if (MaxHeight > 0) Height = Math.Min(Height, MaxHeight);
+        }
 
-        // 通知 RootView 重算布局
+        // 1. 重建对话框内容（由 TuiDialog 设置的工厂回调）
+        OnResizeContent?.Invoke();
+
+        // 2. 根据对齐方式自动计算位置（Stretch=不自动定位，保持手动位置）
+        //    ScreenMargin 控制与屏幕边缘的偏移量
+        if (WindowHAlign != HAlign.Stretch)
+        {
+            X = WindowHAlign switch
+            {
+                HAlign.Left => ScreenMargin.Left,
+                HAlign.Center => (newTermW - Width) / 2,
+                HAlign.Right => newTermW - Width - ScreenMargin.Right,
+                _ => X
+            };
+        }
+        if (WindowVAlign != VAlign.Stretch)
+        {
+            Y = WindowVAlign switch
+            {
+                VAlign.Top => ScreenMargin.Top,
+                VAlign.Middle => (newTermH - Height) / 2,
+                VAlign.Bottom => newTermH - Height - ScreenMargin.Bottom,
+                _ => Y
+            };
+        }
+
+        // 3. 将窗口 clamp 到终端边界内（防止缩小终端时窗口溢出）
+        if (X < 0) X = 0;
+        if (Y < 0) Y = 0;
+        if (X + Width > newTermW) X = Math.Max(0, newTermW - Width);
+        if (Y + Height > newTermH) Y = Math.Max(0, newTermH - Height);
+
+        // 4. 通知 RootView 重算布局
         RootView.Width = ContentWidth;
         RootView.Height = ContentHeight;
         RootView.OnResize(ContentWidth, ContentHeight);
+
+        // 5. 标记脏，强制下一帧重绘窗口（否则增量渲染可能跳过）
+        RootView.MarkDirty();
     }
 
     /// <summary>路由按键到控件树。快捷键优先于控件路由。</summary>
@@ -469,6 +532,10 @@ public class TuiWindow : TuiBase
         if (newY + newH > Tty.Rows) newH = Tty.Rows - newY;
 
         Width = newW; Height = newH; X = newX; Y = newY;
+
+        // 手动拖拽缩放 → 清除比例缩放，切换到固定尺寸模式
+        XScale = 0;
+        YScale = 0;
 
         // 通知 RootView 尺寸变化
         RootView.Width = ContentWidth;
