@@ -46,7 +46,7 @@ dotnet run -- -p "修复一个 bug"
 # Watch 模式 (监听 AI! 注释自动触发 Agent)
 dotnet run -- --watch
 
-# 运行自测（704 项）
+# 运行自测（1499 项）
 dotnet run -- --test
 ```
 

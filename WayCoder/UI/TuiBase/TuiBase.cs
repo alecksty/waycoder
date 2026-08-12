@@ -12,6 +12,9 @@ public abstract class TuiBase
     public int Width { get; set; } = 10;
     public int Height { get; set; } = 1;
 
+    /// <summary>Flex 弹性布局权重。0=固定尺寸，>0=在父容器中按比例分配剩余空间。</summary>
+    public int Flex { get; set; }
+
     // ── 标识 ──
     /// <summary>元素名称（Screen 用于切换、Window 可选覆盖 Title）</summary>
     public string Name { get; set; } = "";
