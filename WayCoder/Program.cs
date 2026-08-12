@@ -31,7 +31,6 @@ public class Program
     private static WatchMode? _watchMode;
     private static volatile bool _agentBusy;
     private static volatile bool _exitRequested;
-    private static int _lastStreamW, _lastStreamH;
     private static CancellationTokenSource? _agentCts;
     private static (List<JsonObject> Messages, string Model)? _pendingRestore;
 
@@ -358,6 +357,23 @@ public class Program
         slot0.HasWelcome = true;
         _llm!.SmallModel = _config.SmallModel;
 
+        // 检测 API Key 配置：未配 key 时冒泡提示
+        bool hasGlobalKey = !string.IsNullOrEmpty(_config.ApiKey);
+        var storeKeys = ApiKeyStore.ListAll();
+        var keyCount = storeKeys.Count(kv => !string.IsNullOrEmpty(kv.Value));
+        var currentProvider = ModelCatalog.BuiltIn
+            .FirstOrDefault(m => m.Id == _config.Model)?.ProviderId;
+        bool hasCurrentKey = hasGlobalKey
+            || (currentProvider != null && ApiKeyStore.Has(currentProvider));
+        if (!hasGlobalKey && keyCount == 0 || !hasCurrentKey)
+        {
+            var hint = !hasGlobalKey && keyCount == 0
+                ? "⚠ 未检测到任何 API Key，请按 Ctrl+M 打开模型选择框，选择模型后回车输入 Key"
+                : $"⚠ 当前模型 {_config.Model} 未配置 API Key，按 Ctrl+M 选择模型并输入 Key";
+            slot0.ChatMessages.Add(new ChatMsg { Role = "system",
+                Content = $"«bold yellow»🔑 {hint}«/»" });
+        }
+
         // 检测 git 分支
         var branch = DetectGitBranch();
         if (branch != null)
@@ -437,6 +453,10 @@ public class Program
         }
         _pendingSlotQueues.Clear();
         _pendingSlotPrefix = "";
+
+        // 启动时执行一次 OnResize，确保动态布局计算正确
+        mgr.OnResize();
+        mgr.Render();
 
         var running = true;
         while (running && !_exitRequested)
@@ -1070,20 +1090,20 @@ public class Program
         var cost = llm.TaskCost;
 
         var sb = new System.Text.StringBuilder();
-        sb.Append($"📊 {input}+{output}={input + output} tokens");
+        sb.Append($"📊 {input}+{output}={input + output} 词元");
 
         if (cost.HasValue)
         {
-            if (cost.Value < 0.01)
-                sb.Append($" · 💰 ${cost.Value:F4}");
-            else if (cost.Value < 1.0)
-                sb.Append($" · 💰 ${cost.Value:F3}");
+            var rmb = cost.Value * 7.25; // USD → RMB
+            if (rmb < 0.01)
+                sb.Append($" · 💰 ¥{rmb:F4}");
+            else if (rmb < 1.0)
+                sb.Append($" · 💰 ¥{rmb:F3}");
             else
-                sb.Append($" · 💰 ${cost.Value:F2}");
+                sb.Append($" · 💰 ¥{rmb:F2}");
         }
         else
         {
-            // 模型不在定价表中，仅显示 token 数
             sb.Append(" · 💰 未知定价");
         }
 
@@ -1388,7 +1408,7 @@ public class Program
             }
 
             // 检查最近一条 assistant 消息是否含成功标记
-            var lastAssistant = _agent.Messages.LastOrDefault(m =>
+            var lastAssistant = _agent!.Messages.LastOrDefault(m =>
                 m["role"]?.GetValue<string>() == "assistant");
             var lastContent = lastAssistant?["content"]?.GetValue<string>() ?? "";
 
@@ -1582,14 +1602,95 @@ deepseek 性价比最高。"
     }
 
     /// <summary>Ctrl+M 打开模型选择对话框</summary>
+    /// <summary>应用模型到指定槽位（供 CycleModel 调用）</summary>
+    internal static void ApplyModel(string modelId, bool isLarge, int slot)
+    {
+        if (slot == -1)
+        {
+            if (isLarge) _config.Model = modelId; else _config.SmallModel = modelId;
+            _config.SaveToEnvFile();
+        }
+        else if (slot == -2)
+        {
+            AgentSlotConfig.SetUniform(new AgentSlotConfig.SlotConfig
+            { UseGlobal = false, LargeModel = isLarge ? modelId : null, SmallModel = isLarge ? null : modelId });
+            if (isLarge) _config.Model = modelId; else _config.SmallModel = modelId;
+            _config.SaveToEnvFile();
+        }
+        else if (slot is >= 0 and < 10)
+        {
+            var e = AgentSlotConfig.Get(slot);
+            AgentSlotConfig.Set(slot, new AgentSlotConfig.SlotConfig
+            {
+                UseGlobal = false,
+                LargeModel = isLarge ? modelId : e.LargeModel,
+                SmallModel = isLarge ? e.SmallModel : modelId,
+                BaseUrl = e.BaseUrl, ApiKeyProviderId = e.ApiKeyProviderId, ApiKey = e.ApiKey,
+            });
+        }
+    }
+
     private static void CycleModel(ChatScreen screen)
     {
-        var result = ModelPicker.Show();
+        var result = ModelPicker.Show(currentSlot: ActiveSlotIndex);
         if (result != null)
         {
+            // 需要先输入 API Key
+            if (result.NeedsApiKey && !string.IsNullOrEmpty(result.ProviderId))
+            {
+                var key = UxHelper.Secret(
+                    $"🔑 输入 {result.ProviderId} 的 API Key（输入不可见，Enter 确认）:");
+                if (!string.IsNullOrWhiteSpace(key))
+                {
+                    ApiKeyStore.Set(result.ProviderId, key);
+                    screen.AddSystemMsg($"🔑 API Key 已保存: {result.ProviderId}");
+                }
+                else
+                {
+                    screen.AddSystemMsg("❌ 未输入 API Key，已取消");
+                    return;
+                }
+            }
+
+            // 应用模型到配置
+            ApplyModel(result.ModelId, result.IsLarge, result.TargetSlot);
+
+            var modelName = result.ModelId;
             _llm!.Model = _config.Model;
-            screen.StatusLeft = $"{_config.Model}";
-            screen.AddSystemMsg($"🔄 {(result.IsLarge ? "大模型" : "小模型")} → {result.ModelId}");
+            _llm.SmallModel = _config.SmallModel;
+
+            // 更新受影响的槽位 LLM
+            if (result.TargetSlot == -2) // 全部槽位
+            {
+                for (int i = 0; i < AgentSlot.Count; i++)
+                {
+                    var s = _slots[i];
+                    if (s.LlmClient != null)
+                    {
+                        s.LlmClient.Model = _config.Model;
+                        s.LlmClient.SmallModel = _config.SmallModel;
+                    }
+                }
+                screen.AddSystemMsg($"🔄 全部槽位 → {(result.IsLarge ? "大模型" : "小模型")} {modelName}");
+            }
+            else if (result.TargetSlot == -1) // 默认模型
+            {
+                screen.AddSystemMsg($"🔄 默认 {(result.IsLarge ? "大模型" : "小模型")} → {modelName}");
+            }
+            else // 指定槽位
+            {
+                int idx = result.TargetSlot;
+                if (idx >= 0 && idx < AgentSlot.Count)
+                {
+                    var slot = _slots[idx];
+                    slot.LastLargeModel = null; // 强制下次使用重新创建 LLM
+                    slot.LastSmallModel = null;
+                    screen.AddSystemMsg($"🔄 F{idx + 1} 槽位 → {(result.IsLarge ? "大模型" : "小模型")} {modelName}");
+                }
+            }
+
+            screen.StatusLeft = _config.Model;
+            TuiManager.RequestFullRefresh();
         }
     }
 
