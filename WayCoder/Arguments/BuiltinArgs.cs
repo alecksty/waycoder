@@ -84,6 +84,12 @@ public class WatchArg : CliArg
     public WatchArg() : base("watch", "-w", "--watch") { }
 }
 
+public class TinyArg : CliArg
+{
+    public override string Description => "Tiny 模式（4K 上下文窗口 + 精简提示词，省 token / 压力测试）";
+    public TinyArg() : base("tiny", "--tiny") { }
+}
+
 public class DebugArg : CliArg
 {
     public override string Description => "开启调试日志（记录到 logs/ 目录）";
@@ -224,6 +230,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new InitArg());
         CliArgRegistry.Register(new YoloArg());
         CliArgRegistry.Register(new WatchArg());
+        CliArgRegistry.Register(new TinyArg());
         CliArgRegistry.Register(new DebugArg());
         CliArgRegistry.Register(new HelpArg());
         CliArgRegistry.Register(new TestArg());
