@@ -2018,6 +2018,11 @@ public static class SelfTest
         Check("TrySetPropValue 未知项拒绝",
             !Config.TrySetPropValue("NoSuchKey", "x", out var unknownErr) && unknownErr != null);
 
+        // --config 命令行参数（ConfigCli 纯文本，与 /config 共用同一数据源）
+        Check("ConfigCli.List 含标题", ConfigCli.List().Contains("配置设置"));
+        Check("ConfigCli.Get 已知项", ConfigCli.Get("Model").Contains("Model"));
+        Check("ConfigCli.Get 未知项提示", ConfigCli.Get("NoSuchKey").Contains("未知设置项"));
+
         Console.WriteLine();
 
         // ---- 会话管理 ----

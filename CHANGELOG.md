@@ -1,13 +1,31 @@
 # 更新日志
 
+## v0.47.2 (2026-08-13) — --config 命令行参数：启动即配置，无需进 REPL
+
+### ⌨ --config 命令行配置（对标 /config 斜杠命令）
+
+- **问题**：`/config` 只能在 REPL 内使用，脚本/批处理/远程部署场景无法在启动时读写配置
+- **修复**：新增 `--config`（短名 `-C`）命令行参数，与 `/config` 共享同一份 Schema 数据源（`ConfigCli`）——
+  - `waycoder --config` 或 `--config list` → 列出全部设置项（按分类，含当前值，secret 打码）
+  - `--config get <key>` → 读取单项（含描述 / 环境变量 / 可选项）
+  - `--config set <key> <value>` → 设置并**立即写入 .env**
+  - 简写：`--config <key> <value>` = set，`--config <key>` = get
+- **实现**：抽 `ConfigCli` 静态助手（List/Get/Set 返回纯文本），`ConfigCommand`（→屏幕）与 `ConfigArg`（→控制台）共用，消除重复；`CliArg` 新增 `Greedy` 标志 + 解析器贪婪吞参，支持 `--config set <key> <value>` 变长参数
+
+### ⌨ Tiny 模式并入 test 前缀分组
+
+- `-T` / `--tiny` → `-tt` / `--test-tiny`（保留 `--tiny` 别名），与 `-t` / `-tb` / `-tl` 统一为 `-t` 测试族前缀
+
 ## v0.47.1 (2026-08-13) — CLI 参数全部补齐短命令
 
-### ⌨ 命令行参数补短选项
+### ⌨ 命令行参数补短选项（频率排序 + 同类前缀分组）
 
 - **问题**：`--tiny` / `--economy` / `--bench` / `--limits` / `--sessions` 只有长名，无短命令
-- **修复**：全部补齐短选项（大小写敏感，不与现有 `-m/-b/-k/-p/-r/-c/-B/-v/-i/-y/-w/-d/-h/-t` 冲突）——
-  - `-T` = `--tiny`　`-e` = `--economy`　`-P` = `--bench/--perf`　`-L` = `--limits`　`-s` = `--sessions`
-  - 内部开发参数同步补齐：`-x` = `--screenshot`　`-u` = `--tui-demo`　`-z` = `--theme-verify`
+- **命名规则**：
+  - 高频参数：首字母小写（`-p` prompt / `-m` model / `-h` help / `-k` api-key / `-t` test / `-e` economy / `-w` watch / `-y` yolo / `-r` resume / `-s` sessions / `-b` base-url / `-v` version / `-i` init / `-d` debug）
+  - 低频冲突：首字母大写（`-B` max-budget-usd）
+  - 同类测试参数：统一 `-t` 前缀分组（`-t` test / `-tb` test-benchmark / `-tl` test-limits / `-tt` test-tiny）
+  - 内部开发参数：`-x` screenshot / `-u` tui-demo / `-z` theme-verify
 - 使用手册 CLI 参数表同步更新
 
 ## v0.47.0 (2026-08-13) — /config 命令行配置：所有设置项无需进界面

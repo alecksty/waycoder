@@ -89,7 +89,7 @@ public class TinyArg : CliArg
     public override string Description => "Tiny 模式（精简提示词 + 小窗口；可指定如 --tiny 8k，缺省自动探测，失败回退 4K）";
     public override int ValueCount => -1;
     public override string? ValueLabel => "窗口";
-    public TinyArg() : base("tiny", "-T", "--tiny") { }
+    public TinyArg() : base("tiny", "-tt", "--test-tiny", "--tiny") { }
 }
 
 public class EconomyArg : CliArg
@@ -105,6 +105,57 @@ public class DebugArg : CliArg
     public override string Description => "开启调试日志（记录到 logs/ 目录）";
     public DebugArg() : base("debug", "-d", "--debug") { }
     public override int? OnMatch(List<string> values) { DebugLog.Enable(); return null; }
+}
+
+/// <summary>
+/// --config 命令行配置（对标 /config 斜杠命令），无需进界面即可读写所有设置项。
+///   --config                      → 列出全部
+///   --config list                 → 同列出
+///   --config get &lt;key&gt;      → 读取
+///   --config set &lt;key&gt; &lt;v&gt; → 设置并写入 .env
+///   --config &lt;key&gt; &lt;v&gt;  → set 简写
+///   --config &lt;key&gt;           → get 简写
+/// </summary>
+public class ConfigArg : CliArg
+{
+    public override string Description => "命令行配置（list / get <key> / set <key> <value> 或 <key> [value]）";
+    public override int ValueCount => -1;
+    public override bool Greedy => true;
+    public override string? ValueLabel => "项 [值]";
+    public ConfigArg() : base("config", "-C", "--config") { }
+
+    public override int? OnMatch(List<string> values)
+    {
+        string result;
+
+        if (values.Count == 0)
+            result = ConfigCli.List();
+        else
+        {
+            var first = values[0].ToLowerInvariant();
+            var rest = values.Skip(1).ToArray();
+            switch (first)
+            {
+                case "list":
+                case "ls":
+                    result = ConfigCli.List();
+                    break;
+                case "get":
+                    result = rest.Length == 0 ? "用法: --config get <key>" : ConfigCli.Get(rest[0]);
+                    break;
+                case "set":
+                    result = rest.Length < 2 ? "用法: --config set <key> <value>" : ConfigCli.Set(rest[0], string.Join(" ", rest.Skip(1)));
+                    break;
+                default:
+                    // 简写：--config <key> [value]
+                    result = rest.Length == 0 ? ConfigCli.Get(values[0]) : ConfigCli.Set(values[0], string.Join(" ", rest));
+                    break;
+            }
+        }
+
+        Console.WriteLine(result);
+        return 0;
+    }
 }
 
 public class HelpArg : CliArg
@@ -136,14 +187,14 @@ public class TestArg : CliArg
 public class BenchmarkArg : CliArg
 {
     public override string Description => "运行性能测评";
-    public BenchmarkArg() : base("bench", "-P", "--bench", "--benchmark", "--perf") { }
+    public BenchmarkArg() : base("bench", "-tb", "--test-benchmark", "--bench", "--perf") { }
     public override int? OnMatch(List<string> values) { Benchmark.Run(); return 0; }
 }
 
 public class LimitsArg : CliArg
 {
     public override string Description => "运行系统上限报告（扫描所有硬编码上限）";
-    public LimitsArg() : base("limits", "-L", "--limits") { }
+    public LimitsArg() : base("limits", "-tl", "--test-limits", "--limits") { }
     public override int? OnMatch(List<string> values) { Benchmark.LimitsReport(); return 0; }
 }
 
@@ -242,6 +293,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new WatchArg());
         CliArgRegistry.Register(new TinyArg());
         CliArgRegistry.Register(new EconomyArg());
+        CliArgRegistry.Register(new ConfigArg());
         CliArgRegistry.Register(new DebugArg());
         CliArgRegistry.Register(new HelpArg());
         CliArgRegistry.Register(new TestArg());
