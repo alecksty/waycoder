@@ -253,6 +253,155 @@ public static class ModelCli
             : $"未找到自定义模型 `{modelId}`（内置模型不可删除，可被自定义覆盖）。";
     }
 
+    /// <summary>删除某服务商下的所有自定义模型（内置供应商不可删）</summary>
+    public static string RemoveProvider(string providerId)
+    {
+        if (string.IsNullOrWhiteSpace(providerId))
+            return "用法: --model remove provider <供应商ID>";
+        var n = ModelCatalog.RemoveCustomByProvider(providerId.Trim());
+        return n > 0
+            ? $"已删除服务商 `{providerId.Trim()}` 的 {n} 个自定义模型（内置模型不可删）。"
+            : $"未找到服务商 `{providerId.Trim()}` 的自定义模型（内置供应商不可删，可被自定义覆盖）。";
+    }
+
+    /// <summary>删除某服务商的 API key（从全局 api_keys.json 移除）</summary>
+    public static string RemoveKey(string providerId)
+    {
+        if (string.IsNullOrWhiteSpace(providerId))
+            return "用法: --model remove key <供应商ID>";
+        if (!ApiKeyStore.Has(providerId.Trim()))
+            return $"未找到服务商 `{providerId.Trim()}` 的 API key。";
+        ApiKeyStore.Remove(providerId.Trim());
+        return $"已删除服务商 `{providerId.Trim()}` 的 API key。";
+    }
+
+    /// <summary>手动添加一个自定义模型（id + 供应商ID + 可选 baseUrl），写入全局模型库</summary>
+    public static string AddModel(string id, string? providerId = null, string? baseUrl = null)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            return "用法: --model add model <id> <供应商ID> [baseUrl]";
+        var pid = string.IsNullOrWhiteSpace(providerId) ? "custom" : providerId.Trim().ToLowerInvariant();
+        var display = ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DisplayName)
+            ? p.DisplayName
+            : (string.IsNullOrWhiteSpace(providerId) ? "custom" : providerId.Trim());
+        var info = new ModelCatalog.ModelInfo(id.Trim(), id.Trim(), display, pid, "*", "Custom",
+            0, 0, 0, string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl.Trim(), $"手动添加（{pid}）", 0);
+        var path = ModelCatalog.AddCustom(info);
+        return $"已添加模型 `{id.Trim()}`（服务商 `{pid}`）到 {path}";
+    }
+
+    /// <summary>手动添加一个服务商（注册为同名模型条目，携带可选 baseUrl），写入全局模型库</summary>
+    public static string AddProvider(string providerId, string? baseUrl = null)
+    {
+        if (string.IsNullOrWhiteSpace(providerId))
+            return "用法: --model add provider <供应商ID> [baseUrl]";
+        var pid = providerId.Trim();
+        var info = new ModelCatalog.ModelInfo(pid, pid, pid, pid.ToLowerInvariant(), "*", "Custom",
+            0, 0, 0, string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl.Trim(), $"手动添加服务商（{pid}）", 0);
+        var path = ModelCatalog.AddCustom(info);
+        return $"已添加服务商 `{pid}`" +
+            (string.IsNullOrWhiteSpace(baseUrl) ? "" : $"（base_url {baseUrl.Trim()}）") +
+            $" → {path}";
+    }
+
+    /// <summary>
+    /// 模型连通性测试：测试所有「有 key 的服务商」的模型 + 所有「本地模型」能否连上。
+    /// 按端点（服务商 + base_url）分组探测，返回 Markdown 文本报告。
+    /// </summary>
+    public static string Test()
+    {
+        // 候选模型：有已存 key 的服务商 + 本地模型（ollama/lmstudio/local 或 localhost 端点）
+        var candidates = new List<(ModelCatalog.ModelInfo M, string? Key, string? Base)>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var m in ModelCatalog.All)
+        {
+            var key = ApiKeyStore.Get(m.ProviderId);
+            var baseUrl = EffectiveBaseUrl(m);
+            var local = m.ProviderId is "ollama" or "lmstudio" or "local"
+                || ModelCatalog.IsOllamaBaseUrl(baseUrl);
+            if ((key != null || local) && seen.Add(m.Id))
+                candidates.Add((m, key, baseUrl));
+        }
+
+        if (candidates.Count == 0)
+            return "没有可测试的模型：既无已存 key 的服务商，也无本地模型。\n" +
+                   "  存 key: --model key <供应商> <key>　本地模型: --model connect <localhost:port>";
+
+        // 按端点分组（providerId + base_url），每个端点探测一次
+        var groups = candidates
+            .GroupBy(c => (Pid: c.M.ProviderId.ToLowerInvariant(), Url: c.Base ?? ""))
+            .Select(g => new
+            {
+                Pid = g.Key.Pid,
+                Provider = g.First().M.Provider,
+                Url = g.Key.Url,
+                Key = g.First().Key,
+                Models = g.Select(c => c.M.Id).ToArray(),
+            })
+            .ToList();
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"**模型连通性测试**（{groups.Count} 个端点，{candidates.Count} 个模型）：");
+        int okCount = 0;
+
+        foreach (var g in groups)
+        {
+            var (ok, detail) = ProbeEndpoint(g.Url, g.Key);
+            if (ok) okCount++;
+            sb.AppendLine();
+            sb.AppendLine($"【{g.Provider}】{(string.IsNullOrEmpty(g.Url) ? "" : " " + g.Url)}");
+            sb.AppendLine($"  {(ok ? "✅" : "❌")} {detail}  —  {string.Join(", ", g.Models)}");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine($"**结论：{okCount} / {groups.Count} 个端点可连接**");
+        return sb.ToString().Trim();
+    }
+
+    /// <summary>解析模型的有效 base_url：显式 > 服务商默认 > 本地(Ollama)默认 localhost:11434</summary>
+    private static string? EffectiveBaseUrl(ModelCatalog.ModelInfo m)
+    {
+        if (!string.IsNullOrWhiteSpace(m.DefaultBaseUrl)) return m.DefaultBaseUrl;
+        if (ModelCatalog.Providers.TryGetValue(m.ProviderId, out var p) && !string.IsNullOrEmpty(p.DefaultBaseUrl))
+            return p.DefaultBaseUrl;
+        if (m.ProviderId is "ollama" or "local") return "http://localhost:11434";
+        return null;
+    }
+
+    /// <summary>探测一个 OpenAI 兼容端点：GET {base}/models（401/403=密钥无效，404/405 时回退 /v1/models）</summary>
+    private static (bool Ok, string Detail) ProbeEndpoint(string? baseUrl, string? apiKey)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            return (false, "无端点（未配置 base_url）");
+        try
+        {
+            var b = baseUrl.Trim().TrimEnd('/');
+            var urls = new List<string> { b + "/models" };
+            if (!b.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
+                urls.Add(b + "/v1/models");
+
+            foreach (var url in urls)
+            {
+                try
+                {
+                    using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(4) };
+                    using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                    if (!string.IsNullOrWhiteSpace(apiKey))
+                        req.Headers.TryAddWithoutValidation("Authorization", "Bearer " + apiKey);
+                    using var resp = client.SendAsync(req).GetAwaiter().GetResult();
+                    var code = (int)resp.StatusCode;
+                    if (code >= 200 && code < 300) return (true, $"已连接（{code}）");
+                    if (code is 401 or 403) return (false, $"密钥无效（{code}）");
+                    if (code is 404 or 405) continue;  // 该路径不存在，试 /v1/models
+                    return (false, $"HTTP {code}");
+                }
+                catch { /* 该 URL 失败，试下一个 */ }
+            }
+            return (false, "无法连接（超时/拒绝）");
+        }
+        catch { return (false, "无法连接"); }
+    }
+
     private static string FormatCtx(int ctx) =>
         ctx <= 0 ? "?" : ctx >= 1_000_000 ? $"{ctx / 1_000_000}M" : $"{ctx / 1000}K";
 }

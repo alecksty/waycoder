@@ -2112,6 +2112,40 @@ public static class SelfTest
             if (leftover == "[]") File.Delete(ModelCatalog.LocalModelsPath);  // 测试残留：空库即删
         }
 
+        // 删除子命令：按服务商删除所有自定义模型 + 删除 API key
+        ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
+            "__selftest_prov_a__", "__selftest_prov_a__", "SelfTestProv", "selftestprov", "T", "Imported",
+            0, 0, 0, null, "test", 0), local: true);
+        ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
+            "__selftest_prov_b__", "__selftest_prov_b__", "SelfTestProv", "selftestprov", "T", "Imported",
+            0, 0, 0, null, "test", 0), local: true);
+        Check("按服务商删除自定义模型数", ModelCatalog.RemoveCustomByProvider("selftestprov") == 2);
+        Check("按服务商删除后不可加载",
+            ModelCatalog.Find("__selftest_prov_a__") == null && ModelCatalog.Find("__selftest_prov_b__") == null);
+
+        ApiKeyStore.Set("__selftest_key__", "sk-delete-me");
+        Check("删除 key 前存在", ApiKeyStore.Has("__selftest_key__"));
+        Check("ModelCli.RemoveKey 删除成功", ModelCli.RemoveKey("__selftest_key__").Contains("已删除"));
+        Check("删除 key 后不存在", !ApiKeyStore.Has("__selftest_key__"));
+
+        // 添加子命令：手动添加模型 / 服务商（写入全局库，测后清理）
+        var addModelMsg = ModelCli.AddModel("__selftest_add_model__", "selftestprov", "https://selftest.example/v1");
+        Check("添加模型成功", addModelMsg.Contains("已添加")
+            && ModelCatalog.Find("__selftest_add_model__")?.ProviderId == "selftestprov");
+        var addProvMsg = ModelCli.AddProvider("__selftest_add_prov__", "http://127.0.0.1:9999/v1");
+        Check("添加服务商成功", addProvMsg.Contains("已添加")
+            && ModelCatalog.Find("__selftest_add_prov__")?.DefaultBaseUrl == "http://127.0.0.1:9999/v1");
+        ModelCatalog.RemoveCustom("__selftest_add_model__");
+        ModelCatalog.RemoveCustom("__selftest_add_prov__");
+        Check("清理添加的模型/服务商",
+            ModelCatalog.Find("__selftest_add_model__") == null && ModelCatalog.Find("__selftest_add_prov__") == null);
+
+        if (!prevLocalExists && File.Exists(ModelCatalog.LocalModelsPath))
+        {
+            var leftover2 = File.ReadAllText(ModelCatalog.LocalModelsPath).Replace(" ", "").Replace("\n", "").Replace("\r", "").Replace("\t", "");
+            if (leftover2 == "[]") File.Delete(ModelCatalog.LocalModelsPath);
+        }
+
         Console.WriteLine();
 
         // ---- 会话管理 ----

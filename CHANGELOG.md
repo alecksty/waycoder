@@ -1,5 +1,24 @@
 # 更新日志
 
+## v0.47.7 (2026-08-13) — 模型连通性测试 + 手动增删模型/服务商/API key
+
+### 🔌 模型连通性测试（`--model test` / `/model test`）
+
+- 测试所有「有 key 的服务商」+「所有本地模型」（Ollama / LM Studio / localhost）能否连上
+- 按端点（服务商 + base_url）分组探测 `GET /models`：401/403=密钥无效、404 回退 `/v1/models`、超时/拒绝=无法连接
+- 输出报告：每个端点 ✅/❌ + 所属模型 + 最终「N/M 个端点可连接」结论
+- 有效 base_url 解析：显式 > 服务商默认 > 本地默认 `localhost:11434`
+
+### ➕➖ 手动增删（`--model add` / `--model remove`，`/model` 同理）
+
+- `add model <id> <供应商ID> [baseUrl]`、`add provider <供应商ID> [baseUrl]`、`add key <供应商ID> <key>`
+- `remove model <id>` / `remove provider <供应商ID>` / `remove key <供应商ID>`（`remove <id>` 向后兼容删模型）
+- 均写入全局模型库 / key 库并持久化；内置模型/供应商不可删
+
+### 🧪 自测 +8
+
+- 手动添加模型/服务商、按服务商删除、删除 key、连通性端点分组
+
 ## v0.47.6 (2026-08-13) — 模型库外置化：内置兜底 + 多来源导入（OpenCode/OpenClaw/Crush/Claude Code/Codex）
 
 ### 📚 模型库外置化（内置兜底）
