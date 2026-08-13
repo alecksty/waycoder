@@ -501,6 +501,25 @@ public class Agent
                     continue;
                 }
 
+                // 检测 3：任务进行中（已有工具调用历史）但本轮无工具调用且内容极短/为空
+                // （推理型模型长链思考后流被截断、或"只思考不行动"的中途停滞）→ 催其继续而非误判完成退出
+                if (toolCallCount > 0 && contentLen < 40)
+                {
+                    _analysisOnlyStreak++;
+                    string nudge = _analysisOnlyStreak switch
+                    {
+                        1 => "本轮没有调用任何工具且没有输出内容——任务尚未完成。请立即调用 write_file/bash 等工具继续执行下一步，不要停下。",
+                        2 => "你已连续两轮没有调用工具（本轮内容为空）。任务未完成，请立即调用工具继续执行。",
+                        _ => "⚠️ 严重警告：连续多轮无工具调用无内容，任务仍未完成。立即调用工具继续，不要输出空内容。",
+                    };
+                    Messages.Add(new JsonObject
+                    {
+                        ["role"] = "user",
+                        ["content"] = nudge,
+                    });
+                    continue;
+                }
+
                 SaveWorkReport();
                 return resp.Content ?? "";
             }
