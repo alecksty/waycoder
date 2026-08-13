@@ -1999,6 +1999,25 @@ public static class SelfTest
         var configWithBudget = new Config { MaxBudgetUsd = 12.5 };
         Check("MaxBudget 写入读取", configWithBudget.MaxBudgetUsd == 12.5);
         Check("MaxBudget 默认 null", new Config().MaxBudgetUsd == null);
+
+        // /config 命令行读写 API（Schema 驱动，无 switch 重复）
+        Check("FindProp 按 Key", Config.FindProp("Model")?.Key == "Model");
+        Check("FindProp 忽略大小写", Config.FindProp("model")?.Key == "Model");
+        Check("FindProp 按环境变量", Config.FindProp("WAYCODER_MODEL")?.Key == "Model");
+        Check("FindProp 未知返回 null", Config.FindProp("NotExist") == null);
+        Check("GetPropValue 读取 Model", !string.IsNullOrEmpty(Config.GetPropValue("Model")));
+
+        var savedMaxTokens = Config.Instance.MaxTokens;
+        Check("TrySetPropValue MaxTokens 成功",
+            Config.TrySetPropValue("MaxTokens", "16384", out var setErr)
+            && setErr == null && Config.Instance.MaxTokens == 16384);
+        Config.Instance.MaxTokens = savedMaxTokens;
+
+        Check("TrySetPropValue 非法 select 拒绝",
+            !Config.TrySetPropValue("SandboxLevel", "bogus", out var selErr) && selErr != null);
+        Check("TrySetPropValue 未知项拒绝",
+            !Config.TrySetPropValue("NoSuchKey", "x", out var unknownErr) && unknownErr != null);
+
         Console.WriteLine();
 
         // ---- 会话管理 ----
