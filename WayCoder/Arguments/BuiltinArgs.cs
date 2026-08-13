@@ -4,12 +4,69 @@ namespace WayCoder.Arguments;
 // 模型参数
 // ═══════════════════════════════════════════════════════════════
 
+/// <summary>
+/// --model 模型管理（对标 /model 斜杠命令）。
+///   --model                        → 显示当前模型
+///   --model list [关键词]          → 列出模型目录
+///   --model name &lt;id&gt;        → 选中并持久化（自动 base-url + 写 .env）
+///   --model key &lt;供应商&gt; &lt;key&gt; → 保存 API key（无参列出已存 keys）
+///   --model connect &lt;base-url&gt; → 设置连接地址（写 .env）
+///   --model &lt;模型ID&gt;          → 快捷选中（本次会话，不持久化，向后兼容）
+/// </summary>
 public class ModelArg : CliArg
 {
-    public override string Description => "模型名称（默认: deepseek-v4-flash）";
-    public override int ValueCount => 1;
-    public override string? ValueLabel => "名称";
+    public override string Description => "模型管理（list / name <id> / key <供应商> <key> / connect <url>，或 --model <模型ID> 快捷选中）";
+    public override int ValueCount => -1;
+    public override bool Greedy => true;
+    public override string? ValueLabel => "模型ID/子命令";
     public ModelArg() : base("model", "-m", "--model") { }
+
+    public override int? OnMatch(List<string> values)
+    {
+        if (values.Count == 0)
+        {
+            Console.WriteLine(ModelCli.Current());
+            return 0;
+        }
+
+        var first = values[0].ToLowerInvariant();
+        var rest = values.Skip(1).ToArray();
+
+        string result;
+        switch (first)
+        {
+            case "list":
+            case "ls":
+                result = ModelCli.List(rest.Length > 0 ? rest[0] : null);
+                break;
+            case "name":
+                result = rest.Length == 0 ? "用法: --model name <模型ID>" : ModelCli.Select(rest[0]);
+                break;
+            case "key":
+            case "keys":
+                result = DispatchKey(rest);
+                break;
+            case "connect":
+                result = rest.Length == 0 ? "用法: --model connect <base-url>" : ModelCli.Connect(rest[0]);
+                break;
+            default:
+                // 裸模型名：本次会话快捷选中，交给 Program 继续运行
+                return null;
+        }
+
+        Console.WriteLine(result);
+        return 0;
+    }
+
+    static string DispatchKey(string[] rest)
+    {
+        if (rest.Length == 0) return ModelCli.ListKeys();
+        if (rest.Length >= 3 && rest[0].Equals("set", StringComparison.OrdinalIgnoreCase))
+            return ModelCli.SetKey(rest[1], string.Join(" ", rest.Skip(2)));
+        if (rest.Length >= 2)
+            return ModelCli.SetKey(rest[0], string.Join(" ", rest.Skip(1)));
+        return "用法: --model key [set] <供应商> <key>";
+    }
 }
 
 public class BaseUrlArg : CliArg
