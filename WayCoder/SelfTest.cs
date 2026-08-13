@@ -5050,6 +5050,13 @@ another.txt:3:1: warning: deprecated API
         Check("SessionListArg: ValueCount 为 0(标志)", sessionListArg.ValueCount == 0);
         Check("SessionListArg: 描述含 '列出'", sessionListArg.Description.Contains("列出"));
         Check("SessionListArg: 别名含 --sessions", sessionListArg.NameDisplay.Contains("--sessions"));
+
+        // EconomyArg: 省 Token 模式短名（-e / --economy）
+        var economyArg = new Arguments.EconomyArg();
+        Check("EconomyArg: 名称含 economy", economyArg.Key == "economy");
+        Check("EconomyArg: 短名含 -e", economyArg.Names.Contains("-e"));
+        Check("EconomyArg: 长名含 --economy", economyArg.Names.Contains("--economy"));
+        Check("EconomyArg: 描述含 '任务复杂度'", economyArg.Description.Contains("任务复杂度"));
         Console.WriteLine();
 
         // ---- 会话详情: MessageCount ----
