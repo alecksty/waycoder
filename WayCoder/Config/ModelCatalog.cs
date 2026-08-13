@@ -216,6 +216,29 @@ public static class ModelCatalog
     /// <summary>仅列出自定义模型（不含内置）</summary>
     public static ModelInfo[] ListCustom() => LoadCustom().Values.OrderBy(m => m.Id).ToArray();
 
+    /// <summary>删除某服务商下的所有自定义模型（从全局+本地两个文件移除），返回删除数量。</summary>
+    public static int RemoveCustomByProvider(string providerId)
+    {
+        var removed = 0;
+        foreach (var path in new[] { GlobalModelsPath, LocalModelsPath })
+        {
+            if (!File.Exists(path)) continue;
+            var models = ReadFile(path);
+            var toRemove = models
+                .Where(kv => kv.Value.ProviderId.Equals(providerId, StringComparison.OrdinalIgnoreCase))
+                .Select(kv => kv.Key)
+                .ToArray();
+            foreach (var id in toRemove)
+            {
+                models.Remove(id);
+                removed++;
+            }
+            if (toRemove.Length > 0) SaveCustom(models, path);
+        }
+        if (removed > 0) Invalidate();
+        return removed;
+    }
+
     /// <summary>清除内存缓存并强制下次重新加载（外部改了 models.json 后调用）</summary>
     public static void Invalidate()
     {

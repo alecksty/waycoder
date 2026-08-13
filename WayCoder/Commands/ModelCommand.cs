@@ -13,7 +13,7 @@ public class ModelCommand : SlashCommand
     public override string Name => "/model";
     public override string[] Aliases => ["/m"];
     public override string Description => "Model management — per-slot model selection, catalog, import, keys";
-    public override string? Usage => "/model [name] | #N <name> [key] | list|set <id>|uniform <id>|import <file>|keys|slot <N> <large|small> <id>";
+    public override string? Usage => "/model [name] | #N <name> [key] | list|set <id>|uniform <id>|import <file>|keys|add [model|provider|key]|remove [model|provider|key]|test|slot <N> <large|small> <id>";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {
@@ -72,6 +72,17 @@ public class ModelCommand : SlashCommand
                 break;
             case "slot":
                 SetSlotModel(screen, rest);
+                break;
+            case "test":
+                screen.AddSystemMsg(ModelCli.Test());
+                break;
+            case "add":
+                AddModels(screen, rest);
+                break;
+            case "remove":
+            case "rm":
+            case "delete":
+                RemoveModels(screen, rest);
                 break;
             default:
                 // Quick switch by model name
@@ -473,5 +484,65 @@ public class ModelCommand : SlashCommand
 
         ApiKeyStore.Set(parts[0], parts[1]);
         screen.AddSystemMsg($"API key saved for `{parts[0]}`: {ApiKeyStore.Masked(parts[0])}");
+    }
+
+    /// <summary>/model add [model <id> <pid> [baseUrl]|provider <pid> [baseUrl]|key <pid> <key>] — 手动添加模型/服务商/API key</summary>
+    static void AddModels(ChatScreen screen, string args)
+    {
+        var parts = args.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
+            screen.AddSystemMsg("Usage: /model add [model <id> <providerId> [baseUrl] | provider <providerId> [baseUrl] | key <providerId> <key>]");
+            return;
+        }
+
+        var sub = parts[0].ToLowerInvariant();
+        switch (sub)
+        {
+            case "model":
+                screen.AddSystemMsg(parts.Length >= 3
+                    ? ModelCli.AddModel(parts[1], parts[2], parts.Length > 3 ? parts[3] : null)
+                    : "Usage: /model add model <id> <providerId> [baseUrl]");
+                break;
+            case "provider":
+            case "prov":
+                screen.AddSystemMsg(parts.Length >= 2
+                    ? ModelCli.AddProvider(parts[1], parts.Length > 2 ? parts[2] : null)
+                    : "Usage: /model add provider <providerId> [baseUrl]");
+                break;
+            case "key":
+            case "keys":
+            case "apikey":
+                screen.AddSystemMsg(parts.Length >= 3
+                    ? ModelCli.SetKey(parts[1], parts[2])
+                    : "Usage: /model add key <providerId> <key>");
+                break;
+            default:
+                screen.AddSystemMsg(parts.Length >= 2
+                    ? ModelCli.AddModel(parts[0], parts[1], parts.Length > 2 ? parts[2] : null)
+                    : ModelCli.AddModel(parts[0], null, null));
+                break;
+        }
+    }
+
+    /// <summary>/model remove [model <id>|provider <pid>|key <pid>] — 删除模型/服务商/API key（无子命令时 <id> 视为删模型）</summary>
+    static void RemoveModels(ChatScreen screen, string args)
+    {
+        var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
+            screen.AddSystemMsg("Usage: /model remove [model <id> | provider <pid> | key <pid>]");
+            return;
+        }
+
+        var sub = parts[0].ToLowerInvariant();
+        if (parts.Length >= 2 && sub == "model")
+            screen.AddSystemMsg(ModelCli.Remove(parts[1]));
+        else if (parts.Length >= 2 && sub is "provider" or "prov")
+            screen.AddSystemMsg(ModelCli.RemoveProvider(parts[1]));
+        else if (parts.Length >= 2 && sub is "key" or "keys" or "apikey")
+            screen.AddSystemMsg(ModelCli.RemoveKey(parts[1]));
+        else
+            screen.AddSystemMsg(ModelCli.Remove(parts[0]));
     }
 }
