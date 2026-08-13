@@ -466,4 +466,78 @@ public static partial class SelfTest
         // 有真实开销时校准值必然大于原始估算
         Check("TokenCalib: 校准值 > 原始估算", calCm.EstimateCalibratedTokens(calMsgs) > calEst);
     }
+
+    /// <summary>/init 项目初始化（ProjectInitializer 生成 CLAUDE.md + 命令检测）测试</summary>
+    private static void TestProjectInit(Action<string, bool> Check)
+    {
+        // ── GenerateClaudeMd 结构 ──
+        var info = new ProjectInfo
+        {
+            ProjectRoot = "/tmp/demo-project",
+            PrimaryLanguage = "Go",
+            Frameworks = new List<string> { "Go" },
+            BuildTools = new List<string> { "go" },
+        };
+        var md = ProjectInitializer.GenerateClaudeMd(info);
+        Check("init: 生成含标题", md.Contains("# CLAUDE.md"));
+        Check("init: 含项目概述区块", md.Contains("## 项目概述"));
+        Check("init: 含项目名", md.Contains("demo-project"));
+        Check("init: 含主语言", md.Contains("主语言: Go"));
+        Check("init: 含命令块", md.Contains("```bash"));
+        Check("init: 含开发规范区块", md.Contains("## 开发规范"));
+
+        // ── 命令检测（临时目录，按构建系统分场景）──
+        string? tmp = null;
+        try
+        {
+            tmp = Directory.CreateTempSubdirectory("waycoder-init").FullName;
+
+            // .NET
+            var dotnetDir = Path.Combine(tmp, "dotnet");
+            Directory.CreateDirectory(dotnetDir);
+            File.WriteAllText(Path.Combine(dotnetDir, "App.csproj"), "<Project/>");
+            Check("init: dotnet 构建命令", ProjectInitializer.DetectBuildCommand(dotnetDir) == "dotnet build");
+            Check("init: dotnet 无 Tests 项目时无测试命令", ProjectInitializer.DetectTestCommand(dotnetDir) == null);
+            File.WriteAllText(Path.Combine(dotnetDir, "App.Tests.csproj"), "<Project/>");
+            Check("init: dotnet 有 Tests 项目返回 dotnet test", ProjectInitializer.DetectTestCommand(dotnetDir) == "dotnet test");
+
+            // Node.js
+            var nodeDir = Path.Combine(tmp, "node");
+            Directory.CreateDirectory(nodeDir);
+            File.WriteAllText(Path.Combine(nodeDir, "package.json"),
+                "{\"scripts\":{\"test\":\"jest\",\"lint\":\"eslint .\"}}");
+            Check("init: npm 构建命令", ProjectInitializer.DetectBuildCommand(nodeDir) == "npm install && npm run build");
+            Check("init: npm 测试命令", ProjectInitializer.DetectTestCommand(nodeDir) == "npm test");
+            Check("init: npm lint 命令", ProjectInitializer.DetectLintCommand(nodeDir) == "npm run lint");
+
+            // Go
+            var goDir = Path.Combine(tmp, "go");
+            Directory.CreateDirectory(goDir);
+            File.WriteAllText(Path.Combine(goDir, "go.mod"), "module x\n");
+            Check("init: go 测试命令", ProjectInitializer.DetectTestCommand(goDir) == "go test ./...");
+            Check("init: go lint 命令", ProjectInitializer.DetectLintCommand(goDir) == "go vet ./...");
+
+            // Rust
+            var rustDir = Path.Combine(tmp, "rust");
+            Directory.CreateDirectory(rustDir);
+            File.WriteAllText(Path.Combine(rustDir, "Cargo.toml"), "[package]\n");
+            Check("init: rust 测试命令", ProjectInitializer.DetectTestCommand(rustDir) == "cargo test");
+
+            // Python
+            var pyDir = Path.Combine(tmp, "python");
+            Directory.CreateDirectory(pyDir);
+            File.WriteAllText(Path.Combine(pyDir, "test_foo.py"), "def test(): pass\n");
+            Check("init: python 测试命令", ProjectInitializer.DetectTestCommand(pyDir) == "pytest");
+
+            // 未知项目：返回 null
+            var emptyDir = Path.Combine(tmp, "empty");
+            Directory.CreateDirectory(emptyDir);
+            Check("init: 空目录无构建命令", ProjectInitializer.DetectBuildCommand(emptyDir) == null);
+        }
+        catch { }
+        finally
+        {
+            if (tmp != null) { try { Directory.Delete(tmp, true); } catch { } }
+        }
+    }
 }

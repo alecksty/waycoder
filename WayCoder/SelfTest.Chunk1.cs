@@ -71,6 +71,8 @@ public static partial class SelfTest
         TestTinyWindow(Check);
         // 省 token 模式测试（EconomyMode 开关）
         TestEconomyMode(Check);
+        // /init 项目初始化测试（生成 CLAUDE.md + 命令检测）
+        TestProjectInit(Check);
         Console.WriteLine();
 
         // ---- 工具 ----
