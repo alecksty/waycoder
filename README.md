@@ -57,7 +57,7 @@ dotnet run -- --economy          # 开：精简提示词 + 更早压缩 + 输出
 dotnet run -- --economy auto     # 自动：按任务复杂度动态调节阈值（简单省、复杂保质量）
 # 优先级偏好（仅 auto 生效）：WAYCODER_ECONOMY_PRIORITY=quality|balanced|cost（默认 quality）
 
-# 运行自测（1743 项）
+# 运行自测（1753 项）
 dotnet run -- --test
 ```
 
@@ -96,7 +96,7 @@ WayCoder/
 ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1743 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── SelfTest.cs        1753 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
 ├── Infra/             基础设施 (12+ 文件)
 │   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
 │   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)
@@ -150,7 +150,7 @@ WayCoder/
 | `agent` | 生成子智能体（独立上下文，禁止递归；支持 tasks 数组并行） |
 | `git` | Git 操作（status/log/diff/commit/branch） |
 | `fetch` | Web 抓取，HTML 净化 + Markdown 提取 |
-| `lsp` | LSP 代码导航（go-to-def, references, hover, symbols） |
+| `lsp` | LSP 代码导航（go-to-def, references, hover, symbols），14 种语言 |
 | `memory` | 读写项目记忆（结构化 .waycoder/memory/ 格式，支持 read/write/search/delete/share） |
 | `todo` | 结构化任务列表 |
 | `struct_todo` | 增强版 Todo（优先级、依赖关系、状态追踪） |

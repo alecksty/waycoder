@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.48.4 (2026-08-14) — LSP 语言扩充 5→14
+
+### 🔍 LSP 语言服务器扩充
+
+- `LspTool` 从 5 种语言扩充到 **14 种**，对标 Cursor/Claude Code 的覆盖
+- 新增 9 种：C/C++（`clangd`）、Java（`jdtls`）、Kotlin（`kotlin-language-server`）、Ruby（`solargraph`）、PHP（`intelephense`）、Lua（`lua-language-server`）、Bash（`bash-language-server`）、Swift（`sourcekit-lsp`）、Zig（`zls`）
+- `ExtToLang` 扩展映射补齐（.c/.cpp/.h/.java/.kt/.rb/.php/.lua/.sh/.swift/.zig 等）
+- `GetLanguageId` 同步补齐 LSP 语言 ID（c/cpp/java/kotlin/ruby/php/lua/shellscript/swift/zig）
+
+### 🧪 自测
+
+- 新增 `[LSP]` 语言覆盖 10 项（14 种语言 + 9 个服务器命令断言），1753 项全部通过（0 失败）
+
 ## v0.48.3 (2026-08-14) — /mcp 管理面板 + MCP 状态模型（对标 Claude Code /mcp）
 
 ### 🔌 `/mcp` 管理面板

@@ -106,6 +106,16 @@ public static partial class SelfTest
         ITool lspTool = new LspTool();
         Check("lsp 工具名称正确", lspTool.Name == "lsp");
         Check("lsp 有 definition/references/hover/symbols", lspTool.Description.Contains("定义"));
+        Check("lsp 支持 14 种语言", LspTool.SupportedServers.Count == 14);
+        Check("lsp 含 cpp(clangd)", LspTool.SupportedServers.ContainsKey("cpp") && LspTool.SupportedServers["cpp"].Command == "clangd");
+        Check("lsp 含 java(jdtls)", LspTool.SupportedServers.ContainsKey("java") && LspTool.SupportedServers["java"].Command == "jdtls");
+        Check("lsp 含 kotlin", LspTool.SupportedServers.ContainsKey("kotlin") && LspTool.SupportedServers["kotlin"].Command == "kotlin-language-server");
+        Check("lsp 含 ruby(solargraph)", LspTool.SupportedServers.ContainsKey("ruby") && LspTool.SupportedServers["ruby"].Command == "solargraph");
+        Check("lsp 含 php(intelephense)", LspTool.SupportedServers.ContainsKey("php") && LspTool.SupportedServers["php"].Command == "intelephense");
+        Check("lsp 含 lua", LspTool.SupportedServers.ContainsKey("lua") && LspTool.SupportedServers["lua"].Command == "lua-language-server");
+        Check("lsp 含 bash", LspTool.SupportedServers.ContainsKey("bash") && LspTool.SupportedServers["bash"].Command == "bash-language-server");
+        Check("lsp 含 swift", LspTool.SupportedServers.ContainsKey("swift") && LspTool.SupportedServers["swift"].Command == "sourcekit-lsp");
+        Check("lsp 含 zig", LspTool.SupportedServers.ContainsKey("zig") && LspTool.SupportedServers["zig"].Command == "zls");
         Console.WriteLine();
 
         // ---- 流式工具执行 (编译期已验证 onToolCall 参数) ----

@@ -11,7 +11,7 @@ namespace WayCoder.Tools;
 public class LspTool : ITool
 {
     public string Name => "lsp";
-    public string Description => "代码智能导航：跳转定义(definition)、查找引用(references)、类型悬停(hover)、文档符号(symbols)。支持 C#/Python/JS/TS/Go/Rust。";
+    public string Description => "代码智能导航：跳转定义(definition)、查找引用(references)、类型悬停(hover)、文档符号(symbols)。支持 C#/Python/JS/TS/Go/Rust/C/C++/Java/Kotlin/Ruby/PHP/Lua/Bash/Swift/Zig。";
 
     public JsonObject Parameters => new()
     {
@@ -58,6 +58,15 @@ public class LspTool : ITool
         ["typescript"] = ("typescript-language-server", ["--stdio"]),
         ["go"] = ("gopls", []),
         ["rust"] = ("rust-analyzer", []),
+        ["cpp"] = ("clangd", []),
+        ["java"] = ("jdtls", []),
+        ["kotlin"] = ("kotlin-language-server", []),
+        ["ruby"] = ("solargraph", ["stdio"]),
+        ["php"] = ("intelephense", ["--stdio"]),
+        ["lua"] = ("lua-language-server", []),
+        ["bash"] = ("bash-language-server", ["start"]),
+        ["swift"] = ("sourcekit-lsp", []),
+        ["zig"] = ("zls", []),
     };
 
     // 扩展名 -> 语言 ID 映射
@@ -69,6 +78,16 @@ public class LspTool : ITool
         [".js"] = "typescript", [".jsx"] = "typescript",
         [".go"] = "go",
         [".rs"] = "rust",
+        [".c"] = "cpp", [".cpp"] = "cpp", [".cc"] = "cpp", [".cxx"] = "cpp",
+        [".h"] = "cpp", [".hpp"] = "cpp", [".hh"] = "cpp",
+        [".java"] = "java",
+        [".kt"] = "kotlin", [".kts"] = "kotlin",
+        [".rb"] = "ruby",
+        [".php"] = "php",
+        [".lua"] = "lua",
+        [".sh"] = "bash", [".bash"] = "bash",
+        [".swift"] = "swift",
+        [".zig"] = "zig",
     };
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
@@ -326,6 +345,16 @@ public class LspTool : ITool
             ".js" or ".jsx" => "javascript",
             ".go" => "go",
             ".rs" => "rust",
+            ".c" or ".h" => "c",
+            ".cpp" or ".cc" or ".cxx" or ".hpp" or ".hh" => "cpp",
+            ".java" => "java",
+            ".kt" or ".kts" => "kotlin",
+            ".rb" => "ruby",
+            ".php" => "php",
+            ".lua" => "lua",
+            ".sh" or ".bash" => "shellscript",
+            ".swift" => "swift",
+            ".zig" => "zig",
             _ => "plaintext",
         };
     }
