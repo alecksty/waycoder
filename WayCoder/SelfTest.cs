@@ -2032,6 +2032,24 @@ public static class SelfTest
         Check("模型→供应商解析 deepseek", ModelCatalog.Find("deepseek-v4-flash")?.ProviderId == "deepseek");
         Check("模型→供应商解析 openai", ModelCatalog.Find("gpt-5.5")?.ProviderId == "openai");
         Check("ApiKeyStore.ForModel 未知模型返回 null", ApiKeyStore.ForModel("no-such-model-xyz") == null);
+        Check("Config 含 SmallProvider 设置项", ConfigCli.Get("SmallProvider").Contains("SmallProvider"));
+
+        // 一个服务商一个 key，一个服务商多个模型（key 跟服务商走，不跟模型走）
+        Check("deepseek 多模型共享服务商",
+            ModelCatalog.Find("deepseek-v4-pro")?.ProviderId == "deepseek"
+            && ModelCatalog.Find("deepseek-v4-flash")?.ProviderId == "deepseek"
+            && ModelCatalog.Find("deepseek-chat")?.ProviderId == "deepseek");
+        Check("openai 多模型共享服务商",
+            ModelCatalog.Find("gpt-5.5")?.ProviderId == "openai"
+            && ModelCatalog.Find("gpt-4o")?.ProviderId == "openai");
+        Check("qwen 多模型共享服务商",
+            ModelCatalog.Find("qwen3-max")?.ProviderId == "qwen"
+            && ModelCatalog.Find("qwen-turbo")?.ProviderId == "qwen");
+        // 服务商 key 存取（一个服务商一个 key）
+        ApiKeyStore.Set("__waycoder_test__", "sk-test-1234567890");
+        Check("ApiKeyStore 按服务商存取 key", ApiKeyStore.Get("__waycoder_test__") == "sk-test-1234567890");
+        ApiKeyStore.Remove("__waycoder_test__");
+        Check("ApiKeyStore 删除服务商 key", ApiKeyStore.Get("__waycoder_test__") == null);
 
         Console.WriteLine();
 
