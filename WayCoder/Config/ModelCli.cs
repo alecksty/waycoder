@@ -36,7 +36,7 @@ public static class ModelCli
     public static string List(string? filter = null)
     {
         var models = string.IsNullOrWhiteSpace(filter)
-            ? ModelCatalog.BuiltIn
+            ? ModelCatalog.All
             : ModelCatalog.Search(filter);
 
         if (models.Length == 0)
@@ -136,4 +136,123 @@ public static class ModelCli
         ApiKeyStore.Set(providerId, key);
         return $"已保存 {providerId} 的 API key：{ApiKeyStore.Masked(providerId)}";
     }
+
+    /// <summary>
+    /// 导入外部模型数据库（OpenCode / OpenClaw / Crush / Claude Code / Codex / 通用 JSON 文件），写入全局模型库。
+    /// source: null/auto/all=自动探测全部；opencode/openclaw/crush/claude/codex=指定来源；否则视为文件路径。
+    /// </summary>
+    public static string Import(string? source = null)
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var imported = new List<ModelCatalog.ModelInfo>();
+        var reports = new List<string>();
+
+        var s = source?.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(s) || s is "auto" or "all")
+        {
+            foreach (var src in new[] { "opencode", "openclaw", "crush", "claude", "codex" })
+                imported.AddRange(ImportOne(src, home, reports));
+        }
+        else if (s is "opencode" or "openclaw" or "crush" or "claude" or "claudecode" or "codex")
+        {
+            imported.AddRange(ImportOne(s, home, reports));
+        }
+        else
+        {
+            // 文件路径（支持 JSONC/JSON5 注释与裸 key；.toml 按 Codex 解析）
+            if (!File.Exists(source))
+                return $"❌ 未找到文件: {source}";
+            var text = File.ReadAllText(source);
+            var list = source.EndsWith(".toml", StringComparison.OrdinalIgnoreCase)
+                ? ModelCatalog.ImportCodex(text)
+                : ModelCatalog.ImportFromJson(ModelCatalog.NormalizeJson5(text));
+            imported.AddRange(list);
+            reports.Add($"文件 {source}");
+        }
+
+        if (imported.Count == 0)
+            return "❌ 未导入任何模型（未找到可识别的模型配置）。\n   支持: --model import [opencode|openclaw|crush|claude|codex|<配置文件路径>]";
+
+        // 去重：同一 Id（大小写不敏感）只保留第一个（OpenCode/OpenClaw 可能重复声明同一模型）
+        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        imported = imported.Where(m => seenIds.Add(m.Id)).ToList();
+
+        // 去重：跳过内置目录已存在的模型（内置为精选元数据，避免被导入的空数据覆盖）
+        var builtInIds = new HashSet<string>(ModelCatalog.BuiltIn.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
+        var added = new List<ModelCatalog.ModelInfo>();
+        var skipped = new List<string>();
+        foreach (var m in imported)
+        {
+            if (builtInIds.Contains(m.Id))
+                skipped.Add(m.Id);
+            else
+            {
+                ModelCatalog.AddCustom(m);
+                added.Add(m);
+            }
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"✅ 导入 {added.Count} 个模型到全局模型库（{string.Join("、", reports)}）" +
+            (skipped.Count > 0 ? $"，跳过 {skipped.Count} 个内置已有" : "") + "：");
+        foreach (var m in added)
+            sb.AppendLine($"  {m.Id,-32} {m.Provider,-10} ctx={FormatCtx(m.ContextWindow),-6} ${m.InputPrice}/{m.OutputPrice}");
+        sb.AppendLine("已写入: " + ModelCatalog.GlobalModelsPath);
+        return sb.ToString().Trim();
+    }
+
+    private static List<ModelCatalog.ModelInfo> ImportOne(string source, string home, List<string> reports)
+    {
+        var src = source is "claudecode" ? "claude" : source;
+        var (path, name) = src switch
+        {
+            "opencode" => (Path.Combine(home, ".config", "opencode", "opencode.json"), "OpenCode"),
+            "openclaw" => (Path.Combine(home, ".openclaw", "openclaw.json"), "OpenClaw"),
+            "crush" => (Path.Combine(home, ".config", "crush", "config.json"), "Crush"),
+            "claude" => (Path.Combine(home, ".claude", "settings.json"), "Claude Code"),
+            "codex" => (Path.Combine(home, ".codex", "config.toml"), "Codex"),
+            _ => ("", ""),
+        };
+
+        if (!File.Exists(path))
+        {
+            // OpenCode 兼容 .jsonc
+            if (src == "opencode")
+            {
+                var jsonc = Path.Combine(home, ".config", "opencode", "opencode.jsonc");
+                if (File.Exists(jsonc)) path = jsonc;
+                else return [];
+            }
+            else return [];
+        }
+
+        try
+        {
+            var text = File.ReadAllText(path);
+            var list = src switch
+            {
+                "opencode" => ModelCatalog.ImportOpenCode(text),
+                "openclaw" => ModelCatalog.ImportOpenClaw(text),
+                "crush" => ModelCatalog.ImportCrush(text),
+                "claude" => ModelCatalog.ImportClaude(text),
+                "codex" => ModelCatalog.ImportCodex(text),
+                _ => [],
+            };
+            if (list.Count > 0) reports.Add(name);
+            return list;
+        }
+        catch { return []; }
+    }
+
+    /// <summary>删除自定义模型（从全局+本地模型库移除）</summary>
+    public static string Remove(string modelId)
+    {
+        var removed = ModelCatalog.RemoveCustom(modelId.Trim());
+        return removed.Length > 0
+            ? $"已删除自定义模型 `{modelId}`（从 {string.Join("、", removed)} 移除）"
+            : $"未找到自定义模型 `{modelId}`（内置模型不可删除，可被自定义覆盖）。";
+    }
+
+    private static string FormatCtx(int ctx) =>
+        ctx <= 0 ? "?" : ctx >= 1_000_000 ? $"{ctx / 1_000_000}M" : $"{ctx / 1000}K";
 }

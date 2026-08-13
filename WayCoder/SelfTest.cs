@@ -2051,6 +2051,67 @@ public static class SelfTest
         ApiKeyStore.Remove("__waycoder_test__");
         Check("ApiKeyStore 删除服务商 key", ApiKeyStore.Get("__waycoder_test__") == null);
 
+        // 外部配置导入：Claude Code settings.json（env 中 *_MODEL + BASE_URL，去 [1M] 后缀 + 去重 + 跳过 *_MODEL_NAME）
+        var claudeJson = """
+        {
+          "env": {
+            "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
+            "ANTHROPIC_MODEL": "deepseek-v4-pro",
+            "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-v4-pro[1M]",
+            "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-pro[1M]",
+            "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-pro",
+            "ANTHROPIC_DEFAULT_SONNET_MODEL_NAME": "deepseek-v4-pro"
+          }
+        }
+        """;
+        var claude = ModelCatalog.ImportClaude(claudeJson);
+        Check("Claude 导入去重为 1 个模型", claude.Count == 1);
+        Check("Claude 导入模型 id", claude.Count == 1 && claude[0].Id == "deepseek-v4-pro");
+        Check("Claude 导入 providerId=claude", claude.Count == 1 && claude[0].ProviderId == "claude");
+        Check("Claude 导入 baseUrl", claude.Count == 1 && claude[0].DefaultBaseUrl == "https://api.deepseek.com/anthropic");
+
+        // 外部配置导入：Codex config.toml（[model_providers.*] + 顶层 model + [profiles.*]）
+        var codexToml = """
+        model_provider = "custom"
+        model = "gpt-5.6-sol"
+
+        [profiles.GoAI]
+        model_provider = "GoAI"
+        model = "deepseek V4 Flash"
+
+        [model_providers.custom]
+        name = "DeepSeek"
+        base_url = "http://127.0.0.1:15721/v1"
+        """;
+        var codex = ModelCatalog.ImportCodex(codexToml);
+        Check("Codex 导入 provider 模型（全局 model）",
+            codex.Any(m => m.Id == "gpt-5.6-sol" && m.ProviderId == "custom"
+                && m.DefaultBaseUrl == "http://127.0.0.1:15721/v1"));
+        Check("Codex 导入 profile 模型",
+            codex.Any(m => m.Id == "deepseek V4 Flash" && m.ProviderId == "goai"));
+
+        // 模型库序列化往返（写本地模型库 → 读回 → 删除，不污染全局库）
+        var prevLocalExists = File.Exists(ModelCatalog.LocalModelsPath);
+        var mi = new ModelCatalog.ModelInfo(
+            "__selftest_roundtrip__", "__selftest_roundtrip__", "SelfTest", "selftest", "T", "Imported",
+            128_000, 1.5, 3.0, "https://selftest.example/v1", "round-trip 描述", 8192);
+        ModelCatalog.AddCustom(mi, local: true);
+        var rtLoaded = ModelCatalog.Find("__selftest_roundtrip__");
+        Check("模型库往返: 命中", rtLoaded != null);
+        Check("模型库往返: providerId 保留", rtLoaded?.ProviderId == "selftest");
+        Check("模型库往返: baseUrl 保留", rtLoaded?.DefaultBaseUrl == "https://selftest.example/v1");
+        Check("模型库往返: description 保留", rtLoaded?.Description == "round-trip 描述");
+        Check("模型库往返: maxOutput 保留", rtLoaded?.MaxOutput == 8192);
+        Check("模型库往返: contextWindow 保留", rtLoaded?.ContextWindow == 128_000);
+        Check("模型库往返: 价格保留", rtLoaded?.InputPrice == 1.5 && rtLoaded?.OutputPrice == 3.0);
+        ModelCatalog.RemoveCustom("__selftest_roundtrip__");
+        Check("模型库删除自定义", ModelCatalog.Find("__selftest_roundtrip__") == null);
+        if (!prevLocalExists && File.Exists(ModelCatalog.LocalModelsPath))
+        {
+            var leftover = File.ReadAllText(ModelCatalog.LocalModelsPath).Replace(" ", "").Replace("\n", "").Replace("\r", "").Replace("\t", "");
+            if (leftover == "[]") File.Delete(ModelCatalog.LocalModelsPath);  // 测试残留：空库即删
+        }
+
         Console.WriteLine();
 
         // ---- 会话管理 ----

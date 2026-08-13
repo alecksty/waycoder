@@ -560,7 +560,7 @@ public static class ModelPicker
     {
         var list = new List<ModelEntry>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var info in ModelCatalog.BuiltIn)
+        foreach (var info in ModelCatalog.All)
         {
             if (!seen.Add(info.Id)) continue;
             var hasKey = ModelHasKey(info.ProviderId, info.Id);
