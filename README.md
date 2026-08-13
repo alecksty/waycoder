@@ -13,6 +13,7 @@
 </div>
 
 > 📖 **使用手册**：[docs/使用手册.md](docs/使用手册.md) — 快速上手、命令速查、快捷键、配置、Watch 模式、FAQ
+> ⬆️ **安装与升级**：[docs/安装与升级.md](docs/安装与升级.md) — 直接下载 / winget / brew / apt + 内置自动升级
 
 ## 改名说明
 
@@ -57,7 +58,10 @@ dotnet run -- --economy          # 开：精简提示词 + 更早压缩 + 输出
 dotnet run -- --economy auto     # 自动：按任务复杂度动态调节阈值（简单省、复杂保质量）
 # 优先级偏好（仅 auto 生效）：WAYCODER_ECONOMY_PRIORITY=quality|balanced|cost（默认 quality）
 
-# 运行自测（1775 项）
+# 自动升级（检查并自替换，优先 GitHub、回退 Gitee）
+dotnet run -- --update
+
+# 运行自测（1789 项）
 dotnet run -- --test
 ```
 
@@ -96,7 +100,7 @@ WayCoder/
 ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1775 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── SelfTest.cs        1789 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
 ├── Infra/             基础设施 (12+ 文件)
 │   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
 │   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)
@@ -198,6 +202,7 @@ WayCoder/
 /git-status /git-log /git-diff  Git 状态/日志/差异
 /perm ask|auto|yolo  权限模式切换
 /mode build|plan|review|auto  工作模式切换 (Shift+Tab)
+/update [check|now]  检查/自动升级到最新版本
 /auto            自动模式切换
 /watch           切换 Watch 模式
 /save  /sessions 保存 / 列出会话 (Ctrl+S)
@@ -246,6 +251,8 @@ quit / exit      退出 (Ctrl+Q)
 - **计划审批门**：`计划` 模式（Shift+Tab）下模型产出计划后不自动执行，就地弹出审批框——批准则切回 `建造` 模式继续执行，拒绝则停止（对标 Claude Code Plan Mode）
 - **项目初始化 `/init`**：扫描项目生成中文 CLAUDE.md（语言/框架/构建工具 + 构建/测试/lint 命令探测），对标 Claude Code /init；下次启动自动注入系统提示词
 - **MCP 状态管理 `/mcp`**：结构化状态模型（Connecting/Connected/Failed）+ 热重连，`/mcp` 查看服务器状态、`/mcp reload [name]` 重连，对标 Claude Code /mcp
+- **内置自动升级**：`/update` 检查、`/update now`/`--update` 自替换；版本检查优先 GitHub Releases、回退 Gitee（环境变量可覆盖）；Windows 落 `.new`+`upgrade.bat` 退出后自动替换重启、Unix 原子 rename 覆盖运行中二进制（对标 Claude Code `claude update`）
+- **分发渠道**：`packaging/` 提供 winget manifest / Homebrew formula / apt `.deb` 打包脚本 + GitHub Actions 发布工作流，详见 [docs/安装与升级.md](docs/安装与升级.md)
 
 ## 贡献 / License
 

@@ -1,5 +1,28 @@
 # 更新日志
 
+## v0.48.7 (2026-08-14) — 内置自动升级 + winget/brew/apt 分发（对标 Claude Code `claude update`）
+
+### ⬆️ 自动升级
+
+- 新增 `UpdateChecker`：语义版本比较 + 当前平台 RID 探测 + release 资产匹配（纯逻辑与网络/文件操作分离，可确定性自测）
+- 版本检查优先 **GitHub Releases**、失败回退 **Gitee Releases**（`WAYCODER_GITHUB_REPO` / `WAYCODER_GITEE_REPO` 环境变量可覆盖）
+- 完整自替换：下载匹配平台的 `.tar.gz`/`.zip` → 解压单文件二进制 → 覆盖当前可执行文件；Windows 落 `.new` + `upgrade.bat` 重试脚本（退出后自动替换并重启），Unix 原子 `rename` 覆盖运行中二进制
+- 极简 tar.gz 单文件解压（仅 `GZipStream` + `FileStream`，AOT 零风险，不引入 `System.Formats.Tar`）
+- `/update` 命令（检查 + 更新日志详情）、`/update now`（自替换）、启动后台静默检查（有新版本才提示）
+- `--update` CLI 一次性升级标志（幂等，已最新则提示后退出）
+
+### 📦 分发渠道
+
+- `packaging/winget/`：winget manifest（portable 类型，x64/arm64）
+- `packaging/brew/`：Homebrew formula（osx-arm64 / osx-x64）
+- `packaging/apt/`：`build-deb.sh` 打包脚本 + reprepro 仓库配置说明
+- `.github/workflows/release.yml`：推送 `v*` 标签自动 NativeAOT 编译 4 平台并创建 Release + 上传资产
+- 新增 `docs/安装与升级.md` 完整安装/升级/发布指南
+
+### 🧪 自测
+
+- 新增 `TestUpdateChecker` 14 项（版本比较 7 + RID 探测 2 + 资产名/URL 匹配 5），1789 项全部通过（0 失败）
+
 ## v0.48.6 (2026-08-14) — 工作模式下沉到 Agent 实例（修复混合模式并行污染）
 
 ### 🔧 实例级工作模式

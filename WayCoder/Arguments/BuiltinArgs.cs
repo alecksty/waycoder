@@ -231,6 +231,12 @@ public class EconomyArg : CliArg
     public EconomyArg() : base("economy", "-e", "--economy") { }
 }
 
+public class UpdateArg : CliArg
+{
+    public override string Description => "检查并自动升级到最新版本（优先 GitHub、回退 Gitee）";
+    public UpdateArg() : base("update", "--update") { }
+}
+
 public class DebugArg : CliArg
 {
     public override string Description => "开启调试日志（记录到 logs/ 目录）";
@@ -424,6 +430,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new WatchArg());
         CliArgRegistry.Register(new TinyArg());
         CliArgRegistry.Register(new EconomyArg());
+        CliArgRegistry.Register(new UpdateArg());
         CliArgRegistry.Register(new ConfigArg());
         CliArgRegistry.Register(new DebugArg());
         CliArgRegistry.Register(new HelpArg());

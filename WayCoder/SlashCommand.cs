@@ -154,6 +154,7 @@ public static class SlashCommandRegistry
         Register(new Commands.PermCommand());
         Register(new Commands.AutoCommand());
         Register(new Commands.ModeCommand());
+        Register(new Commands.UpdateCommand());
         Register(new Commands.ImportCommand());
         Register(new Commands.McpCommand());
         Register(new Commands.AboutCommand());

@@ -77,6 +77,8 @@ public static partial class SelfTest
         TestMultiSlotParallel(Check);
         // 实例级工作模式测试（Agent.WorkMode 与全局解耦 + 回调）
         TestWorkModePerAgent(Check);
+        // 自动升级测试（版本比较 + RID 探测 + 资产匹配纯逻辑）
+        TestUpdateChecker(Check);
         Console.WriteLine();
 
         // ---- 工具 ----
