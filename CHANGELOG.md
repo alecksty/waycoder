@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.47.8 (2026-08-13) — 连通性测试覆盖全部已存 key + 补充供应商端点
+
+### 🔑 全量 key 扫描
+
+- `--model test` 由「只测有目录模型的服务商」升级为「逐一测试**所有已存 API key** + 所有本地端点」——目录内无模型的供应商（如 Gitee / Bailian / OpenCode / MiniMax / AIHubMix）也会被扫描
+- 新增供应商端点注册表：`gitee`（ai.gitee.com/v1）、`bailian`（dashscope 百炼）、`opencode`（opencode.ai/zen/v1）、`minimax`（api.minimaxi.com/v1）、`aihubmix`（aihubmix.com/v1）
+- 探测结果细化：区分「密钥无效（401/403）」「端点可达但无 /models 接口（可能非 OpenAI 兼容）」「无法连接（超时/拒绝）」，避免误报
+- 报告分「API Key」与「本地端点」两节，末尾给出「N/M 个端点可连接」结论
+
+### 🧪 自测 +5
+
+- 新增供应商注册表端点断言（gitee/bailian/opencode/minimax/aihubmix）
+
 ## v0.47.7 (2026-08-13) — 模型连通性测试 + 手动增删模型/服务商/API key
 
 ### 🔌 模型连通性测试（`--model test` / `/model test`）
