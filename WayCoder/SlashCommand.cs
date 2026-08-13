@@ -146,6 +146,7 @@ public static class SlashCommandRegistry
         Register(new Commands.UndoCommand());
 
         // 配置/系统
+        Register(new Commands.ConfigCommand());
         Register(new Commands.SettingsCommand());
         Register(new Commands.ThemeCommand());
         Register(new Commands.PermCommand());

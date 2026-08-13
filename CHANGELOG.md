@@ -1,5 +1,25 @@
 # 更新日志
 
+## v0.47.0 (2026-08-13) — /config 命令行配置：所有设置项无需进界面
+
+### ⌨ /config 命令行配置（对标 Claude Code /config）
+
+- **问题**：所有配置项只能通过 `/settings` 图形界面逐项点选，脚本/批处理/远程场景无法设置
+- **修复**：新增 `/config` 命令，全部设置项（Model/SmallModel/ApiKey/BaseUrl/超时/压缩/沙箱/界面主题…）均可在命令行读写——
+  - `/config` 或 `/config list` → 按分类列出全部设置项与当前值（secret 打码）
+  - `/config get <key>` → 读取单项（含描述 / 环境变量 / 可选项）
+  - `/config set <key> <value>` → 设置并**立即写入 .env**（`SaveToEnvFile`）
+  - 简写：`/config <key> <value>` = set，`/config <key>` = get
+  - key 大小写不敏感，也可用环境变量名（`/config set WAYCODER_MODEL x`）
+  - select 类型校验可选项（错误时列出合法值），number 类型自动钳制（复用 Schema Setter）
+  - 主题类设置（ThemePreset/ColorScheme/Border*）改后即时 `SyncTheme` 生效
+- **实现**：`Config` 新增 Schema 驱动的 `FindProp`/`GetPropValue`/`TrySetPropValue`，复用同一份 `_schema` 数据源，**消除 SettingsScreen 手写 switch 的重复**；`/settings` 保留图形界面，`/config` 专注命令行
+- **兼容**：语法对齐 Claude Code 的 `get`/`set`/`list`，老用户零学习成本
+
+### 🧪 自测 +9
+
+- 新增 `/config` 读写 API 用例：FindProp 按 Key/大小写/环境变量、GetPropValue、TrySetPropValue 成功、非法 select 拒绝、未知项拒绝
+
 ## v0.46.0 (2026-08-13) — Token 计数切真实 API 报告：校准消除系统性低估
 
 ### 📊 压缩触发切真实 API 校准（P1，对标 Crush 纯 API 报告）

@@ -682,6 +682,58 @@ public class Config
         )).ToList();
 
     // ════════════════════════════════════════════════════════════
+    // 命令行读写（/config 命令共用，避免重复 switch）
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>按 Key 或 EnvVar 查找配置项（忽略大小写）。未知返回 null。</summary>
+    internal static ConfigProp? FindProp(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return null;
+        return _schema.FirstOrDefault(p =>
+            string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(p.EnvVar, key, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>读取当前值（字符串形式，走 Schema Getter）。未知返回 null。</summary>
+    public static string? GetPropValue(string key) => FindProp(key)?.Getter(Instance);
+
+    /// <summary>
+    /// 设置配置值（走 Schema Setter，自动解析/钳制）。
+    /// 成功返回 true；失败返回 false 并给出 error（select 类型含可选项提示）。
+    /// </summary>
+    public static bool TrySetPropValue(string key, string value, out string? error)
+    {
+        var p = FindProp(key);
+        if (p == null)
+        {
+            error = $"未知设置项「{key}」。用 /config list 查看全部设置项。";
+            return false;
+        }
+
+        // select 类型：校验可选项（忽略大小写）
+        if (p.Type == "select" && p.Options is { Length: > 0 })
+        {
+            if (!p.Options.Contains(value, StringComparer.OrdinalIgnoreCase))
+            {
+                error = $"「{p.Label}」可选值: {string.Join(" / ", p.Options)}";
+                return false;
+            }
+        }
+
+        try
+        {
+            p.Setter(Instance, value);
+            error = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = $"「{p.Label}」设置失败: {ex.Message}";
+            return false;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
     // 保存到 .env 文件（从 Schema 自动生成）
     // ════════════════════════════════════════════════════════════
 
