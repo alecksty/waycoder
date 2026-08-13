@@ -1,8 +1,8 @@
 # 更新日志
 
-## v0.43.0 (2026-08-13) — 省 Token 模式：三态开关综合降 token
+## v0.43.0 (2026-08-13) — 省 Token 模式：三态开关 + 任务复杂度自适应
 
-### 💰 省 Token 模式（`--economy [on|auto|off]` / `WAYCODER_ECONOMY`）
+### 💰 省 Token 模式（`--economy [on|auto|off]` / `WAYCODER_ECONOMY` + `WAYCODER_ECONOMY_PRIORITY`）
 
 - **新增** `EconomyMode` 三态开关（默认 `off`），保持正常窗口不变：
   - **关（off）**：完整提示词 + 正常压缩阈值
@@ -11,13 +11,17 @@
     - 压缩更激进（snip/summarize/collapse 50/70/90 → 35/55/75）
     - 工具输出更早裁剪（4000 → 2000 字符）
     - 输出上限收紧（`max_tokens` 32768 → 8192）
-  - **自动（auto）**：保持完整提示词，压缩阈值/裁剪阈值按**上下文占用率**动态插值——占用率 ≤30% 用正常阈值，≥90% 用全量省 token 阈值，中间线性过渡（越满越省）
+  - **自动（auto）**：保持完整提示词，压缩阈值/裁剪阈值按**任务轮数复杂度**动态插值——任务越复杂（轮数越多）越少省，先保质量、再省费用
+- **新增** `EconomyPriority` 优先级偏好（仅 Auto 生效，默认 `quality`）：
+  - `quality` 质量优先：简单任务省、复杂任务几乎不省
+  - `balanced` 均衡：始终保留一半省钱力度
+  - `cost` 费用优先：尽量省，弱化复杂度影响
 - **与 Tiny 的区别**：Tiny = 极简提示词 + 4K 小窗口（面向本地小模型）；Economy = 保持正常窗口，仅综合省 token（面向云端大模型省钱）
 - **`reasoning_effort` 不做最小化**：对不支持推理参数的非 DeepSeek/OpenAI 模型会 400，风险大于收益；reasoning 省 token 已由「reasoning_content 不存历史」覆盖
 
-### 🧪 自测 +22（1591 → 1613）
+### 🧪 自测 +26（1591 → 1617）
 
-- 新增 `TestEconomyMode`（三态默认值 / ResolveRatio 插值 / 提示词精简 / snip 阈值对照 / 常量）
+- 新增 `TestEconomyMode`（三态默认值 / 优先级偏好 / ResolveRatio 复杂度插值 / 提示词精简 / snip 阈值对照 / 常量）
 
 ## v0.42.0 (2026-08-13) — Tiny 模式增强：可指定窗口 + 自动探测 + 小模型自动进入
 

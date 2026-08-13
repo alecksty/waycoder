@@ -5440,31 +5440,45 @@ another.txt:3:1: warning: deprecated API
         Check("Tiny: IsOllamaBaseUrl 非 ollama", !ModelCatalog.IsOllamaBaseUrl("https://api.deepseek.com"));
     }
 
-    /// <summary>省 token 模式（EconomyMode 三态）测试</summary>
+    /// <summary>省 token 模式（EconomyMode 三态 + 优先级）测试</summary>
     private static void TestEconomyMode(Action<string, bool> Check)
     {
         Check("Economy: 默认关闭", new Config().EconomyMode == EconomyMode.Off);
+        Check("Economy: 默认优先级=质量优先", new Config().EconomyPriority == EconomyPriority.Quality);
         Check("Economy: 输出上限常量 = 8192", Config.EconomyMaxTokens == 8192);
         Check("Economy: snip 阈值常量 = 2000", Config.EconomySnipChars == 2000);
         Check("Economy: 正常 snip 阈值常量 = 4000", Config.SnipCharsNormal == 4000);
-        Check("Economy: 自动模式低水位 = 0.3", Config.EconomyAutoLowRatio == 0.3);
-        Check("Economy: 自动模式高水位 = 0.9", Config.EconomyAutoHighRatio == 0.9);
+        Check("Economy: 复杂任务轮数基准 = 30", Config.EconomyComplexRounds == 30);
 
         var savedEconomy = Config.Instance.EconomyMode;
+        var savedPriority = Config.Instance.EconomyPriority;
 
-        // ResolveRatio 三态：Off 用正常值，On 取更小值，Auto 按占用率插值
+        // ResolveRatio 三态：Off 用正常值，On 取更小值，Auto 按复杂度插值
         Config.Instance.EconomyMode = EconomyMode.Off;
         Check("Economy: Off 用正常值", ContextManager.ResolveRatio(50, 35, 0.5) == 50);
         Config.Instance.EconomyMode = EconomyMode.On;
         Check("Economy: On 取更小值", ContextManager.ResolveRatio(50, 35, 0.5) == 35);
         Check("Economy: On 尊重更低配置", ContextManager.ResolveRatio(30, 35, 0.5) == 30);
+
+        // Auto + 质量优先（默认）：简单任务省、复杂任务保质量
         Config.Instance.EconomyMode = EconomyMode.Auto;
-        Check("Economy: Auto 低占用=正常值", ContextManager.ResolveRatio(50, 35, 0.0) == 50);
-        Check("Economy: Auto 高占用=省 token 值", ContextManager.ResolveRatio(50, 35, 1.0) == 35);
-        var midRatio = ContextManager.ResolveRatio(50, 35, 0.6);
-        Check("Economy: Auto 中占用插值介于两者之间", midRatio > 35 && midRatio < 50);
-        Check("Economy: 低水位以下收紧系数=0", ContextManager.AutoAggressiveness(0.2) == 0);
-        Check("Economy: 高水位以上收紧系数=1", ContextManager.AutoAggressiveness(0.95) == 1);
+        Config.Instance.EconomyPriority = EconomyPriority.Quality;
+        Check("Economy: 质量优先-简单任务省(复杂度0→省 token 值)", ContextManager.ResolveRatio(50, 35, 0.0) == 35);
+        Check("Economy: 质量优先-复杂任务不省(复杂度1→正常值)", ContextManager.ResolveRatio(50, 35, 1.0) == 50);
+        var midR = ContextManager.ResolveRatio(50, 35, 0.5);
+        Check("Economy: 质量优先-中复杂度介于两者之间", midR > 35 && midR < 50);
+        Check("Economy: 质量优先-简单收紧系数=1", ContextManager.AutoAggressiveness(0.0) == 1);
+        Check("Economy: 质量优先-复杂收紧系数=0", ContextManager.AutoAggressiveness(1.0) == 0);
+
+        // Auto + 费用优先：复杂任务仍省
+        Config.Instance.EconomyPriority = EconomyPriority.Cost;
+        Check("Economy: 费用优先-复杂任务仍省", ContextManager.ResolveRatio(50, 35, 1.0) == 35);
+        Check("Economy: 费用优先-收紧系数恒=1", ContextManager.AutoAggressiveness(0.9) == 1);
+
+        // Auto + 均衡：复杂任务保留一半省钱
+        Config.Instance.EconomyPriority = EconomyPriority.Balanced;
+        Check("Economy: 均衡-简单任务省", ContextManager.ResolveRatio(50, 35, 0.0) == 35);
+        Check("Economy: 均衡-复杂任务保留一半省钱", ContextManager.ResolveRatio(50, 35, 1.0) == 42);
 
         // 系统提示词精简（仅 On 生效）
         Config.Instance.EconomyMode = EconomyMode.On;
@@ -5495,6 +5509,7 @@ another.txt:3:1: warning: deprecated API
         Check("Economy: 打开时 3300 字符被截断", msgsOn[0]["content"]!.GetValue<string>()!.Length < midContent.Length);
 
         Config.Instance.EconomyMode = savedEconomy;
+        Config.Instance.EconomyPriority = savedPriority;
     }
 
     /// <summary>ExtractKeyInfo 增强版测试</summary>
