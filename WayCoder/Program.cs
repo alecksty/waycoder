@@ -474,11 +474,14 @@ public class Program
             screen.OnPermissionResolved();
         };
 
-        // 工作模式变更信号 → 同步当前槽位持久模式 + 状态栏显示
-        // （覆盖 Shift+Tab 循环切换、计划审批门批准后自动切回建造模式等所有变更来源）
+        // 工作模式变更信号 → 同步当前槽位持久模式 + Agent 实例模式 + 状态栏显示
+        // （覆盖 Shift+Tab 循环切换、/mode 命令等 UI 线程发起的变更来源；
+        //   后台槽位批准计划走 Agent.OnWorkModeChanged，不经过此全局事件，避免污染活跃槽位）
         WorkModeManager.ModeChanged += mode =>
         {
             _slots[_activeSlot].WorkMode = mode;
+            if (_slots[_activeSlot].Agent != null)
+                _slots[_activeSlot].Agent!.WorkMode = mode;
             screen.StatusBar.CurrentWorkMode = mode;
         };
 
@@ -912,6 +915,27 @@ public class Program
         return llm;
     }
 
+    /// <summary>
+    /// 绑定槽位 Agent 的工作模式：把槽位持久模式灌入 Agent 实例，并接线回调，
+    /// 使 Agent 内部切换模式（如计划审批门批准后自动切回建造模式）能通知到正确槽位——
+    /// 而非依赖全局 ModeChanged 事件（后台槽位批准时会污染活跃槽位）。
+    /// </summary>
+    private static void WireSlotWorkMode(int slotIdx, Agent agent, ChatScreen screen)
+    {
+        var slot = _slots[slotIdx];
+        agent.WorkMode = slot.WorkMode;
+        agent.OnWorkModeChanged = mode =>
+        {
+            _slots[slotIdx].WorkMode = mode;
+            // 仅当该槽位是活跃槽位时才同步全局镜像与状态栏（后台线程安全：枚举赋值原子）
+            if (slotIdx == _activeSlot)
+            {
+                WorkModeManager.CurrentMode = mode;
+                screen.StatusBar.CurrentWorkMode = mode;
+            }
+        };
+    }
+
     private static void SwitchAgentSlot(int idx, ChatScreen screen)
     {
         if (idx < 0 || idx >= AgentSlot.Count || idx == _activeSlot) return;
@@ -955,6 +979,9 @@ public class Program
             {
                 if (t is AgentTool agentTool) agentTool.ParentAgent = _agent;
             }
+
+            // 绑定槽位工作模式（灌入实例 + 接线回调）
+            WireSlotWorkMode(idx, _agent, screen);
 
             // 首次激活显示欢迎提示
             if (!slot.HasWelcome)
@@ -1122,6 +1149,9 @@ public class Program
         {
             if (t is AgentTool agentTool) agentTool.ParentAgent = _agent;
         }
+
+        // 绑定槽位工作模式（灌入实例 + 接线回调）
+        WireSlotWorkMode(slotIdx, _agent, screen);
 
         slot.IsBusy = true;
         slot.Cts = new CancellationTokenSource();
