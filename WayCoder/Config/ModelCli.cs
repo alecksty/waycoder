@@ -368,9 +368,9 @@ public static class ModelCli
     }
 
     /// <summary>
-    /// 剪除失效供应商：逐一测试所有已存 API key，对「连接失败」或「无端点（供应商不存在/未配置 base_url）」的供应商
-    /// 自动删除其 key + 所有自定义模型。内置供应商/模型不删（仅删 key）；本地端点不参与。
-    /// 返回 Markdown 文本报告。
+    /// 剪除失效供应商：逐一测试所有已存 API key，对失效供应商自动清理。
+    /// 仅 key 无效（401/403）→ 只删 key、保留模型；无端点（供应商不存在/未配置 base_url）或无法连接（写错地址）→ 删 key + 所有自定义模型。
+    /// 内置供应商/模型不删（仅删 key）；本地端点不参与。返回 Markdown 文本报告。
     /// </summary>
     public static string Prune()
     {
@@ -408,6 +408,16 @@ public static class ModelCli
                 continue;
             }
 
+            // 仅 key 无效（401/403）：供应商真实可达，模型保留，只删 key
+            if (detail.StartsWith("密钥无效", StringComparison.Ordinal))
+            {
+                ApiKeyStore.Remove(pid);
+                removedKeys++;
+                sb.AppendLine($"🗑️  【{display}】{detail} — 已删除 key（模型保留）");
+                continue;
+            }
+
+            // 其余失效（无法连接/写错地址/无 /models 接口）：供应商本身不可用 → 删 key + 模型
             var m = ModelCatalog.RemoveCustomByProvider(pid);
             ApiKeyStore.Remove(pid);
             removedKeys++;
