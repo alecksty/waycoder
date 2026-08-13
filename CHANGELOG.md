@@ -1,5 +1,287 @@
 # 更新日志
 
+## v0.47.12 (2026-08-13) — /pause 优雅暂停 + 主循环稳健性修复 + Windows 打包脚本
+
+### ⏸️ 优雅暂停（Ctrl+Z）
+
+- 新增 **Ctrl+Z 优雅暂停**：Agent 运行时按 Ctrl+Z，当前批次完成后自动「git commit → 写检查点 → 存会话」再停机，与 Esc 立即中断互补
+- 只提交 Agent 自己改过的文件（`AutoCommitAsync(fallbackToGitStatus: false)`），不卷入与本任务无关的未提交改动
+- 新增 `/pause` 命令（提示用法）；会话存到 `_auto`，重启后 `/resume` 可恢复
+
+### 🐛 LLM 参数解析健壮性
+
+- `ParseArgs` 改用 `JsonDocument` 解析（替代 `JsonNode`），容忍重复 JSON 键（后者覆盖，不再抛 `ArgumentException`）
+
+### 🔧 主循环稳健性修复
+
+- 修复主循环中途停滞被误判为完成而提前退出
+- 任务进行中无工具调用不再误判为完成
+- 自动续跑 `wasWriting` 标记与实际工具输出对齐（`已写入 / 已编辑 / 已创建`）
+
+### 📦 Windows 打包脚本
+
+- 新增 `scripts/package.ps1`（与 `package.sh` 功能对等，Windows 原生 PowerShell 打包）
+
+### 🧪 自测
+
+- 1676 项自测全部通过（0 失败）
+
+## v0.47.11 (2026-08-13) — 输入框完善：光标定位 + 复制粘贴 + 双输入对话框 + 补全钩子 + 渲染残影修复
+
+### 🖱️ 光标/选区错位修复
+
+- **根因**：`GetAbsoluteX/Y()` 沿 `Parent` 链累加，无法反映窗口内容区的 `ContentLeft/ContentTop` 偏移（`RootView` 不设 `Parent`），导致对话框内输入控件光标定位错位
+- **修复**：`TuiControl.Render()` 记录渲染时的绝对原点 `_lastAbsX/_lastAbsY`（在裁剪早退前设置），三个输入控件（`TuiInput`/`TuiTextArea`/`TuiRichEditor`）的 `GotoCursorPos()` 改用该坐标，窗口内光标不再跑偏/消失
+
+### 📋 双输入对话框 + 复制粘贴
+
+- **新增 `TuiDialog.InputLine()`**：单行输入对话框（`TuiInput`），与已有的多行 `Input()`（`TuiTextArea`）、密码 `Secret()` 并列，均带输入历史（`TuiInputHistory`）与 OK/Cancel 按钮
+- **复制粘贴快捷键**：`Ctrl+C` 被全局保留为退出，故复制改用 **Ctrl+Insert**、粘贴改用 **Shift+Insert**（Linux/Win 通用），`TuiEditBase` 统一分发
+
+### 🎣 补全输入钩子（触发提示框）
+
+- `ChatScreen.RegisterPrefixHint(prefix, provider)` / `UnregisterPrefixHint`：允许外部注册任意前缀符号的提示项生成器，`BuildPrefixHints` 优先走钩子，`IsKnownPrefix` 统一判定内置（`/ @ ! #`）与自定义前缀
+
+### ✨ 渲染闪烁/残影修复
+
+- **建议面板浮层化**：`TuiControl` 新增 `Floating` 属性，`TuiVBox`/`TuiHBox` 布局跳过浮动子控件（Flex/尺寸/位置都不计入）——Tab 补全/前缀提示面板不再把输入区挤出屏幕
+- **脏区补绘**：`TuiScreen.MarkDirtyRect()` + `ChatScreen` 记录建议面板上一帧矩形，移动/缩放/隐藏时补绘被遮挡的聊天内容
+- **底色擦除修复**：脏区擦除先 `SGR 复位` 再填空格，`bg=0` 的空格不再残留浮层底色（如建议面板的 Bg=47）
+
+### 🧪 自测
+
+- 1671 项自测全部通过（0 失败）
+
+## v0.47.10 (2026-08-13) — 一键多平台打包脚本（`scripts/package.sh` / `scripts/package.ps1`）
+
+### 📦 多平台打包
+
+- 新增 `scripts/package.sh`（bash）与 `scripts/package.ps1`（PowerShell/Windows 原生）：一条命令打包 6 个平台（win-x64 / win-arm64 / linux-x64 / linux-arm64 / osx-x64 / osx-arm64）
+- **当前平台走 NativeAOT**（零依赖原生单文件），**其他平台走非 AOT**（自包含单文件 JIT，跨平台交叉发布）
+- Windows AOT 自动把 VS Installer 目录加入 PATH（定位 vswhere.exe / MSVC 链接器）
+- 每次打包前清理 `obj/bin`，避免不同 RID 之间的还原状态污染（误报 Cross-OS）
+- 产物统一为 `dist/waycoder-<版本>-<RID>.zip`（Windows）或 `.tar.gz`（Linux/macOS），排除 `.pdb` 调试符号
+- 版本号自动从 `Global.cs` 提取；支持命令行指定平台（如 `./scripts/package.sh win-x64 linux-x64`）
+
+## v0.47.9 (2026-08-13) — 一键清理失效供应商（`--model prune`）
+
+### 🧹 剪除失效供应商（`--model prune` / `/model prune`，别名 `clean`）
+
+- 一条指令自动清理：逐一测试所有已存 API key，分三种失效情形处理
+  - **仅 key 无效（401/403）**：供应商真实可达 → 只删 key、**模型保留**
+  - **无法连接（超时/拒绝/写错地址）**：供应商本身不可用 → 删 key + 该供应商下所有自定义模型
+  - **无端点（供应商不存在/拼错供应商）**：删 key + 该供应商下所有自定义模型
+- 内置供应商/模型不删（仅删 key）；本地端点（Ollama/LM Studio）不参与
+- 输出逐项报告：✅ 保留 / 🗑️ 已删除，末尾给出「删除 N 个 key + M 个自定义模型」结论
+- 复用连通性探测（401/403=密钥无效、超时/拒绝=无法连接），与 `--model test` 同一套判定
+
+## v0.47.8 (2026-08-13) — 连通性测试覆盖全部已存 key + 补充供应商端点
+
+### 🔑 全量 key 扫描
+
+- `--model test` 由「只测有目录模型的服务商」升级为「逐一测试**所有已存 API key** + 所有本地端点」——目录内无模型的供应商（如 Gitee / Bailian / OpenCode / MiniMax / AIHubMix）也会被扫描
+- 新增供应商端点注册表：`gitee`（ai.gitee.com/v1）、`bailian`（dashscope 百炼）、`opencode`（opencode.ai/zen/v1）、`minimax`（api.minimaxi.com/v1）、`aihubmix`（aihubmix.com/v1）
+- 探测结果细化：区分「密钥无效（401/403）」「端点可达但无 /models 接口（可能非 OpenAI 兼容）」「无法连接（超时/拒绝）」，避免误报
+- 报告分「API Key」与「本地端点」两节，末尾给出「N/M 个端点可连接」结论
+
+### 🧪 自测 +5
+
+- 新增供应商注册表端点断言（gitee/bailian/opencode/minimax/aihubmix）
+
+## v0.47.7 (2026-08-13) — 模型连通性测试 + 手动增删模型/服务商/API key
+
+### 🔌 模型连通性测试（`--model test` / `/model test`）
+
+- 测试所有「有 key 的服务商」+「所有本地模型」（Ollama / LM Studio / localhost）能否连上
+- 按端点（服务商 + base_url）分组探测 `GET /models`：401/403=密钥无效、404 回退 `/v1/models`、超时/拒绝=无法连接
+- 输出报告：每个端点 ✅/❌ + 所属模型 + 最终「N/M 个端点可连接」结论
+- 有效 base_url 解析：显式 > 服务商默认 > 本地默认 `localhost:11434`
+
+### ➕➖ 手动增删（`--model add` / `--model remove`，`/model` 同理）
+
+- `add model <id> <供应商ID> [baseUrl]`、`add provider <供应商ID> [baseUrl]`、`add key <供应商ID> <key>`
+- `remove model <id>` / `remove provider <供应商ID>` / `remove key <供应商ID>`（`remove <id>` 向后兼容删模型）
+- 均写入全局模型库 / key 库并持久化；内置模型/供应商不可删
+
+### 🧪 自测 +8
+
+- 手动添加模型/服务商、按服务商删除、删除 key、连通性端点分组
+
+## v0.47.6 (2026-08-13) — 模型库外置化：内置兜底 + 多来源导入（OpenCode/OpenClaw/Crush/Claude Code/Codex）
+
+### 📚 模型库外置化（内置兜底）
+
+- 模型目录拆为「内置精选 + 自定义库」：`~/.waycoder/models.json`（全局）优先，项目 `.waycoder/models.json`（本地）覆盖，找不到外置库时内置目录兜底——开箱即用
+- `ModelCatalog.All` = 内置 + 自定义合并（自定义按 Id 覆盖内置、新增追加）；`--model list`、`/model`、`/provider`、模型选择框全部切换为合并目录
+
+### 📥 外部模型库导入（`--model import` / `/provider import`）
+
+- 支持 `opencode`（`~/.config/opencode/opencode.json`/`.jsonc`）、`openclaw`（`~/.openclaw/openclaw.json`）、`crush`（`~/.config/crush/config.json`）、`claude`/`claudecode`（`~/.claude/settings.json` env 中 `*_MODEL` + `BASE_URL`）、`codex`（`~/.codex/config.toml` 的 `[model_providers.*]` + `[profiles.*]`），或任意 JSON/TOML 文件路径
+- `import` 无参 / `all` = 自动探测全部来源；导入内容持久化到全局 `models.json`；内置已有自动跳过；同一 Id 去重
+
+### 🧭 /provider 命令
+
+- `/provider`（当前服务商概览）、`/provider list`（服务商列表 + 模型数/key 状态/base-url）、`/provider <pid>`（该服务商模型列表）、`/provider apikey [set <pid> <key>]`、`/provider import [...]`
+
+### 🐛 修复往返损坏
+
+- 导入后写回 `models.json` 时错误复用外部格式解析器（`ParseModelNode` 会从 provider 显示名推断 providerId、硬编码 description），二次写回污染数据；新增专用 `FromJson`（精确往返）读回，`ParseModelNode` 仅用于外部导入
+
+### 🧪 自测 +14
+
+- Claude/Codex 导入解析、模型库序列化往返、自定义库合并/删除
+
+## v0.47.5 (2026-08-13) — API key 统一走服务商 + 小模型服务商跟踪 + 命令行 key 自动入库
+
+### 🔑 全局 key 库格式定版：`[{ "provider": ..., "apikey": ... }]`
+
+- **问题**：上一版 `api_keys.json` 还是扁平 `{ "服务商": "key" }`，与「一个服务商一个 key、一个服务商多个模型」的心智不符
+- **修复**：定版为数组 `[{ "provider": "deepseek", "apikey": "sk-..." }, ...]`（对标 OpenCode/Crush 多 key 全局存储），读写均按数组；兼容旧扁平格式与 OpenCode `{ pid: { key } }` 格式自动迁移
+- **key 跟服务商走，不跟模型走**：`Config.ApiKey` 解析链 = 全局 JSON（按当前服务商）> 全局 JSON（按模型）> `.env WAYCODER_API_KEY` > 各家环境变量
+
+### 🧩 大/小模型服务商独立跟踪
+
+- **问题**：只有 `Provider` 跟踪大模型服务商，小模型切服务商后 key 解析会错
+- **修复**：新增 `SmallProvider`（`WAYCODER_SMALL_PROVIDER`）字段；`--model small <id>` 子命令选中/持久化小模型并同步小模型服务商
+
+### 🐛 修复 `.env` 污染
+
+- **问题**：切换服务商后 `SaveToEnvFile` 会把旧服务商的 key 写成新模型的 `WAYCODER_API_KEY`（污染 `.env`，切 key 错乱）
+- **修复**：`secret` 类型设置项永不写入 `.env`——key 只存全局 `api_keys.json`，`.env` 只存 `MODEL/PROVIDER/SMALL_*` 等非敏感项
+
+### ⌨️ 命令行 key 自动入库
+
+- `--api-key <key>` / `-k <key>` 自动保存到全局 `~/.waycoder/api_keys.json`（按当前服务商，或 `--model` 指定模型所属服务商），无需再手动 `--model key <供应商> <key>`
+
+## v0.47.4 (2026-08-13) — 全局 JSON 多 key 存储：多服务商/模型丝滑切换，无需重输 key
+
+### 🔑 API key 全局 JSON 回退（对标 OpenCode/Crush）
+
+- **问题**：key 只能存 `.env`（单一 key），切换服务商/模型要手动改 `.env` 重输 key
+- **修复**：`.env` 无 `WAYCODER_API_KEY` 时，按当前模型供应商自动到全局 JSON（`~/.waycoder/api_keys.json`）找 key——
+  - `.env` 只存「当前模型名 + 当前 key」（单 key：`WAYCODER_MODEL` + `WAYCODER_API_KEY`）
+  - `api_keys.json` 存「多服务商多 key」（`{ "deepseek": "...", "openai": "...", ... }`）
+  - 切换即用：`--model name gpt-5.5` 自动匹配 openai 的 key，无需重输、无需改 .env
+- **实现**：`ApiKeyStore.ForModel(modelId)` 按模型目录解析供应商再查 JSON；`Config.Instance.ApiKey` 加载链末尾追加该回退；「API 密钥未设置」报错补 `--model key <供应商> <key>` 引导
+
+### 🧪 自测 +3
+
+- 模型→供应商解析 deepseek/openai + `ApiKeyStore.ForModel` 可调用
+
+## v0.47.3 (2026-08-13) — --model 模型管理：列表 / 选中 / API key / 端点，全程命令行
+
+### 🤖 --model 子命令（对标 /model 斜杠命令）
+
+- **问题**：模型管理（列表/选中/API key）只能在 REPL 内用 `/model`，CLI 只有一个 `--model <名称>` 会话级选择
+- **修复**：`--model` 升级为贪长子命令分发器，与 `/model` 共享同一份模型目录（`ModelCli`）——
+  - `waycoder --model` → 显示当前大/小模型 + BaseUrl
+  - `--model list [关键词]` → 列出模型目录（按供应商分组，当前项标注）
+  - `--model name <id>` → 选中并持久化（自动解析供应商 + 默认 BaseUrl + 写 .env）
+  - `--model key <供应商> <key>` → 保存 API key（无参列出已存 keys，打码）
+  - `--model connect <base-url>` → 设置连接端点（写 .env）
+  - `--model <id>` → 快捷选中（仅本次会话，不持久化，向后兼容）
+- **实现**：抽 `ModelCli` 静态助手（Current/List/Select/Connect/ListKeys/SetKey），`ModelArg` 变贪长子命令分发；`CliArg.Greedy` 语义改为「吞到下一个以 `-` 开头的旗标为止」，使 `--model gpt-5.5 -y` / `-p` 等组合仍正常解析
+
+### 🧪 自测 +3
+
+- `ModelCli.List` 含标题 / 过滤 deepseek / `ListKeys` 可读
+
+## v0.47.2 (2026-08-13) — --config 命令行参数：启动即配置，无需进 REPL
+
+### ⌨ --config 命令行配置（对标 /config 斜杠命令）
+
+- **问题**：`/config` 只能在 REPL 内使用，脚本/批处理/远程部署场景无法在启动时读写配置
+- **修复**：新增 `--config`（短名 `-C`）命令行参数，与 `/config` 共享同一份 Schema 数据源（`ConfigCli`）——
+  - `waycoder --config` 或 `--config list` → 列出全部设置项（按分类，含当前值，secret 打码）
+  - `--config get <key>` → 读取单项（含描述 / 环境变量 / 可选项）
+  - `--config set <key> <value>` → 设置并**立即写入 .env**
+  - 简写：`--config <key> <value>` = set，`--config <key>` = get
+- **实现**：抽 `ConfigCli` 静态助手（List/Get/Set 返回纯文本），`ConfigCommand`（→屏幕）与 `ConfigArg`（→控制台）共用，消除重复；`CliArg` 新增 `Greedy` 标志 + 解析器贪婪吞参，支持 `--config set <key> <value>` 变长参数
+
+### ⌨ Tiny 模式并入 test 前缀分组
+
+- `-T` / `--tiny` → `-tt` / `--test-tiny`（保留 `--tiny` 别名），与 `-t` / `-tb` / `-tl` 统一为 `-t` 测试族前缀
+
+## v0.47.1 (2026-08-13) — CLI 参数全部补齐短命令
+
+### ⌨ 命令行参数补短选项（频率排序 + 同类前缀分组）
+
+- **问题**：`--tiny` / `--economy` / `--bench` / `--limits` / `--sessions` 只有长名，无短命令
+- **命名规则**：
+  - 高频参数：首字母小写（`-p` prompt / `-m` model / `-h` help / `-k` api-key / `-t` test / `-e` economy / `-w` watch / `-y` yolo / `-r` resume / `-s` sessions / `-b` base-url / `-v` version / `-i` init / `-d` debug）
+  - 低频冲突：首字母大写（`-B` max-budget-usd）
+  - 同类测试参数：统一 `-t` 前缀分组（`-t` test / `-tb` test-benchmark / `-tl` test-limits / `-tt` test-tiny）
+  - 内部开发参数：`-x` screenshot / `-u` tui-demo / `-z` theme-verify
+- 使用手册 CLI 参数表同步更新
+
+## v0.47.0 (2026-08-13) — /config 命令行配置：所有设置项无需进界面
+
+### ⌨ /config 命令行配置（对标 Claude Code /config）
+
+- **问题**：所有配置项只能通过 `/settings` 图形界面逐项点选，脚本/批处理/远程场景无法设置
+- **修复**：新增 `/config` 命令，全部设置项（Model/SmallModel/ApiKey/BaseUrl/超时/压缩/沙箱/界面主题…）均可在命令行读写——
+  - `/config` 或 `/config list` → 按分类列出全部设置项与当前值（secret 打码）
+  - `/config get <key>` → 读取单项（含描述 / 环境变量 / 可选项）
+  - `/config set <key> <value>` → 设置并**立即写入 .env**（`SaveToEnvFile`）
+  - 简写：`/config <key> <value>` = set，`/config <key>` = get
+  - key 大小写不敏感，也可用环境变量名（`/config set WAYCODER_MODEL x`）
+  - select 类型校验可选项（错误时列出合法值），number 类型自动钳制（复用 Schema Setter）
+  - 主题类设置（ThemePreset/ColorScheme/Border*）改后即时 `SyncTheme` 生效
+- **实现**：`Config` 新增 Schema 驱动的 `FindProp`/`GetPropValue`/`TrySetPropValue`，复用同一份 `_schema` 数据源，**消除 SettingsScreen 手写 switch 的重复**；`/settings` 保留图形界面，`/config` 专注命令行
+- **兼容**：语法对齐 Claude Code 的 `get`/`set`/`list`，老用户零学习成本
+
+### 🧪 自测 +9
+
+- 新增 `/config` 读写 API 用例：FindProp 按 Key/大小写/环境变量、GetPropValue、TrySetPropValue 成功、非法 select 拒绝、未知项拒绝
+
+## v0.46.0 (2026-08-13) — Token 计数切真实 API 报告：校准消除系统性低估
+
+### 📊 压缩触发切真实 API 校准（P1，对标 Crush 纯 API 报告）
+
+- **问题**：`ContextManager.MaybeCompressAsync` 的三层压缩阈值（裁剪/摘要/折叠）用 `EstimateTokens`（CJK 感知估算）判断，但估算只统计消息内容，**漏掉 system prompt + 工具定义 + 消息元数据**（固定开销约 8–12K），导致压缩整体触发偏晚
+- **修复**：用真实 API 报告的 `prompt_tokens` 校准估算——
+  - `AddUsage(promptTokens, completionTokens, estimatedTokens)` 新增可选参数，计算 `固定开销 = 真实 prompt − 估算`，移动平均平滑收敛
+  - 新增 `EstimateCalibratedTokens()` = 原始估算 + 固定开销（加性模型：system prompt/工具定义固定，不随内容增长，比比例模型更准）
+  - `MaybeCompressAsync` 三层判断全部改用校准值，`PreCompact` hook 报告同步校准
+  - 未采集到真实用量时（首轮/自测）退化为原始估算，零风险
+- **收益**：压缩触发时机更准（校准前 50% 阈值实际 59% 才触发，校准后对齐真实窗口占用），少误压/漏压
+
+### 🧪 自测 +4
+
+- 新增 `TestTokenEstimation` 校准用例：无真实数据退化 / 含固定开销 / 开销平滑收敛 / 校准值 > 估算
+
+## v0.45.0 (2026-08-13) — FileTracker 持久化：跨会话 stale-read 保护
+
+### 💾 文件追踪持久化（P0-2，对标 Crush last_read_time）
+
+- **问题**：`FileTracker` 哈希与读取时间仅存内存，程序重启后全部丢失，跨会话的 stale-read 检测与「先读后改」保护失效
+- **修复**：追踪状态持久化到 `.waycoder/file-tracker.json`（纯 JSON，**零依赖、无数据库**），重启后自动恢复
+  - `RecordRead` / `RecordWrite` / `CheckForChanges` / `Reset` 在状态变更后自动 `Save()`
+  - `EnsureLoaded()` 惰性加载——首次使用时从磁盘读回，仅一次
+  - **原子写**：先写 `.tmp` 再 `File.Move(overwrite:true)`，防止中断损坏缓存
+  - 上限保护：磁盘数据超出 `MaxTracked=200` 时丢弃多余条目；损坏/不可读时静默退化为内存模式
+- **体积零增长**：复用 `JsonNode` 手写序列化（与 `todos.json` 同模式），不引入 SQLite / 任何第三方库，AOT 兼容
+
+### 🧪 自测 +5
+
+- 新增 FileTracker 持久化往返：记录生成 JSON / 含路径与 hash 字段 / 模拟重启后仍追踪 / 检测到外部修改
+
+## v0.44.0 (2026-08-13) — bash 前台超时自动迁移后台
+
+### ⏱ 后台命令自动迁移（对标 Crush）
+
+- **问题**：前台 `bash` 命令超时后直接 `Kill` 进程并返回「错误：超时」，长任务（build/test）已执行的工作白费，Agent 需重新跑
+- **修复**：超时后不再杀死进程，自动转入后台继续执行并返回 `shell_id`，Agent 可用 `job_output` 轮询、`job_kill` 终止
+  - **非流式路径**（`-p` 一次性模式 / benchmark）：`BackgroundTaskManager.Adopt` 接纳已运行进程 + `ReadToEndAsync` 任务
+  - **流式路径**（交互 REPL 实时输出）：`BackgroundTaskManager.AdoptStreaming` 接纳逐行读取任务 + 共享输出缓冲
+- **重构**：`RunTaskAsync` 提取 `WaitAndCollectAsync`（等待退出 + 收集 IO + 写状态），`Start` / `Adopt` / `AdoptStreaming` 三条路径共用，消除重复
+- **沙箱模式例外**：仍直接终止，避免迁移绕过内存/CPU 资源上限
+- **进程所有权**：迁移后由后台管理器负责 dispose，前台不再释放句柄（`migrated` 标志 + `finally`）
+
+### 🧪 自测 +1
+
+- 新增 `bash 超时自动迁移到后台`（慢命令 + 短超时 → 断言返回 `Shell ID`）
+
 ## v0.43.0 (2026-08-13) — 省 Token 模式：三态开关 + 任务复杂度自适应
 
 ### 💰 省 Token 模式（`--economy [on|auto|off]` / `WAYCODER_ECONOMY` + `WAYCODER_ECONOMY_PRIORITY`）

@@ -86,8 +86,14 @@ public class Config
                     var val = Env(p.EnvVar, p.OldEnvVar);
                     if (val != null) p.Setter(_instance, val);
                 }
-                // 特殊处理：ApiKey 多路回退
-                if (string.IsNullOrEmpty(_instance.ApiKey))
+                // 特殊处理：ApiKey 解析 —— 一个服务商一个 key，key 跟服务商走（不跟模型走）。
+                // 优先级：全局 JSON（按当前服务商）> .env WAYCODER_API_KEY > 各家 API_KEY 环境变量。
+                var providerKey = ApiKeyStore.Get(_instance.Provider) ?? ApiKeyStore.ForModel(_instance.Model);
+                if (!string.IsNullOrWhiteSpace(providerKey))
+                {
+                    _instance.ApiKey = providerKey;
+                }
+                else if (string.IsNullOrEmpty(_instance.ApiKey))
                 {
                     _instance.ApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
                         ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY")
@@ -123,6 +129,7 @@ public class Config
     public float Temperature { get; set; } = 0.1f;
     public int MaxContextTokens { get; set; } = 1_048_576;
     public string Provider { get; set; } = "openai";
+    public string SmallProvider { get; set; } = "deepseek";
     public double? MaxBudgetUsd { get; set; }
     public bool AutoGitCommit { get; set; } = false;
     public bool WatchMode { get; set; } = false;
@@ -263,20 +270,25 @@ public class Config
               "select", ["deepseek-chat","deepseek-v4-flash","gpt-5.4-mini","gpt-4o-mini","deepseek-v4-pro"], 1,
               c => c.SmallModel, (c, v) => c.SmallModel = v, "deepseek-chat"),
 
+            P("SmallProvider","WAYCODER_SMALL_PROVIDER",  null,
+              "小模型服务商", "🤖 模型", "小模型所属服务商 (deepseek/qwen/openai/...)",
+              "text", null, 2,
+              c => c.SmallProvider, (c, v) => c.SmallProvider = v, "deepseek"),
+
             P("BaseUrl",      "WAYCODER_BASE_URL",        null,
               "API 地址", "🤖 模型", "API 端点 URL",
-              "text", null, 2,
+              "text", null, 3,
               c => c.BaseUrl ?? "", (c, v) => c.BaseUrl = string.IsNullOrEmpty(v) ? null : v,
               skipIfEmpty: true),
 
             P("ApiKey",       "WAYCODER_API_KEY",         null,
               "API 密钥", "🤖 模型", "API 密钥 (已隐藏)",
-              "secret", null, 3,
+              "secret", null, 4,
               c => c.ApiKey, (c, v) => c.ApiKey = v, "", skipIfEmpty: true),
 
             P("ReasoningEffort", "WAYCODER_REASONING_EFFORT", null,
               "推理深度", "🤖 模型", "推理模型的思考深度 (minimal/low/medium/high/max)，空=默认",
-              "select", ["","minimal","low","medium","high","max"], 4,
+              "select", ["","minimal","low","medium","high","max"], 5,
               c => c.ReasoningEffort, (c, v) => c.ReasoningEffort = v, "", skipIfEmpty: true),
 
             // ── 参数 ──
@@ -707,6 +719,58 @@ public class Config
         )).ToList();
 
     // ════════════════════════════════════════════════════════════
+    // 命令行读写（/config 命令共用，避免重复 switch）
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>按 Key 或 EnvVar 查找配置项（忽略大小写）。未知返回 null。</summary>
+    internal static ConfigProp? FindProp(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return null;
+        return _schema.FirstOrDefault(p =>
+            string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(p.EnvVar, key, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>读取当前值（字符串形式，走 Schema Getter）。未知返回 null。</summary>
+    public static string? GetPropValue(string key) => FindProp(key)?.Getter(Instance);
+
+    /// <summary>
+    /// 设置配置值（走 Schema Setter，自动解析/钳制）。
+    /// 成功返回 true；失败返回 false 并给出 error（select 类型含可选项提示）。
+    /// </summary>
+    public static bool TrySetPropValue(string key, string value, out string? error)
+    {
+        var p = FindProp(key);
+        if (p == null)
+        {
+            error = $"未知设置项「{key}」。用 /config list 查看全部设置项。";
+            return false;
+        }
+
+        // select 类型：校验可选项（忽略大小写）
+        if (p.Type == "select" && p.Options is { Length: > 0 })
+        {
+            if (!p.Options.Contains(value, StringComparer.OrdinalIgnoreCase))
+            {
+                error = $"「{p.Label}」可选值: {string.Join(" / ", p.Options)}";
+                return false;
+            }
+        }
+
+        try
+        {
+            p.Setter(Instance, value);
+            error = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = $"「{p.Label}」设置失败: {ex.Message}";
+            return false;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
     // 保存到 .env 文件（从 Schema 自动生成）
     // ════════════════════════════════════════════════════════════
 
@@ -720,6 +784,8 @@ public class Config
 
         foreach (var p in _schema)
         {
+            // API Key 不写入 .env：密钥独立管理，走全局 ~/.waycoder/api_keys.json（一个服务商一个 key）
+            if (p.Type == "secret") continue;
             var val = p.Getter(this);
             if (p.SkipIfEmpty && string.IsNullOrEmpty(val)) continue;
             if (p.DefaultStr != null && val == p.DefaultStr) continue;

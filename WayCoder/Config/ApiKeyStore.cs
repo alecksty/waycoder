@@ -3,8 +3,10 @@ using System.Text.Json;
 namespace WayCoder;
 
 /// <summary>
-/// API Key 管理器 —— 按提供商存储 API Key，记住不用重复输入。
-/// 保存到 ~/.waycoder/api_keys.json，支持多个模型的 Key。
+/// API Key 管理器 —— 按「服务商」存储 API Key（key 跟服务商走，不跟模型走）。
+/// 保存到全局 ~/.waycoder/api_keys.json，支持多个服务商的 Key。
+/// 文件格式（对标 OpenCode/Crush 的多 key 全局存储）：
+///   [ { "provider": "deepseek", "apikey": "sk-..." }, ... ]
 /// </summary>
 public static class ApiKeyStore
 {
@@ -16,14 +18,14 @@ public static class ApiKeyStore
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".waycoder", "api_keys.json");
 
-    /// <summary>获取指定提供商的 API Key，未存储返回 null</summary>
+    /// <summary>获取指定服务商的 API Key，未存储返回 null</summary>
     public static string? Get(string providerId)
     {
         var keys = Load();
         return keys.TryGetValue(providerId.ToLowerInvariant(), out var key) ? key : null;
     }
 
-    /// <summary>存储指定提供商的 API Key</summary>
+    /// <summary>存储指定服务商的 API Key</summary>
     public static void Set(string providerId, string apiKey)
     {
         lock (_lock)
@@ -38,7 +40,7 @@ public static class ApiKeyStore
         }
     }
 
-    /// <summary>删除指定提供商的 Key</summary>
+    /// <summary>删除指定服务商的 Key</summary>
     public static void Remove(string providerId)
     {
         lock (_lock)
@@ -49,12 +51,22 @@ public static class ApiKeyStore
         }
     }
 
-    /// <summary>列出所有已存提供商</summary>
+    /// <summary>列出所有已存服务商（服务商ID → key）</summary>
     public static Dictionary<string, string> ListAll() => Load();
 
-    /// <summary>检查是否有指定提供商的 Key</summary>
+    /// <summary>检查是否有指定服务商的 Key</summary>
     public static bool Has(string providerId) =>
         Load().ContainsKey(providerId.ToLowerInvariant());
+
+    /// <summary>
+    /// 按模型 ID 解析其服务商，返回该服务商已存 key；模型不在目录或未存 key 返回 null。
+    /// 用于 env 无 key 时从全局 JSON 多 key 存储回退（对标 OpenCode/Crush）。
+    /// </summary>
+    public static string? ForModel(string modelId)
+    {
+        var info = ModelCatalog.Find(modelId);
+        return info != null ? Get(info.ProviderId) : null;
+    }
 
     /// <summary>获取 Key 的脱敏显示（如 sk-...abc123）</summary>
     public static string? Masked(string providerId)
@@ -77,26 +89,56 @@ public static class ApiKeyStore
         {
             if (_keys != null) return _keys;
 
+            var result = new Dictionary<string, string>();
             try
             {
                 if (File.Exists(FilePath))
                 {
                     var json = File.ReadAllText(FilePath);
-                    _keys = JsonSerializer.Deserialize<Dictionary<string, string>>(json)
-                            ?? [];
-                }
-                else
-                {
-                    _keys = [];
+                    var root = JsonNode.Parse(json);
+
+                    if (root is JsonArray arr)
+                    {
+                        // 新格式：[ { "provider": "...", "apikey": "..." } ]
+                        foreach (var item in arr)
+                        {
+                            if (item is not JsonObject o) continue;
+                            var pid = o["provider"]?.GetValue<string>();
+                            var key = o["apikey"]?.GetValue<string>() ?? o["key"]?.GetValue<string>();
+                            if (!string.IsNullOrWhiteSpace(pid) && !string.IsNullOrWhiteSpace(key))
+                                result[pid.ToLowerInvariant()] = key;
+                        }
+                    }
+                    else if (root is JsonObject obj)
+                    {
+                        // 兼容旧格式：{ "deepseek": "sk-..." } 或 { "deepseek": { "type": "api", "key": "..." } }
+                        foreach (var (pid, val) in obj)
+                        {
+                            var key = ParseCredentialKey(val);
+                            if (key != null)
+                                result[pid.ToLowerInvariant()] = key;
+                        }
+                    }
                 }
             }
             catch
             {
-                _keys = [];
+                result = [];
             }
 
+            _keys = result;
             return _keys;
         }
+    }
+
+    /// <summary>解析单个凭据值：对象 { key: "..." } 或纯字符串</summary>
+    private static string? ParseCredentialKey(JsonNode? val)
+    {
+        if (val is JsonObject o)
+            return o["key"]?.GetValue<string>();
+        if (val is JsonValue v && v.TryGetValue<string>(out var s))
+            return s;
+        return null;
     }
 
     private static void Save(Dictionary<string, string> keys)
@@ -105,8 +147,13 @@ public static class ApiKeyStore
         {
             var dir = Path.GetDirectoryName(FilePath);
             if (dir != null) Directory.CreateDirectory(dir);
+
+            var arr = new JsonArray();
+            foreach (var (pid, key) in keys)
+                arr.Add(new JsonObject { ["provider"] = pid, ["apikey"] = key });
+
             _keys = keys;
-            var json = JsonSerializer.Serialize(keys, new JsonSerializerOptions { WriteIndented = true });
+            var json = arr.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(FilePath, json);
         }
         catch { /* 写入失败不崩溃 */ }

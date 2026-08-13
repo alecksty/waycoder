@@ -179,6 +179,7 @@ public abstract class TuiEditBase : TuiControl
             case ConsoleKey.C: CopySelection(); return true;
             case ConsoleKey.X: CutSelection(); return true;
             case ConsoleKey.V: PasteFromClipboard(); return true;
+            case ConsoleKey.Insert: CopySelection(); return true; // Ctrl+Insert = 复制（Ctrl+C 被全局保留为退出）
             case ConsoleKey.Z: Undo(); return true;
             case ConsoleKey.Y: Redo(); return true;
             case ConsoleKey.E: ClearSelection(); MoveCursorEnd(); return true;
@@ -200,6 +201,7 @@ public abstract class TuiEditBase : TuiControl
             case ConsoleKey.DownArrow:  if (!HasSelection) StartSelection(); MoveCursorDown();  ExtendSelection(); return true;
             case ConsoleKey.Home:       if (!HasSelection) StartSelection(); MoveCursorHome();  ExtendSelection(); return true;
             case ConsoleKey.End:        if (!HasSelection) StartSelection(); MoveCursorEnd();   ExtendSelection(); return true;
+            case ConsoleKey.Insert:     PasteFromClipboard(); return true; // Shift+Insert = 粘贴（Linux/Win 通用）
             default: return false;
         }
     }

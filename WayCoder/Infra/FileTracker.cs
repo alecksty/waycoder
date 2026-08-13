@@ -19,6 +19,12 @@ public static class FileTracker
     /// <summary>最多追踪的文件数</summary>
     private const int MaxTracked = 200;
 
+    /// <summary>持久化文件路径（.waycoder/file-tracker.json，仅存哈希 + 读取时间，无数据库）</summary>
+    private static string StorePath => Global.WriteConfigPath(Environment.CurrentDirectory, "file-tracker.json");
+
+    /// <summary>是否已从磁盘加载过持久化数据</summary>
+    private static bool _loaded;
+
     /// <summary>是否启用追踪（默认开启）</summary>
     public static bool Enabled { get; set; } = true;
 
@@ -31,6 +37,8 @@ public static class FileTracker
 
         try
         {
+            EnsureLoaded();
+
             var absPath = Path.GetFullPath(filePath);
             if (!File.Exists(absPath)) return;
 
@@ -44,6 +52,8 @@ public static class FileTracker
             var hash = ComputeHash(absPath);
             Tracked[absPath] = hash;
             LastReadTimes[absPath] = DateTime.UtcNow;
+
+            Save();
         }
         catch
         {
@@ -60,11 +70,15 @@ public static class FileTracker
 
         try
         {
+            EnsureLoaded();
+
             var absPath = Path.GetFullPath(filePath);
             if (!File.Exists(absPath)) return;
 
             var hash = ComputeHash(absPath);
             Tracked[absPath] = hash;
+
+            Save();
         }
         catch { }
     }
@@ -75,10 +89,13 @@ public static class FileTracker
     /// </summary>
     public static List<string> CheckForChanges()
     {
+        if (!Enabled) return new List<string>();
+        EnsureLoaded();
+
         var changed = new List<string>();
+        if (Tracked.Count == 0) return changed;
 
-        if (!Enabled || Tracked.Count == 0) return changed;
-
+        var mutated = false;
         foreach (var (path, oldHash) in Tracked.ToList())
         {
             try
@@ -88,6 +105,7 @@ public static class FileTracker
                     // 文件被删除
                     changed.Add(path);
                     Tracked.Remove(path);
+                    mutated = true;
                     continue;
                 }
 
@@ -96,15 +114,18 @@ public static class FileTracker
                 {
                     changed.Add(path);
                     Tracked[path] = newHash; // 更新为最新哈希
+                    mutated = true;
                 }
             }
             catch
             {
                 // 无法访问的文件从追踪中移除
                 Tracked.Remove(path);
+                mutated = true;
             }
         }
 
+        if (mutated) Save();
         return changed;
     }
 
@@ -118,6 +139,8 @@ public static class FileTracker
 
         try
         {
+            EnsureLoaded();
+
             var absPath = Path.GetFullPath(filePath);
             if (!Tracked.TryGetValue(absPath, out var oldHash))
                 return (false, false);
@@ -164,6 +187,8 @@ public static class FileTracker
 
         try
         {
+            EnsureLoaded();
+
             var absPath = Path.GetFullPath(filePath);
 
             // 文件不存在 = 新建文件，不需要先读
@@ -192,8 +217,86 @@ public static class FileTracker
     /// </summary>
     public static void Reset()
     {
+        _loaded = true; // 防止后续 EnsureLoaded 重新加载已清除的旧缓存
         Tracked.Clear();
         LastReadTimes.Clear();
+        Save();
+    }
+
+    /// <summary>首次使用时从磁盘加载持久化数据（惰性加载，仅一次）。</summary>
+    private static void EnsureLoaded()
+    {
+        if (_loaded) return;
+        _loaded = true;
+        Load();
+    }
+
+    /// <summary>测试钩子：清空内存并重新从磁盘加载，模拟进程重启。</summary>
+    internal static void ReloadForTest()
+    {
+        _loaded = false;
+        Tracked.Clear();
+        LastReadTimes.Clear();
+        EnsureLoaded();
+    }
+
+    /// <summary>从 .waycoder/file-tracker.json 读取上次会话的哈希与读取时间。</summary>
+    private static void Load()
+    {
+        try
+        {
+            var path = StorePath;
+            if (!File.Exists(path)) return;
+
+            var node = JsonNode.Parse(File.ReadAllText(path));
+            if (node is not JsonArray arr) return;
+
+            foreach (var item in arr)
+            {
+                if (item is not JsonObject obj) continue;
+                var p = obj["path"]?.GetValue<string>();
+                var h = obj["hash"]?.GetValue<string>();
+                if (string.IsNullOrEmpty(p) || string.IsNullOrEmpty(h)) continue;
+
+                Tracked[p] = h;
+                if (DateTime.TryParse(obj["last_read"]?.GetValue<string>(), null,
+                        System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
+                    LastReadTimes[p] = dt;
+
+                // 上限保护：磁盘数据超出上限时丢弃多余条目
+                if (Tracked.Count >= MaxTracked) break;
+            }
+        }
+        catch
+        {
+            // 静默失败 — 缓存损坏或不可读时退化为内存模式，不影响正常执行
+        }
+    }
+
+    /// <summary>将当前追踪状态写入 .waycoder/file-tracker.json（原子写，防止损坏）。</summary>
+    private static void Save()
+    {
+        try
+        {
+            var arr = new JsonArray(Tracked.Select(kv => new JsonObject
+            {
+                ["path"] = kv.Key,
+                ["hash"] = kv.Value,
+                ["last_read"] = (LastReadTimes.TryGetValue(kv.Key, out var t) ? t : DateTime.UtcNow).ToString("O"),
+            }).ToArray());
+
+            var path = StorePath;
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+            var tmp = path + ".tmp";
+            File.WriteAllText(tmp, arr.ToJsonString());
+            File.Move(tmp, path, overwrite: true);
+        }
+        catch
+        {
+            // 静默失败 — 持久化是尽力而为，内存追踪仍正常工作
+        }
     }
 
     /// <summary>SHA256 哈希计算</summary>
