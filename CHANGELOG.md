@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.45.0 (2026-08-13) — FileTracker 持久化：跨会话 stale-read 保护
+
+### 💾 文件追踪持久化（P0-2，对标 Crush last_read_time）
+
+- **问题**：`FileTracker` 哈希与读取时间仅存内存，程序重启后全部丢失，跨会话的 stale-read 检测与「先读后改」保护失效
+- **修复**：追踪状态持久化到 `.waycoder/file-tracker.json`（纯 JSON，**零依赖、无数据库**），重启后自动恢复
+  - `RecordRead` / `RecordWrite` / `CheckForChanges` / `Reset` 在状态变更后自动 `Save()`
+  - `EnsureLoaded()` 惰性加载——首次使用时从磁盘读回，仅一次
+  - **原子写**：先写 `.tmp` 再 `File.Move(overwrite:true)`，防止中断损坏缓存
+  - 上限保护：磁盘数据超出 `MaxTracked=200` 时丢弃多余条目；损坏/不可读时静默退化为内存模式
+- **体积零增长**：复用 `JsonNode` 手写序列化（与 `todos.json` 同模式），不引入 SQLite / 任何第三方库，AOT 兼容
+
+### 🧪 自测 +5
+
+- 新增 FileTracker 持久化往返：记录生成 JSON / 含路径与 hash 字段 / 模拟重启后仍追踪 / 检测到外部修改
+
 ## v0.44.0 (2026-08-13) — bash 前台超时自动迁移后台
 
 ### ⏱ 后台命令自动迁移（对标 Crush）
