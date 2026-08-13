@@ -89,7 +89,7 @@ public class TinyArg : CliArg
     public override string Description => "Tiny 模式（精简提示词 + 小窗口；可指定如 --tiny 8k，缺省自动探测，失败回退 4K）";
     public override int ValueCount => -1;
     public override string? ValueLabel => "窗口";
-    public TinyArg() : base("tiny", "--tiny") { }
+    public TinyArg() : base("tiny", "-T", "--tiny") { }
 }
 
 public class EconomyArg : CliArg
@@ -97,7 +97,7 @@ public class EconomyArg : CliArg
     public override string Description => "省 Token 模式（--economy [on|auto|off]，缺省 on；auto 按上下文占用率动态调节阈值）";
     public override int ValueCount => -1;
     public override string? ValueLabel => "模式";
-    public EconomyArg() : base("economy", "--economy") { }
+    public EconomyArg() : base("economy", "-e", "--economy") { }
 }
 
 public class DebugArg : CliArg
@@ -136,14 +136,14 @@ public class TestArg : CliArg
 public class BenchmarkArg : CliArg
 {
     public override string Description => "运行性能测评";
-    public BenchmarkArg() : base("bench", "--bench", "--benchmark", "--perf") { }
+    public BenchmarkArg() : base("bench", "-P", "--bench", "--benchmark", "--perf") { }
     public override int? OnMatch(List<string> values) { Benchmark.Run(); return 0; }
 }
 
 public class LimitsArg : CliArg
 {
     public override string Description => "运行系统上限报告（扫描所有硬编码上限）";
-    public LimitsArg() : base("limits", "--limits") { }
+    public LimitsArg() : base("limits", "-L", "--limits") { }
     public override int? OnMatch(List<string> values) { Benchmark.LimitsReport(); return 0; }
 }
 
@@ -151,7 +151,7 @@ public class ScreenshotArg : CliArg
 {
     public override string Description => "截图模式";
     public override bool Internal => true;
-    public ScreenshotArg() : base("screenshot", "--screenshot") { }
+    public ScreenshotArg() : base("screenshot", "-x", "--screenshot") { }
     public override int? OnMatch(List<string> values) { Program.RunScreenshot(); return 0; }
 }
 
@@ -159,7 +159,7 @@ public class TuiDemoArg : CliArg
 {
     public override string Description => "TUI 控件演示";
     public override bool Internal => true;
-    public TuiDemoArg() : base("tui-demo", "--tui-demo") { }
+    public TuiDemoArg() : base("tui-demo", "-u", "--tui-demo") { }
     public override int? OnMatch(List<string> values) { TuiDemo.Run(); return 0; }
 }
 
@@ -167,7 +167,7 @@ public class ThemeVerifyArg : CliArg
 {
     public override string Description => "主题配色验证";
     public override bool Internal => true;
-    public ThemeVerifyArg() : base("theme-verify", "--theme-verify") { }
+    public ThemeVerifyArg() : base("theme-verify", "-z", "--theme-verify") { }
     public override int? OnMatch(List<string> values) { ThemeVerify.Run(); return 0; }
 }
 
@@ -212,7 +212,7 @@ public class SessionListArg : CliArg
 {
     public override string Description => "列出所有已保存会话";
     public override int ValueCount => 0;
-    public SessionListArg() : base("session-list", "--session-list", "--sessions") { }
+    public SessionListArg() : base("session-list", "-s", "--session-list", "--sessions") { }
 }
 
 // ═══════════════════════════════════════════════════════════════

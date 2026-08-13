@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.47.1 (2026-08-13) — CLI 参数全部补齐短命令
+
+### ⌨ 命令行参数补短选项
+
+- **问题**：`--tiny` / `--economy` / `--bench` / `--limits` / `--sessions` 只有长名，无短命令
+- **修复**：全部补齐短选项（大小写敏感，不与现有 `-m/-b/-k/-p/-r/-c/-B/-v/-i/-y/-w/-d/-h/-t` 冲突）——
+  - `-T` = `--tiny`　`-e` = `--economy`　`-P` = `--bench/--perf`　`-L` = `--limits`　`-s` = `--sessions`
+  - 内部开发参数同步补齐：`-x` = `--screenshot`　`-u` = `--tui-demo`　`-z` = `--theme-verify`
+- 使用手册 CLI 参数表同步更新
+
 ## v0.47.0 (2026-08-13) — /config 命令行配置：所有设置项无需进界面
 
 ### ⌨ /config 命令行配置（对标 Claude Code /config）
