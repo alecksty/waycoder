@@ -2140,6 +2140,18 @@ public static class SelfTest
         Check("清理添加的模型/服务商",
             ModelCatalog.Find("__selftest_add_model__") == null && ModelCatalog.Find("__selftest_add_prov__") == null);
 
+        // 供应商注册表新增条目：连通性测试覆盖所有已存 key（含目录内无模型的服务商）
+        Check("供应商注册表 gitee 端点",
+            ModelCatalog.Providers.TryGetValue("gitee", out var pGitee) && pGitee.DefaultBaseUrl == "https://ai.gitee.com/v1");
+        Check("供应商注册表 bailian 端点",
+            ModelCatalog.Providers.TryGetValue("bailian", out var pBailian) && pBailian.DefaultBaseUrl.EndsWith("compatible-mode/v1"));
+        Check("供应商注册表 opencode 端点",
+            ModelCatalog.Providers.TryGetValue("opencode", out var pOpencode) && pOpencode.DefaultBaseUrl == "https://opencode.ai/zen/v1");
+        Check("供应商注册表 minimax 端点",
+            ModelCatalog.Providers.TryGetValue("minimax", out var pMinimax) && pMinimax.DefaultBaseUrl == "https://api.minimaxi.com/v1");
+        Check("供应商注册表 aihubmix 端点",
+            ModelCatalog.Providers.TryGetValue("aihubmix", out var pAihubmix) && pAihubmix.DefaultBaseUrl == "https://aihubmix.com/v1");
+
         if (!prevLocalExists && File.Exists(ModelCatalog.LocalModelsPath))
         {
             var leftover2 = File.ReadAllText(ModelCatalog.LocalModelsPath).Replace(" ", "").Replace("\n", "").Replace("\r", "").Replace("\t", "");

@@ -138,6 +138,11 @@ public static class ModelCatalog
             ["openrouter"] = ("OpenRouter",   "https://openrouter.ai/api/v1"),
             ["groq"]       = ("Groq",         "https://api.groq.com/openai/v1"),
             ["together"]   = ("Together AI",  "https://api.together.xyz/v1"),
+            ["gitee"]      = ("Gitee AI",     "https://ai.gitee.com/v1"),
+            ["bailian"]    = ("Alibaba Bailian", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+            ["opencode"]   = ("OpenCode Zen", "https://opencode.ai/zen/v1"),
+            ["minimax"]    = ("MiniMax",      "https://api.minimaxi.com/v1"),
+            ["aihubmix"]   = ("AIHubMix",     "https://aihubmix.com/v1"),
             ["local"]      = ("Local",        ""),
             ["custom"]     = ("Custom",       ""),
         };

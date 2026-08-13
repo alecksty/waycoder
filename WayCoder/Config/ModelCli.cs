@@ -305,56 +305,65 @@ public static class ModelCli
     }
 
     /// <summary>
-    /// 模型连通性测试：测试所有「有 key 的服务商」的模型 + 所有「本地模型」能否连上。
-    /// 按端点（服务商 + base_url）分组探测，返回 Markdown 文本报告。
+    /// 模型连通性测试：逐一测试所有「已存 API key」的端点 + 所有「本地模型」端点能否连上。
+    /// 返回 Markdown 文本报告。
     /// </summary>
     public static string Test()
     {
-        // 候选模型：有已存 key 的服务商 + 本地模型（ollama/lmstudio/local 或 localhost 端点）
-        var candidates = new List<(ModelCatalog.ModelInfo M, string? Key, string? Base)>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var m in ModelCatalog.All)
+        var sb = new StringBuilder();
+        sb.AppendLine("**模型连通性测试**");
+        int ok = 0, total = 0;
+
+        // ── 1. 已存 API key：按供应商逐一测试（含目录内无模型的供应商） ──
+        var keys = ApiKeyStore.ListAll().OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase).ToArray();
+        if (keys.Length > 0)
         {
-            var key = ApiKeyStore.Get(m.ProviderId);
-            var baseUrl = EffectiveBaseUrl(m);
-            var local = m.ProviderId is "ollama" or "lmstudio" or "local"
-                || ModelCatalog.IsOllamaBaseUrl(baseUrl);
-            if ((key != null || local) && seen.Add(m.Id))
-                candidates.Add((m, key, baseUrl));
+            sb.AppendLine();
+            sb.AppendLine($"### API Key（{keys.Length} 个供应商）");
+            foreach (var (pid, key) in keys)
+            {
+                var baseUrl = ResolveProviderBaseUrl(pid);
+                var models = ModelCatalog.ByProvider(pid).Select(m => m.Id).ToArray();
+                var display = ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DisplayName)
+                    ? p.DisplayName : pid;
+                var (o, d) = ProbeEndpoint(baseUrl, key);
+                total++;
+                if (o) ok++;
+                sb.AppendLine($"【{display}】{(string.IsNullOrEmpty(baseUrl) ? "" : " " + baseUrl)}");
+                sb.AppendLine($"  {(o ? "✅" : "❌")} {d}" + (models.Length > 0 ? $"  —  {string.Join(", ", models)}" : ""));
+            }
         }
 
-        if (candidates.Count == 0)
-            return "没有可测试的模型：既无已存 key 的服务商，也无本地模型。\n" +
-                   "  存 key: --model key <供应商> <key>　本地模型: --model connect <localhost:port>";
-
-        // 按端点分组（providerId + base_url），每个端点探测一次
-        var groups = candidates
-            .GroupBy(c => (Pid: c.M.ProviderId.ToLowerInvariant(), Url: c.Base ?? ""))
-            .Select(g => new
+        // ── 2. 本地端点（无需 key）：按 base_url 分组探测 ──
+        var localGroups = ModelCatalog.All
+            .Where(m =>
             {
-                Pid = g.Key.Pid,
-                Provider = g.First().M.Provider,
-                Url = g.Key.Url,
-                Key = g.First().Key,
-                Models = g.Select(c => c.M.Id).ToArray(),
+                var baseUrl = EffectiveBaseUrl(m);
+                return m.ProviderId is "ollama" or "lmstudio" or "local" || ModelCatalog.IsOllamaBaseUrl(baseUrl);
             })
+            .GroupBy(m => EffectiveBaseUrl(m) ?? "")
             .ToList();
 
-        var sb = new StringBuilder();
-        sb.AppendLine($"**模型连通性测试**（{groups.Count} 个端点，{candidates.Count} 个模型）：");
-        int okCount = 0;
-
-        foreach (var g in groups)
+        if (localGroups.Count > 0)
         {
-            var (ok, detail) = ProbeEndpoint(g.Url, g.Key);
-            if (ok) okCount++;
             sb.AppendLine();
-            sb.AppendLine($"【{g.Provider}】{(string.IsNullOrEmpty(g.Url) ? "" : " " + g.Url)}");
-            sb.AppendLine($"  {(ok ? "✅" : "❌")} {detail}  —  {string.Join(", ", g.Models)}");
+            sb.AppendLine("### 本地端点（无需 key）");
+            foreach (var g in localGroups)
+            {
+                var (o, d) = ProbeEndpoint(g.Key, null);
+                total++;
+                if (o) ok++;
+                sb.AppendLine($"【{g.First().Provider}】{g.Key}");
+                sb.AppendLine($"  {(o ? "✅" : "❌")} {d}  —  {string.Join(", ", g.Select(m => m.Id).Distinct())}");
+            }
         }
 
+        if (total == 0)
+            return "没有可测试的端点：既无已存 key，也无本地模型。\n" +
+                   "  存 key: --model key <供应商> <key>　本地模型: --model connect <localhost:port>";
+
         sb.AppendLine();
-        sb.AppendLine($"**结论：{okCount} / {groups.Count} 个端点可连接**");
+        sb.AppendLine($"**结论：{ok} / {total} 个端点可连接**");
         return sb.ToString().Trim();
     }
 
@@ -366,6 +375,16 @@ public static class ModelCli
             return p.DefaultBaseUrl;
         if (m.ProviderId is "ollama" or "local") return "http://localhost:11434";
         return null;
+    }
+
+    /// <summary>解析服务商的 base_url：注册表 > 目录内该服务商模型 > null（无法解析）</summary>
+    private static string? ResolveProviderBaseUrl(string providerId)
+    {
+        var pid = providerId.Trim().ToLowerInvariant();
+        if (ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DefaultBaseUrl))
+            return p.DefaultBaseUrl;
+        var m = ModelCatalog.All.FirstOrDefault(x => x.ProviderId.Equals(pid, StringComparison.OrdinalIgnoreCase));
+        return m != null ? EffectiveBaseUrl(m) : null;
     }
 
     /// <summary>探测一个 OpenAI 兼容端点：GET {base}/models（401/403=密钥无效，404/405 时回退 /v1/models）</summary>
@@ -380,6 +399,7 @@ public static class ModelCli
             if (!b.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
                 urls.Add(b + "/v1/models");
 
+            var gotHttpResponse = false;
             foreach (var url in urls)
             {
                 try
@@ -389,6 +409,7 @@ public static class ModelCli
                     if (!string.IsNullOrWhiteSpace(apiKey))
                         req.Headers.TryAddWithoutValidation("Authorization", "Bearer " + apiKey);
                     using var resp = client.SendAsync(req).GetAwaiter().GetResult();
+                    gotHttpResponse = true;
                     var code = (int)resp.StatusCode;
                     if (code >= 200 && code < 300) return (true, $"已连接（{code}）");
                     if (code is 401 or 403) return (false, $"密钥无效（{code}）");
@@ -397,7 +418,9 @@ public static class ModelCli
                 }
                 catch { /* 该 URL 失败，试下一个 */ }
             }
-            return (false, "无法连接（超时/拒绝）");
+            return gotHttpResponse
+                ? (false, "端点可达但无 /models 接口（可能非 OpenAI 兼容端点）")
+                : (false, "无法连接（超时/拒绝）");
         }
         catch { return (false, "无法连接"); }
     }
