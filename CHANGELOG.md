@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.48.3 (2026-08-14) — /mcp 管理面板 + MCP 状态模型（对标 Claude Code /mcp）
+
+### 🔌 `/mcp` 管理面板
+
+- 新增 `/mcp` 命令：列出所有 MCP 服务器（名称/传输/状态/工具数），`/mcp reload [name]` 重连（省略 name 重连全部）
+- `McpManager` 引入结构化状态模型：`McpServerStatus`（Connecting/Connected/Failed）+ `McpServerInfo`（不可变快照）+ `McpServerState`（内部运行时状态）
+- `ReloadAsync` 重连：断开旧连接 → 移除旧工具 → 重新解析配置 → 重连 → 更新状态
+- `McpManager.Servers` 暴露排序后的服务器状态快照，侧栏面板（Ctrl+B）MCP 区改用结构化显示（状态图标 + transport + 工具数）
+- 连接状态由拼凑字符串改为状态机：握手失败/无工具/连接失败均记录精确状态与错误信息
+
+### 🧪 自测
+
+- 新增 `[MCP 状态]` 区块 12 项（枚举值 + Info 快照 + ToInfo 映射 + Reload 非空），1743 项全部通过（0 失败）
+
 ## v0.48.2 (2026-08-14) — /init 项目初始化（对标 Claude Code /init）
 
 ### 🚀 `/init` 项目初始化
