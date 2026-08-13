@@ -608,4 +608,45 @@ public static partial class SelfTest
 
         WorkModeManager.CurrentMode = savedGlobal;
     }
+
+    private static void TestUpdateChecker(Action<string, bool> Check)
+    {
+        // ── 语义版本比较 ──
+        Check("升级: v0.48.6 < v0.49.0", UpdateChecker.CompareVersions("v0.48.6", "v0.49.0") < 0);
+        Check("升级: v0.49.0 > v0.48.6", UpdateChecker.CompareVersions("v0.49.0", "v0.48.6") > 0);
+        Check("升级: 相同版本相等", UpdateChecker.CompareVersions("v0.48.6", "v0.48.6") == 0);
+        Check("升级: 不同段数相等 (v1.0 vs v1.0.0)", UpdateChecker.CompareVersions("v1.0", "v1.0.0") == 0);
+        Check("升级: 后缀忽略 (v2.0.0-beta > v1.9.9)", UpdateChecker.CompareVersions("v2.0.0-beta", "v1.9.9") > 0);
+        Check("升级: 大写 V 前缀 (V1.2 < 1.3)", UpdateChecker.CompareVersions("V1.2", "1.3") < 0);
+        Check("升级: 数值比较非字典序 (1.10.0 > 1.9.0)", UpdateChecker.CompareVersions("1.10.0", "1.9.0") > 0);
+
+        // ── 当前平台 RID 探测 ──
+        var rid = UpdateChecker.DetectCurrentRid();
+        Check("升级: RID 非空含连字符", !string.IsNullOrEmpty(rid) && rid.Contains('-'));
+        var knownRids = new[] { "win-x64", "win-arm64", "linux-x64", "linux-arm64", "osx-x64", "osx-arm64" };
+        Check("升级: RID 属于已知平台", knownRids.Contains(rid));
+
+        // ── 资产名匹配 ──
+        var names = new[]
+        {
+            "waycoder-v0.49.0-win-x64.zip",
+            "waycoder-v0.49.0-osx-arm64.tar.gz",
+            "waycoder-v0.49.0-linux-x64.tar.gz",
+        };
+        Check("升级: 匹配 osx-arm64 tar.gz",
+            UpdateChecker.FindAssetName(names, "osx-arm64") == "waycoder-v0.49.0-osx-arm64.tar.gz");
+        Check("升级: 匹配 win-x64 zip",
+            UpdateChecker.FindAssetName(names, "win-x64") == "waycoder-v0.49.0-win-x64.zip");
+        Check("升级: 无匹配返回 null",
+            UpdateChecker.FindAssetName(names, "linux-arm64") == null);
+
+        // ── 资产 URL 匹配（JSON assets 数组）──
+        var assets = new JsonArray(
+            new JsonObject { ["name"] = "waycoder-v0.49.0-win-x64.zip", ["browser_download_url"] = "https://x/win.zip" },
+            new JsonObject { ["name"] = "waycoder-v0.49.0-osx-arm64.tar.gz", ["browser_download_url"] = "https://x/osx.tar.gz" });
+        Check("升级: 资产 URL 匹配",
+            UpdateChecker.FindAssetUrl(assets, "osx-arm64") == "https://x/osx.tar.gz");
+        Check("升级: 资产 URL 无匹配 null",
+            UpdateChecker.FindAssetUrl(assets, "linux-x64") == null);
+    }
 }
