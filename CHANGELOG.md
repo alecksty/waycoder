@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.48.8 (2026-08-14) — MCP 资源/提示词支持（对标 Claude Code resources/prompts）
+
+### 🔌 MCP 能力补全
+
+- 新增 **资源（resources）** 支持：`resources/list` 发现 + `resources/read` 读取，注册为 `mcp__<server>__resources` 工具——省略 `uri` 参数列出全部资源，传入 `uri` 读取指定资源内容（text/blob/嵌套资源统一格式化）
+- 新增 **提示词模板（prompts）** 支持：`prompts/list` 发现 + `prompts/get` 调用，每个模板注册为 `mcp__<server>__prompt__<name>` 工具，参数从模板 `arguments` 数组自动生成 inputSchema
+- 修复 MCP 发现结果解析 bug：`tools/list`/`resources/list`/`prompts/list` 的响应数据此前从响应顶层读取，实际位于 JSON-RPC `result` 字段下——导致工具发现一直为空（此前 `tools/call` 正确读 `result`、发现却读顶层，二者不一致）；本次统一改为 `result` 下读取
+- 状态模型扩展：`McpServerState`/`McpServerInfo` 新增 `ResourceCount`/`PromptCount`，`/mcp` 命令与侧栏 MCP 区显示「N 工具 · M 资源 · K 提示词」
+
+### 🧪 自测
+
+- 新增 MCP 资源/提示词自测 15 项（资源工具名称/描述/参数/读取/列表 + 提示词工具名称/参数生成/调用 + `BuildParameters`/`ExtractContentText` 纯逻辑 + 状态计数），1804 项全部通过（0 失败）
+
 ## v0.48.7 (2026-08-14) — 内置自动升级 + winget/brew/apt 分发（对标 Claude Code `claude update`）
 
 ### ⬆️ 自动升级

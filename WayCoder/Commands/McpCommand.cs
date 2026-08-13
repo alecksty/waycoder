@@ -45,6 +45,8 @@ public class McpCommand : SlashCommand
                 _ => "❓",
             };
             sb.Append($"{mark} {s.Name} [{s.Transport}] {s.ToolCount} 工具");
+            if (s.ResourceCount > 0) sb.Append($" · {s.ResourceCount} 资源");
+            if (s.PromptCount > 0) sb.Append($" · {s.PromptCount} 提示词");
             if (s.Error != null) sb.Append($" — {s.Error}");
             sb.AppendLine();
         }

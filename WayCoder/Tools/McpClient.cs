@@ -264,7 +264,7 @@ public static class McpManager
         }
     }
 
-    /// <summary>执行 MCP 握手 + 工具发现（与传输无关）</summary>
+    /// <summary>执行 MCP 握手 + 能力发现（工具 / 资源 / 提示词，与传输无关）</summary>
     private static async Task DiscoverToolsAsync(McpConnection conn, string name)
     {
         // 握手: initialize
@@ -289,36 +289,79 @@ public static class McpManager
         // 发送 initialized 通知
         conn.SendNotification("notifications/initialized", new JsonObject());
 
-        // 发现工具: tools/list
-        var toolsResp = await conn.SendRequestAsync("tools/list", new JsonObject());
-        var tools = toolsResp?["tools"]?.AsArray();
-        if (tools == null || tools.Count == 0)
-        {
-            DebugLog.Log("mcp", $"MCP {name}: 无可用工具");
-            SetStatus(name, McpServerStatus.Connected, toolCount: 0, connection: conn);
-            _connections.Add(conn);
-            UpdateInfo();
-            return;
-        }
-
-        // 移除该服务器的旧工具（缓存可能有旧版本）
+        // 移除该服务器的旧工具/资源/提示词（缓存可能有旧版本）
         var prefix = $"mcp__{name}__";
         DiscoveredTools.RemoveAll(t => t.Name.StartsWith(prefix, StringComparison.Ordinal));
 
-        // 注册工具
-        foreach (var toolNode in tools)
+        // 发现工具: tools/list
+        int toolCount = 0;
+        var toolsResp = await conn.SendRequestAsync("tools/list", new JsonObject());
+        var tools = toolsResp?["result"]?["tools"]?.AsArray();
+        if (tools != null)
         {
-            var tool = toolNode?.AsObject();
-            if (tool == null) continue;
-
-            var mcpTool = new McpTool(name, tool, conn);
-            DiscoveredTools.Add(mcpTool);
+            foreach (var toolNode in tools)
+            {
+                var tool = toolNode?.AsObject();
+                if (tool == null) continue;
+                DiscoveredTools.Add(new McpTool(name, tool, conn));
+                toolCount++;
+            }
         }
 
+        // 发现资源: resources/list
+        var resourceCount = await DiscoverResourcesAsync(conn, name);
+
+        // 发现提示词: prompts/list
+        var promptCount = await DiscoverPromptsAsync(conn, name);
+
         _connections.Add(conn);
-        SetStatus(name, McpServerStatus.Connected, toolCount: tools.Count, connection: conn);
+        SetStatus(name, McpServerStatus.Connected, toolCount: toolCount, connection: conn,
+            resourceCount: resourceCount, promptCount: promptCount);
         UpdateInfo();
-        DebugLog.Log("mcp", $"MCP {name}: 发现 {tools.Count} 个工具");
+        DebugLog.Log("mcp", $"MCP {name}: 发现 {toolCount} 工具 · {resourceCount} 资源 · {promptCount} 提示词");
+    }
+
+    /// <summary>发现 MCP 资源（resources/list），注册为单个读取工具。返回资源数量。</summary>
+    private static async Task<int> DiscoverResourcesAsync(McpConnection conn, string name)
+    {
+        try
+        {
+            var resp = await conn.SendRequestAsync("resources/list", new JsonObject());
+            var resources = resp?["result"]?["resources"]?.AsArray();
+            if (resources == null || resources.Count == 0) return 0;
+            DiscoveredTools.Add(new McpResourceTool(name, resources, conn));
+            return resources.Count;
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Log("mcp", $"MCP {name} 资源发现失败: {ex.GetType().Name}: {ex.Message}");
+            return 0;
+        }
+    }
+
+    /// <summary>发现 MCP 提示词模板（prompts/list），每个注册为一个工具。返回提示词数量。</summary>
+    private static async Task<int> DiscoverPromptsAsync(McpConnection conn, string name)
+    {
+        try
+        {
+            var resp = await conn.SendRequestAsync("prompts/list", new JsonObject());
+            var prompts = resp?["result"]?["prompts"]?.AsArray();
+            if (prompts == null) return 0;
+            int count = 0;
+            foreach (var p in prompts)
+            {
+                var pObj = p?.AsObject();
+                if (pObj == null) continue;
+                DiscoveredTools.Add(new McpPromptTool(name, pObj, conn));
+                count++;
+            }
+            return count;
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Log("mcp", $"MCP {name} 提示词发现失败: {ex.GetType().Name}: {ex.Message}");
+            return 0;
+        }
     }
 
     /// <summary>更新 MCP 连接状态信息（由结构化状态生成）</summary>
@@ -337,6 +380,8 @@ public static class McpManager
                     _ => "?",
                 };
                 sb.Append($"  {st.Name} {mark} {st.ToolCount} 工具");
+                if (st.ResourceCount > 0) sb.Append($" · {st.ResourceCount} 资源");
+                if (st.PromptCount > 0) sb.Append($" · {st.PromptCount} 提示词");
                 if (st.Error != null) sb.Append($" ({st.Error})");
                 sb.Append('\n');
             }
@@ -346,13 +391,16 @@ public static class McpManager
 
     /// <summary>更新服务器状态。</summary>
     private static void SetStatus(string name, McpServerStatus status, int toolCount = 0,
-        string? error = null, McpConnection? connection = null)
+        string? error = null, McpConnection? connection = null,
+        int resourceCount = 0, int promptCount = 0)
     {
         lock (_stateLock)
         {
             if (!_states.TryGetValue(name, out var st)) return;
             st.Status = status;
             st.ToolCount = toolCount;
+            st.ResourceCount = resourceCount;
+            st.PromptCount = promptCount;
             st.Error = error;
             if (connection != null) st.Connection = connection;
         }
@@ -465,14 +513,19 @@ public class McpServerInfo
     public string Transport { get; }
     public McpServerStatus Status { get; }
     public int ToolCount { get; }
+    public int ResourceCount { get; }
+    public int PromptCount { get; }
     public string? Error { get; }
 
-    public McpServerInfo(string name, string transport, McpServerStatus status, int toolCount, string? error)
+    public McpServerInfo(string name, string transport, McpServerStatus status, int toolCount, string? error,
+        int resourceCount = 0, int promptCount = 0)
     {
         Name = name;
         Transport = transport;
         Status = status;
         ToolCount = toolCount;
+        ResourceCount = resourceCount;
+        PromptCount = promptCount;
         Error = error;
     }
 }
@@ -484,10 +537,12 @@ internal class McpServerState
     public string Transport = "stdio";
     public McpServerStatus Status = McpServerStatus.Connecting;
     public int ToolCount;
+    public int ResourceCount;
+    public int PromptCount;
     public string? Error;
     public McpConnection? Connection;
 
-    public McpServerInfo ToInfo() => new(Name, Transport, Status, ToolCount, Error);
+    public McpServerInfo ToInfo() => new(Name, Transport, Status, ToolCount, Error, ResourceCount, PromptCount);
 }
 
 // ============================================================
@@ -1151,5 +1206,228 @@ internal class McpTool : ITool
         }
 
         return result?.ToJsonString() ?? "(空结果)";
+    }
+}
+
+// ============================================================
+// MCP 资源 / 提示词 包装器
+// ============================================================
+
+/// <summary>
+/// MCP 资源读取工具 — 将服务器的 resources 能力适配为 ITool。
+/// 省略 uri 时列出全部资源；传 uri 时读取指定资源内容。
+/// 工具名称格式: mcp__&lt;server&gt;__resources
+/// </summary>
+internal class McpResourceTool : ITool
+{
+    private readonly string _serverName;
+    private readonly McpConnection _connection;
+    private readonly List<(string Uri, string Name, string Desc)> _resources;
+
+    public string Name { get; }
+    public string Description { get; }
+
+    public JsonObject Parameters => new()
+    {
+        ["type"] = "object",
+        ["properties"] = new JsonObject
+        {
+            ["uri"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "要读取的资源 URI（省略则列出所有可用资源）",
+            },
+        },
+    };
+
+    public McpResourceTool(string serverName, JsonArray resources, McpConnection connection)
+    {
+        _serverName = serverName;
+        _connection = connection;
+        _resources = [];
+
+        foreach (var r in resources)
+        {
+            var obj = r?.AsObject();
+            if (obj == null) continue;
+            var uri = obj["uri"]?.GetValue<string>() ?? "";
+            var rname = obj["name"]?.GetValue<string>() ?? "";
+            var desc = obj["description"]?.GetValue<string>() ?? "";
+            _resources.Add((uri, rname, desc));
+        }
+
+        Name = $"mcp__{serverName}__resources";
+
+        var sb = new StringBuilder();
+        sb.Append($"读取 MCP 服务器 {serverName} 提供的资源。省略 uri 参数列出全部资源；传入 uri 读取指定资源内容。可用资源：");
+        foreach (var (uri, rname, desc) in _resources)
+        {
+            sb.Append($"\n- {rname} ({uri})");
+            if (!string.IsNullOrEmpty(desc)) sb.Append($": {desc}");
+        }
+        Description = sb.ToString();
+    }
+
+    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+    {
+        // 传了 uri → 读取指定资源；否则列出全部资源
+        if (arguments.TryGetValue("uri", out var uriVal) && uriVal is string uri && !string.IsNullOrWhiteSpace(uri))
+        {
+            var readResp = await _connection.SendRequestAsync("resources/read", new JsonObject { ["uri"] = uri });
+            return FormatReadResult(readResp, uri);
+        }
+
+        var listResp = await _connection.SendRequestAsync("resources/list", new JsonObject());
+        var resources = listResp?["result"]?["resources"]?.AsArray();
+        if (resources == null || resources.Count == 0) return "(无资源)";
+
+        var sb = new StringBuilder();
+        foreach (var r in resources)
+        {
+            var obj = r?.AsObject();
+            if (obj == null) continue;
+            var u = obj["uri"]?.GetValue<string>() ?? "";
+            var n = obj["name"]?.GetValue<string>() ?? "";
+            var d = obj["description"]?.GetValue<string>() ?? "";
+            sb.Append($"{n} ({u})");
+            if (!string.IsNullOrEmpty(d)) sb.Append($": {d}");
+            sb.Append('\n');
+        }
+        return sb.ToString().TrimEnd('\n');
+    }
+
+    private string FormatReadResult(JsonObject? resp, string uri)
+    {
+        if (resp == null) return $"错误: MCP {_serverName} 读取资源 {uri} 超时";
+        var error = resp["error"];
+        if (error != null)
+            return $"错误: MCP {_serverName} 读取资源 {uri} — {error["message"]?.GetValue<string>() ?? "未知错误"}";
+
+        var contents = resp["result"]?["contents"]?.AsArray();
+        if (contents == null) return "(空资源)";
+
+        var sb = new StringBuilder();
+        foreach (var c in contents)
+        {
+            var obj = c?.AsObject();
+            if (obj == null) continue;
+            var text = obj["text"]?.GetValue<string>();
+            if (text != null) { sb.Append(text); continue; }
+            var blob = obj["blob"]?.GetValue<string>();
+            if (blob != null) { sb.Append($"[二进制 blob, base64 {blob.Length} 字符]"); continue; }
+            var nestedUri = obj["uri"]?.GetValue<string>();
+            if (nestedUri != null) { sb.Append($"[嵌套资源: {nestedUri}]"); continue; }
+        }
+        return sb.Length > 0 ? sb.ToString() : "(空资源)";
+    }
+}
+
+/// <summary>
+/// MCP 提示词模板工具 — 将服务器的 prompts 能力适配为 ITool。
+/// 每个提示词模板注册为一个工具，参数从模板 arguments 数组生成。
+/// 工具名称格式: mcp__&lt;server&gt;__prompt__&lt;name&gt;
+/// </summary>
+internal class McpPromptTool : ITool
+{
+    private readonly string _serverName;
+    private readonly JsonObject _promptDef;
+    private readonly McpConnection _connection;
+
+    public string Name { get; }
+    public string Description { get; }
+    public JsonObject Parameters { get; }
+
+    public McpPromptTool(string serverName, JsonObject promptDef, McpConnection connection)
+    {
+        _serverName = serverName;
+        _promptDef = promptDef;
+        _connection = connection;
+
+        var promptName = promptDef["name"]?.GetValue<string>() ?? "unknown";
+        Name = $"mcp__{serverName}__prompt__{promptName}";
+        Description = promptDef["description"]?.GetValue<string>() ?? $"(MCP) {serverName} 提示词 {promptName}";
+        Parameters = BuildParameters(promptDef["arguments"]?.AsArray());
+    }
+
+    /// <summary>从 prompts/list 的 arguments 数组构造 inputSchema（纯逻辑，便于自测）。</summary>
+    internal static JsonObject BuildParameters(JsonArray? args)
+    {
+        var properties = new JsonObject();
+        if (args != null)
+        {
+            foreach (var a in args)
+            {
+                var obj = a?.AsObject();
+                if (obj == null) continue;
+                var argName = obj["name"]?.GetValue<string>();
+                if (string.IsNullOrEmpty(argName)) continue;
+                properties[argName] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["description"] = obj["description"]?.GetValue<string>() ?? argName,
+                };
+            }
+        }
+        return new JsonObject { ["type"] = "object", ["properties"] = properties };
+    }
+
+    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+    {
+        var promptName = _promptDef["name"]?.GetValue<string>() ?? "";
+
+        var @params = new JsonObject
+        {
+            ["name"] = promptName,
+            ["arguments"] = JsonNode.Parse(JsonHelper.SerializeArgs(arguments)),
+        };
+
+        var resp = await _connection.SendRequestAsync("prompts/get", @params);
+        if (resp == null) return $"错误: MCP {_serverName} 提示词 {promptName} 调用超时";
+
+        var error = resp["error"];
+        if (error != null)
+            return $"错误: MCP {_serverName} 提示词 {promptName} — {error["message"]?.GetValue<string>() ?? "未知错误"}";
+
+        var messages = resp["result"]?["messages"]?.AsArray();
+        if (messages == null) return resp["result"]?.ToJsonString() ?? "(空提示词)";
+
+        var sb = new StringBuilder();
+        foreach (var m in messages)
+        {
+            var obj = m?.AsObject();
+            if (obj == null) continue;
+            var role = obj["role"]?.GetValue<string>() ?? "";
+            var text = ExtractContentText(obj["content"]);
+            if (string.IsNullOrEmpty(text)) continue;
+            sb.Append($"[{role}]\n{text}\n\n");
+        }
+        return sb.ToString().TrimEnd('\n');
+    }
+
+    /// <summary>提取 prompt 消息 content 的纯文本（content 可为字符串 / 对象 / 数组）。</summary>
+    internal static string ExtractContentText(JsonNode? content)
+    {
+        if (content == null) return "";
+        if (content is JsonValue value)
+            return value.TryGetValue<string>(out var s) ? s : "";
+        if (content is JsonObject obj)
+        {
+            var text = obj["text"]?.GetValue<string>();
+            if (text != null) return text;
+            var uri = obj["uri"]?.GetValue<string>();
+            if (uri != null) return $"[资源: {uri}]";
+            return obj.ToJsonString();
+        }
+        if (content is JsonArray arr)
+        {
+            var sb = new StringBuilder();
+            foreach (var c in arr)
+            {
+                var text = c?["text"]?.GetValue<string>();
+                if (text != null) sb.Append(text);
+            }
+            return sb.ToString();
+        }
+        return "";
     }
 }
