@@ -764,8 +764,8 @@ public class TuiTextArea : TuiEditBase
     {
         if (!IsCursorOwner) return;
 
-        var absX = GetAbsoluteX();
-        var absY = GetAbsoluteY();
+        var absX = _lastAbsX;
+        var absY = _lastAbsY;
         int lineNumW = ShowLineNumbers ? (Lines.Count > 0 ? Lines.Count.ToString().Length + 1 : 3) : 0;
 
         // 确保光标在当前视口内
