@@ -26,11 +26,11 @@
 
 - 1671 项自测全部通过（0 失败）
 
-## v0.47.10 (2026-08-13) — 一键多平台打包脚本（`scripts/package.sh`）
+## v0.47.10 (2026-08-13) — 一键多平台打包脚本（`scripts/package.sh` / `scripts/package.ps1`）
 
 ### 📦 多平台打包
 
-- 新增 `scripts/package.sh`：一条命令打包 6 个平台（win-x64 / win-arm64 / linux-x64 / linux-arm64 / osx-x64 / osx-arm64）
+- 新增 `scripts/package.sh`（bash）与 `scripts/package.ps1`（PowerShell/Windows 原生）：一条命令打包 6 个平台（win-x64 / win-arm64 / linux-x64 / linux-arm64 / osx-x64 / osx-arm64）
 - **当前平台走 NativeAOT**（零依赖原生单文件），**其他平台走非 AOT**（自包含单文件 JIT，跨平台交叉发布）
 - Windows AOT 自动把 VS Installer 目录加入 PATH（定位 vswhere.exe / MSVC 链接器）
 - 每次打包前清理 `obj/bin`，避免不同 RID 之间的还原状态污染（误报 Cross-OS）
