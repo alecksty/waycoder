@@ -8,14 +8,15 @@ namespace WayCoder.Arguments;
 /// --model 模型管理（对标 /model 斜杠命令）。
 ///   --model                        → 显示当前模型
 ///   --model list [关键词]          → 列出模型目录
-///   --model name &lt;id&gt;        → 选中并持久化（自动 base-url + 写 .env）
+///   --model name &lt;id&gt;        → 选中大模型并持久化（同步服务商 + base-url + 写 .env）
+///   --model small &lt;id&gt;       → 选中小模型并持久化（同步小模型服务商）
 ///   --model key &lt;供应商&gt; &lt;key&gt; → 保存 API key（无参列出已存 keys）
 ///   --model connect &lt;base-url&gt; → 设置连接地址（写 .env）
 ///   --model &lt;模型ID&gt;          → 快捷选中（本次会话，不持久化，向后兼容）
 /// </summary>
 public class ModelArg : CliArg
 {
-    public override string Description => "模型管理（list / name <id> / key <供应商> <key> / connect <url>，或 --model <模型ID> 快捷选中）";
+    public override string Description => "模型管理（list / name <id> / small <id> / key <供应商> <key> / connect <url>，或 --model <模型ID> 快捷选中）";
     public override int ValueCount => -1;
     public override bool Greedy => true;
     public override string? ValueLabel => "模型ID/子命令";
@@ -41,6 +42,9 @@ public class ModelArg : CliArg
                 break;
             case "name":
                 result = rest.Length == 0 ? "用法: --model name <模型ID>" : ModelCli.Select(rest[0]);
+                break;
+            case "small":
+                result = rest.Length == 0 ? "用法: --model small <小模型ID>" : ModelCli.SelectSmall(rest[0]);
                 break;
             case "key":
             case "keys":
@@ -79,7 +83,7 @@ public class BaseUrlArg : CliArg
 
 public class ApiKeyArg : CliArg
 {
-    public override string Description => "API 密钥";
+    public override string Description => "API 密钥（自动保存到全局 ~/.waycoder/api_keys.json，按当前服务商）";
     public override int ValueCount => 1;
     public override string? ValueLabel => "密钥";
     public ApiKeyArg() : base("api-key", "-k", "--api-key") { }
