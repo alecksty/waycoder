@@ -651,7 +651,10 @@ public class Agent
             .Where(m => m["role"]?.GetValue<string>() == "tool")
             .Select(m => m["content"]?.GetValue<string>() ?? "")
             .ToList();
-        var wasWriting = recentTools.Any(c => c.Contains("✅ 已写入") || c.Contains("✅ 编辑完成"));
+        // 匹配真实工具输出：write_file 返回「已写入 N 行到 …」，edit_file 返回「已编辑 …」，
+        // multiedit 返回「✅ 已创建 … / ✅ 已编辑 …」。（旧标记「✅ 已写入/✅ 编辑完成」已无任何工具产出，导致自动续跑永远不触发。）
+        var wasWriting = recentTools.Any(c =>
+            c.Contains("已写入") || c.Contains("已编辑") || c.Contains("已创建"));
         var lastMsg = Messages.LastOrDefault(m => m["role"]?.GetValue<string>() == "assistant")
             ?["content"]?.GetValue<string>() ?? "";
 
