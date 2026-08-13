@@ -1,4 +1,6 @@
 using WayCoder.Tools;
+using WayCoder.UI;
+using WayCoder.UI.TuiScreens;
 
 namespace WayCoder;
 
@@ -145,6 +147,15 @@ public class Agent
         // 深克隆消息，避免 JsonNode 的 Parent 冲突（同一消息不能加入两个树）
         foreach (var m in Messages)
             result.Add(JsonNode.Parse(m.ToJsonString())!.AsObject());
+
+        // 视觉支持：view_image 工具附加的图片注入为多模态 user 消息（仅支持 vision 的模型）
+        if (LLM.ModelSupportsVision(LlmClient.EffectiveModel))
+        {
+            var images = LLM.DrainImages();
+            if (images.Count > 0)
+                result.Add(LLM.BuildImageMessage("请查看以上图片，回答我的问题。", images));
+        }
+
         return result;
     }
 
@@ -465,6 +476,27 @@ public class Agent
                 var hasCompletionSignal = resp.Content != null &&
                     (resp.Content.Contains("✅") || resp.Content.Contains("任务完成") ||
                      resp.Content.Contains("已完成") || resp.Content.Contains("全部完成"));
+
+                // ── 计划审批门（Plan 模式）──
+                // Plan 模式下模型产出计划（文本、无工具调用）后，不再自动催促执行，
+                // 而是就地弹出审批框：批准 → 切回建造模式继续执行；拒绝 → 停止。
+                if (ShouldPromptPlanApproval(WorkModeManager.CurrentMode, contentLen))
+                {
+                    if (PromptPlanApproval(resp.Content!))
+                    {
+                        WorkModeManager.SetMode(WorkMode.Build);
+                        Messages.Add(new JsonObject
+                        {
+                            ["role"] = "user",
+                            ["content"] = "✅ 计划已获批准。现在切换到建造模式，按上述计划逐步执行，完成后汇报结果。",
+                        });
+                        _analysisOnlyStreak = 0;
+                        _talksCodeStreak = 0;
+                        continue;
+                    }
+                    SaveWorkReport();
+                    return resp.Content ?? "";
+                }
 
                 // 检测 0：DeepSeek V4 等模型将大量输出花在推理（reasoning）上而不产生实际内容
                 // reasoning 被显示但不计入 Content，所以 contentLen 可能极短
@@ -1254,6 +1286,29 @@ public class Agent
     {
         var (exitCode, stdout, _) = await GitRunner.RunAsync(args);
         return exitCode == 0 ? stdout.Trim() : null;
+    }
+
+    // ── 计划审批门（Plan 模式）──
+
+    /// <summary>
+    /// 是否应弹出计划审批（纯逻辑，便于自测）：
+    /// 仅 Plan 模式 + 本轮有文本产出（计划）且无工具调用时触发。
+    /// </summary>
+    internal static bool ShouldPromptPlanApproval(WorkMode mode, int contentLength)
+        => mode == WorkMode.Plan && contentLength > 0;
+
+    /// <summary>
+    /// 弹出计划审批确认框（Plan 模式）。返回 true 表示批准执行。
+    /// 非 TUI 环境（一次性模式 / 管道 / 测试）默认自动批准，避免阻塞。
+    /// </summary>
+    private bool PromptPlanApproval(string plan)
+    {
+        var activeScreen = TuiManager.Instance.ActiveScreen as ChatScreen;
+        if (activeScreen == null)
+            return true; // 非交互环境自动批准
+
+        var summary = plan.Length > 160 ? plan[..160] + "…" : plan;
+        return activeScreen.ShowPlanApproval(summary, plan);
     }
 
     // ── Architect 双模型模式 ──

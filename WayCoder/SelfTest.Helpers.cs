@@ -1,0 +1,469 @@
+using System.Text;
+using System.Text.Json;
+using WayCoder.Tools;
+using WayCoder.UI;
+using WayCoder.Terminal;
+using WayCoder.UI.TuiControls;
+using WayCoder.UI.TuiScreens;
+
+namespace WayCoder;
+
+public static partial class SelfTest
+{
+    /// <summary>获取 notebook cell 的 source 文本（测试助手）</summary>
+    private static string GetNotebookSource(JsonObject notebook, int cellIndex)
+    {
+        var cells = notebook["cells"]?.AsArray();
+        if (cells == null || cellIndex >= cells.Count) return "";
+        var source = cells[cellIndex]?["source"];
+        if (source is JsonArray arr)
+        {
+            var sb = new StringBuilder();
+            foreach (var line in arr) sb.Append(line?.ToString() ?? "");
+            return sb.ToString();
+        }
+        return source?.ToString() ?? "";
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  ContextManager 单元测试
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>SnipToolOutputs 完整测试</summary>
+    private static void TestSnipToolOutputs(Action<string, bool> Check)
+    {
+        // ── 1. 短内容不裁剪（≤4000 字符）──
+        var shortMsgs = new List<JsonObject>
+        {
+            new() { ["role"] = "tool", ["content"] = "短输出\n只有几行\n内容很少" },
+        };
+        var shortBefore = shortMsgs[0]["content"]!.GetValue<string>();
+        ContextManager.SnipToolOutputs(shortMsgs);
+        Check("Snip: 短内容不裁剪", shortMsgs[0]["content"]!.GetValue<string>() == shortBefore);
+
+        // ── 2. 非 tool 消息不裁剪 ──
+        var userMsgs = new List<JsonObject>
+        {
+            new() { ["role"] = "user", ["content"] = new string('x', 5000) },
+        };
+        var userBefore = userMsgs[0]["content"]!.GetValue<string>();
+        ContextManager.SnipToolOutputs(userMsgs);
+        Check("Snip: 非tool消息不裁剪", userMsgs[0]["content"]!.GetValue<string>() == userBefore);
+
+        // ── 3. 长内容裁剪（>4000 字符 + >10 行）──
+        var lines = new List<string>();
+        for (int i = 0; i < 200; i++)
+            lines.Add($"第 {i:D4} 行：{new string('y', 30)}");
+        var longContent = string.Join("\n", lines);
+        Check("Snip: 输入内容 >4000 字符", longContent.Length > 4000);
+
+        var longMsgs = new List<JsonObject>
+        {
+            new() { ["role"] = "tool", ["content"] = longContent },
+        };
+        var longBefore = ContextManager.EstimateTokens(longMsgs);
+        ContextManager.SnipToolOutputs(longMsgs);
+        var longAfter = ContextManager.EstimateTokens(longMsgs);
+        Check("Snip: 长内容被裁剪", longAfter < longBefore);
+        var snipped = longMsgs[0]["content"]!.GetValue<string>();
+        Check("Snip: 裁剪后包含省略标记", snipped.Contains("省略") || snipped.Contains("裁剪"));
+
+        // ── 4. 错误行保留 ──
+        var errorLines = new List<string>();
+        for (int i = 0; i < 10; i++)
+            errorLines.Add($"普通行 {i}");
+        errorLines.Add("Program.cs(45,12): error CS0103: 当前上下文中不存在名称 'doesNotExist'");
+        errorLines.Add("Program.cs(67,3): error CS0246: 未能找到类型或命名空间名 'UnknownType'");
+        for (int i = 0; i < 150; i++)
+            errorLines.Add($"后续行 {i}：{new string('z', 30)}");
+
+        var errorContent = string.Join("\n", errorLines);
+        Check("Snip(错误): 输入内容 >4000 字符", errorContent.Length > 4000);
+
+        var errMsgs = new List<JsonObject>
+        {
+            new() { ["role"] = "tool", ["content"] = errorContent },
+        };
+        ContextManager.SnipToolOutputs(errMsgs);
+        var errSnipped = errMsgs[0]["content"]!.GetValue<string>();
+        Check("Snip: 错误行 CS0103 被保留", errSnipped.Contains("CS0103"));
+        Check("Snip: 错误行 CS0246 被保留", errSnipped.Contains("CS0246"));
+        Check("Snip: 裁剪后包含错误统计", errSnipped.Contains("错误"));
+
+        // ── 5. 首5尾5保留 ──
+        var seqMsgs = new List<JsonObject>
+        {
+            new() { ["role"] = "tool", ["content"] = string.Join("\n", Enumerable.Range(0, 100).Select(i => $"LINE_{i:D3}: {new string('x', 50)}")) },
+        };
+        ContextManager.SnipToolOutputs(seqMsgs);
+        var seqSnipped = seqMsgs[0]["content"]!.GetValue<string>();
+        Check("Snip: 首部 LINE_000 被保留", seqSnipped.Contains("LINE_000"));
+        Check("Snip: 首部 LINE_004 被保留", seqSnipped.Contains("LINE_004"));
+        Check("Snip: 尾部 LINE_099 被保留", seqSnipped.Contains("LINE_099"));
+        Check("Snip: 尾部 LINE_095 被保留", seqSnipped.Contains("LINE_095"));
+
+        // ── 6. 多消息混合（部分裁剪）──
+        var mixedMsgs = new List<JsonObject>
+        {
+            new() { ["role"] = "user", ["content"] = "请编译项目" },
+            new() { ["role"] = "tool", ["content"] = new string('a', 200) }, // 短输出不裁剪
+            new() { ["role"] = "tool", ["content"] = string.Join("\n", Enumerable.Range(0, 100).Select(i => $"L{i:D3}: {new string('y', 50)}")) }, // 长输出裁剪
+        };
+        var mixedChanged = ContextManager.SnipToolOutputs(mixedMsgs);
+        Check("Snip: 混合消息有裁剪发生", mixedChanged);
+        Check("Snip: 用户消息不变", mixedMsgs[0]["content"]!.GetValue<string>() == "请编译项目");
+        Check("Snip: 短tool不裁剪", mixedMsgs[1]["content"]!.GetValue<string>().Length < 300);
+        Check("Snip: 长tool被裁剪", mixedMsgs[2]["content"]!.GetValue<string>().Contains("省略") || mixedMsgs[2]["content"]!.GetValue<string>().Contains("裁剪"));
+    }
+
+    /// <summary>压缩保真度测试：超多需求压缩后关键信息仍保留（无 LLM 回退路径）</summary>
+    private static void TestCompressionFidelity(Action<string, bool> Check)
+    {
+        // 构造"超多需求"消息：30 条需求 + 关联文件路径/命名空间/API 签名/错误码
+        var msgs = new List<JsonObject>
+        {
+            new() { ["role"] = "user", ["content"] = "为 WayCoder 实现 30 个新工具，每个工具一个文件，全部完成后编译。" }
+        };
+        for (int i = 1; i <= 30; i++)
+        {
+            msgs.Add(new JsonObject
+            {
+                ["role"] = "user",
+                ["content"] = $"需求 {i}：实现 Tools/{i:D2}Tool.cs 工具，namespace WayCoder.Tools，" +
+                              $"提供 public async Task<string> Execute(Dictionary<string, object?> args) 方法，处理业务逻辑。"
+            });
+        }
+        // 冗余长工具输出（触发第 1 层裁剪）
+        msgs.Add(new JsonObject
+        {
+            ["role"] = "tool",
+            ["content"] = string.Join("\n", Enumerable.Range(0, 150).Select(i => $"冗余输出行 {i:D4}：{new string('x', 60)}"))
+        });
+        // 编译错误信息
+        msgs.Add(new JsonObject
+        {
+            ["role"] = "tool",
+            ["content"] = "编译失败：Program.cs(45,12): error CS0103: 当前上下文中不存在名称 'doesNotExist'"
+        });
+
+        var before = msgs.Count;
+        var cm = new ContextManager(2000); // 极小 maxTokens 压低三层阈值
+        var compressed = cm.MaybeCompressAsync(msgs, null).GetAwaiter().GetResult();
+
+        Check("压缩保真: 压缩确实发生", compressed);
+        Check("压缩保真: 消息数减少", msgs.Count < before);
+
+        var flat = string.Join("\n", msgs.Select(m => m["content"]?.GetValue<string>() ?? ""));
+
+        // 保真度：文件路径 / 命名空间 / 错误码保留
+        Check("压缩保真: 保留文件路径", flat.Contains("Tool.cs"));
+        Check("压缩保真: 保留命名空间", flat.Contains("WayCoder.Tools"));
+        Check("压缩保真: 保留错误码 CS0103", flat.Contains("CS0103"));
+        // 保真度：需求条目保留（A2 增强）
+        Check("压缩保真: 保留待完成需求段", flat.Contains("待完成需求"));
+        Check("压缩保真: 保留具体需求条目", flat.Contains("需求 1"));
+    }
+
+    /// <summary>上下文窗口按模型切换测试</summary>
+    private static void TestContextWindowSwitch(Action<string, bool> Check)
+    {
+        // ── 1. ResolveContextWindow 按模型解析窗口 ──
+        Check("窗口: deepseek-v4-pro = 1M", ModelCatalog.ResolveContextWindow("deepseek-v4-pro") == 1_048_576);
+        Check("窗口: deepseek-chat = 64K", ModelCatalog.ResolveContextWindow("deepseek-chat") == 64_000);
+        Check("窗口: ollama 本地模型 = 128K", ModelCatalog.ResolveContextWindow("deepseek-coder-v2:latest") == 128_000);
+        Check("窗口: 未知模型回退 1M", ModelCatalog.ResolveContextWindow("no-such-model") == 1_048_576);
+        Check("窗口: null 回退 1M", ModelCatalog.ResolveContextWindow(null) == 1_048_576);
+        Check("窗口: 空字符串回退 1M", ModelCatalog.ResolveContextWindow("") == 1_048_576);
+        Check("窗口: 自定义回退值生效", ModelCatalog.ResolveContextWindow("unknown", 64_000) == 64_000);
+
+        // ── 2. UpdateMaxTokens 重算阈值：小窗口压缩、放大后不再压缩 ──
+        var longTool = new List<JsonObject>
+        {
+            new() { ["role"] = "tool", ["content"] = string.Join("\n", Enumerable.Range(0, 100).Select(i => $"行{i}: {new string('x', 60)}")) }
+        };
+
+        var smallCm = new ContextManager(200);
+        var smallCopy = new List<JsonObject>
+        {
+            new() { ["role"] = "tool", ["content"] = longTool[0]["content"]!.GetValue<string>() }
+        };
+        var compressedSmall = smallCm.MaybeCompressAsync(smallCopy, null).GetAwaiter().GetResult();
+        Check("窗口: 小窗口触发压缩", compressedSmall);
+
+        smallCm.UpdateMaxTokens(100_000);
+        var largeCopy = new List<JsonObject>
+        {
+            new() { ["role"] = "tool", ["content"] = longTool[0]["content"]!.GetValue<string>() }
+        };
+        var compressedLarge = smallCm.MaybeCompressAsync(largeCopy, null).GetAwaiter().GetResult();
+        Check("窗口: 放大后不再压缩", !compressedLarge);
+
+        // ── 3. UpdateMaxTokens 边界：非正值忽略 ──
+        var cm = new ContextManager(1000);
+        cm.UpdateMaxTokens(0);
+        Check("窗口: UpdateMaxTokens(0) 忽略", cm.MaxTokens == 1000);
+        cm.UpdateMaxTokens(-5);
+        Check("窗口: UpdateMaxTokens(-5) 忽略", cm.MaxTokens == 1000);
+        cm.UpdateMaxTokens(2048);
+        Check("窗口: UpdateMaxTokens(2048) 生效", cm.MaxTokens == 2048);
+    }
+
+    /// <summary>Tiny 模式测试（4K 窗口 + 精简提示词）</summary>
+    private static void TestTinyMode(Action<string, bool> Check)
+    {
+        Check("Tiny: 窗口常量 = 4096", Config.TinyContextWindow == 4096);
+        Check("Tiny: 默认关闭", new Config().TinyMode == false);
+
+        // ResolveContextWindow 在 TinyMode 下固定 4K，忽略模型窗口
+        var saved = Config.Instance.TinyMode;
+        Config.Instance.TinyMode = true;
+        Check("Tiny: 窗口固定 4K（忽略模型）", ModelCatalog.ResolveContextWindow("deepseek-v4-pro") == 4096);
+        Config.Instance.TinyMode = false;
+        Check("Tiny: 关闭后恢复模型窗口", ModelCatalog.ResolveContextWindow("deepseek-v4-pro") == 1_048_576);
+
+        // 系统提示词精简
+        Config.Instance.TinyMode = true;
+        var tinyPrompt = SystemPrompt.Generate(ToolRegistry.AllTools);
+        Config.Instance.TinyMode = saved;
+        Check("Tiny: 提示词精简 <3000 字符", tinyPrompt.Length < 3000);
+        Check("Tiny: 含工具列表", tinyPrompt.Contains("bash"));
+        Check("Tiny: 含先读后改规则", tinyPrompt.Contains("先读后改"));
+        Check("Tiny: 含工作目录", tinyPrompt.Contains("工作目录"));
+    }
+
+    private static void TestTinyWindow(Action<string, bool> Check)
+    {
+        // 窗口规格解析
+        Check("Tiny: ParseWindowSpec 8k → 8192", ModelCatalog.ParseWindowSpec("8k") == 8192);
+        Check("Tiny: ParseWindowSpec 8192 → 8192", ModelCatalog.ParseWindowSpec("8192") == 8192);
+        Check("Tiny: ParseWindowSpec 4K → 4096", ModelCatalog.ParseWindowSpec("4K") == 4096);
+        Check("Tiny: ParseWindowSpec 16k → 16384", ModelCatalog.ParseWindowSpec("16k") == 16384);
+        Check("Tiny: ParseWindowSpec 非法 → null", ModelCatalog.ParseWindowSpec("abc") == null);
+        Check("Tiny: ParseWindowSpec 空 → null", ModelCatalog.ParseWindowSpec("") == null);
+        Check("Tiny: ParseWindowSpec 0 → null", ModelCatalog.ParseWindowSpec("0") == null);
+
+        // 显式指定窗口
+        Check("Tiny: --tiny 8k 指定窗口", ModelCatalog.ResolveTinyWindow("8k", null, null) == 8192);
+
+        // 自动探测：非 ollama 走目录；未知模型兜底 4K
+        Check("Tiny: 自动探测目录窗口", ModelCatalog.ResolveTinyWindow(null, "deepseek-v4-pro", null) == 1_048_576);
+        Check("Tiny: 自动探测失败兜底 4K", ModelCatalog.ResolveTinyWindow(null, "未知模型xyz", null) == 4096);
+
+        // ProbeModelWindow
+        Check("Tiny: ProbeModelWindow 目录命中", ModelCatalog.ProbeModelWindow("deepseek-v4-pro", null, 1000) == 1_048_576);
+        Check("Tiny: ProbeModelWindow 兜底", ModelCatalog.ProbeModelWindow("未知xyz", null, 4096) == 4096);
+
+        // 128K 自动阈值
+        Check("Tiny: 自动阈值 = 128K", Config.TinyAutoThreshold == 128_000);
+        Check("Tiny: 32K 模型低于阈值", ModelCatalog.ProbeModelWindow("qwen2.5-coder:3b", null, 1_048_576) < Config.TinyAutoThreshold);
+        Check("Tiny: 1M 模型不低于阈值", ModelCatalog.ProbeModelWindow("deepseek-v4-pro", null, 1_048_576) >= Config.TinyAutoThreshold);
+
+        // Ollama base url 识别
+        Check("Tiny: IsOllamaBaseUrl localhost", ModelCatalog.IsOllamaBaseUrl("http://localhost:11434"));
+        Check("Tiny: IsOllamaBaseUrl 非 ollama", !ModelCatalog.IsOllamaBaseUrl("https://api.deepseek.com"));
+    }
+
+    /// <summary>省 token 模式（EconomyMode 三态 + 优先级）测试</summary>
+    private static void TestEconomyMode(Action<string, bool> Check)
+    {
+        Check("Economy: 默认关闭", new Config().EconomyMode == EconomyMode.Off);
+        Check("Economy: 默认优先级=质量优先", new Config().EconomyPriority == EconomyPriority.Quality);
+        Check("Economy: 输出上限常量 = 8192", Config.EconomyMaxTokens == 8192);
+        Check("Economy: snip 阈值常量 = 2000", Config.EconomySnipChars == 2000);
+        Check("Economy: 正常 snip 阈值常量 = 4000", Config.SnipCharsNormal == 4000);
+        Check("Economy: 复杂任务轮数基准 = 30", Config.EconomyComplexRounds == 30);
+
+        var savedEconomy = Config.Instance.EconomyMode;
+        var savedPriority = Config.Instance.EconomyPriority;
+
+        // ResolveRatio 三态：Off 用正常值，On 取更小值，Auto 按复杂度插值
+        Config.Instance.EconomyMode = EconomyMode.Off;
+        Check("Economy: Off 用正常值", ContextManager.ResolveRatio(50, 35, 0.5) == 50);
+        Config.Instance.EconomyMode = EconomyMode.On;
+        Check("Economy: On 取更小值", ContextManager.ResolveRatio(50, 35, 0.5) == 35);
+        Check("Economy: On 尊重更低配置", ContextManager.ResolveRatio(30, 35, 0.5) == 30);
+
+        // Auto + 质量优先（默认）：简单任务省、复杂任务保质量
+        Config.Instance.EconomyMode = EconomyMode.Auto;
+        Config.Instance.EconomyPriority = EconomyPriority.Quality;
+        Check("Economy: 质量优先-简单任务省(复杂度0→省 token 值)", ContextManager.ResolveRatio(50, 35, 0.0) == 35);
+        Check("Economy: 质量优先-复杂任务不省(复杂度1→正常值)", ContextManager.ResolveRatio(50, 35, 1.0) == 50);
+        var midR = ContextManager.ResolveRatio(50, 35, 0.5);
+        Check("Economy: 质量优先-中复杂度介于两者之间", midR > 35 && midR < 50);
+        Check("Economy: 质量优先-简单收紧系数=1", ContextManager.AutoAggressiveness(0.0) == 1);
+        Check("Economy: 质量优先-复杂收紧系数=0", ContextManager.AutoAggressiveness(1.0) == 0);
+
+        // Auto + 费用优先：复杂任务仍省
+        Config.Instance.EconomyPriority = EconomyPriority.Cost;
+        Check("Economy: 费用优先-复杂任务仍省", ContextManager.ResolveRatio(50, 35, 1.0) == 35);
+        Check("Economy: 费用优先-收紧系数恒=1", ContextManager.AutoAggressiveness(0.9) == 1);
+
+        // Auto + 均衡：复杂任务保留一半省钱
+        Config.Instance.EconomyPriority = EconomyPriority.Balanced;
+        Check("Economy: 均衡-简单任务省", ContextManager.ResolveRatio(50, 35, 0.0) == 35);
+        Check("Economy: 均衡-复杂任务保留一半省钱", ContextManager.ResolveRatio(50, 35, 1.0) == 42);
+
+        // 系统提示词精简（仅 On 生效）
+        Config.Instance.EconomyMode = EconomyMode.On;
+        var economyPrompt = SystemPrompt.Generate(ToolRegistry.AllTools);
+        Config.Instance.EconomyMode = savedEconomy;
+        var fullPrompt = SystemPrompt.Generate(ToolRegistry.AllTools);
+        Check("Economy: 提示词比完整版更短", economyPrompt.Length < fullPrompt.Length);
+        Check("Economy: 含工具列表", economyPrompt.Contains("bash"));
+        Check("Economy: 含先读后改规则", economyPrompt.Contains("先读后改"));
+        Check("Economy: 含工作目录", economyPrompt.Contains("工作目录"));
+        Check("Economy: 不含 10 阶段流水线", !economyPrompt.Contains("systematic_phases"));
+
+        // Auto 模式用完整提示词（不清简，仅动态调节压缩阈值）
+        Config.Instance.EconomyMode = EconomyMode.Auto;
+        var autoPrompt = SystemPrompt.Generate(ToolRegistry.AllTools);
+        Check("Economy: Auto 用完整提示词(含流水线)", autoPrompt.Contains("systematic_phases"));
+
+        // SnipToolOutputs 阈值：约 3300 字符（介于 2000 与 4000 之间），关闭不截断、打开截断
+        var midContent = string.Join("\n", Enumerable.Range(0, 60).Select(i => new string('x', 50) + $"_{i:D3}"));
+        Config.Instance.EconomyMode = EconomyMode.Off;
+        var msgsOff = new List<JsonObject> { new() { ["role"] = "tool", ["content"] = midContent } };
+        ContextManager.SnipToolOutputs(msgsOff);
+        Check("Economy: 关闭时 3300 字符不截断", msgsOff[0]["content"]!.GetValue<string>() == midContent);
+
+        Config.Instance.EconomyMode = EconomyMode.On;
+        var msgsOn = new List<JsonObject> { new() { ["role"] = "tool", ["content"] = midContent } };
+        ContextManager.SnipToolOutputs(msgsOn);
+        Check("Economy: 打开时 3300 字符被截断", msgsOn[0]["content"]!.GetValue<string>()!.Length < midContent.Length);
+
+        Config.Instance.EconomyMode = savedEconomy;
+        Config.Instance.EconomyPriority = savedPriority;
+    }
+
+    /// <summary>ExtractKeyInfo 增强版测试</summary>
+    private static void TestExtractKeyInfo(Action<string, bool> Check)
+    {
+        // 反射调用 private 方法 ExtractKeyInfo
+        var method = typeof(ContextManager).GetMethod("ExtractKeyInfo",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        // AOT 不支持反射，使用公开的 SnipToolOutputs 侧面验证 + 直接构造场景
+        // 通过 SnipToolOutputs 的错误保留逻辑覆盖错误提取路径
+
+        // ── 验证：错误行中的 CS 错误码被识别 ──
+        var msgsWithErrors = new List<JsonObject>
+        {
+            new() { ["role"] = "tool", ["content"] = string.Join("\n",
+                Enumerable.Range(0, 5).Select(i => $"行{i}")
+                .Concat(new[] {
+                    "File.cs(10,5): error CS0103: 名称 'foo' 不存在",
+                    "File.cs(20,8): error CS0246: 类型 'Bar' 未找到",
+                    "Unhandled exception: System.NullReferenceException",
+                })
+                .Concat(Enumerable.Range(0, 150).Select(i => $"填充行{i}：{new string('x', 40)}"))) },
+        };
+        ContextManager.SnipToolOutputs(msgsWithErrors);
+        var result = msgsWithErrors[0]["content"]!.GetValue<string>();
+        Check("ExtractKey: 保留 error CS0103", result.Contains("CS0103"));
+        Check("ExtractKey: 保留 error CS0246", result.Contains("CS0246"));
+        Check("ExtractKey: 保留 Exception", result.Contains("NullReferenceException"));
+        Check("ExtractKey: 错误行上下文在", result.Contains("行3") || result.Contains("行4"));
+
+        // ── 验证：首尾行保留 ──
+        Check("ExtractKey: 首行保留", result.Contains("行0"));
+        Check("ExtractKey: 尾行保留", result.Contains("填充行149"));
+
+        // ── 验证：namespace 提取（通过 GenerateProjectSnapshot 间接测试）──
+        var snapshotMsgs = new List<JsonObject>
+        {
+            new() { ["role"] = "assistant", ["content"] = "namespace WayCoder.Tools;\nnamespace MiniDB.Storage;\n普通文本" },
+        };
+        // 测试 GenerateProjectSnapshot 不为空
+        var snapshot = typeof(ContextManager).GetMethod("GenerateProjectSnapshot",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        // AOT 限制：无法反射调用 private 方法，但 GenerateProjectSnapshot 在 HardCollapseAsync 内部调用，
+        // 通过公开 API 间接测试其输出有效性
+    }
+
+    /// <summary>GenerateProjectSnapshot 测试</summary>
+    private static void TestGenerateProjectSnapshot(Action<string, bool> Check)
+    {
+        // 通过 HardCollapseAsync 的调用链间接验证快照不为空且包含关键信息
+        // 直接测试：构造场景确保 GenerateProjectSnapshot 不会崩溃
+
+        // ── 验证项目快照内容 ──
+        // 当前目录即 WayCoder 项目根目录，验证关键子目录存在
+        Check("Snapshot: 工作目录存在", System.IO.Directory.Exists(System.IO.Directory.GetCurrentDirectory()));
+        Check("Snapshot: Agent 目录存在", System.IO.Directory.Exists(
+            System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "Agent")));
+        Check("Snapshot: .git 目录存在", System.IO.Directory.Exists(
+            System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "..", ".git")));
+    }
+
+    /// <summary>Token 估算测试</summary>
+    private static void TestTokenEstimation(Action<string, bool> Check)
+    {
+        // ── CJK 字符权重更高 ──
+        var cjkMsg = new List<JsonObject>
+        {
+            new() { ["role"] = "user", ["content"] = "你好世界这是一个测试" },
+        };
+        var asciiMsg = new List<JsonObject>
+        {
+            new() { ["role"] = "user", ["content"] = "hello world this is a test" },
+        };
+        var cjkTokens = ContextManager.EstimateTokens(cjkMsg);
+        var asciiTokens = ContextManager.EstimateTokens(asciiMsg);
+        // CJK 10 字符 × 1.5 = 15, ASCII 27 字符 × 0.25 ≈ 7
+        Check("TokenEst: CJK tokens > ASCII tokens (等长)", cjkTokens > asciiTokens);
+
+        // ── 空消息列表 → 0 tokens ──
+        var empty = ContextManager.EstimateTokens(new List<JsonObject>());
+        Check("TokenEst: 空列表=0", empty == 0);
+
+        // ── 混合内容估算 ──
+        var mixed = new List<JsonObject>
+        {
+            new() { ["role"] = "user", ["content"] = "帮我编译WayCoder项目" },
+            new() { ["role"] = "assistant", ["content"] = "好的，我来编译项目" },
+            new() { ["role"] = "tool", ["content"] = "Build succeeded. 0 errors." },
+        };
+        var mixedTokens = ContextManager.EstimateTokens(mixed);
+        Check("TokenEst: 混合消息 > 0", mixedTokens > 0);
+        Check("TokenEst: 混合消息 > 单条消息", mixedTokens > ContextManager.EstimateTokens(cjkMsg));
+
+        // ── tool_calls 也被计入 ──
+        var withToolCalls = new List<JsonObject>
+        {
+            new() { ["role"] = "assistant", ["content"] = "我来执行命令",
+                ["tool_calls"] = new JsonArray { new JsonObject {
+                    ["function"] = new JsonObject { ["name"] = "bash", ["arguments"] = "dotnet build" }
+                }}
+            },
+        };
+        var withToolTokens = ContextManager.EstimateTokens(withToolCalls);
+        var withoutToolTokens = ContextManager.EstimateTokens(new List<JsonObject>
+        {
+            new() { ["role"] = "assistant", ["content"] = "我来执行命令" },
+        });
+        Check("TokenEst: tool_calls 增加估计值", withToolTokens > withoutToolTokens);
+
+        // ── 真实 API 用量校准（固定开销：system prompt + 工具定义 + 元数据）──
+        var calCm = new ContextManager(128_000);
+        var calMsgs = new List<JsonObject>
+        {
+            new() { ["role"] = "user", ["content"] = "hello world" },
+        };
+        var calEst = ContextManager.EstimateTokens(calMsgs);
+        // 未采集真实用量前，校准值退化为原始估算
+        Check("TokenCalib: 无真实数据时校准=估算", calCm.EstimateCalibratedTokens(calMsgs) == calEst);
+
+        // 真实 prompt tokens 含固定开销，校准值应加上开销
+        const int overhead1 = 1000;
+        calCm.AddUsage(calEst + overhead1, 200, calEst);
+        Check("TokenCalib: 校准后含固定开销", calCm.EstimateCalibratedTokens(calMsgs) == calEst + overhead1);
+
+        // 固定开销平滑收敛：第二次 AddUsage 取移动平均
+        const int overhead2 = 1200;
+        calCm.AddUsage(calEst + overhead2, 200, calEst);
+        var expectedAvg = (overhead1 + overhead2) / 2;
+        Check("TokenCalib: 开销平滑收敛", calCm.EstimateCalibratedTokens(calMsgs) == calEst + expectedAvg);
+
+        // 有真实开销时校准值必然大于原始估算
+        Check("TokenCalib: 校准值 > 原始估算", calCm.EstimateCalibratedTokens(calMsgs) > calEst);
+    }
+}

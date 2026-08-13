@@ -2097,6 +2097,29 @@ public class ChatScreen : TuiScreen
         return resolved;
     }
 
+    /// <summary>
+    /// 计划审批确认框（Plan 模式审批门）—— 展示计划摘要，用户批准后返回 true。
+    /// 完整计划已在聊天流中展示，对话框内只放摘要避免超长溢出。
+    /// </summary>
+    public bool ShowPlanApproval(string planSummary, string planDetail)
+    {
+        using var evt = new ManualResetEventSlim(false);
+        bool approved = false;
+
+        var dialogBody = planDetail.Length > 600
+            ? planDetail[..600] + "\n\n…（完整计划见上方聊天记录）"
+            : planDetail;
+
+        var win = TuiDialog.Confirm("📋 计划审批", dialogBody, r =>
+        {
+            approved = r;
+            evt.Set();
+        });
+        ShowWindow(win);
+        RenderWait(evt);
+        return approved;
+    }
+
     /// <summary>渲染循环等待对话框关闭</summary>
     private void RenderWait(ManualResetEventSlim evt)
     {

@@ -4,7 +4,7 @@
 
 **中文版易用编程智能体，C# (.NET 10) 实现，AOT 编译为单文件 exe（~8 MB），无需运行时。**
 
-*一个 while 循环 + 大模型 + 31 个工具 + Watch 模式，就是全部*
+*一个 while 循环 + 大模型 + 41 个工具 + Watch 模式，就是全部*
 
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -57,7 +57,7 @@ dotnet run -- --economy          # 开：精简提示词 + 更早压缩 + 输出
 dotnet run -- --economy auto     # 自动：按任务复杂度动态调节阈值（简单省、复杂保质量）
 # 优先级偏好（仅 auto 生效）：WAYCODER_ECONOMY_PRIORITY=quality|balanced|cost（默认 quality）
 
-# 运行自测（1684 项）
+# 运行自测（1706 项）
 dotnet run -- --test
 ```
 
@@ -95,7 +95,7 @@ WayCoder/
 ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1684 项自测
+├── SelfTest.cs        1706 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
 ├── Infra/             基础设施 (12+ 文件)
 │   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
 │   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)
@@ -117,7 +117,7 @@ WayCoder/
 │   │   ├── TuiListView.cs   懒列表 (二分查找 + 提前终止)
 │   │   └── TuiButton.cs     增强按钮 (快捷键下划线/悬停)
 │   └── TuiScreens/        全屏界面
-└── Tools/             39 个工具
+└── Tools/             41 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
     ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
@@ -131,10 +131,11 @@ WayCoder/
     ├── DocTool.cs     ExportTool.cs StructTodoTool.cs
     ├── DownloadTool.cs JobOutputTool.cs JobKillTool.cs
     ├── NotebookEditTool.cs MultiEditTool.cs
-    └── AskUserQuestionTool.cs
+    ├── AskUserQuestionTool.cs ScreenshotTool.cs
+    └── ViewImageTool.cs
 ```
 
-## 39 个工具
+## 41 个工具
 
 | 工具 | 用途 |
 |---|---|
@@ -177,6 +178,8 @@ WayCoder/
 | `job_output` | 读取后台 bash 任务输出 |
 | `job_kill` | 终止后台 bash 任务 |
 | `ask_user` | 向用户提问确认（单/多选 + 文本输入） |
+| `screenshot` | 抓屏（终端文本 / 桌面 PNG + OCR） |
+| `view_image` | 查看本地图片，附加到下一轮请求让 vision 模型读取 |
 
 ## REPL 命令
 
@@ -235,6 +238,7 @@ quit / exit      退出 (Ctrl+Q)
 - **结构化记忆**：`.waycoder/memory/*.md` frontmatter 多文件 + MEMORY.md 索引，支持跨会话检索
 - **Diff 预览**：`WAYCODER_DIFF_PREVIEW=1` 开启写文件前逐 hunk 确认，非交互模式自动跳过
 - **Bash 安全防护**：70+ 禁止命令 + 47 安全白名单，管道中每个命令独立检查
+- **计划审批门**：`计划` 模式（Shift+Tab）下模型产出计划后不自动执行，就地弹出审批框——批准则切回 `建造` 模式继续执行，拒绝则停止（对标 Claude Code Plan Mode）
 
 ## 贡献 / License
 

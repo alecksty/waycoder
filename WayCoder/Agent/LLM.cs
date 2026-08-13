@@ -93,6 +93,84 @@ public class LLM
     /// <summary>实际使用的模型名</summary>
     public string EffectiveModel => ModelOverride ?? Model;
 
+    // ── 视觉（多模态）支持 ──
+
+    /// <summary>待附加到下一轮请求的图片路径（由 view_image 工具填充，Agent 主循环在下一轮消费）</summary>
+    private static readonly List<string> PendingImages = [];
+    private static readonly object _pendingImagesLock = new();
+
+    /// <summary>将图片加入待发送队列（线程安全）</summary>
+    public static void QueueImage(string path)
+    {
+        lock (_pendingImagesLock) PendingImages.Add(path);
+    }
+
+    /// <summary>取走并清空待发送图片（线程安全）</summary>
+    public static List<string> DrainImages()
+    {
+        lock (_pendingImagesLock)
+        {
+            var copy = new List<string>(PendingImages);
+            PendingImages.Clear();
+            return copy;
+        }
+    }
+
+    /// <summary>判断模型是否支持图片输入（vision）。用于 view_image 工具与 Agent 主循环的门控。</summary>
+    public static bool ModelSupportsVision(string? model)
+    {
+        if (string.IsNullOrWhiteSpace(model)) return false;
+        var m = model.ToLowerInvariant();
+        return m.Contains("gpt-4o") || m.Contains("gpt-4.1") || m.Contains("gpt-5")
+            || m.Contains("claude") || m.Contains("gemini") || m.Contains("vision")
+            || m.Contains("qwen-vl") || m.Contains("glm-4v") || m.Contains("llava")
+            || m.Contains("pixtral") || m.Contains("grok") || m.Contains("minimax")
+            || m.Contains("doubao") || m.Contains("hunyuan");
+    }
+
+    /// <summary>
+    /// 构造一条带图片的多模态 user 消息（OpenAI 兼容格式）。
+    /// content 为数组：[{type:text,text}, {type:image_url,image_url:{url:data:...}}]。
+    /// </summary>
+    public static JsonObject BuildImageMessage(string text, List<string> imagePaths)
+    {
+        var parts = new JsonArray();
+        if (!string.IsNullOrWhiteSpace(text))
+            parts.Add(new JsonObject { ["type"] = "text", ["text"] = text });
+
+        foreach (var p in imagePaths)
+        {
+            try
+            {
+                var bytes = File.ReadAllBytes(p);
+                var b64 = Convert.ToBase64String(bytes);
+                var mime = Path.GetExtension(p).ToLowerInvariant() switch
+                {
+                    ".png" => "image/png",
+                    ".jpg" or ".jpeg" => "image/jpeg",
+                    ".gif" => "image/gif",
+                    ".webp" => "image/webp",
+                    _ => "image/png",
+                };
+                parts.Add(new JsonObject
+                {
+                    ["type"] = "image_url",
+                    ["image_url"] = new JsonObject { ["url"] = $"data:{mime};base64,{b64}" },
+                });
+            }
+            catch
+            {
+                // 单张图片读取失败：跳过该图，不影响其余
+            }
+        }
+
+        // 兜底：若所有图都失败，退化为纯文本消息，避免 content 空数组
+        if (parts.Count == 0)
+            return new JsonObject { ["role"] = "user", ["content"] = text };
+
+        return new JsonObject { ["role"] = "user", ["content"] = parts };
+    }
+
     // 每百万 token 的定价：（输入，输出）
     private static readonly Dictionary<string, (double Input, double Output)> Pricing = new()
     {

@@ -46,6 +46,8 @@ public static class ToolRegistry
         new MultiEditTool(),
         new StructTodoTool(),
         new ExportTool(),
+        new ScreenshotTool(),
+        new ViewImageTool(),
     ];
 
     /// <summary>所有工具（内置 + MCP 自动发现）</summary>

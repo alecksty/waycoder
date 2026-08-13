@@ -1,5 +1,34 @@
 # 更新日志
 
+## v0.48.0 (2026-08-14) — 计划审批门 + 抓屏/多模态视觉 + SelfTest 拆分
+
+### 🧠 计划审批门（对标 Claude Code Plan Mode）
+
+- `计划` 模式（Shift+Tab）下模型产出计划后不再自动催促执行，而是就地弹出审批框
+- 批准 → 自动切回 `建造` 模式继续执行；拒绝 → 停止并返回计划
+- `Agent.ShouldPromptPlanApproval(mode, contentLen)` 纯逻辑判定 + `ChatScreen.ShowPlanApproval` 审批对话框（Y/N 快捷键）
+- `WorkModeManager.ModeChanged` 统一同步槽位持久模式与状态栏，修复批准后状态栏仍显示"计划"的错位
+- 非 TUI 环境（一次性模式/管道/测试）自动批准，不阻塞
+
+### 📸 抓屏工具（`screenshot`）
+
+- 新增 `screenshot` 工具：终端文本抓屏（去除 ANSI）+ 桌面 PNG 抓屏（macOS `screencapture`）+ 区域抓屏
+- 桌面截图可选 OCR（检测到 tesseract 时自动提取文本）
+
+### 👁️ 多模态视觉（`view_image`）
+
+- 新增 `view_image` 工具：把本地图片附加到下一轮请求，让支持 vision 的模型直接"看图"
+- `LLM.ModelSupportsVision` 门控：仅 gpt-4o/gpt-5/claude/gemini 等 vision 模型注入，DeepSeek 等文本模型自动跳过避免 400
+- 配合 `screenshot` 实现「抓屏 → 看图修 bug」闭环
+
+### 🧪 SelfTest 拆分
+
+- 5879 行单文件 `SelfTest.cs` 拆为 11 个 partial 文件（`SelfTest.cs` 核心 + `Chunk1-9` + `Helpers`），单文件最大 863 行
+
+### 🧪 自测
+
+- 1706 项自测全部通过（0 失败）
+
 ## v0.47.12 (2026-08-13) — /pause 优雅暂停 + 主循环稳健性修复 + Windows 打包脚本
 
 ### ⏸️ 优雅暂停（Ctrl+Z）
