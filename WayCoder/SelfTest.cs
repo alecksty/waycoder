@@ -555,6 +555,18 @@ public static class SelfTest
             (long)row0[0]! == 1 && (long)row0[1]! == 2 &&
             outerGrid[1] is List<object?> row1 && (long)row1[0]! == 3);
 
+        // ── v0.47.11: ParseArgs 重复键容错（后者覆盖，不再抛 ArgumentException）──
+        // LLM 偶发输出含重复键的工具参数（如 agent 工具 {"task":"a","task":"b"}），
+        // JsonNode 解析后枚举会抛「已存在相同键 Key: task」，导致该轮工具参数被丢弃。
+        var dupArgs = LLM.ParseArgs("{\"task\": \"a\", \"task\": \"b\"}");
+        Check("ParseArgs 重复键后者覆盖",
+            dupArgs.ContainsKey("task") && (string)dupArgs["task"]! == "b" && dupArgs.Count == 1);
+        // 嵌套对象内重复键同样容错
+        var dupNested = LLM.ParseArgs("{\"cfg\": {\"x\": 1, \"x\": 2}}");
+        Check("ParseArgs 嵌套重复键后者覆盖",
+            dupNested["cfg"] is Dictionary<string, object?> dupCfg &&
+            dupCfg.Count == 1 && (long)dupCfg["x"]! == 2);
+
         // ── v0.36.0: LLMResponse.ReasoningTokens 字段 ──
         var testResp = new LLMResponse
         {
@@ -817,6 +829,14 @@ public static class SelfTest
         var readTool = ToolRegistry.GetTool("read_file")!;
         var agent2 = new Agent(new LLM("test", "sk-test"), [readTool!]);
         Check("工具范围隔离", agent2.ToolByName.Count == 1 && agent2.ToolByName.ContainsKey("read_file"));
+
+        // 优雅暂停标志（Ctrl+Z / /pause）
+        var pauseAgent = new Agent(new LLM("test", "sk-test"));
+        Check("PauseRequested 默认 false", pauseAgent.PauseRequested == false);
+        pauseAgent.PauseRequested = true;
+        Check("PauseRequested 可置位", pauseAgent.PauseRequested == true);
+        pauseAgent.PauseRequested = false;
+        Check("PauseRequested 可复位", pauseAgent.PauseRequested == false);
         Console.WriteLine();
 
         // ---- JsonHelper ----

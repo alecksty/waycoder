@@ -817,6 +817,12 @@ public class Program
                 var key = Console.ReadKey(intercept: true);
                 if (key.Key == ConsoleKey.Escape)
                     cts.Cancel();
+                else if (key.Key == ConsoleKey.Z && key.Modifiers.HasFlag(ConsoleModifiers.Control))
+                {
+                    // Ctrl+Z 优雅暂停：置位标志，Agent 在当前批次完成后的下一轮边界停机
+                    _agent!.PauseRequested = true;
+                    screen_!.AddSystemMsg("⏸ 已请求暂停 — 当前批次完成后自动提交并停机（再按 Esc 立即中断）");
+                }
                 else if (key.Key == ConsoleKey.Q && key.Modifiers.HasFlag(ConsoleModifiers.Control))
                 {
                     cts.Cancel();
@@ -1017,6 +1023,12 @@ public class Program
         {
             screen.AddSystemMsg("📋 计划模式");
             await PlanModeAsync();
+            return;
+        }
+
+        if (userInput == "/pause")
+        {
+            screen.AddSystemMsg("⏸ 暂停请在 Agent 运行时按 Ctrl+Z（当前批次完成后优雅停机并提交）。Esc 为立即中断。");
             return;
         }
 
@@ -1368,7 +1380,7 @@ public class Program
 
     private static void ShowHelpInChat(ChatScreen screen)
     {
-        screen.AddSystemMsg("快捷键: F1-F10槽位 Shift+Tab切模式 Esc中断 Ctrl+E编辑器 Ctrl+T设置 Ctrl+R搜索 Ctrl+M模型 Ctrl+G推理深度 Ctrl+S会话管理 Ctrl+P提示 Ctrl+B侧栏 Ctrl+H帮助 Ctrl+Q退出 PgUp/PgDn翻页 Ctrl+Home/End首尾 ↑↓历史 Ctrl+V粘贴 Ctrl+Shift+F1/F2主题 · 命令: /help /model /tokens /compact /diff /save /resume /history /sessions");
+        screen.AddSystemMsg("快捷键: F1-F10槽位 Shift+Tab切模式 Esc中断 Ctrl+Z暂停 Ctrl+E编辑器 Ctrl+T设置 Ctrl+R搜索 Ctrl+M模型 Ctrl+G推理深度 Ctrl+S会话管理 Ctrl+P提示 Ctrl+B侧栏 Ctrl+H帮助 Ctrl+Q退出 PgUp/PgDn翻页 Ctrl+Home/End首尾 ↑↓历史 Ctrl+V粘贴 Ctrl+Shift+F1/F2主题 · 命令: /help /model /tokens /compact /diff /save /resume /pause /history /sessions");
     }
 
     /// <summary>搜索对话历史中的关键词。</summary>

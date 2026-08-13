@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using WayCoder.Tools;
 
 namespace WayCoder;
@@ -56,6 +55,13 @@ public class Agent
 
     /// <summary>Architect 双模型模式：大模型出计划，小模型执行</summary>
     public bool ArchitectMode { get; set; }
+
+    /// <summary>
+    /// 优雅暂停请求标志（volatile：主线程写、Agent 循环线程读）。
+    /// 置位后，Agent 在当前批次完成后的下一轮边界停机——提交进度 + 写检查点 + 存会话，
+    /// 而非像 Esc 那样立即硬砍。
+    /// </summary>
+    public volatile bool PauseRequested;
 
     /// <summary>最大对话轮次（-1 表示从 Config.Instance.MaxRounds 读取）</summary>
     private readonly int _effectiveMaxRounds;
@@ -405,6 +411,14 @@ public class Agent
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            // ── 优雅暂停（Ctrl+Z）──
+            // 收到暂停请求后，在当前批次完成后的下一轮边界停机：提交进度 + 写检查点 + 存会话。
+            if (PauseRequested)
+            {
+                PauseRequested = false;
+                return await GracefulPauseAsync(onToken);
+            }
+
             // 预算检查：超过上限则停止
             if (_maxBudgetUsd != null)
             {
@@ -693,6 +707,43 @@ public class Agent
             File.WriteAllText(path, report);
         }
         catch { /* 报告生成失败不影响主流程 */ }
+    }
+
+    /// <summary>
+    /// 优雅暂停：提交本轮进度 → 写检查点 → 保存会话，然后返回暂停提示。
+    /// 与 Esc 硬中断的区别：不丢当前批次的工作，恢复后可从提交点继续。
+    /// </summary>
+    private async Task<string> GracefulPauseAsync(Action<string>? onToken)
+    {
+        onToken?.Invoke("\n⏸ **优雅暂停：提交进度 + 保存状态…**\n");
+
+        // 1. 提交 Agent 本轮修改的文件。仅提交 Agent 自己改过的文件（不做 git-status 全量兜底），
+        //    避免把用户与本任务无关的未提交改动一并卷进去。
+        try
+        {
+            await AutoCommitAsync(fallbackToGitStatus: false);
+        }
+        catch (Exception ex) { DebugLog.Log("pause", $"暂停提交失败: {ex.Message}"); }
+
+        // 2. 写检查点（未提交的残留改动可回滚；工作区干净则为空标记）
+        try
+        {
+            var cp = await CheckpointManager.CreateAsync("pause 优雅暂停");
+            if (cp != null)
+                onToken?.Invoke($"  📦 检查点 #{cp.Id} 已创建\n");
+        }
+        catch (Exception ex) { DebugLog.Log("pause", $"暂停检查点失败: {ex.Message}"); }
+
+        // 3. 保存会话到 _auto，下次启动 TryRestoreSession 可用 /resume 恢复
+        try
+        {
+            SessionManager.SaveSession(Messages, LlmClient.EffectiveModel, "_auto");
+        }
+        catch (Exception ex) { DebugLog.Log("pause", $"暂停保存会话失败: {ex.Message}"); }
+
+        var summary = "\n⏸ **已暂停**：当前批次已完成并提交，检查点与会话均已保存。\n输入「继续」或重启后 /resume 从提交点恢复。";
+        onToken?.Invoke(summary);
+        return summary;
     }
 
     /// <summary>使用小模型执行上下文压缩（省钱）</summary>
@@ -1053,7 +1104,7 @@ public class Agent
     }
 
     /// <summary>工具执行后自动 git commit。用小模型生成提交信息。</summary>
-    private async Task AutoCommitAsync()
+    private async Task AutoCommitAsync(bool fallbackToGitStatus = true)
     {
         try
         {
@@ -1068,9 +1119,10 @@ public class Agent
                 _modifiedFiles.Clear();
             }
 
-            // 如果没有追踪到文件修改，检查 git status 兜底
+            // 如果没有追踪到文件修改，检查 git status 兜底（优雅暂停时关闭，避免卷入无关改动）
             if (modifiedFiles.Length == 0)
             {
+                if (!fallbackToGitStatus) return;
                 var status = await RunGitAsync("status --porcelain");
                 if (string.IsNullOrWhiteSpace(status)) return;
                 var lines = status.Trim().Split('\n', StringSplitOptions.RemoveEmptyEntries);
