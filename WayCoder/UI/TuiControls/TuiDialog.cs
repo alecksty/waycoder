@@ -282,6 +282,68 @@ public static class TuiDialog
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // 单行输入对话框
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 单行文本输入对话框（TuiInput + 历史）。
+    /// 复制 Ctrl+Insert、粘贴 Ctrl+V / Shift+Insert（Ctrl+C 全局保留为退出）。
+    /// </summary>
+    public static TuiWindow InputLine(string title, string prompt, string defaultValue,
+        Action<string> onConfirm, Action? onCancel = null)
+    {
+        const int maxPromptLines = 5;
+
+        var displayTitle = string.IsNullOrEmpty(title) || title == "输入" ? "请输入" : title;
+        var win = NewDialog(displayTitle, TuiTheme.Current.DialogInfoBorder, WideXScale);
+        win.MinHeight = 6;
+
+        int cw = ContentW(WideXScale, 2);
+
+        var promptLines = TuiHelper.WrapText(prompt, cw, maxPromptLines);
+
+        var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
+        foreach (var line in promptLines)
+            vbox.Add(new TuiLabel(line) { Width = cw, Fg = TuiColors.Black });
+
+        var hist = TuiInputHistory.Get(title);
+        var initVal = !string.IsNullOrEmpty(defaultValue) ? defaultValue
+            : hist.Count > 0 ? hist[0] : "";
+
+        var input = new TuiInput
+        {
+            Text = initVal,
+            CursorPos = initVal.Length,
+            Width = cw, Height = 1,
+            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Focused = true,
+        };
+        vbox.Add(input);
+
+        vbox.Add(new TuiLabel("") { Height = 1 }); // spacer
+
+        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
+        var okBtn = new TuiButton("确定") { Flex = 1 };
+        var cancelBtn = new TuiButton("取消") { Flex = 1 };
+        okBtn.OnClick = _ =>
+        {
+            var text = input.Text;
+            win.Result = text;
+            if (!string.IsNullOrWhiteSpace(text)) TuiInputHistory.Add(title, text);
+            onConfirm(text);
+            win.OnClosed?.Invoke();
+        };
+        cancelBtn.OnClick = _ => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
+        hbox.Add(okBtn); hbox.Add(cancelBtn);
+        ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, okBtn, cancelBtn);
+        vbox.Add(hbox);
+
+        win.RootView = vbox;
+        ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
+        return win;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // 密码输入对话框
     // ═══════════════════════════════════════════════════════════════
 

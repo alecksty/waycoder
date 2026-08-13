@@ -12,6 +12,8 @@
 
 </div>
 
+> 📖 **使用手册**：[docs/使用手册.md](docs/使用手册.md) — 快速上手、命令速查、快捷键、配置、Watch 模式、FAQ
+
 ## 改名说明
 
 本项目原名 **CoreCoder**，因发现与现有商标/产品名称冲突，为规避侵权风险，自 v0.16.3 起更名为 **WayCoder（道码）**。
@@ -55,7 +57,7 @@ dotnet run -- --economy          # 开：精简提示词 + 更早压缩 + 输出
 dotnet run -- --economy auto     # 自动：按任务复杂度动态调节阈值（简单省、复杂保质量）
 # 优先级偏好（仅 auto 生效）：WAYCODER_ECONOMY_PRIORITY=quality|balanced|cost（默认 quality）
 
-# 运行自测（1617 项）
+# 运行自测（1680 项）
 dotnet run -- --test
 ```
 
@@ -93,7 +95,7 @@ WayCoder/
 ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1617 项自测
+├── SelfTest.cs        1680 项自测
 ├── Infra/             基础设施 (12+ 文件)
 │   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
 │   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)

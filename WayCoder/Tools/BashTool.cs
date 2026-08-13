@@ -24,12 +24,12 @@ public class BashTool : ITool
             ["timeout"] = new JsonObject
             {
                 ["type"] = "integer",
-                ["description"] = "超时时间，单位秒（默认 120）",
+                ["description"] = "超时时间，单位秒（默认 120）。超时后命令自动转入后台继续执行，返回 shell_id，可用 job_output 轮询。",
             },
             ["run_in_background"] = new JsonObject
             {
                 ["type"] = "boolean",
-                ["description"] = "设为 true 则后台运行，立即返回 shell_id。之后用 job_output 读取输出，用 job_kill 终止。默认 60 秒后自动转入后台。",
+                ["description"] = "设为 true 则立即后台运行，返回 shell_id。之后用 job_output 读取输出，用 job_kill 终止。",
             },
             ["auto_background_after"] = new JsonObject
             {
@@ -147,82 +147,105 @@ public class BashTool : ITool
                 };
             }
 
-            using var proc = Process.Start(psi)!;
+            var proc = Process.Start(psi)!;
 
-            // 流式模式：逐行读取 stdout 并回调（沙箱模式不支持流式）
+            // 流式模式：逐行读取 stdout 并回调（沙箱模式不支持流式）。
+            // ExecuteStreaming 内部负责 proc 的 dispose / 迁移。
             if (onLine != null && !SandboxManager.IsSandboxed)
                 return await ExecuteStreaming(proc, command, cwd, timeout, onLine);
 
-            // 非流式模式：保持原有 ReadToEndAsync 逻辑
-            // 立即启动异步读取（防止管道缓冲区满导致死锁）
-            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
-            var stderrTask = proc.StandardError.ReadToEndAsync();
-
-            // 沙箱模式：后台监控内存 + CPU 时间（使用实际处理器时间，非墙上时钟）
-            var sandboxCts = new CancellationTokenSource();
-            Task<string?>? memTask = null;
-            Task<string?>? cpuTask = null;
-            if (SandboxManager.IsSandboxed)
+            var migrated = false;
+            try
             {
-                memTask = SandboxManager.MonitorMemoryAsync(proc, sandboxCts.Token);
-                cpuTask = SandboxManager.MonitorCpuAsync(proc, sandboxCts.Token);
+                // 非流式模式：保持原有 ReadToEndAsync 逻辑
+                // 立即启动异步读取（防止管道缓冲区满导致死锁）
+                var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+                var stderrTask = proc.StandardError.ReadToEndAsync();
+
+                // 沙箱模式：后台监控内存 + CPU 时间（使用实际处理器时间，非墙上时钟）
+                var sandboxCts = new CancellationTokenSource();
+                Task<string?>? memTask = null;
+                Task<string?>? cpuTask = null;
+                if (SandboxManager.IsSandboxed)
+                {
+                    memTask = SandboxManager.MonitorMemoryAsync(proc, sandboxCts.Token);
+                    cpuTask = SandboxManager.MonitorCpuAsync(proc, sandboxCts.Token);
+                }
+
+                // 异步等待进程退出（不阻塞线程）
+                var exitTask = proc.WaitForExitAsync();
+                var delayTask = Task.Delay(timeout * 1000);
+                var completed = await Task.WhenAny(exitTask, delayTask);
+                var exited = completed == exitTask && exitTask.IsCompletedSuccessfully;
+
+                // 取消沙箱监控
+                sandboxCts.Cancel();
+
+                // 检查沙箱资源超限（内存 / CPU）
+                var sandboxViolation = await CheckSandboxMonitorsAsync(memTask, cpuTask);
+                if (sandboxViolation != null)
+                {
+                    if (!exited) proc.Kill(entireProcessTree: true);
+                    return sandboxViolation;
+                }
+
+                if (!exited)
+                {
+                    // 沙箱模式：直接终止以强制资源限制（迁移会绕过内存/CPU 上限）
+                    if (SandboxManager.IsSandboxed)
+                    {
+                        proc.Kill(entireProcessTree: true);
+                        return $"错误：在 {timeout} 秒后超时";
+                    }
+
+                    // 前台超时自动迁移到后台（对标 Crush），进程所有权转移，不再 dispose
+                    var bgId = BackgroundTaskManager.Adopt(proc, command, stdoutTask, stderrTask);
+                    migrated = true;
+                    return $"⏰ 命令已运行超过 {timeout} 秒，自动转入后台继续执行\n" +
+                           $"Shell ID: {bgId}\n" +
+                           $"命令: {command}\n" +
+                           $"使用 job_output 工具读取输出（参数 shell_id={bgId}）\n" +
+                           $"使用 job_kill 工具终止任务（参数 shell_id={bgId}）";
+                }
+
+                // 等待异步读取完成
+                var outStr = await stdoutTask;
+                var errStr = await stderrTask;
+
+                // 跟踪 cd 命令
+                if (proc.ExitCode == 0)
+                {
+                    UpdateCwd(command, cwd);
+                }
+
+                if (!string.IsNullOrEmpty(errStr))
+                    outStr += $"\n[stderr]\n{errStr}";
+                if (proc.ExitCode != 0)
+                    outStr += $"\n[退出码：{proc.ExitCode}]";
+
+                // 保留头尾以保留最有用的信息
+                var maxChars = Config.Instance.BashOutputMaxChars;
+                if (maxChars > 0 && outStr.Length > maxChars)
+                {
+                    var headLen = maxChars * 40 / 100;
+                    var tailLen = maxChars * 40 / 100;
+                    outStr = outStr[..headLen]
+                             + $"\n\n... 已截断（共 {outStr.Length} 字符）...\n\n"
+                             + outStr[^tailLen..];
+                }
+
+                // 文件追踪：检查已读取文件是否被此外部命令修改
+                var changeWarning = FileTracker.GetChangeWarning();
+                if (changeWarning != null)
+                    outStr += "\n\n" + changeWarning;
+
+                return string.IsNullOrWhiteSpace(outStr) ? "（无输出）" : outStr.Trim();
             }
-
-            // 异步等待进程退出（不阻塞线程）
-            var exitTask = proc.WaitForExitAsync();
-            var delayTask = Task.Delay(timeout * 1000);
-            var completed = await Task.WhenAny(exitTask, delayTask);
-            var exited = completed == exitTask && exitTask.IsCompletedSuccessfully;
-
-            // 取消沙箱监控
-            sandboxCts.Cancel();
-
-            // 检查沙箱资源超限（内存 / CPU）
-            var sandboxViolation = await CheckSandboxMonitorsAsync(memTask, cpuTask);
-            if (sandboxViolation != null)
+            finally
             {
-                if (!exited) proc.Kill(entireProcessTree: true);
-                return sandboxViolation;
+                if (!migrated)
+                    proc.Dispose();
             }
-
-            if (!exited)
-            {
-                proc.Kill(entireProcessTree: true);
-                return $"错误：在 {timeout} 秒后超时";
-            }
-
-            // 等待异步读取完成
-            var outStr = await stdoutTask;
-            var errStr = await stderrTask;
-
-            // 跟踪 cd 命令
-            if (proc.ExitCode == 0)
-            {
-                UpdateCwd(command, cwd);
-            }
-
-            if (!string.IsNullOrEmpty(errStr))
-                outStr += $"\n[stderr]\n{errStr}";
-            if (proc.ExitCode != 0)
-                outStr += $"\n[退出码：{proc.ExitCode}]";
-
-            // 保留头尾以保留最有用的信息
-            var maxChars = Config.Instance.BashOutputMaxChars;
-            if (maxChars > 0 && outStr.Length > maxChars)
-            {
-                var headLen = maxChars * 40 / 100;
-                var tailLen = maxChars * 40 / 100;
-                outStr = outStr[..headLen]
-                         + $"\n\n... 已截断（共 {outStr.Length} 字符）...\n\n"
-                         + outStr[^tailLen..];
-            }
-
-            // 文件追踪：检查已读取文件是否被此外部命令修改
-            var changeWarning = FileTracker.GetChangeWarning();
-            if (changeWarning != null)
-                outStr += "\n\n" + changeWarning;
-
-            return string.IsNullOrWhiteSpace(outStr) ? "（无输出）" : outStr.Trim();
         }
         catch (Exception ex)
         {
@@ -257,44 +280,59 @@ public class BashTool : ITool
         var stdoutTask = ReadStream(proc.StandardOutput, "");
         var stderrTask = ReadStream(proc.StandardError, "[stderr] ");
 
-        // 等待进程退出（同时 stdout/stderr 继续流式读取）
-        var exitStream = proc.WaitForExitAsync();
-        var delayStream = Task.Delay(timeout * 1000);
-        var completedStream = await Task.WhenAny(exitStream, delayStream);
-        var exitedStream = completedStream == exitStream && exitStream.IsCompletedSuccessfully;
-
-        if (!exitedStream)
+        var migrated = false;
+        try
         {
-            proc.Kill(entireProcessTree: true);
-            return $"错误：在 {timeout} 秒后超时";
+            // 等待进程退出（同时 stdout/stderr 继续流式读取）
+            var exitStream = proc.WaitForExitAsync();
+            var delayStream = Task.Delay(timeout * 1000);
+            var completedStream = await Task.WhenAny(exitStream, delayStream);
+            var exitedStream = completedStream == exitStream && exitStream.IsCompletedSuccessfully;
+
+            if (!exitedStream)
+            {
+                // 前台超时自动迁移到后台（对标 Crush），进程所有权转移，不再 dispose
+                var bgId = BackgroundTaskManager.AdoptStreaming(proc, command, stdoutTask, stderrTask, () => outBuilder.ToString());
+                migrated = true;
+                return $"⏰ 命令已运行超过 {timeout} 秒，自动转入后台继续执行\n" +
+                       $"Shell ID: {bgId}\n" +
+                       $"命令: {command}\n" +
+                       $"使用 job_output 工具读取输出（参数 shell_id={bgId}）\n" +
+                       $"使用 job_kill 工具终止任务（参数 shell_id={bgId}）";
+            }
+
+            // 给流读取一个收尾窗口
+            await Task.WhenAll(stdoutTask, stderrTask);
+
+            var outStream = outBuilder.ToString();
+
+            if (proc.ExitCode == 0) UpdateCwd(command, cwd);
+
+            if (proc.ExitCode != 0)
+                outStream += $"\n[退出码：{proc.ExitCode}]";
+
+            var maxStreamChars = Config.Instance.BashOutputMaxChars;
+            if (maxStreamChars > 0 && outStream.Length > maxStreamChars)
+            {
+                var headLen = maxStreamChars * 40 / 100;
+                var tailLen = maxStreamChars * 40 / 100;
+                outStream = outStream[..headLen]
+                             + $"\n\n... 已截断（共 {outStream.Length} 字符）...\n\n"
+                             + outStream[^tailLen..];
+            }
+
+            // 文件追踪：检查已读取文件是否被此外部命令修改
+            var streamChangeWarning = FileTracker.GetChangeWarning();
+            if (streamChangeWarning != null)
+                outStream += "\n\n" + streamChangeWarning;
+
+            return string.IsNullOrWhiteSpace(outStream) ? "（无输出）" : outStream.Trim();
         }
-
-        // 给流读取一个收尾窗口
-        await Task.WhenAll(stdoutTask, stderrTask);
-
-        var outStream = outBuilder.ToString();
-
-        if (proc.ExitCode == 0) UpdateCwd(command, cwd);
-
-        if (proc.ExitCode != 0)
-            outStream += $"\n[退出码：{proc.ExitCode}]";
-
-        var maxStreamChars = Config.Instance.BashOutputMaxChars;
-        if (maxStreamChars > 0 && outStream.Length > maxStreamChars)
+        finally
         {
-            var headLen = maxStreamChars * 40 / 100;
-            var tailLen = maxStreamChars * 40 / 100;
-            outStream = outStream[..headLen]
-                         + $"\n\n... 已截断（共 {outStream.Length} 字符）...\n\n"
-                         + outStream[^tailLen..];
+            if (!migrated)
+                proc.Dispose();
         }
-
-        // 文件追踪：检查已读取文件是否被此外部命令修改
-        var streamChangeWarning = FileTracker.GetChangeWarning();
-        if (streamChangeWarning != null)
-            outStream += "\n\n" + streamChangeWarning;
-
-        return string.IsNullOrWhiteSpace(outStream) ? "（无输出）" : outStream.Trim();
     }
 
     /// <summary>

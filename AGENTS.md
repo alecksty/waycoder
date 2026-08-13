@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-本文件为 Claude Code（claude.ai/code）在此仓库中工作时提供指导。
+本文件为 Codex（Codex.ai/code）在此仓库中工作时提供指导。
 
 ## 项目概述
 
@@ -12,7 +12,7 @@ WayCoder（道码）是一个中文版易用编程智能体，C# (.NET 10) 实�
 # C# 版
 cd WayCoder
 dotnet publish -c Release            # AOT 编译
-dotnet run -- --test                 # 1680 自测
+dotnet run -- --test                 # 1407 自测
 dotnet run -- -p "提示词"            # 一次性模式
 dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 ```
@@ -31,7 +31,7 @@ WayCoder/
 ├── Config.cs          配置 (.env 加载)
 ├── WatchMode.cs        Watch 模式 (文件监听 + AI! 注释)
 ├── PermissionManager.cs 权限确认系统
-├── ProjectContext.cs  项目检测 + CLAUDE.md 加载
+├── ProjectContext.cs  项目检测 + AGENTS.md 加载
 ├── ReviewMode.cs      代码审查模式
 ├── FallbackLLM.cs     模型回退链
 ├── MemoryStore.cs     记忆系统 (旧格式, 迁移源)
@@ -39,7 +39,7 @@ WayCoder/
 ├── MemoryRetrieval.cs  跨会话记忆检索 (TF-IDF + 时间衰减)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1680 项自测
+├── SelfTest.cs        1499+ 项自测
 ├── WorkReporter.cs    工作总结报告生成器
 ├── TaskProgress.cs    任务进度追踪
 ├── FileLockManager.cs 文件锁 (防并发修改冲突)
@@ -159,8 +159,6 @@ WayCoder/
 - **SystemPrompt 对标 Crush**：`$"""` 原始字符串改用无 `$` 前缀+`.Replace()` 注入，避免代码示例中 `{` / `{{` 花括号导致 C# 插值解析错误。15 个结构化 XML 区块覆盖编辑/测试/错误恢复/任务完成完整指南
 - **SHA256 循环检测**：每轮对（assistant 消息 + 工具结果）做哈希，8 轮窗口内相同哈希出现 3+ 次触发 3 级递进式反循环提示（换方法→重新评估→严重警告重置）
 - **工具白名单/黑名单**：`WAYCODER_ALLOWED_TOOLS` / `WAYCODER_DISABLED_TOOLS` 环境变量控制 Agent 可用工具集合，构造函数中过滤，对主 Agent 和子 Agent 均生效
-- **Tiny 模式**：`--tiny [窗口]`（如 `--tiny 8k`）精简提示词 + 小窗口；无参自动探测（Ollama `/api/show` 真实 `context_length` → 目录 → 4K 兜底）；模型窗口 `<128K` 自动进入，本地小模型开箱即用
-- **省 Token 模式**：`--economy [on|auto|off]` / `WAYCODER_ECONOMY` 三态开关，保持正常窗口——关=完整；开=精简提示词（砍 RepoMap/Git/记忆/10 阶段流水线）+ 压缩阈值 50/70/90→35/55/75 + 工具输出裁剪 4000→2000 字符 + `max_tokens` 32768→8192；自动=保持完整提示词，压缩/裁剪阈值按任务轮数复杂度动态插值（简单省、复杂保质量），配合 `WAYCODER_ECONOMY_PRIORITY=quality|balanced|cost`（默认 quality，先保质量再省费用）；与 Tiny 的区别是保留正常窗口、面向云端大模型省钱
 
 ## 非显而易见的约束
 

@@ -4,11 +4,17 @@ obj/
 *.user
 .vs/
 *.DotSettings.user
+publish/
+dist/
 
 # Environment
 .env
 .venv/
 venv/
+
+# API keys (personal, never commit)
+key-apis.txt
+key*.txt
 
 # WayCoder
 .corecoder_history

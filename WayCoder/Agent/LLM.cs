@@ -660,13 +660,13 @@ public class LLM
         if (!IsJsonProbablyComplete(json)) return false;
         try
         {
-            var node = JsonNode.Parse(json);
-            if (node is JsonObject obj && obj.Count > 0)
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object && doc.RootElement.GetPropertyCount() > 0)
             {
                 result = new Dictionary<string, object?>();
-                foreach (var (key, value) in obj)
+                foreach (var prop in doc.RootElement.EnumerateObject())
                 {
-                    result[key] = JsonNodeToObject(value);
+                    result[prop.Name] = JsonElementToObject(prop.Value);
                 }
                 return true;
             }
@@ -711,55 +711,57 @@ public class LLM
     }
 
     /// <summary>
-    /// 递归将 JsonNode 转换为普通对象：标量→原生类型，数组→List，对象→Dictionary。
-    /// v0.38.0 修复：此前 JsonArray/JsonObject 被 ToJsonString() 序列化成字符串，
-    /// 导致 agent 工具的 tasks 数组退化成一个大字符串，进而在 ExecuteParallelAsync
-    /// 中被当作 IEnumerable&lt;char&gt; 逐字符遍历，产生"16639 个任务"的 bug。
+    /// 递归将 JsonElement 转换为普通对象：标量→原生类型，数组→List，对象→Dictionary（重复键后者覆盖）。
+    /// 改用 JsonDocument/JsonElement 而非 JsonNode：JsonNode 解析含重复键的 JSON
+    /// （如 agent 工具偶发 {"task":"a","task":"b"}）时枚举会抛 ArgumentException（Key: xxx），
+    /// 导致该轮工具参数失效被丢弃。JsonDocument 保留重复键且枚举不抛异常，后者覆盖即可容错。
     /// </summary>
-    internal static object? JsonNodeToObject(JsonNode? node)
+    private static object? JsonElementToObject(System.Text.Json.JsonElement element)
     {
-        return node switch
+        switch (element.ValueKind)
         {
-            null => null,
-            JsonValue jv => JsonValueToNative(jv),
-            JsonArray arr => arr.Select(JsonNodeToObject).ToList(),
-            JsonObject obj => obj.ToDictionary(kv => kv.Key, kv => JsonNodeToObject(kv.Value)),
-            _ => node.ToJsonString(),
-        };
-    }
-
-    /// <summary>
-    /// 将 JsonValue 转换为真正的原生类型（string/bool/long/double/null），
-    /// 而非 GetValue&lt;object&gt;() 返回的 JsonElement。
-    /// 保证工具参数可直接 (long)x / (bool)x 强转，无需二次拆箱。
-    /// </summary>
-    private static object? JsonValueToNative(JsonValue jv)
-    {
-        return jv.GetValueKind() switch
-        {
-            System.Text.Json.JsonValueKind.Null or System.Text.Json.JsonValueKind.Undefined => null,
-            System.Text.Json.JsonValueKind.True => true,
-            System.Text.Json.JsonValueKind.False => false,
-            System.Text.Json.JsonValueKind.String => jv.GetValue<string>(),
-            System.Text.Json.JsonValueKind.Number => ParseJsonNumber(jv),
-            _ => jv.GetValue<object>(),
-        };
+            case System.Text.Json.JsonValueKind.Null or System.Text.Json.JsonValueKind.Undefined:
+                return null;
+            case System.Text.Json.JsonValueKind.True:
+                return true;
+            case System.Text.Json.JsonValueKind.False:
+                return false;
+            case System.Text.Json.JsonValueKind.String:
+                return element.GetString();
+            case System.Text.Json.JsonValueKind.Number:
+                return ParseJsonNumber(element);
+            case System.Text.Json.JsonValueKind.Array:
+            {
+                var list = new List<object?>();
+                foreach (var item in element.EnumerateArray())
+                    list.Add(JsonElementToObject(item));
+                return list;
+            }
+            case System.Text.Json.JsonValueKind.Object:
+            {
+                var dict = new Dictionary<string, object?>();
+                foreach (var prop in element.EnumerateObject())
+                    dict[prop.Name] = JsonElementToObject(prop.Value); // 重复键后者覆盖
+                return dict;
+            }
+            default:
+                return element.ToString();
+        }
     }
 
     /// <summary>
     /// 将 JSON 数字转换为 long（整数）或 double（小数）。
-    /// 不能依赖 TryGetValue&lt;long&gt;：System.Text.Json 对整数 JSON 值也会走 double 反序列化路径，
-    /// 导致 (long)x 强转抛 InvalidCastException。改用原始文本精确判断整数/小数。
+    /// 对整数 TryGetInt64 成功返回 long；小数（如 3.14）TryGetInt64 返回 false 需回退 TryGetDouble；
+    /// 超大整数两者都失败时退回原始文本，避免精度丢失。
     /// </summary>
-    private static object ParseJsonNumber(JsonValue jv)
+    private static object ParseJsonNumber(System.Text.Json.JsonElement element)
     {
-        var raw = jv.ToJsonString();
-        if (long.TryParse(raw, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var l))
+        if (element.TryGetInt64(out var l))
             return l;
-        if (double.TryParse(raw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d))
+        if (element.TryGetDouble(out var d))
             return d;
         // 超大整数或异常数字：退回原始文本，避免精度丢失
-        return raw;
+        return element.GetRawText();
     }
 
     public static Dictionary<string, object?> ParseArgs(string json)
@@ -767,12 +769,12 @@ public class LLM
         var result = new Dictionary<string, object?>();
         try
         {
-            var node = JsonNode.Parse(json);
-            if (node is JsonObject obj)
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object)
             {
-                foreach (var (key, value) in obj)
+                foreach (var prop in doc.RootElement.EnumerateObject())
                 {
-                    result[key] = JsonNodeToObject(value);
+                    result[prop.Name] = JsonElementToObject(prop.Value);
                 }
             }
         }
