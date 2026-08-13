@@ -56,6 +56,16 @@ public static class ApiKeyStore
     public static bool Has(string providerId) =>
         Load().ContainsKey(providerId.ToLowerInvariant());
 
+    /// <summary>
+    /// 按模型 ID 解析其供应商，返回该供应商已存 key；模型不在目录或未存 key 返回 null。
+    /// 用于 env 无 key 时从全局 JSON 多 key 存储回退（对标 OpenCode/Crush）。
+    /// </summary>
+    public static string? ForModel(string modelId)
+    {
+        var info = ModelCatalog.Find(modelId);
+        return info != null ? Get(info.ProviderId) : null;
+    }
+
     /// <summary>获取 Key 的脱敏显示（如 sk-...abc123）</summary>
     public static string? Masked(string providerId)
     {

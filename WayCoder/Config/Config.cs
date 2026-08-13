@@ -82,6 +82,9 @@ public class Config
                         ?? Environment.GetEnvironmentVariable("API_KEY")
                         ?? "";
                 }
+                // env 无 key 时，从全局 JSON（api_keys.json）按当前模型供应商查找（对标 OpenCode/Crush 多 key 存储）
+                if (string.IsNullOrEmpty(_instance.ApiKey))
+                    _instance.ApiKey = ApiKeyStore.ForModel(_instance.Model) ?? "";
                 // 特殊处理：BaseUrl 多路回退
                 if (string.IsNullOrEmpty(_instance.BaseUrl))
                 {

@@ -2028,6 +2028,11 @@ public static class SelfTest
         Check("ModelCli.List 过滤 deepseek", ModelCli.List("deepseek").Contains("DeepSeek"));
         Check("ModelCli.ListKeys 可读", ModelCli.ListKeys().Length >= 0);
 
+        // env 无 key 时按模型供应商从全局 JSON 回退（多服务商一键切换）
+        Check("模型→供应商解析 deepseek", ModelCatalog.Find("deepseek-v4-flash")?.ProviderId == "deepseek");
+        Check("模型→供应商解析 openai", ModelCatalog.Find("gpt-5.5")?.ProviderId == "openai");
+        Check("ApiKeyStore.ForModel 未知模型返回 null", ApiKeyStore.ForModel("no-such-model-xyz") == null);
+
         Console.WriteLine();
 
         // ---- 会话管理 ----
