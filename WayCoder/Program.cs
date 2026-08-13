@@ -101,6 +101,7 @@ public class Program
         bool yoloMode = Arguments.CliArgRegistry.Has(parsed, "yolo");
         bool watchMode = Arguments.CliArgRegistry.Has(parsed, "watch");
         bool tinyMode = Arguments.CliArgRegistry.Has(parsed, "tiny");
+        string? tinyWindowSpec = Arguments.CliArgRegistry.Get(parsed, "tiny");
 
         if (Arguments.CliArgRegistry.Has(parsed, "version"))
         {
@@ -154,11 +155,6 @@ public class Program
         if (apiKey != null) _config.ApiKey = apiKey;
         if (maxBudget != null) _config.MaxBudgetUsd = maxBudget;
         if (watchMode) _config.WatchMode = true;
-        if (tinyMode)
-        {
-            _config.TinyMode = true;
-            _config.MaxContextTokens = Config.TinyContextWindow; // 4K
-        }
 
         // 从模型目录自动设置 base URL（支持 Ollama/DeepSeek/OpenAI 等所有模型）
         if (_config.BaseUrl == null)
@@ -166,6 +162,22 @@ public class Program
             var catInfo = ModelCatalog.Find(_config.Model);
             if (catInfo?.DefaultBaseUrl != null)
                 _config.BaseUrl = catInfo.DefaultBaseUrl;
+        }
+
+        // Tiny 模式：显式 --tiny（可指定窗口），或模型窗口 <128K 自动进入（本地小模型）
+        if (tinyMode)
+        {
+            _config.TinyMode = true;
+            _config.TinyWindow = ModelCatalog.ResolveTinyWindow(tinyWindowSpec, _config.Model, _config.BaseUrl);
+        }
+        else
+        {
+            var probed = ModelCatalog.ProbeModelWindow(_config.Model, _config.BaseUrl, _config.MaxContextTokens);
+            if (probed < Config.TinyAutoThreshold)
+            {
+                _config.TinyMode = true;
+                _config.TinyWindow = probed;
+            }
         }
 
         // Local/Ollama 模型不需要 API key
