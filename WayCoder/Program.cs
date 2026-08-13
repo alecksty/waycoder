@@ -122,6 +122,14 @@ public class Program
             return 0;
         }
 
+        // 一次性自动升级（--update）：检查并自替换，幂等（已最新则提示后退出）
+        if (Arguments.CliArgRegistry.Has(parsed, "update"))
+        {
+            var updateResult = await UpdateChecker.SelfUpdateAsync();
+            Console.WriteLine(updateResult);
+            return updateResult.StartsWith("✅", StringComparison.Ordinal) ? 0 : 1;
+        }
+
         // 项目初始化向导
         if (Arguments.CliArgRegistry.Has(parsed, "init"))
         {
@@ -494,6 +502,18 @@ public class Program
 
         // 尝试恢复上次会话
         TryRestoreSession(screen);
+
+        // 启动后台版本检查（异步、静默，有新版本才提示；不阻塞主循环）
+        _ = UpdateChecker.CheckAsync().ContinueWith(t =>
+        {
+            try
+            {
+                var msg = t.IsCompletedSuccessfully ? t.Result : "";
+                if (msg.StartsWith("🆕", StringComparison.Ordinal))
+                    screen.AddSystemMsg(msg);
+            }
+            catch { /* REPL 已退出时静默忽略 */ }
+        });
 
         // 注入 ChatScreen 回调
         screen.OnCycleModel = () => CycleModel(screen);

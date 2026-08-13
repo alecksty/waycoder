@@ -1,0 +1,74 @@
+# WayCoder 发布工作流
+# 触发：推送 v* 标签（如 v0.48.7）→ 各平台 NativeAOT 编译 → 创建 GitHub Release 并上传资产
+# 资产命名与 scripts/package.sh 一致：waycoder-<版本>-<RID>.zip / .tar.gz（供自动升级 + winget/brew 拉取）
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: macos-14
+            rid: osx-arm64
+          - os: macos-13
+            rid: osx-x64
+          - os: windows-latest
+            rid: win-x64
+          # arm64 平台需自托管 runner 或交叉编译工具链：
+          # - { os: ubuntu-24.04-arm, rid: linux-arm64 }
+          # - { os: windows-11-arm, rid: win-arm64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Publish (NativeAOT)
+        run: >
+          dotnet publish WayCoder/WayCoder.csproj
+          -c Release -r ${{ matrix.rid }}
+          -o dist/${{ matrix.rid }}
+          --self-contained true -p:PublishAot=true -p:PublishSingleFile=true
+
+      - name: Archive
+        shell: bash
+        run: |
+          V="${{ github.ref_name }}"
+          if [[ "${{ matrix.rid }}" == win-* ]]; then
+            (cd dist/${{ matrix.rid }} && zip -r "../../waycoder-${V}-${{ matrix.rid }}.zip" .)
+          else
+            tar -czf "waycoder-${V}-${{ matrix.rid }}.tar.gz" -C dist/${{ matrix.rid }} .
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: waycoder-${{ matrix.rid }}
+          path: waycoder-*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/waycoder-*
