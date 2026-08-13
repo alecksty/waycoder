@@ -1,5 +1,23 @@
 # 更新日志
 
+## v0.47.3 (2026-08-13) — --model 模型管理：列表 / 选中 / API key / 端点，全程命令行
+
+### 🤖 --model 子命令（对标 /model 斜杠命令）
+
+- **问题**：模型管理（列表/选中/API key）只能在 REPL 内用 `/model`，CLI 只有一个 `--model <名称>` 会话级选择
+- **修复**：`--model` 升级为贪长子命令分发器，与 `/model` 共享同一份模型目录（`ModelCli`）——
+  - `waycoder --model` → 显示当前大/小模型 + BaseUrl
+  - `--model list [关键词]` → 列出模型目录（按供应商分组，当前项标注）
+  - `--model name <id>` → 选中并持久化（自动解析供应商 + 默认 BaseUrl + 写 .env）
+  - `--model key <供应商> <key>` → 保存 API key（无参列出已存 keys，打码）
+  - `--model connect <base-url>` → 设置连接端点（写 .env）
+  - `--model <id>` → 快捷选中（仅本次会话，不持久化，向后兼容）
+- **实现**：抽 `ModelCli` 静态助手（Current/List/Select/Connect/ListKeys/SetKey），`ModelArg` 变贪长子命令分发；`CliArg.Greedy` 语义改为「吞到下一个以 `-` 开头的旗标为止」，使 `--model gpt-5.5 -y` / `-p` 等组合仍正常解析
+
+### 🧪 自测 +3
+
+- `ModelCli.List` 含标题 / 过滤 deepseek / `ListKeys` 可读
+
 ## v0.47.2 (2026-08-13) — --config 命令行参数：启动即配置，无需进 REPL
 
 ### ⌨ --config 命令行配置（对标 /config 斜杠命令）

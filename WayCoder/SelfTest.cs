@@ -2023,6 +2023,11 @@ public static class SelfTest
         Check("ConfigCli.Get 已知项", ConfigCli.Get("Model").Contains("Model"));
         Check("ConfigCli.Get 未知项提示", ConfigCli.Get("NoSuchKey").Contains("未知设置项"));
 
+        // --model 模型管理（ModelCli 纯文本，与 /model 共用目录）
+        Check("ModelCli.List 含标题", ModelCli.List().Contains("模型目录"));
+        Check("ModelCli.List 过滤 deepseek", ModelCli.List("deepseek").Contains("DeepSeek"));
+        Check("ModelCli.ListKeys 可读", ModelCli.ListKeys().Length >= 0);
+
         Console.WriteLine();
 
         // ---- 会话管理 ----

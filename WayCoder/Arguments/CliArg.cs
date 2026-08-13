@@ -32,7 +32,7 @@ public class CliArg
     /// <summary>多次出现时累积值而非覆盖（用于排队场景）</summary>
     public virtual bool AllowMultiple => false;
 
-    /// <summary>贪婪模式：消耗其后的全部剩余参数（用于 --config 等变长参数）</summary>
+    /// <summary>贪婪模式：消耗后续参数直到遇到下一个以 - 开头的旗标（用于 --config / --model 等变长子命令）</summary>
     public virtual bool Greedy => false;
 
     /// <summary>是否为内部/开发参数（默认不在帮助中显示）</summary>
