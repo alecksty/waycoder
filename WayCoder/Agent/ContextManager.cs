@@ -26,6 +26,12 @@ public class ContextManager
     /// <summary>累计 completion tokens（来自 API usage）</summary>
     public int CumulativeCompletionTokens { get; private set; }
 
+    /// <summary>
+    /// 固定开销 = 真实 prompt tokens − 估算 tokens。
+    /// 覆盖 system prompt + 工具定义 + 消息元数据，用于校准估算消除系统性低估。
+    /// </summary>
+    private int _overheadTokens;
+
     /// <summary>上次摘要后是否已注入继续提示</summary>
     public bool ContinuePromptInjected { get; set; }
 
@@ -102,11 +108,22 @@ public class ContextManager
 
     /// <summary>
     /// 从 LLM 响应中累积真实 token 使用量。
+    /// estimatedTokens 为同一请求消息列表的估算值（可选），用于校准固定开销。
     /// </summary>
-    public void AddUsage(int promptTokens, int completionTokens)
+    public void AddUsage(int promptTokens, int completionTokens, int estimatedTokens = 0)
     {
         CumulativePromptTokens += promptTokens;
         CumulativeCompletionTokens += completionTokens;
+
+        // 用真实 API 报告校准估算：固定开销 = 真实 prompt − 估算（system prompt + 工具定义 + 元数据）。
+        // 平滑收敛（移动平均），避免单次波动导致阈值抖动。
+        if (estimatedTokens > 0 && promptTokens > 0)
+        {
+            var overhead = promptTokens - estimatedTokens;
+            if (overhead > 0)
+                _overheadTokens = _overheadTokens > 0 ? (_overheadTokens + overhead) / 2 : overhead;
+        }
+
         RecomputeThresholds(); // 自动模式：随占用率上升动态收紧阈值
     }
 
@@ -144,7 +161,7 @@ public class ContextManager
     public async Task<bool> MaybeCompressAsync(List<JsonObject> messages, LLM? llm,
         Action<int, string>? onProgress = null)
     {
-        var current = EstimateTokens(messages);
+        var current = EstimateCalibratedTokens(messages);
         var compressed = false;
         IsCompressing = true;
 
@@ -159,7 +176,7 @@ public class ContextManager
                 if (SnipToolOutputs(messages, EffectiveSnipChars()))
                 {
                     compressed = true;
-                    current = EstimateTokens(messages);
+                    current = EstimateCalibratedTokens(messages);
                     pct = (double)current / MaxTokens * 100;
                     onProgress?.Invoke(1, $"裁剪完成 {ProgressBar(pct)} {current}/{MaxTokens} (-{MaxTokens - current})");
                     CompressProgress?.Invoke(1, $"裁剪完成", pct);
@@ -175,7 +192,7 @@ public class ContextManager
                 if (await SummarizeOldAsync(messages, llm))
                 {
                     compressed = true;
-                    current = EstimateTokens(messages);
+                    current = EstimateCalibratedTokens(messages);
                     pct = (double)current / MaxTokens * 100;
                     onProgress?.Invoke(2, $"摘要完成 {ProgressBar(pct)} {current}/{MaxTokens}");
                     CompressProgress?.Invoke(2, $"摘要完成", pct);
@@ -190,7 +207,7 @@ public class ContextManager
                 CompressProgress?.Invoke(3, $"紧急压缩...", pct);
                 await HardCollapseAsync(messages, llm);
                 compressed = true;
-                current = EstimateTokens(messages);
+                current = EstimateCalibratedTokens(messages);
                 pct = (double)current / MaxTokens * 100;
                 onProgress?.Invoke(3, $"压缩完成 {ProgressBar(pct)} {current}/{MaxTokens}");
                 CompressProgress?.Invoke(3, $"压缩完成", pct);
@@ -229,6 +246,14 @@ public class ContextManager
         }
         return total;
     }
+
+    /// <summary>
+    /// 经真实 API 用量校准的 token 估算：CJK 感知估算 + 固定开销（system prompt + 工具定义 + 元数据）。
+    /// 消除估算对系统提示词 / 工具 schema / 消息元数据的系统性低估，压缩分层判断更准。
+    /// 未采集到真实用量时（首轮 / 自测）退化为原始估算。
+    /// </summary>
+    public int EstimateCalibratedTokens(List<JsonObject> messages) =>
+        EstimateTokens(messages) + Math.Max(0, _overheadTokens);
 
     /// <summary>对单段文本做 CJK 感知 token 估算。</summary>
     private static int EstimateTokensText(string text)

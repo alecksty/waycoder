@@ -419,8 +419,9 @@ public class Agent
                 onToken: onToken,
                 cancellationToken: cancellationToken);
 
-            // 累积真实 token 使用量（Crush 风格）
-            Context.AddUsage(resp.PromptTokens, resp.CompletionTokens);
+            // 累积真实 token 使用量（Crush 风格），并用同请求消息估算值校准固定开销
+            Context.AddUsage(resp.PromptTokens, resp.CompletionTokens,
+                ContextManager.EstimateTokens(Messages));
 
             // 没有工具调用 -> LLM 完成，返回文本
             if (resp.ToolCalls.Count == 0)
@@ -672,7 +673,7 @@ public class Agent
     {
         // PreCompact hook
         var preCompactCtx = await HooksManager.RunPreCompactAsync(
-            $"est.tokens={ContextManager.EstimateTokens(Messages)}/{Context.MaxTokens}");
+            $"est.tokens={Context.EstimateCalibratedTokens(Messages)}/{Context.MaxTokens}");
 
         var saved = LlmClient.ModelOverride;
         LlmClient.ModelOverride = LlmClient.SmallModel;
