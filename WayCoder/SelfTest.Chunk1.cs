@@ -73,6 +73,8 @@ public static partial class SelfTest
         TestEconomyMode(Check);
         // /init 项目初始化测试（生成 CLAUDE.md + 命令检测）
         TestProjectInit(Check);
+        // 多槽位后台并行执行测试（槽位缓冲输出 + 运行状态）
+        TestMultiSlotParallel(Check);
         Console.WriteLine();
 
         // ---- 工具 ----
