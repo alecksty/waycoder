@@ -421,6 +421,8 @@ public class Agent
 
             // 累积真实 token 使用量（Crush 风格）
             Context.AddUsage(resp.PromptTokens, resp.CompletionTokens);
+            // 自动省 token 模式：按任务轮数更新复杂度，动态调节压缩阈值
+            Context.SetRound(round);
 
             // 没有工具调用 -> LLM 完成，返回文本
             if (resp.ToolCalls.Count == 0)

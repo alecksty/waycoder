@@ -36,13 +36,26 @@ record ConfigProp(
 /// 省 Token 模式三态：
 ///   Off  (关)  — 完整提示词 + 正常压缩阈值（默认）
 ///   On   (开)  — 精简提示词 + 激进压缩阈值 + 输出上限
-///   Auto (自动) — 保持完整提示词，压缩阈值按上下文占用率动态插值（越满越省）
+///   Auto (自动) — 保持完整提示词，压缩阈值按「任务轮数复杂度」动态插值（简单省、复杂保质量）
 /// </summary>
 public enum EconomyMode
 {
     Off,
     Auto,
     On,
+}
+
+/// <summary>
+/// 省 Token 自动模式的优先级偏好（仅 Auto 生效）：
+///   Quality  (质量优先) — 复杂任务几乎不省，简单任务才省（默认，先保质量再谈费用）
+///   Balanced (均衡)     — 始终保留一定省钱力度
+///   Cost     (费用优先) — 尽量省，弱化复杂度影响
+/// </summary>
+public enum EconomyPriority
+{
+    Quality,
+    Balanced,
+    Cost,
 }
 
 /// <summary>
@@ -212,6 +225,9 @@ public class Config
     // 省 token 模式：三态（关/自动/开）。保持正常窗口，从提示词/压缩/输出上限综合降 token
     public EconomyMode EconomyMode { get; set; } = EconomyMode.Off;
 
+    /// <summary>自动模式优先级（仅 Auto 生效）：质量优先（默认）/均衡/费用优先</summary>
+    public EconomyPriority EconomyPriority { get; set; } = EconomyPriority.Quality;
+
     /// <summary>省 token 模式：snip 裁剪比例</summary>
     public const int EconomySnipRatio = 35;
     /// <summary>省 token 模式：LLM 摘要比例</summary>
@@ -224,10 +240,8 @@ public class Config
     public const int EconomyMaxTokens = 8192;
     /// <summary>正常模式：工具输出单条裁剪字符阈值（对照 EconomySnipChars）</summary>
     public const int SnipCharsNormal = 4000;
-    /// <summary>自动模式：上下文占用率低于此值使用正常阈值（不收紧）</summary>
-    public const double EconomyAutoLowRatio = 0.3;
-    /// <summary>自动模式：上下文占用率达到此值使用全量省 token 阈值</summary>
-    public const double EconomyAutoHighRatio = 0.9;
+    /// <summary>自动模式：任务达到此轮数视为「完全复杂」（收紧系数降到最低，保质量）</summary>
+    public const int EconomyComplexRounds = 30;
 
     // ════════════════════════════════════════════════════════════
     // 单一 Schema 定义（新增配置项只加这里一行）
@@ -470,7 +484,7 @@ public class Config
               (c, v) => c.TinyMode = bool.Parse(v), "false"),
 
             P("EconomyMode", "WAYCODER_ECONOMY", null,
-              "省 Token 模式", "⚙ 参数", "关=完整 / 开=精简+更早压缩 / 自动=按上下文占用率动态调节阈值",
+              "省 Token 模式", "⚙ 参数", "关=完整 / 开=精简+更早压缩 / 自动=按任务轮数复杂度调节（简单省、复杂保质量）",
               "select", ["off","auto","on"], 20,
               c => c.EconomyMode.ToString().ToLowerInvariant(),
               (c, v) => c.EconomyMode = v.ToLowerInvariant() switch
@@ -479,6 +493,17 @@ public class Config
                   "on" => EconomyMode.On,
                   _ => EconomyMode.Off,
               }, "off"),
+
+            P("EconomyPriority", "WAYCODER_ECONOMY_PRIORITY", null,
+              "省 Token 优先级", "⚙ 参数", "自动模式省钱偏好：质量优先=复杂不省 / 均衡 / 费用优先=尽量省",
+              "select", ["quality","balanced","cost"], 21,
+              c => c.EconomyPriority.ToString().ToLowerInvariant(),
+              (c, v) => c.EconomyPriority = v.ToLowerInvariant() switch
+              {
+                  "cost" => EconomyPriority.Cost,
+                  "balanced" => EconomyPriority.Balanced,
+                  _ => EconomyPriority.Quality,
+              }, "quality"),
 
             P("FallbackChain", "WAYCODER_FALLBACK_CHAIN",     null,
               "回退模型链", "🤖 模型", "逗号分隔的备选模型列表",

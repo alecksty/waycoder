@@ -94,10 +94,10 @@ public class TinyArg : CliArg
 
 public class EconomyArg : CliArg
 {
-    public override string Description => "省 Token 模式（--economy [on|auto|off]，缺省 on；auto 按上下文占用率动态调节阈值）";
+    public override string Description => "省 Token 模式（--economy [on|auto|off]，缺省 on；auto 按任务复杂度动态调节阈值）";
     public override int ValueCount => -1;
     public override string? ValueLabel => "模式";
-    public EconomyArg() : base("economy", "--economy") { }
+    public EconomyArg() : base("economy", "-e", "--economy") { }
 }
 
 public class DebugArg : CliArg

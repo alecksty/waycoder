@@ -51,54 +51,64 @@ public class ContextManager
         RecomputeThresholds();
     }
 
-    /// <summary>重算三层压缩阈值（省 token 模式下取更激进的阈值，自动模式按占用率插值）。</summary>
+    /// <summary>重算三层压缩阈值（省 token 模式取更激进阈值，自动模式按任务轮数复杂度插值）。</summary>
     private void RecomputeThresholds()
     {
-        var occ = Occupancy();
-        _snipAt = MaxTokens * ResolveRatio(Config.Instance.ContextSnipRatio, Config.EconomySnipRatio, occ) / 100;
-        _summarizeAt = MaxTokens * ResolveRatio(Config.Instance.ContextSummarizeRatio, Config.EconomySummarizeRatio, occ) / 100;
-        _collapseAt = MaxTokens * ResolveRatio(Config.Instance.ContextCollapseRatio, Config.EconomyCollapseRatio, occ) / 100;
+        var c = Complexity();
+        _snipAt = MaxTokens * ResolveRatio(Config.Instance.ContextSnipRatio, Config.EconomySnipRatio, c) / 100;
+        _summarizeAt = MaxTokens * ResolveRatio(Config.Instance.ContextSummarizeRatio, Config.EconomySummarizeRatio, c) / 100;
+        _collapseAt = MaxTokens * ResolveRatio(Config.Instance.ContextCollapseRatio, Config.EconomyCollapseRatio, c) / 100;
     }
 
-    /// <summary>当前上下文占用率 (0..1)，自动模式据此动态调节阈值。</summary>
-    private double Occupancy()
+    /// <summary>当前任务轮数（由 Agent 主循环每轮更新），自动模式据此判断复杂度。</summary>
+    private int _currentRound;
+
+    /// <summary>更新任务轮数并重算阈值（简单任务省、复杂任务保质量）。</summary>
+    public void SetRound(int round)
     {
-        if (MaxTokens <= 0) return 0;
-        return (double)(CumulativePromptTokens + CumulativeCompletionTokens) / MaxTokens;
+        if (round == _currentRound) return;
+        _currentRound = round;
+        RecomputeThresholds();
     }
+
+    /// <summary>任务复杂度系数 [0,1]：轮数越多越复杂。</summary>
+    private double Complexity() =>
+        Math.Clamp((double)_currentRound / Config.EconomyComplexRounds, 0, 1);
 
     /// <summary>
-    /// 三态阈值：Off=正常值；On=省 token 值（二者较小值）；Auto=按占用率在正常与省 token 之间插值。
+    /// 三态阈值：Off=正常值；On=省 token 值（二者较小值）；Auto=按复杂度在正常与省 token 之间插值。
     /// internal static 便于自测直接断言。
     /// </summary>
-    internal static int ResolveRatio(int normal, int economy, double occupancy)
+    internal static int ResolveRatio(int normal, int economy, double complexity)
     {
         var target = Math.Min(normal, economy);
         return Config.Instance.EconomyMode switch
         {
             EconomyMode.On => target,
-            EconomyMode.Auto => Lerp(normal, target, AutoAggressiveness(occupancy)),
+            EconomyMode.Auto => Lerp(normal, target, AutoAggressiveness(complexity)),
             _ => normal,
         };
     }
 
-    /// <summary>自动模式收紧系数 [0,1]：0=正常阈值，1=全量省 token 阈值。基于上下文占用率。</summary>
-    internal static double AutoAggressiveness(double occupancy)
-    {
-        var low = Config.EconomyAutoLowRatio;
-        var high = Config.EconomyAutoHighRatio;
-        if (occupancy <= low) return 0;
-        if (occupancy >= high) return 1;
-        return (occupancy - low) / (high - low);
-    }
+    /// <summary>
+    /// 自动模式收紧系数 [0,1]（0=正常阈值，1=全量省 token），由复杂度 + 优先级决定：
+    /// 质量优先=1-c（简单省/复杂保质量）；均衡=1-0.5c；费用优先=恒 1。
+    /// </summary>
+    internal static double AutoAggressiveness(double complexity) =>
+        Config.Instance.EconomyPriority switch
+        {
+            EconomyPriority.Cost => 1.0,
+            EconomyPriority.Balanced => 1.0 - 0.5 * complexity,
+            _ => 1.0 - complexity,
+        };
 
     /// <summary>在正常值与省 token 值之间线性插值（a=0→normal，a=1→target）。</summary>
     private static int Lerp(int normal, int target, double a) =>
         (int)Math.Round(normal + (target - normal) * a);
 
-    /// <summary>当前模式下的工具输出裁剪字符阈值（自动模式按占用率插值）。</summary>
+    /// <summary>当前模式下的工具输出裁剪字符阈值（自动模式按复杂度插值）。</summary>
     private int EffectiveSnipChars() =>
-        ResolveRatio(Config.SnipCharsNormal, Config.EconomySnipChars, Occupancy());
+        ResolveRatio(Config.SnipCharsNormal, Config.EconomySnipChars, Complexity());
 
     /// <summary>
     /// 从 LLM 响应中累积真实 token 使用量。
@@ -107,7 +117,6 @@ public class ContextManager
     {
         CumulativePromptTokens += promptTokens;
         CumulativeCompletionTokens += completionTokens;
-        RecomputeThresholds(); // 自动模式：随占用率上升动态收紧阈值
     }
 
     /// <summary>
