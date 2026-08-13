@@ -116,6 +116,19 @@ public class TuiStatusBar : TuiControl
             col += TuiHelper.DisplayWidth(modeStr) + 1;
         }
 
+        // 2.7 省 Token 模式标志（三态图标：💵不省钱 / 💰省钱 / 🧮自动）
+        {
+            var (economyIcon, economyColor) = Config.Instance.EconomyMode switch
+            {
+                EconomyMode.On   => ("💰", TuiColors.Yellow),
+                EconomyMode.Auto => ("🧮", TuiColors.Cyan),
+                _                => ("💵", dimFg),
+            };
+            ControlRenderer.WriteGradientTextAt(sb, row, col, $" {economyIcon}",
+                economyColor, gs, ge, absX, Width);
+            col += TuiHelper.DisplayWidth(economyIcon) + 1;
+        }
+
         // 3. 中间：提示文本
         if (!string.IsNullOrEmpty(HintText))
         {

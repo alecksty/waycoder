@@ -12,6 +12,7 @@ public static class SystemPrompt
     public static string Generate(List<ITool> tools)
     {
         if (Config.Instance.TinyMode) return GenerateTiny(tools);
+        if (Config.Instance.EconomyMode == EconomyMode.On) return GenerateEconomy(tools);
 
         var cwd = Directory.GetCurrentDirectory();
         var toolList = string.Join("\n", tools.Select(t => $"- **{t.Name}**：{t.Description}"));
@@ -409,6 +410,43 @@ public static class SystemPrompt
             6. 不主动 git commit（除非用户要求）。
             7. 复杂任务（3+ 文件）先用 todo_write 列 3-7 项清单。
             8. 创建新文件用 write_file；改已有文件用 edit_file。
+            """;
+    }
+
+    /// <summary>
+    /// 省 token 模式精简系统提示词：保持正常窗口，砍掉 RepoMap/Git 状态/记忆/冗长软性区块，
+    /// 保留完整工具描述 + 项目上下文 + 核心规则（工具描述砍了会导致工具误用，反而多花钱）。
+    /// </summary>
+    private static string GenerateEconomy(List<ITool> tools)
+    {
+        var cwd = Directory.GetCurrentDirectory();
+        var os = $"{RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})";
+        var toolList = string.Join("\n", tools.Select(t => $"- **{t.Name}**：{t.Description}"));
+        var projectCtx = ProjectContext.DetectProject().ToMarkdown();
+
+        return $"""
+            你是 WayCoder（道码），终端 AI 编程助手。
+
+            # 环境
+            - 工作目录：{cwd}
+            - OS：{os}
+
+            项目上下文
+            {projectCtx}
+
+            # 工具
+            {toolList}
+
+            # 核心规则
+            1. 自主行动：不要问问题，搜索→读→改→测直到完成。复杂任务（3+ 文件）先用 todo_write 列 3-7 项清单。
+            2. 先读后改：edit_file 前必须 read_file，old_string 精确匹配原文（含空白/缩进/空行），3-5 行上下文保证唯一。
+            3. 每次改后运行测试，失败立即修复。
+            4. 极简输出：默认回复 ≤3 行（工具调用不计）。
+            5. 文件操作用绝对路径；只用上面列出的工具；不主动 git commit。
+            6. 编辑失败→重读目标位置获取精确文本，检查 Tab vs 空格，绝不用猜测文本重试。
+            7. 遇到错误→读完整错误→理解根因→试 2-3 种不同方案→验证通过。
+            8. 不用思考流生成代码，代码必须通过 write_file 写入文件。
+            9. 无依赖的独立工具调用可并行发出。
             """;
     }
 

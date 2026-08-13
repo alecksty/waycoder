@@ -251,6 +251,8 @@ public static class SelfTest
         TestTinyMode(Check);
         // Tiny 窗口解析测试（--tiny 8k 指定 / 自动探测 / 128K 自动阈值）
         TestTinyWindow(Check);
+        // 省 token 模式测试（EconomyMode 开关）
+        TestEconomyMode(Check);
         Console.WriteLine();
 
         // ---- 工具 ----
@@ -5436,6 +5438,63 @@ another.txt:3:1: warning: deprecated API
         // Ollama base url 识别
         Check("Tiny: IsOllamaBaseUrl localhost", ModelCatalog.IsOllamaBaseUrl("http://localhost:11434"));
         Check("Tiny: IsOllamaBaseUrl 非 ollama", !ModelCatalog.IsOllamaBaseUrl("https://api.deepseek.com"));
+    }
+
+    /// <summary>省 token 模式（EconomyMode 三态）测试</summary>
+    private static void TestEconomyMode(Action<string, bool> Check)
+    {
+        Check("Economy: 默认关闭", new Config().EconomyMode == EconomyMode.Off);
+        Check("Economy: 输出上限常量 = 8192", Config.EconomyMaxTokens == 8192);
+        Check("Economy: snip 阈值常量 = 2000", Config.EconomySnipChars == 2000);
+        Check("Economy: 正常 snip 阈值常量 = 4000", Config.SnipCharsNormal == 4000);
+        Check("Economy: 自动模式低水位 = 0.3", Config.EconomyAutoLowRatio == 0.3);
+        Check("Economy: 自动模式高水位 = 0.9", Config.EconomyAutoHighRatio == 0.9);
+
+        var savedEconomy = Config.Instance.EconomyMode;
+
+        // ResolveRatio 三态：Off 用正常值，On 取更小值，Auto 按占用率插值
+        Config.Instance.EconomyMode = EconomyMode.Off;
+        Check("Economy: Off 用正常值", ContextManager.ResolveRatio(50, 35, 0.5) == 50);
+        Config.Instance.EconomyMode = EconomyMode.On;
+        Check("Economy: On 取更小值", ContextManager.ResolveRatio(50, 35, 0.5) == 35);
+        Check("Economy: On 尊重更低配置", ContextManager.ResolveRatio(30, 35, 0.5) == 30);
+        Config.Instance.EconomyMode = EconomyMode.Auto;
+        Check("Economy: Auto 低占用=正常值", ContextManager.ResolveRatio(50, 35, 0.0) == 50);
+        Check("Economy: Auto 高占用=省 token 值", ContextManager.ResolveRatio(50, 35, 1.0) == 35);
+        var midRatio = ContextManager.ResolveRatio(50, 35, 0.6);
+        Check("Economy: Auto 中占用插值介于两者之间", midRatio > 35 && midRatio < 50);
+        Check("Economy: 低水位以下收紧系数=0", ContextManager.AutoAggressiveness(0.2) == 0);
+        Check("Economy: 高水位以上收紧系数=1", ContextManager.AutoAggressiveness(0.95) == 1);
+
+        // 系统提示词精简（仅 On 生效）
+        Config.Instance.EconomyMode = EconomyMode.On;
+        var economyPrompt = SystemPrompt.Generate(ToolRegistry.AllTools);
+        Config.Instance.EconomyMode = savedEconomy;
+        var fullPrompt = SystemPrompt.Generate(ToolRegistry.AllTools);
+        Check("Economy: 提示词比完整版更短", economyPrompt.Length < fullPrompt.Length);
+        Check("Economy: 含工具列表", economyPrompt.Contains("bash"));
+        Check("Economy: 含先读后改规则", economyPrompt.Contains("先读后改"));
+        Check("Economy: 含工作目录", economyPrompt.Contains("工作目录"));
+        Check("Economy: 不含 10 阶段流水线", !economyPrompt.Contains("systematic_phases"));
+
+        // Auto 模式用完整提示词（不清简，仅动态调节压缩阈值）
+        Config.Instance.EconomyMode = EconomyMode.Auto;
+        var autoPrompt = SystemPrompt.Generate(ToolRegistry.AllTools);
+        Check("Economy: Auto 用完整提示词(含流水线)", autoPrompt.Contains("systematic_phases"));
+
+        // SnipToolOutputs 阈值：约 3300 字符（介于 2000 与 4000 之间），关闭不截断、打开截断
+        var midContent = string.Join("\n", Enumerable.Range(0, 60).Select(i => new string('x', 50) + $"_{i:D3}"));
+        Config.Instance.EconomyMode = EconomyMode.Off;
+        var msgsOff = new List<JsonObject> { new() { ["role"] = "tool", ["content"] = midContent } };
+        ContextManager.SnipToolOutputs(msgsOff);
+        Check("Economy: 关闭时 3300 字符不截断", msgsOff[0]["content"]!.GetValue<string>() == midContent);
+
+        Config.Instance.EconomyMode = EconomyMode.On;
+        var msgsOn = new List<JsonObject> { new() { ["role"] = "tool", ["content"] = midContent } };
+        ContextManager.SnipToolOutputs(msgsOn);
+        Check("Economy: 打开时 3300 字符被截断", msgsOn[0]["content"]!.GetValue<string>()!.Length < midContent.Length);
+
+        Config.Instance.EconomyMode = savedEconomy;
     }
 
     /// <summary>ExtractKeyInfo 增强版测试</summary>

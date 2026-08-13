@@ -33,6 +33,19 @@ record ConfigProp(
 );
 
 /// <summary>
+/// 省 Token 模式三态：
+///   Off  (关)  — 完整提示词 + 正常压缩阈值（默认）
+///   On   (开)  — 精简提示词 + 激进压缩阈值 + 输出上限
+///   Auto (自动) — 保持完整提示词，压缩阈值按上下文占用率动态插值（越满越省）
+/// </summary>
+public enum EconomyMode
+{
+    Off,
+    Auto,
+    On,
+}
+
+/// <summary>
 /// 配置 - 环境变量和默认值。单例模式，所有模块通过 Config.Instance 统一读取。
 ///
 /// 新增配置项只需在 _schema 列表中加一行，SettingSchema/FromEnv/SaveToEnvFile 全部自动推导。
@@ -195,6 +208,26 @@ public class Config
 
     /// <summary>模型窗口低于此值自动进入 tiny 模式（128K）</summary>
     public const int TinyAutoThreshold = 128_000;
+
+    // 省 token 模式：三态（关/自动/开）。保持正常窗口，从提示词/压缩/输出上限综合降 token
+    public EconomyMode EconomyMode { get; set; } = EconomyMode.Off;
+
+    /// <summary>省 token 模式：snip 裁剪比例</summary>
+    public const int EconomySnipRatio = 35;
+    /// <summary>省 token 模式：LLM 摘要比例</summary>
+    public const int EconomySummarizeRatio = 55;
+    /// <summary>省 token 模式：硬折叠比例</summary>
+    public const int EconomyCollapseRatio = 75;
+    /// <summary>省 token 模式：工具输出单条裁剪字符阈值</summary>
+    public const int EconomySnipChars = 2000;
+    /// <summary>省 token 模式：单次输出 token 上限</summary>
+    public const int EconomyMaxTokens = 8192;
+    /// <summary>正常模式：工具输出单条裁剪字符阈值（对照 EconomySnipChars）</summary>
+    public const int SnipCharsNormal = 4000;
+    /// <summary>自动模式：上下文占用率低于此值使用正常阈值（不收紧）</summary>
+    public const double EconomyAutoLowRatio = 0.3;
+    /// <summary>自动模式：上下文占用率达到此值使用全量省 token 阈值</summary>
+    public const double EconomyAutoHighRatio = 0.9;
 
     // ════════════════════════════════════════════════════════════
     // 单一 Schema 定义（新增配置项只加这里一行）
@@ -435,6 +468,17 @@ public class Config
               "select", ["false","true"], 19,
               c => c.TinyMode.ToString().ToLowerInvariant(),
               (c, v) => c.TinyMode = bool.Parse(v), "false"),
+
+            P("EconomyMode", "WAYCODER_ECONOMY", null,
+              "省 Token 模式", "⚙ 参数", "关=完整 / 开=精简+更早压缩 / 自动=按上下文占用率动态调节阈值",
+              "select", ["off","auto","on"], 20,
+              c => c.EconomyMode.ToString().ToLowerInvariant(),
+              (c, v) => c.EconomyMode = v.ToLowerInvariant() switch
+              {
+                  "auto" => EconomyMode.Auto,
+                  "on" => EconomyMode.On,
+                  _ => EconomyMode.Off,
+              }, "off"),
 
             P("FallbackChain", "WAYCODER_FALLBACK_CHAIN",     null,
               "回退模型链", "🤖 模型", "逗号分隔的备选模型列表",
