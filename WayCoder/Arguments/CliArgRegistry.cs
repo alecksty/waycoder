@@ -67,8 +67,8 @@ public static class CliArgRegistry
 
             if (def.Greedy)
             {
-                // 贪婪：吞掉其后所有剩余参数（含以 - 开头的值，如负数）
-                while (i + 1 < args.Length)
+                // 贪婪：吞掉后续参数，直到遇到下一个以 - 开头的旗标
+                while (i + 1 < args.Length && !args[i + 1].StartsWith('-'))
                     consumed.Add(args[++i]);
             }
             else if (def.ValueCount == -1)
