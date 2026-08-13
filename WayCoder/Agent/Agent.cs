@@ -445,6 +445,10 @@ public class Agent
                     (resp.Content!.Contains("```") || resp.Content.Contains("class ") ||
                      resp.Content.Contains("public ") || resp.Content.Contains("def ") ||
                      resp.Content.Contains("func ") || resp.Content.Contains("function "));
+                // 明确完成信号：模型主动宣告任务完成（否则"无工具调用"一律视为中途停滞）
+                var hasCompletionSignal = resp.Content != null &&
+                    (resp.Content.Contains("✅") || resp.Content.Contains("任务完成") ||
+                     resp.Content.Contains("已完成") || resp.Content.Contains("全部完成"));
 
                 // 检测 0：DeepSeek V4 等模型将大量输出花在推理（reasoning）上而不产生实际内容
                 // reasoning 被显示但不计入 Content，所以 contentLen 可能极短
@@ -501,16 +505,17 @@ public class Agent
                     continue;
                 }
 
-                // 检测 3：任务进行中（已有工具调用历史）但本轮无工具调用且内容极短/为空
-                // （推理型模型长链思考后流被截断、或"只思考不行动"的中途停滞）→ 催其继续而非误判完成退出
-                if (toolCallCount > 0 && contentLen < 40)
+                // 检测 3：任务进行中（已有工具调用历史）但本轮无工具调用且无明确完成信号
+                // （推理型模型长链思考后流被截断、只读不写后输出"计划"、或"只思考不行动"的中途停滞）
+                // → 催其继续而非误判完成退出。真正完成须带 ✅/完成 等信号，否则一律续跑。
+                if (toolCallCount > 0 && !hasCompletionSignal)
                 {
                     _analysisOnlyStreak++;
                     string nudge = _analysisOnlyStreak switch
                     {
-                        1 => "本轮没有调用任何工具且没有输出内容——任务尚未完成。请立即调用 write_file/bash 等工具继续执行下一步，不要停下。",
-                        2 => "你已连续两轮没有调用工具（本轮内容为空）。任务未完成，请立即调用工具继续执行。",
-                        _ => "⚠️ 严重警告：连续多轮无工具调用无内容，任务仍未完成。立即调用工具继续，不要输出空内容。",
+                        1 => "本轮没有调用任何工具——任务尚未完成。请立即调用 write_file/bash 等工具继续执行下一步，不要停在计划或分析阶段。",
+                        2 => "你已连续两轮没有调用工具。任务未完成，请立即调用工具继续执行，不要只输出文字。",
+                        _ => "⚠️ 严重警告：连续多轮无工具调用，任务仍未完成。立即调用工具继续，直到真正完成并明确汇报结果。",
                     };
                     Messages.Add(new JsonObject
                     {
