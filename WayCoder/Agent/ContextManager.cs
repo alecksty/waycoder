@@ -37,9 +37,7 @@ public class ContextManager
     public ContextManager(int maxTokens = 128_000)
     {
         MaxTokens = maxTokens;
-        _snipAt = maxTokens * Config.Instance.ContextSnipRatio / 100;
-        _summarizeAt = maxTokens * Config.Instance.ContextSummarizeRatio / 100;
-        _collapseAt = maxTokens * Config.Instance.ContextCollapseRatio / 100;
+        RecomputeThresholds();
     }
 
     /// <summary>
@@ -50,10 +48,57 @@ public class ContextManager
     {
         if (maxTokens <= 0) return;
         MaxTokens = maxTokens;
-        _snipAt = maxTokens * Config.Instance.ContextSnipRatio / 100;
-        _summarizeAt = maxTokens * Config.Instance.ContextSummarizeRatio / 100;
-        _collapseAt = maxTokens * Config.Instance.ContextCollapseRatio / 100;
+        RecomputeThresholds();
     }
+
+    /// <summary>重算三层压缩阈值（省 token 模式下取更激进的阈值，自动模式按占用率插值）。</summary>
+    private void RecomputeThresholds()
+    {
+        var occ = Occupancy();
+        _snipAt = MaxTokens * ResolveRatio(Config.Instance.ContextSnipRatio, Config.EconomySnipRatio, occ) / 100;
+        _summarizeAt = MaxTokens * ResolveRatio(Config.Instance.ContextSummarizeRatio, Config.EconomySummarizeRatio, occ) / 100;
+        _collapseAt = MaxTokens * ResolveRatio(Config.Instance.ContextCollapseRatio, Config.EconomyCollapseRatio, occ) / 100;
+    }
+
+    /// <summary>当前上下文占用率 (0..1)，自动模式据此动态调节阈值。</summary>
+    private double Occupancy()
+    {
+        if (MaxTokens <= 0) return 0;
+        return (double)(CumulativePromptTokens + CumulativeCompletionTokens) / MaxTokens;
+    }
+
+    /// <summary>
+    /// 三态阈值：Off=正常值；On=省 token 值（二者较小值）；Auto=按占用率在正常与省 token 之间插值。
+    /// internal static 便于自测直接断言。
+    /// </summary>
+    internal static int ResolveRatio(int normal, int economy, double occupancy)
+    {
+        var target = Math.Min(normal, economy);
+        return Config.Instance.EconomyMode switch
+        {
+            EconomyMode.On => target,
+            EconomyMode.Auto => Lerp(normal, target, AutoAggressiveness(occupancy)),
+            _ => normal,
+        };
+    }
+
+    /// <summary>自动模式收紧系数 [0,1]：0=正常阈值，1=全量省 token 阈值。基于上下文占用率。</summary>
+    internal static double AutoAggressiveness(double occupancy)
+    {
+        var low = Config.EconomyAutoLowRatio;
+        var high = Config.EconomyAutoHighRatio;
+        if (occupancy <= low) return 0;
+        if (occupancy >= high) return 1;
+        return (occupancy - low) / (high - low);
+    }
+
+    /// <summary>在正常值与省 token 值之间线性插值（a=0→normal，a=1→target）。</summary>
+    private static int Lerp(int normal, int target, double a) =>
+        (int)Math.Round(normal + (target - normal) * a);
+
+    /// <summary>当前模式下的工具输出裁剪字符阈值（自动模式按占用率插值）。</summary>
+    private int EffectiveSnipChars() =>
+        ResolveRatio(Config.SnipCharsNormal, Config.EconomySnipChars, Occupancy());
 
     /// <summary>
     /// 从 LLM 响应中累积真实 token 使用量。
@@ -62,6 +107,7 @@ public class ContextManager
     {
         CumulativePromptTokens += promptTokens;
         CumulativeCompletionTokens += completionTokens;
+        RecomputeThresholds(); // 自动模式：随占用率上升动态收紧阈值
     }
 
     /// <summary>
@@ -110,7 +156,7 @@ public class ContextManager
                 var pct = (double)current / MaxTokens * 100;
                 onProgress?.Invoke(1, $"裁剪工具输出... {ProgressBar(pct)} {current}/{MaxTokens}");
                 CompressProgress?.Invoke(1, $"裁剪工具输出...", pct);
-                if (SnipToolOutputs(messages))
+                if (SnipToolOutputs(messages, EffectiveSnipChars()))
                 {
                     compressed = true;
                     current = EstimateTokens(messages);
@@ -209,14 +255,16 @@ public class ContextManager
     /// 第 1 层：将超过 4000 字符的工具结果裁剪为首尾几行。
     /// 保留错误行（编译错误、异常堆栈等），确保 Agent 能看到关键诊断信息。
     /// </summary>
-    public static bool SnipToolOutputs(List<JsonObject> messages)
+    public static bool SnipToolOutputs(List<JsonObject> messages, int? snipChars = null)
     {
+        var effective = snipChars ?? (Config.Instance.EconomyMode == EconomyMode.On
+            ? Config.EconomySnipChars : Config.SnipCharsNormal);
         var changed = false;
         foreach (var m in messages)
         {
             if (m["role"]?.GetValue<string>() != "tool") continue;
             var content = m["content"]?.GetValue<string>();
-            if (string.IsNullOrEmpty(content) || content.Length <= 4000) continue;
+            if (string.IsNullOrEmpty(content) || content.Length <= effective) continue;
 
             var lines = content.Split('\n');
             if (lines.Length <= 10) continue;

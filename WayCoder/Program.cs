@@ -102,6 +102,8 @@ public class Program
         bool watchMode = Arguments.CliArgRegistry.Has(parsed, "watch");
         bool tinyMode = Arguments.CliArgRegistry.Has(parsed, "tiny");
         string? tinyWindowSpec = Arguments.CliArgRegistry.Get(parsed, "tiny");
+        bool economyMode = Arguments.CliArgRegistry.Has(parsed, "economy");
+        string? economySpec = Arguments.CliArgRegistry.Get(parsed, "economy");
 
         if (Arguments.CliArgRegistry.Has(parsed, "version"))
         {
@@ -155,6 +157,13 @@ public class Program
         if (apiKey != null) _config.ApiKey = apiKey;
         if (maxBudget != null) _config.MaxBudgetUsd = maxBudget;
         if (watchMode) _config.WatchMode = true;
+        if (economyMode)
+            _config.EconomyMode = (economySpec?.ToLowerInvariant()) switch
+            {
+                "auto" => EconomyMode.Auto,
+                "off" => EconomyMode.Off,
+                _ => EconomyMode.On,
+            };
 
         // 从模型目录自动设置 base URL（支持 Ollama/DeepSeek/OpenAI 等所有模型）
         if (_config.BaseUrl == null)
