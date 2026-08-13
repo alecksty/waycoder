@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.47.4 (2026-08-13) — 全局 JSON 多 key 存储：多服务商/模型丝滑切换，无需重输 key
+
+### 🔑 API key 全局 JSON 回退（对标 OpenCode/Crush）
+
+- **问题**：key 只能存 `.env`（单一 key），切换服务商/模型要手动改 `.env` 重输 key
+- **修复**：`.env` 无 `WAYCODER_API_KEY` 时，按当前模型供应商自动到全局 JSON（`~/.waycoder/api_keys.json`）找 key——
+  - `.env` 只存「当前模型名 + 当前 key」（单 key：`WAYCODER_MODEL` + `WAYCODER_API_KEY`）
+  - `api_keys.json` 存「多服务商多 key」（`{ "deepseek": "...", "openai": "...", ... }`）
+  - 切换即用：`--model name gpt-5.5` 自动匹配 openai 的 key，无需重输、无需改 .env
+- **实现**：`ApiKeyStore.ForModel(modelId)` 按模型目录解析供应商再查 JSON；`Config.Instance.ApiKey` 加载链末尾追加该回退；「API 密钥未设置」报错补 `--model key <供应商> <key>` 引导
+
+### 🧪 自测 +3
+
+- 模型→供应商解析 deepseek/openai + `ApiKeyStore.ForModel` 可调用
+
 ## v0.47.3 (2026-08-13) — --model 模型管理：列表 / 选中 / API key / 端点，全程命令行
 
 ### 🤖 --model 子命令（对标 /model 斜杠命令）
