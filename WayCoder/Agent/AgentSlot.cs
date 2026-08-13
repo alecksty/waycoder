@@ -18,6 +18,15 @@ public class AgentSlot
     /// <summary>槽位专用的 LLM 客户端（null=使用全局 LLM）</summary>
     public LLM? LlmClient { get; set; }
 
+    /// <summary>槽位级互斥锁：序列化后台 Agent 线程的"检查活跃+写输出"与 UI 线程的切换/快照，防止丢 token。</summary>
+    public readonly object Sync = new();
+
+    /// <summary>该槽位的 Agent 是否正在后台运行（volatile：后台线程写、UI 线程读）。</summary>
+    public volatile bool IsBusy;
+
+    /// <summary>该槽位 Agent 的取消令牌源（后台任务运行时非 null）。</summary>
+    public CancellationTokenSource? Cts;
+
     /// <summary>上次使用的槽位模型 ID（用于检测模型变更）</summary>
     public string? LastLargeModel { get; set; }
     public string? LastSmallModel { get; set; }
@@ -70,6 +79,43 @@ public class AgentSlot
             screen.AddSystemMsg($"📨 **F{fromSlot + 1} → 你**：{msg}");
         }
         PendingMessages.Clear();
+    }
+
+    // ── 后台缓冲输出（槽位非活跃时，Agent 流式输出写入此处，切换回时 RestoreTo 展示）──
+    // 注意：以下方法均不自行加锁，调用方必须持有 Sync 锁（见 Program.RunSlotAgentAsync 的 Route）。
+
+    /// <summary>缓冲：开始一段 Agent 流式回复（占位消息）。</summary>
+    public void BufferedStartStream()
+    {
+        ChatMessages.Add(new ChatMsg { Role = "agent", Content = "", Streaming = true });
+    }
+
+    /// <summary>缓冲：追加 token 到流式消息（无流式消息则自动新建）。</summary>
+    public void BufferedAppendToken(string delta)
+    {
+        if (ChatMessages.Count == 0 || !ChatMessages[^1].Streaming)
+            ChatMessages.Add(new ChatMsg { Role = "agent", Content = "", Streaming = true });
+        ChatMessages[^1].Content += delta;
+    }
+
+    /// <summary>缓冲：结束 Agent 流式回复。</summary>
+    public void BufferedFinishStream()
+    {
+        if (ChatMessages.Count == 0) return;
+        ChatMessages[^1].Streaming = false;
+    }
+
+    /// <summary>缓冲：追加文本到最后一条消息（工具流式输出）。</summary>
+    public void BufferedAppendToLast(string delta)
+    {
+        if (ChatMessages.Count == 0) return;
+        ChatMessages[^1].Content += delta;
+    }
+
+    /// <summary>缓冲：追加一条普通消息（system/tool 等）。</summary>
+    public void BufferedAddMsg(string role, string content)
+    {
+        ChatMessages.Add(new ChatMsg { Role = role, Content = content });
     }
 
     /// <summary>

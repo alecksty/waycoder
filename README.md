@@ -57,7 +57,7 @@ dotnet run -- --economy          # 开：精简提示词 + 更早压缩 + 输出
 dotnet run -- --economy auto     # 自动：按任务复杂度动态调节阈值（简单省、复杂保质量）
 # 优先级偏好（仅 auto 生效）：WAYCODER_ECONOMY_PRIORITY=quality|balanced|cost（默认 quality）
 
-# 运行自测（1753 项）
+# 运行自测（1765 项）
 dotnet run -- --test
 ```
 
@@ -77,7 +77,7 @@ dotnet run -- --test
 WayCoder/
 ├── Program.cs         入口 + CLI + REPL (ANSI 全屏 TUI)
 ├── Agent.cs           主循环 (Stop Hook + 10 阶段流水线)
-├── AgentSlot.cs       多 Agent 工作区 (F1-F10 槽位切换)
+├── AgentSlot.cs       多 Agent 工作区 (F1-F10 槽位切换 + 后台并行)
 ├── LLM.cs             LLM 客户端 (流式 + 渐进超时重试 + 花费追踪)
 ├── ContextManager.cs  Crush 风格三层上下文压缩 + 进度事件
 ├── SessionManager.cs  会话持久化
@@ -96,7 +96,7 @@ WayCoder/
 ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1753 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── SelfTest.cs        1765 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
 ├── Infra/             基础设施 (12+ 文件)
 │   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
 │   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)
@@ -207,7 +207,7 @@ quit / exit      退出 (Ctrl+Q)
 
 ## 多 Agent 工作区
 
-**F1-F10** 一键切换 10 个独立 Agent 槽位，各占各的屏幕（聊天历史、输入草稿、状态栏各自独立），互不干扰。状态栏左侧 10 个数字实时显示各槽位状态：
+**F1-F10** 一键切换 10 个独立 Agent 槽位，各占各的屏幕（聊天历史、输入草稿、状态栏各自独立），互不干扰。**槽位支持后台并行执行**——在 F1 跑任务时可直接切到 F2 开新任务，后台槽位的输出自动缓冲，切回时完整展示。状态栏左侧 10 个数字实时显示各槽位状态：
 
 | 显示 | 含义 |
 |---|---|
@@ -217,6 +217,7 @@ quit / exit      退出 (Ctrl+Q)
 | 黄色 | 等待权限确认 |
 | 红色 | 出错 |
 
+> 运行中热键：`Esc` 中断当前槽位 Agent，`Ctrl+Z` 优雅暂停（当前批次完成后提交停机）
 > 热键迁移：帮助 `Ctrl+H`、面板 `Ctrl+B`、设置 `Ctrl+O`、退出 `Ctrl+Q`
 
 ## 关键设计决策
@@ -227,6 +228,7 @@ quit / exit      退出 (Ctrl+Q)
 - **渐进超时重试**：LLM 超时逐次加长（1x→1.5x→2x→3x→4x→6x→8x），最多 5 次重试
 - **子智能体并行**：tasks 数组最多 4 并发，聚合返回；通过不给 agent 工具约束递归
 - **多 Agent 工作区**：F1-F10 切换 10 个独立会话槽位，状态栏实时显示工作状态，支持槽位任务队列
+- **多会话真并行**：槽位任务后台线程执行不阻塞主循环，运行中可自由切换；活跃槽位实时流式、非活跃槽位缓冲输出，切换与路由共享槽位锁杜绝丢 token（对标 Claude Code 多窗口）
 - **Hook 系统**：8 种事件（PreToolUse/PostToolUse/Stop/PreCompact 等），JSON 结构化输出协议
 - **动态状态栏**：实时显示 Agent 状态/工具执行/压缩进度，Braille 旋转动画
 - **任务级花费追踪**：每轮对话独立统计 prompt/completion tokens 和费用

@@ -540,4 +540,36 @@ public static partial class SelfTest
             if (tmp != null) { try { Directory.Delete(tmp, true); } catch { } }
         }
     }
+
+    private static void TestMultiSlotParallel(Action<string, bool> Check)
+    {
+        // ── 槽位运行状态（多槽位后台并行执行的核心状态）──
+        var slot = new AgentSlot();
+        Check("并行: 初始非忙", !slot.IsBusy);
+        Check("并行: 初始无取消令牌", slot.Cts == null);
+        Check("并行: Sync 锁非空", slot.Sync != null);
+        Check("并行: 初始消息为空", slot.ChatMessages.Count == 0);
+        Check("并行: 槽位数量为 10", AgentSlot.Count == 10);
+
+        // ── 流式缓冲：StartStream → AppendToken → FinishStream ──
+        slot.BufferedStartStream();
+        Check("并行: 开始流式创建一条消息", slot.ChatMessages.Count == 1);
+        Check("并行: 流式消息标记 Streaming", slot.ChatMessages[^1].Streaming);
+        slot.BufferedAppendToken("你好");
+        slot.BufferedAppendToken("，世界");
+        Check("并行: token 连续拼接", slot.ChatMessages[^1].Content == "你好，世界");
+        Check("并行: 追加后仍 Streaming", slot.ChatMessages[^1].Streaming);
+        slot.BufferedFinishStream();
+        Check("并行: 结束流式取消 Streaming", !slot.ChatMessages[^1].Streaming);
+
+        // ── 无流式消息时 AppendToken 自动新建（对标 EnsureAgentStreaming）──
+        slot.BufferedAddMsg("system", "工具输出");
+        slot.BufferedAppendToken("继续");
+        Check("并行: 无流式消息时 AppendToken 自建",
+            slot.ChatMessages[^1].Streaming && slot.ChatMessages[^1].Content == "继续");
+
+        // ── AppendToLast 追加到最后一条（工具流式输出）──
+        slot.BufferedAppendToLast(" 追加");
+        Check("并行: AppendToLast 追加到最后一条", slot.ChatMessages[^1].Content == "继续 追加");
+    }
 }
