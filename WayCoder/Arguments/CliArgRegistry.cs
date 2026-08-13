@@ -65,7 +65,13 @@ public static class CliArgRegistry
 
             var consumed = new List<string>();
 
-            if (def.ValueCount == -1)
+            if (def.Greedy)
+            {
+                // 贪婪：吞掉后续参数，直到遇到下一个以 - 开头的旗标
+                while (i + 1 < args.Length && !args[i + 1].StartsWith('-'))
+                    consumed.Add(args[++i]);
+            }
+            else if (def.ValueCount == -1)
             {
                 // 可选值：仅当下一个 arg 不以 - 开头时消耗
                 if (i + 1 < args.Length && !args[i + 1].StartsWith('-'))

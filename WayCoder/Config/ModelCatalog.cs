@@ -10,6 +10,7 @@ namespace WayCoder;
 public static class ModelCatalog
 {
     /// <summary>Model metadata</summary>
+    /// <param name="MaxOutput">输出窗口大小（单次最大输出 token 数，0=未指定，回退全局 MaxTokens）</param>
     public record ModelInfo(
         string Id,
         string DisplayName,
@@ -21,7 +22,8 @@ public static class ModelCatalog
         double InputPrice,
         double OutputPrice,
         string? DefaultBaseUrl,
-        string Description
+        string Description,
+        int MaxOutput = 0
     );
 
     public static readonly ModelInfo[] BuiltIn =
@@ -136,14 +138,215 @@ public static class ModelCatalog
             ["openrouter"] = ("OpenRouter",   "https://openrouter.ai/api/v1"),
             ["groq"]       = ("Groq",         "https://api.groq.com/openai/v1"),
             ["together"]   = ("Together AI",  "https://api.together.xyz/v1"),
+            ["gitee"]      = ("Gitee AI",     "https://ai.gitee.com/v1"),
+            ["bailian"]    = ("Alibaba Bailian", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+            ["opencode"]   = ("OpenCode Zen", "https://opencode.ai/zen/v1"),
+            ["minimax"]    = ("MiniMax",      "https://api.minimaxi.com/v1"),
+            ["aihubmix"]   = ("AIHubMix",     "https://aihubmix.com/v1"),
             ["local"]      = ("Local",        ""),
             ["custom"]     = ("Custom",       ""),
         };
     }
 
+    // ════════════════════════════════════════════════════════════
+    // 自定义模型库（外置 JSON：全局 ~/.waycoder/models.json + 本地 .waycoder/models.json）
+    // 内置目录为兜底，外置库按 Id 覆盖/追加，本地覆盖全局。
+    // ════════════════════════════════════════════════════════════
+
+    private static readonly object _lock = new();
+    private static Dictionary<string, ModelInfo>? _custom;
+    private static ModelInfo[]? _all;
+
+    /// <summary>全局模型库路径（跨平台，所有用户共享）</summary>
+    public static string GlobalModelsPath => Global.GlobalConfigPath("models.json");
+
+    /// <summary>本地模型库路径（项目专属）</summary>
+    public static string LocalModelsPath =>
+        Path.Combine(Environment.CurrentDirectory, Global.ConfigDirName, "models.json");
+
+    /// <summary>
+    /// 完整模型目录 = 内置目录 + 自定义库（自定义按 Id 覆盖内置，新增项追加到末尾）。
+    /// 内置目录始终可用：找不到外置库时，内置数据兜底。
+    /// </summary>
+    public static ModelInfo[] All
+    {
+        get
+        {
+            if (_all != null) return _all;
+            lock (_lock)
+            {
+                if (_all != null) return _all;
+                var list = new List<ModelInfo>(BuiltIn);
+                foreach (var (id, m) in LoadCustom())
+                {
+                    var idx = list.FindIndex(x => x.Id == id);
+                    if (idx >= 0) list[idx] = m;   // 覆盖内置
+                    else list.Add(m);              // 追加自定义
+                }
+                _all = list.ToArray();
+                return _all;
+            }
+        }
+    }
+
+    /// <summary>新增/更新自定义模型，返回写入的文件路径。local=true 写本地，否则写全局。</summary>
+    public static string AddCustom(ModelInfo info, bool local = false)
+    {
+        var path = local ? LocalModelsPath : GlobalModelsPath;
+        var models = ReadFile(path);
+        models[info.Id] = info;
+        SaveCustom(models, path);
+        Invalidate();
+        return path;
+    }
+
+    /// <summary>删除自定义模型（从全局和本地两个文件都移除），返回受影响文件列表。</summary>
+    public static string[] RemoveCustom(string id)
+    {
+        var removed = new List<string>();
+        foreach (var path in new[] { GlobalModelsPath, LocalModelsPath })
+        {
+            if (!File.Exists(path)) continue;
+            var models = ReadFile(path);
+            if (models.Remove(id))
+            {
+                SaveCustom(models, path);
+                removed.Add(path);
+            }
+        }
+        if (removed.Count > 0) Invalidate();
+        return removed.ToArray();
+    }
+
+    /// <summary>仅列出自定义模型（不含内置）</summary>
+    public static ModelInfo[] ListCustom() => LoadCustom().Values.OrderBy(m => m.Id).ToArray();
+
+    /// <summary>删除某服务商下的所有自定义模型（从全局+本地两个文件移除），返回删除数量。</summary>
+    public static int RemoveCustomByProvider(string providerId)
+    {
+        var removed = 0;
+        foreach (var path in new[] { GlobalModelsPath, LocalModelsPath })
+        {
+            if (!File.Exists(path)) continue;
+            var models = ReadFile(path);
+            var toRemove = models
+                .Where(kv => kv.Value.ProviderId.Equals(providerId, StringComparison.OrdinalIgnoreCase))
+                .Select(kv => kv.Key)
+                .ToArray();
+            foreach (var id in toRemove)
+            {
+                models.Remove(id);
+                removed++;
+            }
+            if (toRemove.Length > 0) SaveCustom(models, path);
+        }
+        if (removed > 0) Invalidate();
+        return removed;
+    }
+
+    /// <summary>清除内存缓存并强制下次重新加载（外部改了 models.json 后调用）</summary>
+    public static void Invalidate()
+    {
+        lock (_lock) { _custom = null; _all = null; }
+    }
+
+    private static Dictionary<string, ModelInfo> LoadCustom()
+    {
+        if (_custom != null) return _custom;
+        lock (_lock)
+        {
+            if (_custom != null) return _custom;
+            var merged = new Dictionary<string, ModelInfo>();
+            foreach (var m in ReadFile(GlobalModelsPath).Values) merged[m.Id] = m;   // 全局先
+            foreach (var m in ReadFile(LocalModelsPath).Values) merged[m.Id] = m;    // 本地覆盖
+            _custom = merged;
+            return _custom;
+        }
+    }
+
+    private static Dictionary<string, ModelInfo> ReadFile(string path)
+    {
+        var result = new Dictionary<string, ModelInfo>();
+        if (!File.Exists(path)) return result;
+        try
+        {
+            var root = JsonNode.Parse(File.ReadAllText(path));
+            var arr = root is JsonArray a ? a : root?["models"]?.AsArray();
+            if (arr != null)
+            {
+                foreach (var node in arr)
+                {
+                    var info = FromJson(node);
+                    if (info != null) result[info.Id] = info;
+                }
+            }
+        }
+        catch { }
+        return result;
+    }
+
+    private static void SaveCustom(Dictionary<string, ModelInfo> models, string path)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (dir != null) Directory.CreateDirectory(dir);
+            var arr = new JsonArray();
+            foreach (var m in models.Values.OrderBy(m => m.Id, StringComparer.OrdinalIgnoreCase))
+                arr.Add(ToJson(m));
+            File.WriteAllText(path, arr.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch { /* 写入失败不崩溃 */ }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // 序列化（AOT 安全手写，不用反射）
+    // ════════════════════════════════════════════════════════════
+
+    private static JsonObject ToJson(ModelInfo m) => new()
+    {
+        ["id"] = m.Id,
+        ["displayName"] = m.DisplayName,
+        ["provider"] = m.Provider,
+        ["providerId"] = m.ProviderId,
+        ["icon"] = m.ProviderIcon,
+        ["category"] = m.Category,
+        ["contextWindow"] = m.ContextWindow,
+        ["maxOutput"] = m.MaxOutput,
+        ["inputPrice"] = m.InputPrice,
+        ["outputPrice"] = m.OutputPrice,
+        ["baseUrl"] = m.DefaultBaseUrl,
+        ["description"] = m.Description,
+    };
+
+    /// <summary>从 models.json 反序列化（精确读回所有字段，不推断 providerId/description，避免往返损坏）</summary>
+    private static ModelInfo? FromJson(JsonNode? node)
+    {
+        if (node is not JsonObject o) return null;
+        var id = o["id"]?.GetValue<string>();
+        if (string.IsNullOrWhiteSpace(id)) return null;
+        return new ModelInfo(
+            id,
+            o["displayName"]?.GetValue<string>() ?? id,
+            o["provider"]?.GetValue<string>() ?? "Imported",
+            o["providerId"]?.GetValue<string>() ?? "import",
+            o["icon"]?.GetValue<string>() ?? "*",
+            o["category"]?.GetValue<string>() ?? "Imported",
+            o["contextWindow"]?.GetValue<int>() ?? 0,
+            o["inputPrice"]?.GetValue<double>() ?? 0,
+            o["outputPrice"]?.GetValue<double>() ?? 0,
+            o["baseUrl"]?.GetValue<string>(),
+            o["description"]?.GetValue<string>() ?? "",
+            o["maxOutput"]?.GetValue<int>() ?? 0
+        );
+    }
+
     // Query helpers
-    public static ModelInfo? Find(string id) =>
-        BuiltIn.FirstOrDefault(m => m.Id == id);
+    public static ModelInfo? Find(string id)
+    {
+        var custom = LoadCustom();
+        return custom.TryGetValue(id, out var c) ? c : BuiltIn.FirstOrDefault(m => m.Id == id);
+    }
 
     /// <summary>
     /// 解析模型的上下文窗口大小。优先用内置模型目录的 ContextWindow，
@@ -242,17 +445,17 @@ public static class ModelCatalog
     }
 
     public static ModelInfo[] ByProvider(string providerId) =>
-        BuiltIn.Where(m => m.ProviderId == providerId).ToArray();
+        All.Where(m => m.ProviderId == providerId).ToArray();
 
     public static string[] ProviderIds =>
-        BuiltIn.Select(m => m.ProviderId).Distinct().ToArray();
+        All.Select(m => m.ProviderId).Distinct().ToArray();
 
     public static string[] Categories =>
-        BuiltIn.Select(m => m.Category).Distinct().ToArray();
+        All.Select(m => m.Category).Distinct().ToArray();
 
     public static ModelInfo[] Search(string query)
     {
-        return BuiltIn.Where(m =>
+        return All.Where(m =>
             m.Id.Contains(query, StringComparison.OrdinalIgnoreCase) ||
             m.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
             m.Provider.Contains(query, StringComparison.OrdinalIgnoreCase) ||
@@ -328,17 +531,347 @@ public static class ModelCatalog
               ?? node.GetValue<string>();
         if (string.IsNullOrWhiteSpace(id)) return null;
 
+        // 上下文 / 输出窗口：兼容 contextWindow / maxTokens / limit.context / limit.output
+        var limit = node["limit"]?.AsObject();
+        var contextWindow = node["contextWindow"]?.GetValue<int>()
+            ?? limit?["context"]?.GetValue<int>()
+            ?? node["contextLength"]?.GetValue<int>()
+            ?? 0;
+        var maxOutput = node["maxOutput"]?.GetValue<int>()
+            ?? limit?["output"]?.GetValue<int>()
+            ?? node["maxTokens"]?.GetValue<int>()
+            ?? 0;
+
+        // 计费：兼容 cost.input/output、pricing.input/output、inputPrice/outputPrice
+        var cost = node["cost"]?.AsObject();
+        var inputPrice = node["inputPrice"]?.GetValue<double>()
+            ?? cost?["input"]?.GetValue<double>()
+            ?? node["pricing"]?["input"]?.GetValue<double>()
+            ?? 0;
+        var outputPrice = node["outputPrice"]?.GetValue<double>()
+            ?? cost?["output"]?.GetValue<double>()
+            ?? node["pricing"]?["output"]?.GetValue<double>()
+            ?? 0;
+
+        var providerId = (node["provider"]?.GetValue<string>() ?? "import").ToLowerInvariant().Replace(" ", "-");
+        var baseUrl = node["baseUrl"]?.GetValue<string>()
+            ?? node["apiBase"]?.GetValue<string>()
+            ?? node["options"]?["baseURL"]?.GetValue<string>()
+            ?? node["options"]?["baseUrl"]?.GetValue<string>();
+
         return new ModelInfo(
             id,
             node["displayName"]?.GetValue<string>() ?? node["name"]?.GetValue<string>() ?? id,
             node["provider"]?.GetValue<string>() ?? "Imported",
-            (node["provider"]?.GetValue<string>() ?? "import").ToLowerInvariant().Replace(" ", "-"),
+            providerId,
             "*", "Imported",
-            node["contextWindow"]?.GetValue<int>() ?? node["maxTokens"]?.GetValue<int>() ?? 0,
-            0, 0,
-            node["baseUrl"]?.GetValue<string>() ?? node["apiBase"]?.GetValue<string>(),
-            "Imported from external config"
+            contextWindow,
+            inputPrice, outputPrice,
+            baseUrl,
+            "Imported from external config",
+            maxOutput
         );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // 外部工具导入（OpenCode / OpenClaw / Crush / 通用 JSON）
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>OpenCode 格式：provider.&lt;pid&gt;.models.&lt;mid&gt; = { name, limit{context,output}, options{baseURL} }</summary>
+    public static List<ModelInfo> ImportOpenCode(string json)
+    {
+        var result = new List<ModelInfo>();
+        var root = JsonNode.Parse(NormalizeJson5(json));
+        var providers = root?["provider"]?.AsObject();
+        if (providers == null) return result;
+
+        foreach (var (pid, pcfg) in providers)
+        {
+            var pname = pcfg?["name"]?.GetValue<string>() ?? pid;
+            var baseUrl = pcfg?["options"]?["baseURL"]?.GetValue<string>()
+                       ?? pcfg?["options"]?["baseUrl"]?.GetValue<string>();
+            var models = pcfg?["models"]?.AsObject();
+            if (models == null) continue;
+
+            foreach (var (mid, mcfg) in models)
+            {
+                var name = mcfg?["name"]?.GetValue<string>() ?? mid;
+                var limit = mcfg?["limit"]?.AsObject();
+                var ctx = limit?["context"]?.GetValue<int>() ?? 0;
+                var maxOut = limit?["output"]?.GetValue<int>() ?? 0;
+                var cost = mcfg?["cost"]?.AsObject();
+                var inPrice = cost?["input"]?.GetValue<double>() ?? 0;
+                var outPrice = cost?["output"]?.GetValue<double>() ?? 0;
+                result.Add(new ModelInfo(mid, name, pname, pid.ToLowerInvariant(), "*", "Imported",
+                    ctx, inPrice, outPrice, baseUrl, $"从 OpenCode 导入（{pname}）", maxOut));
+            }
+        }
+        return result;
+    }
+
+    /// <summary>OpenClaw 格式：models.providers.&lt;pid&gt;.models[] = { id, name, cost{input,output}, contextWindow, maxTokens }</summary>
+    public static List<ModelInfo> ImportOpenClaw(string json)
+    {
+        var result = new List<ModelInfo>();
+        var root = JsonNode.Parse(NormalizeJson5(json));
+        var providers = root?["models"]?["providers"]?.AsObject();
+        if (providers == null) return result;
+
+        foreach (var (pid, pcfg) in providers)
+        {
+            var baseUrl = pcfg?["baseUrl"]?.GetValue<string>();
+            var models = pcfg?["models"]?.AsArray();
+            if (models == null) continue;
+
+            foreach (var m in models)
+            {
+                var info = ParseModelNode(m);
+                if (info == null) continue;
+                // OpenClaw 用 provider id 作为 key，模型节点无 provider 字段，需回填
+                result.Add(info with
+                {
+                    ProviderId = pid.ToLowerInvariant(),
+                    Provider = pid,
+                    DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl,
+                    Description = $"从 OpenClaw 导入（{pid}）",
+                });
+            }
+        }
+        return result;
+    }
+
+    /// <summary>Crush 格式：config.providers（若为 JSON），否则返回空（Crush 用 SQLite 存储）</summary>
+    public static List<ModelInfo> ImportCrush(string json)
+    {
+        var result = new List<ModelInfo>();
+        var root = JsonNode.Parse(NormalizeJson5(json));
+        if (root == null) return result;
+        var providers = root["providers"]?.AsObject()
+                     ?? root["provider"]?.AsObject();
+        if (providers != null)
+        {
+            foreach (var (pid, pcfg) in providers)
+            {
+                var baseUrl = pcfg?["baseUrl"]?.GetValue<string>()
+                           ?? pcfg?["baseURL"]?.GetValue<string>();
+                var modelsNode = pcfg?["models"];
+                if (modelsNode is JsonArray arr)
+                {
+                    foreach (var m in arr)
+                    {
+                        var info = ParseModelNode(m);
+                        if (info == null) continue;
+                        result.Add(info with { ProviderId = pid.ToLowerInvariant(), Provider = pid, DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl });
+                    }
+                }
+                else if (modelsNode is JsonObject mobj)
+                {
+                    foreach (var (mid, mcfg) in mobj)
+                    {
+                        var info = ParseModelNode(mcfg);
+                        if (info != null)
+                            result.Add(info with { Id = mid, ProviderId = pid.ToLowerInvariant(), Provider = pid, DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl });
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    /// <summary>Claude Code 格式：settings.json 的 env 中 ANTHROPIC_MODEL / *_MODEL + BASE_URL</summary>
+    public static List<ModelInfo> ImportClaude(string json)
+    {
+        var result = new List<ModelInfo>();
+        var root = JsonNode.Parse(NormalizeJson5(json));
+        var env = root?["env"]?.AsObject();
+        if (env == null) return result;
+
+        var baseUrl = env.FirstOrDefault(kv => kv.Key.Contains("BASE_URL", StringComparison.OrdinalIgnoreCase))
+            .Value?.GetValue<string>();
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, val) in env)
+        {
+            if (!key.Contains("MODEL", StringComparison.OrdinalIgnoreCase)) continue;
+            if (key.EndsWith("_NAME", StringComparison.OrdinalIgnoreCase)) continue;  // *_MODEL_NAME 是显示名变体
+            if (val == null) continue;
+            var name = val.GetValue<string>()?.Trim();
+            if (string.IsNullOrEmpty(name) || name.Equals("any", StringComparison.OrdinalIgnoreCase)) continue;
+            var clean = name.Split('[')[0].Trim();  // 去 [1M] 后缀
+            if (!seen.Add(clean)) continue;
+            result.Add(new ModelInfo(clean, clean, "Claude Code", "claude", "C", "Imported",
+                0, 0, 0, baseUrl, $"从 Claude Code 导入（{key}）", 0));
+        }
+        return result;
+    }
+
+    /// <summary>Codex 格式：config.toml 的 [model_providers.*]（name/base_url）+ 顶层 model + [profiles.*]</summary>
+    public static List<ModelInfo> ImportCodex(string toml)
+    {
+        var result = new List<ModelInfo>();
+        var providers = new Dictionary<string, (string Name, string BaseUrl)>(StringComparer.OrdinalIgnoreCase);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var lines = toml.Replace("\r", "").Split('\n');
+
+        string? globalModel = null;
+        string? globalProvider = null;
+        string? provSection = null;   // [model_providers.<pid>] 上下文
+        string? profProvider = null;  // [profiles.*] 的 model_provider
+        string? profModel = null;     // [profiles.*] 的 model
+        bool inProfile = false;
+
+        void FlushProfile()
+        {
+            if (!inProfile || string.IsNullOrEmpty(profModel)) return;
+            var pid = profProvider ?? "codex";
+            providers.TryGetValue(pid, out var p);
+            var pname = string.IsNullOrEmpty(p.Name) ? pid : p.Name;
+            if (seen.Add(profModel))
+                result.Add(new ModelInfo(profModel, pname, pname, pid.ToLowerInvariant(), "*", "Imported",
+                    0, 0, 0, p.BaseUrl, $"从 Codex 导入（profile {pid}）", 0));
+            profProvider = null; profModel = null;
+        }
+
+        foreach (var raw in lines)
+        {
+            var line = raw.Trim();
+            if (line.Length == 0 || line.StartsWith('#')) continue;
+
+            if (line.StartsWith("[[") && line.EndsWith("]]")) { FlushProfile(); provSection = null; inProfile = false; continue; }
+            if (line.StartsWith('[') && line.EndsWith(']'))
+            {
+                FlushProfile();
+                inProfile = false;
+                provSection = null;
+                var sec = line.Trim('[', ']').Trim();
+                if (sec.StartsWith("model_providers."))
+                {
+                    provSection = sec["model_providers.".Length..];
+                    if (!providers.ContainsKey(provSection)) providers[provSection] = (provSection, "");
+                }
+                else if (sec.StartsWith("profiles."))
+                {
+                    inProfile = true;
+                    profProvider = null; profModel = null;
+                }
+                continue;
+            }
+
+            var eq = line.IndexOf('=');
+            if (eq < 0) continue;
+            var key = line[..eq].Trim();
+            var val = line[(eq + 1)..].Trim().Trim('"').Trim('\'');
+
+            if (provSection != null)
+            {
+                var (name, baseUrl) = providers[provSection];
+                if (key == "name") providers[provSection] = (val, baseUrl);
+                else if (key == "base_url") providers[provSection] = (name, val);
+            }
+            else if (inProfile)
+            {
+                if (key == "model_provider") profProvider = val;
+                else if (key == "model") profModel = val;
+            }
+            else
+            {
+                if (key == "model") globalModel = val;
+                else if (key == "model_provider") globalProvider = val;
+            }
+        }
+        FlushProfile();  // 最后一个 profile
+
+        // provider sections → 每个一个模型条目（当前激活的 provider 用全局 model 名）
+        foreach (var (pid, (pname, baseUrl)) in providers)
+        {
+            var modelId = pid.Equals(globalProvider, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(globalModel)
+                ? globalModel : pid;
+            if (seen.Add(modelId))
+                result.Add(new ModelInfo(modelId, pname, pname, pid.ToLowerInvariant(), "*", "Imported",
+                    0, 0, 0, baseUrl, $"从 Codex 导入（{pname}）", 0));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// JSON5 容错标准化：去注释 + 裸 key 加引号 + 去尾逗号，返回纯 JSON。
+    /// 用于 OpenClaw / Crush 等可能使用 JSON5/JSONC 的配置。
+    /// </summary>
+    public static string NormalizeJson5(string text)
+    {
+        var noComments = StripJsonComments(text);
+        var result = new StringBuilder();
+        var inString = false;
+        var len = noComments.Length;
+
+        for (int i = 0; i < len; i++)
+        {
+            var ch = noComments[i];
+            if (inString)
+            {
+                result.Append(ch);
+                if (ch == '\\' && i + 1 < len) { result.Append(noComments[i + 1]); i++; }
+                else if (ch == '"') inString = false;
+                continue;
+            }
+            if (ch == '"') { inString = true; result.Append(ch); continue; }
+
+            // 裸 key：字母/数字/下划线/点/连字符 序列后紧跟冒号
+            if (char.IsLetter(ch) || ch == '_' || ch == '$')
+            {
+                var j = i;
+                while (j < len && (char.IsLetterOrDigit(noComments[j]) || noComments[j] is '_' or '-' or '.' or '$'))
+                    j++;
+                // 跳过空白看是否跟冒号
+                var k = j;
+                while (k < len && char.IsWhiteSpace(noComments[k])) k++;
+                if (k < len && noComments[k] == ':')
+                {
+                    result.Append('"').Append(noComments, i, j - i).Append('"');
+                    i = j - 1;
+                    continue;
+                }
+            }
+            result.Append(ch);
+        }
+        return result.ToString();
+    }
+
+    /// <summary>去除 JSONC/JSON5 注释（// 和 /* */）</summary>
+    private static string StripJsonComments(string jsonc)
+    {
+        var result = new StringBuilder();
+        var inString = false;
+        var inBlockComment = false;
+        var inLineComment = false;
+        for (int i = 0; i < jsonc.Length; i++)
+        {
+            var ch = jsonc[i];
+            var next = i + 1 < jsonc.Length ? jsonc[i + 1] : '\0';
+            if (inBlockComment)
+            {
+                if (ch == '*' && next == '/') { inBlockComment = false; i++; }
+                continue;
+            }
+            if (inLineComment)
+            {
+                if (ch == '\n' || ch == '\r') { inLineComment = false; result.Append(ch); }
+                continue;
+            }
+            if (inString)
+            {
+                result.Append(ch);
+                if (ch == '\\' && next != '\0') { result.Append(next); i++; }
+                else if (ch == '"') inString = false;
+                continue;
+            }
+            if (ch == '"') { inString = true; result.Append(ch); continue; }
+            if (ch == '/' && next == '*') { inBlockComment = true; i++; continue; }
+            if (ch == '/' && next == '/') { inLineComment = true; i++; continue; }
+            result.Append(ch);
+        }
+        return result.ToString();
     }
 
     public static (List<ModelInfo> Models, string Format) TryImport(string json)

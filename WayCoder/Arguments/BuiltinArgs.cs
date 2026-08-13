@@ -4,12 +4,143 @@ namespace WayCoder.Arguments;
 // 模型参数
 // ═══════════════════════════════════════════════════════════════
 
+/// <summary>
+/// --model 模型管理（对标 /model 斜杠命令）。
+///   --model                        → 显示当前模型
+///   --model list [关键词]          → 列出模型目录（内置 + 自定义合并）
+///   --model name &lt;id&gt;        → 选中大模型并持久化（同步服务商 + base-url + 写 .env）
+///   --model small &lt;id&gt;       → 选中小模型并持久化（同步小模型服务商）
+///   --model key &lt;供应商&gt; &lt;key&gt; → 保存 API key（无参列出已存 keys）
+///   --model connect &lt;base-url&gt; → 设置连接地址（写 .env）
+///   --model import [来源]          → 导入外部模型库（opencode/openclaw/crush/claude/codex/文件，无参自动探测）
+///   --model add [model|provider|key] → 手动添加模型 / 服务商 / API key
+///   --model remove [model|provider|key] &lt;目标&gt; → 删除模型 / 服务商 / API key
+///   --model test                   → 模型连通性测试（有 key 的 + 本地模型，哪些能连上）
+///   --model &lt;模型ID&gt;          → 快捷选中（本次会话，不持久化，向后兼容）
+/// </summary>
 public class ModelArg : CliArg
 {
-    public override string Description => "模型名称（默认: deepseek-v4-flash）";
-    public override int ValueCount => 1;
-    public override string? ValueLabel => "名称";
+    public override string Description => "模型管理（list / name <id> / small <id> / key / connect / import [来源] / add [model|provider|key] / remove [model|provider|key] / test / prune，或 --model <模型ID> 快捷选中）";
+    public override int ValueCount => -1;
+    public override bool Greedy => true;
+    public override string? ValueLabel => "模型ID/子命令";
     public ModelArg() : base("model", "-m", "--model") { }
+
+    public override int? OnMatch(List<string> values)
+    {
+        if (values.Count == 0)
+        {
+            Console.WriteLine(ModelCli.Current());
+            return 0;
+        }
+
+        var first = values[0].ToLowerInvariant();
+        var rest = values.Skip(1).ToArray();
+
+        string result;
+        switch (first)
+        {
+            case "list":
+            case "ls":
+                result = ModelCli.List(rest.Length > 0 ? rest[0] : null);
+                break;
+            case "name":
+                result = rest.Length == 0 ? "用法: --model name <模型ID>" : ModelCli.Select(rest[0]);
+                break;
+            case "small":
+                result = rest.Length == 0 ? "用法: --model small <小模型ID>" : ModelCli.SelectSmall(rest[0]);
+                break;
+            case "key":
+            case "keys":
+                result = DispatchKey(rest);
+                break;
+            case "connect":
+                result = rest.Length == 0 ? "用法: --model connect <base-url>" : ModelCli.Connect(rest[0]);
+                break;
+            case "import":
+                result = ModelCli.Import(rest.Length > 0 ? rest[0] : null);
+                break;
+            case "add":
+                result = DispatchAdd(rest);
+                break;
+            case "remove":
+            case "rm":
+            case "delete":
+            case "del":
+                result = DispatchRemove(rest);
+                break;
+            case "test":
+                result = ModelCli.Test();
+                break;
+            case "prune":
+            case "clean":
+                result = ModelCli.Prune();
+                break;
+            default:
+                // 裸模型名：本次会话快捷选中，交给 Program 继续运行
+                return null;
+        }
+
+        Console.WriteLine(result);
+        return 0;
+    }
+
+    static string DispatchKey(string[] rest)
+    {
+        if (rest.Length == 0) return ModelCli.ListKeys();
+        if (rest.Length >= 3 && rest[0].Equals("set", StringComparison.OrdinalIgnoreCase))
+            return ModelCli.SetKey(rest[1], string.Join(" ", rest.Skip(2)));
+        if (rest.Length >= 2 && rest[0].Equals("remove", StringComparison.OrdinalIgnoreCase))
+            return ModelCli.RemoveKey(rest[1]);
+        if (rest.Length >= 2)
+            return ModelCli.SetKey(rest[0], string.Join(" ", rest.Skip(1)));
+        return "用法: --model key [set|remove] <供应商> <key>";
+    }
+
+    static string DispatchAdd(string[] rest)
+    {
+        if (rest.Length == 0)
+            return "用法: --model add [model <id> <供应商ID> [baseUrl] | provider <供应商ID> [baseUrl] | key <供应商ID> <key>]";
+        var sub = rest[0].ToLowerInvariant();
+        switch (sub)
+        {
+            case "model":
+                return rest.Length >= 3
+                    ? ModelCli.AddModel(rest[1], rest[2], rest.Length > 3 ? rest[3] : null)
+                    : "用法: --model add model <id> <供应商ID> [baseUrl]";
+            case "provider":
+            case "prov":
+                return rest.Length >= 2
+                    ? ModelCli.AddProvider(rest[1], rest.Length > 2 ? rest[2] : null)
+                    : "用法: --model add provider <供应商ID> [baseUrl]";
+            case "key":
+            case "keys":
+            case "apikey":
+                return rest.Length >= 3
+                    ? ModelCli.SetKey(rest[1], rest[2])
+                    : "用法: --model add key <供应商ID> <key>";
+            default:
+                // 无子命令：add <id> <供应商ID> [baseUrl]
+                return rest.Length >= 2
+                    ? ModelCli.AddModel(rest[0], rest[1], rest.Length > 2 ? rest[2] : null)
+                    : ModelCli.AddModel(rest[0], null, null);
+        }
+    }
+
+    static string DispatchRemove(string[] rest)
+    {
+        if (rest.Length == 0)
+            return "用法: --model remove [model <id> | provider <pid> | key <pid>]（无子命令时 <id> 视为删除模型）";
+        var sub = rest[0].ToLowerInvariant();
+        if (rest.Length >= 2 && sub is "model")
+            return ModelCli.Remove(rest[1]);
+        if (rest.Length >= 2 && sub is "provider" or "prov")
+            return ModelCli.RemoveProvider(rest[1]);
+        if (rest.Length >= 2 && sub is "key" or "keys" or "apikey")
+            return ModelCli.RemoveKey(rest[1]);
+        // 无子命令：rest[0] 即模型 id（向后兼容 --model remove <id>）
+        return ModelCli.Remove(rest[0]);
+    }
 }
 
 public class BaseUrlArg : CliArg
@@ -22,7 +153,7 @@ public class BaseUrlArg : CliArg
 
 public class ApiKeyArg : CliArg
 {
-    public override string Description => "API 密钥";
+    public override string Description => "API 密钥（自动保存到全局 ~/.waycoder/api_keys.json，按当前服务商）";
     public override int ValueCount => 1;
     public override string? ValueLabel => "密钥";
     public ApiKeyArg() : base("api-key", "-k", "--api-key") { }
@@ -89,7 +220,7 @@ public class TinyArg : CliArg
     public override string Description => "Tiny 模式（精简提示词 + 小窗口；可指定如 --tiny 8k，缺省自动探测，失败回退 4K）";
     public override int ValueCount => -1;
     public override string? ValueLabel => "窗口";
-    public TinyArg() : base("tiny", "--tiny") { }
+    public TinyArg() : base("tiny", "-tt", "--test-tiny", "--tiny") { }
 }
 
 public class EconomyArg : CliArg
@@ -105,6 +236,57 @@ public class DebugArg : CliArg
     public override string Description => "开启调试日志（记录到 logs/ 目录）";
     public DebugArg() : base("debug", "-d", "--debug") { }
     public override int? OnMatch(List<string> values) { DebugLog.Enable(); return null; }
+}
+
+/// <summary>
+/// --config 命令行配置（对标 /config 斜杠命令），无需进界面即可读写所有设置项。
+///   --config                      → 列出全部
+///   --config list                 → 同列出
+///   --config get &lt;key&gt;      → 读取
+///   --config set &lt;key&gt; &lt;v&gt; → 设置并写入 .env
+///   --config &lt;key&gt; &lt;v&gt;  → set 简写
+///   --config &lt;key&gt;           → get 简写
+/// </summary>
+public class ConfigArg : CliArg
+{
+    public override string Description => "命令行配置（list / get <key> / set <key> <value> 或 <key> [value]）";
+    public override int ValueCount => -1;
+    public override bool Greedy => true;
+    public override string? ValueLabel => "项 [值]";
+    public ConfigArg() : base("config", "-C", "--config") { }
+
+    public override int? OnMatch(List<string> values)
+    {
+        string result;
+
+        if (values.Count == 0)
+            result = ConfigCli.List();
+        else
+        {
+            var first = values[0].ToLowerInvariant();
+            var rest = values.Skip(1).ToArray();
+            switch (first)
+            {
+                case "list":
+                case "ls":
+                    result = ConfigCli.List();
+                    break;
+                case "get":
+                    result = rest.Length == 0 ? "用法: --config get <key>" : ConfigCli.Get(rest[0]);
+                    break;
+                case "set":
+                    result = rest.Length < 2 ? "用法: --config set <key> <value>" : ConfigCli.Set(rest[0], string.Join(" ", rest.Skip(1)));
+                    break;
+                default:
+                    // 简写：--config <key> [value]
+                    result = rest.Length == 0 ? ConfigCli.Get(values[0]) : ConfigCli.Set(values[0], string.Join(" ", rest));
+                    break;
+            }
+        }
+
+        Console.WriteLine(result);
+        return 0;
+    }
 }
 
 public class HelpArg : CliArg
@@ -136,14 +318,14 @@ public class TestArg : CliArg
 public class BenchmarkArg : CliArg
 {
     public override string Description => "运行性能测评";
-    public BenchmarkArg() : base("bench", "--bench", "--benchmark", "--perf") { }
+    public BenchmarkArg() : base("bench", "-tb", "--test-benchmark", "--bench", "--perf") { }
     public override int? OnMatch(List<string> values) { Benchmark.Run(); return 0; }
 }
 
 public class LimitsArg : CliArg
 {
     public override string Description => "运行系统上限报告（扫描所有硬编码上限）";
-    public LimitsArg() : base("limits", "--limits") { }
+    public LimitsArg() : base("limits", "-tl", "--test-limits", "--limits") { }
     public override int? OnMatch(List<string> values) { Benchmark.LimitsReport(); return 0; }
 }
 
@@ -151,7 +333,7 @@ public class ScreenshotArg : CliArg
 {
     public override string Description => "截图模式";
     public override bool Internal => true;
-    public ScreenshotArg() : base("screenshot", "--screenshot") { }
+    public ScreenshotArg() : base("screenshot", "-x", "--screenshot") { }
     public override int? OnMatch(List<string> values) { Program.RunScreenshot(); return 0; }
 }
 
@@ -159,7 +341,7 @@ public class TuiDemoArg : CliArg
 {
     public override string Description => "TUI 控件演示";
     public override bool Internal => true;
-    public TuiDemoArg() : base("tui-demo", "--tui-demo") { }
+    public TuiDemoArg() : base("tui-demo", "-u", "--tui-demo") { }
     public override int? OnMatch(List<string> values) { TuiDemo.Run(); return 0; }
 }
 
@@ -167,7 +349,7 @@ public class ThemeVerifyArg : CliArg
 {
     public override string Description => "主题配色验证";
     public override bool Internal => true;
-    public ThemeVerifyArg() : base("theme-verify", "--theme-verify") { }
+    public ThemeVerifyArg() : base("theme-verify", "-z", "--theme-verify") { }
     public override int? OnMatch(List<string> values) { ThemeVerify.Run(); return 0; }
 }
 
@@ -212,7 +394,7 @@ public class SessionListArg : CliArg
 {
     public override string Description => "列出所有已保存会话";
     public override int ValueCount => 0;
-    public SessionListArg() : base("session-list", "--session-list", "--sessions") { }
+    public SessionListArg() : base("session-list", "-s", "--session-list", "--sessions") { }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -242,6 +424,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new WatchArg());
         CliArgRegistry.Register(new TinyArg());
         CliArgRegistry.Register(new EconomyArg());
+        CliArgRegistry.Register(new ConfigArg());
         CliArgRegistry.Register(new DebugArg());
         CliArgRegistry.Register(new HelpArg());
         CliArgRegistry.Register(new TestArg());

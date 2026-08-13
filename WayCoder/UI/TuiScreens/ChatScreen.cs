@@ -48,6 +48,12 @@ public class ChatScreen : TuiScreen
     /// <summary>提示栏（输入框上方）</summary>
     public TuiPromptBar PromptBar { get; private set; } = null!;
 
+    /// <summary>前缀提示钩子注册表：前缀符号 → 提示项生成器（触发提示框）。</summary>
+    private readonly Dictionary<char, Func<string, List<PromptItem>>> _prefixHintHooks = new();
+
+    /// <summary>内置前缀符号（/ @ ! #）。</summary>
+    private static readonly char[] BuiltinPrefixes = ['/', '@', '!', '#'];
+
     /// <summary>动态栏（聊天列表下方、输入区上方，始终可见）</summary>
     public TuiDynamicBar DynamicBar { get; private set; } = null!;
 
@@ -59,6 +65,10 @@ public class ChatScreen : TuiScreen
 
     /// <summary>建议下拉面板</summary>
     public TuiVBox SuggestPanel { get; private set; } = null!;
+
+    /// <summary>建议面板上一帧的可见矩形（用于移动/缩放/隐藏后补绘被遮挡的聊天内容）。</summary>
+    private int _suggestPrevX = -1, _suggestPrevY = -1, _suggestPrevW, _suggestPrevH;
+    private bool _suggestPrevVisible;
 
     /// <summary>右侧信息面板</summary>
     public TuiSidePanel SidePanel { get; private set; } = null!;
@@ -363,13 +373,14 @@ public class ChatScreen : TuiScreen
         //  添加横向面板到根布局
         RootView.Add(middleHBox);
 
-        // ── 建议面板 ──
+        // ── 建议面板（浮层，不参与流式布局，避免把输入区挤出屏幕）──
         SuggestPanel = new TuiVBox
         {
             Width = Math.Min(TW, 60),
             Height = 0,
             Visible = false,
-            Bg = 47
+            Bg = 47,
+            Floating = true
         };
         RootView.Add(SuggestPanel);
 
@@ -821,6 +832,7 @@ public class ChatScreen : TuiScreen
         SuggestIndex = selectedIdx;
         SuggestPanel.Clear();
         SuggestPanel.Visible = items.Count > 0;
+        MarkDirty(); // 建议面板显隐/高度变化 → 强制重绘背景，清除残影
         if (items.Count == 0) return;
 
         int panelH = Math.Min(items.Count, 12);
@@ -850,6 +862,7 @@ public class ChatScreen : TuiScreen
         SuggestPanel.Visible = false;
         Suggestions.Clear();
         SuggestActive = false;
+        MarkDirty(); // 浮层隐藏 → 清除残影
     }
 
     // ── 侧栏 ──
@@ -963,6 +976,7 @@ public class ChatScreen : TuiScreen
     /// <summary>隐藏提示栏</summary>
     public void HidePromptBar()
     {
+        if (!PromptBar.Visible && PromptBar.Height == 0) return; // 已隐藏 → 避免每键重复全量重绘
         PromptBar.Visible = false;
         PromptBar.Height = 0;
         PromptBar.Items.Clear();
@@ -1016,6 +1030,24 @@ public class ChatScreen : TuiScreen
 
     /// <summary>提示栏是否可见</summary>
     public bool PromptBarVisible => PromptBar.Visible;
+
+    /// <summary>
+    /// 注册前缀提示钩子：输入框检测到指定前缀符号时，调用 provider 生成提示项并弹出提示框。
+    /// provider 接收前缀后的过滤词（不含前缀），返回提示项列表；返回空列表表示无提示。
+    /// 自定义前缀优先于内置前缀，可覆盖内置符号（/ @ ! #）的默认行为。
+    /// </summary>
+    public void RegisterPrefixHint(char prefix, Func<string, List<PromptItem>> provider)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        _prefixHintHooks[prefix] = provider;
+    }
+
+    /// <summary>移除已注册的前缀提示钩子，恢复内置行为。</summary>
+    public void UnregisterPrefixHint(char prefix) => _prefixHintHooks.Remove(prefix);
+
+    /// <summary>前缀是否为已知前缀（内置或已注册）。</summary>
+    private bool IsKnownPrefix(char c) =>
+        BuiltinPrefixes.Contains(c) || _prefixHintHooks.ContainsKey(c);
 
     /// <summary>构建默认提示列表（命令 + 最近文件 + 快捷操作）</summary>
     private List<PromptItem> BuildDefaultHints()
@@ -1124,13 +1156,33 @@ public class ChatScreen : TuiScreen
         if (SidePanelVisible)
             SidePanel.Sections = SidePanelSections;
 
-        // ── 建议面板定位（浮层，手动定位）──
-        if (SuggestPanel.Visible)
+        // ── 建议面板定位（浮层，手动定位；Layout 因 Floating 不会覆盖 X/Y）──
+        // 记录新矩形并与上一帧对比，移动/缩放/隐藏时补绘被遮挡区域，避免底色残留。
+        int spX = 0, spY = 0, spW = 0, spH = 0;
+        bool spVisible = SuggestPanel.Visible;
+        if (spVisible)
         {
-            SuggestPanel.X = 0;
+            spX = 0;
             int topBorderY = 1 + chatH;
-            SuggestPanel.Y = topBorderY - SuggestPanel.Height;
+            spY = Math.Max(1, topBorderY - SuggestPanel.Height);
+            spW = SuggestPanel.Width;
+            spH = SuggestPanel.Height;
+            SuggestPanel.X = spX;
+            SuggestPanel.Y = spY;
         }
+
+        if (_suggestPrevVisible)
+        {
+            bool moved = spX != _suggestPrevX || spY != _suggestPrevY ||
+                         spW != _suggestPrevW || spH != _suggestPrevH;
+            if (!spVisible || moved)
+                MarkDirtyRect(_suggestPrevX, _suggestPrevY, _suggestPrevW, _suggestPrevH);
+        }
+        _suggestPrevX = spX;
+        _suggestPrevY = spY;
+        _suggestPrevW = spW;
+        _suggestPrevH = spH;
+        _suggestPrevVisible = spVisible;
 
         // VBox/HBox 自动处理 Y 坐标
         RootView.Layout();
@@ -1517,7 +1569,7 @@ public class ChatScreen : TuiScreen
         for (int i = cursorPos - 1; i >= 0; i--)
         {
             char c = text[i];
-            if (c == '/' || c == '@' || c == '!' || c == '#')
+            if (IsKnownPrefix(c))
             {
                 // 确保前缀在行首或空格后
                 if (i == 0 || text[i - 1] == ' ' || text[i - 1] == '\n')
@@ -1556,6 +1608,10 @@ public class ChatScreen : TuiScreen
     {
         var items = new List<PromptItem>();
         var q = query.TrimStart();
+
+        // 自定义钩子优先：已注册前缀直接调用 provider 生成提示项
+        if (_prefixHintHooks.TryGetValue(prefix, out var hook))
+            return hook(q) ?? new List<PromptItem>();
 
         switch (prefix)
         {

@@ -206,6 +206,17 @@ public abstract class TuiScreen : TuiBase
         }
     }
 
+    /// <summary>
+    /// 标记一个屏幕矩形区域需要重绘。浮层控件（如建议面板）移动/缩放/隐藏后，
+    /// 其之前遮挡的根视图内容需补绘，否则会残留底色。
+    /// </summary>
+    protected void MarkDirtyRect(int x, int y, int w, int h)
+    {
+        if (w <= 0 || h <= 0) return;
+        _dirtyRects.Add((x, y, w, h));
+        MarkDirtyInRect(RootView, 0, 0, x, y, w, h);
+    }
+
     /// <summary>关闭所有模态窗口</summary>
     public void CloseAllModals()
     {
@@ -371,11 +382,13 @@ public abstract class TuiScreen : TuiBase
         // 先擦除窗口残影（默认背景），再裁剪重绘根视图，保证背景不残留。
         foreach (var (x, y, w, h) in _dirtyRects)
         {
-            // 用默认背景清除脏区域（擦除窗口 Mask / 边框 / 背景）
+            // 用默认背景清除脏区域（擦除窗口 Mask / 边框 / 背景）。
+            // 需先 SGR 复位，否则 bg=0 的空格不会清除残留底色（如窗口 Mask 的背景色）。
             for (int row = y; row < y + h && row < TH; row++)
             {
                 if (row < 0) continue;
                 var rb = new RenderBuffer();
+                rb.Reset();
                 rb.Write(row, x, new string(' ', w));
                 sb.Append(rb.ToString());
             }

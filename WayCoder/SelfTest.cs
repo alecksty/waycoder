@@ -555,6 +555,18 @@ public static class SelfTest
             (long)row0[0]! == 1 && (long)row0[1]! == 2 &&
             outerGrid[1] is List<object?> row1 && (long)row1[0]! == 3);
 
+        // ── v0.47.11: ParseArgs 重复键容错（后者覆盖，不再抛 ArgumentException）──
+        // LLM 偶发输出含重复键的工具参数（如 agent 工具 {"task":"a","task":"b"}），
+        // JsonNode 解析后枚举会抛「已存在相同键 Key: task」，导致该轮工具参数被丢弃。
+        var dupArgs = LLM.ParseArgs("{\"task\": \"a\", \"task\": \"b\"}");
+        Check("ParseArgs 重复键后者覆盖",
+            dupArgs.ContainsKey("task") && (string)dupArgs["task"]! == "b" && dupArgs.Count == 1);
+        // 嵌套对象内重复键同样容错
+        var dupNested = LLM.ParseArgs("{\"cfg\": {\"x\": 1, \"x\": 2}}");
+        Check("ParseArgs 嵌套重复键后者覆盖",
+            dupNested["cfg"] is Dictionary<string, object?> dupCfg &&
+            dupCfg.Count == 1 && (long)dupCfg["x"]! == 2);
+
         // ── v0.36.0: LLMResponse.ReasoningTokens 字段 ──
         var testResp = new LLMResponse
         {
@@ -817,6 +829,14 @@ public static class SelfTest
         var readTool = ToolRegistry.GetTool("read_file")!;
         var agent2 = new Agent(new LLM("test", "sk-test"), [readTool!]);
         Check("工具范围隔离", agent2.ToolByName.Count == 1 && agent2.ToolByName.ContainsKey("read_file"));
+
+        // 优雅暂停标志（Ctrl+Z / /pause）
+        var pauseAgent = new Agent(new LLM("test", "sk-test"));
+        Check("PauseRequested 默认 false", pauseAgent.PauseRequested == false);
+        pauseAgent.PauseRequested = true;
+        Check("PauseRequested 可置位", pauseAgent.PauseRequested == true);
+        pauseAgent.PauseRequested = false;
+        Check("PauseRequested 可复位", pauseAgent.PauseRequested == false);
         Console.WriteLine();
 
         // ---- JsonHelper ----
@@ -1394,6 +1414,13 @@ public static class SelfTest
         // 验证异步读取修复：大输出不死锁
         var largeOutput = new BashTool().ExecuteAsync(new() { ["command"] = "yes head 2>&1 | head -2000", ["timeout"] = 5 }).Result;
         Check("bash 大输出不死锁", largeOutput.Length > 1000 || largeOutput.Contains("已阻止"));
+
+        // 前台超时自动迁移（对标 Crush）：慢命令超时后转入后台而非直接失败
+        var slowCmd = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? "ping -n 3 127.0.0.1 >nul"
+            : "sleep 2";
+        var migrateResult = new BashTool().ExecuteAsync(new() { ["command"] = slowCmd, ["timeout"] = 1 }).Result;
+        Check("bash 超时自动迁移到后台", migrateResult.Contains("Shell ID") || migrateResult.Contains("自动转入后台"));
 
         Console.WriteLine();
 
@@ -1992,6 +2019,165 @@ public static class SelfTest
         var configWithBudget = new Config { MaxBudgetUsd = 12.5 };
         Check("MaxBudget 写入读取", configWithBudget.MaxBudgetUsd == 12.5);
         Check("MaxBudget 默认 null", new Config().MaxBudgetUsd == null);
+
+        // /config 命令行读写 API（Schema 驱动，无 switch 重复）
+        Check("FindProp 按 Key", Config.FindProp("Model")?.Key == "Model");
+        Check("FindProp 忽略大小写", Config.FindProp("model")?.Key == "Model");
+        Check("FindProp 按环境变量", Config.FindProp("WAYCODER_MODEL")?.Key == "Model");
+        Check("FindProp 未知返回 null", Config.FindProp("NotExist") == null);
+        Check("GetPropValue 读取 Model", !string.IsNullOrEmpty(Config.GetPropValue("Model")));
+
+        var savedMaxTokens = Config.Instance.MaxTokens;
+        Check("TrySetPropValue MaxTokens 成功",
+            Config.TrySetPropValue("MaxTokens", "16384", out var setErr)
+            && setErr == null && Config.Instance.MaxTokens == 16384);
+        Config.Instance.MaxTokens = savedMaxTokens;
+
+        Check("TrySetPropValue 非法 select 拒绝",
+            !Config.TrySetPropValue("SandboxLevel", "bogus", out var selErr) && selErr != null);
+        Check("TrySetPropValue 未知项拒绝",
+            !Config.TrySetPropValue("NoSuchKey", "x", out var unknownErr) && unknownErr != null);
+
+        // --config 命令行参数（ConfigCli 纯文本，与 /config 共用同一数据源）
+        Check("ConfigCli.List 含标题", ConfigCli.List().Contains("配置设置"));
+        Check("ConfigCli.Get 已知项", ConfigCli.Get("Model").Contains("Model"));
+        Check("ConfigCli.Get 未知项提示", ConfigCli.Get("NoSuchKey").Contains("未知设置项"));
+
+        // --model 模型管理（ModelCli 纯文本，与 /model 共用目录）
+        Check("ModelCli.List 含标题", ModelCli.List().Contains("模型目录"));
+        Check("ModelCli.List 过滤 deepseek", ModelCli.List("deepseek").Contains("DeepSeek"));
+        Check("ModelCli.ListKeys 可读", ModelCli.ListKeys().Length >= 0);
+
+        // env 无 key 时按模型供应商从全局 JSON 回退（多服务商一键切换）
+        Check("模型→供应商解析 deepseek", ModelCatalog.Find("deepseek-v4-flash")?.ProviderId == "deepseek");
+        Check("模型→供应商解析 openai", ModelCatalog.Find("gpt-5.5")?.ProviderId == "openai");
+        Check("ApiKeyStore.ForModel 未知模型返回 null", ApiKeyStore.ForModel("no-such-model-xyz") == null);
+        Check("Config 含 SmallProvider 设置项", ConfigCli.Get("SmallProvider").Contains("SmallProvider"));
+
+        // 一个服务商一个 key，一个服务商多个模型（key 跟服务商走，不跟模型走）
+        Check("deepseek 多模型共享服务商",
+            ModelCatalog.Find("deepseek-v4-pro")?.ProviderId == "deepseek"
+            && ModelCatalog.Find("deepseek-v4-flash")?.ProviderId == "deepseek"
+            && ModelCatalog.Find("deepseek-chat")?.ProviderId == "deepseek");
+        Check("openai 多模型共享服务商",
+            ModelCatalog.Find("gpt-5.5")?.ProviderId == "openai"
+            && ModelCatalog.Find("gpt-4o")?.ProviderId == "openai");
+        Check("qwen 多模型共享服务商",
+            ModelCatalog.Find("qwen3-max")?.ProviderId == "qwen"
+            && ModelCatalog.Find("qwen-turbo")?.ProviderId == "qwen");
+        // 服务商 key 存取（一个服务商一个 key）
+        ApiKeyStore.Set("__waycoder_test__", "sk-test-1234567890");
+        Check("ApiKeyStore 按服务商存取 key", ApiKeyStore.Get("__waycoder_test__") == "sk-test-1234567890");
+        ApiKeyStore.Remove("__waycoder_test__");
+        Check("ApiKeyStore 删除服务商 key", ApiKeyStore.Get("__waycoder_test__") == null);
+
+        // 外部配置导入：Claude Code settings.json（env 中 *_MODEL + BASE_URL，去 [1M] 后缀 + 去重 + 跳过 *_MODEL_NAME）
+        var claudeJson = """
+        {
+          "env": {
+            "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
+            "ANTHROPIC_MODEL": "deepseek-v4-pro",
+            "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-v4-pro[1M]",
+            "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-pro[1M]",
+            "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-pro",
+            "ANTHROPIC_DEFAULT_SONNET_MODEL_NAME": "deepseek-v4-pro"
+          }
+        }
+        """;
+        var claude = ModelCatalog.ImportClaude(claudeJson);
+        Check("Claude 导入去重为 1 个模型", claude.Count == 1);
+        Check("Claude 导入模型 id", claude.Count == 1 && claude[0].Id == "deepseek-v4-pro");
+        Check("Claude 导入 providerId=claude", claude.Count == 1 && claude[0].ProviderId == "claude");
+        Check("Claude 导入 baseUrl", claude.Count == 1 && claude[0].DefaultBaseUrl == "https://api.deepseek.com/anthropic");
+
+        // 外部配置导入：Codex config.toml（[model_providers.*] + 顶层 model + [profiles.*]）
+        var codexToml = """
+        model_provider = "custom"
+        model = "gpt-5.6-sol"
+
+        [profiles.GoAI]
+        model_provider = "GoAI"
+        model = "deepseek V4 Flash"
+
+        [model_providers.custom]
+        name = "DeepSeek"
+        base_url = "http://127.0.0.1:15721/v1"
+        """;
+        var codex = ModelCatalog.ImportCodex(codexToml);
+        Check("Codex 导入 provider 模型（全局 model）",
+            codex.Any(m => m.Id == "gpt-5.6-sol" && m.ProviderId == "custom"
+                && m.DefaultBaseUrl == "http://127.0.0.1:15721/v1"));
+        Check("Codex 导入 profile 模型",
+            codex.Any(m => m.Id == "deepseek V4 Flash" && m.ProviderId == "goai"));
+
+        // 模型库序列化往返（写本地模型库 → 读回 → 删除，不污染全局库）
+        var prevLocalExists = File.Exists(ModelCatalog.LocalModelsPath);
+        var mi = new ModelCatalog.ModelInfo(
+            "__selftest_roundtrip__", "__selftest_roundtrip__", "SelfTest", "selftest", "T", "Imported",
+            128_000, 1.5, 3.0, "https://selftest.example/v1", "round-trip 描述", 8192);
+        ModelCatalog.AddCustom(mi, local: true);
+        var rtLoaded = ModelCatalog.Find("__selftest_roundtrip__");
+        Check("模型库往返: 命中", rtLoaded != null);
+        Check("模型库往返: providerId 保留", rtLoaded?.ProviderId == "selftest");
+        Check("模型库往返: baseUrl 保留", rtLoaded?.DefaultBaseUrl == "https://selftest.example/v1");
+        Check("模型库往返: description 保留", rtLoaded?.Description == "round-trip 描述");
+        Check("模型库往返: maxOutput 保留", rtLoaded?.MaxOutput == 8192);
+        Check("模型库往返: contextWindow 保留", rtLoaded?.ContextWindow == 128_000);
+        Check("模型库往返: 价格保留", rtLoaded?.InputPrice == 1.5 && rtLoaded?.OutputPrice == 3.0);
+        ModelCatalog.RemoveCustom("__selftest_roundtrip__");
+        Check("模型库删除自定义", ModelCatalog.Find("__selftest_roundtrip__") == null);
+        if (!prevLocalExists && File.Exists(ModelCatalog.LocalModelsPath))
+        {
+            var leftover = File.ReadAllText(ModelCatalog.LocalModelsPath).Replace(" ", "").Replace("\n", "").Replace("\r", "").Replace("\t", "");
+            if (leftover == "[]") File.Delete(ModelCatalog.LocalModelsPath);  // 测试残留：空库即删
+        }
+
+        // 删除子命令：按服务商删除所有自定义模型 + 删除 API key
+        ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
+            "__selftest_prov_a__", "__selftest_prov_a__", "SelfTestProv", "selftestprov", "T", "Imported",
+            0, 0, 0, null, "test", 0), local: true);
+        ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
+            "__selftest_prov_b__", "__selftest_prov_b__", "SelfTestProv", "selftestprov", "T", "Imported",
+            0, 0, 0, null, "test", 0), local: true);
+        Check("按服务商删除自定义模型数", ModelCatalog.RemoveCustomByProvider("selftestprov") == 2);
+        Check("按服务商删除后不可加载",
+            ModelCatalog.Find("__selftest_prov_a__") == null && ModelCatalog.Find("__selftest_prov_b__") == null);
+
+        ApiKeyStore.Set("__selftest_key__", "sk-delete-me");
+        Check("删除 key 前存在", ApiKeyStore.Has("__selftest_key__"));
+        Check("ModelCli.RemoveKey 删除成功", ModelCli.RemoveKey("__selftest_key__").Contains("已删除"));
+        Check("删除 key 后不存在", !ApiKeyStore.Has("__selftest_key__"));
+
+        // 添加子命令：手动添加模型 / 服务商（写入全局库，测后清理）
+        var addModelMsg = ModelCli.AddModel("__selftest_add_model__", "selftestprov", "https://selftest.example/v1");
+        Check("添加模型成功", addModelMsg.Contains("已添加")
+            && ModelCatalog.Find("__selftest_add_model__")?.ProviderId == "selftestprov");
+        var addProvMsg = ModelCli.AddProvider("__selftest_add_prov__", "http://127.0.0.1:9999/v1");
+        Check("添加服务商成功", addProvMsg.Contains("已添加")
+            && ModelCatalog.Find("__selftest_add_prov__")?.DefaultBaseUrl == "http://127.0.0.1:9999/v1");
+        ModelCatalog.RemoveCustom("__selftest_add_model__");
+        ModelCatalog.RemoveCustom("__selftest_add_prov__");
+        Check("清理添加的模型/服务商",
+            ModelCatalog.Find("__selftest_add_model__") == null && ModelCatalog.Find("__selftest_add_prov__") == null);
+
+        // 供应商注册表新增条目：连通性测试覆盖所有已存 key（含目录内无模型的服务商）
+        Check("供应商注册表 gitee 端点",
+            ModelCatalog.Providers.TryGetValue("gitee", out var pGitee) && pGitee.DefaultBaseUrl == "https://ai.gitee.com/v1");
+        Check("供应商注册表 bailian 端点",
+            ModelCatalog.Providers.TryGetValue("bailian", out var pBailian) && pBailian.DefaultBaseUrl.EndsWith("compatible-mode/v1"));
+        Check("供应商注册表 opencode 端点",
+            ModelCatalog.Providers.TryGetValue("opencode", out var pOpencode) && pOpencode.DefaultBaseUrl == "https://opencode.ai/zen/v1");
+        Check("供应商注册表 minimax 端点",
+            ModelCatalog.Providers.TryGetValue("minimax", out var pMinimax) && pMinimax.DefaultBaseUrl == "https://api.minimaxi.com/v1");
+        Check("供应商注册表 aihubmix 端点",
+            ModelCatalog.Providers.TryGetValue("aihubmix", out var pAihubmix) && pAihubmix.DefaultBaseUrl == "https://aihubmix.com/v1");
+
+        if (!prevLocalExists && File.Exists(ModelCatalog.LocalModelsPath))
+        {
+            var leftover2 = File.ReadAllText(ModelCatalog.LocalModelsPath).Replace(" ", "").Replace("\n", "").Replace("\r", "").Replace("\t", "");
+            if (leftover2 == "[]") File.Delete(ModelCatalog.LocalModelsPath);
+        }
+
         Console.WriteLine();
 
         // ---- 会话管理 ----
@@ -4816,6 +5002,34 @@ another.txt:3:1: warning: deprecated API
         finally { try { File.Delete(ftTestFile); } catch { } }
         FileTracker.Reset();
         Check("FileTracker: Reset后清空", FileTracker.CheckForChanges().Count == 0);
+
+        // ---- FileTracker 持久化（跨会话 stale-read 保护）----
+        var ftPersistFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(ftPersistFile, "persist_v1");
+            FileTracker.Reset();
+            FileTracker.RecordRead(ftPersistFile);
+
+            // 磁盘上应生成 .waycoder/file-tracker.json 并包含该文件
+            var storePath = Path.Combine(Environment.CurrentDirectory, ".waycoder", "file-tracker.json");
+            Check("FileTracker 持久化: 记录后生成 JSON", File.Exists(storePath));
+            if (File.Exists(storePath))
+            {
+                var persistedText = File.ReadAllText(storePath);
+                Check("FileTracker 持久化: JSON 包含路径", persistedText.Contains(Path.GetFileName(ftPersistFile)));
+                Check("FileTracker 持久化: JSON 含 hash 字段", persistedText.Contains("\"hash\""));
+            }
+
+            // 外部修改后"重启"（重新从磁盘加载），应仍能检测到 stale
+            File.WriteAllText(ftPersistFile, "persist_v2_external");
+            FileTracker.ReloadForTest();
+            var (pTracked, pStale) = FileTracker.GetStatus(ftPersistFile);
+            Check("FileTracker 持久化: 重启后仍追踪", pTracked);
+            Check("FileTracker 持久化: 重启后检测到外部修改", pStale);
+        }
+        finally { try { File.Delete(ftPersistFile); } catch { } }
+        FileTracker.Reset();
         Console.WriteLine();
 
         // ---- CLI 参数: 会话恢复别名 ----
@@ -5618,5 +5832,29 @@ another.txt:3:1: warning: deprecated API
             new() { ["role"] = "assistant", ["content"] = "我来执行命令" },
         });
         Check("TokenEst: tool_calls 增加估计值", withToolTokens > withoutToolTokens);
+
+        // ── 真实 API 用量校准（固定开销：system prompt + 工具定义 + 元数据）──
+        var calCm = new ContextManager(128_000);
+        var calMsgs = new List<JsonObject>
+        {
+            new() { ["role"] = "user", ["content"] = "hello world" },
+        };
+        var calEst = ContextManager.EstimateTokens(calMsgs);
+        // 未采集真实用量前，校准值退化为原始估算
+        Check("TokenCalib: 无真实数据时校准=估算", calCm.EstimateCalibratedTokens(calMsgs) == calEst);
+
+        // 真实 prompt tokens 含固定开销，校准值应加上开销
+        const int overhead1 = 1000;
+        calCm.AddUsage(calEst + overhead1, 200, calEst);
+        Check("TokenCalib: 校准后含固定开销", calCm.EstimateCalibratedTokens(calMsgs) == calEst + overhead1);
+
+        // 固定开销平滑收敛：第二次 AddUsage 取移动平均
+        const int overhead2 = 1200;
+        calCm.AddUsage(calEst + overhead2, 200, calEst);
+        var expectedAvg = (overhead1 + overhead2) / 2;
+        Check("TokenCalib: 开销平滑收敛", calCm.EstimateCalibratedTokens(calMsgs) == calEst + expectedAvg);
+
+        // 有真实开销时校准值必然大于原始估算
+        Check("TokenCalib: 校准值 > 原始估算", calCm.EstimateCalibratedTokens(calMsgs) > calEst);
     }
 }
