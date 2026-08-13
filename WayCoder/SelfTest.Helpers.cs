@@ -572,4 +572,40 @@ public static partial class SelfTest
         slot.BufferedAppendToLast(" 追加");
         Check("并行: AppendToLast 追加到最后一条", slot.ChatMessages[^1].Content == "继续 追加");
     }
+
+    private static void TestWorkModePerAgent(Action<string, bool> Check)
+    {
+        var savedGlobal = WorkModeManager.CurrentMode;
+
+        // ── 实例级工作模式：与全局 CurrentMode 解耦 ──
+        var a1 = new Agent(new LLM("test", "sk-test"));
+        var a2 = new Agent(new LLM("test", "sk-test"));
+        Check("模式: Agent 默认 Build", a1.WorkMode == WorkMode.Build);
+        Check("模式: 两实例可独立设置", a1.WorkMode != a2.WorkMode || a1.WorkMode == WorkMode.Build);
+
+        // 设置实例模式不影响全局镜像
+        a1.WorkMode = WorkMode.Plan;
+        Check("模式: 实例设 Plan 不影响全局", WorkModeManager.CurrentMode == savedGlobal);
+        Check("模式: 实例模式已生效", a1.WorkMode == WorkMode.Plan);
+        Check("模式: 另一实例仍 Build", a2.WorkMode == WorkMode.Build);
+
+        // ── 工具约束跟随实例模式 ──
+        Check("模式: Plan 阻止 write_file",
+            WorkModeManager.CheckToolAllowed("write_file", a1.WorkMode) != null);
+        Check("模式: Build 允许 write_file",
+            WorkModeManager.CheckToolAllowed("write_file", a2.WorkMode) == null);
+
+        // ── 模式变化回调 ──
+        WorkMode? notified = null;
+        a1.OnWorkModeChanged = m => notified = m;
+        a1.WorkMode = WorkMode.Build;
+        a1.OnWorkModeChanged?.Invoke(a1.WorkMode);
+        Check("模式: 回调收到新模式", notified == WorkMode.Build);
+
+        // ── 计划审批门纯逻辑（实例模式驱动）──
+        Check("模式: Plan 触发审批", Agent.ShouldPromptPlanApproval(WorkMode.Plan, 50));
+        Check("模式: Build 不触发审批", !Agent.ShouldPromptPlanApproval(WorkMode.Build, 50));
+
+        WorkModeManager.CurrentMode = savedGlobal;
+    }
 }

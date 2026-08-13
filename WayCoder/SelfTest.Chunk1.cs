@@ -75,6 +75,8 @@ public static partial class SelfTest
         TestProjectInit(Check);
         // 多槽位后台并行执行测试（槽位缓冲输出 + 运行状态）
         TestMultiSlotParallel(Check);
+        // 实例级工作模式测试（Agent.WorkMode 与全局解耦 + 回调）
+        TestWorkModePerAgent(Check);
         Console.WriteLine();
 
         // ---- 工具 ----
