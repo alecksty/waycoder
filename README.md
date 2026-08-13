@@ -46,7 +46,11 @@ dotnet run -- -p "修复一个 bug"
 # Watch 模式 (监听 AI! 注释自动触发 Agent)
 dotnet run -- --watch
 
-# 运行自测（1574 项）
+# Tiny 模式（本地小模型 / 省 token；窗口 <128K 自动进入，也可 --tiny 8k 指定）
+dotnet run -- --tiny
+dotnet run -- --tiny 8k
+
+# 运行自测（1591 项）
 dotnet run -- --test
 ```
 
@@ -84,7 +88,7 @@ WayCoder/
 ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1574 项自测
+├── SelfTest.cs        1591 项自测
 ├── Infra/             基础设施 (12+ 文件)
 │   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
 │   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)

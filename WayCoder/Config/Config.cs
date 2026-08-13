@@ -184,11 +184,17 @@ public class Config
     // 撞 MaxRounds 上限后自动压缩 + 续跑的次数（0=关闭自动续跑）
     public int MaxAutoRequeue { get; set; } = 3;
 
-    // Tiny 模式：4K 上下文窗口 + 精简系统提示词（省 token / 压力测试）
+    // Tiny 模式：小窗口 + 精简系统提示词（省 token / 压力测试 / 本地小模型）
     public bool TinyMode { get; set; } = false;
 
-    /// <summary>Tiny 模式的上下文窗口大小（4K）</summary>
+    /// <summary>Tiny 模式默认上下文窗口（4K，探测失败时的兜底）</summary>
     public const int TinyContextWindow = 4096;
+
+    /// <summary>Tiny 模式实际上下文窗口（--tiny 8k 指定，或 --tiny 自动探测覆盖，或模型窗口 &lt;128K 自动进入）</summary>
+    public int TinyWindow { get; set; } = TinyContextWindow;
+
+    /// <summary>模型窗口低于此值自动进入 tiny 模式（128K）</summary>
+    public const int TinyAutoThreshold = 128_000;
 
     // ════════════════════════════════════════════════════════════
     // 单一 Schema 定义（新增配置项只加这里一行）

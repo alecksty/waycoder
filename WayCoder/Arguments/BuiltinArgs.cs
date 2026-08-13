@@ -86,7 +86,9 @@ public class WatchArg : CliArg
 
 public class TinyArg : CliArg
 {
-    public override string Description => "Tiny 模式（4K 上下文窗口 + 精简提示词，省 token / 压力测试）";
+    public override string Description => "Tiny 模式（精简提示词 + 小窗口；可指定如 --tiny 8k，缺省自动探测，失败回退 4K）";
+    public override int ValueCount => -1;
+    public override string? ValueLabel => "窗口";
     public TinyArg() : base("tiny", "--tiny") { }
 }
 

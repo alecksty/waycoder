@@ -1,5 +1,24 @@
 # 更新日志
 
+## v0.42.0 (2026-08-13) — Tiny 模式增强：可指定窗口 + 自动探测 + 小模型自动进入
+
+### 🐭 Tiny 模式窗口可指定 / 自动探测
+
+- **`--tiny 8k` 指定窗口**：`TinyArg.ValueCount=-1` 支持可选值，`ModelCatalog.ParseWindowSpec` 解析 `8k`/`8192`/`4K` 等规格
+- **`--tiny` 自动探测**：`ProbeModelWindow` 优先调 Ollama `/api/show` 读真实 `context_length`（解决目录对本地模型标称 128K 虚高问题），其次内置目录 `ContextWindow`，最后回退 4K
+- **`<128K` 自动进入 tiny**：模型窗口低于 `TinyAutoThreshold=128_000` 时自动启用 tiny（精简提示词 + 对应窗口），本地小模型开箱即用，无需手动 `--tiny`
+
+### 🔧 实现
+
+- `Config.TinyWindow`（可运行时覆盖的窗口，默认 4K）+ `Config.TinyAutoThreshold=128_000`
+- `ModelCatalog.ResolveTinyWindow` / `ProbeModelWindow` / `ParseWindowSpec` / `IsOllamaBaseUrl` / `QueryOllamaContextLength`（2s 超时，失败静默回退）
+- `ResolveContextWindow` 在 Tiny 模式读 `Config.Instance.TinyWindow`（不再写死 4K）
+- `Program` 在 base URL 解析后统一判定：显式 `--tiny` 或窗口 `<128K` 自动进入
+
+### 🧪 自测 +17（1574 → 1591）
+
+- 新增 `TestTinyWindow`（窗口规格解析 / 显式指定 / 自动探测目录与兜底 / ProbeModelWindow / 128K 阈值 / Ollama base url 识别）
+
 ## v0.41.0 (2026-08-13) — Tiny 模式：4K 上下文窗口也能写程序
 
 ### 🐭 Tiny 模式（`--tiny` / `WAYCODER_TINY=1`）

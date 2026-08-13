@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 
 namespace WayCoder;
@@ -151,10 +152,93 @@ public static class ModelCatalog
     /// </summary>
     public static int ResolveContextWindow(string? modelId, int fallback = 1_048_576)
     {
-        if (Config.Instance.TinyMode) return Config.TinyContextWindow;
+        if (Config.Instance.TinyMode) return Config.Instance.TinyWindow;
         if (string.IsNullOrWhiteSpace(modelId)) return fallback;
         var info = Find(modelId);
         return info != null && info.ContextWindow > 0 ? info.ContextWindow : fallback;
+    }
+
+    /// <summary>
+    /// 解析 tiny 模式的上下文窗口：
+    ///   1. spec 显式指定（"8k"/"8192"）→ 直接用
+    ///   2. 未指定 → 自动探测（Ollama /api/show 真实窗口 → 目录 → 4K 兜底）
+    /// </summary>
+    public static int ResolveTinyWindow(string? spec, string? modelId, string? baseUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(spec))
+            return ParseWindowSpec(spec) ?? Config.TinyContextWindow;
+
+        return ProbeModelWindow(modelId, baseUrl, Config.TinyContextWindow);
+    }
+
+    /// <summary>
+    /// 探测模型真实上下文窗口：Ollama /api/show 优先（解决目录标称 128K 虚高问题），
+    /// 其次内置目录 ContextWindow，最后回退 fallback。
+    /// </summary>
+    public static int ProbeModelWindow(string? modelId, string? baseUrl, int fallback)
+    {
+        if (IsOllamaBaseUrl(baseUrl) && !string.IsNullOrWhiteSpace(modelId))
+        {
+            var ctx = QueryOllamaContextLength(baseUrl!, modelId);
+            // Ollama 探测失败直接回退 fallback（目录对本地模型标称值虚高，不可靠）
+            return ctx > 0 ? ctx : fallback;
+        }
+        if (string.IsNullOrWhiteSpace(modelId)) return fallback;
+        var info = Find(modelId);
+        return info != null && info.ContextWindow > 0 ? info.ContextWindow : fallback;
+    }
+
+    /// <summary>解析窗口规格："8k"/"8192"/"8K" → 8192；非法返回 null</summary>
+    public static int? ParseWindowSpec(string? spec)
+    {
+        if (string.IsNullOrWhiteSpace(spec)) return null;
+        var s = spec.Trim().ToLowerInvariant();
+        bool kilo = false;
+        if (s.EndsWith('k'))
+        {
+            kilo = true;
+            s = s[..^1].Trim();
+        }
+        if (!int.TryParse(s, out var n) || n <= 0) return null;
+        return kilo ? (n > int.MaxValue / 1024 ? null : n * 1024) : n;
+    }
+
+    /// <summary>base url 是否指向本地 Ollama</summary>
+    public static bool IsOllamaBaseUrl(string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl)) return false;
+        return baseUrl.Contains("localhost", StringComparison.OrdinalIgnoreCase)
+            || baseUrl.Contains("127.0.0.1")
+            || baseUrl.Contains("11434");
+    }
+
+    /// <summary>查询 Ollama /api/show 获取模型真实 context_length，失败返回 0</summary>
+    private static int QueryOllamaContextLength(string baseUrl, string modelId)
+    {
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+            var baseUri = baseUrl.TrimEnd('/');
+            var json = $"{{\"name\":\"{modelId}\"}}";
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var resp = client.PostAsync($"{baseUri}/api/show", content).GetAwaiter().GetResult();
+            if (!resp.IsSuccessStatusCode) return 0;
+            var body = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            var root = JsonNode.Parse(body);
+            var modelInfo = root?["model_info"] as JsonObject;
+            if (modelInfo == null) return 0;
+            foreach (var kv in modelInfo)
+            {
+                if (kv.Key.Contains("context_length", StringComparison.OrdinalIgnoreCase)
+                    && int.TryParse(kv.Value?.ToString(), out var ctx) && ctx > 0)
+                    return ctx;
+            }
+            return 0;
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     public static ModelInfo[] ByProvider(string providerId) =>
