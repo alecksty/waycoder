@@ -252,6 +252,37 @@ public static partial class SelfTest
 
         Check("McpInfo 初始非空", !string.IsNullOrEmpty(McpManager.Info));
 
+        // ---- MCP 状态模型 ----
+        Section("[MCP 状态]");
+
+        Check("状态枚举: Connecting=0", (int)McpServerStatus.Connecting == 0);
+        Check("状态枚举: Connected=1", (int)McpServerStatus.Connected == 1);
+        Check("状态枚举: Failed=2", (int)McpServerStatus.Failed == 2);
+
+        var sinfo = new McpServerInfo("github", "http", McpServerStatus.Connected, 5, null);
+        Check("McpServerInfo: 名称", sinfo.Name == "github");
+        Check("McpServerInfo: 传输", sinfo.Transport == "http");
+        Check("McpServerInfo: 状态", sinfo.Status == McpServerStatus.Connected);
+        Check("McpServerInfo: 工具数", sinfo.ToolCount == 5);
+        Check("McpServerInfo: 错误为空", sinfo.Error == null);
+
+        var sstate = new McpServerState
+        {
+            Name = "fs",
+            Transport = "stdio",
+            Status = McpServerStatus.Failed,
+            ToolCount = 0,
+            Error = "超时",
+        };
+        var sinfo2 = sstate.ToInfo();
+        Check("McpServerState.ToInfo: 映射状态", sinfo2.Status == McpServerStatus.Failed);
+        Check("McpServerState.ToInfo: 映射错误", sinfo2.Error == "超时");
+        Check("McpServerState.ToInfo: 映射传输", sinfo2.Transport == "stdio");
+
+        // Reload 对不存在的服务器返回非空提示（不抛异常，不触发真实连接）
+        Check("Reload: 未匹配服务器返回非空提示",
+            !string.IsNullOrEmpty(McpManager.ReloadAsync("___waycoder_test_nonexistent___").Result));
+
         Console.WriteLine();
 
         // ---- Agent 错误自恢复 ----

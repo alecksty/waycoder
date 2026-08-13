@@ -929,15 +929,24 @@ public class ChatScreen : TuiScreen
 
         // ── MCP 区 ──
         var mcpLines = new List<string>();
-        var mcpTools = McpManager.DiscoveredTools;
-        if (mcpTools.Count == 0)
+        var mcpServers = McpManager.Servers;
+        if (mcpServers.Count == 0)
             mcpLines.Add($"  {McpManager.Info}");
         else
-            foreach (var t in mcpTools.Take(15))
-                mcpLines.Add($"  🔌 {t.Name}");
+            foreach (var s in mcpServers.Take(15))
+            {
+                var mark = s.Status switch
+                {
+                    McpServerStatus.Connected => "✅",
+                    McpServerStatus.Connecting => "⏳",
+                    McpServerStatus.Failed => "❌",
+                    _ => "❓",
+                };
+                mcpLines.Add($"  {mark} {s.Name} [{s.Transport}] {s.ToolCount}");
+            }
         sections.Add(new PanelSection
         {
-            Title = $"🔌 MCP ({mcpTools.Count})",
+            Title = $"🔌 MCP ({McpManager.DiscoveredTools.Count})",
             Lines = mcpLines,
         });
 
