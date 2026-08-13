@@ -475,6 +475,14 @@ public class Program
             screen.OnPermissionResolved();
         };
 
+        // 工作模式变更信号 → 同步当前槽位持久模式 + 状态栏显示
+        // （覆盖 Shift+Tab 循环切换、计划审批门批准后自动切回建造模式等所有变更来源）
+        WorkModeManager.ModeChanged += mode =>
+        {
+            _slots[_activeSlot].WorkMode = mode;
+            screen.StatusBar.CurrentWorkMode = mode;
+        };
+
         // Watch 模式 — 监听外部编辑器文件变更
         if (_config.WatchMode)
         {
