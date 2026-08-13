@@ -436,7 +436,7 @@ public class Program
         bool hasGlobalKey = !string.IsNullOrEmpty(_config.ApiKey);
         var storeKeys = ApiKeyStore.ListAll();
         var keyCount = storeKeys.Count(kv => !string.IsNullOrEmpty(kv.Value));
-        var currentProvider = ModelCatalog.BuiltIn
+        var currentProvider = ModelCatalog.All
             .FirstOrDefault(m => m.Id == _config.Model)?.ProviderId;
         bool hasCurrentKey = hasGlobalKey
             || (currentProvider != null && ApiKeyStore.Has(currentProvider));
