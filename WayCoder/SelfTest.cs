@@ -249,6 +249,8 @@ public static class SelfTest
         TestContextWindowSwitch(Check);
         // Tiny 模式测试（4K 窗口 + 精简提示词）
         TestTinyMode(Check);
+        // Tiny 窗口解析测试（--tiny 8k 指定 / 自动探测 / 128K 自动阈值）
+        TestTinyWindow(Check);
         Console.WriteLine();
 
         // ---- 工具 ----
@@ -5402,6 +5404,38 @@ another.txt:3:1: warning: deprecated API
         Check("Tiny: 含工具列表", tinyPrompt.Contains("bash"));
         Check("Tiny: 含先读后改规则", tinyPrompt.Contains("先读后改"));
         Check("Tiny: 含工作目录", tinyPrompt.Contains("工作目录"));
+    }
+
+    private static void TestTinyWindow(Action<string, bool> Check)
+    {
+        // 窗口规格解析
+        Check("Tiny: ParseWindowSpec 8k → 8192", ModelCatalog.ParseWindowSpec("8k") == 8192);
+        Check("Tiny: ParseWindowSpec 8192 → 8192", ModelCatalog.ParseWindowSpec("8192") == 8192);
+        Check("Tiny: ParseWindowSpec 4K → 4096", ModelCatalog.ParseWindowSpec("4K") == 4096);
+        Check("Tiny: ParseWindowSpec 16k → 16384", ModelCatalog.ParseWindowSpec("16k") == 16384);
+        Check("Tiny: ParseWindowSpec 非法 → null", ModelCatalog.ParseWindowSpec("abc") == null);
+        Check("Tiny: ParseWindowSpec 空 → null", ModelCatalog.ParseWindowSpec("") == null);
+        Check("Tiny: ParseWindowSpec 0 → null", ModelCatalog.ParseWindowSpec("0") == null);
+
+        // 显式指定窗口
+        Check("Tiny: --tiny 8k 指定窗口", ModelCatalog.ResolveTinyWindow("8k", null, null) == 8192);
+
+        // 自动探测：非 ollama 走目录；未知模型兜底 4K
+        Check("Tiny: 自动探测目录窗口", ModelCatalog.ResolveTinyWindow(null, "deepseek-v4-pro", null) == 1_048_576);
+        Check("Tiny: 自动探测失败兜底 4K", ModelCatalog.ResolveTinyWindow(null, "未知模型xyz", null) == 4096);
+
+        // ProbeModelWindow
+        Check("Tiny: ProbeModelWindow 目录命中", ModelCatalog.ProbeModelWindow("deepseek-v4-pro", null, 1000) == 1_048_576);
+        Check("Tiny: ProbeModelWindow 兜底", ModelCatalog.ProbeModelWindow("未知xyz", null, 4096) == 4096);
+
+        // 128K 自动阈值
+        Check("Tiny: 自动阈值 = 128K", Config.TinyAutoThreshold == 128_000);
+        Check("Tiny: 32K 模型低于阈值", ModelCatalog.ProbeModelWindow("qwen2.5-coder:3b", null, 1_048_576) < Config.TinyAutoThreshold);
+        Check("Tiny: 1M 模型不低于阈值", ModelCatalog.ProbeModelWindow("deepseek-v4-pro", null, 1_048_576) >= Config.TinyAutoThreshold);
+
+        // Ollama base url 识别
+        Check("Tiny: IsOllamaBaseUrl localhost", ModelCatalog.IsOllamaBaseUrl("http://localhost:11434"));
+        Check("Tiny: IsOllamaBaseUrl 非 ollama", !ModelCatalog.IsOllamaBaseUrl("https://api.deepseek.com"));
     }
 
     /// <summary>ExtractKeyInfo 增强版测试</summary>
