@@ -4823,6 +4823,34 @@ another.txt:3:1: warning: deprecated API
         finally { try { File.Delete(ftTestFile); } catch { } }
         FileTracker.Reset();
         Check("FileTracker: Reset后清空", FileTracker.CheckForChanges().Count == 0);
+
+        // ---- FileTracker 持久化（跨会话 stale-read 保护）----
+        var ftPersistFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(ftPersistFile, "persist_v1");
+            FileTracker.Reset();
+            FileTracker.RecordRead(ftPersistFile);
+
+            // 磁盘上应生成 .waycoder/file-tracker.json 并包含该文件
+            var storePath = Path.Combine(Environment.CurrentDirectory, ".waycoder", "file-tracker.json");
+            Check("FileTracker 持久化: 记录后生成 JSON", File.Exists(storePath));
+            if (File.Exists(storePath))
+            {
+                var persistedText = File.ReadAllText(storePath);
+                Check("FileTracker 持久化: JSON 包含路径", persistedText.Contains(Path.GetFileName(ftPersistFile)));
+                Check("FileTracker 持久化: JSON 含 hash 字段", persistedText.Contains("\"hash\""));
+            }
+
+            // 外部修改后"重启"（重新从磁盘加载），应仍能检测到 stale
+            File.WriteAllText(ftPersistFile, "persist_v2_external");
+            FileTracker.ReloadForTest();
+            var (pTracked, pStale) = FileTracker.GetStatus(ftPersistFile);
+            Check("FileTracker 持久化: 重启后仍追踪", pTracked);
+            Check("FileTracker 持久化: 重启后检测到外部修改", pStale);
+        }
+        finally { try { File.Delete(ftPersistFile); } catch { } }
+        FileTracker.Reset();
         Console.WriteLine();
 
         // ---- CLI 参数: 会话恢复别名 ----
