@@ -1395,6 +1395,13 @@ public static class SelfTest
         var largeOutput = new BashTool().ExecuteAsync(new() { ["command"] = "yes head 2>&1 | head -2000", ["timeout"] = 5 }).Result;
         Check("bash 大输出不死锁", largeOutput.Length > 1000 || largeOutput.Contains("已阻止"));
 
+        // 前台超时自动迁移（对标 Crush）：慢命令超时后转入后台而非直接失败
+        var slowCmd = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? "ping -n 3 127.0.0.1 >nul"
+            : "sleep 2";
+        var migrateResult = new BashTool().ExecuteAsync(new() { ["command"] = slowCmd, ["timeout"] = 1 }).Result;
+        Check("bash 超时自动迁移到后台", migrateResult.Contains("Shell ID") || migrateResult.Contains("自动转入后台"));
+
         Console.WriteLine();
 
         // ---- 上下文管理 扩展 ----

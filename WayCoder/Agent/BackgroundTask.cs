@@ -38,8 +38,41 @@ public static class BackgroundTaskManager
         return id;
     }
 
+    /// <summary>
+    /// 接纳一个已在前台运行（ReadToEnd 模式）的进程为后台任务。
+    /// 用于前台命令超时自动迁移（对标 Crush）。进程所有权转移给后台管理器，调用方不再 dispose。
+    /// </summary>
+    public static int Adopt(Process proc, string command, Task<string> stdoutTask, Task<string> stderrTask)
+    {
+        var id = Interlocked.Increment(ref _nextId);
+        var task = new BgTask(id, command, DateTime.Now) { Process = proc };
+        _tasks[id] = task;
+
+        var outStr = "";
+        var errStr = "";
+        _ = RunAdoptedTaskAsync(task,
+            async () => { outStr = await stdoutTask; errStr = await stderrTask; },
+            () => outStr + "\n" + errStr);
+
+        return id;
+    }
+
+    /// <summary>
+    /// 接纳一个已在前台流式运行（逐行读取）的进程为后台任务。
+    /// readTasks 为已在执行的逐行读取任务，outputGetter 返回共享输出缓冲内容。
+    /// </summary>
+    public static int AdoptStreaming(Process proc, string command, Task readStdout, Task readStderr, Func<string> outputGetter)
+    {
+        var id = Interlocked.Increment(ref _nextId);
+        var task = new BgTask(id, command, DateTime.Now) { Process = proc };
+        _tasks[id] = task;
+        _ = RunAdoptedTaskAsync(task, () => Task.WhenAll(readStdout, readStderr), outputGetter);
+        return id;
+    }
+
     private static async Task RunTaskAsync(BgTask task, int timeoutSec)
     {
+        Process? proc = null;
         try
         {
             var psi = new ProcessStartInfo
@@ -55,39 +88,18 @@ public static class BackgroundTaskManager
                 WorkingDirectory = Directory.GetCurrentDirectory(),
             };
 
-            using var proc = Process.Start(psi)!;
+            proc = Process.Start(psi)!;
             task.Process = proc;
 
             // 异步读取输出（防止管道缓冲区满死锁）
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
+            var outStr = "";
+            var errStr = "";
 
-            // 异步等待退出（带超时）
-            var exitTask = proc.WaitForExitAsync();
-            var delayTask = Task.Delay(timeoutSec * 1000);
-            var completed = await Task.WhenAny(exitTask, delayTask);
-            var exited = completed == exitTask && exitTask.IsCompletedSuccessfully;
-
-            if (!exited)
-            {
-                try { proc.Kill(entireProcessTree: true); } catch { }
-                task.Status = "timeout";
-                var outStr = await stdoutTask;
-                var errStr = await stderrTask;
-                task.Output = (outStr + "\n" + errStr).Trim() + "\n[超时]";
-                ErrorLog.Warning("BackgroundTask", $"后台任务超时 (id={task.Id}, timeout={timeoutSec}s): {task.Command}");
-            }
-            else
-            {
-                // 进程已退出，等待异步 IO 完成
-                var outStr = await stdoutTask;
-                var errStr = await stderrTask;
-                task.Status = proc.ExitCode == 0 ? "completed" : "failed";
-                task.ExitCode = proc.ExitCode;
-                task.Output = (outStr + "\n" + errStr).Trim();
-                if (task.ExitCode != 0)
-                    task.Output += $"\n[退出码: {task.ExitCode}]";
-            }
+            await WaitAndCollectAsync(task, timeoutSec,
+                async () => { outStr = await stdoutTask; errStr = await stderrTask; },
+                () => outStr + "\n" + errStr);
         }
         catch (Exception ex)
         {
@@ -99,7 +111,63 @@ public static class BackgroundTaskManager
         finally
         {
             task.CompletedAt = DateTime.Now;
-            task.Process = null; // proc 已被 using 释放
+            task.Process = null;
+            proc?.Dispose();
+        }
+    }
+
+    private static async Task RunAdoptedTaskAsync(BgTask task, Func<Task> ioCompletion, Func<string> outputGetter)
+    {
+        try
+        {
+            await WaitAndCollectAsync(task, Config.Instance.BackgroundTaskTimeoutSec, ioCompletion, outputGetter);
+        }
+        catch (Exception ex)
+        {
+            task.Status = "error";
+            task.Output = $"迁移后异常: {ex.Message}";
+            DebugLog.Log("bgtask", $"后台任务 #{task.Id} 迁移后异常: {ex.Message}");
+            ErrorLog.Error("BackgroundTask", $"后台任务 #{task.Id} 迁移后异常: {task.Command}", ex);
+        }
+        finally
+        {
+            task.CompletedAt = DateTime.Now;
+            var proc = task.Process;
+            task.Process = null;
+            proc?.Dispose(); // 释放迁移过来的进程句柄
+        }
+    }
+
+    /// <summary>
+    /// 等待进程退出（带超时），收集中间 IO，写入任务状态与输出。
+    /// </summary>
+    private static async Task WaitAndCollectAsync(BgTask task, int timeoutSec, Func<Task> ioCompletion, Func<string> outputGetter)
+    {
+        var proc = task.Process!;
+
+        // 异步等待退出（带超时）
+        var exitTask = proc.WaitForExitAsync();
+        var delayTask = Task.Delay(timeoutSec * 1000);
+        var completed = await Task.WhenAny(exitTask, delayTask);
+        var exited = completed == exitTask && exitTask.IsCompletedSuccessfully;
+
+        if (!exited)
+        {
+            try { proc.Kill(entireProcessTree: true); } catch { }
+            task.Status = "timeout";
+            await ioCompletion();
+            task.Output = outputGetter().Trim() + "\n[超时]";
+            ErrorLog.Warning("BackgroundTask", $"后台任务超时 (id={task.Id}, timeout={timeoutSec}s): {task.Command}");
+        }
+        else
+        {
+            // 进程已退出，等待异步 IO 完成
+            await ioCompletion();
+            task.Status = proc.ExitCode == 0 ? "completed" : "failed";
+            task.ExitCode = proc.ExitCode;
+            task.Output = outputGetter().Trim();
+            if (task.ExitCode != 0)
+                task.Output += $"\n[退出码: {task.ExitCode}]";
         }
     }
 
