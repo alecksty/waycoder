@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.44.0 (2026-08-13) — bash 前台超时自动迁移后台
+
+### ⏱ 后台命令自动迁移（对标 Crush）
+
+- **问题**：前台 `bash` 命令超时后直接 `Kill` 进程并返回「错误：超时」，长任务（build/test）已执行的工作白费，Agent 需重新跑
+- **修复**：超时后不再杀死进程，自动转入后台继续执行并返回 `shell_id`，Agent 可用 `job_output` 轮询、`job_kill` 终止
+  - **非流式路径**（`-p` 一次性模式 / benchmark）：`BackgroundTaskManager.Adopt` 接纳已运行进程 + `ReadToEndAsync` 任务
+  - **流式路径**（交互 REPL 实时输出）：`BackgroundTaskManager.AdoptStreaming` 接纳逐行读取任务 + 共享输出缓冲
+- **重构**：`RunTaskAsync` 提取 `WaitAndCollectAsync`（等待退出 + 收集 IO + 写状态），`Start` / `Adopt` / `AdoptStreaming` 三条路径共用，消除重复
+- **沙箱模式例外**：仍直接终止，避免迁移绕过内存/CPU 资源上限
+- **进程所有权**：迁移后由后台管理器负责 dispose，前台不再释放句柄（`migrated` 标志 + `finally`）
+
+### 🧪 自测 +1
+
+- 新增 `bash 超时自动迁移到后台`（慢命令 + 短超时 → 断言返回 `Shell ID`）
+
 ## v0.43.0 (2026-08-13) — 省 Token 模式：三态开关综合降 token
 
 ### 💰 省 Token 模式（`--economy [on|auto|off]` / `WAYCODER_ECONOMY`）
