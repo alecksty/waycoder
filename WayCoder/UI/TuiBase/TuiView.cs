@@ -280,11 +280,14 @@ public class TuiVBox : TuiView
 
     public override void Layout()
     {
-        // ── 0. Flex 弹性分配（在测量之前设置 Flex>0 子控件的高度）──
+        // ── 0. Flex 弹性分配（在测量之前设置 Flex>0 子控件的高度；浮动控件不参与流式布局）──
         int totalFlex = 0;
         int totalFixedH = 0;
+        int flowCount = 0;
         foreach (var child in Children)
         {
+            if (child.Floating) continue;
+            flowCount++;
             if (child.Flex > 0)
                 totalFlex += child.Flex;
             else
@@ -294,16 +297,16 @@ public class TuiVBox : TuiView
         {
             int flexMarginH = 0;
             foreach (var child in Children)
-                if (child.Flex > 0)
+                if (child.Flex > 0 && !child.Floating)
                     flexMarginH += child.Margin.Vertical;
-            int remaining = Height - totalFixedH - flexMarginH - (Children.Count - 1) * Spacing;
+            int remaining = Height - totalFixedH - flexMarginH - Math.Max(0, flowCount - 1) * Spacing;
             if (remaining > 0)
             {
                 int allocated = 0;
                 TuiBase? lastFlexChild = null;
                 foreach (var child in Children)
                 {
-                    if (child.Flex > 0)
+                    if (child.Flex > 0 && !child.Floating)
                     {
                         int h = Math.Max(1, remaining * child.Flex / totalFlex);
                         child.Height = h;
@@ -316,14 +319,15 @@ public class TuiVBox : TuiView
             }
         }
 
-        // 第一遍：计算总高度（含 child margin），递归布局嵌套视图
+        // 第一遍：计算总高度（含 child margin），递归布局嵌套视图（浮动子视图仍递归布局内部）
         var totalH = 0;
         foreach (var child in Children)
         {
-            if (ChildHAlign == HAlign.Stretch)
-                child.Width = Width;
             if (child is TuiView childView)
                 childView.Layout();
+            if (child.Floating) continue;
+            if (ChildHAlign == HAlign.Stretch)
+                child.Width = Width;
             totalH += child.Height + child.Margin.Vertical + Spacing;
         }
         if (totalH > 0) totalH -= Spacing;
@@ -336,10 +340,11 @@ public class TuiVBox : TuiView
             _ => 0
         };
 
-        // 第二遍：设置位置（Margin.Top 偏移，Margin.Left 水平对齐）
+        // 第二遍：设置位置（Margin.Top 偏移，Margin.Left 水平对齐；浮动控件跳过，保留手动 X/Y）
         var y = Math.Max(0, contentOffset);
         foreach (var child in Children)
         {
+            if (child.Floating) continue;
             child.Y = y + child.Margin.Top;
             child.X = AlignX(child.Width) + child.Margin.Left;
             y += child.Height + child.Margin.Vertical + Spacing;
@@ -364,11 +369,14 @@ public class TuiHBox : TuiView
 
     public override void Layout()
     {
-        // ── 0. Flex 弹性分配（在测量之前设置 Flex>0 子控件的宽度）──
+        // ── 0. Flex 弹性分配（在测量之前设置 Flex>0 子控件的宽度；浮动控件不参与流式布局）──
         int totalFlex = 0;
         int totalFixedW = 0;
+        int flowCount = 0;
         foreach (var child in Children)
         {
+            if (child.Floating) continue;
+            flowCount++;
             if (child.Flex > 0)
                 totalFlex += child.Flex;
             else
@@ -378,9 +386,9 @@ public class TuiHBox : TuiView
         {
             int flexMarginW = 0;
             foreach (var child in Children)
-                if (child.Flex > 0)
+                if (child.Flex > 0 && !child.Floating)
                     flexMarginW += child.Margin.Horizontal;
-            int remaining = Width - totalFixedW - flexMarginW - (Children.Count - 1) * Spacing;
+            int remaining = Width - totalFixedW - flexMarginW - Math.Max(0, flowCount - 1) * Spacing;
             if (remaining > 0)
             {
                 int allocated = 0;
@@ -388,7 +396,7 @@ public class TuiHBox : TuiView
                 TuiBase? lastFlexChild = null;
                 foreach (var child in Children)
                 {
-                    if (child.Flex > 0)
+                    if (child.Flex > 0 && !child.Floating)
                     {
                         int w = Math.Max(1, remaining * child.Flex / totalFlex);
                         child.Width = w;
@@ -402,15 +410,16 @@ public class TuiHBox : TuiView
             }
         }
 
-        // 第一遍：计算总宽度（含 child margin）和最大行高，递归布局嵌套视图
+        // 第一遍：计算总宽度（含 child margin）和最大行高，递归布局嵌套视图（浮动子视图仍递归布局内部）
         int totalW = 0;
         int maxH = 1;
         foreach (var child in Children)
         {
-            if (ChildVAlign == VAlign.Stretch)
-                child.Height = Height;
             if (child is TuiView childView)
                 childView.Layout();
+            if (child.Floating) continue;
+            if (ChildVAlign == VAlign.Stretch)
+                child.Height = Height;
             totalW += child.Width + child.Margin.Horizontal + Spacing;
             maxH = Math.Max(maxH, child.Height + child.Margin.Vertical);
         }
@@ -425,10 +434,11 @@ public class TuiHBox : TuiView
             _ => 0
         };
 
-        // 第二遍：设置位置（Margin.Left/Right/Top 偏移）
+        // 第二遍：设置位置（Margin.Left/Right/Top 偏移；浮动控件跳过，保留手动 X/Y）
         int x = Math.Max(0, contentOffset);
         foreach (var child in Children)
         {
+            if (child.Floating) continue;
             child.X = x + child.Margin.Left;
             child.Y = AlignY(child.Height + child.Margin.Vertical, maxH) + child.Margin.Top;
             x += child.Width + child.Margin.Horizontal + Spacing;

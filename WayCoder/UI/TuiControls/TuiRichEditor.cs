@@ -237,8 +237,8 @@ public class TuiRichEditor : TuiEditBase
     {
         if (!IsCursorOwner) return;
 
-        var absX = GetAbsoluteX();
-        var absY = GetAbsoluteY();
+        var absX = _lastAbsX;
+        var absY = _lastAbsY;
         int prefixW = LineNumberWidth + GutterWidth;
         int vh = VisibleLines;
 

@@ -40,6 +40,12 @@ public abstract class TuiControl : TuiBase
     // ── 状态 ──
     public bool Visible { get; set; } = true;
 
+    /// <summary>
+    /// 浮动控件：不参与父容器的流式布局（VBox/HBox 在计算 Flex、总尺寸和位置时跳过它），
+    /// 位置由 X/Y 手动指定。用于浮层面板（如建议面板），避免把流式内容挤出屏幕。
+    /// </summary>
+    public bool Floating { get; set; }
+
     /// <summary>是否可用。禁用时跳过渲染且不响应输入。</summary>
     public bool IsEnabled { get; set; } = true;
 
@@ -76,6 +82,13 @@ public abstract class TuiControl : TuiBase
     /// <summary>光标请求的行/列（OnRender 时记录，由 Screen 在最后统一输出）</summary>
     protected int _cursorRow, _cursorCol;
     protected bool _showCursor;
+
+    /// <summary>
+    /// 最近一次 Render 计算出的绝对原点（控件左上角屏幕坐标，不含 Padding）。
+    /// 用于光标定位等在渲染后仍需正确绝对坐标的场景：GetAbsoluteX/Y 沿 Parent 链累加，
+    /// 无法反映窗口内容区的 ContentLeft/ContentTop 偏移（RootView 不设 Parent）。
+    /// </summary>
+    protected int _lastAbsX, _lastAbsY;
 
     /// <summary>获取光标状态（仅光标所有者返回有效值）</summary>
     public virtual (int row, int col, bool show)? GetCursorState()
@@ -181,6 +194,10 @@ public abstract class TuiControl : TuiBase
 
         var absX = parentAbsX + X;
         var absY = parentAbsY + Y;
+
+        // 记录渲染时的绝对原点（在裁剪早退前设置，保证光标定位始终有正确坐标）
+        _lastAbsX = absX;
+        _lastAbsY = absY;
 
         // 控件自身裁剪区（含 Padding 内缩）
         var selfL = absX + Padding.Left;

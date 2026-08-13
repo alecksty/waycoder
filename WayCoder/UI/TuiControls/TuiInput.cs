@@ -106,31 +106,13 @@ public class TuiInput : TuiEditBase
     {
         if (!IsCursorOwner) return;
 
-        var absX = GetAbsoluteX();
-        var absY = GetAbsoluteY();
+        var absX = _lastAbsX;
+        var absY = _lastAbsY;
         var originalText = Password ? new string('•', Text.Length) : Text;
         var visW = Width;
 
-        // 光标在完整文本中的视觉宽度
-        int cursorVisualEnd = TuiHelper.DisplayWidth(
-            originalText[..Math.Min(CursorPos, originalText.Length)]);
-
-        // 计算滚动偏移：保证光标在可见区域内
-        int scrollStart = 0;
-        if (cursorVisualEnd >= visW && visW > 0)
-        {
-            // 简化滚动：回退足够的字符使光标落入可见区
-            int needSkip = cursorVisualEnd - visW + 1;
-            int skipped = 0;
-            int charIdx = 0;
-            foreach (var r in originalText.EnumerateRunes())
-            {
-                if (skipped >= needSkip) break;
-                skipped += TuiHelper.RuneWidth(r);
-                charIdx += r.ToString().Length;
-                scrollStart = charIdx;
-            }
-        }
+        // 计算滚动偏移：保证光标在可见区域内（rune 感知，与 OnRender 共用同一逻辑）
+        int scrollStart = ComputeScrollStart(originalText, CursorPos, visW);
 
         // 光标在可见区域内的偏移
         int cursorInVisible = TuiHelper.DisplayWidth(
@@ -139,6 +121,30 @@ public class TuiInput : TuiEditBase
         _cursorRow = absY;
         _cursorCol = absX + Math.Min(cursorInVisible, visW - 1);
         _showCursor = true;
+    }
+
+    /// <summary>
+    /// 计算使光标落入可见区的滚动起始字符索引（char 索引，rune 感知）。
+    /// 光标前的视觉宽度超出可见宽时，回退足够字符使光标贴近可见区右缘。
+    /// OnRender 与 GotoCursorPos 共用此逻辑，保证渲染文本与光标坐标一致。
+    /// </summary>
+    private static int ComputeScrollStart(string text, int cursorPos, int visW)
+    {
+        if (visW <= 0 || string.IsNullOrEmpty(text)) return 0;
+        var before = text[..Math.Min(cursorPos, text.Length)];
+        int cursorVisualEnd = TuiHelper.DisplayWidth(before);
+        if (cursorVisualEnd < visW) return 0;
+
+        int needSkip = cursorVisualEnd - visW + 1;
+        int skipped = 0;
+        int scrollStart = 0;
+        foreach (var r in text.EnumerateRunes())
+        {
+            if (skipped >= needSkip) break;
+            skipped += TuiHelper.RuneWidth(r);
+            scrollStart += r.ToString().Length;
+        }
+        return scrollStart;
     }
 
     public TuiInput() { Height = 1; Width = 20; }
@@ -159,22 +165,7 @@ public class TuiInput : TuiEditBase
         }
 
         // ── CJK 宽度感知的滚动逻辑 ──
-        int cursorVisualEnd = TuiHelper.DisplayWidth(originalText[..Math.Min(CursorPos, originalText.Length)]);
-
-        // 确定滚动起始字符索引，使光标在可见区域内
-        int scrollStart = 0;
-        if (cursorVisualEnd >= visW)
-        {
-            int needSkip = cursorVisualEnd - visW + 1;
-            int skipped = 0;
-            for (int i = 0; i < originalText.Length; i++)
-            {
-                int rw = TuiHelper.RuneWidth(originalText.EnumerateRunes().ElementAt(i));
-                if (skipped + rw > needSkip) break;
-                skipped += rw;
-                scrollStart = i + 1;
-            }
-        }
+        int scrollStart = ComputeScrollStart(originalText, CursorPos, visW);
 
         // 截取可见文本
         var visiblePart = originalText[scrollStart..];
