@@ -5,13 +5,14 @@ namespace WayCoder.Tools;
 
 /// <summary>
 /// MCP (Model Context Protocol) 客户端。
-/// 支持 stdio 和 HTTP 两种传输方式，使用 JSON-RPC 2.0 over stdin/stdout 或 HTTP/SSE 通信，
+/// 支持 stdio / HTTP（Streamable）/ SSE（HTTP+SSE 双端点）三种传输方式，
 /// 自动发现 MCP 服务器提供的工具并注册到 WayCoder。
 ///
 /// 配置: .waycoder/mcp_servers.json（兼容读取 .corecoder/mcp_servers.json）
 /// [
 ///   { "name": "filesystem", "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "."] },
-///   { "name": "github", "transport": "http", "url": "https://api.example.com/mcp", "headers": {"Authorization": "Bearer ${GITHUB_TOKEN}"} }
+///   { "name": "github", "transport": "http", "url": "https://api.example.com/mcp", "headers": {"Authorization": "Bearer ${GITHUB_TOKEN}"} },
+///   { "name": "legacy", "transport": "sse", "url": "https://api.example.com/sse", "headers": {"Authorization": "Bearer ${TOKEN}"} }
 /// ]
 /// </summary>
 public static class McpManager
@@ -24,6 +25,22 @@ public static class McpManager
 
     /// <summary>MCP 连接状态信息，供 UI 面板展示</summary>
     public static string Info { get; private set; } = "未配置";
+
+    /// <summary>MCP 传输类型</summary>
+    internal enum McpTransportType { Stdio, Http, Sse }
+
+    /// <summary>识别服务器配置的传输类型（纯逻辑，便于自测）。默认 stdio。</summary>
+    internal static McpTransportType DetectTransport(JsonNode server)
+    {
+        var transport = server["transport"]?.GetValue<string>();
+        var url = server["url"]?.GetValue<string>();
+
+        if ("sse".Equals(transport, StringComparison.OrdinalIgnoreCase))
+            return McpTransportType.Sse;
+        if (!string.IsNullOrEmpty(url) || "http".Equals(transport, StringComparison.OrdinalIgnoreCase))
+            return McpTransportType.Http;
+        return McpTransportType.Stdio;
+    }
 
     /// <summary>
     /// 从配置文件初始化所有 MCP 服务器连接。
@@ -51,41 +68,46 @@ public static class McpManager
                 var name = server?["name"]?.GetValue<string>();
                 if (string.IsNullOrEmpty(name)) continue;
 
-                // 检测传输类型
-                var url = server?["url"]?.GetValue<string>();
-                var transportType = server?["transport"]?.GetValue<string>();
+                var transportType = DetectTransport(server!);
+                var url = server!["url"]?.GetValue<string>();
+                var headers = ParseHeaders(server!["headers"]?.AsObject());
 
-                if (!string.IsNullOrEmpty(url) || "http".Equals(transportType, StringComparison.OrdinalIgnoreCase))
+                switch (transportType)
                 {
-                    // HTTP 传输
-                    if (!string.IsNullOrEmpty(url))
-                    {
-                        var headers = ParseHeaders(server?["headers"]?.AsObject());
+                    case McpTransportType.Sse when !string.IsNullOrEmpty(url):
+                        // SSE 传输（HTTP+SSE 双端点：GET /sse + POST /message）
+                        _ = ConnectAndDiscoverSseAsync(name, url, headers);
+                        break;
+
+                    case McpTransportType.Http when !string.IsNullOrEmpty(url):
+                        // HTTP（Streamable）传输
                         _ = ConnectAndDiscoverHttpAsync(name, url, headers);
-                    }
-                }
-                else
-                {
-                    // stdio 传输（默认，向后兼容）
-                    var command = server?["command"]?.GetValue<string>();
-                    var args = server?["args"]?.AsArray()
-                        ?.Select(a => a?.GetValue<string>() ?? "").ToArray() ?? [];
+                        break;
 
-                    var env = new Dictionary<string, string>();
-                    var envObj = server?["env"]?.AsObject();
-                    if (envObj != null)
+                    case McpTransportType.Stdio:
                     {
-                        foreach (var kv in envObj)
+                        // stdio 传输（默认，向后兼容）
+                        var command = server["command"]?.GetValue<string>();
+                        var args = server["args"]?.AsArray()
+                            ?.Select(a => a?.GetValue<string>() ?? "").ToArray() ?? [];
+
+                        var env = new Dictionary<string, string>();
+                        var envObj = server["env"]?.AsObject();
+                        if (envObj != null)
                         {
-                            var val = kv.Value?.GetValue<string>();
-                            if (!string.IsNullOrEmpty(val))
-                                env[kv.Key] = val;
+                            foreach (var kv in envObj)
+                            {
+                                var val = kv.Value?.GetValue<string>();
+                                if (!string.IsNullOrEmpty(val))
+                                    env[kv.Key] = val;
+                            }
                         }
-                    }
 
-                    if (!string.IsNullOrEmpty(command))
-                    {
-                        _ = ConnectAndDiscoverStdioAsync(name, command, args, env);
+                        if (!string.IsNullOrEmpty(command))
+                        {
+                            _ = ConnectAndDiscoverStdioAsync(name, command, args, env);
+                        }
+                        break;
                     }
                 }
             }
@@ -157,7 +179,7 @@ public static class McpManager
         }
     }
 
-    /// <summary>HTTP 传输：连接服务器并发现工具</summary>
+    /// <summary>HTTP（Streamable）传输：连接服务器并发现工具</summary>
     private static async Task ConnectAndDiscoverHttpAsync(string name, string url,
         Dictionary<string, string>? headers)
     {
@@ -174,6 +196,27 @@ public static class McpManager
         catch (Exception ex)
         {
             DebugLog.Log("mcp", $"MCP {name} (HTTP) 连接失败: {ex.GetType().Name}: {ex.Message}");
+            Info += $"\n  {name} ✗ 连接失败";
+        }
+    }
+
+    /// <summary>SSE（HTTP+SSE 双端点）传输：连接服务器并发现工具</summary>
+    private static async Task ConnectAndDiscoverSseAsync(string name, string url,
+        Dictionary<string, string>? headers)
+    {
+        try
+        {
+            var transport = new SseMcpTransport(url, headers);
+            var conn = new McpConnection(name, transport);
+            await DiscoverToolsAsync(conn, name);
+
+            // 发现成功后更新缓存
+            McpCache.Save(DiscoveredTools);
+            UpdateInfo();
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Log("mcp", $"MCP {name} (SSE) 连接失败: {ex.GetType().Name}: {ex.Message}");
             Info += $"\n  {name} ✗ 连接失败";
         }
     }
@@ -554,6 +597,270 @@ internal class HttpMcpTransport : McpTransport
     {
         _disposed = true;
         return Task.CompletedTask;
+    }
+}
+
+// ============================================================
+// HTTP+SSE 传输（legacy SSE：GET /sse 事件流 + POST /message 发消息）
+// ============================================================
+
+/// <summary>
+/// 通过 HTTP+SSE 双端点进行 MCP 通信（MCP 旧版 SSE 传输，2024-11-05 规范）。
+/// 流程：GET {url} 建立 SSE 事件流 → 服务器推送 endpoint 事件（message 端点）→
+///       客户端 POST JSON-RPC 到 message 端点 → 服务器通过 SSE 流推送响应。
+/// </summary>
+internal class SseMcpTransport : McpTransport
+{
+    private static readonly HttpClient _client = new()
+    {
+        Timeout = Timeout.InfiniteTimeSpan, // SSE 长连接，不设整体超时
+    };
+
+    private readonly string _sseUrl;
+    private readonly Dictionary<string, string>? _headers;
+    private readonly object _lock = new();
+    private readonly Dictionary<int, TaskCompletionSource<JsonObject?>> _pending = [];
+    private readonly CancellationTokenSource _cts = new();
+    private readonly TaskCompletionSource _endpointReady =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    private string? _messageEndpoint;
+    private bool _disposed;
+
+    static SseMcpTransport()
+    {
+        _client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder/0.17.3");
+    }
+
+    public override bool IsConnected => !_disposed && _messageEndpoint != null;
+
+    public SseMcpTransport(string url, Dictionary<string, string>? headers)
+    {
+        _sseUrl = url;
+        _headers = headers;
+        _ = Task.Run(ReadSseLoopAsync);
+    }
+
+    /// <summary>将 SSE endpoint 事件的 data（可能是相对路径）解析为绝对 URL</summary>
+    internal static string? ResolveEndpointUrl(string sseUrl, string? endpointData)
+    {
+        if (string.IsNullOrWhiteSpace(endpointData)) return null;
+        try
+        {
+            return new Uri(new Uri(sseUrl), endpointData).ToString();
+        }
+        catch { return null; }
+    }
+
+    public override async Task<JsonObject?> SendRequestAsync(int id, string method, JsonObject @params, CancellationToken ct)
+    {
+        if (_disposed) return null;
+
+        // 等待 endpoint 就绪（服务器推送 message 端点）
+        try { await _endpointReady.Task.WaitAsync(ct); }
+        catch (OperationCanceledException) { return null; }
+        catch (TimeoutException) { return null; }
+
+        var messageUrl = _messageEndpoint;
+        if (messageUrl == null) return null;
+
+        var tcs = new TaskCompletionSource<JsonObject?>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (_lock) { _pending[id] = tcs; }
+
+        var request = new JsonObject
+        {
+            ["jsonrpc"] = "2.0",
+            ["id"] = id,
+            ["method"] = method,
+            ["params"] = @params,
+        };
+
+        try
+        {
+            using var httpReq = new HttpRequestMessage(HttpMethod.Post, messageUrl)
+            {
+                Content = new StringContent(request.ToJsonString(), Encoding.UTF8, "application/json"),
+            };
+            if (_headers != null)
+                foreach (var (key, value) in _headers)
+                    httpReq.Headers.TryAddWithoutValidation(key, value);
+
+            using var sendCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _cts.Token);
+            using var resp = await _client.SendAsync(httpReq, HttpCompletionOption.ResponseHeadersRead, sendCts.Token);
+            resp.EnsureSuccessStatusCode();
+
+            // 等待 SSE 流推送匹配 id 的响应
+            return await tcs.Task.WaitAsync(ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            DebugLog.Log("mcp", $"SSE 请求 {method} 失败: {ex.GetType().Name}: {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            lock (_lock) { _pending.Remove(id); }
+        }
+    }
+
+    public override void SendNotification(string method, JsonObject @params)
+    {
+        if (_disposed) return;
+        _ = SendNotificationAsync(method, @params);
+    }
+
+    private async Task SendNotificationAsync(string method, JsonObject @params)
+    {
+        // 等待 endpoint 就绪（最多 10s），失败则静默放弃
+        try { await _endpointReady.Task.WaitAsync(TimeSpan.FromSeconds(10)); }
+        catch { return; }
+
+        var messageUrl = _messageEndpoint;
+        if (messageUrl == null) return;
+
+        try
+        {
+            var notif = new JsonObject
+            {
+                ["jsonrpc"] = "2.0",
+                ["method"] = method,
+                ["params"] = @params,
+            };
+            using var httpReq = new HttpRequestMessage(HttpMethod.Post, messageUrl)
+            {
+                Content = new StringContent(notif.ToJsonString(), Encoding.UTF8, "application/json"),
+            };
+            if (_headers != null)
+                foreach (var (key, value) in _headers)
+                    httpReq.Headers.TryAddWithoutValidation(key, value);
+
+            using var sendCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+            using var resp = await _client.SendAsync(httpReq, sendCts.Token);
+            resp.EnsureSuccessStatusCode();
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Log("mcp", $"SSE 通知 {method} 失败: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    public override Task DisconnectAsync()
+    {
+        _disposed = true;
+        _cts.Cancel();
+        lock (_lock)
+        {
+            foreach (var (_, tcs) in _pending)
+                tcs.TrySetResult(null);
+            _pending.Clear();
+        }
+        return Task.CompletedTask;
+    }
+
+    /// <summary>持续读取 SSE 事件流，分发 endpoint / message 事件</summary>
+    private async Task ReadSseLoopAsync()
+    {
+        try
+        {
+            using var httpReq = new HttpRequestMessage(HttpMethod.Get, _sseUrl);
+            httpReq.Headers.Accept.ParseAdd("text/event-stream");
+            if (_headers != null)
+                foreach (var (key, value) in _headers)
+                    httpReq.Headers.TryAddWithoutValidation(key, value);
+
+            using var response = await _client.SendAsync(
+                httpReq, HttpCompletionOption.ResponseHeadersRead, _cts.Token);
+            response.EnsureSuccessStatusCode();
+
+            using var stream = await response.Content.ReadAsStreamAsync(_cts.Token);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+
+            string? eventName = null;
+            var dataLines = new StringBuilder();
+
+            while (!_cts.IsCancellationRequested)
+            {
+                var line = await reader.ReadLineAsync(_cts.Token);
+                if (line == null) break;
+
+                if (line.Length == 0)
+                {
+                    HandleSseEvent(eventName, dataLines.ToString());
+                    eventName = null;
+                    dataLines.Clear();
+                    continue;
+                }
+
+                if (line.StartsWith("event:", StringComparison.Ordinal))
+                {
+                    eventName = line.Substring(6).Trim();
+                }
+                else if (line.StartsWith("data:", StringComparison.Ordinal))
+                {
+                    var data = line.Substring(5);
+                    if (data.StartsWith(' ')) data = data.Substring(1);
+                    if (dataLines.Length > 0) dataLines.Append('\n');
+                    dataLines.Append(data);
+                }
+            }
+        }
+        catch (OperationCanceledException) { /* 正常断开 */ }
+        catch (Exception ex)
+        {
+            DebugLog.Log("mcp", $"SSE 读取循环异常: {ex.GetType().Name}: {ex.Message}");
+        }
+        finally
+        {
+            _disposed = true;
+            _endpointReady.TrySetResult(); // 唤醒等待者，避免永久阻塞
+            lock (_lock)
+            {
+                foreach (var (_, tcs) in _pending)
+                    tcs.TrySetResult(null);
+                _pending.Clear();
+            }
+        }
+    }
+
+    private void HandleSseEvent(string? eventName, string data)
+    {
+        if (string.IsNullOrEmpty(data)) return;
+
+        if (eventName == "endpoint")
+        {
+            var resolved = ResolveEndpointUrl(_sseUrl, data);
+            if (resolved != null)
+            {
+                _messageEndpoint = resolved;
+                _endpointReady.TrySetResult();
+                DebugLog.Log("mcp", $"SSE endpoint: {resolved}");
+            }
+            return;
+        }
+
+        // message 事件（或无 event 字段的默认事件）—— JSON-RPC 响应
+        if (eventName == "message" || eventName == null)
+        {
+            try
+            {
+                var resp = JsonNode.Parse(data)?.AsObject();
+                if (resp == null) return;
+                var id = resp["id"]?.GetValue<int>();
+                if (id == null) return;
+
+                lock (_lock)
+                {
+                    if (_pending.TryGetValue(id.Value, out var tcs))
+                    {
+                        _pending.Remove(id.Value);
+                        tcs.TrySetResult(resp);
+                    }
+                }
+            }
+            catch { }
+        }
     }
 }
 

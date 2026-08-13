@@ -66,7 +66,7 @@ User Input → Agent.ChatAsync()
 | `SandboxManager.cs` | Process sandbox: env sanitization, directory escape detection, system write blocking |
 | `RepoMapGenerator.cs` | ASCII tree + symbol extraction for LLM context |
 | `ProjectContext.cs` | Detects project type, language, framework, reads instruction files |
-| `McpManager.cs` | MCP client (stdio/HTTP), tool discovery, lives in `Tools/McpClient.cs` |
+| `McpManager.cs` | MCP client (stdio/HTTP/SSE), tool discovery, lives in `Tools/McpClient.cs` |
 | `MemoryStore.cs` | Legacy memory in `.corecoder/memory.md` (migration source) |
 | `StructuredMemory.cs` | Structured memory in `.corecoder/memory/*.md` with MEMORY.md index |
 | `CustomCommands.cs` | Slash commands from `.corecoder/commands/*.md` |

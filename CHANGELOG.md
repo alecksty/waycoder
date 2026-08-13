@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.48.1 (2026-08-14) — MCP SSE 传输 + 竞品资源复用指南
+
+### 🔌 MCP 三传输补齐（stdio / HTTP / SSE）
+
+- 新增 legacy HTTP+SSE 双端点传输（`SseMcpTransport`）：GET `/sse` 事件流 + POST `/message` 发请求
+- `McpTransportType` 枚举 + `DetectTransport` 自动探测（`sse` / `http` / `stdio`），配置字段 `transport` 优先
+- `SseMcpTransport` 后台 SSE 读循环解析 `event:`/`data:` 行，`endpoint` 事件解析消息端点、`message` 事件按 `id` 匹配 pending 请求
+- `ResolveEndpointUrl` 相对→绝对 URL 解析，空白/非法 data 安全返回 null
+- 自测新增 `[MCP SSE]` 区块 8 项（DetectTransport ×4 + ResolveEndpointUrl ×4），1714 项全部通过
+
+### 📚 竞品资源复用指南
+
+- 新增 `docs/竞品资源复用.md`：按「协议是否开放」给竞品（Claude Code / Crush / Cursor / Aider / Cline）的插件/MCP/LSP/Skill 分级
+- MCP 完全共用、LSP server 生态完全共用、SKILL 高度共用（容错 frontmatter）、插件外壳不可共用但内部资源可拆
+- 附 `.waycoder/mcp_servers.json` 三 transport 配置示例 + 复用优先级建议
+
 ## v0.48.0 (2026-08-14) — 计划审批门 + 抓屏/多模态视觉 + SelfTest 拆分
 
 ### 🧠 计划审批门（对标 Claude Code Plan Mode）

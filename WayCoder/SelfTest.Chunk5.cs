@@ -204,6 +204,33 @@ public static partial class SelfTest
         Check("MCP headers: null", McpManager.ParseHeaders(null) == null);
         Environment.SetEnvironmentVariable("TEST_MCP_VAR", null);
 
+        // ---- MCP SSE 传输 ----
+        Section("[MCP SSE]");
+
+        Check("SSE: transport=sse 识别",
+            McpManager.DetectTransport(JsonNode.Parse(@"{ ""transport"": ""sse"", ""url"": ""http://x.com/sse"" }")!)
+                == McpManager.McpTransportType.Sse);
+        Check("SSE: transport=http 识别",
+            McpManager.DetectTransport(JsonNode.Parse(@"{ ""transport"": ""http"", ""url"": ""http://x.com/mcp"" }")!)
+                == McpManager.McpTransportType.Http);
+        Check("SSE: url 无 transport 默认 http",
+            McpManager.DetectTransport(JsonNode.Parse(@"{ ""url"": ""http://x.com/mcp"" }")!)
+                == McpManager.McpTransportType.Http);
+        Check("SSE: 无 url 无 transport 默认 stdio",
+            McpManager.DetectTransport(JsonNode.Parse(@"{ ""command"": ""echo"" }")!)
+                == McpManager.McpTransportType.Stdio);
+
+        Check("SSE endpoint: 相对路径解析为绝对",
+            SseMcpTransport.ResolveEndpointUrl("http://x.com/sse", "/message?sessionId=abc")
+                == "http://x.com/message?sessionId=abc");
+        Check("SSE endpoint: 绝对 URL 原样",
+            SseMcpTransport.ResolveEndpointUrl("http://x.com/sse", "http://y.com/msg")
+                == "http://y.com/msg");
+        Check("SSE endpoint: 空 data 返回 null",
+            SseMcpTransport.ResolveEndpointUrl("http://x.com/sse", "") == null);
+        Check("SSE endpoint: 空白 data 返回 null",
+            SseMcpTransport.ResolveEndpointUrl("http://x.com/sse", "   ") == null);
+
         Console.WriteLine();
 
         // ---- MCP 缓存 ----
