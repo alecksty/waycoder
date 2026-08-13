@@ -1,5 +1,31 @@
 # 更新日志
 
+## v0.47.12 (2026-08-13) — /pause 优雅暂停 + 主循环稳健性修复 + Windows 打包脚本
+
+### ⏸️ 优雅暂停（Ctrl+Z）
+
+- 新增 **Ctrl+Z 优雅暂停**：Agent 运行时按 Ctrl+Z，当前批次完成后自动「git commit → 写检查点 → 存会话」再停机，与 Esc 立即中断互补
+- 只提交 Agent 自己改过的文件（`AutoCommitAsync(fallbackToGitStatus: false)`），不卷入与本任务无关的未提交改动
+- 新增 `/pause` 命令（提示用法）；会话存到 `_auto`，重启后 `/resume` 可恢复
+
+### 🐛 LLM 参数解析健壮性
+
+- `ParseArgs` 改用 `JsonDocument` 解析（替代 `JsonNode`），容忍重复 JSON 键（后者覆盖，不再抛 `ArgumentException`）
+
+### 🔧 主循环稳健性修复
+
+- 修复主循环中途停滞被误判为完成而提前退出
+- 任务进行中无工具调用不再误判为完成
+- 自动续跑 `wasWriting` 标记与实际工具输出对齐（`已写入 / 已编辑 / 已创建`）
+
+### 📦 Windows 打包脚本
+
+- 新增 `scripts/package.ps1`（与 `package.sh` 功能对等，Windows 原生 PowerShell 打包）
+
+### 🧪 自测
+
+- 1676 项自测全部通过（0 失败）
+
 ## v0.47.11 (2026-08-13) — 输入框完善：光标定位 + 复制粘贴 + 双输入对话框 + 补全钩子 + 渲染残影修复
 
 ### 🖱️ 光标/选区错位修复
