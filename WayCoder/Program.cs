@@ -154,7 +154,20 @@ public class Program
             ThemeConfig.ApplyPreset(_config.ThemePreset);
         if (model != null) _config.Model = model;
         if (baseUrl != null) _config.BaseUrl = baseUrl;
-        if (apiKey != null) _config.ApiKey = apiKey;
+        if (apiKey != null)
+        {
+            _config.ApiKey = apiKey;
+            // 命令行配置的 API key 自动保存到全局 ~/.waycoder/api_keys.json（key 跟服务商走，不跟模型走）。
+            // 服务商优先级：--model 指定的模型所属服务商 > 当前服务商。
+            var keyProvider = model != null
+                ? (ModelCatalog.Find(model)?.ProviderId ?? _config.Provider)
+                : _config.Provider;
+            if (!string.IsNullOrWhiteSpace(keyProvider))
+            {
+                ApiKeyStore.Set(keyProvider, apiKey);
+                _config.Provider = keyProvider;
+            }
+        }
         if (maxBudget != null) _config.MaxBudgetUsd = maxBudget;
         if (watchMode) _config.WatchMode = true;
         if (economyMode)

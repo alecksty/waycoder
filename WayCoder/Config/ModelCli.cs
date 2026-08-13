@@ -14,11 +14,11 @@ public static class ModelCli
     {
         var cfg = Config.Instance;
         var sb = new StringBuilder();
-        sb.AppendLine($"当前大模型：{cfg.Model}");
-        sb.AppendLine($"当前小模型：{cfg.SmallModel}");
+        sb.AppendLine($"当前大模型：{cfg.Model}（服务商 {cfg.Provider}）");
+        sb.AppendLine($"当前小模型：{cfg.SmallModel}（服务商 {cfg.SmallProvider}）");
         if (!string.IsNullOrWhiteSpace(cfg.BaseUrl))
             sb.AppendLine($"BaseUrl：{cfg.BaseUrl}");
-        sb.AppendLine("\n列出目录: --model list　选中: --model name <id>　存 key: --model key <供应商> <key>");
+        sb.AppendLine("\n列出目录: --model list　选大模型: --model name <id>　选小模型: --model small <id>　存 key: --model key <供应商> <key>");
         return sb.ToString();
     }
 
@@ -80,6 +80,7 @@ public static class ModelCli
         }
 
         Config.Instance.Model = info.Id;
+        Config.Instance.Provider = info.ProviderId;   // 同步当前服务商（key 跟服务商走）
         if (info.DefaultBaseUrl != null)
             Config.Instance.BaseUrl = info.DefaultBaseUrl;
         Config.Instance.SaveToEnvFile();
@@ -90,8 +91,27 @@ public static class ModelCli
             ? $"\n  该供应商需 API key：--model key {info.ProviderId} <key>"
             : "";
 
-        return $"已选中 **{info.DisplayName}**（`{info.Id}`）并写入 .env" +
+        return $"已选中 **{info.DisplayName}**（`{info.Id}`，服务商 `{info.ProviderId}`）并写入 .env" +
             (info.DefaultBaseUrl != null ? $"\n  BaseUrl 已自动设为 {info.DefaultBaseUrl}" : "") + keyHint;
+    }
+
+    /// <summary>选中小模型：按目录解析，写入 .env 持久化（同步小模型服务商）</summary>
+    public static string SelectSmall(string modelId)
+    {
+        var info = ModelCatalog.Find(modelId.Trim()) ?? ModelCatalog.Search(modelId.Trim()).FirstOrDefault();
+
+        if (info == null)
+        {
+            Config.Instance.SmallModel = modelId.Trim();
+            Config.Instance.SaveToEnvFile();
+            return $"已设置小模型为 `{modelId}`（目录外模型，已写入 .env）";
+        }
+
+        Config.Instance.SmallModel = info.Id;
+        Config.Instance.SmallProvider = info.ProviderId;   // 同步小模型服务商
+        Config.Instance.SaveToEnvFile();
+
+        return $"已选中小模型 **{info.DisplayName}**（`{info.Id}`，服务商 `{info.ProviderId}`）并写入 .env";
     }
 
     /// <summary>列出已保存的 API keys（打码）</summary>

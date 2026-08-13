@@ -73,8 +73,14 @@ public class Config
                     var val = Env(p.EnvVar, p.OldEnvVar);
                     if (val != null) p.Setter(_instance, val);
                 }
-                // 特殊处理：ApiKey 多路回退
-                if (string.IsNullOrEmpty(_instance.ApiKey))
+                // 特殊处理：ApiKey 解析 —— 一个服务商一个 key，key 跟服务商走（不跟模型走）。
+                // 优先级：全局 JSON（按当前服务商）> .env WAYCODER_API_KEY > 各家 API_KEY 环境变量。
+                var providerKey = ApiKeyStore.Get(_instance.Provider) ?? ApiKeyStore.ForModel(_instance.Model);
+                if (!string.IsNullOrWhiteSpace(providerKey))
+                {
+                    _instance.ApiKey = providerKey;
+                }
+                else if (string.IsNullOrEmpty(_instance.ApiKey))
                 {
                     _instance.ApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
                         ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY")
@@ -82,9 +88,6 @@ public class Config
                         ?? Environment.GetEnvironmentVariable("API_KEY")
                         ?? "";
                 }
-                // env 无 key 时，从全局 JSON（api_keys.json）按当前模型供应商查找（对标 OpenCode/Crush 多 key 存储）
-                if (string.IsNullOrEmpty(_instance.ApiKey))
-                    _instance.ApiKey = ApiKeyStore.ForModel(_instance.Model) ?? "";
                 // 特殊处理：BaseUrl 多路回退
                 if (string.IsNullOrEmpty(_instance.BaseUrl))
                 {
@@ -113,6 +116,7 @@ public class Config
     public float Temperature { get; set; } = 0.1f;
     public int MaxContextTokens { get; set; } = 1_048_576;
     public string Provider { get; set; } = "openai";
+    public string SmallProvider { get; set; } = "deepseek";
     public double? MaxBudgetUsd { get; set; }
     public bool AutoGitCommit { get; set; } = false;
     public bool WatchMode { get; set; } = false;
@@ -252,20 +256,25 @@ public class Config
               "select", ["deepseek-chat","deepseek-v4-flash","gpt-5.4-mini","gpt-4o-mini","deepseek-v4-pro"], 1,
               c => c.SmallModel, (c, v) => c.SmallModel = v, "deepseek-chat"),
 
+            P("SmallProvider","WAYCODER_SMALL_PROVIDER",  null,
+              "小模型服务商", "🤖 模型", "小模型所属服务商 (deepseek/qwen/openai/...)",
+              "text", null, 2,
+              c => c.SmallProvider, (c, v) => c.SmallProvider = v, "deepseek"),
+
             P("BaseUrl",      "WAYCODER_BASE_URL",        null,
               "API 地址", "🤖 模型", "API 端点 URL",
-              "text", null, 2,
+              "text", null, 3,
               c => c.BaseUrl ?? "", (c, v) => c.BaseUrl = string.IsNullOrEmpty(v) ? null : v,
               skipIfEmpty: true),
 
             P("ApiKey",       "WAYCODER_API_KEY",         null,
               "API 密钥", "🤖 模型", "API 密钥 (已隐藏)",
-              "secret", null, 3,
+              "secret", null, 4,
               c => c.ApiKey, (c, v) => c.ApiKey = v, "", skipIfEmpty: true),
 
             P("ReasoningEffort", "WAYCODER_REASONING_EFFORT", null,
               "推理深度", "🤖 模型", "推理模型的思考深度 (minimal/low/medium/high/max)，空=默认",
-              "select", ["","minimal","low","medium","high","max"], 4,
+              "select", ["","minimal","low","medium","high","max"], 5,
               c => c.ReasoningEffort, (c, v) => c.ReasoningEffort = v, "", skipIfEmpty: true),
 
             // ── 参数 ──
@@ -750,6 +759,8 @@ public class Config
 
         foreach (var p in _schema)
         {
+            // API Key 不写入 .env：密钥独立管理，走全局 ~/.waycoder/api_keys.json（一个服务商一个 key）
+            if (p.Type == "secret") continue;
             var val = p.Getter(this);
             if (p.SkipIfEmpty && string.IsNullOrEmpty(val)) continue;
             if (p.DefaultStr != null && val == p.DefaultStr) continue;

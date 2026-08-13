@@ -1,5 +1,27 @@
 # 更新日志
 
+## v0.47.5 (2026-08-13) — API key 统一走服务商 + 小模型服务商跟踪 + 命令行 key 自动入库
+
+### 🔑 全局 key 库格式定版：`[{ "provider": ..., "apikey": ... }]`
+
+- **问题**：上一版 `api_keys.json` 还是扁平 `{ "服务商": "key" }`，与「一个服务商一个 key、一个服务商多个模型」的心智不符
+- **修复**：定版为数组 `[{ "provider": "deepseek", "apikey": "sk-..." }, ...]`（对标 OpenCode/Crush 多 key 全局存储），读写均按数组；兼容旧扁平格式与 OpenCode `{ pid: { key } }` 格式自动迁移
+- **key 跟服务商走，不跟模型走**：`Config.ApiKey` 解析链 = 全局 JSON（按当前服务商）> 全局 JSON（按模型）> `.env WAYCODER_API_KEY` > 各家环境变量
+
+### 🧩 大/小模型服务商独立跟踪
+
+- **问题**：只有 `Provider` 跟踪大模型服务商，小模型切服务商后 key 解析会错
+- **修复**：新增 `SmallProvider`（`WAYCODER_SMALL_PROVIDER`）字段；`--model small <id>` 子命令选中/持久化小模型并同步小模型服务商
+
+### 🐛 修复 `.env` 污染
+
+- **问题**：切换服务商后 `SaveToEnvFile` 会把旧服务商的 key 写成新模型的 `WAYCODER_API_KEY`（污染 `.env`，切 key 错乱）
+- **修复**：`secret` 类型设置项永不写入 `.env`——key 只存全局 `api_keys.json`，`.env` 只存 `MODEL/PROVIDER/SMALL_*` 等非敏感项
+
+### ⌨️ 命令行 key 自动入库
+
+- `--api-key <key>` / `-k <key>` 自动保存到全局 `~/.waycoder/api_keys.json`（按当前服务商，或 `--model` 指定模型所属服务商），无需再手动 `--model key <供应商> <key>`
+
 ## v0.47.4 (2026-08-13) — 全局 JSON 多 key 存储：多服务商/模型丝滑切换，无需重输 key
 
 ### 🔑 API key 全局 JSON 回退（对标 OpenCode/Crush）
