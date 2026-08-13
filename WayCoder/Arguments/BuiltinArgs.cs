@@ -20,7 +20,7 @@ namespace WayCoder.Arguments;
 /// </summary>
 public class ModelArg : CliArg
 {
-    public override string Description => "模型管理（list / name <id> / small <id> / key / connect / import [来源] / add [model|provider|key] / remove [model|provider|key] / test，或 --model <模型ID> 快捷选中）";
+    public override string Description => "模型管理（list / name <id> / small <id> / key / connect / import [来源] / add [model|provider|key] / remove [model|provider|key] / test / prune，或 --model <模型ID> 快捷选中）";
     public override int ValueCount => -1;
     public override bool Greedy => true;
     public override string? ValueLabel => "模型ID/子命令";
@@ -71,6 +71,10 @@ public class ModelArg : CliArg
                 break;
             case "test":
                 result = ModelCli.Test();
+                break;
+            case "prune":
+            case "clean":
+                result = ModelCli.Prune();
                 break;
             default:
                 // 裸模型名：本次会话快捷选中，交给 Program 继续运行

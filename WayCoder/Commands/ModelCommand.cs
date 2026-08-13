@@ -76,6 +76,10 @@ public class ModelCommand : SlashCommand
             case "test":
                 screen.AddSystemMsg(ModelCli.Test());
                 break;
+            case "prune":
+            case "clean":
+                screen.AddSystemMsg(ModelCli.Prune());
+                break;
             case "add":
                 AddModels(screen, rest);
                 break;
