@@ -57,7 +57,7 @@ dotnet run -- --economy          # 开：精简提示词 + 更早压缩 + 输出
 dotnet run -- --economy auto     # 自动：按任务复杂度动态调节阈值（简单省、复杂保质量）
 # 优先级偏好（仅 auto 生效）：WAYCODER_ECONOMY_PRIORITY=quality|balanced|cost（默认 quality）
 
-# 运行自测（1731 项）
+# 运行自测（1743 项）
 dotnet run -- --test
 ```
 
@@ -96,7 +96,7 @@ WayCoder/
 ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1731 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── SelfTest.cs        1743 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
 ├── Infra/             基础设施 (12+ 文件)
 │   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
 │   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)
@@ -193,6 +193,7 @@ WayCoder/
 /review          多维度代码审查
 /plan            计划模式，先规划再执行
 /init            分析项目并生成 CLAUDE.md（对标 Claude Code /init）
+/mcp             查看 MCP 服务器状态 / 重连
 /jobs            查看后台任务
 /git-status /git-log /git-diff  Git 状态/日志/差异
 /perm ask|auto|yolo  权限模式切换
@@ -242,6 +243,7 @@ quit / exit      退出 (Ctrl+Q)
 - **Bash 安全防护**：70+ 禁止命令 + 47 安全白名单，管道中每个命令独立检查
 - **计划审批门**：`计划` 模式（Shift+Tab）下模型产出计划后不自动执行，就地弹出审批框——批准则切回 `建造` 模式继续执行，拒绝则停止（对标 Claude Code Plan Mode）
 - **项目初始化 `/init`**：扫描项目生成中文 CLAUDE.md（语言/框架/构建工具 + 构建/测试/lint 命令探测），对标 Claude Code /init；下次启动自动注入系统提示词
+- **MCP 状态管理 `/mcp`**：结构化状态模型（Connecting/Connected/Failed）+ 热重连，`/mcp` 查看服务器状态、`/mcp reload [name]` 重连，对标 Claude Code /mcp
 
 ## 贡献 / License
 

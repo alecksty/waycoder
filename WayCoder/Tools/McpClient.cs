@@ -18,6 +18,8 @@ namespace WayCoder.Tools;
 public static class McpManager
 {
     private static readonly List<McpConnection> _connections = [];
+    private static readonly Dictionary<string, McpServerState> _states = [];
+    private static readonly object _stateLock = new();
     private static bool _initialized;
 
     /// <summary>所有已发现的 MCP 工具</summary>
@@ -25,6 +27,19 @@ public static class McpManager
 
     /// <summary>MCP 连接状态信息，供 UI 面板展示</summary>
     public static string Info { get; private set; } = "未配置";
+
+    /// <summary>结构化服务器状态快照，供 /mcp 命令与侧栏展示</summary>
+    public static IReadOnlyList<McpServerInfo> Servers
+    {
+        get
+        {
+            lock (_stateLock)
+                return _states.Values
+                    .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+                    .Select(s => s.ToInfo())
+                    .ToList();
+        }
+    }
 
     /// <summary>MCP 传输类型</summary>
     internal enum McpTransportType { Stdio, Http, Sse }
@@ -67,54 +82,82 @@ public static class McpManager
             {
                 var name = server?["name"]?.GetValue<string>();
                 if (string.IsNullOrEmpty(name)) continue;
-
-                var transportType = DetectTransport(server!);
-                var url = server!["url"]?.GetValue<string>();
-                var headers = ParseHeaders(server!["headers"]?.AsObject());
-
-                switch (transportType)
-                {
-                    case McpTransportType.Sse when !string.IsNullOrEmpty(url):
-                        // SSE 传输（HTTP+SSE 双端点：GET /sse + POST /message）
-                        _ = ConnectAndDiscoverSseAsync(name, url, headers);
-                        break;
-
-                    case McpTransportType.Http when !string.IsNullOrEmpty(url):
-                        // HTTP（Streamable）传输
-                        _ = ConnectAndDiscoverHttpAsync(name, url, headers);
-                        break;
-
-                    case McpTransportType.Stdio:
-                    {
-                        // stdio 传输（默认，向后兼容）
-                        var command = server["command"]?.GetValue<string>();
-                        var args = server["args"]?.AsArray()
-                            ?.Select(a => a?.GetValue<string>() ?? "").ToArray() ?? [];
-
-                        var env = new Dictionary<string, string>();
-                        var envObj = server["env"]?.AsObject();
-                        if (envObj != null)
-                        {
-                            foreach (var kv in envObj)
-                            {
-                                var val = kv.Value?.GetValue<string>();
-                                if (!string.IsNullOrEmpty(val))
-                                    env[kv.Key] = val;
-                            }
-                        }
-
-                        if (!string.IsNullOrEmpty(command))
-                        {
-                            _ = ConnectAndDiscoverStdioAsync(name, command, args, env);
-                        }
-                        break;
-                    }
-                }
+                RegisterState(name, server!);
+                _ = ConnectServerAsync(server!);
             }
         }
         catch (Exception ex)
         {
             DebugLog.Log("mcp", $"MCP 初始化失败: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    /// <summary>注册服务器状态（初始 Connecting）。</summary>
+    private static void RegisterState(string name, JsonNode server)
+    {
+        lock (_stateLock)
+        {
+            if (!_states.ContainsKey(name))
+                _states[name] = new McpServerState
+                {
+                    Name = name,
+                    Transport = DetectTransport(server).ToString().ToLowerInvariant(),
+                };
+        }
+    }
+
+    /// <summary>解析并连接单个服务器（Init 与 Reload 共用）。</summary>
+    private static async Task ConnectServerAsync(JsonNode server)
+    {
+        var name = server["name"]?.GetValue<string>() ?? "";
+        var transportType = DetectTransport(server);
+        var url = server["url"]?.GetValue<string>();
+        var headers = ParseHeaders(server["headers"]?.AsObject());
+
+        try
+        {
+            switch (transportType)
+            {
+                case McpTransportType.Sse when !string.IsNullOrEmpty(url):
+                    // SSE 传输（HTTP+SSE 双端点：GET /sse + POST /message）
+                    await ConnectAndDiscoverSseAsync(name, url, headers);
+                    break;
+
+                case McpTransportType.Http when !string.IsNullOrEmpty(url):
+                    // HTTP（Streamable）传输
+                    await ConnectAndDiscoverHttpAsync(name, url, headers);
+                    break;
+
+                case McpTransportType.Stdio:
+                {
+                    // stdio 传输（默认，向后兼容）
+                    var command = server["command"]?.GetValue<string>();
+                    var args = server["args"]?.AsArray()
+                        ?.Select(a => a?.GetValue<string>() ?? "").ToArray() ?? [];
+
+                    var env = new Dictionary<string, string>();
+                    var envObj = server["env"]?.AsObject();
+                    if (envObj != null)
+                    {
+                        foreach (var kv in envObj)
+                        {
+                            var val = kv.Value?.GetValue<string>();
+                            if (!string.IsNullOrEmpty(val))
+                                env[kv.Key] = val;
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(command))
+                        await ConnectAndDiscoverStdioAsync(name, command, args, env);
+                    else
+                        SetStatus(name, McpServerStatus.Failed, error: "缺少 command 字段");
+                    break;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus(name, McpServerStatus.Failed, error: ex.Message);
         }
     }
 
@@ -175,7 +218,7 @@ public static class McpManager
         catch (Exception ex)
         {
             DebugLog.Log("mcp", $"MCP {name} 连接失败: {ex.GetType().Name}: {ex.Message}");
-            Info += $"\n  {name} ✗ 连接失败";
+            SetStatus(name, McpServerStatus.Failed, error: ex.Message);
         }
     }
 
@@ -196,7 +239,7 @@ public static class McpManager
         catch (Exception ex)
         {
             DebugLog.Log("mcp", $"MCP {name} (HTTP) 连接失败: {ex.GetType().Name}: {ex.Message}");
-            Info += $"\n  {name} ✗ 连接失败";
+            SetStatus(name, McpServerStatus.Failed, error: ex.Message);
         }
     }
 
@@ -217,7 +260,7 @@ public static class McpManager
         catch (Exception ex)
         {
             DebugLog.Log("mcp", $"MCP {name} (SSE) 连接失败: {ex.GetType().Name}: {ex.Message}");
-            Info += $"\n  {name} ✗ 连接失败";
+            SetStatus(name, McpServerStatus.Failed, error: ex.Message);
         }
     }
 
@@ -239,6 +282,7 @@ public static class McpManager
         if (initResp == null)
         {
             DebugLog.Log("mcp", $"MCP {name}: 握手失败");
+            SetStatus(name, McpServerStatus.Failed, error: "握手超时");
             return;
         }
 
@@ -251,6 +295,9 @@ public static class McpManager
         if (tools == null || tools.Count == 0)
         {
             DebugLog.Log("mcp", $"MCP {name}: 无可用工具");
+            SetStatus(name, McpServerStatus.Connected, toolCount: 0, connection: conn);
+            _connections.Add(conn);
+            UpdateInfo();
             return;
         }
 
@@ -269,22 +316,109 @@ public static class McpManager
         }
 
         _connections.Add(conn);
+        SetStatus(name, McpServerStatus.Connected, toolCount: tools.Count, connection: conn);
+        UpdateInfo();
         DebugLog.Log("mcp", $"MCP {name}: 发现 {tools.Count} 个工具");
     }
 
-    /// <summary>更新 MCP 连接状态信息</summary>
+    /// <summary>更新 MCP 连接状态信息（由结构化状态生成）</summary>
     private static void UpdateInfo()
     {
-        var sb = new StringBuilder();
-        foreach (var conn in _connections)
+        lock (_stateLock)
         {
-            var toolCount = DiscoveredTools.Count(t =>
-                t.Name.StartsWith($"mcp__{conn.Name}__", StringComparison.Ordinal));
-            sb.Append($"  {conn.Name} ✓ {toolCount} 工具");
-            if (conn != _connections.Last()) sb.Append('\n');
+            var sb = new StringBuilder();
+            foreach (var st in _states.Values.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                var mark = st.Status switch
+                {
+                    McpServerStatus.Connected => "✓",
+                    McpServerStatus.Connecting => "…",
+                    McpServerStatus.Failed => "✗",
+                    _ => "?",
+                };
+                sb.Append($"  {st.Name} {mark} {st.ToolCount} 工具");
+                if (st.Error != null) sb.Append($" ({st.Error})");
+                sb.Append('\n');
+            }
+            Info = sb.Length > 0 ? sb.ToString().TrimEnd('\n') : "未配置";
         }
-        if (sb.Length > 0)
-            Info = sb.ToString();
+    }
+
+    /// <summary>更新服务器状态。</summary>
+    private static void SetStatus(string name, McpServerStatus status, int toolCount = 0,
+        string? error = null, McpConnection? connection = null)
+    {
+        lock (_stateLock)
+        {
+            if (!_states.TryGetValue(name, out var st)) return;
+            st.Status = status;
+            st.ToolCount = toolCount;
+            st.Error = error;
+            if (connection != null) st.Connection = connection;
+        }
+    }
+
+    /// <summary>断开单个服务器的连接并移除其工具。</summary>
+    private static async Task DisconnectServerAsync(string name)
+    {
+        McpConnection? conn = null;
+        lock (_stateLock)
+        {
+            if (_states.TryGetValue(name, out var st)) conn = st.Connection;
+        }
+
+        if (conn != null)
+        {
+            try { conn.SendNotification("exit", new JsonObject()); } catch { }
+            try { await conn.DisconnectAsync(); } catch { }
+            _connections.Remove(conn);
+        }
+
+        // 移除该服务器的旧工具
+        var prefix = $"mcp__{name}__";
+        DiscoveredTools.RemoveAll(t => t.Name.StartsWith(prefix, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// 重连 MCP 服务器（/mcp reload）。name 为空则重连全部。
+    /// 返回用户可读的结果信息。
+    /// </summary>
+    public static async Task<string> ReloadAsync(string? name)
+    {
+        var configPath = Global.FindConfigFileInTree(Environment.CurrentDirectory, "mcp_servers.json");
+        if (configPath == null) return "未找到 mcp_servers.json 配置";
+
+        try
+        {
+            var servers = JsonNode.Parse(File.ReadAllText(configPath, Encoding.UTF8))?.AsArray();
+            if (servers == null || servers.Count == 0) return "mcp_servers.json 为空或格式错误";
+
+            var targets = new List<JsonNode>();
+            foreach (var server in servers)
+            {
+                var n = server?["name"]?.GetValue<string>();
+                if (string.IsNullOrEmpty(n)) continue;
+                if (name == null || n.Equals(name, StringComparison.OrdinalIgnoreCase))
+                    targets.Add(server!);
+            }
+
+            if (targets.Count == 0)
+                return name == null ? "无可用服务器" : $"未找到服务器 {name}";
+
+            foreach (var server in targets)
+            {
+                var n = server["name"]!.GetValue<string>();
+                await DisconnectServerAsync(n);
+                SetStatus(n, McpServerStatus.Connecting);
+                await ConnectServerAsync(server);
+            }
+
+            return $"已重连 {targets.Count} 个服务器";
+        }
+        catch (Exception ex)
+        {
+            return $"重连失败: {ex.GetType().Name}: {ex.Message}";
+        }
     }
 
     /// <summary>
@@ -303,9 +437,57 @@ public static class McpManager
         }
         _connections.Clear();
         DiscoveredTools.Clear();
+        lock (_stateLock) _states.Clear();
     }
 
     // FindConfigFileInTree defined in Global.cs (shared with McpCache)
+}
+
+// ============================================================
+// MCP 服务器状态模型
+// ============================================================
+
+/// <summary>MCP 服务器连接状态。</summary>
+public enum McpServerStatus
+{
+    /// <summary>连接中</summary>
+    Connecting,
+    /// <summary>已连接（工具已发现）</summary>
+    Connected,
+    /// <summary>连接失败</summary>
+    Failed,
+}
+
+/// <summary>MCP 服务器状态快照（供 /mcp 命令与 UI 展示，不可变）。</summary>
+public class McpServerInfo
+{
+    public string Name { get; }
+    public string Transport { get; }
+    public McpServerStatus Status { get; }
+    public int ToolCount { get; }
+    public string? Error { get; }
+
+    public McpServerInfo(string name, string transport, McpServerStatus status, int toolCount, string? error)
+    {
+        Name = name;
+        Transport = transport;
+        Status = status;
+        ToolCount = toolCount;
+        Error = error;
+    }
+}
+
+/// <summary>MCP 服务器运行时状态（内部，可变）。</summary>
+internal class McpServerState
+{
+    public string Name = "";
+    public string Transport = "stdio";
+    public McpServerStatus Status = McpServerStatus.Connecting;
+    public int ToolCount;
+    public string? Error;
+    public McpConnection? Connection;
+
+    public McpServerInfo ToInfo() => new(Name, Transport, Status, ToolCount, Error);
 }
 
 // ============================================================
