@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.48.2 (2026-08-14) — /init 项目初始化（对标 Claude Code /init）
+
+### 🚀 `/init` 项目初始化
+
+- 新增 `/init [force]` 命令：扫描项目（语言/框架/构建工具/Git）→ 生成中文 `CLAUDE.md` 指导文件（对标 Claude Code /init）
+- `ProjectInitializer.GenerateClaudeMd()` 纯逻辑生成：项目概述 / 常用命令 / 架构 / 开发规范 / 注意事项 五区块
+- 命令检测复用 `ProjectContext.DetectProject()` 结果，补充构建/测试/lint 命令精确探测（.NET / Node / Go / Rust / Python / Makefile）
+- 已存在 `CLAUDE.md` 时弹确认框（覆盖/取消），`force` 参数跳过确认
+- 生成后下次启动自动注入系统提示词（复用现有 `ProjectContext.LoadInstructions()`）
+
+### 🧪 自测
+
+- 新增 `TestProjectInit`：生成结构 6 项 + 命令检测 11 项，1731 项全部通过（0 失败）
+
 ## v0.48.1 (2026-08-14) — MCP SSE 传输 + 竞品资源复用指南
 
 ### 🔌 MCP 三传输补齐（stdio / HTTP / SSE）
