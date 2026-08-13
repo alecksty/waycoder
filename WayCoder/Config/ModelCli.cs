@@ -367,6 +367,59 @@ public static class ModelCli
         return sb.ToString().Trim();
     }
 
+    /// <summary>
+    /// 剪除失效供应商：逐一测试所有已存 API key，对「连接失败」或「无端点（供应商不存在/未配置 base_url）」的供应商
+    /// 自动删除其 key + 所有自定义模型。内置供应商/模型不删（仅删 key）；本地端点不参与。
+    /// 返回 Markdown 文本报告。
+    /// </summary>
+    public static string Prune()
+    {
+        var keys = ApiKeyStore.ListAll().OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase).ToArray();
+        if (keys.Length == 0)
+            return "没有已存 API key 可清理。存 key: --model key <供应商> <key>";
+
+        var sb = new StringBuilder();
+        sb.AppendLine("**清理失效供应商**");
+        sb.AppendLine();
+        int removedKeys = 0, removedModels = 0, kept = 0;
+
+        foreach (var (pid, key) in keys)
+        {
+            var baseUrl = ResolveProviderBaseUrl(pid);
+            var display = ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DisplayName)
+                ? p.DisplayName : pid;
+
+            // 无端点：供应商不存在或未配置 base_url（写错地址/拼错供应商）→ 删除
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                var n = ModelCatalog.RemoveCustomByProvider(pid);
+                ApiKeyStore.Remove(pid);
+                removedKeys++;
+                removedModels += n;
+                sb.AppendLine($"🗑️  【{display}】无端点（供应商不存在或未配置 base_url）— 已删除 key" + (n > 0 ? $" + {n} 个自定义模型" : ""));
+                continue;
+            }
+
+            var (ok, detail) = ProbeEndpoint(baseUrl, key);
+            if (ok)
+            {
+                kept++;
+                sb.AppendLine($"✅ 【{display}】{detail} — 保留");
+                continue;
+            }
+
+            var m = ModelCatalog.RemoveCustomByProvider(pid);
+            ApiKeyStore.Remove(pid);
+            removedKeys++;
+            removedModels += m;
+            sb.AppendLine($"🗑️  【{display}】{detail} — 已删除 key" + (m > 0 ? $" + {m} 个自定义模型" : ""));
+        }
+
+        sb.AppendLine();
+        sb.AppendLine($"**结论：删除 {removedKeys} 个失效供应商的 key，移除 {removedModels} 个自定义模型；保留 {kept} 个**");
+        return sb.ToString().Trim();
+    }
+
     /// <summary>解析模型的有效 base_url：显式 > 服务商默认 > 本地(Ollama)默认 localhost:11434</summary>
     private static string? EffectiveBaseUrl(ModelCatalog.ModelInfo m)
     {
