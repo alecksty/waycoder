@@ -288,14 +288,18 @@ public static class TuiChatInput
 
     private static (int chars, int vw) MeasureSlice(string text, int start, int maxVW)
     {
+        // start 与返回的 chars 均为 char 索引/计数（rune 感知，正确处理代理对/emoji）
         int chars = 0, vw = 0;
-        var runes = text.EnumerateRunes().ToList();
-        for (int i = start; i < runes.Count; i++)
+        int charIdx = 0;
+        foreach (var rune in text.EnumerateRunes())
         {
-            var w = runes[i].Value > 127 ? 2 : 1;
+            int rl = rune.ToString().Length;
+            if (charIdx < start) { charIdx += rl; continue; }
+            var w = TuiHelper.RuneWidth(rune);
             if (vw + w > maxVW) break;
             vw += w;
-            chars++;
+            chars += rl;
+            charIdx += rl;
         }
         return (chars, vw);
     }
@@ -332,10 +336,10 @@ public static class TuiChatInput
         int cx = sl.HardOffset, vw = 0;
         foreach (var rune in slice.EnumerateRunes())
         {
-            var w = rune.Value > 127 ? 2 : 1;
+            var w = TuiHelper.RuneWidth(rune);
             if (vw + w > scrCol) break;
             vw += w;
-            cx++;
+            cx += rune.ToString().Length;
         }
         return (sl.HardLine, cx);
     }
@@ -515,7 +519,7 @@ public static class TuiChatInput
                 {
                     int vw = 0, ci = 0;
                     foreach (var r in text.EnumerateRunes())
-                    { var w = r.Value > 127 ? 2 : 1; if (vw + w > maxW - 1) break; vw += w; ci++; }
+                    { var w = TuiHelper.RuneWidth(r); if (vw + w > maxW - 1) break; vw += w; ci += r.ToString().Length; }
                     text = text[..ci] + "…";
                 }
                 var isSel = i == _suggestIdx;
@@ -545,12 +549,7 @@ public static class TuiChatInput
     private static string JoinLines(List<StringBuilder> lines) =>
         string.Join("\n", lines.Select(l => l.ToString())).TrimEnd();
 
-    private static int VW(string s)
-    {
-        int w = 0;
-        foreach (var rune in s.EnumerateRunes()) w += rune.Value > 127 ? 2 : 1;
-        return w;
-    }
+    private static int VW(string s) => TuiHelper.DisplayWidth(s);
 
     private static string? ReadClipboard()
     {

@@ -1,5 +1,31 @@
 # 更新日志
 
+## v0.47.11 (2026-08-13) — 输入框完善：光标定位 + 复制粘贴 + 双输入对话框 + 补全钩子 + 渲染残影修复
+
+### 🖱️ 光标/选区错位修复
+
+- **根因**：`GetAbsoluteX/Y()` 沿 `Parent` 链累加，无法反映窗口内容区的 `ContentLeft/ContentTop` 偏移（`RootView` 不设 `Parent`），导致对话框内输入控件光标定位错位
+- **修复**：`TuiControl.Render()` 记录渲染时的绝对原点 `_lastAbsX/_lastAbsY`（在裁剪早退前设置），三个输入控件（`TuiInput`/`TuiTextArea`/`TuiRichEditor`）的 `GotoCursorPos()` 改用该坐标，窗口内光标不再跑偏/消失
+
+### 📋 双输入对话框 + 复制粘贴
+
+- **新增 `TuiDialog.InputLine()`**：单行输入对话框（`TuiInput`），与已有的多行 `Input()`（`TuiTextArea`）、密码 `Secret()` 并列，均带输入历史（`TuiInputHistory`）与 OK/Cancel 按钮
+- **复制粘贴快捷键**：`Ctrl+C` 被全局保留为退出，故复制改用 **Ctrl+Insert**、粘贴改用 **Shift+Insert**（Linux/Win 通用），`TuiEditBase` 统一分发
+
+### 🎣 补全输入钩子（触发提示框）
+
+- `ChatScreen.RegisterPrefixHint(prefix, provider)` / `UnregisterPrefixHint`：允许外部注册任意前缀符号的提示项生成器，`BuildPrefixHints` 优先走钩子，`IsKnownPrefix` 统一判定内置（`/ @ ! #`）与自定义前缀
+
+### ✨ 渲染闪烁/残影修复
+
+- **建议面板浮层化**：`TuiControl` 新增 `Floating` 属性，`TuiVBox`/`TuiHBox` 布局跳过浮动子控件（Flex/尺寸/位置都不计入）——Tab 补全/前缀提示面板不再把输入区挤出屏幕
+- **脏区补绘**：`TuiScreen.MarkDirtyRect()` + `ChatScreen` 记录建议面板上一帧矩形，移动/缩放/隐藏时补绘被遮挡的聊天内容
+- **底色擦除修复**：脏区擦除先 `SGR 复位` 再填空格，`bg=0` 的空格不再残留浮层底色（如建议面板的 Bg=47）
+
+### 🧪 自测
+
+- 1671 项自测全部通过（0 失败）
+
 ## v0.47.10 (2026-08-13) — 一键多平台打包脚本（`scripts/package.sh`）
 
 ### 📦 多平台打包
