@@ -170,7 +170,7 @@ public class ModelCommand : SlashCommand
     static void ListModels(ChatScreen screen, string filter)
     {
         var models = string.IsNullOrWhiteSpace(filter)
-            ? ModelCatalog.BuiltIn
+            ? ModelCatalog.All
             : ModelCatalog.Search(filter);
 
         if (models.Length == 0)

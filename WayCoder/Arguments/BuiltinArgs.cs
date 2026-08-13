@@ -7,16 +7,18 @@ namespace WayCoder.Arguments;
 /// <summary>
 /// --model 模型管理（对标 /model 斜杠命令）。
 ///   --model                        → 显示当前模型
-///   --model list [关键词]          → 列出模型目录
+///   --model list [关键词]          → 列出模型目录（内置 + 自定义合并）
 ///   --model name &lt;id&gt;        → 选中大模型并持久化（同步服务商 + base-url + 写 .env）
 ///   --model small &lt;id&gt;       → 选中小模型并持久化（同步小模型服务商）
 ///   --model key &lt;供应商&gt; &lt;key&gt; → 保存 API key（无参列出已存 keys）
 ///   --model connect &lt;base-url&gt; → 设置连接地址（写 .env）
+///   --model import [来源]          → 导入外部模型库（opencode/openclaw/crush/claude/codex/文件，无参自动探测）
+///   --model remove &lt;id&gt;       → 删除自定义模型
 ///   --model &lt;模型ID&gt;          → 快捷选中（本次会话，不持久化，向后兼容）
 /// </summary>
 public class ModelArg : CliArg
 {
-    public override string Description => "模型管理（list / name <id> / small <id> / key <供应商> <key> / connect <url>，或 --model <模型ID> 快捷选中）";
+    public override string Description => "模型管理（list / name <id> / small <id> / key / connect / import [来源] / remove <id>，或 --model <模型ID> 快捷选中）";
     public override int ValueCount => -1;
     public override bool Greedy => true;
     public override string? ValueLabel => "模型ID/子命令";
@@ -52,6 +54,13 @@ public class ModelArg : CliArg
                 break;
             case "connect":
                 result = rest.Length == 0 ? "用法: --model connect <base-url>" : ModelCli.Connect(rest[0]);
+                break;
+            case "import":
+                result = ModelCli.Import(rest.Length > 0 ? rest[0] : null);
+                break;
+            case "remove":
+            case "rm":
+                result = rest.Length == 0 ? "用法: --model remove <模型ID>" : ModelCli.Remove(rest[0]);
                 break;
             default:
                 // 裸模型名：本次会话快捷选中，交给 Program 继续运行

@@ -1,5 +1,29 @@
 # 更新日志
 
+## v0.47.6 (2026-08-13) — 模型库外置化：内置兜底 + 多来源导入（OpenCode/OpenClaw/Crush/Claude Code/Codex）
+
+### 📚 模型库外置化（内置兜底）
+
+- 模型目录拆为「内置精选 + 自定义库」：`~/.waycoder/models.json`（全局）优先，项目 `.waycoder/models.json`（本地）覆盖，找不到外置库时内置目录兜底——开箱即用
+- `ModelCatalog.All` = 内置 + 自定义合并（自定义按 Id 覆盖内置、新增追加）；`--model list`、`/model`、`/provider`、模型选择框全部切换为合并目录
+
+### 📥 外部模型库导入（`--model import` / `/provider import`）
+
+- 支持 `opencode`（`~/.config/opencode/opencode.json`/`.jsonc`）、`openclaw`（`~/.openclaw/openclaw.json`）、`crush`（`~/.config/crush/config.json`）、`claude`/`claudecode`（`~/.claude/settings.json` env 中 `*_MODEL` + `BASE_URL`）、`codex`（`~/.codex/config.toml` 的 `[model_providers.*]` + `[profiles.*]`），或任意 JSON/TOML 文件路径
+- `import` 无参 / `all` = 自动探测全部来源；导入内容持久化到全局 `models.json`；内置已有自动跳过；同一 Id 去重
+
+### 🧭 /provider 命令
+
+- `/provider`（当前服务商概览）、`/provider list`（服务商列表 + 模型数/key 状态/base-url）、`/provider <pid>`（该服务商模型列表）、`/provider apikey [set <pid> <key>]`、`/provider import [...]`
+
+### 🐛 修复往返损坏
+
+- 导入后写回 `models.json` 时错误复用外部格式解析器（`ParseModelNode` 会从 provider 显示名推断 providerId、硬编码 description），二次写回污染数据；新增专用 `FromJson`（精确往返）读回，`ParseModelNode` 仅用于外部导入
+
+### 🧪 自测 +14
+
+- Claude/Codex 导入解析、模型库序列化往返、自定义库合并/删除
+
 ## v0.47.5 (2026-08-13) — API key 统一走服务商 + 小模型服务商跟踪 + 命令行 key 自动入库
 
 ### 🔑 全局 key 库格式定版：`[{ "provider": ..., "apikey": ... }]`
