@@ -29,9 +29,8 @@ public class Program
     /// <summary>所有槽位数组（供外部命令访问）</summary>
     public static AgentSlot[] GetSlots() => _slots;
     private static WatchMode? _watchMode;
-    private static volatile bool _agentBusy;
     private static volatile bool _exitRequested;
-    private static CancellationTokenSource? _agentCts;
+    private static readonly Task?[] _slotTasks = new Task?[AgentSlot.Count];
     private static (List<JsonObject> Messages, string Model)? _pendingRestore;
 
     /// <summary>当前会话 ID（用于 SessionPicker 标记）</summary>
@@ -640,6 +639,25 @@ public class Program
                 continue;
             }
 
+            // 活跃槽位 Agent 运行中的热键：Esc 中断 / Ctrl+Z 优雅暂停（空闲时 Esc/Ctrl+Z 正常下发）
+            if (_slots[_activeSlot].IsBusy)
+            {
+                if (key.Key == ConsoleKey.Escape)
+                {
+                    _slots[_activeSlot].Cts?.Cancel();
+                    screen.AddSystemMsg("⚠ 已请求中断当前槽位的 Agent");
+                    mgr.Render();
+                    continue;
+                }
+                if (key.Key == ConsoleKey.Z && ctrl)
+                {
+                    _slots[_activeSlot].Agent!.PauseRequested = true;
+                    screen.AddSystemMsg("⏸ 已请求暂停 — 当前批次完成后自动提交并停机（再按 Esc 立即中断）");
+                    mgr.Render();
+                    continue;
+                }
+            }
+
             // 其余全部下发到活跃 Screen → Window → 控件冒泡
             mgr.OnKey(key);
             mgr.Render();
@@ -713,7 +731,7 @@ public class Program
         }
     }
 
-    /// <summary>退出时自动保存会话，下次启动可恢复。</summary>
+    /// <summary>退出时自动保存会话，下次启动可恢复。并行模式下保存所有非空槽位。</summary>
     private static void AutoSaveSession()
     {
         try
@@ -721,13 +739,21 @@ public class Program
             HooksManager.RunSessionEnd("exit");
             HooksManager.ClearSessionHooks();
 
-            if (_agent == null || _agent.Messages.Count == 0) return;
-            // 只保存有实际对话的会话（至少一条用户消息）
-            var hasUser = _agent.Messages.Any(m =>
-                (string?)m["role"] == "user");
-            if (!hasUser) return;
-            SessionManager.SaveSession(_agent.Messages, _config.Model, "_auto");
-            DebugLog.Log("session", "会话已自动保存");
+            var saved = 0;
+            for (int i = 0; i < AgentSlot.Count; i++)
+            {
+                var slot = _slots[i];
+                if (slot?.Agent?.Messages == null || slot.Agent.Messages.Count == 0) continue;
+                // 只保存有实际对话的会话（至少一条用户消息）
+                var hasUser = slot.Agent.Messages.Any(m =>
+                    (string?)m["role"] == "user");
+                if (!hasUser) continue;
+                var suffix = i == 0 ? "_auto" : $"_auto_slot{i}";
+                SessionManager.SaveSession(slot.Agent.Messages, _config.Model, suffix);
+                saved++;
+            }
+            if (saved > 0)
+                DebugLog.Log("session", $"会话已自动保存 ({saved} 个槽位)");
         }
         catch (Exception ex)
         {
@@ -889,60 +915,65 @@ public class Program
     private static void SwitchAgentSlot(int idx, ChatScreen screen)
     {
         if (idx < 0 || idx >= AgentSlot.Count || idx == _activeSlot) return;
-        if (_agentBusy)
+
+        var oldSlot = _slots[_activeSlot];
+        var newSlot = _slots[idx];
+
+        // 序列化旧槽位：与旧槽位后台线程的"检查活跃+写屏"互斥，避免切换瞬间丢 token。
+        // 必须先 SaveFrom 快照再改 _activeSlot（两者在同一锁内原子完成）。
+        lock (oldSlot.Sync)
         {
-            screen.AddSystemMsg("⚠ Agent 正在运行，请等待完成后再切换槽位");
-            return;
+            oldSlot.SaveFrom(screen);
+            _activeSlot = idx;
+            StructuredMemory.CurrentSlotIndex = idx;
         }
 
-        // 保存当前槽位状态
-        _slots[_activeSlot].SaveFrom(screen);
-
-        // 懒创建目标槽位 Agent
-        _activeSlot = idx;
-        StructuredMemory.CurrentSlotIndex = idx;
-        var slot = _slots[idx];
-        var slotLlm = GetSlotLlm(idx);
-        if (slot.Agent == null)
+        // 序列化新槽位：与新槽位后台线程的缓冲写入互斥，确保 RestoreTo 读到一致快照。
+        lock (newSlot.Sync)
         {
-            slot.Agent = new Agent(slotLlm, maxContextTokens: ModelCatalog.ResolveContextWindow(slotLlm.Model, _config.MaxContextTokens),
-                maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
-        }
-        else
-        {
-            // 更新已存在的 Agent 的 LLM（模型可能已变更）
-            var large = AgentSlotConfig.ResolveLargeModel(AgentSlotConfig.Get(idx), idx);
-            slot.Agent.LlmClient.Model = large;
-            slot.Agent.LlmClient.SmallModel = AgentSlotConfig.ResolveSmallModel(AgentSlotConfig.Get(idx), idx);
-            slot.Agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(large, _config.MaxContextTokens));
-        }
-
-        _agent = slot.Agent;
-        ProgramContext.Agent = slot.Agent;
-
-        // 重绑子智能体父引用（所有 Agent 共享 AgentTool 实例）
-        foreach (var t in _agent.Tools)
-        {
-            if (t is AgentTool agentTool) agentTool.ParentAgent = _agent;
-        }
-
-        // 首次激活显示欢迎提示
-        if (!slot.HasWelcome)
-        {
-            slot.HasWelcome = true;
-            slot.ChatMessages.Add(new ChatMsg
+            var slot = newSlot;
+            var slotLlm = GetSlotLlm(idx);
+            if (slot.Agent == null)
             {
-                Role = "system",
-                Content = $"🤖 Agent 槽位 F{idx + 1} — 独立会话，Ctrl+E编辑器 Ctrl+T设置 Ctrl+H帮助 Ctrl+B面板 Ctrl+Q退出",
-            });
+                slot.Agent = new Agent(slotLlm, maxContextTokens: ModelCatalog.ResolveContextWindow(slotLlm.Model, _config.MaxContextTokens),
+                    maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
+            }
+            else
+            {
+                // 更新已存在的 Agent 的 LLM（模型可能已变更）
+                var large = AgentSlotConfig.ResolveLargeModel(AgentSlotConfig.Get(idx), idx);
+                slot.Agent.LlmClient.Model = large;
+                slot.Agent.LlmClient.SmallModel = AgentSlotConfig.ResolveSmallModel(AgentSlotConfig.Get(idx), idx);
+                slot.Agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(large, _config.MaxContextTokens));
+            }
+
+            _agent = slot.Agent;
+            ProgramContext.Agent = slot.Agent;
+
+            // 重绑子智能体父引用（所有 Agent 共享 AgentTool 实例）
+            foreach (var t in _agent.Tools)
+            {
+                if (t is AgentTool agentTool) agentTool.ParentAgent = _agent;
+            }
+
+            // 首次激活显示欢迎提示
+            if (!slot.HasWelcome)
+            {
+                slot.HasWelcome = true;
+                slot.ChatMessages.Add(new ChatMsg
+                {
+                    Role = "system",
+                    Content = $"🤖 Agent 槽位 F{idx + 1} — 独立会话，Ctrl+E编辑器 Ctrl+T设置 Ctrl+H帮助 Ctrl+B面板 Ctrl+Q退出",
+                });
+            }
+
+            slot.RestoreTo(screen);
+            screen.ActiveSlotIndex = idx;
+
+            // 恢复目标槽位的工作模式
+            WorkModeManager.CurrentMode = slot.WorkMode;
+            screen.StatusBar.CurrentWorkMode = slot.WorkMode;
         }
-
-        slot.RestoreTo(screen);
-        screen.ActiveSlotIndex = idx;
-
-        // 恢复目标槽位的工作模式
-        WorkModeManager.CurrentMode = slot.WorkMode;
-        screen.StatusBar.CurrentWorkMode = slot.WorkMode;
 
         screen.Render();
     }
@@ -1058,123 +1089,199 @@ public class Program
             return;
         }
 
-        // 调用 Agent (支持自动回退)
-        using var cts = new CancellationTokenSource();
-        _agentCts = cts;
-        _agentBusy = true;
-        screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Working;
+        // 调用 Agent（后台并行执行：不阻塞主循环，支持多槽位同时运行）
+        StartSlotTask(_activeSlot, userInput, screen);
+    }
+
+    /// <summary>
+    /// 启动槽位后台 Agent 任务（不阻塞主循环，实现多槽位并行执行）。
+    /// 该槽位若已有任务在跑则拒绝；否则懒创建 Agent 后在后台线程运行。
+    /// </summary>
+    private static void StartSlotTask(int slotIdx, string userInput, ChatScreen screen)
+    {
+        var slot = _slots[slotIdx];
+        if (slot.IsBusy)
+        {
+            screen.AddSystemMsg("⚠ 当前槽位的 Agent 仍在运行，请等待完成或按 Esc 中断后再提交新任务");
+            return;
+        }
+
+        // 懒创建 Agent（槽位首次使用）
+        if (slot.Agent == null)
+        {
+            var slotLlm = GetSlotLlm(slotIdx);
+            slot.Agent = new Agent(slotLlm, maxContextTokens: ModelCatalog.ResolveContextWindow(slotLlm.Model, _config.MaxContextTokens),
+                maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
+        }
+
+        _agent = slot.Agent;
+        ProgramContext.Agent = slot.Agent;
+
+        // 重绑子智能体父引用（所有 Agent 共享 AgentTool 实例）
+        foreach (var t in _agent.Tools)
+        {
+            if (t is AgentTool agentTool) agentTool.ParentAgent = _agent;
+        }
+
+        slot.IsBusy = true;
+        slot.Cts = new CancellationTokenSource();
+        var ct = slot.Cts.Token;
+        screen.SlotStates[slotIdx] = SlotState.Working;
 
         // 记录任务开始时的累计花费，用于任务完成后展示单次花费
-        _llm!.SnapshotTaskCost();
-        try
+        slot.Agent.LlmClient.SnapshotTaskCost();
+
+        var capturedScreen = screen;
+        _slotTasks[slotIdx] = Task.Run(async () =>
         {
-            var modelStack = BuildFallbackChain();
-            var startTime = DateTime.UtcNow;
-            var completed = false;
-
-            for (int attempt = 0; attempt < modelStack.Length; attempt++)
+            try
             {
-                var model = modelStack[attempt];
-                if (attempt > 0)
-                {
-                    _llm!.Model = model;
-                    _config.Model = model;
-                    screen.StatusLeft = model;
-                    screen.AddSystemMsg($"🔄 自动回退到: {model}");
-                    screen.StartAgentMsg();
-                }
+                await RunSlotAgentAsync(slotIdx, userInput, capturedScreen, ct);
+            }
+            catch (Exception ex)
+            {
+                DebugLog.Log("slot", $"槽位 F{slotIdx + 1} 后台任务异常: {ex.Message}");
+            }
+            finally
+            {
+                slot.IsBusy = false;
+                slot.Cts = null;
+                if (capturedScreen.SlotStates[slotIdx] != SlotState.Error)
+                    capturedScreen.SlotStates[slotIdx] = SlotState.Idle;
+            }
+        });
+    }
 
-                try
-                {
-                    screen.Running = true;
-                    screen.StartAgentMsg();
-                    screen.Render();
+    /// <summary>
+    /// 槽位后台 Agent 主执行体。输出按"槽位是否活跃"路由：
+    /// 活跃 → 实时写屏（复用 ChatScreen 流式方法）；非活跃 → 缓冲到槽位 ChatMessages，
+    /// 切换回时由 RestoreTo 展示。路由决策与 SwitchAgentSlot 的切换共享槽位 Sync 锁，避免丢 token。
+    /// </summary>
+    private static async Task RunSlotAgentAsync(int slotIdx, string userInput, ChatScreen screen, CancellationToken ct)
+    {
+        var slot = _slots[slotIdx];
+        var agent = slot.Agent!;
+        var llm = agent.LlmClient;
 
-                    // 后台执行 Agent（主线程保持渲染 + 响应热键）
-                    _currentUserInput = userInput;
-                    screen_ = screen;
-                    _toolCallCount = 0;
-                    await RunAgentWithRenderLoop(cts);
+        // 输出路由：活跃槽位实时写屏，非活跃槽位缓冲到槽位。整个"判定+写入"在 Sync 锁内原子完成。
+        void Route(Action<ChatScreen> live, Action<AgentSlot> buffered)
+        {
+            lock (slot.Sync)
+            {
+                var active = TuiManager.Instance.ActiveScreen as ChatScreen;
+                if (_activeSlot == slotIdx && active != null)
+                    live(active);
+                else
+                    buffered(slot);
+            }
+        }
 
-                    screen.Running = false;
-                    screen.FinishAgentMsg();
-                    completed = true;
-                    break; // 成功
-                }
-                catch (OperationCanceledException)
-                {
-                    screen.Running = false;
-                    screen.FinishAgentMsg();
-                    var cancelled = cts.IsCancellationRequested;
-                    if (!cancelled)
-                        ErrorLog.Error("Program.REPL", $"LLM 请求超时（{Config.Instance.LlmHttpTimeoutSec}s）");
-                    screen.AddSystemMsg(cancelled
-                        ? "⚠ 已中断"
-                        : $"⏰ 服务器 {Config.Instance.LlmHttpTimeoutSec}s 未响应");
-                    if (!cancelled)
-                        screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Error;
-                    break;
-                }
-                catch (Exception ex) when (attempt < modelStack.Length - 1)
-                {
-                    screen.Running = false;
-                    screen.FinishAgentMsg();
-                    screen.AddSystemMsg($"  ⚠ {model} 失败: {ex.Message}");
-                    ErrorLog.Warning("Program.REPL", $"模型 {model} 失败，尝试回退: {ex.Message}", ex);
-                    // 继续回退链
-                }
-                catch (Exception ex)
-                {
-                    screen.Running = false;
-                    screen.FinishAgentMsg();
-                    screen.AddSystemMsg($"  💔 所有模型均失败: {ex.Message}");
-                    screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Error;
-                    ErrorLog.Error("Program.REPL", $"所有模型均失败: {ex.Message}", ex);
-                }
+        // 与 ChatScreen.AddToolProgress 一致的渲染头（非活跃缓冲也保持相同样式）
+        static string ToolLabel(string name, string brief)
+            => $"  {WayCoder.UI.ToolRenderers.ToolRendererFactory.Get(name).FormatHeader(brief)}";
+
+        var modelStack = BuildFallbackChain();
+        var startTime = DateTime.UtcNow;
+        var completed = false;
+
+        for (int attempt = 0; attempt < modelStack.Length; attempt++)
+        {
+            var model = modelStack[attempt];
+            if (attempt > 0)
+            {
+                // 仅改槽位专属 LLM，避免并发槽位间对全局 _config.Model 的竞态
+                llm.Model = model;
+                Route(cs => { cs.StatusLeft = model; cs.AddSystemMsg($"🔄 自动回退到: {model}"); cs.StartAgentMsg(); },
+                      s => { s.StatusLeft = model; s.BufferedAddMsg("system", $"🔄 自动回退到: {model}"); s.BufferedStartStream(); });
             }
 
-            // 完成通知
-            if (completed)
+            try
             {
-                var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
-                var costMsg = FormatTaskCost(_llm!);
-                screen.AddSystemMsg($"  ✅ 完成 · 耗时 {elapsed:F1}s · {costMsg}");
-                DesktopNotifier.NotifyAgentFinished();
-            }
+                Route(cs => { cs.Running = true; cs.StartAgentMsg(); },
+                      s => { s.BufferedStartStream(); });
 
-            // 文件修改确认 + 最近文件跟踪
-            var modified = EditFileTool.ChangedFiles;
-            if (modified.Count > 0)
+                await agent.ChatAsync(userInput,
+                    onToken: tok => Route(
+                        cs => { cs.Running = false; cs.OnToolFinished(); cs.EnsureAgentStreaming(); cs.AppendToken(tok); },
+                        s => s.BufferedAppendToken(tok)),
+                    onTool: (name, brief) => Route(
+                        cs => { cs.FinishAgentMsg(); cs.AddToolProgress(name, brief.Length > 60 ? brief[..57] + "..." : brief); cs.OnToolStarted(name, brief.Length > 40 ? brief[..37] + "..." : brief); },
+                        s => { s.BufferedFinishStream(); s.BufferedAddMsg("system", ToolLabel(name, brief.Length > 60 ? brief[..57] + "..." : brief)); }),
+                    onToolOutput: line => Route(
+                        cs => { cs.AppendToLast(line + "\n"); cs.OnToolFinished(); },
+                        s => s.BufferedAppendToLast(line + "\n")),
+                    cancellationToken: ct);
+
+                Route(cs => { cs.Running = false; cs.FinishAgentMsg(); },
+                      s => s.BufferedFinishStream());
+                completed = true;
+                break; // 成功
+            }
+            catch (OperationCanceledException)
             {
-                screen.AddSystemMsg($"📝 已修改 {modified.Count} 个文件 (/diff 查看 /undo 撤销 /recent 最近)");
+                var cancelled = ct.IsCancellationRequested;
+                if (!cancelled)
+                    ErrorLog.Error("Program.REPL", $"LLM 请求超时（{Config.Instance.LlmHttpTimeoutSec}s）");
+                var cancelMsg = cancelled ? "⚠ 已中断" : $"⏰ 服务器 {Config.Instance.LlmHttpTimeoutSec}s 未响应";
+                Route(cs => { cs.Running = false; cs.FinishAgentMsg(); cs.AddSystemMsg(cancelMsg); },
+                      s => { s.BufferedFinishStream(); s.BufferedAddMsg("system", cancelMsg); });
+                if (!cancelled)
+                    screen.SlotStates[slotIdx] = SlotState.Error;
+                break;
+            }
+            catch (Exception ex) when (attempt < modelStack.Length - 1)
+            {
+                Route(cs => { cs.Running = false; cs.FinishAgentMsg(); cs.AddSystemMsg($"  ⚠ {model} 失败: {ex.Message}"); },
+                      s => { s.BufferedFinishStream(); s.BufferedAddMsg("system", $"  ⚠ {model} 失败: {ex.Message}"); });
+                ErrorLog.Warning("Program.REPL", $"模型 {model} 失败，尝试回退: {ex.Message}", ex);
+                // 继续回退链
+            }
+            catch (Exception ex)
+            {
+                Route(cs => { cs.Running = false; cs.FinishAgentMsg(); cs.AddSystemMsg($"  💔 所有模型均失败: {ex.Message}"); },
+                      s => { s.BufferedFinishStream(); s.BufferedAddMsg("system", $"  💔 所有模型均失败: {ex.Message}"); });
+                screen.SlotStates[slotIdx] = SlotState.Error;
+                ErrorLog.Error("Program.REPL", $"所有模型均失败: {ex.Message}", ex);
+            }
+        }
+
+        // 完成通知
+        if (completed)
+        {
+            var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
+            var costMsg = FormatTaskCost(llm);
+            Route(cs => cs.AddSystemMsg($"  ✅ 完成 · 耗时 {elapsed:F1}s · {costMsg}"),
+                  s => s.BufferedAddMsg("system", $"  ✅ 完成 · 耗时 {elapsed:F1}s · {costMsg}"));
+            DesktopNotifier.NotifyAgentFinished();
+        }
+
+        // 文件修改确认 + 最近文件跟踪
+        var modified = EditFileTool.ChangedFiles;
+        if (modified.Count > 0)
+        {
+            Route(cs =>
+            {
+                cs.AddSystemMsg($"📝 已修改 {modified.Count} 个文件 (/diff 查看 /undo 撤销 /recent 最近)");
                 foreach (var f in modified)
-                {
-                    if (!screen.RecentFiles.Contains(f))
-                    {
-                        screen.RecentFiles.Add(f);
-                        if (screen.RecentFiles.Count > 50) screen.RecentFiles.RemoveAt(0);
-                    }
-                }
-            }
-
-            // 更新右下角 token 显示 + 性能
-            screen.UpdateTokenDisplayFull(
-                _llm!.TotalPromptTokens, _llm.TotalCompletionTokens,
-                _llm.EstimatedCost,
-                ContextManager.EstimateTokens(_agent!.Messages), _config.MaxContextTokens,
-                _llm.LastLatencyMs, _llm.LastTokensPerSec);
-            screen.Render();
+                    if (!cs.RecentFiles.Contains(f)) { cs.RecentFiles.Add(f); if (cs.RecentFiles.Count > 50) cs.RecentFiles.RemoveAt(0); }
+            }, s =>
+            {
+                s.BufferedAddMsg("system", $"📝 已修改 {modified.Count} 个文件 (/diff 查看 /undo 撤销 /recent 最近)");
+                foreach (var f in modified)
+                    if (!s.RecentFiles.Contains(f)) { s.RecentFiles.Add(f); if (s.RecentFiles.Count > 50) s.RecentFiles.RemoveAt(0); }
+            });
         }
-        finally
+
+        // 更新右下角 token 显示 + 性能（仅活跃槽位，缓冲槽位切回时由 RestoreTo 重建）
+        // 渲染交给主循环 50ms 轮询（MarkDirty 已置脏），避免后台线程与 UI 线程并发 Render。
+        Route(cs =>
         {
-            _agentBusy = false;
-            _agentCts = null;
-            if (screen.SlotStates[screen.ActiveSlotIndex] != SlotState.Error)
-                screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Idle;
-            screen.Render();
-        }
-
-        // 忙时 Ctrl+C 已由系统级 Ctrl+C 处理（直接强制退出），无需额外确认
+            cs.UpdateTokenDisplayFull(
+                llm.TotalPromptTokens, llm.TotalCompletionTokens,
+                llm.EstimatedCost,
+                ContextManager.EstimateTokens(agent.Messages), _config.MaxContextTokens,
+                llm.LastLatencyMs, llm.LastTokensPerSec);
+        }, _ => { });
     }
 
     /// <summary>

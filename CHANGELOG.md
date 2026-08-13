@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.48.5 (2026-08-14) — 多会话真并行执行（对标 Claude Code 多窗口）
+
+### 🧵 多槽位后台并行执行
+
+- F1-F10 槽位从「切换」升级为「并行」：Agent 任务在后台线程运行，主循环不再阻塞，运行中可自由切换槽位查看/投递其他任务
+- 输出按槽位路由：活跃槽位实时流式写屏（复用 ChatScreen 流式方法），非活跃槽位缓冲到槽位自身 `ChatMessages`，切换回时由 `RestoreTo` 完整展示
+- `AgentSlot` 新增线程安全缓冲输出（`BufferedStartStream`/`BufferedAppendToken`/`BufferedFinishStream`/`BufferedAppendToLast`/`BufferedAddMsg`）+ 运行状态（`IsBusy`/`Cts`/`Sync` 互斥锁）
+- 切换与输出路由共享槽位 `Sync` 锁，原子完成「检查活跃 + 写入」与「快照 + 改活跃槽位」，杜绝切换瞬间丢 token
+- Esc 中断当前活跃槽位 Agent / Ctrl+Z 优雅暂停（空闲时正常下发），Ctrl+Q 仍为全量紧急退出
+- 退出/崩溃自动保存全部非空槽位会话（`_auto` / `_auto_slotN`），后台任务的进度不丢
+- 槽位内已有任务运行时拒绝重复投递，避免同槽并发冲突
+
+### 🧪 自测
+
+- 新增 `TestMultiSlotParallel` 12 项（槽位运行状态 + 缓冲流式输出 + 自动新建流式消息 + 追加），1765 项全部通过（0 失败）
+
 ## v0.48.4 (2026-08-14) — LSP 语言扩充 5→14
 
 ### 🔍 LSP 语言服务器扩充
