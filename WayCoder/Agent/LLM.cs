@@ -245,13 +245,16 @@ public class LLM
         var clonedMessages = messages.Select(m => JsonNode.Parse(m.ToJsonString())!).ToList();
         var clonedTools = tools?.Select(t => JsonNode.Parse(t.ToJsonString())!).ToList();
 
+        // 省 token 模式：单次输出上限收紧，防止失控长输出（仅 On 生效，Auto/Off 用正常上限）
+        var maxTokens = Config.Instance.EconomyMode == EconomyMode.On ? Math.Min(MaxTokens, Config.EconomyMaxTokens) : MaxTokens;
+
         var body = new JsonObject
         {
             ["model"] = EffectiveModel,
             ["messages"] = new JsonArray(clonedMessages.ToArray()),
             ["stream"] = true,
             ["temperature"] = Math.Clamp(Temperature, 0f, 2f),
-            ["max_tokens"] = MaxTokens,
+            ["max_tokens"] = maxTokens,
             ["stream_options"] = new JsonObject { ["include_usage"] = true },
         };
 

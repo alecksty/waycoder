@@ -1,5 +1,24 @@
 # 更新日志
 
+## v0.43.0 (2026-08-13) — 省 Token 模式：三态开关综合降 token
+
+### 💰 省 Token 模式（`--economy [on|auto|off]` / `WAYCODER_ECONOMY`）
+
+- **新增** `EconomyMode` 三态开关（默认 `off`），保持正常窗口不变：
+  - **关（off）**：完整提示词 + 正常压缩阈值
+  - **开（on）**：从四个方面综合降 token——
+    - 系统提示词精简（`SystemPrompt.GenerateEconomy` 砍 RepoMap/Git/记忆/10 阶段流水线，保留完整工具描述 + 项目上下文 + 9 条核心规则）
+    - 压缩更激进（snip/summarize/collapse 50/70/90 → 35/55/75）
+    - 工具输出更早裁剪（4000 → 2000 字符）
+    - 输出上限收紧（`max_tokens` 32768 → 8192）
+  - **自动（auto）**：保持完整提示词，压缩阈值/裁剪阈值按**上下文占用率**动态插值——占用率 ≤30% 用正常阈值，≥90% 用全量省 token 阈值，中间线性过渡（越满越省）
+- **与 Tiny 的区别**：Tiny = 极简提示词 + 4K 小窗口（面向本地小模型）；Economy = 保持正常窗口，仅综合省 token（面向云端大模型省钱）
+- **`reasoning_effort` 不做最小化**：对不支持推理参数的非 DeepSeek/OpenAI 模型会 400，风险大于收益；reasoning 省 token 已由「reasoning_content 不存历史」覆盖
+
+### 🧪 自测 +22（1591 → 1613）
+
+- 新增 `TestEconomyMode`（三态默认值 / ResolveRatio 插值 / 提示词精简 / snip 阈值对照 / 常量）
+
 ## v0.42.0 (2026-08-13) — Tiny 模式增强：可指定窗口 + 自动探测 + 小模型自动进入
 
 ### 🐭 Tiny 模式窗口可指定 / 自动探测

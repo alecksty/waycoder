@@ -50,7 +50,11 @@ dotnet run -- --watch
 dotnet run -- --tiny
 dotnet run -- --tiny 8k
 
-# 运行自测（1591 项）
+# 省 Token 模式（保持正常窗口；--economy [on|auto|off]，缺省 on）
+dotnet run -- --economy          # 开：精简提示词 + 更早压缩 + 输出上限
+dotnet run -- --economy auto     # 自动：按上下文占用率动态调节阈值
+
+# 运行自测（1613 项）
 dotnet run -- --test
 ```
 
@@ -88,7 +92,7 @@ WayCoder/
 ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1591 项自测
+├── SelfTest.cs        1613 项自测
 ├── Infra/             基础设施 (12+ 文件)
 │   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
 │   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)

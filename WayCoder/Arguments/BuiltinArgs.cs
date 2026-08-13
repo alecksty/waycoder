@@ -92,6 +92,14 @@ public class TinyArg : CliArg
     public TinyArg() : base("tiny", "--tiny") { }
 }
 
+public class EconomyArg : CliArg
+{
+    public override string Description => "省 Token 模式（--economy [on|auto|off]，缺省 on；auto 按上下文占用率动态调节阈值）";
+    public override int ValueCount => -1;
+    public override string? ValueLabel => "模式";
+    public EconomyArg() : base("economy", "--economy") { }
+}
+
 public class DebugArg : CliArg
 {
     public override string Description => "开启调试日志（记录到 logs/ 目录）";
@@ -233,6 +241,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new YoloArg());
         CliArgRegistry.Register(new WatchArg());
         CliArgRegistry.Register(new TinyArg());
+        CliArgRegistry.Register(new EconomyArg());
         CliArgRegistry.Register(new DebugArg());
         CliArgRegistry.Register(new HelpArg());
         CliArgRegistry.Register(new TestArg());
