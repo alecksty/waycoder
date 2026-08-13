@@ -120,6 +120,7 @@ public static class SlashCommandRegistry
         Register(new Commands.CompactCommand());
 
         // P1 — 会话/上下文
+        Register(new Commands.InitCommand());
         Register(new Commands.SessionCommand());
         Register(new Commands.HistoryCommand());
         Register(new Commands.ExportCommand());
