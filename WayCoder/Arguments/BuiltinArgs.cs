@@ -13,12 +13,14 @@ namespace WayCoder.Arguments;
 ///   --model key &lt;供应商&gt; &lt;key&gt; → 保存 API key（无参列出已存 keys）
 ///   --model connect &lt;base-url&gt; → 设置连接地址（写 .env）
 ///   --model import [来源]          → 导入外部模型库（opencode/openclaw/crush/claude/codex/文件，无参自动探测）
-///   --model remove &lt;id&gt;       → 删除自定义模型
+///   --model add [model|provider|key] → 手动添加模型 / 服务商 / API key
+///   --model remove [model|provider|key] &lt;目标&gt; → 删除模型 / 服务商 / API key
+///   --model test                   → 模型连通性测试（有 key 的 + 本地模型，哪些能连上）
 ///   --model &lt;模型ID&gt;          → 快捷选中（本次会话，不持久化，向后兼容）
 /// </summary>
 public class ModelArg : CliArg
 {
-    public override string Description => "模型管理（list / name <id> / small <id> / key / connect / import [来源] / remove <id>，或 --model <模型ID> 快捷选中）";
+    public override string Description => "模型管理（list / name <id> / small <id> / key / connect / import [来源] / add [model|provider|key] / remove [model|provider|key] / test，或 --model <模型ID> 快捷选中）";
     public override int ValueCount => -1;
     public override bool Greedy => true;
     public override string? ValueLabel => "模型ID/子命令";
@@ -58,9 +60,17 @@ public class ModelArg : CliArg
             case "import":
                 result = ModelCli.Import(rest.Length > 0 ? rest[0] : null);
                 break;
+            case "add":
+                result = DispatchAdd(rest);
+                break;
             case "remove":
             case "rm":
-                result = rest.Length == 0 ? "用法: --model remove <模型ID>" : ModelCli.Remove(rest[0]);
+            case "delete":
+            case "del":
+                result = DispatchRemove(rest);
+                break;
+            case "test":
+                result = ModelCli.Test();
                 break;
             default:
                 // 裸模型名：本次会话快捷选中，交给 Program 继续运行
@@ -76,9 +86,56 @@ public class ModelArg : CliArg
         if (rest.Length == 0) return ModelCli.ListKeys();
         if (rest.Length >= 3 && rest[0].Equals("set", StringComparison.OrdinalIgnoreCase))
             return ModelCli.SetKey(rest[1], string.Join(" ", rest.Skip(2)));
+        if (rest.Length >= 2 && rest[0].Equals("remove", StringComparison.OrdinalIgnoreCase))
+            return ModelCli.RemoveKey(rest[1]);
         if (rest.Length >= 2)
             return ModelCli.SetKey(rest[0], string.Join(" ", rest.Skip(1)));
-        return "用法: --model key [set] <供应商> <key>";
+        return "用法: --model key [set|remove] <供应商> <key>";
+    }
+
+    static string DispatchAdd(string[] rest)
+    {
+        if (rest.Length == 0)
+            return "用法: --model add [model <id> <供应商ID> [baseUrl] | provider <供应商ID> [baseUrl] | key <供应商ID> <key>]";
+        var sub = rest[0].ToLowerInvariant();
+        switch (sub)
+        {
+            case "model":
+                return rest.Length >= 3
+                    ? ModelCli.AddModel(rest[1], rest[2], rest.Length > 3 ? rest[3] : null)
+                    : "用法: --model add model <id> <供应商ID> [baseUrl]";
+            case "provider":
+            case "prov":
+                return rest.Length >= 2
+                    ? ModelCli.AddProvider(rest[1], rest.Length > 2 ? rest[2] : null)
+                    : "用法: --model add provider <供应商ID> [baseUrl]";
+            case "key":
+            case "keys":
+            case "apikey":
+                return rest.Length >= 3
+                    ? ModelCli.SetKey(rest[1], rest[2])
+                    : "用法: --model add key <供应商ID> <key>";
+            default:
+                // 无子命令：add <id> <供应商ID> [baseUrl]
+                return rest.Length >= 2
+                    ? ModelCli.AddModel(rest[0], rest[1], rest.Length > 2 ? rest[2] : null)
+                    : ModelCli.AddModel(rest[0], null, null);
+        }
+    }
+
+    static string DispatchRemove(string[] rest)
+    {
+        if (rest.Length == 0)
+            return "用法: --model remove [model <id> | provider <pid> | key <pid>]（无子命令时 <id> 视为删除模型）";
+        var sub = rest[0].ToLowerInvariant();
+        if (rest.Length >= 2 && sub is "model")
+            return ModelCli.Remove(rest[1]);
+        if (rest.Length >= 2 && sub is "provider" or "prov")
+            return ModelCli.RemoveProvider(rest[1]);
+        if (rest.Length >= 2 && sub is "key" or "keys" or "apikey")
+            return ModelCli.RemoveKey(rest[1]);
+        // 无子命令：rest[0] 即模型 id（向后兼容 --model remove <id>）
+        return ModelCli.Remove(rest[0]);
     }
 }
 
