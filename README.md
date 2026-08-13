@@ -61,7 +61,7 @@ dotnet run -- --economy auto     # 自动：按任务复杂度动态调节阈值
 # 自动升级（检查并自替换，优先 GitHub、回退 Gitee）
 dotnet run -- --update
 
-# 运行自测（1789 项）
+# 运行自测（1804 项）
 dotnet run -- --test
 ```
 
@@ -100,7 +100,7 @@ WayCoder/
 ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1789 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── SelfTest.cs        1804 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
 ├── Infra/             基础设施 (12+ 文件)
 │   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
 │   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)
@@ -251,6 +251,7 @@ quit / exit      退出 (Ctrl+Q)
 - **计划审批门**：`计划` 模式（Shift+Tab）下模型产出计划后不自动执行，就地弹出审批框——批准则切回 `建造` 模式继续执行，拒绝则停止（对标 Claude Code Plan Mode）
 - **项目初始化 `/init`**：扫描项目生成中文 CLAUDE.md（语言/框架/构建工具 + 构建/测试/lint 命令探测），对标 Claude Code /init；下次启动自动注入系统提示词
 - **MCP 状态管理 `/mcp`**：结构化状态模型（Connecting/Connected/Failed）+ 热重连，`/mcp` 查看服务器状态、`/mcp reload [name]` 重连，对标 Claude Code /mcp
+- **MCP 资源/提示词**：`resources/list` + `resources/read` 注册为 `mcp__<server>__resources` 读取工具、`prompts/list` + `prompts/get` 每个模板注册为 `mcp__<server>__prompt__<name>` 工具，对标 Claude Code MCP resources/prompts
 - **内置自动升级**：`/update` 检查、`/update now`/`--update` 自替换；版本检查优先 GitHub Releases、回退 Gitee（环境变量可覆盖）；Windows 落 `.new`+`upgrade.bat` 退出后自动替换重启、Unix 原子 rename 覆盖运行中二进制（对标 Claude Code `claude update`）
 - **分发渠道**：`packaging/` 提供 winget manifest / Homebrew formula / apt `.deb` 打包脚本 + GitHub Actions 发布工作流，详见 [docs/安装与升级.md](docs/安装与升级.md)
 

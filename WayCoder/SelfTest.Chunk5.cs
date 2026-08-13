@@ -283,6 +283,44 @@ public static partial class SelfTest
         Check("Reload: 未匹配服务器返回非空提示",
             !string.IsNullOrEmpty(McpManager.ReloadAsync("___waycoder_test_nonexistent___").Result));
 
+        // ---- MCP 资源 / 提示词 ----
+        Section("[MCP 资源/提示词]");
+
+        var fakeConn = new McpConnection("fs", new FakeMcpTransport((method, _) => method switch
+        {
+            "resources/read" => JsonNode.Parse(@"{""result"":{""contents"":[{""uri"":""file:///a.txt"",""text"":""hello resource""}]}}")?.AsObject(),
+            "resources/list" => JsonNode.Parse(@"{""result"":{""resources"":[{""uri"":""file:///a.txt"",""name"":""a"",""description"":""doc""}]}}")?.AsObject(),
+            "prompts/get" => JsonNode.Parse(@"{""result"":{""messages"":[{""role"":""user"",""content"":{""type"":""text"",""text"":""hi prompt""}}]}}")?.AsObject(),
+            _ => null,
+        }));
+
+        var resArr = JsonNode.Parse(@"[{""uri"":""file:///a.txt"",""name"":""a"",""description"":""doc""}]")!.AsArray();
+        var resTool = new McpResourceTool("fs", resArr, fakeConn);
+        Check("资源工具: 名称", resTool.Name == "mcp__fs__resources");
+        Check("资源工具: 描述含 URI", resTool.Description.Contains("file:///a.txt"));
+        Check("资源工具: 参数含 uri", resTool.Parameters["properties"]?["uri"] != null);
+        var resRead = resTool.ExecuteAsync(new Dictionary<string, object?> { ["uri"] = "file:///a.txt" }).Result;
+        Check("资源工具: 读取返回文本", resRead.Contains("hello resource"));
+        var resList = resTool.ExecuteAsync(new Dictionary<string, object?>()).Result;
+        Check("资源工具: 列表返回名称+URI", resList.Contains("a (file:///a.txt)"));
+
+        var promptDef = JsonNode.Parse(@"{""name"":""greet"",""description"":""打招呼"",""arguments"":[{""name"":""who"",""description"":""对象""}]}")!.AsObject();
+        var promptTool = new McpPromptTool("fs", promptDef, fakeConn);
+        Check("提示词工具: 名称", promptTool.Name == "mcp__fs__prompt__greet");
+        Check("提示词工具: 描述", promptTool.Description == "打招呼");
+        Check("提示词工具: 参数含 who", promptTool.Parameters["properties"]?["who"] != null);
+        var promptRes = promptTool.ExecuteAsync(new Dictionary<string, object?> { ["who"] = "world" }).Result;
+        Check("提示词工具: 调用返回消息", promptRes.Contains("[user]") && promptRes.Contains("hi prompt"));
+
+        Check("提示词工具: BuildParameters 空", McpPromptTool.BuildParameters(null)["properties"]!.AsObject().Count == 0);
+        Check("提示词工具: ExtractContentText 字符串", McpPromptTool.ExtractContentText(JsonNode.Parse("\"plain\"")!) == "plain");
+        Check("提示词工具: ExtractContentText 对象", McpPromptTool.ExtractContentText(JsonNode.Parse(@"{""type"":""text"",""text"":""obj""}")!) == "obj");
+        Check("提示词工具: ExtractContentText null", McpPromptTool.ExtractContentText(null) == "");
+
+        var sinfo3 = new McpServerInfo("x", "http", McpServerStatus.Connected, 3, null, 2, 1);
+        Check("McpServerInfo: 资源数", sinfo3.ResourceCount == 2);
+        Check("McpServerInfo: 提示词数", sinfo3.PromptCount == 1);
+
         Console.WriteLine();
 
         // ---- Agent 错误自恢复 ----
@@ -429,5 +467,21 @@ public static partial class SelfTest
         Console.WriteLine();
 
         // ---- 权限确认增强 ----
+    }
+
+    /// <summary>自测用假 MCP 传输 — 按 method 返回脚本化响应，不触碰真实网络/进程。</summary>
+    private sealed class FakeMcpTransport : McpTransport
+    {
+        private readonly Func<string, JsonObject?, JsonObject?> _handler;
+        public override bool IsConnected => true;
+
+        public FakeMcpTransport(Func<string, JsonObject?, JsonObject?> handler) => _handler = handler;
+
+        public override Task<JsonObject?> SendRequestAsync(int id, string method, JsonObject @params, CancellationToken ct)
+            => Task.FromResult(_handler(method, @params));
+
+        public override void SendNotification(string method, JsonObject @params) { }
+
+        public override Task DisconnectAsync() => Task.CompletedTask;
     }
 }

@@ -942,7 +942,10 @@ public class ChatScreen : TuiScreen
                     McpServerStatus.Failed => "❌",
                     _ => "❓",
                 };
-                mcpLines.Add($"  {mark} {s.Name} [{s.Transport}] {s.ToolCount}");
+                var mcpLine = $"  {mark} {s.Name} [{s.Transport}] {s.ToolCount} 工具";
+                if (s.ResourceCount > 0) mcpLine += $" · {s.ResourceCount} 资源";
+                if (s.PromptCount > 0) mcpLine += $" · {s.PromptCount} 提示词";
+                mcpLines.Add(mcpLine);
             }
         sections.Add(new PanelSection
         {
