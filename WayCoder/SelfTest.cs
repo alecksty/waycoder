@@ -5638,5 +5638,29 @@ another.txt:3:1: warning: deprecated API
             new() { ["role"] = "assistant", ["content"] = "我来执行命令" },
         });
         Check("TokenEst: tool_calls 增加估计值", withToolTokens > withoutToolTokens);
+
+        // ── 真实 API 用量校准（固定开销：system prompt + 工具定义 + 元数据）──
+        var calCm = new ContextManager(128_000);
+        var calMsgs = new List<JsonObject>
+        {
+            new() { ["role"] = "user", ["content"] = "hello world" },
+        };
+        var calEst = ContextManager.EstimateTokens(calMsgs);
+        // 未采集真实用量前，校准值退化为原始估算
+        Check("TokenCalib: 无真实数据时校准=估算", calCm.EstimateCalibratedTokens(calMsgs) == calEst);
+
+        // 真实 prompt tokens 含固定开销，校准值应加上开销
+        const int overhead1 = 1000;
+        calCm.AddUsage(calEst + overhead1, 200, calEst);
+        Check("TokenCalib: 校准后含固定开销", calCm.EstimateCalibratedTokens(calMsgs) == calEst + overhead1);
+
+        // 固定开销平滑收敛：第二次 AddUsage 取移动平均
+        const int overhead2 = 1200;
+        calCm.AddUsage(calEst + overhead2, 200, calEst);
+        var expectedAvg = (overhead1 + overhead2) / 2;
+        Check("TokenCalib: 开销平滑收敛", calCm.EstimateCalibratedTokens(calMsgs) == calEst + expectedAvg);
+
+        // 有真实开销时校准值必然大于原始估算
+        Check("TokenCalib: 校准值 > 原始估算", calCm.EstimateCalibratedTokens(calMsgs) > calEst);
     }
 }

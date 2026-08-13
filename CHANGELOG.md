@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.46.0 (2026-08-13) — Token 计数切真实 API 报告：校准消除系统性低估
+
+### 📊 压缩触发切真实 API 校准（P1，对标 Crush 纯 API 报告）
+
+- **问题**：`ContextManager.MaybeCompressAsync` 的三层压缩阈值（裁剪/摘要/折叠）用 `EstimateTokens`（CJK 感知估算）判断，但估算只统计消息内容，**漏掉 system prompt + 工具定义 + 消息元数据**（固定开销约 8–12K），导致压缩整体触发偏晚
+- **修复**：用真实 API 报告的 `prompt_tokens` 校准估算——
+  - `AddUsage(promptTokens, completionTokens, estimatedTokens)` 新增可选参数，计算 `固定开销 = 真实 prompt − 估算`，移动平均平滑收敛
+  - 新增 `EstimateCalibratedTokens()` = 原始估算 + 固定开销（加性模型：system prompt/工具定义固定，不随内容增长，比比例模型更准）
+  - `MaybeCompressAsync` 三层判断全部改用校准值，`PreCompact` hook 报告同步校准
+  - 未采集到真实用量时（首轮/自测）退化为原始估算，零风险
+- **收益**：压缩触发时机更准（校准前 50% 阈值实际 59% 才触发，校准后对齐真实窗口占用），少误压/漏压
+
+### 🧪 自测 +4
+
+- 新增 `TestTokenEstimation` 校准用例：无真实数据退化 / 含固定开销 / 开销平滑收敛 / 校准值 > 估算
+
 ## v0.45.0 (2026-08-13) — FileTracker 持久化：跨会话 stale-read 保护
 
 ### 💾 文件追踪持久化（P0-2，对标 Crush last_read_time）
