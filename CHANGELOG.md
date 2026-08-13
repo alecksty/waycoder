@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.48.6 (2026-08-14) — 工作模式下沉到 Agent 实例（修复混合模式并行污染）
+
+### 🔧 实例级工作模式
+
+- `Agent.WorkMode` 实例字段替代全局 `WorkModeManager.CurrentMode`（全局仅作 UI 镜像），每个槽位 Agent 持有自己的模式
+- 修复混合模式并行污染：此前后台槽位会读到活跃槽位的模式（如 A 槽 Plan + B 槽 Build 并行时 B 槽被误判为 Plan 而阻止写文件）
+- `Agent.OnWorkModeChanged` 回调携带槽位索引——后台槽位批准计划后自动切回 Build 只通知正确槽位，不再经全局 `ModeChanged` 事件污染活跃槽位
+- Agent 主循环三处读取（模式提示 / 计划审批门 / 工具约束检查）+ 计划批准后切回 Build 全部改为读写实例字段
+- `Program.cs` 新增 `WireSlotWorkMode` 绑定槽位时灌入模式 + 接线回调；Shift+Tab、`/mode` 命令同步更新活跃槽位 Agent 实例模式
+
+### 🧪 自测
+
+- 新增 `TestWorkModePerAgent` 10 项（默认 Build + 双实例独立 + 实例不影响全局 + 工具约束跟随实例 + 回调 + 审批门纯逻辑），1775 项全部通过（0 失败）
+
 ## v0.48.5 (2026-08-14) — 多会话真并行执行（对标 Claude Code 多窗口）
 
 ### 🧵 多槽位后台并行执行

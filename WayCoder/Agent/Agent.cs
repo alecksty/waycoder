@@ -59,6 +59,20 @@ public class Agent
     public bool ArchitectMode { get; set; }
 
     /// <summary>
+    /// 该 Agent 实例的工作模式（Build/Plan/Review/Auto），默认 Build。
+    /// 与全局 <see cref="WorkModeManager.CurrentMode"/> 解耦——每个槽位 Agent 持有自己的模式，
+    /// 后台槽位并行时不再读到活跃槽位的模式（修复混合模式并行污染）。
+    /// </summary>
+    public WorkMode WorkMode { get; set; } = WorkMode.Build;
+
+    /// <summary>
+    /// 工作模式变化回调（由 Program.cs 在绑定槽位时接线，携带槽位索引）。
+    /// Agent 内部切换模式（如计划审批门批准后自动切回建造模式）时调用，
+    /// 使正确槽位的持久模式与状态栏同步，而非依赖全局 ModeChanged 事件污染活跃槽位。
+    /// </summary>
+    public Action<WorkMode>? OnWorkModeChanged;
+
+    /// <summary>
     /// 优雅暂停请求标志（volatile：主线程写、Agent 循环线程读）。
     /// 置位后，Agent 在当前批次完成后的下一轮边界停机——提交进度 + 写检查点 + 存会话，
     /// 而非像 Esc 那样立即硬砍。
@@ -127,7 +141,7 @@ public class Agent
         RepairOrphanedToolPairs();
 
         // 模式专用提示（Plan/Review/Auto 模式会在主提示词前注入约束）
-        var modePrompt = WorkModeManager.GetModePrompt(WorkModeManager.CurrentMode);
+        var modePrompt = WorkModeManager.GetModePrompt(WorkMode);
         var systemContent = string.IsNullOrEmpty(modePrompt)
             ? _systemPrompt
             : modePrompt + "\n" + _systemPrompt;
@@ -480,11 +494,12 @@ public class Agent
                 // ── 计划审批门（Plan 模式）──
                 // Plan 模式下模型产出计划（文本、无工具调用）后，不再自动催促执行，
                 // 而是就地弹出审批框：批准 → 切回建造模式继续执行；拒绝 → 停止。
-                if (ShouldPromptPlanApproval(WorkModeManager.CurrentMode, contentLen))
+                if (ShouldPromptPlanApproval(WorkMode, contentLen))
                 {
                     if (PromptPlanApproval(resp.Content!))
                     {
-                        WorkModeManager.SetMode(WorkMode.Build);
+                        WorkMode = WorkMode.Build;
+                        OnWorkModeChanged?.Invoke(WorkMode.Build);
                         Messages.Add(new JsonObject
                         {
                             ["role"] = "user",
@@ -848,7 +863,7 @@ public class Agent
         try
         {
             // 工作模式约束检查：Plan/Review 模式下阻止修改性工具
-            var modeBlock = WorkModeManager.CheckToolAllowed(tc.Name, WorkModeManager.CurrentMode);
+            var modeBlock = WorkModeManager.CheckToolAllowed(tc.Name, WorkMode);
             if (modeBlock != null)
                 return modeBlock;
 
