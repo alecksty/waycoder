@@ -35,7 +35,7 @@ C# 版完整移植了 Python 原版的全部功能，并新增了权限确认、
 
 ```bash
 # 克隆仓库
-git clone https://github.com/he-yufeng/WayCoder
+git clone https://gitee.com/aleckstygit/my-coder
 cd WayCoder
 
 # AOT 编译（生成单文件 waycoder.exe）
@@ -59,7 +59,7 @@ dotnet run -- --economy          # 开：精简提示词 + 更早压缩 + 输出
 dotnet run -- --economy auto     # 自动：按任务复杂度动态调节阈值（简单省、复杂保质量）
 # 优先级偏好（仅 auto 生效）：WAYCODER_ECONOMY_PRIORITY=quality|balanced|cost（默认 quality）
 
-# 自动升级（检查并自替换，优先 GitHub、回退 Gitee）
+# 自动升级（检查并自替换，优先 Gitee、回退 GitHub）
 dotnet run -- --update
 
 # 批量任务引擎（多仓库并行处理，worktree 隔离）
@@ -69,7 +69,7 @@ dotnet run -- --batch-repo https://x/r1 --batch-repo https://x/r2 --batch-task "
 # JSON 输出模式（IDE / 脚本桥接，stdout 只输出一个结构化 JSON 对象）
 dotnet run -- --json -p "修复一个 bug"
 
-# 运行自测（1872 项）
+# 运行自测（2169 项）
 dotnet run -- --test
 ```
 
@@ -108,7 +108,7 @@ WayCoder/
 ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1872 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── SelfTest.cs        2169 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
 ├── Batch/             批量任务引擎 (2 文件)
 │   ├── BatchSpec.cs     任务清单模型 + JSON 解析 + 名称消毒
 │   └── BatchRunner.cs   多仓库并行执行 + worktree 隔离 + 聚合报告
@@ -207,20 +207,21 @@ WayCoder/
 /compact         手动压缩上下文
 /tokens          查看 token 用量和费用估算 (含任务级花费)
 /stats           查看会话统计 (token/PromptCache/LLM指标)
-/diff            查看本次会话改过的文件
-/review          多维度代码审查
+/recent          查看本次会话改过的文件 (别名 /diff)
 /plan            计划模式，先规划再执行
 /init            分析项目并生成 CLAUDE.md（对标 Claude Code /init）
 /mcp             查看 MCP 服务器状态 / 重连
-/jobs            查看后台任务
-/git-status /git-log /git-diff  Git 状态/日志/差异
-/perm ask|auto|yolo  权限模式切换
+/git              Git 操作（status/log/diff/commit/branch）
+/perm ask|auto|smartauto|yolo  权限模式切换
 /mode build|plan|review|auto  工作模式切换 (Shift+Tab)
 /update [check|now]  检查/自动升级到最新版本
 /auto            自动模式切换
 /watch           切换 Watch 模式
-/save  /sessions 保存 / 列出会话 (Ctrl+S)
+/session         会话管理 (list/save/load/resume)
 /export          导出对话历史
+/history         搜索对话历史
+/settings        图形化设置界面
+/theme           切换主题
 quit / exit      退出 (Ctrl+Q)
 ```
 
@@ -279,6 +280,4 @@ MIT License，欢迎 fork 拿去造更好的东西。
 
 ---
 
-作者 [何宇峰](https://github.com/he-yufeng)，曾任职 Moonshot AI (Kimi)。
-
-**深圳市探索智能科技有限公司**
+作者 [施探宇 (aleck)](https://gitee.com/aleckstygit)，中国 · 天津。
