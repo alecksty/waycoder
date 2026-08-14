@@ -678,11 +678,13 @@ public class Agent
             {
                 var beforeCount = Messages.Count;
                 var beforeTokens = ContextManager.EstimateTokens(Messages);
-                onToken?.Invoke($"\n⏳ **上下文压缩中... ({beforeTokens} tokens)**\n\n");
+                // 触发依据是最近一次真实 prompt（当前上下文大小），而非累计用量——显示两者避免误判窗口未生效
+                var usedTokens = Context.LastPromptTokens;
+                onToken?.Invoke($"\n⏳ **上下文压缩中... (当前上下文 {usedTokens}/{Context.MaxTokens} tokens，消息估算 {beforeTokens})**\n\n");
                 await CompressWithSmallModel(onToken);
                 var afterCount = Messages.Count;
                 var afterTokens = ContextManager.EstimateTokens(Messages);
-                DebugLog.Log("context", $"Crush-style auto-summarize: {beforeCount}→{afterCount} msgs, {beforeTokens}→{afterTokens} est.tokens");
+                DebugLog.Log("context", $"Crush-style auto-summarize: {beforeCount}→{afterCount} msgs, {beforeTokens}→{afterTokens} est.tokens, last prompt={usedTokens}/{Context.MaxTokens}");
 
                 // 如果 Agent 正在执行任务中（有工具调用历史），注入继续提示
                 if (!Context.ContinuePromptInjected && afterCount < beforeCount)
@@ -1148,7 +1150,14 @@ public class Agent
 
     private static string FormatValue(object? value)
     {
-        var s = value?.ToString() ?? "null";
+        // 集合/字典/JsonNode 用递归序列化显示（而非 ToString 泄漏 System.Collections...）
+        var s = value switch
+        {
+            null => "null",
+            string str => str,
+            System.Collections.IEnumerable or System.Collections.IDictionary or JsonNode => JsonHelper.SerializeValue(value),
+            _ => value.ToString() ?? "null",
+        };
         return s.Length > 40 ? s[..40] + "..." : s;
     }
 

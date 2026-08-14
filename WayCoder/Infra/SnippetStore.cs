@@ -101,9 +101,11 @@ public static class SnippetStore
     /// <param name="content">代码内容</param>
     /// <param name="language">编程语言</param>
     /// <param name="tags">标签列表</param>
-    public static void Add(string name, string content, string language = "", List<string>? tags = null)
+    /// <param name="dir">存储目录（null 使用默认 .waycoder/snippets）</param>
+    public static void Add(string name, string content, string language = "", List<string>? tags = null, string? dir = null)
     {
-        EnsureLoaded();
+        var d = dir ?? DefaultDir;
+        EnsureLoaded(d);
         var snippet = new Snippet
         {
             Name = name,
@@ -116,9 +118,8 @@ public static class SnippetStore
         _cache[name] = snippet;
 
         // 持久化到文件
-        var dir = _loadedDir ?? DefaultDir;
-        Directory.CreateDirectory(dir);
-        var path = Path.Combine(dir, $"{SanitizeFileName(name)}.md");
+        Directory.CreateDirectory(d);
+        var path = Path.Combine(d, $"{SanitizeFileName(name)}.md");
         var fileContent = BuildFileContent(snippet);
         File.WriteAllText(path, fileContent);
     }
@@ -127,10 +128,11 @@ public static class SnippetStore
     /// 搜索片段：按名称或标签模糊匹配。
     /// </summary>
     /// <param name="query">搜索关键词（空格分隔多词，OR 逻辑）</param>
+    /// <param name="dir">存储目录（null 使用默认 .waycoder/snippets）</param>
     /// <returns>匹配的片段列表</returns>
-    public static List<Snippet> Search(string query)
+    public static List<Snippet> Search(string query, string? dir = null)
     {
-        EnsureLoaded();
+        EnsureLoaded(dir);
         if (string.IsNullOrWhiteSpace(query))
             return _cache.Values.OrderByDescending(s => s.CreatedAt).ToList();
 
@@ -148,28 +150,33 @@ public static class SnippetStore
     }
 
     /// <summary>列出所有片段。</summary>
-    public static List<Snippet> List()
+    /// <param name="dir">存储目录（null 使用默认 .waycoder/snippets）</param>
+    public static List<Snippet> List(string? dir = null)
     {
-        EnsureLoaded();
+        EnsureLoaded(dir);
         return _cache.Values.OrderBy(s => s.Name).ToList();
     }
 
     /// <summary>删除指定片段。</summary>
-    public static bool Delete(string name)
+    /// <param name="name">片段名</param>
+    /// <param name="dir">存储目录（null 使用默认 .waycoder/snippets）</param>
+    public static bool Delete(string name, string? dir = null)
     {
-        EnsureLoaded();
+        var d = dir ?? DefaultDir;
+        EnsureLoaded(d);
         if (!_cache.Remove(name)) return false;
 
-        var dir = _loadedDir ?? DefaultDir;
-        var path = Path.Combine(dir, $"{SanitizeFileName(name)}.md");
+        var path = Path.Combine(d, $"{SanitizeFileName(name)}.md");
         try { if (File.Exists(path)) File.Delete(path); } catch { }
         return true;
     }
 
     /// <summary>获取单个片段内容。</summary>
-    public static string? Get(string name)
+    /// <param name="name">片段名</param>
+    /// <param name="dir">存储目录（null 使用默认 .waycoder/snippets）</param>
+    public static string? Get(string name, string? dir = null)
     {
-        EnsureLoaded();
+        EnsureLoaded(dir);
         return _cache.TryGetValue(name, out var s) ? s.Content : null;
     }
 

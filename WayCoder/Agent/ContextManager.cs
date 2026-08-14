@@ -21,10 +21,16 @@ public class ContextManager
     private int _summarizeAt;  // 70% -> LLM 摘要
     private int _collapseAt;   // 90% -> 硬折叠
 
-    /// <summary>累计 prompt tokens（来自 API usage）</summary>
+    /// <summary>累计 prompt tokens（来自 API usage，会话总量统计，用于花费追踪）</summary>
     public int CumulativePromptTokens { get; private set; }
-    /// <summary>累计 completion tokens（来自 API usage）</summary>
+    /// <summary>累计 completion tokens（来自 API usage，会话总量统计，用于花费追踪）</summary>
     public int CumulativeCompletionTokens { get; private set; }
+    /// <summary>
+    /// 最近一次请求的真实 prompt tokens（来自 API usage）。
+    /// 代表「当前上下文」的真实大小（每次请求的 prompt 都含完整 system + 工具定义 + 全部历史消息），
+    /// 是判断「剩余窗口是否不足」的正确度量 —— 累计用量（Cumulative*）单调递增，不能用于此判断。
+    /// </summary>
+    public int LastPromptTokens { get; private set; }
 
     /// <summary>
     /// 固定开销 = 真实 prompt tokens − 估算 tokens。
@@ -124,6 +130,8 @@ public class ContextManager
     {
         CumulativePromptTokens += promptTokens;
         CumulativeCompletionTokens += completionTokens;
+        // 记录最近一次真实 prompt（覆盖而非累加），代表当前上下文大小
+        LastPromptTokens = promptTokens;
 
         // 用真实 API 报告校准估算：固定开销 = 真实 prompt − 估算（system prompt + 工具定义 + 元数据）。
         // 平滑收敛（移动平均），避免单次波动导致阈值抖动。
@@ -136,14 +144,16 @@ public class ContextManager
     }
 
     /// <summary>
-    /// Crush 风格 StopWhen：检查真实 token 使用量是否接近窗口上限。
+    /// Crush 风格 StopWhen：检查「当前上下文」的真实 token 用量是否接近窗口上限。
+    /// 用最近一次请求的真实 prompt tokens（LastPromptTokens）而非累计用量判断——
+    /// 累计用量随轮数单调递增，即使上下文大小不变也会持续增长，用它判断会误触发压缩。
     /// 大窗口用固定 buffer，小窗口用比例阈值。
     /// </summary>
     /// <returns>剩余 token 数低于阈值时应触发摘要</returns>
     public bool ShouldStopAndSummarize()
     {
         var cfg = Config.Instance;
-        var used = CumulativePromptTokens + CumulativeCompletionTokens;
+        var used = LastPromptTokens;
         var remaining = MaxTokens - used;
 
         long threshold;
@@ -160,6 +170,7 @@ public class ContextManager
     {
         CumulativePromptTokens = 0;
         CumulativeCompletionTokens = 0;
+        LastPromptTokens = 0;
         ContinuePromptInjected = false;
     }
 
@@ -178,47 +189,35 @@ public class ContextManager
             // 第 1 层：裁剪冗长的工具输出
             if (current > _snipAt)
             {
-                var pct = (double)current / MaxTokens * 100;
-                onProgress?.Invoke(1, $"裁剪工具输出... {ProgressBar(pct)} {current}/{MaxTokens}");
-                CompressProgress?.Invoke(1, $"裁剪工具输出...", pct);
+                ReportProgress(1, "裁剪工具输出...", current, onProgress);
                 if (SnipToolOutputs(messages, EffectiveSnipChars()))
                 {
                     compressed = true;
                     current = EstimateCalibratedTokens(messages);
-                    pct = (double)current / MaxTokens * 100;
-                    onProgress?.Invoke(1, $"裁剪完成 {ProgressBar(pct)} {current}/{MaxTokens} (-{MaxTokens - current})");
-                    CompressProgress?.Invoke(1, $"裁剪完成", pct);
+                    ReportProgress(1, "裁剪完成", current, onProgress, $"(-{MaxTokens - current})");
                 }
             }
 
             // 第 2 层：LLM 驱动的旧对话摘要
             if (current > _summarizeAt && messages.Count > 10)
             {
-                var pct = (double)current / MaxTokens * 100;
-                onProgress?.Invoke(2, $"正在摘要旧对话... {ProgressBar(pct)} {current}/{MaxTokens}");
-                CompressProgress?.Invoke(2, $"正在摘要旧对话...", pct);
+                ReportProgress(2, "正在摘要旧对话...", current, onProgress);
                 if (await SummarizeOldAsync(messages, llm))
                 {
                     compressed = true;
                     current = EstimateCalibratedTokens(messages);
-                    pct = (double)current / MaxTokens * 100;
-                    onProgress?.Invoke(2, $"摘要完成 {ProgressBar(pct)} {current}/{MaxTokens}");
-                    CompressProgress?.Invoke(2, $"摘要完成", pct);
+                    ReportProgress(2, "摘要完成", current, onProgress);
                 }
             }
 
             // 第 3 层：硬折叠——最后手段
             if (current > _collapseAt && messages.Count > 4)
             {
-                var pct = (double)current / MaxTokens * 100;
-                onProgress?.Invoke(3, $"紧急压缩... {ProgressBar(pct)} {current}/{MaxTokens}");
-                CompressProgress?.Invoke(3, $"紧急压缩...", pct);
+                ReportProgress(3, "紧急压缩...", current, onProgress);
                 await HardCollapseAsync(messages, llm);
                 compressed = true;
                 current = EstimateCalibratedTokens(messages);
-                pct = (double)current / MaxTokens * 100;
-                onProgress?.Invoke(3, $"压缩完成 {ProgressBar(pct)} {current}/{MaxTokens}");
-                CompressProgress?.Invoke(3, $"压缩完成", pct);
+                ReportProgress(3, "压缩完成", current, onProgress);
             }
         }
         finally
@@ -236,6 +235,18 @@ public class ContextManager
         var filled = (int)(clamped / 100 * 8);
         var empty = 8 - filled;
         return $"«{new string('█', filled)}{new string('░', empty)}» {clamped:F0}%";
+    }
+
+    /// <summary>
+    /// 向 onProgress 回调与静态 CompressProgress 事件双路报告压缩进度，
+    /// 消除 MaybeCompressAsync 三层压缩里重复的「百分比 + 进度条 + 事件」样板。
+    /// extra 可选追加到 onProgress 文本（如裁剪完成的「-节省 N」后缀），不影响事件消息。
+    /// </summary>
+    private void ReportProgress(int layer, string label, int current, Action<int, string>? onProgress, string? extra = null)
+    {
+        var pct = (double)current / MaxTokens * 100;
+        onProgress?.Invoke(layer, $"{label} {ProgressBar(pct)} {current}/{MaxTokens}{(extra != null ? " " + extra : "")}");
+        CompressProgress?.Invoke(layer, label, pct);
     }
 
     /// <summary>

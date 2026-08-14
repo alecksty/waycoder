@@ -540,8 +540,8 @@ public static partial class SelfTest
         FileTracker.Reset();
 
         // ── v0.36.0: Agent 工具集分层 ──
-        Check("SubAgentDeniedTools 包含 bash",
-            ToolRegistry.SubAgentDeniedTools.Contains("bash"));
+        Check("SubAgentDeniedTools 不包含 bash（子智能体保留 shell 权限）",
+            !ToolRegistry.SubAgentDeniedTools.Contains("bash"));
         Check("SubAgentDeniedTools 包含 rm",
             ToolRegistry.SubAgentDeniedTools.Contains("rm"));
         Check("SubAgentDeniedTools 包含 kill",
@@ -549,10 +549,53 @@ public static partial class SelfTest
         Check("SubAgentDeniedTools 包含 git",
             ToolRegistry.SubAgentDeniedTools.Contains("git"));
 
+        // ── v0.53.0: 子智能体健壮性加固 ──
+        var (dnBlocked, _) = BashGuard.CheckBanned("dotnet new console");
+        Check("BashGuard 拦截 dotnet new", dnBlocked);
+        var (dbBlocked, _) = BashGuard.CheckBanned("dotnet build -c Release");
+        Check("BashGuard 不误伤 dotnet build", !dbBlocked);
+        Check("子智能体纪律含「禁止创建」", SystemPrompt.SubAgentDiscipline.Contains("禁止创建"));
+        Check("子智能体纪律含「自测」", SystemPrompt.SubAgentDiscipline.Contains("自测"));
+        var baseLLM = new LLM("test-model", "key");
+        baseLLM.ModelOverride = "big-model";
+        var subClone = baseLLM.Clone();
+        subClone.ModelOverride = "small-model";
+        Check("LLM.Clone 独立（改 clone 不影响原实例）",
+            baseLLM.ModelOverride == "big-model" && subClone.ModelOverride == "small-model");
+        Check("SubAgentParallelTotalMaxChars 默认 > 0", new Config().SubAgentParallelTotalMaxChars > 0);
+
+        // BashGuard 参数拦截语义全面验证（v0.53.0 重写 Match/MatchArgs：白名单/黑名单分离）
+        var (ciBlocked, _) = BashGuard.CheckBanned("cargo install ripgrep");
+        Check("BashGuard 纯子命令拦截 cargo install", ciBlocked);
+        var (pipBlocked, _) = BashGuard.CheckBanned("pip install requests");
+        Check("BashGuard 白名单未命中拦截 pip install", pipBlocked);
+        var (pipUserBlocked, _) = BashGuard.CheckBanned("pip install --user requests");
+        Check("BashGuard 白名单命中放行 pip install --user", !pipUserBlocked);
+        var (npmBlocked, _) = BashGuard.CheckBanned("npm install lodash");
+        Check("BashGuard 本地 npm install 放行", !npmBlocked);
+        var (npmGlobalBlocked, _) = BashGuard.CheckBanned("npm install --global lodash");
+        Check("BashGuard 全局 npm install -g 拦截", npmGlobalBlocked);
+        var (goTestBlocked, _) = BashGuard.CheckBanned("go test ./...");
+        Check("BashGuard 普通 go test 放行", !goTestBlocked);
+        var (goExecBlocked, _) = BashGuard.CheckBanned("go test -exec echo");
+        Check("BashGuard go test -exec 拦截", goExecBlocked);
+
+        // v0.53.1: tasks 数组元素提取（对象元素 {description/task/...} 正确解出文本，而非乱码）
+        var extStr = AgentTool.ExtractTaskText("给 TimeSeries 加冒烟测试");
+        Check("AgentTool.ExtractTaskText 纯字符串透传", extStr == "给 TimeSeries 加冒烟测试");
+        var extDict = AgentTool.ExtractTaskText(new Dictionary<string, object?> { ["description"] = "给 Automata 加冒烟测试" });
+        Check("AgentTool.ExtractTaskText 对象提取 description", extDict == "给 Automata 加冒烟测试");
+        var extDictTask = AgentTool.ExtractTaskText(new Dictionary<string, object?> { ["task"] = "给 Geospatial 加冒烟测试" });
+        Check("AgentTool.ExtractTaskText 对象提取 task", extDictTask == "给 Geospatial 加冒烟测试");
+        var extJson = AgentTool.ExtractTaskText(new JsonObject { ["description"] = "JsonObject 路径" });
+        Check("AgentTool.ExtractTaskText JsonObject 提取", extJson == "JsonObject 路径");
+        var extNull = AgentTool.ExtractTaskText(null);
+        Check("AgentTool.ExtractTaskText null 返回 null", extNull == null);
+
         // 深度 0（允许 agent 递归）
         var depth0Tools = ToolRegistry.GetSubAgentTools(ToolRegistry.AllTools, 0, 5);
         var depth0Names = depth0Tools.Select(t => t.Name).ToHashSet();
-        Check("子Agent深度0 无 bash", !depth0Names.Contains("bash"));
+        Check("子Agent深度0 有 bash", depth0Names.Contains("bash"));
         Check("子Agent深度0 无 rm", !depth0Names.Contains("rm"));
         Check("子Agent深度0 有 agent", depth0Names.Contains("agent"));
         Check("子Agent深度0 有 write_file", depth0Names.Contains("write_file"));
