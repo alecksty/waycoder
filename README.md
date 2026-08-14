@@ -69,7 +69,7 @@ dotnet run -- --batch-repo https://x/r1 --batch-repo https://x/r2 --batch-task "
 # JSON 输出模式（IDE / 脚本桥接，stdout 只输出一个结构化 JSON 对象）
 dotnet run -- --json -p "修复一个 bug"
 
-# 运行自测（2169 项）
+# 运行自测（2178 项）
 dotnet run -- --test
 ```
 
@@ -104,11 +104,10 @@ WayCoder/
 ├── MemoryStore.cs     记忆系统 (旧格式, 迁移源)
 ├── StructuredMemory.cs 结构化记忆 (frontmatter 多文件 + MEMORY.md 索引)
 ├── MemoryRetrieval.cs  跨会话记忆检索
-├── SkillsManager.cs   技能系统 (SKILL.md 发现与解析)
-├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
+├── Skills/            技能系统 (SkillsManager.cs SKILL.md 发现与解析)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        2169 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── SelfTest.cs        2178 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
 ├── Batch/             批量任务引擎 (2 文件)
 │   ├── BatchSpec.cs     任务清单模型 + JSON 解析 + 名称消毒
 │   └── BatchRunner.cs   多仓库并行执行 + worktree 隔离 + 聚合报告
@@ -238,7 +237,7 @@ quit / exit      退出 (Ctrl+Q)
 | 红色 | 出错 |
 
 > 运行中热键：`Esc` 中断当前槽位 Agent，`Ctrl+Z` 优雅暂停（当前批次完成后提交停机）
-> 热键迁移：帮助 `Ctrl+H`、面板 `Ctrl+B`、设置 `Ctrl+O`、退出 `Ctrl+Q`
+> 热键迁移：帮助 `Ctrl+H`、面板 `Ctrl+B`、设置 `Ctrl+T`、退出 `Ctrl+Q`
 
 ## 关键设计决策
 

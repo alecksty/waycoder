@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using WayCoder.Infra;
 
 namespace WayCoder.Tools;
 
@@ -206,9 +207,8 @@ public class FetchTool : ITool
     {
         try
         {
-            using var doc = System.Text.Json.JsonDocument.Parse(json);
-            var pretty = System.Text.Json.JsonSerializer.Serialize(doc.RootElement,
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            var node = Json.Parse(json);
+            var pretty = node == null ? json : Json.Serialize(node, indent: true);
             if (pretty.Length > maxChars)
                 pretty = pretty[..maxChars] + "\n... (已截断)";
             return pretty;
