@@ -294,6 +294,29 @@ public class LLM
     }
 
     /// <summary>
+    /// 克隆一个配置相同、统计独立的 LLM 客户端。用于子智能体隔离：并行子智能体
+    /// 各自持有独立实例，避免共享 <see cref="ModelOverride"/> 引发的并发竞态
+    /// （多个子智能体并发读写同一客户端的小模型切换会互相污染）。
+    /// </summary>
+    public LLM Clone() => new(Model, ApiKey, BaseUrl, MaxTokens, Temperature)
+    {
+        SmallModel = SmallModel,
+        ModelOverride = ModelOverride,
+    };
+
+    /// <summary>
+    /// 把另一个 LLM 客户端的用量统计累加到当前实例。子智能体 clone 完成后调用，
+    /// 使子智能体的 token 花费与请求次数计入父智能体的任务统计（否则子智能体
+    /// 的花费会因实例隔离而丢失）。
+    /// </summary>
+    public void MergeUsageFrom(LLM other)
+    {
+        TotalPromptTokens += other.TotalPromptTokens;
+        TotalCompletionTokens += other.TotalCompletionTokens;
+        TotalRequests += other.TotalRequests;
+    }
+
+    /// <summary>
     /// 发送消息到 LLM，流式返回响应，处理工具调用。
     /// </summary>
     /// <param name="messages">对话历史（OpenAI 格式消息数组）</param>
