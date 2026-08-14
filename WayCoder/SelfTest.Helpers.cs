@@ -208,6 +208,48 @@ public static partial class SelfTest
         Check("窗口: UpdateMaxTokens(2048) 生效", cm.MaxTokens == 2048);
     }
 
+    /// <summary>
+    /// 上下文预算判断（ShouldStopAndSummarize）测试：验证用「最近一次真实 prompt」而非「累计用量」判断。
+    /// v0.53.2 修复：此前用累计用量（单调递增）判断，上下文远未满时误触发压缩，且压缩层用消息估算
+    /// （远低于阈值）实际不压缩，累计值不重置形成循环刷屏。
+    /// </summary>
+    private static void TestContextStopWhen(Action<string, bool> Check)
+    {
+        // ── 1. LastPromptTokens 记录最近一次（覆盖而非累加）──
+        var cm = new ContextManager(1_048_576);
+        cm.AddUsage(50_000, 5_000, 40_000);
+        cm.AddUsage(80_000, 8_000, 60_000);
+        Check("StopWhen: LastPromptTokens 记录最近一次（非累加）", cm.LastPromptTokens == 80_000);
+        Check("StopWhen: 累计 prompt 仍累加（花费追踪）", cm.CumulativePromptTokens == 130_000);
+
+        // ── 2. 大窗口（>200K）：累计超窗口但最近 prompt 小 → 不触发 ──
+        var cm2 = new ContextManager(1_048_576);
+        cm2.AddUsage(1_000_000, 50_000, 0);   // 累计 100 万
+        cm2.AddUsage(100_000, 5_000, 0);      // 累计 110 万（超窗口），但最近 prompt 仅 10 万
+        Check("StopWhen: 累计超窗口但最近 prompt 小 → 不触发", !cm2.ShouldStopAndSummarize());
+
+        // ── 3. 大窗口：最近 prompt 接近窗口 → 触发 ──
+        var cm3 = new ContextManager(1_048_576);
+        cm3.AddUsage(1_030_000, 0, 0);        // 剩余 18576 <= 20K buffer
+        Check("StopWhen: 最近 prompt 接近窗口 → 触发", cm3.ShouldStopAndSummarize());
+
+        // ── 4. 小窗口（≤200K）：比例阈值 20% ──
+        var cm4 = new ContextManager(100_000);
+        cm4.AddUsage(85_000, 0, 0);           // 剩余 15K <= 20K（20% 比例）
+        Check("StopWhen: 小窗口最近 prompt 到 85% → 触发", cm4.ShouldStopAndSummarize());
+        var cm4b = new ContextManager(100_000);
+        cm4b.AddUsage(30_000, 0, 0);          // 剩余 70K > 20K → 不触发
+        Check("StopWhen: 小窗口最近 prompt 30% → 不触发", !cm4b.ShouldStopAndSummarize());
+
+        // ── 5. ResetUsage 重置 LastPromptTokens ──
+        var cm5 = new ContextManager(1_048_576);
+        cm5.AddUsage(900_000, 0, 0);
+        Check("StopWhen: Reset 前 LastPromptTokens 已记录", cm5.LastPromptTokens == 900_000);
+        cm5.ResetUsage();
+        Check("StopWhen: ResetUsage 重置 LastPromptTokens", cm5.LastPromptTokens == 0);
+        Check("StopWhen: Reset 后不触发压缩", !cm5.ShouldStopAndSummarize());
+    }
+
     /// <summary>Tiny 模式测试（4K 窗口 + 精简提示词）</summary>
     private static void TestTinyMode(Action<string, bool> Check)
     {

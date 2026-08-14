@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.53.2 (2026-08-14) — 修复上下文压缩误触发（累计用量 → 最近 prompt）
+
+端到端验证暴露的第二个缺陷：主智能体累计用量到 169 万 tokens、触发 5 次「上下文压缩」，但消息估算却只有 8 万左右——压缩根本没发生，只是在空转刷屏。
+
+### 🐛 修复
+
+- **压缩判断度量错误**：`ContextManager.ShouldStopAndSummarize()` 此前用 `CumulativePromptTokens + CumulativeCompletionTokens`（会话累计用量，单调递增）判断「剩余窗口是否不足」，导致上下文远未满时（真实上下文 ~12 万 vs 窗口 1M）就误触发压缩；而压缩层（`MaybeCompressAsync`）用消息估算（~8 万，远低于 50% 阈值）判断，三层压缩全部不触发，累计值也不重置，形成「每轮误触发 → 实际不压缩 → 累计继续涨 → 再误触发」的死循环
+- **新增 `ContextManager.LastPromptTokens`**：`AddUsage` 里覆盖记录最近一次真实 prompt（代表当前上下文大小），`ShouldStopAndSummarize` 改用其判断——只有真实上下文真正接近窗口（剩余 ≤ buffer）才触发压缩，触发后压缩层用校准估算（≈ 真实 prompt）判断会真正执行裁剪/摘要，`ResetUsage` 同步重置
+
+### 🧪 自测
+
+- 新增断言 9 项（`LastPromptTokens` 记录最近一次非累加、累计超窗口但最近 prompt 小不触发、最近 prompt 接近窗口触发、大小窗口阈值、`ResetUsage` 重置），总计 1900 项全部通过（0 失败）
+
 ## v0.53.1 (2026-08-14) — 并行子智能体 tasks 数组对象元素乱码修复
 
 端到端验证暴露的缺陷：`agent(tasks=[{"description": "..."}, ...])` 结构化传参时，对象元素被解析成 `Dictionary<string, object?>` 后直接 `ToString()`，子智能体收到 `System.Collections.Generic.Dictionary...` 乱码，3 个子智能体 2 个直接失败（只有纯字符串元素碰巧成功）。
