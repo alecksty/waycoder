@@ -1701,6 +1701,37 @@ public static partial class SelfTest
         var src = Json.Parse("{\"a\":[1,2]}");
         var cp = src?.Clone();
         Check("Json: Clone 深拷贝", cp != null && Json.Serialize(cp) == Json.Serialize(src!));
+
+        // 12. SlotConfig 手搓往返（零反射，替代 JsonSerializer.Deserialize<SlotConfig>）
+        var slot = new AgentSlotConfig.SlotConfig
+        {
+            LargeModel = "deepseek-v4-pro",
+            SmallModel = "deepseek-v4-flash",
+            BaseUrl = "https://api.deepseek.com",
+            ApiKeyProviderId = "deepseek",
+            ApiKey = null,
+            UseGlobal = false,
+        };
+        var slotNode = AgentSlotConfig.SlotToNode(slot);
+        Check("Json: Slot 键名 PascalCase", slotNode.Has("LargeModel") && !slotNode.Has("largeModel"));
+        var slotBack = AgentSlotConfig.SlotFromNode(slotNode);
+        Check("Json: Slot 往返 LargeModel", slotBack.LargeModel == "deepseek-v4-pro");
+        Check("Json: Slot 往返 SmallModel", slotBack.SmallModel == "deepseek-v4-flash");
+        Check("Json: Slot 往返 BaseUrl", slotBack.BaseUrl == "https://api.deepseek.com");
+        Check("Json: Slot 往返 ProviderId", slotBack.ApiKeyProviderId == "deepseek");
+        Check("Json: Slot 往返 UseGlobal", slotBack.UseGlobal == false);
+        Check("Json: Slot null 字段往返", slotBack.ApiKey == null);
+
+        // 序列化往返（模拟保存/加载的 JSON 文本，经手搓 Json 库）
+        var slotParsed = AgentSlotConfig.SlotFromNode(Json.Parse(Json.Serialize(slotNode))!);
+        Check("Json: Slot 序列化往返", slotParsed.LargeModel == "deepseek-v4-pro" && slotParsed.UseGlobal == false);
+
+        // UseGlobal 缺省 → true（与 JsonSerializer 属性初始化语义一致）
+        var defaultSlot = AgentSlotConfig.SlotFromNode(JNode.Object());
+        Check("Json: Slot UseGlobal 缺省为 true", defaultSlot.UseGlobal == true);
+
+        // 13. 嵌套缩进美化（FetchTool.PrettyPrintJson 依赖 Json.Serialize(indent)）
+        Check("Json: 嵌套缩进美化", Json.Serialize(Json.Parse("{\"a\":[1]}")!, true).Contains("\n  \"a\""));
     }
 
     // 手搓 XML 库（AOT 安全零反射）：解析/DOM/实体/CDATA/序列化/错误分支
