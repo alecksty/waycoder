@@ -1393,4 +1393,177 @@ public static partial class SelfTest
         Check("Import: FormatSize 1MB 边界", ImportHelper.FormatSize(1024L * 1024) == "1.0 MB");
         Check("Import: FormatSize 5MB", ImportHelper.FormatSize(5L * 1024 * 1024) == "5.0 MB");
     }
+
+    /// <summary>文件锁管理器（FileLockManager）单元测试：获取/续期/拒绝/过期强占/释放/等待。</summary>
+    private static void TestFileLockManager(Action<string, bool> Check)
+    {
+        var path = Path.Combine(Path.GetTempPath(), "wc_lock_" + Guid.NewGuid().ToString("N")[..6] + ".txt");
+        var agentA = "agent-a";
+        var agentB = "agent-b";
+
+        // 清理残留
+        FileLockManager.ReleaseAll(agentA);
+        FileLockManager.ReleaseAll(agentB);
+
+        // 1. 首次获取成功 + 锁信息
+        Check("FileLock: 首次获取成功", FileLockManager.TryAcquire(path, agentA));
+        Check("FileLock: 获取后有锁信息", FileLockManager.GetLockInfo(path) != null);
+        Check("FileLock: 锁持有者正确", FileLockManager.GetLockInfo(path)?.AgentId == agentA);
+
+        // 2. 同 agent 续期成功
+        Check("FileLock: 同 agent 续期成功", FileLockManager.TryAcquire(path, agentA));
+
+        // 3. 不同 agent 被拒 + IsLockedByOther
+        Check("FileLock: 不同 agent 被拒", !FileLockManager.TryAcquire(path, agentB));
+        Check("FileLock: IsLockedByOther 判定", FileLockManager.IsLockedByOther(path, agentB));
+        Check("FileLock: 本人不视为其他", !FileLockManager.IsLockedByOther(path, agentA));
+
+        // 4. Release 后其他 agent 可获取
+        FileLockManager.Release(path, agentA);
+        Check("FileLock: Release 后可被其他获取", FileLockManager.TryAcquire(path, agentB));
+        FileLockManager.Release(path, agentB);
+
+        // 5. 不同 agent 释放无效（锁归属不匹配）
+        FileLockManager.TryAcquire(path, agentA);
+        FileLockManager.Release(path, agentB);
+        Check("FileLock: 不同 agent 释放无效", FileLockManager.GetLockInfo(path)?.AgentId == agentA);
+
+        // 6. 过期锁被其他 agent 强制获取（timeout 为负 → 立即过期）
+        FileLockManager.Release(path, agentA);
+        FileLockManager.TryAcquire(path, agentA, TimeSpan.FromMilliseconds(-1));
+        Check("FileLock: 过期锁被其他强占", FileLockManager.TryAcquire(path, agentB));
+        FileLockManager.Release(path, agentB);
+
+        // 7. ReleaseAll 释放指定 agent 全部锁
+        FileLockManager.TryAcquire(path, agentA);
+        FileLockManager.TryAcquire(path + ".2", agentA);
+        FileLockManager.ReleaseAll(agentA);
+        Check("FileLock: ReleaseAll 清空", FileLockManager.GetAllLocks().Count == 0);
+
+        // 8. GetSummary 空/非空
+        Check("FileLock: 无锁摘要为空", FileLockManager.GetSummary() == "");
+        FileLockManager.TryAcquire(path, agentA);
+        Check("FileLock: 有锁摘要非空", FileLockManager.GetSummary().Contains("文件锁定"));
+        FileLockManager.ReleaseAll(agentA);
+
+        // 9. WaitForLockAsync 无锁立即成功
+        var ok = FileLockManager.WaitForLockAsync(path, agentA, TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
+        Check("FileLock: WaitForLock 无锁成功", ok);
+
+        // 清理
+        FileLockManager.ReleaseAll(agentA);
+        FileLockManager.ReleaseAll(agentB);
+    }
+
+    /// <summary>文件追踪器（FileTracker）单元测试：stale-read 检测 + 先读后改保护 + 删除/禁用。</summary>
+    private static void TestFileTracker(Action<string, bool> Check)
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "wc_track_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(tmp);
+        var f = Path.Combine(tmp, "a.txt");
+        var f2 = Path.Combine(tmp, "b.txt");
+
+        FileTracker.Enabled = true;
+        FileTracker.Reset();
+
+        try
+        {
+            // 1. 初始未追踪
+            File.WriteAllText(f, "v1");
+            Check("FileTrack: 未追踪返回 (false,false)", FileTracker.GetStatus(f) == (false, false));
+
+            // 2. RecordRead 记录哈希
+            FileTracker.RecordRead(f);
+            Check("FileTrack: RecordRead 后 (true,false)", FileTracker.GetStatus(f) == (true, false));
+
+            // 3. 外部修改检测（哈希变更）
+            File.WriteAllText(f, "v2");
+            Check("FileTrack: 外部修改后 (true,true)", FileTracker.GetStatus(f) == (true, true));
+            var changes = FileTracker.CheckForChanges();
+            Check("FileTrack: CheckForChanges 检出", changes.Any(p => Path.GetFileName(p) == "a.txt"));
+
+            // 4. RecordWrite 更新哈希 → 不再 stale
+            FileTracker.RecordWrite(f);
+            Check("FileTrack: RecordWrite 后 (true,false)", FileTracker.GetStatus(f) == (true, false));
+
+            // 5. 删除检测 + 移除追踪
+            File.Delete(f);
+            var deleted = FileTracker.CheckForChanges();
+            Check("FileTrack: 删除检出", deleted.Any(p => Path.GetFileName(p) == "a.txt"));
+            Check("FileTrack: 删除后不再追踪", FileTracker.GetStatus(f) == (false, false));
+
+            // 6. ValidatePreEdit 未读取警告
+            File.WriteAllText(f2, "x");
+            Check("FileTrack: 未读取编辑警告", FileTracker.ValidatePreEdit(f2)?.Contains("尚未被 read_file") == true);
+
+            // 7. ValidatePreEdit 已读取未修改 → 通过（null）
+            FileTracker.RecordRead(f2);
+            Check("FileTrack: 已读取未修改通过", FileTracker.ValidatePreEdit(f2) == null);
+
+            // 8. GetChangeWarning 检出外部修改
+            File.WriteAllText(f2, "y");
+            Check("FileTrack: 变更警告非空", FileTracker.GetChangeWarning()?.Contains("文件变更警告") == true);
+
+            // 9. Enabled=false 短路
+            FileTracker.Enabled = false;
+            Check("FileTrack: 禁用后 GetStatus 短路", FileTracker.GetStatus(f2) == (false, false));
+            FileTracker.Enabled = true;
+
+            // 10. Reset 清空
+            FileTracker.Reset();
+            Check("FileTrack: Reset 后未追踪", FileTracker.GetStatus(f2) == (false, false));
+        }
+        finally
+        {
+            FileTracker.Enabled = true;
+            FileTracker.Reset();
+            try { Directory.Delete(tmp, recursive: true); } catch { }
+        }
+    }
+
+    /// <summary>Prompt 缓存追踪（PromptCache）单元测试：哈希命中/未命中/命中率/节省 token/禁用。</summary>
+    private static void TestPromptCache(Action<string, bool> Check)
+    {
+        PromptCache.Enabled = true;
+        PromptCache.ClearStats();
+
+        // 1. 首次未命中
+        Check("PromptCache: 首次未命中", !PromptCache.RecordRequest("sys1", "tools1", 100, 50));
+        Check("PromptCache: 首次后 1 请求 0 命中", PromptCache.TotalRequests == 1 && PromptCache.CacheHits == 0);
+
+        // 2. 相同请求命中 + 节省 token 累计
+        Check("PromptCache: 相同请求命中", PromptCache.RecordRequest("sys1", "tools1", 100, 50));
+        Check("PromptCache: 命中后 2 请求 1 命中", PromptCache.TotalRequests == 2 && PromptCache.CacheHits == 1);
+        Check("PromptCache: 节省 token=150", PromptCache.SavedTokens == 150);
+
+        // 3. 不同 system 未命中
+        Check("PromptCache: 不同 system 未命中", !PromptCache.RecordRequest("sys2", "tools1", 100, 50));
+
+        // 4. 不同 tools 未命中
+        Check("PromptCache: 不同 tools 未命中", !PromptCache.RecordRequest("sys2", "tools2", 100, 50));
+
+        // 5. HitRate = 1/4 = 25%
+        Check("PromptCache: HitRate 计算", Math.Abs(PromptCache.HitRate - 25.0) < 0.01);
+
+        // 6. Reset 后相同请求又未命中
+        PromptCache.Reset();
+        Check("PromptCache: Reset 后未命中", !PromptCache.RecordRequest("sys2", "tools2", 100, 50));
+
+        // 7. Enabled=false 短路 + 摘要「关闭」
+        PromptCache.ClearStats();
+        PromptCache.Enabled = false;
+        Check("PromptCache: 禁用后未命中", !PromptCache.RecordRequest("sys1", "tools1", 100, 50));
+        Check("PromptCache: 禁用摘要含关闭", PromptCache.Summary().Contains("关闭"));
+        PromptCache.Enabled = true;
+
+        // 8. Summary 命中率 + K 格式（1500 tokens → 1.5K）
+        PromptCache.ClearStats();
+        PromptCache.RecordRequest("sys1", "tools1", 1000, 500);
+        PromptCache.RecordRequest("sys1", "tools1", 1000, 500);
+        var summary = PromptCache.Summary();
+        Check("PromptCache: Summary 含命中率", summary.Contains("命中率"));
+        Check("PromptCache: Summary 含 K 格式", summary.Contains("1.5K"));
+
+        PromptCache.ClearStats();
+    }
 }
