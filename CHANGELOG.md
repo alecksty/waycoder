@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.53.6 (2026-08-14) — SnippetStore 可测试性重构 + 单元测试补齐
+
+`SnippetStore` 此前 `Get`/`Search`/`List`/`Delete`/`Add` 硬编码 `DefaultDir`（`Environment.CurrentDirectory/.waycoder/snippets`），无法在隔离目录下测试——「不可测试 = 不可维护」的设计缺陷。
+
+### 🛠 重构
+
+- **`SnippetStore` 五个方法增加可选 `dir` 参数**：`Add`/`Search`/`List`/`Delete`/`Get` 均新增 `string? dir = null`（默认行为不变，向后兼容），内部 `EnsureLoaded(dir)` + 文件操作统一走 `dir ?? DefaultDir`，使测试可用临时目录隔离
+
+### 🧪 自测
+
+- 新增 9 项断言覆盖 `SnippetStore`：frontmatter 解析（name/language/tags/body）、`Add`→`Get` 往返、`Search` 多词 OR 按名称/标签命中、无命中返回空、`List` 全量、`Delete` 命中/未命中
+
+- 总计 1994 项自测全部通过（0 失败）
+
 ## v0.53.5 (2026-08-14) — 工具层单元测试补齐（find_replace/diff/tree）
 
 从基础设施类转向工具层：补齐三个纯 C# 实现工具的单元测试（16 项），覆盖编辑/对比/目录树核心行为。

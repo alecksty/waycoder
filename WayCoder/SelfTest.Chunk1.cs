@@ -95,6 +95,7 @@ public static partial class SelfTest
         TestIdGenerator(Check);      // 短 ID 生成器：字符集/唯一性/slug 格式
         TestFileIgnoreManager(Check); // 文件忽略规则：静态忽略 + glob 匹配 + 否定/锚定
         TestMemoryRetrieval(Check);   // 跨会话记忆检索：关键词匹配打分 + 提示词格式化
+        TestSnippetStore(Check);      // 代码片段管理：frontmatter 解析 + 增删查/多词搜索
         Console.WriteLine();
 
         // ---- 工具 ----
