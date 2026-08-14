@@ -1,5 +1,27 @@
 # 更新日志
 
+## v0.53.10 (2026-08-14) — 手搓 AOT 安全 JSON/XML 库
+
+响应「不使用反射、自己可控」需求，新增两个零依赖、零反射的手写序列化库，替代散落各处的 `JsonNode.Parse` 手写解析与 `System.Text.Json` 反射序列化。
+
+### ✨ 新增
+
+- **`Infra/JsonLib.cs` — 手搓 JSON 库**（约 400 行）：
+  - `JNode` DOM（Object/Array/String/Number/Bool/Null）+ 工厂/增删查/取值/深拷贝
+  - `Json.Parse`/`TryParse` 递归下降解析器（手写 tokenizer），支持全部转义（含 `\uXXXX` 代理对）、严格数字语法、错误定位
+  - `Json.Serialize`（紧凑 + 缩进两模式）+ `SerializeValue`（无反射，对齐 JsonHelper）
+  - 数字往返保真（保留原始文本），非有限值安全回退 `null`
+  - 类名 `JNode`/`JKind`/`Json` 避开 `global using System.Text.Json.Nodes` 冲突
+- **`Infra/XmlLib.cs` — 手搓 XML 库**（约 400 行）：
+  - `XNode` DOM（Element/Text）+ 属性保序 + 子节点/查询/InnerText
+  - `Xml.Parse`/`TryParse` 手写解析器：声明/注释/DOCTYPE/CDATA/处理指令跳过、单双引号属性、预定义实体 + 数字字符引用、自闭合标签、标签匹配校验
+  - `Xml.Serialize`（紧凑 + 缩进）+ 文本/属性转义
+
+### 🧪 自测
+
+- 新增 `TestJsonLib`（36 项）+ `TestXmlLib`（24 项）共 60 项断言：标量/对象/数组/嵌套解析、转义与代理对、非法输入拒绝、序列化往返、DOM 操作、实体/CDATA、错误分支
+- 总计 2127 项自测全部通过（0 失败）
+
 ## v0.53.9 (2026-08-14) — 修复 HooksManager AOT 反射 bug
 
 修复一个 NativeAOT 下的真实缺陷：`HooksManager.ParseHookOutput` 与 `LoadMatchers` 使用 `JsonSerializer.Deserialize<T>` 反射序列化，在 `PublishAot=true` 下会抛 `JsonSerializerIsReflectionDisabled`，导致 hook JSON 输出协议与 `hooks.json` matcher 系统在 AOT 发布版中完全失效。
