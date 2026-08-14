@@ -84,6 +84,9 @@ public static class TuiMarkdown
                 case MdRule:
                     result.Add(new List<(string, int, int)> { (new string('━', Math.Min(maxWidth, 60)), 2, 0) });
                     break;
+                case MdBlockQuote bq:
+                    RenderBlockQuote(bq, result, maxWidth, FgForRole(role));
+                    break;
                 case MdParagraph para:
                     RenderParagraph(para, result, maxWidth, FgForRole(role));
                     break;
@@ -248,13 +251,37 @@ public static class TuiMarkdown
         List<List<(string, int, int)>> result, int maxWidth, int defaultFg)
     {
         var indent = new string(' ', li.Level * 2);  // 每级缩进2格
-        var bullet = li.Ordered ? $"{li.OrderNum}." : "•";
-        var prefix = $"{indent}  {bullet} ";
         var line = new List<(string, int, int)>();
-        line.Add((prefix, 33, 0));
+
+        if (li.Checked.HasValue)
+        {
+            // 任务清单：☑ 已完成（绿） / ☐ 未完成（弱化）
+            var box = li.Checked.Value ? "☑" : "☐";
+            var boxColor = li.Checked.Value ? 32 : 2;
+            line.Add(($"{indent}  {box} ", boxColor, 0));
+        }
+        else
+        {
+            var bullet = li.Ordered ? $"{li.OrderNum}." : "•";
+            line.Add(($"{indent}  {bullet} ", 33, 0));
+        }
+
         foreach (var seg in MarkdownParser.ParseInline(li.Text, defaultFg))
             line.Add(seg);
         result.Add(line);
+    }
+
+    private static void RenderBlockQuote(MdBlockQuote bq,
+        List<List<(string, int, int)>> result, int maxWidth, int defaultFg)
+    {
+        foreach (var rawLine in bq.Text.Split('\n'))
+        {
+            var line = new List<(string, int, int)>();
+            line.Add(("│ ", 2, 0)); // 左侧竖线（弱化）
+            foreach (var seg in MarkdownParser.ParseInline(rawLine, defaultFg))
+                line.Add(seg);
+            result.Add(line);
+        }
     }
 
     private static void RenderParagraph(MdParagraph p,

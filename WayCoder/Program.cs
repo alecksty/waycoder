@@ -1391,7 +1391,7 @@ public class Program
                         s => s.BufferedAppendToken(tok)),
                     onTool: (name, brief) => Route(
                         cs => { cs.FinishAgentMsg(); cs.AddToolProgress(name, brief.Length > 60 ? brief[..57] + "..." : brief); cs.OnToolStarted(name, brief.Length > 40 ? brief[..37] + "..." : brief); },
-                        s => { s.BufferedFinishStream(); s.BufferedAddMsg("system", ToolLabel(name, brief.Length > 60 ? brief[..57] + "..." : brief)); }),
+                        s => { s.BufferedFinishStream(); s.BufferedAddMsg("tool", ToolLabel(name, brief.Length > 60 ? brief[..57] + "..." : brief), indent: 1); }),
                     onToolOutput: line => Route(
                         cs => { cs.AppendToLast(line + "\n"); cs.OnToolFinished(); },
                         s => s.BufferedAppendToLast(line + "\n")),
@@ -2140,7 +2140,7 @@ deepseek 性价比最高。"
                             var content = msg["content"]?.GetValue<string>() ?? "";
                             if (role == "user") screen.AddMessage(content, "user");
                             else if (role == "assistant") screen.AddMessage(content, "assistant");
-                            else if (role == "tool") screen.AddMessage(content, "tool");
+                            else if (role == "tool") screen.AddMessage(content, "tool", indent: 1);
                         }
                         screen.StatusLeft = $"{_config.Model}";
                         screen.AddSystemMsg($"📂 已切换到会话: {result.SessionId}");

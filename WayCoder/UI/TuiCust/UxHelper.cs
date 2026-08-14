@@ -66,10 +66,10 @@ public static class UxHelper
 
     // ── 文本输入 ──
 
-    public static string Ask(string prompt, string? defaultValue = null)
+    public static string Ask(string prompt, string? defaultValue = null, int timeoutMs = 30_000)
     {
         if (IsTuiMode)
-            return ShowInputDialog(prompt, defaultValue ?? "") ?? defaultValue ?? "";
+            return ShowInputDialog(prompt, defaultValue ?? "", timeoutMs) ?? defaultValue ?? "";
 
         var defSuffix = defaultValue != null ? $" [\x1b[2m{defaultValue}\x1b[0m]" : "";
         Console.Write($"\x1b[1m{prompt}\x1b[0m{defSuffix} ");
@@ -77,7 +77,7 @@ public static class UxHelper
         return string.IsNullOrEmpty(result) ? (defaultValue ?? "") : result;
     }
 
-    private static string? ShowInputDialog(string prompt, string defaultValue)
+    private static string? ShowInputDialog(string prompt, string defaultValue, int timeoutMs)
     {
         string? result = null;
         using var evt = new ManualResetEventSlim(false);
@@ -90,7 +90,7 @@ public static class UxHelper
             });
             var screen = TuiManager.Instance?.ActiveScreen;
             screen?.ShowWindow(win);
-            RenderWait(screen, evt);
+            RenderWait(screen, evt, timeoutMs);
         }
         catch { evt.Set(); }
         return result;
@@ -151,12 +151,12 @@ public static class UxHelper
 
     // ── 选择列表 ──
 
-    public static string? Select(string title, List<string> choices)
+    public static string? Select(string title, List<string> choices, int timeoutMs = 30_000)
     {
         if (choices.Count == 0) return null;
 
         if (IsTuiMode)
-            return ShowSelectDialog(title, choices);
+            return ShowSelectDialog(title, choices, timeoutMs);
 
         Console.WriteLine($"\x1b[1m{title}\x1b[0m");
         for (int i = 0; i < choices.Count; i++)
@@ -179,7 +179,7 @@ public static class UxHelper
         }
     }
 
-    private static string? ShowSelectDialog(string title, List<string> choices)
+    private static string? ShowSelectDialog(string title, List<string> choices, int timeoutMs)
     {
         string? result = null;
         using var evt = new ManualResetEventSlim(false);
@@ -190,7 +190,110 @@ public static class UxHelper
                 onCancel: () => { result = null; evt.Set(); });
             var screen = TuiManager.Instance?.ActiveScreen;
             screen?.ShowWindow(win);
-            RenderWait(screen, evt);
+            RenderWait(screen, evt, timeoutMs);
+        }
+        catch { evt.Set(); }
+        return result;
+    }
+
+    // ── 多选 ──
+
+    /// <summary>
+    /// 多选列表 —— TUI 下弹出多选对话框，非 TUI 回退到逐项 y/n 确认。
+    /// 返回选中的项（原样）；null = 用户取消，空列表 = 确认但未选。
+    /// </summary>
+    public static List<string>? MultiSelect(string title, List<string> choices, int timeoutMs = 30_000)
+    {
+        if (choices.Count == 0) return new List<string>();
+
+        if (IsTuiMode)
+            return ShowMultiSelectDialog(title, choices, timeoutMs);
+
+        var selected = new List<string>();
+        Console.WriteLine($"\x1b[1m{title}\x1b[0m (多选，逐项输入 y/n)");
+        foreach (var c in choices)
+        {
+            Console.Write($"  [{c}] (y/n): ");
+            var key = Console.ReadKey(intercept: false);
+            Console.WriteLine();
+            if (key.KeyChar == 'y' || key.KeyChar == 'Y')
+                selected.Add(c);
+        }
+        return selected;
+    }
+
+    private static List<string>? ShowMultiSelectDialog(string title, List<string> choices, int timeoutMs)
+    {
+        List<string>? result = null;
+        using var evt = new ManualResetEventSlim(false);
+        try
+        {
+            var win = TuiDialog.MultiSelect(title, choices,
+                onConfirm: indices =>
+                {
+                    result = new List<string>();
+                    for (int i = 0; i < choices.Count; i++)
+                        if (indices.Contains(i)) result.Add(choices[i]);
+                    evt.Set();
+                },
+                onCancel: () => { result = null; evt.Set(); });
+            var screen = TuiManager.Instance?.ActiveScreen;
+            screen?.ShowWindow(win);
+            RenderWait(screen, evt, timeoutMs);
+        }
+        catch { evt.Set(); }
+        return result;
+    }
+
+    // ── 确认（权限） ──
+
+    /// <summary>
+    /// 确认对话框 —— TUI 下弹出权限确认框（黄底 Y/N/A），非 TUI 回退到编号菜单。
+    /// 返回 0=允许、1=全部允许、2=拒绝。allowAll=false 时不给「全部允许」选项（危险操作）。
+    /// </summary>
+    public static int Confirm(string title, string message, bool allowAll = false, int timeoutMs = 0)
+    {
+        if (IsTuiMode)
+            return ShowConfirmDialog(title, message, allowAll, timeoutMs);
+
+        Warn(title, message);
+        List<string> choices = allowAll
+            ? new List<string> { "是 (y)", "总是允许 (a)", "否 (n)" }
+            : new List<string> { "是 (y)", "否 (n)" };
+        var choice = Select("是否执行？", choices);
+        return choice switch
+        {
+            "是 (y)" => 0,
+            "总是允许 (a)" => 1,
+            _ => 2
+        };
+    }
+
+    private static int ShowConfirmDialog(string title, string message, bool allowAll, int timeoutMs)
+    {
+        int result = 2; // 默认拒绝
+        using var evt = new ManualResetEventSlim(false);
+        try
+        {
+            var screen = TuiManager.Instance?.ActiveScreen;
+            TuiWindow win = allowAll
+                ? TuiDialog.Permission(title, message, r =>
+                {
+                    result = r switch
+                    {
+                        TuiDialog.DialogResult.Yes => 0,
+                        TuiDialog.DialogResult.Ok => 1,
+                        _ => 2
+                    };
+                    evt.Set();
+                })
+                : TuiDialog.Confirm(title, message, r =>
+                {
+                    result = r ? 0 : 2;
+                    evt.Set();
+                });
+            screen?.ShowWindow(win);
+            RenderWait(screen, evt, timeoutMs);
         }
         catch { evt.Set(); }
         return result;
@@ -220,7 +323,7 @@ public static class UxHelper
             {
                 Thread.Sleep(30);
             }
-            if (Environment.TickCount64 - start > timeoutMs) break;
+            if (timeoutMs > 0 && Environment.TickCount64 - start > timeoutMs) break;
         }
         manager?.Render();
     }

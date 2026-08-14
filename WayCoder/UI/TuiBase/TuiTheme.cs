@@ -101,7 +101,8 @@ public class TuiTheme
 
     // ── 文本区 ──
     public int TextAreaFg { get; set; } = TuiColors.White;
-    public int TextAreaCursorLineBg { get; set; } = TuiColors.BgWhite;
+    public int TextAreaCursorLineBg { get; set; } = TuiColors.BgWhite; // 光标行反白高亮
+    public int TextAreaCursorLineFg { get; set; } = TuiColors.Black;   // 反白行文字用黑字（白底可读）
     public int TextAreaLineNumFg { get; set; } = TuiColors.BrightBlack;
     public int TextAreaPlaceholderFg { get; set; } = TuiColors.BrightBlack;
 

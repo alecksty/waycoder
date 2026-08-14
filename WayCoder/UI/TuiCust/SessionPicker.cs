@@ -5,7 +5,7 @@ namespace WayCoder.UI;
 
 /// <summary>
 /// 会话管理器对话框 —— 对标 Crush sessions.go。
-/// 全屏 ANSI 直写模式，浏览/切换/重命名/删除历史会话。
+/// 居中带边框对话框（非全屏），浏览/切换/重命名/删除历史会话。
 ///
 /// 功能：
 ///   - 列出所有历史会话（名称 + 模型 + 时间 + 消息预览）
@@ -27,6 +27,9 @@ public static class SessionPicker
     /// <summary>操作模式</summary>
     private enum Mode { Normal, Renaming, Deleting }
 
+    private const int MinW = 68, MinH = 17;
+    private const int FrameH = 9; // 顶框1+标题1+统计1+搜索1+上分隔1 + 下分隔1+提示1+帮助1+底框1
+
     /// <summary>
     /// 显示会话管理对话框。返回操作结果，null = 取消。
     /// </summary>
@@ -40,8 +43,6 @@ public static class SessionPicker
         var mode = Mode.Normal;
         var renameBuffer = "";
         int renameCursorPos = 0;
-
-        var (tw, th) = (Tty.Cols, Tty.Rows);
 
         // 找到当前会话索引
         if (currentSessionId != null)
@@ -68,23 +69,26 @@ public static class SessionPicker
                     s.Preview.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                     s.Model.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
 
-            selectedIdx = Math.Clamp(selectedIdx, 0, Math.Max(0, filtered.Count - 1));
+            // 重命名模式：顶部多一行「新名称」输入行
+            int extraTop = (mode == Mode.Renaming && selectedIdx < filtered.Count) ? 1 : 0;
 
-            // 可见行数
-            int headerRows = 3; // 标题 + 统计 + 搜索
-            int helpRows = 2;   // 模式提示 + 帮助栏
-            int visibleItems = Math.Max(3, th - headerRows - helpRows - 2);
+            var (bx, by, dw, dh, innerW) = DialogFrame.Layout(MinW, MinH);
+            int listH = Math.Max(3, dh - FrameH - extraTop);
+
+            selectedIdx = Math.Clamp(selectedIdx, 0, Math.Max(0, filtered.Count - 1));
 
             // 滚动调整
             if (selectedIdx < scrollOffset) scrollOffset = selectedIdx;
-            if (selectedIdx >= scrollOffset + visibleItems) scrollOffset = selectedIdx - visibleItems + 1;
-            scrollOffset = Math.Clamp(scrollOffset, 0, Math.Max(0, filtered.Count - visibleItems));
+            if (selectedIdx >= scrollOffset + listH) scrollOffset = selectedIdx - listH + 1;
+            scrollOffset = Math.Clamp(scrollOffset, 0, Math.Max(0, filtered.Count - listH));
 
             // ── 渲染 ──
             var sb = new StringBuilder();
-            sb.Append(AnsiTty.CursorHide).Append(AnsiTty.Home);
+            sb.Append(AnsiTty.CursorHide);
+            DialogFrame.DimArea(sb, bx, by, dw, dh);
+            DialogFrame.TopBorder(sb, by, bx, dw);
 
-            // 标题栏
+            // 标题行
             var modeLabel = mode switch
             {
                 Mode.Normal => "",
@@ -92,125 +96,127 @@ public static class SessionPicker
                 Mode.Deleting => " — 确认删除",
                 _ => ""
             };
-            var title = mode switch
-            {
-                Mode.Deleting => "⚠ 确认删除会话",
-                _ => $"会话管理{modeLabel}"
-            };
+            var title = mode == Mode.Deleting ? "⚠ 确认删除会话" : $"会话管理{modeLabel}";
+            int titleBg = mode == Mode.Deleting ? TuiColors.BgRed : DialogFrame.DimBg;
 
-            int titleBg = mode == Mode.Deleting ? TuiColors.BgRed : TuiColors.BgBlue;
-            sb.Append(AnsiTty.FgBg(37, titleBg));
-            sb.Append($"  {title}  ");
-            sb.Append(new string(' ', Math.Max(0, tw - VW(title) - 4)));
-            sb.Append(AnsiTty.SgrReset).Append('\n');
+            int y = by + 1;
+            DialogFrame.SideL(sb, y, bx);
+            sb.Append(AnsiTty.CursorPos(y, bx + 2))
+              .Append(AnsiTty.FgBgCode(TuiColors.White, titleBg))
+              .Append(AnsiTty.SgrBold).Append(TruncateByVW(title, innerW - 4)).Append(AnsiTty.SgrReset);
+            DialogFrame.SideR(sb, y, bx, dw);
 
             // 统计行
-            sb.Append(AnsiTty.Fg(34)); // 蓝色
-            var stats = $"  {sessions.Count} 个历史会话" + (currentSessionId != null ? "  ← 当前标记 ✓" : "");
-            sb.Append(stats);
-            sb.Append(new string(' ', Math.Max(0, tw - VW(stats))));
-            sb.Append(AnsiTty.SgrReset).Append('\n');
+            y = by + 2;
+            DialogFrame.SideL(sb, y, bx);
+            sb.Append(AnsiTty.CursorPos(y, bx + 2))
+              .Append(AnsiTty.FgBgCode(TuiColors.Blue, DialogFrame.DimBg));
+            var stats = $"{sessions.Count} 个历史会话" + (currentSessionId != null ? "  ← 当前标记 ✓" : "");
+            sb.Append(TruncateByVW(stats, innerW - 4)).Append(AnsiTty.SgrReset);
+            DialogFrame.SideR(sb, y, bx, dw);
 
-            // 搜索栏
-            sb.Append(AnsiTty.FgBg(30, 47));
+            // 搜索行
+            y = by + 3;
+            DialogFrame.SideL(sb, y, bx);
+            sb.Append(AnsiTty.CursorPos(y, bx + 2))
+              .Append(AnsiTty.FgBgCode(TuiColors.White, DialogFrame.DimBg));
             var searchPrompt = "搜索: ";
             var searchText = filter.Length > 0 ? filter : "输入关键词过滤...";
             var searchStyle = filter.Length > 0 ? "" : AnsiTty.SgrDim;
-            sb.Append(searchPrompt).Append(searchStyle).Append(searchText).Append(AnsiTty.SgrReset);
-            sb.Append(new string(' ', Math.Max(0, tw - VW(searchPrompt + searchText) - 2)));
-            sb.Append(AnsiTty.SgrReset).Append('\n');
+            sb.Append(searchPrompt).Append(searchStyle).Append(TruncateByVW(searchText, innerW - 4 - VW(searchPrompt)))
+              .Append(AnsiTty.SgrReset);
+            DialogFrame.SideR(sb, y, bx, dw);
 
-            // 会话列表
-            int listTop = 4;
+            // 上分隔线
+            y = by + 4;
+            DialogFrame.SepLine(sb, y, bx, dw);
 
-            // 重命名输入行（在列表上方）
-            if (mode == Mode.Renaming && selectedIdx < filtered.Count)
+            // 重命名输入行（列表上方）
+            int listTop = by + 5;
+            if (extraTop == 1)
             {
-                sb.Append(AnsiTty.CursorPos(listTop, 1)).Append(AnsiTty.ClearToEnd);
-                sb.Append(AnsiTty.FgBg(TuiColors.Black, TuiColors.BgCyan));
-                sb.Append($"  新名称: {renameBuffer}");
-                if (DateTime.Now.Millisecond % 1000 < 500) sb.Append('▌'); // 光标闪烁
-                sb.Append(new string(' ', Math.Max(0, tw - VW($"  新名称: {renameBuffer}") - 2)));
-                sb.Append(AnsiTty.SgrReset);
+                DialogFrame.SideL(sb, by + 5, bx);
+                DialogFrame.FillInner(sb, by + 5, bx, innerW, TuiColors.Black, TuiColors.BgCyan);
+                var renameLine = $"  新名称: {renameBuffer}";
+                if (DateTime.Now.Millisecond % 1000 < 500) renameLine += '▌';
+                sb.Append(AnsiTty.CursorPos(by + 5, bx + 2))
+                  .Append(AnsiTty.FgBgCode(TuiColors.Black, TuiColors.BgCyan))
+                  .Append(TruncateByVW(renameLine, innerW - 4))
+                  .Append(AnsiTty.SgrReset);
+                DialogFrame.SideR(sb, by + 5, bx, dw);
                 listTop++;
-                visibleItems--;
             }
 
-            for (int i = 0; i < visibleItems; i++)
+            // 会话列表
+            for (int i = 0; i < listH; i++)
             {
-                int si = scrollOffset + i;
-                sb.Append(AnsiTty.CursorPos(listTop + i, 1)).Append(AnsiTty.ClearToEnd);
+                int si = scrollOffset + i, row = listTop + i;
+                DialogFrame.SideL(sb, row, bx);
 
-                if (si >= filtered.Count) continue;
+                if (si >= filtered.Count)
+                {
+                    DialogFrame.FillInner(sb, row, bx, innerW, TuiColors.White, DialogFrame.DimBg);
+                    DialogFrame.SideR(sb, row, bx, dw);
+                    continue;
+                }
 
                 var session = filtered[si];
                 bool isSelected = si == selectedIdx;
                 bool isCurrent = session.Id == currentSessionId;
 
+                int bg = isSelected
+                    ? (mode == Mode.Deleting ? TuiColors.BgRed : TuiColors.BgBlue)
+                    : DialogFrame.DimBg;
+                int fg = isSelected ? TuiColors.Black : (isCurrent ? TuiColors.Blue : TuiColors.White);
+                DialogFrame.FillInner(sb, row, bx, innerW, fg, bg);
+
                 var prefix = isSelected ? "▶ " : "  ";
                 var check = isCurrent ? " ✓" : "  ";
-
-                // 颜色
-                if (mode == Mode.Deleting && isSelected)
-                {
-                    sb.Append(AnsiTty.FgBg(TuiColors.Black, TuiColors.BgRed));
-                }
-                else if (isSelected)
-                {
-                    sb.Append(AnsiTty.FgBg(TuiColors.Black, TuiColors.BgBlue));
-                }
-                else if (isCurrent)
-                {
-                    sb.Append(AnsiTty.Fg(34)); // 蓝色
-                }
-
-                // 时间格式化（相对时间）
                 var timeStr = FormatRelativeTime(session.SavedAt);
+                var line = $"{prefix}{session.Id}  {timeStr}  [{session.Model}]{check}";
+                line = TruncateByVW(line, innerW - 2);
 
-                // 预览截断
-                var preview = string.IsNullOrEmpty(session.Preview) ? "(空)" : session.Preview;
-                if (preview.Length > 60) preview = preview[..60] + "…";
+                sb.Append(AnsiTty.CursorPos(row, bx + 2))
+                  .Append(AnsiTty.FgBgCode(fg, bg))
+                  .Append(line)
+                  .Append(AnsiTty.SgrReset);
 
-                var display = $"{prefix}{session.Id,-35} {timeStr,-14} [{session.Model}]{check}";
-                display = TruncateByVW(display, tw - 1);
-                sb.Append(display);
-
-                // 第二行：预览
-                if (isSelected && !string.IsNullOrEmpty(session.Preview))
-                {
-                    sb.Append('\n');
-                    sb.Append(AnsiTty.CursorPos(listTop + i + 1, 1)).Append(AnsiTty.ClearToEnd);
-                    sb.Append(isSelected
-                        ? AnsiTty.FgBg(TuiColors.Black, TuiColors.BgBlue)
-                        : "");
-                    sb.Append($"     「{preview}」");
-                    sb.Append(AnsiTty.SgrReset);
-                }
+                DialogFrame.SideR(sb, row, bx, dw);
             }
 
+            // 下分隔线
+            int sep2 = listTop + listH;
+            DialogFrame.SepLine(sb, sep2, bx, dw);
+
             // 模式提示行
-            int modeRow = listTop + visibleItems + (mode == Mode.Renaming && selectedIdx < filtered.Count ? 1 : 0);
-            sb.Append(AnsiTty.CursorPos(modeRow, 1));
+            int hintRow = sep2 + 1;
+            DialogFrame.SideL(sb, hintRow, bx);
             var modeText = mode switch
             {
                 Mode.Normal => "",
-                Mode.Renaming => "  ✏ 输入新名称，Enter 确认，Esc 取消",
-                Mode.Deleting => "  ⚠ 确认删除此会话？[Y] 确认删除  [N] 取消",
+                Mode.Renaming => "✏ 输入新名称，Enter 确认，Esc 取消",
+                Mode.Deleting => "⚠ 确认删除此会话？[Y] 确认删除  [N] 取消",
                 _ => ""
             };
-            if (mode != Mode.Normal)
+            if (mode == Mode.Normal)
             {
-                sb.Append(AnsiTty.FgBg(mode == Mode.Deleting ? TuiColors.White : TuiColors.Black,
-                    mode == Mode.Deleting ? TuiColors.BgRed : TuiColors.BgCyan));
-                sb.Append(modeText);
-                sb.Append(new string(' ', Math.Max(0, tw - VW(modeText))));
-                sb.Append(AnsiTty.SgrReset);
+                DialogFrame.FillInner(sb, hintRow, bx, innerW, TuiColors.White, DialogFrame.DimBg);
             }
+            else
+            {
+                int hFg = mode == Mode.Deleting ? TuiColors.White : TuiColors.Black;
+                int hBg = mode == Mode.Deleting ? TuiColors.BgRed : TuiColors.BgCyan;
+                DialogFrame.FillInner(sb, hintRow, bx, innerW, hFg, hBg);
+                sb.Append(AnsiTty.CursorPos(hintRow, bx + 2))
+                  .Append(AnsiTty.FgBgCode(hFg, hBg))
+                  .Append(TruncateByVW(modeText, innerW - 4))
+                  .Append(AnsiTty.SgrReset);
+            }
+            DialogFrame.SideR(sb, hintRow, bx, dw);
 
-            // 帮助栏
-            int helpRow = mode == Mode.Normal ? modeRow : modeRow + 1;
-            sb.Append(AnsiTty.CursorPos(helpRow, 1));
-            sb.Append(AnsiTty.FgBg(30, 47));
+            // 帮助行
+            int helpRow = sep2 + 2;
+            DialogFrame.SideL(sb, helpRow, bx);
             var helpText = mode switch
             {
                 Mode.Normal => "[↑/↓] 导航  [Enter] 切换到此会话  [R] 重命名  [Del] 删除  [Esc] 关闭",
@@ -218,20 +224,15 @@ public static class SessionPicker
                 Mode.Deleting => "[Y] 确认删除  [N] / [Esc] 取消",
                 _ => ""
             };
-            sb.Append(helpText);
-            sb.Append(new string(' ', Math.Max(0, tw - VW(helpText))));
+            sb.Append(AnsiTty.CursorPos(helpRow, bx + 2))
+              .Append(AnsiTty.FgBgCode(TuiColors.BrightBlack, DialogFrame.DimBg))
+              .Append(TruncateByVW(helpText, innerW - 4));
+            DialogFrame.SideR(sb, helpRow, bx, dw);
+
+            // 底框
+            DialogFrame.BottomBorder(sb, helpRow + 1, bx, dw);
+
             sb.Append(AnsiTty.SgrReset);
-
-            // 滚动指示
-            if (filtered.Count > visibleItems && mode == Mode.Normal)
-            {
-                var pct = filtered.Count > 1 ? scrollOffset * 100 / (filtered.Count - visibleItems) : 0;
-                sb.Append(AnsiTty.CursorPos(helpRow, tw - 6))
-                  .Append(AnsiTty.FgBg(30, 47))
-                  .Append($"{pct}%")
-                  .Append(AnsiTty.SgrReset);
-            }
-
             Console.Write(sb.ToString());
 
             // ── 输入 ──
@@ -240,7 +241,7 @@ public static class SessionPicker
             switch (mode)
             {
                 case Mode.Normal:
-                    HandleNormalKey(key, ref selectedIdx, ref filter, filtered, visibleItems,
+                    HandleNormalKey(key, ref selectedIdx, ref filter, filtered, listH,
                         ref scrollOffset, ref mode, ref renameBuffer, ref renameCursorPos,
                         currentSessionId);
                     break;
@@ -256,6 +257,10 @@ public static class SessionPicker
                     break;
             }
 
+            // Esc 在 Normal 模式：取消退出
+            if (mode == Mode.Normal && key.Key == ConsoleKey.Escape)
+                return null;
+
             // Enter 在 Normal 模式：切换会话
             if (mode == Mode.Normal && key.Key == ConsoleKey.Enter && filtered.Count > 0
                 && selectedIdx < filtered.Count)
@@ -266,6 +271,7 @@ public static class SessionPicker
         }
         finally
         {
+            Console.Write(AnsiTty.CursorShow);
             TuiManager.RequestFullRefresh();
         }
     }

@@ -36,6 +36,29 @@ public static partial class SelfTest
         // ── UxHelper 测试 ──
         Section("[UxHelper]");
         Check("UxHelper.IsTuiMode 可调用", new Action(() => { var _ = UxHelper.IsTuiMode; }) != null);
+        Check("UxHelper.Select 空选项返回 null", UxHelper.Select("t", new List<string>()) == null);
+        Check("UxHelper.MultiSelect 空选项返回空列表", UxHelper.MultiSelect("t", new List<string>()) is { Count: 0 });
+        Console.WriteLine();
+
+        // ── CommandPalette 导航（分类头不吞噬每组第一条命令）──
+        Section("[CommandPalette 导航]");
+        var cpRows = new List<(bool IsHeader, int CmdIdx, string Cat)>
+        {
+            (true, 0, "模型"),
+            (false, 0, "模型"),
+            (false, 1, "模型"),
+            (true, 2, "文件"),
+            (false, 2, "文件"),
+        };
+        // 行索引: 0=头, 1=命令0, 2=命令1, 3=头, 4=命令2
+        Check("CP: 向下到相邻命令", CommandPalette.StepToCommand(cpRows, 1, +1) == 2);
+        Check("CP: 向上到相邻命令", CommandPalette.StepToCommand(cpRows, 2, -1) == 1);
+        Check("CP: 向下跳过分类头", CommandPalette.StepToCommand(cpRows, 2, +1) == 4);
+        Check("CP: 向上跳过分类头", CommandPalette.StepToCommand(cpRows, 4, -1) == 2);
+        Check("CP: 末尾向下停留", CommandPalette.StepToCommand(cpRows, 4, +1) == 4);
+        Check("CP: 开头向上停留", CommandPalette.StepToCommand(cpRows, 1, -1) == 1);
+        Check("CP: Home 落到首命令", CommandPalette.StepToCommand(cpRows, -1, +1) == 1);
+        Check("CP: End 落到末命令", CommandPalette.StepToCommand(cpRows, cpRows.Count, -1) == 4);
         Console.WriteLine();
 
         // ── AskUserQuestion 工具 ──
@@ -63,6 +86,12 @@ public static partial class SelfTest
         // 安全分类
         Check("AskUserQuestion 分类为 Safe",
             AutoModeClassifier.Classify("ask_user_question") == AutoModeClassifier.RiskLevel.Safe);
+        // display → label 映射（"label — desc" → label）
+        var rlOptions = new List<(string Label, string Description)> { ("蓝", "深海"), ("绿", "翡翠") };
+        var rlDisplay = new List<string> { "蓝  —  深海", "绿  —  翡翠" };
+        Check("AskUserQuestion 解析 label(带描述)", AskUserQuestionTool.ResolveLabel("绿  —  翡翠", rlDisplay, rlOptions) == "绿");
+        Check("AskUserQuestion 解析 label(纯 label)", AskUserQuestionTool.ResolveLabel("蓝", new List<string> { "蓝" }, rlOptions) == "蓝");
+        Check("AskUserQuestion 解析 label(查无原样)", AskUserQuestionTool.ResolveLabel("未知", rlDisplay, rlOptions) == "未知");
         Console.WriteLine();
 
         // ---- Todo 依赖系统 (P0-4) ----

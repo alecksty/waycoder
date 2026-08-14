@@ -392,6 +392,32 @@ public class TuiDemoArg : CliArg
     public override int? OnMatch(List<string> values) { TuiDemo.Run(); return 0; }
 }
 
+public class TuiAuditArg : CliArg
+{
+    public override string Description => "TUI 对话框/控件渲染审计（输出纯文本帧）";
+    public override bool Internal => true;
+    public TuiAuditArg() : base("tui-audit", "--tui-audit") { }
+    public override int? OnMatch(List<string> values) { TuiAudit.Run(); return 0; }
+}
+
+public class KeypadArg : CliArg
+{
+    public override string Description => "按键脚本驱动 TUI（KEY/TEXT/DELAY/SNAP/DIALOG）+ 帧截图";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "脚本文件";
+    public KeypadArg() : base("keypad", "--keypad") { }
+    public override int? OnMatch(List<string> values)
+    {
+        var path = values.Count > 0 ? values[0] : null;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            Console.Error.WriteLine("用法: waycoder --keypad <脚本文件>");
+            return 1;
+        }
+        return Keypad.Run(path);
+    }
+}
+
 public class ThemeVerifyArg : CliArg
 {
     public override string Description => "主题配色验证";
@@ -485,6 +511,8 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new LimitsArg());
         CliArgRegistry.Register(new ScreenshotArg());
         CliArgRegistry.Register(new TuiDemoArg());
+        CliArgRegistry.Register(new TuiAuditArg());
+        CliArgRegistry.Register(new KeypadArg());
         CliArgRegistry.Register(new ThemeVerifyArg());
 
         // 槽位任务参数：-pa 共享前缀 + -p1 ~ -p9, -p0(=F10)

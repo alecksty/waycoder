@@ -266,7 +266,7 @@ quit / exit      退出 (Ctrl+Q)
 - **项目初始化 `/init`**：扫描项目生成中文 CLAUDE.md（语言/框架/构建工具 + 构建/测试/lint 命令探测），对标 Claude Code /init；下次启动自动注入系统提示词
 - **MCP 状态管理 `/mcp`**：结构化状态模型（Connecting/Connected/Failed）+ 热重连，`/mcp` 查看服务器状态、`/mcp reload [name]` 重连，对标 Claude Code /mcp
 - **MCP 资源/提示词**：`resources/list` + `resources/read` 注册为 `mcp__<server>__resources` 读取工具、`prompts/list` + `prompts/get` 每个模板注册为 `mcp__<server>__prompt__<name>` 工具，对标 Claude Code MCP resources/prompts
-- **内置自动升级**：`/update` 检查、`/update now`/`--update` 自替换；版本检查优先 GitHub Releases、回退 Gitee（环境变量可覆盖）；Windows 落 `.new`+`upgrade.bat` 退出后自动替换重启、Unix 原子 rename 覆盖运行中二进制（对标 Claude Code `claude update`）
+- **内置自动升级**：`/update` 检查、`/update now`/`--update` 自替换；版本检查优先 Gitee Releases（国内快）、回退 GitHub（环境变量可覆盖）；Windows 落 `.new`+`upgrade.bat` 退出后自动替换重启、Unix 原子 rename 覆盖运行中二进制（对标 Claude Code `claude update`）
 - **分发渠道**：`packaging/` 提供 winget manifest / Homebrew formula / apt `.deb` 打包脚本 + GitHub Actions 发布工作流，详见 [docs/安装与升级.md](docs/安装与升级.md)
 - **多模态（图片 + 音频）**：`view_image` 附加本地图片让 vision 模型「看图」、`transcribe` 把音频转成文字（Whisper 兼容 API）——补齐图片与音频两种多模态输入，对标 Codex CLI / Gemini CLI
 - **批量任务引擎**：`--batch`/`--batch-repo` 多仓库并行处理，每个任务 `git clone` 到独立副本 + 子进程 `-p` 一次性模式执行（worktree 隔离），聚合报告 + 退出码，对标 Cursor 批量修复 / Aider 多仓库脚本

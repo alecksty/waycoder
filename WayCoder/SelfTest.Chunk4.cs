@@ -31,6 +31,12 @@ public static partial class SelfTest
         screen.AddSystemMsg("done");
         Check("系统消息", screen.ChatMessages.Count == 4 && screen.ChatMessages[3].Role == "system");
 
+        // 工具嵌套子消息
+        Check("AddToolMsg 嵌套=1", screen.ChatMessages[2].Indent == 1);
+        screen.AddToolProgress("bash", "echo test");
+        Check("AddToolProgress 为 tool 角色", screen.ChatMessages[^1].Role == "tool");
+        Check("AddToolProgress 嵌套=1", screen.ChatMessages[^1].Indent == 1);
+
         // Token 显示
         screen.UpdateTokenDisplayFull(1234, 567, 0.0123, 80000, 128000, 0, 0);
         Check("StatusRight 非空", screen.StatusRight.Length > 0);

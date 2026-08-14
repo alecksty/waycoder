@@ -400,38 +400,41 @@ public static class DiffPreview
         List<(int OldIdx, int NewIdx, char Kind)> edits,
         string[] oldL, string[] newL, int contextLines)
     {
-        var hunks = new List<Hunk>();
-        int i = 0;
-
-        while (i < edits.Count)
+        // 1. 收集变更块：连续非上下文行（Kind != ' '）的 [start,end) 区间
+        var blocks = new List<(int Start, int End)>();
+        int bi = 0;
+        while (bi < edits.Count)
         {
-            // 跳过连续上下文
-            while (i < edits.Count && edits[i].Kind == ' ') i++;
-            if (i >= edits.Count) break;
+            while (bi < edits.Count && edits[bi].Kind == ' ') bi++;
+            if (bi >= edits.Count) break;
+            int s = bi;
+            while (bi < edits.Count && edits[bi].Kind != ' ') bi++;
+            blocks.Add((s, bi));
+        }
 
-            // 找到变更起始（含上下文）
-            int hunkStart = Math.Max(0, i - contextLines);
-            // 回退到最近的 hunk 边界避免重叠
-            if (hunks.Count > 0)
-            {
-                var prevEnd = edits.FindLastIndex(e => e.Kind != ' ') + contextLines;
-                // 简化：取最后一个变更行之后
-            }
+        // 2. 每个块前后扩展 contextLines 上下文
+        var ranges = new List<(int S, int E)>();
+        foreach (var (bs, be) in blocks)
+            ranges.Add((Math.Max(0, bs - contextLines), Math.Min(edits.Count, be + contextLines)));
 
-            int hunkEnd = i;
-            while (hunkEnd < edits.Count && (edits[hunkEnd].Kind != ' ' || (hunkEnd < i + contextLines + 5 && hunkEnd < edits.Count - 1 && edits[hunkEnd + 1].Kind != ' ')))
-                hunkEnd++;
-            hunkEnd = Math.Min(edits.Count, hunkEnd + contextLines);
+        // 3. 合并重叠区间（变更相距 < 2*contextLines 时并成同一 hunk，避免重复行/重叠 hunk）
+        var merged = new List<(int S, int E)>();
+        foreach (var (s, e) in ranges)
+        {
+            if (merged.Count > 0 && s <= merged[^1].E)
+                merged[^1] = (merged[^1].S, Math.Max(merged[^1].E, e));
+            else
+                merged.Add((s, e));
+        }
 
-            // 确保 hunkEnd 的下一个不是变更行
-            while (hunkEnd + 1 < edits.Count && edits[hunkEnd + 1].Kind != ' ') hunkEnd++;
-
+        // 4. 由合并后的区间构建 hunk
+        var hunks = new List<Hunk>();
+        foreach (var (hs, he) in merged)
+        {
             var hunk = new Hunk();
-            int oldStart = edits[hunkStart].OldIdx >= 0 ? edits[hunkStart].OldIdx + 1 : 1;
-            int newStart = edits[hunkStart].NewIdx >= 0 ? edits[hunkStart].NewIdx + 1 : 1;
             int oldCount = 0, newCount = 0;
 
-            for (int j = hunkStart; j < Math.Min(hunkEnd, edits.Count); j++)
+            for (int j = hs; j < he; j++)
             {
                 var (oi, ni, kind) = edits[j];
                 var text = kind switch
@@ -447,14 +450,12 @@ public static class DiffPreview
                 if (kind == '+' || kind == ' ') newCount++;
             }
 
-            hunk.OldStart = hunk.Lines.FirstOrDefault(l => l.OldLine > 0)?.OldLine ?? oldStart;
-            hunk.NewStart = hunk.Lines.FirstOrDefault(l => l.NewLine > 0)?.NewLine ?? newStart;
+            hunk.OldStart = hunk.Lines.FirstOrDefault(l => l.OldLine > 0)?.OldLine ?? 1;
+            hunk.NewStart = hunk.Lines.FirstOrDefault(l => l.NewLine > 0)?.NewLine ?? 1;
             hunk.OldCount = oldCount;
             hunk.NewCount = newCount;
             hunk.Header = $"@@ -{hunk.OldStart},{hunk.OldCount} +{hunk.NewStart},{hunk.NewCount} @@";
             hunks.Add(hunk);
-
-            i = hunkEnd;
         }
 
         return hunks;

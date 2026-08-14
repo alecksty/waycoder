@@ -35,17 +35,24 @@ public class MdTable : MdNode
     public List<List<string>> Rows { get; set; } = [];
 }
 
-/// <summary>列表项 - 或 * 或 1.</summary>
+/// <summary>列表项 - 或 * 或 1.（任务清单用 Checked 标记 [x]/[ ]）</summary>
 public class MdListItem : MdNode
 {
     public string Text { get; set; } = "";
     public bool Ordered { get; set; }
     public int OrderNum { get; set; }
     public int Level { get; set; }  // 缩进级别 (0/1/2...)
+    public bool? Checked { get; set; }  // null=普通列表；true=[x]；false=[ ]
 }
 
 /// <summary>分割线 ---</summary>
 public class MdRule : MdNode { }
+
+/// <summary>引用块 &gt;（多行合并）</summary>
+public class MdBlockQuote : MdNode
+{
+    public string Text { get; set; } = "";
+}
 
 // ================================================================
 // Markdown 解析器
@@ -113,6 +120,22 @@ public static class MarkdownParser
                 i++; continue;
             }
 
+            // 引用块 > （连续多行合并为一个节点）
+            if (line.TrimStart().StartsWith('>'))
+            {
+                var quoteLines = new List<string>();
+                while (i < lines.Length)
+                {
+                    var q = lines[i].TrimStart();
+                    if (!q.StartsWith('>')) break;
+                    quoteLines.Add(q[1..].TrimStart());
+                    i++;
+                }
+                if (quoteLines.Count > 0)
+                    nodes.Add(new MdBlockQuote { Text = string.Join("\n", quoteLines) });
+                continue;
+            }
+
             // 分割线 --- *** ___
             if (IsHorizontalRule(line.Trim()))
             {
@@ -125,7 +148,24 @@ public static class MarkdownParser
             {
                 var leading = line.Length - line.TrimStart().Length;
                 var level = leading / 2; // 每2空格=1级缩进
-                nodes.Add(new MdListItem { Text = itemText.Trim(), Ordered = isOrdered, OrderNum = orderNum, Level = level });
+
+                // 任务清单 - [ ] / - [x]
+                bool? checkedBox = null;
+                var text = itemText.Trim();
+                if (text.StartsWith("[ ]") || text.StartsWith("[x]") || text.StartsWith("[X]"))
+                {
+                    checkedBox = text.StartsWith("[x]") || text.StartsWith("[X]");
+                    text = text[3..].TrimStart();
+                }
+
+                nodes.Add(new MdListItem
+                {
+                    Text = text,
+                    Ordered = isOrdered,
+                    OrderNum = orderNum,
+                    Level = level,
+                    Checked = checkedBox,
+                });
                 i++; continue;
             }
 
@@ -136,6 +176,7 @@ public static class MarkdownParser
                     && !lines[i].TrimStart().StartsWith("```")
                     && !lines[i].TrimStart().StartsWith('|')
                     && !lines[i].TrimStart().StartsWith('#')
+                    && !lines[i].TrimStart().StartsWith('>')
                     && !IsHorizontalRule(lines[i].Trim())
                     && !IsListItem(lines[i].TrimStart(), out _, out _, out _))
                 {
@@ -174,6 +215,31 @@ public static class MarkdownParser
 
         while (i < text.Length)
         {
+            // 链接 [文字](url)
+            if (text[i] == '[')
+            {
+                var closeBracket = text.IndexOf(']', i + 1);
+                if (closeBracket > i && closeBracket + 1 < text.Length && text[closeBracket + 1] == '(')
+                {
+                    var closeParen = text.IndexOf(')', closeBracket + 2);
+                    if (closeParen > closeBracket)
+                    {
+                        if (current.Length > 0)
+                        {
+                            result.Add((current.ToString(), defaultColor, defaultBg));
+                            current.Clear();
+                        }
+                        var linkText = text[(i + 1)..closeBracket];
+                        var url = text[(closeBracket + 2)..closeParen];
+                        result.Add((linkText, 36, defaultBg)); // 青色链接文字
+                        if (!string.IsNullOrEmpty(url) && url != linkText)
+                            result.Add(($" ({url})", 2, defaultBg)); // 弱化显示 URL
+                        i = closeParen + 1;
+                        continue;
+                    }
+                }
+            }
+
             // 内联代码 `code`
             if (text[i] == '`' && i + 1 < text.Length)
             {
@@ -203,6 +269,23 @@ public static class MarkdownParser
                         current.Clear();
                     }
                     result.Add((text[(i + 2)..end], 1, defaultBg)); // Bold
+                    i = end + 2;
+                    continue;
+                }
+            }
+
+            // ~~删除线~~
+            if (text[i] == '~' && i + 1 < text.Length && text[i + 1] == '~')
+            {
+                var end = text.IndexOf("~~", i + 2);
+                if (end > i)
+                {
+                    if (current.Length > 0)
+                    {
+                        result.Add((current.ToString(), defaultColor, defaultBg));
+                        current.Clear();
+                    }
+                    result.Add((text[(i + 2)..end], 2, defaultBg)); // 弱化 = 删除线
                     i = end + 2;
                     continue;
                 }

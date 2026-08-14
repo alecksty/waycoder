@@ -104,8 +104,8 @@ public class TuiPromptBar : TuiControl
         int contentStartY = bordered ? absY + 1 : absY;
         int leftPad = bordered ? 1 : 0; // 边框内缩
 
-        // ── 列表行 ──
-        for (int i = 0; i < MaxVisible; i++)
+        // ── 列表行（只渲染实际条目，不预留空行；高度由 ShowPromptBar 按条目数设定）──
+        for (int i = 0; i < visibleCount; i++)
         {
             int row = contentStartY + i * ItemHeight;
             if (row < ClipTop || row >= ClipBottom) continue;
@@ -189,15 +189,15 @@ public class TuiPromptBar : TuiControl
             sb.Append(rb.ToString());
         }
 
-        // ── 下边框 / 分隔线 ──
+        // ── 下边框 / 分隔线（紧贴最后一条目）──
         if (bordered)
         {
-            int botRow = contentStartY + MaxVisible * ItemHeight;
+            int botRow = contentStartY + visibleCount * ItemHeight;
             WriteBorder(sb, botRow, absX, bc.BL, bc.HB, bc.BR, Width, borderFg);
         }
         else
         {
-            int sepRow = absY + MaxVisible * ItemHeight;
+            int sepRow = absY + visibleCount * ItemHeight;
             if (sepRow < ClipBottom)
             {
                 int fillBg = Bg > 0 ? Bg : TuiTheme.Current.WindowBg;

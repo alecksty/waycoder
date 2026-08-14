@@ -59,6 +59,8 @@ public class TuiTextArea : TuiEditBase
     public int LineNumFg { get; set; }
     /// <summary>光标行背景色</summary>
     public int CursorLineBg { get; set; }
+    /// <summary>光标行前景色（反白白底时用黑字）</summary>
+    public int CursorLineFg { get; set; }
     /// <summary>占位文本前景色</summary>
     public int PlaceholderFg { get; set; }
 
@@ -262,6 +264,7 @@ public class TuiTextArea : TuiEditBase
         Width = 60;
         LineNumFg = TuiTheme.Current.TextAreaLineNumFg;
         CursorLineBg = TuiTheme.Current.TextAreaCursorLineBg;
+        CursorLineFg = TuiTheme.Current.TextAreaCursorLineFg;
         PlaceholderFg = TuiTheme.Current.TextAreaPlaceholderFg;
     }
 
@@ -307,6 +310,7 @@ public class TuiTextArea : TuiEditBase
             {
                 var line = SafeLine(lineIdx);
                 int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
+                       : isCursorLine ? (CursorLineFg > 0 ? CursorLineFg : TuiTheme.Current.TextAreaFg)
                        : Focused ? (FocusedFg > 0 ? FocusedFg : TuiTheme.Current.TextAreaFg)
                        : (Fg > 0 ? Fg : TuiTheme.Current.TextAreaFg);
                 int bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : 0)
@@ -477,11 +481,13 @@ public class TuiTextArea : TuiEditBase
     {
         ScrollRow = Math.Max(0, ScrollRow - Height);
         CursorRow = Math.Max(0, CursorRow - Height);
+        MarkDirty(); // 滚动偏移 + 光标行都变了，需重绘
     }
     protected override void MoveCursorPageDown()
     {
         ScrollRow = Math.Min(Math.Max(0, Lines.Count - 1), ScrollRow + Height);
         CursorRow = Math.Min(Lines.Count - 1, CursorRow + Height);
+        MarkDirty();
     }
 
     protected override void JumpToSelStart()
@@ -734,6 +740,7 @@ public class TuiTextArea : TuiEditBase
     {
         CursorRow = Math.Clamp(CursorRow + delta, 0, Lines.Count - 1);
         CursorCol = Math.Min(CursorCol, SafeLine(CursorRow).Length);
+        MarkDirty(); // 光标行变了，光标行高亮（CursorLineBg）需随光标移动重绘
     }
 
     private void EnsureCursorVisible(int visRows)

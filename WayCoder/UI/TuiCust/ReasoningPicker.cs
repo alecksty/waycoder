@@ -5,7 +5,7 @@ namespace WayCoder.UI;
 
 /// <summary>
 /// 推理深度选择器 —— 对标 Crush reasoning.go。
-/// 全屏 ANSI 直写模式，为支持多级推理的模型选择推理深度。
+/// 居中带边框对话框（非全屏），为支持多级推理的模型选择推理深度。
 ///
 /// 功能：
 ///   - 5 级推理深度（minimal / low / medium / high / max）
@@ -32,6 +32,9 @@ public static class ReasoningPicker
         new("max",     "Max",      "极致推理，最复杂的多步问题"),
     ];
 
+    private const int MinW = 58, MinH = 15;
+    private const int FrameH = 8; // 顶框1+标题1+说明1+搜索1+上分隔1 + 下分隔1+帮助1+底框1
+
     /// <summary>
     /// 显示推理深度选择对话框。返回选中的级别，null = 取消。
     /// </summary>
@@ -45,8 +48,6 @@ public static class ReasoningPicker
         var filter = "";
         int selectedIdx = 0;
         int scrollOffset = 0;
-
-        var (tw, th) = (Tty.Cols, Tty.Rows);
 
         // 找到当前级别的索引
         var allLevels = Levels.ToList();
@@ -71,88 +72,109 @@ public static class ReasoningPicker
                     l.Id.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                     l.Description.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
 
-            selectedIdx = Math.Clamp(selectedIdx, 0, Math.Max(0, filtered.Count - 1));
+            var (bx, by, dw, dh, innerW) = DialogFrame.Layout(MinW, MinH);
+            int listH = Math.Max(3, dh - FrameH);
 
-            // 可见行数
-            int contentH = Math.Max(5, th - 7);
-            int visibleItems = Math.Max(1, contentH - 1);
+            selectedIdx = Math.Clamp(selectedIdx, 0, Math.Max(0, filtered.Count - 1));
 
             // 滚动调整
             if (selectedIdx < scrollOffset) scrollOffset = selectedIdx;
-            if (selectedIdx >= scrollOffset + visibleItems) scrollOffset = selectedIdx - visibleItems + 1;
-            scrollOffset = Math.Clamp(scrollOffset, 0, Math.Max(0, filtered.Count - visibleItems));
+            if (selectedIdx >= scrollOffset + listH) scrollOffset = selectedIdx - listH + 1;
+            scrollOffset = Math.Clamp(scrollOffset, 0, Math.Max(0, filtered.Count - listH));
 
             // ── 渲染 ──
             var sb = new StringBuilder();
-            sb.Append(AnsiTty.CursorHide).Append(AnsiTty.Home);
+            sb.Append(AnsiTty.CursorHide);
+            DialogFrame.DimArea(sb, bx, by, dw, dh);
+            DialogFrame.TopBorder(sb, by, bx, dw);
 
-            // 标题栏
+            // 标题行（紫底）
+            int y = by + 1;
+            DialogFrame.SideL(sb, y, bx);
+            DialogFrame.FillInner(sb, y, bx, innerW, TuiColors.White, TuiColors.BgMagenta);
             var title = $"推理深度 — {modelName}";
-            sb.Append(AnsiTty.FgBg(30, TuiColors.BgMagenta));
-            sb.Append($"  {title}  ");
-            sb.Append(new string(' ', Math.Max(0, tw - VW(title) - 4)));
-            sb.Append(AnsiTty.SgrReset).Append('\n');
+            sb.Append(AnsiTty.CursorPos(y, bx + 2))
+              .Append(AnsiTty.FgBgCode(TuiColors.White, TuiColors.BgMagenta))
+              .Append(AnsiTty.SgrBold).Append(TruncateByVW(title, innerW - 4)).Append(AnsiTty.SgrReset);
+            DialogFrame.SideR(sb, y, bx, dw);
 
             // 说明行
-            sb.Append(AnsiTty.Fg(35)); // 紫色
-            var desc = "  选择模型的「思考」深度，越深推理越充分，但耗时越长";
-            sb.Append(desc);
-            sb.Append(new string(' ', Math.Max(0, tw - VW(desc))));
-            sb.Append(AnsiTty.SgrReset).Append('\n');
+            y = by + 2;
+            DialogFrame.SideL(sb, y, bx);
+            DialogFrame.FillInner(sb, y, bx, innerW, TuiColors.Magenta, DialogFrame.DimBg);
+            var desc = "选择模型的「思考」深度，越深推理越充分，但耗时越长";
+            sb.Append(AnsiTty.CursorPos(y, bx + 2))
+              .Append(AnsiTty.FgBgCode(TuiColors.Magenta, DialogFrame.DimBg))
+              .Append(TruncateByVW(desc, innerW - 4))
+              .Append(AnsiTty.SgrReset);
+            DialogFrame.SideR(sb, y, bx, dw);
 
-            // 搜索栏
-            sb.Append(AnsiTty.FgBg(30, 47)); // 白底黑字
+            // 搜索行
+            y = by + 3;
+            DialogFrame.SideL(sb, y, bx);
+            sb.Append(AnsiTty.CursorPos(y, bx + 2))
+              .Append(AnsiTty.FgBgCode(TuiColors.White, DialogFrame.DimBg));
             var searchPrompt = "搜索: ";
             var searchText = filter.Length > 0 ? filter : "输入关键词过滤...";
             var searchStyle = filter.Length > 0 ? "" : AnsiTty.SgrDim;
-            sb.Append(searchPrompt).Append(searchStyle).Append(searchText).Append(AnsiTty.SgrReset);
-            sb.Append(new string(' ', Math.Max(0, tw - VW(searchPrompt + searchText) - 2)));
-            sb.Append(AnsiTty.SgrReset).Append('\n');
+            sb.Append(searchPrompt).Append(searchStyle).Append(TruncateByVW(searchText, innerW - 4 - VW(searchPrompt)))
+              .Append(AnsiTty.SgrReset);
+            DialogFrame.SideR(sb, y, bx, dw);
+
+            // 上分隔线
+            y = by + 4;
+            DialogFrame.SepLine(sb, y, bx, dw);
 
             // 推理级别列表
-            int listTop = 4;
-            for (int i = 0; i < visibleItems; i++)
+            int dataTop = by + 5;
+            for (int i = 0; i < listH; i++)
             {
-                int mi = scrollOffset + i;
-                sb.Append(AnsiTty.CursorPos(listTop + i, 1)).Append(AnsiTty.ClearToEnd);
+                int mi = scrollOffset + i, row = dataTop + i;
+                DialogFrame.SideL(sb, row, bx);
 
-                if (mi >= filtered.Count) continue;
+                if (mi >= filtered.Count)
+                {
+                    DialogFrame.FillInner(sb, row, bx, innerW, TuiColors.White, DialogFrame.DimBg);
+                    DialogFrame.SideR(sb, row, bx, dw);
+                    continue;
+                }
 
                 var level = filtered[mi];
                 bool isSelected = mi == selectedIdx;
                 bool isCurrent = level.Id == currentLevel;
 
-                // 行前缀
+                int bg = isSelected ? TuiColors.BgMagenta : DialogFrame.DimBg;
+                int fg = isSelected ? TuiColors.Black : (isCurrent ? TuiColors.Magenta : TuiColors.White);
+                DialogFrame.FillInner(sb, row, bx, innerW, fg, bg);
+
                 var prefix = isSelected ? "▶ " : "  ";
                 var check = isCurrent ? " ✓" : "  ";
-
-                // 颜色
-                if (isSelected)
-                {
-                    sb.Append(AnsiTty.FgBg(TuiColors.Black, TuiColors.BgMagenta));
-                }
-                else if (isCurrent)
-                {
-                    sb.Append(AnsiTty.Fg(35)); // 紫色
-                }
-
-                // 显示：标签 + 描述
                 var label = level.Label.PadRight(10);
-                var display = $"{prefix}{label} — {level.Description}{check}";
-                display = TruncateByVW(display, tw - 1);
-                sb.Append(display);
-                sb.Append(AnsiTty.SgrReset);
+                var display = TruncateByVW($"{prefix}{label} — {level.Description}{check}", innerW - 2);
+
+                sb.Append(AnsiTty.CursorPos(row, bx + 2))
+                  .Append(AnsiTty.FgBgCode(fg, bg))
+                  .Append(display)
+                  .Append(AnsiTty.SgrReset);
+
+                DialogFrame.SideR(sb, row, bx, dw);
             }
 
-            // 帮助栏
-            int helpRow = listTop + visibleItems;
-            sb.Append(AnsiTty.CursorPos(helpRow, 1));
-            sb.Append(AnsiTty.FgBg(30, 47));
-            var helpText = "[↑/↓] 导航  [Enter] 确认  [Esc] 取消  [字母] 搜索  [←] 清除=默认";
-            sb.Append(helpText);
-            sb.Append(new string(' ', Math.Max(0, tw - VW(helpText))));
-            sb.Append(AnsiTty.SgrReset);
+            // 下分隔线
+            int sep2 = dataTop + listH;
+            DialogFrame.SepLine(sb, sep2, bx, dw);
 
+            // 帮助行
+            DialogFrame.SideL(sb, sep2 + 1, bx);
+            sb.Append(AnsiTty.CursorPos(sep2 + 1, bx + 2))
+              .Append(AnsiTty.FgBgCode(TuiColors.BrightBlack, DialogFrame.DimBg))
+              .Append(TruncateByVW("[↑/↓] 导航  [Enter] 确认  [Esc] 取消  [字母] 搜索  [←] 清除=默认", innerW - 4));
+            DialogFrame.SideR(sb, sep2 + 1, bx, dw);
+
+            // 底框
+            DialogFrame.BottomBorder(sb, sep2 + 2, bx, dw);
+
+            sb.Append(AnsiTty.SgrReset);
             Console.Write(sb.ToString());
 
             // ── 输入 ──
@@ -196,10 +218,10 @@ public static class ReasoningPicker
                     selectedIdx = Math.Max(0, filtered.Count - 1);
                     break;
                 case ConsoleKey.PageUp:
-                    selectedIdx = Math.Max(0, selectedIdx - visibleItems);
+                    selectedIdx = Math.Max(0, selectedIdx - listH);
                     break;
                 case ConsoleKey.PageDown:
-                    selectedIdx = Math.Min(filtered.Count - 1, selectedIdx + visibleItems);
+                    selectedIdx = Math.Min(filtered.Count - 1, selectedIdx + listH);
                     break;
                 default:
                     if (key.KeyChar >= ' ' && key.KeyChar <= '~')
@@ -213,6 +235,7 @@ public static class ReasoningPicker
         }
         finally
         {
+            Console.Write(AnsiTty.CursorShow);
             TuiManager.RequestFullRefresh();
         }
     }

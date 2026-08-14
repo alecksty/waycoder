@@ -14,6 +14,11 @@ namespace WayCoder.Tools;
 ///   - screen ：抓取整个桌面（图形界面），保存 PNG，附带 OCR（若装了 tesseract）
 ///   - region ：抓取指定矩形区域（x/y/width/height），保存 PNG，附带 OCR
 ///
+/// 跨平台 GUI 抓屏实现：
+///   - Windows：powershell + System.Drawing.CopyFromScreen（Windows PowerShell 5.1 内置）
+///   - macOS  ：/usr/sbin/screencapture（系统内置）
+///   - Linux  ：grim(Wayland) → import(ImageMagick) → scrot → maim 依次回退
+///
 /// 说明：LLM 无法直接「看」图片，因此 GUI 抓屏会把 PNG 存到文件并尽力 OCR 成文本，
 /// 让 Agent 能读取屏幕上的文字内容；PNG 路径则留给用户查看。
 /// </summary>
@@ -121,7 +126,7 @@ public class ScreenshotTool : ITool
     {
         try
         {
-            // 先校验 region 参数（与平台无关），再检查平台能力，避免报错信息被平台守卫截胡
+            // 先校验 region 参数（与平台无关），再按平台分派抓屏，避免报错信息被平台守卫截胡
             var x = 0; var y = 0; var w = 0; var h = 0;
             if (!full)
             {
@@ -132,9 +137,6 @@ public class ScreenshotTool : ITool
                 if (w <= 0 || h <= 0)
                     return "错误：region 模式需要 width/height 为正整数，且 x/y 需指定。";
             }
-
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                return "错误：图形抓屏目前仅支持 macOS（使用 /usr/sbin/screencapture）。";
 
             // 确定保存路径
             var savePath = arguments.GetValueOrDefault("save_path")?.ToString();
@@ -153,17 +155,8 @@ public class ScreenshotTool : ITool
                 savePath = fullPath;
             }
 
-            // 构造 screencapture 参数
-            var flags = new StringBuilder("-x"); // 静默，无快门声
-            if (!full)
-            {
-                flags.Append($" -R{x},{y},{w},{h}");
-            }
-
-            var (exitCode, output) = RunProcess("/usr/sbin/screencapture", $"{flags} \"{savePath}\"");
-
-            if (exitCode != 0 || !File.Exists(savePath))
-                return $"抓屏失败（exit={exitCode}）：{(string.IsNullOrWhiteSpace(output) ? "无输出" : output.Trim())}";
+            var (ok, err) = TryCapture(full, x, y, w, h, savePath);
+            if (!ok) return err;
 
             var fi = new FileInfo(savePath);
             var (wpx, hpx) = ReadPngDimensions(savePath);
@@ -183,7 +176,7 @@ public class ScreenshotTool : ITool
             else
             {
                 sb.AppendLine();
-                sb.AppendLine("（未检测到 tesseract，无法 OCR。可用 bash 安装：brew install tesseract）");
+                sb.AppendLine("（未检测到 tesseract，无法 OCR。安装：macOS brew install tesseract / Debian apt install tesseract-ocr）");
             }
 
             return sb.ToString().TrimEnd();
@@ -191,6 +184,106 @@ public class ScreenshotTool : ITool
         catch (Exception ex)
         {
             return $"图形抓屏出错：{ex.GetType().Name}: {ex.Message}";
+        }
+    }
+
+    /// <summary>Linux 可用截图工具回退链（Wayland→X11）</summary>
+    internal static readonly string[] LinuxCaptureTools = ["grim", "import", "scrot", "maim"];
+
+    /// <summary>按平台分派抓屏。返回 (是否成功, 错误信息)。</summary>
+    private static (bool Ok, string Err) TryCapture(bool full, int x, int y, int w, int h, string savePath)
+    {
+        if (OperatingSystem.IsWindows())
+            return RunCapture(BuildWindowsCapture(full, x, y, w, h, savePath), savePath);
+        if (OperatingSystem.IsMacOS())
+            return RunCapture(BuildMacCapture(full, x, y, w, h, savePath), savePath);
+        if (OperatingSystem.IsLinux())
+            return CaptureLinux(full, x, y, w, h, savePath);
+        return (false, "错误：当前操作系统不支持图形抓屏（仅支持 Windows / macOS / Linux）。");
+    }
+
+    /// <summary>执行一次抓屏命令并校验产物文件已生成。</summary>
+    private static (bool Ok, string Err) RunCapture((string Tool, string Args) cmd, string savePath)
+    {
+        try
+        {
+            var (exitCode, output) = RunProcess(cmd.Tool, cmd.Args);
+            if (exitCode != 0 || !File.Exists(savePath))
+                return (false, $"抓屏失败（{cmd.Tool} exit={exitCode}）：{(string.IsNullOrWhiteSpace(output) ? "无输出" : output.Trim())}");
+            return (true, "");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"{cmd.Tool} 不可用：{ex.GetType().Name}");
+        }
+    }
+
+    /// <summary>Linux：依次尝试各截图工具，首个成功即返回。</summary>
+    private static (bool Ok, string Err) CaptureLinux(bool full, int x, int y, int w, int h, string savePath)
+    {
+        string lastErr = "";
+        foreach (var tool in LinuxCaptureTools)
+        {
+            var (ok, err) = RunCapture(BuildLinuxCommandFor(tool, full, x, y, w, h, savePath), savePath);
+            if (ok) return (true, "");
+            lastErr = err;
+        }
+        return (false, "错误：Linux 抓屏失败，已尝试 " + string.Join(" / ", LinuxCaptureTools) +
+            "。请安装其一（如：sudo apt install scrot 或 sudo apt install imagemagick）。最后错误：" + lastErr);
+    }
+
+    /// <summary>Windows：powershell + System.Drawing.CopyFromScreen（Windows PowerShell 5.1 内置，纯逻辑供自测）。</summary>
+    internal static (string Tool, string Args) BuildWindowsCapture(bool full, int x, int y, int w, int h, string savePath)
+    {
+        var psPath = savePath.Replace("'", "''");
+        var sb = new StringBuilder();
+        sb.Append("Add-Type -AssemblyName System.Windows.Forms;Add-Type -AssemblyName System.Drawing;");
+        if (full)
+        {
+            sb.Append("$b=[System.Windows.Forms.SystemInformation]::VirtualScreen;");
+            sb.Append("$bmp=New-Object System.Drawing.Bitmap($b.Width,$b.Height);");
+            sb.Append("$g=[System.Drawing.Graphics]::FromImage($bmp);");
+            sb.Append("$g.CopyFromScreen($b.X,$b.Y,0,0,$bmp.Size);");
+        }
+        else
+        {
+            sb.Append($"$bmp=New-Object System.Drawing.Bitmap({w},{h});");
+            sb.Append("$g=[System.Drawing.Graphics]::FromImage($bmp);");
+            sb.Append($"$g.CopyFromScreen({x},{y},0,0,$bmp.Size);");
+        }
+        sb.Append($"$bmp.Save('{psPath}',[System.Drawing.Imaging.ImageFormat]::Png);");
+        sb.Append("$g.Dispose();$bmp.Dispose();");
+        var args = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"{sb}\"";
+        return ("powershell", args);
+    }
+
+    /// <summary>macOS：screencapture（系统内置，纯逻辑供自测）。</summary>
+    internal static (string Tool, string Args) BuildMacCapture(bool full, int x, int y, int w, int h, string savePath)
+    {
+        var flags = "-x"; // 静默，无快门声
+        if (!full) flags += $" -R{x},{y},{w},{h}";
+        return ("/usr/sbin/screencapture", $"{flags} \"{savePath}\"");
+    }
+
+    /// <summary>Linux：单个工具的参数构造（纯逻辑供自测）。</summary>
+    internal static (string Tool, string Args) BuildLinuxCommandFor(string tool, bool full, int x, int y, int w, int h, string savePath)
+    {
+        switch (tool)
+        {
+            case "grim": // Wayland：-g "<x>,<y> <w>x<h>"
+                return full ? ("grim", $"\"{savePath}\"")
+                            : ("grim", $"-g \"{x},{y} {w}x{h}\" \"{savePath}\"");
+            case "import": // ImageMagick：-crop WxH+X+Y
+                return full ? ("import", $"-window root \"{savePath}\"")
+                            : ("import", $"-window root -crop {w}x{h}+{x}+{y} \"{savePath}\"");
+            case "scrot": // -a X,Y,W,H
+                return full ? ("scrot", $"\"{savePath}\"")
+                            : ("scrot", $"-a {x},{y},{w},{h} \"{savePath}\"");
+            case "maim": // -g WxH+X+Y
+                return full ? ("maim", $"\"{savePath}\"")
+                            : ("maim", $"-g {w}x{h}+{x}+{y} \"{savePath}\"");
+            default:
+                return (tool, $"\"{savePath}\"");
         }
     }
 
@@ -207,7 +300,7 @@ public class ScreenshotTool : ITool
     }
 
     /// <summary>读取 PNG 宽高（IHDR 块内 big-endian，无需第三方库）</summary>
-    private static (int Width, int Height) ReadPngDimensions(string path)
+    internal static (int Width, int Height) ReadPngDimensions(string path)
     {
         try
         {

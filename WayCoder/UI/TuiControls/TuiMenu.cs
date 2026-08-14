@@ -40,16 +40,21 @@ public static class TuiMenu
         Action? onCancel = null,
         int maxVisible = MaxVisible)
     {
+        var hasTitle = !string.IsNullOrEmpty(title);
+        var titleH = hasTitle ? 1 : 0;
+
+        // 可见项数：默认受 maxVisible 限制；再按终端高度收拢，
+        // 使菜单总高（项数 + 标题行 + 上下边框）不超过内容区（终端高 - 标题栏 - 底部状态/输入区约 8 行）。
         var visCount = Math.Min(items.Count, Math.Max(5, maxVisible));
+        var fitMax = Math.Max(3, Tty.Rows - 10 - titleH);
+        visCount = Math.Min(visCount, fitMax);
+
         var maxVw = items.Count > 0
             ? items.Where(i => !string.IsNullOrEmpty(i) && i != "---")
                 .Max(i => TuiHelper.DisplayWidth(i))
             : 10;
         // 宽度：内容 + 左边距" 1."(3) + 右边距(2) + 快捷键提示(4) + 滚动条(2)
         var contentW = Math.Max(16, Math.Min(maxVw + 11, Tty.Cols - 8));
-
-        var hasTitle = !string.IsNullOrEmpty(title);
-        var titleH = hasTitle ? 1 : 0;
 
         var win = new TuiWindow
         {
@@ -58,6 +63,9 @@ public static class TuiMenu
             X = x, Y = y,
             Width = contentW + 2,
             Height = visCount + titleH + 2, // +上下边框
+            // 弹出菜单按调用方指定的 (x, y) 定位，不参与居中/停靠对齐
+            WindowHAlign = HAlign.Stretch,
+            WindowVAlign = VAlign.Stretch,
             Modal = true,
             HasMask = false,
             Border = WindowBorder.Rounded,
@@ -82,6 +90,18 @@ public static class TuiMenu
             // 关闭窗口回调（由 MenuView 在选中/取消时调用）
             CloseMenu = () => { win.OnClosed?.Invoke(); },
         };
+
+        // 计算快捷键编号：仅非分隔线项参与编号，1..9 连续编号（分隔线不占编号）
+        state.Shortcuts = new int[items.Count];
+        int shortcutNo = 0;
+        for (int i = 0; i < items.Count; i++)
+        {
+            if (!IsSeparator(items[i]))
+            {
+                shortcutNo++;
+                state.Shortcuts[i] = shortcutNo <= 9 ? shortcutNo : 0;
+            }
+        }
         // 跳过首个分隔线
         while (state.SelectedIndex < items.Count && IsSeparator(items[state.SelectedIndex]))
             state.SelectedIndex++;
@@ -91,13 +111,14 @@ public static class TuiMenu
         win.ContentLines = []; // 不使用 ContentLines
         win.RootView = new MenuView(state);
 
-        // 快捷键：1-9 快速选择
-        for (var i = 0; i < Math.Min(9, items.Count); i++)
+        // 快捷键：1-9 快速选择（编号只计入非分隔线项，与显示一致）
+        for (var i = 0; i < items.Count; i++)
         {
-            var idx = i;
-            if (!IsSeparator(items[i]))
+            if (state.Shortcuts[i] > 0)
             {
-                win.RegisterShortcut(ConsoleKey.D1 + i, () =>
+                var idx = i;
+                var key = ConsoleKey.D1 + (state.Shortcuts[i] - 1);
+                win.RegisterShortcut(key, () =>
                 {
                     state.SelectedIndex = idx;
                     state.OnSelect?.Invoke(idx);
@@ -154,6 +175,9 @@ public static class TuiMenu
         public Action<int>? OnSelect;
         public Action? OnCancel;
 
+        /// <summary>每个菜单项的快捷键编号（1..9），分隔线为 0。按非分隔线项连续编号。</summary>
+        public int[] Shortcuts = [];
+
         /// <summary>关闭菜单窗口（由 MenuView 在选中/取消后调用，确保窗口关闭 + 脏区域重绘）</summary>
         public Action? CloseMenu;
     }
@@ -177,6 +201,12 @@ public static class TuiMenu
             Height = state.VisibleCount;
             Focused = true;
         }
+
+        /// <summary>当前选中项索引（供 Keypad FOCUS 转储 / 测试使用）</summary>
+        public int SelectedIndex => _state.SelectedIndex;
+
+        /// <summary>菜单项总数</summary>
+        public int ItemCount => _state.Items.Count;
 
         public override void Layout()
         {
@@ -232,8 +262,9 @@ public static class TuiMenu
                 var bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : inheritedBg)
                     : sel ? TuiTheme.Current.ListSelBg : inheritedBg;
 
-                // 快捷键提示（前 9 项）
-                var shortcut = idx < 9 ? $" {idx + 1}" : "  ";
+                // 快捷键提示（前 9 个非分隔线项，编号连续）
+                var shortcutNo = idx >= 0 && idx < _state.Shortcuts.Length ? _state.Shortcuts[idx] : 0;
+                var shortcut = shortcutNo > 0 ? $" {shortcutNo}" : "  ";
                 var display = $"{shortcut}. {item}";
                 if (TuiHelper.DisplayWidth(display) > _state.ContentWidth - 1)
                     display = TuiHelper.TruncateByWidth(display, _state.ContentWidth - 1);
@@ -313,6 +344,7 @@ public static class TuiMenu
                     MoveSelection(_state.VisibleCount);
                     return true;
                 case ConsoleKey.Enter:
+                case ConsoleKey.Spacebar:
                     if (_state.SelectedIndex >= 0 && !IsSeparator(items[_state.SelectedIndex]))
                     {
                         _state.OnSelect?.Invoke(_state.SelectedIndex);
