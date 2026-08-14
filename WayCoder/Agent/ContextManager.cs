@@ -189,47 +189,35 @@ public class ContextManager
             // 第 1 层：裁剪冗长的工具输出
             if (current > _snipAt)
             {
-                var pct = (double)current / MaxTokens * 100;
-                onProgress?.Invoke(1, $"裁剪工具输出... {ProgressBar(pct)} {current}/{MaxTokens}");
-                CompressProgress?.Invoke(1, $"裁剪工具输出...", pct);
+                ReportProgress(1, "裁剪工具输出...", current, onProgress);
                 if (SnipToolOutputs(messages, EffectiveSnipChars()))
                 {
                     compressed = true;
                     current = EstimateCalibratedTokens(messages);
-                    pct = (double)current / MaxTokens * 100;
-                    onProgress?.Invoke(1, $"裁剪完成 {ProgressBar(pct)} {current}/{MaxTokens} (-{MaxTokens - current})");
-                    CompressProgress?.Invoke(1, $"裁剪完成", pct);
+                    ReportProgress(1, "裁剪完成", current, onProgress, $"(-{MaxTokens - current})");
                 }
             }
 
             // 第 2 层：LLM 驱动的旧对话摘要
             if (current > _summarizeAt && messages.Count > 10)
             {
-                var pct = (double)current / MaxTokens * 100;
-                onProgress?.Invoke(2, $"正在摘要旧对话... {ProgressBar(pct)} {current}/{MaxTokens}");
-                CompressProgress?.Invoke(2, $"正在摘要旧对话...", pct);
+                ReportProgress(2, "正在摘要旧对话...", current, onProgress);
                 if (await SummarizeOldAsync(messages, llm))
                 {
                     compressed = true;
                     current = EstimateCalibratedTokens(messages);
-                    pct = (double)current / MaxTokens * 100;
-                    onProgress?.Invoke(2, $"摘要完成 {ProgressBar(pct)} {current}/{MaxTokens}");
-                    CompressProgress?.Invoke(2, $"摘要完成", pct);
+                    ReportProgress(2, "摘要完成", current, onProgress);
                 }
             }
 
             // 第 3 层：硬折叠——最后手段
             if (current > _collapseAt && messages.Count > 4)
             {
-                var pct = (double)current / MaxTokens * 100;
-                onProgress?.Invoke(3, $"紧急压缩... {ProgressBar(pct)} {current}/{MaxTokens}");
-                CompressProgress?.Invoke(3, $"紧急压缩...", pct);
+                ReportProgress(3, "紧急压缩...", current, onProgress);
                 await HardCollapseAsync(messages, llm);
                 compressed = true;
                 current = EstimateCalibratedTokens(messages);
-                pct = (double)current / MaxTokens * 100;
-                onProgress?.Invoke(3, $"压缩完成 {ProgressBar(pct)} {current}/{MaxTokens}");
-                CompressProgress?.Invoke(3, $"压缩完成", pct);
+                ReportProgress(3, "压缩完成", current, onProgress);
             }
         }
         finally
@@ -247,6 +235,18 @@ public class ContextManager
         var filled = (int)(clamped / 100 * 8);
         var empty = 8 - filled;
         return $"«{new string('█', filled)}{new string('░', empty)}» {clamped:F0}%";
+    }
+
+    /// <summary>
+    /// 向 onProgress 回调与静态 CompressProgress 事件双路报告压缩进度，
+    /// 消除 MaybeCompressAsync 三层压缩里重复的「百分比 + 进度条 + 事件」样板。
+    /// extra 可选追加到 onProgress 文本（如裁剪完成的「-节省 N」后缀），不影响事件消息。
+    /// </summary>
+    private void ReportProgress(int layer, string label, int current, Action<int, string>? onProgress, string? extra = null)
+    {
+        var pct = (double)current / MaxTokens * 100;
+        onProgress?.Invoke(layer, $"{label} {ProgressBar(pct)} {current}/{MaxTokens}{(extra != null ? " " + extra : "")}");
+        CompressProgress?.Invoke(layer, label, pct);
     }
 
     /// <summary>

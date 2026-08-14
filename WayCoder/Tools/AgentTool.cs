@@ -84,23 +84,13 @@ public class AgentTool : ITool
 
         if (tasksObj is JsonArray jsonArr)
         {
-            foreach (var item in jsonArr)
-            {
-                var t = ExtractTaskText(item);
-                if (!string.IsNullOrWhiteSpace(t))
-                    taskList.Add(t);
-            }
+            CollectTaskTexts(jsonArr, taskList);
         }
         else if (tasksObj is System.Collections.IEnumerable enumerable && tasksObj is not string)
         {
             // JsonElementToObject 解析后此处收到 List<object?>，每个元素为 string 标量或
             // Dictionary<string,object?> 嵌套对象（LLM 按 schema 的 items 结构传 {"description":...}）
-            foreach (var item in enumerable)
-            {
-                var t = ExtractTaskText(item);
-                if (!string.IsNullOrWhiteSpace(t))
-                    taskList.Add(t);
-            }
+            CollectTaskTexts(enumerable, taskList);
         }
         else if (tasksObj is string s)
         {
@@ -112,14 +102,7 @@ public class AgentTool : ITool
                 try
                 {
                     if (JsonNode.Parse(trimmed) is JsonArray arr)
-                    {
-                        foreach (var item in arr)
-                        {
-                            var t = ExtractTaskText(item);
-                            if (!string.IsNullOrWhiteSpace(t))
-                                taskList.Add(t);
-                        }
-                    }
+                        CollectTaskTexts(arr, taskList);
                 }
                 catch { /* 解析失败则退回单任务 */ }
             }
@@ -264,6 +247,21 @@ public class AgentTool : ITool
     /// <summary>tasks 数组元素里优先提取任务文本的字段名（description 优先，与 schema items 对齐）。</summary>
     private static readonly string[] TaskTextKeys =
         ["description", "task", "name", "title", "text", "prompt", "instruction"];
+
+    /// <summary>
+    /// 从任意集合（JsonArray / List&lt;object?&gt; / 解析出的 JsonArray）中提取非空任务文本，
+    /// 追加到 taskList。消除 ExecuteParallelAsync 三个解析分支里重复的
+    /// 「ExtractTaskText + 非空判断 + Add」样板。
+    /// </summary>
+    private static void CollectTaskTexts(System.Collections.IEnumerable items, List<string> taskList)
+    {
+        foreach (var item in items)
+        {
+            var t = ExtractTaskText(item);
+            if (!string.IsNullOrWhiteSpace(t))
+                taskList.Add(t);
+        }
+    }
 
     /// <summary>
     /// 从 tasks 数组的单个元素中提取任务文本。元素可能为：
