@@ -49,6 +49,7 @@ public static class ToolRegistry
         new ScreenshotTool(),
         new ViewImageTool(),
         new TranscribeAudioTool(),
+        new DrawTool(),
     ];
 
     /// <summary>所有工具（内置 + MCP 自动发现 + 编译期插件贡献）</summary>

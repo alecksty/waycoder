@@ -1,5 +1,26 @@
 # 更新日志
 
+## v0.54.0 (2026-08-15) — 新增 draw 绘图工具（文本 DSL → SVG/PNG）
+
+响应「是否需要加个绘图工具」需求，新增第 43 个内置工具 `draw`：用文本指令画图，支持主流格式（SVG 矢量 + PNG 位图）双输出，指令可经编译期插件系统扩展。全程手搓零依赖、零反射、AOT 安全、跨平台。
+
+### ✨ 新增
+
+- **`Tools/DrawTool.cs` — draw 工具**：`code`（绘图指令文本）+ `format`（svg/png）+ `output`（文件路径），SVG 缺省返回内容、PNG 写文件返回路径
+- **`Infra/DrawEngine.cs` — 绘图引擎核心**：`ColorUtil`（#rgb/#rrggbb/#rrggbbaa + 20 命名色）、`DrawTokenizer`（引号/逗号分词）、`DrawFigure` 图元、`IDrawCommand` 指令接口 + `DrawCommandRegistry` 注册表、`DrawDocument`/`DrawRunner`（DSL 解析 + SVG/PNG 编排）
+- **`Infra/DrawCanvas.cs` — 光栅化器**：`Canvas` 像素画布（Bresenham 线 + 中点圆 + 扫描线 even-odd 多边形填充 + 圆角矩形/椭圆）+ 内置 5×7 点阵字体（ASCII 32–126，非 ASCII 实心块占位）
+- **`Infra/DrawCommands.cs` — 10 条内置指令**：`rect`/`roundrect`/`circle`/`ellipse`/`line`/`arrow`/`polygon`/`polyline`/`path`/`text`（另有 `canvas` 画布），经 `[ModuleInitializer]` 自动注册
+- **`Infra/PngEncoder.cs` — 手搓 PNG 编码器**：RGBA → PNG（ZLibStream DEFLATE + CRC32 + chunk 布局），对标 ScreenshotTool 的手写 PNG 解析
+
+### 🔌 扩展
+
+- 指令可扩展：实现 `IDrawCommand` 并 `DrawCommandRegistry.Register`，插件 `[ModuleInitializer]` 里注册即可贡献自定义绘图指令（满足「自己增加指令」）
+
+### 🧪 自测
+
+- 新增 `SelfTest.Chunk10.cs`（50 项）：ColorUtil 解析往返、分词器、注册表、DSL 解析（含错误分支）、SVG 标签、PNG 签名/IHDR 尺寸/IEND、光栅化像素、工具端到端
+- 工具数量 42 → 43，总计 **2228** 项自测全部通过（0 失败）
+
 ## v0.53.11 (2026-08-15) — 彻底移除 JsonSerializer 反射（AgentSlotConfig / FetchTool）
 
 承接 v0.53.10 的手搓 JSON/XML 库，把代码库中**最后一处**反射型 `JsonSerializer.Deserialize<T>`/`Serialize<T>` 全部替换为手搓 `JNode`，实现「完全禁止反射」——AOT 下不再有任何 `JsonSerializerIsReflectionDisabled` 隐患。
