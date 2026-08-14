@@ -890,4 +890,174 @@ public static partial class SelfTest
         Check("JSON: cost_usd null", fail["cost_usd"] == null);
         Check("JSON: changed_files 空数组", fail["changed_files"] is JsonArray e && e.Count == 0);
     }
+
+    /// <summary>智能重试策略（RetryPolicy）单元测试：异常过滤 + 指数退避 + 重试耗尽。</summary>
+    private static void TestRetryPolicy(Action<string, bool> Check)
+    {
+        // ── ShouldRetry 黑名单（默认禁止的参数/状态异常）──
+        Check("Retry: 黑名单拒 ArgumentException",
+            !new RetryConfig().ShouldRetry(new ArgumentException("x")));
+        Check("Retry: 黑名单拒 OperationCanceledException",
+            !new RetryConfig().ShouldRetry(new OperationCanceledException()));
+        Check("Retry: 黑名单拒 InvalidOperationException",
+            !new RetryConfig().ShouldRetry(new InvalidOperationException()));
+        Check("Retry: 默认允许 IOException（瞬时错误）",
+            new RetryConfig().ShouldRetry(new IOException("x")));
+
+        // ── 白名单：只重试指定类型 ──
+        var whitelist = new RetryConfig
+        {
+            RetryableExceptions = new HashSet<string> { "System.IO.IOException" },
+        };
+        Check("Retry: 白名单命中 IOException 重试", whitelist.ShouldRetry(new IOException("x")));
+        Check("Retry: 白名单未命中 TimeoutException 不重试",
+            !whitelist.ShouldRetry(new TimeoutException("x")));
+
+        // ── RetryAsync：首次成功不重试 ──
+        var attempts = 0;
+        var ok = RetryPolicy.RetryAsync<int>(() => Task.FromResult(++attempts), new RetryConfig { MaxRetries = 3 })
+            .GetAwaiter().GetResult();
+        Check("Retry: 首次成功不重试", ok == 1 && attempts == 1);
+
+        // ── RetryAsync：失败 N 次后成功 ──
+        var attempts2 = 0;
+        var ok2 = RetryPolicy.RetryAsync<int>(() =>
+        {
+            attempts2++;
+            if (attempts2 < 3) throw new IOException("瞬时错误");
+            return Task.FromResult(42);
+        }, new RetryConfig { MaxRetries = 3, BaseDelayMs = 1, MaxDelayMs = 10 })
+            .GetAwaiter().GetResult();
+        Check("Retry: 失败 2 次后成功", ok2 == 42 && attempts2 == 3);
+
+        // ── RetryAsync：耗尽重试原样抛出最后一次异常（非 AggregateException）──
+        var attempts3 = 0;
+        var threw = false;
+        try
+        {
+            RetryPolicy.RetryAsync<int>(() => { attempts3++; throw new IOException("一直失败"); },
+                new RetryConfig { MaxRetries = 2, BaseDelayMs = 1, MaxDelayMs = 10 })
+                .GetAwaiter().GetResult();
+        }
+        catch (IOException) { threw = true; }
+        Check("Retry: 耗尽重试原样抛出最后一次异常", threw);
+        Check("Retry: 耗尽后尝试次数 = MaxRetries+1", attempts3 == 3);
+
+        // ── 指数退避：延迟 100→200→400 递增 ──
+        var delays = new List<int>();
+        try
+        {
+            RetryPolicy.RetryAsync<int>(() => { throw new IOException("x"); },
+                new RetryConfig { MaxRetries = 3, BaseDelayMs = 100, MaxDelayMs = 5000 },
+                (_, _, delay) => delays.Add(delay))
+                .GetAwaiter().GetResult();
+        }
+        catch { }
+        Check("Retry: 指数退避 100→200→400", delays.SequenceEqual(new[] { 100, 200, 400 }));
+
+        // ── 无返回值版本 ──
+        var ran = false;
+        RetryPolicy.RetryAsync(async () => { ran = true; await Task.CompletedTask; }).GetAwaiter().GetResult();
+        Check("Retry: 无返回值版本执行", ran);
+    }
+
+    /// <summary>LRU 缓存（LruCache）单元测试：容量淘汰、LRU 提升、TTL 过期、事件与统计。</summary>
+    private static void TestLruCache(Action<string, bool> Check)
+    {
+        // ── 基本 Put/Get + 命中统计 ──
+        var cache = new LruCache<string, int>(3);
+        cache.Put("a", 1);
+        cache.Put("b", 2);
+        Check("LRU: 基本 Get", cache.Get("a") == 1 && cache.Get("b") == 2);
+        Check("LRU: 未命中返回默认", cache.Get("missing") == 0);
+        Check("LRU: 命中/未命中统计", cache.Hits == 2 && cache.Misses == 1);
+
+        // ── 容量淘汰（淘汰最久未使用）──
+        var cache2 = new LruCache<string, int>(2);
+        cache2.Put("a", 1);
+        cache2.Put("b", 2);
+        cache2.Put("c", 3); // 淘汰 a
+        Check("LRU: 容量淘汰最旧",
+            !cache2.ContainsKey("a") && cache2.ContainsKey("b") && cache2.ContainsKey("c"));
+        Check("LRU: 淘汰计数", cache2.Evictions == 1);
+
+        // ── Get 提升 LRU（最近使用不被淘汰）──
+        var cache3 = new LruCache<string, int>(2);
+        cache3.Put("a", 1);
+        cache3.Put("b", 2);
+        cache3.Get("a");     // 提升 a 为最近使用
+        cache3.Put("c", 3);  // 淘汰 b（而非 a）
+        Check("LRU: Get 提升最近使用",
+            cache3.ContainsKey("a") && !cache3.ContainsKey("b") && cache3.ContainsKey("c"));
+
+        // ── TTL 过期 ──
+        var cache4 = new LruCache<string, int>(3);
+        cache4.Put("a", 1, TimeSpan.FromMilliseconds(1));
+        System.Threading.Thread.Sleep(20);
+        Check("LRU: TTL 过期后 Get 返回默认", cache4.Get("a") == 0);
+        Check("LRU: TTL 过期后 ContainsKey false", !cache4.ContainsKey("a"));
+
+        // ── Remove / Clear / OnEvicted 事件 ──
+        var evicted = new List<string>();
+        var cache5 = new LruCache<string, int>(3);
+        cache5.OnEvicted += (k, _) => evicted.Add(k);
+        cache5.Put("a", 1);
+        cache5.Put("b", 2);
+        Check("LRU: Remove 返回 true", cache5.Remove("a"));
+        Check("LRU: Remove 不存在的键返回 false", !cache5.Remove("zzz"));
+        Check("LRU: Remove 触发 OnEvicted", evicted.Contains("a"));
+        cache5.Clear();
+        Check("LRU: Clear 清空", cache5.Count == 0);
+        Check("LRU: Clear 触发 OnEvicted", evicted.Contains("b"));
+
+        // ── TryGet ──
+        var cache6 = new LruCache<string, int>(2);
+        cache6.Put("a", 42);
+        Check("LRU: TryGet 命中", cache6.TryGet("a", out var v) && v == 42);
+        Check("LRU: TryGet 未命中", !cache6.TryGet("missing", out _));
+
+        // ── 容量 ≤0 抛异常 ──
+        var threwCap = false;
+        try { new LruCache<string, int>(0); } catch (ArgumentOutOfRangeException) { threwCap = true; }
+        Check("LRU: 容量 ≤0 抛异常", threwCap);
+    }
+
+    /// <summary>短 ID 生成器（IdGenerator）单元测试：字符集、唯一性、slug 格式。</summary>
+    private static void TestIdGenerator(Action<string, bool> Check)
+    {
+        // ── NewId 长度 + 安全字符集 ──
+        var id = IdGenerator.NewId(8);
+        Check("ID: NewId 长度", id.Length == 8);
+        const string safe = "abcdefghjkmnpqrstuvwxyz23456789";
+        Check("ID: NewId 字符集安全（无 0/o/1/l/i）", id.All(safe.Contains));
+
+        // ── NewId 唯一性 ──
+        var ids = new HashSet<string>();
+        for (int i = 0; i < 100; i++) ids.Add(IdGenerator.NewId());
+        Check("ID: 100 个 NewId 无重复", ids.Count == 100);
+
+        // ── 长度参数与校验 ──
+        Check("ID: NewId 默认长度 8", IdGenerator.NewId().Length == 8);
+        Check("ID: NewId 自定义长度 16", IdGenerator.NewId(16).Length == 16);
+        var threwLen = false;
+        try { IdGenerator.NewId(0); } catch (ArgumentOutOfRangeException) { threwLen = true; }
+        Check("ID: NewId 长度 ≤0 抛异常", threwLen);
+
+        // ── NewSlug 格式（形容词-动物-名词）──
+        var slug = IdGenerator.NewSlug(3);
+        var parts = slug.Split('-');
+        Check("ID: NewSlug 3 段", parts.Length == 3);
+        Check("ID: NewSlug 全小写字母", slug.All(c => char.IsLower(c) || c == '-'));
+
+        // ── NewSlug 词数 clamp ──
+        Check("ID: NewSlug 默认 3 词", IdGenerator.NewSlug().Split('-').Length == 3);
+        Check("ID: NewSlug 1 词", IdGenerator.NewSlug(1).Split('-').Length == 1);
+        Check("ID: NewSlug 超上限 clamp 到 5", IdGenerator.NewSlug(99).Split('-').Length == 5);
+        Check("ID: NewSlug 0 clamp 到 1", IdGenerator.NewSlug(0).Split('-').Length == 1);
+
+        // ── NewPrefixed ──
+        var prefixed = IdGenerator.NewPrefixed("wf");
+        Check("ID: NewPrefixed 前缀", prefixed.StartsWith("wf_"));
+        Check("ID: NewPrefixed 长度 = 前缀+1+6", prefixed.Length == "wf".Length + 1 + 6);
+    }
 }
