@@ -649,4 +649,103 @@ public static partial class SelfTest
         Check("升级: 资产 URL 无匹配 null",
             UpdateChecker.FindAssetUrl(assets, "linux-x64") == null);
     }
+
+    private static void TestBatchEngine(Action<string, bool> Check)
+    {
+        // ── JSON 解析 ──
+        var ok = BatchSpec.Parse("""
+        {
+          "maxParallel": 2,
+          "tasks": [
+            { "repo": "https://github.com/a/b", "task": "修 bug" },
+            { "repo": "/本地/x", "task": "加测试", "name": "x", "branch": "dev" }
+          ]
+        }
+        """, out var err1);
+        Check("批量: 解析 2 个任务", ok != null && ok.Jobs.Count == 2 && err1 == "");
+        Check("批量: maxParallel=2", ok!.MaxParallel == 2);
+        Check("批量: name/branch 透传", ok.Jobs[1].Name == "x" && ok.Jobs[1].Branch == "dev");
+
+        // ── 边界与钳制 ──
+        var clamp = BatchSpec.Parse("""{ "maxParallel": 99, "timeoutSec": 1, "tasks": [{"repo":"r","task":"t"}] }""", out _);
+        Check("批量: maxParallel 钳制到 16", clamp!.MaxParallel == 16);
+        Check("批量: timeoutSec 钳制到 60", clamp.TimeoutSec == 60);
+        var clamp2 = BatchSpec.Parse("""{ "maxParallel": 0, "tasks": [{"repo":"r","task":"t"}] }""", out _);
+        Check("批量: maxParallel 钳制到 1", clamp2!.MaxParallel == 1);
+
+        // ── 错误场景 ──
+        Check("批量: 缺 tasks 报错", BatchSpec.Parse("""{"maxParallel":2}""", out var e1) == null && e1.Contains("tasks"));
+        Check("批量: 非法 JSON 报错", BatchSpec.Parse("not json", out var e2) == null && e2.Contains("JSON"));
+        Check("批量: 空任务报错", BatchSpec.Parse("""{"tasks":[]}""", out var e3) == null && e3.Length > 0);
+
+        // ── SanitizeName ──
+        Check("批量: URL 提取名", BatchSpec.SanitizeName("https://github.com/org/my-repo.git") == "my-repo");
+        Check("批量: 本地路径提取名", BatchSpec.SanitizeName("/a/b/c") == "c");
+        Check("批量: 反斜杠路径提取名", BatchSpec.SanitizeName("C:\\proj\\repo") == "repo");
+        Check("批量: 空名兜底", BatchSpec.SanitizeName("///") == "repo");
+        Check("批量: 非法字符替换", BatchSpec.SanitizeName("my repo!") == "my_repo");
+
+        // ── IsRemoteUrl ──
+        Check("批量: https 是远程", BatchSpec.IsRemoteUrl("https://x/y"));
+        Check("批量: git@ 是远程", BatchSpec.IsRemoteUrl("git@github.com:o/r.git"));
+        Check("批量: 本地路径非远程", !BatchSpec.IsRemoteUrl("/local/path"));
+
+        // ── FromRepos ──
+        var spec = BatchSpec.FromRepos(new[] { "https://a/b", "/local/c" }, "共享任务");
+        Check("批量: FromRepos 构建 2 任务", spec.Jobs.Count == 2 && spec.Jobs.All(j => j.Task == "共享任务"));
+
+        // ── 报告渲染 ──
+        var report = new BatchReport();
+        report.Results.Add(new BatchResult { Name = "a", Repo = "r", Success = true, Summary = "完成", DurationMs = 1000 });
+        report.Results.Add(new BatchResult { Name = "b", Repo = "r2", Success = false, Error = "挂了", ExitCode = 1, DurationMs = 2000 });
+        var md = report.ToMarkdown();
+        Check("批量: 报告含统计", md.Contains("总计: 2") && md.Contains("成功: 1") && md.Contains("失败: 1"));
+        Check("批量: 报告含成功/失败图标", md.Contains("✅") && md.Contains("❌"));
+        Check("批量: 报告含错误详情", md.Contains("挂了"));
+
+        // ── RunAsync 端到端（本地 git 仓库 + 注入 fake spawner，无网络无 LLM）──
+        try
+        {
+            var gitOk = GitRunner.Run("--version").ExitCode == 0;
+            Check("批量: git 可用（端到端前提）", gitOk);
+            if (gitOk)
+            {
+                var srcDir = Path.Combine(Path.GetTempPath(), "wc_batch_src_" + Guid.NewGuid().ToString("N")[..6]);
+                var rootDir = Path.Combine(Path.GetTempPath(), "wc_batch_root_" + Guid.NewGuid().ToString("N")[..6]);
+                Directory.CreateDirectory(srcDir);
+                GitRunner.RunOrThrow("init -q", srcDir);
+                File.WriteAllText(Path.Combine(srcDir, "a.txt"), "hi");
+                GitRunner.RunOrThrow("add -A", srcDir);
+                GitRunner.RunOrThrow("-c user.email=t@t -c user.name=t commit -q -m init", srcDir);
+
+                var spec2 = BatchSpec.FromRepos(new[] { srcDir, srcDir }, "任务", maxParallel: 2);
+                spec2.TimeoutSec = 60;
+                spec2.KeepResults = false;
+
+                var ran = 0;
+                var report2 = BatchRunner.RunAsync(spec2,
+                    log: null,
+                    rootDir: rootDir,
+                    spawn: (job, dir, task, ct) =>
+                    {
+                        Interlocked.Increment(ref ran);
+                        var cloned = File.Exists(Path.Combine(dir, "a.txt"));
+                        return Task.FromResult<(int, string, string)>(cloned ? (0, $"OK {job.DisplayName}", "") : (1, "", "clone 未就绪"));
+                    }).GetAwaiter().GetResult();
+
+                Check("批量: RunAsync 并发执行 2 任务", ran == 2);
+                Check("批量: RunAsync 全部成功", report2.Succeeded == 2 && report2.Failed == 0);
+                Check("批量: 报告已写文件", File.Exists(Path.Combine(rootDir, "batch-report.md")));
+                Check("批量: 工作副本已清理", !Directory.Exists(Path.Combine(rootDir, "jobs")) || Directory.GetDirectories(Path.Combine(rootDir, "jobs")).Length == 0);
+
+                // 清理临时目录
+                try { Directory.Delete(srcDir, recursive: true); } catch { }
+                try { Directory.Delete(rootDir, recursive: true); } catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            Check($"批量: RunAsync 端到端异常: {ex.Message}", false);
+        }
+    }
 }
