@@ -4,7 +4,7 @@
 
 **中文版易用编程智能体，C# (.NET 10) 实现，AOT 编译为单文件 exe（~8 MB），无需运行时。**
 
-*一个 while 循环 + 大模型 + 42 个工具 + Watch 模式，就是全部*
+*一个 while 循环 + 大模型 + 43 个工具 + Watch 模式，就是全部*
 
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -69,7 +69,7 @@ dotnet run -- --batch-repo https://x/r1 --batch-repo https://x/r2 --batch-task "
 # JSON 输出模式（IDE / 脚本桥接，stdout 只输出一个结构化 JSON 对象）
 dotnet run -- --json -p "修复一个 bug"
 
-# 运行自测（2178 项）
+# 运行自测（2228 项）
 dotnet run -- --test
 ```
 
@@ -107,7 +107,7 @@ WayCoder/
 ├── Skills/            技能系统 (SkillsManager.cs SKILL.md 发现与解析)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        2178 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── SelfTest.cs        2228 项自测（拆为 SelfTest.cs + Chunk1-10 + Helpers 共 12 个 partial 文件）
 ├── Batch/             批量任务引擎 (2 文件)
 │   ├── BatchSpec.cs     任务清单模型 + JSON 解析 + 名称消毒
 │   └── BatchRunner.cs   多仓库并行执行 + worktree 隔离 + 聚合报告
@@ -133,7 +133,7 @@ WayCoder/
 │   │   ├── TuiListView.cs   懒列表 (二分查找 + 提前终止)
 │   │   └── TuiButton.cs     增强按钮 (快捷键下划线/悬停)
 │   └── TuiScreens/        全屏界面
-└── Tools/             42 个工具
+└── Tools/             43 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
     ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
@@ -149,10 +149,11 @@ WayCoder/
     ├── NotebookEditTool.cs MultiEditTool.cs
     ├── AskUserQuestionTool.cs ScreenshotTool.cs
     ├── ViewImageTool.cs
-    └── TranscribeAudioTool.cs
+    ├── TranscribeAudioTool.cs
+    └── DrawTool.cs 绘图（文本 DSL → SVG/PNG）
 ```
 
-## 42 个工具
+## 43 个工具
 
 | 工具 | 用途 |
 |---|---|
@@ -198,6 +199,7 @@ WayCoder/
 | `screenshot` | 抓屏（终端文本 / 桌面 PNG + OCR） |
 | `view_image` | 查看本地图片，附加到下一轮请求让 vision 模型读取 |
 | `transcribe` | 转录音频文件为文字（Whisper 兼容 API），补齐多模态音频输入 |
+| `draw` | 用文本指令绘制图形（rect/circle/line/text 等），输出 SVG 矢量或 PNG 位图 |
 
 ## REPL 命令
 

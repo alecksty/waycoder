@@ -219,6 +219,8 @@ public static partial class SelfTest
 
         TestChunk9(Section, Check, Fail);
 
+        TestChunk10(Section, Check, Fail);
+
         // ---- 结果 ----
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
