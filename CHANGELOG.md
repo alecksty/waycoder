@@ -1,6 +1,207 @@
 # 更新日志
 
-## v0.52.0 (2026-08-14) — TUI 交互与渲染增强 + 反白配色统一 + 一键发布
+## v0.53.10 (2026-08-14) — 手搓 AOT 安全 JSON/XML 库
+
+响应「不使用反射、自己可控」需求，新增两个零依赖、零反射的手写序列化库，替代散落各处的 `JsonNode.Parse` 手写解析与 `System.Text.Json` 反射序列化。
+
+### ✨ 新增
+
+- **`Infra/JsonLib.cs` — 手搓 JSON 库**（约 400 行）：
+  - `JNode` DOM（Object/Array/String/Number/Bool/Null）+ 工厂/增删查/取值/深拷贝
+  - `Json.Parse`/`TryParse` 递归下降解析器（手写 tokenizer），支持全部转义（含 `\uXXXX` 代理对）、严格数字语法、错误定位
+  - `Json.Serialize`（紧凑 + 缩进两模式）+ `SerializeValue`（无反射，对齐 JsonHelper）
+  - 数字往返保真（保留原始文本），非有限值安全回退 `null`
+  - 类名 `JNode`/`JKind`/`Json` 避开 `global using System.Text.Json.Nodes` 冲突
+- **`Infra/XmlLib.cs` — 手搓 XML 库**（约 400 行）：
+  - `XNode` DOM（Element/Text）+ 属性保序 + 子节点/查询/InnerText
+  - `Xml.Parse`/`TryParse` 手写解析器：声明/注释/DOCTYPE/CDATA/处理指令跳过、单双引号属性、预定义实体 + 数字字符引用、自闭合标签、标签匹配校验
+  - `Xml.Serialize`（紧凑 + 缩进）+ 文本/属性转义
+
+### 🧪 自测
+
+- 新增 `TestJsonLib`（36 项）+ `TestXmlLib`（24 项）共 60 项断言：标量/对象/数组/嵌套解析、转义与代理对、非法输入拒绝、序列化往返、DOM 操作、实体/CDATA、错误分支
+- 总计 2127 项自测全部通过（0 失败）
+
+## v0.53.9 (2026-08-14) — 修复 HooksManager AOT 反射 bug
+
+修复一个 NativeAOT 下的真实缺陷：`HooksManager.ParseHookOutput` 与 `LoadMatchers` 使用 `JsonSerializer.Deserialize<T>` 反射序列化，在 `PublishAot=true` 下会抛 `JsonSerializerIsReflectionDisabled`，导致 hook JSON 输出协议与 `hooks.json` matcher 系统在 AOT 发布版中完全失效。
+
+### 🐛 修复
+
+- **`ParseHookOutput`**：改用 `JsonNode.Parse` + `GetJsonString`/`GetJsonBool` 手写提取（AOT 安全），支持 `continue`/`decision`/`reason`/`systemMessage`/`additionalContext` 字段
+- **`LoadMatchers`**：改用 `JsonNode.Parse` 手写解析 `matchers` 数组（matcher/events/hooks），移除 `HookMatchersWrapper` 反射类与 `using System.Text.Json`
+
+### 🧪 自测
+
+- 新增 `TestHooksManager`（20 项）：会话 hook 注册/注销/清空、`MatchesPattern` 通配匹配、`SnakeCase` 转换、`ParseHookOutput` 纯文本/JSON/exitCode 2 分支
+- 其中 JSON 解析断言此前因反射异常而失败，现随修复通过
+- 总计 2067 项自测全部通过（0 失败）
+
+## v0.53.8 (2026-08-14) — 文件锁/文件追踪/Prompt 缓存单元测试补齐
+
+继续代码质量维度：补齐三个核心安全/成本特性的零覆盖纯逻辑类的单元测试（39 项），均为 CLAUDE.md 强调的关键设计。
+
+### 🧪 自测
+
+- 新增 39 项断言覆盖三个类：
+  - **`FileLockManager`**（14 项）：首次获取、同 agent 续期、异 agent 拒绝、`IsLockedByOther` 判定、Release 归属校验、过期锁强占（负 timeout 立即过期）、`ReleaseAll` 清空、`GetSummary` 空/非空、`WaitForLockAsync` 无锁成功
+  - **`FileTracker`**（12 项）：未追踪/已追踪状态、外部修改 stale 检测（哈希变更）、`CheckForChanges` 检出、`RecordWrite` 更新、删除检测并移除追踪、`ValidatePreEdit` 未读取警告/已读取通过、`GetChangeWarning`、`Enabled` 短路、`Reset` 清空
+  - **`PromptCache`**（13 项）：首次未命中、相同请求命中、节省 token 累计、system/tools 任一变更未命中、`HitRate` 计算、`Reset` 后未命中、`Enabled` 短路、`Summary` 命中率与 K 格式
+
+- 总计 2047 项自测全部通过（0 失败）
+
+## v0.53.7 (2026-08-14) — 长方法拆分 + ImportHelper 纯逻辑 + 压力测试脚本修复
+
+代码质量维度继续推进：消除两处重复样板（`AgentTool` 并行解析三分支、`ContextManager` 三层压缩进度报告），将 `ImportHelper` 两个私有纯函数改为 `internal` 并补齐单元测试，同时修复压力测试脚本的跨平台与路径 bug。
+
+### 🛠 重构
+
+- **`AgentTool.ExecuteParallelAsync` 三分支合并**：`JsonArray` / `IEnumerable` / string-JSON 三处重复的「`ExtractTaskText` + 非空判断 + `Add`」样板提取为 `CollectTaskTexts` 单方法，消除重复
+- **`ContextManager.MaybeCompressAsync` 进度报告合并**：三层压缩（裁剪/摘要/硬折叠）共 6 处重复的「百分比 + 进度条 + 事件」样板提取为 `ReportProgress`，行为不变
+- **`ImportHelper` 纯逻辑暴露**：`StripJsonComments`（JSONC 注释剥离）与 `FormatSize`（文件大小格式化）由 `private` 改 `internal`，成为可测的零依赖纯函数
+
+### 🧪 自测
+
+- 新增 14 项断言覆盖 `ImportHelper`：
+  - **`StripJsonComments`**（7 项）：行注释/块注释移除、注释后仍可解析、字符串内 `//` 与 `/* */` 不误删、字符串内转义引号保留
+  - **`FormatSize`**（7 项）：B/KB/MB 三档 + 0/1023/1024/1MB 边界
+
+- 总计 2008 项自测全部通过（0 失败）
+
+### 🐛 修复
+
+- **`scripts/stress-test.sh` 跨平台 + 路径 bug**：① AOT 产物名硬编码 `WayCoder.exe`（Windows），macOS/Linux 实为 `waycoder`，改为平台感知探测；② 编译验证 `cd "$WORK_DIR"` 后直接 `dotnet build`，但 Agent 在子目录（`MiniKanban/`）建项目导致 MSB1003，改为 `find` 定位 `.csproj`/`.sln` 所在目录后编译
+
+### 🚀 端到端验证
+
+- 压力测试通过：`deepseek-v4-flash` 生成 MiniKanban（9 文件 312 行），Agent 自测循环实测 `dotnet build` 0 错误 0 警告，CLI `add/list/move/delete` 全部通过，确认本轮重构无回归
+
+## v0.53.6 (2026-08-14) — SnippetStore 可测试性重构 + 单元测试补齐
+
+`SnippetStore` 此前 `Get`/`Search`/`List`/`Delete`/`Add` 硬编码 `DefaultDir`（`Environment.CurrentDirectory/.waycoder/snippets`），无法在隔离目录下测试——「不可测试 = 不可维护」的设计缺陷。
+
+### 🛠 重构
+
+- **`SnippetStore` 五个方法增加可选 `dir` 参数**：`Add`/`Search`/`List`/`Delete`/`Get` 均新增 `string? dir = null`（默认行为不变，向后兼容），内部 `EnsureLoaded(dir)` + 文件操作统一走 `dir ?? DefaultDir`，使测试可用临时目录隔离
+
+### 🧪 自测
+
+- 新增 9 项断言覆盖 `SnippetStore`：frontmatter 解析（name/language/tags/body）、`Add`→`Get` 往返、`Search` 多词 OR 按名称/标签命中、无命中返回空、`List` 全量、`Delete` 命中/未命中
+
+- 总计 1994 项自测全部通过（0 失败）
+
+## v0.53.5 (2026-08-14) — 工具层单元测试补齐（find_replace/diff/tree）
+
+从基础设施类转向工具层：补齐三个纯 C# 实现工具的单元测试（16 项），覆盖编辑/对比/目录树核心行为。
+
+### 🧪 自测
+
+- 新增 16 项断言覆盖三个工具：
+  - **`FindReplaceTool`**（6 项）：空 pattern 报错、预览模式不写文件、实际替换写入、无效正则回退纯文本匹配、目录不存在报错
+  - **`DiffTool`**（5 项）：差异行 `-`/`+` 输出、相同文件提示、空文件提示、文件不存在错误
+  - **`TreeTool`**（5 项）：树生成含子目录/文件、隐藏文件跳过、深度限制不展开、目录不存在错误
+
+- 总计 1985 项自测全部通过（0 失败）
+
+## v0.53.4 (2026-08-14) — 文件忽略规则 + 记忆检索补齐单元测试
+
+继续代码质量维度改进：再补齐两个零覆盖的基础设施类 `FileIgnoreManager` 与 `MemoryRetrieval` 的单元测试（27 项）。
+
+### 🧪 自测
+
+- 新增 27 项断言覆盖两个类：
+  - **`FileIgnoreManager`**（20 项）：`node_modules`/`dist`/`.git` 等始终忽略目录、`.pyc`/`.dll`/`.jpg` 等扩展名、`.gitignore` 规则匹配（`*.log` 任意深度、`!` 否定反转、`/rootfile.txt` 锚定、`*.tmp`）、`FilterIgnored` 批量过滤、`ShouldSkipDirectory` 隐藏/忽略目录跳过
+  - **`MemoryRetrieval`**（7 项）：frontmatter 记忆加载 + `GetRelevant` 关键词匹配（英文标识符 + CJK 双字词）、无关关键词不误命中、`FormatForPrompt` 标题/类型/描述超 200 字符截断/空列表返回空
+
+- 总计 1969 项自测全部通过（0 失败）
+
+## v0.53.3 (2026-08-14) — 基础设施纯逻辑类补齐细粒度单元测试
+
+代码质量维度（68/100）改进：此前三个零覆盖的基础设施纯逻辑类（`RetryPolicy` / `LruCache` / `IdGenerator`）从未被自测触达，属于「写了但没人验证」的死角。
+
+### 🧪 自测
+
+- 新增 `[基础设施]` 测试段，42 项断言覆盖三个类：
+  - **`RetryPolicy`**（12 项）：黑名单/白名单异常过滤、首次成功不重试、失败 N 次后成功、耗尽重试、指数退避 100→200→400、无返回值版本
+  - **`LruCache`**（16 项）：基本读写、容量淘汰最旧、`Get` 提升 LRU、TTL 过期、`Remove`/`Clear`/`OnEvicted` 事件、`TryGet`、命中/未命中/淘汰统计、容量 ≤0 校验
+  - **`IdGenerator`**（14 项）：`NewId` 长度与去歧义字符集、100 个唯一性、`NewSlug` 格式与词数 clamp、`NewPrefixed` 前缀
+
+### 🐛 修复
+
+- **`RetryPolicy` 死代码**：重试循环末尾的 `throw new AggregateException` 实为不可达死代码——`catch (Exception ex) when (...)` 过滤器在最后一次尝试（`attempt == MaxRetries`）已原样放行异常向外抛出，`lastEx` 变量与 `AggregateException` 从未执行，且误导读者「耗尽重试抛 AggregateException」（实际抛最后一次原始异常，与文档一致）。移除死代码，替换为明确的「不可达终点」哨兵，行为不变
+
+- 总计 1942 项自测全部通过（0 失败）
+
+## v0.53.2 (2026-08-14) — 修复上下文压缩误触发（累计用量 → 最近 prompt）
+
+端到端验证暴露的第二个缺陷：主智能体累计用量到 169 万 tokens、触发 5 次「上下文压缩」，但消息估算却只有 8 万左右——压缩根本没发生，只是在空转刷屏。
+
+### 🐛 修复
+
+- **压缩判断度量错误**：`ContextManager.ShouldStopAndSummarize()` 此前用 `CumulativePromptTokens + CumulativeCompletionTokens`（会话累计用量，单调递增）判断「剩余窗口是否不足」，导致上下文远未满时（真实上下文 ~12 万 vs 窗口 1M）就误触发压缩；而压缩层（`MaybeCompressAsync`）用消息估算（~8 万，远低于 50% 阈值）判断，三层压缩全部不触发，累计值也不重置，形成「每轮误触发 → 实际不压缩 → 累计继续涨 → 再误触发」的死循环
+- **新增 `ContextManager.LastPromptTokens`**：`AddUsage` 里覆盖记录最近一次真实 prompt（代表当前上下文大小），`ShouldStopAndSummarize` 改用其判断——只有真实上下文真正接近窗口（剩余 ≤ buffer）才触发压缩，触发后压缩层用校准估算（≈ 真实 prompt）判断会真正执行裁剪/摘要，`ResetUsage` 同步重置
+
+### 🧪 自测
+
+- 新增断言 9 项（`LastPromptTokens` 记录最近一次非累加、累计超窗口但最近 prompt 小不触发、最近 prompt 接近窗口触发、大小窗口阈值、`ResetUsage` 重置），总计 1900 项全部通过（0 失败）
+
+## v0.53.1 (2026-08-14) — 并行子智能体 tasks 数组对象元素乱码修复
+
+端到端验证暴露的缺陷：`agent(tasks=[{"description": "..."}, ...])` 结构化传参时，对象元素被解析成 `Dictionary<string, object?>` 后直接 `ToString()`，子智能体收到 `System.Collections.Generic.Dictionary...` 乱码，3 个子智能体 2 个直接失败（只有纯字符串元素碰巧成功）。
+
+### 🐛 修复
+
+- **tasks 数组对象元素提取**：新增 `AgentTool.ExtractTaskText()`，对元素为对象（`JsonObject` / `Dictionary<string, object?>`）时提取 `description`/`task`/`name`/`title`/`text`/`prompt`/`instruction` 字段（对齐 schema 的 items 结构），纯字符串透传，无已知字段时兜底取第一个字符串值，杜绝类型名乱码
+
+### 🧪 自测
+
+- 新增断言 5 项（纯字符串透传、对象提取 description/task、JsonObject 提取、null 返回），总计 1891 项全部通过（0 失败）
+
+## v0.53.0 (2026-08-14) — 子智能体健壮性加固（修复并行竞态 + 上下文爆炸防线）
+
+压力测试暴露的两个「短板」从代码层根治：子智能体并行时的共享可变状态竞态、多路输出累加撑爆主智能体上下文。
+
+### 🐛 修复
+
+- **并行子智能体 ModelOverride 竞态**：子智能体改用独立 LLM 实例（`LLM.Clone()`），不再共享父 `LlmClient` 的小模型切换。此前并行模式下最后完成的子智能体会把 `ModelOverride` 恢复成小模型，污染主智能体后续请求降级
+- **BashGuard 参数拦截语义 bug**：纯子命令禁止（如 `dotnet new`、`cargo install`）此前因 `MatchArgs` 无兜底而漏拦；`exceptFlags` 白名单（如 `pip install --user`）此前未命中时也放行。重写 `Match`/`MatchArgs`，白名单（exceptFlags=默认拦）与黑名单（flags/blockArgs=默认放）语义分离
+
+### 🛡️ 健壮性
+
+- 新增 `SubAgentParallelTotalMaxChars` 配置（`WAYCODER_SUBAGENT_PARALLEL_TOTAL_MAX_CHARS`，默认 15000）：并行子智能体聚合结果总限长，防止 N 个输出累加撑爆主智能体上下文（压力测试第五轮 8 路并行 3.8M tokens 的根因）
+- 子智能体输出截断改「保尾」（头 70% + 尾 25%），保留末尾结论（如「Automata 7→0」），不再把关键结论截掉
+- BashGuard 新增拦截 `dotnet new`（生成 csproj/Program.cs 污染多项目构建，压力测试第五轮 `MSB1011` 的根因）
+
+### 🤖 自主性
+
+- 新增 `SystemPrompt.SubAgentDiscipline`：子智能体纪律固化到每个子任务注入（不建 scratch/csproj、自测到通过、精简回报、不越界改模块），主智能体不必每次在 task 里重写外部铁律
+- `LLM.MergeUsageFrom()`：子智能体 clone 实例的花费统计回收累加到父智能体，隔离不丢花费追踪
+
+### 🧪 自测
+
+- 新增断言 6 项（`dotnet new` 拦截、`dotnet build` 不误伤、纪律非空、`LLM.Clone` 独立、配置默认值等），并顺手修复 Snapshot 路径假设（兼容 cwd=仓库根或 `WayCoder/`），1879 项全部通过（0 失败）
+
+## v0.52.0 (2026-08-14) — 子智能体 shell 权限（YOLO 放行 / 非 YOLO 提问确认）
+
+### 🤖 多智能体
+
+- 子智能体获得 `bash`（shell）权限：从「工具层禁令」转为「确认层管控」——移除 `SubAgentDeniedTools` 中的 `bash` 条目，shell 能力交给既有的 `PermissionManager.CheckAsync` 统一裁决
+- **YOLO 模式**（`/perm yolo`）：子智能体 `bash` 直接放行，可跑 `dotnet build`/`dotnet run` 自测，不再「盲写」代码（修复压力测试中失败数从 7 暴涨到 129 的根因）
+- **非 YOLO 模式**：子智能体 `bash` 属危险工具，逐条弹行内确认框「提问申请」；`ls`/`find`/`wc` 等只读命令仍由 `BashGuard.IsSafeReadOnly` 自动放行
+- 新增 `PermissionManager.ConfirmLock`（`SemaphoreSlim`）串行化确认弹框：并行子智能体（`Task.WhenAll`）并发请求 shell 权限时逐个排队，消除抢键盘/渲染竞态
+- 保留 `rm`/`kill`/`git` 等危险/管理类工具禁令（主智能体统一管理）
+
+### 🔧 工具回显优化
+
+- `Agent.FormatValue` 递归序列化集合/字典/JsonNode（而非 `ToString()` 泄漏 `System.Collections...`）
+- `JsonHelper.SerializeValue` 改 `public` 供 FormatValue 复用
+- `AgentTool.Description` 并发数硬编码「4 个」改为动态 `MaxParallelTasks`（配置调整后描述同步）
+
+### 🧪 自测
+
+- 自测数 1867→1872（上次 5 项回归）；`SubAgentDeniedTools` 断言反转（不再包含 `bash` / 子 Agent 深度 0 保留 `bash`），1872 项全部通过（0 失败）
+
+## v0.52.0 (2026-08-14) — TUI 交互与渲染增强 + 反白配色统一 + 一键发布（master 并行线）
 
 ### 🎨 反白配色统一
 
@@ -22,7 +223,7 @@
 
 ### 🔐 权限确认与问答统一
 
-- `PermissionManager` 统一走 `UxHelper.Confirm`（TUI 黄底 Y/N/A 弹框 / 非 TUI 行内编号菜单），删除重复的 `ShowInlinePermission` 分支
+- `PermissionManager` 统一走 `UxHelper.Confirm`（TUI 黄底 Y/N/A 弹框 / 非 TUI 行内编号菜单），删除重复的 `ShowInlinePermission` 分支（注：本次合并保留 mac 线 `ShowInlinePermission` 行内权限块方案）
 - `AskUserQuestionTool` 单选/多选/文本输入统一 `UxHelper.Select/MultiSelect/Ask`，删除约 125 行重复的 `ShowAndWait` 事件循环，并透传 `AskUserTimeoutSec` 超时
 
 ### 📎 工具消息缩进嵌套

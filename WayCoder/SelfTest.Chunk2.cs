@@ -233,6 +233,22 @@ public static partial class SelfTest
         Section("[JSON 辅助]");
         var json = JsonHelper.SerializeArgs(new() { ["k"] = "v", ["n"] = 42 });
         Check("序列化包含键值", json.Contains("\"k\":\"v\"") && json.Contains("\"n\":42"));
+
+        // P1-3 回归：集合/字典/JsonNode 递归序列化（而非 ToString 回显 System.Collections...）
+        var listJson = JsonHelper.SerializeArgs(new() { ["tasks"] = new List<object?> { "a", "b", 3 } });
+        Check("List 序列化为 JSON 数组", listJson == "{\"tasks\":[\"a\",\"b\",3]}");
+        Check("List 不含 ToString 泄漏", !listJson.Contains("System.Collections"));
+
+        var dictJson = JsonHelper.SerializeArgs(new() { ["opts"] = new Dictionary<string, object?> { ["x"] = 1, ["y"] = "z" } });
+        Check("字典序列化为 JSON 对象", dictJson == "{\"opts\":{\"x\":1,\"y\":\"z\"}}");
+        Check("字典不含 ToString 泄漏", !dictJson.Contains("System.Collections"));
+
+        var nodeJson = JsonHelper.SerializeArgs(new()
+        {
+            ["arr"] = new JsonArray("m", "n"),
+            ["obj"] = new JsonObject { ["deep"] = true },
+        });
+        Check("JsonArray/JsonObject 走 ToJsonString", nodeJson.Contains("\"arr\":[\"m\",\"n\"]") && nodeJson.Contains("\"deep\":true"));
         Console.WriteLine();
 
         // ================================================================

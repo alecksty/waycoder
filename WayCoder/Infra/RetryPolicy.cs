@@ -25,7 +25,6 @@ public class RetryPolicy
         Action<int, Exception, int>? onRetry = null)
     {
         var cfg = config ?? Default;
-        Exception? lastEx = null;
 
         for (int attempt = 0; attempt <= cfg.MaxRetries; attempt++)
         {
@@ -35,7 +34,6 @@ public class RetryPolicy
             }
             catch (Exception ex) when (cfg.ShouldRetry(ex) && attempt < cfg.MaxRetries)
             {
-                lastEx = ex;
                 var delayMs = (int)Math.Min(
                     cfg.BaseDelayMs * Math.Pow(2, attempt),
                     cfg.MaxDelayMs);
@@ -44,9 +42,9 @@ public class RetryPolicy
             }
         }
 
-        throw new AggregateException(
-            $"操作在 {cfg.MaxRetries} 次重试后仍然失败。",
-            lastEx ?? new Exception("未知错误"));
+        // 不可达：每次迭代要么成功返回，要么异常因 when 过滤器不满足
+        // （不可重试或已耗尽 attempt == MaxRetries）而原样向外抛出最后一次异常。
+        throw new InvalidOperationException("重试循环不可达终点。");
     }
 
     /// <summary>无返回值的重试版本。</summary>

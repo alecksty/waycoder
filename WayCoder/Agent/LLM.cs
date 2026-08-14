@@ -294,6 +294,29 @@ public class LLM
     }
 
     /// <summary>
+    /// 克隆一个配置相同、统计独立的 LLM 客户端。用于子智能体隔离：并行子智能体
+    /// 各自持有独立实例，避免共享 <see cref="ModelOverride"/> 引发的并发竞态
+    /// （多个子智能体并发读写同一客户端的小模型切换会互相污染）。
+    /// </summary>
+    public LLM Clone() => new(Model, ApiKey, BaseUrl, MaxTokens, Temperature)
+    {
+        SmallModel = SmallModel,
+        ModelOverride = ModelOverride,
+    };
+
+    /// <summary>
+    /// 把另一个 LLM 客户端的用量统计累加到当前实例。子智能体 clone 完成后调用，
+    /// 使子智能体的 token 花费与请求次数计入父智能体的任务统计（否则子智能体
+    /// 的花费会因实例隔离而丢失）。
+    /// </summary>
+    public void MergeUsageFrom(LLM other)
+    {
+        TotalPromptTokens += other.TotalPromptTokens;
+        TotalCompletionTokens += other.TotalCompletionTokens;
+        TotalRequests += other.TotalRequests;
+    }
+
+    /// <summary>
     /// 发送消息到 LLM，流式返回响应，处理工具调用。
     /// </summary>
     /// <param name="messages">对话历史（OpenAI 格式消息数组）</param>
@@ -892,19 +915,59 @@ internal static class JsonHelper
         return sb.ToString();
     }
 
-    private static string SerializeValue(object? value)
+    public static string SerializeValue(object? value)
     {
-        return value switch
+        switch (value)
         {
-            null => "null",
-            string s => $"\"{EscapeJson(s)}\"",
-            bool b => b ? "true" : "false",
-            int i => i.ToString(),
-            long l => l.ToString(),
-            double d => d.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            float f => f.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            _ => $"\"{EscapeJson(value.ToString()!)}\"",
-        };
+            case null: return "null";
+            case string s: return $"\"{EscapeJson(s)}\"";
+            case bool b: return b ? "true" : "false";
+            case int i: return i.ToString();
+            case long l: return l.ToString();
+            case double d: return d.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            case float f: return f.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            case JsonNode node: return node.ToJsonString();
+            case System.Collections.IDictionary dict: return SerializeDict(dict);
+            case System.Collections.IEnumerable enumerable: return SerializeArray(enumerable);
+            default: return $"\"{EscapeJson(value.ToString() ?? "null")}\"";
+        }
+    }
+
+    /// <summary>
+    /// 递归序列化字典为 JSON 对象（tasks 等嵌套参数的字典类型正确回显，而非 ToString）。
+    /// </summary>
+    private static string SerializeDict(System.Collections.IDictionary dict)
+    {
+        var sb = new StringBuilder("{");
+        var first = true;
+        foreach (System.Collections.DictionaryEntry entry in dict)
+        {
+            if (!first) sb.Append(',');
+            first = false;
+            sb.Append('"');
+            sb.Append(EscapeJson(entry.Key?.ToString() ?? ""));
+            sb.Append("\":");
+            sb.Append(SerializeValue(entry.Value));
+        }
+        sb.Append('}');
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 递归序列化集合为 JSON 数组（tasks 等 List/数组类型正确回显，而非 ToString）。
+    /// </summary>
+    private static string SerializeArray(System.Collections.IEnumerable enumerable)
+    {
+        var sb = new StringBuilder("[");
+        var first = true;
+        foreach (var item in enumerable)
+        {
+            if (!first) sb.Append(',');
+            first = false;
+            sb.Append(SerializeValue(item));
+        }
+        sb.Append(']');
+        return sb.ToString();
     }
 
     /// <summary>

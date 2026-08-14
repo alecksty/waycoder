@@ -963,7 +963,7 @@ public static class ImportHelper
     }
 
     /// <summary>去除 JSONC 注释（// 和 /* */），返回纯 JSON 字符串</summary>
-    private static string StripJsonComments(string jsonc)
+    internal static string StripJsonComments(string jsonc)
     {
         var result = new StringBuilder();
         var inString = false;
@@ -1034,7 +1034,7 @@ public static class ImportHelper
         return envPath;
     }
 
-    private static string FormatSize(long bytes)
+    internal static string FormatSize(long bytes)
     {
         return bytes switch
         {

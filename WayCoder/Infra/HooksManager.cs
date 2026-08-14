@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Collections.Concurrent;
 
@@ -158,23 +157,52 @@ public static class HooksManager
         try
         {
             var json = File.ReadAllText(jsonPath);
-            var config = JsonSerializer.Deserialize<HookMatchersWrapper>(json);
-            if (config?.Matchers != null)
-                _matchers = config.Matchers.ToList();
-            else
-                _matchers = [];
+            // AOT 安全：JsonNode.Parse 手写解析，避免 JsonSerializer.Deserialize 反射
+            var list = new List<HookMatcherConfig>();
+            if (JsonNode.Parse(json) is JsonObject root && root["matchers"] is JsonArray matchersArr)
+            {
+                foreach (var item in matchersArr)
+                {
+                    if (item is not JsonObject mo) continue;
+
+                    var mc = new HookMatcherConfig
+                    {
+                        Matcher = mo["matcher"]?.GetValue<string>(),
+                    };
+
+                    if (mo["events"] is JsonArray eventsArr)
+                        mc.Events = eventsArr
+                            .Select(e => e?.GetValue<string>())
+                            .Where(s => s != null)
+                            .Select(s => s!)
+                            .ToArray();
+
+                    if (mo["hooks"] is JsonArray hooksArr)
+                    {
+                        var hooks = new List<HookCommandConfig>();
+                        foreach (var h in hooksArr)
+                        {
+                            if (h is not JsonObject ho) continue;
+                            hooks.Add(new HookCommandConfig
+                            {
+                                Type = ho["type"]?.GetValue<string>() ?? "command",
+                                Command = ho["command"]?.GetValue<string>() ?? "",
+                                Timeout = ho["timeout"] is JsonValue tv && tv.TryGetValue<int>(out var t) ? t : 0,
+                            });
+                        }
+                        mc.Hooks = hooks.ToArray();
+                    }
+
+                    list.Add(mc);
+                }
+            }
+            _matchers = list;
         }
         catch (Exception ex)
         {
             DebugLog.Log("hooks", $"Failed to load hooks.json: {ex.Message}");
             _matchers = [];
         }
-    }
-
-    // Simple wrapper for JSON deserialization (AOT-compatible)
-    private class HookMatchersWrapper
-    {
-        public HookMatcherConfig[]? Matchers { get; set; }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -380,18 +408,28 @@ public static class HooksManager
     }
 
     /// <summary>解析 hook 脚本输出：先尝试 JSON，失败则作为纯文本（兼容旧 hook）。</summary>
-    private static HookOutput? ParseHookOutput(string stdout, int exitCode)
+    internal static HookOutput? ParseHookOutput(string stdout, int exitCode)
     {
         if (string.IsNullOrWhiteSpace(stdout) && exitCode == 0) return null;
 
-        // 尝试 JSON 解析
+        // 尝试 JSON 解析（AOT 安全：JsonNode.Parse 手写解析，避免 JsonSerializer.Deserialize
+        // 反射在 NativeAOT 下抛 JsonSerializerIsReflectionDisabled）
         var trimmed = stdout.Trim();
         if (trimmed.StartsWith('{'))
         {
             try
             {
-                var output = JsonSerializer.Deserialize<HookOutput>(trimmed);
-                if (output != null) return output;
+                if (JsonNode.Parse(trimmed) is JsonObject obj)
+                {
+                    return new HookOutput
+                    {
+                        Continue = GetJsonBool(obj, "continue", "Continue") ?? true,
+                        Decision = GetJsonString(obj, "decision", "Decision"),
+                        Reason = GetJsonString(obj, "reason", "Reason"),
+                        SystemMessage = GetJsonString(obj, "systemMessage", "SystemMessage"),
+                        AdditionalContext = GetJsonString(obj, "additionalContext", "AdditionalContext"),
+                    };
+                }
             }
             catch
             {
@@ -421,6 +459,28 @@ public static class HooksManager
         return null;
     }
 
+    /// <summary>从 JsonObject 提取字符串字段（多个候选键名，先命中的返回）。</summary>
+    private static string? GetJsonString(JsonObject obj, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            if (obj[key] is JsonValue jv && jv.TryGetValue<string>(out var s))
+                return s;
+        }
+        return null;
+    }
+
+    /// <summary>从 JsonObject 提取布尔字段（多个候选键名）。</summary>
+    private static bool? GetJsonBool(JsonObject obj, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            if (obj[key] is JsonValue jv && jv.TryGetValue<bool>(out var b))
+                return b;
+        }
+        return null;
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // Matcher 模式匹配
     // ═══════════════════════════════════════════════════════════════
@@ -429,7 +489,7 @@ public static class HooksManager
     /// 检查 matchValue 是否匹配给定的 matcher 模式。
     /// 空/null/"*" = 全匹配；管道分隔 = 任一匹配；其他 = 正则匹配。
     /// </summary>
-    private static bool MatchesPattern(string matchValue, string? matcher)
+    internal static bool MatchesPattern(string matchValue, string? matcher)
     {
         if (string.IsNullOrEmpty(matcher) || matcher == "*")
             return true;
@@ -463,7 +523,7 @@ public static class HooksManager
     // ═══════════════════════════════════════════════════════════════
 
     /// <summary>将 PascalCase 转为 snake_case（如 PreToolUse → pre_tool_use）</summary>
-    private static string SnakeCase(string pascal)
+    internal static string SnakeCase(string pascal)
     {
         var result = new System.Text.StringBuilder();
         for (int i = 0; i < pascal.Length; i++)

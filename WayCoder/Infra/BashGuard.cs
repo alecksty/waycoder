@@ -105,6 +105,9 @@ public static class BashGuard
 
         // go test -exec (可执行任意命令)
         new("go", "test", flags: ["-exec"]),
+
+        // dotnet new（生成 csproj/Program.cs 等多项目文件，污染主项目构建）
+        new("dotnet", "new"),
     ];
 
     // ========================================================================
@@ -293,6 +296,10 @@ internal class ArgBlockRule
             if (parts.Length < 2) return false;
             if (!SubCommands.Any(s => string.Equals(parts[1], s, StringComparison.OrdinalIgnoreCase)))
                 return false;
+            // 纯子命令禁止（无额外 flags/blockArgs/exceptFlags 规则）：命中子命令即拦截，
+            // 例如 `dotnet new`、`cargo install`。否则交由参数级规则判定。
+            if (Flags == null && BlockArgs == null && ExceptFlags == null)
+                return true;
             // 剩余参数从 parts[2..] 检查
             return MatchArgs(parts[2..]);
         }
@@ -303,7 +310,7 @@ internal class ArgBlockRule
 
     private bool MatchArgs(string[] remainingArgs)
     {
-        // 检查是否有排除标志：如果存在 exceptFlags，且命令中包含该标志 → 放行
+        // 白名单语义（exceptFlags）：命中排除标志 → 放行；未命中 → 默认拦截该子命令。
         if (ExceptFlags != null)
         {
             bool hasExceptFlag = false;
@@ -318,7 +325,7 @@ internal class ArgBlockRule
             if (hasExceptFlag) return false; // 用户指定了允许的标志，不拦截
         }
 
-        // 检查是否包含禁止的标志
+        // 黑名单语义（flags/blockArgs）：命中禁止标志/参数 → 拦截
         if (Flags != null)
         {
             foreach (var arg in remainingArgs)
@@ -328,7 +335,6 @@ internal class ArgBlockRule
             }
         }
 
-        // 检查是否包含禁止的参数
         if (BlockArgs != null)
         {
             foreach (var arg in remainingArgs)
@@ -338,6 +344,8 @@ internal class ArgBlockRule
             }
         }
 
-        return false;
+        // 有 exceptFlags 但未命中任何排除标志 → 默认拦截（子命令危险，仅白名单放行）；
+        // 纯黑名单规则（无 exceptFlags）未命中 → 默认放行。
+        return ExceptFlags != null;
     }
 }
