@@ -175,8 +175,8 @@ public class AgentTool : ITool
         var savedOverride = subLLM.ModelOverride;
         subLLM.ModelOverride = subLLM.SmallModel;
 
-        // 子智能体轮次：随深度递减
-        var subRounds = Math.Max(5, 20 - depth * 5);
+        // 子智能体轮次：随深度递减（顶层上限可配置）
+        var subRounds = Math.Max(5, Config.Instance.SubAgentMaxRounds - depth * 5);
 
         try
         {
