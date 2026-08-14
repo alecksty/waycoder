@@ -13,7 +13,7 @@ public static partial class SelfTest
     private static void TestChunk1(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
     {
         Section("[工具注册]");
-        Check("工具数量 == 41", ToolRegistry.BuiltinTools.Count == 41);
+        Check("工具数量 == 42", ToolRegistry.BuiltinTools.Count == 42);
         Check("所有工具有有效 schema", ToolRegistry.AllTools.All(t =>
         {
             var s = t.Schema();
@@ -494,6 +494,26 @@ public static partial class SelfTest
             File.Delete(imgTmp);
         }
         catch { Fail("BuildImageMessage 多模态"); }
+
+        // transcribe（音频转录工具）
+        Check("transcribe 已注册", ToolRegistry.GetTool("transcribe") != null);
+        Check("transcribe 支持 mp3", TranscribeAudioTool.IsSupportedAudioExtension("mp3"));
+        Check("transcribe 支持 flac", TranscribeAudioTool.IsSupportedAudioExtension("flac"));
+        Check("transcribe 拒绝 txt", !TranscribeAudioTool.IsSupportedAudioExtension("txt"));
+        Check("transcribe 拒绝空扩展名", !TranscribeAudioTool.IsSupportedAudioExtension(""));
+        Check("transcribe MIME: mp3", TranscribeAudioTool.MapContentType("mp3") == "audio/mpeg");
+        Check("transcribe MIME: wav", TranscribeAudioTool.MapContentType("wav") == "audio/wav");
+        Check("transcribe MIME: 未知", TranscribeAudioTool.MapContentType("xyz") == "application/octet-stream");
+        Check("transcribe 空路径报错",
+            TranscribeAudioTool.ValidateAudioFile("", out var _e1) == null && _e1.Contains("不能为空"));
+        Check("transcribe 不存在文件报错",
+            TranscribeAudioTool.ValidateAudioFile("/nonexistent/voice.mp3", out var _e2) == null && _e2.Contains("不存在"));
+        var tmpTxt = Path.Combine(Path.GetTempPath(), "wc_transcribe_" + Guid.NewGuid().ToString("N")[..6] + ".txt");
+        File.WriteAllText(tmpTxt, "not audio");
+        Check("transcribe 不支持格式报错",
+            TranscribeAudioTool.ValidateAudioFile(tmpTxt, out var _e3) == null && _e3.Contains("不支持的音频格式"));
+        File.Delete(tmpTxt);
+        Check("transcribe 配置默认 whisper-1", Config.Instance.WhisperModel == "whisper-1");
 
         Console.WriteLine();
 

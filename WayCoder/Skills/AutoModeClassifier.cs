@@ -33,6 +33,8 @@ public static class AutoModeClassifier
         "lsp", "lint",
         // 外部查询（只读）
         "fetch", "web_search", "doc",
+        // 音频转录（只读，外部语音转文字）
+        "transcribe",
         // 记忆（只读）
         "memory",
         // 技能
