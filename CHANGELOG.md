@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.53.9 (2026-08-14) — 修复 HooksManager AOT 反射 bug
+
+修复一个 NativeAOT 下的真实缺陷：`HooksManager.ParseHookOutput` 与 `LoadMatchers` 使用 `JsonSerializer.Deserialize<T>` 反射序列化，在 `PublishAot=true` 下会抛 `JsonSerializerIsReflectionDisabled`，导致 hook JSON 输出协议与 `hooks.json` matcher 系统在 AOT 发布版中完全失效。
+
+### 🐛 修复
+
+- **`ParseHookOutput`**：改用 `JsonNode.Parse` + `GetJsonString`/`GetJsonBool` 手写提取（AOT 安全），支持 `continue`/`decision`/`reason`/`systemMessage`/`additionalContext` 字段
+- **`LoadMatchers`**：改用 `JsonNode.Parse` 手写解析 `matchers` 数组（matcher/events/hooks），移除 `HookMatchersWrapper` 反射类与 `using System.Text.Json`
+
+### 🧪 自测
+
+- 新增 `TestHooksManager`（20 项）：会话 hook 注册/注销/清空、`MatchesPattern` 通配匹配、`SnakeCase` 转换、`ParseHookOutput` 纯文本/JSON/exitCode 2 分支
+- 其中 JSON 解析断言此前因反射异常而失败，现随修复通过
+- 总计 2067 项自测全部通过（0 失败）
+
 ## v0.53.8 (2026-08-14) — 文件锁/文件追踪/Prompt 缓存单元测试补齐
 
 继续代码质量维度：补齐三个核心安全/成本特性的零覆盖纯逻辑类的单元测试（39 项），均为 CLAUDE.md 强调的关键设计。

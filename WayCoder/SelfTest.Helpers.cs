@@ -1566,4 +1566,71 @@ public static partial class SelfTest
 
         PromptCache.ClearStats();
     }
+
+    /// <summary>Hook 系统（HooksManager）单元测试：session hook 注册/事件执行/匹配器/输出协议解析。</summary>
+    private static void TestHooksManager(Action<string, bool> Check)
+    {
+        HooksManager.Enabled = true;
+        HooksManager.ClearSessionHooks();
+
+        // 1. PreToolUse session hook 阻止（返回 reason）
+        var id1 = HooksManager.RegisterSessionHook(HookEvent.PreToolUse,
+            ctx => Task.FromResult<HookOutput?>(new HookOutput { Decision = "block", Reason = "测试阻止" }));
+        var block = HooksManager.RunPreToolUseAsync("bash", new Dictionary<string, object?> { ["cmd"] = "ls" }).GetAwaiter().GetResult();
+        Check("Hook: PreToolUse 阻止返回原因", block?.Contains("测试阻止") == true);
+
+        // 2. 注销后放行
+        HooksManager.UnregisterSessionHook(id1);
+        Check("Hook: 注销后放行",
+            HooksManager.RunPreToolUseAsync("bash", new Dictionary<string, object?>()).GetAwaiter().GetResult() == null);
+
+        // 3. Continue=true 放行
+        HooksManager.RegisterSessionHook(HookEvent.PreToolUse,
+            ctx => Task.FromResult<HookOutput?>(new HookOutput { Continue = true }));
+        Check("Hook: Continue=true 放行",
+            HooksManager.RunPreToolUseAsync("bash", new Dictionary<string, object?>()).GetAwaiter().GetResult() == null);
+        HooksManager.ClearSessionHooks();
+
+        // 4. PostToolUse 返回 AdditionalContext
+        HooksManager.RegisterSessionHook(HookEvent.PostToolUse,
+            ctx => Task.FromResult<HookOutput?>(new HookOutput { AdditionalContext = "后处理结果" }));
+        Check("Hook: PostToolUse 返回附加上下文",
+            HooksManager.RunPostToolUseAsync("bash", new Dictionary<string, object?>(), "ok").GetAwaiter().GetResult() == "后处理结果");
+        HooksManager.ClearSessionHooks();
+
+        // 5. Stop 返回 AdditionalContext
+        HooksManager.RegisterSessionHook(HookEvent.Stop,
+            ctx => Task.FromResult<HookOutput?>(new HookOutput { AdditionalContext = "stop-ctx" }));
+        Check("Hook: Stop 返回上下文", HooksManager.RunStopAsync().GetAwaiter().GetResult() == "stop-ctx");
+        HooksManager.ClearSessionHooks();
+
+        // 6. 事件隔离：PreToolUse hook 不触发 Stop
+        HooksManager.RegisterSessionHook(HookEvent.PreToolUse,
+            ctx => Task.FromResult<HookOutput?>(new HookOutput { AdditionalContext = "wrong-event" }));
+        Check("Hook: 事件隔离", HooksManager.RunStopAsync().GetAwaiter().GetResult() == null);
+        HooksManager.ClearSessionHooks();
+
+        // 7. MatchesPattern（空/* 全匹配、管道、正则、无效正则回退）
+        Check("Hook: 空 matcher 全匹配", HooksManager.MatchesPattern("bash", null));
+        Check("Hook: * 全匹配", HooksManager.MatchesPattern("bash", "*"));
+        Check("Hook: 管道命中", HooksManager.MatchesPattern("bash", "bash|git|rm"));
+        Check("Hook: 管道未命中", !HooksManager.MatchesPattern("ls", "bash|git|rm"));
+        Check("Hook: 正则命中", HooksManager.MatchesPattern("WriteFile", "^Write"));
+        Check("Hook: 正则未命中", !HooksManager.MatchesPattern("ReadFile", "^Write"));
+        Check("Hook: 无效正则回退精确命中", HooksManager.MatchesPattern("(", "("));
+        Check("Hook: 无效正则回退精确未命中", !HooksManager.MatchesPattern("(", "x"));
+
+        // 8. ParseHookOutput（JSON 协议 / exitCode 2 / 纯文本回退 / 空输出）
+        Check("Hook: JSON 解析 Decision",
+            HooksManager.ParseHookOutput("{\"Decision\":\"block\",\"Reason\":\"r\"}", 0)?.Decision == "block");
+        Check("Hook: exitCode 2 → block", HooksManager.ParseHookOutput("阻止文本", 2)?.Decision == "block");
+        Check("Hook: 纯文本回退", HooksManager.ParseHookOutput("纯文本输出", 0)?.AdditionalContext == "纯文本输出");
+        Check("Hook: 空输出 → null", HooksManager.ParseHookOutput("", 0) == null);
+
+        // 9. SnakeCase（PascalCase → snake_case）
+        Check("Hook: SnakeCase 常规", HooksManager.SnakeCase("PreToolUse") == "pre_tool_use");
+        Check("Hook: SnakeCase 单词", HooksManager.SnakeCase("Stop") == "stop");
+
+        HooksManager.ClearSessionHooks();
+    }
 }

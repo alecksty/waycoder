@@ -100,6 +100,7 @@ public static partial class SelfTest
         TestFileLockManager(Check);   // 文件锁：获取/续期/拒绝/过期强占/释放/等待
         TestFileTracker(Check);       // 文件追踪：stale-read 检测 + 先读后改保护 + 删除/禁用
         TestPromptCache(Check);       // Prompt 缓存：SHA256 命中/未命中/命中率/节省 token
+        TestHooksManager(Check);      // Hook 系统：session hook 注册/事件执行/匹配器/输出协议
         Console.WriteLine();
 
         // ---- 工具 ----
