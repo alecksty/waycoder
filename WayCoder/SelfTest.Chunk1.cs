@@ -65,6 +65,8 @@ public static partial class SelfTest
         Check("MaxAutoRequeue 默认 = 3", new Config().MaxAutoRequeue == 3);
         // 上下文窗口按模型切换测试
         TestContextWindowSwitch(Check);
+        // 上下文预算判断（最近 prompt vs 累计用量）测试
+        TestContextStopWhen(Check);
         // Tiny 模式测试（4K 窗口 + 精简提示词）
         TestTinyMode(Check);
         // Tiny 窗口解析测试（--tiny 8k 指定 / 自动探测 / 128K 自动阈值）
@@ -85,10 +87,33 @@ public static partial class SelfTest
         TestPluginSystem(Check);
         // --json 输出模式测试（IDE 桥接结构化结果）
         TestJsonMode(Check);
+
+        // ---- 基础设施纯逻辑类单元测试（提升代码质量覆盖）----
+        Section("[基础设施]");
+        TestRetryPolicy(Check);      // 智能重试策略：异常过滤 + 指数退避 + 耗尽
+        TestLruCache(Check);         // LRU 缓存：淘汰/提升/TTL/事件/统计
+        TestIdGenerator(Check);      // 短 ID 生成器：字符集/唯一性/slug 格式
+        TestFileIgnoreManager(Check); // 文件忽略规则：静态忽略 + glob 匹配 + 否定/锚定
+        TestMemoryRetrieval(Check);   // 跨会话记忆检索：关键词匹配打分 + 提示词格式化
+        TestSnippetStore(Check);      // 代码片段管理：frontmatter 解析 + 增删查/多词搜索
+        TestImportHelper(Check);      // 导入助手纯逻辑：JSONC 注释剥离 + 文件大小格式化
+        TestFileLockManager(Check);   // 文件锁：获取/续期/拒绝/过期强占/释放/等待
+        TestFileTracker(Check);       // 文件追踪：stale-read 检测 + 先读后改保护 + 删除/禁用
+        TestPromptCache(Check);       // Prompt 缓存：SHA256 命中/未命中/命中率/节省 token
+        TestHooksManager(Check);      // Hook 系统：session hook 注册/事件执行/匹配器/输出协议
+        TestJsonLib(Check);           // 手搓 JSON 库：解析/DOM/序列化/转义/错误分支（AOT 零反射）
+        TestXmlLib(Check);            // 手搓 XML 库：解析/实体/CDATA/属性/序列化（AOT 零反射）
         Console.WriteLine();
 
         // ---- 工具 ----
         Section("[工具]");
+
+        // find_replace（查找替换：预览/替换 + 无效正则回退 + 错误分支）
+        TestFindReplaceTool(Check);
+        // diff（文件差异：差异行/相同/空文件/不存在）
+        TestDiffTool(Check);
+        // tree（目录树：树生成/深度限制/隐藏跳过）
+        TestTreeTool(Check);
 
         // read_file
         try
