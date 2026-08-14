@@ -30,6 +30,9 @@ public static class PermissionManager
     /// <summary>本轮已自动允许的工具调用 ID 集合（Auto / SmartAuto 模式用）</summary>
     private static readonly HashSet<string> AutoAllowed = [];
 
+    /// <summary>串行化确认弹框：并行子智能体并发请求 shell 权限时逐个排队，避免抢键盘/渲染竞态。</summary>
+    private static readonly SemaphoreSlim ConfirmLock = new(1, 1);
+
     /// <summary>需要确认的工具名列表（传统模式用）</summary>
     private static readonly HashSet<string> DangerousTools =
         ["bash", "write_file", "edit_file", "notebook_edit", "multiedit", "agent", "kill", "rm", "download"];
@@ -121,53 +124,62 @@ public static class PermissionManager
     /// </summary>
     private static async Task<bool> ShowConfirmDialog(string toolName, Dictionary<string, object?> args, bool isDangerous)
     {
-        var details = FormatArgs(toolName, args);
-        var content = $"工具: {TuiHelper.Esc(toolName)}\n{TuiHelper.Esc(details)}";
+        // 串行化：并行子智能体并发请求确认时逐个弹框，避免抢键盘/渲染竞态
+        await ConfirmLock.WaitAsync();
+        try
+        {
+            var details = FormatArgs(toolName, args);
+            var content = $"工具: {TuiHelper.Esc(toolName)}\n{TuiHelper.Esc(details)}";
 
-        int result;
-        PermissionPromptStarted?.Invoke(toolName);
-        var activeScreen = TuiManager.Instance.ActiveScreen as ChatScreen;
-        if (activeScreen != null)
-        {
-            // 提取简短摘要（第一行）和完整详情
-            var lines = details.Split('\n');
-            var summary = lines.Length > 0 ? lines[0] : details;
-            var fullDetail = string.Join("\n", lines);
-            result = activeScreen.ShowInlinePermission(toolName, summary, fullDetail, isDangerous);
-        }
-        else
-        {
-            UxHelper.Warn("确认操作", content);
-            List<string> choices = isDangerous
-                ? new List<string> { "是 (y)", "否 (n)" }
-                : new List<string> { "是 (y)", "总是允许 (a)", "否 (n)" };
-            var choice = UxHelper.Select("是否执行？", choices);
-            result = choice switch
+            int result;
+            PermissionPromptStarted?.Invoke(toolName);
+            var activeScreen = TuiManager.Instance.ActiveScreen as ChatScreen;
+            if (activeScreen != null)
             {
-                "是 (y)" => 0,
-                "总是允许 (a)" => 1,
-                _ => 2
-            };
-        }
-
-        switch (result)
-        {
-            case 1: // "总是允许" — 仅 Cautious 工具会走到这里
-                break;
-            case 0: // "是"
-                break;
-            default: // "否"
-                if (activeScreen != null)
-                    activeScreen.AddSystemMsg("已拒绝");
-                else
+                // 提取简短摘要（第一行）和完整详情
+                var lines = details.Split('\n');
+                var summary = lines.Length > 0 ? lines[0] : details;
+                var fullDetail = string.Join("\n", lines);
+                result = activeScreen.ShowInlinePermission(toolName, summary, fullDetail, isDangerous);
+            }
+            else
+            {
+                UxHelper.Warn("确认操作", content);
+                List<string> choices = isDangerous
+                    ? new List<string> { "是 (y)", "否 (n)" }
+                    : new List<string> { "是 (y)", "总是允许 (a)", "否 (n)" };
+                var choice = UxHelper.Select("是否执行？", choices);
+                result = choice switch
                 {
-                    Console.WriteLine(AnsiText.Warn("已拒绝"));
-                    Console.WriteLine();
-                }
-                break;
+                    "是 (y)" => 0,
+                    "总是允许 (a)" => 1,
+                    _ => 2
+                };
+            }
+
+            switch (result)
+            {
+                case 1: // "总是允许" — 仅 Cautious 工具会走到这里
+                    break;
+                case 0: // "是"
+                    break;
+                default: // "否"
+                    if (activeScreen != null)
+                        activeScreen.AddSystemMsg("已拒绝");
+                    else
+                    {
+                        Console.WriteLine(AnsiText.Warn("已拒绝"));
+                        Console.WriteLine();
+                    }
+                    break;
+            }
+            PermissionPromptResolved?.Invoke(toolName);
+            return result switch { 0 => true, 1 => true, _ => false };
         }
-        PermissionPromptResolved?.Invoke(toolName);
-        return result switch { 0 => true, 1 => true, _ => false };
+        finally
+        {
+            ConfirmLock.Release();
+        }
     }
 
     /// <summary>

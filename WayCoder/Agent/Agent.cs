@@ -1150,7 +1150,14 @@ public class Agent
 
     private static string FormatValue(object? value)
     {
-        var s = value?.ToString() ?? "null";
+        // 集合/字典/JsonNode 用递归序列化显示（而非 ToString 泄漏 System.Collections...）
+        var s = value switch
+        {
+            null => "null",
+            string str => str,
+            System.Collections.IEnumerable or System.Collections.IDictionary or JsonNode => JsonHelper.SerializeValue(value),
+            _ => value.ToString() ?? "null",
+        };
         return s.Length > 40 ? s[..40] + "..." : s;
     }
 

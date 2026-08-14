@@ -892,7 +892,7 @@ internal static class JsonHelper
         return sb.ToString();
     }
 
-    private static string SerializeValue(object? value)
+    public static string SerializeValue(object? value)
     {
         switch (value)
         {
