@@ -159,6 +159,14 @@ public class Config
     /// <summary>推理深度级别（minimal/low/medium/high/max），空字符串=不设置（模型默认）</summary>
     public string ReasoningEffort { get; set; } = "";
 
+    // ── 语音转录（transcribe 工具）──
+    /// <summary>Whisper 转录模型，默认 whisper-1</summary>
+    public string WhisperModel { get; set; } = "whisper-1";
+    /// <summary>Whisper 转录 API 地址，空=默认 https://api.openai.com</summary>
+    public string? WhisperBaseUrl { get; set; }
+    /// <summary>Whisper 转录 API Key，空=回退到主 ApiKey</summary>
+    public string WhisperApiKey { get; set; } = "";
+
     // 界面主题
     public string BorderStyle { get; set; } = "rounded";
     public string BorderColor { get; set; } = "36";
@@ -290,6 +298,22 @@ public class Config
               "推理深度", "🤖 模型", "推理模型的思考深度 (minimal/low/medium/high/max)，空=默认",
               "select", ["","minimal","low","medium","high","max"], 5,
               c => c.ReasoningEffort, (c, v) => c.ReasoningEffort = v, "", skipIfEmpty: true),
+
+            P("WhisperModel", "WAYCODER_WHISPER_MODEL", null,
+              "转录模型", "🎙 语音", "Whisper 转录模型（OpenAI 默认 whisper-1；Groq 可用 whisper-large-v3）",
+              "text", null, 0,
+              c => c.WhisperModel, (c, v) => c.WhisperModel = v, "whisper-1"),
+
+            P("WhisperBaseUrl", "WAYCODER_WHISPER_BASE_URL", null,
+              "转录 API 地址", "🎙 语音", "Whisper 转录 API 根地址（空=默认 https://api.openai.com）",
+              "text", null, 1,
+              c => c.WhisperBaseUrl ?? "", (c, v) => c.WhisperBaseUrl = string.IsNullOrEmpty(v) ? null : v,
+              skipIfEmpty: true),
+
+            P("WhisperApiKey", "WAYCODER_WHISPER_API_KEY", null,
+              "转录 API Key", "🎙 语音", "Whisper 转录 API Key（空=回退到主 API Key）",
+              "secret", null, 2,
+              c => c.WhisperApiKey, (c, v) => c.WhisperApiKey = v, "", skipIfEmpty: true),
 
             // ── 参数 ──
             P("MaxTokens",        "WAYCODER_MAX_TOKENS",        null,

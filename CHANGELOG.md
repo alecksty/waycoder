@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.48.9 (2026-08-14) — 多模态音频输入（transcribe 转录，对标 Codex CLI / Gemini CLI）
+
+### 🎙️ 音频转录
+
+- 新增 `transcribe` 工具：把本地音频文件上传到 Whisper 兼容端点（`/v1/audio/transcriptions`，multipart）转成文字，补齐多模态的「音频输入」短板——至此 WayCoder 同时支持图片（`view_image`）与音频（`transcribe`）两种多模态输入
+- 支持 mp3/wav/m4a/flac/ogg/webm/aac/opus 等 19 种音频格式，自动映射 MIME 类型，25MB 大小上限
+- 可选 `language`（ISO 语言代码）与 `prompt`（术语引导词）参数提高转录准确率
+- 配置三件套（设置界面自动生成）：`WAYCODER_WHISPER_MODEL`（默认 whisper-1）、`WAYCODER_WHISPER_BASE_URL`（空=默认 api.openai.com）、`WAYCODER_WHISPER_API_KEY`（空=回退主 API Key）；支持 OpenAI Whisper / Groq / faster-whisper 任意兼容服务
+- 归入 AutoModeClassifier「Safe」级（只读外部查询，自动放行，无需确认）
+
+### 🧪 自测
+
+- 新增 transcribe 自测 11 项（注册 + 格式支持 + MIME 映射 + 路径校验 + 配置默认值），内置工具 41→42，1816 项全部通过（0 失败）
+
 ## v0.48.8 (2026-08-14) — MCP 资源/提示词支持（对标 Claude Code resources/prompts）
 
 ### 🔌 MCP 能力补全
