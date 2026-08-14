@@ -14,6 +14,7 @@
 
 > 📖 **使用手册**：[docs/使用手册.md](docs/使用手册.md) — 快速上手、命令速查、快捷键、配置、Watch 模式、FAQ
 > ⬆️ **安装与升级**：[docs/安装与升级.md](docs/安装与升级.md) — 直接下载 / winget / brew / apt + 内置自动升级
+> 🔌 **插件系统**：[docs/插件系统.md](docs/插件系统.md) — 编译期 C# 插件，贡献工具与斜杠命令
 
 ## 改名说明
 
@@ -65,7 +66,7 @@ dotnet run -- --update
 dotnet run -- --batch batch.json                       # 从 JSON 清单读任务
 dotnet run -- --batch-repo https://x/r1 --batch-repo https://x/r2 --batch-task "修复登录 bug"
 
-# 运行自测（1842 项）
+# 运行自测（1853 项）
 dotnet run -- --test
 ```
 
@@ -104,10 +105,11 @@ WayCoder/
 ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1842 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── SelfTest.cs        1853 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
 ├── Batch/             批量任务引擎 (2 文件)
 │   ├── BatchSpec.cs     任务清单模型 + JSON 解析 + 名称消毒
 │   └── BatchRunner.cs   多仓库并行执行 + worktree 隔离 + 聚合报告
+├── Plugins/           编译期插件系统 (IPlugin SDK + PluginRegistry)
 ├── Infra/             基础设施 (12+ 文件)
 │   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
 │   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)
@@ -265,6 +267,7 @@ quit / exit      退出 (Ctrl+Q)
 - **分发渠道**：`packaging/` 提供 winget manifest / Homebrew formula / apt `.deb` 打包脚本 + GitHub Actions 发布工作流，详见 [docs/安装与升级.md](docs/安装与升级.md)
 - **多模态（图片 + 音频）**：`view_image` 附加本地图片让 vision 模型「看图」、`transcribe` 把音频转成文字（Whisper 兼容 API）——补齐图片与音频两种多模态输入，对标 Codex CLI / Gemini CLI
 - **批量任务引擎**：`--batch`/`--batch-repo` 多仓库并行处理，每个任务 `git clone` 到独立副本 + 子进程 `-p` 一次性模式执行（worktree 隔离），聚合报告 + 退出码，对标 Cursor 批量修复 / Aider 多仓库脚本
+- **编译期插件系统**：`IPlugin` SDK——`WayCoder/Plugins/` 目录放一个 `.cs` 文件 + `[ModuleInitializer]` 自动注册，即可贡献工具（`ITool`）与斜杠命令（`ISlashCommand`），AOT 无反射、随单文件 exe 分发，详见 [docs/插件系统.md](docs/插件系统.md)
 
 ## 贡献 / License
 
