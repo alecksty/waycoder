@@ -678,13 +678,13 @@ public class Agent
             {
                 var beforeCount = Messages.Count;
                 var beforeTokens = ContextManager.EstimateTokens(Messages);
-                // 触发依据是真实累计 token（API usage），而非消息估算值——显示两者避免误判窗口未生效
-                var usedTokens = Context.CumulativePromptTokens + Context.CumulativeCompletionTokens;
-                onToken?.Invoke($"\n⏳ **上下文压缩中... (累计 {usedTokens}/{Context.MaxTokens} tokens，消息估算 {beforeTokens})**\n\n");
+                // 触发依据是最近一次真实 prompt（当前上下文大小），而非累计用量——显示两者避免误判窗口未生效
+                var usedTokens = Context.LastPromptTokens;
+                onToken?.Invoke($"\n⏳ **上下文压缩中... (当前上下文 {usedTokens}/{Context.MaxTokens} tokens，消息估算 {beforeTokens})**\n\n");
                 await CompressWithSmallModel(onToken);
                 var afterCount = Messages.Count;
                 var afterTokens = ContextManager.EstimateTokens(Messages);
-                DebugLog.Log("context", $"Crush-style auto-summarize: {beforeCount}→{afterCount} msgs, {beforeTokens}→{afterTokens} est.tokens, real cumulative={usedTokens}/{Context.MaxTokens}");
+                DebugLog.Log("context", $"Crush-style auto-summarize: {beforeCount}→{afterCount} msgs, {beforeTokens}→{afterTokens} est.tokens, last prompt={usedTokens}/{Context.MaxTokens}");
 
                 // 如果 Agent 正在执行任务中（有工具调用历史），注入继续提示
                 if (!Context.ContinuePromptInjected && afterCount < beforeCount)

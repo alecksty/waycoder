@@ -65,6 +65,8 @@ public static partial class SelfTest
         Check("MaxAutoRequeue 默认 = 3", new Config().MaxAutoRequeue == 3);
         // 上下文窗口按模型切换测试
         TestContextWindowSwitch(Check);
+        // 上下文预算判断（最近 prompt vs 累计用量）测试
+        TestContextStopWhen(Check);
         // Tiny 模式测试（4K 窗口 + 精简提示词）
         TestTinyMode(Check);
         // Tiny 窗口解析测试（--tiny 8k 指定 / 自动探测 / 128K 自动阈值）
