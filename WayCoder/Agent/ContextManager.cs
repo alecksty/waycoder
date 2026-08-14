@@ -21,10 +21,16 @@ public class ContextManager
     private int _summarizeAt;  // 70% -> LLM 摘要
     private int _collapseAt;   // 90% -> 硬折叠
 
-    /// <summary>累计 prompt tokens（来自 API usage）</summary>
+    /// <summary>累计 prompt tokens（来自 API usage，会话总量统计，用于花费追踪）</summary>
     public int CumulativePromptTokens { get; private set; }
-    /// <summary>累计 completion tokens（来自 API usage）</summary>
+    /// <summary>累计 completion tokens（来自 API usage，会话总量统计，用于花费追踪）</summary>
     public int CumulativeCompletionTokens { get; private set; }
+    /// <summary>
+    /// 最近一次请求的真实 prompt tokens（来自 API usage）。
+    /// 代表「当前上下文」的真实大小（每次请求的 prompt 都含完整 system + 工具定义 + 全部历史消息），
+    /// 是判断「剩余窗口是否不足」的正确度量 —— 累计用量（Cumulative*）单调递增，不能用于此判断。
+    /// </summary>
+    public int LastPromptTokens { get; private set; }
 
     /// <summary>
     /// 固定开销 = 真实 prompt tokens − 估算 tokens。
@@ -124,6 +130,8 @@ public class ContextManager
     {
         CumulativePromptTokens += promptTokens;
         CumulativeCompletionTokens += completionTokens;
+        // 记录最近一次真实 prompt（覆盖而非累加），代表当前上下文大小
+        LastPromptTokens = promptTokens;
 
         // 用真实 API 报告校准估算：固定开销 = 真实 prompt − 估算（system prompt + 工具定义 + 元数据）。
         // 平滑收敛（移动平均），避免单次波动导致阈值抖动。
@@ -136,14 +144,16 @@ public class ContextManager
     }
 
     /// <summary>
-    /// Crush 风格 StopWhen：检查真实 token 使用量是否接近窗口上限。
+    /// Crush 风格 StopWhen：检查「当前上下文」的真实 token 用量是否接近窗口上限。
+    /// 用最近一次请求的真实 prompt tokens（LastPromptTokens）而非累计用量判断——
+    /// 累计用量随轮数单调递增，即使上下文大小不变也会持续增长，用它判断会误触发压缩。
     /// 大窗口用固定 buffer，小窗口用比例阈值。
     /// </summary>
     /// <returns>剩余 token 数低于阈值时应触发摘要</returns>
     public bool ShouldStopAndSummarize()
     {
         var cfg = Config.Instance;
-        var used = CumulativePromptTokens + CumulativeCompletionTokens;
+        var used = LastPromptTokens;
         var remaining = MaxTokens - used;
 
         long threshold;
@@ -160,6 +170,7 @@ public class ContextManager
     {
         CumulativePromptTokens = 0;
         CumulativeCompletionTokens = 0;
+        LastPromptTokens = 0;
         ContinuePromptInjected = false;
     }
 
