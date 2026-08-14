@@ -386,12 +386,16 @@ public static partial class SelfTest
         // 直接测试：构造场景确保 GenerateProjectSnapshot 不会崩溃
 
         // ── 验证项目快照内容 ──
-        // 当前目录即 WayCoder 项目根目录，验证关键子目录存在
-        Check("Snapshot: 工作目录存在", System.IO.Directory.Exists(System.IO.Directory.GetCurrentDirectory()));
-        Check("Snapshot: Agent 目录存在", System.IO.Directory.Exists(
-            System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "Agent")));
-        Check("Snapshot: .git 目录存在", System.IO.Directory.Exists(
-            System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "..", ".git")));
+        // cwd 可能是仓库根（dotnet run --project WayCoder/...）或 WayCoder/ 子目录，
+        // 故用「任一存在」兼容两种运行方式，验证关键子目录存在。
+        var cwd = System.IO.Directory.GetCurrentDirectory();
+        Check("Snapshot: 工作目录存在", System.IO.Directory.Exists(cwd));
+        Check("Snapshot: Agent 目录存在",
+            System.IO.Directory.Exists(System.IO.Path.Combine(cwd, "WayCoder", "Agent")) ||
+            System.IO.Directory.Exists(System.IO.Path.Combine(cwd, "Agent")));
+        Check("Snapshot: .git 目录存在",
+            System.IO.Directory.Exists(System.IO.Path.Combine(cwd, ".git")) ||
+            System.IO.Directory.Exists(System.IO.Path.Combine(cwd, "..", ".git")));
     }
 
     /// <summary>Token 估算测试</summary>

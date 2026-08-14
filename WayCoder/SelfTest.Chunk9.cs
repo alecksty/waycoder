@@ -520,6 +520,21 @@ public static partial class SelfTest
         Check("SubAgentDeniedTools 包含 git",
             ToolRegistry.SubAgentDeniedTools.Contains("git"));
 
+        // ── v0.53.0: 子智能体健壮性加固 ──
+        var (dnBlocked, _) = BashGuard.CheckBanned("dotnet new console");
+        Check("BashGuard 拦截 dotnet new", dnBlocked);
+        var (dbBlocked, _) = BashGuard.CheckBanned("dotnet build -c Release");
+        Check("BashGuard 不误伤 dotnet build", !dbBlocked);
+        Check("子智能体纪律含「禁止创建」", SystemPrompt.SubAgentDiscipline.Contains("禁止创建"));
+        Check("子智能体纪律含「自测」", SystemPrompt.SubAgentDiscipline.Contains("自测"));
+        var baseLLM = new LLM("test-model", "key");
+        baseLLM.ModelOverride = "big-model";
+        var subClone = baseLLM.Clone();
+        subClone.ModelOverride = "small-model";
+        Check("LLM.Clone 独立（改 clone 不影响原实例）",
+            baseLLM.ModelOverride == "big-model" && subClone.ModelOverride == "small-model");
+        Check("SubAgentParallelTotalMaxChars 默认 > 0", new Config().SubAgentParallelTotalMaxChars > 0);
+
         // 深度 0（允许 agent 递归）
         var depth0Tools = ToolRegistry.GetSubAgentTools(ToolRegistry.AllTools, 0, 5);
         var depth0Names = depth0Tools.Select(t => t.Name).ToHashSet();

@@ -9,6 +9,18 @@ namespace WayCoder;
 /// </summary>
 public static class SystemPrompt
 {
+    /// <summary>
+    /// 子智能体纪律（由 AgentTool 注入到每个子智能体任务前）。把压力测试反复踩的坑
+    /// 固化为硬约束：不建 scratch/csproj 文件污染构建、自测到通过再返回、精简回报、
+    /// 不越界改模块。主智能体不必每次在 task 里重复写这些纪律。
+    /// </summary>
+    public static string SubAgentDiscipline =>
+        "## 子智能体纪律（必须遵守）\n" +
+        "1. 禁止创建任何 csproj / 新项目 / scratch 目录 / .tmp-* 目录。调试只在主项目内改代码，用主项目自带的构建与测试命令验证，不要单独建项目复现。\n" +
+        "2. 写完代码必须自测到通过再返回：构建 0 错误 + 相关测试通过。\n" +
+        "3. 精简回报：只回传本任务的关键结论与结果变化（如「Automata 7→0」），不要粘贴全量测试输出或长日志。\n" +
+        "4. 只改本任务指定的模块/文件，不越界修改其它模块。";
+
     public static string Generate(List<ITool> tools)
     {
         if (Config.Instance.TinyMode) return GenerateTiny(tools);

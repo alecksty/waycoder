@@ -1,5 +1,29 @@
 # 更新日志
 
+## v0.53.0 (2026-08-14) — 子智能体健壮性加固（修复并行竞态 + 上下文爆炸防线）
+
+压力测试暴露的两个「短板」从代码层根治：子智能体并行时的共享可变状态竞态、多路输出累加撑爆主智能体上下文。
+
+### 🐛 修复
+
+- **并行子智能体 ModelOverride 竞态**：子智能体改用独立 LLM 实例（`LLM.Clone()`），不再共享父 `LlmClient` 的小模型切换。此前并行模式下最后完成的子智能体会把 `ModelOverride` 恢复成小模型，污染主智能体后续请求降级
+- **BashGuard 参数拦截语义 bug**：纯子命令禁止（如 `dotnet new`、`cargo install`）此前因 `MatchArgs` 无兜底而漏拦；`exceptFlags` 白名单（如 `pip install --user`）此前未命中时也放行。重写 `Match`/`MatchArgs`，白名单（exceptFlags=默认拦）与黑名单（flags/blockArgs=默认放）语义分离
+
+### 🛡️ 健壮性
+
+- 新增 `SubAgentParallelTotalMaxChars` 配置（`WAYCODER_SUBAGENT_PARALLEL_TOTAL_MAX_CHARS`，默认 15000）：并行子智能体聚合结果总限长，防止 N 个输出累加撑爆主智能体上下文（压力测试第五轮 8 路并行 3.8M tokens 的根因）
+- 子智能体输出截断改「保尾」（头 70% + 尾 25%），保留末尾结论（如「Automata 7→0」），不再把关键结论截掉
+- BashGuard 新增拦截 `dotnet new`（生成 csproj/Program.cs 污染多项目构建，压力测试第五轮 `MSB1011` 的根因）
+
+### 🤖 自主性
+
+- 新增 `SystemPrompt.SubAgentDiscipline`：子智能体纪律固化到每个子任务注入（不建 scratch/csproj、自测到通过、精简回报、不越界改模块），主智能体不必每次在 task 里重写外部铁律
+- `LLM.MergeUsageFrom()`：子智能体 clone 实例的花费统计回收累加到父智能体，隔离不丢花费追踪
+
+### 🧪 自测
+
+- 新增断言 6 项（`dotnet new` 拦截、`dotnet build` 不误伤、纪律非空、`LLM.Clone` 独立、配置默认值等），并顺手修复 Snapshot 路径假设（兼容 cwd=仓库根或 `WayCoder/`），1879 项全部通过（0 失败）
+
 ## v0.52.0 (2026-08-14) — 子智能体 shell 权限（YOLO 放行 / 非 YOLO 提问确认）
 
 ### 🤖 多智能体
