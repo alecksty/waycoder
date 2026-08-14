@@ -1060,4 +1060,125 @@ public static partial class SelfTest
         Check("ID: NewPrefixed 前缀", prefixed.StartsWith("wf_"));
         Check("ID: NewPrefixed 长度 = 前缀+1+6", prefixed.Length == "wf".Length + 1 + 6);
     }
+
+    /// <summary>文件忽略规则（FileIgnoreManager）单元测试：静态忽略 + glob 规则匹配 + 否定/锚定。</summary>
+    private static void TestFileIgnoreManager(Action<string, bool> Check)
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "wc_ignore_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(tmp);
+        try
+        {
+            // ── 静态忽略（无规则文件，纯 AlwaysIgnore 逻辑）──
+            Check("Ignore: node_modules 目录始终忽略",
+                FileIgnoreManager.IsIgnored("node_modules/foo.cs", tmp));
+            Check("Ignore: dist 目录始终忽略",
+                FileIgnoreManager.IsIgnored("dist/app.js", tmp));
+            Check("Ignore: .git 目录始终忽略",
+                FileIgnoreManager.IsIgnored(".git/HEAD", tmp));
+            Check("Ignore: .pyc 扩展名始终忽略",
+                FileIgnoreManager.IsIgnored("foo.pyc", tmp));
+            Check("Ignore: .dll 扩展名始终忽略",
+                FileIgnoreManager.IsIgnored("lib/foo.dll", tmp));
+            Check("Ignore: .jpg 扩展名始终忽略",
+                FileIgnoreManager.IsIgnored("image.jpg", tmp));
+            Check("Ignore: 正常源文件不忽略",
+                !FileIgnoreManager.IsIgnored("src/main.cs", tmp));
+            Check("Ignore: README 不忽略",
+                !FileIgnoreManager.IsIgnored("README.md", tmp));
+
+            // ── 写 .gitignore 规则，测试 glob 匹配 ──
+            File.WriteAllText(Path.Combine(tmp, ".gitignore"),
+                "# 测试规则\n*.log\nbuild/\n/rootfile.txt\n*.tmp\n!important.log\n");
+            FileIgnoreManager.ClearCache();
+
+            Check("Ignore: *.log 匹配任意深度",
+                FileIgnoreManager.IsIgnored("app.log", tmp)
+                && FileIgnoreManager.IsIgnored("src/deep/app.log", tmp));
+            Check("Ignore: 否定规则 !important.log 反转忽略",
+                !FileIgnoreManager.IsIgnored("important.log", tmp));
+            Check("Ignore: build/ 目录规则匹配",
+                FileIgnoreManager.IsIgnored("build/output.txt", tmp));
+            Check("Ignore: 锚定 /rootfile.txt 仅匹配根目录",
+                FileIgnoreManager.IsIgnored("rootfile.txt", tmp)
+                && !FileIgnoreManager.IsIgnored("sub/rootfile.txt", tmp));
+            Check("Ignore: *.tmp 扩展名规则匹配",
+                FileIgnoreManager.IsIgnored("notes.txt.tmp", tmp));
+            Check("Ignore: 未命中规则的文件不忽略",
+                !FileIgnoreManager.IsIgnored("main.cs", tmp));
+
+            // ── FilterIgnored 批量过滤 ──
+            var kept = FileIgnoreManager.FilterIgnored(
+                new[] { "a.cs", "node_modules/x.js", "b.log", "c.pyc", "d.jpg" }, tmp);
+            Check("Ignore: FilterIgnored 仅保留非忽略项",
+                kept.Count == 1 && kept[0] == "a.cs");
+
+            // ── ShouldSkipDirectory 目录跳过 ──
+            Check("Ignore: 跳过 .git 目录",
+                FileIgnoreManager.ShouldSkipDirectory(".git", tmp));
+            Check("Ignore: 跳过 node_modules 目录",
+                FileIgnoreManager.ShouldSkipDirectory("node_modules", tmp));
+            Check("Ignore: 跳过隐藏目录 .hidden",
+                FileIgnoreManager.ShouldSkipDirectory(".hidden", tmp));
+            Check("Ignore: 跳过 build 目录",
+                FileIgnoreManager.ShouldSkipDirectory("build", tmp));
+            Check("Ignore: 不跳过普通目录 src",
+                !FileIgnoreManager.ShouldSkipDirectory("src", tmp));
+        }
+        finally
+        {
+            FileIgnoreManager.ClearCache();
+            try { Directory.Delete(tmp, recursive: true); } catch { }
+        }
+    }
+
+    /// <summary>跨会话记忆检索（MemoryRetrieval）单元测试：关键词匹配打分 + 提示词格式化。</summary>
+    private static void TestMemoryRetrieval(Action<string, bool> Check)
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "wc_mem_" + Guid.NewGuid().ToString("N")[..6]);
+        var memDir = Path.Combine(tmp, ".waycoder", "memory");
+        Directory.CreateDirectory(memDir);
+        try
+        {
+            // 写两个 frontmatter 记忆文件
+            File.WriteAllText(Path.Combine(memDir, "timeseries-notes.md"),
+                "---\nname: timeseries-notes\ndescription: TimeSeries 时序预测模块的实现要点\n---\n时序预测用指数平滑。\n");
+            File.WriteAllText(Path.Combine(memDir, "automata-notes.md"),
+                "---\nname: automata-notes\ndescription: Automata 状态机的构建方法\ntype: project\n---\n状态机用 DFA 表示。\n");
+
+            MemoryRetrieval.Load(tmp);
+
+            // ── GetRelevant 关键词匹配 ──
+            var rel = MemoryRetrieval.GetRelevant("给 TimeSeries 模块加冒烟测试", maxResults: 3);
+            Check("Memory: GetRelevant 命中 TimeSeries 记忆",
+                rel.Any(m => m.Name == "timeseries-notes"));
+
+            var rel2 = MemoryRetrieval.GetRelevant("Automata 状态机怎么建", maxResults: 3);
+            Check("Memory: GetRelevant 命中 Automata 记忆",
+                rel2.Any(m => m.Name == "automata-notes"));
+
+            var rel3 = MemoryRetrieval.GetRelevant("完全无关的 XYZQWERTY 话题", maxResults: 3);
+            Check("Memory: 无关关键词不命中已索引记忆",
+                rel3.All(m => m.Name != "timeseries-notes" && m.Name != "automata-notes"));
+
+            // ── FormatForPrompt 格式化 ──
+            var fmt = MemoryRetrieval.FormatForPrompt(rel);
+            Check("Memory: FormatForPrompt 含标题", fmt.Contains("相关记忆"));
+            Check("Memory: FormatForPrompt 含记忆名与类型",
+                fmt.Contains("timeseries-notes") && fmt.Contains("reference"));
+
+            // 描述超 200 字符截断
+            var longItem = new MemoryRetrieval.MemoryItem(
+                "long-desc", new string('x', 250), "content", "ref", DateTime.UtcNow);
+            var fmt2 = MemoryRetrieval.FormatForPrompt(new[] { longItem });
+            Check("Memory: 描述超 200 截断为 …", fmt2.Contains(new string('x', 200) + "..."));
+
+            // 空列表返回空
+            Check("Memory: FormatForPrompt 空列表返回空",
+                MemoryRetrieval.FormatForPrompt(new List<MemoryRetrieval.MemoryItem>()) == "");
+        }
+        finally
+        {
+            try { Directory.Delete(tmp, recursive: true); } catch { }
+        }
+    }
 }
