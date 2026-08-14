@@ -96,6 +96,7 @@ public static partial class SelfTest
         TestFileIgnoreManager(Check); // 文件忽略规则：静态忽略 + glob 匹配 + 否定/锚定
         TestMemoryRetrieval(Check);   // 跨会话记忆检索：关键词匹配打分 + 提示词格式化
         TestSnippetStore(Check);      // 代码片段管理：frontmatter 解析 + 增删查/多词搜索
+        TestImportHelper(Check);      // 导入助手纯逻辑：JSONC 注释剥离 + 文件大小格式化
         Console.WriteLine();
 
         // ---- 工具 ----

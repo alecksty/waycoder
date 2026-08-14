@@ -1,5 +1,31 @@
 # 更新日志
 
+## v0.53.7 (2026-08-14) — 长方法拆分 + ImportHelper 纯逻辑 + 压力测试脚本修复
+
+代码质量维度继续推进：消除两处重复样板（`AgentTool` 并行解析三分支、`ContextManager` 三层压缩进度报告），将 `ImportHelper` 两个私有纯函数改为 `internal` 并补齐单元测试，同时修复压力测试脚本的跨平台与路径 bug。
+
+### 🛠 重构
+
+- **`AgentTool.ExecuteParallelAsync` 三分支合并**：`JsonArray` / `IEnumerable` / string-JSON 三处重复的「`ExtractTaskText` + 非空判断 + `Add`」样板提取为 `CollectTaskTexts` 单方法，消除重复
+- **`ContextManager.MaybeCompressAsync` 进度报告合并**：三层压缩（裁剪/摘要/硬折叠）共 6 处重复的「百分比 + 进度条 + 事件」样板提取为 `ReportProgress`，行为不变
+- **`ImportHelper` 纯逻辑暴露**：`StripJsonComments`（JSONC 注释剥离）与 `FormatSize`（文件大小格式化）由 `private` 改 `internal`，成为可测的零依赖纯函数
+
+### 🧪 自测
+
+- 新增 14 项断言覆盖 `ImportHelper`：
+  - **`StripJsonComments`**（7 项）：行注释/块注释移除、注释后仍可解析、字符串内 `//` 与 `/* */` 不误删、字符串内转义引号保留
+  - **`FormatSize`**（7 项）：B/KB/MB 三档 + 0/1023/1024/1MB 边界
+
+- 总计 2008 项自测全部通过（0 失败）
+
+### 🐛 修复
+
+- **`scripts/stress-test.sh` 跨平台 + 路径 bug**：① AOT 产物名硬编码 `WayCoder.exe`（Windows），macOS/Linux 实为 `waycoder`，改为平台感知探测；② 编译验证 `cd "$WORK_DIR"` 后直接 `dotnet build`，但 Agent 在子目录（`MiniKanban/`）建项目导致 MSB1003，改为 `find` 定位 `.csproj`/`.sln` 所在目录后编译
+
+### 🚀 端到端验证
+
+- 压力测试通过：`deepseek-v4-flash` 生成 MiniKanban（9 文件 312 行），Agent 自测循环实测 `dotnet build` 0 错误 0 警告，CLI `add/list/move/delete` 全部通过，确认本轮重构无回归
+
 ## v0.53.6 (2026-08-14) — SnippetStore 可测试性重构 + 单元测试补齐
 
 `SnippetStore` 此前 `Get`/`Search`/`List`/`Delete`/`Add` 硬编码 `DefaultDir`（`Environment.CurrentDirectory/.waycoder/snippets`），无法在隔离目录下测试——「不可测试 = 不可维护」的设计缺陷。

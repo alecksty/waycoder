@@ -44,7 +44,11 @@ cd "$WORK_DIR"
 echo "🚀 开始..."
 START=$(date +%s)
 
-"$REPO_DIR/publish/WayCoder.exe" \
+# 平台感知：Windows 产物为 WayCoder.exe，Unix（macOS/Linux）为 waycoder
+BIN="$REPO_DIR/publish/waycoder"
+[ -f "$REPO_DIR/publish/WayCoder.exe" ] && BIN="$REPO_DIR/publish/WayCoder.exe"
+
+"$BIN" \
   -m "$MODEL" \
   -p "$PROMPT" \
   --yolo \
@@ -70,11 +74,17 @@ echo "  总代码行数:  $TOTAL_LINES"
 if [ $FILE_COUNT -gt 0 ]; then
   echo ""
   echo "🔍 编译验证..."
-  cd "$WORK_DIR"
-  if dotnet build --nologo -v q 2>&1; then
-    echo "  ✅ 编译通过"
+  # 定位项目文件所在目录（Agent 可能在子目录创建项目，如 MiniKanban/）
+  PROJ_FILE=$(find "$WORK_DIR" \( -name "*.csproj" -o -name "*.sln" \) -type f 2>/dev/null | head -1)
+  if [ -n "$PROJ_FILE" ]; then
+    cd "$(dirname "$PROJ_FILE")"
+    if dotnet build --nologo -v q 2>&1; then
+      echo "  ✅ 编译通过"
+    else
+      echo "  ❌ 编译失败"
+    fi
   else
-    echo "  ❌ 编译失败"
+    echo "  ⚠ 未找到项目文件（.csproj/.sln），跳过编译验证"
   fi
 fi
 
