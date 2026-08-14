@@ -87,6 +87,12 @@ public static partial class SelfTest
         TestPluginSystem(Check);
         // --json 输出模式测试（IDE 桥接结构化结果）
         TestJsonMode(Check);
+
+        // ---- 基础设施纯逻辑类单元测试（提升代码质量覆盖）----
+        Section("[基础设施]");
+        TestRetryPolicy(Check);   // 智能重试策略：异常过滤 + 指数退避 + 耗尽
+        TestLruCache(Check);      // LRU 缓存：淘汰/提升/TTL/事件/统计
+        TestIdGenerator(Check);   // 短 ID 生成器：字符集/唯一性/slug 格式
         Console.WriteLine();
 
         // ---- 工具 ----
