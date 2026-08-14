@@ -103,6 +103,7 @@ public class Program
         string? tinyWindowSpec = Arguments.CliArgRegistry.Get(parsed, "tiny");
         bool economyMode = Arguments.CliArgRegistry.Has(parsed, "economy");
         string? economySpec = Arguments.CliArgRegistry.Get(parsed, "economy");
+        bool jsonMode = Arguments.CliArgRegistry.Has(parsed, "json");
 
         if (Arguments.CliArgRegistry.Has(parsed, "version"))
         {
@@ -348,7 +349,11 @@ public class Program
         }
 
         if (!string.IsNullOrEmpty(prompt))
+        {
+            if (jsonMode)
+                return await RunOnceJsonAsync(prompt);
             await RunOnceAsync(prompt);
+        }
         else
             await RunReplAsync();
 
@@ -389,6 +394,57 @@ public class Program
             UxHelper.Error("错误", ex.Message);
             Environment.Exit(1);
         }
+    }
+
+    // ========================================================================
+    // 一次性模式（JSON 输出）—— IDE / 脚本桥接
+    // ========================================================================
+
+    /// <summary>
+    /// 一次性模式 + --json：静默执行 Agent（不流式输出），
+    /// stdout 只打印一个结构化 JSON 结果，返回退出码（0 成功 / 1 失败）。
+    /// </summary>
+    private static async Task<int> RunOnceJsonAsync(string prompt)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        string? answer = null;
+        bool success = false;
+        string? error = null;
+
+        using var cts = new CancellationTokenSource();
+        try
+        {
+            _llm!.SnapshotTaskCost();
+            answer = await _agent!.ChatAsync(prompt, cancellationToken: cts.Token);
+            success = true;
+        }
+        catch (OperationCanceledException)
+        {
+            error = cts.IsCancellationRequested ? "已中断" : $"LLM 请求超时（{Config.Instance.LlmHttpTimeoutSec}s）";
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Error("Program.RunOnceJson", $"一次性模式崩溃: {ex.Message}", ex);
+            error = ex.Message;
+        }
+        finally
+        {
+            sw.Stop();
+        }
+
+        var result = JsonResult.Build(
+            success: success,
+            answer: answer ?? "",
+            error: error,
+            model: _llm!.Model,
+            promptTokens: _llm.TaskPromptTokens,
+            completionTokens: _llm.TaskCompletionTokens,
+            costUsd: _llm.TaskCost,
+            durationMs: sw.ElapsedMilliseconds,
+            changedFiles: EditFileTool.ChangedFiles);
+
+        Console.WriteLine(result.ToJsonString());
+        return success ? 0 : 1;
     }
 
     // ========================================================================

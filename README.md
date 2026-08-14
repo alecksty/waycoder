@@ -66,7 +66,10 @@ dotnet run -- --update
 dotnet run -- --batch batch.json                       # 从 JSON 清单读任务
 dotnet run -- --batch-repo https://x/r1 --batch-repo https://x/r2 --batch-task "修复登录 bug"
 
-# 运行自测（1853 项）
+# JSON 输出模式（IDE / 脚本桥接，stdout 只输出一个结构化 JSON 对象）
+dotnet run -- --json -p "修复一个 bug"
+
+# 运行自测（1867 项）
 dotnet run -- --test
 ```
 
@@ -105,7 +108,7 @@ WayCoder/
 ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1853 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── SelfTest.cs        1867 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
 ├── Batch/             批量任务引擎 (2 文件)
 │   ├── BatchSpec.cs     任务清单模型 + JSON 解析 + 名称消毒
 │   └── BatchRunner.cs   多仓库并行执行 + worktree 隔离 + 聚合报告
@@ -268,6 +271,7 @@ quit / exit      退出 (Ctrl+Q)
 - **多模态（图片 + 音频）**：`view_image` 附加本地图片让 vision 模型「看图」、`transcribe` 把音频转成文字（Whisper 兼容 API）——补齐图片与音频两种多模态输入，对标 Codex CLI / Gemini CLI
 - **批量任务引擎**：`--batch`/`--batch-repo` 多仓库并行处理，每个任务 `git clone` 到独立副本 + 子进程 `-p` 一次性模式执行（worktree 隔离），聚合报告 + 退出码，对标 Cursor 批量修复 / Aider 多仓库脚本
 - **编译期插件系统**：`IPlugin` SDK——`WayCoder/Plugins/` 目录放一个 `.cs` 文件 + `[ModuleInitializer]` 自动注册，即可贡献工具（`ITool`）与斜杠命令（`ISlashCommand`），AOT 无反射、随单文件 exe 分发，详见 [docs/插件系统.md](docs/插件系统.md)
+- **JSON 输出模式（IDE 桥接）**：`--json -p "任务"` 一次性模式静默执行 Agent，stdout 只输出一个结构化 JSON 对象（schema/success/answer/error/model/usage/cost_usd/duration_ms/changed_files），供 VS Code 扩展、CI 脚本、外部工具直接 `JsonNode.Parse` 解析，无需剥离 ANSI 动画；`JsonResult.Build` 纯函数便于自测（对标 Claude Code `--output-format json`）
 
 ## 贡献 / License
 
