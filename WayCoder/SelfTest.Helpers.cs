@@ -810,4 +810,38 @@ public static partial class SelfTest
             && PluginRegistry.CollectCommands().Count() == 0);
         PluginRegistry.Unregister("null-plugin");
     }
+
+    private static void TestJsonMode(Action<string, bool> Check)
+    {
+        // ── 成功结果 ──
+        var ok = JsonResult.Build(
+            success: true,
+            answer: "任务完成",
+            error: null,
+            model: "deepseek-v4-pro",
+            promptTokens: 100,
+            completionTokens: 50,
+            costUsd: 0.00123,
+            durationMs: 2048,
+            changedFiles: new[] { "a.cs", "b.cs" });
+
+        Check("JSON: success=true", ok["success"]!.GetValue<bool>() == true);
+        Check("JSON: answer 透传", ok["answer"]!.GetValue<string>() == "任务完成");
+        Check("JSON: error 为 null", ok["error"] == null);
+        Check("JSON: model 透传", ok["model"]!.GetValue<string>() == "deepseek-v4-pro");
+        Check("JSON: usage.total = prompt+completion",
+            ok["usage"]!["total_tokens"]!.GetValue<int>() == 150);
+        Check("JSON: cost_usd 保留", Math.Abs(ok["cost_usd"]!.GetValue<double>() - 0.00123) < 1e-9);
+        Check("JSON: duration_ms", ok["duration_ms"]!.GetValue<long>() == 2048);
+        Check("JSON: changed_files 数组", ok["changed_files"] is JsonArray arr && arr.Count == 2);
+        Check("JSON: 序列化可解析", JsonNode.Parse(ok.ToJsonString()) is JsonObject);
+
+        // ── 失败结果 ──
+        var fail = JsonResult.Build(false, "", "请求超时", "m", 0, 0, null, 1, null);
+        Check("JSON: success=false", fail["success"]!.GetValue<bool>() == false);
+        Check("JSON: error 透传", fail["error"]!.GetValue<string>() == "请求超时");
+        Check("JSON: answer 空串兜底", fail["answer"]!.GetValue<string>() == "");
+        Check("JSON: cost_usd null", fail["cost_usd"] == null);
+        Check("JSON: changed_files 空数组", fail["changed_files"] is JsonArray e && e.Count == 0);
+    }
 }

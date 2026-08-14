@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.51.0 (2026-08-14) — JSON 输出模式（--json，IDE / 脚本桥接，对标 Claude Code --output-format json）
+
+### 🔌 IDE 桥接
+
+- 新增 `--json`（`-j`）一次性输出模式：`waycoder --json -p "任务"`（或 `echo "任务" | waycoder --json`）静默执行 Agent，stdout 只输出一个结构化 JSON 对象，供 VS Code 扩展、CI 脚本、外部工具直接 `JsonNode.Parse` 解析——无需剥离 ANSI 动画/Spinner/权限块
+- 结果字段：`schema`（版本 1.0）、`success`、`answer`（最终回答）、`error`（失败原因）、`model`、`usage{prompt_tokens/completion_tokens/total_tokens}`、`cost_usd`（模型无定价时为 null）、`duration_ms`、`changed_files[]`（本次会话修改文件清单，复用 `EditFileTool.ChangedFiles`）
+- 退出码约定：0 = 成功，1 = 中断/超时/异常；与现有 `-p` 一次性模式共用同一条 Agent 执行链（`-y` 自动放行、非交互）
+- `JsonResult.Build` 为纯函数构建器（输入原始值 → 输出 JsonObject），便于 AOT 自测，不依赖 `_llm`/`_agent` 静态态
+
+### 🧪 自测
+
+- 新增 JSON 模式自测 14 项（成功/失败结果、usage 汇总、cost null 兜底、空 changed_files、序列化可解析），1853→1867 项全部通过（0 失败）
+
 ## v0.50.0 (2026-08-14) — 编译期插件系统（IPlugin SDK，对标 Claude Code/Crush 插件扩展）
 
 ### 🔌 插件系统

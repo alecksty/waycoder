@@ -83,6 +83,8 @@ public static partial class SelfTest
         TestBatchEngine(Check);
         // 编译期插件系统测试（IPlugin + PluginRegistry + 工具/命令集成）
         TestPluginSystem(Check);
+        // --json 输出模式测试（IDE 桥接结构化结果）
+        TestJsonMode(Check);
         Console.WriteLine();
 
         // ---- 工具 ----
