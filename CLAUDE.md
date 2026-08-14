@@ -12,7 +12,7 @@ WayCoder（道码）是一个中文版易用编程智能体，C# (.NET 10) 实�
 # C# 版
 cd WayCoder
 dotnet publish -c Release            # AOT 编译
-dotnet run -- --test                 # 1867 自测
+dotnet run -- --test                 # 1872 自测
 dotnet run -- -p "提示词"            # 一次性模式
 dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 dotnet run -- --update               # 自动升级 (检查并自替换)
@@ -41,7 +41,7 @@ WayCoder/
 ├── MemoryRetrieval.cs  跨会话记忆检索 (TF-IDF + 时间衰减)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1867 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── SelfTest.cs        1872 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
 ├── Batch/             批量任务引擎 (BatchSpec 清单模型 + BatchRunner 多仓库并行/worktree 隔离)
 ├── Plugins/           编译期插件系统 (IPlugin SDK + PluginRegistry + [ModuleInitializer] 自动注册)
 ├── WorkReporter.cs    工作总结报告生成器
@@ -138,6 +138,7 @@ WayCoder/
 - **上下文压缩三层让步**：50% 裁剪 → 70% LLM 摘要 → 90% 硬折叠；Crush 风格真实 token 追踪（AddUsage/ShouldStopAndSummarize），大窗口 20K buffer / 小窗口 20% 比例
 - **推理内容处理**：`reasoning_content`（DeepSeek V4）/ `reasoning`（Ollama/qwen）实时显示但不存入对话历史 — 显示=让用户看到思考过程，不存=不污染 API 调用
 - **子智能体通过不给 agent 工具来约束**，不靠规则
+- **子智能体 shell 权限**：`bash` 不再列入 `SubAgentDeniedTools` 禁令（「工具层禁令」转「确认层管控」）——YOLO 模式直接放行（子智能体可跑 `dotnet build`/`run` 自测，不再盲写）；非 YOLO 模式逐条弹行内确认框提问申请（只读命令仍由 `BashGuard.IsSafeReadOnly` 自动放行）；`PermissionManager.ConfirmLock`（SemaphoreSlim）串行化并发弹框防抢键盘/渲染竞态；`rm`/`git`/`kill` 等危险工具禁令保留
 - **多 Agent 工作区**：F1-F10 切换 10 个独立会话槽位，各占各的屏幕；状态栏 10 数字指示条（白底=当前屏，灰=空闲 绿=工作 黄=等权限 红=出错）；AgentTool.ParentAgent 切槽位时重绑
 - **多会话真并行**：槽位 Agent 后台线程执行不阻塞主循环（`StartSlotTask`/`RunSlotAgentAsync`），运行中可自由切换；输出按槽位路由（活跃=实时写屏 `ChatScreen` 流式方法、非活跃=缓冲到 `AgentSlot.ChatMessages`，`RestoreTo` 展示）；路由决策与切换共享槽位 `AgentSlot.Sync` 锁原子完成（杜绝切换瞬间丢 token）；`Esc` 中断当前槽位 / `Ctrl+Z` 优雅暂停；退出/崩溃保存全部非空槽位（`_auto`/`_auto_slotN`）
 - **实例级工作模式**：`Agent.WorkMode` 实例字段替代全局 `WorkModeManager.CurrentMode`（全局仅作 UI 镜像），每个槽位 Agent 持有自己的模式，混合模式并行（A 槽 Plan + B 槽 Build）各自正确；`Agent.OnWorkModeChanged` 回调携带槽位索引——后台槽位批准计划后切回 Build 只通知正确槽位，不污染活跃槽位

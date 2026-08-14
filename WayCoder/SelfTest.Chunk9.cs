@@ -511,8 +511,8 @@ public static partial class SelfTest
         FileTracker.Reset();
 
         // ── v0.36.0: Agent 工具集分层 ──
-        Check("SubAgentDeniedTools 包含 bash",
-            ToolRegistry.SubAgentDeniedTools.Contains("bash"));
+        Check("SubAgentDeniedTools 不包含 bash（子智能体保留 shell 权限）",
+            !ToolRegistry.SubAgentDeniedTools.Contains("bash"));
         Check("SubAgentDeniedTools 包含 rm",
             ToolRegistry.SubAgentDeniedTools.Contains("rm"));
         Check("SubAgentDeniedTools 包含 kill",
@@ -523,7 +523,7 @@ public static partial class SelfTest
         // 深度 0（允许 agent 递归）
         var depth0Tools = ToolRegistry.GetSubAgentTools(ToolRegistry.AllTools, 0, 5);
         var depth0Names = depth0Tools.Select(t => t.Name).ToHashSet();
-        Check("子Agent深度0 无 bash", !depth0Names.Contains("bash"));
+        Check("子Agent深度0 有 bash", depth0Names.Contains("bash"));
         Check("子Agent深度0 无 rm", !depth0Names.Contains("rm"));
         Check("子Agent深度0 有 agent", depth0Names.Contains("agent"));
         Check("子Agent深度0 有 write_file", depth0Names.Contains("write_file"));

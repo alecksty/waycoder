@@ -69,7 +69,7 @@ dotnet run -- --batch-repo https://x/r1 --batch-repo https://x/r2 --batch-task "
 # JSON 输出模式（IDE / 脚本桥接，stdout 只输出一个结构化 JSON 对象）
 dotnet run -- --json -p "修复一个 bug"
 
-# 运行自测（1867 项）
+# 运行自测（1872 项）
 dotnet run -- --test
 ```
 
@@ -108,7 +108,7 @@ WayCoder/
 ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1867 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── SelfTest.cs        1872 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
 ├── Batch/             批量任务引擎 (2 文件)
 │   ├── BatchSpec.cs     任务清单模型 + JSON 解析 + 名称消毒
 │   └── BatchRunner.cs   多仓库并行执行 + worktree 隔离 + 聚合报告

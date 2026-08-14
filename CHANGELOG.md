@@ -1,5 +1,25 @@
 # 更新日志
 
+## v0.52.0 (2026-08-14) — 子智能体 shell 权限（YOLO 放行 / 非 YOLO 提问确认）
+
+### 🤖 多智能体
+
+- 子智能体获得 `bash`（shell）权限：从「工具层禁令」转为「确认层管控」——移除 `SubAgentDeniedTools` 中的 `bash` 条目，shell 能力交给既有的 `PermissionManager.CheckAsync` 统一裁决
+- **YOLO 模式**（`/perm yolo`）：子智能体 `bash` 直接放行，可跑 `dotnet build`/`dotnet run` 自测，不再「盲写」代码（修复压力测试中失败数从 7 暴涨到 129 的根因）
+- **非 YOLO 模式**：子智能体 `bash` 属危险工具，逐条弹行内确认框「提问申请」；`ls`/`find`/`wc` 等只读命令仍由 `BashGuard.IsSafeReadOnly` 自动放行
+- 新增 `PermissionManager.ConfirmLock`（`SemaphoreSlim`）串行化确认弹框：并行子智能体（`Task.WhenAll`）并发请求 shell 权限时逐个排队，消除抢键盘/渲染竞态
+- 保留 `rm`/`kill`/`git` 等危险/管理类工具禁令（主智能体统一管理）
+
+### 🔧 工具回显优化
+
+- `Agent.FormatValue` 递归序列化集合/字典/JsonNode（而非 `ToString()` 泄漏 `System.Collections...`）
+- `JsonHelper.SerializeValue` 改 `public` 供 FormatValue 复用
+- `AgentTool.Description` 并发数硬编码「4 个」改为动态 `MaxParallelTasks`（配置调整后描述同步）
+
+### 🧪 自测
+
+- 自测数 1867→1872（上次 5 项回归）；`SubAgentDeniedTools` 断言反转（不再包含 `bash` / 子 Agent 深度 0 保留 `bash`），1872 项全部通过（0 失败）
+
 ## v0.51.0 (2026-08-14) — JSON 输出模式（--json，IDE / 脚本桥接，对标 Claude Code --output-format json）
 
 ### 🔌 IDE 桥接
