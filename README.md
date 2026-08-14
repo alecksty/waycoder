@@ -4,7 +4,7 @@
 
 **中文版易用编程智能体，C# (.NET 10) 实现，AOT 编译为单文件 exe（~8 MB），无需运行时。**
 
-*一个 while 循环 + 大模型 + 41 个工具 + Watch 模式，就是全部*
+*一个 while 循环 + 大模型 + 42 个工具 + Watch 模式，就是全部*
 
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -61,7 +61,7 @@ dotnet run -- --economy auto     # 自动：按任务复杂度动态调节阈值
 # 自动升级（检查并自替换，优先 GitHub、回退 Gitee）
 dotnet run -- --update
 
-# 运行自测（1804 项）
+# 运行自测（1816 项）
 dotnet run -- --test
 ```
 
@@ -100,7 +100,7 @@ WayCoder/
 ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1804 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── SelfTest.cs        1816 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
 ├── Infra/             基础设施 (12+ 文件)
 │   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
 │   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)
@@ -122,7 +122,7 @@ WayCoder/
 │   │   ├── TuiListView.cs   懒列表 (二分查找 + 提前终止)
 │   │   └── TuiButton.cs     增强按钮 (快捷键下划线/悬停)
 │   └── TuiScreens/        全屏界面
-└── Tools/             41 个工具
+└── Tools/             42 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
     ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
@@ -137,10 +137,11 @@ WayCoder/
     ├── DownloadTool.cs JobOutputTool.cs JobKillTool.cs
     ├── NotebookEditTool.cs MultiEditTool.cs
     ├── AskUserQuestionTool.cs ScreenshotTool.cs
-    └── ViewImageTool.cs
+    ├── ViewImageTool.cs
+    └── TranscribeAudioTool.cs
 ```
 
-## 41 个工具
+## 42 个工具
 
 | 工具 | 用途 |
 |---|---|
@@ -185,6 +186,7 @@ WayCoder/
 | `ask_user` | 向用户提问确认（单/多选 + 文本输入） |
 | `screenshot` | 抓屏（终端文本 / 桌面 PNG + OCR） |
 | `view_image` | 查看本地图片，附加到下一轮请求让 vision 模型读取 |
+| `transcribe` | 转录音频文件为文字（Whisper 兼容 API），补齐多模态音频输入 |
 
 ## REPL 命令
 
@@ -254,6 +256,7 @@ quit / exit      退出 (Ctrl+Q)
 - **MCP 资源/提示词**：`resources/list` + `resources/read` 注册为 `mcp__<server>__resources` 读取工具、`prompts/list` + `prompts/get` 每个模板注册为 `mcp__<server>__prompt__<name>` 工具，对标 Claude Code MCP resources/prompts
 - **内置自动升级**：`/update` 检查、`/update now`/`--update` 自替换；版本检查优先 GitHub Releases、回退 Gitee（环境变量可覆盖）；Windows 落 `.new`+`upgrade.bat` 退出后自动替换重启、Unix 原子 rename 覆盖运行中二进制（对标 Claude Code `claude update`）
 - **分发渠道**：`packaging/` 提供 winget manifest / Homebrew formula / apt `.deb` 打包脚本 + GitHub Actions 发布工作流，详见 [docs/安装与升级.md](docs/安装与升级.md)
+- **多模态（图片 + 音频）**：`view_image` 附加本地图片让 vision 模型「看图」、`transcribe` 把音频转成文字（Whisper 兼容 API）——补齐图片与音频两种多模态输入，对标 Codex CLI / Gemini CLI
 
 ## 贡献 / License
 
