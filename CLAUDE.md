@@ -12,7 +12,7 @@ WayCoder（道码）是一个中文版易用编程智能体，C# (.NET 10) 实�
 # C# 版
 cd WayCoder
 dotnet publish -c Release            # AOT 编译
-dotnet run -- --test                 # 1842 自测
+dotnet run -- --test                 # 1853 自测
 dotnet run -- -p "提示词"            # 一次性模式
 dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 dotnet run -- --update               # 自动升级 (检查并自替换)
@@ -41,8 +41,9 @@ WayCoder/
 ├── MemoryRetrieval.cs  跨会话记忆检索 (TF-IDF + 时间衰减)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1842 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── SelfTest.cs        1853 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
 ├── Batch/             批量任务引擎 (BatchSpec 清单模型 + BatchRunner 多仓库并行/worktree 隔离)
+├── Plugins/           编译期插件系统 (IPlugin SDK + PluginRegistry + [ModuleInitializer] 自动注册)
 ├── WorkReporter.cs    工作总结报告生成器
 ├── TaskProgress.cs    任务进度追踪
 ├── FileLockManager.cs 文件锁 (防并发修改冲突)
@@ -179,6 +180,7 @@ WayCoder/
 - **视觉（多模态）支持**：`view_image` 工具把本地图片加入 `LLM.PendingImages` 队列，Agent 主循环下一轮在 `FullMessages()` 末尾注入为多模态 user 消息（OpenAI 格式 `content` 数组，base64 data URL）；`LLM.ModelSupportsVision` 门控——仅 gpt-4o/gpt-5/claude/gemini 等 vision 模型才注入，DeepSeek 等文本模型自动跳过避免 400；配合 `screenshot` 抓屏实现「看图修 bug」
 - **音频（多模态）支持**：`transcribe` 工具把本地音频文件上传到 Whisper 兼容端点（`/v1/audio/transcriptions`，multipart）转成文字，补齐 Codex CLI/Gemini CLI 的音频输入短板；配置 `WAYCODER_WHISPER_MODEL`/`WAYCODER_WHISPER_BASE_URL`/`WAYCODER_WHISPER_API_KEY`（空 key 回退主 `WAYCODER_API_KEY`），支持 OpenAI Whisper / Groq / faster-whisper 任意兼容服务
 - **批量任务引擎**：`--batch <JSON|文件>` / `--batch-repo <仓库> --batch-task <任务>` 多仓库并行处理——每个任务 `git clone` 到 `.waycoder/batch/jobs/<名>_<随机>` 独立副本，子进程以 `-p` 一次性模式 + `-y` 放行执行（进程级隔离 cwd/状态），`SemaphoreSlim` 控并行（1–16 默认 4）、单任务超时可配（默认 1800s，超时杀整个进程树），子进程复用父进程已解析的 `--model`/`--base-url`/`--api-key`/`--max-budget-usd`（避免 clone 目录无 `.env` 丢 key）；跑完输出聚合 Markdown 报告落盘 `batch-report.md` + 退出码（对标 Cursor 批量修复 / Aider 多仓库脚本）
+- **编译期插件系统**：`IPlugin`/`Plugin`/`PluginRegistry`——`WayCoder/Plugins/` 目录放 `.cs` 文件 + `[ModuleInitializer]` 自动注册（AOT 无反射、随单文件 exe 分发），插件可贡献工具（并入 `ToolRegistry.AllTools`）与斜杠命令（并入 `SlashCommandRegistry.RegisterAll`）；与 SKILL.md/Hooks/MCP 三种扩展机制互补，同名覆盖、null 防御、按名卸载，详见 docs/插件系统.md
 
 ## 非显而易见的约束
 
