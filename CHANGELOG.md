@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.53.8 (2026-08-14) — 文件锁/文件追踪/Prompt 缓存单元测试补齐
+
+继续代码质量维度：补齐三个核心安全/成本特性的零覆盖纯逻辑类的单元测试（39 项），均为 CLAUDE.md 强调的关键设计。
+
+### 🧪 自测
+
+- 新增 39 项断言覆盖三个类：
+  - **`FileLockManager`**（14 项）：首次获取、同 agent 续期、异 agent 拒绝、`IsLockedByOther` 判定、Release 归属校验、过期锁强占（负 timeout 立即过期）、`ReleaseAll` 清空、`GetSummary` 空/非空、`WaitForLockAsync` 无锁成功
+  - **`FileTracker`**（12 项）：未追踪/已追踪状态、外部修改 stale 检测（哈希变更）、`CheckForChanges` 检出、`RecordWrite` 更新、删除检测并移除追踪、`ValidatePreEdit` 未读取警告/已读取通过、`GetChangeWarning`、`Enabled` 短路、`Reset` 清空
+  - **`PromptCache`**（13 项）：首次未命中、相同请求命中、节省 token 累计、system/tools 任一变更未命中、`HitRate` 计算、`Reset` 后未命中、`Enabled` 短路、`Summary` 命中率与 K 格式
+
+- 总计 2047 项自测全部通过（0 失败）
+
 ## v0.53.7 (2026-08-14) — 长方法拆分 + ImportHelper 纯逻辑 + 压力测试脚本修复
 
 代码质量维度继续推进：消除两处重复样板（`AgentTool` 并行解析三分支、`ContextManager` 三层压缩进度报告），将 `ImportHelper` 两个私有纯函数改为 `internal` 并补齐单元测试，同时修复压力测试脚本的跨平台与路径 bug。

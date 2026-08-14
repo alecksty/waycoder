@@ -97,6 +97,9 @@ public static partial class SelfTest
         TestMemoryRetrieval(Check);   // 跨会话记忆检索：关键词匹配打分 + 提示词格式化
         TestSnippetStore(Check);      // 代码片段管理：frontmatter 解析 + 增删查/多词搜索
         TestImportHelper(Check);      // 导入助手纯逻辑：JSONC 注释剥离 + 文件大小格式化
+        TestFileLockManager(Check);   // 文件锁：获取/续期/拒绝/过期强占/释放/等待
+        TestFileTracker(Check);       // 文件追踪：stale-read 检测 + 先读后改保护 + 删除/禁用
+        TestPromptCache(Check);       // Prompt 缓存：SHA256 命中/未命中/命中率/节省 token
         Console.WriteLine();
 
         // ---- 工具 ----
