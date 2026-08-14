@@ -121,6 +121,18 @@ public class ScreenshotTool : ITool
     {
         try
         {
+            // 先校验 region 参数（与平台无关），再检查平台能力，避免报错信息被平台守卫截胡
+            var x = 0; var y = 0; var w = 0; var h = 0;
+            if (!full)
+            {
+                x = GetInt(arguments, "x");
+                y = GetInt(arguments, "y");
+                w = GetInt(arguments, "width");
+                h = GetInt(arguments, "height");
+                if (w <= 0 || h <= 0)
+                    return "错误：region 模式需要 width/height 为正整数，且 x/y 需指定。";
+            }
+
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 return "错误：图形抓屏目前仅支持 macOS（使用 /usr/sbin/screencapture）。";
 
@@ -145,12 +157,6 @@ public class ScreenshotTool : ITool
             var flags = new StringBuilder("-x"); // 静默，无快门声
             if (!full)
             {
-                var x = GetInt(arguments, "x");
-                var y = GetInt(arguments, "y");
-                var w = GetInt(arguments, "width");
-                var h = GetInt(arguments, "height");
-                if (w <= 0 || h <= 0)
-                    return "错误：region 模式需要 width/height 为正整数，且 x/y 需指定。";
                 flags.Append($" -R{x},{y},{w},{h}");
             }
 

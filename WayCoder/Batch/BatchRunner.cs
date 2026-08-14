@@ -155,10 +155,8 @@ public sealed class BatchRunner
         {
             foreach (var r in report.Results)
             {
-                if (r.WorkDir != null && Directory.Exists(r.WorkDir))
-                {
-                    try { Directory.Delete(r.WorkDir, recursive: true); r.WorkDir = null; } catch { }
-                }
+                if (r.WorkDir != null && DeleteDirRobust(r.WorkDir))
+                    r.WorkDir = null;
             }
         }
 
@@ -210,6 +208,29 @@ public sealed class BatchRunner
             sem.Release();
         }
         return result;
+    }
+
+    /// <summary>
+    /// 健壮递归删除：Windows 下 git clone 出的 .git 对象/打包文件是只读属性，
+    /// <see cref="Directory.Delete(string, bool)"/> 遇只读文件会抛 UnauthorizedAccessException，
+    /// 先剥掉所有文件与目录的 ReadOnly 位再删除。目录不存在视为成功，返回是否清理完毕。
+    /// </summary>
+    static bool DeleteDirRobust(string path)
+    {
+        try
+        {
+            if (!Directory.Exists(path)) return true;
+            foreach (var f in Directory.GetFiles(path, "*", SearchOption.AllDirectories))
+                File.SetAttributes(f, File.GetAttributes(f) & ~FileAttributes.ReadOnly);
+            foreach (var d in Directory.GetDirectories(path, "*", SearchOption.AllDirectories))
+                File.SetAttributes(d, File.GetAttributes(d) & ~FileAttributes.ReadOnly);
+            Directory.Delete(path, recursive: true);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>克隆仓库（远程 URL 或本地路径）到隔离目录。返回错误消息，成功返回 null。</summary>
