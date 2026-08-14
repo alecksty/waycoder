@@ -237,6 +237,12 @@ public class UpdateArg : CliArg
     public UpdateArg() : base("update", "--update") { }
 }
 
+public class JsonArg : CliArg
+{
+    public override string Description => "JSON 输出模式（配合 -p 一次性模式，stdout 输出结构化 JSON，供 IDE/脚本解析）";
+    public JsonArg() : base("json", "-j", "--json") { }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // 批量任务引擎 —— 多仓库并行处理（worktree 隔离）
 // ═══════════════════════════════════════════════════════════════
@@ -466,6 +472,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new TinyArg());
         CliArgRegistry.Register(new EconomyArg());
         CliArgRegistry.Register(new UpdateArg());
+        CliArgRegistry.Register(new JsonArg());
         CliArgRegistry.Register(new BatchArg());
         CliArgRegistry.Register(new BatchRepoArg());
         CliArgRegistry.Register(new BatchTaskArg());
