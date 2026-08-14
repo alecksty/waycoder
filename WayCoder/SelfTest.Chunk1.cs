@@ -100,6 +100,13 @@ public static partial class SelfTest
         // ---- 工具 ----
         Section("[工具]");
 
+        // find_replace（查找替换：预览/替换 + 无效正则回退 + 错误分支）
+        TestFindReplaceTool(Check);
+        // diff（文件差异：差异行/相同/空文件/不存在）
+        TestDiffTool(Check);
+        // tree（目录树：树生成/深度限制/隐藏跳过）
+        TestTreeTool(Check);
+
         // read_file
         try
         {
