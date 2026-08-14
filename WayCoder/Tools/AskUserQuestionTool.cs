@@ -1,7 +1,4 @@
-using WayCoder.Terminal;
 using WayCoder.UI;
-using WayCoder.UI.TuiControls;
-using WayCoder.UI.TuiScreens;
 
 namespace WayCoder.Tools;
 
@@ -279,125 +276,45 @@ public class AskUserQuestionTool : ITool
         return ShowTextInput(q.Question, q.Header);
     }
 
-    /// <summary>单选对话框</summary>
+    /// <summary>单选对话框 —— 统一走 UxHelper（TUI 弹框 / 非 TUI 行内），返回选中项的 label。</summary>
     private static string? ShowSingleSelect(
         string question, string header,
         List<string> displayItems,
         List<(string Label, string Description)> options)
     {
-        if (!UxHelper.IsTuiMode)
-            return UxHelper.Select(question, displayItems);
-
-        string? result = null;
-        using var evt = new ManualResetEventSlim(false);
-        try
-        {
-            var win = TuiDialog.Select(question, displayItems,
-                onSelect: idx =>
-                {
-                    result = idx >= 0 && idx < options.Count ? options[idx].Label : null;
-                    evt.Set();
-                },
-                onCancel: () => { result = null; evt.Set(); });
-            ShowAndWait(win, evt);
-        }
-        catch { evt.Set(); }
-        return result;
+        var chosen = UxHelper.Select(question, displayItems, timeoutMs: Config.Instance.AskUserTimeoutSec * 1000);
+        if (chosen == null) return null;
+        return ResolveLabel(chosen, displayItems, options);
     }
 
-    /// <summary>多选对话框</summary>
+    /// <summary>多选对话框 —— 统一走 UxHelper（TUI 弹框 / 非 TUI 行内），返回选中项的 label 列表。</summary>
     private static JsonArray? ShowMultiSelect(
         string question, string header,
         List<string> displayItems,
         List<(string Label, string Description)> options)
     {
-        if (!UxHelper.IsTuiMode)
-        {
-            // 非 TUI 模式回退：逐个确认
-            var selected = new JsonArray();
-            Console.WriteLine($"\x1b[1m{question}\x1b[0m (多选，输入 y/n 逐个确认)");
-            foreach (var (label, desc) in options)
-            {
-                var descSuffix = string.IsNullOrEmpty(desc) ? "" : $" — {desc}";
-                Console.Write($"  [{label}]{descSuffix} (y/n): ");
-                var key = Console.ReadKey(intercept: false);
-                Console.WriteLine();
-                if (key.KeyChar == 'y' || key.KeyChar == 'Y')
-                {
-                    JsonNode? node = JsonValue.Create(label);
-                    selected.Add(node);
-                }
-            }
-            return selected;
-        }
-
-        JsonArray? result = null;
-        using var evt = new ManualResetEventSlim(false);
-        try
-        {
-            var win = TuiDialog.MultiSelect(question, displayItems,
-                onConfirm: indices =>
-                {
-                    var arr = new JsonArray();
-                    foreach (var i in indices)
-                    {
-                        if (i >= 0 && i < options.Count)
-                        {
-                            JsonNode? node = JsonValue.Create(options[i].Label);
-                            arr.Add(node);
-                        }
-                    }
-                    result = arr;
-                    evt.Set();
-                },
-                onCancel: () => { result = null; evt.Set(); });
-            ShowAndWait(win, evt);
-        }
-        catch { evt.Set(); }
-        return result;
+        var chosen = UxHelper.MultiSelect(question, displayItems, timeoutMs: Config.Instance.AskUserTimeoutSec * 1000);
+        if (chosen == null) return null; // 用户取消
+        var arr = new JsonArray();
+        foreach (var c in chosen)
+            arr.Add(JsonValue.Create(ResolveLabel(c, displayItems, options)));
+        return arr;
     }
 
-    /// <summary>文本输入对话框</summary>
+    /// <summary>文本输入对话框 —— 统一走 UxHelper（TUI 弹框 / 非 TUI 行内），空输入视为取消。</summary>
     private static string? ShowTextInput(string question, string header)
     {
-        if (!UxHelper.IsTuiMode)
-        {
-            Console.Write($"\x1b[1m{question}\x1b[0m ");
-            var input = Console.ReadLine() ?? "";
-            return string.IsNullOrWhiteSpace(input) ? null : input;
-        }
-
-        string? result = null;
-        using var evt = new ManualResetEventSlim(false);
-        try
-        {
-            var win = TuiDialog.Input(header, question, "",
-                onConfirm: val =>
-                {
-                    result = string.IsNullOrWhiteSpace(val) ? null : val;
-                    evt.Set();
-                },
-                onCancel: () => { result = null; evt.Set(); });
-            ShowAndWait(win, evt);
-        }
-        catch { evt.Set(); }
-        return result;
+        var val = UxHelper.Ask(question, timeoutMs: Config.Instance.AskUserTimeoutSec * 1000);
+        return string.IsNullOrWhiteSpace(val) ? null : val;
     }
 
-    /// <summary>
-    /// 显示窗口并阻塞等待用户响应（渲染 + 输入事件循环）。
-    /// </summary>
-    private static void ShowAndWait(TuiWindow win, ManualResetEventSlim evt)
+    /// <summary>把用户选中的显示文本解析回选项 label（displayItems 形如「label — desc」）。查不到时原样返回。</summary>
+    internal static string ResolveLabel(
+        string chosen,
+        List<string> displayItems,
+        List<(string Label, string Description)> options)
     {
-        var screen = TuiManager.Instance?.ActiveScreen;
-        if (screen == null)
-        {
-            evt.Set();
-            return;
-        }
-
-        screen.ShowWindow(win);
-        // 用户交互等待（比常规确认框更长）
-        UxHelper.RenderWait(screen, evt, timeoutMs: Config.Instance.AskUserTimeoutSec * 1000);
+        int idx = displayItems.IndexOf(chosen);
+        return idx >= 0 && idx < options.Count ? options[idx].Label : chosen;
     }
 }

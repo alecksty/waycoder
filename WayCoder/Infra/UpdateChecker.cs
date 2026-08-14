@@ -26,7 +26,7 @@ public sealed class ReleaseInfo
 /// 自动升级 —— 版本检查 + 自替换。
 ///
 /// 对标 Claude Code 的 `claude update` / `npm update -g`，让 WayCoder 能一条命令自升级：
-///   - 版本检查：优先 GitHub Releases，失败回退 Gitee Releases（仓库均可用环境变量覆盖）
+///   - 版本检查：优先 Gitee Releases（国内快），失败回退 GitHub Releases（仓库均可用环境变量覆盖）
 ///   - 自替换：下载匹配当前平台（RID）的压缩包 → 解压出单文件二进制 → 覆盖当前可执行文件
 ///   - Windows：exe 占用锁无法直接覆盖，落 `.new` + `upgrade.bat` 重试脚本，退出后自动替换并重启
 ///   - Unix：原子 rename 覆盖运行中二进制（旧 inode 继续服务当前进程），提示重启
@@ -41,7 +41,7 @@ public static class UpdateChecker
 
     /// <summary>GitHub 仓库（owner/repo），环境变量 WAYCODER_GITHUB_REPO 可覆盖</summary>
     public static string GitHubRepo =>
-        Environment.GetEnvironmentVariable("WAYCODER_GITHUB_REPO") ?? "aleckstygit/my-coder";
+        Environment.GetEnvironmentVariable("WAYCODER_GITHUB_REPO") ?? "alecksty/waycoder";
 
     /// <summary>Gitee 仓库（owner/repo），环境变量 WAYCODER_GITEE_REPO 可覆盖</summary>
     public static string GiteeRepo =>
@@ -141,12 +141,12 @@ public static class UpdateChecker
     // 网络 —— 拉取最新版本
     // ════════════════════════════════════════════════════════════════
 
-    /// <summary>拉取最新 release（GitHub 优先，失败回退 Gitee）。无更新/失败返回 null。</summary>
+    /// <summary>拉取最新 release（Gitee 优先，失败回退 GitHub）。无更新/失败返回 null。</summary>
     public static async Task<ReleaseInfo?> FetchLatestAsync()
     {
-        var gh = await FetchFromGithubAsync(GitHubRepo);
-        if (gh != null) return gh;
-        return await FetchFromGiteeAsync(GiteeRepo);
+        var gitee = await FetchFromGiteeAsync(GiteeRepo);
+        if (gitee != null) return gitee;
+        return await FetchFromGithubAsync(GitHubRepo);
     }
 
     /// <summary>从 GitHub Releases 拉取最新版本，匹配当前平台资产。</summary>

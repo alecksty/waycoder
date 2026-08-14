@@ -795,6 +795,25 @@ public static partial class SelfTest
         var indentNodes = MarkdownParser.Parse("  - 缩进一级\n    - 缩进二级");
         var indentItems = indentNodes.OfType<MdListItem>().ToList();
         Check("MarkdownParser 缩进列表", indentItems.Any(i => i.Level == 1));
+
+        // 引用块
+        var bqNodes = MarkdownParser.Parse("> 引用一行\n> 引用二行");
+        Check("MarkdownParser 引用块", bqNodes.Count == 1 && bqNodes[0] is MdBlockQuote bq && bq.Text == "引用一行\n引用二行");
+
+        // 任务清单
+        var taskNodes = MarkdownParser.Parse("- [x] 已完成\n- [ ] 未完成");
+        var taskItems = taskNodes.OfType<MdListItem>().ToList();
+        Check("MarkdownParser 任务清单2项", taskItems.Count == 2);
+        Check("MdListItem Checked=true", taskItems[0].Checked == true && taskItems[0].Text == "已完成");
+        Check("MdListItem Checked=false", taskItems[1].Checked == false && taskItems[1].Text == "未完成");
+
+        // 链接
+        var linkResult = MarkdownParser.ParseInline("见 [文档](https://example.com) 详情");
+        Check("ParseInline 链接文字色=36", linkResult.Any(r => r.Color == 36 && r.Text == "文档"));
+
+        // 删除线
+        var strikeResult = MarkdownParser.ParseInline("这是 ~~删除~~ 文本");
+        Check("ParseInline 删除线标记=2", strikeResult.Any(r => r.Color == 2 && r.Text == "删除"));
         Console.WriteLine();
 
         // ================================================================

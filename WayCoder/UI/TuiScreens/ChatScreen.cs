@@ -73,6 +73,25 @@ public class ChatScreen : TuiScreen
     /// <summary>右侧信息面板</summary>
     public TuiSidePanel SidePanel { get; private set; } = null!;
 
+    /// <summary>
+    /// 浮层窗口可占用的顶部边界 = 标题栏高度，避免对话框顶边覆盖标题栏。
+    /// </summary>
+    public override int OverlayTop => TitleBar?.Height ?? 1;
+
+    /// <summary>
+    /// 浮层窗口可占用的底部边界 = 标题栏下方 + 聊天列表高度，
+    /// 即动态栏/输入区/状态栏之上的内容区，避免对话框底边覆盖状态栏与输入框。
+    /// </summary>
+    public override int OverlayBottom
+    {
+        get
+        {
+            int titleH = TitleBar?.Height ?? 1;
+            int chatH = ChatList?.Height ?? Math.Max(1, TH - titleH - 7);
+            return Math.Max(1, titleH + chatH);
+        }
+    }
+
     // ── 状态 ──
 
     public string StatusText { get; set; } = "";
@@ -284,14 +303,14 @@ public class ChatScreen : TuiScreen
         int cursorCol = InputArea?.CursorCol ?? 0;
 
         // 保存旧 ChatList 的全部消息数据（BuildLayout 会创建新的空 ChatList）
-        var savedMessages = new List<(string Role, string Content, bool Centered)>();
+        var savedMessages = new List<(string Role, string Content, bool Centered, int Indent)>();
         if (ChatList != null)
         {
             for (int i = 0; i < ChatList.ItemCount; i++)
             {
                 var item = ChatList.GetItem(i) as TuiListItem;
                 if (item != null)
-                    savedMessages.Add((item.Role, item.MarkdownContent, item.ContentAlign == HAlign.Center));
+                    savedMessages.Add((item.Role, item.MarkdownContent, item.ContentAlign == HAlign.Center, item.Indent));
             }
         }
 
@@ -302,8 +321,8 @@ public class ChatScreen : TuiScreen
         BuildLayout();
 
         // 恢复聊天消息（通过 AddMessage 走正常流程，自动处理续接/纯文本逻辑）
-        foreach (var (role, content, centered) in savedMessages)
-            AddMessage(content, role, centered);
+        foreach (var (role, content, centered, indent) in savedMessages)
+            AddMessage(content, role, centered, indent);
 
         // 恢复输入状态
         if (!string.IsNullOrEmpty(inputText))
@@ -455,8 +474,11 @@ public class ChatScreen : TuiScreen
 
     // ── 消息管理 ──
 
-    /// <summary>添加一条消息到聊天列表。system/tool 消息使用纯文本模式避免 Markdown 行合并，连续同角色自动续接。</summary>
-    public void AddMessage(string content, string role = "assistant", bool centered = false)
+    /// <summary>
+    /// 添加一条消息到聊天列表。system/tool 消息使用纯文本模式避免 Markdown 行合并，连续同角色自动续接。
+    /// indent&gt;0 表示嵌套子消息（如工具输出嵌套在所属 assistant 消息下）：续接无角色头 + 左缩进。
+    /// </summary>
+    public void AddMessage(string content, string role = "assistant", bool centered = false, int indent = 0)
     {
         bool continuation = false;
         bool plainText = role is "system" or "tool" or "banner";
@@ -471,9 +493,16 @@ public class ChatScreen : TuiScreen
             }
         }
 
+        // 嵌套子消息强制续接（不渲染角色头）
+        if (indent > 0)
+            continuation = true;
+
         var item = new TuiListItem(role, content, ChatList.Width - 2,
             role == "banner" ? true : continuation, plainText,
-            centered ? HAlign.Center : HAlign.Left);
+            centered ? HAlign.Center : HAlign.Left)
+        {
+            Indent = indent
+        };
         if (!continuation)
             item.SetTime(DateTime.Now);
 
@@ -501,8 +530,8 @@ public class ChatScreen : TuiScreen
         if (last.IsPlainText && !last.Body.IsError && IsErrorOutput(delta))
             last.Body.IsError = true;
 
-        // 仅对工具输出（system 消息）应用显示风格控制
-        if (last.Role == "system")
+        // 仅对工具输出（system/tool 消息）应用显示风格控制
+        if (last.Role is "system" or "tool")
         {
             switch (ChatDisplayStyle)
             {
@@ -635,13 +664,13 @@ public class ChatScreen : TuiScreen
         MarkDirty();
     }
 
-    /// <summary>添加工具调用消息</summary>
+    /// <summary>添加工具调用消息（嵌套子消息）</summary>
     public void AddToolMsg(string toolName, string brief)
     {
         var content = $"  🔧 {toolName}({brief})";
-        var msg = new ChatMsg { Role = "tool", Content = content };
+        var msg = new ChatMsg { Role = "tool", Content = content, Indent = 1 };
         ChatMessages.Add(msg);
-        AddMessage(content, "tool");
+        AddMessage(content, "tool", indent: 1);
     }
 
     /// <summary>更新 Token 显示</summary>
@@ -1286,6 +1315,7 @@ public class ChatScreen : TuiScreen
         {
             InputArea.Fg = t.TextAreaFg;
             InputArea.CursorLineBg = t.TextAreaCursorLineBg;
+            InputArea.CursorLineFg = t.TextAreaCursorLineFg;
         }
 
         InvalidateView();
@@ -1301,6 +1331,9 @@ public class ChatScreen : TuiScreen
 
         // ── 2. 模态窗口优先 ──
         if (HasModal) return base.OnKey(key);
+
+        // ── 2.5. 提示栏可见 → 提示栏导航（↑↓/Enter/Esc/Tab），优先于聊天滚动/提交/历史 ──
+        if (PromptBarVisible && PromptKeyHook(key)) return true;
 
         // ── 4. 聊天自身处理（全局快捷键 + 导航 + 提交 + 输入编辑）──
         if (HandleGlobalShortcut(key, ctrl, shift)
@@ -1634,7 +1667,9 @@ public class ChatScreen : TuiScreen
                         cmd.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
                         cmd.Aliases.Any(a => a.Contains(q, StringComparison.OrdinalIgnoreCase)))
                     {
-                        var label = cmd.Usage ?? cmd.Name; // 有参数提示则显示 "/perm [yolo|ask]"
+                        // Usage 自带 "/" 前缀（如 "/perm [yolo|ask]"），而 Slash 图标也是 "/"，
+                        // 去掉标签前导 "/" 避免每行出现两个 "/"（"/ /perm ..."）。
+                        var label = (cmd.Usage ?? "/" + cmd.Name).TrimStart('/');
                         items.Add(new PromptItem
                         {
                             Kind = PromptKind.Slash,
@@ -2017,12 +2052,17 @@ public class ChatScreen : TuiScreen
 
     // ── 高级操作 ──
 
-    /// <summary>添加工具调用进度（流式输出期间的占位）</summary>
+    /// <summary>添加工具调用进度（嵌套子消息：工具输出归属在 assistant 消息下）。线程安全。</summary>
     public void AddToolProgress(string toolName, string brief)
     {
         var renderer = ToolRendererFactory.Get(toolName);
         string label = $"  {renderer.FormatHeader(brief)}";
-        AddSystemMsg(label);
+        lock (_chatLock)
+        {
+            var msg = new ChatMsg { Role = "tool", Content = label, Indent = 1 };
+            ChatMessages.Add(msg);
+            AddMessage(label, "tool", indent: 1);
+        }
         _toolOutputLineCount = 0;
     }
 
@@ -2183,4 +2223,6 @@ public class ChatMsg
     public bool Streaming { get; set; }
     /// <summary>内容横向居中（仅欢迎消息使用）</summary>
     public bool Centered { get; set; }
+    /// <summary>嵌套层级（0=顶层；1=工具子消息，缩进在所属 assistant 消息下）</summary>
+    public int Indent { get; set; }
 }

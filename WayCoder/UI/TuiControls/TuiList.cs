@@ -88,11 +88,16 @@ public class TuiList : TuiControl
             case ConsoleKey.End:
                 SelectedIndex = Items.Count - 1;
                 return true;
-            case ConsoleKey.Spacebar when MultiSelect:
-                if (CheckedIndices.Contains(SelectedIndex))
-                    CheckedIndices.Remove(SelectedIndex);
-                else
-                    CheckedIndices.Add(SelectedIndex);
+            case ConsoleKey.Spacebar:
+                if (MultiSelect)
+                {
+                    if (CheckedIndices.Contains(SelectedIndex))
+                        CheckedIndices.Remove(SelectedIndex);
+                    else
+                        CheckedIndices.Add(SelectedIndex);
+                    return true;
+                }
+                OnSelect?.Invoke(SelectedIndex); // 单选：空格 = 激活（等同回车）
                 return true;
             case ConsoleKey.Enter:
                 OnSelect?.Invoke(SelectedIndex);

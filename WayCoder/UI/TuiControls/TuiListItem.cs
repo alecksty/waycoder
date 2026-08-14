@@ -42,6 +42,9 @@ public class TuiListItem : TuiVBox
     /// <summary>纯文本模式：逐行渲染，不走 Markdown 解析（避免行合并）</summary>
     public bool IsPlainText { get; set; }
 
+    /// <summary>嵌套层级（0=顶层；>0 时作为子消息续接无角色头并左缩进）</summary>
+    public int Indent { get; set; }
+
     /// <summary>内容横向对齐（默认左对齐）</summary>
     public HAlign ContentAlign { get; set; } = HAlign.Left;
 
@@ -68,8 +71,8 @@ public class TuiListItem : TuiVBox
         Clear();
         int innerW = maxWidth - PaddingLeft - PaddingRight;
 
-        // ── Header 行: Icon + Role + Time（续接消息跳过）──
-        if (!Continuation)
+        // ── Header 行: Icon + Role + Time（续接消息/嵌套子消息跳过）──
+        if (!Continuation && Indent == 0)
         {
             var header = new TuiHBox
             {
@@ -123,11 +126,11 @@ public class TuiListItem : TuiVBox
             TimeLabel = new TuiLabel("") { Width = 0, Height = 1 };
         }
 
-        // ── Body: Markdown 正文，Padding.Left = 2 格对齐标题 ──
+        // ── Body: Markdown 正文，Padding.Left = 2 格对齐标题；嵌套子消息额外左缩进 ──
         Body = TuiMarkdown.Create(MarkdownContent, Role, innerW, IsPlainText);
         Body.Width = innerW;
         Body.ContentAlign = ContentAlign;
-        Body.Padding = new EdgeInsets(0, 0, 0, 2);
+        Body.Padding = new EdgeInsets(0, 0, 0, 2 + Indent * 2);
         Add(Body);
 
         // ── 重新计算整体高度 ──

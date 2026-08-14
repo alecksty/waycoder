@@ -523,6 +523,85 @@ public static partial class SelfTest
 
         Console.WriteLine();
 
+        // ---- screenshot 截图抓屏：PNG 尺寸解析 + 端到端控制台画面捕获 ----
+        Section("[截图抓屏]");
+        // 1. GUI 抓屏的 PNG 宽高读取（纯文件解析，无需真实抓屏）
+        var pngPath = Path.Combine(Path.GetTempPath(), "wc_png_" + Guid.NewGuid().ToString("N")[..6] + ".png");
+        try
+        {
+            var png = new byte[24];
+            png[0] = 0x89; png[1] = (byte)'P'; png[2] = (byte)'N'; png[3] = (byte)'G';
+            png[4] = 0x0D; png[5] = 0x0A; png[6] = 0x1A; png[7] = 0x0A;   // 8 字节签名
+            png[11] = 13;                                                  // IHDR 长度
+            png[12] = (byte)'I'; png[13] = (byte)'H'; png[14] = (byte)'D'; png[15] = (byte)'R';
+            png[18] = 0x02; png[19] = 0x80;                                // width = 640
+            png[22] = 0x01; png[23] = 0xE0;                                // height = 480
+            File.WriteAllBytes(pngPath, png);
+            var dims = ScreenshotTool.ReadPngDimensions(pngPath);
+            Check("screenshot 读取 PNG 尺寸 640x480", dims.Width == 640 && dims.Height == 480);
+        }
+        catch { Fail("screenshot 读取 PNG 尺寸"); }
+        finally { try { File.Delete(pngPath); } catch { } }
+
+        // 2. 跨平台 GUI 抓屏命令构造（纯逻辑，覆盖 Windows/macOS/Linux）
+        var wcFull = ScreenshotTool.BuildWindowsCapture(true, 0, 0, 0, 0, @"C:\tmp\shot.png");
+        Check("screenshot Win 用 powershell", wcFull.Tool == "powershell");
+        Check("screenshot Win 全屏含 VirtualScreen", wcFull.Args.Contains("VirtualScreen"));
+        Check("screenshot Win 含 CopyFromScreen", wcFull.Args.Contains("CopyFromScreen"));
+        Check("screenshot Win 含保存路径", wcFull.Args.Contains("shot.png"));
+        var wcRegion = ScreenshotTool.BuildWindowsCapture(false, 10, 20, 100, 50, @"C:\tmp\r.png");
+        Check("screenshot Win 区域 Bitmap(100,50)", wcRegion.Args.Contains("Bitmap(100,50)"));
+        Check("screenshot Win 区域坐标 CopyFromScreen(10,20", wcRegion.Args.Contains("CopyFromScreen(10,20"));
+
+        var mcFull = ScreenshotTool.BuildMacCapture(true, 0, 0, 0, 0, "/tmp/s.png");
+        Check("screenshot mac 用 screencapture", mcFull.Tool == "/usr/sbin/screencapture");
+        Check("screenshot mac 全屏 -x", mcFull.Args.StartsWith("-x"));
+        var mcRegion = ScreenshotTool.BuildMacCapture(false, 10, 20, 100, 50, "/tmp/s.png");
+        Check("screenshot mac 区域 -R 坐标", mcRegion.Args.Contains("-R10,20,100,50"));
+
+        Check("screenshot linux grim 区域 -g", ScreenshotTool.BuildLinuxCommandFor("grim", false, 10, 20, 100, 50, "/tmp/s.png").Args.Contains("\"10,20 100x50\""));
+        Check("screenshot linux import 区域 -crop", ScreenshotTool.BuildLinuxCommandFor("import", false, 10, 20, 100, 50, "/tmp/s.png").Args.Contains("-crop 100x50+10+20"));
+        Check("screenshot linux scrot 区域 -a", ScreenshotTool.BuildLinuxCommandFor("scrot", false, 10, 20, 100, 50, "/tmp/s.png").Args.Contains("-a 10,20,100,50"));
+        Check("screenshot linux maim 区域 -g", ScreenshotTool.BuildLinuxCommandFor("maim", false, 10, 20, 100, 50, "/tmp/s.png").Args.Contains("-g 100x50+10+20"));
+        var grFull = ScreenshotTool.BuildLinuxCommandFor("grim", true, 0, 0, 0, 0, "/tmp/s.png");
+        Check("screenshot linux grim 全屏无坐标", grFull.Args.Contains("/tmp/s.png") && !grFull.Args.Contains("-g"));
+        Check("screenshot linux 回退链含 4 工具",
+            ScreenshotTool.LinuxCaptureTools.Length == 4 &&
+            ScreenshotTool.LinuxCaptureTools.Contains("grim") && ScreenshotTool.LinuxCaptureTools.Contains("import"));
+
+        // 3. 端到端：渲染真实 ChatScreen → 抓屏 console 模式 → 可读文本（不在 TUI 内才跑，避免双重进入备用屏）
+        if (!TuiManager.Instance.IsActive)
+        {
+            string shot = "";
+            var shotOut = Console.Out;
+            try
+            {
+                var mgr = TuiManager.Instance;
+                Console.SetOut(TextWriter.Null);   // 渲染帧不污染 --test 输出（LastCleanFrame 仍会填充）
+                mgr.Enter();
+                var chat = new ChatScreen();
+                mgr.PushScreen(chat);
+                chat.AddMessage("欢迎使用 WayCoder 抓屏自测", "assistant");
+                chat.AddMessage("这是一条用于验证截图的测试消息", "user");
+                mgr.Render();
+                shot = new ScreenshotTool().ExecuteAsync(new() { ["target"] = "console" }).Result;
+            }
+            catch { shot = ""; }
+            finally
+            {
+                try { TuiManager.Instance.Exit(); } catch { }
+                try { if (TuiManager.Instance.ActiveScreen != null) TuiManager.Instance.PopScreen(); } catch { }
+                Console.SetOut(shotOut);
+            }
+
+            Check("截图: console 模式捕获到画面", shot.Contains("当前终端画面"));
+            Check("截图: 画面含 assistant 消息", shot.Contains("欢迎使用 WayCoder 抓屏自测"));
+            Check("截图: 画面含 user 消息", shot.Contains("这是一条用于验证截图的测试消息"));
+            Check("截图: 画面已剥离 ANSI", !shot.Contains("\x1b"));
+        }
+
+        Console.WriteLine();
+
         // ---- git ----
     }
 }

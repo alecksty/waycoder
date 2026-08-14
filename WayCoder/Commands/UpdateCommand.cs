@@ -36,7 +36,7 @@ public class UpdateCommand : SlashCommand
         {
             screen.AddMessage(
                 "**WayCoder 更新**\n\n⚠ 无法获取最新版本信息。请检查网络连接，或确认仓库配置：\n\n" +
-                "- `WAYCODER_GITHUB_REPO`（默认 `aleckstygit/my-coder`）\n" +
+                "- `WAYCODER_GITHUB_REPO`（默认 `alecksty/waycoder`）\n" +
                 "- `WAYCODER_GITEE_REPO`（默认 `aleckstygit/my-coder`）\n\n" +
                 "也可用 `/config` 查看当前配置。", "system");
             return;

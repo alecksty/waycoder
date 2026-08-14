@@ -108,7 +108,7 @@ public class SessionCommand : SlashCommand
         {
             var role = msg["role"]?.GetValue<string>() ?? "system";
             var content = msg["content"]?.GetValue<string>() ?? "";
-            screen.AddMessage(content, role);
+            screen.AddMessage(content, role, indent: role == "tool" ? 1 : 0);
         }
         screen.AddSystemMsg($"✔ 已加载会话: {sessionId}");
     }
@@ -134,7 +134,7 @@ public class SessionCommand : SlashCommand
         {
             var role = msg["role"]?.GetValue<string>() ?? "system";
             var content = msg["content"]?.GetValue<string>() ?? "";
-            screen.AddMessage(content, role);
+            screen.AddMessage(content, role, indent: role == "tool" ? 1 : 0);
         }
         screen.AddSystemMsg("✔ 已恢复会话 (_auto)");
     }

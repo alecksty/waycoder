@@ -112,10 +112,10 @@ public class AgentSlot
         ChatMessages[^1].Content += delta;
     }
 
-    /// <summary>缓冲：追加一条普通消息（system/tool 等）。</summary>
-    public void BufferedAddMsg(string role, string content)
+    /// <summary>缓冲：追加一条普通消息（system/tool 等）。indent&gt;0 为嵌套子消息。</summary>
+    public void BufferedAddMsg(string role, string content, int indent = 0)
     {
-        ChatMessages.Add(new ChatMsg { Role = role, Content = content });
+        ChatMessages.Add(new ChatMsg { Role = role, Content = content, Indent = indent });
     }
 
     /// <summary>
@@ -148,7 +148,7 @@ public class AgentSlot
 
         // 重建聊天列表项
         foreach (var msg in ChatMessages)
-            screen.AddMessage(msg.Content, msg.Role, msg.Centered);
+            screen.AddMessage(msg.Content, msg.Role, msg.Centered, msg.Indent);
 
         // 恢复输入状态
         screen.InputArea.Text = InputText;

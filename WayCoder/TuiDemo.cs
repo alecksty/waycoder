@@ -21,7 +21,7 @@ public static class TuiDemo
             mgr.RefreshTheme();
 
             var screen = new ChatScreen();
-            screen.StatusText = "WayCoder TUI Demo | F1-F12 控件 | Esc 退出 | 输入 /m /s /r /c /f /b 打开全屏对话框";
+            screen.StatusText = "WayCoder TUI Demo | F1-F12 控件 | /m /s /r /c /f /b 全屏 | /types /multi /diff 内容类型 | Esc 退出";
             screen.OnSubmit = text =>
             {
                 // ── Slash 命令：打开全屏对话框 ──
@@ -40,6 +40,12 @@ public static class TuiDemo
                         ShowFilePickerDemo(screen); return;
                     case "/b": case "/buttons":
                         ShowButtonGroupDemo(screen); return;
+                    case "/types": case "/l":
+                        ShowChatContentTypesDemo(screen); return;
+                    case "/multi":
+                        ShowMultiSelectDemo(screen); return;
+                    case "/diff":
+                        ShowDiffDemo(screen); return;
                 }
 
                 // 注：ChatScreen 已通过 HandleSpecial 添加了用户消息（AddUserMsg），
@@ -75,6 +81,10 @@ public static class TuiDemo
                 "- `/c` 或 `/command` — 命令面板\n" +
                 "- `/f` 或 `/file` — 文件选择器\n" +
                 "- `/b` 或 `/buttons` — 按钮组+滚动条\n\n" +
+                "### 聊天内容类型（4 角色 × 多类型）\n" +
+                "- `/types` 或 `/l` — system/user/agent/tool 内容类型一览\n" +
+                "- `/multi` — 会话提问（多选）\n" +
+                "- `/diff` — 代码对比（逐 hunk 确认）\n\n" +
                 "`Esc` — 退出  |  输入文字后 `Enter` 发送",
                 "assistant");
 
@@ -200,7 +210,7 @@ public static class TuiDemo
 
     // ── 对话框演示 ──
 
-    private static void ShowPermissionDemo(ChatScreen screen)
+    internal static void ShowPermissionDemo(ChatScreen screen)
     {
         var dialog = TuiDialog.Permission("权限确认",
             "bash 工具请求执行：\n\n  rm -rf /tmp/cache/*\n\n是否允许此操作？",
@@ -217,7 +227,7 @@ public static class TuiDemo
         screen.ShowWindow(dialog);
     }
 
-    private static void ShowInputDemo(ChatScreen screen)
+    internal static void ShowInputDemo(ChatScreen screen)
     {
         var dialog = TuiDialog.Input("输入对话框",
             "请输入项目名称：", "MyProject",
@@ -228,7 +238,7 @@ public static class TuiDemo
         screen.ShowWindow(dialog);
     }
 
-    private static void ShowListDemo(ChatScreen screen)
+    internal static void ShowListDemo(ChatScreen screen)
     {
         var items = new List<string>
         {
@@ -246,7 +256,7 @@ public static class TuiDemo
         screen.ShowWindow(dialog);
     }
 
-    private static void ShowConfirmDemo(ChatScreen screen)
+    internal static void ShowConfirmDemo(ChatScreen screen)
     {
         var dialog = TuiDialog.Confirm("确认删除",
             "确定要删除选中的 3 个文件吗？此操作不可撤销。",
@@ -260,7 +270,7 @@ public static class TuiDemo
     // ── 菜单演示 ──
 
     /// <summary>F6 — 短弹出菜单（5-6 项，含分隔线）</summary>
-    private static void ShowShortMenuDemo(ChatScreen screen)
+    internal static void ShowShortMenuDemo(ChatScreen screen)
     {
         var items = new List<string>
         {
@@ -284,7 +294,7 @@ public static class TuiDemo
     }
 
     /// <summary>F7 — 长滚动菜单（25+ 项，测试滚动条）</summary>
-    private static void ShowLongMenuDemo(ChatScreen screen)
+    internal static void ShowLongMenuDemo(ChatScreen screen)
     {
         var items = new List<string>();
         for (int i = 1; i <= 28; i++)
@@ -309,7 +319,7 @@ public static class TuiDemo
     }
 
     /// <summary>F8 — 右键快捷菜单（模拟上下文菜单，含多分隔线分组）</summary>
-    private static void ShowContextMenuDemo(ChatScreen screen)
+    internal static void ShowContextMenuDemo(ChatScreen screen)
     {
         var items = new List<string>
         {
@@ -343,7 +353,7 @@ public static class TuiDemo
     }
 
     /// <summary>F9 — Markdown 表格演示（含标题/代码块/表格/列表混合）</summary>
-    private static void ShowTableDemo(ChatScreen screen)
+    internal static void ShowTableDemo(ChatScreen screen)
     {
         screen.AddMessage(
             "## 📊 Markdown 表格渲染\n\n" +
@@ -369,7 +379,7 @@ public static class TuiDemo
     }
 
     /// <summary>F10 — 树形视图演示（层级目录结构）</summary>
-    private static void ShowTreeDemo(ChatScreen screen)
+    internal static void ShowTreeDemo(ChatScreen screen)
     {
         var tree = new TuiTreeView { Width = 45, Height = 14, X = 1, Y = 0 };
 
@@ -433,7 +443,7 @@ public static class TuiDemo
     }
 
     /// <summary>F11 — 控件合集演示（RadioGroup + ComboBox + SeekBar + Checkbox）</summary>
-    private static void ShowControlsDemo(ChatScreen screen)
+    internal static void ShowControlsDemo(ChatScreen screen)
     {
         // 使用 VBox 布局
         var vbox = new TuiVBox { Width = 44, Height = 19, X = 1, Y = 0 };
@@ -499,7 +509,7 @@ public static class TuiDemo
     }
 
     /// <summary>F12 — 面板布局演示（嵌套 Panel）</summary>
-    private static void ShowPanelDemo(ChatScreen screen)
+    internal static void ShowPanelDemo(ChatScreen screen)
     {
         // 外层面板
         var outer = new TuiPanel
@@ -566,7 +576,7 @@ public static class TuiDemo
     // ════════════════════════════════════════════════════════════
 
     /// <summary>Ctrl+M — 模型选择对话框（对标 Crush models.go）</summary>
-    private static void ShowModelPickerDemo(ChatScreen screen)
+    internal static void ShowModelPickerDemo(ChatScreen screen)
     {
         var result = ModelPicker.Show();
 if (result != null)
@@ -576,7 +586,7 @@ if (result != null)
     }
 
     /// <summary>Ctrl+S — 会话管理对话框（对标 Crush sessions.go）</summary>
-    private static void ShowSessionPickerDemo(ChatScreen screen)
+    internal static void ShowSessionPickerDemo(ChatScreen screen)
     {
         var result = SessionPicker.Show();
 if (result == null)
@@ -595,7 +605,7 @@ if (result == null)
     }
 
     /// <summary>Ctrl+G — 推理深度选择器（对标 Crush reasoning.go）</summary>
-    private static void ShowReasoningPickerDemo(ChatScreen screen)
+    internal static void ShowReasoningPickerDemo(ChatScreen screen)
     {
         var result = ReasoningPicker.Show(currentLevel: "", modelName: "deepseek-v4-pro");
 if (result != null)
@@ -608,7 +618,7 @@ if (result != null)
     }
 
     /// <summary>Ctrl+P — 命令面板（对标 Crush command palette）</summary>
-    private static void ShowCommandPaletteDemo(ChatScreen screen)
+    internal static void ShowCommandPaletteDemo(ChatScreen screen)
     {
         var commands = new List<CommandPalette.Command>
         {
@@ -630,13 +640,16 @@ if (result != null)
                 () => screen.AddMessage("📋 执行：帮助", "system")),
             new("quit", "🚪 退出", "系统", "Ctrl+Q", "退出 WayCoder",
                 () => screen.AddMessage("📋 执行：退出", "system")),
+            new("longlabel", "🔧 这条命令标签故意写得特别长用于验证溢出截断", "测试",
+                "Ctrl+Shift+L", "这是一条同样非常长的描述文本，用来验证在较窄终端下标签、描述与快捷键三者都能正确截断而不撑破边框。",
+                () => screen.AddMessage("📋 执行：长标签命令", "system")),
         };
         CommandPalette.Show(commands);
         screen.InvalidateView(); // 全屏 ANSI 对话框覆盖了 TUI 画面，强制全刷新
     }
 
     /// <summary>Ctrl+F — 文件选择器（对标 Crush filepicker）</summary>
-    private static void ShowFilePickerDemo(ChatScreen screen)
+    internal static void ShowFilePickerDemo(ChatScreen screen)
     {
         var result = FilePicker.Show(
             startDir: Environment.CurrentDirectory,
@@ -653,7 +666,7 @@ if (result != null)
     // ════════════════════════════════════════════════════════════
 
     /// <summary>Ctrl+B — 按钮组 + 滚动条演示（对标 Crush button.go/scrollbar.go）</summary>
-    private static void ShowButtonGroupDemo(ChatScreen screen)
+    internal static void ShowButtonGroupDemo(ChatScreen screen)
     {
         var vbox = new TuiVBox { Width = 46, Height = 22, X = 1, Y = 0 };
 
@@ -722,5 +735,127 @@ if (result != null)
         };
         win.RegisterShortcut(ConsoleKey.Escape, () => win.OnClosed?.Invoke());
         screen.ShowWindow(win);
+        hGroup.Focused = true; // 给首个按钮组初始焦点，使方向键 / Enter / Space 立即可用
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 聊天内容类型 × 角色 演示 —— /types 触发
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// /types — 一次性输出聊天 listitem 支持的全部内容类型 × 4 种角色，
+    /// 用于肉眼核对渲染效果（对标 Crush/Claude Code 的 item 内容类型）。
+    /// </summary>
+    internal static void ShowChatContentTypesDemo(ChatScreen screen)
+    {
+        // ① system —— 纯文本（系统消息）
+        screen.AddMessage("⚙ 会话已保存 · 上下文压缩至 50% · 模型 deepseek-v4-pro", "system");
+
+        // ② user —— Markdown（用户消息，含行内格式）
+        screen.AddMessage(
+            "请帮我在 **src/** 目录下新增一个 `健康检查` 接口，\n" +
+            "返回 `{\"status\":\"ok\"}`，并用任务清单列出验收项。", "user");
+
+        // ③ assistant —— 完整 Markdown（标题/任务清单/表格/分割线/引用/链接/删除线）
+        screen.AddMessage(
+            "## ✅ 已完成\n\n" +
+            "### 改动清单\n" +
+            "- [x] 新增 `HealthController.cs`\n" +
+            "- [x] 注册 `/api/health` 路由\n" +
+            "- [ ] 补充单元测试（~~下周三~~ 本周末前）\n\n" +
+            "| 端点 | 方法 | 状态 |\n|------|------|------|\n" +
+            "| `/api/health` | GET | ✅ |\n" +
+            "| `/api/ready` | GET | 🚧 |\n\n" +
+            "---\n\n" +
+            "> 💡 提示：请运行 `/test` 验证。\n\n" +
+            "参考 [WayCoder 安装与升级](https://gitee.com/aleckstygit/my-coder)，~~旧链接已废弃~~。", "assistant");
+
+        // ④ assistant —— 单代码块（行号 + 语法高亮）
+        screen.AddMessage(
+            "```csharp\n" +
+            "public class HealthController : ControllerBase\n" +
+            "{\n" +
+            "    [HttpGet(\"/api/health\")]\n" +
+            "    public IActionResult Get()\n" +
+            "        => Ok(new { status = \"ok\", now = DateTime.UtcNow });\n" +
+            "}\n" +
+            "```", "assistant");
+
+        // ⑤ tool —— 控制台文本（ANSI 彩色，模拟 bash 输出）→ 嵌套子消息（indent=1，续接无角色头+左缩进）
+        screen.AddMessage(
+            "[1;36m$ dotnet build[0m\n" +
+            "[32m  生成成功[0m，0 警告 0 错误\n" +
+            "[1;36m$ dotnet test[0m\n" +
+            "[32m  通过！1613/1613[0m", "tool", indent: 1);
+
+        // ⑥ tool —— 错误输出（红色）→ 嵌套子消息
+        screen.AddMessage(
+            "[1;31merror CS1002:[0m 应输入 ;\n" +
+            "[1;31m  →[0m HealthController.cs(12,34)", "tool", indent: 1);
+    }
+
+    /// <summary>
+    /// /multi — 会话提问「多选」对话框（对标 ask_user_question 的 multi_select）
+    /// </summary>
+    internal static void ShowMultiSelectDemo(ChatScreen screen)
+    {
+        var items = new List<string>
+        {
+            "🔵 深海蓝主题",
+            "🟢 翡翠绿主题",
+            "🟠 琥珀橙主题",
+            "🟣 薰衣紫主题",
+            "🖤 暗黑模式",
+        };
+        var win = TuiDialog.MultiSelect("多选：选择要启用的主题（空格勾选）", items,
+            onConfirm: picked =>
+            {
+                if (picked.Count == 0)
+                    screen.AddMessage("🚫 未选择任何项", "system");
+                else
+                {
+                    var names = picked.Select(i => items[i]).ToArray();
+                    screen.AddMessage($"✅ 多选结果（{names.Length} 项）：**{string.Join("、", names)}**", "system");
+                }
+            },
+            onCancel: () => screen.AddMessage("🚫 多选已取消", "system"));
+        screen.ShowWindow(win);
+    }
+
+    /// <summary>
+    /// /diff — 代码对比（DiffPreview 全屏逐 hunk 确认）
+    /// </summary>
+    internal static void ShowDiffDemo(ChatScreen screen)
+    {
+        const string oldContent =
+            "public class HealthController\n" +
+            "{\n" +
+            "    public string Get()\n" +
+            "    {\n" +
+            "        return \"old\";\n" +
+            "    }\n" +
+            "}\n";
+
+        const string newContent =
+            "public class HealthController : ControllerBase\n" +
+            "{\n" +
+            "    public string Get()\n" +
+            "    {\n" +
+            "        return \"new\";\n" +
+            "    }\n" +
+            "\n" +
+            "    public string Ready() => \"ready\";\n" +
+            "}\n";
+
+        var result = DiffPreview.Show(oldContent, newContent, "HealthController.cs");
+        screen.InvalidateView(); // 全屏 diff 覆盖了 TUI 画面，强制全刷新
+
+        var msg = result.Decision switch
+        {
+            DiffPreview.Decision.AcceptAll => "✅ 已接受全部变更",
+            DiffPreview.Decision.RejectAll => "❌ 已拒绝全部变更",
+            _ => $"🔍 部分接受（{result.AcceptedHunks?.Count ?? 0} 个 hunk）"
+        };
+        screen.AddMessage(msg, "system");
     }
 }
