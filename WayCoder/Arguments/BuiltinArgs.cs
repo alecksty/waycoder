@@ -187,6 +187,14 @@ public class MaxBudgetArg : CliArg
     public MaxBudgetArg() : base("max-budget-usd", "-B", "--max-budget-usd") { }
 }
 
+public class MaxRequeueArg : CliArg
+{
+    public override string Description => "撞轮次上限后自动压缩+续跑次数（0=关闭，默认 3，超长任务可调大）";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "次数";
+    public MaxRequeueArg() : base("max-requeue", "--max-requeue") { }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // 标志参数
 // ═══════════════════════════════════════════════════════════════
@@ -465,6 +473,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new ResumeArg());
         CliArgRegistry.Register(new SessionListArg());
         CliArgRegistry.Register(new MaxBudgetArg());
+        CliArgRegistry.Register(new MaxRequeueArg());
         CliArgRegistry.Register(new VersionArg());
         CliArgRegistry.Register(new InitArg());
         CliArgRegistry.Register(new YoloArg());

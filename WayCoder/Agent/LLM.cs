@@ -894,17 +894,57 @@ internal static class JsonHelper
 
     private static string SerializeValue(object? value)
     {
-        return value switch
+        switch (value)
         {
-            null => "null",
-            string s => $"\"{EscapeJson(s)}\"",
-            bool b => b ? "true" : "false",
-            int i => i.ToString(),
-            long l => l.ToString(),
-            double d => d.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            float f => f.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            _ => $"\"{EscapeJson(value.ToString()!)}\"",
-        };
+            case null: return "null";
+            case string s: return $"\"{EscapeJson(s)}\"";
+            case bool b: return b ? "true" : "false";
+            case int i: return i.ToString();
+            case long l: return l.ToString();
+            case double d: return d.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            case float f: return f.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            case JsonNode node: return node.ToJsonString();
+            case System.Collections.IDictionary dict: return SerializeDict(dict);
+            case System.Collections.IEnumerable enumerable: return SerializeArray(enumerable);
+            default: return $"\"{EscapeJson(value.ToString() ?? "null")}\"";
+        }
+    }
+
+    /// <summary>
+    /// 递归序列化字典为 JSON 对象（tasks 等嵌套参数的字典类型正确回显，而非 ToString）。
+    /// </summary>
+    private static string SerializeDict(System.Collections.IDictionary dict)
+    {
+        var sb = new StringBuilder("{");
+        var first = true;
+        foreach (System.Collections.DictionaryEntry entry in dict)
+        {
+            if (!first) sb.Append(',');
+            first = false;
+            sb.Append('"');
+            sb.Append(EscapeJson(entry.Key?.ToString() ?? ""));
+            sb.Append("\":");
+            sb.Append(SerializeValue(entry.Value));
+        }
+        sb.Append('}');
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 递归序列化集合为 JSON 数组（tasks 等 List/数组类型正确回显，而非 ToString）。
+    /// </summary>
+    private static string SerializeArray(System.Collections.IEnumerable enumerable)
+    {
+        var sb = new StringBuilder("[");
+        var first = true;
+        foreach (var item in enumerable)
+        {
+            if (!first) sb.Append(',');
+            first = false;
+            sb.Append(SerializeValue(item));
+        }
+        sb.Append(']');
+        return sb.ToString();
     }
 
     /// <summary>

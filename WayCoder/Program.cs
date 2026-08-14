@@ -33,6 +33,10 @@ public class Program
     private static readonly Task?[] _slotTasks = new Task?[AgentSlot.Count];
     private static (List<JsonObject> Messages, string Model)? _pendingRestore;
 
+    /// <summary>一次性/管道模式 POSIX 信号注册（保持引用防 GC 回收，Windows 下为 null）。</summary>
+    private static System.Runtime.InteropServices.PosixSignalRegistration? _sigintReg;
+    private static System.Runtime.InteropServices.PosixSignalRegistration? _sigtermReg;
+
     /// <summary>当前会话 ID（用于 SessionPicker 标记）</summary>
     private static string _currentSessionId = "_auto";
 
@@ -96,6 +100,9 @@ public class Program
         double? maxBudget = null;
         var budgetStr = Arguments.CliArgRegistry.Get(parsed, "max-budget-usd");
         if (budgetStr != null && double.TryParse(budgetStr, out var b)) maxBudget = b;
+        var requeueStr = Arguments.CliArgRegistry.Get(parsed, "max-requeue");
+        if (requeueStr != null && int.TryParse(requeueStr, out var rq))
+            _config.MaxAutoRequeue = Math.Clamp(rq, 0, 20);
 
         bool yoloMode = Arguments.CliArgRegistry.Has(parsed, "yolo");
         bool watchMode = Arguments.CliArgRegistry.Has(parsed, "watch");
@@ -364,27 +371,62 @@ public class Program
     // 一次性模式
     // ========================================================================
 
+    /// <summary>
+    /// 一次性/管道模式下注册 SIGINT/SIGTERM 处理：中断时先保存会话再退出，
+    /// 保证断点续传（auto.json）在管道模式下依然生效（Windows 无 POSIX 信号，跳过）。
+    /// 引用保存在静态字段，防止被 GC 回收导致信号处理失效。
+    /// </summary>
+    private static void RegisterOnceModeSignalHandlers()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        try
+        {
+            _sigintReg = System.Runtime.InteropServices.PosixSignalRegistration.Create(
+                System.Runtime.InteropServices.PosixSignal.SIGINT, ctx =>
+                {
+                    ctx.Cancel = true;
+                    AutoSaveSession();
+                    Environment.Exit(130);
+                });
+            _sigtermReg = System.Runtime.InteropServices.PosixSignalRegistration.Create(
+                System.Runtime.InteropServices.PosixSignal.SIGTERM, ctx =>
+                {
+                    ctx.Cancel = true;
+                    AutoSaveSession();
+                    Environment.Exit(143);
+                });
+        }
+        catch
+        {
+            // 某些平台不支持 POSIX 信号注册，静默跳过（回退到默认终止行为）
+        }
+    }
+
     private static async Task RunOnceAsync(string prompt)
     {
         using var cts = new CancellationTokenSource();
+        RegisterOnceModeSignalHandlers();
 
         try
         {
             MarkupLine($"«dim»🤖 {E(prompt)}«/»");
             await ChatWithStatusAsync(prompt, cts.Token);
             Console.WriteLine();
+            AutoSaveSession();
         }
         catch (OperationCanceledException)
         {
             if (cts.IsCancellationRequested)
             {
                 MarkupLine("\n«orange3»⚠ 已中断«/»");
+                AutoSaveSession();
                 Environment.Exit(130);
             }
             else
             {
                 ErrorLog.Error("Program.RunOnce", $"LLM 请求超时（{Config.Instance.LlmHttpTimeoutSec}s）");
                 UxHelper.Error("请求超时", $"服务器 {Config.Instance.LlmHttpTimeoutSec}s 未响应，请检查网络或 API 配置");
+                AutoSaveSession();
                 Environment.Exit(1);
             }
         }
@@ -392,6 +434,7 @@ public class Program
         {
             ErrorLog.Fatal("Program.RunOnce", $"一次性模式崩溃: {ex.Message}", ex);
             UxHelper.Error("错误", ex.Message);
+            AutoSaveSession();
             Environment.Exit(1);
         }
     }
@@ -412,6 +455,7 @@ public class Program
         string? error = null;
 
         using var cts = new CancellationTokenSource();
+        RegisterOnceModeSignalHandlers();
         try
         {
             _llm!.SnapshotTaskCost();
@@ -430,6 +474,8 @@ public class Program
         finally
         {
             sw.Stop();
+            // JSON 模式也保存会话（AutoSaveSession 只写盘/日志，不污染 stdout）
+            AutoSaveSession();
         }
 
         var result = JsonResult.Build(
