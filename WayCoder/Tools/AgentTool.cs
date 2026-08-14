@@ -86,17 +86,18 @@ public class AgentTool : ITool
         {
             foreach (var item in jsonArr)
             {
-                var t = item?.GetValue<string>();
+                var t = ExtractTaskText(item);
                 if (!string.IsNullOrWhiteSpace(t))
                     taskList.Add(t);
             }
         }
         else if (tasksObj is System.Collections.IEnumerable enumerable && tasksObj is not string)
         {
-            // JsonArray 递归解析后此处收到 List<object?>，每个元素为标量或嵌套结构
+            // JsonElementToObject 解析后此处收到 List<object?>，每个元素为 string 标量或
+            // Dictionary<string,object?> 嵌套对象（LLM 按 schema 的 items 结构传 {"description":...}）
             foreach (var item in enumerable)
             {
-                var t = item?.ToString();
+                var t = ExtractTaskText(item);
                 if (!string.IsNullOrWhiteSpace(t))
                     taskList.Add(t);
             }
@@ -114,7 +115,7 @@ public class AgentTool : ITool
                     {
                         foreach (var item in arr)
                         {
-                            var t = item?.GetValue<string>();
+                            var t = ExtractTaskText(item);
                             if (!string.IsNullOrWhiteSpace(t))
                                 taskList.Add(t);
                         }
@@ -258,5 +259,50 @@ public class AgentTool : ITool
         if (head + tail >= text.Length)
             return text;
         return text[..head] + $"\n...（中间省略 {text.Length - head - tail} 字符）...\n" + text[^tail..];
+    }
+
+    /// <summary>tasks 数组元素里优先提取任务文本的字段名（description 优先，与 schema items 对齐）。</summary>
+    private static readonly string[] TaskTextKeys =
+        ["description", "task", "name", "title", "text", "prompt", "instruction"];
+
+    /// <summary>
+    /// 从 tasks 数组的单个元素中提取任务文本。元素可能为：
+    /// - 纯字符串（正常情况，直接返回）
+    /// - 对象（LLM 按 schema 的 items 结构传 {"description":"..."}，需提取字段）
+    /// - 其他标量（long/bool 等，ToString 兜底）
+    /// v0.53.1 修复：此前对象元素被 ToString() 成 "System.Collections.Generic.Dictionary..." 乱码，
+    /// 导致子智能体收到不可读任务直接失败。现对 JsonObject / Dictionary 提取 description 等字段。
+    /// </summary>
+    internal static string? ExtractTaskText(object? item)
+    {
+        switch (item)
+        {
+            case null:
+                return null;
+            case string s:
+                return s;
+            case JsonObject jo:
+                foreach (var key in TaskTextKeys)
+                {
+                    if (jo[key] is JsonValue jv && jv.TryGetValue<string>(out var str) && !string.IsNullOrWhiteSpace(str))
+                        return str;
+                }
+                return jo.ToJsonString();
+            case Dictionary<string, object?> dict:
+                foreach (var key in TaskTextKeys)
+                {
+                    if (dict.TryGetValue(key, out var v) && v is string vs && !string.IsNullOrWhiteSpace(vs))
+                        return vs;
+                }
+                // 兜底：无已知字段时取第一个非空字符串值，避免返回 Dictionary 类型名乱码
+                foreach (var v in dict.Values)
+                {
+                    if (v is string s2 && !string.IsNullOrWhiteSpace(s2))
+                        return s2;
+                }
+                return dict.ToString();
+            default:
+                return item.ToString();
+        }
     }
 }
