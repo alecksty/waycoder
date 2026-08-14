@@ -144,8 +144,12 @@ public class TuiButtonGroup : TuiControl
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
-        // 按钮组本身不渲染背景，渲染委托给子按钮
-        // 子按钮由父窗口的渲染循环处理
+        // 按钮组本身不渲染背景，逐个渲染内部按钮（按钮不挂在父视图 Children 树上）
+        foreach (var btn in Buttons)
+        {
+            if (!btn.Visible) continue;
+            btn.Render(sb, absX, absY, ClipLeft, ClipTop, ClipRight, ClipBottom);
+        }
     }
 
     // ── 输入 ──
@@ -161,10 +165,12 @@ public class TuiButtonGroup : TuiControl
                 return true;
 
             case ConsoleKey.RightArrow:
+            case ConsoleKey.DownArrow:
                 Next();
                 return true;
 
             case ConsoleKey.LeftArrow:
+            case ConsoleKey.UpArrow:
                 Prev();
                 return true;
 

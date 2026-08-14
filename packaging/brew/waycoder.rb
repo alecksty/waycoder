@@ -12,13 +12,13 @@ class Waycoder < Formula
   version "0.48.7"
 
   on_arm do
-    url "https://github.com/aleckstygit/my-coder/releases/download/v0.48.7/waycoder-v0.48.7-osx-arm64.tar.gz"
+    url "https://github.com/alecksty/waycoder/releases/download/v0.48.7/waycoder-v0.48.7-osx-arm64.tar.gz"
     # 用 `curl -L <url> | shasum -a 256` 填充
     sha256 "REPLACE_WITH_SHA256"
   end
 
   on_intel do
-    url "https://github.com/aleckstygit/my-coder/releases/download/v0.48.7/waycoder-v0.48.7-osx-x64.tar.gz"
+    url "https://github.com/alecksty/waycoder/releases/download/v0.48.7/waycoder-v0.48.7-osx-x64.tar.gz"
     sha256 "REPLACE_WITH_SHA256"
   end
 

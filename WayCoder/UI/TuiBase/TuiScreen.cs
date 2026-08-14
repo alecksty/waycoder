@@ -56,6 +56,20 @@ public abstract class TuiScreen : TuiBase
     public int TW { get; protected set; }
     public int TH { get; protected set; }
 
+    /// <summary>
+    /// 浮层窗口可占用的顶部边界（含，即窗口须满足 Y ≥ 此值）。
+    /// 默认等于 0；子类（如 ChatScreen）可覆盖以排除标题栏，
+    /// 避免对话框顶边覆盖到标题栏。
+    /// </summary>
+    public virtual int OverlayTop => 0;
+
+    /// <summary>
+    /// 浮层窗口可占用的底部边界（不含，即窗口须满足 Y + Height ≤ 此值）。
+    /// 默认等于终端高度；子类（如 ChatScreen）可覆盖以排除状态栏/输入区，
+    /// 避免对话框底边碰撞到状态栏与输入框。
+    /// </summary>
+    public virtual int OverlayBottom => TH;
+
     /// <summary>最近一次 Escape 关闭模态框的时间戳（防按键重复触发退出框）</summary>
     public DateTime LastModalEscapeTime { get; protected set; } = DateTime.MinValue;
 
@@ -108,7 +122,10 @@ public abstract class TuiScreen : TuiBase
 
         // 2. 所有浮层窗口重新定位和布局
         foreach (var win in Windows)
+        {
             win.OnResize(newW, newH);
+            ClampOverlayToContent(win);
+        }
     }
 
     // ── 窗口管理 ──
@@ -133,6 +150,24 @@ public abstract class TuiScreen : TuiBase
         FocusedWindow = win;
         win.OnCreate();
         win.OnResize(TW, TH);
+        ClampOverlayToContent(win);
+    }
+
+    /// <summary>
+    /// 将浮层窗口的垂直位置收拢到内容区（OverlayTop..OverlayBottom）以内，
+    /// 防止窗口顶边覆盖标题栏、底边碰撞状态栏/输入区。
+    /// 窗口过高无法容纳时退化为贴顶（允许底部溢出，由菜单滚动等处理）。
+    /// </summary>
+    protected void ClampOverlayToContent(TuiWindow win)
+    {
+        int top = OverlayTop;
+        int bottom = Math.Min(TH, OverlayBottom);
+        int avail = bottom - top;
+        if (avail <= 0) return;
+
+        if (win.Y < top) win.Y = top;
+        if (win.Y + win.Height > bottom)
+            win.Y = win.Height <= avail ? bottom - win.Height : top;
     }
 
     /// <summary>添加浮层窗口并自动绑定关闭回调</summary>
@@ -495,13 +530,14 @@ public abstract class TuiScreen : TuiBase
 
         // ── 上边框 + 标题栏 ──
         bool drawTitle = win.ShowTitle && !string.IsNullOrEmpty(win.Title);
+        // 标题超宽时截断，避免覆盖左右边框（长标题会吃掉竖边框/右侧角）
+        string titleText = drawTitle ? BoundTitle(win.Title, win.Width - 2) : "";
         if (grad)
         {
             // ── 渐变上边框（文字与线框一起渐变）──
             if (drawTitle && !win.TitleBold)
             {
                 // 标题嵌在渐变横线上，居中
-                var titleText = $" {win.Title} ";
                 int titleVw = TuiHelper.DisplayWidth(titleText);
                 int innerW = win.Width - 2;
                 int leftPad = (innerW - titleVw) / 2;
@@ -540,7 +576,6 @@ public abstract class TuiScreen : TuiBase
             {
                 // 粗体标题独占第二行 → 边框行纯渐变线
                 WriteGradientHLine(sb, win.Y, win.X, win.Width, tl, hTop, tr, gs, ge, fillBg);
-                var titleText = $" {win.Title} ";
                 int tFg = win.TitleFg > 0 ? win.TitleFg : gs;
                 int tBg = win.TitleBg > 0 ? win.TitleBg : fillBg;
                 sb.Append(AnsiTty.CursorPos(win.Y + 1, win.X + 2));
@@ -561,7 +596,6 @@ public abstract class TuiScreen : TuiBase
             WriteAt(sb, win.Y, win.X, tl, bc, fillBg);
             if (drawTitle)
             {
-                var titleText = $" {win.Title} ";
                 int tFg = win.TitleFg > 0 ? win.TitleFg : bc;
                 int tBg = win.TitleBg > 0 ? win.TitleBg : fillBg;
                 if (win.TitleBold)
@@ -724,6 +758,31 @@ public abstract class TuiScreen : TuiBase
         var rb = new RenderBuffer();
         rb.Write(row, col, text, fg: fg, bg: bg);
         sb.Append(rb.ToString());
+    }
+
+    /// <summary>
+    /// 将窗口标题截断到指定显示宽度，超宽时末尾加 "…"。
+    /// 保证标题总宽 ≤ maxVw，避免长标题覆盖左右边框。
+    /// </summary>
+    private static string BoundTitle(string title, int maxVw)
+    {
+        var t = $" {title} ";
+        if (maxVw <= 0) return "";
+        if (TuiHelper.DisplayWidth(t) <= maxVw) return t;
+
+        const string ell = "…";
+        int ellW = TuiHelper.DisplayWidth(ell);
+        var sb = new StringBuilder();
+        int w = 0;
+        foreach (var rune in t.EnumerateRunes())
+        {
+            int rw = TuiHelper.RuneWidth(rune);
+            if (w + rw + ellW > maxVw) break;
+            w += rw;
+            sb.Append(rune.ToString());
+        }
+        sb.Append(ell);
+        return sb.ToString();
     }
 
     // ── 工厂方法 ──

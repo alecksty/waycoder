@@ -124,47 +124,22 @@ public static class PermissionManager
         var details = FormatArgs(toolName, args);
         var content = $"工具: {TuiHelper.Esc(toolName)}\n{TuiHelper.Esc(details)}";
 
-        int result;
         PermissionPromptStarted?.Invoke(toolName);
         var activeScreen = TuiManager.Instance.ActiveScreen as ChatScreen;
-        if (activeScreen != null)
-        {
-            // 提取简短摘要（第一行）和完整详情
-            var lines = details.Split('\n');
-            var summary = lines.Length > 0 ? lines[0] : details;
-            var fullDetail = string.Join("\n", lines);
-            result = activeScreen.ShowInlinePermission(toolName, summary, fullDetail, isDangerous);
-        }
-        else
-        {
-            UxHelper.Warn("确认操作", content);
-            List<string> choices = isDangerous
-                ? new List<string> { "是 (y)", "否 (n)" }
-                : new List<string> { "是 (y)", "总是允许 (a)", "否 (n)" };
-            var choice = UxHelper.Select("是否执行？", choices);
-            result = choice switch
-            {
-                "是 (y)" => 0,
-                "总是允许 (a)" => 1,
-                _ => 2
-            };
-        }
 
-        switch (result)
+        // 统一走 UxHelper：TUI 弹框（黄底 Y/N/A）/ 非 TUI 行内编号菜单
+        int result = UxHelper.Confirm("权限确认", content, allowAll: !isDangerous);
+
+        if (result != 0 && result != 1)
         {
-            case 1: // "总是允许" — 仅 Cautious 工具会走到这里
-                break;
-            case 0: // "是"
-                break;
-            default: // "否"
-                if (activeScreen != null)
-                    activeScreen.AddSystemMsg("已拒绝");
-                else
-                {
-                    Console.WriteLine(AnsiText.Warn("已拒绝"));
-                    Console.WriteLine();
-                }
-                break;
+            // 拒绝
+            if (activeScreen != null)
+                activeScreen.AddSystemMsg("已拒绝");
+            else
+            {
+                Console.WriteLine(AnsiText.Warn("已拒绝"));
+                Console.WriteLine();
+            }
         }
         PermissionPromptResolved?.Invoke(toolName);
         return result switch { 0 => true, 1 => true, _ => false };

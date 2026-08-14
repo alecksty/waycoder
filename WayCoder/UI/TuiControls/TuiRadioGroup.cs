@@ -18,6 +18,9 @@ public class TuiRadioGroup : TuiControl
     /// <summary>选中符号前景色</summary>
     public int SelFg { get; set; }
 
+    /// <summary>选中项背景色（反白白底）</summary>
+    public int SelBg { get; set; }
+
     /// <summary>常规前景色</summary>
     public int ItemFg { get; set; }
 
@@ -29,7 +32,8 @@ public class TuiRadioGroup : TuiControl
         Width = 30;
         Height = 1;
         Focused = true;
-        SelFg = TuiTheme.Current.ControlFocusedBg;
+        SelFg = TuiTheme.Current.ControlFocusedFg;   // 选中项黑字（反白）
+        SelBg = TuiTheme.Current.ControlFocusedBg;   // 选中项白底（反白）
         ItemFg = TuiTheme.Current.ControlFg;
     }
 
@@ -40,6 +44,9 @@ public class TuiRadioGroup : TuiControl
         Width = options.Count > 0 ? options.Max(o => TuiHelper.DisplayWidth(o)) + 4 : 30;
         Height = Math.Max(1, options.Count);
         Focused = true;
+        SelFg = TuiTheme.Current.ControlFocusedFg;   // 选中项黑字（反白）
+        SelBg = TuiTheme.Current.ControlFocusedBg;   // 选中项白底（反白）
+        ItemFg = TuiTheme.Current.ControlFg;
     }
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)
@@ -53,8 +60,13 @@ public class TuiRadioGroup : TuiControl
             string bullet = sel ? "◉" : "○";
             int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
                 : sel ? SelFg : ItemFg;
+            int bg = sel ? SelBg : 0;
 
-            WriteAt(sb, row, absX, $"{bullet} {Options[i]}", fg, Bg);
+            // 选中项整行反白（白底 + 黑字），对齐输入框光标行 / 列表选中行约定
+            if (sel && SelBg > 0)
+                FillLine(sb, i, ' ', bg: SelBg);
+
+            WriteAt(sb, row, absX, $"{bullet} {Options[i]}", fg, bg);
         }
 
         if (Options.Count > 0 && Height < Options.Count)

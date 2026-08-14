@@ -96,7 +96,7 @@ public static partial class SelfTest
     static readonly Dictionary<string, string> _sectionModuleMap = new()
     {
         // tools（独立工具测试）
-        ["[工具注册"] = "tools",   ["[工具]"] = "tools",
+        ["[工具注册"] = "tools",   ["[工具]"] = "tools",   ["[截图抓屏"] = "tools",
         ["[Fetch]"] = "tools",     ["[Todo]"] = "tools",      ["[LSP]"] = "tools",
         ["[Bash "] = "tools",      ["[Lint "] = "tools",      ["[Web "] = "tools",
         ["[Todo 依赖"] = "tools",  ["[工具循环检测"] = "tools", ["[文件修改时间守卫]"] = "tools",
@@ -119,6 +119,7 @@ public static partial class SelfTest
         ["[TuiScreen]"] = "ui",   ["[BoxBuffer]"] = "ui",   ["[TuiColors]"] = "ui",
         ["[TuiTheme]"] = "ui",    ["[MarkdownRenderer]"] = "ui",
         ["[TuiTable]"] = "ui",    ["[DiffPreview]"] = "ui",  ["[UxHelper]"] = "ui",
+        ["[CommandPalette 导航"] = "ui",
         ["[对话框 resize]"] = "ui",
         ["[窗口比例缩放]"] = "ui",  ["[窗口位置对齐]"] = "ui",  ["[Flex 布局]"] = "ui",
         // git

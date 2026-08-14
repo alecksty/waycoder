@@ -1,5 +1,53 @@
 # 更新日志
 
+## v0.52.0 (2026-08-14) — TUI 交互与渲染增强 + 反白配色统一 + 一键发布
+
+### 🎨 反白配色统一
+
+- 统一「选中/光标行」反白惯例：菜单/列表选中行、单选组选中项、输入框光标行全部为「高亮底 + 黑字」，与终端反白（前景/背景互换）语义一致
+- 修复 `TuiRadioGroup` 选中项前景色误用背景色代码（`SelFg=ControlFocusedBg` 经 `AnsiTty.FgCode(47)` 渲染成 256 色亮绿）的 bug：新增 `SelBg`，选中项整行「白底 + 黑字」
+- `TuiTextArea` 新增 `CursorLineFg`（光标行黑字），光标移动/翻页/滚动时补 `MarkDirty`，修复光标行高亮残留
+
+### 📝 Markdown 渲染增强
+
+- 引用块 `>`：连续多行合并为 `MdBlockQuote`，左侧 `│` 竖线 + 缩进渲染
+- 任务清单 `- [x]` / `- [ ]`：解析勾选状态，渲染 ☑（已完成·绿）/ ☐（未完成·弱化）
+- 链接 `[文字](url)`：青色链接文字 + 弱化显示 URL；删除线 `~~text~~` 弱化显示
+
+### ⌨️ 对话框 / 菜单 / 列表交互
+
+- 所有 `TuiDialog` 对话框统一注册 `Esc` = 取消/关闭；单行输入框回车 = 确定；多选列表 Enter = 确认
+- `TuiMenu`：`Space` 激活当前项；快捷键编号只计入非分隔线项（1-9 连续，分隔线不占编号）；菜单高度按终端内容区收拢；弹出菜单按调用点定位（不再居中）
+- `TuiList` 单选 `Space` = 激活（等同回车）；`TuiButtonGroup` 支持上下键导航，按钮自行渲染（不依赖父 Children 树）
+
+### 🔐 权限确认与问答统一
+
+- `PermissionManager` 统一走 `UxHelper.Confirm`（TUI 黄底 Y/N/A 弹框 / 非 TUI 行内编号菜单），删除重复的 `ShowInlinePermission` 分支
+- `AskUserQuestionTool` 单选/多选/文本输入统一 `UxHelper.Select/MultiSelect/Ask`，删除约 125 行重复的 `ShowAndWait` 事件循环，并透传 `AskUserTimeoutSec` 超时
+
+### 📎 工具消息缩进嵌套
+
+- `tool` 消息缩进嵌套在所属 `assistant` 消息下（`indent=1`），`TuiListItem.Indent` 新增左缩进、续接无角色头；AgentSlot / Program / SessionCommand 全链路透传
+
+### 🛠️ 工具增强
+
+- 抓屏跨平台实现补全：Windows（PowerShell `CopyFromScreen`）/ macOS（`screencapture`）/ Linux（`grim`→`import`→`scrot`→`maim` 依次回退）
+- 自动升级源切换：**Gitee 优先**（国内快）→ GitHub 回退；GitHub 仓库名更正为 `alecksty/waycoder`（配合商标更名，brew/winget/docs 同步更新）
+
+### 🧪 TUI 测试审计工具
+
+- `--keypad`：按键脚本回放驱动 TUI（KEY/TEXT/DELAY/SNAP/DIALOG/FOCUS/MSG/FILL），任意节点抓帧核对排版
+- `--tui-audit`：对话框/控件渲染审计（输出纯文本帧，剥离 ANSI）
+
+### 🎨 选择器统一外框 + 发布自动化
+
+- 新增 `DialogFrame`：居中带边框外框（橙→黄渐变 + 暗化背景），统一 ModelPicker / FilePicker / SessionPicker / CommandPalette 外观
+- 新增 `scripts/release.ps1` / `scripts/release.sh` 一键发布：编译 6 平台包 → 算 SHA256 → 生成 winget manifest → 更新 brew formula → apt 打包 → 打印提交命令
+
+### 🧪 自测
+
+- 新增反白配色 / Markdown 引用块·任务清单·链接 / 菜单快捷键·收拢 / 对话框 Esc / UxHelper 多选·确认等自测，1867 → 1909 项全部通过（0 失败）
+
 ## v0.51.0 (2026-08-14) — JSON 输出模式（--json，IDE / 脚本桥接，对标 Claude Code --output-format json）
 
 ### 🔌 IDE 桥接

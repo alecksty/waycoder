@@ -308,13 +308,13 @@ public static class ModelPicker
         col += cw[0] + ColGap;
         sb.Append(AnsiTty.CursorPos(y, col)).Append(Pad("厂商", cw[1]));
         col += cw[1] + ColGap;
-        sb.Append(AnsiTty.CursorPos(y, col)).Append(Pad("上下文", cw[2]));
+        sb.Append(AnsiTty.CursorPos(y, col)).Append(Pad("窗口", cw[2]));
         col += cw[2] + ColGap;
         sb.Append(AnsiTty.CursorPos(y, col)).Append(PadR("价格", cw[3]));
         col += cw[3] + ColGap;
-        sb.Append(AnsiTty.CursorPos(y, col)).Append(Pad("大模型", cw[4]));
+        sb.Append(AnsiTty.CursorPos(y, col)).Append(Pad("大", cw[4]));
         col += cw[4] + ColGap;
-        sb.Append(AnsiTty.CursorPos(y, col)).Append(Pad("小模型", cw[5]));
+        sb.Append(AnsiTty.CursorPos(y, col)).Append(Pad("小", cw[5]));
         sb.Append(AnsiTty.SgrReset);
     }
 
