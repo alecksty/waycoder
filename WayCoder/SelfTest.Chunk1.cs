@@ -101,6 +101,8 @@ public static partial class SelfTest
         TestFileTracker(Check);       // 文件追踪：stale-read 检测 + 先读后改保护 + 删除/禁用
         TestPromptCache(Check);       // Prompt 缓存：SHA256 命中/未命中/命中率/节省 token
         TestHooksManager(Check);      // Hook 系统：session hook 注册/事件执行/匹配器/输出协议
+        TestJsonLib(Check);           // 手搓 JSON 库：解析/DOM/序列化/转义/错误分支（AOT 零反射）
+        TestXmlLib(Check);            // 手搓 XML 库：解析/实体/CDATA/属性/序列化（AOT 零反射）
         Console.WriteLine();
 
         // ---- 工具 ----
