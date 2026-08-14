@@ -1181,4 +1181,132 @@ public static partial class SelfTest
             try { Directory.Delete(tmp, recursive: true); } catch { }
         }
     }
+
+    /// <summary>查找替换工具（FindReplaceTool）单元测试：预览/替换、无效正则回退、错误分支。</summary>
+    private static void TestFindReplaceTool(Action<string, bool> Check)
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "wc_fr_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(tmp);
+        var tool = new FindReplaceTool();
+        try
+        {
+            var file = Path.Combine(tmp, "sample.cs");
+            File.WriteAllText(file, "int foo = 1;\nvar foo2 = foo + 1;\n");
+
+            // 空 pattern 报错
+            var r0 = tool.ExecuteAsync(new Dictionary<string, object?> {
+                ["path"] = tmp, ["pattern"] = "" }).GetAwaiter().GetResult();
+            Check("FindReplace: 空 pattern 报错", r0.Contains("pattern 参数不能为空"));
+
+            // 预览模式（不写文件）
+            var r1 = tool.ExecuteAsync(new Dictionary<string, object?> {
+                ["path"] = tmp, ["pattern"] = "foo", ["replacement"] = "bar", ["dry_run"] = true
+            }).GetAwaiter().GetResult();
+            Check("FindReplace: 预览输出匹配详情", r1.Contains("foo") && r1.Contains("预览"));
+            Check("FindReplace: 预览不写文件", File.ReadAllText(file).Contains("foo"));
+
+            // 实际替换
+            var r2 = tool.ExecuteAsync(new Dictionary<string, object?> {
+                ["path"] = tmp, ["pattern"] = "foo", ["replacement"] = "bar", ["dry_run"] = false
+            }).GetAwaiter().GetResult();
+            var replaced = File.ReadAllText(file);
+            Check("FindReplace: 实际替换写入", !replaced.Contains("foo") && replaced.Contains("bar"));
+
+            // 无效正则回退为纯文本匹配
+            File.WriteAllText(Path.Combine(tmp, "arr.cs"), "var x = arr[0];\n");
+            var r3 = tool.ExecuteAsync(new Dictionary<string, object?> {
+                ["path"] = tmp, ["pattern"] = "[", ["dry_run"] = true
+            }).GetAwaiter().GetResult();
+            Check("FindReplace: 无效正则回退纯文本匹配", r3.Contains("arr"));
+
+            // 目录不存在报错
+            var r4 = tool.ExecuteAsync(new Dictionary<string, object?> {
+                ["path"] = Path.Combine(tmp, "nope"), ["pattern"] = "foo"
+            }).GetAwaiter().GetResult();
+            Check("FindReplace: 目录不存在报错", r4.Contains("目录不存在"));
+        }
+        finally
+        {
+            try { Directory.Delete(tmp, recursive: true); } catch { }
+        }
+    }
+
+    /// <summary>文件差异对比工具（DiffTool）单元测试：差异行/相同/空文件/不存在。</summary>
+    private static void TestDiffTool(Action<string, bool> Check)
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "wc_diff_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(tmp);
+        var tool = new DiffTool();
+        try
+        {
+            var f1 = Path.Combine(tmp, "a.txt");
+            var f2 = Path.Combine(tmp, "b.txt");
+            File.WriteAllText(f1, "line1\nline2\nline3\n");
+            File.WriteAllText(f2, "line1\nCHANGED\nline3\n");
+
+            // 差异输出
+            var r = tool.ExecuteAsync(new Dictionary<string, object?> {
+                ["file1"] = f1, ["file2"] = f2 }).GetAwaiter().GetResult();
+            Check("Diff: 差异输出含删除行", r.Contains("- 2: line2"));
+            Check("Diff: 差异输出含新增行", r.Contains("+ 2: CHANGED"));
+
+            // 相同文件
+            var r2 = tool.ExecuteAsync(new Dictionary<string, object?> {
+                ["file1"] = f1, ["file2"] = f1 }).GetAwaiter().GetResult();
+            Check("Diff: 相同文件提示", r2.Contains("内容相同"));
+
+            // 空文件
+            var empty = Path.Combine(tmp, "empty.txt");
+            File.WriteAllText(empty, "");
+            var r3 = tool.ExecuteAsync(new Dictionary<string, object?> {
+                ["file1"] = empty, ["file2"] = empty }).GetAwaiter().GetResult();
+            Check("Diff: 空文件提示", r3.Contains("均为空"));
+
+            // 文件不存在
+            var r4 = tool.ExecuteAsync(new Dictionary<string, object?> {
+                ["file1"] = Path.Combine(tmp, "nope.txt"), ["file2"] = f2 }).GetAwaiter().GetResult();
+            Check("Diff: 文件不存在错误", r4.Contains("文件不存在"));
+        }
+        finally
+        {
+            try { Directory.Delete(tmp, recursive: true); } catch { }
+        }
+    }
+
+    /// <summary>目录树工具（TreeTool）单元测试：树生成/深度/隐藏跳过/错误分支。</summary>
+    private static void TestTreeTool(Action<string, bool> Check)
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "wc_tree_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(tmp);
+        var tool = new TreeTool();
+        try
+        {
+            var sub = Path.Combine(tmp, "sub");
+            Directory.CreateDirectory(sub);
+            File.WriteAllText(Path.Combine(tmp, "a.txt"), "x");
+            File.WriteAllText(Path.Combine(sub, "b.cs"), "y");
+            File.WriteAllText(Path.Combine(tmp, ".hidden"), "z");
+
+            // 树生成
+            var r = tool.ExecuteAsync(new Dictionary<string, object?> {
+                ["path"] = tmp, ["depth"] = 3, ["max"] = 100 }).GetAwaiter().GetResult();
+            Check("Tree: 输出含子目录", r.Contains("sub"));
+            Check("Tree: 输出含文件", r.Contains("a.txt") && r.Contains("b.cs"));
+            Check("Tree: 隐藏文件跳过", !r.Contains(".hidden"));
+
+            // 目录不存在
+            var r2 = tool.ExecuteAsync(new Dictionary<string, object?> {
+                ["path"] = Path.Combine(tmp, "nope") }).GetAwaiter().GetResult();
+            Check("Tree: 目录不存在错误", r2.Contains("目录不存在"));
+
+            // 深度限制（depth=1 不递归子目录内容）
+            var r3 = tool.ExecuteAsync(new Dictionary<string, object?> {
+                ["path"] = tmp, ["depth"] = 1, ["max"] = 100 }).GetAwaiter().GetResult();
+            Check("Tree: 深度限制不展开子目录", !r3.Contains("b.cs"));
+        }
+        finally
+        {
+            try { Directory.Delete(tmp, recursive: true); } catch { }
+        }
+    }
 }
