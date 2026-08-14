@@ -237,6 +237,41 @@ public class UpdateArg : CliArg
     public UpdateArg() : base("update", "--update") { }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// 批量任务引擎 —— 多仓库并行处理（worktree 隔离）
+// ═══════════════════════════════════════════════════════════════
+
+public class BatchArg : CliArg
+{
+    public override string Description => "批量任务引擎：多仓库并行处理（--batch <JSON文件|内联JSON>，每个任务在独立克隆副本中隔离执行）";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "JSON";
+    public BatchArg() : base("batch", "--batch") { }
+}
+
+public class BatchRepoArg : CliArg
+{
+    public override string Description => "批量任务：添加一个仓库（可重复，配合 --batch-task 共享任务）";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "仓库";
+    public override bool AllowMultiple => true;
+    public BatchRepoArg() : base("batch-repo", "--batch-repo") { }
+}
+
+public class BatchTaskArg : CliArg
+{
+    public override string Description => "批量任务：所有 --batch-repo 仓库的共享任务";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "文本";
+    public BatchTaskArg() : base("batch-task", "--batch-task") { }
+}
+
+public class BatchKeepArg : CliArg
+{
+    public override string Description => "批量任务：保留克隆的工作副本（默认执行后清理）";
+    public BatchKeepArg() : base("batch-keep", "--batch-keep") { }
+}
+
 public class DebugArg : CliArg
 {
     public override string Description => "开启调试日志（记录到 logs/ 目录）";
@@ -431,6 +466,10 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new TinyArg());
         CliArgRegistry.Register(new EconomyArg());
         CliArgRegistry.Register(new UpdateArg());
+        CliArgRegistry.Register(new BatchArg());
+        CliArgRegistry.Register(new BatchRepoArg());
+        CliArgRegistry.Register(new BatchTaskArg());
+        CliArgRegistry.Register(new BatchKeepArg());
         CliArgRegistry.Register(new ConfigArg());
         CliArgRegistry.Register(new DebugArg());
         CliArgRegistry.Register(new HelpArg());

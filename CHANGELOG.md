@@ -1,5 +1,22 @@
 # 更新日志
 
+## v0.49.0 (2026-08-14) — 批量任务引擎（多仓库并行 + worktree 隔离，对标 Cursor/Aider 多仓库批处理）
+
+### 🚀 批量任务引擎
+
+- 新增 `--batch` 一次性模式：多仓库并行处理，每个任务在独立克隆副本中隔离执行，跑完输出聚合报告（Markdown + 退出码），对标 Cursor 的批量修复、Aider 的多仓库脚本
+- 两种用法：
+  - `--batch <JSON文件|内联JSON>`：`{ "maxParallel": 4, "timeoutSec": 1800, "keepResults": false, "tasks": [{ "repo": "URL或本地路径", "task": "任务描述", "name"?, "branch"? }] }`
+  - `--batch-repo <仓库> --batch-task "任务"`：快速给多个仓库跑同一个共享任务（`--batch-repo` 可重复）
+- 隔离与安全：每个任务 `git clone` 到 `.waycoder/batch/jobs/<名>_<随机>` 独立副本，子进程以 `-p` 一次性模式 + `-y` 放行执行，进程级隔离 cwd 与状态；默认执行后清理副本，`--batch-keep` 保留
+- 子进程复用父进程已解析的模型/BaseUrl/API Key/预算（`--model`/`--base-url`/`--api-key`/`--max-budget-usd` 显式传入），避免 clone 目录无 `.env` 丢失配置
+- 并行度受控（`SemaphoreSlim`，1–16 可配，默认 4），单任务超时可配（默认 1800s），超时终止整个进程树（含 bash 子进程）
+- 报告落盘 `.waycoder/batch/batch-report.md`：总计/成功/失败/总耗时 + 每个任务的摘要与错误详情
+
+### 🧪 自测
+
+- 新增批量任务引擎自测 26 项（JSON 解析/钳制/错误场景/名称消毒/远程判断/FromRepos/报告渲染/端到端克隆+并行+清理），1816→1842 项全部通过（0 失败）
+
 ## v0.48.9 (2026-08-14) — 多模态音频输入（transcribe 转录，对标 Codex CLI / Gemini CLI）
 
 ### 🎙️ 音频转录

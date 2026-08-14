@@ -61,7 +61,11 @@ dotnet run -- --economy auto     # 自动：按任务复杂度动态调节阈值
 # 自动升级（检查并自替换，优先 GitHub、回退 Gitee）
 dotnet run -- --update
 
-# 运行自测（1816 项）
+# 批量任务引擎（多仓库并行处理，worktree 隔离）
+dotnet run -- --batch batch.json                       # 从 JSON 清单读任务
+dotnet run -- --batch-repo https://x/r1 --batch-repo https://x/r2 --batch-task "修复登录 bug"
+
+# 运行自测（1842 项）
 dotnet run -- --test
 ```
 
@@ -100,7 +104,10 @@ WayCoder/
 ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        1816 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── SelfTest.cs        1842 项自测（拆为 SelfTest.cs + Chunk1-9 + Helpers 共 11 个 partial 文件）
+├── Batch/             批量任务引擎 (2 文件)
+│   ├── BatchSpec.cs     任务清单模型 + JSON 解析 + 名称消毒
+│   └── BatchRunner.cs   多仓库并行执行 + worktree 隔离 + 聚合报告
 ├── Infra/             基础设施 (12+ 文件)
 │   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
 │   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)
@@ -257,6 +264,7 @@ quit / exit      退出 (Ctrl+Q)
 - **内置自动升级**：`/update` 检查、`/update now`/`--update` 自替换；版本检查优先 GitHub Releases、回退 Gitee（环境变量可覆盖）；Windows 落 `.new`+`upgrade.bat` 退出后自动替换重启、Unix 原子 rename 覆盖运行中二进制（对标 Claude Code `claude update`）
 - **分发渠道**：`packaging/` 提供 winget manifest / Homebrew formula / apt `.deb` 打包脚本 + GitHub Actions 发布工作流，详见 [docs/安装与升级.md](docs/安装与升级.md)
 - **多模态（图片 + 音频）**：`view_image` 附加本地图片让 vision 模型「看图」、`transcribe` 把音频转成文字（Whisper 兼容 API）——补齐图片与音频两种多模态输入，对标 Codex CLI / Gemini CLI
+- **批量任务引擎**：`--batch`/`--batch-repo` 多仓库并行处理，每个任务 `git clone` 到独立副本 + 子进程 `-p` 一次性模式执行（worktree 隔离），聚合报告 + 退出码，对标 Cursor 批量修复 / Aider 多仓库脚本
 
 ## 贡献 / License
 
