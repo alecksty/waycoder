@@ -1633,4 +1633,126 @@ public static partial class SelfTest
 
         HooksManager.ClearSessionHooks();
     }
+
+    // 手搓 JSON 库（AOT 安全零反射）：解析/DOM/序列化/转义/错误分支
+    private static void TestJsonLib(Action<string, bool> Check)
+    {
+        // 1. 标量解析
+        Check("Json: 整数解析", Json.Parse("123")?.AsNumber() == 123);
+        Check("Json: 负数解析", Json.Parse("-42.5")?.AsNumber() == -42.5);
+        Check("Json: 指数解析", Json.Parse("1e3")?.AsNumber() == 1000);
+        Check("Json: true 解析", Json.Parse("true")?.AsBool() == true);
+        Check("Json: false 解析", Json.Parse("false")?.AsBool() == false);
+        Check("Json: null 解析", Json.Parse("null")?.IsNull == true);
+        Check("Json: 字符串解析", Json.Parse("\"hello\"")?.AsString() == "hello");
+
+        // 2. 对象解析
+        var obj = Json.Parse("{\"a\":1,\"b\":\"x\",\"c\":true}");
+        Check("Json: 对象字段数", obj?.Count == 3);
+        Check("Json: 对象取数字", obj?.GetNumber("a") == 1);
+        Check("Json: 对象取字符串", obj?.GetString("b") == "x");
+        Check("Json: 对象取布尔", obj?.GetBool("c") == true);
+        Check("Json: 对象 Has", obj?.Has("a") == true && obj?.Has("z") == false);
+
+        // 3. 数组解析
+        var arr = Json.Parse("[1,2,3]");
+        Check("Json: 数组长度", arr?.Count == 3);
+        Check("Json: 数组下标", arr?.At(1)?.AsNumber() == 2);
+        Check("Json: 数组 Items", arr?.Items.Count() == 3);
+
+        // 4. 嵌套
+        var nested = Json.Parse("{\"a\":{\"b\":[10,20]}}");
+        Check("Json: 嵌套取值", nested?.Get("a")?.Get("b")?.At(1)?.AsNumber() == 20);
+
+        // 5. 转义
+        Check("Json: 转义序列", Json.Parse("\"a\\nb\\t\\\"\\\\\"")?.AsString() == "a\nb\t\"\\");
+        Check("Json: \\u 中文", Json.Parse("\"\\u4e2d\\u6587\"")?.AsString() == "中文");
+        Check("Json: 代理对 emoji", Json.Parse("\"\\ud83d\\ude00\"")?.AsString() == "\U0001F600");
+
+        // 6. 非法输入
+        Check("Json: 非法 JSON 拒绝", !Json.TryParse("{bad}", out _));
+        Check("Json: 尾随逗号拒绝", !Json.TryParse("[1,]", out _));
+        Check("Json: 未闭合对象拒绝", !Json.TryParse("{\"a\":1", out _));
+        Check("Json: 空字符串返回 null", Json.Parse("") == null && !Json.TryParse("", out _));
+
+        // 7. 序列化往返（数字保真）
+        Check("Json: 往返对象", Json.Serialize(Json.Parse("{\"a\":1}")!) == "{\"a\":1}");
+        Check("Json: 往返数组", Json.Serialize(Json.Parse("[1,\"x\",true,null]")!) == "[1,\"x\",true,null]");
+        Check("Json: 缩进含换行", Json.Serialize(Json.Parse("{\"a\":1}")!, true).Contains('\n'));
+
+        // 8. 序列化转义
+        Check("Json: 序列化转义", Json.Serialize(JNode.Str("a\"b\nc")) == "\"a\\\"b\\nc\"");
+
+        // 9. DOM 操作
+        var dom = JNode.Object().Set("a", 1).Set("b", "x").Set("a", 2);
+        Check("Json: DOM Set 覆盖", dom.Count == 2 && dom.GetNumber("a") == 2);
+        var domArr = JNode.Array().Add(1).Add("y");
+        Check("Json: DOM Add", domArr.Count == 2 && domArr.At(1)?.AsString() == "y");
+
+        // 10. SerializeValue（无反射）
+        Check("Json: SerializeValue null", Json.SerializeValue(null) == "null");
+        Check("Json: SerializeValue string", Json.SerializeValue("x") == "\"x\"");
+        Check("Json: SerializeValue int", Json.SerializeValue(42) == "42");
+        Check("Json: SerializeValue bool", Json.SerializeValue(true) == "true");
+        Check("Json: SerializeValue list", Json.SerializeValue(new List<int> { 1, 2 }) == "[1,2]");
+        Check("Json: SerializeValue dict", Json.SerializeValue(new Dictionary<string, object?> { ["k"] = 1 }) == "{\"k\":1}");
+
+        // 11. Clone 深拷贝
+        var src = Json.Parse("{\"a\":[1,2]}");
+        var cp = src?.Clone();
+        Check("Json: Clone 深拷贝", cp != null && Json.Serialize(cp) == Json.Serialize(src!));
+    }
+
+    // 手搓 XML 库（AOT 安全零反射）：解析/DOM/实体/CDATA/序列化/错误分支
+    private static void TestXmlLib(Action<string, bool> Check)
+    {
+        // 1. 基础元素
+        var root = Xml.Parse("<root/>");
+        Check("Xml: 空元素", root?.Name == "root" && root?.Children.Count() == 0);
+        Check("Xml: 文本内容", Xml.Parse("<a>x</a>")?.InnerText() == "x");
+
+        // 2. 属性
+        var attr = Xml.Parse("<a id=\"1\" name='x'/>");
+        Check("Xml: 属性双引号", attr?.GetAttr("id") == "1");
+        Check("Xml: 属性单引号", attr?.GetAttr("name") == "x");
+        Check("Xml: HasAttr", attr?.HasAttr("id") == true && attr?.HasAttr("z") == false);
+
+        // 3. 嵌套
+        var nest = Xml.Parse("<a><b>1</b><c>2</c></a>");
+        Check("Xml: Find 子元素", nest?.Find("b")?.InnerText() == "1");
+        Check("Xml: FindAll 计数", nest?.FindAll("c").Count() == 1);
+        Check("Xml: InnerText 递归拼接", nest?.InnerText() == "12");
+
+        // 4. 实体
+        Check("Xml: 预定义实体", Xml.Parse("<a>&lt;tag&gt; &amp; &quot; &apos;</a>")?.InnerText() == "<tag> & \" '");
+        Check("Xml: 数字字符引用", Xml.Parse("<a>&#65;&#x42;</a>")?.InnerText() == "AB");
+
+        // 5. CDATA
+        Check("Xml: CDATA 保留原样", Xml.Parse("<a><![CDATA[<b>raw</b>]]></a>")?.InnerText() == "<b>raw</b>");
+
+        // 6. 声明/注释/DOCTYPE 跳过
+        Check("Xml: 声明跳过", Xml.Parse("<?xml version=\"1.0\"?><root/>")?.Name == "root");
+        Check("Xml: 注释跳过", Xml.Parse("<!-- c --><root/>")?.Name == "root");
+        Check("Xml: DOCTYPE 跳过", Xml.Parse("<!DOCTYPE root><root/>")?.Name == "root");
+
+        // 7. 序列化
+        Check("Xml: 空元素序列化", Xml.Serialize(XNode.Element("a")) == "<a/>");
+        Check("Xml: 文本转义序列化", Xml.Serialize(XNode.Element("a").AddText("<&>")) == "<a>&lt;&amp;&gt;</a>");
+        Check("Xml: 属性转义序列化", Xml.Serialize(XNode.Element("a").Attr("v", "\"q\"")) == "<a v=\"&quot;q&quot;\"/>");
+        Check("Xml: 缩进含换行", Xml.Serialize(XNode.Element("a").Add(XNode.Element("b")), true).Contains('\n'));
+
+        // 8. 解析序列化往返
+        var xml = "<a id=\"1\"><b>x &amp; y</b><c/></a>";
+        Check("Xml: 往返", Xml.Serialize(Xml.Parse(xml)!) == xml);
+
+        // 9. 非法输入
+        Check("Xml: 未闭合拒绝", !Xml.TryParse("<a>", out _));
+        Check("Xml: 标签不匹配拒绝", !Xml.TryParse("<a></b>", out _));
+        Check("Xml: 空返回 null", Xml.Parse("") == null && !Xml.TryParse("", out _));
+
+        // 10. DOM 操作
+        var dom = XNode.Element("root").Attr("k", "v").Add(XNode.Element("child"));
+        Check("Xml: DOM Attr", dom.GetAttr("k") == "v");
+        Check("Xml: DOM Add", dom.Find("child") != null);
+    }
 }
