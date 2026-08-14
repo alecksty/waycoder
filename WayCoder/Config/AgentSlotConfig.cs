@@ -1,4 +1,4 @@
-using System.Text.Json;
+using WayCoder.Infra;
 
 namespace WayCoder;
 
@@ -175,26 +175,21 @@ public static class AgentSlotConfig
         {
             if (File.Exists(FilePath))
             {
-                var json = File.ReadAllText(FilePath);
-                var data = JsonNode.Parse(json);
+                var data = Json.Parse(File.ReadAllText(FilePath));
                 if (data != null)
                 {
                     // 读取统一模式
-                    UniformMode = data["uniformMode"]?.GetValue<bool>() ?? false;
+                    UniformMode = data.GetBool("uniformMode");
                     if (data["uniformTemplate"] is { } template)
-                        UniformTemplate = JsonSerializer.Deserialize<SlotConfig>(template.ToJsonString()) ?? new();
+                        UniformTemplate = SlotFromNode(template);
 
                     // 读取槽位
-                    if (data["slots"]?.AsArray() is { } arr)
+                    var arr = data["slots"];
+                    if (arr != null && arr.Kind == JKind.Array)
                     {
                         _slots = new SlotConfig[SlotCount];
                         for (int i = 0; i < Math.Min(arr.Count, SlotCount); i++)
-                        {
-                            var slotJson = arr[i]?.ToJsonString();
-                            _slots[i] = slotJson != null
-                                ? JsonSerializer.Deserialize<SlotConfig>(slotJson) ?? new()
-                                : new();
-                        }
+                            _slots[i] = arr[i] is { } slotNode ? SlotFromNode(slotNode) : new();
                         // 补齐不足 10 个的槽位
                         for (int i = arr.Count; i < SlotCount; i++)
                             _slots[i] = new();
@@ -220,14 +215,16 @@ public static class AgentSlotConfig
             if (dir != null) Directory.CreateDirectory(dir);
 
             _slots = slots;
-            var data = new JsonObject
-            {
-                ["uniformMode"] = UniformMode,
-                ["uniformTemplate"] = JsonNode.Parse(JsonSerializer.Serialize(UniformTemplate)),
-                ["slots"] = new JsonArray(slots.Select(s =>
-                    JsonNode.Parse(JsonSerializer.Serialize(s))!).ToArray()),
-            };
-            File.WriteAllText(FilePath, data.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            var arr = JNode.Array();
+            foreach (var s in slots)
+                arr.Add(SlotToNode(s));
+
+            var data = JNode.Object()
+                .Set("uniformMode", UniformMode)
+                .Set("uniformTemplate", SlotToNode(UniformTemplate))
+                .Set("slots", arr);
+
+            File.WriteAllText(FilePath, Json.Serialize(data, indent: true));
         }
         catch { /* 保存失败不崩溃 */ }
     }
@@ -241,6 +238,26 @@ public static class AgentSlotConfig
         ApiKey = src.ApiKey,
         UseGlobal = src.UseGlobal,
     };
+
+    /// <summary>JNode → SlotConfig（手搓解析，零反射；键名保持 PascalCase 兼容历史文件）。</summary>
+    internal static SlotConfig SlotFromNode(JNode n) => new()
+    {
+        LargeModel = n.GetString("LargeModel"),
+        SmallModel = n.GetString("SmallModel"),
+        BaseUrl = n.GetString("BaseUrl"),
+        ApiKeyProviderId = n.GetString("ApiKeyProviderId"),
+        ApiKey = n.GetString("ApiKey"),
+        UseGlobal = !n.Has("UseGlobal") || n.GetBool("UseGlobal"),
+    };
+
+    /// <summary>SlotConfig → JNode（手搓序列化，零反射）。</summary>
+    internal static JNode SlotToNode(SlotConfig s) => JNode.Object()
+        .Set("LargeModel", s.LargeModel)
+        .Set("SmallModel", s.SmallModel)
+        .Set("BaseUrl", s.BaseUrl)
+        .Set("ApiKeyProviderId", s.ApiKeyProviderId)
+        .Set("ApiKey", s.ApiKey)
+        .Set("UseGlobal", s.UseGlobal);
 
     /// <summary>清除缓存（测试用）</summary>
     public static void ClearCache() { _slots = null; }

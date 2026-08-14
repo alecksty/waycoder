@@ -1,5 +1,23 @@
 # 更新日志
 
+## v0.53.11 (2026-08-15) — 彻底移除 JsonSerializer 反射（AgentSlotConfig / FetchTool）
+
+承接 v0.53.10 的手搓 JSON/XML 库，把代码库中**最后一处**反射型 `JsonSerializer.Deserialize<T>`/`Serialize<T>` 全部替换为手搓 `JNode`，实现「完全禁止反射」——AOT 下不再有任何 `JsonSerializerIsReflectionDisabled` 隐患。
+
+### 🛠 重构
+
+- **`Config/AgentSlotConfig.cs`**：`Load`/`Save` 改用 `Json.Parse` + 新增 `SlotFromNode`/`SlotToNode` 手搓映射（键名保持 PascalCase，兼容历史 `agent_slots.json`），移除 4 处 `JsonSerializer.Deserialize<SlotConfig>`/`Serialize<SlotConfig>` 反射调用
+- **`Tools/FetchTool.cs`**：`PrettyPrintJson` 改用 `Json.Parse` + `Json.Serialize(indent: true)`，移除 `JsonDocument`+`JsonSerializer` 反射路径
+
+### ✅ 核查
+
+- **`Tools/ScreenshotTool.cs`** 确认为跨平台（Windows PowerShell / macOS screencapture / Linux grim→import→scrot→maim 回退）+ 零反射（PNG 尺寸手搓解析 IHDR、OCR 走外部 tesseract），无需改动
+
+### 🧪 自测
+
+- 新增 10 项断言：`SlotConfig` 手搓往返（PascalCase 键名、字段往返、null 字段、`UseGlobal` 缺省为 true）、嵌套缩进美化
+- 总计 **2178** 项自测全部通过（0 失败）
+
 ## v0.53.10 (2026-08-14) — 手搓 AOT 安全 JSON/XML 库
 
 响应「不使用反射、自己可控」需求，新增两个零依赖、零反射的手写序列化库，替代散落各处的 `JsonNode.Parse` 手写解析与 `System.Text.Json` 反射序列化。
