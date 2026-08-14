@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.53.1 (2026-08-14) — 并行子智能体 tasks 数组对象元素乱码修复
+
+端到端验证暴露的缺陷：`agent(tasks=[{"description": "..."}, ...])` 结构化传参时，对象元素被解析成 `Dictionary<string, object?>` 后直接 `ToString()`，子智能体收到 `System.Collections.Generic.Dictionary...` 乱码，3 个子智能体 2 个直接失败（只有纯字符串元素碰巧成功）。
+
+### 🐛 修复
+
+- **tasks 数组对象元素提取**：新增 `AgentTool.ExtractTaskText()`，对元素为对象（`JsonObject` / `Dictionary<string, object?>`）时提取 `description`/`task`/`name`/`title`/`text`/`prompt`/`instruction` 字段（对齐 schema 的 items 结构），纯字符串透传，无已知字段时兜底取第一个字符串值，杜绝类型名乱码
+
+### 🧪 自测
+
+- 新增断言 5 项（纯字符串透传、对象提取 description/task、JsonObject 提取、null 返回），总计 1891 项全部通过（0 失败）
+
 ## v0.53.0 (2026-08-14) — 子智能体健壮性加固（修复并行竞态 + 上下文爆炸防线）
 
 压力测试暴露的两个「短板」从代码层根治：子智能体并行时的共享可变状态竞态、多路输出累加撑爆主智能体上下文。

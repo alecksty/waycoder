@@ -535,6 +535,34 @@ public static partial class SelfTest
             baseLLM.ModelOverride == "big-model" && subClone.ModelOverride == "small-model");
         Check("SubAgentParallelTotalMaxChars 默认 > 0", new Config().SubAgentParallelTotalMaxChars > 0);
 
+        // BashGuard 参数拦截语义全面验证（v0.53.0 重写 Match/MatchArgs：白名单/黑名单分离）
+        var (ciBlocked, _) = BashGuard.CheckBanned("cargo install ripgrep");
+        Check("BashGuard 纯子命令拦截 cargo install", ciBlocked);
+        var (pipBlocked, _) = BashGuard.CheckBanned("pip install requests");
+        Check("BashGuard 白名单未命中拦截 pip install", pipBlocked);
+        var (pipUserBlocked, _) = BashGuard.CheckBanned("pip install --user requests");
+        Check("BashGuard 白名单命中放行 pip install --user", !pipUserBlocked);
+        var (npmBlocked, _) = BashGuard.CheckBanned("npm install lodash");
+        Check("BashGuard 本地 npm install 放行", !npmBlocked);
+        var (npmGlobalBlocked, _) = BashGuard.CheckBanned("npm install --global lodash");
+        Check("BashGuard 全局 npm install -g 拦截", npmGlobalBlocked);
+        var (goTestBlocked, _) = BashGuard.CheckBanned("go test ./...");
+        Check("BashGuard 普通 go test 放行", !goTestBlocked);
+        var (goExecBlocked, _) = BashGuard.CheckBanned("go test -exec echo");
+        Check("BashGuard go test -exec 拦截", goExecBlocked);
+
+        // v0.53.1: tasks 数组元素提取（对象元素 {description/task/...} 正确解出文本，而非乱码）
+        var extStr = AgentTool.ExtractTaskText("给 TimeSeries 加冒烟测试");
+        Check("AgentTool.ExtractTaskText 纯字符串透传", extStr == "给 TimeSeries 加冒烟测试");
+        var extDict = AgentTool.ExtractTaskText(new Dictionary<string, object?> { ["description"] = "给 Automata 加冒烟测试" });
+        Check("AgentTool.ExtractTaskText 对象提取 description", extDict == "给 Automata 加冒烟测试");
+        var extDictTask = AgentTool.ExtractTaskText(new Dictionary<string, object?> { ["task"] = "给 Geospatial 加冒烟测试" });
+        Check("AgentTool.ExtractTaskText 对象提取 task", extDictTask == "给 Geospatial 加冒烟测试");
+        var extJson = AgentTool.ExtractTaskText(new JsonObject { ["description"] = "JsonObject 路径" });
+        Check("AgentTool.ExtractTaskText JsonObject 提取", extJson == "JsonObject 路径");
+        var extNull = AgentTool.ExtractTaskText(null);
+        Check("AgentTool.ExtractTaskText null 返回 null", extNull == null);
+
         // 深度 0（允许 agent 递归）
         var depth0Tools = ToolRegistry.GetSubAgentTools(ToolRegistry.AllTools, 0, 5);
         var depth0Names = depth0Tools.Select(t => t.Name).ToHashSet();
