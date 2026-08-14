@@ -90,9 +90,11 @@ public static partial class SelfTest
 
         // ---- 基础设施纯逻辑类单元测试（提升代码质量覆盖）----
         Section("[基础设施]");
-        TestRetryPolicy(Check);   // 智能重试策略：异常过滤 + 指数退避 + 耗尽
-        TestLruCache(Check);      // LRU 缓存：淘汰/提升/TTL/事件/统计
-        TestIdGenerator(Check);   // 短 ID 生成器：字符集/唯一性/slug 格式
+        TestRetryPolicy(Check);      // 智能重试策略：异常过滤 + 指数退避 + 耗尽
+        TestLruCache(Check);         // LRU 缓存：淘汰/提升/TTL/事件/统计
+        TestIdGenerator(Check);      // 短 ID 生成器：字符集/唯一性/slug 格式
+        TestFileIgnoreManager(Check); // 文件忽略规则：静态忽略 + glob 匹配 + 否定/锚定
+        TestMemoryRetrieval(Check);   // 跨会话记忆检索：关键词匹配打分 + 提示词格式化
         Console.WriteLine();
 
         // ---- 工具 ----

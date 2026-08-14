@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.53.4 (2026-08-14) — 文件忽略规则 + 记忆检索补齐单元测试
+
+继续代码质量维度改进：再补齐两个零覆盖的基础设施类 `FileIgnoreManager` 与 `MemoryRetrieval` 的单元测试（27 项）。
+
+### 🧪 自测
+
+- 新增 27 项断言覆盖两个类：
+  - **`FileIgnoreManager`**（20 项）：`node_modules`/`dist`/`.git` 等始终忽略目录、`.pyc`/`.dll`/`.jpg` 等扩展名、`.gitignore` 规则匹配（`*.log` 任意深度、`!` 否定反转、`/rootfile.txt` 锚定、`*.tmp`）、`FilterIgnored` 批量过滤、`ShouldSkipDirectory` 隐藏/忽略目录跳过
+  - **`MemoryRetrieval`**（7 项）：frontmatter 记忆加载 + `GetRelevant` 关键词匹配（英文标识符 + CJK 双字词）、无关关键词不误命中、`FormatForPrompt` 标题/类型/描述超 200 字符截断/空列表返回空
+
+- 总计 1969 项自测全部通过（0 失败）
+
 ## v0.53.3 (2026-08-14) — 基础设施纯逻辑类补齐细粒度单元测试
 
 代码质量维度（68/100）改进：此前三个零覆盖的基础设施纯逻辑类（`RetryPolicy` / `LruCache` / `IdGenerator`）从未被自测触达，属于「写了但没人验证」的死角。
