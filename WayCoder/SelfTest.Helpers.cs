@@ -1309,4 +1309,49 @@ public static partial class SelfTest
             try { Directory.Delete(tmp, recursive: true); } catch { }
         }
     }
+
+    /// <summary>代码片段管理（SnippetStore）单元测试：frontmatter 解析 + 增删查/多词搜索。</summary>
+    private static void TestSnippetStore(Action<string, bool> Check)
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "wc_snip_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(tmp);
+        try
+        {
+            // 1. 预写 frontmatter 片段，测 Load 解析
+            File.WriteAllText(Path.Combine(tmp, "parsed-snippet.md"),
+                "---\nname: parsed-snippet\nlanguage: python\ntags: [ml, data]\n---\ndef predict():\n    return 1\n");
+            SnippetStore.Load(tmp);
+            Check("Snippet: frontmatter 解析 name/body",
+                SnippetStore.Get("parsed-snippet", tmp)?.Contains("def predict") == true);
+
+            // 2. Add → Get 往返
+            SnippetStore.Add("hello-world", "Console.WriteLine(\"hi\");", "csharp",
+                new List<string> { "utility" }, tmp);
+            Check("Snippet: Add 后 Get 返回内容",
+                SnippetStore.Get("hello-world", tmp)?.Contains("Console.WriteLine") == true);
+
+            // 3. Search 多词 OR
+            SnippetStore.Add("string-utils", "static string Trim() {}", "csharp",
+                new List<string> { "string", "utility" }, tmp);
+            Check("Snippet: Search 按名称命中",
+                SnippetStore.Search("string", tmp).Any(s => s.Name == "string-utils"));
+            Check("Snippet: Search 命中多个含 utility 标签",
+                SnippetStore.Search("utility", tmp).Count >= 2);
+            Check("Snippet: Search 无命中返回空",
+                SnippetStore.Search("zzz_none", tmp).Count == 0);
+
+            // 4. List
+            Check("Snippet: List 含所有片段",
+                SnippetStore.List(tmp).Any(s => s.Name == "hello-world"));
+
+            // 5. Delete
+            Check("Snippet: Delete 返回 true", SnippetStore.Delete("hello-world", tmp));
+            Check("Snippet: Delete 后 Get 返回 null", SnippetStore.Get("hello-world", tmp) == null);
+            Check("Snippet: Delete 不存在返回 false", !SnippetStore.Delete("nope", tmp));
+        }
+        finally
+        {
+            try { Directory.Delete(tmp, recursive: true); } catch { }
+        }
+    }
 }
