@@ -186,6 +186,9 @@ public class Config
     // 子智能体第 0 层（顶层）最大工具调用轮次，每深一层减 5，下限 5。
     // 默认 20（复杂模块如 DataStructures/Mathematics 单次派发可写更多代码，减少反复重派）。
     public int SubAgentMaxRounds { get; set; } = 20;
+    // 并行子智能体聚合结果的总字符上限（0=不限制）。单个子智能体输出各截断到
+    // SubAgentOutputMaxChars，但并行 N 个累加仍可能撑爆主智能体上下文，故再设总上限。
+    public int SubAgentParallelTotalMaxChars { get; set; } = 15000;
 
     // ── LLM 连接 ──
     public int LlmHttpTimeoutSec { get; set; } = 300;
@@ -377,6 +380,12 @@ public class Config
               "number", null, 7,
               c => c.SubAgentMaxRounds.ToString(),
               (c, v) => c.SubAgentMaxRounds = Math.Clamp(int.Parse(v), 5, 100), "20"),
+
+            P("SubAgentParallelTotalMaxChars", "WAYCODER_SUBAGENT_PARALLEL_TOTAL_MAX_CHARS", null,
+              "并行子智能体总输出上限", "🤖 模型", "并行子智能体聚合结果的总字符上限，0=不限制",
+              "number", null, 8,
+              c => c.SubAgentParallelTotalMaxChars.ToString(),
+              (c, v) => c.SubAgentParallelTotalMaxChars = Math.Max(0, int.Parse(v)), "15000"),
 
             P("MaxRounds",     "WAYCODER_MAX_ROUNDS",         null,
               "最大对话轮次", "⚙ 参数", "每轮对话最大工具调用次数",

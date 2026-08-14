@@ -134,11 +134,6 @@ public class AgentTool : ITool
 
         var maxDepth = MaxDepth;
 
-        // 子智能体使用小模型（省钱），继承父模型路径
-        var subLLM = ParentAgent!.LlmClient;
-        var savedOverride = subLLM.ModelOverride;
-        subLLM.ModelOverride = subLLM.SmallModel;
-
         try
         {
             var runningTasks = taskList
@@ -146,21 +141,26 @@ public class AgentTool : ITool
                 .ToList();
             var results = await Task.WhenAll(runningTasks);
 
+            // 聚合结果，总长受 SubAgentParallelTotalMaxChars 上限约束：单个子智能体输出
+            // 各截断到 SubAgentOutputMaxChars，但并行 N 个累加仍可能撑爆主智能体上下文。
             var sb = new System.Text.StringBuilder();
+            var totalMax = Config.Instance.SubAgentParallelTotalMaxChars;
+            var perItemMax = totalMax > 0 && results.Length > 0
+                ? Math.Max(200, totalMax / results.Length)
+                : -1;
             for (var i = 0; i < results.Length; i++)
             {
                 sb.AppendLine($"--- 子任务 {i + 1} ---");
-                sb.AppendLine(results[i]);
+                sb.AppendLine(perItemMax > 0 ? TruncateKeepTail(results[i], perItemMax) : results[i]);
             }
-            return $"[并行子智能体完成 · {results.Length} 个任务]\n{sb}";
+            var summary = $"[并行子智能体完成 · {results.Length} 个任务]\n{sb}";
+            return totalMax > 0 && summary.Length > totalMax
+                ? TruncateKeepTail(summary, totalMax)
+                : summary;
         }
         catch (Exception ex)
         {
             return $"并行子智能体错误（深度 {depth + 1}）：{ex.GetType().Name}: {ex.Message}";
-        }
-        finally
-        {
-            subLLM.ModelOverride = savedOverride;
         }
     }
 
@@ -170,9 +170,10 @@ public class AgentTool : ITool
         // 子智能体的工具集：排除危险工具 + 深度限制下排除 agent
         var subTools = ToolRegistry.GetSubAgentTools(ParentAgent!.Tools, depth, maxDepth);
 
-        // 子智能体使用小模型（省钱），继承父模型路径
-        var subLLM = ParentAgent!.LlmClient;
-        var savedOverride = subLLM.ModelOverride;
+        // 子智能体使用独立的 LLM 实例（Clone），小模型省钱。不再共享父 LlmClient 的
+        // ModelOverride —— 并行模式下共享可变状态会竞态（最后完成的子智能体把
+        // ModelOverride 恢复成小模型，污染主智能体后续请求降级）。
+        var subLLM = ParentAgent!.LlmClient.Clone();
         subLLM.ModelOverride = subLLM.SmallModel;
 
         // 子智能体轮次：随深度递减（顶层上限可配置）
@@ -183,9 +184,11 @@ public class AgentTool : ITool
             // 注入父上下文摘要（最近几轮对话），让子智能体了解背景
             var contextSummary = BuildParentContext(depth);
             var depthNote = depth > 0 ? $"\n（当前为第 {depth + 1} 层子智能体，最大深度 {maxDepth}）" : "";
+            // 注入子智能体纪律（不建 scratch/csproj、自测到通过、精简回报），固化压力测试铁律
+            var discipline = SystemPrompt.SubAgentDiscipline;
             var fullTask = string.IsNullOrEmpty(contextSummary)
-                ? task + depthNote
-                : $"{contextSummary}\n\n---\n## 子任务{depthNote}\n{task}";
+                ? $"{discipline}\n\n{task}{depthNote}"
+                : $"{contextSummary}\n\n---\n{discipline}\n\n## 子任务{depthNote}\n{task}";
 
             // 进入下一层深度
             _currentDepth.Value = depth + 1;
@@ -194,10 +197,10 @@ public class AgentTool : ITool
                 ParentAgent.Context.MaxTokens, maxRounds: subRounds);
 
             var result = await subAgent.ChatAsync(fullTask, onToken: null, onTool: null);
-            // 截断过长结果，避免撑爆父智能体的上下文
+            // 截断过长结果，避免撑爆父智能体的上下文（保尾：保留开头实现过程 + 末尾结论）
             var outputMax = Config.Instance.SubAgentOutputMaxChars;
             if (outputMax > 0 && result.Length > outputMax)
-                result = result[..(outputMax * 90 / 100)] + "\n...（子智能体输出已截断）";
+                result = TruncateKeepTail(result, outputMax);
             return $"[子智能体已完成 · 深度 {depth + 1}]\n{result}";
         }
         catch (Exception ex)
@@ -207,7 +210,8 @@ public class AgentTool : ITool
         finally
         {
             _currentDepth.Value = depth;
-            subLLM.ModelOverride = savedOverride;
+            // 回收子智能体实例的花费统计到父智能体（Clone 后统计独立，否则会丢失）
+            ParentAgent!.LlmClient.MergeUsageFrom(subLLM);
         }
     }
 
@@ -239,5 +243,20 @@ public class AgentTool : ITool
         {
             return "";
         }
+    }
+
+    /// <summary>
+    /// 保尾截断：保留开头实现过程（前 70%）与末尾结论（后 25%），中间省略。
+    /// 旧逻辑只保留开头 90%，会把子智能体末尾的关键结论（如「Automata 7→0」）截掉。
+    /// </summary>
+    private static string TruncateKeepTail(string text, int maxLen)
+    {
+        if (maxLen <= 0 || text.Length <= maxLen)
+            return text;
+        int head = maxLen * 70 / 100;
+        int tail = maxLen * 25 / 100;
+        if (head + tail >= text.Length)
+            return text;
+        return text[..head] + $"\n...（中间省略 {text.Length - head - tail} 字符）...\n" + text[^tail..];
     }
 }
