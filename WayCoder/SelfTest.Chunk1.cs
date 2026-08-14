@@ -79,6 +79,8 @@ public static partial class SelfTest
         TestWorkModePerAgent(Check);
         // 自动升级测试（版本比较 + RID 探测 + 资产匹配纯逻辑）
         TestUpdateChecker(Check);
+        // 批量任务引擎测试（多仓库并行 + worktree 隔离 + 聚合报告）
+        TestBatchEngine(Check);
         Console.WriteLine();
 
         // ---- 工具 ----

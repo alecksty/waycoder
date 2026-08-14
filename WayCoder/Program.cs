@@ -238,6 +238,10 @@ public class Program
             return 1;
         }
 
+        // 批量任务引擎：多仓库并行处理（每个任务在独立克隆副本中隔离执行，无需构建 LLM/Agent）
+        if (HasBatch(parsed))
+            return await RunBatchAsync(parsed);
+
         _llm = new LLM(_config.Model, _config.ApiKey, _config.BaseUrl,
             _config.MaxTokens, _config.Temperature);
 
@@ -385,6 +389,81 @@ public class Program
             UxHelper.Error("错误", ex.Message);
             Environment.Exit(1);
         }
+    }
+
+    // ========================================================================
+    // 批量任务引擎
+    // ========================================================================
+
+    /// <summary>是否触发了批量任务（--batch 或 --batch-repo）。</summary>
+    private static bool HasBatch(Dictionary<string, List<string>> parsed)
+    {
+        return Arguments.CliArgRegistry.Has(parsed, "batch")
+            || Arguments.CliArgRegistry.Has(parsed, "batch-repo");
+    }
+
+    /// <summary>运行批量任务引擎：解析清单 → 多仓库并行 → 打印聚合报告。</summary>
+    private static async Task<int> RunBatchAsync(Dictionary<string, List<string>> parsed)
+    {
+        BatchSpec? spec;
+        string? error;
+
+        var batchArg = Arguments.CliArgRegistry.Get(parsed, "batch");
+        if (batchArg != null)
+        {
+            // 可能是内联 JSON 或文件路径
+            var trimmed = batchArg.Trim();
+            string json;
+            if (trimmed.StartsWith("{", StringComparison.Ordinal))
+            {
+                json = trimmed;
+            }
+            else if (File.Exists(trimmed))
+            {
+                json = await File.ReadAllTextAsync(trimmed);
+            }
+            else
+            {
+                MarkupLine($"«red»✘ 批量任务文件不存在: {E(trimmed)}«/»");
+                return 1;
+            }
+            spec = BatchSpec.Parse(json, out error);
+            if (spec == null)
+            {
+                MarkupLine($"«red»✘ 批量任务解析失败: {E(error)}«/»");
+                return 1;
+            }
+        }
+        else
+        {
+            var repos = Arguments.CliArgRegistry.GetAll(parsed, "batch-repo") ?? new List<string>();
+            var task = Arguments.CliArgRegistry.Get(parsed, "batch-task") ?? "";
+            if (repos.Count == 0 || string.IsNullOrWhiteSpace(task))
+            {
+                MarkupLine("«red»✘ --batch-repo 至少需要一个仓库，且必须提供 --batch-task 共享任务«/»");
+                return 1;
+            }
+            spec = BatchSpec.FromRepos(repos, task);
+        }
+
+        // --batch-keep 覆盖 keepResults
+        if (Arguments.CliArgRegistry.Has(parsed, "batch-keep"))
+            spec!.KeepResults = true;
+
+        Console.WriteLine();
+        MarkupLine("«bold cyan»🚀 WayCoder 批量任务引擎«/»");
+        MarkupLine($"«dim»任务数: {spec!.Jobs.Count} · 并行度: {spec.MaxParallel} · 超时: {spec.TimeoutSec}s · 保留副本: {(spec.KeepResults ? "是" : "否")}«/»");
+        Console.WriteLine();
+
+        var report = await BatchRunner.RunAsync(spec, log: line => Console.WriteLine(line));
+
+        Console.WriteLine();
+        Console.WriteLine(report.ToMarkdown());
+        MarkupLine(report.Failed == 0
+            ? $"«bold green»✅ 批量任务全部成功 ({report.Succeeded}/{report.Total})«/»"
+            : $"«bold red»❌ 批量任务完成：成功 {report.Succeeded} / 失败 {report.Failed}«/»");
+
+        return report.Failed == 0 ? 0 : 1;
     }
 
     // ========================================================================
