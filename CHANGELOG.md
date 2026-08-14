@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.50.0 (2026-08-14) — 编译期插件系统（IPlugin SDK，对标 Claude Code/Crush 插件扩展）
+
+### 🔌 插件系统
+
+- 新增 `IPlugin` 接口 + `Plugin` 抽象基类 + `PluginRegistry` 注册表——编译期插件（C# 源码随主程序一起 AOT 编译进单文件）可贡献两类扩展：
+  - **工具**（`ITool`）：自动并入 `ToolRegistry.AllTools`，大模型直接通过 function calling 调用
+  - **斜杠命令**（`ISlashCommand`）：自动并入 `SlashCommandRegistry`，REPL 输入 `/xxx` 触发
+- 三步接入、零启动代码改动：`WayCoder/Plugins/` 目录新建 `.cs` → 继承 `Plugin` 覆写贡献项 → `[ModuleInitializer]` 自动注册（AOT 安全，无反射）
+- 与已有扩展机制互补：SKILL.md（Markdown 技能）、Hooks（外部脚本）、MCP（外部服务器）之外，插件提供「原生性能、复杂逻辑、可复用工具/命令」的第四类扩展
+- 注册表健壮性：同名插件（忽略大小写）覆盖不重复、`null` 注册/`null` 返回防御、按名卸载
+- 完整文档见 [docs/插件系统.md](docs/插件系统.md)（含 `ITool` + `ISlashCommand` + `[ModuleInitializer]` 完整示例）
+
+### 🧪 自测
+
+- 新增插件系统自测 11 项（注册/收集/集成到 AllTools/同名覆盖/null 防御/卸载），1842→1853 项全部通过（0 失败）
+
 ## v0.49.0 (2026-08-14) — 批量任务引擎（多仓库并行 + worktree 隔离，对标 Cursor/Aider 多仓库批处理）
 
 ### 🚀 批量任务引擎

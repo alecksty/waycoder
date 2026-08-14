@@ -81,6 +81,8 @@ public static partial class SelfTest
         TestUpdateChecker(Check);
         // 批量任务引擎测试（多仓库并行 + worktree 隔离 + 聚合报告）
         TestBatchEngine(Check);
+        // 编译期插件系统测试（IPlugin + PluginRegistry + 工具/命令集成）
+        TestPluginSystem(Check);
         Console.WriteLine();
 
         // ---- 工具 ----

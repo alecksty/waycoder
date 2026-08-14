@@ -160,6 +160,10 @@ public static class SlashCommandRegistry
         Register(new Commands.AboutCommand());
         Register(new Commands.RepomapCommand());
         Register(new Commands.DebugCommand());
+
+        // 编译期插件贡献的命令（[ModuleInitializer] 自动注册到 PluginRegistry，这里统一并入）
+        foreach (var cmd in PluginRegistry.CollectCommands())
+            Register(cmd);
     }
 
     /// <summary>所有命令名（主名 + 别名），用于拼写纠错和 Tab 补全</summary>

@@ -51,13 +51,14 @@ public static class ToolRegistry
         new TranscribeAudioTool(),
     ];
 
-    /// <summary>所有工具（内置 + MCP 自动发现）</summary>
+    /// <summary>所有工具（内置 + MCP 自动发现 + 编译期插件贡献）</summary>
     public static List<ITool> AllTools
     {
         get
         {
             var all = new List<ITool>(BuiltinTools);
             all.AddRange(McpManager.DiscoveredTools);
+            all.AddRange(PluginRegistry.CollectTools());
             return all;
         }
     }

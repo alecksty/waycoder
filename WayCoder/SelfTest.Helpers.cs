@@ -748,4 +748,66 @@ public static partial class SelfTest
             Check($"批量: RunAsync 端到端异常: {ex.Message}", false);
         }
     }
+
+    // ── 插件系统测试用最小实现 ──
+
+    private sealed class TestPluginTool : ITool
+    {
+        public string Name => "plugin_test_tool";
+        public string Description => "测试插件工具";
+        public JsonObject Parameters => new() { ["type"] = "object", ["properties"] = new JsonObject() };
+        public Task<string> ExecuteAsync(Dictionary<string, object?> arguments) => Task.FromResult("ok");
+    }
+
+    private sealed class TestPluginCommand : SlashCommand
+    {
+        public override string Name => "/plugin-hello";
+        public override string Description => "测试插件命令";
+        public override Task ExecuteAsync(string args, ChatScreen screen) => Task.CompletedTask;
+    }
+
+    private sealed class TestPlugin : Plugin
+    {
+        public override string Name => "test-plugin";
+        public override string Version => "9.9.9";
+        public override IEnumerable<ITool> GetTools() => [new TestPluginTool()];
+        public override IEnumerable<ISlashCommand> GetCommands() => [new TestPluginCommand()];
+    }
+
+    private sealed class NullReturningPlugin : Plugin
+    {
+        public override string Name => "null-plugin";
+        public override IEnumerable<ITool> GetTools() => null!;
+        public override IEnumerable<ISlashCommand> GetCommands() => null!;
+    }
+
+    private static void TestPluginSystem(Action<string, bool> Check)
+    {
+        PluginRegistry.Register(new TestPlugin());
+        Check("插件: 注册成功", PluginRegistry.Plugins.Count == 1);
+        Check("插件: 收集 1 个工具", PluginRegistry.CollectTools().Count() == 1);
+        Check("插件: 收集 1 个命令", PluginRegistry.CollectCommands().Count() == 1);
+        Check("插件: 工具集成到 AllTools", ToolRegistry.AllTools.Any(t => t.Name == "plugin_test_tool"));
+        Check("插件: 命令名正确", PluginRegistry.CollectCommands().First().Name == "/plugin-hello");
+
+        // 同名覆盖（忽略大小写）不重复
+        PluginRegistry.Register(new TestPlugin());
+        Check("插件: 同名注册覆盖不重复", PluginRegistry.Plugins.Count == 1);
+        Check("插件: 版本字段保留", PluginRegistry.Plugins[0].Version == "9.9.9");
+
+        // null 注册防御
+        PluginRegistry.Register(null!);
+        Check("插件: null 注册不抛", PluginRegistry.Plugins.Count == 1);
+
+        // 卸载
+        Check("插件: 卸载成功", PluginRegistry.Unregister("test-plugin"));
+        Check("插件: 卸载后工具移除", PluginRegistry.Plugins.Count == 0
+            && !ToolRegistry.AllTools.Any(t => t.Name == "plugin_test_tool"));
+
+        // null 返回防御
+        PluginRegistry.Register(new NullReturningPlugin());
+        Check("插件: null 返回防御不抛", PluginRegistry.CollectTools().Count() == 0
+            && PluginRegistry.CollectCommands().Count() == 0);
+        PluginRegistry.Unregister("null-plugin");
+    }
 }
