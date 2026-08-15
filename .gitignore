@@ -53,3 +53,6 @@ YGame/
 QBasic/bin/
 QBasic/obj/
 QBasic/.qbparse/
+
+# 独立游戏项目（不随 WayCoder 仓库管理）
+plane-war/
