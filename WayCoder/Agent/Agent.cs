@@ -55,6 +55,9 @@ public class Agent
     /// <summary>本轮对话开始时间（供 WorkReporter 计算耗时）</summary>
     private DateTime _chatStartedAt;
 
+    /// <summary>运行轨迹记录器（对标 OpenClaw trajectory，null=已关闭/未启用）</summary>
+    private Trajectory? _trajectory;
+
     /// <summary>Architect 双模型模式：大模型出计划，小模型执行</summary>
     public bool ArchitectMode { get; set; }
 
@@ -396,6 +399,29 @@ public class Agent
     {
         _chatStartedAt = DateTime.UtcNow;
 
+        // 运行轨迹（对标 OpenClaw trajectory）：记录每轮 LLM 与每个工具调用的过程性元数据
+        var trajectory = Trajectory.Create(LlmClient.EffectiveModel);
+        _trajectory = trajectory;
+        try
+        {
+            return await ChatAsyncCore(userInput, onToken, onTool, onToolOutput, cancellationToken);
+        }
+        finally
+        {
+            // 无论正常完成/异常/取消，都落 run_end 汇总（累计轮次与 token）
+            trajectory?.End();
+            _trajectory = null;
+        }
+    }
+
+    /// <summary>ChatAsync 的核心主循环（被 ChatAsync 包裹以统一落轨迹 run_end）。</summary>
+    private async Task<string> ChatAsyncCore(
+        string userInput,
+        Action<string>? onToken,
+        Action<string, string>? onTool,
+        Action<string>? onToolOutput,
+        CancellationToken cancellationToken)
+    {
         // 检测快速模式：用户明确要求跳过探索（不要读文件/不要ls/不要规划等）
         if (SystemPrompt.DetectFastMode(userInput))
         {
@@ -457,6 +483,9 @@ public class Agent
                 ContextManager.EstimateTokens(Messages));
             // 自动省 token 模式：按任务轮数更新复杂度，动态调节压缩阈值
             Context.SetRound(round);
+            // 轨迹：记录本轮 LLM 交互（token 消耗 + 输出形态）
+            _trajectory?.RecordTurn(round, resp.PromptTokens, resp.CompletionTokens,
+                resp.Content?.Length ?? 0, resp.ToolCalls.Count, resp.ReasoningTokens);
 
             // 没有工具调用 -> LLM 完成，返回文本
             if (resp.ToolCalls.Count == 0)
@@ -898,7 +927,7 @@ public class Agent
         {
             var tc = toolCalls[0];
             onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
-            var result = await ExecuteToolAsync(tc, onToolOutput);
+            var result = await RunToolAndRecordAsync(tc, onToolOutput);
             // 自动 lint 反馈闭环：写文件后立即检查，错误注入工具结果
             result = await AppendLintFeedbackAsync(tc, result);
             // 自动 test 反馈闭环：写源码文件后跑测试，失败注入工具结果
@@ -920,7 +949,7 @@ public class Agent
             {
                 var tc = batch[0];
                 onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
-                results[tc.Id] = await ExecuteToolAsync(tc);
+                results[tc.Id] = await RunToolAndRecordAsync(tc, null);
             }
             else
             {
@@ -930,7 +959,7 @@ public class Agent
                 {
                     onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
                     await sem.WaitAsync();
-                    try { return (tc, await ExecuteToolAsync(tc)); }
+                    try { return (tc, await RunToolAndRecordAsync(tc, null)); }
                     finally { sem.Release(); }
                 });
                 var batchResults = await Task.WhenAll(tasks);
@@ -948,6 +977,25 @@ public class Agent
                 .Set("role", "tool")
                 .Set("tool_call_id", tc.Id)
                 .Set("content", finalResult));
+        }
+    }
+
+    /// <summary>执行单个工具并记录轨迹（耗时 + 成败 + 摘要），异常时记录失败后重抛。</summary>
+    private async Task<string> RunToolAndRecordAsync(ToolCall tc, Action<string>? onToolOutput)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            var result = await ExecuteToolAsync(tc, onToolOutput);
+            _trajectory?.RecordTool(tc.Name, FormatBrief(tc.Arguments), result,
+                ok: !ToolResultClassifier.IsError(result), durationMs: sw.ElapsedMilliseconds);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _trajectory?.RecordTool(tc.Name, FormatBrief(tc.Arguments), ex.Message,
+                ok: false, durationMs: sw.ElapsedMilliseconds);
+            throw;
         }
     }
 
