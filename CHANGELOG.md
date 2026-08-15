@@ -1,5 +1,24 @@
 # 更新日志
 
+## v0.61.0 (2026-08-16) — Web 界面完整化（对标 DeepSeek Harness）
+
+把 `--web` 浏览器聊天界面从「单 Agent + 固定模型」扩展为完整的 Web UI，对标 DeepSeek Harness 的 `dsh web`（黑白主题、圆角、换模型、输 key、设置、多槽位）。全程延续零第三方依赖 + AOT 安全 + 跨平台 + 手搓原则。
+
+### ✨ 新增
+
+- **黑白双主题 + 圆角风格**：`data-theme="dark"|"light"` 两套 CSS 变量，`localStorage` 持久化，默认深色；全局圆角（消息卡片 14px / 按钮 10px / 输入框 14px）
+- **模型下拉**（按 provider 分组）：`GET /models` 返回 `ModelCatalog.All`（含 `hasKey` 字段），`POST /model` 换当前槽位模型
+- **输入 API Key**：`POST /key` 按供应商存 `ApiKeyStore`（`~/.waycoder/api_keys.json`），换到无 key 供应商时前端弹 key 输入框；`secret` 类型设置项返回 masked 不泄露明文
+- **设置面板**：`GET /settings` 返回 `Config.SettingSchema()` 按 Category 分组（text/number/select/secret/toggle 对应控件），`POST /settings` 走 `TrySetPropValue` + `SaveToEnvFile`，右滑抽屉交互
+- **槽位切换（F1-F10）**：`POST /slot` 切换多 Agent 工作区槽位，每槽位独立 LLM + 历史（惰性创建 `EnsureSlot`），顶栏胶囊指示条（当前=高亮、有历史=实线）
+- **LLM 运行时重配置**：`LLM.Reconfigure(apiKey, baseUrl)` 让 `ApiKey`/`BaseUrl` 改为 `{ get; private set; }`，换供应商无需重建 Agent、不丢对话历史；`ApplyModel` 换模型流程（模型目录 Url 优先 + `UpdateContextWindow` + 持久化）
+
+### 🧪 自测
+
+- 新增 25 项测试（`TestWebFull`）：`LLM.Reconfigure`（key/baseUrl/Endpoint/Model）、`SerializeModels`（分组 + hasKey）、`SerializeSettings`（分组 + secret 字段）、`SerializeState`/`SerializeHistory`、`ApplyModel` 非法模型报错、`ProviderHasKey`（local/custom 无需 key）、端点冒烟（`GET /models` `/state` `/settings`、`POST /slot` `/model` `/settings` 成功与错误分支）
+- 端到端原生进程验证：10 个端点全部正常（换模型/换 key/设值/槽位切换返回 `{"ok":true}`，非法输入返回结构化错误），`.env` 验证后恢复
+- 总计 **2774** 项自测全部通过（0 失败）
+
 ## v0.60.0 (2026-08-15) — 浏览器聊天界面（--web）
 
 对标 deepseek-harness 的 `--web`，新增本地 HTTP 服务 + 浏览器聊天界面：`waycoder --web [端口]` 启动服务并自动打开浏览器，在网页里与 Agent 流式对话，摆脱终端环境限制（远程服务器、无 TTY 场景），获得更友好的 Markdown 渲染、流式输出与工具调用可视化。全程零新依赖、零反射，符合「跨平台 + 手搓」原则。
