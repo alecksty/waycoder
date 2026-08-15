@@ -1,229 +1,197 @@
-using System.Text;
 using WayCoder.Terminal;
+using WayCoder.UI.TuiControls;
 
 namespace WayCoder.UI;
 
 /// <summary>
 /// 命令面板对话框 —— 对标 Crush command palette。
 /// 居中带边框对话框（非全屏），模糊搜索所有命令、分组显示、实时过滤、Enter 执行。
+///
+/// 功能：
+///   - 模糊搜索（标签/分类/描述/快捷键，忽略大小写）
+///   - 分类头独立行 + 命令行（label + 描述 + 快捷键右对齐）
+///   - ↑↓/Home/End/PgUp/PgDn 导航（跳过分类头）、Enter 执行、Esc 取消
+///
+/// 实现：TuiWindow（模态）+ TuiVBox + TuiInput（搜索）+ TuiListView（分类头/命令行），
+/// 走 UxHelper.RenderWait 阻塞 → 事件桥接，不再自造 Console.ReadKey 循环。
 /// </summary>
 public static class CommandPalette
 {
     public record Command(string Id, string Label, string Category, string Shortcut, string Desc, Action Action);
 
-    private const int MinW = 52, MinH = 13;
-    private const int FrameH = 7; // 顶框1 + 标题1 + 搜索1 + 上分隔1 + 下分隔1 + 帮助1 + 底框1
+    private const int MinW = 52;
+    private const int MaxW = 90;
+    private const int ListH = 10;
 
-    /// <summary>
-    /// 显示命令面板。返回 true 表示执行了命令，false = 取消。
-    /// </summary>
+    /// <summary>显示命令面板。返回 true 表示执行了命令，false = 取消。</summary>
     public static bool Show(List<Command> commands)
     {
-        var filter = "";
-        int sel = 0;          // 高亮行（rows 索引，始终指向命令行）
-        int scrollOffset = 0; // 可见区顶行（rows 索引）
-
+        Command? toRun = null;
+        using var evt = new ManualResetEventSlim(false);
         try
         {
-        while (true)
+            var screen = TuiManager.Instance?.ActiveScreen;
+            var win = BuildWindow(commands, screen, c => { toRun = c; evt.Set(); });
+            screen?.ShowWindow(win);
+            UxHelper.RenderWait(screen, evt, 30_000, win);
+        }
+        catch { evt.Set(); }
+        // 窗口关闭后再执行命令，避免命令内部再弹模态框造成 RenderWait 嵌套
+        toRun?.Action?.Invoke();
+        return toRun != null;
+    }
+
+    // ── 窗口构建 ──
+
+    private static TuiWindow BuildWindow(List<Command> commands, TuiScreen? screen, Action<Command?> onDone)
+    {
+        int winW = Math.Clamp(Tty.Cols - 4, MinW, MaxW);
+        int listW = Math.Max(10, winW - 2); // 内容区宽（去左右边框）
+        int winH = ListH + 4;               // 上框+搜索+列表+帮助下框
+
+        var win = new TuiWindow
         {
-            var filtered = string.IsNullOrEmpty(filter)
+            Title = "🔍 命令面板",
+            ShowTitleSeparator = false,
+            Modal = true, HasMask = true,
+            Border = WindowBorder.Solid,
+            BorderColor = TuiTheme.Current.DialogInfoBorder,
+            WinBg = TuiTheme.Current.WindowBg,
+            Width = winW, Height = winH,
+            MinWidth = MinW, MinHeight = 10,
+            WindowHAlign = HAlign.Center,
+            WindowVAlign = VAlign.Middle,
+        };
+        var g = TuiTheme.Current.GradCyanBlue;
+        win.GradientBorder = true;
+        win.GradientStart = g.start;
+        win.GradientEnd = g.end;
+
+        // 搜索框（聚焦，字母进过滤词）
+        var search = new TuiInput
+        {
+            Height = 1,
+            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Focused = true,
+        };
+
+        // 命令列表（分类头 + 命令行，选中行手动反白）
+        var list = new TuiListView
+        {
+            Height = ListH,
+            IsAutoScrollToEnd = false,
+        };
+
+        // 帮助行（兼显示过滤计数）
+        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightBlack };
+
+        var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
+        vbox.Add(search);
+        vbox.Add(list);
+        vbox.Add(help);
+        win.RootView = vbox;
+
+        // ── 过滤 / 行状态 ──
+        var filtered = new List<Command>();
+        var rows = new List<(bool IsHeader, int CmdIdx, string Cat)>();
+        var cmdRowLabels = new List<TuiLabel>(); // 与 filtered 命令一一对应
+        int sel = -1;                            // 高亮行（rows 索引，恒指向命令行）
+
+        void RefreshHighlight()
+        {
+            for (int i = 0; i < cmdRowLabels.Count; i++)
+            {
+                bool isSel = sel >= 0 && sel < rows.Count && !rows[sel].IsHeader && rows[sel].CmdIdx == i;
+                var lbl = cmdRowLabels[i];
+                lbl.Text = FormatCommandRow(filtered[i], isSel, listW);
+                lbl.Fg = isSel ? TuiTheme.Current.ListSelFg : TuiColors.White;
+                lbl.Bg = isSel ? TuiTheme.Current.ListSelBg : 0;
+            }
+            list.SelectedIndex = sel; // 驱动 TuiListView 自动滚动到选中项
+            list.MarkDirty();
+        }
+
+        void Rebuild()
+        {
+            filtered = string.IsNullOrEmpty(search.Text)
                 ? commands
                 : commands.Where(c =>
-                    c.Label.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                    c.Category.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                    c.Desc.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                    c.Shortcut.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+                    c.Label.Contains(search.Text, StringComparison.OrdinalIgnoreCase) ||
+                    c.Category.Contains(search.Text, StringComparison.OrdinalIgnoreCase) ||
+                    c.Desc.Contains(search.Text, StringComparison.OrdinalIgnoreCase) ||
+                    c.Shortcut.Contains(search.Text, StringComparison.OrdinalIgnoreCase)).ToList();
 
-            // 构建显示行：分类头独占一行、与命令交错（不再隐藏每组第一条命令）
-            var rows = new List<(bool IsHeader, int CmdIdx, string Cat)>();
+            rows.Clear();
+            cmdRowLabels.Clear();
+            list.ClearItems();
+
             string? prevCat = null;
             for (int i = 0; i < filtered.Count; i++)
             {
                 if (filtered[i].Category != prevCat)
                 {
                     rows.Add((true, i, filtered[i].Category));
+                    list.AddItem(new TuiLabel("─ " + filtered[i].Category + " ─") { Fg = TuiColors.Cyan });
                     prevCat = filtered[i].Category;
                 }
                 rows.Add((false, i, filtered[i].Category));
+                var lbl = new TuiLabel();
+                cmdRowLabels.Add(lbl);
+                list.AddItem(lbl);
             }
 
-            var (bx, by, dw, dh, innerW) = DialogFrame.Layout(MinW, MinH);
-            int listH = Math.Max(3, dh - FrameH);
+            help.Text = $"↑↓ 导航  Enter 执行  Esc 取消  {filtered.Count}/{commands.Count}";
 
-            // 光标钳制到命令行
-            int cmdCount = rows.Count(r => !r.IsHeader);
-            if (cmdCount == 0) sel = 0;
-            else
-            {
-                sel = Math.Clamp(sel, 0, rows.Count - 1);
-                if (rows[sel].IsHeader) sel = StepToCommand(rows, sel, +1);
-            }
+            sel = rows.Count > 0 ? StepToCommand(rows, -1, +1) : -1;
+            RefreshHighlight();
+            screen?.MarkDirty();
+        }
 
-            // 滚动：保证高亮命令行可见
-            if (sel < scrollOffset) scrollOffset = sel;
-            if (sel >= scrollOffset + listH) scrollOffset = sel - listH + 1;
-            scrollOffset = Math.Clamp(scrollOffset, 0, Math.Max(0, rows.Count - listH));
+        // ── 动作 ──
 
-            // ── 渲染 ──
-            var sb = new StringBuilder();
-            sb.Append(AnsiTty.CursorHide);
-            DialogFrame.DimArea(sb, bx, by, dw, dh);
-            DialogFrame.TopBorder(sb, by, bx, dw);
+        void Finish(Command? c)
+        {
+            onDone(c);
+            win.OnClosed?.Invoke();
+        }
 
-            // 标题行
-            int y = by + 1;
-            DialogFrame.SideL(sb, y, bx);
-            sb.Append(AnsiTty.CursorPos(y, bx + 2))
-              .Append(AnsiTty.FgBgCode(TuiColors.White, DialogFrame.DimBg))
-              .Append(AnsiTty.SgrBold).Append("🔍 命令面板").Append(AnsiTty.SgrReset);
-            var countLabel = $"{filtered.Count}/{commands.Count}";
-            sb.Append(AnsiTty.CursorPos(y, bx + dw - 2 - VW(countLabel)))
-              .Append(AnsiTty.FgBgCode(TuiColors.BrightBlack, DialogFrame.DimBg))
-              .Append(AnsiTty.SgrDim).Append(countLabel).Append(AnsiTty.SgrReset);
-            DialogFrame.SideR(sb, y, bx, dw);
+        void Execute()
+        {
+            if (sel >= 0 && sel < rows.Count && !rows[sel].IsHeader)
+                Finish(filtered[rows[sel].CmdIdx]);
+        }
 
-            // 搜索行
-            y = by + 2;
-            DialogFrame.SideL(sb, y, bx);
-            sb.Append(AnsiTty.CursorPos(y, bx + 2))
-              .Append(AnsiTty.FgBgCode(TuiColors.White, DialogFrame.DimBg));
-            var prompt = filter.Length > 0 ? $"> {filter}" : "> 输入搜索...";
-            var style = filter.Length > 0 ? "" : AnsiTty.SgrDim;
-            sb.Append(style).Append(TruncVW(prompt, innerW - 2));
-            sb.Append(AnsiTty.SgrReset);
-            DialogFrame.SideR(sb, y, bx, dw);
+        void JumpTo(int from, int dir)
+        {
+            if (rows.Count == 0) return;
+            sel = StepToCommand(rows, from, dir);
+            RefreshHighlight();
+        }
 
-            // 上分隔线
-            y = by + 3;
-            DialogFrame.SepLine(sb, y, bx, dw);
-
-            // 列表
-            int dataTop = by + 4;
-            for (int i = 0; i < listH; i++)
-            {
-                int ri = scrollOffset + i, row = dataTop + i;
-                DialogFrame.SideL(sb, row, bx);
-
-                if (ri >= rows.Count)
-                {
-                    DialogFrame.FillInner(sb, row, bx, innerW, TuiColors.White, DialogFrame.DimBg);
-                    DialogFrame.SideR(sb, row, bx, dw);
-                    continue;
-                }
-
-                var (isHeader, cmdIdx, cat) = rows[ri];
-
-                if (isHeader)
-                {
-                    // 分类头：独立的整行，青色粗体
-                    DialogFrame.FillInner(sb, row, bx, innerW, TuiColors.Cyan, DialogFrame.DimBg);
-                    sb.Append(AnsiTty.CursorPos(row, bx + 2))
-                      .Append(AnsiTty.FgBgCode(TuiColors.Cyan, DialogFrame.DimBg))
-                      .Append(AnsiTty.SgrBold)
-                      .Append("─ ").Append(TruncVW(cat, Math.Max(4, innerW - 4))).Append(" ─")
-                      .Append(AnsiTty.SgrReset);
-                }
-                else
-                {
-                    var cmd = filtered[cmdIdx];
-                    bool isSel = ri == sel;
-                    int bg = isSel ? TuiColors.BgCyan : DialogFrame.DimBg;
-                    int fg = isSel ? TuiColors.Black : TuiColors.White;
-                    DialogFrame.FillInner(sb, row, bx, innerW, fg, bg);
-
-                    // 标签/描述/快捷键各自截断，防止长命令溢出边框
-                    var prefix = isSel ? "▶ " : "  ";
-                    var shortcut = string.IsNullOrEmpty(cmd.Shortcut) ? "" : $" {cmd.Shortcut}";
-                    int avail = Math.Max(4, innerW - 2);
-                    int shortcutVW = VW(shortcut);
-                    var label = TruncVW(prefix + cmd.Label, Math.Max(4, avail - shortcutVW));
-                    int descMax = avail - VW(label) - shortcutVW;
-                    var desc = descMax >= 3 ? TruncVW(" " + cmd.Desc, descMax) : "";
-
-                    sb.Append(AnsiTty.CursorPos(row, bx + 2))
-                      .Append(AnsiTty.FgBgCode(fg, bg))
-                      .Append(label);
-                    sb.Append(AnsiTty.SgrDim).Append(desc).Append(AnsiTty.SgrReset);
-                    if (shortcut.Length > 0)
-                        sb.Append(AnsiTty.FgBgCode(TuiColors.Yellow, bg)).Append(shortcut);
-                    sb.Append(AnsiTty.SgrReset);
-                }
-                DialogFrame.SideR(sb, row, bx, dw);
-            }
-
-            // 下分隔线
-            int sep2 = dataTop + listH;
-            DialogFrame.SepLine(sb, sep2, bx, dw);
-
-            // 帮助行
-            DialogFrame.SideL(sb, sep2 + 1, bx);
-            sb.Append(AnsiTty.CursorPos(sep2 + 1, bx + 2))
-              .Append(AnsiTty.FgBgCode(TuiColors.BrightBlack, DialogFrame.DimBg))
-              .Append(TruncVW("[↑/↓] 导航  [Enter] 执行  [Esc] 取消  输入关键词过滤", innerW - 4));
-            DialogFrame.SideR(sb, sep2 + 1, bx, dw);
-
-            // 底框
-            DialogFrame.BottomBorder(sb, sep2 + 2, bx, dw);
-
-            sb.Append(AnsiTty.SgrReset);
-            Console.Write(sb.ToString());
-
-            // ── 输入 ──
-            var key = Console.ReadKey(intercept: true);
-
+        // 搜索输入：字母进过滤词（OnTextChanged 实时过滤），↑↓ 导航列表，Enter 执行
+        search.OnTextChanged = Rebuild;
+        search.KeyHook = key =>
+        {
             switch (key.Key)
             {
-                case ConsoleKey.UpArrow:
-                    sel = StepToCommand(rows, sel, -1);
-                    break;
-                case ConsoleKey.DownArrow:
-                    sel = StepToCommand(rows, sel, +1);
-                    break;
-                case ConsoleKey.Home:
-                    sel = StepToCommand(rows, -1, +1);
-                    break;
-                case ConsoleKey.End:
-                    sel = StepToCommand(rows, rows.Count, -1);
-                    break;
-                case ConsoleKey.PageUp:
-                    sel = StepToCommand(rows, Math.Max(0, sel - listH), -1);
-                    break;
-                case ConsoleKey.PageDown:
-                    sel = StepToCommand(rows, Math.Min(rows.Count - 1, sel + listH), +1);
-                    break;
-                case ConsoleKey.Enter:
-                    if (cmdCount > 0 && sel >= 0 && sel < rows.Count && !rows[sel].IsHeader)
-                    {
-                        filtered[rows[sel].CmdIdx].Action();
-                        return true;
-                    }
-                    break;
-                case ConsoleKey.Escape:
-                    return false;
-                case ConsoleKey.Backspace:
-                    if (filter.Length > 0)
-                    {
-                        filter = filter[..^1];
-                        sel = 0;
-                    }
-                    break;
-                default:
-                    if (key.KeyChar >= ' ' && key.KeyChar <= '~')
-                    {
-                        filter += key.KeyChar;
-                        sel = 0;
-                    }
-                    break;
+                case ConsoleKey.UpArrow:   JumpTo(sel, -1); return true;
+                case ConsoleKey.DownArrow: JumpTo(sel, +1); return true;
+                case ConsoleKey.Home:      JumpTo(-1, +1); return true;
+                case ConsoleKey.End:       JumpTo(rows.Count, -1); return true;
+                case ConsoleKey.PageUp:    JumpTo(Math.Max(0, sel - ListH), -1); return true;
+                case ConsoleKey.PageDown:  JumpTo(Math.Min(rows.Count - 1, sel + ListH), +1); return true;
+                case ConsoleKey.Enter:     Execute(); return true;
             }
-        }
-        }
-        finally
-        {
-            Console.Write(AnsiTty.CursorShow);
-            TuiManager.RequestFullRefresh();
-        }
+            return false; // 其余（字母/退格）交给输入框处理
+        };
+
+        win.RegisterShortcut(ConsoleKey.Escape, () => Finish(null));
+
+        Rebuild();
+        return win;
     }
+
+    // ── 纯逻辑（AOT 安全，可自测）──
 
     /// <summary>移动到相邻命令行（跳过分类头）。dir=+1 向下、-1 向上；越界停在最近的命令行。</summary>
     internal static int StepToCommand(List<(bool IsHeader, int CmdIdx, string Cat)> rows, int from, int dir)
@@ -252,23 +220,19 @@ public static class CommandPalette
         return p;
     }
 
-    private static int VW(string text) => TuiHelper.DisplayWidth(text);
-
-    private static string TruncVW(string text, int max)
+    /// <summary>格式化一行命令（label + 描述 + 快捷键右对齐），恰占 width 列。</summary>
+    private static string FormatCommandRow(Command cmd, bool isSel, int width)
     {
-        if (string.IsNullOrEmpty(text)) return "";
-        if (VW(text) <= max) return text;
-        var runes = text.EnumerateRunes().ToList();
-        int w = 0, n = 0;
-        foreach (var r in runes)
-        {
-            int rw = TuiHelper.RuneWidth(r);
-            if (w + rw + 1 > max) break;
-            w += rw; n++;
-        }
-        var sb = new StringBuilder();
-        for (int i = 0; i < n; i++) sb.Append(runes[i].ToString());
-        sb.Append('…');
-        return sb.ToString();
+        var prefix = isSel ? "▶ " : "  ";
+        var shortcut = string.IsNullOrEmpty(cmd.Shortcut) ? "" : " " + cmd.Shortcut;
+        int sw = TuiHelper.DisplayWidth(shortcut);
+        int bodyMax = Math.Max(1, width - sw);
+        var body = prefix + cmd.Label;
+        int spare = bodyMax - TuiHelper.DisplayWidth(body);
+        body = spare >= 4 && !string.IsNullOrEmpty(cmd.Desc)
+            ? TuiHelper.TruncateByWidth(body + " " + cmd.Desc, bodyMax)
+            : TuiHelper.TruncateByWidth(body, bodyMax);
+        int bodyW = TuiHelper.DisplayWidth(body);
+        return body + new string(' ', Math.Max(0, width - bodyW - sw)) + shortcut;
     }
 }

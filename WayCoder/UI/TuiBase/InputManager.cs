@@ -326,17 +326,24 @@ public class InputManager : IDisposable
     {
         var sb = new System.Text.StringBuilder();
         const string endMarker = "\x1b[201~";
+        // 结束标记缺失时的空闲超时兜底：终端发来 \x1b[200~ 却因崩溃/截断漏发 \x1b[201~
+        // 时，原实现会永久卡死；超时后把已读内容按普通粘贴文本返回。
+        const int pasteIdleTimeoutMs = 2000;
+        long lastActivity = Environment.TickCount64;
 
         while (true)
         {
             if (!Console.KeyAvailable)
             {
+                if (Environment.TickCount64 - lastActivity > pasteIdleTimeoutMs)
+                    break;
                 Thread.Sleep(1);
                 continue;
             }
 
             var ch = Tty.ReadKey();
             sb.Append(ch.KeyChar);
+            lastActivity = Environment.TickCount64;
 
             // 检查缓冲区末尾是否匹配结束标记
             if (sb.Length >= endMarker.Length)
@@ -354,6 +361,9 @@ public class InputManager : IDisposable
                 }
             }
         }
+
+        // 超时兜底：结束标记缺失，把已读内容按普通粘贴文本返回
+        return new InputEvent { Type = InputType.Paste, PasteText = sb.ToString() };
     }
 
     /// <summary>

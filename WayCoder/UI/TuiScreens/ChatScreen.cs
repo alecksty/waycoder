@@ -441,6 +441,7 @@ public class ChatScreen : TuiScreen
             Height = 3,
             Bg = 0,
             CursorLineBg = 0,
+            CursorLineFg = TuiTheme.Current.TextAreaFg, // 无光标行高亮时，光标行文字用正文色（否则黑字黑底）
             Focused = true,
             Placeholder = "输入消息… (Enter 发送, Ctrl+Enter 换行)",
             ShowLineNumbers = false,
@@ -1314,8 +1315,15 @@ public class ChatScreen : TuiScreen
         if (InputArea != null)
         {
             InputArea.Fg = t.TextAreaFg;
-            InputArea.CursorLineBg = t.TextAreaCursorLineBg;
-            InputArea.CursorLineFg = t.TextAreaCursorLineFg;
+            InputArea.CursorLineBg = 0;            // 聊天输入框无光标行高亮
+            InputArea.CursorLineFg = t.TextAreaFg; // 无高亮时文字跟随正文色
+        }
+
+        // 聊天消息列表：逐项刷新角色标签/时间戳颜色，正文缓存作废重解析
+        if (ChatList != null)
+        {
+            for (int i = 0; i < ChatList.ItemCount; i++)
+                (ChatList.GetItem(i) as TuiListItem)?.ApplyTheme();
         }
 
         InvalidateView();

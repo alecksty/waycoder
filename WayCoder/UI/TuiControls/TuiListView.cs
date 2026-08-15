@@ -59,6 +59,7 @@ public class TuiListView : TuiView
         Children.Add(item);
         ReLayout();
         if (IsAutoScrollToEnd) ScrollToBottom();
+        MarkDirtyTree(); // 增删内容必须标脏：擦除与重绘成对，覆盖 ScrollToBottom 边界 no-op 的场景
     }
 
     /// <summary>批量添加项</summary>
@@ -72,6 +73,7 @@ public class TuiListView : TuiView
         }
         ReLayout();
         if (IsAutoScrollToEnd) ScrollToBottom();
+        MarkDirtyTree();
     }
 
     /// <summary>移除指定索引的项</summary>
@@ -82,6 +84,7 @@ public class TuiListView : TuiView
         Children.RemoveAt(index);
         if (SelectedIndex >= Children.Count) SelectedIndex = Children.Count - 1;
         ReLayout();
+        MarkDirtyTree(); // 删除后剩余项上移，需擦除重绘
     }
 
     /// <summary>清空所有项</summary>
@@ -91,6 +94,7 @@ public class TuiListView : TuiView
         Children.Clear();
         SelectedIndex = -1;
         ScrollOffset = 0;
+        MarkDirty(); // 清空后仅需擦除视口，无需标脏子项
     }
 
     /// <summary>获取指定项</summary>
@@ -126,27 +130,49 @@ public class TuiListView : TuiView
 
     public void ScrollUp(int lines = 3)
     {
+        int newOffset = Math.Max(0, ScrollOffset - lines);
+        if (newOffset == ScrollOffset && !IsAutoScrollToEnd) return; // 已在顶部，翻页无效（防闪屏）
+        ScrollOffset = newOffset;
         IsAutoScrollToEnd = false;
-        ScrollOffset = Math.Max(0, ScrollOffset - lines);
+        MarkDirtyTree();
     }
 
     public void ScrollDown(int lines = 3)
     {
         int maxScroll = Math.Max(0, ContentHeight - Height);
+        int newOffset;
+        bool newAuto;
         if (ScrollOffset + lines >= maxScroll)
         {
-            ScrollOffset = maxScroll;
-            IsAutoScrollToEnd = true;
+            newOffset = maxScroll;
+            newAuto = true;
         }
-        else ScrollOffset += lines;
+        else
+        {
+            newOffset = ScrollOffset + lines;
+            newAuto = false;
+        }
+        if (newOffset == ScrollOffset && newAuto == IsAutoScrollToEnd) return; // 已在底部，翻页无效（防闪屏）
+        ScrollOffset = newOffset;
+        IsAutoScrollToEnd = newAuto;
+        MarkDirtyTree();
     }
 
-    public void ScrollToTop() { ScrollOffset = 0; IsAutoScrollToEnd = false; }
+    public void ScrollToTop()
+    {
+        if (ScrollOffset == 0 && !IsAutoScrollToEnd) return; // 已在顶部
+        ScrollOffset = 0;
+        IsAutoScrollToEnd = false;
+        MarkDirtyTree();
+    }
 
     public void ScrollToBottom()
     {
-        ScrollOffset = Math.Max(0, ContentHeight - Height);
+        int newOffset = Math.Max(0, ContentHeight - Height);
+        if (ScrollOffset == newOffset && IsAutoScrollToEnd) return; // 已在底部
+        ScrollOffset = newOffset;
         IsAutoScrollToEnd = true;
+        MarkDirtyTree();
     }
 
     // ── 鼠标 ──
@@ -214,6 +240,27 @@ public class TuiListView : TuiView
         int visH = Height;
         if (visH <= 0) return;
 
+        // 未标脏则不擦除也不重绘 —— 保留终端上已有的上一帧内容。
+        // 擦除（视口填充）必须与重绘成对出现：只有内容真的变了（滚动/增删）才擦除，
+        // 否则后台渲染（如状态栏动画每 30ms 一帧）会擦掉正文、又不重绘非脏叶子 → 黑屏闪烁。
+        if (!IsDirty) return;
+
+        // 填充整个视口背景，清除滚动残影（右边也刷到控件右缘）。
+        // 子项渲染不补齐整行宽度，滚动后旧像素会残留在右侧/间隙。
+        int fillBg = GetInheritedBg();
+        int l = Math.Max(ClipLeft, absX);
+        int r = Math.Min(ClipRight, absX + Width);
+        int t = Math.Max(ClipTop, absY);
+        int b = Math.Min(ClipBottom, absY + visH);
+        if (r > l && b > t)
+        {
+            var rb = new Terminal.RenderBuffer();
+            if (fillBg <= 0) rb.Reset(); // 透明背景：先复位到终端默认底色，空格才能清掉残留
+            for (int row = t; row < b; row++)
+                rb.Fill(row, l, r - l, fillBg);
+            sb.Append(rb.ToString());
+        }
+
         // 确保选中项可见
         if (SelectedIndex >= 0 && SelectedIndex < Children.Count)
         {
@@ -270,12 +317,12 @@ public class TuiListView : TuiView
                 return true;
             case ConsoleKey.PageUp:
                 ScrollUp(Height);
-                SelectedIndex = Math.Max(0, SelectedIndex - 5);
+                SelectedIndex = Math.Max(0, SelectedIndex - Math.Max(1, Height));
                 OnSelectionChanged?.Invoke(SelectedIndex);
                 return true;
             case ConsoleKey.PageDown:
                 ScrollDown(Height);
-                SelectedIndex = Math.Min(Children.Count - 1, SelectedIndex + 5);
+                SelectedIndex = Math.Min(Children.Count - 1, SelectedIndex + Math.Max(1, Height));
                 OnSelectionChanged?.Invoke(SelectedIndex);
                 return true;
             case ConsoleKey.Enter:
@@ -296,6 +343,7 @@ public class TuiListView : TuiView
             Children[SelectedIndex].Focused = false;
         SelectedIndex = index;
         Children[index].Focused = true;
+        MarkDirtyTree(); // 选中态变化（反白）+ 滚动到可见需重绘
         OnSelectionChanged?.Invoke(index);
     }
 

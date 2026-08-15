@@ -195,7 +195,8 @@ public class TuiScrollbar : TuiControl
     // ── 滚动方法 ──
 
     public void ScrollUp(int lines = 1) => ScrollOffset = Math.Max(0, ScrollOffset - lines);
-    public void ScrollDown(int lines = 1) => ScrollOffset = ClampOffset();
+    public void ScrollDown(int lines = 1) =>
+        ScrollOffset = Math.Min(Math.Max(0, ContentHeight - ViewportHeight), ScrollOffset + lines);
     public void ScrollToTop() => ScrollOffset = 0;
     public void ScrollToBottom() => ScrollOffset = Math.Max(0, ContentHeight - ViewportHeight);
 }

@@ -1,5 +1,4 @@
-using System.Text;
-using WayCoder.Terminal;
+using WayCoder.UI.TuiControls;
 
 namespace WayCoder.UI;
 
@@ -13,6 +12,9 @@ namespace WayCoder.UI;
 ///   - 上下键导航 / Enter 确认 / Esc 取消
 ///   - 当前选中的级别标记 ✓
 ///   - 帮助栏 + 键盘快捷键
+///
+/// 实现：TuiWindow（模态）+ TuiVBox + TuiLabel + TuiInput + TuiList，
+/// 走 UxHelper.RenderWait 阻塞 → 事件桥接，不再自造 Console.ReadKey 循环。
 /// </summary>
 public static class ReasoningPicker
 {
@@ -32,9 +34,6 @@ public static class ReasoningPicker
         new("max",     "Max",      "极致推理，最复杂的多步问题"),
     ];
 
-    private const int MinW = 58, MinH = 15;
-    private const int FrameH = 8; // 顶框1+标题1+说明1+搜索1+上分隔1 + 下分隔1+帮助1+底框1
-
     /// <summary>
     /// 显示推理深度选择对话框。返回选中的级别，null = 取消。
     /// </summary>
@@ -45,215 +44,174 @@ public static class ReasoningPicker
         currentLevel ??= Config.Instance.ReasoningEffort;
         modelName ??= Config.Instance.Model;
 
-        var filter = "";
-        int selectedIdx = 0;
-        int scrollOffset = 0;
-
-        // 找到当前级别的索引
-        var allLevels = Levels.ToList();
-        for (int i = 0; i < allLevels.Count; i++)
-        {
-            if (allLevels[i].Id == currentLevel)
-            {
-                selectedIdx = i;
-                break;
-            }
-        }
-
+        Result? result = null;
+        using var evt = new ManualResetEventSlim(false);
         try
         {
-        while (true)
+            var screen = TuiManager.Instance?.ActiveScreen;
+            var win = BuildWindow(currentLevel, modelName, screen, r => { result = r; evt.Set(); });
+            screen?.ShowWindow(win);
+            UxHelper.RenderWait(screen, evt, 30_000, win);
+        }
+        catch { evt.Set(); }
+        return result;
+    }
+
+    // ── 窗口构建 ──
+
+    private static TuiWindow BuildWindow(string currentLevel, string modelName,
+        TuiScreen? screen, Action<Result?> onDone)
+    {
+        var win = new TuiWindow
         {
-            // 过滤
-            var filtered = string.IsNullOrEmpty(filter)
-                ? allLevels
-                : allLevels.Where(l =>
-                    l.Label.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                    l.Id.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                    l.Description.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+            Title = $"推理深度 — {modelName}",
+            TitleBold = true,
+            ShowTitleSeparator = false,
+            Modal = true, HasMask = true,
+            Border = WindowBorder.Solid,
+            BorderColor = TuiTheme.Current.DialogInfoBorder,
+            WinBg = TuiTheme.Current.WindowBg,
+            XScale = 0.6,
+            WindowHAlign = HAlign.Center,
+            WindowVAlign = VAlign.Middle,
+            MinWidth = 44,
+            MinHeight = 10,
+            Height = 10,
+        };
+        // 渐变边框（紫→粉，呼应推理深度的紫色调）
+        var g = TuiTheme.Current.GradPurplePink;
+        win.GradientBorder = true;
+        win.GradientStart = g.start;
+        win.GradientEnd = g.end;
 
-            var (bx, by, dw, dh, innerW) = DialogFrame.Layout(MinW, MinH);
-            int listH = Math.Max(3, dh - FrameH);
+        // 当前过滤后的级别列表（搜索输入实时更新）
+        var filtered = FilterLevels("");
 
-            selectedIdx = Math.Clamp(selectedIdx, 0, Math.Max(0, filtered.Count - 1));
+        // 说明行
+        var desc = new TuiLabel("选择模型的「思考」深度，越深推理越充分，但耗时越长")
+        {
+            Fg = TuiColors.Black,
+        };
 
-            // 滚动调整
-            if (selectedIdx < scrollOffset) scrollOffset = selectedIdx;
-            if (selectedIdx >= scrollOffset + listH) scrollOffset = selectedIdx - listH + 1;
-            scrollOffset = Math.Clamp(scrollOffset, 0, Math.Max(0, filtered.Count - listH));
+        // 搜索框（聚焦，字母进过滤词）
+        var search = new TuiInput
+        {
+            Height = 1,
+            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Focused = true,
+        };
 
-            // ── 渲染 ──
-            var sb = new StringBuilder();
-            sb.Append(AnsiTty.CursorHide);
-            DialogFrame.DimArea(sb, bx, by, dw, dh);
-            DialogFrame.TopBorder(sb, by, bx, dw);
+        // 级别列表
+        var list = new TuiList
+        {
+            Items = filtered.Select(l => FormatItem(l, currentLevel)).ToList(),
+            SelectedIndex = IndexOfCurrent(filtered, currentLevel),
+            Height = 5,
+            Fg = TuiColors.Black,
+        };
 
-            // 标题行（紫底）
-            int y = by + 1;
-            DialogFrame.SideL(sb, y, bx);
-            DialogFrame.FillInner(sb, y, bx, innerW, TuiColors.White, TuiColors.BgMagenta);
-            var title = $"推理深度 — {modelName}";
-            sb.Append(AnsiTty.CursorPos(y, bx + 2))
-              .Append(AnsiTty.FgBgCode(TuiColors.White, TuiColors.BgMagenta))
-              .Append(AnsiTty.SgrBold).Append(TruncateByVW(title, innerW - 4)).Append(AnsiTty.SgrReset);
-            DialogFrame.SideR(sb, y, bx, dw);
+        // 帮助行
+        var help = new TuiLabel("[↑/↓] 导航  [Enter] 确认  [Esc] 取消  [字母] 搜索  [←] 清除=默认")
+        {
+            Fg = TuiColors.BrightBlack,
+        };
 
-            // 说明行
-            y = by + 2;
-            DialogFrame.SideL(sb, y, bx);
-            DialogFrame.FillInner(sb, y, bx, innerW, TuiColors.Magenta, DialogFrame.DimBg);
-            var desc = "选择模型的「思考」深度，越深推理越充分，但耗时越长";
-            sb.Append(AnsiTty.CursorPos(y, bx + 2))
-              .Append(AnsiTty.FgBgCode(TuiColors.Magenta, DialogFrame.DimBg))
-              .Append(TruncateByVW(desc, innerW - 4))
-              .Append(AnsiTty.SgrReset);
-            DialogFrame.SideR(sb, y, bx, dw);
+        var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
+        vbox.Add(desc);
+        vbox.Add(search);
+        vbox.Add(list);
+        vbox.Add(help);
+        win.RootView = vbox;
 
-            // 搜索行
-            y = by + 3;
-            DialogFrame.SideL(sb, y, bx);
-            sb.Append(AnsiTty.CursorPos(y, bx + 2))
-              .Append(AnsiTty.FgBgCode(TuiColors.White, DialogFrame.DimBg));
-            var searchPrompt = "搜索: ";
-            var searchText = filter.Length > 0 ? filter : "输入关键词过滤...";
-            var searchStyle = filter.Length > 0 ? "" : AnsiTty.SgrDim;
-            sb.Append(searchPrompt).Append(searchStyle).Append(TruncateByVW(searchText, innerW - 4 - VW(searchPrompt)))
-              .Append(AnsiTty.SgrReset);
-            DialogFrame.SideR(sb, y, bx, dw);
+        // ── 动作 ──
 
-            // 上分隔线
-            y = by + 4;
-            DialogFrame.SepLine(sb, y, bx, dw);
-
-            // 推理级别列表
-            int dataTop = by + 5;
-            for (int i = 0; i < listH; i++)
+        void Finish(Result? r)
+        {
+            onDone(r);
+            win.OnClosed?.Invoke(); // 关闭模态窗口
+        }
+        void Confirm()
+        {
+            int idx = list.SelectedIndex;
+            if (idx >= 0 && idx < filtered.Count)
             {
-                int mi = scrollOffset + i, row = dataTop + i;
-                DialogFrame.SideL(sb, row, bx);
-
-                if (mi >= filtered.Count)
-                {
-                    DialogFrame.FillInner(sb, row, bx, innerW, TuiColors.White, DialogFrame.DimBg);
-                    DialogFrame.SideR(sb, row, bx, dw);
-                    continue;
-                }
-
-                var level = filtered[mi];
-                bool isSelected = mi == selectedIdx;
-                bool isCurrent = level.Id == currentLevel;
-
-                int bg = isSelected ? TuiColors.BgMagenta : DialogFrame.DimBg;
-                int fg = isSelected ? TuiColors.Black : (isCurrent ? TuiColors.Magenta : TuiColors.White);
-                DialogFrame.FillInner(sb, row, bx, innerW, fg, bg);
-
-                var prefix = isSelected ? "▶ " : "  ";
-                var check = isCurrent ? " ✓" : "  ";
-                var label = level.Label.PadRight(10);
-                var display = TruncateByVW($"{prefix}{label} — {level.Description}{check}", innerW - 2);
-
-                sb.Append(AnsiTty.CursorPos(row, bx + 2))
-                  .Append(AnsiTty.FgBgCode(fg, bg))
-                  .Append(display)
-                  .Append(AnsiTty.SgrReset);
-
-                DialogFrame.SideR(sb, row, bx, dw);
+                var level = filtered[idx];
+                Config.Instance.ReasoningEffort = level.Id;
+                Config.Instance.SaveToEnvFile();
+                Finish(new Result(level.Id));
             }
+        }
+        void Cancel() => Finish(null);
+        void Reset()
+        {
+            // 清除：恢复默认（不设置 reasoning_effort）
+            Config.Instance.ReasoningEffort = "";
+            Config.Instance.SaveToEnvFile();
+            Finish(new Result(""));
+        }
 
-            // 下分隔线
-            int sep2 = dataTop + listH;
-            DialogFrame.SepLine(sb, sep2, bx, dw);
-
-            // 帮助行
-            DialogFrame.SideL(sb, sep2 + 1, bx);
-            sb.Append(AnsiTty.CursorPos(sep2 + 1, bx + 2))
-              .Append(AnsiTty.FgBgCode(TuiColors.BrightBlack, DialogFrame.DimBg))
-              .Append(TruncateByVW("[↑/↓] 导航  [Enter] 确认  [Esc] 取消  [字母] 搜索  [←] 清除=默认", innerW - 4));
-            DialogFrame.SideR(sb, sep2 + 1, bx, dw);
-
-            // 底框
-            DialogFrame.BottomBorder(sb, sep2 + 2, bx, dw);
-
-            sb.Append(AnsiTty.SgrReset);
-            Console.Write(sb.ToString());
-
-            // ── 输入 ──
-            var key = Console.ReadKey(intercept: true);
-
+        // 搜索输入：字母进过滤词（OnTextChanged 实时过滤），↑↓ 导航列表，Enter 确认
+        search.OnTextChanged = () =>
+        {
+            filtered = FilterLevels(search.Text);
+            list.Items = filtered.Select(l => FormatItem(l, currentLevel)).ToList();
+            list.SelectedIndex = 0;
+            list.ScrollOffset = 0;
+            list.MarkDirty();
+            screen?.MarkDirty();
+        };
+        search.KeyHook = key =>
+        {
             switch (key.Key)
             {
                 case ConsoleKey.UpArrow:
-                    if (selectedIdx > 0) selectedIdx--;
-                    break;
                 case ConsoleKey.DownArrow:
-                    if (selectedIdx < filtered.Count - 1) selectedIdx++;
-                    break;
-                case ConsoleKey.Enter:
-                    if (filtered.Count > 0 && selectedIdx < filtered.Count)
-                    {
-                        var selected = filtered[selectedIdx];
-                        Config.Instance.ReasoningEffort = selected.Id;
-                        Config.Instance.SaveToEnvFile();
-                        return new Result(selected.Id);
-                    }
-                    break;
-                case ConsoleKey.Escape:
-                    return null;
-                case ConsoleKey.Backspace:
-                    if (filter.Length > 0)
-                    {
-                        filter = filter[..^1];
-                        selectedIdx = 0;
-                    }
-                    break;
-                case ConsoleKey.LeftArrow:
-                    // 清除：恢复默认（不设置 reasoning_effort）
-                    Config.Instance.ReasoningEffort = "";
-                    Config.Instance.SaveToEnvFile();
-                    return new Result("");
                 case ConsoleKey.Home:
-                    selectedIdx = 0;
-                    break;
                 case ConsoleKey.End:
-                    selectedIdx = Math.Max(0, filtered.Count - 1);
-                    break;
                 case ConsoleKey.PageUp:
-                    selectedIdx = Math.Max(0, selectedIdx - listH);
-                    break;
                 case ConsoleKey.PageDown:
-                    selectedIdx = Math.Min(filtered.Count - 1, selectedIdx + listH);
-                    break;
-                default:
-                    if (key.KeyChar >= ' ' && key.KeyChar <= '~')
-                    {
-                        filter += key.KeyChar;
-                        selectedIdx = 0;
-                    }
-                    break;
+                    list.OnKey(key);
+                    list.MarkDirty();
+                    screen?.MarkDirty();
+                    return true;
+                case ConsoleKey.Enter:
+                    Confirm();
+                    return true;
             }
-        }
-        }
-        finally
-        {
-            Console.Write(AnsiTty.CursorShow);
-            TuiManager.RequestFullRefresh();
-        }
+            return false; // 其余（字母/退格）交给输入框处理
+        };
+        list.OnSelect = _ => Confirm(); // Tab 聚焦列表后 Enter 亦可确认
+
+        win.RegisterShortcut(ConsoleKey.Escape, Cancel);
+        win.RegisterShortcut(ConsoleKey.LeftArrow, Reset);
+
+        return win;
     }
 
-    // ── 工具 ──
+    // ── 纯逻辑（AOT 安全，可自测）──
 
-    private static int VW(string text) => TuiHelper.DisplayWidth(text);
-
-    private static string TruncateByVW(string text, int maxVW)
+    /// <summary>按关键词过滤级别（Label / Id / Description 忽略大小写匹配）。</summary>
+    private static List<ReasoningLevel> FilterLevels(string filter)
     {
-        if (string.IsNullOrEmpty(text)) return "";
-        int vw = 0, chars = 0;
-        foreach (var rune in text.EnumerateRunes())
-        {
-            var w = TuiHelper.RuneWidth(rune);
-            if (vw + w > maxVW) break;
-            vw += w; chars += rune.Utf16SequenceLength;
-        }
-        return chars == text.Length ? text : text[..chars] + "…";
+        if (string.IsNullOrEmpty(filter)) return Levels.ToList();
+        return Levels.Where(l =>
+            l.Label.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+            l.Id.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+            l.Description.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    /// <summary>格式化一行级别显示（标签对齐 + 描述 + 当前级别 ✓ 标记）。</summary>
+    private static string FormatItem(ReasoningLevel level, string currentLevel)
+    {
+        var check = level.Id == currentLevel ? " ✓" : "";
+        return $"{level.Label.PadRight(10)} — {level.Description}{check}";
+    }
+
+    /// <summary>定位当前级别在列表中的索引（未命中返回 0）。</summary>
+    private static int IndexOfCurrent(List<ReasoningLevel> levels, string currentLevel)
+    {
+        for (int i = 0; i < levels.Count; i++)
+            if (levels[i].Id == currentLevel) return i;
+        return 0;
     }
 }

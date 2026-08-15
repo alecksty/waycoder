@@ -1,4 +1,6 @@
-﻿namespace WayCoder;
+using WayCoder.Terminal;
+
+namespace WayCoder;
 
 /// <summary>
 /// 日志级别，从最详细到最严重递增。
@@ -41,16 +43,16 @@ public static class LogLevelExtensions
         _ => "ℹ️",
     };
 
-    /// <summary>日志级别对应的 ANSI 前景色转义序列（不包含重置码）。</summary>
+    /// <summary>日志级别对应的 ANSI 前景色转义序列（不包含重置码）。统一走 AnsiTty，避免裸 \x1b。</summary>
     public static string AnsiColor(this LogLevel level) => level switch
     {
-        LogLevel.Trace => "\u001b[36m",      // 青色
-        LogLevel.Debug => "\u001b[90m",      // 亮黑
-        LogLevel.Info => "\u001b[36m",       // 青色
-        LogLevel.Warn => "\u001b[33m",       // 黄色
-        LogLevel.Error => "\u001b[31m",      // 红色
-        LogLevel.Fatal => "\u001b[1;31m",    // 亮红加粗
-        _ => "\u001b[0m",
+        LogLevel.Trace => AnsiTty.Fg(36),        // 青色
+        LogLevel.Debug => AnsiTty.Fg(90),        // 亮黑
+        LogLevel.Info => AnsiTty.Fg(36),         // 青色
+        LogLevel.Warn => AnsiTty.Fg(33),         // 黄色
+        LogLevel.Error => AnsiTty.Fg(31),        // 红色
+        LogLevel.Fatal => AnsiTty.BoldFg(31),    // 亮红加粗
+        _ => AnsiTty.SgrReset,
     };
 
     /// <summary>日志级别的三位短标签。</summary>
@@ -66,5 +68,5 @@ public static class LogLevelExtensions
     };
 
     /// <summary>重置 ANSI 颜色。</summary>
-    public static string ResetColor() => "\u001b[0m";
+    public static string ResetColor() => AnsiTty.SgrReset;
 }

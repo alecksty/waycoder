@@ -1,4 +1,4 @@
-
+﻿
 namespace WayCoder;
 
 /// <summary>
@@ -84,7 +84,7 @@ public class Config
                 foreach (var p in _schema)
                 {
                     var val = Env(p.EnvVar, p.OldEnvVar);
-                    if (val != null) p.Setter(_instance, val);
+                    if (!string.IsNullOrEmpty(val)) p.Setter(_instance, val);
                 }
                 // 特殊处理：ApiKey 解析 —— 一个服务商一个 key，key 跟服务商走（不跟模型走）。
                 // 优先级：全局 JSON（按当前服务商）> .env WAYCODER_API_KEY > 各家 API_KEY 环境变量。
@@ -136,6 +136,7 @@ public class Config
     public bool PromptCaching { get; set; } = true;
     public string SandboxLevel { get; set; } = "suggest";
     public bool EditorLint { get; set; } = true;
+    public string EditorIndent { get; set; } = "tab";   // "tab"=制表符 / "space"=4 空格
     public bool DiffPreview { get; set; } = false;
     public bool DesktopNotifications { get; set; } = false;
     public int ToolTimeoutSec { get; set; } = 120;
@@ -153,7 +154,7 @@ public class Config
     public int EmbeddingDimensions { get; set; } = 0;
     public bool TeamMemoryEnabled { get; set; } = false;
     public bool TeamMemoryAutoSync { get; set; } = true;
-    public string ThemePreset { get; set; } = "default";
+    public string ThemePreset { get; set; } = "黄金甲";
 
     // ── 推理深度 ──
     /// <summary>推理深度级别（minimal/low/medium/high/max），空字符串=不设置（模型默认）</summary>
@@ -621,6 +622,11 @@ public class Config
               "select", ["suggest","auto-edit","full-auto"], 4,
               c => c.SandboxLevel, (c, v) => c.SandboxLevel = v, "suggest"),
 
+            P("EditorIndent",     "WAYCODER_EDITOR_INDENT",     null,
+              "编辑器缩进", "🔧 系统", "Tab 键插入制表符(\\t)或 4 个空格",
+              "select", ["tab","space"], 4,
+              c => c.EditorIndent, (c, v) => c.EditorIndent = v, "tab"),
+
             P("EditorLint",       "WAYCODER_EDITOR_LINT",       null,
               "编辑器 Lint", "🔧 系统", "保存时自动运行 lint 检查并标注错误行",
               "select", ["false","true"], 5,
@@ -701,8 +707,8 @@ public class Config
             // ── 界面 ──
             P("ThemePreset",      "WAYCODER_THEME",             null,
               "界面主题", "🎨 界面", "预设配色方案，选中即生效",
-              "select", ["default","ocean","forest","sunset","midnight","mono"], 4,
-              c => c.ThemePreset, (c, v) => c.ThemePreset = v, "default"),
+              "select", WayCoder.UI.TuiTheme.PresetNames, 4,
+              c => c.ThemePreset, (c, v) => c.ThemePreset = v, "黄金甲"),
 
             P("ColorScheme",      "WAYCODER_COLOR_SCHEME",      null,
               "配色方案", "🎨 界面", "预设配色 (覆盖下方颜色设置)",

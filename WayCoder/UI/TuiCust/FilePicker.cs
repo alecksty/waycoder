@@ -1,21 +1,31 @@
 using System.Text;
 using WayCoder.Terminal;
+using WayCoder.UI.TuiControls;
 
 namespace WayCoder.UI;
 
 /// <summary>
 /// 文件选择对话框 —— 对标 Crush filepicker。
 /// 居中带边框对话框（非全屏），目录浏览、文件过滤、⇅导航、Enter 确认、Esc 取消。
+///
+/// 功能：
+///   - 目录浏览（Enter 进入子目录 / ".." 上级；Backspace 无搜索词时返回上级）
+///   - 实时过滤（搜索框按名称模糊匹配）
+///   - 多列列表（文件/大小/日期/时间，目录 📁、文件 📄）
+///
+/// 实现：TuiWindow（模态）+ TuiVBox + TuiLabel（路径）+ TuiHBox（搜索标签+输入）+ TuiTableList（列表），
+/// 走 UxHelper.RenderWait 阻塞 → 事件桥接，不再自造 Console.ReadKey 循环。
+/// 顺带修复旧实现「Backspace 删搜索词 vs 返回上级目录」的冲突（仅无搜索词时返回上级）。
 /// </summary>
 public static class FilePicker
 {
     public record FileEntry(string Name, string FullPath, bool IsDir, long Size, DateTime Modified);
 
-    private const int MinW = 70, MinH = 16;
-    private const int FrameH = 9; // 顶框1+标题1+路径1+搜索1+上分隔1+列头1 + 下分隔1+帮助1+底框1
+    private const int MinW = 70, MaxW = 100;
+    private const int ListH = 10; // 列表可见行数（含 2 行列头 + 分隔线）
 
     // 右侧三列固定宽度（大小右对齐 / 日期 / 时间）
-    private const int SizeW = 8, DateW = 5, TimeW = 5, ColGap = 2;
+    private const int SizeW = 8, DateW = 5, TimeW = 5;
 
     /// <summary>
     /// 显示文件选择对话框。返回选中的文件路径，null = 取消。
@@ -29,185 +39,175 @@ public static class FilePicker
         dir = Path.GetFullPath(dir);
         var pattern = filter ?? "*";
 
-        var entries = LoadDir(dir, pattern);
-        int selectedIdx = 0;
-        int scrollOffset = 0;
-        var searchFilter = "";
-
+        string? result = null;
+        using var evt = new ManualResetEventSlim(false);
         try
         {
-        while (true)
+            var screen = TuiManager.Instance?.ActiveScreen;
+            var win = BuildWindow(dir, pattern, title, screen, p => { result = p; evt.Set(); });
+            screen?.ShowWindow(win);
+            UxHelper.RenderWait(screen, evt, 30_000, win);
+        }
+        catch { evt.Set(); }
+        return result;
+    }
+
+    // ── 窗口构建 ──
+
+    private static TuiWindow BuildWindow(string initialDir, string pattern, string title,
+        TuiScreen? screen, Action<string?> onDone)
+    {
+        int winW = Math.Clamp(Tty.Cols - 4, MinW, MaxW);
+        int listW = Math.Max(10, winW - 2);                          // 内容区宽（去左右边框）
+        int nameW = Math.Max(8, listW - 1 - SizeW - DateW - TimeW);  // 预留 1 列滚动条
+        int winH = ListH + 5; // 上框 + 路径 + 搜索 + 列表 + 帮助 + 下框
+
+        var win = new TuiWindow
         {
-            // 过滤
-            var filtered = string.IsNullOrEmpty(searchFilter)
+            Title = title,
+            ShowTitleSeparator = false,
+            Modal = true, HasMask = true,
+            Border = WindowBorder.Solid,
+            BorderColor = TuiTheme.Current.DialogInfoBorder,
+            WinBg = TuiTheme.Current.WindowBg,
+            Width = winW, Height = winH,
+            MinWidth = MinW, MinHeight = 10,
+            WindowHAlign = HAlign.Center,
+            WindowVAlign = VAlign.Middle,
+        };
+        var g = TuiTheme.Current.GradCyanBlue;
+        win.GradientBorder = true;
+        win.GradientStart = g.start;
+        win.GradientEnd = g.end;
+
+        // ── 状态 ──
+        var dir = initialDir;
+        var entries = LoadDir(dir, pattern);
+        var filtered = new List<FileEntry>();
+
+        // 路径栏
+        var pathLabel = new TuiLabel { Height = 1, Fg = TuiColors.BrightBlack };
+
+        // 搜索行（标签 + 输入框，输入框聚焦）
+        var search = new TuiInput
+        {
+            Height = 1,
+            Flex = 1,
+            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Focused = true,
+        };
+        var searchRow = new TuiHBox { Spacing = 1 };
+        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = TuiColors.BrightBlack });
+        searchRow.Add(search);
+
+        // 文件列表（多列：文件/大小/日期/时间）
+        var table = new TuiTableList { Height = ListH };
+        table.AddColumn("文件", nameW);
+        table.AddColumn("大小", SizeW);
+        table.AddColumn("日期", DateW);
+        table.AddColumn("时间", TimeW);
+
+        // 帮助行（兼显示过滤计数）
+        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightBlack };
+
+        var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
+        vbox.Add(pathLabel);
+        vbox.Add(searchRow);
+        vbox.Add(table);
+        vbox.Add(help);
+        win.RootView = vbox;
+
+        // ── 刷新 / 动作 ──
+
+        void Refresh()
+        {
+            filtered = string.IsNullOrEmpty(search.Text)
                 ? entries
                 : entries.Where(e =>
-                    e.Name.Contains(searchFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+                    e.Name.Contains(search.Text, StringComparison.OrdinalIgnoreCase)).ToList();
 
-            var (bx, by, dw, dh, innerW) = DialogFrame.Layout(MinW, MinH);
-            int listH = Math.Max(4, dh - FrameH);
-
-            selectedIdx = Math.Clamp(selectedIdx, 0, Math.Max(0, filtered.Count - 1));
-            if (selectedIdx < scrollOffset) scrollOffset = selectedIdx;
-            if (selectedIdx >= scrollOffset + listH) scrollOffset = selectedIdx - listH + 1;
-            scrollOffset = Math.Clamp(scrollOffset, 0, Math.Max(0, filtered.Count - listH));
-
-            // ── 渲染 ──
-            var sb = new StringBuilder();
-            sb.Append(AnsiTty.CursorHide);
-            DialogFrame.DimArea(sb, bx, by, dw, dh);
-            DialogFrame.TopBorder(sb, by, bx, dw);
-
-            // 标题行
-            int y = by + 1;
-            DialogFrame.SideL(sb, y, bx);
-            sb.Append(AnsiTty.CursorPos(y, bx + 2))
-              .Append(AnsiTty.FgBgCode(TuiColors.White, DialogFrame.DimBg))
-              .Append(AnsiTty.SgrBold).Append(TruncateByVW(title, innerW - 4)).Append(AnsiTty.SgrReset);
-            DialogFrame.SideR(sb, y, bx, dw);
-
-            // 路径栏
-            y = by + 2;
-            DialogFrame.SideL(sb, y, bx);
-            sb.Append(AnsiTty.CursorPos(y, bx + 2))
-              .Append(AnsiTty.FgBgCode(TuiColors.BrightBlack, DialogFrame.DimBg))
-              .Append("📁 ").Append(TruncLeftVW(dir, innerW - 4))
-              .Append(AnsiTty.SgrReset);
-            DialogFrame.SideR(sb, y, bx, dw);
-
-            // 搜索栏
-            y = by + 3;
-            DialogFrame.SideL(sb, y, bx);
-            sb.Append(AnsiTty.CursorPos(y, bx + 2))
-              .Append(AnsiTty.FgBgCode(TuiColors.White, DialogFrame.DimBg));
-            var st = searchFilter.Length > 0 ? searchFilter : "输入过滤...";
-            var ss = searchFilter.Length > 0 ? "" : AnsiTty.SgrDim;
-            sb.Append("搜索: ").Append(ss).Append(TruncateByVW(st, innerW - 6)).Append(AnsiTty.SgrReset);
-            DialogFrame.SideR(sb, y, bx, dw);
-
-            // 上分隔线
-            y = by + 4;
-            DialogFrame.SepLine(sb, y, bx, dw);
-
-            // 列标题行
-            y = by + 5;
-            DialogFrame.SideL(sb, y, bx);
-            DialogFrame.FillInner(sb, y, bx, innerW, TuiColors.BrightBlack, DialogFrame.DimBg);
-            DrawColHeader(sb, y, bx, innerW);
-            DialogFrame.SideR(sb, y, bx, dw);
-
-            // 文件列表
-            int dataTop = by + 6;
-            for (int i = 0; i < listH; i++)
+            table.ClearRows();
+            foreach (var e in filtered)
             {
-                int ei = scrollOffset + i, row = dataTop + i;
-                DialogFrame.SideL(sb, row, bx);
-
-                if (ei >= filtered.Count)
-                {
-                    DialogFrame.FillInner(sb, row, bx, innerW, TuiColors.White, DialogFrame.DimBg);
-                    DialogFrame.SideR(sb, row, bx, dw);
-                    continue;
-                }
-
-                var entry = filtered[ei];
-                bool sel = ei == selectedIdx;
-
-                int bg = sel ? TuiColors.BgCyan : DialogFrame.DimBg;
-                int fg = sel ? TuiColors.Black : (entry.IsDir ? TuiColors.Blue : TuiColors.White);
-                DialogFrame.FillInner(sb, row, bx, innerW, fg, bg);
-                DrawFileRow(sb, row, bx, innerW, entry, fg, bg, sel);
-
-                DialogFrame.SideR(sb, row, bx, dw);
+                table.AddRow(
+                    (e.IsDir ? "📁 " : "📄 ") + e.Name,
+                    e.IsDir ? "" : FormatSize(e.Size).PadLeft(SizeW),
+                    e.Modified != DateTime.MinValue ? e.Modified.ToString("MM-dd") : "",
+                    e.Modified != DateTime.MinValue ? e.Modified.ToString("HH:mm") : "");
             }
+            table.SelectedIndex = 0;
+            table.ScrollOffset = 0;
+            table.EnsureSelectedVisible();
+            help.Text = $"[↑/↓] 导航  [Enter] 打开  [Backspace] 上级  [Esc] 取消  ·  {filtered.Count} 项";
+            screen?.MarkDirty();
+        }
 
-            // 下分隔线
-            int sep2 = dataTop + listH;
-            DialogFrame.SepLine(sb, sep2, bx, dw);
+        void ReloadDir(string newDir)
+        {
+            dir = newDir;
+            entries = LoadDir(dir, pattern);
+            pathLabel.Text = "📁 " + TruncLeftVW(dir, Math.Max(1, listW - 3));
+            search.Text = "";
+            Refresh();
+        }
 
-            // 帮助行
-            DialogFrame.SideL(sb, sep2 + 1, bx);
-            sb.Append(AnsiTty.CursorPos(sep2 + 1, bx + 2))
-              .Append(AnsiTty.FgBgCode(TuiColors.BrightBlack, DialogFrame.DimBg))
-              .Append("[↑/↓] 导航  [Enter] 选择/打开  [Backspace] 上级目录  [Esc] 取消");
-            DialogFrame.SideR(sb, sep2 + 1, bx, dw);
+        void Finish(string? path)
+        {
+            onDone(path);
+            win.OnClosed?.Invoke();
+        }
 
-            // 底框
-            DialogFrame.BottomBorder(sb, sep2 + 2, bx, dw);
+        void Activate()
+        {
+            int idx = table.SelectedIndex;
+            if (idx < 0 || idx >= filtered.Count) return;
+            var entry = filtered[idx];
+            if (entry.IsDir) ReloadDir(entry.FullPath);
+            else Finish(entry.FullPath);
+        }
 
-            sb.Append(AnsiTty.SgrReset);
-            Console.Write(sb.ToString());
+        void GoParent()
+        {
+            var parent = Path.GetDirectoryName(dir);
+            if (parent != null && Directory.Exists(parent))
+                ReloadDir(parent);
+        }
 
-            // ── 输入 ──
-            var key = Console.ReadKey(intercept: true);
-
+        // 搜索输入：字母进过滤词（OnTextChanged 实时过滤），↑↓ 导航列表，Enter 打开，Backspace 上级
+        search.OnTextChanged = Refresh;
+        search.KeyHook = key =>
+        {
             switch (key.Key)
             {
                 case ConsoleKey.UpArrow:
-                    if (selectedIdx > 0) selectedIdx--;
-                    break;
                 case ConsoleKey.DownArrow:
-                    if (selectedIdx < filtered.Count - 1) selectedIdx++;
-                    break;
                 case ConsoleKey.Home:
-                    selectedIdx = 0;
-                    break;
                 case ConsoleKey.End:
-                    selectedIdx = Math.Max(0, filtered.Count - 1);
-                    break;
                 case ConsoleKey.PageUp:
-                    selectedIdx = Math.Max(0, selectedIdx - listH);
-                    break;
                 case ConsoleKey.PageDown:
-                    selectedIdx = Math.Min(filtered.Count - 1, selectedIdx + listH);
-                    break;
+                    table.OnKey(key);
+                    table.MarkDirty();
+                    screen?.MarkDirty();
+                    return true;
                 case ConsoleKey.Enter:
-                    if (filtered.Count > 0 && selectedIdx < filtered.Count)
-                    {
-                        var entry = filtered[selectedIdx];
-                        if (entry.IsDir)
-                        {
-                            dir = entry.FullPath;
-                            entries = LoadDir(dir, pattern);
-                            selectedIdx = 0; scrollOffset = 0; searchFilter = "";
-                        }
-                        else
-                        {
-                            return entry.FullPath;
-                        }
-                    }
-                    break;
+                    Activate();
+                    return true;
                 case ConsoleKey.Backspace:
-                    var parent = Path.GetDirectoryName(dir);
-                    if (parent != null && Directory.Exists(parent))
-                    {
-                        dir = parent;
-                        entries = LoadDir(dir, pattern);
-                        selectedIdx = 0; scrollOffset = 0; searchFilter = "";
-                    }
-                    break;
-                case ConsoleKey.Escape:
-                    return null;
-                default:
-                    if (key.KeyChar >= ' ' && key.KeyChar <= '~')
-                    {
-                        // 退格：删除搜索字符
-                        if (key.KeyChar == '\b' && searchFilter.Length > 0)
-                            searchFilter = searchFilter[..^1];
-                        else if (key.KeyChar >= ' ' && key.KeyChar != '\b')
-                            searchFilter += key.KeyChar;
-                        selectedIdx = 0;
-                    }
-                    break;
+                    if (search.Text.Length == 0) { GoParent(); return true; }
+                    return false; // 有搜索词 → 交给输入框删除字符
             }
-        }
-        }
-        finally
-        {
-            Console.Write(AnsiTty.CursorShow);
-            TuiManager.RequestFullRefresh();
-        }
+            return false;
+        };
+        table.OnSelect = _ => Activate(); // 若焦点切到列表，Enter 亦可打开
+
+        win.RegisterShortcut(ConsoleKey.Escape, () => Finish(null));
+
+        pathLabel.Text = "📁 " + TruncLeftVW(dir, Math.Max(1, listW - 3));
+        Refresh();
+        return win;
     }
+
+    // ── 纯逻辑（AOT 安全，可自测）──
 
     private static List<FileEntry> LoadDir(string dir, string pattern)
     {
@@ -255,86 +255,11 @@ public static class FilePicker
         _ => $"{bytes / (1024.0 * 1024 * 1024):F1}G"
     };
 
-    /// <summary>计算四列（文件/大小/日期/时间）的起始列与文件名列宽。</summary>
-    private static (int cx, int sizeStart, int dateStart, int timeStart, int nameW) Cols(int bx, int innerW)
-    {
-        int cx = bx + 2;
-        int contentW = innerW - 4;
-        int timeStart = cx + contentW - TimeW;
-        int dateStart = timeStart - ColGap - DateW;
-        int sizeStart = dateStart - ColGap - SizeW;
-        int nameW = Math.Max(8, sizeStart - ColGap - cx);
-        return (cx, sizeStart, dateStart, timeStart, nameW);
-    }
-
-    /// <summary>列标题行：文件 / 大小 / 日期 / 时间。</summary>
-    private static void DrawColHeader(StringBuilder sb, int y, int bx, int innerW)
-    {
-        var (cx, sizeStart, dateStart, timeStart, _) = Cols(bx, innerW);
-        sb.Append(AnsiTty.FgBgCode(TuiColors.BrightBlack, DialogFrame.DimBg))
-          .Append(AnsiTty.SgrDim);
-        sb.Append(AnsiTty.CursorPos(y, cx)).Append("文件");
-        sb.Append(AnsiTty.CursorPos(y, sizeStart + SizeW - VW("大小"))).Append("大小");
-        sb.Append(AnsiTty.CursorPos(y, dateStart)).Append("日期");
-        sb.Append(AnsiTty.CursorPos(y, timeStart)).Append("时间");
-        sb.Append(AnsiTty.SgrReset);
-    }
-
-    /// <summary>文件列表行：文件名列 + 右对齐大小列 + 固定日期/时间列，各列用 CursorPos 对齐。</summary>
-    private static void DrawFileRow(StringBuilder sb, int y, int bx, int innerW, FileEntry entry,
-        int fg, int bg, bool sel)
-    {
-        var (cx, sizeStart, dateStart, timeStart, nameW) = Cols(bx, innerW);
-
-        var icon = entry.IsDir ? "📁" : "📄";
-        var prefix = sel ? "▶ " : "  ";
-        var sizeStr = entry.IsDir ? "" : FormatSize(entry.Size);
-        bool hasTime = entry.Modified != DateTime.MinValue;
-        var dateStr = hasTime ? entry.Modified.ToString("MM-dd") : "";
-        var timeStr = hasTime ? entry.Modified.ToString("HH:mm") : "";
-
-        // 文件名列（含图标），目录加粗
-        sb.Append(AnsiTty.CursorPos(y, cx)).Append(AnsiTty.FgBgCode(fg, bg));
-        if (entry.IsDir && !sel) sb.Append(AnsiTty.SgrBold);
-        sb.Append(TruncateByVW(prefix + icon + " " + entry.Name, nameW));
-        sb.Append(AnsiTty.SgrReset);
-
-        // 大小（右对齐）
-        if (sizeStr.Length > 0)
-            sb.Append(AnsiTty.CursorPos(y, sizeStart + SizeW - VW(sizeStr)))
-              .Append(AnsiTty.FgBgCode(fg, bg)).Append(AnsiTty.SgrDim).Append(sizeStr).Append(AnsiTty.SgrReset);
-
-        // 日期
-        if (dateStr.Length > 0)
-            sb.Append(AnsiTty.CursorPos(y, dateStart))
-              .Append(AnsiTty.FgBgCode(fg, bg)).Append(AnsiTty.SgrDim).Append(dateStr).Append(AnsiTty.SgrReset);
-
-        // 时间
-        if (timeStr.Length > 0)
-            sb.Append(AnsiTty.CursorPos(y, timeStart))
-              .Append(AnsiTty.FgBgCode(fg, bg)).Append(AnsiTty.SgrDim).Append(timeStr).Append(AnsiTty.SgrReset);
-    }
-
-    private static int VW(string text) => TuiHelper.DisplayWidth(text);
-
-    private static string TruncateByVW(string text, int maxVW)
-    {
-        if (string.IsNullOrEmpty(text)) return "";
-        int vw = 0, chars = 0;
-        foreach (var r in text.EnumerateRunes())
-        {
-            var w = TuiHelper.RuneWidth(r);
-            if (vw + w > maxVW) break;
-            vw += w; chars += r.Utf16SequenceLength;
-        }
-        return chars == text.Length ? text : text[..chars] + "…";
-    }
-
     /// <summary>超长时从左侧截断（保留末尾，用于路径显示）。</summary>
     private static string TruncLeftVW(string text, int maxVW)
     {
         if (string.IsNullOrEmpty(text)) return "";
-        if (VW(text) <= maxVW) return text;
+        if (TuiHelper.DisplayWidth(text) <= maxVW) return text;
         var runes = text.EnumerateRunes().ToList();
         int budget = maxVW - 1; // 预留 1 宽给 …
         var sb = new StringBuilder();
