@@ -107,7 +107,7 @@ public static class TuiAudit
     // ── ANSI 帧解释成文本网格 ──
 
     /// <summary>把 CursorPos/SGR 定位的原始 ANSI 输出解释成 rows×cols 文本网格。</summary>
-    static List<string> AnsiToGrid(string ansi, int rows, int cols)
+    internal static List<string> AnsiToGrid(string ansi, int rows, int cols)
     {
         var cell = new string[rows][];
         var cont = new bool[rows][];

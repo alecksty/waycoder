@@ -77,16 +77,28 @@ public class TuiList : TuiControl
         switch (key.Key)
         {
             case ConsoleKey.UpArrow:
-                if (SelectedIndex > 0) SelectedIndex--;
+                if (SelectedIndex > 0) { SelectedIndex--; MarkDirty(); }
                 return true;
             case ConsoleKey.DownArrow:
-                if (SelectedIndex < Items.Count - 1) SelectedIndex++;
+                if (SelectedIndex < Items.Count - 1) { SelectedIndex++; MarkDirty(); }
                 return true;
             case ConsoleKey.Home:
-                SelectedIndex = 0;
+                if (SelectedIndex != 0) { SelectedIndex = 0; MarkDirty(); }
                 return true;
             case ConsoleKey.End:
-                SelectedIndex = Items.Count - 1;
+                if (SelectedIndex != Items.Count - 1) { SelectedIndex = Items.Count - 1; MarkDirty(); }
+                return true;
+            case ConsoleKey.PageUp:
+                {
+                    var next = Math.Max(0, SelectedIndex - Math.Max(1, Height));
+                    if (next != SelectedIndex) { SelectedIndex = next; MarkDirty(); }
+                }
+                return true;
+            case ConsoleKey.PageDown:
+                {
+                    var next = Math.Min(Items.Count - 1, SelectedIndex + Math.Max(1, Height));
+                    if (next != SelectedIndex) { SelectedIndex = next; MarkDirty(); }
+                }
                 return true;
             case ConsoleKey.Spacebar:
                 if (MultiSelect)
@@ -95,6 +107,7 @@ public class TuiList : TuiControl
                         CheckedIndices.Remove(SelectedIndex);
                     else
                         CheckedIndices.Add(SelectedIndex);
+                    MarkDirty();
                     return true;
                 }
                 OnSelect?.Invoke(SelectedIndex); // 单选：空格 = 激活（等同回车）

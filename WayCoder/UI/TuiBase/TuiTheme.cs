@@ -143,7 +143,7 @@ public class TuiTheme
     public int TabsBarBg { get; set; } = TuiColors.BgBlue;               // 标签栏背景
     public int TabsBarFg { get; set; } = TuiColors.White;                // 标签栏默认前景
     public int TabsActiveFg { get; set; } = TuiColors.Black;             // 选中标签前景
-    public int TabsActiveBg { get; set; }                                // 选中标签背景（0=透明）
+    public int TabsActiveBg { get; set; } = TuiColors.BgWhite;           // 选中标签背景（白底反白高亮）
     public int TabsInactiveFg { get; set; } = TuiColors.BrightBlack;     // 非选中标签前景
 
     // ── 分割线 ──
@@ -177,7 +177,7 @@ public class TuiTheme
     // 8 个预设主题
     // ════════════════════════════════════════════
 
-    /// <summary>1. 深色（默认）—— 蓝底按钮白底选中 + 白字深底</summary>
+    /// <summary>1. 黄金甲（默认）—— 金色渐变标题栏 + 蓝底按钮白底选中 + 白字深底</summary>
     public static TuiTheme Dark => new();
 
     /// <summary>2. 浅色 —— 蓝聚焦 + 黑字浅底</summary>
@@ -189,17 +189,24 @@ public class TuiTheme
         WindowBorderUnfocused = 8,
         ControlFg = TuiColors.Black,
         ControlFocusedBg = TuiColors.BgBlue,
+        ControlFocusedFg = TuiColors.White,
         ButtonBg = TuiColors.BgWhite,
+        InputFg = TuiColors.Black,          // 白底输入框用黑字，避免白字白底不可见
         InputCursorBg = TuiColors.BgWhite,
+        TextAreaFg = TuiColors.Black,
         TextAreaCursorLineBg = TuiColors.BgWhite,
+        ListFg = TuiColors.Black,
+        TreeViewFg = TuiColors.Black,
         StatusBarBg = TuiColors.BgWhite,
         StatusBarFg = TuiColors.Black,
+        ListSelFg = TuiColors.White,
         ListSelBg = TuiColors.BgBlue,
     };
 
     /// <summary>3. 高对比度 —— 亮白边框 + 白底聚焦</summary>
     public static TuiTheme HighContrast => new()
     {
+        WindowBg = 0,                        // 黑底窗口，亮白字白框高对比（避免白字白底不可见）
         WindowBorderFocused = TuiColors.BrightWhite,
         WindowBorderUnfocused = TuiColors.White,
         ControlFg = TuiColors.BrightWhite,
@@ -221,10 +228,10 @@ public class TuiTheme
         ControlFocusedBg = TuiColors.BgYellow,
         ControlFocusedFg = TuiColors.Black,
         ButtonBg = TuiColors.BgBlue,
-        ButtonFg = TuiColors.White,
+        ButtonFg = TuiColors.Black,
         StatusBarBg = TuiColors.BgCyan,
-        StatusBarFg = TuiColors.White,
-        ChatUserFg = TuiColors.Blue,
+        StatusBarFg = TuiColors.Black,
+        ChatUserFg = TuiColors.BrightCyan,
         ChatAssistantFg = TuiColors.Cyan,
         ChatSystemFg = TuiColors.Yellow,
         ListSelBg = TuiColors.BgYellow,
@@ -241,9 +248,9 @@ public class TuiTheme
         ControlFocusedBg = TuiColors.BgGreen,
         ControlFocusedFg = TuiColors.Black,
         ButtonBg = TuiColors.BgGreen,
-        ButtonFg = TuiColors.White,
+        ButtonFg = TuiColors.Black,
         StatusBarBg = TuiColors.BgGreen,
-        StatusBarFg = TuiColors.White,
+        StatusBarFg = TuiColors.Black,
         ChatUserFg = TuiColors.Green,
         ChatAssistantFg = TuiColors.Cyan,
         ChatSystemFg = TuiColors.Yellow,
@@ -268,6 +275,7 @@ public class TuiTheme
         ChatUserFg = TuiColors.Yellow,
         ChatAssistantFg = TuiColors.Cyan,
         ChatSystemFg = TuiColors.Green,
+        ListSelFg = TuiColors.White,
         ListSelBg = TuiColors.BgRed,
         DialogInfoBorder = TuiColors.Yellow,
         DialogSuccessBorder = TuiColors.Green,
@@ -278,13 +286,14 @@ public class TuiTheme
     /// <summary>7. 单色 —— 灰度系，极简风格</summary>
     public static TuiTheme Monochrome => new()
     {
+        WindowBg = 0,                        // 黑底窗口，白字白框高对比（避免白字白底不可见）
         WindowBorderFocused = TuiColors.White,
         WindowBorderUnfocused = TuiColors.BrightBlack,
         ControlFg = TuiColors.White,
         ControlFocusedBg = TuiColors.BgWhite,
         ControlFocusedFg = TuiColors.Black,
         ButtonBg = TuiColors.BgBrightBlack,
-        ButtonFg = TuiColors.White,
+        ButtonFg = TuiColors.Black,
         StatusBarBg = TuiColors.BgWhite,
         StatusBarFg = TuiColors.Black,
         ChatUserFg = TuiColors.White,
@@ -306,11 +315,11 @@ public class TuiTheme
         WindowBorderUnfocused = TuiColors.Yellow,       // dimmed yellow
         ControlFg = TuiColors.Yellow,
         ControlFocusedBg = TuiColors.BgYellow,
-        ControlFocusedFg = 0,
+        ControlFocusedFg = TuiColors.Black,
         ButtonBg = TuiColors.BgYellow,
-        ButtonFg = 0,
+        ButtonFg = TuiColors.Black,
         StatusBarBg = TuiColors.BgYellow,
-        StatusBarFg = 0,
+        StatusBarFg = TuiColors.Black,
         ChatUserFg = TuiColors.Yellow,
         ChatAssistantFg = TuiColors.BrightWhite,
         ChatSystemFg = TuiColors.BrightBlack,
@@ -318,9 +327,9 @@ public class TuiTheme
         ChatFooterFg = TuiColors.Yellow,
         ChatToolFg = TuiColors.Yellow,
         ListFg = TuiColors.Yellow,
-        ListSelFg = 0,
+        ListSelFg = TuiColors.Black,
         ListSelBg = TuiColors.BgYellow,
-        InputFg = TuiColors.Yellow,
+        InputFg = TuiColors.Black,
         InputCursorBg = TuiColors.BgYellow,
         TextAreaFg = TuiColors.Yellow,
         TextAreaCursorLineBg = TuiColors.BgYellow,
@@ -338,9 +347,9 @@ public class TuiTheme
         MdRuleFg = TuiColors.Yellow,
         SeparatorFg = TuiColors.Yellow,
         SpinnerFg = TuiColors.Yellow,
-        TabsBarBg = TuiColors.BgYellow,
-        TabsBarFg = 0,
-        TabsActiveFg = 0,
+        TabsBarBg = 0,                       // 黑底标签栏，黄色文字可见
+        TabsBarFg = TuiColors.Yellow,
+        TabsActiveFg = TuiColors.Black,      // 选中标签：黄底黑字
         TabsActiveBg = TuiColors.BgYellow,
         TabsInactiveFg = TuiColors.Yellow,
     };
@@ -356,8 +365,14 @@ public class TuiTheme
     /// <summary>预设名称（与 Presets 一一对应）</summary>
     public static readonly string[] PresetNames =
     [
-        "深色 Dark", "浅色 Light", "高对比度 HC", "海洋 Ocean",
+        "黄金甲", "浅色 Light", "高对比度 HC", "海洋 Ocean",
         "森林 Forest", "日落 Sunset", "单色 Mono", "复古 Retro",
+    ];
+
+    /// <summary>预设规范英文键（与 Presets 一一对应，用于配置存储 / 名称归一化）</summary>
+    public static readonly string[] PresetKeys =
+    [
+        "dark", "light", "hc", "ocean", "forest", "sunset", "mono", "retro",
     ];
 
     /// <summary>当前预设索引（-1=自定义主题）</summary>
@@ -385,24 +400,67 @@ public class TuiTheme
     public static void ApplyLight() => Apply(Light, 1);
     public static void ApplyHighContrast() => Apply(HighContrast, 2);
 
+    /// <summary>把任意主题名（英文名/中文标签/旧名）归一化到规范英文键。未命中返回 null。</summary>
+    public static string? NormalizeKey(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        var key = name.Trim().ToLowerInvariant();
+
+        if (key is "dark" or "default") return "dark";
+        if (key is "light") return "light";
+        if (key is "hc" or "highcontrast" or "high contrast") return "hc";
+        if (key is "ocean") return "ocean";
+        if (key is "forest") return "forest";
+        if (key is "sunset") return "sunset";
+        if (key is "mono" or "monochrome") return "mono";
+        if (key is "retro") return "retro";
+
+        // 中文标签（「深色 Dark」「海洋 Ocean」）回退：按中英文关键字匹配
+        if (key.Contains("dark") || key.Contains("深色") || key.Contains("黄金甲") || key.Contains("gold")) return "dark";
+        if (key.Contains("light") || key.Contains("浅色")) return "light";
+        if (key.Contains("ocean") || key.Contains("海洋")) return "ocean";
+        if (key.Contains("forest") || key.Contains("森林")) return "forest";
+        if (key.Contains("sunset") || key.Contains("日落")) return "sunset";
+        if (key.Contains("mono") || key.Contains("单色")) return "mono";
+        if (key.Contains("retro") || key.Contains("复古")) return "retro";
+        if (key.Contains("hc") || key.Contains("高对比") || key.Contains("contrast")) return "hc";
+        return null;
+    }
+
+    /// <summary>按名称应用预设主题（兼容英文名/中文标签/旧名）。返回是否命中。</summary>
+    public static bool ApplyByName(string? name)
+    {
+        var key = NormalizeKey(name);
+        if (key == null) return false;
+        var idx = Array.IndexOf(PresetKeys, key);
+        if (idx < 0) return false;
+        Apply(Presets[idx], idx);
+        return true;
+    }
+
+    /// <summary>浅拷贝主题（配色字段均为 int/tuple 值类型，浅拷贝即完整独立副本）。
+    /// 用于自定义颜色覆盖，避免污染静态预设实例。</summary>
+    public TuiTheme Clone() => (TuiTheme)MemberwiseClone();
+
     /// <summary>从 Config 加载主题</summary>
     public static void ApplyFromConfig(Config cfg)
     {
-        var preset = (cfg.ThemePreset ?? cfg.ColorScheme ?? "").ToLower();
-        var theme = preset switch
+        // 优先 ThemePreset，其次 ColorScheme；都未命中则默认 dark
+        if (!ApplyByName(cfg.ThemePreset ?? cfg.ColorScheme))
+            ApplyByName("dark");
+
+        // 自定义颜色覆盖：克隆当前主题再改，避免污染静态预设（Current 指向共享实例）
+        if (!string.IsNullOrEmpty(cfg.BorderColor) || !string.IsNullOrEmpty(cfg.AccentColor))
         {
-            "light" => Light,
-            "highcontrast" or "hc" => HighContrast,
-            _ => Dark,
-        };
-        // 覆盖自定义颜色
-        if (!string.IsNullOrEmpty(cfg.BorderColor) && int.TryParse(cfg.BorderColor, out var bc))
-            theme.WindowBorderFocused = bc;
-        if (!string.IsNullOrEmpty(cfg.AccentColor) && int.TryParse(cfg.AccentColor, out var ac))
-        {
-            theme.WindowBorderFocused = ac;
-            theme.ControlFocusedBg = ac;
+            var clone = Current.Clone();
+            if (!string.IsNullOrEmpty(cfg.BorderColor) && int.TryParse(cfg.BorderColor, out var bc))
+                clone.WindowBorderFocused = bc;
+            if (!string.IsNullOrEmpty(cfg.AccentColor) && int.TryParse(cfg.AccentColor, out var ac))
+            {
+                clone.WindowBorderFocused = ac;
+                clone.ControlFocusedBg = ac;
+            }
+            Apply(clone, -1); // -1 = 自定义主题
         }
-        Apply(theme);
     }
 }

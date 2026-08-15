@@ -73,6 +73,7 @@ public class Program
         string? apiKey = Arguments.CliArgRegistry.Get(parsed, "api-key");
         string? prompt = Arguments.CliArgRegistry.Get(parsed, "prompt");
         string? resumeId = Arguments.CliArgRegistry.Get(parsed, "resume");
+        string? editFile = Arguments.CliArgRegistry.Get(parsed, "edit");
 
         // 共享前缀（-pa "前缀" → 拼到每个 -pN 任务前面）
         _pendingSlotPrefix = Arguments.CliArgRegistry.Get(parsed, "prompt-all") ?? "";
@@ -164,9 +165,8 @@ public class Program
             yoloMode = true;
 
         _config = Config.FromEnv();
-        // 加载主题（优先 theme.json，回退配置项）
-        if (ThemeConfig.Instance.BorderStyle == "single" && ThemeConfig.Instance.BorderColor == 36)
-            ThemeConfig.ApplyPreset(_config.ThemePreset);
+        // 加载主题配色：theme.json 记住的 preset 优先，回退 .env ThemePreset（首次启动无 theme.json）
+        ThemeConfig.ApplyPreset(ThemeConfig.Instance.PresetKey ?? _config.ThemePreset);
         if (model != null) _config.Model = model;
         if (baseUrl != null) _config.BaseUrl = baseUrl;
         if (apiKey != null)
@@ -362,7 +362,7 @@ public class Program
             await RunOnceAsync(prompt);
         }
         else
-            await RunReplAsync();
+            await RunReplAsync(editFile);
 
         return 0;
     }
@@ -572,7 +572,7 @@ public class Program
     // 交互式 REPL
     // ========================================================================
 
-    private static async Task RunReplAsync()
+    private static async Task RunReplAsync(string? editFile = null)
     {
         var mgr = TuiManager.Instance;
         var screen = new ChatScreen();
@@ -743,6 +743,10 @@ public class Program
         // 启动时执行一次 OnResize，确保动态布局计算正确
         mgr.OnResize();
         mgr.Render();
+
+        // --edit <文件>：启动后直接进入编辑器打开指定文件（Esc/Ctrl+Q 退出回到聊天界面）
+        if (!string.IsNullOrWhiteSpace(editFile))
+            mgr.PushScreen(new EditorScreen(editFile));
 
         var running = true;
         while (running && !_exitRequested)
@@ -1726,7 +1730,8 @@ public class Program
 
     private static void ShowHelpInChat(ChatScreen screen)
     {
-        screen.AddSystemMsg("快捷键: F1-F10槽位 Shift+Tab切模式 Esc中断 Ctrl+Z暂停 Ctrl+E编辑器 Ctrl+T设置 Ctrl+R搜索 Ctrl+M模型 Ctrl+G推理深度 Ctrl+S会话管理 Ctrl+P提示 Ctrl+B侧栏 Ctrl+H帮助 Ctrl+Q退出 PgUp/PgDn翻页 Ctrl+Home/End首尾 ↑↓历史 Ctrl+V粘贴 Ctrl+Shift+F1/F2主题 · 命令: /help /model /tokens /compact /diff /save /resume /pause /history /sessions");
+        // 弹出控件化快捷键速查面板（对标 Crush 帮助窗），替代旧的一大段系统消息
+        WayCoder.UI.TuiControls.TuiKeybindHelp.Show();
     }
 
     /// <summary>搜索对话历史中的关键词。</summary>

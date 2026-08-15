@@ -267,6 +267,15 @@ public static class TuiDemo
         screen.ShowWindow(dialog);
     }
 
+    internal static void ShowFindReplaceDemo(ChatScreen screen)
+    {
+        var dialog = TuiDialog.FindReplace("foo", "bar", new FindOptions(),
+            (find, opts) => screen.AddMessage($"🔍 查找: {find}", "system"),
+            (find, repl, opts) => screen.AddMessage($"✏️ 替换: {find} → {repl}", "system"),
+            (find, repl, opts) => screen.AddMessage($"🔄 全部替换: {find} → {repl}", "system"));
+        screen.ShowWindow(dialog);
+    }
+
     // ── 菜单演示 ──
 
     /// <summary>F6 — 短弹出菜单（5-6 项，含分隔线）</summary>

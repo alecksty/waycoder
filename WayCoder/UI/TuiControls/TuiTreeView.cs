@@ -275,6 +275,12 @@ public class TuiTreeView : TuiControl
             case ConsoleKey.End:
                 if (_flatList.Count > 0) SelectNode(_flatList[^1]);
                 return true;
+            case ConsoleKey.PageUp:
+                PageMove(-Math.Max(1, Height));
+                return true;
+            case ConsoleKey.PageDown:
+                PageMove(Math.Max(1, Height));
+                return true;
             case ConsoleKey.RightArrow:
                 if (SelectedNode != null)
                 {
@@ -325,6 +331,16 @@ public class TuiTreeView : TuiControl
         int newIdx = Math.Min(_flatList.Count - 1, idx + 1);
         if (newIdx >= 0)
             SelectNode(_flatList[newIdx]);
+    }
+
+    /// <summary>按页（delta 为行数，正向下翻/负向上翻）移动选中节点</summary>
+    private void PageMove(int delta)
+    {
+        BuildFlatList();
+        if (_flatList.Count == 0) return;
+        int idx = SelectedNode != null ? _flatList.IndexOf(SelectedNode) : 0;
+        int newIdx = Math.Clamp(idx + delta, 0, _flatList.Count - 1);
+        SelectNode(_flatList[newIdx]);
     }
 
     public void ExpandNode(TuiTreeNode node)

@@ -1,4 +1,6 @@
+using System.Text;
 using WayCoder.Terminal;
+using WayCoder.UI.TuiControls;
 using WayCoder.UI.TuiScreens;
 
 namespace WayCoder.UI;
@@ -11,6 +13,9 @@ namespace WayCoder.UI;
 ///   AcceptAll  — 接受全部变更
 ///   RejectAll  — 拒绝全部变更
 ///   ReviewHunks — 逐 hunk 审查（y=接受此 hunk / n=跳过此 hunk / q=取消剩余）
+///
+/// 实现：TuiWindow（模态大窗）+ 内嵌只读 DiffView 控件渲染 diff（统一/分屏），
+///       Y/N/A/Q 映射 RegisterShortcut，箭头/滚轮滚动；不再自造 Console.ReadKey 循环。
 /// </summary>
 public static class DiffPreview
 {
@@ -48,264 +53,288 @@ public static class DiffPreview
             return (Decision.AcceptAll, null);
 
         return TuiManager.Instance.ActiveScreen is ChatScreen
-            ? ShowFullScreen(oldContent, newContent, filePath, hunks)
+            ? ShowFullScreen(filePath, hunks)
             : ShowFallback(oldContent, newContent, filePath);
     }
 
     // ================================================================
-    // 全屏交互模式
+    // 全屏交互模式（TuiWindow + DiffView 控件）
     // ================================================================
 
-    private static (Decision, HashSet<int>?) ShowFullScreen(
-        string oldContent, string newContent, string filePath, List<Hunk> hunks)
+    private static (Decision, HashSet<int>?) ShowFullScreen(string filePath, List<Hunk> hunks)
     {
-        var accepted = new HashSet<int>();
-        int currentHunk = 0;
-        int scrollOffset = 0;
-        var mode = "review"; // "review" | "all"
-        var syntax = GetSyntaxForFile(filePath);
-
-        while (true)
+        Decision result = Decision.RejectAll;
+        HashSet<int>? resultAccepted = null;
+        using var evt = new ManualResetEventSlim(false);
+        try
         {
-            bool isHunkAccepted = accepted.Contains(currentHunk);
-            var (tw, th) = (Tty.Cols, Tty.Rows);
-            var statusH = 2;
-            var contentH = Math.Max(5, th - statusH);
-
-            // 计算当前 hunk 的可见行范围
-            var allLines = new List<(int hunkIdx, HunkLine line)>();
-            foreach (var h in hunks)
+            var screen = TuiManager.Instance?.ActiveScreen;
+            var win = BuildDiffWindow(hunks, filePath, screen, (d, a) =>
             {
-                int hi = hunks.IndexOf(h);
-                // hunk 分隔线
-                if (allLines.Count > 0) allLines.Add((-1, new HunkLine { Kind = ' ', Text = "" }));
-                allLines.Add((-2, new HunkLine { Kind = '@', Text = h.Header }));
-                foreach (var l in h.Lines)
-                    allLines.Add((hi, l));
+                result = d;
+                resultAccepted = a;
+                evt.Set();
+            });
+            screen?.ShowWindow(win);
+            UxHelper.RenderWait(screen, evt, 120_000, win);
+        }
+        catch { evt.Set(); }
+        return (result, resultAccepted);
+    }
+
+    // ── 窗口构建 ──
+
+    private static TuiWindow BuildDiffWindow(List<Hunk> hunks, string filePath,
+        TuiScreen? screen, Action<Decision, HashSet<int>?> onDone)
+    {
+        int winW = Math.Max(40, Tty.Cols - 2);
+        int winH = Math.Max(10, Tty.Rows - 2);
+        int contentBg = TuiColors.BgBlack; // diff 视图固定深色底，保证语法高亮/红绿行对比
+
+        var accepted = new HashSet<int>();
+        var syntax = GetSyntaxForFile(filePath);
+        bool isAllMode = false; // "review" | "all"
+
+        // diff 视图（只读控件，占满除状态栏外的内容区）
+        var diff = new DiffView(hunks, accepted, syntax)
+        {
+            Flex = 1,
+            Height = 5,
+            Bg = contentBg,
+            Focused = true,
+        };
+
+        // 状态栏（白底黑字，对标旧实现）
+        var status = new TuiLabel
+        {
+            Height = 1,
+            Fg = TuiColors.Black,
+            Bg = TuiColors.BgWhite,
+        };
+
+        var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
+        vbox.Add(diff);
+        vbox.Add(status);
+
+        var win = new TuiWindow
+        {
+            Title = $"Diff 预览: {filePath}  ({hunks.Count} hunks)",
+            ShowTitleSeparator = false,
+            Modal = true, HasMask = true,
+            Border = WindowBorder.Solid,
+            BorderColor = TuiTheme.Current.DialogInfoBorder,
+            WinBg = contentBg,
+            Width = winW, Height = winH,
+            MinWidth = 40, MinHeight = 10,
+            WindowHAlign = HAlign.Center,
+            WindowVAlign = VAlign.Middle,
+            RootView = vbox,
+        };
+        var g = TuiTheme.Current.GradOrangeYellow;
+        win.GradientBorder = true;
+        win.GradientStart = g.start;
+        win.GradientEnd = g.end;
+
+        // ── 刷新 / 动作 ──
+
+        void UpdateStatus()
+        {
+            status.Text = isAllMode
+                ? " 全部接受?  [Y]是  [N]否  "
+                : $" [{diff.CurrentHunk + 1}/{hunks.Count}]  [Y]接受 [N]跳过 [A]全接受 [Q]取消  ";
+            screen?.MarkDirty();
+        }
+
+        void Finish(Decision d, HashSet<int>? a)
+        {
+            onDone(d, a);
+            win.OnClosed?.Invoke();
+        }
+
+        void ToggleCurrent()
+        {
+            if (accepted.Contains(diff.CurrentHunk)) accepted.Remove(diff.CurrentHunk);
+            else accepted.Add(diff.CurrentHunk);
+            diff.MarkDirty();
+            UpdateStatus();
+        }
+
+        void SkipCurrent()
+        {
+            if (accepted.Contains(diff.CurrentHunk)) accepted.Remove(diff.CurrentHunk);
+            else diff.SetCurrentHunk(diff.CurrentHunk + 1);
+            diff.MarkDirty();
+            UpdateStatus();
+        }
+
+        void Quit()
+        {
+            if (accepted.Count == 0) Finish(Decision.RejectAll, null);
+            else Finish(Decision.Partial, accepted);
+        }
+
+        void OnY()
+        {
+            if (isAllMode) { Finish(Decision.AcceptAll, null); return; }
+            ToggleCurrent();
+        }
+        void OnN()
+        {
+            if (isAllMode) { isAllMode = false; UpdateStatus(); return; }
+            SkipCurrent();
+        }
+        void OnA()
+        {
+            if (isAllMode) return;
+            isAllMode = true;
+            UpdateStatus();
+        }
+
+        diff.OnChanged = UpdateStatus;
+
+        win.RegisterShortcut(ConsoleKey.Y, OnY);
+        win.RegisterShortcut(ConsoleKey.N, OnN);
+        win.RegisterShortcut(ConsoleKey.A, OnA);
+        win.RegisterShortcut(ConsoleKey.Q, Quit);
+        win.RegisterShortcut(ConsoleKey.Escape, Quit);
+        win.RegisterShortcut(ConsoleKey.Enter, () =>
+        {
+            if (!isAllMode && accepted.Count > 0) Finish(Decision.Partial, accepted);
+        });
+
+        UpdateStatus();
+        return win;
+    }
+
+    /// <summary>
+    /// 只读 diff 渲染控件 —— 统一/分屏两种模式，↑↓ 切 hunk、←→/PgUp/PgDn 滚动。
+    /// 渲染走 AnsiTty（无 Console.* / 无裸转义），由 TuiControl.OnRender 驱动。
+    /// </summary>
+    private sealed class DiffView : TuiControl
+    {
+        private readonly List<Hunk> _hunks;
+        private readonly HashSet<int> _accepted;
+        private readonly Syntax? _syntax;
+        private int _currentHunk;
+        private int _scrollOffset;
+        private int _lastWidth = -1;
+        private bool _splitMode;
+        private readonly List<(int hunkIdx, HunkLine line)> _lines = [];
+        private List<SplitRow>? _splitRows;
+
+        public int CurrentHunk => _currentHunk;
+        public HashSet<int> Accepted => _accepted;
+        public Action? OnChanged;
+
+        public DiffView(List<Hunk> hunks, HashSet<int> accepted, Syntax? syntax)
+        {
+            _hunks = hunks;
+            _accepted = accepted;
+            _syntax = syntax;
+            Focused = true;
+        }
+
+        public void SetCurrentHunk(int h)
+            => _currentHunk = Math.Clamp(h, 0, Math.Max(0, _hunks.Count - 1));
+
+        private int TotalLines => _splitMode ? _splitRows!.Count : _lines.Count;
+
+        /// <summary>按当前宽度重建视觉行（统一模式 _lines / 分屏模式 _splitRows）。</summary>
+        private void Rebuild(int width)
+        {
+            _lastWidth = width;
+            _splitMode = width >= 120;
+            _lines.Clear();
+            for (int hi = 0; hi < _hunks.Count; hi++)
+            {
+                var h = _hunks[hi];
+                if (_lines.Count > 0) _lines.Add((-1, new HunkLine { Kind = ' ', Text = "" }));
+                _lines.Add((-2, new HunkLine { Kind = '@', Text = h.Header }));
+                foreach (var l in h.Lines) _lines.Add((hi, l));
             }
+            _splitRows = _splitMode ? BuildSplitRows(_hunks, width) : null;
+        }
 
-            // 判断是否使用分屏模式（宽度 >= 120 列时自动切换）
-            var useSplitMode = tw >= 120;
-            var splitRows = useSplitMode ? BuildSplitRows(hunks, tw) : null;
-            var totalVisualLines = useSplitMode ? splitRows!.Count : allLines.Count;
+        /// <summary>自动滚动，保证当前 hunk 的第一行可见。</summary>
+        private void EnsureVisible(int contentH)
+        {
+            int total = TotalLines;
+            int maxScroll = Math.Max(0, total - contentH);
+            _scrollOffset = Math.Clamp(_scrollOffset, 0, maxScroll);
 
-            // 自动滚动到当前 hunk
             int currentLine = 0;
-            if (useSplitMode)
+            if (_splitMode)
             {
-                for (int i = 0; i < splitRows!.Count; i++)
-                {
-                    if (splitRows[i].HunkIdx == currentHunk && !splitRows[i].IsHeader)
+                for (int i = 0; i < _splitRows!.Count; i++)
+                    if (_splitRows[i].HunkIdx == _currentHunk && !_splitRows[i].IsHeader)
                     { currentLine = i; break; }
-                }
             }
             else
             {
-                for (int i = 0; i < allLines.Count; i++)
-                {
-                    if (allLines[i].hunkIdx == currentHunk && allLines[i].line.Kind != '@')
+                for (int i = 0; i < _lines.Count; i++)
+                    if (_lines[i].hunkIdx == _currentHunk && _lines[i].line.Kind != '@')
                     { currentLine = i; break; }
-                }
-            }
-            scrollOffset = Math.Clamp(scrollOffset, 0, Math.Max(0, totalVisualLines - contentH));
-            if (currentLine < scrollOffset) scrollOffset = currentLine;
-            if (currentLine >= scrollOffset + contentH) scrollOffset = currentLine - contentH + 1;
-            scrollOffset = Math.Clamp(scrollOffset, 0, Math.Max(0, totalVisualLines - contentH));
-
-            // 渲染
-            var sb = new System.Text.StringBuilder();
-            sb.Append(AnsiTty.CursorHide).Append(AnsiTty.Home);
-
-            // 标题栏
-            var title = useSplitMode
-                ? $"Diff 预览 (分屏): {filePath}  ({hunks.Count} hunks)"
-                : $"Diff 预览: {filePath}  ({hunks.Count} hunks)";
-            var titleBg = TuiColors.BgBlue; // 蓝底
-            sb.Append(AnsiTty.FgBg(30, titleBg));
-            sb.Append(title);
-            sb.Append(new string(' ', Math.Max(0, tw - VW(title))));
-            sb.Append(AnsiTty.SgrReset).Append('\n');
-
-            // Diff 内容 — 根据终端宽度选择统一或分屏模式
-            if (useSplitMode)
-            {
-                // ── 分屏模式（宽度 >= 120 列）──
-                for (int i = 0; i < contentH - 1; i++)
-                {
-                    int li = scrollOffset + i;
-                    sb.Append(AnsiTty.CursorPos(i + 2, 1)).Append(AnsiTty.ClearToEnd);
-                    if (li >= splitRows!.Count) continue;
-                    RenderSplitRow(sb, splitRows[li], tw, currentHunk, accepted, syntax);
-                }
-            }
-            else
-            {
-                // ── 统一模式 ──
-                for (int i = 0; i < contentH - 1; i++)
-                {
-                    int li = scrollOffset + i;
-                    sb.Append(AnsiTty.CursorPos(i + 2, 1)).Append(AnsiTty.ClearToEnd);
-                    if (li >= allLines.Count) continue;
-
-                    var (hi, line) = allLines[li];
-
-                    if (hi == -1)
-                    {
-                        sb.Append(AnsiTty.SgrDim);
-                        sb.Append(new string('─', Math.Min(tw, 60)));
-                        sb.Append(AnsiTty.SgrReset);
-                    }
-                    else if (hi == -2)
-                    {
-                        var hdr = TruncateByVW(line.Text, tw - 1);
-                        sb.Append(AnsiTty.Fg(36)).Append(hdr).Append(AnsiTty.SgrReset);
-                    }
-                    else
-                    {
-                        bool isCurrentHunk = hi == currentHunk;
-                        bool isAccepted = accepted.Contains(hi);
-
-                        if (line.Kind == '-')
-                        {
-                            var prefix = $"{Padding(line.OldLine),4} -";
-                            int fg = isCurrentHunk ? 30 : 37;
-                            int bg = 41;
-                            var maxTextW = tw - 7;
-                            sb.Append(isCurrentHunk ? AnsiTty.Sgr(fg, bg, 1) : AnsiTty.FgBg(fg, bg));
-                            sb.Append(prefix).Append(' ');
-                            AppendHighlightedCode(sb, line.Text, syntax, fg, bg, isCurrentHunk, maxTextW);
-                            sb.Append(AnsiTty.SgrReset);
-                        }
-                        else if (line.Kind == '+')
-                        {
-                            var prefix = "     +";
-                            int fg = isCurrentHunk ? 30 : 37;
-                            int bg = 42;
-                            var maxTextW = tw - 7;
-                            sb.Append(isCurrentHunk ? AnsiTty.Sgr(fg, bg, 1) : AnsiTty.FgBg(fg, bg));
-                            sb.Append(prefix).Append(' ');
-                            AppendHighlightedCode(sb, line.Text, syntax, fg, bg, isCurrentHunk, maxTextW);
-                            sb.Append(AnsiTty.SgrReset);
-                        }
-                        else
-                        {
-                            var prefix = $"{Padding(line.OldLine),4}  ";
-                            var maxTextW = tw - 7;
-                            if (isCurrentHunk)
-                            {
-                                sb.Append(AnsiTty.FgBg(30, 46));
-                                sb.Append(prefix).Append(' ');
-                                AppendHighlightedCode(sb, line.Text, syntax, 30, 46, false, maxTextW);
-                                sb.Append(AnsiTty.SgrReset);
-                            }
-                            else if (isAccepted)
-                            {
-                                sb.Append(AnsiTty.SgrDim);
-                                sb.Append(prefix).Append(' ');
-                                // 已接受的上下文行：不语法高亮，直接 dim
-                                var t = TruncateByVW(line.Text, maxTextW);
-                                sb.Append(t);
-                                sb.Append(AnsiTty.SgrReset);
-                            }
-                            else
-                            {
-                                // 普通上下文行：语法高亮，无背景色
-                                sb.Append(prefix).Append(' ');
-                                AppendHighlightedCode(sb, line.Text, syntax, 37, 0, false, maxTextW);
-                            }
-                        }
-                    }
-                }
             }
 
-            // 状态栏
-            int statusRow = contentH + 1;
-            sb.Append(AnsiTty.CursorPos(statusRow, 1)).Append(AnsiTty.FgBg(30, 47)); // 白底黑字
+            if (currentLine < _scrollOffset) _scrollOffset = currentLine;
+            if (currentLine >= _scrollOffset + contentH) _scrollOffset = currentLine - contentH + 1;
+            _scrollOffset = Math.Clamp(_scrollOffset, 0, Math.Max(0, total - contentH));
+        }
 
-            if (mode == "all")
-            {
-                sb.Append(" 全部接受? [Y]是 [N]否  ");
-            }
-            else
-            {
-                var acceptedCount = accepted.Count;
-                isHunkAccepted = accepted.Contains(currentHunk);
-                sb.Append($" [{currentHunk + 1}/{hunks.Count}] ");
-                sb.Append("[Y]接受 [N]跳过 [A]全接受 [Q]取消  ");
-            }
-            sb.Append(new string(' ', Math.Max(0, tw - 80)));
-            sb.Append(AnsiTty.SgrReset);
-
-            // 滚动指示器
-            if (totalVisualLines > contentH)
-            {
-                var pct = totalVisualLines > 0 ? (int)((float)scrollOffset / (totalVisualLines - contentH) * 100) : 0;
-                sb.Append(AnsiTty.CursorPos(statusRow, tw - 8)).Append(AnsiTty.FgBg(30, 47)).Append(pct).Append('%').Append(AnsiTty.SgrReset);
-            }
-
-            Console.Write(sb.ToString());
-
-            // 读键
-            var key = Console.ReadKey(intercept: true);
-
-            if (mode == "all")
-            {
-                switch (key.Key)
-                {
-                    case ConsoleKey.Y: return (Decision.AcceptAll, null);
-                    case ConsoleKey.N: case ConsoleKey.Escape: mode = "review"; break;
-                }
-                if (key.KeyChar == 'y' || key.KeyChar == 'Y') return (Decision.AcceptAll, null);
-                if (key.KeyChar == 'n' || key.KeyChar == 'N') mode = "review";
-                continue;
-            }
-
+        public override bool OnKey(ConsoleKeyInfo key)
+        {
             switch (key.Key)
             {
-                case ConsoleKey.Y:
-                    if (!isHunkAccepted) accepted.Add(currentHunk);
-                    else accepted.Remove(currentHunk);
-                    break;
-                case ConsoleKey.N:
-                    if (isHunkAccepted) accepted.Remove(currentHunk);
-                    else currentHunk = Math.Min(hunks.Count - 1, currentHunk + 1);
-                    break;
-                case ConsoleKey.A:
-                    mode = "all";
-                    break;
-                case ConsoleKey.Q: case ConsoleKey.Escape:
-                    if (accepted.Count == 0) return (Decision.RejectAll, null);
-                    return (Decision.Partial, accepted);
-                case ConsoleKey.UpArrow: case ConsoleKey.K:
-                    currentHunk = Math.Max(0, currentHunk - 1);
-                    break;
-                case ConsoleKey.DownArrow: case ConsoleKey.J:
-                    currentHunk = Math.Min(hunks.Count - 1, currentHunk + 1);
-                    break;
-                case ConsoleKey.LeftArrow: case ConsoleKey.H:
-                    scrollOffset = Math.Max(0, scrollOffset - 3);
-                    break;
-                case ConsoleKey.RightArrow: case ConsoleKey.L:
-                    scrollOffset = Math.Min(Math.Max(0, allLines.Count - contentH), scrollOffset + 3);
-                    break;
+                case ConsoleKey.UpArrow:
+                case ConsoleKey.K:
+                    if (_currentHunk > 0) { SetCurrentHunk(_currentHunk - 1); Changed(); }
+                    return true;
+                case ConsoleKey.DownArrow:
+                case ConsoleKey.J:
+                    if (_currentHunk < _hunks.Count - 1) { SetCurrentHunk(_currentHunk + 1); Changed(); }
+                    return true;
+                case ConsoleKey.LeftArrow:
+                case ConsoleKey.H:
+                    if (_scrollOffset > 0) { _scrollOffset = Math.Max(0, _scrollOffset - 3); Changed(); }
+                    return true;
+                case ConsoleKey.RightArrow:
+                case ConsoleKey.L:
+                    _scrollOffset = Math.Min(Math.Max(0, TotalLines - Height), _scrollOffset + 3);
+                    Changed();
+                    return true;
                 case ConsoleKey.PageUp:
-                    scrollOffset = Math.Max(0, scrollOffset - contentH);
-                    break;
+                    _scrollOffset = Math.Max(0, _scrollOffset - Height);
+                    Changed();
+                    return true;
                 case ConsoleKey.PageDown:
-                    scrollOffset = Math.Min(Math.Max(0, allLines.Count - contentH), scrollOffset + contentH);
-                    break;
-                case ConsoleKey.Enter:
-                    if (accepted.Count > 0) return (Decision.Partial, accepted);
-                    break;
-                default:
-                    if (key.KeyChar == 'y' || key.KeyChar == 'Y')
-                    { if (!isHunkAccepted) accepted.Add(currentHunk); else accepted.Remove(currentHunk); }
-                    else if (key.KeyChar == 'n' || key.KeyChar == 'N')
-                    { if (isHunkAccepted) accepted.Remove(currentHunk); else currentHunk = Math.Min(hunks.Count - 1, currentHunk + 1); }
-                    else if (key.KeyChar == 'a' || key.KeyChar == 'A') mode = "all";
-                    else if (key.KeyChar == 'q' || key.KeyChar == 'Q')
-                    { if (accepted.Count == 0) return (Decision.RejectAll, null); return (Decision.Partial, accepted); }
-                    break;
+                    _scrollOffset = Math.Min(Math.Max(0, TotalLines - Height), _scrollOffset + Height);
+                    Changed();
+                    return true;
+            }
+            return false;
+        }
+
+        private void Changed()
+        {
+            MarkDirty();
+            OnChanged?.Invoke();
+        }
+
+        protected override void OnRender(StringBuilder sb, int absX, int absY)
+        {
+            int width = Width;
+            if (width != _lastWidth) Rebuild(width);
+            EnsureVisible(Height);
+
+            int total = TotalLines;
+            for (int i = 0; i < Height; i++)
+            {
+                int li = _scrollOffset + i;
+                if (li >= total) break;
+                if (_splitMode)
+                    RenderSplitRow(sb, _splitRows![li], width, _currentHunk, _accepted, _syntax, absY + i, absX);
+                else
+                    RenderUnifiedLine(sb, _lines[li], width, _currentHunk, _accepted, _syntax, absY + i, absX);
             }
         }
     }
@@ -318,9 +347,9 @@ public static class DiffPreview
         string oldContent, string newContent, string filePath)
     {
         var diff = GenerateUnifiedDiff(oldContent, newContent, filePath);
-        Console.WriteLine(AnsiText.Accent($"\n=== Diff 预览: {filePath} ==="));
-        Console.WriteLine(diff);
-        Console.WriteLine();
+        Tty.WriteLine(AnsiText.Accent($"\n=== Diff 预览: {filePath} ==="));
+        Tty.WriteLine(diff);
+        Tty.WriteLine();
 
         var choice = UxHelper.Select("如何处理此变更？",
             ["全部接受 (Y)", "全部拒绝 (N)", "逐项审查 (R)"]);
@@ -469,7 +498,7 @@ public static class DiffPreview
     {
         var oldLines = oldContent.Replace("\r\n", "\n").Split('\n');
         var newLines = newContent.Replace("\r\n", "\n").Split('\n');
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
 
         sb.AppendLine($"--- a/{filePath}");
         sb.AppendLine($"+++ b/{filePath}");
@@ -502,7 +531,7 @@ public static class DiffPreview
         foreach (var (h, hi) in hunks.Select((h, i) => (h, i)))
         {
             bool accept = accepted.Contains(hi);
-            int hunkStart = h.Lines.Where(l => l.OldLine > 0).Min(l => l.OldLine) - 1;
+            int hunkStart = h.OldStart - 1;
 
             while (oldIdx < hunkStart && oldIdx < oldLines.Length)
                 result.Add(oldLines[oldIdx++]);
@@ -633,13 +662,95 @@ public static class DiffPreview
         return rows;
     }
 
-    /// <summary>
-    /// 渲染分屏模式的一行。
-    /// 格式：lnno - 旧内容... │ lnno + 新内容...
-    /// </summary>
-    private static void RenderSplitRow(System.Text.StringBuilder sb, SplitRow row,
-        int tw, int currentHunk, HashSet<int> accepted, Syntax? syntax)
+    // ================================================================
+    // 行渲染（统一 / 分屏）—— 走 AnsiTty，无 Console.* / 无裸转义
+    // ================================================================
+
+    /// <summary>渲染统一模式的一行（有色行铺满整行背景）。</summary>
+    private static void RenderUnifiedLine(StringBuilder sb, (int hunkIdx, HunkLine line) entry,
+        int tw, int currentHunk, HashSet<int> accepted, Syntax? syntax, int absY, int absX)
     {
+        var (hi, line) = entry;
+        sb.Append(AnsiTty.CursorPos0(absY, absX));
+
+        if (hi == -1)
+        {
+            // hunk 分隔线
+            sb.Append(AnsiTty.SgrDim);
+            sb.Append(new string('─', Math.Min(tw, 60)));
+            sb.Append(AnsiTty.SgrReset);
+            return;
+        }
+        if (hi == -2)
+        {
+            // hunk 头
+            var hdr = TruncateByVW(line.Text, tw - 1);
+            sb.Append(AnsiTty.Fg(36)).Append(hdr).Append(AnsiTty.SgrReset);
+            return;
+        }
+
+        bool isCurrentHunk = hi == currentHunk;
+        bool isAccepted = accepted.Contains(hi);
+
+        if (line.Kind == '-')
+        {
+            var prefix = $"{Padding(line.OldLine),4} -";
+            int fg = isCurrentHunk ? 30 : 37;
+            int bg = 41;
+            var maxTextW = tw - 7;
+            FillBg(sb, absY, absX, tw, bg);
+            sb.Append(isCurrentHunk ? AnsiTty.Sgr(fg, bg, 1) : AnsiTty.FgBg(fg, bg));
+            sb.Append(prefix).Append(' ');
+            AppendHighlightedCode(sb, line.Text, syntax, fg, bg, isCurrentHunk, maxTextW);
+            sb.Append(AnsiTty.SgrReset);
+        }
+        else if (line.Kind == '+')
+        {
+            var prefix = "     +";
+            int fg = isCurrentHunk ? 30 : 37;
+            int bg = 42;
+            var maxTextW = tw - 7;
+            FillBg(sb, absY, absX, tw, bg);
+            sb.Append(isCurrentHunk ? AnsiTty.Sgr(fg, bg, 1) : AnsiTty.FgBg(fg, bg));
+            sb.Append(prefix).Append(' ');
+            AppendHighlightedCode(sb, line.Text, syntax, fg, bg, isCurrentHunk, maxTextW);
+            sb.Append(AnsiTty.SgrReset);
+        }
+        else
+        {
+            var prefix = $"{Padding(line.OldLine),4}  ";
+            var maxTextW = tw - 7;
+            if (isCurrentHunk)
+            {
+                FillBg(sb, absY, absX, tw, 46);
+                sb.Append(AnsiTty.FgBg(30, 46));
+                sb.Append(prefix).Append(' ');
+                AppendHighlightedCode(sb, line.Text, syntax, 30, 46, false, maxTextW);
+                sb.Append(AnsiTty.SgrReset);
+            }
+            else if (isAccepted)
+            {
+                sb.Append(AnsiTty.SgrDim);
+                sb.Append(prefix).Append(' ');
+                // 已接受的上下文行：不语法高亮，直接 dim
+                var t = TruncateByVW(line.Text, maxTextW);
+                sb.Append(t);
+                sb.Append(AnsiTty.SgrReset);
+            }
+            else
+            {
+                // 普通上下文行：语法高亮，无背景色
+                sb.Append(prefix).Append(' ');
+                AppendHighlightedCode(sb, line.Text, syntax, 37, 0, false, maxTextW);
+            }
+        }
+    }
+
+    /// <summary>渲染分屏模式的一行。格式：lnno - 旧内容... │ lnno + 新内容...</summary>
+    private static void RenderSplitRow(StringBuilder sb, SplitRow row,
+        int tw, int currentHunk, HashSet<int> accepted, Syntax? syntax, int absY, int absX)
+    {
+        sb.Append(AnsiTty.CursorPos0(absY, absX));
         int panelWidth = (tw - 3) / 2;
 
         if (row.IsHeader)
@@ -723,6 +834,15 @@ public static class DiffPreview
         }
     }
 
+    /// <summary>填满整行背景（光标已在行首定位），再回到行首供后续写内容。</summary>
+    private static void FillBg(StringBuilder sb, int absY, int absX, int width, int bg)
+    {
+        sb.Append(AnsiTty.BgCode(bg));
+        sb.Append(new string(' ', width));
+        sb.Append(AnsiTty.SgrResetBg);
+        sb.Append(AnsiTty.CursorPos0(absY, absX));
+    }
+
     // ================================================================
     // 工具方法
     // ================================================================
@@ -743,7 +863,7 @@ public static class DiffPreview
     /// 在 diff 背景色上渲染语法高亮代码。
     /// 每个 token 使用语法颜色作为前景色，diff 背景色作为背景色。
     /// </summary>
-    private static void AppendHighlightedCode(System.Text.StringBuilder sb, string code,
+    private static void AppendHighlightedCode(StringBuilder sb, string code,
         Syntax? syntax, int baseFg, int bgColor, bool bold, int maxWidth)
     {
         if (syntax == null || string.IsNullOrEmpty(code))
