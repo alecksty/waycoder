@@ -2025,4 +2025,97 @@ public static partial class SelfTest
             try { Directory.Delete(dir, true); } catch { }
         }
     }
+
+    /// <summary>手搓 PDF 解析器测试：结构解析 + 文本提取 + 编码 + 错误分支</summary>
+    private static void TestPdf(Action<string, bool> Check)
+    {
+        // ── 1. 最小 PDF 构造 → 解析 ──
+        var pdfBytes = BuildMinimalPdf();
+        var parser = PdfParser.Open(pdfBytes);
+        Check("Pdf: 最小 PDF 解析成功", parser != null);
+        if (parser != null)
+        {
+            Check("Pdf: 页数正确", parser.NumberOfPages == 1);
+            Check("Pdf: 标题解析", parser.Title == "Test Document");
+
+            var text = parser.ExtractPageText(1);
+            Check("Pdf: 提取 Hello World", text.Contains("Hello World"));
+            Check("Pdf: 提取第二行", text.Contains("Second line"));
+            Check("Pdf: 换行分隔", text.Contains("\n"));
+        }
+
+        // ── 2. 错误分支 ──
+        Check("Pdf: 非 PDF 返回 null", PdfParser.Open(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }) == null);
+        Check("Pdf: 空数据返回 null", PdfParser.Open(Array.Empty<byte>()) == null);
+
+        // ── 3. PdfExtractor 公共 API 不变 ──
+        var tmpPdf = Path.Combine(Path.GetTempPath(), "wc_pdf_" + Guid.NewGuid().ToString("N")[..6] + ".pdf");
+        try
+        {
+            File.WriteAllBytes(tmpPdf, pdfBytes);
+            var result = PdfExtractor.Extract(tmpPdf);
+            Check("PdfExtractor: 非错误", !result.IsError);
+            Check("PdfExtractor: 总页数", result.TotalPages == 1);
+            Check("PdfExtractor: 页数已提取", result.PagesExtracted == 1);
+            Check("PdfExtractor: 有字符", result.TotalChars > 0);
+            Check("PdfExtractor: 标题", result.Title == "Test Document");
+            var md = result.ToMarkdown();
+            Check("PdfExtractor: ToMarkdown 含标签", md.Contains("<pdf>") && md.Contains("Hello World"));
+
+            var meta = PdfExtractor.GetMeta(tmpPdf);
+            Check("PdfExtractor: GetMeta 页数", meta?.Pages == 1);
+            Check("PdfExtractor: GetMeta 标题", meta?.Title == "Test Document");
+
+            Check("PdfExtractor: 不存在文件报错", PdfExtractor.Extract("/nonexistent.pdf").IsError);
+            Check("PdfExtractor: 不存在文件 GetMeta null", PdfExtractor.GetMeta("/nonexistent.pdf") == null);
+        }
+        finally { try { File.Delete(tmpPdf); } catch { } }
+
+        // ── 4. 损坏 PDF 优雅失败 ──
+        var corrupt = Path.Combine(Path.GetTempPath(), "wc_corrupt_" + Guid.NewGuid().ToString("N")[..6] + ".pdf");
+        try
+        {
+            File.WriteAllText(corrupt, "%PDF-1.4\nthis is not a valid pdf");
+            Check("Pdf: 损坏 PDF 报错", PdfExtractor.Extract(corrupt).IsError);
+        }
+        finally { try { File.Delete(corrupt); } catch { } }
+    }
+
+    /// <summary>构造一个最小可解析 PDF（1 页、Type1 Helvetica、两个文本行 + 标题）。</summary>
+    private static byte[] BuildMinimalPdf()
+    {
+        var bytes = new List<byte>();
+        void Add(string s) => bytes.AddRange(Encoding.ASCII.GetBytes(s));
+
+        Add("%PDF-1.4\n");
+
+        var offsets = new long[7];
+        offsets[1] = bytes.Count;
+        Add("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+
+        offsets[2] = bytes.Count;
+        Add("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
+
+        offsets[3] = bytes.Count;
+        Add("3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n");
+
+        offsets[4] = bytes.Count;
+        Add("4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n");
+
+        var content = "BT /F1 12 Tf 72 720 Td (Hello World) Tj 0 -14 Td (Second line) Tj ET";
+        offsets[5] = bytes.Count;
+        Add($"5 0 obj\n<< /Length {content.Length} >>\nstream\n{content}\nendstream\nendobj\n");
+
+        offsets[6] = bytes.Count;
+        Add("6 0 obj\n<< /Title (Test Document) >>\nendobj\n");
+
+        var xrefPos = bytes.Count;
+        Add("xref\n0 7\n");
+        Add("0000000000 65535 f \n");
+        for (int i = 1; i <= 6; i++)
+            Add($"{offsets[i]:D10} 00000 n \n");
+        Add($"trailer\n<< /Size 7 /Root 1 0 R /Info 6 0 R >>\nstartxref\n{xrefPos}\n%%EOF\n");
+
+        return bytes.ToArray();
+    }
 }

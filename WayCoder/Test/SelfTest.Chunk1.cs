@@ -106,6 +106,7 @@ public static partial class SelfTest
         TestToolScheduler(Check);     // 工具调度器：Parallel/Exclusive 分批 + 有界并发 + 顺序提交
         TestToolResultClassifier(Check); // 工具结果分类器：真实错误 vs 用户取消/安全阻止
         TestTrajectory(Check);         // 运行轨迹：截断纯函数 + JSONL 事件流落盘/读回
+        TestPdf(Check);                // 手搓 PDF 解析器：结构解析 + 文本提取 + 编码 + 错误分支
         Console.WriteLine();
 
         // ---- 工具 ----
