@@ -32,9 +32,4 @@
     <None Remove="works/**/*" />
   </ItemGroup>
 
-
-  <ItemGroup>
-    <PackageReference Include="PdfPig" Version="0.1.9" />
-  </ItemGroup>
-
 </Project>

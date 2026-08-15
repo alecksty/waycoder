@@ -1,10 +1,7 @@
-using UglyToad.PdfPig;
-using UglyToad.PdfPig.Content;
-
 namespace WayCoder.Infra;
 
 /// <summary>
-/// PDF 文本提取器 — 使用 PdfPig 库（AOT 兼容）
+/// PDF 文本提取器 — 使用手搓 PdfParser（纯 BCL，零第三方依赖）。
 /// 提取 PDF 文本内容，支持分页。
 /// </summary>
 public static class PdfExtractor
@@ -20,7 +17,14 @@ public static class PdfExtractor
     {
         try
         {
-            using var pdf = PdfDocument.Open(filePath);
+            var pdf = PdfParser.Open(filePath);
+            if (pdf == null)
+                return new PdfExtractResult
+                {
+                    FilePath = filePath,
+                    Error = "PDF 解析失败：文件损坏、加密或使用了不支持的结构（object stream 等）。",
+                };
+
             var totalPages = pdf.NumberOfPages;
             var endPage = Math.Min(startPage + pageLimit - 1, totalPages);
 
@@ -29,10 +33,9 @@ public static class PdfExtractor
 
             for (int i = startPage; i <= endPage; i++)
             {
-                var page = pdf.GetPage(i);
-                var text = page.Text ?? "";
+                var text = pdf.ExtractPageText(i) ?? "";
 
-                // pdfpig 的 page.Text 可能包含大量空白，压缩连续空行
+                // 压缩连续空行：最多保留 1 个空行
                 var lines = text.Split('\n');
                 var cleaned = new List<string>();
                 bool prevEmpty = false;
@@ -41,7 +44,6 @@ public static class PdfExtractor
                     var trimmed = line.TrimEnd('\r', ' ');
                     var isEmpty = string.IsNullOrWhiteSpace(trimmed);
 
-                    // 压缩连续空行：最多保留 1 个空行
                     if (isEmpty)
                     {
                         if (!prevEmpty)
@@ -75,7 +77,7 @@ public static class PdfExtractor
                 TotalChars = totalChars,
                 Pages = pages,
                 HasMore = endPage < totalPages,
-                Title = TryGetTitle(pdf),
+                Title = pdf.Title,
             };
         }
         catch (Exception ex)
@@ -95,28 +97,18 @@ public static class PdfExtractor
     {
         try
         {
-            using var pdf = PdfDocument.Open(filePath);
+            var pdf = PdfParser.Open(filePath);
+            if (pdf == null) return null;
             return new PdfMeta
             {
                 Pages = pdf.NumberOfPages,
-                Title = TryGetTitle(pdf),
+                Title = pdf.Title,
             };
         }
         catch
         {
             return null;
         }
-    }
-
-    private static string? TryGetTitle(PdfDocument pdf)
-    {
-        try
-        {
-            if (pdf.Information?.Title is { } t && t.Length > 0)
-                return t;
-        }
-        catch { }
-        return null;
     }
 }
 
