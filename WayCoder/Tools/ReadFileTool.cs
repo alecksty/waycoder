@@ -20,7 +20,7 @@ namespace WayCoder.Tools;
 public class ReadFileTool : ITool
 {
     public string Name => "read_file";
-    public string Description => "读取文件内容。支持代码文件（行号）、PDF（文本提取分页）、Office文档（docx/xlsx/pptx文本提取）、Markdown（结构化渲染）、CSV（表格）、HTML（标签剥离）、JSON（美化）、INI（结构化）、tail 读取末尾 N 行。修改文件之前始终先读取它。";
+    public string Description => "读取文件内容。支持代码文件（行号）、PDF（文本提取分页）、Office文档（docx/xlsx/pptx 及老式 doc/xls/ppt、WPS 的 wps/et/dps 文本提取）、Markdown（结构化渲染）、CSV（表格）、HTML（标签剥离）、JSON（美化）、INI（结构化）、tail 读取末尾 N 行。修改文件之前始终先读取它。";
 
     private const int MaxFileSize = 100 * 1024; // 100KB for text, PDF handles separately
     private const int DefaultLimit = 2000;
@@ -77,13 +77,22 @@ public class ReadFileTool : ITool
             if (ext == ".pdf")
                 return ReadPdfFile(path, offset, limit);
 
-            // ── Office 文档 ──
+            // ── Office 文档（OOXML）──
             if (ext == ".docx")
                 return ReadOfficeDoc(path, "DOCX", OfficeExtractor.ExtractDocx(path));
             if (ext == ".xlsx")
                 return ReadOfficeDoc(path, "XLSX", OfficeExtractor.ExtractXlsx(path));
             if (ext == ".pptx")
                 return ReadOfficeDoc(path, "PPTX", OfficeExtractor.ExtractPptx(path));
+
+            // ── 老式二进制 Office / WPS（.doc/.xls/.ppt/.wps/.et/.dps）──
+            // 扩展名不可靠，LegacyOffice 按文件头魔数识别 CFB/ZIP/RTF/HTML/纯文本并路由。
+            if (ext is ".doc" or ".wps")
+                return ReadOfficeDoc(path, "DOC", LegacyOffice.Extract(path));
+            if (ext is ".xls" or ".et")
+                return ReadOfficeDoc(path, "XLS", LegacyOffice.Extract(path));
+            if (ext is ".ppt" or ".dps")
+                return ReadOfficeDoc(path, "PPT", LegacyOffice.Extract(path));
 
             // ── Markdown 文件 ──
             if (ext == ".md" || ext == ".markdown")
