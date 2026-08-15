@@ -179,6 +179,27 @@ public static partial class SelfTest
         Check("DrawTool svg 返回", r1.Contains("<svg"));
         var r2 = tool.ExecuteAsync(new Dictionary<string, object?> { ["code"] = "bogus 1" }).Result;
         Check("DrawTool 错误返回", r2.Contains("错误"));
+
+        // DrawTool 像素采样（看图）：image + points / grid
+        var sampleRgba = new byte[2 * 2 * 4];
+        sampleRgba[0] = 255; sampleRgba[3] = 255;                              // (0,0) 红
+        sampleRgba[4] = 255; sampleRgba[5] = 255; sampleRgba[7] = 255;        // (1,0) 绿
+        sampleRgba[8] = 255; sampleRgba[9] = 255; sampleRgba[11] = 255;       // (0,1) 蓝
+        sampleRgba[12] = 255; sampleRgba[13] = 255; sampleRgba[14] = 255; sampleRgba[15] = 255; // (1,1) 白
+        var samplePng = Path.Combine(Path.GetTempPath(), "wc_sample_" + Guid.NewGuid().ToString("N") + ".png");
+        File.WriteAllBytes(samplePng, PngEncoder.Encode(2, 2, sampleRgba));
+
+        var sp = tool.ExecuteAsync(new Dictionary<string, object?> { ["image"] = samplePng, ["points"] = "0,0;1,1" }).Result;
+        Check("DrawTool 采样 点", sp.Contains("#ff0000") && sp.Contains("#ffffff") && sp.Contains("采样 2 个点"));
+        var sg = tool.ExecuteAsync(new Dictionary<string, object?> { ["image"] = samplePng, ["grid"] = "2,2" }).Result;
+        Check("DrawTool 采样 网格", sg.Contains("#ff0000") && sg.Contains("#ffffff") && sg.Contains("网格采样 2×2"));
+        var sBad = tool.ExecuteAsync(new Dictionary<string, object?> { ["image"] = samplePng }).Result;
+        Check("DrawTool 采样 缺方式", sBad.Contains("缺少 points 或 grid"));
+        var sMiss = tool.ExecuteAsync(new Dictionary<string, object?> { ["image"] = "/no/such.png", ["points"] = "0,0" }).Result;
+        Check("DrawTool 采样 缺文件", sMiss.Contains("无法读取"));
+        var sFmt = tool.ExecuteAsync(new Dictionary<string, object?> { ["image"] = samplePng, ["points"] = "1,2,3" }).Result;
+        Check("DrawTool 采样 坐标非法", sFmt.Contains("坐标点格式非法"));
+        try { File.Delete(samplePng); } catch { }
         Console.WriteLine();
 
         // ── 图片编解码（PNG/BMP/JPEG）──
