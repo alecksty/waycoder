@@ -1,5 +1,26 @@
 # 更新日志
 
+## v0.62.0 (2026-08-16) — 老式二进制 Office / WPS 文档读取
+
+补齐 `.doc/.xls/.ppt` 老式二进制 Office 文档与 WPS 老后缀 `.wps/.et/.dps` 的文本读取。这些格式本质都是 CFB（Compound File Binary / OLE2）复合文档，此前 `read_file` 只能读 docx/xlsx/pptx，遇到二进制 Office 会报「无法识别」。全程零第三方依赖、零反射、跨平台，延续「手搓」原则。
+
+### ✨ 新增
+
+- **手搓 CFB 解析器 `CfbParser`**（`WayCoder/Infra/CfbParser.cs`）：按扇区 + FAT + DIFAT + 目录组织解析复合文档，支持常规扇区链（512/4096 字节）与 mini 扇区链（<4096 小流），按名取流（`GetStream`/`HasStream`/`StreamNames`）；FAT 链遍历带 100 万次防御上限，损坏输入返回 `null` 不崩
+- **老式格式文本提取器 `LegacyOffice`**（`WayCoder/Infra/LegacyOffice.cs`）：
+  - **二进制 DOC**：FIB 解析（wIdent/flags/csw/cslw → fibRgLw/fibRgFcLcb）+ piece table 提取文本。正确实现 MS-DOC 规范——`fcClx` 指向**表流**（0Table/1Table 由 `fWhichTblStm` 选择）、`Pcd.fc` 指向 **WordDocument 流**（bit31 为保留位 r1，bit30 为 fCompressed）、压缩文本字节偏移 = `fc/2`（非压缩 = `fc`）、cp1252 单字节映射（0x80–0x9F → € ‚ ƒ „ … 等）
+  - **二进制 XLS**（BIFF8）：SST 共享字符串表（`0x00FC`）+ LABEL 内联标签（`0x0204`）+ LABELSST（`0x00FD`）+ STRING/RSTRING；BIFF 字符串 flags（fHighByte/fExtSt/fRichSt）解析
+  - **二进制 PPT**：RecordHeader 遍历 + `TextCharsAtom`（0x0FA0 UTF-16）/ `TextBytesAtom`（0x0FA8 ANSI）文本 atom
+  - **RTF 剥离**：控制字（`\word`/`\wordN`）、控制符号（`\'hh`/`\~`/`\_`/`\-`）、`\*` 跳过目标组、`\uN` Unicode 转义
+  - **容器识别**：按文件头魔数区分 CFB / ZIP / RTF / HTML / 纯文本，扩展名不可靠时仍正确路由
+- **`read_file` 分发**：`.doc/.wps` → DOC、`.xls/.et` → XLS、`.ppt/.dps` → PPT（WPS 老后缀与 Office 老后缀共用同一套解析器）
+
+### 🧪 自测
+
+- 新增 22 项测试（`TestWps`）：CFB 解析 round-trip（小流走 mini 链、大流走常规扇区、未知名返回 null）、容器识别（CFB/ZIP/RTF/HTML/纯文本）、二进制 DOC 提取（Hello World + 中文 + **压缩文本折半定位**）、XLS（SST + LABEL）、PPT、RTF 剥离、端到端 `.wps → read_file`
+- 测试夹具 `BuildCfb`/`BuildDocWordStream`/`BuildDocTableStream`/`BuildXlsWorkbook`/`BuildPptStream` 手搓构造最小合法 CFB/BIFF/PPT 结构，piece table 按规范落在表流
+- 总计 **2795** 项自测全部通过（0 失败）
+
 ## v0.61.0 (2026-08-16) — Web 界面完整化（对标 DeepSeek Harness）
 
 把 `--web` 浏览器聊天界面从「单 Agent + 固定模型」扩展为完整的 Web UI，对标 DeepSeek Harness 的 `dsh web`（黑白主题、圆角、换模型、输 key、设置、多槽位）。全程延续零第三方依赖 + AOT 安全 + 跨平台 + 手搓原则。
