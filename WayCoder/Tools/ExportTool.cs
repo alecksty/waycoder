@@ -10,28 +10,20 @@ public class ExportTool : ITool
 
     public string Description => "将当前 Agent 对话历史导出为文件。支持 Markdown（按角色分段）、JSON（原始消息列表）、HTML（带样式的网页）。默认导出到当前目录。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["format"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["enum"] = new JsonArray("md", "json", "html"),
-                ["description"] = "导出格式: md(Markdown), json(JSON数组), html(网页)",
-            },
-            ["output_path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "输出文件路径（可选，默认 chat_export_{timestamp}.{format}）",
-            },
-        },
-        ["required"] = new JsonArray("format"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("format", JNode.Object()
+                .Set("type", "string")
+                .Set("enum", JNode.Array().Add("md").Add("json").Add("html"))
+                .Set("description", "导出格式: md(Markdown), json(JSON数组), html(网页)"))
+            .Set("output_path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "输出文件路径（可选，默认 chat_export_{timestamp}.{format}）")))
+        .Set("required", JNode.Array().Add("format"));
 
     /// <summary>消息历史引用（由 Agent 在构造后注入）</summary>
-    public List<JsonObject>? Messages { get; set; }
+    public List<JNode>? Messages { get; set; }
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
@@ -80,8 +72,8 @@ public class ExportTool : ITool
 
         foreach (var m in Messages!)
         {
-            var role = m["role"]?.GetValue<string>() ?? "?";
-            var content = m["content"]?.GetValue<string>() ?? "";
+            var role = m["role"]?.AsString() ?? "?";
+            var content = m["content"]?.AsString() ?? "";
             var icon = role switch
             {
                 "user" => "👤", "assistant" => "🤖", "system" => "⚙",
@@ -93,7 +85,7 @@ public class ExportTool : ITool
 
             if (role == "tool")
             {
-                var toolId = m["tool_call_id"]?.GetValue<string>() ?? "";
+                var toolId = m["tool_call_id"]?.AsString() ?? "";
                 sb.AppendLine($"_工具调用 ID: {toolId}_");
                 sb.AppendLine();
                 sb.AppendLine("```");
@@ -113,19 +105,17 @@ public class ExportTool : ITool
 
     private string ExportJson()
     {
-        var arr = new JsonArray();
+        var arr = JNode.Array();
         foreach (var m in Messages!)
         {
-            var obj = new JsonObject
-            {
-                ["role"] = m["role"]?.DeepClone(),
-                ["content"] = m["content"]?.DeepClone(),
-            };
+            var obj = JNode.Object();
+            obj.Set("role", m["role"]?.Clone() ?? JNode.Null());
+            obj.Set("content", m["content"]?.Clone() ?? JNode.Null());
             if (m["tool_call_id"] != null)
-                obj["tool_call_id"] = m["tool_call_id"]!.DeepClone();
+                obj.Set("tool_call_id", m["tool_call_id"]!.Clone() ?? JNode.Null());
             arr.Add(obj);
         }
-        return arr.ToJsonString();
+        return arr.ToJson();
     }
 
     private string ExportHtml()
@@ -146,8 +136,8 @@ public class ExportTool : ITool
 
         foreach (var m in Messages!)
         {
-            var role = m["role"]?.GetValue<string>() ?? "?";
-            var content = m["content"]?.GetValue<string>() ?? "";
+            var role = m["role"]?.AsString() ?? "?";
+            var content = m["content"]?.AsString() ?? "";
             var escaped = System.Net.WebUtility.HtmlEncode(content);
             sb.AppendLine($"<div class=\"{role}\"><strong>{role}</strong><br>{escaped}</div>");
         }

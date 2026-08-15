@@ -157,37 +157,37 @@ public static class HooksManager
         try
         {
             var json = File.ReadAllText(jsonPath);
-            // AOT 安全：JsonNode.Parse 手写解析，避免 JsonSerializer.Deserialize 反射
+            // AOT 安全：Json.Parse 手写解析，避免 JsonSerializer.Deserialize 反射
             var list = new List<HookMatcherConfig>();
-            if (JsonNode.Parse(json) is JsonObject root && root["matchers"] is JsonArray matchersArr)
+            if (Json.Parse(json) is { Kind: JKind.Object } root && root["matchers"] is { Kind: JKind.Array } matchersArr)
             {
-                foreach (var item in matchersArr)
+                foreach (var item in matchersArr.Items)
                 {
-                    if (item is not JsonObject mo) continue;
+                    if (item.Kind != JKind.Object) continue;
 
                     var mc = new HookMatcherConfig
                     {
-                        Matcher = mo["matcher"]?.GetValue<string>(),
+                        Matcher = item["matcher"]?.AsString(),
                     };
 
-                    if (mo["events"] is JsonArray eventsArr)
-                        mc.Events = eventsArr
-                            .Select(e => e?.GetValue<string>())
+                    if (item["events"] is { Kind: JKind.Array } eventsArr)
+                        mc.Events = eventsArr.Items
+                            .Select(e => e.AsString())
                             .Where(s => s != null)
                             .Select(s => s!)
                             .ToArray();
 
-                    if (mo["hooks"] is JsonArray hooksArr)
+                    if (item["hooks"] is { Kind: JKind.Array } hooksArr)
                     {
                         var hooks = new List<HookCommandConfig>();
-                        foreach (var h in hooksArr)
+                        foreach (var h in hooksArr.Items)
                         {
-                            if (h is not JsonObject ho) continue;
+                            if (h.Kind != JKind.Object) continue;
                             hooks.Add(new HookCommandConfig
                             {
-                                Type = ho["type"]?.GetValue<string>() ?? "command",
-                                Command = ho["command"]?.GetValue<string>() ?? "",
-                                Timeout = ho["timeout"] is JsonValue tv && tv.TryGetValue<int>(out var t) ? t : 0,
+                                Type = h["type"]?.AsString() ?? "command",
+                                Command = h["command"]?.AsString() ?? "",
+                                Timeout = h["timeout"] is { Kind: JKind.Number } tv ? (int)tv.AsNumber() : 0,
                             });
                         }
                         mc.Hooks = hooks.ToArray();
@@ -419,7 +419,7 @@ public static class HooksManager
         {
             try
             {
-                if (JsonNode.Parse(trimmed) is JsonObject obj)
+                if (Json.Parse(trimmed) is { Kind: JKind.Object } obj)
                 {
                     return new HookOutput
                     {
@@ -460,23 +460,23 @@ public static class HooksManager
     }
 
     /// <summary>从 JsonObject 提取字符串字段（多个候选键名，先命中的返回）。</summary>
-    private static string? GetJsonString(JsonObject obj, params string[] keys)
+    private static string? GetJsonString(JNode obj, params string[] keys)
     {
         foreach (var key in keys)
         {
-            if (obj[key] is JsonValue jv && jv.TryGetValue<string>(out var s))
-                return s;
+            if (obj[key] is { Kind: JKind.String } v)
+                return v.AsString();
         }
         return null;
     }
 
     /// <summary>从 JsonObject 提取布尔字段（多个候选键名）。</summary>
-    private static bool? GetJsonBool(JsonObject obj, params string[] keys)
+    private static bool? GetJsonBool(JNode obj, params string[] keys)
     {
         foreach (var key in keys)
         {
-            if (obj[key] is JsonValue jv && jv.TryGetValue<bool>(out var b))
-                return b;
+            if (obj[key] is { Kind: JKind.Bool } v)
+                return v.AsBool();
         }
         return null;
     }

@@ -1,5 +1,3 @@
-using System.Text.Json.Nodes;
-
 namespace WayCoder.Tools;
 
 /// <summary>
@@ -11,19 +9,13 @@ public class JobKillTool : ITool
     public string Name => "job_kill";
     public string Description => "终止指定的后台任务。仅能终止仍在运行的任务（已完成的任务无法终止）。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["shell_id"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要终止的后台任务的 shell ID",
-            },
-        },
-        ["required"] = new JsonArray("shell_id"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("shell_id", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要终止的后台任务的 shell ID")))
+        .Set("required", JNode.Array().Add("shell_id"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

@@ -11,34 +11,22 @@ public class BashTool : ITool
     public string Name => "bash";
     public string Description => "执行 Shell 命令。返回 stdout、stderr 和退出码。\n⚠ 禁止执行：网络下载工具(curl/wget/ssh)、包管理器安装(apt/pip/npm install 等)、权限提升(sudo/su)、系统修改。\n✅ 安全免确认：ls/cat/grep/find/git log/dotnet --version 等只读操作自动放行。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["command"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要运行的 Shell 命令",
-            },
-            ["timeout"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "超时时间，单位秒（默认 120）。超时后命令自动转入后台继续执行，返回 shell_id，可用 job_output 轮询。",
-            },
-            ["run_in_background"] = new JsonObject
-            {
-                ["type"] = "boolean",
-                ["description"] = "设为 true 则立即后台运行，返回 shell_id。之后用 job_output 读取输出，用 job_kill 终止。",
-            },
-            ["auto_background_after"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "前台等待 N 秒后自动转入后台（默认 60 秒）。仅 run_in_background=true 时生效。",
-            },
-        },
-        ["required"] = new JsonArray("command"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("command", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要运行的 Shell 命令"))
+            .Set("timeout", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "超时时间，单位秒（默认 120）。超时后命令自动转入后台继续执行，返回 shell_id，可用 job_output 轮询。"))
+            .Set("run_in_background", JNode.Object()
+                .Set("type", "boolean")
+                .Set("description", "设为 true 则立即后台运行，返回 shell_id。之后用 job_output 读取输出，用 job_kill 终止。"))
+            .Set("auto_background_after", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "前台等待 N 秒后自动转入后台（默认 60 秒）。仅 run_in_background=true 时生效。")))
+        .Set("required", JNode.Array().Add("command"));
 
     /// <summary>
     /// 跨命令跟踪 cwd。AsyncLocal 确保每个异步上下文

@@ -1,5 +1,3 @@
-using System.Text.Json.Nodes;
-
 namespace WayCoder.Tools;
 
 /// <summary>
@@ -11,19 +9,13 @@ public class JobOutputTool : ITool
     public string Name => "job_output";
     public string Description => "读取后台运行任务的最新输出。使用 bash 的 run_in_background 参数启动的任务可通过此工具查询结果。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["shell_id"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "后台任务的 shell ID（由 bash 工具的 run_in_background 模式返回）",
-            },
-        },
-        ["required"] = new JsonArray("shell_id"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("shell_id", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "后台任务的 shell ID（由 bash 工具的 run_in_background 模式返回）")))
+        .Set("required", JNode.Array().Add("shell_id"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

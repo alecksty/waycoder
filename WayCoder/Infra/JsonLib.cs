@@ -64,6 +64,24 @@ public sealed class JNode
 
     internal static JNode NumRaw(double d, string raw) => new(JKind.Number) { _num = d, _numRaw = raw };
 
+    /// <summary>
+    /// 按运行时类型分派构造 JNode（替代 JsonValue.Create，AOT 安全）。
+    /// null→Null、string→Str、bool→Bool、整数/浮点→Num、JNode→恒等、其余→Str(ToString)。
+    /// </summary>
+    public static JNode From(object? value) => value switch
+    {
+        null => Null(),
+        JNode n => n,
+        string s => Str(s),
+        bool b => Bool(b),
+        int i => Num(i),
+        long l => Num(l),
+        float f => Num(f),
+        double d => Num(d),
+        decimal m => Num((double)m),
+        _ => Str(value.ToString() ?? ""),
+    };
+
     // ---------- 大小 ----------
     public int Count => Kind switch
     {

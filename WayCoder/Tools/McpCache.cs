@@ -13,7 +13,7 @@ internal static class McpCache
     private const int CacheTtlHours = 24;
 
     /// <summary>从缓存加载工具到 DiscoveredTools（同步，快速）</summary>
-    public static void Load(JsonArray serverConfigs)
+    public static void Load(JNode serverConfigs)
     {
         var cachePath = FindCacheFile();
         if (cachePath == null) return;
@@ -21,13 +21,13 @@ internal static class McpCache
         try
         {
             var json = File.ReadAllText(cachePath, Encoding.UTF8);
-            var cache = JsonNode.Parse(json)?.AsObject();
-            var servers = cache?["servers"]?.AsArray();
+            var cache = Json.Parse(json);
+            var servers = cache?["servers"];
             if (servers == null) return;
 
-            foreach (var serverConfig in serverConfigs)
+            foreach (var serverConfig in serverConfigs.Items)
             {
-                var name = serverConfig?["name"]?.GetValue<string>();
+                var name = serverConfig?["name"]?.AsString();
                 if (string.IsNullOrEmpty(name)) continue;
 
                 var canonicalId = GetCanonicalId(serverConfig!);
@@ -36,30 +36,27 @@ internal static class McpCache
                 var key = ComputeCacheKey(name, canonicalId);
 
                 // 查找匹配的缓存条目
-                foreach (var entry in servers)
+                foreach (var entry in servers.Items)
                 {
-                    var entryKey = entry?["key"]?.GetValue<string>();
+                    var entryKey = entry?["key"]?.AsString();
                     if (entryKey != key) continue;
 
-                    var cachedAtStr = entry?["cached_at"]?.GetValue<string>();
+                    var cachedAtStr = entry?["cached_at"]?.AsString();
                     if (DateTime.TryParse(cachedAtStr, out var cachedAt))
                     {
                         if ((DateTime.UtcNow - cachedAt).TotalHours > CacheTtlHours)
                             continue; // 缓存已过期
                     }
 
-                    var tools = entry?["tools"]?.AsArray();
+                    var tools = entry?["tools"];
                     if (tools == null || tools.Count == 0) continue;
 
                     // 从缓存恢复工具（使用 null! 连接，工具仅在缓存命中时存在）
                     var cachedCount = 0;
-                    foreach (var toolNode in tools)
+                    foreach (var toolNode in tools.Items)
                     {
-                        var toolObj = toolNode?.AsObject();
-                        if (toolObj == null) continue;
-
                         // 缓存工具使用虚拟连接（实际使用时会走正常连接流程）
-                        var mcpTool = new CachedMcpTool(name, toolObj);
+                        var mcpTool = new CachedMcpTool(name, toolNode);
                         McpManager.DiscoveredTools.Add(mcpTool);
                         cachedCount++;
                     }
@@ -87,14 +84,14 @@ internal static class McpCache
         {
             // 解析当前服务器配置以计算缓存键
             var configJson = File.ReadAllText(configPath, Encoding.UTF8);
-            var servers = JsonNode.Parse(configJson)?.AsArray();
+            var servers = Json.Parse(configJson);
             if (servers == null) return;
 
-            var entries = new JsonArray();
+            var entries = JNode.Array();
 
-            foreach (var serverConfig in servers)
+            foreach (var serverConfig in servers.Items)
             {
-                var name = serverConfig?["name"]?.GetValue<string>();
+                var name = serverConfig?["name"]?.AsString();
                 if (string.IsNullOrEmpty(name)) continue;
 
                 var canonicalId = GetCanonicalId(serverConfig!);
@@ -110,32 +107,28 @@ internal static class McpCache
 
                 if (serverTools.Count == 0) continue;
 
-                var toolsArr = new JsonArray();
+                var toolsArr = JNode.Array();
                 foreach (var tool in serverTools)
                 {
-                    var toolObj = new JsonObject
-                    {
-                        ["name"] = tool.Name.Substring(prefix.Length),
-                        ["description"] = tool.Description,
-                        ["inputSchema"] = tool.Parameters,
-                    };
-                    toolsArr.Add((JsonNode)toolObj);
+                    var toolObj = JNode.Object()
+                        .Set("name", tool.Name.Substring(prefix.Length))
+                        .Set("description", tool.Description)
+                        .Set("inputSchema", tool.Parameters);
+                    toolsArr.Add(toolObj);
                 }
 
-                entries.Add((JsonNode)new JsonObject
-                {
-                    ["key"] = key,
-                    ["name"] = name,
-                    ["tools"] = toolsArr,
-                    ["cached_at"] = DateTime.UtcNow.ToString("o"),
-                });
+                entries.Add(JNode.Object()
+                    .Set("key", key)
+                    .Set("name", name)
+                    .Set("tools", toolsArr)
+                    .Set("cached_at", DateTime.UtcNow.ToString("o")));
             }
 
             // 写入缓存文件
             var cacheDir = Path.GetDirectoryName(configPath)!;
             var cachePath = Path.Combine(cacheDir, "mcp_tool_cache.json");
-            var cache = new JsonObject { ["servers"] = entries };
-            File.WriteAllText(cachePath, cache.ToJsonString(), Encoding.UTF8);
+            var cache = JNode.Object().Set("servers", entries);
+            File.WriteAllText(cachePath, cache.ToJson(), Encoding.UTF8);
 
             DebugLog.Log("mcp", $"MCP 缓存已保存: {entries.Count} 服务器");
         }
@@ -155,17 +148,17 @@ internal static class McpCache
     }
 
     /// <summary>获取服务器规范标识符，配置不变时标识符相同</summary>
-    internal static string? GetCanonicalId(JsonNode serverConfig)
+    internal static string? GetCanonicalId(JNode serverConfig)
     {
-        var url = serverConfig["url"]?.GetValue<string>();
+        var url = serverConfig["url"]?.AsString();
         if (!string.IsNullOrEmpty(url))
             return url;
 
-        var command = serverConfig["command"]?.GetValue<string>();
+        var command = serverConfig["command"]?.AsString();
         if (string.IsNullOrEmpty(command)) return null;
 
-        var args = serverConfig["args"]?.AsArray()
-            ?.Select(a => a?.GetValue<string>() ?? "").ToArray() ?? [];
+        var args = serverConfig["args"]?.Items
+            ?.Select(a => a?.AsString() ?? "").ToArray() ?? [];
         return $"{command}|{string.Join("|", args)}";
     }
 
@@ -198,27 +191,27 @@ internal static class McpCache
 internal class CachedMcpTool : ITool
 {
     private readonly string _serverName;
-    private readonly JsonObject _toolDef;
+    private readonly JNode _toolDef;
 
     public string Name { get; }
     public string Description { get; }
 
-    public JsonObject Parameters => _toolDef["inputSchema"]?.AsObject()
-        ?? new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() };
+    public JNode Parameters => _toolDef["inputSchema"]
+        ?? JNode.Object().Set("type", "object").Set("properties", JNode.Object());
 
-    public CachedMcpTool(string serverName, JsonObject toolDef)
+    public CachedMcpTool(string serverName, JNode toolDef)
     {
         _serverName = serverName;
         _toolDef = toolDef;
 
-        var toolName = toolDef["name"]?.GetValue<string>() ?? "unknown";
+        var toolName = toolDef["name"]?.AsString() ?? "unknown";
         Name = $"mcp__{serverName}__{toolName}";
-        Description = toolDef["description"]?.GetValue<string>() ?? $"(MCP) {serverName}/{toolName}";
+        Description = toolDef["description"]?.AsString() ?? $"(MCP) {serverName}/{toolName}";
     }
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
-        var toolName = _toolDef["name"]?.GetValue<string>() ?? "";
+        var toolName = _toolDef["name"]?.AsString() ?? "";
         return Task.FromResult(
             $"MCP 工具 {_serverName}/{toolName} 正在后台连接中，请稍后重试。\n" +
             $"缓存工具在服务器连接成功后会自动更新。");

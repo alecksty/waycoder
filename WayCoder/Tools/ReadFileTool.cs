@@ -27,29 +27,19 @@ public class ReadFileTool : ITool
     private const int MaxLineLength = 2000;
     private const int PdfMaxPages = 20;
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["file_path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "文件路径。支持 .cs .py .js .ts .md .pdf .html .json .txt 等。",
-            },
-            ["offset"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "起始行（从 1 开始）。PDF 文件此参数表示起始页码。默认 1。",
-            },
-            ["limit"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "最大读取行数。PDF 文件此参数表示最大页数（默认 20）。默认 2000。",
-            },
-        },
-        ["required"] = new JsonArray("file_path"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("file_path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "文件路径。支持 .cs .py .js .ts .md .pdf .html .json .txt 等。"))
+            .Set("offset", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "起始行（从 1 开始）。PDF 文件此参数表示起始页码。默认 1。"))
+            .Set("limit", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "最大读取行数。PDF 文件此参数表示最大页数（默认 20）。默认 2000。")))
+        .Set("required", JNode.Array().Add("file_path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

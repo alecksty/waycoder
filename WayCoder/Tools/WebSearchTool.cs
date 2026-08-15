@@ -12,24 +12,16 @@ public class WebSearchTool : ITool
     public string Name => "web_search";
     public string Description => "在互联网上搜索信息（通过 DuckDuckGo），返回结果标题、摘要和链接。无需 API 密钥。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["query"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "搜索关键词"
-            },
-            ["num"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "返回结果数量（1-10，默认 5）"
-            }
-        },
-        ["required"] = new JsonArray("query")
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("query", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "搜索关键词"))
+            .Set("num", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "返回结果数量（1-10，默认 5）")))
+        .Set("required", JNode.Array().Add("query"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

@@ -12,18 +12,12 @@ public class LintTool : ITool
     public string Name => "lint";
     public string Description => "对指定文件或目录运行静态检查（lint/编译检查），返回错误和警告列表。支持 C#、Python、JS/TS、Go、Rust、Java、C/C++、Ruby、PHP、Swift、Kotlin、Lua、Shell、CSS、Vue 等。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要检查的文件或目录路径。留空则检查当前目录。"
-            }
-        }
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要检查的文件或目录路径。留空则检查当前目录。")));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

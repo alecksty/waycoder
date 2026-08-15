@@ -1,6 +1,4 @@
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace WayCoder.Tools;
 
@@ -23,39 +21,25 @@ public class NotebookEditTool : ITool
         "insert（在指定位置后插入新 cell）、delete（删除指定 cell）。" +
         "cell_index 从 0 开始计数。insert 时需要提供 cell_type（code 或 markdown）。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["notebook_path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "Notebook 文件路径（.ipynb）",
-            },
-            ["cell_index"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "Cell 索引（0-based）。replace/delete 时指定目标 cell；insert 时新 cell 插入到该索引之后（-1 表示插入到开头）",
-            },
-            ["new_source"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "新内容。replace 时替换 cell 源代码；insert 时为整个新 cell 的源代码",
-            },
-            ["cell_type"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "Cell 类型（insert 时需要）: code | markdown",
-            },
-            ["edit_mode"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "编辑模式: replace（默认，替换 cell 源） | insert（插入新 cell） | delete（删除 cell）",
-            },
-        },
-        ["required"] = new JsonArray("notebook_path", "new_source"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("notebook_path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "Notebook 文件路径（.ipynb）"))
+            .Set("cell_index", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "Cell 索引（0-based）。replace/delete 时指定目标 cell；insert 时新 cell 插入到该索引之后（-1 表示插入到开头）"))
+            .Set("new_source", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "新内容。replace 时替换 cell 源代码；insert 时为整个新 cell 的源代码"))
+            .Set("cell_type", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "Cell 类型（insert 时需要）: code | markdown"))
+            .Set("edit_mode", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "编辑模式: replace（默认，替换 cell 源） | insert（插入新 cell） | delete（删除 cell）")))
+        .Set("required", JNode.Array().Add("notebook_path").Add("new_source"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
@@ -109,23 +93,23 @@ public class NotebookEditTool : ITool
             try { jsonText = File.ReadAllText(path, Encoding.UTF8); }
             catch (Exception ex) { return $"错误：无法读取 {notebookPath} — {ex.Message}"; }
 
-            JsonNode? root;
-            try { root = JsonNode.Parse(jsonText); }
+            JNode? root;
+            try { root = Json.Parse(jsonText); }
             catch (Exception ex) { return $"错误：{notebookPath} 不是有效的 JSON — {ex.Message}"; }
 
-            if (root is not JsonObject rootObj)
+            if (root == null || root.Kind != JKind.Object)
                 return $"错误：{notebookPath} JSON 结构异常（根节点不是对象）";
 
             // 验证 notebook 结构
-            var cellsArray = rootObj["cells"]?.AsArray();
-            if (cellsArray == null)
+            var cellsArray = root["cells"];
+            if (cellsArray == null || cellsArray.Kind != JKind.Array)
                 return $"错误：{notebookPath} 缺少 cells 数组（不是有效的 Jupyter Notebook）";
 
             return editMode switch
             {
-                "insert" => InsertCell(rootObj, cellsArray, cellIndex, newSource, cellType, path),
-                "delete" => DeleteCell(rootObj, cellsArray, cellIndex, path),
-                _ => ReplaceCell(rootObj, cellsArray, cellIndex, newSource, path),
+                "insert" => InsertCell(root, cellsArray, cellIndex, newSource, cellType, path),
+                "delete" => DeleteCell(root, cellsArray, cellIndex, path),
+                _ => ReplaceCell(root, cellsArray, cellIndex, newSource, path),
             };
         }
         catch (Exception ex)
@@ -139,23 +123,23 @@ public class NotebookEditTool : ITool
     }
 
     /// <summary>替换指定 cell 的 source</summary>
-    private static string ReplaceCell(JsonObject root, JsonArray cells, int index, string newSource, string path)
+    private static string ReplaceCell(JNode root, JNode cells, int index, string newSource, string path)
     {
         if (index < 0 || index >= cells.Count)
             return $"错误：cell_index {index} 超出范围（共 {cells.Count} 个 cell）";
 
-        var cell = cells[index] as JsonObject;
-        if (cell == null)
+        var cell = cells[index];
+        if (cell is not { Kind: JKind.Object })
             return $"错误：cell[{index}] 不是有效的对象";
 
         var oldSource = GetSourceText(cell);
         SetSourceText(cell, newSource);
 
         // 清除 cell 的输出（代码改变后旧输出无效）
-        if (cell["cell_type"]?.ToString() == "code")
+        if (cell["cell_type"]?.AsString() == "code")
         {
-            cell["outputs"] = new JsonArray();
-            cell["execution_count"] = null;
+            cell["outputs"] = JNode.Array();
+            cell["execution_count"] = JNode.Null();
         }
 
         WriteNotebook(root, path);
@@ -168,7 +152,7 @@ public class NotebookEditTool : ITool
     }
 
     /// <summary>在指定位置后插入新 cell</summary>
-    private static string InsertCell(JsonObject root, JsonArray cells, int afterIndex, string newSource, string cellType, string path)
+    private static string InsertCell(JNode root, JNode cells, int afterIndex, string newSource, string cellType, string path)
     {
         // 规范化 cell_type
         var normalizedType = cellType.ToLowerInvariant() switch
@@ -179,22 +163,24 @@ public class NotebookEditTool : ITool
             _ => "code",
         };
 
-        var newCell = new JsonObject
-        {
-            ["cell_type"] = normalizedType,
-            ["metadata"] = new JsonObject(),
-            ["source"] = newSource, // 先尝试字符串格式
-        };
+        var newCell = JNode.Object()
+            .Set("cell_type", normalizedType)
+            .Set("metadata", JNode.Object())
+            .Set("source", newSource); // 先尝试字符串格式
 
         // 为 code cell 添加默认字段
         if (normalizedType == "code")
         {
-            newCell["outputs"] = new JsonArray();
-            newCell["execution_count"] = null;
+            newCell["outputs"] = JNode.Array();
+            newCell["execution_count"] = JNode.Null();
         }
 
         var insertAt = Math.Clamp(afterIndex + 1, 0, cells.Count);
-        cells.Insert(insertAt, newCell);
+        var cellList = cells.Items.ToList();
+        cellList.Insert(insertAt, newCell);
+        var newCells = JNode.Array();
+        foreach (var c in cellList) newCells.Add(c);
+        root.Set("cells", newCells);
 
         WriteNotebook(root, path);
 
@@ -204,16 +190,20 @@ public class NotebookEditTool : ITool
     }
 
     /// <summary>删除指定 cell</summary>
-    private static string DeleteCell(JsonObject root, JsonArray cells, int index, string path)
+    private static string DeleteCell(JNode root, JNode cells, int index, string path)
     {
         if (index < 0 || index >= cells.Count)
             return $"错误：cell_index {index} 超出范围（共 {cells.Count} 个 cell）";
 
-        var cell = cells[index] as JsonObject;
-        var cellType = cell?["cell_type"]?.ToString() ?? "code";
+        var cell = cells[index];
+        var cellType = cell?["cell_type"]?.AsString() ?? "code";
         var sourcePreview = cell != null ? Truncate(GetSourceText(cell), 80) : "";
 
-        cells.RemoveAt(index);
+        var cellList = cells.Items.ToList();
+        cellList.RemoveAt(index);
+        var newCells = JNode.Array();
+        foreach (var c in cellList) newCells.Add(c);
+        root.Set("cells", newCells);
 
         WriteNotebook(root, path);
 
@@ -222,50 +212,45 @@ public class NotebookEditTool : ITool
     }
 
     /// <summary>获取 cell 的 source 文本（支持字符串和数组格式）</summary>
-    private static string GetSourceText(JsonObject cell)
+    private static string GetSourceText(JNode cell)
     {
         var sourceNode = cell["source"];
         if (sourceNode == null) return "";
 
         // 数组格式：["line1\n", "line2\n"]
-        if (sourceNode is JsonArray sourceArray)
+        if (sourceNode.Kind == JKind.Array)
         {
             var sb = new StringBuilder();
-            foreach (var line in sourceArray)
-                sb.Append(line?.ToString() ?? "");
+            foreach (var line in sourceNode.Items)
+                sb.Append(line.AsString() ?? "");
             return sb.ToString();
         }
 
         // 字符串格式
-        return sourceNode.ToString();
+        return sourceNode.AsString() ?? "";
     }
 
     /// <summary>设置 cell 的 source（使用规范的字符串格式）</summary>
-    private static void SetSourceText(JsonObject cell, string text)
+    private static void SetSourceText(JNode cell, string text)
     {
         // 使用数组格式（每行一个元素），兼容性最好
-        var sourceArray = new JsonArray();
+        var sourceArray = JNode.Array();
         // 按行分割，保留换行符
         var lines = text.Replace("\r\n", "\n").Split('\n');
         for (int i = 0; i < lines.Length; i++)
         {
             if (i < lines.Length - 1)
-                sourceArray.Add((JsonNode?)JsonValue.Create(lines[i] + "\n"));
+                sourceArray.Add(lines[i] + "\n");
             else if (lines[i].Length > 0)
-                sourceArray.Add((JsonNode?)JsonValue.Create(lines[i]));
+                sourceArray.Add(lines[i]);
         }
         cell["source"] = sourceArray;
     }
 
     /// <summary>将 notebook JSON 写回磁盘</summary>
-    private static void WriteNotebook(JsonObject root, string path)
+    private static void WriteNotebook(JNode root, string path)
     {
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        };
-        var json = root.ToJsonString(options);
+        var json = root.ToJson(true);
         File.WriteAllText(path, json + "\n", Encoding.UTF8);
     }
 

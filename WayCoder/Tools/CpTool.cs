@@ -9,29 +9,19 @@ public class CpTool : ITool
     public string Name => "cp";
     public string Description => "复制文件或目录。自动创建父目录。纯 C# 实现，无 Shell 依赖。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["src"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "源文件路径",
-            },
-            ["dest"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "目标路径（文件或目录）",
-            },
-            ["overwrite"] = new JsonObject
-            {
-                ["type"] = "boolean",
-                ["description"] = "是否覆盖已存在的目标文件（默认 false）",
-            },
-        },
-        ["required"] = new JsonArray("src", "dest"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("src", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "源文件路径"))
+            .Set("dest", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "目标路径（文件或目录）"))
+            .Set("overwrite", JNode.Object()
+                .Set("type", "boolean")
+                .Set("description", "是否覆盖已存在的目标文件（默认 false）")))
+        .Set("required", JNode.Array().Add("src").Add("dest"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

@@ -17,34 +17,22 @@ public class GrepTool : ITool
     public string Name => "grep";
     public string Description => "使用正则表达式搜索文件内容。返回匹配行，包含文件路径和行号。支持 literal_text 模式。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["pattern"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要搜索的正则表达式模式（或 literal_text 模式下的纯文本）",
-            },
-            ["path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要搜索的文件或目录（默认：当前工作目录）",
-            },
-            ["include"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "仅搜索匹配此 glob 模式的文件（如 '*.py'）",
-            },
-            ["literal_text"] = new JsonObject
-            {
-                ["type"] = "boolean",
-                ["description"] = "如果为 true，pattern 将被当做纯文本处理（自动转义正则特殊字符），默认 false",
-            },
-        },
-        ["required"] = new JsonArray("pattern"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("pattern", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要搜索的正则表达式模式（或 literal_text 模式下的纯文本）"))
+            .Set("path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要搜索的文件或目录（默认：当前工作目录）"))
+            .Set("include", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "仅搜索匹配此 glob 模式的文件（如 '*.py'）"))
+            .Set("literal_text", JNode.Object()
+                .Set("type", "boolean")
+                .Set("description", "如果为 true，pattern 将被当做纯文本处理（自动转义正则特殊字符），默认 false")))
+        .Set("required", JNode.Array().Add("pattern"));
 
     // 跳过这些目录以减少噪音
     private static readonly HashSet<string> SkipDirs =

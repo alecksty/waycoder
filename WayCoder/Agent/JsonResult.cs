@@ -1,5 +1,3 @@
-using System.Text.Json.Nodes;
-
 namespace WayCoder;
 
 /// <summary>
@@ -7,7 +5,7 @@ namespace WayCoder;
 /// 一次性 `-p` 模式加 `--json` 后，stdout 只输出一个结构化 JSON 对象，
 /// 供 VS Code 扩展、CI 脚本、外部工具直接解析，无需剥离 ANSI 动画。
 ///
-/// 纯函数：输入原始值，输出 JsonObject，便于自测（不依赖 _llm/_agent 静态态）。
+/// 纯函数：输入原始值，输出 JNode，便于自测（不依赖 _llm/_agent 静态态）。
 /// </summary>
 public static class JsonResult
 {
@@ -26,7 +24,7 @@ public static class JsonResult
     /// <param name="costUsd">本次任务花费估算（美元，模型无定价时 null）。</param>
     /// <param name="durationMs">总耗时（毫秒）。</param>
     /// <param name="changedFiles">本次会话修改过的文件路径列表。</param>
-    public static JsonObject Build(
+    public static JNode Build(
         bool success,
         string answer,
         string? error,
@@ -37,26 +35,22 @@ public static class JsonResult
         long durationMs,
         IEnumerable<string>? changedFiles)
     {
-        var files = new JsonArray();
+        var files = JNode.Array();
         foreach (var f in changedFiles ?? [])
-            files.Add(JsonValue.Create(f));
+            files.Add(JNode.From(f));
 
-        return new JsonObject
-        {
-            ["schema"] = SchemaVersion,
-            ["success"] = success,
-            ["answer"] = answer ?? "",
-            ["error"] = error,
-            ["model"] = model,
-            ["usage"] = new JsonObject
-            {
-                ["prompt_tokens"] = promptTokens,
-                ["completion_tokens"] = completionTokens,
-                ["total_tokens"] = promptTokens + completionTokens,
-            },
-            ["cost_usd"] = costUsd == null ? null : JsonValue.Create(costUsd.Value),
-            ["duration_ms"] = durationMs,
-            ["changed_files"] = files,
-        };
+        return JNode.Object()
+            .Set("schema", SchemaVersion)
+            .Set("success", success)
+            .Set("answer", answer ?? "")
+            .Set("error", error)
+            .Set("model", model)
+            .Set("usage", JNode.Object()
+                .Set("prompt_tokens", promptTokens)
+                .Set("completion_tokens", completionTokens)
+                .Set("total_tokens", promptTokens + completionTokens))
+            .Set("cost_usd", costUsd == null ? JNode.Null() : JNode.From(costUsd.Value))
+            .Set("duration_ms", durationMs)
+            .Set("changed_files", files);
     }
 }

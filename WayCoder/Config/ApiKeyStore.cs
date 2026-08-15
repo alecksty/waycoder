@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace WayCoder;
 
 /// <summary>
@@ -95,24 +93,24 @@ public static class ApiKeyStore
                 if (File.Exists(FilePath))
                 {
                     var json = File.ReadAllText(FilePath);
-                    var root = JsonNode.Parse(json);
+                    var root = Json.Parse(json);
 
-                    if (root is JsonArray arr)
+                    if (root is { Kind: JKind.Array } arr)
                     {
                         // 新格式：[ { "provider": "...", "apikey": "..." } ]
-                        foreach (var item in arr)
+                        foreach (var item in arr.Items)
                         {
-                            if (item is not JsonObject o) continue;
-                            var pid = o["provider"]?.GetValue<string>();
-                            var key = o["apikey"]?.GetValue<string>() ?? o["key"]?.GetValue<string>();
+                            if (item.Kind != JKind.Object) continue;
+                            var pid = item["provider"]?.AsString();
+                            var key = item["apikey"]?.AsString() ?? item["key"]?.AsString();
                             if (!string.IsNullOrWhiteSpace(pid) && !string.IsNullOrWhiteSpace(key))
                                 result[pid.ToLowerInvariant()] = key;
                         }
                     }
-                    else if (root is JsonObject obj)
+                    else if (root is { Kind: JKind.Object } obj)
                     {
                         // 兼容旧格式：{ "deepseek": "sk-..." } 或 { "deepseek": { "type": "api", "key": "..." } }
-                        foreach (var (pid, val) in obj)
+                        foreach (var (pid, val) in obj.Entries)
                         {
                             var key = ParseCredentialKey(val);
                             if (key != null)
@@ -132,12 +130,12 @@ public static class ApiKeyStore
     }
 
     /// <summary>解析单个凭据值：对象 { key: "..." } 或纯字符串</summary>
-    private static string? ParseCredentialKey(JsonNode? val)
+    private static string? ParseCredentialKey(JNode? val)
     {
-        if (val is JsonObject o)
-            return o["key"]?.GetValue<string>();
-        if (val is JsonValue v && v.TryGetValue<string>(out var s))
-            return s;
+        if (val is { Kind: JKind.Object })
+            return val["key"]?.AsString();
+        if (val is { Kind: JKind.String })
+            return val.AsString();
         return null;
     }
 
@@ -148,12 +146,12 @@ public static class ApiKeyStore
             var dir = Path.GetDirectoryName(FilePath);
             if (dir != null) Directory.CreateDirectory(dir);
 
-            var arr = new JsonArray();
+            var arr = JNode.Array();
             foreach (var (pid, key) in keys)
-                arr.Add(new JsonObject { ["provider"] = pid, ["apikey"] = key });
+                arr.Add(JNode.Object().Set("provider", pid).Set("apikey", key));
 
             _keys = keys;
-            var json = arr.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+            var json = arr.ToJson(true);
             File.WriteAllText(FilePath, json);
         }
         catch { /* 写入失败不崩溃 */ }

@@ -68,15 +68,15 @@ public static partial class SelfTest
         Check("AskUserQuestion.Description 非空", !string.IsNullOrEmpty(auqTool.Description));
         // Schema 校验
         var auqSchema = auqTool.Schema();
-        Check("AskUserQuestion.Schema type=function", (string?)auqSchema["type"] == "function");
+        Check("AskUserQuestion.Schema type=function", auqSchema["type"]?.AsString() == "function");
         var auqFunc = auqSchema["function"];
-        Check("AskUserQuestion.Schema name", (string?)auqFunc?["name"] == "ask_user_question");
+        Check("AskUserQuestion.Schema name", auqFunc?["name"]?.AsString() == "ask_user_question");
         var auqParams = auqFunc?["parameters"];
         Check("AskUserQuestion.Schema parameters 非空", auqParams != null);
         Check("AskUserQuestion.Schema required=questions",
-            auqParams?["required"] is JsonArray reqArr && reqArr.Count == 1 && (string?)reqArr[0] == "questions");
+            auqParams?["required"] is JNode reqArr && reqArr.Count == 1 && reqArr[0]?.AsString() == "questions");
         // 空 questions → 错误
-        var auqEmptyResult = auqTool.ExecuteAsync(new() { ["questions"] = new JsonArray() }).Result;
+        var auqEmptyResult = auqTool.ExecuteAsync(new() { ["questions"] = JNode.Array() }).Result;
         Check("AskUserQuestion 空数组返回错误", auqEmptyResult.Contains("错误"));
         // 缺少 questions 参数
         var auqMissingResult = auqTool.ExecuteAsync(new()).Result;
@@ -102,9 +102,9 @@ public static partial class SelfTest
         // 创建依赖链: task-a → task-b → task-c
         var rA = depTool.ExecuteAsync(new() { ["action"] = "create", ["id"] = "dep-a", ["title"] = "前置任务A" }).Result;
         Check("Todo依赖: 创建任务A", rA.Contains("创建") && TodoTool.Items.Any(t => t.Id == "dep-a"));
-        var rB = depTool.ExecuteAsync(new() { ["action"] = "create", ["id"] = "dep-b", ["title"] = "任务B", ["deps"] = new JsonArray(JsonValue.Create("dep-a")!) }).Result;
+        var rB = depTool.ExecuteAsync(new() { ["action"] = "create", ["id"] = "dep-b", ["title"] = "任务B", ["deps"] = JNode.Array().Add("dep-a") }).Result;
         Check("Todo依赖: 创建任务B(依赖A)", rB.Contains("创建") && TodoTool.Items.Any(t => t.Id == "dep-b" && t.Status == "blocked"));
-        var rC = depTool.ExecuteAsync(new() { ["action"] = "create", ["id"] = "dep-c", ["title"] = "任务C", ["deps"] = new JsonArray(JsonValue.Create("dep-b")!) }).Result;
+        var rC = depTool.ExecuteAsync(new() { ["action"] = "create", ["id"] = "dep-c", ["title"] = "任务C", ["deps"] = JNode.Array().Add("dep-b") }).Result;
         Check("Todo依赖: 创建任务C(依赖B)", rC.Contains("创建") && TodoTool.Items.Any(t => t.Id == "dep-c" && t.Status == "blocked"));
 
         // blocked → in_progress 被拒绝（依赖未完成）
@@ -237,14 +237,14 @@ public static partial class SelfTest
         // ---- 会话详情: MessageCount ----
         Section("[会话详情: MessageCount]");
         var mcTestId = "mc_test_" + DateTime.Now.ToString("yyyyMMddHHmmss");
-        var mcMsgs = new List<JsonObject>
+        var mcMsgs = new List<JNode>
         {
-            new() { ["role"] = "user", ["content"] = "msg1" },
-            new() { ["role"] = "assistant", ["content"] = "r1" },
-            new() { ["role"] = "user", ["content"] = "msg2" },
-            new() { ["role"] = "assistant", ["content"] = "r2" },
-            new() { ["role"] = "user", ["content"] = "msg3" },
-            new() { ["role"] = "assistant", ["content"] = "r3" },
+            JNode.Object().Set("role", "user").Set("content", "msg1"),
+            JNode.Object().Set("role", "assistant").Set("content", "r1"),
+            JNode.Object().Set("role", "user").Set("content", "msg2"),
+            JNode.Object().Set("role", "assistant").Set("content", "r2"),
+            JNode.Object().Set("role", "user").Set("content", "msg3"),
+            JNode.Object().Set("role", "assistant").Set("content", "r3"),
         };
         var mcSavedId = SessionManager.SaveSession(mcMsgs, "test-model", mcTestId);
         Check("SessionInfo: 保存成功", mcSavedId == mcTestId);
@@ -456,43 +456,31 @@ public static partial class SelfTest
         Section("[孤儿工具修复]");
         // Agent 主循环在开始前调用 RepairOrphanedToolPairs
         // 通过消息注入验证：模拟孤儿场景
-        var orphanMsgs = new List<JsonObject>
+        var orphanMsgs = new List<JNode>
         {
-            new() { ["role"] = "user", ["content"] = "test" },
-            new()
-            {
-                ["role"] = "assistant",
-                ["content"] = null,
-                ["tool_calls"] = new JsonArray
-                {
-                    new JsonObject
-                    {
-                        ["id"] = "orphan_call_1",
-                        ["type"] = "function",
-                        ["function"] = new JsonObject { ["name"] = "bash", ["arguments"] = "echo test" }
-                    },
-                    new JsonObject
-                    {
-                        ["id"] = "orphan_call_2",
-                        ["type"] = "function",
-                        ["function"] = new JsonObject { ["name"] = "read_file", ["arguments"] = "{}" }
-                    },
-                }
-            },
+            JNode.Object().Set("role", "user").Set("content", "test"),
+            JNode.Object()
+                .Set("role", "assistant")
+                .Set("content", (string?)null)
+                .Set("tool_calls", JNode.Array()
+                    .Add(JNode.Object()
+                        .Set("id", "orphan_call_1")
+                        .Set("type", "function")
+                        .Set("function", JNode.Object().Set("name", "bash").Set("arguments", "echo test")))
+                    .Add(JNode.Object()
+                        .Set("id", "orphan_call_2")
+                        .Set("type", "function")
+                        .Set("function", JNode.Object().Set("name", "read_file").Set("arguments", "{}")))),
         };
         // 注入孤儿: tool_calls 有 2 个，但 tool 结果消息只有 1 个
-        orphanMsgs.Add(new JsonObject
-        {
-            ["role"] = "tool",
-            ["tool_call_id"] = "orphan_call_1",
-            ["content"] = "正常结果",
-        });
-        orphanMsgs.Add(new JsonObject
-        {
-            ["role"] = "tool",
-            ["tool_call_id"] = "extra_result_no_call",
-            ["content"] = "多余的 tool 结果",
-        });
+        orphanMsgs.Add(JNode.Object()
+            .Set("role", "tool")
+            .Set("tool_call_id", "orphan_call_1")
+            .Set("content", "正常结果"));
+        orphanMsgs.Add(JNode.Object()
+            .Set("role", "tool")
+            .Set("tool_call_id", "extra_result_no_call")
+            .Set("content", "多余的 tool 结果"));
 
         // 通过 Agent 公开的测试钩子验证修复逻辑
         var testResult = Agent.TestOrphanRepair(orphanMsgs);
@@ -587,7 +575,7 @@ public static partial class SelfTest
         Check("AgentTool.ExtractTaskText 对象提取 description", extDict == "给 Automata 加冒烟测试");
         var extDictTask = AgentTool.ExtractTaskText(new Dictionary<string, object?> { ["task"] = "给 Geospatial 加冒烟测试" });
         Check("AgentTool.ExtractTaskText 对象提取 task", extDictTask == "给 Geospatial 加冒烟测试");
-        var extJson = AgentTool.ExtractTaskText(new JsonObject { ["description"] = "JsonObject 路径" });
+        var extJson = AgentTool.ExtractTaskText(JNode.Object().Set("description", "JsonObject 路径"));
         Check("AgentTool.ExtractTaskText JsonObject 提取", extJson == "JsonObject 路径");
         var extNull = AgentTool.ExtractTaskText(null);
         Check("AgentTool.ExtractTaskText null 返回 null", extNull == null);

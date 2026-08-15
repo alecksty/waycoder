@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace WayCoder;
@@ -22,22 +21,23 @@ public static class SessionManager
     /// <summary>
     /// 将对话保存到磁盘。返回会话 ID。
     /// </summary>
-    public static string SaveSession(List<JsonObject> messages, string model, string? sessionId = null)
+    public static string SaveSession(List<JNode> messages, string model, string? sessionId = null)
     {
         Directory.CreateDirectory(SessionsDir);
 
         sessionId = NormalizeSessionId(sessionId);
 
-        var data = new JsonObject
-        {
-            ["id"] = sessionId,
-            ["model"] = model,
-            ["saved_at"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-            ["messages"] = new JsonArray(messages.Select(m => (JsonNode?)m).ToArray()),
-        };
+        var data = JNode.Object()
+            .Set("id", sessionId)
+            .Set("model", model)
+            .Set("saved_at", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+
+        var msgArr = JNode.Array();
+        foreach (var m in messages) msgArr.Add(m);
+        data.Set("messages", msgArr);
 
         var path = SessionPath(sessionId);
-        File.WriteAllText(path, data.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
+        File.WriteAllText(path, data.ToJson(true));
 
         return sessionId;
     }
@@ -45,7 +45,7 @@ public static class SessionManager
     /// <summary>
     /// 加载已保存的会话。返回 (messages, model) 或 null。
     /// </summary>
-    public static (List<JsonObject> Messages, string Model)? LoadSession(string sessionId)
+    public static (List<JNode> Messages, string Model)? LoadSession(string sessionId)
     {
         // 先试新目录，回退旧目录
         var path = SessionPath(sessionId);
@@ -59,10 +59,10 @@ public static class SessionManager
         try
         {
             var json = File.ReadAllText(path);
-            var data = JsonNode.Parse(json);
-            if (data?["messages"]?.AsArray() is { } arr && data["model"]?.GetValue<string>() is { } model)
+            var data = Json.Parse(json);
+            if (data?["messages"] is { Kind: JKind.Array } arr && data["model"]?.AsString() is { } model)
             {
-                var messages = arr.Select(n => n?.AsObject() ?? new JsonObject()).ToList();
+                var messages = arr.Items.ToList();
                 return (messages, model);
             }
         }
@@ -100,13 +100,13 @@ public static class SessionManager
         {
             // 更新文件中的 id 字段
             var json = File.ReadAllText(oldPath);
-            var data = JsonNode.Parse(json);
+            var data = Json.Parse(json);
             if (data != null)
             {
-                data["id"] = newIdNormalized;
-                data["saved_at"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                data.Set("id", newIdNormalized);
+                data.Set("saved_at", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             }
-            File.WriteAllText(newPath, data?.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }) ?? json);
+            File.WriteAllText(newPath, data?.ToJson(true) ?? json);
 
             // 删除旧文件（如果路径不同）
             if (!string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
@@ -137,20 +137,20 @@ public static class SessionManager
                 try
                 {
                     var json = File.ReadAllText(f);
-                    var data = JsonNode.Parse(json);
+                    var data = Json.Parse(json);
                     if (data == null) continue;
-                    var id = data["id"]?.GetValue<string>() ?? Path.GetFileNameWithoutExtension(f);
+                    var id = data["id"]?.AsString() ?? Path.GetFileNameWithoutExtension(f);
                     // 去重
                     if (sessions.Any(s => s.Id == id)) continue;
 
                     var preview = "";
                     int msgCount = 0;
-                    if (data["messages"]?.AsArray() is { } arr)
+                    if (data["messages"] is { Kind: JKind.Array } arr)
                     {
                         msgCount = arr.Count;
-                        foreach (var m in arr)
+                        foreach (var m in arr.Items)
                         {
-                            if (m?["role"]?.GetValue<string>() == "user" && m["content"]?.GetValue<string>() is { } c)
+                            if (m["role"]?.AsString() == "user" && m["content"]?.AsString() is { } c)
                             {
                                 preview = c.Length > 80 ? c[..80] : c;
                                 break;
@@ -167,8 +167,8 @@ public static class SessionManager
 
                     sessions.Add(new SessionInfo(
                         id,
-                        data["model"]?.GetValue<string>() ?? "?",
-                        data["saved_at"]?.GetValue<string>() ?? "?",
+                        data["model"]?.AsString() ?? "?",
+                        data["saved_at"]?.AsString() ?? "?",
                         preview,
                         msgCount));
                 }

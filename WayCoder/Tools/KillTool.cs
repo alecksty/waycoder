@@ -12,29 +12,19 @@ public class KillTool : ITool
     public string Name => "kill";
     public string Description => "终止指定进程。通过 PID 或进程名（如 'node'、'dotnet'）。禁止终止系统关键进程。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["pid"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "要终止的进程 PID",
-            },
-            ["name"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要终止的进程名（如 'node'、'python'）",
-            },
-            ["force"] = new JsonObject
-            {
-                ["type"] = "boolean",
-                ["description"] = "强制终止（默认 false，先尝试优雅终止）",
-            },
-        },
-        ["required"] = new JsonArray(),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("pid", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "要终止的进程 PID"))
+            .Set("name", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要终止的进程名（如 'node'、'python'）"))
+            .Set("force", JNode.Object()
+                .Set("type", "boolean")
+                .Set("description", "强制终止（默认 false，先尝试优雅终止）")))
+        .Set("required", JNode.Array());
 
     // 禁止终止的关键系统进程
     private static readonly HashSet<string> ProtectedNames = new(StringComparer.OrdinalIgnoreCase)

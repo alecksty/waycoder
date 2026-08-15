@@ -10,19 +10,13 @@ public class SkillTool : ITool
     public string Name => "skill";
     public string Description => "加载一个指定技能的全部内容到上下文。用于需要获取某个技能的详细操作指令时调用。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["name"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要加载的技能名称",
-            },
-        },
-        ["required"] = new JsonArray("name"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("name", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要加载的技能名称")))
+        .Set("required", JNode.Array().Add("name"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

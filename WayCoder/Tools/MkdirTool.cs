@@ -9,19 +9,13 @@ public class MkdirTool : ITool
     public string Name => "mkdir";
     public string Description => "创建目录（递归）。纯 C# 实现，自动创建所有父目录，已存在时不报错。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要创建的目录路径（相对或绝对）",
-            },
-        },
-        ["required"] = new JsonArray("path"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要创建的目录路径（相对或绝对）")))
+        .Set("required", JNode.Array().Add("path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

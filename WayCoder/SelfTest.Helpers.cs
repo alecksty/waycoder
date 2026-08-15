@@ -12,18 +12,18 @@ namespace WayCoder;
 public static partial class SelfTest
 {
     /// <summary>获取 notebook cell 的 source 文本（测试助手）</summary>
-    private static string GetNotebookSource(JsonObject notebook, int cellIndex)
+    private static string GetNotebookSource(JNode notebook, int cellIndex)
     {
-        var cells = notebook["cells"]?.AsArray();
+        var cells = notebook["cells"];
         if (cells == null || cellIndex >= cells.Count) return "";
         var source = cells[cellIndex]?["source"];
-        if (source is JsonArray arr)
+        if (source is { Kind: JKind.Array })
         {
             var sb = new StringBuilder();
-            foreach (var line in arr) sb.Append(line?.ToString() ?? "");
+            foreach (var line in source.Items) sb.Append(line.AsString() ?? "");
             return sb.ToString();
         }
-        return source?.ToString() ?? "";
+        return source?.AsString() ?? "";
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -34,22 +34,22 @@ public static partial class SelfTest
     private static void TestSnipToolOutputs(Action<string, bool> Check)
     {
         // ── 1. 短内容不裁剪（≤4000 字符）──
-        var shortMsgs = new List<JsonObject>
+        var shortMsgs = new List<JNode>
         {
-            new() { ["role"] = "tool", ["content"] = "短输出\n只有几行\n内容很少" },
+            JNode.Object().Set("role", "tool").Set("content", "短输出\n只有几行\n内容很少"),
         };
-        var shortBefore = shortMsgs[0]["content"]!.GetValue<string>();
+        var shortBefore = shortMsgs[0]["content"]!.AsString();
         ContextManager.SnipToolOutputs(shortMsgs);
-        Check("Snip: 短内容不裁剪", shortMsgs[0]["content"]!.GetValue<string>() == shortBefore);
+        Check("Snip: 短内容不裁剪", shortMsgs[0]["content"]!.AsString() == shortBefore);
 
         // ── 2. 非 tool 消息不裁剪 ──
-        var userMsgs = new List<JsonObject>
+        var userMsgs = new List<JNode>
         {
-            new() { ["role"] = "user", ["content"] = new string('x', 5000) },
+            JNode.Object().Set("role", "user").Set("content", new string('x', 5000)),
         };
-        var userBefore = userMsgs[0]["content"]!.GetValue<string>();
+        var userBefore = userMsgs[0]["content"]!.AsString();
         ContextManager.SnipToolOutputs(userMsgs);
-        Check("Snip: 非tool消息不裁剪", userMsgs[0]["content"]!.GetValue<string>() == userBefore);
+        Check("Snip: 非tool消息不裁剪", userMsgs[0]["content"]!.AsString() == userBefore);
 
         // ── 3. 长内容裁剪（>4000 字符 + >10 行）──
         var lines = new List<string>();
@@ -58,15 +58,15 @@ public static partial class SelfTest
         var longContent = string.Join("\n", lines);
         Check("Snip: 输入内容 >4000 字符", longContent.Length > 4000);
 
-        var longMsgs = new List<JsonObject>
+        var longMsgs = new List<JNode>
         {
-            new() { ["role"] = "tool", ["content"] = longContent },
+            JNode.Object().Set("role", "tool").Set("content", longContent),
         };
         var longBefore = ContextManager.EstimateTokens(longMsgs);
         ContextManager.SnipToolOutputs(longMsgs);
         var longAfter = ContextManager.EstimateTokens(longMsgs);
         Check("Snip: 长内容被裁剪", longAfter < longBefore);
-        var snipped = longMsgs[0]["content"]!.GetValue<string>();
+        var snipped = longMsgs[0]["content"]!.AsString();
         Check("Snip: 裁剪后包含省略标记", snipped.Contains("省略") || snipped.Contains("裁剪"));
 
         // ── 4. 错误行保留 ──
@@ -81,71 +81,65 @@ public static partial class SelfTest
         var errorContent = string.Join("\n", errorLines);
         Check("Snip(错误): 输入内容 >4000 字符", errorContent.Length > 4000);
 
-        var errMsgs = new List<JsonObject>
+        var errMsgs = new List<JNode>
         {
-            new() { ["role"] = "tool", ["content"] = errorContent },
+            JNode.Object().Set("role", "tool").Set("content", errorContent),
         };
         ContextManager.SnipToolOutputs(errMsgs);
-        var errSnipped = errMsgs[0]["content"]!.GetValue<string>();
+        var errSnipped = errMsgs[0]["content"]!.AsString();
         Check("Snip: 错误行 CS0103 被保留", errSnipped.Contains("CS0103"));
         Check("Snip: 错误行 CS0246 被保留", errSnipped.Contains("CS0246"));
         Check("Snip: 裁剪后包含错误统计", errSnipped.Contains("错误"));
 
         // ── 5. 首5尾5保留 ──
-        var seqMsgs = new List<JsonObject>
+        var seqMsgs = new List<JNode>
         {
-            new() { ["role"] = "tool", ["content"] = string.Join("\n", Enumerable.Range(0, 100).Select(i => $"LINE_{i:D3}: {new string('x', 50)}")) },
+            JNode.Object().Set("role", "tool").Set("content", string.Join("\n", Enumerable.Range(0, 100).Select(i => $"LINE_{i:D3}: {new string('x', 50)}"))),
         };
         ContextManager.SnipToolOutputs(seqMsgs);
-        var seqSnipped = seqMsgs[0]["content"]!.GetValue<string>();
+        var seqSnipped = seqMsgs[0]["content"]!.AsString();
         Check("Snip: 首部 LINE_000 被保留", seqSnipped.Contains("LINE_000"));
         Check("Snip: 首部 LINE_004 被保留", seqSnipped.Contains("LINE_004"));
         Check("Snip: 尾部 LINE_099 被保留", seqSnipped.Contains("LINE_099"));
         Check("Snip: 尾部 LINE_095 被保留", seqSnipped.Contains("LINE_095"));
 
         // ── 6. 多消息混合（部分裁剪）──
-        var mixedMsgs = new List<JsonObject>
+        var mixedMsgs = new List<JNode>
         {
-            new() { ["role"] = "user", ["content"] = "请编译项目" },
-            new() { ["role"] = "tool", ["content"] = new string('a', 200) }, // 短输出不裁剪
-            new() { ["role"] = "tool", ["content"] = string.Join("\n", Enumerable.Range(0, 100).Select(i => $"L{i:D3}: {new string('y', 50)}")) }, // 长输出裁剪
+            JNode.Object().Set("role", "user").Set("content", "请编译项目"),
+            JNode.Object().Set("role", "tool").Set("content", new string('a', 200)), // 短输出不裁剪
+            JNode.Object().Set("role", "tool").Set("content", string.Join("\n", Enumerable.Range(0, 100).Select(i => $"L{i:D3}: {new string('y', 50)}"))), // 长输出裁剪
         };
         var mixedChanged = ContextManager.SnipToolOutputs(mixedMsgs);
         Check("Snip: 混合消息有裁剪发生", mixedChanged);
-        Check("Snip: 用户消息不变", mixedMsgs[0]["content"]!.GetValue<string>() == "请编译项目");
-        Check("Snip: 短tool不裁剪", mixedMsgs[1]["content"]!.GetValue<string>().Length < 300);
-        Check("Snip: 长tool被裁剪", mixedMsgs[2]["content"]!.GetValue<string>().Contains("省略") || mixedMsgs[2]["content"]!.GetValue<string>().Contains("裁剪"));
+        Check("Snip: 用户消息不变", mixedMsgs[0]["content"]!.AsString() == "请编译项目");
+        Check("Snip: 短tool不裁剪", mixedMsgs[1]["content"]!.AsString().Length < 300);
+        Check("Snip: 长tool被裁剪", mixedMsgs[2]["content"]!.AsString().Contains("省略") || mixedMsgs[2]["content"]!.AsString().Contains("裁剪"));
     }
 
     /// <summary>压缩保真度测试：超多需求压缩后关键信息仍保留（无 LLM 回退路径）</summary>
     private static void TestCompressionFidelity(Action<string, bool> Check)
     {
         // 构造"超多需求"消息：30 条需求 + 关联文件路径/命名空间/API 签名/错误码
-        var msgs = new List<JsonObject>
+        var msgs = new List<JNode>
         {
-            new() { ["role"] = "user", ["content"] = "为 WayCoder 实现 30 个新工具，每个工具一个文件，全部完成后编译。" }
+            JNode.Object().Set("role", "user").Set("content", "为 WayCoder 实现 30 个新工具，每个工具一个文件，全部完成后编译。")
         };
         for (int i = 1; i <= 30; i++)
         {
-            msgs.Add(new JsonObject
-            {
-                ["role"] = "user",
-                ["content"] = $"需求 {i}：实现 Tools/{i:D2}Tool.cs 工具，namespace WayCoder.Tools，" +
-                              $"提供 public async Task<string> Execute(Dictionary<string, object?> args) 方法，处理业务逻辑。"
-            });
+            msgs.Add(JNode.Object()
+                .Set("role", "user")
+                .Set("content", $"需求 {i}：实现 Tools/{i:D2}Tool.cs 工具，namespace WayCoder.Tools，" +
+                              $"提供 public async Task<string> Execute(Dictionary<string, object?> args) 方法，处理业务逻辑。"));
         }
         // 冗余长工具输出（触发第 1 层裁剪）
-        msgs.Add(new JsonObject
-        {
-            ["role"] = "tool",
-            ["content"] = string.Join("\n", Enumerable.Range(0, 150).Select(i => $"冗余输出行 {i:D4}：{new string('x', 60)}"))
-        });
+        msgs.Add(JNode.Object()
+            .Set("role", "tool")
+            .Set("content", string.Join("\n", Enumerable.Range(0, 150).Select(i => $"冗余输出行 {i:D4}：{new string('x', 60)}"))));
         // 编译错误信息
-        msgs.Add(new JsonObject
-        {
-            ["role"] = "tool",
-            ["content"] = "编译失败：Program.cs(45,12): error CS0103: 当前上下文中不存在名称 'doesNotExist'"
-        });
+        msgs.Add(JNode.Object()
+            .Set("role", "tool")
+            .Set("content", "编译失败：Program.cs(45,12): error CS0103: 当前上下文中不存在名称 'doesNotExist'"));
 
         var before = msgs.Count;
         var cm = new ContextManager(2000); // 极小 maxTokens 压低三层阈值
@@ -154,7 +148,7 @@ public static partial class SelfTest
         Check("压缩保真: 压缩确实发生", compressed);
         Check("压缩保真: 消息数减少", msgs.Count < before);
 
-        var flat = string.Join("\n", msgs.Select(m => m["content"]?.GetValue<string>() ?? ""));
+        var flat = string.Join("\n", msgs.Select(m => m["content"]?.AsString() ?? ""));
 
         // 保真度：文件路径 / 命名空间 / 错误码保留
         Check("压缩保真: 保留文件路径", flat.Contains("Tool.cs"));
@@ -178,23 +172,23 @@ public static partial class SelfTest
         Check("窗口: 自定义回退值生效", ModelCatalog.ResolveContextWindow("unknown", 64_000) == 64_000);
 
         // ── 2. UpdateMaxTokens 重算阈值：小窗口压缩、放大后不再压缩 ──
-        var longTool = new List<JsonObject>
+        var longTool = new List<JNode>
         {
-            new() { ["role"] = "tool", ["content"] = string.Join("\n", Enumerable.Range(0, 100).Select(i => $"行{i}: {new string('x', 60)}")) }
+            JNode.Object().Set("role", "tool").Set("content", string.Join("\n", Enumerable.Range(0, 100).Select(i => $"行{i}: {new string('x', 60)}")))
         };
 
         var smallCm = new ContextManager(200);
-        var smallCopy = new List<JsonObject>
+        var smallCopy = new List<JNode>
         {
-            new() { ["role"] = "tool", ["content"] = longTool[0]["content"]!.GetValue<string>() }
+            JNode.Object().Set("role", "tool").Set("content", longTool[0]["content"]!.AsString())
         };
         var compressedSmall = smallCm.MaybeCompressAsync(smallCopy, null).GetAwaiter().GetResult();
         Check("窗口: 小窗口触发压缩", compressedSmall);
 
         smallCm.UpdateMaxTokens(100_000);
-        var largeCopy = new List<JsonObject>
+        var largeCopy = new List<JNode>
         {
-            new() { ["role"] = "tool", ["content"] = longTool[0]["content"]!.GetValue<string>() }
+            JNode.Object().Set("role", "tool").Set("content", longTool[0]["content"]!.AsString())
         };
         var compressedLarge = smallCm.MaybeCompressAsync(largeCopy, null).GetAwaiter().GetResult();
         Check("窗口: 放大后不再压缩", !compressedLarge);
@@ -365,14 +359,14 @@ public static partial class SelfTest
         // SnipToolOutputs 阈值：约 3300 字符（介于 2000 与 4000 之间），关闭不截断、打开截断
         var midContent = string.Join("\n", Enumerable.Range(0, 60).Select(i => new string('x', 50) + $"_{i:D3}"));
         Config.Instance.EconomyMode = EconomyMode.Off;
-        var msgsOff = new List<JsonObject> { new() { ["role"] = "tool", ["content"] = midContent } };
+        var msgsOff = new List<JNode> { JNode.Object().Set("role", "tool").Set("content", midContent) };
         ContextManager.SnipToolOutputs(msgsOff);
-        Check("Economy: 关闭时 3300 字符不截断", msgsOff[0]["content"]!.GetValue<string>() == midContent);
+        Check("Economy: 关闭时 3300 字符不截断", msgsOff[0]["content"]!.AsString() == midContent);
 
         Config.Instance.EconomyMode = EconomyMode.On;
-        var msgsOn = new List<JsonObject> { new() { ["role"] = "tool", ["content"] = midContent } };
+        var msgsOn = new List<JNode> { JNode.Object().Set("role", "tool").Set("content", midContent) };
         ContextManager.SnipToolOutputs(msgsOn);
-        Check("Economy: 打开时 3300 字符被截断", msgsOn[0]["content"]!.GetValue<string>()!.Length < midContent.Length);
+        Check("Economy: 打开时 3300 字符被截断", msgsOn[0]["content"]!.AsString()!.Length < midContent.Length);
 
         Config.Instance.EconomyMode = savedEconomy;
         Config.Instance.EconomyPriority = savedPriority;
@@ -388,19 +382,19 @@ public static partial class SelfTest
         // 通过 SnipToolOutputs 的错误保留逻辑覆盖错误提取路径
 
         // ── 验证：错误行中的 CS 错误码被识别 ──
-        var msgsWithErrors = new List<JsonObject>
+        var msgsWithErrors = new List<JNode>
         {
-            new() { ["role"] = "tool", ["content"] = string.Join("\n",
+            JNode.Object().Set("role", "tool").Set("content", string.Join("\n",
                 Enumerable.Range(0, 5).Select(i => $"行{i}")
                 .Concat(new[] {
                     "File.cs(10,5): error CS0103: 名称 'foo' 不存在",
                     "File.cs(20,8): error CS0246: 类型 'Bar' 未找到",
                     "Unhandled exception: System.NullReferenceException",
                 })
-                .Concat(Enumerable.Range(0, 150).Select(i => $"填充行{i}：{new string('x', 40)}"))) },
+                .Concat(Enumerable.Range(0, 150).Select(i => $"填充行{i}：{new string('x', 40)}")))),
         };
         ContextManager.SnipToolOutputs(msgsWithErrors);
-        var result = msgsWithErrors[0]["content"]!.GetValue<string>();
+        var result = msgsWithErrors[0]["content"]!.AsString();
         Check("ExtractKey: 保留 error CS0103", result.Contains("CS0103"));
         Check("ExtractKey: 保留 error CS0246", result.Contains("CS0246"));
         Check("ExtractKey: 保留 Exception", result.Contains("NullReferenceException"));
@@ -411,9 +405,9 @@ public static partial class SelfTest
         Check("ExtractKey: 尾行保留", result.Contains("填充行149"));
 
         // ── 验证：namespace 提取（通过 GenerateProjectSnapshot 间接测试）──
-        var snapshotMsgs = new List<JsonObject>
+        var snapshotMsgs = new List<JNode>
         {
-            new() { ["role"] = "assistant", ["content"] = "namespace WayCoder.Tools;\nnamespace MiniDB.Storage;\n普通文本" },
+            JNode.Object().Set("role", "assistant").Set("content", "namespace WayCoder.Tools;\nnamespace MiniDB.Storage;\n普通文本"),
         };
         // 测试 GenerateProjectSnapshot 不为空
         var snapshot = typeof(ContextManager).GetMethod("GenerateProjectSnapshot",
@@ -445,13 +439,13 @@ public static partial class SelfTest
     private static void TestTokenEstimation(Action<string, bool> Check)
     {
         // ── CJK 字符权重更高 ──
-        var cjkMsg = new List<JsonObject>
+        var cjkMsg = new List<JNode>
         {
-            new() { ["role"] = "user", ["content"] = "你好世界这是一个测试" },
+            JNode.Object().Set("role", "user").Set("content", "你好世界这是一个测试"),
         };
-        var asciiMsg = new List<JsonObject>
+        var asciiMsg = new List<JNode>
         {
-            new() { ["role"] = "user", ["content"] = "hello world this is a test" },
+            JNode.Object().Set("role", "user").Set("content", "hello world this is a test"),
         };
         var cjkTokens = ContextManager.EstimateTokens(cjkMsg);
         var asciiTokens = ContextManager.EstimateTokens(asciiMsg);
@@ -459,41 +453,40 @@ public static partial class SelfTest
         Check("TokenEst: CJK tokens > ASCII tokens (等长)", cjkTokens > asciiTokens);
 
         // ── 空消息列表 → 0 tokens ──
-        var empty = ContextManager.EstimateTokens(new List<JsonObject>());
+        var empty = ContextManager.EstimateTokens(new List<JNode>());
         Check("TokenEst: 空列表=0", empty == 0);
 
         // ── 混合内容估算 ──
-        var mixed = new List<JsonObject>
+        var mixed = new List<JNode>
         {
-            new() { ["role"] = "user", ["content"] = "帮我编译WayCoder项目" },
-            new() { ["role"] = "assistant", ["content"] = "好的，我来编译项目" },
-            new() { ["role"] = "tool", ["content"] = "Build succeeded. 0 errors." },
+            JNode.Object().Set("role", "user").Set("content", "帮我编译WayCoder项目"),
+            JNode.Object().Set("role", "assistant").Set("content", "好的，我来编译项目"),
+            JNode.Object().Set("role", "tool").Set("content", "Build succeeded. 0 errors."),
         };
         var mixedTokens = ContextManager.EstimateTokens(mixed);
         Check("TokenEst: 混合消息 > 0", mixedTokens > 0);
         Check("TokenEst: 混合消息 > 单条消息", mixedTokens > ContextManager.EstimateTokens(cjkMsg));
 
         // ── tool_calls 也被计入 ──
-        var withToolCalls = new List<JsonObject>
+        var withToolCalls = new List<JNode>
         {
-            new() { ["role"] = "assistant", ["content"] = "我来执行命令",
-                ["tool_calls"] = new JsonArray { new JsonObject {
-                    ["function"] = new JsonObject { ["name"] = "bash", ["arguments"] = "dotnet build" }
-                }}
-            },
+            JNode.Object().Set("role", "assistant").Set("content", "我来执行命令")
+                .Set("tool_calls", JNode.Array()
+                    .Add(JNode.Object()
+                        .Set("function", JNode.Object().Set("name", "bash").Set("arguments", "dotnet build")))),
         };
         var withToolTokens = ContextManager.EstimateTokens(withToolCalls);
-        var withoutToolTokens = ContextManager.EstimateTokens(new List<JsonObject>
+        var withoutToolTokens = ContextManager.EstimateTokens(new List<JNode>
         {
-            new() { ["role"] = "assistant", ["content"] = "我来执行命令" },
+            JNode.Object().Set("role", "assistant").Set("content", "我来执行命令"),
         });
         Check("TokenEst: tool_calls 增加估计值", withToolTokens > withoutToolTokens);
 
         // ── 真实 API 用量校准（固定开销：system prompt + 工具定义 + 元数据）──
         var calCm = new ContextManager(128_000);
-        var calMsgs = new List<JsonObject>
+        var calMsgs = new List<JNode>
         {
-            new() { ["role"] = "user", ["content"] = "hello world" },
+            JNode.Object().Set("role", "user").Set("content", "hello world"),
         };
         var calEst = ContextManager.EstimateTokens(calMsgs);
         // 未采集真实用量前，校准值退化为原始估算
@@ -688,9 +681,9 @@ public static partial class SelfTest
             UpdateChecker.FindAssetName(names, "linux-arm64") == null);
 
         // ── 资产 URL 匹配（JSON assets 数组）──
-        var assets = new JsonArray(
-            new JsonObject { ["name"] = "waycoder-v0.49.0-win-x64.zip", ["browser_download_url"] = "https://x/win.zip" },
-            new JsonObject { ["name"] = "waycoder-v0.49.0-osx-arm64.tar.gz", ["browser_download_url"] = "https://x/osx.tar.gz" });
+        var assets = JNode.Array()
+            .Add(JNode.Object().Set("name", "waycoder-v0.49.0-win-x64.zip").Set("browser_download_url", "https://x/win.zip"))
+            .Add(JNode.Object().Set("name", "waycoder-v0.49.0-osx-arm64.tar.gz").Set("browser_download_url", "https://x/osx.tar.gz"));
         Check("升级: 资产 URL 匹配",
             UpdateChecker.FindAssetUrl(assets, "osx-arm64") == "https://x/osx.tar.gz");
         Check("升级: 资产 URL 无匹配 null",
@@ -802,7 +795,7 @@ public static partial class SelfTest
     {
         public string Name => "plugin_test_tool";
         public string Description => "测试插件工具";
-        public JsonObject Parameters => new() { ["type"] = "object", ["properties"] = new JsonObject() };
+        public JNode Parameters => JNode.Object().Set("type", "object").Set("properties", JNode.Object());
         public Task<string> ExecuteAsync(Dictionary<string, object?> arguments) => Task.FromResult("ok");
     }
 
@@ -872,24 +865,24 @@ public static partial class SelfTest
             durationMs: 2048,
             changedFiles: new[] { "a.cs", "b.cs" });
 
-        Check("JSON: success=true", ok["success"]!.GetValue<bool>() == true);
-        Check("JSON: answer 透传", ok["answer"]!.GetValue<string>() == "任务完成");
-        Check("JSON: error 为 null", ok["error"] == null);
-        Check("JSON: model 透传", ok["model"]!.GetValue<string>() == "deepseek-v4-pro");
+        Check("JSON: success=true", ok["success"]!.AsBool() == true);
+        Check("JSON: answer 透传", ok["answer"]!.AsString() == "任务完成");
+        Check("JSON: error 为 null", ok["error"]!.IsNull);
+        Check("JSON: model 透传", ok["model"]!.AsString() == "deepseek-v4-pro");
         Check("JSON: usage.total = prompt+completion",
-            ok["usage"]!["total_tokens"]!.GetValue<int>() == 150);
-        Check("JSON: cost_usd 保留", Math.Abs(ok["cost_usd"]!.GetValue<double>() - 0.00123) < 1e-9);
-        Check("JSON: duration_ms", ok["duration_ms"]!.GetValue<long>() == 2048);
-        Check("JSON: changed_files 数组", ok["changed_files"] is JsonArray arr && arr.Count == 2);
-        Check("JSON: 序列化可解析", JsonNode.Parse(ok.ToJsonString()) is JsonObject);
+            (int)ok["usage"]!["total_tokens"]!.AsNumber() == 150);
+        Check("JSON: cost_usd 保留", Math.Abs(ok["cost_usd"]!.AsNumber() - 0.00123) < 1e-9);
+        Check("JSON: duration_ms", (long)ok["duration_ms"]!.AsNumber() == 2048);
+        Check("JSON: changed_files 数组", ok["changed_files"] is JNode { Kind: JKind.Array } arr && arr.Count == 2);
+        Check("JSON: 序列化可解析", Json.Parse(ok.ToJson()) is JNode { Kind: JKind.Object });
 
         // ── 失败结果 ──
         var fail = JsonResult.Build(false, "", "请求超时", "m", 0, 0, null, 1, null);
-        Check("JSON: success=false", fail["success"]!.GetValue<bool>() == false);
-        Check("JSON: error 透传", fail["error"]!.GetValue<string>() == "请求超时");
-        Check("JSON: answer 空串兜底", fail["answer"]!.GetValue<string>() == "");
-        Check("JSON: cost_usd null", fail["cost_usd"] == null);
-        Check("JSON: changed_files 空数组", fail["changed_files"] is JsonArray e && e.Count == 0);
+        Check("JSON: success=false", fail["success"]!.AsBool() == false);
+        Check("JSON: error 透传", fail["error"]!.AsString() == "请求超时");
+        Check("JSON: answer 空串兜底", fail["answer"]!.AsString() == "");
+        Check("JSON: cost_usd null", fail["cost_usd"]!.IsNull);
+        Check("JSON: changed_files 空数组", fail["changed_files"] is JNode { Kind: JKind.Array } e && e.Count == 0);
     }
 
     /// <summary>智能重试策略（RetryPolicy）单元测试：异常过滤 + 指数退避 + 重试耗尽。</summary>
@@ -1366,12 +1359,12 @@ public static partial class SelfTest
         // ---- StripJsonComments：行注释 ----
         var noLine = ImportHelper.StripJsonComments("{\"a\": 1} // 行注释");
         Check("Import: 行注释移除", !noLine.Contains("行注释"));
-        Check("Import: 行注释后仍可解析", JsonNode.Parse(noLine) is JsonObject);
+        Check("Import: 行注释后仍可解析", Json.Parse(noLine) is JNode { Kind: JKind.Object });
 
         // ---- StripJsonComments：块注释 ----
         var noBlock = ImportHelper.StripJsonComments("{\"a\": /* 块注释 */ 1}");
         Check("Import: 块注释移除", !noBlock.Contains("块注释"));
-        Check("Import: 块注释后字段值正确", JsonNode.Parse(noBlock)?["a"]?.GetValue<int>() == 1);
+        Check("Import: 块注释后字段值正确", (int?)Json.Parse(noBlock)?["a"]?.AsNumber() == 1);
 
         // ---- StripJsonComments：字符串内注释标记不误删 ----
         var url = ImportHelper.StripJsonComments("{\"url\": \"http://example.com\"}");
@@ -1382,7 +1375,7 @@ public static partial class SelfTest
 
         // ---- StripJsonComments：字符串内转义引号不破坏解析 ----
         var esc = ImportHelper.StripJsonComments("{\"s\": \"a\\\"b\"}");
-        Check("Import: 转义引号保留", JsonNode.Parse(esc)?["s"]?.GetValue<string>() == "a\"b");
+        Check("Import: 转义引号保留", Json.Parse(esc)?["s"]?.AsString() == "a\"b");
 
         // ---- FormatSize：三档 + 边界 ----
         Check("Import: FormatSize 0 B", ImportHelper.FormatSize(0) == "0 B");
@@ -1675,6 +1668,66 @@ public static partial class SelfTest
         Check("Json: 未闭合对象拒绝", !Json.TryParse("{\"a\":1", out _));
         Check("Json: 空字符串返回 null", Json.Parse("") == null && !Json.TryParse("", out _));
 
+        // 6b. 截断 JSON 健壮性 —— 逐位置截断合法输入，验证解析器不崩溃/不挂起、异常受控
+        {
+            var truncationSources = new[]
+            {
+                "{\"a\":1,\"b\":\"hello\",\"c\":[1,2,3],\"d\":{\"e\":true,\"f\":null}}",
+                "[1,2,3,4,5]",
+                "{\"nested\":{\"deep\":{\"deeper\":[{\"x\":1},{\"y\":2}]}}}",
+                "\"a string with escapes \\n\\t\\\" and unicode \\u4e2d\"",
+                "{\"unicode\":\"\\ud83d\\ude00\",\"num\":-12.5e3}",
+            };
+
+            int tryParseThrew = 0;   // TryParse 抛了异常（不应发生）
+            int parseWrongExc = 0;   // Parse 抛了 JsonParseException 之外的异常（不应发生）
+            int parseSuccessAtPrefix = 0; // 截断前缀恰好仍是合法 JSON（允许，非错误）
+
+            foreach (var full in truncationSources)
+            {
+                for (int len = 0; len <= full.Length; len++)
+                {
+                    var truncated = full[..len];
+
+                    // TryParse 对任何输入（含截断）永不抛异常，只返回 true/false
+                    try { Json.TryParse(truncated, out _); }
+                    catch { tryParseThrew++; }
+
+                    // Parse 要么成功，要么抛 JsonParseException（受控），绝不抛其它异常类型
+                    try { Json.Parse(truncated); parseSuccessAtPrefix++; }
+                    catch (JsonParseException) { }
+                    catch { parseWrongExc++; }
+                }
+            }
+
+            Check("Json: 截断输入 TryParse 永不抛异常", tryParseThrew == 0);
+            Check("Json: 截断输入 Parse 仅抛 JsonParseException", parseWrongExc == 0);
+
+            // 明确断言的典型截断/畸形样例（TryParse 拒绝、Parse 抛受控异常）
+            string[] malformed =
+            {
+                "{\"a\":",          // 值被截断
+                "{\"a\":1,",        // 逗号后缺内容
+                "[1,2",             // 数组未闭合
+                "[1,2,",            // 逗号后缺内容
+                "\"abc",            // 字符串未闭合
+                "\"abc\\",          // 转义被截断
+                "\"\\u12",          // unicode 转义不完整
+                "\"\\ud83d",        // 高代理后缺低代理
+                "1.",               // 小数点后缺数字
+                "1e",               // 指数后缺数字
+                "-",                // 负号后缺数字
+                "tru",              // true 被截断
+                "fals",             // false 被截断
+                "nul",              // null 被截断
+                "{\"a\":1}x",       // 根值后多余内容
+            };
+            int malformedAccepted = 0;
+            foreach (var m in malformed)
+                if (Json.TryParse(m, out _)) malformedAccepted++;
+            Check("Json: 典型畸形输入全部拒绝", malformedAccepted == 0);
+        }
+
         // 7. 序列化往返（数字保真）
         Check("Json: 往返对象", Json.Serialize(Json.Parse("{\"a\":1}")!) == "{\"a\":1}");
         Check("Json: 往返数组", Json.Serialize(Json.Parse("[1,\"x\",true,null]")!) == "[1,\"x\",true,null]");
@@ -1688,6 +1741,15 @@ public static partial class SelfTest
         Check("Json: DOM Set 覆盖", dom.Count == 2 && dom.GetNumber("a") == 2);
         var domArr = JNode.Array().Add(1).Add("y");
         Check("Json: DOM Add", domArr.Count == 2 && domArr.At(1)?.AsString() == "y");
+
+        // 9b. JNode.From 类型分派（替代 JsonValue.Create）
+        Check("Json: From null", JNode.From(null).IsNull);
+        Check("Json: From string", JNode.From("abc").AsString() == "abc");
+        Check("Json: From bool", JNode.From(true).AsBool());
+        Check("Json: From int", JNode.From(7).AsNumber() == 7);
+        Check("Json: From double", JNode.From(3.5).AsNumber() == 3.5);
+        Check("Json: From JNode 恒等", ReferenceEquals(JNode.From(domArr), domArr));
+        Check("Json: From 序列化", Json.Serialize(JNode.Object().Set("x", JNode.From(1))) == "{\"x\":1}");
 
         // 10. SerializeValue（无反射）
         Check("Json: SerializeValue null", Json.SerializeValue(null) == "null");

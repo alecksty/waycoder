@@ -106,8 +106,8 @@ public class SessionCommand : SlashCommand
         screen.ChatMessages.Clear();
         foreach (var msg in loaded.Value.Messages)
         {
-            var role = msg["role"]?.GetValue<string>() ?? "system";
-            var content = msg["content"]?.GetValue<string>() ?? "";
+            var role = msg["role"]?.AsString() ?? "system";
+            var content = msg["content"]?.AsString() ?? "";
             screen.AddMessage(content, role, indent: role == "tool" ? 1 : 0);
         }
         screen.AddSystemMsg($"✔ 已加载会话: {sessionId}");
@@ -132,8 +132,8 @@ public class SessionCommand : SlashCommand
         screen.ChatMessages.Clear();
         foreach (var msg in loaded.Value.Messages)
         {
-            var role = msg["role"]?.GetValue<string>() ?? "system";
-            var content = msg["content"]?.GetValue<string>() ?? "";
+            var role = msg["role"]?.AsString() ?? "system";
+            var content = msg["content"]?.AsString() ?? "";
             screen.AddMessage(content, role, indent: role == "tool" ? 1 : 0);
         }
         screen.AddSystemMsg("✔ 已恢复会话 (_auto)");
