@@ -4,6 +4,12 @@ using System.Text;
 
 namespace WayCoder.Web;
 
+/// <summary>请求正文（或请求头）超过 <see cref="HttpServer.MaxRequestBytes"/> 时抛出，触发 413 响应。</summary>
+internal sealed class RequestTooLargeException : Exception
+{
+    public RequestTooLargeException() : base("request too large") { }
+}
+
 /// <summary>解析后的 HTTP 请求。</summary>
 public sealed class HttpRequest
 {
@@ -44,10 +50,17 @@ public sealed class HttpResponse
 /// </summary>
 public sealed class HttpServer
 {
+    /// <summary>请求（头 + 正文）累计大小上限，防内存耗尽（OOM）攻击。</summary>
+    public const int MaxRequestBytes = 1_048_576; // 1 MB
+
+    /// <summary>并发连接上限，防连接/线程耗尽（每个连接一个 Task）。</summary>
+    public const int MaxConnections = 32;
+
     private readonly int _port;
     private TcpListener? _listener;
     private CancellationTokenSource? _cts;
     private Task? _acceptTask;
+    private readonly System.Threading.SemaphoreSlim _connLimiter = new(MaxConnections);
 
     /// <summary>普通请求处理器（返回 null 表示 404）。</summary>
     public Func<HttpRequest, HttpResponse?>? OnRequest;
@@ -59,6 +72,12 @@ public sealed class HttpServer
     public string SsePath { get; set; } = "/events";
 
     public HttpServer(int port) => _port = port;
+
+    /// <summary>尝试占用一个连接槽位（同步非阻塞）。满则返回 false，调用方须在结束时 <see cref="ReleaseConnectionSlot"/>。</summary>
+    internal bool TryAcquireConnectionSlot() => _connLimiter.Wait(0);
+
+    /// <summary>释放一个连接槽位。</summary>
+    internal void ReleaseConnectionSlot() { try { _connLimiter.Release(); } catch { } }
 
     /// <summary>启动后绑定的实际端口（传入 0 时由系统分配）。</summary>
     public int ActualPort { get; private set; }
@@ -86,6 +105,12 @@ public sealed class HttpServer
             TcpClient client;
             try { client = await _listener!.AcceptTcpClientAsync(token); }
             catch { break; }
+            // 连接限流：槽位满则立即关闭新连接（不占 Task/线程）
+            if (!TryAcquireConnectionSlot())
+            {
+                try { client.Dispose(); } catch { }
+                continue;
+            }
             _ = Task.Run(() => HandleClientAsync(client));
         }
     }
@@ -95,24 +120,38 @@ public sealed class HttpServer
         try
         {
             using var stream = client.GetStream();
-            var raw = await ReadRequestAsync(stream);
-            if (raw == null) return;
-            var req = ParseHttpRequest(raw);
-            if (req == null) return;
-
-            // SSE 长连接
-            if (req.Method == "GET" && req.Path == SsePath && OnSse != null)
+            try
             {
-                await WriteSseAsync(stream, OnSse);
-                return;
-            }
+                var raw = await ReadRequestAsync(stream);
+                if (raw == null) return;
+                var req = ParseHttpRequest(raw);
+                if (req == null) return;
 
-            var resp = OnRequest?.Invoke(req) ?? HttpResponse.NotFound();
-            await WriteResponseAsync(stream, resp);
+                // SSE 长连接
+                if (req.Method == "GET" && req.Path == SsePath && OnSse != null)
+                {
+                    await WriteSseAsync(stream, OnSse);
+                    return;
+                }
+
+                var resp = OnRequest?.Invoke(req) ?? HttpResponse.NotFound();
+                await WriteResponseAsync(stream, resp);
+            }
+            catch (RequestTooLargeException)
+            {
+                try { await WriteResponseAsync(stream, PayloadTooLarge()); } catch { }
+            }
         }
         catch { /* 连接异常静默关闭 */ }
-        finally { try { client.Dispose(); } catch { } }
+        finally
+        {
+            try { client.Dispose(); } catch { }
+            ReleaseConnectionSlot();
+        }
     }
+
+    private static HttpResponse PayloadTooLarge()
+        => new() { Status = 413, Reason = "Payload Too Large", Body = Encoding.UTF8.GetBytes("413 Payload Too Large") };
 
     // ═══════════════════════════════════════════════════════════
     //  纯函数：请求解析 / SSE 格式化 / 响应头解析（可自测）
@@ -187,6 +226,9 @@ public sealed class HttpServer
         return 0;
     }
 
+    /// <summary>Content-Length 是否超过 <see cref="MaxRequestBytes"/> 上限（纯逻辑，便于自测）。</summary>
+    public static bool IsRequestTooLarge(int contentLength) => contentLength > MaxRequestBytes;
+
     // ═══════════════════════════════════════════════════════════
     //  网络 IO
     // ═══════════════════════════════════════════════════════════
@@ -201,12 +243,18 @@ public sealed class HttpServer
             if (n <= 0) break;
             ms.Write(buffer, 0, n);
 
+            // 防内存耗尽：请求头未闭合（无 \r\n\r\n）也受上限约束
+            if (ms.Length > MaxRequestBytes)
+                throw new RequestTooLargeException();
+
             var data = ms.ToArray();
             int headerEnd = FindHeaderEnd(data);
             if (headerEnd < 0) continue;
 
             var headerText = Encoding.UTF8.GetString(data, 0, headerEnd);
             int contentLength = ParseContentLength(headerText);
+            if (IsRequestTooLarge(contentLength))
+                throw new RequestTooLargeException();
             int bodyStart = headerEnd + 4;
             int bodyHave = data.Length - bodyStart;
 

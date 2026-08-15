@@ -34,9 +34,9 @@ public class EditFileTool : ITool
 
     /// <summary>
     /// 跟踪本次会话中修改的文件，供 /diff 使用。
-    /// 静态集合，跨所有工具实例共享。
+    /// 静态集合，跨所有工具实例共享。线程安全（10 槽位并行写 / 主线程读）。
     /// </summary>
-    public static readonly HashSet<string> ChangedFiles = [];
+    public static readonly ThreadSafeStringSet ChangedFiles = new();
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

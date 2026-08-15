@@ -302,6 +302,17 @@ public static partial class SelfTest
             ["obj"] = JNode.Object().Set("deep", true),
         });
         Check("JsonArray/JsonObject 走 ToJsonString", nodeJson.Contains("\"arr\":[\"m\",\"n\"]") && nodeJson.Contains("\"deep\":true"));
+
+        // P2 回归：JsonHelper 统一委托 Json.SerializeValue —— NaN/Inf → null、控制字符完整转义
+        var nanJson = JsonHelper.SerializeArgs(new() { ["d"] = double.NaN, ["inf"] = double.PositiveInfinity, ["ninf"] = double.NegativeInfinity });
+        Check("NaN/Inf 序列化为 null", nanJson.Contains("\"d\":null") && nanJson.Contains("\"inf\":null") && nanJson.Contains("\"ninf\":null"));
+        var ctrlJson = JsonHelper.SerializeArgs(new() { ["s"] = "a\nb\tcd\bd\fe" });
+        Check("控制字符完整转义", ctrlJson.Contains("\\n") && ctrlJson.Contains("\\t") && ctrlJson.Contains("\\u0001") && ctrlJson.Contains("\\b") && ctrlJson.Contains("\\f"));
+        var ctrlRound = Json.Parse(ctrlJson);
+        Check("控制字符 JSON 往返可解析", ctrlRound != null && ctrlRound!["s"]?.AsString() == "a\nb\tcd\bd\fe");
+        // 反斜杠/双引号往返（此前 CheckpointManager 手写 Replace 会漏转义，统一后由 Json.Quote 兜底）
+        var quoteJson = JsonHelper.SerializeArgs(new() { ["s"] = "he said \"hi\" \\ done" });
+        Check("引号/反斜杠往返一致", Json.Parse(quoteJson)!["s"]?.AsString() == "he said \"hi\" \\ done");
         Console.WriteLine();
 
         // ================================================================

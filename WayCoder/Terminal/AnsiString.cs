@@ -68,8 +68,10 @@ public static class AnsiString
             if (text[i] == AnsiCharPrefix && i + 1 < text.Length && text[i + 1] == AnsiCharEscape)
             {
                 int j = i;
-                while (j < text.Length && text[j] != 'm') j++;
-                sb.Append(text[i..(j + 1)]);
+                while (j < text.Length && text[j] != 'm' && text[j] != 'H' && text[j] != 'J' && text[j] != 'K') j++;
+                // 无终止符时钳制到 text.Length，防 j+1 越界（如 "\x1b[" 末尾悬空）
+                int end = j < text.Length ? j + 1 : j;
+                sb.Append(text[i..end]);
                 i = j;
                 continue;
             }

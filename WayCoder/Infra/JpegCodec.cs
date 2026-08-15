@@ -7,6 +7,9 @@ namespace WayCoder.Infra;
 /// </summary>
 public static class JpegCodec
 {
+    /// <summary>解码像素数上限（防不可信 SOF0 尺寸字段导致 OOM），约 25MP。</summary>
+    private const int MaxPixels = 25_000_000;
+
     // ── 量化表（zigzag 序）──
     static readonly byte[] QY =
     {
@@ -235,12 +238,15 @@ public static class JpegCodec
                     height = ReadU16(data, pos + 1);
                     width = ReadU16(data, pos + 3);
                     int nComp = data[pos + 5];
+                    if (nComp < 1 || nComp > 4) throw new FormatException("非法分量数"); // 限制分量数，防恶意 nComp 放大采样数组
+                    if (pos + 6 + nComp * 3 > end) throw new FormatException("SOF 段越界");
                     for (int i = 0; i < nComp; i++)
                     {
                         int id = data[pos + 6 + i * 3];
                         int hv = data[pos + 7 + i * 3];
                         int qid = data[pos + 8 + i * 3];
                         int hh = hv >> 4, vv = hv & 0x0F;
+                        if (hh == 0 || vv == 0 || hh > 4 || vv > 4) throw new FormatException("非法采样因子");
                         comps.Add(new JpegComponent { Id = id, H = hh, V = vv, QtId = qid });
                         if (hh > maxH) maxH = hh;
                         if (vv > maxV) maxV = vv;
@@ -318,6 +324,7 @@ public static class JpegCodec
 
         if (width <= 0 || height <= 0 || comps.Count == 0 || entropy == null)
             throw new FormatException("JPEG 缺少必要段");
+        if ((long)width * height > MaxPixels) throw new FormatException("JPEG 尺寸过大");
 
         // 分量采样数组
         int mcuCols = (width + 8 * maxH - 1) / (8 * maxH);

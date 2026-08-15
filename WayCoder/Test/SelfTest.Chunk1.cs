@@ -112,8 +112,13 @@ public static partial class SelfTest
         TestTrajectory(Check);         // 运行轨迹：截断纯函数 + JSONL 事件流落盘/读回
         TestPdf(Check);                // 手搓 PDF 解析器：结构解析 + 文本提取 + 编码 + 错误分支
         TestWps(Check);                // WPS/老式二进制 Office：CFB 解析 + DOC/XLS/PPT 提取 + 容器识别/RTF 路由
+        TestP1Hardening(Check);        // P1 健壮性加固：递归深度/死循环/不可信尺寸字段 OOM 防护
+        TestP3Concurrency(Check);      // P3 并发竞态：ModelOverride 恢复/线程安全集合/后台任务输出/LRU 重入/文件锁并发/LLM 重试
+        TestCrossPlatform(Check);      // P4 跨平台：shell/python 运行器选择 + 参数标志
         TestWeb(Check);                // 浏览器聊天（--web）：HTTP 解析 + SSE + 端到端冒烟
         TestWebFull(Check);            // Web 界面完整化：换模型/换key/设置/槽位 + 序列化纯函数 + 端点冒烟
+        TestP4WebResource(Check);      // P4-2 Web 资源耗尽 + XSS：body/连接/SSE/队列上限 + HtmlEscape
+        TestP0P2Hardening(Check);      // P0-P2 批次：命令注入/RCE/权限绕过/整数溢出/越界 修复
         Console.WriteLine();
 
         // ---- 工具 ----

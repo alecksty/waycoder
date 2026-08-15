@@ -775,14 +775,9 @@ public class Agent
         var preCompactCtx = await HooksManager.RunPreCompactAsync(
             $"est.tokens={Context.EstimateCalibratedTokens(Messages)}/{Context.MaxTokens}");
 
-        var saved = LlmClient.ModelOverride;
-        LlmClient.ModelOverride = LlmClient.SmallModel;
-        try
-        {
-            await Context.MaybeCompressAsync(Messages, LlmClient,
-                onProgress: (layer, msg) => onProgress?.Invoke($"🔄 [{layer}/3] {msg}"));
-        }
-        finally { LlmClient.ModelOverride = saved; }
+        await WithModelOverrideAsync(LlmClient, LlmClient.SmallModel, () =>
+            Context.MaybeCompressAsync(Messages, LlmClient,
+                onProgress: (layer, msg) => onProgress?.Invoke($"🔄 [{layer}/3] {msg}")));
 
         // 注入 PreCompact 返回的额外上下文
         if (preCompactCtx != null)
@@ -1293,9 +1288,7 @@ public class Agent
     {
         try
         {
-            var saved = LlmClient.ModelOverride;
-            LlmClient.ModelOverride = LlmClient.SmallModel;
-            try
+            return await WithModelOverrideAsync(LlmClient, LlmClient.SmallModel, async () =>
             {
                 var msgs = new List<JNode>
                 {
@@ -1320,8 +1313,7 @@ public class Agent
                     msg = "chore: update " + firstFile;
                 }
                 return msg.Length > 72 ? msg[..72] : msg;
-            }
-            finally { LlmClient.ModelOverride = saved; }
+            }) ?? "";
         }
         catch { return ""; }
     }
@@ -1394,6 +1386,22 @@ public class Agent
     // ── Architect 双模型模式 ──
 
     /// <summary>
+    /// 临时切换 <see cref="LLM.ModelOverride"/> 执行操作，finally 保证恢复。
+    /// 否则 action 内抛出异常会把 ModelOverride 永久污染成大/小模型，导致后续请求静默降级。
+    /// </summary>
+    internal static async Task<T?> WithModelOverrideAsync<T>(LLM llm, string? overrideModel, Func<Task<T>> action)
+    {
+        var saved = llm.ModelOverride;
+        llm.ModelOverride = overrideModel;
+        try { return await action(); }
+        finally { llm.ModelOverride = saved; }
+    }
+
+    /// <summary>无返回值版本（压缩/摘要等副作用任务）。</summary>
+    internal static Task WithModelOverrideAsync(LLM llm, string? overrideModel, Func<Task> action)
+        => WithModelOverrideAsync<object?>(llm, overrideModel, async () => { await action(); return null; });
+
+    /// <summary>
     /// 用大模型生成执行计划（无工具调用，纯思考输出）。
     /// 返回 null 表示失败/取消。
     /// </summary>
@@ -1416,19 +1424,15 @@ public class Agent
                 msgs.Add(Json.Parse(m.ToJson())!);
             }
 
-            // 切换到大模型，不带工具
-            var savedOverride = LlmClient.ModelOverride;
-            LlmClient.ModelOverride = LlmClient.Model; // 大模型
+            // 切换到大模型，不带工具；finally 恢复，异常不污染后续请求
+            var resp = await WithModelOverrideAsync(LlmClient, LlmClient.Model, () =>
+                LlmClient.ChatAsync(
+                    messages: msgs,
+                    tools: null, // 不给工具，纯分析
+                    onToken: onToken,
+                    cancellationToken: cancellationToken));
 
-            var resp = await LlmClient.ChatAsync(
-                messages: msgs,
-                tools: null, // 不给工具，纯分析
-                onToken: onToken,
-                cancellationToken: cancellationToken);
-
-            LlmClient.ModelOverride = savedOverride;
-
-            return string.IsNullOrWhiteSpace(resp.Content) ? null : resp.Content.Trim();
+            return resp == null || string.IsNullOrWhiteSpace(resp.Content) ? null : resp.Content.Trim();
         }
         catch (OperationCanceledException) { return null; }
         catch (Exception ex)

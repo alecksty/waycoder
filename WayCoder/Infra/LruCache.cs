@@ -125,6 +125,8 @@ public sealed class LruCache<K, V> where K : notnull
     public V? Get(K key)
     {
         var now = DateTimeOffset.UtcNow;
+        V? result;
+        var victims = new List<(K Key, V Value)>();
 
         _lock.EnterUpgradeableReadLock();
         try
@@ -144,25 +146,29 @@ public sealed class LruCache<K, V> where K : notnull
                 try
                 {
                     _misses++;
-                    RemoveNode(link, evict: true);
+                    victims.Add(RemoveNode(link));
                 }
                 finally { _lock.ExitWriteLock(); }
-                return default;
+                result = default;
             }
-
-            // 命中：移到链表尾部表示最近使用
-            _lock.EnterWriteLock();
-            try
+            else
             {
-                _hits++;
-                _list.Remove(link);
-                _list.AddLast(link);
+                // 命中：移到链表尾部表示最近使用
+                _lock.EnterWriteLock();
+                try
+                {
+                    _hits++;
+                    _list.Remove(link);
+                    _list.AddLast(link);
+                }
+                finally { _lock.ExitWriteLock(); }
+                result = node.Value;
             }
-            finally { _lock.ExitWriteLock(); }
-
-            return node.Value;
         }
         finally { _lock.ExitUpgradeableReadLock(); }
+
+        FireEvicted(victims);
+        return result;
     }
 
     /// <summary>
@@ -180,6 +186,7 @@ public sealed class LruCache<K, V> where K : notnull
                 ? DateTimeOffset.UtcNow + dt
                 : (DateTimeOffset?)null;
 
+        var victims = new List<(K Key, V Value)>();
         _lock.EnterWriteLock();
         try
         {
@@ -200,11 +207,11 @@ public sealed class LruCache<K, V> where K : notnull
             // 超容：淘汰最久未使用（链表头部），保留最近写入
             while (_map.Count > _capacity)
             {
-                var first = _list.First!;
-                RemoveNode(first, evict: true);
+                victims.Add(RemoveNode(_list.First!));
             }
         }
         finally { _lock.ExitWriteLock(); }
+        FireEvicted(victims);
     }
 
     /// <summary>
@@ -214,41 +221,44 @@ public sealed class LruCache<K, V> where K : notnull
     /// <returns>若键存在并被移除返回 true，否则返回 false。</returns>
     public bool Remove(K key)
     {
+        var victims = new List<(K Key, V Value)>();
+        var removed = false;
         _lock.EnterWriteLock();
         try
         {
             if (_map.TryGetValue(key, out var link))
             {
-                RemoveNode(link, evict: true);
-                return true;
+                victims.Add(RemoveNode(link));
+                removed = true;
             }
-            return false;
         }
         finally { _lock.ExitWriteLock(); }
+        FireEvicted(victims);
+        return removed;
     }
 
     /// <summary>清空缓存中的所有条目。</summary>
     public void Clear()
     {
+        List<(K Key, V Value)>? victims = null;
         _lock.EnterWriteLock();
         try
         {
             if (_map.Count == 0) return;
 
-            // 先复制事件参数，避免在锁内触发用户回调造成死锁/重入风险
-            var victims = new List<(K, V)>(_map.Count);
+            // 先在锁内复制被淘汰条目，释放锁后再触发用户回调，避免锁内重入死锁
+            victims = new List<(K Key, V Value)>(_map.Count);
             foreach (var link in _list)
                 victims.Add((link.Key, link.Value));
 
             _map.Clear();
             _list.Clear();
             _evictions += victims.Count;
-
-            if (OnEvicted is { } handler)
-                foreach (var (k, v) in victims)
-                    handler(k, v);
         }
         finally { _lock.ExitWriteLock(); }
+
+        if (victims != null)
+            FireEvicted(victims);
     }
 
     /// <summary>判断缓存中是否存在指定键且未过期。</summary>
@@ -257,24 +267,28 @@ public sealed class LruCache<K, V> where K : notnull
     public bool ContainsKey(K key)
     {
         var now = DateTimeOffset.UtcNow;
+        var found = false;
+        var victims = new List<(K Key, V Value)>();
 
         _lock.EnterUpgradeableReadLock();
         try
         {
-            if (!_map.TryGetValue(key, out var link))
-                return false;
-
-            var node = link.Value;
-            if (node.ExpiresAt is { } exp && exp <= now)
+            if (_map.TryGetValue(key, out var link))
             {
-                _lock.EnterWriteLock();
-                try { RemoveNode(link, evict: true); }
-                finally { _lock.ExitWriteLock(); }
-                return false;
+                var node = link.Value;
+                if (node.ExpiresAt is { } exp && exp <= now)
+                {
+                    _lock.EnterWriteLock();
+                    try { victims.Add(RemoveNode(link)); }
+                    finally { _lock.ExitWriteLock(); }
+                }
+                else found = true;
             }
-            return true;
         }
         finally { _lock.ExitUpgradeableReadLock(); }
+
+        FireEvicted(victims);
+        return found;
     }
 
     /// <summary>
@@ -286,6 +300,9 @@ public sealed class LruCache<K, V> where K : notnull
     public bool TryGet(K key, [MaybeNullWhen(false)] out V value)
     {
         var now = DateTimeOffset.UtcNow;
+        var victims = new List<(K Key, V Value)>();
+        var found = false;
+        V result = default!;
 
         _lock.EnterUpgradeableReadLock();
         try
@@ -295,50 +312,60 @@ public sealed class LruCache<K, V> where K : notnull
                 _lock.EnterWriteLock();
                 try { _misses++; }
                 finally { _lock.ExitWriteLock(); }
-                value = default;
-                return false;
             }
-
-            var node = link.Value;
-            if (node.ExpiresAt is { } exp && exp <= now)
+            else
             {
-                _lock.EnterWriteLock();
-                try
+                var node = link.Value;
+                if (node.ExpiresAt is { } exp && exp <= now)
                 {
-                    _misses++;
-                    RemoveNode(link, evict: true);
+                    _lock.EnterWriteLock();
+                    try
+                    {
+                        _misses++;
+                        victims.Add(RemoveNode(link));
+                    }
+                    finally { _lock.ExitWriteLock(); }
                 }
-                finally { _lock.ExitWriteLock(); }
-                value = default;
-                return false;
+                else
+                {
+                    _lock.EnterWriteLock();
+                    try
+                    {
+                        _hits++;
+                        _list.Remove(link);
+                        _list.AddLast(link);
+                    }
+                    finally { _lock.ExitWriteLock(); }
+                    found = true;
+                    result = node.Value;
+                }
             }
-
-            _lock.EnterWriteLock();
-            try
-            {
-                _hits++;
-                _list.Remove(link);
-                _list.AddLast(link);
-            }
-            finally { _lock.ExitWriteLock(); }
-
-            value = node.Value;
-            return true;
         }
         finally { _lock.ExitUpgradeableReadLock(); }
+
+        FireEvicted(victims);
+        value = result;
+        return found;
     }
 
-    /// <summary>从内部结构中移除指定节点并触发淘汰事件。调用方须持有写锁。</summary>
-    private void RemoveNode(LinkedListNode<Node> link, bool evict)
+    /// <summary>
+    /// 从内部结构中移除指定节点，返回被淘汰的键值。调用方须持有写锁。
+    /// 不在此触发 <see cref="OnEvicted"/>——回调须在释放锁后由 <see cref="FireEvicted"/> 触发，
+    /// 否则回调内重入缓存（Put/Get/Remove）会因 NoRecursion 写锁抛 LockRecursionException。
+    /// </summary>
+    private (K Key, V Value) RemoveNode(LinkedListNode<Node> link)
     {
         _map.Remove(link.Value.Key);
         _list.Remove(link);
+        _evictions++;
+        return (link.Value.Key, link.Value.Value);
+    }
 
-        if (evict)
-        {
-            _evictions++;
-            if (OnEvicted is { } handler)
-                handler(link.Value.Key, link.Value.Value);
-        }
+    /// <summary>在锁外触发淘汰事件（用户回调可能重入缓存，须在无锁状态下调用）。</summary>
+    private void FireEvicted(List<(K Key, V Value)> victims)
+    {
+        if (OnEvicted is not { } handler) return;
+        foreach (var (k, v) in victims)
+            handler(k, v);
     }
 }

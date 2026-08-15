@@ -13,7 +13,10 @@ public sealed class RasterImage
     public RasterImage(int width, int height, byte[] rgba)
     {
         if (width <= 0 || height <= 0) throw new ArgumentException("宽高必须为正整数");
-        if (rgba == null || rgba.Length < width * height * 4) throw new ArgumentException("像素缓冲长度不足");
+        // 用 long 计算防整数溢出：width*height*4 若按 int 会溢出为负，绕过长度检查。
+        long required = (long)width * height * 4;
+        if (rgba == null || rgba.Length < required) throw new ArgumentException("像素缓冲长度不足");
+        if (required > int.MaxValue) throw new ArgumentException("图像尺寸过大（像素缓冲超 2GB）");
         Width = width; Height = height; Rgba = rgba;
     }
 

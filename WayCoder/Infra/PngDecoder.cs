@@ -10,6 +10,9 @@ namespace WayCoder.Infra;
 /// </summary>
 public static class PngDecoder
 {
+    /// <summary>解码像素数上限（防不可信 IHDR 尺寸字段导致 OOM），约 25MP。</summary>
+    private const int MaxPixels = 25_000_000;
+
     public static RasterImage Decode(byte[] data)
     {
         if (data == null) throw new ArgumentNullException(nameof(data));
@@ -27,6 +30,7 @@ public static class PngDecoder
         while (off + 8 <= data.Length)
         {
             int len = BE32(data, off);
+            if (len < 0) throw new FormatException("PNG chunk 长度非法"); // 负数长度会让 off 回退，造成死循环
             string type = Encoding.ASCII.GetString(data, off + 4, 4);
             off += 8;
             if (off + len > data.Length) throw new FormatException("PNG chunk 越界");
@@ -35,6 +39,8 @@ public static class PngDecoder
                 case "IHDR":
                     if (len < 13) throw new FormatException("IHDR 长度错误");
                     width = BE32(data, off); height = BE32(data, off + 4);
+                    if (width <= 0 || height <= 0) throw new FormatException("非法 PNG 尺寸");
+                    if ((long)width * height > MaxPixels) throw new FormatException("PNG 尺寸过大");
                     bitDepth = data[off + 8]; colorType = data[off + 9];
                     interlace = data[off + 12];
                     break;

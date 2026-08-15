@@ -15,11 +15,25 @@ public static class BackgroundTaskManager
 
     public record BgTask(int Id, string Command, DateTime StartedAt)
     {
+        // Output 采用「读改写」追加（+=），后台写线程与 UI 读线程并发时会丢失更新，
+        // 故用独立锁保护；其余字段为单次原子赋值（string / DateTime? / int?），无需加锁。
+        private readonly object _outputLock = new();
+
         public Process? Process { get; set; }
         public string Status { get; set; } = "running";
-        public string Output { get; set; } = "";
         public DateTime? CompletedAt { get; set; }
         public int? ExitCode { get; set; }
+
+        private string _output = "";
+        /// <summary>任务输出（后台线程写 / UI 线程读，并发安全）。</summary>
+        public string Output
+        {
+            get { lock (_outputLock) return _output; }
+            set { lock (_outputLock) _output = value; }
+        }
+
+        /// <summary>追加输出文本（线程安全，避免并发 += 丢失更新）。</summary>
+        public void AppendOutput(string text) { lock (_outputLock) _output += text; }
     }
 
     /// <summary>
@@ -167,7 +181,7 @@ public static class BackgroundTaskManager
             task.ExitCode = proc.ExitCode;
             task.Output = outputGetter().Trim();
             if (task.ExitCode != 0)
-                task.Output += $"\n[退出码: {task.ExitCode}]";
+                task.AppendOutput($"\n[退出码: {task.ExitCode}]");
         }
     }
 
@@ -227,7 +241,7 @@ public static class BackgroundTaskManager
         {
             task.Process?.Kill(entireProcessTree: true);
             task.Status = "killed";
-            task.Output += "\n[已被用户终止]";
+            task.AppendOutput("\n[已被用户终止]");
             task.CompletedAt = DateTime.Now;
             return $"已终止任务 #{id}: {task.Command}";
         }

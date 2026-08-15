@@ -19,6 +19,9 @@ public static class FileTracker
     /// <summary>最多追踪的文件数</summary>
     private const int MaxTracked = 200;
 
+    /// <summary>串行化对共享字典的访问（多槽位并行 Agent 并发读写）</summary>
+    private static readonly Lock _lock = new();
+
     /// <summary>持久化文件路径（.waycoder/file-tracker.json，仅存哈希 + 读取时间，无数据库）</summary>
     private static string StorePath => Global.WriteConfigPath(Environment.CurrentDirectory, "file-tracker.json");
 
@@ -35,29 +38,32 @@ public static class FileTracker
     {
         if (!Enabled || string.IsNullOrWhiteSpace(filePath)) return;
 
-        try
+        lock (_lock)
         {
-            EnsureLoaded();
-
-            var absPath = Path.GetFullPath(filePath);
-            if (!File.Exists(absPath)) return;
-
-            // LRU 淘汰：超出上限时清理最旧的条目
-            if (Tracked.Count >= MaxTracked)
+            try
             {
-                var oldest = Tracked.Keys.FirstOrDefault();
-                if (oldest != null) Tracked.Remove(oldest);
+                EnsureLoaded();
+
+                var absPath = Path.GetFullPath(filePath);
+                if (!File.Exists(absPath)) return;
+
+                // LRU 淘汰：超出上限时清理最旧的条目
+                if (Tracked.Count >= MaxTracked)
+                {
+                    var oldest = Tracked.Keys.FirstOrDefault();
+                    if (oldest != null) Tracked.Remove(oldest);
+                }
+
+                var hash = ComputeHash(absPath);
+                Tracked[absPath] = hash;
+                LastReadTimes[absPath] = DateTime.UtcNow;
+
+                Save();
             }
-
-            var hash = ComputeHash(absPath);
-            Tracked[absPath] = hash;
-            LastReadTimes[absPath] = DateTime.UtcNow;
-
-            Save();
-        }
-        catch
-        {
-            // 静默失败 — 文件追踪不应影响正常工具执行
+            catch
+            {
+                // 静默失败 — 文件追踪不应影响正常工具执行
+            }
         }
     }
 
@@ -68,19 +74,22 @@ public static class FileTracker
     {
         if (!Enabled || string.IsNullOrWhiteSpace(filePath)) return;
 
-        try
+        lock (_lock)
         {
-            EnsureLoaded();
+            try
+            {
+                EnsureLoaded();
 
-            var absPath = Path.GetFullPath(filePath);
-            if (!File.Exists(absPath)) return;
+                var absPath = Path.GetFullPath(filePath);
+                if (!File.Exists(absPath)) return;
 
-            var hash = ComputeHash(absPath);
-            Tracked[absPath] = hash;
+                var hash = ComputeHash(absPath);
+                Tracked[absPath] = hash;
 
-            Save();
+                Save();
+            }
+            catch { }
         }
-        catch { }
     }
 
     /// <summary>
@@ -90,43 +99,47 @@ public static class FileTracker
     public static List<string> CheckForChanges()
     {
         if (!Enabled) return new List<string>();
-        EnsureLoaded();
 
-        var changed = new List<string>();
-        if (Tracked.Count == 0) return changed;
-
-        var mutated = false;
-        foreach (var (path, oldHash) in Tracked.ToList())
+        lock (_lock)
         {
-            try
+            EnsureLoaded();
+
+            var changed = new List<string>();
+            if (Tracked.Count == 0) return changed;
+
+            var mutated = false;
+            foreach (var (path, oldHash) in Tracked.ToList())
             {
-                if (!File.Exists(path))
+                try
                 {
-                    // 文件被删除
-                    changed.Add(path);
+                    if (!File.Exists(path))
+                    {
+                        // 文件被删除
+                        changed.Add(path);
+                        Tracked.Remove(path);
+                        mutated = true;
+                        continue;
+                    }
+
+                    var newHash = ComputeHash(path);
+                    if (newHash != oldHash)
+                    {
+                        changed.Add(path);
+                        Tracked[path] = newHash; // 更新为最新哈希
+                        mutated = true;
+                    }
+                }
+                catch
+                {
+                    // 无法访问的文件从追踪中移除
                     Tracked.Remove(path);
                     mutated = true;
-                    continue;
                 }
+            }
 
-                var newHash = ComputeHash(path);
-                if (newHash != oldHash)
-                {
-                    changed.Add(path);
-                    Tracked[path] = newHash; // 更新为最新哈希
-                    mutated = true;
-                }
-            }
-            catch
-            {
-                // 无法访问的文件从追踪中移除
-                Tracked.Remove(path);
-                mutated = true;
-            }
+            if (mutated) Save();
+            return changed;
         }
-
-        if (mutated) Save();
-        return changed;
     }
 
     /// <summary>
@@ -137,23 +150,26 @@ public static class FileTracker
     {
         if (!Enabled) return (false, false);
 
-        try
+        lock (_lock)
         {
-            EnsureLoaded();
+            try
+            {
+                EnsureLoaded();
 
-            var absPath = Path.GetFullPath(filePath);
-            if (!Tracked.TryGetValue(absPath, out var oldHash))
+                var absPath = Path.GetFullPath(filePath);
+                if (!Tracked.TryGetValue(absPath, out var oldHash))
+                    return (false, false);
+
+                if (!File.Exists(absPath))
+                    return (true, true); // 文件被删除
+
+                var newHash = ComputeHash(absPath);
+                return (true, newHash != oldHash);
+            }
+            catch
+            {
                 return (false, false);
-
-            if (!File.Exists(absPath))
-                return (true, true); // 文件被删除
-
-            var newHash = ComputeHash(absPath);
-            return (true, newHash != oldHash);
-        }
-        catch
-        {
-            return (false, false);
+            }
         }
     }
 
@@ -185,30 +201,33 @@ public static class FileTracker
     {
         if (!Enabled || string.IsNullOrWhiteSpace(filePath)) return null;
 
-        try
+        lock (_lock)
         {
-            EnsureLoaded();
+            try
+            {
+                EnsureLoaded();
 
-            var absPath = Path.GetFullPath(filePath);
+                var absPath = Path.GetFullPath(filePath);
 
-            // 文件不存在 = 新建文件，不需要先读
-            if (!File.Exists(absPath)) return null;
+                // 文件不存在 = 新建文件，不需要先读
+                if (!File.Exists(absPath)) return null;
 
-            // 从未被 read_file 读取过
-            if (!LastReadTimes.TryGetValue(absPath, out var lastRead))
-                return $"⚠️ 文件 \"{filePath}\" 尚未被 read_file 读取。请先读取文件内容后再编辑，以确保编辑准确。";
+                // 从未被 read_file 读取过
+                if (!LastReadTimes.TryGetValue(absPath, out var lastRead))
+                    return $"⚠️ 文件 \"{filePath}\" 尚未被 read_file 读取。请先读取文件内容后再编辑，以确保编辑准确。";
 
-            // 文件自上次读取后被外部修改
-            var fileModTime = File.GetLastWriteTimeUtc(absPath);
-            if (fileModTime > lastRead.AddSeconds(1))
-                return $"⚠️ 文件 \"{filePath}\" 自上次读取（{lastRead:HH:mm:ss}）后被外部修改（{fileModTime:HH:mm:ss}）。请重新 read_file 获取最新内容后再编辑。";
+                // 文件自上次读取后被外部修改
+                var fileModTime = File.GetLastWriteTimeUtc(absPath);
+                if (fileModTime > lastRead.AddSeconds(1))
+                    return $"⚠️ 文件 \"{filePath}\" 自上次读取（{lastRead:HH:mm:ss}）后被外部修改（{fileModTime:HH:mm:ss}）。请重新 read_file 获取最新内容后再编辑。";
 
-            return null;
-        }
-        catch
-        {
-            // 静默失败 — 文件追踪不应阻断正常工具执行
-            return null;
+                return null;
+            }
+            catch
+            {
+                // 静默失败 — 文件追踪不应阻断正常工具执行
+                return null;
+            }
         }
     }
 
@@ -217,10 +236,13 @@ public static class FileTracker
     /// </summary>
     public static void Reset()
     {
-        _loaded = true; // 防止后续 EnsureLoaded 重新加载已清除的旧缓存
-        Tracked.Clear();
-        LastReadTimes.Clear();
-        Save();
+        lock (_lock)
+        {
+            _loaded = true; // 防止后续 EnsureLoaded 重新加载已清除的旧缓存
+            Tracked.Clear();
+            LastReadTimes.Clear();
+            Save();
+        }
     }
 
     /// <summary>首次使用时从磁盘加载持久化数据（惰性加载，仅一次）。</summary>
@@ -234,10 +256,13 @@ public static class FileTracker
     /// <summary>测试钩子：清空内存并重新从磁盘加载，模拟进程重启。</summary>
     internal static void ReloadForTest()
     {
-        _loaded = false;
-        Tracked.Clear();
-        LastReadTimes.Clear();
-        EnsureLoaded();
+        lock (_lock)
+        {
+            _loaded = false;
+            Tracked.Clear();
+            LastReadTimes.Clear();
+            EnsureLoaded();
+        }
     }
 
     /// <summary>从 .waycoder/file-tracker.json 读取上次会话的哈希与读取时间。</summary>

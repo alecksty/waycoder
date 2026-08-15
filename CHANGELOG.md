@@ -1,5 +1,42 @@
 # 更新日志
 
+## v0.62.2 (2026-08-16) — P0-P4 健壮性与安全加固
+
+对全仓库做系统性安全审计与压力测试，修复命令注入、RCE、权限绕过、SSRF、资源泄漏、整数溢出、OOM、并发竞态与 Web 资源滥用等一批硬伤。全程零反射、AOT 安全、跨平台、零新依赖。
+
+### 🔒 安全加固（P0-P2）
+
+- **P0 `test` 工具 RCE**：`test` 工具经 shell 执行命令却绕过权限确认与 `BashGuard` 黑名单（`/perm yolo` 之外仍可 `test "curl ...|sh"`）。现加入 `PermissionManager.DangerousTools` + `TestTool.ExecuteAsync` 前置 `BashGuard.CheckBanned`
+- **P1 `git` 命令注入**：`git -c alias.x='!cmd'` / `core.pager` / `core.sshCommand` 可使 git 内部经 shell 执行任意命令，完全绕过 `BashGuard`。新增 `GitTool.HasDangerousGitArgs` 拦截 `-c/--config/--config-env/--upload-pack/--receive-pack/--exec`（含 `-c=` 前缀）
+- **P1 `/checkpoint` 命令注入**：`description` 未经清洗拼进 `git stash push -m "..."` 经 shell 执行，`/checkpoint x"; rm -rf ~; #` 可注入。新增 `SanitizeCheckpointLabel` 清除 shell 元字符
+- **P1 `cp`/`mv`/`find_replace` 权限绕过**：三个文件操作工具不在确认名单，Agent 可无确认覆盖/移动文件。现加入 `DangerousTools`
+- **P2 `doc` 工具 SSRF**：`action=fetch` 的 URL 未做 SSRF 校验，可诱导访问云元数据（169.254.169.254）与内网服务。现复用 `SsgfGuard.CheckUrl`/`CheckDns` 拦截
+- **P2 `RasterImage` 整数溢出**：`width * height * 4` 按 int 溢出为负绕过长度检查 → 改 `long` + 超 2GB 拒绝；`AnsiString.TruncateByWidth` 悬空 ESC 序列 `text[i..(j+1)]` 越界 → 终止符钳制
+- **P2 `LspTool.ReadResponse` 挂起**：同步阻塞读 + 未使用的超时 token，服务器不响应时永久挂起。现异步读 + token 超时 + EOF 保护 + `Content-Length` 长度上限（防恶意巨大缓冲区分配）
+- **P2 `CheckpointManager` stderr 死锁**：只读 stdout，命令大量写 stderr 时管道缓冲区写满阻塞子进程。现并行排空 stdout/stderr
+- **P2 `ErrorLog` 锁内 IO + `_dirty` 不复位**：缓冲区满时在 `lock` 内 `File.AppendAllLines` 阻塞其他线程；抽出 `AppendToFile` 锁外刷盘并修正 `_dirty` 复位
+
+### 🛡 健壮性加固（P1：OOM / 死循环 / 栈溢出防护）
+
+- **不可信尺寸字段护栏**：`PdfParser`（深层嵌套数组深度护栏）、`PngDecoder`（负数 chunk 长度）、`BmpCodec`/`JpegCodec`、`OfficeExtractor`（zip bomb 解压上限）、`CfbParser`（流 Size 校验）对图片宽高、CFB 流尺寸等不可信字段加防御护栏
+- **绘图引擎护栏**：`DrawCanvas` 防 NaN/Inf 半径、超大半径钳制到画布对角线、退化椭圆除零；`DrawEngine` 画布像素数上限 25MP（`canvas W H` 超大尺寸防 OOM）+ 超大画布自动跳过 3× 超采样
+
+### 🔀 并发与资源安全（P3）
+
+- **`ModelOverride` 竞态**：`Agent.WithModelOverrideAsync` 用 try/finally 保证临时切换的小模型恢复，异常不再把 `ModelOverride` 永久污染导致后续请求静默降级
+- **线程安全集合**：新增 `ThreadSafeStringSet` 替代无锁 `HashSet`（`EditFileTool.ChangedFiles` / `PermissionManager.AutoAllowed`）；`FileTracker` 7 处、`BackgroundTask.Output`、`LruCache`（读写锁 + 回调锁外调用防 `NoRecursion`）加锁；`FileLockManager` 过期强占改 `TryUpdate` CAS 原子更新
+- **响应体 / 进程泄漏**：`LLM` 5xx/429 重试前 `Dispose` 响应体、`doc`/`fetch` 响应体 `using`、`LspTool` 进程 Kill 后 `Dispose`（`KillAndDispose`）
+
+### 🌐 跨平台与 Web（P4 / P4-2）
+
+- **`CrossPlatform` 统一运行器**：shell（`cmd.exe` vs `/bin/bash`）+ python（`python` vs `python3`）按平台选择；`HooksManager`/`LintTool` 的 `.py` 脚本改用 `CrossPlatform.PythonExecutable`，消除硬编码导致的跨平台失效
+- **Web 资源上限 + XSS**：`WebServer` 请求正文 1MB 上限（413）、连接数 32 上限（`SemaphoreSlim`）；`WebChat` SSE 客户端 16 / 待处理输入队列 100 上限（429）；`HtmlEscape` 转义工具名/参数防 XSS
+
+### 🧪 自测
+
+- 新增 P1/P3/P4/P4-2/P0-P2 各批次共 **164** 项测试（`TestP1Hardening`/`TestP3Concurrency`/`TestCrossPlatform`/`TestP4WebResource`/`TestP0P2Hardening`）：命令注入拦截、权限名单、SSRF、整数溢出、画布护栏、线程安全集合、Web 资源上限、HTML 转义、跨平台运行器等
+- 总计 **2965** 项自测全部通过（0 失败）
+
 ## v0.62.1 (2026-08-16) — 老式 Office/WPS 提取器真实文件修复
 
 对着 WPS 自带真实模板文件端到端验证后，修复 `LegacyOffice` 三个提取器对真实文件的解析缺陷（此前单元测试夹具与解析器共享同一套错误假设，2795 项自测全绿但真实文件仍解析失败）。
