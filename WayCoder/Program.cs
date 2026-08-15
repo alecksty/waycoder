@@ -3,6 +3,7 @@ using WayCoder.Tools;
 using WayCoder.UI;
 using WayCoder.Terminal;
 using WayCoder.UI.TuiScreens;
+using WayCoder.Web;
 
 namespace WayCoder;
 
@@ -112,6 +113,8 @@ public class Program
         bool economyMode = Arguments.CliArgRegistry.Has(parsed, "economy");
         string? economySpec = Arguments.CliArgRegistry.Get(parsed, "economy");
         bool jsonMode = Arguments.CliArgRegistry.Has(parsed, "json");
+        bool webMode = Arguments.CliArgRegistry.Has(parsed, "web");
+        string? webPortSpec = Arguments.CliArgRegistry.Get(parsed, "web");
 
         if (Arguments.CliArgRegistry.Has(parsed, "version"))
         {
@@ -355,6 +358,19 @@ public class Program
             }
         }
 
+        // 浏览器聊天界面（--web [端口]，默认 9527）
+        if (webMode)
+        {
+            int webPort = 9527;
+            var portFromEnv = Environment.GetEnvironmentVariable("WAYCODER_WEB_PORT");
+            if (!string.IsNullOrEmpty(webPortSpec) && int.TryParse(webPortSpec, out var wp) && wp > 0 && wp < 65536)
+                webPort = wp;
+            else if (!string.IsNullOrEmpty(portFromEnv) && int.TryParse(portFromEnv, out var we) && we > 0 && we < 65536)
+                webPort = we;
+            await RunWebAsync(webPort);
+            return 0;
+        }
+
         if (!string.IsNullOrEmpty(prompt))
         {
             if (jsonMode)
@@ -437,6 +453,50 @@ public class Program
             AutoSaveSession();
             Environment.Exit(1);
         }
+    }
+
+    // ========================================================================
+    // 浏览器聊天界面（--web）
+    // ========================================================================
+
+    private static async Task RunWebAsync(int port)
+    {
+        // web 无终端权限弹框 → 强制 yolo（服务仅绑定 127.0.0.1，风险可控）
+        SandboxManager.SetLevel("full-auto");
+        PermissionManager.CurrentMode = PermissionManager.Mode.Yolo;
+
+        var web = new WebChatServer(_agent!, port);
+        web.Start();
+        var url = $"http://127.0.0.1:{web.Port}";
+        MarkupLine($"«green»🌐 浏览器聊天界面已启动:«/» «cyan»{E(url)}«/»");
+        if (Environment.GetEnvironmentVariable("WAYCODER_WEB_NO_OPEN") != "1")
+            OpenBrowser(web.Port);
+        MarkupLine("«dim»按 Ctrl+C 退出（自动保存会话）«/»");
+
+        // 阻塞等待 Ctrl+C
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        ConsoleCancelEventHandler handler = (_, e) => { e.Cancel = true; tcs.TrySetResult(true); };
+        Console.CancelKeyPress += handler;
+        try { await tcs.Task; }
+        finally { Console.CancelKeyPress -= handler; }
+
+        web.Stop();
+        AutoSaveSession();
+    }
+
+    private static void OpenBrowser(int port)
+    {
+        var url = $"http://127.0.0.1:{port}";
+        try
+        {
+            if (OperatingSystem.IsWindows())
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd", $"/c start {url}") { UseShellExecute = false });
+            else if (OperatingSystem.IsMacOS())
+                System.Diagnostics.Process.Start("open", url);
+            else
+                System.Diagnostics.Process.Start("xdg-open", url);
+        }
+        catch { /* 打开浏览器失败不影响服务 */ }
     }
 
     // ========================================================================

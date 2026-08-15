@@ -2118,4 +2118,54 @@ public static partial class SelfTest
 
         return bytes.ToArray();
     }
+
+    /// <summary>浏览器聊天（--web）测试：HTTP 解析纯函数 + SSE 格式化 + 端到端冒烟</summary>
+    private static void TestWeb(Action<string, bool> Check)
+    {
+        // ── 1. ParseHttpRequest 纯函数 ──
+        var get = WayCoder.Web.HttpServer.ParseHttpRequest("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n");
+        Check("Web: GET 方法", get?.Method == "GET");
+        Check("Web: GET 路径", get?.Path == "/");
+        Check("Web: 头解析", get?.Header("Host") == "localhost");
+
+        var post = WayCoder.Web.HttpServer.ParseHttpRequest("POST /chat HTTP/1.1\r\nContent-Length: 5\r\n\r\nhello");
+        Check("Web: POST 方法", post?.Method == "POST");
+        Check("Web: POST 正文", post?.Body == "hello");
+
+        var query = WayCoder.Web.HttpServer.ParseHttpRequest("GET /x?a=1&b=2 HTTP/1.1\r\n\r\n");
+        Check("Web: 查询串", query?.Path == "/x" && query?.Query == "a=1&b=2");
+
+        Check("Web: 畸形请求 null", WayCoder.Web.HttpServer.ParseHttpRequest("") == null);
+        Check("Web: 畸形请求行 null", WayCoder.Web.HttpServer.ParseHttpRequest("GARBAGE\r\n\r\n") == null);
+
+        // ── 2. SseEvent 格式化 ──
+        var sse = WayCoder.Web.HttpServer.SseEvent("token", "\"hi\"");
+        Check("Web: SSE event 前缀", sse.StartsWith("event: token\ndata: "));
+        Check("Web: SSE 空行结尾", sse.EndsWith("\n\n"));
+
+        // ── 3. FindHeaderEnd / ParseContentLength ──
+        var hb = Encoding.UTF8.GetBytes("GET / HTTP/1.1\r\nContent-Length: 5\r\n\r\nbody");
+        Check("Web: FindHeaderEnd 定位", WayCoder.Web.HttpServer.FindHeaderEnd(hb) > 0);
+        Check("Web: ParseContentLength", WayCoder.Web.HttpServer.ParseContentLength("Content-Length: 123\r\nX: y") == 123);
+        Check("Web: ParseContentLength 缺省 0", WayCoder.Web.HttpServer.ParseContentLength("X: y") == 0);
+
+        // ── 4. 前端 HTML 含关键元素 ──
+        var html = WayCoder.Web.WebChatServer.Html;
+        Check("Web: HTML 含 EventSource", html.Contains("EventSource('/events')"));
+        Check("Web: HTML 含 /chat", html.Contains("/chat"));
+        Check("Web: HTML 含 /interrupt", html.Contains("/interrupt"));
+
+        // ── 5. 端到端冒烟：HTTP 服务 GET / ──
+        var server = new WayCoder.Web.HttpServer(0);
+        server.OnRequest = req => req.Path == "/" ? WayCoder.Web.HttpResponse.Html("<html>ok</html>") : null;
+        server.Start();
+        try
+        {
+            using var client = new HttpClient();
+            var resp = client.GetStringAsync($"http://127.0.0.1:{server.ActualPort}/").Result;
+            Check("Web: 端到端 GET / 返回 HTML", resp.Contains("ok"));
+        }
+        catch { Check("Web: 端到端 GET / 返回 HTML", false); }
+        finally { server.Stop(); }
+    }
 }

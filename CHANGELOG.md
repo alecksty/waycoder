@@ -1,5 +1,23 @@
 # 更新日志
 
+## v0.60.0 (2026-08-15) — 浏览器聊天界面（--web）
+
+对标 deepseek-harness 的 `--web`，新增本地 HTTP 服务 + 浏览器聊天界面：`waycoder --web [端口]` 启动服务并自动打开浏览器，在网页里与 Agent 流式对话，摆脱终端环境限制（远程服务器、无 TTY 场景），获得更友好的 Markdown 渲染、流式输出与工具调用可视化。全程零新依赖、零反射，符合「跨平台 + 手搓」原则。
+
+### ✨ 新增
+
+- **手搓 HTTP 服务端 `HttpServer`**（`WayCoder/Web/WebServer.cs`，纯 BCL，AOT 安全）：`TcpListener` 监听 `127.0.0.1:<端口>`（默认 9527，`WAYCODER_WEB_PORT` / `--web 端口` 覆盖，仅回环不暴露公网）；HTTP/1.1 请求解析（请求行 + 头 + `Content-Length` 正文）；SSE 长连接（`text/event-stream`，`event:`/`data:` + `\n\n`）。纯函数 `ParseHttpRequest`/`SseEvent`/`FindHeaderEnd`/`ParseContentLength` 便于自测
+- **Agent 桥接 `WebChatServer`**（`WayCoder/Web/WebChat.cs`）：把 `Agent.ChatAsync` 的三个流式回调（onToken/onTool/onToolOutput）转 SSE 事件广播（token/tool/tool_output/done/interrupted/failed）；`ConcurrentQueue` 输入队列 + 可重置 `CancellationTokenSource` 支持 `/interrupt` 中断；`/history` 回放 `Agent.Messages` 中 user/assistant 消息
+- **内嵌前端**（单 `const string Html`，无构建、无外部 CDN、离线可用）：深色主题聊天界面，`EventSource('/events')` 收流式 token、`fetch POST /chat` 发消息、`fetch POST /interrupt` 中断，工具调用卡片 + 流式追加 + 自动滚动
+- **CLI 接入 `WebArg`**：`BuiltinArgs.RegisterAll()` 注册 `--web`（`ValueCount -1` 可选端口）；`Program.RunWebAsync` 强制 YOLO（web 无终端弹权限框）→ 启动服务 → `OpenBrowser`（macOS `open`/Windows `start`/Linux `xdg-open`，`WAYCODER_WEB_NO_OPEN=1` 禁用）→ Ctrl+C 优雅退出自动保存会话
+- **保持单文件发布**：HTML 内嵌为 `const string`，无外部文件、无新依赖，AOT 单文件 exe 不变
+
+### 🧪 自测
+
+- 新增 Web 17 项测试：`ParseHttpRequest`（GET/POST/查询串/畸形请求不崩）、`SseEvent` 格式化、`FindHeaderEnd`/`ParseContentLength`、HTML 含关键标记（EventSource//chat//interrupt）、端到端 `HttpClient` GET `/` 冒烟
+- 本地原生二进制端到端验证：`--web 9999` → `GET /` 返回 HTML、`GET /history` 返回 `[]`、`POST /interrupt` 返回 `ok`、YOLO 权限切换与 URL 打印正确
+- 总计 **2749** 项自测全部通过（0 失败）
+
 ## v0.59.0 (2026-08-15) — 手搓 PDF 解析器替代 PdfPig
 
 彻底移除最后一个重依赖第三方库 PdfPig，手写纯 BCL 的 PDF 文本提取器，消除其编译警告与不可修复/安全泄漏隐患，符合「优先开源、无开源则手搓」的第三方库选型原则。
