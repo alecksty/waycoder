@@ -108,6 +108,7 @@ public static partial class SelfTest
         TestTrajectory(Check);         // 运行轨迹：截断纯函数 + JSONL 事件流落盘/读回
         TestPdf(Check);                // 手搓 PDF 解析器：结构解析 + 文本提取 + 编码 + 错误分支
         TestWeb(Check);                // 浏览器聊天（--web）：HTTP 解析 + SSE + 端到端冒烟
+        TestWebFull(Check);            // Web 界面完整化：换模型/换key/设置/槽位 + 序列化纯函数 + 端点冒烟
         Console.WriteLine();
 
         // ---- 工具 ----

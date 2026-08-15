@@ -2168,4 +2168,95 @@ public static partial class SelfTest
         catch { Check("Web: 端到端 GET / 返回 HTML", false); }
         finally { server.Stop(); }
     }
+
+    /// <summary>Web 界面完整化：换模型/换 key/设置/槽位切换/序列化纯函数 + 端点冒烟。</summary>
+    private static void TestWebFull(Action<string, bool> Check)
+    {
+        // ── 1. LLM.Reconfigure（运行时换 key/baseUrl）──
+        var llm = new LLM("deepseek-v4-flash", "old-key", "https://old.example.com");
+        Check("WebFull: Reconfigure 前 key", llm.ApiKey == "old-key");
+        llm.Reconfigure("new-key", "https://new.example.com");
+        Check("WebFull: Reconfigure 换 key", llm.ApiKey == "new-key");
+        Check("WebFull: Reconfigure 换 baseUrl", llm.BaseUrl == "https://new.example.com");
+        Check("WebFull: Endpoint 随 baseUrl 更新", llm.Endpoint == "https://new.example.com/v1/chat/completions");
+        llm.Model = "deepseek-v4-pro";
+        Check("WebFull: Model 直接改生效", llm.Model == "deepseek-v4-pro" && llm.EffectiveModel == "deepseek-v4-pro");
+
+        // ── 2. SerializeModels ──
+        var modelsJson = WayCoder.Web.WebChatServer.SerializeModels();
+        var models = Json.Parse(modelsJson);
+        Check("WebFull: models 是数组", models != null && models.Kind == JKind.Array);
+        Check("WebFull: models 含 deepseek-v4-pro", modelsJson.Contains("deepseek-v4-pro"));
+        Check("WebFull: models 含 gpt-5.5", modelsJson.Contains("gpt-5.5"));
+        Check("WebFull: models 元素含 providerId", models![0]?["providerId"]?.AsString() != null);
+        Check("WebFull: models 元素含 hasKey", models[0]?.Get("hasKey") != null);
+
+        // ── 3. SerializeSettings ──
+        var settingsJson = WayCoder.Web.WebChatServer.SerializeSettings();
+        var settings = Json.Parse(settingsJson);
+        Check("WebFull: settings 是分组数组", settings != null && settings.Kind == JKind.Array);
+        bool hasSecret = false, hasModel = false;
+        foreach (var g in settings!.Items)
+        {
+            var items = g["items"];
+            if (items == null) continue;
+            foreach (var it in items.Items)
+            {
+                if (it["type"]?.AsString() == "secret") hasSecret = true;
+                if (it["key"]?.AsString() == "Model") hasModel = true;
+            }
+        }
+        Check("WebFull: settings 含 secret 字段", hasSecret);
+        Check("WebFull: settings 含 Model 字段", hasModel);
+
+        // ── 4. SerializeState / SerializeHistory ──
+        var a0 = new Agent(new LLM("test", "sk-test"));
+        var slots = new Agent?[10];
+        slots[0] = a0;
+        var stateJson = WayCoder.Web.WebChatServer.SerializeState(0, slots);
+        Check("WebFull: state 含 activeSlot=0", stateJson.Contains("\"activeSlot\":0"));
+        Check("WebFull: state 含 slots", stateJson.Contains("\"slots\":"));
+        Check("WebFull: history 空数组", WayCoder.Web.WebChatServer.SerializeHistory(a0).Trim() == "[]");
+
+        // ── 5. ApplyModel 非法模型（安全分支，不触发持久化）──
+        Check("WebFull: ApplyModel 非法模型报错",
+            WayCoder.Web.WebChatServer.ApplyModel(a0, "no-such-model-xyz", null) != null);
+
+        // ── 6. ProviderHasKey ──
+        Check("WebFull: local 无需 key", WayCoder.Web.WebChatServer.ProviderHasKey("local"));
+        Check("WebFull: custom 无需 key", WayCoder.Web.WebChatServer.ProviderHasKey("custom"));
+
+        // ── 7. 端点冒烟：WebChatServer + HttpClient ──
+        var web = new WayCoder.Web.WebChatServer(a0, 0);
+        web.Start();
+        try
+        {
+            using var client = new HttpClient();
+            var baseUrl = $"http://127.0.0.1:{web.Port}";
+
+            var m = client.GetStringAsync(baseUrl + "/models").Result;
+            Check("WebFull: GET /models 数组", Json.Parse(m)?.Kind == JKind.Array);
+
+            var s = client.GetStringAsync(baseUrl + "/state").Result;
+            Check("WebFull: GET /state 含 activeSlot", s.Contains("\"activeSlot\":"));
+
+            var st = client.GetStringAsync(baseUrl + "/settings").Result;
+            Check("WebFull: GET /settings 数组", Json.Parse(st)?.Kind == JKind.Array);
+
+            var slotResp = client.PostAsync(baseUrl + "/slot",
+                new StringContent("{\"slot\":3}", Encoding.UTF8, "application/json")).Result;
+            var slotBody = slotResp.Content.ReadAsStringAsync().Result;
+            Check("WebFull: POST /slot 返回历史数组", Json.Parse(slotBody)?.Kind == JKind.Array);
+
+            var badModel = client.PostAsync(baseUrl + "/model",
+                new StringContent("{\"modelId\":\"no-such\"}", Encoding.UTF8, "application/json")).Result;
+            Check("WebFull: POST /model 非法模型报错", badModel.Content.ReadAsStringAsync().Result.Contains("\"ok\":false"));
+
+            var badSetting = client.PostAsync(baseUrl + "/settings",
+                new StringContent("{\"key\":\"Nope\",\"value\":\"x\"}", Encoding.UTF8, "application/json")).Result;
+            Check("WebFull: POST /settings 未知项报错", badSetting.Content.ReadAsStringAsync().Result.Contains("\"ok\":false"));
+        }
+        catch { Check("WebFull: 端点冒烟", false); }
+        finally { web.Stop(); }
+    }
 }

@@ -197,9 +197,9 @@ public class LLM
     };
 
     /// <summary>API 密钥（Bearer Token）</summary>
-    public string ApiKey { get; }
+    public string ApiKey { get; private set; }
     /// <summary>API 基础 URL（默认 https://api.openai.com）</summary>
-    public string? BaseUrl { get; }
+    public string? BaseUrl { get; private set; }
     /// <summary>有效的 API endpoint URL</summary>
     public string Endpoint => (BaseUrl ?? "https://api.openai.com").TrimEnd('/') + "/v1/chat/completions";
     /// <summary>每次请求最大输出 token 数</summary>
@@ -283,6 +283,16 @@ public class LLM
         BaseUrl = baseUrl;
         MaxTokens = maxTokens;
         Temperature = temperature;
+    }
+
+    /// <summary>
+    /// 运行时重配置 API 密钥与基础 URL（换供应商/换 key 时用）。
+    /// 不改动累计用量统计；模型切换用 <see cref="Model"/> 直接赋值。
+    /// </summary>
+    public void Reconfigure(string apiKey, string? baseUrl)
+    {
+        ApiKey = apiKey;
+        BaseUrl = baseUrl;
     }
 
     /// <summary>
