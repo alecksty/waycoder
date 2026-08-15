@@ -163,7 +163,7 @@ public class Agent
         };
         // 深克隆消息，避免 JsonNode 的 Parent 冲突（同一消息不能加入两个树）
         foreach (var m in Messages)
-            result.Add(Json.Parse(m.ToJson()));
+            result.Add(Json.Parse(m.ToJson())!);
 
         // 视觉支持：view_image 工具附加的图片注入为多模态 user 消息（仅支持 vision 的模型）
         if (LLM.ModelSupportsVision(LlmClient.EffectiveModel))
@@ -1413,7 +1413,7 @@ public class Agent
             {
                 var role = m["role"]?.AsString();
                 if (role is "tool" or "assistant_tool_calls") continue;
-                msgs.Add(Json.Parse(m.ToJson()));
+                msgs.Add(Json.Parse(m.ToJson())!);
             }
 
             // 切换到大模型，不带工具

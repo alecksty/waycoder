@@ -227,7 +227,7 @@ public static class CheckpointManager
                     return $"检查点 #{target.Id} 元数据丢失";
 
                 var meta = Json.Parse(File.ReadAllText(metaPath));
-                var files = meta!["files"]!.Items.Select(f => f.AsString()).ToList();
+                var files = meta!["files"]!.Items.Select(f => f.AsString() ?? "").ToList();
 
                 // 按文件过滤：支持部分路径匹配
                 var toRestore = files;
@@ -306,7 +306,7 @@ public static class CheckpointManager
         try
         {
             var meta = Json.Parse(File.ReadAllText(metaPath));
-            return meta!["files"]!.Items.Select(f => f.AsString()).ToList();
+            return meta!["files"]!.Items.Select(f => f.AsString() ?? "").ToList();
         }
         catch
         {

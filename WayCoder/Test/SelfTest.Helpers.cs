@@ -66,7 +66,7 @@ public static partial class SelfTest
         ContextManager.SnipToolOutputs(longMsgs);
         var longAfter = ContextManager.EstimateTokens(longMsgs);
         Check("Snip: 长内容被裁剪", longAfter < longBefore);
-        var snipped = longMsgs[0]["content"]!.AsString();
+        var snipped = longMsgs[0]["content"]!.AsString()!;
         Check("Snip: 裁剪后包含省略标记", snipped.Contains("省略") || snipped.Contains("裁剪"));
 
         // ── 4. 错误行保留 ──
@@ -86,7 +86,7 @@ public static partial class SelfTest
             JNode.Object().Set("role", "tool").Set("content", errorContent),
         };
         ContextManager.SnipToolOutputs(errMsgs);
-        var errSnipped = errMsgs[0]["content"]!.AsString();
+        var errSnipped = errMsgs[0]["content"]!.AsString()!;
         Check("Snip: 错误行 CS0103 被保留", errSnipped.Contains("CS0103"));
         Check("Snip: 错误行 CS0246 被保留", errSnipped.Contains("CS0246"));
         Check("Snip: 裁剪后包含错误统计", errSnipped.Contains("错误"));
@@ -97,7 +97,7 @@ public static partial class SelfTest
             JNode.Object().Set("role", "tool").Set("content", string.Join("\n", Enumerable.Range(0, 100).Select(i => $"LINE_{i:D3}: {new string('x', 50)}"))),
         };
         ContextManager.SnipToolOutputs(seqMsgs);
-        var seqSnipped = seqMsgs[0]["content"]!.AsString();
+        var seqSnipped = seqMsgs[0]["content"]!.AsString()!;
         Check("Snip: 首部 LINE_000 被保留", seqSnipped.Contains("LINE_000"));
         Check("Snip: 首部 LINE_004 被保留", seqSnipped.Contains("LINE_004"));
         Check("Snip: 尾部 LINE_099 被保留", seqSnipped.Contains("LINE_099"));
@@ -113,8 +113,8 @@ public static partial class SelfTest
         var mixedChanged = ContextManager.SnipToolOutputs(mixedMsgs);
         Check("Snip: 混合消息有裁剪发生", mixedChanged);
         Check("Snip: 用户消息不变", mixedMsgs[0]["content"]!.AsString() == "请编译项目");
-        Check("Snip: 短tool不裁剪", mixedMsgs[1]["content"]!.AsString().Length < 300);
-        Check("Snip: 长tool被裁剪", mixedMsgs[2]["content"]!.AsString().Contains("省略") || mixedMsgs[2]["content"]!.AsString().Contains("裁剪"));
+        Check("Snip: 短tool不裁剪", mixedMsgs[1]["content"]!.AsString()!.Length < 300);
+        Check("Snip: 长tool被裁剪", mixedMsgs[2]["content"]!.AsString()!.Contains("省略") || mixedMsgs[2]["content"]!.AsString()!.Contains("裁剪"));
     }
 
     /// <summary>压缩保真度测试：超多需求压缩后关键信息仍保留（无 LLM 回退路径）</summary>
@@ -394,7 +394,7 @@ public static partial class SelfTest
                 .Concat(Enumerable.Range(0, 150).Select(i => $"填充行{i}：{new string('x', 40)}")))),
         };
         ContextManager.SnipToolOutputs(msgsWithErrors);
-        var result = msgsWithErrors[0]["content"]!.AsString();
+        var result = msgsWithErrors[0]["content"]!.AsString()!;
         Check("ExtractKey: 保留 error CS0103", result.Contains("CS0103"));
         Check("ExtractKey: 保留 error CS0246", result.Contains("CS0246"));
         Check("ExtractKey: 保留 Exception", result.Contains("NullReferenceException"));

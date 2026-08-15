@@ -447,7 +447,7 @@ public static class McpManager
 
             foreach (var server in targets)
             {
-                var n = server["name"]!.AsString();
+                var n = server["name"]!.AsString() ?? "";
                 await DisconnectServerAsync(n);
                 SetStatus(n, McpServerStatus.Connecting);
                 await ConnectServerAsync(server);
@@ -1164,7 +1164,7 @@ internal class McpTool : ITool
         // 将参数字典转为 JsonObject
         var @params = JNode.Object()
             .Set("name", toolName)
-            .Set("arguments", Json.Parse(JsonHelper.SerializeArgs(arguments)));
+            .Set("arguments", Json.Parse(JsonHelper.SerializeArgs(arguments))!);
 
         var resp = await _connection.SendRequestAsync("tools/call", @params);
         if (resp == null)
@@ -1339,7 +1339,7 @@ internal class McpPromptTool : ITool
 
         var @params = JNode.Object()
             .Set("name", promptName)
-            .Set("arguments", Json.Parse(JsonHelper.SerializeArgs(arguments)));
+            .Set("arguments", Json.Parse(JsonHelper.SerializeArgs(arguments))!);
 
         var resp = await _connection.SendRequestAsync("prompts/get", @params);
         if (resp == null) return $"错误: MCP {_serverName} 提示词 {promptName} 调用超时";
