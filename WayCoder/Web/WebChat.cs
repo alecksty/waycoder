@@ -12,6 +12,12 @@ public sealed class WebChatServer
 {
     private const int SlotCount = 10;
 
+    /// <summary>SSE 长连接上限（防连接/线程耗尽）。</summary>
+    public const int MaxSseClients = 16;
+
+    /// <summary>待处理输入队列上限（防内存耗尽，超出返回 429）。</summary>
+    public const int MaxPendingInput = 100;
+
     private readonly HttpServer _server;
     private readonly Agent?[] _slots = new Agent?[SlotCount];
     private int _activeSlot;
@@ -71,6 +77,8 @@ public sealed class WebChatServer
         // 聊天
         if (req.Method == "POST" && req.Path == "/chat")
         {
+            if (InputQueueFull(_input.Count))
+                return new HttpResponse { Status = 429, Reason = "Too Many Requests", Body = Encoding.UTF8.GetBytes("429 Too Many Requests") };
             if (!string.IsNullOrWhiteSpace(req.Body)) _input.Enqueue((_activeSlot, req.Body));
             return HttpResponse.Text("ok");
         }
@@ -311,7 +319,15 @@ public sealed class WebChatServer
     private async Task HandleSseAsync(StreamWriter writer)
     {
         var client = new SseClient { Writer = writer };
-        lock (_lock) _clients.Add(client);
+        lock (_lock)
+        {
+            if (SseClientsFull(_clients.Count))
+            {
+                try { writer.Write(HttpServer.SseEvent("failed", "\"连接数已达上限\"")); } catch { }
+                return; // 拒绝超出上限的 SSE 连接（writer 由调用方 WriteSseAsync 的 using 释放）
+            }
+            _clients.Add(client);
+        }
         try
         {
             // 连接即回放历史 + 状态，前端初始化渲染
@@ -493,7 +509,24 @@ public sealed class WebChatServer
     }
 
     private static string JsonTool(string name, string brief)
-        => JNode.Object().Set("name", name).Set("args", brief).ToJson();
+        => JNode.Object().Set("name", HtmlEscape(name)).Set("args", HtmlEscape(brief)).ToJson();
+
+    /// <summary>SSE 客户端是否已满（纯逻辑，便于自测）。</summary>
+    public static bool SseClientsFull(int count) => count >= MaxSseClients;
+
+    /// <summary>待处理输入队列是否已满（纯逻辑，便于自测）。</summary>
+    public static bool InputQueueFull(int count) => count >= MaxPendingInput;
+
+    /// <summary>HTML 实体转义（防 XSS）：工具名/参数注入 innerHTML 前转义 &lt; &gt; &amp; " '。</summary>
+    public static string HtmlEscape(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return s;
+        return s.Replace("&", "&amp;")
+                .Replace("<", "&lt;")
+                .Replace(">", "&gt;")
+                .Replace("\"", "&quot;")
+                .Replace("'", "&#39;");
+    }
 
     private static string Ok() => JNode.Object().Set("ok", true).ToJson();
 

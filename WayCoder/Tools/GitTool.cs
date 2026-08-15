@@ -31,7 +31,12 @@ public class GitTool : ITool
 
     private static async Task<string> Execute(string command)
     {
-        // 安全检查
+        // 安全检查 1：命令注入拦截 —— git -c/--config 可设 alias.*='!cmd'、core.pager、core.sshCommand
+        // 等，使 git 内部经 shell 执行任意命令（完全绕过 BashGuard 与权限确认）。
+        if (HasDangerousGitArgs(command))
+            return "⚠ 已阻止：git 配置注入（-c/--config/--upload-pack/--receive-pack/--exec 可执行任意命令），请勿使用这些参数。";
+
+        // 安全检查 2：危险操作
         foreach (var blocked in BlockedPatterns)
         {
             if (command.Contains(blocked, StringComparison.OrdinalIgnoreCase))
@@ -58,5 +63,28 @@ public class GitTool : ITool
         {
             return $"Git 错误：{ex.GetType().Name}: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// 判断 git 命令是否含命令注入参数。git 的 `-c`/`--config` 可设置
+    /// `alias.*='!cmd'`、`core.pager`、`core.sshCommand` 等配置，使 git 内部
+    /// 经 shell 执行任意命令（安全 agent 实测 `git -c alias.x='!echo PWNED_$(id -u)' x`）。
+    /// 纯逻辑，便于自测。
+    /// </summary>
+    internal static bool HasDangerousGitArgs(string command)
+    {
+        foreach (var token in command.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (token is "-c" or "--config" or "--config-env" or "--upload-pack" or "--receive-pack" or "--exec")
+                return true;
+            if (token.StartsWith("-c=", StringComparison.Ordinal)
+                || token.StartsWith("--config=", StringComparison.Ordinal)
+                || token.StartsWith("--config-env=", StringComparison.Ordinal)
+                || token.StartsWith("--upload-pack=", StringComparison.Ordinal)
+                || token.StartsWith("--receive-pack=", StringComparison.Ordinal)
+                || token.StartsWith("--exec=", StringComparison.Ordinal))
+                return true;
+        }
+        return false;
     }
 }

@@ -97,7 +97,7 @@ public static class CfbParser
             // 读取 mini 流（root 条目指向的常规扇区链）
             var root = doc.RootEntry;
             if (root != null && root.StartSector != EndOfChain && root.Size > 0)
-                doc.MiniStream = doc.ReadChain(root.StartSector, (int)Math.Min(root.Size, int.MaxValue));
+                doc.MiniStream = doc.ReadChain(root.StartSector, (int)Math.Min(root.Size, (ulong)data.Length));
 
             // 读取 mini FAT
             if (numMiniFatSectors > 0 && firstMiniFatSector != EndOfChain && firstMiniFatSector != FreeSect)
@@ -180,6 +180,9 @@ public sealed class CfbDocument
         return sb.ToString();
     }
 
+    /// <summary>把不可信的流尺寸钳制到文件实际大小（防目录项 Size 字段声明超大导致 OOM）。</summary>
+    private int ClampToData(ulong size) => (int)Math.Min(size, (ulong)_data.Length);
+
     /// <summary>按名取流（大小写不敏感），未找到返回 null。</summary>
     public byte[]? GetStream(string name)
     {
@@ -188,9 +191,10 @@ public sealed class CfbDocument
             if (e.Type != 2) continue;
             if (!string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase)) continue;
 
+            int size = ClampToData(e.Size); // 尺寸字段不可信，钳制到文件实际大小防 OOM
             if (e.Size >= _miniCutoff)
-                return ReadChain(e.StartSector, (int)Math.Min(e.Size, int.MaxValue));
-            return ReadMiniChain(e.StartSector, (int)Math.Min(e.Size, int.MaxValue));
+                return ReadChain(e.StartSector, size);
+            return ReadMiniChain(e.StartSector, size);
         }
         return null;
     }

@@ -39,16 +39,17 @@ public static class FileLockManager
         // 已存在的锁
         if (existing.IsExpired)
         {
-            // 过期锁 → 强制获取
-            _locks.TryUpdate(path, newLock, existing);
-            return true;
+            // 过期锁 → 强制获取。CAS 原子更新：并发抢占时仅一者成功，
+            // 失败者返回 false（否则多个 agent 会同时「认为」自己拿到了锁，破坏互斥）。
+            return _locks.TryUpdate(path, newLock, existing);
         }
 
         if (existing.AgentId == agentId)
         {
-            // 同一 agent 可重新获取（续期）
+            // 同一 agent 续期（刷新 AcquiredAt）。TryUpdate 可能因并发续期 CAS 失败，
+            // 但此时持有者仍是本 agent（或已被其他 agent 强占——此时须返回 false）。
             _locks.TryUpdate(path, newLock, existing);
-            return true;
+            return _locks.TryGetValue(path, out var current) && current.AgentId == agentId;
         }
 
         return false; // 被其他 agent 锁定

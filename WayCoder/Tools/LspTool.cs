@@ -108,7 +108,7 @@ public class LspTool : ITool
 
             if (!_sessions.TryGetValue(key, out var session) || session!.Process.HasExited)
             {
-                if (session != null) { try { session.Process.Kill(entireProcessTree: true); } catch { } }
+                if (session != null) KillAndDispose(session.Process);
                 var proc = StartServer(config.Value.Command, config.Value.Args, root);
                 if (proc == null) return $"错误：无法启动 LSP 服务器 ({config.Value.Command})";
                 session = new LspSession { Process = proc, Root = root, Initialized = false };
@@ -185,7 +185,7 @@ public class LspTool : ITool
         {
             var s = _sessions[key];
             _sessions.Remove(key);
-            try { if (!s.Process.HasExited) s.Process.Kill(entireProcessTree: true); } catch { }
+            KillAndDispose(s.Process);
         }
     }
 
@@ -197,7 +197,7 @@ public class LspTool : ITool
         {
             foreach (var s in _sessions.Values)
             {
-                try { if (!s.Process.HasExited) s.Process.Kill(entireProcessTree: true); } catch { }
+                KillAndDispose(s.Process);
             }
             _sessions.Clear();
         }
@@ -205,6 +205,14 @@ public class LspTool : ITool
         {
             _sessionLock.Release();
         }
+    }
+
+    /// <summary>终止并释放 LSP 服务器进程（防进程句柄泄漏）。</summary>
+    private static void KillAndDispose(Process? proc)
+    {
+        if (proc == null) return;
+        try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); } catch { }
+        try { proc.Dispose(); } catch { }
     }
 
     private static (string Command, string[] Args)? FindServer(string ext)
@@ -361,21 +369,25 @@ public class LspTool : ITool
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            // 读 Content-Length 头
-            var header = "";
-            while (!header.EndsWith("\r\n\r\n"))
+            // 读 Content-Length 头（异步 + 超时 + EOF 保护，防服务器不响应时永久挂起）
+            var header = new StringBuilder();
+            var one = new char[1];
+            while (!header.ToString().EndsWith("\r\n\r\n"))
             {
-                var ch = (char)proc.StandardOutput.Read();
-                header += ch;
+                var n = await proc.StandardOutput.ReadAsync(one.AsMemory(0, 1), cts.Token);
+                if (n == 0) break; // EOF：服务器提前关闭
+                header.Append(one[0]);
                 if (header.Length > 200) break;
             }
-            if (!header.StartsWith("Content-Length:")) return null;
+            var headerStr = header.ToString();
+            if (!headerStr.StartsWith("Content-Length:")) return null;
 
-            var lenStr = header["Content-Length:".Length..].Split('\r')[0].Trim();
-            if (!int.TryParse(lenStr, out var len)) return null;
+            var lenStr = headerStr["Content-Length:".Length..].Split('\r')[0].Trim();
+            // 长度上限防御：恶意/损坏的 Content-Length 不应触发巨大缓冲区分配
+            if (!int.TryParse(lenStr, out var len) || len <= 0 || len > 10_000_000) return null;
 
             var buffer = new char[len];
-            var read = await proc.StandardOutput.ReadBlockAsync(buffer, 0, len);
+            var read = await proc.StandardOutput.ReadBlockAsync(buffer.AsMemory(0, len), cts.Token);
             return Json.Parse(new string(buffer, 0, read));
         }
         catch { return null; }

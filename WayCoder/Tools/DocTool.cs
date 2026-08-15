@@ -145,7 +145,13 @@ public class DocTool : ITool
 
         try
         {
-            var response = await _client.GetAsync(url);
+            // SSRF 校验：action=fetch 的 url 由用户/模型提供，须拦截内网/云元数据地址
+            var (safe, reason) = SsgfGuard.CheckUrl(url);
+            if (!safe) return $"错误：{reason}";
+            var dnsCheck = SsgfGuard.CheckDns(new Uri(url).Host);
+            if (!dnsCheck.safe) return $"错误：{dnsCheck.reason}";
+
+            using var response = await _client.GetAsync(url);
             response.EnsureSuccessStatusCode();
 
             var contentType = response.Content.Headers.ContentType?.MediaType ?? "";
@@ -257,7 +263,7 @@ public class DocTool : ITool
     {
         try
         {
-            var response = await _client.GetAsync(url);
+            using var response = await _client.GetAsync(url);
             response.EnsureSuccessStatusCode();
 
             var contentType = response.Content.Headers.ContentType?.MediaType ?? "";
@@ -285,7 +291,7 @@ public class DocTool : ITool
             var encoded = Uri.EscapeDataString(query);
             var url = $"https://www.google.com/search?q={encoded}+documentation";
 
-            var response = await _client.GetAsync(url);
+            using var response = await _client.GetAsync(url);
             response.EnsureSuccessStatusCode();
 
             var html = await response.Content.ReadAsStringAsync();
