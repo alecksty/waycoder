@@ -34,9 +34,11 @@ public class RetryPolicy
             }
             catch (Exception ex) when (cfg.ShouldRetry(ex) && attempt < cfg.MaxRetries)
             {
-                var delayMs = (int)Math.Min(
+                var baseDelayMs = (int)Math.Min(
                     cfg.BaseDelayMs * Math.Pow(2, attempt),
                     cfg.MaxDelayMs);
+                // 对称 jitter：在基础退避延迟上做 ±ratio 抖动，打破多客户端同时重试的「惊群」
+                var delayMs = ComputeJitteredDelay(baseDelayMs, cfg.JitterRatio, Random.Shared.NextDouble());
                 onRetry?.Invoke(attempt + 1, ex, delayMs);
                 await Task.Delay(delayMs);
             }
@@ -45,6 +47,17 @@ public class RetryPolicy
         // 不可达：每次迭代要么成功返回，要么异常因 when 过滤器不满足
         // （不可重试或已耗尽 attempt == MaxRetries）而原样向外抛出最后一次异常。
         throw new InvalidOperationException("重试循环不可达终点。");
+    }
+
+    /// <summary>
+    /// 计算对称 jitter 后的延迟：delay = base * (1 + (unit*2 - 1) * ratio)。
+    /// unit 为 [0,1) 的随机数，纯逻辑便于自测；ratio ≤ 0 时原样返回 base。
+    /// </summary>
+    internal static int ComputeJitteredDelay(int baseDelayMs, double jitterRatio, double unit)
+    {
+        if (jitterRatio <= 0) return baseDelayMs;
+        var factor = 1.0 + (unit * 2.0 - 1.0) * jitterRatio;
+        return (int)Math.Round(baseDelayMs * factor);
     }
 
     /// <summary>无返回值的重试版本。</summary>
@@ -74,6 +87,13 @@ public class RetryConfig
 
     /// <summary>最大延迟毫秒（默认 5000ms）</summary>
     public int MaxDelayMs { get; init; } = 5_000;
+
+    /// <summary>
+    /// 对称 jitter 比例（0..1）。重试延迟在 ±ratio 范围内随机抖动，
+    /// 打破多客户端同时重试的「惊群」效应（对标 deepseek-harness jitterRatio=0.1）。
+    /// 0 = 禁用（确定性退避）。默认 0.1。
+    /// </summary>
+    public double JitterRatio { get; init; } = 0.1;
 
     /// <summary>
     /// 允许重试的异常类型全名集合。null 或空 = 所有异常都重试。

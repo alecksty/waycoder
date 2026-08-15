@@ -13,6 +13,7 @@ namespace WayCoder.Tools;
 public class TestTool : ITool
 {
     public string Name => "test";
+    public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description => "运行测试命令并解析结果：统计通过/失败、定位失败用例。支持 dotnet test/pytest/npm test/cargo test/go test 等。";
 
     public JNode Parameters => JNode.Object()

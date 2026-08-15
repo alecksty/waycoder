@@ -9,6 +9,7 @@ namespace WayCoder.Tools;
 public class BashTool : ITool
 {
     public string Name => "bash";
+    public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description => "执行 Shell 命令。返回 stdout、stderr 和退出码。\n⚠ 禁止执行：网络下载工具(curl/wget/ssh)、包管理器安装(apt/pip/npm install 等)、权限提升(sudo/su)、系统修改。\n✅ 安全免确认：ls/cat/grep/find/git log/dotnet --version 等只读操作自动放行。";
 
     public JNode Parameters => JNode.Object()
@@ -25,7 +26,10 @@ public class BashTool : ITool
                 .Set("description", "设为 true 则立即后台运行，返回 shell_id。之后用 job_output 读取输出，用 job_kill 终止。"))
             .Set("auto_background_after", JNode.Object()
                 .Set("type", "integer")
-                .Set("description", "前台等待 N 秒后自动转入后台（默认 60 秒）。仅 run_in_background=true 时生效。")))
+                .Set("description", "前台等待 N 秒后自动转入后台（默认 60 秒）。仅 run_in_background=true 时生效。"))
+            .Set("session_id", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "持久 shell 会话 ID。提供则复用同一 shell 进程，多命令共享 cwd/环境变量/shell 状态（如 export、alias）。省略则每次新建进程。")))
         .Set("required", JNode.Array().Add("command"));
 
     /// <summary>
@@ -69,7 +73,8 @@ public class BashTool : ITool
                    $"使用 job_kill 工具终止任务（参数 shell_id={bgId}）";
         }
 
-        return await Execute(command, timeout);
+        var sessionId = arguments.GetValueOrDefault("session_id")?.ToString() ?? "";
+        return await Execute(command, timeout, sessionId: sessionId);
     }
 
     /// <summary>
@@ -87,7 +92,7 @@ public class BashTool : ITool
         return await Execute(command, timeout, onLine);
     }
 
-    private async Task<string> Execute(string command, int timeout, Func<string, Task>? onLine = null)
+    private async Task<string> Execute(string command, int timeout, Func<string, Task>? onLine = null, string? sessionId = null)
     {
         // BashGuard 命令黑名单检查（对标 crush 三层防护）
         var (blocked, reason) = BashGuard.CheckBanned(command);
@@ -109,6 +114,14 @@ public class BashTool : ITool
             var violation = SandboxManager.CheckSandboxViolation(command, cwd);
             if (violation != null)
                 return $"⛔ 沙箱阻止：{violation}\n命令：{command}";
+        }
+
+        // 持久 shell 会话（session_id 提供时复用同一 shell 进程，保持 cwd/env；沙箱模式不支持）
+        if (!string.IsNullOrWhiteSpace(sessionId) && !SandboxManager.IsSandboxed)
+        {
+            var result = await PersistentShellManager.RunAsync(sessionId, command, timeout);
+            UpdateCwd(command, cwd);
+            return result;
         }
 
         try
@@ -134,6 +147,9 @@ public class BashTool : ITool
                     CreateNoWindow = true,
                 };
             }
+
+            // 移除凭据形状的环境变量，防止密钥经子进程 env / 输出泄漏
+            EnvScrubber.Scrub(psi);
 
             var proc = Process.Start(psi)!;
 

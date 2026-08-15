@@ -9,6 +9,7 @@ namespace WayCoder.Tools;
 public class WriteFileTool : ITool
 {
     public string Name => "write_file";
+    public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description => "创建新文件或完全覆写已有文件。仅用于新建文件或整体重写；对已有文件的小改动请用 edit_file（更安全，不会意外丢失内容）。覆写已有文件前必须先 read_file 了解当前内容。";
 
     public JNode Parameters => JNode.Object()

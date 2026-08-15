@@ -13,6 +13,7 @@ namespace WayCoder.Tools;
 public class AgentTool : ITool
 {
     public string Name => "agent";
+    public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description => $"生成子智能体来独立处理复杂任务。支持单个任务（task）或并行批量任务（tasks 数组，最多 {MaxParallelTasks} 个并发）。子智能体拥有自己的上下文和工具访问权限，支持多层递归委派。适用于：研究代码库、独立实现多步骤变更，或任何能从全新上下文中获益的任务。并行模式适合同时探索多个独立方向。";
 
     public JNode Parameters => JNode.Object()
