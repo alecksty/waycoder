@@ -45,7 +45,6 @@ __pycache__/
 *.pyc
 # WayCoder 工作区和测试产物
 WayCoder/works/
-WayCoder/test/
 stress-test-output/
 games/
 chess-test/
