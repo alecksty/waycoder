@@ -27,15 +27,19 @@ public static class PermissionManager
     /// <summary>智能模式退回手动时触发（用于 UI 提示）</summary>
     public static event Action<string>? ModeFallbackTriggered;
 
-    /// <summary>本轮已自动允许的工具调用 ID 集合（Auto / SmartAuto 模式用）</summary>
-    private static readonly HashSet<string> AutoAllowed = [];
+    /// <summary>本轮已自动允许的工具调用 ID 集合（Auto / SmartAuto 模式用）。线程安全：并行子智能体 + 多槽位并发访问。</summary>
+    private static readonly ThreadSafeStringSet AutoAllowed = new();
 
     /// <summary>串行化确认弹框：并行子智能体并发请求 shell 权限时逐个排队，避免抢键盘/渲染竞态。</summary>
     private static readonly SemaphoreSlim ConfirmLock = new(1, 1);
 
     /// <summary>需要确认的工具名列表（传统模式用）</summary>
     private static readonly HashSet<string> DangerousTools =
-        ["bash", "write_file", "edit_file", "notebook_edit", "multiedit", "agent", "kill", "rm", "download"];
+        ["bash", "write_file", "edit_file", "notebook_edit", "multiedit", "agent", "kill", "rm", "download",
+         "test", "cp", "mv", "find_replace"];
+
+    /// <summary>测试钩子：判断工具名是否在需确认名单中（验证权限绕过修复，如 test/cp/mv/find_replace）。</summary>
+    internal static bool IsDangerousTool(string toolName) => DangerousTools.Contains(toolName);
 
     static PermissionManager()
     {

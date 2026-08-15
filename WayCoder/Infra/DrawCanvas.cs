@@ -73,7 +73,11 @@ public sealed class Canvas
 
     public void FillCircle(double cx, double cy, double r, uint c)
     {
-        int r0 = Math.Max(0, (int)Math.Ceiling(r));
+        // 防 NaN/Inf 参数与超大半径（r*r 溢出 / 循环上亿次）——钳制到画布对角线，SetPixel 越界自会忽略
+        if (!double.IsFinite(cx) || !double.IsFinite(cy) || !double.IsFinite(r) || r < 0) return;
+        double diag = Math.Sqrt((double)Width * Width + (double)Height * Height);
+        if (r > diag) r = diag;
+        int r0 = (int)Math.Ceiling(r);
         for (int dy = -r0; dy <= r0; dy++)
         {
             double dx = Math.Sqrt(r * r - dy * dy);
@@ -86,7 +90,13 @@ public sealed class Canvas
 
     public void FillEllipse(double cx, double cy, double rx, double ry, uint c)
     {
-        int r0 = Math.Max(0, (int)Math.Ceiling(ry));
+        // 防 NaN/Inf 参数、超大半径、退化椭圆（ry=0 会导致除零 NaN）
+        if (!double.IsFinite(cx) || !double.IsFinite(cy) || !double.IsFinite(rx) || !double.IsFinite(ry) || rx < 0 || ry < 0) return;
+        double diag = Math.Sqrt((double)Width * Width + (double)Height * Height);
+        if (rx > diag) rx = diag;
+        if (ry > diag) ry = diag;
+        if (ry == 0) return;
+        int r0 = (int)Math.Ceiling(ry);
         for (int dy = -r0; dy <= r0; dy++)
         {
             double dx = rx * Math.Sqrt(Math.Max(0, 1 - (dy * dy) / (ry * ry)));

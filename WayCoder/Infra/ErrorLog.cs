@@ -189,7 +189,13 @@ public static class ErrorLog
             _dirty = false;
         }
 
-        if (_logDir == null) return;
+        AppendToFile(pending);
+    }
+
+    /// <summary>把日志行追加到当前日志文件（含日期轮转），锁外执行。</summary>
+    private static void AppendToFile(List<string> lines)
+    {
+        if (_logDir == null || lines.Count == 0) return;
 
         // 检测日期变更 → 轮转
         var today = DateTime.Now.ToString("yyyyMMdd");
@@ -201,7 +207,7 @@ public static class ErrorLog
 
         try
         {
-            File.AppendAllLines(_currentLogFile, pending, System.Text.Encoding.UTF8);
+            File.AppendAllLines(_currentLogFile, lines, System.Text.Encoding.UTF8);
         }
         catch
         {
@@ -224,6 +230,7 @@ public static class ErrorLog
             DebugLog.Log("error", $"[{level}] [{source}] {message}\n{ex}");
         }
 
+        List<string>? pending = null;
         lock (_lock)
         {
             _buffer.Add(entry);
@@ -231,28 +238,15 @@ public static class ErrorLog
 
             if (_buffer.Count >= BufferFlushSize)
             {
-                // 在锁外刷盘
-                var pending = _buffer.ToList();
+                pending = [.. _buffer];
                 _buffer.Clear();
-                _dirty = pending.Count > 0;
-
-                if (_logDir != null)
-                {
-                    var today = DateTime.Now.ToString("yyyyMMdd");
-                    if (today != _currentDate || _currentLogFile == null)
-                    {
-                        _currentDate = today;
-                        _currentLogFile = Path.Combine(_logDir, $"error_{today}.log");
-                    }
-
-                    try
-                    {
-                        File.AppendAllLines(_currentLogFile, pending, System.Text.Encoding.UTF8);
-                    }
-                    catch { }
-                }
+                _dirty = false; // 待刷盘数据已取出，buffer 清空
             }
         }
+
+        // 锁外刷盘：文件 IO 不进锁，避免阻塞其他线程写入
+        if (pending != null)
+            AppendToFile(pending);
     }
 
     private static string FormatEntry(Level level, string source, string message,

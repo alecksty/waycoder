@@ -85,7 +85,7 @@ public class FetchTool : ITool
         {
             // 网络请求带指数退避重试（仅 HttpRequestException 网络故障，超时不重试）
             // 每次重试重新构造 HttpRequestMessage，避免 Content 被消费后复用
-            var response = await RetryPolicy.RetryAsync(() =>
+            using var response = await RetryPolicy.RetryAsync(() =>
                 SendWithRedirectAsync(methodUpper, url, headers, body), new RetryConfig
             {
                 MaxRetries = 2,

@@ -68,6 +68,9 @@ public sealed class PdfParser
     private long _rootRef = -1;
     private long _infoRef = -1;
     private readonly List<long> _pageRefs = new();                 // 页面对象号（1-based 顺序）
+    private readonly HashSet<long> _pagesVisited = new();          // CollectPages 环检测（防循环 Kids 递归）
+    private int _nestingDepth;                                     // ParseDict/ParseArray 递归深度（防深层嵌套栈溢出）
+    private const int MaxNestingDepth = 128;
 
     private PdfParser(byte[] data) => _buf = data;
 
@@ -153,9 +156,12 @@ public sealed class PdfParser
         return _pageRefs.Count > 0;
     }
 
-    private void ParseXrefAt(int offset, HashSet<long> visited)
+    private void ParseXrefAt(int offset, HashSet<long> visited) => ParseXrefAt(offset, visited, 0);
+
+    private void ParseXrefAt(int offset, HashSet<long> visited, int depth)
     {
-        if (offset < 0 || offset >= _buf.Length || !visited.Add(offset)) return;
+        // 深度上限防恶意 PDF 超长 Prev 链递归栈溢出；visited 防循环
+        if (depth > 32 || offset < 0 || offset >= _buf.Length || !visited.Add(offset)) return;
         int pos = offset;
         SkipWs(ref pos);
 
@@ -167,7 +173,7 @@ public sealed class PdfParser
                 if (trailer.Get("Root") is PdfRef r) _rootRef = r.Num;
                 if (trailer.Get("Info") is PdfRef i) _infoRef = i.Num;
                 if (trailer.Get("Prev") is PdfNum pv)
-                    ParseXrefAt((int)pv.Value, visited);
+                    ParseXrefAt((int)pv.Value, visited, depth + 1);
             }
         }
         else
@@ -179,7 +185,7 @@ public sealed class PdfParser
             {
                 ParseXrefStream(st, visited);
                 if (st.Dict.Get("Prev") is PdfNum pv)
-                    ParseXrefAt((int)pv.Value, visited);
+                    ParseXrefAt((int)pv.Value, visited, depth + 1);
             }
         }
     }
@@ -232,17 +238,23 @@ public sealed class PdfParser
         int w2 = (int)((w.Items[2] as PdfNum)?.Value ?? 0);
         if (w0 + w1 + w2 == 0) return;
 
+        // 每条目至少消耗 1 字节（w0+w1+w2 ≥ 1），据此钳制 count，防不可信 Size/Index 字段超长死循环
+        int maxEntries = data.Length + 1;
+
         long size = (long)((st.Dict.Get("Size") as PdfNum)?.Value ?? 0);
         var subsections = new List<(long start, int count)>();
         if (st.Dict.Get("Index") is PdfArray idx)
         {
             for (int i = 0; i + 1 < idx.Items.Count; i += 2)
+            {
+                double cnt = (idx.Items[i + 1] as PdfNum)?.Value ?? 0;
                 subsections.Add(((long)((idx.Items[i] as PdfNum)?.Value ?? 0),
-                                 (int)((idx.Items[i + 1] as PdfNum)?.Value ?? 0)));
+                                 cnt <= 0 ? 0 : (int)Math.Min(cnt, (double)maxEntries)));
+            }
         }
         else if (size > 0)
         {
-            subsections.Add((0, (int)size));
+            subsections.Add((0, (int)Math.Min(size, (long)maxEntries)));
         }
 
         int p = 0;
@@ -250,6 +262,7 @@ public sealed class PdfParser
         {
             for (int i = 0; i < count; i++)
             {
+                if (p >= data.Length) break; // 双保险：即使钳制不足也因数据耗尽而终止
                 long f1 = ReadBigEndian(data, p, w0); p += w0;
                 long f2 = ReadBigEndian(data, p, w1); p += w1;
                 p += w2; // f3 未用
@@ -347,39 +360,53 @@ public sealed class PdfParser
 
     private PdfDict ParseDict(ref int pos)
     {
-        pos += 2; // 跳过 <<
-        var dict = new PdfDict();
-        while (true)
+        // 递归深度护栏：恶意深层嵌套 <<...>> 字典防栈溢出，超深则返回空字典中止
+        if (_nestingDepth >= MaxNestingDepth) { pos++; return new PdfDict(); }
+        _nestingDepth++;
+        try
         {
-            SkipWs(ref pos);
-            if (pos + 1 < _buf.Length && _buf[pos] == '>' && _buf[pos + 1] == '>') { pos += 2; break; }
-            if (pos >= _buf.Length) break;
-            if (_buf[pos] == '/')
+            pos += 2; // 跳过 <<
+            var dict = new PdfDict();
+            while (true)
             {
-                var name = ParseName(ref pos);
                 SkipWs(ref pos);
-                var val = ParseValue(ref pos);
-                if (val != null) dict.Entries[name.Name] = val;
+                if (pos + 1 < _buf.Length && _buf[pos] == '>' && _buf[pos + 1] == '>') { pos += 2; break; }
+                if (pos >= _buf.Length) break;
+                if (_buf[pos] == '/')
+                {
+                    var name = ParseName(ref pos);
+                    SkipWs(ref pos);
+                    var val = ParseValue(ref pos);
+                    if (val != null) dict.Entries[name.Name] = val;
+                }
+                else pos++;
             }
-            else pos++;
+            return dict;
         }
-        return dict;
+        finally { _nestingDepth--; }
     }
 
     private PdfArray ParseArray(ref int pos)
     {
-        pos++; // 跳过 [
-        var arr = new PdfArray();
-        while (true)
+        // 递归深度护栏：恶意深层嵌套 [...] 数组防栈溢出，超深则返回空数组中止
+        if (_nestingDepth >= MaxNestingDepth) { pos++; return new PdfArray(); }
+        _nestingDepth++;
+        try
         {
-            SkipWs(ref pos);
-            if (pos < _buf.Length && _buf[pos] == ']') { pos++; break; }
-            if (pos >= _buf.Length) break;
-            var val = ParseValue(ref pos);
-            if (val == null) pos++;
-            else arr.Items.Add(val);
+            pos++; // 跳过 [
+            var arr = new PdfArray();
+            while (true)
+            {
+                SkipWs(ref pos);
+                if (pos < _buf.Length && _buf[pos] == ']') { pos++; break; }
+                if (pos >= _buf.Length) break;
+                var val = ParseValue(ref pos);
+                if (val == null) pos++;
+                else arr.Items.Add(val);
+            }
+            return arr;
         }
-        return arr;
+        finally { _nestingDepth--; }
     }
 
     private PdfName ParseName(ref int pos)
@@ -598,8 +625,12 @@ public sealed class PdfParser
     //  页面树
     // ═══════════════════════════════════════════════════════════
 
-    private void CollectPages(long nodeRef)
+    private void CollectPages(long nodeRef) => CollectPages(nodeRef, 0);
+
+    private void CollectPages(long nodeRef, int depth)
     {
+        // 深度上限 + 已访问集合：防循环 Kids / 超深页面树导致的栈溢出
+        if (depth > 64 || !_pagesVisited.Add(nodeRef)) return;
         var node = Resolve(GetObject(nodeRef)) as PdfDict;
         if (node == null) return;
         var type = (node.Get("Type") as PdfName)?.Name;
@@ -607,7 +638,7 @@ public sealed class PdfParser
         if (type == "Pages" && node.Get("Kids") is PdfArray kids)
         {
             foreach (var kid in kids.Items)
-                if (kid is PdfRef kr) CollectPages(kr.Num);
+                if (kid is PdfRef kr) CollectPages(kr.Num, depth + 1);
         }
     }
 

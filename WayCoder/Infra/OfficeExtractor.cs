@@ -11,6 +11,9 @@ namespace WayCoder.Infra;
 /// </summary>
 public static class OfficeExtractor
 {
+    /// <summary>单个 ZIP 条目解压大小上限（防 zip bomb 解压 OOM），64MB。</summary>
+    private const int MaxEntryBytes = 64 * 1024 * 1024;
+
     /// <summary>
     /// 从 DOCX 提取纯文本。
     /// </summary>
@@ -303,9 +306,11 @@ public static class OfficeExtractor
     // XNode DOM 辅助（OOXML 元素带命名空间前缀，如 w:p / a:t）
     // ════════════════════════════════════════════════════════════
 
-    /// <summary>读取 ZIP 条目全文为 UTF-8 字符串。</summary>
+    /// <summary>读取 ZIP 条目全文为 UTF-8 字符串（先校验解压大小，防 zip bomb OOM）。</summary>
     private static string ReadEntryText(ZipArchiveEntry entry)
     {
+        if (entry.Length > MaxEntryBytes)
+            throw new InvalidDataException($"ZIP 条目过大（{entry.Length:N0} 字节），疑似 zip bomb");
         using var stream = entry.Open();
         using var sr = new StreamReader(stream, Encoding.UTF8);
         return sr.ReadToEnd();

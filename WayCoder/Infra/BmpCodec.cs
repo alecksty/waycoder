@@ -6,6 +6,9 @@ namespace WayCoder.Infra;
 /// </summary>
 public static class BmpCodec
 {
+    /// <summary>解码像素数上限（防不可信宽高字段导致 OOM），约 25MP。</summary>
+    private const int MaxPixels = 25_000_000;
+
     public static byte[] Encode(RasterImage img)
     {
         int width = img.Width, height = img.Height;
@@ -57,7 +60,8 @@ public static class BmpCodec
         if (width <= 0 || height == 0) throw new FormatException("非法宽高");
 
         bool topDown = height < 0;
-        int h = Math.Abs(height);
+        int h = (int)Math.Abs((long)height); // long 避免 int.MinValue 溢出
+        if ((long)width * h > MaxPixels) throw new FormatException("BMP 尺寸过大");
         int bytesPerPixel = bpp / 8;
         int rowSize = ((width * bytesPerPixel + 3) / 4) * 4;
         var rgba = new byte[width * h * 4];

@@ -285,6 +285,9 @@ public sealed class DrawDocument
 /// <summary>绘图运行器：DSL 解析 + SVG/PNG 渲染编排。</summary>
 public static class DrawRunner
 {
+    /// <summary>画布像素数上限（防 `canvas W H` 超大尺寸导致 OOM），约 25MP。</summary>
+    private const long MaxCanvasPixels = 25_000_000;
+
     /// <summary>解析 DSL 文本为文档。canvas 设置画布，其余为图元；非法行记入 Error 并跳过。</summary>
     public static DrawDocument Parse(string dsl)
     {
@@ -405,10 +408,18 @@ public static class DrawRunner
     {
         if (args.Count >= 2)
         {
+            int nw = doc.Width, nh = doc.Height;
             if (double.TryParse(args[0].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var w) && w > 0)
-                doc.Width = (int)Math.Round(w);
+                nw = (int)Math.Round(w);
             if (double.TryParse(args[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var h) && h > 0)
-                doc.Height = (int)Math.Round(h);
+                nh = (int)Math.Round(h);
+            if (nw <= 0 || nh <= 0 || (long)nw * nh > MaxCanvasPixels)
+            {
+                doc.Error = "画布尺寸非法或过大";
+                return; // 保留默认尺寸，防 `new Canvas(W,H)` OOM
+            }
+            doc.Width = nw;
+            doc.Height = nh;
         }
         if (args.Count >= 3)
             doc.Background = ColorUtil.Parse(args[2].Value, doc.Background);
@@ -530,8 +541,20 @@ public static class DrawRunner
     /// <summary>渲染为 PNG 字节流（doc.Antialias 时走 3× 超采样降采样消除锯齿）。</summary>
     public static byte[] ToPng(DrawDocument doc)
     {
-        if (doc.Antialias) return ToPngAntialiased(doc, 3);
-        var canvas = new Canvas(doc.Width, doc.Height, doc.Background);
+        if (doc.Width <= 0 || doc.Height <= 0 || (long)doc.Width * doc.Height > MaxCanvasPixels)
+            throw new InvalidOperationException("画布尺寸非法或过大");
+        if (doc.Antialias)
+        {
+            int W = doc.Width * 3, H = doc.Height * 3;
+            if ((long)W * H > MaxCanvasPixels) return RenderPng(doc, doc.Width, doc.Height); // 超大画布跳过超采样
+            return ToPngAntialiased(doc, 3);
+        }
+        return RenderPng(doc, doc.Width, doc.Height);
+    }
+
+    static byte[] RenderPng(DrawDocument doc, int w, int h)
+    {
+        var canvas = new Canvas(w, h, doc.Background);
         foreach (var f in doc.Figures)
             DrawCommandRegistry.Get(f.Kind)?.Rasterize(canvas, f);
         return canvas.ToPng();

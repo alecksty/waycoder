@@ -39,6 +39,12 @@ public class TestTool : ITool
         if (string.IsNullOrWhiteSpace(command))
             return "错误：请提供测试命令 (command)";
 
+        // 安全防护：test 命令经 shell 执行，必须先过 BashGuard 黑名单（防 curl/sudo/apt 等绕过）。
+        // 权限确认由 Agent 层 DangerTools（含 "test"）统一处理。
+        var (blocked, reason) = BashGuard.CheckBanned(command);
+        if (blocked)
+            return reason ?? "⚠ 已阻止：命令违反安全策略";
+
         return await RunAsync(command, cwd, timeout);
     }
 

@@ -86,6 +86,9 @@ public static class CheckpointManager
     /// </summary>
     public static async Task<Checkpoint?> CreateAsync(string description = "")
     {
+        // 命令注入防护：description 会拼进 `git stash push -m "..."` 经 shell 执行，
+        // 必须先清除 shell 元字符（";"/"$()"/反引号/引号等），防 `/checkpoint $(cmd)` 注入。
+        description = SanitizeCheckpointLabel(description);
         var id = _nextId++;
         var timestamp = DateTime.Now;
 
@@ -164,12 +167,17 @@ public static class CheckpointManager
                 backedUp++;
             }
 
-            // 保存检查点元数据 (AOT-safe manual JSON)
+            // 保存检查点元数据（统一走 JNode 序列化：AOT 安全 + 完整转义，替代此前手写 Replace 的不完整转义）
             var metaPath = Path.Combine(backupDir, "_checkpoint.json");
-            var escapedDesc = description.Replace("\\", "\\\\").Replace("\"", "\\\"");
-            var filesJson = string.Join(",", changedFiles.Select(f =>
-                $"\"{f.Replace("\\", "\\\\").Replace("\"", "\\\"")}\""));
-            var meta = $"{{\"id\":{id},\"description\":\"{escapedDesc}\",\"timestamp\":\"{timestamp:O}\",\"backedUp\":{backedUp},\"files\":[{filesJson}]}}";
+            var filesNode = JNode.Array();
+            foreach (var f in changedFiles) filesNode.Add(f);
+            var meta = JNode.Object()
+                .Set("id", id)
+                .Set("description", description)
+                .Set("timestamp", timestamp.ToString("O"))
+                .Set("backedUp", backedUp)
+                .Set("files", filesNode)
+                .ToJson();
             File.WriteAllText(metaPath, meta);
 
             var cp2 = new Checkpoint
@@ -352,8 +360,8 @@ public static class CheckpointManager
         {
             StartInfo = new System.Diagnostics.ProcessStartInfo
             {
-                FileName = "bash",
-                Arguments = $"-c \"{command.Replace("\"", "\\\"")}\"",
+                FileName = CrossPlatform.ShellExecutable,
+                Arguments = CrossPlatform.ShellArgs(command),
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -361,9 +369,32 @@ public static class CheckpointManager
             }
         };
         proc.Start();
-        var result = await proc.StandardOutput.ReadToEndAsync();
+        // 同时排空 stdout 与 stderr：命令输出大量 stderr（如 git 报错）时，
+        // 若只读 stdout，stderr 管道缓冲区写满会阻塞子进程 → 死锁。
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+        var stderrTask = proc.StandardError.ReadToEndAsync();
         await proc.WaitForExitAsync();
-        return result;
+        _ = await stderrTask;
+        return await stdoutTask;
+    }
+
+    /// <summary>
+    /// 清除检查点描述中的 shell 元字符（命令注入防护）。
+    /// description 会拼进 `git stash push -m "..."` 经 shell 执行，任何引号/命令替换/
+    /// 分隔符都可能注入任意命令（如 `/checkpoint x"; rm -rf ~; #`）。
+    /// 纯逻辑，便于自测。将危险字符替换为空格，保留可读的其余文本。
+    /// </summary>
+    internal static string SanitizeCheckpointLabel(string label)
+    {
+        if (string.IsNullOrEmpty(label)) return "";
+        var sb = new System.Text.StringBuilder(label.Length);
+        foreach (var c in label)
+        {
+            sb.Append(c is '"' or '\\' or '$' or '`' or ';' or '&' or '|' or '<' or '>' or '\'' or '\n' or '\r'
+                ? ' '
+                : c);
+        }
+        return sb.ToString();
     }
 }
 

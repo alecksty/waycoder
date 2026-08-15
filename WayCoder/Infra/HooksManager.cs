@@ -631,7 +631,7 @@ public static class HooksManager
             return ("cmd", $"/c \"{scriptPath}\"");
 
         if (ext == ".py")
-            return ("python3", $"\"{scriptPath}\"");
+            return (CrossPlatform.PythonExecutable, $"\"{scriptPath}\"");
 
         // .sh / .bash
         return ("bash", $"\"{scriptPath}\"");

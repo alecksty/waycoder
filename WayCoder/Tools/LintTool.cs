@@ -300,12 +300,12 @@ public class LintTool : ITool
     private static (string, string) CheckJson(string target)
     {
         // Use python for JSON validation if available
-        return ("python", $"-c \"import json, sys; json.load(open('{target.Replace("'", "\\'")}', encoding='utf-8')); print('✅ JSON 有效')\"");
+        return (CrossPlatform.PythonExecutable, $"-c \"import json, sys; json.load(open('{target.Replace("'", "\\'")}', encoding='utf-8')); print('✅ JSON 有效')\"");
     }
 
     private static (string, string) CheckToml(string target)
     {
-        return ("python", $"-c \"import sys; sys.path.insert(0,'.'); __import__('tomllib').load(open('{target.Replace("'", "\\'")}', 'rb'))\"");
+        return (CrossPlatform.PythonExecutable, $"-c \"import sys; sys.path.insert(0,'.'); __import__('tomllib').load(open('{target.Replace("'", "\\'")}', 'rb'))\"");
     }
 
     private static (string, string) CheckSql(string target)

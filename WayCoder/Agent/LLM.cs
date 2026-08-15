@@ -669,6 +669,8 @@ public class LLM
                 // 5xx 服务器错误重试
                 if ((int)resp.StatusCode >= 500 && attempt < effectiveMaxRetries - 1)
                 {
+                    // 释放响应体（ResponseHeadersRead 下 body 未被读取，不释放会泄漏连接/套接字）
+                    resp.Dispose();
                     await Task.Delay((int)Math.Pow(2, attempt) * 1000, cancellationToken);
                     continue;
                 }
@@ -677,6 +679,7 @@ public class LLM
                 if (resp.StatusCode == System.Net.HttpStatusCode.TooManyRequests && attempt < effectiveMaxRetries - 1)
                 {
                     var delay = ParseRetryAfter(resp) ?? (int)Math.Pow(2, attempt) * 1000;
+                    resp.Dispose(); // 同上，释放未读取的响应体，避免连接泄漏
                     await Task.Delay(delay, cancellationToken);
                     continue;
                 }
@@ -881,7 +884,8 @@ public class LLM
 }
 
 /// <summary>
-/// AOT 兼容的 JSON 辅助方法。
+/// AOT 兼容的 JSON 辅助方法。统一委托给 JsonLib 的 <see cref="Json.SerializeValue"/> / <see cref="Json.Quote"/>，
+/// 消除重复实现，并统一 NaN/Inf→null、控制字符转义等语义。
 /// </summary>
 internal static class JsonHelper
 {
@@ -896,85 +900,16 @@ internal static class JsonHelper
         {
             if (!first) sb.Append(',');
             first = false;
-            sb.Append('"');
-            sb.Append(EscapeJson(key));
-            sb.Append("\":");
-            sb.Append(SerializeValue(value));
-        }
-        sb.Append('}');
-        return sb.ToString();
-    }
-
-    public static string SerializeValue(object? value)
-    {
-        switch (value)
-        {
-            case null: return "null";
-            case string s: return $"\"{EscapeJson(s)}\"";
-            case bool b: return b ? "true" : "false";
-            case int i: return i.ToString();
-            case long l: return l.ToString();
-            case double d: return d.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            case float f: return f.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            case JNode node: return node.ToJson();
-            case System.Collections.IDictionary dict: return SerializeDict(dict);
-            case System.Collections.IEnumerable enumerable: return SerializeArray(enumerable);
-            default: return $"\"{EscapeJson(value.ToString() ?? "null")}\"";
-        }
-    }
-
-    /// <summary>
-    /// 递归序列化字典为 JSON 对象（tasks 等嵌套参数的字典类型正确回显，而非 ToString）。
-    /// </summary>
-    private static string SerializeDict(System.Collections.IDictionary dict)
-    {
-        var sb = new StringBuilder("{");
-        var first = true;
-        foreach (System.Collections.DictionaryEntry entry in dict)
-        {
-            if (!first) sb.Append(',');
-            first = false;
-            sb.Append('"');
-            sb.Append(EscapeJson(entry.Key?.ToString() ?? ""));
-            sb.Append("\":");
-            sb.Append(SerializeValue(entry.Value));
+            sb.Append(Json.Quote(key));
+            sb.Append(':');
+            sb.Append(Json.SerializeValue(value));
         }
         sb.Append('}');
         return sb.ToString();
     }
 
     /// <summary>
-    /// 递归序列化集合为 JSON 数组（tasks 等 List/数组类型正确回显，而非 ToString）。
+    /// 序列化任意对象（无反射，AOT 安全）。委托 <see cref="Json.SerializeValue"/>。
     /// </summary>
-    private static string SerializeArray(System.Collections.IEnumerable enumerable)
-    {
-        var sb = new StringBuilder("[");
-        var first = true;
-        foreach (var item in enumerable)
-        {
-            if (!first) sb.Append(',');
-            first = false;
-            sb.Append(SerializeValue(item));
-        }
-        sb.Append(']');
-        return sb.ToString();
-    }
-
-    private static string EscapeJson(string s)
-    {
-        var sb = new StringBuilder(s.Length);
-        foreach (var c in s)
-        {
-            switch (c)
-            {
-                case '"': sb.Append("\\\""); break;
-                case '\\': sb.Append("\\\\"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                default: sb.Append(c); break;
-            }
-        }
-        return sb.ToString();
-    }
+    public static string SerializeValue(object? value) => Json.SerializeValue(value);
 }
