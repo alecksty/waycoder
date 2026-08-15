@@ -12,7 +12,7 @@ namespace WayCoder.UI.TuiScreens;
 ///   RootView (VBox)
 ///   ├─ TitleBar      TuiLabel      " /edit: filename.cs [已修改] "
 ///   ├─ EditorView    TuiRichEditor  编辑区域（TH-4 行）
-///   ├─ StatusBar1    TuiLabel      " L1:C10 | 行:42 字符:2048 | C# · UTF-8"
+///   ├─ StatusBar1    TuiLabel      " L1:C10 | 行:42 字节:2048 | C# · UTF-8"
 ///   └─ StatusBar2    TuiLabel      " ^S保存 ^Z撤销 ^G跳行 Esc退出"
 ///
 /// 生命周期：
@@ -46,6 +46,16 @@ public class EditorScreen : TuiScreen
     private string _browseDir = "";
 
     private Action? _onContentChangedHandler;
+    private Action? _onDiagnosticsReadyHandler;
+
+    /// <summary>搜索状态</summary>
+    private string _searchQuery = "";
+    private string _replaceQuery = "";
+    private FindOptions _findOptions = default;
+
+    /// <summary>大纲刷新缓存（避免每帧重建 ListView）</summary>
+    private List<EditorCore.OutlineItem>? _lastOutline;
+    private int _lastOutlineHighlight = -1;
 
     /// <summary>要编辑的文件路径（空 = 弹出文件选择器）</summary>
     public string FilePath { get; set; }
@@ -117,8 +127,13 @@ public class EditorScreen : TuiScreen
     {
         Core = new EditorCore();
         Core.LoadFile(path);
+        Core.IndentMode = Config.Instance.EditorIndent;   // 从设置注入缩进模式
         _onContentChangedHandler = () => MarkDirty();
         Core.OnContentChanged += _onContentChangedHandler;
+        _onDiagnosticsReadyHandler = () => MarkDirty();
+        Core.OnDiagnosticsReady += _onDiagnosticsReadyHandler;
+        _lastOutline = null;
+        _lastOutlineHighlight = -1;
         BuildLayout();
     }
 
@@ -161,7 +176,9 @@ public class EditorScreen : TuiScreen
         };
         EditorView.OnSaveRequested += HandleSave;
         EditorView.OnJumpRequested += HandleJump;
+        EditorView.OnFindRequested += HandleFindReplace;
         EditorView.OnExitRequested += HandleExit;
+        EditorView.OnFocusRequested += HandleEditorFocus;
         mainHBox.Add(EditorView);
 
         // ── 右侧：大纲面板 ──
@@ -194,13 +211,20 @@ public class EditorScreen : TuiScreen
     /// <summary>屏幕销毁时取消所有事件订阅，避免泄漏</summary>
     public override void OnDestroy()
     {
-        if (Core != null && _onContentChangedHandler != null)
-            Core.OnContentChanged -= _onContentChangedHandler;
+        if (Core != null)
+        {
+            if (_onContentChangedHandler != null)
+                Core.OnContentChanged -= _onContentChangedHandler;
+            if (_onDiagnosticsReadyHandler != null)
+                Core.OnDiagnosticsReady -= _onDiagnosticsReadyHandler;
+        }
         if (EditorView != null)
         {
             EditorView.OnSaveRequested -= HandleSave;
             EditorView.OnJumpRequested -= HandleJump;
+            EditorView.OnFindRequested -= HandleFindReplace;
             EditorView.OnExitRequested -= HandleExit;
+            EditorView.OnFocusRequested -= HandleEditorFocus;
         }
         if (_leftPanel != null)
             _leftPanel.OnItemActivated -= OnFileItemActivated;
@@ -266,14 +290,13 @@ public class EditorScreen : TuiScreen
         else if (warnings > 0) diagPart = $" | {AnsiTty.Fg(33)}▲ {warnings} warnings";
 
         StatusBar1.Text = $" L{Core.Cy + 1}:C{Core.Cx + 1} | " +
-                          $"行:{Core.TotalLines} 字符:{Core.TotalChars} | " +
-                          $"{EditorCore.FormatSize(Core.FileSizeBytes)} | " +
+                          $"行:{Core.TotalLines} 字节:{Core.FileSizeBytes} | " +
                           $"{Core.Syntax.Name} · UTF-8{diagPart}";
 
         var pathDisplay = Core.FilePath;
         if (pathDisplay.Length > 50) pathDisplay = "..." + pathDisplay[^47..];
         StatusBar2.Text = $" {pathDisplay}  " +
-                          "^S保存 ^Z撤销 ^G跳行 ^B文件 ^O大纲 Tab切焦点 Esc退出";
+                          "^S保存 ^Z撤销 ^F查找/替换 F3下一处 F8诊断 Tab缩进 ^Tab焦点 ^B文件 ^⇧O大纲 Esc退出";
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -289,46 +312,57 @@ public class EditorScreen : TuiScreen
         if (EditorView == null)
             return base.OnKey(key);
 
+        bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
+        bool shift = key.Modifiers.HasFlag(ConsoleModifiers.Shift);
+
         // ── 全局快捷键（Ctrl+key）──
-        if (key.Modifiers == ConsoleModifiers.Control)
+        if (ctrl)
         {
             switch (key.Key)
             {
                 case ConsoleKey.B:
                     ToggleLeftPanel();
                     return true;
-                case ConsoleKey.O:
+                case ConsoleKey.O when shift:
                     ToggleRightPanel();
                     return true;
                 case ConsoleKey.S:
                     HandleSave();
                     return true;
-                case ConsoleKey.Z:
-                    Core.Undo();
-                    MarkDirty();
-                    return true;
                 case ConsoleKey.G:
                     HandleJump();
                     return true;
-                case ConsoleKey.X:
-                    Core.CutLine();
-                    MarkDirty();
+                case ConsoleKey.F when shift:
+                    SearchWordAtCursor();
                     return true;
-                case ConsoleKey.C:
-                    Core.CopyLine();
-                    ShowToast("已复制", 800);
+                case ConsoleKey.F:
+                    HandleFindReplace();
                     return true;
-                case ConsoleKey.V:
-                    Core.PasteClipboard();
-                    MarkDirty();
+                case ConsoleKey.H:
+                    HandleFindReplace();
+                    return true;
+                case ConsoleKey.P:
+                    JumpToMatchingBracket();
                     return true;
             }
         }
 
-        // ── Tab 切换焦点 ──
-        if (key.Key == ConsoleKey.Tab)
+        // ── F3 下一处匹配 · F8 下一处诊断（编辑区通用）──
+        if (key.Key == ConsoleKey.F3)
         {
-            CycleFocus();
+            HandleFindNext();
+            return true;
+        }
+        if (key.Key == ConsoleKey.F8)
+        {
+            JumpToNextDiagnostic();
+            return true;
+        }
+
+        // ── Ctrl+Tab / Ctrl+Shift+Tab 切换焦点（裸 Tab 交给编辑器插 4 空格）──
+        if (key.Key == ConsoleKey.Tab && ctrl)
+        {
+            CycleFocus(shift ? -1 : 1);
             return true;
         }
 
@@ -367,15 +401,26 @@ public class EditorScreen : TuiScreen
     // 焦点管理
     // ════════════════════════════════════════════════════════════════
 
-    private void CycleFocus()
+    /// <summary>鼠标点击编辑区时把焦点切回编辑区。</summary>
+    private void HandleEditorFocus()
     {
-        // 只在可见面板间循环：Editor → Left → Right → Editor
+        _focus = FocusTarget.Editor;
+        EditorView.Focused = true;
+        _leftPanel.Focused = false;
+        _rightPanel.Focused = false;
+        MarkDirty();
+    }
+
+    private void CycleFocus(int dir = 1)
+    {
+        // 只在可见面板间循环：Editor → Left → Right → Editor（dir=-1 反向）
         var options = new List<FocusTarget> { FocusTarget.Editor };
         if (_leftVisible) options.Add(FocusTarget.LeftPanel);
         if (_rightVisible) options.Add(FocusTarget.RightPanel);
 
         int idx = options.IndexOf(_focus);
-        _focus = options[(idx + 1) % options.Count];
+        if (idx < 0) idx = 0;
+        _focus = options[(idx + dir + options.Count) % options.Count];
 
         EditorView.Focused = _focus == FocusTarget.Editor;
         _leftPanel.Focused = _focus == FocusTarget.LeftPanel;
@@ -504,6 +549,7 @@ public class EditorScreen : TuiScreen
             Core.LoadFile(fullPath);
             _onContentChangedHandler = () => MarkDirty();
             Core.OnContentChanged += _onContentChangedHandler;
+            EditorView.MarkFullRedraw();
             ShowToast($"已打开: {name}", 1200);
             MarkDirty();
         }
@@ -537,8 +583,22 @@ public class EditorScreen : TuiScreen
 
     private void RefreshOutline()
     {
-        _rightPanel.ClearItems();
         var items = Core.ExtractOutline();
+
+        // 当前光标所在函数/类（最后一个 Line ≤ 光标行的容器）
+        int currentIdx = -1;
+        for (int i = 0; i < items.Count; i++)
+            if (items[i].Kind is "method" or "function" or "class" && Core.Cy + 1 >= items[i].Line)
+                currentIdx = i;
+
+        // 内容与高亮位置均未变则跳过（避免每帧重建 ListView）
+        if (ReferenceEquals(items, _lastOutline) && currentIdx == _lastOutlineHighlight)
+            return;
+
+        _lastOutline = items;
+        _lastOutlineHighlight = currentIdx;
+
+        _rightPanel.ClearItems();
         if (items.Count == 0)
         {
             _rightPanel.AddItem(new TuiLabel(" (无符号)")
@@ -547,8 +607,9 @@ public class EditorScreen : TuiScreen
         }
 
         var fg = TuiTheme.Current.ControlFg;
-        foreach (var item in items)
+        for (int i = 0; i < items.Count; i++)
         {
+            var item = items[i];
             var indent = item.Kind switch
             {
                 "method" or "function" => "  ",
@@ -561,8 +622,8 @@ public class EditorScreen : TuiScreen
             var padding = Math.Max(1, 5 - lineStr.Length);
             display += new string(' ', padding) + ":" + lineStr;
 
-            // 当前光标所在函数高亮
-            var itemFg = (Core.Cy + 1 >= item.Line && item.Kind is "method" or "function" or "class") ? TuiColors.Yellow : fg;
+            // 仅当前光标所在函数高亮
+            var itemFg = i == currentIdx ? TuiColors.Yellow : fg;
             _rightPanel.AddItem(new TuiLabel(display) { Height = 1, Bg = 0, Fg = itemFg });
         }
     }
@@ -576,6 +637,7 @@ public class EditorScreen : TuiScreen
         _focus = FocusTarget.Editor;
         EditorView.Focused = true;
         _rightPanel.Focused = false;
+        EditorView.MarkFullRedraw();
         MarkDirty();
     }
 
@@ -600,16 +662,158 @@ public class EditorScreen : TuiScreen
 
     private void HandleJump()
     {
-        var win = TuiDialog.Input("跳转到行",
-            $"输入行号 (1-{Core.TotalLines})",
+        var win = TuiDialog.Input("跳转到 行:列",
+            $"输入行号或 行:列 (1-{Core.TotalLines})",
             (Core.Cy + 1).ToString(),
             input =>
             {
-                if (int.TryParse(input, out var ln) && ln >= 1 && ln <= Core.TotalLines)
-                    if (Core.JumpToLine(ln))
-                        MarkDirty();
+                var target = EditorCore.ParseLineCol(input ?? "", Core.Cy, Core.TotalLines);
+                if (target == null || !Core.JumpToLineCol(target.Value.Line, target.Value.Col))
+                    ShowToast("无效位置", 1000);
+                else
+                {
+                    EditorView.MarkFullRedraw();
+                    MarkDirty();
+                }
             });
         ShowWindow(win);
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // 搜索 / 替换 / 诊断跳转
+    // ════════════════════════════════════════════════════════════════
+
+    private void HandleFindReplace()
+    {
+        var win = TuiDialog.FindReplace(_searchQuery, _replaceQuery, _findOptions,
+            (find, opts) =>
+            {
+                _searchQuery = find; _findOptions = opts;
+                FindAndJump(find, opts, Core.Cy, Core.Cx);
+            },
+            (find, repl, opts) =>
+            {
+                _searchQuery = find; _replaceQuery = repl; _findOptions = opts;
+                ReplaceNextAndShow(find, repl, opts);
+            },
+            (find, repl, opts) =>
+            {
+                _searchQuery = find; _replaceQuery = repl; _findOptions = opts;
+                ReplaceAllAndShow(find, repl, opts);
+            });
+        ShowWindow(win);
+    }
+
+    private void HandleFindNext()
+    {
+        if (string.IsNullOrEmpty(_searchQuery)) { HandleFindReplace(); return; }
+        FindAndJump(_searchQuery, _findOptions, Core.Cy, Core.Cx + 1);
+    }
+
+    private void FindAndJump(string query, FindOptions opts, int fromLine, int fromCol)
+    {
+        var (line, col) = Core.FindNext(query, fromLine, fromCol, opts);
+        if (line >= 0)
+        {
+            Core.Cy = line; Core.Cx = col;
+            EditorView.MarkFullRedraw();
+            MarkDirty();
+            ShowToast($"已找到 · 第 {line + 1} 行", 1000);
+            return;
+        }
+        // 环绕：从头再找
+        var (l2, c2) = Core.FindNext(query, 0, 0, opts);
+        if (l2 >= 0)
+        {
+            Core.Cy = l2; Core.Cx = c2;
+            EditorView.MarkFullRedraw();
+            MarkDirty();
+            ShowToast($"已环绕到开头 · 第 {l2 + 1} 行", 1000);
+        }
+        else ShowToast("未找到", 1000);
+    }
+
+    private void ReplaceNextAndShow(string find, string replace, FindOptions opts)
+    {
+        if (string.IsNullOrWhiteSpace(find)) return;
+        if (Core.ReplaceNext(find, replace, opts))
+        {
+            MarkDirty();
+            ShowToast("已替换", 800);
+        }
+        else ShowToast("未找到", 1000);
+    }
+
+    private void ReplaceAllAndShow(string find, string replace, FindOptions opts)
+    {
+        if (string.IsNullOrWhiteSpace(find)) return;
+        int count = Core.ReplaceAll(find, replace, opts);
+        MarkDirty();
+        ShowToast($"已替换 {count} 处", 1500);
+    }
+
+    /// <summary>跳到光标处括号的配对括号（Ctrl+P）。</summary>
+    private void JumpToMatchingBracket()
+    {
+        var match = Core.MatchingBracketAt(Core.Cy, Core.Cx);
+        if (match == null)
+        {
+            ShowToast("光标处无括号", 1000);
+            return;
+        }
+        Core.Cy = match.Value.Line;
+        Core.Cx = match.Value.Col;
+        EditorView.MarkFullRedraw();
+        MarkDirty();
+        ShowToast($"已跳到配对括号 · 第 {match.Value.Line + 1} 行", 1000);
+    }
+
+    /// <summary>搜索光标处的标识符词（Ctrl+Shift+F），整词匹配 + 智能大小写。</summary>
+    private void SearchWordAtCursor()
+    {
+        string word = Core.WordAt(Core.Cy, Core.Cx);
+        if (word.Length == 0)
+        {
+            ShowToast("光标处无词", 1000);
+            return;
+        }
+        _searchQuery = word;
+        // 智能大小写：词含大写则区分，否则忽略（对标 Vim * 的 smartcase）
+        bool hasUpper = word.Any(char.IsUpper);
+        _findOptions = new FindOptions(CaseSensitive: hasUpper, WholeWord: true);
+
+        // 从光标后一位查找，避免停在当前词；未命中则从头环绕
+        var (line, col) = Core.FindNext(word, Core.Cy, Core.Cx + 1, _findOptions);
+        if (line < 0)
+            (line, col) = Core.FindNext(word, 0, 0, _findOptions);
+
+        if (line >= 0)
+        {
+            Core.Cy = line; Core.Cx = col;
+            EditorView.MarkFullRedraw();
+            MarkDirty();
+            ShowToast($"查找词 · 第 {line + 1} 行", 1000);
+        }
+        else ShowToast("未找到", 1000);
+    }
+
+    private void JumpToNextDiagnostic()
+    {
+        int total = Core.TotalLines;
+        if (total <= 0) return;
+        for (int i = 1; i <= total; i++)
+        {
+            int li = (Core.Cy + i) % total;
+            if (Core.GetDiagnosticsAtLine(li + 1).Count > 0)
+            {
+                Core.JumpToLine(li + 1);
+                EditorView.MarkFullRedraw();
+                MarkDirty();
+                ShowToast($"诊断 · 第 {li + 1} 行", 1000);
+                return;
+            }
+        }
+        ShowToast("无诊断", 800);
     }
 
     private void HandleExit()
@@ -652,20 +856,14 @@ public class EditorScreen : TuiScreen
     {
         var recent = EditFileTool.ChangedFiles.Take(9).ToList();
         var choices = new List<string> { "📝 输入文件路径..." };
-        if (recent.Count > 0)
-        {
-            choices.Add("── 最近编辑 ──");
-            choices.AddRange(recent);
-        }
+        choices.AddRange(recent);
 
         var selectWin = TuiDialog.Select("选择要编辑的文件", choices, idx =>
         {
-            if (choices[idx].StartsWith("──"))
-                return;
-
             if (idx == 0)
             {
-                var inputWin = TuiDialog.Input("文件路径",
+                // 路径是单行输入，用 InputLine（回车即确定）而非多行 Input（回车=换行）。
+                var inputWin = TuiDialog.InputLine("文件路径",
                     "输入要编辑的文件路径（相对或绝对路径）", "",
                     path =>
                     {
@@ -674,19 +872,23 @@ public class EditorScreen : TuiScreen
                             LoadAndBuild(trimmed);
                         else
                             Manager?.PopScreen();
-                    });
+                    },
+                    onCancel: () => Manager?.PopScreen());
                 ShowWindow(inputWin);
             }
             else
             {
-                var file = recent[idx - (recent.Count > 0 ? 2 : 1)];
-                LoadAndBuild(file);
+                LoadAndBuild(recent[idx - 1]);
             }
         });
 
         selectWin.OnClosed = () =>
         {
-            if (Core == null) Manager?.PopScreen();
+            // 仅用户取消（Esc/取消按钮，Result=-1）才退回上层屏幕。
+            // 选择「📝 输入文件路径...」时 Result=0 且输入框已接管、Core 仍为空，
+            // 不能在这里 PopScreen，否则会把整屏连同刚弹出的输入框一起退掉。
+            if (Core == null && selectWin.Result is int r && r == -1)
+                Manager?.PopScreen();
         };
         ShowWindow(selectWin);
     }

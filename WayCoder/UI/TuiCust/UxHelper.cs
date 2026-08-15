@@ -27,7 +27,7 @@ public static class UxHelper
         if (IsTuiMode)
             ShowNotification(TuiDialog.Info(title, message));
         else
-            Console.WriteLine($"\x1b[36m[ℹ {title}]\x1b[0m {message}");
+            Console.WriteLine($"{AnsiTty.Accent($"[ℹ {title}]")} {message}");
     }
 
     public static void Success(string title, string message)
@@ -35,7 +35,7 @@ public static class UxHelper
         if (IsTuiMode)
             ShowNotification(TuiDialog.Success(title, message));
         else
-            Console.WriteLine($"\x1b[32m[✓ {title}]\x1b[0m {message}");
+            Console.WriteLine($"{AnsiTty.Success($"[✓ {title}]")} {message}");
     }
 
     public static void Warn(string title, string message)
@@ -43,7 +43,7 @@ public static class UxHelper
         if (IsTuiMode)
             ShowNotification(TuiDialog.Warn(title, message));
         else
-            Console.WriteLine($"\x1b[33m[⚠ {title}]\x1b[0m {message}");
+            Console.WriteLine($"{AnsiTty.Warn($"[⚠ {title}]")} {message}");
     }
 
     public static void Error(string title, string message)
@@ -51,7 +51,7 @@ public static class UxHelper
         if (IsTuiMode)
             ShowNotification(TuiDialog.Error(title, message));
         else
-            Console.WriteLine($"\x1b[31m[✘ {title}]\x1b[0m {message}");
+            Console.WriteLine($"{AnsiTty.Error($"[✘ {title}]")} {message}");
     }
 
     private static void ShowNotification(TuiWindow win)
@@ -71,8 +71,8 @@ public static class UxHelper
         if (IsTuiMode)
             return ShowInputDialog(prompt, defaultValue ?? "", timeoutMs) ?? defaultValue ?? "";
 
-        var defSuffix = defaultValue != null ? $" [\x1b[2m{defaultValue}\x1b[0m]" : "";
-        Console.Write($"\x1b[1m{prompt}\x1b[0m{defSuffix} ");
+        var defSuffix = defaultValue != null ? $" [{AnsiTty.DimText(defaultValue)}]" : "";
+        Console.Write($"{AnsiTty.BoldText(prompt)}{defSuffix} ");
         var result = Console.ReadLine() ?? "";
         return string.IsNullOrEmpty(result) ? (defaultValue ?? "") : result;
     }
@@ -90,7 +90,7 @@ public static class UxHelper
             });
             var screen = TuiManager.Instance?.ActiveScreen;
             screen?.ShowWindow(win);
-            RenderWait(screen, evt, timeoutMs);
+            RenderWait(screen, evt, timeoutMs, win);
         }
         catch { evt.Set(); }
         return result;
@@ -104,8 +104,8 @@ public static class UxHelper
         if (IsTuiMode)
             return ShowSecretDialog(prompt, defaultValue ?? "") ?? defaultValue ?? "";
 
-        var defSuffix = defaultValue != null ? $" [\x1b[2m***\x1b[0m]" : "";
-        Console.Write($"\x1b[1m{prompt}\x1b[0m{defSuffix} ");
+        var defSuffix = defaultValue != null ? $" [{AnsiTty.DimText("***")}]" : "";
+        Console.Write($"{AnsiTty.BoldText(prompt)}{defSuffix} ");
         var result = ReadPassword();
         return string.IsNullOrEmpty(result) ? (defaultValue ?? "") : result;
     }
@@ -143,7 +143,7 @@ public static class UxHelper
             });
             var screen = TuiManager.Instance?.ActiveScreen;
             screen?.ShowWindow(win);
-            RenderWait(screen, evt);
+            RenderWait(screen, evt, 30_000, win);
         }
         catch { evt.Set(); }
         return result;
@@ -158,7 +158,7 @@ public static class UxHelper
         if (IsTuiMode)
             return ShowSelectDialog(title, choices, timeoutMs);
 
-        Console.WriteLine($"\x1b[1m{title}\x1b[0m");
+        Console.WriteLine(AnsiTty.BoldText(title));
         for (int i = 0; i < choices.Count; i++)
             Console.WriteLine($"  [{i + 1}] {choices[i]}");
         Console.Write($"选择 (1-{choices.Count}, q=取消): ");
@@ -190,7 +190,7 @@ public static class UxHelper
                 onCancel: () => { result = null; evt.Set(); });
             var screen = TuiManager.Instance?.ActiveScreen;
             screen?.ShowWindow(win);
-            RenderWait(screen, evt, timeoutMs);
+            RenderWait(screen, evt, timeoutMs, win);
         }
         catch { evt.Set(); }
         return result;
@@ -210,7 +210,7 @@ public static class UxHelper
             return ShowMultiSelectDialog(title, choices, timeoutMs);
 
         var selected = new List<string>();
-        Console.WriteLine($"\x1b[1m{title}\x1b[0m (多选，逐项输入 y/n)");
+        Console.WriteLine($"{AnsiTty.BoldText(title)} (多选，逐项输入 y/n)");
         foreach (var c in choices)
         {
             Console.Write($"  [{c}] (y/n): ");
@@ -239,7 +239,7 @@ public static class UxHelper
                 onCancel: () => { result = null; evt.Set(); });
             var screen = TuiManager.Instance?.ActiveScreen;
             screen?.ShowWindow(win);
-            RenderWait(screen, evt, timeoutMs);
+            RenderWait(screen, evt, timeoutMs, win);
         }
         catch { evt.Set(); }
         return result;
@@ -293,7 +293,7 @@ public static class UxHelper
                     evt.Set();
                 });
             screen?.ShowWindow(win);
-            RenderWait(screen, evt, timeoutMs);
+            RenderWait(screen, evt, timeoutMs, win);
         }
         catch { evt.Set(); }
         return result;
@@ -306,7 +306,7 @@ public static class UxHelper
     /// 由 ShowInputDialog/ShowSelectDialog 等内部调用，也可由工具（如 AskUserQuestion）外部调用。
     /// </summary>
     /// <param name="timeoutMs">超时毫秒数（默认 30s，AskUserQuestion 等需更长超时）</param>
-    public static void RenderWait(TuiScreen? screen, ManualResetEventSlim evt, int timeoutMs = 30_000)
+    public static void RenderWait(TuiScreen? screen, ManualResetEventSlim evt, int timeoutMs = 30_000, TuiWindow? win = null)
     {
         if (screen == null) { evt.Wait(TimeSpan.FromSeconds(30)); return; }
         var manager = TuiManager.Instance;
@@ -325,6 +325,9 @@ public static class UxHelper
             }
             if (timeoutMs > 0 && Environment.TickCount64 - start > timeoutMs) break;
         }
+        // 超时兜底：关闭仍残留的模态窗口，避免窗口停在屏幕上
+        if (!evt.IsSet && win != null)
+            screen.CloseWindow(win);
         manager?.Render();
     }
 }

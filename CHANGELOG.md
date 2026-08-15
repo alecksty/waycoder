@@ -1,5 +1,38 @@
 # 更新日志
 
+## v0.56.0 (2026-08-15) — TUI 控件库统一 + 编辑器增强 + 对话框布局修复
+
+响应「编辑器输入/刷新闪烁」「表格控件」「对话框标题栏错位」等一批 TUI 体验问题，新增 `TuiTableList` 表格列表控件并把 8 个界面迁移到统一控件库；编辑器补齐正则查找/替换、括号匹配、鼠标支持、状态栏行列信息，`TuiRichEditor` 改为逐行脏渲染消除整屏闪烁；修复确认框/权限框等 TitleBold 对话框标题栏覆盖上边框的错行 bug，并对全部 13 种对话框 + 行内权限控件（InlinePermission）建立端到端渲染自测。
+
+### ✨ 新增
+
+- **`TuiTableList` 控件**：表格列表（列头/列分隔线/选中高亮/滚动钳制/`ActivateSelected` 回调），8 个界面迁移到统一控件库
+- **编辑器能力补齐**：
+  - 正则查找/替换（捕获组 + 整词匹配 + 大小写开关）
+  - 括号匹配 + 光标处词搜索
+  - 鼠标点击定位光标 + 滚轮滚动
+  - 状态栏显示行列/总行数/字节数
+  - Tab 缩进可配置（默认 `\t`，设置里选 tab/space）
+  - 退出未保存时弹保存确认对话框
+- **`docs/TUI设计规范.md`**：设计令牌 + 规范文档 + 校验闸门
+
+### 🐛 修复
+
+- **对话框标题栏错行**：`TuiScreen` 两处 TitleBold 分支误用 1 基 `CursorPos`，导致标题覆盖上边框、与边框挤同一行；改为 0 基 `CursorPos0` 后标题独立成行、上边框为纯净渐变线（确认框/权限框等所有带标题对话框受益）
+- **编辑器标点输入**：中文/全角标点无法正常输入的解析问题修复
+- **`TuiRichEditor` 逐行脏渲染**：输入时只刷新光标所在行，未变化行不再整屏闪烁；滚动时全量刷新
+
+### 🛠 重构
+
+- **`Test/` 目录重组**：SelfTest 12 partial + Benchmark/Keypad/TuiAudit/TuiDemo 归入 `WayCoder/Test/`
+- **对话框体系收敛**：移除 `DialogOverlay`/`DialogAction`，并入统一对话框管线
+
+### 🧪 自测
+
+- 新增全部 13 个 `TuiDialog` 工厂方法（Info/Success/Warn/Error/Confirm/Confirm3/Input/InputLine/Secret/FindReplace/Select/MultiSelect/Permission）布局 + 渲染断言（宽高 ≤ 屏 3/4、TitleBold 标记、标题独立成行）
+- 新增 `InlinePermission` 行内权限控件测试（3 行黄色块渲染、危险命令忽略 A、D 展开、Y/N/A 三种结果）
+- 总计 **2622** 项自测全部通过（0 失败）
+
 ## v0.55.0 (2026-08-15) — 绘图引擎增强 + 图片编解码 + JNode 手搓 JSON 迁移
 
 响应「丰富画图功能」与「图片互转/贴图/裁剪/应用图标」需求，绘图引擎从 10 条指令扩展到 20+ 条（变换/新形状/描边/渐变/贴图/裁剪/图标模板/抗锯齿），并手搓 PNG/JPG/BMP 编解码，新增第 44 个内置工具 `convert_image` 实现格式互转。同时完成 JNode 手搓 JSON 全量迁移，彻底告别 `System.Text.Json` 反射。

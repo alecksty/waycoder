@@ -65,6 +65,23 @@ public class TuiListItem : TuiVBox
         BuildContent(maxWidth);
     }
 
+    /// <summary>主题切换后刷新角色标签/时间戳/页脚颜色（正文由 TuiMarkdown 渲染时动态读主题）</summary>
+    public void ApplyTheme()
+    {
+        if (RoleLabel != null)
+            RoleLabel.Fg = Role switch
+            {
+                "user" => TuiTheme.Current.ChatUserFg,
+                "assistant" => TuiTheme.Current.ChatAssistantFg,
+                "system" => TuiTheme.Current.ChatSystemFg,
+                _ => TuiTheme.Current.ControlFg
+            };
+        if (TimeLabel != null) TimeLabel.Fg = TuiTheme.Current.ChatTimeFg;
+        if (Footer != null) Footer.Fg = TuiTheme.Current.ChatFooterFg;
+        Body?.Invalidate(); // 正文缓存了旧主题色，标记重解析
+        MarkDirty();
+    }
+
     /// <summary>构建内部控件树</summary>
     public void BuildContent(int maxWidth)
     {

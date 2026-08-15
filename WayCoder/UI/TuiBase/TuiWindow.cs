@@ -63,8 +63,8 @@ public class TuiWindow : TuiBase
     /// 无边框时内容区域 = 窗口区域，无标题栏。
     /// </summary>
     public WindowBorder Border { get; set; } = WindowBorder.Rounded;
-    /// <summary>边框颜色（ANSI 色码）。聚焦时自动加亮。</summary>
-    public int BorderColor { get; set; } = 36;    // Cyan
+    /// <summary>边框颜色（ANSI 色码）。聚焦时自动加亮。默认读主题。</summary>
+    public int BorderColor { get; set; } = TuiTheme.Current.WindowBorderFocused;
 
     /// <summary>失焦时边框颜色（0=自动使用 BorderColor 暗色版）</summary>
     public int UnfocusedBorderColor { get; set; }
@@ -82,20 +82,20 @@ public class TuiWindow : TuiBase
     public int GradientEnd { get; set; } = AnsiTty.RgbCode(0, 128, 255);
 
     // ── 样式 ──
-    /// <summary>窗口背景色（ANSI 色码，0=透明，默认 7=浅灰）</summary>
-    public int WinBg { get; set; } = 47;
+    /// <summary>窗口背景色（ANSI 色码，0=透明，默认读主题）</summary>
+    public int WinBg { get; set; } = TuiTheme.Current.WindowBg;
 
     /// <summary>标题前景色（0=使用边框色）</summary>
     public int TitleFg { get; set; }
     /// <summary>标题背景色（0=透明）</summary>
     public int TitleBg { get; set; }
-    /// <summary>内容前景色</summary>
-    public int ContentFg { get; set; } = 37;
+    /// <summary>内容前景色（默认读主题控件前景色）</summary>
+    public int ContentFg { get; set; } = TuiTheme.Current.ControlFg;
     /// <summary>选项前景色</summary>
     public int ItemFg { get; set; }
-    /// <summary>选中项前景/背景色</summary>
-    public int SelFg { get; set; } = 30;
-    public int SelBg { get; set; } = 46;
+    /// <summary>选中项前景/背景色（默认读主题列表选中态）</summary>
+    public int SelFg { get; set; } = TuiTheme.Current.ListSelFg;
+    public int SelBg { get; set; } = TuiTheme.Current.ListSelBg;
 
     // ── 控件树 ──
     /// <summary>窗口根视图</summary>
@@ -175,8 +175,8 @@ public class TuiWindow : TuiBase
         get
         {
             if (Border == WindowBorder.None) return Y;
-            // 标题栏有分隔线时才独占一行；否则标题与上边框同行
-            return ShowTitle && !string.IsNullOrEmpty(Title) && ShowTitleSeparator ? Y + 2 : Y + 1;
+            // 标题栏有分隔线或粗体独占一行时才下移；否则标题与上边框同行
+            return ShowTitle && !string.IsNullOrEmpty(Title) && (ShowTitleSeparator || TitleBold) ? Y + 2 : Y + 1;
         }
     }
     /// <summary>内容可绘制区域宽度（不含边框）</summary>
@@ -188,8 +188,8 @@ public class TuiWindow : TuiBase
         {
             if (Border == WindowBorder.None) return Height;
             var h = Height - 2; // 上下边框
-            // 标题栏有分隔线时才扣除标题行高度
-            if (ShowTitle && !string.IsNullOrEmpty(Title) && ShowTitleSeparator) h -= 1;
+            // 标题栏有分隔线或粗体独占一行时才扣除标题行高度
+            if (ShowTitle && !string.IsNullOrEmpty(Title) && (ShowTitleSeparator || TitleBold)) h -= 1;
             return Math.Max(0, h);
         }
     }
