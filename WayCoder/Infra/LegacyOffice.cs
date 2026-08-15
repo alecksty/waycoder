@@ -95,7 +95,8 @@ public static class LegacyOffice
         if (workbook != null) return ExtractXls(workbook, maxChars);
 
         var pptDoc = doc.GetStream("PowerPoint Document");
-        if (pptDoc != null) return ExtractPpt(pptDoc, maxChars);
+        if (pptDoc != null)
+            return ExtractPpt(pptDoc, maxChars, IsPptEncrypted(doc.GetStream("Current User")));
 
         var names = string.Join(", ", doc.StreamNames.Take(10));
         return $"(复合文档，未识别的内部流: {names})";
@@ -138,9 +139,10 @@ public static class LegacyOffice
                 : (table0 ?? table1 ?? Array.Empty<byte>());
 
             ushort csw = Bin.U16(wordDoc, 32);
-            ushort cslw = Bin.U16(wordDoc, 34);
-            int fibRgLwOff = 32 + csw * 2;
-            int fibRgFcLcbOff = fibRgLwOff + cslw * 4;
+            // FIB 布局：csw@32 → FibRgW(csw*2) → cslw@34+csw*2 → FibRgLw@36+csw*2 → cbRgFcLcb(2) → FibRgFcLcb
+            ushort cslw = Bin.U16(wordDoc, 34 + csw * 2);
+            int fibRgLwOff = 36 + csw * 2;
+            int fibRgFcLcbOff = fibRgLwOff + cslw * 4 + 2; // +2 = cbRgFcLcb 字段
             if (fibRgFcLcbOff + 33 * 8 + 8 > wordDoc.Length) return "(无效 DOC：FIB 截断)";
 
             uint ccpText = Bin.U32(wordDoc, fibRgLwOff + 3 * 4); // 字符总数
@@ -254,6 +256,8 @@ public static class LegacyOffice
         {
             var sst = new List<string>();
             var labels = new List<string>();
+            bool modern = false; // 是否 BIFF5/8（有 SST/LABEL 结构，无需退化扫描）
+            bool encrypted = false; // 是否带 FILEPASS（密码保护，正文加密无法提取）
 
             int i = 0;
             while (i + 4 <= workbook.Length)
@@ -265,6 +269,12 @@ public static class LegacyOffice
 
                 switch (id)
                 {
+                    case 0x0809: // BOF：版本字段判定 BIFF5/8（0x0500/0x0600）vs 老 BIFF2-4
+                        if (len >= 2 && Bin.U16(workbook, dataOff) >= 0x0500) modern = true;
+                        break;
+                    case 0x002F: // FILEPASS 密码保护记录：正文加密，无法提取明文
+                        encrypted = true;
+                        break;
                     case 0x00FC: // SST 共享字符串表
                         ParseSst(workbook, dataOff, len, sst);
                         break;
@@ -291,6 +301,9 @@ public static class LegacyOffice
                 i = dataOff + len;
             }
 
+            // 密码保护文件：正文加密，任何「文本」都是乱码，直接报加密
+            if (encrypted) return "(XLS 已加密)";
+
             var sb = new StringBuilder();
             foreach (var s in sst)
                 if (!string.IsNullOrWhiteSpace(s)) { sb.AppendLine(s); if (sb.Length > maxChars) break; }
@@ -300,7 +313,11 @@ public static class LegacyOffice
             var result = sb.ToString().Trim();
             if (result.Length > 0) return result;
 
-            // 退化：BIFF2-4（Book 流）或异常 → UTF-16 文本串扫描
+            // BIFF5/8（有 SST/LABEL 结构）但无文本 → 空白表格，返回无内容标记，
+            // 不做 UTF-16 退化扫描（否则会把字体名/数字格式/表名当正文 dump 出来）。
+            if (modern) return "(XLS 无文本内容)";
+
+            // 退化：BIFF2-4（Book 流，无 SST，文本内联）→ UTF-16 文本串扫描
             return ExtractUtf16Runs(workbook, maxChars);
         }
         catch
@@ -364,39 +381,64 @@ public static class LegacyOffice
     // ════════════════════════════════════════════════════════════
 
     /// <summary>从 PowerPoint Document 流提取纯文本。</summary>
-    public static string ExtractPpt(byte[] pptDoc, int maxChars = DefaultMaxChars)
+    public static string ExtractPpt(byte[] pptDoc, int maxChars = DefaultMaxChars, bool encrypted = false)
     {
         try
         {
+            if (encrypted) return "(PPT 已加密)";
+
             var sb = new StringBuilder();
-            int i = 0;
-            while (i + 8 <= pptDoc.Length && sb.Length < maxChars)
-            {
-                ushort recType = Bin.U16(pptDoc, i + 2);
-                uint recLen = Bin.U32(pptDoc, i + 4);
-                int dataOff = i + 8;
-                if (dataOff + recLen > pptDoc.Length) break;
-
-                if (recType == 0x0FA0) // RT_TextCharsAtom（UTF-16LE）
-                {
-                    AppendUtf16Run(sb, pptDoc, dataOff, (int)recLen, maxChars);
-                }
-                else if (recType == 0x0FA8) // RT_TextBytesAtom（ANSI 单字节）
-                {
-                    for (int k = 0; k < recLen && dataOff + k < pptDoc.Length && sb.Length < maxChars; k++)
-                        sb.Append(Cp1252(pptDoc[dataOff + k]));
-                    sb.AppendLine();
-                }
-
-                i = dataOff + (int)recLen;
-            }
-
+            // PPT 记录是分层嵌套结构（容器 recVer=0xF），文本 atom 嵌在容器内部，
+            // 必须递归下降，否则平铺扫描会跳过容器内的所有子记录。
+            ScanPptRecords(pptDoc, 0, pptDoc.Length, sb, maxChars, 0);
             var result = sb.ToString().Trim();
             return result.Length > 0 ? result : "(PPT 无文本内容)";
         }
         catch
         {
             return "(PPT 解析失败)";
+        }
+    }
+
+    /// <summary>从 Current User 流判定 PPT 是否标准加密（headerToken 高 16 位 0xF3D1=加密）。</summary>
+    private static bool IsPptEncrypted(byte[]? currentUser)
+    {
+        if (currentUser == null || currentUser.Length < 16) return false;
+        if (Bin.U16(currentUser, 2) != 0x0FF6) return false; // 非 CurrentUserAtom
+        uint headerToken = Bin.U32(currentUser, 12);
+        return (headerToken >> 16) == 0xF3D1;
+    }
+
+    /// <summary>递归扫描 PPT 记录树：[start, end) 范围内的记录。</summary>
+    private static void ScanPptRecords(byte[] b, int start, int end, StringBuilder sb, int maxChars, int depth)
+    {
+        int i = start;
+        int guard = 0;
+        while (i + 8 <= end && sb.Length < maxChars && guard++ < 1_000_000)
+        {
+            ushort verInst = Bin.U16(b, i);
+            int recVer = verInst & 0x000F;
+            ushort recType = Bin.U16(b, i + 2);
+            uint recLen = Bin.U32(b, i + 4);
+            int dataOff = i + 8;
+            if (dataOff + recLen > end) break;
+
+            if (recType == 0x0FA0) // RT_TextCharsAtom（UTF-16LE）
+            {
+                AppendUtf16Run(sb, b, dataOff, (int)recLen, maxChars);
+            }
+            else if (recType == 0x0FA8) // RT_TextBytesAtom（ANSI 单字节）
+            {
+                for (int k = 0; k < recLen && dataOff + k < b.Length && sb.Length < maxChars; k++)
+                    sb.Append(Cp1252(b[dataOff + k]));
+                sb.AppendLine();
+            }
+            else if (recVer == 0x0F && depth < 32) // 容器：递归进子记录
+            {
+                ScanPptRecords(b, dataOff, dataOff + (int)recLen, sb, maxChars, depth + 1);
+            }
+
+            i = dataOff + (int)recLen;
         }
     }
 
