@@ -1955,4 +1955,74 @@ public static partial class SelfTest
         Check("Xml: DOM Attr", dom.GetAttr("k") == "v");
         Check("Xml: DOM Add", dom.Find("child") != null);
     }
+
+    /// <summary>运行轨迹（Trajectory）单元测试：截断纯函数 + Enabled 标志 + JSONL 事件流落盘/读回。</summary>
+    private static void TestTrajectory(Action<string, bool> Check)
+    {
+        // ── 1. Truncate 纯函数（头尾保留 + 省略标记）──
+        Check("Traj: 短文本不截断", Trajectory.Truncate("hello", 100) == "hello");
+        Check("Traj: null 不截断", Trajectory.Truncate(null!, 100) == null);
+        Check("Traj: 空串不截断", Trajectory.Truncate("", 100) == "");
+        var longText = new string('A', 3000);
+        var truncated = Trajectory.Truncate(longText, 2000);
+        Check("Traj: 截断含标记", truncated.Contains("已截断"));
+        Check("Traj: 截断保留头", truncated.StartsWith(new string('A', 1200)));
+        Check("Traj: 截断保留尾", truncated.EndsWith(new string('A', 2000 - 1200 - "\n…[已截断]…\n".Length)));
+        Check("Traj: 极小 maxChars 只留头", Trajectory.Truncate(longText, 10) == "AAAAAAAAAA");
+
+        // ── 2. Enabled 标志（默认开，未设 WAYCODER_TRAJECTORY）──
+        Check("Traj: Enabled 默认开", Trajectory.Enabled);
+
+        // ── 3. 完整事件流：Create → RecordTurn → RecordTool → End → JSONL 读回 ──
+        var dir = Path.Combine(Path.GetTempPath(), "waycoder-trajectory-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var t = Trajectory.Create("test-model", "session-1", dir);
+            Check("Traj: Create 非空", t != null);
+            if (t != null)
+            {
+                Check("Traj: 文件已创建", File.Exists(t.FilePath));
+                t.RecordTurn(0, 100, 50, 200, 1, 0);
+                t.RecordTurn(1, 150, 60, 10, 0, 300);
+                t.RecordTool("write_file", "{\"path\":\"/tmp/a.cs\"}", "已写入 12 行", true, 42);
+                t.RecordTool("bash", "ls", "运行命令时出错", false, 7);
+                t.End();
+
+                var lines = File.ReadAllLines(t.FilePath);
+                Check("Traj: 6 个事件", lines.Length == 6);
+
+                var types = new List<string>();
+                bool allParse = true, allSchema = true, allVersion = true;
+                foreach (var line in lines)
+                {
+                    var ev = Json.Parse(line);
+                    if (ev == null) { allParse = false; continue; }
+                    if (ev["traceSchema"]?.AsString() != "waycoder-trajectory") allSchema = false;
+                    if (ev["schemaVersion"]?.AsNumber() != 1) allVersion = false;
+                    types.Add(ev["type"]?.AsString() ?? "");
+                }
+                Check("Traj: 每行可解析", allParse);
+                Check("Traj: traceSchema 正确", allSchema);
+                Check("Traj: schemaVersion 正确", allVersion);
+                Check("Traj: 事件类型顺序",
+                    string.Join(",", types) == "run_start,llm_turn,llm_turn,tool_call,tool_call,run_end");
+
+                // run_end 汇总字段（累计轮次 + 总 token）
+                var last = Json.Parse(lines[^1]);
+                Check("Traj: run_end rounds", last!["data"]?["rounds"]?.AsNumber() == 2);
+                Check("Traj: run_end totalTokens", last!["data"]?["totalTokens"]?.AsNumber() == 100 + 50 + 150 + 60);
+
+                // tool_call 成败/名称
+                var toolOk = Json.Parse(lines[3]);
+                Check("Traj: tool_call name", toolOk!["data"]?["name"]?.AsString() == "write_file");
+                Check("Traj: tool_call ok=true", toolOk!["data"]?["ok"]?.AsBool() == true);
+                var toolFail = Json.Parse(lines[4]);
+                Check("Traj: tool_call ok=false", toolFail!["data"]?["ok"]?.AsBool() == false);
+            }
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
 }
