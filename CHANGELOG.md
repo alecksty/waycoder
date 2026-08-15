@@ -1,5 +1,26 @@
 # 更新日志
 
+## v0.59.0 (2026-08-15) — 手搓 PDF 解析器替代 PdfPig
+
+彻底移除最后一个重依赖第三方库 PdfPig，手写纯 BCL 的 PDF 文本提取器，消除其编译警告与不可修复/安全泄漏隐患，符合「优先开源、无开源则手搓」的第三方库选型原则。
+
+### ✨ 新增
+
+- **手搓 PDF 解析器 `PdfParser`**（`WayCoder/Infra/PdfParser.cs`，约 900 行纯 BCL，AOT 安全、零反射、零依赖）：
+  - 文件结构解析：`%PDF` 头校验 → `startxref` 定位 → xref 表 / xref 流（PDF 1.5+）双路 + `/Prev` 增量链回溯 → 间接对象（字典/数组/名字/字面字符串/十六进制字符串/数字/引用/流）递归解析，带对象缓存与 `<<` 字典→`stream` 流内联识别
+  - 流解压：`FlateDecode`（复用 `ZLibStream`）+ `ASCIIHexDecode` + `ASCII85Decode` + `Filter` 数组链式过滤，无 filter 原样返回
+  - 页面树遍历：Catalog → Pages → Kids 递归收集，`/Count` 校验
+  - 内容流文本提取：`BT`/`ET` 文本块 + `Tj`/`TJ`/`'`/`"` 显示文本 + `Tf` 字体切换 + `Td`/`TD`/`T*`/`Tm` 换行判定（负位移/绝对 y 下降），`TJ` 大负 gap 插空格；**内容流用独立静态字节级解析器**（与文件结构解析解耦）
+  - 字体编码：`/ToUnicode` CMap（bfchar 单码 + bfrange 范围）> Type0 `/Identity-H`（UTF-16BE）> 简单字体 `/WinAnsiEncoding`（CP1252）+ `/Differences` 字形映射 + Latin-1 近似 + UTF-16BE/LE BOM 自动识别；`/Info /Title` 元数据解码
+- **`PdfExtractor` 重写**：公开 API 完全不变（`Extract`/`GetMeta`/`PdfExtractResult`/`PdfPageContent`/`PdfMeta`/`ToMarkdown`），内部改用 `PdfParser`；空行压缩逻辑保留；损坏/加密/不支持结构（object stream）优雅报错不崩溃
+- **移除 PdfPig 依赖**：`WayCoder.csproj` 删除 `PackageReference Include="PdfPig"`，编译警告随之消失
+
+### 🧪 自测
+
+- 新增 PdfParser 19 项测试：最小 PDF 构造（xref 表 + 页树 + 内容流 + 标题）→ 页数/标题/两行文本提取；非 PDF/空数据返回 null；`PdfExtractor` 公共 API（Extract/GetMeta/ToMarkdown/不存在文件/损坏文件）错误分支
+- 本地用 `cupsfilter` 生成的真实 PDF（含中文）端到端验证：文本完整提取（68 字符无乱码）
+- 总计 **2732** 项自测全部通过（0 失败）
+
 ## v0.58.1 (2026-08-15) — 运行轨迹记录 + OpenClaw 竞品分析
 
 对标 OpenClaw 的 trajectory JSONL 回放，新增运行轨迹记录器，把每次 Agent 运行的完整过程落盘为版本化 JSONL 事件流，为调试 agent 行为、评估模型质量、复现 bug 提供可观测基石。
