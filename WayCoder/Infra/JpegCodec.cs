@@ -419,7 +419,7 @@ public static class JpegCodec
     {
         public int Id, H, V, QtId, Dc, Ac;
         public int BlocksX, BlocksY, SampleW, SampleH;
-        public double[]? Samples;
+        public double[] Samples = [];
     }
 
     // ── 工具 ──
