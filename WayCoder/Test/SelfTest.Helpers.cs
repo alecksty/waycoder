@@ -2303,10 +2303,14 @@ public static partial class SelfTest
         var xlsText = LegacyOffice.ExtractXls(BuildXlsWorkbook(new[] { "共享字符串一", "shared2" }, "内联标签"));
         Check("Wps: XLS 提取 SST", xlsText.Contains("共享字符串一") && xlsText.Contains("shared2"));
         Check("Wps: XLS 提取 LABEL", xlsText.Contains("内联标签"));
+        Check("Wps: XLS 空白表格不 dump 元数据", LegacyOffice.ExtractXls(BuildXlsWorkbookModern(Array.Empty<string>(), false)) == "(XLS 无文本内容)");
+        Check("Wps: XLS 加密文件", LegacyOffice.ExtractXls(BuildXlsWorkbookModern(Array.Empty<string>(), true)) == "(XLS 已加密)");
 
         // ── 5. 二进制 PPT（TextCharsAtom）──
         var pptText = LegacyOffice.ExtractPpt(BuildPptStream("幻灯片标题内容"));
         Check("Wps: PPT 提取文本", pptText.Contains("幻灯片标题内容"));
+        Check("Wps: PPT 嵌套容器文本", LegacyOffice.ExtractPpt(BuildPptStreamNested("嵌套容器里的标题")).Contains("嵌套容器里的标题"));
+        Check("Wps: PPT 加密分支", LegacyOffice.ExtractPpt(BuildPptStream("x"), encrypted: true) == "(PPT 已加密)");
 
         // ── 6. RTF 剥离 ──
         var rtfText = LegacyOffice.ExtractRtf("{\\rtf1\\ansi Hello {\\b bold} world \\par second}");
@@ -2324,6 +2328,24 @@ public static partial class SelfTest
             File.Delete(wpsPath);
         }
         catch { Check("Wps: read_file 读 .wps", false); }
+
+        // ── 8. 端到端：CFB .ppt 加密检测（headerToken 高 16 位）──
+        try
+        {
+            var encPptPath = Path.Combine(Path.GetTempPath(), "wc_test_" + Guid.NewGuid().ToString("N")[..6] + ".ppt");
+            var encCfb = BuildCfb(("PowerPoint Document", BuildPptStream("不应被读取")), ("Current User", BuildPptCurrentUser(true)));
+            File.WriteAllBytes(encPptPath, encCfb);
+            Check("Wps: PPT 加密检测", LegacyOffice.Extract(encPptPath) == "(PPT 已加密)");
+
+            var plainPptPath = Path.Combine(Path.GetTempPath(), "wc_test_" + Guid.NewGuid().ToString("N")[..6] + ".ppt");
+            var plainCfb = BuildCfb(("PowerPoint Document", BuildPptStream("明文标题")), ("Current User", BuildPptCurrentUser(false)));
+            File.WriteAllBytes(plainPptPath, plainCfb);
+            Check("Wps: PPT 未加密正常提取", LegacyOffice.Extract(plainPptPath).Contains("明文标题"));
+
+            File.Delete(encPptPath);
+            File.Delete(plainPptPath);
+        }
+        catch { Check("Wps: PPT 加密检测", false); }
     }
 
     private static string ExtractDocDirect()
@@ -2350,10 +2372,10 @@ public static partial class SelfTest
         W16(b, 0, 0xA5EC);          // wIdent
         // flags @10 = 0（未加密、0Table）
         W16(b, 32, 14);             // csw
-        W16(b, 34, 22);             // cslw
-        W32(b, 72, (uint)ccp);      // ccpText @ fibRgLw[3] = 60 + 12 = 72
-        W32(b, 412, 0);             // fcClx @ fibRgFcLcb[33] = 148 + 33*8 = 412（表流内偏移 0）
-        W32(b, 416, 21);            // lcbClx = 1 + 4 + (2*4) + 8 = 21
+        W16(b, 62, 22);             // cslw @ 34 + csw*2 = 62
+        W32(b, 76, (uint)ccp);      // ccpText @ fibRgLw[3]，fibRgLwOff=36+csw*2=64 → 64+12=76
+        W32(b, 418, 0);             // fcClx @ fibRgFcLcb[33]，fibRgFcLcbOff=64+22*4+2=154 → 154+264=418（表流内偏移 0）
+        W32(b, 422, 21);            // lcbClx = 1 + 4 + (2*4) + 8 = 21
 
         var textBytes = Encoding.Unicode.GetBytes(text);
         Array.Copy(textBytes, 0, b, textOffset, textBytes.Length);
@@ -2371,10 +2393,10 @@ public static partial class SelfTest
 
         W16(b, 0, 0xA5EC);
         W16(b, 32, 14);             // csw
-        W16(b, 34, 22);             // cslw
-        W32(b, 72, (uint)ccp);      // ccpText
-        W32(b, 412, 0);             // fcClx → 表流偏移 0
-        W32(b, 416, 21);            // lcbClx
+        W16(b, 62, 22);             // cslw @ 34 + csw*2
+        W32(b, 76, (uint)ccp);      // ccpText @ fibRgLw[3]
+        W32(b, 418, 0);             // fcClx → 表流偏移 0
+        W32(b, 422, 21);            // lcbClx
 
         var textBytes = Encoding.ASCII.GetBytes(text);
         Array.Copy(textBytes, 0, b, textOffset, textBytes.Length);
@@ -2439,6 +2461,37 @@ public static partial class SelfTest
         return body.ToArray();
     }
 
+    /// <summary>构造带 BOF(BIFF8) 的 Workbook 流：BOF + 可选 FILEPASS + SST + EOF。</summary>
+    private static byte[] BuildXlsWorkbookModern(string[] sstStrings, bool filePass)
+    {
+        var body = new MemoryStream();
+
+        var bof = new MemoryStream();
+        W16S(bof, 0x0600); // BIFF8
+        W16S(bof, 0x0005); // dt = workbook globals
+        W16S(bof, 0x0DBB); // rupBuild
+        W16S(bof, 0x07CC); // rupYear
+        W32S(bof, 0x00000041); // bfh
+        W32S(bof, 0x00000006); // sfo
+        WriteRecord(body, 0x0809, bof.ToArray());
+
+        if (filePass)
+            WriteRecord(body, 0x002F, new byte[] { 0x00, 0x00 }); // FILEPASS
+
+        var sst = new MemoryStream();
+        W32S(sst, sstStrings.Length);
+        W32S(sst, sstStrings.Length);
+        foreach (var s in sstStrings)
+        {
+            var bs = BiffString(s);
+            sst.Write(bs, 0, bs.Length);
+        }
+        WriteRecord(body, 0x00FC, sst.ToArray());
+
+        WriteRecord(body, 0x000A, Array.Empty<byte>()); // EOF
+        return body.ToArray();
+    }
+
     private static byte[] BiffString(string s)
     {
         var ms = new MemoryStream();
@@ -2465,6 +2518,44 @@ public static partial class SelfTest
         var enc = Encoding.Unicode.GetBytes(text);
         W32S(ms, enc.Length);
         ms.Write(enc, 0, enc.Length);
+        return ms.ToArray();
+    }
+
+    /// <summary>构造 Current User 流（CurrentUserAtom），headerToken 高 16 位标记是否加密。</summary>
+    private static byte[] BuildPptCurrentUser(bool encrypted)
+    {
+        var ms = new MemoryStream();
+        W16S(ms, 0x0000);                          // recVer+recInstance
+        W16S(ms, 0x0FF6);                          // CurrentUserAtom
+        var atom = new MemoryStream();
+        W32S(atom, 20);                            // size
+        W32S(atom, encrypted ? 0xF3D1C05Fu : 0xE391C05Fu); // headerToken（高 16 位 0xF3D1=加密）
+        W32S(atom, 0);                             // offsetToCurrentEdit
+        W16S(atom, 0);                             // lenUserName
+        W16S(atom, 0x03F4);                        // docFileVersion
+        W16S(atom, 0);                             // unused
+        var ab = atom.ToArray();
+        W32S(ms, ab.Length);                       // recLen
+        ms.Write(ab, 0, ab.Length);
+        return ms.ToArray();
+    }
+
+    /// <summary>构造嵌套 PPT 流：TextCharsAtom 嵌在容器（recVer=0xF）内部。</summary>
+    private static byte[] BuildPptStreamNested(string text)
+    {
+        var child = new MemoryStream();
+        W16S(child, 0x0000); // TextCharsAtom 头
+        W16S(child, 0x0FA0);
+        var enc = Encoding.Unicode.GetBytes(text);
+        W32S(child, enc.Length);
+        child.Write(enc, 0, enc.Length);
+
+        var ms = new MemoryStream();
+        W16S(ms, 0x000F); // recVer=0xF（容器）+ recInstance=0
+        W16S(ms, 0x0F9F); // 容器类型（任意，模拟 Text 容器）
+        var cb = child.ToArray();
+        W32S(ms, cb.Length);
+        ms.Write(cb, 0, cb.Length);
         return ms.ToArray();
     }
 
