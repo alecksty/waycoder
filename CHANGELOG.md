@@ -1,5 +1,23 @@
 # 更新日志
 
+## v0.58.0 (2026-08-15) — 对标 deepseek-harness：持久 shell + 环境清理 + 进程树终止 + 调度器
+
+对照 deepseek-harness 源码逐项借鉴，补齐一批执行层的健壮性能力：`bash` 支持 `session_id` 持久 shell 会话（跨命令共享 cwd/env/shell 状态）；子进程启动前清理凭据形状的环境变量（防密钥经 env 泄漏）；全部子进程终止统一走 `entireProcessTree` 进程树终止（父进程被杀子进程一并清理）；`RetryPolicy` 增加对称 jitter（±10%）打破多客户端同时重试的惊群；工具调用改为按 `ExecutionMode`（Parallel/Exclusive）分批并行调度（批内有界并发 4 + 独占串行 + 按模型声明顺序提交）；并新增 `ToolResultClassifier` 统一区分「真实错误 vs 用户取消/安全阻止」，自恢复提示只对真实错误注入。
+
+### 🚀 增强
+
+- **`bash` 持久 shell 会话**：新增 `session_id` 参数，复用同一 shell 进程，`export`/`alias`/`cd` 跨命令生效；唯一 GUID marker 界定输出边界 + 回读退出码；进程崩溃/超时自动重建，空闲 5 分钟自动回收（沙箱模式不支持）
+- **环境变量清理**：`EnvScrubber` 在子进程启动前移除 KEY/PASSWORD/SECRET/TOKEN 形状及 `WAYCODER_*` 环境变量，防止密钥经 `env`/输出泄漏（对标 harness `scrubbedParentEnv`）
+- **进程树终止对齐**：`HooksManager`/`LspTool`/`LintTool`/`McpClient`/`Agent` 自动测试等全部子进程 `Kill()` 统一改为 `Kill(entireProcessTree: true)`，父进程被杀时子进程一并终止
+- **`RetryPolicy` 对称 jitter**：新增 `JitterRatio`（默认 0.1），重试延迟在 ±10% 内随机抖动；`ComputeJitteredDelay` 纯逻辑可自测（对标 harness jitterRatio）
+- **工具调用并行调度**：`ITool.ExecutionMode`（Parallel/Exclusive）+ `ToolCallScheduler.Partition` 把一轮工具调用切分为「并行批 + 独占批」，批内有界并发（`MaxParallelism=4`）、批间串行，结果按模型声明顺序回填；bash/write_file/edit_file/agent/lsp/rm 等 14 个有副作用工具标注为 Exclusive
+- **统一工具错误格式**：`ToolResultClassifier` 统一识别「错误/Error/❌/失败/运行命令时出错」等真实错误前缀，与「用户取消/Hook 阻止/沙箱阻止/危险命令阻止」等中止类区分——只有真实错误才注入「修正参数后重试」自恢复提示
+
+### 🧪 自测
+
+- 新增持久 shell 命令包装/cwd/env/退出码、环境变量敏感名判定与清理、进程树终止（父杀子随）、jitter 上下限/禁用、调度器分批、14 个工具 ExecutionMode 标注、错误分类器 17 项等测试
+- 总计 **2692** 项自测全部通过（0 失败）
+
 ## v0.57.0 (2026-08-15) — 工具完善：新增 sqlite/test 工具 + 6 个工具增强 + LSP 会话缓存
 
 响应「所有工具还有什么欠缺」的系统性排查，补齐工具短板：新增 `sqlite` 查询、`test` 测试运行两个工具（内置工具数 44→46）；`fetch` 支持 HTTP 方法/headers/body、`web_search` 增加 Bing 备用引擎与节流、`read_file` 支持 tail/二进制识别/JSON/INI 结构化、`write_file` 支持 append 与编码、网络工具接入 `RetryPolicy`；并给 `lsp` 加会话缓存复用，避免每次导航都重启服务器 + 重新初始化。

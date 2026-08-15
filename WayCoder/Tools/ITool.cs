@@ -3,6 +3,18 @@ using WayCoder.Infra;
 namespace WayCoder.Tools;
 
 /// <summary>
+/// 工具执行模式 —— 决定多工具调用时能否并发执行。
+/// </summary>
+public enum ToolExecutionMode
+{
+    /// <summary>可与其它 Parallel 工具并发执行（默认，适合只读/独立工具）</summary>
+    Parallel,
+
+    /// <summary>必须独占执行，不能与其它工具并发（适合有共享状态/副作用的工具）</summary>
+    Exclusive,
+}
+
+/// <summary>
 /// 工具接口。继承此接口即可添加新能力。
 /// </summary>
 public interface ITool
@@ -15,6 +27,12 @@ public interface ITool
 
     /// <summary>函数参数的 JSON Schema</summary>
     JNode Parameters { get; }
+
+    /// <summary>
+    /// 执行模式：Parallel 可与其它工具并发，Exclusive 必须独占执行。
+    /// 默认 Parallel；有共享状态/副作用的工具应覆写为 Exclusive。
+    /// </summary>
+    ToolExecutionMode ExecutionMode => ToolExecutionMode.Parallel;
 
     /// <summary>
     /// 运行工具并返回文本结果。

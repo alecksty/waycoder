@@ -583,42 +583,8 @@ public class Agent
 
             try
             {
-                if (resp.ToolCalls.Count == 1)
-                {
-                    var tc = resp.ToolCalls[0];
-                    onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
-                    var result = await ExecuteToolAsync(tc, onToolOutput);
-                    // 自动 lint 反馈闭环：写文件后立即检查，错误注入工具结果
-                    result = await AppendLintFeedbackAsync(tc, result);
-                    // 自动 test 反馈闭环：写源码文件后跑测试，失败注入工具结果
-                    result = await AppendTestFeedbackAsync(tc, result);
-                    Messages.Add(JNode.Object()
-                        .Set("role", "tool")
-                        .Set("tool_call_id", tc.Id)
-                        .Set("content", result));
-                }
-                else
-                {
-                    // 多个工具调用时并行执行（不流式输出，避免交叉混乱）
-                    var tasks = resp.ToolCalls.Select(async tc =>
-                    {
-                        onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
-                        var result = await ExecuteToolAsync(tc);
-                        return (tc, result);
-                    });
-
-                    var results = await Task.WhenAll(tasks);
-                    foreach (var (tc, result) in results)
-                    {
-                        // 自动 lint + test 反馈闭环
-                        var finalResult = await AppendLintFeedbackAsync(tc, result);
-                        finalResult = await AppendTestFeedbackAsync(tc, finalResult);
-                        Messages.Add(JNode.Object()
-                            .Set("role", "tool")
-                            .Set("tool_call_id", tc.Id)
-                            .Set("content", finalResult));
-                    }
-                }
+                // 执行本轮工具调用：单工具流式，多工具按 ExecutionMode 分批（批内并行 + Exclusive 独占）
+                await ExecuteToolCallsAsync(resp.ToolCalls, onTool, onToolOutput);
             }
             catch (OperationCanceledException)
             {
@@ -902,8 +868,8 @@ public class Agent
             if (hookResult != null)
                 result = hookResult;
 
-            // 错误自恢复：工具返回错误时追加修正提示
-            if (result.StartsWith("错误") || result.StartsWith("Error"))
+            // 错误自恢复：工具返回真实错误时追加修正提示（用户取消/权限拒绝/安全阻止不提示）
+            if (ToolResultClassifier.IsError(result))
                 result += "\n[请分析错误原因，修正参数后重试]";
 
             DebugLog.LogToolResult(tc.Name, result);
@@ -918,6 +884,78 @@ public class Agent
             return $"执行 {tc.Name} 时出错：{ex.Message}\n[请分析错误原因，尝试其他方式完成目标]";
         }
     }
+
+    /// <summary>
+    /// 执行一轮 LLM 返回的工具调用，结果按模型声明顺序回填到 Messages。
+    /// 单工具走流式输出；多工具按 ExecutionMode 切分批次——批内并行（有界并发）、
+    /// 批间串行，Exclusive 工具独占执行，避免共享状态/副作用的竞态
+    /// （对标 deepseek-harness 的 executionMode + bounded rolling pool）。
+    /// </summary>
+    private async Task ExecuteToolCallsAsync(
+        List<ToolCall> toolCalls, Action<string, string>? onTool, Action<string>? onToolOutput)
+    {
+        if (toolCalls.Count == 1)
+        {
+            var tc = toolCalls[0];
+            onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
+            var result = await ExecuteToolAsync(tc, onToolOutput);
+            // 自动 lint 反馈闭环：写文件后立即检查，错误注入工具结果
+            result = await AppendLintFeedbackAsync(tc, result);
+            // 自动 test 反馈闭环：写源码文件后跑测试，失败注入工具结果
+            result = await AppendTestFeedbackAsync(tc, result);
+            Messages.Add(JNode.Object()
+                .Set("role", "tool")
+                .Set("tool_call_id", tc.Id)
+                .Set("content", result));
+            return;
+        }
+
+        // 多工具：按执行模式分批执行，结果暂存后按模型声明顺序回填
+        var batches = ToolCallScheduler.Partition(toolCalls, GetExecutionMode);
+        var results = new Dictionary<string, string>();
+
+        foreach (var batch in batches)
+        {
+            if (batch.Count == 1)
+            {
+                var tc = batch[0];
+                onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
+                results[tc.Id] = await ExecuteToolAsync(tc);
+            }
+            else
+            {
+                // 并行批次：SemaphoreSlim 有界并发，避免一轮 20 个工具调用同时起 20 个进程
+                using var sem = new SemaphoreSlim(ToolCallScheduler.MaxParallelism);
+                var tasks = batch.Select(async tc =>
+                {
+                    onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
+                    await sem.WaitAsync();
+                    try { return (tc, await ExecuteToolAsync(tc)); }
+                    finally { sem.Release(); }
+                });
+                var batchResults = await Task.WhenAll(tasks);
+                foreach (var (tc, result) in batchResults)
+                    results[tc.Id] = result;
+            }
+        }
+
+        // 按模型声明顺序提交（含 lint/test 反馈闭环）
+        foreach (var tc in toolCalls)
+        {
+            var finalResult = await AppendLintFeedbackAsync(tc, results[tc.Id]);
+            finalResult = await AppendTestFeedbackAsync(tc, finalResult);
+            Messages.Add(JNode.Object()
+                .Set("role", "tool")
+                .Set("tool_call_id", tc.Id)
+                .Set("content", finalResult));
+        }
+    }
+
+    /// <summary>按工具名解析执行模式（未知工具保守按 Exclusive 处理）。</summary>
+    private ToolExecutionMode GetExecutionMode(string name)
+        => ToolByName.TryGetValue(name, out var tool)
+            ? tool.ExecutionMode
+            : ToolExecutionMode.Exclusive;
 
     /// <summary>
     /// 写文件后自动运行 lint，错误注入工具结果，形成自动修复闭环。
@@ -1015,7 +1053,7 @@ public class Agent
             var completed = await Task.WhenAny(readTask, timeoutTask);
             if (completed == timeoutTask)
             {
-                try { proc.Kill(); } catch { }
+                try { proc.Kill(entireProcessTree: true); } catch { }
                 ErrorLog.Warning("Agent", $"自动测试超时（{Config.Instance.AutoTestTimeoutSec}s），已终止进程");
                 return toolResult;
             }

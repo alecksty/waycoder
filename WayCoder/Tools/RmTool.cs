@@ -7,6 +7,7 @@ namespace WayCoder.Tools;
 public class RmTool : ITool
 {
     public string Name => "rm";
+    public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description => "删除文件或目录。支持递归删除。禁止删除系统关键路径（C:\\Windows、/etc 等）。纯 C# 实现。";
 
     public JNode Parameters => JNode.Object()

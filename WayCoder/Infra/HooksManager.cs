@@ -599,7 +599,7 @@ public static class HooksManager
             var completed = await Task.WhenAny(exitTask, delayTask);
             if (completed != exitTask || !exitTask.IsCompletedSuccessfully)
             {
-                try { proc.Kill(); } catch { }
+                try { proc.Kill(entireProcessTree: true); } catch { }
                 return (-1, $"Hook 超时（{actualTimeout / 1000} 秒）");
             }
 

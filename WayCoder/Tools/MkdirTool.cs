@@ -7,6 +7,7 @@ namespace WayCoder.Tools;
 public class MkdirTool : ITool
 {
     public string Name => "mkdir";
+    public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description => "创建目录（递归）。纯 C# 实现，自动创建所有父目录，已存在时不报错。";
 
     public JNode Parameters => JNode.Object()

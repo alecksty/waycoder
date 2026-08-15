@@ -7,6 +7,7 @@ namespace WayCoder.Tools;
 public class MvTool : ITool
 {
     public string Name => "mv";
+    public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description => "移动或重命名文件/目录。自动创建目标父目录，支持跨驱动器。纯 C# 实现。";
 
     public JNode Parameters => JNode.Object()

@@ -13,6 +13,7 @@ namespace WayCoder.Tools;
 public class MultiEditTool : ITool
 {
     public string Name => "multiedit";
+    public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description => "对同一文件执行多个顺序编辑操作。减小文件修改的 round-trip。首个编辑的 old_string 若为空则表示创建新文件。每个编辑的 old_string 必须在当前文件内容中唯一（或指定 replace_all）。";
 
     public JNode Parameters => JNode.Object()

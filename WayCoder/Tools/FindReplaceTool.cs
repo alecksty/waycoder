@@ -11,6 +11,7 @@ namespace WayCoder.Tools;
 public class FindReplaceTool : ITool
 {
     public string Name => "find_replace";
+    public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description => "跨文件查找并替换。支持正则、glob 文件过滤、干跑预览。返回每个文件的匹配详情。纯 C# 实现。";
 
     public JNode Parameters => JNode.Object()
