@@ -87,11 +87,34 @@ public class RenderBuffer
         if (hasFg || hasBg)
             _sb.Append(AnsiColorPairSeq(fg, bg));
         _sb.Append(text);
-        // 精确重置：分别重置 fg/bg，避免 SgrReset 全复位冲掉窗口底色
-        if (hasFg) _sb.Append(AnsiTty.SgrResetFg);
-        if (hasBg) _sb.Append(AnsiTty.SgrResetBg);
+        // 样式码（1-9：粗体/淡化/斜体/下划线/反白/删除线）用专门的关闭码复位——
+        // 仅复位前景色(39)不会清除样式属性，粗体/斜体会串到同行后续文本；
+        // 但也不能 SgrReset(0) 全复位，那会把窗口/对话框底色一并冲掉造成花屏。
+        if (fg >= 1 && fg <= 9)
+        {
+            _sb.Append(StyleOffSeq(fg));
+            if (hasBg) _sb.Append(AnsiTty.SgrResetBg);
+        }
+        else
+        {
+            // 精确重置：分别重置 fg/bg，避免 SgrReset 全复位冲掉窗口底色
+            if (hasFg) _sb.Append(AnsiTty.SgrResetFg);
+            if (hasBg) _sb.Append(AnsiTty.SgrResetBg);
+        }
         return this;
     }
+
+    /// <summary>样式码对应的关闭序列（仅关该属性，不动前景/背景色）</summary>
+    private static string StyleOffSeq(int style) => style switch
+    {
+        1 or 2 => AnsiTty.Sgr(22),   // 正常亮度（同时关粗体+淡化）
+        3 => AnsiTty.Sgr(23),        // 关斜体
+        4 => AnsiTty.Sgr(24),        // 关下划线
+        5 => AnsiTty.Sgr(25),        // 关闪烁
+        7 => AnsiTty.Sgr(27),        // 关反白
+        9 => AnsiTty.Sgr(29),        // 关删除线
+        _ => AnsiTty.SgrReset,       // 未知样式兜底全复位
+    };
 
     // ================================================================
     // 超屏处理：截断 / 换行

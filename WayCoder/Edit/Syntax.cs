@@ -7,7 +7,12 @@ public class Syntax
 {
     public string Name { get; init; } = "";
     public HashSet<string> Keywords { get; init; } = [];
-    private readonly List<(string Pattern, int Color)> _patterns = [];
+
+    /// <summary>该语言用 # 作单行注释（Python/Shell/Ruby/YAML/PHP）</summary>
+    public bool HashComments => Name is "Python" or "Shell" or "Ruby" or "YAML" or "PHP";
+
+    /// <summary>该语言用 // 作单行注释（C 系语言）</summary>
+    public bool SlashComments => Name is "C#" or "JavaScript" or "Java" or "C/C++" or "Go" or "Rust" or "Swift" or "Kotlin" or "PHP" or "Vue";
 
     // ANSI 颜色码
     public const int Cyan = 36;
@@ -41,6 +46,11 @@ public class Syntax
         "yaml" or "yml" => Yaml(),
         "sql" => Sql(),
         "css" or "scss" => Css(),
+        "ruby" or "rb" => Ruby(),
+        "php" => Php(),
+        "swift" => Swift(),
+        "kotlin" or "kt" or "kts" => Kotlin(),
+        "vue" => Vue(),
         _ => Plain(),
     };
 
@@ -64,6 +74,11 @@ public class Syntax
             ".yml" or ".yaml" => Yaml(),
             ".sql" => Sql(),
             ".css" or ".scss" => Css(),
+            ".rb" => Ruby(),
+            ".php" => Php(),
+            ".swift" => Swift(),
+            ".kt" or ".kts" => Kotlin(),
+            ".vue" => Vue(),
             _ => Plain(),
         };
     }
@@ -81,6 +96,49 @@ public class Syntax
         int i = 0;
         while (i < line.Length)
         {
+            // Markdown 标题（行首 # / ## / ###）
+            if (Name == "Markdown" && line[i] == '#' && i == 0)
+            {
+                int j = i;
+                while (j < line.Length && line[j] == '#') j++;
+                tokens.Add((line[i..j], Yellow));
+                if (j < line.Length) tokens.Add((line[j..], Cyan));
+                i = line.Length;
+                continue;
+            }
+
+            // Markdown 行内代码 `code`
+            if (Name == "Markdown" && line[i] == '`')
+            {
+                var end = line.IndexOf('`', i + 1);
+                if (end < 0) end = line.Length - 1;
+                tokens.Add((line[i..(end + 1)], Green));
+                i = end + 1;
+                continue;
+            }
+
+            // XML/HTML 标签 <tag ...>
+            if (Name == "XML/HTML" && line[i] == '<')
+            {
+                var end = line.IndexOf('>', i);
+                if (end < 0) { tokens.Add((line[i..], Cyan)); i = line.Length; }
+                else { tokens.Add((line[i..(end + 1)], Cyan)); i = end + 1; }
+                continue;
+            }
+
+            // JSON 键名（字符串后紧跟冒号）→ 紫色，区别于值
+            if (Name == "JSON" && line[i] == '"')
+            {
+                var end = line.IndexOf('"', i + 1);
+                if (end < 0) end = line.Length - 1;
+                int k = end + 1;
+                while (k < line.Length && line[k] == ' ') k++;
+                int color = k < line.Length && line[k] == ':' ? Magenta : Green;
+                tokens.Add((line[i..(end + 1)], color));
+                i = end + 1;
+                continue;
+            }
+
             // 字符串字面量 "..."
             if (line[i] == '"')
             {
@@ -102,7 +160,7 @@ public class Syntax
             }
 
             // 单行注释 //
-            if (i + 1 < line.Length && line[i] == '/' && line[i + 1] == '/')
+            if (SlashComments && i + 1 < line.Length && line[i] == '/' && line[i + 1] == '/')
             {
                 tokens.Add((line[i..], Dim));
                 i = line.Length;
@@ -110,7 +168,7 @@ public class Syntax
             }
 
             // 单行注释 #
-            if (line[i] == '#')
+            if (HashComments && line[i] == '#')
             {
                 tokens.Add((line[i..], Dim));
                 i = line.Length;
@@ -131,7 +189,8 @@ public class Syntax
             if (char.IsLetter(line[i]) || line[i] == '_')
             {
                 var start = i;
-                while (i < line.Length && (char.IsLetterOrDigit(line[i]) || line[i] == '_'))
+                bool allowDash = Name == "CSS"; // CSS 属性名含连字符（font-size）
+                while (i < line.Length && (char.IsLetterOrDigit(line[i]) || line[i] == '_' || (allowDash && line[i] == '-')))
                     i++;
                 var word = line[start..i];
                 tokens.Add((word, Keywords.Contains(word) ? Cyan : Default));
@@ -297,7 +356,104 @@ public class Syntax
     private static Syntax Css() => new()
     {
         Name = "CSS",
-        Keywords = [],
+        Keywords = [
+            // 属性
+            "color","background","border","margin","padding","width","height","display",
+            "position","top","right","bottom","left","float","clear","overflow","z-index",
+            "font","font-size","font-weight","font-family","font-style","text-align",
+            "text-decoration","text-transform","text-indent","line-height","letter-spacing",
+            "white-space","vertical-align","visibility","opacity","cursor","content",
+            "outline","resize","min-width","max-width","min-height","max-height","gap",
+            "flex","flex-direction","flex-wrap","flex-grow","flex-shrink","flex-basis",
+            "grid","grid-template","grid-gap","justify-content","align-items","align-self",
+            "justify-items","align-content","order","transition","transform","animation",
+            "box-shadow","border-radius","border-collapse","border-spacing","box-sizing",
+            "word-wrap","word-break","text-overflow","object-fit","pointer-events",
+            // 值
+            "none","block","inline","inline-block","table","absolute","relative","fixed",
+            "static","sticky","hidden","visible","auto","center","start","end",
+            "space-between","space-around","space-evenly","stretch","italic","bold",
+            "normal","uppercase","lowercase","capitalize","underline","line-through",
+            "pointer","transparent","inherit","initial","unset","revert","repeat",
+            "no-repeat","cover","contain","scroll","column","row","wrap","nowrap",
+        ],
+    };
+
+    private static Syntax Ruby() => new()
+    {
+        Name = "Ruby",
+        Keywords = [
+            "alias","and","begin","break","case","class","def","do","else","elsif",
+            "end","ensure","false","for","if","in","module","next","nil","not","or",
+            "redo","rescue","retry","return","self","super","then","true","undef",
+            "unless","until","when","while","yield","require","include","extend",
+            "attr_reader","attr_writer","attr_accessor","lambda","proc","puts","raise",
+            "private","protected","public","initialize","new",
+        ],
+    };
+
+    private static Syntax Php() => new()
+    {
+        Name = "PHP",
+        Keywords = [
+            "abstract","and","array","as","break","callable","case","catch","class",
+            "clone","const","continue","declare","default","do","echo","else","elseif",
+            "empty","enddeclare","endfor","endforeach","endif","endswitch","endwhile",
+            "extends","final","finally","fn","for","foreach","function","global","goto",
+            "if","implements","include","include_once","instanceof","insteadof","interface",
+            "isset","list","match","namespace","new","or","print","private","protected",
+            "public","readonly","require","require_once","return","static","switch",
+            "throw","trait","try","unset","use","var","while","xor","yield","true",
+            "false","null","self","parent","this",
+        ],
+    };
+
+    private static Syntax Swift() => new()
+    {
+        Name = "Swift",
+        Keywords = [
+            "associatedtype","class","deinit","enum","extension","fileprivate","func",
+            "import","init","inout","internal","let","open","operator","private",
+            "protocol","public","rethrows","static","struct","subscript","typealias",
+            "var","break","case","continue","default","defer","do","else","fallthrough",
+            "for","guard","if","in","repeat","return","switch","where","while","as",
+            "catch","false","is","nil","super","self","Self","throw","throws","true",
+            "try","async","await","actor","some","any","weak","unowned","lazy",
+            "mutating","nonmutating","override","required","convenience","final",
+            "indirect","escaping","autoclosure",
+        ],
+    };
+
+    private static Syntax Kotlin() => new()
+    {
+        Name = "Kotlin",
+        Keywords = [
+            "as","break","class","continue","do","else","false","for","fun","if","in",
+            "interface","is","null","object","package","return","super","this","throw",
+            "true","try","typealias","val","var","when","while","by","catch","constructor",
+            "finally","get","import","init","set","where","actual","abstract","annotation",
+            "companion","const","crossinline","data","enum","expect","external","final",
+            "infix","inline","inner","internal","lateinit","noinline","open","operator",
+            "out","override","private","protected","public","reified","sealed","suspend",
+            "tailrec","vararg","field","it","unit",
+        ],
+    };
+
+    private static Syntax Vue() => new()
+    {
+        Name = "Vue",
+        Keywords = [
+            // JavaScript（script 段）
+            "async","await","break","case","catch","class","const","continue","debugger",
+            "default","delete","do","else","enum","export","extends","false","finally",
+            "for","function","if","import","in","instanceof","let","new","null","of",
+            "return","super","switch","this","throw","true","try","typeof","var","void",
+            "while","with","yield","static","get","set","from","as","interface","type",
+            "implements","package","private","protected","public","readonly","abstract",
+            // Vue 组合式 API 标识
+            "ref","reactive","computed","watch","watchEffect","onMounted","onCreated",
+            "onUnmounted","props","emits","setup","defineProps","defineEmits","toRefs",
+        ],
     };
 
     private static Syntax Plain() => new()

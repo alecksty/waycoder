@@ -33,11 +33,6 @@ public class TuiManager : IDisposable
     /// <summary>是否需要全屏清除+重绘（首帧/Resize/切屏=true，增量更新=false）</summary>
     private bool _needsFullRefresh = true;
 
-    // ── 主题 ──
-    public string ThemeBorderColor { get; set; } = "36";
-    public string ThemeAccentColor { get; set; } = "36";
-    public string ThemeBorderStyle { get; set; } = "rounded";
-
     // ── 生命周期 ──
 
     /// <summary>初始化终端（备用屏 + 鼠标 + 尺寸）</summary>
@@ -59,13 +54,10 @@ public class TuiManager : IDisposable
         IsActive = false;
     }
 
-    /// <summary>刷新主题设置</summary>
+    /// <summary>刷新主题设置：从配置应用统一配色（TuiTheme 为唯一配色真源）。</summary>
     public void RefreshTheme()
     {
-        var cfg = Config.Instance;
-        ThemeBorderColor = cfg.BorderColor;
-        ThemeAccentColor = cfg.AccentColor;
-        ThemeBorderStyle = cfg.BorderStyle;
+        TuiTheme.ApplyFromConfig(Config.Instance);
     }
 
     /// <summary>

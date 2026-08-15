@@ -27,6 +27,9 @@ public static class TuiHelper
         return width;
     }
 
+    /// <summary>省略号 "…" 的终端显示宽度（全角，占 2 列）。</summary>
+    private static readonly int EllipsisWidth = DisplayWidth("…");
+
     /// <summary>
     /// 按显示宽度截断文本（不是字符数），末尾追加 "…"。
     /// 如果文本不超出宽度，原样返回。
@@ -42,7 +45,7 @@ public static class TuiHelper
         foreach (var r in runes)
         {
             var w = RuneWidth(r);
-            if (width + w + 1 > maxWidth) break; // +1 for "…"
+            if (width + w + EllipsisWidth > maxWidth) break; // 预留省略号宽度
             width += w;
             count++;
         }
@@ -82,8 +85,8 @@ public static class TuiHelper
             result = result.Take(maxLines).ToList();
             var last = result[^1];
             var lastVw = DisplayWidth(last);
-            if (lastVw + 1 > maxWidth)
-                last = TruncateByWidth(last, maxWidth - 1);
+            if (lastVw + EllipsisWidth > maxWidth)
+                last = TruncateByWidth(last, maxWidth);
             result[^1] = TruncateByWidth(last, maxWidth);
         }
 

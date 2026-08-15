@@ -38,12 +38,20 @@ public static class AnsiTty
     /// <summary>恢复光标位置</summary>
     public static string CursorRestore = $"{AnsiCharPrefix}{AnsiCharEscape}u";
 
+    /// <summary>光标上移 n 行（不改变列）</summary>
+    public static string CursorUp(int n = 1) => $"{AnsiCharPrefix}{AnsiCharEscape}{n}A";
+
+    /// <summary>光标右移 n 列（不改变行）</summary>
+    public static string CursorForward(int n = 1) => $"{AnsiCharPrefix}{AnsiCharEscape}{n}C";
+
     // ═══════════════════════════════════════════════════════════════
     // 屏幕控制
     // ═══════════════════════════════════════════════════════════════
 
     public static readonly string ClearScreen = $"{AnsiCharPrefix}{AnsiCharEscape}2J";
     public static readonly string ClearToEnd = $"{AnsiCharPrefix}{AnsiCharEscape}K";
+    /// <summary>清除光标到屏幕末尾（CSI J，ED=0）</summary>
+    public static readonly string ClearToEndScreen = $"{AnsiCharPrefix}{AnsiCharEscape}J";
     public static readonly string ClearLine = $"{AnsiCharPrefix}{AnsiCharEscape}2K";
     public static readonly string Home = $"{AnsiCharPrefix}{AnsiCharEscape}H";
     public static readonly string EnterAlt = $"{AnsiCharPrefix}{AnsiCharEscape}?1049h";
