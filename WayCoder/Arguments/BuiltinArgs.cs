@@ -263,6 +263,14 @@ public class JsonArg : CliArg
     public JsonArg() : base("json", "-j", "--json") { }
 }
 
+public class WebArg : CliArg
+{
+    public override string Description => "浏览器聊天界面（--web [端口]，默认 9527，自动打开浏览器）";
+    public override int ValueCount => -1; // 可选端口
+    public override string? ValueLabel => "端口";
+    public WebArg() : base("web", "--web") { }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // 批量任务引擎 —— 多仓库并行处理（worktree 隔离）
 // ═══════════════════════════════════════════════════════════════
@@ -521,6 +529,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new EditArg());
         CliArgRegistry.Register(new UpdateArg());
         CliArgRegistry.Register(new JsonArg());
+        CliArgRegistry.Register(new WebArg());
         CliArgRegistry.Register(new BatchArg());
         CliArgRegistry.Register(new BatchRepoArg());
         CliArgRegistry.Register(new BatchTaskArg());
