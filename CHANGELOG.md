@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.58.1 (2026-08-15) — 运行轨迹记录 + OpenClaw 竞品分析
+
+对标 OpenClaw 的 trajectory JSONL 回放，新增运行轨迹记录器，把每次 Agent 运行的完整过程落盘为版本化 JSONL 事件流，为调试 agent 行为、评估模型质量、复现 bug 提供可观测基石。
+
+### ✨ 新增
+
+- **运行轨迹 `Trajectory`**：版本化 JSONL 事件流（`traceSchema`/`schemaVersion`/`runId`/`sessionId`/`type`/`ts`/`seq`/`data`），四类事件——`run_start`/`llm_turn`（每轮 token+内容长度+工具数+推理长度）/`tool_call`（工具名+入参/结果摘要+成败+耗时）/`run_end`（轮次+累计 token 汇总）；落盘 `.waycoder/trajectory/<runId>.jsonl`（已被 `.gitignore` 覆盖）；`WAYCODER_TRAJECTORY=0` 关闭；纯手搓 JSONL 追加（`File.AppendAllText` + lock + Interlocked 序列号），AOT 安全、零依赖
+- **`ChatAsync` 薄包装重构**：主循环抽为 `ChatAsyncCore`，外层 try/finally 统一落 `run_end`——无论正常完成/异常/取消/提前返回都不漏（轨迹记录失败静默降级，不影响主流程）
+- **竞品分析文档** `docs/openclaw-analysis.md`：OpenClaw 架构对比 + 4 个可借鉴点（轨迹回放/上下文降级原因码/工具声明式元数据/安全自审计），轨迹回放已落地
+
+### 🧪 自测
+
+- 新增 Trajectory 21 项测试：截断纯函数（头尾保留/标记/极小 maxChars）、Enabled 标志、JSONL 事件流落盘/读回（事件类型顺序、schema 字段、run_end 汇总、tool_call 成败）
+- 总计 **2713** 项自测全部通过（0 失败）
+
 ## v0.58.0 (2026-08-15) — 对标 deepseek-harness：持久 shell + 环境清理 + 进程树终止 + 调度器
 
 对照 deepseek-harness 源码逐项借鉴，补齐一批执行层的健壮性能力：`bash` 支持 `session_id` 持久 shell 会话（跨命令共享 cwd/env/shell 状态）；子进程启动前清理凭据形状的环境变量（防密钥经 env 泄漏）；全部子进程终止统一走 `entireProcessTree` 进程树终止（父进程被杀子进程一并清理）；`RetryPolicy` 增加对称 jitter（±10%）打破多客户端同时重试的惊群；工具调用改为按 `ExecutionMode`（Parallel/Exclusive）分批并行调度（批内有界并发 4 + 独占串行 + 按模型声明顺序提交）；并新增 `ToolResultClassifier` 统一区分「真实错误 vs 用户取消/安全阻止」，自恢复提示只对真实错误注入。
