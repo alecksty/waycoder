@@ -20,7 +20,7 @@ namespace WayCoder.Tools;
 public class ReadFileTool : ITool
 {
     public string Name => "read_file";
-    public string Description => "读取文件内容。支持代码文件（行号）、PDF（文本提取分页）、Office文档（docx/xlsx/pptx文本提取）、Markdown（结构化渲染）、CSV（表格）、HTML（标签剥离）。修改文件之前始终先读取它。";
+    public string Description => "读取文件内容。支持代码文件（行号）、PDF（文本提取分页）、Office文档（docx/xlsx/pptx文本提取）、Markdown（结构化渲染）、CSV（表格）、HTML（标签剥离）、JSON（美化）、INI（结构化）、tail 读取末尾 N 行。修改文件之前始终先读取它。";
 
     private const int MaxFileSize = 100 * 1024; // 100KB for text, PDF handles separately
     private const int DefaultLimit = 2000;
@@ -38,7 +38,10 @@ public class ReadFileTool : ITool
                 .Set("description", "起始行（从 1 开始）。PDF 文件此参数表示起始页码。默认 1。"))
             .Set("limit", JNode.Object()
                 .Set("type", "integer")
-                .Set("description", "最大读取行数。PDF 文件此参数表示最大页数（默认 20）。默认 2000。")))
+                .Set("description", "最大读取行数。PDF 文件此参数表示最大页数（默认 20）。默认 2000。"))
+            .Set("tail", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "读取文件末尾 N 行（与 offset/limit 互斥，优先于 offset）。适合查看日志/大文件末尾。默认 0 禁用。")))
         .Set("required", JNode.Array().Add("file_path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
@@ -46,11 +49,12 @@ public class ReadFileTool : ITool
         var filePath = arguments.GetValueOrDefault("file_path")?.ToString() ?? "";
         var offset = arguments.TryGetValue("offset", out var o) && o is int oi ? oi : 1;
         var limit = arguments.TryGetValue("limit", out var l) && l is int li ? li : DefaultLimit;
+        var tail = arguments.TryGetValue("tail", out var tl) && tl is int tli ? Math.Max(0, tli) : 0;
 
-        return Task.FromResult(Execute(filePath, offset, limit));
+        return Task.FromResult(Execute(filePath, offset, limit, tail));
     }
 
-    private static string Execute(string filePath, int offset, int limit)
+    private static string Execute(string filePath, int offset, int limit, int tail)
     {
         try
         {
@@ -83,11 +87,19 @@ public class ReadFileTool : ITool
 
             // ── Markdown 文件 ──
             if (ext == ".md" || ext == ".markdown")
-                return ReadMarkdownFile(path, offset, limit);
+                return ReadMarkdownFile(path, offset, limit, tail);
 
             // ── CSV 文件 ──
             if (ext == ".csv")
                 return ReadCsvFile(path);
+
+            // ── JSON 文件（结构化美化）──
+            if (ext == ".json")
+                return ReadJsonFile(path);
+
+            // ── INI 配置文件（结构化）──
+            if (ext is ".ini" or ".cfg" or ".conf")
+                return ReadIniFile(path);
 
             // ── HTML 文件 ──
             if (ext is ".html" or ".htm")
@@ -101,7 +113,7 @@ public class ReadFileTool : ITool
             }
 
             // ── 普通文本文件 ──
-            return ReadTextFile(path, filePath, offset, limit);
+            return ReadTextFile(path, filePath, offset, limit, tail);
         }
         catch (Exception ex)
         {
@@ -131,7 +143,7 @@ public class ReadFileTool : ITool
     // ════════════════════════════════════════════════════════════
     // Markdown 文件读取（结构化渲染）
     // ════════════════════════════════════════════════════════════
-    private static string ReadMarkdownFile(string path, int offset, int limit)
+    private static string ReadMarkdownFile(string path, int offset, int limit, int tail)
     {
         var fileInfo = new FileInfo(path);
         if (fileInfo.Length > MaxFileSize * 5) // Markdown 给 500KB
@@ -147,8 +159,18 @@ public class ReadFileTool : ITool
 
         // 按行 limit 限制（只渲染需要的部分）
         var allLines = text.Split('\n');
-        var start = Math.Max(0, offset - 1);
-        var chunk = allLines.Skip(start).Take(limit).ToArray();
+        int start;
+        string[] chunk;
+        if (tail > 0)
+        {
+            start = Math.Max(0, allLines.Length - tail);
+            chunk = allLines.Skip(start).ToArray();
+        }
+        else
+        {
+            start = Math.Max(0, offset - 1);
+            chunk = allLines.Skip(start).Take(limit).ToArray();
+        }
         var chunkText = string.Join("\n", chunk);
 
         // 使用 MarkdownParser 解析
@@ -162,7 +184,7 @@ public class ReadFileTool : ITool
 
         var sb = new StringBuilder();
         sb.AppendLine("<markdown>");
-        sb.AppendLine($"文件: {Path.GetFileName(path)} | 行 {offset}-{offset + chunk.Length - 1} / {allLines.Length}");
+        sb.AppendLine($"文件: {Path.GetFileName(path)} | 行 {start + 1}-{start + chunk.Length} / {allLines.Length}");
         sb.AppendLine();
 
         foreach (var node in nodes)
@@ -212,7 +234,7 @@ public class ReadFileTool : ITool
             }
         }
 
-        var hasMore = allLines.Length > start + limit;
+        var hasMore = allLines.Length > start + chunk.Length;
         if (hasMore)
             sb.AppendLine($"\n(文件还有更多行。使用 offset={start + chunk.Length + 1} 读取后续内容)");
 
@@ -232,7 +254,7 @@ public class ReadFileTool : ITool
     // ════════════════════════════════════════════════════════════
     // 普通文本文件读取
     // ════════════════════════════════════════════════════════════
-    private static string ReadTextFile(string path, string filePath, int offset, int limit)
+    private static string ReadTextFile(string path, string filePath, int offset, int limit, int tail)
     {
         // 大文件检查
         var fileInfo = new FileInfo(path);
@@ -241,12 +263,15 @@ public class ReadFileTool : ITool
             return $"⚠ 文件过大: {FormatSize(fileInfo.Length)}（最大 {FormatSize(MaxFileSize)}）\n💡 提示：使用 offset/limit 分段读取。";
         }
 
-        // 读取 + UTF-8 验证
+        // 读取 + 二进制/UTF-8 验证
         byte[] raw;
         try { raw = File.ReadAllBytes(path); }
         catch { return $"错误：无法读取 {filePath}"; }
 
-        try { _ = Encoding.UTF8.GetString(raw); }
+        if (IsBinaryContent(raw))
+            return $"错误：{filePath} 是二进制文件（检测到 NUL 字节），read_file 只能读取文本文件";
+
+        try { _ = new UTF8Encoding(false, true).GetString(raw); }
         catch { return $"错误：{filePath} 不是 UTF-8 文本文件（read_file 只能读取文本文件）"; }
 
         var text = File.ReadAllText(path, Encoding.UTF8);
@@ -256,8 +281,18 @@ public class ReadFileTool : ITool
         // 文件追踪
         FileTracker.RecordRead(path);
 
-        var start = Math.Max(0, offset - 1);
-        var chunk = lines.Skip(start).Take(limit).ToArray();
+        int start;
+        string[] chunk;
+        if (tail > 0)
+        {
+            start = Math.Max(0, total - tail);
+            chunk = lines.Skip(start).ToArray();
+        }
+        else
+        {
+            start = Math.Max(0, offset - 1);
+            chunk = lines.Skip(start).Take(limit).ToArray();
+        }
 
         var result = FormatAsTextFile(chunk, start, total);
 
@@ -267,6 +302,15 @@ public class ReadFileTool : ITool
             result += "\n" + diag;
 
         return result;
+    }
+
+    /// <summary>检测二进制内容：前 8KB 含 NUL 字节即判定为二进制。</summary>
+    private static bool IsBinaryContent(byte[] raw)
+    {
+        var n = Math.Min(raw.Length, 8192);
+        for (int i = 0; i < n; i++)
+            if (raw[i] == 0) return true;
+        return false;
     }
 
     private static string FormatAsTextFile(string[] chunk, int start, int total)
@@ -342,6 +386,90 @@ public class ReadFileTool : ITool
         sb.AppendLine();
         sb.Append(table);
         sb.Append("</csv>");
+        return sb.ToString();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // JSON 文件读取（结构化美化）
+    // ════════════════════════════════════════════════════════════
+    private static string ReadJsonFile(string path)
+    {
+        var info = new FileInfo(path);
+        if (info.Length > MaxFileSize * 5)
+            return $"⚠ 文件过大: {FormatSize(info.Length)}（最大 {FormatSize(MaxFileSize * 5)}）";
+
+        byte[] raw;
+        try { raw = File.ReadAllBytes(path); }
+        catch { return $"错误：无法读取 {path}"; }
+
+        if (IsBinaryContent(raw))
+            return $"错误：{path} 是二进制文件";
+
+        FileTracker.RecordRead(path);
+        var text = File.ReadAllText(path, Encoding.UTF8);
+
+        try
+        {
+            var node = Json.Parse(text);
+            if (node != null)
+            {
+                var pretty = Json.Serialize(node, indent: true);
+                return $"<json>\n文件: {Path.GetFileName(path)} | 大小: {FormatSize(info.Length)}\n\n{pretty}\n</json>";
+            }
+        }
+        catch { }
+
+        // JSON 解析失败 → 回退纯文本
+        return ReadTextFile(path, Path.GetFileName(path), 1, DefaultLimit, 0);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // INI 配置文件读取（结构化）
+    // ════════════════════════════════════════════════════════════
+    private static string ReadIniFile(string path)
+    {
+        var info = new FileInfo(path);
+        if (info.Length > MaxFileSize * 5)
+            return $"⚠ 文件过大: {FormatSize(info.Length)}（最大 {FormatSize(MaxFileSize * 5)}）";
+
+        byte[] raw;
+        try { raw = File.ReadAllBytes(path); }
+        catch { return $"错误：无法读取 {path}"; }
+
+        if (IsBinaryContent(raw))
+            return $"错误：{path} 是二进制文件";
+
+        FileTracker.RecordRead(path);
+        var text = File.ReadAllText(path, Encoding.UTF8);
+
+        var sb = new StringBuilder();
+        sb.AppendLine("<ini>");
+        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatSize(info.Length)}");
+        sb.AppendLine();
+
+        foreach (var rawLine in text.Split('\n'))
+        {
+            var line = rawLine.TrimEnd('\r').Trim();
+            if (line.Length == 0) continue;
+            if (line.StartsWith(';') || line.StartsWith('#'))
+            {
+                sb.AppendLine($"  {line}");
+                continue;
+            }
+            if (line.StartsWith('[') && line.EndsWith(']'))
+            {
+                sb.AppendLine($"[{line[1..^1]}]");
+            }
+            else if (line.Contains('='))
+            {
+                var idx = line.IndexOf('=');
+                var key = line[..idx].Trim();
+                var val = line[(idx + 1)..].Trim();
+                sb.AppendLine($"  {key} = {val}");
+            }
+        }
+
+        sb.Append("</ini>");
         return sb.ToString();
     }
 
