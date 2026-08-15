@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using WayCoder.Infra;
 
@@ -16,7 +17,7 @@ namespace WayCoder.Tools;
 public class FetchTool : ITool
 {
     public string Name => "fetch";
-    public string Description => "抓取网页 URL 的内容，自动提取纯文本或 Markdown（去除 HTML 噪音）。用于查阅文档、阅读文章、获取最新信息。";
+    public string Description => "抓取网页 URL 的内容，自动提取纯文本或 Markdown（去除 HTML 噪音）。支持 GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS 方法、自定义 headers 与 body，可调用 REST API。用于查阅文档、阅读文章、获取最新信息、调用接口。";
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
@@ -29,7 +30,17 @@ public class FetchTool : ITool
                 .Set("description", "最大返回字符数（默认 8000，最大 100000）"))
             .Set("format", JNode.Object()
                 .Set("type", "string")
-                .Set("description", "输出格式：'text'（纯文本）或 'markdown'（结构化），默认 'text'")))
+                .Set("description", "输出格式：'text'（纯文本）或 'markdown'（结构化），默认 'text'"))
+            .Set("method", JNode.Object()
+                .Set("type", "string")
+                .Set("enum", JNode.Array().Add("GET").Add("POST").Add("PUT").Add("DELETE").Add("PATCH").Add("HEAD").Add("OPTIONS"))
+                .Set("description", "HTTP 方法，默认 GET。POST/PUT/DELETE 等用于调用 API"))
+            .Set("headers", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "请求头，JSON 对象字符串，如 {\"Authorization\":\"Bearer xxx\",\"Content-Type\":\"application/json\"}"))
+            .Set("body", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "请求体（POST/PUT/PATCH 时用），默认按 application/json 发送")))
         .Set("required", JNode.Array().Add("url"));
 
     private static HttpClient _client => _lazyClient.Value;
@@ -54,18 +65,61 @@ public class FetchTool : ITool
         var url = arguments.GetValueOrDefault("url")?.ToString() ?? "";
         var maxChars = arguments.TryGetValue("max_chars", out var mc) && mc is int mi ? Math.Min(mi, 100_000) : 8000;
         var format = arguments.TryGetValue("format", out var fmt) ? fmt?.ToString()?.ToLowerInvariant() : "text";
+        var method = arguments.GetValueOrDefault("method")?.ToString() ?? "GET";
+        var headers = ParseHeaders(arguments.GetValueOrDefault("headers")?.ToString());
+        var body = arguments.GetValueOrDefault("body")?.ToString();
 
-        return await Execute(url, maxChars, format ?? "text");
+        return await Execute(url, maxChars, format ?? "text", method, headers, body);
     }
 
-    private static async Task<string> Execute(string url, int maxChars, string format)
+    private static async Task<string> Execute(string url, int maxChars, string format, string method, Dictionary<string, string>? headers, string? body)
     {
         if (!url.StartsWith("http://") && !url.StartsWith("https://"))
             return "错误：URL 必须以 http:// 或 https:// 开头";
 
+        var methodUpper = method.Trim().ToUpperInvariant();
+        if (methodUpper is not ("GET" or "POST" or "PUT" or "DELETE" or "PATCH" or "HEAD" or "OPTIONS"))
+            return $"错误：不支持的 HTTP 方法 '{method}'（支持 GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS）";
+
         try
         {
-            var response = await _client.GetAsync(url);
+            // 网络请求带指数退避重试（仅 HttpRequestException 网络故障，超时不重试）
+            // 每次重试重新构造 HttpRequestMessage，避免 Content 被消费后复用
+            var response = await RetryPolicy.RetryAsync(() =>
+            {
+                var req = new HttpRequestMessage(new HttpMethod(methodUpper), url);
+
+                // 请求头（Content-Type 单独走请求体 mediaType，不能加进 request.Headers）
+                string? bodyContentType = null;
+                if (headers != null)
+                {
+                    foreach (var (k, v) in headers)
+                    {
+                        if (k.Equals("Content-Type", StringComparison.OrdinalIgnoreCase)) { bodyContentType = v; continue; }
+                        try { req.Headers.TryAddWithoutValidation(k, v); } catch { /* 跳过无效头 */ }
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(body))
+                {
+                    req.Content = new StringContent(body, Encoding.UTF8);
+                    req.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(bodyContentType ?? "application/json");
+                }
+
+                return _client.SendAsync(req);
+            }, new RetryConfig
+            {
+                MaxRetries = 2,
+                BaseDelayMs = 500,
+                MaxDelayMs = 3000,
+                RetryableExceptions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "System.Net.Http.HttpRequestException" },
+            });
+
+            // HEAD 请求无响应体，仅返回状态码与原因短语
+            if (methodUpper == "HEAD")
+                return $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}";
+
             response.EnsureSuccessStatusCode();
 
             var contentType = response.Content.Headers.ContentType?.MediaType ?? "";
@@ -187,6 +241,32 @@ public class FetchTool : ITool
         html = Regex.Replace(html, @"[ \t]+", " ");
 
         return html.Trim();
+    }
+
+    // ========================================================================
+    // 请求头解析
+    // ========================================================================
+
+    /// <summary>解析 headers 的 JSON 对象字符串 → 字典。非法 JSON 或空返回 null。</summary>
+    internal static Dictionary<string, string>? ParseHeaders(string? headersJson)
+    {
+        if (string.IsNullOrWhiteSpace(headersJson)) return null;
+        try
+        {
+            var node = Json.Parse(headersJson);
+            if (node == null) return null;
+            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (key, value) in node.Entries)
+            {
+                var v = value.AsString();
+                if (v != null) dict[key] = v;
+            }
+            return dict.Count > 0 ? dict : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     // ========================================================================

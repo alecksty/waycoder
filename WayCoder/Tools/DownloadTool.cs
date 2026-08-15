@@ -80,8 +80,17 @@ public class DownloadTool : ITool
                 // HEAD 请求失败不影响后续下载
             }
 
-            // 下载文件
-            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            // 下载文件（网络故障带指数退避重试，仅 HttpRequestException，超时不重试）
+            using var response = await RetryPolicy.RetryAsync(
+                () => client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead),
+                new RetryConfig
+                {
+                    MaxRetries = 2,
+                    BaseDelayMs = 500,
+                    MaxDelayMs = 3000,
+                    RetryableExceptions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { "System.Net.Http.HttpRequestException" },
+                });
             response.EnsureSuccessStatusCode();
 
             // 检查响应大小（超过 500MB 拒绝下载）

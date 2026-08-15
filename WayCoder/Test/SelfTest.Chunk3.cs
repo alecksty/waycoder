@@ -448,6 +448,19 @@ public static partial class SelfTest
         }
         catch { Fail("web_search 搜索不崩溃"); }
 
+        // 解析器离线测试（不发起网络，验证双引擎解析逻辑）
+        var bingHtml = "<li class=\"b_algo\"><div class=\"b_title\"><h2><a href=\"https://example.com/docs\">Example 文档</a></h2></div><div class=\"b_caption\"><p>这是摘要内容</p></div></li>";
+        var bingResults = WebSearchTool.ParseBingResults(bingHtml, 5);
+        Check("Bing 结果解析",
+            bingResults.Count == 1 && bingResults[0].Url == "https://example.com/docs" && bingResults[0].Title.Contains("Example"));
+        Check("Bing 过滤自身链接",
+            WebSearchTool.ParseBingResults("<li class=\"b_algo\"><h2><a href=\"https://www.bing.com/x\">Bing</a></h2></li>", 5).Count == 0);
+
+        var ddgHtml = "<a class=\"result__a\" href=\"https://example.org\">Example Org</a><a class=\"result__snippet\">这是摘要</a>";
+        var ddgResults = WebSearchTool.ParseDuckDuckGoResults(ddgHtml, 5);
+        Check("DuckDuckGo 结果解析",
+            ddgResults.Count == 1 && ddgResults[0].Url == "https://example.org" && ddgResults[0].Title == "Example Org");
+
         Console.WriteLine();
 
         // ---- Checkpoint ----

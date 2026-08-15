@@ -1,5 +1,29 @@
 # 更新日志
 
+## v0.57.0 (2026-08-15) — 工具完善：新增 sqlite/test 工具 + 6 个工具增强 + LSP 会话缓存
+
+响应「所有工具还有什么欠缺」的系统性排查，补齐工具短板：新增 `sqlite` 查询、`test` 测试运行两个工具（内置工具数 44→46）；`fetch` 支持 HTTP 方法/headers/body、`web_search` 增加 Bing 备用引擎与节流、`read_file` 支持 tail/二进制识别/JSON/INI 结构化、`write_file` 支持 append 与编码、网络工具接入 `RetryPolicy`；并给 `lsp` 加会话缓存复用，避免每次导航都重启服务器 + 重新初始化。
+
+### ✨ 新增
+
+- **`sqlite` 工具**（第 45 个）：通过系统 `sqlite3` 命令行执行 SQL（SELECT/INSERT/UPDATE/DELETE），`-header -column` 列式输出；零依赖、跨平台、AOT 安全，未安装时给出 macOS/Linux/Windows 各平台安装提示
+- **`test` 工具**（第 46 个）：封装「跑测试 → 统计通过/失败 → 定位失败用例」闭环，支持 dotnet test / pytest / npm test / cargo test / go test 等，自动解析 pass/fail 计数并提取 FAILED/Error 失败用例行
+
+### 🚀 增强
+
+- **`fetch`**：支持 HTTP 方法（GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS）、自定义 headers、请求 body；接入 `RetryPolicy` 网络重试
+- **`web_search`**：DuckDuckGo 失败自动回退 Bing 解析；2 秒最小间隔节流防封
+- **`read_file`**：新增 `tail` 读取末尾 N 行；二进制内容识别（NUL 字节 + 严格 UTF-8 校验）；`.json` 美化输出、`.ini/.cfg/.conf` 结构化解析
+- **`write_file`**：新增 `append` 追加模式；`encoding` 参数（utf8/utf8bom/ascii/utf16/utf16be/utf32，AOT 内置编码）
+- **`download`**：接入 `RetryPolicy` 网络重试
+- **`lsp`**：会话缓存复用——按（项目根, 命令）缓存 LSP 服务器进程，空闲 5 分钟自动回收、进程崩溃自动重建；顺带修复 didOpen 通知误读响应导致的 10 秒阻塞
+
+### 🧪 自测
+
+- 新增 fetch 方法/headers 解析、sqlite 查询、test 结果解析（pytest/dotnet 格式）、lsp 项目根查找与会话清理等测试
+- 工具数量断言 44 → 46
+- 总计 **2638** 项自测全部通过（0 失败）
+
 ## v0.56.0 (2026-08-15) — TUI 控件库统一 + 编辑器增强 + 对话框布局修复
 
 响应「编辑器输入/刷新闪烁」「表格控件」「对话框标题栏错位」等一批 TUI 体验问题，新增 `TuiTableList` 表格列表控件并把 8 个界面迁移到统一控件库；编辑器补齐正则查找/替换、括号匹配、鼠标支持、状态栏行列信息，`TuiRichEditor` 改为逐行脏渲染消除整屏闪烁；修复确认框/权限框等 TitleBold 对话框标题栏覆盖上边框的错行 bug，并对全部 13 种对话框 + 行内权限控件（InlinePermission）建立端到端渲染自测。

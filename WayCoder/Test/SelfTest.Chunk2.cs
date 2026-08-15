@@ -25,6 +25,52 @@ public static partial class SelfTest
         var fetchTool = new FetchTool();
         Check("fetch 拒绝非 http URL",
             fetchTool.ExecuteAsync(new() { ["url"] = "ftp://evil.com" }).Result.Contains("错误"));
+        Check("fetch 拒绝非法 HTTP 方法",
+            fetchTool.ExecuteAsync(new() { ["url"] = "https://example.com", ["method"] = "TRACE" }).Result.Contains("不支持的 HTTP 方法"));
+        Check("fetch method 大小写规范化",
+            fetchTool.ExecuteAsync(new() { ["url"] = "https://example.com", ["method"] = "trace" }).Result.Contains("不支持的 HTTP 方法"));
+        // headers 解析（离线可测，不发起网络）
+        var h = FetchTool.ParseHeaders("{\"Authorization\":\"Bearer abc\",\"Content-Type\":\"application/json\"}");
+        Check("fetch headers 解析", h != null && h.Count == 2 && h["authorization"] == "Bearer abc");
+        Check("fetch headers 空/非法 JSON 返回 null",
+            FetchTool.ParseHeaders(null) == null && FetchTool.ParseHeaders("not-json") == null && FetchTool.ParseHeaders("  ") == null);
+        Console.WriteLine();
+
+        // ---- sqlite ----
+        Section("[Sqlite]");
+        var sqliteTool = new SqliteTool();
+        try
+        {
+            var sqliteResult = sqliteTool.ExecuteAsync(new() { ["query"] = "SELECT 1 AS x" }).Result;
+            if (sqliteResult.Contains("未找到"))
+                Check("sqlite 未安装友好提示", sqliteResult.Contains("sqlite3"));
+            else
+                Check("sqlite SELECT 查询", sqliteResult.Contains("1") && !sqliteResult.Contains("错误"));
+        }
+        catch { Fail("sqlite 查询不崩溃"); }
+        Check("sqlite 空查询报错",
+            sqliteTool.ExecuteAsync(new() { ["query"] = "" }).Result.Contains("错误"));
+        Console.WriteLine();
+
+        // ---- test ----
+        Section("[Test]");
+        var testTool = new TestTool();
+        // 解析逻辑（纯离线，不依赖真实测试框架）
+        var testPass = TestTool.BuildSummary(0, "100 passed, 0 failed in 5.2s");
+        Check("test 解析通过", testPass.Contains("通过") && testPass.Contains("100"));
+        var testFail = TestTool.BuildSummary(1, "FAILED tests/test_x.py::test_bar\n2 passed, 1 failed in 3s");
+        Check("test 解析失败", testFail.Contains("失败") && testFail.Contains("test_x"));
+        var testCounts = TestTool.ExtractCounts("10 passed, 3 failed");
+        Check("test 提取 pytest 统计", testCounts.Passed == 10 && testCounts.Failed == 3);
+        var testDotnet = TestTool.ExtractCounts("Passed!  - Failed: 0, Passed: 100, Skipped: 2");
+        Check("test 提取 dotnet 统计", testDotnet.Passed == 100 && testDotnet.Failed == 0);
+        var testNoStats = TestTool.ExtractCounts("no recognizable output here");
+        Check("test 无统计返回 -1", testNoStats.Passed == -1 && testNoStats.Failed == -1);
+        var testFailures = TestTool.ExtractFailures("FAILED test_a\nError: boom\n2 passed, 1 failed\nFAILED test_b");
+        Check("test 提取失败用例（排除摘要）",
+            testFailures.Count == 3 && testFailures.Contains("FAILED test_a") && !testFailures.Contains("2 passed, 1 failed"));
+        Check("test 空命令报错",
+            testTool.ExecuteAsync(new() { ["command"] = "" }).Result.Contains("错误"));
         Console.WriteLine();
 
         // ---- todo ----
@@ -116,6 +162,13 @@ public static partial class SelfTest
         Check("lsp 含 bash", LspTool.SupportedServers.ContainsKey("bash") && LspTool.SupportedServers["bash"].Command == "bash-language-server");
         Check("lsp 含 swift", LspTool.SupportedServers.ContainsKey("swift") && LspTool.SupportedServers["swift"].Command == "sourcekit-lsp");
         Check("lsp 含 zig", LspTool.SupportedServers.ContainsKey("zig") && LspTool.SupportedServers["zig"].Command == "zls");
+        // 会话缓存复用（离线可测部分：项目根查找 + 会话清理）
+        var lspRoot = LspTool.FindProjectRoot(Path.Combine(AppContext.BaseDirectory, "WayCoder.dll"));
+        Check("lsp 向上查找项目根", !string.IsNullOrEmpty(lspRoot) && lspRoot.EndsWith("WayCoder"));
+        Check("lsp 无标记路径不崩溃",
+            !string.IsNullOrEmpty(LspTool.FindProjectRoot(Path.Combine(Path.GetTempPath(), "no_marker_dir", "x.py"))));
+        LspTool.ShutdownAllSessions(); // 空态清理不崩溃
+        Check("lsp 会话清理不崩溃", true);
         Console.WriteLine();
 
         // ---- 流式工具执行 (编译期已验证 onToolCall 参数) ----
