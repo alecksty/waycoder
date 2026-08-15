@@ -51,3 +51,6 @@ games/
 chess-test/
 WayCoder/saves/
 YGame/
+QBasic/bin/
+QBasic/obj/
+QBasic/.qbparse/
