@@ -12,7 +12,7 @@ WayCoder（道码）是一个中文版易用编程智能体，C# (.NET 10) 实�
 # C# 版
 cd WayCoder
 dotnet publish -c Release            # AOT 编译
-dotnet run -- --test                 # 2228 自测
+dotnet run -- --test                 # 2343 自测
 dotnet run -- -p "提示词"            # 一次性模式
 dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 dotnet run -- --update               # 自动升级 (检查并自替换)
@@ -41,7 +41,7 @@ WayCoder/
 ├── MemoryRetrieval.cs  跨会话记忆检索 (TF-IDF + 时间衰减)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        2228 项自测（拆为 SelfTest.cs + Chunk1-10 + Helpers 共 12 个 partial 文件）
+├── SelfTest.cs        2343 项自测（拆为 SelfTest.cs + Chunk1-10 + Helpers 共 12 个 partial 文件）
 ├── Batch/             批量任务引擎 (BatchSpec 清单模型 + BatchRunner 多仓库并行/worktree 隔离)
 ├── Plugins/           编译期插件系统 (IPlugin SDK + PluginRegistry + [ModuleInitializer] 自动注册)
 ├── WorkReporter.cs    工作总结报告生成器
@@ -105,8 +105,13 @@ WayCoder/
 │   ├── SnippetStore.cs    代码片段管理
 │   ├── UpdateChecker.cs   自动升级 (版本比较 + RID 探测 + GitHub/Gitee 源 + 自替换)
 │   ├── Logging/           结构化日志系统 (9 文件: ILogSink/Console/File/JSON)
-│   └── DrawEngine.cs     手搓绘图引擎 (文本 DSL → SVG/PNG，零反射，指令可扩展)
-└── Tools/             43 个工具
+│   ├── DrawEngine.cs     手搓绘图引擎 (文本 DSL → SVG/PNG，零反射，指令可扩展)
+│   ├── DrawCanvas.cs    光栅化画布 (Bresenham 线/扫描线填充/粗线描边/渐变采样)
+│   ├── DrawCommands.cs  内置绘图指令 (20+ 形状 + 变换 + 贴图/裁剪/图标模板)
+│   ├── PngEncoder.cs / PngDecoder.cs / BmpCodec.cs / JpegCodec.cs  手搓图片编解码
+│   ├── RasterImage.cs / ImageLoader.cs  像素缓冲 + 格式检测/编解码分发
+│   └── TrueTypeFont.cs / FontFinder.cs  手搓字体解析 + 系统字体探测
+└── Tools/             44 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
     ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
@@ -123,7 +128,8 @@ WayCoder/
     ├── ScreenshotTool.cs 抓屏（终端文本 / 桌面 PNG + OCR）
     ├── ViewImageTool.cs 查看图片（附加到下一轮，vision 模型「看图」）
     ├── TranscribeAudioTool.cs 音频转录（Whisper 兼容，补齐多模态音频输入）
-    └── DrawTool.cs 绘图（文本 DSL → SVG/PNG，零反射，指令可扩展）
+    ├── DrawTool.cs 绘图（文本 DSL → SVG/PNG，零反射，指令可扩展）
+    └── ImageConvertTool.cs 图片格式互转（PNG/JPG/BMP）
 ```
 
 ## 关键设计决策
