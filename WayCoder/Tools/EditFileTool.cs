@@ -12,6 +12,7 @@ namespace WayCoder.Tools;
 public class EditFileTool : ITool
 {
     public string Name => "edit_file";
+    public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description => "精确字符串替换式编辑（先读后改）。old_string 必须与文件原文逐字符匹配（空格、Tab、换行），包含 3-5 行上下文确保唯一。仅首次匹配会被替换，设 replace_all=true 替换全部。不确定空白符时多含上下文。编辑前务必先 read_file 获取精确文本，不要凭记忆猜测。";
 
     public JNode Parameters => JNode.Object()

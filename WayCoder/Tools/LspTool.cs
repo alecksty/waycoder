@@ -11,6 +11,7 @@ namespace WayCoder.Tools;
 public class LspTool : ITool
 {
     public string Name => "lsp";
+    public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description => "代码智能导航：跳转定义(definition)、查找引用(references)、类型悬停(hover)、文档符号(symbols)。支持 C#/Python/JS/TS/Go/Rust/C/C++/Java/Kotlin/Ruby/PHP/Lua/Bash/Swift/Zig。";
 
     public JNode Parameters => JNode.Object()
@@ -107,7 +108,7 @@ public class LspTool : ITool
 
             if (!_sessions.TryGetValue(key, out var session) || session!.Process.HasExited)
             {
-                if (session != null) { try { session.Process.Kill(); } catch { } }
+                if (session != null) { try { session.Process.Kill(entireProcessTree: true); } catch { } }
                 var proc = StartServer(config.Value.Command, config.Value.Args, root);
                 if (proc == null) return $"错误：无法启动 LSP 服务器 ({config.Value.Command})";
                 session = new LspSession { Process = proc, Root = root, Initialized = false };

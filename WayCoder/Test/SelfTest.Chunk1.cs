@@ -103,6 +103,8 @@ public static partial class SelfTest
         TestHooksManager(Check);      // Hook 系统：session hook 注册/事件执行/匹配器/输出协议
         TestJsonLib(Check);           // 手搓 JSON 库：解析/DOM/序列化/转义/错误分支（AOT 零反射）
         TestXmlLib(Check);            // 手搓 XML 库：解析/实体/CDATA/属性/序列化（AOT 零反射）
+        TestToolScheduler(Check);     // 工具调度器：Parallel/Exclusive 分批 + 有界并发 + 顺序提交
+        TestToolResultClassifier(Check); // 工具结果分类器：真实错误 vs 用户取消/安全阻止
         Console.WriteLine();
 
         // ---- 工具 ----
@@ -546,6 +548,92 @@ public static partial class SelfTest
             BashTool.CurrentCwd.Value = null!; // 重置
         }
         catch { Fail("bash cd 链式解析"); }
+
+        // 持久 shell 会话
+        var psBuild = PersistentShell.BuildCommand("echo hi", "MARK");
+        Check("持久 shell 命令包装", psBuild.Contains("echo hi") && psBuild.Contains("MARK"));
+
+        if (!OperatingSystem.IsWindows())
+        {
+            try
+            {
+                using var shell = new PersistentShell("test-session");
+                shell.RunAsync("cd /tmp", 10).Wait();
+                var psPwd = shell.RunAsync("pwd", 10).Result;
+                Check("持久 shell cwd 保持", psPwd.Contains("/tmp"));
+                shell.RunAsync("export WC_PS_TEST=hello42", 10).Wait();
+                var psEnv = shell.RunAsync("echo $WC_PS_TEST", 10).Result;
+                Check("持久 shell 环境变量保持", psEnv.Contains("hello42"));
+                var psExit = shell.RunAsync("false", 10).Result;
+                Check("持久 shell 退出码标注", psExit.Contains("退出码"));
+            }
+            catch { Fail("持久 shell 会话"); }
+        }
+        PersistentShellManager.ShutdownAll();
+        Check("持久 shell 管理器清理", true);
+
+        // 环境变量清理（防密钥泄漏）
+        Check("env 敏感名 KEY", EnvScrubber.IsSensitive("WAYCODER_API_KEY"));
+        Check("env 敏感名 SECRET", EnvScrubber.IsSensitive("AWS_SECRET_ACCESS_KEY"));
+        Check("env 敏感名 PASSWORD", EnvScrubber.IsSensitive("DB_PASSWORD"));
+        Check("env 敏感名 TOKEN", EnvScrubber.IsSensitive("GH_TOKEN"));
+        Check("env 非敏感 HOME", !EnvScrubber.IsSensitive("HOME"));
+        Check("env 非敏感 PATH", !EnvScrubber.IsSensitive("PATH"));
+        Check("env 非敏感 DISPLAY", !EnvScrubber.IsSensitive("DISPLAY"));
+
+        var scrubPsi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "true",
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+        };
+        scrubPsi.EnvironmentVariables["HOME"] = "/home/test";
+        scrubPsi.EnvironmentVariables["AWS_ACCESS_KEY_ID"] = "AKIA...";
+        scrubPsi.EnvironmentVariables["WAYCODER_API_KEY"] = "sk-...";
+        EnvScrubber.Scrub(scrubPsi);
+        Check("env scrub 移除敏感项",
+            scrubPsi.EnvironmentVariables.ContainsKey("HOME") &&
+            !scrubPsi.EnvironmentVariables.ContainsKey("AWS_ACCESS_KEY_ID") &&
+            !scrubPsi.EnvironmentVariables.ContainsKey("WAYCODER_API_KEY"));
+
+        // 进程树终止（#162）：父进程被整个进程树终止时，其子进程一并被杀
+        if (!OperatingSystem.IsWindows())
+        {
+            try
+            {
+                static bool IsPidAlive(int pid)
+                {
+                    try { using var p = System.Diagnostics.Process.GetProcessById(pid); return !p.HasExited; }
+                    catch (ArgumentException) { return false; }
+                }
+
+                var pidFile = Path.Combine(Path.GetTempPath(), $"wc_tree_{Guid.NewGuid():N}.pid");
+                var treePsi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "/bin/bash",
+                    Arguments = $"-c \"sleep 300 & echo $! > '{pidFile}'; wait\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                var parent = System.Diagnostics.Process.Start(treePsi)!;
+                // 等子进程 PID 落盘
+                for (var i = 0; i < 100 && !File.Exists(pidFile); i++) Thread.Sleep(50);
+                Check("进程树 子进程已启动", File.Exists(pidFile));
+                var childPid = int.Parse(File.ReadAllText(pidFile).Trim());
+                Check("进程树 子进程存活", IsPidAlive(childPid));
+
+                parent.Kill(entireProcessTree: true);
+                parent.WaitForExit(5000);
+                Thread.Sleep(300); // 给子进程 SIGKILL 生效时间
+                Check("进程树 父进程终止子进程一并终止", !IsPidAlive(childPid));
+
+                try { File.Delete(pidFile); } catch { }
+                parent.Dispose();
+            }
+            catch { Fail("进程树终止"); }
+        }
 
         // screenshot（抓屏工具）
         Check("screenshot 已注册", ToolRegistry.GetTool("screenshot") != null);

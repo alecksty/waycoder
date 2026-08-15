@@ -7,6 +7,7 @@ namespace WayCoder.Tools;
 public class CpTool : ITool
 {
     public string Name => "cp";
+    public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description => "复制文件或目录。自动创建父目录。纯 C# 实现，无 Shell 依赖。";
 
     public JNode Parameters => JNode.Object()

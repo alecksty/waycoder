@@ -937,22 +937,129 @@ public static partial class SelfTest
         Check("Retry: 耗尽重试原样抛出最后一次异常", threw);
         Check("Retry: 耗尽后尝试次数 = MaxRetries+1", attempts3 == 3);
 
-        // ── 指数退避：延迟 100→200→400 递增 ──
+        // ── 指数退避：延迟 100→200→400 递增（禁用 jitter 以确定性断言）──
         var delays = new List<int>();
         try
         {
             RetryPolicy.RetryAsync<int>(() => { throw new IOException("x"); },
-                new RetryConfig { MaxRetries = 3, BaseDelayMs = 100, MaxDelayMs = 5000 },
+                new RetryConfig { MaxRetries = 3, BaseDelayMs = 100, MaxDelayMs = 5000, JitterRatio = 0 },
                 (_, _, delay) => delays.Add(delay))
                 .GetAwaiter().GetResult();
         }
         catch { }
         Check("Retry: 指数退避 100→200→400", delays.SequenceEqual(new[] { 100, 200, 400 }));
 
+        // ── 对称 jitter：延迟在 ±ratio 范围内抖动（纯函数断言）──
+        Check("Retry: jitter 下限 -10%", RetryPolicy.ComputeJitteredDelay(100, 0.1, 0.0) == 90);
+        Check("Retry: jitter 中点不变", RetryPolicy.ComputeJitteredDelay(100, 0.1, 0.5) == 100);
+        Check("Retry: jitter 上限 +10%", RetryPolicy.ComputeJitteredDelay(100, 0.1, 1.0) == 110);
+        Check("Retry: jitter 0 禁用", RetryPolicy.ComputeJitteredDelay(100, 0.0, 0.3) == 100);
+        Check("Retry: jitter 负值禁用", RetryPolicy.ComputeJitteredDelay(100, -0.2, 0.3) == 100);
+        // 实际重试应产生非确定延迟（在 ±10% 范围内）
+        var jitterDelays = new List<int>();
+        try
+        {
+            RetryPolicy.RetryAsync<int>(() => { throw new IOException("x"); },
+                new RetryConfig { MaxRetries = 3, BaseDelayMs = 100, MaxDelayMs = 5000, JitterRatio = 0.1 },
+                (_, _, delay) => jitterDelays.Add(delay))
+                .GetAwaiter().GetResult();
+        }
+        catch { }
+        Check("Retry: jitter 实际延迟在 ±10% 内",
+            jitterDelays.Count == 3 &&
+            Math.Abs(jitterDelays[0] - 100) <= 10 &&
+            Math.Abs(jitterDelays[1] - 200) <= 20 &&
+            Math.Abs(jitterDelays[2] - 400) <= 40);
+
         // ── 无返回值版本 ──
         var ran = false;
         RetryPolicy.RetryAsync(async () => { ran = true; await Task.CompletedTask; }).GetAwaiter().GetResult();
         Check("Retry: 无返回值版本执行", ran);
+    }
+
+    /// <summary>工具调用调度器（ToolCallScheduler）：ExecutionMode 分批 + 有界并发 + 工具模式标注。</summary>
+    private static void TestToolScheduler(Action<string, bool> Check)
+    {
+        static ToolCall C(string id, string name) => new(id, name, new Dictionary<string, object?>());
+
+        ToolExecutionMode Mode(string name) =>
+            name is "bash" or "write_file" or "edit_file" ? ToolExecutionMode.Exclusive
+            : ToolExecutionMode.Parallel;
+
+        // ── Partition 纯逻辑 ──
+        var allParallel = new List<ToolCall> { C("1", "read_file"), C("2", "grep"), C("3", "glob") };
+        var pAll = ToolCallScheduler.Partition(allParallel, Mode);
+        Check("Sched: 全 Parallel 合并为一批", pAll.Count == 1 && pAll[0].Count == 3);
+
+        var allExclusive = new List<ToolCall> { C("1", "bash"), C("2", "write_file") };
+        var pExcl = ToolCallScheduler.Partition(allExclusive, Mode);
+        Check("Sched: 全 Exclusive 各占一批", pExcl.Count == 2 && pExcl.All(b => b.Count == 1));
+
+        var mixed = new List<ToolCall>
+        {
+            C("1", "read_file"), C("2", "grep"),
+            C("3", "bash"),
+            C("4", "read_file"),
+            C("5", "edit_file"),
+            C("6", "glob"), C("7", "ls"),
+        };
+        var pMixed = ToolCallScheduler.Partition(mixed, Mode);
+        Check("Sched: 混合分批 [[P,P],[E],[P],[E],[P,P]]",
+            pMixed.Count == 5 &&
+            pMixed[0].Count == 2 && pMixed[0][0].Id == "1" && pMixed[0][1].Id == "2" &&
+            pMixed[1].Count == 1 && pMixed[1][0].Id == "3" &&
+            pMixed[2].Count == 1 && pMixed[2][0].Id == "4" &&
+            pMixed[3].Count == 1 && pMixed[3][0].Id == "5" &&
+            pMixed[4].Count == 2 && pMixed[4][0].Id == "6" && pMixed[4][1].Id == "7");
+
+        Check("Sched: 空列表返回空批次", ToolCallScheduler.Partition(new List<ToolCall>(), Mode).Count == 0);
+
+        // 未知工具由调用方 GetExecutionMode 保守按 Exclusive 处理（此处用显式 modeOf 模拟）
+        var unknown = new List<ToolCall> { C("1", "nosuch_tool"), C("2", "read_file") };
+        var pUnknown = ToolCallScheduler.Partition(unknown,
+            n => n == "nosuch_tool" ? ToolExecutionMode.Exclusive : ToolExecutionMode.Parallel);
+        Check("Sched: 未知工具保守 Exclusive 独占", pUnknown.Count == 2 && pUnknown[0].Count == 1);
+
+        // ── 有界并发常量 ──
+        Check("Sched: 并发上限 1..16", ToolCallScheduler.MaxParallelism > 0 && ToolCallScheduler.MaxParallelism <= 16);
+
+        // ── 实际工具 ExecutionMode 标注 ──
+        Check("Sched: bash Exclusive", ToolRegistry.GetTool("bash")!.ExecutionMode == ToolExecutionMode.Exclusive);
+        Check("Sched: write_file Exclusive", ToolRegistry.GetTool("write_file")!.ExecutionMode == ToolExecutionMode.Exclusive);
+        Check("Sched: edit_file Exclusive", ToolRegistry.GetTool("edit_file")!.ExecutionMode == ToolExecutionMode.Exclusive);
+        Check("Sched: agent Exclusive", ToolRegistry.GetTool("agent")!.ExecutionMode == ToolExecutionMode.Exclusive);
+        Check("Sched: lsp Exclusive", ToolRegistry.GetTool("lsp")!.ExecutionMode == ToolExecutionMode.Exclusive);
+        Check("Sched: read_file Parallel", ToolRegistry.GetTool("read_file")!.ExecutionMode == ToolExecutionMode.Parallel);
+        Check("Sched: grep Parallel", ToolRegistry.GetTool("grep")!.ExecutionMode == ToolExecutionMode.Parallel);
+        Check("Sched: glob Parallel", ToolRegistry.GetTool("glob")!.ExecutionMode == ToolExecutionMode.Parallel);
+        Check("Sched: web_search Parallel", ToolRegistry.GetTool("web_search")!.ExecutionMode == ToolExecutionMode.Parallel);
+    }
+
+    /// <summary>工具结果分类器（ToolResultClassifier）：真实错误 vs 用户取消/安全阻止。</summary>
+    private static void TestToolResultClassifier(Action<string, bool> Check)
+    {
+        // ── 真实错误（可重试，注入自恢复提示）──
+        Check("Cls: 错误 全角冒号", ToolResultClassifier.IsError("错误：文件不存在"));
+        Check("Cls: 错误 半角冒号", ToolResultClassifier.IsError("错误: 参数缺失"));
+        Check("Cls: Error 英文", ToolResultClassifier.IsError("Error: permission denied"));
+        Check("Cls: ❌ 失败", ToolResultClassifier.IsError("❌ 测试失败（exit 1）"));
+        Check("Cls: ❌ 文件锁定", ToolResultClassifier.IsError("❌ 文件被锁定: 忙"));
+        Check("Cls: bash 出错", ToolResultClassifier.IsError("运行命令时出错：IOException"));
+        Check("Cls: 失败 前缀", ToolResultClassifier.IsError("失败：编译错误"));
+        Check("Cls: 前导空白仍识别", ToolResultClassifier.IsError("  错误：x"));
+
+        // ── 中止类（非错误，不注入重试提示）──
+        Check("Cls: 用户取消非错误", !ToolResultClassifier.IsError("用户取消了此操作。"));
+        Check("Cls: Hook 阻止非错误", !ToolResultClassifier.IsError("操作被 Hook 阻止: 政策"));
+        Check("Cls: 危险命令阻止非错误", !ToolResultClassifier.IsError("⚠ 已阻止：强制递归删除"));
+        Check("Cls: 沙箱阻止非错误", !ToolResultClassifier.IsError("⛔ 沙箱阻止：越界"));
+        Check("Cls: 取消是中止", ToolResultClassifier.IsAbort("用户取消了此操作。"));
+
+        // ── 成功/正常结果（非错误）──
+        Check("Cls: 成功非错误", !ToolResultClassifier.IsError("已写入 12 行到 /tmp/a.cs"));
+        Check("Cls: 空非错误", !ToolResultClassifier.IsError(null));
+        Check("Cls: 空白非错误", !ToolResultClassifier.IsError("   "));
+        Check("Cls: 无输出非错误", !ToolResultClassifier.IsError("（无输出）"));
     }
 
     /// <summary>LRU 缓存（LruCache）单元测试：容量淘汰、LRU 提升、TTL 过期、事件与统计。</summary>

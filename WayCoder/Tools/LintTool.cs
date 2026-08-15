@@ -342,7 +342,7 @@ public class LintTool : ITool
             var completed = await Task.WhenAny(exitTask, delayTask);
             if (completed != exitTask || !exitTask.IsCompletedSuccessfully)
             {
-                try { proc.Kill(); } catch { }
+                try { proc.Kill(entireProcessTree: true); } catch { }
                 return $"Lint 超时（{Config.Instance.LintTimeoutSec} 秒）: {cmd} {args}";
             }
 

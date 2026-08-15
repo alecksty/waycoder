@@ -16,6 +16,7 @@ namespace WayCoder.Tools;
 public class NotebookEditTool : ITool
 {
     public string Name => "notebook_edit";
+    public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description =>
         "编辑 Jupyter Notebook (.ipynb) 文件。支持三种操作: replace（替换指定 cell 的源代码）、" +
         "insert（在指定位置后插入新 cell）、delete（删除指定 cell）。" +
