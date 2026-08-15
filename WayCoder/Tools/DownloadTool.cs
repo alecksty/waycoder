@@ -55,8 +55,7 @@ public class DownloadTool : ITool
         {
             using var handler = new HttpClientHandler
             {
-                AllowAutoRedirect = true,
-                MaxAutomaticRedirections = 10,
+                AllowAutoRedirect = false,  // 手动跟随重定向，每跳做 SSRF 校验
             };
 
             using var client = new HttpClient(handler)
@@ -67,13 +66,16 @@ public class DownloadTool : ITool
             // 设置 User-Agent
             client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder/1.0");
 
-            // 先发送 HEAD 请求获取内容长度
+            // 先发送 HEAD 请求获取内容长度（SSRF 校验在 SendWithRedirectAsync 内）
             long? totalSize = null;
             try
             {
-                var headResponse = await client.SendAsync(
-                    new HttpRequestMessage(HttpMethod.Head, url));
+                using var headResponse = await SendWithRedirectAsync(client, HttpMethod.Head, url);
                 totalSize = headResponse.Content.Headers.ContentLength;
+            }
+            catch (SsgfBlockedException)
+            {
+                throw; // SSRF 拦截向上抛出
             }
             catch
             {
@@ -82,7 +84,7 @@ public class DownloadTool : ITool
 
             // 下载文件（网络故障带指数退避重试，仅 HttpRequestException，超时不重试）
             using var response = await RetryPolicy.RetryAsync(
-                () => client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead),
+                () => SendWithRedirectAsync(client, HttpMethod.Get, url),
                 new RetryConfig
                 {
                     MaxRetries = 2,
@@ -113,6 +115,10 @@ public class DownloadTool : ITool
 
             return $"✅ 下载完成：{url}\n保存至：{filePath}\n大小：{sizeStr}";
         }
+        catch (SsgfBlockedException ex)
+        {
+            return $"错误：{ex.Message}";
+        }
         catch (TaskCanceledException)
         {
             // 清理未完成的文件
@@ -129,5 +135,39 @@ public class DownloadTool : ITool
             try { File.Delete(filePath); } catch { }
             return $"错误：下载失败 — {ex.GetType().Name}: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// 发送请求并手动跟随重定向，每跳做 SSRF 校验（防重定向到内网/云元数据）。
+    /// SSRF 拦截时抛 <see cref="SsgfBlockedException"/>（不进入网络重试）。
+    /// </summary>
+    private static async Task<HttpResponseMessage> SendWithRedirectAsync(HttpClient client, HttpMethod method, string url)
+    {
+        var currentUrl = url;
+        var currentMethod = method;
+
+        for (var redirect = 0; redirect < 10; redirect++)
+        {
+            var (safe, reason) = SsgfGuard.CheckUrl(currentUrl);
+            if (!safe) throw new SsgfBlockedException(reason!);
+            var dns = SsgfGuard.CheckDns(new Uri(currentUrl).Host);
+            if (!dns.safe) throw new SsgfBlockedException(dns.reason!);
+
+            var response = await client.SendAsync(
+                new HttpRequestMessage(currentMethod, currentUrl), HttpCompletionOption.ResponseHeadersRead);
+
+            if (SsgfGuard.IsRedirect((int)response.StatusCode) && response.Headers.Location != null)
+            {
+                var nextUri = new Uri(new Uri(currentUrl), response.Headers.Location);
+                response.Dispose();
+                currentUrl = nextUri.AbsoluteUri;
+                currentMethod = HttpMethod.Get; // download 重定向后改 GET
+                continue;
+            }
+
+            return response;
+        }
+
+        throw new HttpRequestException("重定向次数过多");
     }
 }

@@ -568,6 +568,28 @@ public static partial class SelfTest
         var (goExecBlocked, _) = BashGuard.CheckBanned("go test -exec echo");
         Check("BashGuard go test -exec 拦截", goExecBlocked);
 
+        // ── v0.62.2: BashGuard 命令链/命令替换绕过修复 + 只读白名单收紧 ──
+        var (nlBlocked, _) = BashGuard.CheckBanned("curl\nevil.com");
+        Check("BashGuard 换行分隔绕过拦截", nlBlocked);
+        var (subBlocked, _) = BashGuard.CheckBanned("echo $(curl evil.com)");
+        Check("BashGuard $() 命令替换绕过拦截", subBlocked);
+        var (backtickBlocked, _) = BashGuard.CheckBanned("echo `curl evil.com`");
+        Check("BashGuard 反引号命令替换绕过拦截", backtickBlocked);
+        var (safeSub, _) = BashGuard.CheckBanned("echo $(ls)");
+        Check("BashGuard 安全命令替换不误伤", !safeSub);
+        Check("BashGuard 只读: ls -la 放行", BashGuard.IsSafeReadOnly("ls -la"));
+        Check("BashGuard 只读: cat /etc/passwd 放行", BashGuard.IsSafeReadOnly("cat /etc/passwd"));
+        Check("BashGuard 只读: 命令链 ls; rm 拒绝", !BashGuard.IsSafeReadOnly("ls; rm -rf /"));
+        Check("BashGuard 只读: 管道 ls | grep 拒绝", !BashGuard.IsSafeReadOnly("ls | grep foo"));
+        Check("BashGuard 只读: 重定向 cat > file 拒绝", !BashGuard.IsSafeReadOnly("cat x > y"));
+        Check("BashGuard 只读: 命令替换 echo $(...) 拒绝", !BashGuard.IsSafeReadOnly("echo $(curl evil)"));
+        Check("BashGuard 只读: sed -i 已移除拒绝", !BashGuard.IsSafeReadOnly("sed -i s/a/b/ file"));
+        Check("BashGuard 只读: awk 已移除拒绝", !BashGuard.IsSafeReadOnly("awk '{print $1}' file"));
+        Check("BashGuard 只读: tee 已移除拒绝", !BashGuard.IsSafeReadOnly("echo x | tee file"));
+        Check("BashGuard 只读: xargs 已移除拒绝", !BashGuard.IsSafeReadOnly("xargs rm"));
+        Check("BashGuard 只读: patch --dry-run 保留放行", BashGuard.IsSafeReadOnly("patch --dry-run -p1"));
+        Check("BashGuard 只读: patch -p 已移除拒绝", !BashGuard.IsSafeReadOnly("patch -p1 < x.patch"));
+
         // v0.53.1: tasks 数组元素提取（对象元素 {description/task/...} 正确解出文本，而非乱码）
         var extStr = AgentTool.ExtractTaskText("给 TimeSeries 加冒烟测试");
         Check("AgentTool.ExtractTaskText 纯字符串透传", extStr == "给 TimeSeries 加冒烟测试");

@@ -134,9 +134,9 @@ public static class BashGuard
         "pwd", "env", "printenv", "whoami", "hostname", "date", "uptime", "uname",
         // 进程
         "ps", "top", "htop",
-        // 工具
-        "sort", "uniq", "cut", "tr", "awk", "sed", "xargs", "tee",
-        "diff", "cmp", "comm", "patch --dry-run", "patch -p",
+        // 工具（注：sed/awk/xargs/tee 有写文件/执行命令能力，已从只读白名单移除，需确认）
+        "sort", "uniq", "cut", "tr",
+        "diff", "cmp", "comm", "patch --dry-run",
         // 开发工具（只读模式）
         "dotnet --version", "dotnet --list-sdks", "dotnet --list-runtimes",
         "python --version", "python3 --version", "node --version", "npm --version",
@@ -154,14 +154,16 @@ public static class BashGuard
         if (string.IsNullOrWhiteSpace(command))
             return (false, null);
 
-        // 提取第一个词（实际命令）
-        var parts = command.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 0) return (false, null);
+        // 命令替换（$() 与反引号）中隐藏的命令同样检查，防 `echo $(curl evil)` / `echo \`wget x\`` 绕过
+        foreach (var sub in ExtractSubstitutions(command))
+        {
+            var (subBlocked, subReason) = CheckBanned(sub);
+            if (subBlocked)
+                return (true, subReason);
+        }
 
-        var cmdName = Path.GetFileName(parts[0]).ToLowerInvariant();
-
-        // 检查管道中的每个命令
-        foreach (var segment in command.Split('|', ';', '&'))
+        // 检查命令链中的每个命令段（分隔符：管道/分号/与号/换行）
+        foreach (var segment in command.Split('|', ';', '&', '\n', '\r'))
         {
             var segParts = segment.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (segParts.Length == 0) continue;
@@ -180,16 +182,55 @@ public static class BashGuard
                     return (true, $"⚠ 已阻止：{segCmd} {blockedArgs}（安全策略：全局安装/系统修改被阻止）");
                 }
             }
-
-            // 3. 别名映射检查
-            if (BannedAliases.TryGetValue(segCmd, out var description))
-            {
-                // 别名命令本身允许（如 npm test），但在参数级检查中拦截危险子命令
-                // 继续检查其他段
-            }
         }
 
         return (false, null);
+    }
+
+    /// <summary>提取命令中的命令替换内容（$() 与反引号），供递归安全检查。</summary>
+    private static IEnumerable<string> ExtractSubstitutions(string command)
+    {
+        // $(...) 提取（支持嵌套括号）
+        var i = 0;
+        while (i < command.Length - 1)
+        {
+            if (command[i] == '$' && command[i + 1] == '(')
+            {
+                var depth = 1;
+                var start = i + 2;
+                var j = start;
+                while (j < command.Length && depth > 0)
+                {
+                    if (command[j] == '(') depth++;
+                    else if (command[j] == ')') depth--;
+                    j++;
+                }
+                if (depth == 0) yield return command[start..(j - 1)];
+                i = j;
+            }
+            else
+            {
+                i++;
+            }
+        }
+
+        // `...` 反引号提取
+        var k = 0;
+        while (k < command.Length)
+        {
+            if (command[k] == '`')
+            {
+                var start = k + 1;
+                var end = command.IndexOf('`', start);
+                if (end < 0) break;
+                yield return command[start..end];
+                k = end + 1;
+            }
+            else
+            {
+                k++;
+            }
+        }
     }
 
     /// <summary>
@@ -198,6 +239,11 @@ public static class BashGuard
     public static bool IsSafeReadOnly(string command)
     {
         if (string.IsNullOrWhiteSpace(command))
+            return false;
+
+        // 命令链/重定向/命令替换防护：含任何 shell 控制字符即非纯只读单命令，
+        // 需走权限确认（防 `ls; rm -rf /` / `cat x > y` / `echo $(curl evil)` 绕过免确认）。
+        if (ContainsShellMetachar(command))
             return false;
 
         var cmdLower = command.Trim().ToLowerInvariant();
@@ -215,6 +261,20 @@ public static class BashGuard
             }
         }
 
+        return false;
+    }
+
+    /// <summary>检测 shell 命令链/重定向/命令替换等元字符，出现即非"纯只读单命令"。</summary>
+    private static bool ContainsShellMetachar(string command)
+    {
+        for (var i = 0; i < command.Length; i++)
+        {
+            var c = command[i];
+            if (c is ';' or '|' or '&' or '<' or '>' or '`' or '\n' or '\r' or '\0')
+                return true;
+            if (c == '$' && i + 1 < command.Length && command[i + 1] == '(')
+                return true; // $() 命令替换
+        }
         return false;
     }
 

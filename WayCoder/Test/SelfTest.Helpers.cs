@@ -688,6 +688,119 @@ public static partial class SelfTest
             UpdateChecker.FindAssetUrl(assets, "osx-arm64") == "https://x/osx.tar.gz");
         Check("升级: 资产 URL 无匹配 null",
             UpdateChecker.FindAssetUrl(assets, "linux-x64") == null);
+
+        // ── 供应链校验：下载 URL 受信白名单（防 release 注入恶意链接）──
+        Check("升级: 受信 URL github.com", UpdateChecker.IsTrustedDownloadUrl("https://github.com/a/b/releases/download/v1/x.tar.gz"));
+        Check("升级: 受信 URL gitee.com", UpdateChecker.IsTrustedDownloadUrl("https://gitee.com/a/b/releases/download/v1/x.zip"));
+        Check("升级: 受信 URL objects.githubusercontent.com", UpdateChecker.IsTrustedDownloadUrl("https://objects.githubusercontent.com/x/y"));
+        Check("升级: http 明文拒绝", !UpdateChecker.IsTrustedDownloadUrl("http://github.com/a/b/x.tar.gz"));
+        Check("升级: 非受信 host 拒绝", !UpdateChecker.IsTrustedDownloadUrl("https://evil.example.com/payload.tar.gz"));
+        Check("升级: null/空串拒绝", !UpdateChecker.IsTrustedDownloadUrl(null) && !UpdateChecker.IsTrustedDownloadUrl(""));
+
+        // ── 供应链校验：checksums 资产定位 ──
+        var assetsWithSum = JNode.Array()
+            .Add(JNode.Object().Set("name", "waycoder-v0.49.0-osx-arm64.tar.gz").Set("browser_download_url", "https://github.com/a/b/download/x.tar.gz"))
+            .Add(JNode.Object().Set("name", "SHA256SUMS.txt").Set("browser_download_url", "https://github.com/a/b/download/SHA256SUMS.txt"));
+        Check("升级: 定位 SHA256SUMS.txt", UpdateChecker.FindChecksumUrl(assetsWithSum) == "https://github.com/a/b/download/SHA256SUMS.txt");
+        Check("升级: 无校验文件返回 null", UpdateChecker.FindChecksumUrl(assets) == null);
+
+        // ── 供应链校验：SHA256SUMS 解析 ──
+        var sums =
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  waycoder-a.tar.gz\n" +
+            "# 注释行应被忽略\n" +
+            "0000000000000000000000000000000000000000000000000000000000000000 *waycoder-b.zip\n" +
+            "\n" +
+            "BADLINE\n";
+        var sumMap = UpdateChecker.ParseChecksums(sums);
+        Check("升级: 解析出两条记录", sumMap.Count == 2);
+        Check("升级: 普通格式键值正确", sumMap["waycoder-a.tar.gz"] == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+        Check("升级: 二进制 * 前缀剥离", sumMap["waycoder-b.zip"] == "0000000000000000000000000000000000000000000000000000000000000000");
+        Check("升级: 忽略注释/空行/坏行", !sumMap.ContainsKey("BADLINE") && !sumMap.ContainsKey(""));
+
+        // ── 供应链校验：文件 SHA256 计算 ──
+        var shaTmp = Path.Combine(Path.GetTempPath(), "waycoder-test-sha-" + rid + ".bin");
+        File.WriteAllText(shaTmp, "abc");
+        try
+        {
+            Check("升级: SHA256('abc') 正确",
+                UpdateChecker.ComputeSha256Hex(shaTmp) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+        }
+        finally { try { File.Delete(shaTmp); } catch { } }
+    }
+
+    private static void TestProcessTools(Action<string, bool> Check)
+    {
+        // ── 进程名安全白名单（防 shell 命令注入）──
+        Check("kill: 合法名 node", KillTool.IsSafeProcessName("node"));
+        Check("kill: 合法名 dotnet", KillTool.IsSafeProcessName("dotnet"));
+        Check("kill: 合法名含空格", KillTool.IsSafeProcessName("Google Chrome"));
+        Check("kill: 合法名含点", KillTool.IsSafeProcessName("python3.11"));
+        Check("kill: 合法名含连字符/下划线", KillTool.IsSafeProcessName("foo-bar_baz"));
+        Check("kill: 空串拒绝", !KillTool.IsSafeProcessName(""));
+        Check("kill: 空白拒绝", !KillTool.IsSafeProcessName("   "));
+        Check("kill: 分号注入拒绝", !KillTool.IsSafeProcessName("foo; rm -rf /"));
+        Check("kill: 管道注入拒绝", !KillTool.IsSafeProcessName("foo|bar"));
+        Check("kill: 命令替换拒绝", !KillTool.IsSafeProcessName("foo$(rm -rf /)"));
+        Check("kill: 反引号拒绝", !KillTool.IsSafeProcessName("foo`bar`"));
+        Check("kill: 重定向拒绝", !KillTool.IsSafeProcessName("foo>bar"));
+        Check("kill: 换行注入拒绝", !KillTool.IsSafeProcessName("foo\nbar"));
+
+        // ── kill 工具注入拦截（不执行真实命令，早退返回错误）──
+        Check("kill: 非法进程名拦截",
+            new KillTool().ExecuteAsync(new() { ["name"] = "foo; rm -rf /" }).Result.Contains("非法字符"));
+        Check("kill: 空进程名拦截",
+            new KillTool().ExecuteAsync(new() { ["name"] = "" }).Result.Contains("不能为空"));
+        Check("kill: 系统关键进程拦截",
+            new KillTool().ExecuteAsync(new() { ["name"] = "System" }).Result.Contains("系统关键进程"));
+        Check("kill: 缺失参数提示",
+            new KillTool().ExecuteAsync(new() { }).Result.Contains("必须指定"));
+
+        // ── ps 工具注入拦截 ──
+        Check("ps: 非法进程名拦截",
+            new PsTool().ExecuteAsync(new() { ["name"] = "foo; rm -rf /" }).Result.Contains("非法字符"));
+    }
+
+    private static void TestSsgfGuard(Action<string, bool> Check)
+    {
+        // ── IP 内网/保留地址判断 ──
+        Check("SSRF: 127.0.0.1 环回", SsgfGuard.IsPrivateIp("127.0.0.1"));
+        Check("SSRF: 10.0.0.1 私网", SsgfGuard.IsPrivateIp("10.0.0.1"));
+        Check("SSRF: 172.16.0.1 私网", SsgfGuard.IsPrivateIp("172.16.0.1"));
+        Check("SSRF: 172.31.255.255 私网上界", SsgfGuard.IsPrivateIp("172.31.255.255"));
+        Check("SSRF: 192.168.1.1 私网", SsgfGuard.IsPrivateIp("192.168.1.1"));
+        Check("SSRF: 169.254.169.254 云元数据", SsgfGuard.IsPrivateIp("169.254.169.254"));
+        Check("SSRF: 100.64.0.1 CGNAT", SsgfGuard.IsPrivateIp("100.64.0.1"));
+        Check("SSRF: 0.0.0.0 保留", SsgfGuard.IsPrivateIp("0.0.0.0"));
+        Check("SSRF: 224.0.0.1 组播", SsgfGuard.IsPrivateIp("224.0.0.1"));
+        Check("SSRF: ::1 IPv6 环回", SsgfGuard.IsPrivateIp("::1"));
+        Check("SSRF: fc00::1 ULA", SsgfGuard.IsPrivateIp("fc00::1"));
+        Check("SSRF: fe80::1 链路本地", SsgfGuard.IsPrivateIp("fe80::1"));
+        Check("SSRF: 8.8.8.8 公网放行", !SsgfGuard.IsPrivateIp("8.8.8.8"));
+        Check("SSRF: 1.1.1.1 公网放行", !SsgfGuard.IsPrivateIp("1.1.1.1"));
+        Check("SSRF: 114.114.114.114 公网放行", !SsgfGuard.IsPrivateIp("114.114.114.114"));
+        Check("SSRF: 172.15.0.1 边界外公网", !SsgfGuard.IsPrivateIp("172.15.0.1"));
+        Check("SSRF: 172.32.0.1 边界外公网", !SsgfGuard.IsPrivateIp("172.32.0.1"));
+
+        // ── URL 校验 ──
+        Check("SSRF: 公网 URL 放行", SsgfGuard.CheckUrl("https://example.com/docs").safe);
+        Check("SSRF: 内网 IP URL 拦截", !SsgfGuard.CheckUrl("http://127.0.0.1:8080/admin").safe);
+        Check("SSRF: 云元数据 URL 拦截", !SsgfGuard.CheckUrl("http://169.254.169.254/latest/meta-data/").safe);
+        Check("SSRF: 内网段 URL 拦截", !SsgfGuard.CheckUrl("http://192.168.1.1/").safe);
+        Check("SSRF: 10 段 URL 拦截", !SsgfGuard.CheckUrl("http://10.0.0.5:3000/").safe);
+        Check("SSRF: localhost 拦截", !SsgfGuard.CheckUrl("http://localhost:3000/").safe);
+        Check("SSRF: 内部域名拦截", !SsgfGuard.CheckUrl("http://db.internal/api").safe);
+        Check("SSRF: file:// 拦截", !SsgfGuard.CheckUrl("file:///etc/passwd").safe);
+        Check("SSRF: ftp:// 拦截", !SsgfGuard.CheckUrl("ftp://example.com/x").safe);
+        Check("SSRF: IPv6 环回 URL 拦截", !SsgfGuard.CheckUrl("http://[::1]:8080/").safe);
+
+        // ── 重定向状态码判断 ──
+        Check("SSRF: 301 是重定向", SsgfGuard.IsRedirect(301));
+        Check("SSRF: 302 是重定向", SsgfGuard.IsRedirect(302));
+        Check("SSRF: 303 是重定向", SsgfGuard.IsRedirect(303));
+        Check("SSRF: 307 是重定向", SsgfGuard.IsRedirect(307));
+        Check("SSRF: 308 是重定向", SsgfGuard.IsRedirect(308));
+        Check("SSRF: 200 非重定向", !SsgfGuard.IsRedirect(200));
+        Check("SSRF: 404 非重定向", !SsgfGuard.IsRedirect(404));
     }
 
     private static void TestBatchEngine(Action<string, bool> Check)
@@ -2225,6 +2338,14 @@ public static partial class SelfTest
         // ── 6. ProviderHasKey ──
         Check("WebFull: local 无需 key", WayCoder.Web.WebChatServer.ProviderHasKey("local"));
         Check("WebFull: custom 无需 key", WayCoder.Web.WebChatServer.ProviderHasKey("custom"));
+
+        // ── 6b. IsTrustedOrigin（CSRF 防护）──
+        Check("WebFull: 无 Origin（curl/SSE）放行", WayCoder.Web.WebChatServer.IsTrustedOrigin(null, 8123));
+        Check("WebFull: 本服务 Origin 放行", WayCoder.Web.WebChatServer.IsTrustedOrigin("http://127.0.0.1:8123", 8123));
+        Check("WebFull: localhost Origin 放行", WayCoder.Web.WebChatServer.IsTrustedOrigin("http://localhost:8123", 8123));
+        Check("WebFull: 攻击者 Origin 拒绝", !WayCoder.Web.WebChatServer.IsTrustedOrigin("https://evil.example.com", 8123));
+        Check("WebFull: Origin null 拒绝", !WayCoder.Web.WebChatServer.IsTrustedOrigin("null", 8123));
+        Check("WebFull: 端口不匹配拒绝", !WayCoder.Web.WebChatServer.IsTrustedOrigin("http://127.0.0.1:9999", 8123));
 
         // ── 7. 端点冒烟：WebChatServer + HttpClient ──
         var web = new WayCoder.Web.WebChatServer(a0, 0);
