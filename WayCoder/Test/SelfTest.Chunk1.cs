@@ -13,7 +13,7 @@ public static partial class SelfTest
     private static void TestChunk1(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
     {
         Section("[工具注册]");
-        Check("工具数量 == 44", ToolRegistry.BuiltinTools.Count == 44);
+        Check("工具数量 == 46", ToolRegistry.BuiltinTools.Count == 46);
         Check("所有工具有有效 schema", ToolRegistry.AllTools.All(t =>
         {
             var s = t.Schema();
@@ -129,6 +129,28 @@ public static partial class SelfTest
         Check("read_file 文件不存在返回错误",
             new ReadFileTool().ExecuteAsync(new() { ["file_path"] = "/nonexistent" }).Result.Contains("错误"));
 
+        // read_file tail 读取末尾
+        try
+        {
+            var tailFile = Path.GetTempFileName();
+            File.WriteAllText(tailFile, "line1\nline2\nline3\nline4\nline5");
+            var tailResult = new ReadFileTool().ExecuteAsync(new() { ["file_path"] = tailFile, ["tail"] = 2 }).Result;
+            Check("read_file tail 读取末尾", tailResult.Contains("line4") && tailResult.Contains("line5") && !tailResult.Contains("line1"));
+            File.Delete(tailFile);
+        }
+        catch { Fail("read_file tail 读取末尾"); }
+
+        // read_file 二进制检测（NUL 字节）
+        try
+        {
+            var binFile = Path.GetTempFileName();
+            File.WriteAllBytes(binFile, new byte[] { 0x48, 0x00, 0x65, 0x6C, 0x6C, 0x6F, 0x00 }); // "H\0ello\0"
+            var binResult = new ReadFileTool().ExecuteAsync(new() { ["file_path"] = binFile }).Result;
+            Check("read_file 二进制检测", binResult.Contains("二进制"));
+            File.Delete(binFile);
+        }
+        catch { Fail("read_file 二进制检测"); }
+
         // read_file PDF + Markdown
         Check("read_file 描述含 PDF",
             ToolRegistry.GetTool("read_file")!.Description.Contains("PDF"));
@@ -149,6 +171,28 @@ public static partial class SelfTest
             File.Delete(mdFile);
         }
         catch { Fail("read_file Markdown"); }
+
+        // read_file JSON 结构化
+        try
+        {
+            var jsonFile = Path.Combine(Path.GetTempPath(), "wc_json_" + Guid.NewGuid().ToString("N")[..6] + ".json");
+            File.WriteAllText(jsonFile, "{\"a\":1,\"b\":{\"c\":2}}");
+            var jsonResult = new ReadFileTool().ExecuteAsync(new() { ["file_path"] = jsonFile }).Result;
+            Check("read_file JSON 结构化", jsonResult.Contains("<json>") && jsonResult.Contains("\"a\""));
+            File.Delete(jsonFile);
+        }
+        catch { Fail("read_file JSON 结构化"); }
+
+        // read_file INI 结构化
+        try
+        {
+            var iniFile = Path.Combine(Path.GetTempPath(), "wc_ini_" + Guid.NewGuid().ToString("N")[..6] + ".ini");
+            File.WriteAllText(iniFile, "[server]\nhost = localhost\nport = 8080\n");
+            var iniResult = new ReadFileTool().ExecuteAsync(new() { ["file_path"] = iniFile }).Result;
+            Check("read_file INI 结构化", iniResult.Contains("<ini>") && iniResult.Contains("[server]") && iniResult.Contains("host = localhost"));
+            File.Delete(iniFile);
+        }
+        catch { Fail("read_file INI 结构化"); }
 
         // PdfExtractor 结构
         Check("PdfExtractor.Extract 方法存在",
@@ -199,6 +243,31 @@ public static partial class SelfTest
             File.Delete(tmpFile2);
         }
         catch { Fail("write_file 基本功能"); }
+
+        // write_file append 模式
+        try
+        {
+            var appendFile = Path.GetTempFileName();
+            new WriteFileTool().ExecuteAsync(new() { ["file_path"] = appendFile, ["content"] = "line1\n", ["append"] = true }).Wait();
+            var appendResult = new WriteFileTool().ExecuteAsync(new() { ["file_path"] = appendFile, ["content"] = "line2\n", ["append"] = true }).Result;
+            Check("write_file append 追加", appendResult.Contains("追加") && File.ReadAllText(appendFile) == "line1\nline2\n");
+            File.Delete(appendFile);
+        }
+        catch { Fail("write_file append 追加"); }
+
+        // write_file encoding 模式（utf8bom 写入 BOM）
+        try
+        {
+            var encFile = Path.Combine(Path.GetTempPath(), "wc_enc_" + Guid.NewGuid().ToString("N")[..6] + ".txt");
+            var encResult = new WriteFileTool().ExecuteAsync(new() { ["file_path"] = encFile, ["content"] = "中文", ["encoding"] = "utf8bom" }).Result;
+            var bytes = File.ReadAllBytes(encFile);
+            Check("write_file utf8bom 编码", encResult.Contains("写入") && bytes.Length >= 5 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF);
+            File.Delete(encFile);
+        }
+        catch { Fail("write_file utf8bom 编码"); }
+
+        Check("write_file 不支持编码报错",
+            new WriteFileTool().ExecuteAsync(new() { ["file_path"] = "/tmp/x.txt", ["content"] = "x", ["encoding"] = "gbk" }).Result.Contains("不支持的编码"));
 
         // edit_file
         try

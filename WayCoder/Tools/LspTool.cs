@@ -97,28 +97,112 @@ public class LspTool : ITool
         if (config == null)
             return $"错误：未找到 {ext} 的 LSP 服务器。已安装? (支持: {string.Join(", ", ServerConfigs.Keys)})";
 
+        // 串行化：LSP 会话是单连接，不能并发读写，全程持锁避免多槽位抢同一进程
+        await _sessionLock.WaitAsync();
         try
         {
-            var proc = StartServer(config.Value.Command, config.Value.Args, filePath);
-            if (proc == null) return $"错误：无法启动 LSP 服务器 ({config.Value.Command})";
+            var root = FindProjectRoot(filePath);
+            var key = $"{root}|{config.Value.Command}";
+            CleanupStaleSessions();
 
-            using (proc)
+            if (!_sessions.TryGetValue(key, out var session) || session!.Process.HasExited)
             {
-                await Task.Delay(500); // 等待初始化
-                var result = action switch
-                {
-                    "definition" => await GoToDefinition(proc, filePath, line, charPos),
-                    "references" => await FindReferences(proc, filePath, line, charPos),
-                    "hover" => await Hover(proc, filePath, line, charPos),
-                    "symbols" => await DocumentSymbols(proc, filePath, query),
-                    _ => "错误：未知操作",
-                };
-                return result;
+                if (session != null) { try { session.Process.Kill(); } catch { } }
+                var proc = StartServer(config.Value.Command, config.Value.Args, root);
+                if (proc == null) return $"错误：无法启动 LSP 服务器 ({config.Value.Command})";
+                session = new LspSession { Process = proc, Root = root, Initialized = false };
+                _sessions[key] = session;
             }
+
+            session.LastUsedTicks = Environment.TickCount64;
+
+            // 首次初始化握手（initialize + initialized），后续复用跳过
+            if (!session.Initialized)
+            {
+                await Task.Delay(500); // 等待服务器就绪
+                await InitializeHandshake(session.Process, root);
+                session.Initialized = true;
+            }
+
+            // 每次针对当前文件打开文档（通知，无响应）
+            DidOpen(session.Process, filePath);
+
+            return action switch
+            {
+                "definition" => await GoToDefinition(session.Process, filePath, line, charPos),
+                "references" => await FindReferences(session.Process, filePath, line, charPos),
+                "hover" => await Hover(session.Process, filePath, line, charPos),
+                "symbols" => await DocumentSymbols(session.Process, filePath, query),
+                _ => "错误：未知操作",
+            };
         }
         catch (Exception ex)
         {
             return $"LSP 错误：{ex.GetType().Name}: {ex.Message}";
+        }
+        finally
+        {
+            _sessionLock.Release();
+        }
+    }
+
+    /// <summary>向上查找项目根目录（.sln/.csproj/package.json/go.mod/Cargo.toml/pyproject.toml）。</summary>
+    internal static string FindProjectRoot(string file)
+    {
+        var root = Path.GetDirectoryName(Path.GetFullPath(file)) ?? ".";
+        while (root != null && !HasProjectMarker(root))
+        {
+            var parent = Path.GetDirectoryName(root);
+            if (parent == root) break;
+            root = parent;
+        }
+        return root ?? ".";
+    }
+
+    /// <summary>判断目录是否包含项目标记文件（对不存在目录返回 false）。</summary>
+    private static bool HasProjectMarker(string dir)
+    {
+        if (!Directory.Exists(dir)) return false;
+        if (Directory.GetFiles(dir, "*.sln").Length > 0) return true;
+        if (Directory.GetFiles(dir, "*.csproj").Length > 0) return true;
+        if (File.Exists(Path.Combine(dir, "package.json"))) return true;
+        if (File.Exists(Path.Combine(dir, "go.mod"))) return true;
+        if (File.Exists(Path.Combine(dir, "Cargo.toml"))) return true;
+        if (File.Exists(Path.Combine(dir, "pyproject.toml"))) return true;
+        return false;
+    }
+
+    /// <summary>回收空闲超时的会话，释放 LSP 服务器进程。</summary>
+    private static void CleanupStaleSessions()
+    {
+        var now = Environment.TickCount64;
+        var stale = _sessions
+            .Where(kv => kv.Value.Process.HasExited || (now - kv.Value.LastUsedTicks) > SessionIdleTimeoutTicks)
+            .Select(kv => kv.Key)
+            .ToList();
+        foreach (var key in stale)
+        {
+            var s = _sessions[key];
+            _sessions.Remove(key);
+            try { if (!s.Process.HasExited) s.Process.Kill(entireProcessTree: true); } catch { }
+        }
+    }
+
+    /// <summary>关闭所有缓存的 LSP 会话（进程退出/测试清理时调用）。</summary>
+    public static void ShutdownAllSessions()
+    {
+        _sessionLock.Wait();
+        try
+        {
+            foreach (var s in _sessions.Values)
+            {
+                try { if (!s.Process.HasExited) s.Process.Kill(entireProcessTree: true); } catch { }
+            }
+            _sessions.Clear();
+        }
+        finally
+        {
+            _sessionLock.Release();
         }
     }
 
@@ -129,25 +213,11 @@ public class LspTool : ITool
         return null;
     }
 
-    private static Process? StartServer(string command, string[] args, string rootFile)
+    private static Process? StartServer(string command, string[] args, string root)
     {
         try
         {
-            var root = Path.GetDirectoryName(rootFile) ?? ".";
-            // 向上查找项目根目录
-            while (root != null && !Directory.GetFiles(root, "*.sln").Any()
-                   && !Directory.GetFiles(root, "*.csproj").Any()
-                   && !File.Exists(Path.Combine(root, "package.json"))
-                   && !File.Exists(Path.Combine(root, "go.mod"))
-                   && !File.Exists(Path.Combine(root, "Cargo.toml"))
-                   && !File.Exists(Path.Combine(root, "pyproject.toml")))
-            {
-                var parent = Path.GetDirectoryName(root);
-                if (parent == root) break;
-                root = parent;
-            }
-
-            var allArgs = new List<string>(args) { root! };
+            var allArgs = new List<string>(args) { root };
             var psi = new ProcessStartInfo
             {
                 FileName = command,
@@ -174,7 +244,6 @@ public class LspTool : ITool
         var req = BuildRequest("textDocument/definition", JNode.Object()
             .Set("textDocument", JNode.Object().Set("uri", FileToUri(file)))
             .Set("position", JNode.Object().Set("line", line - 1).Set("character", ch - 1)));
-        await Initialize(proc, file);
         SendMessage(proc, req);
         var resp = await ReadResponse(proc);
         return FormatLocationResult(resp, "定义");
@@ -186,7 +255,6 @@ public class LspTool : ITool
             .Set("textDocument", JNode.Object().Set("uri", FileToUri(file)))
             .Set("position", JNode.Object().Set("line", line - 1).Set("character", ch - 1))
             .Set("context", JNode.Object().Set("includeDeclaration", true)));
-        await Initialize(proc, file);
         SendMessage(proc, req);
         var resp = await ReadResponse(proc);
         return FormatLocationResult(resp, "引用");
@@ -197,7 +265,6 @@ public class LspTool : ITool
         var req = BuildRequest("textDocument/hover", JNode.Object()
             .Set("textDocument", JNode.Object().Set("uri", FileToUri(file)))
             .Set("position", JNode.Object().Set("line", line - 1).Set("character", ch - 1)));
-        await Initialize(proc, file);
         SendMessage(proc, req);
         var resp = await ReadResponse(proc);
         if (resp?["result"]?["contents"]?["value"]?.AsString() is { } text)
@@ -211,7 +278,6 @@ public class LspTool : ITool
     {
         var req = BuildRequest("textDocument/documentSymbol", JNode.Object()
             .Set("textDocument", JNode.Object().Set("uri", FileToUri(file))));
-        await Initialize(proc, file);
         SendMessage(proc, req);
         var resp = await ReadResponse(proc);
 
@@ -225,6 +291,21 @@ public class LspTool : ITool
 
     // ---- LSP 协议辅助 ----
 
+    // ---- 会话缓存 ----
+    // 复用已启动的 LSP 服务器进程，避免每次导航都重启 + 重新初始化（数百 ms 开销）。
+    // 按 (项目根, 命令) 区分会话；空闲超时自动回收；进程崩溃自动重建。
+    private static readonly Dictionary<string, LspSession> _sessions = new();
+    private static readonly SemaphoreSlim _sessionLock = new(1, 1);
+    private static readonly long SessionIdleTimeoutTicks = TimeSpan.FromMinutes(5).Ticks;
+
+    private sealed class LspSession
+    {
+        public Process Process = null!;
+        public string Root = "";
+        public bool Initialized;
+        public long LastUsedTicks;
+    }
+
     private static int _msgId;
     private static string BuildRequest(string method, JNode @params)
     {
@@ -237,9 +318,8 @@ public class LspTool : ITool
         return $"Content-Length: {Encoding.UTF8.GetByteCount(msg.ToJson())}\r\n\r\n{msg.ToJson()}";
     }
 
-    private static async Task Initialize(Process proc, string rootFile)
+    private static async Task InitializeHandshake(Process proc, string root)
     {
-        var root = Path.GetDirectoryName(rootFile) ?? ".";
         var initReq = BuildRequest("initialize", JNode.Object()
             .Set("processId", Environment.ProcessId)
             .Set("rootUri", FileToUri(root))
@@ -251,20 +331,22 @@ public class LspTool : ITool
         var notifStr = $"Content-Length: {Encoding.UTF8.GetByteCount(notif.ToJson())}\r\n\r\n{notif.ToJson()}";
         SendMessage(proc, notifStr);
         await ReadResponse(proc);
+    }
 
-        // 打开文档
+    private static void DidOpen(Process proc, string filePath)
+    {
+        // 打开文档（通知，无响应）
         var didOpen = JNode.Object()
             .Set("jsonrpc", "2.0")
             .Set("method", "textDocument/didOpen")
             .Set("params", JNode.Object()
                 .Set("textDocument", JNode.Object()
-                    .Set("uri", FileToUri(rootFile))
-                    .Set("languageId", GetLanguageId(rootFile))
+                    .Set("uri", FileToUri(filePath))
+                    .Set("languageId", GetLanguageId(filePath))
                     .Set("version", 1)
-                    .Set("text", File.ReadAllText(rootFile))));
+                    .Set("text", File.ReadAllText(filePath))));
         var openStr = $"Content-Length: {Encoding.UTF8.GetByteCount(didOpen.ToJson())}\r\n\r\n{didOpen.ToJson()}";
         SendMessage(proc, openStr);
-        await ReadResponse(proc);
     }
 
     private static void SendMessage(Process proc, string message)

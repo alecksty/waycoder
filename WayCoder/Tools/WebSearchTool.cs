@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Web;
 
 namespace WayCoder.Tools;
@@ -10,7 +11,7 @@ namespace WayCoder.Tools;
 public class WebSearchTool : ITool
 {
     public string Name => "web_search";
-    public string Description => "在互联网上搜索信息（通过 DuckDuckGo），返回结果标题、摘要和链接。无需 API 密钥。";
+    public string Description => "在互联网上搜索信息，返回结果标题、摘要和链接。主引擎 DuckDuckGo，失败自动回退 Bing（国内可达）。无需 API 密钥。";
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
@@ -36,57 +37,104 @@ public class WebSearchTool : ITool
             catch { }
         }
 
+        // 请求节流（防搜索引擎封 IP）
+        await ThrottleAsync();
+
+        // 主引擎 DuckDuckGo，失败或空结果回退 Bing（国内 DDG 常不可达）
+        var results = await SearchWithFallback(query, num);
+
+        if (results.Count == 0)
+            return $"未找到与 \"{query}\" 相关的结果（已尝试 DuckDuckGo + Bing）。";
+
+        // 格式化输出
+        var output = new System.Text.StringBuilder();
+        output.AppendLine($"🔍 搜索: {query}");
+        output.AppendLine();
+
+        for (int i = 0; i < results.Count; i++)
+        {
+            var r = results[i];
+            output.AppendLine($"{(i + 1)}. {r.Title}");
+            output.AppendLine($"   {r.Snippet}");
+            output.AppendLine($"   🔗 {r.Url}");
+            output.AppendLine();
+        }
+
+        return output.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// 依次尝试 DuckDuckGo 与 Bing，任一返回结果即停。
+    /// </summary>
+    private static async Task<List<SearchResult>> SearchWithFallback(string query, int num)
+    {
+        var ddg = await TrySearch(query, num, "DuckDuckGo",
+            "https://html.duckduckgo.com/html/?q={0}", ParseDuckDuckGoResults);
+        if (ddg is { Count: > 0 }) return ddg;
+
+        var bing = await TrySearch(query, num, "Bing",
+            "https://www.bing.com/search?q={0}", ParseBingResults);
+        if (bing is { Count: > 0 }) return bing;
+
+        return [];
+    }
+
+    /// <summary>
+    /// 抓取单个搜索引擎结果。任何异常都返回 null（由上层回退），并记录错误日志。
+    /// </summary>
+    private static async Task<List<SearchResult>?> TrySearch(
+        string query, int num, string engine, string urlTemplate,
+        Func<string, int, List<SearchResult>> parser)
+    {
         try
         {
-            var encodedQuery = HttpUtility.UrlEncode(query);
-            var url = $"https://html.duckduckgo.com/html/?q={encodedQuery}";
-
             using var client = new HttpClient();
             client.DefaultRequestHeaders.UserAgent.ParseAdd(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
             client.Timeout = TimeSpan.FromSeconds(15);
 
-            var response = await client.GetStringAsync(url);
-            var results = ParseDuckDuckGoResults(response, num);
-
-            if (results.Count == 0)
-                return $"未找到与 \"{query}\" 相关的结果。";
-
-            // 格式化输出
-            var output = new System.Text.StringBuilder();
-            output.AppendLine($"🔍 搜索: {query}");
-            output.AppendLine();
-
-            for (int i = 0; i < results.Count; i++)
-            {
-                var r = results[i];
-                output.AppendLine($"{(i + 1)}. {r.Title}");
-                output.AppendLine($"   {r.Snippet}");
-                output.AppendLine($"   🔗 {r.Url}");
-                output.AppendLine();
-            }
-
-            return output.ToString().TrimEnd();
+            var encodedQuery = HttpUtility.UrlEncode(query);
+            var url = string.Format(urlTemplate, encodedQuery);
+            var html = await client.GetStringAsync(url);
+            return parser(html, num);
         }
         catch (TaskCanceledException)
         {
-            ErrorLog.ToolError("web_search", $"搜索超时（{Config.Instance.FetchTimeoutSec} 秒）");
-            return $"错误: 搜索超时（{Config.Instance.FetchTimeoutSec} 秒），请稍后重试。";
+            ErrorLog.ToolError("web_search", $"{engine} 搜索超时（15 秒）");
+            return null;
         }
         catch (HttpRequestException ex)
         {
-            return $"错误: 网络请求失败 — {ex.GetType().Name}: {ex.Message}";
+            ErrorLog.ToolError("web_search", $"{engine} 请求失败: {ex.Message}");
+            return null;
         }
         catch (Exception ex)
         {
-            return $"错误: 搜索异常 — {ex.GetType().Name}: {ex.Message}";
+            ErrorLog.ToolError("web_search", $"{engine} 异常: {ex.GetType().Name}: {ex.Message}");
+            return null;
         }
+    }
+
+    /// <summary>请求节流：相邻请求间隔 ≥2 秒，防止搜索引擎封 IP。</summary>
+    private static long _lastRequestTicks;
+
+    private static async Task ThrottleAsync()
+    {
+        var minTicks = TimeSpan.FromSeconds(2).Ticks;
+        var last = Interlocked.Read(ref _lastRequestTicks);
+        if (last != 0)
+        {
+            var wait = minTicks - (DateTime.UtcNow.Ticks - last);
+            if (wait > 0)
+                await Task.Delay(TimeSpan.FromTicks(wait));
+        }
+        Interlocked.Exchange(ref _lastRequestTicks, DateTime.UtcNow.Ticks);
     }
 
     /// <summary>
     /// 解析 DuckDuckGo HTML 搜索结果。
     /// </summary>
-    private static List<SearchResult> ParseDuckDuckGoResults(string html, int maxResults)
+    internal static List<SearchResult> ParseDuckDuckGoResults(string html, int maxResults)
     {
         var results = new List<SearchResult>();
 
@@ -143,6 +191,35 @@ public class WebSearchTool : ITool
         return results;
     }
 
+    /// <summary>
+    /// 解析 Bing 搜索结果（备用引擎）。
+    /// Bing 结果在 &lt;li class="b_algo"&gt; 中，标题在 &lt;h2&gt;&lt;a&gt;，摘要在其后的 &lt;p&gt;。
+    /// </summary>
+    internal static List<SearchResult> ParseBingResults(string html, int maxResults)
+    {
+        var results = new List<SearchResult>();
+
+        var blockPattern = new Regex(
+            @"<li\s+class=""b_algo"".*?<h2[^>]*>.*?<a[^>]*href=""([^""]+)""[^>]*>(.*?)</a>.*?</h2>.*?(?:<p[^>]*>(.*?)</p>)?",
+            RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+        foreach (Match m in blockPattern.Matches(html))
+        {
+            if (results.Count >= maxResults) break;
+
+            var url = HttpUtility.HtmlDecode(m.Groups[1].Value.Trim());
+            var title = HttpUtility.HtmlDecode(StripHtml(m.Groups[2].Value.Trim()));
+            var snippet = HttpUtility.HtmlDecode(StripHtml(m.Groups[3].Value.Trim()));
+
+            if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(url)) continue;
+            if (url.Contains("bing.com") || url.Contains("microsoft.com/bing")) continue;
+
+            results.Add(new SearchResult { Title = title, Url = url, Snippet = snippet });
+        }
+
+        return results;
+    }
+
     private static string StripHtml(string input)
     {
         if (string.IsNullOrEmpty(input)) return "";
@@ -151,7 +228,7 @@ public class WebSearchTool : ITool
         return result.Trim();
     }
 
-    private class SearchResult
+    internal class SearchResult
     {
         public string Title { get; set; } = "";
         public string Url { get; set; } = "";
