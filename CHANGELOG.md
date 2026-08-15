@@ -1,5 +1,39 @@
 # 更新日志
 
+## v0.55.0 (2026-08-15) — 绘图引擎增强 + 图片编解码 + JNode 手搓 JSON 迁移
+
+响应「丰富画图功能」与「图片互转/贴图/裁剪/应用图标」需求，绘图引擎从 10 条指令扩展到 20+ 条（变换/新形状/描边/渐变/贴图/裁剪/图标模板/抗锯齿），并手搓 PNG/JPG/BMP 编解码，新增第 44 个内置工具 `convert_image` 实现格式互转。同时完成 JNode 手搓 JSON 全量迁移，彻底告别 `System.Text.Json` 反射。
+
+### ✨ 新增
+
+**图片编解码（零依赖、零反射、AOT 安全、跨平台）**
+
+- **`Infra/RasterImage.cs`** — 统一像素缓冲（RGBA + 宽高 + 单像素读写/采样）
+- **`Infra/BmpCodec.cs`** — BMP 编解码；**`Infra/JpegCodec.cs`** — JPEG 基线编解码
+- **`Infra/PngDecoder.cs`** — 手搓 PNG 解码（灰度/索引/RGB/RGBA + 5 种行滤波）
+- **`Infra/ImageLoader.cs`** — 魔数格式检测 + 编解码分发 + 按扩展名转格式
+- **`Tools/ImageConvertTool.cs`** — `convert_image` 工具（第 44 个内置工具）：PNG/JPG/BMP 互转
+
+**绘图引擎增强**
+
+- **变换**：`translate/rotate/scale/push/pop`（`Affine` 仿射矩阵，SVG `<g transform>` + PNG 逆变换填充）
+- **5 个新形状**：`star`（n 尖星）/`regular`（正 n 边形）/`ring`（圆环）/`pie`（扇形）/`heart`（心形）
+- **描边**：所有填充形状支持 `stroke` 轮廓 + 线宽 + 线头 butt/round/square
+- **渐变**：`gradient` 定义 + 线性/径向渐变填充（`@id` 引用，SVG `<defs>` + PNG 参数插值）
+- **贴图**：`image x y w h "路径"` 把 PNG/JPG/BMP 图片贴入画布
+- **裁剪**：`crop sx sy sw sh` 裁源图子矩形、`round r` 目标圆角、`rect` 直角矩形
+- **图标模板**：`icon mac|ios|android|windows [颜色] [字形]` 一键生成应用图标（预设尺寸/圆角/安全区）
+- **字体 + 抗锯齿**：`TrueTypeFont` 手搓 TrueType 解析 + `FontFinder` 系统字体探测（跨平台）；`antialias` 线条/字体消除锯齿
+
+### 🛠 重构
+
+- **JNode 手搓 JSON 迁移**：43 个工具的 `Parameters`/`Schema` 及非工具文件（Agent/Config/Infra/Memory/Batch）从 `System.Text.Json.Nodes` 全量迁移到手搓 `JNode`，移除残留 `JsonNode`/`JsonSerializer` 反射（承接 v0.53.10/11，实现「完全禁止反射」）
+
+### 🧪 自测
+
+- 新增图片/绘图断言（Image.Loader/Convert/Paste/Crop + Draw.Icon 等）
+- 工具数量 43 → 44，总计 **2343** 项自测全部通过（0 失败）
+
 ## v0.54.0 (2026-08-15) — 新增 draw 绘图工具（文本 DSL → SVG/PNG）
 
 响应「是否需要加个绘图工具」需求，新增第 43 个内置工具 `draw`：用文本指令画图，支持主流格式（SVG 矢量 + PNG 位图）双输出，指令可经编译期插件系统扩展。全程手搓零依赖、零反射、AOT 安全、跨平台。
