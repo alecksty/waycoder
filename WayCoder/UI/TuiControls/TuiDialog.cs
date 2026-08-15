@@ -21,7 +21,7 @@ public static class TuiDialog
 
     /// <summary>对话框默认宽度比例</summary>
     private const double DefaultXScale = 0.5;
-    private const double WideXScale = 0.6;
+    private const double WideXScale = 0.75;   // 宽对话框：最多占屏幕 3/4
     private const double NarrowXScale = 0.4;
 
     /// <summary>对话框最小宽度</summary>
@@ -36,17 +36,35 @@ public static class TuiDialog
 
     /// <summary>
     /// 将消息文本折行为 TuiLabel 列表。自动处理 \n 换行和超宽折行，
-    /// 最多 10 行，超出行尾显示 "…"。
+    /// 最多 MaxMessageLines() 行，超出行尾显示 "…"。
     /// </summary>
     private static List<TuiLabel> BuildMessageLabels(string message, int labelWidth, int? fg = null)
     {
-        var lines = TuiHelper.WrapText(message, labelWidth);
+        var lines = TuiHelper.WrapText(message, labelWidth, MaxMessageLines());
         return lines.Select(line => new TuiLabel(line)
         {
             Width = labelWidth,
             Fg = fg ?? 0,
             TextAlign = HAlign.Center
         }).ToList();
+    }
+
+    /// <summary>
+    /// 消息框最大消息行数 —— 消息可纵向扩展到屏幕高度的 3/4。
+    /// 总高 = 上下边框(2) + 标题栏(1) + 消息行 + spacer(1) + 按钮行(1)。
+    /// </summary>
+    private static int MaxMessageLines()
+    {
+        int avail = (int)(Tty.Rows * 0.75) - 5;
+        return Math.Max(3, avail);
+    }
+
+    /// <summary>按消息行数自适应窗口高度（上限 3/4 屏高），避免空余空间或消息被截断。</summary>
+    private static void FitHeight(TuiWindow win, int msgLines)
+    {
+        int total = 2 + 1 + msgLines + 2; // 上下边框 + 标题栏 + 消息行 + spacer + 按钮行
+        int maxH = Math.Max(5, (int)(Tty.Rows * 0.75));
+        win.Height = Math.Min(maxH, Math.Max(win.MinHeight, total));
     }
 
     /// <summary>给按钮启用渐变背景</summary>
@@ -128,8 +146,10 @@ public static class TuiDialog
     private static void BuildSingleButton(TuiWindow win, string message, string btnLabel,
         (int start, int end) btnGrad, (int start, int end) winGrad)
     {
+        win.TitleBold = true;
         int cw = ContentW(DefaultXScale, 4);
         var msgLabels = BuildMessageLabels(message, cw);
+        FitHeight(win, msgLabels.Count);
 
         var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
         foreach (var lbl in msgLabels) vbox.Add(lbl);
@@ -166,9 +186,11 @@ public static class TuiDialog
     public static TuiWindow Confirm(string title, string message, Action<bool> onResult)
     {
         var win = NewDialog(title, TuiTheme.Current.DialogConfirmBorder, WideXScale);
+        win.TitleBold = true;
 
         int cw = ContentW(WideXScale, 4);
         var msgLabels = BuildMessageLabels(message, cw);
+        FitHeight(win, msgLabels.Count);
 
         var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
         foreach (var lbl in msgLabels) vbox.Add(lbl);
@@ -197,9 +219,11 @@ public static class TuiDialog
     public static TuiWindow Confirm3(string title, string message, Action<DialogResult> onResult)
     {
         var win = NewDialog(title, TuiTheme.Current.DialogConfirmBorder, WideXScale);
+        win.TitleBold = true;
 
         int cw = ContentW(WideXScale, 4);
         var msgLabels = BuildMessageLabels(message, cw);
+        FitHeight(win, msgLabels.Count);
 
         var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
         foreach (var lbl in msgLabels) vbox.Add(lbl);
@@ -346,6 +370,98 @@ public static class TuiDialog
         win.RootView = vbox;
         ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
         win.RegisterShortcut(ConsoleKey.Escape, () => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); });
+        return win;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 查找/替换对话框
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 查找/替换对话框 —— 两个单行输入（查找/替换）+ 三个选项复选（区分大小写/正则/整词）+ 四个操作按钮。
+    /// onFindNext(find, opts) 查找下一处；onReplace(find, repl, opts) 替换当前处；
+    /// onReplaceAll(find, repl, opts) 全部替换；Esc/取消 关闭。
+    /// </summary>
+    public static TuiWindow FindReplace(string initialFind, string initialReplace, FindOptions initialOpts,
+        Action<string, FindOptions> onFindNext, Action<string, string, FindOptions> onReplace,
+        Action<string, string, FindOptions> onReplaceAll)
+    {
+        var win = NewDialog("查找/替换", TuiTheme.Current.DialogInfoBorder, WideXScale);
+        win.MinHeight = 11;
+
+        int cw = ContentW(WideXScale, 4);
+
+        var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Left };
+
+        // 查找行
+        var findRow = new TuiHBox { Width = cw, Spacing = 1 };
+        findRow.Add(new TuiLabel("查找:") { Width = 6, Fg = TuiColors.Black });
+        var findInput = new TuiInput
+        {
+            Text = initialFind,
+            CursorPos = initialFind.Length,
+            Flex = 1, Height = 1,
+            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Focused = true,
+        };
+        findRow.Add(findInput);
+        vbox.Add(findRow);
+
+        // 替换行
+        var replRow = new TuiHBox { Width = cw, Spacing = 1 };
+        replRow.Add(new TuiLabel("替换:") { Width = 6, Fg = TuiColors.Black });
+        var replInput = new TuiInput
+        {
+            Text = initialReplace,
+            CursorPos = initialReplace.Length,
+            Flex = 1, Height = 1,
+            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+        };
+        replRow.Add(replInput);
+        vbox.Add(replRow);
+
+        // 选项行：区分大小写 / 正则 / 整词（Space/Enter 切换）
+        var caseCb = new TuiCheckbox("区分大小写", initialOpts.CaseSensitive) { Fg = TuiColors.Black };
+        var regexCb = new TuiCheckbox("正则", initialOpts.UseRegex) { Fg = TuiColors.Black };
+        var wordCb = new TuiCheckbox("整词", initialOpts.WholeWord) { Fg = TuiColors.Black };
+        var optRow = new TuiHBox { Width = cw, Spacing = 3, ContentHAlign = HAlign.Left };
+        optRow.Add(caseCb); optRow.Add(regexCb); optRow.Add(wordCb);
+        vbox.Add(optRow);
+
+        vbox.Add(new TuiLabel("") { Height = 1 }); // spacer
+
+        FindOptions CurrentOpts() => new(caseCb.Checked, regexCb.Checked, wordCb.Checked);
+
+        // 按钮行 1：查找下一个 / 替换
+        var row1 = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
+        var findBtn = new TuiButton("查找下一个") { Flex = 1 };
+        var replBtn = new TuiButton("替换") { Flex = 1 };
+        findBtn.OnClick = _ => { onFindNext(findInput.Text, CurrentOpts()); win.OnClosed?.Invoke(); };
+        replBtn.OnClick = _ => { onReplace(findInput.Text, replInput.Text, CurrentOpts()); win.OnClosed?.Invoke(); };
+        row1.Add(findBtn); row1.Add(replBtn);
+        ApplyButtonGradient(TuiTheme.Current.BtnCyanBlue, findBtn);
+        ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, replBtn);
+        vbox.Add(row1);
+
+        // 按钮行 2：全部替换 / 取消
+        var row2 = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
+        var allBtn = new TuiButton("全部替换") { Flex = 1 };
+        var cancelBtn = new TuiButton("取消 (Esc)") { Flex = 1 };
+        allBtn.OnClick = _ => { onReplaceAll(findInput.Text, replInput.Text, CurrentOpts()); win.OnClosed?.Invoke(); };
+        cancelBtn.OnClick = _ => win.OnClosed?.Invoke();
+        row2.Add(allBtn); row2.Add(cancelBtn);
+        ApplyButtonGradient(TuiTheme.Current.BtnGreenCyan, allBtn);
+        ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, cancelBtn);
+        vbox.Add(row2);
+
+        win.RootView = vbox;
+        ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
+
+        // 输入框回车 = 查找下一处 / 替换；F3 = 查找下一处；Esc = 关闭
+        findInput.OnSubmit = _ => { onFindNext(findInput.Text, CurrentOpts()); win.OnClosed?.Invoke(); };
+        replInput.OnSubmit = _ => { onReplace(findInput.Text, replInput.Text, CurrentOpts()); win.OnClosed?.Invoke(); };
+        win.RegisterShortcut(ConsoleKey.F3, () => { onFindNext(findInput.Text, CurrentOpts()); win.OnClosed?.Invoke(); });
+        win.RegisterShortcut(ConsoleKey.Escape, () => win.OnClosed?.Invoke());
         return win;
     }
 

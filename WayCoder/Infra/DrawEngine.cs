@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 
 namespace WayCoder.Infra;
@@ -183,7 +183,11 @@ public static class DrawTokenizer
                 var sb = new StringBuilder();
                 while (i < n && line[i] != '"')
                 {
-                    if (line[i] == '\\' && i + 1 < n) i++; // 简单转义：\" 等
+                    if (line[i] == '\\' && i + 1 < n)
+                    {
+                        var nxt = line[i + 1];
+                        if (nxt == '"' || nxt == '\\') i++; // 仅 \" 与 \\ 转义，其余反斜杠（如 Windows 路径）原样保留
+                    }
                     sb.Append(line[i]);
                     i++;
                 }

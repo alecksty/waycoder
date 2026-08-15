@@ -40,8 +40,8 @@ public static class TuiChatInput
         _suggestIdx = 0;
 
         // 保存光标位置，后续每次渲染从这里开始清除+重绘
-        Console.WriteLine();
-        Console.Write("[s"); // ANSI 保存光标位置
+        Tty.WriteLine();
+        Tty.SaveCursor();
 
         try
         {
@@ -66,7 +66,7 @@ public static class TuiChatInput
 
                 RenderAll(lines, cy, cx, scrScroll, tw, contentW, vh, scrLines, suggestH);
 
-                var key = Console.ReadKey(intercept: true);
+                var key = Tty.ReadKey();
                 bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
                 bool shift = key.Modifiers.HasFlag(ConsoleModifiers.Shift);
 
@@ -117,20 +117,22 @@ public static class TuiChatInput
                     key, ctrl, shift);
                 if (key.Key == ConsoleKey.Enter && !ctrl && !shift)
                 {
-                    Console.Write("[u[J"); // 恢复+清除输入区
-                    Console.WriteLine();
+                    Tty.RestoreCursor();
+                    Tty.Write(AnsiTty.ClearToEndScreen); // 恢复+清除输入区
+                    Tty.WriteLine();
                     return JoinLines(lines);
                 }
                 if (key.Key == ConsoleKey.Escape)
                 {
-                    Console.Write("[u[J"); // 恢复+清除输入区
+                    Tty.RestoreCursor();
+                    Tty.Write(AnsiTty.ClearToEndScreen); // 恢复+清除输入区
                     return null;
                 }
             }
         }
         finally
         {
-            Console.CursorVisible = true;
+            Tty.ShowCursor();
         }
     }
 
@@ -409,11 +411,12 @@ public static class TuiChatInput
         if (clip.Length > 500 || pasteLines.Length > 3)
         {
             var preview = clip.Length > 200 ? clip[..200] + "..." : clip;
-            Console.Write($"\x1b[u\x1b[J"); // restore + clear
-            Console.Write($"粘贴 {pasteLines.Length} 行 / {clip.Length} 字符? ");
-            Console.WriteLine(preview);
-            Console.Write("[Y] 确认粘贴  [N] 取消 ");
-            var confirm = Console.ReadKey(intercept: true);
+            Tty.RestoreCursor();
+            Tty.Write(AnsiTty.ClearToEndScreen); // restore + clear
+            Tty.Write($"粘贴 {pasteLines.Length} 行 / {clip.Length} 字符? ");
+            Tty.WriteLine(preview);
+            Tty.Write("[Y] 确认粘贴  [N] 取消 ");
+            var confirm = Tty.ReadKey();
             if (char.ToUpperInvariant(confirm.KeyChar) != 'Y') return;
         }
 
@@ -433,11 +436,12 @@ public static class TuiChatInput
         int scrScroll, int tw, int contentW, int vh,
         List<ScreenLine> scrLines, int suggestH)
     {
-        Console.CursorVisible = false;
+        Tty.HideCursor();
         var sb = new StringBuilder();
 
         // 恢复保存的光标位置 + 清除到底，防止旧帧累积
-        sb.Append("[u[J");
+        sb.Append(AnsiTty.CursorRestore);
+        sb.Append(AnsiTty.ClearToEndScreen);
 
         // ---- 建议面板 ----
         if (_mode == Mode.Suggest && suggestH > 0)
@@ -448,13 +452,19 @@ public static class TuiChatInput
         // ---- 输入区 ----
 
         // 顶线
-        sb.Append($"[2m╭{new string('─', Math.Max(0, tw - 2))}╮[0m\r\n");
+        sb.Append(AnsiTty.SgrDim);
+        sb.Append($"╭{new string('─', Math.Max(0, tw - 2))}╮");
+        sb.Append(AnsiTty.SgrReset);
+        sb.Append("\r\n");
 
         // 内容区
         for (int i = 0; i < vh; i++)
         {
             var si = scrScroll + i;
-            sb.Append("[2m│[0m ");
+            sb.Append(AnsiTty.SgrDim);
+            sb.Append('│');
+            sb.Append(AnsiTty.SgrReset);
+            sb.Append(' ');
             if (si < scrLines.Count)
             {
                 var sl = scrLines[si];
@@ -470,11 +480,18 @@ public static class TuiChatInput
                 else sb.Append(new string(' ', contentW));
             }
             else sb.Append(new string(' ', contentW));
-            sb.Append(" [2m│[0m\r\n");
+            sb.Append(' ');
+            sb.Append(AnsiTty.SgrDim);
+            sb.Append('│');
+            sb.Append(AnsiTty.SgrReset);
+            sb.Append("\r\n");
         }
 
         // 底线
-        sb.Append($"[2m╰{new string('─', Math.Max(0, tw - 2))}╯[0m\r\n");
+        sb.Append(AnsiTty.SgrDim);
+        sb.Append($"╰{new string('─', Math.Max(0, tw - 2))}╯");
+        sb.Append(AnsiTty.SgrReset);
+        sb.Append("\r\n");
 
         // 状态栏
         var hardCount = hardLines.Count;
@@ -484,18 +501,24 @@ public static class TuiChatInput
         var status = $" {modeLabel}  L{cy + 1}:C{cx + 1}  {chCount}字符  Enter发送 Ctrl+Enter换行 Esc取消";
         var statusMax = tw - 4;
         if (status.Length > statusMax) status = status[..statusMax];
-        sb.Append($"[2m│ {status}{new string(' ', Math.Max(0, statusMax - status.Length + 1))}│[0m");
+        sb.Append(AnsiTty.SgrDim);
+        sb.Append($"│ {status}{new string(' ', Math.Max(0, statusMax - status.Length + 1))}│");
+        sb.Append(AnsiTty.SgrReset);
 
         // 光标
         var (scrCy, scrCx) = HardToScreen(hardLines, cy, cx, contentW);
         // 光标行 = 建议面板行数 + 顶线(1) + 内容偏移 + 1-based
         // 光标：相对定位（比绝对定位更可靠，不受建议面板 CJK 宽度影响）
-      var linesUp = vh + 1 - (scrCy - scrScroll);
+        var linesUp = vh + 1 - (scrCy - scrScroll);
         var cursorCol = 2 + scrCx + 1;
         cursorCol = Math.Clamp(cursorCol, 2, tw - 2);
-        sb.Append($"\r[{linesUp}A\r[{cursorCol}C[?25h");
+        sb.Append('\r');
+        sb.Append(AnsiTty.CursorUp(linesUp));
+        sb.Append('\r');
+        sb.Append(AnsiTty.CursorForward(cursorCol));
+        sb.Append(AnsiTty.CursorShow);
 
-        Console.Write(sb.ToString());
+        Tty.Write(sb.ToString());
     }
 
     private static void RenderSuggestions(StringBuilder sb, int tw, int h)
@@ -505,11 +528,17 @@ public static class TuiChatInput
         var title = trigger switch { '/' => "命令", '#' => "文件", '!' => "Shell", _ => "建议" };
         var hint = " ↑↓选择 Tab/Enter确认 Esc取消";
         var titleVW = 3 + VW(title) + VW(hint) + 1;
-        sb.Append($"[36m╭─ {title}{hint} {new string('─', Math.Max(0, tw - titleVW - 1))}╮[0m\r\n");
+        sb.Append(AnsiTty.FgCode(TuiColors.Cyan));
+        sb.Append($"╭─ {title}{hint} {new string('─', Math.Max(0, tw - titleVW - 1))}╮");
+        sb.Append(AnsiTty.SgrReset);
+        sb.Append("\r\n");
 
         for (int i = 0; i < h; i++)
         {
-            sb.Append("[36m│[0m ");
+            sb.Append(AnsiTty.FgCode(TuiColors.Cyan));
+            sb.Append('│');
+            sb.Append(AnsiTty.SgrReset);
+            sb.Append(' ');
             if (i < _suggestions.Count)
             {
                 var text = _suggestions[i];
@@ -525,7 +554,11 @@ public static class TuiChatInput
                 var isSel = i == _suggestIdx;
                 var fill = Math.Max(0, tw - 4 - VW(text) - 2);
                 if (isSel)
-                    sb.Append($"[30;46m {text} {new string(' ', fill)}[0m");
+                {
+                    sb.Append(AnsiTty.FgBgCode(TuiColors.Black, TuiColors.BgCyan));
+                    sb.Append($" {text} {new string(' ', fill)}");
+                    sb.Append(AnsiTty.SgrReset);
+                }
                 else
                     sb.Append($" {text} {new string(' ', fill)}");
             }
@@ -533,11 +566,17 @@ public static class TuiChatInput
             {
                 sb.Append(new string(' ', tw - 4));
             }
-            sb.Append(" [36m│[0m\r\n");
+            sb.Append(' ');
+            sb.Append(AnsiTty.FgCode(TuiColors.Cyan));
+            sb.Append('│');
+            sb.Append(AnsiTty.SgrReset);
+            sb.Append("\r\n");
         }
 
         // 底线
-        sb.Append($"[36m╰{new string('─', Math.Max(0, tw - 2))}╯[0m");
+        sb.Append(AnsiTty.FgCode(TuiColors.Cyan));
+        sb.Append($"╰{new string('─', Math.Max(0, tw - 2))}╯");
+        sb.Append(AnsiTty.SgrReset);
     }
 
     // ================================================================

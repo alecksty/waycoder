@@ -3,8 +3,12 @@ using WayCoder.Terminal;
 namespace WayCoder.UI.TuiControls;
 
 /// <summary>
-/// 快捷键速查面板 —— 全屏帮助，类似 CommandPalette 风格。
-/// 按 Ctrl+H 或 F1 打开，Esc 关闭，↑↓ 滚动浏览。
+/// 快捷键速查面板 —— 居中带边框帮助窗口。
+/// 按 Ctrl+H 或 F1 打开，Esc / Q 关闭，↑↓ 滚动浏览。
+///
+/// 实现：TuiWindow（模态）+ TuiVBox + TuiListView（分类头 + 键位行，聚焦滚动）
+///       + TuiLabel（底部提示），走 UxHelper.RenderWait 阻塞 → 事件桥接，
+///       不再自造 Console.ReadKey 循环，也不再用裸 ANSI 转义手绘全屏。
 /// </summary>
 public static class TuiKeybindHelp
 {
@@ -51,127 +55,94 @@ public static class TuiKeybindHelp
         ]),
     ];
 
-    private static int _scrollOffset;
-    private static int _totalLines;
-    private static int _visibleRows;
+    private const int MinW = 52, MaxW = 84;
+    private const int KeyW = 20;  // 键名列显示宽度
+    private const int ListH = 16; // 列表可见行数
 
     /// <summary>
     /// 显示快捷键速查面板。返回 true 表示面板正常关闭。
     /// </summary>
     public static bool Show()
     {
+        using var evt = new ManualResetEventSlim(false);
         try
         {
-            _scrollOffset = 0;
-            var (tw, th) = (Tty.Cols, Tty.Rows);
-            _visibleRows = th - 4;
-
-            while (true)
-            {
-                Render(tw, th);
-
-                if (!Console.KeyAvailable)
-                {
-                    Thread.Sleep(30);
-                    continue;
-                }
-
-                var key = Console.ReadKey(intercept: true);
-
-                if (key.Key == ConsoleKey.Escape || key.Key == ConsoleKey.Q ||
-                    (key.Modifiers == ConsoleModifiers.Control && key.Key == ConsoleKey.H))
-                    break;
-                if (key.Key == ConsoleKey.DownArrow)
-                    _scrollOffset = Math.Min(_scrollOffset + 1, Math.Max(0, _totalLines - _visibleRows));
-                if (key.Key == ConsoleKey.UpArrow)
-                    _scrollOffset = Math.Max(0, _scrollOffset - 1);
-                if (key.Key == ConsoleKey.PageDown)
-                    _scrollOffset = Math.Min(_scrollOffset + _visibleRows / 2, Math.Max(0, _totalLines - _visibleRows));
-                if (key.Key == ConsoleKey.PageUp)
-                    _scrollOffset = Math.Max(0, _scrollOffset - _visibleRows / 2);
-                if (key.Key == ConsoleKey.Home)
-                    _scrollOffset = 0;
-                if (key.Key == ConsoleKey.End)
-                    _scrollOffset = Math.Max(0, _totalLines - _visibleRows);
-            }
-            return true;
+            var screen = TuiManager.Instance?.ActiveScreen;
+            var win = BuildWindow(screen, () => evt.Set());
+            screen?.ShowWindow(win);
+            UxHelper.RenderWait(screen, evt, 30_000, win);
         }
-        catch { return false; }
+        catch { evt.Set(); }
+        return true;
     }
 
-    private static void Render(int tw, int th)
+    // ── 窗口构建 ──
+
+    private static TuiWindow BuildWindow(TuiScreen? screen, Action onDone)
     {
-        var sb = new System.Text.StringBuilder();
-        sb.Append(AnsiTty.CursorHide).Append(AnsiTty.Home);
+        int winW = Math.Clamp(Tty.Cols - 2, MinW, MaxW);
+        int winH = Math.Min(Tty.Rows - 2, ListH + 3);
+        int listH = Math.Max(5, winH - 3);
 
-        // 标题栏
-        var title = "⌨ 快捷键速查  (Esc 关闭, ↑↓ 滚动)";
-        var titleBg = AnsiTty.Bg(46);
-        sb.Append(AnsiTty.Fg(30)).Append(titleBg)
-          .Append($"  {title}")
-          .Append(new string(' ', Math.Max(0, tw - VW(title) - 2)))
-          .Append(AnsiTty.SgrReset).Append('\n');
+        var win = new TuiWindow
+        {
+            Title = "⌨ 快捷键速查",
+            ShowTitleSeparator = false,
+            Modal = true, HasMask = true,
+            Border = WindowBorder.Solid,
+            BorderColor = TuiTheme.Current.DialogInfoBorder,
+            WinBg = TuiTheme.Current.WindowBg,
+            Width = winW, Height = winH,
+            MinWidth = MinW, MinHeight = 8,
+            WindowHAlign = HAlign.Center,
+            WindowVAlign = VAlign.Middle,
+        };
+        var g = TuiTheme.Current.GradCyanBlue;
+        win.GradientBorder = true;
+        win.GradientStart = g.start;
+        win.GradientEnd = g.end;
 
-        // 构建全部行
-        var allLines = new List<(string text, bool isHeader)>();
+        // 列表（分类头 + 键位行，聚焦后 ↑↓ 滚动）
+        var list = new TuiListView { Height = listH, IsAutoScrollToEnd = false, Focused = true };
         foreach (var (cat, bindings) in Groups)
         {
-            allLines.Add((cat, true));
+            list.AddItem(new TuiLabel("─ " + cat + " ─") { Height = 1, Fg = TuiColors.Cyan });
             foreach (var (key, desc) in bindings)
-                allLines.Add(($"  {key.PadRight(20)} → {desc}", false));
+                list.AddItem(new TuiLabel("  " + PadKey(key, KeyW) + "  " + desc) { Height = 1, Fg = TuiColors.White });
         }
-        _totalLines = allLines.Count;
 
-        // 内容区
-        int contentTop = 2;
-        int contentH = th - 3;
-        _visibleRows = contentH;
-
-        for (int i = 0; i < contentH; i++)
+        // 底部提示行
+        var hint = new TuiLabel
         {
-            int li = _scrollOffset + i;
-            sb.Append(AnsiTty.CursorPos(contentTop + i, 1)).Append(AnsiTty.ClearToEnd);
+            Height = 1,
+            Fg = TuiColors.BrightBlack,
+            Text = "↑↓ 滚动  PgUp/PgDn 翻页  Home/End 首尾  Esc / Q 关闭",
+        };
 
-            if (li >= allLines.Count) continue;
-            var (text, isHeader) = allLines[li];
+        var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
+        vbox.Add(list);
+        vbox.Add(hint);
+        win.RootView = vbox;
 
-            if (isHeader)
-            {
-                sb.Append(AnsiTty.FgBg(30, 47)).Append(text)
-                  .Append(new string(' ', Math.Max(0, tw - VW(text) - 1)))
-                  .Append(AnsiTty.SgrReset);
-            }
-            else
-            {
-                // 高亮键名列
-                var arrowIdx = text.IndexOf(" → ");
-                if (arrowIdx > 0)
-                {
-                    var keyPart = text[..arrowIdx].Trim();
-                    var descPart = text[(arrowIdx + 3)..];
-                    sb.Append(AnsiTty.Fg(36)).Append(keyPart)
-                      .Append(AnsiTty.SgrDim).Append(" → ")
-                      .Append(AnsiTty.Fg(37)).Append(descPart)
-                      .Append(AnsiTty.SgrReset);
-                }
-                else
-                {
-                    sb.Append(text);
-                }
-            }
-        }
-
-        // 滚动指示
-        if (_totalLines > _visibleRows)
+        void Close()
         {
-            var pct = _totalLines > 0 ? (double)_scrollOffset / (_totalLines - _visibleRows) * 100 : 0;
-            sb.Append(AnsiTty.CursorPos(th, 1))
-              .Append(AnsiTty.SgrDim).Append($"  {pct:F0}% | {_scrollOffset + 1}-{Math.Min(_scrollOffset + _visibleRows, _totalLines)}/{_totalLines}")
-              .Append(AnsiTty.SgrReset);
+            onDone();
+            win.OnClosed?.Invoke();
         }
 
-        Console.Out.Write(sb.ToString());
+        win.RegisterShortcut(ConsoleKey.Escape, Close);
+        win.RegisterShortcut(ConsoleKey.Q, Close);
+        win.RegisterShortcut(ConsoleKey.H, Close); // Ctrl+H 再按一次关闭
+
+        return win;
     }
 
-    private static int VW(string s) => TuiHelper.DisplayWidth(s);
+    // ── 工具 ──
+
+    /// <summary>键名按显示宽度补齐到固定列宽（CJK 键名正确对齐）。</summary>
+    private static string PadKey(string key, int width)
+    {
+        int w = TuiHelper.DisplayWidth(key);
+        return w >= width ? key : key + new string(' ', width - w);
+    }
 }

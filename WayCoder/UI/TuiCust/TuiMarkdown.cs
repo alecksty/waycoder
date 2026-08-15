@@ -36,7 +36,7 @@ public static class TuiMarkdown
         }
 
         // 纯文本模式 + ANSI 内容：按行原样渲染，不做 Markdown 解析
-        if (plainText || content.Contains('\x1b'))
+        if (plainText || content.Contains(AnsiTty.AnsiCharPrefix))
         {
             int defaultFg = FgForRole(role);
             foreach (var rawLine in content.Split('\n'))
@@ -58,7 +58,8 @@ public static class TuiMarkdown
 
         // 如果第一个节点是纯段落且没有特殊格式，回退到简单渲染
         if (nodes.Count == 1 && nodes[0] is MdParagraph p &&
-            !p.Text.Contains('*') && !p.Text.Contains('`') && !p.Text.Contains('#'))
+            !p.Text.Contains('*') && !p.Text.Contains('`') && !p.Text.Contains('#') &&
+            !p.Text.Contains('\xAB'))
         {
             result.Add(new List<(string, int, int)> { (p.Text, FgForRole(role), 0) });
             return result;
@@ -82,13 +83,16 @@ public static class TuiMarkdown
                     RenderListItem(li, result, maxWidth, FgForRole(role));
                     break;
                 case MdRule:
-                    result.Add(new List<(string, int, int)> { (new string('━', Math.Min(maxWidth, 60)), 2, 0) });
+                    result.Add(new List<(string, int, int)> { (new string('━', Math.Min(maxWidth, 60)), TuiTheme.Current.MdRuleFg, 0) });
                     break;
                 case MdBlockQuote bq:
                     RenderBlockQuote(bq, result, maxWidth, FgForRole(role));
                     break;
                 case MdParagraph para:
                     RenderParagraph(para, result, maxWidth, FgForRole(role));
+                    break;
+                case MdMarkup mk:
+                    RenderMarkup(mk, result, maxWidth);
                     break;
             }
             // 消息内部节点间不加空行（消息间空行由 TuiListView.ItemSpacing 统一控制）
@@ -106,8 +110,8 @@ public static class TuiMarkdown
         List<List<(string, int, int)>> result, int maxWidth)
     {
         var prefix = new string('#', h.Level) + " ";
-        var color = h.Level <= 2 ? 97 : 37;  // H1-H2 亮白，H3-H4 白
-        var line = new List<(string, int, int)> { (prefix, 33, 0), (h.Text, color, 0) };
+        var color = h.Level <= 2 ? TuiTheme.Current.MdH1H2Fg : TuiColors.White;  // H1-H2 亮白，H3+ 白
+        var line = new List<(string, int, int)> { (prefix, TuiTheme.Current.MdHeadingFg, 0), (h.Text, color, 0) };
         result.Add(line);
     }
 
@@ -120,14 +124,14 @@ public static class TuiMarkdown
         // 顶部边框：语言标签
         var langLabel = string.IsNullOrEmpty(cb.Language) ? " code " : $" {cb.Language} ";
         var topBorder = "┌" + langLabel + new string('─', Math.Max(0, Math.Min(maxWidth, 60) - langLabel.Length - 2)) + "┐";
-        result.Add(new List<(string, int, int)> { (topBorder, 2, 0) });
+        result.Add(new List<(string, int, int)> { (topBorder, TuiTheme.Current.CodeBlockBorderFg, 0) });
 
         int lineNum = 1;
         foreach (var rawLine in codeLines)
         {
             var line = new List<(string, int, int)>();
             // 行号
-            line.Add(($" {lineNum,3} ", 2, 0));
+            line.Add(($" {lineNum,3} ", TuiTheme.Current.CodeBlockBorderFg, 0));
 
             if (string.IsNullOrEmpty(rawLine))
             {
@@ -146,7 +150,7 @@ public static class TuiMarkdown
         }
 
         // 底部边框
-        result.Add(new List<(string, int, int)> { (new string('─', Math.Min(maxWidth, 60)), 2, 0) });
+        result.Add(new List<(string, int, int)> { (new string('─', Math.Min(maxWidth, 60)), TuiTheme.Current.CodeBlockBorderFg, 0) });
     }
 
     private static void RenderTable(MdTable t,
@@ -188,9 +192,9 @@ public static class TuiMarkdown
         var bot = "└" + string.Join("┴", colWidths.Select(w => new string('─', w))) + "┘";
 
         // 渲染表头
-        result.Add(new List<(string, int, int)> { (top, 2, 0) });
+        result.Add(new List<(string, int, int)> { (top, TuiTheme.Current.MdTableBorderFg, 0) });
         result.Add(BuildRow(t.Headers, colWidths, isHeader: true));
-        result.Add(new List<(string, int, int)> { (sep, 2, 0) });
+        result.Add(new List<(string, int, int)> { (sep, TuiTheme.Current.MdTableBorderFg, 0) });
 
         // 渲染数据行
         foreach (var row in t.Rows)
@@ -200,14 +204,14 @@ public static class TuiMarkdown
                 cells.Add(c < row.Count ? row[c] : "");
             result.Add(BuildRow(cells, colWidths, isHeader: false));
         }
-        result.Add(new List<(string, int, int)> { (bot, 2, 0) });
+        result.Add(new List<(string, int, int)> { (bot, TuiTheme.Current.MdTableBorderFg, 0) });
     }
 
     private static List<(string, int, int)> BuildRow(List<string> cells,
         int[] widths, bool isHeader)
     {
         var line = new List<(string, int, int)>();
-        line.Add(("│", 2, 0));
+        line.Add(("│", TuiTheme.Current.MdTableBorderFg, 0));
         int defaultFg = isHeader ? 1 : 0;
 
         for (int c = 0; c < widths.Length; c++)
@@ -242,7 +246,7 @@ public static class TuiMarkdown
             if (padRight > 0)
                 line.Add((new string(' ', padRight), defaultFg, 0));
 
-            line.Add(("│", 2, 0));
+            line.Add(("│", TuiTheme.Current.MdTableBorderFg, 0));
         }
         return line;
     }
@@ -257,13 +261,13 @@ public static class TuiMarkdown
         {
             // 任务清单：☑ 已完成（绿） / ☐ 未完成（弱化）
             var box = li.Checked.Value ? "☑" : "☐";
-            var boxColor = li.Checked.Value ? 32 : 2;
+            var boxColor = li.Checked.Value ? TuiColors.Green : 2;
             line.Add(($"{indent}  {box} ", boxColor, 0));
         }
         else
         {
             var bullet = li.Ordered ? $"{li.OrderNum}." : "•";
-            line.Add(($"{indent}  {bullet} ", 33, 0));
+            line.Add(($"{indent}  {bullet} ", TuiTheme.Current.MdListBulletFg, 0));
         }
 
         foreach (var seg in MarkdownParser.ParseInline(li.Text, defaultFg))
@@ -277,7 +281,7 @@ public static class TuiMarkdown
         foreach (var rawLine in bq.Text.Split('\n'))
         {
             var line = new List<(string, int, int)>();
-            line.Add(("│ ", 2, 0)); // 左侧竖线（弱化）
+            line.Add(("│ ", TuiTheme.Current.MdRuleFg, 0)); // 左侧竖线（弱化）
             foreach (var seg in MarkdownParser.ParseInline(rawLine, defaultFg))
                 line.Add(seg);
             result.Add(line);
@@ -302,6 +306,14 @@ public static class TuiMarkdown
             // 有内联格式
             result.Add(segments.ToList());
         }
+    }
+
+    private static void RenderMarkup(MdMarkup mk,
+        List<List<(string, int, int)>> result, int maxWidth)
+    {
+        // 逐行渲染块级 «tag»…«/» 内容，保留空行；每行以 mk.Style 为默认样式（内部仍可嵌套内联格式）
+        foreach (var rawLine in mk.Text.Split('\n'))
+            result.Add(MarkdownParser.ParseInline(rawLine, mk.Style, 0));
     }
 
     // ================================================================
@@ -386,13 +398,14 @@ public static class TuiMarkdown
         return false;
     }
 
-    /// <summary>获取角色对应的默认前景色</summary>
+    /// <summary>获取角色对应的默认前景色（对齐 TuiListItem，统一走 TuiTheme）</summary>
     private static int FgForRole(string role) => role switch
     {
-        "user" => 36,    // Cyan
-        "tool" => 2,     // Dim
-        "system" => 2,   // Dim
-        _ => 0,          // Default (agent)
+        "user" => TuiTheme.Current.ChatUserFg,
+        "assistant" => TuiTheme.Current.ChatAssistantFg,
+        "system" => TuiTheme.Current.ChatSystemFg,
+        "tool" => TuiTheme.Current.ChatToolFg,
+        _ => TuiTheme.Current.ControlFg,   // agent / 未知角色
     };
 
     /// <summary>按语言名获取 Syntax 实例（代码块高亮）</summary>
