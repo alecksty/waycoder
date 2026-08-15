@@ -1,3 +1,3 @@
 // 全局 using 指令
-global using System.Text.Json.Nodes;
+global using WayCoder.Infra;
 global using System.Runtime.InteropServices;

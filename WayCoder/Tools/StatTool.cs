@@ -11,19 +11,13 @@ public class StatTool : ITool
     public string Name => "stat";
     public string Description => "显示文件或目录的详细信息：大小、修改时间、创建时间、属性。纯 C# 实现。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "文件或目录路径",
-            },
-        },
-        ["required"] = new JsonArray("path"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "文件或目录路径")))
+        .Set("required", JNode.Array().Add("path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

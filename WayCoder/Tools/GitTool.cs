@@ -11,19 +11,13 @@ public class GitTool : ITool
     public string Name => "git";
     public string Description => "执行 Git 操作：status、log、diff、add、commit、branch、blame。自动检测仓库根目录。禁止 force push / hard reset。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["command"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "Git 子命令及参数，如 'status'、'log --oneline -10'、'diff HEAD~1'、'add src/'、'commit -m \"msg\"'",
-            },
-        },
-        ["required"] = new JsonArray("command"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("command", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "Git 子命令及参数，如 'status'、'log --oneline -10'、'diff HEAD~1'、'add src/'、'commit -m \"msg\"'")))
+        .Set("required", JNode.Array().Add("command"));
 
     private static readonly HashSet<string> BlockedPatterns =
         ["push --force", "push -f", "reset --hard", "clean -f", "clean -fd",

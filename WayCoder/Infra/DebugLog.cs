@@ -76,7 +76,7 @@ public static class DebugLog
     /// <summary>
     /// 记录发送给 LLM 的消息列表。
     /// </summary>
-    public static void LogRequest(List<JsonObject> messages, List<JsonObject> tools)
+    public static void LogRequest(List<JNode> messages, List<JNode> tools)
     {
         if (!Enabled) return;
 
@@ -91,8 +91,8 @@ public static class DebugLog
             for (int i = 0; i < messages.Count; i++)
             {
                 var m = messages[i];
-                var role = m["role"]?.GetValue<string>() ?? "?";
-                var content = m["content"]?.GetValue<string>() ?? "";
+                var role = m["role"]?.AsString() ?? "?";
+                var content = m["content"]?.AsString() ?? "";
 
                 if (role == "system")
                 {
@@ -111,7 +111,7 @@ public static class DebugLog
                 // 工具调用
                 if (m["tool_calls"] != null)
                 {
-                    var tcStr = m["tool_calls"]!.ToJsonString();
+                    var tcStr = m["tool_calls"]!.ToJson();
                     if (tcStr.Length > 1000)
                         sb.AppendLine($"  tool_calls: {tcStr[..1000]}...");
                     else
@@ -124,7 +124,7 @@ public static class DebugLog
             sb.AppendLine("Tools:");
             foreach (var t in tools)
             {
-                var name = t["function"]?["name"]?.GetValue<string>() ?? "?";
+                var name = t["function"]?["name"]?.AsString() ?? "?";
                 sb.AppendLine($"  - {name}");
             }
 

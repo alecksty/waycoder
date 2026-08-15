@@ -9,24 +9,16 @@ public class RmTool : ITool
     public string Name => "rm";
     public string Description => "删除文件或目录。支持递归删除。禁止删除系统关键路径（C:\\Windows、/etc 等）。纯 C# 实现。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要删除的文件或目录路径",
-            },
-            ["recursive"] = new JsonObject
-            {
-                ["type"] = "boolean",
-                ["description"] = "是否递归删除目录（默认 false）",
-            },
-        },
-        ["required"] = new JsonArray("path"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要删除的文件或目录路径"))
+            .Set("recursive", JNode.Object()
+                .Set("type", "boolean")
+                .Set("description", "是否递归删除目录（默认 false）")))
+        .Set("required", JNode.Array().Add("path"));
 
     // 系统关键路径（禁止删除）
     private static readonly HashSet<string> ProtectedPaths = new(StringComparer.OrdinalIgnoreCase)

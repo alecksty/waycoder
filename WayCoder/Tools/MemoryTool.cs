@@ -17,39 +17,25 @@ public class MemoryTool : ITool
         "write 时 name 为 kebab-case 标识，description 为一行摘要，" +
         "type 可选 user|feedback|project|reference，content 为正文。用于跨会话保留关键信息、项目约定、用户偏好等。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["action"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "操作: read | write | search | delete | share | unshare | sync",
-            },
-            ["name"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "记忆标识（kebab-case）。write 时创建/更新；read 时读取单条；delete 时删除",
-            },
-            ["description"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "一行摘要（write 时需要）",
-            },
-            ["type"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "记忆类型（write 时可选）: user | feedback | project | reference",
-            },
-            ["content"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "正文内容（write 时需要），或搜索关键词（search 时需要）",
-            },
-        },
-        ["required"] = new JsonArray("action"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("action", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "操作: read | write | search | delete | share | unshare | sync"))
+            .Set("name", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "记忆标识（kebab-case）。write 时创建/更新；read 时读取单条；delete 时删除"))
+            .Set("description", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "一行摘要（write 时需要）"))
+            .Set("type", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "记忆类型（write 时可选）: user | feedback | project | reference"))
+            .Set("content", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "正文内容（write 时需要），或搜索关键词（search 时需要）")))
+        .Set("required", JNode.Array().Add("action"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

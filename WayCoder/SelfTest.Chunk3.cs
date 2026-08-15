@@ -327,20 +327,20 @@ public static partial class SelfTest
         Section("[上下文管理 扩展]");
 
         // 第 2 层：LLM 摘要（验证方法签名不崩溃）
-        var manyMsgs = new List<JsonObject>();
+        var manyMsgs = new List<JNode>();
         for (int i = 0; i < 20; i++)
         {
-            manyMsgs.Add(new JsonObject { ["role"] = "user", ["content"] = $"msg {i}" });
-            manyMsgs.Add(new JsonObject { ["role"] = "assistant", ["content"] = $"reply {i}" });
+            manyMsgs.Add(JNode.Object().Set("role", "user").Set("content", $"msg {i}"));
+            manyMsgs.Add(JNode.Object().Set("role", "assistant").Set("content", $"reply {i}"));
         }
         var tokenBefore = ContextManager.EstimateTokens(manyMsgs);
         Check("多消息 Token 估算 > 0", tokenBefore > 0);
 
         // 第 3 层：硬折叠
-        var hardMsgs = new List<JsonObject>();
+        var hardMsgs = new List<JNode>();
         for (int i = 0; i < 50; i++)
         {
-            hardMsgs.Add(new JsonObject { ["role"] = i % 2 == 0 ? "user" : "assistant", ["content"] = $"line {i}" });
+            hardMsgs.Add(JNode.Object().Set("role", i % 2 == 0 ? "user" : "assistant").Set("content", $"line {i}"));
         }
         var hardBefore = hardMsgs.Count;
         // 模拟 90%~ 阈值压缩 — 保留最后 4 条 + 摘要
@@ -349,15 +349,15 @@ public static partial class SelfTest
         Check("硬折叠减少消息数", hardMsgs.Count < hardBefore);
 
         // SafeSplit 大规模消息
-        var splitMsgs = new List<JsonObject>();
+        var splitMsgs = new List<JNode>();
         for (int i = 0; i < 30; i++)
         {
-            splitMsgs.Add(new JsonObject { ["role"] = "user", ["content"] = $"msg{i}" });
+            splitMsgs.Add(JNode.Object().Set("role", "user").Set("content", $"msg{i}"));
         }
         var splitIdx = ContextManager.SafeSplit(splitMsgs, 5);
         Check("SafeSplit 返回有效索引", splitIdx > 0 && splitIdx < splitMsgs.Count);
         Check("SafeSplit 后部分不以 tool 开头",
-            (string?)splitMsgs[splitIdx]["role"] != "tool");
+            splitMsgs[splitIdx]["role"]?.AsString() != "tool");
 
         Console.WriteLine();
 
@@ -620,12 +620,11 @@ public static partial class SelfTest
 
         // ---- MCP ----
         Section("[MCP]");
-        var mcpTool = new McpTool("test-server", new JsonObject
-        {
-            ["name"] = "test_tool",
-            ["description"] = "测试 MCP 工具",
-            ["inputSchema"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() }
-        }, null!);
+        var mcpTool = new McpTool("test-server", JNode.Object()
+            .Set("name", "test_tool")
+            .Set("description", "测试 MCP 工具")
+            .Set("inputSchema", JNode.Object().Set("type", "object").Set("properties", JNode.Object()))
+        , null!);
         Check("MCP 工具名称格式", mcpTool.Name == "mcp__test-server__test_tool");
         Check("MCP 工具描述", mcpTool.Description == "测试 MCP 工具");
         Check("MCP 工具有 schema", ((ITool)mcpTool).Schema()["function"]?["name"] != null);

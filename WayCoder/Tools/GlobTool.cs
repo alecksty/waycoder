@@ -8,24 +8,16 @@ public class GlobTool : ITool
     public string Name => "glob";
     public string Description => "查找匹配 glob 模式的文件。支持 ** 进行递归匹配（如 '**/*.py'）。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["pattern"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "Glob 模式，如 '**/*.py' 或 'src/**/*.ts'",
-            },
-            ["path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "搜索目录（默认：当前工作目录）",
-            },
-        },
-        ["required"] = new JsonArray("pattern"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("pattern", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "Glob 模式，如 '**/*.py' 或 'src/**/*.ts'"))
+            .Set("path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "搜索目录（默认：当前工作目录）")))
+        .Set("required", JNode.Array().Add("pattern"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

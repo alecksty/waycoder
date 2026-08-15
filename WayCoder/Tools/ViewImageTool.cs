@@ -1,5 +1,3 @@
-using System.Text.Json.Nodes;
-
 namespace WayCoder.Tools;
 
 /// <summary>
@@ -16,24 +14,16 @@ public class ViewImageTool : ITool
         "配合 screenshot 工具：先 screenshot 抓屏得到 PNG 路径，再 view_image 该路径即可「看到」画面。" +
         "模型不支持 vision 时会返回提示并建议用 OCR/文本方式。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "图片文件路径（如 screenshot 返回的 PNG 路径）",
-            },
-            ["question"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "针对这张图想问的问题（默认「请描述这张图片的内容」）",
-            },
-        },
-        ["required"] = new JsonArray("path"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "图片文件路径（如 screenshot 返回的 PNG 路径）"))
+            .Set("question", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "针对这张图想问的问题（默认「请描述这张图片的内容」）")))
+        .Set("required", JNode.Array().Add("path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

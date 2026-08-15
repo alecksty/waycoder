@@ -54,15 +54,15 @@ public static class CheckpointManager
             try
             {
                 var json = File.ReadAllText(metaPath);
-                var data = JsonNode.Parse(json);
+                var data = Json.Parse(json);
                 if (data == null) continue;
 
                 var cp = new Checkpoint
                 {
-                    Id = data["id"]?.GetValue<int>() ?? 0,
-                    Description = data["description"]?.GetValue<string>() ?? "",
+                    Id = (int)(data["id"]?.AsNumber() ?? 0),
+                    Description = data["description"]?.AsString() ?? "",
                     Timestamp = DateTime.TryParse(
-                        data["timestamp"]?.GetValue<string>(), out var dt) ? dt : DateTime.MinValue,
+                        data["timestamp"]?.AsString(), out var dt) ? dt : DateTime.MinValue,
                     Type = CheckpointType.FileBackup
                 };
 
@@ -226,8 +226,8 @@ public static class CheckpointManager
                 if (!File.Exists(metaPath))
                     return $"检查点 #{target.Id} 元数据丢失";
 
-                var meta = JsonNode.Parse(File.ReadAllText(metaPath));
-                var files = meta!["files"]!.AsArray().Select(f => f!.GetValue<string>()).ToList();
+                var meta = Json.Parse(File.ReadAllText(metaPath));
+                var files = meta!["files"]!.Items.Select(f => f.AsString()).ToList();
 
                 // 按文件过滤：支持部分路径匹配
                 var toRestore = files;
@@ -305,8 +305,8 @@ public static class CheckpointManager
 
         try
         {
-            var meta = JsonNode.Parse(File.ReadAllText(metaPath));
-            return meta!["files"]!.AsArray().Select(f => f!.GetValue<string>()).ToList();
+            var meta = Json.Parse(File.ReadAllText(metaPath));
+            return meta!["files"]!.Items.Select(f => f.AsString()).ToList();
         }
         catch
         {

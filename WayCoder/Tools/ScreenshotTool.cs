@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Text;
-using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using WayCoder.UI;
 
@@ -30,45 +29,29 @@ public class ScreenshotTool : ITool
         "screen（抓取整个桌面保存 PNG 并尝试 OCR 文字）；region（抓取矩形区域，需 x/y/width/height 参数）。" +
         "GUI 抓屏结果会保存为 PNG 文件并尽力 OCR 成文字返回，因为模型无法直接看图片。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["target"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["enum"] = new JsonArray("console", "screen", "region"),
-                ["description"] = "抓取目标：console=终端画面纯文本（默认）；screen=整个桌面；region=指定区域",
-            },
-            ["x"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "region 模式：区域左上角 X 坐标（像素）",
-            },
-            ["y"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "region 模式：区域左上角 Y 坐标（像素）",
-            },
-            ["width"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "region 模式：区域宽度（像素）",
-            },
-            ["height"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "region 模式：区域高度（像素）",
-            },
-            ["save_path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "GUI 抓屏 PNG 的保存路径（默认 ~/.waycoder/screenshots/ 自动命名）",
-            },
-        },
-        ["required"] = new JsonArray(),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("target", JNode.Object()
+                .Set("type", "string")
+                .Set("enum", JNode.Array().Add("console").Add("screen").Add("region"))
+                .Set("description", "抓取目标：console=终端画面纯文本（默认）；screen=整个桌面；region=指定区域"))
+            .Set("x", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "region 模式：区域左上角 X 坐标（像素）"))
+            .Set("y", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "region 模式：区域左上角 Y 坐标（像素）"))
+            .Set("width", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "region 模式：区域宽度（像素）"))
+            .Set("height", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "region 模式：区域高度（像素）"))
+            .Set("save_path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "GUI 抓屏 PNG 的保存路径（默认 ~/.waycoder/screenshots/ 自动命名）")))
+        .Set("required", JNode.Array());
 
     // 完整 ANSI 转义序列匹配：CSI / OSC / 两字符转义
     internal static readonly Regex AnsiEscape = new(

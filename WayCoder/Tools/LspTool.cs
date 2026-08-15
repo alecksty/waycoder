@@ -13,39 +13,25 @@ public class LspTool : ITool
     public string Name => "lsp";
     public string Description => "代码智能导航：跳转定义(definition)、查找引用(references)、类型悬停(hover)、文档符号(symbols)。支持 C#/Python/JS/TS/Go/Rust/C/C++/Java/Kotlin/Ruby/PHP/Lua/Bash/Swift/Zig。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["action"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "操作: definition | references | hover | symbols",
-            },
-            ["file_path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "文件路径",
-            },
-            ["line"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "行号 (1-based)",
-            },
-            ["character"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "列号 (1-based)",
-            },
-            ["query"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "符号搜索关键词 (symbols 操作时用)",
-            },
-        },
-        ["required"] = new JsonArray("action", "file_path", "line", "character"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("action", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "操作: definition | references | hover | symbols"))
+            .Set("file_path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "文件路径"))
+            .Set("line", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "行号 (1-based)"))
+            .Set("character", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "列号 (1-based)"))
+            .Set("query", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "符号搜索关键词 (symbols 操作时用)")))
+        .Set("required", JNode.Array().Add("action").Add("file_path").Add("line").Add("character"));
 
     /// <summary>支持的语言服务器列表（供 UI 展示）</summary>
     public static IReadOnlyDictionary<string, (string Command, string[] Args)> SupportedServers => ServerConfigs;
@@ -185,11 +171,9 @@ public class LspTool : ITool
 
     private static async Task<string> GoToDefinition(Process proc, string file, int line, int ch)
     {
-        var req = BuildRequest("textDocument/definition", new JsonObject
-        {
-            ["textDocument"] = new JsonObject { ["uri"] = FileToUri(file) },
-            ["position"] = new JsonObject { ["line"] = line - 1, ["character"] = ch - 1 },
-        });
+        var req = BuildRequest("textDocument/definition", JNode.Object()
+            .Set("textDocument", JNode.Object().Set("uri", FileToUri(file)))
+            .Set("position", JNode.Object().Set("line", line - 1).Set("character", ch - 1)));
         await Initialize(proc, file);
         SendMessage(proc, req);
         var resp = await ReadResponse(proc);
@@ -198,12 +182,10 @@ public class LspTool : ITool
 
     private static async Task<string> FindReferences(Process proc, string file, int line, int ch)
     {
-        var req = BuildRequest("textDocument/references", new JsonObject
-        {
-            ["textDocument"] = new JsonObject { ["uri"] = FileToUri(file) },
-            ["position"] = new JsonObject { ["line"] = line - 1, ["character"] = ch - 1 },
-            ["context"] = new JsonObject { ["includeDeclaration"] = true },
-        });
+        var req = BuildRequest("textDocument/references", JNode.Object()
+            .Set("textDocument", JNode.Object().Set("uri", FileToUri(file)))
+            .Set("position", JNode.Object().Set("line", line - 1).Set("character", ch - 1))
+            .Set("context", JNode.Object().Set("includeDeclaration", true)));
         await Initialize(proc, file);
         SendMessage(proc, req);
         var resp = await ReadResponse(proc);
@@ -212,32 +194,28 @@ public class LspTool : ITool
 
     private static async Task<string> Hover(Process proc, string file, int line, int ch)
     {
-        var req = BuildRequest("textDocument/hover", new JsonObject
-        {
-            ["textDocument"] = new JsonObject { ["uri"] = FileToUri(file) },
-            ["position"] = new JsonObject { ["line"] = line - 1, ["character"] = ch - 1 },
-        });
+        var req = BuildRequest("textDocument/hover", JNode.Object()
+            .Set("textDocument", JNode.Object().Set("uri", FileToUri(file)))
+            .Set("position", JNode.Object().Set("line", line - 1).Set("character", ch - 1)));
         await Initialize(proc, file);
         SendMessage(proc, req);
         var resp = await ReadResponse(proc);
-        if (resp?["result"]?["contents"]?["value"]?.GetValue<string>() is { } text)
+        if (resp?["result"]?["contents"]?["value"]?.AsString() is { } text)
             return text;
-        if (resp?["result"]?.GetValue<string>() is { } str)
+        if (resp?["result"]?.AsString() is { } str)
             return str;
         return "（无类型信息）";
     }
 
     private static async Task<string> DocumentSymbols(Process proc, string file, string query)
     {
-        var req = BuildRequest("textDocument/documentSymbol", new JsonObject
-        {
-            ["textDocument"] = new JsonObject { ["uri"] = FileToUri(file) },
-        });
+        var req = BuildRequest("textDocument/documentSymbol", JNode.Object()
+            .Set("textDocument", JNode.Object().Set("uri", FileToUri(file))));
         await Initialize(proc, file);
         SendMessage(proc, req);
         var resp = await ReadResponse(proc);
 
-        var symbols = resp?["result"]?.AsArray();
+        var symbols = resp?["result"];
         if (symbols == null || symbols.Count == 0) return "（无符号）";
 
         var lines = new List<string>();
@@ -248,53 +226,43 @@ public class LspTool : ITool
     // ---- LSP 协议辅助 ----
 
     private static int _msgId;
-    private static string BuildRequest(string method, JsonObject @params)
+    private static string BuildRequest(string method, JNode @params)
     {
         var id = Interlocked.Increment(ref _msgId);
-        var msg = new JsonObject
-        {
-            ["jsonrpc"] = "2.0",
-            ["id"] = id,
-            ["method"] = method,
-            ["params"] = @params,
-        };
-        return $"Content-Length: {Encoding.UTF8.GetByteCount(msg.ToJsonString())}\r\n\r\n{msg.ToJsonString()}";
+        var msg = JNode.Object()
+            .Set("jsonrpc", "2.0")
+            .Set("id", id)
+            .Set("method", method)
+            .Set("params", @params);
+        return $"Content-Length: {Encoding.UTF8.GetByteCount(msg.ToJson())}\r\n\r\n{msg.ToJson()}";
     }
 
     private static async Task Initialize(Process proc, string rootFile)
     {
         var root = Path.GetDirectoryName(rootFile) ?? ".";
-        var initReq = BuildRequest("initialize", new JsonObject
-        {
-            ["processId"] = Environment.ProcessId,
-            ["rootUri"] = FileToUri(root),
-            ["capabilities"] = new JsonObject(),
-        });
+        var initReq = BuildRequest("initialize", JNode.Object()
+            .Set("processId", Environment.ProcessId)
+            .Set("rootUri", FileToUri(root))
+            .Set("capabilities", JNode.Object()));
         SendMessage(proc, initReq);
         await ReadResponse(proc);
         // 发送 initialized 通知
-        var notif = new JsonObject { ["jsonrpc"] = "2.0", ["method"] = "initialized", ["params"] = new JsonObject() };
-        var notifStr = $"Content-Length: {Encoding.UTF8.GetByteCount(notif.ToJsonString())}\r\n\r\n{notif.ToJsonString()}";
+        var notif = JNode.Object().Set("jsonrpc", "2.0").Set("method", "initialized").Set("params", JNode.Object());
+        var notifStr = $"Content-Length: {Encoding.UTF8.GetByteCount(notif.ToJson())}\r\n\r\n{notif.ToJson()}";
         SendMessage(proc, notifStr);
         await ReadResponse(proc);
 
         // 打开文档
-        var didOpen = new JsonObject
-        {
-            ["jsonrpc"] = "2.0",
-            ["method"] = "textDocument/didOpen",
-            ["params"] = new JsonObject
-            {
-                ["textDocument"] = new JsonObject
-                {
-                    ["uri"] = FileToUri(rootFile),
-                    ["languageId"] = GetLanguageId(rootFile),
-                    ["version"] = 1,
-                    ["text"] = File.ReadAllText(rootFile),
-                },
-            },
-        };
-        var openStr = $"Content-Length: {Encoding.UTF8.GetByteCount(didOpen.ToJsonString())}\r\n\r\n{didOpen.ToJsonString()}";
+        var didOpen = JNode.Object()
+            .Set("jsonrpc", "2.0")
+            .Set("method", "textDocument/didOpen")
+            .Set("params", JNode.Object()
+                .Set("textDocument", JNode.Object()
+                    .Set("uri", FileToUri(rootFile))
+                    .Set("languageId", GetLanguageId(rootFile))
+                    .Set("version", 1)
+                    .Set("text", File.ReadAllText(rootFile))));
+        var openStr = $"Content-Length: {Encoding.UTF8.GetByteCount(didOpen.ToJson())}\r\n\r\n{didOpen.ToJson()}";
         SendMessage(proc, openStr);
         await ReadResponse(proc);
     }
@@ -305,7 +273,7 @@ public class LspTool : ITool
         catch { /* 忽略写入错误 */ }
     }
 
-    private static async Task<JsonNode?> ReadResponse(Process proc)
+    private static async Task<JNode?> ReadResponse(Process proc)
     {
         try
         {
@@ -325,7 +293,7 @@ public class LspTool : ITool
 
             var buffer = new char[len];
             var read = await proc.StandardOutput.ReadBlockAsync(buffer, 0, len);
-            return JsonNode.Parse(new string(buffer, 0, read));
+            return Json.Parse(new string(buffer, 0, read));
         }
         catch { return null; }
     }
@@ -359,52 +327,52 @@ public class LspTool : ITool
         };
     }
 
-    private static string FormatLocationResult(JsonNode? resp, string label)
+    private static string FormatLocationResult(JNode? resp, string label)
     {
         var result = resp?["result"];
         if (result == null) return $"（无{label}）";
 
-        if (result is JsonArray arr)
+        if (result.Kind == JKind.Array)
         {
-            var lines = new List<string> { $"{label} ({arr.Count} 处):" };
-            foreach (var loc in arr.Take(20))
+            var lines = new List<string> { $"{label} ({result.Count} 处):" };
+            foreach (var loc in result.Items.Take(20))
             {
-                var uri = loc?["uri"]?.GetValue<string>() ?? "?";
-                var range = loc?["range"];
-                var startLine = (int?)range?["start"]?["line"] ?? 0;
-                var startCh = (int?)range?["start"]?["character"] ?? 0;
+                var uri = loc["uri"]?.AsString() ?? "?";
+                var range = loc["range"];
+                var startLine = (int)(range?["start"]?["line"]?.AsNumber() ?? 0);
+                var startCh = (int)(range?["start"]?["character"]?.AsNumber() ?? 0);
                 lines.Add($"  {UriToPath(uri)}:{startLine + 1}:{startCh + 1}");
             }
-            if (arr.Count > 20) lines.Add($"  ... 还有 {arr.Count - 20} 处");
+            if (result.Count > 20) lines.Add($"  ... 还有 {result.Count - 20} 处");
             return string.Join("\n", lines);
         }
 
-        if (result is JsonObject obj && obj["uri"] != null)
+        if (result.Kind == JKind.Object && result["uri"] != null)
         {
-            var uri = obj["uri"]?.GetValue<string>() ?? "?";
-            var range = obj["range"];
-            var sl = (int?)range?["start"]?["line"] ?? 0;
-            var sc = (int?)range?["start"]?["character"] ?? 0;
+            var uri = result["uri"]?.AsString() ?? "?";
+            var range = result["range"];
+            var sl = (int)(range?["start"]?["line"]?.AsNumber() ?? 0);
+            var sc = (int)(range?["start"]?["character"]?.AsNumber() ?? 0);
             return $"{label}: {UriToPath(uri)}:{sl + 1}:{sc + 1}";
         }
 
         return $"（{label}结果格式未知）";
     }
 
-    private static void FormatSymbols(JsonArray symbols, List<string> lines, int depth, string filter)
+    private static void FormatSymbols(JNode symbols, List<string> lines, int depth, string filter)
     {
-        foreach (var s in symbols)
+        foreach (var s in symbols.Items)
         {
             if (s == null) continue;
-            var name = s["name"]?.GetValue<string>() ?? "?";
-            var kind = (int?)s["kind"] ?? 0;
+            var name = s["name"]?.AsString() ?? "?";
+            var kind = (int)(s["kind"]?.AsNumber() ?? 0);
             var kindStr = KindToString(kind);
             var indent = new string(' ', depth * 2);
 
             if (string.IsNullOrEmpty(filter) || name.Contains(filter, StringComparison.OrdinalIgnoreCase))
                 lines.Add($"{indent}{kindStr} {name}");
 
-            if (s["children"]?.AsArray() is { } children)
+            if (s["children"] is { Kind: JKind.Array } children)
                 FormatSymbols(children, lines, depth + 1, filter);
         }
     }

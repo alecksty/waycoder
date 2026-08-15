@@ -48,7 +48,7 @@ public static partial class SelfTest
         Check("CheckpointManager 类型存在", typeof(CheckpointManager) != null);
         // 验证 SaveSession 不崩溃
         var testSession = SessionManager.SaveSession(
-            new List<JsonObject> { new() { ["role"] = "user", ["content"] = "hello" } },
+            new List<JNode> { JNode.Object().Set("role", "user").Set("content", "hello") },
             "deepseek-v4-flash", "_test_unit");
         Check("SaveSession 返回 ID", testSession.Length > 0);
         // 验证 LoadSession

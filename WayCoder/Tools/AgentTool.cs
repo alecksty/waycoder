@@ -15,28 +15,18 @@ public class AgentTool : ITool
     public string Name => "agent";
     public string Description => $"生成子智能体来独立处理复杂任务。支持单个任务（task）或并行批量任务（tasks 数组，最多 {MaxParallelTasks} 个并发）。子智能体拥有自己的上下文和工具访问权限，支持多层递归委派。适用于：研究代码库、独立实现多步骤变更，或任何能从全新上下文中获益的任务。并行模式适合同时探索多个独立方向。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["task"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "子智能体应完成的任务（单任务模式）",
-            },
-            ["tasks"] = new JsonObject
-            {
-                ["type"] = "array",
-                ["items"] = new JsonObject
-                {
-                    ["type"] = "string",
-                    ["description"] = "单个并行子任务",
-                },
-                ["description"] = $"并行子任务数组（最多 {MaxParallelTasks} 个），各任务独立上下文并行执行",
-            },
-        },
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("task", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "子智能体应完成的任务（单任务模式）"))
+            .Set("tasks", JNode.Object()
+                .Set("type", "array")
+                .Set("items", JNode.Object()
+                    .Set("type", "string")
+                    .Set("description", "单个并行子任务"))
+                .Set("description", $"并行子任务数组（最多 {MaxParallelTasks} 个），各任务独立上下文并行执行")));
 
     /// <summary>
     /// 由 Agent 在构造后设置，用于访问父智能体。
@@ -82,9 +72,9 @@ public class AgentTool : ITool
     {
         var taskList = new List<string>();
 
-        if (tasksObj is JsonArray jsonArr)
+        if (tasksObj is JNode { Kind: JKind.Array } jsonArr)
         {
-            CollectTaskTexts(jsonArr, taskList);
+            CollectTaskTexts(jsonArr.Items, taskList);
         }
         else if (tasksObj is System.Collections.IEnumerable enumerable && tasksObj is not string)
         {
@@ -101,8 +91,8 @@ public class AgentTool : ITool
             {
                 try
                 {
-                    if (JsonNode.Parse(trimmed) is JsonArray arr)
-                        CollectTaskTexts(arr, taskList);
+                    if (Json.Parse(trimmed) is JNode { Kind: JKind.Array } arr)
+                        CollectTaskTexts(arr.Items, taskList);
                 }
                 catch { /* 解析失败则退回单任务 */ }
             }
@@ -212,8 +202,8 @@ public class AgentTool : ITool
                 .TakeLast(6)
                 .Select(m =>
                 {
-                    var role = m["role"]?.GetValue<string>() ?? "";
-                    var content = m["content"]?.GetValue<string>() ?? "";
+                    var role = m["role"]?.AsString() ?? "";
+                    var content = m["content"]?.AsString() ?? "";
                     // 截断每条消息
                     if (content.Length > 300)
                         content = content[..300] + "...";
@@ -279,13 +269,14 @@ public class AgentTool : ITool
                 return null;
             case string s:
                 return s;
-            case JsonObject jo:
+            case JNode jo:
                 foreach (var key in TaskTextKeys)
                 {
-                    if (jo[key] is JsonValue jv && jv.TryGetValue<string>(out var str) && !string.IsNullOrWhiteSpace(str))
+                    var str = jo[key]?.AsString();
+                    if (!string.IsNullOrWhiteSpace(str))
                         return str;
                 }
-                return jo.ToJsonString();
+                return jo.ToJson();
             case Dictionary<string, object?> dict:
                 foreach (var key in TaskTextKeys)
                 {

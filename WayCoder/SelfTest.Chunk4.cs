@@ -346,10 +346,10 @@ public static partial class SelfTest
         // ---- 会话管理 ----
         Section("[会话管理]");
         var testSessionId = $"test_{DateTime.Now:yyyyMMddHHmmss}";
-        var testMsgs = new List<JsonObject>
+        var testMsgs = new List<JNode>
         {
-            new() { ["role"] = "user", ["content"] = "test message" },
-            new() { ["role"] = "assistant", ["content"] = "test response" },
+            JNode.Object().Set("role", "user").Set("content", "test message"),
+            JNode.Object().Set("role", "assistant").Set("content", "test response"),
         };
         var savedId = SessionManager.SaveSession(testMsgs, "deepseek-v4-flash", testSessionId);
         Check("保存会话返回 ID", savedId == testSessionId);
@@ -485,20 +485,20 @@ public static partial class SelfTest
 
         // ---- CJK Token 估算 ----
         Section("[CJK Token 估算]");
-        var cjkMsgs = new List<JsonObject> {
-            new() { ["role"] = "user", ["content"] = "你好世界" }
+        var cjkMsgs = new List<JNode> {
+            JNode.Object().Set("role", "user").Set("content", "你好世界")
         };
         var cjkEstimate = ContextManager.EstimateTokens(cjkMsgs);
         Check("CJK 估算 > ASCII 估算", cjkEstimate > "hello".Length / 3);
-        var asciiMsgs = new List<JsonObject> {
-            new() { ["role"] = "user", ["content"] = "hello" }
+        var asciiMsgs = new List<JNode> {
+            JNode.Object().Set("role", "user").Set("content", "hello")
         };
         Check("CJK 4字 ≈ 6 token", Math.Abs(cjkEstimate - 6) <= 2);
         Check("ASCII 5字 < CJK 4字", ContextManager.EstimateTokens(asciiMsgs) < cjkEstimate);
 
         // 混合内容
-        var mixedMsgs = new List<JsonObject> {
-            new() { ["role"] = "user", ["content"] = "中English混合测试" }
+        var mixedMsgs = new List<JNode> {
+            JNode.Object().Set("role", "user").Set("content", "中English混合测试")
         };
         var mixedEst = ContextManager.EstimateTokens(mixedMsgs);
         Check("混合估算 > 纯 ASCII 同等长度", mixedEst > "same length text only".Length / 3);

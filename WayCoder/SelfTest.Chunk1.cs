@@ -13,11 +13,11 @@ public static partial class SelfTest
     private static void TestChunk1(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
     {
         Section("[工具注册]");
-        Check("工具数量 == 43", ToolRegistry.BuiltinTools.Count == 43);
+        Check("工具数量 == 44", ToolRegistry.BuiltinTools.Count == 44);
         Check("所有工具有有效 schema", ToolRegistry.AllTools.All(t =>
         {
             var s = t.Schema();
-            return (string?)s["type"] == "function"
+            return s["type"]?.AsString() == "function"
                 && s["function"]?["name"] != null
                 && s["function"]?["parameters"]?["properties"] != null;
         }));
@@ -31,26 +31,26 @@ public static partial class SelfTest
 
         // ---- ContextManager ----
         Section("[上下文管理]");
-        var msgs1 = new List<JsonObject> { new() { ["role"] = "user", ["content"] = "hello world" } };
+        var msgs1 = new List<JNode> { JNode.Object().Set("role", "user").Set("content", "hello world") };
         Check("Token 估算 > 0", ContextManager.EstimateTokens(msgs1) > 0);
 
-        var msgs2 = new List<JsonObject>
+        var msgs2 = new List<JNode>
         {
             // 生成超过 4000 字符的内容（新阈值），每行 50 字符 × 100 行 = 5000+ 字符
-            new() { ["role"] = "tool", ["content"] = string.Join("\n", Enumerable.Range(0, 100).Select(i => new string('x', 50) + $"_{i:D4}")) },
+            JNode.Object().Set("role", "tool").Set("content", string.Join("\n", Enumerable.Range(0, 100).Select(i => new string('x', 50) + $"_{i:D4}"))),
         };
         var before = ContextManager.EstimateTokens(msgs2);
         ContextManager.SnipToolOutputs(msgs2);
         Check("工具输出裁剪有效", ContextManager.EstimateTokens(msgs2) < before);
 
-        var msgs3 = new List<JsonObject>
+        var msgs3 = new List<JNode>
         {
-            new() { ["role"] = "user", ["content"] = "do" },
-            new() { ["role"] = "assistant", ["content"] = null, ["tool_calls"] = new JsonArray() },
-            new() { ["role"] = "tool", ["tool_call_id"] = "c1", ["content"] = "r" },
+            JNode.Object().Set("role", "user").Set("content", "do"),
+            JNode.Object().Set("role", "assistant").Set("content", (string?)null).Set("tool_calls", JNode.Array()),
+            JNode.Object().Set("role", "tool").Set("tool_call_id", "c1").Set("content", "r"),
         };
         var split = ContextManager.SafeSplit(msgs3, 1);
-        Check("SafeSplit 不以 tool 开头", (string?)msgs3[split]["role"] != "tool");
+        Check("SafeSplit 不以 tool 开头", msgs3[split]["role"]?.AsString() != "tool");
 
         // SnipToolOutputs 详细测试
         TestSnipToolOutputs(Check);
@@ -254,11 +254,9 @@ public static partial class SelfTest
             var multiResult = new MultiEditTool().ExecuteAsync(new()
             {
                 ["file_path"] = tmpMultiEdit,
-                ["edits"] = new JsonArray
-                {
-                    new JsonObject { ["old_string"] = "line one", ["new_string"] = "第一行" },
-                    new JsonObject { ["old_string"] = "line two", ["new_string"] = "第二行" },
-                },
+                ["edits"] = JNode.Array()
+                    .Add(JNode.Object().Set("old_string", "line one").Set("new_string", "第一行"))
+                    .Add(JNode.Object().Set("old_string", "line two").Set("new_string", "第二行")),
             }).Result;
             var content = File.ReadAllText(tmpMultiEdit);
             Check("multiedit 多编辑替换", multiResult.Contains("编辑成功") && content.Contains("第一行") && content.Contains("第二行"));
@@ -273,11 +271,9 @@ public static partial class SelfTest
             var multiResult = new MultiEditTool().ExecuteAsync(new()
             {
                 ["file_path"] = tmpMultiNew,
-                ["edits"] = new JsonArray
-                {
-                    new JsonObject { ["old_string"] = "", ["new_string"] = "initial content\n" },
-                    new JsonObject { ["old_string"] = "initial", ["new_string"] = "创建的" },
-                },
+                ["edits"] = JNode.Array()
+                    .Add(JNode.Object().Set("old_string", "").Set("new_string", "initial content\n"))
+                    .Add(JNode.Object().Set("old_string", "initial").Set("new_string", "创建的")),
             }).Result;
             Check("multiedit 创建新文件", multiResult.Contains("已创建") && File.Exists(tmpMultiNew) && File.ReadAllText(tmpMultiNew).Contains("创建的"));
             File.Delete(tmpMultiNew);
@@ -293,10 +289,8 @@ public static partial class SelfTest
             var multiResult = new MultiEditTool().ExecuteAsync(new()
             {
                 ["file_path"] = tmpMultiAll,
-                ["edits"] = new JsonArray
-                {
-                    new JsonObject { ["old_string"] = "x", ["new_string"] = "y", ["replace_all"] = true },
-                },
+                ["edits"] = JNode.Array()
+                    .Add(JNode.Object().Set("old_string", "x").Set("new_string", "y").Set("replace_all", true)),
             }).Result;
             var content = File.ReadAllText(tmpMultiAll);
             Check("multiedit replace_all", content == "y y y\n");
@@ -313,10 +307,8 @@ public static partial class SelfTest
             var multiResult = new MultiEditTool().ExecuteAsync(new()
             {
                 ["file_path"] = tmpMultiFail,
-                ["edits"] = new JsonArray
-                {
-                    new JsonObject { ["old_string"] = "NOTFOUND", ["new_string"] = "x" },
-                },
+                ["edits"] = JNode.Array()
+                    .Add(JNode.Object().Set("old_string", "NOTFOUND").Set("new_string", "x")),
             }).Result;
             Check("multiedit 编辑失败报告", multiResult.Contains("失败"));
             File.Delete(tmpMultiFail);
@@ -509,19 +501,19 @@ public static partial class SelfTest
             var imgTmp = Path.Combine(Path.GetTempPath(), "wc_img_" + Guid.NewGuid().ToString("N")[..6] + ".png");
             File.WriteAllText(imgTmp, "fake-png-bytes");
             var imgMsg = LLM.BuildImageMessage("看图", new List<string> { imgTmp });
-            Check("BuildImageMessage role=user", imgMsg["role"]?.GetValue<string>() == "user");
-            Check("BuildImageMessage content 为数组", imgMsg["content"] is JsonArray);
-            var imgParts = imgMsg["content"]!.AsArray();
-            Check("BuildImageMessage 含 image_url", imgParts.Any(p => p?["type"]?.GetValue<string>() == "image_url"));
+            Check("BuildImageMessage role=user", imgMsg["role"]?.AsString() == "user");
+            Check("BuildImageMessage content 为数组", imgMsg["content"]?.Kind == JKind.Array);
+            var imgParts = imgMsg["content"]!;
+            Check("BuildImageMessage 含 image_url", imgParts.Items.Any(p => p?["type"]?.AsString() == "image_url"));
             Check("BuildImageMessage 含 data URL",
-                imgParts.Any(p => p?["image_url"]?["url"]?.GetValue<string>()?.StartsWith("data:image/png;base64,") == true));
+                imgParts.Items.Any(p => p?["image_url"]?["url"]?.AsString()?.StartsWith("data:image/png;base64,") == true));
             // 图片读取失败但文本存在：跳过该图，仍返回数组（仅含 text 部分）
             var badMsg = LLM.BuildImageMessage("无图", new List<string> { "/nonexistent/img.png" });
             Check("BuildImageMessage 图片失败跳过",
-                badMsg["content"] is JsonArray && badMsg["content"]!.AsArray().Count == 1);
+                badMsg["content"]?.Kind == JKind.Array && badMsg["content"]!.Count == 1);
             // 文本+图片全空：兜底退化为纯文本消息，避免 content 空数组非法
             var emptyMsg = LLM.BuildImageMessage("", new List<string> { "/nonexistent/img.png" });
-            Check("BuildImageMessage 全空退化为文本", emptyMsg["content"]?.GetValue<string>() == "");
+            Check("BuildImageMessage 全空退化为文本", emptyMsg["content"]?.AsString() == "");
             File.Delete(imgTmp);
         }
         catch { Fail("BuildImageMessage 多模态"); }

@@ -18,30 +18,20 @@ public class DocTool : ITool
         "查最新库/框架文档。优先于训练数据使用，获取最新 API 和用法。\n" +
         "用法: action='search' + query='库名 问题' 搜索文档；action='fetch' + url='...' 抓取指定页面。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["action"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "操作类型: 'search' 搜索文档, 'fetch' 抓取指定 URL",
-                ["enum"] = new JsonArray("search", "fetch"),
-            },
-            ["query"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "搜索关键词（action=search 时必填），如 'React useEffect cleanup' 或 'Next.js routing'",
-            },
-            ["url"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要抓取的文档 URL（action=fetch 时必填）",
-            },
-        },
-        ["required"] = new JsonArray("action"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("action", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "操作类型: 'search' 搜索文档, 'fetch' 抓取指定 URL")
+                .Set("enum", JNode.Array().Add("search").Add("fetch")))
+            .Set("query", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "搜索关键词（action=search 时必填），如 'React useEffect cleanup' 或 'Next.js routing'"))
+            .Set("url", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要抓取的文档 URL（action=fetch 时必填）")))
+        .Set("required", JNode.Array().Add("action"));
 
     private static HttpClient _client => _lazyClient.Value;
     private static readonly Lazy<HttpClient> _lazyClient = new(() => new HttpClient(

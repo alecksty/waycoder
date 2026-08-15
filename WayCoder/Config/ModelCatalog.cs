@@ -1,5 +1,5 @@
 using System.Text;
-using System.Text.Json;
+using WayCoder.Infra;
 
 namespace WayCoder;
 
@@ -270,11 +270,11 @@ public static class ModelCatalog
         if (!File.Exists(path)) return result;
         try
         {
-            var root = JsonNode.Parse(File.ReadAllText(path));
-            var arr = root is JsonArray a ? a : root?["models"]?.AsArray();
+            var root = Json.Parse(File.ReadAllText(path));
+            var arr = Arr(root) ?? Arr(root?["models"]);
             if (arr != null)
             {
-                foreach (var node in arr)
+                foreach (var node in arr.Items)
                 {
                     var info = FromJson(node);
                     if (info != null) result[info.Id] = info;
@@ -291,10 +291,10 @@ public static class ModelCatalog
         {
             var dir = Path.GetDirectoryName(path);
             if (dir != null) Directory.CreateDirectory(dir);
-            var arr = new JsonArray();
+            var arr = JNode.Array();
             foreach (var m in models.Values.OrderBy(m => m.Id, StringComparer.OrdinalIgnoreCase))
                 arr.Add(ToJson(m));
-            File.WriteAllText(path, arr.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(path, arr.ToJson(indent: true));
         }
         catch { /* 写入失败不崩溃 */ }
     }
@@ -303,41 +303,46 @@ public static class ModelCatalog
     // 序列化（AOT 安全手写，不用反射）
     // ════════════════════════════════════════════════════════════
 
-    private static JsonObject ToJson(ModelInfo m) => new()
-    {
-        ["id"] = m.Id,
-        ["displayName"] = m.DisplayName,
-        ["provider"] = m.Provider,
-        ["providerId"] = m.ProviderId,
-        ["icon"] = m.ProviderIcon,
-        ["category"] = m.Category,
-        ["contextWindow"] = m.ContextWindow,
-        ["maxOutput"] = m.MaxOutput,
-        ["inputPrice"] = m.InputPrice,
-        ["outputPrice"] = m.OutputPrice,
-        ["baseUrl"] = m.DefaultBaseUrl,
-        ["description"] = m.Description,
-    };
+    // JNode 便捷取值（AOT 安全，替代 System.Text.Json.Nodes 的 GetValue<T> / AsArray / AsObject）
+    static JNode? Arr(JNode? n) => n != null && n.Kind == JKind.Array ? n : null;
+    static JNode? Obj(JNode? n) => n != null && n.Kind == JKind.Object ? n : null;
+    static string? StrOpt(JNode? n) => n != null && n.Kind == JKind.String ? n.AsString() : null;
+    static int? IntOpt(JNode? n) => n != null && n.Kind == JKind.Number ? (int)Math.Round(n.AsNumber()) : null;
+    static double? DblOpt(JNode? n) => n != null && n.Kind == JKind.Number ? n.AsNumber() : null;
+
+    private static JNode ToJson(ModelInfo m) => JNode.Object()
+        .Set("id", m.Id)
+        .Set("displayName", m.DisplayName)
+        .Set("provider", m.Provider)
+        .Set("providerId", m.ProviderId)
+        .Set("icon", m.ProviderIcon)
+        .Set("category", m.Category)
+        .Set("contextWindow", m.ContextWindow)
+        .Set("maxOutput", m.MaxOutput)
+        .Set("inputPrice", m.InputPrice)
+        .Set("outputPrice", m.OutputPrice)
+        .Set("baseUrl", m.DefaultBaseUrl)
+        .Set("description", m.Description);
 
     /// <summary>从 models.json 反序列化（精确读回所有字段，不推断 providerId/description，避免往返损坏）</summary>
-    private static ModelInfo? FromJson(JsonNode? node)
+    private static ModelInfo? FromJson(JNode? node)
     {
-        if (node is not JsonObject o) return null;
-        var id = o["id"]?.GetValue<string>();
+        if (Obj(node) == null) return null;
+        var id = node!["id"]?.AsString();
         if (string.IsNullOrWhiteSpace(id)) return null;
         return new ModelInfo(
             id,
-            o["displayName"]?.GetValue<string>() ?? id,
-            o["provider"]?.GetValue<string>() ?? "Imported",
-            o["providerId"]?.GetValue<string>() ?? "import",
-            o["icon"]?.GetValue<string>() ?? "*",
-            o["category"]?.GetValue<string>() ?? "Imported",
-            o["contextWindow"]?.GetValue<int>() ?? 0,
-            o["inputPrice"]?.GetValue<double>() ?? 0,
-            o["outputPrice"]?.GetValue<double>() ?? 0,
-            o["baseUrl"]?.GetValue<string>(),
-            o["description"]?.GetValue<string>() ?? "",
-            o["maxOutput"]?.GetValue<int>() ?? 0
+            node["displayName"]?.AsString() ?? id,
+            node["provider"]?.AsString() ?? "Imported",
+            node["providerId"]?.AsString() ?? "import",
+            node["icon"]?.AsString() ?? "*",
+            node["category"]?.AsString() ?? "Imported",
+            IntOpt(node["contextWindow"]) ?? 0,
+            DblOpt(node["inputPrice"]) ?? 0,
+            DblOpt(node["outputPrice"]) ?? 0,
+            node["baseUrl"]?.AsString(),
+            node["description"]?.AsString() ?? "",
+            IntOpt(node["maxOutput"]) ?? 0
         );
     }
 
@@ -427,14 +432,16 @@ public static class ModelCatalog
             var resp = client.PostAsync($"{baseUri}/api/show", content).GetAwaiter().GetResult();
             if (!resp.IsSuccessStatusCode) return 0;
             var body = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-            var root = JsonNode.Parse(body);
-            var modelInfo = root?["model_info"] as JsonObject;
+            var root = Json.Parse(body);
+            var modelInfo = Obj(root?["model_info"]);
             if (modelInfo == null) return 0;
-            foreach (var kv in modelInfo)
+            foreach (var (key, value) in modelInfo.Entries)
             {
-                if (kv.Key.Contains("context_length", StringComparison.OrdinalIgnoreCase)
-                    && int.TryParse(kv.Value?.ToString(), out var ctx) && ctx > 0)
-                    return ctx;
+                if (!key.Contains("context_length", StringComparison.OrdinalIgnoreCase)) continue;
+                int ctx = 0;
+                if (value.Kind == JKind.Number) ctx = (int)Math.Round(value.AsNumber());
+                else if (value.Kind == JKind.String && int.TryParse(value.AsString(), out var c2)) ctx = c2;
+                if (ctx > 0) return ctx;
             }
             return 0;
         }
@@ -469,12 +476,12 @@ public static class ModelCatalog
         var result = new List<ModelInfo>();
         try
         {
-            var root = JsonNode.Parse(json);
+            var root = Json.Parse(json);
             if (root == null) return result;
 
-            if (root["models"]?.AsArray() is { } modelsArr)
+            if (Arr(root["models"]) is { } modelsArr)
             {
-                foreach (var m in modelsArr)
+                foreach (var m in modelsArr.Items)
                 {
                     var info = ParseModelNode(m);
                     if (info != null) result.Add(info);
@@ -482,19 +489,19 @@ public static class ModelCatalog
                 return result;
             }
 
-            if (root["apiProviders"]?.AsObject() is { } providers)
+            if (Obj(root["apiProviders"]) is { } providers)
             {
-                foreach (var (providerId, config) in providers)
+                foreach (var (providerId, config) in providers.Entries)
                 {
-                    var providerName = config?["name"]?.GetValue<string>() ?? providerId;
-                    var baseUrl = config?["baseUrl"]?.GetValue<string>();
-                    if (config?["models"]?.AsArray() is { } providerModels)
+                    var providerName = config?["name"]?.AsString() ?? providerId;
+                    var baseUrl = config?["baseUrl"]?.AsString();
+                    if (Arr(config?["models"]) is { } providerModels)
                     {
-                        foreach (var m in providerModels)
+                        foreach (var m in providerModels.Items)
                         {
-                            var modelId = m?.GetValue<string>()
-                                ?? m?["model"]?.GetValue<string>()
-                                ?? m?["id"]?.GetValue<string>();
+                            var modelId = m?.AsString()
+                                ?? m?["model"]?.AsString()
+                                ?? m?["id"]?.AsString();
                             if (string.IsNullOrWhiteSpace(modelId)) continue;
                             result.Add(new ModelInfo(modelId, modelId, providerName,
                                 providerId.ToLowerInvariant(), "*", "Imported", 0, 0, 0, baseUrl, "Imported from Cline"));
@@ -504,11 +511,11 @@ public static class ModelCatalog
                 return result;
             }
 
-            if (root.AsArray() is { } simpleArr)
+            if (Arr(root) is { } simpleArr)
             {
-                foreach (var item in simpleArr)
+                foreach (var item in simpleArr.Items)
                 {
-                    var id = item?.GetValue<string>();
+                    var id = item?.AsString();
                     if (string.IsNullOrWhiteSpace(id)) continue;
                     result.Add(new ModelInfo(id, id, "Imported", "import", "*", "Imported", 0, 0, 0, null, "Imported from array"));
                 }
@@ -522,47 +529,47 @@ public static class ModelCatalog
         return result;
     }
 
-    private static ModelInfo? ParseModelNode(JsonNode? node)
+    private static ModelInfo? ParseModelNode(JNode? node)
     {
         if (node == null) return null;
-        var id = node["model"]?.GetValue<string>()
-              ?? node["id"]?.GetValue<string>()
-              ?? node["name"]?.GetValue<string>()
-              ?? node.GetValue<string>();
+        var id = node["model"]?.AsString()
+              ?? node["id"]?.AsString()
+              ?? node["name"]?.AsString()
+              ?? node.AsString();
         if (string.IsNullOrWhiteSpace(id)) return null;
 
         // 上下文 / 输出窗口：兼容 contextWindow / maxTokens / limit.context / limit.output
-        var limit = node["limit"]?.AsObject();
-        var contextWindow = node["contextWindow"]?.GetValue<int>()
-            ?? limit?["context"]?.GetValue<int>()
-            ?? node["contextLength"]?.GetValue<int>()
+        var limit = Obj(node["limit"]);
+        var contextWindow = IntOpt(node["contextWindow"])
+            ?? IntOpt(limit?["context"])
+            ?? IntOpt(node["contextLength"])
             ?? 0;
-        var maxOutput = node["maxOutput"]?.GetValue<int>()
-            ?? limit?["output"]?.GetValue<int>()
-            ?? node["maxTokens"]?.GetValue<int>()
+        var maxOutput = IntOpt(node["maxOutput"])
+            ?? IntOpt(limit?["output"])
+            ?? IntOpt(node["maxTokens"])
             ?? 0;
 
         // 计费：兼容 cost.input/output、pricing.input/output、inputPrice/outputPrice
-        var cost = node["cost"]?.AsObject();
-        var inputPrice = node["inputPrice"]?.GetValue<double>()
-            ?? cost?["input"]?.GetValue<double>()
-            ?? node["pricing"]?["input"]?.GetValue<double>()
+        var cost = Obj(node["cost"]);
+        var inputPrice = DblOpt(node["inputPrice"])
+            ?? DblOpt(cost?["input"])
+            ?? DblOpt(node["pricing"]?["input"])
             ?? 0;
-        var outputPrice = node["outputPrice"]?.GetValue<double>()
-            ?? cost?["output"]?.GetValue<double>()
-            ?? node["pricing"]?["output"]?.GetValue<double>()
+        var outputPrice = DblOpt(node["outputPrice"])
+            ?? DblOpt(cost?["output"])
+            ?? DblOpt(node["pricing"]?["output"])
             ?? 0;
 
-        var providerId = (node["provider"]?.GetValue<string>() ?? "import").ToLowerInvariant().Replace(" ", "-");
-        var baseUrl = node["baseUrl"]?.GetValue<string>()
-            ?? node["apiBase"]?.GetValue<string>()
-            ?? node["options"]?["baseURL"]?.GetValue<string>()
-            ?? node["options"]?["baseUrl"]?.GetValue<string>();
+        var providerId = (node["provider"]?.AsString() ?? "import").ToLowerInvariant().Replace(" ", "-");
+        var baseUrl = node["baseUrl"]?.AsString()
+            ?? node["apiBase"]?.AsString()
+            ?? node["options"]?["baseURL"]?.AsString()
+            ?? node["options"]?["baseUrl"]?.AsString();
 
         return new ModelInfo(
             id,
-            node["displayName"]?.GetValue<string>() ?? node["name"]?.GetValue<string>() ?? id,
-            node["provider"]?.GetValue<string>() ?? "Imported",
+            node["displayName"]?.AsString() ?? node["name"]?.AsString() ?? id,
+            node["provider"]?.AsString() ?? "Imported",
             providerId,
             "*", "Imported",
             contextWindow,
@@ -581,27 +588,27 @@ public static class ModelCatalog
     public static List<ModelInfo> ImportOpenCode(string json)
     {
         var result = new List<ModelInfo>();
-        var root = JsonNode.Parse(NormalizeJson5(json));
-        var providers = root?["provider"]?.AsObject();
+        var root = Json.Parse(NormalizeJson5(json));
+        var providers = Obj(root?["provider"]);
         if (providers == null) return result;
 
-        foreach (var (pid, pcfg) in providers)
+        foreach (var (pid, pcfg) in providers.Entries)
         {
-            var pname = pcfg?["name"]?.GetValue<string>() ?? pid;
-            var baseUrl = pcfg?["options"]?["baseURL"]?.GetValue<string>()
-                       ?? pcfg?["options"]?["baseUrl"]?.GetValue<string>();
-            var models = pcfg?["models"]?.AsObject();
+            var pname = pcfg?["name"]?.AsString() ?? pid;
+            var baseUrl = pcfg?["options"]?["baseURL"]?.AsString()
+                       ?? pcfg?["options"]?["baseUrl"]?.AsString();
+            var models = Obj(pcfg?["models"]);
             if (models == null) continue;
 
-            foreach (var (mid, mcfg) in models)
+            foreach (var (mid, mcfg) in models.Entries)
             {
-                var name = mcfg?["name"]?.GetValue<string>() ?? mid;
-                var limit = mcfg?["limit"]?.AsObject();
-                var ctx = limit?["context"]?.GetValue<int>() ?? 0;
-                var maxOut = limit?["output"]?.GetValue<int>() ?? 0;
-                var cost = mcfg?["cost"]?.AsObject();
-                var inPrice = cost?["input"]?.GetValue<double>() ?? 0;
-                var outPrice = cost?["output"]?.GetValue<double>() ?? 0;
+                var name = mcfg?["name"]?.AsString() ?? mid;
+                var limit = Obj(mcfg?["limit"]);
+                var ctx = IntOpt(limit?["context"]) ?? 0;
+                var maxOut = IntOpt(limit?["output"]) ?? 0;
+                var cost = Obj(mcfg?["cost"]);
+                var inPrice = DblOpt(cost?["input"]) ?? 0;
+                var outPrice = DblOpt(cost?["output"]) ?? 0;
                 result.Add(new ModelInfo(mid, name, pname, pid.ToLowerInvariant(), "*", "Imported",
                     ctx, inPrice, outPrice, baseUrl, $"从 OpenCode 导入（{pname}）", maxOut));
             }
@@ -613,17 +620,17 @@ public static class ModelCatalog
     public static List<ModelInfo> ImportOpenClaw(string json)
     {
         var result = new List<ModelInfo>();
-        var root = JsonNode.Parse(NormalizeJson5(json));
-        var providers = root?["models"]?["providers"]?.AsObject();
+        var root = Json.Parse(NormalizeJson5(json));
+        var providers = Obj(root?["models"]?["providers"]);
         if (providers == null) return result;
 
-        foreach (var (pid, pcfg) in providers)
+        foreach (var (pid, pcfg) in providers.Entries)
         {
-            var baseUrl = pcfg?["baseUrl"]?.GetValue<string>();
-            var models = pcfg?["models"]?.AsArray();
+            var baseUrl = pcfg?["baseUrl"]?.AsString();
+            var models = Arr(pcfg?["models"]);
             if (models == null) continue;
 
-            foreach (var m in models)
+            foreach (var m in models.Items)
             {
                 var info = ParseModelNode(m);
                 if (info == null) continue;
@@ -644,29 +651,29 @@ public static class ModelCatalog
     public static List<ModelInfo> ImportCrush(string json)
     {
         var result = new List<ModelInfo>();
-        var root = JsonNode.Parse(NormalizeJson5(json));
+        var root = Json.Parse(NormalizeJson5(json));
         if (root == null) return result;
-        var providers = root["providers"]?.AsObject()
-                     ?? root["provider"]?.AsObject();
+        var providers = Obj(root["providers"])
+                     ?? Obj(root["provider"]);
         if (providers != null)
         {
-            foreach (var (pid, pcfg) in providers)
+            foreach (var (pid, pcfg) in providers.Entries)
             {
-                var baseUrl = pcfg?["baseUrl"]?.GetValue<string>()
-                           ?? pcfg?["baseURL"]?.GetValue<string>();
+                var baseUrl = pcfg?["baseUrl"]?.AsString()
+                           ?? pcfg?["baseURL"]?.AsString();
                 var modelsNode = pcfg?["models"];
-                if (modelsNode is JsonArray arr)
+                if (Arr(modelsNode) is { } arr)
                 {
-                    foreach (var m in arr)
+                    foreach (var m in arr.Items)
                     {
                         var info = ParseModelNode(m);
                         if (info == null) continue;
                         result.Add(info with { ProviderId = pid.ToLowerInvariant(), Provider = pid, DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl });
                     }
                 }
-                else if (modelsNode is JsonObject mobj)
+                else if (Obj(modelsNode) is { } mobj)
                 {
-                    foreach (var (mid, mcfg) in mobj)
+                    foreach (var (mid, mcfg) in mobj.Entries)
                     {
                         var info = ParseModelNode(mcfg);
                         if (info != null)
@@ -682,20 +689,19 @@ public static class ModelCatalog
     public static List<ModelInfo> ImportClaude(string json)
     {
         var result = new List<ModelInfo>();
-        var root = JsonNode.Parse(NormalizeJson5(json));
-        var env = root?["env"]?.AsObject();
+        var root = Json.Parse(NormalizeJson5(json));
+        var env = Obj(root?["env"]);
         if (env == null) return result;
 
-        var baseUrl = env.FirstOrDefault(kv => kv.Key.Contains("BASE_URL", StringComparison.OrdinalIgnoreCase))
-            .Value?.GetValue<string>();
+        var baseUrl = env.Entries.FirstOrDefault(kv => kv.Key.Contains("BASE_URL", StringComparison.OrdinalIgnoreCase))
+            .Value?.AsString();
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, val) in env)
+        foreach (var (key, val) in env.Entries)
         {
             if (!key.Contains("MODEL", StringComparison.OrdinalIgnoreCase)) continue;
             if (key.EndsWith("_NAME", StringComparison.OrdinalIgnoreCase)) continue;  // *_MODEL_NAME 是显示名变体
-            if (val == null) continue;
-            var name = val.GetValue<string>()?.Trim();
+            var name = val.AsString()?.Trim();
             if (string.IsNullOrEmpty(name) || name.Equals("any", StringComparison.OrdinalIgnoreCase)) continue;
             var clean = name.Split('[')[0].Trim();  // 去 [1M] 后缀
             if (!seen.Add(clean)) continue;
@@ -878,17 +884,17 @@ public static class ModelCatalog
     {
         try
         {
-            var root = JsonNode.Parse(json);
+            var root = Json.Parse(json);
             if (root == null) return ([], "");
 
-            if (root["models"]?.AsArray() is { } arr && arr.Count > 0)
-                return (ImportFromJson(json), arr[0]?["provider"]?.GetValue<string>() != null
+            if (Arr(root["models"]) is { } arr && arr.Count > 0)
+                return (ImportFromJson(json), arr[0]?["provider"]?.AsString() != null
                     ? "Continue/Crush" : "Model array");
 
-            if (root["apiProviders"]?.AsObject() is { } providers && providers.Count > 0)
+            if (Obj(root["apiProviders"]) is { } providers && providers.Count > 0)
                 return (ImportFromJson(json), "Cline");
 
-            if (root.AsArray() is { } sa && sa.Count > 0)
+            if (Arr(root) is { } sa && sa.Count > 0)
                 return (ImportFromJson(json), "Simple array");
 
             return ([], "");

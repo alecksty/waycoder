@@ -11,29 +11,19 @@ public class WcTool : ITool
     public string Name => "wc";
     public string Description => "统计文本文件的行数、词数、字符数。支持多文件汇总。纯 C# 实现。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["file"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要统计的文件路径",
-            },
-            ["glob"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "Glob 模式批量统计，如 '*.cs'（与 file 二选一）",
-            },
-            ["path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "搜索目录（使用 glob 时，默认当前目录）",
-            },
-        },
-        ["required"] = new JsonArray(),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("file", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要统计的文件路径"))
+            .Set("glob", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "Glob 模式批量统计，如 '*.cs'（与 file 二选一）"))
+            .Set("path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "搜索目录（使用 glob 时，默认当前目录）")))
+        .Set("required", JNode.Array());
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

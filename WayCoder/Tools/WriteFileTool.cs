@@ -11,24 +11,16 @@ public class WriteFileTool : ITool
     public string Name => "write_file";
     public string Description => "创建新文件或完全覆写已有文件。仅用于新建文件或整体重写；对已有文件的小改动请用 edit_file（更安全，不会意外丢失内容）。覆写已有文件前必须先 read_file 了解当前内容。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["file_path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "文件路径（绝对路径）。新建文件或完全替换已有文件。仅用于新建或整体重写——局部编辑请用 edit_file。",
-            },
-            ["content"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要写入的完整文件内容。将完全替换目标文件的全部内容。",
-            },
-        },
-        ["required"] = new JsonArray("file_path", "content"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("file_path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "文件路径（绝对路径）。新建文件或完全替换已有文件。仅用于新建或整体重写——局部编辑请用 edit_file。"))
+            .Set("content", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要写入的完整文件内容。将完全替换目标文件的全部内容。")))
+        .Set("required", JNode.Array().Add("file_path").Add("content"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

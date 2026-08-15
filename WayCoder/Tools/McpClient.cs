@@ -45,10 +45,10 @@ public static class McpManager
     internal enum McpTransportType { Stdio, Http, Sse }
 
     /// <summary>识别服务器配置的传输类型（纯逻辑，便于自测）。默认 stdio。</summary>
-    internal static McpTransportType DetectTransport(JsonNode server)
+    internal static McpTransportType DetectTransport(JNode server)
     {
-        var transport = server["transport"]?.GetValue<string>();
-        var url = server["url"]?.GetValue<string>();
+        var transport = server["transport"]?.AsString();
+        var url = server["url"]?.AsString();
 
         if ("sse".Equals(transport, StringComparison.OrdinalIgnoreCase))
             return McpTransportType.Sse;
@@ -72,15 +72,15 @@ public static class McpManager
         try
         {
             var json = File.ReadAllText(configPath, Encoding.UTF8);
-            var servers = JsonNode.Parse(json)?.AsArray();
+            var servers = Json.Parse(json);
             if (servers == null) return;
 
             // 先尝试从缓存加载工具（加速启动）
             McpCache.Load(servers);
 
-            foreach (var server in servers)
+            foreach (var server in servers.Items)
             {
-                var name = server?["name"]?.GetValue<string>();
+                var name = server?["name"]?.AsString();
                 if (string.IsNullOrEmpty(name)) continue;
                 RegisterState(name, server!);
                 _ = ConnectServerAsync(server!);
@@ -93,7 +93,7 @@ public static class McpManager
     }
 
     /// <summary>注册服务器状态（初始 Connecting）。</summary>
-    private static void RegisterState(string name, JsonNode server)
+    private static void RegisterState(string name, JNode server)
     {
         lock (_stateLock)
         {
@@ -107,12 +107,12 @@ public static class McpManager
     }
 
     /// <summary>解析并连接单个服务器（Init 与 Reload 共用）。</summary>
-    private static async Task ConnectServerAsync(JsonNode server)
+    private static async Task ConnectServerAsync(JNode server)
     {
-        var name = server["name"]?.GetValue<string>() ?? "";
+        var name = server["name"]?.AsString() ?? "";
         var transportType = DetectTransport(server);
-        var url = server["url"]?.GetValue<string>();
-        var headers = ParseHeaders(server["headers"]?.AsObject());
+        var url = server["url"]?.AsString();
+        var headers = ParseHeaders(server["headers"]);
 
         try
         {
@@ -131,17 +131,17 @@ public static class McpManager
                 case McpTransportType.Stdio:
                 {
                     // stdio 传输（默认，向后兼容）
-                    var command = server["command"]?.GetValue<string>();
-                    var args = server["args"]?.AsArray()
-                        ?.Select(a => a?.GetValue<string>() ?? "").ToArray() ?? [];
+                    var command = server["command"]?.AsString();
+                    var args = server["args"]?.Items
+                        ?.Select(a => a?.AsString() ?? "").ToArray() ?? [];
 
                     var env = new Dictionary<string, string>();
-                    var envObj = server["env"]?.AsObject();
+                    var envObj = server["env"];
                     if (envObj != null)
                     {
-                        foreach (var kv in envObj)
+                        foreach (var kv in envObj.Entries)
                         {
-                            var val = kv.Value?.GetValue<string>();
+                            var val = kv.Value?.AsString();
                             if (!string.IsNullOrEmpty(val))
                                 env[kv.Key] = val;
                         }
@@ -162,13 +162,13 @@ public static class McpManager
     }
 
     /// <summary>解析 headers 对象，展开 ${VAR} 环境变量</summary>
-    internal static Dictionary<string, string>? ParseHeaders(JsonObject? headersObj)
+    internal static Dictionary<string, string>? ParseHeaders(JNode? headersObj)
     {
         if (headersObj == null || headersObj.Count == 0) return null;
         var headers = new Dictionary<string, string>();
-        foreach (var kv in headersObj)
+        foreach (var kv in headersObj.Entries)
         {
-            var val = kv.Value?.GetValue<string>();
+            var val = kv.Value?.AsString();
             if (!string.IsNullOrEmpty(val))
                 headers[kv.Key] = ExpandEnvVars(val);
         }
@@ -268,16 +268,12 @@ public static class McpManager
     private static async Task DiscoverToolsAsync(McpConnection conn, string name)
     {
         // 握手: initialize
-        var initResp = await conn.SendRequestAsync("initialize", new JsonObject
-        {
-            ["protocolVersion"] = "2024-11-05",
-            ["capabilities"] = new JsonObject(),
-            ["clientInfo"] = new JsonObject
-            {
-                ["name"] = "WayCoder",
-                ["version"] = "0.17.3",
-            },
-        });
+        var initResp = await conn.SendRequestAsync("initialize", JNode.Object()
+            .Set("protocolVersion", "2024-11-05")
+            .Set("capabilities", JNode.Object())
+            .Set("clientInfo", JNode.Object()
+                .Set("name", "WayCoder")
+                .Set("version", "0.17.3")));
 
         if (initResp == null)
         {
@@ -287,7 +283,7 @@ public static class McpManager
         }
 
         // 发送 initialized 通知
-        conn.SendNotification("notifications/initialized", new JsonObject());
+        conn.SendNotification("notifications/initialized", JNode.Object());
 
         // 移除该服务器的旧工具/资源/提示词（缓存可能有旧版本）
         var prefix = $"mcp__{name}__";
@@ -295,15 +291,13 @@ public static class McpManager
 
         // 发现工具: tools/list
         int toolCount = 0;
-        var toolsResp = await conn.SendRequestAsync("tools/list", new JsonObject());
-        var tools = toolsResp?["result"]?["tools"]?.AsArray();
+        var toolsResp = await conn.SendRequestAsync("tools/list", JNode.Object());
+        var tools = toolsResp?["result"]?["tools"];
         if (tools != null)
         {
-            foreach (var toolNode in tools)
+            foreach (var toolNode in tools.Items)
             {
-                var tool = toolNode?.AsObject();
-                if (tool == null) continue;
-                DiscoveredTools.Add(new McpTool(name, tool, conn));
+                DiscoveredTools.Add(new McpTool(name, toolNode, conn));
                 toolCount++;
             }
         }
@@ -326,8 +320,8 @@ public static class McpManager
     {
         try
         {
-            var resp = await conn.SendRequestAsync("resources/list", new JsonObject());
-            var resources = resp?["result"]?["resources"]?.AsArray();
+            var resp = await conn.SendRequestAsync("resources/list", JNode.Object());
+            var resources = resp?["result"]?["resources"];
             if (resources == null || resources.Count == 0) return 0;
             DiscoveredTools.Add(new McpResourceTool(name, resources, conn));
             return resources.Count;
@@ -344,15 +338,13 @@ public static class McpManager
     {
         try
         {
-            var resp = await conn.SendRequestAsync("prompts/list", new JsonObject());
-            var prompts = resp?["result"]?["prompts"]?.AsArray();
+            var resp = await conn.SendRequestAsync("prompts/list", JNode.Object());
+            var prompts = resp?["result"]?["prompts"];
             if (prompts == null) return 0;
             int count = 0;
-            foreach (var p in prompts)
+            foreach (var p in prompts.Items)
             {
-                var pObj = p?.AsObject();
-                if (pObj == null) continue;
-                DiscoveredTools.Add(new McpPromptTool(name, pObj, conn));
+                DiscoveredTools.Add(new McpPromptTool(name, p, conn));
                 count++;
             }
             return count;
@@ -417,7 +409,7 @@ public static class McpManager
 
         if (conn != null)
         {
-            try { conn.SendNotification("exit", new JsonObject()); } catch { }
+            try { conn.SendNotification("exit", JNode.Object()); } catch { }
             try { await conn.DisconnectAsync(); } catch { }
             _connections.Remove(conn);
         }
@@ -438,13 +430,13 @@ public static class McpManager
 
         try
         {
-            var servers = JsonNode.Parse(File.ReadAllText(configPath, Encoding.UTF8))?.AsArray();
+            var servers = Json.Parse(File.ReadAllText(configPath, Encoding.UTF8));
             if (servers == null || servers.Count == 0) return "mcp_servers.json 为空或格式错误";
 
-            var targets = new List<JsonNode>();
-            foreach (var server in servers)
+            var targets = new List<JNode>();
+            foreach (var server in servers.Items)
             {
-                var n = server?["name"]?.GetValue<string>();
+                var n = server?["name"]?.AsString();
                 if (string.IsNullOrEmpty(n)) continue;
                 if (name == null || n.Equals(name, StringComparison.OrdinalIgnoreCase))
                     targets.Add(server!);
@@ -455,7 +447,7 @@ public static class McpManager
 
             foreach (var server in targets)
             {
-                var n = server["name"]!.GetValue<string>();
+                var n = server["name"]!.AsString();
                 await DisconnectServerAsync(n);
                 SetStatus(n, McpServerStatus.Connecting);
                 await ConnectServerAsync(server);
@@ -478,7 +470,7 @@ public static class McpManager
         {
             try
             {
-                conn.SendNotification("exit", new JsonObject());
+                conn.SendNotification("exit", JNode.Object());
                 _ = conn.DisconnectAsync();
             }
             catch { }
@@ -553,10 +545,10 @@ internal class McpServerState
 internal abstract class McpTransport
 {
     /// <summary>发送 JSON-RPC 请求并等待匹配 id 的响应</summary>
-    public abstract Task<JsonObject?> SendRequestAsync(int id, string method, JsonObject @params, CancellationToken ct);
+    public abstract Task<JNode?> SendRequestAsync(int id, string method, JNode @params, CancellationToken ct);
 
     /// <summary>发送 JSON-RPC 通知（无 id，无响应）</summary>
-    public abstract void SendNotification(string method, JsonObject @params);
+    public abstract void SendNotification(string method, JNode @params);
 
     /// <summary>断开连接</summary>
     public abstract Task DisconnectAsync();
@@ -601,18 +593,16 @@ internal class StdioMcpTransport : McpTransport
         _process.Start();
     }
 
-    public override async Task<JsonObject?> SendRequestAsync(int id, string method, JsonObject @params, CancellationToken ct)
+    public override async Task<JNode?> SendRequestAsync(int id, string method, JNode @params, CancellationToken ct)
     {
         if (_process == null) return null;
 
-        var request = new JsonObject
-        {
-            ["jsonrpc"] = "2.0",
-            ["id"] = id,
-            ["method"] = method,
-            ["params"] = @params,
-        };
-        var json = request.ToJsonString();
+        var request = JNode.Object()
+            .Set("jsonrpc", "2.0")
+            .Set("id", id)
+            .Set("method", method)
+            .Set("params", @params);
+        var json = request.ToJson();
 
         try
         {
@@ -630,8 +620,8 @@ internal class StdioMcpTransport : McpTransport
 
                 try
                 {
-                    var resp = JsonNode.Parse(line)?.AsObject();
-                    if (resp != null && resp["id"]?.GetValue<int>() == id)
+                    var resp = Json.Parse(line);
+                    if (resp != null && resp["id"]?.AsNumber() == id)
                         return resp;
                 }
                 catch { }
@@ -645,22 +635,20 @@ internal class StdioMcpTransport : McpTransport
         return null;
     }
 
-    public override void SendNotification(string method, JsonObject @params)
+    public override void SendNotification(string method, JNode @params)
     {
         if (_process == null) return;
 
-        var notif = new JsonObject
-        {
-            ["jsonrpc"] = "2.0",
-            ["method"] = method,
-            ["params"] = @params,
-        };
+        var notif = JNode.Object()
+            .Set("jsonrpc", "2.0")
+            .Set("method", method)
+            .Set("params", @params);
 
         try
         {
             lock (_writeLock)
             {
-                _process.StandardInput.WriteLine(notif.ToJsonString());
+                _process.StandardInput.WriteLine(notif.ToJson());
                 _process.StandardInput.Flush();
             }
         }
@@ -715,18 +703,16 @@ internal class HttpMcpTransport : McpTransport
         _headers = headers;
     }
 
-    public override async Task<JsonObject?> SendRequestAsync(int id, string method, JsonObject @params, CancellationToken ct)
+    public override async Task<JNode?> SendRequestAsync(int id, string method, JNode @params, CancellationToken ct)
     {
         if (_disposed) return null;
 
-        var request = new JsonObject
-        {
-            ["jsonrpc"] = "2.0",
-            ["id"] = id,
-            ["method"] = method,
-            ["params"] = @params,
-        };
-        var body = request.ToJsonString();
+        var request = JNode.Object()
+            .Set("jsonrpc", "2.0")
+            .Set("id", id)
+            .Set("method", method)
+            .Set("params", @params);
+        var body = request.ToJson();
 
         try
         {
@@ -764,8 +750,8 @@ internal class HttpMcpTransport : McpTransport
                         dataLines.Clear();
                         try
                         {
-                            var resp = JsonNode.Parse(data)?.AsObject();
-                            if (resp != null && resp["id"]?.GetValue<int>() == id)
+                            var resp = Json.Parse(data);
+                            if (resp != null && resp["id"]?.AsNumber() == id)
                                 return resp;
                         }
                         catch { }
@@ -790,26 +776,24 @@ internal class HttpMcpTransport : McpTransport
         return null;
     }
 
-    public override void SendNotification(string method, JsonObject @params)
+    public override void SendNotification(string method, JNode @params)
     {
         if (_disposed) return;
 
-        var notif = new JsonObject
-        {
-            ["jsonrpc"] = "2.0",
-            ["method"] = method,
-            ["params"] = @params,
-        };
+        var notif = JNode.Object()
+            .Set("jsonrpc", "2.0")
+            .Set("method", method)
+            .Set("params", @params);
 
         // 通知是 fire-and-forget，不等待响应
         _ = SendNotificationAsync(notif);
     }
 
-    private async Task SendNotificationAsync(JsonObject notif)
+    private async Task SendNotificationAsync(JNode notif)
     {
         try
         {
-            var body = notif.ToJsonString();
+            var body = notif.ToJson();
             using var httpReq = new HttpRequestMessage(HttpMethod.Post, _url)
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json"),
@@ -856,7 +840,7 @@ internal class SseMcpTransport : McpTransport
     private readonly string _sseUrl;
     private readonly Dictionary<string, string>? _headers;
     private readonly object _lock = new();
-    private readonly Dictionary<int, TaskCompletionSource<JsonObject?>> _pending = [];
+    private readonly Dictionary<int, TaskCompletionSource<JNode?>> _pending = [];
     private readonly CancellationTokenSource _cts = new();
     private readonly TaskCompletionSource _endpointReady =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -889,7 +873,7 @@ internal class SseMcpTransport : McpTransport
         catch { return null; }
     }
 
-    public override async Task<JsonObject?> SendRequestAsync(int id, string method, JsonObject @params, CancellationToken ct)
+    public override async Task<JNode?> SendRequestAsync(int id, string method, JNode @params, CancellationToken ct)
     {
         if (_disposed) return null;
 
@@ -901,23 +885,21 @@ internal class SseMcpTransport : McpTransport
         var messageUrl = _messageEndpoint;
         if (messageUrl == null) return null;
 
-        var tcs = new TaskCompletionSource<JsonObject?>(
+        var tcs = new TaskCompletionSource<JNode?>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         lock (_lock) { _pending[id] = tcs; }
 
-        var request = new JsonObject
-        {
-            ["jsonrpc"] = "2.0",
-            ["id"] = id,
-            ["method"] = method,
-            ["params"] = @params,
-        };
+        var request = JNode.Object()
+            .Set("jsonrpc", "2.0")
+            .Set("id", id)
+            .Set("method", method)
+            .Set("params", @params);
 
         try
         {
             using var httpReq = new HttpRequestMessage(HttpMethod.Post, messageUrl)
             {
-                Content = new StringContent(request.ToJsonString(), Encoding.UTF8, "application/json"),
+                Content = new StringContent(request.ToJson(), Encoding.UTF8, "application/json"),
             };
             if (_headers != null)
                 foreach (var (key, value) in _headers)
@@ -942,13 +924,13 @@ internal class SseMcpTransport : McpTransport
         }
     }
 
-    public override void SendNotification(string method, JsonObject @params)
+    public override void SendNotification(string method, JNode @params)
     {
         if (_disposed) return;
         _ = SendNotificationAsync(method, @params);
     }
 
-    private async Task SendNotificationAsync(string method, JsonObject @params)
+    private async Task SendNotificationAsync(string method, JNode @params)
     {
         // 等待 endpoint 就绪（最多 10s），失败则静默放弃
         try { await _endpointReady.Task.WaitAsync(TimeSpan.FromSeconds(10)); }
@@ -959,15 +941,13 @@ internal class SseMcpTransport : McpTransport
 
         try
         {
-            var notif = new JsonObject
-            {
-                ["jsonrpc"] = "2.0",
-                ["method"] = method,
-                ["params"] = @params,
-            };
+            var notif = JNode.Object()
+                .Set("jsonrpc", "2.0")
+                .Set("method", method)
+                .Set("params", @params);
             using var httpReq = new HttpRequestMessage(HttpMethod.Post, messageUrl)
             {
-                Content = new StringContent(notif.ToJsonString(), Encoding.UTF8, "application/json"),
+                Content = new StringContent(notif.ToJson(), Encoding.UTF8, "application/json"),
             };
             if (_headers != null)
                 foreach (var (key, value) in _headers)
@@ -1082,16 +1062,16 @@ internal class SseMcpTransport : McpTransport
         {
             try
             {
-                var resp = JsonNode.Parse(data)?.AsObject();
+                var resp = Json.Parse(data);
                 if (resp == null) return;
-                var id = resp["id"]?.GetValue<int>();
+                var id = resp["id"]?.AsNumber();
                 if (id == null) return;
 
                 lock (_lock)
                 {
-                    if (_pending.TryGetValue(id.Value, out var tcs))
+                    if (_pending.TryGetValue((int)id.Value, out var tcs))
                     {
-                        _pending.Remove(id.Value);
+                        _pending.Remove((int)id.Value);
                         tcs.TrySetResult(resp);
                     }
                 }
@@ -1124,7 +1104,7 @@ internal class McpConnection
     }
 
     /// <summary>发送 JSON-RPC 请求并等待响应</summary>
-    public async Task<JsonObject?> SendRequestAsync(string method, JsonObject @params)
+    public async Task<JNode?> SendRequestAsync(string method, JNode @params)
     {
         int id;
         lock (_lock) { id = _nextId++; }
@@ -1134,7 +1114,7 @@ internal class McpConnection
     }
 
     /// <summary>发送 JSON-RPC 通知（无响应）</summary>
-    public void SendNotification(string method, JsonObject @params)
+    public void SendNotification(string method, JNode @params)
     {
         _transport.SendNotification(method, @params);
     }
@@ -1157,36 +1137,34 @@ internal class McpConnection
 internal class McpTool : ITool
 {
     private readonly string _serverName;
-    private readonly JsonObject _toolDef;
+    private readonly JNode _toolDef;
     private readonly McpConnection _connection;
 
     public string Name { get; }
     public string Description { get; }
 
-    public JsonObject Parameters => _toolDef["inputSchema"]?.AsObject()
-        ?? new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() };
+    public JNode Parameters => _toolDef["inputSchema"]
+        ?? JNode.Object().Set("type", "object").Set("properties", JNode.Object());
 
-    public McpTool(string serverName, JsonObject toolDef, McpConnection connection)
+    public McpTool(string serverName, JNode toolDef, McpConnection connection)
     {
         _serverName = serverName;
         _toolDef = toolDef;
         _connection = connection;
 
-        var toolName = toolDef["name"]?.GetValue<string>() ?? "unknown";
+        var toolName = toolDef["name"]?.AsString() ?? "unknown";
         Name = $"mcp__{serverName}__{toolName}";
-        Description = toolDef["description"]?.GetValue<string>() ?? $"(MCP) {serverName}/{toolName}";
+        Description = toolDef["description"]?.AsString() ?? $"(MCP) {serverName}/{toolName}";
     }
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
-        var toolName = _toolDef["name"]?.GetValue<string>() ?? "";
+        var toolName = _toolDef["name"]?.AsString() ?? "";
 
         // 将参数字典转为 JsonObject
-        var @params = new JsonObject
-        {
-            ["name"] = toolName,
-            ["arguments"] = JsonNode.Parse(JsonHelper.SerializeArgs(arguments)),
-        };
+        var @params = JNode.Object()
+            .Set("name", toolName)
+            .Set("arguments", Json.Parse(JsonHelper.SerializeArgs(arguments)));
 
         var resp = await _connection.SendRequestAsync("tools/call", @params);
         if (resp == null)
@@ -1194,18 +1172,18 @@ internal class McpTool : ITool
 
         var error = resp["error"];
         if (error != null)
-            return $"错误: MCP {_serverName}/{toolName} — {error["message"]?.GetValue<string>() ?? "未知错误"}";
+            return $"错误: MCP {_serverName}/{toolName} — {error["message"]?.AsString() ?? "未知错误"}";
 
         var result = resp["result"];
         var content = result?["content"];
 
-        if (content is JsonArray arr)
+        if (content is { Kind: JKind.Array } arr)
         {
-            var texts = arr.Select(n => n?["text"]?.GetValue<string>() ?? "").Where(t => t != "");
+            var texts = arr.Items.Select(n => n?["text"]?.AsString() ?? "").Where(t => t != "");
             return string.Join("\n", texts);
         }
 
-        return result?.ToJsonString() ?? "(空结果)";
+        return result?.ToJson() ?? "(空结果)";
     }
 }
 
@@ -1227,32 +1205,24 @@ internal class McpResourceTool : ITool
     public string Name { get; }
     public string Description { get; }
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["uri"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要读取的资源 URI（省略则列出所有可用资源）",
-            },
-        },
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("uri", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要读取的资源 URI（省略则列出所有可用资源）")));
 
-    public McpResourceTool(string serverName, JsonArray resources, McpConnection connection)
+    public McpResourceTool(string serverName, JNode resources, McpConnection connection)
     {
         _serverName = serverName;
         _connection = connection;
         _resources = [];
 
-        foreach (var r in resources)
+        foreach (var r in resources.Items)
         {
-            var obj = r?.AsObject();
-            if (obj == null) continue;
-            var uri = obj["uri"]?.GetValue<string>() ?? "";
-            var rname = obj["name"]?.GetValue<string>() ?? "";
-            var desc = obj["description"]?.GetValue<string>() ?? "";
+            var uri = r["uri"]?.AsString() ?? "";
+            var rname = r["name"]?.AsString() ?? "";
+            var desc = r["description"]?.AsString() ?? "";
             _resources.Add((uri, rname, desc));
         }
 
@@ -1273,22 +1243,20 @@ internal class McpResourceTool : ITool
         // 传了 uri → 读取指定资源；否则列出全部资源
         if (arguments.TryGetValue("uri", out var uriVal) && uriVal is string uri && !string.IsNullOrWhiteSpace(uri))
         {
-            var readResp = await _connection.SendRequestAsync("resources/read", new JsonObject { ["uri"] = uri });
+            var readResp = await _connection.SendRequestAsync("resources/read", JNode.Object().Set("uri", uri));
             return FormatReadResult(readResp, uri);
         }
 
-        var listResp = await _connection.SendRequestAsync("resources/list", new JsonObject());
-        var resources = listResp?["result"]?["resources"]?.AsArray();
+        var listResp = await _connection.SendRequestAsync("resources/list", JNode.Object());
+        var resources = listResp?["result"]?["resources"];
         if (resources == null || resources.Count == 0) return "(无资源)";
 
         var sb = new StringBuilder();
-        foreach (var r in resources)
+        foreach (var r in resources.Items)
         {
-            var obj = r?.AsObject();
-            if (obj == null) continue;
-            var u = obj["uri"]?.GetValue<string>() ?? "";
-            var n = obj["name"]?.GetValue<string>() ?? "";
-            var d = obj["description"]?.GetValue<string>() ?? "";
+            var u = r["uri"]?.AsString() ?? "";
+            var n = r["name"]?.AsString() ?? "";
+            var d = r["description"]?.AsString() ?? "";
             sb.Append($"{n} ({u})");
             if (!string.IsNullOrEmpty(d)) sb.Append($": {d}");
             sb.Append('\n');
@@ -1296,26 +1264,24 @@ internal class McpResourceTool : ITool
         return sb.ToString().TrimEnd('\n');
     }
 
-    private string FormatReadResult(JsonObject? resp, string uri)
+    private string FormatReadResult(JNode? resp, string uri)
     {
         if (resp == null) return $"错误: MCP {_serverName} 读取资源 {uri} 超时";
         var error = resp["error"];
         if (error != null)
-            return $"错误: MCP {_serverName} 读取资源 {uri} — {error["message"]?.GetValue<string>() ?? "未知错误"}";
+            return $"错误: MCP {_serverName} 读取资源 {uri} — {error["message"]?.AsString() ?? "未知错误"}";
 
-        var contents = resp["result"]?["contents"]?.AsArray();
+        var contents = resp["result"]?["contents"];
         if (contents == null) return "(空资源)";
 
         var sb = new StringBuilder();
-        foreach (var c in contents)
+        foreach (var c in contents.Items)
         {
-            var obj = c?.AsObject();
-            if (obj == null) continue;
-            var text = obj["text"]?.GetValue<string>();
+            var text = c["text"]?.AsString();
             if (text != null) { sb.Append(text); continue; }
-            var blob = obj["blob"]?.GetValue<string>();
+            var blob = c["blob"]?.AsString();
             if (blob != null) { sb.Append($"[二进制 blob, base64 {blob.Length} 字符]"); continue; }
-            var nestedUri = obj["uri"]?.GetValue<string>();
+            var nestedUri = c["uri"]?.AsString();
             if (nestedUri != null) { sb.Append($"[嵌套资源: {nestedUri}]"); continue; }
         }
         return sb.Length > 0 ? sb.ToString() : "(空资源)";
@@ -1330,74 +1296,66 @@ internal class McpResourceTool : ITool
 internal class McpPromptTool : ITool
 {
     private readonly string _serverName;
-    private readonly JsonObject _promptDef;
+    private readonly JNode _promptDef;
     private readonly McpConnection _connection;
 
     public string Name { get; }
     public string Description { get; }
-    public JsonObject Parameters { get; }
+    public JNode Parameters { get; }
 
-    public McpPromptTool(string serverName, JsonObject promptDef, McpConnection connection)
+    public McpPromptTool(string serverName, JNode promptDef, McpConnection connection)
     {
         _serverName = serverName;
         _promptDef = promptDef;
         _connection = connection;
 
-        var promptName = promptDef["name"]?.GetValue<string>() ?? "unknown";
+        var promptName = promptDef["name"]?.AsString() ?? "unknown";
         Name = $"mcp__{serverName}__prompt__{promptName}";
-        Description = promptDef["description"]?.GetValue<string>() ?? $"(MCP) {serverName} 提示词 {promptName}";
-        Parameters = BuildParameters(promptDef["arguments"]?.AsArray());
+        Description = promptDef["description"]?.AsString() ?? $"(MCP) {serverName} 提示词 {promptName}";
+        Parameters = BuildParameters(promptDef["arguments"]);
     }
 
     /// <summary>从 prompts/list 的 arguments 数组构造 inputSchema（纯逻辑，便于自测）。</summary>
-    internal static JsonObject BuildParameters(JsonArray? args)
+    internal static JNode BuildParameters(JNode? args)
     {
-        var properties = new JsonObject();
+        var properties = JNode.Object();
         if (args != null)
         {
-            foreach (var a in args)
+            foreach (var a in args.Items)
             {
-                var obj = a?.AsObject();
-                if (obj == null) continue;
-                var argName = obj["name"]?.GetValue<string>();
+                var argName = a["name"]?.AsString();
                 if (string.IsNullOrEmpty(argName)) continue;
-                properties[argName] = new JsonObject
-                {
-                    ["type"] = "string",
-                    ["description"] = obj["description"]?.GetValue<string>() ?? argName,
-                };
+                properties[argName] = JNode.Object()
+                    .Set("type", "string")
+                    .Set("description", a["description"]?.AsString() ?? argName);
             }
         }
-        return new JsonObject { ["type"] = "object", ["properties"] = properties };
+        return JNode.Object().Set("type", "object").Set("properties", properties);
     }
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
-        var promptName = _promptDef["name"]?.GetValue<string>() ?? "";
+        var promptName = _promptDef["name"]?.AsString() ?? "";
 
-        var @params = new JsonObject
-        {
-            ["name"] = promptName,
-            ["arguments"] = JsonNode.Parse(JsonHelper.SerializeArgs(arguments)),
-        };
+        var @params = JNode.Object()
+            .Set("name", promptName)
+            .Set("arguments", Json.Parse(JsonHelper.SerializeArgs(arguments)));
 
         var resp = await _connection.SendRequestAsync("prompts/get", @params);
         if (resp == null) return $"错误: MCP {_serverName} 提示词 {promptName} 调用超时";
 
         var error = resp["error"];
         if (error != null)
-            return $"错误: MCP {_serverName} 提示词 {promptName} — {error["message"]?.GetValue<string>() ?? "未知错误"}";
+            return $"错误: MCP {_serverName} 提示词 {promptName} — {error["message"]?.AsString() ?? "未知错误"}";
 
-        var messages = resp["result"]?["messages"]?.AsArray();
-        if (messages == null) return resp["result"]?.ToJsonString() ?? "(空提示词)";
+        var messages = resp["result"]?["messages"];
+        if (messages == null) return resp["result"]?.ToJson() ?? "(空提示词)";
 
         var sb = new StringBuilder();
-        foreach (var m in messages)
+        foreach (var m in messages.Items)
         {
-            var obj = m?.AsObject();
-            if (obj == null) continue;
-            var role = obj["role"]?.GetValue<string>() ?? "";
-            var text = ExtractContentText(obj["content"]);
+            var role = m["role"]?.AsString() ?? "";
+            var text = ExtractContentText(m["content"]);
             if (string.IsNullOrEmpty(text)) continue;
             sb.Append($"[{role}]\n{text}\n\n");
         }
@@ -1405,25 +1363,25 @@ internal class McpPromptTool : ITool
     }
 
     /// <summary>提取 prompt 消息 content 的纯文本（content 可为字符串 / 对象 / 数组）。</summary>
-    internal static string ExtractContentText(JsonNode? content)
+    internal static string ExtractContentText(JNode? content)
     {
         if (content == null) return "";
-        if (content is JsonValue value)
-            return value.TryGetValue<string>(out var s) ? s : "";
-        if (content is JsonObject obj)
+        if (content.Kind == JKind.String)
+            return content.AsString() ?? "";
+        if (content.Kind == JKind.Object)
         {
-            var text = obj["text"]?.GetValue<string>();
+            var text = content["text"]?.AsString();
             if (text != null) return text;
-            var uri = obj["uri"]?.GetValue<string>();
+            var uri = content["uri"]?.AsString();
             if (uri != null) return $"[资源: {uri}]";
-            return obj.ToJsonString();
+            return content.ToJson();
         }
-        if (content is JsonArray arr)
+        if (content.Kind == JKind.Array)
         {
             var sb = new StringBuilder();
-            foreach (var c in arr)
+            foreach (var c in content.Items)
             {
-                var text = c?["text"]?.GetValue<string>();
+                var text = c?["text"]?.AsString();
                 if (text != null) sb.Append(text);
             }
             return sb.ToString();

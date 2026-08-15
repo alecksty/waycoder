@@ -1,5 +1,3 @@
-using System.Text.Json.Nodes;
-
 namespace WayCoder.Tools;
 
 /// <summary>
@@ -13,47 +11,31 @@ public class StructTodoTool : ITool
     public string Name => "struct_todo";
     public string Description => "管理带依赖关系的结构化任务列表。操作：create(创建任务,可指定前置依赖), update(更新状态: pending/in_progress/completed/blocked), list(列出全部,可过滤状态), delete(删除)。支持依赖检测：blocked 状态的任务不会在其依赖完成前被标记为 in_progress。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["action"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["enum"] = new JsonArray("create", "update", "list", "delete"),
-                ["description"] = "操作类型",
-            },
-            ["id"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "任务 ID（create/update/delete 必填）",
-            },
-            ["title"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "任务标题（create 必填）",
-            },
-            ["status"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["enum"] = new JsonArray("pending", "in_progress", "completed", "blocked"),
-                ["description"] = "任务状态（update 操作）",
-            },
-            ["deps"] = new JsonObject
-            {
-                ["type"] = "array",
-                ["items"] = new JsonObject { ["type"] = "string" },
-                ["description"] = "前置依赖任务 ID 列表（create 操作可选）",
-            },
-            ["filter"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "状态过滤器，逗号分隔（list 操作可选）",
-            },
-        },
-        ["required"] = new JsonArray("action"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("action", JNode.Object()
+                .Set("type", "string")
+                .Set("enum", JNode.Array().Add("create").Add("update").Add("list").Add("delete"))
+                .Set("description", "操作类型"))
+            .Set("id", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "任务 ID（create/update/delete 必填）"))
+            .Set("title", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "任务标题（create 必填）"))
+            .Set("status", JNode.Object()
+                .Set("type", "string")
+                .Set("enum", JNode.Array().Add("pending").Add("in_progress").Add("completed").Add("blocked"))
+                .Set("description", "任务状态（update 操作）"))
+            .Set("deps", JNode.Object()
+                .Set("type", "array")
+                .Set("items", JNode.Object().Set("type", "string"))
+                .Set("description", "前置依赖任务 ID 列表（create 操作可选）"))
+            .Set("filter", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "状态过滤器，逗号分隔（list 操作可选）")))
+        .Set("required", JNode.Array().Add("action"));
 
     private static string StorePath => Path.Combine(
         Environment.CurrentDirectory, ".waycoder", "todos.json");
@@ -87,8 +69,8 @@ public class StructTodoTool : ITool
         var deps = new List<string>();
         if (args.TryGetValue("deps", out var depsObj) && depsObj != null)
         {
-            if (depsObj is JsonArray arr)
-                deps.AddRange(arr.Select(n => n?.GetValue<string>() ?? "").Where(s => s != ""));
+            if (depsObj is JNode arr)
+                deps.AddRange(arr.Items.Select(n => n.AsString() ?? "").Where(s => s != ""));
             else if (depsObj is System.Collections.IEnumerable en)
                 deps.AddRange(en.Cast<object>().Select(o => o?.ToString() ?? "").Where(s => s != ""));
         }
@@ -216,17 +198,17 @@ public class StructTodoTool : ITool
         {
             if (!File.Exists(StorePath)) return [];
             var json = File.ReadAllText(StorePath);
-            var node = JsonNode.Parse(json);
-            if (node is JsonArray arr)
+            var node = Json.Parse(json);
+            if (node is { Kind: JKind.Array } arr)
             {
-                return arr.Select(n => new TodoItem
+                return arr.Items.Select(n => new TodoItem
                 {
-                    Id = n!["id"]?.GetValue<string>() ?? "",
-                    Title = n["title"]?.GetValue<string>() ?? "",
-                    Status = n["status"]?.GetValue<string>() ?? "pending",
-                    DependsOn = n["depends_on"]?.AsArray()
-                        ?.Select(d => d?.GetValue<string>() ?? "").Where(s => s != "").ToList() ?? [],
-                    CreatedAt = DateTime.TryParse(n["created_at"]?.GetValue<string>(), out var dt) ? dt : DateTime.UtcNow,
+                    Id = n["id"]?.AsString() ?? "",
+                    Title = n["title"]?.AsString() ?? "",
+                    Status = n["status"]?.AsString() ?? "pending",
+                    DependsOn = n["depends_on"]?.Items
+                        .Select(d => d.AsString() ?? "").Where(s => s != "").ToList() ?? [],
+                    CreatedAt = DateTime.TryParse(n["created_at"]?.AsString(), out var dt) ? dt : DateTime.UtcNow,
                 }).ToList();
             }
         }
@@ -238,15 +220,21 @@ public class StructTodoTool : ITool
     {
         var dir = Path.GetDirectoryName(StorePath)!;
         Directory.CreateDirectory(dir);
-        var arr = new JsonArray(todos.Select(t => new JsonObject
+        var arr = JNode.Array();
+        foreach (var t in todos)
         {
-            ["id"] = t.Id,
-            ["title"] = t.Title,
-            ["status"] = t.Status,
-            ["depends_on"] = new JsonArray(t.DependsOn.Select(d => JsonValue.Create(d)!).ToArray()),
-            ["created_at"] = JsonValue.Create(t.CreatedAt.ToString("O")),
-        }).ToArray());
-        File.WriteAllText(StorePath, arr.ToJsonString());
+            var dependsOn = JNode.Array();
+            foreach (var d in t.DependsOn)
+                dependsOn.Add(d);
+
+            arr.Add(JNode.Object()
+                .Set("id", t.Id)
+                .Set("title", t.Title)
+                .Set("status", t.Status)
+                .Set("depends_on", dependsOn)
+                .Set("created_at", t.CreatedAt.ToString("O")));
+        }
+        File.WriteAllText(StorePath, arr.ToJson());
     }
 
     private class TodoItem

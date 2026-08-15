@@ -128,24 +128,24 @@ public class ThemeConfig
             if (path != null)
             {
                 var json = File.ReadAllText(path);
-                var node = JsonNode.Parse(json);
+                var node = Json.Parse(json);
                 if (node != null)
                 {
                     // 检查是否引用预设
-                    var preset = node["preset"]?.GetValue<string>();
+                    var preset = node["preset"]?.AsString();
                     if (preset != null && Presets.TryGetValue(preset, out var p))
                         return p;
 
                     return new ThemeConfig
                     {
-                        BorderStyle = node["borderStyle"]?.GetValue<string>() ?? "single",
-                        BorderColor = node["borderColor"]?.GetValue<int>() ?? 36,
-                        WinBg = node["winBg"]?.GetValue<int>() ?? 0,
-                        TitleFg = node["titleFg"]?.GetValue<int>() ?? 0,
-                        ContentFg = node["contentFg"]?.GetValue<int>() ?? 0,
-                        ItemFg = node["itemFg"]?.GetValue<int>() ?? 0,
-                        SelFg = node["selFg"]?.GetValue<int>() ?? 30,
-                        SelBg = node["selBg"]?.GetValue<int>() ?? 46,
+                        BorderStyle = node["borderStyle"]?.AsString() ?? "single",
+                        BorderColor = (int)(node["borderColor"]?.AsNumber() ?? 36),
+                        WinBg = (int)(node["winBg"]?.AsNumber() ?? 0),
+                        TitleFg = (int)(node["titleFg"]?.AsNumber() ?? 0),
+                        ContentFg = (int)(node["contentFg"]?.AsNumber() ?? 0),
+                        ItemFg = (int)(node["itemFg"]?.AsNumber() ?? 0),
+                        SelFg = (int)(node["selFg"]?.AsNumber() ?? 30),
+                        SelBg = (int)(node["selBg"]?.AsNumber() ?? 46),
                     };
                 }
             }

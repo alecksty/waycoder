@@ -19,20 +19,18 @@ public static partial class SelfTest
         {
             var nbPath = Path.Combine(nbTestDir, "test.ipynb");
             // 创建一个最小 notebook
-            var nb = new JsonObject
-            {
-                ["nbformat"] = 4,
-                ["nbformat_minor"] = 5,
-                ["metadata"] = new JsonObject(),
-                ["cells"] = new JsonArray(),
-            };
-            var cell0 = new JsonObject { ["cell_type"] = "code", ["metadata"] = new JsonObject(), ["outputs"] = new JsonArray() };
+            var nb = JNode.Object()
+                .Set("nbformat", 4)
+                .Set("nbformat_minor", 5)
+                .Set("metadata", JNode.Object())
+                .Set("cells", JNode.Array());
+            var cell0 = JNode.Object().Set("cell_type", "code").Set("metadata", JNode.Object()).Set("outputs", JNode.Array());
             cell0["execution_count"] = null;
-            var cell0Source = new JsonArray(); cell0Source.Add((JsonNode?)JsonValue.Create("print('hello')\n")); cell0["source"] = cell0Source;
-            var cell1 = new JsonObject { ["cell_type"] = "markdown", ["metadata"] = new JsonObject() };
-            var cell1Source = new JsonArray(); cell1Source.Add((JsonNode?)JsonValue.Create("# Title\n")); cell1["source"] = cell1Source;
-            nb["cells"]!.AsArray().Add(cell0); nb["cells"]!.AsArray().Add(cell1);
-            File.WriteAllText(nbPath, nb.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            var cell0Source = JNode.Array(); cell0Source.Add(JNode.From("print('hello')\n")); cell0["source"] = cell0Source;
+            var cell1 = JNode.Object().Set("cell_type", "markdown").Set("metadata", JNode.Object());
+            var cell1Source = JNode.Array(); cell1Source.Add(JNode.From("# Title\n")); cell1["source"] = cell1Source;
+            nb["cells"]!.Add(cell0); nb["cells"]!.Add(cell1);
+            File.WriteAllText(nbPath, nb.ToJson(true));
 
             var notebookTool = new NotebookEditTool();
             Check("notebook_edit 工具名称", notebookTool.Name == "notebook_edit");
@@ -46,7 +44,7 @@ public static partial class SelfTest
                 ["new_source"] = "print('replaced')",
             }).Result;
             Check("Replace cell", replaceResult.Contains("已替换"));
-            var nbAfterReplace = JsonNode.Parse(File.ReadAllText(nbPath))!.AsObject();
+            var nbAfterReplace = Json.Parse(File.ReadAllText(nbPath))!;
             Check("Replace 内容变更", GetNotebookSource(nbAfterReplace, 0).Contains("replaced"));
 
             // 测试 insert
@@ -59,8 +57,8 @@ public static partial class SelfTest
                 ["edit_mode"] = "insert",
             }).Result;
             Check("Insert cell", insertResult.Contains("已插入"));
-            var nbAfterInsert = JsonNode.Parse(File.ReadAllText(nbPath))!.AsObject();
-            Check("Insert 后 cells 数量", nbAfterInsert["cells"]!.AsArray().Count == 3);
+            var nbAfterInsert = Json.Parse(File.ReadAllText(nbPath))!;
+            Check("Insert 后 cells 数量", nbAfterInsert["cells"]!.Count == 3);
 
             // 测试 delete
             var deleteResult = notebookTool.ExecuteAsync(new Dictionary<string, object?>
@@ -71,8 +69,8 @@ public static partial class SelfTest
                 ["edit_mode"] = "delete",
             }).Result;
             Check("Delete cell", deleteResult.Contains("已删除"));
-            var nbAfterDelete = JsonNode.Parse(File.ReadAllText(nbPath))!.AsObject();
-            Check("Delete 后 cells 数量", nbAfterDelete["cells"]!.AsArray().Count == 2);
+            var nbAfterDelete = Json.Parse(File.ReadAllText(nbPath))!;
+            Check("Delete 后 cells 数量", nbAfterDelete["cells"]!.Count == 2);
 
             // 测试非 .ipynb 文件拒绝
             var badResult = notebookTool.ExecuteAsync(new Dictionary<string, object?>
@@ -166,30 +164,30 @@ public static partial class SelfTest
 
         // ---- MCP 环境变量解析 ----
         Section("[MCP 环境变量]");
-        var mcpConfig = JsonNode.Parse(@"[
+        var mcpConfig = Json.Parse(@"[
             { ""name"": ""test"", ""command"": ""echo"", ""args"": [""hi""], ""env"": { ""API_KEY"": ""sk-123"", ""DEBUG"": ""1"" } }
-        ]")?.AsArray();
+        ]");
         Check("MCP 配置解析非空", mcpConfig != null);
         var srv = mcpConfig![0];
-        Check("MCP name 字段", srv!["name"]?.GetValue<string>() == "test");
-        var envObj = srv!["env"]?.AsObject();
+        Check("MCP name 字段", srv!["name"]?.AsString() == "test");
+        var envObj = srv!["env"];
         Check("MCP env 解析", envObj != null && envObj.Count == 2);
-        Check("MCP env API_KEY", envObj!["API_KEY"]?.GetValue<string>() == "sk-123");
+        Check("MCP env API_KEY", envObj!["API_KEY"]?.AsString() == "sk-123");
         // 无 env 的配置
-        var noEnv = JsonNode.Parse(@"{ ""name"": ""x"", ""command"": ""y"" }")?.AsObject();
-        Check("MCP 无 env 不崩溃", noEnv!["env"]?.AsObject() == null);
+        var noEnv = Json.Parse(@"{ ""name"": ""x"", ""command"": ""y"" }");
+        Check("MCP 无 env 不崩溃", noEnv!["env"] == null);
         Console.WriteLine();
 
         // ---- MCP HTTP 传输 ----
         Section("[MCP HTTP]");
 
         Check("HTTP 传输: url 检测",
-            JsonNode.Parse(@"{ ""url"": ""http://localhost:8080/mcp"" }")!["url"]?.GetValue<string>() == "http://localhost:8080/mcp");
+            Json.Parse(@"{ ""url"": ""http://localhost:8080/mcp"" }")!["url"]?.AsString() == "http://localhost:8080/mcp");
         Check("HTTP 传输: transport=http",
-            JsonNode.Parse(@"{ ""transport"": ""http"", ""url"": ""http://x.com/mcp"" }")!["transport"]?.GetValue<string>() == "http");
-        var stdioCfg = JsonNode.Parse(@"{ ""command"": ""echo"", ""args"": [""hi""] }");
+            Json.Parse(@"{ ""transport"": ""http"", ""url"": ""http://x.com/mcp"" }")!["transport"]?.AsString() == "http");
+        var stdioCfg = Json.Parse(@"{ ""command"": ""echo"", ""args"": [""hi""] }");
         Check("Stdio 传输: 向后兼容",
-            stdioCfg!["command"]?.GetValue<string>() == "echo" && stdioCfg["url"] == null);
+            stdioCfg!["command"]?.AsString() == "echo" && stdioCfg["url"] == null);
 
         Environment.SetEnvironmentVariable("TEST_MCP_VAR", "secret123");
         Check("MCP 环境变量展开: headers", McpManager.ExpandEnvVars("Bearer ${TEST_MCP_VAR}") == "Bearer secret123");
@@ -197,7 +195,7 @@ public static partial class SelfTest
         Check("MCP 环境变量展开: 无变量", McpManager.ExpandEnvVars("no-vars-here") == "no-vars-here");
         Check("MCP 环境变量展开: 空字符串", McpManager.ExpandEnvVars("") == "");
 
-        var hdrObj = new JsonObject { ["Authorization"] = "Bearer ${TEST_MCP_VAR}", ["X-Custom"] = "static" };
+        var hdrObj = JNode.Object().Set("Authorization", "Bearer ${TEST_MCP_VAR}").Set("X-Custom", "static");
         var parsedHdr = McpManager.ParseHeaders(hdrObj);
         Check("MCP headers: 展开", parsedHdr != null && parsedHdr["Authorization"] == "Bearer secret123");
         Check("MCP headers: 静态", parsedHdr != null && parsedHdr["X-Custom"] == "static");
@@ -208,16 +206,16 @@ public static partial class SelfTest
         Section("[MCP SSE]");
 
         Check("SSE: transport=sse 识别",
-            McpManager.DetectTransport(JsonNode.Parse(@"{ ""transport"": ""sse"", ""url"": ""http://x.com/sse"" }")!)
+            McpManager.DetectTransport(Json.Parse(@"{ ""transport"": ""sse"", ""url"": ""http://x.com/sse"" }")!)
                 == McpManager.McpTransportType.Sse);
         Check("SSE: transport=http 识别",
-            McpManager.DetectTransport(JsonNode.Parse(@"{ ""transport"": ""http"", ""url"": ""http://x.com/mcp"" }")!)
+            McpManager.DetectTransport(Json.Parse(@"{ ""transport"": ""http"", ""url"": ""http://x.com/mcp"" }")!)
                 == McpManager.McpTransportType.Http);
         Check("SSE: url 无 transport 默认 http",
-            McpManager.DetectTransport(JsonNode.Parse(@"{ ""url"": ""http://x.com/mcp"" }")!)
+            McpManager.DetectTransport(Json.Parse(@"{ ""url"": ""http://x.com/mcp"" }")!)
                 == McpManager.McpTransportType.Http);
         Check("SSE: 无 url 无 transport 默认 stdio",
-            McpManager.DetectTransport(JsonNode.Parse(@"{ ""command"": ""echo"" }")!)
+            McpManager.DetectTransport(Json.Parse(@"{ ""command"": ""echo"" }")!)
                 == McpManager.McpTransportType.Stdio);
 
         Check("SSE endpoint: 相对路径解析为绝对",
@@ -243,11 +241,11 @@ public static partial class SelfTest
         Check("MCP 缓存键: 不同配置不同键", k1 != k3);
         Check("MCP 缓存键: 格式", k1.StartsWith("test|") && k1.Length >= 21 && k1.Length <= 30);
 
-        var sidNode = JsonNode.Parse(@"{ ""command"": ""npx"", ""args"": [""-y"", ""server""] }");
+        var sidNode = Json.Parse(@"{ ""command"": ""npx"", ""args"": [""-y"", ""server""] }");
         Check("MCP 规范ID: stdio", McpCache.GetCanonicalId(sidNode!) == "npx|-y|server");
-        var hidNode = JsonNode.Parse(@"{ ""url"": ""http://example.com/mcp"" }");
+        var hidNode = Json.Parse(@"{ ""url"": ""http://example.com/mcp"" }");
         Check("MCP 规范ID: HTTP", McpCache.GetCanonicalId(hidNode!) == "http://example.com/mcp");
-        var nidNode = JsonNode.Parse(@"{ ""name"": ""x"" }");
+        var nidNode = Json.Parse(@"{ ""name"": ""x"" }");
         Check("MCP 规范ID: 无标识符", McpCache.GetCanonicalId(nidNode!) == null);
 
         Check("McpInfo 初始非空", !string.IsNullOrEmpty(McpManager.Info));
@@ -288,13 +286,13 @@ public static partial class SelfTest
 
         var fakeConn = new McpConnection("fs", new FakeMcpTransport((method, _) => method switch
         {
-            "resources/read" => JsonNode.Parse(@"{""result"":{""contents"":[{""uri"":""file:///a.txt"",""text"":""hello resource""}]}}")?.AsObject(),
-            "resources/list" => JsonNode.Parse(@"{""result"":{""resources"":[{""uri"":""file:///a.txt"",""name"":""a"",""description"":""doc""}]}}")?.AsObject(),
-            "prompts/get" => JsonNode.Parse(@"{""result"":{""messages"":[{""role"":""user"",""content"":{""type"":""text"",""text"":""hi prompt""}}]}}")?.AsObject(),
+            "resources/read" => Json.Parse(@"{""result"":{""contents"":[{""uri"":""file:///a.txt"",""text"":""hello resource""}]}}"),
+            "resources/list" => Json.Parse(@"{""result"":{""resources"":[{""uri"":""file:///a.txt"",""name"":""a"",""description"":""doc""}]}}"),
+            "prompts/get" => Json.Parse(@"{""result"":{""messages"":[{""role"":""user"",""content"":{""type"":""text"",""text"":""hi prompt""}}]}}"),
             _ => null,
         }));
 
-        var resArr = JsonNode.Parse(@"[{""uri"":""file:///a.txt"",""name"":""a"",""description"":""doc""}]")!.AsArray();
+        var resArr = Json.Parse(@"[{""uri"":""file:///a.txt"",""name"":""a"",""description"":""doc""}]")!;
         var resTool = new McpResourceTool("fs", resArr, fakeConn);
         Check("资源工具: 名称", resTool.Name == "mcp__fs__resources");
         Check("资源工具: 描述含 URI", resTool.Description.Contains("file:///a.txt"));
@@ -304,7 +302,7 @@ public static partial class SelfTest
         var resList = resTool.ExecuteAsync(new Dictionary<string, object?>()).Result;
         Check("资源工具: 列表返回名称+URI", resList.Contains("a (file:///a.txt)"));
 
-        var promptDef = JsonNode.Parse(@"{""name"":""greet"",""description"":""打招呼"",""arguments"":[{""name"":""who"",""description"":""对象""}]}")!.AsObject();
+        var promptDef = Json.Parse(@"{""name"":""greet"",""description"":""打招呼"",""arguments"":[{""name"":""who"",""description"":""对象""}]}")!;
         var promptTool = new McpPromptTool("fs", promptDef, fakeConn);
         Check("提示词工具: 名称", promptTool.Name == "mcp__fs__prompt__greet");
         Check("提示词工具: 描述", promptTool.Description == "打招呼");
@@ -312,9 +310,9 @@ public static partial class SelfTest
         var promptRes = promptTool.ExecuteAsync(new Dictionary<string, object?> { ["who"] = "world" }).Result;
         Check("提示词工具: 调用返回消息", promptRes.Contains("[user]") && promptRes.Contains("hi prompt"));
 
-        Check("提示词工具: BuildParameters 空", McpPromptTool.BuildParameters(null)["properties"]!.AsObject().Count == 0);
-        Check("提示词工具: ExtractContentText 字符串", McpPromptTool.ExtractContentText(JsonNode.Parse("\"plain\"")!) == "plain");
-        Check("提示词工具: ExtractContentText 对象", McpPromptTool.ExtractContentText(JsonNode.Parse(@"{""type"":""text"",""text"":""obj""}")!) == "obj");
+        Check("提示词工具: BuildParameters 空", McpPromptTool.BuildParameters(null)["properties"]!.Count == 0);
+        Check("提示词工具: ExtractContentText 字符串", McpPromptTool.ExtractContentText(Json.Parse("\"plain\"")) == "plain");
+        Check("提示词工具: ExtractContentText 对象", McpPromptTool.ExtractContentText(Json.Parse(@"{""type"":""text"",""text"":""obj""}")) == "obj");
         Check("提示词工具: ExtractContentText null", McpPromptTool.ExtractContentText(null) == "");
 
         var sinfo3 = new McpServerInfo("x", "http", McpServerStatus.Connected, 3, null, 2, 1);
@@ -361,9 +359,9 @@ public static partial class SelfTest
         var agentTool = new AgentTool();
         Check("AgentTool Name", agentTool.Name == "agent");
         Check("AgentTool Description 非空", agentTool.Description.Length > 0);
-        Check("AgentTool Schema 含 task", agentTool.Parameters["properties"]?.AsObject().ContainsKey("task") == true);
+        Check("AgentTool Schema 含 task", agentTool.Parameters["properties"]?.Has("task") == true);
         // v0.38.0: 并行 tasks 数组 schema
-        Check("AgentTool Schema 含 tasks（并行数组）", agentTool.Parameters["properties"]?.AsObject().ContainsKey("tasks") == true);
+        Check("AgentTool Schema 含 tasks（并行数组）", agentTool.Parameters["properties"]?.Has("tasks") == true);
         // BuildParentContext via reflection-like test
         Check("AgentTool ParentAgent 初始 null", agentTool.ParentAgent == null);
         // 递归深度
@@ -439,17 +437,17 @@ public static partial class SelfTest
 
         // ---- 对话导出 ----
         Section("[对话导出]");
-        var exportMsgs = new List<JsonObject> {
-            new() { ["role"] = "user", ["content"] = "hello" },
-            new() { ["role"] = "assistant", ["content"] = "hi there" },
-            new() { ["role"] = "tool", ["content"] = "result", ["tool_call_id"] = "c1" },
+        var exportMsgs = new List<JNode> {
+            JNode.Object().Set("role", "user").Set("content", "hello"),
+            JNode.Object().Set("role", "assistant").Set("content", "hi there"),
+            JNode.Object().Set("role", "tool").Set("content", "result").Set("tool_call_id", "c1"),
         };
         var exportSb = new StringBuilder();
         exportSb.AppendLine("# WayCoder 对话导出");
         foreach (var msg in exportMsgs)
         {
-            var role = msg["role"]?.GetValue<string>() ?? "";
-            var content = msg["content"]?.GetValue<string>() ?? "";
+            var role = msg["role"]?.AsString() ?? "";
+            var content = msg["content"]?.AsString() ?? "";
             if (role == "user") exportSb.AppendLine($"### 👤 User\n\n{content}\n");
             else if (role == "assistant") exportSb.AppendLine($"### 🤖 Assistant\n\n{content}\n");
             else if (role == "tool") exportSb.AppendLine($"### 🔧 Tool\n\n```\n{content}\n```\n");
@@ -472,15 +470,15 @@ public static partial class SelfTest
     /// <summary>自测用假 MCP 传输 — 按 method 返回脚本化响应，不触碰真实网络/进程。</summary>
     private sealed class FakeMcpTransport : McpTransport
     {
-        private readonly Func<string, JsonObject?, JsonObject?> _handler;
+        private readonly Func<string, JNode?, JNode?> _handler;
         public override bool IsConnected => true;
 
-        public FakeMcpTransport(Func<string, JsonObject?, JsonObject?> handler) => _handler = handler;
+        public FakeMcpTransport(Func<string, JNode?, JNode?> handler) => _handler = handler;
 
-        public override Task<JsonObject?> SendRequestAsync(int id, string method, JsonObject @params, CancellationToken ct)
+        public override Task<JNode?> SendRequestAsync(int id, string method, JNode @params, CancellationToken ct)
             => Task.FromResult(_handler(method, @params));
 
-        public override void SendNotification(string method, JsonObject @params) { }
+        public override void SendNotification(string method, JNode @params) { }
 
         public override Task DisconnectAsync() => Task.CompletedTask;
     }

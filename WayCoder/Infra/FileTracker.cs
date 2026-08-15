@@ -248,18 +248,18 @@ public static class FileTracker
             var path = StorePath;
             if (!File.Exists(path)) return;
 
-            var node = JsonNode.Parse(File.ReadAllText(path));
-            if (node is not JsonArray arr) return;
+            var node = Json.Parse(File.ReadAllText(path));
+            if (node?.Kind != JKind.Array) return;
 
-            foreach (var item in arr)
+            foreach (var item in node!.Items)
             {
-                if (item is not JsonObject obj) continue;
-                var p = obj["path"]?.GetValue<string>();
-                var h = obj["hash"]?.GetValue<string>();
+                if (item.Kind != JKind.Object) continue;
+                var p = item["path"]?.AsString();
+                var h = item["hash"]?.AsString();
                 if (string.IsNullOrEmpty(p) || string.IsNullOrEmpty(h)) continue;
 
                 Tracked[p] = h;
-                if (DateTime.TryParse(obj["last_read"]?.GetValue<string>(), null,
+                if (DateTime.TryParse(item["last_read"]?.AsString(), null,
                         System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
                     LastReadTimes[p] = dt;
 
@@ -278,19 +278,21 @@ public static class FileTracker
     {
         try
         {
-            var arr = new JsonArray(Tracked.Select(kv => new JsonObject
+            var arr = JNode.Array();
+            foreach (var kv in Tracked)
             {
-                ["path"] = kv.Key,
-                ["hash"] = kv.Value,
-                ["last_read"] = (LastReadTimes.TryGetValue(kv.Key, out var t) ? t : DateTime.UtcNow).ToString("O"),
-            }).ToArray());
+                arr.Add(JNode.Object()
+                    .Set("path", kv.Key)
+                    .Set("hash", kv.Value)
+                    .Set("last_read", (LastReadTimes.TryGetValue(kv.Key, out var t) ? t : DateTime.UtcNow).ToString("O")));
+            }
 
             var path = StorePath;
             var dir = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
 
             var tmp = path + ".tmp";
-            File.WriteAllText(tmp, arr.ToJsonString());
+            File.WriteAllText(tmp, arr.ToJson());
             File.Move(tmp, path, overwrite: true);
         }
         catch

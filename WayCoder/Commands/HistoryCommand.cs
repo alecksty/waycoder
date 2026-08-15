@@ -23,7 +23,7 @@ public class HistoryCommand : SlashCommand
         int idx = 0;
         foreach (var msg in agent.Messages)
         {
-            var content = msg["content"]?.GetValue<string>() ?? "";
+            var content = msg["content"]?.AsString() ?? "";
             if (content.Contains(args, StringComparison.OrdinalIgnoreCase))
             {
                 var preview = content.Length > 80 ? content[..80] + "..." : content;

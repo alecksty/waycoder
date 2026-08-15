@@ -23,7 +23,7 @@ public class Agent
     /// <summary>工具名 → 工具实例的快速查找字典</summary>
     public Dictionary<string, ITool> ToolByName { get; }
     /// <summary>对话消息历史（OpenAI 格式）</summary>
-    public List<JsonObject> Messages { get; set; } = [];
+    public List<JNode> Messages { get; set; } = [];
     /// <summary>上下文管理器（三层压缩 + token 预算）</summary>
     public ContextManager Context { get; }
 
@@ -135,7 +135,7 @@ public class Agent
     /// 构建完整消息列表（包含系统提示词 + 模式提示）。
     /// 发送前自动修复孤立的工具调用/结果配对（对标 Crush filterOrphanedToolResults + syntheticToolResultsForOrphanedCalls）。
     /// </summary>
-    private List<JsonObject> FullMessages()
+    private List<JNode> FullMessages()
     {
         // 修复孤立的 tool-call/tool-result 配对（防止中断后对话损坏）
         RepairOrphanedToolPairs();
@@ -154,13 +154,13 @@ public class Agent
                 .Replace(SystemPrompt.StandardRule1, SystemPrompt.FastModeRule1);
         }
 
-        var result = new List<JsonObject>
+        var result = new List<JNode>
         {
-            new() { ["role"] = "system", ["content"] = systemContent },
+            JNode.Object().Set("role", "system").Set("content", systemContent),
         };
         // 深克隆消息，避免 JsonNode 的 Parent 冲突（同一消息不能加入两个树）
         foreach (var m in Messages)
-            result.Add(JsonNode.Parse(m.ToJsonString())!.AsObject());
+            result.Add(Json.Parse(m.ToJson()));
 
         // 视觉支持：view_image 工具附加的图片注入为多模态 user 消息（仅支持 vision 的模型）
         if (LLM.ModelSupportsVision(LlmClient.EffectiveModel))
@@ -188,12 +188,12 @@ public class Agent
         var callIds = new HashSet<string>();
         foreach (var msg in Messages)
         {
-            if (msg["role"]?.GetValue<string>() != "assistant") continue;
-            var toolCalls = msg["tool_calls"]?.AsArray();
+            if (msg["role"]?.AsString() != "assistant") continue;
+            var toolCalls = msg["tool_calls"];
             if (toolCalls == null) continue;
-            foreach (var tc in toolCalls)
+            foreach (var tc in toolCalls.Items)
             {
-                var id = tc?["id"]?.GetValue<string>();
+                var id = tc?["id"]?.AsString();
                 if (!string.IsNullOrEmpty(id))
                     callIds.Add(id);
             }
@@ -205,8 +205,8 @@ public class Agent
         var resultIds = new HashSet<string>();
         foreach (var msg in Messages)
         {
-            if (msg["role"]?.GetValue<string>() != "tool") continue;
-            var id = msg["tool_call_id"]?.GetValue<string>();
+            if (msg["role"]?.AsString() != "tool") continue;
+            var id = msg["tool_call_id"]?.AsString();
             if (!string.IsNullOrEmpty(id))
                 resultIds.Add(id);
         }
@@ -221,15 +221,15 @@ public class Agent
             for (int i = 0; i < Messages.Count; i++)
             {
                 var msg = Messages[i];
-                if (msg["role"]?.GetValue<string>() != "assistant") continue;
-                var tcs = msg["tool_calls"]?.AsArray();
+                if (msg["role"]?.AsString() != "assistant") continue;
+                var tcs = msg["tool_calls"];
                 if (tcs == null) continue;
-                foreach (var tc in tcs)
+                foreach (var tc in tcs.Items)
                 {
-                    if (tc?["id"]?.GetValue<string>() == orphanId)
+                    if (tc?["id"]?.AsString() == orphanId)
                     {
                         callMsgIdx = i;
-                        toolName = tc["function"]?["name"]?.GetValue<string>() ?? "unknown";
+                        toolName = tc["function"]?["name"]?.AsString() ?? "unknown";
                         break;
                     }
                 }
@@ -241,12 +241,10 @@ public class Agent
             var errorMsg = $"[工具执行被中断] 工具 \"{toolName}\" 的调用未能完成执行。" +
                            $"可能原因：Agent 被中断、网络问题或进程异常退出。请重试或使用其他方法完成此操作。";
 
-            var syntheticResult = new JsonObject
-            {
-                ["role"] = "tool",
-                ["tool_call_id"] = orphanId,
-                ["content"] = errorMsg,
-            };
+            var syntheticResult = JNode.Object()
+                .Set("role", "tool")
+                .Set("tool_call_id", orphanId)
+                .Set("content", errorMsg);
 
             // 插入到 assistant 消息之后
             Messages.Insert(callMsgIdx + 1, syntheticResult);
@@ -260,8 +258,8 @@ public class Agent
         for (int i = Messages.Count - 1; i >= 0; i--)
         {
             var msg = Messages[i];
-            if (msg["role"]?.GetValue<string>() != "tool") continue;
-            var id = msg["tool_call_id"]?.GetValue<string>();
+            if (msg["role"]?.AsString() != "tool") continue;
+            var id = msg["tool_call_id"]?.AsString();
             if (!string.IsNullOrEmpty(id) && !callIds.Contains(id))
             {
                 DebugLog.Log("agent",
@@ -286,7 +284,7 @@ public class Agent
     }
 
     /// <summary>测试钩子: 对给定消息列表执行孤儿修复并返回统计</summary>
-    public static OrphanRepairResult TestOrphanRepair(List<JsonObject> messages)
+    public static OrphanRepairResult TestOrphanRepair(List<JNode> messages)
     {
         var result = new OrphanRepairResult();
 
@@ -294,12 +292,12 @@ public class Agent
         var callIds = new HashSet<string>();
         foreach (var msg in messages)
         {
-            if (msg["role"]?.GetValue<string>() != "assistant") continue;
-            var toolCalls = msg["tool_calls"]?.AsArray();
+            if (msg["role"]?.AsString() != "assistant") continue;
+            var toolCalls = msg["tool_calls"];
             if (toolCalls == null) continue;
-            foreach (var tc in toolCalls)
+            foreach (var tc in toolCalls.Items)
             {
-                var id = tc?["id"]?.GetValue<string>();
+                var id = tc?["id"]?.AsString();
                 if (!string.IsNullOrEmpty(id)) callIds.Add(id);
             }
         }
@@ -308,8 +306,8 @@ public class Agent
         var resultIds = new HashSet<string>();
         foreach (var msg in messages)
         {
-            if (msg["role"]?.GetValue<string>() != "tool") continue;
-            var id = msg["tool_call_id"]?.GetValue<string>();
+            if (msg["role"]?.AsString() != "tool") continue;
+            var id = msg["tool_call_id"]?.AsString();
             if (!string.IsNullOrEmpty(id)) resultIds.Add(id);
         }
 
@@ -325,15 +323,15 @@ public class Agent
             for (int i = 0; i < messages.Count; i++)
             {
                 var msg = messages[i];
-                if (msg["role"]?.GetValue<string>() != "assistant") continue;
-                var tcs = msg["tool_calls"]?.AsArray();
+                if (msg["role"]?.AsString() != "assistant") continue;
+                var tcs = msg["tool_calls"];
                 if (tcs == null) continue;
-                foreach (var tc in tcs)
+                foreach (var tc in tcs.Items)
                 {
-                    if (tc?["id"]?.GetValue<string>() == orphanId)
+                    if (tc?["id"]?.AsString() == orphanId)
                     {
                         callMsgIdx = i;
-                        toolName = tc["function"]?["name"]?.GetValue<string>() ?? "unknown";
+                        toolName = tc["function"]?["name"]?.AsString() ?? "unknown";
                         break;
                     }
                 }
@@ -341,12 +339,10 @@ public class Agent
             }
 
             if (callMsgIdx < 0) continue;
-            messages.Insert(callMsgIdx + 1, new JsonObject
-            {
-                ["role"] = "tool",
-                ["tool_call_id"] = orphanId,
-                ["content"] = $"[工具执行被中断] 工具 \"{toolName}\" 的调用未能完成执行。",
-            });
+            messages.Insert(callMsgIdx + 1, JNode.Object()
+                .Set("role", "tool")
+                .Set("tool_call_id", orphanId)
+                .Set("content", $"[工具执行被中断] 工具 \"{toolName}\" 的调用未能完成执行。"));
             result.OrphanCallsFixed++;
         }
 
@@ -354,8 +350,8 @@ public class Agent
         for (int i = messages.Count - 1; i >= 0; i--)
         {
             var msg = messages[i];
-            if (msg["role"]?.GetValue<string>() != "tool") continue;
-            var id = msg["tool_call_id"]?.GetValue<string>();
+            if (msg["role"]?.AsString() != "tool") continue;
+            var id = msg["tool_call_id"]?.AsString();
             if (!string.IsNullOrEmpty(id) && !callIds.Contains(id))
             {
                 result.OrphanResultsDetected++;
@@ -366,8 +362,8 @@ public class Agent
         for (int i = messages.Count - 1; i >= 0; i--)
         {
             var msg = messages[i];
-            if (msg["role"]?.GetValue<string>() != "tool") continue;
-            var id = msg["tool_call_id"]?.GetValue<string>();
+            if (msg["role"]?.AsString() != "tool") continue;
+            var id = msg["tool_call_id"]?.AsString();
             if (!string.IsNullOrEmpty(id) && !callIds.Contains(id))
             {
                 messages.RemoveAt(i);
@@ -381,7 +377,7 @@ public class Agent
     /// <summary>
     /// 获取工具 schema 列表。
     /// </summary>
-    private List<JsonObject> ToolSchemas() => Tools.Select(t => t.Schema()).ToList();
+    private List<JNode> ToolSchemas() => Tools.Select(t => t.Schema()).ToList();
 
     /// <summary>
     /// 处理一条用户消息，执行 Agent 主循环（多轮 LLM/工具交互直到完成或超限）。
@@ -407,7 +403,7 @@ public class Agent
             DebugLog.Log("agent", "检测到快速模式关键词，跳过探索工作流");
         }
 
-        Messages.Add(new JsonObject { ["role"] = "user", ["content"] = userInput });
+        Messages.Add(JNode.Object().Set("role", "user").Set("content", userInput));
         await CompressWithSmallModel(onToken);
 
         // ── Architect 模式：大模型出计划 → 小模型执行 ──
@@ -420,11 +416,9 @@ public class Agent
                 return "⚠ Architect 模式：大模型计划生成失败，已取消。";
             }
             // 将计划作为 system 消息注入，小模型继续执行
-            Messages.Add(new JsonObject
-            {
-                ["role"] = "system",
-                ["content"] = $"## 执行计划\n\n以下是 Architect 的分析和执行计划，请按步骤逐一执行：\n\n{plan}",
-            });
+            Messages.Add(JNode.Object()
+                .Set("role", "system")
+                .Set("content", $"## 执行计划\n\n以下是 Architect 的分析和执行计划，请按步骤逐一执行：\n\n{plan}"));
             // 切换回小模型执行
             LlmClient.ModelOverride = LlmClient.SmallModel;
             onToken?.Invoke("\n📋 **计划已生成，切换到小模型执行...**\n\n");
@@ -479,7 +473,7 @@ public class Agent
                 // 0. 模型输出大量推理内容但不产生实际输出（DeepSeek V4 等模型的常见问题）
                 // 1. 模型首轮只输出分析不调用工具（toolCallCount==0, content>100）
                 // 2. 模型用了一些工具后开始"口述代码"而非写入文件（content 包含代码特征 >300 字符）
-                var toolCallCount = Messages.Count(m => m["role"]?.GetValue<string>() == "tool");
+                var toolCallCount = Messages.Count(m => m["role"]?.AsString() == "tool");
                 var contentLen = resp.Content?.Length ?? 0;
                 var reasoningLen = resp.ReasoningTokens;
                 var hasCodeContent = contentLen > 300 &&
@@ -500,11 +494,9 @@ public class Agent
                     {
                         WorkMode = WorkMode.Build;
                         OnWorkModeChanged?.Invoke(WorkMode.Build);
-                        Messages.Add(new JsonObject
-                        {
-                            ["role"] = "user",
-                            ["content"] = "✅ 计划已获批准。现在切换到建造模式，按上述计划逐步执行，完成后汇报结果。",
-                        });
+                        Messages.Add(JNode.Object()
+                            .Set("role", "user")
+                            .Set("content", "✅ 计划已获批准。现在切换到建造模式，按上述计划逐步执行，完成后汇报结果。"));
                         _analysisOnlyStreak = 0;
                         _talksCodeStreak = 0;
                         continue;
@@ -524,11 +516,9 @@ public class Agent
                         2 => $"你已连续 {_analysisOnlyStreak} 轮只输出推理而不调用工具（本轮推理 {reasoningLen} 字符）。请立即调用工具——不要只思考不行动。",
                         _ => $"⚠️ 严重警告：连续 {_analysisOnlyStreak} 轮纯推理无行动（累计数万字推理内容）。立即停止思考，只输出工具调用。",
                     };
-                    Messages.Add(new JsonObject
-                    {
-                        ["role"] = "user",
-                        ["content"] = nudge,
-                    });
+                    Messages.Add(JNode.Object()
+                        .Set("role", "user")
+                        .Set("content", nudge));
                     continue;
                 }
 
@@ -542,11 +532,9 @@ public class Agent
                         2 => "你已连续两轮只输出分析不调用工具。请立即行动——调用 write_file 或 bash 执行具体操作。不要再做任何分析。",
                         _ => "⚠️ 严重警告：你已连续多轮不调用工具，浪费了大量上下文。立即调用工具执行任务，不要输出任何文字——只输出工具调用。",
                     };
-                    Messages.Add(new JsonObject
-                    {
-                        ["role"] = "user",
-                        ["content"] = nudge,
-                    });
+                    Messages.Add(JNode.Object()
+                        .Set("role", "user")
+                        .Set("content", nudge));
                     continue;
                 }
 
@@ -560,11 +548,9 @@ public class Agent
                         2 => "你已连续两次只输出代码文字而不调用 write_file。请立即使用 write_file 工具将代码写入磁盘。不要再输出代码文字。",
                         _ => "⚠️ 严重警告：你已连续多次在文字中输出代码而不使用工具。代码必须通过 write_file 写入文件——请立即调用 write_file，不要输出任何文字。",
                     };
-                    Messages.Add(new JsonObject
-                    {
-                        ["role"] = "user",
-                        ["content"] = nudge,
-                    });
+                    Messages.Add(JNode.Object()
+                        .Set("role", "user")
+                        .Set("content", nudge));
                     continue;
                 }
 
@@ -580,11 +566,9 @@ public class Agent
                         2 => "你已连续两轮没有调用工具。任务未完成，请立即调用工具继续执行，不要只输出文字。",
                         _ => "⚠️ 严重警告：连续多轮无工具调用，任务仍未完成。立即调用工具继续，直到真正完成并明确汇报结果。",
                     };
-                    Messages.Add(new JsonObject
-                    {
-                        ["role"] = "user",
-                        ["content"] = nudge,
-                    });
+                    Messages.Add(JNode.Object()
+                        .Set("role", "user")
+                        .Set("content", nudge));
                     continue;
                 }
 
@@ -608,12 +592,10 @@ public class Agent
                     result = await AppendLintFeedbackAsync(tc, result);
                     // 自动 test 反馈闭环：写源码文件后跑测试，失败注入工具结果
                     result = await AppendTestFeedbackAsync(tc, result);
-                    Messages.Add(new JsonObject
-                    {
-                        ["role"] = "tool",
-                        ["tool_call_id"] = tc.Id,
-                        ["content"] = result,
-                    });
+                    Messages.Add(JNode.Object()
+                        .Set("role", "tool")
+                        .Set("tool_call_id", tc.Id)
+                        .Set("content", result));
                 }
                 else
                 {
@@ -631,12 +613,10 @@ public class Agent
                         // 自动 lint + test 反馈闭环
                         var finalResult = await AppendLintFeedbackAsync(tc, result);
                         finalResult = await AppendTestFeedbackAsync(tc, finalResult);
-                        Messages.Add(new JsonObject
-                        {
-                            ["role"] = "tool",
-                            ["tool_call_id"] = tc.Id,
-                            ["content"] = finalResult,
-                        });
+                        Messages.Add(JNode.Object()
+                            .Set("role", "tool")
+                            .Set("tool_call_id", tc.Id)
+                            .Set("content", finalResult));
                     }
                 }
             }
@@ -658,12 +638,10 @@ public class Agent
             var changeWarning = FileTracker.GetChangeWarning();
             if (changeWarning != null)
             {
-                Messages.Add(new JsonObject
-                {
-                    ["role"] = "tool",
-                    ["tool_call_id"] = "file_tracker",
-                    ["content"] = changeWarning,
-                });
+                Messages.Add(JNode.Object()
+                    .Set("role", "tool")
+                    .Set("tool_call_id", "file_tracker")
+                    .Set("content", changeWarning));
                 DebugLog.Log("file-tracker", $"文件变更警告已注入");
             }
 
@@ -701,11 +679,9 @@ public class Agent
             var stopContext = await HooksManager.RunStopAsync();
             if (stopContext != null)
             {
-                Messages.Add(new JsonObject
-                {
-                    ["role"] = "user",
-                    ["content"] = stopContext,
-                });
+                Messages.Add(JNode.Object()
+                    .Set("role", "user")
+                    .Set("content", stopContext));
             }
         }
 
@@ -713,15 +689,15 @@ public class Agent
 
         // 检测任务是否可能仍在进行中（最近 5 轮有 write_file/edit_file 调用）
         var recentTools = Messages.TakeLast(10)
-            .Where(m => m["role"]?.GetValue<string>() == "tool")
-            .Select(m => m["content"]?.GetValue<string>() ?? "")
+            .Where(m => m["role"]?.AsString() == "tool")
+            .Select(m => m["content"]?.AsString() ?? "")
             .ToList();
         // 匹配真实工具输出：write_file 返回「已写入 N 行到 …」，edit_file 返回「已编辑 …」，
         // multiedit 返回「✅ 已创建 … / ✅ 已编辑 …」。（旧标记「✅ 已写入/✅ 编辑完成」已无任何工具产出，导致自动续跑永远不触发。）
         var wasWriting = recentTools.Any(c =>
             c.Contains("已写入") || c.Contains("已编辑") || c.Contains("已创建"));
-        var lastMsg = Messages.LastOrDefault(m => m["role"]?.GetValue<string>() == "assistant")
-            ?["content"]?.GetValue<string>() ?? "";
+        var lastMsg = Messages.LastOrDefault(m => m["role"]?.AsString() == "assistant")
+            ?["content"]?.AsString() ?? "";
 
         // 自动续跑：仍在写文件（任务未完成）且未超续跑上限 → 压缩 + 注入继续提示后重新跑
         if (wasWriting && requeueCount < Config.Instance.MaxAutoRequeue)
@@ -816,11 +792,9 @@ public class Agent
         // 注入 PreCompact 返回的额外上下文
         if (preCompactCtx != null)
         {
-            Messages.Add(new JsonObject
-            {
-                ["role"] = "user",
-                ["content"] = preCompactCtx,
-            });
+            Messages.Add(JNode.Object()
+                .Set("role", "user")
+                .Set("content", preCompactCtx));
         }
     }
 
@@ -833,7 +807,7 @@ public class Agent
         Context.ContinuePromptInjected = true;
 
         var originalUserMsg = Messages.FirstOrDefault(m =>
-            m["role"]?.GetValue<string>() == "user")?["content"]?.GetValue<string>() ?? "";
+            m["role"]?.AsString() == "user")?["content"]?.AsString() ?? "";
         if (originalUserMsg.Length > 200)
             originalUserMsg = originalUserMsg[..200] + "...";
 
@@ -846,11 +820,9 @@ public class Agent
                 + (fileArray.Length > 20 ? $"\n  ...（共 {fileArray.Length} 个）" : "")
             : "";
 
-        Messages.Add(new JsonObject
-        {
-            ["role"] = "user",
-            ["content"] = $"{reason}。原始用户请求是：`{originalUserMsg}`\n请从中断处继续，完成未完成的工作。不要重写或缩小已有文件——只创建新文件或向已有文件追加缺失内容。{fileListStr}",
-        });
+        Messages.Add(JNode.Object()
+            .Set("role", "user")
+            .Set("content", $"{reason}。原始用户请求是：`{originalUserMsg}`\n请从中断处继续，完成未完成的工作。不要重写或缩小已有文件——只创建新文件或向已有文件追加缺失内容。{fileListStr}"));
         Context.ResetUsage(); // 重置计数器，给新一轮足够的空间
     }
 
@@ -1088,7 +1060,7 @@ public class Agent
         {
             try
             {
-                var pkg = System.Text.Json.Nodes.JsonNode.Parse(
+                var pkg = Json.Parse(
                     File.ReadAllText(Path.Combine(cwd, "package.json")));
                 if (pkg?["scripts"]?["test"] != null)
                     return "npm test --silent 2>&1";
@@ -1119,19 +1091,17 @@ public class Agent
     private void AnswerPendingToolCalls(List<ToolCall> toolCalls)
     {
         var answered = new HashSet<string>(
-            Messages.Where(m => m["role"]?.GetValue<string>() == "tool")
-                    .Select(m => m["tool_call_id"]?.GetValue<string>() ?? ""));
+            Messages.Where(m => m["role"]?.AsString() == "tool")
+                    .Select(m => m["tool_call_id"]?.AsString() ?? ""));
 
         foreach (var tc in toolCalls)
         {
             if (!answered.Contains(tc.Id))
             {
-                Messages.Add(new JsonObject
-                {
-                    ["role"] = "tool",
-                    ["tool_call_id"] = tc.Id,
-                    ["content"] = "[已中断]",
-                });
+                Messages.Add(JNode.Object()
+                    .Set("role", "tool")
+                    .Set("tool_call_id", tc.Id)
+                    .Set("content", "[已中断]"));
             }
         }
     }
@@ -1155,7 +1125,7 @@ public class Agent
         {
             null => "null",
             string str => str,
-            System.Collections.IEnumerable or System.Collections.IDictionary or JsonNode => JsonHelper.SerializeValue(value),
+            System.Collections.IEnumerable or System.Collections.IDictionary or JNode => JsonHelper.SerializeValue(value),
             _ => value.ToString() ?? "null",
         };
         return s.Length > 40 ? s[..40] + "..." : s;
@@ -1241,10 +1211,10 @@ public class Agent
             LlmClient.ModelOverride = LlmClient.SmallModel;
             try
             {
-                var msgs = new List<JsonObject>
+                var msgs = new List<JNode>
                 {
-                    new() { ["role"] = "system", ["content"] = "You are a git commit message generator. Output a single line, English, conventional-commit style with a valid prefix (feat/fix/docs/style/refactor/perf/test/chore/build/ci/revert), <70 chars. Do NOT include any quotes, backticks, or extra text." },
-                    new() { ["role"] = "user", ["content"] = "Modified files: " + fileList + "\n\nCommit message:" },
+                    JNode.Object().Set("role", "system").Set("content", "You are a git commit message generator. Output a single line, English, conventional-commit style with a valid prefix (feat/fix/docs/style/refactor/perf/test/chore/build/ci/revert), <70 chars. Do NOT include any quotes, backticks, or extra text."),
+                    JNode.Object().Set("role", "user").Set("content", "Modified files: " + fileList + "\n\nCommit message:"),
                 };
                 var result = await LlmClient.ChatAsync(msgs, tools: null);
                 var msg = CleanCommitMsg(result?.Content ?? "");
@@ -1252,7 +1222,7 @@ public class Agent
                 // 质量校验：不合格则重试一次
                 if (!IsValidCommitMsg(msg))
                 {
-                    msgs[0]["content"] = "Your previous output was invalid. Strict rules: exactly one line, English, conventional-commit prefix (feat/fix/docs/style/refactor/perf/test/chore/build/ci/revert), no quotes/backticks/code fences, <70 chars. Output only the message.";
+                    msgs[0].Set("content", "Your previous output was invalid. Strict rules: exactly one line, English, conventional-commit prefix (feat/fix/docs/style/refactor/perf/test/chore/build/ci/revert), no quotes/backticks/code fences, <70 chars. Output only the message.");
                     result = await LlmClient.ChatAsync(msgs, tools: null);
                     msg = CleanCommitMsg(result?.Content ?? "");
                 }
@@ -1348,16 +1318,16 @@ public class Agent
         try
         {
             var architectPrompt = SystemPrompt.GenerateArchitectPrompt();
-            var msgs = new List<JsonObject>
+            var msgs = new List<JNode>
             {
-                new() { ["role"] = "system", ["content"] = architectPrompt },
+                JNode.Object().Set("role", "system").Set("content", architectPrompt),
             };
             // 克隆历史消息（不含工具往返）给 Architect 做上下文
             foreach (var m in Messages)
             {
-                var role = (string?)m["role"];
+                var role = m["role"]?.AsString();
                 if (role is "tool" or "assistant_tool_calls") continue;
-                msgs.Add(JsonNode.Parse(m.ToJsonString())!.AsObject());
+                msgs.Add(Json.Parse(m.ToJson()));
             }
 
             // 切换到大模型，不带工具
@@ -1420,7 +1390,7 @@ public class Agent
     /// 与旧 per-round 方案的区别：更细粒度 — 同轮中其他工具不同不会掩盖
     /// 某个特定工具的重复调用模式。
     /// </summary>
-    private void DetectAndBreakLoop(LLMResponse resp, List<JsonObject> messages)
+    private void DetectAndBreakLoop(LLMResponse resp, List<JNode> messages)
     {
         const int outputSnipLen = 2000;
 
@@ -1431,10 +1401,10 @@ public class Agent
         {
             foreach (var m in messages)
             {
-                if (m["role"]?.GetValue<string>() == "tool"
-                    && m["tool_call_id"]?.GetValue<string>() == tc.Id)
+                if (m["role"]?.AsString() == "tool"
+                    && m["tool_call_id"]?.AsString() == tc.Id)
                 {
-                    var output = m["content"]?.GetValue<string>() ?? "";
+                    var output = m["content"]?.AsString() ?? "";
                     executedCalls.Add((tc.Name,
                         JsonHelper.SerializeArgs(tc.Arguments),
                         output.Length > outputSnipLen ? output[..outputSnipLen] : output));
@@ -1489,11 +1459,9 @@ public class Agent
                 _ => $"严重警告：你已经多次重复相同的无效操作{dupNote}。立即停止当前方法。回顾整个任务目标，从第一步重新开始，使用完全不同的工具或顺序。如有必要，向用户报告卡住的原因。",
             };
 
-            messages.Add(new JsonObject
-            {
-                ["role"] = "user",
-                ["content"] = nudge,
-            });
+            messages.Add(JNode.Object()
+                .Set("role", "user")
+                .Set("content", nudge));
 
             // 重置窗口避免连续触发（给 Agent 几轮时间调整）
             _recentActionHashes.Clear();

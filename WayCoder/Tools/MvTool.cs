@@ -9,29 +9,19 @@ public class MvTool : ITool
     public string Name => "mv";
     public string Description => "移动或重命名文件/目录。自动创建目标父目录，支持跨驱动器。纯 C# 实现。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["src"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "源文件或目录路径",
-            },
-            ["dest"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "目标路径",
-            },
-            ["overwrite"] = new JsonObject
-            {
-                ["type"] = "boolean",
-                ["description"] = "是否覆盖已存在的目标（默认 false）",
-            },
-        },
-        ["required"] = new JsonArray("src", "dest"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("src", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "源文件或目录路径"))
+            .Set("dest", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "目标路径"))
+            .Set("overwrite", JNode.Object()
+                .Set("type", "boolean")
+                .Set("description", "是否覆盖已存在的目标（默认 false）")))
+        .Set("required", JNode.Array().Add("src").Add("dest"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

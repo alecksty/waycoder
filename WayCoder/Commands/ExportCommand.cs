@@ -23,8 +23,8 @@ public class ExportCommand : SlashCommand
         sb.AppendLine();
         foreach (var msg in agent.Messages)
         {
-            var role = msg["role"]?.GetValue<string>() ?? "?";
-            var content = msg["content"]?.GetValue<string>() ?? "";
+            var role = msg["role"]?.AsString() ?? "?";
+            var content = msg["content"]?.AsString() ?? "";
             sb.AppendLine($"## {role}");
             sb.AppendLine(content);
             sb.AppendLine();

@@ -212,7 +212,7 @@ public static partial class SelfTest
         Console.WriteLine();
         Section("[Agent]");
         var agent = new Agent(new LLM("test", "sk-test"));
-        agent.Messages.Add(new JsonObject { ["role"] = "user", ["content"] = "x" });
+        agent.Messages.Add(JNode.Object().Set("role", "user").Set("content", "x"));
         agent.Reset();
         Check("Reset 清空消息", agent.Messages.Count == 0);
 
@@ -245,8 +245,8 @@ public static partial class SelfTest
 
         var nodeJson = JsonHelper.SerializeArgs(new()
         {
-            ["arr"] = new JsonArray("m", "n"),
-            ["obj"] = new JsonObject { ["deep"] = true },
+            ["arr"] = JNode.Array().Add("m").Add("n"),
+            ["obj"] = JNode.Object().Set("deep", true),
         });
         Check("JsonArray/JsonObject 走 ToJsonString", nodeJson.Contains("\"arr\":[\"m\",\"n\"]") && nodeJson.Contains("\"deep\":true"));
         Console.WriteLine();
@@ -476,11 +476,11 @@ public static partial class SelfTest
         // ---- 会话管理 ----
         Section("[会话管理]");
 
-        static List<JsonObject> MakeMsgs()
+        static List<JNode> MakeMsgs()
         {
             return [
-                new JsonObject { ["role"] = "user", ["content"] = "你好" },
-                new JsonObject { ["role"] = "assistant", ["content"] = "你好！有什么可以帮你的？" },
+                JNode.Object().Set("role", "user").Set("content", "你好"),
+                JNode.Object().Set("role", "assistant").Set("content", "你好！有什么可以帮你的？"),
             ];
         }
 

@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
-using System.Text.Json.Nodes;
 
 namespace WayCoder;
 
@@ -122,13 +121,13 @@ public static class UpdateChecker
     }
 
     /// <summary>从 release 的 assets JSON 数组里挑出匹配 RID 的下载 URL。</summary>
-    public static string? FindAssetUrl(JsonArray? assets, string rid)
+    public static string? FindAssetUrl(JNode? assets, string rid)
     {
         if (assets == null) return null;
-        foreach (var a in assets)
+        foreach (var a in assets.Items)
         {
-            var name = a?["name"]?.GetValue<string>();
-            var url = a?["browser_download_url"]?.GetValue<string>();
+            var name = a["name"]?.AsString();
+            var url = a["browser_download_url"]?.AsString();
             if (name != null && url != null && name.Contains(rid, StringComparison.OrdinalIgnoreCase) &&
                 (name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase) ||
                  name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)))
@@ -158,13 +157,13 @@ public static class UpdateChecker
             client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder");
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
             var url = $"https://api.github.com/repos/{repo}/releases/latest";
-            var node = JsonNode.Parse(await client.GetStringAsync(url))?.AsObject();
+            var node = Json.Parse(await client.GetStringAsync(url));
             if (node == null) return null;
 
-            var tag = node["tag_name"]?.GetValue<string>() ?? "";
+            var tag = node["tag_name"]?.AsString() ?? "";
             if (string.IsNullOrEmpty(tag)) return null;
-            var body = node["body"]?.GetValue<string>() ?? "";
-            var assetUrl = FindAssetUrl(node["assets"]?.AsArray(), DetectCurrentRid());
+            var body = node["body"]?.AsString() ?? "";
+            var assetUrl = FindAssetUrl(node["assets"], DetectCurrentRid());
             if (assetUrl == null) return null; // 无匹配平台资产
 
             return new ReleaseInfo
@@ -190,13 +189,13 @@ public static class UpdateChecker
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder");
             var url = $"https://gitee.com/api/v5/repos/{repo}/releases/latest";
-            var node = JsonNode.Parse(await client.GetStringAsync(url))?.AsObject();
+            var node = Json.Parse(await client.GetStringAsync(url));
             if (node == null) return null;
 
-            var tag = node["tag_name"]?.GetValue<string>() ?? "";
+            var tag = node["tag_name"]?.AsString() ?? "";
             if (string.IsNullOrEmpty(tag)) return null;
-            var body = node["body"]?.GetValue<string>() ?? "";
-            var assetUrl = FindAssetUrl(node["assets"]?.AsArray(), DetectCurrentRid());
+            var body = node["body"]?.AsString() ?? "";
+            var assetUrl = FindAssetUrl(node["assets"], DetectCurrentRid());
             if (assetUrl == null) return null;
 
             return new ReleaseInfo

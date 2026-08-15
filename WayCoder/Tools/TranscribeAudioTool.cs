@@ -1,5 +1,3 @@
-using System.Text.Json.Nodes;
-
 namespace WayCoder.Tools;
 
 /// <summary>
@@ -17,29 +15,19 @@ public class TranscribeAudioTool : ITool
         "支持 mp3/wav/m4a/flac/ogg/webm 等常见格式，返回转录文本。" +
         "需要配置 WAYCODER_WHISPER_API_KEY（或主 WAYCODER_API_KEY）与可选的 WAYCODER_WHISPER_BASE_URL。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "音频文件路径（如 /path/to/meeting.mp3）",
-            },
-            ["language"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "语言代码（ISO 639-1，如 zh/en/ja），省略则自动检测",
-            },
-            ["prompt"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "可选引导词，提供上下文/术语帮助提高转录准确率",
-            },
-        },
-        ["required"] = new JsonArray("path"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "音频文件路径（如 /path/to/meeting.mp3）"))
+            .Set("language", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "语言代码（ISO 639-1，如 zh/en/ja），省略则自动检测"))
+            .Set("prompt", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "可选引导词，提供上下文/术语帮助提高转录准确率")))
+        .Set("required", JNode.Array().Add("path"));
 
     private const long MaxBytes = 25L * 1024 * 1024; // OpenAI Whisper 25MB 上限
 
@@ -98,8 +86,8 @@ public class TranscribeAudioTool : ITool
             if (!response.IsSuccessStatusCode)
                 return $"转录失败（HTTP {(int)response.StatusCode}）：{Truncate(body, 300)}";
 
-            var json = JsonNode.Parse(body);
-            var text = json?["text"]?.GetValue<string>();
+            var json = Json.Parse(body);
+            var text = json?["text"]?.AsString();
             if (string.IsNullOrWhiteSpace(text))
                 return $"转录返回空文本。原始响应：{Truncate(body, 200)}";
 

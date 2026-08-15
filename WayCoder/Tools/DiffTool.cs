@@ -11,29 +11,19 @@ public class DiffTool : ITool
     public string Name => "diff";
     public string Description => "比较两个文本文件的逐行差异。输出添加(+)、删除(-)、上下文行。纯 C# 实现。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["file1"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "第一个文件路径",
-            },
-            ["file2"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "第二个文件路径",
-            },
-            ["context"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "差异周围显示的上下文行数（默认 3）",
-            },
-        },
-        ["required"] = new JsonArray("file1", "file2"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("file1", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "第一个文件路径"))
+            .Set("file2", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "第二个文件路径"))
+            .Set("context", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "差异周围显示的上下文行数（默认 3）")))
+        .Set("required", JNode.Array().Add("file1").Add("file2"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

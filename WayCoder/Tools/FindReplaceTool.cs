@@ -13,54 +13,34 @@ public class FindReplaceTool : ITool
     public string Name => "find_replace";
     public string Description => "跨文件查找并替换。支持正则、glob 文件过滤、干跑预览。返回每个文件的匹配详情。纯 C# 实现。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "搜索目录路径（默认当前目录）",
-            },
-            ["pattern"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "搜索的正则表达式或纯文本",
-            },
-            ["replacement"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "替换文本（为空则仅查找不替换）",
-            },
-            ["glob"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "文件过滤 glob，如 '*.cs'、'*.{md,txt}'（默认所有文本文件）",
-            },
-            ["max_files"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "最多扫描文件数（默认 50）",
-            },
-            ["max_per_file"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "每文件最多显示匹配数（默认 10）",
-            },
-            ["ignore_case"] = new JsonObject
-            {
-                ["type"] = "boolean",
-                ["description"] = "是否忽略大小写（默认 true）",
-            },
-            ["dry_run"] = new JsonObject
-            {
-                ["type"] = "boolean",
-                ["description"] = "仅预览不实际替换（默认 true）",
-            },
-        },
-        ["required"] = new JsonArray("pattern"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "搜索目录路径（默认当前目录）"))
+            .Set("pattern", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "搜索的正则表达式或纯文本"))
+            .Set("replacement", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "替换文本（为空则仅查找不替换）"))
+            .Set("glob", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "文件过滤 glob，如 '*.cs'、'*.{md,txt}'（默认所有文本文件）"))
+            .Set("max_files", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "最多扫描文件数（默认 50）"))
+            .Set("max_per_file", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "每文件最多显示匹配数（默认 10）"))
+            .Set("ignore_case", JNode.Object()
+                .Set("type", "boolean")
+                .Set("description", "是否忽略大小写（默认 true）"))
+            .Set("dry_run", JNode.Object()
+                .Set("type", "boolean")
+                .Set("description", "仅预览不实际替换（默认 true）")))
+        .Set("required", JNode.Array().Add("pattern"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

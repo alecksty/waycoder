@@ -37,8 +37,8 @@ public static class FallbackLLM
     /// </summary>
     public static async Task<LLMResponse> TryWithFallback(
         LLM originalLlm,
-        List<JsonObject> messages,
-        List<JsonObject> tools,
+        List<JNode> messages,
+        List<JNode> tools,
         Action<string>? onToken,
         CancellationToken ct)
     {

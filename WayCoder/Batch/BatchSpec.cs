@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.Json.Nodes;
 
 namespace WayCoder;
 
@@ -55,33 +54,34 @@ public sealed class BatchSpec
     public static BatchSpec? Parse(string json, out string error)
     {
         error = "";
-        JsonNode? root;
-        try { root = JsonNode.Parse(json); }
+        JNode? root;
+        try { root = Json.Parse(json); }
         catch (Exception ex) { error = $"JSON 解析失败: {ex.Message}"; return null; }
 
-        if (root is not JsonObject obj) { error = "JSON 顶层必须是对象"; return null; }
+        if (root?.Kind != JKind.Object) { error = "JSON 顶层必须是对象"; return null; }
 
         var spec = new BatchSpec();
-        if (obj["maxParallel"] is JsonValue mp && mp.TryGetValue<int>(out var mpv))
-            spec.MaxParallel = Math.Clamp(mpv, MinParallel, MaxParallelLimit);
-        if (obj["timeoutSec"] is JsonValue ts && ts.TryGetValue<int>(out var tsv))
-            spec.TimeoutSec = Math.Clamp(tsv, MinTimeoutSec, MaxTimeoutSec);
-        if (obj["keepResults"] is JsonValue kr && kr.TryGetValue<bool>(out var krv))
-            spec.KeepResults = krv;
+        if (root["maxParallel"] is { } mp && mp.Kind == JKind.Number)
+            spec.MaxParallel = Math.Clamp((int)mp.AsNumber(), MinParallel, MaxParallelLimit);
+        if (root["timeoutSec"] is { } ts && ts.Kind == JKind.Number)
+            spec.TimeoutSec = Math.Clamp((int)ts.AsNumber(), MinTimeoutSec, MaxTimeoutSec);
+        if (root["keepResults"] is { } kr && kr.Kind == JKind.Bool)
+            spec.KeepResults = kr.AsBool();
 
-        if (obj["tasks"] is not JsonArray arr) { error = "缺少 tasks 数组"; return null; }
-        foreach (var item in arr)
+        var arr = root["tasks"];
+        if (arr?.Kind != JKind.Array) { error = "缺少 tasks 数组"; return null; }
+        foreach (var item in arr!.Items)
         {
-            if (item is not JsonObject jobObj) continue;
-            var repo = jobObj["repo"]?.GetValue<string>()?.Trim() ?? "";
-            var task = jobObj["task"]?.GetValue<string>() ?? "";
+            if (item.Kind != JKind.Object) continue;
+            var repo = item["repo"]?.AsString()?.Trim() ?? "";
+            var task = item["task"]?.AsString() ?? "";
             if (string.IsNullOrWhiteSpace(repo) || string.IsNullOrWhiteSpace(task)) continue;
             spec.Jobs.Add(new BatchJob
             {
                 Repo = repo,
                 Task = task,
-                Name = jobObj["name"]?.GetValue<string>(),
-                Branch = jobObj["branch"]?.GetValue<string>(),
+                Name = item["name"]?.AsString(),
+                Branch = item["branch"]?.AsString(),
             });
         }
 
