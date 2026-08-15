@@ -18,29 +18,19 @@ public class FetchTool : ITool
     public string Name => "fetch";
     public string Description => "抓取网页 URL 的内容，自动提取纯文本或 Markdown（去除 HTML 噪音）。用于查阅文档、阅读文章、获取最新信息。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["url"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要抓取的网页 URL (http/https)",
-            },
-            ["max_chars"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "最大返回字符数（默认 8000，最大 100000）",
-            },
-            ["format"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "输出格式：'text'（纯文本）或 'markdown'（结构化），默认 'text'",
-            },
-        },
-        ["required"] = new JsonArray("url"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("url", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要抓取的网页 URL (http/https)"))
+            .Set("max_chars", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "最大返回字符数（默认 8000，最大 100000）"))
+            .Set("format", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "输出格式：'text'（纯文本）或 'markdown'（结构化），默认 'text'")))
+        .Set("required", JNode.Array().Add("url"));
 
     private static HttpClient _client => _lazyClient.Value;
     private static readonly Lazy<HttpClient> _lazyClient = new(() => new HttpClient(

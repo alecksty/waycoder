@@ -1,4 +1,4 @@
-using System.Text.Json.Nodes;
+using WayCoder.Infra;
 
 namespace WayCoder.Tools;
 
@@ -14,7 +14,7 @@ public interface ITool
     string Description { get; }
 
     /// <summary>函数参数的 JSON Schema</summary>
-    JsonObject Parameters { get; }
+    JNode Parameters { get; }
 
     /// <summary>
     /// 运行工具并返回文本结果。
@@ -24,19 +24,15 @@ public interface ITool
     /// <summary>
     /// 返回 OpenAI function-calling 格式的 schema。
     /// </summary>
-    JsonObject Schema()
+    JNode Schema()
     {
-        // 深拷贝 Parameters 避免 "node already has a parent" 错误
-        var clonedParams = JsonHelper.DeepClone(Parameters);
-        return new JsonObject
-        {
-            ["type"] = "function",
-            ["function"] = new JsonObject
-            {
-                ["name"] = Name,
-                ["description"] = Description,
-                ["parameters"] = clonedParams,
-            },
-        };
+        // 深拷贝 Parameters 避免共享节点被二次修改
+        var clonedParams = Parameters.Clone() ?? JNode.Object();
+        return JNode.Object()
+            .Set("type", "function")
+            .Set("function", JNode.Object()
+                .Set("name", Name)
+                .Set("description", Description)
+                .Set("parameters", clonedParams));
     }
 }

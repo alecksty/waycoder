@@ -177,7 +177,7 @@ public class ContextManager
     /// <summary>
     /// 按需应用压缩层。返回是否发生了压缩。
     /// </summary>
-    public async Task<bool> MaybeCompressAsync(List<JsonObject> messages, LLM? llm,
+    public async Task<bool> MaybeCompressAsync(List<JNode> messages, LLM? llm,
         Action<int, string>? onProgress = null)
     {
         var current = EstimateCalibratedTokens(messages);
@@ -253,15 +253,15 @@ public class ContextManager
     /// CJK 感知 token 估算。CJK 字符约 1.5 tok/char，ASCII 约 0.25 tok/char（≈4 chars/tok）。
     /// 精度从 ±30% 提升至 ±15%。
     /// </summary>
-    public static int EstimateTokens(List<JsonObject> messages)
+    public static int EstimateTokens(List<JNode> messages)
     {
         var total = 0;
         foreach (var m in messages)
         {
-            if (m["content"]?.GetValue<string>() is { } content)
+            if (m["content"]?.AsString() is { } content)
                 total += EstimateTokensText(content);
             if (m["tool_calls"] != null)
-                total += EstimateTokensText(m["tool_calls"]!.ToJsonString());
+                total += EstimateTokensText(m["tool_calls"]!.ToJson());
         }
         return total;
     }
@@ -271,7 +271,7 @@ public class ContextManager
     /// 消除估算对系统提示词 / 工具 schema / 消息元数据的系统性低估，压缩分层判断更准。
     /// 未采集到真实用量时（首轮 / 自测）退化为原始估算。
     /// </summary>
-    public int EstimateCalibratedTokens(List<JsonObject> messages) =>
+    public int EstimateCalibratedTokens(List<JNode> messages) =>
         EstimateTokens(messages) + Math.Max(0, _overheadTokens);
 
     /// <summary>对单段文本做 CJK 感知 token 估算。</summary>
@@ -299,15 +299,15 @@ public class ContextManager
     /// 第 1 层：将超过 4000 字符的工具结果裁剪为首尾几行。
     /// 保留错误行（编译错误、异常堆栈等），确保 Agent 能看到关键诊断信息。
     /// </summary>
-    public static bool SnipToolOutputs(List<JsonObject> messages, int? snipChars = null)
+    public static bool SnipToolOutputs(List<JNode> messages, int? snipChars = null)
     {
         var effective = snipChars ?? (Config.Instance.EconomyMode == EconomyMode.On
             ? Config.EconomySnipChars : Config.SnipCharsNormal);
         var changed = false;
         foreach (var m in messages)
         {
-            if (m["role"]?.GetValue<string>() != "tool") continue;
-            var content = m["content"]?.GetValue<string>();
+            if (m["role"]?.AsString() != "tool") continue;
+            var content = m["content"]?.AsString();
             if (string.IsNullOrEmpty(content) || content.Length <= effective) continue;
 
             var lines = content.Split('\n');
@@ -356,7 +356,7 @@ public class ContextManager
             else
                 snipped += $"\n\n...（共 {lines.Length} 行 / {content.Length} 字符，已裁剪以节省上下文。使用详细模式查看完整输出）...";
 
-            m["content"] = snipped;
+            m.Set("content", snipped);
             changed = true;
         }
         return changed;
@@ -366,10 +366,10 @@ public class ContextManager
     /// 计算保留尾部应从哪个索引开始。
     /// 确保 tool 消息不会与产生它的 assistant 消息分离。
     /// </summary>
-    public static int SafeSplit(List<JsonObject> messages, int keepRecent)
+    public static int SafeSplit(List<JNode> messages, int keepRecent)
     {
         var split = Math.Max(0, messages.Count - keepRecent);
-        while (split > 0 && messages[split]["role"]?.GetValue<string>() == "tool")
+        while (split > 0 && messages[split]["role"]?.AsString() == "tool")
             split--;
         return split;
     }
@@ -378,7 +378,7 @@ public class ContextManager
     /// 第 2 层：摘要旧对话，保持最近消息不变。
     /// 保留更多最近消息（20 条）以避免丢失关键 API 契约和文件结构信息。
     /// </summary>
-    private async Task<bool> SummarizeOldAsync(List<JsonObject> messages, LLM? llm, int keepRecent = 20)
+    private async Task<bool> SummarizeOldAsync(List<JNode> messages, LLM? llm, int keepRecent = 20)
     {
         if (messages.Count <= keepRecent) return false;
 
@@ -389,16 +389,12 @@ public class ContextManager
         var summary = await GetSummaryAsync(old, llm);
 
         messages.Clear();
-        messages.Add(new JsonObject
-        {
-            ["role"] = "user",
-            ["content"] = $"[上下文已压缩 - 对话摘要]\n{summary}",
-        });
-        messages.Add(new JsonObject
-        {
-            ["role"] = "assistant",
-            ["content"] = "收到，我已了解之前对话的上下文。",
-        });
+        messages.Add(JNode.Object()
+            .Set("role", "user")
+            .Set("content", $"[上下文已压缩 - 对话摘要]\n{summary}"));
+        messages.Add(JNode.Object()
+            .Set("role", "assistant")
+            .Set("content", "收到，我已了解之前对话的上下文。"));
         messages.AddRange(tail);
         return true;
     }
@@ -407,7 +403,7 @@ public class ContextManager
     /// 第 3 层：紧急压缩。保留更多最近消息（12 条）+ 项目状态快照。
     /// 在硬折叠前注入项目文件清单，防止 Agent 完全失忆。
     /// </summary>
-    private async Task HardCollapseAsync(List<JsonObject> messages, LLM? llm)
+    private async Task HardCollapseAsync(List<JNode> messages, LLM? llm)
     {
         var keep = messages.Count > 12 ? 12 : Math.Min(messages.Count, 6);
         var split = SafeSplit(messages, keep);
@@ -418,23 +414,19 @@ public class ContextManager
         var snapshot = GenerateProjectSnapshot();
 
         messages.Clear();
-        messages.Add(new JsonObject
-        {
-            ["role"] = "user",
-            ["content"] = $"[硬重置上下文 — 项目恢复到关键状态]\n\n## 项目快照\n{snapshot}\n\n## 对话摘要\n{summary}",
-        });
-        messages.Add(new JsonObject
-        {
-            ["role"] = "assistant",
-            ["content"] = "上下文已恢复。我已了解当前项目结构和之前的关键进展。从之前中断的地方继续。",
-        });
+        messages.Add(JNode.Object()
+            .Set("role", "user")
+            .Set("content", $"[硬重置上下文 — 项目恢复到关键状态]\n\n## 项目快照\n{snapshot}\n\n## 对话摘要\n{summary}"));
+        messages.Add(JNode.Object()
+            .Set("role", "assistant")
+            .Set("content", "上下文已恢复。我已了解当前项目结构和之前的关键进展。从之前中断的地方继续。"));
         messages.AddRange(tail);
     }
 
     /// <summary>
     /// 通过 LLM 生成摘要，或回退到提取关键信息。
     /// </summary>
-    private async Task<string> GetSummaryAsync(List<JsonObject> messages, LLM? llm)
+    private async Task<string> GetSummaryAsync(List<JNode> messages, LLM? llm)
     {
         var flat = FlattenMessages(messages);
 
@@ -445,10 +437,9 @@ public class ContextManager
                 var resp = await llm.ChatAsync(
                     messages:
                     [
-                        new JsonObject
-                        {
-                            ["role"] = "system",
-                            ["content"] = "你是一个对话压缩器。将以下对话压缩为结构化摘要。" +
+                        JNode.Object()
+                            .Set("role", "system")
+                            .Set("content", "你是一个对话压缩器。将以下对话压缩为结构化摘要。" +
                                           "必须保留：\n" +
                                           "1. 所有已创建/修改的文件路径及其用途\n" +
                                           "2. 关键 API 签名（方法名、参数、返回类型）\n" +
@@ -459,9 +450,8 @@ public class ContextManager
                                           "7. 项目的命名空间/包结构\n" +
                                           "丢弃：冗长的命令输出、完整代码清单、" +
                                           "重复的来回对话、中间探索过程。\n" +
-                                          "格式：使用 ## 标题分段，列表项用 - 前缀。",
-                        },
-                        new JsonObject { ["role"] = "user", ["content"] = flat.Length > 20000 ? flat[..20000] : flat },
+                                          "格式：使用 ## 标题分段，列表项用 - 前缀。"),
+                        JNode.Object().Set("role", "user").Set("content", flat.Length > 20000 ? flat[..20000] : flat),
                     ]
                 );
                 return resp.Content;
@@ -484,13 +474,13 @@ public class ContextManager
         return ExtractKeyInfo(messages);
     }
 
-    private static string FlattenMessages(List<JsonObject> messages)
+    private static string FlattenMessages(List<JNode> messages)
     {
         var parts = new List<string>();
         foreach (var m in messages)
         {
-            var role = m["role"]?.GetValue<string>() ?? "?";
-            var text = m["content"]?.GetValue<string>() ?? "";
+            var role = m["role"]?.AsString() ?? "?";
+            var text = m["content"]?.AsString() ?? "";
             if (!string.IsNullOrEmpty(text))
                 parts.Add($"[{role}] {text[..Math.Min(1000, text.Length)]}");
         }
@@ -572,7 +562,7 @@ public class ContextManager
     /// 回退方案：无需 LLM，提取文件路径、错误和决策。
     /// 增强版：解析 C# 编译错误码、方法签名、命名空间。
     /// </summary>
-    private static string ExtractKeyInfo(List<JsonObject> messages)
+    private static string ExtractKeyInfo(List<JNode> messages)
     {
         var filesSeen = new HashSet<string>();
         var errors = new List<string>();
@@ -588,7 +578,7 @@ public class ContextManager
 
         foreach (var m in messages)
         {
-            var text = m["content"]?.GetValue<string>() ?? "";
+            var text = m["content"]?.AsString() ?? "";
 
             // 提取文件路径
             foreach (Match match in fileRegex.Matches(text))

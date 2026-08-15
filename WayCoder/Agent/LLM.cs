@@ -24,29 +24,23 @@ public record LLMResponse
     /// <summary>
     /// 转换为 OpenAI 消息格式，用于追加到历史记录。
     /// </summary>
-    public JsonObject ToMessage()
+    public JNode ToMessage()
     {
-        var msg = new JsonObject
-        {
-            ["role"] = "assistant",
-            ["content"] = string.IsNullOrEmpty(Content) ? null : Content,
-        };
+        var msg = JNode.Object()
+            .Set("role", "assistant")
+            .Set("content", string.IsNullOrEmpty(Content) ? null : Content);
 
         if (ToolCalls.Count > 0)
         {
-            var tcArray = new JsonArray();
+            var tcArray = JNode.Array();
             foreach (var tc in ToolCalls)
             {
-                tcArray.Add((JsonNode?)new JsonObject
-                {
-                    ["id"] = tc.Id,
-                    ["type"] = "function",
-                    ["function"] = new JsonObject
-                    {
-                        ["name"] = tc.Name,
-                        ["arguments"] = JsonHelper.SerializeArgs(tc.Arguments),
-                    },
-                });
+                tcArray.Add(JNode.Object()
+                    .Set("id", tc.Id)
+                    .Set("type", "function")
+                    .Set("function", JNode.Object()
+                        .Set("name", tc.Name)
+                        .Set("arguments", JsonHelper.SerializeArgs(tc.Arguments))));
             }
             msg["tool_calls"] = tcArray;
         }
@@ -132,11 +126,11 @@ public class LLM
     /// 构造一条带图片的多模态 user 消息（OpenAI 兼容格式）。
     /// content 为数组：[{type:text,text}, {type:image_url,image_url:{url:data:...}}]。
     /// </summary>
-    public static JsonObject BuildImageMessage(string text, List<string> imagePaths)
+    public static JNode BuildImageMessage(string text, List<string> imagePaths)
     {
-        var parts = new JsonArray();
+        var parts = JNode.Array();
         if (!string.IsNullOrWhiteSpace(text))
-            parts.Add(new JsonObject { ["type"] = "text", ["text"] = text });
+            parts.Add(JNode.Object().Set("type", "text").Set("text", text));
 
         foreach (var p in imagePaths)
         {
@@ -152,11 +146,9 @@ public class LLM
                     ".webp" => "image/webp",
                     _ => "image/png",
                 };
-                parts.Add(new JsonObject
-                {
-                    ["type"] = "image_url",
-                    ["image_url"] = new JsonObject { ["url"] = $"data:{mime};base64,{b64}" },
-                });
+                parts.Add(JNode.Object()
+                    .Set("type", "image_url")
+                    .Set("image_url", JNode.Object().Set("url", $"data:{mime};base64,{b64}")));
             }
             catch
             {
@@ -166,9 +158,9 @@ public class LLM
 
         // 兜底：若所有图都失败，退化为纯文本消息，避免 content 空数组
         if (parts.Count == 0)
-            return new JsonObject { ["role"] = "user", ["content"] = text };
+            return JNode.Object().Set("role", "user").Set("content", text);
 
-        return new JsonObject { ["role"] = "user", ["content"] = parts };
+        return JNode.Object().Set("role", "user").Set("content", parts);
     }
 
     // 每百万 token 的定价：（输入，输出）
@@ -326,8 +318,8 @@ public class LLM
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>LLM 响应（文本 + 工具调用 + token 用量）</returns>
     public async Task<LLMResponse> ChatAsync(
-        List<JsonObject> messages,
-        List<JsonObject>? tools = null,
+        List<JNode> messages,
+        List<JNode>? tools = null,
         Action<string>? onToken = null,
         Action<ToolCall>? onToolCall = null,
         CancellationToken cancellationToken = default)
@@ -343,37 +335,50 @@ public class LLM
         DebugLog.LogRequest(messages, tools ?? []);
 
         // 深克隆消息和工具 schema，防止 JsonNode Parent 冲突
-        var clonedMessages = messages.Select(m => JsonNode.Parse(m.ToJsonString())!).ToList();
-        var clonedTools = tools?.Select(t => JsonNode.Parse(t.ToJsonString())!).ToList();
+        var clonedMessages = messages.Select(m => Json.Parse(m.ToJson())!).ToList();
+        var clonedTools = tools?.Select(t => Json.Parse(t.ToJson())!).ToList();
 
         // 省 token 模式：单次输出上限收紧，防止失控长输出（仅 On 生效，Auto/Off 用正常上限）
         var maxTokens = Config.Instance.EconomyMode == EconomyMode.On ? Math.Min(MaxTokens, Config.EconomyMaxTokens) : MaxTokens;
 
-        var body = new JsonObject
+        // 构建请求体。JNode 无 Remove，400 回退时用 includeStreamOptions 参数重建不带 stream_options 的请求体。
+        JNode BuildBody(bool includeStreamOptions)
         {
-            ["model"] = EffectiveModel,
-            ["messages"] = new JsonArray(clonedMessages.ToArray()),
-            ["stream"] = true,
-            ["temperature"] = Math.Clamp(Temperature, 0f, 2f),
-            ["max_tokens"] = maxTokens,
-            ["stream_options"] = new JsonObject { ["include_usage"] = true },
-        };
+            var messagesArray = JNode.Array();
+            foreach (var m in clonedMessages) messagesArray.Add(m);
 
-        if (clonedTools is { Count: > 0 })
-        {
-            body["tools"] = new JsonArray(clonedTools.ToArray());
+            var b = JNode.Object()
+                .Set("model", EffectiveModel)
+                .Set("messages", messagesArray)
+                .Set("stream", true)
+                .Set("temperature", Math.Clamp(Temperature, 0f, 2f))
+                .Set("max_tokens", maxTokens);
+
+            if (includeStreamOptions)
+                b.Set("stream_options", JNode.Object().Set("include_usage", true));
+
+            if (clonedTools is { Count: > 0 })
+            {
+                var toolsArray = JNode.Array();
+                foreach (var t in clonedTools) toolsArray.Add(t);
+                b.Set("tools", toolsArray);
+            }
+
+            // 推理深度：DeepSeek V4 / OpenAI o-series 支持 reasoning_effort 参数
+            var reasoningEffort = Config.Instance.ReasoningEffort;
+            if (!string.IsNullOrEmpty(reasoningEffort))
+            {
+                b.Set("reasoning_effort", reasoningEffort);
+            }
+
+            return b;
         }
 
-        // 推理深度：DeepSeek V4 / OpenAI o-series 支持 reasoning_effort 参数
-        var reasoningEffort = Config.Instance.ReasoningEffort;
-        if (!string.IsNullOrEmpty(reasoningEffort))
-        {
-            body["reasoning_effort"] = reasoningEffort;
-        }
+        var body = BuildBody(includeStreamOptions: true);
 
         var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
         {
-            Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"),
+            Content = new StringContent(body.ToJson(), Encoding.UTF8, "application/json"),
         };
         request.Headers.Add("Authorization", $"Bearer {ApiKey}");
 
@@ -385,7 +390,7 @@ public class LLM
             {
                 var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
                 {
-                    Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"),
+                    Content = new StringContent(body.ToJson(), Encoding.UTF8, "application/json"),
                 };
                 req.Headers.Add("Authorization", $"Bearer {ApiKey}");
                 return req;
@@ -393,12 +398,12 @@ public class LLM
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.BadRequest)
         {
-            body.Remove("stream_options");
+            body = BuildBody(includeStreamOptions: false);
             response = await CallWithRetryAsync(() =>
             {
                 var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
                 {
-                    Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"),
+                    Content = new StringContent(body.ToJson(), Encoding.UTF8, "application/json"),
                 };
                 req.Headers.Add("Authorization", $"Bearer {ApiKey}");
                 return req;
@@ -423,24 +428,24 @@ public class LLM
             var data = line[6..];
             if (data == "[DONE]") { streamEndedGracefully = true; continue; }
 
-            JsonNode? chunk;
-            try { chunk = JsonNode.Parse(data); }
+            JNode? chunk;
+            try { chunk = Json.Parse(data); }
             catch { continue; }
             if (chunk == null) continue;
 
             // usage 信息在最后一个分片中
             if (chunk["usage"] is { } usage)
             {
-                promptTok = (int?)usage["prompt_tokens"] ?? 0;
-                completionTok = (int?)usage["completion_tokens"] ?? 0;
+                promptTok = (int?)(usage["prompt_tokens"]?.AsNumber()) ?? 0;
+                completionTok = (int?)(usage["completion_tokens"]?.AsNumber()) ?? 0;
             }
 
-            if (chunk["choices"]?.AsArray() is not { Count: > 0 } choices) continue;
+            if (chunk["choices"] is not { Count: > 0 } choices) continue;
             var delta = choices[0]?["delta"];
             if (delta == null) continue;
 
             // 累积文本 — 只取 content 字段存入对话历史
-            if (delta["content"]?.GetValue<string>() is { } text && text.Length > 0)
+            if (delta["content"]?.AsString() is { } text && text.Length > 0)
             {
                 // 从推理模式切换到正式输出：关闭暗色样式
                 if (_reasoningShown)
@@ -466,7 +471,7 @@ public class LLM
             }
 
             // 跨分片累积工具调用
-            if (delta["tool_calls"]?.AsArray() is { } tcDeltas)
+            if (delta["tool_calls"] is { } tcDeltas)
             {
                 // 从推理模式切换到工具调用：关闭暗色样式
                 if (_reasoningShown)
@@ -474,17 +479,16 @@ public class LLM
                     _reasoningShown = false;
                     onToken?.Invoke("«/»\n");
                 }
-                foreach (var tc in tcDeltas)
+                foreach (var tc in tcDeltas.Items)
                 {
-                    if (tc == null) continue;
-                    var idx = (int?)tc["index"] ?? 0;
+                    var idx = (int?)(tc["index"]?.AsNumber()) ?? 0;
                     if (!tcMap.ContainsKey(idx))
                         tcMap[idx] = ("", "", "");
 
                     var (id, name, args) = tcMap[idx];
-                    if (tc["id"]?.GetValue<string>() is { } tid) id = tid;
-                    if (tc["function"]?["name"]?.GetValue<string>() is { } tname) name = tname;
-                    if (tc["function"]?["arguments"]?.GetValue<string>() is { } targs) args += targs;
+                    if (tc["id"]?.AsString() is { } tid) id = tid;
+                    if (tc["function"]?["name"]?.AsString() is { } tname) name = tname;
+                    if (tc["function"]?["arguments"]?.AsString() is { } targs) args += targs;
                     tcMap[idx] = (id, name, args);
 
                     // 流式执行：用 JSON 解析器验证参数完整性（不靠 } 结尾，避免 C# 代码中的 } 误判）
@@ -590,11 +594,9 @@ public class LLM
         var embeddingModel = model ?? "text-embedding-3-small";
         var endpoint = (BaseUrl ?? "https://api.openai.com").TrimEnd('/') + "/v1/embeddings";
 
-        var body = new JsonObject
-        {
-            ["model"] = embeddingModel,
-            ["input"] = text,
-        };
+        var body = JNode.Object()
+            .Set("model", embeddingModel)
+            .Set("input", text);
 
         try
         {
@@ -602,21 +604,21 @@ public class LLM
             {
                 var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
                 {
-                    Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"),
+                    Content = new StringContent(body.ToJson(), Encoding.UTF8, "application/json"),
                 };
                 req.Headers.Add("Authorization", $"Bearer {ApiKey}");
                 return req;
             }, cancellationToken);
 
             var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
-            var node = JsonNode.Parse(responseText);
-            var embeddingArray = node?["data"]?.AsArray()?[0]?["embedding"]?.AsArray();
+            var node = Json.Parse(responseText);
+            var embeddingArray = node?["data"]?[0]?["embedding"];
             if (embeddingArray == null || embeddingArray.Count == 0) return null;
 
             var result = new float[embeddingArray.Count];
             for (int i = 0; i < embeddingArray.Count; i++)
             {
-                result[i] = (float)(embeddingArray[i]?.GetValue<double>() ?? 0.0);
+                result[i] = (float)(embeddingArray[i]?.AsNumber() ?? 0.0);
             }
             return result;
         }
@@ -738,14 +740,14 @@ public class LLM
     /// 从流式 chunk 的 delta 中提取推理文本。
     /// DeepSeek 用 "reasoning_content"，Ollama/qwen 用 "reasoning"。
     /// </summary>
-    private static bool TryGetReasoningText(JsonNode delta, out string text)
+    private static bool TryGetReasoningText(JNode delta, out string text)
     {
         text = "";
         // DeepSeek: reasoning_content
-        if (delta["reasoning_content"]?.GetValue<string>() is { } t1 && t1.Length > 0)
+        if (delta["reasoning_content"]?.AsString() is { } t1 && t1.Length > 0)
         { text = t1; return true; }
         // Ollama / qwen: reasoning
-        if (delta["reasoning"]?.GetValue<string>() is { } t2 && t2.Length > 0)
+        if (delta["reasoning"]?.AsString() is { } t2 && t2.Length > 0)
         { text = t2; return true; }
         return false;
     }
@@ -761,14 +763,12 @@ public class LLM
         if (!IsJsonProbablyComplete(json)) return false;
         try
         {
-            using var doc = System.Text.Json.JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object && doc.RootElement.GetPropertyCount() > 0)
+            var node = Json.Parse(json);
+            if (node?.Kind == JKind.Object && node.Count > 0)
             {
                 result = new Dictionary<string, object?>();
-                foreach (var prop in doc.RootElement.EnumerateObject())
-                {
-                    result[prop.Name] = JsonElementToObject(prop.Value);
-                }
+                foreach (var (k, v) in node.Entries)
+                    result[k] = JNodeToObject(v);
                 return true;
             }
             return false;
@@ -817,52 +817,32 @@ public class LLM
     /// （如 agent 工具偶发 {"task":"a","task":"b"}）时枚举会抛 ArgumentException（Key: xxx），
     /// 导致该轮工具参数失效被丢弃。JsonDocument 保留重复键且枚举不抛异常，后者覆盖即可容错。
     /// </summary>
-    private static object? JsonElementToObject(System.Text.Json.JsonElement element)
+    private static object? JNodeToObject(JNode node) => node.Kind switch
     {
-        switch (element.ValueKind)
-        {
-            case System.Text.Json.JsonValueKind.Null or System.Text.Json.JsonValueKind.Undefined:
-                return null;
-            case System.Text.Json.JsonValueKind.True:
-                return true;
-            case System.Text.Json.JsonValueKind.False:
-                return false;
-            case System.Text.Json.JsonValueKind.String:
-                return element.GetString();
-            case System.Text.Json.JsonValueKind.Number:
-                return ParseJsonNumber(element);
-            case System.Text.Json.JsonValueKind.Array:
-            {
-                var list = new List<object?>();
-                foreach (var item in element.EnumerateArray())
-                    list.Add(JsonElementToObject(item));
-                return list;
-            }
-            case System.Text.Json.JsonValueKind.Object:
-            {
-                var dict = new Dictionary<string, object?>();
-                foreach (var prop in element.EnumerateObject())
-                    dict[prop.Name] = JsonElementToObject(prop.Value); // 重复键后者覆盖
-                return dict;
-            }
-            default:
-                return element.ToString();
-        }
-    }
+        JKind.Null => null,
+        JKind.Bool => node.AsBool(),
+        JKind.String => node.AsString(),
+        JKind.Number => ParseJsonNumber(node),
+        JKind.Array => node.Items.Select(JNodeToObject).ToList(),
+        JKind.Object => node.Entries.ToDictionary(e => e.Key, e => JNodeToObject(e.Value)), // 重复键后者覆盖
+        _ => node.ToString(),
+    };
 
     /// <summary>
     /// 将 JSON 数字转换为 long（整数）或 double（小数）。
     /// 对整数 TryGetInt64 成功返回 long；小数（如 3.14）TryGetInt64 返回 false 需回退 TryGetDouble；
     /// 超大整数两者都失败时退回原始文本，避免精度丢失。
     /// </summary>
-    private static object ParseJsonNumber(System.Text.Json.JsonElement element)
+    private static object ParseJsonNumber(JNode node)
     {
-        if (element.TryGetInt64(out var l))
-            return l;
-        if (element.TryGetDouble(out var d))
-            return d;
-        // 超大整数或异常数字：退回原始文本，避免精度丢失
-        return element.GetRawText();
+        var raw = node._numRaw;
+        if (raw == null) return node.AsNumber();
+        if (!raw.Contains('.') && !raw.Contains('e') && !raw.Contains('E'))
+        {
+            if (long.TryParse(raw, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var l)) return l;
+            return raw; // 超大整数退回原始文本，避免精度丢失
+        }
+        return node.AsNumber();
     }
 
     public static Dictionary<string, object?> ParseArgs(string json)
@@ -870,12 +850,12 @@ public class LLM
         var result = new Dictionary<string, object?>();
         try
         {
-            using var doc = System.Text.Json.JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object)
+            var node = Json.Parse(json);
+            if (node?.Kind == JKind.Object)
             {
-                foreach (var prop in doc.RootElement.EnumerateObject())
+                foreach (var (k, v) in node.Entries)
                 {
-                    result[prop.Name] = JsonElementToObject(prop.Value);
+                    result[k] = JNodeToObject(v);
                 }
             }
         }
@@ -926,7 +906,7 @@ internal static class JsonHelper
             case long l: return l.ToString();
             case double d: return d.ToString(System.Globalization.CultureInfo.InvariantCulture);
             case float f: return f.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            case JsonNode node: return node.ToJsonString();
+            case JNode node: return node.ToJson();
             case System.Collections.IDictionary dict: return SerializeDict(dict);
             case System.Collections.IEnumerable enumerable: return SerializeArray(enumerable);
             default: return $"\"{EscapeJson(value.ToString() ?? "null")}\"";
@@ -968,15 +948,6 @@ internal static class JsonHelper
         }
         sb.Append(']');
         return sb.ToString();
-    }
-
-    /// <summary>
-    /// 深拷贝 JsonNode（AOT 安全：通过序列化/反序列化）。
-    /// </summary>
-    public static JsonNode? DeepClone(JsonNode? node)
-    {
-        if (node == null) return null;
-        return JsonNode.Parse(node.ToJsonString());
     }
 
     private static string EscapeJson(string s)

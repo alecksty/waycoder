@@ -1,6 +1,5 @@
 using System.IO.Compression;
 using System.Text;
-using System.Xml;
 
 namespace WayCoder.Infra;
 
@@ -8,6 +7,7 @@ namespace WayCoder.Infra;
 /// Office 文档文本提取器（DOCX / XLSX / PPTX）
 /// 纯 .NET 内置库实现，零外部依赖，AOT 兼容。
 /// Office Open XML 格式本质是 ZIP 包内含 XML 文件。
+/// XML 解析使用手搓 Xml/XNode（AOT 零反射，不依赖 System.Xml）。
 /// </summary>
 public static class OfficeExtractor
 {
@@ -22,41 +22,30 @@ public static class OfficeExtractor
             var docEntry = zip.GetEntry("word/document.xml");
             if (docEntry == null) return "错误：无效的 DOCX 文件（缺少 word/document.xml）";
 
-            using var stream = docEntry.Open();
+            var root = Xml.Parse(ReadEntryText(docEntry));
+            if (root == null) return "(DOCX 文件无文本内容)";
+
+            // w:document → w:body → (w:p | w:tbl)*，段落与表格是 body 的直接子元素
+            var body = root.Children.FirstOrDefault(c => c.Kind == XKind.Element && Local(c) == "body") ?? root;
+
             var sb = new StringBuilder();
-
-            using var reader = XmlReader.Create(stream, new XmlReaderSettings { IgnoreWhitespace = true });
-            bool inParagraph = false;
-            var paraText = new StringBuilder();
-
-            while (reader.Read())
+            foreach (var child in body.Children)
             {
-                if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "p")
+                if (child.Kind != XKind.Element) continue;
+                var local = Local(child);
+                if (local == "p")
                 {
-                    inParagraph = true;
-                    paraText.Clear();
-                }
-                else if (reader.NodeType == XmlNodeType.EndElement && reader.LocalName == "p")
-                {
-                    inParagraph = false;
-                    var text = paraText.ToString().Trim();
+                    var text = child.InnerText().Trim();
                     if (text.Length > 0)
                     {
                         sb.AppendLine(text);
                         if (sb.Length > maxChars) break;
                     }
                 }
-                else if (inParagraph && reader.NodeType == XmlNodeType.Element && reader.LocalName == "t")
-                {
-                    reader.Read();
-                    if (reader.NodeType == XmlNodeType.Text)
-                        paraText.Append(reader.Value);
-                }
-                // 表格处理
-                else if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "tbl")
+                else if (local == "tbl")
                 {
                     if (sb.Length > 0) sb.AppendLine();
-                    sb.AppendLine(ExtractDocxTable(reader));
+                    sb.AppendLine(ExtractDocxTable(child));
                     if (sb.Length > maxChars) break;
                 }
             }
@@ -73,46 +62,16 @@ public static class OfficeExtractor
         }
     }
 
-    private static string ExtractDocxTable(XmlReader reader)
+    private static string ExtractDocxTable(XNode tbl)
     {
         var rows = new List<List<string>>();
-        var depth = reader.Depth;
-        bool inRow = false, inCell = false;
-        var cellText = new StringBuilder();
-        List<string>? currentRow = null;
-
-        while (reader.Read())
+        // w:tbl → w:tr → w:tc（直接子元素）
+        foreach (var tr in DirectChildren(tbl, "tr"))
         {
-            if (reader.Depth <= depth && reader.NodeType == XmlNodeType.EndElement && reader.LocalName == "tbl")
-                break;
-
-            if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "tr")
-            {
-                currentRow = new List<string>();
-                inRow = true;
-            }
-            else if (reader.NodeType == XmlNodeType.EndElement && reader.LocalName == "tr")
-            {
-                inRow = false;
-                if (currentRow != null && currentRow.Count > 0)
-                    rows.Add(currentRow);
-            }
-            else if (inRow && reader.NodeType == XmlNodeType.Element && reader.LocalName == "tc")
-            {
-                inCell = true;
-                cellText.Clear();
-            }
-            else if (inRow && reader.NodeType == XmlNodeType.EndElement && reader.LocalName == "tc")
-            {
-                inCell = false;
-                currentRow?.Add(cellText.ToString().Trim());
-            }
-            else if (inCell && reader.NodeType == XmlNodeType.Element && reader.LocalName == "t")
-            {
-                reader.Read();
-                if (reader.NodeType == XmlNodeType.Text)
-                    cellText.Append(reader.Value);
-            }
+            var row = new List<string>();
+            foreach (var tc in DirectChildren(tr, "tc"))
+                row.Add(tc.InnerText().Trim());
+            if (row.Count > 0) rows.Add(row);
         }
 
         if (rows.Count == 0) return "";
@@ -141,18 +100,11 @@ public static class OfficeExtractor
             var sstEntry = zip.GetEntry("xl/sharedStrings.xml");
             if (sstEntry != null)
             {
-                using var stream = sstEntry.Open();
-                using var reader = XmlReader.Create(stream, new XmlReaderSettings { IgnoreWhitespace = true });
-                while (reader.Read())
+                var sstRoot = Xml.Parse(ReadEntryText(sstEntry));
+                if (sstRoot != null)
                 {
-                    if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "t")
-                    {
-                        reader.Read();
-                        if (reader.NodeType == XmlNodeType.Text)
-                            sharedStrings.Add(reader.Value);
-                        else
-                            sharedStrings.Add("");
-                    }
+                    foreach (var t in Elements(sstRoot, "t"))
+                        sharedStrings.Add(t.InnerText());
                 }
             }
 
@@ -160,47 +112,25 @@ public static class OfficeExtractor
             var sheetEntry = zip.GetEntry("xl/worksheets/sheet1.xml");
             if (sheetEntry == null) return "错误：无效的 XLSX 文件（缺少 xl/worksheets/sheet1.xml）";
 
-            using var sheetStream = sheetEntry.Open();
-            using var reader2 = XmlReader.Create(sheetStream, new XmlReaderSettings { IgnoreWhitespace = true });
+            var sheetRoot = Xml.Parse(ReadEntryText(sheetEntry));
+            if (sheetRoot == null) return "(XLSX 文件无数据)";
 
             var rows = new List<List<string>>();
-            List<string>? currentRow = null;
-
-            while (reader2.Read())
+            foreach (var row in Elements(sheetRoot, "row"))
             {
-                if (reader2.NodeType == XmlNodeType.Element && reader2.LocalName == "row")
+                var currentRow = new List<string>();
+                foreach (var c in DirectChildren(row, "c"))
                 {
-                    currentRow = new List<string>();
+                    var t = c.GetAttr("t"); // "s" = shared string, "n" = number
+                    var v = DirectChildren(c, "v").FirstOrDefault();
+                    var raw = v?.InnerText() ?? "";
+                    if (t == "s" && int.TryParse(raw, out var idx) && idx >= 0 && idx < sharedStrings.Count)
+                        currentRow.Add(sharedStrings[idx]);
+                    else
+                        currentRow.Add(raw);
                 }
-                else if (reader2.NodeType == XmlNodeType.EndElement && reader2.LocalName == "row")
-                {
-                    if (currentRow != null && currentRow.Count > 0)
-                        rows.Add(currentRow);
-                    if (rows.Count >= maxRows) break;
-                }
-                else if (reader2.NodeType == XmlNodeType.Element && reader2.LocalName == "c" && currentRow != null)
-                {
-                    var t = reader2.GetAttribute("t"); // "s" = shared string, "n" = number
-                    reader2.Read();
-                    string val = "";
-                    while (reader2.NodeType != XmlNodeType.EndElement || reader2.LocalName != "c")
-                    {
-                        if (reader2.NodeType == XmlNodeType.Element && reader2.LocalName == "v")
-                        {
-                            reader2.Read();
-                            if (reader2.NodeType == XmlNodeType.Text)
-                            {
-                                var raw = reader2.Value;
-                                if (t == "s" && int.TryParse(raw, out var idx) && idx < sharedStrings.Count)
-                                    val = sharedStrings[idx];
-                                else
-                                    val = raw;
-                            }
-                        }
-                        reader2.Read();
-                    }
-                    currentRow.Add(val);
-                }
+                if (currentRow.Count > 0) rows.Add(currentRow);
+                if (rows.Count >= maxRows) break;
             }
 
             if (rows.Count == 0) return "(XLSX 文件无数据)";
@@ -254,37 +184,14 @@ public static class OfficeExtractor
                 if (entry == null) break;
                 slideNum++;
 
-                using var stream = entry.Open();
-                using var reader = XmlReader.Create(stream, new XmlReaderSettings { IgnoreWhitespace = true });
+                var root = Xml.Parse(ReadEntryText(entry));
+                if (root == null) continue;
 
                 var slideTexts = new List<string>();
-                var textBuf = new StringBuilder();
-                bool inText = false;
-
-                while (reader.Read())
+                foreach (var t in Elements(root, "t"))
                 {
-                    if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "t")
-                    {
-                        inText = true;
-                        textBuf.Clear();
-                    }
-                    else if (reader.NodeType == XmlNodeType.EndElement && reader.LocalName == "t")
-                    {
-                        inText = false;
-                        var t = textBuf.ToString().Trim();
-                        if (t.Length > 0) slideTexts.Add(t);
-                    }
-                    else if (inText && reader.NodeType == XmlNodeType.Text)
-                    {
-                        textBuf.Append(reader.Value);
-                    }
-                    // 换行符
-                    else if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "br")
-                    {
-                        textBuf.Append('\n');
-                    }
-
-                    if (sb.Length > maxChars) break;
+                    var text = t.InnerText().Trim();
+                    if (text.Length > 0) slideTexts.Add(text);
                 }
 
                 if (slideTexts.Count > 0)
@@ -292,7 +199,7 @@ public static class OfficeExtractor
                     sb.AppendLine($"## 幻灯片 {i}");
                     foreach (var t in slideTexts)
                     {
-                        // 标题检测（字号大的通常是标题）
+                        // 标题检测（首段通常是标题）
                         if (slideTexts.IndexOf(t) == 0 && slideTexts.Count > 1)
                             sb.AppendLine($"### {t}");
                         else
@@ -300,6 +207,8 @@ public static class OfficeExtractor
                     }
                     sb.AppendLine();
                 }
+
+                if (sb.Length > maxChars) break;
             }
 
             var result = sb.ToString().Trim();
@@ -389,4 +298,42 @@ public static class OfficeExtractor
         cells.Add(current.ToString().Trim());
         return cells.ToArray();
     }
+
+    // ════════════════════════════════════════════════════════════
+    // XNode DOM 辅助（OOXML 元素带命名空间前缀，如 w:p / a:t）
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>读取 ZIP 条目全文为 UTF-8 字符串。</summary>
+    private static string ReadEntryText(ZipArchiveEntry entry)
+    {
+        using var stream = entry.Open();
+        using var sr = new StreamReader(stream, Encoding.UTF8);
+        return sr.ReadToEnd();
+    }
+
+    /// <summary>取元素本地名（去掉命名空间前缀，如 "w:p" → "p"）。</summary>
+    private static string Local(XNode n)
+    {
+        var name = n.Name;
+        var i = name.IndexOf(':');
+        return i >= 0 ? name[(i + 1)..] : name;
+    }
+
+    /// <summary>直接子元素中按本地名匹配。</summary>
+    private static IEnumerable<XNode> DirectChildren(XNode node, string local)
+        => node.Children.Where(c => c.Kind == XKind.Element && Local(c) == local);
+
+    /// <summary>递归所有后代元素。</summary>
+    private static IEnumerable<XNode> Descendants(XNode node)
+    {
+        foreach (var c in node.Children)
+        {
+            yield return c;
+            foreach (var d in Descendants(c)) yield return d;
+        }
+    }
+
+    /// <summary>所有后代元素中按本地名匹配。</summary>
+    private static IEnumerable<XNode> Elements(XNode node, string local)
+        => Descendants(node).Where(n => n.Kind == XKind.Element && Local(n) == local);
 }

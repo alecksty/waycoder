@@ -17,34 +17,22 @@ public class GitPRTool : ITool
     public string Name => "git_pr";
     public string Description => "创建 Pull Request：自动创建分支、推送并生成 PR 链接。支持 GitHub / Gitee。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["action"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "操作：create（创建 PR）、push（仅推送）、url（仅生成链接）",
-            },
-            ["title"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "PR 标题（create 操作需要）",
-            },
-            ["description"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "PR 描述（可选，支持 Markdown）",
-            },
-            ["base_branch"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "目标分支（默认 master 或 main）",
-            },
-        },
-        ["required"] = new JsonArray("action"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("action", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "操作：create（创建 PR）、push（仅推送）、url（仅生成链接）"))
+            .Set("title", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "PR 标题（create 操作需要）"))
+            .Set("description", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "PR 描述（可选，支持 Markdown）"))
+            .Set("base_branch", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "目标分支（默认 master 或 main）")))
+        .Set("required", JNode.Array().Add("action"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

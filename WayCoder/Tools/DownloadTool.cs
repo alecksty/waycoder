@@ -1,5 +1,3 @@
-using System.Text.Json.Nodes;
-
 namespace WayCoder.Tools;
 
 /// <summary>
@@ -11,29 +9,19 @@ public class DownloadTool : ITool
     public string Name => "download";
     public string Description => "将 URL 的内容下载到本地文件。用于获取远程资源、下载依赖文件或保存外部数据。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["url"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要下载的 URL（仅支持 http/https）",
-            },
-            ["file_path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "保存下载内容的本地文件路径（绝对路径或相对于当前目录）",
-            },
-            ["timeout"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "下载超时时间，单位秒（默认 60，最大 600）",
-            },
-        },
-        ["required"] = new JsonArray("url", "file_path"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("url", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要下载的 URL（仅支持 http/https）"))
+            .Set("file_path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "保存下载内容的本地文件路径（绝对路径或相对于当前目录）"))
+            .Set("timeout", JNode.Object()
+                .Set("type", "integer")
+                .Set("description", "下载超时时间，单位秒（默认 60，最大 600）")))
+        .Set("required", JNode.Array().Add("url").Add("file_path"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

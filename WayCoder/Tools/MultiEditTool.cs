@@ -15,47 +15,29 @@ public class MultiEditTool : ITool
     public string Name => "multiedit";
     public string Description => "对同一文件执行多个顺序编辑操作。减小文件修改的 round-trip。首个编辑的 old_string 若为空则表示创建新文件。每个编辑的 old_string 必须在当前文件内容中唯一（或指定 replace_all）。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["file_path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "要编辑的文件绝对路径",
-            },
-            ["edits"] = new JsonObject
-            {
-                ["type"] = "array",
-                ["description"] = "要顺序执行的编辑操作列表",
-                ["items"] = new JsonObject
-                {
-                    ["type"] = "object",
-                    ["properties"] = new JsonObject
-                    {
-                        ["old_string"] = new JsonObject
-                        {
-                            ["type"] = "string",
-                            ["description"] = "要查找的精确文本（首个编辑若为空则创建新文件）",
-                        },
-                        ["new_string"] = new JsonObject
-                        {
-                            ["type"] = "string",
-                            ["description"] = "替换文本",
-                        },
-                        ["replace_all"] = new JsonObject
-                        {
-                            ["type"] = "boolean",
-                            ["description"] = "替换所有匹配项（默认 false，仅替换单个唯一匹配项）",
-                        },
-                    },
-                    ["required"] = new JsonArray("old_string", "new_string"),
-                },
-            },
-        },
-        ["required"] = new JsonArray("file_path", "edits"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("file_path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "要编辑的文件绝对路径"))
+            .Set("edits", JNode.Object()
+                .Set("type", "array")
+                .Set("description", "要顺序执行的编辑操作列表")
+                .Set("items", JNode.Object()
+                    .Set("type", "object")
+                    .Set("properties", JNode.Object()
+                        .Set("old_string", JNode.Object()
+                            .Set("type", "string")
+                            .Set("description", "要查找的精确文本（首个编辑若为空则创建新文件）"))
+                        .Set("new_string", JNode.Object()
+                            .Set("type", "string")
+                            .Set("description", "替换文本"))
+                        .Set("replace_all", JNode.Object()
+                            .Set("type", "boolean")
+                            .Set("description", "替换所有匹配项（默认 false，仅替换单个唯一匹配项）")))
+                    .Set("required", JNode.Array().Add("old_string").Add("new_string")))))
+        .Set("required", JNode.Array().Add("file_path").Add("edits"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
@@ -110,23 +92,21 @@ public class MultiEditTool : ITool
     private static List<EditOp> ParseEdits(object? editsObj)
     {
         var result = new List<EditOp>();
-        if (editsObj is JsonArray arr)
+        if (editsObj is JNode arr)
         {
-            foreach (var item in arr)
+            foreach (var item in arr.Items)
             {
-                if (item is JsonObject obj)
-                {
-                    var ra = obj["replace_all"];
-                    var replaceAll = ra is JsonValue jv && jv.TryGetValue(out bool b) ? b
-                        : ra?.ToString()?.ToLowerInvariant() == "true";
+                if (item.Kind != JKind.Object) continue;
+                var ra = item["replace_all"];
+                var replaceAll = ra is { Kind: JKind.Bool } ? ra.AsBool()
+                    : ra?.AsString()?.ToLowerInvariant() == "true";
 
-                    result.Add(new EditOp
-                    {
-                        OldString = obj["old_string"]?.ToString() ?? "",
-                        NewString = obj["new_string"]?.ToString() ?? "",
-                        ReplaceAll = replaceAll,
-                    });
-                }
+                result.Add(new EditOp
+                {
+                    OldString = item["old_string"]?.AsString() ?? "",
+                    NewString = item["new_string"]?.AsString() ?? "",
+                    ReplaceAll = replaceAll,
+                });
             }
         }
         return result;

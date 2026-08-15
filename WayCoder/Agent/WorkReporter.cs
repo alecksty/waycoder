@@ -18,7 +18,7 @@ public static class WorkReporter
     /// <param name="messages">本轮的 assistant + tool 消息列表</param>
     /// <param name="startedAt">本轮开始时间</param>
     /// <returns>Markdown 格式的报告</returns>
-    public static string Generate(List<JsonObject>? messages, DateTime? startedAt = null)
+    public static string Generate(List<JNode>? messages, DateTime? startedAt = null)
     {
         if (messages == null || messages.Count == 0)
             return "_本轮无对话历史。_";
@@ -107,24 +107,24 @@ public static class WorkReporter
 
     // ── 统计 ──
 
-    private static WorkStats CollectStats(List<JsonObject> messages)
+    private static WorkStats CollectStats(List<JNode> messages)
     {
         var stats = new WorkStats();
         foreach (var m in messages)
         {
-            var role = m["role"]?.GetValue<string>() ?? "";
+            var role = m["role"]?.AsString() ?? "";
             if (role != "assistant") continue;
 
-            var content = m["content"]?.GetValue<string>() ?? "";
-            var toolCalls = m["tool_calls"]?.AsArray();
+            var content = m["content"]?.AsString() ?? "";
+            var toolCalls = m["tool_calls"];
             if (toolCalls == null) continue;
 
-            foreach (var tc in toolCalls)
+            foreach (var tc in toolCalls.Items)
             {
                 stats.TotalActions++;
-                var func = tc?["function"];
-                var toolName = func?["name"]?.GetValue<string>() ?? "";
-                var args = func?["arguments"]?.GetValue<string>() ?? "";
+                var func = tc["function"];
+                var toolName = func?["name"]?.AsString() ?? "";
+                var args = func?["arguments"]?.AsString() ?? "";
 
                 switch (toolName)
                 {
@@ -144,22 +144,22 @@ public static class WorkReporter
         return stats;
     }
 
-    private static List<(string Tool, string Summary)> ExtractToolCalls(List<JsonObject> messages)
+    private static List<(string Tool, string Summary)> ExtractToolCalls(List<JNode> messages)
     {
         var calls = new List<(string, string)>();
         foreach (var m in messages)
         {
-            var role = m["role"]?.GetValue<string>() ?? "";
+            var role = m["role"]?.AsString() ?? "";
             if (role != "assistant") continue;
 
-            var toolCalls = m["tool_calls"]?.AsArray();
+            var toolCalls = m["tool_calls"];
             if (toolCalls == null) continue;
 
-            foreach (var tc in toolCalls)
+            foreach (var tc in toolCalls.Items)
             {
-                var func = tc?["function"];
-                var toolName = func?["name"]?.GetValue<string>() ?? "?";
-                var args = func?["arguments"]?.GetValue<string>() ?? "";
+                var func = tc["function"];
+                var toolName = func?["name"]?.AsString() ?? "?";
+                var args = func?["arguments"]?.AsString() ?? "";
 
                 var summary = SummarizeArgs(toolName, args);
                 calls.Add((toolName, summary));
@@ -168,21 +168,21 @@ public static class WorkReporter
         return calls;
     }
 
-    private static List<(string Path, string Action)> ExtractChangedFiles(List<JsonObject> messages)
+    private static List<(string Path, string Action)> ExtractChangedFiles(List<JNode> messages)
     {
         var seen = new HashSet<string>();
         var files = new List<(string, string)>();
 
         foreach (var m in messages)
         {
-            var toolCalls = m["tool_calls"]?.AsArray();
+            var toolCalls = m["tool_calls"];
             if (toolCalls == null) continue;
 
-            foreach (var tc in toolCalls)
+            foreach (var tc in toolCalls.Items)
             {
-                var func = tc?["function"];
-                var toolName = func?["name"]?.GetValue<string>() ?? "";
-                var args = func?["arguments"]?.GetValue<string>() ?? "";
+                var func = tc["function"];
+                var toolName = func?["name"]?.AsString() ?? "";
+                var args = func?["arguments"]?.AsString() ?? "";
 
                 var (path, action) = toolName switch
                 {

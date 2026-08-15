@@ -9,12 +9,10 @@ public class PwdTool : ITool
     public string Name => "pwd";
     public string Description => "显示当前工作目录的完整路径。纯 C# 实现。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject(),
-        ["required"] = new JsonArray(),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object())
+        .Set("required", JNode.Array());
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

@@ -31,7 +31,7 @@ public class Program
     private static WatchMode? _watchMode;
     private static volatile bool _exitRequested;
     private static readonly Task?[] _slotTasks = new Task?[AgentSlot.Count];
-    private static (List<JsonObject> Messages, string Model)? _pendingRestore;
+    private static (List<JNode> Messages, string Model)? _pendingRestore;
 
     /// <summary>一次性/管道模式 POSIX 信号注册（保持引用防 GC 回收，Windows 下为 null）。</summary>
     private static System.Runtime.InteropServices.PosixSignalRegistration? _sigintReg;
@@ -489,7 +489,7 @@ public class Program
             durationMs: sw.ElapsedMilliseconds,
             changedFiles: EditFileTool.ChangedFiles);
 
-        Console.WriteLine(result.ToJsonString());
+        Console.WriteLine(result.ToJson());
         return success ? 0 : 1;
     }
 
@@ -950,7 +950,7 @@ public class Program
                 if (slot?.Agent?.Messages == null || slot.Agent.Messages.Count == 0) continue;
                 // 只保存有实际对话的会话（至少一条用户消息）
                 var hasUser = slot.Agent.Messages.Any(m =>
-                    (string?)m["role"] == "user");
+                    m["role"]?.AsString() == "user");
                 if (!hasUser) continue;
                 var suffix = i == 0 ? "_auto" : $"_auto_slot{i}";
                 SessionManager.SaveSession(slot.Agent.Messages, _config.Model, suffix);
@@ -978,7 +978,7 @@ public class Program
             {
                 var slot = _slots[i];
                 if (slot?.Agent?.Messages == null || slot.Agent.Messages.Count == 0) continue;
-                var hasUser = slot.Agent.Messages.Any(m => (string?)m["role"] == "user");
+                var hasUser = slot.Agent.Messages.Any(m => m["role"]?.AsString() == "user");
                 if (!hasUser) continue;
                 var slotSuffix = i == 0 ? "_auto" : $"_auto_slot{i}";
                 try { SessionManager.SaveSession(slot.Agent.Messages, _config.Model, slotSuffix); } catch { }
@@ -1743,8 +1743,8 @@ public class Program
         for (int i = 0; i < _agent!.Messages.Count; i++)
         {
             var msg = _agent.Messages[i];
-            var role = msg["role"]?.GetValue<string>() ?? "";
-            var content = msg["content"]?.GetValue<string>() ?? "";
+            var role = msg["role"]?.AsString() ?? "";
+            var content = msg["content"]?.AsString() ?? "";
             if (content.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             {
                 var idx = content.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
@@ -1844,8 +1844,8 @@ public class Program
 
             // 检查最近一条 assistant 消息是否含成功标记
             var lastAssistant = _agent!.Messages.LastOrDefault(m =>
-                m["role"]?.GetValue<string>() == "assistant");
-            var lastContent = lastAssistant?["content"]?.GetValue<string>() ?? "";
+                m["role"]?.AsString() == "assistant");
+            var lastContent = lastAssistant?["content"]?.AsString() ?? "";
 
             var successMarkers = new[]
             {
@@ -2182,8 +2182,8 @@ deepseek 性价比最高。"
                         screen.ClearChat();
                         foreach (var msg in messages)
                         {
-                            var role = msg["role"]?.GetValue<string>() ?? "";
-                            var content = msg["content"]?.GetValue<string>() ?? "";
+                            var role = msg["role"]?.AsString() ?? "";
+                            var content = msg["content"]?.AsString() ?? "";
                             if (role == "user") screen.AddMessage(content, "user");
                             else if (role == "assistant") screen.AddMessage(content, "assistant");
                             else if (role == "tool") screen.AddMessage(content, "tool", indent: 1);

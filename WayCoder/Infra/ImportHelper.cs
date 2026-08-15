@@ -1,6 +1,4 @@
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace WayCoder.Infra;
 
@@ -52,19 +50,19 @@ public static class ImportHelper
         {
             try
             {
-                var json = JsonNode.Parse(File.ReadAllText(settingsPath, Encoding.UTF8));
-                var env = json?["env"]?.AsObject();
+                var json = Json.Parse(File.ReadAllText(settingsPath, Encoding.UTF8));
+                var env = json?["env"];
                 if (env != null)
                 {
-                    var apiKey = env.FirstOrDefault(kv =>
+                    var apiKey = env.Entries.FirstOrDefault(kv =>
                         kv.Key.Contains("API_KEY", StringComparison.OrdinalIgnoreCase) ||
-                        kv.Key.Contains("AUTH_TOKEN", StringComparison.OrdinalIgnoreCase)).Value?.GetValue<string>();
+                        kv.Key.Contains("AUTH_TOKEN", StringComparison.OrdinalIgnoreCase)).Value?.AsString();
 
-                    var baseUrl = env.FirstOrDefault(kv =>
-                        kv.Key.Contains("BASE_URL", StringComparison.OrdinalIgnoreCase)).Value?.GetValue<string>();
+                    var baseUrl = env.Entries.FirstOrDefault(kv =>
+                        kv.Key.Contains("BASE_URL", StringComparison.OrdinalIgnoreCase)).Value?.AsString();
 
-                    var models = env.Where(kv => kv.Key.Contains("MODEL", StringComparison.OrdinalIgnoreCase))
-                        .Select(kv => $"{kv.Key}={kv.Value}")
+                    var models = env.Entries.Where(kv => kv.Key.Contains("MODEL", StringComparison.OrdinalIgnoreCase))
+                        .Select(kv => $"{kv.Key}={kv.Value.AsString()}")
                         .ToList();
 
                     var desc = new List<string>();
@@ -89,11 +87,11 @@ public static class ImportHelper
         {
             try
             {
-                var json = JsonNode.Parse(File.ReadAllText(pluginsPath, Encoding.UTF8));
-                var plugins = json?["plugins"]?.AsObject();
+                var json = Json.Parse(File.ReadAllText(pluginsPath, Encoding.UTF8));
+                var plugins = json?["plugins"];
                 if (plugins != null && plugins.Count > 0)
                 {
-                    var names = plugins.Select(p => p.Key).ToList();
+                    var names = plugins.Entries.Select(p => p.Key).ToList();
                     items.Add(new ImportItem("🔌 MCP 服务器", "[Claude] 插件",
                         $"{plugins.Count} 个: {string.Join(", ", names.Take(5))}{(names.Count > 5 ? "…" : "")}",
                         true));
@@ -132,8 +130,8 @@ public static class ImportHelper
             {
                 try
                 {
-                    var json = JsonNode.Parse(File.ReadAllText(localSettings, Encoding.UTF8));
-                    var perms = json?["permissions"]?["allow"]?.AsArray();
+                    var json = Json.Parse(File.ReadAllText(localSettings, Encoding.UTF8));
+                    var perms = json?["permissions"]?["allow"];
                     if (perms != null && perms.Count > 0)
                         items.Add(new ImportItem("🔑 权限规则", "[Claude] 权限",
                             $"{perms.Count} 条允许规则", true));
@@ -151,16 +149,16 @@ public static class ImportHelper
         try
         {
             var raw = File.ReadAllText(configPath, Encoding.UTF8);
-            var json = JsonNode.Parse(StripJsonComments(raw));
+            var json = Json.Parse(StripJsonComments(raw));
             if (json == null) return;
 
             // MCP 服务器
-            var mcp = json["mcp"]?.AsObject();
+            var mcp = json["mcp"];
             if (mcp != null && mcp.Count > 0)
             {
-                var enabled = mcp.Where(kv =>
+                var enabled = mcp.Entries.Where(kv =>
                 {
-                    var enabled = kv.Value?["enabled"]?.GetValue<bool>();
+                    var enabled = kv.Value?["enabled"]?.AsBool();
                     return enabled != false; // 缺省为 true
                 }).ToList();
 
@@ -174,10 +172,10 @@ public static class ImportHelper
             }
 
             // 插件列表
-            var plugins = json["plugin"]?.AsArray();
+            var plugins = json["plugin"];
             if (plugins != null && plugins.Count > 0)
             {
-                var names = plugins.Select(p => p?.GetValue<string>() ?? "").Where(n => n != "").ToList();
+                var names = plugins.Items.Select(p => p.AsString() ?? "").Where(n => n != "").ToList();
                 if (names.Count > 0)
                     items.Add(new ImportItem("🧩 插件参考", "[OpenCode] 插件",
                         $"{names.Count} 个: {string.Join(", ", names.Take(5))}{(names.Count > 5 ? "…" : "")}",
@@ -198,11 +196,11 @@ public static class ImportHelper
         {
             try
             {
-                var json = JsonNode.Parse(File.ReadAllText(mcpPath, Encoding.UTF8));
-                var servers = json?["mcpServers"]?.AsObject();
+                var json = Json.Parse(File.ReadAllText(mcpPath, Encoding.UTF8));
+                var servers = json?["mcpServers"];
                 if (servers != null && servers.Count > 0)
                 {
-                    var names = servers.Select(s => s.Key).ToList();
+                    var names = servers.Entries.Select(s => s.Key).ToList();
                     items.Add(new ImportItem("🔌 MCP 服务器", "[Cursor] MCP",
                         $"{servers.Count} 个: {string.Join(", ", names.Take(5))}{(names.Count > 5 ? "…" : "")}",
                         true));
@@ -236,10 +234,10 @@ public static class ImportHelper
             {
                 try
                 {
-                    var json = JsonNode.Parse(File.ReadAllText(settingsPath, Encoding.UTF8));
-                    var apiKey = json?["openaiApiKey"]?.GetValue<string>()
-                              ?? json?["anthropicApiKey"]?.GetValue<string>();
-                    var model = json?["model"]?.GetValue<string>();
+                    var json = Json.Parse(File.ReadAllText(settingsPath, Encoding.UTF8));
+                    var apiKey = json?["openaiApiKey"]?.AsString()
+                              ?? json?["anthropicApiKey"]?.AsString();
+                    var model = json?["model"]?.AsString();
                     if (!string.IsNullOrEmpty(apiKey) || !string.IsNullOrEmpty(model))
                         items.Add(new ImportItem("📡 模型/API", "[Cursor] 模型配置",
                             "settings.json 中有 API/模型配置", true));
@@ -273,11 +271,11 @@ public static class ImportHelper
             {
                 try
                 {
-                    var json = JsonNode.Parse(File.ReadAllText(mcpPath, Encoding.UTF8));
-                    var servers = json?["mcpServers"]?.AsObject();
+                    var json = Json.Parse(File.ReadAllText(mcpPath, Encoding.UTF8));
+                    var servers = json?["mcpServers"];
                     if (servers != null && servers.Count > 0)
                     {
-                        var names = servers.Select(s => s.Key).ToList();
+                        var names = servers.Entries.Select(s => s.Key).ToList();
                         items.Add(new ImportItem("🔌 MCP 服务器", "[Cline] MCP",
                             $"{servers.Count} 个: {string.Join(", ", names.Take(5))}{(names.Count > 5 ? "…" : "")}",
                             true));
@@ -374,30 +372,30 @@ public static class ImportHelper
 
         try
         {
-            var json = JsonNode.Parse(File.ReadAllText(settingsPath, Encoding.UTF8));
-            var env = json?["env"]?.AsObject();
+            var json = Json.Parse(File.ReadAllText(settingsPath, Encoding.UTF8));
+            var env = json?["env"];
             if (env == null) return "❌ 模型/API: settings.json 中无 env 配置";
 
             var sb = new StringBuilder();
             sb.AppendLine("📡 模型/API 配置:");
 
             // API Key
-            var apiKey = env.FirstOrDefault(kv =>
+            var apiKey = env.Entries.FirstOrDefault(kv =>
                 kv.Key.Contains("API_KEY", StringComparison.OrdinalIgnoreCase) ||
-                kv.Key.Contains("AUTH_TOKEN", StringComparison.OrdinalIgnoreCase)).Value?.GetValue<string>();
+                kv.Key.Contains("AUTH_TOKEN", StringComparison.OrdinalIgnoreCase)).Value?.AsString();
 
             // Base URL
-            var baseUrl = env.FirstOrDefault(kv =>
-                kv.Key.Contains("BASE_URL", StringComparison.OrdinalIgnoreCase)).Value?.GetValue<string>();
+            var baseUrl = env.Entries.FirstOrDefault(kv =>
+                kv.Key.Contains("BASE_URL", StringComparison.OrdinalIgnoreCase)).Value?.AsString();
 
             // 模型映射
             var modelMap = new Dictionary<string, string>();
-            foreach (var kv in env)
+            foreach (var kv in env.Entries)
             {
                 if (kv.Key.EndsWith("_MODEL", StringComparison.OrdinalIgnoreCase) &&
                     kv.Value != null)
                 {
-                    var modelName = kv.Value.GetValue<string>();
+                    var modelName = kv.Value.AsString();
                     if (!string.IsNullOrEmpty(modelName))
                         modelMap[kv.Key] = modelName;
                 }
@@ -489,8 +487,8 @@ public static class ImportHelper
 
         try
         {
-            var json = JsonNode.Parse(File.ReadAllText(pluginsPath, Encoding.UTF8));
-            var plugins = json?["plugins"]?.AsObject();
+            var json = Json.Parse(File.ReadAllText(pluginsPath, Encoding.UTF8));
+            var plugins = json?["plugins"];
             if (plugins == null || plugins.Count == 0)
                 return "❌ MCP: 无已安装插件";
 
@@ -506,20 +504,20 @@ public static class ImportHelper
                 ["pyright-lsp@claude-plugins-official"] = ("pyright-langserver", new[] { "--stdio" }),
             };
 
-            var imported = new List<JsonObject>();
-            foreach (var (name, _) in plugins)
+            var imported = new List<JNode>();
+            foreach (var (name, _) in plugins.Entries)
             {
                 if (knownPlugins.TryGetValue(name, out var mapping))
                 {
                     sb.AppendLine($"  ✅ {name}");
-                    imported.Add(new JsonObject
-                    {
-                        ["name"] = name.Split('@')[0],
-                        ["command"] = mapping.Command,
-                        ["args"] = new JsonArray(mapping.Args.Select(a => JsonValue.Create(a)!).ToArray()),
-                        ["env"] = new JsonObject(),
-                        ["_comment"] = $"从 Claude Code 导入: {name}",
-                    });
+                    var argsArr = JNode.Array();
+                    foreach (var a in mapping.Args) argsArr.Add(a);
+                    imported.Add(JNode.Object()
+                        .Set("name", name.Split('@')[0])
+                        .Set("command", mapping.Command)
+                        .Set("args", argsArr)
+                        .Set("env", JNode.Object())
+                        .Set("_comment", $"从 Claude Code 导入: {name}"));
                 }
                 else
                 {
@@ -547,27 +545,27 @@ public static class ImportHelper
         try
         {
             var raw = File.ReadAllText(configPath, Encoding.UTF8);
-            var json = JsonNode.Parse(StripJsonComments(raw));
-            var mcp = json?["mcp"]?.AsObject();
+            var json = Json.Parse(StripJsonComments(raw));
+            var mcp = json?["mcp"];
             if (mcp == null || mcp.Count == 0)
                 return "⏭ OpenCode MCP: 无 mcp 配置";
 
             var sb = new StringBuilder();
             sb.AppendLine("🔌 OpenCode MCP 服务器:");
 
-            var imported = new List<JsonObject>();
-            foreach (var (name, config) in mcp)
+            var imported = new List<JNode>();
+            foreach (var (name, config) in mcp.Entries)
             {
-                var enabled = config?["enabled"]?.GetValue<bool>() ?? true;
+                var enabled = config?["enabled"]?.AsBool() ?? true;
                 if (!enabled)
                 {
                     sb.AppendLine($"  ⏭ {name} (已禁用)");
                     continue;
                 }
 
-                var type = config?["type"]?.GetValue<string>() ?? "local";
-                var command = config?["command"]?.AsArray()
-                    ?.Select(c => c?.GetValue<string>() ?? "").ToArray();
+                var type = config?["type"]?.AsString() ?? "local";
+                var command = config?["command"]?.Items
+                    ?.Select(c => c?.AsString() ?? "").ToArray();
 
                 if (command == null || command.Length == 0)
                 {
@@ -579,14 +577,14 @@ public static class ImportHelper
                 var args = command.Length > 1 ? command[1..] : Array.Empty<string>();
 
                 sb.AppendLine($"  ✅ {name} ({type}) — {mainCmd}");
-                imported.Add(new JsonObject
-                {
-                    ["name"] = name,
-                    ["command"] = mainCmd,
-                    ["args"] = new JsonArray(args.Select(a => JsonValue.Create(a)!).ToArray()),
-                    ["env"] = new JsonObject(),
-                    ["_comment"] = $"从 OpenCode 导入: {name}",
-                });
+                var argsArr = JNode.Array();
+                foreach (var a in args) argsArr.Add(a);
+                imported.Add(JNode.Object()
+                    .Set("name", name)
+                    .Set("command", mainCmd)
+                    .Set("args", argsArr)
+                    .Set("env", JNode.Object())
+                    .Set("_comment", $"从 OpenCode 导入: {name}"));
             }
 
             return await WriteMcpServersAsync(imported, sb);
@@ -605,20 +603,20 @@ public static class ImportHelper
 
         try
         {
-            var json = JsonNode.Parse(File.ReadAllText(mcpPath, Encoding.UTF8));
-            var servers = json?["mcpServers"]?.AsObject();
+            var json = Json.Parse(File.ReadAllText(mcpPath, Encoding.UTF8));
+            var servers = json?["mcpServers"];
             if (servers == null || servers.Count == 0)
                 return "⏭ Cursor MCP: 无 mcpServers 配置";
 
             var sb = new StringBuilder();
             sb.AppendLine("🔌 Cursor MCP 服务器:");
 
-            var imported = new List<JsonObject>();
-            foreach (var (name, config) in servers)
+            var imported = new List<JNode>();
+            foreach (var (name, config) in servers.Entries)
             {
-                var command = config?["command"]?.GetValue<string>();
-                var args = config?["args"]?.AsArray()
-                    ?.Select(a => a?.GetValue<string>() ?? "").ToArray() ?? [];
+                var command = config?["command"]?.AsString();
+                var args = config?["args"]?.Items
+                    ?.Select(a => a?.AsString() ?? "").ToArray() ?? [];
 
                 if (string.IsNullOrEmpty(command))
                 {
@@ -627,14 +625,14 @@ public static class ImportHelper
                 }
 
                 sb.AppendLine($"  ✅ {name} — {command} {string.Join(" ", args)}");
-                imported.Add(new JsonObject
-                {
-                    ["name"] = name,
-                    ["command"] = command,
-                    ["args"] = new JsonArray(args.Select(a => JsonValue.Create(a)!).ToArray()),
-                    ["env"] = new JsonObject(),
-                    ["_comment"] = $"从 Cursor 导入: {name}",
-                });
+                var argsArr = JNode.Array();
+                foreach (var a in args) argsArr.Add(a);
+                imported.Add(JNode.Object()
+                    .Set("name", name)
+                    .Set("command", command)
+                    .Set("args", argsArr)
+                    .Set("env", JNode.Object())
+                    .Set("_comment", $"从 Cursor 导入: {name}"));
             }
 
             return await WriteMcpServersAsync(imported, sb);
@@ -655,20 +653,20 @@ public static class ImportHelper
 
         try
         {
-            var json = JsonNode.Parse(File.ReadAllText(mcpPath, Encoding.UTF8));
-            var servers = json?["mcpServers"]?.AsObject();
+            var json = Json.Parse(File.ReadAllText(mcpPath, Encoding.UTF8));
+            var servers = json?["mcpServers"];
             if (servers == null || servers.Count == 0)
                 return "⏭ Cline MCP: 无 mcpServers 配置";
 
             var sb = new StringBuilder();
             sb.AppendLine("🔌 Cline MCP 服务器:");
 
-            var imported = new List<JsonObject>();
-            foreach (var (name, config) in servers)
+            var imported = new List<JNode>();
+            foreach (var (name, config) in servers.Entries)
             {
-                var command = config?["command"]?.GetValue<string>();
-                var args = config?["args"]?.AsArray()
-                    ?.Select(a => a?.GetValue<string>() ?? "").ToArray() ?? [];
+                var command = config?["command"]?.AsString();
+                var args = config?["args"]?.Items
+                    ?.Select(a => a?.AsString() ?? "").ToArray() ?? [];
 
                 if (string.IsNullOrEmpty(command))
                 {
@@ -677,14 +675,14 @@ public static class ImportHelper
                 }
 
                 sb.AppendLine($"  ✅ {name} — {command}");
-                imported.Add(new JsonObject
-                {
-                    ["name"] = name,
-                    ["command"] = command,
-                    ["args"] = new JsonArray(args.Select(a => JsonValue.Create(a)!).ToArray()),
-                    ["env"] = new JsonObject(),
-                    ["_comment"] = $"从 Cline 导入: {name}",
-                });
+                var argsArr = JNode.Array();
+                foreach (var a in args) argsArr.Add(a);
+                imported.Add(JNode.Object()
+                    .Set("name", name)
+                    .Set("command", command)
+                    .Set("args", argsArr)
+                    .Set("env", JNode.Object())
+                    .Set("_comment", $"从 Cline 导入: {name}"));
             }
 
             return await WriteMcpServersAsync(imported, sb);
@@ -696,7 +694,7 @@ public static class ImportHelper
     }
 
     /// <summary>将 MCP 服务器列表去重写入 mcp_servers.json</summary>
-    private static async Task<string> WriteMcpServersAsync(List<JsonObject> imported, StringBuilder sb)
+    private static async Task<string> WriteMcpServersAsync(List<JNode> imported, StringBuilder sb)
     {
         if (imported.Count == 0) return sb.ToString().Trim();
 
@@ -714,38 +712,38 @@ public static class ImportHelper
         }
 
         var mcpPath = Path.Combine(targetDir, "mcp_servers.json");
-        var existing = new JsonArray();
+        var existing = JNode.Array();
         if (File.Exists(mcpPath))
         {
             try
             {
-                var existingJson = JsonNode.Parse(File.ReadAllText(mcpPath, Encoding.UTF8));
-                if (existingJson is JsonArray arr)
+                var existingJson = Json.Parse(File.ReadAllText(mcpPath, Encoding.UTF8));
+                if (existingJson is { Kind: JKind.Array } arr)
                 {
-                    foreach (var item in arr)
+                    foreach (var item in arr.Items)
                     {
-                        var comment = item?["_comment"]?.GetValue<string>() ?? "";
+                        var comment = item?["_comment"]?.AsString() ?? "";
                         if (!comment.Contains("示例"))
-                            existing.Add(item!.DeepClone());
+                            existing.Add(item!.Clone()!);
                     }
                 }
             }
             catch { }
         }
 
-        var existingNames = existing
-            .Select(e => e?["name"]?.GetValue<string>())
+        var existingNames = existing.Items
+            .Select(e => e?["name"]?.AsString())
             .Where(n => n != null)
             .ToHashSet();
 
         foreach (var item in imported)
         {
-            var itemName = item["name"]?.GetValue<string>();
+            var itemName = item["name"]?.AsString();
             if (itemName != null && !existingNames.Contains(itemName))
                 existing.Add(item);
         }
 
-        var jsonStr = existing.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+        var jsonStr = existing.ToJson(true);
         await File.WriteAllTextAsync(mcpPath, jsonStr, Encoding.UTF8);
         sb.AppendLine($"  📝 已写入 {imported.Count} 个服务器 → {mcpPath}");
         return sb.ToString().Trim();
@@ -833,22 +831,22 @@ public static class ImportHelper
                     }
 
                     // Claude Code session 格式 → WayCoder 格式（简化）
-                    var json = JsonNode.Parse(await File.ReadAllTextAsync(file, Encoding.UTF8));
+                    var json = Json.Parse(await File.ReadAllTextAsync(file, Encoding.UTF8));
                     if (json == null) { skipped++; continue; }
 
                     // 尝试提取消息
-                    var messages = json["messages"]?.AsArray();
+                    var messages = json["messages"];
                     if (messages == null)
                     {
                         // 可能整个文件就是消息数组
-                        messages = json.AsArray();
+                        messages = json;
                     }
 
                     if (messages != null && messages.Count > 0)
                     {
                         // 简化：直接保存原格式，WayCoder 能读取
                         await File.WriteAllTextAsync(targetPath,
-                            json.ToJsonString(new() { WriteIndented = true }), Encoding.UTF8);
+                            json.ToJson(true), Encoding.UTF8);
                         imported++;
                     }
                     else
@@ -885,17 +883,17 @@ public static class ImportHelper
 
         try
         {
-            var json = JsonNode.Parse(File.ReadAllText(localSettings, Encoding.UTF8));
-            var perms = json?["permissions"]?["allow"]?.AsArray();
+            var json = Json.Parse(File.ReadAllText(localSettings, Encoding.UTF8));
+            var perms = json?["permissions"]?["allow"];
             if (perms == null || perms.Count == 0)
                 return "⏭ 权限: 无 allow 规则";
 
             var sb = new StringBuilder();
             sb.AppendLine($"🔑 权限规则: {perms.Count} 条");
             sb.AppendLine("  ⚠ 权限规则格式不同，已列出供手动设置:");
-            foreach (var perm in perms)
+            foreach (var perm in perms.Items)
             {
-                sb.AppendLine($"    /perm add {perm}");
+                sb.AppendLine($"    /perm add {perm.AsString() ?? perm.ToJson()}");
             }
             sb.AppendLine("  💡 在 WayCoder 中使用 /perm yolo 可跳过所有确认");
 

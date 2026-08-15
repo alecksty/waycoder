@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Text;
-using System.Text.Json.Nodes;
 using WayCoder.Terminal;
 using WayCoder.Tools;
 using WayCoder.UI;
@@ -650,11 +649,11 @@ public static class Benchmark
         Cat("🗜 上下文压力");
 
         // 7.1 Token 估算
-        var msgs = new List<JsonObject>();
+        var msgs = new List<JNode>();
         for (int i = 0; i < 1000; i++)
         {
-            var userMsg = new JsonObject { ["role"] = "user", ["content"] = $"Message {i}: This is a test message with some programming content about C# and .NET development." };
-            var asstMsg = new JsonObject { ["role"] = "assistant", ["content"] = $"Response {i}: Here is a detailed answer about the topic with code examples. ```cs\nvar x = {i};\nConsole.WriteLine(x);\n```" };
+            var userMsg = JNode.Object().Set("role", "user").Set("content", $"Message {i}: This is a test message with some programming content about C# and .NET development.");
+            var asstMsg = JNode.Object().Set("role", "assistant").Set("content", $"Response {i}: Here is a detailed answer about the topic with code examples. ```cs\nvar x = {i};\nConsole.WriteLine(x);\n```");
             msgs.Add(userMsg);
             msgs.Add(asstMsg);
         }
@@ -666,14 +665,14 @@ public static class Benchmark
         Bench("1000 条消息 Token 估算", ms1, mem1, warnMs: 200, failMs: 1000);
 
         // 7.2 消息裁剪 (SnipToolOutputs)
-        var snipMsgs = new List<JsonObject>();
+        var snipMsgs = new List<JNode>();
         for (int i = 0; i < 200; i++)
         {
-            var m = new JsonObject { ["role"] = i % 2 == 0 ? "user" : "assistant" };
+            var m = JNode.Object().Set("role", i % 2 == 0 ? "user" : "assistant");
             if (i % 3 == 0)
-                m["content"] = new string('x', 5000); // 大工具输出
+                m.Set("content", new string('x', 5000)); // 大工具输出
             else
-                m["content"] = $"Message {i} about programming.";
+                m.Set("content", $"Message {i} about programming.");
             snipMsgs.Add(m);
         }
         var (ms2, mem2) = TimeIt(() =>
@@ -685,25 +684,23 @@ public static class Benchmark
         // 7.3 消息构造压力
         var (ms3, mem3) = TimeIt(() =>
         {
-            var list = new List<JsonObject>();
+            var list = new List<JNode>();
             for (int i = 0; i < 1000; i++)
             {
-                list.Add(new JsonObject
-                {
-                    ["role"] = i % 2 == 0 ? "user" : "assistant",
-                    ["content"] = $"Message number {i:D5} with enough text to be somewhat realistic in terms of token count for a typical conversation turn about software development using C# .NET 10 NativeAOT."
-                });
+                list.Add(JNode.Object()
+                    .Set("role", i % 2 == 0 ? "user" : "assistant")
+                    .Set("content", $"Message number {i:D5} with enough text to be somewhat realistic in terms of token count for a typical conversation turn about software development using C# .NET 10 NativeAOT."));
             }
             _ = list.Count;
         });
         Bench("1000 条消息对象构造", ms3, mem3, warnMs: 300, failMs: 1000, warnMemKb: 10240, failMemKb: 51200);
 
         // 7.4 会话序列化
-        var sessionMsgs = new List<JsonObject>();
+        var sessionMsgs = new List<JNode>();
         for (int i = 0; i < 100; i++)
         {
-            sessionMsgs.Add(new JsonObject { ["role"] = "user", ["content"] = $"User message {i} about programming topics in C#." });
-            sessionMsgs.Add(new JsonObject { ["role"] = "assistant", ["content"] = $"Assistant reply {i} with detailed code examples and explanations about software architecture patterns." });
+            sessionMsgs.Add(JNode.Object().Set("role", "user").Set("content", $"User message {i} about programming topics in C#."));
+            sessionMsgs.Add(JNode.Object().Set("role", "assistant").Set("content", $"Assistant reply {i} with detailed code examples and explanations about software architecture patterns."));
         }
 
         var (ms4, mem4) = TimeIt(() =>
@@ -943,15 +940,15 @@ public static class Benchmark
         // 9.3 上下文估计 — 10K 行项目场景
         var (ms2, mem2) = TimeIt(() =>
         {
-            var msgs = new List<JsonObject>();
+            var msgs = new List<JNode>();
             var content = new string('x', 200);
             for (int i = 0; i < 100; i++)
             {
-                msgs.Add(new JsonObject { ["role"] = "user", ["content"] = $"prompt_{i}: {content}" });
-                msgs.Add(new JsonObject { ["role"] = "assistant", ["content"] = $"resp_{i}: {content}" });
+                msgs.Add(JNode.Object().Set("role", "user").Set("content", $"prompt_{i}: {content}"));
+                msgs.Add(JNode.Object().Set("role", "assistant").Set("content", $"resp_{i}: {content}"));
                 // 模拟工具调用
                 if (i % 3 == 0)
-                    msgs.Add(new JsonObject { ["role"] = "tool", ["content"] = $"result_{i}" });
+                    msgs.Add(JNode.Object().Set("role", "tool").Set("content", $"result_{i}"));
             }
             var tokens = ContextManager.EstimateTokens(msgs);
             _ = tokens > 0;
@@ -1001,18 +998,18 @@ public static class Benchmark
         Check("ContextManager AddUsage 正常", cm2 != null);
 
         // 9.8 ContinuePrompt 文件清单收集验证
-        var testMsgs = new List<JsonObject>
+        var testMsgs = new List<JNode>
         {
-            new() { ["role"] = "user", ["content"] = "写一个 Roguelike 游戏" },
-            new() { ["role"] = "assistant", ["content"] = "好的" },
-            new() { ["role"] = "tool", ["content"] = "✅ 已写入: D:\\test\\MapGen.cs\n内容: ..." },
-            new() { ["role"] = "tool", ["content"] = "✅ 编辑完成: D:\\test\\Player.cs\n... " },
+            JNode.Object().Set("role", "user").Set("content", "写一个 Roguelike 游戏"),
+            JNode.Object().Set("role", "assistant").Set("content", "好的"),
+            JNode.Object().Set("role", "tool").Set("content", "✅ 已写入: D:\\test\\MapGen.cs\n内容: ..."),
+            JNode.Object().Set("role", "tool").Set("content", "✅ 编辑完成: D:\\test\\Player.cs\n... "),
         };
         var fileList = new List<string>();
         foreach (var m in testMsgs)
         {
-            if (m["role"]?.GetValue<string>() != "tool") continue;
-            var c = m["content"]?.GetValue<string>() ?? "";
+            if (m["role"]?.AsString() != "tool") continue;
+            var c = m["content"]?.AsString() ?? "";
             foreach (var line in c.Split('\n'))
             {
                 var trimmed = line.Trim();

@@ -126,7 +126,7 @@ public static class ProjectInitializer
         {
             try
             {
-                var pkg = System.Text.Json.Nodes.JsonNode.Parse(
+                var pkg = Json.Parse(
                     File.ReadAllText(Path.Combine(root, "package.json")));
                 if (pkg?["scripts"]?["test"] != null)
                     return "npm test";
@@ -158,7 +158,7 @@ public static class ProjectInitializer
         {
             try
             {
-                var pkg = System.Text.Json.Nodes.JsonNode.Parse(
+                var pkg = Json.Parse(
                     File.ReadAllText(Path.Combine(root, "package.json")));
                 if (pkg?["scripts"]?["lint"] != null)
                     return "npm run lint";

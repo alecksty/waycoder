@@ -9,19 +9,13 @@ public class CdTool : ITool
     public string Name => "cd";
     public string Description => "切换当前工作目录。支持相对路径和绝对路径。返回切换后的完整路径。纯 C# 实现。";
 
-    public JsonObject Parameters => new()
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
-        {
-            ["path"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "目标目录路径（相对或绝对）",
-            },
-        },
-        ["required"] = new JsonArray("path"),
-    };
+    public JNode Parameters => JNode.Object()
+        .Set("type", "object")
+        .Set("properties", JNode.Object()
+            .Set("path", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "目标目录路径（相对或绝对）")))
+        .Set("required", JNode.Array().Add("path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
