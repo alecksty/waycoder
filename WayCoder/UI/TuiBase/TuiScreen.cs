@@ -170,10 +170,16 @@ public abstract class TuiScreen : TuiBase
             win.Y = win.Height <= avail ? bottom - win.Height : top;
     }
 
-    /// <summary>添加浮层窗口并自动绑定关闭回调</summary>
+    /// <summary>添加浮层窗口并自动绑定关闭回调。保留调用方已设的 OnClosed（真正关闭后触发），
+    /// 避免 EditorScreen 等「关闭后弹回上层屏幕」的回调被覆盖丢失。</summary>
     public void ShowWindow(TuiWindow win)
     {
-        win.OnClosed = () => CloseWindow(win);
+        var userOnClosed = win.OnClosed;
+        win.OnClosed = () =>
+        {
+            CloseWindow(win);
+            userOnClosed?.Invoke();
+        };
         AddWindow(win);
         MarkDirty();
     }
@@ -205,6 +211,12 @@ public abstract class TuiScreen : TuiBase
         }
 
         MarkDirty();
+
+        // 多层窗口：关闭上层后仍有窗口留在其下方（尤其模态），须整屏重绘——
+        // 增量 dirty-rect 只恢复根视图，无法重绘下层窗口的遮罩/边框/内容，会“穿透”。
+        // 单层窗口关闭保持增量恢复（只擦除该窗口区域），避免无谓闪烁。
+        if (Windows.Count > 0)
+            TuiManager.RequestFullRefresh();
 
         // 注意：不在此处调用 win.OnClosed，避免无限递归。
         // OnClosed 是窗口主动请求关闭的通知，由窗口内控件触发，
@@ -252,12 +264,11 @@ public abstract class TuiScreen : TuiBase
         MarkDirtyInRect(RootView, 0, 0, x, y, w, h);
     }
 
-    /// <summary>关闭所有模态窗口</summary>
+    /// <summary>关闭所有模态窗口（复用 CloseWindow 的生命周期与焦点/脏区处理）</summary>
     public void CloseAllModals()
     {
         foreach (var w in Windows.Where(w => w.Modal).ToList())
-            Windows.Remove(w);
-        FocusedWindow = Windows.LastOrDefault();
+            CloseWindow(w);
     }
 
     /// <summary>
@@ -316,11 +327,29 @@ public abstract class TuiScreen : TuiBase
         foreach (var win in Windows.OrderByDescending(w => w.ZOrder))
         {
             if (win.HandleMouse(ev))
+            {
+                // 鼠标点击窗口 → 键盘焦点移到该窗口（Tab/方向键随后路由到它）
+                if (ev.MouseLeft && FocusedWindow != win)
+                    FocusWindowOnClick(win);
                 return true;
+            }
         }
 
         // Fallback：路由给根视图（控件级鼠标交互）
         return RootView.HandleMouse(ev);
+    }
+
+    /// <summary>鼠标点击窗口时，将键盘焦点转移到该窗口，并重绘新旧窗口的边框焦点色。</summary>
+    private void FocusWindowOnClick(TuiWindow win)
+    {
+        if (FocusedWindow != null)
+        {
+            FocusedWindow.Focused = false;
+            FocusedWindow.RootView.MarkDirty();
+        }
+        win.Focused = true;
+        win.RootView.MarkDirty();
+        FocusedWindow = win;
     }
 
     // ── 输入 ──
@@ -338,19 +367,23 @@ public abstract class TuiScreen : TuiBase
             var topModal = Windows.LastOrDefault(w => w.Modal);
             if (topModal != null)
             {
+                // 无论快捷键还是默认关闭，都记录时间戳，防按键重复触发退出框
+                LastModalEscapeTime = DateTime.UtcNow;
                 // 窗口级快捷键优先（如 Esc 注册为取消回调）
                 if (topModal.OnKey(key))
                     return true;
                 // 未处理 → 默认关闭（OnClosed 触发 ChatScreen 的 RenderWait 退出）
                 topModal.OnClosed?.Invoke();
-                LastModalEscapeTime = DateTime.UtcNow; // 记录时间戳，防按键重复
                 return true;
             }
         }
 
-        // Tab/Shift+Tab 在焦点窗口内切换控件
+        // Tab/Shift+Tab：先给焦点窗口处理（窗口快捷键 / AcceptsTab 控件），未处理才切换控件
+        // （与 Esc 先路由到模态窗口的做法对齐，供 ModelPicker 等用 Tab 作快捷键的对话框使用）
         if (key.Key == ConsoleKey.Tab && FocusedWindow != null)
         {
+            if (FocusedWindow.OnKey(key))
+                return true;
             if (key.Modifiers.HasFlag(ConsoleModifiers.Shift))
                 FocusedWindow.FocusPrev();
             else
@@ -383,20 +416,14 @@ public abstract class TuiScreen : TuiBase
         RootView.Render(sb, 0, 0);
 
         // 2. 渲染模态窗口遮罩（全量模式才需要，增量模式遮罩未变）
-        if (!incremental)
+        //    遮罩铺满全屏，覆盖窗口外的根视图内容，实现真正的视觉遮挡。
+        if (!incremental && Windows.Any(w => w.HasMask))
         {
-            foreach (var win in Windows.Where(w => w.HasMask))
-            {
-                for (int row = 0; row < win.Height; row++)
-                {
-                    int screenY = win.Y + row;
-                    if (screenY < 0 || screenY >= TH) continue;
-                    var rb = new RenderBuffer();
-                    int maskBg = win.WinBg > 0 ? win.WinBg : 100;
-                    rb.Write(screenY, win.X, new string(' ', win.Width), bg: maskBg);
-                    sb.Append(rb.ToString());
-                }
-            }
+            int maskBg = TuiTheme.Current.MaskBg;
+            var rb = new RenderBuffer();
+            for (int row = 0; row < TH; row++)
+                rb.Write(row, 0, new string(' ', TW), bg: maskBg);
+            sb.Append(rb.ToString());
         }
 
         // 3. 按 Z-order 渲染窗口
@@ -578,7 +605,7 @@ public abstract class TuiScreen : TuiBase
                 WriteGradientHLine(sb, win.Y, win.X, win.Width, tl, hTop, tr, gs, ge, fillBg);
                 int tFg = win.TitleFg > 0 ? win.TitleFg : gs;
                 int tBg = win.TitleBg > 0 ? win.TitleBg : fillBg;
-                sb.Append(AnsiTty.CursorPos(win.Y + 1, win.X + 2));
+                sb.Append(AnsiTty.CursorPos0(win.Y + 1, win.X + 2));
                 sb.Append(AnsiTty.BoldFg(tFg));
                 if (tBg > 0) sb.Append(AnsiTty.BgCode(tBg));
                 sb.Append(titleText);
@@ -600,7 +627,9 @@ public abstract class TuiScreen : TuiBase
                 int tBg = win.TitleBg > 0 ? win.TitleBg : fillBg;
                 if (win.TitleBold)
                 {
-                    sb.Append(AnsiTty.CursorPos(win.Y + 1, win.X + 2));
+                    // 粗体标题独占下一行 → 顶边框整行填充（不留缺口）
+                    WriteAt(sb, win.Y, win.X + 1, new string(hTop[0], win.Width - 2), bc, fillBg);
+                    sb.Append(AnsiTty.CursorPos0(win.Y + 1, win.X + 2));
                     sb.Append(AnsiTty.BoldFg(tFg));
                     if (tBg > 0) sb.Append(AnsiTty.BgCode(tBg));
                     sb.Append(titleText);
@@ -609,9 +638,9 @@ public abstract class TuiScreen : TuiBase
                 else
                 {
                     WriteAt(sb, win.Y, win.X + 1, titleText, tFg, tBg);
+                    var rem = win.Width - 2 - TuiHelper.DisplayWidth(titleText);
+                    if (rem > 0) WriteAt(sb, win.Y, win.X + 1 + TuiHelper.DisplayWidth(titleText), new string(hTop[0], rem), bc, fillBg);
                 }
-                var rem = win.Width - 2 - TuiHelper.DisplayWidth(titleText);
-                if (rem > 0) WriteAt(sb, win.Y, win.X + 1 + TuiHelper.DisplayWidth(titleText), new string(hTop[0], rem), bc, fillBg);
             }
             else
             {
@@ -629,6 +658,12 @@ public abstract class TuiScreen : TuiBase
             WriteAt(sb, win.Y + 1, win.X, vv, bc, fillBg);
             WriteAt(sb, win.Y + 1, win.X + 1, new string(hh[0], win.Width - 2), bc, fillBg);
             WriteAt(sb, win.Y + 1, win.X + win.Width - 1, vv, bc, fillBg);
+            contentTop = win.Y + 2;
+            innerHeight -= 1;
+        }
+        // 粗体标题栏独占一行（无分隔线）→ 内容下移一行
+        else if (drawTitle && win.TitleBold)
+        {
             contentTop = win.Y + 2;
             innerHeight -= 1;
         }

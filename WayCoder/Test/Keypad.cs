@@ -271,6 +271,7 @@ public static class Keypad
             case "input": TuiDemo.ShowInputDemo(screen); return;
             case "list": case "select": TuiDemo.ShowListDemo(screen); return;
             case "confirm": TuiDemo.ShowConfirmDemo(screen); return;
+            case "findreplace": case "find": TuiDemo.ShowFindReplaceDemo(screen); return;
             case "shortmenu": case "short": TuiDemo.ShowShortMenuDemo(screen); return;
             case "longmenu": case "long": TuiDemo.ShowLongMenuDemo(screen); return;
             case "contextmenu": case "context": TuiDemo.ShowContextMenuDemo(screen); return;
@@ -400,6 +401,7 @@ public static class Keypad
         readonly bool[][] _cont;
         readonly int[][] _fg, _bg;   // 每个格子的前景/背景 ANSI 色码（0=默认）
         int _curR, _curC;
+        int _savedR, _savedC;        // 保存/恢复光标（\x1b[s / \x1b[u）
         int _curFg, _curBg;          // 当前 SGR 状态（用于颜色采集）
 
         public FrameBuffer(int rows, int cols)
@@ -434,22 +436,46 @@ public static class Keypad
                     string param = ansi.Substring(i + 2, j - (i + 2));
                     i = j + 1;
 
-                    if (final == 'H' || final == 'f') // CUP / HVP：行;列，1-based
+                    // 私有模式（?25h 光标显隐 / ?1049h 备用屏）与扩展协议（>q 等）不影响字符网格
+                    if (param.Length > 0 && (param[0] == '?' || param[0] == '>')) continue;
+
+                    var p = param.Split(';');
+                    int n1 = 1;
+                    if (p.Length >= 1 && p[0].Length > 0 && int.TryParse(p[0], out var v1)) n1 = Math.Max(1, v1);
+
+                    switch (final)
                     {
-                        int row = 1, col = 1;
-                        var p = param.Split(';');
-                        if (p.Length >= 1 && int.TryParse(p[0], out var rr)) row = rr;
-                        if (p.Length >= 2 && int.TryParse(p[1], out var cc)) col = cc;
-                        _curR = Math.Clamp(row - 1, 0, _rows - 1);
-                        _curC = Math.Clamp(col - 1, 0, _cols - 1);
-                    }
-                    else if (final == 'J') // Erase Display：参数 2 = 清除整个屏幕
-                    {
-                        if (param.TrimStart('?') == "2") ClearAll();
-                    }
-                    else if (final == 'm') // SGR：记录当前前景/背景色，用于颜色采集
-                    {
-                        ApplySgr(param);
+                        case 'H': case 'f': // CUP / HVP：行;列，1-based
+                            {
+                                int row = 1, col = 1;
+                                if (p.Length >= 1 && p[0].Length > 0 && int.TryParse(p[0], out var rr)) row = Math.Max(1, rr);
+                                if (p.Length >= 2 && p[1].Length > 0 && int.TryParse(p[1], out var cc)) col = Math.Max(1, cc);
+                                _curR = Math.Clamp(row - 1, 0, _rows - 1);
+                                _curC = Math.Clamp(col - 1, 0, _cols - 1);
+                            }
+                            break;
+                        case 'A': _curR = Math.Max(0, _curR - n1); break;             // CUU 光标上移
+                        case 'B': _curR = Math.Min(_rows - 1, _curR + n1); break;     // CUD 光标下移
+                        case 'C': _curC = Math.Min(_cols - 1, _curC + n1); break;     // CUF 光标右移
+                        case 'D': _curC = Math.Max(0, _curC - n1); break;             // CUB 光标左移
+                        case 'G': _curC = Math.Clamp(n1 - 1, 0, _cols - 1); break;    // CHA 列绝对定位
+                        case 'd': _curR = Math.Clamp(n1 - 1, 0, _rows - 1); break;    // VPA 行绝对定位
+                        case 's': _savedR = _curR; _savedC = _curC; break;            // 保存光标
+                        case 'u': _curR = _savedR; _curC = _savedC; break;            // 恢复光标
+                        case 'K':                                                   // EL 行内清除
+                            {
+                                int mode = p[0].Length > 0 && int.TryParse(p[0], out var km) ? km : 0;
+                                EraseLine(mode);
+                            }
+                            break;
+                        case 'J':                                                   // ED 屏幕清除
+                            {
+                                int mode = p[0].Length > 0 && int.TryParse(p[0], out var em) ? em : 0;
+                                EraseDisplay(mode);
+                            }
+                            break;
+                        case 'm': ApplySgr(param); break;                           // SGR
+                        // 其余（h/l 私有模式、@/L/M/P 插入删除等）——对话框不使用，忽略
                     }
                     continue;
                 }
@@ -470,6 +496,7 @@ public static class Keypad
                     _cell[_curR][_curC] = s;
                     _fg[_curR][_curC] = _curFg;
                     _bg[_curR][_curC] = _curBg;
+                    _cont[_curR][_curC] = false;   // 写新字符时清除本格的宽字符延续标记
                     if (w == 2 && _curC + 1 < _cols) _cont[_curR][_curC + 1] = true;
                 }
                 _curC += w;
@@ -485,6 +512,38 @@ public static class Keypad
                     _fg[r][c] = 0; _bg[r][c] = 0;
                 }
             _curR = 0; _curC = 0;
+        }
+
+        /// <summary>EL：清除当前行（mode 0=光标到行尾，1=行首到光标，2=整行）。</summary>
+        void EraseLine(int mode)
+        {
+            if (_curR < 0 || _curR >= _rows) return;
+            int from = 0, to = _cols - 1;
+            if (mode == 0) from = _curC;
+            else if (mode == 1) to = _curC;
+            for (int c = from; c <= to; c++)
+            {
+                _cell[_curR][c] = " "; _cont[_curR][c] = false;
+                _fg[_curR][c] = 0; _bg[_curR][c] = 0;
+            }
+        }
+
+        /// <summary>ED：清除屏幕（mode 0=光标到末尾，1=开头到光标，2=整屏）。</summary>
+        void EraseDisplay(int mode)
+        {
+            if (mode == 2) { ClearAll(); return; }
+            if (mode == 0)
+            {
+                EraseLine(0);
+                for (int r = _curR + 1; r < _rows; r++)
+                    for (int c = 0; c < _cols; c++) { _cell[r][c] = " "; _cont[r][c] = false; _fg[r][c] = 0; _bg[r][c] = 0; }
+            }
+            else if (mode == 1)
+            {
+                for (int r = 0; r < _curR; r++)
+                    for (int c = 0; c < _cols; c++) { _cell[r][c] = " "; _cont[r][c] = false; _fg[r][c] = 0; _bg[r][c] = 0; }
+                EraseLine(1);
+            }
         }
 
         /// <summary>解析 SGR 参数串（如 "37;47" / "0" / "38;5;N" / "38;2;R;G;B"），更新当前 fg/bg。</summary>

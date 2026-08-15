@@ -190,7 +190,7 @@ public abstract class TuiEditBase : TuiControl
         }
     }
 
-    /// <summary>Shift + 方向键 = 扩展选择</summary>
+    /// <summary>Shift + 方向键 = 扩展选择；Shift + 可打印字符 = 输入标点/大写</summary>
     protected virtual bool HandleShiftKey(ConsoleKeyInfo key)
     {
         switch (key.Key)
@@ -202,7 +202,15 @@ public abstract class TuiEditBase : TuiControl
             case ConsoleKey.Home:       if (!HasSelection) StartSelection(); MoveCursorHome();  ExtendSelection(); return true;
             case ConsoleKey.End:        if (!HasSelection) StartSelection(); MoveCursorEnd();   ExtendSelection(); return true;
             case ConsoleKey.Insert:     PasteFromClipboard(); return true; // Shift+Insert = 粘贴（Linux/Win 通用）
-            default: return false;
+            default:
+                // 其余 Shift 组合若为可打印字符（!@#$%^&*()_+{}|:"<>? 及大写字母），直接输入
+                if (key.KeyChar >= ' ')
+                {
+                    if (HasSelection) DeleteSelection();
+                    InsertChar(key.KeyChar);
+                    return true;
+                }
+                return false;
         }
     }
 

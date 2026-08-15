@@ -54,6 +54,69 @@ public static partial class SelfTest
         var lv3 = new TuiListView();
         lv3.AddItem(new TuiLabel("h") { Height = 3 });
         Check("TuiListView ContentHeight > 0", lv3.ContentHeight > 0);
+
+        // 滚动刷新回归：滚动改变视口偏移时必须标记叶子子项为脏，
+        // 否则增量渲染只清背景（Fill 视口）而不重绘非脏的 TuiMarkdown 叶子 → 聊天滚动花屏。
+        var lv4 = new TuiListView { Height = 4, Width = 60 };
+        var md = WayCoder.UI.TuiControls.TuiMarkdown.Create("滚动测试内容", "assistant", 60);
+        lv4.AddItem(md);
+        lv4.ClearDirty();
+        md.ClearDirty();
+        lv4.ScrollToTop();
+        Check("TuiListView ScrollToTop 标记叶子脏", md.IsDirty);
+        md.ClearDirty();
+        lv4.ScrollDown(1);
+        Check("TuiListView ScrollDown 标记叶子脏", md.IsDirty);
+        md.ClearDirty();
+        lv4.ScrollUp(1);
+        Check("TuiListView ScrollUp 标记叶子脏", md.IsDirty);
+        md.ClearDirty();
+        lv4.ScrollToBottom();
+        Check("TuiListView ScrollToBottom 标记叶子脏", md.IsDirty);
+
+        // TuiScrollView 同样滚动位移需标记子项脏
+        var sv = new TuiScrollView { Height = 4, Width = 60 };
+        var svItem = new TuiLabel("内容") { Height = 1 };
+        sv.Add(svItem);
+        sv.ClearDirty();
+        svItem.ClearDirty();
+        sv.ScrollToTop();
+        Check("TuiScrollView ScrollToTop 标记子项脏", svItem.IsDirty);
+
+        // 翻页边界 no-op 回归：已在顶部再上翻 / 已在底部再下翻，滚动偏移不变 → 不标脏 → 不闪屏。
+        var lv5 = new TuiListView { Height = 4, Width = 60 };
+        for (int i = 0; i < 10; i++) lv5.AddItem(new TuiLabel("行" + i) { Height = 1 });
+        // 先滚到底
+        lv5.ScrollToBottom();
+        Check("TuiListView 满内容滚到底 offset=6", lv5.ScrollOffset == 6);
+        lv5.ClearDirty();
+        foreach (var c in lv5.Children) c.ClearDirty();
+        lv5.ScrollDown(3); // 已在底部 → 无效
+        Check("TuiListView 底部再下翻无效(offset 不变)", lv5.ScrollOffset == 6);
+        Check("TuiListView 底部再下翻不标脏", !lv5.Children[0].IsDirty);
+        // 滚到顶
+        lv5.ScrollToTop();
+        Check("TuiListView 滚到顶 offset=0", lv5.ScrollOffset == 0);
+        lv5.ClearDirty();
+        foreach (var c in lv5.Children) c.ClearDirty();
+        lv5.ScrollUp(3); // 已在顶部 → 无效
+        Check("TuiListView 顶部再上翻无效(offset 不变)", lv5.ScrollOffset == 0);
+        Check("TuiListView 顶部再上翻不标脏", !lv5.Children[0].IsDirty);
+
+        // TuiScrollView 同样边界 no-op
+        var sv2 = new TuiScrollView { Height = 4, Width = 60 };
+        for (int i = 0; i < 10; i++) sv2.Add(new TuiLabel("内容" + i) { Height = 1 });
+        sv2.ScrollToBottom();
+        sv2.ClearDirty();
+        foreach (var c in sv2.Children) c.ClearDirty();
+        sv2.ScrollDown(1);
+        Check("TuiScrollView 底部再下翻不标脏", !sv2.Children[0].IsDirty);
+        sv2.ScrollToTop();
+        sv2.ClearDirty();
+        foreach (var c in sv2.Children) c.ClearDirty();
+        sv2.ScrollUp(1);
+        Check("TuiScrollView 顶部再上翻不标脏", !sv2.Children[0].IsDirty);
+
         Console.WriteLine();
 
         // ================================================================
@@ -432,6 +495,143 @@ public static partial class SelfTest
         Console.WriteLine();
 
         // ================================================================
+        // TuiDialog 布局与渲染（标题栏粗体 / 3/4 屏宽高约束）
+        // ================================================================
+        Section("[TuiDialog 布局渲染]");
+
+        (string Name, TuiWindow Win, bool ExpectBar)[] dialogs =
+        [
+            ("Info",       TuiDialog.Info("信息", "这是一条信息提示"), true),
+            ("Success",    TuiDialog.Success("成功", "操作已完成"), true),
+            ("Warn",       TuiDialog.Warn("警告", "请注意风险"), true),
+            ("Error",      TuiDialog.Error("错误", "发生了错误"), true),
+            ("Confirm",    TuiDialog.Confirm("确认", "是否继续执行？", _ => { }), true),
+            ("Confirm3",   TuiDialog.Confirm3("选择", "请选择操作", _ => { }), true),
+            ("Input",      TuiDialog.Input("输入", "请输入名称", "默认值", _ => { }), false),
+            ("InputLine",  TuiDialog.InputLine("单行", "请输入一行", "", _ => { }), false),
+            ("Secret",     TuiDialog.Secret("密钥", "请输入密钥", "", _ => { }), false),
+            ("FindReplace", TuiDialog.FindReplace("find", "repl", new FindOptions(), (_, _) => { }, (_, _, _) => { }, (_, _, _) => { }), false),
+            ("Select",     TuiDialog.Select("选择", ["A", "B", "C"], _ => { }), false),
+            ("MultiSelect", TuiDialog.MultiSelect("多选", ["X", "Y", "Z"], _ => { }), false),
+            ("Permission", TuiDialog.Permission("权限确认", "是否允许执行该命令？", _ => { }), true),
+        ];
+
+        int cols = Tty.Cols;
+        int rows = Tty.Rows;
+        int maxW = (int)Math.Ceiling(cols * 0.75);
+        int maxH = (int)Math.Ceiling(rows * 0.75);
+
+        foreach (var (name, win, expectBar) in dialogs)
+        {
+            win.OnResize(cols, rows);
+            Check($"{name}: 标题栏粗体={expectBar}", win.TitleBold == expectBar);
+            Check($"{name}: 宽≤3/4屏", win.Width <= maxW + 1);
+            Check($"{name}: 高≤3/4屏", win.Height <= maxH + 1);
+            if (expectBar)
+            {
+                Check($"{name}: 标题独占一行(ContentTop=Y+2)", win.ContentTop == win.Y + 2);
+                Check($"{name}: 内容高度扣除标题行", win.ContentHeight == win.Height - 3);
+            }
+        }
+
+        // 渲染每个对话框：标题独占独立行 + 无异常（先收集帧，再统一断言，避免 Check 输出被抑制）
+        var dialogFrames = new List<(string Name, string Title, string RawFrame, string Frame, int WinY, bool ExpectBar)>();
+        var mgr2 = TuiManager.Instance;
+        var prevOut2 = Console.Out;
+        Console.SetOut(TextWriter.Null);
+        bool entered2 = false;
+        try
+        {
+            if (!mgr2.IsActive) { mgr2.Enter(); entered2 = true; }
+            foreach (var (name, win, expectBar) in dialogs)
+            {
+                string raw = "", frame = "";
+                int winY = -1;
+                try
+                {
+                    var chat = new ChatScreen();
+                    mgr2.PushScreen(chat);
+                    chat.AddWindow(win);
+                    mgr2.Render();
+                    raw = mgr2.LastCleanFrame;
+                    frame = AnsiString.Strip(raw);
+                    winY = win.Y;
+                    mgr2.PopScreen();
+                }
+                catch { frame = ""; }
+                dialogFrames.Add((name, win.Title, raw, frame, winY, expectBar));
+            }
+        }
+        finally
+        {
+            if (entered2) { try { mgr2.Exit(); } catch { } }
+            Console.SetOut(prevOut2);
+        }
+
+        foreach (var (name, title, raw, frame, winY, expectBar) in dialogFrames)
+        {
+            Check($"{name}: 渲染非空", frame.Length > 0);
+            if (expectBar && raw.Length > 0 && winY >= 0)
+            {
+                // 用 ANSI 网格解释验证标题落在独立行（win.Y+1），而非嵌在上边框（win.Y）
+                var dialogGrid = TuiAudit.AnsiToGrid(raw, rows, cols);
+                bool topRowHasTitle = winY < dialogGrid.Count && dialogGrid[winY].Contains(title);
+                bool titleRowHasTitle = winY + 1 < dialogGrid.Count && dialogGrid[winY + 1].Contains(title);
+                Check($"{name}: 标题在独立行(非上边框)", !topRowHasTitle && titleRowHasTitle);
+            }
+        }
+        Console.WriteLine();
+
+        // ================================================================
+        // InlinePermission 行内权限确认（inline 方式）
+        // ================================================================
+        Section("[InlinePermission]");
+        var ip = new InlinePermission
+        {
+            ToolName = "bash",
+            ArgsSummary = "rm -rf /tmp/cache/*",
+            ArgsDetail = "command: rm -rf /tmp/cache/*",
+            IsDangerous = true,
+            Width = 50,
+        };
+        Check("InlinePermission 初始未决", !ip.IsResolved);
+        Check("InlinePermission CanFocus=true", ip.CanFocus);
+        Check("InlinePermission RenderHeight=3", ip.RenderHeight == 3);
+
+        var ipSb = new StringBuilder();
+        ip.Render(ipSb, 0, 0);
+        var ipFrame = AnsiString.Strip(ipSb.ToString());
+        Check("InlinePermission 渲染非空", ipFrame.Length > 0);
+        Check("InlinePermission 含工具名", ipFrame.Contains("bash"));
+        Check("InlinePermission 含 Y/N 提示", ipFrame.Contains("[Y]") && ipFrame.Contains("[N]"));
+
+        int ipResolved = -1;
+        ip.OnResolved = r => ipResolved = r;
+        bool ipA = ip.OnKey(new ConsoleKeyInfo('a', ConsoleKey.A, false, false, false));
+        Check("InlinePermission 危险操作忽略 A", !ipA && ip.Result == -1 && !ip.IsResolved);
+
+        bool ipD = ip.OnKey(new ConsoleKeyInfo('d', ConsoleKey.D, false, false, false));
+        Check("InlinePermission D 展开详情", ipD && ip.Expanded);
+        Check("InlinePermission 展开后高度=4", ip.RenderHeight == 4);
+
+        bool ipN = ip.OnKey(new ConsoleKeyInfo('n', ConsoleKey.N, false, false, false));
+        Check("InlinePermission N 拒绝", ipN && ip.Result == 2 && ip.IsResolved);
+        Check("InlinePermission 拒绝回调=2", ipResolved == 2);
+        Check("InlinePermission 已决后 CanFocus=false", !ip.CanFocus);
+
+        bool ipAgain = ip.OnKey(new ConsoleKeyInfo('y', ConsoleKey.Y, false, false, false));
+        Check("InlinePermission 已决后不再响应", !ipAgain && ip.Result == 2);
+
+        var ip2 = new InlinePermission { ToolName = "read_file", IsDangerous = false, Width = 50 };
+        bool ipA2 = ip2.OnKey(new ConsoleKeyInfo('a', ConsoleKey.A, false, false, false));
+        Check("InlinePermission 非危险 A=全部允许", ipA2 && ip2.Result == 1);
+
+        var ip3 = new InlinePermission { ToolName = "write_file", IsDangerous = true, Width = 50 };
+        bool ipY = ip3.OnKey(new ConsoleKeyInfo('y', ConsoleKey.Y, false, false, false));
+        Check("InlinePermission Y=允许", ipY && ip3.Result == 0);
+        Console.WriteLine();
+
+        // ================================================================
         // TuiControl 基类测试
         // ================================================================
         Section("[TuiControl]");
@@ -722,8 +922,22 @@ public static partial class SelfTest
         // Apply 预设
         TuiTheme.Apply(TuiTheme.Dark, 0);
         Check("TuiTheme Apply(Dark)", TuiTheme.CurrentPresetIndex >= 0);
+
+        // NormalizeKey / ApplyByName 名称归一化映射
+        Check("NormalizeKey dark", TuiTheme.NormalizeKey("dark") == "dark");
+        Check("NormalizeKey default→dark", TuiTheme.NormalizeKey("default") == "dark");
+        Check("NormalizeKey hc", TuiTheme.NormalizeKey("hc") == "hc");
+        Check("NormalizeKey highcontrast", TuiTheme.NormalizeKey("highcontrast") == "hc");
+        Check("NormalizeKey 中文标签 海洋 Ocean", TuiTheme.NormalizeKey("海洋 Ocean") == "ocean");
+        Check("NormalizeKey 中文标签 单色 Mono", TuiTheme.NormalizeKey("单色 Mono") == "mono");
+        Check("NormalizeKey 中文标签 高对比度 HC", TuiTheme.NormalizeKey("高对比度 HC") == "hc");
+        Check("NormalizeKey 黄金甲", TuiTheme.NormalizeKey("黄金甲") == "dark");
+        Check("NormalizeKey 未知名 null", TuiTheme.NormalizeKey("cyberpunk") == null);
+        Check("ApplyByName ocean", TuiTheme.ApplyByName("ocean") && TuiTheme.CurrentPresetIndex == 3);
+        Check("ApplyByName 中文标签 森林 Forest", TuiTheme.ApplyByName("森林 Forest") && TuiTheme.CurrentPresetIndex == 4);
+
         // 恢复默认
-        TuiTheme.Current = TuiTheme.Default!;
+        TuiTheme.Apply(TuiTheme.Dark, 0);
         Console.WriteLine();
 
         // ================================================================
@@ -814,6 +1028,80 @@ public static partial class SelfTest
         // 删除线
         var strikeResult = MarkdownParser.ParseInline("这是 ~~删除~~ 文本");
         Check("ParseInline 删除线标记=2", strikeResult.Any(r => r.Color == 2 && r.Text == "删除"));
+
+        // Markup 标记 «tag»…«/»（LLM 推理内容用 «dim»…«/» 包裹，须转成真实样式而非字面输出）
+        // 注：用 «/» 而非 \xAB/\xBB——C# 的 \x 会贪婪吞吃后续十六进制字符
+        //（"\xABdim" 的 d 是十六进制，会解析成 ઽ+"im"，损坏 dim/bold/bright 等标签）
+        var dimMk = MarkdownParser.ParseInline("«dim»淡化«/»正常");
+        Check("ParseInline «dim» 淡化=2", dimMk.Any(r => r.Color == 2 && r.Text == "淡化"));
+        Check("ParseInline «/» 复位回默认色", dimMk.Any(r => r.Text == "正常" && r.Color == 0));
+
+        Check("ParseInline «bold» 粗体=1",
+            MarkdownParser.ParseInline("«bold»加粗«/»").Any(r => r.Color == 1));
+        Check("ParseInline «bright» 加亮=1",
+            MarkdownParser.ParseInline("«bright»加亮«/»").Any(r => r.Color == 1));
+        Check("ParseInline «italic» 斜体=3",
+            MarkdownParser.ParseInline("«italic»斜体«/»").Any(r => r.Color == 3));
+        Check("ParseInline «underline» 下划线=4",
+            MarkdownParser.ParseInline("«underline»下划线«/»").Any(r => r.Color == 4));
+        Check("ParseInline «strikethrough» 删除线=9",
+            MarkdownParser.ParseInline("«strikethrough»删除«/»").Any(r => r.Color == 9));
+        Check("ParseInline «red» 红=31",
+            MarkdownParser.ParseInline("«red»红«/»").Any(r => r.Color == 31));
+        Check("ParseInline «grey» 灰=90",
+            MarkdownParser.ParseInline("«grey»灰«/»").Any(r => r.Color == 90));
+        Check("ParseInline «bold yellow» 黄=33",
+            MarkdownParser.ParseInline("«bold yellow»黄«/»").Any(r => r.Color == 33));
+        Check("ParseInline «bright red» 亮红=91",
+            MarkdownParser.ParseInline("«bright red»亮红«/»").Any(r => r.Color == 91));
+
+        // 流式未闭合 span：无 «/» 时样式持续到行尾（推理流式逐 token 追加）
+        Check("ParseInline 未闭合«dim»持续淡化",
+            MarkdownParser.ParseInline("«dim»思考中").Any(r => r.Color == 2 && r.Text == "思考中"));
+
+        // 未知标签按字面输出，不崩溃
+        Check("ParseInline 未知标签按字面",
+            MarkdownParser.ParseInline("«nope»文本").Any(r => r.Text.Contains("nope")));
+
+        // 端到端：RenderMessage 单段落回退路径也要识别 markup（此前直接字面输出）
+        var rm = WayCoder.UI.TuiMarkdown.RenderMessage("«dim»思考«/»回答", "assistant", 80);
+        Check("RenderMessage markup 淡化", rm.Any(line => line.Any(seg => seg.Fg == 2)));
+
+        // 嵌套标记：内层覆盖外层，«/» 逐层弹栈恢复（栈模型）
+        var nestedMk = MarkdownParser.ParseInline("«bold»粗«red»红«/»粗«/»");
+        Check("ParseInline 嵌套 bold→red→bold 弹栈",
+            nestedMk.Count == 3
+            && nestedMk[0].Color == 1 && nestedMk[0].Text == "粗"
+            && nestedMk[1].Color == 31 && nestedMk[1].Text == "红"
+            && nestedMk[2].Color == 1 && nestedMk[2].Text == "粗");
+
+        // 块级跨行（含空行）：«dim»…«/» 包裹多行推理内容，样式贯穿且保留空行
+        var blk = WayCoder.UI.TuiMarkdown.RenderMessage("«dim»第一行\n\n第二行«/»\n正常", "assistant", 80);
+        Check("RenderMessage 块级跨行 dim 贯穿空行",
+            blk.Any(l => l.Any(s => s.Fg == 2 && s.Text == "第一行"))
+            && blk.Any(l => l.Any(s => s.Fg == 2 && s.Text == "第二行")));
+        Check("RenderMessage 块级关闭后恢复正常",
+            blk.Any(l => l.Any(s => s.Text == "正常" && s.Fg != 2)));
+
+        // 块级流式未闭合：开标签后无 «/»，样式持续到内容末尾
+        var blkOpen = WayCoder.UI.TuiMarkdown.RenderMessage("«dim»思考中\n还在想", "assistant", 80);
+        Check("RenderMessage 块级未闭合持续淡化",
+            blkOpen.Any(l => l.Any(s => s.Fg == 2 && s.Text == "思考中"))
+            && blkOpen.Any(l => l.Any(s => s.Fg == 2 && s.Text == "还在想")));
+
+        // RenderBuffer.Write 样式码复位：不能 SgrReset(0) 全复位冲掉底色（编辑器/对话框花屏根因）
+        var rbStyle = new RenderBuffer();
+        rbStyle.Write(0, 0, "粗", fg: 1, bg: 0);
+        var styleAnsi = rbStyle.ToString();
+        Check("RenderBuffer 样式码关闭用专门码(22)非全复位",
+            styleAnsi.Contains(AnsiTty.Sgr(22)) && !styleAnsi.Contains(AnsiTty.SgrReset));
+
+        var rbStyleBg = new RenderBuffer();
+        rbStyleBg.Write(0, 0, "粗", fg: 1, bg: 44);
+        var styleBgAnsi = rbStyleBg.ToString();
+        Check("RenderBuffer 样式码+背景 关样式后仍保留底色复位",
+            styleBgAnsi.Contains(AnsiTty.Sgr(22)) && styleBgAnsi.Contains(AnsiTty.SgrResetBg)
+            && !styleBgAnsi.Contains(AnsiTty.SgrReset));
         Console.WriteLine();
 
         // ================================================================

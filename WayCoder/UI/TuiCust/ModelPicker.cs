@@ -1,11 +1,21 @@
 using System.Text;
 using WayCoder.Terminal;
+using WayCoder.UI.TuiControls;
 
 namespace WayCoder.UI;
 
 /// <summary>
-/// 模型选择对话框 —— 居中 ANSI 对话框，橙→黄渐变实心外框 + 比例列宽 + 整行高亮。
-/// 外框渐变参考权限确认对话框的 GradOrangeYellow。
+/// 模型选择对话框 —— 居中带边框对话框（非全屏）。
+/// 橙→黄渐变外框（对标权限确认对话框 GradOrangeYellow）、多列模型列表、实时搜索、大/小模型切换、槽位分配。
+///
+/// 功能：
+///   - 大/小模型切换（Tab）、全部/指定槽位（A / 1-0）、实时搜索过滤
+///   - 多列列表（🔑 key 状态 / 模型 / 厂商 / 窗口 / 价格 / 大 ✓ / 小 ✓）
+///   - 底部槽位状态条（▶ 目标、* 已配置、· 当前）
+///
+/// 实现：TuiWindow（模态）+ TuiVBox + TuiHBox（搜索）+ TuiInput + TuiTableList + TuiLabel，
+/// 走 UxHelper.RenderWait 阻塞 → 事件桥接，不再自造 Console.ReadKey 循环。
+/// 顺带修复旧实现「光标泄漏 + 窄终端溢出」两处隐患。
 /// </summary>
 public static class ModelPicker
 {
@@ -15,27 +25,9 @@ public static class ModelPicker
         bool NeedsApiKey = false, string? ProviderId = null);
 
     private const int MinW = 62, MinH = 16;
-    private const int PadX = 2;   // 边框内侧缩进
-    private const int ColGap = 1; // 列间距
-    private const int ColIcon = 2;
 
-    // 列权重（总和 22，不含图标固定宽度）
-    private const int WtName = 8, WtProv = 5, WtCtx = 2, WtPrice = 3, WtLarge = 2, WtSmall = 2;
-    private const int WtTotal = WtName + WtProv + WtCtx + WtPrice + WtLarge + WtSmall;
-
-    private const int FrameH = 9; // 标题2 + 搜索1 + 上分隔1 + 列头1 + 下分隔1 + 帮助1 + 槽位1 + 底框1
-
-    // 渐变外框色 —— 橙→黄（对标权限确认对话框 GradOrangeYellow）
-    private static readonly int GradStart = AnsiTty.RgbCode(255, 180, 0);   // 橙色
-    private static readonly int GradEnd   = AnsiTty.RgbCode(255, 255, 80);  // 黄色
-    private static readonly int DimBgCode = AnsiTty.RgbCode(8, 8, 12);      // 暗蓝黑底
-
-    // 分隔线色 —— 取渐变色 30% 位置
-    private static readonly int SepColor = AnsiTty.LerpRgb(GradStart, GradEnd, 0.3f);
-
-    // ═══════════════════════════════════════════════
-    // Show
-    // ═══════════════════════════════════════════════
+    // 列宽（名称列弹性，其余固定）
+    private const int keyW = 2, provW = 11, ctxW = 6, priceW = 7, largeW = 2, smallW = 2;
 
     /// <summary>
     /// 显示模型选择对话框。
@@ -43,389 +35,205 @@ public static class ModelPicker
     /// <param name="currentSlot">当前槽位索引：0-9=槽位F1-F10, -1=全局默认</param>
     public static Result? Show(int currentSlot = -1)
     {
-        var cfg = Config.Instance;
-        string large = cfg.Model, small = cfg.SmallModel;
-        // 槽位模式：读取该槽位的模型配置
-        if (currentSlot >= 0 && currentSlot < 10)
+        Result? result = null;
+        using var evt = new ManualResetEventSlim(false);
+        try
         {
-            var sc = AgentSlotConfig.Get(currentSlot);
-            if (!sc.UseGlobal)
-            {
-                if (!string.IsNullOrEmpty(sc.LargeModel)) large = sc.LargeModel;
-                if (!string.IsNullOrEmpty(sc.SmallModel)) small = sc.SmallModel;
-            }
+            var screen = TuiManager.Instance?.ActiveScreen;
+            var win = BuildWindow(currentSlot, screen, r => { result = r; evt.Set(); });
+            screen?.ShowWindow(win);
+            UxHelper.RenderWait(screen, evt, 60_000, win);
         }
-        bool isLarge = true;
-        string filter = "";
-        int sel = 0, scr = 0;
-        int targetSlot = currentSlot; // 当前目标槽位：-2=全部, -1=全局, 0-9=具体槽位
-        List<ModelEntry> models = GetAvailableModels();
-        bool firstFrame = true;
+        catch { evt.Set(); }
+        return result;
+    }
 
-        while (true)
+    // ── 窗口构建 ──
+
+    private static TuiWindow BuildWindow(int currentSlot, TuiScreen? screen, Action<Result?> onDone)
+    {
+        var cfg = Config.Instance;
+        int winW = Math.Min(Tty.Cols - 2, Math.Max(MinW, Tty.Cols * 2 / 3));
+        int winH = Math.Min(Tty.Rows - 2, Math.Max(MinH, Tty.Rows * 2 / 3));
+        int listW = Math.Max(10, winW - 2);                                    // 内容区宽（去左右边框）
+        int listH = Math.Max(5, winH - 5);                                     // 列表行数（内容=搜索+列表+槽位+帮助）
+        int nameW = Math.Max(8, listW - 1 - keyW - provW - ctxW - priceW - largeW - smallW);
+
+        var win = new TuiWindow
         {
-            int tw = Tty.Cols, th = Tty.Rows;
-            int dw = Math.Max(MinW, tw * 2 / 3);
-            int dh = Math.Max(MinH, th * 2 / 3);
-            int bx = Math.Max(1, (tw - dw) / 2);
-            int by = Math.Max(1, (th - dh) / 2);
-            int innerW = dw - 2;
-            int listH = dh - FrameH;
+            Title = "选择模型",
+            ShowTitleSeparator = false,
+            Modal = true, HasMask = true,
+            Border = WindowBorder.Solid,
+            BorderColor = TuiTheme.Current.DialogInfoBorder,
+            WinBg = TuiTheme.Current.WindowBg,
+            Width = winW, Height = winH,
+            MinWidth = MinW, MinHeight = MinH,
+            WindowHAlign = HAlign.Center,
+            WindowVAlign = VAlign.Middle,
+        };
+        var g = TuiTheme.Current.GradOrangeYellow;
+        win.GradientBorder = true;
+        win.GradientStart = g.start;
+        win.GradientEnd = g.end;
 
-            var filtered = string.IsNullOrEmpty(filter)
+        // ── 状态 ──
+        var models = GetAvailableModels();
+        var filtered = new List<ModelEntry>();
+        string large = cfg.Model, small = cfg.SmallModel;
+        bool isLarge = true;
+        int targetSlot = currentSlot; // -2=全部, -1=全局, 0-9=具体槽位
+
+        // 搜索行（标签 + 输入框，输入框聚焦）
+        var search = new TuiInput
+        {
+            Height = 1,
+            Flex = 1,
+            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Focused = true,
+        };
+        var searchRow = new TuiHBox { Spacing = 1 };
+        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = TuiColors.BrightBlack });
+        searchRow.Add(search);
+
+        // 模型列表（多列）
+        var table = new TuiTableList { Height = listH };
+        table.AddColumn("🔑", keyW);
+        table.AddColumn("模型", nameW);
+        table.AddColumn("厂商", provW);
+        table.AddColumn("窗口", ctxW);
+        table.AddColumn("价格", priceW);
+        table.AddColumn("大", largeW);
+        table.AddColumn("小", smallW);
+
+        // 槽位状态条 + 帮助行
+        var slotBar = new TuiLabel { Height = 1, Fg = TuiColors.BrightBlack };
+        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightBlack };
+
+        var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
+        vbox.Add(searchRow);
+        vbox.Add(table);
+        vbox.Add(slotBar);
+        vbox.Add(help);
+        win.RootView = vbox;
+
+        // ── 标题 / 刷新 ──
+
+        string SlotLabel(int slot) => slot switch { -2 => " — 全部槽位", >= 0 => $" — F{slot + 1} 槽位", _ => "" };
+        string TitleText() => (isLarge ? "🤖 选择大模型 (复杂任务)" : "🔧 选择小模型 (简单任务)") + SlotLabel(targetSlot);
+        void SyncModels() => (large, small) = ResolveSlotModels(targetSlot, large, small);
+
+        void Refresh(bool resetToCurrent)
+        {
+            SyncModels();
+            filtered = string.IsNullOrEmpty(search.Text)
                 ? models
                 : models.Where(m =>
-                    m.DisplayName.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                    m.Id.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                    m.Provider.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+                    m.DisplayName.Contains(search.Text, StringComparison.OrdinalIgnoreCase) ||
+                    m.Id.Contains(search.Text, StringComparison.OrdinalIgnoreCase) ||
+                    m.Provider.Contains(search.Text, StringComparison.OrdinalIgnoreCase)).ToList();
 
-            // 根据 targetSlot 确定 large/small 当前值
-            (large, small) = ResolveSlotModels(targetSlot, large, small);
-
-            // 首次打开：将选中项定位到当前模型
-            string curModel = isLarge ? large : small;
-            if (firstFrame) { for (int i = 0; i < filtered.Count; i++) if (filtered[i].Id == curModel) { sel = i; break; } firstFrame = false; }
-            sel = Math.Clamp(sel, 0, Math.Max(0, filtered.Count - 1));
-            if (sel < scr) scr = sel;
-            if (sel >= scr + listH) scr = sel - listH + 1;
-            scr = Math.Clamp(scr, 0, Math.Max(0, filtered.Count - listH));
-
-            // 计算比例列宽
-            int avail = innerW - PadX * 2 - 6 * ColGap - ColIcon;
-            int[] cw = DistributeWidths(avail);
-
-            // ═══ 绘制 ═══
-            var sb = new StringBuilder();
-            sb.Append(AnsiTty.CursorHide);
-
-            // 暗化背景
-            for (int y = 0; y < dh; y++)
-                FillRow(sb, by + y, bx, dw, 0, DimBgCode, ' ');
-
-            // ═══ 渐变上边框（实心，逐字橙→黄渐变）═══
-            WriteGradChar(sb, by, bx,             '┌', GradStart, dw, 0);
-            for (int i = 1; i < dw - 1; i++)
-                WriteGradChar(sb, by, bx + i,     '─', GradStart, dw, i);
-            WriteGradChar(sb, by, bx + dw - 1,    '┐', GradEnd,   dw, dw - 1);
-
-            // ═══ 标题行 ═══
-            WriteGradSideL(sb, by + 1, bx, dw);
-            var slotLabel = targetSlot switch { -2 => " — 全部槽位", >= 0 => $" — F{targetSlot + 1} 槽位", _ => "" };
-            var title = isLarge ? $"🤖 选择大模型 (复杂任务){slotLabel}" : $"🔧 选择小模型 (简单任务){slotLabel}";
-            sb.Append(AnsiTty.CursorPos(by + 1, bx + PadX + 1))
-              .Append(AnsiTty.FgBgCode(TuiColors.White, DimBgCode))
-              .Append(AnsiTty.SgrBold).Append(title).Append(AnsiTty.SgrReset);
-            var tab = "Tab 切换";
-            sb.Append(AnsiTty.CursorPos(by + 1, bx + dw - 1 - VW(tab) - 1))
-              .Append(AnsiTty.FgBgCode(TuiColors.BrightBlack, DimBgCode))
-              .Append(AnsiTty.SgrDim).Append(tab).Append(AnsiTty.SgrReset);
-            WriteGradSideR(sb, by + 1, bx, dw);
-
-            // ═══ 搜索行 ═══
-            WriteGradSideL(sb, by + 2, bx, dw);
-            DrawSearchBox(sb, by + 2, bx, innerW, filter);
-            WriteGradSideR(sb, by + 2, bx, dw);
-
-            // ═══ 上分隔线（渐变横线）═══
-            WriteGradChar(sb, by + 3, bx,             '├', SepColor, dw, 0);
-            for (int i = 1; i < dw - 1; i++)
-                WriteGradChar(sb, by + 3, bx + i,     '─', SepColor, dw, i);
-            WriteGradChar(sb, by + 3, bx + dw - 1,    '┤', SepColor, dw, dw - 1);
-
-            // ═══ 列标题 ═══
-            WriteGradSideL(sb, by + 4, bx, dw);
-            DrawColHeaders(sb, by + 4, bx + PadX, cw);
-            WriteGradSideR(sb, by + 4, bx, dw);
-
-            // ═══ 列表行 ═══
-            int dataTop = by + 5;
-            for (int i = 0; i < listH; i++)
+            table.ClearRows();
+            foreach (var m in filtered)
             {
-                int mi = scr + i, row = dataTop + i;
-                bool selected = mi >= 0 && mi < filtered.Count && mi == sel;
-                var model = mi >= 0 && mi < filtered.Count ? filtered[mi] : null;
-                bool isL = model != null && model.Id == large;
-                bool isS = model != null && model.Id == small;
-
-                WriteGradSideL(sb, row, bx, dw);
-
-                if (model == null)
-                {
-                    FillRow(sb, row, bx + 1, innerW, TuiColors.White, TuiColors.BgBlack, ' ');
-                }
-                else
-                {
-                    int bg = selected ? TuiColors.BgYellow : TuiColors.BgBlack;
-                    int fg = selected ? TuiColors.Black : TuiColors.White;
-                    FillRow(sb, row, bx + 1, innerW, fg, bg, ' ');
-                    DrawModelRow(sb, row, bx + PadX, model, cw, fg, bg, selected, isL, isS);
-                }
-                WriteGradSideR(sb, row, bx, dw);
+                bool isL = m.Id == large, isS = m.Id == small;
+                table.AddRow(
+                    m.HasApiKey ? "🔑" : "  ",
+                    m.DisplayName,
+                    m.Provider,
+                    FmtCtx(m.ContextWindow).PadLeft(ctxW),
+                    FmtPrice(m.InputPrice).PadLeft(priceW),
+                    isL ? "✓" : " ",
+                    isS ? "✓" : " ");
             }
 
-            // ═══ 下分隔线 ═══
-            int sep2 = dataTop + listH;
-            WriteGradChar(sb, sep2, bx,             '├', SepColor, dw, 0);
-            for (int i = 1; i < dw - 1; i++)
-                WriteGradChar(sb, sep2, bx + i,     '─', SepColor, dw, i);
-            WriteGradChar(sb, sep2, bx + dw - 1,    '┤', SepColor, dw, dw - 1);
+            table.SelectedIndex = 0;
+            if (resetToCurrent)
+            {
+                string cur = isLarge ? large : small;
+                for (int i = 0; i < filtered.Count; i++)
+                    if (filtered[i].Id == cur) { table.SelectedIndex = i; break; }
+            }
+            table.ScrollOffset = 0;
+            table.EnsureSelectedVisible();
 
-            // ═══ 帮助行 ═══
-            WriteGradSideL(sb, sep2 + 1, bx, dw);
-            var help = "↑↓导航  Enter默认  Esc取消  Tab切换  A全槽位  1-0指定槽位  输入搜索";
-            if (filtered.Count > listH)
-                help += $"  {scr * 100 / Math.Max(1, filtered.Count - listH)}%";
-            sb.Append(AnsiTty.CursorPos(sep2 + 1, bx + PadX))
-              .Append(AnsiTty.FgBgCode(TuiColors.White, DimBgCode))
-              .Append(' ').Append(TruncVW(help, innerW - 2));
-            WriteGradSideR(sb, sep2 + 1, bx, dw);
+            win.Title = TitleText();
+            slotBar.Text = SlotBarText(targetSlot, currentSlot);
+            help.Text = "↑↓ 导航  Enter 选择  Esc 取消  Tab 大/小  A 全部  1-0 槽位  输入搜索";
+            screen?.MarkDirty();
+        }
 
-            // ═══ 槽位行 ═══
-            WriteGradSideL(sb, sep2 + 2, bx, dw);
-            DrawSlotBar(sb, sep2 + 2, bx + PadX, targetSlot, currentSlot);
-            WriteGradSideR(sb, sep2 + 2, bx, dw);
+        // ── 动作 ──
 
-            // ═══ 渐变下边框 ═══
-            WriteGradChar(sb, sep2 + 3, bx,             '└', GradStart, dw, 0);
-            for (int i = 1; i < dw - 1; i++)
-                WriteGradChar(sb, sep2 + 3, bx + i,     '─', GradStart, dw, i);
-            WriteGradChar(sb, sep2 + 3, bx + dw - 1,    '┘', GradEnd,   dw, dw - 1);
+        void Finish(Result? r)
+        {
+            onDone(r);
+            win.OnClosed?.Invoke();
+        }
+        void Commit()
+        {
+            var r = EnterOrPromptKey(filtered, table.SelectedIndex, isLarge, targetSlot);
+            if (r != null) Finish(r);
+        }
+        void ToggleMode()
+        {
+            isLarge = !isLarge;
+            search.Text = "";
+            Refresh(true);
+        }
+        void ToggleAllSlots()
+        {
+            targetSlot = targetSlot == -2 ? currentSlot : -2;
+            Refresh(true);
+        }
+        void SetSlot(int slot)
+        {
+            targetSlot = slot;
+            Refresh(true);
+        }
 
-            sb.Append(AnsiTty.SgrReset);
-            Console.Write(sb.ToString());
-
-            // ═══ 输入 ═══
-            var key = Console.ReadKey(intercept: true);
+        // 搜索输入：字母进过滤词（OnTextChanged 实时过滤），↑↓ 导航列表，Enter 选择；
+        // A / 数字键在「筛选空或 Ctrl」时切换槽位，否则作为普通字符输入过滤词。
+        search.OnTextChanged = () => Refresh(false);
+        search.KeyHook = key =>
+        {
             bool hasCtrl = (key.Modifiers & ConsoleModifiers.Control) != 0;
-
             switch (key.Key)
             {
-                case ConsoleKey.UpArrow:    if (sel > 0) sel--; break;
-                case ConsoleKey.DownArrow:  if (sel < filtered.Count - 1) sel++; break;
-                case ConsoleKey.Home:       sel = 0; break;
-                case ConsoleKey.End:        sel = Math.Max(0, filtered.Count - 1); break;
-                case ConsoleKey.PageUp:     sel = Math.Max(0, sel - listH); break;
-                case ConsoleKey.PageDown:   sel = Math.Min(filtered.Count - 1, sel + listH); break;
-                case ConsoleKey.Tab:
-                    isLarge = !isLarge; filter = ""; sel = 0; scr = 0; firstFrame = true; break;
-                case ConsoleKey.Escape:
-                    Console.Write(AnsiTty.CursorShow); TuiManager.RequestFullRefresh(); return null;
-                case ConsoleKey.Backspace:
-                    if (filter.Length > 0) { filter = filter[..^1]; sel = 0; } break;
+                case ConsoleKey.UpArrow:
+                case ConsoleKey.DownArrow:
+                case ConsoleKey.Home:
+                case ConsoleKey.End:
+                case ConsoleKey.PageUp:
+                case ConsoleKey.PageDown:
+                    table.OnKey(key);
+                    table.MarkDirty();
+                    screen?.MarkDirty();
+                    return true;
                 case ConsoleKey.Enter:
-                    return EnterOrPromptKey(filtered, sel, isLarge, targetSlot);
-
-                // Ctrl+A 或 A（筛选空时）：切换 全部 / 当前槽位
+                    Commit();
+                    return true;
                 case ConsoleKey.A:
-                    if (hasCtrl || filter.Length == 0) { targetSlot = targetSlot == -2 ? currentSlot : -2; firstFrame = true; }
-                    else { filter += 'a'; sel = 0; }
-                    break;
-
+                    if (hasCtrl || search.Text.Length == 0) { ToggleAllSlots(); return true; }
+                    return false;
                 default:
-                    // Ctrl+数字 或 数字（筛选空时）：切换目标槽位
-                    if (TrySlotKey(key, out int slot))
-                    {
-                        if (hasCtrl || filter.Length == 0) { targetSlot = slot; firstFrame = true; }
-                        else { filter += key.KeyChar; sel = 0; }
-                        break;
-                    }
-                    // 普通字符 → 搜索过滤
-                    if (key.KeyChar >= ' ' && key.KeyChar <= '~')
-                    { filter += key.KeyChar; sel = 0; }
-                    break;
+                    if (TrySlotKey(key, out int slot) && (hasCtrl || search.Text.Length == 0))
+                    { SetSlot(slot); return true; }
+                    return false;
             }
-        }
+        };
+        table.OnSelect = _ => Commit(); // 若焦点切到列表，Enter 亦可选择
+
+        win.RegisterShortcut(ConsoleKey.Tab, ToggleMode);
+        win.RegisterShortcut(ConsoleKey.Escape, () => Finish(null));
+
+        Refresh(true);
+        return win;
     }
 
-    // ═══════════════════════════════════════════════
-    // 渐变外框渲染
-    // ═══════════════════════════════════════════════
-
-    /// <summary>写单个渐变字符：根据位置计算渐变色</summary>
-    private static void WriteGradChar(StringBuilder sb, int row, int col, char ch,
-        int gs, int totalW, int pos)
-    {
-        float t = totalW > 1 ? (float)pos / (totalW - 1) : 0;
-        int c = AnsiTty.LerpRgb(GradStart, GradEnd, t);
-        sb.Append(AnsiTty.CursorPos(row, col))
-          .Append(AnsiTty.FgBgCode(c, DimBgCode))
-          .Append(ch);
-    }
-
-    /// <summary>左侧竖线 — 渐变起始色（橙色）</summary>
-    private static void WriteGradSideL(StringBuilder sb, int row, int bx, int dw)
-    {
-        sb.Append(AnsiTty.CursorPos(row, bx))
-          .Append(AnsiTty.FgBgCode(GradStart, DimBgCode))
-          .Append('│');
-    }
-
-    /// <summary>右侧竖线 — 渐变终止色（黄色）</summary>
-    private static void WriteGradSideR(StringBuilder sb, int row, int bx, int dw)
-    {
-        sb.Append(AnsiTty.CursorPos(row, bx + dw - 1))
-          .Append(AnsiTty.FgBgCode(GradEnd, DimBgCode))
-          .Append('│');
-    }
-
-    /// <summary>填充整行（单色背景）</summary>
-    private static void FillRow(StringBuilder sb, int row, int col, int w, int fg, int bg, char fill)
-    {
-        sb.Append(AnsiTty.CursorPos(row, col))
-          .Append(AnsiTty.FgBgCode(fg, bg))
-          .Append(new string(fill, w));
-    }
-
-    // ═══════════════════════════════════════════════
-    // 子渲染
-    // ═══════════════════════════════════════════════
-
-    private static void DrawSearchBox(StringBuilder sb, int y, int bx, int innerW, string filter)
-    {
-        int contentW = innerW - PadX * 2;
-        sb.Append(AnsiTty.CursorPos(y, bx + PadX))
-          .Append(AnsiTty.FgBgCode(TuiColors.White, DimBgCode));
-        var label = "🔍 ";
-        var rawText = filter.Length > 0 ? filter : "输入关键词过滤...";
-        var style = filter.Length > 0 ? "" : AnsiTty.SgrDim;
-        int maxW = contentW - VW(label) - 1;
-        var disp = TruncVW(rawText, maxW);
-        sb.Append(label).Append(style).Append(disp);
-        int fill = maxW - VW(disp) + 1;
-        if (fill > 0) sb.Append(new string(' ', fill));
-        sb.Append(AnsiTty.SgrReset);
-    }
-
-    private static void DrawColHeaders(StringBuilder sb, int y, int cx, int[] cw)
-    {
-        // 与 DrawModelRow 完全对齐：每列用 CursorPos 定位，col 按 cw[n]+ColGap 递进
-        sb.Append(AnsiTty.FgBgCode(TuiColors.BrightBlack, DimBgCode))
-          .Append(AnsiTty.SgrDim);
-        int col = cx;
-        sb.Append(AnsiTty.CursorPos(y, col)).Append(Pad(" ", ColIcon));
-        col += ColIcon + ColGap;
-        sb.Append(AnsiTty.CursorPos(y, col)).Append(Pad("模型名称", cw[0]));
-        col += cw[0] + ColGap;
-        sb.Append(AnsiTty.CursorPos(y, col)).Append(Pad("厂商", cw[1]));
-        col += cw[1] + ColGap;
-        sb.Append(AnsiTty.CursorPos(y, col)).Append(Pad("窗口", cw[2]));
-        col += cw[2] + ColGap;
-        sb.Append(AnsiTty.CursorPos(y, col)).Append(PadR("价格", cw[3]));
-        col += cw[3] + ColGap;
-        sb.Append(AnsiTty.CursorPos(y, col)).Append(Pad("大", cw[4]));
-        col += cw[4] + ColGap;
-        sb.Append(AnsiTty.CursorPos(y, col)).Append(Pad("小", cw[5]));
-        sb.Append(AnsiTty.SgrReset);
-    }
-
-    private static void DrawModelRow(StringBuilder sb, int y, int cx, ModelEntry m, int[] cw,
-        int fgBase, int bg, bool sel, bool isL, bool isS)
-    {
-        int col = cx;
-
-        // Icon — 仅在有 API key 时显示🔑
-        sb.Append(AnsiTty.CursorPos(y, col));
-        if (sel)
-            sb.Append(AnsiTty.FgBgCode(fgBase, bg)).Append(" ▶");
-        else if (m.HasApiKey)
-            sb.Append(AnsiTty.FgBgCode(TuiColors.Green, bg)).Append(" 🔑");
-        else
-            sb.Append(AnsiTty.FgBgCode(fgBase, bg)).Append("  ");
-        col += ColIcon + ColGap;
-
-        // Name
-        sb.Append(AnsiTty.CursorPos(y, col));
-        int nameFg = (!sel && (isL || isS)) ? TuiColors.Green : fgBase;
-        sb.Append(AnsiTty.FgBgCode(nameFg, bg)).Append(Pad(m.DisplayName, cw[0]));
-        col += cw[0] + ColGap;
-
-        // Provider
-        sb.Append(AnsiTty.CursorPos(y, col));
-        sb.Append(AnsiTty.FgBgCode(sel ? fgBase : TuiColors.BrightBlack, bg));
-        if (!sel) sb.Append(AnsiTty.SgrDim);
-        sb.Append(Pad(m.Provider, cw[1]));
-        if (!sel) sb.Append(AnsiTty.SgrReset);
-        col += cw[1] + ColGap;
-
-        // Context
-        sb.Append(AnsiTty.CursorPos(y, col));
-        sb.Append(AnsiTty.FgBgCode(fgBase, bg)).Append(Pad(FmtCtx(m.ContextWindow), cw[2]));
-        col += cw[2] + ColGap;
-
-        // Price (right-aligned)
-        sb.Append(AnsiTty.CursorPos(y, col));
-        int pf = (!sel && m.InputPrice <= 0) ? TuiColors.Green : fgBase;
-        sb.Append(AnsiTty.FgBgCode(pf, bg)).Append(PadR(FmtPrice(m.InputPrice), cw[3]));
-        col += cw[3] + ColGap;
-
-        // Large ✓
-        sb.Append(AnsiTty.CursorPos(y, col));
-        int lf = !sel && isL ? TuiColors.Green : TuiColors.BrightBlack;
-        sb.Append(AnsiTty.FgBgCode(lf, bg)).Append(Pad(isL ? " ✓" : "  ", cw[4]));
-        col += cw[4] + ColGap;
-
-        // Small ✓
-        sb.Append(AnsiTty.CursorPos(y, col));
-        int sf = !sel && isS ? TuiColors.Green : TuiColors.BrightBlack;
-        sb.Append(AnsiTty.FgBgCode(sf, bg)).Append(Pad(isS ? " ✓" : "  ", cw[5]));
-
-        sb.Append(AnsiTty.SgrReset);
-    }
-
-    private static void DrawSlotBar(StringBuilder sb, int y, int cx, int targetSlot, int currentSlot)
-    {
-        const int DarkFg = 37;  // 白字 — 暗底上可见
-        const int LightFg = 30; // 黑字 — 黄底上可见
-
-        sb.Append(AnsiTty.CursorPos(y, cx));
-
-        // "全部"按钮
-        bool allMode = targetSlot == -2;
-        int allBg = allMode ? TuiColors.BgYellow : DimBgCode;
-        int allFg = allMode ? LightFg : DarkFg;
-        sb.Append(AnsiTty.FgBgCode(allFg, allBg));
-        if (allMode)
-            sb.Append('[').Append(AnsiTty.Fg(TuiColors.Green)).Append('▶').Append(AnsiTty.Fg(allFg)).Append(']');
-        else
-            sb.Append('[').Append(AnsiTty.SgrDim).Append('A').Append(AnsiTty.SgrReset).Append(AnsiTty.FgBgCode(allFg, allBg)).Append(']');
-        sb.Append("全部  ").Append(AnsiTty.SgrReset);
-
-        for (int i = 0; i < 10; i++)
-        {
-            var sc = AgentSlotConfig.Get(i);
-            bool hasCfg = !sc.UseGlobal;
-            bool isTarget = i == targetSlot;
-            bool isCur = i == currentSlot;
-            string label = i == 9 ? "0" : (i + 1).ToString();
-
-            int slotBg = (isTarget || hasCfg) ? TuiColors.BgYellow : DimBgCode;
-            int slotFg = (isTarget || hasCfg) ? LightFg : DarkFg;
-
-            sb.Append(AnsiTty.FgBgCode(slotFg, slotBg));
-
-            if (isTarget)
-                sb.Append('[').Append(AnsiTty.Fg(TuiColors.Green)).Append('▶').Append(AnsiTty.Fg(slotFg)).Append(']');
-            else if (hasCfg)
-                sb.Append('[').Append(AnsiTty.Fg(TuiColors.Green)).Append('x').Append(AnsiTty.Fg(slotFg)).Append(']');
-            else
-                sb.Append('[').Append(AnsiTty.SgrDim).Append(' ').Append(AnsiTty.SgrReset).Append(AnsiTty.FgBgCode(slotFg, slotBg)).Append(']');
-
-            // 当前槽位（非目标）→ 绿色数字
-            if (isCur && !isTarget)
-                sb.Append(AnsiTty.Fg(TuiColors.Green));
-            sb.Append(label);
-            if (isCur && !isTarget)
-                sb.Append(AnsiTty.Fg(slotFg));
-            sb.Append(AnsiTty.SgrReset);
-
-            if (i < 9) sb.Append(AnsiTty.FgBgCode(DarkFg, DimBgCode)).Append(' ');
-        }
-        sb.Append(AnsiTty.SgrReset);
-    }
-
-    // ═══════════════════════════════════════════════
-    // 模型操作
-    // ═══════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════
+    // 模型操作（纯逻辑）
+    // ═══════════════════════════════════════════════════
 
     /// <summary>Enter：无 key 则返回 NeedsApiKey，有 key 则直接应用</summary>
     private static Result? EnterOrPromptKey(List<ModelEntry> models, int idx, bool isLarge, int slot)
@@ -435,13 +243,9 @@ public static class ModelPicker
         if (!m.HasApiKey)
         {
             // 返回 NeedsApiKey，由调用方弹出输入框
-            Console.Write(AnsiTty.CursorShow);
-            TuiManager.RequestFullRefresh();
             return new(m.Id, isLarge, slot, NeedsApiKey: true, ProviderId: m.ProviderId);
         }
         Apply(m.Id, isLarge, slot);
-        Console.Write(AnsiTty.CursorShow);
-        TuiManager.RequestFullRefresh();
         return new(m.Id, isLarge, slot);
     }
 
@@ -572,28 +376,9 @@ public static class ModelPicker
         return list;
     }
 
-    // ═══════════════════════════════════════════════
-    // 比例列宽
-    // ═══════════════════════════════════════════════
-
-    private static int[] DistributeWidths(int avail)
-    {
-        var cw = new int[6];
-        cw[0] = Math.Max(6, avail * WtName / WtTotal);
-        cw[1] = Math.Max(4, avail * WtProv / WtTotal);
-        cw[2] = Math.Max(4, avail * WtCtx / WtTotal);
-        cw[3] = Math.Max(5, avail * WtPrice / WtTotal);
-        cw[4] = Math.Max(4, avail * WtLarge / WtTotal);
-        cw[5] = Math.Max(4, avail * WtSmall / WtTotal);
-        int sum = cw.Sum();
-        cw[0] += avail - sum;
-        if (cw[0] < 4) cw[0] = 4;
-        return cw;
-    }
-
-    // ═══════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════
     // 格式化
-    // ═══════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════
 
     private static string FmtCtx(int t) => t switch
     {
@@ -606,39 +391,22 @@ public static class ModelPicker
         <= 0 => "Free", < 0.01 => "<$0.01", _ => $"${p:F2}",
     };
 
-    // ═══════════════════════════════════════════════
-    // 文本工具
-    // ═══════════════════════════════════════════════
-
-    private static string Pad(string text, int w)
+    /// <summary>槽位状态条文本（▶ 目标、* 已配置、· 当前槽位）。</summary>
+    private static string SlotBarText(int targetSlot, int currentSlot)
     {
-        int v = VW(text);
-        return v >= w ? TruncVW(text, w) : text + new string(' ', w - v);
-    }
-
-    private static string PadR(string text, int w)
-    {
-        int v = VW(text);
-        return v >= w ? TruncVW(text, w) : new string(' ', w - v) + text;
-    }
-
-    private static int VW(string text) => TuiHelper.DisplayWidth(text);
-
-    private static string TruncVW(string text, int max)
-    {
-        if (string.IsNullOrEmpty(text)) return "";
-        if (VW(text) <= max) return text;
-        var runes = text.EnumerateRunes().ToList();
-        int w = 0, n = 0;
-        foreach (var r in runes)
-        {
-            int rw = TuiHelper.RuneWidth(r);
-            if (w + rw + 1 > max) break;
-            w += rw; n++;
-        }
         var sb = new StringBuilder();
-        for (int i = 0; i < n; i++) sb.Append(runes[i].ToString());
-        sb.Append('…');
+        sb.Append("槽位 ");
+        sb.Append(targetSlot == -2 ? "▶A" : currentSlot == -1 ? "·A" : " A");
+        for (int i = 0; i < 10; i++)
+        {
+            var sc = AgentSlotConfig.Get(i);
+            bool hasCfg = !sc.UseGlobal;
+            bool isTarget = i == targetSlot;
+            bool isCur = i == currentSlot;
+            string label = i == 9 ? "0" : (i + 1).ToString();
+            char mark = isTarget ? '▶' : hasCfg ? '*' : isCur ? '·' : ' ';
+            sb.Append(' ').Append(mark).Append(label);
+        }
         return sb.ToString();
     }
 }

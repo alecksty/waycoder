@@ -54,6 +54,13 @@ public class MdBlockQuote : MdNode
     public string Text { get; set; } = "";
 }
 
+/// <summary>«tag»…«/» 块级标记（跨多行的推理/思考内容，保留原始换行与空行）</summary>
+public class MdMarkup : MdNode
+{
+    public string Text { get; set; } = "";
+    public int Style { get; set; }
+}
+
 // ================================================================
 // Markdown 解析器
 // ================================================================
@@ -79,6 +86,45 @@ public static class MarkdownParser
 
             // 空行跳过
             if (string.IsNullOrWhiteSpace(line)) { i++; continue; }
+
+            // «tag»…«/» 块级标记：跨多行（含空行/代码/列表）的推理内容，按原始文本整体渲染。
+            // 与内联用法区分：仅当开标签在行首、且本行内无闭合 «/» 时才走块级（否则交 ParseInline 内联处理）。
+            if (line.TrimStart().StartsWith('\xAB'))
+            {
+                var tline = line.TrimStart();
+                int openClose = tline.IndexOf('\xBB');
+                if (openClose > 1)
+                {
+                    string openTag = tline[1..openClose].Trim();
+                    int style = openTag == "/" ? 0 : MapMarkupTag(openTag);
+                    if (style > 0)
+                    {
+                        string rest = tline[(openClose + 1)..];
+                        if (rest.IndexOf("\xAB/\xBB", StringComparison.Ordinal) < 0)
+                        {
+                            var sb = new System.Text.StringBuilder(rest);
+                            i++;
+                            while (i < lines.Length)
+                            {
+                                var rl = lines[i];
+                                int close = rl.IndexOf("\xAB/\xBB", StringComparison.Ordinal);
+                                if (close >= 0)
+                                {
+                                    if (sb.Length > 0) sb.Append('\n');
+                                    sb.Append(rl[..close]);
+                                    i++;
+                                    break;
+                                }
+                                if (sb.Length > 0) sb.Append('\n');
+                                sb.Append(rl);
+                                i++;
+                            }
+                            nodes.Add(new MdMarkup { Text = sb.ToString(), Style = style });
+                            continue;
+                        }
+                    }
+                }
+            }
 
             // 代码块 ```lang\n...\n```
             if (line.TrimStart().StartsWith("```"))
@@ -197,8 +243,9 @@ public static class MarkdownParser
 
     /// <summary>
     /// 将一行文本中的内联格式转换为带 ANSI 颜色的片段。
-    /// 支持 **加粗**、*斜体*、`代码`。
+    /// 支持 **加粗**、*斜体*、`代码`、~~删除线~~、[链接](url)，以及 «tag»…«/» 标记。
     /// 返回 (文本, ANSI颜色码, 背景色码) 列表。
+    /// 颜色码语义：1-9=样式属性(粗体/淡化/斜体/下划线/反白/删除线)，30-37/90-97=标准色。
     /// </summary>
     public static List<(string Text, int Color, int Bg)> ParseInline(string text,
         int defaultColor = 0, int defaultBg = 0)
@@ -212,9 +259,48 @@ public static class MarkdownParser
 
         int i = 0;
         var current = new System.Text.StringBuilder();
+        // «tag» 样式栈：进入 span 前压栈，«/» 弹栈恢复（支持嵌套与流式未闭合 span）
+        var styleStack = new Stack<int>();
+        int curColor = defaultColor;
+
+        void FlushCurrent()
+        {
+            if (current.Length > 0)
+            {
+                result.Add((current.ToString(), curColor, defaultBg));
+                current.Clear();
+            }
+        }
 
         while (i < text.Length)
         {
+            // Markup 标记 «tag»（样式/颜色）与 «/»（复位到上一级）
+            if (text[i] == '\xAB') // «
+            {
+                int close = text.IndexOf('\xBB', i + 1);
+                if (close > i)
+                {
+                    string tag = text[(i + 1)..close].Trim();
+                    if (tag == "/")
+                    {
+                        FlushCurrent();
+                        curColor = styleStack.Count > 0 ? styleStack.Pop() : defaultColor;
+                        i = close + 1;
+                        continue;
+                    }
+                    int code = MapMarkupTag(tag);
+                    if (code > 0)
+                    {
+                        FlushCurrent();
+                        styleStack.Push(curColor);
+                        curColor = code;
+                        i = close + 1;
+                        continue;
+                    }
+                    // 未知标签：不识别，按字面输出（保留 « 原样）
+                }
+            }
+
             // 链接 [文字](url)
             if (text[i] == '[')
             {
@@ -224,11 +310,7 @@ public static class MarkdownParser
                     var closeParen = text.IndexOf(')', closeBracket + 2);
                     if (closeParen > closeBracket)
                     {
-                        if (current.Length > 0)
-                        {
-                            result.Add((current.ToString(), defaultColor, defaultBg));
-                            current.Clear();
-                        }
+                        FlushCurrent();
                         var linkText = text[(i + 1)..closeBracket];
                         var url = text[(closeBracket + 2)..closeParen];
                         result.Add((linkText, 36, defaultBg)); // 青色链接文字
@@ -246,11 +328,7 @@ public static class MarkdownParser
                 var end = text.IndexOf('`', i + 1);
                 if (end > i)
                 {
-                    if (current.Length > 0)
-                    {
-                        result.Add((current.ToString(), defaultColor, defaultBg));
-                        current.Clear();
-                    }
+                    FlushCurrent();
                     result.Add((text[(i + 1)..end], 33, 48));  // 黄色文字 + 深色背景
                     i = end + 1;
                     continue;
@@ -263,11 +341,7 @@ public static class MarkdownParser
                 var end = text.IndexOf("**", i + 2);
                 if (end > i)
                 {
-                    if (current.Length > 0)
-                    {
-                        result.Add((current.ToString(), defaultColor, defaultBg));
-                        current.Clear();
-                    }
+                    FlushCurrent();
                     result.Add((text[(i + 2)..end], 1, defaultBg)); // Bold
                     i = end + 2;
                     continue;
@@ -280,11 +354,7 @@ public static class MarkdownParser
                 var end = text.IndexOf("~~", i + 2);
                 if (end > i)
                 {
-                    if (current.Length > 0)
-                    {
-                        result.Add((current.ToString(), defaultColor, defaultBg));
-                        current.Clear();
-                    }
+                    FlushCurrent();
                     result.Add((text[(i + 2)..end], 2, defaultBg)); // 弱化 = 删除线
                     i = end + 2;
                     continue;
@@ -298,11 +368,7 @@ public static class MarkdownParser
                 var end = text.IndexOf('*', i + 1);
                 if (end > i + 1 && (end + 1 >= text.Length || text[end + 1] != '*'))
                 {
-                    if (current.Length > 0)
-                    {
-                        result.Add((current.ToString(), defaultColor, defaultBg));
-                        current.Clear();
-                    }
+                    FlushCurrent();
                     result.Add((text[(i + 1)..end], 3, defaultBg)); // Italic
                     i = end + 1;
                     continue;
@@ -313,10 +379,62 @@ public static class MarkdownParser
             i++;
         }
 
-        if (current.Length > 0)
-            result.Add((current.ToString(), defaultColor, defaultBg));
-
+        FlushCurrent();
         return result;
+    }
+
+    /// <summary>
+    /// 将 «» 标记的标签名映射为颜色码（样式属性 1-9 / 标准色 30-37 / 亮色 90-97）。
+    /// 未知标签返回 0（调用方按字面输出）。多词标签（如「bold yellow」「bright red」）
+    /// 取颜色词、样式前缀丢弃（对齐 Program.cs MarkupLine 的「粗体=颜色」约定）。
+    /// </summary>
+    private static int MapMarkupTag(string tag)
+    {
+        tag = tag.Trim().ToLowerInvariant();
+        switch (tag)
+        {
+            case "bold": case "bright": return 1;    // 粗体/加亮
+            case "dim": case "faint": return 2;      // 淡化
+            case "italic": case "i": return 3;       // 斜体
+            case "underline": case "u": return 4;    // 下划线
+            case "blink": return 5;                  // 闪烁
+            case "reverse": case "invert": return 7; // 反白
+            case "strike": case "strikethrough": case "s": return 9; // 删除线
+        }
+
+        // 颜色（支持 bright 前缀与 bold/underline 等样式前缀）
+        string colorName = tag;
+        bool bright = false;
+        if (tag.Contains(' '))
+        {
+            foreach (var p in tag.Split(' '))
+            {
+                if (p.Length == 0) continue;
+                if (p is "bold" or "dim" or "underline" or "italic") continue;
+                if (p == "bright") { bright = true; continue; }
+                colorName = p;
+                break;
+            }
+        }
+
+        int code = colorName switch
+        {
+            "black" => 30,
+            "red" => 31,
+            "green" => 32,
+            "yellow" => 33,
+            "blue" => 34,
+            "magenta" or "purple" => 35,
+            "cyan" => 36,
+            "white" => 37,
+            "grey" or "gray" => 90,
+            "orange3" or "orange" => 33,
+            _ => 0,
+        };
+        if (code == 0) return 0;
+        if (bright && code is >= 30 and <= 37)
+            return code + 60;   // 亮色 90-97
+        return code;
     }
 
     // ================================================================

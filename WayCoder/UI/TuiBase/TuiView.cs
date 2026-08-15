@@ -131,6 +131,22 @@ public abstract class TuiView : TuiControl
     }
 
     /// <summary>
+    /// 递归标记自身及所有后代为脏（仅触发重绘，不失效内容解析缓存）。
+    /// 用于滚动等「内容未变、仅视口位移」的场景——与 Invalidate() 的区别在于
+    /// 不调用 TuiMarkdown.Invalidate()（那会清空 Markdown 解析缓存并强制重解析），
+    /// 只设置 IsDirty，让增量渲染把已缓存的片段在正确的新位置重绘。
+    /// </summary>
+    protected void MarkDirtyTree()
+    {
+        MarkDirty();
+        foreach (var child in Children)
+        {
+            if (child is TuiView v) v.MarkDirtyTree();
+            else child.MarkDirty();
+        }
+    }
+
+    /// <summary>
     /// 按键路由：丢给子焦点子对象 → 都不处理返回 false。
     /// </summary>
     public override bool OnKey(ConsoleKeyInfo key)
@@ -518,30 +534,53 @@ public class TuiScrollView : TuiView
     /// <summary>向上滚动</summary>
     public void ScrollUp(int lines = 1)
     {
+        int newOffset = Math.Max(0, ScrollOffset - lines);
+        if (newOffset == ScrollOffset && !IsAutoScrollToEnd) return; // 已在顶部，无效（防闪屏）
+        ScrollOffset = newOffset;
         IsAutoScrollToEnd = false;
-        ScrollOffset = Math.Max(0, ScrollOffset - lines);
+        MarkDirtyTree();
     }
 
     /// <summary>向下滚动</summary>
     public void ScrollDown(int lines = 1)
     {
         var maxScroll = Math.Max(0, ContentHeight - Height);
+        int newOffset;
+        bool newAuto;
         if (ScrollOffset + lines >= maxScroll)
         {
-            ScrollOffset = maxScroll;
-            IsAutoScrollToEnd = true;
+            newOffset = maxScroll;
+            newAuto = true;
         }
         else
         {
-            ScrollOffset += lines;
+            newOffset = ScrollOffset + lines;
+            newAuto = false;
         }
+        if (newOffset == ScrollOffset && newAuto == IsAutoScrollToEnd) return; // 已在底部，无效（防闪屏）
+        ScrollOffset = newOffset;
+        IsAutoScrollToEnd = newAuto;
+        MarkDirtyTree();
     }
 
     /// <summary>滚到顶部</summary>
-    public void ScrollToTop() { ScrollOffset = 0; IsAutoScrollToEnd = false; }
+    public void ScrollToTop()
+    {
+        if (ScrollOffset == 0 && !IsAutoScrollToEnd) return; // 已在顶部
+        ScrollOffset = 0;
+        IsAutoScrollToEnd = false;
+        MarkDirtyTree();
+    }
 
     /// <summary>滚到底部</summary>
-    public void ScrollToBottom() { ScrollOffset = Math.Max(0, ContentHeight - Height); IsAutoScrollToEnd = true; }
+    public void ScrollToBottom()
+    {
+        int newOffset = Math.Max(0, ContentHeight - Height);
+        if (ScrollOffset == newOffset && IsAutoScrollToEnd) return; // 已在底部
+        ScrollOffset = newOffset;
+        IsAutoScrollToEnd = true;
+        MarkDirtyTree();
+    }
 
     /// <summary>添加子控件后自动跟底</summary>
     public override void Add(TuiControl child)

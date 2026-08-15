@@ -2,9 +2,9 @@
 
 # WayCoder（道码）
 
-**中文版易用编程智能体，C# (.NET 10) 实现，AOT 编译为单文件 exe（~8 MB），无需运行时。**
+**中文编程智能体,Vibe Coding Agent CLI**
 
-*一个 while 循环 + 大模型 + 44 个工具 + Watch 模式，就是全部*
+*支持多模型 + 44个工具 + Watch 模式 + 单文件 + 多智能体*
 
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -18,59 +18,44 @@
 
 ## 改名说明
 
-本项目原名 **CoreCoder**，因发现与现有商标/产品名称冲突，为规避侵权风险，自 v0.16.3 起更名为 **WayCoder（道码）**。
+本项目源自 **CoreCoder**，因与现有商标/产品名称冲突，为规避侵权风险，自v0.16.3 起更名为 **WayCoder（道码）**。
 
 - 代码命名空间已重命名为 `WayCoder`
 - 可执行文件：`corecoder.exe` → `waycoder.exe`
-- 环境变量前缀：`CORECODER_*` → `WAYCODER_*`（旧名仍兼容）
+- 环境变量前缀：`CORECODER_*` → `WAYCODER_*`
 - 目录名：仓库内部目录已同步重命名
 
 ## 这是什么
 
-WayCoder（道码）是一个中文版易用编程智能体。把 Claude Code、Cursor 这类工具扒到底，核心是一个 while 循环套着一个大模型，外加二十几个让它能真正动手的工具。WayCoder 就是把这个核心老老实实写出来的开箱即用版本。
-
-C# 版完整移植了 Python 原版的全部功能，并新增了权限确认、Git 集成、Web 抓取、LSP 代码导航、记忆系统、后台任务、代码审查、Watch 模式等多项功能。AOT 编译为单文件 exe，拷贝到任何 Windows 机器上直接运行，无需安装 .NET 运行时。
+WayCoder（道码）是一个中文版多智能体经济型编程智能体。把 Claude Code、OpenCode、Crush、Codex、Cursor 这类工具吸取各家特长有点，综合制作的本智能体软件。本代码完全使用 C# .NET10 Native AOT 构建，包含了权限确认、Git 集成、Web 抓取、LSP 代码导航、记忆系统、后台任务、代码审查、Watch 模式等多项功能。拷贝到任何 Windows 机器上直接运行，无需安装 .NET 运行时。
 
 ## 先跑一次
 
 ```bash
-# 克隆仓库
-git clone https://gitee.com/aleckstygit/my-coder
-cd WayCoder
-
-# AOT 编译（生成单文件 waycoder.exe）
-dotnet publish -c Release
-
-# 或直接运行
-dotnet run
-
-# 一次性模式
-dotnet run -- -p "修复一个 bug"
-
 # Watch 模式 (监听 AI! 注释自动触发 Agent)
-dotnet run -- --watch
+WayCoder --watch
 
 # Tiny 模式（本地小模型 / 省 token；窗口 <128K 自动进入，也可 --tiny 8k 指定）
-dotnet run -- --tiny
-dotnet run -- --tiny 8k
+WayCoder --tiny
+WayCoder --tiny 8k
 
 # 省 Token 模式（保持正常窗口；--economy [on|auto|off]，缺省 on）
-dotnet run -- --economy          # 开：精简提示词 + 更早压缩 + 输出上限
-dotnet run -- --economy auto     # 自动：按任务复杂度动态调节阈值（简单省、复杂保质量）
+WayCoder --economy          # 开：精简提示词 + 更早压缩 + 输出上限
+WayCoder --economy auto     # 自动：按任务复杂度动态调节阈值（简单省、复杂保质量）
 # 优先级偏好（仅 auto 生效）：WAYCODER_ECONOMY_PRIORITY=quality|balanced|cost（默认 quality）
 
 # 自动升级（检查并自替换，优先 Gitee、回退 GitHub）
-dotnet run -- --update
+WayCoder --update
 
 # 批量任务引擎（多仓库并行处理，worktree 隔离）
-dotnet run -- --batch batch.json                       # 从 JSON 清单读任务
-dotnet run -- --batch-repo https://x/r1 --batch-repo https://x/r2 --batch-task "修复登录 bug"
+WayCoder --batch batch.json                       # 从 JSON 清单读任务
+WayCoder --batch-repo https://x/r1 --batch-repo https://x/r2 --batch-task "修复登录 bug"
 
 # JSON 输出模式（IDE / 脚本桥接，stdout 只输出一个结构化 JSON 对象）
-dotnet run -- --json -p "修复一个 bug"
+WayCoder --json -p "修复一个 bug"
 
-# 运行自测（2343 项）
-dotnet run -- --test
+# 运行自测（2622 项）
+WayCoder  --test
 ```
 
 给它一个模型加一把 key 就能动。默认走 OpenAI 兼容接口，在项目根目录扔个 `.env`，启动时自动加载：
@@ -80,8 +65,6 @@ dotnet run -- --test
 | DeepSeek（默认 `deepseek-v4-flash`） | `WAYCODER_API_KEY=sk-...` |
 | OpenAI | `WAYCODER_MODEL=gpt-5.5` `WAYCODER_API_KEY=sk-...` |
 | 本地 Ollama | `OPENAI_BASE_URL=http://localhost:11434/v1` `WAYCODER_MODEL=qwen2.5-coder` |
-
-> 💡 兼容旧名：`CORECODER_*` 环境变量仍可正常使用，建议逐步迁移至新前缀。
 
 ## 架构
 
@@ -107,7 +90,7 @@ WayCoder/
 ├── Skills/            技能系统 (SkillsManager.cs SKILL.md 发现与解析)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── SelfTest.cs        2343 项自测（拆为 SelfTest.cs + Chunk1-10 + Helpers 共 12 个 partial 文件）
+├── Test/              测试/调试/演示代码（SelfTest 自测 12 partial 文件 + Benchmark/Keypad/TuiAudit/TuiDemo，共 2622 项）
 ├── Batch/             批量任务引擎 (2 文件)
 │   ├── BatchSpec.cs     任务清单模型 + JSON 解析 + 名称消毒
 │   └── BatchRunner.cs   多仓库并行执行 + worktree 隔离 + 聚合报告
@@ -249,7 +232,7 @@ quit / exit      退出 (Ctrl+Q)
 - **edit_file 使用唯一子串匹配**，不用行号，安全可审查
 - **上下文压缩三层让步**：50% 裁剪 → 70% LLM 摘要 → 90% 硬折叠，实时进度事件
 - **渐进超时重试**：LLM 超时逐次加长（1x→1.5x→2x→3x→4x→6x→8x），最多 5 次重试
-- **子智能体并行**：tasks 数组最多 4 并发，聚合返回；通过不给 agent 工具约束递归
+- **子智能体并行**：tasks 数组支持多并发，聚合返回；通过不给 agent 工具约束递归
 - **多 Agent 工作区**：F1-F10 切换 10 个独立会话槽位，状态栏实时显示工作状态，支持槽位任务队列
 - **多会话真并行**：槽位任务后台线程执行不阻塞主循环，运行中可自由切换；活跃槽位实时流式、非活跃槽位缓冲输出，切换与路由共享槽位锁杜绝丢 token（对标 Claude Code 多窗口）
 - **Hook 系统**：8 种事件（PreToolUse/PostToolUse/Stop/PreCompact 等），JSON 结构化输出协议
@@ -259,7 +242,7 @@ quit / exit      退出 (Ctrl+Q)
 - **Git 自动提交质量校验**：conventional-commit 前缀强制 + 不合格重试一次 + 兜底默认信息
 - **Worktree 隔离**：bash 自动检测 worktree 路径并切换 cwd
 - **AOT 编译：JSON 手写序列化**，不依赖反射
-- **权限系统**：bash/write/edit/agent 默认行内确认（3 行黄色渲染块），`/perm yolo` 跳过
+- **权限系统**：bash/write/edit/agent 默认行内确认，`/perm yolo` 跳过
 - **双模型架构**：大模型做复杂任务，小模型做压缩/摘要，自动分工省钱
 - **模型回退链**：失败自动尝试备选（6 模型链条，跨供应商 API Key 自动解析）
 - **Watch 模式**：文件监听 + AI! 注释解析 → 线程安全队列 → REPL 自动执行
@@ -279,8 +262,8 @@ quit / exit      退出 (Ctrl+Q)
 
 ## 贡献 / License
 
-MIT License，欢迎 fork 拿去造更好的东西。
+深圳市探索智能科技有限公司
 
 ---
 
-作者 [施探宇 (aleck)](https://gitee.com/aleckstygit)，中国 · 天津。
+作者 [施探宇(aleck)](https://gitee.com/aleckstygit)，中国 · 深圳

@@ -1,5 +1,5 @@
-using System.Text;
 using WayCoder.Terminal;
+using WayCoder.UI.TuiControls;
 
 namespace WayCoder.UI;
 
@@ -8,11 +8,15 @@ namespace WayCoder.UI;
 /// 居中带边框对话框（非全屏），浏览/切换/重命名/删除历史会话。
 ///
 /// 功能：
-///   - 列出所有历史会话（名称 + 模型 + 时间 + 消息预览）
-///   - 三种模式：Normal（选择）、Renaming（重命名）、Deleting（确认删除）
+///   - 列出所有历史会话（ID + 时间 + 模型 + 当前标记 ✓）
 ///   - 实时搜索过滤
 ///   - Enter 切换会话 / R 重命名 / Del 删除
-///   - 帮助栏随模式变化
+///   - 底部按钮行（打开/重命名/删除/关闭）
+///
+/// 实现：TuiWindow（模态）+ TuiVBox + TuiInput（搜索）+ TuiListView（会话行，手动反白）
+///       + TuiButton 行，走 UxHelper.RenderWait 阻塞 → 事件桥接，不再自造 Console.ReadKey 循环。
+/// 重命名复用 TuiDialog.InputLine、删除复用 TuiDialog.Confirm3（把旧 Normal/Renaming/Deleting
+/// 三态状态机拆成「主窗 + 弹子对话框」）；顺带修复旧实现「重命名后列表陈旧」bug。
 /// </summary>
 public static class SessionPicker
 {
@@ -24,11 +28,8 @@ public static class SessionPicker
         public static Result Delete(string id) => new("delete", id);
     }
 
-    /// <summary>操作模式</summary>
-    private enum Mode { Normal, Renaming, Deleting }
-
-    private const int MinW = 68, MinH = 17;
-    private const int FrameH = 9; // 顶框1+标题1+统计1+搜索1+上分隔1 + 下分隔1+提示1+帮助1+底框1
+    private const int MinW = 68, MaxW = 100;
+    private const int ListH = 12; // 列表可见行数
 
     /// <summary>
     /// 显示会话管理对话框。返回操作结果，null = 取消。
@@ -36,385 +37,255 @@ public static class SessionPicker
     /// <param name="currentSessionId">当前会话 ID（用于标记 ✓）</param>
     public static Result? Show(string? currentSessionId = null)
     {
-        var sessions = SessionManager.ListSessions(limit: 50);
-        var filter = "";
-        int selectedIdx = 0;
-        int scrollOffset = 0;
-        var mode = Mode.Normal;
-        var renameBuffer = "";
-        int renameCursorPos = 0;
-
-        // 找到当前会话索引
-        if (currentSessionId != null)
-        {
-            for (int i = 0; i < sessions.Count; i++)
-            {
-                if (sessions[i].Id == currentSessionId)
-                {
-                    selectedIdx = i;
-                    break;
-                }
-            }
-        }
-
+        Result? result = null;
+        using var evt = new ManualResetEventSlim(false);
         try
         {
-        while (true)
+            var screen = TuiManager.Instance?.ActiveScreen;
+            var win = BuildWindow(currentSessionId, screen, r => { result = r; evt.Set(); });
+            screen?.ShowWindow(win);
+            UxHelper.RenderWait(screen, evt, 60_000, win);
+        }
+        catch { evt.Set(); }
+        return result;
+    }
+
+    // ── 窗口构建 ──
+
+    private static TuiWindow BuildWindow(string? currentSessionId, TuiScreen? screen, Action<Result?> onDone)
+    {
+        int winW = Math.Clamp(Tty.Cols - 2, MinW, MaxW);
+        int listW = Math.Max(10, winW - 2);          // 内容区宽（去左右边框）
+        int winH = ListH + 6;                         // 统计+搜索+列表+按钮+帮助 + 上下边框
+
+        var win = new TuiWindow
         {
-            // 过滤
-            var filtered = string.IsNullOrEmpty(filter)
+            Title = "会话管理",
+            ShowTitleSeparator = false,
+            Modal = true, HasMask = true,
+            Border = WindowBorder.Solid,
+            BorderColor = TuiTheme.Current.DialogInfoBorder,
+            WinBg = TuiTheme.Current.WindowBg,
+            Width = winW, Height = winH,
+            MinWidth = MinW, MinHeight = winH,
+            WindowHAlign = HAlign.Center,
+            WindowVAlign = VAlign.Middle,
+        };
+        var g = TuiTheme.Current.GradCyanBlue;
+        win.GradientBorder = true;
+        win.GradientStart = g.start;
+        win.GradientEnd = g.end;
+
+        // ── 状态 ──
+        var sessions = SessionManager.ListSessions(limit: 50);
+        var filtered = new List<SessionInfo>();
+        var rowLabels = new List<TuiLabel>(); // 与 filtered 一一对应
+        int sel = -1;
+
+        // 统计行
+        var stats = new TuiLabel { Height = 1, Fg = TuiColors.Blue };
+
+        // 搜索行（标签 + 输入框，输入框聚焦）
+        var search = new TuiInput
+        {
+            Height = 1,
+            Flex = 1,
+            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Focused = true,
+        };
+        var searchRow = new TuiHBox { Spacing = 1 };
+        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = TuiColors.BrightBlack });
+        searchRow.Add(search);
+
+        // 会话列表（单行格式化字符串，选中/当前手动着色）
+        var list = new TuiListView { Height = ListH, IsAutoScrollToEnd = false };
+
+        // 按钮行
+        var openBtn = new TuiButton("打开 (Enter)") { Flex = 1 };
+        var renameBtn = new TuiButton("重命名 (R)") { Flex = 1 };
+        var delBtn = new TuiButton("删除 (Del)") { Flex = 1 };
+        var closeBtn = new TuiButton("关闭 (Esc)") { Flex = 1 };
+        var btnRow = new TuiHBox { Spacing = 2 };
+        btnRow.Add(openBtn); btnRow.Add(renameBtn); btnRow.Add(delBtn); btnRow.Add(closeBtn);
+        Grad(openBtn, TuiTheme.Current.BtnCyanBlue);
+        Grad(renameBtn, TuiTheme.Current.BtnOrangeYellow);
+        Grad(delBtn, TuiTheme.Current.BtnRedOrange);
+        Grad(closeBtn, TuiTheme.Current.BtnOrangeYellow);
+
+        // 帮助行
+        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightBlack };
+
+        var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
+        vbox.Add(stats);
+        vbox.Add(searchRow);
+        vbox.Add(list);
+        vbox.Add(btnRow);
+        vbox.Add(help);
+        win.RootView = vbox;
+
+        // ── 刷新 ──
+
+        void RefreshHighlight()
+        {
+            for (int i = 0; i < rowLabels.Count; i++)
+            {
+                var s = filtered[i];
+                bool isSel = i == sel;
+                bool isCur = s.Id == currentSessionId;
+                var lbl = rowLabels[i];
+                lbl.Text = FormatSessionRow(s, isSel, isCur, listW);
+                lbl.Fg = isSel ? TuiTheme.Current.ListSelFg : (isCur ? TuiColors.Blue : TuiColors.White);
+                lbl.Bg = isSel ? TuiTheme.Current.ListSelBg : 0;
+            }
+            list.SelectedIndex = sel; // 驱动 TuiListView 自动滚动到选中项
+            list.MarkDirty();
+        }
+
+        void Rebuild(bool resetSel)
+        {
+            filtered = string.IsNullOrEmpty(search.Text)
                 ? sessions
                 : sessions.Where(s =>
-                    s.Id.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                    s.Preview.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                    s.Model.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+                    s.Id.Contains(search.Text, StringComparison.OrdinalIgnoreCase) ||
+                    s.Preview.Contains(search.Text, StringComparison.OrdinalIgnoreCase) ||
+                    s.Model.Contains(search.Text, StringComparison.OrdinalIgnoreCase)).ToList();
 
-            // 重命名模式：顶部多一行「新名称」输入行
-            int extraTop = (mode == Mode.Renaming && selectedIdx < filtered.Count) ? 1 : 0;
-
-            var (bx, by, dw, dh, innerW) = DialogFrame.Layout(MinW, MinH);
-            int listH = Math.Max(3, dh - FrameH - extraTop);
-
-            selectedIdx = Math.Clamp(selectedIdx, 0, Math.Max(0, filtered.Count - 1));
-
-            // 滚动调整
-            if (selectedIdx < scrollOffset) scrollOffset = selectedIdx;
-            if (selectedIdx >= scrollOffset + listH) scrollOffset = selectedIdx - listH + 1;
-            scrollOffset = Math.Clamp(scrollOffset, 0, Math.Max(0, filtered.Count - listH));
-
-            // ── 渲染 ──
-            var sb = new StringBuilder();
-            sb.Append(AnsiTty.CursorHide);
-            DialogFrame.DimArea(sb, bx, by, dw, dh);
-            DialogFrame.TopBorder(sb, by, bx, dw);
-
-            // 标题行
-            var modeLabel = mode switch
+            rowLabels.Clear();
+            list.ClearItems();
+            foreach (var s in filtered)
             {
-                Mode.Normal => "",
-                Mode.Renaming => " — 重命名",
-                Mode.Deleting => " — 确认删除",
-                _ => ""
-            };
-            var title = mode == Mode.Deleting ? "⚠ 确认删除会话" : $"会话管理{modeLabel}";
-            int titleBg = mode == Mode.Deleting ? TuiColors.BgRed : DialogFrame.DimBg;
-
-            int y = by + 1;
-            DialogFrame.SideL(sb, y, bx);
-            sb.Append(AnsiTty.CursorPos(y, bx + 2))
-              .Append(AnsiTty.FgBgCode(TuiColors.White, titleBg))
-              .Append(AnsiTty.SgrBold).Append(TruncateByVW(title, innerW - 4)).Append(AnsiTty.SgrReset);
-            DialogFrame.SideR(sb, y, bx, dw);
-
-            // 统计行
-            y = by + 2;
-            DialogFrame.SideL(sb, y, bx);
-            sb.Append(AnsiTty.CursorPos(y, bx + 2))
-              .Append(AnsiTty.FgBgCode(TuiColors.Blue, DialogFrame.DimBg));
-            var stats = $"{sessions.Count} 个历史会话" + (currentSessionId != null ? "  ← 当前标记 ✓" : "");
-            sb.Append(TruncateByVW(stats, innerW - 4)).Append(AnsiTty.SgrReset);
-            DialogFrame.SideR(sb, y, bx, dw);
-
-            // 搜索行
-            y = by + 3;
-            DialogFrame.SideL(sb, y, bx);
-            sb.Append(AnsiTty.CursorPos(y, bx + 2))
-              .Append(AnsiTty.FgBgCode(TuiColors.White, DialogFrame.DimBg));
-            var searchPrompt = "搜索: ";
-            var searchText = filter.Length > 0 ? filter : "输入关键词过滤...";
-            var searchStyle = filter.Length > 0 ? "" : AnsiTty.SgrDim;
-            sb.Append(searchPrompt).Append(searchStyle).Append(TruncateByVW(searchText, innerW - 4 - VW(searchPrompt)))
-              .Append(AnsiTty.SgrReset);
-            DialogFrame.SideR(sb, y, bx, dw);
-
-            // 上分隔线
-            y = by + 4;
-            DialogFrame.SepLine(sb, y, bx, dw);
-
-            // 重命名输入行（列表上方）
-            int listTop = by + 5;
-            if (extraTop == 1)
-            {
-                DialogFrame.SideL(sb, by + 5, bx);
-                DialogFrame.FillInner(sb, by + 5, bx, innerW, TuiColors.Black, TuiColors.BgCyan);
-                var renameLine = $"  新名称: {renameBuffer}";
-                if (DateTime.Now.Millisecond % 1000 < 500) renameLine += '▌';
-                sb.Append(AnsiTty.CursorPos(by + 5, bx + 2))
-                  .Append(AnsiTty.FgBgCode(TuiColors.Black, TuiColors.BgCyan))
-                  .Append(TruncateByVW(renameLine, innerW - 4))
-                  .Append(AnsiTty.SgrReset);
-                DialogFrame.SideR(sb, by + 5, bx, dw);
-                listTop++;
+                var lbl = new TuiLabel();
+                rowLabels.Add(lbl);
+                list.AddItem(lbl);
             }
 
-            // 会话列表
-            for (int i = 0; i < listH; i++)
+            if (resetSel || sel < 0 || sel >= filtered.Count)
             {
-                int si = scrollOffset + i, row = listTop + i;
-                DialogFrame.SideL(sb, row, bx);
-
-                if (si >= filtered.Count)
+                sel = -1;
+                if (filtered.Count > 0)
                 {
-                    DialogFrame.FillInner(sb, row, bx, innerW, TuiColors.White, DialogFrame.DimBg);
-                    DialogFrame.SideR(sb, row, bx, dw);
-                    continue;
+                    sel = 0;
+                    if (currentSessionId != null)
+                        for (int i = 0; i < filtered.Count; i++)
+                            if (filtered[i].Id == currentSessionId) { sel = i; break; }
                 }
-
-                var session = filtered[si];
-                bool isSelected = si == selectedIdx;
-                bool isCurrent = session.Id == currentSessionId;
-
-                int bg = isSelected
-                    ? (mode == Mode.Deleting ? TuiColors.BgRed : TuiColors.BgBlue)
-                    : DialogFrame.DimBg;
-                int fg = isSelected ? TuiColors.Black : (isCurrent ? TuiColors.Blue : TuiColors.White);
-                DialogFrame.FillInner(sb, row, bx, innerW, fg, bg);
-
-                var prefix = isSelected ? "▶ " : "  ";
-                var check = isCurrent ? " ✓" : "  ";
-                var timeStr = FormatRelativeTime(session.SavedAt);
-                var line = $"{prefix}{session.Id}  {timeStr}  [{session.Model}]{check}";
-                line = TruncateByVW(line, innerW - 2);
-
-                sb.Append(AnsiTty.CursorPos(row, bx + 2))
-                  .Append(AnsiTty.FgBgCode(fg, bg))
-                  .Append(line)
-                  .Append(AnsiTty.SgrReset);
-
-                DialogFrame.SideR(sb, row, bx, dw);
             }
 
-            // 下分隔线
-            int sep2 = listTop + listH;
-            DialogFrame.SepLine(sb, sep2, bx, dw);
-
-            // 模式提示行
-            int hintRow = sep2 + 1;
-            DialogFrame.SideL(sb, hintRow, bx);
-            var modeText = mode switch
-            {
-                Mode.Normal => "",
-                Mode.Renaming => "✏ 输入新名称，Enter 确认，Esc 取消",
-                Mode.Deleting => "⚠ 确认删除此会话？[Y] 确认删除  [N] 取消",
-                _ => ""
-            };
-            if (mode == Mode.Normal)
-            {
-                DialogFrame.FillInner(sb, hintRow, bx, innerW, TuiColors.White, DialogFrame.DimBg);
-            }
-            else
-            {
-                int hFg = mode == Mode.Deleting ? TuiColors.White : TuiColors.Black;
-                int hBg = mode == Mode.Deleting ? TuiColors.BgRed : TuiColors.BgCyan;
-                DialogFrame.FillInner(sb, hintRow, bx, innerW, hFg, hBg);
-                sb.Append(AnsiTty.CursorPos(hintRow, bx + 2))
-                  .Append(AnsiTty.FgBgCode(hFg, hBg))
-                  .Append(TruncateByVW(modeText, innerW - 4))
-                  .Append(AnsiTty.SgrReset);
-            }
-            DialogFrame.SideR(sb, hintRow, bx, dw);
-
-            // 帮助行
-            int helpRow = sep2 + 2;
-            DialogFrame.SideL(sb, helpRow, bx);
-            var helpText = mode switch
-            {
-                Mode.Normal => "[↑/↓] 导航  [Enter] 切换到此会话  [R] 重命名  [Del] 删除  [Esc] 关闭",
-                Mode.Renaming => "[Enter] 确认重命名  [Esc] 取消  [←→] 移动光标  [Backspace] 删除",
-                Mode.Deleting => "[Y] 确认删除  [N] / [Esc] 取消",
-                _ => ""
-            };
-            sb.Append(AnsiTty.CursorPos(helpRow, bx + 2))
-              .Append(AnsiTty.FgBgCode(TuiColors.BrightBlack, DialogFrame.DimBg))
-              .Append(TruncateByVW(helpText, innerW - 4));
-            DialogFrame.SideR(sb, helpRow, bx, dw);
-
-            // 底框
-            DialogFrame.BottomBorder(sb, helpRow + 1, bx, dw);
-
-            sb.Append(AnsiTty.SgrReset);
-            Console.Write(sb.ToString());
-
-            // ── 输入 ──
-            var key = Console.ReadKey(intercept: true);
-
-            switch (mode)
-            {
-                case Mode.Normal:
-                    HandleNormalKey(key, ref selectedIdx, ref filter, filtered, listH,
-                        ref scrollOffset, ref mode, ref renameBuffer, ref renameCursorPos,
-                        currentSessionId);
-                    break;
-
-                case Mode.Renaming:
-                    HandleRenamingKey(key, ref mode, ref renameBuffer, ref renameCursorPos,
-                        filtered, selectedIdx);
-                    break;
-
-                case Mode.Deleting:
-                    var delResult = HandleDeletingKey(key, ref mode, filtered, selectedIdx);
-                    if (delResult != null) return delResult;
-                    break;
-            }
-
-            // Esc 在 Normal 模式：取消退出
-            if (mode == Mode.Normal && key.Key == ConsoleKey.Escape)
-                return null;
-
-            // Enter 在 Normal 模式：切换会话
-            if (mode == Mode.Normal && key.Key == ConsoleKey.Enter && filtered.Count > 0
-                && selectedIdx < filtered.Count)
-            {
-                return Result.SwitchTo(filtered[selectedIdx].Id);
-            }
+            stats.Text = $"{sessions.Count} 个历史会话" + (currentSessionId != null ? "  ← 当前标记 ✓" : "");
+            help.Text = "↑↓ 导航  Enter 切换  R 重命名  Del 删除  Esc 关闭";
+            RefreshHighlight();
+            screen?.MarkDirty();
         }
-        }
-        finally
+
+        // 重命名/删除后重新载入会话列表，修复「列表陈旧」bug
+        void Reload()
         {
-            Console.Write(AnsiTty.CursorShow);
-            TuiManager.RequestFullRefresh();
+            sessions = SessionManager.ListSessions(limit: 50);
+            Rebuild(true);
         }
+
+        // ── 动作 ──
+
+        void Finish(Result? r)
+        {
+            onDone(r);
+            win.OnClosed?.Invoke();
+        }
+
+        void SetSel(int v)
+        {
+            if (filtered.Count == 0) { sel = -1; return; }
+            sel = Math.Clamp(v, 0, filtered.Count - 1);
+            RefreshHighlight();
+            screen?.MarkDirty();
+        }
+        void MoveSel(int d) => SetSel(sel + d);
+
+        void SwitchTo()
+        {
+            if (sel >= 0 && sel < filtered.Count)
+                Finish(Result.SwitchTo(filtered[sel].Id));
+        }
+
+        void Rename()
+        {
+            if (sel < 0 || sel >= filtered.Count) return;
+            var s = filtered[sel];
+            var sub = TuiDialog.InputLine("重命名会话", $"为「{s.Id}」输入新名称", s.Id, newName =>
+            {
+                if (!string.IsNullOrWhiteSpace(newName) && newName != s.Id)
+                {
+                    SessionManager.RenameSession(s.Id, newName);
+                    Reload();
+                }
+            });
+            screen?.ShowWindow(sub);
+        }
+
+        void Delete()
+        {
+            if (sel < 0 || sel >= filtered.Count) return;
+            var s = filtered[sel];
+            if (s.Id == currentSessionId) return; // 不能删除当前会话
+            var sub = TuiDialog.Confirm3("删除会话", $"确认删除会话「{s.Id}」？", r =>
+            {
+                if (r == TuiDialog.DialogResult.Yes)
+                    Finish(Result.Delete(s.Id));
+            });
+            screen?.ShowWindow(sub);
+        }
+
+        // 搜索输入：字母进过滤词（OnTextChanged 实时过滤），↑↓ 导航列表，Enter 切换；
+        // R 在「筛选空」时触发重命名，否则作为普通字符进过滤词。
+        search.OnTextChanged = () => Rebuild(true);
+        search.KeyHook = key =>
+        {
+            switch (key.Key)
+            {
+                case ConsoleKey.UpArrow:   MoveSel(-1); return true;
+                case ConsoleKey.DownArrow: MoveSel(+1); return true;
+                case ConsoleKey.Home:      SetSel(0); return true;
+                case ConsoleKey.End:       SetSel(Math.Max(0, filtered.Count - 1)); return true;
+                case ConsoleKey.PageUp:    SetSel(Math.Max(0, sel - ListH)); return true;
+                case ConsoleKey.PageDown:  SetSel(Math.Min(filtered.Count - 1, sel + ListH)); return true;
+                case ConsoleKey.Enter:     SwitchTo(); return true;
+                case ConsoleKey.R:
+                    if (search.Text.Length == 0) { Rename(); return true; }
+                    return false; // 有搜索词 → 交给输入框当过滤字符
+                case ConsoleKey.Delete:    Delete(); return true;
+            }
+            return false; // 其余（字母/退格）交给输入框处理
+        };
+
+        openBtn.OnClick = _ => SwitchTo();
+        renameBtn.OnClick = _ => Rename();
+        delBtn.OnClick = _ => Delete();
+        closeBtn.OnClick = _ => Finish(null);
+
+        win.RegisterShortcut(ConsoleKey.Escape, () => Finish(null));
+
+        Rebuild(true);
+        return win;
     }
 
-    private static void HandleNormalKey(ConsoleKeyInfo key, ref int selectedIdx, ref string filter,
-        List<SessionInfo> filtered, int visibleItems, ref int scrollOffset, ref Mode mode,
-        ref string renameBuffer, ref int renameCursorPos, string? currentSessionId)
+    private static void Grad(TuiButton b, (int start, int end) grad)
     {
-        switch (key.Key)
-        {
-            case ConsoleKey.UpArrow:
-                if (selectedIdx > 0) selectedIdx--;
-                break;
-            case ConsoleKey.DownArrow:
-                if (selectedIdx < filtered.Count - 1) selectedIdx++;
-                break;
-            case ConsoleKey.Escape:
-                // Exit handled in main loop
-                break;
-            case ConsoleKey.R:
-                // 进入重命名模式（仅当有选中项且不是当前会话）
-                if (filtered.Count > 0 && selectedIdx < filtered.Count)
-                {
-                    mode = Mode.Renaming;
-                    renameBuffer = filtered[selectedIdx].Id;
-                    renameCursorPos = renameBuffer.Length;
-                }
-                break;
-            case ConsoleKey.Delete:
-                // 进入删除确认模式（仅当有选中项且不是当前会话）
-                if (filtered.Count > 0 && selectedIdx < filtered.Count
-                    && filtered[selectedIdx].Id != currentSessionId)
-                {
-                    mode = Mode.Deleting;
-                }
-                break;
-            case ConsoleKey.Backspace:
-                if (filter.Length > 0)
-                {
-                    filter = filter[..^1];
-                    selectedIdx = 0;
-                }
-                break;
-            case ConsoleKey.Home:
-                selectedIdx = 0;
-                break;
-            case ConsoleKey.End:
-                selectedIdx = Math.Max(0, filtered.Count - 1);
-                break;
-            case ConsoleKey.PageUp:
-                selectedIdx = Math.Max(0, selectedIdx - visibleItems);
-                break;
-            case ConsoleKey.PageDown:
-                selectedIdx = Math.Min(filtered.Count - 1, selectedIdx + visibleItems);
-                break;
-            default:
-                if (key.KeyChar >= ' ' && key.KeyChar <= '~')
-                {
-                    filter += key.KeyChar;
-                    selectedIdx = 0;
-                }
-                break;
-        }
+        b.GradientBg = true;
+        b.GradientBgStart = grad.start;
+        b.GradientBgEnd = grad.end;
     }
 
-    private static void HandleRenamingKey(ConsoleKeyInfo key, ref Mode mode, ref string renameBuffer,
-        ref int renameCursorPos, List<SessionInfo> filtered, int selectedIdx)
+    // ── 工具（纯逻辑，AOT 安全）──
+
+    /// <summary>格式化一行会话（▶ 选中 / ✓ 当前 / 时间 / 模型），按显示宽度截断。</summary>
+    private static string FormatSessionRow(SessionInfo s, bool isSel, bool isCur, int width)
     {
-        switch (key.Key)
-        {
-            case ConsoleKey.Escape:
-                mode = Mode.Normal;
-                break;
-            case ConsoleKey.Enter:
-                if (!string.IsNullOrWhiteSpace(renameBuffer) && filtered.Count > 0
-                    && selectedIdx < filtered.Count)
-                {
-                    var oldId = filtered[selectedIdx].Id;
-                    if (renameBuffer != oldId)
-                    {
-                        SessionManager.RenameSession(oldId, renameBuffer);
-                    }
-                }
-                mode = Mode.Normal;
-                break;
-            case ConsoleKey.LeftArrow:
-                if (renameCursorPos > 0) renameCursorPos--;
-                break;
-            case ConsoleKey.RightArrow:
-                if (renameCursorPos < renameBuffer.Length) renameCursorPos++;
-                break;
-            case ConsoleKey.Home:
-                renameCursorPos = 0;
-                break;
-            case ConsoleKey.End:
-                renameCursorPos = renameBuffer.Length;
-                break;
-            case ConsoleKey.Backspace:
-                if (renameCursorPos > 0)
-                {
-                    renameBuffer = renameBuffer[..(renameCursorPos - 1)] + renameBuffer[renameCursorPos..];
-                    renameCursorPos--;
-                }
-                break;
-            case ConsoleKey.Delete:
-                if (renameCursorPos < renameBuffer.Length)
-                {
-                    renameBuffer = renameBuffer[..renameCursorPos] + renameBuffer[(renameCursorPos + 1)..];
-                }
-                break;
-            default:
-                if (key.KeyChar >= ' ' && key.KeyChar <= '~')
-                {
-                    renameBuffer = renameBuffer[..renameCursorPos] + key.KeyChar + renameBuffer[renameCursorPos..];
-                    renameCursorPos++;
-                }
-                break;
-        }
+        var prefix = isSel ? "▶ " : "  ";
+        var time = FormatRelativeTime(s.SavedAt);
+        var check = isCur ? " ✓" : "";
+        var line = $"{prefix}{s.Id}  {time}  [{s.Model}]{check}";
+        return TruncateByVW(line, Math.Max(1, width - 1)); // 预留 1 列滚动条
     }
-
-    private static Result? HandleDeletingKey(ConsoleKeyInfo key, ref Mode mode,
-        List<SessionInfo> filtered, int selectedIdx)
-    {
-        switch (key.Key)
-        {
-            case ConsoleKey.Y:
-                if (filtered.Count > 0 && selectedIdx < filtered.Count)
-                {
-                    var id = filtered[selectedIdx].Id;
-                    return Result.Delete(id);
-                }
-                break;
-            case ConsoleKey.N:
-            case ConsoleKey.Escape:
-                mode = Mode.Normal;
-                break;
-        }
-        return null;
-    }
-
-    // ── 工具 ──
-
-    private static int VW(string text) => TuiHelper.DisplayWidth(text);
 
     private static string TruncateByVW(string text, int maxVW)
     {

@@ -28,6 +28,9 @@ public class ThemeConfig
     public int SelFg { get; set; } = 30;
     public int SelBg { get; set; } = 46;
 
+    /// <summary>主题预设规范键（dark/ocean/...）。null=未记录（回退 .env ThemePreset）。</summary>
+    public string? PresetKey { get; set; }
+
     /// <summary>强制应用主题（覆盖所有窗口属性）</summary>
     public void ApplyTo(TuiWindow win)
     {
@@ -101,6 +104,11 @@ public class ThemeConfig
     internal static readonly Dictionary<string, ThemeConfig> Presets = new()
     {
         ["default"] = Default,
+        // TuiTheme 规范键 → 窗口级边框样式桥接（配色真源在 TuiTheme）
+        ["dark"] = Default,
+        ["light"] = Default,
+        ["hc"] = Default,
+        ["retro"] = Default,
         ["ocean"] = Ocean,
         ["forest"] = Forest,
         ["sunset"] = Sunset,
@@ -131,10 +139,10 @@ public class ThemeConfig
                 var node = Json.Parse(json);
                 if (node != null)
                 {
-                    // 检查是否引用预设
+                    // 引用预设：返回该预设的窗口级样式 + 记录预设键（配色真源在 TuiTheme，按 PresetKey 应用）
                     var preset = node["preset"]?.AsString();
                     if (preset != null && Presets.TryGetValue(preset, out var p))
-                        return p;
+                        return CloneWith(p, preset);
 
                     return new ThemeConfig
                     {
@@ -146,6 +154,7 @@ public class ThemeConfig
                         ItemFg = (int)(node["itemFg"]?.AsNumber() ?? 0),
                         SelFg = (int)(node["selFg"]?.AsNumber() ?? 30),
                         SelBg = (int)(node["selBg"]?.AsNumber() ?? 46),
+                        PresetKey = null, // 旧格式无 preset 字段 → 视为自定义窗口样式
                     };
                 }
             }
@@ -154,13 +163,29 @@ public class ThemeConfig
         return Default;
     }
 
+    /// <summary>复制预设窗口级样式并打上预设键（不污染共享静态预设实例）</summary>
+    private static ThemeConfig CloneWith(ThemeConfig src, string presetKey) => new()
+    {
+        BorderStyle = src.BorderStyle,
+        BorderColor = src.BorderColor,
+        WinBg = src.WinBg,
+        TitleFg = src.TitleFg,
+        ContentFg = src.ContentFg,
+        ItemFg = src.ItemFg,
+        SelFg = src.SelFg,
+        SelBg = src.SelBg,
+        PresetKey = presetKey,
+    };
+
     public void Save()
     {
         try
         {
             var dir = Path.GetDirectoryName(ThemePath)!;
             Directory.CreateDirectory(dir);
+            var presetJson = PresetKey == null ? "null" : $"\"{PresetKey}\"";
             var json = $@"{{
+  ""preset"": {presetJson},
   ""borderStyle"": ""{BorderStyle}"",
   ""borderColor"": {BorderColor},
   ""winBg"": {WinBg},
@@ -176,14 +201,18 @@ public class ThemeConfig
         catch { }
     }
 
-    /// <summary>应用预设并保存，同步主界面</summary>
+    /// <summary>应用预设并保存，同步主界面。
+    /// 统一配色真源为 TuiTheme（8 预设），ThemeConfig 只负责窗口级边框样式 + 持久化。</summary>
     public static void ApplyPreset(string name)
     {
-        if (Presets.TryGetValue(name, out var preset))
-        {
-            Instance = preset;
-            preset.Save();
-            try { (TuiManager.Instance.ActiveScreen as ChatScreen)?.SyncTheme(); } catch { }
-        }
+        // 1. 应用 TuiTheme 配色（控件/窗口/对话框全部生效）
+        TuiTheme.ApplyByName(name);
+
+        // 2. 窗口级边框样式桥接（按归一化键查 ThemeConfig 预设，未命中回退 Default）
+        var key = TuiTheme.NormalizeKey(name) ?? "dark";
+        var preset = Presets.TryGetValue(key, out var p) ? p : Default;
+        Instance = CloneWith(preset, key);
+        Instance.Save();
+        try { (TuiManager.Instance.ActiveScreen as ChatScreen)?.SyncTheme(); } catch { }
     }
 }

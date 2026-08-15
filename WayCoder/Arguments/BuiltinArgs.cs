@@ -239,6 +239,18 @@ public class EconomyArg : CliArg
     public EconomyArg() : base("economy", "-e", "--economy") { }
 }
 
+/// <summary>
+/// --edit &lt;文件路径&gt; —— 启动后直接进入终端编辑器打开指定文件。
+/// 等价于进入界面后执行 /edit 文件路径（Esc/Ctrl+Q 退出回到聊天界面）。
+/// </summary>
+public class EditArg : CliArg
+{
+    public override string Description => "直接进入编辑器打开文件（--edit <文件路径>）";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "文件路径";
+    public EditArg() : base("edit", "--edit") { }
+}
+
 public class UpdateArg : CliArg
 {
     public override string Description => "检查并自动升级到最新版本（优先 GitHub、回退 Gitee）";
@@ -506,6 +518,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new WatchArg());
         CliArgRegistry.Register(new TinyArg());
         CliArgRegistry.Register(new EconomyArg());
+        CliArgRegistry.Register(new EditArg());
         CliArgRegistry.Register(new UpdateArg());
         CliArgRegistry.Register(new JsonArg());
         CliArgRegistry.Register(new BatchArg());
