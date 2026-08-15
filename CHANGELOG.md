@@ -1,5 +1,22 @@
 # 更新日志
 
+## v0.62.1 (2026-08-16) — 老式 Office/WPS 提取器真实文件修复
+
+对着 WPS 自带真实模板文件端到端验证后，修复 `LegacyOffice` 三个提取器对真实文件的解析缺陷（此前单元测试夹具与解析器共享同一套错误假设，2795 项自测全绿但真实文件仍解析失败）。
+
+### 🐛 修复
+
+- **DOC FIB 布局 off-by-4**：`cslw` 偏移应为 `34 + csw*2`（原误为 34）、`fibRgLwOff` 应为 `36 + csw*2`（原误为 32 + csw*2）、漏读 `cbRgFcLcb` 2 字节，导致真实 `.doc` 报「无效 DOC：FIB 截断」。修复后 `secdoctemplate.doc`/`Austere.doc` 正确提取中文正文
+- **XLS 空白表格 dump 元数据**：BIFF8 空白表格（空 SST）此前退化到 UTF-16 扫描，把字体名/数字格式/表名当正文输出；现按 BOF 版本（≥0x0500）判定现代格式，无文本直接返回「无文本内容」
+- **XLS 加密检测**：新增 `FILEPASS`（0x002F）记录检测，密码保护文件返回「已加密」而非「无文本内容」
+- **PPT 分层嵌套解析**：PowerPoint Document 流是分层容器结构（容器 `recVer=0xF`），文本 atom 嵌在容器内部，此前平铺扫描跳过容器内所有子记录导致「PPT 无文本内容」；现递归下降进容器，`newfile.dps` 正确提取母版文本
+- **PPT 加密检测**：按 `Current User` 流 `CurrentUserAtom.headerToken` 高 16 位（0xF3D1）判定标准加密
+
+### 🧪 自测
+
+- 新增 6 项测试：XLS 空白表格不 dump 元数据、XLS 加密文件（FILEPASS）、PPT 嵌套容器文本、PPT 加密分支、端到端 CFB 加密检测（headerToken）、端到端未加密正常提取
+- 总计 **2801** 项自测全部通过（0 失败）
+
 ## v0.62.0 (2026-08-16) — 老式二进制 Office / WPS 文档读取
 
 补齐 `.doc/.xls/.ppt` 老式二进制 Office 文档与 WPS 老后缀 `.wps/.et/.dps` 的文本读取。这些格式本质都是 CFB（Compound File Binary / OLE2）复合文档，此前 `read_file` 只能读 docx/xlsx/pptx，遇到二进制 Office 会报「无法识别」。全程零第三方依赖、零反射、跨平台，延续「手搓」原则。
