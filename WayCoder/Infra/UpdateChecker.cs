@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 
 namespace WayCoder;
 
@@ -17,6 +18,8 @@ public sealed class ReleaseInfo
     public string AssetUrl { get; set; } = "";
     /// <summary>资产文件名</summary>
     public string AssetName { get; set; } = "";
+    /// <summary>SHA256 校验文件下载 URL（release 里若附带 SHA256SUMS，否则为空）</summary>
+    public string ChecksumUrl { get; set; } = "";
     /// <summary>来源（GitHub / Gitee）</summary>
     public string Source { get; set; } = "";
 }
@@ -136,6 +139,69 @@ public static class UpdateChecker
         return null;
     }
 
+    /// <summary>release 中可能附带的校验文件名（发布流程产物 SHA256SUMS.txt，兼容常见别名）。</summary>
+    private static readonly string[] ChecksumNames = ["SHA256SUMS.txt", "SHA256SUMS", "checksums.txt", "sha256sums.txt"];
+
+    /// <summary>从 assets JSON 数组里挑出 SHA256 校验文件的下载 URL，无则返回 null。</summary>
+    public static string? FindChecksumUrl(JNode? assets)
+    {
+        if (assets == null) return null;
+        foreach (var a in assets.Items)
+        {
+            var name = a["name"]?.AsString();
+            var url = a["browser_download_url"]?.AsString();
+            if (name == null || url == null) continue;
+            foreach (var n in ChecksumNames)
+                if (name.Equals(n, StringComparison.OrdinalIgnoreCase))
+                    return url;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 校验下载 URL 是否受信：必须 HTTPS 且 host 属于官方发布源。
+    /// 防止 release JSON 被篡改后注入指向攻击者服务器的恶意下载链接（供应链攻击）。
+    /// </summary>
+    public static bool IsTrustedDownloadUrl(string? url)
+    {
+        if (string.IsNullOrEmpty(url)) return false;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)) return false;
+        var host = uri.Host.ToLowerInvariant();
+        return host == "github.com"
+            || host == "objects.githubusercontent.com"
+            || host == "gitee.com";
+    }
+
+    /// <summary>
+    /// 解析 SHA256SUMS 内容（GNU sha256sum 格式：`&lt;64位hex&gt;  &lt;文件名&gt;`，二进制模式文件名前缀 `*`），
+    /// 返回 文件名→小写哈希 的字典（大小写不敏感键）。
+    /// </summary>
+    public static Dictionary<string, string> ParseChecksums(string content)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var raw in content.Replace("\r\n", "\n").Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0 || line.StartsWith('#')) continue;
+            var idx = line.IndexOfAny([' ', '\t']);
+            if (idx < 0) continue;
+            var hash = line[..idx].Trim().ToLowerInvariant();
+            var name = line[(idx + 1)..].Trim().TrimStart('*');
+            if (hash.Length != 64 || name.Length == 0) continue;
+            if (!map.ContainsKey(name)) map[name] = hash;
+        }
+        return map;
+    }
+
+    /// <summary>计算文件 SHA256 并返回小写十六进制字符串（AOT 安全的静态 HashData）。</summary>
+    public static string ComputeSha256Hex(string path)
+    {
+        using var stream = File.OpenRead(path);
+        var hash = SHA256.HashData(stream);
+        return Convert.ToHexStringLower(hash);
+    }
+
     // ════════════════════════════════════════════════════════════════
     // 网络 —— 拉取最新版本
     // ════════════════════════════════════════════════════════════════
@@ -165,6 +231,7 @@ public static class UpdateChecker
             var body = node["body"]?.AsString() ?? "";
             var assetUrl = FindAssetUrl(node["assets"], DetectCurrentRid());
             if (assetUrl == null) return null; // 无匹配平台资产
+            if (!IsTrustedDownloadUrl(assetUrl)) return null; // 资产 URL 非受信来源（防 release 注入恶意链接）
 
             return new ReleaseInfo
             {
@@ -172,6 +239,7 @@ public static class UpdateChecker
                 Body = body,
                 AssetUrl = assetUrl,
                 AssetName = Path.GetFileName(assetUrl),
+                ChecksumUrl = FindChecksumUrl(node["assets"]) ?? "",
                 Source = "GitHub",
             };
         }
@@ -197,6 +265,7 @@ public static class UpdateChecker
             var body = node["body"]?.AsString() ?? "";
             var assetUrl = FindAssetUrl(node["assets"], DetectCurrentRid());
             if (assetUrl == null) return null;
+            if (!IsTrustedDownloadUrl(assetUrl)) return null; // 资产 URL 非受信来源（防 release 注入恶意链接）
 
             return new ReleaseInfo
             {
@@ -204,6 +273,7 @@ public static class UpdateChecker
                 Body = body,
                 AssetUrl = assetUrl,
                 AssetName = Path.GetFileName(assetUrl),
+                ChecksumUrl = FindChecksumUrl(node["assets"]) ?? "",
                 Source = "Gitee",
             };
         }
@@ -254,18 +324,23 @@ public static class UpdateChecker
             if (Directory.Exists(tmpDir)) Directory.Delete(tmpDir, true);
             Directory.CreateDirectory(tmpDir);
 
-            // 1. 下载
+            // 1. 下载归档（下载 URL 已在 Fetch 阶段通过 IsTrustedDownloadUrl 校验）
             var archive = Path.Combine(tmpDir, latest.AssetName);
-            using (var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) })
-            {
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder");
-                using var resp = await client.GetAsync(latest.AssetUrl, HttpCompletionOption.ResponseHeadersRead);
-                resp.EnsureSuccessStatusCode();
-                using var fs = File.Create(archive);
-                await (await resp.Content.ReadAsStreamAsync()).CopyToAsync(fs);
-            }
+            await DownloadToFileAsync(latest.AssetUrl, archive);
 
-            // 2. 解压出可执行文件
+            // 2. 供应链校验：release 附带 SHA256SUMS 时，下载并比对归档哈希（不匹配则拒绝替换）
+            string? checksumContent = null;
+            if (!string.IsNullOrEmpty(latest.ChecksumUrl) && IsTrustedDownloadUrl(latest.ChecksumUrl))
+            {
+                var checksumFile = Path.Combine(tmpDir, "SHA256SUMS");
+                await DownloadToFileAsync(latest.ChecksumUrl, checksumFile);
+                checksumContent = File.ReadAllText(checksumFile);
+            }
+            var verifyError = VerifyArchive(archive, checksumContent, latest.AssetName);
+            if (verifyError != null)
+                return verifyError;
+
+            // 3. 解压出可执行文件
             var exeName = OperatingSystem.IsWindows() ? "waycoder.exe" : "waycoder";
             if (latest.AssetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                 ZipFile.ExtractToDirectory(archive, tmpDir);
@@ -276,7 +351,7 @@ public static class UpdateChecker
             if (newExe == null)
                 return "⚠ 压缩包中未找到可执行文件（产物结构异常）";
 
-            // 3. 覆盖当前二进制
+            // 4. 覆盖当前二进制（覆盖前备份旧版本，失败可回滚）
             return ApplyReplacement(newExe, latest.TagName);
         }
         catch (Exception ex)
@@ -287,6 +362,33 @@ public static class UpdateChecker
         {
             try { if (Directory.Exists(tmpDir)) Directory.Delete(tmpDir, true); } catch { }
         }
+    }
+
+    /// <summary>下载 URL 到本地文件（流式写入，5 分钟超时）。</summary>
+    private static async Task DownloadToFileAsync(string url, string destPath)
+    {
+        using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder");
+        using var resp = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+        resp.EnsureSuccessStatusCode();
+        using var fs = File.Create(destPath);
+        await (await resp.Content.ReadAsStreamAsync()).CopyToAsync(fs);
+    }
+
+    /// <summary>
+    /// 校验下载归档的 SHA256 是否匹配 checksums 文件。返回 null 表示通过（或无校验文件），非 null 为失败文案。
+    /// 无校验文件时向后兼容放行（旧 release 未附带 SHA256SUMS）；有但缺条目/哈希不符时拒绝替换。
+    /// </summary>
+    private static string? VerifyArchive(string archivePath, string? checksumContent, string assetName)
+    {
+        if (string.IsNullOrEmpty(checksumContent)) return null; // 无校验文件，跳过（向后兼容）
+        var map = ParseChecksums(checksumContent);
+        if (!map.TryGetValue(assetName, out var expected))
+            return $"⚠ 校验文件中未找到 {assetName} 的哈希记录，已中止升级以策安全";
+        var actual = ComputeSha256Hex(archivePath);
+        if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
+            return $"⚠ SHA256 校验失败：{assetName} 哈希不匹配（下载内容可能被篡改），已中止升级";
+        return null;
     }
 
     /// <summary>用新二进制覆盖当前可执行文件（平台相关）。</summary>
@@ -305,9 +407,12 @@ public static class UpdateChecker
             var newPath = Path.Combine(dir, exeName + ".new");
             File.Copy(newExe, newPath, overwrite: true);
 
+            var backupPath = target + ".bak";
             var batPath = Path.Combine(dir, "waycoder.upgrade.bat");
             var bat =
                 "@echo off\r\n" +
+                // 回滚备份：替换前把旧 exe 备份为 waycoder.exe.bak，升级失败可手动恢复
+                $"copy /y \"{target}\" \"{backupPath}\" >nul 2>&1\r\n" +
                 ":retry\r\n" +
                 "timeout /t 1 /nobreak >nul\r\n" +
                 $"move /y \"{newPath}\" \"{target}\" >nul 2>&1\r\n" +
@@ -328,10 +433,13 @@ public static class UpdateChecker
             }
             catch { /* 脚本启动失败时用户可手动运行 */ }
 
-            return $"✅ 已下载新版本 {newVersion}。退出 WayCoder 后自动完成替换并重启。";
+            return $"✅ 已下载新版本 {newVersion}。退出 WayCoder 后自动完成替换并重启（旧版本已备份为 .bak）。";
         }
 
         // Unix：rename 原子覆盖运行中二进制（旧 inode 继续服务当前进程），随后提示重启
+        // 回滚备份：覆盖前把当前二进制备份为 waycoder.bak，升级失败可手动恢复
+        try { File.Copy(target, target + ".bak", overwrite: true); } catch { /* 备份失败不阻塞升级 */ }
+
         var tmpNew = target + ".new";
         File.Copy(newExe, tmpNew, overwrite: true);
         try
@@ -344,7 +452,7 @@ public static class UpdateChecker
         catch { /* 某些文件系统不支持 chmod，忽略 */ }
         File.Move(tmpNew, target, overwrite: true);
 
-        return $"✅ 已升级到 {newVersion}。请退出后重新运行 WayCoder（Ctrl+Q 退出）。";
+        return $"✅ 已升级到 {newVersion}。请退出后重新运行 WayCoder（Ctrl+Q 退出），旧版本已备份为 .bak。";
     }
 
     // ════════════════════════════════════════════════════════════════

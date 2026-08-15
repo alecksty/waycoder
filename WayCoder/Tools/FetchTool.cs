@@ -45,7 +45,7 @@ public class FetchTool : ITool
 
     private static HttpClient _client => _lazyClient.Value;
     private static readonly Lazy<HttpClient> _lazyClient = new(() => new HttpClient(
-        new HttpClientHandler { AllowAutoRedirect = true, MaxAutomaticRedirections = 5 })
+        new HttpClientHandler { AllowAutoRedirect = false })  // 手动跟随重定向，每跳做 SSRF 校验
     { Timeout = TimeSpan.FromSeconds(Config.Instance.FetchTimeoutSec) });
 
     /// <summary>需移除的噪音 HTML 元素（对标 crush）</summary>
@@ -86,28 +86,7 @@ public class FetchTool : ITool
             // 网络请求带指数退避重试（仅 HttpRequestException 网络故障，超时不重试）
             // 每次重试重新构造 HttpRequestMessage，避免 Content 被消费后复用
             var response = await RetryPolicy.RetryAsync(() =>
-            {
-                var req = new HttpRequestMessage(new HttpMethod(methodUpper), url);
-
-                // 请求头（Content-Type 单独走请求体 mediaType，不能加进 request.Headers）
-                string? bodyContentType = null;
-                if (headers != null)
-                {
-                    foreach (var (k, v) in headers)
-                    {
-                        if (k.Equals("Content-Type", StringComparison.OrdinalIgnoreCase)) { bodyContentType = v; continue; }
-                        try { req.Headers.TryAddWithoutValidation(k, v); } catch { /* 跳过无效头 */ }
-                    }
-                }
-
-                if (!string.IsNullOrEmpty(body))
-                {
-                    req.Content = new StringContent(body, Encoding.UTF8);
-                    req.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(bodyContentType ?? "application/json");
-                }
-
-                return _client.SendAsync(req);
-            }, new RetryConfig
+                SendWithRedirectAsync(methodUpper, url, headers, body), new RetryConfig
             {
                 MaxRetries = 2,
                 BaseDelayMs = 500,
@@ -152,6 +131,10 @@ public class FetchTool : ITool
 
             return string.IsNullOrWhiteSpace(text) ? "（页面无文本内容）" : text.Trim();
         }
+        catch (SsgfBlockedException ex)
+        {
+            return $"错误：{ex.Message}";
+        }
         catch (HttpRequestException ex)
         {
             return $"请求失败：{ex.GetType().Name}: {ex.Message}";
@@ -165,6 +148,62 @@ public class FetchTool : ITool
         {
             return $"抓取错误：{ex.GetType().Name}: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// 发送请求并手动跟随重定向，每跳做 SSRF 校验（防重定向到内网/云元数据）。
+    /// SSRF 拦截时抛 <see cref="SsgfBlockedException"/>（不进入网络重试）。
+    /// 重定向后统一改用 GET（丢弃请求体），fetch 场景重定向目标多为网页。
+    /// </summary>
+    private static async Task<HttpResponseMessage> SendWithRedirectAsync(
+        string method, string url, Dictionary<string, string>? headers, string? body)
+    {
+        var currentUrl = url;
+        var currentMethod = method;
+
+        for (var redirect = 0; redirect < 5; redirect++)
+        {
+            // SSRF 校验：字面量 IP / 特殊主机名 + DNS 解析结果
+            var (safe, reason) = SsgfGuard.CheckUrl(currentUrl);
+            if (!safe) throw new SsgfBlockedException(reason!);
+            var dns = SsgfGuard.CheckDns(new Uri(currentUrl).Host);
+            if (!dns.safe) throw new SsgfBlockedException(dns.reason!);
+
+            var req = new HttpRequestMessage(new HttpMethod(currentMethod), currentUrl);
+
+            // 请求头（Content-Type 单独走请求体 mediaType，不能加进 request.Headers）
+            string? bodyContentType = null;
+            if (headers != null)
+            {
+                foreach (var (k, v) in headers)
+                {
+                    if (k.Equals("Content-Type", StringComparison.OrdinalIgnoreCase)) { bodyContentType = v; continue; }
+                    try { req.Headers.TryAddWithoutValidation(k, v); } catch { /* 跳过无效头 */ }
+                }
+            }
+
+            // 请求体（仅首次请求；重定向后改 GET 丢弃 body）
+            if (!string.IsNullOrEmpty(body) && redirect == 0)
+            {
+                req.Content = new StringContent(body, Encoding.UTF8);
+                req.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(bodyContentType ?? "application/json");
+            }
+
+            var response = await _client.SendAsync(req);
+
+            if (SsgfGuard.IsRedirect((int)response.StatusCode) && response.Headers.Location != null)
+            {
+                var nextUri = new Uri(new Uri(currentUrl), response.Headers.Location);
+                response.Dispose();
+                currentUrl = nextUri.AbsoluteUri;
+                currentMethod = "GET";
+                continue;
+            }
+
+            return response;
+        }
+
+        throw new HttpRequestException("重定向次数过多");
     }
 
     // ========================================================================
