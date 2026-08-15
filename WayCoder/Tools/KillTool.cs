@@ -54,8 +54,15 @@ public class KillTool : ITool
         if (!hasPid && !hasName)
             return "错误：必须指定 pid 或 name 参数。";
 
+        if (hasName && string.IsNullOrWhiteSpace(name))
+            return "错误：进程名不能为空。";
+
         if (!string.IsNullOrEmpty(name) && ProtectedNames.Contains(name))
             return $"⚠ 已阻止：'{name}' 是系统关键进程，不可终止。";
+
+        // 命令注入防护：进程名白名单（仅字母数字/点/下划线/连字符/空格），杜绝 shell 元字符注入
+        if (hasName && !IsSafeProcessName(name))
+            return "错误：进程名包含非法字符（仅允许字母、数字、点、下划线、连字符、空格）。";
 
         try
         {
@@ -81,7 +88,8 @@ public class KillTool : ITool
                 else
                 {
                     var sig = force ? "-9 " : "";
-                    args = $"-c \"pkill {sig}{EscapeBash(name)} 2>&1\"";
+                    // name 已过 IsSafeProcessName 白名单（不含单引号），单引号包裹可安全保留空格等字面量
+                    args = $"-c \"pkill {sig}'{name}' 2>&1\"";
                 }
             }
 
@@ -129,5 +137,18 @@ public class KillTool : ITool
         }
     }
 
-    private static string EscapeBash(string s) => s.Replace("'", "'\\''");
+    /// <summary>
+    /// 进程名安全白名单：仅允许字母、数字、点、下划线、连字符、空格。
+    /// 用于 kill/ps 等按进程名拼接 shell 命令的场景，从根上杜绝命令注入（拒绝 `;` `|` `$` 反引号等元字符）。
+    /// </summary>
+    public static bool IsSafeProcessName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        foreach (var c in name)
+        {
+            if (!(char.IsLetterOrDigit(c) || c == '.' || c == '_' || c == '-' || c == ' '))
+                return false;
+        }
+        return true;
+    }
 }

@@ -79,8 +79,12 @@ public static partial class SelfTest
         TestMultiSlotParallel(Check);
         // 实例级工作模式测试（Agent.WorkMode 与全局解耦 + 回调）
         TestWorkModePerAgent(Check);
-        // 自动升级测试（版本比较 + RID 探测 + 资产匹配纯逻辑）
+        // 自动升级测试（版本比较 + RID 探测 + 资产匹配纯逻辑 + 供应链校验）
         TestUpdateChecker(Check);
+        // 进程工具命令注入防护测试（kill/ps 进程名白名单 + 拦截）
+        TestProcessTools(Check);
+        // SSRF 防护测试（内网/保留 IP + 特殊主机名拦截 + 重定向状态码）
+        TestSsgfGuard(Check);
         // 批量任务引擎测试（多仓库并行 + worktree 隔离 + 聚合报告）
         TestBatchEngine(Check);
         // 编译期插件系统测试（IPlugin + PluginRegistry + 工具/命令集成）

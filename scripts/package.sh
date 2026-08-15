@@ -97,5 +97,12 @@ done
 echo ""
 echo "═══════════════════════════════════════════════════"
 echo "  打包完成，产物:"
-ls -lh "$DIST"/waycoder-* 2>/dev/null || ls -lh "$DIST"
+# ── 生成 SHA256SUMS.txt（供自动升级校验供应链完整性，防篡改）──
+if command -v sha256sum >/dev/null 2>&1; then
+  ( cd "$DIST" && sha256sum waycoder-* ) > "$DIST/SHA256SUMS.txt"
+else
+  ( cd "$DIST" && shasum -a 256 waycoder-* ) > "$DIST/SHA256SUMS.txt"
+fi
+echo "  ✅ $DIST/SHA256SUMS.txt"
+ls -lh "$DIST"/waycoder-* "$DIST"/SHA256SUMS.txt 2>/dev/null || ls -lh "$DIST"
 echo "═══════════════════════════════════════════════════"

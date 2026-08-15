@@ -32,6 +32,10 @@ public class PsTool : ITool
 
     private static async Task<string> Execute(string name, int top)
     {
+        // 命令注入防护：进程名白名单（复用 KillTool 的校验逻辑），杜绝 shell 元字符注入
+        if (!string.IsNullOrEmpty(name) && !KillTool.IsSafeProcessName(name))
+            return "错误：进程名包含非法字符（仅允许字母、数字、点、下划线、连字符、空格）。";
+
         try
         {
             string fileName, args;
@@ -49,7 +53,7 @@ public class PsTool : ITool
                 fileName = "/bin/bash";
                 var cmd = string.IsNullOrEmpty(name)
                     ? $"ps aux --sort=-%mem | head -n {top + 1}"
-                    : $"ps aux | grep -i {EscapeBash(name)} | head -n {top}";
+                    : $"ps aux | grep -iF '{name}' | head -n {top}";
                 args = $"-c \"{cmd}\"";
             }
 
@@ -94,6 +98,4 @@ public class PsTool : ITool
             return $"ps 错误：{ex.GetType().Name}: {ex.Message}";
         }
     }
-
-    private static string EscapeBash(string s) => s.Replace("'", "'\\''");
 }

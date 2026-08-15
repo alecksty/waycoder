@@ -59,6 +59,11 @@ public sealed class WebChatServer
 
     private HttpResponse? HandleRequest(HttpRequest req)
     {
+        // CSRF 防护：状态变更请求（非 GET）必须来自本服务来源。
+        // 浏览器跨源 fetch 必带 Origin（攻击者域名），curl/SSE/同源导航不带 Origin 放行。
+        if (req.Method != "GET" && !IsTrustedOrigin(req.Header("Origin"), Port))
+            return new HttpResponse { Status = 403, Reason = "Forbidden", Body = Encoding.UTF8.GetBytes("403 Forbidden") };
+
         // 页面
         if (req.Method == "GET" && req.Path == "/")
             return HttpResponse.Html(Html);
@@ -478,6 +483,14 @@ public sealed class WebChatServer
     // ═══════════════════════════════════════════════════════════
 
     private static string JsonStr(string s) => JNode.Str(s).ToJson();
+
+    /// <summary>校验 Origin 是否为本服务合法来源（CSRF 防护）。纯逻辑便于自测。</summary>
+    public static bool IsTrustedOrigin(string? origin, int port)
+    {
+        if (string.IsNullOrEmpty(origin)) return true; // 非浏览器客户端（curl/SSE/同源导航）放行
+        return origin.Equals($"http://127.0.0.1:{port}", StringComparison.OrdinalIgnoreCase)
+            || origin.Equals($"http://localhost:{port}", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static string JsonTool(string name, string brief)
         => JNode.Object().Set("name", name).Set("args", brief).ToJson();
