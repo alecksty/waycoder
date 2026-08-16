@@ -172,19 +172,17 @@ public static class SessionManager
     /// </summary>
     public static List<SessionInfo> ListSessions(int limit = 20, int offset = 0, int slot = -1)
     {
-        var sessions = new List<SessionInfo>();
-        var skipped = 0;
-
         var dirs = slot >= 0
             ? new[] { SessionsDirFor(slot) }
             : new[] { SessionsDir, LegacySessionsDir };
 
-        // 扫描目标目录
+        // 先收集所有候选（含 saved_at），统一按 saved_at 降序（最新在前），
+        // 再用 seen 集合去重（覆盖 offset 跳过的条目，避免跨目录同 id 重复）。
+        var candidates = new List<(string Id, string Model, string SavedAt, string Preview, int Count)>();
         foreach (var dir in dirs)
         {
             if (!Directory.Exists(dir)) continue;
-            foreach (var f in Directory.GetFiles(dir, "*.json")
-                         .OrderByDescending(f => f))
+            foreach (var f in Directory.GetFiles(dir, "*.json"))
             {
                 try
                 {
@@ -192,8 +190,6 @@ public static class SessionManager
                     var data = Json.Parse(json);
                     if (data == null) continue;
                     var id = data["id"]?.AsString() ?? Path.GetFileNameWithoutExtension(f);
-                    // 去重
-                    if (sessions.Any(s => s.Id == id)) continue;
 
                     var preview = "";
                     int msgCount = 0;
@@ -210,14 +206,7 @@ public static class SessionManager
                         }
                     }
 
-                    // 分页：跳过 offset 条再开始收集
-                    if (skipped < offset)
-                    {
-                        skipped++;
-                        continue;
-                    }
-
-                    sessions.Add(new SessionInfo(
+                    candidates.Add((
                         id,
                         data["model"]?.AsString() ?? "?",
                         data["saved_at"]?.AsString() ?? "?",
@@ -228,13 +217,20 @@ public static class SessionManager
                 {
                     continue;
                 }
-
-                if (sessions.Count >= limit) break;
             }
-            if (sessions.Count >= limit) break;
         }
 
-        return sessions;
+        // 最新在前（saved_at 为 yyyy-MM-dd HH:mm:ss，字符串降序即时间降序；缺失值排最后），
+        // 去重后统一分页。
+        var result = new List<SessionInfo>();
+        var seen = new HashSet<string>();
+        foreach (var c in candidates.OrderByDescending(c => c.SavedAt == "?" ? "" : c.SavedAt))
+        {
+            if (!seen.Add(c.Id)) continue;
+            result.Add(new SessionInfo(c.Id, c.Model, c.SavedAt, c.Preview, c.Count));
+        }
+
+        return result.Skip(offset).Take(limit).ToList();
     }
 
     private static string NormalizeSessionId(string? sessionId)

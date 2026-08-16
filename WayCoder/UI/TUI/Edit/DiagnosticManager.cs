@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using WayCoder.Tools;
 
@@ -19,8 +20,8 @@ public record Diagnostic(int Line, int Column, Severity Severity, string Message
 /// </summary>
 public static class DiagnosticManager
 {
-    /// <summary>每个文件的诊断结果缓存</summary>
-    private static readonly Dictionary<string, List<Diagnostic>> _diagnostics = [];
+    /// <summary>每个文件的诊断结果缓存（后台 lint 写、UI 线程读，需线程安全）</summary>
+    private static readonly ConcurrentDictionary<string, List<Diagnostic>> _diagnostics = new();
 
     /// <summary>是否启用自动 lint（由 Config.EditorLint 控制）</summary>
     public static bool Enabled { get; set; } = true;
@@ -32,7 +33,7 @@ public static class DiagnosticManager
     {
         if (!Enabled)
         {
-            _diagnostics.Remove(filePath);
+            _diagnostics.TryRemove(filePath, out _);
             return [];
         }
 
@@ -41,7 +42,7 @@ public static class DiagnosticManager
             var lang = LintTool.DetectLanguage(filePath);
             if (lang == null)
             {
-                _diagnostics.Remove(filePath);
+                _diagnostics.TryRemove(filePath, out _);
                 return [];
             }
 
@@ -58,7 +59,7 @@ public static class DiagnosticManager
         }
         catch
         {
-            _diagnostics.Remove(filePath);
+            _diagnostics.TryRemove(filePath, out _);
             return [];
         }
     }
@@ -147,7 +148,7 @@ public static class DiagnosticManager
     /// </summary>
     public static void Clear(string filePath)
     {
-        _diagnostics.Remove(filePath);
+        _diagnostics.TryRemove(filePath, out _);
     }
 
     /// <summary>
@@ -169,8 +170,9 @@ public static class DiagnosticManager
     {
         var diagnostics = new List<Diagnostic>();
 
-        // 只处理发现问题的情况（跳过通过/无 linter 的情况）
-        if (rawOutput.StartsWith("✅") || rawOutput.StartsWith("⚠") || rawOutput.Contains("（无可用 linter）"))
+        // 跳过"无法运行 linter"的情况；"✅ 检查通过"可能附带 warning（exit 0 时 stderr
+        // 里的 warning 会被拼进 combined），须继续解析而不是整体跳过。
+        if (rawOutput.StartsWith("⚠") || rawOutput.Contains("（无可用 linter）"))
             return diagnostics;
 
         var fileName = Path.GetFileName(filePath);
@@ -316,13 +318,15 @@ public static class DiagnosticManager
 
     private static void ParseRustCargo(string output, string fileName, List<Diagnostic> diagnostics)
     {
-        var errMatches = RustErrRx.Matches(output);
-        var locMatches = RustLocRx.Matches(output);
+        var errMatches = RustErrRx.Matches(output).Cast<Match>().ToList();
+        var locMatches = RustLocRx.Matches(output).Cast<Match>().ToList();
 
-        for (int i = 0; i < Math.Min(errMatches.Count, locMatches.Count); i++)
+        foreach (var errM in errMatches)
         {
-            var errM = errMatches[i];
-            var locM = locMatches[i];
+            // 每个 error/warning 行后紧跟其主位置的 `-->` 行，但 note/help 注解也带 `-->`，
+            // 按索引一一配对会错位；这里取该 error 之后最近的 `-->` 作为其位置。
+            var locM = locMatches.FirstOrDefault(l => l.Index > errM.Index);
+            if (locM == null) continue;
 
             var sev = errM.Groups[1].Value == "error" ? Severity.Error : Severity.Warning;
             var code = errM.Groups[2].Value;
@@ -403,16 +407,16 @@ public static class DiagnosticManager
     // 格式: Parse error: ... in file on line N
     //       error: ... on line N
     private static readonly Regex PhpRx = new(
-        @"(?:Parse )?(?:error|warning):\s*(.+?)\s*(?:in\s+.+?\s+)?on\s+line\s+(\d+)",
+        @"(?:Parse )?(error|warning):\s*(.+?)\s*(?:in\s+.+?\s+)?on\s+line\s+(\d+)",
         RegexOptions.IgnoreCase | RegexOptions.Multiline | RegexOptions.Compiled);
 
     private static void ParsePhp(string output, List<Diagnostic> diagnostics)
     {
         foreach (Match m in PhpRx.Matches(output))
         {
-            var line = int.TryParse(m.Groups[2].Value, out var l) ? l : 0;
-            var msg = m.Groups[1].Value.Trim();
-            var sev = output.Contains("warning") ? Severity.Warning : Severity.Error;
+            var line = int.TryParse(m.Groups[3].Value, out var l) ? l : 0;
+            var msg = m.Groups[2].Value.Trim();
+            var sev = m.Groups[1].Value.ToLowerInvariant() == "warning" ? Severity.Warning : Severity.Error;
 
             diagnostics.Add(new Diagnostic(line, 0, sev, msg, null));
         }

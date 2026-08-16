@@ -458,6 +458,31 @@ public static partial class SelfTest
         }
         finally { try { Directory.Delete(lintDir, true); } catch { } }
 
+        // ---- 诊断解析（warning 保留 / PHP 严重级 / Rust 配对）----
+        Section("[诊断解析]");
+        var phpDiags = DiagnosticManager.ParseLintOutput("Parse error: syntax error in /x/a.php on line 5", "php", "a.php");
+        Check("PHP parse error 判定为 Error", phpDiags.Count == 1 && phpDiags[0].Severity == Severity.Error && phpDiags[0].Line == 5);
+        var phpWarn = DiagnosticManager.ParseLintOutput("PHP Warning: use of undefined constant in /x/a.php on line 7", "php", "a.php");
+        Check("PHP warning 判定为 Warning", phpWarn.Count == 1 && phpWarn[0].Severity == Severity.Warning && phpWarn[0].Line == 7);
+
+        // Rust：note 注解带 --> 不应让后续错误错位
+        var rustOut = "error[E0382]: borrow of moved value\n  --> src/main.rs:10:5\n  |\n  = note: move occurs here\n  --> src/main.rs:12:3\n\nerror[E0381]: use of possibly-uninitialized\n  --> src/main.rs:20:9\n";
+        var rustDiags = DiagnosticManager.ParseLintOutput(rustOut, "rs", "main.rs");
+        Check("Rust 多个错误不因 note --> 错位", rustDiags.Count == 2 && rustDiags[1].Line == 20 && rustDiags[1].Column == 9);
+
+        // exit 0 时"✅ 检查通过"仍要解析 stderr 里的 warning
+        var warnOut = "✅ cs: 检查通过\nProgram.cs(5,10): warning CS0219: 变量已赋值但未使用\n";
+        var csDiags = DiagnosticManager.ParseLintOutput(warnOut, "cs", "Program.cs");
+        Check("检查通过仍解析 warning", csDiags.Count == 1 && csDiags[0].Severity == Severity.Warning && csDiags[0].Line == 5);
+
+        // ---- ReadFileTool 尾随换行 off-by-one ----
+        Section("[ReadFile 尾随换行]");
+        var rfFile = Path.GetTempFileName();
+        File.WriteAllText(rfFile, "line1\nline2\nline3\n");  // 3 行内容 + 尾随换行
+        var rfResult = new ReadFileTool().ExecuteAsync(new() { ["file_path"] = rfFile }).Result;
+        Check("ReadFile 尾随换行不虚增行数", rfResult.Contains("3|line3") && !rfResult.Contains("\n4|"));
+        File.Delete(rfFile);
+
         Console.WriteLine();
 
         // ---- Web 搜索 ----
@@ -785,6 +810,8 @@ public static partial class SelfTest
         Check("字符串=绿色", strTokens.Any(t => t.Text == "\"hello\"" && t.Color == Syntax.Green));
         var cmtTokens = csSyn.Tokenize("// comment");
         Check("注释=灰色", cmtTokens.Any(t => t.Text == "// comment" && t.Color == Syntax.Dim));
+        var escTokens = csSyn.Tokenize("var s = \"a\\\"b\";");
+        Check("转义引号不截断字符串", escTokens.Any(t => t.Text == "\"a\\\"b\"" && t.Color == Syntax.Green));
 
         // 其他语言
         Check("Python 语法", Syntax.ForFile("test.py").Name == "Python");

@@ -85,7 +85,7 @@ public class GlobTool : ITool
 
             if (Directory.Exists(searchRoot))
             {
-                var allFiles = Directory.GetFiles(searchRoot, "*.*", SearchOption.AllDirectories);
+                var allFiles = Directory.GetFiles(searchRoot, "*", SearchOption.AllDirectories);
                 foreach (var file in allFiles)
                 {
                     var relative = Path.GetRelativePath(searchRoot, file);

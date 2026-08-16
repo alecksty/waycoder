@@ -117,20 +117,22 @@ public class GrepTool : ITool
     private static List<string> WalkDirectory(string root, string? include)
     {
         var results = new List<string>();
+        WalkRecursive(root, include ?? "*", results);
+        return results;
+    }
+
+    /// <summary>逐目录递归收集文件，每个目录独立 try/catch —— 单个不可访问子目录
+    /// 不再像 <c>Directory.GetFiles(..., AllDirectories)</c> 那样让整棵树搜索失败。</summary>
+    private static void WalkRecursive(string dir, string searchPattern, List<string> results)
+    {
+        if (results.Count >= 5000) return;
+
         try
         {
-            var searchPattern = include ?? "*";
-            var files = Directory.GetFiles(root, searchPattern, SearchOption.AllDirectories);
-
-            foreach (var file in files)
+            foreach (var file in Directory.GetFiles(dir, searchPattern))
             {
-                // 跳过垃圾目录内部的路径
-                var relative = Path.GetRelativePath(root, file);
-                var parts = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                if (parts.Any(p => SkipDirs.Contains(p))) continue;
-
                 results.Add(file);
-                if (results.Count >= 5000) break;
+                if (results.Count >= 5000) return;
             }
         }
         catch
@@ -138,6 +140,15 @@ public class GrepTool : ITool
             // 跳过无法访问的目录
         }
 
-        return results;
+        string[] subDirs;
+        try { subDirs = Directory.GetDirectories(dir); }
+        catch { return; }
+
+        foreach (var sub in subDirs)
+        {
+            if (SkipDirs.Contains(Path.GetFileName(sub))) continue;
+            WalkRecursive(sub, searchPattern, results);
+            if (results.Count >= 5000) return;
+        }
     }
 }

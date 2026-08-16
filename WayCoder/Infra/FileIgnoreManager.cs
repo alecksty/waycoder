@@ -286,13 +286,17 @@ public static class FileIgnoreManager
             var sb = new System.Text.StringBuilder();
             sb.Append('^');
 
-            // 非锚定规则可以在任意目录深度
-            if (!Anchored && !Pattern.Contains('/'))
+            // 以 / 结尾 = 目录规则（匹配目录本身及其中所有内容）。先去掉尾随斜杠，
+            // 否则 GlobSegmentToRegex 会把 / 作为字面量输出，与结尾的 "/" 叠加成 "//"
+            // 导致规则永不命中（原 bug）。
+            var endsWithSlash = Pattern.EndsWith('/');
+            var p = endsWithSlash ? Pattern[..^1] : Pattern;
+
+            // 非锚定且不含目录分隔符的规则可以在任意目录深度
+            if (!Anchored && !p.Contains('/'))
             {
                 sb.Append(@"(.*/)?");
             }
-
-            var p = Pattern;
 
             // ** 匹配零或多个目录
             if (p.Contains("**"))
@@ -310,9 +314,9 @@ public static class FileIgnoreManager
                 sb.Append(GlobSegmentToRegex(p));
             }
 
-            // 如果以 / 结尾，只匹配目录
-            if (p.EndsWith('/'))
-                sb.Append("/");
+            // 目录规则：匹配目录本身及其中所有内容（logs/ → logs 及 logs/*）
+            if (endsWithSlash)
+                sb.Append(@"(/.*)?");
 
             sb.Append('$');
 
