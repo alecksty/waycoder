@@ -3,10 +3,11 @@ using System.Text;
 using System.Text.Json;
 using WayCoder.Infra;
 using WayCoder.Tools;
-using WayCoder.UI;
-using WayCoder.Terminal;
-using WayCoder.UI.TuiControls;
-using WayCoder.UI.TuiScreens;
+using WayCoder.UI.Shared;
+using WayCoder.UI.Tui;
+using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.Tui.Controls;
+using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder;
 
@@ -1897,17 +1898,17 @@ public static partial class SelfTest
         FileLockManager.Release(racePath, "renewer");
 
         // ── 6. LLM 5xx 重试（响应释放 + 重试成功）──
-        var retryServer = new WayCoder.Web.HttpServer(0);
+        var retryServer = new WayCoder.UI.Web.HttpServer(0);
         int attempts = 0;
         retryServer.OnRequest = _ =>
         {
             int n = System.Threading.Interlocked.Increment(ref attempts);
             if (n < 3)
-                return new WayCoder.Web.HttpResponse { Status = 500, Reason = "Internal Server Error", Body = Encoding.UTF8.GetBytes("server error") };
+                return new WayCoder.UI.Web.HttpResponse { Status = 500, Reason = "Internal Server Error", Body = Encoding.UTF8.GetBytes("server error") };
             var sse = "data: {\"choices\":[{\"delta\":{\"content\":\"hello\"}}]}\n\n" +
                       "data: {\"choices\":[{\"delta\":{\"content\":\"world\"}}]}\n\n" +
                       "data: [DONE]\n\n";
-            return WayCoder.Web.HttpResponse.JsonBody(sse);
+            return WayCoder.UI.Web.HttpResponse.JsonBody(sse);
         };
         retryServer.Start();
         try
@@ -2506,34 +2507,34 @@ public static partial class SelfTest
     private static void TestWeb(Action<string, bool> Check)
     {
         // ── 1. ParseHttpRequest 纯函数 ──
-        var get = WayCoder.Web.HttpServer.ParseHttpRequest("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n");
+        var get = WayCoder.UI.Web.HttpServer.ParseHttpRequest("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n");
         Check("Web: GET 方法", get?.Method == "GET");
         Check("Web: GET 路径", get?.Path == "/");
         Check("Web: 头解析", get?.Header("Host") == "localhost");
 
-        var post = WayCoder.Web.HttpServer.ParseHttpRequest("POST /chat HTTP/1.1\r\nContent-Length: 5\r\n\r\nhello");
+        var post = WayCoder.UI.Web.HttpServer.ParseHttpRequest("POST /chat HTTP/1.1\r\nContent-Length: 5\r\n\r\nhello");
         Check("Web: POST 方法", post?.Method == "POST");
         Check("Web: POST 正文", post?.Body == "hello");
 
-        var query = WayCoder.Web.HttpServer.ParseHttpRequest("GET /x?a=1&b=2 HTTP/1.1\r\n\r\n");
+        var query = WayCoder.UI.Web.HttpServer.ParseHttpRequest("GET /x?a=1&b=2 HTTP/1.1\r\n\r\n");
         Check("Web: 查询串", query?.Path == "/x" && query?.Query == "a=1&b=2");
 
-        Check("Web: 畸形请求 null", WayCoder.Web.HttpServer.ParseHttpRequest("") == null);
-        Check("Web: 畸形请求行 null", WayCoder.Web.HttpServer.ParseHttpRequest("GARBAGE\r\n\r\n") == null);
+        Check("Web: 畸形请求 null", WayCoder.UI.Web.HttpServer.ParseHttpRequest("") == null);
+        Check("Web: 畸形请求行 null", WayCoder.UI.Web.HttpServer.ParseHttpRequest("GARBAGE\r\n\r\n") == null);
 
         // ── 2. SseEvent 格式化 ──
-        var sse = WayCoder.Web.HttpServer.SseEvent("token", "\"hi\"");
+        var sse = WayCoder.UI.Web.HttpServer.SseEvent("token", "\"hi\"");
         Check("Web: SSE event 前缀", sse.StartsWith("event: token\ndata: "));
         Check("Web: SSE 空行结尾", sse.EndsWith("\n\n"));
 
         // ── 3. FindHeaderEnd / ParseContentLength ──
         var hb = Encoding.UTF8.GetBytes("GET / HTTP/1.1\r\nContent-Length: 5\r\n\r\nbody");
-        Check("Web: FindHeaderEnd 定位", WayCoder.Web.HttpServer.FindHeaderEnd(hb) > 0);
-        Check("Web: ParseContentLength", WayCoder.Web.HttpServer.ParseContentLength("Content-Length: 123\r\nX: y") == 123);
-        Check("Web: ParseContentLength 缺省 0", WayCoder.Web.HttpServer.ParseContentLength("X: y") == 0);
+        Check("Web: FindHeaderEnd 定位", WayCoder.UI.Web.HttpServer.FindHeaderEnd(hb) > 0);
+        Check("Web: ParseContentLength", WayCoder.UI.Web.HttpServer.ParseContentLength("Content-Length: 123\r\nX: y") == 123);
+        Check("Web: ParseContentLength 缺省 0", WayCoder.UI.Web.HttpServer.ParseContentLength("X: y") == 0);
 
         // ── 4. 前端 HTML 含关键元素 ──
-        var html = WayCoder.Web.WebChatServer.Html;
+        var html = WayCoder.UI.Web.WebAssets.Html;
         Check("Web: HTML 含 EventSource", html.Contains("EventSource('/events')"));
         Check("Web: HTML 含 /chat", html.Contains("/chat"));
         Check("Web: HTML 含 /interrupt", html.Contains("/interrupt"));
@@ -2544,8 +2545,8 @@ public static partial class SelfTest
         Check("Web: HTML 含权限模式切换", html.Contains("/perm"));
 
         // ── 5. 端到端冒烟：HTTP 服务 GET / ──
-        var server = new WayCoder.Web.HttpServer(0);
-        server.OnRequest = req => req.Path == "/" ? WayCoder.Web.HttpResponse.Html("<html>ok</html>") : null;
+        var server = new WayCoder.UI.Web.HttpServer(0);
+        server.OnRequest = req => req.Path == "/" ? WayCoder.UI.Web.HttpResponse.Html("<html>ok</html>") : null;
         server.Start();
         try
         {
@@ -2571,7 +2572,7 @@ public static partial class SelfTest
         Check("WebFull: Model 直接改生效", llm.Model == "deepseek-v4-pro" && llm.EffectiveModel == "deepseek-v4-pro");
 
         // ── 2. SerializeModels ──
-        var modelsJson = WayCoder.Web.WebChatServer.SerializeModels();
+        var modelsJson = WayCoder.UI.Web.WebChatServer.SerializeModels();
         var models = Json.Parse(modelsJson);
         Check("WebFull: models 是数组", models != null && models.Kind == JKind.Array);
         Check("WebFull: models 含 deepseek-v4-pro", modelsJson.Contains("deepseek-v4-pro"));
@@ -2580,7 +2581,7 @@ public static partial class SelfTest
         Check("WebFull: models 元素含 hasKey", models[0]?.Get("hasKey") != null);
 
         // ── 3. SerializeSettings ──
-        var settingsJson = WayCoder.Web.WebChatServer.SerializeSettings();
+        var settingsJson = WayCoder.UI.Web.WebChatServer.SerializeSettings();
         var settings = Json.Parse(settingsJson);
         Check("WebFull: settings 是分组数组", settings != null && settings.Kind == JKind.Array);
         bool hasSecret = false, hasModel = false;
@@ -2601,30 +2602,30 @@ public static partial class SelfTest
         var a0 = new Agent(new LLM("test", "sk-test"));
         var slots = new Agent?[10];
         slots[0] = a0;
-        var stateJson = WayCoder.Web.WebChatServer.SerializeState(0, slots);
+        var stateJson = WayCoder.UI.Web.WebChatServer.SerializeState(0, slots);
         Check("WebFull: state 含 activeSlot=0", stateJson.Contains("\"activeSlot\":0"));
         Check("WebFull: state 含 slots", stateJson.Contains("\"slots\":"));
         Check("WebFull: state 含 permMode", stateJson.Contains("\"permMode\":"));
-        Check("WebFull: history 空数组", WayCoder.Web.WebChatServer.SerializeHistory(a0).Trim() == "[]");
+        Check("WebFull: history 空数组", WayCoder.UI.Web.WebChatServer.SerializeHistory(a0).Trim() == "[]");
 
         // ── 5. ApplyModel 非法模型（安全分支，不触发持久化）──
         Check("WebFull: ApplyModel 非法模型报错",
-            WayCoder.Web.WebChatServer.ApplyModel(a0, "no-such-model-xyz", null) != null);
+            WayCoder.UI.Web.WebChatServer.ApplyModel(a0, "no-such-model-xyz", null) != null);
 
         // ── 6. ProviderHasKey ──
-        Check("WebFull: local 无需 key", WayCoder.Web.WebChatServer.ProviderHasKey("local"));
-        Check("WebFull: custom 无需 key", WayCoder.Web.WebChatServer.ProviderHasKey("custom"));
+        Check("WebFull: local 无需 key", WayCoder.UI.Web.WebChatServer.ProviderHasKey("local"));
+        Check("WebFull: custom 无需 key", WayCoder.UI.Web.WebChatServer.ProviderHasKey("custom"));
 
         // ── 6b. IsTrustedOrigin（CSRF 防护）──
-        Check("WebFull: 无 Origin（curl/SSE）放行", WayCoder.Web.WebChatServer.IsTrustedOrigin(null, 8123));
-        Check("WebFull: 本服务 Origin 放行", WayCoder.Web.WebChatServer.IsTrustedOrigin("http://127.0.0.1:8123", 8123));
-        Check("WebFull: localhost Origin 放行", WayCoder.Web.WebChatServer.IsTrustedOrigin("http://localhost:8123", 8123));
-        Check("WebFull: 攻击者 Origin 拒绝", !WayCoder.Web.WebChatServer.IsTrustedOrigin("https://evil.example.com", 8123));
-        Check("WebFull: Origin null 拒绝", !WayCoder.Web.WebChatServer.IsTrustedOrigin("null", 8123));
-        Check("WebFull: 端口不匹配拒绝", !WayCoder.Web.WebChatServer.IsTrustedOrigin("http://127.0.0.1:9999", 8123));
+        Check("WebFull: 无 Origin（curl/SSE）放行", WayCoder.UI.Web.WebChatServer.IsTrustedOrigin(null, 8123));
+        Check("WebFull: 本服务 Origin 放行", WayCoder.UI.Web.WebChatServer.IsTrustedOrigin("http://127.0.0.1:8123", 8123));
+        Check("WebFull: localhost Origin 放行", WayCoder.UI.Web.WebChatServer.IsTrustedOrigin("http://localhost:8123", 8123));
+        Check("WebFull: 攻击者 Origin 拒绝", !WayCoder.UI.Web.WebChatServer.IsTrustedOrigin("https://evil.example.com", 8123));
+        Check("WebFull: Origin null 拒绝", !WayCoder.UI.Web.WebChatServer.IsTrustedOrigin("null", 8123));
+        Check("WebFull: 端口不匹配拒绝", !WayCoder.UI.Web.WebChatServer.IsTrustedOrigin("http://127.0.0.1:9999", 8123));
 
         // ── 7. 端点冒烟：WebChatServer + HttpClient ──
-        var web = new WayCoder.Web.WebChatServer(a0, 0);
+        var web = new WayCoder.UI.Web.WebChatServer(a0, 0);
         web.Start();
         try
         {
@@ -2661,12 +2662,12 @@ public static partial class SelfTest
     private static void TestP4WebResource(Action<string, bool> Check)
     {
         // ── 1. 请求正文大小上限（纯逻辑）──
-        Check("WebRes: 上限内不拒绝", !WayCoder.Web.HttpServer.IsRequestTooLarge(WayCoder.Web.HttpServer.MaxRequestBytes));
-        Check("WebRes: 超上限拒绝", WayCoder.Web.HttpServer.IsRequestTooLarge(WayCoder.Web.HttpServer.MaxRequestBytes + 1));
+        Check("WebRes: 上限内不拒绝", !WayCoder.UI.Web.HttpServer.IsRequestTooLarge(WayCoder.UI.Web.HttpServer.MaxRequestBytes));
+        Check("WebRes: 超上限拒绝", WayCoder.UI.Web.HttpServer.IsRequestTooLarge(WayCoder.UI.Web.HttpServer.MaxRequestBytes + 1));
 
         // ── 2. 超大 Content-Length → 413（端到端，服务端读完头立即拒绝不等待正文）──
-        var bigServer = new WayCoder.Web.HttpServer(0);
-        bigServer.OnRequest = req => req.Path == "/chat" ? WayCoder.Web.HttpResponse.Text("ok") : null;
+        var bigServer = new WayCoder.UI.Web.HttpServer(0);
+        bigServer.OnRequest = req => req.Path == "/chat" ? WayCoder.UI.Web.HttpResponse.Text("ok") : null;
         bigServer.Start();
         try
         {
@@ -2683,29 +2684,29 @@ public static partial class SelfTest
         finally { bigServer.Stop(); }
 
         // ── 3. 连接槽位上限（SemaphoreSlim 机制）──
-        var capServer = new WayCoder.Web.HttpServer(0);
+        var capServer = new WayCoder.UI.Web.HttpServer(0);
         int got = 0;
-        for (int i = 0; i < WayCoder.Web.HttpServer.MaxConnections; i++)
+        for (int i = 0; i < WayCoder.UI.Web.HttpServer.MaxConnections; i++)
             if (capServer.TryAcquireConnectionSlot()) got++;
-        Check("WebRes: 连接槽位全部可获取", got == WayCoder.Web.HttpServer.MaxConnections);
+        Check("WebRes: 连接槽位全部可获取", got == WayCoder.UI.Web.HttpServer.MaxConnections);
         Check("WebRes: 连接槽位满后拒绝", !capServer.TryAcquireConnectionSlot());
         capServer.ReleaseConnectionSlot();
         Check("WebRes: 释放后可再获取", capServer.TryAcquireConnectionSlot());
         // 清理占用的槽位（不留满槽位状态）
-        for (int i = 0; i < WayCoder.Web.HttpServer.MaxConnections; i++) capServer.ReleaseConnectionSlot();
+        for (int i = 0; i < WayCoder.UI.Web.HttpServer.MaxConnections; i++) capServer.ReleaseConnectionSlot();
 
         // ── 4. SSE 客户端 / 输入队列上限（纯逻辑）──
-        Check("WebRes: SSE 未满", !WayCoder.Web.WebChatServer.SseClientsFull(WayCoder.Web.WebChatServer.MaxSseClients - 1));
-        Check("WebRes: SSE 满", WayCoder.Web.WebChatServer.SseClientsFull(WayCoder.Web.WebChatServer.MaxSseClients));
-        Check("WebRes: 输入队列未满", !WayCoder.Web.WebChatServer.InputQueueFull(WayCoder.Web.WebChatServer.MaxPendingInput - 1));
-        Check("WebRes: 输入队列满", WayCoder.Web.WebChatServer.InputQueueFull(WayCoder.Web.WebChatServer.MaxPendingInput));
+        Check("WebRes: SSE 未满", !WayCoder.UI.Web.WebChatServer.SseClientsFull(WayCoder.UI.Web.WebChatServer.MaxSseClients - 1));
+        Check("WebRes: SSE 满", WayCoder.UI.Web.WebChatServer.SseClientsFull(WayCoder.UI.Web.WebChatServer.MaxSseClients));
+        Check("WebRes: 输入队列未满", !WayCoder.UI.Web.WebChatServer.InputQueueFull(WayCoder.UI.Web.WebChatServer.MaxPendingInput - 1));
+        Check("WebRes: 输入队列满", WayCoder.UI.Web.WebChatServer.InputQueueFull(WayCoder.UI.Web.WebChatServer.MaxPendingInput));
 
         // ── 5. XSS 转义（工具名/参数注入 innerHTML 前转义）──
-        Check("WebRes: HtmlEscape 脚本标签", WayCoder.Web.WebChatServer.HtmlEscape("<script>alert(1)</script>") == "&lt;script&gt;alert(1)&lt;/script&gt;");
-        Check("WebRes: HtmlEscape 引号", WayCoder.Web.WebChatServer.HtmlEscape("\"'") == "&quot;&#39;");
-        Check("WebRes: HtmlEscape 与号优先", WayCoder.Web.WebChatServer.HtmlEscape("&") == "&amp;");
-        Check("WebRes: HtmlEscape 空串透传", WayCoder.Web.WebChatServer.HtmlEscape("") == "");
-        Check("WebRes: HtmlEscape 正常文本不变", WayCoder.Web.WebChatServer.HtmlEscape("echo hello") == "echo hello");
+        Check("WebRes: HtmlEscape 脚本标签", WayCoder.UI.Web.WebChatServer.HtmlEscape("<script>alert(1)</script>") == "&lt;script&gt;alert(1)&lt;/script&gt;");
+        Check("WebRes: HtmlEscape 引号", WayCoder.UI.Web.WebChatServer.HtmlEscape("\"'") == "&quot;&#39;");
+        Check("WebRes: HtmlEscape 与号优先", WayCoder.UI.Web.WebChatServer.HtmlEscape("&") == "&amp;");
+        Check("WebRes: HtmlEscape 空串透传", WayCoder.UI.Web.WebChatServer.HtmlEscape("") == "");
+        Check("WebRes: HtmlEscape 正常文本不变", WayCoder.UI.Web.WebChatServer.HtmlEscape("echo hello") == "echo hello");
     }
 
     /// <summary>Web 交互桥 mock 实现（测试 AskUserQuestionTool 走桥而非 Console）。</summary>
@@ -2731,7 +2732,7 @@ public static partial class SelfTest
         var a = new Agent(new LLM("test", "sk-test"));
         var slots = new Agent?[10];
         slots[0] = a;
-        var panel = Json.Parse(WayCoder.Web.WebChatServer.SerializePanel(0, slots));
+        var panel = Json.Parse(WayCoder.UI.Web.WebChatServer.SerializePanel(0, slots));
         Check("WebPanel: 含 todos", panel?["todos"] != null);
         Check("WebPanel: 含 tokens", panel?["tokens"] != null);
         Check("WebPanel: 含 cost", panel?["cost"] != null);
@@ -2739,9 +2740,9 @@ public static partial class SelfTest
         Check("WebPanel: 含 mcp", panel?["mcp"] != null);
         Check("WebPanel: 含 lsp", panel?["lsp"] != null);
         Check("WebPanel: 活跃槽位 token 字段", panel?["tokens"]?["totalPrompt"] != null);
-        var emptyPanel = Json.Parse(WayCoder.Web.WebChatServer.SerializePanel(0, new Agent?[10]));
+        var emptyPanel = Json.Parse(WayCoder.UI.Web.WebChatServer.SerializePanel(0, new Agent?[10]));
         Check("WebPanel: 全空槽位不抛异常", emptyPanel != null && emptyPanel["tokens"] != null);
-        var oobPanel = Json.Parse(WayCoder.Web.WebChatServer.SerializePanel(99, slots));
+        var oobPanel = Json.Parse(WayCoder.UI.Web.WebChatServer.SerializePanel(99, slots));
         Check("WebPanel: 越界槽位不抛异常", oobPanel != null);
 
         // ── 2. SerializeSessions（历史会话列表）──
@@ -2750,7 +2751,7 @@ public static partial class SelfTest
             "test-model");
         try
         {
-            var sj = WayCoder.Web.WebChatServer.SerializeSessions();
+            var sj = WayCoder.UI.Web.WebChatServer.SerializeSessions();
             Check("WebPanel: sessions 含刚保存会话", sj.Contains(savedId));
             var parsed = Json.Parse(sj);
             bool previewOk = false;
@@ -2788,7 +2789,7 @@ public static partial class SelfTest
         finally { UxHelper.WebInteraction = null; }
 
         // ── 5. 端点冒烟：/panel /sessions /sessions/load /answer ──
-        var web = new WayCoder.Web.WebChatServer(a, 0);
+        var web = new WayCoder.UI.Web.WebChatServer(a, 0);
         web.Start();
         try
         {
@@ -2833,45 +2834,45 @@ public static partial class SelfTest
         var a = new Agent(new LLM("test", "sk-test"));
 
         // ── 1. HandleCommand 纯函数 ──
-        var (hHelp, oHelp) = WayCoder.Web.WebChatServer.HandleCommand("/help", a);
+        var (hHelp, oHelp) = WayCoder.UI.Web.WebChatServer.HandleCommand("/help", a);
         Check("WebCmd: /help 处理", hHelp && oHelp.Contains("Web 命令"));
 
-        var (hPerm, oPerm) = WayCoder.Web.WebChatServer.HandleCommand("/perm", a);
+        var (hPerm, oPerm) = WayCoder.UI.Web.WebChatServer.HandleCommand("/perm", a);
         Check("WebCmd: /perm 无参显示当前", hPerm && oPerm.Contains("权限模式"));
 
-        var (hPermSet, oPermSet) = WayCoder.Web.WebChatServer.HandleCommand("/perm yolo", a);
+        var (hPermSet, oPermSet) = WayCoder.UI.Web.WebChatServer.HandleCommand("/perm yolo", a);
         Check("WebCmd: /perm yolo 切换", hPermSet && oPermSet.Contains("已切换"));
-        WayCoder.Web.WebChatServer.HandleCommand("/perm ask", a); // 恢复默认
+        WayCoder.UI.Web.WebChatServer.HandleCommand("/perm ask", a); // 恢复默认
 
-        var (hModelList, oModelList) = WayCoder.Web.WebChatServer.HandleCommand("/model list", a);
+        var (hModelList, oModelList) = WayCoder.UI.Web.WebChatServer.HandleCommand("/model list", a);
         Check("WebCmd: /model list 列模型", hModelList && oModelList.Contains("模型列表"));
 
-        var (hModel, _) = WayCoder.Web.WebChatServer.HandleCommand("/model", a);
+        var (hModel, _) = WayCoder.UI.Web.WebChatServer.HandleCommand("/model", a);
         Check("WebCmd: /model 无参不处理（前端弹窗）", !hModel);
 
-        var (hReset, _) = WayCoder.Web.WebChatServer.HandleCommand("/reset", a);
+        var (hReset, _) = WayCoder.UI.Web.WebChatServer.HandleCommand("/reset", a);
         Check("WebCmd: /reset 处理", hReset);
 
-        var (hTokens, oTokens) = WayCoder.Web.WebChatServer.HandleCommand("/tokens", a);
+        var (hTokens, oTokens) = WayCoder.UI.Web.WebChatServer.HandleCommand("/tokens", a);
         Check("WebCmd: /tokens 统计", hTokens && oTokens.Contains("Token"));
 
-        var (hMcp, _) = WayCoder.Web.WebChatServer.HandleCommand("/mcp", a);
+        var (hMcp, _) = WayCoder.UI.Web.WebChatServer.HandleCommand("/mcp", a);
         Check("WebCmd: /mcp 状态", hMcp);
 
-        var (hTodo, _) = WayCoder.Web.WebChatServer.HandleCommand("/todo", a);
+        var (hTodo, _) = WayCoder.UI.Web.WebChatServer.HandleCommand("/todo", a);
         Check("WebCmd: /todo 任务", hTodo);
 
-        var (hUnknown, _) = WayCoder.Web.WebChatServer.HandleCommand("/foobar-xyz", a);
+        var (hUnknown, _) = WayCoder.UI.Web.WebChatServer.HandleCommand("/foobar-xyz", a);
         Check("WebCmd: 未知命令不处理", !hUnknown);
 
-        var (hPlain, _) = WayCoder.Web.WebChatServer.HandleCommand("hello world", a);
+        var (hPlain, _) = WayCoder.UI.Web.WebChatServer.HandleCommand("hello world", a);
         Check("WebCmd: 非斜杠不处理", !hPlain);
 
-        var (hNull, oNull) = WayCoder.Web.WebChatServer.HandleCommand("/tokens", null);
+        var (hNull, oNull) = WayCoder.UI.Web.WebChatServer.HandleCommand("/tokens", null);
         Check("WebCmd: 空槽位 /tokens 提示", hNull && oNull.Contains("无活跃槽位"));
 
         // ── 2. /command 端点冒烟 ──
-        var web = new WayCoder.Web.WebChatServer(a, 0);
+        var web = new WayCoder.UI.Web.WebChatServer(a, 0);
         web.Start();
         try
         {
@@ -2899,7 +2900,7 @@ public static partial class SelfTest
         finally { web.Stop(); }
 
         // ── 3. HTML 含斜杠命令路由 ──
-        var html = WayCoder.Web.WebChatServer.Html;
+        var html = WayCoder.UI.Web.WebAssets.Html;
         Check("WebCmd: HTML 含 handleUiCommand", html.Contains("function handleUiCommand"));
         Check("WebCmd: HTML 含 /command 路由", html.Contains("/command"));
         Check("WebCmd: HTML 含 cmd 样式", html.Contains(".msg.cmd"));
@@ -2909,29 +2910,29 @@ public static partial class SelfTest
     private static void TestWebDiffPreview(Action<string, bool> Check)
     {
         // ── 1. ParseDiffAnswer 纯函数 ──
-        var acc = WayCoder.Web.WebChatServer.ParseDiffAnswer("{\"decision\":\"accept\"}");
+        var acc = WayCoder.UI.Web.WebChatServer.ParseDiffAnswer("{\"decision\":\"accept\"}");
         Check("WebDiff: accept → AcceptAll", acc != null && acc.Decision == DiffPreview.Decision.AcceptAll && acc.AcceptedHunks == null);
 
-        var rej = WayCoder.Web.WebChatServer.ParseDiffAnswer("{\"decision\":\"reject\"}");
+        var rej = WayCoder.UI.Web.WebChatServer.ParseDiffAnswer("{\"decision\":\"reject\"}");
         Check("WebDiff: reject → RejectAll", rej != null && rej.Decision == DiffPreview.Decision.RejectAll);
 
-        var part = WayCoder.Web.WebChatServer.ParseDiffAnswer("{\"decision\":\"partial\",\"accepted\":[0,2]}");
+        var part = WayCoder.UI.Web.WebChatServer.ParseDiffAnswer("{\"decision\":\"partial\",\"accepted\":[0,2]}");
         Check("WebDiff: partial → Partial + 索引集", part != null && part.Decision == DiffPreview.Decision.Partial
             && part.AcceptedHunks != null && part.AcceptedHunks.SetEquals(new HashSet<int> { 0, 2 }));
 
-        var partEmpty = WayCoder.Web.WebChatServer.ParseDiffAnswer("{\"decision\":\"partial\",\"accepted\":[]}");
+        var partEmpty = WayCoder.UI.Web.WebChatServer.ParseDiffAnswer("{\"decision\":\"partial\",\"accepted\":[]}");
         Check("WebDiff: partial 空集", partEmpty != null && partEmpty.Decision == DiffPreview.Decision.Partial
             && partEmpty.AcceptedHunks != null && partEmpty.AcceptedHunks.Count == 0);
 
-        Check("WebDiff: null → null", WayCoder.Web.WebChatServer.ParseDiffAnswer(null) == null);
-        Check("WebDiff: 空串 → null", WayCoder.Web.WebChatServer.ParseDiffAnswer("") == null);
-        Check("WebDiff: 非法 JSON → null", WayCoder.Web.WebChatServer.ParseDiffAnswer("not json") == null);
-        Check("WebDiff: 未知 decision → RejectAll", WayCoder.Web.WebChatServer.ParseDiffAnswer("{\"decision\":\"huh\"}")?.Decision == DiffPreview.Decision.RejectAll);
+        Check("WebDiff: null → null", WayCoder.UI.Web.WebChatServer.ParseDiffAnswer(null) == null);
+        Check("WebDiff: 空串 → null", WayCoder.UI.Web.WebChatServer.ParseDiffAnswer("") == null);
+        Check("WebDiff: 非法 JSON → null", WayCoder.UI.Web.WebChatServer.ParseDiffAnswer("not json") == null);
+        Check("WebDiff: 未知 decision → RejectAll", WayCoder.UI.Web.WebChatServer.ParseDiffAnswer("{\"decision\":\"huh\"}")?.Decision == DiffPreview.Decision.RejectAll);
 
         // ── 2. SerializeHunks 纯函数 ──
         var hunks = DiffPreview.BuildHunks("line1\nline2\n", "line1\nCHANGED\nline2\n");
         Check("WebDiff: BuildHunks 产出 hunk", hunks.Count >= 1);
-        var hunksNode = Json.Parse(WayCoder.Web.WebChatServer.SerializeHunks(hunks));
+        var hunksNode = Json.Parse(WayCoder.UI.Web.WebChatServer.SerializeHunks(hunks));
         Check("WebDiff: SerializeHunks 是数组", hunksNode?.Kind == JKind.Array);
         bool hunkValid = hunksNode != null && hunksNode.Kind == JKind.Array && hunksNode.Items.Any();
         if (hunkValid)
@@ -2977,53 +2978,53 @@ public static partial class SelfTest
     private static void TestWebUpload(Action<string, bool> Check)
     {
         // ── 1. ParseUploadKind 纯函数 ──
-        Check("WebUp: kind=image → image", WayCoder.Web.WebChatServer.ParseUploadKind("kind=image") == "image");
-        Check("WebUp: kind=audio → audio", WayCoder.Web.WebChatServer.ParseUploadKind("kind=audio") == "audio");
-        Check("WebUp: 大小写不敏感 → image", WayCoder.Web.WebChatServer.ParseUploadKind("kind=IMAGE") == "image");
-        Check("WebUp: 非法 kind → null", WayCoder.Web.WebChatServer.ParseUploadKind("kind=huh") == null);
-        Check("WebUp: 缺少 kind → null", WayCoder.Web.WebChatServer.ParseUploadKind("a=1") == null);
-        Check("WebUp: null → null", WayCoder.Web.WebChatServer.ParseUploadKind(null) == null);
-        Check("WebUp: 空串 → null", WayCoder.Web.WebChatServer.ParseUploadKind("") == null);
+        Check("WebUp: kind=image → image", WayCoder.UI.Web.WebChatServer.ParseUploadKind("kind=image") == "image");
+        Check("WebUp: kind=audio → audio", WayCoder.UI.Web.WebChatServer.ParseUploadKind("kind=audio") == "audio");
+        Check("WebUp: 大小写不敏感 → image", WayCoder.UI.Web.WebChatServer.ParseUploadKind("kind=IMAGE") == "image");
+        Check("WebUp: 非法 kind → null", WayCoder.UI.Web.WebChatServer.ParseUploadKind("kind=huh") == null);
+        Check("WebUp: 缺少 kind → null", WayCoder.UI.Web.WebChatServer.ParseUploadKind("a=1") == null);
+        Check("WebUp: null → null", WayCoder.UI.Web.WebChatServer.ParseUploadKind(null) == null);
+        Check("WebUp: 空串 → null", WayCoder.UI.Web.WebChatServer.ParseUploadKind("") == null);
 
         // ── 2. IsImageExtension 纯函数 ──
-        Check("WebUp: png 是图片", WayCoder.Web.WebChatServer.IsImageExtension("png"));
-        Check("WebUp: .jpg 是图片", WayCoder.Web.WebChatServer.IsImageExtension(".jpg"));
-        Check("WebUp: JPG 是图片", WayCoder.Web.WebChatServer.IsImageExtension("JPG"));
-        Check("WebUp: txt 非图片", !WayCoder.Web.WebChatServer.IsImageExtension("txt"));
-        Check("WebUp: 空非图片", !WayCoder.Web.WebChatServer.IsImageExtension(""));
+        Check("WebUp: png 是图片", WayCoder.UI.Web.WebChatServer.IsImageExtension("png"));
+        Check("WebUp: .jpg 是图片", WayCoder.UI.Web.WebChatServer.IsImageExtension(".jpg"));
+        Check("WebUp: JPG 是图片", WayCoder.UI.Web.WebChatServer.IsImageExtension("JPG"));
+        Check("WebUp: txt 非图片", !WayCoder.UI.Web.WebChatServer.IsImageExtension("txt"));
+        Check("WebUp: 空非图片", !WayCoder.UI.Web.WebChatServer.IsImageExtension(""));
 
         // ── 3. SafeExtension 纯函数 ──
-        Check("WebUp: a.png → png", WayCoder.Web.WebChatServer.SafeExtension("a.png", "image") == "png");
-        Check("WebUp: a.PNG → png", WayCoder.Web.WebChatServer.SafeExtension("a.PNG", "image") == "png");
-        Check("WebUp: .JPG → jpg", WayCoder.Web.WebChatServer.SafeExtension(".JPG", "image") == "jpg");
-        Check("WebUp: 图片缺扩展回退 png", WayCoder.Web.WebChatServer.SafeExtension("", "image") == "png");
-        Check("WebUp: 音频缺扩展回退 bin", WayCoder.Web.WebChatServer.SafeExtension("", "audio") == "bin");
-        Check("WebUp: 无扩展回退 png", WayCoder.Web.WebChatServer.SafeExtension("noext", "image") == "png");
-        Check("WebUp: 超长扩展回退 png", WayCoder.Web.WebChatServer.SafeExtension("a.verylongextension", "image") == "png");
+        Check("WebUp: a.png → png", WayCoder.UI.Web.WebChatServer.SafeExtension("a.png", "image") == "png");
+        Check("WebUp: a.PNG → png", WayCoder.UI.Web.WebChatServer.SafeExtension("a.PNG", "image") == "png");
+        Check("WebUp: .JPG → jpg", WayCoder.UI.Web.WebChatServer.SafeExtension(".JPG", "image") == "jpg");
+        Check("WebUp: 图片缺扩展回退 png", WayCoder.UI.Web.WebChatServer.SafeExtension("", "image") == "png");
+        Check("WebUp: 音频缺扩展回退 bin", WayCoder.UI.Web.WebChatServer.SafeExtension("", "audio") == "bin");
+        Check("WebUp: 无扩展回退 png", WayCoder.UI.Web.WebChatServer.SafeExtension("noext", "image") == "png");
+        Check("WebUp: 超长扩展回退 png", WayCoder.UI.Web.WebChatServer.SafeExtension("a.verylongextension", "image") == "png");
 
         // ── 4. IsTranscribeError 纯函数 ──
-        Check("WebUp: 错误前缀", WayCoder.Web.WebChatServer.IsTranscribeError("错误：无 API Key"));
-        Check("WebUp: 转录失败前缀", WayCoder.Web.WebChatServer.IsTranscribeError("转录失败"));
-        Check("WebUp: 转录出错前缀", WayCoder.Web.WebChatServer.IsTranscribeError("转录出错"));
-        Check("WebUp: 空文本前缀", WayCoder.Web.WebChatServer.IsTranscribeError("转录返回空文本"));
-        Check("WebUp: 正常内容非错误", !WayCoder.Web.WebChatServer.IsTranscribeError("你好，这是转录结果"));
-        Check("WebUp: 空串非错误", !WayCoder.Web.WebChatServer.IsTranscribeError(""));
+        Check("WebUp: 错误前缀", WayCoder.UI.Web.WebChatServer.IsTranscribeError("错误：无 API Key"));
+        Check("WebUp: 转录失败前缀", WayCoder.UI.Web.WebChatServer.IsTranscribeError("转录失败"));
+        Check("WebUp: 转录出错前缀", WayCoder.UI.Web.WebChatServer.IsTranscribeError("转录出错"));
+        Check("WebUp: 空文本前缀", WayCoder.UI.Web.WebChatServer.IsTranscribeError("转录返回空文本"));
+        Check("WebUp: 正常内容非错误", !WayCoder.UI.Web.WebChatServer.IsTranscribeError("你好，这是转录结果"));
+        Check("WebUp: 空串非错误", !WayCoder.UI.Web.WebChatServer.IsTranscribeError(""));
 
         // ── 5. ParseHttpRequest(byte[]) 二进制正文（RawBody 保留原始字节）──
         var header = Encoding.UTF8.GetBytes("POST /upload?kind=image HTTP/1.1\r\nContent-Length: 4\r\nX-File-Name: a.png\r\n\r\n");
         var raw = new byte[header.Length + 4];
         Array.Copy(header, 0, raw, 0, header.Length);
         raw[header.Length] = 0x89; raw[header.Length + 1] = 0x50; raw[header.Length + 2] = 0x4E; raw[header.Length + 3] = 0x47; // PNG 魔数
-        var req = WayCoder.Web.HttpServer.ParseHttpRequest(raw);
+        var req = WayCoder.UI.Web.HttpServer.ParseHttpRequest(raw);
         Check("WebUp: 二进制正文 RawBody 长度 4", req != null && req.RawBody.Length == 4);
         Check("WebUp: RawBody 首字节保留 0x89", req != null && req.RawBody[0] == 0x89);
         Check("WebUp: 头解析 X-File-Name", req?.Header("X-File-Name") == "a.png");
         Check("WebUp: Path 为 /upload", req?.Path == "/upload");
 
         // ── 6. ParsePath 纯函数 ──
-        Check("WebUp: ParsePath /upload", WayCoder.Web.HttpServer.ParsePath("POST /upload?kind=image HTTP/1.1\r\nHost: x\r\n\r\n") == "/upload");
-        Check("WebUp: ParsePath /chat", WayCoder.Web.HttpServer.ParsePath("POST /chat HTTP/1.1\r\n\r\n") == "/chat");
-        Check("WebUp: ParsePath 空", WayCoder.Web.HttpServer.ParsePath("") == "");
+        Check("WebUp: ParsePath /upload", WayCoder.UI.Web.HttpServer.ParsePath("POST /upload?kind=image HTTP/1.1\r\nHost: x\r\n\r\n") == "/upload");
+        Check("WebUp: ParsePath /chat", WayCoder.UI.Web.HttpServer.ParsePath("POST /chat HTTP/1.1\r\n\r\n") == "/chat");
+        Check("WebUp: ParsePath 空", WayCoder.UI.Web.HttpServer.ParsePath("") == "");
     }
 
     /// <summary>WPS/老式二进制 Office（.wps/.et/.dps/.doc/.xls/.ppt）：CFB 解析器 + DOC/XLS/PPT 文本提取 + 容器识别/RTF/HTML 路由</summary>

@@ -1,4 +1,5 @@
-using WayCoder.UI;
+using WayCoder.UI.Shared;
+using WayCoder.UI.Tui;
 
 namespace WayCoder.Tools;
 

@@ -1,5 +1,6 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text.RegularExpressions;
+using Terminal = WayCoder.UI.Shared.Terminal;
 
 namespace WayCoder.Tools;
 

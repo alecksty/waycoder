@@ -1,10 +1,12 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using WayCoder.Tools;
-using WayCoder.UI;
-using WayCoder.Terminal;
-using WayCoder.UI.TuiControls;
-using WayCoder.UI.TuiScreens;
+using WayCoder.UI.Shared;
+using WayCoder.UI.Tui;
+using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.Tui.Controls;
+using WayCoder.UI.Tui.Screens;
+using WayCoder.UI.Tui.Edit;
 
 namespace WayCoder;
 
@@ -58,7 +60,7 @@ public static partial class SelfTest
         // 滚动刷新回归：滚动改变视口偏移时必须标记叶子子项为脏，
         // 否则增量渲染只清背景（Fill 视口）而不重绘非脏的 TuiMarkdown 叶子 → 聊天滚动花屏。
         var lv4 = new TuiListView { Height = 4, Width = 60 };
-        var md = WayCoder.UI.TuiControls.TuiMarkdown.Create("滚动测试内容", "assistant", 60);
+        var md = WayCoder.UI.Tui.Controls.TuiMarkdown.Create("滚动测试内容", "assistant", 60);
         lv4.AddItem(md);
         lv4.ClearDirty();
         md.ClearDirty();
@@ -1064,7 +1066,7 @@ public static partial class SelfTest
             MarkdownParser.ParseInline("«nope»文本").Any(r => r.Text.Contains("nope")));
 
         // 端到端：RenderMessage 单段落回退路径也要识别 markup（此前直接字面输出）
-        var rm = WayCoder.UI.TuiMarkdown.RenderMessage("«dim»思考«/»回答", "assistant", 80);
+        var rm = WayCoder.UI.Tui.TuiMarkdown.RenderMessage("«dim»思考«/»回答", "assistant", 80);
         Check("RenderMessage markup 淡化", rm.Any(line => line.Any(seg => seg.Fg == 2)));
 
         // 嵌套标记：内层覆盖外层，«/» 逐层弹栈恢复（栈模型）
@@ -1076,7 +1078,7 @@ public static partial class SelfTest
             && nestedMk[2].Color == 1 && nestedMk[2].Text == "粗");
 
         // 块级跨行（含空行）：«dim»…«/» 包裹多行推理内容，样式贯穿且保留空行
-        var blk = WayCoder.UI.TuiMarkdown.RenderMessage("«dim»第一行\n\n第二行«/»\n正常", "assistant", 80);
+        var blk = WayCoder.UI.Tui.TuiMarkdown.RenderMessage("«dim»第一行\n\n第二行«/»\n正常", "assistant", 80);
         Check("RenderMessage 块级跨行 dim 贯穿空行",
             blk.Any(l => l.Any(s => s.Fg == 2 && s.Text == "第一行"))
             && blk.Any(l => l.Any(s => s.Fg == 2 && s.Text == "第二行")));
@@ -1084,7 +1086,7 @@ public static partial class SelfTest
             blk.Any(l => l.Any(s => s.Text == "正常" && s.Fg != 2)));
 
         // 块级流式未闭合：开标签后无 «/»，样式持续到内容末尾
-        var blkOpen = WayCoder.UI.TuiMarkdown.RenderMessage("«dim»思考中\n还在想", "assistant", 80);
+        var blkOpen = WayCoder.UI.Tui.TuiMarkdown.RenderMessage("«dim»思考中\n还在想", "assistant", 80);
         Check("RenderMessage 块级未闭合持续淡化",
             blkOpen.Any(l => l.Any(s => s.Fg == 2 && s.Text == "思考中"))
             && blkOpen.Any(l => l.Any(s => s.Fg == 2 && s.Text == "还在想")));

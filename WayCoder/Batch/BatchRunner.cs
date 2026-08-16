@@ -186,8 +186,8 @@ public sealed class BatchRunner
             result.ExitCode = exitCode;
             result.Success = exitCode == 0;
             // 剥离 ANSI 转义（子进程 -p 模式会输出 spinner 动画帧）
-            result.Summary = Tail(WayCoder.Terminal.AnsiString.Strip(stdout), 4000);
-            if (!string.IsNullOrEmpty(stderr)) result.Error = Tail(WayCoder.Terminal.AnsiString.Strip(stderr), 2000);
+            result.Summary = Tail(WayCoder.UI.Shared.Terminal.AnsiString.Strip(stdout), 4000);
+            if (!string.IsNullOrEmpty(stderr)) result.Error = Tail(WayCoder.UI.Shared.Terminal.AnsiString.Strip(stderr), 2000);
             if (exitCode != 0 && string.IsNullOrEmpty(result.Error))
                 result.Error = $"子进程退出码 {exitCode}";
 

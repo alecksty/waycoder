@@ -1,10 +1,11 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using WayCoder.Tools;
-using WayCoder.UI;
-using WayCoder.Terminal;
-using WayCoder.UI.TuiControls;
-using WayCoder.UI.TuiScreens;
+using WayCoder.UI.Shared;
+using WayCoder.UI.Tui;
+using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.Tui.Controls;
+using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder;
 
@@ -92,7 +93,7 @@ public static partial class SelfTest
 | C# | 快 | 9.5 |
 | Python | 慢 | 6.5 |
 ";
-        var rendered = UI.TuiMarkdown.RenderMessage(mdTable, "assistant", 80);
+        var rendered = UI.Tui.TuiMarkdown.RenderMessage(mdTable, "assistant", 80);
         Check("表格渲染非空", rendered.Count > 0);
         // 顶部边框 + 表头 + 分隔线 + 2行数据 + 底部边框 = 6
         Check("表格渲染 = 6 行", rendered.Count == 6);
@@ -109,13 +110,13 @@ public static partial class SelfTest
         var headerLine = string.Concat(rendered[1].Select(s => s.Text));
         Check("表头含 语言", headerLine.Contains("语言"));
         // 内联格式 **加粗** 测试（1表头 + 1数据行 = 5 行）
-        var mdBold = UI.TuiMarkdown.RenderMessage("| **粗体** | `代码` |\n|-----|-----|\n| 正常 | 测试 |", "assistant", 80);
+        var mdBold = UI.Tui.TuiMarkdown.RenderMessage("| **粗体** | `代码` |\n|-----|-----|\n| 正常 | 测试 |", "assistant", 80);
         Check("内联加粗表格 = 5 行", mdBold.Count == 5);
         // 两列表格（1表头 + 1数据行 = 5 行）
-        var md2Col = UI.TuiMarkdown.RenderMessage("| A | B |\n|---|---|\n| 1 | 2 |", "assistant", 80);
+        var md2Col = UI.Tui.TuiMarkdown.RenderMessage("| A | B |\n|---|---|\n| 1 | 2 |", "assistant", 80);
         Check("2列表格渲染 = 5 行", md2Col.Count == 5);
         // 空表格（仅表头无数据行 = 4 行：顶部+表头+分隔+底部）
-        var mdEmpty = UI.TuiMarkdown.RenderMessage("| H |\n|---|", "assistant", 80);
+        var mdEmpty = UI.Tui.TuiMarkdown.RenderMessage("| H |\n|---|", "assistant", 80);
         Check("空数据表格 = 4 行", mdEmpty.Count == 4);
         Console.WriteLine();
 

@@ -1,8 +1,9 @@
-using WayCoder.UI.TuiScreens;
+using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder;
-using WayCoder.UI;
-using WayCoder.Terminal;
+using WayCoder.UI.Shared;
+using WayCoder.UI.Tui;
+using WayCoder.UI.Shared.Terminal;
 
 /// <summary>
 /// 全局主题配置——控制所有窗口/菜单的默认外观。

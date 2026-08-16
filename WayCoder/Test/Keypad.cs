@@ -1,8 +1,9 @@
 using System.Text;
-using WayCoder.Terminal;
-using WayCoder.UI;
-using WayCoder.UI.TuiControls;
-using WayCoder.UI.TuiScreens;
+using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.Shared;
+using WayCoder.UI.Tui;
+using WayCoder.UI.Tui.Controls;
+using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder;
 

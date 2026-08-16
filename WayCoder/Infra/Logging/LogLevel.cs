@@ -1,4 +1,4 @@
-using WayCoder.Terminal;
+using WayCoder.UI.Shared.Terminal;
 
 namespace WayCoder;
 

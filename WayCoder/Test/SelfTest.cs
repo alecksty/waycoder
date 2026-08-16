@@ -1,10 +1,11 @@
 ﻿using System.Text;
 using System.Text.Json;
 using WayCoder.Tools;
-using WayCoder.UI;
-using WayCoder.Terminal;
-using WayCoder.UI.TuiControls;
-using WayCoder.UI.TuiScreens;
+using WayCoder.UI.Shared;
+using WayCoder.UI.Tui;
+using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.Tui.Controls;
+using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder;
 
@@ -221,6 +222,8 @@ public static partial class SelfTest
         TestChunk9(Section, Check, Fail);
 
         TestChunk10(Section, Check, Fail);
+
+        TestChunk11(Section, Check, Fail);
 
         // ---- 结果 ----
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
