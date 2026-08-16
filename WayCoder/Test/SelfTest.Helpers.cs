@@ -2713,11 +2713,15 @@ public static partial class SelfTest
     {
         public string? SelectResult;
         public bool SelectCalled;
+        public DiffConfirmResult? DiffResult;
+        public bool DiffCalled;
 
         public Task<string?> AskAsync(string prompt, string? defaultValue, int timeoutMs) => Task.FromResult((string?)null);
         public Task<string?> SelectAsync(string title, List<string> choices, int timeoutMs) { SelectCalled = true; return Task.FromResult(SelectResult); }
         public Task<List<string>?> MultiSelectAsync(string title, List<string> choices, int timeoutMs) => Task.FromResult((List<string>?)null);
         public Task<int> ConfirmAsync(string title, string message, bool allowAll, int timeoutMs) => Task.FromResult(2);
+        public Task<DiffConfirmResult?> DiffConfirmAsync(string filePath, List<DiffPreview.Hunk> hunks, int timeoutMs)
+        { DiffCalled = true; return Task.FromResult(DiffResult); }
     }
 
     /// <summary>Web 三栏面板：SerializePanel/SerializeSessions/LspTool.ActiveSessions/交互桥/端点冒烟。</summary>
@@ -2899,6 +2903,75 @@ public static partial class SelfTest
         Check("WebCmd: HTML 含 handleUiCommand", html.Contains("function handleUiCommand"));
         Check("WebCmd: HTML 含 /command 路由", html.Contains("/command"));
         Check("WebCmd: HTML 含 cmd 样式", html.Contains(".msg.cmd"));
+    }
+
+    /// <summary>Web Diff 预览：ParseDiffAnswer/SerializeHunks 纯函数 + DiffPreview.Show Web 分支。</summary>
+    private static void TestWebDiffPreview(Action<string, bool> Check)
+    {
+        // ── 1. ParseDiffAnswer 纯函数 ──
+        var acc = WayCoder.Web.WebChatServer.ParseDiffAnswer("{\"decision\":\"accept\"}");
+        Check("WebDiff: accept → AcceptAll", acc != null && acc.Decision == DiffPreview.Decision.AcceptAll && acc.AcceptedHunks == null);
+
+        var rej = WayCoder.Web.WebChatServer.ParseDiffAnswer("{\"decision\":\"reject\"}");
+        Check("WebDiff: reject → RejectAll", rej != null && rej.Decision == DiffPreview.Decision.RejectAll);
+
+        var part = WayCoder.Web.WebChatServer.ParseDiffAnswer("{\"decision\":\"partial\",\"accepted\":[0,2]}");
+        Check("WebDiff: partial → Partial + 索引集", part != null && part.Decision == DiffPreview.Decision.Partial
+            && part.AcceptedHunks != null && part.AcceptedHunks.SetEquals(new HashSet<int> { 0, 2 }));
+
+        var partEmpty = WayCoder.Web.WebChatServer.ParseDiffAnswer("{\"decision\":\"partial\",\"accepted\":[]}");
+        Check("WebDiff: partial 空集", partEmpty != null && partEmpty.Decision == DiffPreview.Decision.Partial
+            && partEmpty.AcceptedHunks != null && partEmpty.AcceptedHunks.Count == 0);
+
+        Check("WebDiff: null → null", WayCoder.Web.WebChatServer.ParseDiffAnswer(null) == null);
+        Check("WebDiff: 空串 → null", WayCoder.Web.WebChatServer.ParseDiffAnswer("") == null);
+        Check("WebDiff: 非法 JSON → null", WayCoder.Web.WebChatServer.ParseDiffAnswer("not json") == null);
+        Check("WebDiff: 未知 decision → RejectAll", WayCoder.Web.WebChatServer.ParseDiffAnswer("{\"decision\":\"huh\"}")?.Decision == DiffPreview.Decision.RejectAll);
+
+        // ── 2. SerializeHunks 纯函数 ──
+        var hunks = DiffPreview.BuildHunks("line1\nline2\n", "line1\nCHANGED\nline2\n");
+        Check("WebDiff: BuildHunks 产出 hunk", hunks.Count >= 1);
+        var hunksNode = Json.Parse(WayCoder.Web.WebChatServer.SerializeHunks(hunks));
+        Check("WebDiff: SerializeHunks 是数组", hunksNode?.Kind == JKind.Array);
+        bool hunkValid = hunksNode != null && hunksNode.Kind == JKind.Array && hunksNode.Items.Any();
+        if (hunkValid)
+        {
+            var first = hunksNode!.Items.First();
+            Check("WebDiff: hunk 含 header", first["header"] != null);
+            Check("WebDiff: hunk 含 lines 数组", first["lines"]?.Kind == JKind.Array);
+            bool hasDelOrAdd = first["lines"]!.Items.Any(l => l["kind"]?.AsString() == "-" || l["kind"]?.AsString() == "+");
+            Check("WebDiff: hunk 行含 +/- 标记", hasDelOrAdd);
+        }
+        else Check("WebDiff: hunk 结构有效", false);
+
+        // ── 3. DiffPreview.Show Web 分支（mock 桥，不阻塞 Console）──
+        var mock = new MockInteraction();
+        UxHelper.WebInteraction = mock;
+        try
+        {
+            var old = "a\nb\nc\n";
+            var nw = "a\nB\nc\n";
+
+            mock.DiffResult = new DiffConfirmResult { Decision = DiffPreview.Decision.AcceptAll };
+            var r = DiffPreview.Show(old, nw, "test.cs");
+            Check("WebDiff: Show 走 Web 桥 AcceptAll", r.Decision == DiffPreview.Decision.AcceptAll);
+            Check("WebDiff: Show 调用 DiffConfirmAsync", mock.DiffCalled);
+
+            mock.DiffResult = new DiffConfirmResult { Decision = DiffPreview.Decision.Partial, AcceptedHunks = new HashSet<int> { 0 } };
+            var rp = DiffPreview.Show(old, nw, "test.cs");
+            Check("WebDiff: Show Partial 返回索引集", rp.Decision == DiffPreview.Decision.Partial
+                && rp.AcceptedHunks != null && rp.AcceptedHunks.SetEquals(new HashSet<int> { 0 }));
+
+            mock.DiffResult = null;
+            var rn = DiffPreview.Show(old, nw, "test.cs");
+            Check("WebDiff: Show null（取消/超时）→ RejectAll", rn.Decision == DiffPreview.Decision.RejectAll);
+
+            // 无实际变更时即使 Web 桥存在也应直接放行（不弹框）
+            mock.DiffCalled = false;
+            var rSame = DiffPreview.Show(old, old, "test.cs");
+            Check("WebDiff: 无变更直接放行且不弹框", rSame.Decision == DiffPreview.Decision.AcceptAll && !mock.DiffCalled);
+        }
+        finally { UxHelper.WebInteraction = null; }
     }
 
     /// <summary>WPS/老式二进制 Office（.wps/.et/.dps/.doc/.xls/.ppt）：CFB 解析器 + DOC/XLS/PPT 文本提取 + 容器识别/RTF/HTML 路由</summary>

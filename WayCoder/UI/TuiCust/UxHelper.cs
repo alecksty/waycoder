@@ -37,6 +37,9 @@ public static class UxHelper
 
         /// <summary>确认框。返回 0=是 1=总是允许 2=否（与 UxHelper.Confirm 对齐）。</summary>
         Task<int> ConfirmAsync(string title, string message, bool allowAll, int timeoutMs);
+
+        /// <summary>Diff 预览：逐 hunk 确认。返回决策与接受的 hunk 索引；null=取消/超时（视为拒绝）。</summary>
+        Task<DiffConfirmResult?> DiffConfirmAsync(string filePath, List<DiffPreview.Hunk> hunks, int timeoutMs);
     }
 
     /// <summary>Web 模式注入的交互桥（null=非 Web 模式，走原 TUI/Console 路径）。</summary>
@@ -352,4 +355,11 @@ public static class UxHelper
             screen.CloseWindow(win);
         manager?.Render();
     }
+}
+
+/// <summary>Web diff 预览确认结果（决策 + 接受的 hunk 索引集合）。</summary>
+public sealed class DiffConfirmResult
+{
+    public DiffPreview.Decision Decision = DiffPreview.Decision.RejectAll;
+    public HashSet<int>? AcceptedHunks;
 }

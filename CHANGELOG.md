@@ -1,5 +1,22 @@
 # 更新日志
 
+## v0.66.0 (2026-08-16) — Web Diff 预览（写前逐 hunk 确认）
+
+对标终端 `WAYCODER_DIFF_PREVIEW=1`：Web 模式下 write_file/edit_file/multi_edit 写文件前，把 diff 逐 hunk 推送到浏览器确认，不再因无 Console 而跳过。
+
+### 🔍 Web Diff 预览
+
+- `IWebInteraction` 新增 `DiffConfirmAsync(filePath, hunks, timeoutMs)` + `DiffConfirmResult` 结果类型
+- `DiffPreview.Show` 增加 Web 分支：`UxHelper.WebInteraction != null` 时经桥弹浏览器 diff 对话框（`GetAwaiter().GetResult()` 阻塞等待，无 SynchronizationContext 死锁风险；超时/取消 → 拒绝）
+- `WebChatServer` 实现 `DiffConfirmAsync` + `SerializeHunks` + `ParseDiffAnswer`（纯函数，便于自测）
+- 前端 `ask` 事件新增 `kind:"diff"`：每 hunk 一个复选框（默认勾选）+ 行级红/绿/灰着色（明暗主题自适应）+ 「全部接受 / 应用选中 / 全部拒绝」三按钮
+- 复用现有 `/answer` 路由回传结构化决策（`{"decision":"accept|reject|partial","accepted":[索引]}`）
+
+### 🧪 自测
+
+- 新增：`ParseDiffAnswer` 纯函数（accept/reject/partial/null/非法）+ `SerializeHunks` + `DiffPreview.Show` Web 分支（mock 交互桥）
+- 全量自测通过（0 失败）
+
 ## v0.65.0 (2026-08-16) — Web 斜杠命令路由
 
 Web 输入框支持斜杠命令，对标终端 REPL。未识别命令回退为普通 Agent 消息，纯 UI 命令前端直接拦截。

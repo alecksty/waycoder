@@ -52,6 +52,16 @@ public static class DiffPreview
         if (hunks.Count == 0 || hunks.All(h => h.Lines.All(l => l.Kind == ' ')))
             return (Decision.AcceptAll, null);
 
+        // Web 模式：经交互桥弹浏览器 diff 对话框（阻塞等待，无 SynchronizationContext 死锁风险）
+        if (UxHelper.WebInteraction != null)
+        {
+            var result = UxHelper.WebInteraction.DiffConfirmAsync(filePath, hunks, 120_000)
+                .GetAwaiter().GetResult();
+            if (result == null)
+                return (Decision.RejectAll, null); // 取消/超时 → 拒绝
+            return (result.Decision, result.AcceptedHunks);
+        }
+
         return TuiManager.Instance.ActiveScreen is ChatScreen
             ? ShowFullScreen(filePath, hunks)
             : ShowFallback(oldContent, newContent, filePath);

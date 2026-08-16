@@ -985,6 +985,74 @@ public sealed class WebChatServer : UxHelper.IWebInteraction
         };
     }
 
+    /// <summary>Diff 预览：广播逐 hunk diff，等待用户返回「接受/拒绝/部分接受」。超时/取消返回 null（视为拒绝）。</summary>
+    public async Task<DiffConfirmResult?> DiffConfirmAsync(string filePath, List<DiffPreview.Hunk> hunks, int timeoutMs)
+    {
+        var payload = JNode.Object()
+            .Set("requestId", NextId())
+            .Set("kind", "diff")
+            .Set("title", $"Diff 预览: {filePath}")
+            .Set("hunks", Json.Parse(SerializeHunks(hunks)) ?? JNode.Array());
+        var raw = await WaitAnswerAsync(payload, timeoutMs);
+        return ParseDiffAnswer(raw);
+    }
+
+    /// <summary>把 hunk 列表序列化为前端可渲染的 JSON 数组。纯逻辑便于自测。</summary>
+    public static string SerializeHunks(List<DiffPreview.Hunk> hunks)
+    {
+        var arr = JNode.Array();
+        foreach (var h in hunks)
+        {
+            var lines = JNode.Array();
+            foreach (var l in h.Lines)
+            {
+                lines.Add(JNode.Object()
+                    .Set("kind", l.Kind.ToString())
+                    .Set("text", l.Text)
+                    .Set("oldLine", l.OldLine)
+                    .Set("newLine", l.NewLine));
+            }
+            arr.Add(JNode.Object()
+                .Set("header", h.Header)
+                .Set("lines", lines));
+        }
+        return arr.ToJson();
+    }
+
+    /// <summary>
+    /// 解析 diff 确认应答。应答为 JSON 字符串：{"decision":"accept|reject|partial","accepted":[索引]}。
+    /// 纯逻辑便于自测；null/空/非法 → null（调用方视为拒绝）。
+    /// </summary>
+    public static DiffConfirmResult? ParseDiffAnswer(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        if (!Json.TryParse(json, out var node) || node == null) return null;
+
+        var decision = node["decision"]?.AsString() ?? "";
+        var result = new DiffConfirmResult();
+        switch (decision)
+        {
+            case "accept":
+                result.Decision = DiffPreview.Decision.AcceptAll;
+                break;
+            case "partial":
+                result.Decision = DiffPreview.Decision.Partial;
+                var acc = node["accepted"];
+                if (acc != null && acc.Kind == JKind.Array)
+                {
+                    var set = new HashSet<int>();
+                    foreach (var item in acc.Items)
+                        if (item.Kind == JKind.Number) set.Add((int)Math.Round(item.AsNumber()));
+                    result.AcceptedHunks = set;
+                }
+                break;
+            default:
+                result.Decision = DiffPreview.Decision.RejectAll;
+                break;
+        }
+        return result;
+    }
+
     /// <summary>广播提问并等待应答。超时返回 null（调用方视为取消/拒绝）。</summary>
     private async Task<string?> WaitAnswerAsync(JNode payload, int timeoutMs)
     {
@@ -1084,10 +1152,12 @@ public sealed class WebChatServer : UxHelper.IWebInteraction
 :root {
   --bg:#0f1117; --panel:#171a23; --panel2:#1d2230; --border:#262b3a; --text:#e6e8ee; --dim:#8b93a7;
   --accent:#4f8cff; --user:#1f3a5f; --tool:#2a2416; --danger:#3a2a2a; --shadow:0 4px 20px rgba(0,0,0,.4);
+  --diff-del:#ff7b72; --diff-del-bg:rgba(248,81,73,.14); --diff-add:#7ee787; --diff-add-bg:rgba(46,160,67,.14);
 }
 [data-theme="light"] {
   --bg:#f5f6f8; --panel:#ffffff; --panel2:#f0f2f6; --border:#e2e5ec; --text:#1a1d24; --dim:#6b7280;
   --accent:#2f6bff; --user:#e3ecff; --tool:#fff4dc; --danger:#ffe2e2; --shadow:0 4px 20px rgba(0,0,0,.12);
+  --diff-del:#d73a49; --diff-del-bg:rgba(255,129,130,.15); --diff-add:#1a7f37; --diff-add-bg:rgba(63,185,80,.15);
 }
 * { box-sizing:border-box; margin:0; padding:0; }
 body { background:var(--bg); color:var(--text); font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif; height:100vh; display:flex; flex-direction:column; transition:background .2s,color .2s; overflow:hidden; }
@@ -1205,6 +1275,7 @@ select optgroup { background:var(--panel); color:var(--text); }
 .modal { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:60; }
 .modal.open { display:flex; }
 .modal-card { background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:20px 22px; width:440px; max-width:92vw; max-height:86vh; overflow-y:auto; box-shadow:var(--shadow); }
+.modal-card.diff { width:680px; }
 .modal-card h2 { font-size:16px; margin-bottom:6px; }
 .modal-card p { font-size:13px; color:var(--dim); margin-bottom:12px; }
 .modal-card input[type="text"], .modal-card input[type="password"] { width:100%; height:37px; border-radius:11px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font:inherit; padding:0 12px; outline:none; margin-bottom:12px; }
@@ -1215,6 +1286,15 @@ select optgroup { background:var(--panel); color:var(--text); }
 .ask-message { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; white-space:pre-wrap; word-break:break-all; margin-bottom:12px; max-height:220px; overflow-y:auto; }
 .ask-multi { display:block; padding:6px 2px; font-size:13.5px; }
 .ask-multi input { margin-right:8px; }
+/* ── Diff 预览 ── */
+.diff-hunk { border:1px solid var(--border); border-radius:10px; margin-bottom:9px; overflow:hidden; }
+.diff-hunk-head { display:flex; align-items:center; gap:8px; padding:7px 11px; background:var(--panel2); font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; color:var(--dim); cursor:pointer; }
+.diff-hunk-head input { margin:0; }
+.diff-hunk-lines { margin:0; padding:8px 11px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; line-height:1.55; white-space:pre-wrap; word-break:break-all; background:var(--bg); }
+.diff-line { display:block; }
+.diff-line.del { color:var(--diff-del); background:var(--diff-del-bg); }
+.diff-line.add { color:var(--diff-add); background:var(--diff-add-bg); }
+.diff-line.ctx { color:var(--dim); }
 /* ── 模型选择窗口 ── */
 .model-card { width:560px; }
 #model-search { margin-bottom:0; }
@@ -1711,6 +1791,7 @@ function showAsk(d) {
   title.textContent = d.title || '';
   body.innerHTML = '';
   actions.innerHTML = '';
+  document.querySelector('#ask-modal .modal-card').classList.remove('diff');
   if (d.kind === 'select') {
     d.choices.forEach(c => {
       const b = document.createElement('button');
@@ -1756,8 +1837,58 @@ function showAsk(d) {
       actions.appendChild(all);
     }
     actions.appendChild(no);
+  } else if (d.kind === 'diff') {
+    title.textContent = d.title || 'Diff 预览';
+    document.querySelector('#ask-modal .modal-card').classList.add('diff');
+    (d.hunks || []).forEach((h, hi) => {
+      const block = document.createElement('div');
+      block.className = 'diff-hunk';
+      const head = document.createElement('label');
+      head.className = 'diff-hunk-head';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'diff-hunk-check';
+      cb.checked = true;
+      cb.dataset.idx = hi;
+      const hdr = document.createElement('span');
+      hdr.textContent = h.header || ('Hunk ' + (hi + 1));
+      head.appendChild(cb);
+      head.appendChild(hdr);
+      const pre = document.createElement('pre');
+      pre.className = 'diff-hunk-lines';
+      (h.lines || []).forEach(l => {
+        const ln = document.createElement('span');
+        ln.className = 'diff-line ' + (l.kind === '-' ? 'del' : l.kind === '+' ? 'add' : 'ctx');
+        ln.textContent = (l.kind === ' ' ? ' ' : l.kind) + (l.text || '');
+        pre.appendChild(ln);
+      });
+      block.appendChild(head);
+      block.appendChild(pre);
+      body.appendChild(block);
+    });
+    const acceptAll = document.createElement('button'); acceptAll.className = 'btn primary'; acceptAll.textContent = '全部接受';
+    acceptAll.onclick = () => answerDiff('accept', null);
+    const applySel = document.createElement('button'); applySel.className = 'btn'; applySel.textContent = '应用选中';
+    applySel.onclick = () => {
+      const acc = [];
+      body.querySelectorAll('.diff-hunk-check').forEach(c => { if (c.checked) acc.push(Number(c.dataset.idx)); });
+      answerDiff('partial', acc);
+    };
+    const rejectAll = document.createElement('button'); rejectAll.className = 'btn danger'; rejectAll.textContent = '全部拒绝';
+    rejectAll.onclick = () => answerDiff('reject', null);
+    actions.appendChild(acceptAll);
+    actions.appendChild(applySel);
+    actions.appendChild(rejectAll);
   }
   document.getElementById('ask-modal').classList.add('open');
+}
+function answerDiff(decision, accepted) {
+  if (!pendingAsk) return;
+  const id = pendingAsk.requestId;
+  const value = JSON.stringify({ decision: decision, accepted: accepted || [] });
+  fetch('/answer', { method: 'POST', body: JSON.stringify({ requestId: id, value: value }) })
+    .then(() => { document.getElementById('ask-modal').classList.remove('open'); pendingAsk = null; })
+    .catch(() => {});
 }
 function answerAsk(value) {
   if (!pendingAsk) return;
