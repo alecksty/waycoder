@@ -367,6 +367,49 @@ public static class ModelCli
         return sb.ToString().Trim();
     }
 
+    /// <summary>连通性探测结果（结构化，供 Web 序列化为 JSON）。</summary>
+    public record EndpointProbe(string ProviderId, string Display, string? BaseUrl, bool Ok, string Detail, string[] Models);
+
+    /// <summary>
+    /// 结构化连通性测试：返回所有「已存 API key 的供应商」+「本地端点」的探测结果列表。
+    /// 与 <see cref="Test"/> 相同的数据源，但不生成 Markdown，供 Web /models/scan 直接序列化。
+    /// </summary>
+    public static List<EndpointProbe> TestList()
+    {
+        var result = new List<EndpointProbe>();
+
+        // ── 1. 已存 API key：按供应商逐一测试 ──
+        var keys = ApiKeyStore.ListAll().OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase).ToArray();
+        foreach (var (pid, key) in keys)
+        {
+            var baseUrl = ResolveProviderBaseUrl(pid);
+            var models = ModelCatalog.ByProvider(pid).Select(m => m.Id).ToArray();
+            var display = ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DisplayName)
+                ? p.DisplayName : pid;
+            var (o, d) = ProbeEndpoint(baseUrl, key);
+            result.Add(new EndpointProbe(pid, display, baseUrl, o, d, models));
+        }
+
+        // ── 2. 本地端点（无需 key）：按 base_url 分组探测 ──
+        var localGroups = ModelCatalog.All
+            .Where(m =>
+            {
+                var baseUrl = EffectiveBaseUrl(m);
+                return m.ProviderId is "ollama" or "lmstudio" or "local" || ModelCatalog.IsOllamaBaseUrl(baseUrl);
+            })
+            .GroupBy(m => EffectiveBaseUrl(m) ?? "")
+            .ToList();
+
+        foreach (var g in localGroups)
+        {
+            var (o, d) = ProbeEndpoint(g.Key, null);
+            result.Add(new EndpointProbe(g.First().ProviderId, g.First().Provider, g.Key, o, d,
+                g.Select(m => m.Id).Distinct().ToArray()));
+        }
+
+        return result;
+    }
+
     /// <summary>
     /// 剪除失效供应商：逐一测试所有已存 API key，对失效供应商自动清理。
     /// 仅 key 无效（401/403）→ 只删 key、保留模型；无端点（供应商不存在/未配置 base_url）或无法连接（写错地址）→ 删 key + 所有自定义模型。
