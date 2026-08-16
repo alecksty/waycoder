@@ -1,4 +1,5 @@
-using WayCoder.UI;
+using WayCoder.UI.Shared;
+using WayCoder.UI.Tui;
 
 namespace WayCoder.Tools;
 
@@ -327,7 +328,7 @@ public class TodoTool : ITool
     {
         try
         {
-            if (TuiManager.Instance?.ActiveScreen is WayCoder.UI.TuiScreens.ChatScreen screen)
+            if (TuiManager.Instance?.ActiveScreen is WayCoder.UI.Tui.Screens.ChatScreen screen)
                 screen.RefreshSidePanel();
         }
         catch { /* 非 TUI 模式，静默忽略 */ }

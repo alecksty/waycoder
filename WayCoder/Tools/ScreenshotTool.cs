@@ -1,7 +1,8 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
-using WayCoder.UI;
+using WayCoder.UI.Shared;
+using WayCoder.UI.Tui;
 
 namespace WayCoder.Tools;
 

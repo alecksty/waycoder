@@ -1,5 +1,7 @@
-using System.Text;
-using WayCoder.UI;
+﻿using System.Text;
+using WayCoder.UI.Shared;
+using WayCoder.UI.Tui;
+using WayCoder.UI.Tui.Edit;
 
 namespace WayCoder.Tools;
 

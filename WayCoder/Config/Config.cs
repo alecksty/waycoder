@@ -707,7 +707,7 @@ public class Config
             // ── 界面 ──
             P("ThemePreset",      "WAYCODER_THEME",             null,
               "界面主题", "🎨 界面", "预设配色方案，选中即生效",
-              "select", WayCoder.UI.TuiTheme.PresetNames, 4,
+              "select", WayCoder.UI.Tui.TuiTheme.PresetNames, 4,
               c => c.ThemePreset, (c, v) => c.ThemePreset = v, "黄金甲"),
 
             P("ColorScheme",      "WAYCODER_COLOR_SCHEME",      null,
