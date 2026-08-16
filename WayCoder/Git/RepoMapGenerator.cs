@@ -366,7 +366,7 @@ public static class RepoMapGenerator
                     // 对于 C# using，匹配命名空间 → 文件路径
                     if (ext == ".cs")
                     {
-                        // using WayCoder.UI.TuiScreens → WayCoder/UI/TuiScreens/*.cs
+                        // using WayCoder.UI.Tui.TuiScreens → WayCoder/UI/TuiScreens/*.cs
                         var nsPath = import.Replace('.', '/');
                         FileRefs[relPath].Add(nsPath);
                     }

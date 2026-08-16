@@ -1,6 +1,7 @@
 using System.Text;
-using WayCoder.UI;
-using WayCoder.UI.TuiScreens;
+using WayCoder.UI.Shared;
+using WayCoder.UI.Tui;
+using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder;
 

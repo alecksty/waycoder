@@ -58,7 +58,7 @@ WayCoder --json -p "修复一个 bug"
 WayCoder --web          # 默认端口 8123
 WayCoder --web 9000     # 指定端口
 
-# 运行自测（2622 项）
+# 运行自测（3070 项）
 WayCoder  --test
 ```
 
@@ -94,7 +94,7 @@ WayCoder/
 ├── Skills/            技能系统 (SkillsManager.cs SKILL.md 发现与解析)
 ├── BackgroundTask.cs  后台任务
 ├── DebugLog.cs        调试日志
-├── Test/              测试/调试/演示代码（SelfTest 自测 12 partial 文件 + Benchmark/Keypad/TuiAudit/TuiDemo，共 2622 项）
+├── Test/              测试/调试/演示代码（SelfTest 自测 13 partial 文件 + Benchmark/Keypad/TuiAudit/TuiDemo，共 3070 项）
 ├── Batch/             批量任务引擎 (2 文件)
 │   ├── BatchSpec.cs     任务清单模型 + JSON 解析 + 名称消毒
 │   └── BatchRunner.cs   多仓库并行执行 + worktree 隔离 + 聚合报告

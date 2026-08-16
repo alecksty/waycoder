@@ -1,5 +1,34 @@
 # 更新日志
 
+## v0.68.0 (2026-08-16) — UI 分类重构 + 大文件拆分
+
+一次清偿两项工程债：UI 代码按 `UI/{Shared,CLI,TUI,GUI,WEB}` 五层分类归档（命名空间对齐目录），并把 4 个 1500+ 行的超大文件拆成 `partial class` 多文件，降低维护成本。附带修复 GitRunner 经典死锁。
+
+### 🗂 UI 分类重构
+
+- 目录五层归档：`UI/Shared`（Terminal/BoxBuffer/MarkdownRenderer/TuiColors/TuiHelper）、`UI/CLI`（Arguments/Commands）、`UI/TUI`（Base/Controls/Custom/Screens/Edit/ToolRenderers）、`UI/GUI`（预留）、`UI/WEB`（Web 服务器）
+- 命名空间对齐目录：`WayCoder.Terminal`/`Arguments`/`Commands`/`UI.TuiBase` 等 → `WayCoder.UI.Shared.*`/`Cli.*`/`Tui.*`/`Web.*`
+- 130+ 文件 `git mv` 归位，外部调用点经 `using` 同步更新
+
+### ✂️ 大文件拆分（partial class）
+
+- `Program.cs` 2536 行 → 4 文件（`Program` + `Repl`/`Commands`/`Output`）
+- `WebChat.cs` 2272 行 → 5 文件（`WebChat` + `WebAssets` + `Serialization`/`Commands`/`Interaction`）
+- `ChatScreen.cs` 2237 行 → 5 文件（`ChatScreen` + `Input`/`Dialogs` + `SlotState` + `ChatMsg`）
+- `Agent.cs` 1563 行 → 5 文件（`Agent` + `Tools`/`Feedback`/`Commit`/`Loop`）
+- 独立类型抽取：`WebAssets.Html`（~1000 行纯 HTML 常量）、`SlotState` 枚举、`ChatMsg` 类
+
+### 🐛 GitRunner 死锁修复
+
+- `Run`/`RunAsync` 并发读取 stdout/stderr，修复「同步先读 stdout、stderr 缓冲写满 → 进程阻塞 → stdout 永不 EOF」的经典死锁
+- 此前脏工作树下 `--test` 因大量 git 换行警告填充 stderr 缓冲而挂起
+
+### 🧪 自测
+
+- `SelfTest.Chunk11`（UI Lint + TuiTableList）接入 runner（此前被遗漏未执行）
+- UI Lint 白名单更新：终端 ANSI 底层原语（AnsiString/AnsiTty/RenderBuffer/Terminal）+ CLI 参数层（BuiltinArgs）+ ChatScreen.Dialogs
+- 自测 13 partial 文件、3070 项全部通过（0 失败）
+
 ## v0.67.0 (2026-08-16) — Web 多模态上传（图片/音频）
 
 补齐 Web 端多模态输入短板：输入栏新增 📎 上传按钮，图片入 vision 队列、音频转录为文字后自动发送，对标终端 `view_image` / `transcribe` 工具。

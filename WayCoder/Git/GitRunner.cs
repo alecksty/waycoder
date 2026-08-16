@@ -29,10 +29,12 @@ public static class GitRunner
         try
         {
             using var proc = Process.Start(BuildStartInfo(args, cwd))!;
-            var stdout = proc.StandardOutput.ReadToEnd();
-            var stderr = proc.StandardError.ReadToEnd();
-            proc.WaitForExitAsync().GetAwaiter().GetResult();
-            return (proc.ExitCode, stdout, stderr);
+            // 并发读取 stdout/stderr，避免经典死锁：stderr 缓冲写满时进程阻塞，
+            // 而同步先读 stdout 永远等不到 EOF。
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+            var stderrTask = proc.StandardError.ReadToEndAsync();
+            proc.WaitForExit();
+            return (proc.ExitCode, stdoutTask.GetAwaiter().GetResult(), stderrTask.GetAwaiter().GetResult());
         }
         catch (Exception ex)
         {
@@ -46,10 +48,11 @@ public static class GitRunner
         try
         {
             using var proc = Process.Start(BuildStartInfo(args, cwd))!;
-            var stdout = await proc.StandardOutput.ReadToEndAsync();
-            var stderr = await proc.StandardError.ReadToEndAsync();
+            // 并发读取 stdout/stderr，避免同步先读 stdout 的死锁。
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+            var stderrTask = proc.StandardError.ReadToEndAsync();
             await proc.WaitForExitAsync();
-            return (proc.ExitCode, stdout, stderr);
+            return (proc.ExitCode, await stdoutTask, await stderrTask);
         }
         catch (Exception ex)
         {

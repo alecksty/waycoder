@@ -1,4 +1,5 @@
-using WayCoder.UI.TuiScreens;
+using WayCoder.UI.Tui.Screens;
+using Commands = WayCoder.UI.Cli.Commands;
 
 namespace WayCoder;
 
