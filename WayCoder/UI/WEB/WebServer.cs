@@ -315,6 +315,7 @@ public sealed class HttpServer
         var head = $"HTTP/1.1 {resp.Status} {resp.Reason}\r\n" +
                    $"Content-Type: {resp.ContentType}\r\n" +
                    $"Content-Length: {resp.Body.Length}\r\n" +
+                   "Cache-Control: no-store, no-cache, must-revalidate\r\n" +
                    "Connection: close\r\n" +
                    "\r\n";
         var headBytes = Encoding.UTF8.GetBytes(head);

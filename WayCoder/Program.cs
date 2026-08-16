@@ -466,6 +466,8 @@ public partial class Program
         // web 无终端权限弹框 → 强制 yolo（服务仅绑定 127.0.0.1，风险可控）
         SandboxManager.SetLevel("full-auto");
         PermissionManager.CurrentMode = PermissionManager.Mode.Yolo;
+        // web 无终端 → diff 预览走浏览器弹窗，强制开启
+        Config.Instance.DiffPreview = true;
 
         var web = new WebChatServer(_agent!, port);
         web.Start();
