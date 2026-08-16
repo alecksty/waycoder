@@ -2974,6 +2974,58 @@ public static partial class SelfTest
         finally { UxHelper.WebInteraction = null; }
     }
 
+    private static void TestWebUpload(Action<string, bool> Check)
+    {
+        // ── 1. ParseUploadKind 纯函数 ──
+        Check("WebUp: kind=image → image", WayCoder.Web.WebChatServer.ParseUploadKind("kind=image") == "image");
+        Check("WebUp: kind=audio → audio", WayCoder.Web.WebChatServer.ParseUploadKind("kind=audio") == "audio");
+        Check("WebUp: 大小写不敏感 → image", WayCoder.Web.WebChatServer.ParseUploadKind("kind=IMAGE") == "image");
+        Check("WebUp: 非法 kind → null", WayCoder.Web.WebChatServer.ParseUploadKind("kind=huh") == null);
+        Check("WebUp: 缺少 kind → null", WayCoder.Web.WebChatServer.ParseUploadKind("a=1") == null);
+        Check("WebUp: null → null", WayCoder.Web.WebChatServer.ParseUploadKind(null) == null);
+        Check("WebUp: 空串 → null", WayCoder.Web.WebChatServer.ParseUploadKind("") == null);
+
+        // ── 2. IsImageExtension 纯函数 ──
+        Check("WebUp: png 是图片", WayCoder.Web.WebChatServer.IsImageExtension("png"));
+        Check("WebUp: .jpg 是图片", WayCoder.Web.WebChatServer.IsImageExtension(".jpg"));
+        Check("WebUp: JPG 是图片", WayCoder.Web.WebChatServer.IsImageExtension("JPG"));
+        Check("WebUp: txt 非图片", !WayCoder.Web.WebChatServer.IsImageExtension("txt"));
+        Check("WebUp: 空非图片", !WayCoder.Web.WebChatServer.IsImageExtension(""));
+
+        // ── 3. SafeExtension 纯函数 ──
+        Check("WebUp: a.png → png", WayCoder.Web.WebChatServer.SafeExtension("a.png", "image") == "png");
+        Check("WebUp: a.PNG → png", WayCoder.Web.WebChatServer.SafeExtension("a.PNG", "image") == "png");
+        Check("WebUp: .JPG → jpg", WayCoder.Web.WebChatServer.SafeExtension(".JPG", "image") == "jpg");
+        Check("WebUp: 图片缺扩展回退 png", WayCoder.Web.WebChatServer.SafeExtension("", "image") == "png");
+        Check("WebUp: 音频缺扩展回退 bin", WayCoder.Web.WebChatServer.SafeExtension("", "audio") == "bin");
+        Check("WebUp: 无扩展回退 png", WayCoder.Web.WebChatServer.SafeExtension("noext", "image") == "png");
+        Check("WebUp: 超长扩展回退 png", WayCoder.Web.WebChatServer.SafeExtension("a.verylongextension", "image") == "png");
+
+        // ── 4. IsTranscribeError 纯函数 ──
+        Check("WebUp: 错误前缀", WayCoder.Web.WebChatServer.IsTranscribeError("错误：无 API Key"));
+        Check("WebUp: 转录失败前缀", WayCoder.Web.WebChatServer.IsTranscribeError("转录失败"));
+        Check("WebUp: 转录出错前缀", WayCoder.Web.WebChatServer.IsTranscribeError("转录出错"));
+        Check("WebUp: 空文本前缀", WayCoder.Web.WebChatServer.IsTranscribeError("转录返回空文本"));
+        Check("WebUp: 正常内容非错误", !WayCoder.Web.WebChatServer.IsTranscribeError("你好，这是转录结果"));
+        Check("WebUp: 空串非错误", !WayCoder.Web.WebChatServer.IsTranscribeError(""));
+
+        // ── 5. ParseHttpRequest(byte[]) 二进制正文（RawBody 保留原始字节）──
+        var header = Encoding.UTF8.GetBytes("POST /upload?kind=image HTTP/1.1\r\nContent-Length: 4\r\nX-File-Name: a.png\r\n\r\n");
+        var raw = new byte[header.Length + 4];
+        Array.Copy(header, 0, raw, 0, header.Length);
+        raw[header.Length] = 0x89; raw[header.Length + 1] = 0x50; raw[header.Length + 2] = 0x4E; raw[header.Length + 3] = 0x47; // PNG 魔数
+        var req = WayCoder.Web.HttpServer.ParseHttpRequest(raw);
+        Check("WebUp: 二进制正文 RawBody 长度 4", req != null && req.RawBody.Length == 4);
+        Check("WebUp: RawBody 首字节保留 0x89", req != null && req.RawBody[0] == 0x89);
+        Check("WebUp: 头解析 X-File-Name", req?.Header("X-File-Name") == "a.png");
+        Check("WebUp: Path 为 /upload", req?.Path == "/upload");
+
+        // ── 6. ParsePath 纯函数 ──
+        Check("WebUp: ParsePath /upload", WayCoder.Web.HttpServer.ParsePath("POST /upload?kind=image HTTP/1.1\r\nHost: x\r\n\r\n") == "/upload");
+        Check("WebUp: ParsePath /chat", WayCoder.Web.HttpServer.ParsePath("POST /chat HTTP/1.1\r\n\r\n") == "/chat");
+        Check("WebUp: ParsePath 空", WayCoder.Web.HttpServer.ParsePath("") == "");
+    }
+
     /// <summary>WPS/老式二进制 Office（.wps/.et/.dps/.doc/.xls/.ppt）：CFB 解析器 + DOC/XLS/PPT 文本提取 + 容器识别/RTF/HTML 路由</summary>
     private static void TestWps(Action<string, bool> Check)
     {

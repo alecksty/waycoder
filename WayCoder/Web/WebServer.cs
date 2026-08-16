@@ -19,6 +19,8 @@ public sealed class HttpRequest
     public string Version = "";
     public Dictionary<string, string> Headers = new(StringComparer.OrdinalIgnoreCase);
     public string Body = "";
+    /// <summary>原始正文字节（文本请求与 <see cref="Body"/> 等价；二进制上传走这里，避免 UTF-8 解码损坏）。</summary>
+    public byte[] RawBody = Array.Empty<byte>();
 
     public string? Header(string name) => Headers.TryGetValue(name, out var v) ? v : null;
 }
@@ -52,6 +54,12 @@ public sealed class HttpServer
 {
     /// <summary>请求（头 + 正文）累计大小上限，防内存耗尽（OOM）攻击。</summary>
     public const int MaxRequestBytes = 1_048_576; // 1 MB
+
+    /// <summary>请求头部分上限（正文另计，普通请求正文仍受 <see cref="MaxRequestBytes"/> 约束）。</summary>
+    public const int MaxHeaderBytes = 64 * 1024; // 64 KB
+
+    /// <summary>二进制上传（/upload）正文上限：图片 ≤5MB、音频 ≤25MB，取 32MB 兜底。</summary>
+    public const int MaxUploadBytes = 32 * 1024 * 1024; // 32 MB
 
     /// <summary>并发连接上限，防连接/线程耗尽（每个连接一个 Task）。</summary>
     public const int MaxConnections = 32;
@@ -159,11 +167,16 @@ public sealed class HttpServer
 
     /// <summary>解析完整 HTTP 报文（请求行 + 头 + 正文）为结构化对象。畸形返回 null。</summary>
     public static HttpRequest? ParseHttpRequest(string raw)
+        => string.IsNullOrEmpty(raw) ? null : ParseHttpRequest(Encoding.UTF8.GetBytes(raw));
+
+    /// <summary>从原始字节解析 HTTP 报文，正文按字节保存到 <see cref="HttpRequest.RawBody"/>（文本另镜像到 Body）。</summary>
+    public static HttpRequest? ParseHttpRequest(byte[] raw)
     {
-        if (string.IsNullOrEmpty(raw)) return null;
-        int headerEnd = raw.IndexOf("\r\n\r\n", StringComparison.Ordinal);
-        string headPart = headerEnd >= 0 ? raw[..headerEnd] : raw;
-        string body = headerEnd >= 0 ? raw[(headerEnd + 4)..] : "";
+        if (raw == null || raw.Length == 0) return null;
+        int headerEnd = FindHeaderEnd(raw);
+        string headPart = headerEnd >= 0
+            ? Encoding.UTF8.GetString(raw, 0, headerEnd)
+            : Encoding.UTF8.GetString(raw);
 
         var lines = headPart.Split("\r\n");
         if (lines.Length == 0) return null;
@@ -189,7 +202,17 @@ public sealed class HttpServer
                 req.Headers[line[..colon].Trim()] = line[(colon + 1)..].Trim();
         }
 
-        req.Body = body;
+        if (headerEnd >= 0)
+        {
+            int bodyStart = headerEnd + 4;
+            int bodyLen = raw.Length - bodyStart;
+            if (bodyLen > 0)
+            {
+                req.RawBody = new byte[bodyLen];
+                Array.Copy(raw, bodyStart, req.RawBody, 0, bodyLen);
+            }
+        }
+        req.Body = Encoding.UTF8.GetString(req.RawBody);
         return req;
     }
 
@@ -233,41 +256,58 @@ public sealed class HttpServer
     //  网络 IO
     // ═══════════════════════════════════════════════════════════
 
-    private static async Task<string?> ReadRequestAsync(NetworkStream stream)
+    private static async Task<byte[]?> ReadRequestAsync(NetworkStream stream)
     {
         var ms = new MemoryStream();
         var buffer = new byte[8192];
+
+        // 1. 读请求头（限制 MaxHeaderBytes，未闭合也受约束）
+        int headerEnd = -1;
         while (true)
         {
             int n = await stream.ReadAsync(buffer, 0, buffer.Length);
+            if (n <= 0) return null; // 连接关闭
+            ms.Write(buffer, 0, n);
+            if (ms.Length > MaxHeaderBytes)
+                throw new RequestTooLargeException();
+            headerEnd = FindHeaderEnd(ms.ToArray());
+            if (headerEnd >= 0) break;
+        }
+
+        var headerText = Encoding.UTF8.GetString(ms.ToArray(), 0, headerEnd);
+        int contentLength = ParseContentLength(headerText);
+
+        // 正文上限：上传端点放宽到 MaxUploadBytes，其余仍受 MaxRequestBytes 约束
+        int maxBody = ParsePath(headerText) == "/upload" ? MaxUploadBytes : MaxRequestBytes;
+        if (contentLength > maxBody)
+            throw new RequestTooLargeException();
+
+        // 2. 读正文（可能已随头读入一部分）
+        int bodyStart = headerEnd + 4;
+        while ((int)(ms.Length - bodyStart) < contentLength)
+        {
+            int remaining = contentLength - (int)(ms.Length - bodyStart);
+            int n = await stream.ReadAsync(buffer, 0, Math.Min(buffer.Length, remaining));
             if (n <= 0) break;
             ms.Write(buffer, 0, n);
-
-            // 防内存耗尽：请求头未闭合（无 \r\n\r\n）也受上限约束
-            if (ms.Length > MaxRequestBytes)
+            if (ms.Length > bodyStart + maxBody)
                 throw new RequestTooLargeException();
-
-            var data = ms.ToArray();
-            int headerEnd = FindHeaderEnd(data);
-            if (headerEnd < 0) continue;
-
-            var headerText = Encoding.UTF8.GetString(data, 0, headerEnd);
-            int contentLength = ParseContentLength(headerText);
-            if (IsRequestTooLarge(contentLength))
-                throw new RequestTooLargeException();
-            int bodyStart = headerEnd + 4;
-            int bodyHave = data.Length - bodyStart;
-
-            while (bodyHave < contentLength)
-            {
-                n = await stream.ReadAsync(buffer, 0, Math.Min(buffer.Length, contentLength - bodyHave));
-                if (n <= 0) break;
-                ms.Write(buffer, 0, n);
-                bodyHave += n;
-            }
-            return Encoding.UTF8.GetString(ms.ToArray());
         }
-        return null;
+
+        return ms.ToArray();
+    }
+
+    /// <summary>从请求头文本提取路径（请求行第二段，去掉 query）。纯逻辑便于自测。</summary>
+    internal static string ParsePath(string headerText)
+    {
+        if (string.IsNullOrEmpty(headerText)) return "";
+        int lineEnd = headerText.IndexOf('\n');
+        var line = (lineEnd >= 0 ? headerText[..lineEnd] : headerText).TrimEnd('\r');
+        var parts = line.Split(' ');
+        if (parts.Length < 2) return "";
+        var pathAndQuery = parts[1];
+        int q = pathAndQuery.IndexOf('?');
+        return q >= 0 ? pathAndQuery[..q] : pathAndQuery;
     }
 
     private static async Task WriteResponseAsync(NetworkStream stream, HttpResponse resp)
