@@ -110,10 +110,10 @@ public class TuiListItem : TuiVBox
 
             var roleName = Role switch
             {
-                "user" => "You",
-                "assistant" => "Assistant",
-                "system" => "System",
-                "tool" => "Tool",
+                "user" => "用户",
+                "assistant" => "智能体",
+                "system" => "系统",
+                "tool" => "工具",
                 _ => Role
             };
             RoleLabel = new TuiLabel(roleName)
