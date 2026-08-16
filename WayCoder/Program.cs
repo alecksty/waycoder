@@ -40,8 +40,15 @@ public partial class Program
     private static System.Runtime.InteropServices.PosixSignalRegistration? _sigintReg;
     private static System.Runtime.InteropServices.PosixSignalRegistration? _sigtermReg;
 
-    /// <summary>当前会话 ID（用于 SessionPicker 标记）</summary>
-    private static string _currentSessionId = "_auto";
+    /// <summary>各槽位当前会话 ID（用于 SessionPicker 标记），按槽位隔离</summary>
+    private static readonly string[] _currentSessionIds = InitCurrentSessionIds();
+
+    private static string[] InitCurrentSessionIds()
+    {
+        var arr = new string[AgentSlot.Count];
+        for (int i = 0; i < arr.Length; i++) arr[i] = "_auto";
+        return arr;
+    }
 
     /// <summary>Watch 模式线程安全提示队列</summary>
     private static readonly System.Collections.Concurrent.ConcurrentQueue<string> _pendingWatchPrompts = new();
@@ -317,10 +324,11 @@ public partial class Program
         var hasResumeFlag = Arguments.CliArgRegistry.Has(parsed, "resume");
         if (hasResumeFlag)
         {
-            // 无参数时：优先 _auto，回退最新会话
+            // 无参数时：优先 _auto，回退最新会话（一次性模式 = 主槽位 0，旧版本存全局则回退）
             if (string.IsNullOrEmpty(resumeId))
             {
-                var autoLoaded = SessionManager.LoadSession("_auto");
+                var autoLoaded = SessionManager.LoadSession("_auto", 0)
+                                 ?? SessionManager.LoadSession("_auto");
                 if (autoLoaded != null)
                 {
                     resumeId = "_auto";
@@ -328,7 +336,9 @@ public partial class Program
                 else
                 {
                     // 找最新保存的会话
-                    var sessions = SessionManager.ListSessions(1);
+                    var sessions = SessionManager.ListSessions(1, 0, 0);
+                    if (sessions.Count == 0)
+                        sessions = SessionManager.ListSessions(1);
                     if (sessions.Count > 0)
                         resumeId = sessions[0].Id;
                 }
@@ -341,7 +351,8 @@ public partial class Program
             }
 
             HooksManager.RunSessionStart("resume");
-            var loaded = SessionManager.LoadSession(resumeId);
+            var loaded = SessionManager.LoadSession(resumeId, 0)
+                         ?? SessionManager.LoadSession(resumeId); // 旧版本存全局，回退
             if (loaded != null)
             {
                 _agent.Messages = loaded.Value.Messages;

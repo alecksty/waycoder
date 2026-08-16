@@ -336,7 +336,8 @@ public partial class Program
                 try { File.Delete(crashFile); } catch { }
             }
 
-            var auto = SessionManager.LoadSession("_auto");
+            var auto = SessionManager.LoadSession("_auto", 0)
+                       ?? SessionManager.LoadSession("_auto"); // 旧版本存全局，回退兼容
             if (auto == null) return;
 
             var count = auto.Value.Messages.Count;
@@ -402,8 +403,7 @@ public partial class Program
                 var hasUser = slot.Agent.Messages.Any(m =>
                     m["role"]?.AsString() == "user");
                 if (!hasUser) continue;
-                var suffix = i == 0 ? "_auto" : $"_auto_slot{i}";
-                SessionManager.SaveSession(slot.Agent.Messages, _config.Model, suffix);
+                SessionManager.SaveSession(slot.Agent.Messages, _config.Model, "_auto", i);
                 saved++;
             }
             if (saved > 0)
@@ -430,8 +430,7 @@ public partial class Program
                 if (slot?.Agent?.Messages == null || slot.Agent.Messages.Count == 0) continue;
                 var hasUser = slot.Agent.Messages.Any(m => m["role"]?.AsString() == "user");
                 if (!hasUser) continue;
-                var slotSuffix = i == 0 ? "_auto" : $"_auto_slot{i}";
-                try { SessionManager.SaveSession(slot.Agent.Messages, _config.Model, slotSuffix); } catch { }
+                try { SessionManager.SaveSession(slot.Agent.Messages, _config.Model, "_auto", i); } catch { }
             }
             // 写入崩溃标记文件
             var crashFile = Path.Combine(Global.GlobalConfigPath("sessions"), ".crash_recovery");
@@ -452,8 +451,7 @@ public partial class Program
             {
                 var slot = _slots[i];
                 if (slot?.Agent?.Messages == null || slot.Agent.Messages.Count == 0) continue;
-                var slotSuffix = $"_auto_slot{i}";
-                try { SessionManager.SaveSession(slot.Agent.Messages, _config.Model, slotSuffix); } catch { }
+                try { SessionManager.SaveSession(slot.Agent.Messages, _config.Model, "_auto", i); } catch { }
             }
         }
         catch { }

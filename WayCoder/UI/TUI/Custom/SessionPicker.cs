@@ -36,14 +36,15 @@ public static class SessionPicker
     /// 显示会话管理对话框。返回操作结果，null = 取消。
     /// </summary>
     /// <param name="currentSessionId">当前会话 ID（用于标记 ✓）</param>
-    public static Result? Show(string? currentSessionId = null)
+    /// <param name="slot">当前槽位（0-9），会话记录按槽位隔离；缺省 -1 走全局共享</param>
+    public static Result? Show(string? currentSessionId = null, int slot = -1)
     {
         Result? result = null;
         using var evt = new ManualResetEventSlim(false);
         try
         {
             var screen = TuiManager.Instance?.ActiveScreen;
-            var win = BuildWindow(currentSessionId, screen, r => { result = r; evt.Set(); });
+            var win = BuildWindow(currentSessionId, slot, screen, r => { result = r; evt.Set(); });
             screen?.ShowWindow(win);
             UxHelper.RenderWait(screen, evt, 60_000, win);
         }
@@ -53,7 +54,7 @@ public static class SessionPicker
 
     // ── 窗口构建 ──
 
-    private static TuiWindow BuildWindow(string? currentSessionId, TuiScreen? screen, Action<Result?> onDone)
+    private static TuiWindow BuildWindow(string? currentSessionId, int slot, TuiScreen? screen, Action<Result?> onDone)
     {
         int winW = Math.Clamp(Tty.Cols - 2, MinW, MaxW);
         int listW = Math.Max(10, winW - 2);          // 内容区宽（去左右边框）
@@ -78,7 +79,7 @@ public static class SessionPicker
         win.GradientEnd = g.end;
 
         // ── 状态 ──
-        var sessions = SessionManager.ListSessions(limit: 50);
+        var sessions = SessionManager.ListSessions(limit: 50, offset: 0, slot: slot);
         var filtered = new List<SessionInfo>();
         var rowLabels = new List<TuiLabel>(); // 与 filtered 一一对应
         int sel = -1;
@@ -181,7 +182,7 @@ public static class SessionPicker
         // 重命名/删除后重新载入会话列表，修复「列表陈旧」bug
         void Reload()
         {
-            sessions = SessionManager.ListSessions(limit: 50);
+            sessions = SessionManager.ListSessions(limit: 50, offset: 0, slot: slot);
             Rebuild(true);
         }
 
@@ -216,7 +217,7 @@ public static class SessionPicker
             {
                 if (!string.IsNullOrWhiteSpace(newName) && newName != s.Id)
                 {
-                    SessionManager.RenameSession(s.Id, newName);
+                    SessionManager.RenameSession(s.Id, newName, slot);
                     Reload();
                 }
             });
