@@ -97,29 +97,31 @@ public partial class ChatScreen : TuiScreen
         return win.Result is int idx ? idx : -1;
     }
 
-    /// <summary>显示行内权限确认 —— 在聊天流中嵌入交互式权限控件</summary>
-    public int ShowInlinePermission(string toolName, string argsSummary, string argsDetail, bool isDangerous)
+    /// <summary>
+    /// 显示权限确认对话框（模态弹框）—— Y=允许 A=全允 N/Esc=拒绝。
+    /// 返回 0=允许 1=全部允许 2=拒绝。替代旧的行内权限块（InlinePermission）。
+    /// </summary>
+    public int ShowPermissionDialog(string toolName, string argsSummary, string argsDetail, bool isDangerous)
     {
         using var evt = new ManualResetEventSlim(false);
-        int resolved = -1;
+        int resolved = 2; // 默认拒绝
 
-        var perm = new InlinePermission
+        var title = isDangerous ? $"⚠️ 危险操作 · {toolName}" : $"🔐 权限确认 · {toolName}";
+        var body = argsDetail.Length > 800
+            ? argsDetail[..800] + "\n\n…（详情过长，已截断）"
+            : argsDetail;
+
+        var win = TuiDialog.Permission(title, body, r =>
         {
-            ToolName = toolName,
-            ArgsSummary = argsSummary,
-            ArgsDetail = argsDetail,
-            IsDangerous = isDangerous,
-            Width = ChatList.Width - 2,
-        };
-        perm.OnResolved = r => { resolved = r; evt.Set(); };
-
-        lock (_chatLock)
-        {
-            ChatList.AddItem(perm);
-            perm.Focused = true;
-        }
-        MarkDirty();
-
+            resolved = r switch
+            {
+                TuiDialog.DialogResult.Yes => 0,   // 允许
+                TuiDialog.DialogResult.Ok => 1,    // 全部允许
+                _ => 2,                             // 拒绝（No / Closed）
+            };
+            evt.Set();
+        });
+        ShowWindow(win);
         RenderWait(evt);
         return resolved;
     }

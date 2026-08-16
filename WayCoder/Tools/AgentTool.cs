@@ -150,13 +150,17 @@ public class AgentTool : ITool, ICancellableTool
     /// <summary>执行单个子任务（单任务模式与并行模式共用）。</summary>
     private async Task<string> RunSubAgentAsync(string task, int depth, int maxDepth, CancellationToken cancellationToken)
     {
+        // 捕获父智能体到局部变量：ParentAgent 是实例字段，虽然修复后每个 Agent 持有
+        // 独立实例，但局部捕获保证并行子智能体并发构造期间语义稳定，且读起来更清晰。
+        var parent = ParentAgent!;
+
         // 子智能体的工具集：排除危险工具 + 深度限制下排除 agent
-        var subTools = ToolRegistry.GetSubAgentTools(ParentAgent!.Tools, depth, maxDepth);
+        var subTools = ToolRegistry.GetSubAgentTools(parent.Tools, depth, maxDepth);
 
         // 子智能体使用独立的 LLM 实例（Clone），小模型省钱。不再共享父 LlmClient 的
         // ModelOverride —— 并行模式下共享可变状态会竞态（最后完成的子智能体把
         // ModelOverride 恢复成小模型，污染主智能体后续请求降级）。
-        var subLLM = ParentAgent!.LlmClient.Clone();
+        var subLLM = parent.LlmClient.Clone();
         subLLM.ModelOverride = subLLM.SmallModel;
 
         // 子智能体轮次：随深度递减（顶层上限可配置）
@@ -177,10 +181,10 @@ public class AgentTool : ITool, ICancellableTool
             _currentDepth.Value = depth + 1;
 
             var subAgent = new Agent(subLLM, subTools,
-                ParentAgent.Context.MaxTokens, maxRounds: subRounds)
+                parent.Context.MaxTokens, maxRounds: subRounds)
             {
                 // 继承父智能体的标识，使子智能体文件写与父智能体同源，跨槽位冲突检测仍按槽位归属
-                AgentId = ParentAgent.AgentId,
+                AgentId = parent.AgentId,
             };
 
             var result = await subAgent.ChatAsync(fullTask, onToken: null, onTool: null, cancellationToken: cancellationToken);
@@ -202,7 +206,7 @@ public class AgentTool : ITool, ICancellableTool
         {
             _currentDepth.Value = depth;
             // 回收子智能体实例的花费统计到父智能体（Clone 后统计独立，否则会丢失）
-            ParentAgent!.LlmClient.MergeUsageFrom(subLLM);
+            parent.LlmClient.MergeUsageFrom(subLLM);
         }
     }
 

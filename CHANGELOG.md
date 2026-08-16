@@ -1,5 +1,31 @@
 # 更新日志
 
+## v0.71.4 (2026-08-17) — 并发竞态修复 + LLM 提问对话框 + diff 滚动
+
+修复多槽位/并行子智能体下的几处竞态，新增 LLM 提问对话框（`ask_user_question`）与 diff 对话框代码区滚动，并清理冗余文档。
+
+### 🐛 并发竞态修复
+
+- **AgentTool 独立实例**：每个 Agent 构造时持有独立的 `AgentTool` 实例（不再共享单例），避免 `ParentAgent` 被后构造的子智能体覆写（AgentId 继承失效、花费归并到错误实例、跨槽位重绑竞态）
+- **WebChat 双启动锁**：`StartSlotTask` 加 `StartLock` 串行化 check-then-act，杜绝同槽位两个并发请求同时通过 `IsBusy` 检查导致双 Agent 并发 + 第二个 CTS 覆盖第一个（泄漏）
+- **Esc 中断 CTS 原子摘除**：`Program.Repl` 中断槽位改用 `Interlocked.Exchange` 摘除 CTS，与后台 `finally` 的 `Dispose` 对齐，消除「读到非空 → 后台 Dispose → Cancel 抛 ObjectDisposedException」竞态
+- **LLM token/请求计数原子累加**：`TotalPromptTokens`/`TotalCompletionTokens`/`TotalRequests` 改 `Interlocked` 累加，并行子智能体（`Task.WhenAll`）并发归并到同一父实例不丢增量；新增 `AddUsage` 供自测/归并原子注入
+
+### 🛡️ 健壮性
+
+- **鼠标输入默认关闭**：`TuiManager.MouseEnabled` 默认 false（鼠标定位尚未调好），设 `WAYCODER_MOUSE=1` 即可重新启用；`InputManager`/`TuiManager.Enter`/`Program.Repl` 统一按此开关
+- **WrapText 省略号修复**：超行截断时正确预留省略号宽度并在末行补「…」，不再出现省略号被截断或吞掉最后一行
+- **权限确认改模态弹框**：`ShowInlinePermission` 迁移为 `ShowPermissionDialog`（`TuiDialog.Permission` 模态框，Y=允许 A=全允 N/Esc=拒绝），替代旧行内权限块，详情超 800 字符自动截断
+
+### ✨ LLM 提问对话框 + diff 滚动
+
+- **`TuiDialog.Ask`**：标题独占一行（粗体）→ 消息正文（1~5 行，超出省略号）→ 选项列表（单选 ▶ / 多选 ☑，最多 9 行可滚动）→ 底部按钮，高度按内容精确计算；`UxHelper.Ask` 统一 TUI 弹框 / 非 TUI 编号菜单回退，`AskUserQuestionTool` 接入
+- **diff 对话框代码区滚动**：`DiffPreview` 的代码对比区支持鼠标滚轮（每格 3 行）+ 右侧滚动条，内容超出屏幕时可滚动查看
+
+### 🧹 文档清理
+
+- 删除 `AGENTS.md`（旧 Agent Guide，已由 `CLAUDE.md` 取代）与误提交的临时文件
+
 ## v0.71.3 (2026-08-16) — TUI 会话记录按槽位隔离
 
 把 Web 版「会话记录按槽位隔离」同步到终端 TUI：每个槽位（F1-F10）各自保存/加载/列出/删除自己的会话记录，互不串扰。

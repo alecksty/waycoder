@@ -629,8 +629,7 @@ public static partial class SelfTest
         Check("Agent 接受预算参数", true);
         // 模拟超预算场景：设置 LLM 累计消费 > 预算
         var budgetLLM = new LLM("deepseek-v4-flash", "sk-test");
-        typeof(LLM).GetProperty("TotalPromptTokens")?.SetValue(budgetLLM, 10_000_000);
-        typeof(LLM).GetProperty("TotalCompletionTokens")?.SetValue(budgetLLM, 5_000_000);
+        budgetLLM.AddUsage(10_000_000, 5_000_000);
         var overBudgetAgent = new Agent(budgetLLM, maxBudgetUsd: 0.01);
         // 检查预算超限时 ChatAsync 返回预算错误
         var budgetResult = overBudgetAgent.ChatAsync("hello", null, null).Result;

@@ -227,60 +227,72 @@ public class AskUserQuestionTool : ITool
     /// </summary>
     private static async Task<object?> ShowQuestionAsync(ParsedQuestion q)
     {
-        // 有选项 → 选择对话框
+        // 有选项 → 选择对话框（标题=header，消息=question 正文，选项=按钮）
         if (q.Options.Count > 0)
         {
-            // 构建显示文本（含描述）
-            var displayItems = q.Options.Select(o =>
-                string.IsNullOrEmpty(o.Description)
-                    ? o.Label
-                    : $"{o.Label}  —  {o.Description}"
-            ).ToList();
-
             if (q.MultiSelect)
-                return await ShowMultiSelectAsync(q.Question, q.Header, displayItems, q.Options);
+                return await ShowMultiSelectAsync(q.Question, q.Header, q.Options);
             else
-                return await ShowSingleSelectAsync(q.Question, q.Header, displayItems, q.Options);
+                return await ShowSingleSelectAsync(q.Question, q.Header, q.Options);
         }
 
         // 无选项 → 文本输入
         return await ShowTextInputAsync(q.Question, q.Header);
     }
 
-    /// <summary>单选对话框 —— 统一走 UxHelper（TUI 弹框 / 非 TUI 行内），返回选中项的 label。</summary>
+    /// <summary>单选对话框 —— 统一走 UxHelper.Ask（标题+消息+按钮），返回选中项的 label。</summary>
     private static async Task<string?> ShowSingleSelectAsync(
         string question, string header,
-        List<string> displayItems,
         List<(string Label, string Description)> options)
     {
         var timeoutMs = Config.Instance.AskUserTimeoutSec * 1000;
-        string? chosen;
         if (UxHelper.WebInteraction != null)
-            chosen = await UxHelper.WebInteraction.SelectAsync(question, displayItems, timeoutMs);
-        else
-            chosen = UxHelper.Select(question, displayItems, timeoutMs: timeoutMs);
-        if (chosen == null) return null;
-        return ResolveLabel(chosen, displayItems, options);
+        {
+            var displayItems = BuildDisplayItems(options);
+            var chosen = await UxHelper.WebInteraction.SelectAsync(question, displayItems, timeoutMs);
+            return chosen == null ? null : ResolveLabel(chosen, displayItems, options);
+        }
+
+        var labels = options.Select(o => o.Label).ToList();
+        var picked = UxHelper.Ask(header, question, labels, multiSelect: false, timeoutMs: timeoutMs);
+        if (picked == null || picked.Count == 0) return null;
+        return picked[0] >= 0 && picked[0] < options.Count ? options[picked[0]].Label : null;
     }
 
-    /// <summary>多选对话框 —— 统一走 UxHelper（TUI 弹框 / 非 TUI 行内），返回选中项的 label 列表。</summary>
+    /// <summary>多选对话框 —— 统一走 UxHelper.Ask（标题+消息+按钮），返回选中项的 label 列表。</summary>
     private static async Task<JNode?> ShowMultiSelectAsync(
         string question, string header,
-        List<string> displayItems,
         List<(string Label, string Description)> options)
     {
         var timeoutMs = Config.Instance.AskUserTimeoutSec * 1000;
-        List<string>? chosen;
         if (UxHelper.WebInteraction != null)
-            chosen = await UxHelper.WebInteraction.MultiSelectAsync(question, displayItems, timeoutMs);
-        else
-            chosen = UxHelper.MultiSelect(question, displayItems, timeoutMs: timeoutMs);
-        if (chosen == null) return null; // 用户取消
-        var arr = JNode.Array();
-        foreach (var c in chosen)
-            arr.Add(ResolveLabel(c, displayItems, options));
-        return arr;
+        {
+            var displayItems = BuildDisplayItems(options);
+            var chosen = await UxHelper.WebInteraction.MultiSelectAsync(question, displayItems, timeoutMs);
+            if (chosen == null) return null; // 用户取消
+            var arr = JNode.Array();
+            foreach (var c in chosen)
+                arr.Add(ResolveLabel(c, displayItems, options));
+            return arr;
+        }
+
+        var labels = options.Select(o => o.Label).ToList();
+        var picked = UxHelper.Ask(header, question, labels, multiSelect: true, timeoutMs: timeoutMs);
+        if (picked == null) return null; // 用户取消
+        var result = JNode.Array();
+        foreach (var idx in picked)
+            if (idx >= 0 && idx < options.Count)
+                result.Add(options[idx].Label);
+        return result;
     }
+
+    /// <summary>构建含描述的显示文本（label — description），仅 Web 端使用。</summary>
+    private static List<string> BuildDisplayItems(List<(string Label, string Description)> options)
+        => options.Select(o =>
+            string.IsNullOrEmpty(o.Description)
+                ? o.Label
+                : $"{o.Label}  —  {o.Description}"
+        ).ToList();
 
     /// <summary>文本输入对话框 —— 统一走 UxHelper（TUI 弹框 / 非 TUI 行内），空输入视为取消。</summary>
     private static async Task<string?> ShowTextInputAsync(string question, string header)

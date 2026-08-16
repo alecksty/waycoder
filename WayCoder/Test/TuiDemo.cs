@@ -48,6 +48,14 @@ public static class TuiDemo
                         ShowMultiSelectDemo(screen); return;
                     case "/diff":
                         ShowDiffDemo(screen); return;
+                    case "/ask":
+                        ShowAskSingleDemo(screen); return;
+                    case "/asklong":
+                        ShowAskLongDemo(screen); return;
+                    case "/askmulti":
+                        ShowAskMultiDemo(screen); return;
+                    case "/askmany":
+                        ShowAskManyDemo(screen); return;
                 }
 
                 // 注：ChatScreen 已通过 HandleSpecial 添加了用户消息（AddUserMsg），
@@ -87,6 +95,11 @@ public static class TuiDemo
                 "- `/types` 或 `/l` — system/user/agent/tool 内容类型一览\n" +
                 "- `/multi` — 会话提问（多选）\n" +
                 "- `/diff` — 代码对比（逐 hunk 确认）\n\n" +
+                "### LLM 提问对话框（标题=诗名，消息=诗）\n" +
+                "- `/ask` — 古诗单选（《静夜思》）\n" +
+                "- `/asklong` — 长诗单选（《将进酒》超 5 行省略号）\n" +
+                "- `/askmulti` — 古诗多选\n" +
+                "- `/askmany` — 12 选项多选（超 9 个滚动）\n\n" +
                 "`Esc` — 退出  |  输入文字后 `Enter` 发送",
                 "assistant");
 
@@ -803,6 +816,115 @@ if (result != null)
         screen.AddMessage(
             "[1;31merror CS1002:[0m 应输入 ;\n" +
             "[1;31m  →[0m HealthController.cs(12,34)", "tool", indent: 1);
+    }
+
+    /// <summary>
+    /// /ask — LLM 提问对话框「古诗单选」（标题=诗名，消息=诗，对标 ask_user_question 的 select）
+    /// </summary>
+    internal static void ShowAskSingleDemo(ChatScreen screen)
+    {
+        const string poemName = "静夜思";
+        const string poem = "床前明月光，疑是地上霜。\n举头望明月，低头思故乡。";
+        var options = new List<string>
+        {
+            "赏析这首诗",
+            "翻译成白话",
+            "讲解写作背景",
+            "默写一遍",
+        };
+        var win = TuiDialog.Ask(poemName, poem, options, multiSelect: false,
+            onSelect: idx => screen.AddMessage($"📖 选择了：**{options[idx]}**", "system"),
+            onMultiConfirm: _ => { },
+            onCancel: () => screen.AddMessage("🚫 已取消", "system"));
+        screen.ShowWindow(win);
+    }
+
+    /// <summary>
+    /// /asklong — LLM 提问对话框「长诗单选」（超 5 行自动换行 + 省略号）
+    /// </summary>
+    internal static void ShowAskLongDemo(ChatScreen screen)
+    {
+        const string poemName = "将进酒";
+        const string poem =
+            "君不见黄河之水天上来，奔流到海不复回。\n" +
+            "君不见高堂明镜悲白发，朝如青丝暮成雪。\n" +
+            "人生得意须尽欢，莫使金樽空对月。\n" +
+            "天生我材必有用，千金散尽还复来。\n" +
+            "烹羊宰牛且为乐，会须一饮三百杯。\n" +
+            "岑夫子，丹丘生，将进酒，杯莫停。\n" +
+            "与君歌一曲，请君为我倾耳听。";
+        var options = new List<string>
+        {
+            "全文赏析",
+            "重点句解读",
+            "作者简介",
+            "背诵指导",
+        };
+        var win = TuiDialog.Ask(poemName, poem, options, multiSelect: false,
+            onSelect: idx => screen.AddMessage($"📖 选择了：**{options[idx]}**", "system"),
+            onMultiConfirm: _ => { },
+            onCancel: () => screen.AddMessage("🚫 已取消", "system"));
+        screen.ShowWindow(win);
+    }
+
+    /// <summary>
+    /// /askmulti — LLM 提问对话框「古诗多选」（标题=诗名，消息=诗，[ ]/[x] 勾选 + 确定）
+    /// </summary>
+    internal static void ShowAskMultiDemo(ChatScreen screen)
+    {
+        const string poemName = "春晓";
+        const string poem = "春眠不觉晓，处处闻啼鸟。\n夜来风雨声，花落知多少。";
+        var options = new List<string>
+        {
+            "孟浩然",
+            "唐代",
+            "五言绝句",
+            "田园诗派",
+            "山水诗",
+            "教材篇目",
+        };
+        var win = TuiDialog.Ask(poemName, poem, options, multiSelect: true,
+            onSelect: _ => { },
+            onMultiConfirm: picked =>
+            {
+                if (picked.Count == 0)
+                    screen.AddMessage("🚫 未选择任何项", "system");
+                else
+                {
+                    var names = picked.Select(i => options[i]).ToArray();
+                    screen.AddMessage($"✅ 多选结果（{names.Length} 项）：**{string.Join("、", names)}**", "system");
+                }
+            },
+            onCancel: () => screen.AddMessage("🚫 已取消", "system"));
+        screen.ShowWindow(win);
+    }
+
+    /// <summary>
+    /// /askmany — LLM 提问对话框「12 选项多选」（超 9 个滚动，验证滚动条 + PgUp/PgDn）
+    /// </summary>
+    internal static void ShowAskManyDemo(ChatScreen screen)
+    {
+        const string poemName = "天净沙·秋思";
+        const string poem = "枯藤老树昏鸦，小桥流水人家，古道西风瘦马。\n夕阳西下，断肠人在天涯。";
+        var options = new List<string>
+        {
+            "马致远", "元曲", "散曲", "小令", "秋景", "羁旅",
+            "思乡", "枯藤", "昏鸦", "古道", "西风", "瘦马",
+        };
+        var win = TuiDialog.Ask(poemName, poem, options, multiSelect: true,
+            onSelect: _ => { },
+            onMultiConfirm: picked =>
+            {
+                if (picked.Count == 0)
+                    screen.AddMessage("🚫 未选择任何项", "system");
+                else
+                {
+                    var names = picked.Select(i => options[i]).ToArray();
+                    screen.AddMessage($"✅ 多选结果（{names.Length} 项）：**{string.Join("、", names)}**", "system");
+                }
+            },
+            onCancel: () => screen.AddMessage("🚫 已取消", "system"));
+        screen.ShowWindow(win);
     }
 
     /// <summary>

@@ -57,6 +57,25 @@ public static class TuiHelper
         return sb.ToString();
     }
 
+    /// <summary>按显示宽度截断文本，末尾不加省略号（供 WrapText 预留省略号宽度后补 "…" 用）。</summary>
+    private static string TruncateByWidthPlain(string text, int maxWidth)
+    {
+        if (maxWidth <= 0) return "";
+        if (DisplayWidth(text) <= maxWidth) return text;
+
+        var runes = text.EnumerateRunes().ToList();
+        var sb = new StringBuilder();
+        int width = 0;
+        foreach (var r in runes)
+        {
+            int w = RuneWidth(r);
+            if (width + w > maxWidth) break;
+            width += w;
+            sb.Append(r.ToString());
+        }
+        return sb.ToString();
+    }
+
     /// <summary>
     /// 按 maxWidth 折行文本，支持显式换行符（\n）和自动折行。
     /// 英文文本尽量在空格处断行，CJK 文本在字符边界断行。
@@ -72,45 +91,44 @@ public static class TuiHelper
 
         var result = new List<string>();
         var rawLines = text.Replace("\r\n", "\n").Split('\n');
+        bool truncated = false;
 
         foreach (var line in rawLines)
         {
-            if (result.Count >= maxLines) break;
-            WrapLine(line, maxWidth, result, maxLines);
+            if (result.Count >= maxLines) { truncated = true; break; }
+            if (WrapLine(line, maxWidth, result, maxLines))
+            {
+                truncated = true;
+                break;
+            }
         }
 
-        // 总行数超出 maxLines：截断并给最后一行加 …
-        if (result.Count > maxLines)
-        {
-            result = result.Take(maxLines).ToList();
-            var last = result[^1];
-            var lastVw = DisplayWidth(last);
-            if (lastVw + EllipsisWidth > maxWidth)
-                last = TruncateByWidth(last, maxWidth);
-            result[^1] = TruncateByWidth(last, maxWidth);
-        }
+        // 内容被截断：最后一行末尾追加省略号（先预留省略号宽度再补）
+        if (truncated && result.Count > 0)
+            result[^1] = TruncateByWidthPlain(result[^1], maxWidth - EllipsisWidth) + "…";
 
         return result;
     }
 
-    /// <summary>折行单行（不含 \n）</summary>
-    private static void WrapLine(string line, int maxWidth, List<string> result, int maxLines)
+    /// <summary>折行单行（不含 \n）。返回 true 表示因 maxLines 上限截断了未显示内容。</summary>
+    private static bool WrapLine(string line, int maxWidth, List<string> result, int maxLines)
     {
-        if (result.Count >= maxLines) return;
+        if (result.Count >= maxLines) return true; // 已满，此行未消费 → 截断
 
         if (DisplayWidth(line) <= maxWidth)
         {
             result.Add(line);
-            return;
+            return false;
         }
 
         // 长行需要折行
-        while (line.Length > 0 && result.Count < maxLines)
+        while (line.Length > 0)
         {
+            if (result.Count >= maxLines) return true; // 折行中达到上限，剩余未显示 → 截断
             if (DisplayWidth(line) <= maxWidth)
             {
                 result.Add(line);
-                break;
+                return false;
             }
 
             // 查找断点：优先在空格处、否则在字符边界
@@ -120,6 +138,8 @@ public static class TuiHelper
             result.Add(line[..breakIdx]);
             line = line[breakIdx..].TrimStart(); // 去掉段首空格
         }
+
+        return false;
     }
 
     /// <summary>在 maxWidth 内查找最佳断行点（优先空格，其次字符边界）</summary>

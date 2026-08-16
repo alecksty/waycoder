@@ -14,6 +14,19 @@ public class TuiManager : IDisposable
     // ── 单例 ──
     public static TuiManager Instance { get; } = new();
 
+    // ── 鼠标支持 ──
+    /// <summary>
+    /// 是否启用鼠标输入。当前默认关闭（鼠标定位尚未调好，影响使用体验）。
+    /// 调好后设环境变量 WAYCODER_MOUSE=1 即可重新启用，无需改代码。
+    /// </summary>
+    public static bool MouseEnabled { get; } = IsMouseEnvEnabled();
+
+    private static bool IsMouseEnvEnabled()
+    {
+        var v = Environment.GetEnvironmentVariable("WAYCODER_MOUSE");
+        return v is "1" or "true" or "on" or "TRUE" or "ON" or "True" or "On";
+    }
+
     // ── 终端尺寸 ──
     public int TW { get; private set; }
     public int TH { get; private set; }
@@ -40,7 +53,7 @@ public class TuiManager : IDisposable
     {
         Tty.EnterAltScreen();
         Tty.HideCursor();
-        Tty.EnableMouse();
+        if (MouseEnabled) Tty.EnableMouse();
         (TW, TH) = (Tty.Cols, Tty.Rows);
         IsActive = true;
     }

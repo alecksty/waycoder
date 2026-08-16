@@ -45,8 +45,11 @@ public class InputManager : IDisposable
             Debug.Print("Couldn't disable mouse");
         }
 
-        try { Tty.EnableMouse(); _mouseEnabled = true; }
-        catch { _mouseEnabled = false; }
+        if (TuiManager.MouseEnabled)
+        {
+            try { Tty.EnableMouse(); _mouseEnabled = true; }
+            catch { _mouseEnabled = false; }
+        }
 
         // 启用 bracketed paste：终端自动包裹粘贴内容为 \x1b[200~...\x1b[201~
         try { Tty.EnableBracketedPaste(); }

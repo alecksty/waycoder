@@ -22,7 +22,7 @@ public class TestCommand : SlashCommand
         switch (args)
         {
             case "perm" or "权限框":
-                screen.ShowInlinePermission("bash",
+                screen.ShowPermissionDialog("bash",
                     "rm -rf /tmp/build",
                     "command: rm -rf /tmp/build\ncwd: /home/user/project",
                     isDangerous: true);

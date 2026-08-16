@@ -39,6 +39,11 @@ public static class TuiAudit
             DumpWindow("面板布局 F12", s => TuiDemo.ShowPanelDemo(s));
             DumpWindow("按钮组+滚动条 /b", s => TuiDemo.ShowButtonGroupDemo(s));
             DumpWindow("多选对话框 /multi", s => TuiDemo.ShowMultiSelectDemo(s));
+            DumpWindow("古诗单选 /ask", s => TuiDemo.ShowAskSingleDemo(s));
+            DumpWindow("长诗单选 /asklong", s => TuiDemo.ShowAskLongDemo(s));
+            DumpWindow("古诗多选 /askmulti", s => TuiDemo.ShowAskMultiDemo(s));
+            DumpWindow("12选项多选 /askmany", s => TuiDemo.ShowAskManyDemo(s));
+            DumpDiffWindow("代码对比大 diff /diff", SampleBigDiffOld(), SampleBigDiffNew());
         }
         finally
         {
@@ -51,7 +56,6 @@ public static class TuiAudit
         DumpFullScreen("推理深度 /r", () => { ReasoningPicker.Show(currentLevel: "", modelName: "deepseek-v4-pro"); });
         DumpFullScreen("命令面板 /c", () => { CommandPalette.Show(SampleCommands()); });
         DumpFullScreen("文件选择器 /f", () => { FilePicker.Show(Environment.CurrentDirectory, null, "选择文件"); });
-        DumpFullScreen("代码对比 /diff", () => { DiffPreview.Show(SampleOld(), SampleNew(), "HealthController.cs"); });
     }
 
     // ── TuiWindow 对话框 ──
@@ -64,6 +68,31 @@ public static class TuiAudit
         try
         {
             setup(screen);
+            mgr.Render();
+            PrintSection(name, AnsiToGrid(mgr.LastCleanFrame, 30, 100));
+        }
+        catch (Exception ex)
+        {
+            PrintSection(name, new[] { "(渲染出错: " + ex.GetType().Name + ": " + ex.Message + ")" });
+        }
+        finally
+        {
+            try { mgr.PopScreen(); } catch { }
+        }
+    }
+
+    // ── Diff 对话框（非阻塞：直接构建窗口渲染，不跑 Show 的等待循环）──
+
+    static void DumpDiffWindow(string name, string oldContent, string newContent)
+    {
+        var mgr = TuiManager.Instance;
+        var screen = new ChatScreen();
+        mgr.PushScreen(screen);
+        try
+        {
+            var hunks = DiffPreview.BuildHunks(oldContent, newContent);
+            var win = DiffPreview.BuildDiffWindow(hunks, "BigFile.cs", screen, (_, _) => { });
+            screen.ShowWindow(win);
             mgr.Render();
             PrintSection(name, AnsiToGrid(mgr.LastCleanFrame, 30, 100));
         }
@@ -206,4 +235,29 @@ public static class TuiAudit
 
     static string SampleNew() =>
         "public class HealthController : ControllerBase\n{\n    public string Get()\n    {\n        return \"new\";\n    }\n\n    public string Ready() => \"ready\";\n}\n";
+
+    /// <summary>生成一个多行的大 diff（旧文件），用于验证滚动条与滚动。</summary>
+    static string SampleBigDiffOld()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("public class BigFile");
+        sb.AppendLine("{");
+        for (int i = 0; i < 40; i++)
+            sb.AppendLine($"    public int Field{i} {{ get; set; }}  // 旧字段 {i}");
+        sb.AppendLine("}");
+        return sb.ToString();
+    }
+
+    /// <summary>生成一个多行的大 diff（新文件），与旧文件逐行差异以产生多个 hunk。</summary>
+    static string SampleBigDiffNew()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("public class BigFile : BaseClass");
+        sb.AppendLine("{");
+        for (int i = 0; i < 40; i++)
+            sb.AppendLine($"    public string Field{i} {{ get; set; }} = \"新值{i}\";  // 改类型并赋值 {i}");
+        sb.AppendLine("    public void NewMethod() => Console.WriteLine(\"added\");");
+        sb.AppendLine("}");
+        return sb.ToString();
+    }
 }
