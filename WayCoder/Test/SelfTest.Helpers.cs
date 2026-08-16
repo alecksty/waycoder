@@ -2702,6 +2702,109 @@ public static partial class SelfTest
         Check("WebRes: HtmlEscape 正常文本不变", WayCoder.Web.WebChatServer.HtmlEscape("echo hello") == "echo hello");
     }
 
+    /// <summary>Web 交互桥 mock 实现（测试 AskUserQuestionTool 走桥而非 Console）。</summary>
+    private sealed class MockInteraction : UxHelper.IWebInteraction
+    {
+        public string? SelectResult;
+        public bool SelectCalled;
+
+        public Task<string?> AskAsync(string prompt, string? defaultValue, int timeoutMs) => Task.FromResult((string?)null);
+        public Task<string?> SelectAsync(string title, List<string> choices, int timeoutMs) { SelectCalled = true; return Task.FromResult(SelectResult); }
+        public Task<List<string>?> MultiSelectAsync(string title, List<string> choices, int timeoutMs) => Task.FromResult((List<string>?)null);
+        public Task<int> ConfirmAsync(string title, string message, bool allowAll, int timeoutMs) => Task.FromResult(2);
+    }
+
+    /// <summary>Web 三栏面板：SerializePanel/SerializeSessions/LspTool.ActiveSessions/交互桥/端点冒烟。</summary>
+    private static void TestWebPanelSessions(Action<string, bool> Check)
+    {
+        // ── 1. SerializePanel（右栏六类数据）──
+        var a = new Agent(new LLM("test", "sk-test"));
+        var slots = new Agent?[10];
+        slots[0] = a;
+        var panel = Json.Parse(WayCoder.Web.WebChatServer.SerializePanel(0, slots));
+        Check("WebPanel: 含 todos", panel?["todos"] != null);
+        Check("WebPanel: 含 tokens", panel?["tokens"] != null);
+        Check("WebPanel: 含 cost", panel?["cost"] != null);
+        Check("WebPanel: 含 files", panel?["files"] != null);
+        Check("WebPanel: 含 mcp", panel?["mcp"] != null);
+        Check("WebPanel: 含 lsp", panel?["lsp"] != null);
+        Check("WebPanel: 活跃槽位 token 字段", panel?["tokens"]?["totalPrompt"] != null);
+        var emptyPanel = Json.Parse(WayCoder.Web.WebChatServer.SerializePanel(0, new Agent?[10]));
+        Check("WebPanel: 全空槽位不抛异常", emptyPanel != null && emptyPanel["tokens"] != null);
+        var oobPanel = Json.Parse(WayCoder.Web.WebChatServer.SerializePanel(99, slots));
+        Check("WebPanel: 越界槽位不抛异常", oobPanel != null);
+
+        // ── 2. SerializeSessions（历史会话列表）──
+        var savedId = SessionManager.SaveSession(
+            new List<JNode> { JNode.Object().Set("role", "user").Set("content", "测试会话预览") },
+            "test-model");
+        try
+        {
+            var sj = WayCoder.Web.WebChatServer.SerializeSessions();
+            Check("WebPanel: sessions 含刚保存会话", sj.Contains(savedId));
+            var parsed = Json.Parse(sj);
+            bool previewOk = false;
+            foreach (var it in parsed!.Items)
+            {
+                if (it["id"]?.AsString() == savedId)
+                {
+                    previewOk = it["preview"]?.AsString() == "测试会话预览";
+                    break;
+                }
+            }
+            Check("WebPanel: sessions preview 正确", previewOk);
+        }
+        finally { SessionManager.DeleteSession(savedId); }
+
+        // ── 3. LspTool.ActiveSessions 访问器（空态不抛异常）──
+        var lspSessions = LspTool.ActiveSessions;
+        Check("WebPanel: LspTool.ActiveSessions 返回列表", lspSessions != null);
+        Check("WebPanel: 空 LSP 会话不抛异常", lspSessions!.Count >= 0);
+
+        // ── 4. 交互桥：AskUserQuestionTool 走 WebInteraction 而非 Console ──
+        var mock = new MockInteraction { SelectResult = "A  —  desc A" };
+        UxHelper.WebInteraction = mock;
+        try
+        {
+            var tool = new AskUserQuestionTool();
+            var q = JNode.Object().Set("question", "选哪个").Set("header", "choice")
+                .Set("options", JNode.Array().Add(JNode.Object().Set("label", "A").Set("description", "desc A")));
+            var args = new Dictionary<string, object?> { ["questions"] = JNode.Array().Add(q) };
+            var result = tool.ExecuteAsync(args).Result;
+            Check("WebAsk: AskUserQuestionTool 走桥", mock.SelectCalled);
+            var resNode = Json.Parse(result);
+            Check("WebAsk: 单选 label 解析正确", resNode?["choice"]?.AsString() == "A");
+        }
+        finally { UxHelper.WebInteraction = null; }
+
+        // ── 5. 端点冒烟：/panel /sessions /sessions/load /answer ──
+        var web = new WayCoder.Web.WebChatServer(a, 0);
+        web.Start();
+        try
+        {
+            using var client = new HttpClient();
+            var baseUrl = $"http://127.0.0.1:{web.Port}";
+
+            var p = Json.Parse(client.GetStringAsync(baseUrl + "/panel").Result);
+            Check("WebPanel: GET /panel 六字段", p?["todos"] != null && p?["lsp"] != null);
+
+            var ss = Json.Parse(client.GetStringAsync(baseUrl + "/sessions").Result);
+            Check("WebPanel: GET /sessions 数组", ss?.Kind == JKind.Array);
+
+            var loadResp = client.PostAsync(baseUrl + "/sessions/load",
+                new StringContent("{\"id\":\"no-such-session-xyz\"}", Encoding.UTF8, "application/json")).Result;
+            Check("WebPanel: POST /sessions/load 非法 id 报错",
+                loadResp.Content.ReadAsStringAsync().Result.Contains("\"ok\":false"));
+
+            var ansResp = client.PostAsync(baseUrl + "/answer",
+                new StringContent("{\"requestId\":\"999999\",\"value\":\"x\"}", Encoding.UTF8, "application/json")).Result;
+            Check("WebPanel: POST /answer 无匹配报错",
+                ansResp.Content.ReadAsStringAsync().Result.Contains("\"ok\":false"));
+        }
+        catch { Check("WebPanel: 端点冒烟", false); }
+        finally { web.Stop(); }
+    }
+
     /// <summary>WPS/老式二进制 Office（.wps/.et/.dps/.doc/.xls/.ppt）：CFB 解析器 + DOC/XLS/PPT 文本提取 + 容器识别/RTF/HTML 路由</summary>
     private static void TestWps(Action<string, bool> Check)
     {
