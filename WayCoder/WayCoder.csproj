@@ -30,6 +30,9 @@
     <Compile Remove="works/**/*.cs" />
     <None Remove="subs/**/*" />
     <None Remove="works/**/*" />
+    <!-- WayEngine 是独立游戏引擎（自带 .sln），误置于本源码树内，排除出主项目编译 -->
+    <Compile Remove="WayEngine/**/*.cs" />
+    <None Remove="WayEngine/**/*" />
   </ItemGroup>
 
 </Project>

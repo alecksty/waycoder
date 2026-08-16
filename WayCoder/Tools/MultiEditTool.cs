@@ -158,7 +158,7 @@ public class MultiEditTool : ITool
             Directory.CreateDirectory(dir);
 
         File.WriteAllText(path, content, Encoding.UTF8);
-        EditFileTool.ChangedFiles.Add(path);
+        EditFileTool.RecordChange(path, null, content);
         FileTracker.RecordWrite(path);
 
         var total = edits.Count;
@@ -228,7 +228,7 @@ public class MultiEditTool : ITool
             newContent = newContent.Replace("\n", "\r\n");
 
         File.WriteAllText(path, newContent, Encoding.UTF8);
-        EditFileTool.ChangedFiles.Add(path);
+        EditFileTool.RecordChange(path, oldContent, newContent);
         FileTracker.RecordWrite(path);
 
         // 生成 diff

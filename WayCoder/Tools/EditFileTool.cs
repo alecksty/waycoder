@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Collections.Concurrent;
+using System.Text;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
 using WayCoder.UI.Tui.Edit;
@@ -39,6 +40,30 @@ public class EditFileTool : ITool
     /// 静态集合，跨所有工具实例共享。线程安全（10 槽位并行写 / 主线程读）。
     /// </summary>
     public static readonly ThreadSafeStringSet ChangedFiles = new();
+
+    /// <summary>文件变更行数统计（绝对路径 → 新增/删除行数），供 Web 面板「修改文件」显示 +N/-M。</summary>
+    public static readonly ConcurrentDictionary<string, (int Added, int Deleted)> ChangedFileStats = new();
+
+    /// <summary>
+    /// 记录一次文件变更：加入 ChangedFiles 并统计 +新增/-删除 行数（基于 diff hunk）。
+    /// 纯静态便于各工具复用；统计失败不影响写入。
+    /// </summary>
+    public static void RecordChange(string path, string? oldContent, string newContent)
+    {
+        ChangedFiles.Add(path);
+        int added = 0, deleted = 0;
+        try
+        {
+            foreach (var h in DiffPreview.BuildHunks(oldContent ?? "", newContent))
+                foreach (var l in h.Lines)
+                {
+                    if (l.Kind == '+') added++;
+                    else if (l.Kind == '-') deleted++;
+                }
+        }
+        catch { }
+        ChangedFileStats[path] = (added, deleted);
+    }
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
@@ -126,7 +151,7 @@ public class EditFileTool : ITool
                 newContent = newContent.Replace("\n", "\r\n");
 
             File.WriteAllText(path, newContent, Encoding.UTF8);
-            ChangedFiles.Add(path);
+            RecordChange(path, content, newContent);
             FileTracker.RecordWrite(path);
 
             var diff = UnifiedDiff(content, newContent, path);

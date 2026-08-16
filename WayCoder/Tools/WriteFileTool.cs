@@ -66,6 +66,7 @@ public class WriteFileTool : ITool
             var dir = Path.GetDirectoryName(path);
             if (dir != null) Directory.CreateDirectory(dir);
 
+            string? oldContent = null;
             if (append)
             {
                 // 追加模式：不覆写、不做先读后改检查、不做 diff 预览
@@ -79,13 +80,13 @@ public class WriteFileTool : ITool
                     var preEditWarning = FileTracker.ValidatePreEdit(path);
                     if (preEditWarning != null)
                         return preEditWarning;
+                    oldContent = File.ReadAllText(path, Encoding.UTF8);
                 }
 
                 // Diff 预览：仅当开关开启、非交互模式（管道/重定向/测试）、且文件已存在时
                 var cfg = Config.Instance;
-                if (cfg.DiffPreview && !Console.IsInputRedirected && !Console.IsOutputRedirected && File.Exists(path))
+                if (cfg.DiffPreview && !Console.IsInputRedirected && !Console.IsOutputRedirected && oldContent != null)
                 {
-                    var oldContent = File.ReadAllText(path, Encoding.UTF8);
                     var (decision, accepted) = DiffPreview.Show(oldContent, content, filePath);
                     if (decision == DiffPreview.Decision.RejectAll)
                         return $"已取消写入 {filePath}（用户拒绝变更）";
@@ -96,7 +97,7 @@ public class WriteFileTool : ITool
                 File.WriteAllText(path, content, encoding);
             }
 
-            EditFileTool.ChangedFiles.Add(path);
+            EditFileTool.RecordChange(path, oldContent, content);
             FileTracker.RecordWrite(path);
 
             var lineCount = content.Count(c => c == '\n') + (string.IsNullOrEmpty(content) || content.EndsWith('\n') ? 0 : 1);

@@ -70,6 +70,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return JNode.Object()
             .Set("activeSlot", activeSlot)
             .Set("model", cfg.Model)
+            .Set("smallModel", cfg.SmallModel)
+            .Set("economy", cfg.EconomyMode.ToString().ToLowerInvariant())
             .Set("provider", providerId)
             .Set("providerName", ModelCatalog.Providers.TryGetValue(providerId, out var p) ? p.DisplayName : providerId)
             .Set("hasKey", hasKey)
@@ -194,11 +196,18 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             cost.Set("estimated", llm.EstimatedCost.HasValue ? JNode.Num(llm.EstimatedCost.Value) : JNode.Null());
         }
 
-        // ── 修改文件（全局共享）──
+        // ── 修改文件（全局共享，含 +新增/-删除 行数）──
         var files = JNode.Array();
         try
         {
-            foreach (var f in EditFileTool.ChangedFiles.ToList()) files.Add(f);
+            foreach (var f in EditFileTool.ChangedFiles.ToList())
+            {
+                EditFileTool.ChangedFileStats.TryGetValue(f, out var st);
+                files.Add(JNode.Object()
+                    .Set("path", f)
+                    .Set("added", st.Added)
+                    .Set("deleted", st.Deleted));
+            }
         }
         catch { }
 

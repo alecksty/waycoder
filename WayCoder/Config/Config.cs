@@ -112,6 +112,9 @@ public class Config
     }
     private static Config? _instance;
 
+    /// <summary>.env 写文件锁：Web 设置面板可能并发 POST 多项设置，串行化读改写防止文件锁冲突（IOException）。</summary>
+    private static readonly object SaveLock = new();
+
     /// <summary>重新加载配置（读取最新的环境变量和 .env 文件）</summary>
     public static void Reload() { _instance = null; }
 
@@ -824,23 +827,26 @@ public class Config
 
     public void SaveToEnvFile()
     {
-        var envPath = FindEnvFile() ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".waycoder", ".env");
-        var dir = Path.GetDirectoryName(envPath);
-        if (dir != null) Directory.CreateDirectory(dir);
-        var lines = File.Exists(envPath) ? File.ReadAllLines(envPath).ToList() : [];
-
-        foreach (var p in _schema)
+        lock (SaveLock)
         {
-            // API Key 不写入 .env：密钥独立管理，走全局 ~/.waycoder/api_keys.json（一个服务商一个 key）
-            if (p.Type == "secret") continue;
-            var val = p.Getter(this);
-            if (p.SkipIfEmpty && string.IsNullOrEmpty(val)) continue;
-            if (p.DefaultStr != null && val == p.DefaultStr) continue;
-            ApplyOrAppend(lines, p.EnvVar, val);
-        }
+            var envPath = FindEnvFile() ?? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".waycoder", ".env");
+            var dir = Path.GetDirectoryName(envPath);
+            if (dir != null) Directory.CreateDirectory(dir);
+            var lines = File.Exists(envPath) ? File.ReadAllLines(envPath).ToList() : [];
 
-        File.WriteAllLines(envPath, lines);
+            foreach (var p in _schema)
+            {
+                // API Key 不写入 .env：密钥独立管理，走全局 ~/.waycoder/api_keys.json（一个服务商一个 key）
+                if (p.Type == "secret") continue;
+                var val = p.Getter(this);
+                if (p.SkipIfEmpty && string.IsNullOrEmpty(val)) continue;
+                if (p.DefaultStr != null && val == p.DefaultStr) continue;
+                ApplyOrAppend(lines, p.EnvVar, val);
+            }
+
+            File.WriteAllLines(envPath, lines);
+        }
     }
 
     // ════════════════════════════════════════════════════════════

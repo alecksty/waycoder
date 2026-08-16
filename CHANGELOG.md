@@ -1,5 +1,34 @@
 # 更新日志
 
+## v0.69.0 (2026-08-16) — Web 聊天界面完善
+
+一轮 Web 聊天界面体验收尾：修复设置保存并发写 `.env` 导致的「保存失败」，补全代码块语法高亮、大/小模型双下拉、无 key 弹框、标题栏（智能体 + 版本号）、修改文件增删行统计，并新增 `/stats` `/recent` `/model` 斜杠命令。
+
+### 🐛 修复
+
+- **设置保存失败**：`Config.SaveToEnvFile()` 加 `SaveLock` 串行化读改写，修复 Web 设置面板 `Promise.all` 并发 POST 多项设置时并发写 `.env` 抛 `IOException` → 连接被服务端丢弃（无响应、`fetch` 拒绝）的竞态
+- **模型对话框按钮被折叠**：`.model-card` 改 flex 三段布局（标题 + 搜索框固定、列表区 `flex:1; overflow-y:auto`、底部按钮固定），66 个模型不再把「确认/取消」顶出可视区
+- **点击遮罩关闭对话框**：backdrop click-to-close（`e.target === e.currentTarget` 才关闭）
+
+### ✨ Web 界面增强
+
+- **大/小模型双下拉**：标题栏拆成「大模型:」+「小模型:」两个 `select`，各自 `onchange` 即时切换；小模型下拉仅列 5 个常用小模型（`deepseek-chat`/`deepseek-v4-flash`/`gpt-5.4-mini`/`gpt-4o-mini`/`deepseek-v4-pro`），下拉加宽 1.5 倍避免长名称截断
+- **无 key 弹框**：切换模型时若该供应商无 API Key（且非 local/custom）→ 回退选中并弹 key 输入框，提交后写 `ApiKeyStore` + 持久化并完成切换
+- **标题栏三分区**：左=APP 标题，中=当前智能体（`智能体: 智能体N` 随槽位切换更新），右=软件版本号（`Global.Version` 注入）
+- **修改文件增删统计**：`EditFileTool.RecordChange` 记录 `+新增/-删除` 行数（`ChangedFileStats`），右栏文件面板显示 `+N/-M`
+- **代码块语法高亮**：`highlightCode` 按语言 token 着色（`--tok-*` CSS 变量，明暗主题自适应）
+
+### 🎛 Web 斜杠命令
+
+- 新增 `/stats`（token/费用/请求统计）、`/recent`（最近修改文件）、`/model <名称>`（模糊匹配换模型），与终端命令对齐
+- `WebServer` 响应加 `Cache-Control: no-store, no-cache, must-revalidate` 防页面缓存
+- Web 模式强制开启 diff 预览（`Config.Instance.DiffPreview = true`）
+- `WayCoder.csproj` 排除 `WayEngine/**/*` 构建
+
+### 🧪 自测
+
+- 全量自测通过（0 失败）
+
 ## v0.68.0 (2026-08-16) — UI 分类重构 + 大文件拆分
 
 一次清偿两项工程债：UI 代码按 `UI/{Shared,CLI,TUI,GUI,WEB}` 五层分类归档（命名空间对齐目录），并把 4 个 1500+ 行的超大文件拆成 `partial class` 多文件，降低维护成本。附带修复 GitRunner 经典死锁。
