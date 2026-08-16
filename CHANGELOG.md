@@ -1,5 +1,32 @@
 # 更新日志
 
+## v0.64.0 (2026-08-16) — Web UI 完善：Markdown 渲染 + 权限模式开关 + 模型选择窗口
+
+在 v0.63.0 三栏改版基础上继续完善 `--web` 浏览器界面：聊天消息 Markdown 渲染、权限模式从「强制 YOLO」改为用户可选、模型选择独立窗口、设置窗口居中。全程零第三方依赖、手搓渲染器、AOT 安全。
+
+### 📝 Markdown 渲染（手搓 XSS 安全渲染器）
+
+- 聊天 assistant 消息从纯文本升级为 Markdown：代码块（```` ```lang ````）、行内代码、标题 `#`~`######`、无序/有序列表、引用、表格、水平线、粗体/斜体、链接
+- 安全策略：**先 `escapeHtml` 转义再结构化**，链接仅允许 `http/https`（`javascript:` 直接拒绝），代码块内容不解析内部 Markdown
+- 流式体验：流式期间用 `textContent` 追加（快、不闪烁），`done/interrupted/failed` 时 `finalizeAssistant()` 一次性转 Markdown；`.streaming` class 区分流式/完成态，避免 `white-space` 冲突
+- 修复表格分隔行被误当数据行的 bug（`i++` → `i += 2`）
+
+### 🛡 权限模式开关（Web 从「强制 YOLO」改为用户可选）
+
+- 后端 `SerializeState` 新增 `permMode` 字段 + `POST /perm` 端点
+- 前端顶栏新增 `🛡 Ask / ✅ Auto / 🧭 SmartAuto / ⚡ YOLO` 下拉，切到 Ask 后权限确认框真正经交互桥弹浏览器对话框（此前 Web 模式强制 YOLO，确认框永不触发）
+
+### 🧠 模型选择窗口 + 设置居中
+
+- 顶栏模型下拉改为独立 `model-modal`：搜索过滤 + 按供应商分组 + 上下文窗口/价格元数据 + 需 key 标记（点选自动弹 key 输入）
+- 设置抽屉从贴边弹出改为**居中弹出**（`top:50%; left:50%; translate(-50%,-50%)`，缩放过渡）
+
+### 🧪 自测
+
+- 新增 9 条：Markdown 结构/`finalizeAssistant`/流式态样式/权限模式下拉/`/perm` 端点冒烟
+- `mdToHtml` 渲染器另用 node 单独 21 条单测覆盖（代码块/标题/列表/表格/引用/XSS 转义等）
+- 全量自测通过（0 失败）
+
 ## v0.63.0 (2026-08-16) — Web 聊天界面三栏改版 + 交互桥
 
 `--web` 浏览器聊天界面从单栏升级为三栏，并修复「工具输出不滚动」与「网页版无提问对话框」两个致命问题。全程零第三方依赖、AOT 安全、跨平台、手搓 HTTP+SSE。
