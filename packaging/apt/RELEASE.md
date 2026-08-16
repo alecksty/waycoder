@@ -1,4 +1,4 @@
-# apt 发布（v0.69.0）
+# apt 发布（v0.71.4）
 
 WayCoder 的 Linux 二进制通过 Debian `.deb` 包 + apt 仓库分发。
 
@@ -8,12 +8,12 @@ WayCoder 的 Linux 二进制通过 Debian `.deb` 包 + apt 仓库分发。
 
 | 包 | 大小 | sha256 |
 |----|------|--------|
-| `waycoder_0.69.0_amd64.deb` | 31M | `3e4dc510...` |
-| `waycoder_0.69.0_arm64.deb` | 29M | `c857ebff...` |
+| `waycoder_0.71.4_amd64.deb` | 33M | `671af5ded18a3a04910fa4abbff5ec91ddf6a9459f692c92f2f2cf530923d7d7` |
+| `waycoder_0.71.4_arm64.deb` | 31M | `672f94bad2ac76d728a389835fe7e3825b726619636cb4c85b59ae36d7f6ca62` |
 
-> 下载：`https://gitee.com/aleckstygit/my-coder/releases/download/v0.69.0/waycoder_0.69.0_amd64.deb`
+> 下载：`https://gitee.com/aleckstygit/my-coder/releases/download/v0.71.4/waycoder_0.71.4_amd64.deb`
 >
-> 免仓库直接安装：`sudo dpkg -i waycoder_0.69.0_amd64.deb`
+> 免仓库直接安装：`sudo dpkg -i waycoder_0.71.4_amd64.deb`
 
 ## 前提（apt 仓库需要 Linux 环境）
 
@@ -50,12 +50,15 @@ SignWith: F3A2B1C4
 EOF
 ```
 
-### 4. 入库 .deb
+### 4. 下载 .deb 并入库
 
 ```bash
 cd ~/waycoder-apt
-reprepro -b . includedeb stable waycoder_0.69.0_amd64.deb
-reprepro -b . includedeb stable waycoder_0.69.0_arm64.deb
+curl -fLO https://gitee.com/aleckstygit/my-coder/releases/download/v0.71.4/waycoder_0.71.4_amd64.deb
+curl -fLO https://gitee.com/aleckstygit/my-coder/releases/download/v0.71.4/waycoder_0.71.4_arm64.deb
+
+reprepro -b . includedeb stable waycoder_0.71.4_amd64.deb
+reprepro -b . includedeb stable waycoder_0.71.4_arm64.deb
 ```
 
 ### 5. 导出公钥
