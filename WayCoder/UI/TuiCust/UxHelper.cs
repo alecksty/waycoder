@@ -20,6 +20,28 @@ public static class UxHelper
         }
     }
 
+    /// <summary>
+    /// Web 模式的异步交互桥。WebChatServer 注入实现后，AskUserQuestionTool / PermissionManager
+    /// 的提问/确认不再阻塞在 Console，而是经 SSE 弹浏览器对话框等待响应。
+    /// </summary>
+    public interface IWebInteraction
+    {
+        /// <summary>文本输入。返回输入内容，null=取消。</summary>
+        Task<string?> AskAsync(string prompt, string? defaultValue, int timeoutMs);
+
+        /// <summary>单选。返回选中项 label，null=取消。</summary>
+        Task<string?> SelectAsync(string title, List<string> choices, int timeoutMs);
+
+        /// <summary>多选。返回选中项 label 列表，null=取消。</summary>
+        Task<List<string>?> MultiSelectAsync(string title, List<string> choices, int timeoutMs);
+
+        /// <summary>确认框。返回 0=是 1=总是允许 2=否（与 UxHelper.Confirm 对齐）。</summary>
+        Task<int> ConfirmAsync(string title, string message, bool allowAll, int timeoutMs);
+    }
+
+    /// <summary>Web 模式注入的交互桥（null=非 Web 模式，走原 TUI/Console 路径）。</summary>
+    public static IWebInteraction? WebInteraction { get; set; }
+
     // ── 通知消息 ──
 
     public static void Info(string title, string message)

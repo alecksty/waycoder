@@ -636,7 +636,7 @@ public static class SelfTest
     {
         // 定位官方 GORILLA.BAS（相对 cwd 搜索多个候选路径）
         string? path = null;
-        foreach (var cand in new[] { "samples/GORILLA.BAS", "QBasic/samples/GORILLA.BAS", "../samples/GORILLA.BAS", "../../QBasic/samples/GORILLA.BAS" })
+        foreach (var cand in new[] { "samples/GORILLA.BAS", "QBasic/samples/GORILLA.BAS", "../samples/GORILLA.BAS", "../QBasic/samples/GORILLA.BAS", "../../QBasic/samples/GORILLA.BAS" })
             if (System.IO.File.Exists(cand)) { path = cand; break; }
         if (path == null) { Check("GORILLA: 样本文件定位", false); return; }
         Check("GORILLA: 样本文件定位", true);

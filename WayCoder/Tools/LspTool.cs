@@ -37,6 +37,29 @@ public class LspTool : ITool
     /// <summary>支持的语言服务器列表（供 UI 展示）</summary>
     public static IReadOnlyDictionary<string, (string Command, string[] Args)> SupportedServers => ServerConfigs;
 
+    /// <summary>运行中的 LSP 会话快照（供 Web 面板/侧栏展示）。</summary>
+    public record ActiveLspInfo(string Command, string Root, bool Initialized, bool HasExited);
+
+    /// <summary>当前运行中的 LSP 会话列表（在会话锁内快照，线程安全）。</summary>
+    public static List<ActiveLspInfo> ActiveSessions
+    {
+        get
+        {
+            _sessionLock.Wait();
+            try
+            {
+                var list = new List<ActiveLspInfo>(_sessions.Count);
+                foreach (var s in _sessions.Values)
+                    list.Add(new ActiveLspInfo(s.Command, s.Root, s.Initialized, s.Process.HasExited));
+                return list;
+            }
+            finally
+            {
+                _sessionLock.Release();
+            }
+        }
+    }
+
     // 已知的语言服务器配置
     private static readonly Dictionary<string, (string Command, string[] Args)> ServerConfigs = new()
     {
@@ -111,7 +134,7 @@ public class LspTool : ITool
                 if (session != null) KillAndDispose(session.Process);
                 var proc = StartServer(config.Value.Command, config.Value.Args, root);
                 if (proc == null) return $"错误：无法启动 LSP 服务器 ({config.Value.Command})";
-                session = new LspSession { Process = proc, Root = root, Initialized = false };
+                session = new LspSession { Process = proc, Command = config.Value.Command, Root = root, Initialized = false };
                 _sessions[key] = session;
             }
 
@@ -310,6 +333,7 @@ public class LspTool : ITool
     private sealed class LspSession
     {
         public Process Process = null!;
+        public string Command = "";
         public string Root = "";
         public bool Initialized;
         public long LastUsedTicks;

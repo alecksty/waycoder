@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text;
+using WayCoder.Tools;
+using WayCoder.UI;
 
 namespace WayCoder.Web;
 
@@ -8,7 +10,7 @@ namespace WayCoder.Web;
 /// 转为 SSE 事件广播给浏览器，接收浏览器 POST 的输入入队，支持中断。
 /// 对标 DeepSeek Harness Web UI：多槽位（F1-F10）、换模型、输 key、设置、黑白主题。
 /// </summary>
-public sealed class WebChatServer
+public sealed class WebChatServer : UxHelper.IWebInteraction
 {
     private const int SlotCount = 10;
 
@@ -27,6 +29,10 @@ public sealed class WebChatServer
     private readonly CancellationTokenSource _serverCts = new();
     private CancellationTokenSource? _roundCts;
     private Task? _loopTask;
+
+    /// <summary>Web 交互桥：requestId → 等待中的提问应答源。</summary>
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<string>> _pendingAnswers = new();
+    private int _answerId;
 
     /// <summary>SSE 客户端（写失败 = 断开）。</summary>
     private sealed class SseClient
@@ -49,6 +55,7 @@ public sealed class WebChatServer
         _server.OnRequest = HandleRequest;
         _server.OnSse = HandleSseAsync;
         _server.Start();
+        UxHelper.WebInteraction = this;
         _loopTask = Task.Run(() => MainLoopAsync(_serverCts.Token));
     }
 
@@ -56,6 +63,7 @@ public sealed class WebChatServer
     {
         try { _serverCts.Cancel(); } catch { }
         try { _roundCts?.Cancel(); } catch { }
+        UxHelper.WebInteraction = null;
         _server.Stop();
     }
 
@@ -151,6 +159,72 @@ public sealed class WebChatServer
             Config.Instance.SaveToEnvFile();
             Broadcast("state", SerializeState(_activeSlot, _slots));
             return HttpResponse.JsonBody(Ok());
+        }
+
+        // 右栏信息面板
+        if (req.Method == "GET" && req.Path == "/panel")
+            return HttpResponse.JsonBody(SerializePanel(_activeSlot, _slots));
+
+        // 会话记录
+        if (req.Method == "GET" && req.Path == "/sessions")
+            return HttpResponse.JsonBody(SerializeSessions());
+        if (req.Method == "POST" && req.Path == "/sessions/new")
+        {
+            var agent = EnsureSlot(_activeSlot);
+            var id = SessionManager.SaveSession(agent.Messages, agent.LlmClient.Model);
+            Broadcast("sessions", SerializeSessions());
+            return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("id", id).ToJson());
+        }
+        if (req.Method == "POST" && req.Path == "/sessions/load")
+        {
+            var body = Json.Parse(req.Body);
+            var id = body?["id"]?.AsString() ?? "";
+            if (string.IsNullOrWhiteSpace(id))
+                return HttpResponse.JsonBody(Err("缺少会话 id"));
+            var loaded = SessionManager.LoadSession(id);
+            if (loaded == null)
+                return HttpResponse.JsonBody(Err("会话不存在"));
+            Interrupt();
+            var agent = EnsureSlot(_activeSlot);
+            agent.Messages.Clear();
+            agent.Messages.AddRange(loaded.Value.Messages);
+            if (!string.IsNullOrWhiteSpace(loaded.Value.Model))
+                agent.LlmClient.Model = loaded.Value.Model;
+            Broadcast("history", SerializeHistory(agent));
+            Broadcast("state", SerializeState(_activeSlot, _slots));
+            return HttpResponse.JsonBody(Ok());
+        }
+        if (req.Method == "POST" && req.Path == "/sessions/delete")
+        {
+            var body = Json.Parse(req.Body);
+            var id = body?["id"]?.AsString() ?? "";
+            if (string.IsNullOrWhiteSpace(id))
+                return HttpResponse.JsonBody(Err("缺少会话 id"));
+            SessionManager.DeleteSession(id);
+            Broadcast("sessions", SerializeSessions());
+            return HttpResponse.JsonBody(Ok());
+        }
+        if (req.Method == "POST" && req.Path == "/sessions/rename")
+        {
+            var body = Json.Parse(req.Body);
+            var id = body?["id"]?.AsString() ?? "";
+            var newId = body?["newId"]?.AsString() ?? "";
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(newId))
+                return HttpResponse.JsonBody(Err("缺少 id 或 newId"));
+            if (!SessionManager.RenameSession(id, newId))
+                return HttpResponse.JsonBody(Err("重命名失败"));
+            Broadcast("sessions", SerializeSessions());
+            return HttpResponse.JsonBody(Ok());
+        }
+
+        // Web 交互桥：回答 Agent 的提问/确认
+        if (req.Method == "POST" && req.Path == "/answer")
+        {
+            var body = Json.Parse(req.Body);
+            var requestId = body?["requestId"]?.AsString() ?? "";
+            if (string.IsNullOrWhiteSpace(requestId))
+                return HttpResponse.JsonBody(Err("缺少 requestId"));
+            return HttpResponse.JsonBody(AnswerQuestion(requestId, body?["value"]));
         }
 
         return null;
@@ -494,6 +568,228 @@ public sealed class WebChatServer
         return false;
     }
 
+    /// <summary>序列化右栏信息面板（任务/token/费用/修改文件/MCP/LSP）。纯静态便于自测。</summary>
+    public static string SerializePanel(int activeSlot, Agent?[] slots)
+    {
+        // ── 任务（全局共享）──
+        var todos = JNode.Array();
+        try
+        {
+            foreach (var t in TodoTool.Items)
+            {
+                var deps = JNode.Array();
+                foreach (var d in t.DependsOn) deps.Add(d);
+                todos.Add(JNode.Object()
+                    .Set("id", t.Id)
+                    .Set("title", t.Title)
+                    .Set("status", t.Status)
+                    .Set("deps", deps));
+            }
+        }
+        catch { /* todo 读取失败不阻塞面板 */ }
+
+        // ── token / 费用（当前活跃槽位实例级）──
+        var llm = (activeSlot >= 0 && activeSlot < slots.Length) ? slots[activeSlot]?.LlmClient : null;
+        var tokens = JNode.Object();
+        if (llm != null)
+        {
+            tokens.Set("totalPrompt", llm.TotalPromptTokens)
+                  .Set("totalCompletion", llm.TotalCompletionTokens)
+                  .Set("taskPrompt", llm.TaskPromptTokens)
+                  .Set("taskCompletion", llm.TaskCompletionTokens)
+                  .Set("totalRequests", llm.TotalRequests)
+                  .Set("tokensPerSec", llm.LastTokensPerSec);
+        }
+
+        var cost = JNode.Object();
+        if (llm != null)
+        {
+            cost.Set("task", llm.TaskCost.HasValue ? JNode.Num(llm.TaskCost.Value) : JNode.Null());
+            cost.Set("estimated", llm.EstimatedCost.HasValue ? JNode.Num(llm.EstimatedCost.Value) : JNode.Null());
+        }
+
+        // ── 修改文件（全局共享）──
+        var files = JNode.Array();
+        try
+        {
+            foreach (var f in EditFileTool.ChangedFiles.ToList()) files.Add(f);
+        }
+        catch { }
+
+        // ── MCP 服务器（全局共享）──
+        var mcp = JNode.Array();
+        try
+        {
+            foreach (var s in McpManager.Servers)
+            {
+                mcp.Add(JNode.Object()
+                    .Set("name", s.Name)
+                    .Set("transport", s.Transport)
+                    .Set("status", s.Status.ToString().ToLowerInvariant())
+                    .Set("toolCount", s.ToolCount)
+                    .Set("resourceCount", s.ResourceCount)
+                    .Set("promptCount", s.PromptCount)
+                    .Set("error", s.Error));
+            }
+        }
+        catch { }
+
+        // ── LSP 会话（全局共享）──
+        var lsp = JNode.Array();
+        try
+        {
+            foreach (var s in LspTool.ActiveSessions)
+            {
+                lsp.Add(JNode.Object()
+                    .Set("command", s.Command)
+                    .Set("root", s.Root)
+                    .Set("initialized", s.Initialized)
+                    .Set("hasExited", s.HasExited));
+            }
+        }
+        catch { }
+
+        return JNode.Object()
+            .Set("todos", todos)
+            .Set("tokens", tokens)
+            .Set("cost", cost)
+            .Set("files", files)
+            .Set("mcp", mcp)
+            .Set("lsp", lsp)
+            .ToJson();
+    }
+
+    /// <summary>序列化历史会话列表（左栏）。纯静态便于自测。</summary>
+    public static string SerializeSessions()
+    {
+        var arr = JNode.Array();
+        try
+        {
+            foreach (var s in SessionManager.ListSessions(50))
+            {
+                arr.Add(JNode.Object()
+                    .Set("id", s.Id)
+                    .Set("model", s.Model)
+                    .Set("savedAt", s.SavedAt)
+                    .Set("preview", s.Preview)
+                    .Set("msgCount", s.MessageCount));
+            }
+        }
+        catch { }
+        return arr.ToJson();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  Web 交互桥（UxHelper.IWebInteraction）
+    //  生成 requestId → 广播 SSE "ask" → 等待 POST /answer 应答
+    // ═══════════════════════════════════════════════════════════
+
+    private string NextId() => Interlocked.Increment(ref _answerId).ToString();
+
+    /// <summary>文本输入。</summary>
+    public Task<string?> AskAsync(string prompt, string? defaultValue, int timeoutMs)
+    {
+        var payload = JNode.Object()
+            .Set("requestId", NextId())
+            .Set("kind", "text")
+            .Set("title", prompt)
+            .Set("default", defaultValue);
+        return WaitAnswerAsync(payload, timeoutMs);
+    }
+
+    /// <summary>单选。</summary>
+    public Task<string?> SelectAsync(string title, List<string> choices, int timeoutMs)
+    {
+        var payload = JNode.Object()
+            .Set("requestId", NextId())
+            .Set("kind", "select")
+            .Set("title", title)
+            .Set("choices", StringArray(choices));
+        return WaitAnswerAsync(payload, timeoutMs);
+    }
+
+    /// <summary>多选。</summary>
+    public Task<List<string>?> MultiSelectAsync(string title, List<string> choices, int timeoutMs)
+    {
+        var payload = JNode.Object()
+            .Set("requestId", NextId())
+            .Set("kind", "multi")
+            .Set("title", title)
+            .Set("choices", StringArray(choices));
+        return WaitAnswerMultiAsync(payload, timeoutMs);
+    }
+
+    private static JNode StringArray(List<string> items)
+    {
+        var arr = JNode.Array();
+        foreach (var s in items) arr.Add(s);
+        return arr;
+    }
+
+    /// <summary>确认框。返回 0=是 1=总是允许 2=否（与 UxHelper.Confirm 对齐）。</summary>
+    public async Task<int> ConfirmAsync(string title, string message, bool allowAll, int timeoutMs)
+    {
+        var payload = JNode.Object()
+            .Set("requestId", NextId())
+            .Set("kind", "confirm")
+            .Set("title", title)
+            .Set("message", message)
+            .Set("allowAll", allowAll);
+        var result = await WaitAnswerAsync(payload, timeoutMs);
+        // 前端回传字符串 "0"/"1"/"2" 或 "yes"/"all"/"no"
+        return result switch
+        {
+            "0" or "yes" => 0,
+            "1" or "all" => 1,
+            _ => 2,
+        };
+    }
+
+    /// <summary>广播提问并等待应答。超时返回 null（调用方视为取消/拒绝）。</summary>
+    private async Task<string?> WaitAnswerAsync(JNode payload, int timeoutMs)
+    {
+        var id = payload["requestId"]!.AsString()!;
+        var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pendingAnswers[id] = tcs;
+        try
+        {
+            Broadcast("ask", payload.ToJson());
+            var delay = Task.Delay(timeoutMs > 0 ? timeoutMs : 60_000);
+            var winner = await Task.WhenAny(tcs.Task, delay);
+            if (winner == delay) return null; // 超时
+            return await tcs.Task;
+        }
+        finally
+        {
+            _pendingAnswers.TryRemove(id, out _);
+        }
+    }
+
+    /// <summary>多选：应答为逗号分隔的选中项，拆成列表返回。</summary>
+    private async Task<List<string>?> WaitAnswerMultiAsync(JNode payload, int timeoutMs)
+    {
+        var result = await WaitAnswerAsync(payload, timeoutMs);
+        if (result == null) return null;
+        if (result.Length == 0) return new List<string>();
+        return result.Split('\n', StringSplitOptions.RemoveEmptyEntries).ToList();
+    }
+
+    /// <summary>处理 POST /answer：把应答回填给对应提问，返回 JSON 结果。</summary>
+    private string AnswerQuestion(string requestId, JNode? value)
+    {
+        if (!_pendingAnswers.TryGetValue(requestId, out var tcs))
+            return Err("提问已超时或不存在");
+        string answer;
+        if (value == null || value.Kind == JKind.Null)
+            answer = ""; // 空 = 取消
+        else if (value.Kind == JKind.Array)
+            answer = string.Join("\n", value.Items.Select(i => i.AsString() ?? ""));
+        else
+            answer = value.AsString() ?? "";
+        tcs.TrySetResult(answer);
+        return Ok();
+    }
+
     // ═══════════════════════════════════════════════════════════
     //  JSON 辅助
     // ═══════════════════════════════════════════════════════════
@@ -554,107 +850,191 @@ public sealed class WebChatServer
   --accent:#2f6bff; --user:#e3ecff; --tool:#fff4dc; --danger:#ffe2e2; --shadow:0 4px 20px rgba(0,0,0,.12);
 }
 * { box-sizing:border-box; margin:0; padding:0; }
-body { background:var(--bg); color:var(--text); font:15px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif; height:100vh; display:flex; flex-direction:column; transition:background .2s,color .2s; }
-header { padding:10px 14px; border-bottom:1px solid var(--border); background:var(--panel); display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+body { background:var(--bg); color:var(--text); font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif; height:100vh; display:flex; flex-direction:column; transition:background .2s,color .2s; overflow:hidden; }
+header { padding:9px 14px; border-bottom:1px solid var(--border); background:var(--panel); display:flex; align-items:center; gap:10px; flex-wrap:nowrap; }
 .logo { font-weight:700; color:var(--text); font-size:15px; white-space:nowrap; }
 .logo span { color:var(--accent); }
-.slots { display:flex; gap:4px; align-items:center; }
-.slot { min-width:28px; height:28px; padding:0 6px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--dim); font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; }
-.slot:hover { border-color:var(--accent); color:var(--text); }
-.slot.active { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
-.slot.has { color:var(--text); border-color:var(--dim); }
 .spacer { flex:1; }
-select, .btn { height:34px; border-radius:10px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font:inherit; padding:0 12px; cursor:pointer; outline:none; }
+select, .btn { height:32px; border-radius:9px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font:inherit; padding:0 11px; cursor:pointer; outline:none; }
 select:focus { border-color:var(--accent); }
 select optgroup { background:var(--panel); color:var(--text); }
-.btn { display:flex; align-items:center; gap:6px; font-weight:600; }
+.btn { display:inline-flex; align-items:center; gap:6px; font-weight:600; }
 .btn:hover { border-color:var(--accent); }
-.btn.ghost { background:transparent; border:none; font-size:18px; padding:0 8px; }
-#messages { flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:12px; }
+.btn.ghost { background:transparent; border:none; font-size:17px; padding:0 8px; }
+.btn.primary { background:var(--accent); color:#fff; border:none; }
+.btn.danger { background:var(--danger); color:#ff9a9a; border:none; }
+
+/* ── 三栏布局 ── */
+.layout { flex:1; display:grid; grid-template-columns:236px minmax(0,1fr) 300px; min-height:0; }
+#sidebar-left { background:var(--panel); border-right:1px solid var(--border); overflow-y:auto; display:flex; flex-direction:column; }
+#sidebar-right { background:var(--panel); border-left:1px solid var(--border); overflow-y:auto; }
+#chat-col { display:flex; flex-direction:column; min-width:0; min-height:0; }
+
+.panel-head { padding:11px 14px 7px; font-size:12px; font-weight:700; color:var(--dim); text-transform:uppercase; letter-spacing:.5px; }
+#slot-list { display:grid; grid-template-columns:repeat(5,1fr); gap:5px; padding:2px 12px 8px; }
+.slot { height:30px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--dim); font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; }
+.slot:hover { border-color:var(--accent); color:var(--text); }
+.slot.active { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700; }
+.slot.has { color:var(--text); border-color:var(--dim); }
+#new-session { margin:8px 12px; }
+
+#session-list { flex:1; overflow-y:auto; padding:0 8px; }
+.session-item { padding:8px 8px; border-radius:9px; cursor:pointer; position:relative; transition:background .12s; }
+.session-item:hover { background:var(--panel2); }
+.session-item .preview { font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.session-item .meta { font-size:11px; color:var(--dim); margin-top:1px; }
+.session-item .ops { position:absolute; top:6px; right:6px; display:none; gap:4px; }
+.session-item:hover .ops { display:flex; }
+.session-item .ops button { width:22px; height:22px; border-radius:6px; border:1px solid var(--border); background:var(--panel); color:var(--dim); cursor:pointer; font-size:11px; line-height:1; }
+.session-item .ops button:hover { color:var(--text); border-color:var(--accent); }
+.empty { color:var(--dim); font-size:12px; padding:8px 12px; text-align:center; }
+
+/* ── 聊天 ── */
+#messages { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
 .msg { max-width:82%; padding:10px 15px; border-radius:14px; white-space:pre-wrap; word-break:break-word; }
 .msg.user { align-self:flex-end; background:var(--user); border-bottom-right-radius:4px; }
 .msg.assistant { align-self:flex-start; background:var(--panel); border:1px solid var(--border); border-bottom-left-radius:4px; }
 .msg.system { align-self:center; color:var(--dim); font-size:13px; background:transparent; }
 .tool { align-self:flex-start; background:var(--tool); border:1px solid var(--border); border-radius:12px; padding:7px 13px; font-size:13px; color:var(--dim); }
 .tool b { color:#e8b34b; }
-#input-bar { display:flex; gap:8px; padding:12px 14px; border-top:1px solid var(--border); background:var(--panel); }
-#input { flex:1; resize:none; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:14px; padding:11px 14px; font:inherit; min-height:44px; max-height:200px; outline:none; }
+.tool-output { align-self:stretch; background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:9px 13px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; white-space:pre-wrap; word-break:break-word; color:var(--text); max-height:320px; overflow-y:auto; }
+#input-bar { display:flex; gap:8px; padding:11px 14px; border-top:1px solid var(--border); background:var(--panel); }
+#input { flex:1; resize:none; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:14px; padding:10px 14px; font:inherit; min-height:42px; max-height:200px; outline:none; }
 #input:focus { border-color:var(--accent); }
-#send { background:var(--accent); color:#fff; border:none; }
-#send:hover { opacity:.9; }
-#stop { background:var(--danger); color:#ff9a9a; border:none; }
-#stop:hover { opacity:.9; }
 
-/* 设置抽屉 */
-#drawer { position:fixed; top:0; right:0; bottom:0; width:360px; max-width:90vw; background:var(--panel); border-left:1px solid var(--border); box-shadow:var(--shadow); transform:translateX(100%); transition:transform .25s; z-index:50; display:flex; flex-direction:column; }
+/* ── 右栏卡片 ── */
+.card { border-bottom:1px solid var(--border); padding:11px 14px; }
+.card-head { font-size:12px; font-weight:700; color:var(--accent); margin-bottom:7px; }
+.card .row { font-size:12.5px; padding:2px 0; display:flex; gap:6px; align-items:flex-start; }
+.card .row .k { color:var(--dim); flex-shrink:0; }
+.card .row .v { word-break:break-all; }
+.card .item { font-size:12.5px; padding:3px 0; border-bottom:1px dashed var(--border); }
+.card .item:last-child { border-bottom:none; }
+.dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+.dot.pending { background:#8b93a7; }
+.dot.in_progress { background:#4f8cff; }
+.dot.completed { background:#3fb950; }
+.dot.cancelled { background:#e5534b; }
+.dot.blocked { background:#e8b34b; }
+.dot.on { background:#3fb950; }
+.dot.off { background:#e5534b; }
+.dot.connecting { background:#e8b34b; }
+.token-grid { display:grid; grid-template-columns:1fr 1fr; gap:3px 10px; font-size:12px; }
+.token-grid .v { text-align:right; font-variant-numeric:tabular-nums; }
+
+/* ── 设置抽屉（两列）── */
+#drawer { position:fixed; top:0; right:0; bottom:0; width:640px; max-width:94vw; background:var(--panel); border-left:1px solid var(--border); box-shadow:var(--shadow); transform:translateX(100%); transition:transform .25s; z-index:50; display:flex; flex-direction:column; }
 #drawer.open { transform:translateX(0); }
-#drawer-head { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; }
+#drawer-head { padding:13px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; }
 #drawer-head b { flex:1; }
-#drawer-body { flex:1; overflow-y:auto; padding:12px 18px 24px; }
-.set-group { margin-top:16px; }
-.set-group h3 { font-size:13px; color:var(--accent); margin-bottom:8px; font-weight:600; }
-.set-row { margin-bottom:12px; }
+#drawer-body { flex:1; overflow:hidden; display:flex; }
+#settings-nav { width:180px; border-right:1px solid var(--border); overflow-y:auto; padding:8px; }
+#settings-nav .nav-item { display:block; width:100%; text-align:left; padding:9px 12px; border-radius:9px; background:transparent; border:none; color:var(--text); font:inherit; cursor:pointer; margin-bottom:3px; }
+#settings-nav .nav-item:hover { background:var(--panel2); }
+#settings-nav .nav-item.active { background:var(--panel2); color:var(--accent); font-weight:600; }
+#settings-detail { flex:1; overflow-y:auto; padding:14px 18px 24px; }
+.set-row { margin-bottom:13px; }
 .set-row label { display:block; font-size:13px; color:var(--text); margin-bottom:4px; font-weight:500; }
 .set-row .desc { font-size:11px; color:var(--dim); margin-bottom:5px; }
-.set-row input, .set-row select { width:100%; height:34px; border-radius:10px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font:inherit; padding:0 10px; outline:none; }
+.set-row input, .set-row select { width:100%; height:33px; border-radius:9px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font:inherit; padding:0 10px; outline:none; }
 .set-row input:focus, .set-row select:focus { border-color:var(--accent); }
 .set-row input[type="checkbox"] { width:auto; height:auto; }
 
-/* key 弹窗 */
-#key-modal { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:60; }
-#key-modal.open { display:flex; }
-#key-card { background:var(--panel); border:1px solid var(--border); border-radius:18px; padding:22px 24px; width:420px; max-width:90vw; box-shadow:var(--shadow); }
-#key-card h2 { font-size:16px; margin-bottom:6px; }
-#key-card p { font-size:13px; color:var(--dim); margin-bottom:14px; }
-#key-card input { width:100%; height:38px; border-radius:12px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font:inherit; padding:0 12px; outline:none; margin-bottom:14px; }
-#key-card input:focus { border-color:var(--accent); }
-#key-card .row { display:flex; gap:8px; justify-content:flex-end; }
+/* ── 模态框（key / ask）── */
+.modal { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:60; }
+.modal.open { display:flex; }
+.modal-card { background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:20px 22px; width:440px; max-width:92vw; max-height:86vh; overflow-y:auto; box-shadow:var(--shadow); }
+.modal-card h2 { font-size:16px; margin-bottom:6px; }
+.modal-card p { font-size:13px; color:var(--dim); margin-bottom:12px; }
+.modal-card input[type="text"], .modal-card input[type="password"] { width:100%; height:37px; border-radius:11px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font:inherit; padding:0 12px; outline:none; margin-bottom:12px; }
+.modal-card input:focus { border-color:var(--accent); }
+.modal-card .row { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
+.ask-option { display:block; width:100%; text-align:left; padding:10px 13px; margin-bottom:7px; border-radius:10px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font:inherit; cursor:pointer; }
+.ask-option:hover { border-color:var(--accent); }
+.ask-message { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; white-space:pre-wrap; word-break:break-all; margin-bottom:12px; max-height:220px; overflow-y:auto; }
+.ask-multi { display:block; padding:6px 2px; font-size:13.5px; }
+.ask-multi input { margin-right:8px; }
 </style>
 </head>
 <body>
 <header>
   <div class="logo">🤖 Way<span>Coder</span></div>
-  <div class="slots" id="slots"></div>
   <div class="spacer"></div>
   <select id="model-select" title="切换模型"></select>
   <button class="btn ghost" id="theme-btn" title="切换主题">🌙</button>
   <button class="btn" id="settings-btn" title="设置">⚙ 设置</button>
 </header>
 
-<div id="messages"></div>
+<div class="layout">
+  <aside id="sidebar-left">
+    <div class="panel-head">🗂 槽位</div>
+    <div id="slot-list"></div>
+    <div class="panel-head">📜 历史会话</div>
+    <button class="btn" id="new-session">＋ 新建会话</button>
+    <div id="session-list"><div class="empty">加载中…</div></div>
+  </aside>
 
-<div id="input-bar">
-  <textarea id="input" placeholder="输入消息，Enter 发送，Shift+Enter 换行" rows="1"></textarea>
-  <button class="btn" id="send">发送</button>
-  <button class="btn" id="stop">停止</button>
+  <main id="chat-col">
+    <div id="messages"></div>
+    <div id="input-bar">
+      <textarea id="input" placeholder="输入消息，Enter 发送，Shift+Enter 换行" rows="1"></textarea>
+      <button class="btn primary" id="send">发送</button>
+      <button class="btn danger" id="stop">停止</button>
+    </div>
+  </main>
+
+  <aside id="sidebar-right">
+    <div class="card"><div class="card-head">📋 任务</div><div id="panel-todos"><div class="empty">无任务</div></div></div>
+    <div class="card"><div class="card-head">💰 Token / 费用</div><div id="panel-tokens"></div></div>
+    <div class="card"><div class="card-head">🔧 修改文件</div><div id="panel-files"><div class="empty">无</div></div></div>
+    <div class="card"><div class="card-head">🔌 MCP 服务器</div><div id="panel-mcp"><div class="empty">未配置</div></div></div>
+    <div class="card"><div class="card-head">🧠 LSP 会话</div><div id="panel-lsp"><div class="empty">无活动会话</div></div></div>
+  </aside>
 </div>
 
 <div id="drawer">
   <div id="drawer-head"><b>⚙ 设置</b><button class="btn ghost" id="drawer-close" style="font-size:20px;">×</button></div>
-  <div id="drawer-body"></div>
+  <div id="drawer-body">
+    <div id="settings-nav"></div>
+    <div id="settings-detail"></div>
+  </div>
 </div>
 
-<div id="key-modal">
-  <div id="key-card">
+<div class="modal" id="key-modal">
+  <div class="modal-card">
     <h2>🔑 输入 API Key</h2>
     <p id="key-hint">当前模型需要 API Key（将按供应商保存到本地）。</p>
     <input id="key-input" type="password" placeholder="sk-...">
     <div class="row">
       <button class="btn" id="key-cancel">取消</button>
-      <button class="btn" id="key-save" style="background:var(--accent);color:#fff;border:none;">保存</button>
+      <button class="btn primary" id="key-save">保存</button>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="ask-modal">
+  <div class="modal-card">
+    <h2 id="ask-title"></h2>
+    <div id="ask-body"></div>
+    <div class="row" id="ask-actions"></div>
   </div>
 </div>
 
 <script>
 const messages = document.getElementById('messages');
 const input = document.getElementById('input');
-const slotsEl = document.getElementById('slots');
+const slotsEl = document.getElementById('slot-list');
+const sessionListEl = document.getElementById('session-list');
 const modelSel = document.getElementById('model-select');
 const drawer = document.getElementById('drawer');
 const drawerBody = document.getElementById('drawer-body');
+const settingsNav = document.getElementById('settings-nav');
+const settingsDetail = document.getElementById('settings-detail');
 const keyModal = document.getElementById('key-modal');
-let streamEl = null;
+
+// ── 流指针（滚动 bug 修复：assistant 文本流 与 工具输出流 分离）──
+let assistantStreamEl = null;
+let toolOutputEl = null;
 let currentProvider = '';
 let hasKey = false;
 
@@ -674,12 +1054,22 @@ function addTool(name, args) {
   messages.appendChild(el);
   scroll();
 }
-function ensureStream() {
-  if (!streamEl) streamEl = addMsg('assistant', '');
-  return streamEl;
+function ensureAssistantStream() {
+  if (!assistantStreamEl) assistantStreamEl = addMsg('assistant', '');
+  return assistantStreamEl;
 }
-function endStream() { streamEl = null; }
-function clearMessages() { messages.innerHTML = ''; streamEl = null; }
+function endAssistantStream() { assistantStreamEl = null; }
+function ensureToolOutput() {
+  if (!toolOutputEl) {
+    toolOutputEl = document.createElement('div');
+    toolOutputEl.className = 'tool-output';
+    messages.appendChild(toolOutputEl);
+    scroll();
+  }
+  return toolOutputEl;
+}
+function endToolOutput() { toolOutputEl = null; }
+function clearMessages() { messages.innerHTML = ''; assistantStreamEl = null; toolOutputEl = null; }
 
 // ── 主题 ──
 function applyTheme(t) {
@@ -690,7 +1080,7 @@ function applyTheme(t) {
 document.getElementById('theme-btn').onclick = () =>
   applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
 
-// ── 槽位条 ──
+// ── 槽位（左栏）──
 function renderSlots(state) {
   slotsEl.innerHTML = '';
   for (let i = 0; i < state.slots.length; i++) {
@@ -706,7 +1096,124 @@ function renderSlots(state) {
 function switchSlot(i) {
   fetch('/slot', { method: 'POST', body: JSON.stringify({ slot: i }) })
     .then(r => r.json())
-    .then(list => { clearMessages(); list.forEach(m => addMsg(m.role === 'user' ? 'user' : 'assistant', m.content)); });
+    .then(list => { clearMessages(); list.forEach(m => addMsg(m.role === 'user' ? 'user' : 'assistant', m.content)); })
+    .then(fetchPanel);
+}
+
+// ── 历史会话（左栏）──
+function fetchSessions() {
+  fetch('/sessions').then(r => r.json()).then(renderSessions).catch(() => {});
+}
+function renderSessions(list) {
+  sessionListEl.innerHTML = '';
+  if (!list || !list.length) { sessionListEl.innerHTML = '<div class="empty">暂无历史会话</div>'; return; }
+  list.forEach(s => {
+    const item = document.createElement('div');
+    item.className = 'session-item';
+    item.title = s.id;
+    const p = document.createElement('div');
+    p.className = 'preview';
+    p.textContent = s.preview || s.id;
+    const m = document.createElement('div');
+    m.className = 'meta';
+    m.textContent = (s.model || '?') + ' · ' + (s.savedAt || '') + (s.msgCount ? (' · ' + s.msgCount + ' 条') : '');
+    const ops = document.createElement('div');
+    ops.className = 'ops';
+    const rb = document.createElement('button'); rb.textContent = '✎'; rb.title = '重命名';
+    rb.onclick = e => { e.stopPropagation(); renameSession(s.id); };
+    const db = document.createElement('button'); db.textContent = '✕'; db.title = '删除';
+    db.onclick = e => { e.stopPropagation(); deleteSession(s.id); };
+    ops.appendChild(rb); ops.appendChild(db);
+    item.appendChild(p); item.appendChild(m); item.appendChild(ops);
+    item.onclick = () => loadSession(s.id);
+    sessionListEl.appendChild(item);
+  });
+}
+function loadSession(id) {
+  fetch('/sessions/load', { method: 'POST', body: JSON.stringify({ id: id }) })
+    .then(r => r.json())
+    .then(res => { if (res && res.ok === false) { alert(res.error || '加载失败'); return; } })
+    .catch(() => {});
+}
+function deleteSession(id) {
+  if (!confirm('删除会话 ' + id + ' ?')) return;
+  fetch('/sessions/delete', { method: 'POST', body: JSON.stringify({ id: id }) }).then(fetchSessions).catch(() => {});
+}
+function renameSession(id) {
+  const newId = prompt('重命名会话（ID）:', id);
+  if (!newId || newId === id) return;
+  fetch('/sessions/rename', { method: 'POST', body: JSON.stringify({ id: id, newId: newId }) })
+    .then(r => r.json())
+    .then(res => { if (res && res.ok === false) alert(res.error || '重命名失败'); })
+    .then(fetchSessions)
+    .catch(() => {});
+}
+document.getElementById('new-session').onclick = () => {
+  fetch('/sessions/new', { method: 'POST' })
+    .then(r => r.json())
+    .then(res => { if (res && res.ok) alert('已保存新会话：' + res.id); })
+    .then(fetchSessions)
+    .catch(() => {});
+};
+
+// ── 右栏面板 ──
+function fetchPanel() {
+  if (document.hidden) return;
+  fetch('/panel').then(r => r.json()).then(renderPanel).catch(() => {});
+}
+function renderPanel(p) {
+  renderTodos(p.todos);
+  renderTokens(p.tokens, p.cost);
+  renderFiles(p.files);
+  renderMcp(p.mcp);
+  renderLsp(p.lsp);
+}
+function statusDot(status) {
+  const map = { pending:'pending', in_progress:'in_progress', completed:'completed', cancelled:'cancelled', blocked:'blocked' };
+  return '<span class="dot ' + (map[status] || 'pending') + '"></span>';
+}
+function renderTodos(todos) {
+  const el = document.getElementById('panel-todos');
+  if (!todos || !todos.length) { el.innerHTML = '<div class="empty">无任务</div>'; return; }
+  el.innerHTML = todos.map(t => '<div class="item">' + statusDot(t.status) + escapeHtml(t.title || t.id) + '</div>').join('');
+}
+function renderTokens(tokens, cost) {
+  const el = document.getElementById('panel-tokens');
+  if (!tokens) { el.innerHTML = ''; return; }
+  const tp = tokens.totalPrompt || 0, tc = tokens.totalCompletion || 0;
+  const tP = tokens.taskPrompt || 0, tC = tokens.taskCompletion || 0;
+  const fmt = n => (n == null ? '—' : Number(n).toLocaleString());
+  const usd = n => (n == null ? '—' : '$' + Number(n).toFixed(4));
+  el.innerHTML =
+    '<div class="row"><span class="k">本轮</span><span class="v">' + fmt(tP) + ' / ' + fmt(tC) + '</span></div>' +
+    '<div class="row"><span class="k">累计</span><span class="v">' + fmt(tp) + ' / ' + fmt(tc) + '</span></div>' +
+    '<div class="row"><span class="k">本轮费用</span><span class="v">' + usd(cost && cost.task) + '</span></div>' +
+    '<div class="row"><span class="k">累计估计</span><span class="v">' + usd(cost && cost.estimated) + '</span></div>' +
+    (tokens.tokensPerSec ? '<div class="row"><span class="k">速率</span><span class="v">' + Number(tokens.tokensPerSec).toFixed(1) + ' tok/s</span></div>' : '');
+}
+function renderFiles(files) {
+  const el = document.getElementById('panel-files');
+  if (!files || !files.length) { el.innerHTML = '<div class="empty">无</div>'; return; }
+  el.innerHTML = files.map(f => '<div class="item">' + escapeHtml(f) + '</div>').join('');
+}
+function renderMcp(mcp) {
+  const el = document.getElementById('panel-mcp');
+  if (!mcp || !mcp.length) { el.innerHTML = '<div class="empty">未配置</div>'; return; }
+  el.innerHTML = mcp.map(s => {
+    const dot = s.status === 'connected' ? 'on' : (s.status === 'connecting' ? 'connecting' : 'off');
+    const extra = s.toolCount ? (' · ' + s.toolCount + ' 工具') : '';
+    return '<div class="item"><span class="dot ' + dot + '"></span>' + escapeHtml(s.name) + extra +
+      (s.error ? '<div style="color:var(--dim);font-size:11px;">' + escapeHtml(s.error) + '</div>' : '') + '</div>';
+  }).join('');
+}
+function renderLsp(lsp) {
+  const el = document.getElementById('panel-lsp');
+  if (!lsp || !lsp.length) { el.innerHTML = '<div class="empty">无活动会话</div>'; return; }
+  el.innerHTML = lsp.map(s => {
+    const dot = s.hasExited ? 'off' : (s.initialized ? 'on' : 'connecting');
+    return '<div class="item"><span class="dot ' + dot + '"></span>' + escapeHtml(s.command) +
+      (s.root ? '<div style="color:var(--dim);font-size:11px;">' + escapeHtml(s.root) + '</div>' : '') + '</div>';
+  }).join('');
 }
 
 // ── 模型下拉 ──
@@ -763,60 +1270,136 @@ document.getElementById('key-save').onclick = saveKey;
 document.getElementById('key-cancel').onclick = () => keyModal.classList.remove('open');
 document.getElementById('key-input').onkeydown = e => { if (e.key === 'Enter') saveKey(); };
 
-// ── 设置抽屉 ──
-function renderSettings(groups) {
-  drawerBody.innerHTML = '';
-  groups.forEach(g => {
-    const h = document.createElement('h3');
-    h.className = 'set-group';
-    h.textContent = g.category;
-    drawerBody.appendChild(h);
-    g.items.forEach(it => {
-      const row = document.createElement('div');
-      row.className = 'set-row';
-      const label = document.createElement('label');
-      label.textContent = it.label;
-      const desc = document.createElement('div');
-      desc.className = 'desc';
-      desc.textContent = it.desc;
-      row.appendChild(label);
-      row.appendChild(desc);
-      let ctrl;
-      if (it.type === 'select' && it.options && it.options.length) {
-        ctrl = document.createElement('select');
-        it.options.forEach(o => { const op = document.createElement('option'); op.value = o; op.textContent = o || '(默认)'; if (o === it.value) op.selected = true; ctrl.appendChild(op); });
-      } else if (it.type === 'toggle') {
-        ctrl = document.createElement('input'); ctrl.type = 'checkbox';
-        ctrl.checked = it.value === 'true' || it.value === '1';
-      } else if (it.type === 'secret') {
-        ctrl = document.createElement('input'); ctrl.type = 'password';
-        ctrl.placeholder = it.value ? '已设置（留空则不修改）' : '未设置';
-        ctrl.dataset.secret = '1';
-      } else {
-        ctrl = document.createElement('input');
-        ctrl.type = it.type === 'number' ? 'number' : 'text';
-        ctrl.value = it.value;
-      }
-      ctrl.dataset.key = it.key;
-      ctrl.dataset.type = it.type;
-      row.appendChild(ctrl);
-      drawerBody.appendChild(row);
-    });
+// ── 设置（两列：左类别导航 + 右详细设置）──
+let settingsGroups = [];
+function renderSettingsNav() {
+  settingsNav.innerHTML = '';
+  settingsGroups.forEach((g, i) => {
+    const b = document.createElement('button');
+    b.className = 'nav-item' + (i === 0 ? ' active' : '');
+    b.textContent = g.category;
+    b.onclick = () => {
+      settingsNav.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      renderSettingsDetail(g);
+    };
+    settingsNav.appendChild(b);
+  });
+  if (settingsGroups.length > 0) renderSettingsDetail(settingsGroups[0]);
+}
+function renderSettingsDetail(g) {
+  settingsDetail.innerHTML = '';
+  g.items.forEach(it => {
+    const row = document.createElement('div');
+    row.className = 'set-row';
+    const label = document.createElement('label');
+    label.textContent = it.label;
+    const desc = document.createElement('div');
+    desc.className = 'desc';
+    desc.textContent = it.desc;
+    row.appendChild(label);
+    row.appendChild(desc);
+    let ctrl;
+    if (it.type === 'select' && it.options && it.options.length) {
+      ctrl = document.createElement('select');
+      it.options.forEach(o => { const op = document.createElement('option'); op.value = o; op.textContent = o || '(默认)'; if (o === it.value) op.selected = true; ctrl.appendChild(op); });
+    } else if (it.type === 'toggle') {
+      ctrl = document.createElement('input'); ctrl.type = 'checkbox';
+      ctrl.checked = it.value === 'true' || it.value === '1';
+    } else if (it.type === 'secret') {
+      ctrl = document.createElement('input'); ctrl.type = 'password';
+      ctrl.placeholder = it.value ? '已设置（留空则不修改）' : '未设置';
+      ctrl.dataset.secret = '1';
+    } else {
+      ctrl = document.createElement('input');
+      ctrl.type = it.type === 'number' ? 'number' : 'text';
+      ctrl.value = it.value;
+    }
+    ctrl.dataset.key = it.key;
+    ctrl.dataset.type = it.type;
+    row.appendChild(ctrl);
+    settingsDetail.appendChild(row);
   });
 }
 function saveSetting(ctrl) {
   let value;
   if (ctrl.dataset.type === 'toggle') value = ctrl.checked ? 'true' : 'false';
-  else if (ctrl.dataset.secret === '1' && ctrl.value === '') return; // 未修改 secret
+  else if (ctrl.dataset.secret === '1' && ctrl.value === '') return;
   else value = ctrl.value;
   fetch('/settings', { method: 'POST', body: JSON.stringify({ key: ctrl.dataset.key, value: value }) })
     .then(r => r.json())
     .then(res => { if (res && res.ok === false) alert(res.error || '设置失败'); });
 }
 document.getElementById('settings-btn').onclick = () => {
-  fetch('/settings').then(r => r.json()).then(g => { renderSettings(g); drawer.classList.add('open'); });
+  fetch('/settings').then(r => r.json()).then(g => { settingsGroups = g; renderSettingsNav(); drawer.classList.add('open'); });
 };
 document.getElementById('drawer-close').onclick = () => drawer.classList.remove('open');
+
+// ── Web 交互对话框（ask）──
+let pendingAsk = null;
+function showAsk(d) {
+  pendingAsk = d;
+  const title = document.getElementById('ask-title');
+  const body = document.getElementById('ask-body');
+  const actions = document.getElementById('ask-actions');
+  title.textContent = d.title || '';
+  body.innerHTML = '';
+  actions.innerHTML = '';
+  if (d.kind === 'select') {
+    d.choices.forEach(c => {
+      const b = document.createElement('button');
+      b.className = 'ask-option';
+      b.textContent = c;
+      b.onclick = () => answerAsk(c);
+      body.appendChild(b);
+    });
+  } else if (d.kind === 'multi') {
+    const selected = new Set();
+    d.choices.forEach(c => {
+      const lbl = document.createElement('label');
+      lbl.className = 'ask-multi';
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = c;
+      cb.onchange = () => { cb.checked ? selected.add(c) : selected.delete(c); };
+      lbl.appendChild(cb); lbl.appendChild(document.createTextNode(c));
+      body.appendChild(lbl);
+    });
+    const ok = document.createElement('button'); ok.className = 'btn primary'; ok.textContent = '确定';
+    ok.onclick = () => answerAsk([...selected].join('\n'));
+    actions.appendChild(ok);
+  } else if (d.kind === 'text') {
+    const inp = document.createElement('input'); inp.type = 'text'; inp.id = 'ask-input';
+    if (d.default) inp.value = d.default;
+    body.appendChild(inp);
+    const ok = document.createElement('button'); ok.className = 'btn primary'; ok.textContent = '确定';
+    ok.onclick = () => answerAsk(inp.value);
+    actions.appendChild(ok);
+    inp.onkeydown = e => { if (e.key === 'Enter') answerAsk(inp.value); };
+    setTimeout(() => inp.focus(), 50);
+  } else if (d.kind === 'confirm') {
+    title.textContent = d.title || '确认操作';
+    const msg = document.createElement('div'); msg.className = 'ask-message'; msg.textContent = d.message || '';
+    body.appendChild(msg);
+    const yes = document.createElement('button'); yes.className = 'btn primary'; yes.textContent = '是';
+    yes.onclick = () => answerAsk('0');
+    const no = document.createElement('button'); no.className = 'btn danger'; no.textContent = '否';
+    no.onclick = () => answerAsk('2');
+    actions.appendChild(yes);
+    if (d.allowAll) {
+      const all = document.createElement('button'); all.className = 'btn'; all.textContent = '总是允许';
+      all.onclick = () => answerAsk('1');
+      actions.appendChild(all);
+    }
+    actions.appendChild(no);
+  }
+  document.getElementById('ask-modal').classList.add('open');
+}
+function answerAsk(value) {
+  if (!pendingAsk) return;
+  const id = pendingAsk.requestId;
+  fetch('/answer', { method: 'POST', body: JSON.stringify({ requestId: id, value: value }) })
+    .then(() => { document.getElementById('ask-modal').classList.remove('open'); pendingAsk = null; })
+    .catch(() => {});
+}
 
 // ── 发送 / 停止 ──
 function send() {
@@ -834,14 +1417,19 @@ input.addEventListener('keydown', e => {
 });
 input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 200) + 'px'; });
 
+// ── 工具函数 ──
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 // ── SSE ──
 const es = new EventSource('/events');
-es.addEventListener('token', e => { ensureStream().textContent += JSON.parse(e.data); scroll(); });
-es.addEventListener('tool', e => { const d = JSON.parse(e.data); addTool(d.name, d.args); });
-es.addEventListener('tool_output', e => { ensureStream().textContent += JSON.parse(e.data); scroll(); });
-es.addEventListener('done', () => endStream());
-es.addEventListener('interrupted', () => { endStream(); addMsg('system', '⚠ 已中断'); });
-es.addEventListener('failed', e => { endStream(); addMsg('system', '✘ ' + JSON.parse(e.data)); });
+es.addEventListener('token', e => { endToolOutput(); ensureAssistantStream().textContent += JSON.parse(e.data); scroll(); });
+es.addEventListener('tool', e => { endAssistantStream(); const d = JSON.parse(e.data); addTool(d.name, d.args); });
+es.addEventListener('tool_output', e => { ensureToolOutput().textContent += JSON.parse(e.data); scroll(); });
+es.addEventListener('done', () => { endAssistantStream(); endToolOutput(); fetchPanel(); });
+es.addEventListener('interrupted', () => { endAssistantStream(); endToolOutput(); addMsg('system', '⚠ 已中断'); fetchPanel(); });
+es.addEventListener('failed', e => { endAssistantStream(); endToolOutput(); addMsg('system', '✘ ' + JSON.parse(e.data)); fetchPanel(); });
 es.addEventListener('history', e => {
   const list = JSON.parse(e.data);
   if (messages.children.length === 0)
@@ -852,7 +1440,10 @@ es.addEventListener('state', e => {
   currentProvider = state.provider;
   hasKey = state.hasKey;
   renderSlots(state);
+  fetchPanel();
 });
+es.addEventListener('sessions', () => fetchSessions());
+es.addEventListener('ask', e => showAsk(JSON.parse(e.data)));
 
 // ── 初始化 ──
 applyTheme(localStorage.getItem('waycoder-theme') || 'dark');
@@ -863,6 +1454,9 @@ fetch('/state').then(r => r.json()).then(state => {
 });
 fetch('/models').then(r => r.json()).then(models =>
   fetch('/state').then(r => r.json()).then(state => renderModels(models, state)));
+fetchSessions();
+fetchPanel();
+setInterval(fetchPanel, 2000);
 </script>
 </body>
 </html>
