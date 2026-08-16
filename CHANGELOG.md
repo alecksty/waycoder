@@ -1,5 +1,22 @@
 # 更新日志
 
+## v0.71.3 (2026-08-16) — TUI 会话记录按槽位隔离
+
+把 Web 版「会话记录按槽位隔离」同步到终端 TUI：每个槽位（F1-F10）各自保存/加载/列出/删除自己的会话记录，互不串扰。
+
+### ✨ 会话记录按槽位隔离（TUI）
+
+- **会话管理器按当前槽位**：`SessionPicker.Show` 增加 `slot` 参数，`ListSessions`/`RenameSession` 按当前槽位作用；Ctrl+S 打开时只看到/操作本槽位会话
+- **`/session` 命令按当前槽位**：`SessionCommand` 的 `list`/`save`/`load`/`resume` 全部加 `Program.ActiveSlotIndex`，各槽位独立保存/加载/恢复
+- **退出自动保存按槽位**：`AutoSaveSession`/`AutoSaveException`/`PanicExit` 从 `_auto`/`_auto_slotN` 后缀改为 `SaveSession(..., "_auto", slot)`，物理隔离到 `sessions/slot{N}/` 子目录
+- **当前会话 ID per-slot 化**：`_currentSessionId` 单值改为 `_currentSessionIds[10]` 数组，每槽位各自标记当前会话（Ctrl+S 切换/删除只影响本槽位）
+- **切换会话只改本槽位模型**：Ctrl+S 切换会话从改全局 `_config.Model`/`_llm.Model` 改为 `_agent.LlmClient.Model`，不再污染其他槽位的默认模型
+- **恢复向后兼容**：`TryRestoreSession`、`--resume`、`-c`、`/session resume` 恢复 `_auto` 时「槽位 0 优先，回退全局目录」，旧版本存全局的会话仍可恢复
+
+### 🧪 自测
+
+- 新增 `SessionSlot` 断言：`_auto` 存槽位 2 可恢复、跨槽位（0/3）不可见
+
 ## v0.71.2 (2026-08-16) — Web 会话记录按槽位隔离
 
 每个浏览器页面（= 一个槽位 = 一个「虚拟用户 + 智能体」）拥有独立的会话记录：单端口下各页面只看到、保存、加载、删除自己槽位的会话，互不串扰。

@@ -56,7 +56,7 @@ public class SessionCommand : SlashCommand
         }
         var offset = (page - 1) * limit;
 
-        var sessions = SessionManager.ListSessions(limit, offset);
+        var sessions = SessionManager.ListSessions(limit, offset, Program.ActiveSlotIndex);
         if (sessions.Count == 0)
         {
             screen.AddSystemMsg(page > 1 ? $"📂 第 {page} 页无更多会话" : "📂 没有已保存的会话");
@@ -76,7 +76,7 @@ public class SessionCommand : SlashCommand
     {
         var agent = ProgramContext.Agent;
         if (agent == null) { screen.AddSystemMsg("Agent 未初始化"); return; }
-        var id = SessionManager.SaveSession(agent.Messages, ProgramContext.Config.Model);
+        var id = SessionManager.SaveSession(agent.Messages, ProgramContext.Config.Model, null, Program.ActiveSlotIndex);
         screen.AddSystemMsg($"💾 会话已保存: {id}");
     }
 
@@ -88,7 +88,7 @@ public class SessionCommand : SlashCommand
             return;
         }
 
-        var loaded = SessionManager.LoadSession(sessionId);
+        var loaded = SessionManager.LoadSession(sessionId, Program.ActiveSlotIndex);
         if (loaded == null)
         {
             screen.AddSystemMsg($"会话 '{sessionId}' 未找到");
@@ -115,7 +115,9 @@ public class SessionCommand : SlashCommand
 
     static void ResumeSession(ChatScreen screen)
     {
-        var loaded = SessionManager.LoadSession("_auto");
+        // 槽位隔离优先；旧版本 `_auto` 存全局目录，回退兼容
+        var loaded = SessionManager.LoadSession("_auto", Program.ActiveSlotIndex)
+                     ?? SessionManager.LoadSession("_auto");
         if (loaded == null)
         {
             screen.AddSystemMsg("没有可恢复的会话");
