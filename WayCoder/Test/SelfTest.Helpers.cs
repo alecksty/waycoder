@@ -2823,6 +2823,84 @@ public static partial class SelfTest
         finally { web.Stop(); }
     }
 
+    /// <summary>Web 斜杠命令：HandleCommand 纯函数 + /command 端点冒烟 + HTML 结构。</summary>
+    private static void TestWebCommands(Action<string, bool> Check)
+    {
+        var a = new Agent(new LLM("test", "sk-test"));
+
+        // ── 1. HandleCommand 纯函数 ──
+        var (hHelp, oHelp) = WayCoder.Web.WebChatServer.HandleCommand("/help", a);
+        Check("WebCmd: /help 处理", hHelp && oHelp.Contains("Web 命令"));
+
+        var (hPerm, oPerm) = WayCoder.Web.WebChatServer.HandleCommand("/perm", a);
+        Check("WebCmd: /perm 无参显示当前", hPerm && oPerm.Contains("权限模式"));
+
+        var (hPermSet, oPermSet) = WayCoder.Web.WebChatServer.HandleCommand("/perm yolo", a);
+        Check("WebCmd: /perm yolo 切换", hPermSet && oPermSet.Contains("已切换"));
+        WayCoder.Web.WebChatServer.HandleCommand("/perm ask", a); // 恢复默认
+
+        var (hModelList, oModelList) = WayCoder.Web.WebChatServer.HandleCommand("/model list", a);
+        Check("WebCmd: /model list 列模型", hModelList && oModelList.Contains("模型列表"));
+
+        var (hModel, _) = WayCoder.Web.WebChatServer.HandleCommand("/model", a);
+        Check("WebCmd: /model 无参不处理（前端弹窗）", !hModel);
+
+        var (hReset, _) = WayCoder.Web.WebChatServer.HandleCommand("/reset", a);
+        Check("WebCmd: /reset 处理", hReset);
+
+        var (hTokens, oTokens) = WayCoder.Web.WebChatServer.HandleCommand("/tokens", a);
+        Check("WebCmd: /tokens 统计", hTokens && oTokens.Contains("Token"));
+
+        var (hMcp, _) = WayCoder.Web.WebChatServer.HandleCommand("/mcp", a);
+        Check("WebCmd: /mcp 状态", hMcp);
+
+        var (hTodo, _) = WayCoder.Web.WebChatServer.HandleCommand("/todo", a);
+        Check("WebCmd: /todo 任务", hTodo);
+
+        var (hUnknown, _) = WayCoder.Web.WebChatServer.HandleCommand("/foobar-xyz", a);
+        Check("WebCmd: 未知命令不处理", !hUnknown);
+
+        var (hPlain, _) = WayCoder.Web.WebChatServer.HandleCommand("hello world", a);
+        Check("WebCmd: 非斜杠不处理", !hPlain);
+
+        var (hNull, oNull) = WayCoder.Web.WebChatServer.HandleCommand("/tokens", null);
+        Check("WebCmd: 空槽位 /tokens 提示", hNull && oNull.Contains("无活跃槽位"));
+
+        // ── 2. /command 端点冒烟 ──
+        var web = new WayCoder.Web.WebChatServer(a, 0);
+        web.Start();
+        try
+        {
+            using var client = new HttpClient();
+            var baseUrl = $"http://127.0.0.1:{web.Port}";
+
+            var helpResp = client.PostAsync(baseUrl + "/command",
+                new StringContent("{\"input\":\"/help\"}", Encoding.UTF8, "application/json")).Result;
+            var helpBody = helpResp.Content.ReadAsStringAsync().Result;
+            Check("WebCmd: POST /command /help 处理", helpBody.Contains("\"handled\":true") && helpBody.Contains("Web 命令"));
+
+            var unknownResp = client.PostAsync(baseUrl + "/command",
+                new StringContent("{\"input\":\"/nope-xyz\"}", Encoding.UTF8, "application/json")).Result;
+            Check("WebCmd: POST /command 未知回退", unknownResp.Content.ReadAsStringAsync().Result.Contains("\"handled\":false"));
+
+            var interruptResp = client.PostAsync(baseUrl + "/command",
+                new StringContent("{\"input\":\"/interrupt\"}", Encoding.UTF8, "application/json")).Result;
+            Check("WebCmd: POST /command /interrupt 处理", interruptResp.Content.ReadAsStringAsync().Result.Contains("\"handled\":true"));
+
+            var missingResp = client.PostAsync(baseUrl + "/command",
+                new StringContent("{}", Encoding.UTF8, "application/json")).Result;
+            Check("WebCmd: POST /command 缺 input 报错", missingResp.Content.ReadAsStringAsync().Result.Contains("\"ok\":false"));
+        }
+        catch { Check("WebCmd: 端点冒烟", false); }
+        finally { web.Stop(); }
+
+        // ── 3. HTML 含斜杠命令路由 ──
+        var html = WayCoder.Web.WebChatServer.Html;
+        Check("WebCmd: HTML 含 handleUiCommand", html.Contains("function handleUiCommand"));
+        Check("WebCmd: HTML 含 /command 路由", html.Contains("/command"));
+        Check("WebCmd: HTML 含 cmd 样式", html.Contains(".msg.cmd"));
+    }
+
     /// <summary>WPS/老式二进制 Office（.wps/.et/.dps/.doc/.xls/.ppt）：CFB 解析器 + DOC/XLS/PPT 文本提取 + 容器识别/RTF/HTML 路由</summary>
     private static void TestWps(Action<string, bool> Check)
     {
