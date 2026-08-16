@@ -4,22 +4,21 @@
 #   brew tap aleckstygit/waycoder https://gitee.com/aleckstygit/homebrew-waycoder
 #   brew install waycoder
 #
-# 提交�?homebrew-core 前需：填 sha256（见下方注释）、补 test、过 brew audit�?
+# 提交到 homebrew-core 前需：填 sha256（见下方注释）、补 test、过 brew audit
 class Waycoder < Formula
-  desc "中文版易用编程智能体，C# (.NET) NativeAOT 单文�?CLI 编程 Agent"
+  desc "中文版易用编程智能体，C# (.NET) NativeAOT 单文件 CLI 编程 Agent"
   homepage "https://gitee.com/aleckstygit/my-coder"
   license "MIT"
-  version "0.55.0"
+  version "0.69.0"
 
   on_arm do
-    url "https://github.com/alecksty/waycoder/releases/download/v0.55.0/waycoder-v0.55.0-osx-arm64.tar.gz"
-    # �?`curl -L <url> | shasum -a 256` 填充
-    sha256 "eb26fdc0497709162a5081eb4a05c5063af7f64b2883a2ffc8c136152bffe528"
+    url "https://gitee.com/aleckstygit/my-coder/releases/download/v0.69.0/waycoder-v0.69.0-osx-arm64.tar.gz"
+    sha256 "445912a1fe29de8636f365fb61786abeed2860a2d1165274b7b0338b4e80311d"
   end
 
   on_intel do
-    url "https://github.com/alecksty/waycoder/releases/download/v0.55.0/waycoder-v0.55.0-osx-x64.tar.gz"
-    sha256 "eb26fdc0497709162a5081eb4a05c5063af7f64b2883a2ffc8c136152bffe528"
+    url "https://gitee.com/aleckstygit/my-coder/releases/download/v0.69.0/waycoder-v0.69.0-osx-x64.tar.gz"
+    sha256 "ecae2e73822c3f068ed23e24d8058ab2b3668cac1a0dcc07769a35352ba3cdaa"
   end
 
   def install

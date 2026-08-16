@@ -82,9 +82,8 @@ for RID in "${RIDS[@]}"; do
   if [[ "$RID" == win-* ]]; then
     ARCHIVE="$DIST/waycoder-${VERSION}-${RID}.zip"
     rm -f "$ARCHIVE"
-    WIN_ARCHIVE="$(cygpath -w "$ARCHIVE" 2>/dev/null || echo "$ARCHIVE")"
-    (cd "$OUT" && powershell.exe -NoProfile -Command \
-      "Get-ChildItem | Where-Object { \$_.Extension -ne '.pdb' } | Compress-Archive -DestinationPath '$WIN_ARCHIVE' -Force")
+    # 跨平台打包：macOS/Linux 用 zip，Windows Git Bash 自带 zip（避免依赖 powershell.exe）
+    (cd "$OUT" && zip -q -r "$ARCHIVE" . -x '*.pdb' '*.DS_Store')
     echo "  ✅ $ARCHIVE"
   else
     ARCHIVE="$DIST/waycoder-${VERSION}-${RID}.tar.gz"
