@@ -51,6 +51,7 @@ public static class LogMetrics
             {
                 _ringCapacity = Math.Max(1, value);
                 while (_ring.Count > _ringCapacity) _ring.RemoveAt(0);
+                _ringIndex = 0; // 缩小容量后重置写指针，防止残留索引越界写
             }
         }
     }

@@ -117,6 +117,17 @@ public class TuiTable
                     ? AnsiDisplayWidth(cellText)
                     : TuiHelper.DisplayWidth(cellText);
 
+                // 超宽单元格截断，避免顶破右边界 │ 分隔
+                if (displayW > colWidths[i])
+                {
+                    cellText = isMarkup && ansi
+                        ? TruncateMarkup(cellText, colWidths[i])
+                        : TuiHelper.TruncateByWidth(cellText, colWidths[i]);
+                    displayW = isMarkup && ansi
+                        ? AnsiDisplayWidth(cellText)
+                        : TuiHelper.DisplayWidth(cellText);
+                }
+
                 var padR = colWidths[i] - displayW;
                 if (padR < 0) padR = 0;
 
@@ -209,6 +220,34 @@ public class TuiTable
         var left = (width - tw) / 2;
         var right = width - tw - left;
         return new string(' ', left) + text + new string(' ', right);
+    }
+
+    /// <summary>按显示宽度截断带 ANSI/Spectre 标记的文本（与 AnsiDisplayWidth 同宽模型，完整 rune 不拆半）。</summary>
+    private static string TruncateMarkup(string text, int maxW)
+    {
+        var sb = new System.Text.StringBuilder();
+        int w = 0;
+        int i = 0;
+        while (i < text.Length && w < maxW)
+        {
+            if (text[i] == '\x1b' && i + 1 < text.Length && text[i + 1] == '[')
+            {
+                int j = i;
+                while (j < text.Length && text[j] != 'm') j++;
+                int end = j < text.Length ? j + 1 : j; // 无终止符时钳制，防越界
+                sb.Append(text[i..end]);
+                i = j;
+                continue;
+            }
+            if (text[i] == '[' || text[i] == ']') { i++; continue; } // Spectre 标记，零宽
+            var rune = System.Text.Rune.GetRuneAt(text, i);
+            int cw = TuiHelper.RuneWidth(rune);
+            if (w + cw > maxW) break;
+            sb.Append(rune);
+            w += cw;
+            i += rune.Utf16SequenceLength;
+        }
+        return sb.ToString();
     }
 
     /// <summary>计算 ANSI 标记文本的显示宽度（忽略转义序列）</summary>

@@ -170,10 +170,8 @@ public static class Logger
     public static void FlushAll()
     {
         // 让后台线程先消费当前队列，随后刷新。
-        lock (_lock)
-        {
-            FlushLocked();
-        }
+        // FlushLocked 内部已持有 _lock；System.Threading.Lock 非可重入，此处不得重复加锁。
+        FlushLocked();
     }
 
     /// <summary>

@@ -48,11 +48,9 @@ public static class IdGenerator
     public static string NewId(int length = 8)
     {
         if (length <= 0) throw new ArgumentOutOfRangeException(nameof(length), "长度必须大于 0");
-        var bytes = new byte[length];
-        _rng.Value!.GetBytes(bytes);
         var chars = new char[length];
         for (int i = 0; i < length; i++)
-            chars[i] = SafeChars[bytes[i] % SafeChars.Length];
+            chars[i] = SafeChars[RandomNumberGenerator.GetInt32(SafeChars.Length)]; // 静态 GetInt32 无取模偏差（bytes[i] % 30 会让前 16 个字符偏多）
         return new string(chars);
     }
 

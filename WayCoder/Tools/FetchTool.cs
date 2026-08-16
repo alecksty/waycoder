@@ -124,13 +124,15 @@ public class FetchTool : ITool, ICancellableTool
             text = Regex.Replace(text, @"\n{4,}", "\n\n\n");
             text = Regex.Replace(text, @"[ \t]{2,}", " ");
 
+            var originalLen = text.Length;
+
             if (text.Length > maxChars)
             {
-                text = text[..maxChars];
+                text = ContextManager.TruncateByRunes(text, maxChars);
                 var lastSpace = text.LastIndexOf(' ');
                 if (lastSpace > maxChars * 3 / 4)
                     text = text[..lastSpace];
-                text += $"\n\n... (已截断，原始约 {text.Length * 2} 字符)";
+                text += $"\n\n... (已截断，原始约 {originalLen} 字符)";
             }
 
             return string.IsNullOrWhiteSpace(text) ? "（页面无文本内容）" : text.Trim();
@@ -327,12 +329,12 @@ public class FetchTool : ITool, ICancellableTool
             var node = Json.Parse(json);
             var pretty = node == null ? json : Json.Serialize(node, indent: true);
             if (pretty.Length > maxChars)
-                pretty = pretty[..maxChars] + "\n... (已截断)";
+                pretty = ContextManager.TruncateByRunes(pretty, maxChars) + "\n... (已截断)";
             return pretty;
         }
         catch
         {
-            return json.Length > maxChars ? json[..maxChars] + "\n... (已截断)" : json;
+            return json.Length > maxChars ? ContextManager.TruncateByRunes(json, maxChars) + "\n... (已截断)" : json;
         }
     }
 }

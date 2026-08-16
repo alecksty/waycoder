@@ -80,7 +80,8 @@ public static class AnsiString
             var w = CharWidth(rune);
             if (vw + w > maxVw) break;
             vw += w;
-            sb.Append(text[i]);
+            sb.Append(rune); // 追加完整 rune（代理对不拆半）
+            i += rune.Utf16SequenceLength - 1; // for 循环自增 1，补足剩余码元
         }
 
         sb.Append(AnsiTty.SgrReset);

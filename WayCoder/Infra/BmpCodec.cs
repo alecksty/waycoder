@@ -60,7 +60,9 @@ public static class BmpCodec
         if (width <= 0 || height == 0) throw new FormatException("非法宽高");
 
         bool topDown = height < 0;
-        int h = (int)Math.Abs((long)height); // long 避免 int.MinValue 溢出
+        long absHeight = Math.Abs((long)height);
+        if (absHeight > int.MaxValue) throw new FormatException("非法宽高"); // height == int.MinValue 时 |height| 超出 int 范围
+        int h = (int)absHeight;
         if ((long)width * h > MaxPixels) throw new FormatException("BMP 尺寸过大");
         int bytesPerPixel = bpp / 8;
         int rowSize = ((width * bytesPerPixel + 3) / 4) * 4;
