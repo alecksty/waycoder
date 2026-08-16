@@ -121,6 +121,7 @@ public static partial class SelfTest
         TestWebPanelSessions(Check);  // Web 三栏面板：panel/sessions/lsp 访问器/交互桥 + 端点冒烟
         TestWebCommands(Check);       // Web 斜杠命令：HandleCommand 纯函数 + /command 端点冒烟
         TestWebDiffPreview(Check);    // Web Diff 预览：ParseDiffAnswer/SerializeHunks + DiffPreview.Show Web 分支
+        TestWebUpload(Check);        // Web 多模态上传：ParseUploadKind/SafeExtension/IsTranscribeError + 二进制正文
         TestP0P2Hardening(Check);      // P0-P2 批次：命令注入/RCE/权限绕过/整数溢出/越界 修复
         Console.WriteLine();
 

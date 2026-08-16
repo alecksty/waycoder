@@ -277,6 +277,10 @@ public sealed class WebChatServer : UxHelper.IWebInteraction
             return HttpResponse.JsonBody(AnswerQuestion(requestId, body?["value"]));
         }
 
+        // 多模态上传：图片（入 vision 队列）/ 音频（转录为文字）
+        if (req.Method == "POST" && req.Path == "/upload")
+            return HandleUpload(req);
+
         return null;
     }
 
@@ -1099,6 +1103,112 @@ public sealed class WebChatServer : UxHelper.IWebInteraction
     }
 
     // ═══════════════════════════════════════════════════════════
+    //  多模态上传（图片入 vision 队列 / 音频转录为文字）
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>上传文件落盘目录（跨平台临时目录）。</summary>
+    private static readonly string UploadDir = Path.Combine(Path.GetTempPath(), "waycoder-uploads");
+
+    private static int _uploadSeq;
+
+    /// <summary>解析上传 kind（query 形如 kind=image|audio）。非法/缺失返回 null。</summary>
+    public static string? ParseUploadKind(string? query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return null;
+        foreach (var part in query.Split('&'))
+        {
+            int eq = part.IndexOf('=');
+            var key = eq >= 0 ? part[..eq] : part;
+            var val = eq >= 0 ? part[(eq + 1)..] : "";
+            if (!key.Equals("kind", StringComparison.OrdinalIgnoreCase)) continue;
+            if (val.Equals("image", StringComparison.OrdinalIgnoreCase)) return "image";
+            if (val.Equals("audio", StringComparison.OrdinalIgnoreCase)) return "audio";
+            return null;
+        }
+        return null;
+    }
+
+    private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    { "png", "jpg", "jpeg", "gif", "webp", "bmp" };
+
+    /// <summary>判断扩展名是否为受支持的图片格式。纯逻辑便于自测。</summary>
+    public static bool IsImageExtension(string ext)
+        => ImageExtensions.Contains(string.IsNullOrWhiteSpace(ext) ? "" : ext.TrimStart('.').ToLowerInvariant());
+
+    /// <summary>从上传文件名提取安全扩展名（仅字母数字，超长或缺失回退 kind 默认）。</summary>
+    public static string SafeExtension(string? fileName, string kind)
+    {
+        var ext = string.IsNullOrWhiteSpace(fileName) ? "" : Path.GetExtension(fileName).TrimStart('.').ToLowerInvariant();
+        ext = new string(ext.Where(char.IsLetterOrDigit).ToArray());
+        if (ext.Length == 0 || ext.Length > 8)
+            return kind == "audio" ? "bin" : "png";
+        return ext;
+    }
+
+    /// <summary>处理 POST /upload：落盘 + 图片入 vision 队列 / 音频转录。</summary>
+    private HttpResponse HandleUpload(HttpRequest req)
+    {
+        var kind = ParseUploadKind(req.Query);
+        if (kind == null)
+            return HttpResponse.JsonBody(Err("缺少或非法 kind 参数（须为 image 或 audio）"));
+
+        var fileName = Uri.UnescapeDataString(req.Header("X-File-Name") ?? "upload.bin");
+        var bytes = req.RawBody;
+        if (bytes.Length == 0)
+            return HttpResponse.JsonBody(Err("上传内容为空"));
+
+        var ext = SafeExtension(fileName, kind);
+        if (kind == "image")
+        {
+            if (!IsImageExtension(ext))
+                return HttpResponse.JsonBody(Err($"不支持的图片格式 '.{ext}'（支持 png/jpg/jpeg/gif/webp/bmp）"));
+            if (bytes.Length > 5 * 1024 * 1024)
+                return HttpResponse.JsonBody(Err($"图片过大（{bytes.Length / 1024} KB），vision 上限 5MB"));
+        }
+        else
+        {
+            if (!TranscribeAudioTool.IsSupportedAudioExtension(ext))
+                return HttpResponse.JsonBody(Err($"不支持的音频格式 '.{ext}'（支持 mp3/wav/m4a/ogg/webm 等）"));
+            if (bytes.Length > 25 * 1024 * 1024)
+                return HttpResponse.JsonBody(Err($"音频过大（{bytes.Length / 1024 / 1024} MB），Whisper 上限 25MB"));
+        }
+
+        try { Directory.CreateDirectory(UploadDir); } catch { }
+        var seq = Interlocked.Increment(ref _uploadSeq);
+        var path = Path.Combine(UploadDir, $"upload-{Environment.TickCount64}-{seq}.{ext}");
+        try { File.WriteAllBytes(path, bytes); }
+        catch (Exception ex) { return HttpResponse.JsonBody(Err($"保存文件失败：{ex.Message}")); }
+
+        if (kind == "image")
+        {
+            var model = Config.Instance.Model;
+            if (!LLM.ModelSupportsVision(model))
+                return HttpResponse.JsonBody(Err($"当前模型 {model} 不支持图片输入（vision），请切换支持 vision 的模型"));
+            LLM.QueueImage(path);
+            return HttpResponse.JsonBody(JNode.Object()
+                .Set("ok", true).Set("kind", "image").Set("path", path)
+                .Set("name", fileName).Set("size", bytes.Length).ToJson());
+        }
+
+        // 音频：转录（复用 TranscribeAudioTool）
+        var text = new TranscribeAudioTool()
+            .ExecuteAsync(new Dictionary<string, object?> { ["path"] = path })
+            .GetAwaiter().GetResult();
+        if (IsTranscribeError(text))
+            return HttpResponse.JsonBody(Err(text));
+        return HttpResponse.JsonBody(JNode.Object()
+            .Set("ok", true).Set("kind", "audio").Set("path", path)
+            .Set("name", fileName).Set("size", bytes.Length).Set("text", text).ToJson());
+    }
+
+    /// <summary>转录结果是否为错误文本（成功返回任意转录内容，不含这些前缀）。纯逻辑便于自测。</summary>
+    public static bool IsTranscribeError(string text)
+        => text.StartsWith("错误", StringComparison.Ordinal)
+        || text.StartsWith("转录失败", StringComparison.Ordinal)
+        || text.StartsWith("转录出错", StringComparison.Ordinal)
+        || text.StartsWith("转录返回空文本", StringComparison.Ordinal);
+
+    // ═══════════════════════════════════════════════════════════
     //  JSON 辅助
     // ═══════════════════════════════════════════════════════════
 
@@ -1336,6 +1446,8 @@ select optgroup { background:var(--panel); color:var(--text); }
   <main id="chat-col">
     <div id="messages"></div>
     <div id="input-bar">
+      <button class="btn ghost" id="attach-btn" title="上传图片 / 音频">📎</button>
+      <input type="file" id="file-input" accept="image/*,audio/*" style="display:none">
       <textarea id="input" placeholder="输入消息，Enter 发送，Shift+Enter 换行" rows="1"></textarea>
       <button class="btn primary" id="send">发送</button>
       <button class="btn danger" id="stop">停止</button>
@@ -1949,6 +2061,37 @@ input.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
 });
 input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 200) + 'px'; });
+
+// ── 多模态上传（图片 → vision 队列 / 音频 → 转录为文字）──
+const attachBtn = document.getElementById('attach-btn');
+const fileInput = document.getElementById('file-input');
+attachBtn.onclick = () => fileInput.click();
+fileInput.onchange = () => {
+  if (fileInput.files && fileInput.files.length) { uploadFile(fileInput.files[0]); fileInput.value = ''; }
+};
+function uploadFile(file) {
+  const kind = (file.type || '').startsWith('audio/') ? 'audio' : 'image';
+  addMsg('system', '⏳ 上传中 ' + file.name + '…');
+  fetch('/upload?kind=' + kind, {
+    method: 'POST',
+    headers: { 'X-File-Name': encodeURIComponent(file.name) },
+    body: file
+  })
+    .then(r => r.json())
+    .then(res => {
+      if (res && res.ok) {
+        if (res.kind === 'image') {
+          addMsg('system', '🖼 图片 ' + (res.name || file.name) + ' 已附加，下一条消息将发送给多模态模型');
+        } else {
+          addMsg('system', '🎙 音频 ' + (res.name || file.name) + ' 转录完成');
+          if (res.text) { addMsg('user', res.text); fetch('/chat', { method: 'POST', body: res.text }).catch(() => {}); }
+        }
+      } else {
+        addMsg('system', '✘ 上传失败：' + (res && res.error ? res.error : '未知错误'));
+      }
+    })
+    .catch(() => addMsg('system', '✘ 上传失败（网络错误）'));
+}
 
 // ── 工具函数 ──
 function escapeHtml(s) {
