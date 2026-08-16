@@ -1,4 +1,4 @@
-# winget 发布（v0.69.0）
+# winget 发布（v0.71.4）
 
 WayCoder 的 Windows 便携版通过 `microsoft/winget-pkgs` 社区仓库分发。
 
@@ -7,14 +7,14 @@ WayCoder 的 Windows 便携版通过 `microsoft/winget-pkgs` 社区仓库分发�
 manifest 已生成在仓库内：
 
 ```
-packaging/winget/manifests/a/Aleckstygit/WayCoder/0.69.0/
+packaging/winget/manifests/a/Aleckstygit/WayCoder/0.71.4/
 ├── Aleckstygit.WayCoder.yaml              # version
 ├── Aleckstygit.WayCoder.locale.zh-CN.yaml # defaultLocale
 └── Aleckstygit.WayCoder.installer.yaml    # installer（Gitee URL + 真实 sha256）
 ```
 
-- `InstallerUrl` 指向 Gitee 可预测 release URL（`https://gitee.com/aleckstygit/my-coder/releases/download/v0.69.0/waycoder-v0.69.0-win-x64.zip` / `-win-arm64.zip`）
-- `InstallerSha256` 已填真实值（`588e8c0d...` / `fcfe3e14...`）
+- `InstallerUrl` 指向 Gitee 可预测 release URL（`https://gitee.com/aleckstygit/my-coder/releases/download/v0.71.4/waycoder-v0.71.4-win-x64.zip` / `-win-arm64.zip`）
+- `InstallerSha256` 已填真实值（`5e7502ae...` / `0adce845...`）
 - 域名启发式校验：`InstallerUrl`（gitee.com）与 `PackageUrl`/`PublisherUrl`（gitee.com）**一致**，通过自动化域名匹配的概率高
 
 ## 前提
@@ -25,37 +25,37 @@ packaging/winget/manifests/a/Aleckstygit/WayCoder/0.69.0/
 
 ## 步骤
 
-### 1. 本地校验（Windows）
+### 1. 本地校验（Windows PowerShell）
 
 ```powershell
-winget validate .\packaging\winget\manifests\a\Aleckstygit\WayCoder\0.69.0\
+winget validate .\packaging\winget\manifests\a\Aleckstygit\WayCoder\0.71.4\
 ```
 
-### 2. 本地免提交安装测试（Windows）
+### 2. 本地免提交安装测试（Windows PowerShell）
 
 ```powershell
-winget install --manifest .\packaging\winget\manifests\a\Aleckstygit\WayCoder\0.69.0\
+winget install --manifest .\packaging\winget\manifests\a\Aleckstygit\WayCoder\0.71.4\
 ```
 
-### 3. fork + 提交 PR
+### 3. fork + 提交 PR（Windows Git Bash / WSL）
 
 ```bash
 # fork microsoft/winget-pkgs 并 clone
 gh repo fork microsoft/winget-pkgs --clone
 cd winget-pkgs
 
-# 复制 manifest（按目录结构，版本号目录 0.69.0）
-cp -r <waycoder-repo>/packaging/winget/manifests/a/Aleckstygit/WayCoder/0.69.0 \
+# 复制 manifest（按目录结构，版本号目录 0.71.4）
+cp -r <waycoder-repo>/packaging/winget/manifests/a/Aleckstygit/WayCoder/0.71.4 \
       manifests/a/Aleckstygit/WayCoder/
 
-git checkout -b aleckstygit-waycoder-0.69.0
-git add manifests/a/Aleckstygit/WayCoder/0.69.0
-git commit -m "New version: Aleckstygit.WayCoder version 0.69.0"
-git push --set-upstream origin aleckstygit-waycoder-0.69.0
+git checkout -b aleckstygit-waycoder-0.71.4
+git add manifests/a/Aleckstygit/WayCoder/0.71.4
+git commit -m "New version: Aleckstygit.WayCoder version 0.71.4"
+git push --set-upstream origin aleckstygit-waycoder-0.71.4
 
 gh pr create \
-  --title "New version: Aleckstygit.WayCoder version 0.69.0" \
-  --body "更新 WayCoder 到 0.69.0（Web 聊天界面完善 + 多模态上传 + Diff 预览）。下载源为 Gitee Release（国内快）。"
+  --title "New version: Aleckstygit.WayCoder version 0.71.4" \
+  --body "更新 WayCoder 到 0.71.4（并发竞态修复 + LLM 提问对话框 + diff 滚动）。下载源为 Gitee Release（国内快）。"
 ```
 
 ### 4. PR 审核要点
@@ -68,8 +68,8 @@ gh pr create \
 
 若审核要求 `InstallerUrl` 用 GitHub 域名，需：
 
-1. 代理访问 GitHub → 推 `v0.69.0` 标签触发 `.github/workflows/release.yml` 构建
-2. 等 release 就绪后，把 `installer.yaml` 的 `InstallerUrl` 前缀改回 `https://github.com/alecksty/waycoder/releases/download/v0.69.0/`，`InstallerSha256` 换成 Actions 产物的 sha256
+1. 代理访问 GitHub → 推 `v0.71.4` 标签触发 `.github/workflows/release.yml` 构建
+2. 等 release 就绪后，把 `installer.yaml` 的 `InstallerUrl` 前缀改回 `https://github.com/alecksty/waycoder/releases/download/v0.71.4/`，`InstallerSha256` 换成 Actions 产物的 sha256
 3. 重新走步骤 3 提交 PR
 
 > 注：GitHub release 产物的 sha256 与本地编译产物**不同**（NativeAOT 受工具链版本影响），须用 Actions 产物重算，不可沿用本仓库当前 sha256。
