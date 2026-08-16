@@ -60,14 +60,14 @@ public class AskUserQuestionTool : ITool
         public bool MultiSelect { get; init; }
     }
 
-    public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         try
         {
             // ── 1. 解析 questions 数组 ──
             var questions = ParseQuestions(arguments);
             if (questions.Count == 0)
-                return Task.FromResult("错误：questions 数组为空，至少需要一个问题");
+                return "错误：questions 数组为空，至少需要一个问题";
 
             // ── 2. 依次展示每个问题 ──
             var answers = JNode.Object();
@@ -76,7 +76,7 @@ public class AskUserQuestionTool : ITool
                 object? answer;
                 try
                 {
-                    answer = ShowQuestion(q);
+                    answer = await ShowQuestionAsync(q);
                 }
                 catch (OperationCanceledException)
                 {
@@ -102,15 +102,11 @@ public class AskUserQuestionTool : ITool
             }
 
             // ── 3. 返回 JSON 结果 ──
-            var result = new Dictionary<string, object?>
-            {
-                ["answers"] = Json.Parse(answers.ToJson()),
-            };
-            return Task.FromResult(answers.ToJson());
+            return answers.ToJson();
         }
         catch (Exception ex)
         {
-            return Task.FromResult($"ask_user_question 执行出错：{ex.Message}");
+            return $"ask_user_question 执行出错：{ex.Message}";
         }
     }
 
@@ -228,7 +224,7 @@ public class AskUserQuestionTool : ITool
     /// - JsonArray: 多选结果（选中标签列表）
     /// - null: 用户取消
     /// </summary>
-    private static object? ShowQuestion(ParsedQuestion q)
+    private static async Task<object?> ShowQuestionAsync(ParsedQuestion q)
     {
         // 有选项 → 选择对话框
         if (q.Options.Count > 0)
@@ -241,33 +237,43 @@ public class AskUserQuestionTool : ITool
             ).ToList();
 
             if (q.MultiSelect)
-                return ShowMultiSelect(q.Question, q.Header, displayItems, q.Options);
+                return await ShowMultiSelectAsync(q.Question, q.Header, displayItems, q.Options);
             else
-                return ShowSingleSelect(q.Question, q.Header, displayItems, q.Options);
+                return await ShowSingleSelectAsync(q.Question, q.Header, displayItems, q.Options);
         }
 
         // 无选项 → 文本输入
-        return ShowTextInput(q.Question, q.Header);
+        return await ShowTextInputAsync(q.Question, q.Header);
     }
 
     /// <summary>单选对话框 —— 统一走 UxHelper（TUI 弹框 / 非 TUI 行内），返回选中项的 label。</summary>
-    private static string? ShowSingleSelect(
+    private static async Task<string?> ShowSingleSelectAsync(
         string question, string header,
         List<string> displayItems,
         List<(string Label, string Description)> options)
     {
-        var chosen = UxHelper.Select(question, displayItems, timeoutMs: Config.Instance.AskUserTimeoutSec * 1000);
+        var timeoutMs = Config.Instance.AskUserTimeoutSec * 1000;
+        string? chosen;
+        if (UxHelper.WebInteraction != null)
+            chosen = await UxHelper.WebInteraction.SelectAsync(question, displayItems, timeoutMs);
+        else
+            chosen = UxHelper.Select(question, displayItems, timeoutMs: timeoutMs);
         if (chosen == null) return null;
         return ResolveLabel(chosen, displayItems, options);
     }
 
     /// <summary>多选对话框 —— 统一走 UxHelper（TUI 弹框 / 非 TUI 行内），返回选中项的 label 列表。</summary>
-    private static JNode? ShowMultiSelect(
+    private static async Task<JNode?> ShowMultiSelectAsync(
         string question, string header,
         List<string> displayItems,
         List<(string Label, string Description)> options)
     {
-        var chosen = UxHelper.MultiSelect(question, displayItems, timeoutMs: Config.Instance.AskUserTimeoutSec * 1000);
+        var timeoutMs = Config.Instance.AskUserTimeoutSec * 1000;
+        List<string>? chosen;
+        if (UxHelper.WebInteraction != null)
+            chosen = await UxHelper.WebInteraction.MultiSelectAsync(question, displayItems, timeoutMs);
+        else
+            chosen = UxHelper.MultiSelect(question, displayItems, timeoutMs: timeoutMs);
         if (chosen == null) return null; // 用户取消
         var arr = JNode.Array();
         foreach (var c in chosen)
@@ -276,9 +282,14 @@ public class AskUserQuestionTool : ITool
     }
 
     /// <summary>文本输入对话框 —— 统一走 UxHelper（TUI 弹框 / 非 TUI 行内），空输入视为取消。</summary>
-    private static string? ShowTextInput(string question, string header)
+    private static async Task<string?> ShowTextInputAsync(string question, string header)
     {
-        var val = UxHelper.Ask(question, timeoutMs: Config.Instance.AskUserTimeoutSec * 1000);
+        var timeoutMs = Config.Instance.AskUserTimeoutSec * 1000;
+        string? val;
+        if (UxHelper.WebInteraction != null)
+            val = await UxHelper.WebInteraction.AskAsync(question, null, timeoutMs);
+        else
+            val = UxHelper.Ask(question, timeoutMs: timeoutMs);
         return string.IsNullOrWhiteSpace(val) ? null : val;
     }
 

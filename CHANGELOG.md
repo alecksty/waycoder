@@ -1,5 +1,38 @@
 # 更新日志
 
+## v0.63.0 (2026-08-16) — Web 聊天界面三栏改版 + 交互桥
+
+`--web` 浏览器聊天界面从单栏升级为三栏，并修复「工具输出不滚动」与「网页版无提问对话框」两个致命问题。全程零第三方依赖、AOT 安全、跨平台、手搓 HTTP+SSE。
+
+### 🖥 三栏布局
+
+- **左栏 · 会话记录**：上半 F1-F10 槽位条（白底=当前、有历史=高亮、点击切换），下半历史持久化会话列表（预览 + 模型 + 时间 + 消息数，悬停删除/重命名，底部「新建会话」按钮）
+- **中栏 · 聊天**：保留消息流 + 输入框 + 发送/停止
+- **右栏 · 信息面板**：📋 任务（含状态色点）、💰 Token/费用（本轮 + 累计 + 速率）、🔧 修改文件、🔌 MCP 服务器、🧠 LSP 会话；自动实时刷新（SSE 事件触发 + 2 秒轮询，页面隐藏时跳过）
+- **设置页两列**：左列类别导航（首个默认高亮），右列当前类别的详细设置项，点击类别切换右侧内容
+
+### 🐛 滚动 bug 修复
+
+- `tool_output` 此前被追加到过期的 assistant 流元素（位于 tool 卡片上方隐藏区），导致工具输出「一直在下方不上滚」。现改为**两个独立流指针**：`assistantStreamEl`（assistant 文本流）+ `toolOutputEl`（独立 `.tool-output` 等宽可折叠块），按状态机正确分离，工具输出独立成块、按到达顺序显示在底部并自动滚动
+
+### 🆘 Web 交互桥（致命问题修复）
+
+- 此前 Web 模式下 `ask_user_question` 工具与权限确认框走 `Console.ReadLine()` 阻塞在后台线程，浏览器用户看不到任何对话框。现抽象「交互模式」：`UxHelper.IWebInteraction` 接口 + `WebInteraction` 注入点
+- `WebChatServer` 实现 `IWebInteraction`（`Start` 注入 / `Stop` 移除）：提问/确认经 SSE `ask` 事件弹浏览器对话框（select 选项按钮 / multi 复选 / text 输入 / confirm 允许+总是允许+拒绝），`POST /answer` 回填应答，`Task.WhenAny` 超时兜底
+- `AskUserQuestionTool` 与 `PermissionManager` 改异步走桥；`WebInteraction == null` 时仍走原 TUI/Console 路径，终端模式零影响
+
+### 🔌 后端新增端点与访问器
+
+- `GET /panel` — 右栏六类数据（`SerializePanel` 纯静态函数）
+- `GET /sessions`、`POST /sessions/new|load|delete|rename` — 历史会话管理（`SerializeSessions` 纯静态函数）
+- `POST /answer` — Web 交互桥应答
+- `LspTool.ActiveSessions` 公开访问器 + `ActiveLspInfo` record（右栏 LSP 会话展示）
+
+### 🧪 自测
+
+- 新增 `SerializePanel`/`SerializeSessions`/`LspTool.ActiveSessions`/交互桥/端点冒烟测试
+- 全量自测通过（0 失败）
+
 ## v0.62.2 (2026-08-16) — P0-P4 健壮性与安全加固
 
 对全仓库做系统性安全审计与压力测试，修复命令注入、RCE、权限绕过、SSRF、资源泄漏、整数溢出、OOM、并发竞态与 Web 资源滥用等一批硬伤。全程零反射、AOT 安全、跨平台、零新依赖。

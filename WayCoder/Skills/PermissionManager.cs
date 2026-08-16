@@ -146,6 +146,11 @@ public static class PermissionManager
                 var fullDetail = string.Join("\n", lines);
                 result = activeScreen.ShowInlinePermission(toolName, summary, fullDetail, isDangerous);
             }
+            else if (UxHelper.WebInteraction != null)
+            {
+                // Web 模式：经交互桥弹浏览器确认对话框（0=是 1=总是允许 2=否），不阻塞在 Console
+                result = await UxHelper.WebInteraction.ConfirmAsync(toolName, details, allowAll: !isDangerous, timeoutMs: 60_000);
+            }
             else
             {
                 UxHelper.Warn("确认操作", content);
