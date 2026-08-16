@@ -21,7 +21,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
     /// <summary>
     /// 分发 Web 斜杠命令。返回 (是否已处理, 输出 Markdown 文本)。
-    /// /interrupt、/stop 的实际中断副作用由路由层执行（需访问实例 _roundCts）。
+    /// /interrupt、/stop 的实际中断副作用由路由层执行（需访问实例 _slots[slot].Cts）。
     /// </summary>
     public static (bool Handled, string Output) HandleCommand(string input, Agent? agent)
     {

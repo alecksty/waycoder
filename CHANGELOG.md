@@ -1,5 +1,34 @@
 # 更新日志
 
+## v0.71.1 (2026-08-16) — Web 停止按钮按页面隔离 + 发送按钮改版
+
+Web 版停止按钮修复为「每个浏览器页面只作用于自己的 agent」：后端从单活动槽位 + 单取消令牌 + 单顺序循环，改为每页面（SSE 客户端）绑定一个槽位、各槽位独立并发执行；发送按钮改为圆形 + 纸飞机图标。
+
+### 🐛 停止按钮按页面隔离（根因修复）
+
+- **客户端槽位绑定**：前端生成随机 `clientId`，所有请求走 `?client=<id>`（含 `/events` SSE 连接）；后端 `ResolveSlot` 把新客户端分配到空闲槽位（0-9）并复用
+- **槽位分配跳过已绑定槽位**：`ResolveSlot` 分配空闲槽位时同时排除「已被其他客户端绑定」的槽位（不能只看 `Agent`/`IsBusy`——新客户端分配后不会立刻建 Agent，否则多个页面被分到同一个槽位互相干扰）
+- **切换槽位同步 SSE 客户端槽位**：`BindClientSlot` 除更新 `_clientSlot` 字典外，同步改写该页面已建 `SseClient.SlotIndex`，否则切换后 `BroadcastTo(新槽位)` 匹配不到它 → 收不到 token/停止态、停止按钮失效
+- **每槽位独立执行**：`WebSlot{Agent,IsBusy,Cts}` + `StartSlotTask` 后台 `Task.Run` 并发跑 `ChatAsync`（镜像终端 `Program.Repl.cs` 槽位模型），删掉全局 `_activeSlot`/`_roundCts`/`_input`/`MainLoopAsync`
+- **作用域广播**：`BroadcastTo(slot)` 只写绑定该槽位的客户端；`BroadcastAll` 保留给全局事件（sessions）；`BroadcastStateForAll` 按各客户端自己的槽位刷新 state
+- **交互桥 `ask` 按槽位路由**：`AsyncLocal<int> _currentSlot`（AOT 安全，项目已用于 bash cwd 跟踪）在 `StartSlotTask` 内 set，`WaitAnswerAsync` 据此只把提问发给发起该轮任务的页面
+- **`OnSse` 委托加 `HttpRequest`**：SSE 连接建立时能读到 query 里的 `client` 标识
+
+### ✨ 槽位切换保留状态
+
+- **输入草稿按槽位记忆**：前端 `slotDrafts` 缓存每个槽位未发送的输入，切换槽位时保存当前、恢复目标，输入框内容互不串扰（切换时也重置 `isBusy`，避免残留旧槽位的停止态拦截发送）
+- **聊天内容按槽位隔离**：每槽位独立 `Agent.Messages`，切换时从后端回放该槽位历史
+
+### ✨ 发送按钮改版
+
+- **圆形按钮**：`#send` 的 `border-radius` 13px → `50%`（46×46 成圆）
+- **纸飞机图标**：`✈️` emoji 换成 Material「send」内联 SVG 纸飞机（`fill=currentColor` 随主题着色），忙态仍为 ⏹ 圆钮
+
+### 🧪 自测
+
+- 新增 `ParseClientQuery`（query 取 client）/ `PickFreeSlot`（槽位分配）纯函数断言
+- 新增端点冒烟：两个 `?client=` 分配不同槽位、`/slot` 切槽后互不影响
+
 ## v0.71.0 (2026-08-16) — 安全加固 + 多槽位真并行 + 渲染一致性 + 健壮性
 
 一轮系统性审查后的四批修复落地：Web 安全加固、修复「切换槽位后任务停止」的根因（10 个 agent 真正并行）、三端渲染一致性收敛、补齐非 bash 工具取消令牌与资源泄漏。
