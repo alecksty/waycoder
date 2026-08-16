@@ -36,6 +36,11 @@ public class TuiComboBox : TuiControl
     private string _searchText = "";
     private List<int> _filteredIndices = []; // 符合搜索的选项索引列表
 
+    /// <summary>当前生效的选项索引列表：无搜索词=全部，有搜索词=过滤结果（可能为空，区别于「未过滤」）。</summary>
+    private List<int> ActiveIndices => string.IsNullOrEmpty(_searchText)
+        ? Enumerable.Range(0, Options.Count).ToList()
+        : _filteredIndices;
+
     /// <summary>是否启用搜索过滤</summary>
     public bool EnableSearch { get; set; } = true;
 
@@ -103,10 +108,8 @@ public class TuiComboBox : TuiControl
         // ── 下拉列表 ──
         if (IsExpanded && Options.Count > 0)
         {
-            // 确定要显示的选项（有过滤时显示过滤结果）
-            var displayIndices = _filteredIndices.Count > 0
-                ? _filteredIndices
-                : Enumerable.Range(0, Options.Count).ToList();
+            // 确定要显示的选项（有搜索词时显示过滤结果，可能为空；无搜索词显示全部）
+            var displayIndices = ActiveIndices;
 
             int listH = Math.Min(displayIndices.Count, 10);
             for (int i = 0; i < listH; i++)
@@ -162,13 +165,17 @@ public class TuiComboBox : TuiControl
                     NavigateFiltered(1);
                     return true;
                 case ConsoleKey.Home:
-                    if (_filteredIndices.Count > 0) { SelectedIndex = _filteredIndices[0]; OnSelectionChanged?.Invoke(SelectedIndex); }
-                    else { SelectedIndex = 0; OnSelectionChanged?.Invoke(SelectedIndex); }
+                {
+                    var active = ActiveIndices;
+                    if (active.Count > 0) { SelectedIndex = active[0]; OnSelectionChanged?.Invoke(SelectedIndex); }
                     return true;
+                }
                 case ConsoleKey.End:
-                    if (_filteredIndices.Count > 0) { SelectedIndex = _filteredIndices[^1]; OnSelectionChanged?.Invoke(SelectedIndex); }
-                    else { SelectedIndex = Options.Count - 1; OnSelectionChanged?.Invoke(SelectedIndex); }
+                {
+                    var active = ActiveIndices;
+                    if (active.Count > 0) { SelectedIndex = active[^1]; OnSelectionChanged?.Invoke(SelectedIndex); }
                     return true;
+                }
                 case ConsoleKey.Enter:
                     CloseDropdown();
                     return true;
@@ -225,7 +232,7 @@ public class TuiComboBox : TuiControl
     /// <summary>在过滤列表中导航</summary>
     private void NavigateFiltered(int delta)
     {
-        var list = _filteredIndices.Count > 0 ? _filteredIndices : Enumerable.Range(0, Options.Count).ToList();
+        var list = ActiveIndices;
         if (list.Count == 0) return;
         int curIdx = list.IndexOf(SelectedIndex);
         if (curIdx < 0) curIdx = delta > 0 ? -1 : list.Count;

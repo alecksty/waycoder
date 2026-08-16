@@ -153,7 +153,7 @@ public class TodoTool : ITool
         SaveTodos(todos);
 
         var depNote = deps.Count > 0 ? $"，依赖 [{string.Join(", ", deps)}]" : "";
-        return $"✅ 创建任务 [{id}]: {title} | 状态=pending{depNote}";
+        return $"✅ 创建任务 [{id}]: {title} | 状态={todo.Status}{depNote}";
     }
 
     // ── update ──

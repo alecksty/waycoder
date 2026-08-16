@@ -1,6 +1,45 @@
 # 更新日志
 
-## v0.71.7 (2026-08-17) — 基础设施/文件工具/编辑器 21 项确定性修复
+## v0.71.8 (2026-08-17) — 工具/TUI/UTF-16 代理对 26 项确定性修复
+
+系统性审查工具、TUI 控件、基础设施与全仓字符串截断，修复 26 个确定性 bug，补齐单元测试。
+
+### 🐛 工具（Tools）
+
+- **`StructTodoTool` 解除阻塞污染标题**：每次解锁都在 `Title` 后追加 `[解除阻塞: id]`，反复累加；移除污染行，并为 `TodoItem` 补 `Description` 字段（读/写与 `TodoTool` schema 对齐）
+- **`TodoTool` 状态硬编码**：列出时 `状态=pending` 写死，改为 `状态={todo.Status}` 反映真实状态
+- **`FetchTool` 截断长度谎报**：截断后消息引用已截断的 `text.Length`，改为截断前记录 `originalLen` 再引用
+- **`DocTool` 缓存非线程安全**：`Dictionary` 缓存多 Agent 并发读写竞态，改为 `ConcurrentDictionary`
+
+### 🐛 TUI 控件 / UI
+
+- **`TuiProgress` 负宽度越界**：`barW < 0` 时 `Math.Clamp(filled, 0, barW)` 抛异常，先钳 `barW = 0`
+- **`TuiControl` 字符推进按 UTF-16 码元**：`charIdx++` 遇 emoji 拆半，改为 `charIdx += rune.Utf16SequenceLength`
+- **`AnsiString.TruncateByWidth` 拆半代理对**：逐 `char` 拼接切半 emoji → U+FFFD，改为按 `Rune` 拼接 + 码元补齐
+- **`BoxBuffer` 宽度判定与真源分叉**：`VW`/`TruncateByVW` 用 `r.Value > 127` 判宽，与 `AnsiString.CharWidth` 真源不一致，统一委托真源
+- **`TuiScrollbar` 拖拽坐标未换算**：`ev.MouseY` 直接当相对坐标，缺 `GetAbsoluteY()` 偏移
+- **`TuiMarkdown` 彩虹段拆半代理对**：`BuildRainbowSegments` 逐 `char` 遍历，改为 `EnumerateRunes`
+- **`TuiToastQueue` 跨线程可见性**：`_current` 静态字段非 volatile，Toast 在 UI/后台线程间可能读到旧值，加 `volatile`
+- **`TuiComboBox` 过滤后索引错乱**：渲染/Home/End 用未过滤索引，过滤后选中错位，新增 `ActiveIndices` 统一
+- **`TuiTable` 单元格溢出错位**：超宽单元格不截断破坏表格对齐，新增按列宽截断（含 ANSI/Spectre 标记感知的 `TruncateMarkup`）
+
+### 🐛 基础设施（Infra）
+
+- **`Logger.FlushAll` 锁重入死锁**：外层 `lock(_lock)` 内再进 `FlushLocked` 触发 `LockRecursionException`，去掉外层锁
+- **`LogMetrics` 缩容残留写指针**：`RingCapacity` 缩小只删元素不重置 `_ringIndex`，后续 `Record` 越界写，补 `_ringIndex = 0`
+- **`BmpCodec` int.MinValue 溢出**：`Math.Abs((int)height)` 遇 `int.MinValue` 溢出/回绕，改为 `long` 取绝对值 + 超界抛 `FormatException`
+- **`TrueTypeFont` 拆半代理对**：`Measure`/`DrawString` 逐 `char` 取字形，改为 `EnumerateRunes`
+- **`IdGenerator` 取模偏差**：`_rng.GetInt32` 实例调用误用（静态方法）+ 模运算取模偏差，改为 `RandomNumberGenerator.GetInt32(len)`
+
+### 🐛 UTF-16 代理对截断（全仓清扫）
+
+任意索引处 `[..N]`/`[^N..]` 切片在 emoji/CJK 扩展 B 处拆半代理对，产生 U+FFFD。新增 `ContextManager.TruncateTailByRunes`，并把约 20 处切片（Tree/Export/Fetch/Doc/Git/Ps/Bash/GitPR/Memory/AskUserQuestion/NotebookEdit/TranscribeAudio/Trajectory/BackgroundTask/WorkReporter 等）改为按码点截断。
+
+### 🐛 共享记忆
+
+- **`SharedMemoryManager` 快照目录与检出目标不一致**：拉取前快照用 `MemoryDir`（槽位子目录）、检出目标却是共享目录，导致新增文件误判为「更新」；快照统一用 `SharedMemoryDir`
+
+
 
 系统性审查基础设施、文件操作工具、会话/辅助模式、批处理与 TUI 编辑器，修复 21 个确定性 bug，补齐单元测试。
 

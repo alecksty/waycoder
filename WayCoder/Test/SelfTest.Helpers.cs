@@ -124,6 +124,13 @@ public static partial class SelfTest
         Check("TruncateByRunes: 未超限原样返回", ContextManager.TruncateByRunes("你好世界", 4) == "你好世界");
         Check("TruncateByRunes: 截断到码点边界", ContextManager.TruncateByRunes("abcdef", 3) == "abc");
         Check("TruncateByRunes: 截断点落在代理对中间仍完整", ContextManager.TruncateByRunes("xx😀yy", 3) == "xx😀");
+
+        // ── 8. TruncateTailByRunes：按码点截断尾部，不切半代理对 ──
+        Check("TruncateTailByRunes: 尾部代理对不切半", ContextManager.TruncateTailByRunes("a😀b", 2) == "😀b");
+        Check("TruncateTailByRunes: 截断到码点边界", ContextManager.TruncateTailByRunes("你好世界", 2) == "世界");
+        Check("TruncateTailByRunes: 单代理对整体保留", ContextManager.TruncateTailByRunes("😀", 1) == "😀");
+        Check("TruncateTailByRunes: maxRunes=0 返回空", ContextManager.TruncateTailByRunes("abc", 0) == "");
+        Check("TruncateTailByRunes: 未超限原样返回", ContextManager.TruncateTailByRunes("abc", 5) == "abc");
     }
 
     /// <summary>压缩保真度测试：超多需求压缩后关键信息仍保留（无 LLM 回退路径）</summary>
@@ -2387,6 +2394,14 @@ public static partial class SelfTest
         Check("Traj: 截断保留头", truncated.StartsWith(new string('A', 1200)));
         Check("Traj: 截断保留尾", truncated.EndsWith(new string('A', 2000 - 1200 - "\n…[已截断]…\n".Length)));
         Check("Traj: 极小 maxChars 只留头", Trajectory.Truncate(longText, 10) == "AAAAAAAAAA");
+        // UTF-16 代理对：maxChars 落在 emoji 中间时不切半（走 TruncateByRunes 回退）
+        Check("Traj: 截断不切半代理对", Trajectory.Truncate("ab😀cd", 3) == "ab😀");
+        Check("Traj: 截断结果不含替换符", !Trajectory.Truncate("ab😀cd", 3).Contains('�'));
+
+        // ── StringExtensions.Truncate（maxLen=0 守卫 + 代理对）──
+        Check("TruncateExt: maxLen=0 返回空", "x".Truncate(0) == "");
+        Check("TruncateExt: 短于上限原样返回", "hello".Truncate(10) == "hello");
+        Check("TruncateExt: 不切半代理对", "ab😀cd".Truncate(3) == "ab…");
 
         // ── 2. Enabled 标志（默认开，未设 WAYCODER_TRAJECTORY）──
         Check("Traj: Enabled 默认开", Trajectory.Enabled);
@@ -3739,6 +3754,49 @@ public static partial class SelfTest
     private static void W64(byte[] b, int o, ulong v) { W32(b, o, (long)(v & 0xFFFFFFFF)); W32(b, o + 4, (long)(v >> 32)); }
     private static void W16S(MemoryStream ms, int v) { ms.WriteByte((byte)(v & 0xFF)); ms.WriteByte((byte)((v >> 8) & 0xFF)); }
     private static void W32S(MemoryStream ms, long v) { ms.WriteByte((byte)(v & 0xFF)); ms.WriteByte((byte)((v >> 8) & 0xFF)); ms.WriteByte((byte)((v >> 16) & 0xFF)); ms.WriteByte((byte)((v >> 24) & 0xFF)); }
+
+    /// <summary>v0.71.8 批次：UTF-16 代理对截断 + BMP int.MinValue 溢出 + LogMetrics 缩容。</summary>
+    private static void TestV0718RuneHardening(Action<string, bool> Check)
+    {
+        // ── AnsiString.TruncateByWidth：代理对按码点截断，不产出替换符 ──
+        var w = AnsiString.TruncateByWidth("😀😀", 2);
+        Check("AnsiString: 代理对不切半", !w.Contains('�') && AnsiString.DisplayWidth(w) <= 2);
+        Check("AnsiString: 截断后宽度=2", AnsiString.DisplayWidth(w) == 2);
+        var w2 = AnsiString.TruncateByWidth("ab😀cd", 3);
+        Check("AnsiString: emoji 前截断不越界", !w2.Contains('�') && AnsiString.DisplayWidth(w2) <= 3);
+
+        // ── BMP height == int.MinValue：|height| 溢出 int，必须抛 FormatException ──
+        var bmpMin = new byte[54];
+        bmpMin[0] = (byte)'B'; bmpMin[1] = (byte)'M';
+        W32(bmpMin, 10, 54);                 // dataOffset
+        W32(bmpMin, 14, 40);                 // dibSize
+        W32(bmpMin, 18, 100);                // width
+        W32(bmpMin, 22, (long)int.MinValue); // height = int.MinValue（负数极值）
+        W16(bmpMin, 28, 24);                 // bpp
+        W32(bmpMin, 30, 0);                  // BI_RGB
+        bool bmpMinFmt = false, bmpMinOverflow = false;
+        try { BmpCodec.Decode(bmpMin); }
+        catch (FormatException) { bmpMinFmt = true; }
+        catch (OverflowException) { bmpMinOverflow = true; }
+        Check("Bmp: height=int.MinValue 抛 FormatException 而非溢出", bmpMinFmt && !bmpMinOverflow);
+
+        // ── LogMetrics 缩容后重置写指针：缩容后继续 Record 不再越界 ──
+        LogMetrics.Reset();
+        LogMetrics.RingCapacity = 3;
+        for (int i = 0; i < 5; i++)
+            LogMetrics.Record(new LogEntry(LogLevel.Info, $"msg{i}"));
+        var r3 = LogMetrics.Recent(10);
+        Check("LogMetrics: 满容量保留最近 3 条", r3.Count == 3);
+        Check("LogMetrics: 环形顺序（最旧在前）", r3[0].Message == "msg2" && r3[1].Message == "msg3" && r3[2].Message == "msg4");
+
+        LogMetrics.RingCapacity = 2; // 缩容触发 _ringIndex 重置（修复前会残留越界写指针）
+        for (int i = 5; i < 8; i++)
+            LogMetrics.Record(new LogEntry(LogLevel.Info, $"msg{i}"));
+        var r2 = LogMetrics.Recent(10);
+        Check("LogMetrics: 缩容后继续覆盖不越界", r2.Count == 2 && r2[0].Message == "msg6" && r2[1].Message == "msg7");
+        LogMetrics.RingCapacity = 256; // 还原默认容量
+        LogMetrics.Reset();
+    }
 
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)

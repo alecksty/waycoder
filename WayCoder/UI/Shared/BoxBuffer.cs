@@ -171,32 +171,17 @@ public class BoxBuffer
     // 视觉宽度工具 (静态，供子类使用)
     // ================================================================
 
-    /// <summary>CJK 字符 = 2 列，ASCII = 1 列</summary>
+    /// <summary>CJK 字符 = 2 列，ASCII = 1 列（委托给 CharWidth 唯一宽度真源）</summary>
     public static int VW(string s)
     {
         int w = 0;
         foreach (var r in s.EnumerateRunes())
-            w += r.Value > 127 ? 2 : 1;
+            w += AnsiString.CharWidth(r);
         return w;
     }
 
-    /// <summary>去除 ANSI 转义序列后的视觉宽度</summary>
-    public static int VwPlainText(string text)
-    {
-        int w = 0;
-        var span = text.AsSpan();
-        for (int i = 0; i < span.Length; i++)
-        {
-            if (span[i] == AnsiTty.AnsiCharPrefix && i + 1 < span.Length && span[i + 1] == AnsiTty.AnsiCharEscape)
-            {
-                i += 2;
-                while (i < span.Length && span[i] != 'm') i++;
-                continue;
-            }
-            w += span[i] > 127 ? 2 : 1;
-        }
-        return w;
-    }
+    /// <summary>去除 ANSI 转义序列后的视觉宽度（委托唯一宽度真源，正确处理代理对/重音字符）</summary>
+    public static int VwPlainText(string text) => AnsiString.DisplayWidth(text);
 
     /// <summary>按视觉宽度截断文本</summary>
     public static string TruncateByVW(string text, int maxVW)
@@ -205,7 +190,7 @@ public class BoxBuffer
         var runes = text.EnumerateRunes().ToArray();
         for (int i = 0; i < runes.Length; i++)
         {
-            var cw = runes[i].Value > 127 ? 2 : 1;
+            var cw = AnsiString.CharWidth(runes[i]);
             if (w + cw > maxVW)
                 return string.Concat(runes.Take(i));
             w += cw;

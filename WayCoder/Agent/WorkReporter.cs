@@ -280,6 +280,10 @@ public static class WorkReporter
 /// <summary>字符串截断扩展</summary>
 internal static class StringExtensions
 {
-    public static string Truncate(this string s, int maxLen) =>
-        s.Length <= maxLen ? s : s[..(maxLen - 1)] + "…";
+    public static string Truncate(this string s, int maxLen)
+    {
+        if (maxLen <= 0) return "";
+        if (s.Length <= maxLen) return s;
+        return ContextManager.TruncateByRunes(s, maxLen - 1) + "…";
+    }
 }

@@ -150,7 +150,7 @@ public sealed class Trajectory
         const string mark = "\n…[已截断]…\n";
         var headLen = maxChars * 60 / 100;
         var tailLen = maxChars - headLen - mark.Length;
-        if (tailLen <= 0) return s[..maxChars];
-        return s[..headLen] + mark + s[^tailLen..];
+        if (tailLen <= 0) return ContextManager.TruncateByRunes(s, maxChars);
+        return ContextManager.TruncateByRunes(s, headLen) + mark + ContextManager.TruncateTailByRunes(s, tailLen);
     }
 }
