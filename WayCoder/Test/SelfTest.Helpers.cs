@@ -2943,6 +2943,106 @@ public static partial class SelfTest
         Check("WebCmd: HTML 含 cmd 样式", html.Contains(".msg.cmd"));
     }
 
+    /// <summary>Web 特殊前缀输入 + 中间格式渲染：SerializeFileList 纯函数 + /test 分支 + /shell//fileref//filelist 端点冒烟 + 前端渲染器结构。</summary>
+    private static void TestWebPrefixInput(Action<string, bool> Check)
+    {
+        var a = new Agent(new LLM("test", "sk-test"));
+
+        // ── 1. SerializeFileList 纯函数 ──
+        var all = Json.Parse(WayCoder.UI.Web.WebChatServer.SerializeFileList(""));
+        Check("Prefix: 空前缀返回 JSON 数组", all?.Kind == JKind.Array);
+        if (all != null && all.Kind == JKind.Array)
+        {
+            Check("Prefix: 条目数 ≤ 40", all.Count <= 40);
+            bool shapeOk = true, dirFirst = true;
+            var seenFile = false;
+            foreach (var it in all.Items)
+            {
+                var isDir = it.GetBool("isDir");
+                var name = it.GetString("name") ?? "";
+                if (isDir && !name.EndsWith("/")) shapeOk = false;
+                if (!isDir && name.EndsWith("/")) shapeOk = false;
+                if (isDir && seenFile) dirFirst = false;
+                if (!isDir) seenFile = true;
+            }
+            Check("Prefix: 目录项带 / 后缀且 isDir 一致", shapeOk);
+            Check("Prefix: 目录项排在文件项前", dirFirst);
+        }
+
+        var noMatch = Json.Parse(WayCoder.UI.Web.WebChatServer.SerializeFileList("__waycoder_no_such_prefix_xyz__"));
+        Check("Prefix: 无匹配前缀返回空数组", noMatch?.Kind == JKind.Array && noMatch.Count == 0);
+
+        // ── 2. HandleCommand /test 中间格式分支 ──
+        var (hMarkup, oMarkup) = WayCoder.UI.Web.WebChatServer.HandleCommand("/test markup", a);
+        Check("WebTest: /test markup 中间格式", hMarkup && oMarkup.Contains("«red»") && oMarkup.Contains("中间格式"));
+
+        var (hColor, oColor) = WayCoder.UI.Web.WebChatServer.HandleCommand("/test color", a);
+        Check("WebTest: /test color 别名=markup", hColor && oColor.Contains("«green»"));
+
+        var (hStyle, oStyle) = WayCoder.UI.Web.WebChatServer.HandleCommand("/test 样式", a);
+        Check("WebTest: /test 样式 中文别名", hStyle && oStyle.Contains("«bold»"));
+
+        var (hMid, _) = WayCoder.UI.Web.WebChatServer.HandleCommand("/test 中间", a);
+        Check("WebTest: /test 中间 中文别名", hMid);
+
+        var (hTable, oTable) = WayCoder.UI.Web.WebChatServer.HandleCommand("/test table", a);
+        Check("WebTest: /test table 对齐冒号", hTable && oTable.Contains("对齐冒号") && oTable.Contains("---:") && oTable.Contains(":---:"));
+
+        var (hTableCn, oTableCn) = WayCoder.UI.Web.WebChatServer.HandleCommand("/test 表格", a);
+        Check("WebTest: /test 表格 中文别名", hTableCn && oTableCn.Contains("对齐冒号"));
+
+        var (hList, oList) = WayCoder.UI.Web.WebChatServer.HandleCommand("/test list", a);
+        Check("WebTest: /test list 列表", hList && oList.Contains("可用测试项"));
+
+        var (hEmpty, oEmpty) = WayCoder.UI.Web.WebChatServer.HandleCommand("/test", a);
+        Check("WebTest: /test 无参=列表", hEmpty && oEmpty.Contains("可用测试项"));
+
+        var (hUnknown, oUnknown) = WayCoder.UI.Web.WebChatServer.HandleCommand("/test blah-xyz", a);
+        Check("WebTest: /test 未知提示", hUnknown && oUnknown.Contains("未知测试项"));
+
+        // ── 3. 端点冒烟：/shell //fileref //filelist ──
+        var web = new WayCoder.UI.Web.WebChatServer(a, 0);
+        web.Start();
+        try
+        {
+            using var client = new HttpClient();
+            var baseUrl = $"http://127.0.0.1:{web.Port}";
+
+            var shellBody = JNode.Object().Set("command", "echo hello-prefix").ToJson();
+            var shellResp = client.PostAsync(baseUrl + "/shell",
+                new StringContent(shellBody, Encoding.UTF8, "application/json")).Result;
+            var shellTxt = shellResp.Content.ReadAsStringAsync().Result;
+            Check("Prefix: POST /shell 执行回显", shellTxt.Contains("\"ok\":true") && shellTxt.Contains("hello-prefix"));
+
+            var shellBad = client.PostAsync(baseUrl + "/shell",
+                new StringContent("{}", Encoding.UTF8, "application/json")).Result;
+            Check("Prefix: POST /shell 缺 command 报错", shellBad.Content.ReadAsStringAsync().Result.Contains("\"ok\":false"));
+
+            var flResp = client.PostAsync(baseUrl + "/filelist",
+                new StringContent(JNode.Object().Set("prefix", "").ToJson(), Encoding.UTF8, "application/json")).Result;
+            var flTxt = flResp.Content.ReadAsStringAsync().Result;
+            Check("Prefix: POST /filelist 返回 files 数组", flTxt.Contains("\"ok\":true") && flTxt.Contains("\"files\""));
+
+            var tmp = Path.GetTempFileName();
+            File.WriteAllText(tmp, "file-ref-content-123");
+            var frResp = client.PostAsync(baseUrl + "/fileref",
+                new StringContent(JNode.Object().Set("path", tmp).ToJson(), Encoding.UTF8, "application/json")).Result;
+            var frTxt = frResp.Content.ReadAsStringAsync().Result;
+            Check("Prefix: POST /fileref 读取注入", frTxt.Contains("\"ok\":true") && frTxt.Contains("file-ref-content-123"));
+            File.Delete(tmp);
+        }
+        catch { Check("Prefix: 端点冒烟", false); }
+        finally { web.Stop(); }
+
+        // ── 4. 前端渲染器结构（markupToHtml / ansiToHtml / splitRow / 表格对齐）──
+        var html = WayCoder.UI.Web.WebAssets.Html;
+        Check("Prefix: HTML 含 markupToHtml", html.Contains("function markupToHtml"));
+        Check("Prefix: HTML 含 ansiToHtml", html.Contains("function ansiToHtml"));
+        Check("Prefix: HTML 含 splitRow", html.Contains("function splitRow"));
+        Check("Prefix: HTML 含 MARKUP_STYLES", html.Contains("MARKUP_STYLES"));
+        Check("Prefix: HTML 含表格对齐 text-align", html.Contains("text-align:"));
+    }
+
     /// <summary>Web Diff 预览：ParseDiffAnswer/SerializeHunks 纯函数 + DiffPreview.Show Web 分支。</summary>
     private static void TestWebDiffPreview(Action<string, bool> Check)
     {
