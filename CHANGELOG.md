@@ -1,5 +1,22 @@
 # 更新日志
 
+## v0.67.0 (2026-08-16) — Web 多模态上传（图片/音频）
+
+补齐 Web 端多模态输入短板：输入栏新增 📎 上传按钮，图片入 vision 队列、音频转录为文字后自动发送，对标终端 `view_image` / `transcribe` 工具。
+
+### 📎 Web 多模态上传
+
+- 输入栏新增 📎 按钮 + 隐藏 `<input type="file" accept="image/*,audio/*">`，选中即上传
+- 后端 `POST /upload?kind=image|audio`：图片走 `LLM.QueueImage`（vision 模型门控，非 vision 模型友好报错）、音频走 `TranscribeAudioTool`（Whisper 转录，成功后自动作为 user 消息发送）
+- 二进制正文支持：`HttpRequest` 新增 `RawBody` 字节数组（避免 UTF-8 解码损坏图片/音频），`HttpServer` 两阶段读取（头 64KB 上限 / 正文普通 1MB、`/upload` 32MB）
+- 纯函数辅助：`ParseUploadKind` / `IsImageExtension` / `SafeExtension` / `IsTranscribeError` / `ParsePath`（便于自测）
+- 大小限制：图片 ≤5MB、音频 ≤25MB；扩展名白名单校验 + 安全落盘（`UploadDir` 临时目录）
+
+### 🧪 自测
+
+- 新增：`ParseUploadKind`/`SafeExtension`/`IsTranscribeError`/`IsImageExtension` 纯函数 + `ParseHttpRequest(byte[])` 二进制正文 + `ParsePath`
+- 全量自测通过（0 失败）
+
 ## v0.66.0 (2026-08-16) — Web Diff 预览（写前逐 hunk 确认）
 
 对标终端 `WAYCODER_DIFF_PREVIEW=1`：Web 模式下 write_file/edit_file/multi_edit 写文件前，把 diff 逐 hunk 推送到浏览器确认，不再因无 Console 而跳过。
