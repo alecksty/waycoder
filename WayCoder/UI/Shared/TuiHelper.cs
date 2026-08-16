@@ -253,7 +253,8 @@ public static class TuiHelper
     /// </summary>
     public static string StripMarkup(string markup)
     {
-        return Regex.Replace(markup, @"\xAB/?[a-z#0-9 ]+\xBB", "");
+        // [a-z#0-9 ]*（星号而非加号）：允许空标签内容，否则结束标记 «/»（/ 后无字母）无法匹配而残留。
+        return Regex.Replace(markup, @"\xAB/?[a-z#0-9 ]*\xBB", "");
     }
 
     // ---- 内部 ----
