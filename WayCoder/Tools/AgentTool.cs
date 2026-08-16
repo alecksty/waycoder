@@ -10,7 +10,7 @@ namespace WayCoder.Tools;
 /// v0.17.5: 支持多层递归（最多 MaxDepth 层），深度达到上限时自动移除 agent 工具。
 /// v0.18.0: 支持并行子智能体（tasks 数组参数），最多 4 个并发，结果聚合返回。
 /// </summary>
-public class AgentTool : ITool
+public class AgentTool : ITool, ICancellableTool
 {
     public string Name => "agent";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
@@ -47,6 +47,10 @@ public class AgentTool : ITool
     public static int CurrentDepth => _currentDepth.Value;
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+        => await ExecuteAsync(arguments, CancellationToken.None);
+
+    /// <summary>可取消执行（ICancellableTool）：中断时取消所有子智能体。</summary>
+    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments, CancellationToken cancellationToken)
     {
         var task = arguments.GetValueOrDefault("task")?.ToString() ?? "";
 
@@ -59,17 +63,17 @@ public class AgentTool : ITool
         // 并行批量任务模式：tasks 数组存在且非空时优先
         if (arguments.TryGetValue("tasks", out var tasksObj) && tasksObj != null)
         {
-            return await ExecuteParallelAsync(tasksObj, depth);
+            return await ExecuteParallelAsync(tasksObj, depth, cancellationToken);
         }
 
         if (string.IsNullOrWhiteSpace(task))
             return "错误：请提供 task（单任务）或 tasks 数组（并行任务）参数";
 
-        return await RunSubAgentAsync(task, depth, maxDepth);
+        return await RunSubAgentAsync(task, depth, maxDepth, cancellationToken);
     }
 
     /// <summary>并行批量执行多个子任务，结果按序聚合返回。</summary>
-    private async Task<string> ExecuteParallelAsync(object tasksObj, int depth)
+    private async Task<string> ExecuteParallelAsync(object tasksObj, int depth, CancellationToken cancellationToken)
     {
         var taskList = new List<string>();
 
@@ -112,7 +116,7 @@ public class AgentTool : ITool
         try
         {
             var runningTasks = taskList
-                .Select(t => RunSubAgentAsync(t, depth, maxDepth))
+                .Select(t => RunSubAgentAsync(t, depth, maxDepth, cancellationToken))
                 .ToList();
             var results = await Task.WhenAll(runningTasks);
 
@@ -133,6 +137,10 @@ public class AgentTool : ITool
                 ? TruncateKeepTail(summary, totalMax)
                 : summary;
         }
+        catch (OperationCanceledException)
+        {
+            throw; // 中断信号向上传播
+        }
         catch (Exception ex)
         {
             return $"并行子智能体错误（深度 {depth + 1}）：{ex.GetType().Name}: {ex.Message}";
@@ -140,7 +148,7 @@ public class AgentTool : ITool
     }
 
     /// <summary>执行单个子任务（单任务模式与并行模式共用）。</summary>
-    private async Task<string> RunSubAgentAsync(string task, int depth, int maxDepth)
+    private async Task<string> RunSubAgentAsync(string task, int depth, int maxDepth, CancellationToken cancellationToken)
     {
         // 子智能体的工具集：排除危险工具 + 深度限制下排除 agent
         var subTools = ToolRegistry.GetSubAgentTools(ParentAgent!.Tools, depth, maxDepth);
@@ -169,14 +177,22 @@ public class AgentTool : ITool
             _currentDepth.Value = depth + 1;
 
             var subAgent = new Agent(subLLM, subTools,
-                ParentAgent.Context.MaxTokens, maxRounds: subRounds);
+                ParentAgent.Context.MaxTokens, maxRounds: subRounds)
+            {
+                // 继承父智能体的标识，使子智能体文件写与父智能体同源，跨槽位冲突检测仍按槽位归属
+                AgentId = ParentAgent.AgentId,
+            };
 
-            var result = await subAgent.ChatAsync(fullTask, onToken: null, onTool: null);
+            var result = await subAgent.ChatAsync(fullTask, onToken: null, onTool: null, cancellationToken: cancellationToken);
             // 截断过长结果，避免撑爆父智能体的上下文（保尾：保留开头实现过程 + 末尾结论）
             var outputMax = Config.Instance.SubAgentOutputMaxChars;
             if (outputMax > 0 && result.Length > outputMax)
                 result = TruncateKeepTail(result, outputMax);
             return $"[子智能体已完成 · 深度 {depth + 1}]\n{result}";
+        }
+        catch (OperationCanceledException)
+        {
+            throw; // 中断信号向上传播
         }
         catch (Exception ex)
         {

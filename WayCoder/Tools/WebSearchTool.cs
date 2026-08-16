@@ -8,7 +8,7 @@ namespace WayCoder.Tools;
 /// Web 搜索工具 — 通过 DuckDuckGo HTML 版进行网页搜索，
 /// 无需 API 密钥，返回结果标题、摘要和链接。
 /// </summary>
-public class WebSearchTool : ITool
+public class WebSearchTool : ITool, ICancellableTool
 {
     public string Name => "web_search";
     public string Description => "在互联网上搜索信息，返回结果标题、摘要和链接。主引擎 DuckDuckGo，失败自动回退 Bing（国内可达）。无需 API 密钥。";
@@ -25,6 +25,10 @@ public class WebSearchTool : ITool
         .Set("required", JNode.Array().Add("query"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+        => await ExecuteAsync(arguments, CancellationToken.None);
+
+    /// <summary>可取消执行（ICancellableTool）：中断时取消在途搜索请求。</summary>
+    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments, CancellationToken cancellationToken)
     {
         var query = arguments.GetValueOrDefault("query")?.ToString();
         if (string.IsNullOrWhiteSpace(query))
@@ -38,10 +42,10 @@ public class WebSearchTool : ITool
         }
 
         // 请求节流（防搜索引擎封 IP）
-        await ThrottleAsync();
+        await ThrottleAsync(cancellationToken);
 
         // 主引擎 DuckDuckGo，失败或空结果回退 Bing（国内 DDG 常不可达）
-        var results = await SearchWithFallback(query, num);
+        var results = await SearchWithFallback(query, num, cancellationToken);
 
         if (results.Count == 0)
             return $"未找到与 \"{query}\" 相关的结果（已尝试 DuckDuckGo + Bing）。";
@@ -66,14 +70,14 @@ public class WebSearchTool : ITool
     /// <summary>
     /// 依次尝试 DuckDuckGo 与 Bing，任一返回结果即停。
     /// </summary>
-    private static async Task<List<SearchResult>> SearchWithFallback(string query, int num)
+    private static async Task<List<SearchResult>> SearchWithFallback(string query, int num, CancellationToken cancellationToken)
     {
         var ddg = await TrySearch(query, num, "DuckDuckGo",
-            "https://html.duckduckgo.com/html/?q={0}", ParseDuckDuckGoResults);
+            "https://html.duckduckgo.com/html/?q={0}", ParseDuckDuckGoResults, cancellationToken);
         if (ddg is { Count: > 0 }) return ddg;
 
         var bing = await TrySearch(query, num, "Bing",
-            "https://www.bing.com/search?q={0}", ParseBingResults);
+            "https://www.bing.com/search?q={0}", ParseBingResults, cancellationToken);
         if (bing is { Count: > 0 }) return bing;
 
         return [];
@@ -84,7 +88,7 @@ public class WebSearchTool : ITool
     /// </summary>
     private static async Task<List<SearchResult>?> TrySearch(
         string query, int num, string engine, string urlTemplate,
-        Func<string, int, List<SearchResult>> parser)
+        Func<string, int, List<SearchResult>> parser, CancellationToken cancellationToken)
     {
         try
         {
@@ -95,8 +99,12 @@ public class WebSearchTool : ITool
 
             var encodedQuery = HttpUtility.UrlEncode(query);
             var url = string.Format(urlTemplate, encodedQuery);
-            var html = await client.GetStringAsync(url);
+            var html = await client.GetStringAsync(url, cancellationToken);
             return parser(html, num);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw; // 中断信号向上传播
         }
         catch (TaskCanceledException)
         {
@@ -118,7 +126,7 @@ public class WebSearchTool : ITool
     /// <summary>请求节流：相邻请求间隔 ≥2 秒，防止搜索引擎封 IP。</summary>
     private static long _lastRequestTicks;
 
-    private static async Task ThrottleAsync()
+    private static async Task ThrottleAsync(CancellationToken cancellationToken)
     {
         var minTicks = TimeSpan.FromSeconds(2).Ticks;
         var last = Interlocked.Read(ref _lastRequestTicks);
@@ -126,7 +134,7 @@ public class WebSearchTool : ITool
         {
             var wait = minTicks - (DateTime.UtcNow.Ticks - last);
             if (wait > 0)
-                await Task.Delay(TimeSpan.FromTicks(wait));
+                await Task.Delay(TimeSpan.FromTicks(wait), cancellationToken);
         }
         Interlocked.Exchange(ref _lastRequestTicks, DateTime.UtcNow.Ticks);
     }

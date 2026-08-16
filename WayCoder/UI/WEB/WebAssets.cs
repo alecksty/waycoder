@@ -1139,9 +1139,9 @@ function renderSuggest() {
   suggestItems.forEach((it, i) => {
     const el = document.createElement('div');
     el.className = 'suggest-item' + (i === suggestActive ? ' active' : '');
-    el.innerHTML = '<span class="si-icon">' + it.icon + '</span>' +
-      '<span class="si-label">' + it.label + '</span>' +
-      '<span class="si-desc">' + it.desc + '</span>';
+    el.innerHTML = '<span class="si-icon">' + escapeHtml(it.icon) + '</span>' +
+      '<span class="si-label">' + escapeHtml(it.label) + '</span>' +
+      '<span class="si-desc">' + escapeHtml(it.desc) + '</span>';
     el.onmousedown = e => { e.preventDefault(); acceptSuggest(i); };
     el.onmouseenter = () => { suggestActive = i; renderSuggest(); };
     suggestBox.appendChild(el);
