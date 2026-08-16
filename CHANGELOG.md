@@ -1,5 +1,30 @@
 # 更新日志
 
+## v0.71.6 (2026-08-17) — 上下文压缩/LLM 流式/Web 并发 11 项修复
+
+系统性审查 `ContextManager`/`LLM`/`WebChat`，修复 11 个确定性 bug：上下文压缩省略行 off-by-one、UTF-16 切片切半代理对、LLM 400 回退死代码、流式工具调用重复触发、Web 版断连泄漏/槽位竞态。
+
+### 🐛 上下文压缩（ContextManager）
+
+- **裁剪省略行 off-by-one**：`SnipToolOutputs` 的 `lastWritten` 初值 `-2` 导致每条被裁剪输出开头多一句虚假的「省略 1 行」，改为 `-1`
+- **UTF-16 切片切半代理对**：`flat[..20000]`/`text[..1000]`/`trimmed[..200]` 按码元切片会在 emoji/扩展区汉字（代理对）中间切断，经 JSON 编码后变成 U+FFFD 污染发往 LLM 的文本；新增 `TruncateByRunes` 按码点截断，与 `EstimateTokensText` 的 rune 感知一致
+- **裁剪完成提示语义**：进度消息把「剩余容量」当「节省量」上报（`-(MaxTokens - current)`），改为上报实际节省量（裁剪前 − 裁剪后）
+
+### 🐛 LLM 流式解析（LLM）
+
+- **400 回退死代码**：`catch (HttpRequestException) when (StatusCode == BadRequest)` 永不命中——`CallWithRetryAsync` 对 4xx 返回响应而非抛异常，导致不支持 `stream_options.include_usage` 的端点返回 400 时被当成 SSE 流解析、静默返回空响应。改为在返回后检查状态码、400 则去掉 `stream_options` 重试一次（并顺带清理未使用的 `request` 变量）
+- **流式工具调用去重**：`onToolCall` 在参数形成完整 JSON 后每次 delta 都会触发，无「该 index 已触发」守卫；新增 `firedToolCalls` 去重，防止同一工具调用被重复执行
+- **日志预览切半代理对**：`ParseArgs` 失败日志的 `json[..200]` 改为 `TruncateForLog` 按码点截断
+
+### 🐛 Web 并发（WebChat）
+
+- **SSE 断连无检测**：服务端从不读流，`Closed` 仅在写失败时置位，客户端关标签页后若无后续广播，连接永久阻塞在 `Closed.Task` 上泄漏线程/连接槽位；改为 `Task.WhenAny` 同时监听底层流 EOF
+- **`_clientSlot` 永不清理**：客户端断开只移除 `_clients` 不清 `_clientSlot`，字典无界增长 + 旧 clientId 永久占用槽位，反复刷新后新客户端回退槽位 0 串扰；断开时按「无其他连接复用该 clientId」条件清理
+- **Interrupt 启动窗口丢失**：`IsBusy=true` 与 `slot.Cts` 赋值非原子，窗口内到达的中断被 `Exchange` 取到 null 丢弃；`Interrupt` 与 `StartSlotTask` 改为共享 `StartLock`
+- **EnsureSlot 异常卡死槽位**：`IsBusy=true` 先于 `EnsureSlot` 且无回滚，`EnsureSlot` 抛异常时槽位永久 busy；改为异常时广播失败且不置 `IsBusy`
+- **EnsureSlot 无锁双建**：多路由并发首建产生双 Agent 相互覆盖；加 `AgentLock` double-checked locking
+- **BindClientSlot 不校验占用**：两个页面可绑到同一槽位互看对方对话；改为校验占用、被占用时拒绝并报错
+
 ## v0.71.5 (2026-08-17) — 提问多选布尔解析修复 + 聊天角色标识中文化
 
 修复 `ask_user_question` 多选参数在 JNode 路径下永远解析为 false 的问题，并把聊天/导出里的角色标识（User/Assistant/System/Tool）统一改为中文。

@@ -189,12 +189,14 @@ public class ContextManager
             // 第 1 层：裁剪冗长的工具输出
             if (current > _snipAt)
             {
+                var beforeSnip = current;
                 ReportProgress(1, "裁剪工具输出...", current, onProgress);
                 if (SnipToolOutputs(messages, EffectiveSnipChars()))
                 {
                     compressed = true;
                     current = EstimateCalibratedTokens(messages);
-                    ReportProgress(1, "裁剪完成", current, onProgress, $"(-{MaxTokens - current})");
+                    // 上报本轮实际节省量（裁剪前 − 裁剪后），而非裁剪后的剩余容量
+                    ReportProgress(1, "裁剪完成", current, onProgress, $"(-{Math.Max(0, beforeSnip - current)})");
                 }
             }
 
@@ -341,7 +343,8 @@ public class ContextManager
             var sorted = keepSet.OrderBy(i => i).ToList();
 
             var sb = new System.Text.StringBuilder();
-            int lastWritten = -2;
+            // 初值 -1：首个保留索引 idx=0 时条件 0 > 0 为假，不输出虚假的「省略 1 行」
+            int lastWritten = -1;
             foreach (var idx in sorted)
             {
                 if (idx > lastWritten + 1)
@@ -451,7 +454,7 @@ public class ContextManager
                                           "丢弃：冗长的命令输出、完整代码清单、" +
                                           "重复的来回对话、中间探索过程。\n" +
                                           "格式：使用 ## 标题分段，列表项用 - 前缀。"),
-                        JNode.Object().Set("role", "user").Set("content", flat.Length > 20000 ? flat[..20000] : flat),
+                        JNode.Object().Set("role", "user").Set("content", TruncateByRunes(flat, 20000)),
                     ]
                 );
                 return resp.Content;
@@ -482,9 +485,28 @@ public class ContextManager
             var role = m["role"]?.AsString() ?? "?";
             var text = m["content"]?.AsString() ?? "";
             if (!string.IsNullOrEmpty(text))
-                parts.Add($"[{role}] {text[..Math.Min(1000, text.Length)]}");
+                parts.Add($"[{role}] {TruncateByRunes(text, 1000)}");
         }
         return string.Join("\n", parts);
+    }
+
+    /// <summary>
+    /// 按 Unicode 码点（rune）截断文本，避免 UTF-16 码元切片在 emoji/扩展区汉字（代理对）中间切断字符。
+    /// 与 <see cref="EstimateTokensText"/> 的 rune 感知一致；text.Length &lt;= maxRunes 时直接返回（无代理对风险）。
+    /// </summary>
+    internal static string TruncateByRunes(string text, int maxRunes)
+    {
+        if (maxRunes <= 0) return "";
+        if (text.Length <= maxRunes) return text;
+        var sb = new System.Text.StringBuilder();
+        int n = 0;
+        foreach (var r in text.EnumerateRunes())
+        {
+            if (n >= maxRunes) break;
+            sb.Append(r.ToString());
+            n++;
+        }
+        return sb.ToString();
     }
 
     /// <summary>
@@ -606,7 +628,7 @@ public class ContextManager
                     trimmed.Contains("❌") || trimmed.Contains("⛔") ||
                     trimmed.Contains("错误") && trimmed.Length > 10)
                 {
-                    errors.Add(trimmed[..Math.Min(200, trimmed.Length)]);
+                    errors.Add(TruncateByRunes(trimmed, 200));
                 }
             }
 

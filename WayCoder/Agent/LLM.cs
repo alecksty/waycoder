@@ -402,42 +402,33 @@ public class LLM
 
         var body = BuildBody(includeStreamOptions: true);
 
-        var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+        // 构造带鉴权头的请求（局部函数，供首次与 400 回退两处复用）
+        HttpRequestMessage CreateAuthRequest(JNode requestBody)
         {
-            Content = new StringContent(body.ToJson(), Encoding.UTF8, "application/json"),
-        };
-        request.Headers.Add("Authorization", $"Bearer {ApiKey}");
-
-        // stream_options 是 OpenAI 扩展，尝试带它请求；400 则回退
-        HttpResponseMessage response;
-        try
-        {
-            response = await CallWithRetryAsync(() =>
+            var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
             {
-                var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
-                {
-                    Content = new StringContent(body.ToJson(), Encoding.UTF8, "application/json"),
-                };
-                req.Headers.Add("Authorization", $"Bearer {ApiKey}");
-                return req;
-            }, cancellationToken);
+                Content = new StringContent(requestBody.ToJson(), Encoding.UTF8, "application/json"),
+            };
+            req.Headers.Add("Authorization", $"Bearer {ApiKey}");
+            return req;
         }
-        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.BadRequest)
+
+        // stream_options 是 OpenAI 扩展，尝试带它请求；不支持该参数的兼容端点会返回 400。
+        // 注意：CallWithRetryAsync 对 4xx 是「返回响应」而非抛异常（其抛出的 HttpRequestException
+        // 也不带 StatusCode），故必须在返回后检查状态码再回退——此前 catch-when(StatusCode==BadRequest)
+        // 永远不会命中，是死代码，导致 400 被当成 SSE 流解析、静默返回空响应。
+        var response = await CallWithRetryAsync(() => CreateAuthRequest(body), cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
         {
+            response.Dispose();
             body = BuildBody(includeStreamOptions: false);
-            response = await CallWithRetryAsync(() =>
-            {
-                var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
-                {
-                    Content = new StringContent(body.ToJson(), Encoding.UTF8, "application/json"),
-                };
-                req.Headers.Add("Authorization", $"Bearer {ApiKey}");
-                return req;
-            }, cancellationToken);
+            response = await CallWithRetryAsync(() => CreateAuthRequest(body), cancellationToken);
         }
 
         var contentParts = new List<string>();
         var tcMap = new Dictionary<int, (string Id, string Name, string Args)>();
+        // 已通过 onToolCall 流式触发的工具调用 index（去重：参数完整后 provider 可能再发同 index 空 delta）
+        var firedToolCalls = new HashSet<int>();
         var streamEndedGracefully = false;
         int promptTok = 0, completionTok = 0;
 
@@ -517,11 +508,16 @@ public class LLM
                     if (tc["function"]?["arguments"]?.AsString() is { } targs) args += targs;
                     tcMap[idx] = (id, name, args);
 
-                    // 流式执行：用 JSON 解析器验证参数完整性（不靠 } 结尾，避免 C# 代码中的 } 误判）
-                    if (onToolCall != null && id != "" && name != "" && args.Length > 0)
+                    // 流式执行：用 JSON 解析器验证参数完整性（不靠 } 结尾，避免 C# 代码中的 } 误判）。
+                    // firedToolCalls 去重：参数完整后 provider 可能再发同 index 的空 delta（args 不变仍可解析），
+                    // 若不防重，同一工具调用会被重复触发。
+                    if (onToolCall != null && id != "" && name != "" && args.Length > 0 && !firedToolCalls.Contains(idx))
                     {
                         if (TryParseCompleteJson(args, out var parsedArgs))
+                        {
+                            firedToolCalls.Add(idx);
                             onToolCall(new ToolCall(id, name, parsedArgs!));
+                        }
                     }
                 }
             }
@@ -893,9 +889,25 @@ public class LLM
             // 解析失败 — 记录日志，返回空字典（不再暴露 _parse_error 伪参数）
             // v0.36.0 修复：此前返回 _parse_error/_parse_error_type/_raw_json_snippet，
             // 被上层当作工具参数传递，导致 write_file(_parse_error=True, ...) 幻觉
-            DebugLog.Log("llm", $"ParseArgs 失败 — JSON 不完整或无效: {ex.Message} — raw: {(json.Length > 200 ? json[..200] + "..." : json)}");
+            DebugLog.Log("llm", $"ParseArgs 失败 — JSON 不完整或无效: {ex.Message} — raw: {TruncateForLog(json, 200)}");
         }
         return result;
+    }
+
+    /// <summary>按 Unicode 码点截断用于日志预览，避免 UTF-16 切片在 emoji/扩展区字符（代理对）中间切断。</summary>
+    private static string TruncateForLog(string text, int maxRunes)
+    {
+        if (maxRunes <= 0) return "";
+        if (text.Length <= maxRunes) return text;
+        var sb = new StringBuilder();
+        int n = 0;
+        foreach (var r in text.EnumerateRunes())
+        {
+            if (n >= maxRunes) break;
+            sb.Append(r.ToString());
+            n++;
+        }
+        return sb + "...";
     }
 }
 
