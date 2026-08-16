@@ -1,5 +1,37 @@
 # 更新日志
 
+## v0.65.0 (2026-08-16) — Web 斜杠命令路由
+
+Web 输入框支持斜杠命令，对标终端 REPL。未识别命令回退为普通 Agent 消息，纯 UI 命令前端直接拦截。
+
+### ⌨ Web 斜杠命令
+
+- 后端 `HandleCommand` 纯函数 + `POST /command` 端点，覆盖 Web 有意义命令子集
+- 前端 `/` 开头输入路由到 `/command`，未识别回退 `/chat`；纯 UI 命令（`/theme`、`/settings`、`/model`）前端直接拦截
+- 命令输出用 `.msg.cmd` 独立样式（accent 左边框 + 满宽 + Markdown 渲染）
+
+### 命令清单
+
+| 命令 | 说明 |
+|---|---|
+| `/help` | 命令帮助 |
+| `/perm [ask\|auto\|smartauto\|yolo]` | 权限模式 |
+| `/model` | 打开模型选择窗口（前端） |
+| `/model list` | 列出模型 |
+| `/theme` | 切换明暗主题（前端） |
+| `/settings` | 打开设置（前端） |
+| `/reset` | 清空当前会话 |
+| `/session [list\|save\|load <id>]` | 会话管理 |
+| `/tokens` | Token 统计 |
+| `/mcp` | MCP 服务器状态 |
+| `/todo` | 任务列表 |
+| `/interrupt` | 中断当前任务 |
+
+### 🧪 自测
+
+- 新增 19 条：`HandleCommand` 纯函数 + `/command` 端点冒烟 + HTML 结构
+- 全量自测通过（0 失败）
+
 ## v0.64.0 (2026-08-16) — Web UI 完善：Markdown 渲染 + 权限模式开关 + 模型选择窗口
 
 在 v0.63.0 三栏改版基础上继续完善 `--web` 浏览器界面：聊天消息 Markdown 渲染、权限模式从「强制 YOLO」改为用户可选、模型选择独立窗口、设置窗口居中。全程零第三方依赖、手搓渲染器、AOT 安全。
