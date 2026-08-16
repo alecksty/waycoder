@@ -54,6 +54,10 @@ WayCoder --batch-repo https://x/r1 --batch-repo https://x/r2 --batch-task "修�
 # JSON 输出模式（IDE / 脚本桥接，stdout 只输出一个结构化 JSON 对象）
 WayCoder --json -p "修复一个 bug"
 
+# 浏览器 Web UI（三栏：会话记录 + 聊天 + 信息面板；Markdown 渲染 + 权限模式切换）
+WayCoder --web          # 默认端口 8123
+WayCoder --web 9000     # 指定端口
+
 # 运行自测（2622 项）
 WayCoder  --test
 ```
