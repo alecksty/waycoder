@@ -95,6 +95,7 @@ select optgroup { background:var(--panel); color:var(--text); }
 .tool { align-self:flex-start; background:var(--tool); border:1px solid var(--border); border-radius:12px; padding:7px 13px; font-size:13px; color:var(--dim); }
 .tool b { color:#e8b34b; }
 .tool-output { align-self:stretch; background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:9px 13px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; white-space:pre-wrap; word-break:break-word; color:var(--text); max-height:320px; overflow-y:auto; }
+.shell-output { align-self:stretch; background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:10px 14px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; line-height:1.5; white-space:pre-wrap; word-break:break-word; color:var(--text); }
 
 /* ── Markdown 渲染 ── */
 .msg.assistant { white-space:normal; }
@@ -118,7 +119,7 @@ select optgroup { background:var(--panel); color:var(--text); }
 .tok-num { color:var(--tok-num); }
 .tok-fn { color:var(--tok-fn); }
 .tok-com { color:var(--tok-com); font-style:italic; }
-.msg .md-table { border-collapse:collapse; margin:8px 0; font-size:12.5px; max-width:100%; display:block; overflow-x:auto; }
+.msg .md-table { border-collapse:collapse; margin:8px 0; font-size:12.5px; max-width:100%; }
 .msg .md-table th,.msg .md-table td { border:1px solid var(--border); padding:5px 10px; text-align:left; white-space:normal; }
 .msg .md-table th { background:var(--panel2); font-weight:700; }
 #input-bar { display:flex; gap:8px; padding:11px 14px 6px; border-top:1px solid var(--border); background:var(--panel); align-items:flex-end; }
@@ -128,6 +129,14 @@ select optgroup { background:var(--panel); color:var(--text); }
 #send { width:46px; height:46px; border-radius:13px; font-size:19px; padding:0; display:flex; align-items:center; justify-content:center; background:var(--accent); color:#fff; border:none; cursor:pointer; flex-shrink:0; transition:background .15s; }
 #send:hover { filter:brightness(1.12); }
 #send.stop { background:var(--danger); color:#ff9a9a; }
+#input-bar { position:relative; }
+#suggest-box { position:absolute; bottom:100%; left:14px; right:14px; margin-bottom:6px; background:var(--panel); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); max-height:280px; overflow-y:auto; z-index:50; display:none; }
+#suggest-box.open { display:block; }
+.suggest-item { padding:8px 12px; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:8px; }
+.suggest-item:hover, .suggest-item.active { background:var(--panel2); }
+.suggest-item .si-icon { flex-shrink:0; width:20px; text-align:center; }
+.suggest-item .si-label { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.suggest-item .si-desc { font-size:11px; color:var(--dim); flex-shrink:0; }
 #model-bar { display:flex; gap:8px; align-items:center; padding:4px 14px 11px; background:var(--panel); flex-wrap:wrap; }
 #model-bar select { height:28px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font:inherit; font-size:12px; padding:0 7px; cursor:pointer; outline:none; max-width:160px; }
 #model-bar .model-pick-btn { height:28px; padding:0 10px; font-size:12px; border-radius:8px; }
@@ -226,7 +235,7 @@ select optgroup { background:var(--panel); color:var(--text); }
 <body>
 <header>
   <div class="logo">🤖 道码 Way<span>Coder</span></div>
-  <div class="agent-label" id="agent-label">智能体: 智能体1</div>
+  <div class="agent-label" id="agent-label">智能体1</div>
   <div class="spacer"></div>
   <select id="perm-select" title="权限模式（YOLO=直接执行 / Ask=每次确认）">
     <option value="ask">🛡 Ask</option>
@@ -254,6 +263,7 @@ select optgroup { background:var(--panel); color:var(--text); }
   <main id="chat-col">
     <div id="messages"></div>
     <div id="input-bar">
+      <div id="suggest-box"></div>
       <button class="btn ghost" id="attach-btn" title="上传图片 / 音频">📎</button>
       <input type="file" id="file-input" accept="image/*,audio/*" style="display:none">
       <textarea id="input" placeholder="输入消息，Enter 发送，Ctrl+Enter 换行" rows="3"></textarea>
@@ -435,7 +445,7 @@ permSelect.onchange = () =>
 
 // ── 槽位（左栏）──
 function renderSlots(state) {
-  document.getElementById('agent-label').textContent = '智能体: 智能体' + (state.activeSlot + 1);
+  document.getElementById('agent-label').textContent = '智能体' + (state.activeSlot + 1);
   slotsEl.innerHTML = '';
   for (let i = 0; i < state.slots.length; i++) {
     const s = state.slots[i];
@@ -1048,6 +1058,25 @@ function answerAsk(value) {
 }
 
 // ── 发送 / 停止 ──
+// Shell 裸 ANSI 配色样例（/test ansi 用）：模拟 Shell 命令产生的原始 tty 转义序列，
+// 验证 Web 端 ansiToHtml 解码器（CLI/TUI 直接透传终端，Web 需转 HTML）。
+const ANSI_SAMPLE =
+  '\x1b[1;32m✅ 成功（粗体绿）\x1b[0m  ' +
+  '\x1b[31m✘ 失败（红）\x1b[0m  ' +
+  '\x1b[33m⚠ 警告（黄）\x1b[0m  ' +
+  '\x1b[34m信息（蓝）\x1b[0m  ' +
+  '\x1b[35m紫色\x1b[0m  ' +
+  '\x1b[36m青色\x1b[0m  ' +
+  '\x1b[90m暗灰\x1b[0m\n' +
+  '\x1b[41m 红底 \x1b[0m ' +
+  '\x1b[42m 绿底 \x1b[0m ' +
+  '\x1b[43m 黄底 \x1b[0m ' +
+  '\x1b[44m 蓝底 \x1b[0m ' +
+  '\x1b[45m 紫底 \x1b[0m\n' +
+  '\x1b[1m粗体\x1b[0m ' +
+  '\x1b[4m下划线\x1b[0m ' +
+  '\x1b[2m暗淡\x1b[0m ' +
+  '\x1b[1;36m粗体青色\x1b[0m';
 function handleUiCommand(text) {
   const lower = text.toLowerCase();
   if (lower === '/theme') {
@@ -1062,19 +1091,169 @@ function handleUiCommand(text) {
     openModelModal('large');
     return true;
   }
+  if (lower === '/test ansi' || lower === '/test tty') {
+    addShellOutput(ANSI_SAMPLE);
+    return true;
+  }
   return false;
 }
+// ── 特殊符号前缀（/命令、!Shell、#文件引用）+ 全角/半角兼容 + 提示框 ──
+const suggestBox = document.getElementById('suggest-box');
+const SLASH_COMMANDS = [
+  ['/help', '显示帮助'],
+  ['/perm', '切换权限模式'],
+  ['/model', '打开模型选择'],
+  ['/theme', '切换明暗主题'],
+  ['/settings', '打开设置'],
+  ['/reset', '清空当前会话'],
+  ['/session', '会话管理'],
+  ['/tokens', 'Token 统计'],
+  ['/stats', '会话统计'],
+  ['/recent', '本次修改的文件'],
+  ['/mcp', 'MCP 服务器状态'],
+  ['/todo', '任务列表'],
+  ['/interrupt', '中断当前任务'],
+  ['/test', '渲染测试（markdown/table/markup/ansi）'],
+];
+let suggestItems = [];   // [{label, desc, icon, fill}]
+let suggestActive = -1;
+
+// 全角 → 半角：仅处理开头的前缀符号，避免破坏正文中的全角标点
+function normalizeFullWidth(s) {
+  if (s.startsWith('／')) return '/' + s.slice(1);
+  if (s.startsWith('！')) return '!' + s.slice(1);
+  if (s.startsWith('＃')) return '#' + s.slice(1);
+  return s;
+}
+
+function hideSuggest() {
+  suggestBox.classList.remove('open');
+  suggestBox.innerHTML = '';
+  suggestItems = [];
+  suggestActive = -1;
+}
+
+function renderSuggest() {
+  if (!suggestItems.length) { hideSuggest(); return; }
+  suggestBox.innerHTML = '';
+  suggestItems.forEach((it, i) => {
+    const el = document.createElement('div');
+    el.className = 'suggest-item' + (i === suggestActive ? ' active' : '');
+    el.innerHTML = '<span class="si-icon">' + it.icon + '</span>' +
+      '<span class="si-label">' + it.label + '</span>' +
+      '<span class="si-desc">' + it.desc + '</span>';
+    el.onmousedown = e => { e.preventDefault(); acceptSuggest(i); };
+    el.onmouseenter = () => { suggestActive = i; renderSuggest(); };
+    suggestBox.appendChild(el);
+  });
+  suggestBox.classList.add('open');
+}
+
+function acceptSuggest(i) {
+  const it = suggestItems[i];
+  if (!it) return;
+  input.value = it.fill;
+  hideSuggest();
+  input.focus();
+  autoResizeInput();
+}
+
+function autoResizeInput() {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 240) + 'px';
+}
+
+function updateSuggest() {
+  const raw = normalizeFullWidth(input.value);
+  const trimmed = raw.trimStart();
+  if (trimmed.startsWith('/')) {
+    const q = trimmed.slice(1).toLowerCase();
+    suggestItems = SLASH_COMMANDS
+      .filter(c => !q || c[0].slice(1).startsWith(q) || c[0].slice(1).indexOf(q) >= 0)
+      .map(c => ({ label: c[0], desc: c[1], icon: '⚡', fill: c[0] + ' ' }));
+    suggestActive = suggestItems.length ? 0 : -1;
+    renderSuggest();
+  } else if (trimmed.startsWith('!')) {
+    const rest = trimmed.slice(1).trim();
+    suggestItems = [{ label: rest ? ('执行：' + rest) : '执行 Shell 命令', desc: 'Shell', icon: '💻', fill: '!' + rest }];
+    suggestActive = 0;
+    renderSuggest();
+  } else if (trimmed.startsWith('#')) {
+    const q = trimmed.slice(1);
+    hideSuggest();
+    fetch('/filelist', { method: 'POST', body: JSON.stringify({ prefix: q }) })
+      .then(r => r.json())
+      .then(res => {
+        if (trimmed !== normalizeFullWidth(input.value.trimStart())) return; // 已过期，丢弃
+        const files = (res && res.files) || [];
+        suggestItems = files.map(f => ({
+          label: f.name,
+          desc: f.isDir ? '目录' : '文件',
+          icon: f.isDir ? '📁' : '📄',
+          fill: '#' + f.path,
+        }));
+        suggestActive = suggestItems.length ? 0 : -1;
+        renderSuggest();
+      })
+      .catch(() => hideSuggest());
+  } else {
+    hideSuggest();
+  }
+}
+
+function addShellOutput(text) {
+  const el = document.createElement('div');
+  el.className = 'shell-output';
+  el.innerHTML = ansiToHtml(text) || '(无输出)';
+  messages.appendChild(el);
+  scroll();
+  return el;
+}
+
 function send() {
   if (isBusy) { fetch('/interrupt', { method: 'POST' }).catch(() => {}); return; }
-  const text = input.value.trim();
+  hideSuggest();
+  const text = normalizeFullWidth(input.value.trim());
   if (!text) return;
   input.value = '';
-  input.style.height = 'auto';
+  autoResizeInput();
 
   // 纯 UI 斜杠命令（操作 DOM，不进入聊天流）
   if (handleUiCommand(text)) return;
 
   addMsg('user', text);
+
+  // !Shell 指令 → 直接执行并显示输出（对标 Claude Code `!`）
+  if (text.startsWith('!') && text.length > 1) {
+    const command = text.slice(1).trim();
+    if (!command) return;
+    setBusy(true);
+    fetch('/shell', { method: 'POST', body: JSON.stringify({ command }) })
+      .then(r => r.json())
+      .then(res => {
+        setBusy(false);
+        addShellOutput(res && res.ok ? (res.output || '(无输出)') : ('❌ ' + (res && res.output || '执行失败')));
+      })
+      .catch(() => { addShellOutput('❌ Shell 执行失败'); setBusy(false); });
+    return;
+  }
+
+  // #文件引用 → 读取文件注入上下文（对标 Claude Code `#`）
+  if (text.startsWith('#') && text.length > 1) {
+    const path = text.slice(1).trim();
+    if (!path) return;
+    setBusy(true);
+    fetch('/fileref', { method: 'POST', body: JSON.stringify({ path }) })
+      .then(r => r.json())
+      .then(res => {
+        setBusy(false);
+        if (res && res.ok) addMsg('cmd', '📄 已引用 `' + path + '`（' + ((res.content || '').split('\n').length) + ' 行）');
+        else addMsg('cmd', '❌ ' + ((res && res.content) || '读取失败'));
+      })
+      .catch(() => { addMsg('cmd', '❌ 文件读取失败'); setBusy(false); });
+    return;
+  }
+
   setBusy(true);
 
   // 斜杠命令 → 后端路由（未识别回退为普通 Agent 消息）
@@ -1097,9 +1276,19 @@ function send() {
 }
 document.getElementById('send').onclick = send;
 input.addEventListener('keydown', e => {
+  if (suggestBox.classList.contains('open')) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); suggestActive = (suggestActive + 1) % suggestItems.length; renderSuggest(); return; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); suggestActive = (suggestActive - 1 + suggestItems.length) % suggestItems.length; renderSuggest(); return; }
+    if (e.key === 'Tab' || e.key === 'Enter') {
+      e.preventDefault();
+      if (suggestActive >= 0) acceptSuggest(suggestActive);
+      return;
+    }
+    if (e.key === 'Escape') { e.preventDefault(); hideSuggest(); return; }
+  }
   if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); send(); }
 });
-input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 240) + 'px'; });
+input.addEventListener('input', () => { autoResizeInput(); updateSuggest(); });
 
 // ── 多模态上传（图片 → vision 队列 / 音频 → 转录为文字）──
 const attachBtn = document.getElementById('attach-btn');
@@ -1135,6 +1324,112 @@ function uploadFile(file) {
 // ── 工具函数 ──
 function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+// ANSI SGR 转义码 → 行内样式（模拟 tty 配色），文本先转义保证 XSS 安全
+const ANSI_FG = { 30:'#8b949e',31:'#ff7b72',32:'#3fb950',33:'#d29922',34:'#58a6ff',35:'#bc8cff',36:'#39c5cf',37:'#c9d1d9',
+                  90:'#6e7681',91:'#ffa198',92:'#56d364',93:'#e3b341',94:'#79c0ff',95:'#d2a8ff',96:'#56d4dd',97:'#f0f6fc' };
+const ANSI_BG = { 40:'#161b22',41:'#6e2222',42:'#1a4d1a',43:'#5c4a1e',44:'#1f3d6e',45:'#4b2a6e',46:'#1c4d4d',47:'#4a4a4a',
+                  100:'#30363d',101:'#8b3a3a',102:'#2a5d2a',103:'#6e5c2e',104:'#2e4d7e',105:'#5c3a8b',106:'#2e5c5c',107:'#5a5a5a' };
+function ansiToHtml(text) {
+  if (!text) return '';
+  let fg = null, bg = null, bold = false, dim = false, underline = false;
+  let i = 0, n = text.length, buf = '', out = '';
+  function styleStr() {
+    let s = '';
+    if (bold) s += 'font-weight:700;';
+    if (dim) s += 'opacity:.6;';
+    if (underline) s += 'text-decoration:underline;';
+    if (fg) s += 'color:' + fg + ';';
+    if (bg) s += 'background:' + bg + ';';
+    return s;
+  }
+  function flush() {
+    if (!buf) return;
+    const st = styleStr();
+    out += st ? '<span style="' + st + '">' + escapeHtml(buf) + '</span>' : escapeHtml(buf);
+    buf = '';
+  }
+  while (i < n) {
+    if (text.charCodeAt(i) === 0x1b && text[i + 1] === '[') {
+      // CSI 序列：找最终字节（m = SGR，其余如光标控制直接跳过）
+      let j = i + 2;
+      while (j < n && text.charCodeAt(j) < 0x40) j++;
+      const final = j < n ? text[j] : null;
+      if (final === 'm') {
+        const codes = text.slice(i + 2, j).split(';').map(x => parseInt(x, 10) || 0);
+        flush();
+        for (const code of codes) {
+          if (code === 0) { fg = null; bg = null; bold = false; dim = false; underline = false; }
+          else if (code === 1) bold = true;
+          else if (code === 2) dim = true;
+          else if (code === 4) underline = true;
+          else if (code === 22) { bold = false; dim = false; }
+          else if (code === 24) underline = false;
+          else if (code >= 30 && code <= 37) fg = ANSI_FG[code];
+          else if (code >= 90 && code <= 97) fg = ANSI_FG[code];
+          else if (code >= 40 && code <= 47) bg = ANSI_BG[code];
+          else if (code >= 100 && code <= 107) bg = ANSI_BG[code - 60];
+          else if (code === 39) fg = null;
+          else if (code === 49) bg = null;
+        }
+        i = j + 1;
+        continue;
+      }
+      i = j + 1; // 非 SGR：跳过整个 CSI
+      continue;
+    }
+    buf += text[i];
+    i++;
+  }
+  flush();
+  return out;
+}
+// ── «» 中间格式 → HTML（对标后端 SpectreToAnsi：CLI/TUI 转 ANSI，Web 转 HTML span）──
+// WayCoder 所有格式消息（text/markdown/code/…）统一用 «tag»…«/» 表达颜色/样式，
+// 由各平台渲染器决定呈现：CLI/TUI → ANSI、Web → HTML、GUI → 富文本。这里只负责 Web。
+// 颜色值与 ANSI_FG 对齐（同源 TuiColors），保证三端观感一致。
+const MARKUP_STYLES = {
+  'red': 'color:#ff7b72;', 'green': 'color:#3fb950;', 'yellow': 'color:#d29922;',
+  'cyan': 'color:#39c5cf;', 'blue': 'color:#58a6ff;', 'magenta': 'color:#bc8cff;',
+  'white': 'color:#c9d1d9;', 'orange3': 'color:#d29922;', 'grey': 'color:#6e7681;',
+  'dim': 'opacity:.6;', 'bold': 'font-weight:700;',
+  'underline': 'text-decoration:underline;', 'italic': 'font-style:italic;',
+};
+function markupToHtml(text) {
+  if (!text) return '';
+  let out = '';
+  let i = 0;
+  const n = text.length;
+  const stack = [];   // 活跃样式串（合并成单个 span，避免标签顺序问题）
+  let buf = '';
+  function flush() {
+    if (!buf) return;
+    const st = stack.join('');
+    out += st ? '<span style="' + st + '">' + escapeHtml(buf) + '</span>' : escapeHtml(buf);
+    buf = '';
+  }
+  while (i < n) {
+    const open = text.indexOf('«', i);
+    if (open < 0) { buf += text.slice(i); break; }
+    buf += text.slice(i, open);
+    const close = text.indexOf('»', open);
+    if (close < 0) { buf += text.slice(open); break; }
+    const tag = text.slice(open + 1, close).trim();
+    flush();
+    if (tag === '/') {
+      if (stack.length) stack.pop();
+      else buf += '«/»';   // 无匹配开标签，原样保留结束符
+    } else {
+      // 复合标签如 «bold yellow» 按空格拆分，多个样式合并到单个 span
+      const styles = [];
+      for (const p of tag.split(/\s+/)) if (MARKUP_STYLES[p]) styles.push(MARKUP_STYLES[p]);
+      if (styles.length) stack.push(styles.join(''));
+      else buf += '«' + tag + '»';   // 未知标签原样保留
+    }
+    i = close + 1;
+  }
+  flush();
+  return out;
 }
 // 推理内容按 «dim»…«/» 标记以淡色块显示（颜色变淡，不进正文 Markdown）
 function handleToken(s) {
@@ -1252,7 +1547,7 @@ function renderToolOutput(text) {
   if (!text) return '';
   if (/^(---|\+\+\+|diff --git)/.test(text) || /\n(---|\+\+\+) /.test(text)) return highlightDiff(text);
   if (text.indexOf('```') >= 0) return mdToHtml(text);
-  return escapeHtml(text);
+  return markupToHtml(text);
 }
 
 // ── Markdown 渲染（手搓、XSS 安全：先转义再结构化）──
@@ -1265,7 +1560,7 @@ function mdToHtml(src) {
   let quote = false;
 
   function inline(s) {
-    s = escapeHtml(s);
+    s = markupToHtml(s);
     s = s.replace(/`([^`]+)`/g, '<code class="md-inline">$1</code>');
     s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
     s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
@@ -1302,11 +1597,17 @@ function mdToHtml(src) {
     if (line.includes('|') && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(lines[i + 1]) && lines[i + 1].includes('-')) {
       flushParagraph(); flushList(); flushQuote();
       const headers = splitRow(line);
+      // 分隔行对齐：:--- 左对齐 · ---: 右对齐 · :---: 居中 · --- 默认左
+      const aligns = splitRow(lines[i + 1]).map(seg => {
+        const l = seg.startsWith(':'), r = seg.endsWith(':');
+        return (l && r) ? 'center' : (r ? 'right' : 'left');
+      });
       i += 2; // 跳过表头与分隔行
       const rows = [];
       while (i < lines.length && lines[i].includes('|')) { rows.push(splitRow(lines[i])); i++; }
-      let t = '<table class="md-table"><thead><tr>' + headers.map(h => '<th>' + inline(h) + '</th>').join('') + '</tr></thead><tbody>';
-      t += rows.map(r => '<tr>' + r.map(c => '<td>' + inline(c) + '</td>').join('') + '</tr>').join('');
+      const alignAttr = idx => (aligns[idx] && aligns[idx] !== 'left') ? ' style="text-align:' + aligns[idx] + '"' : '';
+      let t = '<table class="md-table"><thead><tr>' + headers.map((h, idx) => '<th' + alignAttr(idx) + '>' + inline(h) + '</th>').join('') + '</tr></thead><tbody>';
+      t += rows.map(r => '<tr>' + r.map((c, idx) => '<td' + alignAttr(idx) + '>' + inline(c) + '</td>').join('') + '</tr>').join('');
       t += '</tbody></table>';
       out.push(t);
       continue;
@@ -1380,7 +1681,8 @@ function splitRow(line) {
   let s = line.trim();
   if (s.startsWith('|')) s = s.slice(1);
   if (s.endsWith('|')) s = s.slice(0, -1);
-  return s.split('|').map(c => c.trim());
+  // 转义竖线 \| 不参与分列，还原为字面 |（避免「/perm [a\|b\|c]」被误拆成多列）
+  return s.split(/(?<!\\)\|/).map(c => c.trim().replace(/\\\|/g, '|'));
 }
 
 // ── SSE ──

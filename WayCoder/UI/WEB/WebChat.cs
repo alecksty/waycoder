@@ -333,7 +333,86 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         if (req.Method == "POST" && req.Path == "/upload")
             return HandleUpload(req);
 
+        // ── 特殊前缀输入 ──
+        // !Shell指令：直接执行 bash 并返回输出（不回传 Agent，对标 Claude Code `!`）
+        if (req.Method == "POST" && req.Path == "/shell")
+        {
+            var body = Json.Parse(req.Body);
+            var command = body?["command"]?.AsString() ?? "";
+            if (string.IsNullOrWhiteSpace(command))
+                return HttpResponse.JsonBody(Err("缺少 command"));
+            try
+            {
+                var result = new BashTool()
+                    .ExecuteAsync(new Dictionary<string, object?> { ["command"] = command })
+                    .GetAwaiter().GetResult();
+                return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("output", result).ToJson());
+            }
+            catch (Exception ex)
+            {
+                return HttpResponse.JsonBody(JNode.Object().Set("ok", false).Set("output", ex.Message).ToJson());
+            }
+        }
+
+        // #文件引用：读取文件内容并注入当前对话上下文（对标 Claude Code `#`）
+        if (req.Method == "POST" && req.Path == "/fileref")
+        {
+            var body = Json.Parse(req.Body);
+            var path = body?["path"]?.AsString() ?? "";
+            if (string.IsNullOrWhiteSpace(path))
+                return HttpResponse.JsonBody(Err("缺少 path"));
+            var content = new ReadFileTool()
+                .ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = path })
+                .GetAwaiter().GetResult();
+            var agent = EnsureSlot(_activeSlot);
+            agent.Messages.Add(JNode.Object().Set("role", "user")
+                .Set("content", $"【文件引用】{path}\n\n{content}"));
+            Broadcast("history", SerializeHistory(agent));
+            return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("path", path).Set("content", content).ToJson());
+        }
+
+        // #文件引用补全：按前缀列出文件/目录
+        if (req.Method == "POST" && req.Path == "/filelist")
+        {
+            var body = Json.Parse(req.Body);
+            var prefix = body?["prefix"]?.AsString() ?? "";
+            return HttpResponse.JsonBody(JNode.Object().Set("ok", true)
+                .Set("files", Json.Parse(SerializeFileList(prefix)) ?? JNode.Array()).ToJson());
+        }
+
         return null;
+    }
+
+    /// <summary>按前缀列出当前目录下的文件/目录（供 # 文件引用补全）。纯静态便于自测。</summary>
+    public static string SerializeFileList(string prefix)
+    {
+        var arr = JNode.Array();
+        try
+        {
+            var searchDir = Directory.GetCurrentDirectory();
+            var filePrefix = prefix ?? "";
+            var lastSep = filePrefix.LastIndexOfAny(['/', '\\']);
+            if (lastSep >= 0)
+            {
+                var sub = filePrefix[..(lastSep + 1)];
+                searchDir = Path.GetFullPath(sub);
+                filePrefix = filePrefix[(lastSep + 1)..];
+            }
+            if (!Directory.Exists(searchDir)) return arr.ToJson();
+            foreach (var entry in Directory.EnumerateFileSystemEntries(searchDir).OrderBy(e => Directory.Exists(e) ? 0 : 1).ThenBy(e => e).Take(40))
+            {
+                var name = Path.GetFileName(entry);
+                if (!string.IsNullOrEmpty(filePrefix) && !name.StartsWith(filePrefix, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                var isDir = Directory.Exists(entry);
+                arr.Add(JNode.Object()
+                    .Set("name", isDir ? name + "/" : name)
+                    .Set("path", Path.Combine(searchDir, name))
+                    .Set("isDir", isDir));
+            }
+        }
+        catch { /* 权限不足忽略 */ }
+        return arr.ToJson();
     }
 
     // ═══════════════════════════════════════════════════════════

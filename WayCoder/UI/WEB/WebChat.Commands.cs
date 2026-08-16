@@ -71,6 +71,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             case "/interrupt" or "/stop":
                 return (true, "⏹ 已请求中断");
 
+            case "/test":
+                return (true, WebTestText(args));
+
             default:
                 return (false, "");
         }
@@ -241,5 +244,153 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             sb.AppendLine($"- `{Path.GetFileName(f)}` +{st.Added} -{st.Deleted}");
         }
         return sb.ToString();
+    }
+
+    /// <summary>/test — 渲染测试内容（markdown 表格 / 代码高亮 / «» 中间格式 / Shell ANSI 配色等），供前端验证显示效果。</summary>
+    private static string WebTestText(string args)
+    {
+        var sub = args.ToLowerInvariant().Trim();
+        return sub switch
+        {
+            "list" or "ls" or "" => WebTestListText(),
+            "markdown" or "md" or "all" => WebTestMarkdownText(),
+            "table" or "表格" => WebTestTableText(),
+            "markup" or "color" or "样式" or "中间" => WebTestMarkupText(),
+            _ => $"❌ 未知测试项「{args}」。输入 /test list 查看全部测试项。",
+        };
+    }
+
+    private static string WebTestListText()
+    {
+        return """
+            📋 **可用测试项**
+
+            | 命令 | 说明 |
+            |---|---|
+            | /test list | 本列表 |
+            | /test markdown | Markdown 渲染（标题/列表/引用/代码块/表格） |
+            | /test table | 表格专项（含转义竖线 \|） |
+            | /test markup | «» 中间格式（颜色/粗体/斜体/下划线，跨平台渲染） |
+            | /test ansi | Shell 裸 ANSI 配色（终端 tty 效果，前端本地渲染） |
+
+            > 提示：/test markup 验证 WayCoder 中间格式经各平台渲染器的呈现；/test ansi 验证 Shell 命令产生的裸 ANSI 转 HTML。
+            """;
+    }
+
+    /// <summary>
+    /// /test markup — «» 中间格式样例。WayCoder 所有格式消息统一用 «tag»…«/» 表达颜色/文字特征，
+    /// 由各平台渲染器决定呈现：CLI/TUI → ANSI（SpectreToAnsi）、Web → HTML（markupToHtml）、GUI → 富文本。
+    /// 这里返回中间格式原文，前端 mdToHtml 的 inline 管线会调用 markupToHtml 渲染。
+    /// </summary>
+    private static string WebTestMarkupText()
+    {
+        return """
+            # 中间格式（«» 标记）渲染测试
+
+            WayCoder 所有格式消息（text/markdown/code/…）统一走 **中间格式**：
+            内容用 `«tag»…«/»` 表达颜色与文字特征，由各平台渲染器决定呈现——CLI/TUI → ANSI、Web → HTML、GUI → 富文本。
+
+            ## 颜色
+            «red»红色«/» · «green»绿色«/» · «yellow»黄色«/» · «cyan»青色«/» · «blue»蓝色«/» · «magenta»紫色«/» · «grey»暗灰«/»
+
+            ## 文字特征
+            «bold»粗体«/» · «italic»斜体«/» · «underline»下划线«/» · «dim»暗淡«/»
+
+            ## 复合标签
+            «bold red»粗体红«/» · «bold green»粗体绿«/» · «bold yellow»粗体黄«/»
+
+            ## 表格（单元格内联中间格式）
+            | 项目 | 状态 |
+            |---|---|
+            | 编译 | «green»通过«/» |
+            | 测试 | «yellow»警告«/» |
+            | 部署 | «red»失败«/» |
+
+            ## 代码块（原样显示，不解析 «» 标记）
+            ```csharp
+            Console.WriteLine("«red»hello«/»");  // 代码块内原样显示
+            ```
+
+            结束。
+            """;
+    }
+
+    private static string WebTestTableText()
+    {
+        return """
+            ## 表格专项测试
+
+            ### 普通表格
+            | 模型 | 供应商 | 上下文 |
+            |---|---|---|
+            | deepseek-v4-pro | deepseek | 128k |
+            | claude-fable-5 | anthropic | 200k |
+            | gpt-5.4 | openai | 200k |
+
+            ### 含转义竖线的单元格
+            | 命令 | 用法 |
+            |---|---|
+            | /perm | `/perm [ask\|auto\|smartauto\|yolo]` |
+            | /session | `/session [list\|save\|load <id>]` |
+            | /test | `/test [list\|markdown\|table]` |
+
+            ### 对齐冒号
+            | 左对齐 | 居中 | 右对齐 |
+            |:---|---:|:---:|
+            | a | b | c |
+            """;
+    }
+
+    private static string WebTestMarkdownText()
+    {
+        return """
+            # Markdown 渲染测试
+
+            ## 标题层级
+            ### 三级标题
+            #### 四级标题
+
+            ## 行内样式
+            **粗体**、*斜体*、`行内代码`、[链接](https://example.com)
+
+            ## 无序列表
+            - 无序列表项 1
+            - 无序列表项 2
+            - 无序列表项 3
+
+            ## 有序列表
+            1. 有序列表项 1
+            2. 有序列表项 2
+            3. 有序列表项 3
+
+            ## 引用
+            > 这是一段引用文字。
+
+            ## 代码块（C#）
+            ```csharp
+            public static void Main()
+            {
+                Console.WriteLine("Hello, WayCoder!");
+            }
+            ```
+
+            ## 代码块（bash）
+            ```bash
+            dotnet build -c Release
+            echo "done"
+            ```
+
+            ## 表格
+            | 命令 | 说明 |
+            |---|---|
+            | /help | 显示帮助 |
+            | /perm [ask\|auto\|smartauto\|yolo] | 切换权限模式 |
+            | /test | 显示本测试 |
+
+            ## 水平线
+            ---
+
+            结束。
+            """;
     }
 }

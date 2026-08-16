@@ -197,7 +197,7 @@ WayCoder/
 
 - **孤立的工具消息是非法的**：压缩时必须保持 tool 消息紧跟其 assistant 消息
 - **AOT 禁止反射**：不能用 `GetMethod`/`GetType` 等运行时反射
-- **Markup 标记**：使用 `«»` 书名号 (`«color»text«/»`)，不与方括号 `[` `]` 冲突，无需双写转义
+- **中间格式渲染**：所有格式消息（text/markdown/code/…）的颜色与文字特征统一用 `«»` 书名号表达（`«color»text«/»`、`«bold»`、`«dim»`、`«underline»`、`«italic»`），**禁止在内容层硬写 ANSI**；由各平台渲染器决定呈现——CLI/TUI→ANSI（`SpectreToAnsi`）、Web→HTML（`markupToHtml`，颜色值同源 `TuiColors`）、GUI→富文本。Shell 命令产生的裸 ANSI 属外部数据，Web 端经 `ansiToHtml` 解码，CLI/TUI 直接透传终端
 - **异步上下文**：`AsyncLocal<string>` 替代 `threading.local()` 用于 bash cwd 跟踪
 - **每个重试独立 CTS**：渐进超时要求每 attempt 创建新的 `CancellationTokenSource`，不能用外部传入的单一 CTS
 - **Hook 脚本兼容性**：stdout 非 JSON 时视为纯文本 `SystemMessage`，JSON 时按 `HookOutput` 协议解析；Decision 仅 PreToolUse 事件生效

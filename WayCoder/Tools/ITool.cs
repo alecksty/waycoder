@@ -54,3 +54,15 @@ public interface ITool
                 .Set("parameters", clonedParams));
     }
 }
+
+/// <summary>
+/// 可取消工具接口。实现此接口的工具在 Agent 中断（如 Web 停止按钮 / Ctrl+C）时
+/// 会收到取消令牌，从而能真正终止正在运行的子进程等长耗时操作。
+/// </summary>
+public interface ICancellableTool
+{
+    /// <summary>
+    /// 运行工具并返回文本结果，支持取消。
+    /// </summary>
+    Task<string> ExecuteAsync(Dictionary<string, object?> arguments, CancellationToken cancellationToken);
+}
