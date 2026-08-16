@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.71.5 (2026-08-17) — 提问多选布尔解析修复 + 聊天角色标识中文化
+
+修复 `ask_user_question` 多选参数在 JNode 路径下永远解析为 false 的问题，并把聊天/导出里的角色标识（User/Assistant/System/Tool）统一改为中文。
+
+### 🐛 修复
+
+- **`AskUserQuestionTool` 多选布尔解析**：`ParseOneQuestion(JNode)` 用 `AsString() == "true"` 判断 `multiSelect`，但 JSON 布尔值（`"multiSelect": true`）的 `AsString()` 返回 null（`JKind.Bool` ≠ `JKind.String`），导致多选永远解析为单选。改为优先 `AsBool()`、兜底字符串 `"true"`（对齐 `MultiEditTool` 的处理）
+
+### ✨ 聊天角色标识中文化
+
+- **TUI 聊天角色标签**：`TuiListItem` 的角色头从 `You`/`Assistant`/`System`/`Tool` 改为 `用户`/`智能体`/`系统`/`工具`
+- **对话导出角色名**：`ExportTool` 的 Markdown/HTML 导出标题中的英文 role（`user`/`assistant`/`system`/`tool`）统一改为中文
+
 ## v0.71.4 (2026-08-17) — 并发竞态修复 + LLM 提问对话框 + diff 滚动
 
 修复多槽位/并行子智能体下的几处竞态，新增 LLM 提问对话框（`ask_user_question`）与 diff 对话框代码区滚动，并清理冗余文档。

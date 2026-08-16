@@ -80,7 +80,7 @@ public class ExportTool : ITool
                 "tool" => "🔧", _ => "❓",
             };
 
-            sb.AppendLine($"### {icon} {role}");
+            sb.AppendLine($"### {icon} {RoleDisplayName(role)}");
             sb.AppendLine();
 
             if (role == "tool")
@@ -139,7 +139,7 @@ public class ExportTool : ITool
             var role = m["role"]?.AsString() ?? "?";
             var content = m["content"]?.AsString() ?? "";
             var escaped = System.Net.WebUtility.HtmlEncode(content);
-            sb.AppendLine($"<div class=\"{role}\"><strong>{role}</strong><br>{escaped}</div>");
+            sb.AppendLine($"<div class=\"{role}\"><strong>{RoleDisplayName(role)}</strong><br>{escaped}</div>");
         }
 
         sb.AppendLine("</body></html>");
@@ -148,6 +148,16 @@ public class ExportTool : ITool
 
     private static string TruncateContent(string content, int maxLen)
         => content.Length <= maxLen ? content : content[..maxLen] + "\n\n... (已截断)";
+
+    /// <summary>角色英文标识 → 中文显示名（导出文件里角色标题中文化）。</summary>
+    private static string RoleDisplayName(string role) => role switch
+    {
+        "user" => "用户",
+        "assistant" => "智能体",
+        "system" => "系统",
+        "tool" => "工具",
+        _ => role,
+    };
 
     private static string FormatSize(long bytes) => bytes switch
     {
