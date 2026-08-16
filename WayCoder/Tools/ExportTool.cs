@@ -147,7 +147,7 @@ public class ExportTool : ITool
     }
 
     private static string TruncateContent(string content, int maxLen)
-        => content.Length <= maxLen ? content : content[..maxLen] + "\n\n... (已截断)";
+        => content.Length <= maxLen ? content : ContextManager.TruncateByRunes(content, maxLen) + "\n\n... (已截断)";
 
     /// <summary>角色英文标识 → 中文显示名（导出文件里角色标题中文化）。</summary>
     private static string RoleDisplayName(string role) => role switch

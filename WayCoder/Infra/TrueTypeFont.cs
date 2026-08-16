@@ -142,7 +142,7 @@ public sealed class TrueTypeFont
     {
         double scale = size / _unitsPerEm;
         double w = 0;
-        foreach (char ch in text) w += AdvanceWidth(GlyphIndex((int)ch)) * scale;
+        foreach (var rune in text.EnumerateRunes()) w += AdvanceWidth(GlyphIndex(rune.Value)) * scale;
         return w;
     }
 
@@ -169,9 +169,9 @@ public sealed class TrueTypeFont
         double scale = size / _unitsPerEm;
         double slant = italic ? 0.25 : 0.0;
         double curX = penX;
-        foreach (char ch in text)
+        foreach (var rune in text.EnumerateRunes())
         {
-            int g = GlyphIndex((int)ch);
+            int g = GlyphIndex(rune.Value);
             double advance = AdvanceWidth(g) * scale;
             var contours = GetOutline(g);
             if (contours.Count > 0)

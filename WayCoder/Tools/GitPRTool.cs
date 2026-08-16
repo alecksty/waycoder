@@ -105,7 +105,7 @@ public class GitPRTool : ITool
         sb.AppendLine($"源分支: {currentBranch} → 目标分支: {baseBranch}");
         sb.AppendLine($"标题: {title}");
         if (!string.IsNullOrEmpty(description))
-            sb.AppendLine($"描述: {description[..Math.Min(description.Length, 200)]}");
+            sb.AppendLine($"描述: {ContextManager.TruncateByRunes(description, 200)}");
 
         return sb.ToString();
     }

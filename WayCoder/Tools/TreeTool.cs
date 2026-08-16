@@ -52,7 +52,7 @@ public class TreeTool : ITool
 
             var result = sb.ToString();
             if (result.Length > 8000)
-                result = result[..6000] + "\n... (已截断) ...\n" + result[^1000..];
+                result = ContextManager.TruncateByRunes(result, 6000) + "\n... (已截断) ...\n" + ContextManager.TruncateTailByRunes(result, 1000);
             return result.TrimEnd();
         }
         catch (Exception ex)

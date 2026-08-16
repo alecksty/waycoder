@@ -16,7 +16,7 @@ public static class TuiToastQueue
     private static readonly Lock _lock = new();
     private static CancellationTokenSource? _cts;
     private static Task? _worker;
-    private static ToastItem? _current;
+    private static volatile ToastItem? _current; // 跨线程（worker 写 / UI 渲染线程读），volatile 保证可见性
 
     /// <summary>最大排队数量</summary>
     public static int MaxQueueSize { get; set; } = 5;

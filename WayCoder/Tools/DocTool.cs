@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -39,7 +40,7 @@ public class DocTool : ITool
     { Timeout = TimeSpan.FromSeconds(Config.Instance.FetchTimeoutSec) });
 
     /// <summary>会话级缓存：避免重复查询相同内容</summary>
-    private static readonly Dictionary<string, (string Result, DateTime Time)> _cache = [];
+    private static readonly ConcurrentDictionary<string, (string Result, DateTime Time)> _cache = new();
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(15);
 
     static DocTool()
@@ -162,7 +163,7 @@ public class DocTool : ITool
             var text = StripHtml(html);
 
             if (text.Length > 6000)
-                text = text[..6000] + $"\n\n... (已截断，原始共 {text.Length} 字符)";
+                text = ContextManager.TruncateByRunes(text, 6000) + $"\n\n... (已截断，原始共 {text.Length} 字符)";
 
             var result = string.IsNullOrWhiteSpace(text)
                 ? "（页面无文本内容）"
@@ -274,7 +275,7 @@ public class DocTool : ITool
             var text = StripHtml(html);
 
             if (text.Length > 4000)
-                text = text[..4000] + "\n\n... (已截断)";
+                text = ContextManager.TruncateByRunes(text, 4000) + "\n\n... (已截断)";
 
             return (source, string.IsNullOrWhiteSpace(text) ? null : text);
         }

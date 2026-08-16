@@ -165,5 +165,5 @@ public class TranscribeAudioTool : ITool
     }
 
     private static string Truncate(string s, int max)
-        => s.Length <= max ? s : s[..max] + "…";
+        => s.Length <= max ? s : ContextManager.TruncateByRunes(s, max) + "…";
 }

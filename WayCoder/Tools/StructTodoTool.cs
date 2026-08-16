@@ -134,7 +134,6 @@ public class StructTodoTool : ITool
                 foreach (var b in blocked)
                 {
                     b.Status = "pending";
-                    todo.Title += $" [解除阻塞: {b.Id}]";
                 }
             }
 
@@ -205,6 +204,7 @@ public class StructTodoTool : ITool
                 {
                     Id = n["id"]?.AsString() ?? "",
                     Title = n["title"]?.AsString() ?? "",
+                    Description = n["description"]?.AsString() ?? "",
                     Status = n["status"]?.AsString() ?? "pending",
                     DependsOn = n["depends_on"]?.Items
                         .Select(d => d.AsString() ?? "").Where(s => s != "").ToList() ?? [],
@@ -230,6 +230,7 @@ public class StructTodoTool : ITool
             arr.Add(JNode.Object()
                 .Set("id", t.Id)
                 .Set("title", t.Title)
+                .Set("description", t.Description)
                 .Set("status", t.Status)
                 .Set("depends_on", dependsOn)
                 .Set("created_at", t.CreatedAt.ToString("O")));
@@ -241,6 +242,7 @@ public class StructTodoTool : ITool
     {
         public string Id { get; init; } = "";
         public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
         public string Status { get; set; } = "pending";
         public List<string> DependsOn { get; set; } = [];
         public DateTime CreatedAt { get; set; }

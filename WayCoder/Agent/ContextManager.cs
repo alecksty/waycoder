@@ -510,6 +510,22 @@ public class ContextManager
     }
 
     /// <summary>
+    /// 取末尾 maxRunes 个 Unicode 码点（不切半代理对），用于「保留头尾」截断的尾部。
+    /// text 码点数 &lt;= maxRunes 时原样返回。
+    /// </summary>
+    internal static string TruncateTailByRunes(string text, int maxRunes)
+    {
+        if (maxRunes <= 0) return "";
+        if (text.Length <= maxRunes) return text;
+        var runes = text.EnumerateRunes().ToArray();
+        if (runes.Length <= maxRunes) return text;
+        var sb = new System.Text.StringBuilder();
+        for (int i = runes.Length - maxRunes; i < runes.Length; i++)
+            sb.Append(runes[i].ToString());
+        return sb.ToString();
+    }
+
+    /// <summary>
     /// 生成项目状态快照：扫描工作目录的关键文件结构，
     /// 在硬折叠后注入上下文，防止 Agent 完全失忆。
     /// </summary>

@@ -154,7 +154,7 @@ public class AskUserQuestionTool : ITool
 
         var header = obj["header"]?.AsString() ?? "";
         if (string.IsNullOrWhiteSpace(header))
-            header = question.Length <= 12 ? question : question[..12];
+            header = question.Length <= 12 ? question : ContextManager.TruncateByRunes(question, 12);
 
         // JSON 布尔值 multiSelect=true 时 AsString() 返回 null（JKind.Bool ≠ JKind.String），
         // 必须优先走 AsBool()，否则多选永远解析为 false。兜底兼容字符串 "true"（对齐 MultiEditTool）。
@@ -191,7 +191,7 @@ public class AskUserQuestionTool : ITool
 
         var header = dict.GetValueOrDefault("header")?.ToString() ?? "";
         if (string.IsNullOrWhiteSpace(header))
-            header = question.Length <= 12 ? question : question[..12];
+            header = question.Length <= 12 ? question : ContextManager.TruncateByRunes(question, 12);
 
         var multiSelect = dict.GetValueOrDefault("multiSelect") is true;
 

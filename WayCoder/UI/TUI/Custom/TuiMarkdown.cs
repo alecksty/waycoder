@@ -447,11 +447,12 @@ public static class TuiMarkdown
         int startColor = _rainbowStops[startIdx];
         int endColor = _rainbowStops[endIdx];
 
-        for (int i = 0; i < text.Length; i++)
+        var runes = text.EnumerateRunes().ToArray();
+        for (int i = 0; i < runes.Length; i++)
         {
-            float t = text.Length > 1 ? (float)i / (text.Length - 1) : 0;
+            float t = runes.Length > 1 ? (float)i / (runes.Length - 1) : 0;
             int color = AnsiTty.LerpRgb(startColor, endColor, t);
-            segments.Add((text[i].ToString(), color, 0));
+            segments.Add((runes[i].ToString(), color, 0)); // 完整 rune，代理对不拆半
         }
         return segments;
     }

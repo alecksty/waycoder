@@ -260,6 +260,6 @@ public class NotebookEditTool : ITool
     {
         text = text.Replace("\n", "\\n").Replace("\r", "");
         if (text.Length <= maxLen) return text;
-        return text[..maxLen] + "...";
+        return ContextManager.TruncateByRunes(text, maxLen) + "...";
     }
 }

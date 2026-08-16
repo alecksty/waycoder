@@ -126,7 +126,7 @@ public class TuiScrollbar : TuiControl
         if (!IsEnabled || !IsNeeded) return false;
         if (ev.Type != InputType.Mouse) return false;
 
-        int relY = ev.MouseY - Y;
+        int relY = ev.MouseY - GetAbsoluteY(); // MouseY 是绝对屏幕坐标，需用绝对 Y 而非局部 Y
 
         if (ev.MouseScrollUp) { ScrollUp(3); return true; }
         if (ev.MouseScrollDown) { ScrollDown(3); return true; }

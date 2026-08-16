@@ -352,7 +352,7 @@ public abstract class TuiControl : TuiBase
                 int rw = TuiHelper.RuneWidth(rune);
                 if (skipVw + rw > needSkip) break;
                 skipVw += rw;
-                charIdx++;
+                charIdx += rune.Utf16SequenceLength; // UTF-16 码元索引，代理对占 2
             }
             text = text[charIdx..];
             col = ClipLeft;

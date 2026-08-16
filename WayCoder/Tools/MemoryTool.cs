@@ -76,7 +76,7 @@ public class MemoryTool : ITool
         }
 
         StructuredMemory.Create(name,
-            description.Length > 0 ? description : content.Length > 60 ? content[..60] + "..." : content,
+            description.Length > 0 ? description : content.Length > 60 ? ContextManager.TruncateByRunes(content, 60) + "..." : content,
             type, content);
         return $"✅ 已记录到项目记忆 [{name}]";
     }
@@ -97,7 +97,7 @@ public class MemoryTool : ITool
         var lines = new List<string> { $"共 {all.Count} 条记忆:" };
         foreach (var e in all)
         {
-            var preview = e.Content.Length > 80 ? e.Content[..80] + "..." : e.Content;
+            var preview = e.Content.Length > 80 ? ContextManager.TruncateByRunes(e.Content, 80) + "..." : e.Content;
             lines.Add($"  [{e.Name}] ({e.Type}) {e.Description} — {preview}");
         }
         return string.Join('\n', lines);
@@ -115,7 +115,7 @@ public class MemoryTool : ITool
         var lines = new List<string> { $"搜索 \"{query}\" ({results.Count} 条相关记忆):" };
         foreach (var e in results)
         {
-            var preview = e.Content.Length > 100 ? e.Content[..100] + "..." : e.Content;
+            var preview = e.Content.Length > 100 ? ContextManager.TruncateByRunes(e.Content, 100) + "..." : e.Content;
             lines.Add($"  [{e.Name}] ({e.Type}) {e.Description} — {preview}");
         }
         return string.Join('\n', lines);

@@ -133,7 +133,8 @@ public static class SharedMemoryManager
         {
             // 1. 记录拉取前的 memory 文件快照
             var beforeFiles = new HashSet<string>();
-            var memoryDir = StructuredMemory.MemoryDir;
+            // 快照目录必须与 checkout 目标一致：checkout 检出到 .waycoder/memory/（共享目录），而非槽位子目录
+            var memoryDir = StructuredMemory.SharedMemoryDir;
             if (Directory.Exists(memoryDir))
             {
                 foreach (var f in Directory.GetFiles(memoryDir, "*.md"))
