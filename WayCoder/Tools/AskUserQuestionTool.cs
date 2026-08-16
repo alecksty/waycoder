@@ -156,7 +156,11 @@ public class AskUserQuestionTool : ITool
         if (string.IsNullOrWhiteSpace(header))
             header = question.Length <= 12 ? question : question[..12];
 
-        var multiSelect = obj["multiSelect"]?.AsString() == "true";
+        // JSON 布尔值 multiSelect=true 时 AsString() 返回 null（JKind.Bool ≠ JKind.String），
+        // 必须优先走 AsBool()，否则多选永远解析为 false。兜底兼容字符串 "true"（对齐 MultiEditTool）。
+        var multiSelect = obj["multiSelect"] is { Kind: JKind.Bool } b
+            ? b.AsBool()
+            : obj["multiSelect"]?.AsString()?.ToLowerInvariant() == "true";
 
         var options = new List<(string Label, string Description)>();
         if (obj["options"] is { Kind: JKind.Array } optArr)
