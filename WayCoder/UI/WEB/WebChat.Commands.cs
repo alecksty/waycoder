@@ -62,6 +62,12 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             case "/todo":
                 return (true, WebTodoText());
 
+            case "/stats":
+                return (true, WebStatsText(agent));
+
+            case "/recent" or "/diff":
+                return (true, WebRecentText());
+
             case "/interrupt" or "/stop":
                 return (true, "⏹ 已请求中断");
 
@@ -81,11 +87,14 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         sb.AppendLine("| /perm [ask\\|auto\\|smartauto\\|yolo] | 切换权限模式 |");
         sb.AppendLine("| /model | 打开模型选择窗口 |");
         sb.AppendLine("| /model list | 列出模型 |");
+        sb.AppendLine("| /model <名称> | 按名称切换模型 |");
         sb.AppendLine("| /theme | 切换明暗主题 |");
         sb.AppendLine("| /settings | 打开设置 |");
         sb.AppendLine("| /reset | 清空当前会话 |");
         sb.AppendLine("| /session [list\\|save\\|load <id>] | 会话管理 |");
         sb.AppendLine("| /tokens | Token 统计 |");
+        sb.AppendLine("| /stats | 会话统计 |");
+        sb.AppendLine("| /recent | 本次修改的文件 |");
         sb.AppendLine("| /mcp | MCP 服务器状态 |");
         sb.AppendLine("| /todo | 任务列表 |");
         sb.AppendLine("| /interrupt | 中断当前任务 |");
@@ -200,6 +209,37 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         sb.AppendLine();
         foreach (var t in items)
             sb.AppendLine($"- `{t.Status}` {t.Title}");
+        return sb.ToString();
+    }
+
+    private static string WebStatsText(Agent? agent)
+    {
+        var llm = agent?.LlmClient;
+        var sb = new StringBuilder();
+        sb.AppendLine("📊 **会话统计**");
+        sb.AppendLine();
+        sb.AppendLine($"- 模型：`{llm?.Model ?? "?"}`");
+        sb.AppendLine($"- 请求数：{llm?.TotalRequests ?? 0}");
+        sb.AppendLine($"- 累计 token：prompt {llm?.TotalPromptTokens ?? 0} / completion {llm?.TotalCompletionTokens ?? 0}");
+        sb.AppendLine($"- 本轮 token：prompt {llm?.TaskPromptTokens ?? 0} / completion {llm?.TaskCompletionTokens ?? 0}");
+        if (llm?.LastTokensPerSec > 0) sb.AppendLine($"- 速率：{llm.LastTokensPerSec:F1} tok/s");
+        if (llm?.TaskCost.HasValue == true) sb.AppendLine($"- 本轮费用：${llm.TaskCost.Value:F4}");
+        if (llm?.EstimatedCost.HasValue == true) sb.AppendLine($"- 累计估计：${llm.EstimatedCost.Value:F4}");
+        return sb.ToString();
+    }
+
+    private static string WebRecentText()
+    {
+        var files = EditFileTool.ChangedFiles.ToList();
+        if (files.Count == 0) return "📝 本次会话尚未修改文件";
+        var sb = new StringBuilder();
+        sb.AppendLine($"📝 **本次修改的文件**（{files.Count} 个）");
+        sb.AppendLine();
+        foreach (var f in files)
+        {
+            EditFileTool.ChangedFileStats.TryGetValue(f, out var st);
+            sb.AppendLine($"- `{Path.GetFileName(f)}` +{st.Added} -{st.Deleted}");
+        }
         return sb.ToString();
     }
 }

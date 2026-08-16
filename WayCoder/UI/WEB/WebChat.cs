@@ -81,7 +81,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
         // 页面
         if (req.Method == "GET" && req.Path == "/")
-            return HttpResponse.Html(WebAssets.Html);
+            return HttpResponse.Html(WebAssets.Html.Replace("__VERSION__", Global.Version));
 
         // 聊天
         if (req.Method == "POST" && req.Path == "/chat")
@@ -191,6 +191,21 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             {
                 Interrupt();
                 return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true).Set("output", "⏹ 已请求中断").ToJson());
+            }
+
+            // 换模型副作用（需访问实例 Interrupt + EnsureSlot）
+            if (cmdLower == "/model" && spaceIdx >= 0)
+            {
+                Interrupt();
+                var name = trimmed[(spaceIdx + 1)..].Trim();
+                var matches = ModelCatalog.Search(name);
+                if (matches.Length == 0)
+                    return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true)
+                        .Set("output", $"❌ 未知模型「{name}」").ToJson());
+                var err = ApplyModel(EnsureSlot(_activeSlot), matches[0].Id, null);
+                Broadcast("state", SerializeState(_activeSlot, _slots));
+                return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true)
+                    .Set("output", err == null ? $"✅ 已切换到 **{matches[0].DisplayName}**" : $"❌ {err}").ToJson());
             }
 
             var (handled, output) = HandleCommand(trimmed, _slots[_activeSlot]);
