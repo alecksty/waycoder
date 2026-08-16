@@ -323,6 +323,25 @@ public static partial class SelfTest
         var migrateResult = new BashTool().ExecuteAsync(new() { ["command"] = slowCmd, ["timeout"] = 1 }).Result;
         Check("bash 超时自动迁移到后台", migrateResult.Contains("Shell ID") || migrateResult.Contains("自动转入后台"));
 
+        // 中断取消（Web 停止按钮 / Ctrl+C）：长命令 + 提前取消令牌 → 抛 OperationCanceledException，子进程被杀死
+        var cancelCmd = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? "ping -n 30 127.0.0.1 >nul"
+            : "sleep 30";
+        var cancelCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(800));
+        var cancelSw = System.Diagnostics.Stopwatch.StartNew();
+        var cancelCaught = false;
+        try
+        {
+            ((ICancellableTool)new BashTool()).ExecuteAsync(new() { ["command"] = cancelCmd, ["timeout"] = 60 }, cancelCts.Token)
+                .GetAwaiter().GetResult();
+        }
+        catch (OperationCanceledException)
+        {
+            cancelCaught = true;
+        }
+        cancelSw.Stop();
+        Check("bash 取消令牌中断长命令", cancelCaught && cancelSw.ElapsedMilliseconds < 5000);
+
         Console.WriteLine();
 
         // ---- 上下文管理 扩展 ----

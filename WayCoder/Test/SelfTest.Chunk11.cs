@@ -61,6 +61,11 @@ public static partial class SelfTest
             var name = Path.GetFileName(file);
             if (whitelist.Contains(name)) continue;
 
+            // Web 层（UI/WEB）走 HTTP/SSE，不写终端 Console，不适用「禁止硬编码 Console/ANSI」约束；
+            // 其内嵌前端 JS/样例 Markdown 天然含 \x1b / Console.WriteLine 等字面量，跳过。
+            var rel = Path.GetRelativePath(uiDir, file);
+            if (rel.StartsWith("WEB" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) continue;
+
             bool bad = false;
             foreach (var rawLine in File.ReadLines(file))
             {

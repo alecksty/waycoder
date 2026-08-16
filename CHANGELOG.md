@@ -1,5 +1,35 @@
 # 更新日志
 
+## v0.70.0 (2026-08-16) — Web 特殊前缀输入 + 停止真中断 + 中间格式渲染
+
+一轮 Web 交互补强：标题栏只显示智能体名、`!` Shell 与 `#` 文件引用两大前缀输入落地、停止按钮真正杀掉 bash 子进程，并确立「中间格式 → 各平台渲染」的着色架构（`«tag»…«/»` 统一表达，CLI/TUI→ANSI、Web→HTML）。
+
+### ✨ Web 交互增强
+
+- **标题栏只显示智能体名**：中间标签从 `智能体: 智能体N` 精简为 `智能体N`（随槽位切换更新）
+- **`!` Shell 前缀**：输入 `! <命令>` 直接执行 bash 并显示输出（新增 `/shell` 路由，对标 Claude Code `!`）
+- **`#` 文件引用前缀**：输入 `# <路径>` 读取文件注入当前对话上下文；`#` 后实时列出文件/目录补全（新增 `/fileref` `/filelist` 路由）
+- **全角/半角归一化**：`／`→`/`、`！`→`!`、`＃`→`#`，中文输入法下前缀照常识别
+- **命令提示框**：斜杠命令模糊匹配、`!` Shell 提示、`#` 文件补全，Tab/方向键选中回车确认
+- **Shell 输出 tty 配色**：`ansiToHtml` 把 Shell 命令产生的裸 ANSI SGR 转 HTML span（XSS 安全转义），`.shell-output` 独立块等宽显示
+
+### 🎨 中间格式渲染架构
+
+- **`markupToHtml`**（Web 端）：对标后端 `SpectreToAnsi`，把 `«red»`/`«bold»`/`«dim»`/`«underline»`/`«italic»` 等中间格式转 HTML span，颜色值与 `ANSI_FG` 同源 `TuiColors`，三端观感一致
+- **接入渲染管线**：`mdToHtml` 行内与 `renderToolOutput` 纯文本分支改用 `markupToHtml`，正文/表格单元格/工具输出里的 `«»` 标记正确着色
+- **`/test markup`**：中间格式样例（颜色/文字特征/复合标签/表格内联/代码块原样），验证跨平台渲染；`/test ansi` 保留为「Shell 裸 ANSI 解码」测试
+
+### 🐛 修复
+
+- **停止按钮真中断**：`ICancellableTool` 接口 + 取消令牌贯穿 `Agent`→`BashTool`，中断时杀掉 bash 子进程并抛 `OperationCanceledException`（不吞），修复「停止后 shell 仍在跑」
+- **Markdown 表格渲染**：修复转义竖线 `\|` 误拆列（`/perm [ask\|auto\|…]` 拆成 5 列）、`.md-table` 布局；分隔行对齐冒号解析（`:---` 左 / `---:` 右 / `:---:` 居中）应用 `text-align`
+
+### 🧪 自测
+
+- 新增「bash 取消令牌中断长命令」测试（`sleep` 被 800ms 令牌杀掉，耗时 < 5s）
+- `TestUiLint` 跳过 `UI/WEB` 目录（HTTP/SSE 层不适用「禁止硬编码 Console/ANSI」约束）
+- 全量自测通过（3094 通过 / 0 失败）
+
 ## v0.69.0 (2026-08-16) — Web 聊天界面完善
 
 一轮 Web 聊天界面体验收尾：修复设置保存并发写 `.env` 导致的「保存失败」，补全代码块语法高亮、大/小模型双下拉、无 key 弹框、标题栏（智能体 + 版本号）、修改文件增删行统计，并新增 `/stats` `/recent` `/model` 斜杠命令。

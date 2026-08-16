@@ -6,7 +6,7 @@ namespace WayCoder.Tools;
 /// <summary>
 /// 带安全检查的 Shell 命令执行。
 /// </summary>
-public class BashTool : ITool
+public class BashTool : ITool, ICancellableTool
 {
     public string Name => "bash";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
@@ -54,12 +54,17 @@ public class BashTool : ITool
     ];
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+        => await ExecuteAsync(arguments, CancellationToken.None);
+
+    /// <summary>可取消执行（ICancellableTool）：中断时杀掉子进程并抛 OperationCanceledException 向上传播。</summary>
+    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var command = arguments.GetValueOrDefault("command")?.ToString() ?? "";
         var configTimeout = Config.Instance.ToolTimeoutSec;
         var timeout = arguments.TryGetValue("timeout", out var t) && t is int ti ? ti : configTimeout;
 
-        // 后台运行模式
+        // 后台运行模式（后台任务有意超出本轮生命周期，不受本轮中断令牌约束）
         var runInBackground = arguments.TryGetValue("run_in_background", out var bg) && bg is true;
         if (runInBackground)
         {
@@ -74,7 +79,7 @@ public class BashTool : ITool
         }
 
         var sessionId = arguments.GetValueOrDefault("session_id")?.ToString() ?? "";
-        return await Execute(command, timeout, sessionId: sessionId);
+        return await Execute(command, timeout, sessionId: sessionId, cancellationToken: cancellationToken);
     }
 
     /// <summary>
@@ -84,15 +89,23 @@ public class BashTool : ITool
     public async Task<string> ExecuteStreamingAsync(
         Dictionary<string, object?> arguments,
         Func<string, Task>? onLine)
+        => await ExecuteStreamingAsync(arguments, onLine, CancellationToken.None);
+
+    /// <summary>可取消流式执行（中断时杀掉子进程）。</summary>
+    public async Task<string> ExecuteStreamingAsync(
+        Dictionary<string, object?> arguments,
+        Func<string, Task>? onLine,
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var command = arguments.GetValueOrDefault("command")?.ToString() ?? "";
         var configTimeout = Config.Instance.ToolTimeoutSec;
         var timeout = arguments.TryGetValue("timeout", out var t) && t is int ti ? ti : configTimeout;
 
-        return await Execute(command, timeout, onLine);
+        return await Execute(command, timeout, onLine, cancellationToken: cancellationToken);
     }
 
-    private async Task<string> Execute(string command, int timeout, Func<string, Task>? onLine = null, string? sessionId = null)
+    private async Task<string> Execute(string command, int timeout, Func<string, Task>? onLine = null, string? sessionId = null, CancellationToken cancellationToken = default)
     {
         // BashGuard 命令黑名单检查（对标 crush 三层防护）
         var (blocked, reason) = BashGuard.CheckBanned(command);
@@ -153,10 +166,13 @@ public class BashTool : ITool
 
             var proc = Process.Start(psi)!;
 
+            // 中断令牌 → 立即杀掉子进程（Web 停止按钮 / Ctrl+C 真正终止 bash）
+            using var cancelReg = cancellationToken.Register(() => KillQuietly(proc));
+
             // 流式模式：逐行读取 stdout 并回调（沙箱模式不支持流式）。
             // ExecuteStreaming 内部负责 proc 的 dispose / 迁移。
             if (onLine != null && !SandboxManager.IsSandboxed)
-                return await ExecuteStreaming(proc, command, cwd, timeout, onLine);
+                return await ExecuteStreaming(proc, command, cwd, timeout, onLine, cancellationToken);
 
             var migrated = false;
             try
@@ -184,6 +200,9 @@ public class BashTool : ITool
 
                 // 取消沙箱监控
                 sandboxCts.Cancel();
+
+                // 中断优先于超时迁移 / 沙箱违规：令牌已取消则抛异常向上传播（子进程已被回调杀掉）
+                cancellationToken.ThrowIfCancellationRequested();
 
                 // 检查沙箱资源超限（内存 / CPU）
                 var sandboxViolation = await CheckSandboxMonitorsAsync(memTask, cpuTask);
@@ -251,6 +270,10 @@ public class BashTool : ITool
                     proc.Dispose();
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw; // 中断信号，向上传播，不吞掉
+        }
         catch (Exception ex)
         {
             ErrorLog.ToolError("bash", $"命令执行异常: {command}", ex,
@@ -259,9 +282,16 @@ public class BashTool : ITool
         }
     }
 
+    /// <summary>安全杀掉进程（进程可能已退出，忽略异常）。</summary>
+    private static void KillQuietly(Process proc)
+    {
+        try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); }
+        catch { /* 进程已退出或无法访问 */ }
+    }
+
     /// <summary>流式执行：逐行读取 stdout 和 stderr 并回调，最后返回完整输出</summary>
     private async Task<string> ExecuteStreaming(
-        Process proc, string command, string cwd, int timeout, Func<string, Task> onLine)
+        Process proc, string command, string cwd, int timeout, Func<string, Task> onLine, CancellationToken cancellationToken = default)
     {
         var outBuilder = new System.Text.StringBuilder();
 
@@ -270,7 +300,9 @@ public class BashTool : ITool
         {
             while (true)
             {
-                var line = await reader.ReadLineAsync();
+                string? line;
+                try { line = await reader.ReadLineAsync(); }
+                catch { break; } // 流被关闭/进程被杀死，结束读取
                 if (line == null) break;
                 var output = prefix == "" ? line : $"{prefix}{line}";
                 lock (outBuilder)
@@ -292,6 +324,9 @@ public class BashTool : ITool
             var delayStream = Task.Delay(timeout * 1000);
             var completedStream = await Task.WhenAny(exitStream, delayStream);
             var exitedStream = completedStream == exitStream && exitStream.IsCompletedSuccessfully;
+
+            // 中断优先于超时迁移：令牌已取消则抛异常向上传播（子进程已被回调杀掉）
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (!exitedStream)
             {

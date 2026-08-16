@@ -413,7 +413,7 @@ public partial class Agent
             try
             {
                 // 执行本轮工具调用：单工具流式，多工具按 ExecutionMode 分批（批内并行 + Exclusive 独占）
-                await ExecuteToolCallsAsync(resp.ToolCalls, onTool, onToolOutput);
+                await ExecuteToolCallsAsync(resp.ToolCalls, onTool, onToolOutput, cancellationToken);
             }
             catch (OperationCanceledException)
             {
