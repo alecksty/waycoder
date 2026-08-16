@@ -421,7 +421,7 @@ public static class HooksManager
             {
                 if (Json.Parse(trimmed) is { Kind: JKind.Object } obj)
                 {
-                    return new HookOutput
+                    var output = new HookOutput
                     {
                         Continue = GetJsonBool(obj, "continue", "Continue") ?? true,
                         Decision = GetJsonString(obj, "decision", "Decision"),
@@ -429,6 +429,15 @@ public static class HooksManager
                         SystemMessage = GetJsonString(obj, "systemMessage", "SystemMessage"),
                         AdditionalContext = GetJsonString(obj, "additionalContext", "AdditionalContext"),
                     };
+                    // exit code 2 是强阻止信号：脚本可能只输出 {"reason":...} 而无显式
+                    // decision 字段，此时 JSON 分支会保留 Continue=true 导致阻止失效，
+                    // 这里按 exit code 语义强制 block。
+                    if (exitCode == 2 && output.Decision == null)
+                    {
+                        output.Continue = false;
+                        output.Decision = "block";
+                    }
+                    return output;
                 }
             }
             catch

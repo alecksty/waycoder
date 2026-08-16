@@ -1457,7 +1457,7 @@ public static partial class SelfTest
 
             // ── 写 .gitignore 规则，测试 glob 匹配 ──
             File.WriteAllText(Path.Combine(tmp, ".gitignore"),
-                "# 测试规则\n*.log\nbuild/\n/rootfile.txt\n*.tmp\n!important.log\n");
+                "# 测试规则\n*.log\nbuild/\nlogs/\n/rootfile.txt\n*.tmp\n!important.log\n");
             FileIgnoreManager.ClearCache();
 
             Check("Ignore: *.log 匹配任意深度",
@@ -1467,6 +1467,11 @@ public static partial class SelfTest
                 !FileIgnoreManager.IsIgnored("important.log", tmp));
             Check("Ignore: build/ 目录规则匹配",
                 FileIgnoreManager.IsIgnored("build/output.txt", tmp));
+            Check("Ignore: logs/ 目录规则匹配内容（非 AlwaysIgnore 目录，暴露 // bug）",
+                FileIgnoreManager.IsIgnored("logs/output.txt", tmp)
+                && FileIgnoreManager.IsIgnored("logs/deep/file.txt", tmp));
+            Check("Ignore: logs/ 目录规则不误伤无关文件",
+                !FileIgnoreManager.IsIgnored("catalog.txt", tmp));
             Check("Ignore: 锚定 /rootfile.txt 仅匹配根目录",
                 FileIgnoreManager.IsIgnored("rootfile.txt", tmp)
                 && !FileIgnoreManager.IsIgnored("sub/rootfile.txt", tmp));
@@ -2133,6 +2138,10 @@ public static partial class SelfTest
         Check("Hook: JSON 解析 Decision",
             HooksManager.ParseHookOutput("{\"Decision\":\"block\",\"Reason\":\"r\"}", 0)?.Decision == "block");
         Check("Hook: exitCode 2 → block", HooksManager.ParseHookOutput("阻止文本", 2)?.Decision == "block");
+        Check("Hook: exitCode 2 + JSON 无 decision 仍 block",
+            HooksManager.ParseHookOutput("{\"Reason\":\"策略阻止\"}", 2)?.Decision == "block");
+        Check("Hook: exitCode 2 + JSON 显式 approve 不强制覆盖",
+            HooksManager.ParseHookOutput("{\"Decision\":\"approve\"}", 2)?.Decision == "approve");
         Check("Hook: 纯文本回退", HooksManager.ParseHookOutput("纯文本输出", 0)?.AdditionalContext == "纯文本输出");
         Check("Hook: 空输出 → null", HooksManager.ParseHookOutput("", 0) == null);
 

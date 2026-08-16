@@ -51,6 +51,9 @@ public class RmTool : ITool
             // 安全检查
             foreach (var p in ProtectedPaths)
             {
+                // 非 Windows 平台 GetFolderPath(Windows/System) 返回空串，
+                // 空串会让 StartsWith("/") 误拦截所有绝对路径，须跳过。
+                if (string.IsNullOrEmpty(p)) continue;
                 if (fullPath.Equals(p, StringComparison.OrdinalIgnoreCase)
                     || fullPath.StartsWith(p + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                     return $"⚠ 已阻止：'{fullPath}' 位于受保护的系统路径中";

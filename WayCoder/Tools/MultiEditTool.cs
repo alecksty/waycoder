@@ -195,7 +195,7 @@ public class MultiEditTool : ITool
         try { raw = File.ReadAllBytes(path); }
         catch { return $"❌ 错误：无法读取 {path}"; }
 
-        try { _ = Encoding.UTF8.GetString(raw); }
+        try { _ = new UTF8Encoding(false, true).GetString(raw); }
         catch { return $"❌ 错误：{path} 不是 UTF-8 文本文件"; }
 
         // CRLF 行尾检测
@@ -223,9 +223,9 @@ public class MultiEditTool : ITool
                 newContent = DiffPreview.ApplyAccepted(oldContent, DiffPreview.BuildHunks(oldContent, newContent), accepted);
         }
 
-        // CRLF 行尾保留
+        // CRLF 行尾保留：先归一化为 LF 再统一转 CRLF，避免把已有 \r\n 二次转成 \r\r\n
         if (hasCrlf)
-            newContent = newContent.Replace("\n", "\r\n");
+            newContent = newContent.Replace("\r\n", "\n").Replace("\n", "\r\n");
 
         File.WriteAllText(path, newContent, Encoding.UTF8);
         EditFileTool.RecordChange(path, oldContent, newContent);

@@ -117,6 +117,15 @@ public class EditorCore
         Cy = Math.Clamp(Cy + dy, 0, Lines.Count - 1);
         Cx = Math.Clamp(Cx + dx, 0, Lines[Cy].Length);
         Cx = Math.Min(Cx, Lines[Cy].Length);
+
+        // 光标不落在代理对中间（emoji/CJK 扩展 B）：左右移动时跳过半个码点
+        if (dx != 0)
+        {
+            var line = Lines[Cy].ToString();
+            if (Cx > 0 && Cx < line.Length
+                && char.IsHighSurrogate(line[Cx - 1]) && char.IsLowSurrogate(line[Cx]))
+                Cx += dx > 0 ? 1 : -1;
+        }
     }
 
     public void MoveHome() => Cx = 0;
@@ -227,10 +236,13 @@ public class EditorCore
         if (HasSelection) { DeleteSelection(); return; }
         if (Cx > 0)
         {
-            var ch = Lines[Cy][Cx - 1].ToString();
-            Record('D', Cy, Cx - 1, ch);
-            DeleteTextAt(Cy, Cx - 1, ch);
-            Cx--;
+            // 光标前若是代理对（emoji/CJK 扩展 B），删除整个码点而非半个
+            int width = Cx >= 2 && char.IsHighSurrogate(Lines[Cy][Cx - 2]) && char.IsLowSurrogate(Lines[Cy][Cx - 1])
+                ? 2 : 1;
+            var ch = Lines[Cy].ToString().Substring(Cx - width, width);
+            Record('D', Cy, Cx - width, ch);
+            DeleteTextAt(Cy, Cx - width, ch);
+            Cx -= width;
         }
         else if (Cy > 0)
         {
@@ -249,7 +261,10 @@ public class EditorCore
         if (HasSelection) { DeleteSelection(); return; }
         if (Cx < Lines[Cy].Length)
         {
-            var ch = Lines[Cy][Cx].ToString();
+            // 光标处若是代理对（emoji/CJK 扩展 B），删除整个码点而非半个
+            int width = Cx + 1 < Lines[Cy].Length && char.IsHighSurrogate(Lines[Cy][Cx]) && char.IsLowSurrogate(Lines[Cy][Cx + 1])
+                ? 2 : 1;
+            var ch = Lines[Cy].ToString().Substring(Cx, width);
             Record('D', Cy, Cx, ch);
             DeleteTextAt(Cy, Cx, ch);
         }

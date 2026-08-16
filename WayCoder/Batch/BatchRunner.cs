@@ -175,8 +175,8 @@ public sealed class BatchRunner
             var workDir = Path.Combine(jobsDir, job.DisplayName + "_" + Guid.NewGuid().ToString("N")[..6]);
             result.WorkDir = workDir;
 
-            // 1. 克隆仓库到隔离工作副本
-            var cloneErr = CloneRepo(job, workDir);
+            // 1. 克隆仓库到隔离工作副本（带超时，防止 git clone 因网络/认证挂起）
+            var cloneErr = await CloneRepoAsync(job, workDir, spec.TimeoutSec);
             if (cloneErr != null) { result.Error = cloneErr; result.ExitCode = -1; return result; }
             log?.Invoke($"📦 {result.Name}: 仓库已就绪 → {workDir}");
 
@@ -233,20 +233,30 @@ public sealed class BatchRunner
         }
     }
 
-    /// <summary>克隆仓库（远程 URL 或本地路径）到隔离目录。返回错误消息，成功返回 null。</summary>
-    public static string? CloneRepo(BatchJob job, string destDir)
+    /// <summary>克隆仓库（远程 URL 或本地路径）到隔离目录。返回错误消息，成功返回 null。
+    /// 带超时：git clone 因网络/认证问题可能无限挂起，超时后杀掉进程树。</summary>
+    public static async Task<string?> CloneRepoAsync(BatchJob job, string destDir, double timeoutSec)
     {
         var repo = job.Repo;
         var branch = string.IsNullOrWhiteSpace(job.Branch) ? "" : job.Branch;
         var args = branch.Length == 0
             ? $"clone \"{repo}\" \"{destDir}\""
             : $"clone -b \"{branch}\" \"{repo}\" \"{destDir}\"";
-        var (code, _, err) = GitRunner.Run(args);
-        if (code != 0)
-            return $"git clone 失败: {(string.IsNullOrWhiteSpace(err) ? $"exit {code}" : err.Trim())}";
-        if (!Directory.Exists(destDir))
-            return "git clone 未生成目标目录";
-        return null;
+
+        try
+        {
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(timeoutSec));
+            var (code, _, err) = await GitRunner.RunAsync(args, null, cts.Token);
+            if (code != 0)
+                return $"git clone 失败: {(string.IsNullOrWhiteSpace(err) ? $"exit {code}" : err.Trim())}";
+            if (!Directory.Exists(destDir))
+                return "git clone 未生成目标目录";
+            return null;
+        }
+        catch (System.OperationCanceledException)
+        {
+            return $"git clone 超时（>{timeoutSec:F0}s），已放弃";
+        }
     }
 
     static string Tail(string text, int max)
