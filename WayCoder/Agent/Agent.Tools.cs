@@ -21,7 +21,7 @@ public partial class Agent
     /// <summary>
     /// 执行单个工具调用，返回结果字符串。
     /// </summary>
-    private async Task<string> ExecuteToolAsync(ToolCall tc, Action<string>? onToolOutput = null)
+    private async Task<string> ExecuteToolAsync(ToolCall tc, Action<string>? onToolOutput = null, CancellationToken cancellationToken = default)
     {
         if (!ToolByName.TryGetValue(tc.Name, out var tool))
             return $"错误：未知工具 '{tc.Name}'";
@@ -69,10 +69,14 @@ public partial class Agent
             if (staleWarning != null)
                 return staleWarning;
 
+            // 可取消工具：中断（Web 停止按钮 / Ctrl+C）时能真正杀掉子进程（如 bash）。
+            // bash 走流式路径（有 onToolOutput 时）；其余可取消工具统一走 ICancellableTool。
             var result = tool is BashTool bashTool && onToolOutput != null
                 ? await bashTool.ExecuteStreamingAsync(tc.Arguments,
-                    async line => { onToolOutput(line); await Task.CompletedTask; })
-                : await tool.ExecuteAsync(tc.Arguments);
+                    async line => { onToolOutput(line); await Task.CompletedTask; }, cancellationToken)
+                : tool is ICancellableTool cancellable
+                    ? await cancellable.ExecuteAsync(tc.Arguments, cancellationToken)
+                    : await tool.ExecuteAsync(tc.Arguments);
 
             // 追踪修改的文件（用于自动 commit 精准暂存 + FileTracker 哈希更新）
             if (tc.Name is "write_file" or "edit_file" or "notebook_edit")
@@ -101,6 +105,10 @@ public partial class Agent
             DebugLog.LogToolResult(tc.Name, result);
             return result;
         }
+        catch (OperationCanceledException)
+        {
+            throw; // 中断信号（Web 停止按钮 / Ctrl+C），向上传播，不吞掉
+        }
         catch (Exception ex)
         {
             // PostToolUseFailure hook
@@ -118,13 +126,14 @@ public partial class Agent
     /// （对标 deepseek-harness 的 executionMode + bounded rolling pool）。
     /// </summary>
     private async Task ExecuteToolCallsAsync(
-        List<ToolCall> toolCalls, Action<string, string>? onTool, Action<string>? onToolOutput)
+        List<ToolCall> toolCalls, Action<string, string>? onTool, Action<string>? onToolOutput,
+        CancellationToken cancellationToken = default)
     {
         if (toolCalls.Count == 1)
         {
             var tc = toolCalls[0];
             onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
-            var result = await RunToolAndRecordAsync(tc, onToolOutput);
+            var result = await RunToolAndRecordAsync(tc, onToolOutput, cancellationToken);
             // 自动 lint 反馈闭环：写文件后立即检查，错误注入工具结果
             result = await AppendLintFeedbackAsync(tc, result);
             // 自动 test 反馈闭环：写源码文件后跑测试，失败注入工具结果
@@ -146,7 +155,7 @@ public partial class Agent
             {
                 var tc = batch[0];
                 onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
-                results[tc.Id] = await RunToolAndRecordAsync(tc, null);
+                results[tc.Id] = await RunToolAndRecordAsync(tc, null, cancellationToken);
             }
             else
             {
@@ -155,8 +164,8 @@ public partial class Agent
                 var tasks = batch.Select(async tc =>
                 {
                     onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
-                    await sem.WaitAsync();
-                    try { return (tc, await RunToolAndRecordAsync(tc, null)); }
+                    await sem.WaitAsync(cancellationToken);
+                    try { return (tc, await RunToolAndRecordAsync(tc, null, cancellationToken)); }
                     finally { sem.Release(); }
                 });
                 var batchResults = await Task.WhenAll(tasks);
@@ -178,12 +187,12 @@ public partial class Agent
     }
 
     /// <summary>执行单个工具并记录轨迹（耗时 + 成败 + 摘要），异常时记录失败后重抛。</summary>
-    private async Task<string> RunToolAndRecordAsync(ToolCall tc, Action<string>? onToolOutput)
+    private async Task<string> RunToolAndRecordAsync(ToolCall tc, Action<string>? onToolOutput, CancellationToken cancellationToken = default)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
-            var result = await ExecuteToolAsync(tc, onToolOutput);
+            var result = await ExecuteToolAsync(tc, onToolOutput, cancellationToken);
             _trajectory?.RecordTool(tc.Name, FormatBrief(tc.Arguments), result,
                 ok: !ToolResultClassifier.IsError(result), durationMs: sw.ElapsedMilliseconds);
             return result;
