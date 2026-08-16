@@ -97,7 +97,7 @@ public static class DiffPreview
 
     // ── 窗口构建 ──
 
-    private static TuiWindow BuildDiffWindow(List<Hunk> hunks, string filePath,
+    internal static TuiWindow BuildDiffWindow(List<Hunk> hunks, string filePath,
         TuiScreen? screen, Action<Decision, HashSet<int>?> onDone)
     {
         int winW = Math.Max(40, Tty.Cols - 2);
@@ -327,6 +327,32 @@ public static class DiffPreview
             return false;
         }
 
+        /// <summary>鼠标滚轮滚动 diff 内容（每格 3 行），防止超出屏幕。</summary>
+        public override bool HandleMouse(InputEvent ev)
+        {
+            if (ev.Type != InputType.Mouse) return false;
+
+            int absX = GetAbsoluteX();
+            int absY = GetAbsoluteY();
+            if (ev.MouseX < absX || ev.MouseX >= absX + Width ||
+                ev.MouseY < absY || ev.MouseY >= absY + Height)
+                return false;
+
+            if (ev.MouseScrollUp) { ScrollBy(-3); return true; }
+            if (ev.MouseScrollDown) { ScrollBy(3); return true; }
+            return false;
+        }
+
+        /// <summary>按行数滚动，钳制到有效范围。</summary>
+        private void ScrollBy(int delta)
+        {
+            int maxScroll = Math.Max(0, TotalLines - Height);
+            int next = Math.Clamp(_scrollOffset + delta, 0, maxScroll);
+            if (next == _scrollOffset) return;
+            _scrollOffset = next;
+            Changed();
+        }
+
         private void Changed()
         {
             MarkDirty();
@@ -340,14 +366,31 @@ public static class DiffPreview
             EnsureVisible(Height);
 
             int total = TotalLines;
+            bool showBar = total > Height && width > 2;
+            int contentW = showBar ? width - 1 : width;
+
             for (int i = 0; i < Height; i++)
             {
                 int li = _scrollOffset + i;
                 if (li >= total) break;
                 if (_splitMode)
-                    RenderSplitRow(sb, _splitRows![li], width, _currentHunk, _accepted, _syntax, absY + i, absX);
+                    RenderSplitRow(sb, _splitRows![li], contentW, _currentHunk, _accepted, _syntax, absY + i, absX);
                 else
-                    RenderUnifiedLine(sb, _lines[li], width, _currentHunk, _accepted, _syntax, absY + i, absX);
+                    RenderUnifiedLine(sb, _lines[li], contentW, _currentHunk, _accepted, _syntax, absY + i, absX);
+            }
+
+            // 右侧滚动条（▉ 滑块 + │ 轨道），提示内容可滚动、定位当前位置
+            if (showBar)
+            {
+                int barH = Math.Max(1, Height * Height / total);
+                int barPos = Height * _scrollOffset / Math.Max(1, total - Height);
+                barPos = Math.Clamp(barPos, 0, Height - barH);
+                for (int i = 0; i < Height; i++)
+                {
+                    var ch = (i >= barPos && i < barPos + barH) ? "█" : "│";
+                    sb.Append(AnsiTty.CursorPos0(absY + i, absX + contentW));
+                    sb.Append(AnsiTty.SgrDim).Append(ch).Append(AnsiTty.SgrReset);
+                }
             }
         }
     }

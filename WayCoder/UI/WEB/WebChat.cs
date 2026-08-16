@@ -41,6 +41,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         public Agent? Agent;
         public volatile bool IsBusy;
         public CancellationTokenSource? Cts;
+        /// <summary>串行化 StartSlotTask 的 check-then-act，防同槽位并发请求双启动。</summary>
+        public readonly object StartLock = new();
     }
 
     /// <summary>SSE 客户端（写失败 = 断开）。</summary>
@@ -531,13 +533,18 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     private void StartSlotTask(int slotIdx, string userInput)
     {
         var slot = _slots[slotIdx];
-        if (slot.IsBusy)
+        // 原子抢占：check-then-act 在锁内完成，杜绝两个并发请求同时通过 IsBusy 检查
+        // 导致同槽位双 Agent 并发执行、第二个 CTS 覆盖第一个（泄漏）。
+        lock (slot.StartLock)
         {
-            BroadcastTo(slotIdx, "system", JsonStr("当前槽位仍在运行，请先停止再发送"));
-            return;
+            if (slot.IsBusy)
+            {
+                BroadcastTo(slotIdx, "system", JsonStr("当前槽位仍在运行，请先停止再发送"));
+                return;
+            }
+            slot.IsBusy = true;
         }
         var agent = EnsureSlot(slotIdx);
-        slot.IsBusy = true;
         var roundCts = new CancellationTokenSource();
         slot.Cts = roundCts;
         var token = roundCts.Token;
@@ -564,11 +571,11 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             }
             finally
             {
-                slot.IsBusy = false;
-                // 仅当仍指向本轮 CTS 时才清空并释放；若并发 Interrupt 已 Exchange 走该 CTS，
-                // 则交给 Interrupt 处理，避免 Dispose 后再 Cancel 抛 ObjectDisposedException。
+                // 先原子摘除并释放本轮 CTS，再置空闲——否则置空闲后新请求可能写入新 CTS，
+                // 与这里的 CompareExchange 竞态；先摘除令牌，新请求在锁内仍被 IsBusy=true 挡住。
                 if (ReferenceEquals(Interlocked.CompareExchange(ref slot.Cts, null, roundCts), roundCts))
                     roundCts.Dispose();
+                slot.IsBusy = false;
                 _currentSlot.Value = 0;
             }
         });

@@ -236,10 +236,10 @@ public partial class Program
             // 超时 — 继续轮询
             if (ev.Type == InputType.Timeout) continue;
 
-            // 鼠标 — 路由给 TuiManager → 活跃屏幕 → 控件树
+            // 鼠标 — 路由给 TuiManager → 活跃屏幕 → 控件树（仅在启用鼠标时）
             if (ev.Type == InputType.Mouse)
             {
-                mgr.HandleMouse(ev);
+                if (TuiManager.MouseEnabled) mgr.HandleMouse(ev);
                 mgr.Render();
                 continue;
             }
@@ -298,7 +298,14 @@ public partial class Program
             {
                 if (key.Key == ConsoleKey.Escape)
                 {
-                    _slots[_activeSlot].Cts?.Cancel();
+                    // 原子摘除 CTS，与后台 finally 的 Dispose 对齐（只有一个能取到非 null，取到者负责释放），
+                    // 消除「读到非空 → 后台 Dispose → Cancel 抛 ObjectDisposedException」竞态。
+                    var cts = Interlocked.Exchange(ref _slots[_activeSlot].Cts, null);
+                    if (cts != null)
+                    {
+                        try { cts.Cancel(); } catch { }
+                        cts.Dispose();
+                    }
                     screen.AddSystemMsg("⚠ 已请求中断当前槽位的 Agent");
                     mgr.Render();
                     continue;

@@ -145,7 +145,7 @@ public static class PermissionManager
                 var lines = details.Split('\n');
                 var summary = lines.Length > 0 ? lines[0] : details;
                 var fullDetail = string.Join("\n", lines);
-                result = activeScreen.ShowInlinePermission(toolName, summary, fullDetail, isDangerous);
+                result = activeScreen.ShowPermissionDialog(toolName, summary, fullDetail, isDangerous);
             }
             else if (UxHelper.WebInteraction != null)
             {

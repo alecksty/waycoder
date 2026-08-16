@@ -120,6 +120,14 @@ public partial class Agent
         // 工具白名单/黑名单过滤
         Tools = FilterTools(Tools);
 
+        // 每个 Agent 持有独立的 AgentTool 实例：共享单例会让 ParentAgent 被后构造的
+        // 子智能体覆写（AgentId 继承失效、花费归并到错误实例、跨槽位重绑竞态）。
+        for (var i = 0; i < Tools.Count; i++)
+        {
+            if (Tools[i] is AgentTool)
+                Tools[i] = new AgentTool();
+        }
+
         ToolByName = Tools.ToDictionary(t => t.Name);
         Context = new ContextManager(maxContextTokens);
         _maxRounds = maxRounds;
