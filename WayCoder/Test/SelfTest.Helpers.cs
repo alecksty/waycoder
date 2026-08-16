@@ -2553,7 +2553,7 @@ public static partial class SelfTest
 
         // ── 4. 前端 HTML 含关键元素 ──
         var html = WayCoder.UI.Web.WebAssets.Html;
-        Check("Web: HTML 含 EventSource", html.Contains("EventSource('/events')"));
+        Check("Web: HTML 含 EventSource", html.Contains("EventSource('/events?client=' + clientId)"));
         Check("Web: HTML 含 /chat", html.Contains("/chat"));
         Check("Web: HTML 含 /interrupt", html.Contains("/interrupt"));
         Check("Web: HTML 含 Markdown 渲染器", html.Contains("function mdToHtml"));
@@ -2696,6 +2696,22 @@ public static partial class SelfTest
             var slotBody = slotResp.Content.ReadAsStringAsync().Result;
             Check("WebFull: POST /slot 返回历史数组", Json.Parse(slotBody)?.Kind == JKind.Array);
 
+            // 双客户端绑不同槽位（页面作用域隔离核心：各页开始/停止只作用自己的槽位）
+            var stA = client.GetStringAsync(baseUrl + "/state?client=aaa").Result;
+            var stB = client.GetStringAsync(baseUrl + "/state?client=bbb").Result;
+            int slotA = (int)Math.Round(Json.Parse(stA)?["activeSlot"]?.AsNumber() ?? -1);
+            int slotB = (int)Math.Round(Json.Parse(stB)?["activeSlot"]?.AsNumber() ?? -1);
+            Check("WebFull: 两个客户端分配不同槽位", slotA >= 0 && slotB >= 0 && slotA != slotB);
+
+            client.PostAsync(baseUrl + "/slot?client=aaa",
+                new StringContent("{\"slot\":3}", Encoding.UTF8, "application/json")).Wait();
+            var stA2 = client.GetStringAsync(baseUrl + "/state?client=aaa").Result;
+            var stB2 = client.GetStringAsync(baseUrl + "/state?client=bbb").Result;
+            int slotA2 = (int)Math.Round(Json.Parse(stA2)?["activeSlot"]?.AsNumber() ?? -1);
+            int slotB2 = (int)Math.Round(Json.Parse(stB2)?["activeSlot"]?.AsNumber() ?? -1);
+            Check("WebFull: clientA 切到槽 3", slotA2 == 3);
+            Check("WebFull: clientB 不受 clientA 切槽影响", slotB2 == slotB);
+
             var badModel = client.PostAsync(baseUrl + "/model",
                 new StringContent("{\"modelId\":\"no-such\"}", Encoding.UTF8, "application/json")).Result;
             Check("WebFull: POST /model 非法模型报错", badModel.Content.ReadAsStringAsync().Result.Contains("\"ok\":false"));
@@ -2755,6 +2771,20 @@ public static partial class SelfTest
         Check("WebRes: SSE 满", WayCoder.UI.Web.WebChatServer.SseClientsFull(WayCoder.UI.Web.WebChatServer.MaxSseClients));
         Check("WebRes: 输入队列未满", !WayCoder.UI.Web.WebChatServer.InputQueueFull(WayCoder.UI.Web.WebChatServer.MaxPendingInput - 1));
         Check("WebRes: 输入队列满", WayCoder.UI.Web.WebChatServer.InputQueueFull(WayCoder.UI.Web.WebChatServer.MaxPendingInput));
+
+        // ── 4b. 客户端身份解析 + 槽位分配（页面作用域隔离）──
+        Check("WebSlot: client 从 query 取出", WayCoder.UI.Web.WebChatServer.ParseClientQuery("client=abc123") == "abc123");
+        Check("WebSlot: client 多参数排序无关", WayCoder.UI.Web.WebChatServer.ParseClientQuery("a=1&client=xyz&b=2") == "xyz");
+        Check("WebSlot: client 大小写不敏感", WayCoder.UI.Web.WebChatServer.ParseClientQuery("CLIENT=Abc") == "Abc");
+        Check("WebSlot: client 含 URL 编码", WayCoder.UI.Web.WebChatServer.ParseClientQuery("client=c%201%2B2") == "c 1+2");
+        Check("WebSlot: 无 client 返回 null", WayCoder.UI.Web.WebChatServer.ParseClientQuery("a=1&b=2") == null);
+        Check("WebSlot: 空 query 返回 null", WayCoder.UI.Web.WebChatServer.ParseClientQuery("") == null);
+        Check("WebSlot: null query 返回 null", WayCoder.UI.Web.WebChatServer.ParseClientQuery(null) == null);
+        Check("WebSlot: client 无值返回空串", WayCoder.UI.Web.WebChatServer.ParseClientQuery("client=") == "");
+        Check("WebSlot: 空闲槽位取首个", WayCoder.UI.Web.WebChatServer.PickFreeSlot(new[] { true, false, false, false }, 4) == 1);
+        Check("WebSlot: 全空取 0", WayCoder.UI.Web.WebChatServer.PickFreeSlot(new[] { false, false, false }, 3) == 0);
+        Check("WebSlot: 全满回退 0", WayCoder.UI.Web.WebChatServer.PickFreeSlot(new[] { true, true, true }, 3) == 0);
+        Check("WebSlot: 前段占用跳过", WayCoder.UI.Web.WebChatServer.PickFreeSlot(new[] { true, true, false, true }, 4) == 2);
 
         // ── 5. XSS 转义（工具名/参数注入 innerHTML 前转义）──
         Check("WebRes: HtmlEscape 脚本标签", WayCoder.UI.Web.WebChatServer.HtmlEscape("<script>alert(1)</script>") == "&lt;script&gt;alert(1)&lt;/script&gt;");

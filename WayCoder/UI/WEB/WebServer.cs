@@ -73,8 +73,8 @@ public sealed class HttpServer
     /// <summary>普通请求处理器（返回 null 表示 404）。</summary>
     public Func<HttpRequest, HttpResponse?>? OnRequest;
 
-    /// <summary>SSE 长连接处理器（阻塞写事件直到客户端断开）。</summary>
-    public Func<StreamWriter, Task>? OnSse;
+    /// <summary>SSE 长连接处理器（阻塞写事件直到客户端断开）。接收请求对象以读取 query（如 client 标识）。</summary>
+    public Func<HttpRequest, StreamWriter, Task>? OnSse;
 
     /// <summary>SSE 端点路径。</summary>
     public string SsePath { get; set; } = "/events";
@@ -138,7 +138,7 @@ public sealed class HttpServer
                 // SSE 长连接
                 if (req.Method == "GET" && req.Path == SsePath && OnSse != null)
                 {
-                    await WriteSseAsync(stream, OnSse);
+                    await WriteSseAsync(stream, req, OnSse);
                     return;
                 }
 
@@ -325,7 +325,7 @@ public sealed class HttpServer
         await stream.FlushAsync();
     }
 
-    private static async Task WriteSseAsync(NetworkStream stream, Func<StreamWriter, Task> onSse)
+    private static async Task WriteSseAsync(NetworkStream stream, HttpRequest req, Func<HttpRequest, StreamWriter, Task> onSse)
     {
         var head = "HTTP/1.1 200 OK\r\n" +
                    "Content-Type: text/event-stream\r\n" +
@@ -337,6 +337,6 @@ public sealed class HttpServer
         await stream.FlushAsync();
 
         using var writer = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = true };
-        await onSse(writer);
+        await onSse(req, writer);
     }
 }
