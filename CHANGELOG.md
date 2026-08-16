@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.71.2 (2026-08-16) — Web 会话记录按槽位隔离
+
+每个浏览器页面（= 一个槽位 = 一个「虚拟用户 + 智能体」）拥有独立的会话记录：单端口下各页面只看到、保存、加载、删除自己槽位的会话，互不串扰。
+
+### ✨ 会话记录按槽位隔离
+
+- **`SessionManager` 增加槽位维度**：`SaveSession`/`LoadSession`/`ListSessions`/`DeleteSession`/`RenameSession`/`DeleteAllSessions` 均新增可选 `slot` 参数（默认 -1 = 全局共享，终端 TUI 沿用旧行为）；传 0-9 时记录写入 `~/.waycoder/sessions/slot{N}/` 子目录，各槽位物理隔离
+- **槽位隔离模式不回退旧目录**：`LoadSession`/`ListSessions` 在 slot≥0 时只读该槽位子目录，不扫描全局目录或 `.corecoder` 旧目录，杜绝跨槽位读取
+- **`DeleteAllSessions(slot)` 只清空该槽位**：清空按钮按当前页面槽位作用，不影响其他页面的会话记录
+- **Web 层贯穿槽位**：`HandleCommand`/`WebSessionText` 增加 `slot` 参数；`/session save|load|list`、`/sessions`（GET 列表）、`/sessions/load|delete|rename|clear` 全部按当前客户端绑定的槽位作用
+- **会话广播按槽位路由**：`BroadcastAll("sessions")` 改为 `BroadcastTo(slot, "sessions", SerializeSessions(slot))`，会话列表 SSE 事件只发给本槽位页面；前端 `fetchSessions`/删除/重命名/清空请求统一走 `?client=` 标识槽位
+
+### 🧪 自测
+
+- 新增 `SessionSlot` 断言组：槽位 0/1 各自只列自己会话、跨槽位加载返回 null、同槽位加载命中、`SerializeSessions(0|1)` 各自隔离、`DeleteAllSessions(0)` 只清空槽位 0 而槽位 1 保留
+
 ## v0.71.1 (2026-08-16) — Web 停止按钮按页面隔离 + 发送按钮改版
 
 Web 版停止按钮修复为「每个浏览器页面只作用于自己的 agent」：后端从单活动槽位 + 单取消令牌 + 单顺序循环，改为每页面（SSE 客户端）绑定一个槽位、各槽位独立并发执行；发送按钮改为圆形 + 纸飞机图标。
