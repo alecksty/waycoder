@@ -2537,6 +2537,11 @@ public static partial class SelfTest
         Check("Web: HTML 含 EventSource", html.Contains("EventSource('/events')"));
         Check("Web: HTML 含 /chat", html.Contains("/chat"));
         Check("Web: HTML 含 /interrupt", html.Contains("/interrupt"));
+        Check("Web: HTML 含 Markdown 渲染器", html.Contains("function mdToHtml"));
+        Check("Web: HTML 含 finalizeAssistant", html.Contains("function finalizeAssistant"));
+        Check("Web: HTML 含流式态样式", html.Contains(".msg.assistant.streaming"));
+        Check("Web: HTML 含权限模式下拉", html.Contains("id=\"perm-select\""));
+        Check("Web: HTML 含权限模式切换", html.Contains("/perm"));
 
         // ── 5. 端到端冒烟：HTTP 服务 GET / ──
         var server = new WayCoder.Web.HttpServer(0);
@@ -2599,6 +2604,7 @@ public static partial class SelfTest
         var stateJson = WayCoder.Web.WebChatServer.SerializeState(0, slots);
         Check("WebFull: state 含 activeSlot=0", stateJson.Contains("\"activeSlot\":0"));
         Check("WebFull: state 含 slots", stateJson.Contains("\"slots\":"));
+        Check("WebFull: state 含 permMode", stateJson.Contains("\"permMode\":"));
         Check("WebFull: history 空数组", WayCoder.Web.WebChatServer.SerializeHistory(a0).Trim() == "[]");
 
         // ── 5. ApplyModel 非法模型（安全分支，不触发持久化）──
@@ -2800,6 +2806,18 @@ public static partial class SelfTest
                 new StringContent("{\"requestId\":\"999999\",\"value\":\"x\"}", Encoding.UTF8, "application/json")).Result;
             Check("WebPanel: POST /answer 无匹配报错",
                 ansResp.Content.ReadAsStringAsync().Result.Contains("\"ok\":false"));
+
+            // /perm 权限模式切换：设置后 state 反映，且恢复 ask 避免污染其它测试
+            var permResp = client.PostAsync(baseUrl + "/perm",
+                new StringContent("{\"mode\":\"yolo\"}", Encoding.UTF8, "application/json")).Result;
+            Check("WebPanel: POST /perm 成功", permResp.Content.ReadAsStringAsync().Result.Contains("\"ok\":true"));
+            var stAfterPerm = client.GetStringAsync(baseUrl + "/state").Result;
+            Check("WebPanel: /perm 后 state 反映 yolo", stAfterPerm.Contains("\"permMode\":\"yolo\""));
+            var permBad = client.PostAsync(baseUrl + "/perm",
+                new StringContent("{}", Encoding.UTF8, "application/json")).Result;
+            Check("WebPanel: POST /perm 缺 mode 报错", permBad.Content.ReadAsStringAsync().Result.Contains("\"ok\":false"));
+            client.PostAsync(baseUrl + "/perm",
+                new StringContent("{\"mode\":\"ask\"}", Encoding.UTF8, "application/json")).Wait();
         }
         catch { Check("WebPanel: 端点冒烟", false); }
         finally { web.Stop(); }

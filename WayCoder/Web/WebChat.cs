@@ -161,6 +161,18 @@ public sealed class WebChatServer : UxHelper.IWebInteraction
             return HttpResponse.JsonBody(Ok());
         }
 
+        // 权限模式切换（Web 版从「强制 YOLO」改为用户可选）
+        if (req.Method == "POST" && req.Path == "/perm")
+        {
+            var body = Json.Parse(req.Body);
+            var mode = body?["mode"]?.AsString() ?? "";
+            if (string.IsNullOrWhiteSpace(mode))
+                return HttpResponse.JsonBody(Err("缺少 mode"));
+            PermissionManager.SetMode(mode);
+            Broadcast("state", SerializeState(_activeSlot, _slots));
+            return HttpResponse.JsonBody(Ok());
+        }
+
         // 右栏信息面板
         if (req.Method == "GET" && req.Path == "/panel")
             return HttpResponse.JsonBody(SerializePanel(_activeSlot, _slots));
@@ -488,6 +500,7 @@ public sealed class WebChatServer : UxHelper.IWebInteraction
             .Set("provider", providerId)
             .Set("providerName", ModelCatalog.Providers.TryGetValue(providerId, out var p) ? p.DisplayName : providerId)
             .Set("hasKey", hasKey)
+            .Set("permMode", PermissionManager.CurrentMode.ToString().ToLowerInvariant())
             .Set("slots", slotArr)
             .ToJson();
     }
@@ -898,6 +911,26 @@ select optgroup { background:var(--panel); color:var(--text); }
 .tool { align-self:flex-start; background:var(--tool); border:1px solid var(--border); border-radius:12px; padding:7px 13px; font-size:13px; color:var(--dim); }
 .tool b { color:#e8b34b; }
 .tool-output { align-self:stretch; background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:9px 13px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; white-space:pre-wrap; word-break:break-word; color:var(--text); max-height:320px; overflow-y:auto; }
+
+/* ── Markdown 渲染 ── */
+.msg.assistant { white-space:normal; }
+.msg.assistant.streaming { white-space:pre-wrap; }
+.msg h1,.msg h2,.msg h3,.msg h4,.msg h5,.msg h6 { margin:10px 0 4px; line-height:1.3; font-weight:700; }
+.msg h1 { font-size:1.35em; } .msg h2 { font-size:1.25em; } .msg h3 { font-size:1.15em; } .msg h4,.msg h5,.msg h6 { font-size:1.05em; }
+.msg p { margin:4px 0; }
+.msg ul,.msg ol { margin:4px 0 4px 22px; }
+.msg li { margin:2px 0; }
+.msg blockquote { border-left:3px solid var(--accent); padding:2px 0 2px 11px; margin:6px 0; color:var(--dim); }
+.msg blockquote p { margin:2px 0; }
+.msg a { color:var(--accent); text-decoration:none; }
+.msg a:hover { text-decoration:underline; }
+.msg hr { border:none; border-top:1px solid var(--border); margin:12px 0; }
+.msg .md-code { background:var(--bg); border:1px solid var(--border); border-radius:9px; padding:10px 13px; margin:8px 0; overflow-x:auto; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; white-space:pre; }
+.msg .md-code code { font-family:inherit; background:none; border:none; padding:0; }
+.msg .md-inline { background:var(--panel2); border:1px solid var(--border); border-radius:5px; padding:0 5px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.9em; }
+.msg .md-table { border-collapse:collapse; margin:8px 0; font-size:12.5px; max-width:100%; display:block; overflow-x:auto; }
+.msg .md-table th,.msg .md-table td { border:1px solid var(--border); padding:5px 10px; text-align:left; white-space:normal; }
+.msg .md-table th { background:var(--panel2); font-weight:700; }
 #input-bar { display:flex; gap:8px; padding:11px 14px; border-top:1px solid var(--border); background:var(--panel); }
 #input { flex:1; resize:none; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:14px; padding:10px 14px; font:inherit; min-height:42px; max-height:200px; outline:none; }
 #input:focus { border-color:var(--accent); }
@@ -922,9 +955,9 @@ select optgroup { background:var(--panel); color:var(--text); }
 .token-grid { display:grid; grid-template-columns:1fr 1fr; gap:3px 10px; font-size:12px; }
 .token-grid .v { text-align:right; font-variant-numeric:tabular-nums; }
 
-/* ── 设置抽屉（两列）── */
-#drawer { position:fixed; top:0; right:0; bottom:0; width:640px; max-width:94vw; background:var(--panel); border-left:1px solid var(--border); box-shadow:var(--shadow); transform:translateX(100%); transition:transform .25s; z-index:50; display:flex; flex-direction:column; }
-#drawer.open { transform:translateX(0); }
+/* ── 设置窗口（两列，居中弹出）── */
+#drawer { position:fixed; top:50%; left:50%; width:780px; max-width:94vw; height:82vh; max-height:92vh; background:var(--panel); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); transform:translate(-50%,-50%) scale(.96); opacity:0; pointer-events:none; transition:transform .2s,opacity .2s; z-index:50; display:flex; flex-direction:column; }
+#drawer.open { transform:translate(-50%,-50%) scale(1); opacity:1; pointer-events:auto; }
 #drawer-head { padding:13px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; }
 #drawer-head b { flex:1; }
 #drawer-body { flex:1; overflow:hidden; display:flex; }
@@ -954,13 +987,31 @@ select optgroup { background:var(--panel); color:var(--text); }
 .ask-message { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; white-space:pre-wrap; word-break:break-all; margin-bottom:12px; max-height:220px; overflow-y:auto; }
 .ask-multi { display:block; padding:6px 2px; font-size:13.5px; }
 .ask-multi input { margin-right:8px; }
+/* ── 模型选择窗口 ── */
+.model-card { width:560px; }
+#model-search { margin-bottom:0; }
+.model-group .gname { font-size:12px; color:var(--dim); font-weight:700; margin:10px 0 5px; text-transform:uppercase; letter-spacing:.4px; }
+.model-item { display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; border:1px solid var(--border); background:var(--panel2); cursor:pointer; margin-bottom:6px; }
+.model-item:hover { border-color:var(--accent); }
+.model-item.selected { border-color:var(--accent); background:var(--panel); }
+.model-item .name { font-weight:600; }
+.model-item .meta { font-size:11px; color:var(--dim); white-space:nowrap; margin-left:auto; }
+.tag { font-size:10px; padding:1px 7px; border-radius:8px; white-space:nowrap; }
+.tag.cat { background:var(--panel); border:1px solid var(--border); color:var(--dim); }
+.tag.nokey { background:var(--danger); color:#ff9a9a; }
 </style>
 </head>
 <body>
 <header>
   <div class="logo">🤖 Way<span>Coder</span></div>
   <div class="spacer"></div>
-  <select id="model-select" title="切换模型"></select>
+  <button class="btn" id="model-btn" title="选择模型">🧠 <span id="model-btn-label">模型</span></button>
+  <select id="perm-select" title="权限模式（YOLO=直接执行 / Ask=每次确认）">
+    <option value="ask">🛡 Ask</option>
+    <option value="auto">✅ Auto</option>
+    <option value="smartauto">🧭 SmartAuto</option>
+    <option value="yolo">⚡ YOLO</option>
+  </select>
   <button class="btn ghost" id="theme-btn" title="切换主题">🌙</button>
   <button class="btn" id="settings-btn" title="设置">⚙ 设置</button>
 </header>
@@ -1000,6 +1051,17 @@ select optgroup { background:var(--panel); color:var(--text); }
   </div>
 </div>
 
+<div class="modal" id="model-modal">
+  <div class="modal-card model-card">
+    <h2>🧠 选择模型</h2>
+    <div class="row" style="margin-bottom:10px;">
+      <input id="model-search" type="text" placeholder="搜索模型名称 / 供应商…">
+      <button class="btn ghost" id="model-close" style="font-size:20px;">×</button>
+    </div>
+    <div id="model-list"></div>
+  </div>
+</div>
+
 <div class="modal" id="key-modal">
   <div class="modal-card">
     <h2>🔑 输入 API Key</h2>
@@ -1025,7 +1087,6 @@ const messages = document.getElementById('messages');
 const input = document.getElementById('input');
 const slotsEl = document.getElementById('slot-list');
 const sessionListEl = document.getElementById('session-list');
-const modelSel = document.getElementById('model-select');
 const drawer = document.getElementById('drawer');
 const drawerBody = document.getElementById('drawer-body');
 const settingsNav = document.getElementById('settings-nav');
@@ -1042,7 +1103,11 @@ function scroll() { messages.scrollTop = messages.scrollHeight; }
 function addMsg(role, text) {
   const el = document.createElement('div');
   el.className = 'msg ' + role;
-  el.textContent = text;
+  if (role === 'assistant' && text) {
+    el.innerHTML = mdToHtml(text);
+  } else {
+    el.textContent = text;
+  }
   messages.appendChild(el);
   scroll();
   return el;
@@ -1055,10 +1120,21 @@ function addTool(name, args) {
   scroll();
 }
 function ensureAssistantStream() {
-  if (!assistantStreamEl) assistantStreamEl = addMsg('assistant', '');
+  if (!assistantStreamEl) {
+    assistantStreamEl = addMsg('assistant', '');
+    assistantStreamEl.classList.add('streaming');
+  }
   return assistantStreamEl;
 }
 function endAssistantStream() { assistantStreamEl = null; }
+function finalizeAssistant() {
+  if (assistantStreamEl) {
+    assistantStreamEl.classList.remove('streaming');
+    if (assistantStreamEl.textContent) {
+      assistantStreamEl.innerHTML = mdToHtml(assistantStreamEl.textContent);
+    }
+  }
+}
 function ensureToolOutput() {
   if (!toolOutputEl) {
     toolOutputEl = document.createElement('div');
@@ -1079,6 +1155,14 @@ function applyTheme(t) {
 }
 document.getElementById('theme-btn').onclick = () =>
   applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
+
+// ── 权限模式（顶栏下拉）──
+const permSelect = document.getElementById('perm-select');
+function applyPermMode(mode) {
+  if (mode && permSelect.value !== mode) permSelect.value = mode;
+}
+permSelect.onchange = () =>
+  fetch('/perm', { method: 'POST', body: JSON.stringify({ mode: permSelect.value }) }).catch(() => {});
 
 // ── 槽位（左栏）──
 function renderSlots(state) {
@@ -1216,41 +1300,93 @@ function renderLsp(lsp) {
   }).join('');
 }
 
-// ── 模型下拉 ──
+// ── 模型选择窗口 ──
 let modelMap = {};
+let allModels = [];
+let currentModelId = '';
 let pendingModelId = '';
 function renderModels(models, state) {
   modelMap = {};
+  allModels = models;
+  models.forEach(m => { modelMap[m.id] = m; });
+  currentModelId = state.model;
+  updateModelBtn();
+}
+function updateModelBtn() {
+  const m = modelMap[currentModelId];
+  document.getElementById('model-btn-label').textContent = m ? m.name : (currentModelId || '模型');
+}
+function formatContext(ctx) {
+  if (!ctx) return '';
+  return ctx >= 1024 ? (Math.round(ctx / 1024)) + 'k' : ctx;
+}
+function openModelModal() {
+  document.getElementById('model-search').value = '';
+  renderModelList('');
+  document.getElementById('model-modal').classList.add('open');
+}
+function renderModelList(filter) {
+  const el = document.getElementById('model-list');
+  const f = (filter || '').trim().toLowerCase();
   const byProvider = {};
-  models.forEach(m => { modelMap[m.id] = m; (byProvider[m.providerId] = byProvider[m.providerId] || []).push(m); });
-  modelSel.innerHTML = '';
-  Object.keys(byProvider).forEach(pid => {
-    const og = document.createElement('optgroup');
-    og.label = pid;
+  allModels.forEach(m => {
+    if (f && !(m.name.toLowerCase().includes(f) || m.provider.toLowerCase().includes(f) || m.providerId.toLowerCase().includes(f))) return;
+    (byProvider[m.providerId] = byProvider[m.providerId] || []).push(m);
+  });
+  el.innerHTML = '';
+  const pids = Object.keys(byProvider);
+  if (pids.length === 0) { el.innerHTML = '<div class="empty">无匹配模型</div>'; return; }
+  pids.forEach(pid => {
+    const g = document.createElement('div');
+    g.className = 'model-group';
+    const gn = document.createElement('div');
+    gn.className = 'gname';
+    gn.textContent = pid;
+    g.appendChild(gn);
     byProvider[pid].forEach(m => {
-      const op = document.createElement('option');
-      op.value = m.id;
-      op.textContent = m.name + (m.inputPrice > 0 ? ('  ($' + m.inputPrice + ')') : '');
-      if (m.id === state.model) op.selected = true;
-      og.appendChild(op);
+      const item = document.createElement('div');
+      item.className = 'model-item' + (m.id === currentModelId ? ' selected' : '');
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = m.name;
+      const cat = document.createElement('span');
+      cat.className = 'tag cat';
+      cat.textContent = m.category || pid;
+      item.appendChild(name);
+      item.appendChild(cat);
+      if (!m.hasKey) {
+        const nk = document.createElement('span');
+        nk.className = 'tag nokey';
+        nk.textContent = '需 key';
+        item.appendChild(nk);
+      }
+      const meta = document.createElement('span');
+      meta.className = 'meta';
+      meta.textContent = formatContext(m.context) + (m.inputPrice > 0 ? (' · $' + m.inputPrice) : '');
+      item.appendChild(meta);
+      item.onclick = () => chooseModel(m);
+      g.appendChild(item);
     });
-    modelSel.appendChild(og);
+    el.appendChild(g);
   });
 }
-modelSel.onchange = () => switchModel(modelSel.value);
-function switchModel(modelId) {
-  const m = modelMap[modelId];
-  if (!m) return;
+function chooseModel(m) {
   if (!m.hasKey && m.providerId !== 'local' && m.providerId !== 'custom') {
-    pendingModelId = modelId;
+    pendingModelId = m.id;
     currentProvider = m.providerId;
     document.getElementById('key-hint').textContent = '为 ' + m.providerId + ' 输入 API Key（保存后切换到 ' + m.name + '）。';
     document.getElementById('key-input').value = '';
+    document.getElementById('model-modal').classList.remove('open');
     keyModal.classList.add('open');
     return;
   }
-  fetch('/model', { method: 'POST', body: JSON.stringify({ modelId: modelId }) }).catch(() => {});
+  fetch('/model', { method: 'POST', body: JSON.stringify({ modelId: m.id }) })
+    .then(() => { currentModelId = m.id; updateModelBtn(); renderModelList(document.getElementById('model-search').value); })
+    .catch(() => {});
 }
+document.getElementById('model-btn').onclick = openModelModal;
+document.getElementById('model-search').oninput = e => renderModelList(e.target.value);
+document.getElementById('model-close').onclick = () => document.getElementById('model-modal').classList.remove('open');
 
 // ── key 弹窗 ──
 function saveKey() {
@@ -1262,7 +1398,9 @@ function saveKey() {
       keyModal.classList.remove('open');
       if (pendingModelId) {
         const id = pendingModelId; pendingModelId = '';
-        fetch('/model', { method: 'POST', body: JSON.stringify({ modelId: id }) }).catch(() => {});
+        fetch('/model', { method: 'POST', body: JSON.stringify({ modelId: id }) })
+          .then(() => { currentModelId = id; updateModelBtn(); })
+          .catch(() => {});
       }
     });
 }
@@ -1422,14 +1560,142 @@ function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// ── Markdown 渲染（手搓、XSS 安全：先转义再结构化）──
+function mdToHtml(src) {
+  if (!src) return '';
+  const lines = src.split('\n');
+  const out = [];
+  let paragraph = [];
+  let listType = null;   // 'ul' | 'ol' | null
+  let quote = false;
+
+  function inline(s) {
+    s = escapeHtml(s);
+    s = s.replace(/`([^`]+)`/g, '<code class="md-inline">$1</code>');
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/(^|[^*\w])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+    return s;
+  }
+  function flushParagraph() {
+    if (paragraph.length) { out.push('<p>' + paragraph.map(inline).join('<br>') + '</p>'); paragraph = []; }
+  }
+  function flushList() {
+    if (listType) { out.push('</' + listType + '>'); listType = null; }
+  }
+  function flushQuote() {
+    if (quote) { out.push('</blockquote>'); quote = false; }
+  }
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // 围栏代码块
+    if (/^```/.test(line)) {
+      flushParagraph(); flushList(); flushQuote();
+      const lang = line.slice(3).trim();
+      const code = [];
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i])) { code.push(lines[i]); i++; }
+      if (i < lines.length) i++; // 跳过结束 ```
+      out.push('<pre class="md-code"><code' + (lang ? ' class="lang-' + escapeHtml(lang) + '"' : '') + '>' + escapeHtml(code.join('\n')) + '</code></pre>');
+      continue;
+    }
+
+    // 表格（分隔行含 -，且上一行与分隔行都含 |）
+    if (line.includes('|') && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(lines[i + 1]) && lines[i + 1].includes('-')) {
+      flushParagraph(); flushList(); flushQuote();
+      const headers = splitRow(line);
+      i += 2; // 跳过表头与分隔行
+      const rows = [];
+      while (i < lines.length && lines[i].includes('|')) { rows.push(splitRow(lines[i])); i++; }
+      let t = '<table class="md-table"><thead><tr>' + headers.map(h => '<th>' + inline(h) + '</th>').join('') + '</tr></thead><tbody>';
+      t += rows.map(r => '<tr>' + r.map(c => '<td>' + inline(c) + '</td>').join('') + '</tr>').join('');
+      t += '</tbody></table>';
+      out.push(t);
+      continue;
+    }
+
+    // 水平线
+    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+      flushParagraph(); flushList(); flushQuote();
+      out.push('<hr>');
+      i++;
+      continue;
+    }
+
+    // 标题
+    const h = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (h) {
+      flushParagraph(); flushList(); flushQuote();
+      const lv = h[1].length;
+      out.push('<h' + lv + '>' + inline(h[2]) + '</h' + lv + '>');
+      i++;
+      continue;
+    }
+
+    // 引用
+    const q = /^>\s?(.*)$/.exec(line);
+    if (q) {
+      flushParagraph(); flushList();
+      if (!quote) { out.push('<blockquote>'); quote = true; }
+      out.push('<p>' + inline(q[1]) + '</p>');
+      i++;
+      continue;
+    }
+
+    // 无序列表
+    const ul = /^\s*[-*+]\s+(.*)$/.exec(line);
+    if (ul) {
+      flushParagraph(); flushQuote();
+      if (listType !== 'ul') { flushList(); out.push('<ul>'); listType = 'ul'; }
+      out.push('<li>' + inline(ul[1]) + '</li>');
+      i++;
+      continue;
+    }
+
+    // 有序列表
+    const ol = /^\s*\d+[.)]\s+(.*)$/.exec(line);
+    if (ol) {
+      flushParagraph(); flushQuote();
+      if (listType !== 'ol') { flushList(); out.push('<ol>'); listType = 'ol'; }
+      out.push('<li>' + inline(ol[1]) + '</li>');
+      i++;
+      continue;
+    }
+
+    // 空行 → 段落/列表/引用收尾
+    if (/^\s*$/.test(line)) {
+      flushParagraph(); flushList(); flushQuote();
+      i++;
+      continue;
+    }
+
+    // 普通文本行 → 段落
+    flushList(); flushQuote();
+    paragraph.push(line);
+    i++;
+  }
+  flushParagraph(); flushList(); flushQuote();
+  return out.join('\n');
+}
+
+function splitRow(line) {
+  let s = line.trim();
+  if (s.startsWith('|')) s = s.slice(1);
+  if (s.endsWith('|')) s = s.slice(0, -1);
+  return s.split('|').map(c => c.trim());
+}
+
 // ── SSE ──
 const es = new EventSource('/events');
 es.addEventListener('token', e => { endToolOutput(); ensureAssistantStream().textContent += JSON.parse(e.data); scroll(); });
 es.addEventListener('tool', e => { endAssistantStream(); const d = JSON.parse(e.data); addTool(d.name, d.args); });
 es.addEventListener('tool_output', e => { ensureToolOutput().textContent += JSON.parse(e.data); scroll(); });
-es.addEventListener('done', () => { endAssistantStream(); endToolOutput(); fetchPanel(); });
-es.addEventListener('interrupted', () => { endAssistantStream(); endToolOutput(); addMsg('system', '⚠ 已中断'); fetchPanel(); });
-es.addEventListener('failed', e => { endAssistantStream(); endToolOutput(); addMsg('system', '✘ ' + JSON.parse(e.data)); fetchPanel(); });
+es.addEventListener('done', () => { finalizeAssistant(); endAssistantStream(); endToolOutput(); fetchPanel(); });
+es.addEventListener('interrupted', () => { finalizeAssistant(); endAssistantStream(); endToolOutput(); addMsg('system', '⚠ 已中断'); fetchPanel(); });
+es.addEventListener('failed', e => { finalizeAssistant(); endAssistantStream(); endToolOutput(); addMsg('system', '✘ ' + JSON.parse(e.data)); fetchPanel(); });
 es.addEventListener('history', e => {
   const list = JSON.parse(e.data);
   if (messages.children.length === 0)
@@ -1439,7 +1705,9 @@ es.addEventListener('state', e => {
   const state = JSON.parse(e.data);
   currentProvider = state.provider;
   hasKey = state.hasKey;
+  applyPermMode(state.permMode);
   renderSlots(state);
+  if (state.model && state.model !== currentModelId) { currentModelId = state.model; updateModelBtn(); }
   fetchPanel();
 });
 es.addEventListener('sessions', () => fetchSessions());
@@ -1450,6 +1718,7 @@ applyTheme(localStorage.getItem('waycoder-theme') || 'dark');
 fetch('/state').then(r => r.json()).then(state => {
   currentProvider = state.provider;
   hasKey = state.hasKey;
+  applyPermMode(state.permMode);
   renderSlots(state);
 });
 fetch('/models').then(r => r.json()).then(models =>
