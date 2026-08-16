@@ -760,6 +760,9 @@ public static partial class SelfTest
         Check("Truncate 中文=8完整", UI.Shared.TuiHelper.TruncateByWidth("你好世界", 8) == "你好世界");
         Check("Esc 方括号不再需要转义", UI.Shared.TuiHelper.Esc("[文件]") == "[文件]");
         Check("Esc 转义书名号 «»", UI.Shared.TuiHelper.Esc("«文本»") == "««文本»»");
+        Check("StripMarkup 移除开始标签", UI.Shared.TuiHelper.StripMarkup("«bold»文本") == "文本");
+        Check("StripMarkup 移除结束标签 «/»", UI.Shared.TuiHelper.StripMarkup("«cyan»文本«/»") == "文本");
+        Check("StripMarkup 纯文本不变", UI.Shared.TuiHelper.StripMarkup("纯文本") == "纯文本");
         Console.WriteLine();
 
         // ---- 语法高亮 (Syntax) ----
