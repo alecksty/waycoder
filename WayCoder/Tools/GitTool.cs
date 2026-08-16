@@ -6,7 +6,7 @@ namespace WayCoder.Tools;
 /// Git 操作工具 —— 安全封装常用 git 命令。
 /// 输出自动截断，禁止 force push / hard reset 等危险操作。
 /// </summary>
-public class GitTool : ITool
+public class GitTool : ITool, ICancellableTool
 {
     public string Name => "git";
     public string Description => "执行 Git 操作：status、log、diff、add、commit、branch、blame。自动检测仓库根目录。禁止 force push / hard reset。";
@@ -24,12 +24,16 @@ public class GitTool : ITool
          "checkout -- .", "stash drop", "branch -D"];
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+        => await ExecuteAsync(arguments, CancellationToken.None);
+
+    /// <summary>可取消执行（ICancellableTool）：中断时杀掉 git 子进程。</summary>
+    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments, CancellationToken cancellationToken)
     {
         var command = arguments.GetValueOrDefault("command")?.ToString() ?? "";
-        return await Execute(command);
+        return await Execute(command, cancellationToken);
     }
 
-    private static async Task<string> Execute(string command)
+    private static async Task<string> Execute(string command, CancellationToken cancellationToken)
     {
         // 安全检查 1：命令注入拦截 —— git -c/--config 可设 alias.*='!cmd'、core.pager、core.sshCommand
         // 等，使 git 内部经 shell 执行任意命令（完全绕过 BashGuard 与权限确认）。
@@ -45,7 +49,7 @@ public class GitTool : ITool
 
         try
         {
-            var (exitCode, outStr, errStr) = await GitRunner.RunAsync(command);
+            var (exitCode, outStr, errStr) = await GitRunner.RunAsync(command, null, cancellationToken);
 
             var result = outStr;
             if (!string.IsNullOrEmpty(errStr))

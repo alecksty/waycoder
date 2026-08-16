@@ -4,7 +4,7 @@ namespace WayCoder.Tools;
 /// 下载 URL 到本地文件的工具。
 /// 对应 Crush 的 download 工具。
 /// </summary>
-public class DownloadTool : ITool
+public class DownloadTool : ITool, ICancellableTool
 {
     public string Name => "download";
     public string Description => "将 URL 的内容下载到本地文件。用于获取远程资源、下载依赖文件或保存外部数据。";
@@ -24,6 +24,10 @@ public class DownloadTool : ITool
         .Set("required", JNode.Array().Add("url").Add("file_path"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+        => await ExecuteAsync(arguments, CancellationToken.None);
+
+    /// <summary>可取消执行（ICancellableTool）：中断时取消在途下载。</summary>
+    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments, CancellationToken cancellationToken)
     {
         var url = arguments.GetValueOrDefault("url")?.ToString() ?? "";
         var filePath = arguments.GetValueOrDefault("file_path")?.ToString() ?? "";
@@ -70,7 +74,7 @@ public class DownloadTool : ITool
             long? totalSize = null;
             try
             {
-                using var headResponse = await SendWithRedirectAsync(client, HttpMethod.Head, url);
+                using var headResponse = await SendWithRedirectAsync(client, HttpMethod.Head, url, cancellationToken);
                 totalSize = headResponse.Content.Headers.ContentLength;
             }
             catch (SsgfBlockedException)
@@ -84,7 +88,7 @@ public class DownloadTool : ITool
 
             // 下载文件（网络故障带指数退避重试，仅 HttpRequestException，超时不重试）
             using var response = await RetryPolicy.RetryAsync(
-                () => SendWithRedirectAsync(client, HttpMethod.Get, url),
+                () => SendWithRedirectAsync(client, HttpMethod.Get, url, cancellationToken),
                 new RetryConfig
                 {
                     MaxRetries = 2,
@@ -101,9 +105,9 @@ public class DownloadTool : ITool
                 return $"错误：文件过大（{contentLength / 1024.0 / 1024.0:F1} MB），拒绝下载超过 500 MB 的文件";
 
             // 读取并写入文件
-            using var stream = await response.Content.ReadAsStreamAsync();
+            using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             using var fileStream = File.Create(filePath);
-            await stream.CopyToAsync(fileStream);
+            await stream.CopyToAsync(fileStream, cancellationToken);
 
             var fileInfo = new FileInfo(filePath);
             var sizeStr = fileInfo.Length switch
@@ -118,6 +122,12 @@ public class DownloadTool : ITool
         catch (SsgfBlockedException ex)
         {
             return $"错误：{ex.Message}";
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // 中断信号：清理未完成文件后向上传播
+            try { File.Delete(filePath); } catch { }
+            throw;
         }
         catch (TaskCanceledException)
         {
@@ -141,7 +151,7 @@ public class DownloadTool : ITool
     /// 发送请求并手动跟随重定向，每跳做 SSRF 校验（防重定向到内网/云元数据）。
     /// SSRF 拦截时抛 <see cref="SsgfBlockedException"/>（不进入网络重试）。
     /// </summary>
-    private static async Task<HttpResponseMessage> SendWithRedirectAsync(HttpClient client, HttpMethod method, string url)
+    private static async Task<HttpResponseMessage> SendWithRedirectAsync(HttpClient client, HttpMethod method, string url, CancellationToken cancellationToken)
     {
         var currentUrl = url;
         var currentMethod = method;
@@ -154,7 +164,7 @@ public class DownloadTool : ITool
             if (!dns.safe) throw new SsgfBlockedException(dns.reason!);
 
             var response = await client.SendAsync(
-                new HttpRequestMessage(currentMethod, currentUrl), HttpCompletionOption.ResponseHeadersRead);
+                new HttpRequestMessage(currentMethod, currentUrl), HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 
             if (SsgfGuard.IsRedirect((int)response.StatusCode) && response.Headers.Location != null)
             {

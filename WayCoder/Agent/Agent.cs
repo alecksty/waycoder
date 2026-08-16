@@ -70,6 +70,12 @@ public partial class Agent
     public WorkMode WorkMode { get; set; } = WorkMode.Build;
 
     /// <summary>
+    /// 本 Agent 的唯一标识（默认 "main"）。槽位 Agent 设为 F1-F10、子智能体继承父标识，
+    /// 供文件锁等跨 Agent 资源冲突检测与报错提示（WriteFile/EditFile 等工具经 _agent_id 读取）。
+    /// </summary>
+    public string AgentId { get; set; } = "main";
+
+    /// <summary>
     /// 工作模式变化回调（由 Program.cs 在绑定槽位时接线，携带槽位索引）。
     /// Agent 内部切换模式（如计划审批门批准后自动切回建造模式）时调用，
     /// 使正确槽位的持久模式与状态栏同步，而非依赖全局 ModeChanged 事件污染活跃槽位。

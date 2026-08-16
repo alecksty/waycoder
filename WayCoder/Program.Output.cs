@@ -36,23 +36,49 @@ public partial class Program
     private static void MarkupLine(string markup) => Console.WriteLine(SpectreToAnsi(markup));
 
     /// <summary>将类 Spectre 风格标记（使用 «» 符号）转换为 ANSI 转义码（通过 AnsiText 封装层）</summary>
+    /// <remarks>
+    /// 与 MarkdownRenderer.MapMarkupTag 保持语义一致：复合标签（bold/bright + 颜色）
+    /// 先于单标签替换，避免「bold yellow」被单标签误替换；「bold X」必须同时带粗体（SgrBold）。
+    /// </remarks>
     private static string SpectreToAnsi(string markup)
     {
         return markup
+            // ── 复合标签（先替换，避免被单标签截断）──
+            .Replace("«bold yellow»", AnsiTty.SgrBold + AnsiTty.FgCode(TuiColors.Yellow))
+            .Replace("«bold cyan»", AnsiTty.SgrBold + AnsiTty.FgCode(TuiColors.Cyan))
+            .Replace("«bold red»", AnsiTty.SgrBold + AnsiTty.FgCode(TuiColors.Red))
+            .Replace("«bold green»", AnsiTty.SgrBold + AnsiTty.FgCode(TuiColors.Green))
+            .Replace("«bold blue»", AnsiTty.SgrBold + AnsiTty.FgCode(TuiColors.Blue))
+            .Replace("«bold magenta»", AnsiTty.SgrBold + AnsiTty.FgCode(TuiColors.Magenta))
+            .Replace("«bold orange3»", AnsiTty.SgrBold + AnsiTty.FgCode(TuiColors.Yellow))
+            .Replace("«bright red»", AnsiTty.FgCode(TuiColors.BrightRed))
+            .Replace("«bright green»", AnsiTty.FgCode(TuiColors.BrightGreen))
+            .Replace("«bright yellow»", AnsiTty.FgCode(TuiColors.BrightYellow))
+            .Replace("«bright blue»", AnsiTty.FgCode(TuiColors.BrightBlue))
+            .Replace("«bright magenta»", AnsiTty.FgCode(TuiColors.BrightMagenta))
+            .Replace("«bright cyan»", AnsiTty.FgCode(TuiColors.BrightCyan))
+            // ── 样式标签 ──
             .Replace("«/»", AnsiTty.SgrReset)
-            .Replace("«dim»", AnsiTty.SgrDim)
             .Replace("«bold»", AnsiTty.SgrBold)
+            .Replace("«bright»", AnsiTty.SgrBold)
+            .Replace("«dim»", AnsiTty.SgrDim)
+            .Replace("«italic»", AnsiTty.SgrItalic)
+            .Replace("«underline»", AnsiTty.SgrUnderline)
+            .Replace("«strike»", AnsiTty.Sgr(9))
+            .Replace("«strikethrough»", AnsiTty.Sgr(9))
+            // ── 颜色标签 ──
             .Replace("«cyan»", AnsiTty.FgCode(TuiColors.Cyan))
             .Replace("«green»", AnsiTty.FgCode(TuiColors.Green))
             .Replace("«yellow»", AnsiTty.FgCode(TuiColors.Yellow))
             .Replace("«red»", AnsiTty.FgCode(TuiColors.Red))
+            .Replace("«blue»", AnsiTty.FgCode(TuiColors.Blue))
+            .Replace("«magenta»", AnsiTty.FgCode(TuiColors.Magenta))
+            .Replace("«white»", AnsiTty.FgCode(TuiColors.White))
+            .Replace("«black»", AnsiTty.FgCode(TuiColors.Black))
             .Replace("«orange3»", AnsiTty.FgCode(TuiColors.Yellow))
+            .Replace("«orange»", AnsiTty.FgCode(TuiColors.Yellow))
             .Replace("«grey»", AnsiTty.FgCode(TuiColors.Grey))
-            .Replace("«bold yellow»", AnsiTty.FgCode(TuiColors.Yellow))
-            .Replace("«bold cyan»", AnsiTty.FgCode(TuiColors.Cyan))
-            .Replace("«bold red»", AnsiTty.FgCode(TuiColors.Red))
-            .Replace("«bold green»", AnsiTty.FgCode(TuiColors.Green))
-            .Replace("«bold orange3»", AnsiTty.FgCode(TuiColors.Yellow));
+            .Replace("«gray»", AnsiTty.FgCode(TuiColors.Grey));
     }
 
     /// <summary>
@@ -115,6 +141,8 @@ public partial class Program
             if (!spinnerActive) return;
             spinnerActive = false;
             spinnerCts?.Cancel();
+            spinnerCts?.Dispose(); // 释放 CTS，避免一次性模式反复调用时泄漏
+            spinnerCts = null;
             Console.Write("\r" + new string(' ', 60) + "\r");
             Console.Out.Flush();
         }
@@ -139,7 +167,7 @@ public partial class Program
             onToolOutput: line =>
             {
                 // 管道模式：逐行输出 bash 结果到控制台
-                Console.WriteLine($"  «dim»│ {E(line)}«/»");
+                MarkupLine($"  «dim»│ {E(line)}«/»");
             },
             cancellationToken: ct);
 

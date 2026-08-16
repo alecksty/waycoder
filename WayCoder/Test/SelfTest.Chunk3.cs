@@ -342,6 +342,13 @@ public static partial class SelfTest
         cancelSw.Stop();
         Check("bash 取消令牌中断长命令", cancelCaught && cancelSw.ElapsedMilliseconds < 5000);
 
+        // 非 bash 工具补齐可取消接口（fetch/web_search/download/git/agent）
+        Check("fetch 实现 ICancellableTool", new FetchTool() is ICancellableTool);
+        Check("web_search 实现 ICancellableTool", new WebSearchTool() is ICancellableTool);
+        Check("download 实现 ICancellableTool", new DownloadTool() is ICancellableTool);
+        Check("git 实现 ICancellableTool", new GitTool() is ICancellableTool);
+        Check("agent 实现 ICancellableTool", new AgentTool() is ICancellableTool);
+
         Console.WriteLine();
 
         // ---- 上下文管理 扩展 ----

@@ -13,6 +13,9 @@ public static class BackgroundTaskManager
     private static readonly ConcurrentDictionary<int, BgTask> _tasks = new();
     private static int _nextId = 1;
 
+    /// <summary>完成态任务保留上限，超出后自动清除最旧的已完成任务，防止长期会话内存无限增长。</summary>
+    private const int MaxCompletedRetention = 50;
+
     public record BgTask(int Id, string Command, DateTime StartedAt)
     {
         // Output 采用「读改写」追加（+=），后台写线程与 UI 读线程并发时会丢失更新，
@@ -127,6 +130,7 @@ public static class BackgroundTaskManager
             task.CompletedAt = DateTime.Now;
             task.Process = null;
             proc?.Dispose();
+            PruneCompleted();
         }
     }
 
@@ -149,6 +153,7 @@ public static class BackgroundTaskManager
             var proc = task.Process;
             task.Process = null;
             proc?.Dispose(); // 释放迁移过来的进程句柄
+            PruneCompleted();
         }
     }
 
@@ -263,5 +268,21 @@ public static class BackgroundTaskManager
                 _tasks.TryRemove(id, out _);
             }
         }
+    }
+
+    /// <summary>
+    /// 清理超额的已完成任务（保留最近 MaxCompletedRetention 个），
+    /// 避免长期会话中 /jobs 列表与进程输出字符串无界增长。
+    /// </summary>
+    private static void PruneCompleted()
+    {
+        var completed = _tasks
+            .Where(kv => kv.Value.Status != "running")
+            .OrderBy(kv => kv.Key)
+            .Select(kv => kv.Key)
+            .ToList();
+        if (completed.Count <= MaxCompletedRetention) return;
+        foreach (var id in completed.Take(completed.Count - MaxCompletedRetention))
+            _tasks.TryRemove(id, out _);
     }
 }

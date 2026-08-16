@@ -40,6 +40,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     {
         public StreamWriter Writer = null!;
         public readonly TaskCompletionSource Closed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        /// <summary>串行化对该客户端 StreamWriter 的写（Broadcast 与连接建立时的初始回放可能并发）。</summary>
+        public readonly object WriteLock = new();
     }
 
     public WebChatServer(Agent agent, int port)
@@ -63,7 +65,12 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     public void Stop()
     {
         try { _serverCts.Cancel(); } catch { }
-        try { _roundCts?.Cancel(); } catch { }
+        var cts = Interlocked.Exchange(ref _roundCts, null);
+        if (cts != null)
+        {
+            try { cts.Cancel(); } catch { }
+            cts.Dispose();
+        }
         UxHelper.WebInteraction = null;
         _server.Stop();
     }
@@ -75,8 +82,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     private HttpResponse? HandleRequest(HttpRequest req)
     {
         // CSRF 防护：状态变更请求（非 GET）必须来自本服务来源。
-        // 浏览器跨源 fetch 必带 Origin（攻击者域名），curl/SSE/同源导航不带 Origin 放行。
-        if (req.Method != "GET" && !IsTrustedOrigin(req.Header("Origin"), Port))
+        // 浏览器跨源 fetch 必带 Origin（攻击者域名），curl/SSE/同源导航不带 Origin 放行；
+        // Sec-Fetch-Site: cross-site 兜底拦截漏带 Origin 的跨站请求（纵深防御）。
+        if (req.Method != "GET" && (!IsTrustedOrigin(req.Header("Origin"), Port) || IsCrossSite(req.Header("Sec-Fetch-Site"))))
             return new HttpResponse { Status = 403, Reason = "Forbidden", Body = Encoding.UTF8.GetBytes("403 Forbidden") };
 
         // 页面
@@ -343,6 +351,11 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 return HttpResponse.JsonBody(Err("缺少 command"));
             try
             {
+                // 权限确认：YOLO/只读命令自动放行，危险命令走交互桥弹浏览器确认框（与 Agent 工具一致，不再绕过权限）
+                var allowed = PermissionManager.CheckAsync("bash", new Dictionary<string, object?> { ["command"] = command })
+                    .GetAwaiter().GetResult();
+                if (!allowed)
+                    return HttpResponse.JsonBody(JNode.Object().Set("ok", false).Set("output", "已拒绝执行").ToJson());
                 var result = new BashTool()
                     .ExecuteAsync(new Dictionary<string, object?> { ["command"] = command })
                     .GetAwaiter().GetResult();
@@ -361,8 +374,12 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var path = body?["path"]?.AsString() ?? "";
             if (string.IsNullOrWhiteSpace(path))
                 return HttpResponse.JsonBody(Err("缺少 path"));
+            // 路径穿越防护：限制在项目根目录内，拒绝 ../ 逃逸到任意文件
+            var safePath = ResolveWithinRoot(path);
+            if (safePath == null)
+                return HttpResponse.JsonBody(JNode.Object().Set("ok", false).Set("error", "路径超出项目根目录").ToJson());
             var content = new ReadFileTool()
-                .ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = path })
+                .ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = safePath })
                 .GetAwaiter().GetResult();
             var agent = EnsureSlot(_activeSlot);
             agent.Messages.Add(JNode.Object().Set("role", "user")
@@ -395,24 +412,46 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             if (lastSep >= 0)
             {
                 var sub = filePrefix[..(lastSep + 1)];
-                searchDir = Path.GetFullPath(sub);
+                // 路径穿越防护：目录限定在项目根目录内，越界回退到根目录
+                searchDir = ResolveWithinRoot(sub) ?? Directory.GetCurrentDirectory();
                 filePrefix = filePrefix[(lastSep + 1)..];
             }
             if (!Directory.Exists(searchDir)) return arr.ToJson();
-            foreach (var entry in Directory.EnumerateFileSystemEntries(searchDir).OrderBy(e => Directory.Exists(e) ? 0 : 1).ThenBy(e => e).Take(40))
+            // 先按前缀过滤再 Take(40)：避免「取前 40 条再过滤」导致后续匹配项被丢弃
+            var matches = Directory.EnumerateFileSystemEntries(searchDir)
+                .Select(e => (Entry: e, Name: Path.GetFileName(e)))
+                .Where(x => string.IsNullOrEmpty(filePrefix) || x.Name.StartsWith(filePrefix, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(x => Directory.Exists(x.Entry) ? 0 : 1)
+                .ThenBy(x => x.Entry)
+                .Take(40);
+            foreach (var x in matches)
             {
-                var name = Path.GetFileName(entry);
-                if (!string.IsNullOrEmpty(filePrefix) && !name.StartsWith(filePrefix, StringComparison.OrdinalIgnoreCase))
-                    continue;
-                var isDir = Directory.Exists(entry);
+                var isDir = Directory.Exists(x.Entry);
                 arr.Add(JNode.Object()
-                    .Set("name", isDir ? name + "/" : name)
-                    .Set("path", Path.Combine(searchDir, name))
+                    .Set("name", isDir ? x.Name + "/" : x.Name)
+                    .Set("path", Path.Combine(searchDir, x.Name))
                     .Set("isDir", isDir));
             }
         }
         catch { /* 权限不足忽略 */ }
         return arr.ToJson();
+    }
+
+    /// <summary>把用户提供的相对/绝对路径解析为绝对路径并限制在项目根目录（cwd）内；越界或非法返回 null。纯静态便于自测。</summary>
+    public static string? ResolveWithinRoot(string path)
+    {
+        try
+        {
+            var root = Path.GetFullPath(Directory.GetCurrentDirectory());
+            var full = Path.GetFullPath(path);
+            var rel = Path.GetRelativePath(root, full);
+            var outside = rel == ".."
+                || rel.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                || rel.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal)
+                || Path.IsPathRooted(rel);
+            return outside ? null : full;
+        }
+        catch { return null; }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -558,7 +597,13 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
     private void Interrupt()
     {
-        try { _roundCts?.Cancel(); } catch { }
+        // 原子取出并清空当前轮的 CTS，避免与 MainLoopAsync 的 finally 并发 Dispose/Cancel 竞态
+        var cts = Interlocked.Exchange(ref _roundCts, null);
+        if (cts != null)
+        {
+            try { cts.Cancel(); } catch { }
+            cts.Dispose();
+        }
     }
 
     private async Task MainLoopAsync(CancellationToken serverToken)
@@ -570,8 +615,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 var (slot, userInput) = item;
                 if (slot != _activeSlot) SwitchSlot(slot);
                 var agent = EnsureSlot(slot);
-                _roundCts = new CancellationTokenSource();
-                var token = _roundCts.Token;
+                var roundCts = new CancellationTokenSource();
+                _roundCts = roundCts;
+                var token = roundCts.Token;
                 try
                 {
                     var final = await agent.ChatAsync(
@@ -592,8 +638,10 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 }
                 finally
                 {
-                    _roundCts.Dispose();
-                    _roundCts = null;
+                    // 仅当仍指向本轮 CTS 时才清空并释放；若并发 Interrupt 已 Exchange 走该 CTS，
+                    // 则 CompareExchange 失败、交回给 Interrupt 处理，避免 Dispose 后再 Cancel 抛 ObjectDisposedException。
+                    if (ReferenceEquals(Interlocked.CompareExchange(ref _roundCts, null, roundCts), roundCts))
+                        roundCts.Dispose();
                 }
             }
             else
@@ -618,16 +666,20 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         }
         try
         {
-            // 连接即回放历史 + 状态，前端初始化渲染
-            writer.Write(HttpServer.SseEvent("history", SerializeHistory(_slots[_activeSlot]!)));
-            writer.Write(HttpServer.SseEvent("state", SerializeState(_activeSlot, _slots)));
+            // 连接即回放历史 + 状态，前端初始化渲染（与 Broadcast 共用写锁，避免与并发广播交错）
+            lock (client.WriteLock)
+            {
+                writer.Write(HttpServer.SseEvent("history", SerializeHistory(_slots[_activeSlot]!)));
+                writer.Write(HttpServer.SseEvent("state", SerializeState(_activeSlot, _slots)));
+            }
             await client.Closed.Task;
         }
         catch { /* 连接断开 */ }
         finally
         {
             lock (_lock) _clients.Remove(client);
-            try { writer.Dispose(); } catch { }
+            // 与 Broadcast 的写共用锁，避免对已释放 writer 的并发写
+            lock (client.WriteLock) { try { writer.Dispose(); } catch { } }
         }
     }
 
@@ -638,8 +690,12 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         lock (_lock) snapshot = _clients.ToList();
         foreach (var c in snapshot)
         {
-            try { c.Writer.Write(sse); }
-            catch { c.Closed.TrySetResult(); }
+            // 每客户端串行写：防止主循环流式回调与 HandleRequest 并发 Broadcast 时帧交错损坏
+            lock (c.WriteLock)
+            {
+                try { c.Writer.Write(sse); }
+                catch { c.Closed.TrySetResult(); }
+            }
         }
     }
 }

@@ -967,6 +967,22 @@ public static partial class SelfTest
         var tNodes = MarkdownParser.Parse("| A | B |\n|---|---|\n| 1 | 2 |");
         Check("MarkdownParser 表格", tNodes.Count == 1 && tNodes[0] is MdTable t && t.Headers.Count == 2);
         Check("MdTable Headers", ((MdTable)tNodes[0]).Headers[0] == "A");
+        Check("MdTable 数据行", ((MdTable)tNodes[0]).Rows.Count == 1 && ((MdTable)tNodes[0]).Rows[0][0] == "1");
+
+        // 表格：转义竖线 \| 不拆列
+        var escNodes = MarkdownParser.Parse("| 名称 | 命令 |\n|---|---|\n| a\\|b | ls \\| grep |");
+        Check("MdTable 转义竖线", escNodes.Count == 1 && escNodes[0] is MdTable et
+            && et.Rows.Count == 1 && et.Rows[0][0] == "a|b" && et.Rows[0][1] == "ls | grep");
+
+        // 表格：无分隔行（表头 + 数据）也可解析
+        var noSepNodes = MarkdownParser.Parse("| A | B |\n| 1 | 2 |");
+        Check("MdTable 无分隔行", noSepNodes.Count == 1 && noSepNodes[0] is MdTable nt
+            && nt.Headers.Count == 2 && nt.Rows.Count == 1);
+
+        // 单行竖线内容（非表格）→ 剥竖线按普通段落处理，不吞行
+        var singlePipe = MarkdownParser.Parse("| 单行竖线内容 |");
+        Check("MdTable 单行竖线不吞行", singlePipe.Count == 1 && singlePipe[0] is MdParagraph sp
+            && sp.Text == "单行竖线内容");
 
         // 列表
         var lNodes = MarkdownParser.Parse("- 项目一\n- 项目二\n- 项目三");

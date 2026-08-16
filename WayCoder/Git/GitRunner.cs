@@ -44,6 +44,11 @@ public static class GitRunner
 
     /// <summary>异步执行，返回完整的 (退出码, stdout, stderr)</summary>
     public static async Task<(int ExitCode, string Stdout, string Stderr)> RunAsync(string args, string? cwd = null)
+        => await RunAsync(args, cwd, CancellationToken.None);
+
+    /// <summary>异步执行（可取消）：中断时杀掉 git 子进程并抛 OperationCanceledException。</summary>
+    public static async Task<(int ExitCode, string Stdout, string Stderr)> RunAsync(
+        string args, string? cwd, CancellationToken cancellationToken)
     {
         try
         {
@@ -51,8 +56,20 @@ public static class GitRunner
             // 并发读取 stdout/stderr，避免同步先读 stdout 的死锁。
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
-            await proc.WaitForExitAsync();
+            try
+            {
+                await proc.WaitForExitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                try { proc.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
+                throw;
+            }
             return (proc.ExitCode, await stdoutTask, await stderrTask);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

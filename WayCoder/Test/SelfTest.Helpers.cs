@@ -1811,6 +1811,24 @@ public static partial class SelfTest
         var ok = FileLockManager.WaitForLockAsync(path, agentA, TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
         Check("FileLock: WaitForLock 无锁成功", ok);
 
+        // 10. Agent.AgentId 默认 + 写工具经 _agent_id 报跨槽位锁冲突（资源锁定报错提醒）
+        var probeAgent = new Agent(new LLM("test", "sk-test"));
+        Check("FileLock: Agent.AgentId 默认 main", probeAgent.AgentId == "main");
+
+        var crossPath = Path.Combine(Path.GetTempPath(), "wc_cross_" + Guid.NewGuid().ToString("N")[..6] + ".txt");
+        FileLockManager.ReleaseAll("F1");
+        FileLockManager.ReleaseAll("F2");
+        FileLockManager.TryAcquire(crossPath, "F1");
+        var crossResult = new WayCoder.Tools.WriteFileTool().ExecuteAsync(new Dictionary<string, object?> {
+            ["file_path"] = crossPath,
+            ["content"] = "x",
+            ["_agent_id"] = "F2",
+        }).GetAwaiter().GetResult();
+        Check("FileLock: 跨槽位写报锁冲突(F1)", crossResult.Contains("F1") && crossResult.Contains("锁定"));
+        FileLockManager.ReleaseAll("F1");
+        FileLockManager.ReleaseAll("F2");
+        try { File.Delete(crossPath); } catch { }
+
         // 清理
         FileLockManager.ReleaseAll(agentA);
         FileLockManager.ReleaseAll(agentB);
@@ -2972,6 +2990,21 @@ public static partial class SelfTest
         var noMatch = Json.Parse(WayCoder.UI.Web.WebChatServer.SerializeFileList("__waycoder_no_such_prefix_xyz__"));
         Check("Prefix: 无匹配前缀返回空数组", noMatch?.Kind == JKind.Array && noMatch.Count == 0);
 
+        // ── 1b. ResolveWithinRoot 路径穿越防护 ──
+        var cwd = Directory.GetCurrentDirectory();
+        var innerFile = Path.Combine(cwd, "__waycoder_inner__.tmp");
+        var inner = WayCoder.UI.Web.WebChatServer.ResolveWithinRoot(innerFile);
+        Check("Root: 项目内路径放行", inner != null && Path.GetFullPath(inner!) == Path.GetFullPath(innerFile));
+        Check("Root: ../ 穿越返回 null", WayCoder.UI.Web.WebChatServer.ResolveWithinRoot(Path.Combine(cwd, "..", "..", "etc", "passwd")) == null);
+        Check("Root: 绝对越界路径返回 null", WayCoder.UI.Web.WebChatServer.ResolveWithinRoot(Path.GetTempPath()) == null);
+        Check("Root: 根目录本身放行", WayCoder.UI.Web.WebChatServer.ResolveWithinRoot(cwd) != null);
+
+        // ── 1c. IsCrossSite CSRF 兜底 ──
+        Check("CSRF: cross-site 判跨站", WayCoder.UI.Web.WebChatServer.IsCrossSite("cross-site"));
+        Check("CSRF: same-origin 非跨站", !WayCoder.UI.Web.WebChatServer.IsCrossSite("same-origin"));
+        Check("CSRF: none 非跨站", !WayCoder.UI.Web.WebChatServer.IsCrossSite("none"));
+        Check("CSRF: 空头非跨站（curl 放行）", !WayCoder.UI.Web.WebChatServer.IsCrossSite(null));
+
         // ── 2. HandleCommand /test 中间格式分支 ──
         var (hMarkup, oMarkup) = WayCoder.UI.Web.WebChatServer.HandleCommand("/test markup", a);
         Check("WebTest: /test markup 中间格式", hMarkup && oMarkup.Contains("«red»") && oMarkup.Contains("中间格式"));
@@ -3023,13 +3056,22 @@ public static partial class SelfTest
             var flTxt = flResp.Content.ReadAsStringAsync().Result;
             Check("Prefix: POST /filelist 返回 files 数组", flTxt.Contains("\"ok\":true") && flTxt.Contains("\"files\""));
 
-            var tmp = Path.GetTempFileName();
-            File.WriteAllText(tmp, "file-ref-content-123");
+            // 项目内文件可读，项目外文件被路径穿越防护拒绝
+            var tmpIn = Path.Combine(Directory.GetCurrentDirectory(), "__waycoder_ref_test__.tmp");
+            File.WriteAllText(tmpIn, "file-ref-content-123");
             var frResp = client.PostAsync(baseUrl + "/fileref",
-                new StringContent(JNode.Object().Set("path", tmp).ToJson(), Encoding.UTF8, "application/json")).Result;
+                new StringContent(JNode.Object().Set("path", tmpIn).ToJson(), Encoding.UTF8, "application/json")).Result;
             var frTxt = frResp.Content.ReadAsStringAsync().Result;
             Check("Prefix: POST /fileref 读取注入", frTxt.Contains("\"ok\":true") && frTxt.Contains("file-ref-content-123"));
-            File.Delete(tmp);
+            File.Delete(tmpIn);
+
+            var tmpOut = Path.GetTempFileName();
+            File.WriteAllText(tmpOut, "outside-root");
+            var frEscape = client.PostAsync(baseUrl + "/fileref",
+                new StringContent(JNode.Object().Set("path", tmpOut).ToJson(), Encoding.UTF8, "application/json")).Result;
+            var frEscapeTxt = frEscape.Content.ReadAsStringAsync().Result;
+            Check("Prefix: POST /fileref 越界拒绝", frEscapeTxt.Contains("\"ok\":false") && frEscapeTxt.Contains("项目根目录"));
+            File.Delete(tmpOut);
         }
         catch { Check("Prefix: 端点冒烟", false); }
         finally { web.Stop(); }

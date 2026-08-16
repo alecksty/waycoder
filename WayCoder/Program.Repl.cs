@@ -538,9 +538,23 @@ public partial class Program
     private static LLM GetSlotLlm(int slotIdx)
     {
         var slotCfg = AgentSlotConfig.Get(slotIdx);
-        if (slotCfg.UseGlobal) return _llm!;
-
         var slot = _slots[slotIdx];
+
+        // 使用全局模型/密钥的槽位：每个槽位持有独立 LLM 克隆实例，而非共享 _llm。
+        // 根因修复「10 个 agent 不能真正并行」——共享 _llm 时并发 ChatAsync 会竞态读写
+        // ModelOverride/_reasoningBuffer/_reasoningShown 等非线程安全实例字段。
+        if (slotCfg.UseGlobal)
+        {
+            if (slot.LlmClient != null && slot.LastLargeModel == _llm!.Model)
+                return slot.LlmClient;
+            var clone = _llm!.Clone();
+            clone.ModelOverride = null; // 槽位从无覆盖状态起步，不继承瞬时小模型覆盖
+            slot.LlmClient = clone;
+            slot.LastLargeModel = _llm.Model;
+            slot.LastSmallModel = _llm.SmallModel;
+            return clone;
+        }
+
         var largeModel = AgentSlotConfig.ResolveLargeModel(slotCfg, slotIdx);
         var smallModel = AgentSlotConfig.ResolveSmallModel(slotCfg, slotIdx);
 
@@ -621,6 +635,7 @@ public partial class Program
                 slot.Agent.LlmClient.SmallModel = AgentSlotConfig.ResolveSmallModel(AgentSlotConfig.Get(idx), idx);
                 slot.Agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(large, _config.MaxContextTokens));
             }
+            slot.Agent.AgentId = $"F{idx + 1}"; // 槽位标识，供文件锁跨槽位冲突检测
 
             _agent = slot.Agent;
             ProgramContext.Agent = slot.Agent;
@@ -791,6 +806,7 @@ public partial class Program
             slot.Agent = new Agent(slotLlm, maxContextTokens: ModelCatalog.ResolveContextWindow(slotLlm.Model, _config.MaxContextTokens),
                 maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
         }
+        slot.Agent.AgentId = $"F{slotIdx + 1}"; // 槽位标识，供文件锁跨槽位冲突检测
 
         _agent = slot.Agent;
         ProgramContext.Agent = slot.Agent;
@@ -826,7 +842,8 @@ public partial class Program
             finally
             {
                 slot.IsBusy = false;
-                slot.Cts = null;
+                // 原子摘除并释放 CancellationTokenSource，避免泄漏；Esc 中断路径读到 null 即 no-op，杜绝 dispose 竞态
+                Interlocked.Exchange(ref slot.Cts, null)?.Dispose();
                 if (capturedScreen.SlotStates[slotIdx] != SlotState.Error)
                     capturedScreen.SlotStates[slotIdx] = SlotState.Idle;
             }

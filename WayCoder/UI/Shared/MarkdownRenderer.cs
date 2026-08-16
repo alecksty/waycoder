@@ -146,8 +146,19 @@ public static class MarkdownParser
             if (line.TrimStart().StartsWith('|') && line.TrimEnd().EndsWith('|'))
             {
                 var table = ParseTable(lines, ref i);
-                if (table != null) nodes.Add(table);
-                continue;
+                if (table != null)
+                {
+                    nodes.Add(table);
+                    continue;
+                }
+                // 非表格竖线内容（如单行「| 文本 |」）→ 剥掉首尾竖线按普通段落处理，避免被吞行
+                var stripped = line.Trim().Trim('|').Trim();
+                if (stripped.Length > 0)
+                {
+                    nodes.Add(new MdParagraph { Text = stripped });
+                    i++;
+                    continue;
+                }
             }
 
             // 标题 # ## ### ####
@@ -443,25 +454,60 @@ public static class MarkdownParser
 
     private static MdTable? ParseTable(string[] lines, ref int i)
     {
+        // 先窥探连续的 | 行（不消费），不足 2 行不构成表格，交由调用方按普通文本处理，避免吞行
+        int peek = i;
         var allRows = new List<string[]>();
-        while (i < lines.Length && lines[i].TrimStart().StartsWith('|'))
+        while (peek < lines.Length && lines[peek].TrimStart().StartsWith('|'))
         {
-            var cells = lines[i].Trim().Trim('|').Split('|')
-                .Select(c => c.Trim()).ToArray();
+            var cells = SplitTableCells(lines[peek]);
             if (cells.Length > 0) allRows.Add(cells);
-            i++;
+            peek++;
         }
         if (allRows.Count < 2) return null;
 
+        i = peek; // 确认构成表格后才统一消费
+
         // 跳过分隔行 |---|----|
-        var hasSeparator = allRows.Count > 1 &&
-            allRows[1].All(c => c.All(ch => ch == '-' || ch == ':' || ch == ' '));
+        var hasSeparator = allRows[1].All(c => c.All(ch => ch == '-' || ch == ':' || ch == ' '));
         var headers = allRows[0].ToList();
         var dataRows = hasSeparator
             ? allRows.Skip(2).Select(r => r.ToList()).ToList()
             : allRows.Skip(1).Select(r => r.ToList()).ToList();
 
         return new MdTable { Headers = headers, Rows = dataRows };
+    }
+
+    /// <summary>
+    /// 按 | 拆分表格单元格，支持「\|」转义竖线（单元格内出现字面竖线时不误拆）。
+    /// 首尾竖线剥除后，仅「\|」被视为转义（替换为 |），其余字符原样保留。
+    /// </summary>
+    private static string[] SplitTableCells(string line)
+    {
+        var s = line.Trim();
+        if (s.StartsWith('|')) s = s[1..];
+        if (s.EndsWith('|')) s = s[..^1];
+
+        var cells = new List<string>();
+        var sb = new System.Text.StringBuilder();
+        for (var j = 0; j < s.Length; j++)
+        {
+            var ch = s[j];
+            if (ch == '\\' && j + 1 < s.Length && s[j + 1] == '|')
+            {
+                sb.Append('|'); // 转义竖线
+                j++;
+                continue;
+            }
+            if (ch == '|')
+            {
+                cells.Add(sb.ToString().Trim());
+                sb.Clear();
+                continue;
+            }
+            sb.Append(ch);
+        }
+        cells.Add(sb.ToString().Trim());
+        return cells.ToArray();
     }
 
     private static bool IsHorizontalRule(string line)
