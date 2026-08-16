@@ -83,6 +83,21 @@ public static class SessionManager
         return true;
     }
 
+    /// <summary>清空全部会话记录（新目录 + 旧目录），返回删除的文件数。</summary>
+    public static int DeleteAllSessions()
+    {
+        var deleted = 0;
+        foreach (var dir in new[] { SessionsDir, LegacySessionsDir })
+        {
+            if (!Directory.Exists(dir)) continue;
+            foreach (var f in Directory.GetFiles(dir, "*.json"))
+            {
+                try { File.Delete(f); deleted++; } catch { }
+            }
+        }
+        return deleted;
+    }
+
     /// <summary>重命名会话</summary>
     public static bool RenameSession(string oldId, string newId)
     {

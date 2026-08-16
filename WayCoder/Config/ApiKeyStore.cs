@@ -76,6 +76,234 @@ public static class ApiKeyStore
     }
 
     // ════════════════════════════════════════════════════════════
+    //  Key 检测（含环境变量） + 自动导入其他软件的 Key
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>供应商 → 专属环境变量名（对齐 TUI ModelPicker.ProviderEnvVar）。</summary>
+    public static readonly Dictionary<string, string> ProviderEnvVar = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["openai"] = "OPENAI_API_KEY",
+        ["anthropic"] = "ANTHROPIC_API_KEY",
+        ["deepseek"] = "DEEPSEEK_API_KEY",
+        ["google"] = "GOOGLE_API_KEY",
+        ["qwen"] = "DASHSCOPE_API_KEY",
+        ["moonshot"] = "MOONSHOT_API_KEY",
+        ["zhipu"] = "ZHIPU_API_KEY",
+        ["bytedance"] = "ARK_API_KEY",
+        ["01ai"] = "YI_API_KEY",
+        ["xai"] = "XAI_API_KEY",
+        ["mistral"] = "MISTRAL_API_KEY",
+        ["siliconflow"] = "SILICONFLOW_API_KEY",
+        ["meta"] = "META_API_KEY",
+    };
+
+    /// <summary>
+    /// 检查指定模型是否有可用 Key（完整检测，对齐 TUI ModelPicker.ModelHasKey）：
+    /// 1. ApiKeyStore 显式存储（按供应商）
+    /// 2. 供应商专属环境变量（如 DEEPSEEK_API_KEY）
+    /// 3. 通用模式 {PROVIDER}_API_KEY
+    /// 4. 全局 WAYCODER_API_KEY → 仅当前配置的大小模型
+    /// 5. local/custom 无需 key
+    /// </summary>
+    public static bool HasKeyFor(string providerId, string modelId)
+    {
+        if (!string.IsNullOrEmpty(Get(providerId)))
+            return true;
+        if (ProviderEnvVar.TryGetValue(providerId, out var envVar))
+        {
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(envVar)))
+                return true;
+        }
+        var genericEnv = $"{providerId}_API_KEY".ToUpperInvariant().Replace('-', '_').Replace(' ', '_');
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(genericEnv)))
+            return true;
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYCODER_API_KEY")))
+        {
+            var cfg = Config.Instance;
+            if (modelId == cfg.Model || modelId == cfg.SmallModel)
+                return true;
+        }
+        if (providerId is "local" or "custom") return true;
+        return false;
+    }
+
+    /// <summary>
+    /// 从环境变量导入 Key（按供应商专属变量名 + 通用 {PROVIDER}_API_KEY）。
+    /// 返回已导入的供应商 ID 列表。纯逻辑便于自测（不读文件）。
+    /// </summary>
+    public static List<string> ImportFromEnvironment()
+    {
+        var imported = new List<string>();
+        foreach (var (pid, envVar) in ProviderEnvVar)
+        {
+            var val = Environment.GetEnvironmentVariable(envVar);
+            if (!string.IsNullOrWhiteSpace(val))
+            {
+                Set(pid, val.Trim());
+                imported.Add(pid);
+            }
+        }
+        // 通用模式（供应商不在映射表内，但存在 {PROVIDER}_API_KEY 环境变量）
+        foreach (var pid in ModelCatalog.ProviderIds)
+        {
+            if (pid is "local" or "custom" || imported.Contains(pid)) continue;
+            var genericEnv = $"{pid}_API_KEY".ToUpperInvariant().Replace('-', '_').Replace(' ', '_');
+            var val = Environment.GetEnvironmentVariable(genericEnv);
+            if (!string.IsNullOrWhiteSpace(val))
+            {
+                Set(pid, val.Trim());
+                imported.Add(pid);
+            }
+        }
+        return imported;
+    }
+
+    /// <summary>根据环境变量名反查供应商 ID（ANTHROPIC_API_KEY → anthropic），查不到返回 null。</summary>
+    public static string? ProviderFromEnvVarName(string envVarName)
+    {
+        if (string.IsNullOrWhiteSpace(envVarName)) return null;
+        foreach (var (pid, envVar) in ProviderEnvVar)
+            if (envVar.Equals(envVarName, StringComparison.OrdinalIgnoreCase)) return pid;
+        // 通用模式 {PROVIDER}_API_KEY → 剥离后缀
+        if (envVarName.EndsWith("_API_KEY", StringComparison.OrdinalIgnoreCase) ||
+            envVarName.EndsWith("_AUTH_TOKEN", StringComparison.OrdinalIgnoreCase))
+        {
+            var baseName = envVarName;
+            var idx = baseName.LastIndexOf("_API_KEY", StringComparison.OrdinalIgnoreCase);
+            if (idx < 0) idx = baseName.LastIndexOf("_AUTH_TOKEN", StringComparison.OrdinalIgnoreCase);
+            if (idx > 0)
+            {
+                var pid = baseName[..idx].ToLowerInvariant().Replace('_', '-');
+                if (pid.Length > 0) return pid;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 从其他软件已知配置文件导入 API Key（Claude Code / Codex / OpenCode / Cursor）+ 环境变量。
+    /// 全部容错：某文件缺失/解析失败只跳过该项。返回已导入的 (供应商ID, 来源) 列表。
+    /// </summary>
+    public static List<(string ProviderId, string Source)> ImportFromKnownSources()
+    {
+        var imported = new List<(string, string)>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void Add(string providerId, string source)
+        {
+            if (providerId is "local" or "custom") return;
+            if (!seen.Add(providerId)) return;
+            imported.Add((providerId, source));
+        }
+
+        // 1. 环境变量（最可靠、跨平台）
+        foreach (var pid in ImportFromEnvironment())
+            Add(pid, "环境变量");
+
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        // 2. Claude Code ~/.claude/settings.json 的 env.{*_API_KEY|*_AUTH_TOKEN}
+        try
+        {
+            var claudeSettings = Path.Combine(home, ".claude", "settings.json");
+            if (File.Exists(claudeSettings))
+            {
+                var env = Json.Parse(File.ReadAllText(claudeSettings))?["env"];
+                if (env != null)
+                {
+                    foreach (var (key, val) in env.Entries)
+                    {
+                        if (!key.Contains("API_KEY", StringComparison.OrdinalIgnoreCase) &&
+                            !key.Contains("AUTH_TOKEN", StringComparison.OrdinalIgnoreCase)) continue;
+                        var raw = val?.AsString();
+                        if (string.IsNullOrWhiteSpace(raw)) continue;
+                        var pid = ProviderFromEnvVarName(key);
+                        if (pid == null) continue;
+                        Set(pid, raw.Trim());
+                        Add(pid, "Claude Code");
+                    }
+                }
+            }
+        }
+        catch { }
+
+        // 3. Codex ~/.codex/auth.json（顶层 OPENAI_API_KEY 等）
+        try
+        {
+            var codexAuth = Path.Combine(home, ".codex", "auth.json");
+            if (File.Exists(codexAuth))
+            {
+                var root = Json.Parse(File.ReadAllText(codexAuth));
+                if (root is { Kind: JKind.Object })
+                {
+                    foreach (var (key, val) in root.Entries)
+                    {
+                        if (key.Contains("tokens", StringComparison.OrdinalIgnoreCase)) continue;
+                        var raw = val?.AsString();
+                        if (string.IsNullOrWhiteSpace(raw)) continue;
+                        var pid = ProviderFromEnvVarName(key);
+                        if (pid == null) continue;
+                        Set(pid, raw.Trim());
+                        Add(pid, "Codex");
+                    }
+                }
+            }
+        }
+        catch { }
+
+        // 4. Cursor ~/.cursor/settings.json（openaiApiKey / anthropicApiKey）
+        try
+        {
+            var cursorSettings = Path.Combine(home, ".cursor", "settings.json");
+            if (File.Exists(cursorSettings))
+            {
+                var root = Json.Parse(File.ReadAllText(cursorSettings));
+                foreach (var (pid, field) in new (string, string)[]
+                {
+                    ("openai", "openaiApiKey"),
+                    ("anthropic", "anthropicApiKey"),
+                })
+                {
+                    var raw = root?[field]?.AsString();
+                    if (string.IsNullOrWhiteSpace(raw)) continue;
+                    Set(pid, raw.Trim());
+                    Add(pid, "Cursor");
+                }
+            }
+        }
+        catch { }
+
+        // 5. OpenCode ~/.local/share/opencode/auth.json（{provider: {key}} 或 {provider: "key"}）
+        try
+        {
+            foreach (var path in new[]
+            {
+                Path.Combine(home, ".local", "share", "opencode", "auth.json"),
+                Path.Combine(home, ".config", "opencode", "auth.json"),
+            })
+            {
+                if (!File.Exists(path)) continue;
+                var root = Json.Parse(File.ReadAllText(path));
+                if (root is not { Kind: JKind.Object }) continue;
+                foreach (var (pid, val) in root.Entries)
+                {
+                    string? raw;
+                    if (val is { Kind: JKind.Object })
+                        raw = val["key"]?.AsString() ?? val["apiKey"]?.AsString();
+                    else
+                        raw = val?.AsString();
+                    if (string.IsNullOrWhiteSpace(raw)) continue;
+                    Set(pid, raw.Trim());
+                    Add(pid, "OpenCode");
+                }
+            }
+        }
+        catch { }
+
+        return imported;
+    }
+
+    // ════════════════════════════════════════════════════════════
     // 内部
     // ════════════════════════════════════════════════════════════
 
