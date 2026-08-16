@@ -1,5 +1,40 @@
 # 更新日志
 
+## v0.71.0 (2026-08-16) — 安全加固 + 多槽位真并行 + 渲染一致性 + 健壮性
+
+一轮系统性审查后的四批修复落地：Web 安全加固、修复「切换槽位后任务停止」的根因（10 个 agent 真正并行）、三端渲染一致性收敛、补齐非 bash 工具取消令牌与资源泄漏。
+
+### 🔒 安全加固
+
+- **XSS 修复**：`renderSuggest` 对文件名等提示框字段做 `escapeHtml` 转义，杜绝恶意文件名注入 HTML/脚本
+- **`/shell` 权限确认**：Web 端执行 Shell 命令前走 `PermissionManager.CheckAsync`，非 YOLO 模式下不再无条件放行
+- **`/fileref` `/filelist` 路径穿越限制**：`ResolveWithinRoot` 钳制路径于项目根目录内，越界返回「路径超出项目根目录」而非读取任意文件
+- **CSRF 纵深防御**：状态变更请求（非 GET）校验 `Origin`（空 Origin 放行 curl/SSE）+ `Sec-Fetch-Site: cross-site` 兜底拦截漏带 Origin 的跨站请求
+
+### 🐛 核心修复：多槽位真并行
+
+- **槽位独立 LLM 克隆**（根因修复）：`GetSlotLlm` 对 `UseGlobal` 槽位返回 `_llm.Clone()` 而非共享 `_llm`，消除并发读写 `ModelOverride`/`_reasoningBuffer`/`_reasoningShown` 的竞态——修复「F1 任务跑到一半，切 F2 再切回 F1 就停了」的问题，10 个 agent 真正互不干扰并行
+- **跨槽位文件锁冲突检测**：新增 `Agent.AgentId`（F1-F10）+ `ExecuteToolAsync` 注入 `_agent_id`，`FileLockManager` 按槽位归属识别跨 agent 资源锁定并报错提醒（此前始终按 "main" 判定，跨槽位冲突被误作同源续期静默吞掉）
+- **WebChat 并发写安全**：`SseClient` 加 `WriteLock` 串行化 `Broadcast` 写入；`Agent.Messages` 序列化前防御性快照（`ToList`）
+- **`_roundCts` 原子化**：`Stop`/`Interrupt`/`MainLoopAsync` 用 `Interlocked.Exchange`/`CompareExchange` 协调取消与释放，杜绝 dispose/cancel 竞态
+
+### 🎨 渲染一致性（三端收敛）
+
+- **裸标记修复**：`Program.Output.cs` 管道输出改用 `MarkupLine`，`«dim»` 标记不再裸写到终端
+- **`SpectreToAnsi` 标签集补齐**：新增 `«underline»`/`«italic»`/`«strike»`/`«blue»`/`«magenta»`/`«white»` 等，与 `MapMarkupTag` 对齐；`«bold X»` 复合标签真正带粗体（此前粗体被丢弃）
+- **Markdown 表格**：`SplitTableCells` 支持 `\|` 转义竖线（单元格字面 `|` 不误拆）；「先窥探再消费」避免单行 `| 文本 |` 被静默吞掉；无分隔行（表头+数据）也能解析
+
+### 🛡️ 健壮性
+
+- **非 bash 工具取消令牌**：`fetch`/`web_search`/`download`/`git`/`agent` 实现 `ICancellableTool`，中断时真正终止在途 HTTP 请求/子进程/子智能体，并区分「中断」（`OperationCanceledException` 向上抛）与「超时」（返回超时文案）
+- **资源泄漏修复**：槽位 `Cts` 用 `Interlocked.Exchange` 原子摘除并 `Dispose`；`BackgroundTaskManager` 完成态任务保留上限 50 自动清除；spinner CTS 释放
+
+### 🧪 自测
+
+- 新增表格转义竖线 / 无分隔行 / 单行竖线不吞行测试
+- 新增 `ICancellableTool` 接口实现断言（fetch/web_search/download/git/agent）
+- 全量自测通过（3137 通过 / 0 失败）
+
 ## v0.70.0 (2026-08-16) — Web 特殊前缀输入 + 停止真中断 + 中间格式渲染
 
 一轮 Web 交互补强：标题栏只显示智能体名、`!` Shell 与 `#` 文件引用两大前缀输入落地、停止按钮真正杀掉 bash 子进程，并确立「中间格式 → 各平台渲染」的着色架构（`«tag»…«/»` 统一表达，CLI/TUI→ANSI、Web→HTML）。

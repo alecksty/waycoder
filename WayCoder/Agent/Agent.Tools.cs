@@ -26,6 +26,9 @@ public partial class Agent
         if (!ToolByName.TryGetValue(tc.Name, out var tool))
             return $"错误：未知工具 '{tc.Name}'";
 
+        // 注入本 Agent 唯一标识，供文件锁等跨 Agent 资源冲突检测（WriteFile/EditFile 等经 _agent_id 读取）
+        tc.Arguments["_agent_id"] = AgentId;
+
         try
         {
             // 工作模式约束检查：Plan/Review 模式下阻止修改性工具

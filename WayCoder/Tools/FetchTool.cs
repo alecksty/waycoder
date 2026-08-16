@@ -14,7 +14,7 @@ namespace WayCoder.Tools;
 ///   - 大内容处理（>50KB 截断提示）
 ///   - 反检测 Headers
 /// </summary>
-public class FetchTool : ITool
+public class FetchTool : ITool, ICancellableTool
 {
     public string Name => "fetch";
     public string Description => "抓取网页 URL 的内容，自动提取纯文本或 Markdown（去除 HTML 噪音）。支持 GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS 方法、自定义 headers 与 body，可调用 REST API。用于查阅文档、阅读文章、获取最新信息、调用接口。";
@@ -61,6 +61,10 @@ public class FetchTool : ITool
     }
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+        => await ExecuteAsync(arguments, CancellationToken.None);
+
+    /// <summary>可取消执行（ICancellableTool）：中断时取消在途 HTTP 请求。</summary>
+    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments, CancellationToken cancellationToken)
     {
         var url = arguments.GetValueOrDefault("url")?.ToString() ?? "";
         var maxChars = arguments.TryGetValue("max_chars", out var mc) && mc is int mi ? Math.Min(mi, 100_000) : 8000;
@@ -69,10 +73,10 @@ public class FetchTool : ITool
         var headers = ParseHeaders(arguments.GetValueOrDefault("headers")?.ToString());
         var body = arguments.GetValueOrDefault("body")?.ToString();
 
-        return await Execute(url, maxChars, format ?? "text", method, headers, body);
+        return await Execute(url, maxChars, format ?? "text", method, headers, body, cancellationToken);
     }
 
-    private static async Task<string> Execute(string url, int maxChars, string format, string method, Dictionary<string, string>? headers, string? body)
+    private static async Task<string> Execute(string url, int maxChars, string format, string method, Dictionary<string, string>? headers, string? body, CancellationToken cancellationToken)
     {
         if (!url.StartsWith("http://") && !url.StartsWith("https://"))
             return "错误：URL 必须以 http:// 或 https:// 开头";
@@ -86,7 +90,7 @@ public class FetchTool : ITool
             // 网络请求带指数退避重试（仅 HttpRequestException 网络故障，超时不重试）
             // 每次重试重新构造 HttpRequestMessage，避免 Content 被消费后复用
             using var response = await RetryPolicy.RetryAsync(() =>
-                SendWithRedirectAsync(methodUpper, url, headers, body), new RetryConfig
+                SendWithRedirectAsync(methodUpper, url, headers, body, cancellationToken), new RetryConfig
             {
                 MaxRetries = 2,
                 BaseDelayMs = 500,
@@ -106,14 +110,14 @@ public class FetchTool : ITool
             // JSON 特殊处理
             if (contentType.Contains("json"))
             {
-                var json = await response.Content.ReadAsStringAsync();
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
                 return PrettyPrintJson(json, maxChars);
             }
 
             if (!contentType.Contains("text/html") && !contentType.Contains("text/plain"))
                 return $"错误：不支持的内容类型 '{contentType}'（仅支持 HTML/纯文本/JSON）";
 
-            var html = await response.Content.ReadAsStringAsync();
+            var html = await response.Content.ReadAsStringAsync(cancellationToken);
             var text = format == "markdown" ? ConvertToMarkdown(html) : StripHtml(html);
 
             // 压缩空白（合并连续空行）
@@ -139,6 +143,10 @@ public class FetchTool : ITool
         {
             return $"请求失败：{ex.GetType().Name}: {ex.Message}";
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw; // 中断信号（Web 停止 / Ctrl+C），向上传播，不吞掉
+        }
         catch (TaskCanceledException)
         {
             ErrorLog.ToolError("fetch", $"请求超时（{Config.Instance.FetchTimeoutSec} 秒）");
@@ -156,7 +164,7 @@ public class FetchTool : ITool
     /// 重定向后统一改用 GET（丢弃请求体），fetch 场景重定向目标多为网页。
     /// </summary>
     private static async Task<HttpResponseMessage> SendWithRedirectAsync(
-        string method, string url, Dictionary<string, string>? headers, string? body)
+        string method, string url, Dictionary<string, string>? headers, string? body, CancellationToken cancellationToken)
     {
         var currentUrl = url;
         var currentMethod = method;
@@ -189,7 +197,7 @@ public class FetchTool : ITool
                 req.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(bodyContentType ?? "application/json");
             }
 
-            var response = await _client.SendAsync(req);
+            var response = await _client.SendAsync(req, cancellationToken);
 
             if (SsgfGuard.IsRedirect((int)response.StatusCode) && response.Headers.Location != null)
             {

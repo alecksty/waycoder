@@ -306,12 +306,17 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     private static string JsonStr(string s) => JNode.Str(s).ToJson();
 
     /// <summary>校验 Origin 是否为本服务合法来源（CSRF 防护）。纯逻辑便于自测。</summary>
+    /// <remarks>空 Origin（curl/SSE/同源导航）放行，非空必须匹配本机来源。浏览器跨源 fetch/form 必带 Origin（攻击者域名）故被拒。</remarks>
     public static bool IsTrustedOrigin(string? origin, int port)
     {
         if (string.IsNullOrEmpty(origin)) return true; // 非浏览器客户端（curl/SSE/同源导航）放行
         return origin.Equals($"http://127.0.0.1:{port}", StringComparison.OrdinalIgnoreCase)
             || origin.Equals($"http://localhost:{port}", StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>CSRF 兜底：现代浏览器跨站请求会带 <c>Sec-Fetch-Site: cross-site</c>，即使漏带 Origin 也据此拦截。纯逻辑便于自测。</summary>
+    public static bool IsCrossSite(string? secFetchSite)
+        => string.Equals(secFetchSite, "cross-site", StringComparison.OrdinalIgnoreCase);
 
     private static string JsonTool(string name, string brief)
         => JNode.Object().Set("name", HtmlEscape(name)).Set("args", HtmlEscape(brief)).ToJson();

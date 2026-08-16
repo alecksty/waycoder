@@ -265,6 +265,7 @@ public partial class Program
 
         _agent = new Agent(_llm, maxContextTokens: ModelCatalog.ResolveContextWindow(_config.Model, _config.MaxContextTokens),
             maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
+        _agent.AgentId = "F1"; // 主 Agent = 槽位 1，供文件锁跨槽位冲突检测
         ProgramContext.Agent = _agent;
         _slots[0] = new AgentSlot { Agent = _agent }; // 槽位 0 持有主 Agent
 
