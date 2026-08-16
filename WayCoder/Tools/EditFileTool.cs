@@ -106,7 +106,7 @@ public class EditFileTool : ITool
             try { raw = File.ReadAllBytes(path); }
             catch { return $"错误：无法读取 {filePath}"; }
 
-            try { _ = Encoding.UTF8.GetString(raw); }
+            try { _ = new UTF8Encoding(false, true).GetString(raw); }
             catch { return $"错误：{filePath} 不是 UTF-8 文本文件（edit_file 只能编辑文本文件）"; }
 
             var content = File.ReadAllText(path, Encoding.UTF8);
@@ -146,9 +146,9 @@ public class EditFileTool : ITool
                     newContent = DiffPreview.ApplyAccepted(content, DiffPreview.BuildHunks(content, newContent), accepted);
             }
 
-            // CRLF 行尾保留：如果原文件是 CRLF，保持 CRLF
+            // CRLF 行尾保留：先归一化为 LF 再统一转 CRLF，避免把已有 \r\n 二次转成 \r\r\n
             if (hasCrlf)
-                newContent = newContent.Replace("\n", "\r\n");
+                newContent = newContent.Replace("\r\n", "\n").Replace("\n", "\r\n");
 
             File.WriteAllText(path, newContent, Encoding.UTF8);
             RecordChange(path, content, newContent);

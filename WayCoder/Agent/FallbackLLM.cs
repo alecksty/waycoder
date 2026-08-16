@@ -22,9 +22,8 @@ public static class FallbackLLM
     public static double? MaxBudget
     {
         get => Config.Instance.FallbackMaxBudget;
-        set => _maxBudget = value;
+        set => Config.Instance.FallbackMaxBudget = value;
     }
-    private static double? _maxBudget = 5.0;
 
     /// <summary>总花费跟踪</summary>
     public static double TotalSpent { get; private set; }

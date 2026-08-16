@@ -80,6 +80,13 @@ public class MvTool : ITool
 
             if (Directory.Exists(srcPath))
             {
+                // 目标位于源目录内部（含自身）时移动会无限递归，直接拒绝
+                var srcTrimmed = srcPath.TrimEnd(Path.DirectorySeparatorChar, '/');
+                var srcPrefix = srcTrimmed + Path.DirectorySeparatorChar;
+                if (destPath.Equals(srcTrimmed, StringComparison.OrdinalIgnoreCase)
+                    || destPath.StartsWith(srcPrefix, StringComparison.OrdinalIgnoreCase))
+                    return $"⚠ 无法移动：目标 '{destPath}' 位于源目录内部";
+
                 // 尝试直接移动
                 try
                 {

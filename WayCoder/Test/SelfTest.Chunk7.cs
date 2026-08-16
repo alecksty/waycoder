@@ -450,6 +450,30 @@ public static partial class SelfTest
         Check("FormatSize B", EditorCore.FormatSize(500) == "500 B");
         Check("FormatSize KB", EditorCore.FormatSize(2048) == "2.0 KB");
 
+        // emoji 代理对（😀 = U+1F600，占 2 个 UTF-16 code unit）
+        var emo = new EditorCore();
+        emo.Lines.Add(new());                 // 直接 new 无 LoadFile 时 Lines 为空，先加一行
+        emo.InsertText("ab\U0001F600cd");   // "ab😀cd"，😀 占 index 2..4
+        Check("emoji 插入后 Cx 正确", emo.Cx == 6);
+        emo.Cx = 4;
+        emo.Backspace();
+        Check("Backspace 删整个 emoji", emo.Lines[0].ToString() == "abcd");
+        Check("Backspace 后 Cx 正确", emo.Cx == 2);
+
+        var emo2 = new EditorCore();
+        emo2.Lines.Add(new());
+        emo2.InsertText("\U0001F600");      // 单行一个 emoji，光标 Cx=2
+        emo2.Cx = 0;
+        emo2.Delete();
+        Check("Delete 删整个 emoji", emo2.Lines[0].Length == 0);
+
+        var emo3 = new EditorCore();
+        emo3.Lines.Add(new());
+        emo3.InsertText("a\U0001F600b");    // "a😀b"，长度 4
+        emo3.Cx = 3;                        // 'b' 前
+        emo3.MoveCursor(-1, 0);             // 向左一步，跳过代理对
+        Check("MoveCursor 左移跳过代理对", emo3.Cx == 1);
+
         // 诊断
         var (e, w) = core.GetDiagSummary();
         Check("GetDiagSummary 返回元组", e >= 0 && w >= 0);

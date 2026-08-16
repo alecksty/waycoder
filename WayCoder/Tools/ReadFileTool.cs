@@ -287,6 +287,9 @@ public class ReadFileTool : ITool
 
         var text = File.ReadAllText(path, Encoding.UTF8);
         var lines = text.Split('\n');
+        // 末尾换行会产生一个空元素（"a\nb\n" → 3 元素，实际 2 行），去掉避免行数虚增
+        if (lines.Length > 1 && lines[^1].Length == 0)
+            lines = lines[..^1];
         var total = lines.Length;
 
         // 文件追踪

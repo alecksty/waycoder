@@ -1,5 +1,42 @@
 # 更新日志
 
+## v0.71.7 (2026-08-17) — 基础设施/文件工具/编辑器 21 项确定性修复
+
+系统性审查基础设施、文件操作工具、会话/辅助模式、批处理与 TUI 编辑器，修复 21 个确定性 bug，补齐单元测试。
+
+### 🐛 基础设施（Infra）
+
+- **`.gitignore` 目录规则产生 `//` 双斜杠**：`FileIgnoreManager.BuildRegex` 对 `logs/` 这类尾斜杠目录规则先拼接再补 `/`，正则出现 `//`，导致 `logs/` 规则既匹配不到目录本身、也匹配不到目录内容；拆分「锚定/中间目录段/尾斜杠后缀」逐段拼接修复，`logs/output.txt`、`logs/deep/file.txt` 现在正确命中且不误伤 `catalog.txt`
+- **Hook exit 2 + JSON 无 decision 不阻断**：`HooksManager.ParseHookOutput` 在 JSON 分支下若 `exitCode == 2` 且 `Decision` 为空，未落回 block；补上 `Continue=false + Decision="block"`，同时不覆盖显式 `approve`/`deny`
+
+### 🐛 文件操作工具
+
+- **`RmTool` 非 Windows 空 `SpecialFolder` 前缀**：`Environment.GetFolderPath(Windows/System)` 在非 Windows 返回 `""`，`ProtectedPaths` 空串 `StartsWith` 恒真 → 一切路径都被判为受保护；跳过空路径
+- **`GlobTool` `*.*` 漏掉无扩展名文件**：`Directory.GetFiles(root, "*.*")` 在 Unix 不匹配无点文件，改为 `"*"`
+- **`FindReplaceTool` 替换串被当正则替换模式**：`regex.Replace(content, replacement)` 会把 `$1`/`${name}` 解释为捕获组引用，改用 `MatchEvaluator` 字面替换
+- **`EditFileTool`/`MultiEditTool` 三处**：① `Encoding.UTF8`（`throwOnInvalidBytes:false`）静默吞非法字节，改为 `new UTF8Encoding(false,true)` 严格校验；② 写回时 `Replace("\n","\r\n")` 在已有 CRLF 时产生 `\r\r\n`，改为先归一化 LF 再转 CRLF；③ CRLF 文件编辑保持换行符
+- **`CpTool`/`MvTool` 目录复制/移动进自身子树**：目标落在源目录内部时 `Directory.Move`/递归复制无限循环，加前缀检测提前拒绝
+- **`ReadFileTool` 尾随换行行数虚增**：`text.Split('\n')` 对 `"a\nb\n"` 产生 3 元素、行数报 3 实为 2；去掉末尾空元素
+- **`GrepTool` 单目录不可访问导致整树漏搜**：`Directory.GetFiles(..., AllDirectories)` 一个异常整棵放弃，改为逐目录递归、每目录独立 try/catch
+
+### 🐛 会话/辅助模式（Watch / Fallback / Session）
+
+- **`WatchMode` AI? 注释 off-by-one**：`trimmed[2..]` 漏掉 `AI?` 第 3 字符 `?`，指令前缀残留问号
+- **`WatchMode` 忽略目录按绝对路径段匹配误伤**：用绝对路径 `dir` 逐段比对，祖先目录名（如 `/Users/x/target/...`）被误判为忽略目录；改为相对监视根的路径段
+- **`WatchMode` 块注释在不适配语言误判**：`.py` 等文件里含 `/*` 的字符串/URL 被当 C 块注释吞掉后续行；`/* */`、`<!-- -->` 检测改为仅适用语言开启
+- **`FallbackLLM.MaxBudget` setter 死代码**：setter 写私有静态 `_maxBudget`、读走 `Config`，`Config.FallbackMaxBudget = value` 永不生效；setter 直接落到 `Config`
+- **`SessionManager.ListSessions` 跨目录分页错序**：先按目录取 `Skip/Take` 再拼接，跨 `sessions/` 与旧目录时排序/去重失效；改为全量收集 → 按 `saved_at` 降序 → `seen` 去重 → 统一分页
+
+### 🐛 批处理 / 编辑器
+
+- **`BatchRunner.CloneRepo` 无超时**：同步 `GitRunner.Run` 的 `WaitForExit` 无超时，`git clone` 因网络/认证问题永久挂起卡死整个批任务；改为 `CloneRepoAsync` + `RunAsync` 可取消，超时杀进程树
+- **`DiagnosticManager` 并发访问非线程安全字典**：后台 lint 写、UI 线程读共享 `Dictionary`，改为 `ConcurrentDictionary`
+- **`DiagnosticManager` exit 0 时丢弃 warning**：`StartsWith("✅")` 把「检查通过」整体跳过，但 stderr 里的 warning 会拼进 `combined`；改为只跳过「无法运行 linter」，继续解析 warning
+- **`DiagnosticManager` PHP 严重级按整段输出判 warning**：`output.Contains("warning")` 会让一条 error 之外的无关 warning 把 error 也标成 warning；改为按每条匹配的 `error|warning` 前缀判定
+- **`DiagnosticManager` Rust 错误定位按索引配对错位**：`note`/`help` 注解也带 `-->`，`errMatches[i]` 配 `locMatches[i]` 会让后续错误错位到注解位置；改为取该 error 之后最近的 `-->`
+- **`EditorCore` 光标/删除切半 emoji 代理对**：`Backspace`/`Delete`/`MoveCursor` 按单 `char` 操作会在 emoji/CJK 扩展 B 中间切断；改为代理对感知，删除/移动整码点
+- **`Syntax` 高亮忽略字符串转义**：`line.IndexOf('"', i+1)` 把 `\"` 当结束引号提前截断；新增 `FindStringEnd` 跳过反斜杠转义
+
 ## v0.71.6 (2026-08-17) — 上下文压缩/LLM 流式/Web 并发 11 项修复
 
 系统性审查 `ContextManager`/`LLM`/`WebChat`，修复 11 个确定性 bug：上下文压缩省略行 off-by-one、UTF-16 切片切半代理对、LLM 400 回退死代码、流式工具调用重复触发、Web 版断连泄漏/槽位竞态。

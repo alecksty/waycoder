@@ -129,7 +129,7 @@ public class Syntax
             // JSON 键名（字符串后紧跟冒号）→ 紫色，区别于值
             if (Name == "JSON" && line[i] == '"')
             {
-                var end = line.IndexOf('"', i + 1);
+                var end = FindStringEnd(line, i, '"');
                 if (end < 0) end = line.Length - 1;
                 int k = end + 1;
                 while (k < line.Length && line[k] == ' ') k++;
@@ -142,7 +142,7 @@ public class Syntax
             // 字符串字面量 "..."
             if (line[i] == '"')
             {
-                var end = line.IndexOf('"', i + 1);
+                var end = FindStringEnd(line, i, '"');
                 if (end < 0) end = line.Length - 1;
                 tokens.Add((line[i..(end + 1)], Green));
                 i = end + 1;
@@ -152,7 +152,7 @@ public class Syntax
             // 单引号字符串 '...'
             if (line[i] == '\'')
             {
-                var end = line.IndexOf('\'', i + 1);
+                var end = FindStringEnd(line, i, '\'');
                 if (end < 0) end = line.Length - 1;
                 tokens.Add((line[i..(end + 1)], Green));
                 i = end + 1;
@@ -203,6 +203,20 @@ public class Syntax
         }
 
         return tokens;
+    }
+
+    /// <summary>找到字符串的结束引号位置，跳过反斜杠转义的引号（\" 或 \'）。
+    /// 返回结束引号下标，未找到返回 -1。</summary>
+    private static int FindStringEnd(string line, int start, char quote)
+    {
+        int i = start + 1;
+        while (i < line.Length)
+        {
+            if (line[i] == '\\') { i += 2; continue; }  // 跳过转义字符
+            if (line[i] == quote) return i;
+            i++;
+        }
+        return -1;
     }
 
     // ================================================================

@@ -123,12 +123,13 @@ public class WatchMode : IDisposable
         if (string.IsNullOrEmpty(ext) || !watchExts.Contains(ext))
             return false;
 
-        // 目录过滤
+        // 目录过滤：仅检查监视根之下的目录段，避免祖先目录名（如 /Users/x/target/…）误判
         var dir = Path.GetDirectoryName(path);
         if (dir != null)
         {
             var ignoreDirs = GetIgnoreDirs();
-            foreach (var part in dir.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+            var relative = Path.GetRelativePath(Path.GetFullPath(_watcher.Path), dir);
+            foreach (var part in relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
             {
                 if (ignoreDirs.Contains(part)) return false;
             }
@@ -199,6 +200,14 @@ public class WatchMode : IDisposable
             _ => new[] { "//", "#", "--" },
         };
 
+        // 是否支持 C 风格块注释 /* */ 与 HTML 块注释 <!-- -->（仅适用语言才检测，
+        // 否则 .py 等文件里含 "/*" 的字符串/URL 会被误判为块注释，吞掉后续行）
+        var supportsCBlock = ext is ".cs" or ".java" or ".kt" or ".swift" or ".go" or ".rs"
+            or ".c" or ".cpp" or ".h" or ".hpp" or ".js" or ".ts" or ".jsx" or ".tsx"
+            or ".scala" or ".dart" or ".zig" or ".css" or ".scss" or ".less"
+            or ".fs" or ".fsx" or ".csx";
+        var supportsHtmlBlock = ext is ".html" or ".xml" or ".vue" or ".svelte" or ".md" or ".svg";
+
         var lines = content.Split('\n');
         bool inBlockComment = false;
         string? blockCommentEnd = null;
@@ -225,43 +234,50 @@ public class WatchMode : IDisposable
                 continue;
             }
 
-            // 检测块注释开始: /* AI! ... */ 或 <!-- AI! ... -->
-            var blockStart = line.IndexOf("/*", StringComparison.Ordinal);
-            if (blockStart >= 0)
+            // 检测 C 风格块注释 /* ... */（仅适用语言，否则含 "/*" 的字符串会被误判）
+            if (supportsCBlock)
             {
-                var afterStart = line[(blockStart + 2)..];
-                var blockEnd = afterStart.IndexOf("*/", StringComparison.Ordinal);
-                if (blockEnd >= 0)
+                var blockStart = line.IndexOf("/*", StringComparison.Ordinal);
+                if (blockStart >= 0)
                 {
-                    // 单行块注释
-                    ExtractAiPrefix(afterStart[..blockEnd].Trim(), results);
+                    var afterStart = line[(blockStart + 2)..];
+                    var blockEnd = afterStart.IndexOf("*/", StringComparison.Ordinal);
+                    if (blockEnd >= 0)
+                    {
+                        // 单行块注释
+                        ExtractAiPrefix(afterStart[..blockEnd].Trim(), results);
+                    }
+                    else
+                    {
+                        // 多行块注释开始
+                        inBlockComment = true;
+                        blockCommentEnd = "*/";
+                        ExtractAiPrefix(afterStart.Trim(), results);
+                    }
+                    continue;
                 }
-                else
-                {
-                    // 多行块注释开始
-                    inBlockComment = true;
-                    blockCommentEnd = "*/";
-                    ExtractAiPrefix(afterStart.Trim(), results);
-                }
-                continue;
             }
 
-            var htmlStart = line.IndexOf("<!--", StringComparison.Ordinal);
-            if (htmlStart >= 0)
+            // 检测 HTML 块注释 <!-- ... -->（仅适用语言）
+            if (supportsHtmlBlock)
             {
-                var afterStart = line[(htmlStart + 4)..];
-                var htmlEnd = afterStart.IndexOf("-->", StringComparison.Ordinal);
-                if (htmlEnd >= 0)
+                var htmlStart = line.IndexOf("<!--", StringComparison.Ordinal);
+                if (htmlStart >= 0)
                 {
-                    ExtractAiPrefix(afterStart[..htmlEnd].Trim(), results);
+                    var afterStart = line[(htmlStart + 4)..];
+                    var htmlEnd = afterStart.IndexOf("-->", StringComparison.Ordinal);
+                    if (htmlEnd >= 0)
+                    {
+                        ExtractAiPrefix(afterStart[..htmlEnd].Trim(), results);
+                    }
+                    else
+                    {
+                        inBlockComment = true;
+                        blockCommentEnd = "-->";
+                        ExtractAiPrefix(afterStart.Trim(), results);
+                    }
+                    continue;
                 }
-                else
-                {
-                    inBlockComment = true;
-                    blockCommentEnd = "-->";
-                    ExtractAiPrefix(afterStart.Trim(), results);
-                }
-                continue;
             }
 
             // 行注释检测
@@ -290,7 +306,7 @@ public class WatchMode : IDisposable
         }
         else if (trimmed.StartsWith("AI?") || trimmed.StartsWith("ai?"))
         {
-            var prompt = trimmed[2..].Trim();
+            var prompt = trimmed[3..].Trim();
             if (prompt.Length > 0) results.Add($"请回答关于 {prompt} 的问题");
         }
     }
