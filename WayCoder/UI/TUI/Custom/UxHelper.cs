@@ -270,6 +270,78 @@ public static class UxHelper
         return result;
     }
 
+    // ── 提问（LLM ask_user_question）──
+
+    /// <summary>
+    /// 提问对话框（标题 + 消息 + 选项按钮）。TUI 下弹出 Ask 对话框，非 TUI 回退到编号菜单。
+    /// 单选返回选中索引，多选返回选中索引集合；null = 取消。
+    /// </summary>
+    public static List<int>? Ask(string title, string message, List<string> options, bool multiSelect, int timeoutMs = 30_000)
+    {
+        if (options.Count == 0) return multiSelect ? new List<int>() : null;
+
+        if (IsTuiMode)
+            return ShowAskDialog(title, message, options, multiSelect, timeoutMs);
+
+        // 非 TUI：打印标题 + 消息 + 编号选项
+        Console.WriteLine(AnsiTty.BoldText(title));
+        if (!string.IsNullOrWhiteSpace(message))
+            Console.WriteLine(message);
+
+        if (multiSelect)
+        {
+            var sel = new List<int>();
+            Console.WriteLine("(多选，输入编号用逗号分隔，如 1,3)");
+            for (int i = 0; i < options.Count; i++)
+                Console.WriteLine($"  [{i + 1}] {options[i]}");
+            Console.Write($"选择 (1-{options.Count}, q=取消): ");
+            var line = Console.ReadLine() ?? "";
+            if (line.Trim().ToLowerInvariant() is "q" or "quit") return null;
+            foreach (var part in line.Split([',', '，', ' '], StringSplitOptions.RemoveEmptyEntries))
+                if (int.TryParse(part, out var idx) && idx >= 1 && idx <= options.Count)
+                    sel.Add(idx - 1);
+            return sel;
+        }
+        else
+        {
+            for (int i = 0; i < options.Count; i++)
+                Console.WriteLine($"  [{i + 1}] {options[i]}");
+            Console.Write($"选择 (1-{options.Count}, q=取消): ");
+            while (true)
+            {
+                var key = Console.ReadKey(intercept: true);
+                if (key.KeyChar == 'q' || key.KeyChar == 'Q' || key.Key == ConsoleKey.Escape)
+                {
+                    Console.WriteLine("取消");
+                    return null;
+                }
+                if (int.TryParse(key.KeyChar.ToString(), out var idx) && idx >= 1 && idx <= options.Count)
+                {
+                    Console.WriteLine(options[idx - 1]);
+                    return [idx - 1];
+                }
+            }
+        }
+    }
+
+    private static List<int>? ShowAskDialog(string title, string message, List<string> options, bool multiSelect, int timeoutMs)
+    {
+        List<int>? result = null;
+        using var evt = new ManualResetEventSlim(false);
+        try
+        {
+            var win = TuiDialog.Ask(title, message, options, multiSelect,
+                onSelect: idx => { result = [idx]; evt.Set(); },
+                onMultiConfirm: picked => { result = picked.ToList(); evt.Set(); },
+                onCancel: () => { result = null; evt.Set(); });
+            var screen = TuiManager.Instance?.ActiveScreen;
+            screen?.ShowWindow(win);
+            RenderWait(screen, evt, timeoutMs, win);
+        }
+        catch { evt.Set(); }
+        return result;
+    }
+
     // ── 确认（权限） ──
 
     /// <summary>

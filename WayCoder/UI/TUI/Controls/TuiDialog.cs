@@ -53,21 +53,19 @@ public static class TuiDialog
     }
 
     /// <summary>
-    /// 消息框最大消息行数 —— 消息可纵向扩展到屏幕高度的 3/4。
-    /// 总高 = 上下边框(2) + 标题栏(1) + 消息行 + spacer(1) + 按钮行(1)。
+    /// 消息框固定消息行数。消息框改为固定高度：窗口总高固定 7 行
+    /// （上下边框 2 行 + 内容区 5 行），内容区 = 消息(最多 4 行) + 按钮(1 行)。
+    /// 标题嵌在顶部边框上（不独占行），故内容区正好 5 行。
     /// </summary>
-    private static int MaxMessageLines()
-    {
-        int avail = (int)(Tty.Rows * 0.75) - 5;
-        return Math.Max(3, avail);
-    }
+    private static int MaxMessageLines() => 4;
 
-    /// <summary>按消息行数自适应窗口高度（上限 3/4 屏高），避免空余空间或消息被截断。</summary>
+    /// <summary>
+    /// 固定窗口高度为 7（边框 2 + 内容区 5）。不再随消息行数动态伸缩——
+    /// 动态高度导致每次内容变化都要重算布局并整窗重绘，易产生残影。
+    /// </summary>
     private static void FitHeight(TuiWindow win, int msgLines)
     {
-        int total = 2 + 1 + msgLines + 2; // 上下边框 + 标题栏 + 消息行 + spacer + 按钮行
-        int maxH = Math.Max(5, (int)(Tty.Rows * 0.75));
-        win.Height = Math.Min(maxH, Math.Max(win.MinHeight, total));
+        win.Height = 7;
     }
 
     /// <summary>给按钮启用渐变背景</summary>
@@ -149,14 +147,13 @@ public static class TuiDialog
     private static void BuildSingleButton(TuiWindow win, string message, string btnLabel,
         (int start, int end) btnGrad, (int start, int end) winGrad)
     {
-        win.TitleBold = true;
+        win.TitleBold = true; // 标题独占一行（粗体）
         int cw = ContentW(DefaultXScale, 4);
         var msgLabels = BuildMessageLabels(message, cw);
         FitHeight(win, msgLabels.Count);
 
         var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
         foreach (var lbl in msgLabels) vbox.Add(lbl);
-        vbox.Add(new TuiLabel("") { Height = 1 }); // spacer
 
         var btn = new TuiButton(btnLabel)
         {
@@ -189,7 +186,7 @@ public static class TuiDialog
     public static TuiWindow Confirm(string title, string message, Action<bool> onResult)
     {
         var win = NewDialog(title, TuiTheme.Current.DialogConfirmBorder, WideXScale);
-        win.TitleBold = true;
+        win.TitleBold = true; // 标题独占一行（粗体）
 
         int cw = ContentW(WideXScale, 4);
         var msgLabels = BuildMessageLabels(message, cw);
@@ -197,7 +194,6 @@ public static class TuiDialog
 
         var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
         foreach (var lbl in msgLabels) vbox.Add(lbl);
-        vbox.Add(new TuiLabel("") { Height = 1 }); // spacer
 
         // 按钮用 Flex 均分
         var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
@@ -222,7 +218,7 @@ public static class TuiDialog
     public static TuiWindow Confirm3(string title, string message, Action<DialogResult> onResult)
     {
         var win = NewDialog(title, TuiTheme.Current.DialogConfirmBorder, WideXScale);
-        win.TitleBold = true;
+        win.TitleBold = true; // 标题独占一行（粗体）
 
         int cw = ContentW(WideXScale, 4);
         var msgLabels = BuildMessageLabels(message, cw);
@@ -230,7 +226,6 @@ public static class TuiDialog
 
         var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
         foreach (var lbl in msgLabels) vbox.Add(lbl);
-        vbox.Add(new TuiLabel("") { Height = 1 }); // spacer
 
         var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
         var yesBtn = new TuiButton("是 (Y)") { Flex = 1, Focused = true };
@@ -594,6 +589,102 @@ public static class TuiDialog
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // LLM 提问对话框（标题 + 消息 + 单选/多选按钮）
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>消息正文最多行数（超出末尾加省略号）</summary>
+    private const int AskMaxMessageLines = 5;
+
+    /// <summary>选项列表最多可见行数（超出滚动）</summary>
+    private const int AskMaxListItems = 9;
+
+    /// <summary>
+    /// 提问对话框 —— 专门给 LLM（ask_user_question 工具）使用。
+    /// 布局：标题独占一行（粗体，如诗名）→ 消息正文（1~5 行，超出省略号，如诗内容）
+    /// → 选项列表（单选 ▶ 选中，多选 ☑/☐ 勾选，复用现有 TuiList）→ 底部操作按钮。
+    /// 高度按内容精确计算，不留过度空白。
+    /// </summary>
+    /// <param name="title">标题（header/诗名，独占一行粗体）</param>
+    /// <param name="message">消息正文（question/诗内容，最多 5 行，超出省略号）</param>
+    /// <param name="options">选项标签列表（列表项文本）</param>
+    /// <param name="multiSelect">true=多选（☑勾选+确定），false=单选（▶选中即确认）</param>
+    /// <param name="onSelect">单选回调（选中索引）</param>
+    /// <param name="onMultiConfirm">多选回调（选中索引集合）</param>
+    /// <param name="onCancel">取消回调</param>
+    public static TuiWindow Ask(string title, string message, List<string> options,
+        bool multiSelect, Action<int> onSelect, Action<HashSet<int>> onMultiConfirm,
+        Action? onCancel = null)
+    {
+        var win = NewDialog(title, TuiTheme.Current.DialogInfoBorder, WideXScale);
+        win.TitleBold = true; // 标题独占一行（诗名醒目）
+
+        int cw = ContentW(WideXScale, 4);
+
+        // ── 消息正文（1~5 行，超出末尾加省略号）──
+        var msgLines = TuiHelper.WrapText(message, cw, AskMaxMessageLines);
+
+        var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
+        foreach (var line in msgLines)
+            vbox.Add(new TuiLabel(line) { Width = cw, TextAlign = HAlign.Center });
+
+        vbox.Add(new TuiLabel("") { Height = 1 }); // spacer：消息与选项分隔
+
+        // ── 选项列表（单选 ▶ 选中，多选 ☑/☐ 勾选，复用现有 TuiList）──
+        int listH = Math.Max(1, Math.Min(options.Count, AskMaxListItems));
+        var list = new TuiList
+        {
+            Items = options,
+            SelectedIndex = 0,
+            MultiSelect = multiSelect,
+            Width = cw,
+            Height = listH,
+            Focused = true,
+        };
+        vbox.Add(list);
+
+        vbox.Add(new TuiLabel("") { Height = 1 }); // spacer：选项与底部按钮分隔
+
+        // ── 底部操作按钮 ──
+        var bottom = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
+        if (multiSelect)
+        {
+            var okBtn = new TuiButton("确定") { Flex = 1 };
+            var cancelBtn = new TuiButton("取消") { Flex = 1 };
+            void Confirm()
+            {
+                win.Result = list.CheckedIndices;
+                onMultiConfirm(list.CheckedIndices);
+                win.OnClosed?.Invoke();
+            }
+            okBtn.OnClick = _ => Confirm();
+            cancelBtn.OnClick = _ => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
+            // 多选：空格勾选，Enter = 确认（等同点击"确定"）
+            list.OnSelect = _ => Confirm();
+            bottom.Add(okBtn); bottom.Add(cancelBtn);
+            ApplyButtonGradient(TuiTheme.Current.BtnCyanBlue, okBtn, cancelBtn);
+        }
+        else
+        {
+            var cancelBtn = new TuiButton("取消 (Esc)") { Flex = 1 };
+            cancelBtn.OnClick = _ => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
+            bottom.Add(cancelBtn);
+            ApplyButtonGradient(TuiTheme.Current.BtnCyanBlue, cancelBtn);
+            // 单选：Enter/空格 激活当前选中项
+            list.OnSelect = idx => { win.Result = idx; onSelect(idx); win.OnClosed?.Invoke(); };
+        }
+        vbox.Add(bottom);
+
+        win.RootView = vbox;
+        ApplyGradient(win, TuiTheme.Current.GradCyanBlue);
+        win.RegisterShortcut(ConsoleKey.Escape, () => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); });
+
+        // 精确高度：边框(2) + 标题行(1) + 消息 + spacer(1) + 列表 + spacer(1) + 底部按钮(1)
+        win.Height = msgLines.Count + listH + 6;
+
+        return win;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // 权限确认对话框
     // ═══════════════════════════════════════════════════════════════
 
@@ -623,7 +714,7 @@ public static class TuiDialog
             WindowHAlign = HAlign.Center,
             WindowVAlign = VAlign.Middle,
             MinWidth = MinDialogW,
-            MinHeight = 5,
+            Height = 7,
         };
 
         int cw = ContentW(WideXScale, 4);
@@ -635,7 +726,6 @@ public static class TuiDialog
             lbl.Fg = blackFg;
             vbox.Add(lbl);
         }
-        vbox.Add(new TuiLabel("") { Height = 1 }); // spacer
 
         var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
         var yesBtn = MakePermBtn("允许 (Y)", 1, DialogResult.Yes);

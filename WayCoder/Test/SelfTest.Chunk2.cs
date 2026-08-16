@@ -186,31 +186,28 @@ public static partial class SelfTest
         // ---- LLM 定价 ----
         Section("[LLM]");
         var llm = new LLM("deepseek-v4-flash", "sk-test");
-        // 用反射注入 token 数
-        typeof(LLM).GetProperty("TotalPromptTokens")?.SetValue(llm, 1_000_000);
-        typeof(LLM).GetProperty("TotalCompletionTokens")?.SetValue(llm, 500_000);
+        // TotalPromptTokens/TotalCompletionTokens 为 getter-only（Interlocked 累加），用 AddUsage 注入 token 数
+        llm.AddUsage(1_000_000, 500_000);
         Check("deepseek-v4-flash 成本 ≈ 0.28", Math.Abs(llm.EstimatedCost!.Value - 0.28) < 0.01);
 
         var llm2 = new LLM("unknown-model", "sk-test");
         Check("未知模型成本为 null", llm2.EstimatedCost == null);
 
         // 任务级花费追踪
-        typeof(LLM).GetProperty("TotalPromptTokens")?.SetValue(llm, 500_000);
-        typeof(LLM).GetProperty("TotalCompletionTokens")?.SetValue(llm, 250_000);
-        llm.SnapshotTaskCost();
+        var llmTask = new LLM("deepseek-v4-flash", "sk-test");
+        llmTask.AddUsage(500_000, 250_000);
+        llmTask.SnapshotTaskCost();
         // 模拟任务产生了 200K 输入 + 100K 输出
-        typeof(LLM).GetProperty("TotalPromptTokens")?.SetValue(llm, 700_000);
-        typeof(LLM).GetProperty("TotalCompletionTokens")?.SetValue(llm, 350_000);
-        Check("任务 Token 增量 = 200K+100K", llm.TaskPromptTokens == 200_000 && llm.TaskCompletionTokens == 100_000);
-        Check("任务花费 ≈ $0.056", llm.TaskCost.HasValue && Math.Abs(llm.TaskCost!.Value - 0.056) < 0.01);
+        llmTask.AddUsage(200_000, 100_000);
+        Check("任务 Token 增量 = 200K+100K", llmTask.TaskPromptTokens == 200_000 && llmTask.TaskCompletionTokens == 100_000);
+        Check("任务花费 ≈ $0.056", llmTask.TaskCost.HasValue && Math.Abs(llmTask.TaskCost!.Value - 0.056) < 0.01);
         // 未知模型 TaskCost 为 null
-        typeof(LLM).GetProperty("TotalPromptTokens")?.SetValue(llm2, 100_000);
-        typeof(LLM).GetProperty("TotalCompletionTokens")?.SetValue(llm2, 50_000);
-        llm2.SnapshotTaskCost();
-        typeof(LLM).GetProperty("TotalPromptTokens")?.SetValue(llm2, 200_000);
-        typeof(LLM).GetProperty("TotalCompletionTokens")?.SetValue(llm2, 100_000);
-        Check("未知模型任务花费为 null", llm2.TaskCost == null);
-        Check("未知模型任务 Token 增量正确", llm2.TaskPromptTokens == 100_000 && llm2.TaskCompletionTokens == 50_000);
+        var llmUnknown = new LLM("unknown-model", "sk-test");
+        llmUnknown.AddUsage(100_000, 50_000);
+        llmUnknown.SnapshotTaskCost();
+        llmUnknown.AddUsage(100_000, 50_000);
+        Check("未知模型任务花费为 null", llmUnknown.TaskCost == null);
+        Check("未知模型任务 Token 增量正确", llmUnknown.TaskPromptTokens == 100_000 && llmUnknown.TaskCompletionTokens == 50_000);
 
         // ---- LLM 重试/超时配置 ----
         Check("默认重试次数 = 5", Config.Instance.LlmMaxRetries == 5);

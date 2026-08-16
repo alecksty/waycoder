@@ -207,10 +207,12 @@ public class LLM
     /// <summary>采样温度（0=精确，1=创意）</summary>
     public float Temperature { get; }
 
-    /// <summary>累计输入 token 数（用于成本估算）</summary>
-    public int TotalPromptTokens { get; private set; }
+    /// <summary>累计输入 token 数（用于成本估算）。backing field 用 Interlocked 累加，兼容并行子智能体归并的并发。</summary>
+    private int _totalPromptTokens;
+    public int TotalPromptTokens => _totalPromptTokens;
     /// <summary>累计输出 token 数（用于成本估算）</summary>
-    public int TotalCompletionTokens { get; private set; }
+    private int _totalCompletionTokens;
+    public int TotalCompletionTokens => _totalCompletionTokens;
 
     /// <summary>当前任务开始时已用的输入 token 数（快照）</summary>
     private int _taskStartPromptTokens;
@@ -255,7 +257,8 @@ public class LLM
     /// <summary>最近一次请求的每秒 token 数</summary>
     public double LastTokensPerSec { get; private set; }
     /// <summary>请求总次数</summary>
-    public int TotalRequests { get; private set; }
+    private int _totalRequests;
+    public int TotalRequests => _totalRequests;
 
     /// <summary>当前流式响应是否已开始输出推理内容</summary>
     private bool _reasoningShown;
@@ -313,9 +316,22 @@ public class LLM
     /// </summary>
     public void MergeUsageFrom(LLM other)
     {
-        TotalPromptTokens += other.TotalPromptTokens;
-        TotalCompletionTokens += other.TotalCompletionTokens;
-        TotalRequests += other.TotalRequests;
+        // Interlocked 原子累加：并行子智能体（Task.WhenAll）会并发归并到同一父实例，
+        // 普通 +=（读-改-写三段）并发会丢失增量。
+        Interlocked.Add(ref _totalPromptTokens, other.TotalPromptTokens);
+        Interlocked.Add(ref _totalCompletionTokens, other.TotalCompletionTokens);
+        Interlocked.Add(ref _totalRequests, other.TotalRequests);
+    }
+
+    /// <summary>
+    /// 原子累加输入/输出 token 用量。供自测注入用量、以及并行归并场景使用，
+    /// 语义与 ContextManager.AddUsage 一致（TotalPromptTokens 为 getter-only，
+    /// 外部不可直接赋值，只能经此方法原子累加）。
+    /// </summary>
+    public void AddUsage(int promptTokens, int completionTokens)
+    {
+        Interlocked.Add(ref _totalPromptTokens, promptTokens);
+        Interlocked.Add(ref _totalCompletionTokens, completionTokens);
     }
 
     /// <summary>
@@ -567,14 +583,14 @@ public class LLM
             DebugLog.Log("reasoning", reasoning);
         }
 
-        TotalPromptTokens += promptTok;
-        TotalCompletionTokens += completionTok;
+        Interlocked.Add(ref _totalPromptTokens, promptTok);
+        Interlocked.Add(ref _totalCompletionTokens, completionTok);
 
         // 性能统计
         LastLatencyMs = sw.Elapsed.TotalMilliseconds;
         LastTokensPerSec = LastLatencyMs > 0
             ? (promptTok + completionTok) / (LastLatencyMs / 1000.0) : 0;
-        TotalRequests++;
+        Interlocked.Increment(ref _totalRequests);
 
         var llmResp = new LLMResponse
         {
