@@ -261,7 +261,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                     .Set("output", err == null ? $"✅ 已切换到 **{matches[0].DisplayName}**" : $"❌ {err}").ToJson());
             }
 
-            var (handled, output) = HandleCommand(trimmed, _slots[slot].Agent);
+            var (handled, output) = HandleCommand(trimmed, _slots[slot].Agent, slot);
             if (!handled)
                 return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", false).ToJson());
 
@@ -272,7 +272,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 if (agent != null)
                 {
                     BroadcastTo(slot, "history", SerializeHistory(agent));
-                    BroadcastAll("sessions", SerializeSessions());
+                    BroadcastTo(slot, "sessions", SerializeSessions(slot));
                     BroadcastStateForAll();
                 }
             }
@@ -284,9 +284,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         if (req.Method == "GET" && req.Path == "/panel")
             return HttpResponse.JsonBody(SerializePanel(slot, AgentView()));
 
-        // 会话记录
+        // 会话记录（槽位隔离：每个页面只看自己槽位的会话）
         if (req.Method == "GET" && req.Path == "/sessions")
-            return HttpResponse.JsonBody(SerializeSessions());
+            return HttpResponse.JsonBody(SerializeSessions(slot));
         if (req.Method == "POST" && req.Path == "/sessions/new")
         {
             // 「新建会话」= 清空当前对话、开新对话（不再落盘保存，避免攒出大量临时会话文件）
@@ -303,7 +303,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var id = body?["id"]?.AsString() ?? "";
             if (string.IsNullOrWhiteSpace(id))
                 return HttpResponse.JsonBody(Err("缺少会话 id"));
-            var loaded = SessionManager.LoadSession(id);
+            var loaded = SessionManager.LoadSession(id, slot);
             if (loaded == null)
                 return HttpResponse.JsonBody(Err("会话不存在"));
             Interrupt(slot);
@@ -322,14 +322,14 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var id = body?["id"]?.AsString() ?? "";
             if (string.IsNullOrWhiteSpace(id))
                 return HttpResponse.JsonBody(Err("缺少会话 id"));
-            SessionManager.DeleteSession(id);
-            BroadcastAll("sessions", SerializeSessions());
+            SessionManager.DeleteSession(id, slot);
+            BroadcastTo(slot, "sessions", SerializeSessions(slot));
             return HttpResponse.JsonBody(Ok());
         }
         if (req.Method == "POST" && req.Path == "/sessions/clear")
         {
-            var deleted = SessionManager.DeleteAllSessions();
-            BroadcastAll("sessions", SerializeSessions());
+            var deleted = SessionManager.DeleteAllSessions(slot);
+            BroadcastTo(slot, "sessions", SerializeSessions(slot));
             return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("deleted", deleted).ToJson());
         }
         if (req.Method == "POST" && req.Path == "/sessions/rename")
@@ -339,9 +339,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var newId = body?["newId"]?.AsString() ?? "";
             if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(newId))
                 return HttpResponse.JsonBody(Err("缺少 id 或 newId"));
-            if (!SessionManager.RenameSession(id, newId))
+            if (!SessionManager.RenameSession(id, newId, slot))
                 return HttpResponse.JsonBody(Err("重命名失败"));
-            BroadcastAll("sessions", SerializeSessions());
+            BroadcastTo(slot, "sessions", SerializeSessions(slot));
             return HttpResponse.JsonBody(Ok());
         }
 
