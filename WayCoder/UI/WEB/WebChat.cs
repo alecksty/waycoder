@@ -41,8 +41,10 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         public Agent? Agent;
         public volatile bool IsBusy;
         public CancellationTokenSource? Cts;
-        /// <summary>串行化 StartSlotTask 的 check-then-act，防同槽位并发请求双启动。</summary>
+        /// <summary>串行化 StartSlotTask 的 check-then-act 与 Interrupt 的 Cts 摘除，防同槽位并发请求双启动 / 中断被丢。</summary>
         public readonly object StartLock = new();
+        /// <summary>串行化 EnsureSlot 的懒建 check-then-act，防并发首建产生双 Agent 相互覆盖。</summary>
+        public readonly object AgentLock = new();
     }
 
     /// <summary>SSE 客户端（写失败 = 断开）。</summary>
@@ -76,16 +78,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
     public void Stop()
     {
-        // 中断所有槽位的后台 Agent 并释放取消令牌
+        // 中断所有槽位的后台 Agent 并释放取消令牌（复用 Interrupt，保持 Cts 摘除与 StartSlotTask 互斥）
         for (int i = 0; i < SlotCount; i++)
-        {
-            var cts = Interlocked.Exchange(ref _slots[i].Cts, null);
-            if (cts != null)
-            {
-                try { cts.Cancel(); } catch { }
-                cts.Dispose();
-            }
-        }
+            Interrupt(i);
         UxHelper.WebInteraction = null;
         _server.Stop();
     }
@@ -148,7 +143,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var idx = body != null ? (int)Math.Round(body["slot"]?.AsNumber() ?? -1) : -1;
             if (idx < 0 || idx >= SlotCount)
                 return HttpResponse.JsonBody(Err("槽位索引须在 0~9 之间"));
-            BindClientSlot(clientId, idx);
+            if (!BindClientSlot(clientId, idx))
+                return HttpResponse.JsonBody(Err("槽位已被其他页面占用"));
             // 切换后刷新该页面自己的 state（activeSlot 高亮 + 该槽位运行态），并按新槽位回放历史
             BroadcastTo(idx, "state", SerializeState(idx, AgentView()));
             return HttpResponse.JsonBody(HistoryOf(idx));
@@ -484,18 +480,26 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         var slot = _slots[idx];
         if (slot.Agent == null)
         {
-            var cfg = Config.Instance;
-            var info = ModelCatalog.Find(cfg.Model);
-            var providerId = info?.ProviderId ?? cfg.Provider;
-            var key = ApiKeyStore.Get(providerId) ?? cfg.ApiKey;
-            var baseUrl = ResolveBaseUrl(info, providerId, cfg.BaseUrl);
-            var llm = new LLM(cfg.Model, key, baseUrl, cfg.MaxTokens, cfg.Temperature)
+            // double-checked locking：多个路由（/model、/sessions/new、/fileref 等）并发首建时，
+            // 若无锁两个线程会各 new 一个 Agent，后写者覆盖前者，拿旧 Agent 的请求落到孤儿实例上。
+            lock (slot.AgentLock)
             {
-                SmallModel = cfg.SmallModel,
-            };
-            slot.Agent = new Agent(llm,
-                maxContextTokens: ModelCatalog.ResolveContextWindow(cfg.Model, cfg.MaxContextTokens),
-                maxBudgetUsd: cfg.MaxBudgetUsd, autoCommit: cfg.AutoGitCommit);
+                if (slot.Agent == null)
+                {
+                    var cfg = Config.Instance;
+                    var info = ModelCatalog.Find(cfg.Model);
+                    var providerId = info?.ProviderId ?? cfg.Provider;
+                    var key = ApiKeyStore.Get(providerId) ?? cfg.ApiKey;
+                    var baseUrl = ResolveBaseUrl(info, providerId, cfg.BaseUrl);
+                    var llm = new LLM(cfg.Model, key, baseUrl, cfg.MaxTokens, cfg.Temperature)
+                    {
+                        SmallModel = cfg.SmallModel,
+                    };
+                    slot.Agent = new Agent(llm,
+                        maxContextTokens: ModelCatalog.ResolveContextWindow(cfg.Model, cfg.MaxContextTokens),
+                        maxBudgetUsd: cfg.MaxBudgetUsd, autoCommit: cfg.AutoGitCommit);
+                }
+            }
         }
         return slot.Agent!;
     }
@@ -515,14 +519,19 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return agent == null ? "[]" : SerializeHistory(agent);
     }
 
-    /// <summary>中断指定槽位的后台 Agent（原子 Exchange + Cancel + Dispose，杜绝竞态）。</summary>
+    /// <summary>中断指定槽位的后台 Agent（与 StartSlotTask 共享 StartLock 原子摘除 Cts + Cancel + Dispose）。</summary>
     private void Interrupt(int slotIdx)
     {
-        var cts = Interlocked.Exchange(ref _slots[slotIdx].Cts, null);
-        if (cts != null)
+        var slot = _slots[slotIdx];
+        lock (slot.StartLock)
         {
-            try { cts.Cancel(); } catch { }
-            cts.Dispose();
+            var cts = slot.Cts;
+            slot.Cts = null;
+            if (cts != null)
+            {
+                try { cts.Cancel(); } catch { }
+                cts.Dispose();
+            }
         }
     }
 
@@ -533,8 +542,12 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     private void StartSlotTask(int slotIdx, string userInput)
     {
         var slot = _slots[slotIdx];
-        // 原子抢占：check-then-act 在锁内完成，杜绝两个并发请求同时通过 IsBusy 检查
-        // 导致同槽位双 Agent 并发执行、第二个 CTS 覆盖第一个（泄漏）。
+        Agent agent;
+        CancellationTokenSource roundCts;
+        // 原子抢占：check + 懒建 Agent + 写 Cts/IsBusy 全部在 StartLock 内完成。
+        // 1) EnsureSlot 失败时 IsBusy 尚未置位，无需回滚（消除「槽位永久 busy」）；
+        // 2) Cts 赋值先于 IsBusy=true 且均在锁内，Interrupt 要么等到 Cts 就绪后 Cancel（正确中断），
+        //    要么在锁释放后进来（Cts 已就绪）——彻底消除「启动窗口内中断被 Exchange 取 null 丢弃」竞态。
         lock (slot.StartLock)
         {
             if (slot.IsBusy)
@@ -542,11 +555,20 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 BroadcastTo(slotIdx, "system", JsonStr("当前槽位仍在运行，请先停止再发送"));
                 return;
             }
+            try
+            {
+                agent = EnsureSlot(slotIdx);
+                roundCts = new CancellationTokenSource();
+            }
+            catch (Exception ex)
+            {
+                // EnsureSlot（配置读取 / 模型目录 / new LLM / new Agent）抛异常：广播失败，不置 IsBusy
+                BroadcastTo(slotIdx, "failed", JsonStr($"启动失败：{ex.Message}"));
+                return;
+            }
+            slot.Cts = roundCts;
             slot.IsBusy = true;
         }
-        var agent = EnsureSlot(slotIdx);
-        var roundCts = new CancellationTokenSource();
-        slot.Cts = roundCts;
         var token = roundCts.Token;
         _ = Task.Run(async () =>
         {
@@ -571,11 +593,17 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             }
             finally
             {
-                // 先原子摘除并释放本轮 CTS，再置空闲——否则置空闲后新请求可能写入新 CTS，
-                // 与这里的 CompareExchange 竞态；先摘除令牌，新请求在锁内仍被 IsBusy=true 挡住。
-                if (ReferenceEquals(Interlocked.CompareExchange(ref slot.Cts, null, roundCts), roundCts))
-                    roundCts.Dispose();
-                slot.IsBusy = false;
+                // 摘除本轮 CTS 并置空闲也在 StartLock 内，与 Interrupt/下一次 StartSlotTask 互斥，
+                // 保证 slot.Cts 读写一致；若 Cts 已被 Interrupt 摘除（中断路径）则不重复 Dispose。
+                lock (slot.StartLock)
+                {
+                    if (ReferenceEquals(slot.Cts, roundCts))
+                    {
+                        slot.Cts = null;
+                        roundCts.Dispose();
+                    }
+                    slot.IsBusy = false;
+                }
                 _currentSlot.Value = 0;
             }
         });
@@ -710,15 +738,36 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 writer.Write(HttpServer.SseEvent("history", HistoryOf(slot)));
                 writer.Write(HttpServer.SseEvent("state", SerializeState(slot, AgentView())));
             }
-            await client.Closed.Task;
+            // 同时监听「写失败（Closed）」与「底层流 EOF（客户端主动断开）」：
+            // 服务端从不读 SSE 流，若只等 Closed.Task，客户端关标签页后若无后续广播，
+            // 连接会永久阻塞在 Closed.Task 上，泄漏 Task/StreamWriter/TcpClient 与连接槽位。
+            await Task.WhenAny(client.Closed.Task, WaitForDisconnectAsync(writer.BaseStream));
         }
         catch { /* 连接断开 */ }
         finally
         {
-            lock (_lock) _clients.Remove(client);
+            lock (_lock)
+            {
+                _clients.Remove(client);
+                // 清理客户端槽位绑定：仅当没有其他 SSE 连接仍使用该 clientId 时才释放，
+                // 防止字典无界增长 + 旧 clientId 永久占用槽位（反复刷新后新客户端回退槽位 0 串扰）。
+                if (clientId != null && !_clients.Any(c => c.ClientId == clientId))
+                    _clientSlot.Remove(clientId);
+            }
             // 与 Broadcast 的写共用锁，避免对已释放 writer 的并发写
             lock (client.WriteLock) { try { writer.Dispose(); } catch { } }
         }
+    }
+
+    /// <summary>读 SSE 底层流直到 EOF（客户端断开时 ReadAsync 返回 0 或抛异常），用于检测空闲断连。</summary>
+    private static async Task WaitForDisconnectAsync(Stream stream)
+    {
+        var buffer = new byte[256];
+        try
+        {
+            while (await stream.ReadAsync(buffer) > 0) { }
+        }
+        catch { /* 连接断开 / 流已释放 */ }
     }
 
     /// <summary>只写绑定到指定槽位的客户端（页面作用域事件：token/tool/done/history 等）。</summary>
@@ -806,12 +855,21 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         }
     }
 
-    /// <summary>显式绑定客户端到指定槽位（前端点槽位切换时调用）。同步更新已建 SSE 客户端的槽位，否则切换后输出仍路由到旧槽位。</summary>
-    private void BindClientSlot(string? clientId, int idx)
+    /// <summary>显式绑定客户端到指定槽位（前端点槽位切换时调用）。同步更新已建 SSE 客户端的槽位，否则切换后输出仍路由到旧槽位。返回 false 表示目标槽位已被其他页面占用。</summary>
+    private bool BindClientSlot(string? clientId, int idx)
     {
-        if (string.IsNullOrEmpty(clientId) || idx < 0 || idx >= SlotCount) return;
+        // 无 client（curl/测试等）不参与槽位绑定，放行（保持旧行为：/slot 返回目标槽位历史）
+        if (string.IsNullOrEmpty(clientId)) return true;
+        if (idx < 0 || idx >= SlotCount) return false;
         lock (_lock)
         {
+            // 拒绝绑定到已被其他客户端占用的槽位（每页面一个槽位、互不干扰）；
+            // 两个页面都切到同一槽位会让 BroadcastTo 同时发给两者，互相看到对方对话。
+            foreach (var kv in _clientSlot)
+            {
+                if (kv.Value == idx && !string.Equals(kv.Key, clientId, StringComparison.Ordinal))
+                    return false;
+            }
             _clientSlot[clientId] = idx;
             // 关键：该页面已建立的 SSE 连接（SseClient）也要改 SlotIndex，
             // 否则 BroadcastTo(新槽位) 永远匹配不到它 → 页面收不到 token/停止态，表现为「切换后停止按钮失效」。
@@ -819,6 +877,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             {
                 if (c.ClientId == clientId) c.SlotIndex = idx;
             }
+            return true;
         }
     }
 }
