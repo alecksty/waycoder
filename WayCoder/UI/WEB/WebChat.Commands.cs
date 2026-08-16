@@ -23,7 +23,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     /// 分发 Web 斜杠命令。返回 (是否已处理, 输出 Markdown 文本)。
     /// /interrupt、/stop 的实际中断副作用由路由层执行（需访问实例 _slots[slot].Cts）。
     /// </summary>
-    public static (bool Handled, string Output) HandleCommand(string input, Agent? agent)
+    public static (bool Handled, string Output) HandleCommand(string input, Agent? agent, int slot = -1)
     {
         var text = input.Trim();
         if (!text.StartsWith('/')) return (false, "");
@@ -51,7 +51,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 return (true, "🗑 已清空当前会话");
 
             case "/session":
-                return (true, WebSessionText(args, agent));
+                return (true, WebSessionText(args, agent, slot));
 
             case "/tokens":
                 return (true, WebTokensText(agent));
@@ -136,7 +136,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return sb.ToString();
     }
 
-    private static string WebSessionText(string args, Agent? agent)
+    private static string WebSessionText(string args, Agent? agent, int slot)
     {
         var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
         var sub = parts.Length > 0 ? parts[0].ToLowerInvariant() : "list";
@@ -146,12 +146,12 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         {
             case "save":
                 if (agent == null) return "⚠ 无活跃槽位";
-                var id = SessionManager.SaveSession(agent.Messages, agent.LlmClient.Model);
+                var id = SessionManager.SaveSession(agent.Messages, agent.LlmClient.Model, null, slot);
                 return $"💾 会话已保存: **{id}**";
 
             case "load":
                 if (string.IsNullOrWhiteSpace(rest)) return "用法: /session load <会话ID>";
-                var loaded = SessionManager.LoadSession(rest);
+                var loaded = SessionManager.LoadSession(rest, slot);
                 if (loaded == null) return $"❌ 会话不存在: {rest}";
                 if (agent == null) return "⚠ 无活跃槽位";
                 agent.Messages.Clear();
@@ -160,7 +160,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
             case "list":
             default:
-                var sessions = SessionManager.ListSessions(20);
+                var sessions = SessionManager.ListSessions(20, 0, slot);
                 if (sessions.Count == 0) return "📂 没有已保存的会话";
                 var sb = new StringBuilder();
                 sb.AppendLine($"📂 **已保存的会话**（{sessions.Count} 条）");

@@ -2852,6 +2852,37 @@ public static partial class SelfTest
         }
         finally { SessionManager.DeleteSession(savedId); }
 
+        // ── 2b. 槽位隔离：各槽位各自保存/列出/加载会话，互不干扰 ──
+        var slot0Id = SessionManager.SaveSession(
+            new List<JNode> { JNode.Object().Set("role", "user").Set("content", "槽位0的会话") },
+            "model-0", "slot0-session", 0);
+        var slot1Id = SessionManager.SaveSession(
+            new List<JNode> { JNode.Object().Set("role", "user").Set("content", "槽位1的会话") },
+            "model-1", "slot1-session", 1);
+        try
+        {
+            var list0 = SessionManager.ListSessions(50, 0, 0);
+            var list1 = SessionManager.ListSessions(50, 0, 1);
+            Check("SessionSlot: 槽位0 只含自己会话", list0.Any(s => s.Id == "slot0-session") && list0.All(s => s.Id != "slot1-session"));
+            Check("SessionSlot: 槽位1 只含自己会话", list1.Any(s => s.Id == "slot1-session") && list1.All(s => s.Id != "slot0-session"));
+            Check("SessionSlot: 跨槽位加载返回 null", SessionManager.LoadSession("slot0-session", 1) == null);
+            Check("SessionSlot: 同槽位加载命中", SessionManager.LoadSession("slot1-session", 1) != null);
+            var sj0 = WayCoder.UI.Web.WebChatServer.SerializeSessions(0);
+            var sj1 = WayCoder.UI.Web.WebChatServer.SerializeSessions(1);
+            Check("SessionSlot: SerializeSessions(0) 含槽位0", sj0.Contains("slot0-session") && !sj0.Contains("slot1-session"));
+            Check("SessionSlot: SerializeSessions(1) 含槽位1", sj1.Contains("slot1-session") && !sj1.Contains("slot0-session"));
+            // 清空单槽位只影响该槽位
+            var del0 = SessionManager.DeleteAllSessions(0);
+            Check("SessionSlot: 清空槽位0 至少1条", del0 >= 1);
+            Check("SessionSlot: 清空后槽位1 仍保留", SessionManager.LoadSession("slot1-session", 1) != null);
+            Check("SessionSlot: 清空后槽位0 会话消失", SessionManager.LoadSession("slot0-session", 0) == null);
+        }
+        finally
+        {
+            SessionManager.DeleteSession("slot0-session", 0);
+            SessionManager.DeleteSession("slot1-session", 1);
+        }
+
         // ── 3. LspTool.ActiveSessions 访问器（空态不抛异常）──
         var lspSessions = LspTool.ActiveSessions;
         Check("WebPanel: LspTool.ActiveSessions 返回列表", lspSessions != null);

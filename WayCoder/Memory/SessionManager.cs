@@ -6,6 +6,10 @@ namespace WayCoder;
 /// 会话持久化 - 保存和恢复对话。
 ///
 /// WayCoder 将会话状态提炼为：消息 + 模型配置的 JSON 转储。
+///
+/// 多智能体（槽位）隔离：各方法接受可选 <c>slot</c>（0-9），
+/// 传入时会话记录写入 <c>sessions/slot{N}/</c> 子目录，互不干扰；
+/// 缺省（-1）走全局共享目录（终端 TUI 等沿用旧行为）。
 /// </summary>
 public static class SessionManager
 {
@@ -18,12 +22,17 @@ public static class SessionManager
     private static readonly Regex SafeSessionRegex = new(@"[^A-Za-z0-9._-]+", RegexOptions.None, TimeSpan.FromMilliseconds(100));
     private const int MaxSessionIdLen = 100;
 
+    /// <summary>按槽位返回会话目录：slot&lt;0 用全局目录，否则用 sessions/slot{N}/。</summary>
+    private static string SessionsDirFor(int slot)
+        => slot < 0 ? SessionsDir : Path.Combine(SessionsDir, $"slot{slot}");
+
     /// <summary>
     /// 将对话保存到磁盘。返回会话 ID。
     /// </summary>
-    public static string SaveSession(List<JNode> messages, string model, string? sessionId = null)
+    public static string SaveSession(List<JNode> messages, string model, string? sessionId = null, int slot = -1)
     {
-        Directory.CreateDirectory(SessionsDir);
+        var dir = SessionsDirFor(slot);
+        Directory.CreateDirectory(dir);
 
         sessionId = NormalizeSessionId(sessionId);
 
@@ -36,7 +45,7 @@ public static class SessionManager
         foreach (var m in messages) msgArr.Add(m);
         data.Set("messages", msgArr);
 
-        var path = SessionPath(sessionId);
+        var path = BuildSessionPath(dir, sessionId);
         File.WriteAllText(path, data.ToJson(true));
 
         return sessionId;
@@ -44,16 +53,23 @@ public static class SessionManager
 
     /// <summary>
     /// 加载已保存的会话。返回 (messages, model) 或 null。
+    /// 槽位隔离模式（slot&gt;=0）只读该槽位目录，不回退旧目录。
     /// </summary>
-    public static (List<JNode> Messages, string Model)? LoadSession(string sessionId)
+    public static (List<JNode> Messages, string Model)? LoadSession(string sessionId, int slot = -1)
     {
-        // 先试新目录，回退旧目录
-        var path = SessionPath(sessionId);
-        if (!File.Exists(path))
+        var dir = SessionsDirFor(slot);
+        var path = BuildSessionPath(dir, sessionId);
+
+        // 槽位隔离模式不回退旧目录；全局模式先试新目录、回退旧目录
+        if (!File.Exists(path) && slot < 0)
         {
-            var legacyPath = LegacySessionPath(sessionId);
+            var legacyPath = BuildSessionPath(LegacySessionsDir, sessionId);
             if (File.Exists(legacyPath)) path = legacyPath;
             else return null;
+        }
+        else if (!File.Exists(path))
+        {
+            return null;
         }
 
         try
@@ -75,18 +91,32 @@ public static class SessionManager
     }
 
     /// <summary>删除指定会话</summary>
-    public static bool DeleteSession(string sessionId)
+    public static bool DeleteSession(string sessionId, int slot = -1)
     {
-        var path = SessionPath(sessionId);
+        var path = BuildSessionPath(SessionsDirFor(slot), sessionId);
         if (!File.Exists(path)) return false;
         File.Delete(path);
         return true;
     }
 
-    /// <summary>清空全部会话记录（新目录 + 旧目录），返回删除的文件数。</summary>
-    public static int DeleteAllSessions()
+    /// <summary>
+    /// 清空会话记录，返回删除的文件数。
+    /// 槽位隔离模式（slot&gt;=0）只清空该槽位目录；否则清空全局目录 + 旧目录。
+    /// </summary>
+    public static int DeleteAllSessions(int slot = -1)
     {
         var deleted = 0;
+        if (slot >= 0)
+        {
+            var dir = SessionsDirFor(slot);
+            if (!Directory.Exists(dir)) return 0;
+            foreach (var f in Directory.GetFiles(dir, "*.json"))
+            {
+                try { File.Delete(f); deleted++; } catch { }
+            }
+            return deleted;
+        }
+
         foreach (var dir in new[] { SessionsDir, LegacySessionsDir })
         {
             if (!Directory.Exists(dir)) continue;
@@ -99,13 +129,14 @@ public static class SessionManager
     }
 
     /// <summary>重命名会话</summary>
-    public static bool RenameSession(string oldId, string newId)
+    public static bool RenameSession(string oldId, string newId, int slot = -1)
     {
-        var oldPath = SessionPath(oldId);
+        var dir = SessionsDirFor(slot);
+        var oldPath = BuildSessionPath(dir, oldId);
         if (!File.Exists(oldPath)) return false;
 
         var newIdNormalized = NormalizeSessionId(newId);
-        var newPath = SessionPath(newIdNormalized);
+        var newPath = BuildSessionPath(dir, newIdNormalized);
 
         // 如果新路径已存在，不覆盖
         if (File.Exists(newPath) && !string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
@@ -137,13 +168,19 @@ public static class SessionManager
 
     /// <summary>
     /// 列出可用会话，最新的在前。支持 limit/offset 分页。
+    /// 槽位隔离模式（slot&gt;=0）只扫描该槽位目录。
     /// </summary>
-    public static List<SessionInfo> ListSessions(int limit = 20, int offset = 0)
+    public static List<SessionInfo> ListSessions(int limit = 20, int offset = 0, int slot = -1)
     {
         var sessions = new List<SessionInfo>();
         var skipped = 0;
-        // 扫描新目录和旧目录
-        foreach (var dir in new[] { SessionsDir, LegacySessionsDir })
+
+        var dirs = slot >= 0
+            ? new[] { SessionsDirFor(slot) }
+            : new[] { SessionsDir, LegacySessionsDir };
+
+        // 扫描目标目录
+        foreach (var dir in dirs)
         {
             if (!Directory.Exists(dir)) continue;
             foreach (var f in Directory.GetFiles(dir, "*.json")
@@ -220,16 +257,6 @@ public static class SessionManager
 
     /// <summary>生成新的会话 ID（公开，供外部使用）</summary>
     public static string CreateNewSessionId() => NewSessionId();
-
-    private static string SessionPath(string sessionId)
-    {
-        return BuildSessionPath(SessionsDir, sessionId);
-    }
-
-    private static string LegacySessionPath(string sessionId)
-    {
-        return BuildSessionPath(LegacySessionsDir, sessionId);
-    }
 
     private static string BuildSessionPath(string dir, string sessionId)
     {

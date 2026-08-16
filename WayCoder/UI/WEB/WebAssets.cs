@@ -482,7 +482,7 @@ function switchSlot(i) {
 
 // ── 历史会话（左栏）──
 function fetchSessions() {
-  fetch('/sessions').then(r => r.json()).then(renderSessions).catch(() => {});
+  fetch(cq('/sessions')).then(r => r.json()).then(renderSessions).catch(() => {});
 }
 function renderSessions(list) {
   sessionListEl.innerHTML = '';
@@ -517,12 +517,12 @@ function loadSession(id) {
 }
 function deleteSession(id) {
   if (!confirm('删除会话 ' + id + ' ?')) return;
-  fetch('/sessions/delete', { method: 'POST', body: JSON.stringify({ id: id }) }).then(fetchSessions).catch(() => {});
+  fetch(cq('/sessions/delete'), { method: 'POST', body: JSON.stringify({ id: id }) }).then(fetchSessions).catch(() => {});
 }
 function renameSession(id) {
   const newId = prompt('重命名会话（ID）:', id);
   if (!newId || newId === id) return;
-  fetch('/sessions/rename', { method: 'POST', body: JSON.stringify({ id: id, newId: newId }) })
+  fetch(cq('/sessions/rename'), { method: 'POST', body: JSON.stringify({ id: id, newId: newId }) })
     .then(r => r.json())
     .then(res => { if (res && res.ok === false) alert(res.error || '重命名失败'); })
     .then(fetchSessions)
@@ -534,7 +534,7 @@ document.getElementById('new-session').onclick = () => {
 };
 document.getElementById('clear-sessions').onclick = () => {
   if (!confirm('确定清空所有会话记录？此操作不可恢复。')) return;
-  fetch('/sessions/clear', { method: 'POST' })
+  fetch(cq('/sessions/clear'), { method: 'POST' })
     .then(r => r.json())
     .then(res => { if (res && res.ok) alert('已清空 ' + (res.deleted || 0) + ' 条会话记录'); })
     .then(fetchSessions)

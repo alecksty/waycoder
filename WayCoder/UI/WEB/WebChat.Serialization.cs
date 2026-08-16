@@ -280,13 +280,13 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             .ToJson();
     }
 
-    /// <summary>序列化历史会话列表（左栏）。纯静态便于自测。</summary>
-    public static string SerializeSessions()
+    /// <summary>序列化历史会话列表（左栏）。纯静态便于自测。槽位隔离：slot&gt;=0 只列该槽位会话。</summary>
+    public static string SerializeSessions(int slot = -1)
     {
         var arr = JNode.Array();
         try
         {
-            foreach (var s in SessionManager.ListSessions(50))
+            foreach (var s in SessionManager.ListSessions(50, 0, slot))
             {
                 arr.Add(JNode.Object()
                     .Set("id", s.Id)
