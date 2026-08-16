@@ -104,6 +104,7 @@ public static partial class SelfTest
         Check("Snip: 首部 LINE_004 被保留", seqSnipped.Contains("LINE_004"));
         Check("Snip: 尾部 LINE_099 被保留", seqSnipped.Contains("LINE_099"));
         Check("Snip: 尾部 LINE_095 被保留", seqSnipped.Contains("LINE_095"));
+        Check("Snip: 首行前无虚假省略标记", !seqSnipped.Contains("省略 1 行"));
 
         // ── 6. 多消息混合（部分裁剪）──
         var mixedMsgs = new List<JNode>
@@ -117,6 +118,12 @@ public static partial class SelfTest
         Check("Snip: 用户消息不变", mixedMsgs[0]["content"]!.AsString() == "请编译项目");
         Check("Snip: 短tool不裁剪", mixedMsgs[1]["content"]!.AsString()!.Length < 300);
         Check("Snip: 长tool被裁剪", mixedMsgs[2]["content"]!.AsString()!.Contains("省略") || mixedMsgs[2]["content"]!.AsString()!.Contains("裁剪"));
+
+        // ── 7. TruncateByRunes：按码点截断，不切半代理对 ──
+        Check("TruncateByRunes: 代理对不切半", ContextManager.TruncateByRunes("a😀b", 2) == "a😀");
+        Check("TruncateByRunes: 未超限原样返回", ContextManager.TruncateByRunes("你好世界", 4) == "你好世界");
+        Check("TruncateByRunes: 截断到码点边界", ContextManager.TruncateByRunes("abcdef", 3) == "abc");
+        Check("TruncateByRunes: 截断点落在代理对中间仍完整", ContextManager.TruncateByRunes("xx😀yy", 3) == "xx😀");
     }
 
     /// <summary>压缩保真度测试：超多需求压缩后关键信息仍保留（无 LLM 回退路径）</summary>
