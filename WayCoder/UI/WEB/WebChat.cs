@@ -22,22 +22,32 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     public const int MaxPendingInput = 100;
 
     private readonly HttpServer _server;
-    private readonly Agent?[] _slots = new Agent?[SlotCount];
-    private int _activeSlot;
-    private readonly ConcurrentQueue<(int Slot, string Input)> _input = new();
+    private readonly WebSlot[] _slots = new WebSlot[SlotCount];
     private readonly object _lock = new();
     private readonly List<SseClient> _clients = new();
-    private readonly CancellationTokenSource _serverCts = new();
-    private CancellationTokenSource? _roundCts;
-    private Task? _loopTask;
+    /// <summary>客户端 → 槽位绑定（每个浏览器页面绑定一个槽位，开始/停止按页面作用，互不干扰）。</summary>
+    private readonly Dictionary<string, int> _clientSlot = new(StringComparer.Ordinal);
+
+    /// <summary>当前执行槽位（AsyncLocal：交互桥 ask 按发起提问的槽位路由给对应页面）。</summary>
+    private readonly AsyncLocal<int> _currentSlot = new();
 
     /// <summary>Web 交互桥：requestId → 等待中的提问应答源。</summary>
     private readonly ConcurrentDictionary<string, TaskCompletionSource<string>> _pendingAnswers = new();
     private int _answerId;
 
+    /// <summary>槽位运行时状态（Agent 懒建 + 忙碌标记 + 取消令牌）。</summary>
+    private sealed class WebSlot
+    {
+        public Agent? Agent;
+        public volatile bool IsBusy;
+        public CancellationTokenSource? Cts;
+    }
+
     /// <summary>SSE 客户端（写失败 = 断开）。</summary>
     private sealed class SseClient
     {
+        public string ClientId = "";
+        public int SlotIndex = -1;
         public StreamWriter Writer = null!;
         public readonly TaskCompletionSource Closed = new(TaskCreationOptions.RunContinuationsAsynchronously);
         /// <summary>串行化对该客户端 StreamWriter 的写（Broadcast 与连接建立时的初始回放可能并发）。</summary>
@@ -46,7 +56,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
     public WebChatServer(Agent agent, int port)
     {
-        _slots[0] = agent;
+        for (int i = 0; i < SlotCount; i++) _slots[i] = new WebSlot();
+        _slots[0].Agent = agent;
         _server = new HttpServer(port);
     }
 
@@ -59,17 +70,19 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         _server.OnSse = HandleSseAsync;
         _server.Start();
         UxHelper.WebInteraction = this;
-        _loopTask = Task.Run(() => MainLoopAsync(_serverCts.Token));
     }
 
     public void Stop()
     {
-        try { _serverCts.Cancel(); } catch { }
-        var cts = Interlocked.Exchange(ref _roundCts, null);
-        if (cts != null)
+        // 中断所有槽位的后台 Agent 并释放取消令牌
+        for (int i = 0; i < SlotCount; i++)
         {
-            try { cts.Cancel(); } catch { }
-            cts.Dispose();
+            var cts = Interlocked.Exchange(ref _slots[i].Cts, null);
+            if (cts != null)
+            {
+                try { cts.Cancel(); } catch { }
+                cts.Dispose();
+            }
         }
         UxHelper.WebInteraction = null;
         _server.Stop();
@@ -87,6 +100,11 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         if (req.Method != "GET" && (!IsTrustedOrigin(req.Header("Origin"), Port) || IsCrossSite(req.Header("Sec-Fetch-Site"))))
             return new HttpResponse { Status = 403, Reason = "Forbidden", Body = Encoding.UTF8.GetBytes("403 Forbidden") };
 
+        // 客户端身份 + 槽位绑定（每个页面一个 client，绑定一个槽位，开始/停止按此槽位作用）
+        var clientId = ParseClientQuery(req.Query);
+        var slot = ResolveSlot(clientId);
+        _currentSlot.Value = slot;
+
         // 页面
         if (req.Method == "GET" && req.Path == "/")
             return HttpResponse.Html(WebAssets.Html.Replace("__VERSION__", Global.Version));
@@ -94,18 +112,16 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         // 聊天
         if (req.Method == "POST" && req.Path == "/chat")
         {
-            if (InputQueueFull(_input.Count))
-                return new HttpResponse { Status = 429, Reason = "Too Many Requests", Body = Encoding.UTF8.GetBytes("429 Too Many Requests") };
-            if (!string.IsNullOrWhiteSpace(req.Body)) _input.Enqueue((_activeSlot, req.Body));
+            if (!string.IsNullOrWhiteSpace(req.Body)) StartSlotTask(slot, req.Body);
             return HttpResponse.Text("ok");
         }
         if (req.Method == "POST" && req.Path == "/interrupt")
         {
-            Interrupt();
+            Interrupt(slot);
             return HttpResponse.Text("ok");
         }
         if (req.Method == "GET" && req.Path == "/history")
-            return HttpResponse.JsonBody(SerializeHistory(_slots[_activeSlot]!));
+            return HttpResponse.JsonBody(HistoryOf(slot));
 
         // 模型 / 状态
         if (req.Method == "GET" && req.Path == "/models")
@@ -121,17 +137,19 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         if (req.Method == "POST" && req.Path == "/models/import")
             return ImportExternalModels();
         if (req.Method == "GET" && req.Path == "/state")
-            return HttpResponse.JsonBody(SerializeState(_activeSlot, _slots));
+            return HttpResponse.JsonBody(SerializeState(slot, AgentView()));
 
-        // 槽位切换
+        // 槽位切换（改本客户端绑定的槽位）
         if (req.Method == "POST" && req.Path == "/slot")
         {
             var body = Json.Parse(req.Body);
             var idx = body != null ? (int)Math.Round(body["slot"]?.AsNumber() ?? -1) : -1;
             if (idx < 0 || idx >= SlotCount)
                 return HttpResponse.JsonBody(Err("槽位索引须在 0~9 之间"));
-            SwitchSlot(idx);
-            return HttpResponse.JsonBody(SerializeHistory(_slots[idx]!));
+            BindClientSlot(clientId, idx);
+            // 切换后刷新该页面自己的 state（activeSlot 高亮 + 该槽位运行态），并按新槽位回放历史
+            BroadcastTo(idx, "state", SerializeState(idx, AgentView()));
+            return HttpResponse.JsonBody(HistoryOf(idx));
         }
 
         // 换模型
@@ -142,11 +160,11 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var apiKey = body?["apiKey"]?.AsString();
             if (string.IsNullOrWhiteSpace(modelId))
                 return HttpResponse.JsonBody(Err("缺少 modelId"));
-            Interrupt();
-            var agent = EnsureSlot(_activeSlot);
+            Interrupt(slot);
+            var agent = EnsureSlot(slot);
             var error = ApplyModel(agent, modelId, apiKey);
             if (error != null) return HttpResponse.JsonBody(Err(error));
-            Broadcast("state", SerializeState(_activeSlot, _slots));
+            BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
         }
 
@@ -163,7 +181,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var baseUrl = ResolveBaseUrl(info, info.ProviderId, cfg.BaseUrl);
             if (baseUrl != null) cfg.BaseUrl = baseUrl;
             cfg.SaveToEnvFile();
-            Broadcast("state", SerializeState(_activeSlot, _slots));
+            BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
         }
 
@@ -176,7 +194,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             if (string.IsNullOrWhiteSpace(providerId))
                 return HttpResponse.JsonBody(Err("缺少 providerId"));
             SetProviderKey(providerId, apiKey);
-            Broadcast("state", SerializeState(_activeSlot, _slots));
+            BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
         }
 
@@ -193,7 +211,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var ok = Config.TrySetPropValue(key, value, out var error);
             if (!ok) return HttpResponse.JsonBody(Err(error ?? "设置失败"));
             Config.Instance.SaveToEnvFile();
-            Broadcast("state", SerializeState(_activeSlot, _slots));
+            BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
         }
 
@@ -205,7 +223,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             if (string.IsNullOrWhiteSpace(mode))
                 return HttpResponse.JsonBody(Err("缺少 mode"));
             PermissionManager.SetMode(mode);
-            Broadcast("state", SerializeState(_activeSlot, _slots));
+            BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
         }
 
@@ -221,41 +239,41 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var spaceIdx = trimmed.IndexOf(' ');
             var cmdLower = (spaceIdx < 0 ? trimmed : trimmed[..spaceIdx]).ToLowerInvariant();
 
-            // 中断副作用在路由层执行（需访问实例 _roundCts）
+            // 中断副作用在路由层执行（需访问实例 _slots[slot].Cts）
             if (cmdLower is "/interrupt" or "/stop")
             {
-                Interrupt();
+                Interrupt(slot);
                 return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true).Set("output", "⏹ 已请求中断").ToJson());
             }
 
             // 换模型副作用（需访问实例 Interrupt + EnsureSlot）
             if (cmdLower == "/model" && spaceIdx >= 0)
             {
-                Interrupt();
+                Interrupt(slot);
                 var name = trimmed[(spaceIdx + 1)..].Trim();
                 var matches = ModelCatalog.Search(name);
                 if (matches.Length == 0)
                     return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true)
                         .Set("output", $"❌ 未知模型「{name}」").ToJson());
-                var err = ApplyModel(EnsureSlot(_activeSlot), matches[0].Id, null);
-                Broadcast("state", SerializeState(_activeSlot, _slots));
+                var err = ApplyModel(EnsureSlot(slot), matches[0].Id, null);
+                BroadcastStateForAll();
                 return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true)
                     .Set("output", err == null ? $"✅ 已切换到 **{matches[0].DisplayName}**" : $"❌ {err}").ToJson());
             }
 
-            var (handled, output) = HandleCommand(trimmed, _slots[_activeSlot]);
+            var (handled, output) = HandleCommand(trimmed, _slots[slot].Agent);
             if (!handled)
                 return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", false).ToJson());
 
             // 副作用命令（清空/加载会话）刷新历史与会话列表
             if (cmdLower is "/reset" or "/clear" or "/session")
             {
-                var agent = _slots[_activeSlot];
+                var agent = _slots[slot].Agent;
                 if (agent != null)
                 {
-                    Broadcast("history", SerializeHistory(agent));
-                    Broadcast("sessions", SerializeSessions());
-                    Broadcast("state", SerializeState(_activeSlot, _slots));
+                    BroadcastTo(slot, "history", SerializeHistory(agent));
+                    BroadcastAll("sessions", SerializeSessions());
+                    BroadcastStateForAll();
                 }
             }
 
@@ -264,7 +282,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
         // 右栏信息面板
         if (req.Method == "GET" && req.Path == "/panel")
-            return HttpResponse.JsonBody(SerializePanel(_activeSlot, _slots));
+            return HttpResponse.JsonBody(SerializePanel(slot, AgentView()));
 
         // 会话记录
         if (req.Method == "GET" && req.Path == "/sessions")
@@ -272,11 +290,11 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         if (req.Method == "POST" && req.Path == "/sessions/new")
         {
             // 「新建会话」= 清空当前对话、开新对话（不再落盘保存，避免攒出大量临时会话文件）
-            Interrupt();
-            var agent = EnsureSlot(_activeSlot);
+            Interrupt(slot);
+            var agent = EnsureSlot(slot);
             agent.Messages.Clear();
-            Broadcast("history", SerializeHistory(agent));
-            Broadcast("state", SerializeState(_activeSlot, _slots));
+            BroadcastTo(slot, "history", SerializeHistory(agent));
+            BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
         }
         if (req.Method == "POST" && req.Path == "/sessions/load")
@@ -288,14 +306,14 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var loaded = SessionManager.LoadSession(id);
             if (loaded == null)
                 return HttpResponse.JsonBody(Err("会话不存在"));
-            Interrupt();
-            var agent = EnsureSlot(_activeSlot);
+            Interrupt(slot);
+            var agent = EnsureSlot(slot);
             agent.Messages.Clear();
             agent.Messages.AddRange(loaded.Value.Messages);
             if (!string.IsNullOrWhiteSpace(loaded.Value.Model))
                 agent.LlmClient.Model = loaded.Value.Model;
-            Broadcast("history", SerializeHistory(agent));
-            Broadcast("state", SerializeState(_activeSlot, _slots));
+            BroadcastTo(slot, "history", SerializeHistory(agent));
+            BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
         }
         if (req.Method == "POST" && req.Path == "/sessions/delete")
@@ -305,13 +323,13 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             if (string.IsNullOrWhiteSpace(id))
                 return HttpResponse.JsonBody(Err("缺少会话 id"));
             SessionManager.DeleteSession(id);
-            Broadcast("sessions", SerializeSessions());
+            BroadcastAll("sessions", SerializeSessions());
             return HttpResponse.JsonBody(Ok());
         }
         if (req.Method == "POST" && req.Path == "/sessions/clear")
         {
             var deleted = SessionManager.DeleteAllSessions();
-            Broadcast("sessions", SerializeSessions());
+            BroadcastAll("sessions", SerializeSessions());
             return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("deleted", deleted).ToJson());
         }
         if (req.Method == "POST" && req.Path == "/sessions/rename")
@@ -323,7 +341,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 return HttpResponse.JsonBody(Err("缺少 id 或 newId"));
             if (!SessionManager.RenameSession(id, newId))
                 return HttpResponse.JsonBody(Err("重命名失败"));
-            Broadcast("sessions", SerializeSessions());
+            BroadcastAll("sessions", SerializeSessions());
             return HttpResponse.JsonBody(Ok());
         }
 
@@ -381,10 +399,10 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var content = new ReadFileTool()
                 .ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = safePath })
                 .GetAwaiter().GetResult();
-            var agent = EnsureSlot(_activeSlot);
+            var agent = EnsureSlot(slot);
             agent.Messages.Add(JNode.Object().Set("role", "user")
                 .Set("content", $"【文件引用】{path}\n\n{content}"));
-            Broadcast("history", SerializeHistory(agent));
+            BroadcastTo(slot, "history", SerializeHistory(agent));
             return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("path", path).Set("content", content).ToJson());
         }
 
@@ -461,7 +479,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     /// <summary>惰性创建槽位 Agent（每槽位独立 LLM + 历史），复用全局模型/密钥配置。</summary>
     private Agent EnsureSlot(int idx)
     {
-        if (_slots[idx] == null)
+        var slot = _slots[idx];
+        if (slot.Agent == null)
         {
             var cfg = Config.Instance;
             var info = ModelCatalog.Find(cfg.Model);
@@ -472,21 +491,87 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             {
                 SmallModel = cfg.SmallModel,
             };
-            _slots[idx] = new Agent(llm,
+            slot.Agent = new Agent(llm,
                 maxContextTokens: ModelCatalog.ResolveContextWindow(cfg.Model, cfg.MaxContextTokens),
                 maxBudgetUsd: cfg.MaxBudgetUsd, autoCommit: cfg.AutoGitCommit);
         }
-        return _slots[idx]!;
+        return slot.Agent!;
     }
 
-    private void SwitchSlot(int idx)
+    /// <summary>把 <see cref="WebSlot"/> 数组映射为 <see cref="Agent"/> 数组视图（供 SerializeState/SerializePanel 等签名保持 Agent?[] 的方法使用）。</summary>
+    private Agent?[] AgentView()
     {
-        if (idx < 0 || idx >= SlotCount) return;
-        Interrupt();
-        _activeSlot = idx;
-        var agent = EnsureSlot(idx);
-        Broadcast("history", SerializeHistory(agent));
-        Broadcast("state", SerializeState(_activeSlot, _slots));
+        var view = new Agent?[SlotCount];
+        for (int i = 0; i < SlotCount; i++) view[i] = _slots[i].Agent;
+        return view;
+    }
+
+    /// <summary>序列化指定槽位的历史（无 Agent 时返回空数组）。</summary>
+    private string HistoryOf(int slot)
+    {
+        var agent = _slots[slot].Agent;
+        return agent == null ? "[]" : SerializeHistory(agent);
+    }
+
+    /// <summary>中断指定槽位的后台 Agent（原子 Exchange + Cancel + Dispose，杜绝竞态）。</summary>
+    private void Interrupt(int slotIdx)
+    {
+        var cts = Interlocked.Exchange(ref _slots[slotIdx].Cts, null);
+        if (cts != null)
+        {
+            try { cts.Cancel(); } catch { }
+            cts.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// 槽位并发执行入口（镜像终端 StartSlotTask）：槽位空闲则懒建 Agent 后台 Task.Run 跑 ChatAsync，
+    /// 流式回调按槽位路由到该槽位绑定的页面；忙则广播 system 提示不排队。
+    /// </summary>
+    private void StartSlotTask(int slotIdx, string userInput)
+    {
+        var slot = _slots[slotIdx];
+        if (slot.IsBusy)
+        {
+            BroadcastTo(slotIdx, "system", JsonStr("当前槽位仍在运行，请先停止再发送"));
+            return;
+        }
+        var agent = EnsureSlot(slotIdx);
+        slot.IsBusy = true;
+        var roundCts = new CancellationTokenSource();
+        slot.Cts = roundCts;
+        var token = roundCts.Token;
+        _ = Task.Run(async () =>
+        {
+            _currentSlot.Value = slotIdx;
+            try
+            {
+                var final = await agent.ChatAsync(
+                    userInput,
+                    onToken: t => BroadcastTo(slotIdx, "token", JsonStr(t)),
+                    onTool: (name, brief) => BroadcastTo(slotIdx, "tool", JsonTool(name, brief)),
+                    onToolOutput: o => BroadcastTo(slotIdx, "tool_output", JsonStr(o)),
+                    cancellationToken: token);
+                BroadcastTo(slotIdx, "done", JsonStr(final));
+            }
+            catch (OperationCanceledException)
+            {
+                BroadcastTo(slotIdx, "interrupted", "null");
+            }
+            catch (Exception ex)
+            {
+                BroadcastTo(slotIdx, "failed", JsonStr(ex.Message));
+            }
+            finally
+            {
+                slot.IsBusy = false;
+                // 仅当仍指向本轮 CTS 时才清空并释放；若并发 Interrupt 已 Exchange 走该 CTS，
+                // 则交给 Interrupt 处理，避免 Dispose 后再 Cancel 抛 ObjectDisposedException。
+                if (ReferenceEquals(Interlocked.CompareExchange(ref slot.Cts, null, roundCts), roundCts))
+                    roundCts.Dispose();
+                _currentSlot.Value = 0;
+            }
+        });
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -540,10 +625,11 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         {
             ApiKeyStore.Set(providerId, apiKey.Trim());
         }
-        // 若当前槽位模型属于该供应商，同步重配 key
-        var agent = _slots[_activeSlot];
-        if (agent != null)
+        // 若某槽位模型属于该供应商，同步重配 key（全局 key，遍历所有已建槽位）
+        foreach (var slot in _slots)
         {
+            var agent = slot.Agent;
+            if (agent == null) continue;
             var cur = ModelCatalog.Find(agent.LlmClient.Model);
             if (cur != null && cur.ProviderId == providerId)
             {
@@ -592,69 +678,14 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  Agent 桥接
+    //  SSE 连接 + 广播
     // ═══════════════════════════════════════════════════════════
 
-    private void Interrupt()
+    private async Task HandleSseAsync(HttpRequest req, StreamWriter writer)
     {
-        // 原子取出并清空当前轮的 CTS，避免与 MainLoopAsync 的 finally 并发 Dispose/Cancel 竞态
-        var cts = Interlocked.Exchange(ref _roundCts, null);
-        if (cts != null)
-        {
-            try { cts.Cancel(); } catch { }
-            cts.Dispose();
-        }
-    }
-
-    private async Task MainLoopAsync(CancellationToken serverToken)
-    {
-        while (!serverToken.IsCancellationRequested)
-        {
-            if (_input.TryDequeue(out var item))
-            {
-                var (slot, userInput) = item;
-                if (slot != _activeSlot) SwitchSlot(slot);
-                var agent = EnsureSlot(slot);
-                var roundCts = new CancellationTokenSource();
-                _roundCts = roundCts;
-                var token = roundCts.Token;
-                try
-                {
-                    var final = await agent.ChatAsync(
-                        userInput,
-                        onToken: t => Broadcast("token", JsonStr(t)),
-                        onTool: (name, brief) => Broadcast("tool", JsonTool(name, brief)),
-                        onToolOutput: o => Broadcast("tool_output", JsonStr(o)),
-                        cancellationToken: token);
-                    Broadcast("done", JsonStr(final));
-                }
-                catch (OperationCanceledException)
-                {
-                    Broadcast("interrupted", "null");
-                }
-                catch (Exception ex)
-                {
-                    Broadcast("failed", JsonStr(ex.Message));
-                }
-                finally
-                {
-                    // 仅当仍指向本轮 CTS 时才清空并释放；若并发 Interrupt 已 Exchange 走该 CTS，
-                    // 则 CompareExchange 失败、交回给 Interrupt 处理，避免 Dispose 后再 Cancel 抛 ObjectDisposedException。
-                    if (ReferenceEquals(Interlocked.CompareExchange(ref _roundCts, null, roundCts), roundCts))
-                        roundCts.Dispose();
-                }
-            }
-            else
-            {
-                try { await Task.Delay(50, serverToken); }
-                catch (OperationCanceledException) { break; }
-            }
-        }
-    }
-
-    private async Task HandleSseAsync(StreamWriter writer)
-    {
-        var client = new SseClient { Writer = writer };
+        var clientId = ParseClientQuery(req.Query);
+        var slot = ResolveSlot(clientId);
+        var client = new SseClient { Writer = writer, ClientId = clientId ?? "", SlotIndex = slot };
         lock (_lock)
         {
             if (SseClientsFull(_clients.Count))
@@ -669,8 +700,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             // 连接即回放历史 + 状态，前端初始化渲染（与 Broadcast 共用写锁，避免与并发广播交错）
             lock (client.WriteLock)
             {
-                writer.Write(HttpServer.SseEvent("history", SerializeHistory(_slots[_activeSlot]!)));
-                writer.Write(HttpServer.SseEvent("state", SerializeState(_activeSlot, _slots)));
+                writer.Write(HttpServer.SseEvent("history", HistoryOf(slot)));
+                writer.Write(HttpServer.SseEvent("state", SerializeState(slot, AgentView())));
             }
             await client.Closed.Task;
         }
@@ -683,18 +714,103 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         }
     }
 
-    private void Broadcast(string type, string dataJson)
+    /// <summary>只写绑定到指定槽位的客户端（页面作用域事件：token/tool/done/history 等）。</summary>
+    private void BroadcastTo(int slotIdx, string type, string dataJson)
+    {
+        var sse = HttpServer.SseEvent(type, dataJson);
+        List<SseClient> snapshot;
+        lock (_lock) snapshot = _clients.Where(c => c.SlotIndex == slotIdx).ToList();
+        foreach (var c in snapshot) WriteClient(c, sse);
+    }
+
+    /// <summary>写所有客户端（全局事件：sessions 列表等）。</summary>
+    private void BroadcastAll(string type, string dataJson)
     {
         var sse = HttpServer.SseEvent(type, dataJson);
         List<SseClient> snapshot;
         lock (_lock) snapshot = _clients.ToList();
+        foreach (var c in snapshot) WriteClient(c, sse);
+    }
+
+    /// <summary>向每个客户端按其绑定槽位刷新 state（模型/权限/设置变更后）。</summary>
+    private void BroadcastStateForAll()
+    {
+        var view = AgentView();
+        List<SseClient> snapshot;
+        lock (_lock) snapshot = _clients.ToList();
         foreach (var c in snapshot)
+            WriteClient(c, HttpServer.SseEvent("state", SerializeState(c.SlotIndex, view)));
+    }
+
+    private static void WriteClient(SseClient c, string sse)
+    {
+        // 每客户端串行写：防止流式回调与 HandleRequest 并发广播时帧交错损坏
+        lock (c.WriteLock)
         {
-            // 每客户端串行写：防止主循环流式回调与 HandleRequest 并发 Broadcast 时帧交错损坏
-            lock (c.WriteLock)
+            try { c.Writer.Write(sse); }
+            catch { c.Closed.TrySetResult(); }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  客户端身份 → 槽位绑定
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>从 query 里解析 client 标识（如 "client=abc"）。纯静态便于自测。</summary>
+    public static string? ParseClientQuery(string? query)
+    {
+        if (string.IsNullOrEmpty(query)) return null;
+        foreach (var kv in query.Split('&'))
+        {
+            int eq = kv.IndexOf('=');
+            if (eq <= 0) continue;
+            var name = kv[..eq];
+            if (name.Equals("client", StringComparison.OrdinalIgnoreCase))
+                return Uri.UnescapeDataString(kv[(eq + 1)..]);
+        }
+        return null;
+    }
+
+    /// <summary>从占用标记数组（true=占用）挑第一个空闲槽位，全满回退 0。纯静态便于自测。</summary>
+    public static int PickFreeSlot(bool[] occupied, int slotCount)
+    {
+        for (int i = 0; i < slotCount; i++)
+            if (!occupied[i]) return i;
+        return 0;
+    }
+
+    /// <summary>解析客户端对应的槽位：已绑定复用，新客户端分配第一个空闲槽位（0-9）；无 client 标识时固定 0。</summary>
+    private int ResolveSlot(string? clientId)
+    {
+        if (string.IsNullOrEmpty(clientId)) return 0;
+        lock (_lock)
+        {
+            if (_clientSlot.TryGetValue(clientId, out var idx)) return idx;
+            // 分配空闲槽位：跳过已被其他客户端绑定、或已建 Agent / 忙碌的槽位，全满则回退 0。
+            // 不能只看 Agent/IsBusy——新客户端分配后不会立刻建 Agent，否则多个页面会被分到同一个槽位互相干扰。
+            var occupied = new bool[SlotCount];
+            foreach (var kv in _clientSlot)
+                if (kv.Value >= 0 && kv.Value < SlotCount) occupied[kv.Value] = true;
+            for (int i = 0; i < SlotCount; i++)
+                occupied[i] = occupied[i] || _slots[i].Agent != null || _slots[i].IsBusy;
+            int free = PickFreeSlot(occupied, SlotCount);
+            _clientSlot[clientId] = free;
+            return free;
+        }
+    }
+
+    /// <summary>显式绑定客户端到指定槽位（前端点槽位切换时调用）。同步更新已建 SSE 客户端的槽位，否则切换后输出仍路由到旧槽位。</summary>
+    private void BindClientSlot(string? clientId, int idx)
+    {
+        if (string.IsNullOrEmpty(clientId) || idx < 0 || idx >= SlotCount) return;
+        lock (_lock)
+        {
+            _clientSlot[clientId] = idx;
+            // 关键：该页面已建立的 SSE 连接（SseClient）也要改 SlotIndex，
+            // 否则 BroadcastTo(新槽位) 永远匹配不到它 → 页面收不到 token/停止态，表现为「切换后停止按钮失效」。
+            foreach (var c in _clients)
             {
-                try { c.Writer.Write(sse); }
-                catch { c.Closed.TrySetResult(); }
+                if (c.ClientId == clientId) c.SlotIndex = idx;
             }
         }
     }

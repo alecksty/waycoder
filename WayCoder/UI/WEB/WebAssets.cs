@@ -126,7 +126,8 @@ select optgroup { background:var(--panel); color:var(--text); }
 #input { flex:1; resize:none; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:14px; padding:11px 14px; font:inherit; min-height:64px; max-height:240px; outline:none; line-height:1.5; }
 #input:focus { border-color:var(--accent); }
 #input::placeholder { color:var(--dim); opacity:1; }
-#send { width:46px; height:46px; border-radius:13px; font-size:19px; padding:0; display:flex; align-items:center; justify-content:center; background:var(--accent); color:#fff; border:none; cursor:pointer; flex-shrink:0; transition:background .15s; }
+#send { width:46px; height:46px; border-radius:50%; font-size:19px; padding:0; display:flex; align-items:center; justify-content:center; background:var(--accent); color:#fff; border:none; cursor:pointer; flex-shrink:0; transition:background .15s; }
+#send svg { width:21px; height:21px; fill:currentColor; display:block; }
 #send:hover { filter:brightness(1.12); }
 #send.stop { background:var(--danger); color:#ff9a9a; }
 #input-bar { position:relative; }
@@ -267,7 +268,7 @@ select optgroup { background:var(--panel); color:var(--text); }
       <button class="btn ghost" id="attach-btn" title="上传图片 / 音频">📎</button>
       <input type="file" id="file-input" accept="image/*,audio/*" style="display:none">
       <textarea id="input" placeholder="输入消息，Enter 发送，Ctrl+Enter 换行" rows="3"></textarea>
-      <button class="btn" id="send" title="发送">✈️</button>
+      <button class="btn" id="send" title="发送"><svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
     </div>
     <div id="model-bar">
       <button class="btn model-pick-btn" id="big-model-btn" title="选择大模型（复杂任务）">🤖 大模型: <b id="big-model-label">…</b></button>
@@ -353,6 +354,10 @@ const settingsNav = document.getElementById('settings-nav');
 const settingsDetail = document.getElementById('settings-detail');
 const keyModal = document.getElementById('key-modal');
 
+// 本页面唯一客户端标识：开始/停止只作用于当前页面绑定的槽位
+const clientId = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+const cq = (p) => p + '?client=' + clientId;
+
 // ── 流指针（滚动 bug 修复：assistant 文本流 与 工具输出流 分离）──
 let assistantStreamEl = null;
 let toolOutputEl = null;
@@ -360,11 +365,12 @@ let reasoningEl = null;
 let currentProvider = '';
 let hasKey = false;
 let isBusy = false;
+const PAPER_PLANE = '<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>';
 function setBusy(b) {
   isBusy = b;
   const btn = document.getElementById('send');
   if (b) { btn.innerHTML = '⏹'; btn.classList.add('stop'); btn.title = '停止'; }
-  else { btn.innerHTML = '✈️'; btn.classList.remove('stop'); btn.title = '发送'; }
+  else { btn.innerHTML = PAPER_PLANE; btn.classList.remove('stop'); btn.title = '发送'; }
 }
 
 function scroll() { messages.scrollTop = messages.scrollHeight; }
@@ -444,7 +450,11 @@ permSelect.onchange = () =>
   fetch('/perm', { method: 'POST', body: JSON.stringify({ mode: permSelect.value }) }).catch(() => {});
 
 // ── 槽位（左栏）──
+let currentSlot = 0;          // 本页面当前绑定的槽位
+const slotDrafts = {};        // 槽位索引 → 未发送的输入草稿（切换槽位时各自保留）
+
 function renderSlots(state) {
+  currentSlot = state.activeSlot;
   document.getElementById('agent-label').textContent = '智能体' + (state.activeSlot + 1);
   slotsEl.innerHTML = '';
   for (let i = 0; i < state.slots.length; i++) {
@@ -458,7 +468,13 @@ function renderSlots(state) {
   }
 }
 function switchSlot(i) {
-  fetch('/slot', { method: 'POST', body: JSON.stringify({ slot: i }) })
+  if (i === currentSlot) return; // 已在该槽位，无需重复切换（避免清空输入框）
+  setBusy(false); // 切换槽位：本页面不再处于旧槽位的流式接收态，重置发送/停止按钮
+  slotDrafts[currentSlot] = input.value; // 保存当前槽位未发送的草稿
+  currentSlot = i;
+  input.value = slotDrafts[i] || '';      // 恢复目标槽位的草稿
+  autoResizeInput();
+  fetch(cq('/slot'), { method: 'POST', body: JSON.stringify({ slot: i }) })
     .then(r => r.json())
     .then(list => { clearMessages(); list.forEach(m => addMsg(m.role === 'user' ? 'user' : 'assistant', m.content)); })
     .then(fetchPanel);
@@ -494,7 +510,7 @@ function renderSessions(list) {
   });
 }
 function loadSession(id) {
-  fetch('/sessions/load', { method: 'POST', body: JSON.stringify({ id: id }) })
+  fetch(cq('/sessions/load'), { method: 'POST', body: JSON.stringify({ id: id }) })
     .then(r => r.json())
     .then(res => { if (res && res.ok === false) { alert(res.error || '加载失败'); return; } })
     .catch(() => {});
@@ -514,7 +530,7 @@ function renameSession(id) {
 }
 document.getElementById('new-session').onclick = () => {
   clearMessages();
-  fetch('/sessions/new', { method: 'POST' }).catch(() => {});
+  fetch(cq('/sessions/new'), { method: 'POST' }).catch(() => {});
 };
 document.getElementById('clear-sessions').onclick = () => {
   if (!confirm('确定清空所有会话记录？此操作不可恢复。')) return;
@@ -528,7 +544,7 @@ document.getElementById('clear-sessions').onclick = () => {
 // ── 右栏面板 ──
 function fetchPanel() {
   if (document.hidden) return;
-  fetch('/panel').then(r => r.json()).then(renderPanel).catch(() => {});
+  fetch(cq('/panel')).then(r => r.json()).then(renderPanel).catch(() => {});
 }
 function renderPanel(p) {
   renderTodos(p.todos);
@@ -611,7 +627,7 @@ function renderModels(models, state) {
 }
 function fetchModels() {
   fetch('/models').then(r => r.json()).then(models =>
-    fetch('/state').then(r => r.json()).then(state => {
+    fetch(cq('/state')).then(r => r.json()).then(state => {
       renderModels(models, state);
       if (document.getElementById('model-modal').classList.contains('open'))
         renderModelList(document.getElementById('model-search').value);
@@ -834,7 +850,7 @@ function saveKey() {
       keyModal.classList.remove('open');
       if (pendingModelId) {
         const id = pendingModelId; pendingModelId = '';
-        fetch('/model', { method: 'POST', body: JSON.stringify({ modelId: id }) })
+        fetch(cq('/model'), { method: 'POST', body: JSON.stringify({ modelId: id }) })
           .then(() => { currentModelId = id; renderModelBar({}); })
           .catch(() => {});
       }
@@ -1211,7 +1227,7 @@ function addShellOutput(text) {
 }
 
 function send() {
-  if (isBusy) { fetch('/interrupt', { method: 'POST' }).catch(() => {}); return; }
+  if (isBusy) { fetch(cq('/interrupt'), { method: 'POST' }).catch(() => {}); return; }
   hideSuggest();
   const text = normalizeFullWidth(input.value.trim());
   if (!text) return;
@@ -1243,7 +1259,7 @@ function send() {
     const path = text.slice(1).trim();
     if (!path) return;
     setBusy(true);
-    fetch('/fileref', { method: 'POST', body: JSON.stringify({ path }) })
+    fetch(cq('/fileref'), { method: 'POST', body: JSON.stringify({ path }) })
       .then(r => r.json())
       .then(res => {
         setBusy(false);
@@ -1258,21 +1274,21 @@ function send() {
 
   // 斜杠命令 → 后端路由（未识别回退为普通 Agent 消息）
   if (text.startsWith('/') && text.length > 1) {
-    fetch('/command', { method: 'POST', body: JSON.stringify({ input: text }) })
+    fetch(cq('/command'), { method: 'POST', body: JSON.stringify({ input: text }) })
       .then(r => r.json())
       .then(res => {
         if (res && res.ok && res.handled) {
           addMsg('cmd', res.output || '');
           setBusy(false);
         } else {
-          fetch('/chat', { method: 'POST', body: text }).catch(() => {});
+          fetch(cq('/chat'), { method: 'POST', body: text }).catch(() => {});
         }
       })
-      .catch(() => { fetch('/chat', { method: 'POST', body: text }).catch(() => {}); });
+      .catch(() => { fetch(cq('/chat'), { method: 'POST', body: text }).catch(() => {}); });
     return;
   }
 
-  fetch('/chat', { method: 'POST', body: text }).catch(() => {});
+  fetch(cq('/chat'), { method: 'POST', body: text }).catch(() => {});
 }
 document.getElementById('send').onclick = send;
 input.addEventListener('keydown', e => {
@@ -1312,7 +1328,7 @@ function uploadFile(file) {
           addMsg('system', '🖼 图片 ' + (res.name || file.name) + ' 已附加，下一条消息将发送给多模态模型');
         } else {
           addMsg('system', '🎙 音频 ' + (res.name || file.name) + ' 转录完成');
-          if (res.text) { addMsg('user', res.text); fetch('/chat', { method: 'POST', body: res.text }).catch(() => {}); }
+          if (res.text) { addMsg('user', res.text); fetch(cq('/chat'), { method: 'POST', body: res.text }).catch(() => {}); }
         }
       } else {
         addMsg('system', '✘ 上传失败：' + (res && res.error ? res.error : '未知错误'));
@@ -1686,7 +1702,7 @@ function splitRow(line) {
 }
 
 // ── SSE ──
-const es = new EventSource('/events');
+const es = new EventSource('/events?client=' + clientId);
 es.addEventListener('token', e => { setBusy(true); handleToken(JSON.parse(e.data)); });
 es.addEventListener('tool', e => { setBusy(true); endReasoning(); finalizeAssistant(); endAssistantStream(); const d = JSON.parse(e.data); addTool(d.name, d.args); });
 es.addEventListener('tool_output', e => { ensureToolOutput().textContent += JSON.parse(e.data); scroll(); });
@@ -1714,14 +1730,14 @@ es.addEventListener('ask', e => showAsk(JSON.parse(e.data)));
 
 // ── 初始化 ──
 applyTheme(localStorage.getItem('waycoder-theme') || 'dark');
-fetch('/state').then(r => r.json()).then(state => {
+fetch(cq('/state')).then(r => r.json()).then(state => {
   currentProvider = state.provider;
   hasKey = state.hasKey;
   applyPermMode(state.permMode);
   renderSlots(state);
 });
 fetch('/models').then(r => r.json()).then(models =>
-  fetch('/state').then(r => r.json()).then(state => renderModels(models, state)));
+  fetch(cq('/state')).then(r => r.json()).then(state => renderModels(models, state)));
 fetchSessions();
 fetchPanel();
 setInterval(fetchPanel, 2000);

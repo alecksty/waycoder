@@ -156,7 +156,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         _pendingAnswers[id] = tcs;
         try
         {
-            Broadcast("ask", payload.ToJson());
+            BroadcastTo(_currentSlot.Value, "ask", payload.ToJson());
             var delay = Task.Delay(timeoutMs > 0 ? timeoutMs : 60_000);
             var winner = await Task.WhenAny(tcs.Task, delay);
             if (winner == delay) return null; // 超时
