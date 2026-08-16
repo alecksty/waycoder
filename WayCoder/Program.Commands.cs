@@ -628,26 +628,26 @@ deepseek 性价比最高。"
         }
     }
 
-    /// <summary>Ctrl+S 打开会话管理对话框</summary>
+    /// <summary>Ctrl+S 打开会话管理对话框（按当前槽位隔离会话记录）</summary>
     private static void OpenSessions(ChatScreen screen)
     {
-        var result = SessionPicker.Show(currentSessionId: _currentSessionId);
+        var slot = ActiveSlotIndex;
+        var result = SessionPicker.Show(currentSessionId: _currentSessionIds[slot], slot: slot);
         if (result == null) return;
 
         switch (result.Action)
         {
             case "switch":
-                if (result.SessionId != _currentSessionId)
+                if (result.SessionId != _currentSessionIds[slot])
                 {
                     AutoSaveSession();
-                    var loaded = SessionManager.LoadSession(result.SessionId);
+                    var loaded = SessionManager.LoadSession(result.SessionId, slot);
                     if (loaded != null)
                     {
                         var (messages, model) = loaded.Value;
-                        _currentSessionId = result.SessionId;
-                        _config.Model = model;
-                        _llm!.Model = model;
-                        _agent!.Messages.Clear();
+                        _currentSessionIds[slot] = result.SessionId;
+                        _agent!.LlmClient.Model = model;
+                        _agent.Messages.Clear();
                         _agent.Messages.AddRange(messages);
                         // 重建 ChatScreen 消息列表
                         screen.ClearChat();
@@ -659,7 +659,7 @@ deepseek 性价比最高。"
                             else if (role == "assistant") screen.AddMessage(content, "assistant");
                             else if (role == "tool") screen.AddMessage(content, "tool", indent: 1);
                         }
-                        screen.StatusLeft = $"{_config.Model}";
+                        screen.StatusLeft = $"{model}";
                         screen.AddSystemMsg($"📂 已切换到会话: {result.SessionId}");
                     }
                 }
@@ -668,10 +668,10 @@ deepseek 性价比最高。"
                 screen.AddSystemMsg($"✏ 会话已重命名: {result.SessionId} → {result.NewName}");
                 break;
             case "delete":
-                SessionManager.DeleteSession(result.SessionId);
-                if (result.SessionId == _currentSessionId)
+                SessionManager.DeleteSession(result.SessionId, slot);
+                if (result.SessionId == _currentSessionIds[slot])
                 {
-                    _currentSessionId = SessionManager.CreateNewSessionId();
+                    _currentSessionIds[slot] = SessionManager.CreateNewSessionId();
                     _agent!.Messages.Clear();
                     screen.ClearChat();
                     screen.AddSystemMsg("🗑 当前会话已删除，已创建新会话");

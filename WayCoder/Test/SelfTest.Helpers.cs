@@ -2883,6 +2883,21 @@ public static partial class SelfTest
             SessionManager.DeleteSession("slot1-session", 1);
         }
 
+        // ── 2c. TUI 退出自动保存 `_auto` 按槽位隔离（`_auto` 归一化后同 ID 存各槽位子目录）──
+        SessionManager.SaveSession(
+            new List<JNode> { JNode.Object().Set("role", "user").Set("content", "槽位2的自动保存") },
+            "model-2", "_auto", 2);
+        try
+        {
+            Check("SessionSlot: _auto 存槽位2 可恢复", SessionManager.LoadSession("_auto", 2) != null);
+            Check("SessionSlot: _auto 跨槽位不可见(槽位0)", SessionManager.LoadSession("_auto", 0) == null);
+            Check("SessionSlot: _auto 跨槽位不可见(槽位3)", SessionManager.LoadSession("_auto", 3) == null);
+        }
+        finally
+        {
+            SessionManager.DeleteSession("_auto", 2);
+        }
+
         // ── 3. LspTool.ActiveSessions 访问器（空态不抛异常）──
         var lspSessions = LspTool.ActiveSessions;
         Check("WebPanel: LspTool.ActiveSessions 返回列表", lspSessions != null);
