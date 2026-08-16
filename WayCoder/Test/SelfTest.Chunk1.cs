@@ -119,6 +119,7 @@ public static partial class SelfTest
         TestWebFull(Check);            // Web 界面完整化：换模型/换key/设置/槽位 + 序列化纯函数 + 端点冒烟
         TestP4WebResource(Check);      // P4-2 Web 资源耗尽 + XSS：body/连接/SSE/队列上限 + HtmlEscape
         TestWebPanelSessions(Check);  // Web 三栏面板：panel/sessions/lsp 访问器/交互桥 + 端点冒烟
+        TestWebCommands(Check);       // Web 斜杠命令：HandleCommand 纯函数 + /command 端点冒烟
         TestP0P2Hardening(Check);      // P0-P2 批次：命令注入/RCE/权限绕过/整数溢出/越界 修复
         Console.WriteLine();
 
