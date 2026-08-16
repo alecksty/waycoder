@@ -102,6 +102,16 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         // 模型 / 状态
         if (req.Method == "GET" && req.Path == "/models")
             return HttpResponse.JsonBody(SerializeModels());
+        if (req.Method == "POST" && req.Path == "/models/scan")
+        {
+            var probes = ModelCli.TestList();
+            return HttpResponse.JsonBody(JNode.Object()
+                .Set("ok", true)
+                .Set("results", Json.Parse(SerializeScan(probes)) ?? JNode.Array())
+                .ToJson());
+        }
+        if (req.Method == "POST" && req.Path == "/models/import")
+            return ImportExternalModels();
         if (req.Method == "GET" && req.Path == "/state")
             return HttpResponse.JsonBody(SerializeState(_activeSlot, _slots));
 
@@ -128,6 +138,23 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var agent = EnsureSlot(_activeSlot);
             var error = ApplyModel(agent, modelId, apiKey);
             if (error != null) return HttpResponse.JsonBody(Err(error));
+            Broadcast("state", SerializeState(_activeSlot, _slots));
+            return HttpResponse.JsonBody(Ok());
+        }
+
+        // 保存模型配置（仅持久化默认模型，不中断当前会话、不重配 Agent）
+        if (req.Method == "POST" && req.Path == "/model/save")
+        {
+            var body = Json.Parse(req.Body);
+            var modelId = body?["modelId"]?.AsString() ?? "";
+            var info = ModelCatalog.Find(modelId);
+            if (info == null) return HttpResponse.JsonBody(Err($"未知模型「{modelId}」"));
+            var cfg = Config.Instance;
+            cfg.Model = modelId;
+            cfg.Provider = info.ProviderId;
+            var baseUrl = ResolveBaseUrl(info, info.ProviderId, cfg.BaseUrl);
+            if (baseUrl != null) cfg.BaseUrl = baseUrl;
+            cfg.SaveToEnvFile();
             Broadcast("state", SerializeState(_activeSlot, _slots));
             return HttpResponse.JsonBody(Ok());
         }
@@ -236,10 +263,13 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             return HttpResponse.JsonBody(SerializeSessions());
         if (req.Method == "POST" && req.Path == "/sessions/new")
         {
+            // 「新建会话」= 清空当前对话、开新对话（不再落盘保存，避免攒出大量临时会话文件）
+            Interrupt();
             var agent = EnsureSlot(_activeSlot);
-            var id = SessionManager.SaveSession(agent.Messages, agent.LlmClient.Model);
-            Broadcast("sessions", SerializeSessions());
-            return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("id", id).ToJson());
+            agent.Messages.Clear();
+            Broadcast("history", SerializeHistory(agent));
+            Broadcast("state", SerializeState(_activeSlot, _slots));
+            return HttpResponse.JsonBody(Ok());
         }
         if (req.Method == "POST" && req.Path == "/sessions/load")
         {
@@ -269,6 +299,12 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             SessionManager.DeleteSession(id);
             Broadcast("sessions", SerializeSessions());
             return HttpResponse.JsonBody(Ok());
+        }
+        if (req.Method == "POST" && req.Path == "/sessions/clear")
+        {
+            var deleted = SessionManager.DeleteAllSessions();
+            Broadcast("sessions", SerializeSessions());
+            return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("deleted", deleted).ToJson());
         }
         if (req.Method == "POST" && req.Path == "/sessions/rename")
         {
@@ -396,6 +432,35 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 var baseUrl = ResolveBaseUrl(cur, providerId, Config.Instance.BaseUrl);
                 agent.LlmClient.Reconfigure(apiKey.Trim(), baseUrl);
             }
+        }
+    }
+
+    /// <summary>
+    /// 自动导入其他软件的模型列表 + API Key：复用 ModelCli.Import（写全局模型库）+ ApiKeyStore.ImportFromKnownSources（写 key）。
+    /// 返回 JSON：{ok, modelReport, keys:[{providerId, source}]}。
+    /// </summary>
+    private static HttpResponse ImportExternalModels()
+    {
+        try
+        {
+            var modelReport = ModelCli.Import(null);
+            var keys = ApiKeyStore.ImportFromKnownSources();
+            ModelCatalog.Invalidate();
+            ApiKeyStore.ClearCache();
+
+            var keyArr = JNode.Array();
+            foreach (var (pid, src) in keys)
+                keyArr.Add(JNode.Object().Set("providerId", pid).Set("source", src));
+
+            return HttpResponse.JsonBody(JNode.Object()
+                .Set("ok", true)
+                .Set("modelReport", modelReport)
+                .Set("keys", keyArr)
+                .ToJson());
+        }
+        catch (Exception ex)
+        {
+            return HttpResponse.JsonBody(Err(ex.Message));
         }
     }
 

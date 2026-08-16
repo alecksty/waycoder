@@ -70,7 +70,8 @@ select optgroup { background:var(--panel); color:var(--text); }
 .slot:hover { border-color:var(--accent); color:var(--text); }
 .slot.active { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700; }
 .slot.has { color:var(--text); border-color:var(--dim); }
-#new-session { margin:8px 12px; }
+.session-actions { display:flex; gap:6px; margin:8px 12px; }
+.session-actions .btn { flex:1; }
 
 #session-list { flex:1; overflow-y:auto; padding:0 8px; }
 .session-item { padding:8px 8px; border-radius:9px; cursor:pointer; position:relative; transition:background .12s; }
@@ -129,9 +130,8 @@ select optgroup { background:var(--panel); color:var(--text); }
 #send.stop { background:var(--danger); color:#ff9a9a; }
 #model-bar { display:flex; gap:8px; align-items:center; padding:4px 14px 11px; background:var(--panel); flex-wrap:wrap; }
 #model-bar select { height:28px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font:inherit; font-size:12px; padding:0 7px; cursor:pointer; outline:none; max-width:160px; }
-#model-add-btn { height:28px; padding:0 9px; font-size:14px; line-height:1; }
-#model-bar .model-label { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--dim); white-space:nowrap; }
-#model-bar .model-label select { max-width:195px; }
+#model-bar .model-pick-btn { height:28px; padding:0 10px; font-size:12px; border-radius:8px; }
+#model-bar .model-pick-btn b { color:var(--text); }
 .model-status { margin-left:auto; font-size:12px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:38%; }
 
 /* ── 右栏卡片 ── */
@@ -200,19 +200,27 @@ select optgroup { background:var(--panel); color:var(--text); }
 .diff-line.add { color:var(--diff-add); background:var(--diff-add-bg); }
 .diff-line.ctx { color:var(--dim); }
 /* ── 模型选择窗口 ── */
-.model-card { width:560px; display:flex; flex-direction:column; overflow:hidden; }
-.model-card h2, .model-card .row { flex-shrink:0; }
-#model-list { flex:1; min-height:0; overflow-y:auto; }
+.model-card { width:860px; max-width:94vw; display:flex; flex-direction:column; overflow:hidden; }
+.model-title { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+.model-title h2 { flex-shrink:0; margin-bottom:0; }
+#model-close { font-size:22px; padding:0 10px; line-height:1; }
+#model-list { flex:1; min-height:0; overflow-y:auto; padding:0 6px; }
 #model-search { margin-bottom:0; }
-.model-group .gname { font-size:12px; color:var(--dim); font-weight:700; margin:10px 0 5px; text-transform:uppercase; letter-spacing:.4px; }
-.model-item { display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; border:1px solid var(--border); background:var(--panel2); cursor:pointer; margin-bottom:6px; }
-.model-item:hover { border-color:var(--accent); }
+.model-head { display:grid; grid-template-columns:28px 1fr 96px 58px 68px 36px 36px; gap:6px; padding:7px 12px 5px; font-size:11px; color:var(--dim); font-weight:700; border-bottom:1px solid var(--border); }
+.model-head span.r { text-align:right; }
+.model-group .gname { font-size:12px; color:var(--dim); font-weight:700; margin:10px 6px 5px; text-transform:uppercase; letter-spacing:.4px; }
+.model-item { display:grid; grid-template-columns:28px 1fr 96px 58px 68px 36px 36px; gap:6px; align-items:center; padding:7px 6px; border-radius:9px; border:1px solid transparent; cursor:pointer; }
+.model-item:hover { background:var(--panel2); border-color:var(--border); }
 .model-item.selected { border-color:var(--accent); background:var(--panel); }
-.model-item .name { font-weight:600; }
-.model-item .meta { font-size:11px; color:var(--dim); white-space:nowrap; margin-left:auto; }
-.tag { font-size:10px; padding:1px 7px; border-radius:8px; white-space:nowrap; }
-.tag.cat { background:var(--panel); border:1px solid var(--border); color:var(--dim); }
-.tag.nokey { background:var(--danger); color:#ff9a9a; }
+.model-item .key { text-align:center; }
+.model-item .name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.model-item .prov { font-size:12px; color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.model-item .ctx { font-size:12px; color:var(--dim); text-align:right; }
+.model-item .price { font-size:12px; color:var(--dim); text-align:right; }
+.model-item .chk { text-align:center; color:var(--accent); font-weight:700; }
+.model-foot { display:flex; align-items:center; gap:8px; padding-top:12px; }
+.model-foot .btn { flex-shrink:0; white-space:nowrap; }
+.model-foot .spacer { flex:1; }
 </style>
 </head>
 <body>
@@ -220,7 +228,6 @@ select optgroup { background:var(--panel); color:var(--text); }
   <div class="logo">🤖 道码 Way<span>Coder</span></div>
   <div class="agent-label" id="agent-label">智能体: 智能体1</div>
   <div class="spacer"></div>
-  <button class="btn" id="model-btn" title="选择模型">🧠 <span id="model-btn-label">模型</span></button>
   <select id="perm-select" title="权限模式（YOLO=直接执行 / Ask=每次确认）">
     <option value="ask">🛡 Ask</option>
     <option value="auto">✅ Auto</option>
@@ -237,7 +244,10 @@ select optgroup { background:var(--panel); color:var(--text); }
     <div class="panel-head">🗂 槽位</div>
     <div id="slot-list"></div>
     <div class="panel-head">📜 历史会话</div>
-    <button class="btn" id="new-session">＋ 新建会话</button>
+    <div class="session-actions">
+      <button class="btn" id="new-session">＋ 新建会话</button>
+      <button class="btn danger" id="clear-sessions" title="清空所有会话记录">🗑 清空</button>
+    </div>
     <div id="session-list"><div class="empty">加载中…</div></div>
   </aside>
 
@@ -250,9 +260,8 @@ select optgroup { background:var(--panel); color:var(--text); }
       <button class="btn" id="send" title="发送">✈️</button>
     </div>
     <div id="model-bar">
-      <button class="btn ghost" id="model-add-btn" title="添加 / 选择模型">➕</button>
-      <label class="model-label">大模型:<select id="big-model-select" title="大模型（复杂任务）"></select></label>
-      <label class="model-label">小模型:<select id="small-model-select" title="小模型（简单 / 压缩）"></select></label>
+      <button class="btn model-pick-btn" id="big-model-btn" title="选择大模型（复杂任务）">🤖 大模型: <b id="big-model-label">…</b></button>
+      <button class="btn model-pick-btn" id="small-model-btn" title="选择小模型（简单 / 压缩）">🔧 小模型: <b id="small-model-label">…</b></button>
       <select id="economy-select" title="省 Token 模式"></select>
       <span id="model-status" class="model-status"></span>
     </div>
@@ -280,14 +289,24 @@ select optgroup { background:var(--panel); color:var(--text); }
 
 <div class="modal" id="model-modal">
   <div class="modal-card model-card">
-    <h2>🧠 选择模型</h2>
-    <div class="row" style="margin-bottom:10px;">
-      <input id="model-search" type="text" placeholder="搜索模型名称 / 供应商…">
-      <button class="btn ghost" id="model-close" style="font-size:20px;">×</button>
+    <div class="model-title">
+      <h2 id="model-title">🧠 选择模型</h2>
+      <button class="btn ghost" id="model-close" title="关闭">×</button>
+    </div>
+    <input id="model-search" type="text" placeholder="搜索模型名称 / 供应商…">
+    <div class="model-head">
+      <span>🔑</span><span>模型</span><span>厂商</span><span class="r">窗口</span><span class="r">价格</span><span class="r">大</span><span class="r">小</span>
     </div>
     <div id="model-list"></div>
-    <div class="row" style="margin-top:14px;">
+    <div class="model-foot">
+      <button class="btn" id="model-scan-btn" title="测试各服务商端点连通性">📡 扫描</button>
+      <button class="btn" id="model-import-btn" title="导入其他软件的模型与 API Key">📥 自动导入</button>
+      <button class="btn" id="model-set-key-btn" title="为当前选中的模型设置 API Key">🔑 设置 key</button>
+      <button class="btn" id="model-clear-key-btn" title="清除当前选中模型的 API Key">🗑 清除 key</button>
+      <span id="model-scan-status" style="font-size:12px;color:var(--dim);"></span>
+      <span class="spacer"></span>
       <button class="btn ghost" id="model-cancel">取消</button>
+      <button class="btn" id="model-save-btn" title="保存选中的模型为默认配置（不中断当前任务）">💾 保存</button>
       <button class="btn" id="model-confirm">切换模型</button>
     </div>
   </div>
@@ -484,9 +503,14 @@ function renameSession(id) {
     .catch(() => {});
 }
 document.getElementById('new-session').onclick = () => {
-  fetch('/sessions/new', { method: 'POST' })
+  clearMessages();
+  fetch('/sessions/new', { method: 'POST' }).catch(() => {});
+};
+document.getElementById('clear-sessions').onclick = () => {
+  if (!confirm('确定清空所有会话记录？此操作不可恢复。')) return;
+  fetch('/sessions/clear', { method: 'POST' })
     .then(r => r.json())
-    .then(res => { if (res && res.ok) alert('已保存新会话：' + res.id); })
+    .then(res => { if (res && res.ok) alert('已清空 ' + (res.deleted || 0) + ' 条会话记录'); })
     .then(fetchSessions)
     .catch(() => {});
 };
@@ -565,69 +589,64 @@ let currentSmallModel = '';
 let pendingModelId = '';
 let pendingSmallModelId = '';
 let selectedModelId = '';
+let pendingMode = '';   // 'large' | 'small' — 当前弹窗为谁选模型
+let scanMap = {};       // providerId -> 'ok' | 'fail'
 function renderModels(models, state) {
   modelMap = {};
   allModels = models;
   models.forEach(m => { modelMap[m.id] = m; });
-  currentModelId = state.model;
-  updateModelBtn();
+  currentModelId = state.model || currentModelId;
+  currentSmallModel = state.smallModel || currentSmallModel;
   renderModelBar(state);
 }
-function updateModelBtn() {
-  const m = modelMap[currentModelId];
-  document.getElementById('model-btn-label').textContent = m ? m.name : (currentModelId || '模型');
+function fetchModels() {
+  fetch('/models').then(r => r.json()).then(models =>
+    fetch('/state').then(r => r.json()).then(state => {
+      renderModels(models, state);
+      if (document.getElementById('model-modal').classList.contains('open'))
+        renderModelList(document.getElementById('model-search').value);
+    }));
 }
 // ── 模型状态栏（输入框下方：大模型 / 小模型 / 省钱模式 / 状态）──
 const ECONOMY_OPTIONS = [['off', '省钱：关'], ['auto', '省钱：自动'], ['on', '省钱：开']];
-const SMALL_MODEL_IDS = ['deepseek-chat', 'deepseek-v4-flash', 'gpt-5.4-mini', 'gpt-4o-mini', 'deepseek-v4-pro'];
 function renderModelBar(state) {
-  const big = document.getElementById('big-model-select');
-  const small = document.getElementById('small-model-select');
   const eco = document.getElementById('economy-select');
-  if (allModels.length && big.options.length === 0) {
-    allModels.forEach(m => { const op = document.createElement('option'); op.value = m.id; op.textContent = m.name; big.appendChild(op); });
-    SMALL_MODEL_IDS.forEach(id => { const m = modelMap[id]; if (m) { const op = document.createElement('option'); op.value = id; op.textContent = m.name; small.appendChild(op); } });
+  if (allModels.length && eco.options.length === 0) {
     ECONOMY_OPTIONS.forEach(([v, l]) => { const op = document.createElement('option'); op.value = v; op.textContent = l; eco.appendChild(op); });
   }
-  if (currentModelId) big.value = currentModelId;
-  currentSmallModel = state.smallModel || '';
-  if (currentSmallModel) small.value = currentSmallModel;
+  const big = modelMap[state.model || currentModelId];
+  const small = modelMap[state.smallModel || currentSmallModel];
+  document.getElementById('big-model-label').textContent = big ? big.name : (state.model || currentModelId || '选择');
+  document.getElementById('small-model-label').textContent = small ? small.name : (state.smallModel || currentSmallModel || '选择');
   if (state.economy) eco.value = state.economy;
   const m = modelMap[currentModelId];
   const providerName = state.providerName || state.provider || '';
+  const hk = (state.hasKey !== undefined) ? state.hasKey : hasKey;
   document.getElementById('model-status').textContent =
-    (m ? m.name : (currentModelId || '')) + (providerName ? ' · ' + providerName : '') + (state.hasKey ? '' : ' · ⚠ 无 key');
+    (m ? m.name : (currentModelId || '')) + (providerName ? ' · ' + providerName : '') + (hk ? '' : ' · ⚠ 无 key');
 }
-document.getElementById('big-model-select').onchange = e => {
-  const m = modelMap[e.target.value];
-  if (!m) { e.target.value = currentModelId; return; }
-  if (!m.hasKey && m.providerId !== 'local' && m.providerId !== 'custom') e.target.value = currentModelId;
-  chooseModel(m);
-};
-document.getElementById('small-model-select').onchange = e => {
-  const m = modelMap[e.target.value];
-  if (!m) { e.target.value = currentSmallModel; return; }
-  if (!m.hasKey && m.providerId !== 'local' && m.providerId !== 'custom') {
-    e.target.value = currentSmallModel;
-    pendingSmallModelId = m.id;
-    currentProvider = m.providerId;
-    document.getElementById('key-hint').textContent = '为 ' + m.providerId + ' 输入 API Key（保存后切换到小模型 ' + m.name + '）。';
-    document.getElementById('key-input').value = '';
-    keyModal.classList.add('open');
-    return;
-  }
-  fetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'SmallModel', value: m.id }) }).catch(() => {});
-};
+document.getElementById('big-model-btn').onclick = () => openModelModal('large');
+document.getElementById('small-model-btn').onclick = () => openModelModal('small');
 document.getElementById('economy-select').onchange = e =>
   fetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'EconomyMode', value: e.target.value }) }).catch(() => {});
-document.getElementById('model-add-btn').onclick = openModelModal;
 function formatContext(ctx) {
-  if (!ctx) return '';
-  return ctx >= 1024 ? (Math.round(ctx / 1024)) + 'k' : ctx;
+  if (!ctx || ctx <= 0) return '-';
+  if (ctx >= 1000000) return (Math.round(ctx / 100000) / 10) + 'M';
+  return Math.round(ctx / 1000) + 'K';
 }
-function openModelModal() {
-  selectedModelId = currentModelId;
+function formatPrice(m) {
+  const p = m.inputPrice;
+  if (!p || p <= 0) return 'Free';
+  if (p < 0.01) return '<$0.01';
+  return '$' + p.toFixed(2);
+}
+function openModelModal(mode) {
+  pendingMode = mode;
+  const isSmall = mode === 'small';
+  selectedModelId = isSmall ? currentSmallModel : currentModelId;
+  document.getElementById('model-title').textContent = isSmall ? '🔧 选择小模型' : '🤖 选择大模型';
   document.getElementById('model-search').value = '';
+  document.getElementById('model-scan-status').textContent = '';
   renderModelList('');
   document.getElementById('model-modal').classList.add('open');
 }
@@ -647,29 +666,35 @@ function renderModelList(filter) {
     g.className = 'model-group';
     const gn = document.createElement('div');
     gn.className = 'gname';
-    gn.textContent = pid;
+    const st = scanMap[pid];
+    gn.textContent = pid + (st === 'ok' ? ' ✅' : (st === 'fail' ? ' ❌' : ''));
     g.appendChild(gn);
     byProvider[pid].forEach(m => {
       const item = document.createElement('div');
       item.className = 'model-item' + (m.id === selectedModelId ? ' selected' : '');
+      const key = document.createElement('span');
+      key.className = 'key';
+      key.textContent = m.hasKey ? '🔑' : '';
       const name = document.createElement('span');
       name.className = 'name';
       name.textContent = m.name;
-      const cat = document.createElement('span');
-      cat.className = 'tag cat';
-      cat.textContent = m.category || pid;
-      item.appendChild(name);
-      item.appendChild(cat);
-      if (!m.hasKey) {
-        const nk = document.createElement('span');
-        nk.className = 'tag nokey';
-        nk.textContent = '需 key';
-        item.appendChild(nk);
-      }
-      const meta = document.createElement('span');
-      meta.className = 'meta';
-      meta.textContent = formatContext(m.context) + (m.inputPrice > 0 ? (' · $' + m.inputPrice) : '');
-      item.appendChild(meta);
+      name.title = m.id;
+      const prov = document.createElement('span');
+      prov.className = 'prov';
+      prov.textContent = m.provider || pid;
+      const ctx = document.createElement('span');
+      ctx.className = 'ctx';
+      ctx.textContent = formatContext(m.context);
+      const price = document.createElement('span');
+      price.className = 'price';
+      price.textContent = formatPrice(m);
+      const large = document.createElement('span');
+      large.className = 'chk';
+      large.textContent = m.id === currentModelId ? '✓' : '';
+      const small = document.createElement('span');
+      small.className = 'chk';
+      small.textContent = m.id === currentSmallModel ? '✓' : '';
+      [key, name, prov, ctx, price, large, small].forEach(c => item.appendChild(c));
       item.onclick = () => selectModel(m);
       g.appendChild(item);
     });
@@ -681,32 +706,113 @@ function selectModel(m) {
   renderModelList(document.getElementById('model-search').value);
 }
 function chooseModel(m) {
+  const isSmall = pendingMode === 'small';
   if (!m.hasKey && m.providerId !== 'local' && m.providerId !== 'custom') {
-    pendingModelId = m.id;
+    pendingModelId = isSmall ? '' : m.id;
+    pendingSmallModelId = isSmall ? m.id : '';
     currentProvider = m.providerId;
-    document.getElementById('key-hint').textContent = '为 ' + m.providerId + ' 输入 API Key（保存后切换到 ' + m.name + '）。';
+    document.getElementById('key-hint').textContent = '为 ' + m.providerId + ' 输入 API Key（保存后切换到' + (isSmall ? '小模型' : '大模型') + ' ' + m.name + '）。';
     document.getElementById('key-input').value = '';
     document.getElementById('model-modal').classList.remove('open');
     keyModal.classList.add('open');
     return;
   }
-  fetch('/model', { method: 'POST', body: JSON.stringify({ modelId: m.id }) })
-    .then(() => { currentModelId = m.id; selectedModelId = ''; updateModelBtn(); document.getElementById('model-modal').classList.remove('open'); })
+  const body = isSmall ? { key: 'SmallModel', value: m.id } : { modelId: m.id };
+  const url = isSmall ? '/settings' : '/model';
+  fetch(url, { method: 'POST', body: JSON.stringify(body) })
+    .then(() => {
+      if (isSmall) currentSmallModel = m.id; else currentModelId = m.id;
+      selectedModelId = ''; pendingMode = '';
+      renderModelBar({});
+      document.getElementById('model-modal').classList.remove('open');
+    })
     .catch(() => {});
 }
 function confirmModel() {
   const m = modelMap[selectedModelId];
   if (m) chooseModel(m);
 }
-document.getElementById('model-btn').onclick = openModelModal;
+function closeModelModal() { selectedModelId = ''; pendingMode = ''; document.getElementById('model-modal').classList.remove('open'); }
 document.getElementById('model-search').oninput = e => renderModelList(e.target.value);
-document.getElementById('model-close').onclick = () => { selectedModelId = ''; document.getElementById('model-modal').classList.remove('open'); };
-document.getElementById('model-cancel').onclick = () => { selectedModelId = ''; document.getElementById('model-modal').classList.remove('open'); };
+document.getElementById('model-close').onclick = closeModelModal;
+document.getElementById('model-cancel').onclick = closeModelModal;
 document.getElementById('model-confirm').onclick = confirmModel;
 // 点击遮罩（卡片外）关闭模型弹窗
 document.getElementById('model-modal').addEventListener('click', e => {
-  if (e.target === e.currentTarget) { selectedModelId = ''; e.currentTarget.classList.remove('open'); }
+  if (e.target === e.currentTarget) closeModelModal();
 });
+
+// ── 扫描（测试各服务商端点连通性）──
+document.getElementById('model-scan-btn').onclick = () => {
+  const btn = document.getElementById('model-scan-btn');
+  const status = document.getElementById('model-scan-status');
+  btn.disabled = true;
+  status.textContent = '扫描中…';
+  fetch('/models/scan', { method: 'POST' }).then(r => r.json()).then(res => {
+    btn.disabled = false;
+    scanMap = {};
+    let ok = 0, fail = 0;
+    (res.results || []).forEach(p => {
+      scanMap[p.providerId] = p.ok ? 'ok' : 'fail';
+      if (p.ok) ok++; else fail++;
+    });
+    status.textContent = ok + ' 连通 / ' + fail + ' 不通';
+    renderModelList(document.getElementById('model-search').value);
+  }).catch(() => { btn.disabled = false; status.textContent = '扫描失败'; });
+};
+
+// ── 自动导入（其他软件的模型列表与 API Key）──
+document.getElementById('model-import-btn').onclick = () => {
+  const status = document.getElementById('model-scan-status');
+  status.textContent = '导入中…';
+  fetch('/models/import', { method: 'POST' }).then(r => r.json()).then(res => {
+    status.textContent = '';
+    const keys = res.keys || [];
+    const keySummary = keys.length ? ('导入 Key: ' + keys.map(k => k.providerId + '(' + k.source + ')').join(', ')) : '未发现新 Key';
+    alert('模型导入：' + (res.modelReport || '完成') + '\n' + keySummary);
+    fetchModels();
+  }).catch(() => { status.textContent = '导入失败'; });
+};
+
+// ── 设置 / 清除 key（对当前选中的模型所属供应商）──
+document.getElementById('model-set-key-btn').onclick = () => {
+  const m = modelMap[selectedModelId];
+  const status = document.getElementById('model-scan-status');
+  if (!m) { status.textContent = '请先选择一个模型'; return; }
+  if (m.providerId === 'local' || m.providerId === 'custom') { status.textContent = '本地模型无需 API Key'; return; }
+  pendingModelId = ''; pendingSmallModelId = '';
+  currentProvider = m.providerId;
+  document.getElementById('key-hint').textContent = '为 ' + m.providerId + ' 设置 API Key（保存后该供应商所有模型可用）。';
+  document.getElementById('key-input').value = '';
+  keyModal.classList.add('open');
+};
+document.getElementById('model-clear-key-btn').onclick = () => {
+  const m = modelMap[selectedModelId];
+  const status = document.getElementById('model-scan-status');
+  if (!m) { status.textContent = '请先选择一个模型'; return; }
+  if (m.providerId === 'local' || m.providerId === 'custom') { status.textContent = '本地模型无需 API Key'; return; }
+  fetch('/key', { method: 'POST', body: JSON.stringify({ providerId: m.providerId, apiKey: '' }) })
+    .then(() => { status.textContent = '已清除 ' + m.providerId + ' 的 Key'; fetchModels(); })
+    .catch(() => { status.textContent = '清除失败'; });
+};
+
+// ── 保存（持久化选中模型，不中断当前会话）──
+document.getElementById('model-save-btn').onclick = () => {
+  const m = modelMap[selectedModelId];
+  const status = document.getElementById('model-scan-status');
+  if (!m) { status.textContent = '请先选择一个模型'; return; }
+  const isSmall = pendingMode === 'small';
+  const body = isSmall ? { key: 'SmallModel', value: m.id } : { modelId: m.id };
+  const url = isSmall ? '/settings' : '/model/save';
+  fetch(url, { method: 'POST', body: JSON.stringify(body) })
+    .then(() => {
+      if (isSmall) currentSmallModel = m.id; else currentModelId = m.id;
+      status.textContent = '已保存 ' + (isSmall ? '小模型' : '大模型') + ' ' + m.name + '（不中断当前任务，新会话/重启生效）';
+      renderModelBar({});
+      renderModelList(document.getElementById('model-search').value);
+    })
+    .catch(() => { status.textContent = '保存失败'; });
+};
 
 // ── key 弹窗 ──
 function saveKey() {
@@ -719,15 +825,16 @@ function saveKey() {
       if (pendingModelId) {
         const id = pendingModelId; pendingModelId = '';
         fetch('/model', { method: 'POST', body: JSON.stringify({ modelId: id }) })
-          .then(() => { currentModelId = id; updateModelBtn(); })
+          .then(() => { currentModelId = id; renderModelBar({}); })
           .catch(() => {});
       }
       if (pendingSmallModelId) {
         const id = pendingSmallModelId; pendingSmallModelId = '';
         fetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'SmallModel', value: id }) })
-          .then(() => { currentSmallModel = id; })
+          .then(() => { currentSmallModel = id; renderModelBar({}); })
           .catch(() => {});
       }
+      fetchModels();
     });
 }
 document.getElementById('key-save').onclick = saveKey;
@@ -952,7 +1059,7 @@ function handleUiCommand(text) {
     return true;
   }
   if (lower === '/model' || lower === '/m') {
-    openModelModal();
+    openModelModal('large');
     return true;
   }
   return false;
@@ -1295,7 +1402,8 @@ es.addEventListener('state', e => {
   hasKey = state.hasKey;
   applyPermMode(state.permMode);
   renderSlots(state);
-  if (state.model && state.model !== currentModelId) { currentModelId = state.model; updateModelBtn(); }
+  if (state.model) currentModelId = state.model;
+  if (state.smallModel) currentSmallModel = state.smallModel;
   renderModelBar(state);
   fetchPanel();
 });

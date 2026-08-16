@@ -33,7 +33,26 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 .Set("context", m.ContextWindow)
                 .Set("inputPrice", m.InputPrice)
                 .Set("outputPrice", m.OutputPrice)
-                .Set("hasKey", ProviderHasKey(m.ProviderId)));
+                .Set("hasKey", ApiKeyStore.HasKeyFor(m.ProviderId, m.Id)));
+        }
+        return arr.ToJson();
+    }
+
+    /// <summary>序列化连通性探测结果列表（供 /models/scan 返回）。</summary>
+    public static string SerializeScan(List<ModelCli.EndpointProbe> probes)
+    {
+        var arr = JNode.Array();
+        foreach (var p in probes)
+        {
+            var models = JNode.Array();
+            foreach (var m in p.Models) models.Add(m);
+            arr.Add(JNode.Object()
+                .Set("providerId", p.ProviderId)
+                .Set("display", p.Display)
+                .Set("baseUrl", p.BaseUrl ?? "")
+                .Set("ok", p.Ok)
+                .Set("detail", p.Detail)
+                .Set("models", models));
         }
         return arr.ToJson();
     }

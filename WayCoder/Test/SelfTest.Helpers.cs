@@ -2624,6 +2624,38 @@ public static partial class SelfTest
         Check("WebFull: Origin null 拒绝", !WayCoder.UI.Web.WebChatServer.IsTrustedOrigin("null", 8123));
         Check("WebFull: 端口不匹配拒绝", !WayCoder.UI.Web.WebChatServer.IsTrustedOrigin("http://127.0.0.1:9999", 8123));
 
+        // ── 6c. HasKeyFor / SerializeScan / TestList（模型 key 检测 + 连通性扫描）──
+        Check("HasKeyFor: local 无需 key", WayCoder.ApiKeyStore.HasKeyFor("local", "qwen2.5-coder:latest"));
+        Check("HasKeyFor: custom 无需 key", WayCoder.ApiKeyStore.HasKeyFor("custom", "my-custom-model"));
+        Check("HasKeyFor: 无 key 供应商返回 false", !WayCoder.ApiKeyStore.HasKeyFor("openai", "gpt-5.5"));
+        ApiKeyStore.Set("__selftest_probe__", "sk-probe-123");
+        Check("HasKeyFor: 已存 key 返回 true", WayCoder.ApiKeyStore.HasKeyFor("__selftest_probe__", "any-model"));
+        ApiKeyStore.Remove("__selftest_probe__");
+        Check("HasKeyFor: 删除后返回 false", !WayCoder.ApiKeyStore.HasKeyFor("__selftest_probe__", "any-model"));
+
+        Check("ProviderFromEnvVarName: ANTHROPIC_API_KEY → anthropic",
+            ApiKeyStore.ProviderFromEnvVarName("ANTHROPIC_API_KEY") == "anthropic");
+        Check("ProviderFromEnvVarName: DEEPSEEK_API_KEY → deepseek",
+            ApiKeyStore.ProviderFromEnvVarName("DEEPSEEK_API_KEY") == "deepseek");
+        Check("ProviderFromEnvVarName: 无关变量返回 null",
+            ApiKeyStore.ProviderFromEnvVarName("FOO_BAR") == null);
+
+        var probes = new List<WayCoder.ModelCli.EndpointProbe>
+        {
+            new("openai", "OpenAI", "https://api.openai.com", true, "已连接（200）", new[] { "gpt-5.5", "gpt-5.5-mini" }),
+            new("bad", "Bad", "https://bad.example.com", false, "无法连接", Array.Empty<string>()),
+        };
+        var scanJson = WayCoder.UI.Web.WebChatServer.SerializeScan(probes);
+        var scanArr = Json.Parse(scanJson);
+        Check("SerializeScan: 是数组", scanArr?.Kind == JKind.Array);
+        Check("SerializeScan: 含 providerId/ok/detail",
+            scanJson.Contains("\"providerId\"") && scanJson.Contains("\"ok\"") && scanJson.Contains("\"detail\""));
+        Check("SerializeScan: ok 字段正确",
+            scanArr![0]?["ok"]?.AsBool() == true && scanArr[1]?["ok"]?.AsBool() == false);
+
+        var testList = WayCoder.ModelCli.TestList();
+        Check("TestList: 返回列表（不抛异常）", testList != null);
+
         // ── 7. 端点冒烟：WebChatServer + HttpClient ──
         var web = new WayCoder.UI.Web.WebChatServer(a0, 0);
         web.Start();
@@ -2653,6 +2685,11 @@ public static partial class SelfTest
             var badSetting = client.PostAsync(baseUrl + "/settings",
                 new StringContent("{\"key\":\"Nope\",\"value\":\"x\"}", Encoding.UTF8, "application/json")).Result;
             Check("WebFull: POST /settings 未知项报错", badSetting.Content.ReadAsStringAsync().Result.Contains("\"ok\":false"));
+
+            var scan = client.PostAsync(baseUrl + "/models/scan",
+                new StringContent("{}", Encoding.UTF8, "application/json")).Result;
+            var scanBody = scan.Content.ReadAsStringAsync().Result;
+            Check("WebFull: POST /models/scan 返回 ok+results", scanBody.Contains("\"ok\":true") && scanBody.Contains("\"results\":"));
         }
         catch { Check("WebFull: 端点冒烟", false); }
         finally { web.Stop(); }
