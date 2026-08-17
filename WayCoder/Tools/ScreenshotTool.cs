@@ -134,7 +134,7 @@ public class ScreenshotTool : ITool
             }
             else
             {
-                var fullPath = Path.GetFullPath(savePath);
+                var fullPath = Path.GetFullPath(savePath, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
                 Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
                 savePath = fullPath;
             }

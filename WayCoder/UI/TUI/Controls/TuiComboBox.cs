@@ -187,7 +187,13 @@ public class TuiComboBox : TuiControl
                 case ConsoleKey.Backspace:
                     if (_searchText.Length > 0)
                     {
-                        _searchText = _searchText[..^1];
+                        // 删最后一个完整码点：代理对（emoji/CJK 扩展 B）占 2 个 char，
+                        // 按码元 [..^1] 删除会切半留下孤立代理 U+FFFD。
+                        int n = _searchText.Length;
+                        if (n >= 2 && char.IsHighSurrogate(_searchText[n - 2]) && char.IsLowSurrogate(_searchText[n - 1]))
+                            _searchText = _searchText[..(n - 2)];
+                        else
+                            _searchText = _searchText[..(n - 1)];
                         RebuildFilter();
                     }
                     return true;

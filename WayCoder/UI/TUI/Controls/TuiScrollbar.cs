@@ -131,14 +131,25 @@ public class TuiScrollbar : TuiControl
         if (ev.MouseScrollUp) { ScrollUp(3); return true; }
         if (ev.MouseScrollDown) { ScrollDown(3); return true; }
 
+        // 拖拽中（移动）：必须先于「按下」分支判断 —— 拖动时同样满足 MouseLeft && !MouseRelease，
+        // 若按下分支在前会先 return true，导致本分支永不触发、OnScroll 回调永远不调用。
+        if (_dragging && ev.MouseLeft && !ev.MouseRelease)
+        {
+            ScrollOffset = OffsetFromY(relY);
+            ScrollOffset = ClampOffset();
+            OnScroll?.Invoke(ScrollOffset);
+            return true;
+        }
+
+        // 鼠标按下：跳到点击位置并进入拖拽
         if (ev.MouseLeft && !ev.MouseRelease)
         {
-            // 鼠标按下
             if (relY >= 0 && relY < Height)
             {
                 _dragging = true;
                 ScrollOffset = OffsetFromY(relY);
                 ScrollOffset = ClampOffset();
+                OnScroll?.Invoke(ScrollOffset);
             }
             return true;
         }
@@ -146,15 +157,6 @@ public class TuiScrollbar : TuiControl
         if (ev.MouseRelease)
         {
             _dragging = false;
-            return true;
-        }
-
-        // 拖拽中（移动）
-        if (_dragging && ev.MouseLeft && !ev.MouseRelease)
-        {
-            ScrollOffset = OffsetFromY(relY);
-            ScrollOffset = ClampOffset();
-            OnScroll?.Invoke(ScrollOffset);
             return true;
         }
 

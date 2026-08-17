@@ -1,5 +1,23 @@
 # 更新日志
 
+## v0.71.26 (2026-08-17) — 符号链接环崩溃 + cd 相对路径系统性失效 + TUI 鼠标/缓存/网格 5 项
+
+延续 bug 修复循环，本轮修**两个系统性缺陷**（符号链接环无限递归、cd 后相对路径仍基于进程 cwd）+ 5 处 TUI 确定性 bug。
+
+### 🐛 修复
+
+- **符号链接环 → StackOverflow 崩溃进程**（3 处递归目录遍历无深度上限）：`WcTool.CollectFiles` / `GrepTool.WalkRecursive` / `FindReplaceTool.CollectFiles` 遇 `ln -s . loop` 自引用环时无限递归直到栈溢出，直接把整个 agent 进程拖崩。补 `depth` 参数（>64 层停止）+ 既有数量上限提前返回
+- **`cd` 后相对路径仍基于进程 cwd**（系统性，22 个文件）：`CdTool`/`bash` 切换 `BashTool.CurrentCwd` 后，后续文件操作工具的相对路径仍用 `Path.GetFullPath(x)` 单参数（= 进程启动目录）而非被跟踪工作目录，导致 `cd` 到别处后 `read_file`/`ls`/`tree`/`write` 等相对路径全部落到错误位置。统一改 `Path.GetFullPath(x, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory())`，覆盖 ReadFile/Ls/Tree/FindReplace/MultiEdit/ViewImage/Lint/Download/Transcribe/Screenshot/Lsp/Wc 等读、写、lint、下载、抓屏工具
+- **`TuiButton` 点击未命中边界检查**：`MouseLeft` 分支直接 `OnClick`，无 `inside` 命中判定——点击按钮外区域也会误触按钮。补边界检查，未命中返回 false
+- **`TuiMarkdown` 渲染缓存 key 缺 Role/IsPlainText**：同一实例复用改 `Role`（assistant→tool 等）或 `IsPlainText` 后，`_parsed` 命中旧缓存返回错误配色/纯文本渲染。补 `_lastRole`/`_lastPlain` 纳入缓存判定
+- **`TuiScrollbar` 拖拽移动分支死代码**：`if (MouseLeft && !MouseRelease)` 按下分支先于拖拽分支 return true，拖动事件被按下分支吞掉，`OnScroll` 回调永不触发。重构为先判 `_dragging` 拖拽移动、再判按下，且按下时也回调一次
+- **`TuiGrid` 星号轨分配溢出 totalSpace**：`Math.Max(1, remaining*weight/starTotal)` 强制每颗星轨至少 1px，小剩余空间 + 多星轨时前面各轨和超过 remaining、最后一轨拿到负值再被抬到 1，尺寸总和超出容器。改向下取整 + 最后一轨吸收余量，固定轨才保证最小 1px
+- **`TuiComboBox` Backspace 按码元硬切代理对**：`_searchText = _searchText[..^1]` 删最后 1 个 `char`，emoji/CJK 扩展 B 代理对被切半留下 U+FFFD。改判代理对删 2 个码元
+
+### ✅ 测试
+
+新增 `TestV0726SymlinkCdAndUi`（6 项断言：GrepTool 遇符号链接环不崩溃 / `read_file`+`ls` 相对路径基于 CurrentCwd / TuiGrid 多星轨小空间不溢出且无负尺寸）。`ResolveSizes` 改 `internal` 供纯逻辑测试。测试总数 3310 → 3316。
+
 ## v0.71.25 (2026-08-17) — 工具整数参数系统性失效 + 图片编解码边界 + 渲染乱码
 
 Explore 代理扫 `Tools/` 文件/命令类 + `Program/Infra/Batch/Skills` 后人工验证，本轮修一个**系统性**缺陷（所有工具整数参数因 `long` vs `int` 类型不匹配而静默失效）加 7 处边界/损坏/乱码。

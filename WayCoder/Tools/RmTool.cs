@@ -46,7 +46,7 @@ public class RmTool : ITool
     {
         try
         {
-            var fullPath = Path.GetFullPath(path);
+            var fullPath = Path.GetFullPath(path, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
 
             // 安全检查
             foreach (var p in ProtectedPaths)

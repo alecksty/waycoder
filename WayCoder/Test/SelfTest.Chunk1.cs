@@ -145,6 +145,7 @@ public static partial class SelfTest
         TestV0724SyntaxSurrogate(Check);      // v0.71.24 批次：Syntax.Tokenize 代理对成对 token（不切半）
         TestV0725DrawAndCodec(Check);         // v0.71.25 批次：DrawCommands path 首点 + PngDecoder 长度溢出 + BmpCodec 32 位 alpha + 历史预览代理对
         TestV0725ToolArgsAndEdit(Check);      // v0.71.25 批次：ToolArgs 整数取数（long 不丢参）+ MultiEditTool 兼容 List<object?>
+        TestV0726SymlinkCdAndUi(Check);       // v0.71.26 批次：符号链接环深度上限 + cd 后相对路径基于 CurrentCwd + TuiGrid 星号轨不溢出
         Console.WriteLine();
 
         // ---- 工具 ----

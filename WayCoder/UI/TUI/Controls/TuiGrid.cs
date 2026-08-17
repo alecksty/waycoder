@@ -187,7 +187,7 @@ public class TuiGrid : TuiView
     /// 根据定义列表解析实际像素尺寸。
     /// 先分配固定尺寸，剩余空间按星号权重分配给弹性行列。
     /// </summary>
-    private static int[] ResolveSizes(int count, GridSize[] defs, int totalSpace, int gap)
+    internal static int[] ResolveSizes(int count, GridSize[] defs, int totalSpace, int gap)
     {
         var sizes = new int[count];
 
@@ -216,15 +216,18 @@ public class TuiGrid : TuiView
         if (starTotal > 0 && remaining > 0)
         {
             int allocated = 0;
+            int lastStar = LastStarIndex(count, defs);
             for (int i = 0; i < count; i++)
             {
                 var def = i < defs.Length ? defs[i] : new GridSize { Value = 1, IsStar = true };
                 if (!def.IsStar) continue;
 
-                // 按权重比例分配，最后一行/列拿剩余全部
-                int share = (i == LastStarIndex(count, defs))
+                // 按权重比例分配（向下取整），最后一个弹性轨吸收全部余量；
+                // 不能用 Math.Max(1, ...) 强制最小 1px —— 多颗星轨各 1px 之和会超过 remaining，
+                // 使尺寸总和溢出 totalSpace。
+                int share = (i == lastStar)
                     ? remaining - allocated
-                    : Math.Max(1, remaining * def.Value / starTotal);
+                    : remaining * def.Value / starTotal;
                 sizes[i] = share;
                 allocated += share;
             }
@@ -239,9 +242,12 @@ public class TuiGrid : TuiView
             }
         }
 
-        // 保证最小尺寸
+        // 保证固定尺寸轨最小 1px（弹性轨由上面积余量吸收逻辑决定，可为 0 以收缩，不能在此强行抬到 1）
         for (int i = 0; i < count; i++)
-            if (sizes[i] < 1) sizes[i] = 1;
+        {
+            var def = i < defs.Length ? defs[i] : new GridSize { Value = 1, IsStar = true };
+            if (!def.IsStar && sizes[i] < 1) sizes[i] = 1;
+        }
 
         return sizes;
     }

@@ -52,7 +52,7 @@ public class WcTool : ITool
             // Glob 批量模式
             if (!string.IsNullOrEmpty(glob))
             {
-                path = Path.GetFullPath(path);
+                path = Path.GetFullPath(path, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
                 if (!Directory.Exists(path))
                     return $"错误：目录不存在 — {path}";
 
@@ -118,9 +118,9 @@ public class WcTool : ITool
         }
     }
 
-    private static void CollectFiles(string dir, string glob, List<string> files, int max)
+    private static void CollectFiles(string dir, string glob, List<string> files, int max, int depth = 0)
     {
-        if (files.Count >= max) return;
+        if (files.Count >= max || depth > 64) return; // 深度上限防符号链接环（ln -s . loop）无限递归 → StackOverflow
         try
         {
             foreach (var f in Directory.GetFiles(dir, glob))
@@ -134,7 +134,7 @@ public class WcTool : ITool
                 if (Path.GetFileName(d).StartsWith('.') || d.EndsWith("node_modules")
                     || d.EndsWith(".git") || d.EndsWith("bin") || d.EndsWith("obj"))
                     continue;
-                CollectFiles(d, glob, files, max);
+                CollectFiles(d, glob, files, max, depth + 1);
             }
         }
         catch { }

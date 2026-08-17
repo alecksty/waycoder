@@ -40,8 +40,8 @@ public class CpTool : ITool
     {
         try
         {
-            var srcPath = Path.GetFullPath(src);
-            var destPath = Path.GetFullPath(dest);
+            var srcPath = Path.GetFullPath(src, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory());
+            var destPath = Path.GetFullPath(dest, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory());
 
             if (!File.Exists(srcPath) && !Directory.Exists(srcPath))
                 return $"错误：源不存在 — {srcPath}";

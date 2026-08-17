@@ -46,7 +46,7 @@ public class DownloadTool : ITool, ICancellableTool
         if (string.IsNullOrWhiteSpace(filePath))
             return "错误：file_path 不能为空 — 请提供有效的文件路径。";
         if (!Path.IsPathRooted(filePath))
-            filePath = Path.GetFullPath(filePath);
+            filePath = Path.GetFullPath(filePath, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
 
         // 确保目标目录存在
         var dir = Path.GetDirectoryName(filePath);

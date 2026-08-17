@@ -33,7 +33,7 @@ public class GlobTool : ITool
     {
         try
         {
-            var basePath = Path.GetFullPath(searchPath);
+            var basePath = Path.GetFullPath(searchPath, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
             if (!Directory.Exists(basePath))
                 return $"错误：{searchPath} 不是目录";
 

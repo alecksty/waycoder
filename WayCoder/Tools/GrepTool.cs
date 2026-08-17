@@ -68,7 +68,7 @@ public class GrepTool : ITool
             return $"无效的正则表达式：{ex.GetType().Name}: {ex.Message}";
         }
 
-        var basePath = Path.GetFullPath(searchPath);
+        var basePath = Path.GetFullPath(searchPath, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
         if (!File.Exists(basePath) && !Directory.Exists(basePath))
             return $"错误：{searchPath} 未找到";
 
@@ -123,9 +123,9 @@ public class GrepTool : ITool
 
     /// <summary>逐目录递归收集文件，每个目录独立 try/catch —— 单个不可访问子目录
     /// 不再像 <c>Directory.GetFiles(..., AllDirectories)</c> 那样让整棵树搜索失败。</summary>
-    private static void WalkRecursive(string dir, string searchPattern, List<string> results)
+    private static void WalkRecursive(string dir, string searchPattern, List<string> results, int depth = 0)
     {
-        if (results.Count >= 5000) return;
+        if (results.Count >= 5000 || depth > 64) return; // 深度上限防符号链接环无限递归 → StackOverflow
 
         try
         {
@@ -147,7 +147,7 @@ public class GrepTool : ITool
         foreach (var sub in subDirs)
         {
             if (SkipDirs.Contains(Path.GetFileName(sub))) continue;
-            WalkRecursive(sub, searchPattern, results);
+            WalkRecursive(sub, searchPattern, results, depth + 1);
             if (results.Count >= 5000) return;
         }
     }
