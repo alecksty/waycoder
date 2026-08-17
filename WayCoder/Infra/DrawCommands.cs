@@ -607,7 +607,7 @@ internal sealed class StarCommand : IDrawCommand
             if (double.IsNaN(v)) return null;
             f.Args.Add(v);
         }
-        if ((int)Math.Round(f.Args[4]) < 2) return null;
+        if ((int)Math.Round(f.Args[4]) < 2 || (int)Math.Round(f.Args[4]) > 4096) return null;
         int start = 5;
         if (a.Count > 5 && Canvas.TryNum(a[5].Value, out _)) { f.Args.Add(DrawParse.Num(a[5])); start = 6; }
         else f.Args.Add(0);
@@ -643,7 +643,7 @@ internal sealed class RegularCommand : IDrawCommand
             if (double.IsNaN(v)) return null;
             f.Args.Add(v);
         }
-        if ((int)Math.Round(f.Args[3]) < 3) return null;
+        if ((int)Math.Round(f.Args[3]) < 3 || (int)Math.Round(f.Args[3]) > 4096) return null;
         int start = 4;
         if (a.Count > 4 && Canvas.TryNum(a[4].Value, out _)) { f.Args.Add(DrawParse.Num(a[4])); start = 5; }
         else f.Args.Add(0);

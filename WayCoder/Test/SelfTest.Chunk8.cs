@@ -585,6 +585,38 @@ public static partial class SelfTest
         Console.WriteLine();
 
         // ================================================================
+        // 系统消息框自适应宽高（按消息内容计算）
+        // ================================================================
+        Section("[TuiDialog 自适应尺寸]");
+        var autoShort = TuiDialog.Info("提示", "OK");
+        var autoLong = TuiDialog.Info("提示", "这是一条很长很长的消息内容用于测试自适应宽度");
+        var auto4 = TuiDialog.Info("提示", "一\n二\n三\n四");
+        var auto6 = TuiDialog.Info("提示", "1\n2\n3\n4\n5\n6");
+        autoShort.OnResize(cols, rows);
+        autoLong.OnResize(cols, rows);
+        auto4.OnResize(cols, rows);
+        auto6.OnResize(cols, rows);
+        Check("消息框禁用 XScale 自动算宽", autoShort.XScale == 0);
+        Check("消息框宽随内容增长", autoLong.Width > autoShort.Width);
+        Check("消息框高随行数增长", auto4.Height > autoShort.Height);
+        Check("消息框 4 行+按钮全容纳(内容高=5)", auto4.ContentHeight == 5);
+        Check("消息框 6 行不裁按钮(内容高=7)", auto6.ContentHeight == 7);
+
+        var autoConfirm = TuiDialog.Confirm("确认", "一\n二\n三\n四", _ => { });
+        var autoConfirm3 = TuiDialog.Confirm3("选择", "一\n二\n三", _ => { });
+        autoConfirm.OnResize(cols, rows);
+        autoConfirm3.OnResize(cols, rows);
+        Check("确认框禁用 XScale", autoConfirm.XScale == 0);
+        Check("确认框 4 行+按钮全容纳(内容高=5)", autoConfirm.ContentHeight == 5);
+        Check("确认框3 3 行+按钮全容纳(内容高=4)", autoConfirm3.ContentHeight == 4);
+
+        var showWin = TuiDialog.Info("提示", "抓屏测试");
+        var showFrame = TuiDialog.Show(showWin, x: 2, y: 1);
+        Check("Show 返回非空帧", showFrame.Length > 0);
+        Check("Show 帧含消息文本", showFrame.Contains("抓屏测试"));
+        Console.WriteLine();
+
+        // ================================================================
         // InlinePermission 行内权限确认（inline 方式）
         // ================================================================
         Section("[InlinePermission]");
@@ -884,6 +916,10 @@ public static partial class SelfTest
 
         Check("AnsiColors.BgBrightBlack=100", AnsiColors.BgBrightBlack == 100);
         Check("AnsiColors.BgBrightWhite=107", AnsiColors.BgBrightWhite == 107);
+
+        Check("AnsiColors.Orange=208", AnsiColors.Orange == 208);
+        Check("AnsiColors.Orange3=172", AnsiColors.Orange3 == 172);
+        Check("AnsiColors.PanelGrey=247", AnsiColors.PanelGrey == 247);
         Console.WriteLine();
 
         // ================================================================
@@ -917,6 +953,10 @@ public static partial class SelfTest
         Check("TuiTheme ControlFg", theme.ControlFg >= 0);
         Check("TuiTheme ButtonFg", theme.ButtonFg >= 0);
         Check("TuiTheme InputFg", theme.InputFg >= 0);
+        Check("TuiTheme InputBg=黑", theme.InputBg == AnsiColors.BgBlack);
+        Check("TuiTheme InputCursorBg=黑", theme.InputCursorBg == AnsiColors.BgBlack);
+        Check("TuiTheme ListBg=黑", theme.ListBg == AnsiColors.BgBlack);
+        Check("TuiTheme WindowBg=灰", theme.WindowBg == AnsiColors.PanelGrey);
 
         // 主题预设索引
         Check("TuiTheme CurrentPresetIndex >= -1", TuiTheme.CurrentPresetIndex >= -1);
@@ -1072,6 +1112,10 @@ public static partial class SelfTest
             MarkdownParser.ParseInline("«bold yellow»黄«/»").Any(r => r.Color == 33));
         Check("ParseInline «bright red» 亮红=91",
             MarkdownParser.ParseInline("«bright red»亮红«/»").Any(r => r.Color == 91));
+        Check("ParseInline «orange» 橙=208",
+            MarkdownParser.ParseInline("«orange»橙«/»").Any(r => r.Color == 208));
+        Check("ParseInline «orange3» 深橙=172",
+            MarkdownParser.ParseInline("«orange3»深橙«/»").Any(r => r.Color == 172));
 
         // 流式未闭合 span：无 «/» 时样式持续到行尾（推理流式逐 token 追加）
         Check("ParseInline 未闭合«dim»持续淡化",

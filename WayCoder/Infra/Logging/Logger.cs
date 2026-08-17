@@ -50,7 +50,7 @@ public static class Logger
                 await foreach (var entry in reader.ReadAllAsync(_cts.Token))
                 {
                     Dispatch(entry);
-                    LogWritten?.Invoke(entry);
+                    try { LogWritten?.Invoke(entry); } catch { /* 指标订阅者抛异常绝不影响日志循环（否则跳出循环致 worker 终止、日志静默丢弃） */ }
                     count++;
                     if (AutoFlush && count >= 128)
                     {

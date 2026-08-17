@@ -20,7 +20,7 @@ public class TuiTheme
     public int MaskBg { get; set; } = AnsiColors.BgBrightBlack; // 模态遮罩背景（深灰）
 
     // ── 窗口层 ──
-    public int WindowBg { get; set; } = AnsiColors.BgWhite; // 窗口默认背景（白底）
+    public int WindowBg { get; set; } = AnsiColors.PanelGrey; // 窗口默认背景（灰底）
     public int WindowBorderFocused { get; set; } = AnsiColors.Cyan; // 聚焦边框
     public int WindowBorderUnfocused { get; set; } = 8; // 失焦边框（隐藏）
     public int WindowTitleFg { get; set; } // 标题前景（0=用边框色）
@@ -32,6 +32,7 @@ public class TuiTheme
     public int DialogWarnBorder { get; set; } = AnsiColors.Yellow; // 警告框边框
     public int DialogErrorBorder { get; set; } = AnsiColors.Red; // 错误框边框
     public int DialogConfirmBorder { get; set; } = AnsiColors.Yellow; // 确认框边框
+    public int DialogFg { get; set; } = AnsiColors.Black; // 对话框正文文字（灰底黑字；黑底主题需覆盖为亮色）
 
     // ── 渐变预设（TrueColor RGB 码）──
     /// <summary>青→蓝渐变（信息框默认）</summary>
@@ -98,12 +99,13 @@ public class TuiTheme
 
     // ── 输入框 ──
     public int InputFg { get; set; } = AnsiColors.White;
-    public int InputBg { get; set; }
-    public int InputCursorBg { get; set; } = AnsiColors.BgBlue; // 聚焦时输入框背景
+    public int InputBg { get; set; } = AnsiColors.BgBlack; // 输入框默认背景（黑底）
+    public int InputCursorBg { get; set; } = AnsiColors.BgBlack; // 聚焦时输入框背景（黑底）
     public int InputPlaceholderFg { get; set; } = AnsiColors.BrightBlack;
 
     // ── 列表 ──
     public int ListFg { get; set; } = AnsiColors.White;
+    public int ListBg { get; set; } = AnsiColors.BgBlack; // 列表项默认背景（黑底）
     public int ListSelFg { get; set; } = AnsiColors.Black;
     public int ListSelBg { get; set; } = AnsiColors.BgCyan;
 
@@ -226,6 +228,7 @@ public class TuiTheme
         ChatUserFg = AnsiColors.BrightGreen,
         ChatAssistantFg = AnsiColors.BrightCyan,
         ChatSystemFg = AnsiColors.BrightYellow,
+        DialogFg = AnsiColors.BrightWhite, // 黑底窗口用亮白正文
     };
 
     /// <summary>4. 海洋 —— 蓝色系，冷静专业</summary>
@@ -312,6 +315,7 @@ public class TuiTheme
         DialogSuccessBorder = AnsiColors.White,
         DialogWarnBorder = AnsiColors.White,
         DialogConfirmBorder = AnsiColors.White,
+        DialogFg = AnsiColors.White, // 黑底窗口用白正文
     };
 
     /// <summary>8. 复古 —— 琥珀色终端，怀旧风格</summary>
@@ -345,6 +349,7 @@ public class TuiTheme
         DialogSuccessBorder = AnsiColors.Yellow,
         DialogWarnBorder = AnsiColors.Red,
         DialogConfirmBorder = AnsiColors.Yellow,
+        DialogFg = AnsiColors.Yellow, // 黑底窗口用黄正文
         CodeBlockFg = AnsiColors.Yellow,
         CodeBlockBorderFg = AnsiColors.Yellow,
         CodeLangFg = AnsiColors.Yellow,
