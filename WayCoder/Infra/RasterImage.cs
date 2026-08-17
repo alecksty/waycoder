@@ -47,13 +47,15 @@ public sealed class RasterImage
     public string[] SampleGrid(int cols, int rows)
     {
         if (cols <= 0 || rows <= 0) return Array.Empty<string>();
+        // 防整数溢出：cols*rows 与 cx*Width 均按 int 相乘，超大网格溢出为负（new string[负] 抛异常或分配数十 GB）
+        if ((long)cols * rows > int.MaxValue) throw new ArgumentException("网格采样规模过大");
         var r = new string[cols * rows];
         int idx = 0;
         for (int ry = 0; ry < rows; ry++)
             for (int cx = 0; cx < cols; cx++)
             {
-                int x = cx * Width / cols;
-                int y = ry * Height / rows;
+                int x = (int)((long)cx * Width / cols);
+                int y = (int)((long)ry * Height / rows);
                 r[idx++] = HexAt(x, y);
             }
         return r;

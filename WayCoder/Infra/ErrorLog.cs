@@ -19,6 +19,7 @@ public static class ErrorLog
     public enum Level { Info, Warning, Error, Fatal }
 
     private static readonly Lock _lock = new();
+    private static readonly Lock _appendLock = new(); // 串行化文件追加与日期轮转（Flush/Write 都在 _lock 外调用 AppendToFile）
     private static string? _logDir;
     private static string? _currentLogFile;
     private static string _currentDate = "";
@@ -192,26 +193,33 @@ public static class ErrorLog
         AppendToFile(pending);
     }
 
-    /// <summary>把日志行追加到当前日志文件（含日期轮转），锁外执行。</summary>
+    /// <summary>
+    /// 把日志行追加到当前日志文件（含日期轮转）。
+    /// 在 _lock 之外被 Flush/Write 并发调用，需独立锁串行化：避免 File.AppendAllLines
+    /// 并发交错丢行，以及 _currentDate/_currentLogFile 轮转读写竞态。
+    /// </summary>
     private static void AppendToFile(List<string> lines)
     {
         if (_logDir == null || lines.Count == 0) return;
 
-        // 检测日期变更 → 轮转
-        var today = DateTime.Now.ToString("yyyyMMdd");
-        if (today != _currentDate || _currentLogFile == null)
+        lock (_appendLock)
         {
-            _currentDate = today;
-            _currentLogFile = Path.Combine(_logDir, $"error_{today}.log");
-        }
+            // 检测日期变更 → 轮转
+            var today = DateTime.Now.ToString("yyyyMMdd");
+            if (today != _currentDate || _currentLogFile == null)
+            {
+                _currentDate = today;
+                _currentLogFile = Path.Combine(_logDir, $"error_{today}.log");
+            }
 
-        try
-        {
-            File.AppendAllLines(_currentLogFile, lines, System.Text.Encoding.UTF8);
-        }
-        catch
-        {
-            // 日志写入失败不能抛异常（否则可能造成无限递归）
+            try
+            {
+                File.AppendAllLines(_currentLogFile, lines, System.Text.Encoding.UTF8);
+            }
+            catch
+            {
+                // 日志写入失败不能抛异常（否则可能造成无限递归）
+            }
         }
     }
 
