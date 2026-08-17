@@ -27,9 +27,9 @@ public class CdTool : ITool
         {
             var current = BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory();
 
-            // 处理 ~ 展开
+            // 处理 ~ 展开：仅前缀 ~ 或 ~/ 展开为 home，`~user`/路径中段 ~ 保持原样
             if (path.StartsWith('~'))
-                path = path.Replace("~", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+                path = ExpandHome(path);
 
             var fullPath = Path.GetFullPath(Path.Combine(current, path));
 
@@ -42,6 +42,14 @@ public class CdTool : ITool
         catch (Exception ex)
         {
             return Task.FromResult($"cd 错误：{ex.GetType().Name}: {ex.Message}");
+        }
+
+        static string ExpandHome(string p)
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (p == "~") return home;
+            if (p.StartsWith("~/") || p.StartsWith("~\\")) return Path.Combine(home, p[2..]);
+            return p; // ~user 等形式保持原样
         }
     }
 }

@@ -301,12 +301,14 @@ public class LintTool : ITool
     private static (string, string) CheckJson(string target)
     {
         // Use python for JSON validation if available
-        return (CrossPlatform.PythonExecutable, $"-c \"import json, sys; json.load(open('{target.Replace("'", "\\'")}', encoding='utf-8')); print('✅ JSON 有效')\"");
+        // Windows 路径含反斜杠，在 Python 字符串字面量里 \f/\b/\U 等是转义序列 → 路径错乱，
+        // 统一转正斜杠（Python 在 Windows 下接受）
+        return (CrossPlatform.PythonExecutable, $"-c \"import json, sys; json.load(open('{target.Replace('\\', '/').Replace("'", "\\'")}', encoding='utf-8')); print('✅ JSON 有效')\"");
     }
 
     private static (string, string) CheckToml(string target)
     {
-        return (CrossPlatform.PythonExecutable, $"-c \"import sys; sys.path.insert(0,'.'); __import__('tomllib').load(open('{target.Replace("'", "\\'")}', 'rb'))\"");
+        return (CrossPlatform.PythonExecutable, $"-c \"import sys; sys.path.insert(0,'.'); __import__('tomllib').load(open('{target.Replace('\\', '/').Replace("'", "\\'")}', 'rb'))\"");
     }
 
     private static (string, string) CheckSql(string target)

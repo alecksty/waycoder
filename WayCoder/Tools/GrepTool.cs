@@ -93,7 +93,9 @@ public class GrepTool : ITool
             try { text = File.ReadAllText(fp, Encoding.UTF8); }
             catch { continue; }
 
-            var lines = text.Split('\n');
+            // 去掉末尾换行再 Split：否则以 \n 结尾的文件会产生一个幻影空行，
+            // `^$` 等空行匹配会误报一行不存在的末尾
+            var lines = text.TrimEnd('\r', '\n').Split('\n');
             for (int i = 0; i < lines.Length; i++)
             {
                 if (regex.IsMatch(lines[i]))
