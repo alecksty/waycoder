@@ -290,7 +290,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             // 「新建会话」= 清空当前对话、开新对话（不再落盘保存，避免攒出大量临时会话文件）
             Interrupt(slot);
             var agent = EnsureSlot(slot);
-            agent.Messages.Clear();
+            agent.ClearMessages();
             BroadcastTo(slot, "history", SerializeHistory(agent));
             BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
@@ -306,8 +306,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 return HttpResponse.JsonBody(Err("会话不存在"));
             Interrupt(slot);
             var agent = EnsureSlot(slot);
-            agent.Messages.Clear();
-            agent.Messages.AddRange(loaded.Value.Messages);
+            agent.ReplaceMessages(loaded.Value.Messages);
             if (!string.IsNullOrWhiteSpace(loaded.Value.Model))
                 agent.LlmClient.Model = loaded.Value.Model;
             BroadcastTo(slot, "history", SerializeHistory(agent));
@@ -398,7 +397,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 .ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = safePath })
                 .GetAwaiter().GetResult();
             var agent = EnsureSlot(slot);
-            agent.Messages.Add(JNode.Object().Set("role", "user")
+            agent.AddMessage(JNode.Object().Set("role", "user")
                 .Set("content", $"【文件引用】{path}\n\n{content}"));
             BroadcastTo(slot, "history", SerializeHistory(agent));
             return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("path", path).Set("content", content).ToJson());

@@ -153,10 +153,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     public static string SerializeHistory(Agent agent)
     {
         var arr = JNode.Array();
-        // 快照读：主循环线程流式期间并发追加 Messages 时，避免 foreach 抛 InvalidOperationException
-        List<JNode> snapshot;
-        try { snapshot = agent.Messages.ToList(); }
-        catch { return arr.ToJson(); }
+        // 快照读：锁内 ToList，避免主循环线程流式期间并发追加 Messages 抛 InvalidOperationException
+        var snapshot = agent.SnapshotMessages();
         foreach (var m in snapshot)
         {
             var role = m["role"]?.AsString();
@@ -170,9 +168,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
     private static bool HasHistory(Agent agent)
     {
-        List<JNode> snapshot;
-        try { snapshot = agent.Messages.ToList(); }
-        catch { return false; }
+        var snapshot = agent.SnapshotMessages();
         foreach (var m in snapshot)
         {
             var role = m["role"]?.AsString();

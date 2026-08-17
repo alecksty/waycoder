@@ -211,9 +211,10 @@ public partial class Program
         }
 
         var results = new List<(int Index, string Role, string Preview)>();
-        for (int i = 0; i < _agent!.Messages.Count; i++)
+        var msgs = _agent!.SnapshotMessages();
+        for (int i = 0; i < msgs.Count; i++)
         {
-            var msg = _agent.Messages[i];
+            var msg = msgs[i];
             var role = msg["role"]?.AsString() ?? "";
             var content = msg["content"]?.AsString() ?? "";
             if (content.Contains(keyword, StringComparison.OrdinalIgnoreCase))
@@ -314,7 +315,7 @@ public partial class Program
             }
 
             // 检查最近一条 assistant 消息是否含成功标记
-            var lastAssistant = _agent!.Messages.LastOrDefault(m =>
+            var lastAssistant = _agent!.SnapshotMessages().LastOrDefault(m =>
                 m["role"]?.AsString() == "assistant");
             var lastContent = lastAssistant?["content"]?.AsString() ?? "";
 
@@ -647,8 +648,7 @@ deepseek 性价比最高。"
                         var (messages, model) = loaded.Value;
                         _currentSessionIds[slot] = result.SessionId;
                         _agent!.LlmClient.Model = model;
-                        _agent.Messages.Clear();
-                        _agent.Messages.AddRange(messages);
+                        _agent.ReplaceMessages(messages);
                         // 重建 ChatScreen 消息列表
                         screen.ClearChat();
                         foreach (var msg in messages)
@@ -672,7 +672,7 @@ deepseek 性价比最高。"
                 if (result.SessionId == _currentSessionIds[slot])
                 {
                     _currentSessionIds[slot] = SessionManager.CreateNewSessionId();
-                    _agent!.Messages.Clear();
+                    _agent!.ClearMessages();
                     screen.ClearChat();
                     screen.AddSystemMsg("🗑 当前会话已删除，已创建新会话");
                 }

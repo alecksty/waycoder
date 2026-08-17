@@ -3896,6 +3896,57 @@ public static partial class SelfTest
         Check("WatchMode: 重复 Stop/Dispose 幂等不抛异常", watchOk);
     }
 
+    /// <summary>v0.71.12 批次：Agent.Messages 线程安全封装（锁内读/写 + 快照读）。</summary>
+    private static void TestV0712MessagesThreadSafety(Action<string, bool> Check)
+    {
+        // ── 封装方法功能正确性 ──
+        var a = new Agent(new LLM("test", "sk-test"));
+        a.AddMessage(JNode.Object().Set("role", "user").Set("content", "a"));
+        a.AddMessage(JNode.Object().Set("role", "assistant").Set("content", "b"));
+        a.AddMessage(JNode.Object().Set("role", "user").Set("content", "c"));
+        Check("AddMessage 追加 3 条", a.SnapshotMessages().Count == 3);
+
+        // SnapshotMessages 返回副本：改副本不影响原列表
+        var snap = a.SnapshotMessages();
+        snap.Clear();
+        Check("SnapshotMessages 返回副本（改副本不影响原列表）", a.SnapshotMessages().Count == 3);
+
+        // InsertMessage / RemoveMessageAt
+        a.InsertMessage(1, JNode.Object().Set("role", "system").Set("content", "sys"));
+        Check("InsertMessage 插入索引 1", a.SnapshotMessages().Count == 4
+            && a.SnapshotMessages()[1]["role"]?.AsString() == "system");
+        a.RemoveMessageAt(1);
+        Check("RemoveMessageAt 删除索引 1", a.SnapshotMessages().Count == 3);
+
+        // ReplaceMessages / ClearMessages
+        a.ReplaceMessages(new[] { JNode.Object().Set("role", "user").Set("content", "only") });
+        Check("ReplaceMessages 整体替换", a.SnapshotMessages().Count == 1
+            && a.SnapshotMessages()[0]["content"]?.AsString() == "only");
+        a.ClearMessages();
+        Check("ClearMessages 清空", a.SnapshotMessages().Count == 0);
+
+        // ── 并发压力：写线程 AddMessage 与读线程 SnapshotMessages 并发不抛异常 ──
+        // 修复前：外部遍历 List<JNode> 与主循环 Add 并发会抛 InvalidOperationException
+        var agent = new Agent(new LLM("test", "sk-test"));
+        bool raced = false;
+        try
+        {
+            var writer = Task.Run(() =>
+            {
+                for (int i = 0; i < 5000; i++)
+                    agent.AddMessage(JNode.Object().Set("role", "user").Set("content", "m" + i));
+            });
+            var reader = Task.Run(() =>
+            {
+                for (int i = 0; i < 5000; i++)
+                    _ = agent.SnapshotMessages().Count; // 只读遍历
+            });
+            Task.WaitAll(writer, reader);
+        }
+        catch { raced = true; }
+        Check("并发 AddMessage + SnapshotMessages 不抛异常", !raced && agent.SnapshotMessages().Count == 5000);
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {

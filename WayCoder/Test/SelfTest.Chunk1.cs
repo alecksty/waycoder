@@ -129,6 +129,7 @@ public static partial class SelfTest
         TestV0719RuneHardening(Check); // v0.71.9 批次：ANSI CSI 终止符 + BoxBuffer 负宽度 + 双省略号/宽度预留
         TestV0710EditPrimitives(Check); // v0.71.10 批次：输入控件光标移动/删除的代理对安全
         TestV0711Concurrency(Check);    // v0.71.11 批次：FallbackLLM 原子累加 + WatchMode 幂等 dispose
+        TestV0712MessagesThreadSafety(Check); // v0.71.12 批次：Agent.Messages 线程安全封装（锁内读/写 + 快照读）
         Console.WriteLine();
 
         // ---- 工具 ----
