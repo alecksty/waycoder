@@ -113,6 +113,11 @@ public class EditFileTool : ITool
             // 检测原始行尾格式（CRLF 保留，对标 crush）
             var hasCrlf = raw.AsSpan().IndexOf("\r\n"u8) >= 0;
 
+            // CRLF 归一化为 LF 后再匹配：模型的多行 old_string 通常以 \n 结尾，
+            // 直接对含 \r\n 的内容匹配会永远失败（写入时再按 hasCrlf 恢复）。
+            if (hasCrlf)
+                content = content.Replace("\r\n", "\n");
+
             var occurrences = CountOccurrences(content, oldString);
 
             if (occurrences == 0)

@@ -1269,6 +1269,13 @@ public static partial class SelfTest
         var ta6 = new TuiTextArea { MaxColumnWidth = 0 };
         ta6.Text = new string('A', 200);
         Check("TuiTextArea MaxColumnWidth=0 不折行", ta6.Lines.Count == 1);
+
+        // 回归：多行粘贴到光标中段后撤销，不得吞掉首行前缀（v0.71.29 修复）
+        var tp = new TuiTextAreaPasteProbe { Text = "Line one content here" };
+        tp.CursorRow = 0; tp.CursorCol = 5;
+        tp.Paste("A\nB");
+        tp.UndoAction();
+        Check("TuiTextArea 多行粘贴撤销恢复原文本", tp.Text == "Line one content here");
         Console.WriteLine();
 
         // ================================================================
@@ -1363,4 +1370,11 @@ public static partial class SelfTest
         // TuiListView 测试
         // ================================================================
     }
+}
+
+// 回归测试辅助：暴露 TuiTextArea 受保护的 PasteText/Undo，验证多行粘贴撤销不吞首行前缀。
+internal sealed class TuiTextAreaPasteProbe : TuiTextArea
+{
+    public void Paste(string s) => PasteText(s);
+    public void UndoAction() => Undo();
 }

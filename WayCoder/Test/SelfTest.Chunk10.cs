@@ -85,6 +85,10 @@ public static partial class SelfTest
         cv.FillRect(0, 0, 2, 2, 0xFFFF0000);
         Check("FillRect 设像素", PixelAt(cv, 0, 0) == 0xFFFF0000);
         Check("FillRect 界外为背景", PixelAt(cv, 5, 5) == 0xFFFFFFFF);
+        // 越界钳制：负坐标/超大尺寸只填画布内交集，不再数十亿次迭代（v0.71.29 修复）
+        var cvClamp = new Canvas(10, 10, 0xFFFFFFFF);
+        cvClamp.FillRect(8, 8, 5, 5, 0xFF0000FF);
+        Check("FillRect 越界钳制只填界内", PixelAt(cvClamp, 9, 9) == 0xFF0000FF && PixelAt(cvClamp, 0, 0) == 0xFFFFFFFF);
         var cv2 = new Canvas(20, 20, 0xFFFFFFFF);
         cv2.FillCircle(10, 10, 4, 0xFF000000);
         Check("FillCircle 圆心", PixelAt(cv2, 10, 10) == 0xFF000000);

@@ -82,11 +82,11 @@ public static class SharedMemoryManager
         // 检查远程是否有新变更（fetch dry-run）
         try
         {
-            var fetchResult = RunGit("fetch --dry-run 2>&1");
+            var fetchResult = RunGit("fetch --dry-run");
             status.HasRemote = fetchResult.exitCode == 0;
 
             // 比较本地和远程的 memory 文件差异
-            var diffResult = RunGit($"diff --name-only HEAD..origin/master -- {EscapePath(_memoryGitPath!)} 2>/dev/null");
+            var diffResult = RunGit($"diff --name-only HEAD..origin/master -- {EscapePath(_memoryGitPath!)}");
             if (diffResult.exitCode == 0 && !string.IsNullOrWhiteSpace(diffResult.stdout))
             {
                 var files = diffResult.stdout.Trim().Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -94,7 +94,7 @@ public static class SharedMemoryManager
             }
 
             // 检查本地未推送的变更
-            var localDiffResult = RunGit($"diff --name-only origin/master..HEAD -- {EscapePath(_memoryGitPath!)} 2>/dev/null");
+            var localDiffResult = RunGit($"diff --name-only origin/master..HEAD -- {EscapePath(_memoryGitPath!)}");
             if (localDiffResult.exitCode == 0 && !string.IsNullOrWhiteSpace(localDiffResult.stdout))
             {
                 var files = localDiffResult.stdout.Trim().Split('\n', StringSplitOptions.RemoveEmptyEntries);
