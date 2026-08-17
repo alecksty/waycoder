@@ -235,9 +235,8 @@ public static class SharedMemoryManager
 
         try
         {
-            // 1. 确定要推送的文件
+            // 1. 确定要推送的文件（共享记忆已由 SetShared 落盘到 SharedMemoryDir，直接按 entry.FilePath 收集）
             var filesToAdd = new List<string>();
-            var memoryDir = StructuredMemory.MemoryDir;
 
             if (memoryName != null)
             {

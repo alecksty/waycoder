@@ -12,12 +12,18 @@ public static class PngEncoder
 {
     static readonly byte[] Signature = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
 
+    /// <summary>编码像素数上限（防宽高乘积溢出 int / 分配数十 GB），约 25MP。</summary>
+    private const int MaxPixels = 25_000_000;
+
     /// <summary>把 RGBA 像素缓冲编码为 PNG 字节流。rgba 长度须 ≥ width*height*4。</summary>
     public static byte[] Encode(int width, int height, byte[] rgba)
     {
         if (width <= 0 || height <= 0)
             throw new ArgumentException("宽高必须为正整数");
-        if (rgba == null || rgba.Length < width * height * 4)
+        // 防整数溢出：width*height*4 与 stride*height 可能溢出 int（如 10 万×10 万）
+        if ((long)width * height > MaxPixels)
+            throw new ArgumentException("图像尺寸过大");
+        if (rgba == null || rgba.Length < (long)width * height * 4)
             throw new ArgumentException("像素缓冲长度不足");
 
         // 每行前置 filter 字节 0（None）

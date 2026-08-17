@@ -282,6 +282,7 @@ public partial class Agent
         if (_fastMode)
             DebugLog.Log("agent", "检测到快速模式关键词，跳过探索工作流");
 
+        int userMsgIndex = Messages.Count;
         AddMessage(JNode.Object().Set("role", "user").Set("content", userInput));
         await CompressWithSmallModel(onToken);
 
@@ -291,7 +292,10 @@ public partial class Agent
             var plan = await GenerateArchitectPlanAsync(onToken, cancellationToken);
             if (plan == null)
             {
-                RemoveMessageAt(Messages.Count - 1); // 回滚用户消息
+                // 回滚用户消息及 CompressWithSmallModel/PreCompact hook 可能追加的消息
+                //（不能只删 Messages.Count-1——那可能是 hook 注入的上下文，用户消息会残留污染后续轮）
+                while (Messages.Count > userMsgIndex)
+                    RemoveMessageAt(Messages.Count - 1);
                 return "⚠ Architect 模式：大模型计划生成失败，已取消。";
             }
             // 将计划作为 system 消息注入，小模型继续执行

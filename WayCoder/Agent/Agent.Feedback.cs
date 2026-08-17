@@ -157,13 +157,13 @@ public partial class Agent
 
         // WayCoder 自测 (内置 SelfTest)
         if (File.Exists(Path.Combine(cwd, "SelfTest.cs")))
-            return "dotnet run -c Release -- --test 2>&1";
+            return "dotnet run -c Release -- --test";
 
         // .NET 测试项目
         var testProjects = Directory.GetFiles(cwd, "*.Tests.csproj", SearchOption.AllDirectories)
             .Concat(Directory.GetFiles(cwd, "*.Test.csproj", SearchOption.AllDirectories)).ToArray();
         if (testProjects.Length > 0)
-            return "dotnet test --nologo -v q 2>&1";
+            return "dotnet test --nologo -v q";
 
         // Node.js
         if (File.Exists(Path.Combine(cwd, "package.json")))
@@ -173,23 +173,23 @@ public partial class Agent
                 var pkg = Json.Parse(
                     File.ReadAllText(Path.Combine(cwd, "package.json")));
                 if (pkg?["scripts"]?["test"] != null)
-                    return "npm test --silent 2>&1";
+                    return "npm test --silent";
             }
             catch { }
         }
 
         // Go
         if (File.Exists(Path.Combine(cwd, "go.mod")))
-            return "go test ./... 2>&1";
+            return "go test ./...";
 
         // Rust
         if (File.Exists(Path.Combine(cwd, "Cargo.toml")))
-            return "cargo test -q 2>&1";
+            return "cargo test -q";
 
         // Python
         if (Directory.GetFiles(cwd, "test_*.py", SearchOption.AllDirectories).Any() ||
             Directory.GetFiles(cwd, "*_test.py", SearchOption.AllDirectories).Any())
-            return "python -m pytest -q 2>&1";
+            return "python -m pytest -q";
 
         return null;
     }

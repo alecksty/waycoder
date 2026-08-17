@@ -92,5 +92,33 @@ public static class TuiInputHistory
     }
 
     private static string Escape(string s) => s.Replace("\\", "\\\\").Replace("|", "\\p").Replace("\n", "\\n").Replace("\r", "\\r");
-    private static string Unescape(string s) => s.Replace("\\r", "\r").Replace("\\n", "\n").Replace("\\p", "|").Replace("\\\\", "\\");
+
+    /// <summary>
+    /// 反转义须单遍扫描：`\\n`（转义的字面反斜杠 + 字面 n）若用全局 Replace("\\n","\n") 会被
+    /// 命中第二根反斜杠 + n，把字面 `\n` 错还原成换行。单遍按 `\` + 下一字符解释，杜绝误命中。
+    /// </summary>
+    private static string Unescape(string s)
+    {
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (s[i] == '\\' && i + 1 < s.Length)
+            {
+                char next = s[i + 1];
+                switch (next)
+                {
+                    case '\\': sb.Append('\\'); i++; break;
+                    case 'n': sb.Append('\n'); i++; break;
+                    case 'r': sb.Append('\r'); i++; break;
+                    case 'p': sb.Append('|'); i++; break;
+                    default: sb.Append(s[i]); break; // 未知转义：保留原样
+                }
+            }
+            else
+            {
+                sb.Append(s[i]);
+            }
+        }
+        return sb.ToString();
+    }
 }

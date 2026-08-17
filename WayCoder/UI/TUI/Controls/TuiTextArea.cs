@@ -691,6 +691,7 @@ public class TuiTextArea : TuiEditBase
         }
         // 如果找不到空格就直接在 MaxColumnWidth 处硬断
         if (breakCol >= line.Length) return;
+        breakCol = SafeBreakCol(line, breakCol);
         var left = line[..breakCol];
         var right = line[breakCol..].TrimStart();
         Lines[CursorRow] = left;
@@ -701,6 +702,15 @@ public class TuiTextArea : TuiEditBase
             CursorRow++;
             CursorCol -= breakCol;
         }
+    }
+
+    /// <summary>折行点若落在代理对中间（高代理+低代理跨列），回退 1 列避免切出 U+FFFD。</summary>
+    private static int SafeBreakCol(string line, int breakCol)
+    {
+        if (breakCol > 0 && breakCol < line.Length
+            && char.IsHighSurrogate(line[breakCol - 1]) && char.IsLowSurrogate(line[breakCol]))
+            return breakCol - 1;
+        return breakCol;
     }
 
     /// <summary>对多行文本按 MaxColumnWidth 逐行折行，返回折行后的文本。</summary>
@@ -730,6 +740,7 @@ public class TuiTextArea : TuiEditBase
                             break;
                         }
                     }
+                    breakCol = SafeBreakCol(remaining, breakCol);
                     result.Add(remaining[..breakCol]);
                     remaining = remaining[breakCol..].TrimStart();
                 }
