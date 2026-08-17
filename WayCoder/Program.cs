@@ -110,7 +110,8 @@ public partial class Program
             prompt = null; // 保持 null，走 REPL 分支
         double? maxBudget = null;
         var budgetStr = Arguments.CliArgRegistry.Get(parsed, "max-budget-usd");
-        if (budgetStr != null && double.TryParse(budgetStr, out var b)) maxBudget = b;
+        if (budgetStr != null && double.TryParse(budgetStr, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var b)) maxBudget = b;
         var requeueStr = Arguments.CliArgRegistry.Get(parsed, "max-requeue");
         int? maxRequeue = null;
         if (requeueStr != null && int.TryParse(requeueStr, out var rq))
