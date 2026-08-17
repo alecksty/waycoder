@@ -1,5 +1,6 @@
 using WayCoder.Infra;
 using WayCoder.UI.Shared;
+using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.TUI.Base;
@@ -356,7 +357,42 @@ public static class TuiMarkup
         if (s == null) return null;
         if (Colors.TryGetValue(s, out var c)) return c;
         if (int.TryParse(s, out var n)) return n;
+        if (TryParseRgbColor(s, out var rgb)) return rgb;
         return null;
+    }
+
+    /// <summary>解析 RGB 颜色：#RRGGBB、#RGB、rgb(r,g,b) → TrueColor 码（≥0x1000000）。</summary>
+    private static bool TryParseRgbColor(string s, out int code)
+    {
+        code = 0;
+        string hex;
+        if (s.StartsWith('#') && s.Length is 4 or 7)
+        {
+            hex = s[1..];
+            if (hex.Length == 3)
+                hex = $"{hex[0]}{hex[0]}{hex[1]}{hex[1]}{hex[2]}{hex[2]}";
+        }
+        else if (s.StartsWith("rgb(", StringComparison.OrdinalIgnoreCase) && s.EndsWith(')'))
+        {
+            var parts = s[4..^1].Split(',');
+            if (parts.Length == 3 &&
+                int.TryParse(parts[0].Trim(), out var r) &&
+                int.TryParse(parts[1].Trim(), out var g) &&
+                int.TryParse(parts[2].Trim(), out var b))
+            {
+                code = AnsiTty.RgbCode(r, g, b);
+                return true;
+            }
+            return false;
+        }
+        else return false;
+
+        if (int.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out var v))
+        {
+            code = AnsiTty.RgbCode((v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF);
+            return true;
+        }
+        return false;
     }
 
     private static WindowBorder ParseBorder(string s) => s.ToLowerInvariant() switch
