@@ -97,7 +97,7 @@ public class TuiPromptBar : TuiControl
             : TuiTheme.Current.ControlFocusedBg > 0
                 ? TuiTheme.Current.ControlFocusedBg
                 : TuiColors.BgBlue;
-        int highlightFg = TuiColors.BgWhite;
+        int highlightFg = TuiColors.Black; // 亮底配黑字（原 BgWhite=背景码当前景，白字白底不可见）
 
         // ── 上边框 ──
         if (bordered)
@@ -153,18 +153,25 @@ public class TuiPromptBar : TuiControl
                 int detailW = string.IsNullOrEmpty(item.Detail)
                     ? 0
                     : TuiHelper.DisplayWidth(item.Detail) + 3;
-                int labelMax = Width - leftPad * 2 - (col - absX) - detailW - 2;
+                // 钳到 ≥1，避免窄宽度/长详情时负值截断崩溃
+                int labelMax = Math.Max(1, Width - leftPad * 2 - (col - absX) - detailW - 2);
                 var label = item.Label;
                 if (TuiHelper.DisplayWidth(label) > labelMax)
                     label = TuiHelper.TruncateByWidth(label, labelMax);
                 rb.Write(row, col, label, fg: itemFg, bg: rowBg > 0 || !bordered ? rowBg : 0);
                 col += TuiHelper.DisplayWidth(label);
 
-                // 详情
+                // 详情（按剩余宽度截断，避免溢出右边界）
                 if (!string.IsNullOrEmpty(item.Detail))
-                    rb.Write(row, col + 2, item.Detail,
+                {
+                    var detailText = item.Detail;
+                    int detailMax = Math.Max(1, Width - (col - absX) - 3);
+                    if (TuiHelper.DisplayWidth(detailText) > detailMax)
+                        detailText = TuiHelper.TruncateByWidth(detailText, detailMax);
+                    rb.Write(row, col + 2, detailText,
                         fg: selected ? highlightFg : TuiColors.BrightBlack,
                         bg: rowBg > 0 || !bordered ? rowBg : 0);
+                }
 
                 // 右边框
                 if (bordered)

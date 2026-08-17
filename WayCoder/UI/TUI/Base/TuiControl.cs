@@ -338,7 +338,7 @@ public abstract class TuiControl : TuiBase
         if (string.IsNullOrEmpty(text)) return;
         if (col >= ClipRight || row < ClipTop || row >= ClipBottom) return;
 
-        var textVw = TuiHelper.DisplayWidth(text);
+        var textVw = AnsiString.DisplayWidth(text);
         if (col + textVw <= ClipLeft) return;
 
         // 左侧裁剪：跳过被遮挡的字符
@@ -358,10 +358,10 @@ public abstract class TuiControl : TuiBase
             col = ClipLeft;
         }
 
-        // 右侧裁剪：截断超出部分
+        // 右侧裁剪：截断超出部分（ANSI 感知——转义序列不计宽，且截断点不落在序列中间）
         int maxVw = ClipRight - col;
-        if (TuiHelper.DisplayWidth(text) > maxVw)
-            text = TuiHelper.TruncateByWidth(text, maxVw);
+        if (AnsiString.DisplayWidth(text) > maxVw)
+            text = AnsiString.TruncateByWidth(text, maxVw);
 
         if (string.IsNullOrEmpty(text)) return;
 
