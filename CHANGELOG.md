@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.71.13 (2026-08-17) — 槽位 Cts 清理顺序竞态修复
+
+继续清扫多 Agent 并发场景的数据竞态。本轮修复一个确定性竞态：后台槽位任务结束时，`IsBusy=false` 与 `Cts` 原子摘除的顺序错误，会让新任务的取消令牌被旧任务误释放。
+
+### 🐛 并发
+
+- **`StartSlotTask` finally 清理顺序竞态**：`Program.Repl.cs` 后台任务 finally 原先把 `slot.IsBusy = false` 写在 `Interlocked.Exchange(ref slot.Cts, null)?.Dispose()` **之前**。二者之间 UI 线程读到 `IsBusy == false` 会启动新任务写入新的 `Cts`，此时旧任务的 `Interlocked.Exchange` 会把新任务的 `Cts` 摘走并 Dispose——新任务从此无法被 Esc 中断（Esc 读到 null 即 no-op）。改为先摘除 `Cts` 再置 `IsBusy=false`，使「检查 IsBusy 启动新任务」必然发生在旧任务 Cts 清理完成之后，杜绝误释放
+
+### ✅ 测试
+
+新增 `TestV0713CtsLifecycle`（6 项断言）：`AgentSlot.Cts`/`IsBusy` 独立字段语义 + `Interlocked.Exchange` 原子摘除（并发摘除恰好一个取到非 null、字段归 null、取到者是原实例）。测试总数 3230 → 3236。
+
 ## v0.71.12 (2026-08-17) — Agent.Messages 线程安全（锁内读写 + 快照读）
 
 继续清扫多 Agent 并发场景的数据竞态。本轮聚焦 `Agent.Messages`（`List<JNode>`）的并发访问：主循环线程流式追加消息，与 Web 序列化 / 退出自动保存 / 会话命令 / 历史命令等外部线程的遍历并存，非线程安全的 `List` 在「遍历中并发 Add」时抛 `InvalidOperationException`。

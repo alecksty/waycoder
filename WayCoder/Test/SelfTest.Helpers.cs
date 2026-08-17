@@ -3947,6 +3947,33 @@ public static partial class SelfTest
         Check("并发 AddMessage + SnapshotMessages 不抛异常", !raced && agent.SnapshotMessages().Count == 5000);
     }
 
+    /// <summary>v0.71.13 批次：AgentSlot.Cts 原子摘除（Interlocked.Exchange 恰好一个取到非 null）。</summary>
+    private static void TestV0713CtsLifecycle(Action<string, bool> Check)
+    {
+        // ── 字段独立语义 ──
+        var slot = new AgentSlot();
+        Check("Cts 初始为 null", slot.Cts == null);
+        Check("IsBusy 初始 false", !slot.IsBusy);
+
+        var cts = new CancellationTokenSource();
+        slot.Cts = cts;
+        slot.IsBusy = true;
+        Check("Cts/IsBusy 可独立置位", ReferenceEquals(slot.Cts, cts) && slot.IsBusy);
+
+        // ── Interlocked.Exchange 原子摘除：并发摘除恰好一个取到非 null，且字段归 null ──
+        // Esc 中断路径与后台 finally 路径并发摘除，靠原子 Exchange 保证「只有一个负责 Dispose」。
+        var slot2 = new AgentSlot();
+        var cts2 = new CancellationTokenSource();
+        slot2.Cts = cts2;
+        CancellationTokenSource? got1 = null, got2 = null;
+        var t1 = Task.Run(() => got1 = Interlocked.Exchange(ref slot2.Cts, null));
+        var t2 = Task.Run(() => got2 = Interlocked.Exchange(ref slot2.Cts, null));
+        Task.WaitAll(t1, t2);
+        Check("并发摘除恰好一个取到非 null", (got1 == null) != (got2 == null));
+        Check("摘除后字段归 null", slot2.Cts == null);
+        Check("取到者是原 Cts 实例", ReferenceEquals(got1 ?? got2, cts2));
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {
