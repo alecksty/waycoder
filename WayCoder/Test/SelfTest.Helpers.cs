@@ -4135,6 +4135,43 @@ public static partial class SelfTest
         Check("BoxBuffer.Fill: 窄边框负宽度不抛异常", fillOk);
     }
 
+    private static void TestV0718SharedMemoryGet(Action<string, bool> Check)
+    {
+        // ── StructuredMemory.Get 只搜槽位目录 → 共享记忆按名查不到（ListAll 却加载共享目录，语义错位）──
+        var savedCwd = Directory.GetCurrentDirectory();
+        var savedSlot = StructuredMemory.CurrentSlotIndex;
+        var dir = Path.Combine(Path.GetTempPath(), "waycoder_memget_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(dir);
+        try
+        {
+            Directory.SetCurrentDirectory(dir);
+            StructuredMemory.CurrentSlotIndex = 7; // 独立槽位，避免污染真实槽位
+
+            // 槽位独立记忆（Create → SlotMemoryDir）
+            StructuredMemory.Create("slot-only", "槽位专属记忆", "project", "只在 slot_7");
+
+            // 共享记忆：直接写入 SharedMemoryDir 根目录（模拟 PullSharedAsync 拉取的团队记忆）
+            var sharedDir = StructuredMemory.SharedMemoryDir;
+            File.WriteAllText(Path.Combine(sharedDir, "team-convention.md"),
+                "---\nname: team-convention\ndescription: 团队命名规范\ntype: project\nshared: true\n---\n统一使用 PascalCase。");
+
+            Check("Get: 槽位独立记忆可查", StructuredMemory.Get("slot-only")?.Description == "槽位专属记忆");
+            Check("Get: 共享记忆按名可查（修复前返回 null）", StructuredMemory.Get("team-convention")?.Description == "团队命名规范");
+            Check("ListAll: 共享 + 槽位均列出", StructuredMemory.ListAll().Count == 2);
+
+            // 同名冲突：槽位独立记忆优先于共享记忆
+            File.WriteAllText(Path.Combine(sharedDir, "slot-only.md"),
+                "---\nname: slot-only\ndescription: 共享同名\ntype: reference\nshared: true\n---\n共享版本");
+            Check("Get: 同名冲突槽位优先", StructuredMemory.Get("slot-only")?.Description == "槽位专属记忆");
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(savedCwd);
+            StructuredMemory.CurrentSlotIndex = savedSlot;
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {
