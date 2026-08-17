@@ -4590,6 +4590,35 @@ public static partial class SelfTest
         Check("记忆槽位: 后台任务不污染主线程(仍3)", mainAfter == 3);
     }
 
+    private static void TestV0730LowSeverity(Action<string, bool> Check)
+    {
+        // ── #1 GrepTool 尾随换行幻影空行：以 \n 结尾的文件被 ^$ 误报一行不存在的末尾空行 ──
+        var tmp = Path.Combine(Path.GetTempPath(), "waycoder_grep_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(tmp);
+        File.WriteAllText(Path.Combine(tmp, "a.txt"), "line1\nline2\n"); // 末尾有 \n（幻影空行源）
+        try
+        {
+            var r = new GrepTool().ExecuteAsync(new Dictionary<string, object?>
+            {
+                ["pattern"] = "^$",
+                ["path"] = tmp
+            }).GetAwaiter().GetResult();
+            Check("grep: 末尾换行不产生幻影空行匹配", !r.Contains(":3:"));
+        }
+        finally { try { Directory.Delete(tmp, true); } catch { } }
+
+        // ── #2 CdTool ~ 仅前缀展开：`~user`/路径中段 ~ 不被全量替换 ──
+        var savedCwd = BashTool.CurrentCwd.Value;
+        try
+        {
+            var r1 = new CdTool().ExecuteAsync(new Dictionary<string, object?> { ["path"] = "~definitely_not_a_user" })
+                .GetAwaiter().GetResult();
+            Check("cd: ~user 不展开(保持原样)", r1.Contains("~definitely_not_a_user")
+                && !r1.Contains(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+        }
+        finally { BashTool.CurrentCwd.Value = savedCwd!; }
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {
