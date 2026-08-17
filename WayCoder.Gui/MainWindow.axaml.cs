@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
+using WayCoder.UI.Tui;
 
 namespace WayCoder.UI.Gui;
 
@@ -21,6 +22,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // 注入 GUI 交互桥：Agent 的权限确认/提问走 Avalonia 对话框，而非回退 Console I/O
+        UxHelper.WebInteraction = new GuiInteraction(this);
         InitModels();
         InitSlots();
         SwitchSlot(0);
