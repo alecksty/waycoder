@@ -154,6 +154,7 @@ public static partial class SelfTest
         TestV0730UiUndo(Check);               // v0.71.30 批次：文本域撤销栈健壮性 + 编辑器替换可撤销
         TestV0730TuiExperience(Check);        // v0.71.30 批次：markdown 长段落折行 + ANSI 行不折行
         TestV0730Deterministic(Check);        // v0.71.30 批次：CLI 多值累积 / 批处理目录穿越 / 版本溢出 / CJK 单字召回 / Web 畸形解码
+        TestV0732Deterministic(Check);        // v0.71.32 批次：mv 源=目标拦截 / wc 码点计数 / 非容器子控件 Parent 指向自身
         Console.WriteLine();
 
         // ---- 工具 ----

@@ -164,7 +164,7 @@ public class TuiWindow : TuiBase
     /// <summary>内容可绘制区域左边界（不含边框）</summary>
     public int ContentLeft => Border == WindowBorder.None ? X : X + 1;
 
-    /// <summary>内容可绘制区域上边界（不含边框，不含标题栏）</summary>
+    /// <summary>内容可绘制区域上边界（不含边框、标题行、标题分隔线）</summary>
     public int ContentTop
     {
         get
@@ -174,8 +174,9 @@ public class TuiWindow : TuiBase
                 return Y;
             }
 
-            // 标题栏有分隔线或粗体独占一行时才下移；否则标题与上边框同行
-            return ShowTitle && !string.IsNullOrEmpty(Title) ? Y + 1 : Y;
+            // 标题嵌在上边框行（Y），其下另有一行分隔线（Y+1），内容从 Y+2 开始（对齐 RenderWindow）；
+            // 无标题则内容从上边框下面一行（Y+1）开始。
+            return ShowTitle && !string.IsNullOrEmpty(Title) ? Y + 2 : Y + 1;
         }
     }
 

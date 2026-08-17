@@ -115,10 +115,10 @@ public class ScreenshotTool : ITool
             var x = 0; var y = 0; var w = 0; var h = 0;
             if (!full)
             {
-                x = GetInt(arguments, "x");
-                y = GetInt(arguments, "y");
-                w = GetInt(arguments, "width");
-                h = GetInt(arguments, "height");
+                x = ToolArgs.GetInt(arguments, "x");
+                y = ToolArgs.GetInt(arguments, "y");
+                w = ToolArgs.GetInt(arguments, "width");
+                h = ToolArgs.GetInt(arguments, "height");
                 if (w <= 0 || h <= 0)
                     return "错误：region 模式需要 width/height 为正整数，且 x/y 需指定。";
             }
@@ -270,18 +270,6 @@ public class ScreenshotTool : ITool
             default:
                 return (tool, $"\"{savePath}\"");
         }
-    }
-
-    private static int GetInt(Dictionary<string, object?> arguments, string key)
-    {
-        if (arguments.TryGetValue(key, out var v))
-        {
-            if (v is int i) return i;
-            if (v is long l) return (int)l;
-            if (v is double d) return (int)d;
-            if (int.TryParse(v?.ToString(), out var parsed)) return parsed;
-        }
-        return 0;
     }
 
     /// <summary>读取 PNG 宽高（IHDR 块内 big-endian，无需第三方库）</summary>

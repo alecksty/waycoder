@@ -521,7 +521,9 @@ public static class HooksManager
         // 正则匹配
         try
         {
-            return Regex.IsMatch(matchValue, matcher, RegexOptions.IgnoreCase);
+            // 250ms 超时：用户自建 matcher 若为灾难性回溯正则（如 (a+)+$）会无限卡死 Agent 线程，
+            // 超时抛 RegexMatchTimeoutException 由下方 catch 兜住回退精确匹配
+            return Regex.IsMatch(matchValue, matcher, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250));
         }
         catch
         {
