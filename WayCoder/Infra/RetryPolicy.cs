@@ -25,14 +25,17 @@ public class RetryPolicy
         Action<int, Exception, int>? onRetry = null)
     {
         var cfg = config ?? Default;
+        // 负数 MaxRetries 钳制为 0：否则 for 条件立即为 false，action 一次都不执行，
+        // 却落到「不可达终点」抛误导性的 InvalidOperationException。
+        var maxRetries = Math.Max(0, cfg.MaxRetries);
 
-        for (int attempt = 0; attempt <= cfg.MaxRetries; attempt++)
+        for (int attempt = 0; attempt <= maxRetries; attempt++)
         {
             try
             {
                 return await action();
             }
-            catch (Exception ex) when (cfg.ShouldRetry(ex) && attempt < cfg.MaxRetries)
+            catch (Exception ex) when (cfg.ShouldRetry(ex) && attempt < maxRetries)
             {
                 var baseDelayMs = (int)Math.Min(
                     cfg.BaseDelayMs * Math.Pow(2, attempt),
@@ -123,8 +126,8 @@ public class RetryConfig
     {
         var typeName = ex.GetType().FullName ?? ex.GetType().Name;
 
-        // 黑名单优先
-        if (NoRetryExceptions.Contains(typeName))
+        // 黑名单优先（?. 保护：调用方显式置 null 时视为「不禁止任何异常」，与 RetryableExceptions 的 is 判断一致）
+        if (NoRetryExceptions?.Contains(typeName) == true)
             return false;
 
         // 白名单过滤

@@ -4196,6 +4196,71 @@ public static partial class SelfTest
         Check("Search: 扩展 B 查询命中对应文档", hits.Count > 0 && hits[0].Doc.Index == 0);
     }
 
+    private static void TestV0720InfraDeterministic(Action<string, bool> Check)
+    {
+        // ── #1 HooksManager：session hook 前缀碰撞（"PostToolUseFailure_xxx".StartsWith("PostToolUse")）──
+        HooksManager.Enabled = true;
+        HooksManager.ClearSessionHooks();
+        int failureHookCalls = 0;
+        var hookId = HooksManager.RegisterSessionHook(HookEvent.PostToolUseFailure, ctx =>
+        {
+            Interlocked.Increment(ref failureHookCalls);
+            return Task.FromResult<HookOutput?>(null);
+        });
+        try
+        {
+            // 触发 PostToolUse（成功）事件 —— 修复前会误触发 PostToolUseFailure 专属 hook
+            HooksManager.RunPostToolUseAsync("test", new Dictionary<string, object?>(), "ok").GetAwaiter().GetResult();
+            Check("Hooks: PostToolUse 不误触发 PostToolUseFailure hook", failureHookCalls == 0);
+
+            // 触发 PostToolUseFailure 事件 —— 应正确触发
+            HooksManager.RunPostToolUseFailureAsync("test", new Dictionary<string, object?>(), "err").GetAwaiter().GetResult();
+            Check("Hooks: PostToolUseFailure 正确触发", failureHookCalls == 1);
+        }
+        finally
+        {
+            HooksManager.UnregisterSessionHook(hookId);
+            HooksManager.ClearSessionHooks();
+        }
+
+        // ── #2 FileIgnoreManager：未转义的 [ 生成非法正则，Match 时抛 ArgumentException ──
+        var ignoreDir = Path.Combine(Path.GetTempPath(), "waycoder_ignore_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(ignoreDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(ignoreDir, ".gitignore"), "foo[\n*.tmp\n");
+            FileIgnoreManager.ClearCache();
+            bool ignoreOk = true;
+            try
+            {
+                ignoreOk = FileIgnoreManager.IsIgnored("foo[", ignoreDir); // 字面匹配 "foo["，修复前 new Regex 抛异常
+                _ = FileIgnoreManager.IsIgnored("x.tmp", ignoreDir);
+            }
+            catch { ignoreOk = false; }
+            Check("FileIgnore: 含未闭合 [ 的规则不崩溃", ignoreOk);
+            Check("FileIgnore: [ 按字面量匹配（不误匹配）", !FileIgnoreManager.IsIgnored("foobar.txt", ignoreDir));
+        }
+        finally
+        {
+            FileIgnoreManager.ClearCache();
+            try { Directory.Delete(ignoreDir, true); } catch { }
+        }
+
+        // ── #3 RetryPolicy：MaxRetries 负数 → for 立即为 false，action 不执行、误抛 InvalidOperationException ──
+        int retryCalls = 0;
+        var retryResult = RetryPolicy.RetryAsync<int>(
+            () => { retryCalls++; return Task.FromResult(7); },
+            new RetryConfig { MaxRetries = -1 }).GetAwaiter().GetResult();
+        Check("Retry: MaxRetries 负数钳制为 0 且执行一次", retryCalls == 1 && retryResult == 7);
+
+        // ── #4 RetryPolicy：NoRetryExceptions 显式置 null → ShouldRetry 抛 NRE ──
+        var nullNoRetry = new RetryConfig { NoRetryExceptions = null! };
+        bool shouldRetryOk = true;
+        try { _ = nullNoRetry.ShouldRetry(new InvalidOperationException()); }
+        catch { shouldRetryOk = false; }
+        Check("Retry: NoRetryExceptions null 不抛 NRE", shouldRetryOk);
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {

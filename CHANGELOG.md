@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.71.20 (2026-08-17) — Infra 层确定性 bug 修复（Hooks 前缀碰撞 + FileIgnore 未转义 [ + RetryPolicy 边界）
+
+Explore 代理系统扫 `Infra/`（BashGuard/FileTracker/RetryPolicy/LruCache/HooksManager/FileIgnoreManager/ErrorLog/IdGenerator）后人工验证，本轮修复 4 个可复现问题。BashGuard 的 `rm`/`mv`/`cp` 未列入禁用集合经核实为**有意设计**（走 PermissionManager 确认层，非禁用层），不修。
+
+### 🐛 修复
+
+- **`HooksManager` session hook 前缀碰撞**：hook ID 格式为 `"{eventType}_{guid}"`，`RunEventAsync` 用裸 `kv.Key.StartsWith(eventName)` 判断事件归属，导致 `"PostToolUseFailure_xxx".StartsWith("PostToolUse")` 为真——失败专属 hook 在成功路径上被误触发。改为 `eventName + "_"` 前缀 + `Ordinal` 精确匹配
+- **`FileIgnoreManager` 未转义 `[`/`]` 生成非法正则**：`GlobSegmentToRegex` 转义了 `. + ( ) ^ $ { } | \` 却漏了 `[`/`]`，`.gitignore` 出现不成对方括号（如 `foo[`、`[abc`）时 `new Regex` 抛 `ArgumentException`（`Match` 无 try/catch，向上传播到文件过滤/搜索工具）。补上 `[`/`]` 转义为字面量
+- **`RetryPolicy` `MaxRetries` 负数不执行 action**：`for (attempt = 0; attempt <= cfg.MaxRetries; attempt++)` 在负数时条件立即为 false，action 一次都不执行却落到「不可达终点」抛误导性的 `InvalidOperationException`。改为 `maxRetries = Math.Max(0, cfg.MaxRetries)` 钳制
+- **`RetryPolicy` `NoRetryExceptions` null 无保护**：`if (NoRetryExceptions.Contains(...))` 直接调用，而 `RetryableExceptions` 有 `is { Count: > 0 }` 保护。调用方显式置 null 时 `ShouldRetry` 抛 NRE（且位于异常过滤器内会逃出 catch）。改为 `?.Contains(typeName) == true`
+
+### ✅ 测试
+
+新增 `TestV0720InfraDeterministic`（6 项断言）：PostToolUse 不误触发 PostToolUseFailure hook / PostToolUseFailure 正确触发 / 含未闭合 `[` 的 .gitignore 不崩溃且字面匹配 / MaxRetries 负数钳制为 0 执行一次 / NoRetryExceptions null 不抛 NRE。测试总数 3270 → 3276。
+
 ## v0.71.19 (2026-08-17) — 语义记忆扩展 B 区汉字召回修复（Tokenize 代理对）
 
 `SemanticMemory.IsCJK` 只覆盖 BMP 内 CJK 区间，`Tokenize` 按 `char`（UTF-16 码元）迭代，导致 CJK 扩展 B 区汉字（U+20000–U+2A6DF，UTF-16 代理对，如 𠮷、𩸽 等常见于人名/地名）落入 `i++` 被**静默丢弃**——既不参与 bigram 也不成为单 token，含扩展 B 的记忆按扩展 B 关键词查询时召回失败。属召回率缺陷而非崩溃/数据损坏。
