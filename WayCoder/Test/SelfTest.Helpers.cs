@@ -4261,6 +4261,37 @@ public static partial class SelfTest
         Check("Retry: NoRetryExceptions null 不抛 NRE", shouldRetryOk);
     }
 
+    private static void TestV0721FileTrackerRead(Action<string, bool> Check)
+    {
+        // ── #1 ReadFileTool：limit<=0 未钳制 → Take(0) 返回空 + 误导性「还有更多行」提示 ──
+        var readFile = Path.Combine(Path.GetTempPath(), "waycoder_read_" + Guid.NewGuid().ToString("N")[..6] + ".txt");
+        File.WriteAllText(readFile, "line1\nline2\nline3\n");
+        try
+        {
+            var tool = new ReadFileTool();
+            var r = tool.ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = readFile, ["limit"] = 0 }).GetAwaiter().GetResult();
+            Check("ReadFile: limit<=0 钳制为至少读 1 行", r.Contains("line1"));
+        }
+        finally { try { File.Delete(readFile); } catch { } }
+
+        // ── #2 FileTracker：RecordWrite 未更新 LastReadTimes → Agent 自己写后编辑仍被拦「尚未读取」 ──
+        var ftFile = Path.Combine(Path.GetTempPath(), "waycoder_ft_" + Guid.NewGuid().ToString("N")[..6] + ".txt");
+        File.WriteAllText(ftFile, "v1");
+        try
+        {
+            FileTracker.Enabled = true;
+            FileTracker.Reset();
+            FileTracker.RecordWrite(ftFile); // Agent 自己写文件（未先 read）
+            var warn = FileTracker.ValidatePreEdit(ftFile);
+            Check("FileTracker: Agent 自己写后无需先读", warn == null);
+        }
+        finally
+        {
+            FileTracker.Reset();
+            try { File.Delete(ftFile); } catch { }
+        }
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {

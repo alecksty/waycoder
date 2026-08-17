@@ -50,7 +50,7 @@ public class ReadFileTool : ITool
     {
         var filePath = arguments.GetValueOrDefault("file_path")?.ToString() ?? "";
         var offset = arguments.TryGetValue("offset", out var o) && o is int oi ? oi : 1;
-        var limit = arguments.TryGetValue("limit", out var l) && l is int li ? li : DefaultLimit;
+        var limit = arguments.TryGetValue("limit", out var l) && l is int li ? Math.Max(1, li) : DefaultLimit;
         var tail = arguments.TryGetValue("tail", out var tl) && tl is int tli ? Math.Max(0, tli) : 0;
 
         return Task.FromResult(Execute(filePath, offset, limit, tail));
