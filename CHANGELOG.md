@@ -1,5 +1,22 @@
 # 更新日志
 
+## v0.71.24 (2026-08-17) — 回退链端点 + 边界/显示 6 项修复
+
+继续上一批 Explore 代理发现的遗留候选，本轮修 6 个中优先级（端点错发 / 边界异常 / 逻辑误判 / 显示损坏 / 轻微泄漏）。
+
+### 🐛 修复
+
+- **`FallbackLLM` 回退链对部分模型用错 BaseUrl**：`ResolveKeyAndUrl` 只取模型自身 `DefaultBaseUrl`，`qwen-turbo`/`glm-4-flash` 等未配 `DefaultBaseUrl` 的模型不回落供应商级 `Providers[providerId].DefaultBaseUrl`，回退时把 DASHSCOPE/ZHIPU 的 key 发到 `api.openai.com`。改为 `info?.DefaultBaseUrl ?? Providers[provider]`（空字符串的 local/custom 仍保持 null，与 `WebChat` 既有逻辑一致）
+- **`FetchTool` 负数 `max_chars` 抛异常**：`Math.Min(mi, 100_000)` 只钳上限不钳下限，负数时 `TruncateByRunes(text, 负数)` 返回空 → `"".LastIndexOf(' ') = -1` → `-1 > 负数*3/4` 为真 → `text[..(-1)]` 抛 `ArgumentOutOfRangeException`，被吞成「抓取错误」。改 `Math.Clamp(mi, 1, 100_000)`
+- **`GitPRTool` 默认分支子串误判**：`branches.Contains("main")` 对 `git branch` 输出做裸子串匹配，存在 `feature/maintenance` 等含 "main" 的分支名时误判默认分支为 main。改按行拆分、`TrimStart('*')` 后精确匹配分支名
+- **`Syntax.Tokenize` 代理对切半**：逐 `char` 兜底分支把 emoji/CJK 扩展 B 切成两个孤立代理 token，终端渲染成 U+FFFD。改为 `IsHighSurrogate && IsLowSurrogate` 成对作为一个 token、`i += 2`
+- **`Agent` 计划摘要 `plan[..160]` 代理对切半**：审批框标题摘要按码元硬切，改走 `ContextManager.TruncateByRunes`
+- **`LLM` 成功路径未释放 `HttpResponseMessage`**：`response` 只在 400 回退分支 `Dispose`，成功路径靠 GC 回收。改 `using var response`（400 分支仍先 Dispose 旧响应再重试，最终响应由 using 统一释放）
+
+### ✅ 测试
+
+新增 `TestV0724SyntaxSurrogate`（2 项断言）：`Syntax.Tokenize("a😀b")` 的 emoji 成对 token、无孤立代理项。测试总数 3295 → 3297。
+
 ## v0.71.23 (2026-08-17) — 安全 + 数据损坏 + 死锁 4 项高优先级修复
 
 Explore 代理扫 `Agent/`（LLM/Fallback/Agent/AgentSlot）+ `Tools/` 网络/外部类 + `Edit/`/`Watch/`/`Memory/` 三层后人工验证，本轮先修 4 个最高优先级（安全绕过 / 文件内容损坏 / 误判超时）。

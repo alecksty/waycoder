@@ -142,6 +142,7 @@ public static partial class SelfTest
         TestV0721FileTrackerRead(Check);      // v0.71.21 批次：FileTracker RecordWrite 更新读取时间 + LRU 淘汰 / ReadFile limit 钳制
         TestV0722RuneSafeContext(Check);      // v0.71.22 批次：FindReplace 上下文窗口 + ErrorLog 参数截断走码点边界（代理对不切半）
         TestV0723SafetyAndCursor(Check);      // v0.71.23 批次：GitTool 危险操作 token 级拦截 + EditorCore 上下移动代理对修正
+        TestV0724SyntaxSurrogate(Check);      // v0.71.24 批次：Syntax.Tokenize 代理对成对 token（不切半）
         Console.WriteLine();
 
         // ---- 工具 ----

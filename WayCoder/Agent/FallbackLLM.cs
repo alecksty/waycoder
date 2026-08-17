@@ -159,8 +159,13 @@ public static class FallbackLLM
         var info = ModelCatalog.Find(model);
         var provider = info?.ProviderId ?? "";
 
-        // 从 ModelCatalog 获取 BaseUrl
-        var baseUrl = info?.DefaultBaseUrl;
+        // 从 ModelCatalog 获取 BaseUrl；模型自身未配则回退到供应商级默认值
+        //（否则 qwen-turbo/glm-4-flash 等 DefaultBaseUrl=null 的模型会把 key 发到 OpenAI 端点）
+        var baseUrl = info?.DefaultBaseUrl
+            ?? (provider.Length > 0
+                && ModelCatalog.Providers.TryGetValue(provider, out var p)
+                && !string.IsNullOrEmpty(p.DefaultBaseUrl)
+                ? p.DefaultBaseUrl : null);
 
         // 按供应商查找专用密钥，回退到通用密钥
         var key = provider switch

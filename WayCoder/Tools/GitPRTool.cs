@@ -160,10 +160,14 @@ public class GitPRTool : ITool
 
     private static string DetectDefaultBranch(string repoRoot)
     {
-        // 检查本地分支
+        // 检查本地分支（按行锚定匹配，避免 feature/maintenance 等含 "main" 的分支名误判）
         var branches = RunGit(repoRoot, "branch").Trim();
-        if (branches.Contains("main")) return "main";
-        if (branches.Contains("master")) return "master";
+        var branchNames = branches.Split('\n')
+            .Select(b => b.Trim().TrimStart('*').Trim())
+            .Where(b => b.Length > 0)
+            .ToArray();
+        if (branchNames.Contains("main")) return "main";
+        if (branchNames.Contains("master")) return "master";
 
         // 检查远程默认分支
         try
