@@ -439,7 +439,8 @@ public static class MarkdownParser
             "cyan" => 36,
             "white" => 37,
             "grey" or "gray" => 90,
-            "orange3" or "orange" => 33,
+            "orange3" => AnsiColors.Orange3,
+            "orange" => AnsiColors.Orange,
             _ => 0,
         };
         if (code == 0) return 0;

@@ -46,8 +46,9 @@ public class TreeTool : ITool
             var sb = new StringBuilder();
             sb.AppendLine(path);
             var remaining = max;
-            BuildTree(sb, path, "", maxDepth, ref remaining);
-            if (remaining <= 0)
+            var truncated = false;
+            BuildTree(sb, path, "", maxDepth, ref remaining, ref truncated);
+            if (truncated)
                 sb.AppendLine("... (已达显示上限)");
 
             var result = sb.ToString();
@@ -62,7 +63,7 @@ public class TreeTool : ITool
     }
 
     private static void BuildTree(StringBuilder sb, string dir, string prefix,
-        int maxDepth, ref int remaining)
+        int maxDepth, ref int remaining, ref bool truncated)
     {
         if (maxDepth <= 0 || remaining <= 0) return;
 
@@ -75,8 +76,10 @@ public class TreeTool : ITool
             // 先剔除隐藏项再算 isLast，否则目录末尾是隐藏项时最后一条可见项被误判为非最后（输出 ├── 而非 └──）
             entries.RemoveAll(e => Path.GetFileName(e).StartsWith('.'));
 
-            for (int i = 0; i < entries.Count && remaining > 0; i++)
+            for (int i = 0; i < entries.Count; i++)
             {
+                // 剩余配额耗尽但还有条目未显示 → 标记截断（而非靠 remaining==0 判，避免恰等于 max 时误报上限）
+                if (remaining <= 0) { truncated = true; break; }
                 var isLast = i == entries.Count - 1;
                 var name = Path.GetFileName(entries[i]);
 
@@ -88,7 +91,7 @@ public class TreeTool : ITool
                 {
                     sb.AppendLine($"{prefix}{connector}📁 {name}/");
                     remaining--;
-                    BuildTree(sb, entries[i], childPrefix, maxDepth - 1, ref remaining);
+                    BuildTree(sb, entries[i], childPrefix, maxDepth - 1, ref remaining, ref truncated);
                 }
                 else
                 {

@@ -1,5 +1,49 @@
 # 更新日志
 
+## v0.71.33 (2026-08-18) — 绘图/工具/编辑器/Infra 确定性 bug + 对话框内容自适应 + Show 接口
+
+本轮继续确定性 bug 修复，并落地对话框「内容自适应宽高」与仅绘制 `Show` 接口。
+
+### 🛡 绘图引擎（DoS/OOM）
+- **DrawImage 无界循环**：w/h 过大（如 2e9）致数十亿次无效迭代，钳制到画布内
+- **直线跨度溢出死循环**：跨度 > int.MaxValue/2 时 `2*err` 溢出为负、收敛永不满足，提前拦截
+- **圆非整数半径 NaN**：dy=±r0 超半径时 `r²-dy²` 为负开方出 NaN，钳制为 0
+- **star/regular 顶点数无上限**：> 4096 拒绝（此前可传 2e9 致内存/时间爆炸）
+- **TryNum 拒绝 NaN/Infinity** 注入几何计算 + **DrawTool grid 上限 256×256**
+
+### ✏ 编辑器 EditorCore
+- 单行删除撤销未还原行号 → 连续撤销跨行时光标停在错行
+- 替换串/替换结果含换行拒绝（破坏「一行一条目」不变量，撤销 DeleteBlockAt 越界崩溃）
+- OutlineExtractor 命名组误跳过起始于第 0 列的名称组（改判 Group 0 而非 Index 0）
+
+### 🛠 工具
+- **FindReplaceTool**：负值 maxFiles/maxPerFile 钳制；花括号 glob `*.{md,txt}` 展开（.NET GetFiles 不认花括号静默 0 匹配）+ 去重
+- **DiffTool**：context 钳制 0..10000 防 `i±context` 整数溢出
+- **MultiEditTool**：首编辑计入成功数；additions/removal 钳制 ≥0 防「+3/--3」双负号
+- **TreeTool**：截断标记修正（恰等于 max 误报上限）；先剔除隐藏项再判 isLast
+- **ExportTool / StructTodoTool**：相对路径基于被跟踪 cd 工作目录而非进程启动目录
+
+### 🧱 基础设施
+- **ErrorLog 并发丢行**：Flush/Write 在锁外并发 AppendAllLines 交错丢行 + 日期轮转竞态，加独立追加锁
+- **FileIgnoreManager `**` 零目录匹配**：`a/**/b` 无法匹配 `a/b`，新 GlobToRegex 支持零目录
+- **SnippetStore 路径穿越**：name 含 `../` 写出 snippets 目录之外 + 空名/纯点兜底 unnamed
+- **FileTracker LRU**：重读热点文件反复淘汰无关条目致追踪集收缩，先判 ContainsKey
+- **Logger**：指标订阅者抛异常中断日志 worker，加 try/catch
+- **RasterImage.SampleGrid**：cols*rows / cx*Width 整数溢出防护
+
+### 🎨 UI 配色修正
+- **AnsiColors**：补 Orange=208 / Orange3=172 真实色值（此前 orange 错用 33 黄）；窗口默认底改灰底 PanelGrey、输入/列表默认黑底
+- **对话框正文**：新增 DialogFg（灰底黑字，黑底主题覆盖为亮色），DynamicBar/List/TableList 背景改用黑底
+
+### 🖼 对话框内容自适应 + 仅绘制 Show 接口
+- **`TuiDialog.Show(win, x, y)`**：仅绘制对话框到 ANSI 字符串（不进入输入循环、不响应按键），x/y 可指定坐标或居中，供抓屏调试
+- **`--dialog-show` 调试命令**：渲染 1~6 行消息 + 确认框 + 指定位置示例
+- **消息/确认框宽高自适应**：`AutoSizeMessageDialog` 按消息最宽行与按钮行宽算宽、按折行数算高；`Info/Success/Warn/Error/Confirm/Confirm3` 全部改用，修复 4 行以上消息裁掉按钮、第 5 行起折叠不可见
+- **按钮不再撑满**：确认框按钮去掉 Flex=1，用自然宽度居中
+
+### 🧪 测试
+- 新增回归测试 10 项（消息/确认框自适应宽高 + Show 帧），自测 3363 → 3373 全绿
+
 ## v0.71.32 (2026-08-17) — 全库确定性 bug 修复 + v0.71.31 重构回归修复
 
 本轮为 4 路并行全库审计（工具 / UI / Agent 核心 / 基础设施+Web）的结果落地，共修复 16 项确定性 bug，并补齐 v0.71.31 大重构引入的自测回归。

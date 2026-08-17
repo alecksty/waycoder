@@ -50,7 +50,7 @@ public partial class Program
             .Replace("«bold green»", AnsiTty.SgrBold + AnsiTty.FgCode(AnsiColors.Green))
             .Replace("«bold blue»", AnsiTty.SgrBold + AnsiTty.FgCode(AnsiColors.Blue))
             .Replace("«bold magenta»", AnsiTty.SgrBold + AnsiTty.FgCode(AnsiColors.Magenta))
-            .Replace("«bold orange3»", AnsiTty.SgrBold + AnsiTty.FgCode(AnsiColors.Yellow))
+            .Replace("«bold orange3»", AnsiTty.SgrBold + AnsiTty.FgCode(AnsiColors.Orange3))
             .Replace("«bright red»", AnsiTty.FgCode(AnsiColors.BrightRed))
             .Replace("«bright green»", AnsiTty.FgCode(AnsiColors.BrightGreen))
             .Replace("«bright yellow»", AnsiTty.FgCode(AnsiColors.BrightYellow))
@@ -75,8 +75,8 @@ public partial class Program
             .Replace("«magenta»", AnsiTty.FgCode(AnsiColors.Magenta))
             .Replace("«white»", AnsiTty.FgCode(AnsiColors.White))
             .Replace("«black»", AnsiTty.FgCode(AnsiColors.Black))
-            .Replace("«orange3»", AnsiTty.FgCode(AnsiColors.Yellow))
-            .Replace("«orange»", AnsiTty.FgCode(AnsiColors.Yellow))
+            .Replace("«orange3»", AnsiTty.FgCode(AnsiColors.Orange3))
+            .Replace("«orange»", AnsiTty.FgCode(AnsiColors.Orange))
             .Replace("«grey»", AnsiTty.FgCode(AnsiColors.Grey))
             .Replace("«gray»", AnsiTty.FgCode(AnsiColors.Grey));
     }

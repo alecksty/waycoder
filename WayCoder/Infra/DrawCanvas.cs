@@ -88,7 +88,8 @@ public sealed class Canvas
         int r0 = (int)Math.Ceiling(r);
         for (int dy = -r0; dy <= r0; dy++)
         {
-            double dx = Math.Sqrt(r * r - dy * dy);
+            // 非整数半径时 dy=±r0 可能 > r，r*r-dy*dy 为负开方出 NaN（与 FillEllipse 一致钳制）
+            double dx = Math.Sqrt(Math.Max(0, r * r - dy * dy));
             int x0 = (int)Math.Ceiling(cx - dx);
             int x1 = (int)Math.Floor(cx + dx);
             for (int x = x0; x <= x1; x++)
@@ -157,9 +158,11 @@ public sealed class Canvas
     {
         // 防整数溢出/病态坐标死循环：端点跨度超 int 范围时 Math.Abs(x1-x0) 溢出为负
         // （int.Min→int.Max 差 2^32-1），dx 变小、x0 += sx 回绕永远到不了 x1，无限循环。
+        // 此外 err 与 e2=2*err 均为 int，跨度须 ≤ int.MaxValue/2，否则 2*err 溢出为负、
+        // x0/y0 收敛条件永不满足 → 死循环（如 line 0 0 2000000000 0）。
         long dxl = Math.Abs((long)x1 - x0);
         long dyl = Math.Abs((long)y1 - y0);
-        if (dxl > int.MaxValue || dyl > int.MaxValue) return;
+        if (dxl > int.MaxValue / 2 || dyl > int.MaxValue / 2) return;
         int dx = (int)dxl, sx = x0 < x1 ? 1 : -1;
         int dy = -(int)dyl, sy = y0 < y1 ? 1 : -1;
         int err = dx + dy;
@@ -323,8 +326,13 @@ public sealed class Canvas
         {
             int x0 = (int)Math.Round(x), y0 = (int)Math.Round(y);
             int iw = Math.Max(1, (int)Math.Round(w)), ih = Math.Max(1, (int)Math.Round(h));
-            for (int py = 0; py < ih; py++)
-                for (int px = 0; px < iw; px++)
+            // 钳制到画布内：w/h 过大（如 2e9）会致数十亿次无效迭代（DoS），与 FillRect 一致
+            int px0 = Math.Max(0, -x0);
+            int py0 = Math.Max(0, -y0);
+            int px1 = Math.Min(iw, Width - x0);
+            int py1 = Math.Min(ih, Height - y0);
+            for (int py = py0; py < py1; py++)
+                for (int px = px0; px < px1; px++)
                 {
                     if (clip && !InRoundRect(px + 0.5, py + 0.5, w, h, rr)) continue;
                     int sx = (int)(sx0 + (px + 0.5) / iw * sW);
@@ -527,9 +535,9 @@ public sealed class Canvas
         "...../...../.#.../#.#.#/...#./...../.....", // ~
     };
 
-    /// <summary>数值解析工具（供指令 Parse 使用，InvariantCulture）。</summary>
+    /// <summary>数值解析工具（供指令 Parse 使用，InvariantCulture）。拒绝 NaN/Infinity 注入几何计算。</summary>
     public static bool TryNum(string s, out double v)
-        => double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v);
+        => double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v) && double.IsFinite(v);
 }
 
 /// <summary>渐变采样：归一化局部坐标（0..1）→ ARGB 插值。线性取投影、径向取距心归一化。</summary>

@@ -303,21 +303,8 @@ public static class FileIgnoreManager
                 sb.Append(@"(.*/)?");
             }
 
-            // ** 匹配零或多个目录
-            if (p.Contains("**"))
-            {
-                // 简化的 ** 处理
-                var segments = p.Split("**");
-                for (int s = 0; s < segments.Length; s++)
-                {
-                    if (s > 0) sb.Append(@".*");
-                    sb.Append(GlobSegmentToRegex(segments[s]));
-                }
-            }
-            else
-            {
-                sb.Append(GlobSegmentToRegex(p));
-            }
+            // ** 匹配零或多个目录（globstar）
+            sb.Append(GlobToRegex(p));
 
             // 目录规则：匹配目录本身及其中所有内容（logs/ → logs 及 logs/*）
             if (endsWithSlash)
@@ -328,24 +315,71 @@ public static class FileIgnoreManager
             return new Regex(sb.ToString(), RegexOptions.IgnoreCase | RegexOptions.Compiled);
         }
 
-        private static string GlobSegmentToRegex(string segment)
+        /// <summary>
+        /// 把含 **（globstar）的 glob 模式转为正则片段。
+        /// ** 独立成段时匹配零或多个目录级：**/foo、a/**/b、a/**、孤立 **。
+        /// 非独立 **（如 foo**bar）退化为 *。
+        /// </summary>
+        private static string GlobToRegex(string pattern)
         {
             var sb = new System.Text.StringBuilder();
-            foreach (var ch in segment)
+            int i = 0;
+            while (i < pattern.Length)
             {
-                switch (ch)
+                char ch = pattern[i];
+
+                if (ch == '*' && i + 1 < pattern.Length && pattern[i + 1] == '*')
                 {
-                    case '*': sb.Append(@"[^/]*"); break;
-                    case '?': sb.Append(@"[^/]"); break;
-                    case '.': sb.Append(@"\."); break;
-                    case '+': case '(': case ')': case '^': case '$':
-                    case '{': case '}': case '|': case '\\':
-                    case '[': case ']': // gitignore 字符类/不成对方括号：按字面量转义，避免非法正则抛 ArgumentException
-                        sb.Append('\\').Append(ch); break;
-                    default: sb.Append(ch); break;
+                    int j = i;
+                    while (j < pattern.Length && pattern[j] == '*') j++;
+                    bool prevSlash = i > 0 && pattern[i - 1] == '/';
+                    bool nextSlash = j < pattern.Length && pattern[j] == '/';
+
+                    // ** 独立成段：前后为 / 或边界（globstar）
+                    if ((i == 0 || prevSlash) && (j == pattern.Length || nextSlash))
+                    {
+                        if (nextSlash)
+                        {
+                            // 前导或中间 **/：匹配零或多个目录（含目录后斜杠），
+                            // 并吞掉紧随其后的 /（否则与字面 / 叠加成 //，永不命中零目录）
+                            sb.Append(@"(?:[^/]*/)*");
+                            i = j + 1;
+                        }
+                        else
+                        {
+                            // 尾随 /** 或孤立 **：匹配其后一切（含子路径）
+                            sb.Append(@".*");
+                            i = j;
+                        }
+                    }
+                    else
+                    {
+                        // 非独立 **（如 foo**bar）等价于 *
+                        sb.Append(@"[^/]*");
+                        i = j;
+                    }
+                    continue;
                 }
+
+                AppendGlobChar(sb, ch);
+                i++;
             }
             return sb.ToString();
+        }
+
+        private static void AppendGlobChar(System.Text.StringBuilder sb, char ch)
+        {
+            switch (ch)
+            {
+                case '*': sb.Append(@"[^/]*"); break;
+                case '?': sb.Append(@"[^/]"); break;
+                case '.': sb.Append(@"\."); break;
+                case '+': case '(': case ')': case '^': case '$':
+                case '{': case '}': case '|': case '\\':
+                case '[': case ']': // gitignore 字符类/不成对方括号：按字面量转义，避免非法正则抛 ArgumentException
+                    sb.Append('\\').Append(ch); break;
+                default: sb.Append(ch); break;
+            }
         }
     }
 }

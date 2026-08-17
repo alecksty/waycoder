@@ -50,9 +50,11 @@ public class ExportTool : ITool
                 _ => "md",
             }}";
 
-            File.WriteAllText(outputPath, content);
-            var size = new FileInfo(outputPath).Length;
-            return Task.FromResult($"✅ 已导出 {Messages.Count} 条消息到 {outputPath} ({FormatSize(size)})");
+            // 相对路径基于被跟踪的 cd 工作目录，而非进程启动目录
+            var fullPath = Path.GetFullPath(outputPath, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory());
+            File.WriteAllText(fullPath, content);
+            var size = new FileInfo(fullPath).Length;
+            return Task.FromResult($"✅ 已导出 {Messages.Count} 条消息到 {fullPath} ({FormatSize(size)})");
         }
         catch (Exception ex)
         {
