@@ -1,5 +1,23 @@
 # 更新日志
 
+## v0.72.0 (2026-08-18) — GUI 图形界面上线（Avalonia 12）
+
+对标 Web 版落地原生图形界面，`waycoder --gui` 启动。
+
+### 🖥 GUI 架构
+- **独立 JIT 进程**：`WayCoder.Gui` 项目（Avalonia 12.1.1），与主程序 NativeAOT 单文件分离——Avalonia 依赖反射无法 AOT，故 GUI 走独立 JIT 进程，主程序 AOT 不变
+- **核心抽库（shared-source）**：GUI 项目 `<Compile Include>` 复用主项目核心源码（Agent/LLM/Tools/Infra/Memory），排除 CLI 入口/命令层/测试/插件/斜杠命令；`CoreStubs.cs` 占位桩使核心在 GUI 进程编译通过
+- **`--gui` 参数**：主程序定位并拉起独立 GUI 进程（dev 走 dotnet dll / publish 走可执行）
+
+### 🖥 GUI 功能
+- 聊天区 + 输入框 + 发送/停止（流式 onToken 回填，Ctrl+Enter 发送）
+- 模型下拉切换（ModelCatalog.All）
+- F1-F10 多槽位（独立 Agent + 各自历史 + 独立中断令牌）
+- **完整交互桥**（GuiInteraction 注入 UxHelper.WebInteraction）：权限确认（允许/全部允许/拒绝）、文本提问、单选/多选、diff 预览确认（接受/拒绝全部）
+- **Markdown 富文本渲染**：代码围栏/标题/列表/引用/`«color»…«/»` 颜色标记/粗体/行内代码，颜色同源 AnsiColors（三端观感一致）
+- **会话持久化**：退出保存 `_auto`/`_auto_slotN`，启动恢复
+- 工具输出显示（代码块 + 按码点截断）
+
 ## v0.71.34 (2026-08-18) — 图片/记忆/外围 + 全库六路并行审计 18 项确定性 bug
 
 本轮完成 #275 图片编解码/记忆/外围 bug + 六路并行全库审计（核心 LLM/Agent、记忆/会话、文件工具、网络/进程工具、UI 基础/编辑器、UI 控件）修复 18 项确定性 bug。
