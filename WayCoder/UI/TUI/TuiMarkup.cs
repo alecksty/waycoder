@@ -187,6 +187,17 @@ public static class TuiMarkup
         foreach (var child in node.Children)
             if (BuildControl(child, byId) is TuiView v) { win.RootView = v; break; }
 
+        // 内容自适应尺寸（size="content"）：按控件树自然尺寸计算窗口宽高；默认 size="screen" 用 width/height/scale
+        if (Attr(node, "size") == "content" && win.RootView != null)
+        {
+            var (cw, ch) = MeasureContent(win.RootView);
+            int borderW = win.Border == WindowBorder.None ? 0 : 2;
+            int borderH = win.Border == WindowBorder.None ? 0 : 2;
+            int titleH = win.ShowTitle && !string.IsNullOrEmpty(win.Title) ? 1 : 0;
+            win.Width = cw + borderW;
+            win.Height = ch + borderH + titleH;
+        }
+
         // 快捷键：遍历 RootView 树注册按钮 shortcut，窗口 shortcut 映射到关闭
         RegisterButtonShortcuts(win, win.RootView);
         if (ParseShortcutKey(Attr(node, "shortcut")) is ConsoleKey wsc)
@@ -194,6 +205,37 @@ public static class TuiMarkup
 
         return win;
     }
+
+    /// <summary>测量视图树的自然尺寸（VBox 纵向堆叠、HBox 横向排列，递归子视图）。</summary>
+    private static (int w, int h) MeasureContent(TuiView view)
+    {
+        if (view is TuiVBox vbox)
+        {
+            int w = 0, h = 0;
+            for (int i = 0; i < vbox.Children.Count; i++)
+            {
+                var (cw, ch) = MeasureChild(vbox.Children[i]);
+                w = Math.Max(w, cw);
+                h += ch + (i > 0 ? vbox.Spacing : 0);
+            }
+            return (w, h);
+        }
+        if (view is TuiHBox hbox)
+        {
+            int w = 0, h = 0;
+            for (int i = 0; i < hbox.Children.Count; i++)
+            {
+                var (cw, ch) = MeasureChild(hbox.Children[i]);
+                w += cw + (i > 0 ? hbox.Spacing : 0);
+                h = Math.Max(h, ch);
+            }
+            return (w, h);
+        }
+        return (view.Width, view.Height);
+    }
+
+    private static (int w, int h) MeasureChild(TuiControl c)
+        => c is TuiView v ? MeasureContent(v) : (c.Width, c.Height);
 
     /// <summary>递归遍历视图树，注册按钮 shortcut → OnClick（code-behind 后设置 OnClick，lambda 延迟读取）。</summary>
     private static void RegisterButtonShortcuts(TuiWindow win, TuiView? view)
