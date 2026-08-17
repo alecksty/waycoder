@@ -71,8 +71,13 @@ public static class JpegCodec
     // ── 编码 ──
     public static byte[] Encode(RasterImage img, int quality = 80)
     {
+        if (img == null) throw new ArgumentNullException(nameof(img));
         quality = Math.Clamp(quality, 1, 100);
         int w = img.Width, h = img.Height;
+        // 防整数溢出 / OOM / SOF0 尺寸字段静默截断：宽高须为正、像素数与单边尺寸须在 JPEG 可表示范围内
+        if (w <= 0 || h <= 0) throw new ArgumentException("宽高必须为正整数");
+        if ((long)w * h > MaxPixels) throw new ArgumentException("图像尺寸过大");
+        if (w > 65535 || h > 65535) throw new ArgumentException("JPEG 尺寸须 ≤ 65535");
         int cw = (w + 1) / 2, ch = (h + 1) / 2;
 
         double qscale = quality < 50 ? 5000.0 / quality : 200.0 - 2.0 * quality;

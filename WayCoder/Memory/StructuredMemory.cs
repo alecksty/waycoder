@@ -105,11 +105,10 @@ public static class StructuredMemory
         var entries = new List<MemoryEntry>();
         var seen = new HashSet<string>();
 
-        // 1. 共享记忆（.waycoder/memory/）
-        LoadFromDir(SharedMemoryDir, entries, seen);
-
-        // 2. 槽位独立记忆（.waycoder/memory/slot_N/）
+        // 槽位独立目录优先、共享目录回退——与 Get/Update/Delete 的「个人记忆可覆盖同名共享记忆」语义一致
+        // （此前先加载共享目录，导致 ListAll/Search/RebuildIndex 返回共享旧条目而 Update 改写槽位文件）
         LoadFromDir(SlotMemoryDir, entries, seen);
+        LoadFromDir(SharedMemoryDir, entries, seen);
 
         entries.Sort((a, b) => b.UpdatedAt.CompareTo(a.UpdatedAt));
         return entries;
@@ -203,6 +202,21 @@ public static class StructuredMemory
         var entry = Get(name);
         if (entry == null) return;
         entry.IsShared = shared;
+
+        // 共享记忆须物理落盘到共享目录（.waycoder/memory/），与 SharedMemoryManager.PullSharedAsync 的
+        // checkout 目标一致；否则本地新建记忆默认落在槽位目录 slot_N/，push 到 slot_N/、pull 只同步
+        // memory/ 根，二者路径不一致导致共享记忆在别处拉不到。
+        var targetPath = NameToPathIn(shared ? SharedMemoryDir : SlotMemoryDir, entry.Name);
+        var curFull = string.IsNullOrEmpty(entry.FilePath) ? "" : Path.GetFullPath(entry.FilePath);
+        var targetFull = Path.GetFullPath(targetPath);
+        if (curFull.Length > 0 && File.Exists(curFull)
+            && !string.Equals(curFull, targetFull, StringComparison.Ordinal))
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(targetFull)!);
+            File.Move(curFull, targetFull, overwrite: true);
+        }
+        entry.FilePath = targetPath;
+
         WriteFile(entry);
         RebuildIndex();
     }
@@ -436,8 +450,8 @@ public static class StructuredMemory
         entry.FilePath = path;
     }
 
-    /// <summary>解析 YAML-like frontmatter</summary>
-    private static (Dictionary<string, string> Frontmatter, string Body) ParseFrontmatter(string text)
+    /// <summary>解析 YAML-like frontmatter（internal 供自测直接覆盖未闭合边界）</summary>
+    internal static (Dictionary<string, string> Frontmatter, string Body) ParseFrontmatter(string text)
     {
         var fm = new Dictionary<string, string>();
         var body = text;
@@ -461,6 +475,11 @@ public static class StructuredMemory
                 fmLines.Add(lines[i]);
         }
 
+        // 未闭合的 frontmatter（只有开头 --- 无结尾 ---）：不视为有效。
+        // 否则 delimCount 停在 1，正文行会被误当 frontmatter 解析（fmLines 收集整文件），body 仍返回全文。
+        if (delimCount < 2)
+            return (fm, body);
+
         foreach (var line in fmLines)
         {
             var colon = line.IndexOf(':');
@@ -472,8 +491,9 @@ public static class StructuredMemory
             }
         }
 
-        if (bodyStart > 0 && bodyStart < lines.Length)
-            body = string.Join('\n', lines.Skip(bodyStart)).Trim();
+        // bodyStart == lines.Length（frontmatter 以 --- 结尾、无尾随换行）时正文为空，而非残留全文
+        if (bodyStart > 0)
+            body = bodyStart < lines.Length ? string.Join('\n', lines.Skip(bodyStart)).Trim() : "";
 
         return (fm, body);
     }

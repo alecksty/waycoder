@@ -239,16 +239,20 @@ public sealed class BatchRunner
     {
         var repo = job.Repo;
         var branch = string.IsNullOrWhiteSpace(job.Branch) ? "" : job.Branch;
-        var args = branch.Length == 0
-            ? $"clone \"{repo}\" \"{destDir}\""
-            : $"clone -b \"{branch}\" \"{repo}\" \"{destDir}\"";
+
+        // 用参数列表传递（非 `"` 字符串拼接）：repo/branch/destDir 含引号/空格时，
+        // 字符串解析可注入 git 选项（如 --upload-pack / --config core.sshCommand）导致命令执行。
+        var args = new List<string> { "clone" };
+        if (branch.Length > 0) { args.Add("-b"); args.Add(branch); }
+        args.Add(repo);
+        args.Add(destDir);
 
         try
         {
             using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(timeoutSec));
             // timeoutOverrideMs: 0 = 禁用内部 GitTimeoutSec(默认 15s) 钳制——clone 大仓库远超 15s，
             // 否则 clone 会被内部 15s 误杀，spec.TimeoutSec(默认 1800s) 完全失效
-            var (code, _, err) = await GitRunner.RunAsync(args, null, cts.Token, timeoutOverrideMs: 0);
+            var (code, _, err) = await GitRunner.RunArgsAsync(args, null, cts.Token, timeoutOverrideMs: 0);
             if (code != 0)
                 return $"git clone 失败: {(string.IsNullOrWhiteSpace(err) ? $"exit {code}" : err.Trim())}";
             if (!Directory.Exists(destDir))
