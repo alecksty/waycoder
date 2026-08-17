@@ -751,8 +751,8 @@ public static class DiffPreview
         if (line.Kind == '-')
         {
             var prefix = $"{Padding(line.OldLine),4} -";
-            int fg = isCurrentHunk ? 30 : 37;
-            int bg = 41;
+            int fg = 37; // 白字（暗/亮底均可读，原当前 hunk 黑字暗红不可见）
+            int bg = isCurrentHunk ? 101 : 41; // 当前 hunk 亮红底，非当前暗红底
             var maxTextW = tw - 7;
             FillBg(sb, absY, absX, tw, bg);
             sb.Append(isCurrentHunk ? AnsiTty.Sgr(fg, bg, 1) : AnsiTty.FgBg(fg, bg));
@@ -763,8 +763,8 @@ public static class DiffPreview
         else if (line.Kind == '+')
         {
             var prefix = "     +";
-            int fg = isCurrentHunk ? 30 : 37;
-            int bg = 42;
+            int fg = 37; // 白字（原当前 hunk 黑字暗绿不可见）
+            int bg = isCurrentHunk ? 102 : 42; // 当前 hunk 亮绿底，非当前暗绿底
             var maxTextW = tw - 7;
             FillBg(sb, absY, absX, tw, bg);
             sb.Append(isCurrentHunk ? AnsiTty.Sgr(fg, bg, 1) : AnsiTty.FgBg(fg, bg));

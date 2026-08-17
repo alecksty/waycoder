@@ -20,7 +20,7 @@ public class TuiTheme
     public int MaskBg { get; set; } = TuiColors.BgBrightBlack;  // 模态遮罩背景（深灰）
 
     // ── 窗口层 ──
-    public int WindowBg { get; set; } = TuiColors.BgWhite;               // 窗口默认背景（白底）
+    public int WindowBg { get; set; } = TuiColors.BgBlack;               // 窗口默认背景（纯黑暗底：白字/灰字均与其保证反差）
     public int WindowBorderFocused { get; set; } = TuiColors.Cyan;       // 聚焦边框
     public int WindowBorderUnfocused { get; set; } = 8;                  // 失焦边框（隐藏）
     public int WindowTitleFg { get; set; }                               // 标题前景（0=用边框色）
@@ -127,9 +127,9 @@ public class TuiTheme
     // ── Markdown ──
     public int MdHeadingFg { get; set; } = TuiColors.Yellow;             // 标题 # 色
     public int MdH1H2Fg { get; set; } = TuiColors.BrightWhite;           // H1-H2 亮白
-    public int MdTableBorderFg { get; set; } = 2;                        // 表格边框
+    public int MdTableBorderFg { get; set; } = TuiColors.BrightBlack;    // 表格边框（原 2 是 SGR 样式码非颜色码）
     public int MdListBulletFg { get; set; } = TuiColors.Yellow;          // 列表符号
-    public int MdRuleFg { get; set; } = 2;                               // 分割线
+    public int MdRuleFg { get; set; } = TuiColors.BrightBlack;           // 分割线（原 2 是 SGR 样式码非颜色码）
 
     // ── 进度条 ──
     public int ProgressFilledFg { get; set; } = TuiColors.Green;         // 完成部分
@@ -202,6 +202,7 @@ public class TuiTheme
         StatusBarFg = TuiColors.Black,
         ListSelFg = TuiColors.White,
         ListSelBg = TuiColors.BgBlue,
+        MdH1H2Fg = TuiColors.Black, // 浅底主题：亮白标题在白底不可见 → 黑字
     };
 
     /// <summary>3. 高对比度 —— 亮白边框 + 白底聚焦</summary>
@@ -214,6 +215,7 @@ public class TuiTheme
         ControlFocusedBg = TuiColors.BgWhite,
         ControlFocusedFg = TuiColors.Black,
         ButtonBg = TuiColors.BgBrightBlack,
+        ButtonFg = TuiColors.BrightWhite, // 深灰按钮底配亮字（原黑字黑底不可见）
         StatusBarBg = TuiColors.BgWhite,
         StatusBarFg = TuiColors.Black,
         ChatUserFg = TuiColors.BrightGreen,
@@ -294,7 +296,7 @@ public class TuiTheme
         ControlFocusedBg = TuiColors.BgWhite,
         ControlFocusedFg = TuiColors.Black,
         ButtonBg = TuiColors.BgBrightBlack,
-        ButtonFg = TuiColors.Black,
+        ButtonFg = TuiColors.BrightWhite, // 深灰按钮底配亮字（原黑字黑底不可见）
         StatusBarBg = TuiColors.BgWhite,
         StatusBarFg = TuiColors.Black,
         ChatUserFg = TuiColors.White,

@@ -120,7 +120,7 @@ public class InlinePermission : TuiControl
                 var before = detail[..(cmdIdx + 8)];
                 var cmd = detail[(cmdIdx + 8)..];
                 sb.Append("  ").Append(before)
-                  .Append(AnsiTty.Sgr(TuiColors.Green, WarnBg, 1))
+                  .Append(AnsiTty.Sgr(TuiColors.BrightGreen, WarnBg, 1))
                   .Append(Truncate(cmd, w - 3 - TuiHelper.DisplayWidth(before)))
                   .Append(AnsiTty.FgBg(BlackFg, WarnBg));
                 return;
@@ -135,7 +135,7 @@ public class InlinePermission : TuiControl
                 var before = detail[..(pathIdx + 10)];
                 var path = detail[(pathIdx + 10)..];
                 sb.Append("  ").Append(before)
-                  .Append(AnsiTty.Sgr(TuiColors.Cyan, WarnBg, 1))
+                  .Append(AnsiTty.Sgr(TuiColors.BrightCyan, WarnBg, 1))
                   .Append(Truncate(path, w - 3 - TuiHelper.DisplayWidth(before)))
                   .Append(AnsiTty.FgBg(BlackFg, WarnBg));
                 return;
