@@ -29,6 +29,9 @@ CoreCoderSharp/
 crush/
 test_game/
 
+# 参考/校验代码（含嵌套 git 仓库，不随主仓库管理）
+check/
+
 # Temp
 .tmp/
 logs/
