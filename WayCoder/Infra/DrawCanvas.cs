@@ -56,8 +56,14 @@ public sealed class Canvas
     // ── 形状 ──
     public void FillRect(int x, int y, int w, int h, uint c)
     {
-        for (int py = y; py < y + h; py++)
-            for (int px = x; px < x + w; px++)
+        if (w <= 0 || h <= 0) return;
+        // 钳制到画布内：负坐标 / 超大尺寸若直接循环会产生数十亿次无效迭代（DoS）
+        int x0 = Math.Max(0, x);
+        int y0 = Math.Max(0, y);
+        int x1 = (int)Math.Min((long)Width, (long)x + w);
+        int y1 = (int)Math.Min((long)Height, (long)y + h);
+        for (int py = y0; py < y1; py++)
+            for (int px = x0; px < x1; px++)
                 SetPixel(px, py, c);
     }
 

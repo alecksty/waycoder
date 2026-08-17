@@ -522,12 +522,13 @@ public class TuiTextArea : TuiEditBase
         if (string.IsNullOrEmpty(text)) return;
         ClearSelection();
         var processed = ApplyColumnWrap(text);
-        InsertTextAt(CursorRow, CursorCol, processed);
-        RecordEdit('I', CursorRow, CursorCol, text);
+        int startRow = CursorRow, startCol = CursorCol;
+        InsertTextAt(startRow, startCol, processed);
+        RecordEdit('I', startRow, startCol, processed);
         int newLines = processed.Count(c => c == '\n');
-        CursorRow += newLines;
+        CursorRow = startRow + newLines;
         int lastNL = processed.LastIndexOf('\n');
-        CursorCol = lastNL >= 0 ? processed.Length - lastNL - 1 : CursorCol + processed.Length;
+        CursorCol = lastNL >= 0 ? processed.Length - lastNL - 1 : startCol + processed.Length;
         TrimExcessLines();
         NotifyChange();
     }
@@ -633,12 +634,13 @@ public class TuiTextArea : TuiEditBase
     protected override void PasteText(string text)
     {
         var processed = ApplyColumnWrap(text);
-        InsertTextAt(CursorRow, CursorCol, processed);
+        int startRow = CursorRow, startCol = CursorCol;
+        InsertTextAt(startRow, startCol, processed);
         int newLines = processed.Count(c => c == '\n');
-        CursorRow += newLines;
+        CursorRow = startRow + newLines;
         int lastNL = processed.LastIndexOf('\n');
-        CursorCol = lastNL >= 0 ? processed.Length - lastNL - 1 : CursorCol + processed.Length;
-        RecordEdit('I', CursorRow - newLines, lastNL >= 0 ? 0 : CursorCol - processed.Length, text);
+        CursorCol = lastNL >= 0 ? processed.Length - lastNL - 1 : startCol + processed.Length;
+        RecordEdit('I', startRow, startCol, processed);
         TrimExcessLines();
         NotifyChange();
     }

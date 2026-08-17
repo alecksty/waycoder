@@ -359,6 +359,22 @@ public static partial class SelfTest
         }
         catch { Fail("edit_file replace_all"); }
 
+        // edit_file — CRLF 文件多行 old_string 匹配（v0.71.29 修复：匹配前归一化 CRLF）
+        try
+        {
+            var tmpCrlf = Path.GetTempFileName();
+            File.WriteAllText(tmpCrlf, "line one\r\nline two\r\nline three\r\n");
+            FileTracker.RecordRead(tmpCrlf);
+            var editResult = new EditFileTool().ExecuteAsync(new()
+            {
+                ["file_path"] = tmpCrlf, ["old_string"] = "line one\nline two", ["new_string"] = "ONE\nTWO",
+            }).Result;
+            var crlfContent = File.ReadAllText(tmpCrlf);
+            Check("edit_file CRLF 多行匹配", editResult.Contains("已编辑") && crlfContent == "ONE\r\nTWO\r\nline three\r\n");
+            File.Delete(tmpCrlf);
+        }
+        catch { Fail("edit_file CRLF 多行匹配"); }
+
         // multiedit — 编辑已有文件
         try
         {

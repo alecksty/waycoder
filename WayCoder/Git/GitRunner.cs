@@ -33,7 +33,11 @@ public static class GitRunner
             // 而同步先读 stdout 永远等不到 EOF。
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
-            proc.WaitForExit();
+            if (!proc.WaitForExit(DefaultTimeoutMs))
+            {
+                try { proc.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
+                return (-1, "", $"git 命令超时（>{DefaultTimeoutMs / 1000}s）: {args}");
+            }
             return (proc.ExitCode, stdoutTask.GetAwaiter().GetResult(), stderrTask.GetAwaiter().GetResult());
         }
         catch (Exception ex)
@@ -56,9 +60,17 @@ public static class GitRunner
             // 并发读取 stdout/stderr，避免同步先读 stdout 的死锁。
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
+            using var timeoutCts = new CancellationTokenSource(DefaultTimeoutMs);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
             try
             {
-                await proc.WaitForExitAsync(cancellationToken);
+                await proc.WaitForExitAsync(linked.Token);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                // 配置超时（非外部取消）：杀掉进程并返回超时错误
+                try { proc.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
+                return (-1, "", $"git 命令超时（>{DefaultTimeoutMs / 1000}s）: {args}");
             }
             catch (OperationCanceledException)
             {
