@@ -20,6 +20,16 @@
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
   </ItemGroup>
 
+  <!-- 编译期合并 Web 前端资源（www/*.html/css/js → WebAssets.Generated.cs），编辑源文件后重新构建即可 -->
+  <Target Name="GenerateWebAssets" BeforeTargets="CoreCompile"
+          Inputs="$(MSBuildProjectDirectory)/../WayCoder/UI/WEB/www/index.html;$(MSBuildProjectDirectory)/../WayCoder/UI/WEB/www/style.css;$(MSBuildProjectDirectory)/../WayCoder/UI/WEB/www/app.js"
+          Outputs="$(MSBuildProjectDirectory)/../WayCoder/UI/WEB/WebAssets.Generated.cs">
+    <Exec Command="python3 ../scripts/merge_webassets.py" WorkingDirectory="$(MSBuildProjectDirectory)" />
+    <ItemGroup>
+      <Compile Include="$(MSBuildProjectDirectory)/../WayCoder/UI/WEB/WebAssets.Generated.cs" />
+    </ItemGroup>
+  </Target>
+
   <ItemGroup>
     <!--
       抽库：复用主项目核心源码（Agent/LLM/Tools/Infra/Memory/UI 等），GUI 走 JIT 编译。

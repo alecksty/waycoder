@@ -56,3 +56,6 @@ QBasic/.qbparse/
 
 # 独立游戏项目（不随 WayCoder 仓库管理）
 plane-war/
+
+# Web 前端编译期生成（scripts/merge_webassets.py）
+WayCoder/UI/WEB/WebAssets.Generated.cs
