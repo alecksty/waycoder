@@ -335,6 +335,7 @@ public static class FileIgnoreManager
                     case '.': sb.Append(@"\."); break;
                     case '+': case '(': case ')': case '^': case '$':
                     case '{': case '}': case '|': case '\\':
+                    case '[': case ']': // gitignore 字符类/不成对方括号：按字面量转义，避免非法正则抛 ArgumentException
                         sb.Append('\\').Append(ch); break;
                     default: sb.Append(ch); break;
                 }
