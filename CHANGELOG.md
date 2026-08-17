@@ -1,5 +1,44 @@
 # 更新日志
 
+## v0.71.29 (2026-08-17) — 四路审计收尾：工具参数钳制 + 时间单位/溢出 + UI 负计数崩溃 + 上下文/LLM 边界
+
+四路并行审计（Agent 核心/上下文会话/Tools/UI 编辑器）后人工验证，本轮修 **23 项**确定性缺陷，横跨工具层、UI 渲染、上下文压缩、LLM 客户端四层。
+
+### 🐛 修复
+
+**工具层（9 项）**
+- **整数参数静默截断**：`ToolArgs.GetInt` 用 unchecked `(int)l`/`(int)d`，超 `int.MaxValue` 的 long（如 `limit=3000000000`）截断为负值、`double.NaN` 得 `int.MinValue`，全工具整数参数结果错误。改 `Math.Clamp` 钳制 + 非有限值回退默认
+- **LSP 空闲会话永不回收**：`LastUsedTicks`（毫秒）与 `TimeSpan.FromMinutes(5).Ticks`（100 纳秒=3e9）比较，5 分钟回收实际约 34.7 天，空闲 language server 进程长期泄漏。改毫秒常量 `5L*60*1000`
+- **`bash` 超时整数溢出**：`Task.Delay(timeout * 1000)` 在 timeout ≥ 2.1M 秒溢出为负/回绕。改 `TimeSpan.FromMilliseconds(Math.Clamp((long)timeout*1000, 0, int.MaxValue))`
+- **`kill`/`web_search` 参数解析**：`Convert.ToInt32` 对超范围 long 抛 `OverflowException`、对 double 银行家舍入、对非数字串抛 `FormatException`。统一改 `ToolArgs.GetInt`
+- **`read_file` Markdown 行数 off-by-one**：`text.Split('\n')` 未去末尾空元素，`行 X-Y / N` 多报 1（对齐 `ReadTextFile` 的去尾空逻辑）
+- **`multiedit` 创建文件行数虚增**：`CountLines = Split('\n').Length`，`"a\nb\n"` 报 3 行实际 2 行。改 `TrimEnd('\n')` 后计数
+- **`tree` 末条可见项误判**：`isLast` 在 `continue` 跳过隐藏项前计算，目录末尾是隐藏项时输出 `├──` 而非 `└──`。先 `RemoveAll` 隐藏项再算
+- **`find_replace` 匹配文件数虚增**：用 `sb.ToString().Split("###").Length-1` 数子串统计，内容含 `###` 时虚增。改独立计数器
+
+**UI 层（5 项）**
+- **`new string(char, 负计数)` 崩溃**：`TuiPromptBar.WriteBorder`/选中填充、`TuiScreen.RenderWindow` 边框绘制用 `width-2`/`win.Width-2` 无钳制，宽度 <2 时抛 `ArgumentOutOfRangeException`。统一 `Math.Max(0, …)`
+- **编辑器跳列切半代理对（数据损坏）**：`EditorCore.JumpToLineCol` 列钳制到 `char` 长度但不做代理对修正，列落 emoji/CJK 扩展 B 中间后 `InsertText` 把代理对切成两半、保存时编码回退 U+FFFD 破坏文件。补向右对齐修正
+- **`TuiHelper.TruncateByWidth` 窄宽超宽**：省略号（宽 2）在 `maxWidth=1` 时放不下仍返回 `"…"`（宽 2 超 1）。退化无省略号截断
+- **`BoxBuffer` 省略号预留 off-by-one**：`TruncateByVW(text, maxLen-2)+"…"` 在 `maxLen≤2` 时超宽。抽 `TruncateWithEllipsis` helper 处理窄格
+
+**上下文/记忆层（4 项）**
+- **第 2 层摘要死条件**：`messages.Count > 10` 闸门与 `SummarizeOldAsync` 的 `keepRecent=20` 矛盾，11-20 条时外层进但内层立即 return false（先报「正在摘要」再空转）。对齐 `> 20`
+- **`ContextManager` 构造除零**：`maxTokens≤0` 未防御（`UpdateMaxTokens` 有），阈值全 0 + `ReportProgress` 除零得 NaN 污染进度条。回退默认窗口
+- **记忆 description 换行截断**：`WriteFile` 不转义 description 换行，读回只保留第一行丢内容。`ReplaceLineEndings(" ")`
+- **MEMORY.md 槽位断链**：`RebuildIndex` 统一写 `memory/{name}.md`，槽位记忆实际在 `slot_N/` 子目录。改 `Path.GetRelativePath` 按实际 FilePath 生成
+
+**Agent/LLM 层（5 项）**
+- **`GetEmbeddingAsync` 泄漏响应**：`CallWithRetryAsync` 返回的 `HttpResponseMessage` 未 `using`，每次嵌入调用泄漏连接。补 `using var`
+- **费用按错模型计价**：`TaskCost`/`EstimatedCost` 用 `Model` 而非 `EffectiveModel`，Architect 模式切 `SmallModel` 后费用仍按大模型算，预算决策错误。改 `EffectiveModel`
+- **`Retry-After` 远未来日期溢出**：`(int)TotalMilliseconds` 对 >24.8 天溢出为负，回退默认退避（graceful 但错）。先钳制到 maxWaitMs 再转 int
+- **`_effectiveMaxRounds` 可 0/负**：`Config.MaxRounds≤0` 时循环体一次不跑，输出「已达 0 轮上限」。下限 1
+- **`SystemPrompt` git 命令死锁**：先同步 `ReadToEnd()` stdout 再等退出，stderr 写满 4KB 缓冲时进程阻塞、stdout 永不关闭永久卡死。改并发读双流 + 超时 kill
+
+### ✅ 测试
+
+新增 `TestV0729BoundsAndRunes`（7 项断言：超范围 long 钳制/NaN 回退/负 long 保留、跳列代理对向右对齐 + 插入不切半、1 列截断不超宽、MaxTokens≤0 回退）。测试总数 3320 → 3327。
+
 ## v0.71.28 (2026-08-17) — 图片编解码损坏输入越界读 + Config/记忆/命令 6 项确定性修复
 
 延续 bug 修复循环，本轮修**图片编解码损坏输入越界读**（JPEG/BMP 解析恶意/损坏字节流时缺边界校验，`IndexOutOfRangeException` 而非干净 `FormatException`）+ 6 处确定性缺陷。

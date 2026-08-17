@@ -136,7 +136,7 @@ public class TuiPromptBar : TuiControl
                 else if (selected)
                 {
                     // 边框模式下选中行高亮填充（不含边框列）
-                    rb.Write(row, absX + 1, new string(' ', Width - 2), bg: rowBg);
+                    rb.Write(row, absX + 1, new string(' ', Math.Max(0, Width - 2)), bg: rowBg);
                 }
 
                 // 左边框
@@ -226,7 +226,7 @@ public class TuiPromptBar : TuiControl
         string left, string mid, string right, int width, int fg)
     {
         var rb = new RenderBuffer();
-        rb.Write(row, col, left + new string(mid[0], width - 2) + right, fg: fg);
+        rb.Write(row, col, left + new string(mid[0], Math.Max(0, width - 2)) + right, fg: fg);
         sb.Append(rb.ToString());
     }
 

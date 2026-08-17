@@ -4533,6 +4533,34 @@ public static partial class SelfTest
         Check("bmp: 负 dataOffset 抛 FormatException", bmpFmt);
     }
 
+    /// <summary>v0.71.29 批次：整数参数钳制 + 编辑器跳列代理对 + 窄宽截断 + 上下文窗口下限。</summary>
+    private static void TestV0729BoundsAndRunes(Action<string, bool> Check)
+    {
+        // ── #1 ToolArgs.GetInt：超 int 范围 long 静默截断为负/小值 → 钳制而非截断 ──
+        var args = new Dictionary<string, object?> { ["limit"] = 3000000000L };
+        Check("ToolArgs: 超范围 long 钳制到 int.MaxValue", ToolArgs.GetInt(args, "limit", 0) == int.MaxValue);
+        args["limit"] = double.NaN;
+        Check("ToolArgs: NaN 回退默认值", ToolArgs.GetInt(args, "limit", 5) == 5);
+        args["limit"] = -5L;
+        Check("ToolArgs: 负 long 正常保留", ToolArgs.GetInt(args, "limit", 0) == -5);
+
+        // ── #2 EditorCore.JumpToLineCol：列落在代理对中间时向右对齐，插入不切半（保存才不 U+FFFD）──
+        var ec = new WayCoder.UI.Tui.Edit.EditorCore();
+        ec.Lines.Add(new StringBuilder("😀")); // 😀 = 2 码元（代理对）
+        ec.JumpToLineCol(0, 1); // col=1 落在代理对中间
+        Check("editor: 跳列落代理对中间向右对齐", ec.Cx == 2);
+        ec.InsertText("x");
+        Check("editor: 代理对中间插入不切半", ec.Lines[0].ToString() == "😀x");
+
+        // ── #3 TuiHelper.TruncateByWidth：maxWidth=1 时省略号（宽2）放不下，返回超宽 "…" → 退化无省略号 ──
+        var t1 = TuiHelper.TruncateByWidth("abc", 1);
+        Check("tui: 1 列截断不超宽", TuiHelper.DisplayWidth(t1) <= 1);
+
+        // ── #4 ContextManager：maxTokens≤0 回退默认窗口（否则阈值全 0 + ReportProgress 除零得 NaN）──
+        var cm0 = new ContextManager(0);
+        Check("ctx: MaxTokens≤0 回退默认窗口", cm0.MaxTokens > 0);
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {

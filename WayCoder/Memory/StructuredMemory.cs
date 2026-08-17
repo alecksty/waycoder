@@ -439,7 +439,7 @@ public static class StructuredMemory
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("---");
         sb.AppendLine($"name: {entry.Name}");
-        sb.AppendLine($"description: {entry.Description}");
+        sb.AppendLine($"description: {entry.Description.ReplaceLineEndings(" ")}");
         sb.AppendLine($"type: {entry.Type}");
         sb.AppendLine($"shared: {entry.IsShared.ToString().ToLowerInvariant()}");
         sb.AppendLine($"created: {entry.CreatedAt:yyyy-MM-dd HH:mm:ss}");
@@ -510,9 +510,14 @@ public static class StructuredMemory
         sb.AppendLine($"共 {entries.Count} 条记忆");
         sb.AppendLine();
 
+        var indexDir = Path.GetDirectoryName(IndexPath) ?? ".";
         foreach (var entry in entries)
         {
-            sb.AppendLine($"- [{entry.Description}](memory/{entry.Name}.md) — `{entry.Type}`");
+            // 相对 MEMORY.md 的链接：共享记忆在 memory/ 根、槽位记忆在 slot_N/ 子目录，硬编码 memory/{name}.md 会导致断链
+            var rel = string.IsNullOrEmpty(entry.FilePath)
+                ? $"{entry.Name}.md"
+                : Path.GetRelativePath(indexDir, entry.FilePath);
+            sb.AppendLine($"- [{entry.Description}]({rel}) — `{entry.Type}`");
         }
 
         try

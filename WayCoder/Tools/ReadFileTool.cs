@@ -170,6 +170,9 @@ public class ReadFileTool : ITool
 
         // 按行 limit 限制（只渲染需要的部分）
         var allLines = text.Split('\n');
+        // 末尾换行产生空元素（"a\nb\n" → 3 元素实际 2 行），去掉避免行数虚增（对齐 ReadTextFile）
+        if (allLines.Length > 1 && allLines[^1].Length == 0)
+            allLines = allLines[..^1];
         int start;
         string[] chunk;
         if (tail > 0)

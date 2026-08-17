@@ -50,7 +50,8 @@ public class ContextManager
 
     public ContextManager(int maxTokens = 128_000)
     {
-        MaxTokens = maxTokens;
+        // ≤0 视为未设置回退默认窗口，否则 MaxTokens=0 使三层阈值全 0 + ReportProgress 除零得 NaN
+        MaxTokens = maxTokens > 0 ? maxTokens : 128_000;
         RecomputeThresholds();
     }
 
@@ -203,7 +204,7 @@ public class ContextManager
             }
 
             // 第 2 层：LLM 驱动的旧对话摘要
-            if (current > _summarizeAt && messages.Count > 10)
+            if (current > _summarizeAt && messages.Count > 20) // 与 SummarizeOldAsync 的 keepRecent=20 对齐，否则 11-20 条时外层进但内层立即 return false
             {
                 ReportProgress(2, "正在摘要旧对话...", current, onProgress);
                 if (await SummarizeOldAsync(messages, llm))

@@ -193,7 +193,7 @@ public class BashTool : ITool, ICancellableTool
 
                 // 异步等待进程退出（不阻塞线程）
                 var exitTask = proc.WaitForExitAsync();
-                var delayTask = Task.Delay(timeout * 1000);
+                var delayTask = Task.Delay(TimeSpan.FromMilliseconds(Math.Clamp((long)timeout * 1000, 0, int.MaxValue)));
                 var completed = await Task.WhenAny(exitTask, delayTask);
                 var exited = completed == exitTask && exitTask.IsCompletedSuccessfully;
 
@@ -320,7 +320,7 @@ public class BashTool : ITool, ICancellableTool
         {
             // 等待进程退出（同时 stdout/stderr 继续流式读取）
             var exitStream = proc.WaitForExitAsync();
-            var delayStream = Task.Delay(timeout * 1000);
+            var delayStream = Task.Delay(TimeSpan.FromMilliseconds(Math.Clamp((long)timeout * 1000, 0, int.MaxValue)));
             var completedStream = await Task.WhenAny(exitStream, delayStream);
             var exitedStream = completedStream == exitStream && exitStream.IsCompletedSuccessfully;
 

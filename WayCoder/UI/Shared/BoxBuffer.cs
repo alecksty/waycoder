@@ -111,7 +111,7 @@ public class BoxBuffer
         if (VW(text) > maxLen)
         {
             // 按视觉宽度截断
-            display = TruncateByVW(text, Math.Max(0, maxLen - 2)) + "…";
+            display = TruncateWithEllipsis(text, maxLen);
         }
         else
         {
@@ -139,7 +139,7 @@ public class BoxBuffer
 
         if (textVW > maxLen)
         {
-            display = TruncateByVW(text, Math.Max(0, maxLen - 2)) + "…";
+            display = TruncateWithEllipsis(text, maxLen);
             padLen = 0;
         }
         else
@@ -198,6 +198,10 @@ public class BoxBuffer
         return text;
     }
 
+    /// <summary>按视觉宽度截断并追加省略号（maxLen&lt;2 时省略号放不下，退化为无省略号截断，避免超宽）。</summary>
+    private static string TruncateWithEllipsis(string text, int maxLen) =>
+        maxLen < 2 ? TruncateByVW(text, maxLen) : TruncateByVW(text, maxLen - 2) + "…";
+
     /// <summary>在内部相对坐标写入整行，指定前景色和背景色（用于高亮行）</summary>
     public void WriteLineHighlight(StringBuilder sb, int relRow, string fgColor, string bgColor, string text)
     {
@@ -207,7 +211,7 @@ public class BoxBuffer
         var textVW = VwPlainText(text);
         var maxLen = ContentWidth;
         string display; int padLen;
-        if (textVW > maxLen) { display = TruncateByVW(text, Math.Max(0, maxLen - 2)) + "…"; padLen = 0; }
+        if (textVW > maxLen) { display = TruncateWithEllipsis(text, maxLen); padLen = 0; }
         else { display = text; padLen = maxLen - textVW; }
         var rb = new Terminal.RenderBuffer();
         rb.Write(absRow, absCol, display + (padLen > 0 ? new string(' ', padLen) : ""),

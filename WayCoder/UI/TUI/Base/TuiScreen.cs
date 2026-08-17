@@ -629,7 +629,7 @@ public abstract class TuiScreen : TuiBase
                 if (win.TitleBold)
                 {
                     // 粗体标题独占下一行 → 顶边框整行填充（不留缺口）
-                    WriteAt(sb, win.Y, win.X + 1, new string(hTop[0], win.Width - 2), bc, fillBg);
+                    WriteAt(sb, win.Y, win.X + 1, new string(hTop[0], Math.Max(0, win.Width - 2)), bc, fillBg);
                     sb.Append(AnsiTty.CursorPos0(win.Y + 1, win.X + 2));
                     sb.Append(AnsiTty.BoldFg(tFg));
                     if (tBg > 0) sb.Append(AnsiTty.BgCode(tBg));
@@ -645,7 +645,7 @@ public abstract class TuiScreen : TuiBase
             }
             else
             {
-                WriteAt(sb, win.Y, win.X + 1, new string(hTop[0], win.Width - 2), bc, fillBg);
+                WriteAt(sb, win.Y, win.X + 1, new string(hTop[0], Math.Max(0, win.Width - 2)), bc, fillBg);
             }
             WriteAt(sb, win.Y, win.X + win.Width - 1, tr, bc, fillBg);
         }
@@ -657,7 +657,7 @@ public abstract class TuiScreen : TuiBase
         if (drawTitle && win.ShowTitleSeparator)
         {
             WriteAt(sb, win.Y + 1, win.X, vv, bc, fillBg);
-            WriteAt(sb, win.Y + 1, win.X + 1, new string(hh[0], win.Width - 2), bc, fillBg);
+            WriteAt(sb, win.Y + 1, win.X + 1, new string(hh[0], Math.Max(0, win.Width - 2)), bc, fillBg);
             WriteAt(sb, win.Y + 1, win.X + win.Width - 1, vv, bc, fillBg);
             contentTop = win.Y + 2;
             innerHeight -= 1;
@@ -750,7 +750,7 @@ public abstract class TuiScreen : TuiBase
         else
         {
             WriteAt(sb, win.Y + win.Height - 1, win.X, bl, bc, fillBg);
-            WriteAt(sb, win.Y + win.Height - 1, win.X + 1, new string(hBot[0], win.Width - 2), bc, fillBg);
+            WriteAt(sb, win.Y + win.Height - 1, win.X + 1, new string(hBot[0], Math.Max(0, win.Width - 2)), bc, fillBg);
             WriteAt(sb, win.Y + win.Height - 1, win.X + win.Width - 1, br, bc, fillBg);
         }
     }

@@ -15,8 +15,10 @@ internal static class ToolArgs
         return v switch
         {
             int i => i,
-            long l => (int)l,
-            double d => (int)d,
+            // 超 int 范围的 long 截断会静默变负/变小（如 limit=3000000000 → 负值），钳制而非截断
+            long l => (int)Math.Clamp(l, int.MinValue, int.MaxValue),
+            // NaN/Infinity 转 int 未定义（常为 int.MinValue），非有限值回退；小数截断保留原语义
+            double d => double.IsFinite(d) ? (int)Math.Clamp(d, (double)int.MinValue, (double)int.MaxValue) : fallback,
             string s => int.TryParse(s, out var p) ? p : fallback,
             _ => fallback,
         };
