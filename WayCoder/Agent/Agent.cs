@@ -208,6 +208,12 @@ public partial class Agent
             if (images.Count > 0)
                 result.Add(LLM.BuildImageMessage("请查看以上图片，回答我的问题。", images));
         }
+        else
+        {
+            // 当前模型不支持 vision：清空积压的图片（否则非 vision 槽位 view_image 后图片
+            // 永久积压，泄漏给之后其他槽位的 vision 请求造成跨槽位串扰）
+            LLM.DrainImages();
+        }
 
         return result;
     }
@@ -237,9 +243,18 @@ public partial class Agent
         // 运行轨迹（对标 OpenClaw trajectory）：记录每轮 LLM 与每个工具调用的过程性元数据
         var trajectory = Trajectory.Create(LlmClient.EffectiveModel);
         _trajectory = trajectory;
+        int startMessageCount = Messages.Count;
         try
         {
             return await ChatAsyncCore(userInput, onToken, onTool, onToolOutput, cancellationToken);
+        }
+        catch
+        {
+            // 模型调用失败（超时/HTTP 错误）时回滚本轮追加的消息：
+            // REPL 回退链用同一 agent 重试，否则用户消息重复入史，任务被重复执行（二次写文件/跑命令）
+            while (Messages.Count > startMessageCount)
+                RemoveMessageAt(Messages.Count - 1);
+            throw;
         }
         finally
         {

@@ -102,10 +102,24 @@ public class DownloadTool : ITool, ICancellableTool
             if (contentLength > 500 * 1024 * 1024)
                 return $"错误：文件过大（{contentLength / 1024.0 / 1024.0:F1} MB），拒绝下载超过 500 MB 的文件";
 
-            // 读取并写入文件
+            // 读取并写入文件：流式累计字节数——无 Content-Length 的 chunked 响应也要受 500MB 上限约束，
+            // 否则可无界写盘耗尽磁盘
             using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             using var fileStream = File.Create(filePath);
-            await stream.CopyToAsync(fileStream, cancellationToken);
+            var buffer = new byte[81920];
+            long written = 0;
+            while (true)
+            {
+                int read = await stream.ReadAsync(buffer, cancellationToken);
+                if (read <= 0) break;
+                written += read;
+                if (written > 500L * 1024 * 1024)
+                {
+                    try { fileStream.Dispose(); File.Delete(filePath); } catch { }
+                    return $"错误：下载超过 500 MB 上限（{written / 1024.0 / 1024.0:F1} MB），已中止";
+                }
+                await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            }
 
             var fileInfo = new FileInfo(filePath);
             var sizeStr = fileInfo.Length switch
