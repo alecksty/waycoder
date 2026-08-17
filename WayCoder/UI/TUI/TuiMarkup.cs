@@ -334,6 +334,10 @@ public static class TuiMarkup
         if (Bool(node, "visible") is bool v) c.Visible = v;
         if (Bool(node, "focused") is bool fo) c.Focused = fo;
         if (Bool(node, "disabled") is bool dis) c.IsEnabled = !dis;
+        if (Bool(node, "bold") is bool b) c.Bold = b;
+        if (Bool(node, "italic") is bool it) c.Italic = it;
+        if (Bool(node, "underline") is bool un) c.Underline = un;
+        if (Bool(node, "dim") is bool dm) c.Dim = dm;
 
         if (c is TuiLabel lbl && Enum.TryParse<EHAlign>(Attr(node, "align"), true, out var la))
             lbl.TextAlign = la;
