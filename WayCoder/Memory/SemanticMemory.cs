@@ -276,7 +276,7 @@ public static class SemanticMemory
         {
             var snippet = doc.Content;
             if (snippet.Length > 300)
-                snippet = snippet[..300] + "...";
+                snippet = ContextManager.TruncateByRunes(snippet, 300) + "...";
 
             var timeStr = doc.Timestamp != DateTime.MinValue
                 ? doc.Timestamp.ToString("MM-dd HH:mm")

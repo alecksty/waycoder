@@ -4045,6 +4045,58 @@ public static partial class SelfTest
         }
     }
 
+    /// <summary>v0.71.16 批次：6 处 UTF-16 原始切片改走 TruncateByRunes，杜绝代理对在数据路径被切半成 U+FFFD。</summary>
+    private static void TestV0716RuneSafeTruncation(Action<string, bool> Check)
+    {
+        // ── OfficeExtractor（DOCX 提取）maxChars 落在 emoji 代理对中间时不切半 ──
+        // 构造最小 DOCX：word/document.xml 一段落 "aa😀bb"（😀=U+1F600，占 2 个 UTF-16 code unit）
+        const string docXml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+            "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" +
+            "<w:body><w:p><w:r><w:t>aa😀bb</w:t></w:r></w:p></w:body></w:document>";
+
+        var tmp = Path.Combine(Path.GetTempPath(), "wc_docx_" + Guid.NewGuid().ToString("N") + ".docx");
+        try
+        {
+            using (var fs = File.Create(tmp))
+            using (var zip = new ZipArchive(fs, ZipArchiveMode.Create))
+            {
+                var entry = zip.CreateEntry("word/document.xml");
+                using (var sw = new StreamWriter(entry.Open(), new UTF8Encoding(false)))
+                    sw.Write(docXml);
+            }
+
+            // maxChars=3 恰好落在 😀 代理对中间（"aa😀bb" 第 3 个 code unit 是高位代理）
+            var result = OfficeExtractor.ExtractDocx(tmp, maxChars: 3);
+
+            // 无孤立代理项（旧代码 result[..3] 会产出半 emoji → U+FFFD）
+            Check("Office 提取: maxChars 落代理对不切半", !HasLoneSurrogate(result));
+            // 完整 emoji 被保留在截断点之前
+            Check("Office 提取: emoji 完整保留", result.StartsWith("aa😀"));
+            // 截断说明正常追加
+            Check("Office 提取: 截断说明保留", result.Contains("截断于 3"));
+        }
+        finally
+        {
+            try { File.Delete(tmp); } catch { }
+        }
+    }
+
+    /// <summary>检测字符串中是否含孤立 UTF-16 代理项（半 emoji/扩展区汉字）。</summary>
+    private static bool HasLoneSurrogate(string s)
+    {
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (char.IsHighSurrogate(s[i]))
+            {
+                if (i + 1 >= s.Length || !char.IsLowSurrogate(s[i + 1])) return true;
+                i++;
+            }
+            else if (char.IsLowSurrogate(s[i]))
+                return true;
+        }
+        return false;
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {
