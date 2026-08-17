@@ -200,7 +200,7 @@ public static class SessionManager
                         {
                             if (m["role"]?.AsString() == "user" && m["content"]?.AsString() is { } c)
                             {
-                                preview = c.Length > 80 ? c[..80] : c;
+                                preview = c.Length > 80 ? ContextManager.TruncateByRunes(c, 80) : c;
                                 break;
                             }
                         }

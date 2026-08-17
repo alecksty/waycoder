@@ -84,14 +84,14 @@ public class BoxBuffer
         var rb = new Terminal.RenderBuffer();
 
         // 上边框
-        rb.Write(Y, X, tl + new string(h[0], Width - 2) + tr, fg: fg, bg: bg);
+        rb.Write(Y, X, tl + new string(h[0], Math.Max(0, Width - 2)) + tr, fg: fg, bg: bg);
         // 中间行
-        var fill = new string(' ', Width - 2);
+        var fill = new string(' ', Math.Max(0, Width - 2));
         for (int i = 1; i < Height - 1; i++)
             rb.Write(Y + i, X, v + fill + v, fg: fg, bg: bg);
         // 下边框
         if (Height > 1)
-            rb.Write(Y + Height - 1, X, bl + new string(h[0], Width - 2) + br, fg: fg, bg: bg);
+            rb.Write(Y + Height - 1, X, bl + new string(h[0], Math.Max(0, Width - 2)) + br, fg: fg, bg: bg);
 
         sb.Append(rb.ToString());
     }
@@ -111,7 +111,7 @@ public class BoxBuffer
         if (VW(text) > maxLen)
         {
             // 按视觉宽度截断
-            display = TruncateByVW(text, maxLen - 1) + "…";
+            display = TruncateByVW(text, Math.Max(0, maxLen - 2)) + "…";
         }
         else
         {
@@ -139,7 +139,7 @@ public class BoxBuffer
 
         if (textVW > maxLen)
         {
-            display = TruncateByVW(text, maxLen - 1) + "…";
+            display = TruncateByVW(text, Math.Max(0, maxLen - 2)) + "…";
             padLen = 0;
         }
         else
@@ -207,7 +207,7 @@ public class BoxBuffer
         var textVW = VwPlainText(text);
         var maxLen = ContentWidth;
         string display; int padLen;
-        if (textVW > maxLen) { display = TruncateByVW(text, maxLen - 1) + "…"; padLen = 0; }
+        if (textVW > maxLen) { display = TruncateByVW(text, Math.Max(0, maxLen - 2)) + "…"; padLen = 0; }
         else { display = text; padLen = maxLen - textVW; }
         var rb = new Terminal.RenderBuffer();
         rb.Write(absRow, absCol, display + (padLen > 0 ? new string(' ', padLen) : ""),

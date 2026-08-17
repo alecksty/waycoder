@@ -613,7 +613,7 @@ public partial class Agent
         var originalUserMsg = Messages.FirstOrDefault(m =>
             m["role"]?.AsString() == "user")?["content"]?.AsString() ?? "";
         if (originalUserMsg.Length > 200)
-            originalUserMsg = originalUserMsg[..200] + "...";
+            originalUserMsg = ContextManager.TruncateByRunes(originalUserMsg, 200) + "...";
 
         // 收集已创建/修改的文件清单（从 _allSessionFiles，比文本解析更准确）
         string[] fileArray;
@@ -639,7 +639,7 @@ public partial class Agent
     private static string FormatBrief(Dictionary<string, object?> args, int maxLen = 80)
     {
         var s = string.Join(", ", args.Select(kv => $"{kv.Key}={FormatValue(kv.Value)}"));
-        return s.Length > maxLen ? s[..maxLen] + "..." : s;
+        return s.Length > maxLen ? ContextManager.TruncateByRunes(s, maxLen) + "..." : s;
     }
 
     private static string FormatValue(object? value)
@@ -652,6 +652,6 @@ public partial class Agent
             System.Collections.IEnumerable or System.Collections.IDictionary or JNode => JsonHelper.SerializeValue(value),
             _ => value.ToString() ?? "null",
         };
-        return s.Length > 40 ? s[..40] + "..." : s;
+        return s.Length > 40 ? ContextManager.TruncateByRunes(s, 40) + "..." : s;
     }
 }

@@ -360,7 +360,7 @@ public class LintTool : ITool
 
             // 截断
             if (combined.Length > 4000)
-                combined = combined[..4000] + "\n... (输出已截断)";
+                combined = ContextManager.TruncateByRunes(combined, 4000) + "\n... (输出已截断)";
 
             return proc.ExitCode == 0
                 ? $"✅ {lang}: 检查通过\n{combined}"

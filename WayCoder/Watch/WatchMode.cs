@@ -156,7 +156,7 @@ public class WatchMode : IDisposable
                 var prompts = ExtractAiComments(content, filePath);
                 foreach (var prompt in prompts)
                 {
-                    DebugLog.Log("watch", $"AI 注释触发: {filePath} -> {prompt[..Math.Min(prompt.Length, 80)]}");
+                    DebugLog.Log("watch", $"AI 注释触发: {filePath} -> {ContextManager.TruncateByRunes(prompt, 80)}");
                     _onAiPrompt(prompt);
                 }
             }

@@ -334,7 +334,7 @@ public partial class Program
             }
 
             // 注入继续指令
-            prompt = $"上一轮结果未满足条件，请继续尝试。上次输出摘要：{lastContent[..Math.Min(lastContent.Length, 200)]}";
+            prompt = $"上一轮结果未满足条件，请继续尝试。上次输出摘要：{ContextManager.TruncateByRunes(lastContent, 200)}";
         }
 
         screen.AddSystemMsg($"⏰ 已达上限 {maxIter} 轮，/loop 结束");

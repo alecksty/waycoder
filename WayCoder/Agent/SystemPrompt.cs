@@ -77,7 +77,7 @@ public static class SystemPrompt
                     var memory = string.Join("\n", all.Take(5)
                         .Select(e => $"- {e.Description}: {e.Content}"));
                     if (memory.Length > 1500)
-                        memory = memory[..1500] + "\n...（记忆已截断）";
+                        memory = ContextManager.TruncateByRunes(memory, 1500) + "\n...（记忆已截断）";
                     memorySection = $"""
 
                         # 项目记忆
@@ -402,7 +402,7 @@ public static class SystemPrompt
         var toolList = string.Join("\n", tools.Select(t =>
         {
             var desc = t.Description ?? "";
-            if (desc.Length > 24) desc = desc[..24] + "…";
+            if (desc.Length > 24) desc = ContextManager.TruncateByRunes(desc, 24) + "…";
             return $"- {t.Name}：{desc}";
         }));
 

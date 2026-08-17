@@ -3798,6 +3798,36 @@ public static partial class SelfTest
         LogMetrics.Reset();
     }
 
+    /// <summary>v0.71.9 批次：ANSI CSI 终止符 + BoxBuffer 负宽度 + 双省略号/宽度预留 修复的纯逻辑测试。</summary>
+    private static void TestV0719RuneHardening(Action<string, bool> Check)
+    {
+        // ── AnsiString.Strip：CSI 终止符改为 0x40-0x7E 区间，不再吞掉后续文本 ──
+        Check("AnsiString.Strip: DECTCEM 隐藏光标不吞字符", AnsiString.Strip("\x1b[?25lHELLO") == "HELLO");
+        Check("AnsiString.Strip: DECTCEM 显示光标不吞字符", AnsiString.Strip("\x1b[?25hWORLD") == "WORLD");
+        Check("AnsiString.Strip: 光标移动 A/B/C/D 不吞字符", AnsiString.Strip("\x1b[2AUP\x1b[1B") == "UP");
+        Check("AnsiString.Strip: 保存/恢复光标 s/u 不吞字符", AnsiString.Strip("\x1b[sSAVE\x1b[u") == "SAVE");
+        Check("AnsiString.Strip: 常规 SGR 仍正确", AnsiString.Strip("\x1b[1;31mRED\x1b[0m") == "RED");
+
+        // ── BoxBuffer.Render：Width < 2 时 new string(char, 负值) 不再抛异常 ──
+        bool tinyOk = true;
+        foreach (int w in new[] { 0, 1, 2 })
+        {
+            try
+            {
+                var bb = new BoxBuffer { X = 0, Y = 0, Width = w, Height = 3, Border = BorderStyle.Single };
+                var sb = new StringBuilder();
+                bb.Render(sb);
+            }
+            catch { tinyOk = false; }
+        }
+        Check("BoxBuffer: Width<2 渲染不崩溃", tinyOk);
+
+        // ── BoxBuffer.TruncateByVW 纯截断（不加省略号）仍按视觉宽度正确 ──
+        Check("BoxBuffer.TruncateByVW: CJK 边界不越界",
+            BoxBuffer.TruncateByVW("你好世界", 4) == "你好" && BoxBuffer.TruncateByVW("你好世界", 3) == "你");
+        Check("BoxBuffer.TruncateByVW: emoji 代理对不切半", !BoxBuffer.TruncateByVW("a😀b", 3).Contains('�'));
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {

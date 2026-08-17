@@ -117,7 +117,7 @@ public class EditFileTool : ITool
 
             if (occurrences == 0)
             {
-                var preview = content.Length > 500 ? content[..500] + "..." : content;
+                var preview = content.Length > 500 ? ContextManager.TruncateByRunes(content, 500) + "..." : content;
                 return $"错误：在 {filePath} 中未找到 old_string。\n文件开头内容：\n{preview}";
             }
 
@@ -214,7 +214,7 @@ public class EditFileTool : ITool
 
         var result = sb.ToString();
         if (result.Length > 3000)
-            result = result[..2500] + "\n...（diff 已截断）\n";
+            result = ContextManager.TruncateByRunes(result, 2500) + "\n...（diff 已截断）\n";
 
         return result;
     }
