@@ -439,6 +439,20 @@ public class DialogShowArg : CliArg
     public override int? OnMatch(List<string> values) { DialogShow.Run(); return 0; }
 }
 
+public class TuiPreviewArg : CliArg
+{
+    public override string Description => "预览 .tui 标记文件（声明式 TUI 布局）";
+    public override bool Internal => true;
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "标记文件";
+    public TuiPreviewArg() : base("tui-preview", "--tui-preview") { }
+    public override int? OnMatch(List<string> values)
+    {
+        var path = values.Count > 0 ? values[0] : null;
+        return TuiPreview.Run(path ?? "");
+    }
+}
+
 public class GuiArg : CliArg
 {
     public override string Description => "启动图形界面（独立 Avalonia 进程）";
@@ -601,6 +615,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new TuiAuditArg());
         CliArgRegistry.Register(new DialogShowArg());
         CliArgRegistry.Register(new GuiArg());
+        CliArgRegistry.Register(new TuiPreviewArg());
         CliArgRegistry.Register(new KeypadArg());
         CliArgRegistry.Register(new ThemeVerifyArg());
 
