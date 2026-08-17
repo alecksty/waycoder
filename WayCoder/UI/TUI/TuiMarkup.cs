@@ -7,20 +7,49 @@ using WayCoder.UI.TUI.Base;
 namespace WayCoder.UI.TUI;
 
 /// <summary>
+/// TUI 页面 —— 标记加载结果：窗口 + 按 id 查找控件的 code-behind 入口。
+/// 对标 XAML 的「.xaml + .xaml.cs」：布局写 .tui，交互逻辑写在 C# 里通过 Find(id) 订阅事件。
+/// </summary>
+public sealed class TuiPage
+{
+    public TuiWindow Window { get; }
+    private readonly Dictionary<string, TuiControl> _byId;
+
+    internal TuiPage(TuiWindow window, Dictionary<string, TuiControl> byId)
+    {
+        Window = window;
+        _byId = byId;
+    }
+
+    /// <summary>按 id 查找控件。</summary>
+    public TuiControl? Find(string id)
+        => id != null && _byId.TryGetValue(id, out var c) ? c : null;
+
+    /// <summary>按 id 查找指定类型控件。</summary>
+    public T? Find<T>(string id) where T : TuiControl => Find(id) as T;
+}
+
+/// <summary>
 /// TUI 标记加载器 —— 把 .tui XML 声明式标记解析为 TuiControl 树（类似 Avalonia XAML）。
-/// 布局写进资源文件，逻辑写进 C# code-behind（通过 id 查找控件 + 订阅事件）。
+/// 布局写进资源文件，交互逻辑写进 C# code-behind（Find(id) 拿控件 + 订阅事件）。
 ///
-/// 示例：
+/// 示例（布局 layout.tui + 交互 code-behind）：
 /// <![CDATA[
+/// <!-- layout.tui -->
 /// <Window title="确认" width="40" height="9">
 ///   <VBox align="center">
-///     <Label text="是否继续？" />
+///     <Label id="msg" text="是否继续？" />
 ///     <HBox align="center" spacing="2">
 ///       <Button id="ok" text="确定" />
 ///       <Button id="cancel" text="取消" />
 ///     </HBox>
 ///   </VBox>
 /// </Window>
+///
+/// // code-behind
+/// var page = TuiMarkup.Load(File.ReadAllText("layout.tui"));
+/// page.Find<TuiButton>("ok")!.OnClick = _ => page.Find<TuiLabel>("msg")!.Text = "已确认";
+/// page.Find<TuiButton>("cancel")!.OnClick = _ => page.Window.OnClosed?.Invoke();
 /// ]]>
 /// </summary>
 public static class TuiMarkup
@@ -37,25 +66,30 @@ public static class TuiMarkup
         ["brightwhite"] = AnsiColors.BrightWhite,
     };
 
-    /// <summary>解析标记并构建窗口。根元素为 &lt;Window&gt; 时返回窗口；否则包一层无边框窗口返回。</summary>
-    public static TuiWindow Load(string xml)
+    /// <summary>解析标记并构建页面。根元素为 &lt;Window&gt; 时返回窗口；否则包一层无边框窗口。</summary>
+    public static TuiPage Load(string xml)
     {
         var root = Xml.Parse(xml) ?? throw new ArgumentException("标记为空或解析失败");
+        var byId = new Dictionary<string, TuiControl>();
 
+        TuiWindow win;
         if (root.Name == "Window")
         {
-            var win = BuildWindow(root);
+            win = BuildWindow(root);
             foreach (var child in root.Children)
-                if (BuildControl(child) is TuiView v) win.RootView = v;
-            return win;
+                if (BuildControl(child, byId) is TuiView v) win.RootView = v;
+        }
+        else
+        {
+            var view = (TuiView)BuildControl(root, byId)!;
+            win = new TuiWindow { RootView = view, Title = "", Border = WindowBorder.None };
         }
 
-        var view = (TuiView)BuildControl(root)!;
-        return new TuiWindow { RootView = view, Title = "", Border = WindowBorder.None };
+        return new TuiPage(win, byId);
     }
 
-    /// <summary>递归构建控件（不含 Window）。</summary>
-    private static TuiControl? BuildControl(XNode node)
+    /// <summary>递归构建控件（不含 Window），并登记 id。</summary>
+    private static TuiControl? BuildControl(XNode node, Dictionary<string, TuiControl> byId)
     {
         if (node.Kind != XKind.Element) return null;
 
@@ -120,10 +154,14 @@ public static class TuiMarkup
                 break;
         }
 
+        // 登记 id（code-behind 入口）
+        var id = node.GetAttr("id");
+        if (!string.IsNullOrEmpty(id)) byId[id] = c;
+
         if (c is TuiView view)
         {
             foreach (var child in node.Children)
-                if (BuildControl(child) is { } built) view.Add(built);
+                if (BuildControl(child, byId) is { } built) view.Add(built);
         }
 
         return c;
