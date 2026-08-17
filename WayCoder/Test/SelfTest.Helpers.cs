@@ -4332,6 +4332,33 @@ public static partial class SelfTest
         }
     }
 
+    /// <summary>v0.71.23 批次：GitTool 危险操作 token 级拦截 + EditorCore 上下移动代理对修正。</summary>
+    private static void TestV0723SafetyAndCursor(Action<string, bool> Check)
+    {
+        // ── #1 GitTool：整串子串匹配可被 flag 后置绕过（push origin main --force 不含 "push --force"）──
+        Check("git 危险: push --force 前置拦截", GitTool.HasBlockedGitOperation("push --force origin main"));
+        Check("git 危险: push flag 后置也拦截", GitTool.HasBlockedGitOperation("push origin main --force"));
+        Check("git 危险: push -f 后置拦截", GitTool.HasBlockedGitOperation("push -u origin main -f"));
+        Check("git 危险: reset --hard 后置拦截", GitTool.HasBlockedGitOperation("reset HEAD --hard"));
+        Check("git 危险: clean -f 后置拦截", GitTool.HasBlockedGitOperation("clean src/ -f"));
+        Check("git 危险: branch -D 拦截", GitTool.HasBlockedGitOperation("branch -D feature"));
+        Check("git 危险: stash drop 拦截", GitTool.HasBlockedGitOperation("stash drop"));
+        Check("git 危险: checkout -- . 拦截", GitTool.HasBlockedGitOperation("checkout -- ."));
+        Check("git 安全: push 普通放行", !GitTool.HasBlockedGitOperation("push origin main"));
+        Check("git 安全: force-with-lease 放行", !GitTool.HasBlockedGitOperation("push --force-with-lease"));
+        Check("git 安全: branch -d 普通删除放行", !GitTool.HasBlockedGitOperation("branch -d feature"));
+        Check("git 安全: status/log 放行", !GitTool.HasBlockedGitOperation("status") && !GitTool.HasBlockedGitOperation("log --oneline"));
+
+        // ── #2 EditorCore：上下移动落到代理对中间（修复前 Cx=1 切半 emoji，Backspace 破坏文件）──
+        var emojiDown = new WayCoder.UI.Tui.Edit.EditorCore();
+        emojiDown.Lines.Add(new StringBuilder("ab"));
+        emojiDown.Lines.Add(new StringBuilder("\U0001F600cd")); // "😀cd"
+        emojiDown.Cy = 0;
+        emojiDown.Cx = 1;
+        emojiDown.MoveCursor(0, 1); // ↓ 到 emoji 行，Cx=1 落在 high(0)/low(1) 之间
+        Check("MoveCursor 下移不落代理对中间", emojiDown.Cy == 1 && emojiDown.Cx == 0);
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {

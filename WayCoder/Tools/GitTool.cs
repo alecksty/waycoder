@@ -19,10 +19,6 @@ public class GitTool : ITool, ICancellableTool
                 .Set("description", "Git 子命令及参数，如 'status'、'log --oneline -10'、'diff HEAD~1'、'add src/'、'commit -m \"msg\"'")))
         .Set("required", JNode.Array().Add("command"));
 
-    private static readonly HashSet<string> BlockedPatterns =
-        ["push --force", "push -f", "reset --hard", "clean -f", "clean -fd",
-         "checkout -- .", "stash drop", "branch -D"];
-
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
         => await ExecuteAsync(arguments, CancellationToken.None);
 
@@ -40,12 +36,9 @@ public class GitTool : ITool, ICancellableTool
         if (HasDangerousGitArgs(command))
             return "⚠ 已阻止：git 配置注入（-c/--config/--upload-pack/--receive-pack/--exec 可执行任意命令），请勿使用这些参数。";
 
-        // 安全检查 2：危险操作
-        foreach (var blocked in BlockedPatterns)
-        {
-            if (command.Contains(blocked, StringComparison.OrdinalIgnoreCase))
-                return $"⚠ 已阻止：'{blocked}' 是危险操作，请手动执行或使用更安全的替代方式。";
-        }
+        // 安全检查 2：危险操作（按 token 精确匹配，flag 挪到分支名/远端名后也无法绕过）
+        if (HasBlockedGitOperation(command))
+            return "⚠ 已阻止：检测到危险 git 操作（force push / hard reset / clean -f / checkout -- . / stash drop / branch -D），请手动执行或使用更安全的替代方式。";
 
         try
         {
@@ -67,6 +60,31 @@ public class GitTool : ITool, ICancellableTool
         {
             return $"Git 错误：{ex.GetType().Name}: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// 判断 git 命令是否含危险操作（force push / hard reset / clean -f 等）。
+    /// 旧实现用整串子串匹配（command.Contains("push --force")），flag 挪到分支名之后
+    /// （如 `push origin main --force`、`reset HEAD --hard`）即可绕过。改为按 token
+    /// 精确匹配：子命令（大小写不敏感）+ 危险 flag（区分大小写，保留 -D vs -d 语义）。
+    /// 纯逻辑，便于自测。
+    /// </summary>
+    internal static bool HasBlockedGitOperation(string command)
+    {
+        var tokens = command.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length == 0) return false;
+
+        bool HasSub(string sub) => tokens.Any(t => string.Equals(t, sub, StringComparison.OrdinalIgnoreCase));
+        // git flag 区分大小写：-D（强制删除）与 -d（普通删除）语义不同，须精确匹配
+        bool HasFlag(string flag) => tokens.Any(t => t == flag);
+
+        if (HasSub("push") && (HasFlag("--force") || HasFlag("-f"))) return true;
+        if (HasSub("reset") && HasFlag("--hard")) return true;
+        if (HasSub("clean") && (HasFlag("-f") || HasFlag("-fd") || HasFlag("--force"))) return true;
+        if (HasSub("checkout") && HasFlag("--") && HasFlag(".")) return true;
+        if (HasSub("stash") && HasSub("drop")) return true;
+        if (HasSub("branch") && HasFlag("-D")) return true;
+        return false;
     }
 
     /// <summary>

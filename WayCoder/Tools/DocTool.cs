@@ -39,6 +39,12 @@ public class DocTool : ITool
         new HttpClientHandler { AllowAutoRedirect = true, MaxAutomaticRedirections = 5 })
     { Timeout = TimeSpan.FromSeconds(Config.Instance.FetchTimeoutSec) });
 
+    /// <summary>fetch 模式专用：禁自动重定向，手动跟随并每跳做 SSRF 校验（对标 FetchTool）。</summary>
+    private static HttpClient _noRedirectClient => _lazyNoRedirectClient.Value;
+    private static readonly Lazy<HttpClient> _lazyNoRedirectClient = new(() => new HttpClient(
+        new HttpClientHandler { AllowAutoRedirect = false })
+    { Timeout = TimeSpan.FromSeconds(Config.Instance.FetchTimeoutSec) });
+
     /// <summary>会话级缓存：避免重复查询相同内容</summary>
     private static readonly ConcurrentDictionary<string, (string Result, DateTime Time)> _cache = new();
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(15);
@@ -146,13 +152,8 @@ public class DocTool : ITool
 
         try
         {
-            // SSRF 校验：action=fetch 的 url 由用户/模型提供，须拦截内网/云元数据地址
-            var (safe, reason) = SsgfGuard.CheckUrl(url);
-            if (!safe) return $"错误：{reason}";
-            var dnsCheck = SsgfGuard.CheckDns(new Uri(url).Host);
-            if (!dnsCheck.safe) return $"错误：{dnsCheck.reason}";
-
-            using var response = await _client.GetAsync(url);
+            // SSRF 校验 + 手动跟随重定向（每跳重校验），避免 AllowAutoRedirect 跳转目标绕过校验
+            using var response = await FetchWithSsgfCheckAsync(url);
             response.EnsureSuccessStatusCode();
 
             var contentType = response.Content.Headers.ContentType?.MediaType ?? "";
@@ -176,6 +177,10 @@ public class DocTool : ITool
         {
             return $"请求失败：{ex.GetType().Name}: {ex.Message}";
         }
+        catch (SsgfBlockedException ex)
+        {
+            return $"错误：{ex.Message}";
+        }
         catch (TaskCanceledException)
         {
             ErrorLog.ToolError("doc", $"请求超时（{Config.Instance.FetchTimeoutSec} 秒）");
@@ -185,6 +190,34 @@ public class DocTool : ITool
         {
             return $"抓取错误：{ex.GetType().Name}: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// 禁自动重定向、手动跟随跳转并对每一跳做 SSRF 校验。
+    /// 对标 FetchTool.SendWithRedirectAsync——HttpClient 的 AllowAutoRedirect 会
+    /// 静默跟随 30x，跳转目标不再经过 CheckUrl/CheckDns，可绕过 SSRF 访问内网/云元数据。
+    /// </summary>
+    private static async Task<HttpResponseMessage> FetchWithSsgfCheckAsync(string url)
+    {
+        var currentUrl = url;
+        for (var redirect = 0; redirect < 5; redirect++)
+        {
+            var (safe, reason) = SsgfGuard.CheckUrl(currentUrl);
+            if (!safe) throw new SsgfBlockedException(reason!);
+            var dns = SsgfGuard.CheckDns(new Uri(currentUrl).Host);
+            if (!dns.safe) throw new SsgfBlockedException(dns.reason!);
+
+            var response = await _noRedirectClient.GetAsync(currentUrl);
+            if (SsgfGuard.IsRedirect((int)response.StatusCode) && response.Headers.Location != null)
+            {
+                var nextUri = new Uri(new Uri(currentUrl), response.Headers.Location);
+                response.Dispose();
+                currentUrl = nextUri.AbsoluteUri;
+                continue;
+            }
+            return response;
+        }
+        throw new HttpRequestException("重定向次数过多");
     }
 
     // ================================================================

@@ -108,10 +108,13 @@ public partial class Agent
             using var proc = System.Diagnostics.Process.Start(psi);
             if (proc == null) return toolResult;
 
-            // 最多等 N 秒
-            var readTask = proc.StandardOutput.ReadToEndAsync();
+            // 最多等 N 秒。stdout/stderr 必须并发读：先读完 stdout 再读 stderr，
+            // 子进程向 stderr 写满管道缓冲（约 4KB+）时会阻塞在写 stderr，永远不退出
+            // → stdout 读任务永不完成 → 被误判超时并强杀本应通过的测试。
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+            var stderrTask = proc.StandardError.ReadToEndAsync();
             var timeoutTask = Task.Delay(Config.Instance.AutoTestTimeoutSec * 1000);
-            var completed = await Task.WhenAny(readTask, timeoutTask);
+            var completed = await Task.WhenAny(Task.WhenAll(stdoutTask, stderrTask), timeoutTask);
             if (completed == timeoutTask)
             {
                 try { proc.Kill(entireProcessTree: true); } catch { }
@@ -119,8 +122,8 @@ public partial class Agent
                 return toolResult;
             }
 
-            var output = await readTask;
-            var errorOutput = await proc.StandardError.ReadToEndAsync();
+            var output = await stdoutTask;
+            var errorOutput = await stderrTask;
             await proc.WaitForExitAsync();
 
             var fullOutput = output + errorOutput;
