@@ -357,21 +357,31 @@ public static class Json
             }
         }
 
+        private int _depth;
+        private const int MaxDepth = 512;
+
         public JNode ParseValue()
         {
-            SkipWs();
-            if (AtEnd) throw new JsonParseException("意外的文件结尾", _i);
-            char c = _s[_i];
-            return c switch
+            // 递归下降无深度限制 → 深层嵌套（如 5 万层 [[[..）StackOverflowException 崩溃进程
+            if (++_depth > MaxDepth)
+                throw new JsonParseException("JSON 嵌套过深（>512 层）", _i);
+            try
             {
-                '{' => ParseObject(),
-                '[' => ParseArray(),
-                '"' => JNode.Str(ParseString()),
-                't' => ParseLiteral("true", () => JNode.Bool(true)),
-                'f' => ParseLiteral("false", () => JNode.Bool(false)),
-                'n' => ParseLiteral("null", () => JNode.Null()),
-                _ => ParseNumber(),
-            };
+                SkipWs();
+                if (AtEnd) throw new JsonParseException("意外的文件结尾", _i);
+                char c = _s[_i];
+                return c switch
+                {
+                    '{' => ParseObject(),
+                    '[' => ParseArray(),
+                    '"' => JNode.Str(ParseString()),
+                    't' => ParseLiteral("true", () => JNode.Bool(true)),
+                    'f' => ParseLiteral("false", () => JNode.Bool(false)),
+                    'n' => ParseLiteral("null", () => JNode.Null()),
+                    _ => ParseNumber(),
+                };
+            }
+            finally { _depth--; }
         }
 
         private JNode ParseObject()
@@ -458,6 +468,10 @@ public static class Json
         private string ParseUnicode()
         {
             int code = ReadHex4();
+            // 孤立低代理（0xDC00-0xDFFF）或越界码点：ConvertFromUtf32 会抛
+            // ArgumentOutOfRangeException（调用方只 catch JsonParseException → 崩溃），这里抛解析异常
+            if ((code >= 0xDC00 && code <= 0xDFFF) || code > 0x10FFFF)
+                throw new JsonParseException("非法 Unicode 码点（孤立低代理/越界）", _i);
             // 代理对：高代理后必须跟低代理
             if (code >= 0xD800 && code <= 0xDBFF)
             {

@@ -56,15 +56,6 @@ public static class PngDecoder
         if (interlace != 0) throw new FormatException("不支持 Adam7 交错 PNG");
         if (bitDepth != 8) throw new FormatException("仅支持 8 位深");
 
-        byte[] raw;
-        idat.Position = 0;
-        using (var z = new ZLibStream(idat, CompressionMode.Decompress))
-        using (var outMs = new MemoryStream())
-        {
-            z.CopyTo(outMs);
-            raw = outMs.ToArray();
-        }
-
         int channels = colorType switch
         {
             0 => 1, // gray
@@ -75,8 +66,28 @@ public static class PngDecoder
             _ => throw new FormatException("不支持的颜色类型 " + colorType),
         };
         int bpp = channels;
-
         int stride = width * bpp;
+
+        // 期望解压大小 = (每行 stride + 1 filter 字节) * height。解压前先算并限制输出上限：
+        // IDAT 内嵌可解压出 GB 级 zlib 流（小文件触发 OOM），先解压后校验会先物化全部内存
+        long expected = ((long)stride + 1) * height;
+        long maxRaw = expected * 2 + 65536; // 宽松余量（合法 PNG 解压后应精确等于 expected，*2 防误杀）
+
+        byte[] raw;
+        idat.Position = 0;
+        using (var z = new ZLibStream(idat, CompressionMode.Decompress))
+        using (var outMs = new MemoryStream())
+        {
+            var buffer = new byte[81920];
+            int read;
+            while ((read = z.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                if (outMs.Length + read > maxRaw)
+                    throw new FormatException("PNG IDAT 解压数据超出预期大小（解压炸弹？）");
+                outMs.Write(buffer, 0, read);
+            }
+            raw = outMs.ToArray();
+        }
         var scan = new byte[stride * height];
         var prev = new byte[stride];
         for (int y = 0; y < height; y++)
