@@ -136,6 +136,7 @@ public static partial class SelfTest
         TestV0716RuneSafeTruncation(Check);   // v0.71.16 批次：6 处 UTF-16 原始切片改走 TruncateByRunes（代理对切半修复）
         TestV0717RuneSafeWrap(Check);         // v0.71.17 批次：WrapLine 兜底按码点取断点（首字符 emoji 不切半）
         TestV0717UiDeterministic(Check);      // v0.71.17 批次：撤销栈修剪方向 / 全分隔线菜单空序列 / BoxBuffer 负宽度
+        TestV0718SharedMemoryGet(Check);      // v0.71.18 批次：StructuredMemory.Get 共享记忆按名回退查找（槽位优先）
         Console.WriteLine();
 
         // ---- 工具 ----

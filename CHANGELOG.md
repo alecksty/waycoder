@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.71.18 (2026-08-17) — 共享记忆按名查找修复（StructuredMemory.Get 双目录回退）
+
+记忆系统的共享记忆在 `ListAll()`/`Search()` 里能被加载（`ListAll` 遍历 `SharedMemoryDir` + `SlotMemoryDir` 两个目录），但 `Get(name)` 只经 `NameToPath` 解析到槽位独立目录（`MemoryDir => SlotMemoryDir`），导致共享记忆（如 `SharedMemoryManager.PullSharedAsync` 拉取的团队记忆、或 `GetRelevantContext` 里 `[[wiki-link]]` 交叉引用指向的共享记忆）**按名查不到，返回 null**。而 `Update`/`SetShared`/`GetRelevantContext` 均先 `Get(name)`，于是团队共享记忆无法被更新、无法展开交叉引用描述。
+
+### 🐛 修复
+
+- **`StructuredMemory.Get` 共享目录回退**：查找顺序改为「槽位独立目录优先 → 共享目录回退」，与 `ListAll` 双目录行为一致。抽出 `NameToPathIn(dir, name)` 辅助方法，`NameToPath`（供 Create/Delete 写槽位）委派给 `NameToPathIn(MemoryDir, ...)`，`Get` 额外回退 `NameToPathIn(SharedMemoryDir, ...)`
+- **同名冲突槽位优先**：个人槽位记忆可覆盖同名共享记忆（个人覆盖团队，符合直觉）；`Get` 找到共享记忆后 `Update`/`SetShared` 会经 `existing.FilePath` 回写共享文件，行为正确
+
+### ✅ 测试
+
+新增 `TestV0718SharedMemoryGet`（4 项断言）：临时目录隔离 cwd + `CurrentSlotIndex=7`，直接向 `SharedMemoryDir` 根目录写一个共享记忆文件（模拟 `PullSharedAsync` 拉取），断言 `Get` 按名查到共享记忆、`ListAll` 双目录均列出、同名冲突时槽位优先。测试总数 3261 → 3265。
+
 ## v0.71.17 (2026-08-17) — UI 层确定性 bug 修复（撤销栈方向 + 菜单空序列 + BoxBuffer 负宽 + WrapLine 码点）
 
 继续清扫 UI 层确定性 bug。Explore 代理系统扫 `UI/TUI/`（编辑器/控件/共享缓冲）后人工验证，本轮修复 4 个可复现问题。
