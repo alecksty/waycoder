@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>WayCoder.UI.Gui</RootNamespace>
+    <AssemblyName>waycoder-gui</AssemblyName>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- GUI 是独立 JIT 进程，不复用主项目的 AOT 约束 -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      抽库：复用主项目核心源码（Agent/LLM/Tools/Infra/Memory/UI 等），GUI 走 JIT 编译。
+      排除：CLI 入口（Program*.cs）、CLI 命令层（UI/CLI，引用 Program 静态成员）、
+            测试/演示（Test）、编译期插件（Plugins）、游戏引擎误置目录、Properties。
+    -->
+    <Compile Include="../WayCoder/**/*.cs"
+             Exclude="../WayCoder/Program*.cs;../WayCoder/SlashCommand.cs;../WayCoder/Test/**/*.cs;../WayCoder/UI/CLI/**/*.cs;../WayCoder/Plugins/**/*.cs;../WayCoder/Properties/**/*.cs;../WayCoder/bin/**/*.cs;../WayCoder/obj/**/*.cs;../WayCoder/WayEngine/**/*.cs;../WayCoder/game/**/*.cs;../WayCoder/games/**/*.cs;../WayCoder/lottery/**/*.cs;../WayCoder/subs/**/*.cs;../WayCoder/works/**/*.cs" />
+  </ItemGroup>
+
+</Project>
