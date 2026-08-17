@@ -122,12 +122,18 @@ public static class StructuredMemory
         }
     }
 
-    /// <summary>按名称查找一条记忆</summary>
+    /// <summary>按名称查找一条记忆（槽位独立目录优先，共享目录回退，与 ListAll 双目录行为一致）</summary>
     public static MemoryEntry? Get(string name)
     {
         if (string.IsNullOrWhiteSpace(name)) return null;
-        var path = NameToPath(name);
-        return File.Exists(path) ? ReadFile(path) : null;
+
+        // 槽位独立目录优先（个人记忆可覆盖同名共享记忆）
+        var path = NameToPathIn(SlotMemoryDir, name);
+        if (File.Exists(path)) return ReadFile(path);
+
+        // 共享目录回退（共享记忆直接存于 SharedMemoryDir 根，非 slot_N 子目录）
+        var shared = NameToPathIn(SharedMemoryDir, name);
+        return File.Exists(shared) ? ReadFile(shared) : null;
     }
 
     /// <summary>创建一条新记忆</summary>
@@ -347,12 +353,15 @@ public static class StructuredMemory
 
     // ---- 内部方法 ----
 
-    /// <summary>文件名 → 完整路径</summary>
-    private static string NameToPath(string name)
+    /// <summary>文件名 → 完整路径（槽位独立目录）</summary>
+    private static string NameToPath(string name) => NameToPathIn(MemoryDir, name);
+
+    /// <summary>文件名 → 指定目录下的完整路径</summary>
+    private static string NameToPathIn(string dir, string name)
     {
         var safe = SanitizeName(name);
         if (string.IsNullOrWhiteSpace(safe)) safe = "untitled";
-        return Path.Combine(MemoryDir, $"{safe}.md");
+        return Path.Combine(dir, $"{safe}.md");
     }
 
     /// <summary>清理名称为 kebab-case</summary>
