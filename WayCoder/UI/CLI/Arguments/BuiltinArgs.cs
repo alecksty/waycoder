@@ -439,6 +439,51 @@ public class DialogShowArg : CliArg
     public override int? OnMatch(List<string> values) { DialogShow.Run(); return 0; }
 }
 
+public class GuiArg : CliArg
+{
+    public override string Description => "启动图形界面（独立 Avalonia 进程）";
+    public GuiArg() : base("gui", "-g", "--gui") { }
+    public override int? OnMatch(List<string> values)
+    {
+        // GUI 是独立 JIT 进程（WayCoder.Gui 项目），主程序 AOT 无法内嵌，需拉起其可执行文件
+        var exeName = OperatingSystem.IsWindows() ? "waycoder-gui.exe" : "waycoder-gui";
+        var baseDir = AppContext.BaseDirectory;
+        var candidates = new[]
+        {
+            Path.Combine(baseDir, exeName),                       // 已发布（与主程序同级）
+            Path.Combine(baseDir, "waycoder-gui.dll"),            // 开发态（dotnet 运行）
+            Path.Combine(baseDir, "..", "..", "WayCoder.Gui", "bin", "Debug", "net10.0", "waycoder-gui.dll"),
+        };
+
+        string? target = null;
+        foreach (var c in candidates)
+        {
+            if (File.Exists(c)) { target = c; break; }
+        }
+
+        if (target == null)
+        {
+            Console.Error.WriteLine("未找到 GUI 可执行文件。请先构建 GUI 项目：dotnet build WayCoder.Gui");
+            return 1;
+        }
+
+        try
+        {
+            // dll 走 dotnet 宿主；可执行文件直接启动
+            var psi = target.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
+                ? new System.Diagnostics.ProcessStartInfo("dotnet", $"\"{target}\"") { UseShellExecute = false }
+                : new System.Diagnostics.ProcessStartInfo(target) { UseShellExecute = true };
+            System.Diagnostics.Process.Start(psi);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"启动 GUI 失败: {ex.Message}");
+            return 1;
+        }
+    }
+}
+
 public class KeypadArg : CliArg
 {
     public override string Description => "按键脚本驱动 TUI（KEY/TEXT/DELAY/SNAP/DIALOG）+ 帧截图";
@@ -555,6 +600,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new TuiDemoArg());
         CliArgRegistry.Register(new TuiAuditArg());
         CliArgRegistry.Register(new DialogShowArg());
+        CliArgRegistry.Register(new GuiArg());
         CliArgRegistry.Register(new KeypadArg());
         CliArgRegistry.Register(new ThemeVerifyArg());
 
