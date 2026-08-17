@@ -187,7 +187,35 @@ public static class TuiMarkup
         foreach (var child in node.Children)
             if (BuildControl(child, byId) is TuiView v) { win.RootView = v; break; }
 
+        // 快捷键：遍历 RootView 树注册按钮 shortcut，窗口 shortcut 映射到关闭
+        RegisterButtonShortcuts(win, win.RootView);
+        if (ParseShortcutKey(Attr(node, "shortcut")) is ConsoleKey wsc)
+            win.RegisterShortcut(wsc, () => win.OnClosed?.Invoke());
+
         return win;
+    }
+
+    /// <summary>递归遍历视图树，注册按钮 shortcut → OnClick（code-behind 后设置 OnClick，lambda 延迟读取）。</summary>
+    private static void RegisterButtonShortcuts(TuiWindow win, TuiView? view)
+    {
+        if (view == null) return;
+        foreach (var child in view.Children)
+        {
+            if (child is TuiButton btn && btn.ShortcutKey is ConsoleKey k)
+                win.RegisterShortcut(k, () => btn.OnClick?.Invoke(btn));
+            if (child is TuiView cv) RegisterButtonShortcuts(win, cv);
+        }
+    }
+
+    /// <summary>解析快捷键：单字母→ConsoleKey（大小写归一），其它用枚举名（Enter/Escape/F1…）。</summary>
+    private static ConsoleKey? ParseShortcutKey(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        s = s.Trim();
+        if (s.Length == 1 && char.IsLetter(s[0]))
+            return (ConsoleKey)char.ToUpperInvariant(s[0]);
+        if (Enum.TryParse<ConsoleKey>(s, true, out var k)) return k;
+        return null;
     }
 
     /// <summary>递归构建控件（不含 Window/Dialog/Screen），并登记 id。</summary>
@@ -238,7 +266,16 @@ public static class TuiMarkup
                     lbl.Width = AnsiHelper.DisplayWidth(lbl.Text) + 2;
                 break;
             case "Button":
-                ((TuiButton)c).Text = Attr(node, "text");
+                var btn = (TuiButton)c;
+                btn.Text = Attr(node, "text");
+                var sc = ParseShortcutKey(Attr(node, "shortcut"));
+                if (sc != null)
+                {
+                    btn.ShortcutKey = sc;
+                    var keyChar = char.ToUpperInvariant(Attr(node, "shortcut").Trim()[0]);
+                    int idx = btn.Text.IndexOf(keyChar, StringComparison.OrdinalIgnoreCase);
+                    if (idx >= 0) btn.UnderlineIndex = idx;
+                }
                 break;
             case "Input":
                 ((TuiInput)c).Text = Attr(node, "value", Attr(node, "text"));

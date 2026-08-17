@@ -638,6 +638,13 @@ public static partial class SelfTest
         tuiOk!.OnClick = _ => { tuiClicked = true; tuiMsg!.Text = "已点击"; };
         tuiOk.OnClick?.Invoke(tuiOk);
         Check("TuiMarkup 事件接线", tuiClicked && tuiMsg!.Text == "已点击");
+        // 快捷键
+        var scRes = WayCoder.UI.TUI.TuiMarkup.Load(
+            "<Window shortcut=\"escape\"><VBox><Button id=\"b\" text=\"确定 (Y)\" shortcut=\"y\"/></VBox></Window>");
+        var scBtn = scRes.Find<TuiButton>("b");
+        Check("TuiMarkup 按钮快捷键", scBtn != null && scBtn.ShortcutKey == ConsoleKey.Y);
+        Check("TuiMarkup 按钮下划线", scBtn != null && scBtn.UnderlineIndex >= 0);
+        Check("TuiMarkup 窗口快捷键", scRes.Window!.KeyShortcuts.ContainsKey(ConsoleKey.Escape));
         Console.WriteLine();
 
         // ================================================================
