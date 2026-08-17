@@ -39,13 +39,15 @@ public static class TuiHelper
         if (maxWidth <= 0) return "";
         if (DisplayWidth(text) <= maxWidth) return text;
 
+        // 省略号（宽 2 列）放不下时退化为无省略号截断，避免返回超宽 "…"（maxWidth=1 时）
+        var reserved = maxWidth >= EllipsisWidth ? EllipsisWidth : 0;
         var runes = text.EnumerateRunes().ToList();
         var width = 0;
         var count = 0;
         foreach (var r in runes)
         {
             var w = RuneWidth(r);
-            if (width + w + EllipsisWidth > maxWidth) break; // 预留省略号宽度
+            if (width + w + reserved > maxWidth) break;
             width += w;
             count++;
         }
@@ -53,7 +55,7 @@ public static class TuiHelper
         var sb = new StringBuilder();
         for (var i = 0; i < count; i++)
             sb.Append(runes[i].ToString());
-        sb.Append('…');
+        if (reserved > 0) sb.Append('…');
         return sb.ToString();
     }
 

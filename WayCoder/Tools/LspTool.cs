@@ -201,7 +201,7 @@ public class LspTool : ITool
     {
         var now = Environment.TickCount64;
         var stale = _sessions
-            .Where(kv => kv.Value.Process.HasExited || (now - kv.Value.LastUsedTicks) > SessionIdleTimeoutTicks)
+            .Where(kv => kv.Value.Process.HasExited || (now - kv.Value.LastUsedTicks) > SessionIdleTimeoutMs)
             .Select(kv => kv.Key)
             .ToList();
         foreach (var key in stale)
@@ -329,7 +329,9 @@ public class LspTool : ITool
     // 按 (项目根, 命令) 区分会话；空闲超时自动回收；进程崩溃自动重建。
     private static readonly Dictionary<string, LspSession> _sessions = new();
     private static readonly SemaphoreSlim _sessionLock = new(1, 1);
-    private static readonly long SessionIdleTimeoutTicks = TimeSpan.FromMinutes(5).Ticks;
+    // 单位毫秒，与 Environment.TickCount64 一致。此前用 TimeSpan.FromMinutes(5).Ticks（100 纳秒=3e9）
+    // 与毫秒差值比较，5 分钟回收实际变成约 34.7 天，空闲 LSP 进程长期不释放。
+    private static readonly long SessionIdleTimeoutMs = 5L * 60 * 1000;
 
     private sealed class LspSession
     {

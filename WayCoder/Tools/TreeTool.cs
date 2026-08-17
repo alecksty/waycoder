@@ -72,12 +72,13 @@ public class TreeTool : ITool
             entries.AddRange(Directory.GetDirectories(dir));
             entries.AddRange(Directory.GetFiles(dir));
             entries.Sort(StringComparer.OrdinalIgnoreCase);
+            // 先剔除隐藏项再算 isLast，否则目录末尾是隐藏项时最后一条可见项被误判为非最后（输出 ├── 而非 └──）
+            entries.RemoveAll(e => Path.GetFileName(e).StartsWith('.'));
 
             for (int i = 0; i < entries.Count && remaining > 0; i++)
             {
                 var isLast = i == entries.Count - 1;
                 var name = Path.GetFileName(entries[i]);
-                if (name.StartsWith('.')) continue;
 
                 var connector = isLast ? "└── " : "├── ";
                 var childPrefix = prefix + (isLast ? "    " : "│   ");

@@ -152,7 +152,7 @@ public partial class Agent
         ToolByName = Tools.ToDictionary(t => t.Name);
         Context = new ContextManager(maxContextTokens);
         _maxRounds = maxRounds;
-        _effectiveMaxRounds = maxRounds > 0 ? maxRounds : Config.Instance.MaxRounds;
+        _effectiveMaxRounds = maxRounds > 0 ? maxRounds : Math.Max(1, Config.Instance.MaxRounds); // 下限 1，防 MaxRounds≤0 时循环体一次都不跑
         _systemPrompt = SystemPrompt.Generate(Tools);
 
         // 连接子智能体能力

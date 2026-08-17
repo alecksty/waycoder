@@ -99,6 +99,7 @@ public class FindReplaceTool : ITool
 
             var totalMatches = 0;
             var filesChanged = 0;
+            var filesWithMatches = 0;
 
             foreach (var file in files)
             {
@@ -121,6 +122,7 @@ public class FindReplaceTool : ITool
                         {
                             sb.AppendLine($"### {Path.GetRelativePath(path, file)}  ({matches.Count} 处匹配)");
                             fileDisplayed = true;
+                            filesWithMatches++;
                         }
 
                         // 获取匹配上下文（前后各 30 字符），起始/结束对齐码元边界避免切半代理对（emoji/CJK 扩展 B → U+FFFD）
@@ -155,7 +157,7 @@ public class FindReplaceTool : ITool
             }
 
             sb.AppendLine($"---");
-            sb.AppendLine($"扫描文件: {files.Count}  |  匹配文件: {sb.ToString().Split("###").Length - 1}  |  总匹配: {totalMatches}");
+            sb.AppendLine($"扫描文件: {files.Count}  |  匹配文件: {filesWithMatches}  |  总匹配: {totalMatches}");
             if (!dryRun && hasReplacement)
                 sb.AppendLine($"已修改: {filesChanged} 个文件");
 

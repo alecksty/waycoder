@@ -157,6 +157,11 @@ public class EditorCore
         if (line < 0 || line >= Lines.Count) return false;
         Cy = line;
         Cx = Math.Clamp(col, 0, Lines[line].Length);
+        // 光标不落在代理对中间（对齐 MoveCursor）：列落在 emoji/CJK 扩展 B 中间时向右移 1，
+        // 否则后续 InsertText 会把代理对切成两半、保存时编码回退成 U+FFFD 破坏文件
+        var ln = Lines[line].ToString();
+        if (Cx > 0 && Cx < ln.Length && char.IsHighSurrogate(ln[Cx - 1]) && char.IsLowSurrogate(ln[Cx]))
+            Cx++;
         return true;
     }
 
