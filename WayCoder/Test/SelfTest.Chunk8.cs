@@ -531,7 +531,7 @@ public static partial class SelfTest
             Check($"{name}: 高≤3/4屏", win.Height <= maxH + 1);
             if (expectBar)
             {
-                Check($"{name}: 标题独占一行(ContentTop=Y+2)", win.ContentTop == win.Y + 2);
+                Check($"{name}: 内容区从标题+分隔线后开始(ContentTop=Y+2)", win.ContentTop == win.Y + 2);
                 Check($"{name}: 内容高度扣除标题行", win.ContentHeight == win.Height - 3);
             }
         }
@@ -579,7 +579,7 @@ public static partial class SelfTest
                 var dialogGrid = TuiAudit.AnsiToGrid(raw, rows, cols);
                 bool topRowHasTitle = winY < dialogGrid.Count && dialogGrid[winY].Contains(title);
                 bool titleRowHasTitle = winY + 1 < dialogGrid.Count && dialogGrid[winY + 1].Contains(title);
-                Check($"{name}: 标题在独立行(非上边框)", !topRowHasTitle && titleRowHasTitle);
+                Check($"{name}: 标题嵌上边框(顶部行)", topRowHasTitle && !titleRowHasTitle);
             }
         }
         Console.WriteLine();

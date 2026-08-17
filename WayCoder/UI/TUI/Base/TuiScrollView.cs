@@ -36,6 +36,9 @@ public class TuiScrollView : TuiView
         int y = 0;
         foreach (var child in Children)
         {
+            // 递归布局嵌套视图（与 TuiVBox/TuiHBox 一致），否则嵌套容器子控件高度未计算、布局错乱
+            if (child is TuiView childView)
+                childView.Layout();
             if (ChildHAlign == EHAlign.Stretch)
                 child.Width = Width;
             child.X = AlignX(child.Width) + child.Margin.Left;
@@ -76,7 +79,7 @@ public class TuiScrollView : TuiView
             if (childAbsY + child.Height <= ClipTop || childAbsY >= ClipBottom)
                 continue;
 
-            child.Render(sb, absX, absY - ScrollOffset);
+            child.Render(sb, absX, absY - ScrollOffset, ClipLeft, ClipTop, ClipRight, ClipBottom);
         }
 
         ClipTop = savedTop;

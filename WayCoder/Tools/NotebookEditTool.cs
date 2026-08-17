@@ -50,16 +50,9 @@ public class NotebookEditTool : ITool
         var editMode = arguments.GetValueOrDefault("edit_mode")?.ToString() ?? "replace";
         var agentId = arguments.GetValueOrDefault("_agent_id")?.ToString() ?? "main";
 
-        // cell_index 可能是 int 或 long (JSON 数字)
-        var cellIndexRaw = arguments.GetValueOrDefault("cell_index");
-        var cellIndex = cellIndexRaw switch
-        {
-            int i => i,
-            long l => (int)l,
-            double d => (int)d,
-            string s => int.TryParse(s, out var p) ? p : -1,
-            _ => -1,
-        };
+        // cell_index 可能是 int 或 long (JSON 数字)——统一走 ToolArgs.GetInt 钳制，
+        // 避免 long/double 超 int 范围时 (int) 强转截断为负（如 3000000000 → 负数 → 误插到开头）
+        var cellIndex = ToolArgs.GetInt(arguments, "cell_index", -1);
 
         return await ExecuteAsync(notebookPath, cellIndex, newSource, cellType, editMode, agentId);
     }

@@ -834,9 +834,12 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
     private static void WriteClient(SseClient c, string sse)
     {
+        // 已剔除（慢客户端超时）则跳过，避免后续每个 token 事件都再阻塞 5 秒
+        if (c.Closed.Task.IsCompleted) return;
         // 每客户端串行写：防止流式回调与 HandleRequest 并发广播时帧交错损坏
         lock (c.WriteLock)
         {
+            if (c.Closed.Task.IsCompleted) return;
             try
             {
                 // 带超时写：客户端停止读 SSE（后台标签页/暂停）时同步 Write 会永久阻塞
@@ -845,6 +848,10 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 if (!writeTask.Wait(TimeSpan.FromSeconds(5)))
                 {
                     c.Closed.TrySetResult();
+                    // 观察被放弃的写任务：writer 随后被 HandleSseAsync finally 释放时会抛
+                    // ObjectDisposedException，若不观察则成为未观察异常
+                    _ = writeTask.ContinueWith(t => { try { _ = t.Exception; } catch { } },
+                        TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
                     return;
                 }
             }
