@@ -56,6 +56,10 @@ public class MvTool : ITool
                 destPath = Path.Combine(destPath, name);
             }
 
+            // 源与目标相同（如 mv file.txt . 且 . 恰是 file.txt 所在目录）：overwrite=true 会删掉源文件，需提前拦截
+            if (string.Equals(srcPath, destPath, StringComparison.OrdinalIgnoreCase))
+                return $"⚠ 源与目标相同: {srcPath}";
+
             // 确保目标目录存在
             var destDir = Path.GetDirectoryName(destPath);
             if (destDir != null && !Directory.Exists(destDir))

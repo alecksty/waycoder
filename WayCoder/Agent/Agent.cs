@@ -272,12 +272,15 @@ public partial class Agent
         Action<string>? onToolOutput,
         CancellationToken cancellationToken)
     {
-        // 检测快速模式：用户明确要求跳过探索（不要读文件/不要ls/不要规划等）
-        if (SystemPrompt.DetectFastMode(userInput))
-        {
-            _fastMode = true;
+        // 复位上一轮 Architect 模式的模型覆盖：ModelOverride 在本方法末尾裸赋值成小模型，
+        // 若不在此复位，第二轮起 EffectiveModel 恒为小模型、计划生成分支（下方 286 行）不再触发。
+        LlmClient.ModelOverride = null;
+
+        // 检测快速模式：用户明确要求跳过探索（不要读文件/不要ls/不要规划等）。
+        // 直接赋值（而非 |= true）：快速模式只影响当轮，不能污染后续消息。
+        _fastMode = SystemPrompt.DetectFastMode(userInput);
+        if (_fastMode)
             DebugLog.Log("agent", "检测到快速模式关键词，跳过探索工作流");
-        }
 
         AddMessage(JNode.Object().Set("role", "user").Set("content", userInput));
         await CompressWithSmallModel(onToken);

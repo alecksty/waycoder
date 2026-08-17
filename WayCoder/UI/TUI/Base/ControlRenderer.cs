@@ -195,6 +195,8 @@ public static class ControlRenderer
         int fg = ResolveStaticFg(c, themeFg);
         int bg = ResolveStaticBg(c, themeBg);
 
+        // 防御钳制：new string(char, 负计数) 抛 ArgumentOutOfRangeException，公共 API 需自保
+        filled = Math.Clamp(filled, 0, barWidth);
         string bar = new string(filledChar, filled) + new string(emptyChar, barWidth - filled);
         var display = string.IsNullOrEmpty(label)
             ? bar

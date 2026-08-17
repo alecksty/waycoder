@@ -60,12 +60,13 @@ public static class TuiMarkdown
             return result;
         }
 
-        // 如果第一个节点是纯段落且没有特殊格式，回退到简单渲染
+        // 如果第一个节点是纯段落且没有特殊格式，回退到简单渲染（仍需按宽度折行，避免整段单行右截不可见）
         if (nodes.Count == 1 && nodes[0] is MdParagraph p &&
             !p.Text.Contains('*') && !p.Text.Contains('`') && !p.Text.Contains('#') &&
             !p.Text.Contains('\xAB'))
         {
-            result.Add(new List<(string, int, int)> { (p.Text, FgForRole(role), 0) });
+            foreach (var wrapped in WrapText(p.Text, maxWidth - 2))
+                result.Add(new List<(string, int, int)> { (wrapped, FgForRole(role), 0) });
             return result;
         }
 

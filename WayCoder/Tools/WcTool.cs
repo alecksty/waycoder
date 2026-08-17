@@ -110,7 +110,7 @@ public class WcTool : ITool
                     inWord = false;
                 else if (!inWord) { inWord = true; words++; }
             }
-            return (lines, words, text.Length, bytes);
+            return (lines, words, text.EnumerateRunes().Count(), bytes);
         }
         catch
         {

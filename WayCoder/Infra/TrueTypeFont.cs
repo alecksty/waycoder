@@ -23,6 +23,7 @@ public sealed class TrueTypeFont
     // 族名 -> 字体（含 null 表示「解析失败/未找到」，避免反复扫描磁盘）
     static readonly Dictionary<string, TrueTypeFont?> _cache = new(StringComparer.OrdinalIgnoreCase);
     static List<FontEntry>? _fontList;
+    static readonly object _cacheLock = new();
 
     TrueTypeFont(byte[] data, Dictionary<string, (int, int)> tables, int unitsPerEm, int numGlyphs,
         int indexToLocFormat, int ascent, int numberOfHMetrics, Func<int, int> cmap, int[] advance, int[] lsb)
@@ -40,18 +41,23 @@ public sealed class TrueTypeFont
     public static TrueTypeFont? Resolve(string? family)
     {
         var key = string.IsNullOrWhiteSpace(family) ? "" : family.Trim();
-        if (_cache.TryGetValue(key, out var cached)) return cached;
-
-        TrueTypeFont? result = null;
-        try
+        // 静态缓存非线程安全：多槽位并行（F1-F10 各跑一个 Agent）同时触发 DrawTool 文本渲染时
+        // 并发读改写 _cache/_fontList 会破坏 Dictionary 内部状态。加锁串行化解析。
+        lock (_cacheLock)
         {
-            _fontList ??= FontFinder.Find();
-            var entry = Pick(_fontList, key);
-            if (entry != null) result = Load(File.ReadAllBytes(entry.Path));
+            if (_cache.TryGetValue(key, out var cached)) return cached;
+
+            TrueTypeFont? result = null;
+            try
+            {
+                _fontList ??= FontFinder.Find();
+                var entry = Pick(_fontList, key);
+                if (entry != null) result = Load(File.ReadAllBytes(entry.Path));
+            }
+            catch { result = null; }
+            _cache[key] = result;
+            return result;
         }
-        catch { result = null; }
-        _cache[key] = result;
-        return result;
     }
 
     static FontEntry? Pick(List<FontEntry> fonts, string family)

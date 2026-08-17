@@ -4667,8 +4667,10 @@ public static partial class SelfTest
         {
             var r1 = new CdTool().ExecuteAsync(new Dictionary<string, object?> { ["path"] = "~definitely_not_a_user" })
                 .GetAwaiter().GetResult();
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            // 精确断言：~user 不被展开成 home/definitely_not_a_user（展开后 ~ 会被替换为 home 路径）
             Check("cd: ~user 不展开(保持原样)", r1.Contains("~definitely_not_a_user")
-                && !r1.Contains(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+                && !r1.Contains(home + Path.DirectorySeparatorChar + "definitely_not_a_user"));
         }
         finally { BashTool.CurrentCwd.Value = savedCwd!; }
     }
@@ -4701,6 +4703,46 @@ public static partial class SelfTest
         Check("Web: SafeUnescape 畸形 %zz 回退原串", WayCoder.UI.Web.WebChatServer.SafeUnescape("%zz") == "%zz");
         Check("Web: SafeUnescape 正常解码", WayCoder.UI.Web.WebChatServer.SafeUnescape("a%20b") == "a b");
         Check("Web: ParseClientQuery 畸形不崩", WayCoder.UI.Web.WebChatServer.ParseClientQuery("client=%zz") == "%zz");
+    }
+
+    private static void TestV0732Deterministic(Action<string, bool> Check)
+    {
+        // ── #1 MvTool 源=目标同路径：overwrite=true 会先删目标（=源）再移动，需提前拦截防数据丢失 ──
+        var mvDir = Path.Combine(Path.GetTempPath(), "wc_mv_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(mvDir);
+        var mvFile = Path.Combine(mvDir, "a.txt");
+        File.WriteAllText(mvFile, "内容");
+        var mvR = new MvTool().ExecuteAsync(new() { ["src"] = mvFile, ["dest"] = mvDir, ["overwrite"] = true }).Result;
+        Check("mv: 源=目标同路径拦截且不删源", File.Exists(mvFile) && mvR.Contains("源与目标相同"));
+        try { Directory.Delete(mvDir, true); } catch { }
+
+        // ── #2 WcTool 字符数按码点（Rune）计数：emoji 代理对占 2 个 char，应计 1 字符 ──
+        var wcFile = Path.Combine(Path.GetTempPath(), "wc_rune_" + Guid.NewGuid().ToString("N")[..6] + ".txt");
+        File.WriteAllText(wcFile, "🎉🎉🎉"); // 3 码点 = UTF-16 6 char
+        var wcOut = new WcTool().ExecuteAsync(new() { ["file"] = wcFile }).Result;
+        Check("wc: emoji 按码点计数(3 个=3 字符非 6)", ExtractWcField(wcOut, "字符") == 3);
+        try { File.Delete(wcFile); } catch { }
+
+        // ── #3 非容器控件（TuiButtonGroup/TuiTabs）子控件 Parent 指向自身：坐标链 GetAbsoluteX/Y 需含组自身偏移 ──
+        var grp = new TuiButtonGroup();
+        var btn = grp.Add("确定");
+        Check("TuiButtonGroup 按钮 Parent 指向组", btn.Parent == grp);
+        var tabs = new TuiTabs();
+        var panel = new TuiButton();
+        tabs.AddTab("聊天", panel);
+        Check("TuiTabs 内容 Parent 指向 tabs", panel.Parent == tabs);
+    }
+
+    /// <summary>从 wc 单文件输出里提取指定字段（如「字符」）前的数值。</summary>
+    private static int ExtractWcField(string output, string field)
+    {
+        var idx = output.IndexOf(" " + field);
+        if (idx < 0) return -1;
+        int end = idx;
+        while (end > 0 && output[end - 1] == ' ') end--;
+        int start = end;
+        while (start > 0 && char.IsDigit(output[start - 1])) start--;
+        return int.TryParse(output[start..end], out var n) ? n : -1;
     }
 
     /// <summary>CLI 参数测试桩：AllowMultiple + 单值，用于验证多值累积解析（唯一名避免与内置参数冲突）。</summary>
