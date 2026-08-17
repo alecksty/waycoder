@@ -67,7 +67,7 @@ public class FetchTool : ITool, ICancellableTool
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments, CancellationToken cancellationToken)
     {
         var url = arguments.GetValueOrDefault("url")?.ToString() ?? "";
-        var maxChars = arguments.TryGetValue("max_chars", out var mc) && mc is int mi ? Math.Clamp(mi, 1, 100_000) : 8000;
+        var maxChars = Math.Clamp(ToolArgs.GetInt(arguments, "max_chars", 8000), 1, 100_000);
         var format = arguments.TryGetValue("format", out var fmt) ? fmt?.ToString()?.ToLowerInvariant() : "text";
         var method = arguments.GetValueOrDefault("method")?.ToString() ?? "GET";
         var headers = ParseHeaders(arguments.GetValueOrDefault("headers")?.ToString());

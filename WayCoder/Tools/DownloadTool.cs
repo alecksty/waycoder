@@ -31,9 +31,7 @@ public class DownloadTool : ITool, ICancellableTool
     {
         var url = arguments.GetValueOrDefault("url")?.ToString() ?? "";
         var filePath = arguments.GetValueOrDefault("file_path")?.ToString() ?? "";
-        var timeout = arguments.TryGetValue("timeout", out var t) && t is int timeoutVal
-            ? Math.Clamp(timeoutVal, 1, 600)
-            : Config.Instance.DownloadTimeoutSec;
+        var timeout = Math.Clamp(ToolArgs.GetInt(arguments, "timeout", Config.Instance.DownloadTimeoutSec), 1, 600);
 
         // 安全检查：仅允许 http/https
         if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&

@@ -219,13 +219,7 @@ public partial class Program
             var content = msg["content"]?.AsString() ?? "";
             if (content.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             {
-                var idx = content.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
-                var start = Math.Max(0, idx - 40);
-                var len = Math.Min(120, content.Length - start);
-                var preview = content.Substring(start, len);
-                if (start > 0) preview = "..." + preview;
-                if (start + len < content.Length) preview += "...";
-                results.Add((i + 1, role, preview.Replace("\n", " ")));
+                results.Add((i + 1, role, BuildHistoryPreview(content, keyword).Replace("\n", " ")));
             }
         }
 
@@ -244,6 +238,20 @@ public partial class Program
 
         if (results.Count > 15)
             screen.AddSystemMsg($"  ... 还有 {results.Count - 15} 条结果");
+    }
+
+    /// <summary>提取历史消息关键词预览（前 40 + 120 码元窗口），代理对对齐不切半（否则渲染成 U+FFFD）。</summary>
+    internal static string BuildHistoryPreview(string content, string keyword)
+    {
+        var idx = content.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
+        var start = Math.Max(0, idx - 40);
+        var end = Math.Min(content.Length, start + 120);
+        while (start > 0 && char.IsLowSurrogate(content[start])) start--;
+        while (end < content.Length && char.IsLowSurrogate(content[end])) end++;
+        var preview = content.Substring(start, end - start);
+        if (start > 0) preview = "..." + preview;
+        if (end < content.Length) preview += "...";
+        return preview;
     }
 
     // ========================================================================

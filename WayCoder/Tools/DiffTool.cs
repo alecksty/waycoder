@@ -29,7 +29,7 @@ public class DiffTool : ITool
     {
         var f1 = arguments.GetValueOrDefault("file1")?.ToString() ?? "";
         var f2 = arguments.GetValueOrDefault("file2")?.ToString() ?? "";
-        var context = arguments.TryGetValue("context", out var c) && c is int ci ? ci : 3;
+        var context = ToolArgs.GetInt(arguments, "context", 3);
 
         return Task.FromResult(Execute(f1, f2, context));
     }
