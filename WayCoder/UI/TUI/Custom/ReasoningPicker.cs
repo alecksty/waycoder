@@ -69,7 +69,7 @@ public static class ReasoningPicker
             TitleBold = true,
             ShowTitleSeparator = false,
             Modal = true, HasMask = true,
-            Border = WindowBorder.Solid,
+            Border = WindowBorder.Rounded,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             XScale = 0.6,
@@ -91,7 +91,7 @@ public static class ReasoningPicker
         // 说明行
         var desc = new TuiLabel("选择模型的「思考」深度，越深推理越充分，但耗时越长")
         {
-            Fg = TuiColors.Black, // 白底黑字（与 WindowBg 白底保持反差）
+            Fg = TuiTheme.Current.ControlFg, // 暗底白字
         };
 
         // 搜索框（聚焦，字母进过滤词）
@@ -108,13 +108,13 @@ public static class ReasoningPicker
             Items = filtered.Select(l => FormatItem(l, currentLevel)).ToList(),
             SelectedIndex = IndexOfCurrent(filtered, currentLevel),
             Height = 5,
-            Fg = TuiColors.Black, // 白底黑字（与 WindowBg 白底保持反差）
+            Fg = TuiTheme.Current.ListFg, // 暗底白字
         };
 
         // 帮助行
         var help = new TuiLabel("[↑/↓] 导航  [Enter] 确认  [Esc] 取消  [字母] 搜索  [←] 清除=默认")
         {
-            Fg = TuiColors.BrightBlack,
+            Fg = TuiColors.BrightWhite,
         };
 
         var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };

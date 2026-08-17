@@ -65,7 +65,7 @@ public static class ModelPicker
             Title = "选择模型",
             ShowTitleSeparator = false,
             Modal = true, HasMask = true,
-            Border = WindowBorder.Solid,
+            Border = WindowBorder.Rounded, // 与主界面圆角细线统一（Solid 实心块在暗色界面突兀）
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             Width = winW, Height = winH,
@@ -94,7 +94,7 @@ public static class ModelPicker
             Focused = true,
         };
         var searchRow = new TuiHBox { Spacing = 1 };
-        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = TuiColors.BrightBlack });
+        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = TuiColors.BrightWhite });
         searchRow.Add(search);
 
         // 模型列表（多列）
@@ -108,8 +108,8 @@ public static class ModelPicker
         table.AddColumn("小", smallW);
 
         // 槽位状态条 + 帮助行
-        var slotBar = new TuiLabel { Height = 1, Fg = TuiColors.BrightBlack };
-        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightBlack };
+        var slotBar = new TuiLabel { Height = 1, Fg = TuiColors.BrightWhite };
+        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightWhite };
 
         var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
         vbox.Add(searchRow);
