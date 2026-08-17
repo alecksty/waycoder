@@ -52,7 +52,9 @@ public static class TuiMenu
 
         var maxVw = items.Count > 0
             ? items.Where(i => !string.IsNullOrEmpty(i) && i != "---")
-                .Max(i => TuiHelper.DisplayWidth(i))
+                .Select(i => TuiHelper.DisplayWidth(i))
+                .DefaultIfEmpty(10)
+                .Max()
             : 10;
         // 宽度：内容 + 左边距" 1."(3) + 右边距(2) + 快捷键提示(4) + 滚动条(2)
         var contentW = Math.Max(16, Math.Min(maxVw + 11, Tty.Cols - 8));

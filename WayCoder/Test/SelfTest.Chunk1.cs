@@ -134,6 +134,8 @@ public static partial class SelfTest
         TestV0714RetryAfter(Check);           // v0.71.14 批次：Retry-After 头解析负数/非法值回退
         TestV0715CompressIndicator(Check);    // v0.71.15 批次：压缩界面指示（Web compress 事件载荷 + CompressFinished 事件）
         TestV0716RuneSafeTruncation(Check);   // v0.71.16 批次：6 处 UTF-16 原始切片改走 TruncateByRunes（代理对切半修复）
+        TestV0717RuneSafeWrap(Check);         // v0.71.17 批次：WrapLine 兜底按码点取断点（首字符 emoji 不切半）
+        TestV0717UiDeterministic(Check);      // v0.71.17 批次：撤销栈修剪方向 / 全分隔线菜单空序列 / BoxBuffer 负宽度
         Console.WriteLine();
 
         // ---- 工具 ----

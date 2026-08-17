@@ -133,7 +133,7 @@ public static class TuiHelper
 
             // 查找断点：优先在空格处、否则在字符边界
             int breakIdx = FindBreakIndex(line, maxWidth);
-            if (breakIdx <= 0) breakIdx = 1; // 安全兜底
+            if (breakIdx <= 0) breakIdx = RuneIndexToStringIndex(line, 1); // 安全兜底：至少取一个完整码点，避免 emoji/扩展区汉字被切半
 
             result.Add(line[..breakIdx]);
             line = line[breakIdx..].TrimStart(); // 去掉段首空格
