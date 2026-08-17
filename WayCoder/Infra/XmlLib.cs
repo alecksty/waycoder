@@ -290,12 +290,20 @@ public static class Xml
             _i = idx + terminator.Length;
         }
 
+        private int _depth;
+        private const int MaxDepth = 512;
+
         public XNode ParseElement()
         {
-            if (AtEnd || _s[_i] != '<') throw new XmlParseException("期望 '<'", _i);
-            _i++; // <
-            var name = ReadName();
-            var el = XNode.Element(name);
+            // 递归下降无深度限制 → 深层嵌套 XML（5 万层 <a><a>..）StackOverflowException 崩溃进程
+            if (++_depth > MaxDepth)
+                throw new XmlParseException("XML 嵌套过深（>512 层）", _i);
+            try
+            {
+                if (AtEnd || _s[_i] != '<') throw new XmlParseException("期望 '<'", _i);
+                _i++; // <
+                var name = ReadName();
+                var el = XNode.Element(name);
 
             // 属性
             while (true)
@@ -363,6 +371,8 @@ public static class Xml
                 // 文本
                 el.AddText(ReadText());
             }
+            }
+            finally { _depth--; }
         }
 
         private string ReadText()
@@ -417,6 +427,9 @@ public static class Xml
                     if (!int.TryParse(body.AsSpan(1), out code))
                         throw new XmlParseException($"非法字符引用 '&{body};'", pos);
                 }
+                // 孤立低代理/越界码点：ConvertFromUtf32 抛 ArgumentOutOfRangeException（调用方只 catch XmlParseException）
+                if ((code >= 0xD800 && code <= 0xDFFF) || code > 0x10FFFF)
+                    throw new XmlParseException($"非法 Unicode 码点 '&{body};'（孤立低代理/越界）", pos);
                 return char.ConvertFromUtf32(code);
             }
             throw new XmlParseException($"未知实体 '&{body};'", pos);

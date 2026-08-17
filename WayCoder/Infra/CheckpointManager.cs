@@ -170,7 +170,11 @@ public static class CheckpointManager
                 var srcPath = Path.GetFullPath(filePath);
                 if (!File.Exists(srcPath)) continue;
 
-                var relPath = filePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+                // 绝对路径 → 相对当前目录（否则 Path.Combine(backupDir, "D:\...") 因根路径忽略 backupDir，
+                // destPath == srcPath，File.Copy 自拷抛 "Cannot copy onto itself"）
+                var relPath = Path.GetRelativePath(Directory.GetCurrentDirectory(), srcPath);
+                if (relPath.StartsWith("..") || Path.IsPathRooted(relPath))
+                    relPath = Path.GetFileName(srcPath); // 文件在 cwd 外：退化到仅文件名，防 Combine 逃逸
                 var destPath = Path.Combine(backupDir, relPath);
                 var destDir = Path.GetDirectoryName(destPath);
                 if (destDir != null) Directory.CreateDirectory(destDir);
@@ -272,7 +276,10 @@ public static class CheckpointManager
                     if (FileLockManager.IsLockedByOther(file, "checkpoint"))
                         return $"⚠ 文件 \"{file}\" 正被其他 Agent 锁定，无法恢复。";
 
-                    var relPath = file.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+                    // 与创建时一致：绝对路径相对化（防止 Combine 忽略 backupDir 得到原路径自拷）
+                    var relPath = Path.GetRelativePath(Directory.GetCurrentDirectory(), file);
+                    if (relPath.StartsWith("..") || Path.IsPathRooted(relPath))
+                        relPath = Path.GetFileName(file);
                     var backupPath = Path.Combine(backupDir, relPath);
                     var destPath = Path.GetFullPath(file);
 
