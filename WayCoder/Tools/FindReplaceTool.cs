@@ -66,7 +66,7 @@ public class FindReplaceTool : ITool
         try
         {
             path ??= BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory();
-            path = Path.GetFullPath(path);
+            path = Path.GetFullPath(path, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
             if (!Directory.Exists(path))
                 return $"错误：目录不存在 — {path}";
 
@@ -171,9 +171,9 @@ public class FindReplaceTool : ITool
         }
     }
 
-    private static void CollectFiles(string dir, string glob, List<string> files, ref int maxFiles)
+    private static void CollectFiles(string dir, string glob, List<string> files, ref int maxFiles, int depth = 0)
     {
-        if (maxFiles <= 0) return;
+        if (maxFiles <= 0 || depth > 64) return; // 深度上限防符号链接环无限递归 → StackOverflow
         try
         {
             // 跳过隐藏目录
@@ -184,7 +184,7 @@ public class FindReplaceTool : ITool
                     || subDir.EndsWith("bin") || subDir.EndsWith("obj")
                     || subDir.EndsWith("__pycache__") || subDir.EndsWith(".vs"))
                     continue;
-                CollectFiles(subDir, glob, files, ref maxFiles);
+                CollectFiles(subDir, glob, files, ref maxFiles, depth + 1);
             }
 
             foreach (var file in Directory.GetFiles(dir, glob))

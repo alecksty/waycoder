@@ -4447,6 +4447,61 @@ public static partial class SelfTest
         finally { try { Directory.Delete(dir, true); } catch { } FileTracker.Reset(); }
     }
 
+    /// <summary>v0.71.26 批次：符号链接环深度上限 + cd 后相对路径基于 CurrentCwd + TuiGrid 星号轨不溢出。</summary>
+    private static void TestV0726SymlinkCdAndUi(Action<string, bool> Check)
+    {
+        // ── #1 符号链接环：sub/loop -> sub 自引用，旧代码无限递归 → StackOverflow 直接崩溃进程 ──
+        var loopDir = Path.Combine(Path.GetTempPath(), "waycoder_loop_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(loopDir);
+        var loopSub = Path.Combine(loopDir, "sub");
+        Directory.CreateDirectory(loopSub);
+        File.WriteAllText(Path.Combine(loopSub, "a.txt"), "hello");
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(loopSub, "loop"), loopSub); // loop -> sub（自引用环）
+            var r = new GrepTool().ExecuteAsync(new Dictionary<string, object?>
+            {
+                ["pattern"] = "hello",
+                ["path"] = loopDir
+            }).GetAwaiter().GetResult();
+            Check("symlink: grep 不因符号链接环崩溃", r.Contains("a.txt"));
+        }
+        catch (Exception)
+        {
+            // 平台/权限不支持符号链接 → 跳过（不视为失败）
+        }
+        finally { try { Directory.Delete(loopDir, true); } catch { } }
+
+        // ── #2 cd 后相对路径：工具相对路径基于 CurrentCwd 而非进程 cwd ──
+        var cwdDir = Path.Combine(Path.GetTempPath(), "waycoder_cwd_" + Guid.NewGuid().ToString("N")[..6]);
+        var cwdSub = Path.Combine(cwdDir, "sub");
+        Directory.CreateDirectory(cwdSub);
+        File.WriteAllText(Path.Combine(cwdSub, "hello.txt"), "hello world");
+        var oldCwd = BashTool.CurrentCwd.Value;
+        BashTool.CurrentCwd.Value = cwdDir;
+        try
+        {
+            var r = new ReadFileTool().ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = "sub/hello.txt" }).GetAwaiter().GetResult();
+            Check("cd: read_file 相对路径基于 CurrentCwd", r.Contains("hello world"));
+            var ls = new LsTool().ExecuteAsync(new Dictionary<string, object?> { ["path"] = "sub" }).GetAwaiter().GetResult();
+            Check("cd: ls 相对路径基于 CurrentCwd", ls.Contains("hello.txt"));
+        }
+        finally
+        {
+            BashTool.CurrentCwd.Value = oldCwd!; // 恢复原值（null 时回到未设置状态）
+            try { Directory.Delete(cwdDir, true); } catch { }
+        }
+
+        // ── #3 TuiGrid 星号轨：小剩余空间 + 多星轨，旧代码 Math.Max(1,...) 使前面各轨和超过 remaining、
+        //        最后一轨拿到负值被抬到 1，总和溢出 totalSpace ──
+        var defs5 = new GridSize[5];
+        for (int i = 0; i < 5; i++) defs5[i] = new GridSize { Value = 1, IsStar = true };
+        var sizes5 = TuiGrid.ResolveSizes(5, defs5, 2, 0);
+        Check("grid: 多星轨小空间总和不超过 totalSpace", sizes5.Sum() <= 2);
+        Check("grid: 无负尺寸", sizes5.All(s => s >= 0));
+        Check("grid: 剩余空间被最后一个星轨完全吸收", sizes5.Sum() == 2);
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {

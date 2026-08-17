@@ -52,7 +52,7 @@ public class WriteFileTool : ITool
         if (string.IsNullOrWhiteSpace(filePath))
             return "错误：file_path 不能为空 — 请提供有效的文件路径。";
 
-        var path = Path.GetFullPath(filePath);
+        var path = Path.GetFullPath(filePath, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
 
         // 文件锁检查
         if (!FileLockManager.TryAcquire(path, agentId))

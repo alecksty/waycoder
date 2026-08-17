@@ -48,7 +48,7 @@ public class LsTool : ITool
         try
         {
             path ??= BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory();
-            path = Path.GetFullPath(path);
+            path = Path.GetFullPath(path, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
 
             if (!Directory.Exists(path))
                 return $"错误：目录不存在 — {path}";

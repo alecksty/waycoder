@@ -117,7 +117,7 @@ public class TranscribeAudioTool : ITool
             return null;
         }
 
-        var fullPath = Path.GetFullPath(path);
+        var fullPath = Path.GetFullPath(path, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
         if (!File.Exists(fullPath))
         {
             error = $"错误：音频文件不存在 — {fullPath}";

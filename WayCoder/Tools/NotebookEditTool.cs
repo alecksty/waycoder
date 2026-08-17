@@ -71,7 +71,7 @@ public class NotebookEditTool : ITool
         if (string.IsNullOrWhiteSpace(notebookPath))
             return "错误：notebook_path 不能为空 — 请提供有效的文件路径。";
 
-        var path = Path.GetFullPath(notebookPath);
+        var path = Path.GetFullPath(notebookPath, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
 
         // 验证扩展名
         if (!path.EndsWith(".ipynb", StringComparison.OrdinalIgnoreCase))
