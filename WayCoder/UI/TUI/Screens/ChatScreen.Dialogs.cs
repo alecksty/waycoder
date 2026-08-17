@@ -47,12 +47,13 @@ public partial class ChatScreen : TuiScreen
         RefreshSidePanel();
     }
 
-    /// <summary>同步主题配色</summary>
+    /// <summary>同步主题配色：主题切换后刷新已建控件并强制重绘</summary>
     public void SyncTheme()
     {
         // 从环境变量重新读取显示风格（设置变更后生效）
         ChatDisplayStyle = Config.Instance.ChatDisplayStyle;
-        // 主题配色已在 ThemeConfig 中管理，此方法为兼容旧 API
+        // 刷新已建控件（角色标签/时间戳/分隔线/输入区颜色）+ 全量重绘
+        ApplyThemeToScreen();
     }
 
     /// <summary>刷新主题样式</summary>
