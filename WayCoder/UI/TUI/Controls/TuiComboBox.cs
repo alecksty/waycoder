@@ -112,6 +112,8 @@ public class TuiComboBox : TuiControl
             var displayIndices = ActiveIndices;
 
             int listH = Math.Min(displayIndices.Count, 10);
+            // 下拉是覆盖式渲染：扩展裁剪区到下拉底部，否则 Height(=1) 的控件会把下拉行全部裁剪掉
+            ClipBottom = Math.Max(ClipBottom, absY + 1 + listH);
             for (int i = 0; i < listH; i++)
             {
                 int row = absY + 1 + i;

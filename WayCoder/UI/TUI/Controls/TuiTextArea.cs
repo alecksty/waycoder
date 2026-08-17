@@ -19,9 +19,17 @@ public class TuiTextArea : TuiEditBase
     public string Text
     {
         get => string.Join("\n", Lines);
-        set => Lines = string.IsNullOrEmpty(value)
-            ? [""]
-            : [.. value.Replace("\r\n", "\n").Split('\n')];
+        set
+        {
+            Lines = string.IsNullOrEmpty(value)
+                ? [""]
+                : [.. value.Replace("\r\n", "\n").Split('\n')];
+            // 整体替换文本：清空撤销/重做历史，防止旧操作引用已不存在的行导致越界崩溃
+            _undoStack.Clear();
+            _redoStack.Clear();
+            CursorRow = 0;
+            CursorCol = 0;
+        }
     }
 
     // ── 光标 ──
@@ -125,6 +133,8 @@ public class TuiTextArea : TuiEditBase
         var action = _undoStack.Pop();
         _redoStack.Push(action);
         ClearSelection();
+        // 兜底：操作引用的行已被裁剪/重置 → 跳过，避免越界崩溃
+        if (action.Row < 0 || action.Row >= Lines.Count) { NotifyChange(); return; }
 
         switch (action.Type)
         {
@@ -142,8 +152,8 @@ public class TuiTextArea : TuiEditBase
                 CursorCol = lastLineStart >= 0 ? action.Text.Length - lastLineStart - 1 : action.Col + action.Text.Length;
                 break;
             case 'S':
-                // 撤销拆行 = 合并行
-                JoinLinesAt(action.Row);
+                // 撤销拆行 = 合并行（去掉自动缩进，避免重复空格污染文本）
+                JoinLinesAt(action.Row, action.Text);
                 CursorRow = action.Row;
                 CursorCol = action.Col;
                 break;
@@ -151,7 +161,7 @@ public class TuiTextArea : TuiEditBase
                 // 撤销合行 = 拆行
                 SplitLineAt(action.Row, action.Col);
                 CursorRow = action.Row + 1;
-                CursorCol = action.Col;
+                CursorCol = 0;
                 break;
         }
         NotifyChange();
@@ -163,6 +173,7 @@ public class TuiTextArea : TuiEditBase
         var action = _redoStack.Pop();
         _undoStack.Push(action);
         ClearSelection();
+        if (action.Row < 0 || action.Row >= Lines.Count) { NotifyChange(); return; }
 
         switch (action.Type)
         {
@@ -179,8 +190,15 @@ public class TuiTextArea : TuiEditBase
                 break;
             case 'S':
                 SplitLineAt(action.Row, action.Col);
+                // 重新应用拆行缩进（InsertNewLine 时加上的），redo 恢复完整状态
+                if (action.Text.Length > 1)
+                {
+                    var indent = action.Text[1..];
+                    if (action.Row + 1 < Lines.Count && !Lines[action.Row + 1].StartsWith(indent))
+                        Lines[action.Row + 1] = indent + Lines[action.Row + 1];
+                }
                 CursorRow = action.Row + 1;
-                CursorCol = action.Col; // indent length
+                CursorCol = action.Col;
                 break;
             case 'J':
                 JoinLinesAt(action.Row);
@@ -249,12 +267,18 @@ public class TuiTextArea : TuiEditBase
         Lines.Insert(row + 1, line[Math.Min(col, line.Length)..]);
     }
 
-    /// <summary>合并指定行和下一行</summary>
-    private void JoinLinesAt(int row)
+    /// <summary>合并指定行和下一行。</summary>
+    /// <param name="undoText">撤销拆行时传入记录的 "\n"+缩进，从下一行头去掉自动缩进避免重复。</param>
+    private void JoinLinesAt(int row, string? undoText = null)
     {
         if (row >= Lines.Count - 1) return;
         var cur = SafeLine(row);
         var next = SafeLine(row + 1);
+        if (undoText != null && undoText.Length > 1)
+        {
+            var indent = undoText[1..]; // 去掉前导 "\n"
+            if (next.StartsWith(indent)) next = next[indent.Length..];
+        }
         Lines[row] = cur + next;
         Lines.RemoveAt(row + 1);
     }
@@ -372,7 +396,7 @@ public class TuiTextArea : TuiEditBase
                     WriteAt(sb, screenRow, absX + lineNumW, fullDisplay + new string(' ', pad), fg, bg);
                 }
             }
-            else if (lineIdx == Lines.Count && string.IsNullOrEmpty(Text) && !string.IsNullOrEmpty(Placeholder))
+            else if (lineIdx == 0 && string.IsNullOrEmpty(Text) && !string.IsNullOrEmpty(Placeholder))
             {
                 // 占位文本
                 var ph = Placeholder;
@@ -726,6 +750,23 @@ public class TuiTextArea : TuiEditBase
         CursorRow = Math.Max(0, CursorRow - toRemove);
         // 也调整滚动偏移
         ScrollRow = Math.Max(0, ScrollRow - toRemove);
+        // 顶部行被裁剪：撤销/重做栈中引用被删行的操作丢弃（行已不存在），
+        // 其余行号整体上移 toRemove，避免 undo 索引到不存在的行崩溃
+        ShiftStack(_undoStack, toRemove);
+        ShiftStack(_redoStack, toRemove);
+    }
+
+    /// <summary>裁剪后修正撤销/重做栈：丢弃引用已删除行的操作，其余行号上移。</summary>
+    private static void ShiftStack(Stack<EditAction> stack, int shift)
+    {
+        var keep = new List<EditAction>();
+        while (stack.Count > 0)
+        {
+            var a = stack.Pop();
+            if (a.Row >= shift) keep.Add(a with { Row = a.Row - shift });
+        }
+        for (int i = keep.Count - 1; i >= 0; i--)
+            stack.Push(keep[i]);
     }
 
     private static string GetIndent(string line)

@@ -254,7 +254,9 @@ public static class SessionPicker
                 case ConsoleKey.R:
                     if (search.Text.Length == 0) { Rename(); return true; }
                     return false; // 有搜索词 → 交给输入框当过滤字符
-                case ConsoleKey.Delete:    Delete(); return true;
+                case ConsoleKey.Delete:
+                    if (search.Text.Length == 0) { Delete(); return true; }
+                    return false; // 有搜索词 → 交给输入框删字符，而非误删会话
             }
             return false; // 其余（字母/退格）交给输入框处理
         };

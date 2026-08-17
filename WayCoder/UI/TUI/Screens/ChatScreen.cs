@@ -742,7 +742,7 @@ public partial class ChatScreen : TuiScreen
         int inputH = Math.Clamp(InputArea.Lines.Count + 1, 3, 5);
         int promptH = PromptBar.Visible ? PromptBar.Height : 0;
         int progressH = (ProgressPercent.HasValue && ContextManager.IsCompressing) ? 1 : 0;
-        int chatH = Math.Max(1, TH - 1 - promptH - 1 - inputH - 1 - progressH - 1); // TH - title - prompt - topBorder - input - botBorder - progress - status
+        int chatH = Math.Max(1, TH - 1 - promptH - 1 - 1 - inputH - 1 - progressH - 1); // TH - title - prompt - dynamicBar(1) - topBorder - input - botBorder - progress - status
 
         // ── 压缩进度条 ──
         if (progressH > 0)

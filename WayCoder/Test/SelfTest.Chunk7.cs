@@ -1372,9 +1372,10 @@ public static partial class SelfTest
     }
 }
 
-// 回归测试辅助：暴露 TuiTextArea 受保护的 PasteText/Undo，验证多行粘贴撤销不吞首行前缀。
+// 回归测试辅助：暴露 TuiTextArea 受保护的 PasteText/Undo/InsertNewLine，验证撤销栈健壮性。
 internal sealed class TuiTextAreaPasteProbe : TuiTextArea
 {
     public void Paste(string s) => PasteText(s);
     public void UndoAction() => Undo();
+    public void NewLine() => InsertNewLine();
 }
