@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.71.17 (2026-08-17) — UI 层确定性 bug 修复（撤销栈方向 + 菜单空序列 + BoxBuffer 负宽 + WrapLine 码点）
+
+继续清扫 UI 层确定性 bug。Explore 代理系统扫 `UI/TUI/`（编辑器/控件/共享缓冲）后人工验证，本轮修复 4 个可复现问题。
+
+### 🐛 修复
+
+- **`EditorCore.TrimBottom` 撤销栈修剪方向反**：`Stack<T>.ToArray()` 返回栈顶在前（`arr[0]`=最新、`arr[^1]`=最旧），原循环 `i = arr.Length-1 .. arr.Length-max` 保留的是**最旧**的 max 条、丢弃最新若干条——编辑超过 `MaxUndo=100` 后第 101 次编辑被立即丢弃、撤销历史整体错位。改为 `i = max-1 .. 0` 保留最新 max 条，并提为 `internal` 便于自测
+- **`TuiMenu` 全分隔线菜单空序列崩溃**：`.Max(i => DisplayWidth(i))` 只检查 `items.Count > 0` 未检查过滤后是否为空，列表全为 `""`/`"---"` 时 `Max()` 抛 `InvalidOperationException`。改为 `.Select(...).DefaultIfEmpty(10).Max()`
+- **`BoxBuffer.Fill` 负宽度负参异常**：`new string(ch, ContentWidth)` 未钳制 `Width-2`，带边框且 `Width<2` 时抛 `ArgumentOutOfRangeException`（同文件 `Render` 已有 `Math.Max(0, ...)` 保护）。补上钳制
+- **`TuiHelper.WrapLine` 首字符 emoji 切半**：`FindBreakIndex` 返回 0（首字符宽度即超 `maxWidth`）时原兜底 `breakIdx=1` 按 UTF-16 码元切半代理对，`maxWidth=1` 且首字符为 emoji/扩展区汉字时产出孤立代理项。改为取第一个完整码点的字符长度
+
+### ✅ 测试
+
+新增 `TestV0717RuneSafeWrap`（3 项）+ `TestV0717UiDeterministic`（3 项）：WrapText 首字符 emoji 不切半 / CJK 不越界 / 英文折行正常；TrimBottom 保留最新 2 条 / 全分隔线菜单不崩溃 / 窄边框 BoxBuffer.Fill 不抛。测试总数 3255 → 3261。
+
 ## v0.71.16 (2026-08-17) — 数据路径 UTF-16 切片代理对修复（6 处）
 
 继续清扫「按 UTF-16 码元任意切片」这一 CLAUDE.md 明文禁止的确定性数据损坏源。系统性审查发现 6 处仍用 `str[..N]` 截断**发往 LLM/系统提示词/落盘**的数据，当截断点落在 emoji/扩展区汉字（代理对）中间时会切出孤立代理项，UTF-8 编码后成为 U+FFFD 替换符混入提示词与文件内容。统一改走 `ContextManager.TruncateByRunes`（按码点截断）。

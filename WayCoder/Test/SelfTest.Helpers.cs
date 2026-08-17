@@ -4097,6 +4097,44 @@ public static partial class SelfTest
         return false;
     }
 
+    /// <summary>v0.71.17 批次：TuiHelper.WrapLine 兜底按码点取断点，首字符 emoji 在 maxWidth 过窄时不切半。</summary>
+    private static void TestV0717RuneSafeWrap(Action<string, bool> Check)
+    {
+        // maxWidth=1，首字符 😀（宽度 2，代理对）→ 旧代码 breakIdx=1 切出孤立高位代理；新代码取完整码点
+        var wrap = TuiHelper.WrapText("😀a", maxWidth: 1);
+        Check("WrapText: maxWidth=1 首字符 emoji 不切半", wrap.Count == 2 && wrap[0] == "😀" && !HasLoneSurrogate(wrap[0]));
+
+        // CJK 首字符（宽度 2，非代理对）在 maxWidth=1 时不越界、不抛异常、无孤立代理
+        var wrapCjk = TuiHelper.WrapText("中abc", maxWidth: 1);
+        Check("WrapText: CJK 首字符 maxWidth=1 不抛异常", wrapCjk.Count > 0 && !HasLoneSurrogate(string.Concat(wrapCjk)));
+
+        // 英文折行仍正常（空格处断行）
+        var wrapEn = TuiHelper.WrapText("hello world", maxWidth: 5);
+        Check("WrapText: 英文折行正常", wrapEn.Count == 2 && wrapEn[0] == "hello" && wrapEn[1] == "world");
+    }
+
+    /// <summary>v0.71.17 批次：UI 层确定性 bug —— 撤销栈修剪方向反 / 全分隔线菜单空序列 / BoxBuffer 负宽度。</summary>
+    private static void TestV0717UiDeterministic(Action<string, bool> Check)
+    {
+        // ── #1 EditorCore.TrimBottom：Stack.ToArray 栈顶在前，应保留最新 max 条（旧代码保留最旧、丢弃最新）──
+        var undo = new Stack<string>();
+        undo.Push("oldest"); undo.Push("mid"); undo.Push("newest"); // 栈顶 = newest
+        WayCoder.UI.Tui.Edit.EditorCore.TrimBottom(undo, 2);
+        Check("EditorCore.TrimBottom: 保留最新 2 条", undo.Count == 2 && undo.Pop() == "newest" && undo.Pop() == "mid");
+
+        // ── #2 TuiMenu：列表全为分隔线时 .Max() 空序列崩溃 ──
+        bool menuOk = true;
+        try { _ = TuiMenu.Show("", new List<string> { "---" }, 0, 0); }
+        catch { menuOk = false; }
+        Check("TuiMenu: 全分隔线菜单不崩溃", menuOk);
+
+        // ── #3 BoxBuffer.Fill：带边框且 Width<2 时 ContentWidth 为负，new string(ch, 负) 抛异常 ──
+        var bb = new BoxBuffer { X = 0, Y = 0, Width = 1, Height = 3, Border = BorderStyle.Single };
+        bool fillOk = true;
+        try { bb.Fill(new StringBuilder()); } catch { fillOk = false; }
+        Check("BoxBuffer.Fill: 窄边框负宽度不抛异常", fillOk);
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {

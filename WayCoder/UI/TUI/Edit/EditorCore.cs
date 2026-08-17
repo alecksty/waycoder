@@ -518,12 +518,13 @@ public class EditorCore
         _redo.Clear();
     }
 
-    private static void TrimBottom<T>(Stack<T> stack, int max)
+    internal static void TrimBottom<T>(Stack<T> stack, int max)
     {
         if (stack.Count <= max) return;
+        // Stack<T>.ToArray() 栈顶在前：arr[0]=最新入栈、arr[^1]=最旧。保留最新的 max 条（丢弃最旧）。
         var arr = stack.ToArray();
         stack.Clear();
-        for (int i = arr.Length - 1; i >= arr.Length - max; i--)
+        for (int i = max - 1; i >= 0; i--)
             stack.Push(arr[i]);
     }
 

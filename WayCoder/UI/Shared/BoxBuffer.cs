@@ -158,7 +158,7 @@ public class BoxBuffer
     /// <summary>填充整个内部区域为指定字符（默认空格=清空）</summary>
     public void Fill(StringBuilder sb, char ch = ' ')
     {
-        var fill = new string(ch, ContentWidth);
+        var fill = new string(ch, Math.Max(0, ContentWidth));
         var bgOn = string.IsNullOrEmpty(BgColor) ? "" : AnsiTty.Bg(int.Parse(BgColor));
         var bgOff = string.IsNullOrEmpty(BgColor) ? "" : AnsiTty.SgrReset;
         for (int i = 0; i < ContentHeight; i++)
