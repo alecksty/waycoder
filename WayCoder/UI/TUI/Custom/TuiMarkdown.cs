@@ -39,13 +39,26 @@ public static class TuiMarkdown
             return result;
         }
 
-        // 纯文本模式 + ANSI 内容：按行原样渲染，不做 Markdown 解析
+        // 纯文本模式 + ANSI 内容：按行渲染，不做 Markdown 解析。
+        // 纯文本行折行（超长工具输出右缘截断不可见）；含 ANSI 的行不折行（避免切半转义序列），
+        // 交给 WriteAt 的 ANSI 感知截断
         if (plainText || content.Contains(AnsiTty.AnsiCharPrefix))
         {
             int defaultFg = FgForRole(role);
             foreach (var rawLine in content.Split('\n'))
             {
-                result.Add(new List<(string, int, int)> { (rawLine, defaultFg, 0) });
+                if (rawLine.Length == 0)
+                {
+                    result.Add(new List<(string, int, int)> { ("", defaultFg, 0) });
+                    continue;
+                }
+                if (rawLine.Contains(AnsiTty.AnsiCharPrefix))
+                {
+                    result.Add(new List<(string, int, int)> { (rawLine, defaultFg, 0) });
+                    continue;
+                }
+                foreach (var wrapped in WrapText(rawLine, Math.Max(1, maxWidth - 2)))
+                    result.Add(new List<(string, int, int)> { (wrapped, defaultFg, 0) });
             }
             return result;
         }
@@ -55,17 +68,20 @@ public static class TuiMarkdown
 
         if (nodes.Count == 0)
         {
-            // 纯文本回退
-            result.Add(new List<(string, int, int)> { (content, FgForRole(role), 0) });
+            // 纯文本回退（按宽度折行）
+            foreach (var wrapped in WrapText(content, Math.Max(1, maxWidth - 2)))
+                result.Add(new List<(string, int, int)> { (wrapped, FgForRole(role), 0) });
             return result;
         }
 
-        // 如果第一个节点是纯段落且没有特殊格式，回退到简单渲染
+        // 如果第一个节点是纯段落且没有特殊格式，回退到简单渲染。
+        // 必须折行：否则长段落作为单一行被右缘直接截断不可见
         if (nodes.Count == 1 && nodes[0] is MdParagraph p &&
             !p.Text.Contains('*') && !p.Text.Contains('`') && !p.Text.Contains('#') &&
             !p.Text.Contains('\xAB'))
         {
-            result.Add(new List<(string, int, int)> { (p.Text, FgForRole(role), 0) });
+            foreach (var wrapped in WrapText(p.Text, Math.Max(1, maxWidth - 2)))
+                result.Add(new List<(string, int, int)> { (wrapped, FgForRole(role), 0) });
             return result;
         }
 

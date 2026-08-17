@@ -88,8 +88,9 @@ public class TuiMarkdown : TuiControl, ILazyItem
             foreach (var (text, fg, bg) in segments)
             {
                 if (string.IsNullOrEmpty(text)) continue;
-                int defaultFg = IsError ? 31 : TuiTheme.Current.ControlFg;
-                int effFg = fg > 0 ? fg : (Fg > 0 ? Fg : defaultFg);
+                // IsError 时强制整体红色：错误语义优先于角色色/高亮色烘焙
+                // （否则 fg 恒非零，IsError 的红色被跳过，错误输出永远显示灰色）
+                int effFg = IsError ? TuiColors.ErrorFg : (fg > 0 ? fg : (Fg > 0 ? Fg : TuiTheme.Current.ControlFg));
                 int effBg = bg > 0 ? bg : (Bg > 0 ? Bg : 0);
 
                 WriteAt(sb, row, col, text, effFg, effBg);
