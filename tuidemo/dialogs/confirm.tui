@@ -1,0 +1,10 @@
+<!-- 确认对话框 -->
+<Dialog title="确认" width="44" height="8" border="rounded" borderColor="yellow">
+  <VBox align="center" spacing="1">
+    <Label id="msg" text="确定要删除选中的文件吗？" />
+    <HBox align="center" spacing="2">
+      <Button id="yes" text="是" />
+      <Button id="no" text="否" />
+    </HBox>
+  </VBox>
+</Dialog>

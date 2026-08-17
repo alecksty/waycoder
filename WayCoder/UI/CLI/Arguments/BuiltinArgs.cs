@@ -467,6 +467,14 @@ public class TuiWatchArg : CliArg
     }
 }
 
+public class TuiMarkupDemoArg : CliArg
+{
+    public override string Description => "声明式 TUI 演示（tuidemo/*.tui 重构聊天界面与对话框）";
+    public override bool Internal => true;
+    public TuiMarkupDemoArg() : base("tui-markup-demo", "--tui-markup-demo") { }
+    public override int? OnMatch(List<string> values) { TuiMarkupDemo.Run(); return 0; }
+}
+
 public class GuiArg : CliArg
 {
     public override string Description => "启动图形界面（独立 Avalonia 进程）";
@@ -631,6 +639,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new GuiArg());
         CliArgRegistry.Register(new TuiPreviewArg());
         CliArgRegistry.Register(new TuiWatchArg());
+        CliArgRegistry.Register(new TuiMarkupDemoArg());
         CliArgRegistry.Register(new KeypadArg());
         CliArgRegistry.Register(new ThemeVerifyArg());
 
