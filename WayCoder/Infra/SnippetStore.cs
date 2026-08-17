@@ -243,7 +243,13 @@ public static class SnippetStore
     private static string SanitizeFileName(string name)
     {
         var invalid = Path.GetInvalidFileNameChars();
-        var chars = name.Select(c => invalid.Contains(c) ? '_' : c).ToArray();
-        return new string(chars);
+        // Unix 上 GetInvalidFileNameChars 只含 '\0'（'/' 是目录分隔符非非法文件名字符），
+        // 若不显式替换 '/'、'\'，name 含 '../' 会写出到 .waycoder/snippets 之外（路径穿越）。
+        var chars = name.Select(c => invalid.Contains(c) || c == '/' || c == '\\' ? '_' : c).ToArray();
+        var result = new string(chars);
+        // 空名 / 纯点（"."、".."）会生成非法文件名或越界，兜底为 unnamed
+        if (string.IsNullOrWhiteSpace(result) || result == "." || result == "..")
+            return "unnamed";
+        return result;
     }
 }

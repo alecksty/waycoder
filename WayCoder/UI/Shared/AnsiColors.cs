@@ -55,11 +55,15 @@ public static class AnsiColors
     public const int BgBrightWhite   = 107;
 
     // ═══════════════════════════════════════════════════════
-    // 语义别名（保留旧有兼容）
+    // 扩展色（256 色盘，ANSI 16 色之外；FgCode/BgCode 自动走 38;5;N / 48;5;N）
+    public const int Orange  = 208;  // #ff8700 标准橙
+    public const int Orange3 = 172;  // #d78700 深橙（Spectre orange3）
+    public const int PanelGrey = 247; // #9e9e9e 中浅灰（对话框/面板底色，浅于遮罩灰 100=#808080、深于标准白 47=#c0c0c0）
+
+    // 语义别名
     // ═══════════════════════════════════════════════════════
-    public const int Grey    = BrightBlack;   // 90
+    public const int Grey    = BrightBlack;   // 90（ANSI 亮黑即灰）
     public const int BgGrey  = BgBrightBlack; // 100
-    public const int DimFg   = BrightBlack;   // 90
 
     // 功能色别名
     public const int Border       = Yellow;       // 33

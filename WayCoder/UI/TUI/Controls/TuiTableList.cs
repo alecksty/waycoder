@@ -183,7 +183,7 @@ public class TuiTableList : TuiControl
             bool selected = idx == SelectedIndex;
             WriteTableRow(sb, absX, dataStart + i, FormatRow(_rows[idx]),
                 selected ? TuiTheme.Current.ListSelFg : (Fg > 0 ? Fg : TuiTheme.Current.ListFg),
-                selected ? TuiTheme.Current.ListSelBg : 0, dataWidth);
+                selected ? TuiTheme.Current.ListSelBg : (Bg > 0 ? Bg : TuiTheme.Current.ListBg), dataWidth);
         }
 
         // 内联滚动条

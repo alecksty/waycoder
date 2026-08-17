@@ -131,6 +131,8 @@ public class DrawTool : ITool
             if (parts.Length < 2 || !int.TryParse(parts[0].Trim(), out var cols) || !int.TryParse(parts[1].Trim(), out var rows))
                 return $"draw 错误：grid 格式非法 '{grid}'（应为 cols,rows）";
             if (cols <= 0 || rows <= 0) return "draw 错误：grid 行列必须为正整数";
+            // 防整数溢出/OOM：cols*rows 与 cx*Width 均按 int 相乘，超大网格溢出为负或分配数十 GB
+            if (cols > 256 || rows > 256) return "draw 错误：grid 行列过大（上限 256×256）";
             var colors = img.SampleGrid(cols, rows);
             var sb = new StringBuilder();
             sb.Append($"✅ 网格采样 {cols}×{rows}（图像 {img.Width}×{img.Height}）：");

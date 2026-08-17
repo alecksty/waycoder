@@ -164,6 +164,7 @@ public class MultiEditTool : ITool
         // 应用后续编辑
         int applied;
         (content, applied, failed) = ApplyEdits(content, edits, 1);
+        applied++; // 首编辑（提供初始内容）视为成功，否则单条创建输出「0/1 编辑成功」误导
 
         // Diff 预览
         var cfg = Config.Instance;
@@ -261,8 +262,9 @@ public class MultiEditTool : ITool
             ? $"\n⚠ {failed.Count} 个编辑失败:\n{FormatFailedEdits(failed)}"
             : "";
 
-        var additions = CountNewlines(newContent) - CountNewlines(oldContent);
-        var removal = CountNewlines(oldContent) - CountNewlines(newContent);
+        // 二者一正一负，须钳制 ≥0，否则输出「+3/--3」双负号
+        var additions = Math.Max(0, CountNewlines(newContent) - CountNewlines(oldContent));
+        var removal = Math.Max(0, CountNewlines(oldContent) - CountNewlines(newContent));
 
         var multiResult2 = $"✅ 已编辑 {path}（{applied}/{total} 编辑成功，+{additions}/-{removal} 行）{failedMsg}\n{diff}";
 

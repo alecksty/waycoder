@@ -1504,6 +1504,30 @@ public static partial class SelfTest
                 FileIgnoreManager.ShouldSkipDirectory("build", tmp));
             Check("Ignore: 不跳过普通目录 src",
                 !FileIgnoreManager.ShouldSkipDirectory("src", tmp));
+
+            // ── ** globstar 零目录匹配 ──
+            File.WriteAllText(Path.Combine(tmp, ".gitignore"),
+                "/a/**/b\n/**/foo\n/c/**\n");
+            FileIgnoreManager.ClearCache();
+
+            Check("Ignore: a/**/b 匹配零目录 a/b",
+                FileIgnoreManager.IsIgnored("a/b", tmp));
+            Check("Ignore: a/**/b 匹配一级 a/x/b",
+                FileIgnoreManager.IsIgnored("a/x/b", tmp));
+            Check("Ignore: a/**/b 匹配多级 a/x/y/b",
+                FileIgnoreManager.IsIgnored("a/x/y/b", tmp));
+            Check("Ignore: a/**/b 不误伤 a/b/c",
+                !FileIgnoreManager.IsIgnored("a/b/c", tmp));
+            Check("Ignore: a/**/b 不误伤 a/c",
+                !FileIgnoreManager.IsIgnored("a/c", tmp));
+            Check("Ignore: /**/foo 匹配根 foo",
+                FileIgnoreManager.IsIgnored("foo", tmp));
+            Check("Ignore: /**/foo 匹配任意深度",
+                FileIgnoreManager.IsIgnored("x/foo", tmp)
+                && FileIgnoreManager.IsIgnored("x/y/foo", tmp));
+            Check("Ignore: /c/** 匹配 c 下所有内容",
+                FileIgnoreManager.IsIgnored("c/x.txt", tmp)
+                && FileIgnoreManager.IsIgnored("c/d/e.txt", tmp));
         }
         finally
         {

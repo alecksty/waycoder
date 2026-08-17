@@ -95,7 +95,7 @@ public class TuiDynamicBar : TuiControl
         int right = Math.Min(absX + Width, ClipRight);
         if (left < right)
             rb.Write(absY, left, new string(' ', right - left),
-                fg: AnsiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
+                fg: AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
 
         // 根据状态计算颜色
         var (spinnerColor, textColor) = Status switch
@@ -113,7 +113,7 @@ public class TuiDynamicBar : TuiControl
         int col = absX + 1;
         if (IsActive)
         {
-            rb.Write(absY, col, CurrentFrame + " ", fg: spinnerColor, bg: TuiTheme.Current.WindowBg);
+            rb.Write(absY, col, CurrentFrame + " ", fg: spinnerColor, bg: AnsiColors.BgBlack);
             col += 2;
         }
 
@@ -137,7 +137,7 @@ public class TuiDynamicBar : TuiControl
         if (leftWidth > 0)
         {
             var leftStr = AnsiHelper.TruncateByWidth(leftDisplay, leftWidth);
-            rb.Write(absY, col, leftStr, fg: textColor, bg: TuiTheme.Current.WindowBg);
+            rb.Write(absY, col, leftStr, fg: textColor, bg: AnsiColors.BgBlack);
             col += AnsiHelper.DisplayWidth(leftStr);
         }
 
@@ -146,9 +146,9 @@ public class TuiDynamicBar : TuiControl
         if (col < midStart)
         {
             rb.Write(absY, col, new string(' ', midStart - col),
-                fg: AnsiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
+                fg: AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
         }
-        rb.Write(absY, midStart, "│", fg: AnsiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
+        rb.Write(absY, midStart, "│", fg: AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
         col = midStart + 2;
 
         // ── 中段：工具/任务 ──
@@ -158,13 +158,13 @@ public class TuiDynamicBar : TuiControl
         {
             if (AnsiHelper.DisplayWidth(toolDisplay) > midWidth)
                 toolDisplay = AnsiHelper.TruncateByWidth(toolDisplay, midWidth);
-            rb.Write(absY, col, toolDisplay, fg: AnsiColors.Grey, bg: TuiTheme.Current.WindowBg);
+            rb.Write(absY, col, toolDisplay, fg: AnsiColors.Grey, bg: AnsiColors.BgBlack);
         }
         col = midStart + Width / 3;
 
         // ── 分隔 ──
         int rightStart = absX + Width * 2 / 3;
-        rb.Write(absY, rightStart, "│", fg: AnsiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
+        rb.Write(absY, rightStart, "│", fg: AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
         col = rightStart + 2;
 
         // ── 右段：进度条 ──
@@ -179,11 +179,11 @@ public class TuiDynamicBar : TuiControl
                 var barFg = pct switch { < 30 => AnsiColors.Green, < 70 => AnsiColors.Yellow, _ => AnsiColors.Red };
                 rb.Write(absY, col,
                     $"«{new string('█', filled)}{new string('░', empty)}»",
-                    fg: barFg, bg: TuiTheme.Current.WindowBg);
+                    fg: barFg, bg: AnsiColors.BgBlack);
                 col += barW + 4;
 
                 var pctStr = $" {pct,3:F0}%";
-                rb.Write(absY, col, pctStr, fg: barFg, bg: TuiTheme.Current.WindowBg);
+                rb.Write(absY, col, pctStr, fg: barFg, bg: AnsiColors.BgBlack);
             }
         }
         else if (!string.IsNullOrEmpty(ProgressLabel))
@@ -192,7 +192,7 @@ public class TuiDynamicBar : TuiControl
             int maxW = Width - (col - absX);
             if (AnsiHelper.DisplayWidth(label) > maxW)
                 label = AnsiHelper.TruncateByWidth(label, maxW);
-            rb.Write(absY, col, label, fg: AnsiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
+            rb.Write(absY, col, label, fg: AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
         }
         else
         {
@@ -202,7 +202,7 @@ public class TuiDynamicBar : TuiControl
                 var pct = ContextPercent.Value;
                 var ctxFg = pct switch { < 30 => AnsiColors.Green, < 70 => AnsiColors.Yellow, _ => AnsiColors.Red };
                 var ctxStr = $"📊 {pct,3:F0}%";
-                rb.Write(absY, col, ctxStr, fg: ctxFg, bg: TuiTheme.Current.WindowBg);
+                rb.Write(absY, col, ctxStr, fg: ctxFg, bg: AnsiColors.BgBlack);
                 col += AnsiHelper.DisplayWidth(ctxStr) + 1;
             }
 
@@ -213,7 +213,7 @@ public class TuiDynamicBar : TuiControl
                 if (!string.IsNullOrEmpty(modelDisplay) && AnsiHelper.DisplayWidth(modelDisplay) > 25)
                     modelDisplay = AnsiHelper.TruncateByWidth(modelDisplay, 25);
                 rb.Write(absY, col, modelDisplay ?? "",
-                    fg: AnsiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
+                    fg: AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
             }
         }
 

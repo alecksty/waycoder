@@ -431,6 +431,14 @@ public class TuiAuditArg : CliArg
     public override int? OnMatch(List<string> values) { TuiAudit.Run(); return 0; }
 }
 
+public class DialogShowArg : CliArg
+{
+    public override string Description => "对话框仅绘制演示（1~6 行消息 + 指定位置，抓屏核对布局）";
+    public override bool Internal => true;
+    public DialogShowArg() : base("dialog-show", "--dialog-show") { }
+    public override int? OnMatch(List<string> values) { DialogShow.Run(); return 0; }
+}
+
 public class KeypadArg : CliArg
 {
     public override string Description => "按键脚本驱动 TUI（KEY/TEXT/DELAY/SNAP/DIALOG）+ 帧截图";
@@ -546,6 +554,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new ScreenshotArg());
         CliArgRegistry.Register(new TuiDemoArg());
         CliArgRegistry.Register(new TuiAuditArg());
+        CliArgRegistry.Register(new DialogShowArg());
         CliArgRegistry.Register(new KeypadArg());
         CliArgRegistry.Register(new ThemeVerifyArg());
 

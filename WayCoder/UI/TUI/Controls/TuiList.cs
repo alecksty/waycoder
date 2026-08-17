@@ -49,9 +49,9 @@ public class TuiList : TuiControl
             int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
                 : idx == SelectedIndex ? TuiTheme.Current.ListSelFg
                 : (Fg > 0 ? Fg : TuiTheme.Current.ListFg);
-            int bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : 0)
+            int bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : TuiTheme.Current.ListBg)
                 : idx == SelectedIndex ? TuiTheme.Current.ListSelBg
-                : (Bg > 0 ? Bg : 0);
+                : (Bg > 0 ? Bg : TuiTheme.Current.ListBg);
 
             rb.Write(row, absX, display + new string(' ', Math.Max(0, Width - AnsiHelper.DisplayWidth(display))), fg: fg, bg: bg);
         }
