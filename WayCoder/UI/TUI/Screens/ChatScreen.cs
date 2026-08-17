@@ -200,7 +200,10 @@ public partial class ChatScreen : TuiScreen
         if (DynamicBar.Status == AgentStatus.Compressing && ContextManager.IsCompressing)
             return;
         if (DynamicBar.Status == AgentStatus.Compressing && !ContextManager.IsCompressing)
+        {
             DynamicBar.ProgressPercent = null; // 压缩完成，清理
+            DynamicBar.ProgressLabel = "";     // 同时清标签，避免残留 "[L3] 压缩完成" 覆盖常驻上下文%
+        }
 
         // 等待权限
         if (_pendingPermissionTool != null)
