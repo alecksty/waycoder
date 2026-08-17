@@ -169,10 +169,29 @@ public partial class Agent
                     await sem.WaitAsync(cancellationToken);
                     try { return (tc, await RunToolAndRecordAsync(tc, null, cancellationToken)); }
                     finally { sem.Release(); }
-                });
-                var batchResults = await Task.WhenAll(tasks);
-                foreach (var (tc, result) in batchResults)
-                    results[tc.Id] = result;
+                }).ToArray();
+                try
+                {
+                    var batchResults = await Task.WhenAll(tasks);
+                    foreach (var (tc, result) in batchResults)
+                        results[tc.Id] = result;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    // 中断：Task.WhenAll 已结束所有任务（SemaphoreSlim 无 in-flight 竞态），
+                    // 提交已完成的工具结果——避免上层 AnswerPendingToolCalls 把已执行的工具
+                    // 误标 [已中断]，恢复后重复执行（二次写文件）
+                    foreach (var t in tasks)
+                        if (t.IsCompletedSuccessfully)
+                        {
+                            var (tc, result) = t.Result;
+                            AddMessage(JNode.Object()
+                                .Set("role", "tool")
+                                .Set("tool_call_id", tc.Id)
+                                .Set("content", result));
+                        }
+                    throw;
+                }
             }
         }
 
