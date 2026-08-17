@@ -63,6 +63,10 @@ public class FindReplaceTool : ITool
         if (string.IsNullOrEmpty(pattern))
             return "错误：pattern 参数不能为空";
 
+        // 负值钳制：maxPerFile 为负时 Math.Min/lineCount>=maxPerFile 均立即成立，累计负匹配数 + 误导文案
+        maxFiles = Math.Max(1, maxFiles);
+        maxPerFile = Math.Max(1, maxPerFile);
+
         try
         {
             path ??= BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory();
@@ -189,19 +193,36 @@ public class FindReplaceTool : ITool
                 CollectFiles(subDir, glob, files, ref maxFiles, depth + 1);
             }
 
-            foreach (var file in Directory.GetFiles(dir, glob))
+            foreach (var file in ExpandBraces(glob).SelectMany(p => Directory.GetFiles(dir, p)))
             {
                 if (maxFiles <= 0) break;
                 if (Path.GetFileName(file).StartsWith('.')) continue;
                 // 仅处理文本文件（按扩展名粗略判断）
                 if (IsTextFile(file))
                 {
-                    files.Add(file);
-                    maxFiles--;
+                    if (!files.Contains(file)) // 花括号展开后可能重复命中同一文件，去重
+                    {
+                        files.Add(file);
+                        maxFiles--;
+                    }
                 }
             }
         }
         catch { }
+    }
+
+    /// <summary>把 `*.{md,txt}` 花括号 glob 展开为多个 pattern（.NET 的 GetFiles 不认花括号，否则静默匹配 0 个）。</summary>
+    private static IEnumerable<string> ExpandBraces(string glob)
+    {
+        int open = glob.IndexOf('{');
+        if (open < 0) { yield return glob; yield break; }
+        int close = glob.IndexOf('}', open + 1);
+        if (close < 0) { yield return glob; yield break; }
+        var pre = glob[..open];
+        var post = glob[(close + 1)..];
+        foreach (var opt in glob[(open + 1)..close].Split(','))
+            foreach (var expanded in ExpandBraces(pre + opt + post))
+                yield return expanded;
     }
 
     private static bool IsTextFile(string path)

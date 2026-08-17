@@ -30,6 +30,7 @@ public class DiffTool : ITool
         var f1 = arguments.GetValueOrDefault("file1")?.ToString() ?? "";
         var f2 = arguments.GetValueOrDefault("file2")?.ToString() ?? "";
         var context = ToolArgs.GetInt(arguments, "context", 3);
+        context = Math.Clamp(context, 0, 10_000); // 防极端值 i±context 整数溢出
 
         return Task.FromResult(Execute(f1, f2, context));
     }
