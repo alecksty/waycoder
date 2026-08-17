@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.71.23 (2026-08-17) — 安全 + 数据损坏 + 死锁 4 项高优先级修复
+
+Explore 代理扫 `Agent/`（LLM/Fallback/Agent/AgentSlot）+ `Tools/` 网络/外部类 + `Edit/`/`Watch/`/`Memory/` 三层后人工验证，本轮先修 4 个最高优先级（安全绕过 / 文件内容损坏 / 误判超时）。
+
+### 🐛 修复
+
+- **`GitTool` 危险操作拦截可被参数顺序绕过**：`BlockedPatterns` 用整串 `command.Contains("push --force")` 子串匹配，把 flag 挪到分支名/远端名之后（`push origin main --force`、`reset HEAD --hard`、`clean src/ -f`）即绕过拦截，真实执行 force push / hard reset / clean -f 等破坏性操作。改为 `HasBlockedGitOperation` 按 token 精确匹配（子命令大小写不敏感 + flag 区分大小写），顺带修正 `branch -d`（普通删除）被 `OrdinalIgnoreCase` 误拦、并放行 `push --force-with-lease`（更安全变体）
+- **`DocTool` fetch 模式 SSRF 重定向绕过**：`_client` 设 `AllowAutoRedirect = true`，`FetchDocAsync` 只对初始 URL 做 `SsgfGuard.CheckUrl/CheckDns`，HttpClient 静默跟随 30x 后跳转目标（如内网 `127.0.0.1`、云元数据 `169.254.169.254`）不再校验。改为 fetch 模式用独立的 `AllowAutoRedirect=false` client + 手动跟随并对每一跳重跑 SSRF 校验（对标 `FetchTool.SendWithRedirectAsync`）
+- **`EditorCore.MoveCursor` 上下移动不防代理对切半**：代理对修正被 `if (dx != 0)` 包住，仅左右移动生效。上下移动（`dx==0`）落到 emoji/CJK 扩展 B 代理对中间后，`Backspace`/插入把 emoji 切成两半，保存时 `Encoding.UTF8` 替换回退成 U+FFFD，**文件内容被永久破坏**。改为左右/上下移动后统一修正（`dx==0` 默认回退到码点边界）
+- **`Agent` 自动测试 stdout/stderr 顺序读导致管道死锁**：先 `ReadToEndAsync` 读完 stdout 再读 stderr，子进程向 stderr 写满管道缓冲（约 4KB+，`dotnet test` 的编译警告/弃用提示极易达到）时会阻塞在写 stderr、永不退出，stdout 读任务永不完成 → 误判超时并 `Kill` 本应通过的测试。改为 stdout/stderr 并发读（`Task.WhenAll`）后再等待超时
+
+### ✅ 测试
+
+新增 `TestV0723SafetyAndCursor`（13 项断言）：`HasBlockedGitOperation` 的 flag 后置绕过 / force-with-lease 放行 / branch -d 放行 / 正常命令放行；`MoveCursor` 上下移动落到 emoji 代理对中间时 Cx 回退到码点边界。测试总数 3282 → 3295。
+
 ## v0.71.22 (2026-08-17) — 日志/预览截断走码点边界（代理对不切半）
 
 继续清扫上一轮遗留的 UTF-16 原始切片候选（Explore 代理标记、人工确认）。本轮修复 3 处「显示/日志层」截断在代理对（emoji / CJK 扩展 B）中间切半、产出 U+FFFD 乱码的问题——均属展示层，不影响数据完整性，但会让预览/日志里出现乱码。
