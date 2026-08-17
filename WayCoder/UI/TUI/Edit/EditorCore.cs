@@ -118,14 +118,13 @@ public class EditorCore
         Cx = Math.Clamp(Cx + dx, 0, Lines[Cy].Length);
         Cx = Math.Min(Cx, Lines[Cy].Length);
 
-        // 光标不落在代理对中间（emoji/CJK 扩展 B）：左右移动时跳过半个码点
-        if (dx != 0)
-        {
-            var line = Lines[Cy].ToString();
-            if (Cx > 0 && Cx < line.Length
-                && char.IsHighSurrogate(line[Cx - 1]) && char.IsLowSurrogate(line[Cx]))
-                Cx += dx > 0 ? 1 : -1;
-        }
+        // 光标不落在代理对中间（emoji/CJK 扩展 B）：左右/上下移动后统一修正。
+        // 旧代码仅 dx!=0 修正 → 上下移动（dx==0）落到代理对中间后，Backspace/插入
+        // 会把 emoji 切成两半，保存时 Encoding.UTF8 替换回退成 U+FFFD 破坏文件。
+        var line = Lines[Cy].ToString();
+        if (Cx > 0 && Cx < line.Length
+            && char.IsHighSurrogate(line[Cx - 1]) && char.IsLowSurrogate(line[Cx]))
+            Cx += dx > 0 ? 1 : -1;
     }
 
     public void MoveHome() => Cx = 0;
