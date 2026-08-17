@@ -170,7 +170,7 @@ public class TestTool : ITool
                 Regex.IsMatch(line, @"\d+\s+failed", RegexOptions.IgnoreCase);
 
             if (isFailureMark && !isSummaryLine)
-                failures.Add(line.Length > 200 ? line[..200] + "..." : line);
+                failures.Add(line.Length > 200 ? ContextManager.TruncateByRunes(line, 200) + "..." : line);
         }
         return failures;
     }
