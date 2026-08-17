@@ -164,6 +164,8 @@ public static class TuiMarkup
         {
             "VBox" => new TuiVBox(),
             "HBox" => new TuiHBox(),
+            "Grid" => new TuiGrid(),
+            "WrapPanel" => new TuiWrapPanel(),
             "Label" => new TuiLabel(Attr(node, "text")),
             "Button" => new TuiButton(Attr(node, "text")),
             "Input" => new TuiInput(),
@@ -178,6 +180,11 @@ public static class TuiMarkup
             "Panel" => new TuiPanel(),
             "Spinner" => new TuiSpinner(Attr(node, "text")),
             "Markdown" => new WayCoder.UI.Tui.Controls.TuiMarkdown(Attr(node, "text")),
+            "TitleBar" => new TuiTitleBar(),
+            "StatusBar" => new TuiStatusBar(),
+            "Banner" => new TuiBanner(),
+            "Scrollbar" => new TuiScrollbar(),
+            "Icon" => new TuiIcon(Attr(node, "glyph", "•")),
             "Spacer" => new TuiLabel("") { Flex = 1 },
             _ => null,
         };
@@ -249,6 +256,44 @@ public static class TuiMarkup
                 if (Enum.TryParse<EHAlign>(Attr(node, "align"), true, out var ha))
                     ((TuiHBox)c).ContentHAlign = ha;
                 break;
+            case "Grid":
+                var grid = (TuiGrid)c;
+                var gCols = Attr(node, "columns");
+                if (gCols.Length > 0) grid.ColumnDefinitions = gCols;
+                var gRows = Attr(node, "rows");
+                if (gRows.Length > 0) grid.RowDefinitions = gRows;
+                if (Int(node, "colGap") is int cg) grid.ColGap = cg;
+                if (Int(node, "rowGap") is int rgap) grid.RowGap = rgap;
+                break;
+            case "WrapPanel":
+                var wp = (TuiWrapPanel)c;
+                if (Attr(node, "direction").ToLowerInvariant() == "vertical")
+                    wp.Direction = Orientation.Vertical;
+                if (Int(node, "colSpacing") is int cs) wp.ColumnSpacing = cs;
+                if (Int(node, "rowSpacing") is int rs) wp.RowSpacing = rs;
+                if (Int(node, "itemWidth") is int iw) wp.ItemWidth = iw;
+                if (Int(node, "itemHeight") is int ih) wp.ItemHeight = ih;
+                break;
+            case "TitleBar":
+                ((TuiTitleBar)c).Title = Attr(node, "title");
+                ((TuiTitleBar)c).CenterText = Attr(node, "center");
+                ((TuiTitleBar)c).Version = Attr(node, "version");
+                break;
+            case "StatusBar":
+                ((TuiStatusBar)c).HintText = Attr(node, "hint");
+                ((TuiStatusBar)c).RightText = Attr(node, "right");
+                break;
+            case "Banner":
+                ((TuiBanner)c).Title = Attr(node, "title");
+                ((TuiBanner)c).Subtitle = Attr(node, "subtitle");
+                break;
+            case "Scrollbar":
+                var scr = (TuiScrollbar)c;
+                if (Int(node, "content") is int ch) scr.ContentHeight = ch;
+                if (Int(node, "viewport") is int vp) scr.ViewportHeight = vp;
+                if (Int(node, "offset") is int off) scr.ScrollOffset = off;
+                if (Bool(node, "autoHide") is bool ah) scr.AutoHide = ah;
+                break;
         }
 
         var id = node.GetAttr("id");
@@ -271,6 +316,8 @@ public static class TuiMarkup
         if (Color(node, "fg") is int fg) c.Fg = fg;
         if (Color(node, "bg") is int bg) c.Bg = bg;
         if (Bool(node, "visible") is bool v) c.Visible = v;
+        if (Bool(node, "focused") is bool fo) c.Focused = fo;
+        if (Bool(node, "disabled") is bool dis) c.IsEnabled = !dis;
 
         if (c is TuiLabel lbl && Enum.TryParse<EHAlign>(Attr(node, "align"), true, out var la))
             lbl.TextAlign = la;
