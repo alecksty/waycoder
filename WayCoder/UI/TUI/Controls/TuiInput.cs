@@ -242,8 +242,22 @@ public class TuiInput : TuiEditBase
 
     // ── 光标移动原语 ──
 
-    protected override void MoveCursorLeft()  { if (CursorPos > 0) CursorPos--; }
-    protected override void MoveCursorRight() { if (CursorPos < Text.Length) CursorPos++; }
+    protected override void MoveCursorLeft()
+    {
+        if (CursorPos == 0) return;
+        CursorPos--;
+        // 光标不落在代理对中间（emoji/CJK 扩展 B）
+        if (CursorPos > 0 && char.IsHighSurrogate(Text[CursorPos - 1]) && char.IsLowSurrogate(Text[CursorPos]))
+            CursorPos--;
+    }
+
+    protected override void MoveCursorRight()
+    {
+        if (CursorPos >= Text.Length) return;
+        CursorPos++;
+        if (CursorPos < Text.Length && char.IsHighSurrogate(Text[CursorPos - 1]) && char.IsLowSurrogate(Text[CursorPos]))
+            CursorPos++;
+    }
     protected override void MoveCursorHome()  { CursorPos = 0; }
     protected override void MoveCursorEnd()   { CursorPos = Text.Length; }
 
@@ -263,9 +277,10 @@ public class TuiInput : TuiEditBase
     protected override void DeleteCharBefore()
     {
         if (CursorPos <= 0) return;
-        var ch = Text[CursorPos - 1].ToString();
-        Text = Text[..(CursorPos - 1)] + Text[CursorPos..];
-        CursorPos--;
+        int delLen = CursorPos >= 2 && char.IsHighSurrogate(Text[CursorPos - 2]) && char.IsLowSurrogate(Text[CursorPos - 1]) ? 2 : 1;
+        var ch = Text.Substring(CursorPos - delLen, delLen);
+        Text = Text[..(CursorPos - delLen)] + Text[CursorPos..];
+        CursorPos -= delLen;
         RecordEdit('D', CursorPos, ch);
         NotifyChanged();
     }
@@ -273,8 +288,9 @@ public class TuiInput : TuiEditBase
     protected override void DeleteCharAfter()
     {
         if (CursorPos >= Text.Length) return;
-        var ch = Text[CursorPos].ToString();
-        Text = Text[..CursorPos] + Text[(CursorPos + 1)..];
+        int delLen = CursorPos + 1 < Text.Length && char.IsHighSurrogate(Text[CursorPos]) && char.IsLowSurrogate(Text[CursorPos + 1]) ? 2 : 1;
+        var ch = Text.Substring(CursorPos, delLen);
+        Text = Text[..CursorPos] + Text[(CursorPos + delLen)..];
         RecordEdit('D', CursorPos, ch);
         NotifyChanged();
     }
