@@ -617,6 +617,30 @@ public static partial class SelfTest
         Console.WriteLine();
 
         // ================================================================
+        // TUI 声明式标记：TuiMarkup 加载 + Find(id) + 事件接线
+        // ================================================================
+        Section("[TuiMarkup]");
+        var tuiRes = WayCoder.UI.TUI.TuiMarkup.Load(
+            "<Window title=\"t\" width=\"30\" height=\"8\">" +
+            "<VBox><Label id=\"msg\" text=\"初始\"/>" +
+            "<Button id=\"ok\" text=\"确定\"/></VBox></Window>");
+        var tuiMsg = tuiRes.Find<TuiLabel>("msg");
+        var tuiOk = tuiRes.Find<TuiButton>("ok");
+        Check("TuiMarkup Find 标签", tuiMsg != null && tuiMsg.Text == "初始");
+        Check("TuiMarkup Find 按钮", tuiOk != null && tuiOk.Text == "确定");
+        Check("TuiMarkup 窗口存在", tuiRes.Window != null);
+        // 根元素为 Screen/Dialog 时构建对应对象
+        var scrRes = WayCoder.UI.TUI.TuiMarkup.Load(
+            "<Screen><VBox><Label text=\"屏\"/></VBox><Dialog id=\"d\" title=\"框\" width=\"30\" height=\"6\"><Label text=\"弹\"/></Dialog></Screen>");
+        Check("TuiMarkup Screen 根", scrRes.Screen != null);
+        Check("TuiMarkup Screen RootView", scrRes.Screen!.RootView != null);
+        bool tuiClicked = false;
+        tuiOk!.OnClick = _ => { tuiClicked = true; tuiMsg!.Text = "已点击"; };
+        tuiOk.OnClick?.Invoke(tuiOk);
+        Check("TuiMarkup 事件接线", tuiClicked && tuiMsg!.Text == "已点击");
+        Console.WriteLine();
+
+        // ================================================================
         // InlinePermission 行内权限确认（inline 方式）
         // ================================================================
         Section("[InlinePermission]");
