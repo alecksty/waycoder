@@ -149,6 +149,14 @@ public static class TuiMarkup
         if (Int(node, "y") is int y) win.Y = y;
         if (Color(node, "borderColor") is int bc) win.BorderColor = bc;
 
+        // 可变尺寸：min/max 尺寸 + 比例缩放（scale = 宽占终端比例，scaleY = 高占终端比例）
+        if (Int(node, "minWidth") is int minw) win.MinWidth = minw;
+        if (Int(node, "minHeight") is int minh) win.MinHeight = minh;
+        if (Int(node, "maxWidth") is int maxw) win.MaxWidth = maxw;
+        if (Int(node, "maxHeight") is int maxh) win.MaxHeight = maxh;
+        if (Double(node, "scale") is double s) win.XScale = s;
+        if (Double(node, "scaleY") is double sy) win.YScale = sy;
+
         foreach (var child in node.Children)
             if (BuildControl(child, byId) is TuiView v) { win.RootView = v; break; }
 
@@ -329,6 +337,10 @@ public static class TuiMarkup
 
     private static int? Int(XNode node, string key)
         => int.TryParse(node.GetAttr(key), out var v) ? v : null;
+
+    private static double? Double(XNode node, string key)
+        => double.TryParse(node.GetAttr(key), System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
 
     private static bool? Bool(XNode node, string key)
     {
