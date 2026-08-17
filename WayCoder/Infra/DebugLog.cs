@@ -101,7 +101,7 @@ public static class DebugLog
                 else if (content?.Length > 500)
                 {
                     sb.AppendLine($"[{i}] role={role} ({content.Length} chars)");
-                    sb.AppendLine(content[..500] + "...");
+                    sb.AppendLine(ContextManager.TruncateByRunes(content, 500) + "...");
                 }
                 else
                 {
@@ -113,7 +113,7 @@ public static class DebugLog
                 {
                     var tcStr = m["tool_calls"]!.ToJson();
                     if (tcStr.Length > 1000)
-                        sb.AppendLine($"  tool_calls: {tcStr[..1000]}...");
+                        sb.AppendLine($"  tool_calls: {ContextManager.TruncateByRunes(tcStr, 1000)}...");
                     else
                         sb.AppendLine($"  tool_calls: {tcStr}");
                 }
@@ -160,7 +160,7 @@ public static class DebugLog
                 {
                     var argsStr = JsonHelper.SerializeArgs(tc.Arguments);
                     if (argsStr.Length > 500)
-                        argsStr = argsStr[..500] + "...";
+                        argsStr = ContextManager.TruncateByRunes(argsStr, 500) + "...";
                     sb.AppendLine($"  - {tc.Name}({argsStr})");
                 }
             }
@@ -182,7 +182,7 @@ public static class DebugLog
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"  [{toolName}] result:");
             if (result.Length > 1000)
-                sb.AppendLine(result[..1000] + $"\n  ... ({result.Length} chars total)");
+                sb.AppendLine(ContextManager.TruncateByRunes(result, 1000) + $"\n  ... ({result.Length} chars total)");
             else
                 sb.AppendLine(result);
             WriteRaw(sb.ToString());

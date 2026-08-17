@@ -54,7 +54,7 @@ public class SessionCommand : SlashCommand
             if (parts[i] == "--page" && i + 1 < parts.Length && int.TryParse(parts[i + 1], out var p))
                 page = Math.Max(1, p);
         }
-        var offset = (page - 1) * limit;
+        var offset = (int)Math.Min((long)(page - 1) * limit, int.MaxValue); // page 无上界，防 (page-1)*limit 溢出为负
 
         var sessions = SessionManager.ListSessions(limit, offset, Program.ActiveSlotIndex);
         if (sessions.Count == 0)

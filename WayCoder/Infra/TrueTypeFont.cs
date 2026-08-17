@@ -477,8 +477,8 @@ public sealed class TrueTypeFont
     static double IsLeft(double x1, double y1, double x2, double y2, double x, double y)
         => (x2 - x1) * (y - y1) - (x - x1) * (y2 - y1);
 
-    static int BE16(byte[] d, int off) => off + 2 <= d.Length ? (d[off] << 8) | d[off + 1] : 0;
-    static uint BE32(byte[] d, int off) => off + 4 <= d.Length
+    static int BE16(byte[] d, int off) => off >= 0 && off + 2 <= d.Length ? (d[off] << 8) | d[off + 1] : 0;
+    static uint BE32(byte[] d, int off) => off >= 0 && off + 4 <= d.Length
         ? ((uint)d[off] << 24) | ((uint)d[off + 1] << 16) | ((uint)d[off + 2] << 8) | d[off + 3]
         : 0;
 }
