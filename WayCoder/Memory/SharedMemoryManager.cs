@@ -86,7 +86,8 @@ public static class SharedMemoryManager
             status.HasRemote = fetchResult.exitCode == 0;
 
             // 比较本地和远程的 memory 文件差异
-            var diffResult = RunGit($"diff --name-only HEAD..origin/master -- {EscapePath(_memoryGitPath!)}");
+            // @{upstream} = 当前分支的远程跟踪分支（比硬编码 origin/master 更通用——默认分支可能是 main）
+            var diffResult = RunGit($"diff --name-only HEAD..@{{upstream}} -- {EscapePath(_memoryGitPath!)}");
             if (diffResult.exitCode == 0 && !string.IsNullOrWhiteSpace(diffResult.stdout))
             {
                 var files = diffResult.stdout.Trim().Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -94,7 +95,7 @@ public static class SharedMemoryManager
             }
 
             // 检查本地未推送的变更
-            var localDiffResult = RunGit($"diff --name-only origin/master..HEAD -- {EscapePath(_memoryGitPath!)}");
+            var localDiffResult = RunGit($"diff --name-only @{{upstream}}..HEAD -- {EscapePath(_memoryGitPath!)}");
             if (localDiffResult.exitCode == 0 && !string.IsNullOrWhiteSpace(localDiffResult.stdout))
             {
                 var files = localDiffResult.stdout.Trim().Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -156,7 +157,7 @@ public static class SharedMemoryManager
 
             // 3. 检出远程的 memory 文件（仅限 .waycoder/memory/*.md）
             var checkoutResult = await RunGitAsync(
-                $"checkout origin/master -- {EscapePath(_memoryGitPath)}/*.md 2>&1");
+                $"checkout @{{upstream}} -- {EscapePath(_memoryGitPath)}/*.md 2>&1");
             if (checkoutResult.exitCode != 0)
             {
                 // 远程可能没有共享记忆文件，这是正常的
