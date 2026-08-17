@@ -26,7 +26,7 @@ public class StatsCommand : SlashCommand
             sb.AppendLine($"  当前任务: {llm.TaskPromptTokens:N0}+{llm.TaskCompletionTokens:N0} 词元 · ¥{taskRmb?.ToString("F4") ?? "N/A"}");
         }
         sb.AppendLine($"  延迟:     {llm.LastLatencyMs}ms");
-        sb.AppendLine($"  消息:     {agent?.Messages.Count ?? 0} 条");
+        sb.AppendLine($"  消息:     {agent?.SnapshotMessages().Count ?? 0} 条");
         sb.AppendLine($"  会话:     {SessionManager.ListSessions().Count} 个");
         sb.AppendLine($"  权限:     {SandboxManager.Level}");
 

@@ -21,7 +21,7 @@ public class HistoryCommand : SlashCommand
 
         var results = new List<string>();
         int idx = 0;
-        foreach (var msg in agent.Messages)
+        foreach (var msg in agent.SnapshotMessages())
         {
             var content = msg["content"]?.AsString() ?? "";
             if (content.Contains(args, StringComparison.OrdinalIgnoreCase))

@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.71.12 (2026-08-17) — Agent.Messages 线程安全（锁内读写 + 快照读）
+
+继续清扫多 Agent 并发场景的数据竞态。本轮聚焦 `Agent.Messages`（`List<JNode>`）的并发访问：主循环线程流式追加消息，与 Web 序列化 / 退出自动保存 / 会话命令 / 历史命令等外部线程的遍历并存，非线程安全的 `List` 在「遍历中并发 Add」时抛 `InvalidOperationException`。
+
+### 🐛 并发
+
+- **`Agent.Messages` 非线程安全访问**：`Agent.cs` 把 `Messages` 从公开字段改为 `_messages` 后备字段 + 属性，新增 `MessagesLock` + 封装方法 `AddMessage`/`RemoveMessageAt`/`InsertMessage`/`SnapshotMessages`/`ReplaceMessages`/`ClearMessages`（锁内读写，快照 `ToList` 供外部只读遍历）
+- **内部写点统一走锁**：`Agent.cs`/`Agent.Loop.cs`/`Agent.Tools.cs` 的 `Messages.Add/Insert/RemoveAt/Clear` 全部替换为封装方法
+- **外部写点改封装**：`Program.cs`（恢复会话）/`Program.Repl.cs`（`/resume`）/`Program.Commands.cs`（`/session`、新建会话）/`WebChat.Commands.cs`（`/reset`、`/session load`）/`WebChat.cs`（`/sessions/new|load`、`/fileref`）/`SessionCommand.cs`（load/resume）的 `Clear+AddRange` 全部合并为 `ReplaceMessages`、`Clear` 改 `ClearMessages`、`Add` 改 `AddMessage`
+- **外部读点改快照**：`WebChat.Serialization.cs`（`SerializeHistory`/`HasHistory`）、`Program.Repl.cs`（退出自动保存/崩溃保存/紧急退出/token 估算）、`Program.Commands.cs`（`/history` 索引遍历、`/loop` 尾消息）、`WebChat.Commands.cs`（`/session save`）、`SessionCommand.cs`（save）、`HistoryCommand`/`ExportCommand`/`CompactCommand`/`StatsCommand`/`AgentTool.BuildParentContext` 全部改为 `SnapshotMessages()` 锁内快照，杜绝遍历中并发 Add 抛异常
+
+### ✅ 测试
+
+新增 `TestV0712MessagesThreadSafety`（7 项断言）：封装方法功能正确性（追加/快照副本/插入/删除/整体替换/清空）+ 并发压力（写线程 `AddMessage` ×5000 与读线程 `SnapshotMessages` ×5000 并发不抛异常）。测试总数 3223 → 3230。
+
 ## v0.71.11 (2026-08-17) — 并发安全 4 项（锁一致性/volatile/定时器/原子累加）
 
 继续清扫多 Agent 并发场景的数据竞态，修复 4 个确定性并发 bug。

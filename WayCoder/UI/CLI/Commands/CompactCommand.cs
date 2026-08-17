@@ -12,7 +12,7 @@ public class CompactCommand : SlashCommand
     {
         var agent = ProgramContext.Agent;
         if (agent == null) { screen.AddSystemMsg("Agent 未初始化"); return; }
-        await agent.Context.MaybeCompressAsync(agent.Messages, ProgramContext.LLM);
+        await agent.Context.MaybeCompressAsync(agent.SnapshotMessages(), ProgramContext.LLM);
         screen.AddSystemMsg("✔ 上下文已压缩");
     }
 }

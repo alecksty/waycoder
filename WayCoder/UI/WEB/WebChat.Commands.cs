@@ -47,7 +47,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 return (false, ""); // /model 无参 → 前端打开模型选择窗口
 
             case "/reset" or "/clear":
-                if (agent != null) agent.Messages.Clear();
+                if (agent != null) agent.ClearMessages();
                 return (true, "🗑 已清空当前会话");
 
             case "/session":
@@ -146,7 +146,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         {
             case "save":
                 if (agent == null) return "⚠ 无活跃槽位";
-                var id = SessionManager.SaveSession(agent.Messages, agent.LlmClient.Model, null, slot);
+                var id = SessionManager.SaveSession(agent.SnapshotMessages(), agent.LlmClient.Model, null, slot);
                 return $"💾 会话已保存: **{id}**";
 
             case "load":
@@ -154,8 +154,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 var loaded = SessionManager.LoadSession(rest, slot);
                 if (loaded == null) return $"❌ 会话不存在: {rest}";
                 if (agent == null) return "⚠ 无活跃槽位";
-                agent.Messages.Clear();
-                agent.Messages.AddRange(loaded.Value.Messages);
+                agent.ReplaceMessages(loaded.Value.Messages);
                 return $"📂 已加载会话: **{rest}**（{loaded.Value.Messages.Count} 条消息）";
 
             case "list":

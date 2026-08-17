@@ -215,11 +215,12 @@ public class AgentTool : ITool, ICancellableTool
     {
         try
         {
-            if (ParentAgent == null || ParentAgent.Messages.Count == 0)
+            var parentMsgs = ParentAgent?.SnapshotMessages();
+            if (parentMsgs == null || parentMsgs.Count == 0)
                 return "";
 
             // 取最近 6 条消息（约 3 轮对话）
-            var recent = ParentAgent.Messages
+            var recent = parentMsgs
                 .TakeLast(6)
                 .Select(m =>
                 {
