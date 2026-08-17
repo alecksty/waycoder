@@ -6,8 +6,8 @@
         Background="#0f1117">
     <DockPanel Margin="12">
 
-        <!-- 顶部：标题 + 模型下拉 + 停止 -->
-        <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,8">
+        <!-- 顶部：标题 + 模型下拉 + 设置 + 停止 -->
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="0,0,0,8">
             <TextBlock x:Name="HeaderLabel"
                        Text="WayCoder（道码）"
                        FontSize="15" FontWeight="Bold" Foreground="#e6e8ee"
@@ -19,7 +19,11 @@
                        Text="槽位 F1"
                        FontSize="12" Foreground="#8b93a7"
                        VerticalAlignment="Center" Margin="0,0,12,0" />
-            <Button Grid.Column="3" x:Name="StopButton"
+            <Button Grid.Column="3" x:Name="SettingsButton"
+                    Content="⚙"
+                    Margin="0,0,8,0"
+                    Click="Settings_Click" />
+            <Button Grid.Column="4" x:Name="StopButton"
                     Content="⏹ 停止"
                     IsEnabled="False"
                     Click="Stop_Click" />
