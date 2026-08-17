@@ -4561,6 +4561,35 @@ public static partial class SelfTest
         Check("ctx: MaxTokens≤0 回退默认窗口", cm0.MaxTokens > 0);
     }
 
+    private static void TestV0730SlotAsyncLocal(Action<string, bool> Check)
+    {
+        // ── #7 StructuredMemory.CurrentSlotIndex AsyncLocal 隔离：
+        //    后台槽位任务启动时捕获自己的槽位值，主线程后续切槽位不污染正在运行的任务（双向）。
+        //    修复前为全局 static——任务内 await 后读到主线程切的新槽位值 → 记忆写错目录。──
+        var saved = StructuredMemory.CurrentSlotIndex;
+        int insideAfterMainSwitch = -1;
+        int mainAfter = -1;
+        try
+        {
+            StructuredMemory.CurrentSlotIndex = 5;     // 主线程当前槽位
+            var t = System.Threading.Tasks.Task.Run(async () =>
+            {
+                StructuredMemory.CurrentSlotIndex = 9; // 槽位任务启动点绑定自己的槽位（镜像 StartSlotTask）
+                await System.Threading.Tasks.Task.Delay(50); // 模拟任务运行中，主线程此刻切槽位
+                insideAfterMainSwitch = StructuredMemory.CurrentSlotIndex;
+            });
+            StructuredMemory.CurrentSlotIndex = 3;     // 主线程切换槽位（SwitchAgentSlot）
+            t.Wait();
+            mainAfter = StructuredMemory.CurrentSlotIndex;
+        }
+        finally
+        {
+            StructuredMemory.CurrentSlotIndex = saved;
+        }
+        Check("记忆槽位: 主线程切槽位不污染后台任务(仍9)", insideAfterMainSwitch == 9);
+        Check("记忆槽位: 后台任务不污染主线程(仍3)", mainAfter == 3);
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {

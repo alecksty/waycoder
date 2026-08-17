@@ -19,8 +19,18 @@ namespace WayCoder;
 /// </summary>
 public static class StructuredMemory
 {
-    /// <summary>当前活跃的槽位索引（0-9），由 Program.cs 在切换槽位时设置</summary>
-    public static int CurrentSlotIndex { get; set; }
+    /// <summary>
+    /// 当前活跃的槽位索引（0-9），由 Program.cs 在切换槽位时设置。
+    /// 用 AsyncLocal 实现：每个槽位后台任务在启动时捕获自己的槽位值，
+    /// 主线程切槽位不再污染正在运行的其他槽位任务（否则 A 槽后台任务会把记忆写进 B 槽目录）。
+    /// 主线程上下文的赋值（SwitchAgentSlot）语义不变——仅影响主线程及其 async 链。
+    /// </summary>
+    private static readonly System.Threading.AsyncLocal<int> _currentSlot = new();
+    public static int CurrentSlotIndex
+    {
+        get => _currentSlot.Value;
+        set => _currentSlot.Value = value;
+    }
 
     /// <summary>共享记忆目录（所有槽位可见）</summary>
     public static string SharedMemoryDir
