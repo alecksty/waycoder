@@ -508,6 +508,7 @@ function renderSlots(state) {
 }
 function switchSlot(i) {
   if (i === currentSlot) return; // 已在该槽位，无需重复切换（避免清空输入框）
+  const oldSlot = currentSlot; // 保存旧槽位（服务端拒绝时回滚）
   setBusy(false); // 切换槽位：本页面不再处于旧槽位的流式接收态，重置发送/停止按钮
   slotDrafts[currentSlot] = input.value; // 保存当前槽位未发送的草稿
   currentSlot = i;
@@ -515,7 +516,11 @@ function switchSlot(i) {
   autoResizeInput();
   fetch(cq('/slot'), { method: 'POST', body: JSON.stringify({ slot: i }) })
     .then(r => r.json())
-    .then(list => { clearMessages(); list.forEach(m => addMsg(m.role === 'user' ? 'user' : 'assistant', m.content)); })
+    .then(data => {
+      if (!Array.isArray(data)) { currentSlot = oldSlot; return; } // 服务端错误({ok:false}) → 回滚槽位
+      clearMessages();
+      data.forEach(m => addMsg(m.role === 'user' ? 'user' : 'assistant', m.content));
+    })
     .then(fetchPanel);
 }
 
@@ -1749,9 +1754,10 @@ es.addEventListener('done', () => { setBusy(false); endReasoning(); finalizeAssi
 es.addEventListener('interrupted', () => { setBusy(false); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); addMsg('system', '⚠ 已中断'); fetchPanel(); });
 es.addEventListener('failed', e => { setBusy(false); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); addMsg('system', '✘ ' + JSON.parse(e.data)); fetchPanel(); });
 es.addEventListener('history', e => {
+  // history 是服务端完整权威状态：总是清空重载（修复 /reset/加载会话后旧消息残留）
   const list = JSON.parse(e.data);
-  if (messages.children.length === 0)
-    list.forEach(m => addMsg(m.role === 'user' ? 'user' : 'assistant', m.content));
+  clearMessages();
+  list.forEach(m => addMsg(m.role === 'user' ? 'user' : 'assistant', m.content));
 });
 es.addEventListener('state', e => {
   const state = JSON.parse(e.data);
