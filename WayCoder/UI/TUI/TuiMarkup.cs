@@ -158,6 +158,13 @@ public static class TuiMarkup
         if (Double(node, "scale") is double s) win.XScale = s;
         if (Double(node, "scaleY") is double sy) win.YScale = sy;
 
+        // 线框：自定义 6 字符 + 渐变（gradientStart/gradientEnd 用 RGB TrueColor）
+        var custom = Attr(node, "customBorder");
+        if (custom.Length > 0) win.CustomBorder = custom;
+        if (Bool(node, "gradient") is bool grad) win.GradientBorder = grad;
+        if (Color(node, "gradientStart") is int gs) win.GradientStart = gs;
+        if (Color(node, "gradientEnd") is int ge) win.GradientEnd = ge;
+
         foreach (var child in node.Children)
             if (BuildControl(child, byId) is TuiView v) { win.RootView = v; break; }
 
@@ -398,8 +405,16 @@ public static class TuiMarkup
     private static WindowBorder ParseBorder(string s) => s.ToLowerInvariant() switch
     {
         "none" => WindowBorder.None,
-        "solid" => WindowBorder.Solid,
+        "single" => WindowBorder.Single,
         "double" => WindowBorder.Double,
+        "rounded" => WindowBorder.Rounded,
+        "thick" => WindowBorder.Thick,
+        "solid" => WindowBorder.Solid,
+        "dotted" => WindowBorder.Dotted,
+        "dashed" => WindowBorder.Dashed,
+        "ascii" => WindowBorder.Ascii,
+        "slash" => WindowBorder.Slash,
+        "triangle" => WindowBorder.Triangle,
         _ => WindowBorder.Rounded,
     };
 }
