@@ -234,11 +234,12 @@ public class TuiGrid : TuiView
         }
         else if (starTotal > 0)
         {
-            // 无剩余空间：弹性行列最小 1px
+            // 无剩余空间：弹性轨分配 0（不强制 1px——多星轨各 1px 之和会溢出 totalSpace；
+            // 固定轨的最小 1px 由下方钳制保证）
             for (int i = 0; i < count; i++)
             {
                 var def = i < defs.Length ? defs[i] : new GridSize { Value = 1, IsStar = true };
-                if (def.IsStar) sizes[i] = 1;
+                if (def.IsStar) sizes[i] = 0;
             }
         }
 

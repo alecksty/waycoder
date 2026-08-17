@@ -330,8 +330,14 @@ public class TuiVBox : TuiView
                         lastFlexChild = child;
                     }
                 }
-                if (lastFlexChild != null && remaining > allocated)
-                    lastFlexChild.Height += remaining - allocated;
+                if (lastFlexChild != null)
+                {
+                    // 欠分配 → 最后一个吸收剩余；超分配（Max(1,…) 导致总和 > remaining）→ 从最后一个减回
+                    if (remaining > allocated)
+                        lastFlexChild.Height += remaining - allocated;
+                    else if (allocated > remaining && lastFlexChild.Height > 1)
+                        lastFlexChild.Height = Math.Max(1, lastFlexChild.Height - (allocated - remaining));
+                }
             }
         }
 
