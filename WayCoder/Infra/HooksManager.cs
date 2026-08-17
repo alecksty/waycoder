@@ -335,9 +335,12 @@ public static class HooksManager
 
         // 1. Session hooks（最高优先级）
         var eventName = eventType.ToString();
+        // hook ID 格式为 "{eventType}_{guid}"，加下划线分隔符精确匹配事件类型，
+        // 否则 "PreToolUseFailure_xxx".StartsWith("PreToolUse") 会在 PreToolUse 事件上误触发失败专属 hook。
+        var eventPrefix = eventName + "_";
         foreach (var kv in _sessionHooks)
         {
-            if (!kv.Key.StartsWith(eventName)) continue;
+            if (!kv.Key.StartsWith(eventPrefix, StringComparison.Ordinal)) continue;
             try
             {
                 var ctx = new HookContext
