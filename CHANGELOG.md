@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.71.22 (2026-08-17) — 日志/预览截断走码点边界（代理对不切半）
+
+继续清扫上一轮遗留的 UTF-16 原始切片候选（Explore 代理标记、人工确认）。本轮修复 3 处「显示/日志层」截断在代理对（emoji / CJK 扩展 B）中间切半、产出 U+FFFD 乱码的问题——均属展示层，不影响数据完整性，但会让预览/日志里出现乱码。
+
+### 🐛 修复
+
+- **`FindReplaceTool` 匹配上下文窗口切半代理对**：`content.Substring(match.Index - 30, match.Length + 60)` 的起止边界直接按 UTF-16 码元算，当「前后各 30 字符」的窗口边界恰好落在 emoji / 扩展 B 汉字的代理对中间时，预览行首/行尾出现孤立代理（U+FFFD）。改为起止边界向码点对齐（`start` 落在低位代理则回退到高位、`end` 落在低位代理则前伸纳入）
+- **`ErrorLog.ToolError` 参数截断切半**：`content`/`old_string`/`new_string` 用 `v[..Math.Min(100, len)]` 硬切 100 码元，代理对在边界处被劈开。改走 `ContextManager.TruncateByRunes(..., 100)`（码点安全，且顺带消除旧代码 `v?.ToString()?[..]` 对 null 时拼出孤立 `"..."` 的怪异语义）
+- **`ErrorLog` 堆栈截断 + `HooksManager` hook 输出截断**：`ex.StackTrace[..500]`、`output[..Math.Min(200)]` 同样按码元硬切，改走 `TruncateByRunes`（堆栈/调试输出理论上几乎全是 ASCII，属防御性对齐，与上两处一致化）
+
+### ✅ 测试
+
+新增 `TestV0722RuneSafeContext`（4 项断言）：`find_replace` 预览上下文窗口边界落在 emoji 代理对中间时不切半、emoji 完整保留；`ErrorLog.ToolError` 的 `content` 截断到 100 码点不切半、emoji 完整保留。测试总数 3278 → 3282。
+
 ## v0.71.21 (2026-08-17) — FileTracker 正确性 + ReadFile limit 边界
 
 继续清扫文件追踪与读取工具。Explore 代理扫 `Tools/` 文件操作类 + `Infra/FileTracker` 后人工验证，本轮修复 3 个可复现问题。

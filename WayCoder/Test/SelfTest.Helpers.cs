@@ -4292,6 +4292,46 @@ public static partial class SelfTest
         }
     }
 
+    /// <summary>v0.71.22 批次：FindReplaceTool 上下文窗口 + ErrorLog 工具参数截断走码点边界，代理对不切半。</summary>
+    private static void TestV0722RuneSafeContext(Action<string, bool> Check)
+    {
+        // ── #1 FindReplaceTool：匹配上下文窗口 start 落代理对中间 → Substring 切半出孤立代理（U+FFFD）──
+        // 30×a + 😀 + 29×a + "MATCH"：match.Index=61，start=31（😀 的低位代理）→ 旧代码 Substring(31) 切半
+        var dir = Path.Combine(Path.GetTempPath(), "waycoder_fr_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(dir);
+        var file = Path.Combine(dir, "sample.txt");
+        File.WriteAllText(file, new string('a', 30) + "\U0001F600" + new string('a', 29) + "MATCH");
+        try
+        {
+            var tool = new FindReplaceTool();
+            var r = tool.ExecuteAsync(new Dictionary<string, object?>
+            {
+                ["path"] = dir, ["pattern"] = "MATCH", ["dry_run"] = true, ["glob"] = "*.txt"
+            }).GetAwaiter().GetResult();
+            Check("find_replace: 上下文窗口不切半代理对", !HasLoneSurrogate(r));
+            Check("find_replace: emoji 完整保留", r.Contains("\U0001F600"));
+        }
+        finally { try { Directory.Delete(dir, true); } catch { } }
+
+        // ── #2 ErrorLog.ToolError：content 截断到 100 码点不切半（旧代码 [..100] 切在 😀 代理对中间）──
+        ErrorLog.ToolError("emoji_tool", "截断测试", null,
+            new Dictionary<string, object?> { ["content"] = new string('a', 99) + "\U0001F600" + "bbb" });
+        ErrorLog.Flush();
+        var logsDir = Path.Combine(Directory.GetCurrentDirectory(), ErrorLog.LogDirName);
+        var logFiles = Directory.GetFiles(logsDir, "error_*.log");
+        if (logFiles.Length > 0)
+        {
+            var latest = File.ReadAllText(logFiles.OrderByDescending(f => f).First(), System.Text.Encoding.UTF8);
+            var line = latest.Split('\n').FirstOrDefault(l => l.Contains("[Tool:emoji_tool]"));
+            Check("ErrorLog: content 截断不切半代理对", line != null && !HasLoneSurrogate(line));
+            Check("ErrorLog: emoji 完整保留", line != null && line.Contains("\U0001F600"));
+        }
+        else
+        {
+            Check("ErrorLog: 日志文件存在", false);
+        }
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {

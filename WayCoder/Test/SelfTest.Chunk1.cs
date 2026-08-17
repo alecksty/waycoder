@@ -140,6 +140,7 @@ public static partial class SelfTest
         TestV0719CjkExtB(Check);              // v0.71.19 批次：SemanticMemory.Tokenize 扩展 B 区汉字（代理对）召回修复
         TestV0720InfraDeterministic(Check);   // v0.71.20 批次：Hooks 前缀碰撞 / FileIgnore 未转义 [ / RetryPolicy 负数+null
         TestV0721FileTrackerRead(Check);      // v0.71.21 批次：FileTracker RecordWrite 更新读取时间 + LRU 淘汰 / ReadFile limit 钳制
+        TestV0722RuneSafeContext(Check);      // v0.71.22 批次：FindReplace 上下文窗口 + ErrorLog 参数截断走码点边界（代理对不切半）
         Console.WriteLine();
 
         // ---- 工具 ----

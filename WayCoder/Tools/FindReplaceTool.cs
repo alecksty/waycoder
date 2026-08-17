@@ -123,10 +123,12 @@ public class FindReplaceTool : ITool
                             fileDisplayed = true;
                         }
 
-                        // 获取匹配上下文（前后各 30 字符）
+                        // 获取匹配上下文（前后各 30 字符），起始/结束对齐码元边界避免切半代理对（emoji/CJK 扩展 B → U+FFFD）
                         var start = Math.Max(0, match.Index - 30);
-                        var length = Math.Min(content.Length - start, match.Length + 60);
-                        var context = content.Substring(start, length).Replace("\r", "").Replace("\n", "\\n");
+                        var end = Math.Min(content.Length, match.Index + match.Length + 30);
+                        while (start > 0 && char.IsLowSurrogate(content[start])) start--;
+                        while (end < content.Length && char.IsLowSurrogate(content[end])) end++;
+                        var context = content.Substring(start, end - start).Replace("\r", "").Replace("\n", "\\n");
                         var marker = new string(' ', Math.Min(30, match.Index - start));
                         sb.AppendLine($"  `{context.Trim()}`");
                         sb.AppendLine($"  {marker}«bold»^{new string('~', Math.Max(0, match.Length - 1))}«/»");
