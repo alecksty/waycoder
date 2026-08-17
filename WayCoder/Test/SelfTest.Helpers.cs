@@ -4590,6 +4590,19 @@ public static partial class SelfTest
         Check("记忆槽位: 后台任务不污染主线程(仍3)", mainAfter == 3);
     }
 
+    private static void TestV0730TuiExperience(Action<string, bool> Check)
+    {
+        // ── markdown 长段落折行（v0.71.30 修复：快速路径不再把整段作单行右截断不可见）──
+        var longText = new string('字', 60); // 60 汉字，宽 120
+        var rows = WayCoder.UI.Tui.TuiMarkdown.RenderMessage(longText, "assistant", 20);
+        Check("md: 长段落折成多行", rows.Count > 1);
+
+        // ANSI 内容行不折行（避免切半转义序列，交给 WriteAt ANSI 感知截断）
+        var ansiText = "\x1b[32m" + new string('字', 30) + "\x1b[0m";
+        var ansiRows = WayCoder.UI.Tui.TuiMarkdown.RenderMessage(ansiText, "tool", 20);
+        Check("md: ANSI 行不折行（不切半转义）", ansiRows.Count == 1);
+    }
+
     private static void TestV0730UiUndo(Action<string, bool> Check)
     {
         // ── TuiTextArea 撤销栈健壮性（v0.71.30 修复：4 处）──
