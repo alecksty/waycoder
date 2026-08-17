@@ -3828,6 +3828,49 @@ public static partial class SelfTest
         Check("BoxBuffer.TruncateByVW: emoji 代理对不切半", !BoxBuffer.TruncateByVW("a😀b", 3).Contains('�'));
     }
 
+    /// <summary>v0.71.10 批次：输入控件（TuiInput/TuiTextArea）光标移动与删除对代理对（emoji/CJK 扩展 B）安全，不切半成 U+FFFD。</summary>
+    private static void TestV0710EditPrimitives(Action<string, bool> Check)
+    {
+        var left = new ConsoleKeyInfo('\0', ConsoleKey.LeftArrow, false, false, false);
+        var right = new ConsoleKeyInfo('\0', ConsoleKey.RightArrow, false, false, false);
+        var backspace = new ConsoleKeyInfo('\b', ConsoleKey.Backspace, false, false, false);
+        var delete = new ConsoleKeyInfo('\0', ConsoleKey.Delete, false, false, false);
+
+        // ── TuiInput 单行：光标移动跳过代理对中间 ──
+        // "a😀b"：'a'=0, 高代理=1, 低代理=2, 'b'=3，Text.Length=4
+        var inp = new TuiInput { Text = "a😀b", Focused = true, CursorPos = 3 };
+        inp.OnKey(left);
+        Check("TuiInput: 左移跳过代理对中间(3→1)", inp.CursorPos == 1);
+        inp.OnKey(right);
+        Check("TuiInput: 右移跳过代理对中间(1→3)", inp.CursorPos == 3);
+
+        inp = new TuiInput { Text = "a😀b", Focused = true, CursorPos = 3 };
+        inp.OnKey(backspace);
+        Check("TuiInput: 退格整删 emoji 不切半", inp.Text == "ab" && inp.CursorPos == 1 && !inp.Text.Contains('�'));
+
+        inp = new TuiInput { Text = "a😀b", Focused = true, CursorPos = 1 };
+        inp.OnKey(delete);
+        Check("TuiInput: Delete 整删 emoji 不切半", inp.Text == "ab" && !inp.Text.Contains('�'));
+
+        // ── TuiTextArea 多行：光标移动跳过代理对中间 ──
+        var ta = new TuiTextArea { Text = "a😀b", Focused = true };
+        ta.CursorCol = 3;
+        ta.OnKey(left);
+        Check("TuiTextArea: 左移跳过代理对中间(3→1)", ta.CursorCol == 1);
+        ta.OnKey(right);
+        Check("TuiTextArea: 右移跳过代理对中间(1→3)", ta.CursorCol == 3);
+
+        ta = new TuiTextArea { Text = "a😀b", Focused = true };
+        ta.CursorCol = 3;
+        ta.OnKey(backspace);
+        Check("TuiTextArea: 退格整删 emoji 不切半", ta.Text == "ab" && ta.CursorCol == 1 && !ta.Text.Contains('�'));
+
+        ta = new TuiTextArea { Text = "a😀b", Focused = true };
+        ta.CursorCol = 1;
+        ta.OnKey(delete);
+        Check("TuiTextArea: Delete 整删 emoji 不切半", ta.Text == "ab" && !ta.Text.Contains('�'));
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {

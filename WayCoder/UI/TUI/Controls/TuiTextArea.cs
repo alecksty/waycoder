@@ -537,13 +537,15 @@ public class TuiTextArea : TuiEditBase
         if (CursorCol > 0)
         {
             var line = SafeLine(CursorRow);
+            int delLen = 1;
             if (CursorCol <= line.Length)
             {
-                var ch = line[CursorCol - 1].ToString();
-                Lines[CursorRow] = line[..(CursorCol - 1)] + line[CursorCol..];
-                RecordEdit('D', CursorRow, CursorCol - 1, ch);
+                delLen = CursorCol >= 2 && char.IsHighSurrogate(line[CursorCol - 2]) && char.IsLowSurrogate(line[CursorCol - 1]) ? 2 : 1;
+                var ch = line.Substring(CursorCol - delLen, delLen);
+                Lines[CursorRow] = line[..(CursorCol - delLen)] + line[CursorCol..];
+                RecordEdit('D', CursorRow, CursorCol - delLen, ch);
             }
-            CursorCol--;
+            CursorCol -= delLen;
             NotifyChange();
         }
         else if (CursorRow > 0)
@@ -565,8 +567,9 @@ public class TuiTextArea : TuiEditBase
         var line = SafeLine(CursorRow);
         if (CursorCol < line.Length)
         {
-            var ch = line[CursorCol].ToString();
-            Lines[CursorRow] = line[..CursorCol] + line[(CursorCol + 1)..];
+            int delLen = CursorCol + 1 < line.Length && char.IsHighSurrogate(line[CursorCol]) && char.IsLowSurrogate(line[CursorCol + 1]) ? 2 : 1;
+            var ch = line.Substring(CursorCol, delLen);
+            Lines[CursorRow] = line[..CursorCol] + line[(CursorCol + delLen)..];
             RecordEdit('D', CursorRow, CursorCol, ch);
             NotifyChange();
         }
@@ -734,7 +737,13 @@ public class TuiTextArea : TuiEditBase
 
     private void MoveCursorCol(int delta)
     {
-        CursorCol = Math.Clamp(CursorCol + delta, 0, SafeLine(CursorRow).Length);
+        var line = SafeLine(CursorRow);
+        int newCol = Math.Clamp(CursorCol + delta, 0, line.Length);
+        // 光标不落在代理对中间（emoji/CJK 扩展 B）
+        if (newCol > 0 && newCol < line.Length
+            && char.IsHighSurrogate(line[newCol - 1]) && char.IsLowSurrogate(line[newCol]))
+            newCol += delta > 0 ? 1 : -1;
+        CursorCol = newCol;
     }
 
     private void MoveCursorRow(int delta)

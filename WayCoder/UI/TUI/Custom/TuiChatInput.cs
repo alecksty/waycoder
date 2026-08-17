@@ -365,13 +365,24 @@ public static class TuiChatInput
 
     private static void MoveLeft(List<StringBuilder> lines, ref int cy, ref int cx)
     {
-        if (cx > 0) cx--;
+        if (cx > 0)
+        {
+            cx--;
+            // 光标不落在代理对中间（emoji/CJK 扩展 B）
+            if (cx > 0 && char.IsHighSurrogate(lines[cy][cx - 1]) && char.IsLowSurrogate(lines[cy][cx]))
+                cx--;
+        }
         else if (cy > 0) { cy--; cx = lines[cy].Length; }
     }
 
     private static void MoveRight(List<StringBuilder> lines, ref int cy, ref int cx)
     {
-        if (cx < lines[cy].Length) cx++;
+        if (cx < lines[cy].Length)
+        {
+            cx++;
+            if (cx < lines[cy].Length && char.IsHighSurrogate(lines[cy][cx - 1]) && char.IsLowSurrogate(lines[cy][cx]))
+                cx++;
+        }
         else if (cy < lines.Count - 1) { cy++; cx = 0; }
     }
 
@@ -390,14 +401,23 @@ public static class TuiChatInput
 
     private static void Backspace(List<StringBuilder> lines, ref int cy, ref int cx)
     {
-        if (cx > 0) { lines[cy].Remove(cx - 1, 1); cx--; }
+        if (cx > 0)
+        {
+            int delLen = cx >= 2 && char.IsHighSurrogate(lines[cy][cx - 2]) && char.IsLowSurrogate(lines[cy][cx - 1]) ? 2 : 1;
+            lines[cy].Remove(cx - delLen, delLen);
+            cx -= delLen;
+        }
         else if (cy > 0)
         { cx = lines[cy - 1].Length; lines[cy - 1].Append(lines[cy]); lines.RemoveAt(cy); cy--; }
     }
 
     private static void DeleteFwd(List<StringBuilder> lines, ref int cy, ref int cx)
     {
-        if (cx < lines[cy].Length) lines[cy].Remove(cx, 1);
+        if (cx < lines[cy].Length)
+        {
+            int delLen = cx + 1 < lines[cy].Length && char.IsHighSurrogate(lines[cy][cx]) && char.IsLowSurrogate(lines[cy][cx + 1]) ? 2 : 1;
+            lines[cy].Remove(cx, delLen);
+        }
         else if (cy < lines.Count - 1)
         { lines[cy].Append(lines[cy + 1]); lines.RemoveAt(cy + 1); }
     }
