@@ -91,8 +91,9 @@ public class CpTool : ITool
         }
     }
 
-    private static void CopyDirectory(string srcDir, string destDir, bool overwrite)
+    private static void CopyDirectory(string srcDir, string destDir, bool overwrite, int depth = 0)
     {
+        if (depth > 64) return; // 深度上限防符号链接环无限递归 → StackOverflow
         Directory.CreateDirectory(destDir);
         foreach (var file in Directory.GetFiles(srcDir))
         {
@@ -102,7 +103,7 @@ public class CpTool : ITool
         foreach (var dir in Directory.GetDirectories(srcDir))
         {
             var destSubDir = Path.Combine(destDir, Path.GetFileName(dir));
-            CopyDirectory(dir, destSubDir, overwrite);
+            CopyDirectory(dir, destSubDir, overwrite, depth + 1);
         }
     }
 }

@@ -251,7 +251,7 @@ public partial class Agent
                     var output = m["content"]?.AsString() ?? "";
                     executedCalls.Add((tc.Name,
                         JsonHelper.SerializeArgs(tc.Arguments),
-                        output.Length > outputSnipLen ? output[..outputSnipLen] : output));
+                        output.Length > outputSnipLen ? ContextManager.TruncateByRunes(output, outputSnipLen) : output));
                     break;
                 }
             }

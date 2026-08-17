@@ -38,7 +38,7 @@ public partial class ChatScreen : TuiScreen
             var lines = text.Replace("\r\n", "\n").Split('\n');
             if (text.Length > 500 || lines.Length > 3)
             {
-                var preview = text.Length > 200 ? text[..200] + "..." : text;
+                var preview = text.Length > 200 ? ContextManager.TruncateByRunes(text, 200) + "..." : text;
                 using var evt = new ManualResetEventSlim(false);
                 bool confirmed = false;
                 ShowWindow(TuiDialog.Confirm("粘贴确认",
@@ -70,7 +70,7 @@ public partial class ChatScreen : TuiScreen
         // 粘贴确认：超长(>500字符)或多行(>3行)时弹出确认
         if (text.Length > 500 || lines.Length > 3)
         {
-            var preview = text.Length > 200 ? text[..200] + "..." : text;
+            var preview = text.Length > 200 ? ContextManager.TruncateByRunes(text, 200) + "..." : text;
             using var evt = new ManualResetEventSlim(false);
             bool confirmed = false;
             ShowWindow(TuiDialog.Confirm("粘贴确认",
@@ -241,7 +241,7 @@ public partial class ChatScreen : TuiScreen
                     "cancelled" => "❌",
                     _ => "⏳",
                 };
-                var title = item.Title.Length > 20 ? item.Title[..17] + "..." : item.Title;
+                var title = item.Title.Length > 20 ? ContextManager.TruncateByRunes(item.Title, 17) + "..." : item.Title;
                 todoLines.Add($"  {icon} {title}");
             }
         }

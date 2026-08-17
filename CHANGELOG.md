@@ -1,5 +1,22 @@
 # 更新日志
 
+## v0.71.27 (2026-08-17) — 截断按码点补齐 7 处 + 目录递归深度上限补齐 3 处
+
+延续审计，本轮收尾两类此前批次未扫全的残留：**截断不按码点硬切代理对**（7 处）+ **递归目录遍历无深度上限**（3 处）。
+
+### 🐛 修复
+
+- **截断按码点补齐**（7 处 `[..N]` 硬切代理对，违反 CLAUDE.md「字符串截断必须按码点」规范）：内容在 emoji/CJK 扩展 B 代理对中间被切半产生 U+FFFD。全部改走 `ContextManager.TruncateByRunes`：
+  - `TestTool` 提取失败用例截断 `line[..200]`（喂给 LLM 的测试失败信息，乱码会误导模型）
+  - `Agent.Loop` 循环检测快照截断 `output[..outputSnipLen]`
+  - `ChatScreen.Dialogs` 权限详情 `argsDetail[..800]` / 计划审批 `planDetail[..600]`（用户可见乱码）
+  - `ChatScreen.Input` 粘贴预览 `text[..200]`×2 / 历史标题 `item.Title[..17]`
+- **递归目录遍历深度上限补齐**（3 处，对齐 v0.71.26 的 WcTool/GrepTool/FindReplaceTool）：`CpTool.CopyDirectory` / `MvTool.CopyDirectory` / `RepoMapGenerator.CollectEntries` 递归复制/遍历目录无深度上限，深目录树或非 POSIX 平台（Windows junction 环）会无限递归 → StackOverflow 崩溃进程。补 `depth` 参数（>64 层停止）。（POSIX 上符号链接环由内核 ELOOP 提前抛 IOException 拦截，此处深度上限是跨平台 + 深目录树的兜底防御）
+
+### ✅ 测试
+
+本轮为机械替换（截断改走已测的 `TruncateByRunes`）与防御性深度上限，未新增断言；测试总数保持 3316，全绿。
+
 ## v0.71.26 (2026-08-17) — 符号链接环崩溃 + cd 相对路径系统性失效 + TUI 鼠标/缓存/网格 5 项
 
 延续 bug 修复循环，本轮修**两个系统性缺陷**（符号链接环无限递归、cd 后相对路径仍基于进程 cwd）+ 5 处 TUI 确定性 bug。

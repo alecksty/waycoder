@@ -108,7 +108,7 @@ public partial class ChatScreen : TuiScreen
 
         var title = isDangerous ? $"⚠️ 危险操作 · {toolName}" : $"🔐 权限确认 · {toolName}";
         var body = argsDetail.Length > 800
-            ? argsDetail[..800] + "\n\n…（详情过长，已截断）"
+            ? ContextManager.TruncateByRunes(argsDetail, 800) + "\n\n…（详情过长，已截断）"
             : argsDetail;
 
         var win = TuiDialog.Permission(title, body, r =>
@@ -136,7 +136,7 @@ public partial class ChatScreen : TuiScreen
         bool approved = false;
 
         var dialogBody = planDetail.Length > 600
-            ? planDetail[..600] + "\n\n…（完整计划见上方聊天记录）"
+            ? ContextManager.TruncateByRunes(planDetail, 600) + "\n\n…（完整计划见上方聊天记录）"
             : planDetail;
 
         var win = TuiDialog.Confirm("📋 计划审批", dialogBody, r =>
