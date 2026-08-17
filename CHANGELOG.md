@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.71.14 (2026-08-17) — Retry-After 头解析负数回退
+
+继续清扫 LLM 客户端边界。本轮修复一个 429 限流重试的确定性边界 bug：`Retry-After` 响应头为负数时，退避延迟计算为负，`Task.Delay` 抛异常。
+
+### 🐛 LLM 重试
+
+- **`ParseRetryAfter` 负数秒未回退**：`LLM.cs` 解析纯数字 `Retry-After` 头时直接 `(long)seconds * 1000` 再 `Math.Min`，负数会得到负延迟——调用方 `Task.Delay(负)` 抛 `ArgumentOutOfRangeException`（`Retry-After: -1` 更会让 `Task.Delay(-1000)` 直接抛、而非「无限等待」语义），整次 429 重试链被异常打断而非回退默认退避；改为 `seconds < 0` 时返回 `null` 走默认指数退避，与 HTTP-date 分支的 `delay > 0` 判断保持一致
+
+### ✅ 测试
+
+新增 `TestV0714RetryAfter`（8 项断言）：正整数→正延迟、`0`→立即重试、负数/`-1`→回退 null、无头→null、非数字→null、过去时间→null、未来时间→正延迟。`ParseRetryAfter` 由 `private` 提为 `internal` 便于自测。测试总数 3236 → 3244。
+
 ## v0.71.13 (2026-08-17) — 槽位 Cts 清理顺序竞态修复
 
 继续清扫多 Agent 并发场景的数据竞态。本轮修复一个确定性竞态：后台槽位任务结束时，`IsBusy=false` 与 `Cts` 原子摘除的顺序错误，会让新任务的取消令牌被旧任务误释放。
