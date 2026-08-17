@@ -20,7 +20,7 @@ public class TuiTheme
     public int MaskBg { get; set; } = TuiColors.BgBrightBlack;  // 模态遮罩背景（深灰）
 
     // ── 窗口层 ──
-    public int WindowBg { get; set; } = TuiColors.BgBlack;               // 窗口默认背景（纯黑暗底：白字/灰字均与其保证反差）
+    public int WindowBg { get; set; } = TuiColors.BgWhite;               // 窗口默认背景（白底，对话框黑字与之保持反差）
     public int WindowBorderFocused { get; set; } = TuiColors.Cyan;       // 聚焦边框
     public int WindowBorderUnfocused { get; set; } = 8;                  // 失焦边框（隐藏）
     public int WindowTitleFg { get; set; }                               // 标题前景（0=用边框色）

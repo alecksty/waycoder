@@ -268,7 +268,7 @@ public static class TuiDialog
 
         var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
         foreach (var line in promptLines)
-            vbox.Add(new TuiLabel(line) { Width = cw, Fg = TuiTheme.Current.ControlFg });
+            vbox.Add(new TuiLabel(line) { Width = cw, Fg = TuiColors.Black });
 
         var input = new TuiTextArea
         {
@@ -329,7 +329,7 @@ public static class TuiDialog
 
         var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
         foreach (var line in promptLines)
-            vbox.Add(new TuiLabel(line) { Width = cw, Fg = TuiTheme.Current.ControlFg });
+            vbox.Add(new TuiLabel(line) { Width = cw, Fg = TuiColors.Black });
 
         var hist = TuiInputHistory.Get(title);
         var initVal = !string.IsNullOrEmpty(defaultValue) ? defaultValue
@@ -393,7 +393,7 @@ public static class TuiDialog
 
         // 查找行
         var findRow = new TuiHBox { Width = cw, Spacing = 1 };
-        findRow.Add(new TuiLabel("查找:") { Width = 6, Fg = TuiTheme.Current.ControlFg });
+        findRow.Add(new TuiLabel("查找:") { Width = 6, Fg = TuiColors.Black });
         var findInput = new TuiInput
         {
             Text = initialFind,
@@ -407,7 +407,7 @@ public static class TuiDialog
 
         // 替换行
         var replRow = new TuiHBox { Width = cw, Spacing = 1 };
-        replRow.Add(new TuiLabel("替换:") { Width = 6, Fg = TuiTheme.Current.ControlFg });
+        replRow.Add(new TuiLabel("替换:") { Width = 6, Fg = TuiColors.Black });
         var replInput = new TuiInput
         {
             Text = initialReplace,
@@ -419,9 +419,9 @@ public static class TuiDialog
         vbox.Add(replRow);
 
         // 选项行：区分大小写 / 正则 / 整词（Space/Enter 切换）
-        var caseCb = new TuiCheckbox("区分大小写", initialOpts.CaseSensitive) { Fg = TuiTheme.Current.ControlFg };
-        var regexCb = new TuiCheckbox("正则", initialOpts.UseRegex) { Fg = TuiTheme.Current.ControlFg };
-        var wordCb = new TuiCheckbox("整词", initialOpts.WholeWord) { Fg = TuiTheme.Current.ControlFg };
+        var caseCb = new TuiCheckbox("区分大小写", initialOpts.CaseSensitive) { Fg = TuiColors.Black };
+        var regexCb = new TuiCheckbox("正则", initialOpts.UseRegex) { Fg = TuiColors.Black };
+        var wordCb = new TuiCheckbox("整词", initialOpts.WholeWord) { Fg = TuiColors.Black };
         var optRow = new TuiHBox { Width = cw, Spacing = 3, ContentHAlign = HAlign.Left };
         optRow.Add(caseCb); optRow.Add(regexCb); optRow.Add(wordCb);
         vbox.Add(optRow);
@@ -483,7 +483,7 @@ public static class TuiDialog
 
         var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
         foreach (var line in promptLines)
-            vbox.Add(new TuiLabel(line) { Width = cw, Fg = TuiTheme.Current.ControlFg });
+            vbox.Add(new TuiLabel(line) { Width = cw, Fg = TuiColors.Black });
 
         var input = new TuiInput
         {

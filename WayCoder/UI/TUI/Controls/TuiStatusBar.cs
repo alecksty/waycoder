@@ -51,18 +51,10 @@ public class TuiStatusBar : TuiControl
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
         var t = TuiTheme.Current;
-        int row = absY;
-
-        // 主题纯色模式：Bg>0（StatusBarBg 由主题/预设设置）→ 整行填充 + 普通文本
-        if (Bg > 0)
-        {
-            RenderSolid(sb, row, absX);
-            return;
-        }
-
         var (gs, ge) = t.GradTitleBar;
         int fg = TuiColors.Black;
         int dimFg = TuiColors.BrightBlack;
+        int row = absY;
 
         // 1. 整行渐变背景填充
         ControlRenderer.DrawGradientBarFill(sb, row, absX, Width, gs, ge);
