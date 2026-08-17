@@ -167,6 +167,12 @@ public static class BashGuard
         {
             var segParts = segment.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (segParts.Length == 0) continue;
+            // 命令名剥离引号（'sudo' / "sudo" 与 sudo 等价——Shell 执行时会剥离引号，
+            // 若不剥则绕过 AllBanned/ArgBlockRules 名单检查）
+            if (segParts[0].Length >= 2 &&
+                ((segParts[0][0] == '\'' && segParts[0][^1] == '\'') ||
+                 (segParts[0][0] == '"' && segParts[0][^1] == '"')))
+                segParts[0] = segParts[0][1..^1];
             var segCmd = Path.GetFileName(segParts[0]).ToLowerInvariant();
 
             // 1. 完全禁止
