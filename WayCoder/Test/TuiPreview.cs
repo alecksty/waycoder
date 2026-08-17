@@ -2,6 +2,7 @@ using System.Text;
 using WayCoder.UI.Tui;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.TUI;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder;
 
@@ -24,8 +25,10 @@ public static class TuiPreview
         try
         {
             var content = File.ReadAllText(path);
-            var page = TuiMarkup.Load(content);
-            Console.Write(TuiDialog.Show(page.Window));
+            var result = TuiMarkup.Load(content);
+            TuiWindow win = result.Window
+                ?? new TuiWindow { RootView = result.View ?? result.Screen!.RootView, Border = WayCoder.UI.Shared.WindowBorder.None };
+            Console.Write(TuiDialog.Show(win));
             return 0;
         }
         catch (Exception ex)

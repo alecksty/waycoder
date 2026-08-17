@@ -7,18 +7,20 @@ using WayCoder.UI.TUI.Base;
 namespace WayCoder.UI.TUI;
 
 /// <summary>
-/// TUI 页面 —— 标记加载结果：窗口 + 按 id 查找控件的 code-behind 入口。
-/// 对标 XAML 的「.xaml + .xaml.cs」：布局写 .tui，交互逻辑写在 C# 里通过 Find(id) 订阅事件。
+/// TUI 标记加载结果 —— 根元素可能是 App/Screen（→ Screen）、Window/Dialog（→ Window）、
+/// 或控件（→ View）。附带按 id 查找控件的 code-behind 入口。
 /// </summary>
-public sealed class TuiPage
+public sealed class TuiMarkupResult
 {
-    public TuiWindow Window { get; }
+    public TuiScreen? Screen { get; }
+    public TuiWindow? Window { get; }
+    public TuiView? View { get; }
+
     private readonly Dictionary<string, TuiControl> _byId;
 
-    internal TuiPage(TuiWindow window, Dictionary<string, TuiControl> byId)
+    internal TuiMarkupResult(TuiScreen? screen, TuiWindow? window, TuiView? view, Dictionary<string, TuiControl> byId)
     {
-        Window = window;
-        _byId = byId;
+        Screen = screen; Window = window; View = view; _byId = byId;
     }
 
     /// <summary>按 id 查找控件。</summary>
@@ -29,27 +31,38 @@ public sealed class TuiPage
     public T? Find<T>(string id) where T : TuiControl => Find(id) as T;
 }
 
+/// <summary>标记创建的屏幕 —— 根视图与浮层窗口在激活时组装（窗口需在 Activate 拿到尺寸后 OnResize）。</summary>
+public sealed class TuiMarkupScreen : TuiScreen
+{
+    private readonly List<TuiWindow> _windows = [];
+
+    public void AddMarkupWindow(TuiWindow win) => _windows.Add(win);
+
+    public override void Activate()
+    {
+        base.Activate();
+        foreach (var win in _windows)
+            if (!Windows.Contains(win)) AddWindow(win);
+    }
+}
+
 /// <summary>
-/// TUI 标记加载器 —— 把 .tui XML 声明式标记解析为 TuiControl 树（类似 Avalonia XAML）。
-/// 布局写进资源文件，交互逻辑写进 C# code-behind（Find(id) 拿控件 + 订阅事件）。
+/// TUI 标记加载器 —— 把 .tui XML 声明式标记解析为 TUI 对象树（类似 Avalonia XAML）。
+/// 根元素支持 App / Screen / Window / Dialog / 控件；布局写资源文件，交互写 C# code-behind。
 ///
-/// 示例（布局 layout.tui + 交互 code-behind）：
+/// 示例：
 /// <![CDATA[
-/// <!-- layout.tui -->
-/// <Window title="确认" width="40" height="9">
-///   <VBox align="center">
-///     <Label id="msg" text="是否继续？" />
-///     <HBox align="center" spacing="2">
+/// <App>
+///   <Screen>
+///     <VBox>
+///       <Label id="msg" text="Hello" />
 ///       <Button id="ok" text="确定" />
-///       <Button id="cancel" text="取消" />
-///     </HBox>
-///   </VBox>
-/// </Window>
-///
-/// // code-behind
-/// var page = TuiMarkup.Load(File.ReadAllText("layout.tui"));
-/// page.Find<TuiButton>("ok")!.OnClick = _ => page.Find<TuiLabel>("msg")!.Text = "已确认";
-/// page.Find<TuiButton>("cancel")!.OnClick = _ => page.Window.OnClosed?.Invoke();
+///     </VBox>
+///     <Dialog id="about" title="关于" width="40" height="8">
+///       <Label text="WayCoder" />
+///     </Dialog>
+///   </Screen>
+/// </App>
 /// ]]>
 /// </summary>
 public static class TuiMarkup
@@ -66,29 +79,83 @@ public static class TuiMarkup
         ["brightwhite"] = AnsiColors.BrightWhite,
     };
 
-    /// <summary>解析标记并构建页面。根元素为 &lt;Window&gt; 时返回窗口；否则包一层无边框窗口。</summary>
-    public static TuiPage Load(string xml)
+    /// <summary>解析标记，按根元素类型构建对应对象（App/Screen→屏幕、Window/Dialog→窗口、控件→视图）。</summary>
+    public static TuiMarkupResult Load(string xml)
     {
         var root = Xml.Parse(xml) ?? throw new ArgumentException("标记为空或解析失败");
         var byId = new Dictionary<string, TuiControl>();
 
-        TuiWindow win;
-        if (root.Name == "Window")
+        switch (root.Name)
         {
-            win = BuildWindow(root);
-            foreach (var child in root.Children)
-                if (BuildControl(child, byId) is TuiView v) win.RootView = v;
+            case "App":
+            case "Screen":
+                return new TuiMarkupResult(BuildScreen(root, byId), null, null, byId);
+            case "Window":
+            case "Dialog":
+                return new TuiMarkupResult(null, BuildWindow(root, byId), null, byId);
+            default:
+                var view = (TuiView)BuildControl(root, byId)!;
+                return new TuiMarkupResult(null, null, view, byId);
         }
-        else
-        {
-            var view = (TuiView)BuildControl(root, byId)!;
-            win = new TuiWindow { RootView = view, Title = "", Border = WindowBorder.None };
-        }
-
-        return new TuiPage(win, byId);
     }
 
-    /// <summary>递归构建控件（不含 Window），并登记 id。</summary>
+    /// <summary>从 .tui 文件加载。</summary>
+    public static TuiMarkupResult LoadFile(string path) => Load(File.ReadAllText(path));
+
+    // ── 屏幕 ──
+
+    private static TuiMarkupScreen BuildScreen(XNode node, Dictionary<string, TuiControl> byId)
+    {
+        var screen = new TuiMarkupScreen();
+        TuiView? rootView = null;
+
+        foreach (var child in node.Children)
+        {
+            if (child.Kind != XKind.Element) continue;
+            switch (child.Name)
+            {
+                case "App" or "Screen": // 嵌套（罕见）：忽略
+                    break;
+                case "Window":
+                case "Dialog":
+                    screen.AddMarkupWindow(BuildWindow(child, byId));
+                    break;
+                default:
+                    if (rootView == null && BuildControl(child, byId) is TuiView v)
+                        rootView = v;
+                    break;
+            }
+        }
+
+        screen.RootView = rootView ?? new TuiVBox { Width = 10, Height = 1 };
+        return screen;
+    }
+
+    // ── 窗口/对话框 ──
+
+    private static TuiWindow BuildWindow(XNode node, Dictionary<string, TuiControl> byId)
+    {
+        bool isDialog = node.Name == "Dialog";
+        var win = new TuiWindow
+        {
+            Title = Attr(node, "title"),
+            Width = Int(node, "width") ?? 40,
+            Height = Int(node, "height") ?? 10,
+            Border = ParseBorder(Attr(node, "border")),
+            Modal = Bool(node, "modal") ?? isDialog,        // Dialog 默认模态
+            HasMask = Bool(node, "mask") ?? isDialog,        // Dialog 默认带遮罩
+        };
+        if (Int(node, "x") is int x) win.X = x;
+        if (Int(node, "y") is int y) win.Y = y;
+        if (Color(node, "borderColor") is int bc) win.BorderColor = bc;
+
+        foreach (var child in node.Children)
+            if (BuildControl(child, byId) is TuiView v) { win.RootView = v; break; }
+
+        return win;
+    }
+
+    /// <summary>递归构建控件（不含 Window/Dialog/Screen），并登记 id。</summary>
     private static TuiControl? BuildControl(XNode node, Dictionary<string, TuiControl> byId)
     {
         if (node.Kind != XKind.Element) return null;
@@ -103,8 +170,14 @@ public static class TuiMarkup
             "TextArea" => new TuiTextArea(),
             "List" => new TuiList(),
             "Checkbox" => new TuiCheckbox(Attr(node, "text")),
+            "ComboBox" => new TuiComboBox(),
+            "RadioGroup" => new TuiRadioGroup(),
+            "SeekBar" => new TuiSeekBar(),
             "Progress" => new TuiProgress(),
             "Separator" => new TuiSeparator(),
+            "Panel" => new TuiPanel(),
+            "Spinner" => new TuiSpinner(Attr(node, "text")),
+            "Markdown" => new WayCoder.UI.Tui.Controls.TuiMarkdown(Attr(node, "text")),
             "Spacer" => new TuiLabel("") { Flex = 1 },
             _ => null,
         };
@@ -117,7 +190,7 @@ public static class TuiMarkup
             case "Label":
                 var lbl = (TuiLabel)c;
                 lbl.Text = Attr(node, "text");
-                if (Int(node, "width") == null) // 未指定宽度 → 按文本显示宽度自动适配
+                if (Int(node, "width") == null)
                     lbl.Width = AnsiHelper.DisplayWidth(lbl.Text) + 2;
                 break;
             case "Button":
@@ -142,6 +215,30 @@ public static class TuiMarkup
             case "Checkbox":
                 ((TuiCheckbox)c).Checked = Bool(node, "checked") ?? false;
                 break;
+            case "ComboBox":
+                var cb = (TuiComboBox)c;
+                var cbItems = Attr(node, "items");
+                if (cbItems.Length > 0) cb.Options = [.. cbItems.Split(',')];
+                if (Int(node, "selected") is int cbs) cb.SelectedIndex = cbs;
+                break;
+            case "RadioGroup":
+                var rg = (TuiRadioGroup)c;
+                var rgItems = Attr(node, "items");
+                if (rgItems.Length > 0) rg.Options = [.. rgItems.Split(',')];
+                if (Int(node, "selected") is int rgs) rg.SelectedIndex = rgs;
+                break;
+            case "SeekBar":
+                var sb = (TuiSeekBar)c;
+                if (Int(node, "min") is int mn) sb.MinValue = mn;
+                if (Int(node, "max") is int mx) sb.MaxValue = mx;
+                if (Int(node, "value") is int sv) sb.Value = sv;
+                break;
+            case "Panel":
+                ((TuiPanel)c).Title = Attr(node, "title");
+                break;
+            case "Markdown":
+                if (Int(node, "maxWidth") is int mw) ((WayCoder.UI.Tui.Controls.TuiMarkdown)c).MaxWidth = mw;
+                break;
             case "VBox":
                 if (Int(node, "spacing") is int vsp) ((TuiVBox)c).Spacing = vsp;
                 if (Enum.TryParse<EHAlign>(Attr(node, "align"), true, out var va))
@@ -154,7 +251,6 @@ public static class TuiMarkup
                 break;
         }
 
-        // 登记 id（code-behind 入口）
         var id = node.GetAttr("id");
         if (!string.IsNullOrEmpty(id)) byId[id] = c;
 
@@ -165,23 +261,6 @@ public static class TuiMarkup
         }
 
         return c;
-    }
-
-    private static TuiWindow BuildWindow(XNode node)
-    {
-        var win = new TuiWindow
-        {
-            Title = Attr(node, "title"),
-            Width = Int(node, "width") ?? 40,
-            Height = Int(node, "height") ?? 10,
-            Border = ParseBorder(Attr(node, "border")),
-            Modal = Bool(node, "modal") ?? false,
-            HasMask = Bool(node, "mask") ?? false,
-        };
-        if (Int(node, "x") is int x) win.X = x;
-        if (Int(node, "y") is int y) win.Y = y;
-        if (Color(node, "borderColor") is int bc) win.BorderColor = bc;
-        return win;
     }
 
     private static void ApplyCommon(XNode node, TuiControl c)
