@@ -134,7 +134,7 @@ public static class DiffPreview
             Title = $"Diff 预览: {filePath}  ({hunks.Count} hunks)",
             ShowTitleSeparator = false,
             Modal = true, HasMask = true,
-            Border = WindowBorder.Solid,
+            Border = WindowBorder.Rounded,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = contentBg,
             Width = winW, Height = winH,

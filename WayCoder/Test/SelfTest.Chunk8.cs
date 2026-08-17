@@ -900,8 +900,8 @@ public static partial class SelfTest
         Check("TuiTheme DialogWarnBorder", theme.DialogWarnBorder > 0);
         Check("TuiTheme DialogErrorBorder", theme.DialogErrorBorder > 0);
 
-        // 窗口色（白底，对话框黑字与之保持反差）
-        Check("TuiTheme WindowBg 白底", theme.WindowBg == TuiColors.BgWhite);
+        // 窗口色（深灰暗底，对话框白字与之保持反差）
+        Check("TuiTheme WindowBg 深灰暗底", theme.WindowBg == TuiColors.BgBrightBlack);
         Check("TuiTheme MaskBg", theme.MaskBg > 0);
 
         // 渐变预设

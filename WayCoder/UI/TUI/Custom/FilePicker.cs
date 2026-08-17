@@ -68,7 +68,7 @@ public static class FilePicker
             Title = title,
             ShowTitleSeparator = false,
             Modal = true, HasMask = true,
-            Border = WindowBorder.Solid,
+            Border = WindowBorder.Rounded,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             Width = winW, Height = winH,
@@ -87,7 +87,7 @@ public static class FilePicker
         var filtered = new List<FileEntry>();
 
         // 路径栏
-        var pathLabel = new TuiLabel { Height = 1, Fg = TuiColors.BrightBlack };
+        var pathLabel = new TuiLabel { Height = 1, Fg = TuiColors.BrightWhite };
 
         // 搜索行（标签 + 输入框，输入框聚焦）
         var search = new TuiInput
@@ -98,7 +98,7 @@ public static class FilePicker
             Focused = true,
         };
         var searchRow = new TuiHBox { Spacing = 1 };
-        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = TuiColors.BrightBlack });
+        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = TuiColors.BrightWhite });
         searchRow.Add(search);
 
         // 文件列表（多列：文件/大小/日期/时间）
@@ -109,7 +109,7 @@ public static class FilePicker
         table.AddColumn("时间", TimeW);
 
         // 帮助行（兼显示过滤计数）
-        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightBlack };
+        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightWhite };
 
         var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
         vbox.Add(pathLabel);
