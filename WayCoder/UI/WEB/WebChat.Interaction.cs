@@ -285,6 +285,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         var text = new TranscribeAudioTool()
             .ExecuteAsync(new Dictionary<string, object?> { ["path"] = path })
             .GetAwaiter().GetResult();
+        try { File.Delete(path); } catch { } // 转录完成即清理临时文件（避免 %TEMP% 无界累积）
         if (IsTranscribeError(text))
             return HttpResponse.JsonBody(Err(text));
         return HttpResponse.JsonBody(JNode.Object()
