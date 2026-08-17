@@ -220,80 +220,81 @@ public class WatchMode : IDisposable
         {
             var line = rawLine.Trim();
 
-            // 处理块注释
-            if (inBlockComment)
+            // 用 while 循环处理同一行上的多个注释段：块注释结束后可能紧跟行注释
+            // （如 `/* ... */ // AI! 指令`），此前块注释后直接 continue 会吞掉行注释。
+            while (line.Length > 0)
             {
-                var endIdx = blockCommentEnd != null ? line.IndexOf(blockCommentEnd, StringComparison.Ordinal) : -1;
-                if (endIdx >= 0)
+                // ── 已在块注释内 ──
+                if (inBlockComment)
                 {
-                    var blockText = line[..endIdx].Trim();
-                    ExtractAiPrefix(blockText, results);
-                    inBlockComment = false;
-                    blockCommentEnd = null;
-                }
-                else
-                {
-                    ExtractAiPrefix(line, results);
-                }
-                continue;
-            }
-
-            // 检测 C 风格块注释 /* ... */（仅适用语言，否则含 "/*" 的字符串会被误判）
-            if (supportsCBlock)
-            {
-                var blockStart = line.IndexOf("/*", StringComparison.Ordinal);
-                if (blockStart >= 0)
-                {
-                    var afterStart = line[(blockStart + 2)..];
-                    var blockEnd = afterStart.IndexOf("*/", StringComparison.Ordinal);
-                    if (blockEnd >= 0)
+                    int endIdx = blockCommentEnd != null ? line.IndexOf(blockCommentEnd, StringComparison.Ordinal) : -1;
+                    if (endIdx < 0)
                     {
-                        // 单行块注释
-                        ExtractAiPrefix(afterStart[..blockEnd].Trim(), results);
+                        ExtractAiPrefix(line, results);
+                        break; // 本行剩余全在块注释内
                     }
-                    else
+                    ExtractAiPrefix(line[..endIdx].Trim(), results);
+                    inBlockComment = false;
+                    line = line[(endIdx + blockCommentEnd!.Length)..].Trim();
+                    blockCommentEnd = null;
+                    continue; // 解析块注释后的剩余（可能含行注释）
+                }
+
+                // ── 检测 C 风格块注释 /* ... */（仅适用语言，否则含 "/*" 的字符串会被误判）──
+                if (supportsCBlock)
+                {
+                    int bs = line.IndexOf("/*", StringComparison.Ordinal);
+                    if (bs >= 0)
                     {
+                        var afterStart = line[(bs + 2)..];
+                        int be = afterStart.IndexOf("*/", StringComparison.Ordinal);
+                        if (be >= 0)
+                        {
+                            // 单行块注释：提取后继续解析块后的剩余
+                            ExtractAiPrefix(afterStart[..be].Trim(), results);
+                            line = afterStart[(be + 2)..].Trim();
+                            continue;
+                        }
                         // 多行块注释开始
                         inBlockComment = true;
                         blockCommentEnd = "*/";
                         ExtractAiPrefix(afterStart.Trim(), results);
+                        break;
                     }
-                    continue;
                 }
-            }
 
-            // 检测 HTML 块注释 <!-- ... -->（仅适用语言）
-            if (supportsHtmlBlock)
-            {
-                var htmlStart = line.IndexOf("<!--", StringComparison.Ordinal);
-                if (htmlStart >= 0)
+                // ── 检测 HTML 块注释 <!-- ... -->（仅适用语言）──
+                if (supportsHtmlBlock)
                 {
-                    var afterStart = line[(htmlStart + 4)..];
-                    var htmlEnd = afterStart.IndexOf("-->", StringComparison.Ordinal);
-                    if (htmlEnd >= 0)
+                    int bs = line.IndexOf("<!--", StringComparison.Ordinal);
+                    if (bs >= 0)
                     {
-                        ExtractAiPrefix(afterStart[..htmlEnd].Trim(), results);
-                    }
-                    else
-                    {
+                        var afterStart = line[(bs + 4)..];
+                        int be = afterStart.IndexOf("-->", StringComparison.Ordinal);
+                        if (be >= 0)
+                        {
+                            ExtractAiPrefix(afterStart[..be].Trim(), results);
+                            line = afterStart[(be + 3)..].Trim();
+                            continue;
+                        }
                         inBlockComment = true;
                         blockCommentEnd = "-->";
                         ExtractAiPrefix(afterStart.Trim(), results);
+                        break;
                     }
-                    continue;
                 }
-            }
 
-            // 行注释检测
-            foreach (var prefix in lineComments)
-            {
-                var idx = line.IndexOf(prefix, StringComparison.Ordinal);
-                if (idx >= 0)
+                // ── 行注释检测 ──
+                foreach (var prefix in lineComments)
                 {
-                    var comment = line[(idx + prefix.Length)..].Trim();
-                    ExtractAiPrefix(comment, results);
-                    break;
+                    int idx = line.IndexOf(prefix, StringComparison.Ordinal);
+                    if (idx >= 0)
+                    {
+                        ExtractAiPrefix(line[(idx + prefix.Length)..].Trim(), results);
+                        break;
+                    }
                 }
+                break; // 行注释到行尾（或无注释），本行结束
             }
         }
 

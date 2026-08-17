@@ -251,6 +251,21 @@ public static class ProjectContext
         catch (Exception ex) { DebugLog.Log("ProjectContext", $"读取 Git 信息失败: {ex.Message}"); }
     }
 
+    private static readonly HashSet<string> IgnoredDirSegments = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".git", "node_modules", "bin", "obj", ".venv",
+    };
+
+    /// <summary>判断相对路径是否命中忽略目录段（按路径段精确匹配，非 StartsWith 前缀，避免误伤 bin-tools/.gitignore 等）。</summary>
+    internal static bool IsIgnoredPath(string rel)
+    {
+        foreach (var seg in rel.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+        {
+            if (IgnoredDirSegments.Contains(seg)) return true;
+        }
+        return false;
+    }
+
     private static List<string> SafeGetFiles(string root, int maxFiles)
     {
         var files = new List<string>();
@@ -259,9 +274,7 @@ public static class ProjectContext
             foreach (var file in Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories))
             {
                 var rel = Path.GetRelativePath(root, file);
-                if (rel.StartsWith(".git") || rel.StartsWith("node_modules") ||
-                    rel.StartsWith("bin") || rel.StartsWith("obj") || rel.StartsWith(".venv"))
-                    continue;
+                if (IsIgnoredPath(rel)) continue;
                 files.Add(file);
                 if (files.Count >= maxFiles) break;
             }

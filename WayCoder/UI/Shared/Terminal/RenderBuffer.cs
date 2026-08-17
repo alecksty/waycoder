@@ -141,6 +141,8 @@ public class RenderBuffer
     /// </summary>
     public int WriteWrap(int startRow, int startCol, string text, int maxCol, int indentCol, int fg = 0, int bg = 0)
     {
+        // 防死循环：indentCol/startCol 超右边界时 avail = maxCol-col+1 恒 ≤0、i 永不推进
+        indentCol = Math.Min(indentCol, maxCol);
         int row = startRow, col = startCol;
         int i = 0;
         while (i < text.Length)
