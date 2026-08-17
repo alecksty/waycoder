@@ -151,6 +151,7 @@ public static partial class SelfTest
         TestV0730SlotAsyncLocal(Check);       // v0.71.30 批次：记忆槽位 AsyncLocal 隔离（多槽位并行不串记忆目录）
         TestV0730LowSeverity(Check);          // v0.71.30 批次：grep 幻影空行 + cd ~ 前缀展开
         TestV0730UiUndo(Check);               // v0.71.30 批次：文本域撤销栈健壮性 + 编辑器替换可撤销
+        TestV0730TuiExperience(Check);        // v0.71.30 批次：markdown 长段落折行 + ANSI 行不折行
         Console.WriteLine();
 
         // ---- 工具 ----

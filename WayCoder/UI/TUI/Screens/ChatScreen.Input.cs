@@ -595,14 +595,7 @@ public partial class ChatScreen : TuiScreen
             }
         }
 
-        // ── F1-F10 槽位切换 ──
-        if (key.Key >= ConsoleKey.F1 && key.Key <= ConsoleKey.F10)
-        {
-            int slot = key.Key - ConsoleKey.F1;
-            if (slot != ActiveSlotIndex)
-                SwitchToSlot(slot);
-            return true;
-        }
+        // F1-F10 槽位切换已在 REPL 主循环（Program.Repl.cs）拦截处理，这里不再重复
 
         return false;
     }

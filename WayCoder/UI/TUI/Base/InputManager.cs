@@ -133,9 +133,14 @@ public class InputManager : IDisposable
         var bracket = Tty.ReadKey();
         if (bracket.KeyChar != AnsiTty.AnsiCharEscape)
         {
-            // Alt+字符 组合：AnsiTty.AnsiCharPrefix x —— 退回字符，AnsiTty.AnsiCharPrefix 单独作为 ESC 键返回
-            _pendingKeys.Enqueue(bracket);
-            return null;
+            // Alt+字符 组合：\x1b x → 组合为带 Alt 修饰的键事件返回。
+            // 不能把 ESC 单独返回（会触发空输入框退出确认），也不能退回字符后让 ESC 先到。
+            return new InputEvent
+            {
+                Type = InputType.Key,
+                KeyInfo = new ConsoleKeyInfo(bracket.KeyChar, bracket.Key,
+                    bracket.Modifiers.HasFlag(ConsoleModifiers.Shift), false, true),
+            };
         }
 
         // \x1b[ 后无内容（极少见）→ 退回 '['，让 \x1b 单独作为 ESC 键
