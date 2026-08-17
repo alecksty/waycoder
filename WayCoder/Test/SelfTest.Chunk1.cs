@@ -131,6 +131,7 @@ public static partial class SelfTest
         TestV0711Concurrency(Check);    // v0.71.11 批次：FallbackLLM 原子累加 + WatchMode 幂等 dispose
         TestV0712MessagesThreadSafety(Check); // v0.71.12 批次：Agent.Messages 线程安全封装（锁内读/写 + 快照读）
         TestV0713CtsLifecycle(Check);         // v0.71.13 批次：AgentSlot.Cts 原子摘除（Interlocked.Exchange 恰好一个取到非 null）
+        TestV0714RetryAfter(Check);           // v0.71.14 批次：Retry-After 头解析负数/非法值回退
         Console.WriteLine();
 
         // ---- 工具 ----

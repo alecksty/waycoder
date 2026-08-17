@@ -734,16 +734,19 @@ public class LLM
             : TimeoutMultipliers[^1] + (attempt - TimeoutMultipliers.Length + 1);
 
     /// <summary>解析 HTTP Retry-After 头（秒数或 HTTP-date），返回毫秒延迟。</summary>
-    private static int? ParseRetryAfter(HttpResponseMessage resp)
+    internal static int? ParseRetryAfter(HttpResponseMessage resp)
     {
         try
         {
             var header = resp.Headers.GetValues("Retry-After").FirstOrDefault();
             if (string.IsNullOrWhiteSpace(header)) return null;
 
-            // 纯数字 = 秒数
+            // 纯数字 = 秒数；负数回退默认退避——否则 Task.Delay(负) 抛 ArgumentOutOfRangeException（-1 更会无限等待）
             if (int.TryParse(header, out var seconds))
+            {
+                if (seconds < 0) return null;
                 return (int)Math.Min((long)seconds * 1000, (long)Config.Instance.LlmRateLimitMaxWaitSec * 1000);
+            }
 
             // HTTP-date 格式
             if (DateTime.TryParse(header, out var retryDate))
