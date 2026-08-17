@@ -130,6 +130,7 @@ public static partial class SelfTest
         TestV0710EditPrimitives(Check); // v0.71.10 批次：输入控件光标移动/删除的代理对安全
         TestV0711Concurrency(Check);    // v0.71.11 批次：FallbackLLM 原子累加 + WatchMode 幂等 dispose
         TestV0712MessagesThreadSafety(Check); // v0.71.12 批次：Agent.Messages 线程安全封装（锁内读/写 + 快照读）
+        TestV0713CtsLifecycle(Check);         // v0.71.13 批次：AgentSlot.Cts 原子摘除（Interlocked.Exchange 恰好一个取到非 null）
         Console.WriteLine();
 
         // ---- 工具 ----

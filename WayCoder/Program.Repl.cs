@@ -848,9 +848,12 @@ public partial class Program
             }
             finally
             {
-                slot.IsBusy = false;
+                // 必须先摘除 Cts 再置 IsBusy=false：若反过来，二者之间 UI 线程看到 IsBusy=false
+                // 会启动新任务写入新的 Cts，此处的 Exchange 会把新任务的 Cts 摘走并 Dispose，
+                // 导致新任务无法被 Esc 中断（读到 null 即 no-op）。
                 // 原子摘除并释放 CancellationTokenSource，避免泄漏；Esc 中断路径读到 null 即 no-op，杜绝 dispose 竞态
                 Interlocked.Exchange(ref slot.Cts, null)?.Dispose();
+                slot.IsBusy = false;
                 if (capturedScreen.SlotStates[slotIdx] != SlotState.Error)
                     capturedScreen.SlotStates[slotIdx] = SlotState.Idle;
             }
