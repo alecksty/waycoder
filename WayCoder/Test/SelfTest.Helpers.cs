@@ -4590,6 +4590,47 @@ public static partial class SelfTest
         Check("记忆槽位: 后台任务不污染主线程(仍3)", mainAfter == 3);
     }
 
+    private static void TestV0730UiUndo(Action<string, bool> Check)
+    {
+        // ── TuiTextArea 撤销栈健壮性（v0.71.30 修复：4 处）──
+
+        // 1. Text 整体替换（发送消息清空输入）后撤销历史清空：不再引用旧行崩溃
+        var ta1 = new TuiTextAreaPasteProbe { Text = "a\nb" };
+        ta1.CursorRow = 0; ta1.CursorCol = 0;
+        ta1.Paste("X\nY");   // 记录多行插入 'I'(0,0,"X\nY")
+        ta1.Text = "";       // 整体替换 → Lines=[""]，栈应清空
+        ta1.UndoAction();    // 修复前：Undo 对 1 行列表 RemoveAt(1) → ArgumentOutOfRangeException
+        Check("ta: Text 替换后撤销不越界", ta1.Lines.Count >= 1);
+
+        // 2. 拆行后撤销不重复自动缩进
+        var ta2 = new TuiTextAreaPasteProbe { Text = "  hello" };
+        ta2.CursorRow = 0; ta2.CursorCol = 7;
+        ta2.NewLine();       // InsertNewLine → ["  hello","  "] 记录 'S'(0,7,"\n  ")
+        ta2.UndoAction();    // 合并 → 修复前 "  hello  "（缩进重复），修复后 "  hello"
+        Check("ta: 撤销拆行不重复缩进", ta2.Text == "  hello");
+
+        // 3. MaxLines 裁剪后撤销不越界
+        var ta3 = new TuiTextAreaPasteProbe { Text = "a\nb", MaxLines = 2 };
+        ta3.CursorRow = 1; ta3.CursorCol = 1;
+        ta3.Paste("X\nY");   // 插入 → trim → ["bX","Y"]，记录 'I'(1,1,...) 后栈行号修正
+        ta3.UndoAction();    // 修复前：RemoveAt(2) → ArgumentOutOfRangeException
+        Check("ta: MaxLines 裁剪后撤销不越界", ta3.Lines.Count >= 1);
+
+        // ── EditorCore 替换可撤销 + 无效正则不崩 ──
+        var ec = new WayCoder.UI.Tui.Edit.EditorCore();
+        ec.Lines.Add(new System.Text.StringBuilder("foo foo bar"));
+        int n = ec.ReplaceAll("foo", "baz");
+        Check("editor: ReplaceAll 生效", n == 2 && ec.Lines[0].ToString() == "baz baz bar");
+        ec.Undo();
+        Check("editor: ReplaceAll 可撤销", ec.Lines[0].ToString() == "foo foo bar");
+        bool ok = ec.ReplaceNext("foo", "qux");
+        Check("editor: ReplaceNext 生效", ok && ec.Lines[0].ToString() == "qux foo bar");
+        ec.Undo();
+        Check("editor: ReplaceNext 可撤销", ec.Lines[0].ToString() == "foo foo bar");
+        int bad = ec.ReplaceAll("[", "x");   // 无效正则
+        Check("editor: 无效正则不崩", bad == 0);
+    }
+
     private static void TestV0730LowSeverity(Action<string, bool> Check)
     {
         // ── #1 GrepTool 尾随换行幻影空行：以 \n 结尾的文件被 ^$ 误报一行不存在的末尾空行 ──

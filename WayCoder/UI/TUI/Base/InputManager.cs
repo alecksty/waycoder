@@ -186,8 +186,10 @@ public class InputManager : IDisposable
             Type = InputType.Mouse,
             MouseX = x - 1, // 1-based → 0-based
             MouseY = y - 1,
-            MouseLeft = !isRelease && (code == 0 || code == 32),
-            MouseRight = !isRelease && (code == 2 || code == 34),
+            // SGR 鼠标：32/33/34/35 是 motion（32=无按键纯移动），不是点击——
+            // 误判会让鼠标悬停在标题栏就触发拖拽
+            MouseLeft = !isRelease && code == 0,
+            MouseRight = !isRelease && code == 2,
             MouseScrollUp = code == 64,
             MouseScrollDown = code == 65,
             MouseMotion = code == 35 || code == 36 || code == 39, // SGR motion (no button / with button / release motion)

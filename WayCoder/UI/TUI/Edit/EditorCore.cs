@@ -712,6 +712,7 @@ public class EditorCore
     {
         if (string.IsNullOrEmpty(query) || Lines.Count == 0) return (-1, -1, 0);
         var regex = BuildFindRegex(query, opts);
+        if (regex == null) return (-1, -1, 0);
         for (int li = fromLine; li < Lines.Count; li++)
         {
             var line = Lines[li].ToString();
@@ -727,18 +728,27 @@ public class EditorCore
     {
         if (string.IsNullOrEmpty(find)) return 0;
         var regex = BuildFindRegex(find, opts);
+        if (regex == null) return 0;
         var replacement = ToReplacement(replace, opts.UseRegex);
-        int count = 0;
+        int firstLine = -1, lastLine = -1, count = 0;
         for (int li = 0; li < Lines.Count; li++)
         {
             var line = Lines[li].ToString();
             var matches = regex.Matches(line);
             if (matches.Count == 0) continue;
+            if (firstLine < 0) firstLine = li;
+            lastLine = li;
             count += matches.Count;
-            Lines[li] = new StringBuilder(regex.Replace(line, replacement));
-            TrackChange(li, li);
         }
-        if (count > 0) MarkChanged();
+        if (count == 0) return 0;
+
+        var oldBlock = string.Join("\n", Enumerable.Range(firstLine, lastLine - firstLine + 1).Select(i => Lines[i].ToString()));
+        for (int li = firstLine; li <= lastLine; li++)
+            Lines[li] = new StringBuilder(regex.Replace(Lines[li].ToString(), replacement));
+        var newBlock = string.Join("\n", Enumerable.Range(firstLine, lastLine - firstLine + 1).Select(i => Lines[i].ToString()));
+        Record('R', firstLine, 0, newBlock, oldBlock); // 支持 Ctrl+Z 撤销整块替换
+        TrackChange(firstLine, lastLine);
+        MarkChanged();
         return count;
     }
 
@@ -749,12 +759,15 @@ public class EditorCore
         var (line, col, _) = FindMatch(find, Cy, Cx, opts);
         if (line < 0) return false;
         var regex = BuildFindRegex(find, opts);
+        if (regex == null) return false;
         var replacement = ToReplacement(replace, opts.UseRegex);
         var text = Lines[line].ToString();
         var m = regex.Match(text, col);
         if (!m.Success) return false;
         var expanded = m.Result(replacement);
-        Lines[line] = new StringBuilder(text[..m.Index] + expanded + text[(m.Index + m.Length)..]);
+        var newLine = text[..m.Index] + expanded + text[(m.Index + m.Length)..];
+        Record('R', line, m.Index, newLine, text); // 支持 Ctrl+Z 撤销单处替换
+        Lines[line] = new StringBuilder(newLine);
         TrackChange(line, line);
         Cy = line; Cx = m.Index + expanded.Length;
         ClearSelection();
@@ -763,12 +776,19 @@ public class EditorCore
     }
 
     /// <summary>构造查找正则：正则原样使用，否则转义；整词匹配加 \b 边界。</summary>
-    private static Regex BuildFindRegex(string find, FindOptions opts)
+    private static Regex? BuildFindRegex(string find, FindOptions opts)
     {
-        var pattern = opts.UseRegex ? find : Regex.Escape(find);
-        if (opts.WholeWord) pattern = $@"\b(?:{pattern})\b";
-        var options = opts.CaseSensitive ? RegexOptions.None : RegexOptions.IgnoreCase;
-        return new Regex(pattern, options);
+        try
+        {
+            var pattern = opts.UseRegex ? find : Regex.Escape(find);
+            if (opts.WholeWord) pattern = $@"\b(?:{pattern})\b";
+            var options = opts.CaseSensitive ? RegexOptions.None : RegexOptions.IgnoreCase;
+            return new Regex(pattern, options);
+        }
+        catch (ArgumentException)
+        {
+            return null; // 用户输入无效正则 → 视为无匹配，不崩溃
+        }
     }
 
     /// <summary>字面替换把 $ 转义为 $$（避免被 .NET 正则当作反向引用）；正则替换保留 $1/${name}。</summary>
