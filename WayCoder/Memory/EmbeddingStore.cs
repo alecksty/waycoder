@@ -182,7 +182,7 @@ public static class EmbeddingStore
         try
         {
             var text = $"{entry.Description} {entry.Content}";
-            if (text.Length > 8000) text = text[..8000];
+            if (text.Length > 8000) text = ContextManager.TruncateByRunes(text, 8000);
 
             var vec = await GenerateEmbeddingAsync(text, ct);
             if (vec != null)

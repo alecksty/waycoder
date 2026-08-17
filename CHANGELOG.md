@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.71.16 (2026-08-17) — 数据路径 UTF-16 切片代理对修复（6 处）
+
+继续清扫「按 UTF-16 码元任意切片」这一 CLAUDE.md 明文禁止的确定性数据损坏源。系统性审查发现 6 处仍用 `str[..N]` 截断**发往 LLM/系统提示词/落盘**的数据，当截断点落在 emoji/扩展区汉字（代理对）中间时会切出孤立代理项，UTF-8 编码后成为 U+FFFD 替换符混入提示词与文件内容。统一改走 `ContextManager.TruncateByRunes`（按码点截断）。
+
+### 🐛 数据路径
+
+- **`Agent.Feedback.cs`（2 处）**：lint 结果 `lintResult[..1500]` 与自动测试失败输出 `fullOutput[..2000]` 注入工具结果前改按码点截断——测试输出常含 ✔/✘/❌ 等 emoji，切半后污染自动修复闭环的上下文
+- **`Memory/SemanticMemory.cs`**：检索记忆摘要 `snippet[..300]` 注入系统提示词前改按码点截断
+- **`Memory/EmbeddingStore.cs`**：embedding 输入 `text[..8000]` 改按码点截断，避免切半文本生成错误向量（原静默 catch 吞掉）
+- **`Infra/OfficeExtractor.cs`（3 处）**：DOCX/XLSX/PPTX 提取结果 `result[..maxChars]` 改按码点截断（对比 `FetchTool` 已正确用 `TruncateByRunes`），文档内 emoji/扩展区汉字不再损坏
+- **`Agent.Commit.cs`**：LLM 生成的提交信息 `msg[..72]` 改按码点截断，避免 `feat: add 🎉` 之类消息落成带 `�` 的 commit
+
+### ✅ 测试
+
+新增 `TestV0716RuneSafeTruncation`（3 项断言）：构造最小 DOCX（段落含 emoji），`maxChars=3` 恰好落在代理对中间，断言提取结果无孤立代理项、emoji 完整保留、截断说明正常追加。测试总数 3252 → 3255。
+
 ## v0.71.15 (2026-08-17) — 上下文压缩界面指示（Web + TUI 动画）
 
 上下文压缩此前在 Web 版只有聊天流里的一行 `🔄 [1/3] ...` 文本、TUI 版动态栏的进度条在压缩结束后残留陈旧标签，用户感知弱。本轮补齐两端「压缩中」的界面指示：动画 + 完成后消失。
