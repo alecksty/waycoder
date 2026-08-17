@@ -522,6 +522,9 @@ public class TuiWindow : TuiBase
         if (newY < 0) { newH += newY; newY = 0; }
         if (newX + newW > Tty.Cols) newW = Tty.Cols - newX;
         if (newY + newH > Tty.Rows) newH = Tty.Rows - newY;
+        // 位置调整可能把 newW 推到 < MinWidth 甚至负数（ContentWidth=Width-2 变负 → new string(' ') 崩溃）
+        newW = Math.Max(2, Math.Max(MinWidth, newW));
+        newH = Math.Max(2, Math.Max(MinHeight, newH));
 
         Width = newW; Height = newH; X = newX; Y = newY;
 
