@@ -618,7 +618,11 @@ public static class HooksManager
             var stdout = await stdoutTask;
             var stderr = await stderrTask;
 
-            var output = string.IsNullOrEmpty(stderr) ? stdout.Trim() : stderr.Trim();
+            // stdout 是结构化输出主通道（JSON 决策/理由）；stderr 仅诊断。
+            // 若 stderr 非空就改用 stderr，hook 的 block 决策 JSON 会被丢弃 → 危险工具被放行
+            var output = stdout.Trim();
+            if (!string.IsNullOrEmpty(stderr))
+                DebugLog.Log("hooks", $"hook stderr（仅诊断）: {ContextManager.TruncateByRunes(stderr, 300)}");
 
             DebugLog.Log("hooks", $"[{eventType}] {toolName} → exit={proc.ExitCode} output={ContextManager.TruncateByRunes(output, 200)}");
 

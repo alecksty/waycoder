@@ -50,8 +50,10 @@ public class KillTool : ITool
     private static async Task<string> Execute(bool hasPid, int pid, bool hasName, string name, bool force)
     {
         // 系统关键 PID 检查（优先于参数缺失检查）
-        if (hasPid && (pid == 0 || pid == 4))
-            return $"⚠ 已阻止：PID {pid} 是系统关键进程，不可终止。";
+        if (hasPid && pid <= 0)
+            return "错误：PID 必须为正整数（负值会使 Unix 分支误走 pkill '' 杀掉全部用户进程）。";
+        if (hasPid && pid == 4)
+            return "⚠ 已阻止：PID 4 是系统关键进程，不可终止。";
 
         if (!hasPid && !hasName)
             return "错误：必须指定 pid 或 name 参数。";
