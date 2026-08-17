@@ -200,7 +200,10 @@ public static class BackgroundTaskManager
 
         var output = task.Output;
         if (output.Length > 5000)
-            output = ContextManager.TruncateByRunes(output, 4000) + $"\n... (已截断，共 {output.Length} 字符)";
+        {
+            var originalLen = output.Length;
+            output = ContextManager.TruncateByRunes(output, 4000) + $"\n... (已截断，共 {originalLen} 字符)";
+        }
 
         return output.Trim();
     }

@@ -4673,6 +4673,44 @@ public static partial class SelfTest
         finally { BashTool.CurrentCwd.Value = savedCwd!; }
     }
 
+    /// <summary>v0.71.30 批次：CLI 多值累积 / 批处理目录穿越 / 版本溢出 / CJK 单字召回 / Web 畸形解码。</summary>
+    private static void TestV0730Deterministic(Action<string, bool> Check)
+    {
+        // ── #1 CliArgRegistry：AllowMultiple 多值累积（此前先覆盖再 AddRange → [B,B] 且丢 A）──
+        WayCoder.UI.Cli.Arguments.CliArgRegistry.Register(new _TestMultiArg());
+        var (parsed, _) = WayCoder.UI.Cli.Arguments.CliArgRegistry.Parse(new[] { "--test-multi-v0730", "A", "--test-multi-v0730", "B" });
+        var vals = WayCoder.UI.Cli.Arguments.CliArgRegistry.GetAll(parsed, "test-multi-v0730");
+        Check("CLI: AllowMultiple 累积 [A,B] 不重复", vals != null && vals.Count == 2 && vals[0] == "A" && vals[1] == "B");
+
+        // ── #2 BatchJob.DisplayName：Name 含 ../ 或绝对路径 → 清洗，防目录穿越（git clone 越出 work root）──
+        var dj = new BatchJob { Name = "../pwn" }.DisplayName;
+        Check("批量: DisplayName 过滤 ../", !dj.Contains("..") && !dj.Contains('/'));
+        var dj2 = new BatchJob { Name = "/abs/path" }.DisplayName;
+        Check("批量: DisplayName 过滤绝对路径", !dj2.Contains('/'));
+
+        // ── #3 UpdateChecker.CompareVersions：超大数字段 int.Parse 溢出 → long 饱和不崩 ──
+        Check("更新: 超大版本段不崩溃且更大", UpdateChecker.CompareVersions("v99999999999", "v1.0") > 0);
+        Check("更新: 日期型 tag 不崩溃", UpdateChecker.CompareVersions("v2024010112345678", "v0.71.29") > 0);
+
+        // ── #4 GetRelevantContext：单字 CJK 查询（TF-IDF 层 bigram 无交集 → 0 分）子串兜底命中 ──
+        var md = "---\n## 2025-01-01 10:00\n\n汉字学习笔记\n";
+        var ctx = SemanticMemory.GetRelevantContext(md, "汉", topN: 2, maxChars: 500);
+        Check("记忆: 单字查询子串兜底命中", ctx.Length > 0);
+
+        // ── #5 WebChat 安全解码：畸形百分号不抛 UriFormatException（否则请求被静默丢弃）──
+        Check("Web: SafeUnescape 畸形 %zz 回退原串", WayCoder.UI.Web.WebChatServer.SafeUnescape("%zz") == "%zz");
+        Check("Web: SafeUnescape 正常解码", WayCoder.UI.Web.WebChatServer.SafeUnescape("a%20b") == "a b");
+        Check("Web: ParseClientQuery 畸形不崩", WayCoder.UI.Web.WebChatServer.ParseClientQuery("client=%zz") == "%zz");
+    }
+
+    /// <summary>CLI 参数测试桩：AllowMultiple + 单值，用于验证多值累积解析（唯一名避免与内置参数冲突）。</summary>
+    private sealed class _TestMultiArg : WayCoder.UI.Cli.Arguments.CliArg
+    {
+        public override int ValueCount => 1;
+        public override bool AllowMultiple => true;
+        public _TestMultiArg() : base("test-multi-v0730", "--test-multi-v0730") { }
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {

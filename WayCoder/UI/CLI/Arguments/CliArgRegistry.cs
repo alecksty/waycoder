@@ -83,14 +83,13 @@ public static class CliArgRegistry
                     consumed.Add(args[++i]);
             }
 
-            values[def.Key] = consumed;
             // 允许累积：同一参数多次出现时追加而非覆盖（如 -p1 "A" -p1 "B" → [A, B]）
-            if (!values.ContainsKey(def.Key))
-                values[def.Key] = consumed;
-            else if (def is { AllowMultiple: true })
-                values[def.Key].AddRange(consumed);
+            // 此前先无条件 values[def.Key]=consumed 再判断 ContainsKey，导致 !ContainsKey 分支永远走不到、
+            // AllowMultiple 时每次把 consumed 自身重复追加一份（[B,B] 且丢 A）。
+            if (values.TryGetValue(def.Key, out var prev) && def.AllowMultiple)
+                prev.AddRange(consumed);
             else
-                values[def.Key] = consumed; // 覆盖
+                values[def.Key] = consumed;
             var exit = def.OnMatch(consumed);
             if (exit.HasValue) return (values, exit.Value);
         }
