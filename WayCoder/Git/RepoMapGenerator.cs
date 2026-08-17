@@ -256,9 +256,10 @@ public static class RepoMapGenerator
         string? SymbolInfo
     );
 
-    private static List<FileEntry> CollectEntries(string root, string currentDir)
+    private static List<FileEntry> CollectEntries(string root, string currentDir, int depth = 0)
     {
         var entries = new List<FileEntry>();
+        if (depth > 64) return entries; // 深度上限防符号链接环无限递归 → StackOverflow
         var rootPrefix = root.Replace('\\', '/').TrimEnd('/') + "/";
 
         try
@@ -272,7 +273,7 @@ public static class RepoMapGenerator
                     continue;
 
                 entries.Add(new FileEntry(relPath, name, true, 0, Directory.GetLastWriteTime(dir), null));
-                entries.AddRange(CollectEntries(root, dir));
+                entries.AddRange(CollectEntries(root, dir, depth + 1));
             }
 
             foreach (var file in Directory.GetFiles(currentDir))
