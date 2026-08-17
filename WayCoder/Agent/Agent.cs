@@ -24,7 +24,28 @@ public partial class Agent
     /// <summary>工具名 → 工具实例的快速查找字典</summary>
     public Dictionary<string, ITool> ToolByName { get; }
     /// <summary>对话消息历史（OpenAI 格式）</summary>
-    public List<JNode> Messages { get; set; } = [];
+    private List<JNode> _messages = [];
+    public List<JNode> Messages { get => _messages; set => _messages = value; }
+
+    /// <summary>
+    /// 保护 Messages 的锁：Agent 主循环线程（写）与 Web 序列化/退出保存线程（读）并发访问。
+    /// List&lt;JNode&gt; 非线程安全，外部快照/遍历时与主循环追加并发会抛 InvalidOperationException。
+    /// </summary>
+    internal readonly object MessagesLock = new();
+
+    /// <summary>追加一条消息（线程安全）</summary>
+    internal void AddMessage(JNode msg) { lock (MessagesLock) _messages.Add(msg); }
+    /// <summary>移除指定索引消息（线程安全）</summary>
+    internal void RemoveMessageAt(int idx) { lock (MessagesLock) _messages.RemoveAt(idx); }
+    /// <summary>在指定索引插入消息（线程安全）</summary>
+    internal void InsertMessage(int idx, JNode msg) { lock (MessagesLock) _messages.Insert(idx, msg); }
+    /// <summary>快照当前消息（线程安全，供外部只读遍历）</summary>
+    internal List<JNode> SnapshotMessages() { lock (MessagesLock) return _messages.ToList(); }
+    /// <summary>整体替换消息（线程安全，供恢复会话）</summary>
+    internal void ReplaceMessages(IEnumerable<JNode> msgs) { lock (MessagesLock) { _messages.Clear(); _messages.AddRange(msgs); } }
+    /// <summary>清空消息（线程安全）</summary>
+    internal void ClearMessages() { lock (MessagesLock) _messages.Clear(); }
+
     /// <summary>上下文管理器（三层压缩 + token 预算）</summary>
     public ContextManager Context { get; }
 
@@ -243,7 +264,7 @@ public partial class Agent
             DebugLog.Log("agent", "检测到快速模式关键词，跳过探索工作流");
         }
 
-        Messages.Add(JNode.Object().Set("role", "user").Set("content", userInput));
+        AddMessage(JNode.Object().Set("role", "user").Set("content", userInput));
         await CompressWithSmallModel(onToken);
 
         // ── Architect 模式：大模型出计划 → 小模型执行 ──
@@ -252,11 +273,11 @@ public partial class Agent
             var plan = await GenerateArchitectPlanAsync(onToken, cancellationToken);
             if (plan == null)
             {
-                Messages.RemoveAt(Messages.Count - 1); // 回滚用户消息
+                RemoveMessageAt(Messages.Count - 1); // 回滚用户消息
                 return "⚠ Architect 模式：大模型计划生成失败，已取消。";
             }
             // 将计划作为 system 消息注入，小模型继续执行
-            Messages.Add(JNode.Object()
+            AddMessage(JNode.Object()
                 .Set("role", "system")
                 .Set("content", $"## 执行计划\n\n以下是 Architect 的分析和执行计划，请按步骤逐一执行：\n\n{plan}"));
             // 切换回小模型执行
@@ -311,7 +332,7 @@ public partial class Agent
                     return resp.Content ?? "[致命错误] 所有模型失败，会话已保存。";
                 }
 
-                Messages.Add(resp.ToMessage());
+                AddMessage(resp.ToMessage());
                 // 自动继续检测：
                 // 0. 模型输出大量推理内容但不产生实际输出（DeepSeek V4 等模型的常见问题）
                 // 1. 模型首轮只输出分析不调用工具（toolCallCount==0, content>100）
@@ -337,7 +358,7 @@ public partial class Agent
                     {
                         WorkMode = WorkMode.Build;
                         OnWorkModeChanged?.Invoke(WorkMode.Build);
-                        Messages.Add(JNode.Object()
+                        AddMessage(JNode.Object()
                             .Set("role", "user")
                             .Set("content", "✅ 计划已获批准。现在切换到建造模式，按上述计划逐步执行，完成后汇报结果。"));
                         _analysisOnlyStreak = 0;
@@ -359,7 +380,7 @@ public partial class Agent
                         2 => $"你已连续 {_analysisOnlyStreak} 轮只输出推理而不调用工具（本轮推理 {reasoningLen} 字符）。请立即调用工具——不要只思考不行动。",
                         _ => $"⚠️ 严重警告：连续 {_analysisOnlyStreak} 轮纯推理无行动（累计数万字推理内容）。立即停止思考，只输出工具调用。",
                     };
-                    Messages.Add(JNode.Object()
+                    AddMessage(JNode.Object()
                         .Set("role", "user")
                         .Set("content", nudge));
                     continue;
@@ -375,7 +396,7 @@ public partial class Agent
                         2 => "你已连续两轮只输出分析不调用工具。请立即行动——调用 write_file 或 bash 执行具体操作。不要再做任何分析。",
                         _ => "⚠️ 严重警告：你已连续多轮不调用工具，浪费了大量上下文。立即调用工具执行任务，不要输出任何文字——只输出工具调用。",
                     };
-                    Messages.Add(JNode.Object()
+                    AddMessage(JNode.Object()
                         .Set("role", "user")
                         .Set("content", nudge));
                     continue;
@@ -391,7 +412,7 @@ public partial class Agent
                         2 => "你已连续两次只输出代码文字而不调用 write_file。请立即使用 write_file 工具将代码写入磁盘。不要再输出代码文字。",
                         _ => "⚠️ 严重警告：你已连续多次在文字中输出代码而不使用工具。代码必须通过 write_file 写入文件——请立即调用 write_file，不要输出任何文字。",
                     };
-                    Messages.Add(JNode.Object()
+                    AddMessage(JNode.Object()
                         .Set("role", "user")
                         .Set("content", nudge));
                     continue;
@@ -409,7 +430,7 @@ public partial class Agent
                         2 => "你已连续两轮没有调用工具。任务未完成，请立即调用工具继续执行，不要只输出文字。",
                         _ => "⚠️ 严重警告：连续多轮无工具调用，任务仍未完成。立即调用工具继续，直到真正完成并明确汇报结果。",
                     };
-                    Messages.Add(JNode.Object()
+                    AddMessage(JNode.Object()
                         .Set("role", "user")
                         .Set("content", nudge));
                     continue;
@@ -422,7 +443,7 @@ public partial class Agent
             // 有工具调用 -> 执行（多个时并行）
             _analysisOnlyStreak = 0; // 重置分析-不动手计数器
             _talksCodeStreak = 0;    // 重置口述代码计数器
-            Messages.Add(resp.ToMessage());
+            AddMessage(resp.ToMessage());
 
             try
             {
@@ -447,7 +468,7 @@ public partial class Agent
             var changeWarning = FileTracker.GetChangeWarning();
             if (changeWarning != null)
             {
-                Messages.Add(JNode.Object()
+                AddMessage(JNode.Object()
                     .Set("role", "tool")
                     .Set("tool_call_id", "file_tracker")
                     .Set("content", changeWarning));
@@ -488,7 +509,7 @@ public partial class Agent
             var stopContext = await HooksManager.RunStopAsync();
             if (stopContext != null)
             {
-                Messages.Add(JNode.Object()
+                AddMessage(JNode.Object()
                     .Set("role", "user")
                     .Set("content", stopContext));
             }
@@ -596,7 +617,7 @@ public partial class Agent
         // 注入 PreCompact 返回的额外上下文
         if (preCompactCtx != null)
         {
-            Messages.Add(JNode.Object()
+            AddMessage(JNode.Object()
                 .Set("role", "user")
                 .Set("content", preCompactCtx));
         }
@@ -624,7 +645,7 @@ public partial class Agent
                 + (fileArray.Length > 20 ? $"\n  ...（共 {fileArray.Length} 个）" : "")
             : "";
 
-        Messages.Add(JNode.Object()
+        AddMessage(JNode.Object()
             .Set("role", "user")
             .Set("content", $"{reason}。原始用户请求是：`{originalUserMsg}`\n请从中断处继续，完成未完成的工作。不要重写或缩小已有文件——只创建新文件或向已有文件追加缺失内容。{fileListStr}"));
         Context.ResetUsage(); // 重置计数器，给新一轮足够的空间
@@ -634,7 +655,7 @@ public partial class Agent
     /// 清空对话历史。
     /// </summary>
     /// <summary>清空对话历史，重置 Agent 状态。</summary>
-    public void Reset() => Messages.Clear();
+    public void Reset() => ClearMessages();
 
     private static string FormatBrief(Dictionary<string, object?> args, int maxLen = 80)
     {

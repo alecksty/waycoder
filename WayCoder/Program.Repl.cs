@@ -405,12 +405,13 @@ public partial class Program
             for (int i = 0; i < AgentSlot.Count; i++)
             {
                 var slot = _slots[i];
-                if (slot?.Agent?.Messages == null || slot.Agent.Messages.Count == 0) continue;
+                var slotMsgs = slot?.Agent?.SnapshotMessages();
+                if (slotMsgs == null || slotMsgs.Count == 0) continue;
                 // 只保存有实际对话的会话（至少一条用户消息）
-                var hasUser = slot.Agent.Messages.Any(m =>
+                var hasUser = slotMsgs.Any(m =>
                     m["role"]?.AsString() == "user");
                 if (!hasUser) continue;
-                SessionManager.SaveSession(slot.Agent.Messages, _config.Model, "_auto", i);
+                SessionManager.SaveSession(slotMsgs, _config.Model, "_auto", i);
                 saved++;
             }
             if (saved > 0)
@@ -434,10 +435,11 @@ public partial class Program
             for (int i = 0; i < AgentSlot.Count; i++)
             {
                 var slot = _slots[i];
-                if (slot?.Agent?.Messages == null || slot.Agent.Messages.Count == 0) continue;
-                var hasUser = slot.Agent.Messages.Any(m => m["role"]?.AsString() == "user");
+                var slotMsgs = slot?.Agent?.SnapshotMessages();
+                if (slotMsgs == null || slotMsgs.Count == 0) continue;
+                var hasUser = slotMsgs.Any(m => m["role"]?.AsString() == "user");
                 if (!hasUser) continue;
-                try { SessionManager.SaveSession(slot.Agent.Messages, _config.Model, "_auto", i); } catch { }
+                try { SessionManager.SaveSession(slotMsgs, _config.Model, "_auto", i); } catch { }
             }
             // 写入崩溃标记文件
             var crashFile = Path.Combine(Global.GlobalConfigPath("sessions"), ".crash_recovery");
@@ -457,8 +459,9 @@ public partial class Program
             for (int i = 1; i < AgentSlot.Count; i++)
             {
                 var slot = _slots[i];
-                if (slot?.Agent?.Messages == null || slot.Agent.Messages.Count == 0) continue;
-                try { SessionManager.SaveSession(slot.Agent.Messages, _config.Model, "_auto", i); } catch { }
+                var slotMsgs = slot?.Agent?.SnapshotMessages();
+                if (slotMsgs == null || slotMsgs.Count == 0) continue;
+                try { SessionManager.SaveSession(slotMsgs, _config.Model, "_auto", i); } catch { }
             }
         }
         catch { }
@@ -743,8 +746,7 @@ public partial class Program
         if ((userInput == "/resume" || userInput == "/continue") && _pendingRestore != null)
         {
             var (msgs, model) = _pendingRestore.Value;
-            _agent!.Messages.Clear();
-            _agent.Messages.AddRange(msgs);
+            _agent!.ReplaceMessages(msgs);
             _pendingRestore = null;
             screen.AddSystemMsg($"✔ 已恢复 {msgs.Count} 条消息 (模型: {model})");
             return;
@@ -982,7 +984,7 @@ public partial class Program
             cs.UpdateTokenDisplayFull(
                 llm.TotalPromptTokens, llm.TotalCompletionTokens,
                 llm.EstimatedCost,
-                ContextManager.EstimateTokens(agent.Messages), _config.MaxContextTokens,
+                ContextManager.EstimateTokens(agent.SnapshotMessages()), _config.MaxContextTokens,
                 llm.LastLatencyMs, llm.LastTokensPerSec);
         }, _ => { });
     }

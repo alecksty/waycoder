@@ -357,14 +357,14 @@ public partial class Program
                          ?? SessionManager.LoadSession(resumeId); // 旧版本存全局，回退
             if (loaded != null)
             {
-                _agent.Messages = loaded.Value.Messages;
+                _agent.ReplaceMessages(loaded.Value.Messages);
                 if (model == null)
                 {
                     _llm.Model = loaded.Value.Model;
                     _config.Model = loaded.Value.Model;
                 }
 
-                MarkupLine($"«green»✔ 已恢复会话:«/» «cyan»{E(resumeId)}«/» «dim»({_agent.Messages.Count} 条消息, 模型: {E(_llm.Model)})«/»");
+                MarkupLine($"«green»✔ 已恢复会话:«/» «cyan»{E(resumeId)}«/» «dim»({loaded.Value.Messages.Count} 条消息, 模型: {E(_llm.Model)})«/»");
             }
             else
             {

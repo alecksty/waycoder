@@ -76,7 +76,7 @@ public class SessionCommand : SlashCommand
     {
         var agent = ProgramContext.Agent;
         if (agent == null) { screen.AddSystemMsg("Agent 未初始化"); return; }
-        var id = SessionManager.SaveSession(agent.Messages, ProgramContext.Config.Model, null, Program.ActiveSlotIndex);
+        var id = SessionManager.SaveSession(agent.SnapshotMessages(), ProgramContext.Config.Model, null, Program.ActiveSlotIndex);
         screen.AddSystemMsg($"💾 会话已保存: {id}");
     }
 
@@ -98,8 +98,7 @@ public class SessionCommand : SlashCommand
         var agent = ProgramContext.Agent;
         if (agent == null) { screen.AddSystemMsg("Agent 未初始化"); return; }
 
-        agent.Messages.Clear();
-        agent.Messages.AddRange(loaded.Value.Messages);
+        agent.ReplaceMessages(loaded.Value.Messages);
         ProgramContext.Config.Model = loaded.Value.Model;
 
         screen.ClearChat();
@@ -127,8 +126,7 @@ public class SessionCommand : SlashCommand
         var agent = ProgramContext.Agent;
         if (agent == null) { screen.AddSystemMsg("Agent 未初始化"); return; }
 
-        agent.Messages.Clear();
-        agent.Messages.AddRange(loaded.Value.Messages);
+        agent.ReplaceMessages(loaded.Value.Messages);
 
         screen.ClearChat();
         screen.ChatMessages.Clear();

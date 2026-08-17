@@ -21,7 +21,7 @@ public class ExportCommand : SlashCommand
         sb.AppendLine($"# WayCoder 对话导出");
         sb.AppendLine($"> {DateTime.Now:yyyy-MM-dd HH:mm}");
         sb.AppendLine();
-        foreach (var msg in agent.Messages)
+        foreach (var msg in agent.SnapshotMessages())
         {
             var role = msg["role"]?.AsString() ?? "?";
             var content = msg["content"]?.AsString() ?? "";

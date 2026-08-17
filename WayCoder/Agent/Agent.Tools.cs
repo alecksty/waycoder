@@ -140,7 +140,7 @@ public partial class Agent
             result = await AppendLintFeedbackAsync(tc, result);
             // 自动 test 反馈闭环：写源码文件后跑测试，失败注入工具结果
             result = await AppendTestFeedbackAsync(tc, result);
-            Messages.Add(JNode.Object()
+            AddMessage(JNode.Object()
                 .Set("role", "tool")
                 .Set("tool_call_id", tc.Id)
                 .Set("content", result));
@@ -181,7 +181,7 @@ public partial class Agent
         {
             var finalResult = await AppendLintFeedbackAsync(tc, results[tc.Id]);
             finalResult = await AppendTestFeedbackAsync(tc, finalResult);
-            Messages.Add(JNode.Object()
+            AddMessage(JNode.Object()
                 .Set("role", "tool")
                 .Set("tool_call_id", tc.Id)
                 .Set("content", finalResult));
@@ -227,7 +227,7 @@ public partial class Agent
         {
             if (!answered.Contains(tc.Id))
             {
-                Messages.Add(JNode.Object()
+                AddMessage(JNode.Object()
                     .Set("role", "tool")
                     .Set("tool_call_id", tc.Id)
                     .Set("content", "[已中断]"));

@@ -92,7 +92,7 @@ public partial class Agent
                 .Set("content", errorMsg);
 
             // 插入到 assistant 消息之后
-            Messages.Insert(callMsgIdx + 1, syntheticResult);
+            InsertMessage(callMsgIdx + 1, syntheticResult);
             resultIds.Add(orphanId);
 
             DebugLog.Log("agent",
@@ -109,7 +109,7 @@ public partial class Agent
             {
                 DebugLog.Log("agent",
                     $"RepairOrphaned: 删除孤立 tool-result [{id}]（无对应 tool-call）");
-                Messages.RemoveAt(i);
+                RemoveMessageAt(i);
             }
         }
     }
