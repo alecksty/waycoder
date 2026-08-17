@@ -838,6 +838,9 @@ public partial class Program
         var capturedScreen = screen;
         _slotTasks[slotIdx] = Task.Run(async () =>
         {
+            // 绑定本槽位记忆目录：AsyncLocal 在该任务 async 链内生效，
+            // 主线程后续切槽位不影响本任务读到的槽位值
+            StructuredMemory.CurrentSlotIndex = slotIdx;
             try
             {
                 await RunSlotAgentAsync(slotIdx, userInput, capturedScreen, ct);

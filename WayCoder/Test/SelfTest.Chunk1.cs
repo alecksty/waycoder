@@ -148,6 +148,7 @@ public static partial class SelfTest
         TestV0726SymlinkCdAndUi(Check);       // v0.71.26 批次：符号链接环深度上限 + cd 后相对路径基于 CurrentCwd + TuiGrid 星号轨不溢出
         TestV0728CodecBounds(Check);          // v0.71.28 批次：JPEG/BMP 解析损坏输入越界读改为干净 FormatException
         TestV0729BoundsAndRunes(Check);       // v0.71.29 批次：整数参数钳制 + 编辑器跳列代理对 + 窄宽截断 + 上下文窗口下限
+        TestV0730SlotAsyncLocal(Check);       // v0.71.30 批次：记忆槽位 AsyncLocal 隔离（多槽位并行不串记忆目录）
         Console.WriteLine();
 
         // ---- 工具 ----
