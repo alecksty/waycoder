@@ -69,12 +69,14 @@ public sealed class Canvas
 
     public void FillRoundRect(double x, double y, double w, double h, double r, uint c)
     {
-        FillRect((int)Math.Ceiling(x + r), (int)Math.Round(y), (int)(w - 2 * r), (int)Math.Round(h), c);
-        FillRect((int)Math.Round(x), (int)Math.Ceiling(y + r), (int)Math.Round(w), (int)(h - 2 * r), c);
-        FillCircle(x + r, y + r, r, c);
-        FillCircle(x + w - r, y + r, r, c);
-        FillCircle(x + r, y + h - r, r, c);
-        FillCircle(x + w - r, y + h - r, r, c);
+        // 钳制圆角半径到边长一半：r 过大时 w-2r/h-2r 变负，FillRect 画不出中间条、只剩四个圆角圆重叠
+        double rr = Math.Max(0, Math.Min(r, Math.Min(w, h) / 2));
+        FillRect((int)Math.Ceiling(x + rr), (int)Math.Round(y), (int)(w - 2 * rr), (int)Math.Round(h), c);
+        FillRect((int)Math.Round(x), (int)Math.Ceiling(y + rr), (int)Math.Round(w), (int)(h - 2 * rr), c);
+        FillCircle(x + rr, y + rr, rr, c);
+        FillCircle(x + w - rr, y + rr, rr, c);
+        FillCircle(x + rr, y + h - rr, rr, c);
+        FillCircle(x + w - rr, y + h - rr, rr, c);
     }
 
     public void FillCircle(double cx, double cy, double r, uint c)
@@ -153,8 +155,13 @@ public sealed class Canvas
 
     void Bresenham(int x0, int y0, int x1, int y1, uint c)
     {
-        int dx = Math.Abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-        int dy = -Math.Abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+        // 防整数溢出/病态坐标死循环：端点跨度超 int 范围时 Math.Abs(x1-x0) 溢出为负
+        // （int.Min→int.Max 差 2^32-1），dx 变小、x0 += sx 回绕永远到不了 x1，无限循环。
+        long dxl = Math.Abs((long)x1 - x0);
+        long dyl = Math.Abs((long)y1 - y0);
+        if (dxl > int.MaxValue || dyl > int.MaxValue) return;
+        int dx = (int)dxl, sx = x0 < x1 ? 1 : -1;
+        int dy = -(int)dyl, sy = y0 < y1 ? 1 : -1;
         int err = dx + dy;
         while (true)
         {

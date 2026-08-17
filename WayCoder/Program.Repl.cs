@@ -181,6 +181,11 @@ public partial class Program
                 screen.AddSystemMsg($"  → {fullPrompt.Truncate(80)}");
                 mgr.Render();
                 await ProcessUserInput(fullPrompt, screen);
+                // 同槽位排队：StartSlotTask 是 fire-and-forget（void），ProcessUserInput 同步返回，
+                // 此时 slot.IsBusy 已置 true，若不等待则下一个任务被「仍在运行」丢弃。等待本槽位任务完成后继续。
+                var slotTask = _slotTasks[slotIdx];
+                if (slotTask != null && !slotTask.IsCompleted)
+                    await slotTask;
             }
         }
         _pendingSlotQueues.Clear();

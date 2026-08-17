@@ -243,7 +243,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         if (kind == null)
             return HttpResponse.JsonBody(Err("缺少或非法 kind 参数（须为 image 或 audio）"));
 
-        var fileName = Uri.UnescapeDataString(req.Header("X-File-Name") ?? "upload.bin");
+        var fileName = SafeUnescape(req.Header("X-File-Name") ?? "upload.bin");
         var bytes = req.RawBody;
         if (bytes.Length == 0)
             return HttpResponse.JsonBody(Err("上传内容为空"));

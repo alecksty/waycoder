@@ -381,7 +381,7 @@ const keyModal = document.getElementById('key-modal');
 
 // 本页面唯一客户端标识：开始/停止只作用于当前页面绑定的槽位
 const clientId = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
-const cq = (p) => p + '?client=' + clientId;
+const cq = (p) => p + (p.indexOf('?') >= 0 ? '&' : '?') + 'client=' + clientId;
 
 // ── 流指针（滚动 bug 修复：assistant 文本流 与 工具输出流 分离）──
 let assistantStreamEl = null;
@@ -788,7 +788,7 @@ function chooseModel(m) {
     return;
   }
   const body = isSmall ? { key: 'SmallModel', value: m.id } : { modelId: m.id };
-  const url = isSmall ? '/settings' : '/model';
+  const url = isSmall ? '/settings' : cq('/model');
   fetch(url, { method: 'POST', body: JSON.stringify(body) })
     .then(() => {
       if (isSmall) currentSmallModel = m.id; else currentModelId = m.id;
@@ -1288,7 +1288,7 @@ function send() {
     const command = text.slice(1).trim();
     if (!command) return;
     setBusy(true);
-    fetch('/shell', { method: 'POST', body: JSON.stringify({ command }) })
+    fetch(cq('/shell'), { method: 'POST', body: JSON.stringify({ command }) })
       .then(r => r.json())
       .then(res => {
         setBusy(false);
@@ -1360,7 +1360,7 @@ fileInput.onchange = () => {
 function uploadFile(file) {
   const kind = (file.type || '').startsWith('audio/') ? 'audio' : 'image';
   addMsg('system', '⏳ 上传中 ' + file.name + '…');
-  fetch('/upload?kind=' + kind, {
+  fetch(cq('/upload?kind=' + kind), {
     method: 'POST',
     headers: { 'X-File-Name': encodeURIComponent(file.name) },
     body: file
