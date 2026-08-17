@@ -431,7 +431,7 @@ public static class TuiChatInput
         var pasteLines = clip.Replace("\r\n", "\n").Split('\n');
         if (clip.Length > 500 || pasteLines.Length > 3)
         {
-            var preview = clip.Length > 200 ? clip[..200] + "..." : clip;
+            var preview = clip.Length > 200 ? ContextManager.TruncateByRunes(clip, 200) + "..." : clip;
             Tty.RestoreCursor();
             Tty.Write(AnsiTty.ClearToEndScreen); // restore + clear
             Tty.Write($"粘贴 {pasteLines.Length} 行 / {clip.Length} 字符? ");

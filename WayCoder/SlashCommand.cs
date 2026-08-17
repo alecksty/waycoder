@@ -160,7 +160,8 @@ public static class SlashCommandRegistry
         Register(new Commands.McpCommand());
         Register(new Commands.AboutCommand());
         Register(new Commands.RepomapCommand());
-        Register(new Commands.DebugCommand());
+        Register(new Commands.DebugOnCommand());
+        Register(new Commands.DebugOffCommand());
 
         // 编译期插件贡献的命令（[ModuleInitializer] 自动注册到 PluginRegistry，这里统一并入）
         foreach (var cmd in PluginRegistry.CollectCommands())

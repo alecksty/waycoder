@@ -49,6 +49,7 @@ public static class BmpCodec
         if (data == null || data.Length < 54) throw new FormatException("BMP 数据过短");
         if (data[0] != 'B' || data[1] != 'M') throw new FormatException("非法 BMP 签名");
         int dataOffset = ReadI32(data, 10);
+        if (dataOffset < 0 || dataOffset >= data.Length) throw new FormatException("BMP 像素数据偏移越界");
         int dibSize = ReadI32(data, 14);
         if (dibSize < 40) throw new FormatException("不支持的 DIB 头");
         int width = ReadI32(data, 18);

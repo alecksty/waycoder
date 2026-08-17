@@ -429,7 +429,7 @@ public static class ModelCatalog
             var baseUri = baseUrl.TrimEnd('/');
             var json = $"{{\"name\":\"{modelId}\"}}";
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var resp = client.PostAsync($"{baseUri}/api/show", content).GetAwaiter().GetResult();
+            using var resp = client.PostAsync($"{baseUri}/api/show", content).GetAwaiter().GetResult();
             if (!resp.IsSuccessStatusCode) return 0;
             var body = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
             var root = Json.Parse(body);

@@ -146,6 +146,7 @@ public static partial class SelfTest
         TestV0725DrawAndCodec(Check);         // v0.71.25 批次：DrawCommands path 首点 + PngDecoder 长度溢出 + BmpCodec 32 位 alpha + 历史预览代理对
         TestV0725ToolArgsAndEdit(Check);      // v0.71.25 批次：ToolArgs 整数取数（long 不丢参）+ MultiEditTool 兼容 List<object?>
         TestV0726SymlinkCdAndUi(Check);       // v0.71.26 批次：符号链接环深度上限 + cd 后相对路径基于 CurrentCwd + TuiGrid 星号轨不溢出
+        TestV0728CodecBounds(Check);          // v0.71.28 批次：JPEG/BMP 解析损坏输入越界读改为干净 FormatException
         Console.WriteLine();
 
         // ---- 工具 ----
