@@ -32,6 +32,8 @@ public class PsTool : ITool
 
     private static async Task<string> Execute(string name, int top)
     {
+        // top 钳制到 ≥1：负值使 head -n -1 忽略上限、head -n 0 输出空
+        top = Math.Max(1, top);
         // 命令注入防护：进程名白名单（复用 KillTool 的校验逻辑），杜绝 shell 元字符注入
         if (!string.IsNullOrEmpty(name) && !KillTool.IsSafeProcessName(name))
             return "错误：进程名包含非法字符（仅允许字母、数字、点、下划线、连字符、空格）。";

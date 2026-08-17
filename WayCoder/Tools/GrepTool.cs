@@ -83,31 +83,41 @@ public class GrepTool : ITool
         }
 
         var matches = new List<string>();
-        foreach (var fp in files)
+        try
         {
-            // 检查路径中是否包含跳过的目录（用 FileIgnoreManager）
-            if (FileIgnoreManager.IsIgnored(fp, basePath))
-                continue;
-
-            string text;
-            try { text = File.ReadAllText(fp, Encoding.UTF8); }
-            catch { continue; }
-
-            // 去掉末尾换行再 Split：否则以 \n 结尾的文件会产生一个幻影空行，
-            // `^$` 等空行匹配会误报一行不存在的末尾
-            var lines = text.TrimEnd('\r', '\n').Split('\n');
-            for (int i = 0; i < lines.Length; i++)
+            foreach (var fp in files)
             {
-                if (regex.IsMatch(lines[i]))
+                // 检查路径中是否包含跳过的目录（用 FileIgnoreManager）
+                if (FileIgnoreManager.IsIgnored(fp, basePath))
+                    continue;
+
+                string text;
+                try { text = File.ReadAllText(fp, Encoding.UTF8); }
+                catch { continue; }
+
+                // 去掉末尾换行再 Split：否则以 \n 结尾的文件会产生一个幻影空行，
+                // `^$` 等空行匹配会误报一行不存在的末尾
+                var lines = text.TrimEnd('\r', '\n').Split('\n');
+                for (int i = 0; i < lines.Length; i++)
                 {
-                    matches.Add($"{fp}:{i + 1}: {lines[i].TrimEnd('\r')}");
-                    if (matches.Count >= 200)
+                    if (regex.IsMatch(lines[i]))
                     {
-                        matches.Add("...（已达到 200 条匹配上限）");
-                        return string.Join("\n", matches);
+                        matches.Add($"{fp}:{i + 1}: {lines[i].TrimEnd('\r')}");
+                        if (matches.Count >= 200)
+                        {
+                            matches.Add("...（已达到 200 条匹配上限）");
+                            return string.Join("\n", matches);
+                        }
                     }
                 }
             }
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            // 灾难性回溯正则超时：返回已匹配的部分结果，而非把整个错误抛给上层丢全部结果
+            return matches.Count > 0
+                ? string.Join("\n", matches) + $"\n...（正则匹配超时（>{Config.Instance.RegexTimeoutSec}s），已返回部分结果）"
+                : $"错误：正则匹配超时（>{Config.Instance.RegexTimeoutSec}s）。请简化正则表达式。";
         }
 
         return matches.Count > 0 ? string.Join("\n", matches) : "未找到匹配项。";
