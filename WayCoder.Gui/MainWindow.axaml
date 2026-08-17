@@ -45,16 +45,15 @@
                     Click="Send_Click" />
         </Grid>
 
-        <!-- 聊天区（占满剩余空间） -->
-        <TextBox x:Name="ChatBox"
-                 IsReadOnly="True"
-                 AcceptsReturn="True"
-                 TextWrapping="Wrap"
-                 FontFamily="Menlo,Consolas,monospace"
-                 FontSize="13"
-                 Background="#171a23"
-                 Foreground="#e6e8ee"
-                 BorderThickness="0"
-                 Padding="12" />
+        <!-- 聊天区（占满剩余空间）：富文本渲染 Markdown + «» 标记 -->
+        <ScrollViewer x:Name="ChatScroll"
+                      VerticalScrollBarVisibility="Auto"
+                      Background="#171a23"
+                      Padding="12">
+            <SelectableTextBlock x:Name="ChatBox"
+                                 TextWrapping="Wrap"
+                                 FontSize="13"
+                                 Foreground="#e6e8ee" />
+        </ScrollViewer>
     </DockPanel>
 </Window>

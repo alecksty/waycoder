@@ -71,8 +71,7 @@ public partial class MainWindow : Window
         _activeSlot = slot;
         for (int i = 0; i < SlotCount; i++)
             _slotButtons[i].Background = i == slot ? new SolidColorBrush(Color.Parse("#4f8cff")) : null;
-        ChatBox.Text = _chats[slot].ToString();
-        ChatBox.CaretIndex = ChatBox.Text?.Length ?? 0;
+        MarkdownInlines.RenderTo(ChatBox.Inlines, _chats[slot].ToString());
         SlotLabel.Text = $"槽位 F{slot + 1}";
         StopButton.IsEnabled = _cts[slot] != null;
         SendButton.IsEnabled = _cts[slot] == null;
@@ -184,15 +183,11 @@ public partial class MainWindow : Window
 
     private void AppendSlot(int slot, string text)
     {
-        _chats[slot].Append(StripMarkup(text));
+        _chats[slot].Append(text); // 保留原始 markdown（含 «» 标记），渲染时统一转 Inline
         if (slot == _activeSlot)
         {
-            ChatBox.Text = _chats[slot].ToString();
-            ChatBox.CaretIndex = ChatBox.Text?.Length ?? 0;
+            MarkdownInlines.RenderTo(ChatBox.Inlines, _chats[slot].ToString());
+            Dispatcher.UIThread.Post(() => ChatScroll.ScrollToEnd(), DispatcherPriority.Background);
         }
     }
-
-    /// <summary>去除中间格式标记「«color»text«/»」，MVP 暂不渲染富文本。</summary>
-    private static string StripMarkup(string s)
-        => Regex.Replace(s, "«[^»]*»", "");
 }
