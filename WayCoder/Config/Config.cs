@@ -338,7 +338,7 @@ public class Config
             P("Temperature",      "WAYCODER_TEMPERATURE",       null,
               "温度", "⚙ 参数", "0=精确 1=创意",
               "number", null, 1,
-              c => c.Temperature.ToString("F1"), (c, v) => c.Temperature = float.Parse(v), "0.1"),
+              c => c.Temperature.ToString("F1"), (c, v) => c.Temperature = float.Parse(v, System.Globalization.CultureInfo.InvariantCulture), "0.1"),
 
             P("MaxContextTokens", "WAYCODER_MAX_CONTEXT",       null,
               "上下文窗口", "⚙ 参数", "上下文窗口大小",
@@ -526,7 +526,7 @@ public class Config
               "小窗口摘要比例", "⚙ 参数", "小窗口剩余比例低于此值触发自动摘要 (0.1-0.5)",
               "number", null, 16,
               c => c.ContextWindowSmallRatio.ToString("F2"),
-              (c, v) => c.ContextWindowSmallRatio = Math.Clamp(double.Parse(v), 0.1, 0.5), "0.2"),
+              (c, v) => c.ContextWindowSmallRatio = Math.Clamp(double.Parse(v, System.Globalization.CultureInfo.InvariantCulture), 0.1, 0.5), "0.2"),
 
             P("AutoContinueAfterSummarize", "WAYCODER_AUTO_CONTINUE", null,
               "自动继续", "⚙ 参数", "摘要后自动注入继续提示（Crush 风格）",
@@ -577,7 +577,7 @@ public class Config
               "回退预算 ($)", "💰 预算", "回退链最大花费，null=无限制",
               "number", null, 0,
               c => c.FallbackMaxBudget?.ToString("F2") ?? "",
-              (c, v) => c.FallbackMaxBudget = string.IsNullOrEmpty(v) ? null : double.Parse(v),
+              (c, v) => c.FallbackMaxBudget = string.IsNullOrEmpty(v) ? null : double.Parse(v, System.Globalization.CultureInfo.InvariantCulture),
               skipIfEmpty: true),
 
             // ── 预算 ──
@@ -585,7 +585,7 @@ public class Config
               "预算上限 ($)", "💰 预算", "超支自动停止，留空=无限制",
               "number", null, 0,
               c => c.MaxBudgetUsd?.ToString("F2") ?? "",
-              (c, v) => c.MaxBudgetUsd = string.IsNullOrEmpty(v) ? null : double.Parse(v),
+              (c, v) => c.MaxBudgetUsd = string.IsNullOrEmpty(v) ? null : double.Parse(v, System.Globalization.CultureInfo.InvariantCulture),
               skipIfEmpty: true),
 
             // ── 系统 ──
@@ -903,6 +903,11 @@ public class Config
                 var key = trimmed[..eqIdx].Trim();
                 var value = trimmed[(eqIdx + 1)..].Trim();
 
+                // 剥离引号外的行内注释（`KEY=value # 注释` 常见 shell 风格）——
+                // 否则 value 带注释原文（如 `"deepseek-v4-flash" # 主模型` 整个当值），模型名非法
+                int commentIdx = FindUnquotedComment(value);
+                if (commentIdx >= 0) value = value[..commentIdx].TrimEnd();
+
                 if ((value.StartsWith('"') && value.EndsWith('"'))
                     || (value.StartsWith('\'') && value.EndsWith('\'')))
                     value = value[1..^1];
@@ -912,6 +917,23 @@ public class Config
             }
         }
         catch { /* 静默跳过无法读取的 .env 文件 */ }
+    }
+
+    /// <summary>定位 value 中引号外的行内注释起始（# 且前面是空白），无则返回 -1。</summary>
+    private static int FindUnquotedComment(string value)
+    {
+        bool inSingle = false, inDouble = false;
+        for (int i = 0; i < value.Length; i++)
+        {
+            char c = value[i];
+            if (c == '\'' && !inDouble) inSingle = !inSingle;
+            else if (c == '"' && !inSingle) inDouble = !inDouble;
+            else if (c == '#' && !inSingle && !inDouble)
+            {
+                if (i == 0 || char.IsWhiteSpace(value[i - 1])) return i;
+            }
+        }
+        return -1;
     }
 
     private static string? FindEnvFile()
