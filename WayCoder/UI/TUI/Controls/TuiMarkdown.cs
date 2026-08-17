@@ -40,6 +40,8 @@ public class TuiMarkdown : TuiControl, ILazyItem
 
     private string _lastContent = "";
     private int _lastMaxWidth;
+    private string _lastRole = "";
+    private bool _lastPlain;
 
     public TuiMarkdown()
     {
@@ -101,10 +103,13 @@ public class TuiMarkdown : TuiControl, ILazyItem
     public void EnsureParsed()
     {
         int effectiveMaxW = MaxWidth > 0 ? MaxWidth : Width;
-        if (_parsed && _lastContent == Content && _lastMaxWidth == effectiveMaxW) return;
+        if (_parsed && _lastContent == Content && _lastMaxWidth == effectiveMaxW &&
+            _lastRole == Role && _lastPlain == IsPlainText) return;
 
         _lastContent = Content;
         _lastMaxWidth = effectiveMaxW;
+        _lastRole = Role;
+        _lastPlain = IsPlainText;
 
         if (string.IsNullOrEmpty(Content))
         {

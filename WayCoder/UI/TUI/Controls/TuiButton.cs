@@ -134,9 +134,14 @@ public class TuiButton : TuiControl
             return inside;
         }
 
-        // 左键点击
+        // 左键点击（需命中按钮区域，否则不触发 —— 否则点击按钮外也会误触）
         if (ev.MouseLeft)
         {
+            int absX = GetAbsoluteX();
+            int absY = GetAbsoluteY();
+            bool inside = ev.MouseX >= absX && ev.MouseX < absX + Width &&
+                          ev.MouseY >= absY && ev.MouseY < absY + Height;
+            if (!inside) return false;
             Focused = true;
             OnClick?.Invoke(this);
             return true;
