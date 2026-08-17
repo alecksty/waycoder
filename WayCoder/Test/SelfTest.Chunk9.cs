@@ -4,6 +4,7 @@ using WayCoder.Tools;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.Tui.Screens;
 using Arguments = WayCoder.UI.Cli.Arguments;
@@ -278,13 +279,13 @@ public static partial class SelfTest
         resizeWin.OnResizeContent = () => { resizeCalled = true; };
         resizeWin.OnResize(120, 40);
         Check("TuiWindow: OnResize 触发 OnResizeContent", resizeCalled);
-        Check("TuiWindow: WindowHAlign 默认 Center", resizeWin.WindowHAlign == HAlign.Center);
-        Check("TuiWindow: WindowVAlign 默认 Middle", resizeWin.WindowVAlign == VAlign.Middle);
+        Check("TuiWindow: WindowHAlign 默认 Center", resizeWin.WindowHAlign == EHAlign.Center);
+        Check("TuiWindow: WindowVAlign 默认 Middle", resizeWin.WindowVAlign == EVAlign.Middle);
         Check("TuiWindow: Width 保持", resizeWin.Width == 40);
         Check("TuiWindow: Height 保持", resizeWin.Height == 10);
 
         // 测试 RootView 在 resize 后被通知
-        var resizeWin2 = new TuiWindow { Width = 30, Height = 8, WindowHAlign = HAlign.Stretch, WindowVAlign = VAlign.Stretch };
+        var resizeWin2 = new TuiWindow { Width = 30, Height = 8, WindowHAlign = EHAlign.Stretch, WindowVAlign = EVAlign.Stretch };
         resizeWin2.OnResizeContent = () => { };
         var oldRoot = resizeWin2.RootView;
         resizeWin2.OnResize(100, 30);
@@ -344,48 +345,48 @@ public static partial class SelfTest
         // ---- 窗口位置对齐 (WindowHAlign/WindowVAlign) ----
         Section("[窗口位置对齐]");
         // 默认对齐：居中
-        Check("WindowHAlign 默认 Center", new TuiWindow().WindowHAlign == HAlign.Center);
-        Check("WindowVAlign 默认 Middle", new TuiWindow().WindowVAlign == VAlign.Middle);
+        Check("WindowHAlign 默认 Center", new TuiWindow().WindowHAlign == EHAlign.Center);
+        Check("WindowVAlign 默认 Middle", new TuiWindow().WindowVAlign == EVAlign.Middle);
 
         // HAlign.Left → X=0
-        var alignLeft = new TuiWindow { WindowHAlign = HAlign.Left, WindowVAlign = VAlign.Stretch, Width = 30, Height = 10 };
+        var alignLeft = new TuiWindow { WindowHAlign = EHAlign.Left, WindowVAlign = EVAlign.Stretch, Width = 30, Height = 10 };
         alignLeft.OnResizeContent = () => { };
         alignLeft.OnResize(100, 40);
         Check("HAlign=Left: X=0", alignLeft.X == 0);
 
         // HAlign.Right → X = termW - Width
-        var alignRight = new TuiWindow { WindowHAlign = HAlign.Right, WindowVAlign = VAlign.Stretch, Width = 30, Height = 10 };
+        var alignRight = new TuiWindow { WindowHAlign = EHAlign.Right, WindowVAlign = EVAlign.Stretch, Width = 30, Height = 10 };
         alignRight.OnResizeContent = () => { };
         alignRight.OnResize(100, 40);
         Check("HAlign=Right: X=70", alignRight.X == 70);
 
         // VAlign.Top → Y=0
-        var alignTop = new TuiWindow { WindowHAlign = HAlign.Stretch, WindowVAlign = VAlign.Top, Width = 30, Height = 10 };
+        var alignTop = new TuiWindow { WindowHAlign = EHAlign.Stretch, WindowVAlign = EVAlign.Top, Width = 30, Height = 10 };
         alignTop.OnResizeContent = () => { };
         alignTop.OnResize(100, 40);
         Check("VAlign=Top: Y=0", alignTop.Y == 0);
 
         // VAlign.Bottom → Y = termH - Height
-        var alignBottom = new TuiWindow { WindowHAlign = HAlign.Stretch, WindowVAlign = VAlign.Bottom, Width = 30, Height = 10 };
+        var alignBottom = new TuiWindow { WindowHAlign = EHAlign.Stretch, WindowVAlign = EVAlign.Bottom, Width = 30, Height = 10 };
         alignBottom.OnResizeContent = () => { };
         alignBottom.OnResize(100, 40);
         Check("VAlign=Bottom: Y=30", alignBottom.Y == 30);
 
         // HAlign.Stretch + VAlign.Stretch → 不自动定位
-        var alignNone = new TuiWindow { WindowHAlign = HAlign.Stretch, WindowVAlign = VAlign.Stretch, X = 15, Y = 8, Width = 30, Height = 10 };
+        var alignNone = new TuiWindow { WindowHAlign = EHAlign.Stretch, WindowVAlign = EVAlign.Stretch, X = 15, Y = 8, Width = 30, Height = 10 };
         alignNone.OnResizeContent = () => { };
         alignNone.OnResize(100, 40);
         Check("Stretch+Stretch: X保持15", alignNone.X == 15);
         Check("Stretch+Stretch: Y保持8", alignNone.Y == 8);
 
         // 左上角对齐
-        var alignTopLeft = new TuiWindow { WindowHAlign = HAlign.Left, WindowVAlign = VAlign.Top, Width = 30, Height = 10 };
+        var alignTopLeft = new TuiWindow { WindowHAlign = EHAlign.Left, WindowVAlign = EVAlign.Top, Width = 30, Height = 10 };
         alignTopLeft.OnResizeContent = () => { };
         alignTopLeft.OnResize(100, 40);
         Check("Left+Top: (0,0)", alignTopLeft.X == 0 && alignTopLeft.Y == 0);
 
         // 右下角对齐
-        var alignBottomRight = new TuiWindow { WindowHAlign = HAlign.Right, WindowVAlign = VAlign.Bottom, Width = 30, Height = 10 };
+        var alignBottomRight = new TuiWindow { WindowHAlign = EHAlign.Right, WindowVAlign = EVAlign.Bottom, Width = 30, Height = 10 };
         alignBottomRight.OnResizeContent = () => { };
         alignBottomRight.OnResize(100, 40);
         Check("Right+Bottom: (70,30)", alignBottomRight.X == 70 && alignBottomRight.Y == 30);
@@ -393,7 +394,7 @@ public static partial class SelfTest
         // ScreenMargin: Toast 右下角偏移
         var toast = new TuiWindow
         {
-            WindowHAlign = HAlign.Right, WindowVAlign = VAlign.Bottom,
+            WindowHAlign = EHAlign.Right, WindowVAlign = EVAlign.Bottom,
             Width = 30, Height = 3,
             ScreenMargin = new EdgeInsets(0, 2, 0, 2)   // Top=0, Right=2, Bottom=0, Left=2
         };
@@ -405,7 +406,7 @@ public static partial class SelfTest
         // ScreenMargin: 左上角偏移
         var topLeftMargin = new TuiWindow
         {
-            WindowHAlign = HAlign.Left, WindowVAlign = VAlign.Top,
+            WindowHAlign = EHAlign.Left, WindowVAlign = EVAlign.Top,
             Width = 20, Height = 5,
             ScreenMargin = new EdgeInsets(1, 0, 3, 0)   // Top=1, Right=0, Bottom=3, Left=0
         };
@@ -423,7 +424,7 @@ public static partial class SelfTest
         var intWin = new TuiWindow
         {
             XScale = 0.5, YScale = 0.4,
-            WindowHAlign = HAlign.Center, WindowVAlign = VAlign.Middle,
+            WindowHAlign = EHAlign.Center, WindowVAlign = EVAlign.Middle,
             ScreenMargin = new EdgeInsets(1, 2, 1, 2),
             MinWidth = 10, MinHeight = 3
         };

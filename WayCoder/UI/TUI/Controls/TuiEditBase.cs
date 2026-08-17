@@ -176,13 +176,10 @@ public abstract class TuiEditBase : TuiControl
         switch (key.Key)
         {
             case ConsoleKey.A: SelectAll(); return true;
-            case ConsoleKey.C:
-                // 有选中文本才消费（复制）；无选中返回 false，让上层处理（REPL 视为退出信号）
-                if (HasSelection) { CopySelection(); return true; }
-                return false;
+            case ConsoleKey.C: CopySelection(); return true;
             case ConsoleKey.X: CutSelection(); return true;
             case ConsoleKey.V: PasteFromClipboard(); return true;
-            case ConsoleKey.Insert: CopySelection(); return true; // Ctrl+Insert = 复制
+            case ConsoleKey.Insert: CopySelection(); return true; // Ctrl+Insert = 复制（Ctrl+C 被全局保留为退出）
             case ConsoleKey.Z: Undo(); return true;
             case ConsoleKey.Y: Redo(); return true;
             case ConsoleKey.E: ClearSelection(); MoveCursorEnd(); return true;

@@ -1,5 +1,6 @@
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
+using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder.UI.Cli.Commands;

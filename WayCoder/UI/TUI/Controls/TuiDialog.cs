@@ -1,7 +1,7 @@
 ﻿using WayCoder.UI.Shared.Terminal;
-
 using WayCoder.UI.Tui.Edit;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -13,7 +13,7 @@ namespace WayCoder.UI.Tui.Controls;
 public static class TuiDialog
 {
     /// <summary>对话框返回结果</summary>
-    public enum DialogResult
+    public enum EDialogResult
     {
         Ok,
         Yes,
@@ -23,17 +23,22 @@ public static class TuiDialog
     }
 
     /// <summary>对话框默认宽度比例</summary>
-    private const double DefaultXScale = 0.5;
-    private const double WideXScale = 0.75;   // 宽对话框：最多占屏幕 3/4
+    private const double DefaultXScale = 0.25;
+    
+    private const double WideXScale = 0.75; // 宽对话框：最多占屏幕 3/4
     private const double NarrowXScale = 0.4;
 
     /// <summary>对话框最小宽度</summary>
     private const int MinDialogW = 24;
 
+    private const int MinDialogH = 7;
+
     /// <summary>根据 XScale 计算内容可用宽度（减去边框和内边距）</summary>
     private static int ContentW(double xScale = DefaultXScale, int innerPad = 4)
     {
-        int winW = Math.Max(MinDialogW, (int)(Tty.Cols * xScale));
+        //  按照比例计算窗口宽度，确保最小宽度为 MinDialogW
+        var winW = Math.Max(MinDialogW, (int)(Tty.Cols * xScale));
+
         return Math.Max(10, winW - 2 - innerPad); // 2=边框, innerPad=内边距
     }
 
@@ -43,12 +48,13 @@ public static class TuiDialog
     /// </summary>
     private static List<TuiLabel> BuildMessageLabels(string message, int labelWidth, int? fg = null)
     {
-        var lines = TuiHelper.WrapText(message, labelWidth, MaxMessageLines());
+        //  拆解决消息文本，确保不超过 labelWidth 宽度，最多 MaxMessageLines() 行，超出行尾显示 "…"
+        var lines = AnsiHelper.WrapText(message, labelWidth, MaxMessageLines());
         return lines.Select(line => new TuiLabel(line)
         {
             Width = labelWidth,
             Fg = fg ?? 0,
-            TextAlign = HAlign.Center
+            TextAlign = EHAlign.Center
         }).ToList();
     }
 
@@ -57,7 +63,7 @@ public static class TuiDialog
     /// （上下边框 2 行 + 内容区 5 行），内容区 = 消息(最多 4 行) + 按钮(1 行)。
     /// 标题嵌在顶部边框上（不独占行），故内容区正好 5 行。
     /// </summary>
-    private static int MaxMessageLines() => 4;
+    private static int MaxMessageLines() => 5;
 
     /// <summary>
     /// 固定窗口高度为 7（边框 2 + 内容区 5）。不再随消息行数动态伸缩——
@@ -94,14 +100,13 @@ public static class TuiDialog
         return new TuiWindow
         {
             Title = title,
-            ShowTitleSeparator = false,
             Modal = true, HasMask = true,
             BorderColor = borderColor,
-            Border = WindowBorder.Rounded, // 与主界面圆角细线统一（原 Solid 实心块很突兀）
+            Border = WindowBorder.Solid,
             WinBg = TuiTheme.Current.WindowBg,
             XScale = xScale,
-            WindowHAlign = HAlign.Center,
-            WindowVAlign = VAlign.Middle,
+            WindowHAlign = EHAlign.Center,
+            WindowVAlign = EVAlign.Middle,
             MinWidth = MinDialogW,
             MinHeight = 5,
         };
@@ -147,23 +152,22 @@ public static class TuiDialog
     private static void BuildSingleButton(TuiWindow win, string message, string btnLabel,
         (int start, int end) btnGrad, (int start, int end) winGrad)
     {
-        win.TitleBold = true; // 标题独占一行（粗体）
-        int cw = ContentW(DefaultXScale, 4);
+        var cw = ContentW(DefaultXScale, 4);
         var msgLabels = BuildMessageLabels(message, cw);
         FitHeight(win, msgLabels.Count);
 
-        var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
+        var vbox = new TuiVBox { Width = cw, ChildHAlign = EHAlign.Center };
         foreach (var lbl in msgLabels) vbox.Add(lbl);
 
         var btn = new TuiButton(btnLabel)
         {
-            Width = Math.Max(8, TuiHelper.DisplayWidth(btnLabel) + 4),
+            Width = Math.Max(8, AnsiHelper.DisplayWidth(btnLabel) + 4),
             Focused = true
         };
         ApplyButtonGradient(btnGrad, btn);
         btn.OnClick = _ =>
         {
-            win.Result = DialogResult.Ok;
+            win.Result = EDialogResult.Ok;
             win.OnClosed?.Invoke();
         };
         vbox.Add(btn);
@@ -173,7 +177,7 @@ public static class TuiDialog
 
         win.RegisterShortcut(ConsoleKey.Enter, () =>
         {
-            win.Result = DialogResult.Ok;
+            win.Result = EDialogResult.Ok;
             win.OnClosed?.Invoke();
         });
     }
@@ -186,64 +190,119 @@ public static class TuiDialog
     public static TuiWindow Confirm(string title, string message, Action<bool> onResult)
     {
         var win = NewDialog(title, TuiTheme.Current.DialogConfirmBorder, WideXScale);
-        win.TitleBold = true; // 标题独占一行（粗体）
 
-        int cw = ContentW(WideXScale, 4);
+        var cw = ContentW(WideXScale, 4);
         var msgLabels = BuildMessageLabels(message, cw);
         FitHeight(win, msgLabels.Count);
 
-        var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
+        var vbox = new TuiVBox { Width = cw, ChildHAlign = EHAlign.Center };
         foreach (var lbl in msgLabels) vbox.Add(lbl);
 
         // 按钮用 Flex 均分
-        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
+        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = EHAlign.Center };
         var yesBtn = new TuiButton("是 (Y)") { Flex = 1, Focused = true };
         var noBtn = new TuiButton("否 (N)") { Flex = 1 };
-        yesBtn.OnClick = _ => { win.Result = true; onResult(true); win.OnClosed?.Invoke(); };
-        noBtn.OnClick = _ => { win.Result = false; onResult(false); win.OnClosed?.Invoke(); };
-        hbox.Add(yesBtn); hbox.Add(noBtn);
+        yesBtn.OnClick = _ =>
+        {
+            win.Result = true;
+            onResult(true);
+            win.OnClosed?.Invoke();
+        };
+        noBtn.OnClick = _ =>
+        {
+            win.Result = false;
+            onResult(false);
+            win.OnClosed?.Invoke();
+        };
+        hbox.Add(yesBtn);
+        hbox.Add(noBtn);
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, yesBtn, noBtn);
         vbox.Add(hbox);
 
         win.RootView = vbox;
         ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
 
-        win.RegisterShortcut(ConsoleKey.Y, () => { win.Result = true; onResult(true); win.OnClosed?.Invoke(); });
-        win.RegisterShortcut(ConsoleKey.N, () => { win.Result = false; onResult(false); win.OnClosed?.Invoke(); });
-        win.RegisterShortcut(ConsoleKey.Escape, () => { win.Result = false; onResult(false); win.OnClosed?.Invoke(); });
+        win.RegisterShortcut(ConsoleKey.Y, () =>
+        {
+            win.Result = true;
+            onResult(true);
+            win.OnClosed?.Invoke();
+        });
+        win.RegisterShortcut(ConsoleKey.N, () =>
+        {
+            win.Result = false;
+            onResult(false);
+            win.OnClosed?.Invoke();
+        });
+        win.RegisterShortcut(ConsoleKey.Escape, () =>
+        {
+            win.Result = false;
+            onResult(false);
+            win.OnClosed?.Invoke();
+        });
         return win;
     }
 
     /// <summary>Yes/No/Cancel 三选确认框</summary>
-    public static TuiWindow Confirm3(string title, string message, Action<DialogResult> onResult)
+    public static TuiWindow Confirm3(string title, string message, Action<EDialogResult> onResult)
     {
         var win = NewDialog(title, TuiTheme.Current.DialogConfirmBorder, WideXScale);
-        win.TitleBold = true; // 标题独占一行（粗体）
-
-        int cw = ContentW(WideXScale, 4);
+        var cw = ContentW(WideXScale, 4);
         var msgLabels = BuildMessageLabels(message, cw);
         FitHeight(win, msgLabels.Count);
 
-        var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
+        var vbox = new TuiVBox { Width = cw, ChildHAlign = EHAlign.Center };
         foreach (var lbl in msgLabels) vbox.Add(lbl);
 
-        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
+        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = EHAlign.Center };
         var yesBtn = new TuiButton("是 (Y)") { Flex = 1, Focused = true };
         var noBtn = new TuiButton("否 (N)") { Flex = 1 };
         var cancelBtn = new TuiButton("取消 (Esc)") { Flex = 1 };
-        yesBtn.OnClick = _ => { win.Result = DialogResult.Yes; onResult(DialogResult.Yes); win.OnClosed?.Invoke(); };
-        noBtn.OnClick = _ => { win.Result = DialogResult.No; onResult(DialogResult.No); win.OnClosed?.Invoke(); };
-        cancelBtn.OnClick = _ => { win.Result = DialogResult.Cancel; onResult(DialogResult.Cancel); win.OnClosed?.Invoke(); };
-        hbox.Add(yesBtn); hbox.Add(noBtn); hbox.Add(cancelBtn);
+        yesBtn.OnClick = _ =>
+        {
+            win.Result = EDialogResult.Yes;
+            onResult(EDialogResult.Yes);
+            win.OnClosed?.Invoke();
+        };
+        noBtn.OnClick = _ =>
+        {
+            win.Result = EDialogResult.No;
+            onResult(EDialogResult.No);
+            win.OnClosed?.Invoke();
+        };
+        cancelBtn.OnClick = _ =>
+        {
+            win.Result = EDialogResult.Cancel;
+            onResult(EDialogResult.Cancel);
+            win.OnClosed?.Invoke();
+        };
+        hbox.Add(yesBtn);
+        hbox.Add(noBtn);
+        hbox.Add(cancelBtn);
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, yesBtn, noBtn, cancelBtn);
         vbox.Add(hbox);
 
         win.RootView = vbox;
         ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
 
-        win.RegisterShortcut(ConsoleKey.Y, () => { win.Result = DialogResult.Yes; onResult(DialogResult.Yes); win.OnClosed?.Invoke(); });
-        win.RegisterShortcut(ConsoleKey.N, () => { win.Result = DialogResult.No; onResult(DialogResult.No); win.OnClosed?.Invoke(); });
-        win.RegisterShortcut(ConsoleKey.Escape, () => { win.Result = DialogResult.Cancel; onResult(DialogResult.Cancel); win.OnClosed?.Invoke(); });
+        win.RegisterShortcut(ConsoleKey.Y, () =>
+        {
+            win.Result = EDialogResult.Yes;
+            onResult(EDialogResult.Yes);
+            win.OnClosed?.Invoke();
+        });
+        win.RegisterShortcut(ConsoleKey.N, () =>
+        {
+            win.Result = EDialogResult.No;
+            onResult(EDialogResult.No);
+            win.OnClosed?.Invoke();
+        });
+        win.RegisterShortcut(ConsoleKey.Escape, () =>
+        {
+            win.Result = EDialogResult.Cancel;
+            onResult(EDialogResult.Cancel);
+            win.OnClosed?.Invoke();
+        });
         return win;
     }
 
@@ -264,16 +323,16 @@ public static class TuiDialog
 
         int cw = ContentW(WideXScale, 2);
 
-        var promptLines = TuiHelper.WrapText(prompt, cw, maxPromptLines);
+        var promptLines = AnsiHelper.WrapText(prompt, cw, maxPromptLines);
 
-        var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
+        var vbox = new TuiVBox { Width = cw, ChildHAlign = EHAlign.Center };
         foreach (var line in promptLines)
-            vbox.Add(new TuiLabel(line) { Width = cw, Fg = TuiTheme.Current.ControlFg });
+            vbox.Add(new TuiLabel(line) { Width = cw, Fg = AnsiColors.Black });
 
         var input = new TuiTextArea
         {
             Width = cw, Height = inputHeight,
-            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Fg = AnsiColors.White, Bg = AnsiColors.BgBlack,
             Focused = true,
         };
         var hist = TuiInputHistory.Get(title);
@@ -284,7 +343,7 @@ public static class TuiDialog
 
         vbox.Add(new TuiLabel("") { Height = 1 }); // spacer
 
-        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
+        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = EHAlign.Center };
         var okBtn = new TuiButton("确定") { Flex = 1 };
         var cancelBtn = new TuiButton("取消") { Flex = 1 };
         okBtn.OnClick = _ =>
@@ -295,14 +354,25 @@ public static class TuiDialog
             onConfirm(text);
             win.OnClosed?.Invoke();
         };
-        cancelBtn.OnClick = _ => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
-        hbox.Add(okBtn); hbox.Add(cancelBtn);
+        cancelBtn.OnClick = _ =>
+        {
+            win.Result = null;
+            onCancel?.Invoke();
+            win.OnClosed?.Invoke();
+        };
+        hbox.Add(okBtn);
+        hbox.Add(cancelBtn);
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, okBtn, cancelBtn);
         vbox.Add(hbox);
 
         win.RootView = vbox;
         ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
-        win.RegisterShortcut(ConsoleKey.Escape, () => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); });
+        win.RegisterShortcut(ConsoleKey.Escape, () =>
+        {
+            win.Result = null;
+            onCancel?.Invoke();
+            win.OnClosed?.Invoke();
+        });
         return win;
     }
 
@@ -325,11 +395,11 @@ public static class TuiDialog
 
         int cw = ContentW(WideXScale, 2);
 
-        var promptLines = TuiHelper.WrapText(prompt, cw, maxPromptLines);
+        var promptLines = AnsiHelper.WrapText(prompt, cw, maxPromptLines);
 
-        var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
+        var vbox = new TuiVBox { Width = cw, ChildHAlign = EHAlign.Center };
         foreach (var line in promptLines)
-            vbox.Add(new TuiLabel(line) { Width = cw, Fg = TuiTheme.Current.ControlFg });
+            vbox.Add(new TuiLabel(line) { Width = cw, Fg = AnsiColors.Black });
 
         var hist = TuiInputHistory.Get(title);
         var initVal = !string.IsNullOrEmpty(defaultValue) ? defaultValue
@@ -340,16 +410,17 @@ public static class TuiDialog
             Text = initVal,
             CursorPos = initVal.Length,
             Width = cw, Height = 1,
-            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Fg = AnsiColors.White, Bg = AnsiColors.BgBlack,
             Focused = true,
         };
         vbox.Add(input);
 
         vbox.Add(new TuiLabel("") { Height = 1 }); // spacer
 
-        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
+        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = EHAlign.Center };
         var okBtn = new TuiButton("确定") { Flex = 1 };
         var cancelBtn = new TuiButton("取消") { Flex = 1 };
+
         void SubmitInput()
         {
             var text = input.Text;
@@ -358,16 +429,28 @@ public static class TuiDialog
             onConfirm(text);
             win.OnClosed?.Invoke();
         }
+
         okBtn.OnClick = _ => SubmitInput();
         input.OnSubmit = _ => SubmitInput(); // 单行输入框回车 = 确定
-        cancelBtn.OnClick = _ => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
-        hbox.Add(okBtn); hbox.Add(cancelBtn);
+        cancelBtn.OnClick = _ =>
+        {
+            win.Result = null;
+            onCancel?.Invoke();
+            win.OnClosed?.Invoke();
+        };
+        hbox.Add(okBtn);
+        hbox.Add(cancelBtn);
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, okBtn, cancelBtn);
         vbox.Add(hbox);
 
         win.RootView = vbox;
         ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
-        win.RegisterShortcut(ConsoleKey.Escape, () => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); });
+        win.RegisterShortcut(ConsoleKey.Escape, () =>
+        {
+            win.Result = null;
+            onCancel?.Invoke();
+            win.OnClosed?.Invoke();
+        });
         return win;
     }
 
@@ -389,17 +472,17 @@ public static class TuiDialog
 
         int cw = ContentW(WideXScale, 4);
 
-        var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Left };
+        var vbox = new TuiVBox { Width = cw, ChildHAlign = EHAlign.Left };
 
         // 查找行
         var findRow = new TuiHBox { Width = cw, Spacing = 1 };
-        findRow.Add(new TuiLabel("查找:") { Width = 6, Fg = TuiTheme.Current.ControlFg });
+        findRow.Add(new TuiLabel("查找:") { Width = 6, Fg = AnsiColors.Black });
         var findInput = new TuiInput
         {
             Text = initialFind,
             CursorPos = initialFind.Length,
             Flex = 1, Height = 1,
-            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Fg = AnsiColors.White, Bg = AnsiColors.BgBlack,
             Focused = true,
         };
         findRow.Add(findInput);
@@ -407,23 +490,25 @@ public static class TuiDialog
 
         // 替换行
         var replRow = new TuiHBox { Width = cw, Spacing = 1 };
-        replRow.Add(new TuiLabel("替换:") { Width = 6, Fg = TuiTheme.Current.ControlFg });
+        replRow.Add(new TuiLabel("替换:") { Width = 6, Fg = AnsiColors.Black });
         var replInput = new TuiInput
         {
             Text = initialReplace,
             CursorPos = initialReplace.Length,
             Flex = 1, Height = 1,
-            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Fg = AnsiColors.White, Bg = AnsiColors.BgBlack,
         };
         replRow.Add(replInput);
         vbox.Add(replRow);
 
         // 选项行：区分大小写 / 正则 / 整词（Space/Enter 切换）
-        var caseCb = new TuiCheckbox("区分大小写", initialOpts.CaseSensitive) { Fg = TuiTheme.Current.ControlFg };
-        var regexCb = new TuiCheckbox("正则", initialOpts.UseRegex) { Fg = TuiTheme.Current.ControlFg };
-        var wordCb = new TuiCheckbox("整词", initialOpts.WholeWord) { Fg = TuiTheme.Current.ControlFg };
-        var optRow = new TuiHBox { Width = cw, Spacing = 3, ContentHAlign = HAlign.Left };
-        optRow.Add(caseCb); optRow.Add(regexCb); optRow.Add(wordCb);
+        var caseCb = new TuiCheckbox("区分大小写", initialOpts.CaseSensitive) { Fg = AnsiColors.Black };
+        var regexCb = new TuiCheckbox("正则", initialOpts.UseRegex) { Fg = AnsiColors.Black };
+        var wordCb = new TuiCheckbox("整词", initialOpts.WholeWord) { Fg = AnsiColors.Black };
+        var optRow = new TuiHBox { Width = cw, Spacing = 3, ContentHAlign = EHAlign.Left };
+        optRow.Add(caseCb);
+        optRow.Add(regexCb);
+        optRow.Add(wordCb);
         vbox.Add(optRow);
 
         vbox.Add(new TuiLabel("") { Height = 1 }); // spacer
@@ -431,23 +516,37 @@ public static class TuiDialog
         FindOptions CurrentOpts() => new(caseCb.Checked, regexCb.Checked, wordCb.Checked);
 
         // 按钮行 1：查找下一个 / 替换
-        var row1 = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
+        var row1 = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = EHAlign.Center };
         var findBtn = new TuiButton("查找下一个") { Flex = 1 };
         var replBtn = new TuiButton("替换") { Flex = 1 };
-        findBtn.OnClick = _ => { onFindNext(findInput.Text, CurrentOpts()); win.OnClosed?.Invoke(); };
-        replBtn.OnClick = _ => { onReplace(findInput.Text, replInput.Text, CurrentOpts()); win.OnClosed?.Invoke(); };
-        row1.Add(findBtn); row1.Add(replBtn);
+        findBtn.OnClick = _ =>
+        {
+            onFindNext(findInput.Text, CurrentOpts());
+            win.OnClosed?.Invoke();
+        };
+        replBtn.OnClick = _ =>
+        {
+            onReplace(findInput.Text, replInput.Text, CurrentOpts());
+            win.OnClosed?.Invoke();
+        };
+        row1.Add(findBtn);
+        row1.Add(replBtn);
         ApplyButtonGradient(TuiTheme.Current.BtnCyanBlue, findBtn);
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, replBtn);
         vbox.Add(row1);
 
         // 按钮行 2：全部替换 / 取消
-        var row2 = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
+        var row2 = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = EHAlign.Center };
         var allBtn = new TuiButton("全部替换") { Flex = 1 };
         var cancelBtn = new TuiButton("取消 (Esc)") { Flex = 1 };
-        allBtn.OnClick = _ => { onReplaceAll(findInput.Text, replInput.Text, CurrentOpts()); win.OnClosed?.Invoke(); };
+        allBtn.OnClick = _ =>
+        {
+            onReplaceAll(findInput.Text, replInput.Text, CurrentOpts());
+            win.OnClosed?.Invoke();
+        };
         cancelBtn.OnClick = _ => win.OnClosed?.Invoke();
-        row2.Add(allBtn); row2.Add(cancelBtn);
+        row2.Add(allBtn);
+        row2.Add(cancelBtn);
         ApplyButtonGradient(TuiTheme.Current.BtnGreenCyan, allBtn);
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, cancelBtn);
         vbox.Add(row2);
@@ -456,9 +555,21 @@ public static class TuiDialog
         ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
 
         // 输入框回车 = 查找下一处 / 替换；F3 = 查找下一处；Esc = 关闭
-        findInput.OnSubmit = _ => { onFindNext(findInput.Text, CurrentOpts()); win.OnClosed?.Invoke(); };
-        replInput.OnSubmit = _ => { onReplace(findInput.Text, replInput.Text, CurrentOpts()); win.OnClosed?.Invoke(); };
-        win.RegisterShortcut(ConsoleKey.F3, () => { onFindNext(findInput.Text, CurrentOpts()); win.OnClosed?.Invoke(); });
+        findInput.OnSubmit = _ =>
+        {
+            onFindNext(findInput.Text, CurrentOpts());
+            win.OnClosed?.Invoke();
+        };
+        replInput.OnSubmit = _ =>
+        {
+            onReplace(findInput.Text, replInput.Text, CurrentOpts());
+            win.OnClosed?.Invoke();
+        };
+        win.RegisterShortcut(ConsoleKey.F3, () =>
+        {
+            onFindNext(findInput.Text, CurrentOpts());
+            win.OnClosed?.Invoke();
+        });
         win.RegisterShortcut(ConsoleKey.Escape, () => win.OnClosed?.Invoke());
         return win;
     }
@@ -479,11 +590,11 @@ public static class TuiDialog
 
         int cw = ContentW(NarrowXScale, 4);
 
-        var promptLines = TuiHelper.WrapText(prompt, cw, maxPromptLines);
+        var promptLines = AnsiHelper.WrapText(prompt, cw, maxPromptLines);
 
-        var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
+        var vbox = new TuiVBox { Width = cw, ChildHAlign = EHAlign.Center };
         foreach (var line in promptLines)
-            vbox.Add(new TuiLabel(line) { Width = cw, Fg = TuiTheme.Current.ControlFg });
+            vbox.Add(new TuiLabel(line) { Width = cw, Fg = AnsiColors.Black });
 
         var input = new TuiInput
         {
@@ -495,20 +606,38 @@ public static class TuiDialog
 
         vbox.Add(new TuiLabel("") { Height = 1 }); // spacer
 
-        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
+        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = EHAlign.Center };
         var okBtn = new TuiButton("确定") { Flex = 1 };
         var cancelBtn = new TuiButton("取消") { Flex = 1 };
-        void SubmitInput() { win.Result = input.Text; onConfirm(input.Text); win.OnClosed?.Invoke(); }
+
+        void SubmitInput()
+        {
+            win.Result = input.Text;
+            onConfirm(input.Text);
+            win.OnClosed?.Invoke();
+        }
+
         okBtn.OnClick = _ => SubmitInput();
         input.OnSubmit = _ => SubmitInput(); // 单行输入框回车 = 确定
-        cancelBtn.OnClick = _ => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
-        hbox.Add(okBtn); hbox.Add(cancelBtn);
+        cancelBtn.OnClick = _ =>
+        {
+            win.Result = null;
+            onCancel?.Invoke();
+            win.OnClosed?.Invoke();
+        };
+        hbox.Add(okBtn);
+        hbox.Add(cancelBtn);
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, okBtn, cancelBtn);
         vbox.Add(hbox);
 
         win.RootView = vbox;
         ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
-        win.RegisterShortcut(ConsoleKey.Escape, () => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); });
+        win.RegisterShortcut(ConsoleKey.Escape, () =>
+        {
+            win.Result = null;
+            onCancel?.Invoke();
+            win.OnClosed?.Invoke();
+        });
         return win;
     }
 
@@ -532,19 +661,34 @@ public static class TuiDialog
             SelectedIndex = 0,
             Width = cw, Height = visItems, Focused = true
         };
-        list.OnSelect = idx => { win.Result = idx; onSelect(idx); win.OnClosed?.Invoke(); };
+        list.OnSelect = idx =>
+        {
+            win.Result = idx;
+            onSelect(idx);
+            win.OnClosed?.Invoke();
+        };
         vbox.Add(list);
 
-        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
+        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = EHAlign.Center };
         var cancelBtn = new TuiButton("取消 (Esc)") { Flex = 1 };
-        cancelBtn.OnClick = _ => { win.Result = -1; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
+        cancelBtn.OnClick = _ =>
+        {
+            win.Result = -1;
+            onCancel?.Invoke();
+            win.OnClosed?.Invoke();
+        };
         ApplyButtonGradient(TuiTheme.Current.BtnCyanBlue, cancelBtn);
         hbox.Add(cancelBtn);
         vbox.Add(hbox);
 
         win.RootView = vbox;
         ApplyGradient(win, TuiTheme.Current.GradCyanBlue);
-        win.RegisterShortcut(ConsoleKey.Escape, () => { win.Result = -1; onCancel?.Invoke(); win.OnClosed?.Invoke(); });
+        win.RegisterShortcut(ConsoleKey.Escape, () =>
+        {
+            win.Result = -1;
+            onCancel?.Invoke();
+            win.OnClosed?.Invoke();
+        });
         return win;
     }
 
@@ -565,26 +709,39 @@ public static class TuiDialog
         };
         vbox.Add(list);
 
-        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
+        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = EHAlign.Center };
         var okBtn = new TuiButton("确定") { Flex = 1 };
         var cancelBtn = new TuiButton("取消") { Flex = 1 };
+
         void Confirm()
         {
             win.Result = list.CheckedIndices;
             onConfirm(list.CheckedIndices);
             win.OnClosed?.Invoke();
         }
+
         okBtn.OnClick = _ => Confirm();
-        cancelBtn.OnClick = _ => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
+        cancelBtn.OnClick = _ =>
+        {
+            win.Result = null;
+            onCancel?.Invoke();
+            win.OnClosed?.Invoke();
+        };
         // 多选列表：空格勾选，Enter = 确认（等同点击“确定”按钮）
         list.OnSelect = _ => Confirm();
-        hbox.Add(okBtn); hbox.Add(cancelBtn);
+        hbox.Add(okBtn);
+        hbox.Add(cancelBtn);
         ApplyButtonGradient(TuiTheme.Current.BtnCyanBlue, okBtn, cancelBtn);
         vbox.Add(hbox);
 
         win.RootView = vbox;
         ApplyGradient(win, TuiTheme.Current.GradCyanBlue);
-        win.RegisterShortcut(ConsoleKey.Escape, () => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); });
+        win.RegisterShortcut(ConsoleKey.Escape, () =>
+        {
+            win.Result = null;
+            onCancel?.Invoke();
+            win.OnClosed?.Invoke();
+        });
         return win;
     }
 
@@ -616,16 +773,14 @@ public static class TuiDialog
         Action? onCancel = null)
     {
         var win = NewDialog(title, TuiTheme.Current.DialogInfoBorder, WideXScale);
-        win.TitleBold = true; // 标题独占一行（诗名醒目）
-
-        int cw = ContentW(WideXScale, 4);
+        var cw = ContentW(WideXScale, 4);
 
         // ── 消息正文（1~5 行，超出末尾加省略号）──
-        var msgLines = TuiHelper.WrapText(message, cw, AskMaxMessageLines);
+        var msgLines = AnsiHelper.WrapText(message, cw, AskMaxMessageLines);
 
-        var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
+        var vbox = new TuiVBox { Width = cw, ChildHAlign = EHAlign.Center };
         foreach (var line in msgLines)
-            vbox.Add(new TuiLabel(line) { Width = cw, TextAlign = HAlign.Center });
+            vbox.Add(new TuiLabel(line) { Width = cw, TextAlign = EHAlign.Center });
 
         vbox.Add(new TuiLabel("") { Height = 1 }); // spacer：消息与选项分隔
 
@@ -645,38 +800,62 @@ public static class TuiDialog
         vbox.Add(new TuiLabel("") { Height = 1 }); // spacer：选项与底部按钮分隔
 
         // ── 底部操作按钮 ──
-        var bottom = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
+        var bottom = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = EHAlign.Center };
         if (multiSelect)
         {
             var okBtn = new TuiButton("确定") { Flex = 1 };
             var cancelBtn = new TuiButton("取消") { Flex = 1 };
+
             void Confirm()
             {
                 win.Result = list.CheckedIndices;
                 onMultiConfirm(list.CheckedIndices);
                 win.OnClosed?.Invoke();
             }
+
             okBtn.OnClick = _ => Confirm();
-            cancelBtn.OnClick = _ => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
+            cancelBtn.OnClick = _ =>
+            {
+                win.Result = null;
+                onCancel?.Invoke();
+                win.OnClosed?.Invoke();
+            };
             // 多选：空格勾选，Enter = 确认（等同点击"确定"）
             list.OnSelect = _ => Confirm();
-            bottom.Add(okBtn); bottom.Add(cancelBtn);
+            bottom.Add(okBtn);
+            bottom.Add(cancelBtn);
             ApplyButtonGradient(TuiTheme.Current.BtnCyanBlue, okBtn, cancelBtn);
         }
         else
         {
             var cancelBtn = new TuiButton("取消 (Esc)") { Flex = 1 };
-            cancelBtn.OnClick = _ => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); };
+            cancelBtn.OnClick = _ =>
+            {
+                win.Result = null;
+                onCancel?.Invoke();
+                win.OnClosed?.Invoke();
+            };
             bottom.Add(cancelBtn);
             ApplyButtonGradient(TuiTheme.Current.BtnCyanBlue, cancelBtn);
             // 单选：Enter/空格 激活当前选中项
-            list.OnSelect = idx => { win.Result = idx; onSelect(idx); win.OnClosed?.Invoke(); };
+            list.OnSelect = idx =>
+            {
+                win.Result = idx;
+                onSelect(idx);
+                win.OnClosed?.Invoke();
+            };
         }
+
         vbox.Add(bottom);
 
         win.RootView = vbox;
         ApplyGradient(win, TuiTheme.Current.GradCyanBlue);
-        win.RegisterShortcut(ConsoleKey.Escape, () => { win.Result = null; onCancel?.Invoke(); win.OnClosed?.Invoke(); });
+        win.RegisterShortcut(ConsoleKey.Escape, () =>
+        {
+            win.Result = null;
+            onCancel?.Invoke();
+            win.OnClosed?.Invoke();
+        });
 
         // 精确高度：边框(2) + 标题行(1) + 消息 + spacer(1) + 列表 + spacer(1) + 底部按钮(1)
         win.Height = msgLines.Count + listH + 6;
@@ -692,27 +871,25 @@ public static class TuiDialog
     /// 权限确认对话框 —— 黄色警告背景 + 黑色文字 + 粗体标题 + 淡蓝按钮。
     /// 快捷键：Y=允许 N=拒绝 A=全部允许
     /// </summary>
-    public static TuiWindow Permission(string title, string message, Action<DialogResult> onResult)
+    public static TuiWindow Permission(string title, string message, Action<EDialogResult> onResult)
     {
-        const int warnBg = TuiColors.BgYellow;
-        const int blackFg = TuiColors.Black; // 黄底警告框保持黑字
-        const int btnBg = TuiColors.BgCyan;
-        const int btnFocusBg = TuiColors.BgWhite;
+        const int warnBg = AnsiColors.BgYellow;
+        const int blackFg = AnsiColors.Black;
+        const int btnBg = AnsiColors.BgCyan;
+        const int btnFocusBg = AnsiColors.BgWhite;
 
         var win = new TuiWindow
         {
             Title = title,
-            TitleBold = true,
             TitleFg = blackFg,
             TitleBg = warnBg,
-            ShowTitleSeparator = false,
             Modal = true, HasMask = true,
-            BorderColor = TuiColors.Yellow,
-            Border = WindowBorder.Rounded,
+            BorderColor = AnsiColors.Yellow,
+            Border = WindowBorder.Solid,
             WinBg = warnBg,
             XScale = WideXScale,
-            WindowHAlign = HAlign.Center,
-            WindowVAlign = VAlign.Middle,
+            WindowHAlign = EHAlign.Center,
+            WindowVAlign = EVAlign.Middle,
             MinWidth = MinDialogW,
             Height = 7,
         };
@@ -720,32 +897,54 @@ public static class TuiDialog
         int cw = ContentW(WideXScale, 4);
         var msgLabels = BuildMessageLabels(message, cw, blackFg);
 
-        var vbox = new TuiVBox { Width = cw, ChildHAlign = HAlign.Center };
+        var vbox = new TuiVBox { Width = cw, ChildHAlign = EHAlign.Center };
         foreach (var lbl in msgLabels)
         {
             lbl.Fg = blackFg;
             vbox.Add(lbl);
         }
 
-        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = HAlign.Center };
-        var yesBtn = MakePermBtn("允许 (Y)", 1, DialogResult.Yes);
-        var noBtn = MakePermBtn("拒绝 (N)", 1, DialogResult.No);
-        var allBtn = MakePermBtn("全允 (A)", 1, DialogResult.Ok);
+        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = EHAlign.Center };
+        var yesBtn = MakePermBtn("允许 (Y)", 1, EDialogResult.Yes);
+        var noBtn = MakePermBtn("拒绝 (N)", 1, EDialogResult.No);
+        var allBtn = MakePermBtn("全允 (A)", 1, EDialogResult.Ok);
         yesBtn.Focused = true;
-        hbox.Add(yesBtn); hbox.Add(noBtn); hbox.Add(allBtn);
+        hbox.Add(yesBtn);
+        hbox.Add(noBtn);
+        hbox.Add(allBtn);
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, yesBtn, noBtn, allBtn);
         vbox.Add(hbox);
 
         win.RootView = vbox;
         ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
 
-        win.RegisterShortcut(ConsoleKey.Y, () => { win.Result = DialogResult.Yes; onResult(DialogResult.Yes); win.OnClosed?.Invoke(); });
-        win.RegisterShortcut(ConsoleKey.N, () => { win.Result = DialogResult.No; onResult(DialogResult.No); win.OnClosed?.Invoke(); });
-        win.RegisterShortcut(ConsoleKey.A, () => { win.Result = DialogResult.Ok; onResult(DialogResult.Ok); win.OnClosed?.Invoke(); });
-        win.RegisterShortcut(ConsoleKey.Escape, () => { win.Result = DialogResult.No; onResult(DialogResult.No); win.OnClosed?.Invoke(); });
+        win.RegisterShortcut(ConsoleKey.Y, () =>
+        {
+            win.Result = EDialogResult.Yes;
+            onResult(EDialogResult.Yes);
+            win.OnClosed?.Invoke();
+        });
+        win.RegisterShortcut(ConsoleKey.N, () =>
+        {
+            win.Result = EDialogResult.No;
+            onResult(EDialogResult.No);
+            win.OnClosed?.Invoke();
+        });
+        win.RegisterShortcut(ConsoleKey.A, () =>
+        {
+            win.Result = EDialogResult.Ok;
+            onResult(EDialogResult.Ok);
+            win.OnClosed?.Invoke();
+        });
+        win.RegisterShortcut(ConsoleKey.Escape, () =>
+        {
+            win.Result = EDialogResult.No;
+            onResult(EDialogResult.No);
+            win.OnClosed?.Invoke();
+        });
         return win;
 
-        TuiButton MakePermBtn(string text, int flex, DialogResult result)
+        TuiButton MakePermBtn(string text, int flex, EDialogResult result)
         {
             var b = new TuiButton(text)
             {
@@ -753,7 +952,12 @@ public static class TuiDialog
                 Fg = blackFg, Bg = btnBg,
                 FocusedFg = blackFg, FocusedBg = btnFocusBg
             };
-            b.OnClick = _ => { win.Result = result; onResult(result); win.OnClosed?.Invoke(); };
+            b.OnClick = _ =>
+            {
+                win.Result = result;
+                onResult(result);
+                win.OnClosed?.Invoke();
+            };
             return b;
         }
     }

@@ -2,6 +2,8 @@
 using WayCoder.UI.Tui.Controls;
 
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
+
 namespace WayCoder.UI.Tui;
 
 /// <summary>
@@ -53,15 +55,14 @@ public static class CommandPalette
         var win = new TuiWindow
         {
             Title = "🔍 命令面板",
-            ShowTitleSeparator = false,
             Modal = true, HasMask = true,
-            Border = WindowBorder.Rounded,
+            Border = WindowBorder.Solid,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             Width = winW, Height = winH,
             MinWidth = MinW, MinHeight = 10,
-            WindowHAlign = HAlign.Center,
-            WindowVAlign = VAlign.Middle,
+            WindowHAlign = EHAlign.Center,
+            WindowVAlign = EVAlign.Middle,
         };
         var g = TuiTheme.Current.GradCyanBlue;
         win.GradientBorder = true;
@@ -72,7 +73,7 @@ public static class CommandPalette
         var search = new TuiInput
         {
             Height = 1,
-            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Fg = AnsiColors.White, Bg = AnsiColors.BgBlack,
             Focused = true,
         };
 
@@ -84,9 +85,9 @@ public static class CommandPalette
         };
 
         // 帮助行（兼显示过滤计数）
-        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightWhite };
+        var help = new TuiLabel { Height = 1, Fg = AnsiColors.BrightBlack };
 
-        var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
+        var vbox = new TuiVBox { ChildHAlign = EHAlign.Stretch };
         vbox.Add(search);
         vbox.Add(list);
         vbox.Add(help);
@@ -105,12 +106,11 @@ public static class CommandPalette
                 bool isSel = sel >= 0 && sel < rows.Count && !rows[sel].IsHeader && rows[sel].CmdIdx == i;
                 var lbl = cmdRowLabels[i];
                 lbl.Text = FormatCommandRow(filtered[i], isSel, listW);
-                lbl.Fg = isSel ? TuiTheme.Current.ListSelFg : TuiColors.White;
+                lbl.Fg = isSel ? TuiTheme.Current.ListSelFg : AnsiColors.White;
                 lbl.Bg = isSel ? TuiTheme.Current.ListSelBg : 0;
             }
             list.SelectedIndex = sel; // 驱动 TuiListView 自动滚动到选中项
             list.MarkDirty();
-            screen?.MarkDirty(); // RenderWait 循环不走 Manager.OnKey，必须通知屏幕否则高亮冻结
         }
 
         void Rebuild()
@@ -133,7 +133,7 @@ public static class CommandPalette
                 if (filtered[i].Category != prevCat)
                 {
                     rows.Add((true, i, filtered[i].Category));
-                    list.AddItem(new TuiLabel("─ " + filtered[i].Category + " ─") { Fg = TuiColors.Cyan });
+                    list.AddItem(new TuiLabel("─ " + filtered[i].Category + " ─") { Fg = AnsiColors.Cyan });
                     prevCat = filtered[i].Category;
                 }
                 rows.Add((false, i, filtered[i].Category));
@@ -227,14 +227,14 @@ public static class CommandPalette
     {
         var prefix = isSel ? "▶ " : "  ";
         var shortcut = string.IsNullOrEmpty(cmd.Shortcut) ? "" : " " + cmd.Shortcut;
-        int sw = TuiHelper.DisplayWidth(shortcut);
+        int sw = AnsiHelper.DisplayWidth(shortcut);
         int bodyMax = Math.Max(1, width - sw);
         var body = prefix + cmd.Label;
-        int spare = bodyMax - TuiHelper.DisplayWidth(body);
+        int spare = bodyMax - AnsiHelper.DisplayWidth(body);
         body = spare >= 4 && !string.IsNullOrEmpty(cmd.Desc)
-            ? TuiHelper.TruncateByWidth(body + " " + cmd.Desc, bodyMax)
-            : TuiHelper.TruncateByWidth(body, bodyMax);
-        int bodyW = TuiHelper.DisplayWidth(body);
+            ? AnsiHelper.TruncateByWidth(body + " " + cmd.Desc, bodyMax)
+            : AnsiHelper.TruncateByWidth(body, bodyMax);
+        int bodyW = AnsiHelper.DisplayWidth(body);
         return body + new string(' ', Math.Max(0, width - bodyW - sw)) + shortcut;
     }
 }

@@ -7,7 +7,7 @@ namespace WayCoder.UI.Tui.Controls;
 /// <summary>
 /// 可选中多列表格列表 —— 列头 + 数据行 + 选中反白 + 键盘导航 + 内联滚动条。
 /// 补齐「多列对齐且可交互」这一缺口，供 ModelPicker / FilePicker 等多列选择场景复用。
-/// 纯数据模型 + TuiHelper，AOT 安全（无反射）。
+/// 纯数据模型 + AnsiHelper，AOT 安全（无反射）。
 /// </summary>
 public class TuiTableList : TuiControl
 {
@@ -85,7 +85,7 @@ public class TuiTableList : TuiControl
 
     /// <summary>截断 + 按显示宽度右填充，使单元格恰好占 width 列。</summary>
     private static string FormatCell(string cell, int width)
-        => TuiHelper.PadRightByWidth(TuiHelper.TruncateByWidth(cell, width), width);
+        => AnsiHelper.PadRightByWidth(AnsiHelper.TruncateByWidth(cell, width), width);
 
     /// <summary>把一行单元格拼成定宽字符串（各格已对齐）。</summary>
     private string FormatRow(string[] cells)
@@ -208,9 +208,9 @@ public class TuiTableList : TuiControl
     /// <summary>写入一行表格文本（截断到 dataWidth，背景反白覆盖整行）</summary>
     private void WriteTableRow(StringBuilder sb, int absX, int row, string line, int fg, int bg, int dataWidth)
     {
-        if (TuiHelper.DisplayWidth(line) > dataWidth)
-            line = TuiHelper.TruncateByWidth(line, dataWidth);
-        WriteAt(sb, row, absX, line + new string(' ', Math.Max(0, dataWidth - TuiHelper.DisplayWidth(line))), fg, bg);
+        if (AnsiHelper.DisplayWidth(line) > dataWidth)
+            line = AnsiHelper.TruncateByWidth(line, dataWidth);
+        WriteAt(sb, row, absX, line + new string(' ', Math.Max(0, dataWidth - AnsiHelper.DisplayWidth(line))), fg, bg);
     }
 
     // ── 输入 ──

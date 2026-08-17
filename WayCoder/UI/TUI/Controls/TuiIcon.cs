@@ -1,4 +1,5 @@
 using System.Text;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -30,7 +31,7 @@ public class TuiIcon : TuiControl
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
         ControlRenderer.DrawLabelLine(sb, this, absX, absY,
-            Glyph, HAlign.Left, TuiTheme.Current.ControlFg, 0);
+            Glyph, EHAlign.Left, TuiTheme.Current.ControlFg, 0);
     }
 
     // ── 预设图标 ──

@@ -3,6 +3,7 @@ using WayCoder.Tools;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Screens;
 using WayCoder.UI.Web;
 using Arguments = WayCoder.UI.Cli.Arguments;
@@ -36,7 +37,7 @@ public partial class Program
         };
 
         // 输入管理器：拦截键盘 + 鼠标 + resize 即时重绘
-        using var inputMgr = new UI.Tui.InputManager();
+        using var inputMgr = new InputManager();
         inputMgr.Init();
 
         // 初始化 10 个槽位（槽位 0 已在 Main 中持有主 Agent）
@@ -181,11 +182,6 @@ public partial class Program
                 screen.AddSystemMsg($"  → {fullPrompt.Truncate(80)}");
                 mgr.Render();
                 await ProcessUserInput(fullPrompt, screen);
-                // 同槽位排队：StartSlotTask 是 fire-and-forget（void），ProcessUserInput 同步返回，
-                // 此时 slot.IsBusy 已置 true，若不等待则下一个任务被「仍在运行」丢弃。等待本槽位任务完成后继续。
-                var slotTask = _slotTasks[slotIdx];
-                if (slotTask != null && !slotTask.IsCompleted)
-                    await slotTask;
             }
         }
         _pendingSlotQueues.Clear();
@@ -262,13 +258,10 @@ public partial class Program
             var key = ev.KeyInfo;
             bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
 
-            // Ctrl+C：输入框有选中文本 → 优先复制（控件层消费）；无选中 → 退出（原全局退出语义）
+            // 系统级：Ctrl+C 设置退出标志，走正常清理路径
             if (key.Key == ConsoleKey.C && ctrl)
             {
-                bool consumed = mgr.OnKey(key);
-                if (!consumed)
-                    _exitRequested = true;
-                mgr.Render();
+                _exitRequested = true;
                 continue;
             }
 

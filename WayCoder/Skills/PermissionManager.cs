@@ -1,6 +1,7 @@
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
+using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder;
@@ -134,7 +135,7 @@ public static class PermissionManager
         try
         {
             var details = FormatArgs(toolName, args);
-            var content = $"工具: {TuiHelper.Esc(toolName)}\n{TuiHelper.Esc(details)}";
+            var content = $"工具: {AnsiHelper.Esc(toolName)}\n{AnsiHelper.Esc(details)}";
 
             int result;
             PermissionPromptStarted?.Invoke(toolName);
@@ -217,10 +218,10 @@ public static class PermissionManager
 
         int color = CurrentMode switch
         {
-            Mode.Yolo => TuiColors.Red,
-            Mode.SmartAuto => TuiColors.Cyan,
-            Mode.Auto => TuiColors.Green,
-            _ => TuiColors.Yellow,
+            Mode.Yolo => AnsiColors.Red,
+            Mode.SmartAuto => AnsiColors.Cyan,
+            Mode.Auto => AnsiColors.Green,
+            _ => AnsiColors.Yellow,
         };
         var label = CurrentMode switch
         {
@@ -240,10 +241,10 @@ public static class PermissionManager
     {
         var (label, desc, color) = CurrentMode switch
         {
-            Mode.Yolo => ("YOLO", "不确认，直接执行", TuiColors.Red),
-            Mode.SmartAuto => ("SmartAuto", "智能分级：Safe 放行 / Cautious 记一次 / Dangerous 每次确认", TuiColors.Cyan),
-            Mode.Auto => ("Auto", "首次确认后自动允许", TuiColors.Green),
-            _ => ("Ask", "每次都确认", TuiColors.Yellow),
+            Mode.Yolo => ("YOLO", "不确认，直接执行", AnsiColors.Red),
+            Mode.SmartAuto => ("SmartAuto", "智能分级：Safe 放行 / Cautious 记一次 / Dangerous 每次确认", AnsiColors.Cyan),
+            Mode.Auto => ("Auto", "首次确认后自动允许", AnsiColors.Green),
+            _ => ("Ask", "每次都确认", AnsiColors.Yellow),
         };
 
         var sandboxInfo = SandboxManager.IsSandboxed
@@ -254,7 +255,7 @@ public static class PermissionManager
             ? $"\n{AnsiText.Dim("分级:")} {AutoModeClassifier.GetStats()}"
             : "";
 
-        var content = $"当前模式: {AnsiText.Fg(label, color)} — {TuiHelper.Esc(desc)}{sandboxInfo}{classifierInfo}\n" +
+        var content = $"当前模式: {AnsiText.Fg(label, color)} — {AnsiHelper.Esc(desc)}{sandboxInfo}{classifierInfo}\n" +
             $"{AnsiText.Dim("需要确认:")} {string.Join(", ", DangerousTools)}\n" +
             $"{AnsiText.Dim("直接放行:")} read_file, glob, grep, ls, stat 等只读工具";
 
@@ -279,11 +280,11 @@ public static class PermissionManager
         {
             case "bash":
                 var cmd = args.GetValueOrDefault("command")?.ToString() ?? "";
-                return $"命令: {TuiHelper.Esc(cmd.Length > 200 ? ContextManager.TruncateByRunes(cmd, 200) + "..." : cmd)}";
+                return $"命令: {AnsiHelper.Esc(cmd.Length > 200 ? ContextManager.TruncateByRunes(cmd, 200) + "..." : cmd)}";
             case "write_file":
             case "edit_file":
                 var fp = args.GetValueOrDefault("file_path")?.ToString() ?? "";
-                var result = $"文件: {TuiHelper.Esc(fp)}";
+                var result = $"文件: {AnsiHelper.Esc(fp)}";
                 if (toolName == "write_file")
                 {
                     var content = args.GetValueOrDefault("content")?.ToString() ?? "";
@@ -292,25 +293,25 @@ public static class PermissionManager
                     var existsNote = exists ? $" (覆盖已有 {new FileInfo(fp).Length} 字节)" : " (新建)";
                     result += existsNote + $"\n内容: {lines} 行";
                     var preview = content.Length > 100 ? ContextManager.TruncateByRunes(content, 100) + "..." : content;
-                    result += $"\n预览: {TuiHelper.Esc(preview.Replace("\n", "\\n"))}";
+                    result += $"\n预览: {AnsiHelper.Esc(preview.Replace("\n", "\\n"))}";
                 }
                 if (toolName == "edit_file")
                 {
                     var old = args.GetValueOrDefault("old_string")?.ToString() ?? "";
                     var n = args.GetValueOrDefault("new_string")?.ToString() ?? "";
-                    result += $"\n-{TuiHelper.Esc(old.Length > 80 ? ContextManager.TruncateByRunes(old, 80) + "..." : old)}";
-                    result += $"\n+{TuiHelper.Esc(n.Length > 80 ? ContextManager.TruncateByRunes(n, 80) + "..." : n)}";
+                    result += $"\n-{AnsiHelper.Esc(old.Length > 80 ? ContextManager.TruncateByRunes(old, 80) + "..." : old)}";
+                    result += $"\n+{AnsiHelper.Esc(n.Length > 80 ? ContextManager.TruncateByRunes(n, 80) + "..." : n)}";
                 }
                 return result;
             case "agent":
                 var task = args.GetValueOrDefault("task")?.ToString() ?? "";
-                return $"任务: {TuiHelper.Esc(task.Length > 120 ? ContextManager.TruncateByRunes(task, 120) + "..." : task)}";
+                return $"任务: {AnsiHelper.Esc(task.Length > 120 ? ContextManager.TruncateByRunes(task, 120) + "..." : task)}";
             case "kill":
                 var pid = args.GetValueOrDefault("pid")?.ToString() ?? "?";
-                return $"进程 ID: {TuiHelper.Esc(pid)}";
+                return $"进程 ID: {AnsiHelper.Esc(pid)}";
             case "rm":
                 var path = args.GetValueOrDefault("path")?.ToString() ?? "?";
-                return $"路径: {TuiHelper.Esc(path)}";
+                return $"路径: {AnsiHelper.Esc(path)}";
             default:
                 return "";
         }

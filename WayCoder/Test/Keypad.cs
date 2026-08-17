@@ -2,6 +2,7 @@ using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
+using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.Tui.Screens;
 

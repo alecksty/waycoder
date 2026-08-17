@@ -1,12 +1,13 @@
 ﻿using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui.Screens;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui;
 
 /// <summary>
 /// 表格控件 —— 原生 ANSI 渲染，通过 AnsiText 封装层。
-/// CJK 感知：使用 TuiHelper.DisplayWidth 自动对齐。
+/// CJK 感知：使用 AnsiHelper.DisplayWidth 自动对齐。
 /// 渲染为纯字符串，输出到聊天区而非直接写终端。
 /// </summary>
 public class TuiTable
@@ -16,7 +17,9 @@ public class TuiTable
     private readonly List<RowDef> _rows = [];
 
     private record ColumnDef(string Header, int? Width);
+
     private record RowDef(List<CellDef> Cells, bool IsMarkup);
+
     private record CellDef(string Text, bool IsMarkup);
 
     public TuiTable(string? title = null)
@@ -66,16 +69,18 @@ public class TuiTable
             if (i > 0) sb.Append("┬");
             sb.Append(new string('─', colWidths[i] + 2));
         }
+
         sb.Append("┐");
 
         // 标题
         if (!string.IsNullOrEmpty(_title))
         {
             if (ansi)
-                sb.Append($" {AnsiText.BoldFg(_title, TuiColors.Cyan)}");
+                sb.Append($" {AnsiText.BoldFg(_title, AnsiColors.Cyan)}");
             else
                 sb.Append($" {_title}");
         }
+
         sb.Append('\n');
 
         // 表头
@@ -88,6 +93,7 @@ public class TuiTable
             else
                 sb.Append($" {hdr} │");
         }
+
         sb.Append('\n');
 
         // 表头分隔线
@@ -97,6 +103,7 @@ public class TuiTable
             if (i > 0) sb.Append("┼");
             sb.Append(new string('─', colWidths[i] + 2));
         }
+
         sb.Append("┤\n");
 
         // 数据行
@@ -109,23 +116,23 @@ public class TuiTable
                 var isMarkup = i < row.Cells.Count && row.Cells[i].IsMarkup;
 
                 if (!isMarkup)
-                    cellText = TuiHelper.Esc(cellText);
+                    cellText = AnsiHelper.Esc(cellText);
                 else if (!ansi)
-                    cellText = StripAnsi(cellText);  // TUI 模式去掉内嵌 ANSI，走正常渲染管线
+                    cellText = StripAnsi(cellText); // TUI 模式去掉内嵌 ANSI，走正常渲染管线
 
                 var displayW = isMarkup && ansi
                     ? AnsiDisplayWidth(cellText)
-                    : TuiHelper.DisplayWidth(cellText);
+                    : AnsiHelper.DisplayWidth(cellText);
 
                 // 超宽单元格截断，避免顶破右边界 │ 分隔
                 if (displayW > colWidths[i])
                 {
                     cellText = isMarkup && ansi
                         ? TruncateMarkup(cellText, colWidths[i])
-                        : TuiHelper.TruncateByWidth(cellText, colWidths[i]);
+                        : AnsiHelper.TruncateByWidth(cellText, colWidths[i]);
                     displayW = isMarkup && ansi
                         ? AnsiDisplayWidth(cellText)
-                        : TuiHelper.DisplayWidth(cellText);
+                        : AnsiHelper.DisplayWidth(cellText);
                 }
 
                 var padR = colWidths[i] - displayW;
@@ -136,6 +143,7 @@ public class TuiTable
                 if (padR > 0) sb.Append(new string(' ', padR));
                 sb.Append(" │");
             }
+
             sb.Append('\n');
         }
 
@@ -146,6 +154,7 @@ public class TuiTable
             if (i > 0) sb.Append("┴");
             sb.Append(new string('─', colWidths[i] + 2));
         }
+
         sb.Append("┘");
 
         return sb.ToString();
@@ -157,13 +166,15 @@ public class TuiTable
         var sb = new System.Text.StringBuilder();
         for (int i = 0; i < text.Length; i++)
         {
-            if (text[i] == '\x1b' && i + 1 < text.Length && text[i + 1] == '[')
+            if (text[i] == AnsiString.AnsiCharPrefix && i + 1 < text.Length && text[i + 1] == '[')
             {
                 while (i < text.Length && text[i] != 'm') i++;
                 continue;
             }
+
             sb.Append(text[i]);
         }
+
         return sb.ToString();
     }
 
@@ -190,7 +201,7 @@ public class TuiTable
         var widths = new List<int>();
         for (int i = 0; i < _columns.Count; i++)
         {
-            int maxW = TuiHelper.DisplayWidth(_columns[i].Header);
+            int maxW = AnsiHelper.DisplayWidth(_columns[i].Header);
 
             foreach (var row in _rows)
             {
@@ -198,7 +209,7 @@ public class TuiTable
                 var cell = row.Cells[i];
                 var w = cell.IsMarkup
                     ? AnsiDisplayWidth(cell.Text)
-                    : TuiHelper.DisplayWidth(cell.Text);
+                    : AnsiHelper.DisplayWidth(cell.Text);
                 if (w > maxW) maxW = w;
             }
 
@@ -209,14 +220,15 @@ public class TuiTable
             maxW = Math.Max(3, Math.Min(60, maxW));
             widths.Add(maxW);
         }
+
         return widths;
     }
 
     /// <summary>居中对齐文本</summary>
     private static string PadCenter(string text, int width)
     {
-        var tw = TuiHelper.DisplayWidth(text);
-        if (tw >= width) return TuiHelper.TruncateByWidth(text, width);
+        var tw = AnsiHelper.DisplayWidth(text);
+        if (tw >= width) return AnsiHelper.TruncateByWidth(text, width);
         var left = (width - tw) / 2;
         var right = width - tw - left;
         return new string(' ', left) + text + new string(' ', right);
@@ -230,7 +242,7 @@ public class TuiTable
         int i = 0;
         while (i < text.Length && w < maxW)
         {
-            if (text[i] == '\x1b' && i + 1 < text.Length && text[i + 1] == '[')
+            if (text[i] == AnsiString.AnsiCharPrefix && i + 1 < text.Length && text[i + 1] == '[')
             {
                 int j = i;
                 while (j < text.Length && text[j] != 'm') j++;
@@ -239,14 +251,21 @@ public class TuiTable
                 i = j;
                 continue;
             }
-            if (text[i] == '[' || text[i] == ']') { i++; continue; } // Spectre 标记，零宽
+
+            if (text[i] == '[' || text[i] == ']')
+            {
+                i++;
+                continue;
+            } // Spectre 标记，零宽
+
             var rune = System.Text.Rune.GetRuneAt(text, i);
-            int cw = TuiHelper.RuneWidth(rune);
+            int cw = AnsiHelper.RuneWidth(rune);
             if (w + cw > maxW) break;
             sb.Append(rune);
             w += cw;
             i += rune.Utf16SequenceLength;
         }
+
         return sb.ToString();
     }
 
@@ -256,16 +275,18 @@ public class TuiTable
         int w = 0;
         for (int i = 0; i < text.Length; i++)
         {
-            if (text[i] == '\x1b' && i + 1 < text.Length && text[i + 1] == '[')
+            if (text[i] == AnsiString.AnsiCharPrefix && i + 1 < text.Length && text[i + 1] == '[')
             {
                 while (i < text.Length && text[i] != 'm') i++;
                 continue;
             }
+
             if (text[i] == '[' || text[i] == ']') continue; // Spectre 标记
             var rune = System.Text.Rune.GetRuneAt(text, i);
-            w += TuiHelper.RuneWidth(rune);
+            w += AnsiHelper.RuneWidth(rune);
             if (rune.Utf16SequenceLength > 1) i += rune.Utf16SequenceLength - 1;
         }
+
         return w;
     }
 }

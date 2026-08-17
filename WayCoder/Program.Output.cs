@@ -30,7 +30,7 @@ public partial class Program
     // ========================================================================
 
     /// <summary>转义用户内容中的 [ ] 标记字符</summary>
-    private static string E(string? text) => TuiHelper.Esc(text);
+    private static string E(string? text) => AnsiHelper.Esc(text);
 
     /// <summary>输出带标记的行（转换 Spectre 标记为 ANSI）</summary>
     private static void MarkupLine(string markup) => Console.WriteLine(SpectreToAnsi(markup));
@@ -44,19 +44,19 @@ public partial class Program
     {
         return markup
             // ── 复合标签（先替换，避免被单标签截断）──
-            .Replace("«bold yellow»", AnsiTty.SgrBold + AnsiTty.FgCode(TuiColors.Yellow))
-            .Replace("«bold cyan»", AnsiTty.SgrBold + AnsiTty.FgCode(TuiColors.Cyan))
-            .Replace("«bold red»", AnsiTty.SgrBold + AnsiTty.FgCode(TuiColors.Red))
-            .Replace("«bold green»", AnsiTty.SgrBold + AnsiTty.FgCode(TuiColors.Green))
-            .Replace("«bold blue»", AnsiTty.SgrBold + AnsiTty.FgCode(TuiColors.Blue))
-            .Replace("«bold magenta»", AnsiTty.SgrBold + AnsiTty.FgCode(TuiColors.Magenta))
-            .Replace("«bold orange3»", AnsiTty.SgrBold + AnsiTty.FgCode(TuiColors.Yellow))
-            .Replace("«bright red»", AnsiTty.FgCode(TuiColors.BrightRed))
-            .Replace("«bright green»", AnsiTty.FgCode(TuiColors.BrightGreen))
-            .Replace("«bright yellow»", AnsiTty.FgCode(TuiColors.BrightYellow))
-            .Replace("«bright blue»", AnsiTty.FgCode(TuiColors.BrightBlue))
-            .Replace("«bright magenta»", AnsiTty.FgCode(TuiColors.BrightMagenta))
-            .Replace("«bright cyan»", AnsiTty.FgCode(TuiColors.BrightCyan))
+            .Replace("«bold yellow»", AnsiTty.SgrBold + AnsiTty.FgCode(AnsiColors.Yellow))
+            .Replace("«bold cyan»", AnsiTty.SgrBold + AnsiTty.FgCode(AnsiColors.Cyan))
+            .Replace("«bold red»", AnsiTty.SgrBold + AnsiTty.FgCode(AnsiColors.Red))
+            .Replace("«bold green»", AnsiTty.SgrBold + AnsiTty.FgCode(AnsiColors.Green))
+            .Replace("«bold blue»", AnsiTty.SgrBold + AnsiTty.FgCode(AnsiColors.Blue))
+            .Replace("«bold magenta»", AnsiTty.SgrBold + AnsiTty.FgCode(AnsiColors.Magenta))
+            .Replace("«bold orange3»", AnsiTty.SgrBold + AnsiTty.FgCode(AnsiColors.Yellow))
+            .Replace("«bright red»", AnsiTty.FgCode(AnsiColors.BrightRed))
+            .Replace("«bright green»", AnsiTty.FgCode(AnsiColors.BrightGreen))
+            .Replace("«bright yellow»", AnsiTty.FgCode(AnsiColors.BrightYellow))
+            .Replace("«bright blue»", AnsiTty.FgCode(AnsiColors.BrightBlue))
+            .Replace("«bright magenta»", AnsiTty.FgCode(AnsiColors.BrightMagenta))
+            .Replace("«bright cyan»", AnsiTty.FgCode(AnsiColors.BrightCyan))
             // ── 样式标签 ──
             .Replace("«/»", AnsiTty.SgrReset)
             .Replace("«bold»", AnsiTty.SgrBold)
@@ -67,18 +67,18 @@ public partial class Program
             .Replace("«strike»", AnsiTty.Sgr(9))
             .Replace("«strikethrough»", AnsiTty.Sgr(9))
             // ── 颜色标签 ──
-            .Replace("«cyan»", AnsiTty.FgCode(TuiColors.Cyan))
-            .Replace("«green»", AnsiTty.FgCode(TuiColors.Green))
-            .Replace("«yellow»", AnsiTty.FgCode(TuiColors.Yellow))
-            .Replace("«red»", AnsiTty.FgCode(TuiColors.Red))
-            .Replace("«blue»", AnsiTty.FgCode(TuiColors.Blue))
-            .Replace("«magenta»", AnsiTty.FgCode(TuiColors.Magenta))
-            .Replace("«white»", AnsiTty.FgCode(TuiColors.White))
-            .Replace("«black»", AnsiTty.FgCode(TuiColors.Black))
-            .Replace("«orange3»", AnsiTty.FgCode(TuiColors.Yellow))
-            .Replace("«orange»", AnsiTty.FgCode(TuiColors.Yellow))
-            .Replace("«grey»", AnsiTty.FgCode(TuiColors.Grey))
-            .Replace("«gray»", AnsiTty.FgCode(TuiColors.Grey));
+            .Replace("«cyan»", AnsiTty.FgCode(AnsiColors.Cyan))
+            .Replace("«green»", AnsiTty.FgCode(AnsiColors.Green))
+            .Replace("«yellow»", AnsiTty.FgCode(AnsiColors.Yellow))
+            .Replace("«red»", AnsiTty.FgCode(AnsiColors.Red))
+            .Replace("«blue»", AnsiTty.FgCode(AnsiColors.Blue))
+            .Replace("«magenta»", AnsiTty.FgCode(AnsiColors.Magenta))
+            .Replace("«white»", AnsiTty.FgCode(AnsiColors.White))
+            .Replace("«black»", AnsiTty.FgCode(AnsiColors.Black))
+            .Replace("«orange3»", AnsiTty.FgCode(AnsiColors.Yellow))
+            .Replace("«orange»", AnsiTty.FgCode(AnsiColors.Yellow))
+            .Replace("«grey»", AnsiTty.FgCode(AnsiColors.Grey))
+            .Replace("«gray»", AnsiTty.FgCode(AnsiColors.Grey));
     }
 
     /// <summary>

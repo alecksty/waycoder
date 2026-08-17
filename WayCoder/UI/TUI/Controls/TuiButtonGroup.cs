@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -79,10 +80,10 @@ public class TuiButtonGroup : TuiControl
 
     public void RecalcLayout()
     {
-        int offset = 0;
+        var offset = 0;
         foreach (var btn in Buttons)
         {
-            int size = TuiHelper.DisplayWidth(btn.Text) + 4; // 左右边距
+            int size = AnsiHelper.DisplayWidth(btn.Text) + 4; // 左右边距
             if (btn.MinWidth > size) size = btn.MinWidth;
 
             if (Direction == LayoutMode.Horizontal)
@@ -202,14 +203,14 @@ public class TuiButtonGroup : TuiControl
     }
 
     /// <summary>鼠标点击按钮组中的按钮</summary>
-    public override bool HandleMouse(InputEvent ev)
+    public override bool OnMouse(InputEvent ev)
     {
         if (!IsEnabled || Buttons.Count == 0) return false;
         if (ev.Type != InputType.Mouse) return false;
 
         foreach (var btn in Buttons)
         {
-            if (btn.HandleMouse(ev)) return true;
+            if (btn.OnMouse(ev)) return true;
         }
         return false;
     }

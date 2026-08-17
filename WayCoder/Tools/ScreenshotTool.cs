@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.Tools;
 

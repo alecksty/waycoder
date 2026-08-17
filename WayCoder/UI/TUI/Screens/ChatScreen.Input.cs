@@ -3,12 +3,11 @@ using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.Tools;
 using WayCoder.UI.Tui.ToolRenderers;
-
 using WayCoder.UI.Tui.Controls;
-
 using WayCoder.UI.Shared;
-namespace WayCoder.UI.Tui.Screens;
+using WayCoder.UI.TUI.Base;
 
+namespace WayCoder.UI.Tui.Screens;
 
 /// <summary>
 /// 聊天 REPL 屏幕 —— 主交互界面。
@@ -24,7 +23,6 @@ namespace WayCoder.UI.Tui.Screens;
 /// </summary>
 public partial class ChatScreen : TuiScreen
 {
-
     // ── 粘贴 ──
 
     public async Task PasteAsync()
@@ -43,7 +41,11 @@ public partial class ChatScreen : TuiScreen
                 bool confirmed = false;
                 ShowWindow(TuiDialog.Confirm("粘贴确认",
                     $"将粘贴 {lines.Length} 行 / {text.Length} 字符:\n{preview}",
-                    result => { confirmed = result; evt.Set(); }));
+                    result =>
+                    {
+                        confirmed = result;
+                        evt.Set();
+                    }));
                 RenderWait(evt);
                 if (!confirmed) return;
             }
@@ -75,7 +77,11 @@ public partial class ChatScreen : TuiScreen
             bool confirmed = false;
             ShowWindow(TuiDialog.Confirm("粘贴确认",
                 $"将粘贴 {lines.Length} 行 / {text.Length} 字符:\n{preview}",
-                result => { confirmed = result; evt.Set(); }));
+                result =>
+                {
+                    confirmed = result;
+                    evt.Set();
+                }));
             RenderWait(evt);
             if (!confirmed) return;
         }
@@ -285,6 +291,7 @@ public partial class ChatScreen : TuiScreen
                 if (s.PromptCount > 0) mcpLine += $" · {s.PromptCount} 提示词";
                 mcpLines.Add(mcpLine);
             }
+
         sections.Add(new PanelSection
         {
             Title = $"🔌 MCP ({McpManager.DiscoveredTools.Count})",
@@ -312,10 +319,12 @@ public partial class ChatScreen : TuiScreen
         PromptBar.Items = items;
         PromptBar.SelectedIndex = items.Count > 0 ? 0 : -1;
         PromptBar.Visible = true;
-        int h = Math.Min(items.Count, PromptBar.MaxVisible);
+        
+        var h = Math.Min(items.Count, PromptBar.MaxVisible);
         // Bg==0 边框模式需 +2（上下边框），Bg>0 填充模式需 +1（底部分隔线）
-        int extra = PromptBar.Bg == 0 ? 2 : 1;
-        PromptBar.Height = h * PromptBar.ItemHeight + extra;
+        var extra = PromptBar.Bg == 0 ? 2 : 1;
+        
+        PromptBar.Height = PromptBar.MaxVisible+2;
 
         // 在 InputArea 上挂 KeyHook：拦截 ↑↓/Enter/Esc/Tab，透传其他键
         InputArea.KeyHook = PromptKeyHook;
@@ -326,11 +335,17 @@ public partial class ChatScreen : TuiScreen
     /// <summary>隐藏提示栏</summary>
     public void HidePromptBar()
     {
-        if (!PromptBar.Visible && PromptBar.Height == 0) return; // 已隐藏 → 避免每键重复全量重绘
+        // 已隐藏 → 避免每键重复全量重绘
+        if (PromptBar is { Visible: false, Height: 0 })
+        {
+            return;
+        }
+
         PromptBar.Visible = false;
         PromptBar.Height = 0;
         PromptBar.Items.Clear();
         PromptBar.SelectedIndex = -1;
+        PromptBar.ViewIndex = 0;
         InputArea.KeyHook = null;
         MarkDirty();
     }
@@ -338,7 +353,10 @@ public partial class ChatScreen : TuiScreen
     /// <summary>挂载在 InputArea 上的按键钩子：↑↓/Enter/Esc 导航提示栏</summary>
     private bool PromptKeyHook(ConsoleKeyInfo key)
     {
-        if (!PromptBarVisible) return false;
+        if (!PromptBarVisible)
+        {
+            return false;
+        }
 
         switch (key.Key)
         {
@@ -405,35 +423,35 @@ public partial class ChatScreen : TuiScreen
         var items = new List<PromptItem>();
 
         // ── 快捷命令 ──
-        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "帮助", Detail = "显示帮助信息", Value = "/help" });
-        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "切换模型", Detail = "轮换 LLM", Value = "/model" });
-        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "/model set <id>", Detail = "设置大模型", Value = "/model set " });
-        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "/model list", Detail = "列出所有模型", Value = "/model list" });
-        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "/model import <path>", Detail = "导入外部配置", Value = "/model import " });
-        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "清空对话", Detail = "重置上下文", Value = "/clear" });
-        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "历史搜索", Detail = "搜索对话记录", Value = "/history " });
-        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "YOLO 模式", Detail = "跳过权限确认", Value = "/perm yolo" });
-        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "/perm ask", Detail = "每次确认模式", Value = "/perm ask" });
-        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "/perm auto", Detail = "首次后自动允许", Value = "/perm auto" });
-        items.Add(new PromptItem { Kind = PromptKind.Command, Label = "Diff 预览", Detail = "切换 diff 预览", Value = "/diff" });
+        items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "帮助", Detail = "显示帮助信息", Value = "/help" });
+        items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "切换模型", Detail = "轮换 LLM", Value = "/model" });
+        items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "/model set <id>", Detail = "设置大模型", Value = "/model set " });
+        items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "/model list", Detail = "列出所有模型", Value = "/model list" });
+        items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "/model import <path>", Detail = "导入外部配置", Value = "/model import " });
+        items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "清空对话", Detail = "重置上下文", Value = "/clear" });
+        items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "历史搜索", Detail = "搜索对话记录", Value = "/history " });
+        items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "YOLO 模式", Detail = "跳过权限确认", Value = "/perm yolo" });
+        items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "/perm ask", Detail = "每次确认模式", Value = "/perm ask" });
+        items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "/perm auto", Detail = "首次后自动允许", Value = "/perm auto" });
+        items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "Diff 预览", Detail = "切换 diff 预览", Value = "/diff" });
 
         // ── 文件操作 ──
-        items.Add(new PromptItem { Kind = PromptKind.Slash, Label = "/edit", Detail = "编辑文件", Value = "/edit " });
-        items.Add(new PromptItem { Kind = PromptKind.Slash, Label = "/read", Detail = "读取文件", Value = "/read " });
-        items.Add(new PromptItem { Kind = PromptKind.Slash, Label = "/write", Detail = "写入文件", Value = "/write " });
+        items.Add(new PromptItem { Kind = EPromptKind.Slash, Label = "/edit", Detail = "编辑文件", Value = "/edit " });
+        items.Add(new PromptItem { Kind = EPromptKind.Slash, Label = "/read", Detail = "读取文件", Value = "/read " });
+        items.Add(new PromptItem { Kind = EPromptKind.Slash, Label = "/write", Detail = "写入文件", Value = "/write " });
 
         // ── 最近修改文件 ──
         if (ModifiedFiles.Count > 0)
         {
             foreach (var f in ModifiedFiles.Take(4))
-                items.Add(new PromptItem { Kind = PromptKind.File, Label = Path.GetFileName(f), Detail = "最近修改", Value = $"@\"{f}\" " });
+                items.Add(new PromptItem { Kind = EPromptKind.File, Label = Path.GetFileName(f), Detail = "最近修改", Value = $"@\"{f}\" " });
         }
 
         // ── Shell ──
-        items.Add(new PromptItem { Kind = PromptKind.Shell, Label = "dotnet build", Detail = "编译项目", Value = "!dotnet build" });
-        items.Add(new PromptItem { Kind = PromptKind.Shell, Label = "dotnet test", Detail = "运行测试", Value = "!dotnet test" });
-        items.Add(new PromptItem { Kind = PromptKind.Shell, Label = "git status", Detail = "查看状态", Value = "!git status" });
-        items.Add(new PromptItem { Kind = PromptKind.Shell, Label = "git diff", Detail = "查看变更", Value = "!git diff" });
+        items.Add(new PromptItem { Kind = EPromptKind.Shell, Label = "dotnet build", Detail = "编译项目", Value = "!dotnet build" });
+        items.Add(new PromptItem { Kind = EPromptKind.Shell, Label = "dotnet test", Detail = "运行测试", Value = "!dotnet test" });
+        items.Add(new PromptItem { Kind = EPromptKind.Shell, Label = "git status", Detail = "查看状态", Value = "!git status" });
+        items.Add(new PromptItem { Kind = EPromptKind.Shell, Label = "git diff", Detail = "查看变更", Value = "!git diff" });
 
         return items;
     }
@@ -595,7 +613,14 @@ public partial class ChatScreen : TuiScreen
             }
         }
 
-        // F1-F10 槽位切换已在 REPL 主循环（Program.Repl.cs）拦截处理，这里不再重复
+        // ── F1-F10 槽位切换 ──
+        if (key.Key >= ConsoleKey.F1 && key.Key <= ConsoleKey.F10)
+        {
+            int slot = key.Key - ConsoleKey.F1;
+            if (slot != ActiveSlotIndex)
+                SwitchToSlot(slot);
+            return true;
+        }
 
         return false;
     }
@@ -782,7 +807,7 @@ public partial class ChatScreen : TuiScreen
                         var label = (cmd.Usage ?? "/" + cmd.Name).TrimStart('/');
                         items.Add(new PromptItem
                         {
-                            Kind = PromptKind.Slash,
+                            Kind = EPromptKind.Slash,
                             Label = label,
                             Detail = cmd.Description,
                             Value = cmd.Name + " ",
@@ -816,7 +841,7 @@ public partial class ChatScreen : TuiScreen
                             if (Directory.Exists(entry)) display += "/";
                             items.Add(new PromptItem
                             {
-                                Kind = PromptKind.File,
+                                Kind = EPromptKind.File,
                                 Label = display,
                                 Detail = Directory.Exists(entry) ? "目录" : "文件",
                                 Value = "@" + display + " "
@@ -835,7 +860,7 @@ public partial class ChatScreen : TuiScreen
                     foreach (var f in ModifiedFiles.Take(5))
                     {
                         var name = Path.GetFileName(f);
-                        items.Add(new PromptItem { Kind = PromptKind.Recent, Label = name, Detail = "最近修改", Value = "@\"" + f + "\" " });
+                        items.Add(new PromptItem { Kind = EPromptKind.Recent, Label = name, Detail = "最近修改", Value = "@\"" + f + "\" " });
                     }
                 }
 
@@ -863,16 +888,16 @@ public partial class ChatScreen : TuiScreen
                 {
                     if (string.IsNullOrEmpty(q) ||
                         cmd.StartsWith(q, StringComparison.OrdinalIgnoreCase))
-                        items.Add(new PromptItem { Kind = PromptKind.Shell, Label = cmd, Detail = desc, Value = "!" + cmd });
+                        items.Add(new PromptItem { Kind = EPromptKind.Shell, Label = cmd, Detail = desc, Value = "!" + cmd });
                 }
 
                 break;
 
             case '#': // 标签/Issue/PR 引用
-                items.Add(new PromptItem { Kind = PromptKind.Command, Label = "#todo", Detail = "待办事项", Value = "#todo " });
-                items.Add(new PromptItem { Kind = PromptKind.Command, Label = "#fix", Detail = "修复", Value = "#fix " });
-                items.Add(new PromptItem { Kind = PromptKind.Command, Label = "#wip", Detail = "进行中", Value = "#wip " });
-                items.Add(new PromptItem { Kind = PromptKind.Command, Label = "#done", Detail = "已完成", Value = "#done " });
+                items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "#todo", Detail = "待办事项", Value = "#todo " });
+                items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "#fix", Detail = "修复", Value = "#fix " });
+                items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "#wip", Detail = "进行中", Value = "#wip " });
+                items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "#done", Detail = "已完成", Value = "#done " });
                 break;
         }
 

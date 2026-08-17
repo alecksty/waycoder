@@ -1,4 +1,6 @@
 ﻿using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
+
 namespace WayCoder.UI.Tui.Controls;
 
 /// <summary>
@@ -30,7 +32,7 @@ public class TuiSpinner : TuiControl
     public TuiSpinner(string label)
     {
         Label = label;
-        Width = TuiHelper.DisplayWidth(label) + 4;
+        Width = AnsiHelper.DisplayWidth(label) + 4;
         Height = 1;
     }
 
@@ -46,6 +48,6 @@ public class TuiSpinner : TuiControl
             ? $" {Frame} "
             : $"{Frame} {Label}";
         ControlRenderer.DrawLabelLine(sb, this, absX, absY,
-            display, HAlign.Left, TuiTheme.Current.SpinnerFg, 0);
+            display, EHAlign.Left, TuiTheme.Current.SpinnerFg, 0);
     }
 }

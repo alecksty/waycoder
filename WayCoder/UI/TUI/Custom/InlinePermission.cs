@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui;
 
@@ -120,8 +121,8 @@ public class InlinePermission : TuiControl
                 var before = detail[..(cmdIdx + 8)];
                 var cmd = detail[(cmdIdx + 8)..];
                 sb.Append("  ").Append(before)
-                  .Append(AnsiTty.Sgr(TuiColors.BrightGreen, WarnBg, 1))
-                  .Append(Truncate(cmd, w - 3 - TuiHelper.DisplayWidth(before)))
+                  .Append(AnsiTty.Sgr(AnsiColors.Green, WarnBg, 1))
+                  .Append(Truncate(cmd, w - 3 - AnsiHelper.DisplayWidth(before)))
                   .Append(AnsiTty.FgBg(BlackFg, WarnBg));
                 return;
             }
@@ -135,8 +136,8 @@ public class InlinePermission : TuiControl
                 var before = detail[..(pathIdx + 10)];
                 var path = detail[(pathIdx + 10)..];
                 sb.Append("  ").Append(before)
-                  .Append(AnsiTty.Sgr(TuiColors.BrightCyan, WarnBg, 1))
-                  .Append(Truncate(path, w - 3 - TuiHelper.DisplayWidth(before)))
+                  .Append(AnsiTty.Sgr(AnsiColors.Cyan, WarnBg, 1))
+                  .Append(Truncate(path, w - 3 - AnsiHelper.DisplayWidth(before)))
                   .Append(AnsiTty.FgBg(BlackFg, WarnBg));
                 return;
             }
@@ -184,7 +185,7 @@ public class InlinePermission : TuiControl
         return false;
     }
 
-    public override bool HandleMouse(InputEvent ev)
+    public override bool OnMouse(InputEvent ev)
     {
         if (IsResolved) return false;
         // 鼠标点击→允许（简化交互）
@@ -203,11 +204,11 @@ public class InlinePermission : TuiControl
     private static string Truncate(string text, int maxVw)
     {
         if (string.IsNullOrEmpty(text)) return "";
-        if (TuiHelper.DisplayWidth(text) <= maxVw) return text;
+        if (AnsiHelper.DisplayWidth(text) <= maxVw) return text;
         int vw = 0, chars = 0;
         foreach (var r in text.EnumerateRunes())
         {
-            int w = TuiHelper.RuneWidth(r);
+            int w = AnsiHelper.RuneWidth(r);
             if (vw + w + 2 > maxVw) break; // 预留 "…" 两列
             vw += w; chars += r.Utf16SequenceLength;
         }
@@ -224,7 +225,7 @@ public class InlinePermission : TuiControl
         sb.Append(text);
 
         // 填充到 Width
-        int vw = TuiHelper.DisplayWidth(text);
+        int vw = AnsiHelper.DisplayWidth(text);
         int remaining = Width - vw;
         if (remaining > 0)
             sb.Append(new string(pad, remaining));

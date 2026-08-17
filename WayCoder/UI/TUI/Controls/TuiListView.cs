@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using WayCoder.UI.TUI.Base;
 using Terminal = WayCoder.UI.Shared.Terminal;
 
 namespace WayCoder.UI.Tui.Controls;
@@ -181,7 +182,7 @@ public class TuiListView : TuiView
     /// <summary>
     /// 鼠标滚轮滚动列表（3 行/格）；鼠标左键选中项。
     /// </summary>
-    public override bool HandleMouse(InputEvent ev)
+    public override bool OnMouse(InputEvent ev)
     {
         if (ev.Type != InputType.Mouse) return false;
 
@@ -214,7 +215,7 @@ public class TuiListView : TuiView
             return true; // 在区域内消费事件
         }
 
-        return base.HandleMouse(ev);
+        return base.OnMouse(ev);
     }
 
     // ── 渲染 ──

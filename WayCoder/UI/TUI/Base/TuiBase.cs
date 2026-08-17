@@ -1,4 +1,6 @@
-namespace WayCoder.UI.Tui;
+using WayCoder.UI.Tui;
+
+namespace WayCoder.UI.TUI.Base;
 
 /// <summary>
 /// 界面元素统一基类 —— Screen、Window、View、Control 的共同根。
@@ -39,10 +41,14 @@ public abstract class TuiBase
     // ── 生命周期 ──
 
     /// <summary>元素创建/加入时调用。初始化子对象、订阅事件。</summary>
-    public virtual void OnCreate() { }
+    public virtual void OnCreate()
+    {
+    }
 
     /// <summary>元素销毁/移除时调用。取消订阅、释放资源。</summary>
-    public virtual void OnDestroy() { }
+    public virtual void OnDestroy()
+    {
+    }
 
     // ── 输入路由 ──
 
@@ -50,10 +56,12 @@ public abstract class TuiBase
     public virtual bool OnKey(ConsoleKeyInfo key) => false;
 
     /// <summary>鼠标事件。返回 true 表示已消费事件。</summary>
-    public virtual bool HandleMouse(InputEvent ev) => false;
+    public virtual bool OnMouse(InputEvent ev) => false;
 
     // ── 尺寸变化 ──
 
     /// <summary>容器/终端尺寸变化通知。</summary>
-    public virtual void OnResize(int newW, int newH) { }
+    public virtual void OnResize(int newW, int newH)
+    {
+    }
 }

@@ -1,3 +1,4 @@
+using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder;
