@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.71.10 (2026-08-17) — 输入控件代理对安全（光标移动/删除）
+
+继续清扫编辑原语层 UTF-16 代理对拆半问题：输入控件的光标移动与字符删除仍逐 `char` 操作，emoji/CJK 扩展 B 会拆半成 U+FFFD。
+
+### 🐛 输入控件
+
+- **`TuiInput` 光标移动拆半代理对**：`MoveCursorLeft`/`MoveCursorRight` 逐 `char` 前进/后退，光标会落在代理对中间；改为检测 `char.IsHighSurrogate(Text[i-1]) && char.IsLowSurrogate(Text[i])` 跳过中间码元
+- **`TuiInput` 删除拆半代理对**：`DeleteCharBefore`/`DeleteCharAfter` 固定删 1 个 `char`，退格/Delete 只删半个 emoji；改为按代理对边界算 `delLen`（1 或 2）
+- **`TuiTextArea` 光标移动拆半代理对**：`MoveCursorCol` 在 `Math.Clamp` 后仍可能落在代理对中间；改为检测边界后 `newCol += delta > 0 ? 1 : -1` 跳过
+- **`TuiTextArea` 删除拆半代理对**：`DeleteCharBefore`/`DeleteCharAfter` 固定删 1 个 `char`；改为按代理对边界算 `delLen`
+- **`TuiChatInput` 光标移动/删除拆半代理对**：`MoveLeft`/`MoveRight`/`Backspace`/`DeleteFwd` 同样逐 `char` 操作；改为 `char.IsHighSurrogate`/`char.IsLowSurrogate` 边界检测（`private static` 原语，与 `EditorCore.MoveCursor` 已正确的代理对跳过模式一致）
+
+### ✅ 测试
+
+新增 `TestV0710EditPrimitives`（8 项断言）：TuiInput/TuiTextArea 左右移动跳过代理对中间、退格/Delete 整删 emoji 不产生 `�`。测试总数 3212 → 3220。
+
 ## v0.71.9 (2026-08-17) — 全仓 UTF-16 代理对截断清扫 + ANSI/JPEG/边框 确定性修复
 
 继续清扫全仓字符串截断与 UI 渲染边界，修复约 30 个确定性 bug，补齐单元测试。
