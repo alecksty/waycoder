@@ -151,15 +151,17 @@ public class EditFileTool : ITool
                     newContent = DiffPreview.ApplyAccepted(content, DiffPreview.BuildHunks(content, newContent), accepted);
             }
 
+            // 生成 diff 与记录变更须在恢复 CRLF 前（此时 content/newContent 都是 LF，行尾一致，
+            // 否则逐行比较 LF vs CRLF 会把整文件误判为改动）
+            var diff = UnifiedDiff(content, newContent, filePath);
+            RecordChange(path, content, newContent);
+
             // CRLF 行尾保留：先归一化为 LF 再统一转 CRLF，避免把已有 \r\n 二次转成 \r\r\n
             if (hasCrlf)
                 newContent = newContent.Replace("\r\n", "\n").Replace("\n", "\r\n");
 
             File.WriteAllText(path, newContent, Encoding.UTF8);
-            RecordChange(path, content, newContent);
             FileTracker.RecordWrite(path);
-
-            var diff = UnifiedDiff(content, newContent, path);
             var replacedMsg = replaceAll && occurrences > 1
                 ? $"（{occurrences} 处替换）"
                 : "";

@@ -267,6 +267,11 @@ public static partial class SelfTest
         Check("Jpeg 非对齐近蓝", (jp2 & 0xFF) > 190 && ((jp2 >> 16) & 0xFF) < 70);
         bool jpegThrew = false; try { JpegCodec.Decode(new byte[] { 1, 2, 3, 4 }); } catch { jpegThrew = true; }
         Check("Jpeg 垃圾数据报错", jpegThrew);
+        // 编码尺寸守卫：超 65535 宽 / 超大像素数须拒绝（防 SOF0 ushort 静默截断与整数溢出）
+        bool jpegWideThrew = false; try { JpegCodec.Encode(new RasterImage(65536, 1, new byte[65536 * 4])); } catch (ArgumentException) { jpegWideThrew = true; }
+        Check("Jpeg 宽>65535 拒绝", jpegWideThrew);
+        bool pngBigThrew = false; try { PngEncoder.Encode(6000, 6000, new byte[0]); } catch (ArgumentException) { pngBigThrew = true; }
+        Check("Png 超大尺寸拒绝", pngBigThrew);
         Console.WriteLine();
 
         // ── 图片加载（魔数探测 + 解码/编码）──
