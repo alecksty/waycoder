@@ -209,8 +209,8 @@ public static class JpegCodec
         int width = 0, height = 0;
         var comps = new List<JpegComponent>();
         var qt = new List<byte[]>();
-        var dcTables = new HuffDecoder?[4];
-        var acTables = new HuffDecoder?[4];
+        var dcTables = new HuffDecoder?[16];
+        var acTables = new HuffDecoder?[16];
         byte[]? entropy = null;
         int maxH = 1, maxV = 1;
 

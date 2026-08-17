@@ -261,7 +261,7 @@ public static class StructuredMemory
 
             // 加入正文摘要
             var contentPreview = entry.Content.Length > 200
-                ? entry.Content[..200] + "..."
+                ? ContextManager.TruncateByRunes(entry.Content, 200) + "..."
                 : entry.Content;
             if (totalChars + contentPreview.Length + 10 <= maxChars)
             {
@@ -371,7 +371,7 @@ public static class StructuredMemory
         var s = result.ToString().Trim('-');
         // 压缩连续的连字符
         while (s.Contains("--")) s = s.Replace("--", "-");
-        return s.Length > 64 ? s[..64].TrimEnd('-') : s;
+        return s.Length > 64 ? ContextManager.TruncateByRunes(s, 64).TrimEnd('-') : s;
     }
 
     /// <summary>规范化类型</summary>

@@ -38,7 +38,6 @@ public class AgentSlot
     public int InputCursorRow, InputCursorCol;
     public string StatusLeft = "";
     public string StatusRight = "";
-    public string TokenInfo = "";
     public string? GitBranch;
     public List<string> RecentFiles { get; } = [];
     public bool SidePanelVisible;
@@ -131,7 +130,6 @@ public class AgentSlot
         InputCursorCol = screen.InputArea.CursorCol;
         StatusLeft = screen.StatusLeft;
         StatusRight = screen.StatusRight;
-        TokenInfo = screen.StatusRight;
         GitBranch = screen.GitBranch;
         RecentFiles.Clear();
         RecentFiles.AddRange(screen.RecentFiles);

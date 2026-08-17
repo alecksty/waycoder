@@ -1,5 +1,35 @@
 # 更新日志
 
+## v0.71.9 (2026-08-17) — 全仓 UTF-16 代理对截断清扫 + ANSI/JPEG/边框 确定性修复
+
+继续清扫全仓字符串截断与 UI 渲染边界，修复约 30 个确定性 bug，补齐单元测试。
+
+### 🐛 UTF-16 代理对截断（续）
+
+任意索引 `[..N]`/`[^N..]`/`Substring` 切片在 emoji/CJK 扩展 B 处拆半代理对产生 U+FFFD。本轮把 Program 层（Commands/Repl/Output）、Watch 模式、文件操作工具（ReadFile/EditFile/MultiEdit/Lint/FindReplace/Agent）、记忆与会话（StructuredMemory/SessionManager/MemoryRetrieval/ProjectContext）等约 23 处切片统一改为 `ContextManager.TruncateByRunes`/`TruncateTailByRunes`。
+
+### 🐛 LSP 客户端
+
+- **JSON-RPC `Content-Length` 按字符数而非字节数**：`ReadResponse` 逐字符读正文，多字节 UTF-8（中文/emoji）内容长度错位导致粘包/丢包；改为从 `BaseStream` 按字节读头 + 正文，`Encoding.UTF8.GetString` 解码
+- **`initialized` 通知后误读响应**：`initialized` 是单向通知、无响应体，却 `await ReadResponse` 阻塞到超时；移除该次读取
+- **参数拼接 + 跨平台路径**：`string.Join(" ", args)` 遇含空格路径被拆散，改用 `ArgumentList` 逐参数；`file://` URI 改用 `new Uri(Path.GetFullPath()).AbsoluteUri` 跨平台
+
+### 🐛 渲染 / 终端
+
+- **`AnsiString.Strip`/`TruncateByWidth` CSI 终止符只认 `m/H/J/K`**：`\x1b[?25l`（隐藏光标）等序列未在 `m/H/J/K` 终止，把后续真实文本一并吞掉；改为按 CSI 最终字节区间 0x40–0x7E 判定，并跳过 `ESC[` 引入符
+- **`BoxBuffer` 负宽度崩溃**：`new string(h[0], Width - 2)` 在 `Width < 2` 时抛 `ArgumentOutOfRangeException`；改为 `Math.Max(0, Width - 2)`
+- **`BoxBuffer` 省略号 off-by-one**：`TruncateByVW(text, maxLen-1) + "…"` 未预留「…」两列，改为 `maxLen-2`
+- **双省略号**：`TuiHelper.TruncateByWidth` 已自带省略号，`TuiToastQueue`/`TuiDynamicBar` 又 `+ "…"` 产生「……」；去掉多余省略号
+- **省略号未预留宽度**：`InlinePermission`/`SessionPicker`/`DiffPreview` 私有 `TruncateByVW` 追加「…」但不预留两列，改为先判 `DisplayWidth` 快速返回 + 循环预留 2 列
+- **`TuiRichEditor` 宽度判据 `>127`**：重音字符（é/ñ）被判为宽字符，改用 `TuiHelper.DisplayWidth`（委托 `AnsiString.CharWidth` 唯一真源）
+
+### 🐛 图像解码 / 配置 / 杂项
+
+- **`JpegCodec` DHT 表越界**：`dcTables`/`acTables` 长度 4，但 DHT 表 id 字段 0–15，构造表 id≥4 的 JPEG 触发 `IndexOutOfRangeException`；扩到 16
+- **`--max-requeue` 配置丢失**：命令行参数在 `_config = Config.FromEnv()` 之前写入 `_config` 字段、随后被单例覆盖；改为先解析为局部变量、在 `FromEnv()` 后落回 `Config.Instance`
+- **`LLM` Retry-After 整数溢出**：`seconds * 1000` 用 `int` 相乘溢出，改为 `long` 中间量后钳制
+- **`ProjectContext` `.git` 仅识别目录**：worktree/submodule 的 `.git` 是文件而非目录，漏检版本库；同时识别 `File.Exists`
+
 ## v0.71.8 (2026-08-17) — 工具/TUI/UTF-16 代理对 26 项确定性修复
 
 系统性审查工具、TUI 控件、基础设施与全仓字符串截断，修复 26 个确定性 bug，补齐单元测试。
@@ -39,7 +69,7 @@
 
 - **`SharedMemoryManager` 快照目录与检出目标不一致**：拉取前快照用 `MemoryDir`（槽位子目录）、检出目标却是共享目录，导致新增文件误判为「更新」；快照统一用 `SharedMemoryDir`
 
-
+## v0.71.7 (2026-08-17) — 基础设施/文件工具/会话/批处理/编辑器 21 项修复
 
 系统性审查基础设施、文件操作工具、会话/辅助模式、批处理与 TUI 编辑器，修复 21 个确定性 bug，补齐单元测试。
 

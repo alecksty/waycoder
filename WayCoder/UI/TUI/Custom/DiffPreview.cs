@@ -955,11 +955,12 @@ public static class DiffPreview
     private static string TruncateByVW(string text, int maxVW)
     {
         if (string.IsNullOrEmpty(text)) return "";
+        if (TuiHelper.DisplayWidth(text) <= maxVW) return text;
         int vw = 0, chars = 0;
         foreach (var rune in text.EnumerateRunes())
         {
             var w = TuiHelper.RuneWidth(rune);
-            if (vw + w > maxVW) break;
+            if (vw + w + 2 > maxVW) break; // 预留 "…" 两列
             vw += w; chars += rune.Utf16SequenceLength;
         }
         return chars == text.Length ? text : text[..chars] + "…";

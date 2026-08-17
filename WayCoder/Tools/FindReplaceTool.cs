@@ -159,7 +159,7 @@ public class FindReplaceTool : ITool
 
             var result = sb.ToString();
             if (result.Length > 15_000)
-                result = result[..10_000] + $"\n... (已截断，共 {result.Length} 字符) ...\n" + result[^3000..];
+                result = ContextManager.TruncateByRunes(result, 10_000) + $"\n... (已截断，共 {result.Length} 字符) ...\n" + ContextManager.TruncateTailByRunes(result, 3000);
 
             return result.TrimEnd();
         }

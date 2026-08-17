@@ -355,7 +355,7 @@ public class MultiEditTool : ITool
 
         var result = sb.ToString();
         if (result.Length > 3000)
-            result = result[..2500] + "\n...（diff 已截断）\n";
+            result = ContextManager.TruncateByRunes(result, 2500) + "\n...（diff 已截断）\n";
 
         return result;
     }
@@ -399,7 +399,7 @@ public class MultiEditTool : ITool
     // ========================================================================
 
     private static string Truncate(string s, int maxLen) =>
-        s.Length > maxLen ? s[..maxLen] + "..." : s;
+        s.Length > maxLen ? ContextManager.TruncateByRunes(s, maxLen) + "..." : s;
 
     private static int CountLines(string s) =>
         string.IsNullOrEmpty(s) ? 1 : s.Split('\n').Length;

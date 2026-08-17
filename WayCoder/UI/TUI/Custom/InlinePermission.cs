@@ -203,11 +203,12 @@ public class InlinePermission : TuiControl
     private static string Truncate(string text, int maxVw)
     {
         if (string.IsNullOrEmpty(text)) return "";
+        if (TuiHelper.DisplayWidth(text) <= maxVw) return text;
         int vw = 0, chars = 0;
         foreach (var r in text.EnumerateRunes())
         {
             int w = TuiHelper.RuneWidth(r);
-            if (vw + w > maxVw) break;
+            if (vw + w + 2 > maxVw) break; // 预留 "…" 两列
             vw += w; chars += r.Utf16SequenceLength;
         }
         return chars >= text.Length ? text : text[..chars] + "…";

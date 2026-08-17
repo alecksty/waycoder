@@ -32,7 +32,7 @@ public static class AnsiString
             if (span[i] == AnsiCharPrefix && i + 1 < span.Length && span[i + 1] == AnsiCharEscape)
             {
                 i += 2;
-                while (i < span.Length && span[i] != 'm' && span[i] != 'H' && span[i] != 'J' && span[i] != 'K')
+                while (i < span.Length && (span[i] < 0x40 || span[i] > 0x7E))
                     i++;
                 continue;
             }
@@ -67,8 +67,8 @@ public static class AnsiString
         {
             if (text[i] == AnsiCharPrefix && i + 1 < text.Length && text[i + 1] == AnsiCharEscape)
             {
-                int j = i;
-                while (j < text.Length && text[j] != 'm' && text[j] != 'H' && text[j] != 'J' && text[j] != 'K') j++;
+                int j = i + 2; // 跳过 ESC 与 '[' 引入符，避免把 '['（0x5B）误判为终止符
+                while (j < text.Length && (text[j] < 0x40 || text[j] > 0x7E)) j++;
                 // 无终止符时钳制到 text.Length，防 j+1 越界（如 "\x1b[" 末尾悬空）
                 int end = j < text.Length ? j + 1 : j;
                 sb.Append(text[i..end]);

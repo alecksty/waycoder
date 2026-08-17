@@ -48,7 +48,7 @@ public static class ReviewMode
                 sb.AppendLine();
                 sb.AppendLine("```diff");
                 if (diff.Length > maxDiff)
-                    sb.AppendLine(diff[..maxDiff] + $"\n... (diff 已截断，共 {diff.Length} 字符)");
+                    sb.AppendLine(ContextManager.TruncateByRunes(diff, maxDiff) + $"\n... (diff 已截断，共 {diff.Length} 字符)");
                 else
                     sb.AppendLine(diff);
                 sb.AppendLine("```");
@@ -88,7 +88,7 @@ public static class ReviewMode
                     {
                         var content = File.ReadAllText(f);
                         if (content.Length > 1500)
-                            content = content[..1500] + $"\n... (共 {content.Length} 字符)";
+                            content = ContextManager.TruncateByRunes(content, 1500) + $"\n... (共 {content.Length} 字符)";
                         sb.AppendLine(content);
                     }
                     catch { sb.AppendLine($"(无法读取)"); }

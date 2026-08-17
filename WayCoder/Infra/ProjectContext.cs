@@ -31,7 +31,7 @@ public static class ProjectContext
                 sb.AppendLine($"\n## {relative}\n");
                 // 截断过长文件
                 if (content.Length > 4000)
-                    sb.AppendLine(content[..4000] + "\n\n... (已截断)");
+                    sb.AppendLine(ContextManager.TruncateByRunes(content, 4000) + "\n\n... (已截断)");
                 else
                     sb.AppendLine(content);
             }
@@ -113,8 +113,9 @@ public static class ProjectContext
 
         while (true)
         {
-            // 检测项目标志文件
-            if (File.Exists(Path.Combine(current, ".git"))
+            // 检测项目标志文件（.git 在普通仓库是目录、在 worktree/submodule 是文件，需两者都判）
+            if (Directory.Exists(Path.Combine(current, ".git"))
+                || File.Exists(Path.Combine(current, ".git"))
                 || File.Exists(Path.Combine(current, "package.json"))
                 || File.Exists(Path.Combine(current, "go.mod"))
                 || File.Exists(Path.Combine(current, "Cargo.toml"))

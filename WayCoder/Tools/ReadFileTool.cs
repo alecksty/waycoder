@@ -337,7 +337,7 @@ public class ReadFileTool : ITool
         {
             var line = chunk[i].TrimEnd('\r');
             if (line.Length > MaxLineLength)
-                line = line[..MaxLineLength] + "...";
+                line = ContextManager.TruncateByRunes(line, MaxLineLength) + "...";
             var numStr = (start + i + 1).ToString().PadLeft(lineNumWidth);
             sb.AppendLine($"{numStr}|{line}");
         }
@@ -530,7 +530,7 @@ public class ReadFileTool : ITool
         html = html.Trim();
 
         if (html.Length > 10_000)
-            html = html[..10_000] + $"\n...(截断于 10,000 字符，原始 {info.Length:N0} 字节)";
+            html = ContextManager.TruncateByRunes(html, 10_000) + $"\n...(截断于 10,000 字符，原始 {info.Length:N0} 字节)";
 
         var sb = new StringBuilder();
         sb.AppendLine("<html>");

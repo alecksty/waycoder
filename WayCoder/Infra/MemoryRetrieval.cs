@@ -101,7 +101,7 @@ public static class MemoryRetrieval
         foreach (var item in list)
         {
             var brief = item.Description;
-            if (brief.Length > 200) brief = brief[..200] + "...";
+            if (brief.Length > 200) brief = ContextManager.TruncateByRunes(brief, 200) + "...";
             lines.Add($"- **{item.Name}** ({item.Type}): {brief}");
         }
         lines.Add("");
@@ -150,7 +150,7 @@ public static class MemoryRetrieval
         return new MemoryItem(
             Name: name,
             Description: description,
-            Content: body.Length > 500 ? body[..500] + "..." : body,
+            Content: body.Length > 500 ? ContextManager.TruncateByRunes(body, 500) + "..." : body,
             Type: type,
             UpdatedAt: File.GetLastWriteTimeUtc(path)
         );

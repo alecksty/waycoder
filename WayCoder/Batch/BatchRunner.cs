@@ -263,7 +263,7 @@ public sealed class BatchRunner
     {
         if (string.IsNullOrEmpty(text)) return "";
         if (text.Length <= max) return text;
-        return "...（截断）\n" + text[^max..];
+        return "...（截断）\n" + ContextManager.TruncateTailByRunes(text, max);
     }
 
     static void WriteReportFile(string root, BatchReport report)

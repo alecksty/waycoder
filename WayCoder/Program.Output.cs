@@ -161,7 +161,7 @@ public partial class Program
             {
                 StopSpinner();
                 Console.WriteLine(); // 结束上一行流式输出
-                var shortBrief = brief.Length > 60 ? brief[..57] + "..." : brief;
+                var shortBrief = brief.Length > 60 ? ContextManager.TruncateByRunes(brief, 57) + "..." : brief;
                 MarkupLine($"  «dim»⚙ {E(name)}({E(shortBrief)})«/»");
             },
             onToolOutput: line =>

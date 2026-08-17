@@ -126,6 +126,7 @@ public static partial class SelfTest
         TestWebUpload(Check);        // Web 多模态上传：ParseUploadKind/SafeExtension/IsTranscribeError + 二进制正文
         TestP0P2Hardening(Check);      // P0-P2 批次：命令注入/RCE/权限绕过/整数溢出/越界 修复
         TestV0718RuneHardening(Check); // v0.71.8 批次：UTF-16 代理对截断 + BMP int.MinValue + LogMetrics 缩容
+        TestV0719RuneHardening(Check); // v0.71.9 批次：ANSI CSI 终止符 + BoxBuffer 负宽度 + 双省略号/宽度预留
         Console.WriteLine();
 
         // ---- 工具 ----
