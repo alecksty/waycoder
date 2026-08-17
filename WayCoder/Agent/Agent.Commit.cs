@@ -185,7 +185,7 @@ public partial class Agent
         if (activeScreen == null)
             return true; // 非交互环境自动批准
 
-        var summary = plan.Length > 160 ? plan[..160] + "…" : plan;
+        var summary = plan.Length > 160 ? ContextManager.TruncateByRunes(plan, 160) + "…" : plan;
         return activeScreen.ShowPlanApproval(summary, plan);
     }
 

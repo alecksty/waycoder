@@ -417,13 +417,16 @@ public class LLM
         // 注意：CallWithRetryAsync 对 4xx 是「返回响应」而非抛异常（其抛出的 HttpRequestException
         // 也不带 StatusCode），故必须在返回后检查状态码再回退——此前 catch-when(StatusCode==BadRequest)
         // 永远不会命中，是死代码，导致 400 被当成 SSE 流解析、静默返回空响应。
-        var response = await CallWithRetryAsync(() => CreateAuthRequest(body), cancellationToken);
-        if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+        var resp = await CallWithRetryAsync(() => CreateAuthRequest(body), cancellationToken);
+        if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest)
         {
-            response.Dispose();
+            // 400 回退：释放旧响应，重试一次（重试后由下方 using 声明统一释放）
+            resp.Dispose();
             body = BuildBody(includeStreamOptions: false);
-            response = await CallWithRetryAsync(() => CreateAuthRequest(body), cancellationToken);
+            resp = await CallWithRetryAsync(() => CreateAuthRequest(body), cancellationToken);
         }
+        // using 声明只读，不能重新赋值，故上面用普通变量 resp 重试，此处捕获最终响应统一释放
+        using var response = resp;
 
         var contentParts = new List<string>();
         var tcMap = new Dictionary<int, (string Id, string Name, string Args)>();

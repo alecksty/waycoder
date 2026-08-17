@@ -4359,6 +4359,16 @@ public static partial class SelfTest
         Check("MoveCursor 下移不落代理对中间", emojiDown.Cy == 1 && emojiDown.Cx == 0);
     }
 
+    /// <summary>v0.71.24 批次：Syntax.Tokenize 代理对成对 token（不切半）。</summary>
+    private static void TestV0724SyntaxSurrogate(Action<string, bool> Check)
+    {
+        // ── Syntax.Tokenize 逐 char 兜底分支把 emoji/CJK 扩展 B 切成两个孤立代理 token ──
+        var syn = WayCoder.UI.Tui.Edit.Syntax.ForFile("test.cs");
+        var tokens = syn.Tokenize("a\U0001F600b"); // "a😀b"：😀 落「其他字符」分支
+        Check("Syntax: 代理对成对 token 不切半", tokens.Any(t => t.Text == "\U0001F600"));
+        Check("Syntax: 无孤立代理项", !tokens.Any(t => HasLoneSurrogate(t.Text)));
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {
