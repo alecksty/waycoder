@@ -118,7 +118,7 @@ public partial class Agent
                     var firstFile = fileList.Split(',')[0].Trim();
                     msg = "chore: update " + firstFile;
                 }
-                return msg.Length > 72 ? msg[..72] : msg;
+                return msg.Length > 72 ? ContextManager.TruncateByRunes(msg, 72) : msg;
             }) ?? "";
         }
         catch { return ""; }

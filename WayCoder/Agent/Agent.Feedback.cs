@@ -49,7 +49,7 @@ public partial class Agent
 
             // 截断过长输出
             if (lintResult.Length > 1500)
-                lintResult = lintResult[..1500] + "\n... (已截断)";
+                lintResult = ContextManager.TruncateByRunes(lintResult, 1500) + "\n... (已截断)";
 
             return toolResult + $"\n\n--- Lint 自动检查 ({lang}) ---\n{lintResult}";
         }
@@ -129,7 +129,7 @@ public partial class Agent
 
             // 截断
             if (fullOutput.Length > 2000)
-                fullOutput = fullOutput[..2000] + $"\n... (共 {fullOutput.Length} 字符)";
+                fullOutput = ContextManager.TruncateByRunes(fullOutput, 2000) + $"\n... (共 {fullOutput.Length} 字符)";
 
             return toolResult + $"\n\n--- 🔴 自动测试失败 (exit={proc.ExitCode}) ---\n{fullOutput}\n[请修复代码使测试通过]";
         }

@@ -133,6 +133,7 @@ public static partial class SelfTest
         TestV0713CtsLifecycle(Check);         // v0.71.13 批次：AgentSlot.Cts 原子摘除（Interlocked.Exchange 恰好一个取到非 null）
         TestV0714RetryAfter(Check);           // v0.71.14 批次：Retry-After 头解析负数/非法值回退
         TestV0715CompressIndicator(Check);    // v0.71.15 批次：压缩界面指示（Web compress 事件载荷 + CompressFinished 事件）
+        TestV0716RuneSafeTruncation(Check);   // v0.71.16 批次：6 处 UTF-16 原始切片改走 TruncateByRunes（代理对切半修复）
         Console.WriteLine();
 
         // ---- 工具 ----
