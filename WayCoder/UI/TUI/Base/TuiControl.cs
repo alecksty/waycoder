@@ -133,6 +133,33 @@ public abstract class TuiControl : TuiBase
     /// <summary>默认背景色（ANSI 色码，0=透明/继承）</summary>
     public int Bg { get; set; } = 0;
 
+    // ── 文字特征 ──
+    /// <summary>文字加粗（SGR 1）</summary>
+    public bool Bold { get; set; }
+
+    /// <summary>文字淡色（SGR 2）</summary>
+    public bool Dim { get; set; }
+
+    /// <summary>文字斜体（SGR 3）</summary>
+    public bool Italic { get; set; }
+
+    /// <summary>文字下划线（SGR 4）</summary>
+    public bool Underline { get; set; }
+
+    /// <summary>文字样式 SGR 前缀（无样式返回空串），供渲染器叠加到 fg/bg 之前。</summary>
+    public string SgrStyle
+    {
+        get
+        {
+            var codes = new List<int>();
+            if (Bold) codes.Add(1);
+            if (Dim) codes.Add(2);
+            if (Italic) codes.Add(3);
+            if (Underline) codes.Add(4);
+            return codes.Count > 0 ? AnsiTty.Sgr(codes.ToArray()) : "";
+        }
+    }
+
     /// <summary>获得焦点时的前景色（0=使用 Fg）</summary>
     public int FocusedFg { get; set; }
 

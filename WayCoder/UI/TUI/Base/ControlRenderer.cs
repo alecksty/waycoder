@@ -107,11 +107,22 @@ public static class ControlRenderer
     /// 绘制单行文本到 Screen StringBuilder。
     /// 这是最底层的绘制调用——所有简单控件都用它。
     /// </summary>
-    public static void DrawLine(StringBuilder sb, int absRow, int absCol, string text, int fg, int bg)
+    public static void DrawLine(StringBuilder sb, int absRow, int absCol, string text, int fg, int bg, string? style = null)
     {
-        var rb = new RenderBuffer();
-        rb.Write(absRow, absCol, text, fg: fg, bg: bg);
-        sb.Append(rb.ToString());
+        if (string.IsNullOrEmpty(style))
+        {
+            var rb = new RenderBuffer();
+            rb.Write(absRow, absCol, text, fg: fg, bg: bg);
+            sb.Append(rb.ToString());
+            return;
+        }
+
+        // 带文字样式（粗体/斜体/下划线/淡色）：定位 → 样式 → 颜色 → 文本 → 复位
+        sb.Append(AnsiTty.CursorPos0(absRow, absCol));
+        sb.Append(style);
+        if (fg > 0 || bg > 0) sb.Append(AnsiTty.FgBgCode(fg, bg));
+        sb.Append(text);
+        sb.Append(AnsiTty.SgrReset);
     }
 
     /// <summary>
@@ -126,7 +137,7 @@ public static class ControlRenderer
         int bg = ResolveBg(c, themeBg, themeFocusBg);
 
         var display = FormatAligned(text, c.Width, align);
-        DrawLine(sb, absY, absX, display, fg, bg);
+        DrawLine(sb, absY, absX, display, fg, bg, c.SgrStyle.Length > 0 ? c.SgrStyle : null);
     }
 
     /// <summary>
@@ -179,7 +190,7 @@ public static class ControlRenderer
         int fg = ResolveStaticFg(c, themeFg);
         int bg = ResolveStaticBg(c, themeBg);
         var display = FormatAligned(text, c.Width, align);
-        DrawLine(sb, absY, absX, display, fg, bg);
+        DrawLine(sb, absY, absX, display, fg, bg, c.SgrStyle.Length > 0 ? c.SgrStyle : null);
     }
 
     /// <summary>
