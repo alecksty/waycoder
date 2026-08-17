@@ -11,9 +11,9 @@ public static class Global
     /// <summary>应用中文名</summary>
     public const string AppNameCN = "道码";
     /// <summary>应用全称</summary>
-    public const string AppFullName = "WayCoder 道码 通用编程智能体";
+    public const string AppFullName = "WayCoder 道码·通用编程智能体";
     /// <summary>版本号</summary>
-    public const string Version = "v0.71.30";
+    public const string Version = "v0.71.31";
     /// <summary>应用名 + 版本号</summary>
     public static string AppNameVersion => $"{AppName} {Version} ({AppNameCN})";
 
@@ -23,11 +23,11 @@ public static class Global
     /// <summary>开发者</summary>
     public const string Developer = "施探宇 (aleck)";
     /// <summary>开发者邮箱</summary>
-    public const string Email = "aleckstygit@outlook.com";
+    public const string Email = "alecksty@163.com";
     /// <summary>联系电话</summary>
-    public const string Phone = "+86 138-xxxx-xxxx";
+    public const string Phone = "+86 186-8039-9436";
     /// <summary>地址</summary>
-    public const string Address = "中国 · 天津";
+    public const string Address = "中国 · 深圳";
 
     // ── 仓库 ──
     /// <summary>Git 仓库地址</summary>
@@ -38,11 +38,10 @@ public static class Global
     // ── 配置目录 ──
     /// <summary>当前配置目录名</summary>
     public const string ConfigDirName = ".waycoder";
-    /// <summary>旧配置目录名（向后兼容只读）</summary>
-    public const string LegacyConfigDirName = ".corecoder";
+    
 
     /// <summary>搜索顺序：新目录优先，旧目录回退</summary>
-    public static string[] ConfigDirSearchOrder => [ConfigDirName, LegacyConfigDirName];
+    public static string[] ConfigDirSearchOrder => [ConfigDirName];
 
     /// <summary>全局配置路径（~/。waycoder/...）</summary>
     public static string GlobalConfigPath(params string[] segments)

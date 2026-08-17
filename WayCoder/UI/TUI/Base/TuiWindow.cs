@@ -1,7 +1,8 @@
-using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
+using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.Tui;
 
-namespace WayCoder.UI.Tui;
+namespace WayCoder.UI.TUI.Base;
 
 /// <summary>
 /// 窗口 —— 带边框的浮层矩形区域，可模态/非模态，包含控件树。
@@ -28,12 +29,6 @@ public class TuiWindow : TuiBase
     /// <summary>是否显示标题栏。即使有标题文本，设为 false 也不显示标题栏。</summary>
     public bool ShowTitle { get; set; } = true;
 
-    /// <summary>是否在标题栏下方绘制分隔线（默认 true；对话框通常设为 false）</summary>
-    public bool ShowTitleSeparator { get; set; } = true;
-
-    /// <summary>标题文字是否粗体</summary>
-    public bool TitleBold { get; set; }
-
     // ── 焦点状态 ──
 
     /// <summary>窗口是否拥有焦点。影响边框渲染颜色。</summary>
@@ -42,6 +37,7 @@ public class TuiWindow : TuiBase
     // ── 模态与遮罩 ──
     /// <summary>是否为模态窗口（阻塞下层输入）</summary>
     public bool Modal { get; set; }
+
     /// <summary>是否显示半透明遮罩覆盖下层</summary>
     public bool HasMask { get; set; }
 
@@ -55,13 +51,14 @@ public class TuiWindow : TuiBase
     /// 无边框时内容区域 = 窗口区域，无标题栏。
     /// </summary>
     public WindowBorder Border { get; set; } = WindowBorder.Rounded;
+
     /// <summary>边框颜色（ANSI 色码）。聚焦时自动加亮。默认读主题。</summary>
     public int BorderColor { get; set; } = TuiTheme.Current.WindowBorderFocused;
 
     /// <summary>失焦时边框颜色（0=自动使用 BorderColor 暗色版）</summary>
     public int UnfocusedBorderColor { get; set; }
 
-    public string CustomBorder { get; set; } = "";  // 6 字符自定义边框
+    public string CustomBorder { get; set; } = ""; // 6 字符自定义边框
 
     // ── 渐变边框 ──
     /// <summary>是否启用渐变色边框（仅为 TrueColor ≥0x1000000 时生效）</summary>
@@ -79,14 +76,19 @@ public class TuiWindow : TuiBase
 
     /// <summary>标题前景色（0=使用边框色）</summary>
     public int TitleFg { get; set; }
+
     /// <summary>标题背景色（0=透明）</summary>
     public int TitleBg { get; set; }
+
     /// <summary>内容前景色（默认读主题控件前景色）</summary>
     public int ContentFg { get; set; } = TuiTheme.Current.ControlFg;
+
     /// <summary>选项前景色</summary>
     public int ItemFg { get; set; }
+
     /// <summary>选中项前景/背景色（默认读主题列表选中态）</summary>
     public int SelFg { get; set; } = TuiTheme.Current.ListSelFg;
+
     public int SelBg { get; set; } = TuiTheme.Current.ListSelBg;
 
     // ── 控件树 ──
@@ -149,7 +151,7 @@ public class TuiWindow : TuiBase
     // ── 边框字符解析 ──
     public (string tl, string tr, string bl, string br, string h, string v, string hTop, string hBot) GetBorderChars()
     {
-        var bc = TuiHelper.GetBorderChars(Border);
+        var bc = AnsiHelper.GetBorderChars(Border);
         return (bc.TL, bc.TR, bc.BL, bc.BR, bc.H, bc.V, bc.HT, bc.HB);
     }
 
@@ -161,18 +163,25 @@ public class TuiWindow : TuiBase
 
     /// <summary>内容可绘制区域左边界（不含边框）</summary>
     public int ContentLeft => Border == WindowBorder.None ? X : X + 1;
+
     /// <summary>内容可绘制区域上边界（不含边框，不含标题栏）</summary>
     public int ContentTop
     {
         get
         {
-            if (Border == WindowBorder.None) return Y;
+            if (Border == WindowBorder.None)
+            {
+                return Y;
+            }
+
             // 标题栏有分隔线或粗体独占一行时才下移；否则标题与上边框同行
-            return ShowTitle && !string.IsNullOrEmpty(Title) && (ShowTitleSeparator || TitleBold) ? Y + 2 : Y + 1;
+            return ShowTitle && !string.IsNullOrEmpty(Title) ? Y + 1 : Y;
         }
     }
+
     /// <summary>内容可绘制区域宽度（不含边框）</summary>
-    public int ContentWidth  => Border == WindowBorder.None ? Width : Width - 2;
+    public int ContentWidth => Border == WindowBorder.None ? Width : Width - 2;
+
     /// <summary>内容可绘制区域高度（不含边框和标题栏）</summary>
     public int ContentHeight
     {
@@ -181,16 +190,20 @@ public class TuiWindow : TuiBase
             if (Border == WindowBorder.None) return Height;
             var h = Height - 2; // 上下边框
             // 标题栏有分隔线或粗体独占一行时才扣除标题行高度
-            if (ShowTitle && !string.IsNullOrEmpty(Title) && (ShowTitleSeparator || TitleBold)) h -= 1;
+            if (ShowTitle && !string.IsNullOrEmpty(Title))
+            {
+                h -= 1;
+            }
+
             return Math.Max(0, h);
         }
     }
 
     /// <summary>窗口水平停靠位置。Stretch=不自动定位（手动），Left/Center/Right=自动对齐。</summary>
-    public HAlign WindowHAlign { get; set; } = HAlign.Center;
+    public EHAlign WindowHAlign { get; set; } = EHAlign.Center;
 
     /// <summary>窗口垂直停靠位置。Stretch=不自动定位（手动），Top/Middle/Bottom=自动对齐。</summary>
-    public VAlign WindowVAlign { get; set; } = VAlign.Middle;
+    public EVAlign WindowVAlign { get; set; } = EVAlign.Middle;
 
     /// <summary>窗口与屏幕边缘的偏移量。在 WindowHAlign/WindowVAlign 对齐时生效，
     /// Left 偏移左边缘、Right 偏移右边缘、Top 偏移上边缘、Bottom 偏移下边缘。</summary>
@@ -206,10 +219,12 @@ public class TuiWindow : TuiBase
 
     /// <summary>最小窗口尺寸</summary>
     public int MinWidth { get; set; } = 12;
+
     public int MinHeight { get; set; } = 3;
 
     /// <summary>最大窗口尺寸（0=无限制）</summary>
     public int MaxWidth { get; set; }
+
     public int MaxHeight { get; set; }
 
     /// <summary>窗口宽度占终端宽度的比例（0=禁用，使用固定 Width）。如 0.5 = 终端宽度的一半。</summary>
@@ -223,22 +238,29 @@ public class TuiWindow : TuiBase
 
     // 拖拽/缩放状态
     private bool _dragging;
-    private int _dragStartX, _dragStartY;  // 鼠标按下时的终端坐标
-    private int _winStartX, _winStartY;    // 鼠标按下时的窗口左上角
-    private int _winStartW, _winStartH;    // 鼠标按下时的窗口尺寸
+    private int _dragStartX, _dragStartY; // 鼠标按下时的终端坐标
+    private int _winStartX, _winStartY; // 鼠标按下时的窗口左上角
+    private int _winStartW, _winStartH; // 鼠标按下时的窗口尺寸
     private ResizeEdge _resizeEdge = ResizeEdge.None;
 
     /// <summary>缩放边缘方向</summary>
     public enum ResizeEdge
     {
         None,
-        Top, Bottom, Left, Right,
-        TopLeft, TopRight, BottomLeft, BottomRight
+        Top,
+        Bottom,
+        Left,
+        Right,
+        TopLeft,
+        TopRight,
+        BottomLeft,
+        BottomRight
     }
 
     /// <summary>当前激活的缩放边缘（渲染边框高亮用）</summary>
     public ResizeEdge ActiveResizeEdge => _resizeEdge != ResizeEdge.None || _dragging
-        ? _resizeEdge : ResizeEdge.None;
+        ? _resizeEdge
+        : ResizeEdge.None;
 
     // ── 方法 ──
 
@@ -261,6 +283,7 @@ public class TuiWindow : TuiBase
             Width = Math.Max(MinWidth, (int)(newTermW * XScale));
             if (MaxWidth > 0) Width = Math.Min(Width, MaxWidth);
         }
+
         if (YScale > 0)
         {
             Height = Math.Max(MinHeight, (int)(newTermH * YScale));
@@ -272,23 +295,24 @@ public class TuiWindow : TuiBase
 
         // 2. 根据对齐方式自动计算位置（Stretch=不自动定位，保持手动位置）
         //    ScreenMargin 控制与屏幕边缘的偏移量
-        if (WindowHAlign != HAlign.Stretch)
+        if (WindowHAlign != EHAlign.Stretch)
         {
             X = WindowHAlign switch
             {
-                HAlign.Left => ScreenMargin.Left,
-                HAlign.Center => (newTermW - Width) / 2,
-                HAlign.Right => newTermW - Width - ScreenMargin.Right,
+                EHAlign.Left => ScreenMargin.Left,
+                EHAlign.Center => (newTermW - Width) / 2,
+                EHAlign.Right => newTermW - Width - ScreenMargin.Right,
                 _ => X
             };
         }
-        if (WindowVAlign != VAlign.Stretch)
+
+        if (WindowVAlign != EVAlign.Stretch)
         {
             Y = WindowVAlign switch
             {
-                VAlign.Top => ScreenMargin.Top,
-                VAlign.Middle => (newTermH - Height) / 2,
-                VAlign.Bottom => newTermH - Height - ScreenMargin.Bottom,
+                EVAlign.Top => ScreenMargin.Top,
+                EVAlign.Middle => (newTermH - Height) / 2,
+                EVAlign.Bottom => newTermH - Height - ScreenMargin.Bottom,
                 _ => Y
             };
         }
@@ -320,6 +344,7 @@ public class TuiWindow : TuiBase
                 action();
                 return true;
             }
+
             // 如果 KeyChar 是字母，再尝试以大写 ConsoleKey 匹配（'y'→ConsoleKey.Y）
             if (key.KeyChar >= 'a' && key.KeyChar <= 'z')
             {
@@ -339,8 +364,17 @@ public class TuiWindow : TuiBase
         // ── 3. 控件未处理的方向键 → 在控件间移动焦点（对话框开启时）──
         if (ArrowKeysNavigate)
         {
-            if (key.Key == ConsoleKey.UpArrow) { FocusPrev(); return true; }
-            if (key.Key == ConsoleKey.DownArrow) { FocusNext(); return true; }
+            if (key.Key == ConsoleKey.UpArrow)
+            {
+                FocusPrev();
+                return true;
+            }
+
+            if (key.Key == ConsoleKey.DownArrow)
+            {
+                FocusNext();
+                return true;
+            }
         }
 
         return false;
@@ -350,7 +384,7 @@ public class TuiWindow : TuiBase
     /// 处理鼠标事件。返回 true 表示事件被窗口消费。
     /// 支持：标题栏拖拽移动、边缘拖拽缩放、子控件点击/滚动。
     /// </summary>
-    public override bool HandleMouse(InputEvent ev)
+    public override bool OnMouse(InputEvent ev)
     {
         if (ev.Type != InputType.Mouse) return false;
 
@@ -395,7 +429,7 @@ public class TuiWindow : TuiBase
         // ── 鼠标滚轮：优先路由到子控件 ──
         if ((ev.MouseScrollUp || ev.MouseScrollDown) && inside)
         {
-            if (RootView.HandleMouse(ev))
+            if (RootView.OnMouse(ev))
                 return true;
             return true; // 消费滚轮事件（防止穿透到背景）
         }
@@ -432,7 +466,7 @@ public class TuiWindow : TuiBase
             }
 
             // 3. 路由给子控件（按钮、列表等）
-            if (inside && RootView.HandleMouse(ev))
+            if (inside && RootView.OnMouse(ev))
                 return true;
 
             // 点击在窗口内，消费事件（防止穿透到背景）
@@ -442,7 +476,7 @@ public class TuiWindow : TuiBase
         // ── 鼠标移动（hover 效果）：路由给子控件 ──
         if (ev.MouseMotion && inside)
         {
-            RootView.HandleMouse(ev);
+            RootView.OnMouse(ev);
             return true;
         }
 
@@ -453,19 +487,19 @@ public class TuiWindow : TuiBase
     private ResizeEdge DetectResizeEdge(int mx, int my)
     {
         int rbw = ResizeBorderWidth;
-        bool onLeft   = mx >= X && mx < X + rbw;
-        bool onRight  = mx >= X + Width - rbw && mx < X + Width;
-        bool onTop    = my >= Y && my < Y + rbw;
+        bool onLeft = mx >= X && mx < X + rbw;
+        bool onRight = mx >= X + Width - rbw && mx < X + Width;
+        bool onTop = my >= Y && my < Y + rbw;
         bool onBottom = my >= Y + Height - rbw && my < Y + Height;
 
-        if (onTop && onLeft)     return ResizeEdge.TopLeft;
-        if (onTop && onRight)    return ResizeEdge.TopRight;
-        if (onBottom && onLeft)  return ResizeEdge.BottomLeft;
+        if (onTop && onLeft) return ResizeEdge.TopLeft;
+        if (onTop && onRight) return ResizeEdge.TopRight;
+        if (onBottom && onLeft) return ResizeEdge.BottomLeft;
         if (onBottom && onRight) return ResizeEdge.BottomRight;
-        if (onTop)               return ResizeEdge.Top;
-        if (onBottom)            return ResizeEdge.Bottom;
-        if (onLeft)              return ResizeEdge.Left;
-        if (onRight)             return ResizeEdge.Right;
+        if (onTop) return ResizeEdge.Top;
+        if (onBottom) return ResizeEdge.Bottom;
+        if (onLeft) return ResizeEdge.Left;
+        if (onRight) return ResizeEdge.Right;
 
         return ResizeEdge.None;
     }
@@ -518,15 +552,25 @@ public class TuiWindow : TuiBase
         newH = Math.Clamp(newH, MinHeight, Math.Max(MinHeight, MaxHeight > 0 ? MaxHeight : Tty.Rows));
 
         // 位置约束
-        if (newX < 0) { newW += newX; newX = 0; }
-        if (newY < 0) { newH += newY; newY = 0; }
+        if (newX < 0)
+        {
+            newW += newX;
+            newX = 0;
+        }
+
+        if (newY < 0)
+        {
+            newH += newY;
+            newY = 0;
+        }
+
         if (newX + newW > Tty.Cols) newW = Tty.Cols - newX;
         if (newY + newH > Tty.Rows) newH = Tty.Rows - newY;
-        // 位置调整可能把 newW 推到 < MinWidth 甚至负数（ContentWidth=Width-2 变负 → new string(' ') 崩溃）
-        newW = Math.Max(2, Math.Max(MinWidth, newW));
-        newH = Math.Max(2, Math.Max(MinHeight, newH));
 
-        Width = newW; Height = newH; X = newX; Y = newY;
+        Width = newW;
+        Height = newH;
+        X = newX;
+        Y = newY;
 
         // 手动拖拽缩放 → 清除比例缩放，切换到固定尺寸模式
         XScale = 0;

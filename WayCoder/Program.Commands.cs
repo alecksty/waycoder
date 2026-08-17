@@ -3,6 +3,8 @@ using WayCoder.Tools;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.TUI.Base;
+using WayCoder.UI.TUI.Custom;
 using WayCoder.UI.Tui.Screens;
 using WayCoder.UI.Web;
 using Arguments = WayCoder.UI.Cli.Arguments;

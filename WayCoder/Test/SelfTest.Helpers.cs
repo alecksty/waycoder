@@ -4097,19 +4097,19 @@ public static partial class SelfTest
         return false;
     }
 
-    /// <summary>v0.71.17 批次：TuiHelper.WrapLine 兜底按码点取断点，首字符 emoji 在 maxWidth 过窄时不切半。</summary>
+    /// <summary>v0.71.17 批次：AnsiHelper.WrapLine 兜底按码点取断点，首字符 emoji 在 maxWidth 过窄时不切半。</summary>
     private static void TestV0717RuneSafeWrap(Action<string, bool> Check)
     {
         // maxWidth=1，首字符 😀（宽度 2，代理对）→ 旧代码 breakIdx=1 切出孤立高位代理；新代码取完整码点
-        var wrap = TuiHelper.WrapText("😀a", maxWidth: 1);
+        var wrap = AnsiHelper.WrapText("😀a", maxWidth: 1);
         Check("WrapText: maxWidth=1 首字符 emoji 不切半", wrap.Count == 2 && wrap[0] == "😀" && !HasLoneSurrogate(wrap[0]));
 
         // CJK 首字符（宽度 2，非代理对）在 maxWidth=1 时不越界、不抛异常、无孤立代理
-        var wrapCjk = TuiHelper.WrapText("中abc", maxWidth: 1);
+        var wrapCjk = AnsiHelper.WrapText("中abc", maxWidth: 1);
         Check("WrapText: CJK 首字符 maxWidth=1 不抛异常", wrapCjk.Count > 0 && !HasLoneSurrogate(string.Concat(wrapCjk)));
 
         // 英文折行仍正常（空格处断行）
-        var wrapEn = TuiHelper.WrapText("hello world", maxWidth: 5);
+        var wrapEn = AnsiHelper.WrapText("hello world", maxWidth: 5);
         Check("WrapText: 英文折行正常", wrapEn.Count == 2 && wrapEn[0] == "hello" && wrapEn[1] == "world");
     }
 
@@ -4552,9 +4552,9 @@ public static partial class SelfTest
         ec.InsertText("x");
         Check("editor: 代理对中间插入不切半", ec.Lines[0].ToString() == "😀x");
 
-        // ── #3 TuiHelper.TruncateByWidth：maxWidth=1 时省略号（宽2）放不下，返回超宽 "…" → 退化无省略号 ──
-        var t1 = TuiHelper.TruncateByWidth("abc", 1);
-        Check("tui: 1 列截断不超宽", TuiHelper.DisplayWidth(t1) <= 1);
+        // ── #3 AnsiHelper.TruncateByWidth：maxWidth=1 时省略号（宽2）放不下，返回超宽 "…" → 退化无省略号 ──
+        var t1 = AnsiHelper.TruncateByWidth("abc", 1);
+        Check("tui: 1 列截断不超宽", AnsiHelper.DisplayWidth(t1) <= 1);
 
         // ── #4 ContextManager：maxTokens≤0 回退默认窗口（否则阈值全 0 + ReportProgress 除零得 NaN）──
         var cm0 = new ContextManager(0);

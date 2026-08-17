@@ -1,3 +1,5 @@
+using WayCoder.UI.TUI.Base;
+
 namespace WayCoder.UI.Tui.Controls;
 
 /// <summary>

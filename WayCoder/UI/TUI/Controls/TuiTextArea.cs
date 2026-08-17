@@ -344,9 +344,9 @@ public class TuiTextArea : TuiEditBase
                 // 截取可见部分
                 int displayStart = ScrollCol;
                 var fullDisplay = line.Length > displayStart ? line[displayStart..] : "";
-                if (TuiHelper.DisplayWidth(fullDisplay) > textW)
-                    fullDisplay = TuiHelper.TruncateByWidth(fullDisplay, textW);
-                int vw = TuiHelper.DisplayWidth(fullDisplay);
+                if (AnsiHelper.DisplayWidth(fullDisplay) > textW)
+                    fullDisplay = AnsiHelper.TruncateByWidth(fullDisplay, textW);
+                int vw = AnsiHelper.DisplayWidth(fullDisplay);
                 var pad = Math.Max(0, textW - vw);
 
                 // 检查此行是否在选择范围内
@@ -374,14 +374,14 @@ public class TuiTextArea : TuiEditBase
                     if (visSelEndClamped > visSelStartClamped)
                     {
                         var selPart = fullDisplay[visSelStartClamped..visSelEndClamped];
-                        int selX = absX + lineNumW + TuiHelper.DisplayWidth(fullDisplay[..visSelStartClamped]);
+                        int selX = absX + lineNumW + AnsiHelper.DisplayWidth(fullDisplay[..visSelStartClamped]);
                         WriteAt(sb, screenRow, selX, selPart, bg > 0 ? bg : 7, fg > 0 ? fg : 0);
                     }
                     // 后段
                     if (visSelEndClamped < visLen)
                     {
                         var postPart = fullDisplay[visSelEndClamped..];
-                        int postX = absX + lineNumW + TuiHelper.DisplayWidth(fullDisplay[..visSelEndClamped]);
+                        int postX = absX + lineNumW + AnsiHelper.DisplayWidth(fullDisplay[..visSelEndClamped]);
                         WriteAt(sb, screenRow, postX, postPart, fg, bg);
                     }
                     // 填充
@@ -400,8 +400,8 @@ public class TuiTextArea : TuiEditBase
             {
                 // 占位文本
                 var ph = Placeholder;
-                if (TuiHelper.DisplayWidth(ph) > textW)
-                    ph = TuiHelper.TruncateByWidth(ph, textW);
+                if (AnsiHelper.DisplayWidth(ph) > textW)
+                    ph = AnsiHelper.TruncateByWidth(ph, textW);
                 WriteAt(sb, screenRow, absX + lineNumW, ph, PlaceholderFg, 0);
             }
 
@@ -412,7 +412,7 @@ public class TuiTextArea : TuiEditBase
                 var preCursorText = line.Length > ScrollCol
                     ? line[ScrollCol..Math.Min(CursorCol, line.Length)]
                     : "";
-                int cursorVisualOffset = TuiHelper.DisplayWidth(preCursorText);
+                int cursorVisualOffset = AnsiHelper.DisplayWidth(preCursorText);
                 int cursorScreenCol = absX + lineNumW + cursorVisualOffset;
                 if (cursorScreenCol < absX + Width && cursorScreenCol >= absX + lineNumW)
                 {
@@ -841,7 +841,7 @@ public class TuiTextArea : TuiEditBase
         var preCursorText = line.Length > displayStart
             ? line[displayStart..Math.Min(CursorCol, line.Length)]
             : "";
-        int cursorVisualOffset = TuiHelper.DisplayWidth(preCursorText);
+        int cursorVisualOffset = AnsiHelper.DisplayWidth(preCursorText);
         int cursorScreenCol = absX + lineNumW + cursorVisualOffset;
 
         // 保持在可视范围内

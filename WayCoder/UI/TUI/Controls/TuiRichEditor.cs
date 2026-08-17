@@ -3,6 +3,7 @@ using WayCoder.UI.Shared.Terminal;
 
 using WayCoder.UI.Tui.Edit;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -104,7 +105,7 @@ public class TuiRichEditor : TuiEditBase
     public int CursorFg { get; set; }
     public int CursorBg { get; set; }
     /// <summary>括号配对高亮背景（光标处括号与其配对括号）</summary>
-    public int BracketMatchBg { get; set; } = TuiColors.BgBrightCyan;
+    public int BracketMatchBg { get; set; } = AnsiColors.BgBrightCyan;
     /// <summary>软换行：超宽行按可视宽度折行显示（不改缓冲区，仅显示层）。</summary>
     public bool SoftWrap { get; set; }
     public int TitleFg { get; set; }
@@ -144,7 +145,7 @@ public class TuiRichEditor : TuiEditBase
         Fg = TuiTheme.Current.ControlFg;
         CursorFg = TuiTheme.Current.ControlFocusedFg;
         CursorBg = TuiTheme.Current.ControlFocusedBg;
-        BracketMatchBg = TuiColors.BgBrightCyan;
+        BracketMatchBg = AnsiColors.BgBrightCyan;
         TitleFg = TuiTheme.Current.ChatSystemFg;
         SeparatorFg = TuiTheme.Current.ChatSystemFg;
         GutterErrorFg = TuiTheme.Current.IconErrorFg;
@@ -259,7 +260,7 @@ public class TuiRichEditor : TuiEditBase
                     var preCursor = rawLine.Length > 0
                         ? rawLine[..Math.Min(Core.Cx, rawLine.Length)]
                         : "";
-                    int cursorVisualOffset = TuiHelper.DisplayWidth(ExpandTabs(preCursor));
+                    int cursorVisualOffset = AnsiHelper.DisplayWidth(ExpandTabs(preCursor));
                     RecordCursorPos(row, absX + prefixW + cursorVisualOffset);
                 }
             }
@@ -306,7 +307,7 @@ public class TuiRichEditor : TuiEditBase
         int vw = 0;
         foreach (var (text, ansiColor) in tokens)
         {
-            int textVw = TuiHelper.DisplayWidth(text);
+            int textVw = AnsiHelper.DisplayWidth(text);
             if (vw + textVw > maxVw)
             {
                 int remain = maxVw - vw;
@@ -329,9 +330,9 @@ public class TuiRichEditor : TuiEditBase
     {
         if (col < 0 || col >= rawLine.Length) return;
         var pre = rawLine[..col];
-        int vcol = TuiHelper.DisplayWidth(ExpandTabs(pre));
+        int vcol = AnsiHelper.DisplayWidth(ExpandTabs(pre));
         WriteAt(sb, row, absX + LineNumberWidth + GutterWidth + vcol,
-            rawLine[col].ToString(), TuiColors.Black, BracketMatchBg);
+            rawLine[col].ToString(), AnsiColors.Black, BracketMatchBg);
     }
 
     /// <summary>Tab 展开为 4 空格（仅显示层，不修改缓冲区内容）。</summary>
@@ -345,7 +346,7 @@ public class TuiRichEditor : TuiEditBase
         var runes = text.EnumerateRunes().ToList();
         for (int i = 0; i < runes.Count; i++)
         {
-            int w = runes[i].Value == '\t' ? 4 : TuiHelper.DisplayWidth(runes[i].ToString());
+            int w = runes[i].Value == '\t' ? 4 : AnsiHelper.DisplayWidth(runes[i].ToString());
             if (vw + w > maxVw)
                 return text.Substring(0, bytePos);
             vw += w;
@@ -388,7 +389,7 @@ public class TuiRichEditor : TuiEditBase
         var preCursor = line.Length > 0
             ? line[..Math.Min(Core.Cx, line.Length)]
             : "";
-        int cursorVisualOffset = TuiHelper.DisplayWidth(ExpandTabs(preCursor));
+        int cursorVisualOffset = AnsiHelper.DisplayWidth(ExpandTabs(preCursor));
 
         _cursorRow = Math.Clamp(screenRow, absY, absY + vh - 1);
         _cursorCol = absX + prefixW + cursorVisualOffset;
@@ -469,7 +470,7 @@ public class TuiRichEditor : TuiEditBase
     /// <summary>
     /// 鼠标滚轮滚动编辑区（3 行/格）；左键点击定位光标（Tab/CJK 宽度感知）。
     /// </summary>
-    public override bool HandleMouse(InputEvent ev)
+    public override bool OnMouse(InputEvent ev)
     {
         if (!IsEnabled) return false;
         if (ev.Type != InputType.Mouse) return false;
@@ -510,7 +511,7 @@ public class TuiRichEditor : TuiEditBase
             return true;
         }
 
-        return base.HandleMouse(ev);
+        return base.OnMouse(ev);
     }
 
     /// <summary>把点击的视觉列（相对内容区起点）映射回缓冲区字符列（Tab/CJK 宽度感知）。</summary>
@@ -520,7 +521,7 @@ public class TuiRichEditor : TuiEditBase
         int v = 0, idx = 0;
         foreach (var rune in line.EnumerateRunes())
         {
-            int w = rune.Value == '\t' ? 4 : TuiHelper.DisplayWidth(rune.ToString());
+            int w = rune.Value == '\t' ? 4 : AnsiHelper.DisplayWidth(rune.ToString());
             if (visualCol < v + w) return idx;
             v += w;
             idx += rune.Utf16SequenceLength;

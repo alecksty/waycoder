@@ -116,7 +116,7 @@ public class TuiInput : TuiEditBase
         int scrollStart = ComputeScrollStart(originalText, CursorPos, visW);
 
         // 光标在可见区域内的偏移
-        int cursorInVisible = TuiHelper.DisplayWidth(
+        int cursorInVisible = AnsiHelper.DisplayWidth(
             originalText[scrollStart..Math.Min(CursorPos, originalText.Length)]);
 
         _cursorRow = absY;
@@ -133,7 +133,7 @@ public class TuiInput : TuiEditBase
     {
         if (visW <= 0 || string.IsNullOrEmpty(text)) return 0;
         var before = text[..Math.Min(cursorPos, text.Length)];
-        int cursorVisualEnd = TuiHelper.DisplayWidth(before);
+        int cursorVisualEnd = AnsiHelper.DisplayWidth(before);
         if (cursorVisualEnd < visW) return 0;
 
         int needSkip = cursorVisualEnd - visW + 1;
@@ -142,7 +142,7 @@ public class TuiInput : TuiEditBase
         foreach (var r in text.EnumerateRunes())
         {
             if (skipped >= needSkip) break;
-            skipped += TuiHelper.RuneWidth(r);
+            skipped += AnsiHelper.RuneWidth(r);
             scrollStart += r.ToString().Length;
         }
         return scrollStart;
@@ -170,10 +170,10 @@ public class TuiInput : TuiEditBase
 
         // 截取可见文本
         var visiblePart = originalText[scrollStart..];
-        if (TuiHelper.DisplayWidth(visiblePart) > visW)
-            visiblePart = TuiHelper.TruncateByWidth(visiblePart, visW);
+        if (AnsiHelper.DisplayWidth(visiblePart) > visW)
+            visiblePart = AnsiHelper.TruncateByWidth(visiblePart, visW);
 
-        int vw = TuiHelper.DisplayWidth(visiblePart);
+        int vw = AnsiHelper.DisplayWidth(visiblePart);
         var pad = Math.Max(0, visW - vw);
 
         int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
@@ -204,20 +204,20 @@ public class TuiInput : TuiEditBase
             if (selVisEndClamped > selVisStartClamped)
             {
                 var selText = visiblePart[selVisStartClamped..selVisEndClamped];
-                int selX = absX + TuiHelper.DisplayWidth(visiblePart[..selVisStartClamped]);
+                int selX = absX + AnsiHelper.DisplayWidth(visiblePart[..selVisStartClamped]);
                 WriteAt(sb, absY, selX, selText, bg > 0 ? bg : 7, fg > 0 ? fg : 0);
             }
             // 后段（选择后）
             if (selVisEndClamped < visiblePartLen)
             {
                 var postText = visiblePart[selVisEndClamped..];
-                int postX = absX + TuiHelper.DisplayWidth(visiblePart[..selVisEndClamped]);
+                int postX = absX + AnsiHelper.DisplayWidth(visiblePart[..selVisEndClamped]);
                 WriteAt(sb, absY, postX, postText, fg, bg);
             }
             // 填充
             if (pad > 0)
             {
-                int totalVw = TuiHelper.DisplayWidth(visiblePart);
+                int totalVw = AnsiHelper.DisplayWidth(visiblePart);
                 WriteAt(sb, absY, absX + totalVw, new string(' ', pad), fg, bg);
             }
         }
@@ -230,7 +230,7 @@ public class TuiInput : TuiEditBase
         // ── 光标：记录位置，由 Screen 在最后统一输出 ──
         if (IsCursorOwner)
         {
-            int cursorInVisible = TuiHelper.DisplayWidth(
+            int cursorInVisible = AnsiHelper.DisplayWidth(
                 originalText[scrollStart..Math.Min(CursorPos, originalText.Length)]);
             RecordCursorPos(absY, absX + Math.Min(cursorInVisible, visW - 1));
         }

@@ -1,6 +1,8 @@
 ﻿using WayCoder.UI.Tui.Controls;
 
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
+
 namespace WayCoder.UI.Tui;
 
 /// <summary>
@@ -66,15 +68,13 @@ public static class ReasoningPicker
         var win = new TuiWindow
         {
             Title = $"推理深度 — {modelName}",
-            TitleBold = true,
-            ShowTitleSeparator = false,
             Modal = true, HasMask = true,
-            Border = WindowBorder.Rounded,
+            Border = WindowBorder.Solid,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             XScale = 0.6,
-            WindowHAlign = HAlign.Center,
-            WindowVAlign = VAlign.Middle,
+            WindowHAlign = EHAlign.Center,
+            WindowVAlign = EVAlign.Middle,
             MinWidth = 44,
             MinHeight = 10,
             Height = 10,
@@ -91,14 +91,14 @@ public static class ReasoningPicker
         // 说明行
         var desc = new TuiLabel("选择模型的「思考」深度，越深推理越充分，但耗时越长")
         {
-            Fg = TuiTheme.Current.ControlFg, // 暗底白字
+            Fg = AnsiColors.Black,
         };
 
         // 搜索框（聚焦，字母进过滤词）
         var search = new TuiInput
         {
             Height = 1,
-            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Fg = AnsiColors.White, Bg = AnsiColors.BgBlack,
             Focused = true,
         };
 
@@ -108,16 +108,16 @@ public static class ReasoningPicker
             Items = filtered.Select(l => FormatItem(l, currentLevel)).ToList(),
             SelectedIndex = IndexOfCurrent(filtered, currentLevel),
             Height = 5,
-            Fg = TuiTheme.Current.ListFg, // 暗底白字
+            Fg = AnsiColors.Black,
         };
 
         // 帮助行
         var help = new TuiLabel("[↑/↓] 导航  [Enter] 确认  [Esc] 取消  [字母] 搜索  [←] 清除=默认")
         {
-            Fg = TuiColors.BrightWhite,
+            Fg = AnsiColors.BrightBlack,
         };
 
-        var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
+        var vbox = new TuiVBox { ChildHAlign = EHAlign.Stretch };
         vbox.Add(desc);
         vbox.Add(search);
         vbox.Add(list);

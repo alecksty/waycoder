@@ -132,9 +132,9 @@ public class TuiTabs : TuiControl
 
             // 裁剪标签文本并居中
             int maxTextW = tabW - 2;
-            if (TuiHelper.DisplayWidth(label) > maxTextW)
-                label = TuiHelper.TruncateByWidth(label, maxTextW);
-            int labelVw = TuiHelper.DisplayWidth(label);
+            if (AnsiHelper.DisplayWidth(label) > maxTextW)
+                label = AnsiHelper.TruncateByWidth(label, maxTextW);
+            int labelVw = AnsiHelper.DisplayWidth(label);
             int leftPad = Math.Max(0, (tabW - labelVw) / 2);
             int rightPad = Math.Max(0, tabW - leftPad - labelVw);
             var display = new string(' ', leftPad) + label + new string(' ', rightPad);

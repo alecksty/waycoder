@@ -1,8 +1,8 @@
 using System.Text;
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.Tui;
 
-
-namespace WayCoder.UI.Tui;
+namespace WayCoder.UI.TUI.Base;
 
 /// <summary>
 /// TuiManager —— TUI 根管理器。
@@ -207,7 +207,7 @@ public class TuiManager : IDisposable
     public bool HandleMouse(InputEvent ev)
     {
         IsDirty = true;
-        return ActiveScreen?.HandleMouse(ev) ?? false;
+        return ActiveScreen?.OnMouse(ev) ?? false;
     }
 
     /// <summary>通知尺寸变化</summary>

@@ -106,34 +106,26 @@ public static class WorktreeIsolation
 
         try
         {
-            // 保存当前目录
-            var savedCwd = Environment.CurrentDirectory;
-
-            // 检查 worktree 是否有未提交变更
+            // 检查 worktree 是否有未提交变更。
+            // 用 git cwd 参数而非改进程级 Environment.CurrentDirectory：
+            // 后者在多槽位后台任务并发解析相对路径时串扰整个进程的 cwd
             var hasChanges = false;
             try
             {
-                Environment.CurrentDirectory = worktreePath;
-                var status = RunGit("status", "--porcelain");
+                var status = RunGit("status", "--porcelain", worktreePath);
                 hasChanges = !string.IsNullOrWhiteSpace(status);
             }
             catch { /* 忽略 */ }
-            finally
-            {
-                Environment.CurrentDirectory = savedCwd;
-            }
 
             if (hasChanges)
             {
                 // 有变更：保留 worktree，只提交变更
                 try
                 {
-                    Environment.CurrentDirectory = worktreePath;
-                    RunGit("add", "-A");
-                    RunGit("commit", "-m \"WayCoder: worktree 自动提交 (iso)\"");
+                    RunGit("add", "-A", worktreePath);
+                    RunGit("commit", "-m \"WayCoder: worktree 自动提交 (iso)\"", worktreePath);
                 }
                 catch { /* 忽略 */ }
-                finally { Environment.CurrentDirectory = savedCwd; }
 
                 _currentWorktree.Value = null;
                 DebugLog.Log("worktree", $"📝 保留 worktree（有变更）: {worktreePath}");
@@ -183,9 +175,9 @@ public static class WorktreeIsolation
     // 工具方法
     // ================================================================
 
-    private static string RunGit(string command, string args)
+    private static string RunGit(string command, string args, string? cwd = null)
     {
-        return GitRunner.RunOrThrow($"{command} {args}");
+        return GitRunner.RunOrThrow($"{command} {args}", cwd);
     }
 
     private static string SanitizeName(string name)

@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -52,7 +53,7 @@ public static class TuiMenu
 
         var maxVw = items.Count > 0
             ? items.Where(i => !string.IsNullOrEmpty(i) && i != "---")
-                .Select(i => TuiHelper.DisplayWidth(i))
+                .Select(i => AnsiHelper.DisplayWidth(i))
                 .DefaultIfEmpty(10)
                 .Max()
             : 10;
@@ -67,8 +68,8 @@ public static class TuiMenu
             Width = contentW + 2,
             Height = visCount + titleH + 2, // +上下边框
             // 弹出菜单按调用方指定的 (x, y) 定位，不参与居中/停靠对齐
-            WindowHAlign = HAlign.Stretch,
-            WindowVAlign = VAlign.Stretch,
+            WindowHAlign = EHAlign.Stretch,
+            WindowVAlign = EVAlign.Stretch,
             Modal = true,
             HasMask = false,
             Border = WindowBorder.Rounded,
@@ -252,7 +253,7 @@ public static class TuiMenu
                 {
                     var sep = new string('─', _state.ContentWidth);
                     var rbSep = new RenderBuffer();
-                    rbSep.Write(row, absX, sep, fg: 2); // dim separator
+                    rbSep.Write(row, absX, sep, fg: 8); // dim separator
                     sb.Append(rbSep.ToString());
                     continue;
                 }
@@ -269,10 +270,10 @@ public static class TuiMenu
                 var shortcutNo = idx >= 0 && idx < _state.Shortcuts.Length ? _state.Shortcuts[idx] : 0;
                 var shortcut = shortcutNo > 0 ? $" {shortcutNo}" : "  ";
                 var display = $"{shortcut}. {item}";
-                if (TuiHelper.DisplayWidth(display) > _state.ContentWidth - 1)
-                    display = TuiHelper.TruncateByWidth(display, _state.ContentWidth - 1);
+                if (AnsiHelper.DisplayWidth(display) > _state.ContentWidth - 1)
+                    display = AnsiHelper.TruncateByWidth(display, _state.ContentWidth - 1);
 
-                int pad = Math.Max(0, _state.ContentWidth - TuiHelper.DisplayWidth(display));
+                int pad = Math.Max(0, _state.ContentWidth - AnsiHelper.DisplayWidth(display));
                 var line = display + new string(' ', pad);
 
                 var rb = new RenderBuffer();
@@ -293,7 +294,7 @@ public static class TuiMenu
                     var row = absY + i;
                     var ch = (i >= barPos && i < barPos + barH) ? "█" : "│";
                     var rb = new RenderBuffer();
-                    rb.Write(row, absX + _state.ContentWidth, ch, fg: 2);
+                    rb.Write(row, absX + _state.ContentWidth, ch, fg: 8);
                     sb.Append(rb.ToString());
                 }
 
@@ -303,7 +304,7 @@ public static class TuiMenu
                 {
                     var rbPct = new RenderBuffer();
                     rbPct.Write(visH > 0 ? absY + visH - 1 : absY,
-                        absX + _state.ContentWidth, pctText, fg: 2);
+                        absX + _state.ContentWidth, pctText, fg: 8);
                     sb.Append(rbPct.ToString());
                 }
             }

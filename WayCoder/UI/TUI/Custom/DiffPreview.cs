@@ -6,6 +6,8 @@ using WayCoder.UI.Tui.Screens;
 using WayCoder.UI.Tui.Edit;
 
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
+
 namespace WayCoder.UI.Tui;
 
 /// <summary>
@@ -102,7 +104,7 @@ public static class DiffPreview
     {
         int winW = Math.Max(40, Tty.Cols - 2);
         int winH = Math.Max(10, Tty.Rows - 2);
-        int contentBg = TuiColors.BgBlack; // diff 视图固定深色底，保证语法高亮/红绿行对比
+        int contentBg = AnsiColors.BgBlack; // diff 视图固定深色底，保证语法高亮/红绿行对比
 
         var accepted = new HashSet<int>();
         var syntax = GetSyntaxForFile(filePath);
@@ -121,26 +123,25 @@ public static class DiffPreview
         var status = new TuiLabel
         {
             Height = 1,
-            Fg = TuiColors.Black,
-            Bg = TuiColors.BgWhite,
+            Fg = AnsiColors.Black,
+            Bg = AnsiColors.BgWhite,
         };
 
-        var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
+        var vbox = new TuiVBox { ChildHAlign = EHAlign.Stretch };
         vbox.Add(diff);
         vbox.Add(status);
 
         var win = new TuiWindow
         {
             Title = $"Diff 预览: {filePath}  ({hunks.Count} hunks)",
-            ShowTitleSeparator = false,
             Modal = true, HasMask = true,
-            Border = WindowBorder.Rounded,
+            Border = WindowBorder.Solid,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = contentBg,
             Width = winW, Height = winH,
             MinWidth = 40, MinHeight = 10,
-            WindowHAlign = HAlign.Center,
-            WindowVAlign = VAlign.Middle,
+            WindowHAlign = EHAlign.Center,
+            WindowVAlign = EVAlign.Middle,
             RootView = vbox,
         };
         var g = TuiTheme.Current.GradOrangeYellow;
@@ -328,7 +329,7 @@ public static class DiffPreview
         }
 
         /// <summary>鼠标滚轮滚动 diff 内容（每格 3 行），防止超出屏幕。</summary>
-        public override bool HandleMouse(InputEvent ev)
+        public override bool OnMouse(InputEvent ev)
         {
             if (ev.Type != InputType.Mouse) return false;
 
@@ -751,8 +752,8 @@ public static class DiffPreview
         if (line.Kind == '-')
         {
             var prefix = $"{Padding(line.OldLine),4} -";
-            int fg = 37; // 白字（暗/亮底均可读，原当前 hunk 黑字暗红不可见）
-            int bg = isCurrentHunk ? 101 : 41; // 当前 hunk 亮红底，非当前暗红底
+            int fg = isCurrentHunk ? 30 : 37;
+            int bg = 41;
             var maxTextW = tw - 7;
             FillBg(sb, absY, absX, tw, bg);
             sb.Append(isCurrentHunk ? AnsiTty.Sgr(fg, bg, 1) : AnsiTty.FgBg(fg, bg));
@@ -763,8 +764,8 @@ public static class DiffPreview
         else if (line.Kind == '+')
         {
             var prefix = "     +";
-            int fg = 37; // 白字（原当前 hunk 黑字暗绿不可见）
-            int bg = isCurrentHunk ? 102 : 42; // 当前 hunk 亮绿底，非当前暗绿底
+            int fg = isCurrentHunk ? 30 : 37;
+            int bg = 42;
             var maxTextW = tw - 7;
             FillBg(sb, absY, absX, tw, bg);
             sb.Append(isCurrentHunk ? AnsiTty.Sgr(fg, bg, 1) : AnsiTty.FgBg(fg, bg));
@@ -951,15 +952,15 @@ public static class DiffPreview
         }
     }
 
-    private static int VW(string text) => TuiHelper.DisplayWidth(text);
+    private static int VW(string text) => AnsiHelper.DisplayWidth(text);
     private static string TruncateByVW(string text, int maxVW)
     {
         if (string.IsNullOrEmpty(text)) return "";
-        if (TuiHelper.DisplayWidth(text) <= maxVW) return text;
+        if (AnsiHelper.DisplayWidth(text) <= maxVW) return text;
         int vw = 0, chars = 0;
         foreach (var rune in text.EnumerateRunes())
         {
-            var w = TuiHelper.RuneWidth(rune);
+            var w = AnsiHelper.RuneWidth(rune);
             if (vw + w + 2 > maxVW) break; // 预留 "…" 两列
             vw += w; chars += rune.Utf16SequenceLength;
         }

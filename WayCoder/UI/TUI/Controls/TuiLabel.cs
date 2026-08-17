@@ -1,4 +1,5 @@
 using System.Text;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 

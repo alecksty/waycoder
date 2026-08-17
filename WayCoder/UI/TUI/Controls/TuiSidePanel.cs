@@ -24,16 +24,16 @@ public class TuiSidePanel : TuiControl
     public int BorderWidth { get; set; } = 1;
 
     /// <summary>左边框颜色</summary>
-    public int BorderColor { get; set; } = TuiColors.BrightBlack;
+    public int BorderColor { get; set; } = AnsiColors.BrightBlack;
 
     /// <summary>边框样式（控制竖线/分隔线字符）</summary>
     public WindowBorder BorderStyle { get; set; } = WindowBorder.Rounded;
 
     /// <summary>分区标题颜色</summary>
-    public int SectionHeaderFg { get; set; } = TuiColors.Cyan;
+    public int SectionHeaderFg { get; set; } = AnsiColors.Cyan;
 
     /// <summary>分隔线颜色</summary>
-    public int SeparatorColor { get; set; } = TuiColors.BrightBlack;
+    public int SeparatorColor { get; set; } = AnsiColors.BrightBlack;
 
     /// <summary>内容垂直滚动偏移</summary>
     public int ScrollOffset { get; set; }
@@ -50,7 +50,7 @@ public class TuiSidePanel : TuiControl
         int contentW = Width - BorderWidth;
         if (contentW <= 0) return;
 
-        var bc = TuiHelper.GetBorderChars(BorderStyle);
+        var bc = AnsiHelper.GetBorderChars(BorderStyle);
         int bg = Bg > 0 ? Bg : TuiTheme.Current.TerminalBg;
         int fg = Fg > 0 ? Fg : TuiTheme.Current.ControlFg;
         int row = absY;
@@ -75,7 +75,7 @@ public class TuiSidePanel : TuiControl
         foreach (var sec in Sections)
         {
             if (sec.Collapsed) continue;
-            totalLines += 2; // 标题行 + 分隔线（渲染时各占 1 行，漏算会导致滚动错位）
+            totalLines += 1; // 标题行
             totalLines += sec.Lines.Count;
         }
 
@@ -90,7 +90,7 @@ public class TuiSidePanel : TuiControl
             if (curRow >= row + Height) break;
 
             int sectionStart = renderedLines;
-            int sectionEnd = renderedLines + 2 + sec.Lines.Count; // 含分隔线行
+            int sectionEnd = renderedLines + 1 + sec.Lines.Count;
 
             // 计算该分区在当前滚动窗口内的可见行
             if (sectionEnd <= startLine)
@@ -108,7 +108,7 @@ public class TuiSidePanel : TuiControl
                 {
                     var titleRb = new RenderBuffer();
                     string title = sec.Title.Length > contentW - 2
-                        ? TuiHelper.TruncateByWidth(sec.Title, contentW - 2)
+                        ? AnsiHelper.TruncateByWidth(sec.Title, contentW - 2)
                         : sec.Title;
                     titleRb.Write(curRow, contentX, " " + title, fg: SectionHeaderFg, bg: bg);
                     sb.Append(titleRb.ToString());
@@ -141,8 +141,8 @@ public class TuiSidePanel : TuiControl
                 {
                     var line = sec.Lines[i];
                     int maxVw = contentW - 2;
-                    if (TuiHelper.DisplayWidth(line) > maxVw)
-                        line = TuiHelper.TruncateByWidth(line, maxVw);
+                    if (AnsiHelper.DisplayWidth(line) > maxVw)
+                        line = AnsiHelper.TruncateByWidth(line, maxVw);
                     var lineRb = new RenderBuffer();
                     lineRb.Write(curRow, contentX + 1, line, fg: fg, bg: bg);
                     sb.Append(lineRb.ToString());

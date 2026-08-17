@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -37,7 +38,7 @@ public class TuiTitleBar : TuiControl
     {
         var t = TuiTheme.Current;
         var (gs, ge) = t.GradTitleBar;
-        int fg = TuiColors.Black; // 金色底用黑字
+        int fg = AnsiColors.Black; // 金色底用黑字
         int row = absY;
 
         // 1. 整行渐变背景填充
@@ -51,13 +52,13 @@ public class TuiTitleBar : TuiControl
         // 3. 居中文本（在左右之间居中显示）
         if (!string.IsNullOrEmpty(CenterText))
         {
-            int cw = TuiHelper.DisplayWidth(CenterText);
+            int cw = AnsiHelper.DisplayWidth(CenterText);
             int centerCol = absX + (Width - cw) / 2;
             // 确保不覆盖左侧标题
-            int minCenter = absX + 1 + TuiHelper.DisplayWidth(title) + 2;
+            int minCenter = absX + 1 + AnsiHelper.DisplayWidth(title) + 2;
             if (centerCol < minCenter) centerCol = minCenter;
             // 确保不覆盖右侧版本号
-            int vw = string.IsNullOrEmpty(Version) ? 0 : TuiHelper.DisplayWidth(Version) + 1;
+            int vw = string.IsNullOrEmpty(Version) ? 0 : AnsiHelper.DisplayWidth(Version) + 1;
             int maxCenter = absX + Width - vw - cw - 2;
             if (centerCol + cw > maxCenter) centerCol = Math.Max(minCenter, maxCenter - cw);
             if (centerCol >= minCenter)
@@ -68,32 +69,10 @@ public class TuiTitleBar : TuiControl
         // 4. 右侧：版本号
         if (!string.IsNullOrEmpty(Version))
         {
-            int vw = TuiHelper.DisplayWidth(Version);
+            int vw = AnsiHelper.DisplayWidth(Version);
             int rightCol = absX + Width - vw - 1;
             ControlRenderer.WriteGradientTextAt(sb, row, rightCol, Version,
                 fg, gs, ge, absX, Width);
         }
-    }
-
-    /// <summary>主题纯色模式：用 StatusBarBg/Fg 填充整行并写普通文本（替代渐变）</summary>
-    private void RenderSolid(StringBuilder sb, int row, int absX)
-    {
-        int fg = Fg > 0 ? Fg : TuiColors.White;
-        var rb = new RenderBuffer();
-        rb.Write(row, absX, new string(' ', Width), fg: fg, bg: Bg);
-        var title = Title.Length > 0 ? Title : Global.AppFullName;
-        rb.Write(row, absX + 1, title, fg: fg, bg: Bg);
-        if (!string.IsNullOrEmpty(CenterText))
-        {
-            int cw = TuiHelper.DisplayWidth(CenterText);
-            int centerCol = absX + Math.Max(0, (Width - cw) / 2);
-            rb.Write(row, centerCol, CenterText, fg: fg, bg: Bg);
-        }
-        if (!string.IsNullOrEmpty(Version))
-        {
-            int vw = TuiHelper.DisplayWidth(Version);
-            rb.Write(row, absX + Width - vw - 1, Version, fg: fg, bg: Bg);
-        }
-        sb.Append(rb.ToString());
     }
 }

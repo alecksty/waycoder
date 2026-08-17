@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui;
 
@@ -9,10 +10,15 @@ public struct EdgeInsets
 {
     public int Top, Right, Bottom, Left;
     public EdgeInsets(int all = 0) => Top = Right = Bottom = Left = all;
+
     public EdgeInsets(int top, int right, int bottom, int left)
     {
-        Top = top; Right = right; Bottom = bottom; Left = left;
+        Top = top;
+        Right = right;
+        Bottom = bottom;
+        Left = left;
     }
+
     public int Horizontal => Left + Right;
     public int Vertical => Top + Bottom;
 }
@@ -36,7 +42,7 @@ public abstract class TuiControl : TuiBase
     public EdgeInsets Padding { get; set; }
 
     /// <summary>文本对齐方式（子控件在渲染时读取）</summary>
-    public HAlign TextAlign { get; set; } = HAlign.Left;
+    public EHAlign TextAlign { get; set; } = EHAlign.Left;
 
     // ── 状态 ──
     public bool Visible { get; set; } = true;
@@ -81,7 +87,9 @@ public abstract class TuiControl : TuiBase
     public bool IsCursorOwner { get; set; }
 
     /// <summary>光标请求的行/列（OnRender 时记录，由 Screen 在最后统一输出）</summary>
-    protected int _cursorRow, _cursorCol;
+    protected int _cursorRow;
+
+    protected int _cursorCol;
     protected bool _showCursor;
 
     /// <summary>
@@ -116,16 +124,19 @@ public abstract class TuiControl : TuiBase
     // ── 颜色 ──
     /// <summary>默认前景色（ANSI 色码，0=继承父容器）</summary>
     public int Fg { get; set; }
+
     /// <summary>默认背景色（ANSI 色码，0=透明/继承）</summary>
-    public int Bg { get; set; }
+    public int Bg { get; set; } = 0;
 
     /// <summary>获得焦点时的前景色（0=使用 Fg）</summary>
     public int FocusedFg { get; set; }
+
     /// <summary>获得焦点时的背景色（0=使用 Bg）</summary>
     public int FocusedBg { get; set; }
 
     /// <summary>禁用时的前景色（0=自动变灰）</summary>
     public int DisabledFg { get; set; }
+
     /// <summary>禁用时的背景色（0=使用 Bg）</summary>
     public int DisabledBg { get; set; }
 
@@ -171,6 +182,7 @@ public abstract class TuiControl : TuiBase
             if (p.Bg > 0) return p.Bg;
             p = p.Parent;
         }
+
         return CascadedBg;
     }
 
@@ -187,7 +199,8 @@ public abstract class TuiControl : TuiBase
     /// clipL/T/R/B 为父容器的裁剪约束（可选），控件实际裁剪区取交集。
     /// Padding 自动内移裁剪区，Margin 由父容器布局时处理。
     /// </summary>
-    public void Render(StringBuilder sb, int parentAbsX, int parentAbsY,
+    public void Render(StringBuilder sb,
+        int parentAbsX, int parentAbsY,
         int clipL = int.MinValue, int clipT = int.MinValue,
         int clipR = int.MaxValue, int clipB = int.MaxValue)
     {
@@ -207,9 +220,9 @@ public abstract class TuiControl : TuiBase
         var selfB = absY + Height - Padding.Bottom;
 
         // 与父容器约束取交集
-        ClipLeft   = Math.Max(selfL, clipL);
-        ClipTop    = Math.Max(selfT, clipT);
-        ClipRight  = Math.Min(selfR, clipR);
+        ClipLeft = Math.Max(selfL, clipL);
+        ClipTop = Math.Max(selfT, clipT);
+        ClipRight = Math.Min(selfR, clipR);
         ClipBottom = Math.Min(selfB, clipB);
 
         // 完全不可见则跳过
@@ -223,7 +236,7 @@ public abstract class TuiControl : TuiBase
         int effectiveBg = !IsEnabled && DisabledBg > 0 ? DisabledBg : Bg;
         if (effectiveBg > 0)
         {
-            for (int r = ClipTop; r < ClipBottom; r++)
+            for (var r = ClipTop; r < ClipBottom; r++)
             {
                 var rb = new RenderBuffer();
                 rb.Write(r, ClipLeft, new string(' ', ClipRight - ClipLeft), bg: effectiveBg);
@@ -261,17 +274,32 @@ public abstract class TuiControl : TuiBase
         if (!CanFocus) return false;
         return false;
     }
+
     /// <summary>鼠标事件处理。子类覆写以支持点击等交互。</summary>
-    public override bool HandleMouse(InputEvent ev) => false;
-    public override void OnResize(int newParentW, int newParentH) { }
+    public override bool OnMouse(InputEvent ev) => false;
+
+    /// <summary>
+    /// 控件尺寸变化时调用。子类可覆写以响应布局变化。
+    /// 例如：容器子类（TuiView）可覆写以调整子节点位置。
+    /// 其他控件（如输入框）可覆写以更新显示内容。
+    /// </summary>
+    /// <param name="newParentW">新父容器宽度</param>
+    /// <param name="newParentH">新父容器高度</param>
+    public override void OnResize(int newParentW, int newParentH)
+    {
+    }
 
     // ── 生命周期 ──
 
     /// <summary>控件加入控件树时调用（Add 设置 Parent 后）。初始化子对象、订阅事件。</summary>
-    public override void OnCreate() { }
+    public override void OnCreate()
+    {
+    }
 
     /// <summary>控件从控件树移除时调用（Remove/Clear 前）。取消订阅、释放资源。</summary>
-    public override void OnDestroy() { }
+    public override void OnDestroy()
+    {
+    }
 
     // ── 命中测试 ──
 
@@ -296,6 +324,7 @@ public abstract class TuiControl : TuiBase
             myAbsX = X;
             myAbsY = Y;
         }
+
         if (absX >= myAbsX && absX < myAbsX + Width &&
             absY >= myAbsY && absY < myAbsY + Height)
             return this;
@@ -305,26 +334,28 @@ public abstract class TuiControl : TuiBase
     /// <summary>沿 Parent 链计算绝对 X 坐标</summary>
     protected int GetAbsoluteX()
     {
-        int x = X;
+        var x = X;
         var p = Parent;
         while (p != null)
         {
             x += p.X;
             p = p.Parent;
         }
+
         return x;
     }
 
     /// <summary>沿 Parent 链计算绝对 Y 坐标</summary>
     protected int GetAbsoluteY()
     {
-        int y = Y;
+        var y = Y;
         var p = Parent;
         while (p != null)
         {
             y += p.Y;
             p = p.Parent;
         }
+
         return y;
     }
 
@@ -338,7 +369,7 @@ public abstract class TuiControl : TuiBase
         if (string.IsNullOrEmpty(text)) return;
         if (col >= ClipRight || row < ClipTop || row >= ClipBottom) return;
 
-        var textVw = AnsiString.DisplayWidth(text);
+        var textVw = AnsiHelper.DisplayWidth(text);
         if (col + textVw <= ClipLeft) return;
 
         // 左侧裁剪：跳过被遮挡的字符
@@ -349,19 +380,20 @@ public abstract class TuiControl : TuiBase
             int needSkip = ClipLeft - col;
             foreach (var rune in text.EnumerateRunes())
             {
-                int rw = TuiHelper.RuneWidth(rune);
+                int rw = AnsiHelper.RuneWidth(rune);
                 if (skipVw + rw > needSkip) break;
                 skipVw += rw;
                 charIdx += rune.Utf16SequenceLength; // UTF-16 码元索引，代理对占 2
             }
+
             text = text[charIdx..];
             col = ClipLeft;
         }
 
-        // 右侧裁剪：截断超出部分（ANSI 感知——转义序列不计宽，且截断点不落在序列中间）
+        // 右侧裁剪：截断超出部分
         int maxVw = ClipRight - col;
-        if (AnsiString.DisplayWidth(text) > maxVw)
-            text = AnsiString.TruncateByWidth(text, maxVw);
+        if (AnsiHelper.DisplayWidth(text) > maxVw)
+            text = AnsiHelper.TruncateByWidth(text, maxVw);
 
         if (string.IsNullOrEmpty(text)) return;
 

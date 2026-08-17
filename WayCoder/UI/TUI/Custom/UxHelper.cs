@@ -1,4 +1,5 @@
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.Tui.Screens;
 
@@ -378,8 +379,8 @@ public static class UxHelper
                 {
                     result = r switch
                     {
-                        TuiDialog.DialogResult.Yes => 0,
-                        TuiDialog.DialogResult.Ok => 1,
+                        TuiDialog.EDialogResult.Yes => 0,
+                        TuiDialog.EDialogResult.Ok => 1,
                         _ => 2
                     };
                     evt.Set();
@@ -410,9 +411,6 @@ public static class UxHelper
         var start = Environment.TickCount64;
         while (!evt.IsSet)
         {
-            // 模态对话框期间每帧渲染：导航高亮/动画/spinner 都由控件级 MarkDirty 触发，
-            // 但这里按键直接走 screen.OnKey 不经 Manager.OnKey，必须强制置脏否则高亮冻结
-            if (manager != null) manager.IsDirty = true;
             manager?.Render();
             if (Console.KeyAvailable)
             {

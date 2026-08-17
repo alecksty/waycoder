@@ -1,8 +1,9 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui.Controls;
-
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
+
 namespace WayCoder.UI.Tui;
 
 /// <summary>
@@ -20,6 +21,14 @@ namespace WayCoder.UI.Tui;
 /// </summary>
 public static class FilePicker
 {
+    /// <summary>
+    /// 文件列表项
+    /// </summary>
+    /// <param name="Name">文件名</param>
+    /// <param name="FullPath">完整路径</param>
+    /// <param name="IsDir">是否为目录</param>
+    /// <param name="Size">文件大小</param>
+    /// <param name="Modified">最后修改时间</param>
     public record FileEntry(string Name, string FullPath, bool IsDir, long Size, DateTime Modified);
 
     private const int MinW = 70, MaxW = 100;
@@ -45,11 +54,19 @@ public static class FilePicker
         try
         {
             var screen = TuiManager.Instance?.ActiveScreen;
-            var win = BuildWindow(dir, pattern, title, screen, p => { result = p; evt.Set(); });
+            var win = BuildWindow(dir, pattern, title, screen, p =>
+            {
+                result = p;
+                evt.Set();
+            });
             screen?.ShowWindow(win);
             UxHelper.RenderWait(screen, evt, 30_000, win);
         }
-        catch { evt.Set(); }
+        catch
+        {
+            evt.Set();
+        }
+
         return result;
     }
 
@@ -59,22 +76,21 @@ public static class FilePicker
         TuiScreen? screen, Action<string?> onDone)
     {
         int winW = Math.Clamp(Tty.Cols - 4, MinW, MaxW);
-        int listW = Math.Max(10, winW - 2);                          // 内容区宽（去左右边框）
-        int nameW = Math.Max(8, listW - 1 - SizeW - DateW - TimeW);  // 预留 1 列滚动条
+        int listW = Math.Max(10, winW - 2); // 内容区宽（去左右边框）
+        int nameW = Math.Max(8, listW - 1 - SizeW - DateW - TimeW); // 预留 1 列滚动条
         int winH = ListH + 5; // 上框 + 路径 + 搜索 + 列表 + 帮助 + 下框
 
         var win = new TuiWindow
         {
             Title = title,
-            ShowTitleSeparator = false,
             Modal = true, HasMask = true,
-            Border = WindowBorder.Rounded,
+            Border = WindowBorder.Solid,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             Width = winW, Height = winH,
             MinWidth = MinW, MinHeight = 10,
-            WindowHAlign = HAlign.Center,
-            WindowVAlign = VAlign.Middle,
+            WindowHAlign = EHAlign.Center,
+            WindowVAlign = EVAlign.Middle,
         };
         var g = TuiTheme.Current.GradCyanBlue;
         win.GradientBorder = true;
@@ -87,18 +103,18 @@ public static class FilePicker
         var filtered = new List<FileEntry>();
 
         // 路径栏
-        var pathLabel = new TuiLabel { Height = 1, Fg = TuiColors.BrightWhite };
+        var pathLabel = new TuiLabel { Height = 1, Fg = AnsiColors.BrightBlack };
 
         // 搜索行（标签 + 输入框，输入框聚焦）
         var search = new TuiInput
         {
             Height = 1,
             Flex = 1,
-            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Fg = AnsiColors.White, Bg = AnsiColors.BgBlack,
             Focused = true,
         };
         var searchRow = new TuiHBox { Spacing = 1 };
-        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = TuiColors.BrightWhite });
+        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = AnsiColors.BrightBlack });
         searchRow.Add(search);
 
         // 文件列表（多列：文件/大小/日期/时间）
@@ -109,9 +125,9 @@ public static class FilePicker
         table.AddColumn("时间", TimeW);
 
         // 帮助行（兼显示过滤计数）
-        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightWhite };
+        var help = new TuiLabel { Height = 1, Fg = AnsiColors.BrightBlack };
 
-        var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
+        var vbox = new TuiVBox { ChildHAlign = EHAlign.Stretch };
         vbox.Add(pathLabel);
         vbox.Add(searchRow);
         vbox.Add(table);
@@ -136,6 +152,7 @@ public static class FilePicker
                     e.Modified != DateTime.MinValue ? e.Modified.ToString("MM-dd") : "",
                     e.Modified != DateTime.MinValue ? e.Modified.ToString("HH:mm") : "");
             }
+
             table.SelectedIndex = 0;
             table.ScrollOffset = 0;
             table.EnsureSelectedVisible();
@@ -194,9 +211,15 @@ public static class FilePicker
                     Activate();
                     return true;
                 case ConsoleKey.Backspace:
-                    if (search.Text.Length == 0) { GoParent(); return true; }
+                    if (search.Text.Length == 0)
+                    {
+                        GoParent();
+                        return true;
+                    }
+
                     return false; // 有搜索词 → 交给输入框删除字符
             }
+
             return false;
         };
         table.OnSelect = _ => Activate(); // 若焦点切到列表，Enter 亦可打开
@@ -227,7 +250,9 @@ public static class FilePicker
                     var di = new DirectoryInfo(d);
                     list.Add(new FileEntry(di.Name, di.FullName, true, 0, di.LastWriteTime));
                 }
-                catch { }
+                catch
+                {
+                }
             }
 
             foreach (var f in Directory.GetFiles(dir, pattern))
@@ -237,10 +262,14 @@ public static class FilePicker
                     var fi = new FileInfo(f);
                     list.Add(new FileEntry(fi.Name, fi.FullName, false, fi.Length, fi.LastWriteTime));
                 }
-                catch { }
+                catch
+                {
+                }
             }
         }
-        catch { }
+        catch
+        {
+        }
 
         return list
             .OrderBy(e => e.IsDir && e.Name != ".." ? 0 : e.Name == ".." ? -1 : 1)
@@ -260,17 +289,18 @@ public static class FilePicker
     private static string TruncLeftVW(string text, int maxVW)
     {
         if (string.IsNullOrEmpty(text)) return "";
-        if (TuiHelper.DisplayWidth(text) <= maxVW) return text;
+        if (AnsiHelper.DisplayWidth(text) <= maxVW) return text;
         var runes = text.EnumerateRunes().ToList();
         int budget = maxVW - 1; // 预留 1 宽给 …
         var sb = new StringBuilder();
         for (int i = runes.Count - 1; i >= 0; i--)
         {
-            int rw = TuiHelper.RuneWidth(runes[i]);
+            int rw = AnsiHelper.RuneWidth(runes[i]);
             if (budget - rw < 0) break;
             budget -= rw;
             sb.Insert(0, runes[i].ToString());
         }
+
         return "…" + sb;
     }
 }

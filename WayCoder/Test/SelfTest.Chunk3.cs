@@ -747,47 +747,47 @@ public static partial class SelfTest
 
         Console.WriteLine();
 
-        // ---- CJK 宽度计算 (TuiHelper) ----
+        // ---- CJK 宽度计算 (AnsiHelper) ----
         Section("[CJK 宽度]");
-        Check("ASCII 宽度=1", UI.Shared.TuiHelper.DisplayWidth("abc") == 3);
-        Check("中文 宽度=2", UI.Shared.TuiHelper.DisplayWidth("你好") == 4);
-        Check("中英混合", UI.Shared.TuiHelper.DisplayWidth("hi你好") == 6);
-        Check("空字符串=0", UI.Shared.TuiHelper.DisplayWidth("") == 0);
-        Check("数字宽度=1", UI.Shared.TuiHelper.DisplayWidth("123") == 3);
-        Check("中文宽度=2", UI.Shared.TuiHelper.DisplayWidth("你好") == 4);
+        Check("ASCII 宽度=1", UI.Shared.AnsiHelper.DisplayWidth("abc") == 3);
+        Check("中文 宽度=2", UI.Shared.AnsiHelper.DisplayWidth("你好") == 4);
+        Check("中英混合", UI.Shared.AnsiHelper.DisplayWidth("hi你好") == 6);
+        Check("空字符串=0", UI.Shared.AnsiHelper.DisplayWidth("") == 0);
+        Check("数字宽度=1", UI.Shared.AnsiHelper.DisplayWidth("123") == 3);
+        Check("中文宽度=2", UI.Shared.AnsiHelper.DisplayWidth("你好") == 4);
         // EA Ambiguous 中文标点 (U+2010-U+2027, U+2030-U+2043)
-        Check("EmDash U+2014 width=2", UI.Shared.TuiHelper.RuneWidth(new Rune(0x2014)) == 2);
-        Check("Ellipsis U+2026 width=2", UI.Shared.TuiHelper.RuneWidth(new Rune(0x2026)) == 2);
-        Check("LeftDblQuote U+201C width=2", UI.Shared.TuiHelper.RuneWidth(new Rune(0x201C)) == 2);
-        Check("RightDblQuote U+201D width=2", UI.Shared.TuiHelper.RuneWidth(new Rune(0x201D)) == 2);
-        Check("ReferenceMark U+203B width=2", UI.Shared.TuiHelper.RuneWidth(new Rune(0x203B)) == 2);
+        Check("EmDash U+2014 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2014)) == 2);
+        Check("Ellipsis U+2026 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2026)) == 2);
+        Check("LeftDblQuote U+201C width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x201C)) == 2);
+        Check("RightDblQuote U+201D width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x201D)) == 2);
+        Check("ReferenceMark U+203B width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x203B)) == 2);
         // Emoji / 符号 (U+2600-U+27BF, U+1F000-U+1FAFF)
-        Check("Star U+2605 width=2", UI.Shared.TuiHelper.RuneWidth(new Rune(0x2605)) == 2);
-        Check("Heart U+2665 width=2", UI.Shared.TuiHelper.RuneWidth(new Rune(0x2665)) == 2);
-        Check("CheckMark U+2713 width=2", UI.Shared.TuiHelper.RuneWidth(new Rune(0x2713)) == 2);
-        Check("MahjongTile U+1F000 width=2", UI.Shared.TuiHelper.RuneWidth(new Rune(0x1F000)) == 2);
-        Check("DominoTile U+1F030 width=2", UI.Shared.TuiHelper.RuneWidth(new Rune(0x1F030)) == 2);
-        Check("PlayingCard U+1F0A0 width=2", UI.Shared.TuiHelper.RuneWidth(new Rune(0x1F0A0)) == 2);
-        Check("Smiley U+1F600 width=2", UI.Shared.TuiHelper.RuneWidth(new Rune(0x1F600)) == 2);
-        Check("Rocket U+1F680 width=2", UI.Shared.TuiHelper.RuneWidth(new Rune(0x1F680)) == 2);
-        Check("ExtA U+1FA80 width=2", UI.Shared.TuiHelper.RuneWidth(new Rune(0x1FA80)) == 2);
+        Check("Star U+2605 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2605)) == 2);
+        Check("Heart U+2665 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2665)) == 2);
+        Check("CheckMark U+2713 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2713)) == 2);
+        Check("MahjongTile U+1F000 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x1F000)) == 2);
+        Check("DominoTile U+1F030 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x1F030)) == 2);
+        Check("PlayingCard U+1F0A0 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x1F0A0)) == 2);
+        Check("Smiley U+1F600 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x1F600)) == 2);
+        Check("Rocket U+1F680 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x1F680)) == 2);
+        Check("ExtA U+1FA80 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x1FA80)) == 2);
         // 终端原生窄字符：盒绘制/箭头/方块 (U+2190-U+21FF, U+2500-U+259F)
-        Check("BoxCorner U+250C width=1", UI.Shared.TuiHelper.RuneWidth(new Rune(0x250C)) == 1);
-        Check("BoxHLine U+2500 width=1", UI.Shared.TuiHelper.RuneWidth(new Rune(0x2500)) == 1);
-        Check("ArrowUp U+2191 width=1", UI.Shared.TuiHelper.RuneWidth(new Rune(0x2191)) == 1);
-        Check("ArrowDown U+2193 width=1", UI.Shared.TuiHelper.RuneWidth(new Rune(0x2193)) == 1);
-        Check("FullBlock U+2588 width=1", UI.Shared.TuiHelper.RuneWidth(new Rune(0x2588)) == 1);
+        Check("BoxCorner U+250C width=1", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x250C)) == 1);
+        Check("BoxHLine U+2500 width=1", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2500)) == 1);
+        Check("ArrowUp U+2191 width=1", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2191)) == 1);
+        Check("ArrowDown U+2193 width=1", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2193)) == 1);
+        Check("FullBlock U+2588 width=1", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2588)) == 1);
         // 零宽字符
-        Check("ZeroWidthSpace U+200B width=0", UI.Shared.TuiHelper.RuneWidth(new Rune(0x200B)) == 0);
-        Check("VariationSel U+FE0F width=0", UI.Shared.TuiHelper.RuneWidth(new Rune(0xFE0F)) == 0);
-        Check("Truncate 不截断短文本", UI.Shared.TuiHelper.TruncateByWidth("hello", 10) == "hello");
-        Check("Truncate 中文=6留'你好…'", UI.Shared.TuiHelper.TruncateByWidth("你好世界", 6) == "你好…");
-        Check("Truncate 中文=8完整", UI.Shared.TuiHelper.TruncateByWidth("你好世界", 8) == "你好世界");
-        Check("Esc 方括号不再需要转义", UI.Shared.TuiHelper.Esc("[文件]") == "[文件]");
-        Check("Esc 转义书名号 «»", UI.Shared.TuiHelper.Esc("«文本»") == "««文本»»");
-        Check("StripMarkup 移除开始标签", UI.Shared.TuiHelper.StripMarkup("«bold»文本") == "文本");
-        Check("StripMarkup 移除结束标签 «/»", UI.Shared.TuiHelper.StripMarkup("«cyan»文本«/»") == "文本");
-        Check("StripMarkup 纯文本不变", UI.Shared.TuiHelper.StripMarkup("纯文本") == "纯文本");
+        Check("ZeroWidthSpace U+200B width=0", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x200B)) == 0);
+        Check("VariationSel U+FE0F width=0", UI.Shared.AnsiHelper.RuneWidth(new Rune(0xFE0F)) == 0);
+        Check("Truncate 不截断短文本", UI.Shared.AnsiHelper.TruncateByWidth("hello", 10) == "hello");
+        Check("Truncate 中文=6留'你好…'", UI.Shared.AnsiHelper.TruncateByWidth("你好世界", 6) == "你好…");
+        Check("Truncate 中文=8完整", UI.Shared.AnsiHelper.TruncateByWidth("你好世界", 8) == "你好世界");
+        Check("Esc 方括号不再需要转义", UI.Shared.AnsiHelper.Esc("[文件]") == "[文件]");
+        Check("Esc 转义书名号 «»", UI.Shared.AnsiHelper.Esc("«文本»") == "««文本»»");
+        Check("StripMarkup 移除开始标签", UI.Shared.AnsiHelper.StripMarkup("«bold»文本") == "文本");
+        Check("StripMarkup 移除结束标签 «/»", UI.Shared.AnsiHelper.StripMarkup("«cyan»文本«/»") == "文本");
+        Check("StripMarkup 纯文本不变", UI.Shared.AnsiHelper.StripMarkup("纯文本") == "纯文本");
         Console.WriteLine();
 
         // ---- 语法高亮 (Syntax) ----

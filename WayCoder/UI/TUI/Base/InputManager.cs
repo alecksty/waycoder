@@ -1,8 +1,8 @@
 ﻿using System.Diagnostics;
-
 using WayCoder.UI.Shared.Terminal;
-namespace WayCoder.UI.Tui;
+using WayCoder.UI.Tui;
 
+namespace WayCoder.UI.TUI.Base;
 
 /// <summary>
 /// 终端输入管理器 —— 拦截键盘、管理鼠标、即时响应窗口 resize。
@@ -47,17 +47,36 @@ public class InputManager : IDisposable
 
         if (TuiManager.MouseEnabled)
         {
-            try { Tty.EnableMouse(); _mouseEnabled = true; }
-            catch { _mouseEnabled = false; }
+            try
+            {
+                Tty.EnableMouse();
+                _mouseEnabled = true;
+            }
+            catch
+            {
+                _mouseEnabled = false;
+            }
         }
 
         // 启用 bracketed paste：终端自动包裹粘贴内容为 \x1b[200~...\x1b[201~
-        try { Tty.EnableBracketedPaste(); }
-        catch { /* 非关键功能 */ }
+        try
+        {
+            Tty.EnableBracketedPaste();
+        }
+        catch
+        {
+            /* 非关键功能 */
+        }
 
         // 启用 Kitty 键盘协议：现代终端（iTerm2/Kitty/WezTerm）支持修饰键完整报告
-        try { Tty.EnableKittyKeyboard(); }
-        catch { /* 非关键功能 */ }
+        try
+        {
+            Tty.EnableKittyKeyboard();
+        }
+        catch
+        {
+            /* 非关键功能 */
+        }
     }
 
     /// <summary>
@@ -133,14 +152,9 @@ public class InputManager : IDisposable
         var bracket = Tty.ReadKey();
         if (bracket.KeyChar != AnsiTty.AnsiCharEscape)
         {
-            // Alt+字符 组合：\x1b x → 组合为带 Alt 修饰的键事件返回。
-            // 不能把 ESC 单独返回（会触发空输入框退出确认），也不能退回字符后让 ESC 先到。
-            return new InputEvent
-            {
-                Type = InputType.Key,
-                KeyInfo = new ConsoleKeyInfo(bracket.KeyChar, bracket.Key,
-                    bracket.Modifiers.HasFlag(ConsoleModifiers.Shift), false, true),
-            };
+            // Alt+字符 组合：AnsiTty.AnsiCharPrefix x —— 退回字符，AnsiTty.AnsiCharPrefix 单独作为 ESC 键返回
+            _pendingKeys.Enqueue(bracket);
+            return null;
         }
 
         // \x1b[ 后无内容（极少见）→ 退回 '['，让 \x1b 单独作为 ESC 键
@@ -234,6 +248,7 @@ public class InputManager : IDisposable
                     break;
                 }
             }
+
             if (terminator == '\0') return null; // 无终止符，损坏的序列
         }
 
@@ -312,8 +327,8 @@ public class InputManager : IDisposable
         // xterm modifier encoding:
         // 2=Shift, 3=Alt, 4=Shift+Alt, 5=Ctrl, 6=Ctrl+Shift, 7=Ctrl+Alt, 8=Ctrl+Shift+Alt
         bool shift = mod == 2 || mod == 4 || mod == 6 || mod == 8;
-        bool alt   = mod == 3 || mod == 4 || mod == 7 || mod == 8;
-        bool ctrl  = mod == 5 || mod == 6 || mod == 7 || mod == 8;
+        bool alt = mod == 3 || mod == 4 || mod == 7 || mod == 8;
+        bool ctrl = mod == 5 || mod == 6 || mod == 7 || mod == 8;
 
         var consoleKey = funcNum switch
         {
@@ -362,8 +377,12 @@ public class InputManager : IDisposable
                 for (int i = 0; i < endMarker.Length; i++)
                 {
                     if (sb[sb.Length - endMarker.Length + i] != endMarker[i])
-                    { match = false; break; }
+                    {
+                        match = false;
+                        break;
+                    }
                 }
+
                 if (match)
                 {
                     var text = sb.ToString(0, sb.Length - endMarker.Length);
@@ -409,8 +428,8 @@ public class InputManager : IDisposable
 
         // Kitty 修饰键位掩码 → bool
         bool shift = (modifiers & 1) != 0;
-        bool alt   = (modifiers & 2) != 0;
-        bool ctrl  = (modifiers & 4) != 0;
+        bool alt = (modifiers & 2) != 0;
+        bool ctrl = (modifiers & 4) != 0;
         // Super (8) 忽略，因为 .NET ConsoleKeyInfo 无 Super 修饰键
 
         // 映射 keycode → ConsoleKey + keyChar
@@ -450,15 +469,25 @@ public class InputManager : IDisposable
             switch (keycode)
             {
                 case 13: // Enter（回车键也作为标准键处理）
-                    consoleKey = ConsoleKey.Enter; keyChar = '\r'; break;
+                    consoleKey = ConsoleKey.Enter;
+                    keyChar = '\r';
+                    break;
                 case 27: // Escape
-                    consoleKey = ConsoleKey.Escape; keyChar = '\x1b'; break;
+                    consoleKey = ConsoleKey.Escape;
+                    keyChar = '\x1b';
+                    break;
                 case 9: // Tab
-                    consoleKey = ConsoleKey.Tab; keyChar = '\t'; break;
+                    consoleKey = ConsoleKey.Tab;
+                    keyChar = '\t';
+                    break;
                 case 127: // Backspace
-                    consoleKey = ConsoleKey.Backspace; keyChar = '\b'; break;
+                    consoleKey = ConsoleKey.Backspace;
+                    keyChar = '\b';
+                    break;
                 case 32: // Space
-                    consoleKey = ConsoleKey.Spacebar; keyChar = ' '; break;
+                    consoleKey = ConsoleKey.Spacebar;
+                    keyChar = ' ';
+                    break;
                 default:
                     if (keycode >= 33 && keycode <= 126)
                     {
@@ -473,10 +502,10 @@ public class InputManager : IDisposable
                         else
                             consoleKey = keyChar switch
                             {
-                                '`' => ConsoleKey.Oem3,   '-' => ConsoleKey.OemMinus,
+                                '`' => ConsoleKey.Oem3, '-' => ConsoleKey.OemMinus,
                                 '=' => ConsoleKey.OemPlus, '[' => ConsoleKey.Oem4,
-                                ']' => ConsoleKey.Oem6,   '\\' => ConsoleKey.Oem5,
-                                ';' => ConsoleKey.Oem1,   '\'' => ConsoleKey.Oem7,
+                                ']' => ConsoleKey.Oem6, '\\' => ConsoleKey.Oem5,
+                                ';' => ConsoleKey.Oem1, '\'' => ConsoleKey.Oem7,
                                 ',' => ConsoleKey.OemComma, '.' => ConsoleKey.OemPeriod,
                                 '/' => ConsoleKey.Oem2,
                                 _ => ConsoleKey.NoName,
@@ -486,6 +515,7 @@ public class InputManager : IDisposable
                     {
                         return null; // 无法识别的键码
                     }
+
                     break;
             }
         }
@@ -516,14 +546,29 @@ public class InputManager : IDisposable
 
         if (_mouseEnabled)
         {
-            try { Tty.DisableMouse(); }
-            catch { }
+            try
+            {
+                Tty.DisableMouse();
+            }
+            catch
+            {
+            }
 
-            try { Tty.DisableBracketedPaste(); }
-            catch { }
+            try
+            {
+                Tty.DisableBracketedPaste();
+            }
+            catch
+            {
+            }
 
-            try { Tty.DisableKittyKeyboard(); }
-            catch { }
+            try
+            {
+                Tty.DisableKittyKeyboard();
+            }
+            catch
+            {
+            }
         }
 
         Console.CursorVisible = true;
@@ -557,6 +602,7 @@ public class InputEvent
     public bool MouseRelease { get; set; }
     public int Width { get; set; }
     public int Height { get; set; }
+
     /// <summary>粘贴文本内容（仅 InputType.Paste 时有效）</summary>
     public string? PasteText { get; set; }
 }
