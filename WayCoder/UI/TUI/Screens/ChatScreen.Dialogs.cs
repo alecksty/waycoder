@@ -154,6 +154,8 @@ public partial class ChatScreen : TuiScreen
     {
         while (!evt.IsSet)
         {
+            // 每帧强制渲染：OnKey 直接走 screen 不经 Manager.OnKey，否则 TuiList 导航高亮冻结
+            if (Manager != null) Manager.IsDirty = true;
             Manager?.Render();
             // Read input with short timeout to keep rendering
             if (Console.KeyAvailable)
