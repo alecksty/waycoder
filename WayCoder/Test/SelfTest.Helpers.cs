@@ -4172,6 +4172,30 @@ public static partial class SelfTest
         }
     }
 
+    private static void TestV0719CjkExtB(Action<string, bool> Check)
+    {
+        // ── SemanticMemory.Tokenize 扩展 B 区汉字（代理对）被 char 迭代静默丢弃 → 召回率缺陷 ──
+        const string extB = "\U00020BB7"; // 𠮷（扩展 B，UTF-16 代理对）；野=U+91CE、家=U+5BB6（BMP 基本区）
+
+        var tokens = SemanticMemory.Tokenize(extB + "野家");
+        Check("Tokenize: 扩展 B 汉字作为单 token 保留", tokens.Contains(extB));
+        Check("Tokenize: BMP 汉字 bigram 不受影响", tokens.Contains("野家"));
+        Check("Tokenize: 无孤立代理项", !tokens.Any(HasLoneSurrogate));
+
+        // emoji（非扩展 B 代理对）应成对跳过，不产生 token、不残留孤立代理项
+        var emojiTokens = SemanticMemory.Tokenize("\U0001F600" + "ab"); // 😀 + ab
+        Check("Tokenize: emoji 代理对不产生 token", !emojiTokens.Any(t => t.Contains('\ud83d')) && emojiTokens.Contains("ab"));
+
+        // 扩展 B 查询可命中含扩展 B 的记忆
+        var docs = new List<SemanticMemory.MemoryDocument>
+        {
+            new() { Title = "地名", Content = extB + "野家是日本拉面店", Index = 0 },
+            new() { Title = "无关", Content = "hello world", Index = 1 },
+        };
+        var hits = SemanticMemory.SearchRelevant(docs, extB + "野家", 5);
+        Check("Search: 扩展 B 查询命中对应文档", hits.Count > 0 && hits[0].Doc.Index == 0);
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {
