@@ -1,3 +1,4 @@
+using System.Text;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -96,10 +97,61 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
     public Task<List<string>?> MultiSelectAsync(string title, List<string> choices, int timeoutMs)
         => PickAsync(title, choices, multi: true);
 
-    // ── Diff 逐 hunk 确认（MVP：整文件一次性确认，null 已由调用方按拒绝处理）──
+    // ── Diff 预览（MVP：整文件接受/拒绝，逐 hunk 后续再细化）──
 
     public Task<DiffConfirmResult?> DiffConfirmAsync(string filePath, List<DiffPreview.Hunk> hunks, int timeoutMs)
-        => Task.FromResult<DiffConfirmResult?>(null);
+    {
+        var tcs = new TaskCompletionSource<DiffConfirmResult?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Dispatcher.UIThread.Post(() =>
+        {
+            var win = new Window
+            {
+                Title = $"Diff 预览 — {filePath}",
+                Width = 780,
+                Height = 560,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Background = new SolidColorBrush(Color.Parse("#171a23")),
+            };
+            var panel = new DockPanel { Margin = new Avalonia.Thickness(16) };
+
+            var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Avalonia.Thickness(0, 0, 0, 10) };
+            btnRow.Children.Add(MakeButton("接受全部", "#1a7f37", () =>
+            {
+                win.Close();
+                tcs.TrySetResult(new DiffConfirmResult { Decision = DiffPreview.Decision.AcceptAll });
+            }));
+            btnRow.Children.Add(MakeButton("拒绝全部", "#d73a49", () =>
+            {
+                win.Close();
+                tcs.TrySetResult(new DiffConfirmResult { Decision = DiffPreview.Decision.RejectAll });
+            }));
+            DockPanel.SetDock(btnRow, Dock.Bottom);
+            panel.Children.Add(btnRow);
+
+            var sb = new StringBuilder();
+            foreach (var h in hunks)
+            {
+                sb.AppendLine(h.Header);
+                foreach (var l in h.Lines)
+                    sb.AppendLine(l.Kind + l.Text);
+            }
+            var text = new TextBox
+            {
+                Text = sb.ToString(),
+                IsReadOnly = true,
+                AcceptsReturn = true,
+                FontFamily = new FontFamily("Menlo,Consolas,monospace"),
+                FontSize = 12,
+                TextWrapping = TextWrapping.NoWrap,
+            };
+            panel.Children.Add(text);
+
+            win.Content = panel;
+            win.Closed += (_, _) => tcs.TrySetResult(null); // 关闭窗口 = 取消（调用方按拒绝处理）
+            win.ShowDialog(_owner);
+        });
+        return tcs.Task;
+    }
 
     // ── 内部：单选/多选对话框 ──
 
