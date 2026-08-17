@@ -3974,6 +3974,44 @@ public static partial class SelfTest
         Check("取到者是原 Cts 实例", ReferenceEquals(got1 ?? got2, cts2));
     }
 
+    /// <summary>v0.71.14 批次：Retry-After 头解析负数/非法值回退（防止 Task.Delay 抛异常）。</summary>
+    private static void TestV0714RetryAfter(Action<string, bool> Check)
+    {
+        // ── 纯数字（秒）──
+        var pos = new System.Net.Http.HttpResponseMessage();
+        pos.Headers.TryAddWithoutValidation("Retry-After", "5");
+        Check("Retry-After 正整数 → 正延迟", LLM.ParseRetryAfter(pos) is int p && p > 0);
+
+        var zero = new System.Net.Http.HttpResponseMessage();
+        zero.Headers.TryAddWithoutValidation("Retry-After", "0");
+        Check("Retry-After 0 → 立即重试(0)", LLM.ParseRetryAfter(zero) == 0);
+
+        var neg = new System.Net.Http.HttpResponseMessage();
+        neg.Headers.TryAddWithoutValidation("Retry-After", "-5");
+        Check("Retry-After 负数 → 回退默认退避(null)", LLM.ParseRetryAfter(neg) == null);
+
+        var negOne = new System.Net.Http.HttpResponseMessage();
+        negOne.Headers.TryAddWithoutValidation("Retry-After", "-1");
+        Check("Retry-After -1 → 回退(null) 而非无限等待", LLM.ParseRetryAfter(negOne) == null);
+
+        // ── 缺失 / 非法 ──
+        var none = new System.Net.Http.HttpResponseMessage();
+        Check("无 Retry-After 头 → null", LLM.ParseRetryAfter(none) == null);
+
+        var garbage = new System.Net.Http.HttpResponseMessage();
+        garbage.Headers.TryAddWithoutValidation("Retry-After", "not-a-number");
+        Check("Retry-After 非数字 → null", LLM.ParseRetryAfter(garbage) == null);
+
+        // ── HTTP-date ──
+        var past = new System.Net.Http.HttpResponseMessage();
+        past.Headers.TryAddWithoutValidation("Retry-After", DateTime.UtcNow.AddHours(-1).ToString("o"));
+        Check("Retry-After 过去时间 → null", LLM.ParseRetryAfter(past) == null);
+
+        var future = new System.Net.Http.HttpResponseMessage();
+        future.Headers.TryAddWithoutValidation("Retry-After", DateTime.UtcNow.AddSeconds(30).ToString("o"));
+        Check("Retry-After 未来时间 → 正延迟", LLM.ParseRetryAfter(future) is int f && f > 0);
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {
