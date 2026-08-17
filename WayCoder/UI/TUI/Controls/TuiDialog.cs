@@ -97,7 +97,7 @@ public static class TuiDialog
             ShowTitleSeparator = false,
             Modal = true, HasMask = true,
             BorderColor = borderColor,
-            Border = WindowBorder.Solid,
+            Border = WindowBorder.Rounded, // 与主界面圆角细线统一（原 Solid 实心块很突兀）
             WinBg = TuiTheme.Current.WindowBg,
             XScale = xScale,
             WindowHAlign = HAlign.Center,

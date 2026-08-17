@@ -51,10 +51,18 @@ public class TuiStatusBar : TuiControl
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
         var t = TuiTheme.Current;
+        int row = absY;
+
+        // 主题纯色模式：Bg>0（StatusBarBg 由主题/预设设置）→ 整行填充 + 普通文本
+        if (Bg > 0)
+        {
+            RenderSolid(sb, row, absX);
+            return;
+        }
+
         var (gs, ge) = t.GradTitleBar;
         int fg = TuiColors.Black;
         int dimFg = TuiColors.BrightBlack;
-        int row = absY;
 
         // 1. 整行渐变背景填充
         ControlRenderer.DrawGradientBarFill(sb, row, absX, Width, gs, ge);
@@ -161,5 +169,78 @@ public class TuiStatusBar : TuiControl
                 ControlRenderer.WriteGradientTextAt(sb, row, rightCol, rightStr,
                     dimFg, gs, ge, absX, Width);
         }
+    }
+
+    /// <summary>主题纯色模式：用 StatusBarBg/Fg 填充整行并写普通文本（替代渐变，响应主题切换）</summary>
+    private void RenderSolid(StringBuilder sb, int row, int absX)
+    {
+        int fg = Fg > 0 ? Fg : TuiColors.White;
+        int dimFg = TuiColors.BrightBlack;
+        var rb = new RenderBuffer();
+        rb.Write(row, absX, new string(' ', Width), fg: fg, bg: Bg);
+
+        // 左：槽位指示条 F1-F10
+        int col = absX + 1;
+        for (int i = 0; i < 10; i++)
+        {
+            var state = SlotStates[i];
+            int slotFg = state switch
+            {
+                SlotState.Working => TuiColors.Green,
+                SlotState.WaitingPerm => TuiColors.Yellow,
+                SlotState.Error => TuiColors.Red,
+                _ => dimFg
+            };
+            string slotNum = (i + 1).ToString();
+            // 活跃槽位：白底黑字
+            int sFg = i == ActiveSlotIndex ? TuiColors.Black : slotFg;
+            int sBg = i == ActiveSlotIndex ? TuiColors.BgWhite : Bg;
+            rb.Write(row, col, slotNum, fg: sFg, bg: sBg);
+            col += 2;
+        }
+
+        // 模式指示
+        var modeStr = WorkModeManager.Emojis.GetValueOrDefault(CurrentWorkMode, "?");
+        rb.Write(row, col, " " + modeStr, fg: TuiColors.Cyan, bg: Bg);
+        col += TuiHelper.DisplayWidth(modeStr) + 1;
+
+        // 省 Token 模式标志
+        var (econIcon, econColor) = Config.Instance.EconomyMode switch
+        {
+            EconomyMode.On => ("💰", TuiColors.Yellow),
+            EconomyMode.Auto => ("🧮", TuiColors.Cyan),
+            _ => ("💵", dimFg),
+        };
+        rb.Write(row, col, " " + econIcon, fg: econColor, bg: Bg);
+        col += 3;
+
+        // 心跳动画
+        string[] hb = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"];
+        _heartbeat = (_heartbeat + 1) % hb.Length;
+        rb.Write(row, col, hb[_heartbeat], fg: AgentBusy ? TuiColors.Green : dimFg, bg: Bg);
+        col += 2;
+        if (TuiManager.Instance != null) TuiManager.Instance.IsDirty = true;
+
+        // 中间提示
+        if (!string.IsNullOrEmpty(HintText))
+            rb.Write(row, absX + Width / 3, HintText, fg: dimFg, bg: Bg);
+
+        // 右侧：Agent busy + Token
+        var rightParts = new List<string>();
+        if (AgentBusy)
+        {
+            string[] spinners = ["◐", "◓", "◑", "◒"];
+            _spinFrame = (_spinFrame + 1) % 4;
+            rightParts.Add($"{spinners[_spinFrame]} 工作中");
+        }
+        if (!string.IsNullOrEmpty(RightText)) rightParts.Add(RightText);
+        if (rightParts.Count > 0)
+        {
+            var rightStr = string.Join(" · ", rightParts);
+            int rVw = TuiHelper.DisplayWidth(rightStr);
+            rb.Write(row, absX + Width - rVw - 1, rightStr, fg: dimFg, bg: Bg);
+        }
+
+        sb.Append(rb.ToString());
     }
 }
