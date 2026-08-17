@@ -381,7 +381,9 @@ public static class JpegCodec
             for (int y = 0; y < height; y++)
                 for (int x = 0; x < width; x++)
                 {
-                    double yy = Yc.Samples[y * Yc.SampleW + x];
+                    // Y 分量也可能下采样（H/V < maxH/maxV），需与 Cb/Cr 一样缩放索引，否则越界读
+                    int yi = (y * Yc.V / maxV) * Yc.SampleW + (x * Yc.H / maxH);
+                    double yy = Yc.Samples[yi];
                     int cx = x * Cbc.H / maxH, cy = y * Cbc.V / maxV;
                     int cx2 = x * Crc.H / maxH, cy2 = y * Crc.V / maxV;
                     double cb = Cbc.Samples[cy * Cbc.SampleW + cx];

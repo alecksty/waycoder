@@ -164,7 +164,10 @@ public class RenderBuffer
                 chars += rune.Utf16SequenceLength;
             }
 
-            if (chars == 0) chars = 1; // 至少放一个字
+            if (chars == 0)
+                // 首个字符超宽（如 emoji 宽 2 > avail 1）：完整取一个字符，
+                // 不能硬取 1 个 UTF-16 单元——代理对会切半成 U+FFFD
+                chars = System.Text.Rune.GetRuneAt(text, i).Utf16SequenceLength;
 
             var line = text.Substring(i, chars);
             Write(row, col, line, fg, bg);
@@ -240,7 +243,9 @@ public class RenderBuffer
                     chars += rune.Utf16SequenceLength;
                 }
 
-                if (chars == 0) chars = 1;
+                if (chars == 0)
+                    // 首个字符超宽：完整取一个字符，避免切半代理对
+                    chars = System.Text.Rune.GetRuneAt(paragraph, i).Utf16SequenceLength;
                 lines.Add(paragraph.Substring(i, chars));
                 i += chars;
             }
