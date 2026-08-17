@@ -257,10 +257,13 @@ public partial class Program
             var key = ev.KeyInfo;
             bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
 
-            // 系统级：Ctrl+C 设置退出标志，走正常清理路径
+            // Ctrl+C：输入框有选中文本 → 优先复制（控件层消费）；无选中 → 退出（原全局退出语义）
             if (key.Key == ConsoleKey.C && ctrl)
             {
-                _exitRequested = true;
+                bool consumed = mgr.OnKey(key);
+                if (!consumed)
+                    _exitRequested = true;
+                mgr.Render();
                 continue;
             }
 
