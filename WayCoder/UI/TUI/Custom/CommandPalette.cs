@@ -110,6 +110,7 @@ public static class CommandPalette
             }
             list.SelectedIndex = sel; // 驱动 TuiListView 自动滚动到选中项
             list.MarkDirty();
+            screen?.MarkDirty(); // RenderWait 循环不走 Manager.OnKey，必须通知屏幕否则高亮冻结
         }
 
         void Rebuild()

@@ -115,6 +115,8 @@ public class TuiDynamicBar : TuiControl
         {
             rb.Write(absY, col, CurrentFrame + " ", fg: spinnerColor, bg: TuiTheme.Current.WindowBg);
             col += 2;
+            // spinner 是持续动画：自我置脏让下一帧不早退（空闲时也能看到旋转）
+            if (TuiManager.Instance != null) TuiManager.Instance.IsDirty = true;
         }
 
         var leftDisplay = LeftText;
