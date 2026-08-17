@@ -87,10 +87,9 @@ public partial class Agent
                 if (tc.Arguments.TryGetValue("file_path", out var fp) && fp is string path && !string.IsNullOrWhiteSpace(path))
                 {
                     lock (_modifiedFiles)
-                    {
                         _modifiedFiles.Add(path);
+                    lock (_allSessionFiles)
                         _allSessionFiles.Add(path);
-                    }
                     // 更新 FileTracker 哈希，防止下次编辑时误报 stale
                     FileTracker.RecordWrite(path);
                 }
