@@ -75,7 +75,7 @@ public class TuiSidePanel : TuiControl
         foreach (var sec in Sections)
         {
             if (sec.Collapsed) continue;
-            totalLines += 1; // 标题行
+            totalLines += 2; // 标题行 + 分隔线（渲染时各占 1 行，漏算会导致滚动错位）
             totalLines += sec.Lines.Count;
         }
 
@@ -90,7 +90,7 @@ public class TuiSidePanel : TuiControl
             if (curRow >= row + Height) break;
 
             int sectionStart = renderedLines;
-            int sectionEnd = renderedLines + 1 + sec.Lines.Count;
+            int sectionEnd = renderedLines + 2 + sec.Lines.Count; // 含分隔线行
 
             // 计算该分区在当前滚动窗口内的可见行
             if (sectionEnd <= startLine)
