@@ -68,7 +68,7 @@ public class Syntax
             ".java" => Java(),
             ".c" or ".h" or ".cpp" or ".hpp" or ".cc" => Cpp(),
             ".json" or ".csproj" or ".sln" => Json(),
-            ".xml" or ".html" or ".htm" or ".svg" => Xml(),
+            ".xml" or ".html" or ".htm" or ".svg" or ".tui" => Xml(),
             ".md" or ".mdx" => Markdown(),
             ".sh" or ".bash" or ".zsh" => Shell(),
             ".yml" or ".yaml" => Yaml(),
