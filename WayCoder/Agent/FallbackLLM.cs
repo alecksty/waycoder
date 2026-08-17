@@ -25,11 +25,24 @@ public static class FallbackLLM
         set => Config.Instance.FallbackMaxBudget = value;
     }
 
-    /// <summary>总花费跟踪</summary>
+    /// <summary>总花费跟踪（原子累加：多槽位 Agent 并发回退时避免丢失 increment）</summary>
     public static double TotalSpent { get; private set; }
 
     /// <summary>当前使用的模型索引（-1 表示用原模型）</summary>
     public static int FallbackIndex { get; private set; } = -1;
+
+    /// <summary>保护 TotalSpent 跨线程累加/读取的锁（double 的 += 非原子，并发回退会丢增量）</summary>
+    private static readonly object _stateLock = new();
+
+    internal static void AddSpent(double cost)
+    {
+        lock (_stateLock) TotalSpent += cost;
+    }
+
+    private static bool BudgetExceeded()
+    {
+        lock (_stateLock) return MaxBudget != null && TotalSpent >= MaxBudget;
+    }
 
     /// <summary>
     /// 尝试用回退模型执行。成功返回响应，失败尝试下一个模型。
@@ -46,7 +59,7 @@ public static class FallbackLLM
         try
         {
             var resp = await originalLlm.ChatAsync(messages, tools, onToken, cancellationToken: ct);
-            TotalSpent += originalLlm.EstimatedCost ?? 0;
+            AddSpent(originalLlm.EstimatedCost ?? 0);
             return resp;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -63,7 +76,7 @@ public static class FallbackLLM
             if (model == originalLlm.Model) continue;
 
             // 预算检查：超过预算时记录警告并跳过回退（优雅降级，不崩溃）
-            if (MaxBudget != null && TotalSpent >= MaxBudget)
+            if (BudgetExceeded())
             {
                 Console.Error.WriteLine($"[fallback] ⚠ 已达回退预算上限 ${MaxBudget:F2}，停止尝试备选模型");
                 break;
@@ -87,7 +100,7 @@ public static class FallbackLLM
             {
                 Console.Error.WriteLine($"[fallback] 尝试 {model}...");
                 var resp = await fallbackLlm.ChatAsync(messages, tools, onToken, cancellationToken: ct);
-                TotalSpent += fallbackLlm.EstimatedCost ?? 0;
+                AddSpent(fallbackLlm.EstimatedCost ?? 0);
 
                 // 回退成功，更新原始 LLM 的模型
                 originalLlm.Model = model;
@@ -109,7 +122,7 @@ public static class FallbackLLM
         try
         {
             var resp = await originalLlm.ChatAsync(messages, tools, onToken, cancellationToken: ct);
-            TotalSpent += originalLlm.EstimatedCost ?? 0;
+            AddSpent(originalLlm.EstimatedCost ?? 0);
             FallbackIndex = -1;
             Console.Error.WriteLine($"[fallback] ✓ 原始模型 {originalLlm.Model} 重试成功");
             return resp;
@@ -131,8 +144,11 @@ public static class FallbackLLM
     /// <summary>重置统计</summary>
     public static void Reset()
     {
-        TotalSpent = 0;
-        FallbackIndex = -1;
+        lock (_stateLock)
+        {
+            TotalSpent = 0;
+            FallbackIndex = -1;
+        }
     }
 
     /// <summary>

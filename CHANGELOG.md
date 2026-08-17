@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.71.11 (2026-08-17) — 并发安全 4 项（锁一致性/volatile/定时器/原子累加）
+
+继续清扫多 Agent 并发场景的数据竞态，修复 4 个确定性并发 bug。
+
+### 🐛 并发
+
+- **`_allSessionFiles` 锁不一致**：`Agent.Tools.cs` 里 `_allSessionFiles.Add(path)` 在 `lock (_modifiedFiles)` 内，而 `Agent.cs:620` 读取时用 `lock (_allSessionFiles)` —— 两个不同锁对象无法互斥，文件清单读写竞态；改为 `_allSessionFiles` 的写入也单独用 `lock (_allSessionFiles)`
+- **`_activeSlot` 非 volatile**：`Program.cs` 的 `_activeSlot` 被主线程写、后台槽位/命令线程读（`ActiveSlotIndex`），非 volatile 存在可见性风险；改为 `volatile int`
+- **`WatchMode` 定时器 Dispose 竞态**：`Stop()`/`Dispose()` 在锁外操作 `_debounceTimer`，与 `OnFileChanged` 的锁内访问不互斥，Stop 后回调仍可能重建 Timer 泄漏；`Stop()` 的 Timer 清理移入 `lock (_lock)`，删掉 `Dispose()` 里冗余的锁外 `Dispose()`，`_disposed` 改为 `volatile bool`
+- **`FallbackLLM.TotalSpent` 非原子累加**：`TotalSpent += cost` 是读-改-写，多槽位 Agent 并发回退时丢增量、预算判断失真；引入 `_stateLock` + `AddSpent`/`BudgetExceeded` 辅助，累加与预算检查原子化，`Reset()` 同锁置零
+
+### ✅ 测试
+
+新增 `TestV0711Concurrency`（3 项断言）：`FallbackLLM` 并发累加 10000×0.5 无丢失、Reset 归零、`WatchMode` 重复 Stop/Dispose 幂等不抛异常。测试总数 3220 → 3223。
+
 ## v0.71.10 (2026-08-17) — 输入控件代理对安全（光标移动/删除）
 
 继续清扫编辑原语层 UTF-16 代理对拆半问题：输入控件的光标移动与字符删除仍逐 `char` 操作，emoji/CJK 扩展 B 会拆半成 U+FFFD。

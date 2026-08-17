@@ -11,7 +11,7 @@ public class WatchMode : IDisposable
     private readonly HashSet<string> _pendingFiles = [];
     private readonly object _lock = new();
     private Timer? _debounceTimer;
-    private bool _disposed;
+    private volatile bool _disposed; // volatile：Dispose 在调用线程写、FileSystemWatcher 回调线程读
 
     /// <summary>默认忽略的目录模式（可被 Config.WatchIgnoreDirs 追加）</summary>
     private static readonly HashSet<string> DefaultIgnoreDirs = new(StringComparer.OrdinalIgnoreCase)
@@ -90,8 +90,12 @@ public class WatchMode : IDisposable
     public void Stop()
     {
         _watcher.EnableRaisingEvents = false;
-        _debounceTimer?.Dispose();
-        _debounceTimer = null;
+        // 与 OnFileChanged 的锁内访问互斥，避免 Stop 后回调又重建 Timer（泄漏）
+        lock (_lock)
+        {
+            _debounceTimer?.Dispose();
+            _debounceTimer = null;
+        }
     }
 
     private void OnFileChanged(object sender, FileSystemEventArgs e)
@@ -317,6 +321,5 @@ public class WatchMode : IDisposable
         _disposed = true;
         Stop();
         _watcher.Dispose();
-        _debounceTimer?.Dispose();
     }
 }

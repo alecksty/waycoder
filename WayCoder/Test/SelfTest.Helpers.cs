@@ -3871,6 +3871,31 @@ public static partial class SelfTest
         Check("TuiTextArea: Delete 整删 emoji 不切半", ta.Text == "ab" && !ta.Text.Contains('�'));
     }
 
+    /// <summary>v0.71.11 批次：并发安全修复（FallbackLLM 原子累加 + WatchMode 幂等 dispose）。</summary>
+    private static void TestV0711Concurrency(Action<string, bool> Check)
+    {
+        // ── FallbackLLM.TotalSpent 原子累加：并发 AddSpent 无丢失 increment ──
+        // double 的 += 是读-改-写，非原子；锁保护后 10000 次并发累加必须精确无丢失。
+        FallbackLLM.Reset();
+        System.Threading.Tasks.Parallel.For(0, 10000, i => FallbackLLM.AddSpent(0.5));
+        Check("FallbackLLM: 并发累加 10000×0.5 无丢失", Math.Abs(FallbackLLM.TotalSpent - 5000.0) < 0.001);
+        FallbackLLM.Reset();
+        Check("FallbackLLM: Reset 后归零", Math.Abs(FallbackLLM.TotalSpent) < 0.001 && FallbackLLM.FallbackIndex == -1);
+
+        // ── WatchMode：重复 Stop/Dispose 幂等（定时器清理在锁内，不抛异常） ──
+        bool watchOk = true;
+        try
+        {
+            var wm = new WatchMode(System.IO.Path.GetTempPath(), _ => { });
+            wm.Stop();
+            wm.Stop();       // 重复 Stop 幂等
+            wm.Dispose();
+            wm.Dispose();    // 重复 Dispose 幂等
+        }
+        catch { watchOk = false; }
+        Check("WatchMode: 重复 Stop/Dispose 幂等不抛异常", watchOk);
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {
