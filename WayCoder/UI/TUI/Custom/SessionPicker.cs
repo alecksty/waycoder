@@ -65,7 +65,7 @@ public static class SessionPicker
             Title = "会话管理",
             ShowTitleSeparator = false,
             Modal = true, HasMask = true,
-            Border = WindowBorder.Solid,
+            Border = WindowBorder.Rounded,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             Width = winW, Height = winH,
@@ -96,7 +96,7 @@ public static class SessionPicker
             Focused = true,
         };
         var searchRow = new TuiHBox { Spacing = 1 };
-        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = TuiColors.BrightBlack });
+        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = TuiColors.BrightWhite });
         searchRow.Add(search);
 
         // 会话列表（单行格式化字符串，选中/当前手动着色）
@@ -115,7 +115,7 @@ public static class SessionPicker
         Grad(closeBtn, TuiTheme.Current.BtnOrangeYellow);
 
         // 帮助行
-        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightBlack };
+        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightWhite };
 
         var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
         vbox.Add(stats);

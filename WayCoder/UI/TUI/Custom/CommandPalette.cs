@@ -55,7 +55,7 @@ public static class CommandPalette
             Title = "🔍 命令面板",
             ShowTitleSeparator = false,
             Modal = true, HasMask = true,
-            Border = WindowBorder.Solid,
+            Border = WindowBorder.Rounded,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             Width = winW, Height = winH,
@@ -84,7 +84,7 @@ public static class CommandPalette
         };
 
         // 帮助行（兼显示过滤计数）
-        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightBlack };
+        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightWhite };
 
         var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
         vbox.Add(search);

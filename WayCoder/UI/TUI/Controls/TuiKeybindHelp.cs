@@ -89,7 +89,7 @@ public static class TuiKeybindHelp
             Title = "⌨ 快捷键速查",
             ShowTitleSeparator = false,
             Modal = true, HasMask = true,
-            Border = WindowBorder.Solid,
+            Border = WindowBorder.Rounded,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             Width = winW, Height = winH,
@@ -115,7 +115,7 @@ public static class TuiKeybindHelp
         var hint = new TuiLabel
         {
             Height = 1,
-            Fg = TuiColors.BrightBlack,
+            Fg = TuiColors.BrightWhite,
             Text = "↑↓ 滚动  PgUp/PgDn 翻页  Home/End 首尾  Esc / Q 关闭",
         };
 
