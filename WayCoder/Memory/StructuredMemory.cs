@@ -176,8 +176,15 @@ public static class StructuredMemory
     /// <summary>删除一条记忆</summary>
     public static bool Delete(string name)
     {
-        var path = NameToPath(name);
-        if (!File.Exists(path)) return false;
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        // 与 Get 一致的双目录查找：槽位目录优先，共享目录回退，确保共享记忆也能删除
+        var path = NameToPathIn(SlotMemoryDir, name);
+        if (!File.Exists(path))
+        {
+            var shared = NameToPathIn(SharedMemoryDir, name);
+            if (!File.Exists(shared)) return false;
+            path = shared;
+        }
         File.Delete(path);
         RebuildIndex();
         return true;

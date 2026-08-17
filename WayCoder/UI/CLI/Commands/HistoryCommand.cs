@@ -26,7 +26,7 @@ public class HistoryCommand : SlashCommand
             var content = msg["content"]?.AsString() ?? "";
             if (content.Contains(args, StringComparison.OrdinalIgnoreCase))
             {
-                var preview = content.Length > 80 ? content[..80] + "..." : content;
+                var preview = content.Length > 80 ? ContextManager.TruncateByRunes(content, 80) + "..." : content;
                 results.Add($"  [{idx}] {preview}");
             }
             idx++;

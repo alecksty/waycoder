@@ -235,10 +235,11 @@ public static class JpegCodec
                 case 0xC0: // SOF0
                 case 0xC1: case 0xC2:
                     if (marker != 0xC0) throw new FormatException("仅支持 baseline JPEG");
+                    if (pos + 6 > end) throw new FormatException("SOF 段越界");
                     height = ReadU16(data, pos + 1);
                     width = ReadU16(data, pos + 3);
                     int nComp = data[pos + 5];
-                    if (nComp < 1 || nComp > 4) throw new FormatException("非法分量数"); // 限制分量数，防恶意 nComp 放大采样数组
+                    if (nComp == 2 || nComp < 1 || nComp > 4) throw new FormatException("非法分量数（仅支持 1/3/4 分量）"); // 限制分量数，防恶意 nComp 放大采样数组；2 分量无法渲染（comps[2] 会越界）
                     if (pos + 6 + nComp * 3 > end) throw new FormatException("SOF 段越界");
                     for (int i = 0; i < nComp; i++)
                     {
@@ -257,6 +258,7 @@ public static class JpegCodec
                     int p = pos;
                     while (p < end)
                     {
+                        if (p + 65 > end) break; // 表头 1 字节 + 64 字节量化表不足，跳过
                         int info = data[p++];
                         int id = info & 0x0F;
                         var table = new byte[64];
@@ -275,7 +277,9 @@ public static class JpegCodec
                         int cls = info >> 4, id = info & 0x0F;
                         var bits = new byte[16];
                         int total = 0;
+                        if (p + 16 > end) break; // 16 字节长度表不足，跳过
                         for (int i = 0; i < 16; i++) { bits[i] = data[p++]; total += bits[i]; }
+                        if (p + total > end) break; // 变长值表不足，跳过
                         var vals = new byte[total];
                         for (int i = 0; i < total; i++) vals[i] = data[p++];
                         var dec = HuffDecoder.Build(bits, vals);
@@ -285,7 +289,9 @@ public static class JpegCodec
                 }
                 case 0xDA: // SOS
                 {
+                    if (pos + 1 > end) throw new FormatException("SOS 段越界");
                     int n = data[pos];
+                    if (pos + 1 + 2 * n + 3 > end) throw new FormatException("SOS 段越界");
                     var order = new List<(int compIdx, int dc, int ac)>();
                     int p = pos + 1;
                     for (int i = 0; i < n; i++)

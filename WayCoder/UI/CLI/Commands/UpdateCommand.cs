@@ -53,7 +53,7 @@ public class UpdateCommand : SlashCommand
 
         var body = latest.Body;
         if (body.Length > 2000)
-            body = body[..2000] + "\n\n…（已截断，完整见 release 页面）";
+            body = ContextManager.TruncateByRunes(body, 2000) + "\n\n…（已截断，完整见 release 页面）";
         else if (string.IsNullOrWhiteSpace(body))
             body = "（无更新日志）";
 

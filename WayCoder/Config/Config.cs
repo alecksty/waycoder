@@ -84,7 +84,11 @@ public class Config
                 foreach (var p in _schema)
                 {
                     var val = Env(p.EnvVar, p.OldEnvVar);
-                    if (!string.IsNullOrEmpty(val)) p.Setter(_instance, val);
+                    if (!string.IsNullOrEmpty(val))
+                    {
+                        try { p.Setter(_instance, val); }
+                        catch { /* 非法值（如 WAYCODER_MAX_TOKENS=abc）忽略，保留默认值，避免启动崩溃 */ }
+                    }
                 }
                 // 特殊处理：ApiKey 解析 —— 一个服务商一个 key，key 跟服务商走（不跟模型走）。
                 // 优先级：全局 JSON（按当前服务商）> .env WAYCODER_API_KEY > 各家 API_KEY 环境变量。
@@ -281,12 +285,12 @@ public class Config
             P("Model",        "WAYCODER_MODEL",           null,
               "大模型 (复杂任务)", "🤖 模型", "架构/重构/调试/多文件",
               "select", ["deepseek-chat","deepseek-v4-pro","gpt-5.4","gpt-5.5","deepseek-v4-flash","gpt-4o","gpt-4o-mini"], 0,
-              c => c.Model, (c, v) => c.Model = v, "deepseek-chat"),
+              c => c.Model, (c, v) => c.Model = v, "deepseek-v4-flash"),
 
             P("SmallModel",   "WAYCODER_SMALL_MODEL",     null,
               "小模型 (简单任务)", "🤖 模型", "补全/摘要/压缩 (便宜快速)",
               "select", ["deepseek-chat","deepseek-v4-flash","gpt-5.4-mini","gpt-4o-mini","deepseek-v4-pro"], 1,
-              c => c.SmallModel, (c, v) => c.SmallModel = v, "deepseek-chat"),
+              c => c.SmallModel, (c, v) => c.SmallModel = v, "deepseek-v4-flash"),
 
             P("SmallProvider","WAYCODER_SMALL_PROVIDER",  null,
               "小模型服务商", "🤖 模型", "小模型所属服务商 (deepseek/qwen/openai/...)",

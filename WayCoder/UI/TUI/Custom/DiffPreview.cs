@@ -569,7 +569,7 @@ public static class DiffPreview
 
         var result = sb.ToString();
         if (result.Length > 3000)
-            result = result[..2500] + "\n...（diff 已截断）\n";
+            result = ContextManager.TruncateByRunes(result, 2500) + "\n...（diff 已截断）\n";
         return result;
     }
 

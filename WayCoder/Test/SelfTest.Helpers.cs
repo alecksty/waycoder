@@ -4502,6 +4502,37 @@ public static partial class SelfTest
         Check("grid: 剩余空间被最后一个星轨完全吸收", sizes5.Sum() == 2);
     }
 
+    /// <summary>v0.71.28 批次：JPEG/BMP 编解码解析损坏输入时缺少边界校验导致越界读（IndexOutOfRange）而非干净 FormatException。</summary>
+    private static void TestV0728CodecBounds(Action<string, bool> Check)
+    {
+        // 辅助：解码必须抛 FormatException（干净拒绝），任何 IndexOutOfRange/ArgumentOutOfRange 等越界异常视为未正确拦截
+        static bool JpegThrowsFormat(byte[] data)
+        {
+            try { WayCoder.Infra.JpegCodec.Decode(data); return false; }
+            catch (FormatException) { return true; }
+            catch { return false; }
+        }
+
+        // ── #1 SOF0 段长度=2（空 payload）：旧代码先读 height/width/nComp 再校验，越界读 data[pos+5] ──
+        Check("jpeg: 截断 SOF0 抛 FormatException", JpegThrowsFormat(new byte[] { 0xFF, 0xD8, 0xFF, 0xC0, 0x00, 0x02 }));
+
+        // ── #2 SOS 段 Ns=255 但长度=6：旧代码按 Ns 循环读分量条目，越过 end 越界读 ──
+        Check("jpeg: 截断 SOS 抛 FormatException", JpegThrowsFormat(new byte[] { 0xFF, 0xD8, 0xFF, 0xDA, 0x00, 0x06, 0xFF, 0x00, 0x00, 0x00 }));
+
+        // ── #3 DQT 段长度=7（只有表头 1 字节）：旧代码连读 64 字节量化表越过 end ──
+        Check("jpeg: 截断 DQT 抛 FormatException", JpegThrowsFormat(new byte[] { 0xFF, 0xD8, 0xFF, 0xDB, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00 }));
+
+        // ── #4 BMP dataOffset 为负（0x80000000）：旧代码负索引越界读 ──
+        var bmp = new byte[54];
+        bmp[0] = (byte)'B'; bmp[1] = (byte)'M';
+        bmp[10] = 0x00; bmp[11] = 0x00; bmp[12] = 0x00; bmp[13] = 0x80; // dataOffset = 0x80000000 = 负
+        bool bmpFmt = false;
+        try { WayCoder.Infra.BmpCodec.Decode(bmp); }
+        catch (FormatException) { bmpFmt = true; }
+        catch { }
+        Check("bmp: 负 dataOffset 抛 FormatException", bmpFmt);
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {

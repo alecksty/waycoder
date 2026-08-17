@@ -1,5 +1,30 @@
 # 更新日志
 
+## v0.71.28 (2026-08-17) — 图片编解码损坏输入越界读 + Config/记忆/命令 6 项确定性修复
+
+延续 bug 修复循环，本轮修**图片编解码损坏输入越界读**（JPEG/BMP 解析恶意/损坏字节流时缺边界校验，`IndexOutOfRangeException` 而非干净 `FormatException`）+ 6 处确定性缺陷。
+
+### 🐛 修复
+
+- **JPEG 解码越界读**（5 处）：`JpegCodec.Decode` 对损坏输入读段内容前不校验边界，越界读抛 `IndexOutOfRangeException`（未拦截的异常类型，会在工具层外暴露）：
+  - SOF0 段长度=2（空 payload）：先读 height/width/nComp 再校验 → 越界读 `data[pos+5]`
+  - SOF0 分量数 nComp=2：旧的 `nComp<1||nComp>4` 放行，后续 `comps[2]` 越界；改 `nComp==2||nComp<1||nComp>4` 拒绝（仅支持 1/3/4 分量）
+  - DQT/DHT 段截断：连读 64 字节量化表 / 16 字节 bits + vals 前不校验 `p+65`/`p+16`/`p+total` 是否越过 `end` → 越界读
+  - SOS 段截断：按 Ns 循环读分量条目前不校验 `pos+1+2*n+3` → 越界读
+- **BMP 解码越界读**：`BmpCodec.Decode` 读 `dataOffset` 后不校验其合法性，负值/超出文件长度 → 越界读。补 `dataOffset < 0 || dataOffset >= data.Length` 抛 `FormatException`
+- **TrueTypeFont BE16/BE32 越界读**：`BE16/BE32` 只校验上界不校验下界，负偏移越界读。补 `off >= 0` 下界判定
+- **Config 环境变量非法值崩溃**：`WAYCODER_MAX_TOKENS=abc` 等非法值直接抛异常导致启动崩溃。env setter 包裹 try/catch，非法值忽略保留默认值
+- **Config 默认模型名不一致**：`Model`/`SmallModel` 的 `DefaultStr` 为 `"deepseek-chat"` 但属性默认值为 `"deepseek-v4-flash"`，文档与代码不一致。统一为 `"deepseek-v4-flash"`
+- **StructuredMemory.Delete 槽位/共享双目录查找缺失**：删除时只查槽位目录，共享记忆删除失败。对齐 `Get` 的双目录回退查找
+- **SharedMemoryManager 更新检测恒空**：拉取后用 mtime 对比判定「更新」，但 `Get` 读的是检出后文件、`UpdatedAt` 恒等于新 mtime，比较恒 false。改检出前后内容对比
+- **ModelCatalog HttpClient 响应未释放**：`client.PostAsync` 结果未 `using` 释放 `HttpResponseMessage`
+- **DebugCommand 别名自相矛盾**：`/debug-on` 为主名、`/debug-off` 为别名，但两者都走同一 `ExecuteAsync`（toggle 同一逻辑）。拆分为 `DebugOnCommand`/`DebugOffCommand` 两个独立命令
+- **SessionCommand 分页溢出**：`(page-1)*limit` 无上界，`--page 2147483647` 溢出为负。改 `Math.Min((long)(page-1)*limit, int.MaxValue)`
+
+### ✅ 测试
+
+新增 `TestV0728CodecBounds`（4 项断言：截断 SOF0/SOS/DQT 抛 `FormatException`、BMP 负 dataOffset 抛 `FormatException`，均断言干净拒绝而非越界异常）。测试总数 3316 → 3320。
+
 ## v0.71.27 (2026-08-17) — 截断按码点补齐 7 处 + 目录递归深度上限补齐 3 处
 
 延续审计，本轮收尾两类此前批次未扫全的残留：**截断不按码点硬切代理对**（7 处）+ **递归目录遍历无深度上限**（3 处）。
