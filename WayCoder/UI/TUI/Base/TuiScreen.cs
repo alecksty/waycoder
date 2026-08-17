@@ -614,18 +614,6 @@ public abstract class TuiScreen : TuiBase
                 // 右角
                 WriteAt(sb, win.Y, win.X + win.Width - 1, tr, ge, fillBg);
             }
-            else if (drawTitle)
-            {
-                // 粗体标题独占第二行 → 边框行纯渐变线
-                WriteGradientHLine(sb, win.Y, win.X, win.Width, tl, hTop, tr, gs, ge, fillBg);
-                int tFg = win.TitleFg > 0 ? win.TitleFg : gs;
-                int tBg = win.TitleBg > 0 ? win.TitleBg : fillBg;
-                sb.Append(AnsiTty.CursorPos0(win.Y + 1, win.X + 2));
-                sb.Append(AnsiTty.BoldFg(tFg));
-                if (tBg > 0) sb.Append(AnsiTty.BgCode(tBg));
-                sb.Append(titleText);
-                sb.Append(AnsiTty.SgrReset);
-            }
             else
             {
                 // 无标题：整行渐变线
@@ -658,18 +646,12 @@ public abstract class TuiScreen : TuiBase
         int contentTop = win.Y + 1; // 上边框下面一行
         int innerHeight = win.Height - 2; // 边框内部高度
 
-        // 标题栏分隔线（仅当 ShowTitleSeparator 时绘制）
+        // 标题嵌在上边框行（Y），此处在其下画一行分隔线（Y+1），内容从 Y+2 开始
         if (drawTitle)
         {
             WriteAt(sb, win.Y + 1, win.X, vv, bc, fillBg);
             WriteAt(sb, win.Y + 1, win.X + 1, new string(hh[0], Math.Max(0, win.Width - 2)), bc, fillBg);
             WriteAt(sb, win.Y + 1, win.X + win.Width - 1, vv, bc, fillBg);
-            contentTop = win.Y + 2;
-            innerHeight -= 1;
-        }
-        // 粗体标题栏独占一行（无分隔线）→ 内容下移一行
-        else if (drawTitle)
-        {
             contentTop = win.Y + 2;
             innerHeight -= 1;
         }

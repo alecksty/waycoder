@@ -154,7 +154,7 @@ public class TuiButton : TuiControl
             p = p.Parent;
         }
 
-        return p ?? Parent;
+        return (p ?? Parent) as TuiView;
     }
 
     /// <summary>鼠标左键点击触发按钮，hover 高亮</summary>

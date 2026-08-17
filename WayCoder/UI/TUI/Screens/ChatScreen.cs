@@ -756,7 +756,7 @@ public partial class ChatScreen : TuiScreen
             var barText = $"«{new string('█', filled)}{new string('░', empty)}» {pct,3:F0}%";
             sb.Append(AnsiTty.CursorPos(progressY, 0))
               .Append(AnsiTty.Fg(AnsiColors.Yellow))
-              .Append(StatusText.Length > TW - 2 ? StatusText[..(TW - 2)] : StatusText.PadRight(TW))
+              .Append(barText.Length > TW ? barText[..TW] : barText.PadRight(TW))
               .Append(AnsiTty.SgrReset);
         }
 
