@@ -585,6 +585,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         _ = Task.Run(async () =>
         {
             _currentSlot.Value = slotIdx;
+            StructuredMemory.CurrentSlotIndex = slotIdx; // 绑定本槽位记忆目录（AsyncLocal）
             try
             {
                 var final = await agent.ChatAsync(
