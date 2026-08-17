@@ -428,6 +428,15 @@ public class LLM
         // using 声明只读，不能重新赋值，故上面用普通变量 resp 重试，此处捕获最终响应统一释放
         using var response = resp;
 
+        // 非 2xx 响应体不是 SSE：直接解析会得到空回复、误判「已完成」。记录并抛错触发模型回退链。
+        if (!response.IsSuccessStatusCode)
+        {
+            string errBody = "";
+            try { errBody = await response.Content.ReadAsStringAsync(cancellationToken); } catch { }
+            ErrorLog.LlmError(Model, Endpoint, $"HTTP {(int)response.StatusCode}: {ContextManager.TruncateByRunes(errBody, 300)}");
+            throw new HttpRequestException($"LLM 请求失败 HTTP {(int)response.StatusCode}");
+        }
+
         var contentParts = new List<string>();
         var tcMap = new Dictionary<int, (string Id, string Name, string Args)>();
         // 已通过 onToolCall 流式触发的工具调用 index（去重：参数完整后 provider 可能再发同 index 空 delta）
@@ -438,10 +447,15 @@ public class LLM
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var reader = new StreamReader(stream);
 
+        // 内部超时 CTS 在 CallWithRetryAsync 返回响应头时已 Dispose——正文读取只绑外部取消令牌，
+        // provider 发响应头后正文停滞会永久挂起。为正文读取另建独立超时（5 分钟）防止卡死。
+        using var bodyCts = new CancellationTokenSource(TimeSpan.FromSeconds(300));
+        using var bodyLinked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, bodyCts.Token);
+
         while (true)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var line = await reader.ReadLineAsync(cancellationToken);
+            bodyLinked.Token.ThrowIfCancellationRequested();
+            var line = await reader.ReadLineAsync(bodyLinked.Token);
             if (line == null) break; // 流结束
             if (!line.StartsWith("data: ")) continue;
 
