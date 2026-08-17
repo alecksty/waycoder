@@ -95,7 +95,65 @@ public partial class MainWindow : Window
             maxContextTokens: ModelCatalog.ResolveContextWindow(cfg.Model, cfg.MaxContextTokens),
             maxBudgetUsd: cfg.MaxBudgetUsd,
             autoCommit: cfg.AutoGitCommit);
+
+        LoadSlotSession(slot); // 恢复历史会话
         return _agents[slot]!;
+    }
+
+    // ── 会话持久化 ──
+
+    private static string SlotSessionId(int slot) => slot == 0 ? "_auto" : $"_auto_slot{slot}";
+
+    protected override void OnClosed(EventArgs e)
+    {
+        SaveAllSessions();
+        base.OnClosed(e);
+    }
+
+    private void SaveAllSessions()
+    {
+        for (int i = 0; i < SlotCount; i++)
+        {
+            var agent = _agents[i];
+            if (agent == null) continue;
+            var msgs = agent.SnapshotMessages();
+            if (msgs.Count == 0) continue;
+            try { SessionManager.SaveSession(msgs, agent.LlmClient.Model, SlotSessionId(i), i); }
+            catch { /* 保存失败不影响退出 */ }
+        }
+    }
+
+    private void LoadSlotSession(int slot)
+    {
+        var agent = _agents[slot];
+        if (agent == null) return;
+        try
+        {
+            var loaded = SessionManager.LoadSession(SlotSessionId(slot), slot);
+            if (loaded != null && loaded.Value.Messages.Count > 0)
+            {
+                agent.ReplaceMessages(loaded.Value.Messages);
+                RebuildChatFromAgent(slot, agent);
+            }
+        }
+        catch { /* 无历史会话则跳过 */ }
+    }
+
+    private void RebuildChatFromAgent(int slot, Agent agent)
+    {
+        _chats[slot].Clear();
+        foreach (var msg in agent.SnapshotMessages())
+        {
+            var role = msg["role"]?.AsString() ?? "";
+            var content = msg["content"]?.AsString() ?? "";
+            if (string.IsNullOrEmpty(content)) continue;
+            if (role == "user")
+                _chats[slot].Append($"\n\n👤 {content}\n");
+            else if (role == "assistant")
+                _chats[slot].Append($"🤖 {content}\n");
+        }
+        if (slot == _activeSlot)
+            MarkdownInlines.RenderTo(ChatBox.Inlines, _chats[slot].ToString());
     }
 
     // ── 交互 ──
