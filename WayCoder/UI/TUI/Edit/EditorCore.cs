@@ -586,7 +586,7 @@ public class EditorCore
         int newLines = act.Text.Count(c => c == '\n');
         int lastNl = act.Text.LastIndexOf('\n');
         if (newLines > 0) { Cy = act.Line + newLines; Cx = act.Text.Length - lastNl - 1; }
-        else Cx = act.Col + act.Text.Length;
+        else { Cy = act.Line; Cx = act.Col + act.Text.Length; } // 单行删除也须还原行号，否则连续撤销跨行时光标停在错行
     }
 
     // ================================================================
@@ -730,6 +730,8 @@ public class EditorCore
         var regex = BuildFindRegex(find, opts);
         if (regex == null) return 0;
         var replacement = ToReplacement(replace, opts.UseRegex);
+        // 替换串含换行会破坏"一行一条目"不变量，且撤销（DeleteBlockAt 按行块删除）会越界崩溃 —— 拒绝
+        if (replacement.Contains('\n')) return 0;
         int firstLine = -1, lastLine = -1, count = 0;
         for (int li = 0; li < Lines.Count; li++)
         {
@@ -765,6 +767,8 @@ public class EditorCore
         var m = regex.Match(text, col);
         if (!m.Success) return false;
         var expanded = m.Result(replacement);
+        // 替换结果含换行会破坏"一行一条目"不变量，且撤销会越界 —— 拒绝
+        if (expanded.Contains('\n')) return false;
         var newLine = text[..m.Index] + expanded + text[(m.Index + m.Length)..];
         Record('R', line, m.Index, newLine, text); // 支持 Ctrl+Z 撤销单处替换
         Lines[line] = new StringBuilder(newLine);
@@ -1147,10 +1151,10 @@ public static class OutlineExtractor
                 var m = regex.Match(line);
                 if (!m.Success) continue;
 
-                // 取第一个命名组
+                // 取第一个命名组（跳过整段匹配组 Group 0，而非按索引 0 判断——否则起始于第 0 列的名称组被误跳过）
                 foreach (Group g in m.Groups)
                 {
-                    if (!g.Success || g.Index == 0 || string.IsNullOrEmpty(g.Value)) continue;
+                    if (!g.Success || g == m.Groups[0] || string.IsNullOrEmpty(g.Value)) continue;
                     var name = g.Value;
                     if (name.Length <= 1) continue;
                     if (FilterWords.Contains(name)) continue;

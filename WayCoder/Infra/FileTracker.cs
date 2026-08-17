@@ -50,7 +50,8 @@ public static class FileTracker
                 // LRU 淘汰：超出上限时清理最久未读取的条目。
                 // 不能用 Tracked.Keys.FirstOrDefault()——Dictionary 覆盖已存在键不改变枚举顺序，
                 // 那只会淘汰「最早插入」的键（FIFO），热点文件照样被先清掉。
-                if (Tracked.Count >= MaxTracked)
+                // 已在追踪的文件重读不算新增，先判 ContainsKey，否则反复重读热点文件会逐次淘汰无关条目致追踪集收缩（与 RecordWrite 对齐）
+                if (!Tracked.ContainsKey(absPath) && Tracked.Count >= MaxTracked)
                 {
                     string? oldest = null;
                     DateTime oldestTime = DateTime.MaxValue;
