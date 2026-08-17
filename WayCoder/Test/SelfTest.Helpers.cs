@@ -4012,6 +4012,39 @@ public static partial class SelfTest
         Check("Retry-After 未来时间 → 正延迟", LLM.ParseRetryAfter(future) is int f && f > 0);
     }
 
+    /// <summary>v0.71.15 批次：Web/TUI 上下文压缩界面指示（SerializeCompress 纯函数 + CompressFinished 事件）。</summary>
+    private static void TestV0715CompressIndicator(Action<string, bool> Check)
+    {
+        // ── SerializeCompress 纯函数（Web 压缩进度/结束 SSE 事件载荷）──
+        var doneNode = Json.Parse(WayCoder.UI.Web.WebChatServer.SerializeCompress(0, "", 0, true));
+        Check("compress 结束事件 done=true", doneNode?["done"]?.AsBool() == true);
+
+        var progNode = Json.Parse(WayCoder.UI.Web.WebChatServer.SerializeCompress(2, "正在摘要旧对话...", 45.5, false));
+        Check("compress 进度 layer=2", progNode?["layer"]?.AsNumber() == 2);
+        Check("compress 进度 label 透传", progNode?["label"]?.AsString() == "正在摘要旧对话...");
+        Check("compress 进度 percent 透传", progNode?["percent"]?.AsNumber() == 45.5);
+        Check("compress 进度 done=false", progNode?["done"]?.AsBool() == false);
+
+        // ── CompressFinished 事件 + IsCompressing 复位（极小上下文不触发压缩也不发 LLM 调用）──
+        var cm = new ContextManager();
+        var llm = new LLM("test", "sk-test");
+        var msgs = new List<JNode>();
+        bool finished = false;
+        void OnFinished() => finished = true;
+        ContextManager.CompressFinished += OnFinished;
+        try
+        {
+            var compressed = cm.MaybeCompressAsync(msgs, llm).GetAwaiter().GetResult();
+            Check("压缩检查结束触发 CompressFinished", finished);
+            Check("压缩检查后 IsCompressing 复位 false", !ContextManager.IsCompressing);
+            Check("极小上下文无需压缩 → compressed=false", !compressed);
+        }
+        finally
+        {
+            ContextManager.CompressFinished -= OnFinished;
+        }
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {

@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.71.15 (2026-08-17) — 上下文压缩界面指示（Web + TUI 动画）
+
+上下文压缩此前在 Web 版只有聊天流里的一行 `🔄 [1/3] ...` 文本、TUI 版动态栏的进度条在压缩结束后残留陈旧标签，用户感知弱。本轮补齐两端「压缩中」的界面指示：动画 + 完成后消失。
+
+### ✨ 界面
+
+- **Web 版压缩指示条**：`WebAssets.cs` 在聊天区顶部新增浮动胶囊指示条——旋转 spinner + 阶段文案（裁剪工具输出 / 正在摘要旧对话 / 紧急压缩）+ 进度条，`@keyframes cspin` 旋转动画 + 进度条宽度过渡，收到 `done` 后淡出消失（`opacity` 过渡 + `translateY` 上浮）
+- **Web 版事件链路**：`ContextManager` 新增静态 `CompressFinished` 事件（`MaybeCompressAsync` 的 `finally` 触发，无论是否实际压缩）；`WebChat.Start` 订阅 `CompressProgress`/`CompressFinished`，经 `AsyncLocal<int> _currentSlot` 把进度按槽位路由 `BroadcastTo(slot, "compress", ...)`，新增纯函数 `SerializeCompress(layer, label, percent, done)`；前端 `compress` SSE 监听 → `showCompress()`
+- **TUI 版修复残留标签**：`ChatScreen.SyncDynamicBar` 压缩完成清理 `ProgressPercent` 时同步清空 `ProgressLabel`，避免压缩结束后动态栏右段残留 `[L3] 压缩完成` 覆盖常驻上下文占用 `%`（原 `OnCompressProgress` 只在 `IsCompressing` 时写标签，结束时无事件清空）
+
+### ✅ 测试
+
+新增 `TestV0715CompressIndicator`（8 项断言）：`SerializeCompress` 纯函数载荷（done/layer/label/percent 透传）+ `CompressFinished` 事件触发 + `IsCompressing` 复位 + 极小上下文不压缩。测试总数 3244 → 3252。
+
 ## v0.71.14 (2026-08-17) — Retry-After 头解析负数回退
 
 继续清扫 LLM 客户端边界。本轮修复一个 429 限流重试的确定性边界 bug：`Retry-After` 响应头为负数时，退避延迟计算为负，`Task.Delay` 抛异常。

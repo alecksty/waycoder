@@ -74,6 +74,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         _server.OnSse = HandleSseAsync;
         _server.Start();
         UxHelper.WebInteraction = this;
+        // 订阅上下文压缩事件：经 AsyncLocal 当前槽位把「压缩中」进度广播给对应页面
+        ContextManager.CompressProgress += OnCompressProgress;
+        ContextManager.CompressFinished += OnCompressFinished;
     }
 
     public void Stop()
@@ -81,9 +84,19 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         // 中断所有槽位的后台 Agent 并释放取消令牌（复用 Interrupt，保持 Cts 摘除与 StartSlotTask 互斥）
         for (int i = 0; i < SlotCount; i++)
             Interrupt(i);
+        ContextManager.CompressProgress -= OnCompressProgress;
+        ContextManager.CompressFinished -= OnCompressFinished;
         UxHelper.WebInteraction = null;
         _server.Stop();
     }
+
+    /// <summary>压缩进度（压缩线程内同步触发）：按当前槽位广播 compress 事件给对应页面。</summary>
+    private void OnCompressProgress(int layer, string label, double percent)
+        => BroadcastTo(_currentSlot.Value, "compress", SerializeCompress(layer, label, percent, done: false));
+
+    /// <summary>压缩结束（无论是否实际压缩）：广播 done 事件，前端据此隐藏指示条。</summary>
+    private void OnCompressFinished()
+        => BroadcastTo(_currentSlot.Value, "compress", SerializeCompress(0, "", 0, done: true));
 
     // ═══════════════════════════════════════════════════════════
     //  路由

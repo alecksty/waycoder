@@ -43,6 +43,8 @@ public class ContextManager
 
     /// <summary>压缩进度事件（当前层/总层, 消息, 百分比）— UI 可订阅以显示进度条</summary>
     public static event Action<int, string, double>? CompressProgress;
+    /// <summary>压缩结束事件（无论是否实际压缩都触发）— UI 可订阅以隐藏「压缩中」指示</summary>
+    public static event Action? CompressFinished;
     /// <summary>是否正在压缩中</summary>
     public static bool IsCompressing { get; private set; }
 
@@ -225,6 +227,7 @@ public class ContextManager
         finally
         {
             IsCompressing = false;
+            CompressFinished?.Invoke();
         }
 
         return compressed;

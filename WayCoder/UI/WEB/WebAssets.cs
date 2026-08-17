@@ -62,7 +62,7 @@ select optgroup { background:var(--panel); color:var(--text); }
 .layout { flex:1; display:grid; grid-template-columns:236px minmax(0,1fr) 300px; min-height:0; }
 #sidebar-left { background:var(--panel); border-right:1px solid var(--border); overflow-y:auto; display:flex; flex-direction:column; }
 #sidebar-right { background:var(--panel); border-left:1px solid var(--border); overflow-y:auto; }
-#chat-col { display:flex; flex-direction:column; min-width:0; min-height:0; }
+#chat-col { display:flex; flex-direction:column; min-width:0; min-height:0; position:relative; }
 
 .panel-head { padding:11px 14px 7px; font-size:12px; font-weight:700; color:var(--dim); text-transform:uppercase; letter-spacing:.5px; }
 #slot-list { display:grid; grid-template-columns:repeat(5,1fr); gap:5px; padding:2px 12px 8px; }
@@ -231,6 +231,25 @@ select optgroup { background:var(--panel); color:var(--text); }
 .model-foot { display:flex; align-items:center; gap:8px; padding-top:12px; }
 .model-foot .btn { flex-shrink:0; white-space:nowrap; }
 .model-foot .spacer { flex:1; }
+
+/* ── 上下文压缩指示条（动画 spinner + 进度条，压缩完成淡出消失） ── */
+#compress-indicator {
+  position:absolute; top:10px; left:50%; transform:translateX(-50%) translateY(-6px);
+  display:flex; align-items:center; gap:9px; z-index:60; pointer-events:none;
+  padding:8px 16px; border-radius:22px; font-size:12.5px; color:var(--text);
+  background:var(--panel2); border:1px solid var(--accent); box-shadow:var(--shadow);
+  opacity:0; transition:opacity .28s ease, transform .28s ease;
+}
+#compress-indicator.show { opacity:1; transform:translateX(-50%) translateY(0); }
+#compress-indicator .cspin {
+  width:14px; height:14px; flex-shrink:0; border-radius:50%;
+  border:2px solid var(--border); border-top-color:var(--accent);
+  animation:cspin .7s linear infinite;
+}
+#compress-indicator .cbar { width:110px; height:5px; border-radius:3px; background:var(--border); overflow:hidden; flex-shrink:0; }
+#compress-indicator .cbar i { display:block; height:100%; background:var(--accent); border-radius:3px; transition:width .35s ease; }
+#compress-indicator .cpct { font-size:11px; color:var(--dim); min-width:34px; text-align:right; font-variant-numeric:tabular-nums; }
+@keyframes cspin { to { transform:rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -262,6 +281,12 @@ select optgroup { background:var(--panel); color:var(--text); }
   </aside>
 
   <main id="chat-col">
+    <div id="compress-indicator">
+      <span class="cspin"></span>
+      <span id="compress-label">压缩中…</span>
+      <span class="cbar"><i id="compress-fill"></i></span>
+      <span class="cpct" id="compress-pct"></span>
+    </div>
     <div id="messages"></div>
     <div id="input-bar">
       <div id="suggest-box"></div>
@@ -371,6 +396,20 @@ function setBusy(b) {
   const btn = document.getElementById('send');
   if (b) { btn.innerHTML = '⏹'; btn.classList.add('stop'); btn.title = '停止'; }
   else { btn.innerHTML = PAPER_PLANE; btn.classList.remove('stop'); btn.title = '发送'; }
+}
+
+function showCompress(d) {
+  const el = document.getElementById('compress-indicator');
+  if (!el) return;
+  if (d.done) { el.classList.remove('show'); return; } // 压缩完成 → 淡出消失
+  const label = document.getElementById('compress-label');
+  const fill = document.getElementById('compress-fill');
+  const pctEl = document.getElementById('compress-pct');
+  if (label) label.textContent = '🔄 ' + (d.label || '压缩中…');
+  const pct = Math.max(0, Math.min(100, d.percent || 0));
+  if (fill) fill.style.width = pct + '%';
+  if (pctEl) pctEl.textContent = Math.round(pct) + '%';
+  el.classList.add('show');
 }
 
 function scroll() { messages.scrollTop = messages.scrollHeight; }
@@ -1727,6 +1766,7 @@ es.addEventListener('state', e => {
 });
 es.addEventListener('sessions', () => fetchSessions());
 es.addEventListener('ask', e => showAsk(JSON.parse(e.data)));
+es.addEventListener('compress', e => showCompress(JSON.parse(e.data)));
 
 // ── 初始化 ──
 applyTheme(localStorage.getItem('waycoder-theme') || 'dark');

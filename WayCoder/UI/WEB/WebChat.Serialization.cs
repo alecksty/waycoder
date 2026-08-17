@@ -99,6 +99,15 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             .ToJson();
     }
 
+    /// <summary>序列化压缩进度事件（done=true 表示压缩结束，前端据此隐藏指示条）。纯函数便于自测。</summary>
+    public static string SerializeCompress(int layer, string label, double percent, bool done)
+        => JNode.Object()
+            .Set("layer", layer)
+            .Set("label", label)
+            .Set("percent", percent)
+            .Set("done", done)
+            .ToJson();
+
     /// <summary>序列化设置面板数据（SettingSchema 按 Category 分组，secret 显示 masked）。</summary>
     public static string SerializeSettings()
     {
