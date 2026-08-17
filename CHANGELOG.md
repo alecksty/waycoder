@@ -1,5 +1,43 @@
 # 更新日志
 
+## v0.71.34 (2026-08-18) — 图片/记忆/外围 + 全库六路并行审计 18 项确定性 bug
+
+本轮完成 #275 图片编解码/记忆/外围 bug + 六路并行全库审计（核心 LLM/Agent、记忆/会话、文件工具、网络/进程工具、UI 基础/编辑器、UI 控件）修复 18 项确定性 bug。
+
+### 🖼 图片编解码 + 记忆/外围
+- **JpegCodec/PngEncoder/BmpCodec 编码尺寸守卫**：宽高乘积溢出 int、JPEG 宽高 >65535 被 `(ushort)` 静默截断
+- **WatchMode 块注释吞行注释**：`/* ... */ // AI! x` 的 `// AI!` 被吞，块注释结束后继续解析行尾
+- **StructuredMemory**：`ParseFrontmatter` 未闭合/无尾随换行时正文污染；`SetShared` 只翻标志不移文件致 push/pull 路径不一致；`ListAll` 槽位/共享优先级与 `Get` 反转
+- **BatchRunner git clone 注入**：`"` 字符串拼接可注入 `--upload-pack`/`--config`，改 `GitRunner.RunArgsAsync` 参数列表逐参传递
+- **ProjectContext 前缀匹配误伤**：`StartsWith("bin")` 误伤 `bin-tools/`、`objc/`、`.gitignore`，改按路径段精确匹配
+
+### 🔧 文件/进程工具
+- **MultiEditTool CRLF 不归一化**：多行编辑在 CRLF 文件上永远匹配失败；同时 diff/RecordChange 行尾不一致
+- **EditFileTool CRLF diff 错乱**：LF content vs CRLF newContent 逐行比较把整文件误报为改动
+- **TodoTool 持久化路径**忽略 cd 跟踪，与 struct_todo 读写不同位置
+- **PsTool `top+1` 溢出**：无上限时 `top == int.MaxValue` 溢出为负
+- **MvTool/CpTool 深目录静默丢数据**：`CopyDirectory` 深度 >64 静默 return，mv 随后删源致文件丢失
+- **GitPRTool `2>&1` 字面参数**：无 shell 下 `2>&1` 成为 git 参数，push/远程检测失效
+- **LintTool Java 单文件永远 gradle**：`FindProjectFile` 回退返回 target 致 `File.Exists` 恒真，maven/javac 不可达
+
+### 🛡 安全
+- **BashGuard 前缀/子 shell 绕过**：`env sudo apt`、`(sudo apt)` 只查首 token 绕过黑名单，加 pass-through 包装命令跳过 + 子 shell 括号剥离
+
+### 🧠 核心 LLM/Agent
+- **LLM 正文超时被误判为取消**：正文 300s 超时抛 OCE，`FallbackLLM` 的 `ex is not OCE` 过滤器当作用户取消放行，回退链失效；改判 `ct.IsCancellationRequested`
+- **DetectAndBreakLoop 绕过 MessagesLock**：直接 `messages.Add` 与 `SnapshotMessages` 并发抛异常，改用持锁 `AddMessage`
+- **Architect 计划失败回滚删错消息**：`RemoveMessageAt(Count-1)` 删的是 hook 注入上下文而非用户消息
+- **Agent.Feedback 自动测试 `2>&1` 字面参数**：无 shell 下成为子进程参数
+
+### 🎨 UI
+- **TuiInputHistory Escape/Unescape 顺序颠倒**：`C:\new` 重启后历史被破坏（`\n` 误还原成换行），改单遍扫描
+- **TuiScrollView 裁剪区覆盖父容器**：`ClipTop/ClipBottom` 未与父裁剪取交集，嵌套滚动视图越界绘制
+- **RenderBuffer.WriteWrap 死循环**：`indentCol > maxCol` 时 `avail` 恒 ≤0 永不推进
+- **TuiTextArea 自动换行代理对切半**：硬断点落在 emoji 代理对中间切出 U+FFFD，加 `SafeBreakCol` 回退
+
+### 🧪 测试
+- 新增回归测试 15 项（图片编码守卫/frontmatter 边界/Watch 块注释/ProjectContext 路径段），自测 3363 → 3388 全绿
+
 ## v0.71.33 (2026-08-18) — 绘图/工具/编辑器/Infra 确定性 bug + 对话框内容自适应 + Show 接口
 
 本轮继续确定性 bug 修复，并落地对话框「内容自适应宽高」与仅绘制 `Show` 接口。

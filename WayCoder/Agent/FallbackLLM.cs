@@ -62,7 +62,7 @@ public static class FallbackLLM
             AddSpent(originalLlm.EstimatedCost ?? 0);
             return resp;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             Console.Error.WriteLine($"[fallback] 模型 {originalLlm.Model} 失败: {ex.Message}");
             ErrorLog.LlmError(originalLlm.Model, originalLlm.Endpoint,
@@ -107,7 +107,7 @@ public static class FallbackLLM
                 Console.Error.WriteLine($"[fallback] ✓ 已切换到 {model}");
                 return resp;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             {
                 Console.Error.WriteLine($"[fallback] {model} 也失败: {ex.Message}");
                 ErrorLog.LlmError(model, fallbackLlm.Endpoint,
@@ -127,7 +127,7 @@ public static class FallbackLLM
             Console.Error.WriteLine($"[fallback] ✓ 原始模型 {originalLlm.Model} 重试成功");
             return resp;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             Console.Error.WriteLine($"[fallback] 原始模型 {originalLlm.Model} 重试也失败: {ex.Message}");
         }

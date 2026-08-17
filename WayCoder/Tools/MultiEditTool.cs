@@ -225,6 +225,10 @@ public class MultiEditTool : ITool
         var hasCrlf = raw.AsSpan().IndexOf("\r\n"u8) >= 0;
 
         var oldContent = File.ReadAllText(path, Encoding.UTF8);
+        // CRLF 归一化为 LF 后再匹配（与 EditFileTool 一致）：模型多行 old_string 以 \n 结尾，
+        // 直接对 \r\n 内容匹配会永远失败
+        if (hasCrlf)
+            oldContent = oldContent.Replace("\r\n", "\n");
 
         // 顺序应用编辑
         var (newContent, applied, failed) = ApplyEdits(oldContent, edits, 0);
@@ -246,16 +250,16 @@ public class MultiEditTool : ITool
                 newContent = DiffPreview.ApplyAccepted(oldContent, DiffPreview.BuildHunks(oldContent, newContent), accepted);
         }
 
+        // 生成 diff 与记录变更须在恢复 CRLF 前（此时 oldContent/newContent 都是 LF，行尾一致）
+        var diff = EditFileTool_GenerateDiff(oldContent, newContent, path);
+        EditFileTool.RecordChange(path, oldContent, newContent);
+
         // CRLF 行尾保留：先归一化为 LF 再统一转 CRLF，避免把已有 \r\n 二次转成 \r\r\n
         if (hasCrlf)
             newContent = newContent.Replace("\r\n", "\n").Replace("\n", "\r\n");
 
         File.WriteAllText(path, newContent, Encoding.UTF8);
-        EditFileTool.RecordChange(path, oldContent, newContent);
         FileTracker.RecordWrite(path);
-
-        // 生成 diff
-        var diff = EditFileTool_GenerateDiff(oldContent, newContent, path);
 
         var total = edits.Count;
         var failedMsg = failed.Count > 0
