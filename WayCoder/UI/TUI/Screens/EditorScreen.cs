@@ -200,7 +200,7 @@ public class EditorScreen : TuiScreen
         RootView.Add(mainHBox);
 
         // ── 状态栏 1 — 光标 + 统计 + 诊断 ──
-        StatusBar1 = new TuiLabel("") { Width = TW, Height = 1, Bg = 47 };
+        StatusBar1 = new TuiLabel("") { Width = TW, Height = 1, Bg = 47, Fg = TuiColors.Black };
         RootView.Add(StatusBar1);
 
         // ── 状态栏 2 — 文件路径 + 快捷键 ──

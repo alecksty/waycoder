@@ -175,7 +175,8 @@ public class TuiStatusBar : TuiControl
     private void RenderSolid(StringBuilder sb, int row, int absX)
     {
         int fg = Fg > 0 ? Fg : TuiColors.White;
-        int dimFg = TuiColors.BrightBlack;
+        // 次要文字用主色（避免 BrightBlack 灰字在亮色 StatusBarBg 上低反差）
+        int dimFg = Fg > 0 ? Fg : TuiColors.White;
         var rb = new RenderBuffer();
         rb.Write(row, absX, new string(' ', Width), fg: fg, bg: Bg);
 

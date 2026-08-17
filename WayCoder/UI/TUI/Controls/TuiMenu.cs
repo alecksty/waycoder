@@ -252,7 +252,7 @@ public static class TuiMenu
                 {
                     var sep = new string('─', _state.ContentWidth);
                     var rbSep = new RenderBuffer();
-                    rbSep.Write(row, absX, sep, fg: 8); // dim separator
+                    rbSep.Write(row, absX, sep, fg: 2); // dim separator
                     sb.Append(rbSep.ToString());
                     continue;
                 }
@@ -293,7 +293,7 @@ public static class TuiMenu
                     var row = absY + i;
                     var ch = (i >= barPos && i < barPos + barH) ? "█" : "│";
                     var rb = new RenderBuffer();
-                    rb.Write(row, absX + _state.ContentWidth, ch, fg: 8);
+                    rb.Write(row, absX + _state.ContentWidth, ch, fg: 2);
                     sb.Append(rb.ToString());
                 }
 
@@ -303,7 +303,7 @@ public static class TuiMenu
                 {
                     var rbPct = new RenderBuffer();
                     rbPct.Write(visH > 0 ? absY + visH - 1 : absY,
-                        absX + _state.ContentWidth, pctText, fg: 8);
+                        absX + _state.ContentWidth, pctText, fg: 2);
                     sb.Append(rbPct.ToString());
                 }
             }
