@@ -47,11 +47,23 @@ public static class FileTracker
                 var absPath = Path.GetFullPath(filePath);
                 if (!File.Exists(absPath)) return;
 
-                // LRU 淘汰：超出上限时清理最旧的条目
+                // LRU 淘汰：超出上限时清理最久未读取的条目。
+                // 不能用 Tracked.Keys.FirstOrDefault()——Dictionary 覆盖已存在键不改变枚举顺序，
+                // 那只会淘汰「最早插入」的键（FIFO），热点文件照样被先清掉。
                 if (Tracked.Count >= MaxTracked)
                 {
-                    var oldest = Tracked.Keys.FirstOrDefault();
-                    if (oldest != null) Tracked.Remove(oldest);
+                    string? oldest = null;
+                    DateTime oldestTime = DateTime.MaxValue;
+                    foreach (var path in Tracked.Keys)
+                    {
+                        var t = LastReadTimes.TryGetValue(path, out var v) ? v : DateTime.MinValue;
+                        if (t < oldestTime) { oldestTime = t; oldest = path; }
+                    }
+                    if (oldest != null)
+                    {
+                        Tracked.Remove(oldest);
+                        LastReadTimes.Remove(oldest);
+                    }
                 }
 
                 var hash = ComputeHash(absPath);
@@ -85,6 +97,9 @@ public static class FileTracker
 
                 var hash = ComputeHash(absPath);
                 Tracked[absPath] = hash;
+                // Agent 自己写入后同步「读取时间」，避免下一次编辑被 ValidatePreEdit
+                // 用 fileModTime > lastRead+1s 误判为「自上次读取后被外部修改」。
+                LastReadTimes[absPath] = DateTime.UtcNow;
 
                 Save();
             }
