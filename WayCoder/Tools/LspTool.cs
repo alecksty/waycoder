@@ -249,17 +249,18 @@ public class LspTool : ITool
     {
         try
         {
-            var allArgs = new List<string>(args) { root };
             var psi = new ProcessStartInfo
             {
                 FileName = command,
-                Arguments = string.Join(" ", allArgs),
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            // 用 ArgumentList 逐个传参：运行时正确加引号，root 路径含空格时不再被拆断
+            foreach (var a in args) psi.ArgumentList.Add(a);
+            psi.ArgumentList.Add(root);
 
             return Process.Start(psi);
         }
@@ -363,7 +364,7 @@ public class LspTool : ITool
         var notif = JNode.Object().Set("jsonrpc", "2.0").Set("method", "initialized").Set("params", JNode.Object());
         var notifStr = $"Content-Length: {Encoding.UTF8.GetByteCount(notif.ToJson())}\r\n\r\n{notif.ToJson()}";
         SendMessage(proc, notifStr);
-        await ReadResponse(proc);
+        // initialized 是单向通知，服务器不回包；此前 await ReadResponse 会白等 10s 超时
     }
 
     private static void DidOpen(Process proc, string filePath)
@@ -393,14 +394,15 @@ public class LspTool : ITool
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            // 读 Content-Length 头（异步 + 超时 + EOF 保护，防服务器不响应时永久挂起）
+            // 直接用底层字节流读，避免 StreamReader 缓冲混用；头是 ASCII，逐字节拼
+            var stream = proc.StandardOutput.BaseStream;
             var header = new StringBuilder();
-            var one = new char[1];
+            var one = new byte[1];
             while (!header.ToString().EndsWith("\r\n\r\n"))
             {
-                var n = await proc.StandardOutput.ReadAsync(one.AsMemory(0, 1), cts.Token);
+                var n = await stream.ReadAsync(one.AsMemory(0, 1), cts.Token);
                 if (n == 0) break; // EOF：服务器提前关闭
-                header.Append(one[0]);
+                header.Append((char)one[0]);
                 if (header.Length > 200) break;
             }
             var headerStr = header.ToString();
@@ -410,16 +412,26 @@ public class LspTool : ITool
             // 长度上限防御：恶意/损坏的 Content-Length 不应触发巨大缓冲区分配
             if (!int.TryParse(lenStr, out var len) || len <= 0 || len > 10_000_000) return null;
 
-            var buffer = new char[len];
-            var read = await proc.StandardOutput.ReadBlockAsync(buffer.AsMemory(0, len), cts.Token);
-            return Json.Parse(new string(buffer, 0, read));
+            // Content-Length 是「字节数」，必须按字节读取；此前按「字符数」读，
+            // 遇到非 ASCII 内容时字节数 > 字符数 → 读不满 len 个字符 → 10s 超时 → hover/symbols 失效
+            var buffer = new byte[len];
+            var total = 0;
+            while (total < len)
+            {
+                var read = await stream.ReadAsync(buffer.AsMemory(total, len - total), cts.Token);
+                if (read == 0) break; // EOF
+                total += read;
+            }
+            return Json.Parse(Encoding.UTF8.GetString(buffer, 0, total));
         }
         catch { return null; }
     }
 
     private static string FileToUri(string path)
     {
-        return "file:///" + Path.GetFullPath(path).Replace('\\', '/').TrimStart('/');
+        // 用 Uri 统一转义空格/#/%/非 ASCII；旧实现直接拼路径，含空格/中文时生成非法 URI 导致 LSP 请求失败
+        try { return new Uri(Path.GetFullPath(path)).AbsoluteUri; }
+        catch { return "file:///" + Path.GetFullPath(path).Replace('\\', '/').TrimStart('/'); }
     }
 
     private static string GetLanguageId(string filePath)

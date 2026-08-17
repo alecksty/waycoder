@@ -227,7 +227,7 @@ public class AgentTool : ITool, ICancellableTool
                     var content = m["content"]?.AsString() ?? "";
                     // 截断每条消息
                     if (content.Length > 300)
-                        content = content[..300] + "...";
+                        content = ContextManager.TruncateByRunes(content, 300) + "...";
                     return $"[{role}] {content}";
                 });
 
@@ -252,7 +252,7 @@ public class AgentTool : ITool, ICancellableTool
         int tail = maxLen * 25 / 100;
         if (head + tail >= text.Length)
             return text;
-        return text[..head] + $"\n...（中间省略 {text.Length - head - tail} 字符）...\n" + text[^tail..];
+        return ContextManager.TruncateByRunes(text, head) + $"\n...（中间省略 {text.Length - head - tail} 字符）...\n" + ContextManager.TruncateTailByRunes(text, tail);
     }
 
     /// <summary>tasks 数组元素里优先提取任务文本的字段名（description 优先，与 schema items 对齐）。</summary>

@@ -304,7 +304,7 @@ public static class RepoMapGenerator
         {
             var content = File.ReadAllText(filePath);
             // 只读前 64KB，大文件跳过
-            if (content.Length > 65536) content = content[..65536];
+            if (content.Length > 65536) content = ContextManager.TruncateByRunes(content, 65536);
 
             var matches = pair.regex.Matches(content);
             var names = new HashSet<string>();
@@ -348,7 +348,7 @@ public static class RepoMapGenerator
         try
         {
             var content = File.ReadAllText(fullPath);
-            if (content.Length > 65536) content = content[..65536];
+            if (content.Length > 65536) content = ContextManager.TruncateByRunes(content, 65536);
 
             var matches = regex.Matches(content);
             foreach (Match m in matches)

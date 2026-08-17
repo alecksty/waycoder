@@ -218,7 +218,7 @@ public partial class Program
             // 检查 Watch 模式待处理提示
             while (_pendingWatchPrompts.TryDequeue(out var watchPrompt))
             {
-                screen.AddSystemMsg($"👁 Watch: {watchPrompt[..Math.Min(watchPrompt.Length, 80)]}");
+                screen.AddSystemMsg($"👁 Watch: {ContextManager.TruncateByRunes(watchPrompt, 80)}");
                 mgr.Render();
                 await ProcessUserInput(watchPrompt, screen);
             }
@@ -486,8 +486,8 @@ public partial class Program
                 onTool: (name, brief) =>
                 {
                     screen_!.FinishAgentMsg();
-                    screen_!.AddToolProgress(name, brief.Length > 60 ? brief[..57] + "..." : brief);
-                    screen_!.OnToolStarted(name, brief.Length > 40 ? brief[..37] + "..." : brief);
+                    screen_!.AddToolProgress(name, brief.Length > 60 ? ContextManager.TruncateByRunes(brief, 57) + "..." : brief);
+                    screen_!.OnToolStarted(name, brief.Length > 40 ? ContextManager.TruncateByRunes(brief, 37) + "..." : brief);
                     // 不立刻 StartAgentMsg，等 onToolOutput 流式输出完毕再懒启动
                     // 每 3 次工具调用自动保存
                     if (++_toolCallCount % 3 == 0)
@@ -908,8 +908,8 @@ public partial class Program
                         cs => { cs.Running = false; cs.OnToolFinished(); cs.EnsureAgentStreaming(); cs.AppendToken(tok); },
                         s => s.BufferedAppendToken(tok)),
                     onTool: (name, brief) => Route(
-                        cs => { cs.FinishAgentMsg(); cs.AddToolProgress(name, brief.Length > 60 ? brief[..57] + "..." : brief); cs.OnToolStarted(name, brief.Length > 40 ? brief[..37] + "..." : brief); },
-                        s => { s.BufferedFinishStream(); s.BufferedAddMsg("tool", ToolLabel(name, brief.Length > 60 ? brief[..57] + "..." : brief), indent: 1); }),
+                        cs => { cs.FinishAgentMsg(); cs.AddToolProgress(name, brief.Length > 60 ? ContextManager.TruncateByRunes(brief, 57) + "..." : brief); cs.OnToolStarted(name, brief.Length > 40 ? ContextManager.TruncateByRunes(brief, 37) + "..." : brief); },
+                        s => { s.BufferedFinishStream(); s.BufferedAddMsg("tool", ToolLabel(name, brief.Length > 60 ? ContextManager.TruncateByRunes(brief, 57) + "..." : brief), indent: 1); }),
                     onToolOutput: line => Route(
                         cs => { cs.AppendToLast(line + "\n"); cs.OnToolFinished(); },
                         s => s.BufferedAppendToLast(line + "\n")),

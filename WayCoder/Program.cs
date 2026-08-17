@@ -112,8 +112,9 @@ public partial class Program
         var budgetStr = Arguments.CliArgRegistry.Get(parsed, "max-budget-usd");
         if (budgetStr != null && double.TryParse(budgetStr, out var b)) maxBudget = b;
         var requeueStr = Arguments.CliArgRegistry.Get(parsed, "max-requeue");
+        int? maxRequeue = null;
         if (requeueStr != null && int.TryParse(requeueStr, out var rq))
-            _config.MaxAutoRequeue = Math.Clamp(rq, 0, 20);
+            maxRequeue = Math.Clamp(rq, 0, 20);
 
         bool yoloMode = Arguments.CliArgRegistry.Has(parsed, "yolo");
         bool watchMode = Arguments.CliArgRegistry.Has(parsed, "watch");
@@ -196,6 +197,7 @@ public partial class Program
             }
         }
         if (maxBudget != null) _config.MaxBudgetUsd = maxBudget;
+        if (maxRequeue != null) _config.MaxAutoRequeue = maxRequeue.Value;
         if (watchMode) _config.WatchMode = true;
         if (economyMode)
             _config.EconomyMode = (economySpec?.ToLowerInvariant()) switch

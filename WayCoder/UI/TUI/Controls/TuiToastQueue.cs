@@ -89,7 +89,7 @@ public static class TuiToastQueue
         var maxW = Math.Min(terminalWidth - 4, 60);
         var text = current.Message;
         if (TuiHelper.DisplayWidth(text) > maxW)
-            text = TuiHelper.TruncateByWidth(text, maxW - 1) + "…";
+            text = TuiHelper.TruncateByWidth(text, maxW);
 
         var bg = AnsiTty.Bg(0);
         return $"{color}{bg} {icon} {text}{AnsiTty.SgrReset}";

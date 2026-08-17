@@ -157,7 +157,7 @@ public class TuiDynamicBar : TuiControl
         if (!string.IsNullOrEmpty(toolDisplay) && midWidth > 0)
         {
             if (TuiHelper.DisplayWidth(toolDisplay) > midWidth)
-                toolDisplay = TuiHelper.TruncateByWidth(toolDisplay, midWidth - 1) + "…";
+                toolDisplay = TuiHelper.TruncateByWidth(toolDisplay, midWidth);
             rb.Write(absY, col, toolDisplay, fg: TuiColors.Grey, bg: TuiTheme.Current.WindowBg);
         }
         col = midStart + Width / 3;
@@ -191,7 +191,7 @@ public class TuiDynamicBar : TuiControl
             var label = ProgressLabel;
             int maxW = Width - (col - absX);
             if (TuiHelper.DisplayWidth(label) > maxW)
-                label = TuiHelper.TruncateByWidth(label, maxW - 1) + "…";
+                label = TuiHelper.TruncateByWidth(label, maxW);
             rb.Write(absY, col, label, fg: TuiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
         }
         else
@@ -211,7 +211,7 @@ public class TuiDynamicBar : TuiControl
             {
                 var modelDisplay = LeftText;
                 if (!string.IsNullOrEmpty(modelDisplay) && TuiHelper.DisplayWidth(modelDisplay) > 25)
-                    modelDisplay = TuiHelper.TruncateByWidth(modelDisplay, 22) + "…";
+                    modelDisplay = TuiHelper.TruncateByWidth(modelDisplay, 25);
                 rb.Write(absY, col, modelDisplay ?? "",
                     fg: TuiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
             }

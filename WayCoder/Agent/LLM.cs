@@ -743,7 +743,7 @@ public class LLM
 
             // 纯数字 = 秒数
             if (int.TryParse(header, out var seconds))
-                return Math.Min(seconds * 1000, Config.Instance.LlmRateLimitMaxWaitSec * 1000);
+                return (int)Math.Min((long)seconds * 1000, (long)Config.Instance.LlmRateLimitMaxWaitSec * 1000);
 
             // HTTP-date 格式
             if (DateTime.TryParse(header, out var retryDate))

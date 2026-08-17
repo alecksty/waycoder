@@ -345,7 +345,7 @@ public class TuiRichEditor : TuiEditBase
         var runes = text.EnumerateRunes().ToList();
         for (int i = 0; i < runes.Count; i++)
         {
-            int w = runes[i].Value > 127 ? 2 : 1;
+            int w = runes[i].Value == '\t' ? 4 : TuiHelper.DisplayWidth(runes[i].ToString());
             if (vw + w > maxVw)
                 return text.Substring(0, bytePos);
             vw += w;

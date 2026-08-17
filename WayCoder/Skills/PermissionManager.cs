@@ -279,7 +279,7 @@ public static class PermissionManager
         {
             case "bash":
                 var cmd = args.GetValueOrDefault("command")?.ToString() ?? "";
-                return $"命令: {TuiHelper.Esc(cmd.Length > 200 ? cmd[..200] + "..." : cmd)}";
+                return $"命令: {TuiHelper.Esc(cmd.Length > 200 ? ContextManager.TruncateByRunes(cmd, 200) + "..." : cmd)}";
             case "write_file":
             case "edit_file":
                 var fp = args.GetValueOrDefault("file_path")?.ToString() ?? "";
@@ -291,20 +291,20 @@ public static class PermissionManager
                     var exists = File.Exists(fp);
                     var existsNote = exists ? $" (覆盖已有 {new FileInfo(fp).Length} 字节)" : " (新建)";
                     result += existsNote + $"\n内容: {lines} 行";
-                    var preview = content.Length > 100 ? content[..100] + "..." : content;
+                    var preview = content.Length > 100 ? ContextManager.TruncateByRunes(content, 100) + "..." : content;
                     result += $"\n预览: {TuiHelper.Esc(preview.Replace("\n", "\\n"))}";
                 }
                 if (toolName == "edit_file")
                 {
                     var old = args.GetValueOrDefault("old_string")?.ToString() ?? "";
                     var n = args.GetValueOrDefault("new_string")?.ToString() ?? "";
-                    result += $"\n-{TuiHelper.Esc(old.Length > 80 ? old[..80] + "..." : old)}";
-                    result += $"\n+{TuiHelper.Esc(n.Length > 80 ? n[..80] + "..." : n)}";
+                    result += $"\n-{TuiHelper.Esc(old.Length > 80 ? ContextManager.TruncateByRunes(old, 80) + "..." : old)}";
+                    result += $"\n+{TuiHelper.Esc(n.Length > 80 ? ContextManager.TruncateByRunes(n, 80) + "..." : n)}";
                 }
                 return result;
             case "agent":
                 var task = args.GetValueOrDefault("task")?.ToString() ?? "";
-                return $"任务: {TuiHelper.Esc(task.Length > 120 ? task[..120] + "..." : task)}";
+                return $"任务: {TuiHelper.Esc(task.Length > 120 ? ContextManager.TruncateByRunes(task, 120) + "..." : task)}";
             case "kill":
                 var pid = args.GetValueOrDefault("pid")?.ToString() ?? "?";
                 return $"进程 ID: {TuiHelper.Esc(pid)}";
