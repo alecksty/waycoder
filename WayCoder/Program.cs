@@ -18,7 +18,7 @@ public partial class Program
     private static LLM? _llm;
     private static Agent? _agent;
     private static readonly AgentSlot[] _slots = new AgentSlot[AgentSlot.Count];
-    private static int _activeSlot; // 当前活跃槽位索引（F1 对应 0）
+    private static volatile int _activeSlot; // 当前活跃槽位索引（F1 对应 0）。volatile：主线程写、后台槽位/命令线程读，保证可见性
 
     /// <summary>待投递的槽位任务队列：槽位索引 → 任务列表（同一槽位多次 -pN 可排队）</summary>
     private static readonly Dictionary<int, List<string>> _pendingSlotQueues = [];
