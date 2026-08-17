@@ -122,7 +122,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
             btnRow.Children.Add(MakeButton("确定", "#2f6bff", () =>
             {
-                var picked = list.SelectedItems.Cast<string>().ToList();
+                var picked = list.SelectedItems?.Cast<string>().ToList() ?? [];
                 win.Close();
                 tcs.TrySetResult(picked.Count > 0 ? picked : null);
             }));

@@ -71,7 +71,7 @@ public partial class MainWindow : Window
         _activeSlot = slot;
         for (int i = 0; i < SlotCount; i++)
             _slotButtons[i].Background = i == slot ? new SolidColorBrush(Color.Parse("#4f8cff")) : null;
-        MarkdownInlines.RenderTo(ChatBox.Inlines, _chats[slot].ToString());
+        MarkdownInlines.RenderTo(ChatBox.Inlines!, _chats[slot].ToString());
         SlotLabel.Text = $"槽位 F{slot + 1}";
         StopButton.IsEnabled = _cts[slot] != null;
         SendButton.IsEnabled = _cts[slot] == null;
@@ -153,7 +153,7 @@ public partial class MainWindow : Window
                 _chats[slot].Append($"🤖 {content}\n");
         }
         if (slot == _activeSlot)
-            MarkdownInlines.RenderTo(ChatBox.Inlines, _chats[slot].ToString());
+            MarkdownInlines.RenderTo(ChatBox.Inlines!, _chats[slot].ToString());
     }
 
     // ── 交互 ──
@@ -244,7 +244,7 @@ public partial class MainWindow : Window
         _chats[slot].Append(text); // 保留原始 markdown（含 «» 标记），渲染时统一转 Inline
         if (slot == _activeSlot)
         {
-            MarkdownInlines.RenderTo(ChatBox.Inlines, _chats[slot].ToString());
+            MarkdownInlines.RenderTo(ChatBox.Inlines!, _chats[slot].ToString());
             Dispatcher.UIThread.Post(() => ChatScroll.ScrollToEnd(), DispatcherPriority.Background);
         }
     }
