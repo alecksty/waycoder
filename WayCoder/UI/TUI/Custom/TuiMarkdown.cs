@@ -340,7 +340,9 @@ public static class TuiMarkdown
                 if (vw + w > maxVw) break;
                 vw += w; chars += rune.Utf16SequenceLength;
             }
-            if (chars == 0) chars = 1; // 至少前进一个字符
+            if (chars == 0)
+                // 首个字符超宽：完整取一个字符，避免切半代理对成 U+FFFD
+                chars = System.Text.Rune.GetRuneAt(text, start).Utf16SequenceLength;
             lines.Add(text[start..(start + chars)]);
             start += chars;
         }

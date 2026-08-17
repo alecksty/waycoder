@@ -1120,6 +1120,14 @@ public static partial class SelfTest
         Check("RenderBuffer 样式码+背景 关样式后仍保留底色复位",
             styleBgAnsi.Contains(AnsiTty.Sgr(22)) && styleBgAnsi.Contains(AnsiTty.SgrResetBg)
             && !styleBgAnsi.Contains(AnsiTty.SgrReset));
+
+        // RenderBuffer 超宽首个字符（代理对 emoji 宽 2 > 可用列）完整写入不切半（v0.71.30 修复）
+        var rbRuneWrap = new RenderBuffer();
+        rbRuneWrap.WriteWrap(0, 0, "😀", maxCol: 0, indentCol: 0);
+        Check("WriteWrap 超宽代理对不切半", !rbRuneWrap.ToString().Contains('�'));
+        var rbRuneRegion = new RenderBuffer();
+        rbRuneRegion.WriteRegion(0, 0, 1, 1, "😀");
+        Check("WriteRegion 超宽代理对不切半", !rbRuneRegion.ToString().Contains('�'));
         Console.WriteLine();
 
         // ================================================================

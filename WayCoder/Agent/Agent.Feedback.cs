@@ -84,7 +84,15 @@ public partial class Agent
         if (_lastTestProject == cwd && (DateTime.UtcNow - _lastTestRun).TotalSeconds < Config.Instance.AutoTestDebounceSec)
             return toolResult;
 
-        var testCmd = DetectTestCommand();
+        // DetectTestCommand 的 Directory.GetFiles(AllDirectories) 遇到不可读目录会抛
+        // UnauthorizedAccessException——必须在 try/catch 内，否则崩溃整个 Agent 循环
+        string? testCmd;
+        try { testCmd = DetectTestCommand(); }
+        catch (Exception ex)
+        {
+            ErrorLog.Warning("Agent", $"自动测试命令探测失败: {ex.Message}");
+            testCmd = null;
+        }
         if (testCmd == null) return toolResult;
 
         // WayCoder 自己的自测可能很慢，跳过（编辑 WayCoder 自身时）
