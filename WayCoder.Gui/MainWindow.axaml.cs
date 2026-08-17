@@ -216,7 +216,16 @@ public partial class MainWindow : Window
             await agent.ChatAsync(input,
                 onToken: t => Dispatcher.UIThread.Post(() => AppendSlot(slot, t)),
                 onTool: (name, brief) => Dispatcher.UIThread.Post(() => AppendSlot(slot, $"\n🔧 [{name}] {brief}\n")),
-                onToolOutput: _ => { }, // MVP：工具输出暂不逐条显示
+                onToolOutput: o => Dispatcher.UIThread.Post(() =>
+                {
+                    if (!string.IsNullOrEmpty(o))
+                    {
+                        var truncated = o.Length > 2000
+                            ? ContextManager.TruncateByRunes(o, 2000) + "\n…（截断）"
+                            : o;
+                        AppendSlot(slot, $"\n```\n{truncated}\n```\n");
+                    }
+                }),
                 cancellationToken: _cts[slot]!.Token);
         }
         catch (OperationCanceledException)
