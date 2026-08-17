@@ -2,6 +2,7 @@ using System.Text;
 using WayCoder.UI.Shared.Terminal;
 
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -89,8 +90,8 @@ public class TuiPanel : TuiView
         if (HasTitle)
         {
             WriteAt(sb, absY, absX + 1, $" {Title} ", tf, Bg);
-            var rem = w - 2 - TuiHelper.DisplayWidth($" {Title} ");
-            if (rem > 0) WriteAt(sb, absY, absX + 1 + TuiHelper.DisplayWidth($" {Title} "), !string.IsNullOrEmpty(hh) ? hh[..Math.Min(1, hh.Length)] : "─", bc, Bg);
+            var rem = w - 2 - AnsiHelper.DisplayWidth($" {Title} ");
+            if (rem > 0) WriteAt(sb, absY, absX + 1 + AnsiHelper.DisplayWidth($" {Title} "), !string.IsNullOrEmpty(hh) ? hh[..Math.Min(1, hh.Length)] : "─", bc, Bg);
         }
         else
         {

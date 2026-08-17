@@ -39,26 +39,13 @@ public static class TuiMarkdown
             return result;
         }
 
-        // 纯文本模式 + ANSI 内容：按行渲染，不做 Markdown 解析。
-        // 纯文本行折行（超长工具输出右缘截断不可见）；含 ANSI 的行不折行（避免切半转义序列），
-        // 交给 WriteAt 的 ANSI 感知截断
+        // 纯文本模式 + ANSI 内容：按行原样渲染，不做 Markdown 解析
         if (plainText || content.Contains(AnsiTty.AnsiCharPrefix))
         {
             int defaultFg = FgForRole(role);
             foreach (var rawLine in content.Split('\n'))
             {
-                if (rawLine.Length == 0)
-                {
-                    result.Add(new List<(string, int, int)> { ("", defaultFg, 0) });
-                    continue;
-                }
-                if (rawLine.Contains(AnsiTty.AnsiCharPrefix))
-                {
-                    result.Add(new List<(string, int, int)> { (rawLine, defaultFg, 0) });
-                    continue;
-                }
-                foreach (var wrapped in WrapText(rawLine, Math.Max(1, maxWidth - 2)))
-                    result.Add(new List<(string, int, int)> { (wrapped, defaultFg, 0) });
+                result.Add(new List<(string, int, int)> { (rawLine, defaultFg, 0) });
             }
             return result;
         }
@@ -68,20 +55,17 @@ public static class TuiMarkdown
 
         if (nodes.Count == 0)
         {
-            // 纯文本回退（按宽度折行）
-            foreach (var wrapped in WrapText(content, Math.Max(1, maxWidth - 2)))
-                result.Add(new List<(string, int, int)> { (wrapped, FgForRole(role), 0) });
+            // 纯文本回退
+            result.Add(new List<(string, int, int)> { (content, FgForRole(role), 0) });
             return result;
         }
 
-        // 如果第一个节点是纯段落且没有特殊格式，回退到简单渲染。
-        // 必须折行：否则长段落作为单一行被右缘直接截断不可见
+        // 如果第一个节点是纯段落且没有特殊格式，回退到简单渲染
         if (nodes.Count == 1 && nodes[0] is MdParagraph p &&
             !p.Text.Contains('*') && !p.Text.Contains('`') && !p.Text.Contains('#') &&
             !p.Text.Contains('\xAB'))
         {
-            foreach (var wrapped in WrapText(p.Text, Math.Max(1, maxWidth - 2)))
-                result.Add(new List<(string, int, int)> { (wrapped, FgForRole(role), 0) });
+            result.Add(new List<(string, int, int)> { (p.Text, FgForRole(role), 0) });
             return result;
         }
 
@@ -130,7 +114,7 @@ public static class TuiMarkdown
         List<List<(string, int, int)>> result, int maxWidth)
     {
         var prefix = new string('#', h.Level) + " ";
-        var color = h.Level <= 2 ? TuiTheme.Current.MdH1H2Fg : TuiColors.White;  // H1-H2 亮白，H3+ 白
+        var color = h.Level <= 2 ? TuiTheme.Current.MdH1H2Fg : AnsiColors.White;  // H1-H2 亮白，H3+ 白
         var line = new List<(string, int, int)> { (prefix, TuiTheme.Current.MdHeadingFg, 0), (h.Text, color, 0) };
         result.Add(line);
     }
@@ -281,7 +265,7 @@ public static class TuiMarkdown
         {
             // 任务清单：☑ 已完成（绿） / ☐ 未完成（弱化）
             var box = li.Checked.Value ? "☑" : "☐";
-            var boxColor = li.Checked.Value ? TuiColors.Green : 2;
+            var boxColor = li.Checked.Value ? AnsiColors.Green : 2;
             line.Add(($"{indent}  {box} ", boxColor, 0));
         }
         else
@@ -352,7 +336,7 @@ public static class TuiMarkdown
             int vw = 0, chars = 0;
             foreach (var rune in slice.EnumerateRunes())
             {
-                var w = TuiHelper.RuneWidth(rune);
+                var w = AnsiHelper.RuneWidth(rune);
                 if (vw + w > maxVw) break;
                 vw += w; chars += rune.Utf16SequenceLength;
             }
@@ -384,7 +368,7 @@ public static class TuiMarkdown
     {
         // 剥离 ANSI 转义码
         var clean = StripAnsi(text);
-        return TuiHelper.DisplayWidth(clean);
+        return AnsiHelper.DisplayWidth(clean);
     }
 
     /// <summary>计算内联格式化文本的视觉宽度（排除标记符如 ** ` 等）</summary>

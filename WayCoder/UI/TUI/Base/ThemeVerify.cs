@@ -1,7 +1,6 @@
-using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
 
-namespace WayCoder.UI.Tui;
+namespace WayCoder.UI.TUI.Base;
 
 public static class ThemeVerify
 {
@@ -206,7 +205,7 @@ public static class ThemeVerify
     private static (int r, int g, int b) AnsiToRgb(int code)
     {
         // TrueColor 码直接解码
-        if (code >= 0x1000000) return WayCoder.UI.Shared.Terminal.AnsiTty.DecodeRgb(code);
+        if (code >= 0x1000000) return Shared.Terminal.AnsiTty.DecodeRgb(code);
 
         // 2=dim（近似中灰）；其余未知码按中灰兜底
         return code switch

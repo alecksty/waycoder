@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch *)",
+      "Bash(git reset *)",
+      "Bash(git clean *)",
+      "WebSearch",
+      "Bash(dotnet build *)",
+      "Bash(dotnet run *)",
+      "Bash(xxd)",
+      "Bash(python3 *)",
+      "Bash(taskkill /F /PID 34696)",
+      "Bash(git *)",
+      "Bash(sed -i 's/BoxBuffer\\\\.BorderStyle\\\\./BorderStyle./g' SelfTest.cs)",
+      "Bash(sed -i '1082s/var schema/var schema2/' SelfTest.cs)",
+      "Bash(grep -E \"错误|error CS|已成功|警告$\")",
+      "Bash(python _fix_tui.py)",
+      "Bash(python _apply_all.py)",
+      "Bash(cd /tmp)",
+      "Bash(cp -r \"D:\\\\code-agents\\\\CoreCoder\\\\CoreCoderSharp\" \"D:\\\\code-agents\\\\CoreCoder\\\\WayCoder\")",
+      "Bash(rm -rf \"D:\\\\code-agents\\\\CoreCoder\\\\CoreCoderSharp\")"
+    ]
+  }
+}

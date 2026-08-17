@@ -1,12 +1,7 @@
 using System.Text;
+using WayCoder.UI.Tui;
 
-namespace WayCoder.UI.Tui;
-
-/// <summary>水平对齐方式</summary>
-public enum HAlign { Left, Center, Right, Stretch }
-
-/// <summary>垂直对齐方式</summary>
-public enum VAlign { Top, Middle, Bottom, Stretch }
+namespace WayCoder.UI.TUI.Base;
 
 /// <summary>
 /// 视图 —— 布局容器，管理子控件排列。
@@ -21,13 +16,13 @@ public abstract class TuiView : TuiControl
     public virtual int EffectiveScrollOffset => 0;
 
     /// <summary>子控件水平对齐方式（在布局容器内）</summary>
-    public HAlign ChildHAlign { get; set; } = HAlign.Left;
+    public EHAlign ChildHAlign { get; set; } = EHAlign.Left;
 
     /// <summary>子控件垂直对齐方式（在布局容器内）</summary>
-    public VAlign ChildVAlign { get; set; } = VAlign.Top;
+    public EVAlign ChildVAlign { get; set; } = EVAlign.Top;
 
     /// <summary>内容整体对齐方式（当子控件总尺寸小于容器尺寸时）</summary>
-    public VAlign ContentVAlign { get; set; } = VAlign.Top;
+    public EVAlign ContentVAlign { get; set; } = EVAlign.Top;
 
     /// <summary>添加子控件，设置 Parent 引用并触发 OnCreate 生命周期</summary>
     public virtual void Add(TuiControl child)
@@ -75,9 +70,9 @@ public abstract class TuiView : TuiControl
     {
         return ChildHAlign switch
         {
-            HAlign.Center => (Width - childWidth) / 2,
-            HAlign.Right  => Width - childWidth,
-            HAlign.Stretch => 0, // Stretch will set child.Width = Width
+            EHAlign.Center => (Width - childWidth) / 2,
+            EHAlign.Right => Width - childWidth,
+            EHAlign.Stretch => 0, // Stretch will set child.Width = Width
             _ => 0, // Left
         };
     }
@@ -87,9 +82,9 @@ public abstract class TuiView : TuiControl
     {
         return ChildVAlign switch
         {
-            VAlign.Middle  => (rowHeight - childHeight) / 2,
-            VAlign.Bottom  => rowHeight - childHeight,
-            VAlign.Stretch => 0,
+            EVAlign.Middle => (rowHeight - childHeight) / 2,
+            EVAlign.Bottom => rowHeight - childHeight,
+            EVAlign.Stretch => 0,
             _ => 0, // Top
         };
     }
@@ -100,7 +95,7 @@ public abstract class TuiView : TuiControl
     /// </summary>
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
-        bool parentDirty = IsDirty;
+        var parentDirty = IsDirty;
         foreach (var child in Children)
         {
             if (!child.Visible) continue;
@@ -119,6 +114,7 @@ public abstract class TuiView : TuiControl
             // 渲染后清除脏标记（无论视图还是叶子）
             child.IsDirty = false;
         }
+
         IsDirty = false;
     }
 
@@ -141,8 +137,14 @@ public abstract class TuiView : TuiControl
         MarkDirty();
         foreach (var child in Children)
         {
-            if (child is TuiView v) v.MarkDirtyTree();
-            else child.MarkDirty();
+            if (child is TuiView v)
+            {
+                v.MarkDirtyTree();
+            }
+            else
+            {
+                child.MarkDirty();
+            }
         }
     }
 
@@ -159,6 +161,7 @@ public abstract class TuiView : TuiControl
                 && child.OnKey(key))
                 return true;
         }
+
         return false;
     }
 
@@ -178,6 +181,7 @@ public abstract class TuiView : TuiControl
             var hit = Children[i].HitTest(absX, absY);
             if (hit != null) return hit;
         }
+
         return this;
     }
 
@@ -185,22 +189,23 @@ public abstract class TuiView : TuiControl
     /// 鼠标事件处理：命中测试 → 路由到最深子控件。
     /// 若子控件不处理，沿控件树向上冒泡。
     /// </summary>
-    public override bool HandleMouse(InputEvent ev)
+    public override bool OnMouse(InputEvent ev)
     {
         if (ev.Type != InputType.Mouse) return false;
         var hit = HitTest(ev.MouseX, ev.MouseY);
         if (hit != null && hit != this)
         {
             // 尝试让最深命中的控件处理
-            if (hit.HandleMouse(ev)) return true;
+            if (hit.OnMouse(ev)) return true;
             // 冒泡：逐级向上查找父控件，直到遇到自己或有人消费事件
             var current = hit.Parent;
             while (current != null && current != this)
             {
-                if (current.HandleMouse(ev)) return true;
+                if (current.OnMouse(ev)) return true;
                 current = current.Parent;
             }
         }
+
         return false;
     }
 
@@ -228,6 +233,7 @@ public abstract class TuiView : TuiControl
                 if (found != null) return found;
             }
         }
+
         return null;
     }
 
@@ -273,6 +279,11 @@ public abstract class TuiView : TuiControl
         return list;
     }
 
+    /// <summary>
+    /// 递归收集所有可聚焦控件。
+    /// </summary>
+    /// <param name="view">当前视图</param>
+    /// <param name="list">可聚焦控件列表</param>
     private static void CollectFocusable(TuiView view, List<TuiControl> list)
     {
         foreach (var c in view.Children)
@@ -283,335 +294,5 @@ public abstract class TuiView : TuiControl
             else
                 list.Add(c);
         }
-    }
-}
-
-/// <summary>
-/// 垂直布局容器 —— 子控件从上到下排列。
-/// 支持水平对齐（ChildHAlign）和内容垂直对齐（ContentVAlign）。
-/// </summary>
-public class TuiVBox : TuiView
-{
-    public int Spacing { get; set; }
-
-    public override void Layout()
-    {
-        // ── 0. Flex 弹性分配（在测量之前设置 Flex>0 子控件的高度；浮动控件不参与流式布局）──
-        int totalFlex = 0;
-        int totalFixedH = 0;
-        int flowCount = 0;
-        foreach (var child in Children)
-        {
-            if (child.Floating) continue;
-            flowCount++;
-            if (child.Flex > 0)
-                totalFlex += child.Flex;
-            else
-                totalFixedH += child.Height + child.Margin.Vertical;
-        }
-        if (totalFlex > 0)
-        {
-            int flexMarginH = 0;
-            foreach (var child in Children)
-                if (child.Flex > 0 && !child.Floating)
-                    flexMarginH += child.Margin.Vertical;
-            int remaining = Height - totalFixedH - flexMarginH - Math.Max(0, flowCount - 1) * Spacing;
-            if (remaining > 0)
-            {
-                int allocated = 0;
-                TuiBase? lastFlexChild = null;
-                foreach (var child in Children)
-                {
-                    if (child.Flex > 0 && !child.Floating)
-                    {
-                        int h = Math.Max(1, remaining * child.Flex / totalFlex);
-                        child.Height = h;
-                        allocated += h;
-                        lastFlexChild = child;
-                    }
-                }
-                if (lastFlexChild != null)
-                {
-                    // 欠分配 → 最后一个吸收剩余；超分配（Max(1,…) 导致总和 > remaining）→ 从最后一个减回
-                    if (remaining > allocated)
-                        lastFlexChild.Height += remaining - allocated;
-                    else if (allocated > remaining && lastFlexChild.Height > 1)
-                        lastFlexChild.Height = Math.Max(1, lastFlexChild.Height - (allocated - remaining));
-                }
-            }
-        }
-
-        // 第一遍：计算总高度（含 child margin），递归布局嵌套视图（浮动子视图仍递归布局内部）
-        var totalH = 0;
-        foreach (var child in Children)
-        {
-            if (child is TuiView childView)
-                childView.Layout();
-            if (child.Floating) continue;
-            if (ChildHAlign == HAlign.Stretch)
-                child.Width = Width;
-            totalH += child.Height + child.Margin.Vertical + Spacing;
-        }
-        if (totalH > 0) totalH -= Spacing;
-
-        // 内容垂直对齐偏移
-        var contentOffset = ContentVAlign switch
-        {
-            VAlign.Middle => (Height - totalH) / 2,
-            VAlign.Bottom => Height - totalH,
-            _ => 0
-        };
-
-        // 第二遍：设置位置（Margin.Top 偏移，Margin.Left 水平对齐；浮动控件跳过，保留手动 X/Y）
-        var y = Math.Max(0, contentOffset);
-        foreach (var child in Children)
-        {
-            if (child.Floating) continue;
-            child.Y = y + child.Margin.Top;
-            child.X = AlignX(child.Width) + child.Margin.Left;
-            y += child.Height + child.Margin.Vertical + Spacing;
-        }
-
-        // 如果内容超出容器，更新 Height
-        if (contentOffset == 0)
-            Height = Math.Max(1, y - Spacing);
-    }
-}
-
-/// <summary>
-/// 水平布局容器 —— 子控件从左到右排列。
-/// 支持垂直对齐（ChildVAlign）和内容水平对齐。
-/// </summary>
-public class TuiHBox : TuiView
-{
-    public int Spacing { get; set; }
-
-    /// <summary>内容水平对齐方式（当子控件总宽小于容器宽时）</summary>
-    public HAlign ContentHAlign { get; set; } = HAlign.Left;
-
-    public override void Layout()
-    {
-        // ── 0. Flex 弹性分配（在测量之前设置 Flex>0 子控件的宽度；浮动控件不参与流式布局）──
-        int totalFlex = 0;
-        int totalFixedW = 0;
-        int flowCount = 0;
-        foreach (var child in Children)
-        {
-            if (child.Floating) continue;
-            flowCount++;
-            if (child.Flex > 0)
-                totalFlex += child.Flex;
-            else
-                totalFixedW += child.Width + child.Margin.Horizontal;
-        }
-        if (totalFlex > 0)
-        {
-            int flexMarginW = 0;
-            foreach (var child in Children)
-                if (child.Flex > 0 && !child.Floating)
-                    flexMarginW += child.Margin.Horizontal;
-            int remaining = Width - totalFixedW - flexMarginW - Math.Max(0, flowCount - 1) * Spacing;
-            if (remaining > 0)
-            {
-                int allocated = 0;
-                // 最后一个 Flex 子控件拿剩余，避免取整损失
-                TuiBase? lastFlexChild = null;
-                foreach (var child in Children)
-                {
-                    if (child.Flex > 0 && !child.Floating)
-                    {
-                        int w = Math.Max(1, remaining * child.Flex / totalFlex);
-                        child.Width = w;
-                        allocated += w;
-                        lastFlexChild = child;
-                    }
-                }
-                // 修正取整误差：最后一个 Flex 子控件补齐
-                if (lastFlexChild != null && remaining > allocated)
-                    lastFlexChild.Width += remaining - allocated;
-            }
-        }
-
-        // 第一遍：计算总宽度（含 child margin）和最大行高，递归布局嵌套视图（浮动子视图仍递归布局内部）
-        int totalW = 0;
-        int maxH = 1;
-        foreach (var child in Children)
-        {
-            if (child is TuiView childView)
-                childView.Layout();
-            if (child.Floating) continue;
-            if (ChildVAlign == VAlign.Stretch)
-                child.Height = Height;
-            totalW += child.Width + child.Margin.Horizontal + Spacing;
-            maxH = Math.Max(maxH, child.Height + child.Margin.Vertical);
-        }
-        if (totalW > 0) totalW -= Spacing;
-
-        // 内容水平对齐偏移
-        int contentOffset = ContentHAlign switch
-        {
-            HAlign.Center => (Width - totalW) / 2,
-            HAlign.Right  => Width - totalW,
-            HAlign.Stretch => 0,
-            _ => 0
-        };
-
-        // 第二遍：设置位置（Margin.Left/Right/Top 偏移；浮动控件跳过，保留手动 X/Y）
-        int x = Math.Max(0, contentOffset);
-        foreach (var child in Children)
-        {
-            if (child.Floating) continue;
-            child.X = x + child.Margin.Left;
-            child.Y = AlignY(child.Height + child.Margin.Vertical, maxH) + child.Margin.Top;
-            x += child.Width + child.Margin.Horizontal + Spacing;
-        }
-
-        Height = maxH;
-        if (contentOffset == 0)
-            Width = Math.Max(1, x - Spacing);
-    }
-}
-
-/// <summary>
-/// 滚动视图 —— 内容实际高度（ContentHeight）可大于可见区域高度，
-/// 通过 ScrollOffset 控制可见窗口位置。
-/// 子控件以完整内容高度布局，渲染时自动偏移。
-/// </summary>
-public class TuiScrollView : TuiView
-{
-    /// <summary>内容总高度（由 Layout 计算）</summary>
-    public int ContentHeight { get; protected set; }
-    /// <summary>当前滚动偏移（行数），0=顶部</summary>
-    public int ScrollOffset { get; set; }
-    /// <inheritdoc/>
-    public override int EffectiveScrollOffset => ScrollOffset;
-    /// <summary>是否自动滚到底部（内容增长时自动跟底）</summary>
-    public bool IsAutoScrollToEnd { get; set; } = true;
-    /// <summary>已弃用，请使用 IsAutoScrollToEnd</summary>
-    [Obsolete("请使用 IsAutoScrollToEnd")]
-    public bool AutoScroll { get => IsAutoScrollToEnd; set => IsAutoScrollToEnd = value; }
-
-    public override void Layout()
-    {
-        var prevContentHeight = ContentHeight;
-        int y = 0;
-        foreach (var child in Children)
-        {
-            if (ChildHAlign == HAlign.Stretch)
-                child.Width = Width;
-            child.X = AlignX(child.Width) + child.Margin.Left;
-            child.Y = y + child.Margin.Top;
-            y += child.Height + child.Margin.Vertical;
-        }
-        ContentHeight = y;
-
-        // 内容增长时自动跟底
-        if (IsAutoScrollToEnd && ContentHeight > prevContentHeight)
-        {
-            ScrollOffset = Math.Max(0, ContentHeight - Height);
-        }
-    }
-
-    protected override void OnRender(StringBuilder sb, int absX, int absY)
-    {
-        // 调整裁剪区域：Y 偏移减去滚动量
-        var savedTop = ClipTop;
-        var savedBottom = ClipBottom;
-        ClipTop = absY;
-        ClipBottom = absY + Height;
-
-        foreach (var child in Children)
-        {
-            if (!child.Visible) continue;
-            var childAbsY = absY + child.Y - ScrollOffset;
-            var childAbsX = absX + child.X;
-
-            // 完全不可见则跳过
-            if (childAbsY + child.Height <= ClipTop || childAbsY >= ClipBottom)
-                continue;
-
-            child.Render(sb, absX, absY - ScrollOffset);
-        }
-
-        ClipTop = savedTop;
-        ClipBottom = savedBottom;
-    }
-
-    /// <summary>向上滚动</summary>
-    public void ScrollUp(int lines = 1)
-    {
-        int newOffset = Math.Max(0, ScrollOffset - lines);
-        if (newOffset == ScrollOffset && !IsAutoScrollToEnd) return; // 已在顶部，无效（防闪屏）
-        ScrollOffset = newOffset;
-        IsAutoScrollToEnd = false;
-        MarkDirtyTree();
-    }
-
-    /// <summary>向下滚动</summary>
-    public void ScrollDown(int lines = 1)
-    {
-        var maxScroll = Math.Max(0, ContentHeight - Height);
-        int newOffset;
-        bool newAuto;
-        if (ScrollOffset + lines >= maxScroll)
-        {
-            newOffset = maxScroll;
-            newAuto = true;
-        }
-        else
-        {
-            newOffset = ScrollOffset + lines;
-            newAuto = false;
-        }
-        if (newOffset == ScrollOffset && newAuto == IsAutoScrollToEnd) return; // 已在底部，无效（防闪屏）
-        ScrollOffset = newOffset;
-        IsAutoScrollToEnd = newAuto;
-        MarkDirtyTree();
-    }
-
-    /// <summary>滚到顶部</summary>
-    public void ScrollToTop()
-    {
-        if (ScrollOffset == 0 && !IsAutoScrollToEnd) return; // 已在顶部
-        ScrollOffset = 0;
-        IsAutoScrollToEnd = false;
-        MarkDirtyTree();
-    }
-
-    /// <summary>滚到底部</summary>
-    public void ScrollToBottom()
-    {
-        int newOffset = Math.Max(0, ContentHeight - Height);
-        if (ScrollOffset == newOffset && IsAutoScrollToEnd) return; // 已在底部
-        ScrollOffset = newOffset;
-        IsAutoScrollToEnd = true;
-        MarkDirtyTree();
-    }
-
-    /// <summary>添加子控件后自动跟底</summary>
-    public override void Add(TuiControl child)
-    {
-        base.Add(child);
-        if (IsAutoScrollToEnd)
-            ScrollToBottom();
-    }
-
-    /// <summary>更新布局后自动跟底</summary>
-    public void RefreshLayout()
-    {
-        Layout();
-        if (IsAutoScrollToEnd)
-            ScrollToBottom();
-    }
-
-    /// <summary>尺寸变化时重新 clamp 滚动位置</summary>
-    public override void OnResize(int newParentW, int newParentH)
-    {
-        Layout();
-        // 重新 clamp 滚动偏移到有效范围
-        var maxScroll = Math.Max(0, ContentHeight - Height);
-        ScrollOffset = Math.Clamp(ScrollOffset, 0, maxScroll);
-        foreach (var child in Children)
-            child.OnResize(Width, Height);
     }
 }

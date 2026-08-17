@@ -1,4 +1,4 @@
-namespace WayCoder.UI.Tui;
+namespace WayCoder.UI.TUI.Base;
 
 /// <summary>
 /// 输入历史管理器 —— 按字段名记录最近输入。

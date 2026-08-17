@@ -7,6 +7,8 @@ using WayCoder.UI.Tui.ToolRenderers;
 using WayCoder.UI.Tui.Controls;
 
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
+
 namespace WayCoder.UI.Tui.Screens;
 
 
@@ -306,7 +308,7 @@ public partial class ChatScreen : TuiScreen
             {
                 var item = ChatList.GetItem(i) as TuiListItem;
                 if (item != null)
-                    savedMessages.Add((item.Role, item.MarkdownContent, item.ContentAlign == HAlign.Center, item.Indent));
+                    savedMessages.Add((item.Role, item.MarkdownContent, item.ContentAlign == EHAlign.Center, item.Indent));
             }
         }
 
@@ -406,7 +408,6 @@ public partial class ChatScreen : TuiScreen
             Height = 0,
             Visible = false,
             Bg = 0,
-            MaxVisible = 6,
         };
         RootView.Add(PromptBar);
 
@@ -486,7 +487,7 @@ public partial class ChatScreen : TuiScreen
             {
                 continuation = true;
                 // 续接消息继承前一条的对齐设置
-                centered = last.ContentAlign == HAlign.Center;
+                centered = last.ContentAlign == EHAlign.Center;
             }
         }
 
@@ -496,7 +497,7 @@ public partial class ChatScreen : TuiScreen
 
         var item = new TuiListItem(role, content, ChatList.Width - 2,
             role == "banner" ? true : continuation, plainText,
-            centered ? HAlign.Center : HAlign.Left)
+            centered ? EHAlign.Center : EHAlign.Left)
         {
             Indent = indent
         };
@@ -700,7 +701,7 @@ public partial class ChatScreen : TuiScreen
                 int charIdx = 0, vw = 0;
                 foreach (var rune in line.EnumerateRunes())
                 {
-                    int rw = TuiHelper.RuneWidth(rune);
+                    int rw = AnsiHelper.RuneWidth(rune);
                     if (vw + rw > colIdx) break;
                     vw += rw;
                     charIdx += rune.Utf16SequenceLength;
@@ -754,7 +755,7 @@ public partial class ChatScreen : TuiScreen
             var progressY = TH - 2; // 状态栏上方一行
             var barText = $"«{new string('█', filled)}{new string('░', empty)}» {pct,3:F0}%";
             sb.Append(AnsiTty.CursorPos(progressY, 0))
-              .Append(AnsiTty.Fg(TuiColors.Yellow))
+              .Append(AnsiTty.Fg(AnsiColors.Yellow))
               .Append(StatusText.Length > TW - 2 ? StatusText[..(TW - 2)] : StatusText.PadRight(TW))
               .Append(AnsiTty.SgrReset);
         }

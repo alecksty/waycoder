@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -16,7 +17,7 @@ public class TuiProgress : TuiControl
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
-        int barW = string.IsNullOrEmpty(Label) ? Width : Width - TuiHelper.DisplayWidth(Label) - 2;
+        int barW = string.IsNullOrEmpty(Label) ? Width : Width - AnsiHelper.DisplayWidth(Label) - 2;
         if (barW < 0) barW = 0; // Label 过宽时 barW 为负，Math.Clamp(min>max) 会抛 ArgumentException
         int filled = (int)Math.Round(barW * Percent / 100.0);
         filled = Math.Clamp(filled, 0, barW);

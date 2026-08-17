@@ -95,18 +95,18 @@ public class TuiDynamicBar : TuiControl
         int right = Math.Min(absX + Width, ClipRight);
         if (left < right)
             rb.Write(absY, left, new string(' ', right - left),
-                fg: TuiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
+                fg: AnsiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
 
         // 根据状态计算颜色
         var (spinnerColor, textColor) = Status switch
         {
-            AgentStatus.Thinking => (TuiColors.Green, TuiColors.Grey),
-            AgentStatus.ToolRunning => (TuiColors.Yellow, TuiColors.BrightBlack),
-            AgentStatus.Compressing => (TuiColors.Cyan, TuiColors.Grey),
-            AgentStatus.WaitingPerm => (TuiColors.Yellow, TuiColors.Yellow),
-            AgentStatus.Planning => (TuiColors.Magenta, TuiColors.Grey),
-            AgentStatus.Error => (TuiColors.Red, TuiColors.Red),
-            _ => (TuiColors.BrightBlack, TuiColors.BrightBlack),
+            AgentStatus.Thinking => (AnsiColors.Green, AnsiColors.Grey),
+            AgentStatus.ToolRunning => (AnsiColors.Yellow, AnsiColors.BrightBlack),
+            AgentStatus.Compressing => (AnsiColors.Cyan, AnsiColors.Grey),
+            AgentStatus.WaitingPerm => (AnsiColors.Yellow, AnsiColors.Yellow),
+            AgentStatus.Planning => (AnsiColors.Magenta, AnsiColors.Grey),
+            AgentStatus.Error => (AnsiColors.Red, AnsiColors.Red),
+            _ => (AnsiColors.BrightBlack, AnsiColors.BrightBlack),
         };
 
         // ── 左段：spinner + 状态 ──
@@ -115,8 +115,6 @@ public class TuiDynamicBar : TuiControl
         {
             rb.Write(absY, col, CurrentFrame + " ", fg: spinnerColor, bg: TuiTheme.Current.WindowBg);
             col += 2;
-            // spinner 是持续动画：自我置脏让下一帧不早退（空闲时也能看到旋转）
-            if (TuiManager.Instance != null) TuiManager.Instance.IsDirty = true;
         }
 
         var leftDisplay = LeftText;
@@ -135,12 +133,12 @@ public class TuiDynamicBar : TuiControl
             };
         }
 
-        int leftWidth = Math.Min(TuiHelper.DisplayWidth(leftDisplay), Width / 3 - 3);
+        int leftWidth = Math.Min(AnsiHelper.DisplayWidth(leftDisplay), Width / 3 - 3);
         if (leftWidth > 0)
         {
-            var leftStr = TuiHelper.TruncateByWidth(leftDisplay, leftWidth);
+            var leftStr = AnsiHelper.TruncateByWidth(leftDisplay, leftWidth);
             rb.Write(absY, col, leftStr, fg: textColor, bg: TuiTheme.Current.WindowBg);
-            col += TuiHelper.DisplayWidth(leftStr);
+            col += AnsiHelper.DisplayWidth(leftStr);
         }
 
         // ── 分隔 ──
@@ -148,9 +146,9 @@ public class TuiDynamicBar : TuiControl
         if (col < midStart)
         {
             rb.Write(absY, col, new string(' ', midStart - col),
-                fg: TuiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
+                fg: AnsiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
         }
-        rb.Write(absY, midStart, "│", fg: TuiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
+        rb.Write(absY, midStart, "│", fg: AnsiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
         col = midStart + 2;
 
         // ── 中段：工具/任务 ──
@@ -158,15 +156,15 @@ public class TuiDynamicBar : TuiControl
         var toolDisplay = ToolText;
         if (!string.IsNullOrEmpty(toolDisplay) && midWidth > 0)
         {
-            if (TuiHelper.DisplayWidth(toolDisplay) > midWidth)
-                toolDisplay = TuiHelper.TruncateByWidth(toolDisplay, midWidth);
-            rb.Write(absY, col, toolDisplay, fg: TuiColors.Grey, bg: TuiTheme.Current.WindowBg);
+            if (AnsiHelper.DisplayWidth(toolDisplay) > midWidth)
+                toolDisplay = AnsiHelper.TruncateByWidth(toolDisplay, midWidth);
+            rb.Write(absY, col, toolDisplay, fg: AnsiColors.Grey, bg: TuiTheme.Current.WindowBg);
         }
         col = midStart + Width / 3;
 
         // ── 分隔 ──
         int rightStart = absX + Width * 2 / 3;
-        rb.Write(absY, rightStart, "│", fg: TuiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
+        rb.Write(absY, rightStart, "│", fg: AnsiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
         col = rightStart + 2;
 
         // ── 右段：进度条 ──
@@ -178,7 +176,7 @@ public class TuiDynamicBar : TuiControl
             {
                 int filled = Math.Clamp((int)Math.Round(barW * pct / 100.0), 0, barW);
                 int empty = barW - filled;
-                var barFg = pct switch { < 30 => TuiColors.Green, < 70 => TuiColors.Yellow, _ => TuiColors.Red };
+                var barFg = pct switch { < 30 => AnsiColors.Green, < 70 => AnsiColors.Yellow, _ => AnsiColors.Red };
                 rb.Write(absY, col,
                     $"«{new string('█', filled)}{new string('░', empty)}»",
                     fg: barFg, bg: TuiTheme.Current.WindowBg);
@@ -192,9 +190,9 @@ public class TuiDynamicBar : TuiControl
         {
             var label = ProgressLabel;
             int maxW = Width - (col - absX);
-            if (TuiHelper.DisplayWidth(label) > maxW)
-                label = TuiHelper.TruncateByWidth(label, maxW);
-            rb.Write(absY, col, label, fg: TuiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
+            if (AnsiHelper.DisplayWidth(label) > maxW)
+                label = AnsiHelper.TruncateByWidth(label, maxW);
+            rb.Write(absY, col, label, fg: AnsiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
         }
         else
         {
@@ -202,20 +200,20 @@ public class TuiDynamicBar : TuiControl
             if (ContextPercent.HasValue)
             {
                 var pct = ContextPercent.Value;
-                var ctxFg = pct switch { < 30 => TuiColors.Green, < 70 => TuiColors.Yellow, _ => TuiColors.Red };
+                var ctxFg = pct switch { < 30 => AnsiColors.Green, < 70 => AnsiColors.Yellow, _ => AnsiColors.Red };
                 var ctxStr = $"📊 {pct,3:F0}%";
                 rb.Write(absY, col, ctxStr, fg: ctxFg, bg: TuiTheme.Current.WindowBg);
-                col += TuiHelper.DisplayWidth(ctxStr) + 1;
+                col += AnsiHelper.DisplayWidth(ctxStr) + 1;
             }
 
             // 空闲时显示模型名（在上下文%之后）
             if (Status == AgentStatus.Idle)
             {
                 var modelDisplay = LeftText;
-                if (!string.IsNullOrEmpty(modelDisplay) && TuiHelper.DisplayWidth(modelDisplay) > 25)
-                    modelDisplay = TuiHelper.TruncateByWidth(modelDisplay, 25);
+                if (!string.IsNullOrEmpty(modelDisplay) && AnsiHelper.DisplayWidth(modelDisplay) > 25)
+                    modelDisplay = AnsiHelper.TruncateByWidth(modelDisplay, 25);
                 rb.Write(absY, col, modelDisplay ?? "",
-                    fg: TuiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
+                    fg: AnsiColors.BrightBlack, bg: TuiTheme.Current.WindowBg);
             }
         }
 

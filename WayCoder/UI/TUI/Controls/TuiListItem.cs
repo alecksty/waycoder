@@ -1,3 +1,5 @@
+using WayCoder.UI.TUI.Base;
+
 namespace WayCoder.UI.Tui.Controls;
 
 /// <summary>
@@ -46,7 +48,7 @@ public class TuiListItem : TuiVBox
     public int Indent { get; set; }
 
     /// <summary>内容横向对齐（默认左对齐）</summary>
-    public HAlign ContentAlign { get; set; } = HAlign.Left;
+    public EHAlign ContentAlign { get; set; } = EHAlign.Left;
 
     public TuiListItem()
     {
@@ -54,7 +56,7 @@ public class TuiListItem : TuiVBox
     }
 
     /// <summary>从角色和内容构建完整列表项</summary>
-    public TuiListItem(string role, string content, int maxWidth = 80, bool continuation = false, bool isPlainText = false, HAlign contentAlign = HAlign.Left)
+    public TuiListItem(string role, string content, int maxWidth = 80, bool continuation = false, bool isPlainText = false, EHAlign contentAlign = EHAlign.Left)
     {
         Role = role;
         MarkdownContent = content;
@@ -95,7 +97,7 @@ public class TuiListItem : TuiVBox
             {
                 Width = innerW,
                 Height = 1,
-                ChildVAlign = VAlign.Middle
+                ChildVAlign = EVAlign.Middle
             };
 
             Icon = Role switch

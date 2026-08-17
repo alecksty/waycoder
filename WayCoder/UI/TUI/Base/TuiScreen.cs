@@ -1,8 +1,9 @@
 ﻿using System.Text;
-using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
+using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.Tui;
 
-namespace WayCoder.UI.Tui;
+namespace WayCoder.UI.TUI.Base;
 
 /// <summary>
 /// 屏幕 —— 一个完整的终端场景。
@@ -14,20 +15,25 @@ public abstract class TuiScreen : TuiBase
     public TuiManager? Manager { get; set; }
 
     /// <summary>标记需要重绘（通知 Manager + 根视图）</summary>
-    public override void MarkDirty() {
+    public override void MarkDirty()
+    {
         if (Manager != null) Manager.IsDirty = true;
         RootView.IsDirty = true;
         base.MarkDirty();
     }
 
     /// <summary>强制全屏刷新：递归标记所有控件为脏，确保下一帧完全重绘。</summary>
-    public void InvalidateView() {
+    public void InvalidateView()
+    {
         RootView.Invalidate();
         MarkDirty();
     }
 
     /// <summary>立即渲染整个屏幕（便捷方法）</summary>
-    public void Render() { Manager?.Render(); }
+    public void Render()
+    {
+        Manager?.Render();
+    }
 
     /// <summary>屏幕根视图（状态栏、主区域、输入区等）</summary>
     public TuiView RootView { get; set; } = new TuiVBox();
@@ -55,6 +61,7 @@ public abstract class TuiScreen : TuiBase
 
     /// <summary>当前终端尺寸</summary>
     public int TW { get; protected set; }
+
     public int TH { get; protected set; }
 
     /// <summary>
@@ -312,13 +319,13 @@ public abstract class TuiScreen : TuiBase
     /// 处理鼠标事件。优先级：顶层模态窗口 → 顶层窗口（Z-order）→ 根视图。
     /// 返回 true 表示事件已被消费。
     /// </summary>
-    public override bool HandleMouse(InputEvent ev)
+    public override bool OnMouse(InputEvent ev)
     {
         // 有模态窗口时，只路由给顶层模态窗口
         if (HasModal)
         {
             var topModal = Windows.LastOrDefault(w => w.Modal);
-            if (topModal != null && topModal.HandleMouse(ev))
+            if (topModal != null && topModal.OnMouse(ev))
                 return true;
             // 模态遮罩：点击模态窗口外部也消费事件（防止穿透）
             return true;
@@ -327,7 +334,7 @@ public abstract class TuiScreen : TuiBase
         // 按 Z-order 从高到低路由给窗口
         foreach (var win in Windows.OrderByDescending(w => w.ZOrder))
         {
-            if (win.HandleMouse(ev))
+            if (win.OnMouse(ev))
             {
                 // 鼠标点击窗口 → 键盘焦点移到该窗口（Tab/方向键随后路由到它）
                 if (ev.MouseLeft && FocusedWindow != win)
@@ -337,7 +344,7 @@ public abstract class TuiScreen : TuiBase
         }
 
         // Fallback：路由给根视图（控件级鼠标交互）
-        return RootView.HandleMouse(ev);
+        return RootView.OnMouse(ev);
     }
 
     /// <summary>鼠标点击窗口时，将键盘焦点转移到该窗口，并重绘新旧窗口的边框焦点色。</summary>
@@ -348,6 +355,7 @@ public abstract class TuiScreen : TuiBase
             FocusedWindow.Focused = false;
             FocusedWindow.RootView.MarkDirty();
         }
+
         win.Focused = true;
         win.RootView.MarkDirty();
         FocusedWindow = win;
@@ -455,10 +463,12 @@ public abstract class TuiScreen : TuiBase
                 rb.Write(row, x, new string(' ', w));
                 sb.Append(rb.ToString());
             }
+
             // 裁剪重绘根视图控件
             RootView.Render(sb, 0, 0,
                 clipL: x, clipT: y, clipR: x + w, clipB: y + h);
         }
+
         _dirtyRects.Clear();
 
         // 4. 最后统一输出光标：只有光标所有者的位置有效，其余绘制不会显示光标
@@ -533,6 +543,7 @@ public abstract class TuiScreen : TuiBase
                     sb.Append(AnsiTty.BgCode(fillBg));
                     sb.Append(new string(' ', win.Width));
                 }
+
             // 总是渲染 RootView（无边框窗口）。无子控件时 RootView 自身
             // 的 OnRender 可能绘制自定义内容（如 MenuView 直接画菜单项）。
             {
@@ -547,6 +558,7 @@ public abstract class TuiScreen : TuiBase
                 for (int i = 0; i < Math.Min(win.ContentLines.Count, win.Height); i++)
                     WriteAt(sb, win.Y + i, win.X, win.ContentLines[i], win.ContentFg, toastBg);
             }
+
             return;
         }
 
@@ -563,10 +575,10 @@ public abstract class TuiScreen : TuiBase
         if (grad)
         {
             // ── 渐变上边框（文字与线框一起渐变）──
-            if (drawTitle && !win.TitleBold)
+            if (drawTitle)
             {
                 // 标题嵌在渐变横线上，居中
-                int titleVw = TuiHelper.DisplayWidth(titleText);
+                int titleVw = AnsiHelper.DisplayWidth(titleText);
                 int innerW = win.Width - 2;
                 int leftPad = (innerW - titleVw) / 2;
                 int rightPad = innerW - titleVw - leftPad;
@@ -583,6 +595,7 @@ public abstract class TuiScreen : TuiBase
                         WriteAt(sb, win.Y, win.X + 1 + i, hTop, AnsiTty.LerpRgb(gs, ge, t), fillBg);
                     }
                 }
+
                 // 标题（渐变中间色 ≈50%）
                 int tFg = win.TitleFg > 0 ? win.TitleFg : AnsiTty.LerpRgb(gs, ge, 0.5f);
                 int tBg = win.TitleBg > 0 ? win.TitleBg : fillBg;
@@ -597,10 +610,11 @@ public abstract class TuiScreen : TuiBase
                         WriteAt(sb, win.Y, win.X + 1 + leftPad + titleVw + i, hTop, AnsiTty.LerpRgb(gs, ge, t), fillBg);
                     }
                 }
+
                 // 右角
                 WriteAt(sb, win.Y, win.X + win.Width - 1, tr, ge, fillBg);
             }
-            else if (drawTitle && win.TitleBold)
+            else if (drawTitle)
             {
                 // 粗体标题独占第二行 → 边框行纯渐变线
                 WriteGradientHLine(sb, win.Y, win.X, win.Width, tl, hTop, tr, gs, ge, fillBg);
@@ -626,35 +640,26 @@ public abstract class TuiScreen : TuiBase
             {
                 int tFg = win.TitleFg > 0 ? win.TitleFg : bc;
                 int tBg = win.TitleBg > 0 ? win.TitleBg : fillBg;
-                if (win.TitleBold)
-                {
-                    // 粗体标题独占下一行 → 顶边框整行填充（不留缺口）
-                    WriteAt(sb, win.Y, win.X + 1, new string(hTop[0], Math.Max(0, win.Width - 2)), bc, fillBg);
-                    sb.Append(AnsiTty.CursorPos0(win.Y + 1, win.X + 2));
-                    sb.Append(AnsiTty.BoldFg(tFg));
-                    if (tBg > 0) sb.Append(AnsiTty.BgCode(tBg));
-                    sb.Append(titleText);
-                    sb.Append(AnsiTty.SgrReset);
-                }
-                else
+
                 {
                     WriteAt(sb, win.Y, win.X + 1, titleText, tFg, tBg);
-                    var rem = win.Width - 2 - TuiHelper.DisplayWidth(titleText);
-                    if (rem > 0) WriteAt(sb, win.Y, win.X + 1 + TuiHelper.DisplayWidth(titleText), new string(hTop[0], rem), bc, fillBg);
+                    var rem = win.Width - 2 - AnsiHelper.DisplayWidth(titleText);
+                    if (rem > 0) WriteAt(sb, win.Y, win.X + 1 + AnsiHelper.DisplayWidth(titleText), new string(hTop[0], rem), bc, fillBg);
                 }
             }
             else
             {
                 WriteAt(sb, win.Y, win.X + 1, new string(hTop[0], Math.Max(0, win.Width - 2)), bc, fillBg);
             }
+
             WriteAt(sb, win.Y, win.X + win.Width - 1, tr, bc, fillBg);
         }
 
-        int contentTop = win.Y + 1;       // 上边框下面一行
+        int contentTop = win.Y + 1; // 上边框下面一行
         int innerHeight = win.Height - 2; // 边框内部高度
 
         // 标题栏分隔线（仅当 ShowTitleSeparator 时绘制）
-        if (drawTitle && win.ShowTitleSeparator)
+        if (drawTitle)
         {
             WriteAt(sb, win.Y + 1, win.X, vv, bc, fillBg);
             WriteAt(sb, win.Y + 1, win.X + 1, new string(hh[0], Math.Max(0, win.Width - 2)), bc, fillBg);
@@ -663,7 +668,7 @@ public abstract class TuiScreen : TuiBase
             innerHeight -= 1;
         }
         // 粗体标题栏独占一行（无分隔线）→ 内容下移一行
-        else if (drawTitle && win.TitleBold)
+        else if (drawTitle)
         {
             contentTop = win.Y + 2;
             innerHeight -= 1;
@@ -728,8 +733,8 @@ public abstract class TuiScreen : TuiBase
             {
                 int row = contentTop + i;
                 var line = win.ContentLines[i];
-                if (TuiHelper.DisplayWidth(line) > win.Width - 3)
-                    line = TuiHelper.TruncateByWidth(line, win.Width - 3);
+                if (AnsiHelper.DisplayWidth(line) > win.Width - 3)
+                    line = AnsiHelper.TruncateByWidth(line, win.Width - 3);
                 WriteAt(sb, row, win.X + 1, $" {line}", win.ContentFg, fillBg);
             }
         }
@@ -745,6 +750,7 @@ public abstract class TuiScreen : TuiBase
                 float t = midLen > 1 ? (float)i / (midLen - 1) : 0;
                 WriteAt(sb, win.Y + win.Height - 1, win.X + 1 + i, hBot, AnsiTty.LerpRgb(gs, ge, t), fillBg);
             }
+
             WriteAt(sb, win.Y + win.Height - 1, win.X + win.Width - 1, br, ge, fillBg);
         }
         else
@@ -770,6 +776,7 @@ public abstract class TuiScreen : TuiBase
             int c = AnsiTty.LerpRgb(startColor, endColor, t);
             WriteAt(sb, row, col + 1 + i, midChar, c, bg);
         }
+
         // 右角
         WriteAt(sb, row, col + width - 1, rightChar, endColor, bg);
     }
@@ -804,19 +811,20 @@ public abstract class TuiScreen : TuiBase
     {
         var t = $" {title} ";
         if (maxVw <= 0) return "";
-        if (TuiHelper.DisplayWidth(t) <= maxVw) return t;
+        if (AnsiHelper.DisplayWidth(t) <= maxVw) return t;
 
         const string ell = "…";
-        int ellW = TuiHelper.DisplayWidth(ell);
+        int ellW = AnsiHelper.DisplayWidth(ell);
         var sb = new StringBuilder();
         int w = 0;
         foreach (var rune in t.EnumerateRunes())
         {
-            int rw = TuiHelper.RuneWidth(rune);
+            int rw = AnsiHelper.RuneWidth(rune);
             if (w + rw + ellW > maxVw) break;
             w += rw;
             sb.Append(rune.ToString());
         }
+
         sb.Append(ell);
         return sb.ToString();
     }
@@ -827,20 +835,23 @@ public abstract class TuiScreen : TuiBase
     public TuiWindow ShowDialog(string title, string content, int? width = null, int? height = null)
     {
         var lines = content.Replace("\r\n", "\n").Split('\n');
-        var maxLineVw = lines.Max(l => TuiHelper.DisplayWidth(l));
+
+        var maxLineVw = lines.Max(l => AnsiHelper.DisplayWidth(l));
+
         var w = Math.Max(20, Math.Min(Tty.Cols - 8,
-            width ?? Math.Max(maxLineVw + 4, TuiHelper.DisplayWidth(title) + 4)));
+            width ?? Math.Max(maxLineVw + 4, AnsiHelper.DisplayWidth(title) + 4)));
+
         var h = Math.Min(Tty.Rows - 6, height ?? Math.Max(3, lines.Length + 4));
 
         var win = new TuiWindow
         {
             Width = w, Height = h,
             Title = title,
-            ContentLines = [..lines],
+            ContentLines = [.. lines],
             Modal = true,
             HasMask = true,
-            BorderColor = TuiColors.Cyan,
-            WinBg = TuiColors.BgWhite,    // 对话框默认背景
+            BorderColor = AnsiColors.Cyan,
+            WinBg = AnsiColors.BgWhite, // 对话框默认背景
         };
         win.Center();
         AddWindow(win);
@@ -850,7 +861,7 @@ public abstract class TuiScreen : TuiBase
     /// <summary>创建通知提示框（右下角，自动消失）</summary>
     public TuiWindow ShowToast(string message, int durationMs = 2000)
     {
-        var vw = TuiHelper.DisplayWidth(message);
+        var vw = AnsiHelper.DisplayWidth(message);
         var w = Math.Min(Tty.Cols - 4, vw + 4);
         var win = new TuiWindow
         {
@@ -860,14 +871,17 @@ public abstract class TuiScreen : TuiBase
             ContentFg = 37,
             Modal = false,
             HasMask = false,
-            WinBg = TuiColors.BgBrightBlack,     // 深灰底色
-            BorderColor = TuiColors.Green,
+            WinBg = AnsiColors.BgBrightBlack, // 深灰底色
+            BorderColor = AnsiColors.Green,
         };
         AddWindow(win);
         // 使用 Windows.Contains 守卫：屏幕销毁后不再关闭窗口
         Task.Delay(durationMs).ContinueWith(_ =>
         {
-            if (Windows.Contains(win)) CloseWindow(win);
+            if (Windows.Contains(win))
+            {
+                CloseWindow(win);
+            }
         });
         return win;
     }

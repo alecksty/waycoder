@@ -1,3 +1,5 @@
+using WayCoder.UI.TUI.Base;
+
 namespace WayCoder.UI.Tui.Controls;
 
 /// <summary>
@@ -174,8 +176,8 @@ public class TuiGrid : TuiView
 
             cell.Child.X = colX[cell.Col] + AlignChildX(cell.Child, cellW);
             cell.Child.Y = rowY[cell.Row] + AlignChildY(cell.Child, cellH);
-            cell.Child.Width = ChildHAlign == HAlign.Stretch ? cellW : Math.Min(cell.Child.Width, cellW);
-            cell.Child.Height = ChildVAlign == VAlign.Stretch ? cellH : Math.Min(cell.Child.Height, cellH);
+            cell.Child.Width = ChildHAlign == EHAlign.Stretch ? cellW : Math.Min(cell.Child.Width, cellW);
+            cell.Child.Height = ChildVAlign == EVAlign.Stretch ? cellH : Math.Min(cell.Child.Height, cellH);
         }
 
         // 容器尺寸 = 所有行/列的总和（包含间距）
@@ -234,12 +236,11 @@ public class TuiGrid : TuiView
         }
         else if (starTotal > 0)
         {
-            // 无剩余空间：弹性轨分配 0（不强制 1px——多星轨各 1px 之和会溢出 totalSpace；
-            // 固定轨的最小 1px 由下方钳制保证）
+            // 无剩余空间：弹性行列最小 1px
             for (int i = 0; i < count; i++)
             {
                 var def = i < defs.Length ? defs[i] : new GridSize { Value = 1, IsStar = true };
-                if (def.IsStar) sizes[i] = 0;
+                if (def.IsStar) sizes[i] = 1;
             }
         }
 
@@ -267,16 +268,16 @@ public class TuiGrid : TuiView
     private int AlignChildX(TuiControl child, int cellW) =>
         ChildHAlign switch
         {
-            HAlign.Center => (cellW - child.Width) / 2,
-            HAlign.Right => cellW - child.Width,
+            EHAlign.Center => (cellW - child.Width) / 2,
+            EHAlign.Right => cellW - child.Width,
             _ => 0
         };
 
     private int AlignChildY(TuiControl child, int cellH) =>
         ChildVAlign switch
         {
-            VAlign.Middle => (cellH - child.Height) / 2,
-            VAlign.Bottom => cellH - child.Height,
+            EVAlign.Middle => (cellH - child.Height) / 2,
+            EVAlign.Bottom => cellH - child.Height,
             _ => 0
         };
 

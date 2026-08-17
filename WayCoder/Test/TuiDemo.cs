@@ -1,7 +1,9 @@
 ﻿using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
+using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Controls;
+using WayCoder.UI.TUI.Custom;
 using WayCoder.UI.Tui.Screens;
 using WayCoder.UI.Tui.Edit;
 
@@ -233,8 +235,8 @@ public static class TuiDemo
             {
                 var msg = result switch
                 {
-                    TuiDialog.DialogResult.Yes => "✅ 已允许",
-                    TuiDialog.DialogResult.No => "❌ 已拒绝",
+                    TuiDialog.EDialogResult.Yes => "✅ 已允许",
+                    TuiDialog.EDialogResult.No => "❌ 已拒绝",
                     _ => "✅ 全部允许"
                 };
                 screen.AddMessage(msg, "system");

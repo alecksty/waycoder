@@ -292,6 +292,11 @@ public static class FileIgnoreManager
             var endsWithSlash = Pattern.EndsWith('/');
             var p = endsWithSlash ? Pattern[..^1] : Pattern;
 
+            // ReDoS 防护：单条规则星号过多（如 *a*a*a*.. 30 个）→ [^/]* 组合指数回溯
+            // 会卡死扫描；用永不匹配的正则使该规则失效
+            if (p.Count(c => c == '*') > 12)
+                return new Regex("$^", RegexOptions.Compiled);
+
             // 非锚定且不含目录分隔符的规则可以在任意目录深度
             if (!Anchored && !p.Contains('/'))
             {

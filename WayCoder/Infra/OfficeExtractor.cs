@@ -107,8 +107,15 @@ public static class OfficeExtractor
                 var sstRoot = Xml.Parse(ReadEntryText(sstEntry));
                 if (sstRoot != null)
                 {
-                    foreach (var t in Elements(sstRoot, "t"))
-                        sharedStrings.Add(t.InnerText());
+                    // 富文本 <si> 内多个 <t>（runs）应拼接为一个字符串；直接展平所有 <t>
+                    // 会导致加粗表头等富文本单元格内容错位、后续所有共享字符串索引整体偏移
+                    foreach (var si in Elements(sstRoot, "si"))
+                    {
+                        var siText = new System.Text.StringBuilder();
+                        foreach (var t in Elements(si, "t"))
+                            siText.Append(t.InnerText());
+                        sharedStrings.Add(siText.ToString());
+                    }
                 }
             }
 

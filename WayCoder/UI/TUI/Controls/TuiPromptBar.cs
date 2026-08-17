@@ -1,44 +1,8 @@
 using System.Text;
 using WayCoder.UI.Shared.Terminal;
-
 using WayCoder.UI.Shared;
 
 namespace WayCoder.UI.Tui.Controls;
-
-/// <summary>提示条目的类型</summary>
-public enum PromptKind
-{
-    Command,
-    File,
-    Shell,
-    Slash,
-    History,
-    Recent
-}
-
-/// <summary>提示条目</summary>
-public class PromptItem
-{
-    public PromptKind Kind { get; set; }
-    public string Label { get; set; } = "";
-    public string? Detail { get; set; }
-    public string? Value { get; set; }
-
-    /// <summary>
-    /// 获取提示条目的图标。
-    /// </summary>
-    /// <returns>图标文本。</returns>
-    public string Icon => Kind switch
-    {
-        PromptKind.Command => "⌘",
-        PromptKind.File => "📄",
-        PromptKind.Shell => "⚡",
-        PromptKind.Slash => "/",
-        PromptKind.History => "↺",
-        PromptKind.Recent => "⏱",
-        _ => "·",
-    };
-}
 
 /// <summary>
 /// 提示栏 —— 输入框上方可显示/隐藏的提示列表。
@@ -46,6 +10,8 @@ public class PromptItem
 /// </summary>
 public class TuiPromptBar : TuiControl
 {
+    #region 属性
+
     public override bool CanFocus => true;
 
     /// <summary>提示条目列表</summary>
@@ -53,6 +19,9 @@ public class TuiPromptBar : TuiControl
 
     /// <summary>当前高亮索引 (-1 = 无选中)</summary>
     public int SelectedIndex { get; set; } = -1;
+
+    /// <summary>当前可见索引</summary>
+    public int ViewIndex { get; set; } = 0;
 
     /// <summary>最大可见条目数</summary>
     public int MaxVisible { get; set; } = 8;
@@ -67,10 +36,12 @@ public class TuiPromptBar : TuiControl
     public int ItemHeight { get; set; } = 1;
 
     /// <summary>边框/分隔线颜色</summary>
-    public int SeparatorColor { get; set; } = TuiColors.BrightBlack;
+    public int SeparatorColor { get; set; } = AnsiColors.BrightBlack;
 
     /// <summary>边框样式（Bg==0 时生效）</summary>
     public WindowBorder BorderStyle { get; set; } = WindowBorder.Rounded;
+
+    #endregion
 
     public TuiPromptBar()
     {
@@ -85,93 +56,95 @@ public class TuiPromptBar : TuiControl
     /// <param name="absY">绝对 Y 坐标</param>
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
-        bool bordered = Bg == 0;
-        int visibleCount = Math.Min(Items.Count, MaxVisible);
-        int fg = Fg > 0 ? Fg : TuiTheme.Current.ControlFg;
-        int borderFg = SeparatorColor;
+        var bordered = Bg == 0;
+        var visibleCount = MaxVisible;
 
-        var bc = TuiHelper.GetBorderChars(BorderStyle);
-
-        int highlightBg = bordered
-            ? TuiTheme.Current.ControlFocusedBg > 0 ? TuiTheme.Current.ControlFocusedBg : TuiColors.BgBlue
-            : TuiTheme.Current.ControlFocusedBg > 0
-                ? TuiTheme.Current.ControlFocusedBg
-                : TuiColors.BgBlue;
-        int highlightFg = TuiColors.Black; // 亮底配黑字（原 BgWhite=背景码当前景，白字白底不可见）
+        var fg = Fg > 0 ? Fg : TuiTheme.Current.ControlFg;
+        var borderFg = SeparatorColor;
+        var bc = AnsiHelper.GetBorderChars(BorderStyle);
+        var highlightFg = TuiTheme.Current.ControlFocusedFg;
+        var highlightBg = TuiTheme.Current.ControlFocusedBg;
 
         // ── 上边框 ──
         if (bordered)
+        {
             WriteBorder(sb, absY, absX, bc.TL, bc.HT, bc.TR, Width, borderFg);
+        }
 
-        int contentStartY = bordered ? absY + 1 : absY;
-        int leftPad = bordered ? 1 : 0; // 边框内缩
+        var contentStartY = bordered ? absY + 1 : absY;
+        var leftPad = bordered ? 1 : 0; // 边框内缩
+
+        var fillLeft = Math.Max(absX + 1, ClipLeft);
+        var fillRight = Math.Min(absX + Width - 2, ClipRight);
+        var strSpaces = new string(' ', fillRight - fillLeft);
 
         // ── 列表行（只渲染实际条目，不预留空行；高度由 ShowPromptBar 按条目数设定）──
-        for (int i = 0; i < visibleCount; i++)
+        for (var i = 0; i < visibleCount; i++)
         {
-            int row = contentStartY + i * ItemHeight;
-            if (row < ClipTop || row >= ClipBottom) continue;
-
+            var row = contentStartY + i * ItemHeight;
+            // if (row < ClipTop || row >= ClipBottom) continue;
+            var pos = i + ViewIndex;
             var rb = new RenderBuffer();
-            bool hasItem = i < visibleCount;
+            var hasItem = (pos < Items.Count);
+            // 选中状态
+            var sel = pos == SelectedIndex;
 
             if (hasItem)
             {
-                var item = Items[i];
-                bool selected = i == SelectedIndex;
+                var item = Items[pos % Items.Count];
+                var itemFg = sel ? AnsiColors.BgBrightBlue : fg;
 
-                int itemFg = selected ? highlightFg : fg;
-                int rowBg = bordered
-                    ? (selected ? highlightBg : 0)
-                    : (selected ? highlightBg : (Bg > 0 ? Bg : TuiTheme.Current.WindowBg));
+                var rowBg = AnsiColors.BgBlack; //TuiTheme.Current.WindowBg;
+                // ? (sel ? highlightBg : 0)
+                // : (sel ? highlightBg : (Bg > 0 ? Bg : TuiTheme.Current.WindowBg));
 
                 // Bg>0 模式下全行填充
                 if (!bordered)
                 {
-                    int fillLeft = Math.Max(absX, ClipLeft);
-                    int fillRight = Math.Min(absX + Width, ClipRight);
                     if (fillLeft < fillRight)
-                        rb.Write(row, fillLeft, new string(' ', fillRight - fillLeft), bg: rowBg);
+                    {
+                        rb.Write(row, fillLeft, new string(' ', fillRight - fillLeft), itemFg, rowBg);
+                    }
                 }
-                else if (selected)
+                else if (sel)
                 {
                     // 边框模式下选中行高亮填充（不含边框列）
-                    rb.Write(row, absX + 1, new string(' ', Math.Max(0, Width - 2)), bg: rowBg);
+                    rb.Write(row, absX + 1, new string(' ', Math.Max(0, Width - 2)), itemFg, rowBg);
                 }
 
                 // 左边框
                 if (bordered)
-                    rb.Write(row, absX, bc.V, fg: borderFg);
+                {
+                    rb.Write(row, absX, bc.V, fg: borderFg, rowBg);
+                }
 
                 // 图标 + 标签 + 详情
-                int col = absX + 1 + leftPad;
+                var col = absX + 1 + leftPad;
                 var iconStr = item.Icon + " ";
                 rb.Write(row, col, iconStr, fg: itemFg, bg: rowBg > 0 || !bordered ? rowBg : 0);
-                col += TuiHelper.DisplayWidth(iconStr);
+                col += AnsiHelper.DisplayWidth(iconStr);
+
+                rb.Write(row, fillLeft, strSpaces, bg: Bg > 0 ? Bg : rowBg);
 
                 // 标签（截断）
-                int detailW = string.IsNullOrEmpty(item.Detail)
+                var detailW = string.IsNullOrEmpty(item.Detail)
                     ? 0
-                    : TuiHelper.DisplayWidth(item.Detail) + 3;
-                // 钳到 ≥1，避免窄宽度/长详情时负值截断崩溃
-                int labelMax = Math.Max(1, Width - leftPad * 2 - (col - absX) - detailW - 2);
-                var label = item.Label;
-                if (TuiHelper.DisplayWidth(label) > labelMax)
-                    label = TuiHelper.TruncateByWidth(label, labelMax);
-                rb.Write(row, col, label, fg: itemFg, bg: rowBg > 0 || !bordered ? rowBg : 0);
-                col += TuiHelper.DisplayWidth(label);
+                    : AnsiHelper.DisplayWidth(item.Detail) + 3;
 
-                // 详情（按剩余宽度截断，避免溢出右边界）
+                var labelMax = Width - leftPad * 2 - (col - absX) - detailW - 2;
+                var label = item.Label;
+
+                if (AnsiHelper.DisplayWidth(label) > labelMax)
+                    label = AnsiHelper.TruncateByWidth(label, labelMax);
+
+                rb.Write(row, col, label, fg: itemFg, bg: rowBg > 0 || !bordered ? rowBg : 0);
+                col += AnsiHelper.DisplayWidth(label);
+
+                // 详情
                 if (!string.IsNullOrEmpty(item.Detail))
-                {
-                    var detailText = item.Detail;
-                    int detailMax = Math.Max(1, Width - (col - absX) - 3);
-                    if (TuiHelper.DisplayWidth(detailText) > detailMax)
-                        detailText = TuiHelper.TruncateByWidth(detailText, detailMax);
-                    rb.Write(row, col + 2, detailText,
-                        fg: selected ? highlightFg : TuiColors.BrightBlack,
+                    rb.Write(row, col + 2, item.Detail,
+                        fg: sel ? highlightFg : AnsiColors.BrightBlack,
                         bg: rowBg > 0 || !bordered ? rowBg : 0);
-                }
 
                 // 右边框
                 if (bordered)
@@ -182,11 +155,14 @@ public class TuiPromptBar : TuiControl
                 // 空白行
                 if (!bordered)
                 {
-                    int fillLeft = Math.Max(absX, ClipLeft);
-                    int fillRight = Math.Min(absX + Width, ClipRight);
-                    if (fillLeft < fillRight)
-                        rb.Write(row, fillLeft, new string(' ', fillRight - fillLeft),
-                            bg: Bg > 0 ? Bg : TuiTheme.Current.WindowBg);
+                    // var fillLeft = Math.Max(absX, ClipLeft);
+                    // var fillRight = Math.Min(absX + Width, ClipRight);
+                    // var strSpaces = new string(' ', fillRight - fillLeft);
+
+                    // if (fillLeft < fillRight)
+                    {
+                        rb.Write(row, fillLeft, strSpaces, bg: Bg > 0 ? Bg : TuiTheme.Current.WindowBg);
+                    }
                 }
                 else
                 {
@@ -201,15 +177,15 @@ public class TuiPromptBar : TuiControl
         // ── 下边框 / 分隔线（紧贴最后一条目）──
         if (bordered)
         {
-            int botRow = contentStartY + visibleCount * ItemHeight;
+            var botRow = contentStartY + visibleCount * ItemHeight;
             WriteBorder(sb, botRow, absX, bc.BL, bc.HB, bc.BR, Width, borderFg);
         }
         else
         {
-            int sepRow = absY + visibleCount * ItemHeight;
+            var sepRow = absY + visibleCount * ItemHeight;
             if (sepRow < ClipBottom)
             {
-                int fillBg = Bg > 0 ? Bg : TuiTheme.Current.WindowBg;
+                var fillBg = Bg > 0 ? Bg : TuiTheme.Current.WindowBg;
                 var sepRb = new RenderBuffer();
                 sepRb.Write(sepRow, absX, new string('─', Width), fg: SeparatorColor, bg: fillBg);
                 sb.Append(sepRb.ToString());
@@ -238,6 +214,32 @@ public class TuiPromptBar : TuiControl
     }
 
     /// <summary>
+    /// 更新选中索引，确保在可见范围内。
+    /// </summary>
+    /// <param name="sel">当前选中索引</param>
+    /// <returns>更新后的选中索引</returns>
+    private void UpdateSelectedIndex(int sel)
+    {
+        if (sel < 0)
+            return;
+
+        if (sel >= Items.Count)
+        {
+            return;
+        }
+
+        if (sel < ViewIndex)
+        {
+            ViewIndex = sel;
+        }
+
+        if (sel > ViewIndex + MaxVisible - 1)
+        {
+            ViewIndex = sel - (MaxVisible - 1);
+        }
+    }
+
+    /// <summary>
     /// 处理键盘输入。
     /// </summary>
     /// <param name="key">按下的键</param>
@@ -250,17 +252,35 @@ public class TuiPromptBar : TuiControl
         switch (key.Key)
         {
             case ConsoleKey.UpArrow:
-                SelectedIndex = SelectedIndex <= 0 ? Items.Count - 1 : SelectedIndex - 1;
+                if (SelectedIndex <= 0)
+                {
+                    return true;
+                }
+
+                SelectedIndex -= 1;
+                UpdateSelectedIndex(SelectedIndex);
                 return true;
+
             case ConsoleKey.DownArrow:
-                SelectedIndex = SelectedIndex >= Items.Count - 1 ? 0 : SelectedIndex + 1;
+                if (SelectedIndex >= Items.Count - 1)
+                {
+                    return true;
+                }
+
+                SelectedIndex += 1;
+                UpdateSelectedIndex(SelectedIndex);
                 return true;
+
             case ConsoleKey.Home:
                 SelectedIndex = 0;
+                ViewIndex = 0;
                 return true;
+
             case ConsoleKey.End:
                 SelectedIndex = Items.Count - 1;
+                UpdateSelectedIndex(SelectedIndex);
                 return true;
+
             case ConsoleKey.Enter:
                 if (SelectedIndex >= 0 && SelectedIndex < Items.Count)
                     OnSelect?.Invoke(Items[SelectedIndex]);

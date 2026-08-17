@@ -1,6 +1,8 @@
 ﻿using WayCoder.UI.Shared.Terminal;
 
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
+
 namespace WayCoder.UI.Tui.Controls;
 
 /// <summary>
@@ -17,29 +19,29 @@ public static class TuiKeybindHelp
     [
         ("🌐 全局", [
             ("F1 - F10", "切换工作区槽位"),
-            ("Ctrl+C", "退出（输入框有选中文本时优先复制）"),
-            ("Esc", "中断当前 Agent（运行中）"),
+            ("Ctrl+C", "中断当前 Agent 操作"),
             ("Ctrl+Q", "退出 WayCoder"),
-            ("Ctrl+S", "打开会话管理"),
+            ("Ctrl+L", "清屏（保留输入区）"),
+            ("Ctrl+S", "保存当前会话"),
         ]),
         ("✏ 编辑", [
             ("Enter", "发送消息"),
             ("Ctrl+Enter", "输入区换行"),
             ("Shift+Enter", "插入空行"),
-            ("Tab", "@ 路径补全 / 4 空格"),
+            ("Tab", "切换焦点（输入区 ↔ 列表）"),
             ("Ctrl+V", "粘贴（超长/多行时确认）"),
-            ("Ctrl+↑ / ↓", "聊天列表滚动 3 行"),
+            ("Ctrl+Up / Down", "输入历史翻页"),
         ]),
         ("🔄 模式", [
             ("Shift+Tab", "切换工作模式 (Build→Plan→Review→Auto)"),
-            ("Ctrl+M", "打开模型选择（需 Kitty 协议终端）"),
-            ("Ctrl+G", "推理深度选择"),
-            ("Ctrl+P", "弹出提示栏"),
+            ("Ctrl+M", "打开模型选择对话框"),
+            ("Ctrl+G", "打开文件选择对话框"),
+            ("Ctrl+P", "打开命令面板"),
         ]),
         ("🧭 导航", [
-            ("↑↓", "聊天滚动（空输入）/ 历史浏览（有输入）"),
+            ("↑↓", "聊天列表滚动"),
             ("PgUp / PgDn", "聊天列表翻页"),
-            ("Ctrl+Home / End", "跳到列表顶部/底部"),
+            ("Home / End", "跳到列表顶部/底部"),
             ("←→", "输入区光标移动"),
         ]),
         ("🖱 鼠标", [
@@ -49,8 +51,9 @@ public static class TuiKeybindHelp
             ("拖拽边缘", "缩放浮窗"),
         ]),
         ("🛠 工具", [
-            ("Ctrl+R", "搜索对话历史"),
-            ("Ctrl+B", "开关右侧侧栏"),
+            ("Ctrl+D", "显示 Diff 预览"),
+            ("Ctrl+R", "切换推理深度"),
+            ("F5", "刷新/重绘界面"),
             ("Ctrl+H", "打开本帮助面板"),
         ]),
     ];
@@ -87,15 +90,14 @@ public static class TuiKeybindHelp
         var win = new TuiWindow
         {
             Title = "⌨ 快捷键速查",
-            ShowTitleSeparator = false,
             Modal = true, HasMask = true,
-            Border = WindowBorder.Rounded,
+            Border = WindowBorder.Solid,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             Width = winW, Height = winH,
             MinWidth = MinW, MinHeight = 8,
-            WindowHAlign = HAlign.Center,
-            WindowVAlign = VAlign.Middle,
+            WindowHAlign = EHAlign.Center,
+            WindowVAlign = EVAlign.Middle,
         };
         var g = TuiTheme.Current.GradCyanBlue;
         win.GradientBorder = true;
@@ -106,20 +108,20 @@ public static class TuiKeybindHelp
         var list = new TuiListView { Height = listH, IsAutoScrollToEnd = false, Focused = true };
         foreach (var (cat, bindings) in Groups)
         {
-            list.AddItem(new TuiLabel("─ " + cat + " ─") { Height = 1, Fg = TuiColors.Cyan });
+            list.AddItem(new TuiLabel("─ " + cat + " ─") { Height = 1, Fg = AnsiColors.Cyan });
             foreach (var (key, desc) in bindings)
-                list.AddItem(new TuiLabel("  " + PadKey(key, KeyW) + "  " + desc) { Height = 1, Fg = TuiColors.White });
+                list.AddItem(new TuiLabel("  " + PadKey(key, KeyW) + "  " + desc) { Height = 1, Fg = AnsiColors.White });
         }
 
         // 底部提示行
         var hint = new TuiLabel
         {
             Height = 1,
-            Fg = TuiColors.BrightWhite,
+            Fg = AnsiColors.BrightBlack,
             Text = "↑↓ 滚动  PgUp/PgDn 翻页  Home/End 首尾  Esc / Q 关闭",
         };
 
-        var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
+        var vbox = new TuiVBox { ChildHAlign = EHAlign.Stretch };
         vbox.Add(list);
         vbox.Add(hint);
         win.RootView = vbox;
@@ -142,7 +144,7 @@ public static class TuiKeybindHelp
     /// <summary>键名按显示宽度补齐到固定列宽（CJK 键名正确对齐）。</summary>
     private static string PadKey(string key, int width)
     {
-        int w = TuiHelper.DisplayWidth(key);
+        int w = AnsiHelper.DisplayWidth(key);
         return w >= width ? key : key + new string(' ', width - w);
     }
 }

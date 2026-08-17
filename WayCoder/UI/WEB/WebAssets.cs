@@ -1447,7 +1447,7 @@ function ansiToHtml(text) {
 // ── «» 中间格式 → HTML（对标后端 SpectreToAnsi：CLI/TUI 转 ANSI，Web 转 HTML span）──
 // WayCoder 所有格式消息（text/markdown/code/…）统一用 «tag»…«/» 表达颜色/样式，
 // 由各平台渲染器决定呈现：CLI/TUI → ANSI、Web → HTML、GUI → 富文本。这里只负责 Web。
-// 颜色值与 ANSI_FG 对齐（同源 TuiColors），保证三端观感一致。
+// 颜色值与 ANSI_FG 对齐（同源 AnsiColors），保证三端观感一致。
 const MARKUP_STYLES = {
   'red': 'color:#ff7b72;', 'green': 'color:#3fb950;', 'yellow': 'color:#d29922;',
   'cyan': 'color:#39c5cf;', 'blue': 'color:#58a6ff;', 'magenta': 'color:#bc8cff;',

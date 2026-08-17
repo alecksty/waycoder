@@ -1,4 +1,5 @@
 using System.Text;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -121,7 +122,7 @@ public class TuiScrollbar : TuiControl
 
     // ── 鼠标 ──
 
-    public override bool HandleMouse(InputEvent ev)
+    public override bool OnMouse(InputEvent ev)
     {
         if (!IsEnabled || !IsNeeded) return false;
         if (ev.Type != InputType.Mouse) return false;

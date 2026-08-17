@@ -1,8 +1,8 @@
 ﻿using System.Text;
+using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
 
-using WayCoder.UI.Shared;
-namespace WayCoder.UI.Tui;
+namespace WayCoder.UI.TUI.Custom;
 
 /// <summary>
 /// 多行输入区 + 智能提示面板。
@@ -20,7 +20,7 @@ public static class TuiChatInput
     private static int _suggestIdx;
 
     // 内置命令列表（从注册表自动推导）
-    private static string[] _commands => SlashCommandRegistry.AllNames
+    private static string[] Commands => SlashCommandRegistry.AllNames
         .Concat(SlashCommandRegistry.Commands
             .Where(c => c.Usage != null)
             .Select(c => c.Usage!))
@@ -36,6 +36,7 @@ public static class TuiChatInput
         int scrScroll = 0;
         int tw = Tty.Cols;
         int contentW = Math.Max(20, tw - 4);
+        
         _mode = Mode.Normal;
         _suggestions = [];
         _suggestIdx = 0;
@@ -205,7 +206,7 @@ public static class TuiChatInput
         var prefix = text;
         _suggestions = trigger switch
         {
-            '/' => _commands.Where(c => c.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            '/' => Commands.Where(c => c.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                            .Take(MaxSuggestions).ToList(),
             '#' => GetFileSuggestions(prefix.Length > 1 ? prefix[1..] : ""),
             '!' => ["!<shell 命令> — 直接执行 bash", "!git status", "!ls -la", "!npm test", "!dotnet build"],
@@ -298,7 +299,7 @@ public static class TuiChatInput
         {
             int rl = rune.ToString().Length;
             if (charIdx < start) { charIdx += rl; continue; }
-            var w = TuiHelper.RuneWidth(rune);
+            var w = AnsiHelper.RuneWidth(rune);
             if (vw + w > maxVW) break;
             vw += w;
             chars += rl;
@@ -339,7 +340,7 @@ public static class TuiChatInput
         int cx = sl.HardOffset, vw = 0;
         foreach (var rune in slice.EnumerateRunes())
         {
-            var w = TuiHelper.RuneWidth(rune);
+            var w = AnsiHelper.RuneWidth(rune);
             if (vw + w > scrCol) break;
             vw += w;
             cx += rune.ToString().Length;
@@ -549,14 +550,14 @@ public static class TuiChatInput
         var title = trigger switch { '/' => "命令", '#' => "文件", '!' => "Shell", _ => "建议" };
         var hint = " ↑↓选择 Tab/Enter确认 Esc取消";
         var titleVW = 3 + VW(title) + VW(hint) + 1;
-        sb.Append(AnsiTty.FgCode(TuiColors.Cyan));
+        sb.Append(AnsiTty.FgCode(AnsiColors.Cyan));
         sb.Append($"╭─ {title}{hint} {new string('─', Math.Max(0, tw - titleVW - 1))}╮");
         sb.Append(AnsiTty.SgrReset);
         sb.Append("\r\n");
 
         for (int i = 0; i < h; i++)
         {
-            sb.Append(AnsiTty.FgCode(TuiColors.Cyan));
+            sb.Append(AnsiTty.FgCode(AnsiColors.Cyan));
             sb.Append('│');
             sb.Append(AnsiTty.SgrReset);
             sb.Append(' ');
@@ -569,14 +570,14 @@ public static class TuiChatInput
                 {
                     int vw = 0, ci = 0;
                     foreach (var r in text.EnumerateRunes())
-                    { var w = TuiHelper.RuneWidth(r); if (vw + w > maxW - 1) break; vw += w; ci += r.ToString().Length; }
+                    { var w = AnsiHelper.RuneWidth(r); if (vw + w > maxW - 1) break; vw += w; ci += r.ToString().Length; }
                     text = text[..ci] + "…";
                 }
                 var isSel = i == _suggestIdx;
                 var fill = Math.Max(0, tw - 4 - VW(text) - 2);
                 if (isSel)
                 {
-                    sb.Append(AnsiTty.FgBgCode(TuiColors.Black, TuiColors.BgCyan));
+                    sb.Append(AnsiTty.FgBgCode(AnsiColors.Black, AnsiColors.BgCyan));
                     sb.Append($" {text} {new string(' ', fill)}");
                     sb.Append(AnsiTty.SgrReset);
                 }
@@ -588,14 +589,14 @@ public static class TuiChatInput
                 sb.Append(new string(' ', tw - 4));
             }
             sb.Append(' ');
-            sb.Append(AnsiTty.FgCode(TuiColors.Cyan));
+            sb.Append(AnsiTty.FgCode(AnsiColors.Cyan));
             sb.Append('│');
             sb.Append(AnsiTty.SgrReset);
             sb.Append("\r\n");
         }
 
         // 底线
-        sb.Append(AnsiTty.FgCode(TuiColors.Cyan));
+        sb.Append(AnsiTty.FgCode(AnsiColors.Cyan));
         sb.Append($"╰{new string('─', Math.Max(0, tw - 2))}╯");
         sb.Append(AnsiTty.SgrReset);
     }
@@ -609,7 +610,7 @@ public static class TuiChatInput
     private static string JoinLines(List<StringBuilder> lines) =>
         string.Join("\n", lines.Select(l => l.ToString())).TrimEnd();
 
-    private static int VW(string s) => TuiHelper.DisplayWidth(s);
+    private static int VW(string s) => AnsiHelper.DisplayWidth(s);
 
     private static string? ReadClipboard()
     {

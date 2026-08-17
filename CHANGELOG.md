@@ -1,5 +1,34 @@
 # 更新日志
 
+## v0.71.31 (2026-08-17) — UI 命名空间重构 + 新布局引擎 + 行尾统一
+
+本轮为大型结构重构：UI 代码从顶层 `WayCoder` 命名空间收拢到 `WayCoder.UI.*` 分层，引入 HBox/VBox 弹性布局引擎，并统一全仓库行尾为 CRLF。
+
+### 🔧 重构
+
+**UI 命名空间分层**
+- 所有 UI 代码由顶层 `WayCoder` 收拢到 `WayCoder.UI.*`：`UI/Shared`（颜色/文本工具）、`UI/TUI/Base`（基础控件与屏幕管理）、`UI/TUI/Controls`（控件库）、`UI/TUI/Custom`（对话框/选择器）、`UI/TUI/Renderers`（工具输出渲染）、`UI/TUI/Screens`（屏幕）、`UI/TUI/Edit`（编辑器）
+- `TuiColors` → `AnsiColors`、`TuiHelper` → `AnsiHelper`：类名与 ANSI 职责对齐
+- `UI/TUI/ToolRenderers/` → `UI/TUI/Renderers/`：7 个工具渲染器随目录重命名
+
+**新增布局引擎**
+- `TuiHBox`（水平弹性容器）+ `TuiVBox`（垂直弹性容器）：子控件按 `Flex` 权重分配剩余空间，`Spacing` 控间距，浮动控件不参与流式布局
+- `TuiScrollView`（滚动容器）、`EHAlign`/`EVAlign`（水平/垂直对齐枚举）
+- 控件新增 `Flex`/`Floating`/`Margin` 属性支撑流式布局
+
+**提示条目模型**
+- `PromptItem` + `EPromptKind`（Command/File/Shell…）拆分输入提示条目类型
+
+**移除遗留源码**
+- 删除 `QBasic/` 独立 QBasic 解释器/IDE 源码（未纳入主解决方案）
+
+**行尾统一**
+- 全仓库约 277 个文件 LF → CRLF（.cs/.md/.yaml/.sh 等），消除跨平台 diff 噪声
+
+**打包与工具**
+- winget 清单新增 0.71.29、更新 0.71.4 / 0.69.0 历史清单，`packaging/`、`scripts/` 同步
+- 新增 `check/deepseek-harness/`（DeepSeek 测试 harness）、`WayCoder/snake.py`（tkinter 贪吃蛇示例）
+
 ## v0.71.30 (2026-08-17) — 四路确定性修复：CLI 队列/路径遍历 + 时间单位/整数溢出 + LLM/工具/记忆边界 + Web 作用域
 
 延续四路并行审计（Program/批量、Infra、工具/LLM、Web）后人工验证，本轮修 **19 项**确定性缺陷，覆盖 CLI 参数累积、路径遍历、时间单位错配、整数溢出、LRU 淘汰缺失、单字记忆召回、Web 多标签页作用域等。

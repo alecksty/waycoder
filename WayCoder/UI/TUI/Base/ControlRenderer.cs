@@ -1,8 +1,9 @@
 ﻿using System.Text;
-using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
+using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.Tui;
 
-namespace WayCoder.UI.Tui;
+namespace WayCoder.UI.TUI.Base;
 
 /// <summary>
 /// 控件渲染原语 —— 所有简单控件的绘制都走这里的 API。
@@ -69,21 +70,21 @@ public static class ControlRenderer
     /// 按对齐方式填充文本到指定宽度。
     /// 超宽自动截断（保留视觉宽度）。
     /// </summary>
-    public static string FormatAligned(string text, int width, HAlign align)
+    public static string FormatAligned(string text, int width, EHAlign align)
     {
         if (string.IsNullOrEmpty(text)) return new string(' ', width);
 
-        int vw = TuiHelper.DisplayWidth(text);
+        int vw = AnsiHelper.DisplayWidth(text);
         if (vw > width)
         {
-            text = TuiHelper.TruncateByWidth(text, width);
-            vw = TuiHelper.DisplayWidth(text);
+            text = AnsiHelper.TruncateByWidth(text, width);
+            vw = AnsiHelper.DisplayWidth(text);
         }
 
         int leftPad = align switch
         {
-            HAlign.Center => (width - vw) / 2,
-            HAlign.Right => width - vw,
+            EHAlign.Center => (width - vw) / 2,
+            EHAlign.Right => width - vw,
             _ => 0
         };
         leftPad = Math.Max(0, leftPad);
@@ -118,7 +119,7 @@ public static class ControlRenderer
     /// 用于 TuiButton、TuiTabs 等。
     /// </summary>
     public static void DrawButtonLine(StringBuilder sb, TuiControl c,
-        int absX, int absY, string text, HAlign align,
+        int absX, int absY, string text, EHAlign align,
         int themeFg, int themeBg, int themeFocusFg, int themeFocusBg)
     {
         int fg = ResolveFg(c, themeFg, themeFocusFg, TuiTheme.Current.ControlDisabledFg);
@@ -133,7 +134,7 @@ public static class ControlRenderer
     /// 焦点按钮：完整亮色渐变；非焦点按钮：暗化 50% 的渐变，视觉差异明显。
     /// </summary>
     public static void DrawButtonGradientLine(StringBuilder sb, TuiControl c,
-        int absX, int absY, string text, HAlign align,
+        int absX, int absY, string text, EHAlign align,
         int themeFg, int themeFocusFg, int themeDisabledFg,
         int startBg, int endBg)
     {
@@ -172,7 +173,7 @@ public static class ControlRenderer
     /// 用于 TuiLabel、TuiIcon、TuiSpinner 等。
     /// </summary>
     public static void DrawLabelLine(StringBuilder sb, TuiControl c,
-        int absX, int absY, string text, HAlign align,
+        int absX, int absY, string text, EHAlign align,
         int themeFg, int themeBg)
     {
         int fg = ResolveStaticFg(c, themeFg);
@@ -207,7 +208,7 @@ public static class ControlRenderer
     /// marker 前缀（☑/☐/◉/○）+ label 文本。
     /// </summary>
     public static void DrawCheckLine(StringBuilder sb, TuiControl c,
-        int absX, int absY, string marker, string label, HAlign align,
+        int absX, int absY, string marker, string label, EHAlign align,
         int themeFg, int themeBg, int themeFocusFg, int themeFocusBg)
     {
         int fg = ResolveFg(c, themeFg, themeFocusFg, TuiTheme.Current.ControlDisabledFg);
@@ -231,7 +232,7 @@ public static class ControlRenderer
 
         if (!string.IsNullOrEmpty(text))
         {
-            int textVw = TuiHelper.DisplayWidth(text);
+            int textVw = AnsiHelper.DisplayWidth(text);
             int leftW = (c.Width - textVw - 2) / 2;
             int rightW = c.Width - textVw - 2 - leftW;
             DrawLine(sb, absY, absX, new string(lineChar, Math.Max(0, leftW)), fg, bg);
@@ -278,7 +279,7 @@ public static class ControlRenderer
         int charCol = col;
         foreach (var rune in text.EnumerateRunes())
         {
-            int rw = TuiHelper.RuneWidth(rune);
+            int rw = AnsiHelper.RuneWidth(rune);
             if (rw <= 0) continue; // 零宽字符跳过
 
             // 字符在渐变条范围内才绘制

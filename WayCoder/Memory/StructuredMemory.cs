@@ -60,9 +60,6 @@ public static class StructuredMemory
     /// <summary>索引文件路径（基于槽位目录）</summary>
     public static string IndexPath => Path.Combine(SlotMemoryDir, "..", "MEMORY.md");
 
-    /// <summary>旧格式记忆文件路径（兼容迁移用）</summary>
-    public static string OldMemoryPath => Path.Combine(Directory.GetCurrentDirectory(), Global.LegacyConfigDirName, "memory.md");
-
     /// <summary>记忆条目</summary>
     public class MemoryEntry
     {
@@ -338,47 +335,6 @@ public static class StructuredMemory
     }
 
     // ---- 迁移 ----
-
-    /// <summary>
-    /// 从旧格式 memory.md 迁移到结构化格式。
-    /// 迁移后旧文件保留为备份（.memory.md.bak）。
-    /// </summary>
-    public static int MigrateFromOldFormat()
-    {
-        if (!File.Exists(OldMemoryPath)) return 0;
-        if (Count > 0) return 0; // 已有结构化记忆，不迁移
-
-        var content = File.ReadAllText(OldMemoryPath);
-        if (string.IsNullOrWhiteSpace(content)) return 0;
-
-        var docs = SemanticMemory.ParseDocuments(content);
-        if (docs.Count == 0) return 0;
-
-        var count = 0;
-        foreach (var doc in docs)
-        {
-            var name = SanitizeName(doc.Title.Length > 0 ? doc.Title : $"memory-{doc.Index}");
-            if (string.IsNullOrWhiteSpace(name) || name.Length < 2) continue;
-
-            // 推断类型
-            var type = "reference";
-            var descLower = doc.Content.ToLowerInvariant();
-            if (descLower.Contains("偏好") || descLower.Contains("喜欢") || descLower.Contains("习惯"))
-                type = "user";
-            else if (descLower.Contains("修复") || descLower.Contains("改进") || descLower.Contains("建议"))
-                type = "feedback";
-            else if (descLower.Contains("架构") || descLower.Contains("项目") || descLower.Contains("规则"))
-                type = "project";
-
-            Create(name, doc.Title, type, doc.Content);
-            count++;
-        }
-
-        // 备份旧文件
-        try { File.Move(OldMemoryPath, OldMemoryPath + ".bak"); } catch { }
-
-        return count;
-    }
 
     // ---- 内部方法 ----
 

@@ -734,7 +734,7 @@ public static class Benchmark
 
         var (ms1, mem1) = TimeIt(() =>
         {
-            _ = TuiHelper.DisplayWidth(cjkStr);
+            _ = AnsiHelper.DisplayWidth(cjkStr);
         });
         Bench("CJK 宽度计算 (~60K 字符)", ms1, mem1, warnMs: 100, failMs: 500);
 

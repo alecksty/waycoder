@@ -2,6 +2,8 @@
 using WayCoder.UI.Tui.Controls;
 
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
+
 namespace WayCoder.UI.Tui;
 
 /// <summary>
@@ -63,15 +65,14 @@ public static class SessionPicker
         var win = new TuiWindow
         {
             Title = "会话管理",
-            ShowTitleSeparator = false,
             Modal = true, HasMask = true,
-            Border = WindowBorder.Rounded,
+            Border = WindowBorder.Solid,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             Width = winW, Height = winH,
             MinWidth = MinW, MinHeight = winH,
-            WindowHAlign = HAlign.Center,
-            WindowVAlign = VAlign.Middle,
+            WindowHAlign = EHAlign.Center,
+            WindowVAlign = EVAlign.Middle,
         };
         var g = TuiTheme.Current.GradCyanBlue;
         win.GradientBorder = true;
@@ -85,18 +86,18 @@ public static class SessionPicker
         int sel = -1;
 
         // 统计行
-        var stats = new TuiLabel { Height = 1, Fg = TuiColors.Blue };
+        var stats = new TuiLabel { Height = 1, Fg = AnsiColors.Blue };
 
         // 搜索行（标签 + 输入框，输入框聚焦）
         var search = new TuiInput
         {
             Height = 1,
             Flex = 1,
-            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Fg = AnsiColors.White, Bg = AnsiColors.BgBlack,
             Focused = true,
         };
         var searchRow = new TuiHBox { Spacing = 1 };
-        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = TuiColors.BrightWhite });
+        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = AnsiColors.BrightBlack });
         searchRow.Add(search);
 
         // 会话列表（单行格式化字符串，选中/当前手动着色）
@@ -115,9 +116,9 @@ public static class SessionPicker
         Grad(closeBtn, TuiTheme.Current.BtnOrangeYellow);
 
         // 帮助行
-        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightWhite };
+        var help = new TuiLabel { Height = 1, Fg = AnsiColors.BrightBlack };
 
-        var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
+        var vbox = new TuiVBox { ChildHAlign = EHAlign.Stretch };
         vbox.Add(stats);
         vbox.Add(searchRow);
         vbox.Add(list);
@@ -136,7 +137,7 @@ public static class SessionPicker
                 bool isCur = s.Id == currentSessionId;
                 var lbl = rowLabels[i];
                 lbl.Text = FormatSessionRow(s, isSel, isCur, listW);
-                lbl.Fg = isSel ? TuiTheme.Current.ListSelFg : (isCur ? TuiColors.Blue : TuiColors.White);
+                lbl.Fg = isSel ? TuiTheme.Current.ListSelFg : (isCur ? AnsiColors.Blue : AnsiColors.White);
                 lbl.Bg = isSel ? TuiTheme.Current.ListSelBg : 0;
             }
             list.SelectedIndex = sel; // 驱动 TuiListView 自动滚动到选中项
@@ -231,7 +232,7 @@ public static class SessionPicker
             if (s.Id == currentSessionId) return; // 不能删除当前会话
             var sub = TuiDialog.Confirm3("删除会话", $"确认删除会话「{s.Id}」？", r =>
             {
-                if (r == TuiDialog.DialogResult.Yes)
+                if (r == TuiDialog.EDialogResult.Yes)
                     Finish(Result.Delete(s.Id));
             });
             screen?.ShowWindow(sub);
@@ -294,11 +295,11 @@ public static class SessionPicker
     private static string TruncateByVW(string text, int maxVW)
     {
         if (string.IsNullOrEmpty(text)) return "";
-        if (TuiHelper.DisplayWidth(text) <= maxVW) return text;
+        if (AnsiHelper.DisplayWidth(text) <= maxVW) return text;
         int vw = 0, chars = 0;
         foreach (var rune in text.EnumerateRunes())
         {
-            var w = TuiHelper.RuneWidth(rune);
+            var w = AnsiHelper.RuneWidth(rune);
             if (vw + w + 2 > maxVW) break; // 预留 "…" 两列
             vw += w; chars += rune.Utf16SequenceLength;
         }

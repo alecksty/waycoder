@@ -2,7 +2,7 @@ namespace WayCoder.UI.Shared.Terminal;
 
 /// <summary>
 /// ANSI 字符串工具 —— 剥离/检测/截断 ANSI 转义序列。
-/// 所有 ANSI 识别逻辑集中于此，不依赖 TuiHelper。
+/// 所有 ANSI 识别逻辑集中于此，不依赖 AnsiHelper。
 /// </summary>
 public static class AnsiString
 {
@@ -99,7 +99,7 @@ public static class AnsiString
     /// <summary>
     /// 单字符终端显示宽度（CJK=2, ASCII=1，零宽/组合标记=0）。
     /// 参考 Unicode East Asian Width + wcwidth 实现。
-    /// 注意：这是全仓唯一的宽度判定真源，TuiHelper.RuneWidth 委托到此。
+    /// 注意：这是全仓唯一的宽度判定真源，AnsiHelper.RuneWidth 委托到此。
     /// </summary>
     public static int CharWidth(System.Text.Rune rune)
     {

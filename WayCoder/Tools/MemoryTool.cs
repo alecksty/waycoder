@@ -46,7 +46,7 @@ public class MemoryTool : ITool
         var content = arguments.GetValueOrDefault("content")?.ToString() ?? "";
 
         // 首次使用自动迁移旧格式 memory.md（幂等：已有结构化记忆或旧文件不存在时跳过）
-        try { StructuredMemory.MigrateFromOldFormat(); } catch { }
+        // try { StructuredMemory.MigrateFromOldFormat(); } catch { }
 
         return action switch
         {

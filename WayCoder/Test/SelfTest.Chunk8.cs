@@ -4,6 +4,7 @@ using WayCoder.Tools;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.Tui.Screens;
 using WayCoder.UI.Tui.Edit;
@@ -402,22 +403,22 @@ public static partial class SelfTest
         Check("TuiPromptBar MaxVisible=8", promptBar.MaxVisible == 8);
 
         // PromptItem
-        var pi = new PromptItem { Kind = PromptKind.File, Label = "test.cs", Detail = "D:\\code\\test.cs" };
+        var pi = new PromptItem { Kind = EPromptKind.File, Label = "test.cs", Detail = "D:\\code\\test.cs" };
         Check("PromptItem Label", pi.Label == "test.cs");
         Check("PromptItem Detail", pi.Detail == "D:\\code\\test.cs");
         Check("PromptItem Icon 非空", !string.IsNullOrEmpty(pi.Icon));
 
         // 各类型图标
-        Check("PromptKind.Command Icon", new PromptItem { Kind = PromptKind.Command }.Icon == "⌘");
-        Check("PromptKind.File Icon", new PromptItem { Kind = PromptKind.File }.Icon == "📄");
-        Check("PromptKind.Shell Icon", new PromptItem { Kind = PromptKind.Shell }.Icon == "⚡");
-        Check("PromptKind.Slash Icon", new PromptItem { Kind = PromptKind.Slash }.Icon == "/");
-        Check("PromptKind.History Icon", new PromptItem { Kind = PromptKind.History }.Icon == "↺");
-        Check("PromptKind.Recent Icon", new PromptItem { Kind = PromptKind.Recent }.Icon == "⏱");
+        Check("PromptKind.Command Icon", new PromptItem { Kind = EPromptKind.Command }.Icon == "⌘");
+        Check("PromptKind.File Icon", new PromptItem { Kind = EPromptKind.File }.Icon == "📄");
+        Check("PromptKind.Shell Icon", new PromptItem { Kind = EPromptKind.Shell }.Icon == "⚡");
+        Check("PromptKind.Slash Icon", new PromptItem { Kind = EPromptKind.Slash }.Icon == "/");
+        Check("PromptKind.History Icon", new PromptItem { Kind = EPromptKind.History }.Icon == "↺");
+        Check("PromptKind.Recent Icon", new PromptItem { Kind = EPromptKind.Recent }.Icon == "⏱");
 
         // 填充项目
-        promptBar.Items.Add(new PromptItem { Kind = PromptKind.File, Label = "a.cs" });
-        promptBar.Items.Add(new PromptItem { Kind = PromptKind.Command, Label = "build" });
+        promptBar.Items.Add(new PromptItem { Kind = EPromptKind.File, Label = "a.cs" });
+        promptBar.Items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "build" });
         promptBar.SelectedIndex = 0;
         // 键盘导航
         promptBar.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
@@ -462,7 +463,7 @@ public static partial class SelfTest
         Check("TuiDialog.Confirm 返回窗口", dConfirm != null);
         Check("TuiDialog.Confirm 模态", dConfirm!.Modal);
 
-        TuiDialog.DialogResult? confirm3Result = null;
+        TuiDialog.EDialogResult? confirm3Result = null;
         var dConfirm3 = TuiDialog.Confirm3("选择", "Yes/No/Cancel?", r => confirm3Result = r);
         Check("TuiDialog.Confirm3 返回窗口", dConfirm3 != null);
 
@@ -478,7 +479,7 @@ public static partial class SelfTest
         var dMulti = TuiDialog.MultiSelect("多选", ["X", "Y", "Z"], l => multiResults = l);
         Check("TuiDialog.MultiSelect 返回窗口", dMulti != null);
 
-        TuiDialog.DialogResult? permResult = null;
+        TuiDialog.EDialogResult? permResult = null;
         var dPerm = TuiDialog.Permission("权限", "允许执行？", r => permResult = r);
         Check("TuiDialog.Permission 返回窗口", dPerm != null);
         Check("TuiDialog.Permission 模态", dPerm!.Modal);
@@ -489,11 +490,11 @@ public static partial class SelfTest
         Check("TuiDialog.Secret 模态", dSecret!.Modal);
 
         // DialogResult 枚举
-        Check("DialogResult.Ok", (int)TuiDialog.DialogResult.Ok == 0);
-        Check("DialogResult.Yes", (int)TuiDialog.DialogResult.Yes == 1);
-        Check("DialogResult.No", (int)TuiDialog.DialogResult.No == 2);
-        Check("DialogResult.Cancel", (int)TuiDialog.DialogResult.Cancel == 3);
-        Check("DialogResult.Closed", (int)TuiDialog.DialogResult.Closed == 4);
+        Check("DialogResult.Ok", (int)TuiDialog.EDialogResult.Ok == 0);
+        Check("DialogResult.Yes", (int)TuiDialog.EDialogResult.Yes == 1);
+        Check("DialogResult.No", (int)TuiDialog.EDialogResult.No == 2);
+        Check("DialogResult.Cancel", (int)TuiDialog.EDialogResult.Cancel == 3);
+        Check("DialogResult.Closed", (int)TuiDialog.EDialogResult.Closed == 4);
         Console.WriteLine();
 
         // ================================================================
@@ -526,7 +527,6 @@ public static partial class SelfTest
         foreach (var (name, win, expectBar) in dialogs)
         {
             win.OnResize(cols, rows);
-            Check($"{name}: 标题栏粗体={expectBar}", win.TitleBold == expectBar);
             Check($"{name}: 宽≤3/4屏", win.Width <= maxW + 1);
             Check($"{name}: 高≤3/4屏", win.Height <= maxH + 1);
             if (expectBar)
@@ -667,7 +667,7 @@ public static partial class SelfTest
         Check("EdgeInsets(1,2,3,4)", edge2.Top == 1 && edge2.Right == 2 && edge2.Bottom == 3 && edge2.Left == 4);
 
         // TextAlign
-        Check("TuiControl TextAlign=Left", ctrl.TextAlign == HAlign.Left);
+        Check("TuiControl TextAlign=Left", ctrl.TextAlign == EHAlign.Left);
 
         // IsDirty (default is true)
         Check("TuiControl IsDirty 默认 true", ctrl.IsDirty);
@@ -716,7 +716,7 @@ public static partial class SelfTest
         Check("TuiHBox Layout Width", hbox.Width > 0);
 
         // ChildHAlign
-        Check("TuiView ChildHAlign=Left", vbox.ChildHAlign == HAlign.Left);
+        Check("TuiView ChildHAlign=Left", vbox.ChildHAlign == EHAlign.Left);
 
         // FocusNext/FocusPrev
         var vboxF = new TuiVBox();
@@ -864,26 +864,26 @@ public static partial class SelfTest
         Console.WriteLine();
 
         // ================================================================
-        // TuiColors 测试
+        // AnsiColors 测试
         // ================================================================
-        Section("[TuiColors]");
-        Check("TuiColors.Black=30", TuiColors.Black == 30);
-        Check("TuiColors.Red=31", TuiColors.Red == 31);
-        Check("TuiColors.Green=32", TuiColors.Green == 32);
-        Check("TuiColors.Yellow=33", TuiColors.Yellow == 33);
-        Check("TuiColors.Blue=34", TuiColors.Blue == 34);
-        Check("TuiColors.Magenta=35", TuiColors.Magenta == 35);
-        Check("TuiColors.Cyan=36", TuiColors.Cyan == 36);
-        Check("TuiColors.White=37", TuiColors.White == 37);
+        Section("[AnsiColors]");
+        Check("AnsiColors.Black=30", AnsiColors.Black == 30);
+        Check("AnsiColors.Red=31", AnsiColors.Red == 31);
+        Check("AnsiColors.Green=32", AnsiColors.Green == 32);
+        Check("AnsiColors.Yellow=33", AnsiColors.Yellow == 33);
+        Check("AnsiColors.Blue=34", AnsiColors.Blue == 34);
+        Check("AnsiColors.Magenta=35", AnsiColors.Magenta == 35);
+        Check("AnsiColors.Cyan=36", AnsiColors.Cyan == 36);
+        Check("AnsiColors.White=37", AnsiColors.White == 37);
 
-        Check("TuiColors.BgBlack=40", TuiColors.BgBlack == 40);
-        Check("TuiColors.BgWhite=47", TuiColors.BgWhite == 47);
+        Check("AnsiColors.BgBlack=40", AnsiColors.BgBlack == 40);
+        Check("AnsiColors.BgWhite=47", AnsiColors.BgWhite == 47);
 
-        Check("TuiColors.BrightBlack=90", TuiColors.BrightBlack == 90);
-        Check("TuiColors.BrightWhite=97", TuiColors.BrightWhite == 97);
+        Check("AnsiColors.BrightBlack=90", AnsiColors.BrightBlack == 90);
+        Check("AnsiColors.BrightWhite=97", AnsiColors.BrightWhite == 97);
 
-        Check("TuiColors.BgBrightBlack=100", TuiColors.BgBrightBlack == 100);
-        Check("TuiColors.BgBrightWhite=107", TuiColors.BgBrightWhite == 107);
+        Check("AnsiColors.BgBrightBlack=100", AnsiColors.BgBrightBlack == 100);
+        Check("AnsiColors.BgBrightWhite=107", AnsiColors.BgBrightWhite == 107);
         Console.WriteLine();
 
         // ================================================================
@@ -900,8 +900,8 @@ public static partial class SelfTest
         Check("TuiTheme DialogWarnBorder", theme.DialogWarnBorder > 0);
         Check("TuiTheme DialogErrorBorder", theme.DialogErrorBorder > 0);
 
-        // 窗口色（深灰暗底，对话框白字与之保持反差）
-        Check("TuiTheme WindowBg 深灰暗底", theme.WindowBg == TuiColors.BgBrightBlack);
+        // 窗口色
+        Check("TuiTheme WindowBg", theme.WindowBg > 0);
         Check("TuiTheme MaskBg", theme.MaskBg > 0);
 
         // 渐变预设

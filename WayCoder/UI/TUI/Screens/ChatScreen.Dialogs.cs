@@ -7,6 +7,8 @@ using WayCoder.UI.Tui.ToolRenderers;
 using WayCoder.UI.Tui.Controls;
 
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
+
 namespace WayCoder.UI.Tui.Screens;
 
 
@@ -47,13 +49,12 @@ public partial class ChatScreen : TuiScreen
         RefreshSidePanel();
     }
 
-    /// <summary>同步主题配色：主题切换后刷新已建控件并强制重绘</summary>
+    /// <summary>同步主题配色</summary>
     public void SyncTheme()
     {
         // 从环境变量重新读取显示风格（设置变更后生效）
         ChatDisplayStyle = Config.Instance.ChatDisplayStyle;
-        // 刷新已建控件（角色标签/时间戳/分隔线/输入区颜色）+ 全量重绘
-        ApplyThemeToScreen();
+        // 主题配色已在 ThemeConfig 中管理，此方法为兼容旧 API
     }
 
     /// <summary>刷新主题样式</summary>
@@ -116,8 +117,8 @@ public partial class ChatScreen : TuiScreen
         {
             resolved = r switch
             {
-                TuiDialog.DialogResult.Yes => 0,   // 允许
-                TuiDialog.DialogResult.Ok => 1,    // 全部允许
+                TuiDialog.EDialogResult.Yes => 0,   // 允许
+                TuiDialog.EDialogResult.Ok => 1,    // 全部允许
                 _ => 2,                             // 拒绝（No / Closed）
             };
             evt.Set();
@@ -155,8 +156,6 @@ public partial class ChatScreen : TuiScreen
     {
         while (!evt.IsSet)
         {
-            // 每帧强制渲染：OnKey 直接走 screen 不经 Manager.OnKey，否则 TuiList 导航高亮冻结
-            if (Manager != null) Manager.IsDirty = true;
             Manager?.Render();
             // Read input with short timeout to keep rendering
             if (Console.KeyAvailable)

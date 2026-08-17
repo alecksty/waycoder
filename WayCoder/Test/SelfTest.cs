@@ -117,7 +117,7 @@ public static partial class SelfTest
         ["[TuiTitleBar]"] = "ui", ["[TuiBanner]"] = "ui",   ["[TuiGrid]"] = "ui",
         ["[TuiWrapPanel]"] = "ui",["[TuiSidePanel]"] = "ui",["[TuiPromptBar]"] = "ui",
         ["[TuiDialog]"] = "ui",   ["[TuiControl]"] = "ui",  ["[TuiView]"] = "ui",
-        ["[TuiScreen]"] = "ui",   ["[BoxBuffer]"] = "ui",   ["[TuiColors]"] = "ui",
+        ["[TuiScreen]"] = "ui",   ["[BoxBuffer]"] = "ui",   ["[AnsiColors]"] = "ui",
         ["[TuiTheme]"] = "ui",    ["[MarkdownRenderer]"] = "ui",
         ["[TuiTable]"] = "ui",    ["[DiffPreview]"] = "ui",  ["[UxHelper]"] = "ui",
         ["[UI Lint]"] = "ui",     ["[TuiTableList]"] = "ui",

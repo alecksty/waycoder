@@ -5,6 +5,7 @@ using WayCoder.UI.Tui.Controls;
 
 using WayCoder.UI.Tui.Edit;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Screens;
 
@@ -200,7 +201,7 @@ public class EditorScreen : TuiScreen
         RootView.Add(mainHBox);
 
         // ── 状态栏 1 — 光标 + 统计 + 诊断 ──
-        StatusBar1 = new TuiLabel("") { Width = TW, Height = 1, Bg = 47, Fg = TuiColors.Black };
+        StatusBar1 = new TuiLabel("") { Width = TW, Height = 1, Bg = 47 };
         RootView.Add(StatusBar1);
 
         // ── 状态栏 2 — 文件路径 + 快捷键 ──
@@ -468,7 +469,7 @@ public class EditorScreen : TuiScreen
         }
 
         var fileColor = TuiTheme.Current.ControlFg;
-        var dirColor = TuiColors.Cyan;
+        var dirColor = AnsiColors.Cyan;
         int selBg = TuiTheme.Current.ListSelBg;
 
         // 上级目录
@@ -505,7 +506,7 @@ public class EditorScreen : TuiScreen
 
             var isCurrent = string.Equals(f, Core.FilePath, StringComparison.OrdinalIgnoreCase);
             var prefix = isCurrent ? "◀ " : "  ";
-            var itemFg = isCurrent ? TuiColors.Yellow : fileColor;
+            var itemFg = isCurrent ? AnsiColors.Yellow : fileColor;
             _leftPanel.AddItem(new TuiLabel($"{prefix}📄 {name}") { Height = 1, Bg = 0, Fg = itemFg });
         }
     }
@@ -605,7 +606,7 @@ public class EditorScreen : TuiScreen
         if (items.Count == 0)
         {
             _rightPanel.AddItem(new TuiLabel(" (无符号)")
-                { Height = 1, Bg = 0, Fg = TuiColors.BrightBlack });
+                { Height = 1, Bg = 0, Fg = AnsiColors.BrightBlack });
             return;
         }
 
@@ -626,7 +627,7 @@ public class EditorScreen : TuiScreen
             display += new string(' ', padding) + ":" + lineStr;
 
             // 仅当前光标所在函数高亮
-            var itemFg = i == currentIdx ? TuiColors.Yellow : fg;
+            var itemFg = i == currentIdx ? AnsiColors.Yellow : fg;
             _rightPanel.AddItem(new TuiLabel(display) { Height = 1, Bg = 0, Fg = itemFg });
         }
     }
@@ -833,7 +834,7 @@ public class EditorScreen : TuiScreen
             {
                 switch (result)
                 {
-                    case TuiDialog.DialogResult.Yes:
+                    case TuiDialog.EDialogResult.Yes:
                         try { Core.Save(); WasSaved = true; }
                         catch (Exception ex)
                         {
@@ -842,7 +843,7 @@ public class EditorScreen : TuiScreen
                         }
                         Manager?.PopScreen();
                         break;
-                    case TuiDialog.DialogResult.No:
+                    case TuiDialog.EDialogResult.No:
                         Manager?.PopScreen();
                         break;
                     // Cancel → 继续编辑

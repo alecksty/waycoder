@@ -43,8 +43,8 @@ public class TuiList : TuiControl
                 ? (CheckedIndices.Contains(idx) ? "☑ " : "☐ ")
                 : (idx == SelectedIndex ? "▶ " : "  ");
             var display = $"{marker}{item}";
-            if (TuiHelper.DisplayWidth(display) > Width)
-                display = TuiHelper.TruncateByWidth(display, Width);
+            if (AnsiHelper.DisplayWidth(display) > Width)
+                display = AnsiHelper.TruncateByWidth(display, Width);
 
             int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
                 : idx == SelectedIndex ? TuiTheme.Current.ListSelFg
@@ -53,7 +53,7 @@ public class TuiList : TuiControl
                 : idx == SelectedIndex ? TuiTheme.Current.ListSelBg
                 : (Bg > 0 ? Bg : 0);
 
-            rb.Write(row, absX, display + new string(' ', Math.Max(0, Width - TuiHelper.DisplayWidth(display))), fg: fg, bg: bg);
+            rb.Write(row, absX, display + new string(' ', Math.Max(0, Width - AnsiHelper.DisplayWidth(display))), fg: fg, bg: bg);
         }
 
         // 滚动条

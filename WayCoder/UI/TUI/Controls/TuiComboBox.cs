@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -55,7 +56,7 @@ public class TuiComboBox : TuiControl
     {
         Options = options;
         SelectedIndex = defaultIdx >= 0 && defaultIdx < options.Count ? defaultIdx : -1;
-        Width = Math.Max(24, options.Count > 0 ? options.Max(o => TuiHelper.DisplayWidth(o)) + 6 : 24);
+        Width = Math.Max(24, options.Count > 0 ? options.Max(o => AnsiHelper.DisplayWidth(o)) + 6 : 24);
         Height = 1; // 收起时只占一行
         Focused = true;
     }
@@ -68,16 +69,16 @@ public class TuiComboBox : TuiControl
 
         // 禁用时用灰色，聚焦时用 FocusedBg
         int rowBg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : 0)
-                  : isFocused ? (FocusedBg > 0 ? FocusedBg : TuiTheme.Current.WindowBg)
-                  : (Bg > 0 ? Bg : 0);
+            : isFocused ? (FocusedBg > 0 ? FocusedBg : TuiTheme.Current.WindowBg)
+            : (Bg > 0 ? Bg : 0);
 
         // ── 主行：选中项 + ▼ ──
         string display = SelectedIndex >= 0 && SelectedIndex < Options.Count
             ? Options[SelectedIndex]
             : Placeholder;
         int dfg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
-                : SelectedIndex >= 0 ? (FocusedFg > 0 && isFocused ? FocusedFg : TuiTheme.Current.ControlFg)
-                : TuiTheme.Current.ControlDisabledFg;
+            : SelectedIndex >= 0 ? (FocusedFg > 0 && isFocused ? FocusedFg : TuiTheme.Current.ControlFg)
+            : TuiTheme.Current.ControlDisabledFg;
 
         // 背景
         if (rowBg > 0)
@@ -89,14 +90,14 @@ public class TuiComboBox : TuiControl
 
         // 文本 + 箭头（根据 TextAlign 对齐）
         int maxTextW = Width - 4; // 预留 " ▼" 位置
-        var text = TuiHelper.DisplayWidth(display) > maxTextW
-            ? TuiHelper.TruncateByWidth(display, maxTextW)
+        var text = AnsiHelper.DisplayWidth(display) > maxTextW
+            ? AnsiHelper.TruncateByWidth(display, maxTextW)
             : display;
-        int textVw = TuiHelper.DisplayWidth(text);
+        int textVw = AnsiHelper.DisplayWidth(text);
         int textX = TextAlign switch
         {
-            HAlign.Center => absX + 1 + Math.Max(0, (maxTextW - textVw) / 2),
-            HAlign.Right  => absX + 1 + Math.Max(0, maxTextW - textVw),
+            EHAlign.Center => absX + 1 + Math.Max(0, (maxTextW - textVw) / 2),
+            EHAlign.Right => absX + 1 + Math.Max(0, maxTextW - textVw),
             _ => absX + 1
         };
         WriteAt(sb, absY, textX, text, dfg, rowBg);
@@ -122,14 +123,14 @@ public class TuiComboBox : TuiControl
                 int optIdx = displayIndices[i];
                 bool sel = optIdx == SelectedIndex;
                 int lFg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
-                        : sel ? TuiTheme.Current.ListSelFg : TuiTheme.Current.ListFg;
+                    : sel ? TuiTheme.Current.ListSelFg : TuiTheme.Current.ListFg;
                 int lBg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : 0)
-                        : sel ? TuiTheme.Current.ListSelBg : TuiTheme.Current.WindowBg;
+                    : sel ? TuiTheme.Current.ListSelBg : TuiTheme.Current.WindowBg;
 
-                var optText = TuiHelper.DisplayWidth(Options[optIdx]) > Width - 3
-                    ? TuiHelper.TruncateByWidth(Options[optIdx], Width - 3)
+                var optText = AnsiHelper.DisplayWidth(Options[optIdx]) > Width - 3
+                    ? AnsiHelper.TruncateByWidth(Options[optIdx], Width - 3)
                     : Options[optIdx];
-                var pad = Width - 3 - TuiHelper.DisplayWidth(optText);
+                var pad = Width - 3 - AnsiHelper.DisplayWidth(optText);
 
                 var rb = new RenderBuffer();
                 rb.Write(row, absX + 1, $" {optText}{new string(' ', Math.Max(0, pad))}", fg: lFg, bg: lBg);
@@ -144,8 +145,8 @@ public class TuiComboBox : TuiControl
                 if (hintRow < ClipBottom)
                 {
                     string hint = $" 搜索: {_searchText} ({displayIndices.Count} 项)";
-                    if (TuiHelper.DisplayWidth(hint) > Width - 2)
-                        hint = TuiHelper.TruncateByWidth(hint, Width - 2);
+                    if (AnsiHelper.DisplayWidth(hint) > Width - 2)
+                        hint = AnsiHelper.TruncateByWidth(hint, Width - 2);
                     WriteAt(sb, hintRow, absX + 1, hint, TuiTheme.Current.ChatSystemFg, TuiTheme.Current.WindowBg);
                 }
             }
@@ -169,13 +170,23 @@ public class TuiComboBox : TuiControl
                 case ConsoleKey.Home:
                 {
                     var active = ActiveIndices;
-                    if (active.Count > 0) { SelectedIndex = active[0]; OnSelectionChanged?.Invoke(SelectedIndex); }
+                    if (active.Count > 0)
+                    {
+                        SelectedIndex = active[0];
+                        OnSelectionChanged?.Invoke(SelectedIndex);
+                    }
+
                     return true;
                 }
                 case ConsoleKey.End:
                 {
                     var active = ActiveIndices;
-                    if (active.Count > 0) { SelectedIndex = active[^1]; OnSelectionChanged?.Invoke(SelectedIndex); }
+                    if (active.Count > 0)
+                    {
+                        SelectedIndex = active[^1];
+                        OnSelectionChanged?.Invoke(SelectedIndex);
+                    }
+
                     return true;
                 }
                 case ConsoleKey.Enter:
@@ -198,6 +209,7 @@ public class TuiComboBox : TuiControl
                             _searchText = _searchText[..(n - 1)];
                         RebuildFilter();
                     }
+
                     return true;
                 default:
                     // 可打印字符 → 增量搜索
@@ -207,6 +219,7 @@ public class TuiComboBox : TuiControl
                         RebuildFilter();
                         return true;
                     }
+
                     return false;
             }
         }
@@ -232,10 +245,13 @@ public class TuiComboBox : TuiControl
                     return true;
             }
         }
+
         return false;
     }
 
-    public override void OnResize(int newParentW, int newParentH) { }
+    public override void OnResize(int newParentW, int newParentH)
+    {
+    }
 
     /// <summary>在过滤列表中导航</summary>
     private void NavigateFiltered(int delta)
@@ -257,6 +273,7 @@ public class TuiComboBox : TuiControl
             _filteredIndices = [];
             return;
         }
+
         _filteredIndices = Options
             .Select((o, i) => (text: o, index: i))
             .Where(x => x.text.Contains(_searchText, StringComparison.OrdinalIgnoreCase))

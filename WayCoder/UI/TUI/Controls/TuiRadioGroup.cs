@@ -42,7 +42,7 @@ public class TuiRadioGroup : TuiControl
     {
         Options = options;
         SelectedIndex = defaultIdx >= 0 && defaultIdx < options.Count ? defaultIdx : -1;
-        Width = options.Count > 0 ? options.Max(o => TuiHelper.DisplayWidth(o)) + 4 : 30;
+        Width = options.Count > 0 ? options.Max(o => AnsiHelper.DisplayWidth(o)) + 4 : 30;
         Height = Math.Max(1, options.Count);
         Focused = true;
         SelFg = TuiTheme.Current.ControlFocusedFg;   // 选中项黑字（反白）

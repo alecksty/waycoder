@@ -1,5 +1,6 @@
 using System.Text;
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -170,7 +171,7 @@ public class TuiSeekBar : TuiControl
     }
 
     /// <summary>鼠标点击 / 拖拽跳转到对应位置</summary>
-    public override bool HandleMouse(InputEvent ev)
+    public override bool OnMouse(InputEvent ev)
     {
         if (ev.Type != InputType.Mouse || !ev.MouseLeft) return false;
         if (!IsEnabled || !Visible) return false;

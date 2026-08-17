@@ -8,14 +8,14 @@ namespace WayCoder.UI.Shared;
 /// </summary>
 public enum BorderStyle
 {
-    None,    // 无边框
-    Single,  // ┌─┐ │ └─┘
-    Double,  // ╔═╗ ║ ╚═╝
-    Thick,   // ┏━┓ ┃ ┗━┛
-    Solid,   // █ 实心块
-    Star,    // ★ 星形角
-    Circle,  // ● 圆形角
-    Custom,  // 自定义字符
+    None, // 无边框
+    Single, // ┌─┐ │ └─┘
+    Double, // ╔═╗ ║ ╚═╝
+    Thick, // ┏━┓ ┃ ┗━┛
+    Solid, // █ 实心块
+    Star, // ★ 星形角
+    Circle, // ● 圆形角
+    Custom, // 自定义字符
 }
 
 /// <summary>
@@ -32,23 +32,23 @@ public class BoxBuffer
 
     // ---- 颜色 (ANSI 颜色码: "31"红 "32"绿 "33"黄 "34"蓝 "35"紫 "36"青 "37"白) ----
     public string FgColor { get; set; } = "37";
-    public string BgColor { get; set; } = "";       // 如 "44" 蓝底
+    public string BgColor { get; set; } = ""; // 如 "44" 蓝底
 
     // ---- 边框 ----
     public BorderStyle Border { get; set; } = BorderStyle.Single;
 
     // ---- 自定义边框字符 (仅 BorderStyle.Custom 时生效) ----
-    public string CustomTL { get; set; } = "┌";  // Top-Left
-    public string CustomTR { get; set; } = "┐";  // Top-Right
-    public string CustomBL { get; set; } = "└";  // Bottom-Left
-    public string CustomBR { get; set; } = "┘";  // Bottom-Right
-    public string CustomH  { get; set; } = "─";  // Horizontal
-    public string CustomV  { get; set; } = "│";  // Vertical
+    public string CustomTL { get; set; } = "┌"; // Top-Left
+    public string CustomTR { get; set; } = "┐"; // Top-Right
+    public string CustomBL { get; set; } = "└"; // Bottom-Left
+    public string CustomBR { get; set; } = "┘"; // Bottom-Right
+    public string CustomH { get; set; } = "─"; // Horizontal
+    public string CustomV { get; set; } = "│"; // Vertical
 
     // ---- 内部区域 (内容可绘制区域，不含边框) ----
     public int ContentLeft => Border == BorderStyle.None ? X : X + 1;
-    public int ContentTop  => Border == BorderStyle.None ? Y : Y + 1;
-    public int ContentWidth  => Border == BorderStyle.None ? Width : Width - 2;
+    public int ContentTop => Border == BorderStyle.None ? Y : Y + 1;
+    public int ContentWidth => Border == BorderStyle.None ? Width : Width - 2;
     public int ContentHeight => Border == BorderStyle.None ? Height : Height - 2;
 
     // ================================================================
@@ -59,12 +59,12 @@ public class BoxBuffer
     {
         return Border switch
         {
-            BorderStyle.None   => (" ", " ", " ", " ", " ", " "),
+            BorderStyle.None => (" ", " ", " ", " ", " ", " "),
             BorderStyle.Single => ("┌", "┐", "└", "┘", "─", "│"),
             BorderStyle.Double => ("╔", "╗", "╚", "╝", "═", "║"),
-            BorderStyle.Thick  => ("┏", "┓", "┗", "┛", "━", "┃"),
-            BorderStyle.Solid  => ("█", "█", "█", "█", "█", "█"),
-            BorderStyle.Star   => ("★", "★", "★", "★", "─", "│"),
+            BorderStyle.Thick => ("┏", "┓", "┗", "┛", "━", "┃"),
+            BorderStyle.Solid => ("█", "█", "█", "█", "█", "█"),
+            BorderStyle.Star => ("★", "★", "★", "★", "─", "│"),
             BorderStyle.Circle => ("●", "●", "●", "●", "─", "│"),
             BorderStyle.Custom => (CustomTL, CustomTR, CustomBL, CustomBR, CustomH, CustomV),
             _ => ("┌", "┐", "└", "┘", "─", "│"),
@@ -81,13 +81,13 @@ public class BoxBuffer
         var (tl, tr, bl, br, h, v) = BorderChars();
         int fg = int.TryParse(FgColor, out var f) ? f : 0;
         int bg = int.TryParse(BgColor, out var b) ? b : 0;
-        var rb = new Terminal.RenderBuffer();
+        var rb = new RenderBuffer();
 
         // 上边框
         rb.Write(Y, X, tl + new string(h[0], Math.Max(0, Width - 2)) + tr, fg: fg, bg: bg);
         // 中间行
         var fill = new string(' ', Math.Max(0, Width - 2));
-        for (int i = 1; i < Height - 1; i++)
+        for (var i = 1; i < Height - 1; i++)
             rb.Write(Y + i, X, v + fill + v, fg: fg, bg: bg);
         // 下边框
         if (Height > 1)
@@ -161,7 +161,7 @@ public class BoxBuffer
         var fill = new string(ch, Math.Max(0, ContentWidth));
         var bgOn = string.IsNullOrEmpty(BgColor) ? "" : AnsiTty.Bg(int.Parse(BgColor));
         var bgOff = string.IsNullOrEmpty(BgColor) ? "" : AnsiTty.SgrReset;
-        for (int i = 0; i < ContentHeight; i++)
+        for (var i = 0; i < ContentHeight; i++)
         {
             sb.Append(AnsiTty.CursorPos(ContentTop + i, ContentLeft)).Append(bgOn).Append(fill).Append(bgOff);
         }
@@ -195,6 +195,7 @@ public class BoxBuffer
                 return string.Concat(runes.Take(i));
             w += cw;
         }
+
         return text;
     }
 
@@ -210,9 +211,19 @@ public class BoxBuffer
         var absCol = ContentLeft;
         var textVW = VwPlainText(text);
         var maxLen = ContentWidth;
-        string display; int padLen;
-        if (textVW > maxLen) { display = TruncateWithEllipsis(text, maxLen); padLen = 0; }
-        else { display = text; padLen = maxLen - textVW; }
+        string display;
+        int padLen;
+        if (textVW > maxLen)
+        {
+            display = TruncateWithEllipsis(text, maxLen);
+            padLen = 0;
+        }
+        else
+        {
+            display = text;
+            padLen = maxLen - textVW;
+        }
+
         var rb = new Terminal.RenderBuffer();
         rb.Write(absRow, absCol, display + (padLen > 0 ? new string(' ', padLen) : ""),
             fg: int.TryParse(fgColor, out var _f) ? _f : 0,
@@ -228,7 +239,7 @@ public class BoxBuffer
         var clamped = Math.Clamp(percent, 0, 100);
         var filled = (int)(clamped / 100 * width);
         var empty = width - filled;
-        var barColor = clamped switch { < 50 => TuiColors.Green, < 80 => TuiColors.Yellow, _ => TuiColors.Red };
+        var barColor = clamped switch { < 50 => AnsiColors.Green, < 80 => AnsiColors.Yellow, _ => AnsiColors.Red };
         return $"{AnsiText.Fg($"{new string('█', filled)}{new string('░', empty)}", barColor)} {clamped:F0}%";
     }
 

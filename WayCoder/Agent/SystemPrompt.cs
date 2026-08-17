@@ -46,7 +46,7 @@ public static class SystemPrompt
         {
             var config = Config.Instance;
             var query = $"{project.PrimaryLanguage} {string.Join(" ", project.BuildTools)} {string.Join(" ", project.Frameworks)}";
-            StructuredMemory.MigrateFromOldFormat();
+            // StructuredMemory.MigrateFromOldFormat();
             var relevantMemory = StructuredMemory.GetRelevantContext(query,
                 topN: config.MemoryRelevanceTopN, maxChars: 2000);
 

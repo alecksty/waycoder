@@ -1,9 +1,11 @@
 ﻿using System.Text;
+using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.Tui;
+using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Controls;
 
-using WayCoder.UI.Shared;
-namespace WayCoder.UI.Tui;
+namespace WayCoder.UI.TUI.Custom;
 
 /// <summary>
 /// 模型选择对话框 —— 居中带边框对话框（非全屏）。
@@ -63,15 +65,14 @@ public static class ModelPicker
         var win = new TuiWindow
         {
             Title = "选择模型",
-            ShowTitleSeparator = false,
             Modal = true, HasMask = true,
-            Border = WindowBorder.Rounded, // 与主界面圆角细线统一（Solid 实心块在暗色界面突兀）
+            Border = WindowBorder.Solid,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             Width = winW, Height = winH,
             MinWidth = MinW, MinHeight = MinH,
-            WindowHAlign = HAlign.Center,
-            WindowVAlign = VAlign.Middle,
+            WindowHAlign = EHAlign.Center,
+            WindowVAlign = EVAlign.Middle,
         };
         var g = TuiTheme.Current.GradOrangeYellow;
         win.GradientBorder = true;
@@ -90,11 +91,11 @@ public static class ModelPicker
         {
             Height = 1,
             Flex = 1,
-            Fg = TuiColors.White, Bg = TuiColors.BgBlack,
+            Fg = AnsiColors.White, Bg = AnsiColors.BgBlack,
             Focused = true,
         };
         var searchRow = new TuiHBox { Spacing = 1 };
-        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = TuiColors.BrightWhite });
+        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = AnsiColors.BrightBlack });
         searchRow.Add(search);
 
         // 模型列表（多列）
@@ -108,10 +109,10 @@ public static class ModelPicker
         table.AddColumn("小", smallW);
 
         // 槽位状态条 + 帮助行
-        var slotBar = new TuiLabel { Height = 1, Fg = TuiColors.BrightWhite };
-        var help = new TuiLabel { Height = 1, Fg = TuiColors.BrightWhite };
+        var slotBar = new TuiLabel { Height = 1, Fg = AnsiColors.BrightBlack };
+        var help = new TuiLabel { Height = 1, Fg = AnsiColors.BrightBlack };
 
-        var vbox = new TuiVBox { ChildHAlign = HAlign.Stretch };
+        var vbox = new TuiVBox { ChildHAlign = EHAlign.Stretch };
         vbox.Add(searchRow);
         vbox.Add(table);
         vbox.Add(slotBar);

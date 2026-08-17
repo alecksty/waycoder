@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using OldMd = WayCoder.UI.Tui.TuiMarkdown;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -27,7 +28,7 @@ public class TuiMarkdown : TuiControl, ILazyItem
     public bool IsError { get; set; }
 
     /// <summary>内容横向对齐（默认左对齐，欢迎消息用居中）</summary>
-    public HAlign ContentAlign { get; set; } = HAlign.Left;
+    public EHAlign ContentAlign { get; set; } = EHAlign.Left;
 
     /// <summary>最大渲染宽度（自动折行）</summary>
     public int MaxWidth { get; set; } = 80;
@@ -77,24 +78,23 @@ public class TuiMarkdown : TuiControl, ILazyItem
             int col = absX;
 
             // 横向居中：计算本行总视觉宽度，偏移到居中位置
-            if (ContentAlign == HAlign.Center)
+            if (ContentAlign == EHAlign.Center)
             {
                 int totalVw = 0;
                 foreach (var (text, _, _) in segments)
-                    totalVw += TuiHelper.DisplayWidth(text);
+                    totalVw += AnsiHelper.DisplayWidth(text);
                 col += Math.Max(0, (Width - totalVw) / 2);
             }
 
             foreach (var (text, fg, bg) in segments)
             {
                 if (string.IsNullOrEmpty(text)) continue;
-                // IsError 时强制整体红色：错误语义优先于角色色/高亮色烘焙
-                // （否则 fg 恒非零，IsError 的红色被跳过，错误输出永远显示灰色）
-                int effFg = IsError ? TuiColors.ErrorFg : (fg > 0 ? fg : (Fg > 0 ? Fg : TuiTheme.Current.ControlFg));
+                int defaultFg = IsError ? 31 : TuiTheme.Current.ControlFg;
+                int effFg = fg > 0 ? fg : (Fg > 0 ? Fg : defaultFg);
                 int effBg = bg > 0 ? bg : (Bg > 0 ? Bg : 0);
 
                 WriteAt(sb, row, col, text, effFg, effBg);
-                col += TuiHelper.DisplayWidth(text);
+                col += AnsiHelper.DisplayWidth(text);
             }
         }
     }
@@ -145,7 +145,7 @@ public class TuiMarkdown : TuiControl, ILazyItem
         int lines = Content.Count(c => c == '\n') + 1;
         int wrappedLines = 0;
         foreach (var line in Content.Split('\n'))
-            wrappedLines += Math.Max(1, (TuiHelper.DisplayWidth(line) + effectiveMaxW - 1) / Math.Max(1, effectiveMaxW));
+            wrappedLines += Math.Max(1, (AnsiHelper.DisplayWidth(line) + effectiveMaxW - 1) / Math.Max(1, effectiveMaxW));
         return Math.Max(1, wrappedLines);
     }
 
