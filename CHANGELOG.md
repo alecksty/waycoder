@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.71.21 (2026-08-17) — FileTracker 正确性 + ReadFile limit 边界
+
+继续清扫文件追踪与读取工具。Explore 代理扫 `Tools/` 文件操作类 + `Infra/FileTracker` 后人工验证，本轮修复 3 个可复现问题。
+
+### 🐛 修复
+
+- **`FileTracker.RecordWrite` 不更新 `LastReadTimes`**：Agent 自己写文件（write_file/edit_file 写后调 `RecordWrite`）只更新了 `Tracked` 哈希，`LastReadTimes` 仍停留在初次 `RecordRead` 时刻。后续再次编辑时 `ValidatePreEdit` 用 `fileModTime > lastRead + 1s` 判定，把 Agent 自己的写入误报为「自上次读取后被外部修改」（read→write→edit 连续操作必触发）。补上一行 `LastReadTimes[absPath] = DateTime.UtcNow`，写入后即视为「当前内容已知」
+- **`FileTracker` LRU 淘汰实为 FIFO**：`Tracked.Keys.FirstOrDefault()` 淘汰的是 `Dictionary` 枚举序「最早插入」的键——而覆盖已存在键不改变枚举顺序，热点文件照样被先清掉。改为遍历 `LastReadTimes` 淘汰「最久未读取」的条目，并顺带清理 `LastReadTimes`（旧代码只删 `Tracked`，泄漏读取时间）
+- **`ReadFileTool` `limit<=0` 未钳制**：`offset` 有 `Math.Max(0, offset-1)`、`tail` 有 `Math.Max(0, tli)` 兜底，唯独 `limit` 直接透传。`limit=0` 或负数时 `Take(limit)` 返回空序列，输出空 `<file>` 块 + 误导性的「还有更多行」提示。改为 `Math.Max(1, li)` 钳制
+
+### ✅ 测试
+
+新增 `TestV0721FileTrackerRead`（2 项断言）：`read_file` 传 `limit=0` 仍读到首行；`RecordWrite` 后（未先 read）`ValidatePreEdit` 返回 null（不再误报「尚未读取」）。测试总数 3276 → 3278。
+
 ## v0.71.20 (2026-08-17) — Infra 层确定性 bug 修复（Hooks 前缀碰撞 + FileIgnore 未转义 [ + RetryPolicy 边界）
 
 Explore 代理系统扫 `Infra/`（BashGuard/FileTracker/RetryPolicy/LruCache/HooksManager/FileIgnoreManager/ErrorLog/IdGenerator）后人工验证，本轮修复 4 个可复现问题。BashGuard 的 `rm`/`mv`/`cp` 未列入禁用集合经核实为**有意设计**（走 PermissionManager 确认层，非禁用层），不修。
