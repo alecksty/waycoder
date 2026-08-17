@@ -737,6 +737,10 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         {
             if (SseClientsFull(_clients.Count))
             {
+                // 满员拒绝前回滚刚分配的槽位绑定：ResolveSlot 已对新 clientId 写入 _clientSlot，
+                // 此 return 跳过 finally 清理，若不回滚会幽灵占用槽位（反复刷新后串扰槽位 0）。
+                if (clientId != null && !_clients.Any(c => c.ClientId == clientId))
+                    _clientSlot.Remove(clientId);
                 try { writer.Write(HttpServer.SseEvent("failed", "\"连接数已达上限\"")); } catch { }
                 return; // 拒绝超出上限的 SSE 连接（writer 由调用方 WriteSseAsync 的 using 释放）
             }
@@ -834,9 +838,16 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             if (eq <= 0) continue;
             var name = kv[..eq];
             if (name.Equals("client", StringComparison.OrdinalIgnoreCase))
-                return Uri.UnescapeDataString(kv[(eq + 1)..]);
+                return SafeUnescape(kv[(eq + 1)..]);
         }
         return null;
+    }
+
+    /// <summary>安全 URL 解码：畸形百分号序列（如 "%zz"）会让 Uri.UnescapeDataString 抛 UriFormatException，回退原串。</summary>
+    public static string SafeUnescape(string s)
+    {
+        try { return Uri.UnescapeDataString(s); }
+        catch (UriFormatException) { return s; }
     }
 
     /// <summary>从占用标记数组（true=占用）挑第一个空闲槽位，全满回退 0。纯静态便于自测。</summary>

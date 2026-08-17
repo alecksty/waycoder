@@ -176,7 +176,9 @@ public class NotebookEditTool : ITool
             newCell["execution_count"] = JNode.Null();
         }
 
-        var insertAt = Math.Clamp(afterIndex + 1, 0, cells.Count);
+        // 用 long 计算避免溢出：afterIndex 来自 cell_index（long→int），int.MaxValue 时 +1 回绕为负数，
+        // Math.Clamp 后误插到 notebook 开头（预期越界插末尾）。
+        var insertAt = (int)Math.Clamp((long)afterIndex + 1, 0, cells.Count);
         var cellList = cells.Items.ToList();
         cellList.Insert(insertAt, newCell);
         var newCells = JNode.Array();

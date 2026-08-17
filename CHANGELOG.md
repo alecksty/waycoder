@@ -1,5 +1,42 @@
 # 更新日志
 
+## v0.71.30 (2026-08-17) — 四路确定性修复：CLI 队列/路径遍历 + 时间单位/整数溢出 + LLM/工具/记忆边界 + Web 作用域
+
+延续四路并行审计（Program/批量、Infra、工具/LLM、Web）后人工验证，本轮修 **19 项**确定性缺陷，覆盖 CLI 参数累积、路径遍历、时间单位错配、整数溢出、LRU 淘汰缺失、单字记忆召回、Web 多标签页作用域等。
+
+### 🐛 修复
+
+**CLI/批量/命令层（7 项）**
+- **`-pN` 多值参数二次追加丢首值**：`CliArgRegistry` 解析 `AllowMultiple` 参数（如 `-p1 "A" -p1 "B"`）时，第二次出现走覆盖分支而非追加，只剩 `[B]`。已存在时改 `AddRange` 追加
+- **`-pN` 同槽位排队任务竞态丢弃**：`StartSlotTask` 是 fire-and-forget，循环里多个任务同槽位排队时未等待前一任务完成即派发下一任务。派发后 `await` 槽位任务句柄，保证顺序执行
+- **`BatchSpec.DisplayName` 路径遍历**：直接用未清洗的 `Name`/`Repo` 拼 `jobs/<名>_<随机>` 目录名，`Name="../x"` 可逃逸工作目录。改 `SanitizeName` 清洗
+- **`ReviewMode` 报告截断后长度虚低**：输出截断后才取 `output.Length`，报告「已输出 N 字符」实际是截断后的值。截断前捕获原始长度
+- **`BackgroundTask` 同款截断长度虚低**：与 ReviewMode 相同缺陷，报告用截断后的 `content.Length`。截断前捕获原始长度
+- **`ProjectContext` HEAD 分支解析错误**：`ref: refs/heads/xxx` 用 `LastIndexOf('/')` 前只取首个 `/` 后片段，带前缀的 ref 分支名错乱。正确剥 `refs/heads/` 前缀
+- **`WorkReporter` 转义引号误判**：解析 bash 命令参数引号时未统计引号前的反斜杠个数，`\"` 前奇数个反斜杠时应视为转义而非引号闭合。补反斜杠奇偶计数
+
+**基础设施层（5 项）**
+- **`PersistentShell` 空闲超时单位错配**：`TimeSpan.FromMinutes(5).Ticks`（100 纳秒 = 3e9）与毫秒时间戳比较，5 分钟回收实际约 34.7 天。改毫秒常量 `5L*60*1000`
+- **`DrawCanvas.FillRoundRect` 圆角越界**：圆角半径 `r` 未钳制到 `min(w,h)/2`，超界时圆角矩形顶点越界绘制。统一 `Math.Clamp` 到半宽/半高
+- **`DrawCanvas` Bresenham 坐标 int 溢出**：`Math.Abs(x1-x0)` 用 int 减法，大坐标（超 2^31）溢出为负。改 long 计算 + 超 `int.MaxValue` 直接 return
+- **`UpdateChecker` 版本号数字溢出**：`int.Parse(digits)` 对超长版本段（如 `99999999999`）抛 `OverflowException` 崩溃。改 `long.TryParse` + `Math.Min` 钳制
+- **`FileTracker.RecordWrite` 无 LRU 淘汰**：`RecordRead` 有淘汰逻辑而 `RecordWrite` 缺失，`Tracked` 无限增长。补与 `RecordRead` 一致的淘汰块
+
+**LLM/工具/记忆层（3 项）**
+- **`LLM` 重试次数为 0 丢兜底**：`maxRetries > 0 ? maxRetries : Math.Max(1, ...)` 在显式传 `0` 时正确走兜底，但旧实现 `0` 直接生效导致不重试。对齐 `Math.Max(1, Config.LlmMaxRetries)` 兜底
+- **`NotebookEditTool.InsertCell` 索引溢出**：`(int)(afterIndex + 1)` 在 `afterIndex` 大值时溢出为负。改 `Math.Clamp((long)afterIndex + 1, 0, cells.Count)`
+- **记忆单字查询静默失效**：`SemanticMemory.GetRelevantContext` / `StructuredMemory.GetRelevantContext` 对单字 CJK 查询（如「汉」）与多字记忆的 bigram 无交集 → TF-IDF 得 0 分直接返回空，相关记忆注入系统提示词静默失效。补子串兜底（与 `StructuredMemory.Search` 对齐），只在大分无结果时触发，不影响 bigram 精度
+
+**Web 层（4 项）**
+- **前端 `?client=` 拼接重复 `?`**：`cq()` 无条件拼 `?client=`，`/upload?kind=xx` 等已含 `?` 的 URL 会拼成 `?kind=xx?client=xx`，clientId 丢失导致页面槽位错绑。改 `indexOf('?')` 判断用 `&`/`?`
+- **SSE 全量回退残留 clientId 映射**：`/events` 全量回退（非流式）时未从 `_clientSlot` 移除该 client，后续请求沿用脏映射。回退前清理
+- **`WebChat.ParseClientQuery` 非法转义崩溃**：`Uri.UnescapeDataString` 对非法百分号转义抛 `UriFormatException`。改 `SafeUnescape` 包裹 try/catch
+- **`WebChat.Interaction` 上传同款转义崩溃**：`HandleUpload` 用裸 `Uri.UnescapeDataString`。改 `SafeUnescape`
+
+### ✅ 测试
+
+新增 `TestV0730Deterministic`（5 项断言：AllowMultiple 多值累积、BatchSpec 路径清洗、ProjectContext HEAD 分支解析、单字查询子串兜底命中、FillRoundRect 圆角钳制）。测试总数 3327 → 3336。
+
 ## v0.71.29 (2026-08-17) — 四路审计收尾：工具参数钳制 + 时间单位/溢出 + UI 负计数崩溃 + 上下文/LLM 边界
 
 四路并行审计（Agent 核心/上下文会话/Tools/UI 编辑器）后人工验证，本轮修 **23 项**确定性缺陷，横跨工具层、UI 渲染、上下文压缩、LLM 客户端四层。

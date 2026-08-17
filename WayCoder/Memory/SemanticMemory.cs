@@ -280,7 +280,15 @@ public static class SemanticMemory
         var relevant = SearchRelevant(docs, query, topN);
 
         if (relevant.Count == 0)
-            return "";
+        {
+            // 子串兜底：单字 CJK 查询与多字文档的 bigram 无交集时，直接子串匹配
+            relevant = docs
+                .Where(d => d.Content.Contains(query, StringComparison.OrdinalIgnoreCase)
+                    || d.Title.Contains(query, StringComparison.OrdinalIgnoreCase))
+                .Take(topN)
+                .Select(d => (d, 1.0))
+                .ToList();
+        }
 
         var sb = new System.Text.StringBuilder();
         foreach (var (doc, score) in relevant)

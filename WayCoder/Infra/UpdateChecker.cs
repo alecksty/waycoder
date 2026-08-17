@@ -93,7 +93,9 @@ public static class UpdateChecker
         foreach (var part in v.Split('.'))
         {
             var digits = new string(part.TakeWhile(char.IsDigit).ToArray());
-            list.Add(digits.Length > 0 ? int.Parse(digits) : 0);
+            // 超大数字段（如日期型 tag "2024010112345"）int.Parse 会抛 OverflowException，
+            // 用 long 解析并饱和到 int.MaxValue，避免恶意/畸形 tag 让更新检查崩溃。
+            list.Add(digits.Length > 0 && long.TryParse(digits, out var n) ? (int)Math.Min(n, int.MaxValue) : 0);
         }
         return list;
     }

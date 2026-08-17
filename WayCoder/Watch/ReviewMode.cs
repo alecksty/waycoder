@@ -88,7 +88,10 @@ public static class ReviewMode
                     {
                         var content = File.ReadAllText(f);
                         if (content.Length > 1500)
-                            content = ContextManager.TruncateByRunes(content, 1500) + $"\n... (共 {content.Length} 字符)";
+                        {
+                            var originalLen = content.Length;
+                            content = ContextManager.TruncateByRunes(content, 1500) + $"\n... (共 {originalLen} 字符)";
+                        }
                         sb.AppendLine(content);
                     }
                     catch { sb.AppendLine($"(无法读取)"); }
