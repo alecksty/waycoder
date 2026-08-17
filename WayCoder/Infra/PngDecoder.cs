@@ -33,7 +33,7 @@ public static class PngDecoder
             if (len < 0) throw new FormatException("PNG chunk 长度非法"); // 负数长度会让 off 回退，造成死循环
             string type = Encoding.ASCII.GetString(data, off + 4, 4);
             off += 8;
-            if (off + len > data.Length) throw new FormatException("PNG chunk 越界");
+            if ((long)off + len > data.Length) throw new FormatException("PNG chunk 越界"); // 用 long 防 len=int.MaxValue 时 off+len 溢出为负、绕过检查
             switch (type)
             {
                 case "IHDR":

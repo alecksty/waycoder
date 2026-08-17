@@ -1,5 +1,23 @@
 # 更新日志
 
+## v0.71.25 (2026-08-17) — 工具整数参数系统性失效 + 图片编解码边界 + 渲染乱码
+
+Explore 代理扫 `Tools/` 文件/命令类 + `Program/Infra/Batch/Skills` 后人工验证，本轮修一个**系统性**缺陷（所有工具整数参数因 `long` vs `int` 类型不匹配而静默失效）加 7 处边界/损坏/乱码。
+
+### 🐛 修复
+
+- **所有工具整数参数静默失效**（系统性）：`LLM.ParseJsonNumber` 把 JSON 整数统一解析为 `long`，而 19 处参数解析用 `x is int` 判断，`long` 不匹配导致 `timeout`/`max`/`depth`/`context`/`offset`/`limit`/`top`/`line`/`character` 等**全部回退默认值**（如 `bash` 传 `timeout:2` 实际仍跑 120s、`ls` 传 `max:10` 仍输出 100 条）。新增 `ToolArgs.GetInt` 统一兼容 int/long/double/string 四种来源，替换 BashTool/DiffTool/FindReplaceTool/DownloadTool/FetchTool/LsTool/PsTool/LspTool/ReadFileTool/TestTool/TreeTool 共 19 处
+- **`MultiEditTool` 对 LLM 调用完全失效**：`ParseEdits` 只判 `editsObj is JNode`，但 LLM 参数经 `JNodeToObject` 把 JSON 数组转成 `List<object?>`，`is JNode` 恒 false → 永远返回「至少需要一个编辑操作」，工具不可用。补 `IEnumerable` 分支解析 `Dictionary<string,object?>`（对齐 `AskUserQuestionTool`）
+- **`DrawCommands` path 光栅化首点坐标丢失**：`ParsePathSegments` 的 `cx` 初始为 0（非 NaN），首个数字被误当 y 与 x=0 配对，`M 10 20` 画成 `(0,10)`、整条线偏移。改 `cx = double.NaN` 初始化
+- **`PngDecoder` chunk 长度整数溢出绕过越界检查**：`len` 为 4 字节大端，可取 `0x7FFFFFFF`，`off + len` 用 int 相加溢出为负、`> data.Length` 恒 false，随后负索引 `BE32` 抛越界异常（而非 `FormatException`）。改用 `(long)off + len` 比较
+- **`BmpCodec` 32 位 BI_RGB 把保留字节当 alpha**：32 位 BI_RGB 第 4 字节是保留位（XRGB，常为 0），读作 alpha 会让绝大多数 32 位 BMP 解码后 alpha=0、图像全透明。改为 alpha 固定 255
+- **`/history` 预览 `Substring` 硬切代理对**：`idx-40` / `+120` 码元窗口可能落在 emoji/CJK 扩展 B 代理对中间，渲染成 U+FFFD。提取 `BuildHistoryPreview` 并做 `IsLowSurrogate` 边界对齐
+- **`/jobs` 命令列表 `[..57]` 硬切代理对**：后台命令第 57 码元跨代理对时显示 U+FFFD。改走 `ContextManager.TruncateByRunes`
+
+### ✅ 测试
+
+新增 `TestV0725DrawAndCodec`（6 项断言：path 首点坐标 / PngDecoder 溢出抛 FormatException / Bmp32 alpha=255 / 历史预览不切半）+ `TestV0725ToolArgsAndEdit`（7 项断言：ToolArgs 四种类型取数 / MultiEditTool 端到端编辑生效）。测试总数 3297 → 3310。
+
 ## v0.71.24 (2026-08-17) — 回退链端点 + 边界/显示 6 项修复
 
 继续上一批 Explore 代理发现的遗留候选，本轮修 6 个中优先级（端点错发 / 边界异常 / 逻辑误判 / 显示损坏 / 轻微泄漏）。

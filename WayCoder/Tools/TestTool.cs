@@ -34,7 +34,7 @@ public class TestTool : ITool
     {
         var command = arguments.GetValueOrDefault("command")?.ToString() ?? "";
         var cwd = arguments.GetValueOrDefault("cwd")?.ToString();
-        var timeout = arguments.TryGetValue("timeout", out var t) && t is int tv ? Math.Clamp(tv, 1, 3600) : 300;
+        var timeout = Math.Clamp(ToolArgs.GetInt(arguments, "timeout", 300), 1, 3600);
 
         if (string.IsNullOrWhiteSpace(command))
             return "错误：请提供测试命令 (command)";

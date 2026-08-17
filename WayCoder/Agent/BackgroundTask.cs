@@ -225,7 +225,7 @@ public static class BackgroundTaskManager
                 _ => "❓",
             };
             var duration = (task.CompletedAt ?? DateTime.Now) - task.StartedAt;
-            var cmd = task.Command.Length > 60 ? task.Command[..57] + "..." : task.Command;
+            var cmd = task.Command.Length > 60 ? ContextManager.TruncateByRunes(task.Command, 57) + "..." : task.Command;
             lines.Add($"  #{task.Id} {statusIcon} [{task.Status}] {cmd} ({duration.TotalSeconds:F0}s)");
         }
         return string.Join("\n", lines);

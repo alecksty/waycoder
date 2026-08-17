@@ -522,11 +522,11 @@ internal sealed class PathCommand : IDrawCommand
             c.DrawLine(a.X, a.Y, b.X, b.Y, f.Stroke, f.StrokeWidth, f.LineCap);
         }
     }
-    static List<(double X, double Y)> ParsePathSegments(string? d)
+    internal static List<(double X, double Y)> ParsePathSegments(string? d)
     {
         var pts = new List<(double, double)>();
         if (string.IsNullOrWhiteSpace(d)) return pts;
-        double cx = 0, cy = 0;
+        double cx = double.NaN, cy = 0; // cx 初始须为 NaN，否则首个数字被误当 y 与 x=0 配对、首点丢失
         foreach (var token in DrawTokenizer.Tokenize(d))
         {
             var s = token.Value;

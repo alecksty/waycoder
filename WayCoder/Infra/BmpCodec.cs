@@ -76,7 +76,7 @@ public static class BmpCodec
             {
                 int si = rowOff + x * bytesPerPixel;
                 byte b = data[si], g = data[si + 1], r = data[si + 2];
-                byte a = bytesPerPixel == 4 ? data[si + 3] : (byte)255;
+                byte a = 255; // 32 位 BI_RGB 第 4 字节为保留位（XRGB，常为 0），非 alpha；读它会把图解码成全透明
                 int di = (y * width + x) * 4;
                 rgba[di] = r; rgba[di + 1] = g; rgba[di + 2] = b; rgba[di + 3] = a;
             }

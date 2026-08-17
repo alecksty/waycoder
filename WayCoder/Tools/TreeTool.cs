@@ -28,8 +28,8 @@ public class TreeTool : ITool
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var path = arguments.GetValueOrDefault("path")?.ToString();
-        var depth = arguments.TryGetValue("depth", out var d) && d is int di ? di : 3;
-        var max = arguments.TryGetValue("max", out var m) && m is int mi ? mi : 100;
+        var depth = ToolArgs.GetInt(arguments, "depth", 3);
+        var max = ToolArgs.GetInt(arguments, "max", 100);
 
         return Task.FromResult(Execute(path, depth, max));
     }

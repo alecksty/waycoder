@@ -36,8 +36,8 @@ public class LsTool : ITool
     {
         var path = arguments.GetValueOrDefault("path")?.ToString();
         var pattern = arguments.GetValueOrDefault("pattern")?.ToString() ?? "*";
-        var max = arguments.TryGetValue("max", out var m) && m is int mi ? mi : 100;
-        var depth = arguments.TryGetValue("depth", out var d) && d is int di ? di : 1;
+        var max = ToolArgs.GetInt(arguments, "max", 100);
+        var depth = ToolArgs.GetInt(arguments, "depth", 1);
         var longFormat = arguments.TryGetValue("long", out var l) && l is bool lb && lb;
 
         return Task.FromResult(Execute(path, pattern, max, depth, longFormat));

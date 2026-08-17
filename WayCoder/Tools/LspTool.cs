@@ -104,8 +104,8 @@ public class LspTool : ITool
     {
         var action = arguments.GetValueOrDefault("action")?.ToString() ?? "hover";
         var filePath = arguments.GetValueOrDefault("file_path")?.ToString() ?? "";
-        var line = arguments.TryGetValue("line", out var l) && l is int li ? li : 1;
-        var character = arguments.TryGetValue("character", out var c) && c is int ci ? ci : 1;
+        var line = ToolArgs.GetInt(arguments, "line", 1);
+        var character = ToolArgs.GetInt(arguments, "character", 1);
         var query = arguments.GetValueOrDefault("query")?.ToString() ?? "";
 
         return await Execute(action, filePath, line, character, query);

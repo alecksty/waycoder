@@ -112,6 +112,28 @@ public class MultiEditTool : ITool
                 });
             }
         }
+        // LLM 工具参数经 JNodeToObject 把 JSON 数组转成 List<object?>、对象转成 Dictionary<string,object?>，
+        // 只判 is JNode 会让真实调用永远解析为空、工具完全失效。此处兼容该形态（对齐 AskUserQuestionTool）。
+        else if (editsObj is System.Collections.IEnumerable enumerable)
+        {
+            foreach (var item in enumerable)
+            {
+                if (item is not Dictionary<string, object?> dict) continue;
+                var ra = dict.GetValueOrDefault("replace_all");
+                var replaceAll = ra switch
+                {
+                    bool b => b,
+                    string s => s.ToLowerInvariant() == "true",
+                    _ => false,
+                };
+                result.Add(new EditOp
+                {
+                    OldString = dict.GetValueOrDefault("old_string")?.ToString() ?? "",
+                    NewString = dict.GetValueOrDefault("new_string")?.ToString() ?? "",
+                    ReplaceAll = replaceAll,
+                });
+            }
+        }
         return result;
     }
 

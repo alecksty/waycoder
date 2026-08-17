@@ -25,7 +25,7 @@ public class PsTool : ITool
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var name = arguments.GetValueOrDefault("name")?.ToString() ?? "";
-        var top = arguments.TryGetValue("top", out var t) && t is int ti ? ti : 30;
+        var top = ToolArgs.GetInt(arguments, "top", 30);
 
         return await Execute(name, top);
     }
