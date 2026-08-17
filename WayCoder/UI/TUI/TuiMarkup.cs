@@ -80,6 +80,25 @@ public static class TuiMarkup
         ["brightwhite"] = AnsiColors.BrightWhite,
     };
 
+    /// <summary>
+    /// 语义色 token：随主题切换（运行时读 TuiTheme.Current）。
+    /// 标记里用 fg/bg 指定语义名（accent/danger/success/…），换主题后同一份标记自动换色。
+    /// </summary>
+    private static readonly Dictionary<string, Func<int>> SemanticColors = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["accent"] = () => TuiTheme.Current.WindowBorderFocused,
+        ["primary"] = () => TuiTheme.Current.WindowBorderFocused,
+        ["panel"] = () => TuiTheme.Current.WindowBg,
+        ["text"] = () => TuiTheme.Current.DialogFg,
+        ["muted"] = () => AnsiColors.BrightBlack,
+        ["danger"] = () => TuiTheme.Current.DialogErrorBorder,
+        ["error"] = () => TuiTheme.Current.DialogErrorBorder,
+        ["success"] = () => TuiTheme.Current.DialogSuccessBorder,
+        ["warning"] = () => TuiTheme.Current.DialogWarnBorder,
+        ["warn"] = () => TuiTheme.Current.DialogWarnBorder,
+        ["info"] = () => TuiTheme.Current.DialogInfoBorder,
+    };
+
     /// <summary>解析标记，按根元素类型构建对应对象（App/Screen→屏幕、Window/Dialog→窗口、控件→视图）。</summary>
     public static TuiMarkupResult Load(string xml)
     {
@@ -375,6 +394,7 @@ public static class TuiMarkup
     {
         var s = node.GetAttr(key);
         if (s == null) return null;
+        if (SemanticColors.TryGetValue(s, out var fn)) return fn(); // 语义色（随主题）
         if (Colors.TryGetValue(s, out var c)) return c;
         if (int.TryParse(s, out var n)) return n;
         if (TryParseRgbColor(s, out var rgb)) return rgb;
