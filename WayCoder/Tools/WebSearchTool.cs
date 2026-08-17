@@ -34,12 +34,7 @@ public class WebSearchTool : ITool, ICancellableTool
         if (string.IsNullOrWhiteSpace(query))
             return "错误: 请提供搜索关键词 (query)";
 
-        var num = 5;
-        if (arguments.TryGetValue("num", out var numVal) && numVal != null)
-        {
-            try { num = Math.Clamp(Convert.ToInt32(numVal), 1, 10); }
-            catch { }
-        }
+        var num = Math.Clamp(ToolArgs.GetInt(arguments, "num", 5), 1, 10);
 
         // 请求节流（防搜索引擎封 IP）
         await ThrottleAsync(cancellationToken);

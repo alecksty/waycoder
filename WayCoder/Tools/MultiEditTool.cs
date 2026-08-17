@@ -424,7 +424,7 @@ public class MultiEditTool : ITool
         s.Length > maxLen ? ContextManager.TruncateByRunes(s, maxLen) + "..." : s;
 
     private static int CountLines(string s) =>
-        string.IsNullOrEmpty(s) ? 1 : s.Split('\n').Length;
+        string.IsNullOrEmpty(s) ? 1 : s.TrimEnd('\n').Split('\n').Length;
 
     private static int CountNewlines(string s) =>
         string.IsNullOrEmpty(s) ? 0 : s.Count(c => c == '\n');

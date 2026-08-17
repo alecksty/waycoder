@@ -232,7 +232,7 @@ public class LLM
     {
         get
         {
-            if (!Pricing.TryGetValue(Model, out var price)) return null;
+            if (!Pricing.TryGetValue(EffectiveModel, out var price)) return null;
             return TaskPromptTokens * price.Input / 1_000_000.0
                    + TaskCompletionTokens * price.Output / 1_000_000.0;
         }
@@ -272,7 +272,7 @@ public class LLM
     {
         get
         {
-            if (!Pricing.TryGetValue(Model, out var price)) return null;
+            if (!Pricing.TryGetValue(EffectiveModel, out var price)) return null;
             return TotalPromptTokens * price.Input / 1_000_000.0
                    + TotalCompletionTokens * price.Output / 1_000_000.0;
         }
@@ -625,7 +625,7 @@ public class LLM
 
         try
         {
-            var response = await CallWithRetryAsync(() =>
+            using var response = await CallWithRetryAsync(() =>
             {
                 var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
                 {
@@ -754,9 +754,11 @@ public class LLM
             // HTTP-date 格式
             if (DateTime.TryParse(header, out var retryDate))
             {
-                var delay = (int)(retryDate.ToUniversalTime() - DateTime.UtcNow).TotalMilliseconds;
+                var delayMs = (retryDate.ToUniversalTime() - DateTime.UtcNow).TotalMilliseconds;
+                if (delayMs <= 0) return null;
+                // 远未来日期超出 int 毫秒范围会 (int) 溢出为负，先钳制到 maxWaitMs 再转 int
                 var maxWaitMs = Config.Instance.LlmRateLimitMaxWaitSec * 1000;
-                return delay > 0 ? Math.Min(delay, maxWaitMs) : null;
+                return (int)Math.Min(delayMs, (long)maxWaitMs);
             }
 
             return null;

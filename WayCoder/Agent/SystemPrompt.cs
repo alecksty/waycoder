@@ -617,9 +617,16 @@ public static class SystemPrompt
             };
             using var process = Process.Start(psi);
             if (process == null) return "";
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit(5000);
-            return output.Trim();
+            // 先并发读 stdout/stderr 再等退出：stderr 写满 4KB 管道缓冲时进程阻塞，
+            // 先同步 ReadToEnd() stdout 会永久卡死（stderr 无人读，进程无法继续写 stdout）
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            _ = process.StandardError.ReadToEndAsync();
+            if (!process.WaitForExit(5000))
+            {
+                try { process.Kill(entireProcessTree: true); } catch { }
+                return "";
+            }
+            return stdoutTask.GetAwaiter().GetResult().Trim();
         }
         catch
         {

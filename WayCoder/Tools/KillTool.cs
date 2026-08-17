@@ -38,7 +38,9 @@ public class KillTool : ITool
     {
         var hasPid = arguments.ContainsKey("pid");
         var hasName = arguments.ContainsKey("name");
-        var pid = arguments.TryGetValue("pid", out var p) && p != null ? Convert.ToInt32(p) : 0;
+        // Convert.ToInt32 对超 int 范围 long 抛 OverflowException、对 double 银行家舍入、对非数字字符串抛 FormatException；
+        // 改走 ToolArgs.GetInt 统一钳制（超范围钳制而非抛异常/舍入）。
+        var pid = ToolArgs.GetInt(arguments, "pid", 0);
         var name = arguments.GetValueOrDefault("name")?.ToString() ?? "";
         var force = arguments.TryGetValue("force", out var f) && f is bool fb && fb;
 
