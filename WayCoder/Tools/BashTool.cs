@@ -62,14 +62,13 @@ public class BashTool : ITool, ICancellableTool
         cancellationToken.ThrowIfCancellationRequested();
         var command = arguments.GetValueOrDefault("command")?.ToString() ?? "";
         var configTimeout = Config.Instance.ToolTimeoutSec;
-        var timeout = arguments.TryGetValue("timeout", out var t) && t is int ti ? ti : configTimeout;
+        var timeout = ToolArgs.GetInt(arguments, "timeout", configTimeout);
 
         // 后台运行模式（后台任务有意超出本轮生命周期，不受本轮中断令牌约束）
         var runInBackground = arguments.TryGetValue("run_in_background", out var bg) && bg is true;
         if (runInBackground)
         {
-            var autoBgAfter = arguments.TryGetValue("auto_background_after", out var aba) && aba is int abaVal
-                ? abaVal : 60;
+            var autoBgAfter = ToolArgs.GetInt(arguments, "auto_background_after", 60);
             var bgId = BackgroundTaskManager.Start(command, Math.Max(timeout, autoBgAfter + 30));
             return $"✅ 后台任务已启动\n" +
                    $"Shell ID: {bgId}\n" +
@@ -100,7 +99,7 @@ public class BashTool : ITool, ICancellableTool
         cancellationToken.ThrowIfCancellationRequested();
         var command = arguments.GetValueOrDefault("command")?.ToString() ?? "";
         var configTimeout = Config.Instance.ToolTimeoutSec;
-        var timeout = arguments.TryGetValue("timeout", out var t) && t is int ti ? ti : configTimeout;
+        var timeout = ToolArgs.GetInt(arguments, "timeout", configTimeout);
 
         return await Execute(command, timeout, onLine, cancellationToken: cancellationToken);
     }

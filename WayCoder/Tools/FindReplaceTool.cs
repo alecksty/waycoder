@@ -49,8 +49,8 @@ public class FindReplaceTool : ITool
         var pattern = arguments.GetValueOrDefault("pattern")?.ToString() ?? "";
         var replacement = arguments.GetValueOrDefault("replacement")?.ToString();
         var glob = arguments.GetValueOrDefault("glob")?.ToString() ?? "*.*";
-        var maxFiles = arguments.TryGetValue("max_files", out var mf) && mf is int mfi ? mfi : 50;
-        var maxPerFile = arguments.TryGetValue("max_per_file", out var mp) && mp is int mpi ? mpi : 10;
+        var maxFiles = ToolArgs.GetInt(arguments, "max_files", 50);
+        var maxPerFile = ToolArgs.GetInt(arguments, "max_per_file", 10);
         var ignoreCase = !arguments.TryGetValue("ignore_case", out var ic) || ic is not bool icb || icb;
         var dryRun = !arguments.TryGetValue("dry_run", out var dr) || dr is not bool drb || drb;
 

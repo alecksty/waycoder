@@ -4369,6 +4369,84 @@ public static partial class SelfTest
         Check("Syntax: 无孤立代理项", !tokens.Any(t => HasLoneSurrogate(t.Text)));
     }
 
+    /// <summary>v0.71.25 批次：DrawCommands path 首点丢失 + PngDecoder 长度溢出 + BmpCodec 32 位 alpha + 历史预览代理对切半。</summary>
+    private static void TestV0725DrawAndCodec(Action<string, bool> Check)
+    {
+        // ── #1 PathCommand.ParsePathSegments：cx 初始为 0（非 NaN）导致首个数字被误当 y 与 x=0 配对，首点丢失 ──
+        var seg = WayCoder.Infra.PathCommand.ParsePathSegments("M 10 20 L 30 40");
+        Check("path: 首点坐标不丢失", seg.Count == 2 && seg[0].X == 10 && seg[0].Y == 20 && seg[1].X == 30 && seg[1].Y == 40);
+
+        // ── #2 PngDecoder：chunk 长度 0x7FFFFFFF 使 off+len 整数溢出为负、绕过越界检查 → 负索引崩溃 ──
+        var png = new byte[8 + 8 + 13];
+        png[0] = 0x89; png[1] = 0x50; png[2] = 0x4E; png[3] = 0x47;
+        png[4] = 0x0D; png[5] = 0x0A; png[6] = 0x1A; png[7] = 0x0A;
+        png[8] = 0x7F; png[9] = 0xFF; png[10] = 0xFF; png[11] = 0xFF; // len = 0x7FFFFFFF（正数，绕过 len<0 检查）
+        png[12] = (byte)'I'; png[13] = (byte)'H'; png[14] = (byte)'D'; png[15] = (byte)'R';
+        bool fmt = false;
+        try { WayCoder.Infra.PngDecoder.Decode(png); }
+        catch (FormatException) { fmt = true; }
+        catch (Exception) { /* 溢出崩溃/越界异常视为未正确拦截 */ }
+        Check("PngDecoder: chunk 长度整数溢出抛 FormatException 而非越界崩溃", fmt);
+
+        // ── #3 BmpCodec：32 位 BI_RGB 第 4 字节为保留位（常为 0），旧代码读作 alpha 使图像全透明 ──
+        var bmp = new byte[58];
+        bmp[0] = (byte)'B'; bmp[1] = (byte)'M';
+        bmp[10] = 54;  // dataOffset
+        bmp[14] = 40;  // dibSize
+        bmp[18] = 1;   // width
+        bmp[22] = 1;   // height
+        bmp[28] = 32;  // bpp=32（compression 默认 0 = BI_RGB）
+        bmp[54] = 0x10; bmp[55] = 0x20; bmp[56] = 0x30; bmp[57] = 0x00; // B,G,R,保留字节=0
+        var img = WayCoder.Infra.BmpCodec.Decode(bmp);
+        Check("Bmp32: 保留字节不误当 alpha", img.Rgba[3] == 255);
+        Check("Bmp32: RGB 通道正确", img.Rgba[0] == 0x30 && img.Rgba[1] == 0x20 && img.Rgba[2] == 0x10);
+
+        // ── #4 BuildHistoryPreview：start 落在 emoji 低位代理 → Substring 切半出孤立代理（U+FFFD）──
+        // 39×a + 😀 + 39×a + "keyword"：idx=80，start=40 恰为 😀 的低位代理
+        var content = new string('a', 39) + "\U0001F600" + new string('a', 39) + "keyword";
+        var preview = Program.BuildHistoryPreview(content, "keyword");
+        Check("history: 预览不切半代理对", !HasLoneSurrogate(preview));
+        Check("history: emoji 完整保留", preview.Contains("\U0001F600"));
+    }
+
+    /// <summary>v0.71.25 批次：ToolArgs 整数取数（long 不再静默丢参）+ MultiEditTool 兼容 List&lt;object?&gt;。</summary>
+    private static void TestV0725ToolArgsAndEdit(Action<string, bool> Check)
+    {
+        // ── #1 ToolArgs.GetInt：JSON 整数经 ParseJsonNumber 解析为 long，旧代码 is int 不匹配静默丢参回退默认 ──
+        var args = new Dictionary<string, object?>();
+        args["timeout"] = 5L; // long（LLM 真实形态）
+        Check("ToolArgs: long 参数不再丢弃", ToolArgs.GetInt(args, "timeout", 120) == 5);
+        args["timeout"] = 6;  // int
+        Check("ToolArgs: int 参数", ToolArgs.GetInt(args, "timeout", 120) == 6);
+        args["timeout"] = 7.9; // double 截断
+        Check("ToolArgs: double 参数截断", ToolArgs.GetInt(args, "timeout", 120) == 7);
+        args["timeout"] = "8"; // string 解析
+        Check("ToolArgs: string 参数解析", ToolArgs.GetInt(args, "timeout", 120) == 8);
+        Check("ToolArgs: 缺失回退默认值", ToolArgs.GetInt(new Dictionary<string, object?>(), "timeout", 120) == 120);
+
+        // ── #2 MultiEditTool：edits 为 List<object?>（LLM 真实形态）旧代码 is JNode 恒 false → 解析为空、工具失效 ──
+        var dir = Path.Combine(Path.GetTempPath(), "waycoder_me_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(dir);
+        var file = Path.Combine(dir, "a.txt");
+        File.WriteAllText(file, "hello world");
+        FileTracker.RecordRead(file); // 模拟 read_file 读取，否则 ValidatePreEdit 会拦截编辑
+        try
+        {
+            var tool = new MultiEditTool();
+            var r = tool.ExecuteAsync(new Dictionary<string, object?>
+            {
+                ["file_path"] = file,
+                ["edits"] = new List<object?>
+                {
+                    new Dictionary<string, object?> { ["old_string"] = "hello", ["new_string"] = "hi" }
+                }
+            }).GetAwaiter().GetResult();
+            Check("multiedit: List<object?> edits 不再失效", !r.Contains("至少需要一个编辑操作"));
+            Check("multiedit: 编辑实际生效", File.ReadAllText(file) == "hi world");
+        }
+        finally { try { Directory.Delete(dir, true); } catch { } FileTracker.Reset(); }
+    }
+
     /// <summary>P0-P2 批次：命令注入/RCE/权限绕过/资源泄漏/整数溢出 修复的纯逻辑测试。</summary>
     private static void TestP0P2Hardening(Action<string, bool> Check)
     {
