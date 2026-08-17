@@ -16,12 +16,18 @@ Avalonia 12 图形界面，对标 Web 版（`WayCoder/UI/WEB/`）的聊天交互
 dotnet build WayCoder.Gui
 dotnet run --project WayCoder.Gui          # 直接启动 GUI
 waycoder --gui                              # 主程序拉起 GUI 进程
+
+# 发布自包含可执行（独立分发，无需 .NET 运行时）
+dotnet publish WayCoder.Gui -c Release -r osx-arm64 --self-contained true
 ```
 
-## 进度（MVP）
+## 进度
 
 - [x] 窗口 + 聊天区 + 输入框 + 发送/停止（流式 onToken 回填）
-- [ ] 模型下拉切换
-- [ ] F1-F10 多槽位
-- [ ] Markdown/中间格式富文本渲染（当前仅剥 `«»` 标记）
-- [ ] 会话管理 / 设置 / 权限确认
+- [x] 模型下拉切换
+- [x] F1-F10 多槽位（独立 Agent + 各自历史）
+- [x] 权限确认/提问对话框（GuiInteraction 交互桥）
+- [x] Markdown + «» 标记富文本渲染（代码块/标题/列表/引用/颜色/粗体/行内代码）
+- [x] 会话持久化（退出保存 _auto/_auto_slotN，启动恢复）
+- [ ] diff 逐 hunk 确认
+- [ ] 设置界面
