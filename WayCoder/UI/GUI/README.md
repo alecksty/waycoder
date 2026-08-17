@@ -29,5 +29,5 @@ dotnet publish WayCoder.Gui -c Release -r osx-arm64 --self-contained true
 - [x] 权限确认/提问对话框（GuiInteraction 交互桥）
 - [x] Markdown + «» 标记富文本渲染（代码块/标题/列表/引用/颜色/粗体/行内代码）
 - [x] 会话持久化（退出保存 _auto/_auto_slotN，启动恢复）
-- [ ] diff 逐 hunk 确认
-- [ ] 设置界面
+- [x] diff 预览确认（接受/拒绝全部）
+- [x] 设置对话框（API Key / Temperature / MaxTokens / 自动提交）
