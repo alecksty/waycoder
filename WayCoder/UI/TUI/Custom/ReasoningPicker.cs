@@ -91,7 +91,7 @@ public static class ReasoningPicker
         // 说明行
         var desc = new TuiLabel("选择模型的「思考」深度，越深推理越充分，但耗时越长")
         {
-            Fg = TuiColors.Black,
+            Fg = TuiTheme.Current.ControlFg, // 暗底白字（原黑字黑底不可见）
         };
 
         // 搜索框（聚焦，字母进过滤词）
@@ -108,7 +108,7 @@ public static class ReasoningPicker
             Items = filtered.Select(l => FormatItem(l, currentLevel)).ToList(),
             SelectedIndex = IndexOfCurrent(filtered, currentLevel),
             Height = 5,
-            Fg = TuiColors.Black,
+            Fg = TuiTheme.Current.ListFg, // 暗底亮字（原黑字黑底不可见）
         };
 
         // 帮助行
