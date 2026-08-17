@@ -108,6 +108,8 @@ public class TuiStatusBar : TuiControl
                 AgentBusy ? TuiColors.Green : dimFg, gs, ge, absX, Width);
             col += 2;
         }
+        // 心跳是持续动画：自我置脏让下一帧不早退（否则空闲时心跳冻结）
+        if (TuiManager.Instance != null) TuiManager.Instance.IsDirty = true;
 
         // 2.6 工作模式指示（Shift+Tab 切换）
         {
