@@ -1,0 +1,17 @@
+<!-- 聊天界面（.tui 重构版）-->
+<Screen>
+  <VBox>
+    <Label text="WayCoder 聊天（.tui 声明式重构版）" align="center" fg="cyan" width="60" />
+    <Separator width="60" />
+    <Label id="messages" text="👋 欢迎！按 Tab 聚焦按钮，Enter 触发。" height="10" width="60" />
+    <Separator width="60" />
+    <Input id="input" width="60" placeholder="输入消息，Enter 发送" />
+    <HBox align="center" spacing="2">
+      <Button id="send" text="发送" />
+      <Button id="info" text="信息框" />
+      <Button id="confirm" text="确认框" />
+      <Button id="inputdlg" text="输入框" />
+      <Button id="select" text="选择框" />
+    </HBox>
+  </VBox>
+</Screen>
