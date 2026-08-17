@@ -98,12 +98,23 @@ public static class CheckpointManager
             var stashResult = await RunBashAsync($"git stash push -m \"WayCoder checkpoint #{id}: {description}\" 2>&1");
             if (stashResult.Contains("Saved working directory"))
             {
+                // 记录该检查点的 stash 引用：后续再创建检查点会使 stash@{0} 偏移，
+                // 回退时若总是 pop 最新 stash 会恢复到别的检查点
+                string? stashRef = null;
+                try
+                {
+                    var refResult = await RunBashAsync("git rev-parse stash 2>&1");
+                    if (refResult.Length >= 40 && !refResult.Contains("fatal"))
+                        stashRef = refResult.Trim();
+                }
+                catch { }
                 var cp = new Checkpoint
                 {
                     Id = id,
                     Description = description,
                     Timestamp = timestamp,
-                    Type = CheckpointType.GitStash
+                    Type = CheckpointType.GitStash,
+                    StashRef = stashRef
                 };
                 _checkpoints.Add(cp);
                 return cp;
@@ -220,7 +231,9 @@ public static class CheckpointManager
                 if (filePath != null)
                     return $"Git Stash 检查点 #{target.Id} 不支持按文件恢复。请回退全部文件后重新修改。";
 
-                var result = await RunBashAsync("git stash pop 2>&1");
+                // 用记录的目标 stash 引用（旧检查点无引用时回退最新 stash，保持向后兼容）
+                var stashArgs = string.IsNullOrEmpty(target.StashRef) ? "pop" : $"pop {target.StashRef}";
+                var result = await RunBashAsync($"git stash {stashArgs} 2>&1");
                 _checkpoints.Remove(target);
                 return $"已回退到检查点 #{target.Id}: {target.Description}\n{result}";
             }
@@ -404,6 +417,8 @@ public class Checkpoint
     public string Description { get; set; } = "";
     public DateTime Timestamp { get; set; }
     public CheckpointType Type { get; set; }
+    /// <summary>GitStash 检查点的 stash commit 引用（回退时定位具体 stash，避免总是 pop 最新）。</summary>
+    public string? StashRef { get; set; }
 }
 
 public enum CheckpointType

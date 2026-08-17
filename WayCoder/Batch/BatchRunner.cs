@@ -246,7 +246,9 @@ public sealed class BatchRunner
         try
         {
             using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(timeoutSec));
-            var (code, _, err) = await GitRunner.RunAsync(args, null, cts.Token);
+            // timeoutOverrideMs: 0 = 禁用内部 GitTimeoutSec(默认 15s) 钳制——clone 大仓库远超 15s，
+            // 否则 clone 会被内部 15s 误杀，spec.TimeoutSec(默认 1800s) 完全失效
+            var (code, _, err) = await GitRunner.RunAsync(args, null, cts.Token, timeoutOverrideMs: 0);
             if (code != 0)
                 return $"git clone 失败: {(string.IsNullOrWhiteSpace(err) ? $"exit {code}" : err.Trim())}";
             if (!Directory.Exists(destDir))

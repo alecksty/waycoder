@@ -51,8 +51,10 @@ public static class GitRunner
         => await RunAsync(args, cwd, CancellationToken.None);
 
     /// <summary>异步执行（可取消）：中断时杀掉 git 子进程并抛 OperationCanceledException。</summary>
+    /// <param name="timeoutOverrideMs">内部超时覆盖（毫秒）。0 = 禁用内部 GitTimeoutSec，完全由外部 ct 控制
+    ///（批量 clone 大仓库远超 15s，若被内部 15s 钳制会误报超时）。</param>
     public static async Task<(int ExitCode, string Stdout, string Stderr)> RunAsync(
-        string args, string? cwd, CancellationToken cancellationToken)
+        string args, string? cwd, CancellationToken cancellationToken, int? timeoutOverrideMs = null)
     {
         try
         {
@@ -60,17 +62,20 @@ public static class GitRunner
             // 并发读取 stdout/stderr，避免同步先读 stdout 的死锁。
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
-            using var timeoutCts = new CancellationTokenSource(DefaultTimeoutMs);
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+            int timeoutMs = timeoutOverrideMs ?? DefaultTimeoutMs;
+            using var timeoutCts = timeoutMs > 0 ? new CancellationTokenSource(timeoutMs) : null;
+            using var linked = timeoutCts != null
+                ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token)
+                : null;
             try
             {
-                await proc.WaitForExitAsync(linked.Token);
+                await proc.WaitForExitAsync(linked?.Token ?? cancellationToken);
             }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && timeoutCts != null)
             {
                 // 配置超时（非外部取消）：杀掉进程并返回超时错误
                 try { proc.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
-                return (-1, "", $"git 命令超时（>{DefaultTimeoutMs / 1000}s）: {args}");
+                return (-1, "", $"git 命令超时（>{timeoutMs / 1000}s）: {args}");
             }
             catch (OperationCanceledException)
             {
