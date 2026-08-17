@@ -24,8 +24,8 @@ public static class TuiPreview
         try
         {
             var content = File.ReadAllText(path);
-            var win = TuiMarkup.Load(content);
-            Console.Write(TuiDialog.Show(win));
+            var page = TuiMarkup.Load(content);
+            Console.Write(TuiDialog.Show(page.Window));
             return 0;
         }
         catch (Exception ex)
