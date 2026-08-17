@@ -224,7 +224,20 @@ public static class ProjectContext
             if (File.Exists(headPath))
             {
                 var head = File.ReadAllText(headPath).Trim();
-                info.GitBranch = head.StartsWith("ref: ") ? head["ref: refs/heads/".Length..] : head[..8];
+                // 符号引用：优先 refs/heads/ 分支名；其他 ref（tags/remotes）取最后一段。
+                // 此前只判 "ref: " 却固定切 "ref: refs/heads/".Length（17），对 refs/remotes/origin/main 返回 "/origin/main"；
+                // detached HEAD 的 head[..8] 无长度守卫，短 HEAD 抛 ArgumentOutOfRangeException 被吞、分支静默丢失。
+                if (head.StartsWith("ref: ", StringComparison.Ordinal))
+                {
+                    var refName = head["ref: ".Length..];
+                    info.GitBranch = refName.StartsWith("refs/heads/", StringComparison.Ordinal)
+                        ? refName["refs/heads/".Length..]
+                        : refName[(refName.LastIndexOf('/') + 1)..];
+                }
+                else
+                {
+                    info.GitBranch = head.Length >= 8 ? head[..8] : head;
+                }
             }
 
             // 读取 git remote

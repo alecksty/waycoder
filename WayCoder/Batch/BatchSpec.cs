@@ -17,9 +17,9 @@ public sealed class BatchJob
     /// <summary>可选分支（git clone -b）。</summary>
     public string? Branch { get; init; }
 
-    /// <summary>用于目录命名/报告显示的名字（Name 优先，回退仓库名提取）。</summary>
+    /// <summary>用于目录命名/报告显示的名字（Name 优先，回退仓库名提取）。始终经 SanitizeName 清洗，防止 Name 含 ../ 或绝对路径导致目录穿越。</summary>
     public string DisplayName =>
-        string.IsNullOrWhiteSpace(Name) ? BatchSpec.SanitizeName(Repo) : Name;
+        BatchSpec.SanitizeName(string.IsNullOrWhiteSpace(Name) ? Repo : Name);
 }
 
 /// <summary>
