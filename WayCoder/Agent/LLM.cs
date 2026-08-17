@@ -663,7 +663,9 @@ public class LLM
         int timeoutSeconds = -1,
         int maxRetries = -1)
     {
-        var effectiveMaxRetries = maxRetries > 0 ? maxRetries : Config.Instance.LlmMaxRetries;
+        // LlmMaxRetries 语义是「重试次数」，配置允许 0（不重试）。但 0 会让 for 循环一次都不执行、
+        // 直接抛「重试耗尽」，每轮对话每次模型调用都失败。0 次重试应至少尝试 1 次。
+        var effectiveMaxRetries = maxRetries > 0 ? maxRetries : Math.Max(1, Config.Instance.LlmMaxRetries);
         var baseTimeoutSec = timeoutSeconds > 0 ? timeoutSeconds : Config.Instance.LlmHttpTimeoutSec;
 
         for (int attempt = 0; attempt < effectiveMaxRetries; attempt++)

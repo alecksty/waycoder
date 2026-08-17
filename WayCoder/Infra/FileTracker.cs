@@ -95,6 +95,24 @@ public static class FileTracker
                 var absPath = Path.GetFullPath(filePath);
                 if (!File.Exists(absPath)) return;
 
+                // LRU 淘汰：写入新路径同样执行上限淘汰。此前 RecordWrite 只增不减，
+                // 大规模写入会令 Tracked/LastReadTimes 无界增长（违反 MaxTracked 上限）。
+                if (!Tracked.ContainsKey(absPath) && Tracked.Count >= MaxTracked)
+                {
+                    string? oldest = null;
+                    DateTime oldestTime = DateTime.MaxValue;
+                    foreach (var path in Tracked.Keys)
+                    {
+                        var t = LastReadTimes.TryGetValue(path, out var v) ? v : DateTime.MinValue;
+                        if (t < oldestTime) { oldestTime = t; oldest = path; }
+                    }
+                    if (oldest != null)
+                    {
+                        Tracked.Remove(oldest);
+                        LastReadTimes.Remove(oldest);
+                    }
+                }
+
                 var hash = ComputeHash(absPath);
                 Tracked[absPath] = hash;
                 // Agent 自己写入后同步「读取时间」，避免下一次编辑被 ValidatePreEdit

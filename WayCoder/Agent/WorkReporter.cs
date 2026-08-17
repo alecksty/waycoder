@@ -246,8 +246,16 @@ public static class WorkReporter
                 var start = idx;
                 while (idx < args.Length)
                 {
-                    if (args[idx] == '"' && args[idx - 1] != '\\')
-                        break;
+                    if (args[idx] == '"')
+                    {
+                        // 统计前导反斜杠：偶数个 → 真结束符；奇数个 → 引号被转义（如 "C:\\dir\\" 的尾引号）。
+                        // 此前只看前一个字符，遇到 \\" 误判为被转义、遇到 \" 误判为结束，摘要截错后续 JSON。
+                        int backslashes = 0;
+                        for (int j = idx - 1; j >= 0 && args[j] == '\\'; j--)
+                            backslashes++;
+                        if (backslashes % 2 == 0)
+                            break;
+                    }
                     idx++;
                 }
                 var val = args[start..idx];

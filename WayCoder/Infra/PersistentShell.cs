@@ -184,7 +184,9 @@ public static class PersistentShellManager
 {
     private static readonly Dictionary<string, PersistentShell> _shells = new();
     private static readonly SemaphoreSlim _lock = new(1, 1);
-    private static readonly long IdleTimeoutTicks = TimeSpan.FromMinutes(5).Ticks;
+    // 单位毫秒，与 Environment.TickCount64 一致。此前 TimeSpan.FromMinutes(5).Ticks 是 100 纳秒（3e9），
+    // 与毫秒差值比较，5 分钟回收实际约 34.7 天，空闲 shell 进程长期不释放。
+    private static readonly long IdleTimeoutMs = 5L * 60 * 1000;
 
     /// <summary>在指定会话中执行命令（会话不存在则创建）。</summary>
     public static async Task<string> RunAsync(string sessionId, string command, int timeoutSec)
@@ -213,7 +215,7 @@ public static class PersistentShellManager
     {
         var now = Environment.TickCount64;
         var stale = _shells
-            .Where(kv => !kv.Value.IsAlive || (now - kv.Value.LastUsedTicks) > IdleTimeoutTicks)
+            .Where(kv => !kv.Value.IsAlive || (now - kv.Value.LastUsedTicks) > IdleTimeoutMs)
             .Select(kv => kv.Key)
             .ToList();
         foreach (var key in stale)

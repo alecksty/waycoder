@@ -241,7 +241,19 @@ public static class StructuredMemory
 
         // TF-IDF 语义评分
         var scored = SemanticMemory.SearchEntries(all, query, topN);
-        if (scored.Count == 0) return "";
+        if (scored.Count == 0)
+        {
+            // 子串兜底：单字 CJK 查询（如「汉」）在 TF-IDF 层与多字记忆的 bigram 无交集 → 0 分，
+            // 直接子串匹配（与 Search 的兜底对齐），避免相关记忆注入系统提示词静默失效。
+            var q = query.ToLowerInvariant();
+            scored = all
+                .Where(e => e.Name.ToLowerInvariant().Contains(q)
+                    || e.Description.ToLowerInvariant().Contains(q)
+                    || e.Content.ToLowerInvariant().Contains(q))
+                .Take(topN)
+                .Select(e => (e, 1.0))
+                .ToList();
+        }
 
         var sb = new System.Text.StringBuilder();
         var totalChars = 0;
