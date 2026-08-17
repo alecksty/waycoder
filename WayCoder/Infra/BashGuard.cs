@@ -167,22 +167,25 @@ public static class BashGuard
         {
             var segParts = segment.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (segParts.Length == 0) continue;
-            // 命令名剥离引号（'sudo' / "sudo" 与 sudo 等价——Shell 执行时会剥离引号，
-            // 若不剥则绕过 AllBanned/ArgBlockRules 名单检查）
-            if (segParts[0].Length >= 2 &&
-                ((segParts[0][0] == '\'' && segParts[0][^1] == '\'') ||
-                 (segParts[0][0] == '"' && segParts[0][^1] == '"')))
-                segParts[0] = segParts[0][1..^1];
-            var segCmd = Path.GetFileName(segParts[0]).ToLowerInvariant();
+
+            // 剥离命令名的子 shell 分组括号与前导引号（'(sudo' → 'sudo'、'\'sudo\'' → 'sudo'）
+            StripCommandToken(segParts);
+
+            // 跳过 env/command/nohup/timeout/nice 等 pass-through 包装命令，定位真实命令
+            // （否则 `env sudo apt` 只查 env、`(sudo apt)` 只查 (sudo，均绕过黑名单）
+            int cmdIdx = FindCommandIndex(segParts);
+            if (cmdIdx >= segParts.Length) continue;
+            var segCmd = Path.GetFileName(segParts[cmdIdx]).ToLowerInvariant();
 
             // 1. 完全禁止
             if (AllBanned.Contains(segCmd))
                 return (true, $"⚠ 已阻止：{segCmd} 在禁止命令列表中（安全策略）");
 
-            // 2. 参数级检查
+            // 2. 参数级检查（用真实命令及其后续参数）
+            var cmdParts = segParts[cmdIdx..];
             foreach (var rule in ArgBlockRules)
             {
-                if (rule.Match(segParts))
+                if (rule.Match(cmdParts))
                 {
                     var blockedArgs = string.Join(" ", rule.BlockArgs ?? rule.Flags ?? []);
                     return (true, $"⚠ 已阻止：{segCmd} {blockedArgs}（安全策略：全局安装/系统修改被阻止）");
@@ -191,6 +194,78 @@ public static class BashGuard
         }
 
         return (false, null);
+    }
+
+    /// <summary>剥离命令段首 token 的子 shell 分组括号与前导引号。</summary>
+    private static void StripCommandToken(string[] parts)
+    {
+        if (parts.Length == 0) return;
+        var s = parts[0];
+        int i = 0;
+        while (i < s.Length && s[i] == '(') i++; // 子 shell 分组 `(cmd ...`
+        s = s[i..];
+        if (s.Length >= 2 && ((s[0] == '\'' && s[^1] == '\'') || (s[0] == '"' && s[^1] == '"')))
+            s = s[1..^1]; // 命令名引号
+        parts[0] = s;
+    }
+
+    /// <summary>
+    /// 定位命令段中真正的命令下标：跳过 env/command/nohup/timeout/nice 等 pass-through 包装命令及其前置参数。
+    /// 返回 parts 下标（越界返回 parts.Length）。
+    /// </summary>
+    private static int FindCommandIndex(string[] parts)
+    {
+        if (parts.Length == 0) return 0;
+        var cmd = Path.GetFileName(parts[0]).ToLowerInvariant();
+        switch (cmd)
+        {
+            case "env":
+            {
+                int i = 1;
+                while (i < parts.Length)
+                {
+                    var p = parts[i];
+                    if (p.Contains('=') || p == "-i" || p == "--ignore-environment"
+                        || p == "-0" || p == "--null" || p == "--"
+                        || p == "-C" || p == "--chdir" || p == "-S" || p == "--split-string")
+                        i++;
+                    else if (p == "-u" || p == "--unset")
+                        i += 2;
+                    else
+                        break;
+                }
+                return i;
+            }
+            case "command":
+            {
+                int i = 1;
+                if (i < parts.Length && (parts[i] == "-v" || parts[i] == "-V" || parts[i] == "-p"))
+                    i++;
+                return i;
+            }
+            case "timeout":
+            {
+                int i = 1;
+                while (i < parts.Length && parts[i].StartsWith('-')) i++;
+                if (i < parts.Length) i++; // 时长参数
+                return i;
+            }
+            case "nice":
+            {
+                int i = 1;
+                if (i < parts.Length && parts[i] == "-n") i += 2;
+                else if (i < parts.Length && parts[i].StartsWith("--adjustment=")) i++;
+                return i;
+            }
+            case "nohup":
+            case "exec":
+            case "setsid":
+            case "stdbuf":
+            case "chroot":
+                return 1;
+            default:
+                return 0;
+        }
     }
 
     /// <summary>提取命令中的命令替换内容（$() 与反引号），供递归安全检查。</summary>

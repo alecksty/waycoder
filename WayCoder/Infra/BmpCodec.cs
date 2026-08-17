@@ -11,7 +11,11 @@ public static class BmpCodec
 
     public static byte[] Encode(RasterImage img)
     {
+        if (img == null) throw new ArgumentNullException(nameof(img));
         int width = img.Width, height = img.Height;
+        // 防整数溢出：width*3、rowSize*height 均可能溢出 int（如 10 万×10 万）
+        if (width <= 0 || height <= 0) throw new ArgumentException("宽高必须为正整数");
+        if ((long)width * height > MaxPixels) throw new ArgumentException("图像尺寸过大");
         int rowSize = ((width * 3 + 3) / 4) * 4; // 4 字节对齐
         int imageSize = rowSize * height;
         int dataOffset = 14 + 40;

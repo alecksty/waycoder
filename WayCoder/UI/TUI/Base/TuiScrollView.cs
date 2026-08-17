@@ -63,11 +63,12 @@ public class TuiScrollView : TuiView
     /// <param name="absY">绝对 Y 坐标</param>
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
-        // 调整裁剪区域：Y 偏移减去滚动量
+        // 调整裁剪区域：Y 偏移减去滚动量。须与父容器裁剪区取交集，否则嵌套在更紧裁剪的
+        // 父容器内时，子控件会越过父裁剪边界越界绘制。
         var savedTop = ClipTop;
         var savedBottom = ClipBottom;
-        ClipTop = absY;
-        ClipBottom = absY + Height;
+        ClipTop = Math.Max(savedTop, absY);
+        ClipBottom = Math.Min(savedBottom, absY + Height);
 
         foreach (var child in Children)
         {

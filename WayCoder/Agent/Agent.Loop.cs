@@ -303,7 +303,9 @@ public partial class Agent
                 _ => $"严重警告：你已经多次重复相同的无效操作{dupNote}。立即停止当前方法。回顾整个任务目标，从第一步重新开始，使用完全不同的工具或顺序。如有必要，向用户报告卡住的原因。",
             };
 
-            messages.Add(JNode.Object()
+            // 用 AddMessage（持 MessagesLock）而非直接 messages.Add，否则与外部 SnapshotMessages 并发时
+            // List<T> 在 Add 期间被 ToList() 枚举会抛 InvalidOperationException 或读到撕裂状态
+            AddMessage(JNode.Object()
                 .Set("role", "user")
                 .Set("content", nudge));
 

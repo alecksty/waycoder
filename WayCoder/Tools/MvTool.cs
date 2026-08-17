@@ -115,7 +115,9 @@ public class MvTool : ITool
 
     private static void CopyDirectory(string srcDir, string destDir, int depth = 0)
     {
-        if (depth > 64) return; // 深度上限防符号链接环无限递归 → StackOverflow
+        // 深度上限防符号链接环无限递归 → StackOverflow。不能静默 return：
+        // 否则 mv 跨盘回退会随后 Directory.Delete 删掉源目录，>64 层深的文件静默丢失
+        if (depth > 64) throw new IOException("目录层级过深（>64 层），已中止以避免数据丢失");
         Directory.CreateDirectory(destDir);
         foreach (var file in Directory.GetFiles(srcDir))
             File.Copy(file, Path.Combine(destDir, Path.GetFileName(file)));

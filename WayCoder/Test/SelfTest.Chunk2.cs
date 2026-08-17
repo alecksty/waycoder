@@ -136,6 +136,36 @@ public static partial class SelfTest
         }
         Console.WriteLine();
 
+        // ---- frontmatter 解析边界（未闭合不污染正文）----
+        Section("[StructuredMemory.ParseFrontmatter]");
+        var pfOk = StructuredMemory.ParseFrontmatter("---\nname: x\ndescription: d\n---\n正文内容");
+        Check("frontmatter 正常解析 name", pfOk.Frontmatter.GetValueOrDefault("name") == "x");
+        Check("frontmatter 正常解析正文", pfOk.Body == "正文内容");
+        var pfUnclosed = StructuredMemory.ParseFrontmatter("---\nname: x\ndescription: d\n正文内容\n带:冒号的行");
+        Check("frontmatter 未闭合 name 为空", !pfUnclosed.Frontmatter.ContainsKey("name"));
+        Check("frontmatter 未闭合正文=全文", pfUnclosed.Body.StartsWith("---") && pfUnclosed.Body.Contains("正文内容"));
+        Console.WriteLine();
+
+        // ---- Watch 模式 AI 注释提取（块注释后跟行注释不再吞）----
+        Section("[WatchMode]");
+        var wc = WatchMode.ExtractAiComments("/* block */ // AI! 块后行注释", "test.cs");
+        Check("Watch 块注释后行注释", wc.Count == 1 && wc[0] == "块后行注释");
+        var wc2 = WatchMode.ExtractAiComments("/* AI! 多行\n第二行 */ // AI! 块后", "test.cs");
+        Check("Watch 多行块注释结束后行注释", wc2.Count == 2 && wc2[0] == "多行" && wc2[1] == "块后");
+        var wc3 = WatchMode.ExtractAiComments("// AI! 普通行注释", "test.cs");
+        Check("Watch 普通行注释", wc3.Count == 1 && wc3[0] == "普通行注释");
+        Console.WriteLine();
+
+        // ---- 项目检测忽略目录：按路径段精确匹配（非前缀）----
+        Section("[ProjectContext.IsIgnoredPath]");
+        Check("忽略 .git 段", ProjectContext.IsIgnoredPath(".git/config"));
+        Check("忽略 node_modules 段", ProjectContext.IsIgnoredPath("a/node_modules/x.js"));
+        Check("忽略 bin 段", ProjectContext.IsIgnoredPath("bin/out.dll"));
+        Check("不误伤 .github", !ProjectContext.IsIgnoredPath(".github/workflows/ci.yml"));
+        Check("不误伤 bin-tools", !ProjectContext.IsIgnoredPath("bin-tools/src.cs"));
+        Check("不误伤 objc", !ProjectContext.IsIgnoredPath("objc/file.m"));
+        Console.WriteLine();
+
         // ---- 后台任务 ----
         Section("[后台任务]");
         var bgId = BackgroundTaskManager.Start("echo bg_test", 5);

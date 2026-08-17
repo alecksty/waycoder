@@ -59,7 +59,7 @@ public class TodoTool : ITool
     // ── 持久化路径 ──
 
     private static string StorePath => Path.Combine(
-        Environment.CurrentDirectory, ".waycoder", "todos.json");
+        BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory(), ".waycoder", "todos.json"); // cd 后基于被跟踪工作目录，而非进程启动目录
 
     // ── 公共访问（兼容旧代码：SelfTest、ChatScreen 侧栏、TodoCommand）──
 

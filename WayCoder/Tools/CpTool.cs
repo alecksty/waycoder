@@ -93,7 +93,8 @@ public class CpTool : ITool
 
     private static void CopyDirectory(string srcDir, string destDir, bool overwrite, int depth = 0)
     {
-        if (depth > 64) return; // 深度上限防符号链接环无限递归 → StackOverflow
+        // 深度上限防符号链接环无限递归 → StackOverflow。抛错而非静默 return，避免产生不完整副本
+        if (depth > 64) throw new IOException("目录层级过深（>64 层），已中止复制");
         Directory.CreateDirectory(destDir);
         foreach (var file in Directory.GetFiles(srcDir))
         {

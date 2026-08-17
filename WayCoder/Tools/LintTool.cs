@@ -282,8 +282,9 @@ public class LintTool : ITool
             if (parent == dir) break;
             dir = parent;
         }
-        // Fallback: return target as-is
-        return target;
+        // Fallback：返回空串表示未找到（不能返回 target——File.Exists(target) 对文件目标恒为 true，
+        // 会使 FindJavaLinter 永远命中 gradle 分支、maven/javac 回退不可达）
+        return "";
     }
 
     private static (string, string) FindJavaLinter(string target)

@@ -87,7 +87,7 @@ public class GitPRTool : ITool
             return $"提示：{currentBranch} 分支没有相对于 {baseBranch} 的新提交。\n是否已推送？使用 `git push -u origin {currentBranch}`";
 
         // 4. 推送
-        var pushResult = RunGit(repoRoot, $"push -u origin {currentBranch} 2>&1");
+        var pushResult = RunGit(repoRoot, $"push -u origin {currentBranch}");
         var pushed = !pushResult.Contains("fatal") && !pushResult.Contains("error");
 
         // 5. 生成 PR URL
@@ -118,7 +118,7 @@ public class GitPRTool : ITool
         if (repoRoot == null) return "错误：未找到 Git 仓库";
 
         var branch = RunGit(repoRoot, "rev-parse --abbrev-ref HEAD").Trim();
-        var result = RunGit(repoRoot, $"push -u origin {branch} 2>&1");
+        var result = RunGit(repoRoot, $"push -u origin {branch}");
 
         return result.Contains("fatal") || result.Contains("error")
             ? $"推送失败：\n{result}"
@@ -172,7 +172,7 @@ public class GitPRTool : ITool
         // 检查远程默认分支
         try
         {
-            var remote = RunGit(repoRoot, "remote show origin 2>&1");
+            var remote = RunGit(repoRoot, "remote show origin");
             var m = Regex.Match(remote, @"HEAD branch:\s*(\S+)");
             if (m.Success) return m.Groups[1].Value;
         }
@@ -183,7 +183,7 @@ public class GitPRTool : ITool
 
     private static (string? url, string platform, string owner, string repo) DetectRemote(string repoRoot)
     {
-        var remoteUrl = RunGit(repoRoot, "remote get-url origin 2>&1").Trim();
+        var remoteUrl = RunGit(repoRoot, "remote get-url origin").Trim();
         if (string.IsNullOrEmpty(remoteUrl) || remoteUrl.Contains("fatal"))
             return (null, "", "", "");
 
@@ -237,6 +237,9 @@ public class GitPRTool : ITool
 
     private static string RunGit(string workingDir, string arguments)
     {
-        return GitRunner.Output(arguments, workingDir);
+        // git 的错误信息（fatal/error）走 stderr，且无 shell 环境下 `2>&1` 不会重定向而会成为
+        // 字面参数；故用 Run 同时取 stdout+stderr 合并，调用方据此判断成功与否。
+        var (code, stdout, stderr) = GitRunner.Run(arguments, workingDir);
+        return string.IsNullOrEmpty(stderr) ? stdout : stdout + "\n" + stderr;
     }
 }
