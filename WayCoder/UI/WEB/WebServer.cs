@@ -149,6 +149,16 @@ public sealed class HttpServer
             {
                 try { await WriteResponseAsync(stream, PayloadTooLarge()); } catch { }
             }
+            catch (Infra.JsonParseException)
+            {
+                // 畸形 JSON 请求体：返回 400 JSON（原静默关闭连接，前端 fetch 无反馈只能吞错误）
+                try
+                {
+                    var body = Encoding.UTF8.GetBytes("{\"ok\":false,\"error\":\"请求体不是有效 JSON\"}");
+                    await WriteResponseAsync(stream, new HttpResponse { Status = 400, Reason = "Bad Request", Body = body });
+                }
+                catch { }
+            }
         }
         catch { /* 连接异常静默关闭 */ }
         finally

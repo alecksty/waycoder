@@ -70,6 +70,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
     public void Start()
     {
+        // 启动时清理历史上传临时文件（上次运行残留未清理的图片/音频）
+        try { if (Directory.Exists(UploadDir)) Directory.Delete(UploadDir, true); } catch { }
         _server.OnRequest = HandleRequest;
         _server.OnSse = HandleSseAsync;
         _server.Start();
@@ -260,8 +262,12 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             // 换模型副作用（需访问实例 Interrupt + EnsureSlot）
             if (cmdLower == "/model" && spaceIdx >= 0)
             {
-                Interrupt(slot);
                 var name = trimmed[(spaceIdx + 1)..].Trim();
+                // /model list 列出模型（避免被当成模型名搜索返回「未知模型」，也不打断运行中的任务）
+                if (name is "list" or "ls" or "-l")
+                    return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true)
+                        .Set("output", WebModelListText()).ToJson());
+                Interrupt(slot);
                 var matches = ModelCatalog.Search(name);
                 if (matches.Length == 0)
                     return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true)
@@ -732,8 +738,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     private async Task HandleSseAsync(HttpRequest req, StreamWriter writer)
     {
         var clientId = ParseClientQuery(req.Query);
-        var slot = ResolveSlot(clientId);
-        var client = new SseClient { Writer = writer, ClientId = clientId ?? "", SlotIndex = slot };
+        // 先查满再 ResolveSlot：满员提前 return 会跳过 finally，导致 _clientSlot 绑定永久泄漏
         lock (_lock)
         {
             if (SseClientsFull(_clients.Count))
@@ -741,6 +746,11 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 try { writer.Write(HttpServer.SseEvent("failed", "\"连接数已达上限\"")); } catch { }
                 return; // 拒绝超出上限的 SSE 连接（writer 由调用方 WriteSseAsync 的 using 释放）
             }
+        }
+        var slot = ResolveSlot(clientId);
+        var client = new SseClient { Writer = writer, ClientId = clientId ?? "", SlotIndex = slot };
+        lock (_lock)
+        {
             _clients.Add(client);
         }
         try
@@ -759,13 +769,20 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         catch { /* 连接断开 */ }
         finally
         {
-            lock (_lock)
+            lock (_lock) _clients.Remove(client);
+            // 延迟清理槽位绑定：立即删除会导致断线重连（同 clientId 自动重连）槽位跳变、
+            // 页面静默切到另一个槽位；30 秒后仍无该 clientId 的连接才释放（防字典无界增长）。
+            if (clientId != null)
             {
-                _clients.Remove(client);
-                // 清理客户端槽位绑定：仅当没有其他 SSE 连接仍使用该 clientId 时才释放，
-                // 防止字典无界增长 + 旧 clientId 永久占用槽位（反复刷新后新客户端回退槽位 0 串扰）。
-                if (clientId != null && !_clients.Any(c => c.ClientId == clientId))
-                    _clientSlot.Remove(clientId);
+                _ = Task.Run(async () =>
+                {
+                    try { await Task.Delay(30_000); } catch { return; }
+                    lock (_lock)
+                    {
+                        if (!_clients.Any(c => c.ClientId == clientId))
+                            _clientSlot.Remove(clientId);
+                    }
+                });
             }
             // 与 Broadcast 的写共用锁，避免对已释放 writer 的并发写
             lock (client.WriteLock) { try { writer.Dispose(); } catch { } }
@@ -816,7 +833,17 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         // 每客户端串行写：防止流式回调与 HandleRequest 并发广播时帧交错损坏
         lock (c.WriteLock)
         {
-            try { c.Writer.Write(sse); }
+            try
+            {
+                // 带超时写：客户端停止读 SSE（后台标签页/暂停）时同步 Write 会永久阻塞
+                // 拖死整个 Agent 循环——用 WriteAsync + 超时，超时即剔除该客户端
+                var writeTask = c.Writer.WriteAsync(sse);
+                if (!writeTask.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    c.Closed.TrySetResult();
+                    return;
+                }
+            }
             catch { c.Closed.TrySetResult(); }
         }
     }
