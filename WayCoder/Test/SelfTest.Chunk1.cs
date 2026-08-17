@@ -137,6 +137,7 @@ public static partial class SelfTest
         TestV0717RuneSafeWrap(Check);         // v0.71.17 批次：WrapLine 兜底按码点取断点（首字符 emoji 不切半）
         TestV0717UiDeterministic(Check);      // v0.71.17 批次：撤销栈修剪方向 / 全分隔线菜单空序列 / BoxBuffer 负宽度
         TestV0718SharedMemoryGet(Check);      // v0.71.18 批次：StructuredMemory.Get 共享记忆按名回退查找（槽位优先）
+        TestV0719CjkExtB(Check);              // v0.71.19 批次：SemanticMemory.Tokenize 扩展 B 区汉字（代理对）召回修复
         Console.WriteLine();
 
         // ---- 工具 ----

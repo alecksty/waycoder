@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.71.19 (2026-08-17) — 语义记忆扩展 B 区汉字召回修复（Tokenize 代理对）
+
+`SemanticMemory.IsCJK` 只覆盖 BMP 内 CJK 区间，`Tokenize` 按 `char`（UTF-16 码元）迭代，导致 CJK 扩展 B 区汉字（U+20000–U+2A6DF，UTF-16 代理对，如 𠮷、𩸽 等常见于人名/地名）落入 `i++` 被**静默丢弃**——既不参与 bigram 也不成为单 token，含扩展 B 的记忆按扩展 B 关键词查询时召回失败。属召回率缺陷而非崩溃/数据损坏。
+
+### 🐛 修复
+
+- **`SemanticMemory.Tokenize` 扩展 B 代理对处理**：在跳过空白/标点后、CJK 判断前，识别 `高代理项+低代理项` 并解出完整码点；若落在扩展 B 区间则作为**单个 token**加入（扩展 B 罕见字按单字索引、无需 bigram），其余代理对（emoji 等）成对跳过——同时避免旧代码把 emoji 逐 `char` 丢弃时的低效迭代。BMP 基本区汉字 bigram 逻辑不变。
+
+### ✅ 测试
+
+新增 `TestV0719CjkExtB`（5 项断言）：`Tokenize("𠮷野家")` 保留扩展 B 字「𠮷」为单 token + BMP「野家」bigram 正常 + 无孤立代理项；emoji 代理对成对跳过不产生 token；`SearchRelevant` 用扩展 B 查询命中含扩展 B 的记忆。测试总数 3265 → 3270。
+
 ## v0.71.18 (2026-08-17) — 共享记忆按名查找修复（StructuredMemory.Get 双目录回退）
 
 记忆系统的共享记忆在 `ListAll()`/`Search()` 里能被加载（`ListAll` 遍历 `SharedMemoryDir` + `SlotMemoryDir` 两个目录），但 `Get(name)` 只经 `NameToPath` 解析到槽位独立目录（`MemoryDir => SlotMemoryDir`），导致共享记忆（如 `SharedMemoryManager.PullSharedAsync` 拉取的团队记忆、或 `GetRelevantContext` 里 `[[wiki-link]]` 交叉引用指向的共享记忆）**按名查不到，返回 null**。而 `Update`/`SetShared`/`GetRelevantContext` 均先 `Get(name)`，于是团队共享记忆无法被更新、无法展开交叉引用描述。

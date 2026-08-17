@@ -104,6 +104,17 @@ public static class SemanticMemory
                 continue;
             }
 
+            // CJK 扩展 B 区汉字（U+20000–U+2A6DF）是 UTF-16 代理对，char.IsCJK 无法识别。
+            // 按完整码点作为单个 token 加入，避免被 char 迭代静默丢弃（召回率缺陷）。
+            if (char.IsHighSurrogate(c) && i + 1 < span.Length && char.IsLowSurrogate(span[i + 1]))
+            {
+                int codePoint = (c - 0xD800) * 0x400 + (span[i + 1] - 0xDC00) + 0x10000;
+                if (codePoint >= 0x20000 && codePoint <= 0x2A6DF)
+                    tokens.Add(span.Slice(i, 2).ToString());
+                i += 2;
+                continue;
+            }
+
             // CJK 字符 — 收集连续的 CJK 字符做 bigram
             if (IsCJK(c))
             {
