@@ -23,6 +23,9 @@ public class TuiButton : TuiControl
     /// <summary>快捷键字符在文本中的索引（用于下划线标记），-1 = 无</summary>
     public int UnderlineIndex { get; set; } = -1;
 
+    /// <summary>快捷键（标记 shortcut="Y" 解析；窗口 OnKey 匹配后触发 OnClick）。</summary>
+    public ConsoleKey? ShortcutKey { get; set; }
+
     /// <summary>是否被选中/高亮</summary>
     public bool IsSelected { get; set; }
 
