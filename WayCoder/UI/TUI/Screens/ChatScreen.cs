@@ -424,7 +424,7 @@ public partial class ChatScreen : TuiScreen
         {
             Width = TW,
             Height = 1,
-            LineChar = "━",
+            LineChar = "─",
             LineColor = TuiTheme.Current.SeparatorFg
         };
 
@@ -453,7 +453,7 @@ public partial class ChatScreen : TuiScreen
         InputBotBorder = new TuiSeparator
         {
             Width = TW, Height = 1,
-            LineChar = "━", LineColor = TuiTheme.Current.SeparatorFg
+            LineChar = "─", LineColor = TuiTheme.Current.SeparatorFg
         };
         RootView.Add(InputBotBorder);
 
