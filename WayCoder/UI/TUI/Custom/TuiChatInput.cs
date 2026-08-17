@@ -520,7 +520,7 @@ public static class TuiChatInput
             ? "多行" : "聊天";
         var chCount = hardLines.Sum(l => l.Length);
         var status = $" {modeLabel}  L{cy + 1}:C{cx + 1}  {chCount}字符  Enter发送 Ctrl+Enter换行 Esc取消";
-        var statusMax = tw - 4;
+        var statusMax = Math.Max(0, tw - 4);
         if (status.Length > statusMax) status = status[..statusMax];
         sb.Append(AnsiTty.SgrDim);
         sb.Append($"│ {status}{new string(' ', Math.Max(0, statusMax - status.Length + 1))}│");

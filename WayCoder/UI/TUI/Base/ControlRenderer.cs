@@ -151,12 +151,14 @@ public static class ControlRenderer
 
         // 单次定位，逐字换背景色，中间不重置不重定位
         sb.Append(AnsiTty.CursorPos0(absY, absX));
-        for (int i = 0; i < display.Length; i++)
+        int charIdx = 0;
+        foreach (var rune in display.EnumerateRunes())
         {
-            float t = display.Length > 1 ? (float)i / (display.Length - 1) : 0;
+            float t = display.Length > 1 ? (float)charIdx / (display.Length - 1) : 0;
             int bg = AnsiTty.LerpRgb(startBg, endBg, t);
             sb.Append(AnsiTty.FgBgCode(fg, bg));
-            sb.Append(display[i]);
+            sb.Append(rune.ToString()); // 逐 rune 输出，避免切半代理对成 U+FFFD
+            charIdx += rune.Utf16SequenceLength;
         }
 
         // 末尾重置

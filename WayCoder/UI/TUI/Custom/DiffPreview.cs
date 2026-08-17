@@ -174,8 +174,8 @@ public static class DiffPreview
 
         void SkipCurrent()
         {
-            if (accepted.Contains(diff.CurrentHunk)) accepted.Remove(diff.CurrentHunk);
-            else diff.SetCurrentHunk(diff.CurrentHunk + 1);
+            // N=跳过当前 hunk：保留已接受的 hunk（不取消），前进到下一个（SetCurrentHunk 内部钳制）
+            diff.SetCurrentHunk(diff.CurrentHunk + 1);
             diff.MarkDirty();
             UpdateStatus();
         }

@@ -150,6 +150,7 @@ public static partial class SelfTest
         TestV0729BoundsAndRunes(Check);       // v0.71.29 批次：整数参数钳制 + 编辑器跳列代理对 + 窄宽截断 + 上下文窗口下限
         TestV0730SlotAsyncLocal(Check);       // v0.71.30 批次：记忆槽位 AsyncLocal 隔离（多槽位并行不串记忆目录）
         TestV0730LowSeverity(Check);          // v0.71.30 批次：grep 幻影空行 + cd ~ 前缀展开
+        TestV0730UiUndo(Check);               // v0.71.30 批次：文本域撤销栈健壮性 + 编辑器替换可撤销
         Console.WriteLine();
 
         // ---- 工具 ----

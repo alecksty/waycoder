@@ -220,7 +220,11 @@ public static class AnsiTty
         if (bg <= 0) return FgCode(fg);
 
         // 两者都是标准 ANSI 16 色可合并为 \x1b[fg;bg m
-        bool bothStd = fg < 256 && bg < 256 && fg < 0x1000000 && bg < 0x1000000;
+        // 仅标准 ANSI 16 色区间可合并为 \x1b[fg;bg m；256 色码（16-255）须各自走 38;5;/48;5;，
+        // 否则 SGR 参数 21/232 等被当作非颜色码处理，前景/背景丢失
+        static bool IsStdFg(int c) => c is >= 30 and <= 37 or >= 90 and <= 97;
+        static bool IsStdBg(int c) => c is >= 40 and <= 47 or >= 100 and <= 107;
+        bool bothStd = IsStdFg(fg) && IsStdBg(bg);
         if (bothStd) return $"{FgBg(fg, bg)}";
 
         return FgCode(fg) + BgCode(bg);

@@ -376,8 +376,8 @@ public class TuiWindow : TuiBase
         {
             int dx = ev.MouseX - _dragStartX;
             int dy = ev.MouseY - _dragStartY;
-            X = Math.Clamp(_winStartX + dx, 0, Tty.Cols - Width);
-            Y = Math.Clamp(_winStartY + dy, 0, Tty.Rows - Height);
+            X = Math.Clamp(_winStartX + dx, 0, Math.Max(0, Tty.Cols - Width));
+            Y = Math.Clamp(_winStartY + dy, 0, Math.Max(0, Tty.Rows - Height));
             RootView.MarkDirty(); // 位置变化 → 需要全量重绘窗口
             return true;
         }
@@ -513,9 +513,9 @@ public class TuiWindow : TuiBase
                 break;
         }
 
-        // 尺寸约束
-        newW = Math.Clamp(newW, MinWidth, MaxWidth > 0 ? MaxWidth : Tty.Cols);
-        newH = Math.Clamp(newH, MinHeight, MaxHeight > 0 ? MaxHeight : Tty.Rows);
+        // 尺寸约束（终端比最小尺寸还窄时上限取最小值，避免 Math.Clamp min>max 抛异常）
+        newW = Math.Clamp(newW, MinWidth, Math.Max(MinWidth, MaxWidth > 0 ? MaxWidth : Tty.Cols));
+        newH = Math.Clamp(newH, MinHeight, Math.Max(MinHeight, MaxHeight > 0 ? MaxHeight : Tty.Rows));
 
         // 位置约束
         if (newX < 0) { newW += newX; newX = 0; }
