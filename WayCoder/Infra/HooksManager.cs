@@ -620,7 +620,7 @@ public static class HooksManager
 
             var output = string.IsNullOrEmpty(stderr) ? stdout.Trim() : stderr.Trim();
 
-            DebugLog.Log("hooks", $"[{eventType}] {toolName} → exit={proc.ExitCode} output={output[..Math.Min(output.Length, 200)]}");
+            DebugLog.Log("hooks", $"[{eventType}] {toolName} → exit={proc.ExitCode} output={ContextManager.TruncateByRunes(output, 200)}");
 
             return (proc.ExitCode, output);
         }

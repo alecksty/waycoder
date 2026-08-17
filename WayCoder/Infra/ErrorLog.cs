@@ -156,7 +156,7 @@ public static class ErrorLog
             foreach (var (k, v) in args)
             {
                 if (k == "content" || k == "old_string" || k == "new_string")
-                    context[k] = v?.ToString()?[..Math.Min(100, v.ToString()!.Length)] + "...";
+                    context[k] = ContextManager.TruncateByRunes(v?.ToString() ?? "", 100) + "...";
                 else
                     context[k] = v?.ToString();
             }
@@ -286,9 +286,9 @@ public static class ErrorLog
             {
                 sb.AppendLine();
                 sb.Append(new string(' ', 34));
-                // 截取前 500 字符的堆栈
-                var stack = ex.StackTrace;
-                if (stack.Length > 500) stack = stack[..500] + "...";
+                // 截取前 500 码点的堆栈（码点安全，避免代理对切半）
+                var stack = ContextManager.TruncateByRunes(ex.StackTrace, 500);
+                if (ex.StackTrace.Length > stack.Length) stack += "...";
                 sb.Append($"Stack: {stack.Replace("\n", " → ")}");
             }
 
