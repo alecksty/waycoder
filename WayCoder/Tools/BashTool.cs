@@ -420,7 +420,15 @@ public class BashTool : ITool, ICancellableTool
             if (string.IsNullOrEmpty(target)) continue;
 
             var newDir = Path.GetFullPath(Path.Combine(running,
-                target.StartsWith('~') ? target.Replace("~", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)) : target));
+                target.StartsWith('~') ? ExpandHome(target) : target));
+
+            static string ExpandHome(string p)
+            {
+                var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                if (p == "~") return home;
+                if (p.StartsWith("~/") || p.StartsWith("~\\")) return Path.Combine(home, p[2..]);
+                return p; // ~user 等形式保持原样
+            }
             if (Directory.Exists(newDir))
             {
                 running = newDir;

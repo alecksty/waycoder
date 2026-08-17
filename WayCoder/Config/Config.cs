@@ -893,6 +893,10 @@ public class Config
                 var trimmed = line.Trim();
                 if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#')) continue;
 
+                // 兼容 `export KEY=value` 写法的 .env（shell 脚本风格）——否则 KEY 会带上前缀字面量
+                if (trimmed.StartsWith("export ", StringComparison.OrdinalIgnoreCase))
+                    trimmed = trimmed["export ".Length..].TrimStart();
+
                 var eqIdx = trimmed.IndexOf('=');
                 if (eqIdx <= 0 || eqIdx >= trimmed.Length - 1) continue;
 
