@@ -198,6 +198,13 @@ public class Syntax
             }
 
             // 其他字符
+            // 代理对（emoji/CJK 扩展 B）成对作为一个 token，避免切成两个孤立代理项渲染成 U+FFFD
+            if (char.IsHighSurrogate(line[i]) && i + 1 < line.Length && char.IsLowSurrogate(line[i + 1]))
+            {
+                tokens.Add((line.Substring(i, 2), Default));
+                i += 2;
+                continue;
+            }
             tokens.Add((line[i].ToString(), Default));
             i++;
         }
