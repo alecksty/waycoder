@@ -193,6 +193,8 @@ public static class TuiMarkup
             "SeekBar" => new TuiSeekBar(),
             "Progress" => new TuiProgress(),
             "Separator" => new TuiSeparator(),
+            "Line" => new TuiLine(),
+            "Rect" => new TuiRect(),
             "Panel" => new TuiPanel(),
             "Spinner" => new TuiSpinner(Attr(node, "text")),
             "Markdown" => new WayCoder.UI.Tui.Controls.TuiMarkdown(Attr(node, "text")),
@@ -258,6 +260,13 @@ public static class TuiMarkup
                 break;
             case "Panel":
                 ((TuiPanel)c).Title = Attr(node, "title");
+                break;
+            case "Line":
+                ((TuiLine)c).Vertical = Bool(node, "vertical") ?? false;
+                ((TuiLine)c).Style = ParseBorder(Attr(node, "style", "single"));
+                break;
+            case "Rect":
+                ((TuiRect)c).Style = ParseBorder(Attr(node, "style", "single"));
                 break;
             case "Markdown":
                 if (Int(node, "maxWidth") is int mw) ((WayCoder.UI.Tui.Controls.TuiMarkdown)c).MaxWidth = mw;
