@@ -73,7 +73,7 @@ public class TuiTabs : TuiControl
     {
         _tabLabels.Add(label);
         _tabContents.Add(content);
-        content.Parent = Parent;
+        content.Parent = this;
         content.Visible = _tabContents.Count == 1; // 首选项卡默认可见
         if (_tabContents.Count == 1) SelectedIndex = 0;
     }

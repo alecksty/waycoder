@@ -43,7 +43,7 @@ public class TuiButtonGroup : TuiControl
     /// <summary>添加按钮</summary>
     public TuiButton Add(string text, int underlineIndex = -1, Action<TuiButton>? onClick = null)
     {
-        var btn = new TuiButton(text, underlineIndex, onClick) { Parent = Parent };
+        var btn = new TuiButton(text, underlineIndex, onClick) { Parent = this };
         Buttons.Add(btn);
         if (Buttons.Count == 1) SetActive(0);
         RecalcLayout();

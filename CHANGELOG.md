@@ -1,5 +1,42 @@
 # 更新日志
 
+## v0.71.32 (2026-08-17) — 全库确定性 bug 修复 + v0.71.31 重构回归修复
+
+本轮为 4 路并行全库审计（工具 / UI / Agent 核心 / 基础设施+Web）的结果落地，共修复 16 项确定性 bug，并补齐 v0.71.31 大重构引入的自测回归。
+
+### 🔧 核心 Agent / LLM
+- **Architect 双模型 `ModelOverride` 泄漏**：每轮 `ChatAsync` 开始前复位 `ModelOverride`，此前第二轮起计划生成分支静默失效，且费用按小模型低估
+- **`/compact` 压缩快照副本**：改传活 `Messages` 列表，此前就地 Clear/Add 只作用于副本、真实上下文一条不少
+- **`_fastMode` 永不复位**：改为每轮直接赋值，快速模式只影响当轮、不再污染后续消息
+- **`LlmMaxRetries` 语义错位**：总尝试次数改为「重试次数 + 1」，默认 5 次重试现在真正走 1x→6x 超时倍率（此前只到 4x）
+
+### 🛠 工具
+- **MvTool 数据丢失**：源与目标同路径（如 `mv file.txt .`）且 overwrite=true 会先删源，加同路径拦截
+- **NotebookEditTool `cell_index` 溢出**：long/double 强转 int 截断为负误插开头，改用 `ToolArgs.GetInt` 钳制
+- **ScreenshotTool**：删除未钳制的本地 `GetInt`，region 参数统一走 `ToolArgs.GetInt`
+- **WcTool 字符数**：改按码点（Rune）计数，emoji/CJK 扩展 B 不再翻倍
+
+### 🎨 UI
+- **压缩进度条写错变量**：`ChatScreen` 进度条写 `barText` 而非恒空的 `StatusText`
+- **TuiScrollView 渲染未传裁剪区**：子控件渲染补传 Clip 参数，滚动时内容不再溢出视口
+- **TuiScrollView 布局未递归**：嵌套视图子控件高度未计算，补递归 `Layout()`
+- **非容器子控件 `Parent` 指向自身**：`Parent` 类型放宽为 `TuiControl?`，TuiButtonGroup/TuiTabs 子控件坐标链含组自身偏移（此前鼠标命中错位）
+- **ControlRenderer.DrawBarLine**：`filled` 防御钳制，防 `new string(char, 负计数)` 抛异常
+
+### 🧱 基础设施 / Web
+- **TrueTypeFont 静态缓存线程安全**：加锁串行化解析，多槽位并行渲染字体不再破坏 Dictionary 内部状态
+- **HooksManager 正则 ReDoS**：matcher 加 250ms 超时，灾难性回溯回退精确匹配
+- **WebChat SSE 写阻塞**：已剔除客户端跳过写 + 观察被放弃写任务异常，慢客户端不再逐 token 拖死 Agent 流式线程
+
+### ✅ v0.71.31 重构回归
+- TuiMarkdown 快速回退路径：单段落无特殊字符时不再返回不折行，长段落正确按宽度折行
+- TuiWindow.ContentTop 与渲染器内容起始行统一为 Y+2（标题嵌上边框 + 分隔线）
+- TuiScreen 清理两处 drawTitle 死代码
+- 对话框标题位置 / CdTool 测试断言更新
+
+### 🧪 测试
+- 新增 v0.71.32 回归测试 4 项（mv 源=目标拦截 / wc 码点计数 / 非容器子控件 Parent 指向自身），自测 3342 → 3346 全绿
+
 ## v0.71.31 (2026-08-17) — UI 命名空间重构 + 新布局引擎 + 行尾统一
 
 本轮为大型结构重构：UI 代码从顶层 `WayCoder` 命名空间收拢到 `WayCoder.UI.*` 分层，引入 HBox/VBox 弹性布局引擎，并统一全仓库行尾为 CRLF。

@@ -63,7 +63,12 @@ public abstract class TuiControl : TuiBase
     public virtual bool HasCursor => false;
 
     public bool Focused { get; set; }
-    public TuiView? Parent { get; set; }
+
+    /// <summary>
+    /// 父控件。放宽为 TuiControl?（而非 TuiView?）：TuiButtonGroup/TuiTabs 等非容器控件
+    /// 也手动管理子控件，需把子控件 Parent 指向自己以正确解析绝对坐标（GetAbsoluteX/Y 沿此链累加）。
+    /// </summary>
+    public TuiControl? Parent { get; set; }
 
     // ── 增量渲染 ──
 
