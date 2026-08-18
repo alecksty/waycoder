@@ -25,6 +25,9 @@ public static class TuiPreview
         try
         {
             var content = File.ReadAllText(path);
+            // 预览 = 设计/模拟模式：元素 InDesign/SimulatedScreen 为 true
+            TuiMarkup.InDesign = true;
+            TuiMarkup.SimulatedScreen = true;
             var result = TuiMarkup.Load(content);
             TuiWindow win = result.Window
                 ?? new TuiWindow { RootView = result.View ?? result.Screen!.RootView, BorderStyle = WayCoder.UI.Shared.WindowBorder.None };
@@ -57,6 +60,8 @@ public static class TuiPreview
         {
             try
             {
+                TuiMarkup.InDesign = true;
+                TuiMarkup.SimulatedScreen = true;
                 var result = TuiMarkup.Load(File.ReadAllText(path));
                 TuiWindow win = result.Window
                     ?? new TuiWindow { RootView = result.View ?? result.Screen!.RootView, BorderStyle = WayCoder.UI.Shared.WindowBorder.None };

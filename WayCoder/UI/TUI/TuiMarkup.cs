@@ -68,6 +68,12 @@ public sealed class TuiMarkupScreen : TuiScreen
 /// </summary>
 public static class TuiMarkup
 {
+    /// <summary>设计/预览模式环境量。预览程序加载前设为 true，正常 REPL 保持 false；注入到所有加载的元素。</summary>
+    public static bool InDesign { get; set; }
+
+    /// <summary>模拟屏幕环境量（true=离屏/固定行列渲染，false=物理终端）。预览程序设 true，注入到所有加载的元素。</summary>
+    public static bool SimulatedScreen { get; set; }
+
     private static readonly Dictionary<string, int> Colors = new(StringComparer.OrdinalIgnoreCase)
     {
         ["black"] = AnsiColors.Black, ["red"] = AnsiColors.Red, ["green"] = AnsiColors.Green,
@@ -189,6 +195,8 @@ public static class TuiMarkup
             BorderStyle = ParseBorder(Attr(node, "border")),
             Modal = Bool(node, "modal") ?? isDialog,        // Dialog 默认模态
             HasMask = Bool(node, "mask") ?? isDialog,        // Dialog 默认带遮罩
+            InDesign = InDesign,
+            SimulatedScreen = SimulatedScreen,
         };
         if (Int(node, "x") is int x) win.X = x;
         if (Int(node, "y") is int y) win.Y = y;
@@ -617,6 +625,9 @@ public static class TuiMarkup
 
     private static void ApplyCommon(XNode node, TuiControl c)
     {
+        // 环境量注入：设计/预览模式 + 模拟屏幕标记
+        c.InDesign = InDesign;
+        c.SimulatedScreen = SimulatedScreen;
         if (Int(node, "width") is int w) c.Width = w;
         if (Int(node, "height") is int h) c.Height = h;
         if (Int(node, "flex") is int f) c.Flex = f;
