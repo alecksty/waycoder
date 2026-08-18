@@ -3,7 +3,7 @@ using System.Text;
 namespace WayCoder;
 
 /// <summary>
-/// 项目初始化 —— 对标 Claude Code /init：扫描项目，生成 CLAUDE.md 指导文件。
+/// 项目初始化 —— 扫描项目，生成 AGENT.md 指导文件（默认，/init claude 可改生成 CLAUDE.md）。
 ///
 /// 复用 <see cref="ProjectContext.DetectProject"/> 的检测结果（语言/框架/构建工具/Git），
 /// 再补充构建、测试、lint 命令的精确探测，拼装成中文项目指导。
@@ -12,15 +12,15 @@ namespace WayCoder;
 public static class ProjectInitializer
 {
     /// <summary>
-    /// 生成 CLAUDE.md 内容（对标 Claude Code /init 的默认结构）。
+    /// 生成 AGENT.md 内容（默认；fileName 传入 "CLAUDE.md" 时生成同名标题，供 /init claude 用）。
     /// </summary>
-    public static string GenerateClaudeMd(ProjectInfo info)
+    public static string GenerateAgentMd(ProjectInfo info, string fileName = "AGENT.md")
     {
         var projectName = Path.GetFileName(info.ProjectRoot.TrimEnd('/', '\\'));
         if (string.IsNullOrWhiteSpace(projectName)) projectName = "项目";
 
         var sb = new StringBuilder();
-        sb.AppendLine("# CLAUDE.md");
+        sb.AppendLine($"# {fileName}");
         sb.AppendLine();
         sb.AppendLine("本文件为 WayCoder（道码）在此仓库中工作时提供指导。");
         sb.AppendLine();

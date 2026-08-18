@@ -75,7 +75,7 @@ public static partial class SelfTest
         TestTinyWindow(Check);
         // 省 token 模式测试（EconomyMode 开关）
         TestEconomyMode(Check);
-        // /init 项目初始化测试（生成 CLAUDE.md + 命令检测）
+        // /init 项目初始化测试（生成 AGENT.md + 命令检测）
         TestProjectInit(Check);
         // 多槽位后台并行执行测试（槽位缓冲输出 + 运行状态）
         TestMultiSlotParallel(Check);
