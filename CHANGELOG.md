@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.79.21 (2026-08-19) — 聊天列表项 .tui 模板化
+
+- 新增 `chat-item.tui` 声明式布局（Header: icon/role/time + Markdown body）
+- `TuiListItem.BuildContent` 从模板加载 + 填充（角色名/图标/时间/markdown），不再代码手搭
+- 续接/嵌套消息隐藏模板 header 行；主题切换更新 icon/role 色
+- 布局写标记、逻辑写 code-behind 架构延伸至消息项
+
+### ✅ 验证
+- 编译 0 错误，自测 3565 通过，tty 下聊天屏正常（无模板错误）
+
 ## v0.79.20 (2026-08-19) — TUI 界面全面 .tui 资源化（标记版聊天屏翻默认）
 
 TUI 全界面检查 + 资源化：
