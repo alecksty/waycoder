@@ -23,6 +23,7 @@ public class TuiTableList : TuiControl
 
     private readonly List<Column> _columns = [];
     private readonly List<string[]> _rows = [];
+    private readonly List<bool> _isGroup = [];
 
     /// <summary>当前选中行索引</summary>
     public int SelectedIndex { get; set; }
@@ -79,9 +80,22 @@ public class TuiTableList : TuiControl
 
     public void AddColumn(string title, int width) => _columns.Add(new Column(title, width));
 
-    public void AddRow(params string[] cells) => _rows.Add(cells);
+    public void AddRow(params string[] cells) { _rows.Add(cells); _isGroup.Add(false); }
 
-    public void ClearRows() => _rows.Clear();
+    /// <summary>插入一个组头行（整行显示组名，独立样式，不可选中、不参与导航）。</summary>
+    public void AddGroupHeader(string title) { _rows.Add([title]); _isGroup.Add(true); }
+
+    public void ClearRows() { _rows.Clear(); _isGroup.Clear(); }
+
+    /// <summary>该行是否为组头行。</summary>
+    public bool IsGroupRow(int idx) => idx >= 0 && idx < _isGroup.Count && _isGroup[idx];
+
+    /// <summary>组头行索引 → 其后的第一个可选中数据行（无则 -1）。</summary>
+    public int NextSelectable(int idx)
+    {
+        while (idx < _rows.Count && IsGroupRow(idx)) idx++;
+        return idx < _rows.Count ? idx : -1;
+    }
 
     public string GetCell(int row, int col) =>
         row >= 0 && row < _rows.Count && col >= 0 && col < _rows[row].Length ? _rows[row][col] : "";
@@ -139,18 +153,22 @@ public class TuiTableList : TuiControl
 
     public void SelectNext()
     {
-        if (SelectedIndex < _rows.Count - 1)
+        int next = SelectedIndex + 1;
+        while (next < _rows.Count && IsGroupRow(next)) next++;
+        if (next < _rows.Count)
         {
-            SelectedIndex++;
+            SelectedIndex = next;
             OnSelectionChanged?.Invoke(SelectedIndex);
         }
     }
 
     public void SelectPrev()
     {
-        if (SelectedIndex > 0)
+        int prev = SelectedIndex - 1;
+        while (prev >= 0 && IsGroupRow(prev)) prev--;
+        if (prev >= 0)
         {
-            SelectedIndex--;
+            SelectedIndex = prev;
             OnSelectionChanged?.Invoke(SelectedIndex);
         }
     }
@@ -185,6 +203,16 @@ public class TuiTableList : TuiControl
         {
             int idx = ScrollOffset + i;
             if (idx >= total) break;
+
+            // 组头行：整行显示组名 + 淡色分隔，不可选中
+            if (IsGroupRow(idx))
+            {
+                var title = _rows[idx][0] ?? "";
+                var line = $"── {title} " + new string('─', Math.Max(0, dataWidth - title.Length - 4));
+                WriteTableRow(sb, absX, dataStart + i, line, TuiTheme.Current.ControlDisabledFg, 0, dataWidth);
+                continue;
+            }
+
             bool selected = idx == SelectedIndex;
             int fg = selected ? TuiTheme.Current.ListSelFg : (Fg > 0 ? Fg : TuiTheme.Current.ListFg);
             int bg = selected ? TuiTheme.Current.ListSelBg : (Bg > 0 ? Bg : TuiTheme.Current.ListBg);

@@ -138,5 +138,18 @@ public static partial class SelfTest
         var header = tbl.RenderHeader();
         Check("TableList: 列头含列名", header.Contains("模型") && header.Contains("供应商") && header.Contains("上下文"));
         Check("TableList: 列头含分隔线", header.Contains("─"));
+
+        // ── 组头行：不可选中、导航跳过 ──
+        tbl.ClearRows();
+        tbl.AddGroupHeader("deepseek");
+        tbl.AddRow("m1", "x", "y");
+        tbl.AddGroupHeader("openai");
+        tbl.AddRow("m2", "x", "y");
+        Check("TableList: 组头行标记", tbl.IsGroupRow(0) && !tbl.IsGroupRow(1));
+        tbl.SelectedIndex = 0; tbl.SelectNext();
+        Check("TableList: 导航跳过组头", tbl.SelectedIndex == 1);
+        tbl.SelectedIndex = 3; tbl.SelectPrev();
+        Check("TableList: 导航向上跳过组头", tbl.SelectedIndex == 1);
+        Check("TableList: NextSelectable 跳到首个数据行", tbl.NextSelectable(0) == 1);
     }
 }
