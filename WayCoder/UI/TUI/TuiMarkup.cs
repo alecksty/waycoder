@@ -606,7 +606,20 @@ public static class TuiMarkup
                 if (Int(node, "borderWidth") is int spBw) sPanel.BorderWidth = spBw;
                 if (Color(node, "borderColor") is int spBc) sPanel.BorderColor = spBc;
                 if (Bool(node, "panelVisible") is bool spPv) sPanel.PanelVisible = spPv;
-                // 分区（PanelSection）由 code-behind RefreshSidePanel() 填充；SidePanel 是叶子控件，不支持嵌套 Section 声明
+                // 嵌套 <Section title> + <Line text> 声明侧栏分区（布局写标记；SidePanel 是叶子控件，子元素在此解析，不进控件树）
+                foreach (var sec in node.Children)
+                {
+                    if (sec.Kind != XKind.Element || sec.Name != "Section") continue;
+                    var section = new PanelSection { Title = Attr(sec, "title") };
+                    foreach (var ln in sec.Children)
+                        if (ln.Kind == XKind.Element && ln.Name == "Line")
+                        {
+                            var lt = Attr(ln, "text");
+                            if (lt.Length > 0) section.Lines.Add(lt);
+                        }
+                    if (section.Title.Length > 0 || section.Lines.Count > 0)
+                        sPanel.Sections.Add(section);
+                }
                 break;
             case "ScrollView":
                 if (Bool(node, "autoScroll") is bool svAuto) ((TuiScrollView)c).IsAutoScrollToEnd = svAuto;
