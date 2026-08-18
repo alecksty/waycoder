@@ -130,6 +130,8 @@ public partial class Program
         bool jsonMode = Arguments.CliArgRegistry.Has(parsed, "json");
         bool webMode = Arguments.CliArgRegistry.Has(parsed, "web");
         string? webPortSpec = Arguments.CliArgRegistry.Get(parsed, "web");
+        bool tuiMode = Arguments.CliArgRegistry.Has(parsed, "tui");
+        bool cliMode = Arguments.CliArgRegistry.Has(parsed, "cli");
 
         if (Arguments.CliArgRegistry.Has(parsed, "version"))
         {
@@ -381,6 +383,13 @@ public partial class Program
             else if (!string.IsNullOrEmpty(portFromEnv) && int.TryParse(portFromEnv, out var we) && we > 0 && we < 65536)
                 webPort = we;
             await RunWebAsync(webPort);
+            return 0;
+        }
+
+        // CLI 文本界面（--cli，非全屏逐行交互；--tui 显式时优先默认 TUI）
+        if (cliMode && !tuiMode)
+        {
+            await RunCliReplAsync(editFile);
             return 0;
         }
 

@@ -19,6 +19,25 @@ public partial class Program
     // 交互式 REPL
     // ========================================================================
 
+    /// <summary>CLI 文本界面（--cli）：逐行交互，Agent 纯文本回复，exit/quit 退出（非全屏 TUI）。</summary>
+    private static async Task RunCliReplAsync(string? editFile)
+    {
+        var agent = _agent;
+        if (agent == null) { Console.Error.WriteLine("Agent 未初始化"); return; }
+        Console.WriteLine("WayCoder 道码 · CLI 模式（--cli）— 输入消息，exit/quit 退出");
+        while (true)
+        {
+            Console.Write("» ");
+            var line = Console.In.ReadLine();
+            if (line == null) break; // EOF
+            var input = line.Trim();
+            if (string.IsNullOrWhiteSpace(input)) continue;
+            if (input.Equals("exit", StringComparison.OrdinalIgnoreCase) ||
+                input.Equals("quit", StringComparison.OrdinalIgnoreCase)) break;
+            await ProcessTextInput(agent, input);
+        }
+    }
+
     /// <summary>管道模式：echo "任务" | waycoder 逐行读 stdin 交给 Agent，纯文本输出，EOF 退出。</summary>
     private static async Task RunPipeModeAsync()
     {
@@ -29,19 +48,25 @@ public partial class Program
         {
             var input = line.Trim();
             if (string.IsNullOrWhiteSpace(input)) continue;
+            await ProcessTextInput(agent, input);
+        }
+    }
+
+    /// <summary>纯文本聊天处理（管道/CLI 界面复用）：显示输入 → Agent 流式回复 → 工具调用行 → 异常兜底。</summary>
+    private static async Task ProcessTextInput(Agent agent, string input)
+    {
+        Console.WriteLine();
+        Console.WriteLine($"[2m🤖 {input}[0m");
+        try
+        {
+            await agent.ChatAsync(input,
+                onToken: t => Console.Write(t),
+                onTool: (name, brief) => Console.WriteLine($"\n[90m🔧 [{name}] {brief}[0m"));
             Console.WriteLine();
-            Console.WriteLine($"[2m🤖 {input}[0m");
-            try
-            {
-                await agent.ChatAsync(input,
-                    onToken: t => Console.Write(t),
-                    onTool: (name, brief) => Console.WriteLine($"\n[90m🔧 [{name}] {brief}[0m"));
-                Console.WriteLine();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"\n[31m[✘ 错误][0m {ex.Message}");
-            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"\n[31m[✘ 错误][0m {ex.Message}");
         }
     }
 
