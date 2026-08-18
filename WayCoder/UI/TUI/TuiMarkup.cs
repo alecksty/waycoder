@@ -120,8 +120,17 @@ public static class TuiMarkup
                 case "Dialog":
                     return new TuiMarkupResult(null, BuildWindow(root, byId), null, byId);
                 default:
-                    var view = (TuiView)BuildControl(root, byId)!;
-                    return new TuiMarkupResult(null, null, view, byId);
+                    var rootCtrl = BuildControl(root, byId);
+                    if (rootCtrl is TuiView rootView)
+                        return new TuiMarkupResult(null, null, rootView, byId);
+                    // 根是叶子控件（Label/Button 等，如 cell 模板）：包装进 VBox，统一返回视图
+                    if (rootCtrl != null)
+                    {
+                        var leafBox = new TuiVBox { Width = rootCtrl.Width, Height = rootCtrl.Height };
+                        leafBox.Add(rootCtrl);
+                        return new TuiMarkupResult(null, null, leafBox, byId);
+                    }
+                    throw new ArgumentException($"无法构建标记根元素 {root.Name}");
             }
         }
         finally
@@ -319,7 +328,7 @@ public static class TuiMarkup
     {
         if (node.Kind != XKind.Element) return null;
 
-        TuiControl c = node.Name switch
+        TuiControl? c = node.Name switch
         {
             "VBox" => new TuiVBox(),
             "HBox" => new TuiHBox(),
@@ -331,6 +340,8 @@ public static class TuiMarkup
             "TextArea" => new TuiTextArea(),
             "List" => new TuiList(),
             "DataList" => new TuiDataList(),
+            "TreeView" => new TuiTreeView(),
+            "TableList" => new TuiTableList(),
             "Checkbox" => new TuiCheckbox(Attr(node, "text")),
             "ComboBox" => new TuiComboBox(),
             "RadioGroup" => new TuiRadioGroup(),
@@ -398,6 +409,54 @@ public static class TuiMarkup
                 }
                 dl.CellMarkup = Attr(node, "cell");
                 if (Int(node, "selected") is int dlSel) dl.SelectedIndex = dlSel;
+                break;
+            case "TreeView":
+                var tv = (TuiTreeView)c;
+                tv.CellMarkup = Attr(node, "cell");
+                if (Int(node, "indent") is int tvi) tv.IndentWidth = tvi;
+                var tvItems = Attr(node, "items");
+                if (tvItems.Length > 0)
+                {
+                    // items="文档>概览,文档>入门,文档>进阶>性能" → 沿路径建树，中间节点自动展开
+                    foreach (var path in tvItems.Split(','))
+                    {
+                        var parts = path.Split('>');
+                        var cur = tv.RootNodes.FirstOrDefault(n => n.Text == parts[0].Trim());
+                        if (cur == null) cur = tv.AddRoot(parts[0].Trim());
+                        for (int i = 1; i < parts.Length; i++)
+                        {
+                            var name = parts[i].Trim();
+                            var child = cur.Children.FirstOrDefault(n => n.Text == name);
+                            if (child == null) child = cur.Add(new TuiTreeNode(name));
+                            cur.IsExpanded = true;
+                            cur = child;
+                        }
+                    }
+                }
+                break;
+            case "TableList":
+                var tl = (TuiTableList)c;
+                var tlCols = Attr(node, "columns");
+                if (tlCols.Length > 0)
+                {
+                    foreach (var seg in tlCols.Split(','))
+                    {
+                        var sp = seg.LastIndexOf(':');
+                        if (sp <= 0) { tl.AddColumn(seg.Trim(), 12); continue; }
+                        var t = seg[..sp].Trim();
+                        int.TryParse(seg[(sp + 1)..].Trim(), out var w);
+                        tl.AddColumn(t, w > 0 ? w : 12);
+                    }
+                }
+                var tlItems = Attr(node, "items");
+                if (tlItems.Length > 0)
+                {
+                    foreach (var row in tlItems.Split('|'))
+                        tl.AddRow([.. row.Split(',').Select(s => s.Trim())]);
+                }
+                tl.CellMarkup = Attr(node, "cell");
+                if (Bool(node, "showHeader") is bool tlSh) tl.ShowHeader = tlSh;
+                if (Int(node, "selected") is int tlSel) tl.SelectedIndex = tlSel;
                 break;
             case "Progress":
                 if (double.TryParse(Attr(node, "value", Attr(node, "percent")), out var pv))
