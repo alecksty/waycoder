@@ -358,9 +358,16 @@ public partial class MainWindow : Window
         var btns = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
         btns.Children.Add(MakeButton("确定", "#2f6bff", () =>
         {
-            var newId = box.Text?.Trim();
-            if (!string.IsNullOrEmpty(newId) && newId != oldId)
-                SessionManager.RenameSession(oldId, newId, _activeSlot);
+            try
+            {
+                var newId = box.Text?.Trim();
+                if (!string.IsNullOrEmpty(newId) && newId != oldId)
+                    SessionManager.RenameSession(oldId, newId, _activeSlot);
+            }
+            catch (Exception ex)
+            {
+                AppendSystem(_activeSlot, $"[重命名失败] {ex.Message}");
+            }
             win.Close();
             RefreshSessions();
         }));
@@ -471,7 +478,9 @@ public partial class MainWindow : Window
     {
         App.ToggleTheme();
         ThemeButton.Content = App.IsDark ? "🌙" : "☀️";
-        RebuildMessages(_activeSlot); // 气泡内 block 文字色随主题重建
+        // 气泡背景走动态资源自动换色；内部 block 文字色是构建时固化的，需显式重渲染
+        foreach (var msg in _messages[_activeSlot])
+            msg.View?.Render();
         RefreshPanel();
     }
 
@@ -626,14 +635,16 @@ public partial class MainWindow : Window
 
         try
         {
-            await agent.ChatAsync(input,
+            // Task.Run 隔离：Agent 主循环（LLM SSE 流解析/工具执行）跑在后台线程，
+            // 回调内已 Dispatcher.UIThread.Post 回 UI 渲染 —— 避免流式解析/同步工具卡 UI 线程
+            await Task.Run(() => agent.ChatAsync(input,
                 onToken: t => Dispatcher.UIThread.Post(() => AppendToken(slot, t)),
                 onTool: (name, brief) => Dispatcher.UIThread.Post(() => AppendTool(slot, name, brief)),
                 onToolOutput: o => Dispatcher.UIThread.Post(() =>
                 {
                     if (!string.IsNullOrEmpty(o)) AppendToolOutput(slot, o);
                 }),
-                cancellationToken: _cts[slot]!.Token);
+                cancellationToken: _cts[slot]!.Token));
         }
         catch (OperationCanceledException)
         {
