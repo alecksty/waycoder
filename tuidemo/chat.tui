@@ -11,8 +11,9 @@
     <HBox id="middleHBox" flex="1">
       <!-- 聊天消息项由 code-behind ChatList.AddItem(new TuiListItem(...)) 动态填充 -->
       <ListView id="chatList" itemSpacing="1" autoScroll="true" />
-      <!-- 分区内容由 code-behind RefreshSidePanel() 填充；这里只声明外壳 -->
-      <SidePanel id="sidePanel" width="30" visible="false" borderColor="brightblack" />
+      <!-- 分区内容由 code-behind RefreshSidePanel() 填充；预览（设计态）注入示例分区。
+           真实 App 运行时按 SidePanelVisible 覆盖可见性。 -->
+      <SidePanel id="sidePanel" width="30" visible="true" borderColor="brightblack" />
     </HBox>
 
     <!-- 建议下拉：浮层，不参与流式布局；尺寸/位置由 Render 手动画 -->
