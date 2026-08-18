@@ -1,0 +1,7 @@
+<!-- 信息提示框 -->
+<Dialog title="提示" width="40" height="7" border="rounded" borderColor="cyan">
+  <VBox align="center" spacing="1">
+    <Label id="msg" text="操作已完成 ✅" />
+    <Button id="ok" text="确定" />
+  </VBox>
+</Dialog>

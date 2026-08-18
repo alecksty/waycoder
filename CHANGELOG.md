@@ -1,5 +1,24 @@
 # 更新日志
 
+## v0.73.0 (2026-08-18) — 声明式 TUI 自定义单元格（DataList/TreeView/TableList cell 模板）
+
+三个列表控件支持用 `.tui` 文件片段做自定义单元格模板，配合 `{key}` 占位符数据绑定，向「声明式布局 + code-behind」架构靠拢。
+
+### 🧩 占位符绑定 + LoadCell
+- **`TuiMarkup.Load` 支持 `vars` 参数**：`{key}` 占位符替换（AsyncLocal 并发安全），文本/颜色属性通用，同一模板可并发渲染不同行数据
+- **`LoadCell` 叶子根修复**：根为叶子控件（Label/Button 等）时自动包装进 `TuiVBox`，此前强转 `(TuiView)` 抛 InvalidCastException 致 cell 模板从未真正生效、每次走 catch 兜底截断
+- 渲染前 `OnResize` 触发布局，避免子控件堆叠
+
+### 📋 三列表控件 cell 模板
+- **TuiDataList**（新增）：每行用 cell 模板渲染（`{text}/{index}/{key}` 占位符）；标记 `<DataList items cell height selected/>`
+- **TuiTreeView**：`CellMarkup` 接入，`items="文档>概览,文档>入门"` 路径语法自动建树（中间节点 `IsExpanded=true`）+ `cell` 属性（`{text}/{icon}/{depth}` 占位符）
+- **TuiTableList**：`CellMarkup` 每列一个 cell（宽度=列宽，`{value}/{colN}/{text}/{index}` 占位符）；`ClampCellWidths` 递归约束子控件宽度 ≤ 列宽，防 `DrawLine` 直接写屏不裁剪导致串列；选中反白先画整行背景，cell 透明处透出
+- 标记注册：`<TableList columns="名称:10,型号:14" items="a,b|c,d" cell showHeader selected/>`
+
+### ✅ 验证
+- 自测 3397→3412 全绿（新增 TableList/TreeView cell 渲染与颜色断言）
+- 构建 0 警告 0 错误；`tuidemo/showcase.tui` 新增「⑥ 自定义单元格」预览区（DataList `▸` 前缀 / TreeView `📄` 树线 / TableList 全绿加粗）
+
 ## v0.72.0 (2026-08-18) — GUI 图形界面上线（Avalonia 12）
 
 对标 Web 版落地原生图形界面，`waycoder --gui` 启动。

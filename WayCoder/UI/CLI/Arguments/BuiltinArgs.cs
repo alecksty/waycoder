@@ -439,6 +439,42 @@ public class DialogShowArg : CliArg
     public override int? OnMatch(List<string> values) { DialogShow.Run(); return 0; }
 }
 
+public class TuiPreviewArg : CliArg
+{
+    public override string Description => "预览 .tui 标记文件（声明式 TUI 布局）";
+    public override bool Internal => true;
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "标记文件";
+    public TuiPreviewArg() : base("tui-preview", "--tui-preview") { }
+    public override int? OnMatch(List<string> values)
+    {
+        var path = values.Count > 0 ? values[0] : null;
+        return TuiPreview.Run(path ?? "");
+    }
+}
+
+public class TuiWatchArg : CliArg
+{
+    public override string Description => "实时预览 .tui（保存即刷新，边写边预览）";
+    public override bool Internal => true;
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "标记文件";
+    public TuiWatchArg() : base("tui-watch", "--tui-watch") { }
+    public override int? OnMatch(List<string> values)
+    {
+        var path = values.Count > 0 ? values[0] : null;
+        return TuiPreview.Watch(path ?? "");
+    }
+}
+
+public class TuiMarkupDemoArg : CliArg
+{
+    public override string Description => "声明式 TUI 演示（tuidemo/*.tui 重构聊天界面与对话框）";
+    public override bool Internal => true;
+    public TuiMarkupDemoArg() : base("tui-markup-demo", "--tui-markup-demo") { }
+    public override int? OnMatch(List<string> values) { TuiMarkupDemo.Run(); return 0; }
+}
+
 public class GuiArg : CliArg
 {
     public override string Description => "启动图形界面（独立 Avalonia 进程）";
@@ -601,6 +637,9 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new TuiAuditArg());
         CliArgRegistry.Register(new DialogShowArg());
         CliArgRegistry.Register(new GuiArg());
+        CliArgRegistry.Register(new TuiPreviewArg());
+        CliArgRegistry.Register(new TuiWatchArg());
+        CliArgRegistry.Register(new TuiMarkupDemoArg());
         CliArgRegistry.Register(new KeypadArg());
         CliArgRegistry.Register(new ThemeVerifyArg());
 

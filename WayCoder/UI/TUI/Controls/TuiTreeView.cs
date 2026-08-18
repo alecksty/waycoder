@@ -1,5 +1,8 @@
 using System.Text;
+using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.TUI;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -89,6 +92,9 @@ public class TuiTreeView : TuiControl
 
     /// <summary>缩进宽度（每级）</summary>
     public int IndentWidth { get; set; } = 2;
+
+    /// <summary>自定义单元格模板（.tui 片段，{text}/{icon}/{depth} 占位符），空则用默认图标+文本。</summary>
+    public string CellMarkup { get; set; } = "";
 
     /// <summary>选中前景色</summary>
     public int SelFg { get; set; }
@@ -203,14 +209,34 @@ public class TuiTreeView : TuiControl
                 lineBuilder.Append(node.IsExpanded ? "▼ " : "▶ ");
             }
 
-            // 图标 + 文本（图标已含在 Text 中时不重复添加）
-            var nodeText = string.IsNullOrEmpty(node.Icon) || node.Text.StartsWith(node.Icon)
-                ? node.Text
-                : $"{node.Icon} {node.Text}";
-
-            lineBuilder.Append(nodeText);
-
-            WriteAt(sb, row, absX, lineBuilder.ToString(), fg, bg);
+            // 图标 + 文本（图标已含在 Text 中时不重复添加）；有 CellMarkup 时用自定义单元格渲染
+            if (!string.IsNullOrEmpty(CellMarkup))
+            {
+                WriteAt(sb, row, absX, lineBuilder.ToString(), fg, bg); // 先写缩进 + 树线 + 展开符
+                int indentW = AnsiHelper.DisplayWidth(lineBuilder.ToString());
+                try
+                {
+                    var cell = TuiMarkup.LoadCell(CellMarkup, new Dictionary<string, string>
+                    {
+                        ["text"] = node.Text,
+                        ["icon"] = node.Icon,
+                        ["depth"] = depth.ToString(),
+                    });
+                    cell.Width = Math.Max(1, Width - indentW);
+                    cell.Height = 1;
+                    cell.OnResize(cell.Width, 1);
+                    cell.Render(sb, absX + indentW, row, ClipLeft, ClipTop, ClipRight, ClipBottom);
+                }
+                catch { WriteAt(sb, row, absX + indentW, node.Text, fg, bg); }
+            }
+            else
+            {
+                var nodeText = string.IsNullOrEmpty(node.Icon) || node.Text.StartsWith(node.Icon)
+                    ? node.Text
+                    : $"{node.Icon} {node.Text}";
+                lineBuilder.Append(nodeText);
+                WriteAt(sb, row, absX, lineBuilder.ToString(), fg, bg);
+            }
         }
     }
 
