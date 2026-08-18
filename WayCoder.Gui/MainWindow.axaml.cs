@@ -23,6 +23,8 @@ public partial class MainWindow : Window
     private readonly CancellationTokenSource?[] _cts = new CancellationTokenSource?[SlotCount];
     private readonly Button[] _slotButtons = new Button[SlotCount];
     private readonly string[] _drafts = new string[SlotCount];
+    /// <summary>各槽位是否在接收推理内容（«dim»…«/»，对齐 Web reasoning 分流）。</summary>
+    private readonly bool[] _inReasoning = new bool[SlotCount];
     private DispatcherTimer? _rightTimer;
     /// <summary>流式渲染合帧守卫：同一 UI 帧内多个 token 只触发一次气泡重渲染。</summary>
     private bool _renderPending;
@@ -329,6 +331,7 @@ public partial class MainWindow : Window
         var agent = EnsureSlot(_activeSlot);
         agent.ReplaceMessages([]);
         _messages[_activeSlot].Clear();
+        _inReasoning[_activeSlot] = false;
         RebuildMessages(_activeSlot);
         UpdateHeader();
         RefreshSessions();
@@ -941,10 +944,28 @@ public partial class MainWindow : Window
     private void AppendToken(int slot, string token)
     {
         if (string.IsNullOrEmpty(token)) return;
-        var msg = EnsureAssistant(slot);
-        msg.Text.Append(token);
+
+        // 推理内容分流（«dim»/«/» 标记，对齐 Web reasoning 独立气泡）
+        if (token.Contains("«dim»")) _inReasoning[slot] = true;
+        if (token.Contains("«/»")) _inReasoning[slot] = false;
+        var clean = token.Replace("«dim»", "").Replace("«/»", "");
+        if (string.IsNullOrEmpty(clean)) return;
+
+        var msg = _inReasoning[slot] ? EnsureReasoning(slot) : EnsureAssistant(slot);
+        msg.Text.Append(clean);
         if (slot != _activeSlot) return; // 非活跃槽位只累积，不渲染
         RequestRender(msg);
+    }
+
+    /// <summary>取当前流式中的推理气泡（没有则新建）。</summary>
+    private ChatMessage EnsureReasoning(int slot)
+    {
+        var list = _messages[slot];
+        for (int i = list.Count - 1; i >= 0; i--)
+            if (list[i].Role == ChatRole.Reasoning && list[i].Streaming) return list[i];
+        var msg = new ChatMessage(ChatRole.Reasoning) { Streaming = true };
+        AddMessage(slot, msg);
+        return msg;
     }
 
     /// <summary>合帧渲染：同一 UI 帧内多个 token 只触发一次气泡重渲染（长回复不卡）。</summary>

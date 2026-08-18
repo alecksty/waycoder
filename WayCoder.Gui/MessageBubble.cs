@@ -57,6 +57,15 @@ public sealed class MessageBubble : Border
                 _host.Opacity = 0.8;
                 break;
 
+            case ChatRole.Reasoning:
+                // 推理内容：淡色小字（对齐 Web .msg.reasoning）
+                HorizontalAlignment = HorizontalAlignment.Left;
+                CornerRadius = new CornerRadius(CornerR);
+                Padding = new Thickness(6, 2);
+                _host.Opacity = 0.65;
+                MaxWidth = 560;
+                break;
+
             default: // Assistant
                 HorizontalAlignment = HorizontalAlignment.Left;
                 CornerRadius = new CornerRadius(CornerR, CornerR, CornerR, 4);
