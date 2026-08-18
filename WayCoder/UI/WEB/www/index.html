@@ -13,12 +13,6 @@
     <div class="logo">🤖 道码 Way<span>Coder</span></div>
     <div class="agent-label" id="agent-label">智能体1</div>
     <div class="spacer"></div>
-    <select id="perm-select" title="权限模式（YOLO=直接执行 / Ask=每次确认）">
-      <option value="ask">🛡 Ask</option>
-      <option value="auto">✅ Auto</option>
-      <option value="smartauto">🧭 SmartAuto</option>
-      <option value="yolo">⚡ YOLO</option>
-    </select>
     <button class="btn ghost" id="theme-btn" title="切换主题">🌙</button>
     <button class="btn" id="settings-btn" title="设置">⚙ 设置</button>
     <span class="version" id="version-label">__VERSION__</span>
@@ -46,22 +40,40 @@
         <span class="cpct" id="compress-pct"></span>
       </div>
       <div id="messages"></div>
+      <div id="input-dock">
       <div id="input-bar">
-        <div id="suggest-box"></div>
-        <button class="btn ghost" id="attach-btn" title="上传图片 / 音频">📎</button>
+        <div id="composer">
+          <div id="suggest-box"></div>
+          <textarea id="input" rows="1"
+            placeholder="输入消息…（输入 / 唤出斜杠命令，# 引用文件，! 执行命令）"></textarea>
+          <div class="composer-bar">
+            <div class="composer-tools">
+              <button class="tool-btn" id="attach-btn" title="上传图片 / 音频">📎</button>
+            </div>
+            <div class="composer-models">
+              <button class="btn model-pick-btn" id="big-model-btn" title="选择大模型（复杂任务）">🤖 大模型: <b
+                  id="big-model-label">…</b></button>
+              <button class="btn model-pick-btn" id="small-model-btn" title="选择小模型（简单 / 压缩）">🔧 小模型: <b
+                  id="small-model-label">…</b></button>
+              <span class="model-bar-label">💰 省钱</span>
+              <select id="economy-select" title="省 Token 模式"></select>
+              <span class="model-bar-label">🛡 交互模式</span>
+              <select id="perm-select" title="交互模式（YOLO=直接执行 / Ask=每次确认）">
+                <option value="ask">Ask</option>
+                <option value="auto">Auto</option>
+                <option value="smartauto">SmartAuto</option>
+                <option value="yolo">YOLO</option>
+              </select>
+            </div>
+            <button class="send-btn" id="send" title="发送" aria-label="发送"><svg viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19V5" />
+                <path d="M5 12l7-7 7 7" />
+              </svg></button>
+          </div>
+        </div>
         <input type="file" id="file-input" accept="image/*,audio/*" style="display:none">
-        <textarea id="input" placeholder="输入消息，Enter 发送，Ctrl+Enter 换行" rows="3"></textarea>
-        <button class="btn" id="send" title="发送"><svg viewBox="0 0 24 24">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-          </svg></button>
       </div>
-      <div id="model-bar">
-        <button class="btn model-pick-btn" id="big-model-btn" title="选择大模型（复杂任务）">🤖 大模型: <b
-            id="big-model-label">…</b></button>
-        <button class="btn model-pick-btn" id="small-model-btn" title="选择小模型（简单 / 压缩）">🔧 小模型: <b
-            id="small-model-label">…</b></button>
-        <select id="economy-select" title="省 Token 模式"></select>
-        <span id="model-status" class="model-status"></span>
       </div>
     </main>
 
@@ -124,6 +136,7 @@
       <div class="model-foot">
         <button class="btn" id="model-scan-btn" title="测试各服务商端点连通性">📡 扫描</button>
         <button class="btn" id="model-import-btn" title="导入其他软件的模型与 API Key">📥 自动导入</button>
+        <button class="btn" id="model-opencode-btn" title="从 opencode 在线拉取模型列表">🌐 OpenCode 在线</button>
         <button class="btn" id="model-set-key-btn" title="为当前选中的模型设置 API Key">🔑 设置 key</button>
         <button class="btn" id="model-clear-key-btn" title="清除当前选中模型的 API Key">🗑 清除 key</button>
         <span id="model-scan-status" style="font-size:12px;color:var(--dim);"></span>

@@ -130,7 +130,11 @@ public sealed class HttpServer
             using var stream = client.GetStream();
             try
             {
-                var raw = await ReadRequestAsync(stream);
+                // 读请求超时：防 slowloris（慢滴灌请求头占满连接槽，MaxConnections=32 被耗尽后正常请求无法建立）。
+                // 仅作用于读请求阶段；SSE 长连接在读完请求后进入写阶段，不受此超时影响。
+                byte[]? raw;
+                using (var readCts = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                    raw = await ReadRequestAsync(stream, readCts.Token);
                 if (raw == null) return;
                 var req = ParseHttpRequest(raw);
                 if (req == null) return;
@@ -266,7 +270,7 @@ public sealed class HttpServer
     //  网络 IO
     // ═══════════════════════════════════════════════════════════
 
-    private static async Task<byte[]?> ReadRequestAsync(NetworkStream stream)
+    private static async Task<byte[]?> ReadRequestAsync(NetworkStream stream, CancellationToken ct)
     {
         var ms = new MemoryStream();
         var buffer = new byte[8192];
@@ -275,7 +279,7 @@ public sealed class HttpServer
         int headerEnd = -1;
         while (true)
         {
-            int n = await stream.ReadAsync(buffer, 0, buffer.Length);
+            int n = await stream.ReadAsync(buffer, 0, buffer.Length, ct);
             if (n <= 0) return null; // 连接关闭
             ms.Write(buffer, 0, n);
             if (ms.Length > MaxHeaderBytes)
@@ -297,7 +301,7 @@ public sealed class HttpServer
         while ((int)(ms.Length - bodyStart) < contentLength)
         {
             int remaining = contentLength - (int)(ms.Length - bodyStart);
-            int n = await stream.ReadAsync(buffer, 0, Math.Min(buffer.Length, remaining));
+            int n = await stream.ReadAsync(buffer, 0, Math.Min(buffer.Length, remaining), ct);
             if (n <= 0) break;
             ms.Write(buffer, 0, n);
             if (ms.Length > bodyStart + maxBody)

@@ -634,6 +634,16 @@ public static partial class SelfTest
         var rsaMeta = SsgfGuard.ResolveSafeAddresses("169.254.169.254");
         Check("SSRF: ResolveSafe 云元数据拒绝", !rsaMeta.safe);
 
+        // v0.79.1: PendingImages 按 agentId 分队列（防多 vision 槽位并行图片跨槽位串扰）
+        LLM.QueueImage("agent-A", "/tmp/a.png");
+        LLM.QueueImage("agent-B", "/tmp/b.png");
+        var drainedA = LLM.DrainImages("agent-A");
+        var drainedB = LLM.DrainImages("agent-B");
+        Check("PendingImages: A 槽只取 A 的图片", drainedA.Count == 1 && drainedA[0] == "/tmp/a.png");
+        Check("PendingImages: B 槽只取 B 的图片", drainedB.Count == 1 && drainedB[0] == "/tmp/b.png");
+        Check("PendingImages: Drain 后队列清空", LLM.DrainImages("agent-A").Count == 0);
+        Check("PendingImages: 无队列返回空", LLM.DrainImages("agent-C").Count == 0);
+
         // v0.53.1: tasks 数组元素提取（对象元素 {description/task/...} 正确解出文本，而非乱码）
         var extStr = AgentTool.ExtractTaskText("给 TimeSeries 加冒烟测试");
         Check("AgentTool.ExtractTaskText 纯字符串透传", extStr == "给 TimeSeries 加冒烟测试");
