@@ -146,6 +146,9 @@ public abstract class TuiControl : TuiBase
     /// <summary>文字下划线（SGR 4）</summary>
     public bool Underline { get; set; }
 
+    /// <summary>所属窗口（标记加载时设置），供动画控件等做「父窗口焦点」门控。</summary>
+    public TuiWindow? Window { get; set; }
+
     /// <summary>文字样式 SGR 前缀（无样式返回空串），供渲染器叠加到 fg/bg 之前。</summary>
     public string SgrStyle
     {
