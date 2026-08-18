@@ -66,7 +66,7 @@ public class TuiSidePanel : TuiControl
             if (screenRow < ClipTop || screenRow >= ClipBottom) continue;
             if (borderCol < ClipLeft || borderCol >= ClipRight) continue;
             var rb = new RenderBuffer();
-            rb.Write(screenRow, borderCol, bc.V, fg: BorderColor, bg: bg);
+            rb.Write(screenRow, borderCol, bc.V, fg: BorderColor, bg: contentBg);
             sb.Append(rb.ToString());
         }
 
