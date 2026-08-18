@@ -1,6 +1,8 @@
-﻿using System.Text;
+﻿using System.Collections.Generic;
+using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
@@ -60,22 +62,22 @@ public static class TuiMenu
         // 宽度：内容 + 左边距" 1."(3) + 右边距(2) + 快捷键提示(4) + 滚动条(2)
         var contentW = Math.Max(16, Math.Min(maxVw + 11, Tty.Cols - 8));
 
-        var win = new TuiWindow
-        {
-            Title = title,
-            ShowTitle = hasTitle,
-            X = x, Y = y,
-            Width = contentW + 2,
-            Height = visCount + 2, // +上下边框（无标题分隔线）
-            // 弹出菜单按调用方指定的 (x, y) 定位，不参与居中/停靠对齐
-            WindowHAlign = EHAlign.Stretch,
-            WindowVAlign = EVAlign.Stretch,
-            Modal = true,
-            HasMask = false,
-            BorderStyle = WindowBorder.Rounded,
-            BorderColor = TuiTheme.Current.WindowBorderFocused,
-            WinBg = TuiTheme.Current.WindowBg,
-        };
+        // 窗口结构来自 menu.tui 声明式模板；动态属性（尺寸/定位/模态）在此覆盖
+        var res = TuiMarkup.LoadResource("menu.tui",
+            new Dictionary<string, string> { ["title"] = title ?? "" });
+        var win = res.Window ?? throw new InvalidOperationException("menu.tui 根应为 Dialog");
+        win.Title = title;
+        win.ShowTitle = hasTitle;
+        win.X = x; win.Y = y;
+        win.Width = contentW + 2;
+        win.Height = visCount + 2; // +上下边框（无标题分隔线）
+        // 弹出菜单按调用方指定的 (x, y) 定位，不参与居中/停靠对齐
+        win.WindowHAlign = EHAlign.Stretch;
+        win.WindowVAlign = EVAlign.Stretch;
+        win.Modal = true;
+        win.HasMask = false;
+        win.BorderColor = TuiTheme.Current.WindowBorderFocused;
+        win.WinBg = TuiTheme.Current.WindowBg;
 
         // 确保不超出屏幕
         ClampPosition(win);
