@@ -140,7 +140,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 .Set("desc", s.Desc)
                 .Set("type", s.Type)
                 .Set("options", OptionsToJson(s.Options))
-                .Set("value", value));
+                .Set("value", value)
+                .Set("default", s.Default));
         }
 
         var groupArr = JNode.Array();
