@@ -53,6 +53,7 @@ public class TuiSidePanel : TuiControl
         var bc = AnsiHelper.GetBorderChars(BorderStyle);
         int bg = Bg > 0 ? Bg : TuiTheme.Current.TerminalBg;
         int fg = Fg > 0 ? Fg : TuiTheme.Current.ControlFg;
+        int contentBg = 0; // 内容（标题/分隔线/行）透明背景，只显示文字，不铺色块
         int row = absY;
 
         int borderCol = absX;
@@ -110,7 +111,7 @@ public class TuiSidePanel : TuiControl
                     string title = sec.Title.Length > contentW - 2
                         ? AnsiHelper.TruncateByWidth(sec.Title, contentW - 2)
                         : sec.Title;
-                    titleRb.Write(curRow, contentX, " " + title, fg: SectionHeaderFg, bg: bg);
+                    titleRb.Write(curRow, contentX, " " + title, fg: SectionHeaderFg, bg: contentBg);
                     sb.Append(titleRb.ToString());
                 }
                 curRow++;
@@ -123,7 +124,7 @@ public class TuiSidePanel : TuiControl
                 {
                     var sepRb = new RenderBuffer();
                     int sepLen = Math.Min(contentW - 1, 20);
-                    sepRb.Write(curRow, contentX + 1, new string(bc.H[0], sepLen), fg: SeparatorColor, bg: bg);
+                    sepRb.Write(curRow, contentX + 1, new string(bc.H[0], sepLen), fg: SeparatorColor, bg: contentBg);
                     sb.Append(sepRb.ToString());
                 }
                 curRow++;
@@ -144,7 +145,7 @@ public class TuiSidePanel : TuiControl
                     if (AnsiHelper.DisplayWidth(line) > maxVw)
                         line = AnsiHelper.TruncateByWidth(line, maxVw);
                     var lineRb = new RenderBuffer();
-                    lineRb.Write(curRow, contentX + 1, line, fg: fg, bg: bg);
+                    lineRb.Write(curRow, contentX + 1, line, fg: fg, bg: contentBg);
                     sb.Append(lineRb.ToString());
                 }
                 curRow++;
