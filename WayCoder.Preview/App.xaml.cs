@@ -46,6 +46,16 @@ public partial class App : Application
             return;
         }
 
+        // 颜色对照表：--colors → 打开展示所有 ANSI 颜色渲染的窗口（比对哪色不准）
+        if (e.Args.Length == 1 && e.Args[0] == "--colors")
+        {
+            var colorWin = new MainWindow();
+            colorWin.LoadMarkup(Render.ColorPalette.GenerateMarkup());
+            MainWindow = colorWin;
+            colorWin.Show();
+            return;
+        }
+
         var win = new MainWindow();
         // 命令行参数 = 待预览 .tui 路径（可选）
         if (e.Args.Length > 0 && File.Exists(e.Args[0]))
