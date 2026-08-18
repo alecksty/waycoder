@@ -1,3 +1,5 @@
+using WayCoder.UI.TUI.Custom;
+using WayCoder.UI.Tui;
 using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder.UI.Cli.Commands;
@@ -15,6 +17,21 @@ public class ModelCommand : SlashCommand
     public override string Description => "Model management — per-slot model selection, catalog, import, keys";
     public override string? Usage => "/model [name] | #N <name> [key] | list|set <id>|uniform <id>|import <file>|keys|add [model|provider|key]|remove [model|provider|key]|test|slot <N> <large|small> <id>";
 
+    /// <summary>把选中模型应用到当前 Agent 运行时（重配 LlmClient）。</summary>
+    private static void ApplyRuntime(string modelId, string? providerId)
+    {
+        var agent = ProgramContext.Agent;
+        if (agent == null) return;
+        var cfg = Config.Instance;
+        var info = ModelCatalog.Find(modelId);
+        var pid = info?.ProviderId ?? providerId ?? cfg.Provider;
+        var key = ApiKeyStore.Get(pid) ?? cfg.ApiKey;
+        var baseUrl = info?.DefaultBaseUrl ?? cfg.BaseUrl;
+        agent.LlmClient.Reconfigure(key, baseUrl);
+        agent.LlmClient.Model = modelId;
+        agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(modelId, cfg.MaxContextTokens));
+    }
+
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {
         var trimmed = args.Trim();
@@ -22,7 +39,24 @@ public class ModelCommand : SlashCommand
         // Quick switch (backward compat): /model <modelName> or /model small <modelName>
         if (string.IsNullOrEmpty(trimmed))
         {
-            ShowCurrent(screen);
+            // 无参 /model → 弹模型选择对话框（任何终端可用；输入 key 后应用）
+            var pick = ModelPicker.Show();
+            if (pick != null)
+            {
+                if (pick.NeedsApiKey && !string.IsNullOrEmpty(pick.ProviderId))
+                {
+                    var key = UxHelper.Secret($"🔑 输入 {pick.ProviderId} 的 API Key（输入不可见，Enter 确认）:");
+                    if (string.IsNullOrWhiteSpace(key))
+                    {
+                        screen.AddSystemMsg("❌ 未输入 API Key，已取消");
+                        return Task.CompletedTask;
+                    }
+                    ApiKeyStore.Set(pick.ProviderId, key);
+                }
+                ModelPicker.Apply(pick.ModelId, pick.IsLarge, pick.TargetSlot);
+                ApplyRuntime(pick.ModelId, pick.ProviderId);
+                screen.AddSystemMsg($"✅ 已切换{(pick.IsLarge ? "大" : "小")}模型: {pick.ModelId}");
+            }
             return Task.CompletedTask;
         }
 
