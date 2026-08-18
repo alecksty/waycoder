@@ -121,7 +121,7 @@ public static partial class SelfTest
         ["[TuiTheme]"] = "ui",    ["[MarkdownRenderer]"] = "ui",
         ["[TuiTable]"] = "ui",    ["[DiffPreview]"] = "ui",  ["[UxHelper]"] = "ui",
         ["[UI Lint]"] = "ui",     ["[TuiTableList]"] = "ui",
-        ["[CommandPalette 导航"] = "ui",
+        ["[TuiMarkup"] = "ui",       ["[CommandPalette 导航"] = "ui",
         ["[对话框 resize]"] = "ui",
         ["[窗口比例缩放]"] = "ui",  ["[窗口位置对齐]"] = "ui",  ["[Flex 布局]"] = "ui",
         // git
@@ -224,6 +224,8 @@ public static partial class SelfTest
         TestChunk10(Section, Check, Fail);
 
         TestChunk11(Section, Check, Fail);
+
+        TestChunk12(Section, Check, Fail);
 
         // ---- 结果 ----
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");

@@ -1,0 +1,37 @@
+<!-- 聊天主界面 —— .tui 声明式布局（配合 MarkupChatScreen code-behind 使用）。
+     动态尺寸（终端宽 TW/高 TH、聊天区高度、输入区高度、侧栏宽度）由 ChatScreen.Render() 每帧计算覆盖，
+     标记只声明结构与初始静态属性。
+     code-behind：MarkupChatScreen 加载本文件 → Find(id) 取控件 → 赋给 ChatScreen 基类属性。 -->
+<Screen>
+  <VBox>
+    <!-- 顶行标题栏：Title/GitBranch/Version/CenterText 由 Render 每帧同步 -->
+    <TitleBar id="titleBar" height="1" />
+
+    <!-- 中间区：聊天列表 + 右侧面板。flex="1" 自动占满标题栏与输入区/状态栏之间的剩余高度 -->
+    <HBox id="middleHBox" flex="1">
+      <!-- 聊天消息项由 code-behind ChatList.AddItem(new TuiListItem(...)) 动态填充 -->
+      <ListView id="chatList" itemSpacing="1" autoScroll="true" />
+      <!-- 分区内容由 code-behind RefreshSidePanel() 填充；这里只声明外壳 -->
+      <SidePanel id="sidePanel" width="30" visible="false" borderColor="brightblack" />
+    </HBox>
+
+    <!-- 建议下拉：浮层，不参与流式布局；尺寸/位置由 Render 手动画 -->
+    <VBox id="suggestPanel" height="0" visible="false" bg="47" floating="true" />
+
+    <!-- 提示栏：默认隐藏，输入前缀（/ @ ! #）时 ShowPromptBar 显示 -->
+    <PromptBar id="promptBar" height="0" visible="false" maxVisible="8" />
+
+    <!-- 动态栏（始终可见，Agent 状态/工具/压缩进度） -->
+    <DynamicBar id="dynamicBar" height="1" />
+
+    <!-- 输入区上下分隔线 -->
+    <Separator id="inputTopBorder" height="1" lineChar="━" />
+    <TextArea id="inputArea" height="3" focused="true"
+              placeholder="输入消息… (Enter 发送, Ctrl+Enter 换行)" showLineNumbers="false" />
+    <Separator id="inputBotBorder" height="1" lineChar="━" />
+
+    <!-- 底部状态栏 -->
+    <StatusBar id="statusBar" height="1"
+               hint="Enter 发送 · Shift+Tab 切模式 · ↑↓ 历史 · Tab 补全 · F1-F10 槽位 · Ctrl+H 帮助" />
+  </VBox>
+</Screen>
