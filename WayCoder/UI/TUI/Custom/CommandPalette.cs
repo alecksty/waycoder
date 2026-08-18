@@ -2,6 +2,7 @@
 using WayCoder.UI.Tui.Controls;
 
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui;
@@ -52,46 +53,25 @@ public static class CommandPalette
         int listW = Math.Max(10, winW - 2); // 内容区宽（去左右边框）
         int winH = ListH + 4;               // 上框+搜索+列表+帮助下框
 
-        var win = new TuiWindow
-        {
-            Title = "🔍 命令面板",
-            Modal = true, HasMask = true,
-            BorderStyle = WindowBorder.Solid,
-            BorderColor = TuiTheme.Current.DialogInfoBorder,
-            WinBg = TuiTheme.Current.WindowBg,
-            Width = winW, Height = winH,
-            MinWidth = MinW, MinHeight = 10,
-            WindowHAlign = EHAlign.Center,
-            WindowVAlign = EVAlign.Middle,
-        };
+        // 标记加载：结构/ids 来自 commandpalette.tui（布局写标记），动态内容与事件 code-behind
+        var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "commandpalette.tui")));
+        var win = res.Window ?? throw new InvalidOperationException("commandpalette.tui 根应为 Dialog");
+        win.Width = winW; win.Height = winH;
+        win.MinWidth = MinW; win.MinHeight = 10;
+        win.WinBg = TuiTheme.Current.WindowBg;
         var g = TuiTheme.Current.GradCyanBlue;
         win.GradientBorder = true;
         win.GradientStart = g.start;
         win.GradientEnd = g.end;
 
-        // 搜索框（聚焦，字母进过滤词）
-        var search = new TuiInput
-        {
-            Height = 1,
-            Fg = AnsiColors.White, Bg = AnsiColors.BgBlack,
-            Focused = true,
-        };
-
-        // 命令列表（分类头 + 命令行，选中行手动反白）
-        var list = new TuiListView
-        {
-            Height = ListH,
-            IsAutoScrollToEnd = false,
-        };
-
-        // 帮助行（兼显示过滤计数）
-        var help = new TuiLabel { Height = 1, Fg = AnsiColors.BrightBlack };
-
-        var vbox = new TuiVBox { ChildHAlign = EHAlign.Stretch };
-        vbox.Add(search);
-        vbox.Add(list);
-        vbox.Add(help);
-        win.RootView = vbox;
+        // 控件接线（结构在标记里，精确样式/数据/事件在此）
+        var search = res.Find<TuiInput>("search")!;
+        var list = res.Find<TuiListView>("list")!;
+        var help = res.Find<TuiLabel>("help")!;
+        search.Fg = AnsiColors.White;
+        search.Bg = AnsiColors.BgBlack;
+        list.Height = ListH;
+        list.IsAutoScrollToEnd = false;
 
         // ── 过滤 / 行状态 ──
         var filtered = new List<Command>();

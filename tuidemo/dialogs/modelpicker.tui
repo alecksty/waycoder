@@ -1,0 +1,15 @@
+<!-- 模型选择器 —— 配合 ModelPicker code-behind。
+     标记声明结构；搜索过滤/表格列与行数据/槽位/帮助文本/键盘拦截由代码填充。 -->
+<Dialog title="选择模型" border="solid" borderColor="info"
+        minWidth="62" minHeight="16"
+        gradient="true" gradientStart="#ffb400" gradientEnd="#ffff50">
+  <VBox>
+    <HBox spacing="1">
+      <Label text="搜索:" width="6" fg="8" />
+      <Input id="search" height="1" flex="1" focused="true" />
+    </HBox>
+    <TableList id="table" showHeader="true" />
+    <Label id="slotBar" height="1" fg="8" />
+    <Label id="help" height="1" fg="8" />
+  </VBox>
+</Dialog>

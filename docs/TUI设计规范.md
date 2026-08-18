@@ -9,9 +9,20 @@
 | 写法 | 载体 | 观感 |
 |------|------|------|
 | 走控件库 | `ChatScreen`/`EditorScreen`/`SettingsScreen`、`TuiDialog`、`UxHelper` | 统一、可切主题 |
-| 手写自绘 | `ModelPicker`/`DiffPreview` 等 8 个选择器：`StringBuilder` 拼 `\x1b` + `Console.Write` + `while(true) ReadKey` | 边框/间距/配色各写各的 |
+| 手写自绘 | ~~`ModelPicker`/`DiffPreview` 等 8 个选择器：`StringBuilder` 拼 `\x1b` + `Console.Write` + `while(true) ReadKey`~~（v0.76.0 已全部标记化，此写法废弃） | 边框/间距/配色各写各的 |
+| 声明式标记 | `tuidemo/**/*.tui` + code-behind（`MarkupChatScreen` 及全部窗口型界面） | 布局写标记、交互写代码，可 `--tui-preview` 预览 |
 
 这就是「一部分满意、一部分丑陋」的根因。规范的落点只有一条：**所有界面都必须由控件库渲染，取色只走设计令牌，禁止任何控件直接碰 `Console` 或裸 ANSI 转义。**
+
+## 0.5 声明式标记（`.tui` 资源文件）
+
+新界面一律优先用 `.tui` 标记声明布局 + code-behind 写交互：
+
+- **资源位置**：`tuidemo/**/*.tui`（主界面 `chat.tui`、对话框/选择器 `dialogs/*.tui`），发布时由 csproj 复制到输出，`TuiMarkupPaths.ResolveDemoFile(name)` 定位。
+- **加载模式**：`TuiMarkup.LoadFile(path)` → `res.Find<T>(id)` 取控件 → 接线数据/事件。窗口型界面沿用 `screen.ShowWindow(win)` + `UxHelper.RenderWait`。
+- **预览**：`--tui-preview <file.tui>` / `--tui-watch <file.tui>` 边写边看。
+- **切分原则**：静态布局（容器/控件/层级/id/基础样式）写标记；动态内容（列表项、过滤、着色、快捷键、落盘）留 code-behind。
+- **保持 code**：本质 code 驱动的部分不硬套标记——编辑器缓冲（`TuiRichEditor` 语法高亮/gutter/增量重绘）、`TuiMenu`（紧凑自包含+动态定位）、`InlinePermission`（已由 `ShowPermissionDialog` 取代）、`TuiToastQueue`（非控件，静态队列管理器）。
 
 ## 0. 三条铁律（不可违反）
 

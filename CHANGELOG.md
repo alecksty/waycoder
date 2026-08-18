@@ -1,5 +1,31 @@
 # 更新日志
 
+## v0.76.0 (2026-08-18) — TUI 所有窗口型界面 `.tui` 标记化
+
+把全部窗口型界面（选择器/快捷键/设置/Diff 预览）迁移到声明式 `.tui` 资源架构——「布局写标记、交互写 code-behind」，与主界面（v0.75.0 标记化）统一。
+
+### 🧩 标记系统扩展
+- `TuiMarkup` 新增 `ScrollView` 标签（设置页详情面板）+ `Separator vertical` 属性
+- 资源定位复用 `TuiMarkupPaths`（发布输出优先 + 向上找 `tuidemo/`）
+
+### 🖥 8 个界面迁移（新建 `tuidemo/dialogs/*.tui`）
+| 界面 | 做法 |
+|---|---|
+| ModelPicker / FilePicker / SessionPicker / CommandPalette / ReasoningPicker | Dialog 壳+布局全标记化；搜索/表格列/列表项/键盘拦截/落盘 code-behind |
+| TuiKeybindHelp | Window 壳标记化，列表项 code 填充 |
+| SettingsScreen | Screen 壳标记化，schema 详情/高亮 code |
+| DiffPreview | Dialog 壳标记化，DiffView 自定义控件 code 注入 |
+
+- 全部沿用「`LoadFile` → `Find(id)` → 接线」模式，**交互逻辑零改动**（搜索/键盘/槽位/落盘保留）
+- 编辑缓冲（TuiRichEditor）/TuiMenu/InlinePermission/Toast 保持 code（本质 code 驱动，标记化收益低）
+
+### 🧹 清理
+- 删除死代码 `DialogFrame.cs`（TuiWindow 渐变边框落地后无调用点）
+
+### ✅ 验证
+- 自测 3459→3475 全绿（新增 16 项：8 个 `.tui` 加载 + 关键 id 断言）
+- `--tui-preview` 各对话框渲染正确；构建 0 错误
+
 ## v0.75.0 (2026-08-18) — 标记界面重构：`.tui` 声明式布局 + `--tui-chat`
 
 主聊天界面从 C# 硬编码布局迁移到声明式 `.tui` 资源文件——「布局写标记、交互写 code-behind」，向"写资源文件+交互代码就能实现界面、还能预览"架构推进。

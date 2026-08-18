@@ -1,6 +1,7 @@
 ﻿using WayCoder.UI.Tui.Controls;
 
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui;
@@ -65,64 +66,29 @@ public static class ReasoningPicker
     private static TuiWindow BuildWindow(string currentLevel, string modelName,
         TuiScreen? screen, Action<Result?> onDone)
     {
-        var win = new TuiWindow
-        {
-            Title = $"推理深度 — {modelName}",
-            Modal = true, HasMask = true,
-            BorderStyle = WindowBorder.Solid,
-            BorderColor = TuiTheme.Current.DialogInfoBorder,
-            WinBg = TuiTheme.Current.WindowBg,
-            XScale = 0.6,
-            WindowHAlign = EHAlign.Center,
-            WindowVAlign = EVAlign.Middle,
-            MinWidth = 44,
-            MinHeight = 10,
-            Height = 10,
-        };
-        // 渐变边框（紫→粉，呼应推理深度的紫色调）
+        // 标记加载：结构/ids 来自 reasoningpicker.tui（布局写标记），动态内容与事件 code-behind
+        var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "reasoningpicker.tui")));
+        var win = res.Window ?? throw new InvalidOperationException("reasoningpicker.tui 根应为 Dialog");
+        win.Title = $"推理深度 — {modelName}";
+        win.WinBg = TuiTheme.Current.WindowBg;
+        win.XScale = 0.6; // 宽度 = 终端 60%（标记 scale 兜底，此处显式保证）
+        // 渐变边框（紫→粉，沿用主题；标记 hex 为兜底）
         var g = TuiTheme.Current.GradPurplePink;
         win.GradientBorder = true;
         win.GradientStart = g.start;
         win.GradientEnd = g.end;
 
+        // 控件接线（结构在标记里，精确样式/数据/事件在此）
+        var search = res.Find<TuiInput>("search")!;
+        var list = res.Find<TuiList>("list")!;
+        search.Fg = AnsiColors.White;
+        search.Bg = AnsiColors.BgBlack;
+        list.Fg = AnsiColors.Black;
+
         // 当前过滤后的级别列表（搜索输入实时更新）
         var filtered = FilterLevels("");
-
-        // 说明行
-        var desc = new TuiLabel("选择模型的「思考」深度，越深推理越充分，但耗时越长")
-        {
-            Fg = AnsiColors.Black,
-        };
-
-        // 搜索框（聚焦，字母进过滤词）
-        var search = new TuiInput
-        {
-            Height = 1,
-            Fg = AnsiColors.White, Bg = AnsiColors.BgBlack,
-            Focused = true,
-        };
-
-        // 级别列表
-        var list = new TuiList
-        {
-            Items = filtered.Select(l => FormatItem(l, currentLevel)).ToList(),
-            SelectedIndex = IndexOfCurrent(filtered, currentLevel),
-            Height = 5,
-            Fg = AnsiColors.Black,
-        };
-
-        // 帮助行
-        var help = new TuiLabel("[↑/↓] 导航  [Enter] 确认  [Esc] 取消  [字母] 搜索  [←] 清除=默认")
-        {
-            Fg = AnsiColors.BrightBlack,
-        };
-
-        var vbox = new TuiVBox { ChildHAlign = EHAlign.Stretch };
-        vbox.Add(desc);
-        vbox.Add(search);
-        vbox.Add(list);
-        vbox.Add(help);
-        win.RootView = vbox;
+        list.Items = filtered.Select(l => FormatItem(l, currentLevel)).ToList();
+        list.SelectedIndex = IndexOfCurrent(filtered, currentLevel);
 
         // ── 动作 ──
 

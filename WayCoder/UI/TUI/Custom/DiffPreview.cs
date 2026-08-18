@@ -6,6 +6,7 @@ using WayCoder.UI.Tui.Screens;
 using WayCoder.UI.Tui.Edit;
 
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui;
@@ -110,7 +111,24 @@ public static class DiffPreview
         var syntax = GetSyntaxForFile(filePath);
         bool isAllMode = false; // "review" | "all"
 
-        // diff 视图（只读控件，占满除状态栏外的内容区）
+        // 标记加载：窗口壳/状态栏来自 diffpreview.tui，DiffView 自定义控件 code 注入 body 首位
+        var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "diffpreview.tui")));
+        var win = res.Window ?? throw new InvalidOperationException("diffpreview.tui 根应为 Dialog");
+        win.Title = $"Diff 预览: {filePath}  ({hunks.Count} hunks)";
+        win.Width = winW; win.Height = winH;
+        win.MinWidth = 40; win.MinHeight = 10;
+        win.WinBg = contentBg;
+        var g = TuiTheme.Current.GradOrangeYellow;
+        win.GradientBorder = true;
+        win.GradientStart = g.start;
+        win.GradientEnd = g.end;
+
+        var body = res.Find<TuiVBox>("body")!;
+        var status = res.Find<TuiLabel>("status")!;
+        status.Fg = AnsiColors.Black;
+        status.Bg = AnsiColors.BgWhite;
+
+        // diff 视图（自定义控件，code 注入 body 首位；结构在标记，渲染逻辑在控件）
         var diff = new DiffView(hunks, accepted, syntax)
         {
             Flex = 1,
@@ -118,36 +136,7 @@ public static class DiffPreview
             Bg = contentBg,
             Focused = true,
         };
-
-        // 状态栏（白底黑字，对标旧实现）
-        var status = new TuiLabel
-        {
-            Height = 1,
-            Fg = AnsiColors.Black,
-            Bg = AnsiColors.BgWhite,
-        };
-
-        var vbox = new TuiVBox { ChildHAlign = EHAlign.Stretch };
-        vbox.Add(diff);
-        vbox.Add(status);
-
-        var win = new TuiWindow
-        {
-            Title = $"Diff 预览: {filePath}  ({hunks.Count} hunks)",
-            Modal = true, HasMask = true,
-            BorderStyle = WindowBorder.Solid,
-            BorderColor = TuiTheme.Current.DialogInfoBorder,
-            WinBg = contentBg,
-            Width = winW, Height = winH,
-            MinWidth = 40, MinHeight = 10,
-            WindowHAlign = EHAlign.Center,
-            WindowVAlign = EVAlign.Middle,
-            RootView = vbox,
-        };
-        var g = TuiTheme.Current.GradOrangeYellow;
-        win.GradientBorder = true;
-        win.GradientStart = g.start;
-        win.GradientEnd = g.end;
+        body.Children.Insert(0, diff);
 
         // ── 刷新 / 动作 ──
 

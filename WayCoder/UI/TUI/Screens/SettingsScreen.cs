@@ -1,5 +1,6 @@
 using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Controls;
+using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Custom;
 using WayCoder.UI.Tui.Screens;
 
@@ -41,6 +42,7 @@ public class SettingsScreen : TuiScreen
     private TuiScrollView _detailPanel = null!;
     private TuiLabel _hintBar = null!;
     private readonly List<TuiControl> _detailControls = [];   // 每组 3 个: label, value, desc
+    private TuiMarkupResult? _markup;                        // 缓存的 settings.tui 标记树（仅首次解析）
 
     public SettingsScreen()
     {
@@ -89,24 +91,36 @@ public class SettingsScreen : TuiScreen
 
     private void BuildLayout()
     {
-        RootView = new TuiVBox { Width = TW, Height = TH };
-
-        // ── 顶栏 ──
-        _header = new TuiTitleBar { Width = TW, Height = 1, Bg = 44, Fg = 37, CenterText = "⚙ 设置 / 配置" };
-        RootView.Add(_header);
-
-        // ── 主区域 ──
-        int mainH = Math.Max(5, TH - 3);
-        var hbox = new TuiHBox { Width = TW, Height = mainH };
-
-        // 左侧类别列表
-        int catW = Math.Min(18, TW / 3);
-        _catList = new Controls.TuiList
+        // 标记加载：结构/ids 来自 settings.tui（布局写标记），schema 数据/高亮/交互 code-behind
+        if (_markup == null)
         {
-            Width = catW,
-            Height = mainH,
-            Focused = !_focusOnDetail
-        };
+            _markup = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "settings.tui")));
+            _header = _markup.Find<TuiTitleBar>("header") ?? throw new InvalidOperationException("settings.tui 缺少 header");
+            _catList = _markup.Find<Controls.TuiList>("catList") ?? throw new InvalidOperationException("settings.tui 缺少 catList");
+            _detailPanel = _markup.Find<TuiScrollView>("detailPanel") ?? throw new InvalidOperationException("settings.tui 缺少 detailPanel");
+            _hintBar = _markup.Find<TuiLabel>("hintBar") ?? throw new InvalidOperationException("settings.tui 缺少 hintBar");
+            RootView = _markup.Screen?.RootView ?? throw new InvalidOperationException("settings.tui 根应为 Screen");
+        }
+
+        // 动态尺寸：标记声明结构，终端尺寸/宽度以 TW/TH 为准
+        int mainH = Math.Max(5, TH - 3);
+        int catW = Math.Min(18, TW / 3);
+        _header.Width = TW;
+        _catList.Width = catW;
+        _catList.Height = mainH;
+        _catList.Focused = !_focusOnDetail;
+        _detailPanel.Width = TW - catW - 2;
+        _detailPanel.Height = mainH;
+        _detailPanel.IsAutoScrollToEnd = false;
+        _hintBar.Width = TW;
+        _hintBar.Bg = TuiTheme.Current.StatusBarBg;
+        _hintBar.Fg = TuiTheme.Current.StatusBarFg;
+        _hintBar.Text = " ↑↓ 选择  ←→ 切换面板  PgUp/PgDn 翻页  Enter 修改  Ctrl+S 保存  Esc 退出";
+        RootView.Width = TW;
+        RootView.Height = TH;
+        RootView.Layout();
+
+        // 类别列表数据与切换（schema 驱动）
         _catList.Items = [.. _catOrder];
         _catList.SelectedIndex = _catIdx;
         _catList.OnSelect = idx =>
@@ -115,26 +129,9 @@ public class SettingsScreen : TuiScreen
             _itemIdx = 0;
             RebuildDetailPanel();
         };
-        hbox.Add(_catList);
-
-        // 竖分隔
-        hbox.Add(new TuiSeparator(SeparatorDirection.Vertical) { Height = mainH });
-
-        // 右侧详情
-        int detailW = TW - catW - 2;
-        _detailPanel = new TuiScrollView { Width = detailW, Height = mainH, IsAutoScrollToEnd = false };
-        hbox.Add(_detailPanel);
-
-        RootView.Add(hbox);
-
-        // ── 底栏 ──
-        _hintBar = new TuiLabel(" ↑↓ 选择  ←→ 切换面板  PgUp/PgDn 翻页  Enter 修改  Ctrl+S 保存  Esc 退出")
-            { Width = TW, Height = 1, Bg = TuiTheme.Current.StatusBarBg, Fg = TuiTheme.Current.StatusBarFg };
-        RootView.Add(_hintBar);
 
         RebuildDetailPanel();
         ApplyHighlight();
-        RootView.Layout();
         MarkDirty();
     }
 

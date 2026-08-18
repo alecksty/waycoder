@@ -1,0 +1,13 @@
+<!-- 设置页 —— 配合 SettingsScreen code-behind（就地加载标记壳）。
+     类别列表 items、详情面板内容（schema 驱动）、高亮/滚动/交互由代码填充。 -->
+<Screen>
+  <VBox>
+    <TitleBar id="header" height="1" center="⚙ 设置 / 配置" bg="44" fg="37" />
+    <HBox id="mainHBox" flex="1">
+      <List id="catList" />
+      <Separator vertical="true" lineColor="8" />
+      <ScrollView id="detailPanel" autoScroll="false" />
+    </HBox>
+    <Label id="hintBar" height="1" />
+  </VBox>
+</Screen>

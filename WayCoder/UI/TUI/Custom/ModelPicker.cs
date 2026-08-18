@@ -2,6 +2,7 @@
 using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui;
+using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Controls;
 
@@ -62,44 +63,25 @@ public static class ModelPicker
         int listH = Math.Max(5, winH - 5);                                     // 列表行数（内容=搜索+列表+槽位+帮助）
         int nameW = Math.Max(8, listW - 1 - keyW - provW - ctxW - priceW - largeW - smallW);
 
-        var win = new TuiWindow
-        {
-            Title = "选择模型",
-            Modal = true, HasMask = true,
-            BorderStyle = WindowBorder.Solid,
-            BorderColor = TuiTheme.Current.DialogInfoBorder,
-            WinBg = TuiTheme.Current.WindowBg,
-            Width = winW, Height = winH,
-            MinWidth = MinW, MinHeight = MinH,
-            WindowHAlign = EHAlign.Center,
-            WindowVAlign = EVAlign.Middle,
-        };
+        // 标记加载：结构/ids 来自 modelpicker.tui（布局写标记），动态内容与事件 code-behind
+        var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "modelpicker.tui")));
+        var win = res.Window ?? throw new InvalidOperationException("modelpicker.tui 根应为 Dialog");
+        win.Width = winW; win.Height = winH;
+        win.MinWidth = MinW; win.MinHeight = MinH;
+        win.WinBg = TuiTheme.Current.WindowBg;
         var g = TuiTheme.Current.GradOrangeYellow;
         win.GradientBorder = true;
         win.GradientStart = g.start;
         win.GradientEnd = g.end;
 
-        // ── 状态 ──
-        var models = GetAvailableModels();
-        var filtered = new List<ModelEntry>();
-        string large = cfg.Model, small = cfg.SmallModel;
-        bool isLarge = true;
-        int targetSlot = currentSlot; // -2=全部, -1=全局, 0-9=具体槽位
-
-        // 搜索行（标签 + 输入框，输入框聚焦）
-        var search = new TuiInput
-        {
-            Height = 1,
-            Flex = 1,
-            Fg = AnsiColors.White, Bg = AnsiColors.BgBlack,
-            Focused = true,
-        };
-        var searchRow = new TuiHBox { Spacing = 1 };
-        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = AnsiColors.BrightBlack });
-        searchRow.Add(search);
-
-        // 模型列表（多列）
-        var table = new TuiTableList { Height = listH };
+        // 控件接线（结构在标记里，精确样式/列/数据/事件在此）
+        var search = res.Find<TuiInput>("search")!;
+        var table = res.Find<TuiTableList>("table")!;
+        var slotBar = res.Find<TuiLabel>("slotBar")!;
+        var help = res.Find<TuiLabel>("help")!;
+        search.Fg = AnsiColors.White;
+        search.Bg = AnsiColors.BgBlack;
+        table.Height = listH;
         table.AddColumn("🔑", keyW);
         table.AddColumn("模型", nameW);
         table.AddColumn("厂商", provW);
@@ -108,16 +90,12 @@ public static class ModelPicker
         table.AddColumn("大", largeW);
         table.AddColumn("小", smallW);
 
-        // 槽位状态条 + 帮助行
-        var slotBar = new TuiLabel { Height = 1, Fg = AnsiColors.BrightBlack };
-        var help = new TuiLabel { Height = 1, Fg = AnsiColors.BrightBlack };
-
-        var vbox = new TuiVBox { ChildHAlign = EHAlign.Stretch };
-        vbox.Add(searchRow);
-        vbox.Add(table);
-        vbox.Add(slotBar);
-        vbox.Add(help);
-        win.RootView = vbox;
+        // ── 状态 ──
+        var models = GetAvailableModels();
+        var filtered = new List<ModelEntry>();
+        string large = cfg.Model, small = cfg.SmallModel;
+        bool isLarge = true;
+        int targetSlot = currentSlot; // -2=全部, -1=全局, 0-9=具体槽位
 
         // ── 标题 / 刷新 ──
 

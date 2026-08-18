@@ -114,6 +114,40 @@ public static partial class SelfTest
         {
             if (entered) { try { mgr.Exit(); } catch { } }
         }
+        // ── 窗口型界面 .tui 资源加载（选择器/帮助/设置/Diff 壳）──
+        Section("[TuiMarkup 窗口界面]");
+        {
+            // (文件, 关键 id 数组)
+            var files = new (string File, string[] Ids)[]
+            {
+                ("modelpicker.tui", ["search", "table", "slotBar", "help"]),
+                ("filepicker.tui", ["path", "search", "table", "help"]),
+                ("sessionpicker.tui", ["stats", "search", "list", "openBtn", "renameBtn", "delBtn", "closeBtn", "help"]),
+                ("commandpalette.tui", ["search", "list", "help"]),
+                ("reasoningpicker.tui", ["search", "list"]),
+                ("keybindhelp.tui", ["list", "hint"]),
+                ("settings.tui", ["header", "catList", "detailPanel", "hintBar"]),
+                ("diffpreview.tui", ["body", "status"]),
+            };
+            foreach (var (file, ids) in files)
+            {
+                try
+                {
+                    var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", file)));
+                    bool allFound = true;
+                    foreach (var id in ids)
+                        allFound &= res.Find(id) != null;
+                    Check($"{file} Window/Screen 根", res.Window != null || res.Screen != null);
+                    Check($"{file} 关键 id={string.Join("/", ids)}", allFound);
+                }
+                catch (Exception ex)
+                {
+                    Check($"{file} 加载失败: {ex.Message}", false);
+                }
+            }
+        }
+        Console.WriteLine();
+
         // 检查在恢复输出后执行
         Check("MarkupChatScreen 渲染非空", !string.IsNullOrEmpty(frame));
         Check("MarkupChatScreen 子视图就位", mScreen.TitleBar != null && mScreen.ChatList != null
