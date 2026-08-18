@@ -1,6 +1,7 @@
 using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui;
+using WayCoder.UI.Tui.Controls;
 
 namespace WayCoder.UI.TUI.Base;
 
@@ -143,7 +144,12 @@ public class TuiManager : IDisposable
     public void Render()
     {
         if (!IsActive) return;
-        if (!IsDirty && !_needsFullRefresh) return;  // 没有变化，跳过渲染（全刷新请求除外）
+        if (!IsDirty && !_needsFullRefresh)
+        {
+            // 无脏变化也刷新直接写屏的动画控件（不依赖 Dirty 标志）
+            TuiAnimatedText.RenderAllDirect();
+            return;
+        }
         IsDirty = false;
 
         (TW, TH) = (Tty.Cols, Tty.Rows);
@@ -176,6 +182,9 @@ public class TuiManager : IDisposable
 
         // 3. 全局输出
         Tty.Write(sb.ToString());
+
+        // 4. 直接写屏的动画控件（不依赖 Dirty 标志，帧写完后叠加写终端）
+        TuiAnimatedText.RenderAllDirect();
     }
 
     /// <summary>写入干净帧（窗口关闭后还原背景）</summary>
