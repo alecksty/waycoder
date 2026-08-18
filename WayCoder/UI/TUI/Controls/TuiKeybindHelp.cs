@@ -89,7 +89,7 @@ public static class TuiKeybindHelp
         int listH = Math.Max(5, winH - 3);
 
         // 标记加载：结构/ids 来自 keybindhelp.tui（布局写标记），列表项 code-behind 填充
-        var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "keybindhelp.tui")));
+        var res = TuiMarkup.LoadResource("dialogs/keybindhelp.tui");
         var win = res.Window ?? throw new InvalidOperationException("keybindhelp.tui 根应为 Window");
         win.Width = winW; win.Height = winH;
         win.MinWidth = MinW; win.MinHeight = 8;

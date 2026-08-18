@@ -48,9 +48,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 声明式标记资源：tuidemo/**/*.tui 复制到发布输出，供 TuiMarkupPaths 运行态定位 -->
-    <None Include="..\tuidemo\**\*.tui"
-          Link="tuidemo\%(RecursiveDir)%(Filename)%(Extension)"
+    <!-- 声明式标记资源（.tui）：UI/TUI/Raw/** 嵌入 exe（AOT 单文件内可直接读），
+         同时复制到输出（开发/预览热刷新优先读文件系统）。
+         逻辑名 WayCoder.UI.TUI.Raw.<相对路径>，由 TuiMarkupPaths.LoadText 解析。 -->
+    <EmbeddedResource Include="UI\TUI\Raw\**\*.tui">
+      <LogicalName>WayCoder.UI.TUI.Raw.%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <None Include="UI\TUI\Raw\**\*.tui"
+          Link="Raw\%(RecursiveDir)%(Filename)%(Extension)"
           CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

@@ -1,0 +1,10 @@
+<!-- 确认对话框（是/否，标题与消息由 code-behind 注入） -->
+<Dialog title="{title}" border="rounded" borderColor="yellow">
+  <VBox align="center" spacing="1">
+    <VBox id="msgBox"><Label text="…" fg="brightblack" /></VBox>
+    <HBox align="center" spacing="2">
+      <Button id="yes" text="是 (Y)" />
+      <Button id="no" text="否 (N)" />
+    </HBox>
+  </VBox>
+</Dialog>

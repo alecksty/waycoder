@@ -27,7 +27,7 @@ public class MarkupChatScreen : ChatScreen
     {
         if (_markup == null)
         {
-            _markup = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile("chat.tui"));
+            _markup = TuiMarkup.LoadResource("chat.tui");
 
             TitleBar = _markup.Find<TuiTitleBar>("titleBar") ?? throw Missing("titleBar");
             StatusBar = _markup.Find<TuiStatusBar>("statusBar") ?? throw Missing("statusBar");

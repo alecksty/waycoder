@@ -110,6 +110,40 @@ public partial class App : Application
                     line.Append(snap.CharAt(r, c) == " " ? "·" : snap.CharAt(r, c));
                 sb.AppendLine(line.ToString());
             }
+            // 颜色诊断：每格背景色（0=.，1-9=a-j 的十六进制低位），用于核对蓝块/黑块等背景色布局
+            sb.AppendLine();
+            sb.AppendLine("── 背景色 (fg,bg 每格) 关键行 ──");
+            for (int r = 0; r < snap.H; r++)
+            {
+                bool any = false;
+                for (int c = 0; c < snap.W; c++)
+                    if (snap.ColorAt(r, c).bg != 0) { any = true; break; }
+                if (!any) continue;
+                var line = new System.Text.StringBuilder();
+                line.Append($"r{r:D2} bg:");
+                for (int c = 0; c < snap.W; c++)
+                {
+                    int bg = snap.ColorAt(r, c).bg;
+                    line.Append(bg == 0 ? '.' : bg.ToString("X"));
+                }
+                sb.AppendLine(line.ToString());
+                var fgl = new System.Text.StringBuilder();
+                fgl.Append($"r{r:D2} fg:");
+                for (int c = 0; c < snap.W; c++)
+                {
+                    int fg = snap.ColorAt(r, c).fg;
+                    fgl.Append(fg == 0 ? '.' : fg.ToString("X"));
+                }
+                sb.AppendLine(fgl.ToString());
+                var stl = new System.Text.StringBuilder();
+                stl.Append($"r{r:D2} st:");
+                for (int c = 0; c < snap.W; c++)
+                {
+                    int st = snap.StyleAt(r, c);
+                    stl.Append(st == 0 ? '.' : st.ToString("X"));
+                }
+                sb.AppendLine(stl.ToString());
+            }
             File.WriteAllText(outPath, sb.ToString());
         }
         catch (Exception ex) { File.WriteAllText(outPath, "EX: " + ex); }
