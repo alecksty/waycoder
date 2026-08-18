@@ -94,7 +94,7 @@ public class SettingsScreen : TuiScreen
         // 标记加载：结构/ids 来自 settings.tui（布局写标记），schema 数据/高亮/交互 code-behind
         if (_markup == null)
         {
-            _markup = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "settings.tui")));
+            _markup = TuiMarkup.LoadResource("dialogs/settings.tui");
             _header = _markup.Find<TuiTitleBar>("header") ?? throw new InvalidOperationException("settings.tui 缺少 header");
             _catList = _markup.Find<Controls.TuiList>("catList") ?? throw new InvalidOperationException("settings.tui 缺少 catList");
             _detailPanel = _markup.Find<TuiScrollView>("detailPanel") ?? throw new InvalidOperationException("settings.tui 缺少 detailPanel");

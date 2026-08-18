@@ -1,0 +1,11 @@
+<!-- 权限确认对话框（黄底黑字风格，标题/消息由 code-behind 注入，Y=允许 N=拒绝 A=全允） -->
+<Dialog title="{title}" border="solid" borderColor="warning" shortcut="escape">
+  <VBox align="center" spacing="1">
+    <VBox id="msgBox"><Label text="…" fg="brightblack" /></VBox>
+    <HBox align="center" spacing="2">
+      <Button id="allow" text="允许 (Y)" shortcut="y" />
+      <Button id="deny" text="拒绝 (N)" shortcut="n" />
+      <Button id="always" text="全允 (A)" shortcut="a" />
+    </HBox>
+  </VBox>
+</Dialog>

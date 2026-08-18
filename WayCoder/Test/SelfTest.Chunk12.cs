@@ -70,11 +70,11 @@ public static partial class SelfTest
 
         Console.WriteLine();
 
-        // ── tuidemo/chat.tui 完整聊天布局加载 ──
+        // ── UI/TUI/Raw/chat.tui 完整聊天布局加载（文件系统优先、嵌入资源兜底）──
         Section("[TuiMarkup chat.tui]");
         try
         {
-            var main = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile("chat.tui"));
+            var main = TuiMarkup.LoadResource("chat.tui");
             Check("chat.tui Screen 根", main.Screen != null);
             Check("chat.tui RootView 非空", main.Screen?.RootView != null);
             int childCount = main.Screen?.RootView?.Children.Count ?? 0;
@@ -144,7 +144,7 @@ public static partial class SelfTest
             {
                 try
                 {
-                    var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", file)));
+                    var res = TuiMarkup.LoadResource($"dialogs/{file}");
                     bool allFound = true;
                     foreach (var id in ids)
                         allFound &= res.Find(id) != null;

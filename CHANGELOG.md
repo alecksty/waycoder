@@ -1,5 +1,43 @@
 # 更新日志
 
+## v0.78.0 (2026-08-18) — 全部界面 `.tui` 标记化 + 资源内嵌 exe
+
+把剩余的命令式对话框（TuiDialog.* 工厂）全部迁移到 `.tui` 声明式标记资源，并把标记资源统一收拢到 `UI/TUI/Raw/` 且嵌入程序集——「布局写标记、交互写 code-behind」架构闭环，单文件 exe 内可直接读资源。
+
+### 📦 标记资源位置与内嵌
+- **`tuidemo/` → `WayCoder/UI/TUI/Raw/`**：全部 `.tui` 资源（chat/colors/main/showcase + dialogs/*）移入项目内 `UI/TUI/Raw/`（git 历史保留）
+- **`EmbeddedResource` 嵌入 exe**：`Raw/**/*.tui` 以逻辑名 `WayCoder.UI.TUI.Raw.<path>` 嵌入程序集，AOT 单文件 exe 内无需外部文件即可读
+- `TuiMarkupPaths` 三路定位：`{BaseDir}/Raw/` 发布复制 → 向上找 `Raw/` / `UI/TUI/Raw/` / `WayCoder/UI/TUI/Raw/`（开发/预览热刷新）→ 嵌入资源兜底（已从仓库外目录实测通过）
+- 新增 `TuiMarkup.LoadResource(name)` / `LoadResource(name, vars)`；全部窗口型界面（8 选择器 + 聊天屏）改走资源加载
+- `WayCoder.Preview` 同步把 `Raw/**/*.tui` 复制到输出（`--colors` 等文件系统定位可用）
+
+### 🖥 全部对话框迁移到 `.tui`（TuiDialog.* 工厂）
+| 对话框 | 模板 |
+|---|---|
+| Info / Success / Warn / Error | `dialogs/info.tui`（共用，边框色/标题注入） |
+| Confirm / Confirm3 | `dialogs/confirm.tui` / `dialogs/confirm3.tui` |
+| Input / InputLine / Secret | `dialogs/input.tui` / `dialogs/inputline.tui` / `dialogs/secret.tui` |
+| Select / MultiSelect | `dialogs/select.tui` / `dialogs/multiselect.tui` |
+| Ask（LLM 提问） | `dialogs/ask.tui`（单选隐藏确定按钮） |
+| Permission（权限确认） | `dialogs/permission.tui`（黄底黑字 + Y/N/A） |
+| FindReplace（编辑器） | `dialogs/findreplace.tui` |
+
+- 模板支持 `{title}` 占位符注入；`msgBox` 容器由 code-behind 填折行消息标签（预览态显示占位）
+- `Input` 标记新增 `password` 属性（Secret 掩码输入）
+- 全部沿用「`LoadResource` → `Find(id)` → 接线」模式，**交互/尺寸/事件逻辑零改动**
+
+### 🐛 渲染修复
+- **宽字符半格**：`○`/`▸` 等半宽符号被当宽字符只画半格 → `TuiGridPanel` 对宽字符做水平拉伸到恰好 2 格（真正的双宽字形几乎不变）
+- **文字特征无效**：`FrameSnapshot` 丢弃 SGR 样式码 → 新增 `StyleAt` 捕获粗体/斜体/下划线/淡色，WPF 预览用 Typeface/TextDecorations/半透明还原
+- **表格蓝/黑块**：`TuiTableList` cell 背景只设包装 VBox，内层 Label 仍继承灰底 → 递归 `SetCellBg` 传播行背景
+- **聊天记录亮绿背景刺眼**：edit diff 新增/删除行由「白字绿/红底」改为「亮绿/亮红前景」去背景
+- 修复 `TableList cell 颜色` 测试断言（背景传播后 SGR 合并码 `36;40m`）
+
+### ✅ 验证
+- 主项目自测 3482 全绿（含全部对话框构造 + 渲染 + 自适应尺寸断言）
+- 嵌入资源路径实测：从仓库外 cwd 运行 `--test ui` 895/896 通过（唯一失败为依赖 cwd 的 Lint 定位测试）
+- 预览 `--selftest` chat.tui / permission.tui 通过；构建 0 错误
+
 ## v0.77.0 (2026-08-18) — 独立 WPF `.tui` 预览程序 + InDesign 环境特性
 
 新增独立 WPF 预览程序 `WayCoder.Preview/`：图形化渲染 `.tui` 声明式布局，边写边看；并为 TUI 元素引入设计/模拟环境特性。

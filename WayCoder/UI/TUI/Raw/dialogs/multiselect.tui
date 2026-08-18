@@ -1,0 +1,10 @@
+<!-- 多选列表对话框（列表项/标题由 code-behind 注入，空格勾选 + 确定/取消） -->
+<Dialog title="{title}" border="rounded" borderColor="accent" shortcut="escape">
+  <VBox align="center" spacing="1">
+    <List id="list" items="选项一,选项二,选项三" selected="0" width="30" height="5" />
+    <HBox align="center" spacing="2">
+      <Button id="ok" text="确定" />
+      <Button id="cancel" text="取消" />
+    </HBox>
+  </VBox>
+</Dialog>

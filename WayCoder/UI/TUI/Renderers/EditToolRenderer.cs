@@ -73,13 +73,13 @@ public class EditToolRenderer : IToolRenderer
                 }
                 else if (line.StartsWith("-"))
                 {
-                    sb.Append(AnsiTty.FgBg(37, 41)); // 红底删除
+                    sb.Append(AnsiTty.Fg(91)); // 亮红前景删除（去背景，避免刺眼）
                     sb.Append(line);
                     sb.Append(AnsiTty.SgrReset);
                 }
                 else if (line.StartsWith("+"))
                 {
-                    sb.Append(AnsiTty.FgBg(37, 42)); // 绿底新增
+                    sb.Append(AnsiTty.Fg(92)); // 亮绿前景新增（去背景，避免刺眼）
                     sb.Append(line);
                     sb.Append(AnsiTty.SgrReset);
                 }

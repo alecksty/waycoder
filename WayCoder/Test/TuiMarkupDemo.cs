@@ -20,7 +20,7 @@ public static class TuiMarkupDemo
             mgr.Enter();
             mgr.RefreshTheme();
 
-            var main = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile("main.tui"));
+            var main = TuiMarkup.LoadResource("main.tui");
             var screen = main.Screen ?? throw new Exception("main.tui 根元素应为 Screen");
 
             var messages = main.Find<TuiLabel>("messages")!;
@@ -39,7 +39,7 @@ public static class TuiMarkupDemo
             input.OnSubmit = _ => Send();
 
             TuiMarkupResult LoadDialog(string name)
-                => TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", name + ".tui")));
+                => TuiMarkup.LoadResource($"dialogs/{name}.tui");
 
             main.Find<TuiButton>("info")!.OnClick = _ =>
             {
@@ -75,7 +75,7 @@ public static class TuiMarkupDemo
             };
 
             main.Find<TuiButton>("showcase")!.OnClick = _ =>
-                screen.ShowWindow(TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile("showcase.tui")).Window!);
+                screen.ShowWindow(TuiMarkup.LoadResource("showcase.tui").Window!);
 
             main.Find<TuiButton>("permission")!.OnClick = _ =>
             {

@@ -67,7 +67,7 @@ public static class ReasoningPicker
         TuiScreen? screen, Action<Result?> onDone)
     {
         // 标记加载：结构/ids 来自 reasoningpicker.tui（布局写标记），动态内容与事件 code-behind
-        var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "reasoningpicker.tui")));
+        var res = TuiMarkup.LoadResource("dialogs/reasoningpicker.tui");
         var win = res.Window ?? throw new InvalidOperationException("reasoningpicker.tui 根应为 Dialog");
         win.Title = $"推理深度 — {modelName}";
         win.WinBg = TuiTheme.Current.WindowBg;

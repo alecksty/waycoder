@@ -672,8 +672,9 @@ public static partial class SelfTest
             Check("TuiMarkup TableList 渲染第0列", tblOut.Contains("deepseek-v4-pro"));
             Check("TuiMarkup TableList 渲染第1列", tblOut.Contains("深度求索"));
             Check("TuiMarkup TableList 渲染第2行", tblOut.Contains("OpenAI"));
-            // cell 模板 fg='cyan' 生效 → 渲染输出含青色 ANSI 前景码（36）
-            Check("TuiMarkup TableList cell 颜色", tblOut.Contains("\x1b[36m"));
+            // cell 模板 fg='cyan' 生效 → 渲染输出含青色 ANSI 前景码（36，可独立 36m 或与行背景合并 36;40m/36;46m）
+            Check("TuiMarkup TableList cell 颜色",
+                tblOut.Contains("\x1b[36m") || tblOut.Contains("\x1b[36;"));
         }
         // TreeView：声明式 items（路径语法）→ 建树 + cell 模板
         var tvRes = WayCoder.UI.TUI.TuiMarkup.Load(

@@ -248,7 +248,7 @@ public class TuiTableList : TuiControl
                 var cell = TuiMarkup.LoadCell(CellMarkup, vars);
                 cell.Width = avail;
                 cell.Height = 1;
-                if (bg > 0) cell.Bg = bg; // 使 cell 内透明控件继承选中/背景色
+                if (bg > 0) SetCellBg(cell, bg); // 使 cell 内透明控件继承选中/背景色（递归，非仅包装 VBox）
                 ClampCellWidths(cell, avail); // 约束子控件宽度 ≤ 列宽（DrawLine 直接写屏不裁剪，防串列）
                 cell.OnResize(avail, 1);       // 触发布局（否则子控件堆在 0,0 重叠）
                 cell.Render(sb, x, row, ClipLeft, ClipTop, ClipRight, ClipBottom);
@@ -265,6 +265,15 @@ public class TuiTableList : TuiControl
         if (c is TuiView v)
             foreach (var child in v.Children)
                 ClampCellWidths(child, maxW);
+    }
+
+    /// <summary>递归把行背景色传播到 cell 树内所有透明（Bg=0）控件，使文字底与选中/背景色一致（否则会继承 CascadedBg 灰色）。</summary>
+    private static void SetCellBg(TuiControl c, int bg)
+    {
+        if (c.Bg <= 0) c.Bg = bg;
+        if (c is TuiView v)
+            foreach (var child in v.Children)
+                SetCellBg(child, bg);
     }
 
     // ── 输入 ──

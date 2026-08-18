@@ -54,7 +54,7 @@ public static class CommandPalette
         int winH = ListH + 4;               // 上框+搜索+列表+帮助下框
 
         // 标记加载：结构/ids 来自 commandpalette.tui（布局写标记），动态内容与事件 code-behind
-        var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "commandpalette.tui")));
+        var res = TuiMarkup.LoadResource("dialogs/commandpalette.tui");
         var win = res.Window ?? throw new InvalidOperationException("commandpalette.tui 根应为 Dialog");
         win.Width = winW; win.Height = winH;
         win.MinWidth = MinW; win.MinHeight = 10;

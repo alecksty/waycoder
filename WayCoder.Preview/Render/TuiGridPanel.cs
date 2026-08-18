@@ -118,12 +118,46 @@ public sealed class TuiGridPanel : FrameworkElement
                 if (string.IsNullOrEmpty(ch) || ch == " ") continue;
                 if (fg == 0 && bg == 0) continue;
 
-                // 裁剪到所占格数：防字形略超 2 格串到下一格
+                int style = _grid.StyleAt(r, c);
                 double textW = span * CellW;
+
+                // 裁剪到所占格数：防字形略超 2 格串到下一格
                 dc.PushClip(new RectangleGeometry(new Rect(x, y, textW, CellH)));
+
+                // 前景画刷：淡色（SGR 2）用半透明降低刺眼度
+                Brush brush = fg > 0 ? AnsiToColor.GetBrush(fg, _brushes) : Brushes.White;
+                if ((style & FrameSnapshot.StDim) != 0)
+                {
+                    var dim = (Brush)brush.Clone();
+                    dim.Opacity = 0.55;
+                    brush = dim;
+                }
+
+                // 文字特征：粗体/斜体用对应 Typeface，下划线用 TextDecorations
+                Typeface tf = _typeface;
+                if ((style & (FrameSnapshot.StBold | FrameSnapshot.StItalic)) != 0)
+                    tf = new Typeface(_typeface.FontFamily,
+                        (style & FrameSnapshot.StItalic) != 0 ? FontStyles.Italic : FontStyles.Normal,
+                        (style & FrameSnapshot.StBold) != 0 ? FontWeights.Bold : FontWeights.Normal,
+                        FontStretches.Normal);
+
                 var ft = new FormattedText(ch, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-                    _typeface, FontSize, fg > 0 ? AnsiToColor.GetBrush(fg, _brushes) : Brushes.White, dpi);
-                dc.DrawText(ft, new Point(x, y));
+                    tf, FontSize, brush, dpi);
+                if ((style & FrameSnapshot.StUnderline) != 0)
+                    ft.SetTextDecorations(TextDecorations.Underline);
+
+                // 宽字符：终端按 2 格渲染，但部分符号字形（○/▸）在 Consolas 回退字体里仅半宽，
+                // 水平拉伸到恰好 2*CellW，使其与终端一致（真正的双宽字形 14px≈15.4px 几乎不变）。
+                if (span == 2 && ft.Width > 0 && Math.Abs(ft.Width - textW) > 0.5)
+                {
+                    dc.PushTransform(new ScaleTransform(textW / ft.Width, 1.0, x, y));
+                    dc.DrawText(ft, new Point(x, y));
+                    dc.Pop();
+                }
+                else
+                {
+                    dc.DrawText(ft, new Point(x, y));
+                }
                 dc.Pop();
             }
         }

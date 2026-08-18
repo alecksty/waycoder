@@ -22,6 +22,13 @@ public sealed class FrameSnapshot
     private readonly string[] _ch; // W×H 个格子（每格一个字形）
     private readonly int[] _fg;    // 前景色（0=无）
     private readonly int[] _bg;    // 背景色（0=无/默认）
+    private readonly byte[] _style; // 文字特征位（粗体/淡色/斜体/下划线）
+
+    // 文字特征位掩码（与 SGR 1/2/3/4 对应；供外部渲染器如 WPF 预览应用）
+    public const int StBold = 1;
+    public const int StDim = 2;
+    public const int StItalic = 4;
+    public const int StUnderline = 8;
 
     private FrameSnapshot(int x, int y, int w, int h)
     {
@@ -30,6 +37,7 @@ public sealed class FrameSnapshot
         _ch = new string[n];
         _fg = new int[n];
         _bg = new int[n];
+        _style = new byte[n];
         for (int i = 0; i < n; i++) _ch[i] = " ";
     }
 
@@ -83,12 +91,19 @@ public sealed class FrameSnapshot
         return (_fg[i], _bg[i]);
     }
 
+    /// <summary>读取区域相对坐标的文字特征位（StBold/StDim/StItalic/StUnderline 组合；越界返回 0）</summary>
+    public int StyleAt(int relRow, int relCol)
+    {
+        if (relRow < 0 || relRow >= H || relCol < 0 || relCol >= W) return 0;
+        return _style[relRow * W + relCol];
+    }
+
     // ── 颜色感知的 ANSI 解析 ──
     // 跟踪 CUP/HVP 光标与 SGR 前景/背景色（16/256/TrueColor），只记录矩形区域内的字符。
 
     private void Parse(string ansi)
     {
-        int curR = 0, curC = 0, fg = 0, bg = 0;
+        int curR = 0, curC = 0, fg = 0, bg = 0, style = 0;
         int i = 0, len = ansi.Length;
         while (i < len)
         {
@@ -113,7 +128,7 @@ public sealed class FrameSnapshot
                 }
                 else if (final == 'm')
                 {
-                    ApplySgr(param, ref fg, ref bg);
+                    ApplySgr(param, ref fg, ref bg, ref style);
                 }
                 // 其余 CSI（光标隐藏、清屏等）跳过
                 continue;
@@ -134,6 +149,7 @@ public sealed class FrameSnapshot
                 _ch[idx] = s;
                 _fg[idx] = fg;
                 _bg[idx] = bg;
+                _style[idx] = (byte)style;
                 if (vw == 2 && relC + 1 < W)
                     _ch[idx + 1] = " "; // 宽字符延续格留空（不记色）
             }
@@ -141,9 +157,9 @@ public sealed class FrameSnapshot
         }
     }
 
-    private static void ApplySgr(string param, ref int fg, ref int bg)
+    private static void ApplySgr(string param, ref int fg, ref int bg, ref int style)
     {
-        if (string.IsNullOrEmpty(param)) { fg = 0; bg = 0; return; }
+        if (string.IsNullOrEmpty(param)) { fg = 0; bg = 0; style = 0; return; }
         var parts = param.Split(';');
         int k = 0;
         while (k < parts.Length)
@@ -151,7 +167,14 @@ public sealed class FrameSnapshot
             int code = int.TryParse(parts[k], out var v) ? v : -1;
             switch (code)
             {
-                case 0: fg = 0; bg = 0; k++; break;
+                case 0: fg = 0; bg = 0; style = 0; k++; break;
+                case 1: style |= StBold; k++; break;
+                case 2: style |= StDim; k++; break;
+                case 3: style |= StItalic; k++; break;
+                case 4: style |= StUnderline; k++; break;
+                case 22: style &= ~(StBold | StDim); k++; break;
+                case 23: style &= ~StItalic; k++; break;
+                case 24: style &= ~StUnderline; k++; break;
                 case 39: fg = 0; k++; break;
                 case 49: bg = 0; k++; break;
                 case 38: // 前景扩展色
@@ -174,7 +197,7 @@ public sealed class FrameSnapshot
                 case >= 90 and <= 97: fg = code; k++; break;
                 case >= 40 and <= 47: bg = code; k++; break;
                 case >= 100 and <= 107: bg = code; k++; break;
-                default: k++; break; // 样式码等忽略
+                default: k++; break; // 其余样式码（闪烁/反白等）忽略
             }
         }
     }
