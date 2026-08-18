@@ -1,3 +1,4 @@
+using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
@@ -14,8 +15,8 @@ public class TuiListItem : TuiVBox
 {
     // ── 子控件 ──
 
-    /// <summary>角色图标</summary>
-    public TuiIcon Icon { get; set; } = null!;
+    /// <summary>角色图标（模板 chat-item.tui 的 Label，code-behind 填字符+色）</summary>
+    public TuiLabel Icon { get; set; } = null!;
 
     /// <summary>角色名称标签</summary>
     public TuiLabel RoleLabel { get; set; } = null!;
@@ -71,90 +72,92 @@ public class TuiListItem : TuiVBox
     public void ApplyTheme()
     {
         if (RoleLabel != null)
-            RoleLabel.Fg = Role switch
-            {
-                "user" => TuiTheme.Current.ChatUserFg,
-                "assistant" => TuiTheme.Current.ChatAssistantFg,
-                "system" => TuiTheme.Current.ChatSystemFg,
-                _ => TuiTheme.Current.ControlFg
-            };
+            RoleLabel.Fg = RoleColor(Role);
+        if (Icon != null) Icon.Fg = IconColor(Role);
         if (TimeLabel != null) TimeLabel.Fg = TuiTheme.Current.ChatTimeFg;
         if (Footer != null) Footer.Fg = TuiTheme.Current.ChatFooterFg;
         Body?.Invalidate(); // 正文缓存了旧主题色，标记重解析
         MarkDirty();
     }
 
-    /// <summary>构建内部控件树</summary>
+    /// <summary>构建内部控件树：布局来自 chat-item.tui 声明式模板，code-behind 填充数据。</summary>
     public void BuildContent(int maxWidth)
     {
         Clear();
         int innerW = maxWidth - PaddingLeft - PaddingRight;
 
-        // ── Header 行: Icon + Role + Time（续接消息/嵌套子消息跳过）──
+        // 模板化：每条消息按 {role} 占位符加载布局（布局写标记，逻辑写 code-behind）
+        var res = TuiMarkup.LoadResource("chat-item.tui",
+            new Dictionary<string, string> { ["role"] = Role });
+        var root = (TuiVBox)res.View!;
+        root.Width = innerW;
+
+        // ── Header: Icon + Role + Time（模板声明，此处填数据）──
         if (!Continuation && Indent == 0)
         {
-            var header = new TuiHBox
-            {
-                Width = innerW,
-                Height = 1,
-                ChildVAlign = EVAlign.Middle
-            };
-
-            Icon = Role switch
-            {
-                "user" => TuiIcon.User(),
-                "assistant" => TuiIcon.Assistant(),
-                "system" => TuiIcon.System(),
-                "tool" => TuiIcon.Tool(),
-                _ => TuiIcon.Info()
-            };
-            header.Add(Icon);
-
-            var roleName = Role switch
-            {
-                "user" => "用户",
-                "assistant" => "智能体",
-                "system" => "系统",
-                "tool" => "工具",
-                _ => Role
-            };
-            RoleLabel = new TuiLabel(roleName)
-            {
-                Width = 12,
-                Height = 1,
-                Fg = Role switch { "user" => TuiTheme.Current.ChatUserFg, "assistant" => TuiTheme.Current.ChatAssistantFg, "system" => TuiTheme.Current.ChatSystemFg, _ => TuiTheme.Current.ControlFg }
-            };
-            header.Add(RoleLabel);
-
-            TimeLabel = new TuiLabel(DateTime.Now.ToString("HH:mm"))
-            {
-                Width = 8,
-                Height = 1,
-                Fg = TuiTheme.Current.ChatTimeFg // Dim
-            };
-            header.Add(TimeLabel);
-
-            header.Layout();
-            Add(header);
+            Icon = res.Find<TuiLabel>("icon") ?? new TuiLabel("●") { Width = 2, Height = 1 };
+            RoleLabel = res.Find<TuiLabel>("roleLabel") ?? new TuiLabel("") { Width = 12, Height = 1 };
+            TimeLabel = res.Find<TuiLabel>("timeLabel") ?? new TuiLabel("") { Width = 8, Height = 1 };
+            Icon.Text = "●";
+            Icon.Fg = IconColor(Role);
+            RoleLabel.Text = RoleName(Role);
+            RoleLabel.Fg = RoleColor(Role);
+            TimeLabel.Text = DateTime.Now.ToString("HH:mm");
+            TimeLabel.Fg = TuiTheme.Current.ChatTimeFg;
         }
         else
         {
-            // 续接消息占位：空 Icon/Name/Time（仅用于布局兼容）
-            Icon = TuiIcon.System();
+            // 续接/嵌套消息：隐藏模板 header 行，占位控件保持布局兼容
+            var header = res.Find<TuiHBox>("header");
+            if (header != null) header.Visible = false;
+            Icon = new TuiLabel("") { Width = 0, Height = 1 };
             RoleLabel = new TuiLabel("") { Width = 0, Height = 1 };
             TimeLabel = new TuiLabel("") { Width = 0, Height = 1 };
         }
 
-        // ── Body: Markdown 正文，Padding.Left = 2 格对齐标题；嵌套子消息额外左缩进 ──
-        Body = TuiMarkdown.Create(MarkdownContent, Role, innerW, IsPlainText);
+        // ── Body: Markdown 正文（模板 Markdown 标签，此处设内容/宽度/缩进）──
+        Body = res.Find<TuiMarkdown>("body") ?? throw new InvalidOperationException("chat-item.tui 缺少 body 控件");
+        Body.Content = MarkdownContent;
+        Body.Role = Role;
+        Body.IsPlainText = IsPlainText;
         Body.Width = innerW;
+        Body.MaxWidth = innerW;
         Body.ContentAlign = ContentAlign;
         Body.Padding = new EdgeInsets(0, 0, 0, 2 + Indent * 2);
-        Add(Body);
+        Body.EnsureParsed();
 
-        // ── 重新计算整体高度 ──
+        Add(root);
         Layout();
     }
+
+    /// <summary>角色显示名（对齐模板角色头）</summary>
+    private static string RoleName(string role) => role switch
+    {
+        "user" => "用户",
+        "assistant" => "智能体",
+        "system" => "系统",
+        "tool" => "工具",
+        _ => role
+    };
+
+    /// <summary>角色文字色</summary>
+    private static int RoleColor(string role) => role switch
+    {
+        "user" => TuiTheme.Current.ChatUserFg,
+        "assistant" => TuiTheme.Current.ChatAssistantFg,
+        "system" => TuiTheme.Current.ChatSystemFg,
+        _ => TuiTheme.Current.ControlFg
+    };
+
+    /// <summary>角色图标色</summary>
+    private static int IconColor(string role) => role switch
+    {
+        "user" => TuiTheme.Current.IconUserFg,
+        "assistant" => TuiTheme.Current.IconAssistantFg,
+        "system" => TuiTheme.Current.IconSystemFg,
+        "tool" => TuiTheme.Current.IconToolFg,
+        _ => TuiTheme.Current.ControlFg
+    };
 
     /// <summary>更新 Markdown 内容（用于流式追加）</summary>
     public void AppendContent(string delta)
