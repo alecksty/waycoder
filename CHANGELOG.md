@@ -34,6 +34,8 @@
 - **文字特征无效**：`FrameSnapshot` 丢弃 SGR 样式码 → 新增 `StyleAt` 捕获粗体/斜体/下划线/淡色，WPF 预览用 Typeface/TextDecorations/半透明还原
 - **表格蓝/黑块**：`TuiTableList` cell 背景只设包装 VBox，内层 Label 仍继承灰底 → 递归 `SetCellBg` 传播行背景
 - **聊天记录亮绿背景刺眼**：edit diff 新增/删除行由「白字绿/红底」改为「亮绿/亮红前景」去背景
+- **预览对话框塌缩**：picker 类对话框模板缺显式 `height`，WPF 预览默认高 10 行裁剪内容 → 补默认高度（modelpicker/filepicker/commandpalette/keybindhelp/diffpreview/findreplace，真实 app code-behind 覆盖不受影响）
+- **编辑器预览状态栏不见**：`editor.tui` mainHBox 加 `flex="1"` 撑满剩余高度，状态栏落到底部；真实 app 靠 flex 自适应 resize
 - 修复 `TableList cell 颜色` 测试断言（背景传播后 SGR 合并码 `36;40m`）
 
 ### ✅ 验证
