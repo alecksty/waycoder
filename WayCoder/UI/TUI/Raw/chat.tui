@@ -15,7 +15,7 @@
       <!-- 侧栏分区在标记中声明（布局写标记）；真实 App 运行时按 RefreshSidePanel()/SidePanelVisible 覆盖 -->
       <SidePanel id="sidePanel" width="30" visible="true" borderColor="brightblack">
         <Section title="🏷 道码">
-          <Line text="WayCoder v0.78.0" />
+          <Line text="WayCoder v0.79.0" />
           <Line text="中文编程智能体" />
         </Section>
         <Section title="📋 Todo (0/0)">
