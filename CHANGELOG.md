@@ -1,5 +1,29 @@
 # 更新日志
 
+## v0.75.0 (2026-08-18) — 标记界面重构：`.tui` 声明式布局 + `--tui-chat`
+
+主聊天界面从 C# 硬编码布局迁移到声明式 `.tui` 资源文件——「布局写标记、交互写 code-behind」，向"写资源文件+交互代码就能实现界面、还能预览"架构推进。
+
+### 🧩 标记系统扩展（TuiMarkup）
+- 新增 4 个标签：`ListView`（autoScroll/itemSpacing）、`DynamicBar`、`PromptBar`（maxVisible/itemHeight/separatorColor）、`SidePanel`（borderWidth/borderColor/panelVisible）
+- 补齐属性：`TitleBar.gitBranch`、`TextArea.placeholder/showLineNumbers`、`Markdown.role/plainText/isError`、`Separator.lineChar/lineColor`、通用 `floating`
+- 新增 `TuiMarkupPaths`：标记资源定位（发布输出优先 + 向上找 `tuidemo/`）；`TuiMarkupDemo` 复用之
+
+### 🖥 标记版主界面（MarkupChatScreen）
+- 新建 `tuidemo/chat.tui`：声明完整聊天布局（标题栏/聊天列表/侧栏/建议面板/提示栏/动态栏/分隔线/输入区/状态栏 9 子视图）
+- 新建 `MarkupChatScreen : ChatScreen`：覆写 `BuildLayout` 从标记加载、`Find(id)` 赋给基类属性，**复用全部交互逻辑**（槽位/会话/流式/侧栏/输入/对话框）
+- `ChatScreen.BuildLayout` 改 `protected virtual`、子视图属性改 `protected set`；新增 `BuildLayoutPreservesChatItems` + `RebuildChatItems` resize 钩子（复用 ChatList 时按新宽重建项内容，不重灌）
+- `ComputeLayout`/`ApplyDynamicSizes` 抽出，Render 与 OnResize 共用
+
+### 🚪 入口
+- `--tui-chat` 参数：强制用标记版界面启动（测试入口）
+- `WAYCODER_MARKUP_UI` 配置开关：控制默认用新/旧界面（默认关闭，测试通过后翻默认）
+- `WayCoder.csproj` 把 `tuidemo/**/*.tui` 复制到发布输出
+
+### ✅ 验证
+- 自测 3426→3459 全绿（新增 30 项：4 新标签解析、属性补齐、chat.tui 完整加载、MarkupChatScreen 无头渲染冒烟）
+- `--tui-preview tuidemo/chat.tui` 可渲染；构建 0 错误
+
 ## v0.74.0 (2026-08-18) — TUI 对话框背景快照还原 + 标题栏分隔线移除
 
 对话框关闭后背景恢复改为「快照贴回」，从根上消除残留条带；所有窗口/面板的标题栏下方分隔线移除。

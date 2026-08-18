@@ -47,4 +47,11 @@
     <None Remove="WayEngine/**/*" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 声明式标记资源：tuidemo/**/*.tui 复制到发布输出，供 TuiMarkupPaths 运行态定位 -->
+    <None Include="..\tuidemo\**\*.tui"
+          Link="tuidemo\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

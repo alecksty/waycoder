@@ -182,6 +182,9 @@ public class Config
     public string ColorScheme { get; set; } = "default";
     public string ChatDisplayStyle { get; set; } = "auto";
 
+    /// <summary>用 .tui 声明式标记版聊天界面（实验性，默认关闭；测试通过后翻默认）</summary>
+    public bool MarkupUi { get; set; } = false;
+
     // ── 沙箱 ──
     public int SandboxMaxMemoryMb { get; set; } = 1024;
     public int SandboxMaxCpuSeconds { get; set; } = 300;
@@ -732,6 +735,12 @@ public class Config
               "聊天显示风格", "🎨 界面", "detailed=全显示 auto=智能简洁=极简（隐藏工具详情）",
               "select", ["auto","detailed","concise"], 5,
               c => c.ChatDisplayStyle, (c, v) => c.ChatDisplayStyle = v, "auto"),
+
+            P("MarkupUi", "WAYCODER_MARKUP_UI",                  null,
+              "标记界面（实验）", "🎨 界面", "用 .tui 声明式标记重建主聊天界面（实验性，测试通过后翻默认）",
+              "select", ["false","true"], 6,
+              c => c.MarkupUi.ToString().ToLowerInvariant(),
+              (c, v) => c.MarkupUi = bool.Parse(v), "false"),
         ];
     }
 

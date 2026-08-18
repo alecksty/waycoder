@@ -475,6 +475,15 @@ public class TuiMarkupDemoArg : CliArg
     public override int? OnMatch(List<string> values) { TuiMarkupDemo.Run(); return 0; }
 }
 
+/// <summary>用 .tui 标记版聊天界面启动（等价 WAYCODER_MARKUP_UI=1，供测试标记版界面）。</summary>
+public class TuiChatArg : CliArg
+{
+    public override string Description => "用 .tui 标记版聊天界面启动（等价 WAYCODER_MARKUP_UI=1）";
+    public override bool Internal => true;
+    public TuiChatArg() : base("tui-chat", "--tui-chat") { }
+    public override int? OnMatch(List<string> values) { Program.MarkupChatOverride = true; return null; }
+}
+
 public class GuiArg : CliArg
 {
     public override string Description => "启动图形界面（独立 Avalonia 进程）";
@@ -640,6 +649,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new TuiPreviewArg());
         CliArgRegistry.Register(new TuiWatchArg());
         CliArgRegistry.Register(new TuiMarkupDemoArg());
+        CliArgRegistry.Register(new TuiChatArg());
         CliArgRegistry.Register(new KeypadArg());
         CliArgRegistry.Register(new ThemeVerifyArg());
 

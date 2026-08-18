@@ -20,8 +20,7 @@ public static class TuiMarkupDemo
             mgr.Enter();
             mgr.RefreshTheme();
 
-            var dir = FindTuiDemoDir();
-            var main = TuiMarkup.LoadFile(Path.Combine(dir, "main.tui"));
+            var main = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile("main.tui"));
             var screen = main.Screen ?? throw new Exception("main.tui 根元素应为 Screen");
 
             var messages = main.Find<TuiLabel>("messages")!;
@@ -40,7 +39,7 @@ public static class TuiMarkupDemo
             input.OnSubmit = _ => Send();
 
             TuiMarkupResult LoadDialog(string name)
-                => TuiMarkup.LoadFile(Path.Combine(dir, "dialogs", name + ".tui"));
+                => TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", name + ".tui")));
 
             main.Find<TuiButton>("info")!.OnClick = _ =>
             {
@@ -76,7 +75,7 @@ public static class TuiMarkupDemo
             };
 
             main.Find<TuiButton>("showcase")!.OnClick = _ =>
-                screen.ShowWindow(TuiMarkup.LoadFile(Path.Combine(dir, "showcase.tui")).Window!);
+                screen.ShowWindow(TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile("showcase.tui")).Window!);
 
             main.Find<TuiButton>("permission")!.OnClick = _ =>
             {
@@ -135,18 +134,4 @@ public static class TuiMarkupDemo
         }
     }
 
-    /// <summary>从当前目录向上查找 tuidemo/ 目录。</summary>
-    private static string FindTuiDemoDir()
-    {
-        var dir = Directory.GetCurrentDirectory();
-        while (dir != null)
-        {
-            var candidate = Path.Combine(dir, "tuidemo");
-            if (Directory.Exists(candidate)) return candidate;
-            var parent = Path.GetDirectoryName(dir);
-            if (parent == dir) break;
-            dir = parent;
-        }
-        throw new DirectoryNotFoundException("未找到 tuidemo 目录（请从仓库根目录运行）");
-    }
 }

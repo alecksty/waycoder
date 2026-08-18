@@ -15,6 +15,10 @@ namespace WayCoder;
 public partial class Program
 {
     private static Config _config = new();
+
+    /// <summary>--tui-chat 参数置位：强制用 .tui 标记版聊天界面（等价 WAYCODER_MARKUP_UI=1）</summary>
+    public static bool MarkupChatOverride;
+
     private static LLM? _llm;
     private static Agent? _agent;
     private static readonly AgentSlot[] _slots = new AgentSlot[AgentSlot.Count];
@@ -179,6 +183,7 @@ public partial class Program
             yoloMode = true;
 
         _config = Config.FromEnv();
+        if (MarkupChatOverride) _config.MarkupUi = true; // --tui-chat 强制走标记版界面
         // 加载主题配色：theme.json 记住的 preset 优先，回退 .env ThemePreset（首次启动无 theme.json）
         ThemeConfig.ApplyPreset(ThemeConfig.Instance.PresetKey ?? _config.ThemePreset);
         if (model != null) _config.Model = model;
