@@ -48,10 +48,14 @@ public static class UxHelper
 
     // ── 通知消息 ──
 
+    /// <summary>非 TUI 模式的 GUI 通知回调（level/title/message，GUI 注入后显示 Toast/系统消息）。</summary>
+    public static Action<string, string, string>? OnNotify;
+
     public static void Info(string title, string message)
     {
         if (IsTuiMode)
             ShowNotification(TuiDialog.Info(title, message));
+        else if (OnNotify != null) OnNotify("info", title, message);
         else
             Console.WriteLine($"{AnsiTty.Accent($"[ℹ {title}]")} {message}");
     }
@@ -60,6 +64,7 @@ public static class UxHelper
     {
         if (IsTuiMode)
             ShowNotification(TuiDialog.Success(title, message));
+        else if (OnNotify != null) OnNotify("success", title, message);
         else
             Console.WriteLine($"{AnsiTty.Success($"[✓ {title}]")} {message}");
     }
@@ -68,6 +73,7 @@ public static class UxHelper
     {
         if (IsTuiMode)
             ShowNotification(TuiDialog.Warn(title, message));
+        else if (OnNotify != null) OnNotify("warn", title, message);
         else
             Console.WriteLine($"{AnsiTty.Warn($"[⚠ {title}]")} {message}");
     }
@@ -76,6 +82,7 @@ public static class UxHelper
     {
         if (IsTuiMode)
             ShowNotification(TuiDialog.Error(title, message));
+        else if (OnNotify != null) OnNotify("error", title, message);
         else
             Console.WriteLine($"{AnsiTty.Error($"[✘ {title}]")} {message}");
     }
