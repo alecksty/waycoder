@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.79.0 (2026-08-18) — 本地模型（LM Studio / Ollama）集成可用性修复
+
+用本地模型（LM Studio `qwen3.5-9b`）实测跑通编程任务时发现并修复 BaseUrl 端点归一化问题，补齐本地模型使用文档。
+
+### 🔧 端点归一化（本地模型连接）
+- `LLM.ResolveApiEndpoint`：BaseUrl 约定不含 `/v1`（自动追加 `/v1/chat/completions` 或 `/v1/embeddings`）；**兼容用户误传 `http://host:port/v1`**（剥离尾部 `/v1` 后再追加，避免 `/v1/v1/chat/completions` 400）。chat/completions ×2 + embeddings 三处统一走该方法
+- **LM Studio 实测**：`qwen3.5-9b` 完整跑通「读文件 → 定位 bug → 修复 → 运行验证 → 汇报」agent 循环（~103s），自动修复了冒泡排序按名字而非年龄排序的 bug
+- **上下文窗口坑**：完整模式请求（12K system prompt + 46 工具 ≈ 8695 token）超出 LM Studio 给模型配置的默认窗口（≈8192）会被直接拒绝（2s 0 token）→ **`--economy on` 精简 prompt 即可用**；或在 LM Studio 里调大 Context Length 用完整模式
+
+### ✅ 验证
+- 自测 3495→3498 全绿（+3 端点解析断言：无 /v1 / 误传 /v1 / 尾部斜杠）
+- LM Studio `--base-url http://localhost:1234` 与 `http://localhost:1234/v1` 两种写法均实测通过
+
 ## v0.78.0 (2026-08-18) — 全部界面 `.tui` 标记化 + 资源内嵌 exe
 
 把剩余的命令式对话框（TuiDialog.* 工厂）全部迁移到 `.tui` 声明式标记资源，并把标记资源统一收拢到 `UI/TUI/Raw/` 且嵌入程序集——「布局写标记、交互写 code-behind」架构闭环，单文件 exe 内可直接读资源。
