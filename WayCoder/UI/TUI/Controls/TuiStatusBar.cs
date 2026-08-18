@@ -124,6 +124,7 @@ public class TuiStatusBar : TuiControl
             {
                 EconomyMode.On   => ("💰", AnsiColors.Yellow),
                 EconomyMode.Auto => ("🧮", AnsiColors.Cyan),
+                EconomyMode.Extreme => ("🔥", AnsiColors.Red),
                 _                => ("💵", dimFg),
             };
             ControlRenderer.WriteGradientTextAt(sb, row, col, $" {economyIcon}",

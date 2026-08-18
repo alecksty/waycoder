@@ -212,6 +212,7 @@ public partial class Program
             {
                 "auto" => EconomyMode.Auto,
                 "off" => EconomyMode.Off,
+                "extreme" => EconomyMode.Extreme,
                 _ => EconomyMode.On,
             };
 
