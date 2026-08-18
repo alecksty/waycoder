@@ -83,6 +83,13 @@ public static partial class SelfTest
         var longMenu = TuiMenu.Show("长列表", longItems, 5, 2);
         Check("长菜单高度有限", longMenu.Height < 30);
         Check("长菜单可滚动", longMenu.Height <= 18); // 14项 + 标题栏 + 边框
+
+        // ---- 快捷键表（GetHelpText 供槽位首条对话输出）----
+        var helpText = TuiKeybindHelp.GetHelpText();
+        Check("快捷键表: 含全局分组", helpText.Contains("全局"));
+        Check("快捷键表: 含 F1-F10 槽位", helpText.Contains("F1 - F10"));
+        Check("快捷键表: 含 Ctrl+H 帮助", helpText.Contains("Ctrl+H"));
+        Check("快捷键表: 含模型快捷键", helpText.Contains("/model"));
         Console.WriteLine();
 
         // ---- Markdown 表格 ----
