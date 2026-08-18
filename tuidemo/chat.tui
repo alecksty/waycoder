@@ -16,7 +16,6 @@
       <SidePanel id="sidePanel" width="30" visible="true" borderColor="brightblack">
         <Section title="🏷 道码">
           <Line text="WayCoder v0.77.0" />
-          <Line text="C# (.NET 10) AOT" />
           <Line text="中文编程智能体" />
         </Section>
         <Section title="📋 Todo (0/0)">
