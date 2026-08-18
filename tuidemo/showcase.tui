@@ -1,5 +1,5 @@
 <!-- 控件合集 showcase：覆盖全部控件类别 -->
-<Window title="控件合集（.tui 重构）" width="66" height="22" border="double" borderColor="accent">
+<Window title="控件合集（.tui 重构）" width="68" height="38" border="double" borderColor="accent">
   <VBox spacing="0">
     <Label text="① 基础控件" bold="true" fg="accent" />
     <HBox spacing="2" align="left">
@@ -31,5 +31,15 @@
       <Label text="淡色" dim="true" />
       <Label text="RGB色" fg="#ff8700" />
     </HBox>
+
+    <Label text="⑥ 自定义单元格（cell 模板 + 占位符）" bold="true" fg="accent" />
+    <HBox spacing="2" align="left">
+      <DataList width="20" height="4" items="alpha,beta,gamma"
+        cell="&lt;HBox spacing='1'&gt;&lt;Icon glyph='▸' fg='cyan'/&gt;&lt;Label text='{text}' fg='yellow'/&gt;&lt;/HBox&gt;" />
+      <TreeView width="24" height="4" items="文档>概览,文档>入门,文档>进阶>性能"
+        cell="&lt;HBox spacing='1'&gt;&lt;Icon glyph='📄' fg='cyan'/&gt;&lt;Label text='{text}' fg='yellow'/&gt;&lt;/HBox&gt;" />
+    </HBox>
+    <TableList width="40" height="4" columns="名称:10,型号:14,价格:8" items="deepseek,pro,¥9.9|gpt-5,mini,¥6.6|qwen,turbo,免费"
+      cell="&lt;Label text='{value}' fg='green' bold='true'/&gt;" />
   </VBox>
 </Window>
