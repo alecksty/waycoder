@@ -5,7 +5,7 @@
 <Screen>
   <VBox>
     <TitleBar id="titleBar" height="1" bg="33" fg="30" center="📝 编辑器" />
-    <HBox id="mainHBox">
+    <HBox id="mainHBox" flex="1">
       <ListView id="leftPanel" visible="false" />
       <Label id="leftSep" text="│" width="1" fg="brightblack" visible="false" />
       <Label id="rightSep" text="│" width="1" fg="brightblack" visible="false" />
