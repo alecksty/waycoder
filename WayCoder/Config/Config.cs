@@ -598,17 +598,6 @@ public class Config
               "number", null, 29,
               c => c.TinyWindow.ToString(), (c, v) => c.TinyWindow = Math.Clamp(int.Parse(v), 1024, 262144), "4096"),
 
-            P("EconomyPriority", "WAYCODER_ECONOMY_PRIORITY", null,
-              "省 Token 优先级", "⚙ 参数", "自动模式省钱偏好：质量优先=复杂不省 / 均衡 / 费用优先=尽量省",
-              "select", ["quality","balanced","cost"], 21,
-              c => c.EconomyPriority.ToString().ToLowerInvariant(),
-              (c, v) => c.EconomyPriority = v.ToLowerInvariant() switch
-              {
-                  "cost" => EconomyPriority.Cost,
-                  "balanced" => EconomyPriority.Balanced,
-                  _ => EconomyPriority.Quality,
-              }, "quality"),
-
             P("FallbackChain", "WAYCODER_FALLBACK_CHAIN",     null,
               "回退模型链", "🤖 模型", "逗号分隔的备选模型列表",
               "text", null, 7,
