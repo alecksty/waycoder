@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.79.13 (2026-08-19) — 修复 TUI 非交互崩溃（管道/重定向/CI）
+
+4 端验证发现：`echo "x" | waycoder`、CI 后台等非交互场景，`InputManager.ReadInput` 的 `Console.KeyAvailable` 在输入重定向下抛 `InvalidOperationException` 崩溃。
+
+- **修复**：`Console.IsInputRedirected` 检测 → 返回 `Timeout` 事件空转，不再崩溃
+- 真实交互终端行为不变；管道 stdin 完整读入语义为后续增强
+
+### ✅ 验证
+- 自测 3565 通过；TUI 非交互后台启动不再崩溃
+- 4 端编译运行确认：CLI/TUI/Web/GUI 全部正常
+
 ## v0.79.12 (2026-08-19) — GUI 聊天推理内容独立气泡（对齐 Web reasoning）
 
 GUI 聊天内容格式对齐：推理内容（`«dim»…«/»`）从"混在正文淡色"升级为**独立 reasoning 气泡**（对齐 Web `.msg.reasoning`）：
