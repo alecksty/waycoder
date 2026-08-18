@@ -274,6 +274,20 @@ public class WebArg : CliArg
     public WebArg() : base("web", "--web") { }
 }
 
+public class TuiArg : CliArg
+{
+    public override string Description => "强制 TUI 全屏界面（默认即 TUI）";
+    public override int ValueCount => 0;
+    public TuiArg() : base("tui", "--tui") { }
+}
+
+public class CliModeArg : CliArg
+{
+    public override string Description => "强制 CLI 文本界面（非全屏，逐行交互）";
+    public override int ValueCount => 0;
+    public CliModeArg() : base("cli", "--cli") { }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // 批量任务引擎 —— 多仓库并行处理（worktree 隔离）
 // ═══════════════════════════════════════════════════════════════
@@ -631,6 +645,8 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new UpdateArg());
         CliArgRegistry.Register(new JsonArg());
         CliArgRegistry.Register(new WebArg());
+        CliArgRegistry.Register(new TuiArg());
+        CliArgRegistry.Register(new CliModeArg());
         CliArgRegistry.Register(new BatchArg());
         CliArgRegistry.Register(new BatchRepoArg());
         CliArgRegistry.Register(new BatchTaskArg());
