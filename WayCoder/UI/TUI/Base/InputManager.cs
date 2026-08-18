@@ -108,6 +108,12 @@ public class InputManager : IDisposable
             }
 
             // 键盘输入
+            // 非交互环境（管道/重定向/后台）：Console.KeyAvailable 会抛 InvalidOperationException
+            // （"Cannot see if a key has been pressed when ... console input has been redirected"），
+            // 空转返回超时，避免 REPL 在 echo "x" | waycoder / CI 场景崩溃。
+            if (Console.IsInputRedirected)
+                return new InputEvent { Type = InputType.Timeout };
+
             if (Console.KeyAvailable)
             {
                 var key = Tty.ReadKey();
