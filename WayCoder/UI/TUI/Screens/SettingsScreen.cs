@@ -253,6 +253,14 @@ public class SettingsScreen : TuiScreen
                 EditCurrentSetting();
                 return true;
 
+            // ── R — 复位当前项为默认 / Ctrl+R — 全部复位当前分组 ──
+            case ConsoleKey.R when ctrl:
+                ResetAllSettings();
+                return true;
+            case ConsoleKey.R:
+                ResetCurrentSetting();
+                return true;
+
             // ── 类别列表获得 ↑↓ 时自行处理 ──
             default:
                 if (!_focusOnDetail && _catList.OnKey(key))
@@ -450,6 +458,29 @@ public class SettingsScreen : TuiScreen
         "ChatDisplayStyle"   => _config.ChatDisplayStyle,
         _ => "",
     };
+
+    /// <summary>复位当前选中项为 schema 默认值（改错的值设回默认）。</summary>
+    private void ResetCurrentSetting()
+    {
+        var items = GetCurrentItems();
+        if (items == null || _itemIdx < 0 || _itemIdx >= items.Count) return;
+        var setting = items[_itemIdx];
+        if (string.IsNullOrEmpty(setting.Default)) { ShowToast("该配置无默认值", 1500); return; }
+        SetValue(setting.Key, setting.Default);
+        RebuildDetailPanel();
+        MarkDirty();
+    }
+
+    /// <summary>复位当前分组全部项为默认值。</summary>
+    private void ResetAllSettings()
+    {
+        var items = GetCurrentItems();
+        if (items == null) return;
+        foreach (var s in items)
+            if (!string.IsNullOrEmpty(s.Default)) SetValue(s.Key, s.Default);
+        RebuildDetailPanel();
+        MarkDirty();
+    }
 
     private void SetValue(string key, string value)
     {

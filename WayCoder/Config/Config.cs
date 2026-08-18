@@ -9,7 +9,8 @@ public record SettingDef(
     string Type = "text",          // text | number | select | secret | toggle
     string[]? Options = null,      // select 类型的可选项
     string EnvVar = "",
-    int Order = 0
+    int Order = 0,
+    string Default = ""   // 默认值（设置界面「复位默认」用）
 );
 
 /// <summary>
@@ -812,7 +813,8 @@ public class Config
     public static List<SettingDef> SettingSchema() =>
         _schema.Select(p => new SettingDef(
             p.Key, p.Label, p.Category, p.Desc,
-            p.Type, p.Options, p.EnvVar, p.Order
+            p.Type, p.Options, p.EnvVar, p.Order,
+            p.DefaultStr ?? ""
         )).ToList();
 
     // ════════════════════════════════════════════════════════════

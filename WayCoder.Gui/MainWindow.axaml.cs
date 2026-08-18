@@ -769,7 +769,15 @@ public partial class MainWindow : Window
         {
             detailHost.Children.Clear();
             if (catList.SelectedItem is not string cat) return;
-            var items = groups.First(g => g.Key == cat).OrderBy(s => s.Order);
+            var items = groups.First(g => g.Key == cat).OrderBy(s => s.Order).ToList();
+            // 分组「全部复位默认」
+            var resetAll = MakeButton("♻ 全部复位默认", "#5b6472", () =>
+            {
+                foreach (var s in items)
+                    if (!string.IsNullOrEmpty(s.Default)) Config.TrySetPropValue(s.Key, s.Default, out _);
+                RebuildDetail();
+            });
+            detailHost.Children.Add(resetAll);
             foreach (var s in items)
             {
                 // 标题 + 描述
@@ -777,9 +785,20 @@ public partial class MainWindow : Window
                 var desc = new TextBlock { Text = s.Desc, FontSize = 11, Foreground = new SolidColorBrush(Color.Parse("#8b93a7")), TextWrapping = TextWrapping.Wrap };
                 var ctrl = BuildSettingControl(s);
                 controls[s.Key] = ctrl;
+                // 单项「↺ 默认」（把改错的值设回 schema 默认）
+                var resetBtn = MakeButton("↺ 默认", "#5b6472", () =>
+                {
+                    if (string.IsNullOrEmpty(s.Default)) return;
+                    Config.TrySetPropValue(s.Key, s.Default, out _);
+                    RebuildDetail();
+                });
+                resetBtn.IsEnabled = !string.IsNullOrEmpty(s.Default);
+                var ctrlRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                ctrlRow.Children.Add(ctrl);
+                ctrlRow.Children.Add(resetBtn);
                 detailHost.Children.Add(title);
                 detailHost.Children.Add(desc);
-                detailHost.Children.Add(ctrl);
+                detailHost.Children.Add(ctrlRow);
             }
         }
         catList.SelectionChanged += (_, _) => RebuildDetail();
