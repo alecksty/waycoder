@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.79.7 (2026-08-19) — GUI diff 逐 hunk 确认（对齐 TUI/Web）
+
+GUI 版 `GuiInteraction.DiffConfirmAsync` 从"整文件接受/拒绝"升级为**逐 hunk 确认**，三端 diff 能力对齐：
+
+- **逐 hunk 勾选**：每个 hunk 独立显示（header + 等宽着色行，+绿/-红），CheckBox 勾选接受任意子集
+- **底部操作**：✔ 全部接受 / ✘ 全部拒绝 / 取消 / 💾 应用所选
+- **返回语义**：全勾→AcceptAll、全不勾→RejectAll、部分→Partial + AcceptedHunks（与 TUI `DiffPreview.Show`/Web ask-modal 一致）
+
+### ✅ 验证
+- GUI 编译 0 错误，启动运行正常
+- 三端 diff 能力对齐：TUI（全屏 y/n/q）/ Web（ask-modal checkbox）/ GUI（本窗口 checkbox）
+
 ## v0.79.6 (2026-08-19) — TUI 模型对话框完善：供应商分组 + 扫描/导入/OpenCode/设置key
 
 参考 Web 版模型弹窗完善 TUI 版 `ModelPicker`：

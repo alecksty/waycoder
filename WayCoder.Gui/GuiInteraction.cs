@@ -1,5 +1,7 @@
 using System.Text;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -100,7 +102,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
     public Task<List<string>?> MultiSelectAsync(string title, List<string> choices, int timeoutMs)
         => WaitWithTimeout(PickAsync(title, choices, multi: true), timeoutMs, null);
 
-    // ── Diff 预览（MVP：整文件接受/拒绝，逐 hunk 后续再细化）──
+    // ── Diff 预览（逐 hunk 确认：勾选接受任意子集，对齐 TUI/Web）──
 
     public Task<DiffConfirmResult?> DiffConfirmAsync(string filePath, List<DiffPreview.Hunk> hunks, int timeoutMs)
     {
@@ -110,47 +112,103 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
             var win = new Window
             {
                 Title = $"Diff 预览 — {filePath}",
-                Width = 780,
-                Height = 560,
+                Width = 820,
+                Height = 620,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Background = new SolidColorBrush(Color.Parse("#171a23")),
             };
-            var panel = new DockPanel { Margin = new Avalonia.Thickness(16) };
+            var root = new DockPanel { Margin = new Avalonia.Thickness(16) };
 
-            var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Avalonia.Thickness(0, 0, 0, 10) };
-            btnRow.Children.Add(MakeButton("接受全部", "#1a7f37", () =>
-            {
-                win.Close();
-                tcs.TrySetResult(new DiffConfirmResult { Decision = DiffPreview.Decision.AcceptAll });
-            }));
-            btnRow.Children.Add(MakeButton("拒绝全部", "#d73a49", () =>
-            {
-                win.Close();
-                tcs.TrySetResult(new DiffConfirmResult { Decision = DiffPreview.Decision.RejectAll });
-            }));
-            DockPanel.SetDock(btnRow, Dock.Bottom);
-            panel.Children.Add(btnRow);
+            // 每个 hunk 的勾选状态（默认不勾 = 拒绝）
+            var accepted = new HashSet<int>();
 
-            var sb = new StringBuilder();
-            foreach (var h in hunks)
+            // ── 底部按钮行 ──
+            void Finish()
             {
-                sb.AppendLine(h.Header);
-                foreach (var l in h.Lines)
-                    sb.AppendLine(l.Kind + l.Text);
+                if (accepted.Count == hunks.Count) tcs.TrySetResult(new DiffConfirmResult { Decision = DiffPreview.Decision.AcceptAll });
+                else if (accepted.Count == 0) tcs.TrySetResult(new DiffConfirmResult { Decision = DiffPreview.Decision.RejectAll });
+                else tcs.TrySetResult(new DiffConfirmResult { Decision = DiffPreview.Decision.Partial, AcceptedHunks = new HashSet<int>(accepted) });
+                win.Close();
             }
-            var text = new TextBox
-            {
-                Text = sb.ToString(),
-                IsReadOnly = true,
-                AcceptsReturn = true,
-                FontFamily = new FontFamily("Menlo,Consolas,monospace"),
-                FontSize = 12,
-                TextWrapping = TextWrapping.NoWrap,
-            };
-            panel.Children.Add(text);
+            var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Avalonia.Thickness(0, 0, 0, 10) };
+            btnRow.Children.Add(MakeButton("✔ 全部接受", "#1a7f37", () => { accepted.Clear(); for (int i = 0; i < hunks.Count; i++) accepted.Add(i); Finish(); }));
+            btnRow.Children.Add(MakeButton("✘ 全部拒绝", "#d73a49", () => { accepted.Clear(); Finish(); }));
+            btnRow.Children.Add(MakeButton("取消", "#5b6472", () => { win.Close(); tcs.TrySetResult(null); }));
+            btnRow.Children.Add(MakeButton("💾 应用所选", "#2f6bff", Finish));
+            DockPanel.SetDock(btnRow, Dock.Bottom);
+            root.Children.Add(btnRow);
 
-            win.Content = panel;
-            win.Closed += (_, _) => tcs.TrySetResult(null); // 关闭窗口 = 取消（调用方按拒绝处理）
+            // 顶部提示
+            var hint = new TextBlock
+            {
+                Text = "勾选要接受的变更（不勾 = 拒绝该 hunk），底部「应用所选」确认",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.Parse("#8b93a7")),
+                Margin = new Avalonia.Thickness(0, 0, 0, 8),
+            };
+            DockPanel.SetDock(hint, Dock.Top);
+            root.Children.Add(hint);
+
+            // ── 逐 hunk 列表 ──
+            var listHost = new StackPanel { Spacing = 8 };
+            var scroller = new ScrollViewer { Content = listHost, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
+
+            for (int i = 0; i < hunks.Count; i++)
+            {
+                var h = hunks[i];
+                var idx = i;
+
+                var checkbox = new CheckBox
+                {
+                    Content = "接受此变更",
+                    FontSize = 12,
+                    Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")),
+                    IsChecked = false,
+                };
+                checkbox.IsCheckedChanged += (_, _) =>
+                {
+                    if (checkbox.IsChecked == true) accepted.Add(idx);
+                    else accepted.Remove(idx);
+                };
+
+                // hunk 内容（+ 绿 / - 红 / 空格普通）
+                var content = new StackPanel { Spacing = 1, Margin = new Avalonia.Thickness(12, 0, 0, 0) };
+                var head = new TextBlock
+                {
+                    Text = h.Header,
+                    FontFamily = new FontFamily("Menlo,Consolas,monospace"),
+                    FontSize = 12,
+                    FontWeight = FontWeight.Bold,
+                    Foreground = new SolidColorBrush(Color.Parse("#58a6ff")),
+                };
+                content.Children.Add(head);
+                foreach (var l in h.Lines)
+                {
+                    var color = l.Kind == '+' ? "#3fb950" : l.Kind == '-' ? "#e5534b" : "#c9d1d9";
+                    content.Children.Add(new TextBlock
+                    {
+                        Text = l.Kind + l.Text,
+                        FontFamily = new FontFamily("Menlo,Consolas,monospace"),
+                        FontSize = 12,
+                        Foreground = new SolidColorBrush(Color.Parse(color)),
+                    });
+                }
+
+                var box = new StackPanel { Spacing = 4 };
+                box.Children.Add(checkbox);
+                box.Children.Add(content);
+                listHost.Children.Add(new Border
+                {
+                    Child = box,
+                    Background = new SolidColorBrush(Color.Parse("#1d2230")),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Avalonia.Thickness(12, 8),
+                });
+            }
+
+            root.Children.Add(scroller);
+            win.Content = root;
+            win.Closed += (_, _) => tcs.TrySetResult(null); // 关闭窗口 = 取消
             win.ShowDialog(_owner);
         });
         return WaitWithTimeout(tcs.Task, timeoutMs, null); // 超时 = 取消
