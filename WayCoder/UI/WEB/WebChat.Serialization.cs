@@ -66,8 +66,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return false;
     }
 
-    /// <summary>序列化当前会话状态（活跃槽位、各槽位模型/是否有历史、当前模型/供应商、是否有 key）。</summary>
-    public static string SerializeState(int activeSlot, Agent?[] slots)
+    /// <summary>序列化当前会话状态（活跃槽位、各槽位模型/是否有历史/是否忙碌、当前模型/供应商、是否有 key）。</summary>
+    public static string SerializeState(int activeSlot, Agent?[] slots, bool[]? busy = null)
     {
         var cfg = Config.Instance;
         var info = ModelCatalog.Find(cfg.Model);
@@ -83,7 +83,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             slotArr.Add(JNode.Object()
                 .Set("slot", i)
                 .Set("model", a?.LlmClient.EffectiveModel ?? "")
-                .Set("hasHistory", a != null && HasHistory(a)));
+                .Set("hasHistory", a != null && HasHistory(a))
+                .Set("busy", busy != null && i < busy.Length && busy[i]));
         }
 
         return JNode.Object()

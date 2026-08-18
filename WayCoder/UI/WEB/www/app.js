@@ -122,9 +122,11 @@ permSelect.onchange = () =>
 // ── 槽位（左栏）──
 let currentSlot = 0;          // 本页面当前绑定的槽位
 const slotDrafts = {};        // 槽位索引 → 未发送的输入草稿（切换槽位时各自保留）
+let slotsBusy = [];             // 槽位索引 → 是否后台忙碌（来自服务端 state.slots[].busy）
 
 function renderSlots(state) {
   currentSlot = state.activeSlot;
+  slotsBusy = (state.slots || []).map(s => !!s.busy);
   document.getElementById('agent-label').textContent = '智能体' + (state.activeSlot + 1);
   slotsEl.innerHTML = '';
   for (let i = 0; i < state.slots.length; i++) {
@@ -140,15 +142,16 @@ function renderSlots(state) {
 function switchSlot(i) {
   if (i === currentSlot) return; // 已在该槽位，无需重复切换（避免清空输入框）
   const oldSlot = currentSlot; // 保存旧槽位（服务端拒绝时回滚）
-  setBusy(false); // 切换槽位：本页面不再处于旧槽位的流式接收态，重置发送/停止按钮
   slotDrafts[currentSlot] = input.value; // 保存当前槽位未发送的草稿
   currentSlot = i;
   input.value = slotDrafts[i] || '';      // 恢复目标槽位的草稿
   autoResizeInput();
+  setBusy(slotsBusy[i] === true); // 目标槽位后台仍在运行则保持停止态（不再无条件复位）
   updateSendState();
   fetch(cq('/slot'), { method: 'POST', body: JSON.stringify({ slot: i }) })
     .then(r => r.json())
     .then(data => {
+      if (currentSlot !== i) return; // 快速连续切换：陈旧响应丢弃，避免覆盖当前视图
       if (!Array.isArray(data)) { currentSlot = oldSlot; return; } // 服务端错误({ok:false}) → 回滚槽位
       clearMessages();
       data.forEach(m => addMsg(m.role === 'user' ? 'user' : 'assistant', m.content));
@@ -316,9 +319,11 @@ function renderModelBar(state) {
   if (allModels.length && eco.options.length === 0) {
     ECONOMY_OPTIONS.forEach(([v, l]) => { const op = document.createElement('option'); op.value = v; op.textContent = l; eco.appendChild(op); });
   }
-  const big = modelMap[state.model || currentModelId];
+  // 优先显示当前槽位实际模型（/sessions/load 可覆盖槽位模型），回退全局默认
+  const slotModel = (state.slots && state.slots[state.activeSlot]) ? state.slots[state.activeSlot].model : '';
+  const big = modelMap[slotModel || state.model || currentModelId];
   const small = modelMap[state.smallModel || currentSmallModel];
-  document.getElementById('big-model-label').textContent = big ? big.name : (state.model || currentModelId || '选择');
+  document.getElementById('big-model-label').textContent = big ? big.name : (slotModel || state.model || currentModelId || '选择');
   document.getElementById('small-model-label').textContent = small ? small.name : (state.smallModel || currentSmallModel || '选择');
   if (state.economy) eco.value = state.economy;
 }
@@ -543,7 +548,8 @@ function saveKey() {
           .catch(() => {});
       }
       fetchModels();
-    });
+    })
+    .catch(() => { status.textContent = '保存 Key 失败（网络错误）'; });
 }
 document.getElementById('key-save').onclick = saveKey;
 document.getElementById('key-cancel').onclick = () => keyModal.classList.remove('open');
@@ -974,11 +980,11 @@ function send() {
           fetch(cq('/chat'), { method: 'POST', body: text }).catch(() => {});
         }
       })
-      .catch(() => { fetch(cq('/chat'), { method: 'POST', body: text }).catch(() => {}); });
+      .catch(() => { fetch(cq('/chat'), { method: 'POST', body: text }).catch(() => { setBusy(false); }); });
     return;
   }
 
-  fetch(cq('/chat'), { method: 'POST', body: text }).catch(() => {});
+  fetch(cq('/chat'), { method: 'POST', body: text }).catch(() => { setBusy(false); addMsg('system', '⚠ 发送失败（网络错误）'); });
 }
 document.getElementById('send').onclick = send;
 input.addEventListener('keydown', e => {
@@ -1393,8 +1399,9 @@ function splitRow(line) {
 
 // ── SSE ──
 const es = new EventSource('/events?client=' + clientId);
+es.onerror = () => { /* 断线自动重连：服务端重放 history+state，isBusy 由 state 处理器按槽位 busy 复位 */ };
 es.addEventListener('token', e => { setBusy(true); handleToken(JSON.parse(e.data)); });
-es.addEventListener('tool', e => { setBusy(true); endReasoning(); finalizeAssistant(); endAssistantStream(); const d = JSON.parse(e.data); addTool(d.name, d.args); });
+es.addEventListener('tool', e => { setBusy(true); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); const d = JSON.parse(e.data); addTool(d.name, d.args); });
 es.addEventListener('tool_output', e => { ensureToolOutput().textContent += JSON.parse(e.data); scroll(); });
 es.addEventListener('done', () => { setBusy(false); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); fetchPanel(); });
 es.addEventListener('interrupted', () => { setBusy(false); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); addMsg('system', '⚠ 已中断'); fetchPanel(); });
@@ -1414,9 +1421,12 @@ es.addEventListener('state', e => {
   if (state.model) currentModelId = state.model;
   if (state.smallModel) currentSmallModel = state.smallModel;
   renderModelBar(state);
+  // 同步当前绑定槽位的忙碌态（后台并行任务不因 state 广播被复位）
+  setBusy(slotsBusy[state.activeSlot] === true);
   fetchPanel();
 });
 es.addEventListener('sessions', () => fetchSessions());
+es.addEventListener('system', e => { addMsg('system', JSON.parse(e.data)); });
 es.addEventListener('ask', e => showAsk(JSON.parse(e.data)));
 es.addEventListener('compress', e => showCompress(JSON.parse(e.data)));
 

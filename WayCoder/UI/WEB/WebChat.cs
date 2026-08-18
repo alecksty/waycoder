@@ -153,7 +153,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         if (req.Method == "POST" && req.Path == "/models/import-opencode")
             return ImportOpenCodeOnline();
         if (req.Method == "GET" && req.Path == "/state")
-            return HttpResponse.JsonBody(SerializeState(slot, AgentView()));
+            return HttpResponse.JsonBody(SerializeState(slot, AgentView(), SlotBusyFlags()));
 
         // 槽位切换（改本客户端绑定的槽位）
         if (req.Method == "POST" && req.Path == "/slot")
@@ -165,7 +165,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             if (!BindClientSlot(clientId, idx))
                 return HttpResponse.JsonBody(Err("槽位已被其他页面占用"));
             // 切换后刷新该页面自己的 state（activeSlot 高亮 + 该槽位运行态），并按新槽位回放历史
-            BroadcastTo(idx, "state", SerializeState(idx, AgentView()));
+            BroadcastTo(idx, "state", SerializeState(idx, AgentView(), SlotBusyFlags()));
             return HttpResponse.JsonBody(HistoryOf(idx));
         }
 
@@ -533,6 +533,15 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return slot.Agent!;
     }
 
+    /// <summary>各槽位忙碌标志数组（供 SerializeState 上报，前端据此切换发送/停止态）。</summary>
+    private bool[] SlotBusyFlags()
+    {
+        var flags = new bool[SlotCount];
+        for (int i = 0; i < SlotCount; i++)
+            flags[i] = _slots[i].IsBusy;
+        return flags;
+    }
+
     /// <summary>把 <see cref="WebSlot"/> 数组映射为 <see cref="Agent"/> 数组视图（供 SerializeState/SerializePanel 等签名保持 Agent?[] 的方法使用）。</summary>
     private Agent?[] AgentView()
     {
@@ -812,7 +821,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             lock (client.WriteLock)
             {
                 writer.Write(HttpServer.SseEvent("history", HistoryOf(slot)));
-                writer.Write(HttpServer.SseEvent("state", SerializeState(slot, AgentView())));
+                writer.Write(HttpServer.SseEvent("state", SerializeState(slot, AgentView(), SlotBusyFlags())));
             }
             // 同时监听「写失败（Closed）」与「底层流 EOF（客户端主动断开）」：
             // 服务端从不读 SSE 流，若只等 Closed.Task，客户端关标签页后若无后续广播，
@@ -882,7 +891,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         List<SseClient> snapshot;
         lock (_lock) snapshot = _clients.ToList();
         foreach (var c in snapshot)
-            WriteClient(c, HttpServer.SseEvent("state", SerializeState(c.SlotIndex, view)));
+            WriteClient(c, HttpServer.SseEvent("state", SerializeState(c.SlotIndex, view, SlotBusyFlags())));
     }
 
     private static void WriteClient(SseClient c, string sse)
