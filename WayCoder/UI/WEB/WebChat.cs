@@ -38,7 +38,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     /// <summary>槽位运行时状态（Agent 懒建 + 忙碌标记 + 取消令牌）。</summary>
     private sealed class WebSlot
     {
-        public Agent? Agent;
+        // volatile：EnsureSlot 的 double-checked locking 在 lock 外首检读该字段，
+        // ARM 弱内存模型下需 volatile 保证「Agent 构造完成」先于「引用发布」的可见性。
+        public volatile Agent? Agent;
         public volatile bool IsBusy;
         public CancellationTokenSource? Cts;
         /// <summary>串行化 StartSlotTask 的 check-then-act 与 Interrupt 的 Cts 摘除，防同槽位并发请求双启动 / 中断被丢。</summary>
@@ -148,6 +150,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         }
         if (req.Method == "POST" && req.Path == "/models/import")
             return ImportExternalModels();
+        if (req.Method == "POST" && req.Path == "/models/import-opencode")
+            return ImportOpenCodeOnline();
         if (req.Method == "GET" && req.Path == "/state")
             return HttpResponse.JsonBody(SerializeState(slot, AgentView()));
 
@@ -492,6 +496,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     //  槽位管理
     // ═══════════════════════════════════════════════════════════
 
+    /// <summary>Web 槽位 Agent 的唯一标识（供 PendingImages 按 agentId 分队列，隔离多槽位图片）。</summary>
+    private static string WebSlotAgentId(int idx) => $"web-slot-{idx}";
+
     /// <summary>惰性创建槽位 Agent（每槽位独立 LLM + 历史），复用全局模型/密钥配置。</summary>
     private Agent EnsureSlot(int idx)
     {
@@ -515,7 +522,11 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                     };
                     slot.Agent = new Agent(llm,
                         maxContextTokens: ModelCatalog.ResolveContextWindow(cfg.Model, cfg.MaxContextTokens),
-                        maxBudgetUsd: cfg.MaxBudgetUsd, autoCommit: cfg.AutoGitCommit);
+                        maxBudgetUsd: cfg.MaxBudgetUsd, autoCommit: cfg.AutoGitCommit)
+                    {
+                        // 槽位唯一标识：文件锁跨槽位检测 + PendingImages 按 agentId 分队列（此前默认 "main" 导致多槽位图片串扰）
+                        AgentId = WebSlotAgentId(idx),
+                    };
                 }
             }
         }
@@ -722,6 +733,50 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         }
     }
 
+    /// <summary>从 opencode 在线 /models 端点导入模型列表（OpenAI 兼容格式，统一走 zen 网关）。</summary>
+    private static HttpResponse ImportOpenCodeOnline()
+    {
+        try
+        {
+            const string url = "https://opencode.ai/zen/go/v1/models";
+            const string apiBase = "https://opencode.ai/zen/go/v1";
+
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder/1.0");
+            var json = client.GetStringAsync(url).GetAwaiter().GetResult();
+
+            var list = ModelCatalog.ImportOpenCodeApi(json, apiBase);
+            if (list.Count == 0)
+                return HttpResponse.JsonBody(Err("OpenCode 在线未返回可识别的模型"));
+
+            // 去重：跳过内置目录已有模型（避免被导入的空数据覆盖）
+            var builtInIds = new HashSet<string>(ModelCatalog.BuiltIn.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
+            var added = new List<ModelCatalog.ModelInfo>();
+            var skipped = 0;
+            foreach (var m in list)
+            {
+                if (builtInIds.Contains(m.Id)) { skipped++; continue; }
+                ModelCatalog.AddCustom(m);
+                added.Add(m);
+            }
+            ModelCatalog.Invalidate();
+
+            var sb = new System.Text.StringBuilder();
+            sb.Append($"✅ 从 OpenCode 在线导入 {added.Count} 个模型" +
+                (skipped > 0 ? $"，跳过 {skipped} 个内置已有" : "") + "：");
+            foreach (var m in added)
+                sb.Append($"\n  {m.Id}");
+            return HttpResponse.JsonBody(JNode.Object()
+                .Set("ok", true)
+                .Set("modelReport", sb.ToString())
+                .ToJson());
+        }
+        catch (Exception ex)
+        {
+            return HttpResponse.JsonBody(Err($"OpenCode 在线导入失败：{ex.Message}"));
+        }
+    }
+
     /// <summary>BaseUrl 优先级：模型目录默认 Url > 全局 Config.BaseUrl（与 AgentSlotConfig.ResolveBaseUrl 一致）。</summary>
     private static string? ResolveBaseUrl(ModelCatalog.ModelInfo? info, string providerId, string? globalBaseUrl)
     {
@@ -774,6 +829,10 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         finally
         {
             lock (_lock) _clients.Remove(client);
+            // 标记该客户端已关闭：正常断连（WaitForDisconnectAsync EOF）不经过 WriteClient 的写失败分支，
+            // 若此处不 Complete，则 Broadcast 已拿到快照里的该 client 会因 Closed.Task.IsCompleted=false
+            // 继续写已释放的 writer，退化为「写已释放流 → 吞 ObjectDisposedException」的脏路径。
+            client.Closed.TrySetResult();
             // 延迟清理槽位绑定：立即删除会导致断线重连（同 clientId 自动重连）槽位跳变、
             // 页面静默切到另一个槽位；30 秒后仍无该 clientId 的连接才释放（防字典无界增长）。
             if (clientId != null)

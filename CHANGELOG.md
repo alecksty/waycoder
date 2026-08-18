@@ -1,5 +1,35 @@
 # 更新日志
 
+## v0.79.2 (2026-08-18) — Web 输入框美化 + 模型按供应商分类存储 + opencode 在线导入
+
+### 🎨 Web 前端输入区美化（对标主流 AI 聊天页）
+- **Composer 卡片**：输入框改为圆角卡片容器（22px 圆角 + 聚焦光晕 + 内阴影），textarea 透明化融入
+- **工具栏内嵌**：大模型/小模型/省钱/交互模式移入输入框内部（回形针与发送箭头之间），整行居中；省钱加 💰 钱袋图标
+- **发送按钮**：纸飞机 → 向上箭头（描边风格）；空输入禁用态、忙碌变红色停止按钮
+- 输入框高度可调（28px → 56px）、去掉底部提示横线与分隔线、整体上移 1.5cm
+
+### 🗂️ 模型按供应商分类存储
+- 自定义模型库从单文件 `models.json` 改为 `~/.waycoder/provider/{供应商}.json` 分类分文件：
+  - 本地模型（local/custom/ollama/lmstudio 等）→ `locals.json`
+  - 其余按 providerId 命名（minimax.json / moonshot.json / zhipu.json / openai.json…）
+  - 旧 `models.json` 自动迁移到分类文件后删除；删空分类文件自动清理
+- `ModelCatalog.ProviderGroupName` 供应商分组（非法字符剥离防路径穿越）
+
+### 🌐 OpenCode 在线导入
+- 模型弹窗新增「🌐 OpenCode 在线」按钮，拉取 `https://opencode.ai/zen/go/v1/models`（OpenAI 兼容格式）
+- **baseUrl 保留 opencode 网关**（模型经 `zen/go/v1` 访问，chat/completions 端点已验证）
+- **按模型 id 前缀推断真实供应商分类**（`InferProviderFromId`）：minimax-*→minimax、kimi-*→moonshot、glm-*→zhipu、qwen-*→qwen、deepseek-*→deepseek、gpt-*/o*→openai、claude-*→anthropic、gemini-*→google、grok-*→xai、hy*→hunyuan 等
+- 实测导入 23 个模型，自动分类到各供应商文件
+
+### 🐛 Web 层健壮性修复
+- **slowloris 读超时**：HttpServer 读请求阶段 10s 超时（防慢连接占满 32 连接槽）
+- **PendingImages 跨槽位串扰**：静态单队列 → 按 agentId 分队列，Web 槽位 Agent 设唯一 AgentId
+- **SSE 断连脏路径**：正常断连补 `Closed.TrySetResult()`；`WebSlot.Agent` 加 volatile
+
+### ✅ 验证
+- 自测 3507→3561 全绿（+54 断言）
+- Web 服务 HTTP 200，opencode 在线导入实测通过
+
 ## v0.79.1 (2026-08-18) — 安全审计：白名单绕过 + 解析器崩溃护栏 + 并发/SSRF/路径防护
 
 对全系统做 4 路并行安全审查（TUI 渲染 / Agent 并发 / 工具安全 / 手搓编解码），修复一批安全漏洞与健壮性问题。

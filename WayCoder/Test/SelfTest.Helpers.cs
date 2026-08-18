@@ -187,6 +187,31 @@ public static partial class SelfTest
         Check("窗口: 空字符串回退 1M", ModelCatalog.ResolveContextWindow("") == 1_048_576);
         Check("窗口: 自定义回退值生效", ModelCatalog.ResolveContextWindow("unknown", 64_000) == 64_000);
 
+        // ── 3. ImportOpenCodeApi：OpenAI 兼容 /models 端点解析（opencode 在线导入）──
+        var ocApiJson = """{"object":"list","data":[{"id":"deepseek-v4-pro","object":"model","created":1,"owned_by":"opencode"},{"id":"qwen3.7-max","object":"model","created":1,"owned_by":"opencode"},{"id":"glm-5.2","object":"model","created":1,"owned_by":"opencode"}]}""";
+        var ocApiModels = ModelCatalog.ImportOpenCodeApi(ocApiJson, "https://opencode.ai/zen/go/v1");
+        Check("OpenCode在线: 解析 3 个模型", ocApiModels.Count == 3);
+        Check("OpenCode在线: id 正确", ocApiModels[0].Id == "deepseek-v4-pro");
+        Check("OpenCode在线: provider=deepseek(推断)", ocApiModels[0].ProviderId == "deepseek");
+        Check("OpenCode在线: baseUrl 保留 opencode 网关", ocApiModels[0].DefaultBaseUrl == "https://opencode.ai/zen/go/v1");
+        Check("OpenCode在线: minimax 推断", ModelCatalog.InferProviderFromId("minimax-m3").ProviderId == "minimax");
+        Check("OpenCode在线: kimi 推断", ModelCatalog.InferProviderFromId("kimi-k3").ProviderId == "moonshot");
+        Check("OpenCode在线: glm 推断", ModelCatalog.InferProviderFromId("glm-5.2").ProviderId == "zhipu");
+        Check("OpenCode在线: qwen 推断", ModelCatalog.InferProviderFromId("qwen3.7-max").ProviderId == "qwen");
+        Check("OpenCode在线: openrouter 推断", ModelCatalog.InferProviderFromId("openrouter/auto").ProviderId == "openrouter");
+        Check("OpenCode在线: 空 data 返回空", ModelCatalog.ImportOpenCodeApi("""{"data":[]}""", "http://x").Count == 0);
+        Check("OpenCode在线: 畸形返回空", ModelCatalog.ImportOpenCodeApi("not json", "http://x").Count == 0);
+
+        // ── 4. 模型按供应商分类存储：ProviderGroupName 分组 ──
+        Check("Provider分组: opencode→opencode", ModelCatalog.ProviderGroupName("opencode") == "opencode");
+        Check("Provider分组: deepseek→deepseek", ModelCatalog.ProviderGroupName("DeepSeek") == "deepseek");
+        Check("Provider分组: openai→openai", ModelCatalog.ProviderGroupName("openai") == "openai");
+        Check("Provider分组: local→locals", ModelCatalog.ProviderGroupName("local") == "locals");
+        Check("Provider分组: custom→locals", ModelCatalog.ProviderGroupName("custom") == "locals");
+        Check("Provider分组: ollama→locals", ModelCatalog.ProviderGroupName("ollama") == "locals");
+        Check("Provider分组: 特殊字符剥离", ModelCatalog.ProviderGroupName("my provider/2") == "myprovider2");
+        Check("Provider分组: null→locals", ModelCatalog.ProviderGroupName(null) == "locals");
+
         // ── 2. UpdateMaxTokens 重算阈值：小窗口压缩、放大后不再压缩 ──
         var longTool = new List<JNode>
         {

@@ -101,24 +101,29 @@ public class LLM
 
     // ── 视觉（多模态）支持 ──
 
-    /// <summary>待附加到下一轮请求的图片路径（由 view_image 工具填充，Agent 主循环在下一轮消费）</summary>
-    private static readonly List<string> PendingImages = [];
+    /// <summary>待附加到下一轮请求的图片路径（按 agentId 分队列，防多槽位并行时图片跨槽位串扰）。</summary>
+    private static readonly Dictionary<string, List<string>> PendingImages = [];
     private static readonly object _pendingImagesLock = new();
 
-    /// <summary>将图片加入待发送队列（线程安全）</summary>
-    public static void QueueImage(string path)
-    {
-        lock (_pendingImagesLock) PendingImages.Add(path);
-    }
-
-    /// <summary>取走并清空待发送图片（线程安全）</summary>
-    public static List<string> DrainImages()
+    /// <summary>将图片加入指定 Agent 的待发送队列（线程安全）。</summary>
+    public static void QueueImage(string agentId, string path)
     {
         lock (_pendingImagesLock)
         {
-            var copy = new List<string>(PendingImages);
-            PendingImages.Clear();
-            return copy;
+            if (!PendingImages.TryGetValue(agentId, out var list))
+                PendingImages[agentId] = list = [];
+            list.Add(path);
+        }
+    }
+
+    /// <summary>取走并清空指定 Agent 的待发送图片（线程安全）。无队列返回空列表。</summary>
+    public static List<string> DrainImages(string agentId)
+    {
+        lock (_pendingImagesLock)
+        {
+            if (!PendingImages.TryGetValue(agentId, out var list)) return [];
+            PendingImages.Remove(agentId);
+            return list;
         }
     }
 

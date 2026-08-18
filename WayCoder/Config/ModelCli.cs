@@ -197,7 +197,7 @@ public static class ModelCli
             (skipped.Count > 0 ? $"，跳过 {skipped.Count} 个内置已有" : "") + "：");
         foreach (var m in added)
             sb.AppendLine($"  {m.Id,-32} {m.Provider,-10} ctx={FormatCtx(m.ContextWindow),-6} ${m.InputPrice}/{m.OutputPrice}");
-        sb.AppendLine("已写入: " + ModelCatalog.GlobalModelsPath);
+        sb.AppendLine("已写入: " + ModelCatalog.GlobalProviderDir + "/（按供应商分类）");
         return sb.ToString().Trim();
     }
 
