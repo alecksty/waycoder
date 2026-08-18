@@ -7,7 +7,9 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using WayCoder.Tools;
 using WayCoder.UI.Tui;
 
 namespace WayCoder.UI.Gui;
@@ -170,7 +172,10 @@ public partial class MainWindow : Window
         _agents[slot] = new Agent(llm,
             maxContextTokens: ModelCatalog.ResolveContextWindow(cfg.Model, cfg.MaxContextTokens),
             maxBudgetUsd: cfg.MaxBudgetUsd,
-            autoCommit: cfg.AutoGitCommit);
+            autoCommit: cfg.AutoGitCommit)
+        {
+            AgentId = $"gui-slot-{slot}", // 槽位唯一标识：PendingImages 按 agentId 分队列防串扰
+        };
 
         LoadSlotSession(slot); // 恢复历史会话
         return _agents[slot]!;
@@ -433,6 +438,159 @@ public partial class MainWindow : Window
         await SendAsync();
     }
 
+    // ═══════════════════════════════════════════════════════════
+    //  斜杠命令（GUI 侧实现常用命令，对齐 Web /command）
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>处理 GUI 斜杠命令。返回 true 表示已消费（不再作为普通消息发送）。</summary>
+    private bool TryHandleCommand(string input)
+    {
+        var cmd = input[1..].Trim();
+        var parts = cmd.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var name = parts.Length > 0 ? parts[0].ToLowerInvariant() : "";
+
+        switch (name)
+        {
+            case "help" or "?":
+                AppendSystem(_activeSlot, """
+                    GUI 斜杠命令：
+                    /help      帮助
+                    /model     选择模型
+                    /settings  打开设置
+                    /theme     切换深/浅主题
+                    /reset     清空当前会话
+                    /todos     显示任务列表
+                    /tokens    显示本轮 token/费用
+                    /perm <ask|auto|smartauto|yolo>  切换交互模式
+                    /slots     槽位说明
+                    """);
+                return true;
+
+            case "model":
+                new ModelWindow(this).ShowDialog(this);
+                return true;
+
+            case "settings":
+                ShowSettings();
+                return true;
+
+            case "theme":
+                Theme_Click(null, null!);
+                return true;
+
+            case "reset":
+                NewSession_Click(null, null!);
+                return true;
+
+            case "todos":
+            {
+                var items = TodoTool.Items;
+                if (items == null || items.Count == 0) { AppendSystem(_activeSlot, "[无任务]"); return true; }
+                var sb = new StringBuilder();
+                foreach (var t in items) sb.AppendLine($"• [{t.Status}] {t.Title}");
+                AppendSystem(_activeSlot, sb.ToString());
+                return true;
+            }
+
+            case "tokens":
+            {
+                var llm = _agents[_activeSlot]?.LlmClient;
+                if (llm == null) { AppendSystem(_activeSlot, "[无活动数据]"); return true; }
+                AppendSystem(_activeSlot, $"本轮 {llm.TaskPromptTokens:N0}/{llm.TaskCompletionTokens:N0} · 累计 {llm.TotalPromptTokens:N0}/{llm.TotalCompletionTokens:N0}" +
+                    (llm.TaskCost.HasValue ? $" · 费用 ${llm.TaskCost.Value:F4}" : ""));
+                return true;
+            }
+
+            case "perm":
+            {
+                if (parts.Length < 2) { AppendSystem(_activeSlot, "用法: /perm <ask|auto|smartauto|yolo>"); return true; }
+                try
+                {
+                    PermissionManager.SetMode(parts[1]);
+                    var idx = Array.FindIndex(new[] { "Ask", "Auto", "SmartAuto", "YOLO" },
+                        m => m.Equals(parts[1], StringComparison.OrdinalIgnoreCase));
+                    if (idx >= 0) PermCombo.SelectedIndex = idx;
+                    AppendSystem(_activeSlot, $"[交互模式已切换: {parts[1]}]");
+                }
+                catch (Exception ex) { AppendSystem(_activeSlot, $"[切换失败] {ex.Message}"); }
+                return true;
+            }
+
+            case "slots":
+                AppendSystem(_activeSlot, "F1-F10 切换 10 个独立槽位（各自会话/模型/草稿）；顶栏标签显示当前槽位");
+                return true;
+
+            default:
+                return false; // 未知命令 → 按普通消息发给 Agent
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  附件上传（📎）：图片入 vision 队列 / 音频转录（对齐 Web /upload）
+    // ═══════════════════════════════════════════════════════════
+
+    private async void Attach_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "上传图片 / 音频",
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("图片 / 音频") { Patterns = ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.bmp", "*.mp3", "*.wav", "*.m4a", "*.ogg", "*.webm"] },
+                ],
+            });
+            if (files == null || files.Count == 0) return;
+            var path = files[0].TryGetLocalPath();
+            if (!string.IsNullOrEmpty(path)) HandleUpload(path);
+        }
+        catch (Exception ex)
+        {
+            AppendSystem(_activeSlot, $"[附件失败] {ex.Message}");
+        }
+    }
+
+    private async void HandleUpload(string path)
+    {
+        var ext = Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
+        var agent = _agents[_activeSlot];
+        if (agent == null) return;
+
+        if (IsImageExt(ext))
+        {
+            LLM.QueueImage(agent.AgentId, path);
+            AppendSystem(_activeSlot, $"[图片已附加: {Path.GetFileName(path)}]");
+        }
+        else if (IsAudioExt(ext))
+        {
+            AppendSystem(_activeSlot, $"[转录音频中: {Path.GetFileName(path)}]");
+            try
+            {
+                var text = await Task.Run(() =>
+                    new WayCoder.Tools.TranscribeAudioTool().ExecuteAsync(
+                        new Dictionary<string, object?> { ["path"] = path })
+                    .GetAwaiter().GetResult());
+                if (!string.IsNullOrEmpty(text))
+                    AppendUser(_activeSlot, text);
+                else
+                    AppendSystem(_activeSlot, "[转录无结果]");
+            }
+            catch (Exception ex) { AppendSystem(_activeSlot, $"[转录失败] {ex.Message}"); }
+        }
+        else
+        {
+            AppendSystem(_activeSlot, $"[不支持的格式: .{ext}（图片或音频）]");
+        }
+    }
+
+    private static bool IsImageExt(string ext) =>
+        ext is "png" or "jpg" or "jpeg" or "gif" or "webp" or "bmp";
+
+    private static bool IsAudioExt(string ext) =>
+        ext is "mp3" or "wav" or "m4a" or "ogg" or "webm";
+
     private async void Input_KeyDown(object? sender, KeyEventArgs e)
     {
         // Ctrl+Enter 发送（多行输入用 Shift+Enter 换行，Enter 直接发送）
@@ -687,6 +845,9 @@ public partial class MainWindow : Window
         Agent agent;
         try { agent = EnsureSlot(slot); }
         catch (Exception ex) { AppendSystem(slot, $"[错误] 初始化 Agent 失败：{ex.Message}"); return; }
+
+        // 斜杠命令（GUI 侧实现常用命令，对齐 Web /command）
+        if (input.StartsWith('/') && input.Length > 1 && TryHandleCommand(input)) return;
 
         AppendUser(slot, input);
         EnsureAssistant(slot); // 先建 assistant 气泡，流式 token 直接追加
