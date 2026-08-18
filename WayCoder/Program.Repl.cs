@@ -80,8 +80,10 @@ public partial class Program
         }
 
         var mgr = TuiManager.Instance;
-        // 标记版界面（.tui 声明式布局）：--tui-chat 或 WAYCODER_MARKUP_UI=1 时启用；测试通过后翻默认
-        var screen = _config.MarkupUi ? (ChatScreen)new MarkupChatScreen() : new ChatScreen();
+        // 标记版界面（.tui 声明式布局）为默认；chat.tui 加载失败时兜底手写 ChatScreen
+        ChatScreen screen;
+        try { screen = new MarkupChatScreen(); }
+        catch (Exception ex) { Console.Error.WriteLine($"[Markup fallback→ChatScreen] {ex.Message}"); screen = new ChatScreen(); }
         screen.ChatDisplayStyle = _config.ChatDisplayStyle;
         mgr.Enter();
         mgr.PushScreen(screen);
