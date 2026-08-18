@@ -216,20 +216,11 @@ public partial class Program
                 _config.BaseUrl = catInfo.DefaultBaseUrl;
         }
 
-        // Tiny 模式：显式 --tiny（可指定窗口），或模型窗口 <128K 自动进入（本地小模型）
+        // Tiny 模式：仅显式 --tiny 启用（压测 / 本地小模型省 token），不再按模型窗口自动进入
         if (tinyMode)
         {
             _config.TinyMode = true;
             _config.TinyWindow = ModelCatalog.ResolveTinyWindow(tinyWindowSpec, _config.Model, _config.BaseUrl);
-        }
-        else
-        {
-            var probed = ModelCatalog.ProbeModelWindow(_config.Model, _config.BaseUrl, _config.MaxContextTokens);
-            if (probed < Config.TinyAutoThreshold)
-            {
-                _config.TinyMode = true;
-                _config.TinyWindow = probed;
-            }
         }
 
         // Local/Ollama 模型不需要 API key

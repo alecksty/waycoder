@@ -306,11 +306,6 @@ public static partial class SelfTest
         Check("Tiny: ProbeModelWindow 目录命中", ModelCatalog.ProbeModelWindow("deepseek-v4-pro", null, 1000) == 1_048_576);
         Check("Tiny: ProbeModelWindow 兜底", ModelCatalog.ProbeModelWindow("未知xyz", null, 4096) == 4096);
 
-        // 128K 自动阈值
-        Check("Tiny: 自动阈值 = 128K", Config.TinyAutoThreshold == 128_000);
-        Check("Tiny: 32K 模型低于阈值", ModelCatalog.ProbeModelWindow("qwen2.5-coder:3b", null, 1_048_576) < Config.TinyAutoThreshold);
-        Check("Tiny: 1M 模型不低于阈值", ModelCatalog.ProbeModelWindow("deepseek-v4-pro", null, 1_048_576) >= Config.TinyAutoThreshold);
-
         // Ollama base url 识别
         Check("Tiny: IsOllamaBaseUrl localhost", ModelCatalog.IsOllamaBaseUrl("http://localhost:11434"));
         Check("Tiny: IsOllamaBaseUrl 非 ollama", !ModelCatalog.IsOllamaBaseUrl("https://api.deepseek.com"));

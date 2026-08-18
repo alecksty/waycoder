@@ -35,7 +35,7 @@ WayCoder（道码）是一个中文版多智能体经济型编程智能体。把
 # Watch 模式 (监听 AI! 注释自动触发 Agent)
 WayCoder --watch
 
-# Tiny 模式（本地小模型 / 省 token；窗口 <128K 自动进入，也可 --tiny 8k 指定）
+# Tiny 模式（本地小模型 / 省 token；仅显式 --tiny 启用，如 --tiny 8k 指定）
 WayCoder --tiny
 WayCoder --tiny 8k
 

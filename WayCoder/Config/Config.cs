@@ -245,11 +245,8 @@ public class Config
     /// <summary>Tiny 模式默认上下文窗口（4K，探测失败时的兜底）</summary>
     public const int TinyContextWindow = 4096;
 
-    /// <summary>Tiny 模式实际上下文窗口（--tiny 8k 指定，或 --tiny 自动探测覆盖，或模型窗口 &lt;128K 自动进入）</summary>
+    /// <summary>Tiny 模式实际上下文窗口（--tiny 8k 指定，或 --tiny 自动探测覆盖）</summary>
     public int TinyWindow { get; set; } = TinyContextWindow;
-
-    /// <summary>模型窗口低于此值自动进入 tiny 模式（128K）</summary>
-    public const int TinyAutoThreshold = 128_000;
 
     // 省 token 模式：三态（关/自动/开）。保持正常窗口，从提示词/压缩/输出上限综合降 token
     public EconomyMode EconomyMode { get; set; } = EconomyMode.Off;
@@ -538,12 +535,6 @@ public class Config
               "自动续跑次数", "⚙ 参数", "撞 MaxRounds 上限后自动压缩+续跑的次数（0=关闭）",
               "number", null, 18,
               c => c.MaxAutoRequeue.ToString(), (c, v) => c.MaxAutoRequeue = Math.Clamp(int.Parse(v), 0, 20), "3"),
-
-            P("TinyMode", "WAYCODER_TINY", null,
-              "Tiny 模式", "⚙ 参数", "4K 上下文窗口 + 精简提示词（省 token / 压力测试）",
-              "select", ["false","true"], 19,
-              c => c.TinyMode.ToString().ToLowerInvariant(),
-              (c, v) => c.TinyMode = bool.Parse(v), "false"),
 
             P("EconomyMode", "WAYCODER_ECONOMY", null,
               "省 Token 模式", "⚙ 参数", "关=完整 / 开=精简+更早压缩 / 自动=按任务轮数复杂度调节（简单省、复杂保质量）",

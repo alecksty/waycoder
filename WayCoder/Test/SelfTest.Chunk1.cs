@@ -71,7 +71,7 @@ public static partial class SelfTest
         TestContextStopWhen(Check);
         // Tiny 模式测试（4K 窗口 + 精简提示词）
         TestTinyMode(Check);
-        // Tiny 窗口解析测试（--tiny 8k 指定 / 自动探测 / 128K 自动阈值）
+        // Tiny 窗口解析测试（--tiny 8k 指定 / 自动探测）
         TestTinyWindow(Check);
         // 省 token 模式测试（EconomyMode 开关）
         TestEconomyMode(Check);
