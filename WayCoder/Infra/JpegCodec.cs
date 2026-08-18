@@ -346,8 +346,15 @@ public static class JpegCodec
             c.BlocksY = mcuRows * c.V;
             c.SampleW = c.BlocksX * 8;
             c.SampleH = c.BlocksY * 8;
-            c.Samples = new double[c.SampleW * c.SampleH];
         }
+        // 总采样点护栏：恶意 SOF0 声明 width*height≈25M 且 4 分量全采样(4:4:4)时
+        // sum(SampleW*SampleH) ≈ 4*width*height，会分配 ~800MB double 数组。
+        // 限制 ≤ 3*MaxPixels（容纳合法 4:4:4 的 3x 放大，拒绝更极端的 4 分量全采样 4x）。
+        long totalSamples = 0;
+        foreach (var c in comps) totalSamples += (long)c.SampleW * c.SampleH;
+        if (totalSamples > (long)MaxPixels * 3) throw new FormatException("JPEG 分量采样数组过大");
+        foreach (var c in comps)
+            c.Samples = new double[c.SampleW * c.SampleH];
 
         var br = new BitReader(entropy);
         var prevDc = new int[comps.Count];

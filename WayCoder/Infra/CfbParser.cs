@@ -62,6 +62,11 @@ public static class CfbParser
             uint difatSector = firstDifatSector;
             uint remaining = numDifatSectors;
             int entriesPerSector = sectorSize / 4;
+            // 钳制 DIFAT 链长度：扇区号总数不可能超过文件扇区数，声明值（头偏移 72，攻击者可控）超出即视为损坏。
+            // 防 numDifatSectors=0xFFFFFFFF 触发数十亿次循环 + fatSectors 无限增长 OOM。
+            uint maxDifatSectors = (uint)(data.Length / Math.Max(sectorSize, 1));
+            if (remaining > maxDifatSectors) remaining = maxDifatSectors;
+            int maxFatSectors = 1_000_000 / Math.Max(sectorSize / 4, 1);
             while (difatSector != EndOfChain && difatSector != FreeSect && remaining-- > 0)
             {
                 int off = SectorOffset(difatSector, sectorSize);
@@ -71,11 +76,13 @@ public static class CfbParser
                     uint v = Bin.U32(data, off + i * 4);
                     if (v != FreeSect) fatSectors.Add(v);
                 }
+                // 循环内上限：自环/异常链导致 fatSectors 膨胀时提前退出（原上限检查在循环之后，循环期间不设防）
+                if (fatSectors.Count > maxFatSectors) return null;
                 difatSector = Bin.U32(data, off + (entriesPerSector - 1) * 4);
             }
 
             if (fatSectors.Count == 0) return null;
-            if (fatSectors.Count > 1_000_000 / Math.Max(sectorSize / 4, 1)) return null; // 防御损坏
+            if (fatSectors.Count > maxFatSectors) return null; // 防御损坏（双保险）
 
             // 读取 FAT
             var fat = new uint[fatSectors.Count * (sectorSize / 4)];

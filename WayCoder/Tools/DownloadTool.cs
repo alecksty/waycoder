@@ -55,10 +55,7 @@ public class DownloadTool : ITool, ICancellableTool
 
         try
         {
-            using var handler = new HttpClientHandler
-            {
-                AllowAutoRedirect = false,  // 手动跟随重定向，每跳做 SSRF 校验
-            };
+            using var handler = SsgfGuard.CreateSafeHandler(); // SSRF 连接校验：ConnectCallback 原子「解析+校验+连接」，防 DNS 重绑定
 
             using var client = new HttpClient(handler)
             {

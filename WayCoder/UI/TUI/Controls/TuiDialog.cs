@@ -46,6 +46,19 @@ public static class TuiDialog
     }
 
     /// <summary>
+    /// 计算内容宽并同步设置窗口为按内容计算的固定宽度。
+    /// 修复输入/选择类对话框只设控件宽、不设 win.Width 导致窗口停留在模板默认 30 列、内容被裁剪的问题。
+    /// 关系：cw = winW - 2(边框) - innerPad，故 winW = cw + 2 + innerPad。
+    /// </summary>
+    private static int ApplyContentWidth(TuiWindow win, double xScale, int innerPad)
+    {
+        var cw = ContentW(xScale, innerPad);
+        win.XScale = 0; // 禁用比例算宽，用固定宽度（OnResize 不再覆盖）
+        win.Width = cw + 2 + innerPad;
+        return cw;
+    }
+
+    /// <summary>
     /// 将消息文本折行为 TuiLabel 列表。自动处理 \n 换行和超宽折行，
     /// 最多 MaxMessageLines() 行，超出行尾显示 "…"。
     /// </summary>
@@ -339,7 +352,7 @@ public static class TuiDialog
         var (win, res) = LoadDialog("input", displayTitle, TuiTheme.Current.DialogInfoBorder);
         win.MinHeight = 8;
 
-        var cw = ContentW(WideXScale, 2);
+        var cw = ApplyContentWidth(win, WideXScale, 2);
         FillPrompt(res, prompt, cw);
 
         var input = res.Find<TuiTextArea>("input")
@@ -400,7 +413,7 @@ public static class TuiDialog
         var (win, res) = LoadDialog("inputline", displayTitle, TuiTheme.Current.DialogInfoBorder);
         win.MinHeight = 6;
 
-        int cw = ContentW(WideXScale, 2);
+        int cw = ApplyContentWidth(win, WideXScale, 2);
         FillPrompt(res, prompt, cw);
 
         var hist = TuiInputHistory.Get(title);
@@ -551,7 +564,7 @@ public static class TuiDialog
         var (win, res) = LoadDialog("secret", displayTitle, TuiTheme.Current.DialogInfoBorder);
         win.MinHeight = 6;
 
-        int cw = ContentW(NarrowXScale, 4);
+        int cw = ApplyContentWidth(win, NarrowXScale, 4);
         FillPrompt(res, prompt, cw);
 
         var input = res.Find<TuiInput>("input") ?? throw Invalid("secret.tui", "input");
@@ -603,7 +616,7 @@ public static class TuiDialog
     {
         var (win, res) = LoadDialog("select", title, TuiTheme.Current.DialogInfoBorder);
 
-        int cw = ContentW(NarrowXScale, 2);
+        int cw = ApplyContentWidth(win, NarrowXScale, 2);
         var visItems = Math.Min(items.Count, 12);
 
         var list = res.Find<TuiList>("list") ?? throw Invalid("select.tui", "list");
@@ -645,7 +658,7 @@ public static class TuiDialog
     {
         var (win, res) = LoadDialog("multiselect", title, TuiTheme.Current.DialogInfoBorder);
 
-        int cw = ContentW(NarrowXScale, 2);
+        int cw = ApplyContentWidth(win, NarrowXScale, 2);
         var visItems = Math.Min(items.Count, 12);
 
         var list = res.Find<TuiList>("list") ?? throw Invalid("multiselect.tui", "list");
@@ -716,7 +729,7 @@ public static class TuiDialog
         Action? onCancel = null)
     {
         var (win, res) = LoadDialog("ask", title, TuiTheme.Current.DialogInfoBorder);
-        var cw = ContentW(WideXScale, 4);
+        var cw = ApplyContentWidth(win, WideXScale, 4);
 
         // ── 消息正文（1~5 行，超出末尾加省略号）──
         var msgBox = res.Find<TuiVBox>("msgBox") ?? throw Invalid("ask.tui", "msgBox");
@@ -831,7 +844,7 @@ public static class TuiDialog
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, yesBtn, noBtn, allBtn);
 
         win.Width = msgBox.GetMaxWidth() + 4;
-        win.Height = msgBox.GetTotalHeight() + 2;
+        win.Height = msgBox.GetTotalHeight() + 4; // 消息 N 行 + 2 边框 + 1 VBox spacing + 1 按钮行
         ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
 
         win.RegisterShortcut(ConsoleKey.Y, () =>

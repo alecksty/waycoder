@@ -198,7 +198,8 @@ public partial class Agent
             JNode.Object().Set("role", "system").Set("content", systemContent),
         };
         // 深克隆消息，避免 JsonNode 的 Parent 冲突（同一消息不能加入两个树）
-        foreach (var m in Messages)
+        // 用快照枚举，避免与 Web 请求线程加锁写并发触发 List 枚举期间修改异常
+        foreach (var m in SnapshotMessages())
             result.Add(Json.Parse(m.ToJson())!);
 
         // 视觉支持：view_image 工具附加的图片注入为多模态 user 消息（仅支持 vision 的模型）
@@ -482,7 +483,7 @@ public partial class Agent
             // ── SHA256 循环检测（Crush 风格）──
             // 对最近几轮的（assistant 内容 + 工具结果）做哈希，
             // 相同哈希重复出现 3+ 次说明 Agent 陷入循环，注入反循环提示。
-            DetectAndBreakLoop(resp, Messages);
+            DetectAndBreakLoop(resp, SnapshotMessages());
 
             // ── Stale-Read 文件变更检测（Crush 风格）──
             // bash 等外部命令可能修改 Agent 已读取的文件，
@@ -628,13 +629,20 @@ public partial class Agent
     /// <summary>使用小模型执行上下文压缩（省钱）</summary>
     private async Task CompressWithSmallModel(Action<string>? onProgress = null)
     {
+        // 在快照上压缩，最后原子替换：ContextManager 的 SummarizeOld/HardCollapse 会整表 Clear/AddRange，
+        // 若直接传活引用 Messages 则无锁改写 _messages，与 Web 请求线程的加锁 AddMessage/ReplaceMessages 并发竞态
+        // （压缩期间 /fileref 等请求插入消息会被覆盖或撕裂）。
+        var snapshot = SnapshotMessages();
+
         // PreCompact hook
         var preCompactCtx = await HooksManager.RunPreCompactAsync(
-            $"est.tokens={Context.EstimateCalibratedTokens(Messages)}/{Context.MaxTokens}");
+            $"est.tokens={Context.EstimateCalibratedTokens(snapshot)}/{Context.MaxTokens}");
 
         await WithModelOverrideAsync(LlmClient, LlmClient.SmallModel, () =>
-            Context.MaybeCompressAsync(Messages, LlmClient,
+            Context.MaybeCompressAsync(snapshot, LlmClient,
                 onProgress: (layer, msg) => onProgress?.Invoke($"🔄 [{layer}/3] {msg}")));
+
+        ReplaceMessages(snapshot);
 
         // 注入 PreCompact 返回的额外上下文
         if (preCompactCtx != null)

@@ -593,6 +593,47 @@ public static partial class SelfTest
         Check("BashGuard 只读: patch --dry-run 保留放行", BashGuard.IsSafeReadOnly("patch --dry-run -p1"));
         Check("BashGuard 只读: patch -p 已移除拒绝", !BashGuard.IsSafeReadOnly("patch -p1 < x.patch"));
 
+        // v0.79.x: 只读白名单收紧 —— find -exec/-delete、env <cmd>、git config 写操作不再免确认
+        Check("BashGuard 只读: find -delete 拒绝", !BashGuard.IsSafeReadOnly("find . -delete"));
+        Check("BashGuard 只读: find -exec 拒绝", !BashGuard.IsSafeReadOnly("find . -exec rm {} +"));
+        Check("BashGuard 只读: find -execdir 拒绝", !BashGuard.IsSafeReadOnly("find . -execdir sh -c rm"));
+        Check("BashGuard 只读: find 普通查找放行", BashGuard.IsSafeReadOnly("find . -name *.cs"));
+        Check("BashGuard 只读: find -executable 不误伤", BashGuard.IsSafeReadOnly("find . -executable"));
+        Check("BashGuard 只读: env <cmd> 拒绝", !BashGuard.IsSafeReadOnly("env bash -c whoami"));
+        Check("BashGuard 只读: printenv 放行", BashGuard.IsSafeReadOnly("printenv PATH"));
+        Check("BashGuard 只读: git config 写操作拒绝", !BashGuard.IsSafeReadOnly("git config core.pager cat"));
+        Check("BashGuard 只读: git config --list 也拒绝（前缀无法区分读写）", !BashGuard.IsSafeReadOnly("git config --list"));
+
+        // v0.79.x: PathSafety 敏感路径防护
+        Check("PathSafety: id_rsa 拦截", PathSafety.CheckSensitive("/Users/x/.ssh/id_rsa") != null);
+        Check("PathSafety: authorized_keys 拦截", PathSafety.CheckSensitive("/home/x/.ssh/authorized_keys") != null);
+        Check("PathSafety: .bashrc 拦截", PathSafety.CheckSensitive("/home/x/.bashrc") != null);
+        Check("PathSafety: .pem 拦截", PathSafety.CheckSensitive("/home/x/keys/server.pem") != null);
+        Check("PathSafety: .aws 目录拦截", PathSafety.CheckSensitive("/home/x/.aws/credentials") != null);
+        Check("PathSafety: .config/gcloud 拦截", PathSafety.CheckSensitive("/home/x/.config/gcloud/credentials.json") != null);
+        Check("PathSafety: /etc/passwd 拦截", PathSafety.CheckSensitive("/etc/passwd") != null);
+        Check("PathSafety: 普通源文件放行", PathSafety.CheckSensitive("/home/x/project/src/main.cs") == null);
+        Check("PathSafety: 临时目录放行", PathSafety.CheckSensitive("/tmp/output.txt") == null);
+        Check("PathSafety: 项目内普通文件放行", PathSafety.CheckSensitive("/Users/x/project/README.md") == null);
+
+        // v0.79.x: EnvScrubber 凭据名覆盖扩展
+        Check("EnvScrubber: MYSQL_PWD 敏感", EnvScrubber.IsSensitive("MYSQL_PWD"));
+        Check("EnvScrubber: DB_PASS 敏感", EnvScrubber.IsSensitive("DB_PASS"));
+        Check("EnvScrubber: GOOGLE_APPLICATION_CREDENTIALS 敏感", EnvScrubber.IsSensitive("GOOGLE_APPLICATION_CREDENTIALS"));
+        Check("EnvScrubber: DOCKER_AUTH 敏感", EnvScrubber.IsSensitive("DOCKER_AUTH"));
+        Check("EnvScrubber: AZURE_STORAGE_CONNECTION_STRING 敏感", EnvScrubber.IsSensitive("AZURE_STORAGE_CONNECTION_STRING"));
+        Check("EnvScrubber: NETRC 敏感", EnvScrubber.IsSensitive("NETRC"));
+        Check("EnvScrubber: PATH 不敏感", !EnvScrubber.IsSensitive("PATH"));
+        Check("EnvScrubber: HOME 不敏感", !EnvScrubber.IsSensitive("HOME"));
+
+        // v0.79.x: SSRF ResolveSafeAddresses（ConnectCallback 原子解析+校验，防 DNS 重绑定）
+        var rsaPub = SsgfGuard.ResolveSafeAddresses("8.8.8.8");
+        Check("SSRF: ResolveSafe 公网字面量放行并返回地址", rsaPub.safe && rsaPub.addrs.Length == 1);
+        var rsaPriv = SsgfGuard.ResolveSafeAddresses("10.0.0.1");
+        Check("SSRF: ResolveSafe 内网字面量拒绝", !rsaPriv.safe);
+        var rsaMeta = SsgfGuard.ResolveSafeAddresses("169.254.169.254");
+        Check("SSRF: ResolveSafe 云元数据拒绝", !rsaMeta.safe);
+
         // v0.53.1: tasks 数组元素提取（对象元素 {description/task/...} 正确解出文本，而非乱码）
         var extStr = AgentTool.ExtractTaskText("给 TimeSeries 加冒烟测试");
         Check("AgentTool.ExtractTaskText 纯字符串透传", extStr == "给 TimeSeries 加冒烟测试");
