@@ -1,5 +1,29 @@
 # 更新日志
 
+## v0.79.4 (2026-08-19) — 二次审查修复：模型迁移防数据丢失 + 文件并发原子化 + GUI 气泡/挂起修复
+
+对 v0.79.2/v0.79.3 新增代码（模型存储重构 + GUI 版）做专项审查，修复一批 P0/P1/P2 问题。
+
+### 🔴 数据安全（P0）
+- **模型迁移误删旧数据**：`MigrateLegacyModels` 原逻辑「provider/ 目录有文件即删 models.json」——用户先执行过 `--model add`（写分类文件但未触发迁移）后旧模型永久丢失。改为 **`.migrated` 标记文件**判断 + 全部分类文件**写成功后才删旧文件**，任何失败保留现场
+
+### 🟠 模型存储并发/原子性（P1）
+- **文件读改写加锁**：`AddCustom`/`RemoveCustom`/`RemoveCustomByProvider` 纳入统一锁（防 Web 并发导入/删除 read-modify-write 竞争丢模型）
+- **原子写**：`SaveCustom` 改临时文件 + `File.Move` 原子替换（防崩溃/磁盘满留截断文件覆盖全量）
+- **批量导入**：新增 `AddCustomRange`（同分类合并一次写），opencode 在线导入 + `ModelCli.Import` 改用——23 个模型从 23 次磁盘写减为几次
+- **ReadFile 加日志**：损坏模型文件不再静默消失（记录 `ErrorLog.Warning`）
+
+### 🖥️ GUI 版（P1）
+- **空气泡修复**：`MessageBubble` 构造不渲染导致用户/系统/工具/会话恢复历史全部空白——构造即渲染；主题切换显式重渲染所有气泡（block 文字色构建时固化）
+- **对话框超时**：`GuiInteraction` 全部对话框加 `WaitWithTimeout`（超时返回拒绝/取消，防 Agent 无人点击无限挂起）
+- **异常防护**：`RenameSession` 包 try/catch（I/O 异常不再崩应用）
+- **UI 线程**：`ChatAsync` 包 `Task.Run` 隔离（LLM 流解析/同步工具不再卡 UI 线程）
+- **ModelWindow `_busy`**：改 volatile（防快速连点扫描/导入并发执行）
+
+### ✅ 验证
+- 主项目 + GUI 编译 0 错误 0 告警
+- 自测 3561 通过
+
 ## v0.79.3 (2026-08-18) — GUI 版全面对齐 Web：三栏布局 + 气泡聊天 + 右侧面板 + 模型弹窗 + 主题 + 完整渲染
 
 把 Avalonia GUI 版从单列 MVP 升级为与 Web 版同等的完善界面。

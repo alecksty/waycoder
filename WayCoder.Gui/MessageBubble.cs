@@ -68,6 +68,8 @@ public sealed class MessageBubble : Border
         }
 
         MaxWidth = 640; // 约聊天区 85%（表格需要更宽）
+
+        Render(); // 构造即渲染内容（否则非流式消息/会话恢复历史为空白气泡）
     }
 
     /// <summary>追加流式 token 并重渲染本气泡（重建内部 blocks）。</summary>

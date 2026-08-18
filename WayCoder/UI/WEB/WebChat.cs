@@ -749,22 +749,16 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             if (list.Count == 0)
                 return HttpResponse.JsonBody(Err("OpenCode 在线未返回可识别的模型"));
 
-            // 去重：跳过内置目录已有模型（避免被导入的空数据覆盖）
+            // 去重：跳过内置目录已有模型（避免被导入的空数据覆盖）；批量一次写（防 N 次磁盘写）
             var builtInIds = new HashSet<string>(ModelCatalog.BuiltIn.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
-            var added = new List<ModelCatalog.ModelInfo>();
-            var skipped = 0;
-            foreach (var m in list)
-            {
-                if (builtInIds.Contains(m.Id)) { skipped++; continue; }
-                ModelCatalog.AddCustom(m);
-                added.Add(m);
-            }
-            ModelCatalog.Invalidate();
+            var toAdd = list.Where(m => !builtInIds.Contains(m.Id)).ToList();
+            var skipped = list.Count - toAdd.Count;
+            ModelCatalog.AddCustomRange(toAdd);
 
             var sb = new System.Text.StringBuilder();
-            sb.Append($"✅ 从 OpenCode 在线导入 {added.Count} 个模型" +
+            sb.Append($"✅ 从 OpenCode 在线导入 {toAdd.Count} 个模型" +
                 (skipped > 0 ? $"，跳过 {skipped} 个内置已有" : "") + "：");
-            foreach (var m in added)
+            foreach (var m in toAdd)
                 sb.Append($"\n  {m.Id}");
             return HttpResponse.JsonBody(JNode.Object()
                 .Set("ok", true)

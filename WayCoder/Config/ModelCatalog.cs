@@ -218,34 +218,59 @@ public static class ModelCatalog
         }
     }
 
-    /// <summary>新增/更新自定义模型，返回写入的文件路径。local=true 写本地，否则写全局。</summary>
+    /// <summary>新增/更新自定义模型，返回写入的文件路径。local=true 写本地，否则写全局。
+    /// 文件读-改-写持统一锁（_lock），防 Web 并发导入/删除 read-modify-write 竞争丢模型。</summary>
     public static string AddCustom(ModelInfo info, bool local = false)
     {
-        var path = ProviderFile(info.ProviderId, local);
-        var models = ReadFile(path);
-        models[info.Id] = info;
-        SaveCustom(models, path);
-        Invalidate();
-        return path;
+        lock (_lock)
+        {
+            var path = ProviderFile(info.ProviderId, local);
+            var models = ReadFile(path);
+            models[info.Id] = info;
+            SaveCustom(models, path);
+            Invalidate();
+            return path;
+        }
+    }
+
+    /// <summary>批量新增/更新自定义模型：同分类文件合并为一次写（防 N 次磁盘写 + N 次缓存失效）。返回写入数。</summary>
+    public static int AddCustomRange(IEnumerable<ModelInfo> infos, bool local = false)
+    {
+        var list = infos.ToList();
+        if (list.Count == 0) return 0;
+        lock (_lock)
+        {
+            foreach (var g in list.GroupBy(m => ProviderFile(m.ProviderId, local)))
+            {
+                var models = ReadFile(g.Key);
+                foreach (var m in g) models[m.Id] = m;
+                SaveCustom(models, g.Key);
+            }
+            Invalidate();
+            return list.Count;
+        }
     }
 
     /// <summary>删除自定义模型（从全局和本地的所有模型文件移除），返回受影响文件列表。</summary>
     public static string[] RemoveCustom(string id)
     {
-        var removed = new List<string>();
-        foreach (var file in EnumerateModelFiles())
+        lock (_lock)
         {
-            var models = ReadFile(file);
-            if (models.Remove(id))
+            var removed = new List<string>();
+            foreach (var file in EnumerateModelFiles())
             {
-                // 分类文件删空后删除文件本身，避免残留空 [  ] 文件
-                if (models.Count == 0) { TryDeleteFile(file); }
-                else SaveCustom(models, file);
-                removed.Add(file);
+                var models = ReadFile(file);
+                if (models.Remove(id))
+                {
+                    // 分类文件删空后删除文件本身，避免残留空 [  ] 文件
+                    if (models.Count == 0) { TryDeleteFile(file); }
+                    else SaveCustom(models, file);
+                    removed.Add(file);
+                }
             }
+            if (removed.Count > 0) Invalidate();
+            return removed.ToArray();
         }
-        if (removed.Count > 0) Invalidate();
-        return removed.ToArray();
     }
 
     /// <summary>仅列出自定义模型（不含内置）</summary>
@@ -254,14 +279,38 @@ public static class ModelCatalog
     /// <summary>删除某服务商下的所有自定义模型（删除对应分类文件或从旧 models.json 移除），返回删除数量。</summary>
     public static int RemoveCustomByProvider(string providerId)
     {
-        var removed = 0;
-        // 新结构：直接删除该供应商的分类文件（全局+本地）
-        foreach (var local in new[] { false, true })
+        lock (_lock)
         {
-            var file = ProviderFile(providerId, local);
-            if (File.Exists(file))
+            var removed = 0;
+            // 新结构：直接删除该供应商的分类文件（全局+本地）
+            foreach (var local in new[] { false, true })
             {
-                var models = ReadFile(file);
+                var file = ProviderFile(providerId, local);
+                if (File.Exists(file))
+                {
+                    var models = ReadFile(file);
+                    var toRemove = models
+                        .Where(kv => kv.Value.ProviderId.Equals(providerId, StringComparison.OrdinalIgnoreCase))
+                        .Select(kv => kv.Key)
+                        .ToArray();
+                    foreach (var id in toRemove)
+                    {
+                        models.Remove(id);
+                        removed++;
+                    }
+                    // 分类文件删空后删除文件本身
+                    if (toRemove.Length > 0)
+                    {
+                        if (models.Count == 0) TryDeleteFile(file);
+                        else SaveCustom(models, file);
+                    }
+                }
+            }
+            // 兼容旧 models.json：按 providerId 移除
+            foreach (var path in new[] { GlobalModelsPath, LocalModelsPath })
+            {
+                if (!File.Exists(path)) continue;
+                var models = ReadFile(path);
                 var toRemove = models
                     .Where(kv => kv.Value.ProviderId.Equals(providerId, StringComparison.OrdinalIgnoreCase))
                     .Select(kv => kv.Key)
@@ -271,36 +320,15 @@ public static class ModelCatalog
                     models.Remove(id);
                     removed++;
                 }
-                // 分类文件删空后删除文件本身
                 if (toRemove.Length > 0)
                 {
-                    if (models.Count == 0) TryDeleteFile(file);
-                    else SaveCustom(models, file);
+                    if (models.Count == 0) TryDeleteFile(path);
+                    else SaveCustom(models, path);
                 }
             }
+            if (removed > 0) Invalidate();
+            return removed;
         }
-        // 兼容旧 models.json：按 providerId 移除
-        foreach (var path in new[] { GlobalModelsPath, LocalModelsPath })
-        {
-            if (!File.Exists(path)) continue;
-            var models = ReadFile(path);
-            var toRemove = models
-                .Where(kv => kv.Value.ProviderId.Equals(providerId, StringComparison.OrdinalIgnoreCase))
-                .Select(kv => kv.Key)
-                .ToArray();
-            foreach (var id in toRemove)
-            {
-                models.Remove(id);
-                removed++;
-            }
-            if (toRemove.Length > 0)
-            {
-                if (models.Count == 0) TryDeleteFile(path);
-                else SaveCustom(models, path);
-            }
-        }
-        if (removed > 0) Invalidate();
-        return removed;
     }
 
     /// <summary>清除内存缓存并强制下次重新加载（外部改了模型文件后调用）</summary>
@@ -337,32 +365,42 @@ public static class ModelCatalog
         if (File.Exists(LocalModelsPath)) yield return LocalModelsPath;
     }
 
-    /// <summary>一次性迁移：把旧 models.json 的模型按供应商分类写入 provider/ 文件，然后删除旧文件。
-    /// 迁移后新写入全部走 provider/ 分类结构。</summary>
+    /// <summary>一次性迁移：把旧 models.json 的模型按供应商分类合并写入 provider/ 文件，全部写成功后才删除旧文件。
+    /// 迁移完成写 .migrated 标记（防误判：仅凭 provider/ 有文件就删旧数据，会让未迁移的旧模型永久丢失）。</summary>
     private static void MigrateLegacyModels()
     {
         foreach (var legacy in new[] { (GlobalModelsPath, false), (LocalModelsPath, true) })
         {
             var file = legacy.Item1;
             if (!File.Exists(file)) continue;
-            // 若 provider 目录已有任何文件，说明已迁移过（或用户手动建过），跳过避免重复
             var dir = legacy.Item2 ? LocalProviderDir : GlobalProviderDir;
-            if (Directory.Exists(dir) && Directory.GetFiles(dir, "*.json").Length > 0)
+            var mark = Path.Combine(dir, ".migrated");
+
+            // 已有迁移标记：旧文件残留则清理，不再重复迁移
+            if (File.Exists(mark))
             {
-                // 已迁移过：旧文件残留，删除避免重复读取
-                try { File.Delete(file); } catch { }
+                TryDeleteFile(file);
                 continue;
             }
+
             var models = ReadFile(file);
-            if (models.Count == 0) continue;
-            // 按供应商分组写入
-            var byGroup = models.Values.GroupBy(m => ProviderGroupName(m.ProviderId));
-            foreach (var g in byGroup)
+            if (models.Count == 0) { TryDeleteFile(file); continue; }
+
+            // 合并写入各分类文件（保留 provider/ 已存在的其他模型，不覆盖）
+            var allOk = true;
+            foreach (var g in models.Values.GroupBy(m => ProviderGroupName(m.ProviderId)))
             {
                 var path = Path.Combine(dir, g.Key + ".json");
-                SaveCustom(g.ToDictionary(m => m.Id, m => m), path);
+                var existing = ReadFile(path);
+                foreach (var m in g)
+                    existing[m.Id] = m;
+                if (!SaveCustom(existing, path)) { allOk = false; break; }
             }
-            try { File.Delete(file); } catch { }
+
+            // 全部写成功才删旧文件 + 写迁移标记；任何失败保留旧文件防数据丢失
+            if (!allOk) continue;
+            try { Directory.CreateDirectory(dir); File.WriteAllText(mark, DateTime.UtcNow.ToString("O")); } catch { }
+            TryDeleteFile(file);
         }
     }
 
@@ -383,11 +421,16 @@ public static class ModelCatalog
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            // 损坏/截断文件静默返回空会令模型「无声消失」并被后续写回固化，记录日志便于排查
+            ErrorLog.Warning("ModelCatalog", $"读取模型文件失败（将视为空）: {path}", ex);
+        }
         return result;
     }
 
-    private static void SaveCustom(Dictionary<string, ModelInfo> models, string path)
+    /// <summary>写模型文件（临时文件 + 原子 rename 替换，防崩溃/磁盘满留下截断文件覆盖全量数据）。返回是否成功。</summary>
+    private static bool SaveCustom(Dictionary<string, ModelInfo> models, string path)
     {
         try
         {
@@ -396,9 +439,12 @@ public static class ModelCatalog
             var arr = JNode.Array();
             foreach (var m in models.Values.OrderBy(m => m.Id, StringComparer.OrdinalIgnoreCase))
                 arr.Add(ToJson(m));
-            File.WriteAllText(path, arr.ToJson(indent: true));
+            var tmp = path + ".tmp";
+            File.WriteAllText(tmp, arr.ToJson(indent: true));
+            File.Move(tmp, path, overwrite: true); // 同卷原子替换
+            return true;
         }
-        catch { /* 写入失败不崩溃 */ }
+        catch { return false; } // 写入失败不崩溃，由调用方决定是否保留现场
     }
 
     private static void TryDeleteFile(string path)

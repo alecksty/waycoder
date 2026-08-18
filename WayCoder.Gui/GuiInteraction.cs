@@ -55,7 +55,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
             win.Closed += (_, _) => tcs.TrySetResult(2); // 关闭窗口 = 拒绝
             win.ShowDialog(_owner);
         });
-        return tcs.Task;
+        return WaitWithTimeout(tcs.Task, timeoutMs, 2); // 超时 = 拒绝（防 Agent 无限挂起）
     }
 
     // ── 文本提问 ──
@@ -86,16 +86,19 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
             win.Closed += (_, _) => tcs.TrySetResult(null);
             win.ShowDialog(_owner);
         });
-        return tcs.Task;
+        return WaitWithTimeout(tcs.Task, timeoutMs, null); // 超时 = 取消
     }
 
     // ── 单选 / 多选（MVP：简单列表对话框）──
 
-    public Task<string?> SelectAsync(string title, List<string> choices, int timeoutMs)
-        => PickAsync(title, choices, multi: false).ContinueWith(t => (string?)t.Result?.FirstOrDefault());
+    public async Task<string?> SelectAsync(string title, List<string> choices, int timeoutMs)
+    {
+        var picked = await WaitWithTimeout(PickAsync(title, choices, multi: false), timeoutMs, null);
+        return picked?.FirstOrDefault();
+    }
 
     public Task<List<string>?> MultiSelectAsync(string title, List<string> choices, int timeoutMs)
-        => PickAsync(title, choices, multi: true);
+        => WaitWithTimeout(PickAsync(title, choices, multi: true), timeoutMs, null);
 
     // ── Diff 预览（MVP：整文件接受/拒绝，逐 hunk 后续再细化）──
 
@@ -150,7 +153,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
             win.Closed += (_, _) => tcs.TrySetResult(null); // 关闭窗口 = 取消（调用方按拒绝处理）
             win.ShowDialog(_owner);
         });
-        return tcs.Task;
+        return WaitWithTimeout(tcs.Task, timeoutMs, null); // 超时 = 取消
     }
 
     // ── 内部：单选/多选对话框 ──
@@ -185,6 +188,14 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
             win.ShowDialog(_owner);
         });
         return tcs.Task;
+    }
+
+    /// <summary>带超时的等待：超时返回 fallback（防 Agent 因对话框无人点击而无限挂起）。</summary>
+    private static async Task<T> WaitWithTimeout<T>(Task<T> task, int timeoutMs, T fallback)
+    {
+        if (timeoutMs <= 0) return await task.ConfigureAwait(false);
+        var done = await Task.WhenAny(task, Task.Delay(timeoutMs)).ConfigureAwait(false);
+        return done == task ? await task.ConfigureAwait(false) : fallback;
     }
 
     private static Button MakeButton(string text, string colorHex, Action onClick)

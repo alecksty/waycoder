@@ -186,11 +186,9 @@ public static class ModelCli
             if (builtInIds.Contains(m.Id))
                 skipped.Add(m.Id);
             else
-            {
-                ModelCatalog.AddCustom(m);
                 added.Add(m);
-            }
         }
+        ModelCatalog.AddCustomRange(added); // 批量一次写（防 N 次磁盘写）
 
         var sb = new StringBuilder();
         sb.AppendLine($"✅ 导入 {added.Count} 个模型到全局模型库（{string.Join("、", reports)}）" +
