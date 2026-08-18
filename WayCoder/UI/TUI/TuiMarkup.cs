@@ -360,6 +360,10 @@ public static class TuiMarkup
             "Scrollbar" => new TuiScrollbar(),
             "Icon" => new TuiIcon(Attr(node, "glyph", "•")),
             "Spacer" => new TuiLabel("") { Flex = 1 },
+            "ListView" => new TuiListView(),
+            "DynamicBar" => new TuiDynamicBar(),
+            "PromptBar" => new TuiPromptBar(),
+            "SidePanel" => new TuiSidePanel(),
             _ => null,
         };
         if (c == null) return null;
@@ -390,7 +394,10 @@ public static class TuiMarkup
                 ((TuiInput)c).Text = Attr(node, "value", Attr(node, "text"));
                 break;
             case "TextArea":
-                ((TuiTextArea)c).Text = Attr(node, "value", Attr(node, "text"));
+                var ta = (TuiTextArea)c;
+                ta.Text = Attr(node, "value", Attr(node, "text"));
+                ta.Placeholder = Attr(node, "placeholder");
+                if (Bool(node, "showLineNumbers") is bool sln) ta.ShowLineNumbers = sln;
                 break;
             case "List":
                 var list = (TuiList)c;
@@ -505,7 +512,11 @@ public static class TuiMarkup
                 ((TuiRect)c).Style = ParseBorder(Attr(node, "style", "single"));
                 break;
             case "Markdown":
-                if (Int(node, "maxWidth") is int mw) ((WayCoder.UI.Tui.Controls.TuiMarkdown)c).MaxWidth = mw;
+                var md = (WayCoder.UI.Tui.Controls.TuiMarkdown)c;
+                md.Role = Attr(node, "role", "assistant");
+                if (Bool(node, "plainText") is bool mdpt) md.IsPlainText = mdpt;
+                if (Bool(node, "isError") is bool mde) md.IsError = mde;
+                if (Int(node, "maxWidth") is int mw) md.MaxWidth = mw;
                 break;
             case "VBox":
                 if (Int(node, "spacing") is int vsp) ((TuiVBox)c).Spacing = vsp;
@@ -539,6 +550,7 @@ public static class TuiMarkup
                 ((TuiTitleBar)c).Title = Attr(node, "title");
                 ((TuiTitleBar)c).CenterText = Attr(node, "center");
                 ((TuiTitleBar)c).Version = Attr(node, "version");
+                ((TuiTitleBar)c).GitBranch = Attr(node, "gitBranch");
                 break;
             case "StatusBar":
                 ((TuiStatusBar)c).HintText = Attr(node, "hint");
@@ -554,6 +566,34 @@ public static class TuiMarkup
                 if (Int(node, "viewport") is int vp) scr.ViewportHeight = vp;
                 if (Int(node, "offset") is int off) scr.ScrollOffset = off;
                 if (Bool(node, "autoHide") is bool ah) scr.AutoHide = ah;
+                break;
+            case "Separator":
+                var sep = (TuiSeparator)c;
+                var sepChar = Attr(node, "lineChar");
+                if (sepChar.Length > 0) sep.LineChar = sepChar;
+                if (Color(node, "lineColor") is int sepLc) sep.LineColor = sepLc;
+                break;
+            case "ListView":
+                var lv = (TuiListView)c;
+                if (Bool(node, "autoScroll") is bool lvAs) lv.IsAutoScrollToEnd = lvAs;
+                if (Int(node, "itemSpacing") is int lvIs) lv.ItemSpacing = lvIs;
+                // 聊天项（TuiListItem：角色/时间戳/续接/缩进）由 code-behind AddItem 动态填，不在标记声明
+                break;
+            case "DynamicBar":
+                // 运行态（Agent 状态/工具/压缩进度）由 ChatScreen.Render 每帧同步，标记无静态属性
+                break;
+            case "PromptBar":
+                var pb = (TuiPromptBar)c;
+                if (Int(node, "maxVisible") is int pbMv) pb.MaxVisible = pbMv;
+                if (Int(node, "itemHeight") is int pbIh) pb.ItemHeight = pbIh;
+                if (Color(node, "separatorColor") is int pbSc) pb.SeparatorColor = pbSc;
+                break;
+            case "SidePanel":
+                var sPanel = (TuiSidePanel)c;
+                if (Int(node, "borderWidth") is int spBw) sPanel.BorderWidth = spBw;
+                if (Color(node, "borderColor") is int spBc) sPanel.BorderColor = spBc;
+                if (Bool(node, "panelVisible") is bool spPv) sPanel.PanelVisible = spPv;
+                // 分区（PanelSection）由 code-behind RefreshSidePanel() 填充；SidePanel 是叶子控件，不支持嵌套 Section 声明
                 break;
         }
 
@@ -583,6 +623,7 @@ public static class TuiMarkup
         if (Bool(node, "italic") is bool it) c.Italic = it;
         if (Bool(node, "underline") is bool un) c.Underline = un;
         if (Bool(node, "dim") is bool dm) c.Dim = dm;
+        if (Bool(node, "floating") is bool fl) c.Floating = fl;
 
         if (c is TuiLabel lbl && Enum.TryParse<EHAlign>(Attr(node, "align"), true, out var la))
             lbl.TextAlign = la;

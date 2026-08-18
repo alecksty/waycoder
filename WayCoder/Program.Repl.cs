@@ -22,7 +22,8 @@ public partial class Program
     private static async Task RunReplAsync(string? editFile = null)
     {
         var mgr = TuiManager.Instance;
-        var screen = new ChatScreen();
+        // 标记版界面（.tui 声明式布局）：--tui-chat 或 WAYCODER_MARKUP_UI=1 时启用；测试通过后翻默认
+        var screen = _config.MarkupUi ? (ChatScreen)new MarkupChatScreen() : new ChatScreen();
         screen.ChatDisplayStyle = _config.ChatDisplayStyle;
         mgr.Enter();
         mgr.PushScreen(screen);

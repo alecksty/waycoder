@@ -29,19 +29,19 @@ public partial class ChatScreen : TuiScreen
     // ── 子视图 ──
 
     /// <summary>标题栏（顶行）</summary>
-    public TuiTitleBar TitleBar { get; private set; } = null!;
+    public TuiTitleBar TitleBar { get; protected set; } = null!;
 
     /// <summary>底部状态栏</summary>
-    public TuiStatusBar StatusBar { get; private set; } = null!;
+    public TuiStatusBar StatusBar { get; protected set; } = null!;
 
     /// <summary>聊天列表（TuiListView → TuiMarkdown 项）</summary>
-    public TuiListView ChatList { get; private set; } = null!;
+    public TuiListView ChatList { get; protected set; } = null!;
 
     /// <summary>多行输入区</summary>
-    public TuiTextArea InputArea { get; private set; } = null!;
+    public TuiTextArea InputArea { get; protected set; } = null!;
 
     /// <summary>提示栏（输入框上方）</summary>
-    public TuiPromptBar PromptBar { get; private set; } = null!;
+    public TuiPromptBar PromptBar { get; protected set; } = null!;
 
     /// <summary>前缀提示钩子注册表：前缀符号 → 提示项生成器（触发提示框）。</summary>
     private readonly Dictionary<char, Func<string, List<PromptItem>>> _prefixHintHooks = new();
@@ -50,23 +50,23 @@ public partial class ChatScreen : TuiScreen
     private static readonly char[] BuiltinPrefixes = ['/', '@', '!', '#'];
 
     /// <summary>动态栏（聊天列表下方、输入区上方，始终可见）</summary>
-    public TuiDynamicBar DynamicBar { get; private set; } = null!;
+    public TuiDynamicBar DynamicBar { get; protected set; } = null!;
 
     /// <summary>输入区上分隔线</summary>
-    public TuiSeparator InputTopBorder { get; private set; } = null!;
+    public TuiSeparator InputTopBorder { get; protected set; } = null!;
 
     /// <summary>输入区下分隔线</summary>
-    public TuiSeparator InputBotBorder { get; private set; } = null!;
+    public TuiSeparator InputBotBorder { get; protected set; } = null!;
 
     /// <summary>建议下拉面板</summary>
-    public TuiVBox SuggestPanel { get; private set; } = null!;
+    public TuiVBox SuggestPanel { get; protected set; } = null!;
 
     /// <summary>建议面板上一帧的可见矩形（用于移动/缩放/隐藏后补绘被遮挡的聊天内容）。</summary>
     private int _suggestPrevX = -1, _suggestPrevY = -1, _suggestPrevW, _suggestPrevH;
     private bool _suggestPrevVisible;
 
     /// <summary>右侧信息面板</summary>
-    public TuiSidePanel SidePanel { get; private set; } = null!;
+    public TuiSidePanel SidePanel { get; protected set; } = null!;
 
     /// <summary>
     /// 浮层窗口可占用的顶部边界 = 标题栏高度，避免对话框顶边覆盖标题栏。
@@ -300,27 +300,25 @@ public partial class ChatScreen : TuiScreen
         int cursorRow = InputArea?.CursorRow ?? 0;
         int cursorCol = InputArea?.CursorCol ?? 0;
 
-        // 保存旧 ChatList 的全部消息数据（BuildLayout 会创建新的空 ChatList）
-        var savedMessages = new List<(string Role, string Content, bool Centered, int Indent)>();
-        if (ChatList != null)
-        {
-            for (int i = 0; i < ChatList.ItemCount; i++)
-            {
-                var item = ChatList.GetItem(i) as TuiListItem;
-                if (item != null)
-                    savedMessages.Add((item.Role, item.MarkdownContent, item.ContentAlign == EHAlign.Center, item.Indent));
-            }
-        }
+        // 保存旧 ChatList 的消息数据（仅非保留路径：BuildLayout 会新建空 ChatList）
+        var savedMessages = BuildLayoutPreservesChatItems ? null : CaptureChatItems();
 
         TW = newW;
         TH = newH;
 
-        // 重建整个控件树
+        // 重建整个控件树（标记版 MarkupChatScreen 覆写：首次加载 chat.tui，后续只重排）
         BuildLayout();
 
-        // 恢复聊天消息（通过 AddMessage 走正常流程，自动处理续接/纯文本逻辑）
-        foreach (var (role, content, centered, indent) in savedMessages)
-            AddMessage(content, role, centered, indent);
+        // 恢复聊天消息：非保留路径走 AddMessage 重灌（自动处理续接/纯文本）；保留路径只按新宽重建项内容
+        if (savedMessages != null)
+        {
+            foreach (var (role, content, centered, indent) in savedMessages)
+                AddMessage(content, role, centered, indent);
+        }
+        else if (BuildLayoutPreservesChatItems)
+        {
+            RebuildChatItems();
+        }
 
         // 恢复输入状态
         if (!string.IsNullOrEmpty(inputText))
@@ -330,21 +328,70 @@ public partial class ChatScreen : TuiScreen
             InputArea.CursorCol = Math.Min(cursorCol, InputArea.Lines[InputArea.CursorRow].Length);
         }
 
-        // 恢复分隔线宽度
-        PromptBar.Width = TW;
-        DynamicBar.Width = TW;
-        InputTopBorder.Width = TW;
-        InputBotBorder.Width = TW;
+        // 应用动态尺寸（分隔线/输入区/聊天区/侧栏宽度）
+        ComputeLayout(out var panelW, out var inputH, out var promptH, out _, out var chatH);
+        ApplyDynamicSizes(panelW, inputH, promptH, chatH);
 
         // 通知所有浮层窗口
         foreach (var win in Windows)
             win.OnResize(newW, newH);
     }
 
+    /// <summary>捕获当前 ChatList 的消息数据（Role/Content/Centered/Indent）。</summary>
+    private List<(string Role, string Content, bool Centered, int Indent)>? CaptureChatItems()
+    {
+        if (ChatList == null) return null;
+        var saved = new List<(string Role, string Content, bool Centered, int Indent)>();
+        for (int i = 0; i < ChatList.ItemCount; i++)
+        {
+            var item = ChatList.GetItem(i) as TuiListItem;
+            if (item != null)
+                saved.Add((item.Role, item.MarkdownContent, item.ContentAlign == EHAlign.Center, item.Indent));
+        }
+        return saved;
+    }
+
+    /// <summary>计算动态布局尺寸（Render / OnResize 共用）。</summary>
+    protected void ComputeLayout(out int panelW, out int inputH, out int promptH, out int progressH, out int chatH)
+    {
+        panelW = SidePanelVisible ? Math.Min(30, TW / 3) : 0;
+        inputH = Math.Clamp(InputArea.Lines.Count + 1, 3, 5);
+        promptH = PromptBar.Visible ? PromptBar.Height : 0;
+        progressH = (ProgressPercent.HasValue && ContextManager.IsCompressing) ? 1 : 0;
+        chatH = Math.Max(1, TH - 1 - promptH - 1 - 1 - inputH - 1 - progressH - 1); // TH - title - prompt - dynamicBar(1) - topBorder - input - botBorder - progress - status
+    }
+
+    /// <summary>应用动态尺寸到各子视图（Render / OnResize 共用）。</summary>
+    protected void ApplyDynamicSizes(int panelW, int inputH, int promptH, int chatH)
+    {
+        InputArea.Width = TW;
+        InputArea.Height = inputH;
+        PromptBar.Width = TW;
+        InputTopBorder.Width = TW;
+        InputBotBorder.Width = TW;
+        ChatList.Width = panelW > 0 ? TW - panelW : TW;
+        ChatList.Height = chatH;
+        SidePanel.Visible = SidePanelVisible;
+        SidePanel.Width = panelW;
+        SidePanel.Height = chatH;
+        if (SidePanelVisible)
+            SidePanel.Sections = SidePanelSections;
+    }
+
+    /// <summary>
+    /// BuildLayout 是否保留 ChatList 实例（标记版重排不重建 → resize 跳过消息重灌，改用 RebuildChatItems 按新宽重建）。
+    /// </summary>
+    protected virtual bool BuildLayoutPreservesChatItems => false;
+
+    /// <summary>
+    /// BuildLayout 保留 ChatList 实例时，resize 后按新宽度重建聊天项内容（基类空实现；非保留路径靠 AddMessage 重灌重建）。
+    /// </summary>
+    protected virtual void RebuildChatItems() { }
+
     /// <summary>
     /// 构建聊天屏幕布局
     /// </summary>
-    private void BuildLayout()
+    protected virtual void BuildLayout()
     {
         RootView.Clear();
         RootView = new TuiVBox { Width = TW, Height = TH };
@@ -739,11 +786,7 @@ public partial class ChatScreen : TuiScreen
         SyncDynamicBar();
 
         // ── 动态尺寸 ──
-        int panelW = SidePanelVisible ? Math.Min(30, TW / 3) : 0;
-        int inputH = Math.Clamp(InputArea.Lines.Count + 1, 3, 5);
-        int promptH = PromptBar.Visible ? PromptBar.Height : 0;
-        int progressH = (ProgressPercent.HasValue && ContextManager.IsCompressing) ? 1 : 0;
-        int chatH = Math.Max(1, TH - 1 - promptH - 1 - 1 - inputH - 1 - progressH - 1); // TH - title - prompt - dynamicBar(1) - topBorder - input - botBorder - progress - status
+        ComputeLayout(out var panelW, out var inputH, out var promptH, out var progressH, out var chatH);
 
         // ── 压缩进度条 ──
         if (progressH > 0)
@@ -760,26 +803,8 @@ public partial class ChatScreen : TuiScreen
               .Append(AnsiTty.SgrReset);
         }
 
-        // ── 输入区 ──
-        InputArea.Width = TW;
-        InputArea.Height = inputH;
-
-        // ── 提示栏 ──
-        PromptBar.Width = TW;
-
-        // ── 分隔线 ──
-        InputTopBorder.Width = TW;
-        InputBotBorder.Width = TW;
-
-        // ── 中间区域（ChatList + SidePanel HBox）──
-        ChatList.Width = panelW > 0 ? TW - panelW : TW;
-        ChatList.Height = chatH;
-
-        SidePanel.Visible = SidePanelVisible;
-        SidePanel.Width = panelW;
-        SidePanel.Height = chatH;
-        if (SidePanelVisible)
-            SidePanel.Sections = SidePanelSections;
+        // ── 输入区 / 提示栏 / 分隔线 / 中间区域 ──
+        ApplyDynamicSizes(panelW, inputH, promptH, chatH);
 
         // ── 建议面板定位（浮层，手动定位；Layout 因 Floating 不会覆盖 X/Y）──
         // 记录新矩形并与上一帧对比，移动/缩放/隐藏时补绘被遮挡区域，避免底色残留。
