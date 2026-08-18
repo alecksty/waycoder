@@ -11,9 +11,26 @@
     <HBox id="middleHBox" flex="1">
       <!-- 聊天消息项由 code-behind ChatList.AddItem(new TuiListItem(...)) 动态填充 -->
       <ListView id="chatList" itemSpacing="1" autoScroll="true" />
-      <!-- 分区内容由 code-behind RefreshSidePanel() 填充；预览（设计态）注入示例分区。
-           真实 App 运行时按 SidePanelVisible 覆盖可见性。 -->
-      <SidePanel id="sidePanel" width="30" visible="true" borderColor="brightblack" />
+      <!-- 侧栏分区在标记中声明（布局写标记）；真实 App 运行时按 RefreshSidePanel()/SidePanelVisible 覆盖 -->
+      <SidePanel id="sidePanel" width="30" visible="true" borderColor="brightblack">
+        <Section title="🏷 道码">
+          <Line text="WayCoder v0.77.0" />
+          <Line text="C# (.NET 10) AOT" />
+          <Line text="中文编程智能体" />
+        </Section>
+        <Section title="📋 Todo (0/0)">
+          <Line text="暂无任务" />
+        </Section>
+        <Section title="📁 文件 (0)">
+          <Line text="无修改文件" />
+        </Section>
+        <Section title="🔌 MCP (0)">
+          <Line text="未连接服务器" />
+        </Section>
+        <Section title="🔍 LSP (0)">
+          <Line text="无语言服务器" />
+        </Section>
+      </SidePanel>
     </HBox>
 
     <!-- 建议下拉：浮层，不参与流式布局；尺寸/位置由 Render 手动画 -->

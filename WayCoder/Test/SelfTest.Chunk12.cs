@@ -33,6 +33,17 @@ public static partial class SelfTest
         Check("TuiMarkup SidePanel borderWidth", sPanel != null && sPanel.BorderWidth == 2);
         Check("TuiMarkup SidePanel panelVisible=false", sPanel != null && !sPanel.PanelVisible);
 
+        // SidePanel 嵌套 <Section><Line> 声明分区（布局写标记）
+        var secRes = TuiMarkup.Load("<VBox><SidePanel id=\"sp2\"><Section title=\"🏷 道码\"><Line text=\"WayCoder v1\"/><Line text=\"AOT\"/></Section><Section title=\"Todo\"><Line text=\"空\"/></Section></SidePanel></VBox>");
+        var sp2 = secRes.Find<TuiSidePanel>("sp2");
+        Check("SidePanel Section 解析", sp2 != null && sp2.Sections.Count == 2);
+        Check("SidePanel Section 标题", sp2 != null && sp2.Sections[0].Title == "🏷 道码" && sp2.Sections[1].Title == "Todo");
+        Check("SidePanel Section 行", sp2 != null && sp2.Sections[0].Lines.Count == 2
+            && sp2.Sections[0].Lines[0] == "WayCoder v1" && sp2.Sections[0].Lines[1] == "AOT");
+        // 空 Section 忽略
+        var secEmpty = TuiMarkup.Load("<VBox><SidePanel id=\"sp3\"><Section title=\"\"></Section></SidePanel></VBox>");
+        Check("SidePanel 空 Section 忽略", secEmpty.Find<TuiSidePanel>("sp3") is { Sections.Count: 0 });
+
         // ── 既有标签属性补齐 ──
         var tbRes = TuiMarkup.Load("<VBox><TitleBar id=\"tb\" title=\"T\" center=\"C\" version=\"v1\" gitBranch=\"master\"/></VBox>");
         Check("TuiMarkup TitleBar gitBranch", tbRes.Find<TuiTitleBar>("tb") is { GitBranch: "master" });
