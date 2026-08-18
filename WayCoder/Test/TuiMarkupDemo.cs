@@ -75,6 +75,28 @@ public static class TuiMarkupDemo
                 screen.ShowWindow(d.Window!);
             };
 
+            main.Find<TuiButton>("showcase")!.OnClick = _ =>
+                screen.ShowWindow(TuiMarkup.LoadFile(Path.Combine(dir, "showcase.tui")).Window!);
+
+            main.Find<TuiButton>("permission")!.OnClick = _ =>
+            {
+                var d = LoadDialog("permission");
+                d.Find<TuiButton>("allow")!.OnClick = _ => { d.Window!.OnClosed?.Invoke(); messages.Text += "\n[已允许]"; };
+                d.Find<TuiButton>("deny")!.OnClick = _ => { d.Window!.OnClosed?.Invoke(); messages.Text += "\n[已拒绝]"; };
+                d.Find<TuiButton>("always")!.OnClick = _ => { d.Window!.OnClosed?.Invoke(); messages.Text += "\n[全部允许]"; };
+                screen.ShowWindow(d.Window!);
+            };
+
+            main.Find<TuiButton>("multiselect")!.OnClick = _ =>
+            {
+                var d = LoadDialog("multiselect");
+                var list = d.Find<TuiList>("list")!;
+                list.MultiSelect = true;
+                d.Find<TuiButton>("ok")!.OnClick = _ => { d.Window!.OnClosed?.Invoke(); messages.Text += "\n[多选: " + list.CheckedIndices.Count + " 项]"; };
+                d.Find<TuiButton>("cancel")!.OnClick = _ => d.Window!.OnClosed?.Invoke();
+                screen.ShowWindow(d.Window!);
+            };
+
             mgr.PushScreen(screen);
             mgr.Render();
 
