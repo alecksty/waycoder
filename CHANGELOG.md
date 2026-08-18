@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.79.22 (2026-08-19) — 弹出菜单 .tui 模板化（TUI 全界面资源化完成）
+
+- 新增 `menu.tui` 声明弹出菜单窗口结构（Dialog + VBox）
+- `TuiMenu.Show` 从模板加载窗口 + 覆盖动态属性（尺寸/定位/模态/边框），`MenuView` 保留动态项渲染（滚动/快捷键/分隔线）
+- 至此 TUI 全部窗口类界面均 .tui 资源化：聊天屏(chat.tui)、聊天项(chat-item.tui)、14 对话框(dialogs/*)、菜单(menu.tui)、设置/编辑器/选择器
+
+### ✅ 验证
+- 自测 3565 通过（TuiMenu 测试全绿），tty 下聊天屏正常（无模板错误）
+
 ## v0.79.21 (2026-08-19) — 聊天列表项 .tui 模板化
 
 - 新增 `chat-item.tui` 声明式布局（Header: icon/role/time + Markdown body）
