@@ -9,8 +9,9 @@
 
     <!-- 中间区：聊天列表 + 右侧面板。flex="1" 自动占满标题栏与输入区/状态栏之间的剩余高度 -->
     <HBox id="middleHBox" flex="1">
-      <!-- 聊天消息项由 code-behind ChatList.AddItem(new TuiListItem(...)) 动态填充 -->
-      <ListView id="chatList" itemSpacing="1" autoScroll="true" />
+      <!-- 聊天消息项由 code-behind ChatList.AddItem(new TuiListItem(...)) 动态填充。
+           flex="1" 填满剩余宽度，侧栏保持固定宽度。 -->
+      <ListView id="chatList" itemSpacing="1" autoScroll="true" flex="1" />
       <!-- 侧栏分区在标记中声明（布局写标记）；真实 App 运行时按 RefreshSidePanel()/SidePanelVisible 覆盖 -->
       <SidePanel id="sidePanel" width="30" visible="true" borderColor="brightblack">
         <Section title="🏷 道码">
