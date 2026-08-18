@@ -534,63 +534,121 @@ public partial class MainWindow : Window
 
     private void ShowSettings()
     {
-        var cfg = Config.Instance;
-        var providerId = ModelCatalog.Find(cfg.Model)?.ProviderId ?? cfg.Provider;
-        var currentKey = ApiKeyStore.Get(providerId) ?? cfg.ApiKey;
-
         var win = new Window
         {
             Title = "设置",
-            Width = 460,
-            SizeToContent = SizeToContent.Height,
+            Width = 660,
+            Height = 540,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            CanResize = false,
             Background = new SolidColorBrush(Color.Parse("#171a23")),
         };
 
-        var panel = new StackPanel { Margin = new Avalonia.Thickness(20), Spacing = 10 };
-        var keyBox = new TextBox { Text = currentKey ?? "", PasswordChar = '•', PlaceholderText = "API Key（留空则沿用 .env）" };
-        var tempBox = new TextBox { Text = cfg.Temperature.ToString(CultureInfo.InvariantCulture) };
-        var tokBox = new TextBox { Text = cfg.MaxTokens.ToString() };
-        var commitCb = new CheckBox { Content = "自动 git commit", IsChecked = cfg.AutoGitCommit, Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")) };
+        // Schema 驱动：全部设置项（对齐 TUI SettingsPage / Web drawer）
+        var schema = Config.SettingSchema().OrderBy(s => s.Order).ToList();
+        var groups = schema.GroupBy(s => s.Category).ToList();
+        var controls = new Dictionary<string, Control>(); // Key → 控件（保存时逐项读取）
 
-        panel.Children.Add(SettingsLabel("API Key"));
-        panel.Children.Add(keyBox);
-        panel.Children.Add(SettingsLabel("Temperature"));
-        panel.Children.Add(tempBox);
-        panel.Children.Add(SettingsLabel("MaxTokens"));
-        panel.Children.Add(tokBox);
-        panel.Children.Add(commitCb);
+        var root = new DockPanel { Margin = new Avalonia.Thickness(16) };
 
-        var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
-        btnRow.Children.Add(MakeButton("保存", "#2f6bff", () =>
+        // ── 底部按钮 ──
+        void Save()
         {
             try
             {
-                if (!string.IsNullOrWhiteSpace(keyBox.Text))
-                    ApiKeyStore.Set(providerId, keyBox.Text.Trim());
-                if (float.TryParse(tempBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var t))
-                    cfg.Temperature = t;
-                if (int.TryParse(tokBox.Text, out var mt) && mt > 0)
-                    cfg.MaxTokens = mt;
-                cfg.AutoGitCommit = commitCb.IsChecked == true;
-                cfg.SaveToEnvFile();
-                foreach (var agent in _agents)
+                foreach (var (key, ctrl) in controls)
                 {
-                    if (agent == null) continue;
-                    var info = ModelCatalog.Find(agent.LlmClient.Model);
-                    agent.LlmClient.Reconfigure(ApiKeyStore.Get(providerId) ?? cfg.ApiKey, info?.DefaultBaseUrl ?? cfg.BaseUrl);
+                    string? val = ctrl switch
+                    {
+                        TextBox tb => tb.Text,
+                        ComboBox cb => cb.SelectedItem?.ToString(),
+                        CheckBox chk => chk.IsChecked == true ? "true" : "false",
+                        _ => null,
+                    };
+                    if (val != null) Config.TrySetPropValue(key, val, out _);
                 }
+                Config.Instance.SaveToEnvFile();
+                ModelCatalog.Invalidate();
+                UpdateHeader();
+                InitModelBar(); // 省钱/权限下拉跟随配置变化
+                RefreshPanel();
                 AppendSystem(_activeSlot, "[设置已保存]");
             }
             catch (Exception ex) { AppendSystem(_activeSlot, $"[保存设置失败] {ex.Message}"); }
             win.Close();
-        }));
+        }
+        var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Avalonia.Thickness(0, 12, 0, 0) };
+        btnRow.Children.Add(MakeButton("保存", "#2f6bff", Save));
         btnRow.Children.Add(MakeButton("取消", "#5b6472", () => win.Close()));
-        panel.Children.Add(btnRow);
+        DockPanel.SetDock(btnRow, Dock.Bottom);
+        root.Children.Add(btnRow);
 
-        win.Content = panel;
+        // ── 左：分类列表 + 右：设置项 ──
+        var catList = new ListBox
+        {
+            MinWidth = 170,
+            ItemsSource = groups.Select(g => g.Key).ToList(),
+            SelectedIndex = 0,
+        };
+        catList.Foreground = new SolidColorBrush(Color.Parse("#e6e8ee"));
+
+        var detailHost = new StackPanel { Spacing = 12, Margin = new Avalonia.Thickness(16, 0, 0, 0) };
+        var detailScroll = new ScrollViewer { Content = detailHost };
+
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
+        grid.Children.Add(catList);
+        Grid.SetColumn(detailScroll, 1);
+        grid.Children.Add(detailScroll);
+        root.Children.Add(grid);
+
+        // 切换分类 → 重建右侧设置项
+        void RebuildDetail()
+        {
+            detailHost.Children.Clear();
+            if (catList.SelectedItem is not string cat) return;
+            var items = groups.First(g => g.Key == cat).OrderBy(s => s.Order);
+            foreach (var s in items)
+            {
+                // 标题 + 描述
+                var title = new TextBlock { Text = s.Label, FontSize = 13, FontWeight = FontWeight.Bold, Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")) };
+                var desc = new TextBlock { Text = s.Desc, FontSize = 11, Foreground = new SolidColorBrush(Color.Parse("#8b93a7")), TextWrapping = TextWrapping.Wrap };
+                var ctrl = BuildSettingControl(s);
+                controls[s.Key] = ctrl;
+                detailHost.Children.Add(title);
+                detailHost.Children.Add(desc);
+                detailHost.Children.Add(ctrl);
+            }
+        }
+        catList.SelectionChanged += (_, _) => RebuildDetail();
+        RebuildDetail();
+
+        win.Content = root;
         win.ShowDialog(this);
+    }
+
+    /// <summary>按 Schema 类型构建设置控件（toggle/select/secret/number/text）。</summary>
+    private static Control BuildSettingControl(SettingDef s)
+    {
+        var current = Config.GetPropValue(s.Key);
+        switch (s.Type)
+        {
+            case "toggle":
+                return new CheckBox { Content = s.Label, IsChecked = current == "true" || current == "True", Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")) };
+            case "select":
+            {
+                var cb = new ComboBox { ItemsSource = s.Options ?? [], Width = 240, HorizontalAlignment = HorizontalAlignment.Left };
+                if (s.Options != null)
+                {
+                    var idx = Array.FindIndex(s.Options, o => o == current || (current != null && o.Equals(current, StringComparison.OrdinalIgnoreCase)));
+                    cb.SelectedIndex = idx >= 0 ? idx : 0;
+                }
+                return cb;
+            }
+            case "secret":
+                return new TextBox { Text = current ?? "", PasswordChar = '•', Width = 240, HorizontalAlignment = HorizontalAlignment.Left };
+            case "number":
+            default:
+                return new TextBox { Text = current ?? "", Width = 240, HorizontalAlignment = HorizontalAlignment.Left };
+        }
     }
 
     private static TextBlock SettingsLabel(string text) => new()
