@@ -15,6 +15,8 @@ public enum ChatRole
     ToolOutput,
     /// <summary>系统提示/错误（居中淡色）</summary>
     System,
+    /// <summary>推理内容（«dim»…«/»，独立淡色气泡，对齐 Web reasoning）</summary>
+    Reasoning,
 }
 
 /// <summary>

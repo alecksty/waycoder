@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.79.12 (2026-08-19) — GUI 聊天推理内容独立气泡（对齐 Web reasoning）
+
+GUI 聊天内容格式对齐：推理内容（`«dim»…«/»`）从"混在正文淡色"升级为**独立 reasoning 气泡**（对齐 Web `.msg.reasoning`）：
+- `ChatRole.Reasoning` 新角色 + `MessageBubble` 淡色小字气泡
+- `AppendToken` 按 `«dim»`/`«/»` 标记分流：推理内容进独立气泡，正文排除
+- 每槽位独立推理状态（`_inReasoning`），`/reset` 重置
+
+至此 GUI 聊天格式对齐 Web：气泡角色（user右/assistant左/工具/系统/**推理淡色**）+ Markdown 完整渲染（表格/代码高亮/链接）+ 工具输出代码块
+
+### ✅ 验证
+- GUI 编译 0 错误，启动运行正常
+
 ## v0.79.11 (2026-08-19) — GUI 附件上传 + 斜杠命令（对齐 Web）
 
 ### 📎 附件上传（对齐 Web /upload）
