@@ -53,15 +53,17 @@ public class TuiVBox : TuiView
             }
         }
 
-        // 第一遍：计算总高度（含 child margin），递归布局嵌套视图（浮动子视图仍递归布局内部）
+        // 第一遍：计算总高度（含 child margin），递归布局嵌套视图（浮动子视图仍递归布局内部）。
+        // 先拉伸子宽度再布局：子容器（如 HBox）需用正确的容器宽做内部 flex 分配，
+        // 否则会用过小的旧宽度算 remaining（负 → 不分配 → 子控件按默认宽排布溢出）。
         var totalH = 0;
         foreach (var child in Children)
         {
-            if (child is TuiView childView)
-                childView.Layout();
             if (child.Floating) continue;
             if (ChildHAlign == EHAlign.Stretch)
                 child.Width = Width;
+            if (child is TuiView childView)
+                childView.Layout();
             totalH += child.Height + child.Margin.Vertical + Spacing;
         }
 
