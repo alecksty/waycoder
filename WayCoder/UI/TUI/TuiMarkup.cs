@@ -148,6 +148,7 @@ public static class TuiMarkup
         }
 
         screen.RootView = rootView ?? new TuiVBox { Width = 10, Height = 1 };
+        FixupLayout(screen.RootView);
         return screen;
     }
 
@@ -186,6 +187,9 @@ public static class TuiMarkup
 
         foreach (var child in node.Children)
             if (BuildControl(child, byId) is TuiView v) { win.RootView = v; break; }
+
+        // 修复居中容器宽度（HBox/VBox align=center/right 需宽度 ≥ 内容宽）
+        FixupLayout(win.RootView);
 
         // 内容自适应尺寸（size="content"）：按控件树自然尺寸计算窗口宽高；默认 size="screen" 用 width/height/scale
         if (Attr(node, "size") == "content" && win.RootView != null)
@@ -236,6 +240,28 @@ public static class TuiMarkup
 
     private static (int w, int h) MeasureChild(TuiControl c)
         => c is TuiView v ? MeasureContent(v) : (c.Width, c.Height);
+
+    /// <summary>
+    /// 修复居中容器的宽度：HBox/VBox 的 align="center"/"right" 需要 Width ≥ 内容宽，
+    /// 否则 ContentHAlign/ChildHAlign 用 (Width-totalW)/2 算出负偏移、子控件被裁剪。
+    /// 递归（自底向上）：先修子视图，再修自身，使父容器测量用到已修正的子宽度。
+    /// </summary>
+    private static void FixupLayout(TuiView view)
+    {
+        foreach (var child in view.Children)
+            if (child is TuiView cv) FixupLayout(cv);
+
+        if (view is TuiHBox hbox && hbox.ContentHAlign != EHAlign.Left)
+        {
+            var (w, _) = MeasureContent(hbox);
+            if (hbox.Width < w) hbox.Width = w;
+        }
+        else if (view is TuiVBox vbox && vbox.ChildHAlign != EHAlign.Left)
+        {
+            var (w, _) = MeasureContent(vbox);
+            if (vbox.Width < w) vbox.Width = w;
+        }
+    }
 
     /// <summary>递归遍历视图树，注册按钮 shortcut → OnClick（code-behind 后设置 OnClick，lambda 延迟读取）。</summary>
     private static void RegisterButtonShortcuts(TuiWindow win, TuiView? view)
