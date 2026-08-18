@@ -86,31 +86,18 @@ public static class TuiFrameRenderer
     }
 
     /// <summary>
-    /// 设计态占位注入：把运行时才填充的字段（标题栏版本号/中心智能体名、侧栏分区）填上示例，
-    /// 让预览贴近真实界面。真实 App（MarkupChatScreen）运行时会覆盖这些值。
+    /// 设计态运行时数据注入：标题栏版本号/中心智能体名是「运行时数据」由预览注入（版本永远取 Global.Version）。
+    /// 侧栏分区属于「布局」，由标记 `<SidePanel><Section><Line>` 声明（见 chat.tui），此处不再写布局代码。
+    /// 真实 App（MarkupChatScreen）运行时会覆盖这些值。
     /// </summary>
     private static void PopulateDesignPlaceholders(TuiMarkupResult result)
     {
         try
         {
-            // 标题栏：右侧版本号 + 中间智能体名
             if (result.Find<TuiTitleBar>("titleBar") is { } tb)
             {
                 tb.Version = Global.Version;
                 tb.CenterText = "💬 智能体 1 · 🔨 建造模式";
-            }
-
-            // 侧边栏：示例分区（仅当侧栏可见且为空时填充）
-            if (result.Find<TuiSidePanel>("sidePanel") is { } sp && sp.Visible && sp.Sections.Count == 0)
-            {
-                sp.Sections =
-                [
-                    new PanelSection { Title = "🏷 道码", Lines = [$"WayCoder {Global.Version}", "C# (.NET 10) AOT", "中文编程智能体"] },
-                    new PanelSection { Title = "📋 Todo (0/0)", Lines = ["暂无任务"] },
-                    new PanelSection { Title = "📁 文件 (0)", Lines = ["无修改文件"] },
-                    new PanelSection { Title = "🔌 MCP (0)", Lines = ["未连接服务器"] },
-                    new PanelSection { Title = "🔍 LSP (0)", Lines = ["无语言服务器"] },
-                ];
             }
         }
         catch { /* 占位注入失败不影响渲染 */ }
