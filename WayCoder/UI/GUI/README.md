@@ -31,3 +31,21 @@ dotnet publish WayCoder.Gui -c Release -r osx-arm64 --self-contained true
 - [x] 会话持久化（退出保存 _auto/_auto_slotN，启动恢复）
 - [x] diff 预览确认（接受/拒绝全部）
 - [x] 设置对话框（API Key / Temperature / MaxTokens / 自动提交）
+
+## v0.79.2 界面完善（对齐 Web 版）
+
+- [x] **三栏布局**：左（槽位 F1-F10 + 历史会话列表）/ 中（聊天 + composer）/ 右（5 数据面板），顶栏含 logo + 主题切换 + 模型按钮
+- [x] **消息气泡化**：`ChatMessage`/`MessageBubble` 结构化消息，逐气泡渲染 + 流式合帧（根治全量重渲染 O(n²)）
+- [x] **右侧 5 面板**：任务 / Token费用 / 修改文件 / MCP / LSP，`DispatcherTimer` 2s 刷新，数据直连主项目静态类
+- [x] **模型选择对话框** `ModelWindow`：搜索 + 供应商分组 7 列表格 + 扫描/自动导入/OpenCode在线/设置key/保存/切换
+- [x] **Composer 工具栏**：大/小模型按钮（开弹窗）+ 💰省钱 + 🛡交互模式 + 发送箭头（busy 变 ⏹ 停止）
+- [x] **深/浅主题切换**：`App.ToggleTheme` + 动态资源绑定，`GuiTheme` 配置持久化
+- [x] **历史会话管理**：列表预览/元信息 + 加载/重命名/删除/新建/清空（按槽位隔离）
+
+## v0.79.2 渲染完善（块级 Markdown）
+
+- [x] **块级渲染 `MarkdownBlocks`**：消息气泡改为多 block 容器，完整支持段落/标题/引用/列表/分隔线/代码块/表格
+- [x] **表格**：`| a | b |` 解析为 Grid（表头加粗 + 边框）
+- [x] **代码语法高亮 `SimpleHighlight`**：注释/字符串/数字/关键字着色（对齐 Web tok 配色）
+- [x] **Markdown**：粗体/行内代码/链接/列表/引用
+- [x] **主题联动**：block 文字色从主题资源读取，切主题重建气泡

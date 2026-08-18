@@ -162,6 +162,8 @@ public class Config
     public bool TeamMemoryEnabled { get; set; } = false;
     public bool TeamMemoryAutoSync { get; set; } = true;
     public string ThemePreset { get; set; } = "黄金甲";
+    /// <summary>GUI 版深/浅主题（dark/light）</summary>
+    public string GuiTheme { get; set; } = "dark";
 
     // ── 推理深度 ──
     /// <summary>推理深度级别（minimal/low/medium/high/max），空字符串=不设置（模型默认）</summary>
@@ -706,6 +708,11 @@ public class Config
               (c, v) => c.FileLockTimeoutSec = Math.Clamp(int.Parse(v), 5, 600), "30"),
 
             // ── 界面 ──
+            P("GuiTheme",         "WAYCODER_GUI_THEME",         null,
+              "GUI 主题", "🎨 界面", "GUI 版深/浅色主题",
+              "select", ["dark", "light"], 4,
+              c => c.GuiTheme, (c, v) => c.GuiTheme = v, "dark"),
+
             P("ThemePreset",      "WAYCODER_THEME",             null,
               "界面主题", "🎨 界面", "预设配色方案，选中即生效",
               "select", WayCoder.UI.Tui.TuiTheme.PresetNames, 4,

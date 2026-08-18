@@ -168,8 +168,8 @@ public static class MarkdownInlines
         foreach (var inl in inlines) target.Add(inl);
     }
 
-    /// <summary>渲染单行内联：处理 «tag»…«/» 标记、**粗体**、`代码`。</summary>
-    private static List<Inline> RenderInline(string text)
+    /// <summary>渲染单行内联：处理 «tag»…«/» 标记、**粗体**、`代码`、[链接](url)。</summary>
+    public static List<Inline> RenderInline(string text)
     {
         var result = new List<Inline>();
         var buf = new StringBuilder();
@@ -234,6 +234,27 @@ public static class MarkdownInlines
                 mono = !mono;
                 i++;
                 continue;
+            }
+            // [text](url) 链接（渲染为品牌蓝下划线；Inline 模型无法嵌入可点控件，MVP 仅视觉）
+            if (text[i] == '[')
+            {
+                int close = text.IndexOf(']', i);
+                if (close > i + 1 && close + 1 < text.Length && text[close + 1] == '(')
+                {
+                    int urlEnd = text.IndexOf(')', close + 2);
+                    if (urlEnd > close + 2)
+                    {
+                        Flush(bold, mono);
+                        var label = text[(i + 1)..close];
+                        result.Add(new Run(label)
+                        {
+                            Foreground = new SolidColorBrush(Color.Parse("#4f8cff")),
+                            TextDecorations = TextDecorations.Underline,
+                        });
+                        i = urlEnd + 1;
+                        continue;
+                    }
+                }
             }
 
             buf.Append(text[i]);

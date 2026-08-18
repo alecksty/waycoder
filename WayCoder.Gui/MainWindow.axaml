@@ -1,63 +1,128 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="WayCoder.UI.Gui.MainWindow"
-        Title="WayCoder（道码）GUI"
-        Width="960" Height="700"
-        Background="#0f1117">
-    <DockPanel Margin="12">
+        Title="WayCoder（道码）"
+        Width="1180" Height="720"
+        Background="{DynamicResource WindowBgBrush}">
+    <Grid RowDefinitions="Auto,*">
 
-        <!-- 顶部：标题 + 模型下拉 + 设置 + 停止 -->
-        <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="0,0,0,8">
-            <TextBlock x:Name="HeaderLabel"
-                       Text="WayCoder（道码）"
-                       FontSize="15" FontWeight="Bold" Foreground="#e6e8ee"
-                       VerticalAlignment="Center" />
-            <ComboBox Grid.Column="1" x:Name="ModelCombo"
-                      MinWidth="200" HorizontalAlignment="Right" Margin="12,0"
-                      SelectionChanged="Model_SelectionChanged" />
-            <TextBlock Grid.Column="2" x:Name="SlotLabel"
-                       Text="槽位 F1"
-                       FontSize="12" Foreground="#8b93a7"
-                       VerticalAlignment="Center" Margin="0,0,12,0" />
-            <Button Grid.Column="3" x:Name="SettingsButton"
-                    Content="⚙"
-                    Margin="0,0,8,0"
-                    Click="Settings_Click" />
-            <Button Grid.Column="4" x:Name="StopButton"
-                    Content="⏹ 停止"
-                    IsEnabled="False"
-                    Click="Stop_Click" />
+        <!-- 顶栏（跨三栏，对齐 Web <header>） -->
+        <Border Grid.Row="0" Background="{DynamicResource PanelBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" Margin="14,9">
+                <!-- 标志：🤖 道码 WayCoder（Coder 品牌蓝高亮） -->
+                <TextBlock x:Name="HeaderLabel"
+                           FontSize="15" FontWeight="Bold"
+                           Foreground="{DynamicResource TextBrush}"
+                           VerticalAlignment="Center">
+                    <Run Text="🤖 道码 Way" /><Run Text="Coder" Foreground="{DynamicResource AccentBrush}" />
+                </TextBlock>
+                <TextBlock Grid.Column="1" x:Name="SlotLabel"
+                           Text="智能体1" FontSize="13"
+                           Foreground="{DynamicResource DimTextBrush}"
+                           VerticalAlignment="Center" HorizontalAlignment="Center" />
+                <Button Grid.Column="2" x:Name="ThemeButton" Content="🌙"
+                        ToolTip.Tip="切换主题" Click="Theme_Click" Margin="0,0,8,0" />
+                <Button Grid.Column="3" x:Name="ModelButton"
+                        ToolTip.Tip="选择模型" Click="ModelButton_Click" Margin="0,0,8,0" />
+                <Button Grid.Column="4" x:Name="SettingsButton" Content="⚙ 设置"
+                        ToolTip.Tip="设置" Click="Settings_Click" Margin="0,0,8,0" />
+                <Button Grid.Column="5" x:Name="StopButton" Content="⏹ 停止"
+                        IsEnabled="False" Click="Stop_Click" />
+            </Grid>
+        </Border>
+
+        <!-- 三栏：左（槽位+会话）/ 中（聊天+composer）/ 右（面板） -->
+        <Grid Grid.Row="1" ColumnDefinitions="236,*,300">
+
+            <!-- 左栏 -->
+            <Border Grid.Column="0" x:Name="LeftPanel"
+                    Background="{DynamicResource PanelBgBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                <StackPanel>
+                    <TextBlock Text="🗂 槽位" FontSize="12" FontWeight="Bold"
+                               Foreground="{DynamicResource DimTextBrush}" Margin="14,12,14,6" />
+                    <StackPanel x:Name="SlotPanel" Orientation="Horizontal"
+                                Spacing="4" Margin="12,0,12,6" />
+                    <Grid ColumnDefinitions="*,Auto" Margin="12,4,12,8">
+                        <Button x:Name="NewSessionBtn" Content="＋ 新建会话" FontSize="11"
+                                Padding="8,4" Click="NewSession_Click" />
+                        <Button Grid.Column="1" x:Name="ClearSessionsBtn" Content="🗑"
+                                FontSize="11" Padding="8,4" Margin="6,0,0,0"
+                                ToolTip.Tip="清空所有会话记录" Click="ClearSessions_Click" />
+                    </Grid>
+                    <TextBlock Text="📜 历史会话" FontSize="12" FontWeight="Bold"
+                               Foreground="{DynamicResource DimTextBrush}" Margin="14,0,14,6" />
+                    <ScrollViewer x:Name="SessionListHost" VerticalScrollBarVisibility="Auto"
+                                  Margin="8,0,8,8" />
+                </StackPanel>
+            </Border>
+
+            <!-- 中栏 -->
+            <Grid Grid.Column="1" RowDefinitions="*,Auto">
+                <ScrollViewer x:Name="ChatScroll" VerticalScrollBarVisibility="Auto"
+                              Background="{DynamicResource WindowBgBrush}" Padding="16,12">
+                    <StackPanel x:Name="MessagesHost" Spacing="10" />
+                </ScrollViewer>
+
+                <!-- Composer 输入卡（对齐 Web #composer） -->
+                <Border Grid.Row="1" x:Name="ComposerHost" Padding="16,10"
+                        Background="{DynamicResource PanelBgBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+                    <Border CornerRadius="22" MaxWidth="840"
+                            Background="{DynamicResource Panel2BgBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            Padding="12,8">
+                        <StackPanel>
+                            <TextBox x:Name="InputBox" Background="Transparent" BorderThickness="0"
+                                     MinHeight="56" MaxHeight="220" AcceptsReturn="True"
+                                     TextWrapping="Wrap" FontSize="13"
+                                     Foreground="{DynamicResource TextBrush}"
+                                     PlaceholderText="输入消息…（Ctrl+Enter 发送）"
+                                     KeyDown="Input_KeyDown" TextChanged="Input_TextChanged" />
+                            <Grid ColumnDefinitions="Auto,*,Auto" Margin="4,4,4,0">
+                                <Button x:Name="AttachButton" Content="📎" Width="34" Height="34"
+                                        CornerRadius="10" Background="Transparent"
+                                        Foreground="{DynamicResource DimTextBrush}"
+                                        ToolTip.Tip="上传图片 / 音频" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Button x:Name="BigModelBtn" Content="🤖 大模型"
+                                            ToolTip.Tip="选择大模型（复杂任务）" Click="BigModel_Click"
+                                            FontSize="11" Padding="8,4" CornerRadius="8" />
+                                    <Button x:Name="SmallModelBtn" Content="🔧 小模型"
+                                            ToolTip.Tip="选择小模型（简单 / 压缩）" Click="SmallModel_Click"
+                                            FontSize="11" Padding="8,4" CornerRadius="8" />
+                                    <TextBlock Text="💰 省钱" FontSize="11"
+                                               Foreground="{DynamicResource DimTextBrush}"
+                                               VerticalAlignment="Center" />
+                                    <ComboBox x:Name="EconomyCombo" Width="70" Height="26" FontSize="11"
+                                              SelectionChanged="Economy_SelectionChanged" />
+                                    <TextBlock Text="🛡 交互模式" FontSize="11"
+                                               Foreground="{DynamicResource DimTextBrush}"
+                                               VerticalAlignment="Center" />
+                                    <ComboBox x:Name="PermCombo" Width="90" Height="26" FontSize="11"
+                                              SelectionChanged="Perm_SelectionChanged" />
+                                </StackPanel>
+                                <Button Grid.Column="2" x:Name="SendButton" Content="↑" Width="40" Height="40"
+                                        CornerRadius="20" Background="{DynamicResource AccentBrush}"
+                                        Foreground="White" FontSize="18"
+                                        Click="Send_Click" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Border>
+            </Grid>
+
+            <!-- 右栏 -->
+            <Border Grid.Column="2" x:Name="RightPanel"
+                    Background="{DynamicResource PanelBgBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,4">
+                    <StackPanel x:Name="RightCards" />
+                </ScrollViewer>
+            </Border>
+
         </Grid>
-
-        <!-- 槽位行：F1-F10 -->
-        <StackPanel DockPanel.Dock="Top" x:Name="SlotPanel"
-                    Orientation="Horizontal" Spacing="4" Margin="0,0,0,8" />
-
-        <!-- 底部：输入 + 发送 -->
-        <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto" Margin="0,10,0,0">
-            <TextBox x:Name="InputBox"
-                     AcceptsReturn="True"
-                     TextWrapping="Wrap"
-                     MinHeight="64"
-                     MaxHeight="200"
-                     PlaceholderText="输入消息，Ctrl+Enter 发送"
-                     KeyDown="Input_KeyDown" />
-            <Button Grid.Column="1" x:Name="SendButton"
-                    Content="➤ 发送"
-                    Margin="10,0,0,0"
-                    VerticalAlignment="Stretch"
-                    Click="Send_Click" />
-        </Grid>
-
-        <!-- 聊天区（占满剩余空间）：富文本渲染 Markdown + «» 标记 -->
-        <ScrollViewer x:Name="ChatScroll"
-                      VerticalScrollBarVisibility="Auto"
-                      Background="#171a23"
-                      Padding="12">
-            <SelectableTextBlock x:Name="ChatBox"
-                                 TextWrapping="Wrap"
-                                 FontSize="13"
-                                 Foreground="#e6e8ee" />
-        </ScrollViewer>
-    </DockPanel>
+    </Grid>
 </Window>
