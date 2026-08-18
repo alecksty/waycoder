@@ -1,0 +1,4 @@
+<!-- 弹出菜单窗口模板 —— 结构声明；动态宽度/高度/定位/菜单项（MenuView 手绘滚动+快捷键）由 TuiMenu code-behind 覆盖 -->
+<Dialog title="{title}" border="rounded" shortcut="escape">
+  <VBox id="menuBody" spacing="0" />
+</Dialog>
