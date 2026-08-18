@@ -100,6 +100,7 @@ public class ContextManager
         return Config.Instance.EconomyMode switch
         {
             EconomyMode.On => target,
+            EconomyMode.Extreme => Math.Max(2000, (int)(target * 0.8)), // 极致：比 economy 再收紧 20%（下限 2000 防过小）
             EconomyMode.Auto => Lerp(normal, target, AutoAggressiveness(complexity)),
             _ => normal,
         };
@@ -307,7 +308,9 @@ public class ContextManager
     /// </summary>
     public static bool SnipToolOutputs(List<JNode> messages, int? snipChars = null)
     {
-        var effective = snipChars ?? (Config.Instance.EconomyMode == EconomyMode.On
+        var effective = snipChars ?? (Config.Instance.EconomyMode == EconomyMode.Extreme
+            ? Config.EconomySnipChars / 2
+            : Config.Instance.EconomyMode == EconomyMode.On
             ? Config.EconomySnipChars : Config.SnipCharsNormal);
         var changed = false;
         foreach (var m in messages)

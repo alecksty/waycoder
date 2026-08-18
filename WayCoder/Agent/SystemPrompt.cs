@@ -24,6 +24,7 @@ public static class SystemPrompt
     public static string Generate(List<ITool> tools)
     {
         if (Config.Instance.TinyMode) return GenerateTiny(tools);
+        if (Config.Instance.EconomyMode == EconomyMode.Extreme) return GenerateExtreme(tools);
         if (Config.Instance.EconomyMode == EconomyMode.On) return GenerateEconomy(tools);
 
         var cwd = Directory.GetCurrentDirectory();
@@ -429,6 +430,26 @@ public static class SystemPrompt
     /// 省 token 模式精简系统提示词：保持正常窗口，砍掉 RepoMap/Git 状态/记忆/冗长软性区块，
     /// 保留完整工具描述 + 项目上下文 + 核心规则（工具描述砍了会导致工具误用，反而多花钱）。
     /// </summary>
+    /// <summary>极致模式提示词：仅工具名 + 核心规则（系统注入尽量少，对齐省钱「极致」档）。</summary>
+    private static string GenerateExtreme(List<ITool> tools)
+    {
+        var cwd = Directory.GetCurrentDirectory();
+        var toolNames = string.Join(", ", tools.Select(t => t.Name));
+        return $"""
+            你是 WayCoder（道码），终端 AI 编程助手。极简模式。
+
+            # 工具
+            {toolNames}
+
+            # 规则
+            1. 自主行动：搜索→读→改→测，复杂任务先用 todo_write 列清单。
+            2. edit_file 前必须 read_file，old_string 精确匹配原文。
+            3. 每次改后运行测试，失败立即修复。
+            4. 默认回复 ≤2 行（工具调用不计）。
+            5. 用绝对路径；只用上面工具；不主动 git commit。
+            """;
+    }
+
     private static string GenerateEconomy(List<ITool> tools)
     {
         var cwd = Directory.GetCurrentDirectory();

@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.79.16 (2026-08-19) — 省钱模式新增「极致」档（提示词尽量不注入、上下文尽量少给）
+
+`EconomyMode` 新增 `Extreme`（极致）档，比 On 更激进：
+
+- **提示词尽量不注入**：`SystemPrompt.GenerateExtreme` 极简版（仅工具名 + 核心规则，砍环境/项目上下文/完整工具描述）
+- **上下文尽量少给**：
+  - 压缩阈值比 economy 再收紧 20%（更早压缩）
+  - 工具输出裁剪减半（`EconomySnipChars/2`）
+  - `max_tokens` 减半（`EconomyMaxTokens/2` = 4096）
+- 配置：`WAYCODER_ECONOMY=extreme` / `--economy extreme`，设置界面新增档位；状态栏 🔥 图标
+
+### ✅ 验证
+- 自测 3565 通过；主项目 + GUI 编译 0 错误
+
 ## v0.79.15 (2026-08-19) — 新增 --tui / --cli 界面参数
 
 允许显式进入两种界面：
