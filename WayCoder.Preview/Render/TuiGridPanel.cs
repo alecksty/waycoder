@@ -93,8 +93,15 @@ public sealed class TuiGridPanel : FrameworkElement
                 int j = cc;
                 while (j + 1 < _grid.W && effBg[j + 1] == bg) j++;
                 if (bg > 0)
+                {
+                    // 背景矩形取整到整数像素边界（floor/ceil）：相邻行共享精确像素行，消除抗锯齿横缝/纵缝
+                    int x0 = (int)Math.Floor(cc * CellW);
+                    int x1 = (int)Math.Ceiling((j + 1) * CellW);
+                    int y0 = (int)Math.Floor(r * CellH);
+                    int y1 = (int)Math.Ceiling((r + 1) * CellH);
                     dc.DrawRectangle(AnsiToColor.GetBrush(bg, _brushes), null,
-                        new Rect(cc * CellW, y, (j - cc + 1) * CellW, CellH));
+                        new Rect(x0, y0, x1 - x0, y1 - y0));
+                }
                 cc = j + 1;
             }
 
