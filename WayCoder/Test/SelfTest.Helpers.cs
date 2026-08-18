@@ -825,6 +825,13 @@ public static partial class SelfTest
         var deepParser = PdfParser.Open(deepPdf);
         Check("Pdf: 万级嵌套数组不栈溢出（返回解析器）", deepParser != null);
 
+        // ── P1-1b PDF 内容流深层嵌套数组防栈溢出（ParseStreamValue↔ParseStreamArray 此前无护栏）──
+        var deepContentPdf = BuildNestedContentPdf(5000);
+        var deepContentParser = PdfParser.Open(deepContentPdf);
+        Check("Pdf: 内容流嵌套数组可解析", deepContentParser != null);
+        var deepContentText = deepContentParser?.ExtractPageText(1);
+        Check("Pdf: 内容流嵌套数组提取不栈溢出", deepContentText != null);
+
         // ── P1-2 PNG 负数 chunk 长度防死循环 ──
         var pngNeg = new byte[16];
         new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }.CopyTo(pngNeg, 0);
@@ -959,6 +966,35 @@ public static partial class SelfTest
         Add("1");
         Add(new string(']', depth));
         Add(" >>\nstartxref\n" + xrefPos + "\n%%EOF\n");
+
+        return bytes.ToArray();
+    }
+
+    /// <summary>构造内容流（stream）为深层嵌套数组的 PDF，用于测试 ParseStreamValue↔ParseStreamArray 递归护栏。</summary>
+    private static byte[] BuildNestedContentPdf(int depth)
+    {
+        var bytes = new List<byte>();
+        void Add(string s) => bytes.AddRange(Encoding.ASCII.GetBytes(s));
+
+        Add("%PDF-1.4\n");
+        var offsets = new long[5];
+        offsets[1] = bytes.Count;
+        Add("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+        offsets[2] = bytes.Count;
+        Add("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
+        offsets[3] = bytes.Count;
+        Add("3 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 4 0 R >>\nendobj\n");
+
+        var nested = new string('[', depth) + "1" + new string(']', depth);
+        offsets[4] = bytes.Count;
+        Add($"4 0 obj\n<< /Length {nested.Length} >>\nstream\n{nested}\nendstream\nendobj\n");
+
+        var xrefPos = bytes.Count;
+        Add("xref\n0 5\n");
+        Add("0000000000 65535 f \n");
+        for (int i = 1; i <= 4; i++)
+            Add($"{offsets[i]:D10} 00000 n \n");
+        Add($"trailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n{xrefPos}\n%%EOF\n");
 
         return bytes.ToArray();
     }

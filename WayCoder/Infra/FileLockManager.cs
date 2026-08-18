@@ -8,7 +8,10 @@ namespace WayCoder;
 /// </summary>
 public static class FileLockManager
 {
-    private static readonly ConcurrentDictionary<string, FileLock> _locks = new();
+    // macOS/Windows 文件系统默认大小写不敏感：字典用 OrdinalIgnoreCase 让 Foo.cs / foo.cs 命中同一把锁；
+    // Linux 大小写敏感，保持 Ordinal（避免把不同文件误判为同一把锁）。
+    private static readonly ConcurrentDictionary<string, FileLock> _locks = new(
+        OperatingSystem.IsLinux() ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
     /// <summary>默认锁超时（从 Config.Instance.FileLockTimeoutSec 读取，默认 30 秒）</summary>
     private static TimeSpan DefaultTimeout => TimeSpan.FromSeconds(Config.Instance.FileLockTimeoutSec);
 

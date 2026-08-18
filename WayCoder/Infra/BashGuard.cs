@@ -120,18 +120,19 @@ public static class BashGuard
         "ls", "dir", "tree",
         // 文件查看
         "cat", "head", "tail", "less", "more", "type",
-        // 搜索
+        // 搜索（find 保留，但 -exec/-execdir/-delete/-ok 危险 flag 在 IsSafeReadOnly 中另行拦截）
         "grep", "rg", "find", "locate", "which", "where", "whereis",
         // 统计
         "wc", "du", "df", "stat",
-        // 版本信息
+        // 版本信息（git config 已移除：`git config <key> <value>` 可写仓库配置，
+        // 如 core.pager/alias='!cmd' 持久化命令注入，前缀匹配无法区分读写，需走权限确认）
         "git log", "git status", "git diff", "git show", "git branch", "git tag",
-        "git config", "git remote", "git rev-parse", "git stash list",
+        "git remote", "git rev-parse", "git stash list",
         "git blame", "git describe", "git ls-files", "git ls-tree",
         // 输出
         "echo", "printf",
-        // 环境
-        "pwd", "env", "printenv", "whoami", "hostname", "date", "uptime", "uname",
+        // 环境（env 已移除：env <cmd> 会透传执行任意命令，只读的 printenv 保留）
+        "pwd", "printenv", "whoami", "hostname", "date", "uptime", "uname",
         // 进程
         "ps", "top", "htop",
         // 工具（注：sed/awk/xargs/tee 有写文件/执行命令能力，已从只读白名单移除，需确认）
@@ -337,11 +338,29 @@ public static class BashGuard
                 if (cmdLower.Length == safe.Length ||
                     cmdLower[safe.Length] == ' ')
                 {
+                    // find 携带 -exec/-execdir/-delete/-ok 时不再是只读（可执行任意命令/删除文件）
+                    if (safe == "find" && HasFindDangerousFlag(command))
+                        return false;
                     return true;
                 }
             }
         }
 
+        return false;
+    }
+
+    /// <summary>
+    /// 检测 find 的危险 flag：-exec/-execdir 执行命令、-delete 删除、-ok/-okdir 交互确认后执行。
+    /// 逐 token 精确匹配，避免误伤 -executable 等只读测试 flag。
+    /// </summary>
+    private static bool HasFindDangerousFlag(string command)
+    {
+        foreach (var token in command.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var t = token.ToLowerInvariant();
+            if (t is "-exec" or "-execdir" or "-delete" or "-ok" or "-okdir")
+                return true;
+        }
         return false;
     }
 

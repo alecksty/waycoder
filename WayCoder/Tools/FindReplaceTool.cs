@@ -74,17 +74,18 @@ public class FindReplaceTool : ITool
             if (!Directory.Exists(path))
                 return $"错误：目录不存在 — {path}";
 
-            // 编译正则
+            // 编译正则（带超时，防 (a+)+$ 类灾难性回溯卡死 Agent 主循环）
             var regexOptions = RegexOptions.Multiline | (ignoreCase ? RegexOptions.IgnoreCase : RegexOptions.None);
+            var regexTimeout = TimeSpan.FromSeconds(Config.Instance.RegexTimeoutSec);
             Regex regex;
             try
             {
-                regex = new Regex(pattern, regexOptions);
+                regex = new Regex(pattern, regexOptions, regexTimeout);
             }
             catch (RegexParseException)
             {
                 // 不是有效正则，当作纯文本搜索
-                regex = new Regex(Regex.Escape(pattern), regexOptions);
+                regex = new Regex(Regex.Escape(pattern), regexOptions, regexTimeout);
             }
 
             var hasReplacement = !string.IsNullOrEmpty(replacement);
@@ -155,6 +156,12 @@ public class FindReplaceTool : ITool
                         sb.AppendLine($"  ✔ 已替换");
                     }
 
+                    sb.AppendLine();
+                }
+                catch (RegexMatchTimeoutException)
+                {
+                    // 正则匹配超时：报告并跳过该文件（而非静默吞，防误以为扫描完整）
+                    sb.AppendLine($"### {Path.GetRelativePath(path, file)}  (正则匹配超时，已跳过)");
                     sb.AppendLine();
                 }
                 catch { /* 文件读取失败，跳过 */ }
