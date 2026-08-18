@@ -190,6 +190,8 @@ public static class TuiMarkup
 
         // 修复居中容器宽度（HBox/VBox align=center/right 需宽度 ≥ 内容宽）
         FixupLayout(win.RootView);
+        // 设置所属窗口引用（动画控件「父窗口焦点」门控用）
+        SetWindowRef(win.RootView, win);
 
         // 内容自适应尺寸（size="content"）：按控件树自然尺寸计算窗口宽高；默认 size="screen" 用 width/height/scale
         if (Attr(node, "size") == "content" && win.RootView != null)
@@ -240,6 +242,17 @@ public static class TuiMarkup
 
     private static (int w, int h) MeasureChild(TuiControl c)
         => c is TuiView v ? MeasureContent(v) : (c.Width, c.Height);
+
+    /// <summary>递归设置控件树的所属窗口引用（供动画控件的焦点门控）。</summary>
+    private static void SetWindowRef(TuiView view, TuiWindow win)
+    {
+        view.Window = win;
+        foreach (var child in view.Children)
+        {
+            child.Window = win;
+            if (child is TuiView cv) SetWindowRef(cv, win);
+        }
+    }
 
     /// <summary>
     /// 修复居中容器的宽度：HBox/VBox 的 align="center"/"right" 需要 Width ≥ 内容宽，
@@ -312,6 +325,7 @@ public static class TuiMarkup
             "Rect" => new TuiRect(),
             "Panel" => new TuiPanel(),
             "Spinner" => new TuiSpinner(Attr(node, "text")),
+            "AnimatedText" => new TuiAnimatedText(),
             "Markdown" => new WayCoder.UI.Tui.Controls.TuiMarkdown(Attr(node, "text")),
             "TitleBar" => new TuiTitleBar(),
             "StatusBar" => new TuiStatusBar(),
@@ -384,6 +398,15 @@ public static class TuiMarkup
                 break;
             case "Panel":
                 ((TuiPanel)c).Title = Attr(node, "title");
+                break;
+            case "AnimatedText":
+                var at = (TuiAnimatedText)c;
+                at.Text = Attr(node, "text");
+                if (Enum.TryParse<AnimatedTextMode>(Attr(node, "mode"), true, out var am)) at.Mode = am;
+                if (Int(node, "frameMs") is int fm) at.FrameMs = fm;
+                if (Int(node, "width") == null) // 未指定宽度 → 按文本宽自动（spinner 额外留 4 列）
+                    at.Width = AnsiHelper.DisplayWidth(at.Text) + 4;
+                if (Bool(node, "directWrite") is bool dw) at.DirectWrite = dw;
                 break;
             case "Line":
                 ((TuiLine)c).Vertical = Bool(node, "vertical") ?? false;
