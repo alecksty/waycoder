@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.79.11 (2026-08-19) — GUI 附件上传 + 斜杠命令（对齐 Web）
+
+### 📎 附件上传（对齐 Web /upload）
+- GUI「📎」按钮接 `OpenFileDialog`（图片/音频）
+- 图片 → `LLM.QueueImage`（入 vision 队列，槽位 AgentId 隔离）
+- 音频 → `TranscribeAudioTool` 后台转录 → 结果入聊天流
+- GUI 槽位 Agent 设唯一 `AgentId`（`gui-slot-N`，防多槽位图片串扰）
+
+### ⌨️ 斜杠命令（GUI 侧实现，对齐 Web /command）
+`/help` `/model` `/settings` `/theme` `/reset` `/todos` `/tokens` `/perm <mode>` `/slots`；未知命令回退普通消息
+
+### ✅ 验证
+- GUI 编译 0 错误，启动运行正常
+- 剩余对话框全对齐：文件选择/上传、命令面板、密码/密钥输入（ModelWindow 已有掩码）、多行输入（AskAsync 已支持）
+
 ## v0.79.10 (2026-08-19) — GUI 系统通知对齐（UxHelper.Info/Success/Warn/Error）
 
 GUI 版 `UxHelper.Info/Success/Warn/Error` 此前回退 Console（GUI 无控制台 → 通知丢失）。修复：
