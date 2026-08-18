@@ -30,7 +30,7 @@ public class TuiSidePanel : TuiControl
     public WindowBorder BorderStyle { get; set; } = WindowBorder.Rounded;
 
     /// <summary>分区标题颜色</summary>
-    public int SectionHeaderFg { get; set; } = AnsiColors.Cyan;
+    public int SectionHeaderFg { get; set; } = AnsiColors.BrightWhite; // 分区标题：白色
 
     /// <summary>分隔线颜色</summary>
     public int SeparatorColor { get; set; } = AnsiColors.BrightBlack;
@@ -52,7 +52,7 @@ public class TuiSidePanel : TuiControl
 
         var bc = AnsiHelper.GetBorderChars(BorderStyle);
         int bg = Bg > 0 ? Bg : TuiTheme.Current.TerminalBg;
-        int fg = Fg > 0 ? Fg : TuiTheme.Current.ControlFg;
+        int fg = Fg > 0 ? Fg : AnsiColors.White; // 内容行：浅白色（比标题稍暗）
         int contentBg = 0; // 内容（标题/分隔线/行）透明背景，只显示文字，不铺色块
         int row = absY;
 
