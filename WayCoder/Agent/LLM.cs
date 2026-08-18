@@ -383,8 +383,8 @@ public class LLM
 
         // 省 token 模式：单次输出上限收紧，防止失控长输出（仅 On 生效，Auto/Off 用正常上限）
         var maxTokens = Config.Instance.EconomyMode == EconomyMode.Extreme
-            ? Math.Min(MaxTokens, Config.EconomyMaxTokens / 2)
-            : Config.Instance.EconomyMode == EconomyMode.On ? Math.Min(MaxTokens, Config.EconomyMaxTokens) : MaxTokens;
+            ? Math.Min(MaxTokens, Config.Instance.EconomyMaxTokens / 2)
+            : Config.Instance.EconomyMode == EconomyMode.On ? Math.Min(MaxTokens, Config.Instance.EconomyMaxTokens) : MaxTokens;
 
         // 构建请求体。JNode 无 Remove，400 回退时用 includeStreamOptions 参数重建不带 stream_options 的请求体。
         JNode BuildBody(bool includeStreamOptions)

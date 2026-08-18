@@ -341,10 +341,10 @@ public static partial class SelfTest
     {
         Check("Economy: 默认关闭", new Config().EconomyMode == EconomyMode.Off);
         Check("Economy: 默认优先级=质量优先", new Config().EconomyPriority == EconomyPriority.Quality);
-        Check("Economy: 输出上限常量 = 8192", Config.EconomyMaxTokens == 8192);
-        Check("Economy: snip 阈值常量 = 2000", Config.EconomySnipChars == 2000);
-        Check("Economy: 正常 snip 阈值常量 = 4000", Config.SnipCharsNormal == 4000);
-        Check("Economy: 复杂任务轮数基准 = 30", Config.EconomyComplexRounds == 30);
+        Check("Economy: 输出上限常量 = 8192", Config.Instance.EconomyMaxTokens == 8192);
+        Check("Economy: snip 阈值常量 = 2000", Config.Instance.EconomySnipChars == 2000);
+        Check("Economy: 正常 snip 阈值常量 = 4000", Config.Instance.SnipCharsNormal == 4000);
+        Check("Economy: 复杂任务轮数基准 = 30", Config.Instance.EconomyComplexRounds == 30);
 
         var savedEconomy = Config.Instance.EconomyMode;
         var savedPriority = Config.Instance.EconomyPriority;

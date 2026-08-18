@@ -70,9 +70,9 @@ public class ContextManager
     private void RecomputeThresholds()
     {
         var c = Complexity();
-        _snipAt = MaxTokens * ResolveRatio(Config.Instance.ContextSnipRatio, Config.EconomySnipRatio, c) / 100;
-        _summarizeAt = MaxTokens * ResolveRatio(Config.Instance.ContextSummarizeRatio, Config.EconomySummarizeRatio, c) / 100;
-        _collapseAt = MaxTokens * ResolveRatio(Config.Instance.ContextCollapseRatio, Config.EconomyCollapseRatio, c) / 100;
+        _snipAt = MaxTokens * ResolveRatio(Config.Instance.ContextSnipRatio, Config.Instance.EconomySnipRatio, c) / 100;
+        _summarizeAt = MaxTokens * ResolveRatio(Config.Instance.ContextSummarizeRatio, Config.Instance.EconomySummarizeRatio, c) / 100;
+        _collapseAt = MaxTokens * ResolveRatio(Config.Instance.ContextCollapseRatio, Config.Instance.EconomyCollapseRatio, c) / 100;
     }
 
     /// <summary>当前任务轮数（由 Agent 主循环每轮更新），自动模式据此判断复杂度。</summary>
@@ -88,7 +88,7 @@ public class ContextManager
 
     /// <summary>任务复杂度系数 [0,1]：轮数越多越复杂。</summary>
     private double Complexity() =>
-        Math.Clamp((double)_currentRound / Config.EconomyComplexRounds, 0, 1);
+        Math.Clamp((double)_currentRound / Config.Instance.EconomyComplexRounds, 0, 1);
 
     /// <summary>
     /// 三态阈值：Off=正常值；On=省 token 值（二者较小值）；Auto=按复杂度在正常与省 token 之间插值。
@@ -124,7 +124,7 @@ public class ContextManager
 
     /// <summary>当前模式下的工具输出裁剪字符阈值（自动模式按复杂度插值）。</summary>
     private int EffectiveSnipChars() =>
-        ResolveRatio(Config.SnipCharsNormal, Config.EconomySnipChars, Complexity());
+        ResolveRatio(Config.Instance.SnipCharsNormal, Config.Instance.EconomySnipChars, Complexity());
 
     /// <summary>
     /// 从 LLM 响应中累积真实 token 使用量。
@@ -309,9 +309,9 @@ public class ContextManager
     public static bool SnipToolOutputs(List<JNode> messages, int? snipChars = null)
     {
         var effective = snipChars ?? (Config.Instance.EconomyMode == EconomyMode.Extreme
-            ? Config.EconomySnipChars / 2
+            ? Config.Instance.EconomySnipChars / 2
             : Config.Instance.EconomyMode == EconomyMode.On
-            ? Config.EconomySnipChars : Config.SnipCharsNormal);
+            ? Config.Instance.EconomySnipChars : Config.Instance.SnipCharsNormal);
         var changed = false;
         foreach (var m in messages)
         {
