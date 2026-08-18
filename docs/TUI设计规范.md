@@ -136,6 +136,20 @@ RenderWait(screen, evt, timeoutMs, win); // 阻塞轮询渲染 + 按键，直到
 5. **AOT 安全**：纯数据 + `TuiHelper`，无反射。
 6. **单测**：`Test/SelfTest.Chunk11.cs` 里补 `[TuiTableList]` 段——数据、截断、键盘边界、回调触发、列头渲染字符串。
 
+### 6.1 自定义单元格（cell 模板 + 占位符绑定）
+
+三个列表控件（`TuiDataList`/`TuiTreeView`/`TuiTableList`）支持用 `.tui` 文件片段做单元格模板，声明式渲染每行/每列，向「布局写 `.tui`、逻辑写 code-behind」架构靠拢。
+
+- **模板来源**：`CellMarkup` 属性放 `.tui` 片段字符串（如 `&lt;HBox spacing='1'&gt;&lt;Icon glyph='▸'/&gt;&lt;Label text='{text}'/&gt;&lt;/HBox&gt;`），在 `.tui` 布局文件里写成 `cell="…"` 属性（`<`/`>` 需转义为 `&lt;`/`&gt;`）。
+- **占位符替换**：`TuiMarkup.LoadCell(markup, vars)` 把 `{key}` 替换为数据值，文本与颜色属性通用；`AsyncLocal` 保证并发安全（同一模板并发渲染不同行）。不同控件提供的变量：
+  - `TuiDataList`：`{text}`（整行）/`{index}`（行号）/+ 数据源附加 key
+  - `TuiTreeView`：`{text}`（节点文本）/`{icon}`（展开符）/`{depth}`（缩进层）
+  - `TuiTableList`：`{value}`（当前列值）/`{col0..N}`（各列值）/`{text}`（整行拼接）/`{index}`（行号）
+- **叶子根自动包装**：`LoadCell` 根为叶子控件（Label/Button 等）时自动包装进 `TuiVBox` 返回——任意控件都能当 cell 模板，不必显式写容器。
+- **宽度约束**：渲染前 `OnResize(avail, 1)` 触发布局 + `ClampCellWidths` 递归把子控件宽度钳到 ≤ 列宽。**必须钳制**——`DrawLine` 直接写屏不裁剪，cell 子控件超宽会溢出串列。选中反白先画整行背景，cell 内透明处透出。
+- **容错兜底**：模板解析失败时回退 `FormatCell` 纯文本截断渲染，不崩渲染循环。
+- **TreeView `items` 路径语法**：`items="文档>概览,文档>入门,文档>进阶>性能"` 用 `>` 表示层级自动建树，中间节点自动展开；cell 模板可替换默认的 `缩进+树线+展开符` 前缀之后的文本部分。
+
 ---
 
 ## 7. 校验闸门 `--ui-lint`
