@@ -5,6 +5,7 @@ using WayCoder.UI.Tui.Controls;
 
 using WayCoder.UI.Tui.Edit;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Screens;
@@ -12,17 +13,19 @@ namespace WayCoder.UI.Tui.Screens;
 /// <summary>
 /// 编辑器屏幕 —— 终端内源码编辑器，与 ChatScreen 平级。
 ///
-/// 布局：
+/// 布局（声明式标记 editor.tui）：
 ///   RootView (VBox)
 ///   ├─ TitleBar      TuiLabel      " /edit: filename.cs [已修改] "
-///   ├─ EditorView    TuiRichEditor  编辑区域（TH-4 行）
+///   ├─ mainHBox (HBox)：leftPanel | leftSep | EditorView(TuiRichEditor) | rightSep | rightPanel
 ///   ├─ StatusBar1    TuiLabel      " L1:C10 | 行:42 字节:2048 | C# · UTF-8"
 ///   └─ StatusBar2    TuiLabel      " ^S保存 ^Z撤销 ^G跳行 Esc退出"
+///   TuiRichEditor 是 code 驱动编辑器控件（语法高亮/行号/增量重绘），code 注入 mainHBox；
+///   其余结构（标题栏/侧栏/分隔线/状态栏）全由 editor.tui 声明。
 ///
 /// 生命周期：
 ///   Activate() → 有路径: LoadAndBuild / 无路径: ShowFilePicker（不阻塞）
 ///   OnKey → 模态窗口优先 → 路由 EditorView → 未处理回退基类
-///   OnResize  → 重建布局 + 重新绑定事件
+///   OnResize  → 重算动态尺寸（侧栏/编辑区/状态栏），不重建标记
 ///   Deactivate → 基础清理
 /// </summary>
 public class EditorScreen : TuiScreen
@@ -66,6 +69,9 @@ public class EditorScreen : TuiScreen
 
     /// <summary>退出前是否已保存</summary>
     public bool WasSaved { get; private set; }
+
+    /// <summary>缓存的标记树：仅首次加载解析，resize 只重排不重解析。</summary>
+    private TuiMarkupResult? _markup;
 
     public EditorScreen(string filePath = "")
     {
@@ -143,74 +149,61 @@ public class EditorScreen : TuiScreen
 
     private void BuildLayout()
     {
-        RootView = new TuiVBox { Width = TW, Height = TH };
+        // 首次：加载 editor.tui（布局写标记），接线 Find(id) → 字段；TuiRichEditor 注入 mainHBox。
+        if (_markup == null)
+        {
+            _markup = TuiMarkup.LoadResource("editor.tui");
+            TitleBar = _markup.Find<TuiTitleBar>("titleBar") ?? throw Missing("titleBar");
+            StatusBar1 = _markup.Find<TuiLabel>("statusBar1") ?? throw Missing("statusBar1");
+            StatusBar2 = _markup.Find<TuiLabel>("statusBar2") ?? throw Missing("statusBar2");
+            _leftPanel = _markup.Find<TuiListView>("leftPanel") ?? throw Missing("leftPanel");
+            _rightPanel = _markup.Find<TuiListView>("rightPanel") ?? throw Missing("rightPanel");
+            _leftSep = _markup.Find<TuiLabel>("leftSep") ?? throw Missing("leftSep");
+            _rightSep = _markup.Find<TuiLabel>("rightSep") ?? throw Missing("rightSep");
+            RootView = _markup.Screen?.RootView
+                       ?? throw new InvalidOperationException("editor.tui 根元素应为 Screen");
 
-        // ── 标题栏 ──
-        TitleBar = new TuiTitleBar { Width = TW, Height = 1, Bg = 33, Fg = 30, CenterText = "📝 编辑器" };
-        RootView.Add(TitleBar);
+            // 注入编辑区：mainHBox 子顺序 = leftPanel, leftSep, [EditorView], rightSep, rightPanel
+            var mainHBox = _markup.Find<TuiHBox>("mainHBox") ?? throw Missing("mainHBox");
+            EditorView = new TuiRichEditor { Core = Core, Focused = true };
+            EditorView.OnSaveRequested += HandleSave;
+            EditorView.OnJumpRequested += HandleJump;
+            EditorView.OnFindRequested += HandleFindReplace;
+            EditorView.OnExitRequested += HandleExit;
+            EditorView.OnFocusRequested += HandleEditorFocus;
+            int insertAt = mainHBox.Children.IndexOf(_leftSep) + 1;
+            mainHBox.InsertAt(insertAt, EditorView);
 
-        // ── 主区域：LeftPanel + EditorView + RightPanel（HBox）──
+            _leftPanel.OnItemActivated += OnFileItemActivated;
+            _rightPanel.OnItemActivated += OnOutlineItemActivated;
+        }
+
+        // 首次与 resize 共用：标记只声明结构，终端尺寸以 TW/TH 为准
         int mainH = Math.Max(5, TH - 4); // -title(1) -status1(1) -status2(1) - spare(1)
-        var mainHBox = new TuiHBox { Width = TW, Height = mainH };
-
-        // 左侧面板宽度
         int leftW = Math.Min(25, TW / 4);
-
-        // ── 左侧：文件列表面板 ──
-        _leftSep = new TuiLabel("│") { Width = 1, Height = mainH, Fg = TuiTheme.Current.SeparatorFg, Visible = false };
-        _leftPanel = new TuiListView
-        {
-            Width = leftW, Height = mainH,
-            SelBg = TuiTheme.Current.ListSelBg,
-            SelFg = TuiTheme.Current.ListSelFg,
-            Visible = false
-        };
-        _leftPanel.OnItemActivated += OnFileItemActivated;
-        mainHBox.Add(_leftPanel);
-        mainHBox.Add(_leftSep);
-
-        // ── 中间：编辑区（剩余宽度）──
         int editorW = TW - (leftW + 1) - (leftW + 1); // 初始假设两侧都开
-        EditorView = new TuiRichEditor
-        {
-            Core = Core,
-            Width = Math.Max(20, editorW),
-            Height = mainH,
-            Focused = true
-        };
-        EditorView.OnSaveRequested += HandleSave;
-        EditorView.OnJumpRequested += HandleJump;
-        EditorView.OnFindRequested += HandleFindReplace;
-        EditorView.OnExitRequested += HandleExit;
-        EditorView.OnFocusRequested += HandleEditorFocus;
-        mainHBox.Add(EditorView);
 
-        // ── 右侧：大纲面板 ──
-        _rightSep = new TuiLabel("│") { Width = 1, Height = mainH, Fg = TuiTheme.Current.SeparatorFg, Visible = false };
-        _rightPanel = new TuiListView
-        {
-            Width = leftW, Height = mainH,
-            SelBg = TuiTheme.Current.ListSelBg,
-            SelFg = TuiTheme.Current.ListSelFg,
-            Visible = false
-        };
-        _rightPanel.OnItemActivated += OnOutlineItemActivated;
-        mainHBox.Add(_rightSep);
-        mainHBox.Add(_rightPanel);
-
-        RootView.Add(mainHBox);
-
-        // ── 状态栏 1 — 光标 + 统计 + 诊断 ──
-        StatusBar1 = new TuiLabel("") { Width = TW, Height = 1, Bg = 47 };
-        RootView.Add(StatusBar1);
-
-        // ── 状态栏 2 — 文件路径 + 快捷键 ──
-        StatusBar2 = new TuiLabel("") { Width = TW, Height = 1 };
-        RootView.Add(StatusBar2);
+        RootView.Width = TW;
+        RootView.Height = TH;
+        TitleBar.Width = TW;
+        _markup.Find<TuiHBox>("mainHBox")!.Height = mainH;
+        _leftPanel.Width = leftW;
+        _leftPanel.Height = mainH;
+        _leftSep.Height = mainH;
+        _rightPanel.Width = leftW;
+        _rightPanel.Height = mainH;
+        _rightSep.Height = mainH;
+        EditorView.Width = Math.Max(20, editorW);
+        EditorView.Height = mainH;
+        StatusBar1.Width = TW;
+        StatusBar2.Width = TW;
 
         RootView.Layout();
         MarkDirty();
     }
+
+    private static InvalidOperationException Missing(string id)
+        => new($"editor.tui 缺少 id=\"{id}\" 的控件");
 
     /// <summary>屏幕销毁时取消所有事件订阅，避免泄漏</summary>
     public override void OnDestroy()

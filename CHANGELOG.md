@@ -21,9 +21,12 @@
 | Ask（LLM 提问） | `dialogs/ask.tui`（单选隐藏确定按钮） |
 | Permission（权限确认） | `dialogs/permission.tui`（黄底黑字 + Y/N/A） |
 | FindReplace（编辑器） | `dialogs/findreplace.tui` |
+| **EditorScreen（终端编辑器）** | `editor.tui`（标题栏/文件列表/大纲/状态栏标记化，`TuiRichEditor` 编辑控件 code 注入 mainHBox） |
 
 - 模板支持 `{title}` 占位符注入；`msgBox` 容器由 code-behind 填折行消息标签（预览态显示占位）
 - `Input` 标记新增 `password` 属性（Secret 掩码输入）
+- `TuiView` 新增 `InsertAt(index, child)`（设置 Parent + 触发 OnCreate，供 EditorScreen 在 mainHBox 指定位置注入编辑控件）
+- 预览占位注入守卫：`PopulateDesignPlaceholders` 仅对未定义 center 的标题栏（chat.tui）注入聊天示例数据，editor.tui 自带 `center="📝 编辑器"` 不被覆盖
 - 全部沿用「`LoadResource` → `Find(id)` → 接线」模式，**交互/尺寸/事件逻辑零改动**
 
 ### 🐛 渲染修复
@@ -34,9 +37,9 @@
 - 修复 `TableList cell 颜色` 测试断言（背景传播后 SGR 合并码 `36;40m`）
 
 ### ✅ 验证
-- 主项目自测 3482 全绿（含全部对话框构造 + 渲染 + 自适应尺寸断言）
+- 主项目自测 3493 全绿（含全部对话框构造 + 渲染 + 自适应尺寸断言 + EditorScreen 无头渲染冒烟）
 - 嵌入资源路径实测：从仓库外 cwd 运行 `--test ui` 895/896 通过（唯一失败为依赖 cwd 的 Lint 定位测试）
-- 预览 `--selftest` chat.tui / permission.tui 通过；构建 0 错误
+- 预览 `--selftest` chat.tui / permission.tui / editor.tui 通过；构建 0 错误
 
 ## v0.77.0 (2026-08-18) — 独立 WPF `.tui` 预览程序 + InDesign 环境特性
 

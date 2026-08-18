@@ -94,7 +94,10 @@ public static class TuiFrameRenderer
     {
         try
         {
-            if (result.Find<TuiTitleBar>("titleBar") is { } tb)
+            // 仅对「未在标记中定义 center」的标题栏注入聊天示例数据（chat.tui）；
+            // editor.tui 等自带 center="📝 编辑器" 的标题栏不被覆盖
+            if (result.Find<TuiTitleBar>("titleBar") is { } tb &&
+                string.IsNullOrEmpty(tb.CenterText))
             {
                 tb.Version = Global.Version;
                 tb.CenterText = "💬 智能体 1 · 🔨 建造模式";

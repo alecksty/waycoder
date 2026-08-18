@@ -32,6 +32,14 @@ public abstract class TuiView : TuiControl
         child.OnCreate();
     }
 
+    /// <summary>在指定位置插入子控件（设置 Parent 引用并触发 OnCreate 生命周期）。</summary>
+    public virtual void InsertAt(int index, TuiControl child)
+    {
+        child.Parent = this;
+        Children.Insert(Math.Clamp(index, 0, Children.Count), child);
+        child.OnCreate();
+    }
+
     /// <summary>移除子控件，触发 OnDestroy 后清除 Parent 引用</summary>
     public void Remove(TuiControl child)
     {

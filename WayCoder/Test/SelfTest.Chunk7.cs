@@ -4,6 +4,7 @@ using WayCoder.Tools;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.Tui.Screens;
@@ -1018,6 +1019,55 @@ public static partial class SelfTest
         Check("EditorScreen 带路径", editScreen2.FilePath == "/test/path.cs");
         Check("EditorScreen WasSaved=false", !editScreen2.WasSaved);
         Check("EditorScreen RootView 存在", editScreen2.RootView != null);
+
+        // editor.tui 声明式布局加载 + 关键 id（v0.78.0 编辑器布局标记化）
+        try
+        {
+            var edRes = TuiMarkup.LoadResource("editor.tui");
+            Check("editor.tui Screen 根", edRes.Screen != null);
+            Check("editor.tui titleBar", edRes.Find<TuiTitleBar>("titleBar") != null);
+            Check("editor.tui mainHBox", edRes.Find<TuiHBox>("mainHBox") != null);
+            Check("editor.tui leftPanel", edRes.Find<TuiListView>("leftPanel") != null);
+            Check("editor.tui rightPanel", edRes.Find<TuiListView>("rightPanel") != null);
+            Check("editor.tui leftSep", edRes.Find<TuiLabel>("leftSep") != null);
+            Check("editor.tui rightSep", edRes.Find<TuiLabel>("rightSep") != null);
+            Check("editor.tui statusBar1", edRes.Find<TuiLabel>("statusBar1") != null);
+            Check("editor.tui statusBar2", edRes.Find<TuiLabel>("statusBar2") != null);
+        }
+        catch (Exception ex)
+        {
+            Check($"editor.tui 加载失败: {ex.Message}", false);
+        }
+
+        // EditorScreen 无头渲染冒烟：真实文件 → PushScreen(Activate→LoadAndBuild→BuildLayout) → Render
+        var edTmp = Path.Combine(Path.GetTempPath(), "wc_editor_smoke.cs");
+        File.WriteAllText(edTmp, "class Demo { void M() { int x = 1; } }");
+        var edScreen = new EditorScreen(edTmp);
+        string edFrame = "";
+        bool edEntered = false;
+        var edPrevOut = Console.Out;
+        try
+        {
+            var edMgr = TuiManager.Instance;
+            Console.SetOut(TextWriter.Null);
+            if (!edMgr.IsActive) { edMgr.Enter(); edEntered = true; }
+            edMgr.PushScreen(edScreen);
+            edMgr.Render();
+            edFrame = edMgr.LastCleanFrame;
+            edMgr.PopScreen();
+        }
+        catch (Exception ex)
+        {
+            Check($"EditorScreen 渲染失败: {ex.Message}", false);
+        }
+        finally
+        {
+            Console.SetOut(edPrevOut);
+            if (edEntered) { try { TuiManager.Instance.Exit(); } catch { } }
+            File.Delete(edTmp);
+        }
+        Check("EditorScreen 渲染非空", !string.IsNullOrWhiteSpace(edFrame));
+        Check("EditorScreen 编辑区注入", edScreen.EditorView != null && edScreen.EditorView.Parent != null);
         Console.WriteLine();
 
         // ================================================================

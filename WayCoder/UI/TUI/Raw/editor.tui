@@ -1,0 +1,17 @@
+<!-- 终端源码编辑器 —— 屏幕布局（文件列表 + 编辑区 + 代码大纲 + 状态栏）。
+     侧栏可见性/尺寸/焦点高亮/状态栏文本由 EditorScreen code-behind 每帧覆盖；
+     TuiRichEditor 自定义编辑控件 code 注入 mainHBox（leftSep 与 rightSep 之间）。
+     动态尺寸（侧栏宽 sideW、编辑区宽、mainHBox 高）由 SyncPanelLayout/OnResize 计算赋值。 -->
+<Screen>
+  <VBox>
+    <TitleBar id="titleBar" height="1" bg="33" fg="30" center="📝 编辑器" />
+    <HBox id="mainHBox">
+      <ListView id="leftPanel" visible="false" />
+      <Label id="leftSep" text="│" width="1" fg="brightblack" visible="false" />
+      <Label id="rightSep" text="│" width="1" fg="brightblack" visible="false" />
+      <ListView id="rightPanel" visible="false" />
+    </HBox>
+    <Label id="statusBar1" height="1" bg="47" />
+    <Label id="statusBar2" height="1" />
+  </VBox>
+</Screen>
