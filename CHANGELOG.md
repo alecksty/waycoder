@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.79.10 (2026-08-19) — GUI 系统通知对齐（UxHelper.Info/Success/Warn/Error）
+
+GUI 版 `UxHelper.Info/Success/Warn/Error` 此前回退 Console（GUI 无控制台 → 通知丢失）。修复：
+- `UxHelper` 新增可注入 `OnNotify` 委托（level/title/message）
+- GUI `MainWindow` 注入 `OnNotify` → 通知显示到当前槽位聊天流（带 ℹ/✓/⚠/✘ 图标）
+- TUI 消息框 / Console 兜底保留
+
+### ✅ 验证
+- GUI + 主项目编译 0 错误，GUI 启动正常
+
 ## v0.79.9 (2026-08-19) — GUI 权限/选择对话框对齐：命令着色 + 单选/多选 checkbox
 
 ### 🔧 权限确认对话框（对齐 TUI InlinePermission）

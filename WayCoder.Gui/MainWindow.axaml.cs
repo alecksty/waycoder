@@ -33,6 +33,9 @@ public partial class MainWindow : Window
         InitializeComponent();
         // 注入 GUI 交互桥：Agent 的权限确认/提问走 Avalonia 对话框，而非回退 Console I/O
         UxHelper.WebInteraction = new GuiInteraction(this);
+        // 系统通知：UxHelper.Info/Success/Warn/Error 显示到当前槽位聊天流（否则回退 Console 丢失）
+        UxHelper.OnNotify = (level, title, msg) => Dispatcher.UIThread.Post(() =>
+            AppendSystem(_activeSlot, $"[{level switch { "success" => "✓", "warn" => "⚠", "error" => "✘", _ => "ℹ" }} {title}] {msg}"));
         InitModels();
         InitModelBar();
         InitSlots();
