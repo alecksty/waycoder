@@ -261,20 +261,20 @@ public class Config
     /// <summary>自动模式优先级（仅 Auto 生效）：质量优先（默认）/均衡/费用优先</summary>
     public EconomyPriority EconomyPriority { get; set; } = EconomyPriority.Quality;
 
-    /// <summary>省 token 模式：snip 裁剪比例</summary>
-    public const int EconomySnipRatio = 35;
-    /// <summary>省 token 模式：LLM 摘要比例</summary>
-    public const int EconomySummarizeRatio = 55;
-    /// <summary>省 token 模式：硬折叠比例</summary>
-    public const int EconomyCollapseRatio = 75;
-    /// <summary>省 token 模式：工具输出单条裁剪字符阈值</summary>
-    public const int EconomySnipChars = 2000;
-    /// <summary>省 token 模式：单次输出 token 上限</summary>
-    public const int EconomyMaxTokens = 8192;
-    /// <summary>正常模式：工具输出单条裁剪字符阈值（对照 EconomySnipChars）</summary>
-    public const int SnipCharsNormal = 4000;
+    /// <summary>省 token 模式：snip 裁剪比例（设置界面可调）</summary>
+    public int EconomySnipRatio { get; set; } = 35;
+    /// <summary>省 token 模式：LLM 摘要比例（设置界面可调）</summary>
+    public int EconomySummarizeRatio { get; set; } = 55;
+    /// <summary>省 token 模式：硬折叠比例（设置界面可调）</summary>
+    public int EconomyCollapseRatio { get; set; } = 75;
+    /// <summary>省 token 模式：工具输出单条裁剪字符阈值（设置界面可调）</summary>
+    public int EconomySnipChars { get; set; } = 2000;
+    /// <summary>省 token 模式：单次输出 token 上限（设置界面可调）</summary>
+    public int EconomyMaxTokens { get; set; } = 8192;
+    /// <summary>正常模式：工具输出单条裁剪字符阈值（设置界面可调，对照 EconomySnipChars）</summary>
+    public int SnipCharsNormal { get; set; } = 4000;
     /// <summary>自动模式：任务达到此轮数视为「完全复杂」（收紧系数降到最低，保质量）</summary>
-    public const int EconomyComplexRounds = 30;
+    public int EconomyComplexRounds { get; set; } = 30;
 
     // ════════════════════════════════════════════════════════════
     // 单一 Schema 定义（新增配置项只加这里一行）
@@ -544,7 +544,7 @@ public class Config
               c => c.MaxAutoRequeue.ToString(), (c, v) => c.MaxAutoRequeue = Math.Clamp(int.Parse(v), 0, 20), "3"),
 
             P("EconomyMode", "WAYCODER_ECONOMY", null,
-              "省 Token 模式", "⚙ 参数", "关=完整 / 开=精简+更早压缩 / 自动=按任务轮数复杂度调节（简单省、复杂保质量）",
+              "省 Token 模式", "💰 计费", "关=完整 / 开=精简+更早压缩 / 自动=按复杂度调节 / 极致=尽量不注入",
               "select", ["off","auto","on","extreme"], 20,
               c => c.EconomyMode.ToString().ToLowerInvariant(),
               (c, v) => c.EconomyMode = v.ToLowerInvariant() switch
@@ -554,6 +554,49 @@ public class Config
                   "extreme" => EconomyMode.Extreme,
                   _ => EconomyMode.Off,
               }, "off"),
+
+            P("EconomyPriority", "WAYCODER_ECONOMY_PRIORITY", null,
+              "自动模式优先级", "💰 计费", "自动模式下收紧策略：质量优先/均衡/费用优先",
+              "select", ["quality","balanced","cost"], 21,
+              c => c.EconomyPriority.ToString().ToLowerInvariant(),
+              (c, v) => c.EconomyPriority = v.ToLowerInvariant() switch
+              {
+                  "balanced" => EconomyPriority.Balanced,
+                  "cost" => EconomyPriority.Cost,
+                  _ => EconomyPriority.Quality,
+              }, "quality"),
+            P("EconomySnipRatio", "WAYCODER_ECONOMY_SNIP_RATIO", null,
+              "裁剪阈值 %", "💰 计费", "省 token 模式：达到该上下文占比即裁剪工具输出",
+              "number", null, 22,
+              c => c.EconomySnipRatio.ToString(), (c, v) => c.EconomySnipRatio = Math.Clamp(int.Parse(v), 10, 60), "35"),
+            P("EconomySummarizeRatio", "WAYCODER_ECONOMY_SUMMARIZE_RATIO", null,
+              "摘要阈值 %", "💰 计费", "省 token 模式：达到该占比即 LLM 摘要旧对话",
+              "number", null, 23,
+              c => c.EconomySummarizeRatio.ToString(), (c, v) => c.EconomySummarizeRatio = Math.Clamp(int.Parse(v), 30, 80), "55"),
+            P("EconomyCollapseRatio", "WAYCODER_ECONOMY_COLLAPSE_RATIO", null,
+              "硬折叠阈值 %", "💰 计费", "省 token 模式：达到该占比即硬折叠上下文",
+              "number", null, 24,
+              c => c.EconomyCollapseRatio.ToString(), (c, v) => c.EconomyCollapseRatio = Math.Clamp(int.Parse(v), 50, 95), "75"),
+            P("EconomySnipChars", "WAYCODER_ECONOMY_SNIP_CHARS", null,
+              "工具输出裁剪字符", "💰 计费", "省 token 模式：单条工具输出超过即截断（保留首尾）",
+              "number", null, 25,
+              c => c.EconomySnipChars.ToString(), (c, v) => c.EconomySnipChars = Math.Clamp(int.Parse(v), 200, 8000), "2000"),
+            P("EconomyMaxTokens", "WAYCODER_ECONOMY_MAX_TOKENS", null,
+              "单次输出上限", "💰 计费", "省 token 模式：单次请求 max_tokens 上限",
+              "number", null, 26,
+              c => c.EconomyMaxTokens.ToString(), (c, v) => c.EconomyMaxTokens = Math.Clamp(int.Parse(v), 512, 32768), "8192"),
+            P("EconomyComplexRounds", "WAYCODER_ECONOMY_COMPLEX_ROUNDS", null,
+              "复杂任务判定轮数", "💰 计费", "自动模式：任务达到此轮数视为完全复杂（保质量）",
+              "number", null, 27,
+              c => c.EconomyComplexRounds.ToString(), (c, v) => c.EconomyComplexRounds = Math.Clamp(int.Parse(v), 5, 100), "30"),
+            P("SnipCharsNormal", "WAYCODER_SNIP_CHARS_NORMAL", null,
+              "工具输出裁剪(正常)", "💰 计费", "正常模式：单条工具输出超过即截断（保留首尾）",
+              "number", null, 28,
+              c => c.SnipCharsNormal.ToString(), (c, v) => c.SnipCharsNormal = Math.Clamp(int.Parse(v), 200, 16000), "4000"),
+            P("TinyWindow", "WAYCODER_TINY_WINDOW", null,
+              "Tiny 窗口", "💰 计费", "Tiny 模式实际上下文窗口（--tiny 指定）",
+              "number", null, 29,
+              c => c.TinyWindow.ToString(), (c, v) => c.TinyWindow = Math.Clamp(int.Parse(v), 1024, 262144), "4096"),
 
             P("EconomyPriority", "WAYCODER_ECONOMY_PRIORITY", null,
               "省 Token 优先级", "⚙ 参数", "自动模式省钱偏好：质量优先=复杂不省 / 均衡 / 费用优先=尽量省",

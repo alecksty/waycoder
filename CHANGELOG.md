@@ -1,5 +1,24 @@
 # 更新日志
 
+## v0.79.17 (2026-08-19) — 计费设置独立分组 + 各模式阈值全部可调
+
+设置界面新增 **「💰 计费」分组**，集中管理所有模式的计费/上下文阈值，均可在设置界面调整：
+
+**省钱模式（Extreme 已含）**：
+- 省 Token 模式（off/auto/on/extreme）、自动优先级（quality/balanced/cost）
+- 裁剪阈值 %、摘要阈值 %、硬折叠阈值 %、工具输出裁剪字符、单次输出上限、复杂任务判定轮数（常量 → 可配置属性）
+
+**正常模式**：
+- 工具输出裁剪字符（`SnipCharsNormal` 4000，常量 → 可配置属性）
+
+**Tiny 模式**：
+- Tiny 窗口（`TinyWindow` 4096，新增 schema）
+
+配套：`WAYCODER_ECONOMY_SNIP_RATIO`/`_SUMMARIZE_RATIO`/`_COLLAPSE_RATIO`/`_SNIP_CHARS`/`_MAX_TOKENS`/`_COMPLEX_ROUNDS`、`WAYCODER_SNIP_CHARS_NORMAL`、`WAYCODER_TINY_WINDOW` 环境变量。
+
+### ✅ 验证
+- 自测 3565 通过；主项目 + GUI 编译 0 错误
+
 ## v0.79.16 (2026-08-19) — 省钱模式新增「极致」档（提示词尽量不注入、上下文尽量少给）
 
 `EconomyMode` 新增 `Extreme`（极致）档，比 On 更激进：
