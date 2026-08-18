@@ -149,7 +149,8 @@ public static class ModelCatalog
     }
 
     // ════════════════════════════════════════════════════════════
-    // 自定义模型库（外置 JSON：全局 ~/.waycoder/models.json + 本地 .waycoder/models.json）
+    // 自定义模型库（按供应商分类分文件：全局 ~/.waycoder/provider/{供应商}.json + 本地 .waycoder/provider/）。
+    // 兼容旧单文件 models.json：仍作为读源（迁移后写入 provider/ 分类文件）。
     // 内置目录为兜底，外置库按 Id 覆盖/追加，本地覆盖全局。
     // ════════════════════════════════════════════════════════════
 
@@ -157,12 +158,40 @@ public static class ModelCatalog
     private static Dictionary<string, ModelInfo>? _custom;
     private static ModelInfo[]? _all;
 
-    /// <summary>全局模型库路径（跨平台，所有用户共享）</summary>
+    /// <summary>旧版单文件模型库路径（全局，仅兼容读 + 一次性迁移）</summary>
     public static string GlobalModelsPath => Global.GlobalConfigPath("models.json");
 
-    /// <summary>本地模型库路径（项目专属）</summary>
+    /// <summary>旧版单文件模型库路径（本地，仅兼容读 + 一次性迁移）</summary>
     public static string LocalModelsPath =>
         Path.Combine(Environment.CurrentDirectory, Global.ConfigDirName, "models.json");
+
+    /// <summary>按供应商分类的模型库目录（全局 ~/.waycoder/provider/）</summary>
+    public static string GlobalProviderDir => Global.GlobalConfigPath("provider");
+
+    /// <summary>按供应商分类的模型库目录（本地 .waycoder/provider/）</summary>
+    public static string LocalProviderDir =>
+        Path.Combine(Environment.CurrentDirectory, Global.ConfigDirName, "provider");
+
+    /// <summary>供应商 → 分类文件名：local/custom/ollama/lmstudio 等本地模型归 locals.json，其余按 providerId 命名。</summary>
+    public static string ProviderFile(string providerId, bool local)
+    {
+        var group = ProviderGroupName(providerId);
+        var dir = local ? LocalProviderDir : GlobalProviderDir;
+        return Path.Combine(dir, group + ".json");
+    }
+
+    /// <summary>计算供应商归属的分类文件名（不含扩展名）。非法字符剥离，防路径穿越。</summary>
+    public static string ProviderGroupName(string? providerId)
+    {
+        var pid = (providerId ?? "custom").Trim().ToLowerInvariant();
+        if (pid is "local" or "custom" or "ollama" or "lmstudio" or "lm-studio" or "locals" or "open-webui" or "vllm" or "text-generation-webui" or "localai")
+            return "locals";
+        var sb = new System.Text.StringBuilder();
+        foreach (var c in pid)
+            if (char.IsLetterOrDigit(c) || c is '-' or '_' or '.')
+                sb.Append(c);
+        return sb.Length > 0 ? sb.ToString() : "custom";
+    }
 
     /// <summary>
     /// 完整模型目录 = 内置目录 + 自定义库（自定义按 Id 覆盖内置，新增项追加到末尾）。
@@ -192,7 +221,7 @@ public static class ModelCatalog
     /// <summary>新增/更新自定义模型，返回写入的文件路径。local=true 写本地，否则写全局。</summary>
     public static string AddCustom(ModelInfo info, bool local = false)
     {
-        var path = local ? LocalModelsPath : GlobalModelsPath;
+        var path = ProviderFile(info.ProviderId, local);
         var models = ReadFile(path);
         models[info.Id] = info;
         SaveCustom(models, path);
@@ -200,18 +229,19 @@ public static class ModelCatalog
         return path;
     }
 
-    /// <summary>删除自定义模型（从全局和本地两个文件都移除），返回受影响文件列表。</summary>
+    /// <summary>删除自定义模型（从全局和本地的所有模型文件移除），返回受影响文件列表。</summary>
     public static string[] RemoveCustom(string id)
     {
         var removed = new List<string>();
-        foreach (var path in new[] { GlobalModelsPath, LocalModelsPath })
+        foreach (var file in EnumerateModelFiles())
         {
-            if (!File.Exists(path)) continue;
-            var models = ReadFile(path);
+            var models = ReadFile(file);
             if (models.Remove(id))
             {
-                SaveCustom(models, path);
-                removed.Add(path);
+                // 分类文件删空后删除文件本身，避免残留空 [  ] 文件
+                if (models.Count == 0) { TryDeleteFile(file); }
+                else SaveCustom(models, file);
+                removed.Add(file);
             }
         }
         if (removed.Count > 0) Invalidate();
@@ -221,10 +251,35 @@ public static class ModelCatalog
     /// <summary>仅列出自定义模型（不含内置）</summary>
     public static ModelInfo[] ListCustom() => LoadCustom().Values.OrderBy(m => m.Id).ToArray();
 
-    /// <summary>删除某服务商下的所有自定义模型（从全局+本地两个文件移除），返回删除数量。</summary>
+    /// <summary>删除某服务商下的所有自定义模型（删除对应分类文件或从旧 models.json 移除），返回删除数量。</summary>
     public static int RemoveCustomByProvider(string providerId)
     {
         var removed = 0;
+        // 新结构：直接删除该供应商的分类文件（全局+本地）
+        foreach (var local in new[] { false, true })
+        {
+            var file = ProviderFile(providerId, local);
+            if (File.Exists(file))
+            {
+                var models = ReadFile(file);
+                var toRemove = models
+                    .Where(kv => kv.Value.ProviderId.Equals(providerId, StringComparison.OrdinalIgnoreCase))
+                    .Select(kv => kv.Key)
+                    .ToArray();
+                foreach (var id in toRemove)
+                {
+                    models.Remove(id);
+                    removed++;
+                }
+                // 分类文件删空后删除文件本身
+                if (toRemove.Length > 0)
+                {
+                    if (models.Count == 0) TryDeleteFile(file);
+                    else SaveCustom(models, file);
+                }
+            }
+        }
+        // 兼容旧 models.json：按 providerId 移除
         foreach (var path in new[] { GlobalModelsPath, LocalModelsPath })
         {
             if (!File.Exists(path)) continue;
@@ -238,13 +293,17 @@ public static class ModelCatalog
                 models.Remove(id);
                 removed++;
             }
-            if (toRemove.Length > 0) SaveCustom(models, path);
+            if (toRemove.Length > 0)
+            {
+                if (models.Count == 0) TryDeleteFile(path);
+                else SaveCustom(models, path);
+            }
         }
         if (removed > 0) Invalidate();
         return removed;
     }
 
-    /// <summary>清除内存缓存并强制下次重新加载（外部改了 models.json 后调用）</summary>
+    /// <summary>清除内存缓存并强制下次重新加载（外部改了模型文件后调用）</summary>
     public static void Invalidate()
     {
         lock (_lock) { _custom = null; _all = null; }
@@ -256,11 +315,54 @@ public static class ModelCatalog
         lock (_lock)
         {
             if (_custom != null) return _custom;
+            MigrateLegacyModels(); // 首次加载：把旧 models.json 迁移到 provider/ 分类文件
             var merged = new Dictionary<string, ModelInfo>();
-            foreach (var m in ReadFile(GlobalModelsPath).Values) merged[m.Id] = m;   // 全局先
-            foreach (var m in ReadFile(LocalModelsPath).Values) merged[m.Id] = m;    // 本地覆盖
+            foreach (var file in EnumerateModelFiles())
+                foreach (var m in ReadFile(file).Values) merged[m.Id] = m;
             _custom = merged;
             return _custom;
+        }
+    }
+
+    /// <summary>枚举所有模型文件：provider/ 分类文件（全局+本地）+ 旧 models.json（全局+本地，兼容）。</summary>
+    private static IEnumerable<string> EnumerateModelFiles()
+    {
+        foreach (var dir in new[] { GlobalProviderDir, LocalProviderDir })
+        {
+            if (!Directory.Exists(dir)) continue;
+            foreach (var file in Directory.GetFiles(dir, "*.json").OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+                yield return file;
+        }
+        if (File.Exists(GlobalModelsPath)) yield return GlobalModelsPath;
+        if (File.Exists(LocalModelsPath)) yield return LocalModelsPath;
+    }
+
+    /// <summary>一次性迁移：把旧 models.json 的模型按供应商分类写入 provider/ 文件，然后删除旧文件。
+    /// 迁移后新写入全部走 provider/ 分类结构。</summary>
+    private static void MigrateLegacyModels()
+    {
+        foreach (var legacy in new[] { (GlobalModelsPath, false), (LocalModelsPath, true) })
+        {
+            var file = legacy.Item1;
+            if (!File.Exists(file)) continue;
+            // 若 provider 目录已有任何文件，说明已迁移过（或用户手动建过），跳过避免重复
+            var dir = legacy.Item2 ? LocalProviderDir : GlobalProviderDir;
+            if (Directory.Exists(dir) && Directory.GetFiles(dir, "*.json").Length > 0)
+            {
+                // 已迁移过：旧文件残留，删除避免重复读取
+                try { File.Delete(file); } catch { }
+                continue;
+            }
+            var models = ReadFile(file);
+            if (models.Count == 0) continue;
+            // 按供应商分组写入
+            var byGroup = models.Values.GroupBy(m => ProviderGroupName(m.ProviderId));
+            foreach (var g in byGroup)
+            {
+                var path = Path.Combine(dir, g.Key + ".json");
+                SaveCustom(g.ToDictionary(m => m.Id, m => m), path);
+            }
+            try { File.Delete(file); } catch { }
         }
     }
 
@@ -297,6 +399,11 @@ public static class ModelCatalog
             File.WriteAllText(path, arr.ToJson(indent: true));
         }
         catch { /* 写入失败不崩溃 */ }
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); } catch { }
     }
 
     // ════════════════════════════════════════════════════════════
@@ -583,6 +690,54 @@ public static class ModelCatalog
     // ════════════════════════════════════════════════════════════
     // 外部工具导入（OpenCode / OpenClaw / Crush / 通用 JSON）
     // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// OpenCode 在线 API（OpenAI 兼容 /models 端点）：{data:[{id, object, created, owned_by}]}。
+    /// 按模型 id 前缀推断真实供应商（minimax-*→minimax、kimi-*→moonshot 等），分类到各自供应商文件；
+    /// baseUrl 保留 opencode zen 网关（模型经网关访问，保证可用性）。
+    /// </summary>
+    public static List<ModelInfo> ImportOpenCodeApi(string json, string baseUrl)
+    {
+        var result = new List<ModelInfo>();
+        JNode? root;
+        try { root = Json.Parse(NormalizeJson5(json)); }
+        catch { return result; } // 畸形输入返回空
+        var data = Arr(root?["data"]);
+        if (data == null) return result;
+
+        foreach (var m in data.Items)
+        {
+            var id = m?["id"]?.AsString();
+            if (string.IsNullOrWhiteSpace(id)) continue;
+            var (pid, pname) = InferProviderFromId(id);
+            result.Add(new ModelInfo(id, id, pname, pid, "*", "Imported",
+                0, 0, 0, baseUrl, $"从 OpenCode 在线导入（{pname}）", 0));
+        }
+        return result;
+    }
+
+    /// <summary>按模型 id 前缀/包含推断供应商（opencode 网关统一提供，但分类按真实供应商）。</summary>
+    public static (string ProviderId, string ProviderName) InferProviderFromId(string modelId)
+    {
+        var id = modelId.ToLowerInvariant();
+        (string pid, string pname) P(string pid, string pname) => (pid, pname);
+
+        if (id.Contains("minimax") || id.Contains("mimo")) return P("minimax", "MiniMax");
+        if (id.Contains("kimi")) return P("moonshot", "Kimi");
+        if (id.Contains("glm") || id.Contains("zhipu")) return P("zhipu", "GLM");
+        if (id.Contains("qwen") || id.Contains("qwq")) return P("qwen", "Alibaba Qwen");
+        if (id.Contains("deepseek")) return P("deepseek", "DeepSeek");
+        if (id.StartsWith("gpt") || id.StartsWith("o1") || id.StartsWith("o3") || id.StartsWith("o4")) return P("openai", "OpenAI");
+        if (id.Contains("claude")) return P("anthropic", "Anthropic");
+        if (id.Contains("gemini")) return P("google", "Google");
+        if (id.Contains("grok")) return P("xai", "xAI");
+        if (id.Contains("hunyuan") || id.StartsWith("hy")) return P("hunyuan", "Hunyuan");
+        if (id.Contains("doubao") || id.Contains("seed")) return P("doubao", "Doubao");
+        if (id.Contains("llama")) return P("meta", "Meta");
+        if (id.Contains("mistral") || id.Contains("codestral")) return P("mistral", "Mistral");
+        if (id.Contains("openrouter")) return P("openrouter", "OpenRouter");
+        return P("opencode", "OpenCode");
+    }
 
     /// <summary>OpenCode 格式：provider.&lt;pid&gt;.models.&lt;mid&gt; = { name, limit{context,output}, options{baseURL} }</summary>
     public static List<ModelInfo> ImportOpenCode(string json)

@@ -20,12 +20,13 @@ let reasoningEl = null;
 let currentProvider = '';
 let hasKey = false;
 let isBusy = false;
-const PAPER_PLANE = '<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>';
+const SEND_ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>';
 function setBusy(b) {
   isBusy = b;
   const btn = document.getElementById('send');
-  if (b) { btn.innerHTML = '⏹'; btn.classList.add('stop'); btn.title = '停止'; }
-  else { btn.innerHTML = PAPER_PLANE; btn.classList.remove('stop'); btn.title = '发送'; }
+  if (b) { btn.innerHTML = '⏹'; btn.classList.add('stop'); btn.classList.remove('disabled'); btn.title = '停止'; }
+  else { btn.innerHTML = SEND_ARROW; btn.classList.remove('stop'); btn.title = '发送'; }
+  updateSendState(); // 结束忙碌后恢复「空输入禁用 / 有输入可点」状态
 }
 
 function showCompress(d) {
@@ -110,10 +111,10 @@ function applyTheme(t) {
 document.getElementById('theme-btn').onclick = () =>
   applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
 
-// ── 权限模式（顶栏下拉）──
+// ── 交互模式（底部下拉，YOLO/Ask/Auto/SmartAuto）──
 const permSelect = document.getElementById('perm-select');
 function applyPermMode(mode) {
-  if (mode && permSelect.value !== mode) permSelect.value = mode;
+  if (mode && permSelect && permSelect.value !== mode) permSelect.value = mode;
 }
 permSelect.onchange = () =>
   fetch('/perm', { method: 'POST', body: JSON.stringify({ mode: permSelect.value }) }).catch(() => {});
@@ -144,6 +145,7 @@ function switchSlot(i) {
   currentSlot = i;
   input.value = slotDrafts[i] || '';      // 恢复目标槽位的草稿
   autoResizeInput();
+  updateSendState();
   fetch(cq('/slot'), { method: 'POST', body: JSON.stringify({ slot: i }) })
     .then(r => r.json())
     .then(data => {
@@ -308,7 +310,7 @@ function fetchModels() {
     }));
 }
 // ── 模型状态栏（输入框下方：大模型 / 小模型 / 省钱模式 / 状态）──
-const ECONOMY_OPTIONS = [['off', '省钱：关'], ['auto', '省钱：自动'], ['on', '省钱：开']];
+const ECONOMY_OPTIONS = [['off', '关'], ['auto', '自动'], ['on', '开']];
 function renderModelBar(state) {
   const eco = document.getElementById('economy-select');
   if (allModels.length && eco.options.length === 0) {
@@ -319,11 +321,6 @@ function renderModelBar(state) {
   document.getElementById('big-model-label').textContent = big ? big.name : (state.model || currentModelId || '选择');
   document.getElementById('small-model-label').textContent = small ? small.name : (state.smallModel || currentSmallModel || '选择');
   if (state.economy) eco.value = state.economy;
-  const m = modelMap[currentModelId];
-  const providerName = state.providerName || state.provider || '';
-  const hk = (state.hasKey !== undefined) ? state.hasKey : hasKey;
-  document.getElementById('model-status').textContent =
-    (m ? m.name : (currentModelId || '')) + (providerName ? ' · ' + providerName : '') + (hk ? '' : ' · ⚠ 无 key');
 }
 document.getElementById('big-model-btn').onclick = () => openModelModal('large');
 document.getElementById('small-model-btn').onclick = () => openModelModal('small');
@@ -472,6 +469,17 @@ document.getElementById('model-import-btn').onclick = () => {
     alert('模型导入：' + (res.modelReport || '完成') + '\n' + keySummary);
     fetchModels();
   }).catch(() => { status.textContent = '导入失败'; });
+};
+
+// ── OpenCode 在线导入（拉取 https://opencode.ai/zen/go/v1/models 模型列表）──
+document.getElementById('model-opencode-btn').onclick = () => {
+  const status = document.getElementById('model-scan-status');
+  status.textContent = 'OpenCode 在线导入中…';
+  fetch('/models/import-opencode', { method: 'POST' }).then(r => r.json()).then(res => {
+    status.textContent = '';
+    alert('OpenCode 在线导入：' + (res.modelReport || res.error || '完成'));
+    fetchModels();
+  }).catch(() => { status.textContent = 'OpenCode 导入失败'; });
 };
 
 // ── 设置 / 清除 key（对当前选中的模型所属供应商）──
@@ -850,7 +858,14 @@ function acceptSuggest(i) {
 
 function autoResizeInput() {
   input.style.height = 'auto';
-  input.style.height = Math.min(input.scrollHeight, 240) + 'px';
+  input.style.height = Math.max(56, Math.min(input.scrollHeight, 220)) + 'px';
+}
+
+// 发送按钮禁用态：空输入（且未忙）时半透明不可点（对标主流 AI 聊天页）
+function updateSendState() {
+  const btn = document.getElementById('send');
+  if (isBusy) { btn.classList.remove('disabled'); return; }
+  btn.classList.toggle('disabled', !input.value.trim());
 }
 
 function updateSuggest() {
@@ -907,6 +922,7 @@ function send() {
   if (!text) return;
   input.value = '';
   autoResizeInput();
+  updateSendState();
 
   // 纯 UI 斜杠命令（操作 DOM，不进入聊天流）
   if (handleUiCommand(text)) return;
@@ -978,7 +994,7 @@ input.addEventListener('keydown', e => {
   }
   if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); send(); }
 });
-input.addEventListener('input', () => { autoResizeInput(); updateSuggest(); });
+input.addEventListener('input', () => { autoResizeInput(); updateSuggest(); updateSendState(); });
 
 // ── 多模态上传（图片 → vision 队列 / 音频 → 转录为文字）──
 const attachBtn = document.getElementById('attach-btn');
@@ -1405,6 +1421,7 @@ es.addEventListener('ask', e => showAsk(JSON.parse(e.data)));
 es.addEventListener('compress', e => showCompress(JSON.parse(e.data)));
 
 // ── 初始化 ──
+updateSendState(); // 空输入禁用发送按钮
 applyTheme(localStorage.getItem('waycoder-theme') || 'dark');
 fetch(cq('/state')).then(r => r.json()).then(state => {
   currentProvider = state.provider;

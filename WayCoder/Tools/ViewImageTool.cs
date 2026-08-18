@@ -29,6 +29,7 @@ public class ViewImageTool : ITool
     {
         var path = arguments.GetValueOrDefault("path")?.ToString() ?? "";
         var question = arguments.GetValueOrDefault("question")?.ToString() ?? "请描述这张图片的内容";
+        var agentId = arguments.GetValueOrDefault("_agent_id")?.ToString() ?? "main";
 
         if (string.IsNullOrWhiteSpace(path))
             return Task.FromResult("错误：path 参数不能为空");
@@ -51,7 +52,7 @@ public class ViewImageTool : ITool
             if (bytes.Length > 5 * 1024 * 1024)
                 return Task.FromResult($"错误：图片过大（{bytes.Length / 1024} KB），vision 通常限制 5MB 以内。");
 
-            LLM.QueueImage(fullPath);
+            LLM.QueueImage(agentId, fullPath);
             var sizeKb = bytes.Length / 1024.0;
             return Task.FromResult(
                 $"✅ 图片已附加（{sizeKb:F0} KB），将在下一轮请求中发送给 {model} 查看。\n" +

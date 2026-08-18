@@ -205,7 +205,7 @@ public partial class Agent
         // 视觉支持：view_image 工具附加的图片注入为多模态 user 消息（仅支持 vision 的模型）
         if (LLM.ModelSupportsVision(LlmClient.EffectiveModel))
         {
-            var images = LLM.DrainImages();
+            var images = LLM.DrainImages(AgentId);
             if (images.Count > 0)
                 result.Add(LLM.BuildImageMessage("请查看以上图片，回答我的问题。", images));
         }
@@ -213,7 +213,7 @@ public partial class Agent
         {
             // 当前模型不支持 vision：清空积压的图片（否则非 vision 槽位 view_image 后图片
             // 永久积压，泄漏给之后其他槽位的 vision 请求造成跨槽位串扰）
-            LLM.DrainImages();
+            LLM.DrainImages(AgentId);
         }
 
         return result;
