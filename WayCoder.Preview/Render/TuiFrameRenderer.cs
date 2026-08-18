@@ -47,9 +47,16 @@ public static class TuiFrameRenderer
         }
         else if (result.Screen != null)
         {
-            // Screen/App 根：直接用标记屏幕（OnResize 会设 TW/TH 并布局 RootView）
-            result.Screen.OnResize(cols, rows);
-            result.Screen.Render(sb);
+            // Screen/App 根：与 Dialog 根同路径 —— 用 PreviewScreen 包住标记的 RootView（显式尺寸+布局）
+            var screen = new PreviewScreen();
+            screen.SetSize(cols, rows);
+            screen.RootView = result.Screen.RootView;
+            screen.RootView.Width = cols;
+            screen.RootView.Height = rows;
+            // 不调 OnCreate：TuiVBox 内容驱动高度会把它撑高，flex 分配用了被撑高的高度导致溢出。
+            // 与真实 MarkupChatScreen 一致：只设宽高 + Layout。
+            screen.RootView.Layout();
+            screen.Render(sb);
         }
         else if (result.View != null)
         {
