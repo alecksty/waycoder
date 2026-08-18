@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.79.20 (2026-08-19) — TUI 界面全面 .tui 资源化（标记版聊天屏翻默认）
+
+TUI 全界面检查 + 资源化：
+- **聊天主屏翻 .tui 默认**：`MarkupChatScreen`（chat.tui 声明式布局）为默认界面，手写 `ChatScreen` 仅作 chat.tui 加载失败的异常兜底
+- 全部 14 个对话框工厂（Info/Success/Warn/Error/Confirm/Confirm3/Input/InputLine/FindReplace/Secret/Select/MultiSelect/Ask/Permission）均走 `dialogs/*.tui`
+- 设置/编辑器/命令面板/文件选择/模型选择/会话选择/推理选择/快捷键帮助等界面均用 .tui 资源
+
+### ✅ 验证
+- tty 模拟下 Markup 全屏正常存活；非交互（stdin 重定向）走管道模式正常退出
+- 自测 3565 通过
+
 ## v0.79.19 (2026-08-19) — 设置复位默认值（三端）
 
 - `SettingDef` 新增 `Default`（透传 schema 默认值），`/settings` 序列化含 `default`
