@@ -1,9 +1,11 @@
 using System.Globalization;
 using System.Text;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Threading;
 using WayCoder.UI.Tui;
@@ -15,9 +17,15 @@ public partial class MainWindow : Window
     private const int SlotCount = 10;
 
     private readonly Agent?[] _agents = new Agent?[SlotCount];
-    private readonly StringBuilder[] _chats = new StringBuilder[SlotCount];
+    private readonly List<ChatMessage>[] _messages = new List<ChatMessage>[SlotCount];
     private readonly CancellationTokenSource?[] _cts = new CancellationTokenSource?[SlotCount];
     private readonly Button[] _slotButtons = new Button[SlotCount];
+    private readonly string[] _drafts = new string[SlotCount];
+    private DispatcherTimer? _rightTimer;
+    /// <summary>流式渲染合帧守卫：同一 UI 帧内多个 token 只触发一次气泡重渲染。</summary>
+    private bool _renderPending;
+    /// <summary>右侧面板刷新重入守卫（2s 定时 + 手动刷新防叠层）。</summary>
+    private bool _refreshing;
     private int _activeSlot = 0;
 
     public MainWindow()
@@ -26,23 +34,21 @@ public partial class MainWindow : Window
         // 注入 GUI 交互桥：Agent 的权限确认/提问走 Avalonia 对话框，而非回退 Console I/O
         UxHelper.WebInteraction = new GuiInteraction(this);
         InitModels();
+        InitModelBar();
         InitSlots();
         SwitchSlot(0);
+        RefreshSessions();
+        // 右侧面板 2s 定时刷新（对齐 Web setInterval(fetchPanel, 2000)）
+        _rightTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _rightTimer.Tick += (_, _) => RefreshPanel();
+        _rightTimer.Start();
     }
 
     // ── 初始化 ──
 
     private void InitModels()
     {
-        var cfg = Config.Instance;
-        var models = ModelCatalog.All;
-        foreach (var m in models)
-            ModelCombo.Items.Add(m.Id);
-
-        int sel = -1;
-        for (int i = 0; i < models.Length; i++)
-            if (string.Equals(models[i].Id, cfg.Model, StringComparison.OrdinalIgnoreCase)) { sel = i; break; }
-        ModelCombo.SelectedIndex = sel >= 0 ? sel : 0;
+        ModelCatalog.Invalidate(); // 确保读到最新的模型目录（含导入）
         UpdateHeader();
     }
 
@@ -50,7 +56,7 @@ public partial class MainWindow : Window
     {
         for (int i = 0; i < SlotCount; i++)
         {
-            _chats[i] = new StringBuilder();
+            _messages[i] = new List<ChatMessage>();
             var btn = new Button { Content = $"F{i + 1}", MinWidth = 38, Padding = new Avalonia.Thickness(8, 4) };
             int slot = i;
             btn.Click += (_, _) => SwitchSlot(slot);
@@ -61,21 +67,87 @@ public partial class MainWindow : Window
 
     private void UpdateHeader()
     {
-        var model = ModelCombo.SelectedItem as string ?? Config.Instance.Model;
-        HeaderLabel.Text = $"WayCoder（道码）— {model}";
+        var cfg = Config.Instance;
+        ModelButton.Content = $"🧠 {cfg.Model}";
+        BigModelBtn.Content = $"🤖 {cfg.Model}";
+        SmallModelBtn.Content = $"🔧 {cfg.SmallModel}";
+    }
+
+    /// <summary>初始化 composer 工具栏：省钱模式 + 交互权限模式下拉。</summary>
+    private void InitModelBar()
+    {
+        foreach (var v in new[] { "关", "自动", "开" }) EconomyCombo.Items.Add(v);
+        EconomyCombo.SelectedIndex = (int)Config.Instance.EconomyMode;
+
+        foreach (var v in new[] { "Ask", "Auto", "SmartAuto", "YOLO" }) PermCombo.Items.Add(v);
+        PermCombo.SelectedIndex = (int)PermissionManager.CurrentMode;
     }
 
     // ── 槽位 ──
 
     private void SwitchSlot(int slot)
     {
+        // 当前槽位若有流式中的气泡，先定稿（不再指向它），避免切走后继续被写入
+        if (_activeSlot >= 0 && _activeSlot < _messages.Length && _activeSlot != slot)
+            FinalizeStreaming(_activeSlot);
+        if (_activeSlot != slot) _drafts[_activeSlot] = InputBox.Text ?? ""; // 保存旧槽位输入草稿
+
         _activeSlot = slot;
+        InputBox.Text = _drafts[slot] ?? ""; // 恢复目标槽位草稿
         for (int i = 0; i < SlotCount; i++)
-            _slotButtons[i].Background = i == slot ? new SolidColorBrush(Color.Parse("#4f8cff")) : null;
-        MarkdownInlines.RenderTo(ChatBox.Inlines!, _chats[slot].ToString());
+            _slotButtons[i].Background = i == slot
+                ? new SolidColorBrush(Color.Parse("#4f8cff"))
+                : new SolidColorBrush(Color.Parse("#1d2230"));
+        RebuildMessages(slot);
         SlotLabel.Text = $"槽位 F{slot + 1}";
         StopButton.IsEnabled = _cts[slot] != null;
         SendButton.IsEnabled = _cts[slot] == null;
+        RefreshPanel(); // Token 卡片切换活跃槽位
+        RefreshSessions(); // 会话列表按槽位隔离
+    }
+
+    /// <summary>把流式中的消息定稿（Streaming=false），供切槽位时调用。</summary>
+    private void FinalizeStreaming(int slot)
+    {
+        var list = _messages[slot];
+        for (int i = list.Count - 1; i >= 0; i--)
+        {
+            if (list[i].Streaming) { list[i].Streaming = false; break; }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  右侧数据面板（2s 定时刷新，对齐 Web /panel）
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>重建右侧 5 张数据卡片（任务/Token费用/修改文件/MCP/LSP）。</summary>
+    private void RefreshPanel()
+    {
+        if (_refreshing) return;
+        _refreshing = true;
+        try
+        {
+            RightCards.Children.Clear();
+            RightCards.Children.Add(Panels.TodosCard());
+            RightCards.Children.Add(Panels.TokensCard(_agents[_activeSlot]));
+            RightCards.Children.Add(Panels.FilesCard());
+            RightCards.Children.Add(Panels.McpCard());
+            RightCards.Children.Add(Panels.LspCard());
+        }
+        finally { _refreshing = false; }
+    }
+
+    /// <summary>重建指定槽位的气泡视图（切换槽位/主题变更/会话加载时用）。</summary>
+    private void RebuildMessages(int slot)
+    {
+        MessagesHost.Children.Clear();
+        foreach (var msg in _messages[slot])
+        {
+            if (msg.View == null) msg.View = new MessageBubble(msg);
+            MessagesHost.Children.Add(msg.View);
+        }
+        if (slot == _activeSlot)
+            Dispatcher.UIThread.Post(() => ChatScroll.ScrollToEnd(), DispatcherPriority.Background);
     }
 
     /// <summary>懒建槽位 Agent（复用 Web 版 EnsureSlot 的 Config→LLM→Agent 接线）。</summary>
@@ -107,6 +179,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _rightTimer?.Stop();
         SaveAllSessions();
         base.OnClosed(e);
     }
@@ -140,41 +213,241 @@ public partial class MainWindow : Window
         catch { /* 无历史会话则跳过 */ }
     }
 
+    // ═══════════════════════════════════════════════════════════
+    //  历史会话列表（左栏，按槽位隔离，对齐 Web /sessions）
+    // ═══════════════════════════════════════════════════════════
+
+    private void RefreshSessions()
+    {
+        var panel = new StackPanel { Spacing = 2 };
+        try
+        {
+            var sessions = SessionManager.ListSessions(50, 0, _activeSlot);
+            if (sessions.Count == 0)
+            {
+                var empty = new TextBlock { Text = "暂无历史会话", FontSize = 12, Margin = new Thickness(8, 4) };
+                empty[!TextBlock.ForegroundProperty] = new DynamicResourceExtension("DimTextBrush");
+                panel.Children.Add(empty);
+            }
+            else
+            {
+                foreach (var s in sessions)
+                    panel.Children.Add(BuildSessionItem(s));
+            }
+        }
+        catch { }
+        SessionListHost.Content = panel;
+    }
+
+    private Control BuildSessionItem(SessionInfo s)
+    {
+        var box = new StackPanel { Spacing = 2, Margin = new Thickness(6, 4) };
+
+        var preview = new TextBlock
+        {
+            Text = string.IsNullOrEmpty(s.Preview) ? s.Id : s.Preview,
+            FontSize = 13,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        preview[!TextBlock.ForegroundProperty] = new DynamicResourceExtension("TextBrush");
+
+        var meta = new TextBlock
+        {
+            Text = $"{s.Model} · {s.SavedAt} · {s.MessageCount} 条",
+            FontSize = 11,
+        };
+        meta[!TextBlock.ForegroundProperty] = new DynamicResourceExtension("DimTextBrush");
+
+        // hover 操作（✎ 重命名 / ✕ 删除）
+        var ops = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            IsVisible = false,
+        };
+        ops.Children.Add(MakeSmallBtn("✎", () => RenameSessionDialog(s.Id)));
+        ops.Children.Add(MakeSmallBtn("✕", () => DeleteSessionConfirm(s.Id)));
+
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        var left = new StackPanel { Spacing = 1 };
+        left.Children.Add(preview);
+        left.Children.Add(meta);
+        grid.Children.Add(left);
+        Grid.SetColumn(ops, 1);
+        grid.Children.Add(ops);
+
+        var item = new Border
+        {
+            Child = grid,
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(8, 6),
+        };
+        item.PointerPressed += (_, _) => LoadSessionById(s.Id);
+        item.PointerEntered += (_, _) => ops.IsVisible = true;
+        item.PointerExited += (_, _) => ops.IsVisible = false;
+        return item;
+    }
+
+    private static Button MakeSmallBtn(string text, Action onClick)
+    {
+        var btn = new Button { Content = text, Width = 22, Height = 22, FontSize = 11, Padding = new Thickness(0) };
+        btn.Click += (_, _) => onClick();
+        return btn;
+    }
+
+    private void LoadSessionById(string id)
+    {
+        var agent = EnsureSlot(_activeSlot);
+        try
+        {
+            var loaded = SessionManager.LoadSession(id, _activeSlot);
+            if (loaded == null) return;
+            agent.ReplaceMessages(loaded.Value.Messages);
+            if (!string.IsNullOrEmpty(loaded.Value.Model))
+                agent.LlmClient.Model = loaded.Value.Model;
+            RebuildChatFromAgent(_activeSlot, agent);
+            UpdateHeader();
+            AppendSystem(_activeSlot, $"[已加载会话 {id}]");
+        }
+        catch (Exception ex)
+        {
+            AppendSystem(_activeSlot, $"[加载会话失败] {ex.Message}");
+        }
+    }
+
+    private void NewSession_Click(object? sender, RoutedEventArgs e)
+    {
+        var agent = EnsureSlot(_activeSlot);
+        agent.ReplaceMessages([]);
+        _messages[_activeSlot].Clear();
+        RebuildMessages(_activeSlot);
+        UpdateHeader();
+        RefreshSessions();
+    }
+
+    private void ClearSessions_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var n = SessionManager.DeleteAllSessions(_activeSlot);
+            AppendSystem(_activeSlot, $"[已清空 {n} 个会话记录]");
+            RefreshSessions();
+        }
+        catch (Exception ex)
+        {
+            AppendSystem(_activeSlot, $"[清空失败] {ex.Message}");
+        }
+    }
+
+    private void RenameSessionDialog(string oldId)
+    {
+        var win = new Window
+        {
+            Title = "重命名会话",
+            Width = 360,
+            SizeToContent = SizeToContent.Height,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            CanResize = false,
+            Background = new SolidColorBrush(Color.Parse("#171a23")),
+        };
+        var panel = new StackPanel { Margin = new Thickness(20), Spacing = 12 };
+        panel.Children.Add(new TextBlock { Text = $"重命名 {oldId}", Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")) });
+        var box = new TextBox { Text = oldId };
+        panel.Children.Add(box);
+        var btns = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
+        btns.Children.Add(MakeButton("确定", "#2f6bff", () =>
+        {
+            var newId = box.Text?.Trim();
+            if (!string.IsNullOrEmpty(newId) && newId != oldId)
+                SessionManager.RenameSession(oldId, newId, _activeSlot);
+            win.Close();
+            RefreshSessions();
+        }));
+        btns.Children.Add(MakeButton("取消", "#5b6472", win.Close));
+        panel.Children.Add(btns);
+        win.Content = panel;
+        win.ShowDialog(this);
+    }
+
+    private void DeleteSessionConfirm(string id)
+    {
+        var win = new Window
+        {
+            Title = "删除会话",
+            Width = 340,
+            SizeToContent = SizeToContent.Height,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            CanResize = false,
+            Background = new SolidColorBrush(Color.Parse("#171a23")),
+        };
+        var panel = new StackPanel { Margin = new Thickness(20), Spacing = 12 };
+        panel.Children.Add(new TextBlock { Text = $"确定删除会话 {id}？", Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")) });
+        var btns = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
+        btns.Children.Add(MakeButton("删除", "#d73a49", () =>
+        {
+            SessionManager.DeleteSession(id, _activeSlot);
+            win.Close();
+            RefreshSessions();
+        }));
+        btns.Children.Add(MakeButton("取消", "#5b6472", win.Close));
+        panel.Children.Add(btns);
+        win.Content = panel;
+        win.ShowDialog(this);
+    }
+
     private void RebuildChatFromAgent(int slot, Agent agent)
     {
-        _chats[slot].Clear();
+        var list = _messages[slot];
+        list.Clear();
         foreach (var msg in agent.SnapshotMessages())
         {
             var role = msg["role"]?.AsString() ?? "";
             var content = msg["content"]?.AsString() ?? "";
             if (string.IsNullOrEmpty(content)) continue;
-            if (role == "user")
-                _chats[slot].Append($"\n\n👤 {content}\n");
-            else if (role == "assistant")
-                _chats[slot].Append($"🤖 {content}\n");
+            var m = role == "user"
+                ? new ChatMessage(ChatRole.User)
+                : new ChatMessage(ChatRole.Assistant);
+            m.Text.Append(content);
+            list.Add(m);
         }
-        if (slot == _activeSlot)
-            MarkdownInlines.RenderTo(ChatBox.Inlines!, _chats[slot].ToString());
+        if (slot == _activeSlot) RebuildMessages(slot);
     }
 
     // ── 交互 ──
 
-    private async void Send_Click(object? sender, RoutedEventArgs e) => await SendAsync();
+    private async void Send_Click(object? sender, RoutedEventArgs e)
+    {
+        // busy 时发送按钮 = 停止（对齐 Web：忙碌变 ⏹）
+        if (_cts[_activeSlot] != null) { _cts[_activeSlot]?.Cancel(); return; }
+        await SendAsync();
+    }
 
     private async void Input_KeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        // Ctrl+Enter 发送（多行输入用 Shift+Enter 换行，Enter 直接发送）
+        if (e.Key == Key.Enter && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
         {
             e.Handled = true;
             await SendAsync();
         }
     }
 
+    /// <summary>输入框自动增高（按行数钳制 56~220，对齐 Web autoResizeInput）。</summary>
+    private void Input_TextChanged(object? sender, TextChangedEventArgs e)
+    {
+        var text = InputBox.Text ?? "";
+        int lines = 1;
+        for (int i = 0; i < text.Length; i++)
+            if (text[i] == '\n') lines++;
+        InputBox.Height = Math.Clamp(lines * 24, 56, 220);
+    }
+
     private void Stop_Click(object? sender, RoutedEventArgs e) => _cts[_activeSlot]?.Cancel();
 
-    private void Model_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    /// <summary>切换当前槽位模型（Phase 4 模型弹窗复用此逻辑）。</summary>
+    internal void ApplyModel(string modelId)
     {
-        if (ModelCombo.SelectedItem is not string modelId) return;
         UpdateHeader();
         try
         {
@@ -190,8 +463,62 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            AppendSlot(_activeSlot, $"\n[切换模型失败] {ex.Message}\n");
+            AppendSystem(_activeSlot, $"[切换模型失败] {ex.Message}");
         }
+    }
+
+    private void Theme_Click(object? sender, RoutedEventArgs e)
+    {
+        App.ToggleTheme();
+        ThemeButton.Content = App.IsDark ? "🌙" : "☀️";
+        RebuildMessages(_activeSlot); // 气泡内 block 文字色随主题重建
+        RefreshPanel();
+    }
+
+    private void ModelButton_Click(object? sender, RoutedEventArgs e)
+    {
+        var win = new ModelWindow(this);
+        win.ShowDialog(this);
+    }
+
+    private void BigModel_Click(object? sender, RoutedEventArgs e)
+        => new ModelWindow(this).ShowDialog(this);
+
+    private void SmallModel_Click(object? sender, RoutedEventArgs e)
+        => new ModelWindow(this, smallMode: true).ShowDialog(this);
+
+    private void Economy_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (EconomyCombo.SelectedIndex < 0) return;
+        Config.Instance.EconomyMode = (EconomyMode)EconomyCombo.SelectedIndex;
+        try { Config.Instance.SaveToEnvFile(); } catch { }
+    }
+
+    private void Perm_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (PermCombo.SelectedIndex < 0 || PermCombo.SelectedItem is not string mode) return;
+        try { PermissionManager.SetMode(mode); } catch { }
+    }
+
+    /// <summary>保存默认模型到配置（不中断当前任务，新会话/重启生效），供模型弹窗调用。</summary>
+    internal void SaveDefaultModel(string modelId, bool small)
+    {
+        var cfg = Config.Instance;
+        if (small) cfg.SmallModel = modelId;
+        else cfg.Model = modelId;
+        try { cfg.SaveToEnvFile(); } catch { }
+        UpdateHeader();
+        AppendSystem(_activeSlot, $"[已保存默认{(small ? "小" : "大")}模型 {modelId}]");
+    }
+
+    /// <summary>切换当前槽位小模型，供模型弹窗调用。</summary>
+    internal void ApplySmallModel(string modelId)
+    {
+        var cfg = Config.Instance;
+        cfg.SmallModel = modelId;
+        var agent = _agents[_activeSlot];
+        if (agent != null) agent.LlmClient.SmallModel = modelId;
+        UpdateHeader();
     }
 
     private void Settings_Click(object? sender, RoutedEventArgs e) => ShowSettings();
@@ -245,9 +572,9 @@ public partial class MainWindow : Window
                     var info = ModelCatalog.Find(agent.LlmClient.Model);
                     agent.LlmClient.Reconfigure(ApiKeyStore.Get(providerId) ?? cfg.ApiKey, info?.DefaultBaseUrl ?? cfg.BaseUrl);
                 }
-                AppendSlot(_activeSlot, "\n[设置已保存]\n");
+                AppendSystem(_activeSlot, "[设置已保存]");
             }
-            catch (Exception ex) { AppendSlot(_activeSlot, $"\n[保存设置失败] {ex.Message}\n"); }
+            catch (Exception ex) { AppendSystem(_activeSlot, $"[保存设置失败] {ex.Message}"); }
             win.Close();
         }));
         btnRow.Children.Add(MakeButton("取消", "#5b6472", () => win.Close()));
@@ -285,60 +612,131 @@ public partial class MainWindow : Window
         var input = InputBox.Text?.Trim();
         if (string.IsNullOrEmpty(input)) return;
         InputBox.Text = "";
+        _drafts[slot] = "";
 
         Agent agent;
         try { agent = EnsureSlot(slot); }
-        catch (Exception ex) { AppendSlot(slot, $"\n[错误] 初始化 Agent 失败：{ex.Message}\n"); return; }
+        catch (Exception ex) { AppendSystem(slot, $"[错误] 初始化 Agent 失败：{ex.Message}"); return; }
 
-        AppendSlot(slot, $"\n\n👤 {input}\n🤖 ");
-        SendButton.IsEnabled = false;
+        AppendUser(slot, input);
+        EnsureAssistant(slot); // 先建 assistant 气泡，流式 token 直接追加
+        SendButton.Content = "⏹"; // busy 态 = 停止按钮
         StopButton.IsEnabled = true;
         _cts[slot] = new CancellationTokenSource();
 
         try
         {
             await agent.ChatAsync(input,
-                onToken: t => Dispatcher.UIThread.Post(() => AppendSlot(slot, t)),
-                onTool: (name, brief) => Dispatcher.UIThread.Post(() => AppendSlot(slot, $"\n🔧 [{name}] {brief}\n")),
+                onToken: t => Dispatcher.UIThread.Post(() => AppendToken(slot, t)),
+                onTool: (name, brief) => Dispatcher.UIThread.Post(() => AppendTool(slot, name, brief)),
                 onToolOutput: o => Dispatcher.UIThread.Post(() =>
                 {
-                    if (!string.IsNullOrEmpty(o))
-                    {
-                        var truncated = o.Length > 2000
-                            ? ContextManager.TruncateByRunes(o, 2000) + "\n…（截断）"
-                            : o;
-                        AppendSlot(slot, $"\n```\n{truncated}\n```\n");
-                    }
+                    if (!string.IsNullOrEmpty(o)) AppendToolOutput(slot, o);
                 }),
                 cancellationToken: _cts[slot]!.Token);
         }
         catch (OperationCanceledException)
         {
-            AppendSlot(slot, "\n\n[已停止]\n");
+            AppendSystem(slot, "[已停止]");
         }
         catch (Exception ex)
         {
-            AppendSlot(slot, $"\n\n[错误] {ex.Message}\n");
+            AppendSystem(slot, $"[错误] {ex.Message}");
         }
         finally
         {
+            FinalizeStreaming(slot); // 流式结束定稿
             _cts[slot]?.Dispose();
             _cts[slot] = null;
             if (slot == _activeSlot)
             {
-                SendButton.IsEnabled = true;
+                SendButton.Content = "↑";
                 StopButton.IsEnabled = false;
             }
+            RefreshPanel(); // 任务完成后立即刷新面板
         }
     }
 
-    private void AppendSlot(int slot, string text)
+    // ═══════════════════════════════════════════════════════════
+    //  角色化消息追加（对齐 Web app.js 消息体系）
+    // ═══════════════════════════════════════════════════════════
+
+    private void AppendUser(int slot, string text)
     {
-        _chats[slot].Append(text); // 保留原始 markdown（含 «» 标记），渲染时统一转 Inline
-        if (slot == _activeSlot)
+        var msg = new ChatMessage(ChatRole.User);
+        msg.Text.Append(text);
+        AddMessage(slot, msg);
+    }
+
+    private void AppendSystem(int slot, string text)
+    {
+        var msg = new ChatMessage(ChatRole.System);
+        msg.Text.Append(text);
+        AddMessage(slot, msg);
+    }
+
+    private void AppendTool(int slot, string name, string brief)
+    {
+        var msg = new ChatMessage(ChatRole.Tool);
+        msg.Text.Append($"🔧 [{name}] {brief}");
+        AddMessage(slot, msg);
+    }
+
+    private void AppendToolOutput(int slot, string output)
+    {
+        var truncated = output.Length > 2000
+            ? ContextManager.TruncateByRunes(output, 2000) + "\n…（截断）"
+            : output;
+        var msg = new ChatMessage(ChatRole.ToolOutput);
+        msg.Text.Append(truncated);
+        AddMessage(slot, msg);
+    }
+
+    /// <summary>取当前流式中的 assistant 消息（没有则新建），供 onToken 追加。</summary>
+    private ChatMessage EnsureAssistant(int slot)
+    {
+        var list = _messages[slot];
+        for (int i = list.Count - 1; i >= 0; i--)
         {
-            MarkdownInlines.RenderTo(ChatBox.Inlines!, _chats[slot].ToString());
-            Dispatcher.UIThread.Post(() => ChatScroll.ScrollToEnd(), DispatcherPriority.Background);
+            if (list[i].Streaming) return list[i];
         }
+        var msg = new ChatMessage(ChatRole.Assistant) { Streaming = true };
+        AddMessage(slot, msg);
+        return msg;
+    }
+
+    private void AppendToken(int slot, string token)
+    {
+        if (string.IsNullOrEmpty(token)) return;
+        var msg = EnsureAssistant(slot);
+        msg.Text.Append(token);
+        if (slot != _activeSlot) return; // 非活跃槽位只累积，不渲染
+        RequestRender(msg);
+    }
+
+    /// <summary>合帧渲染：同一 UI 帧内多个 token 只触发一次气泡重渲染（长回复不卡）。</summary>
+    private void RequestRender(ChatMessage? target)
+    {
+        if (_renderPending) return;
+        _renderPending = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _renderPending = false;
+            if (_activeSlot < 0 || _activeSlot >= _messages.Length) return;
+            var list = _messages[_activeSlot];
+            // 只重渲染活跃槽位最后一个气泡（当前流式目标）
+            var msg = target ?? (list.Count > 0 ? list[^1] : null);
+            msg?.View?.Render();
+            ChatScroll.ScrollToEnd();
+        }, DispatcherPriority.Background);
+    }
+
+    private void AddMessage(int slot, ChatMessage msg)
+    {
+        _messages[slot].Add(msg);
+        if (slot != _activeSlot) return;
+        msg.View = new MessageBubble(msg);
+        MessagesHost.Children.Add(msg.View);
+        Dispatcher.UIThread.Post(() => ChatScroll.ScrollToEnd(), DispatcherPriority.Background);
     }
 }
