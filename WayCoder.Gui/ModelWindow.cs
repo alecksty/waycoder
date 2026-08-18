@@ -24,7 +24,7 @@ public sealed class ModelWindow : Window
     private readonly TextBlock _status = new();
     private string _selectedId = "";
     private Dictionary<string, bool> _scanResult = new();
-    private bool _busy;
+    private volatile bool _busy; // volatile：快速连点扫描/导入防并发执行
 
     public ModelWindow(MainWindow owner, bool smallMode = false)
     {
