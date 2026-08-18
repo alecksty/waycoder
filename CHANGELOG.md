@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.79.8 (2026-08-19) — GUI 设置对话框 Schema 驱动（对齐 TUI/Web）
+
+GUI 版设置对话框从手写 4 项（API Key/Temperature/MaxTokens/自动提交）升级为 **Schema 驱动**（对齐 TUI SettingsPage / Web 设置抽屉）：
+
+- **全量设置项**：`Config.SettingSchema()` 动态生成所有配置（模型/API/界面/安全/上下文…按分类组织）
+- **分类导航**：左侧分类列表 + 右侧当前分类设置项
+- **各类型控件**：toggle→CheckBox、select→ComboBox、secret→密码框、number/text→输入框
+- **逐项保存**：读控件值 → `TrySetPropValue` → `SaveToEnvFile`，保存后刷新模型目录/省钱/权限下拉/右侧面板
+
+### ✅ 验证
+- GUI 编译 0 错误，启动运行正常
+- 三端设置能力对齐：TUI（Tab 分类）/ Web（设置抽屉）/ GUI（分类列表 + 全量 Schema）
+
 ## v0.79.7 (2026-08-19) — GUI diff 逐 hunk 确认（对齐 TUI/Web）
 
 GUI 版 `GuiInteraction.DiffConfirmAsync` 从"整文件接受/拒绝"升级为**逐 hunk 确认**，三端 diff 能力对齐：
