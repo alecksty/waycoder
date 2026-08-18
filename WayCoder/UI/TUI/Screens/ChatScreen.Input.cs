@@ -583,6 +583,11 @@ public partial class ChatScreen : TuiScreen
                 case ConsoleKey.Q:
                     ShowExitConfirmDialog();
                     return true;
+                case ConsoleKey.L:
+                    // 全屏强制重绘（修复终端残留，保留聊天内容）
+                    MarkDirty();
+                    Manager?.Render();
+                    return true;
                 // 聊天滚动
                 case ConsoleKey.Home:
                     ChatScrollTop();
@@ -611,6 +616,14 @@ public partial class ChatScreen : TuiScreen
                     CycleThemeDirect();
                     return true;
             }
+        }
+
+        // ── F5 刷新/重绘 ──
+        if (key.Key == ConsoleKey.F5)
+        {
+            MarkDirty();
+            Manager?.Render();
+            return true;
         }
 
         // ── F1-F10 槽位切换 ──
