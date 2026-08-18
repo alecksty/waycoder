@@ -403,7 +403,9 @@ public static class TuiMarkup
                 var at = (TuiAnimatedText)c;
                 at.Text = Attr(node, "text");
                 if (Enum.TryParse<AnimatedTextMode>(Attr(node, "mode"), true, out var am)) at.Mode = am;
-                if (Int(node, "frameMs") is int fm) at.FrameMs = fm;
+                if (Int(node, "frameMs") is int fm) at.FrameMs = Math.Max(TuiAnimatedText.MinFrameMs, fm);
+                var frames = Attr(node, "frames");
+                if (frames.Length > 0) at.CustomFrames = [.. frames.Split(',')];
                 if (Int(node, "width") == null) // 未指定宽度 → 按文本宽自动（spinner 额外留 4 列）
                     at.Width = AnsiHelper.DisplayWidth(at.Text) + 4;
                 if (Bool(node, "directWrite") is bool dw) at.DirectWrite = dw;
