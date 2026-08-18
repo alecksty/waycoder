@@ -84,7 +84,7 @@
                                 <Button x:Name="AttachButton" Content="📎" Width="34" Height="34"
                                         CornerRadius="10" Background="Transparent"
                                         Foreground="{DynamicResource DimTextBrush}"
-                                        ToolTip.Tip="上传图片 / 音频" />
+                                        ToolTip.Tip="上传图片 / 音频" Click="Attach_Click" />
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                                             HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Button x:Name="BigModelBtn" Content="🤖 大模型"
