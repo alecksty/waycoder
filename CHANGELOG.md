@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.79.23 (2026-08-19) — 修复 TUI 模型对话框按不出 + 输入 key
+
+- **原因**：Ctrl+M 在普通终端映射为 `\r`=Enter（Kitty 协议终端才可区分），模型对话框无法触发
+- **修复**：`/model`（无参）弹 `ModelPicker` 对话框（任何终端可用）；选择无 key 模型 → `UxHelper.Secret` 输入 API Key → 应用 + 运行时重配
+- `ModelPicker.Apply` 改 public 供命令复用
+
+### ✅ 验证
+- 编译 0 错误，自测 3565 通过
+
 ## v0.79.22 (2026-08-19) — 弹出菜单 .tui 模板化（TUI 全界面资源化完成）
 
 - 新增 `menu.tui` 声明弹出菜单窗口结构（Dialog + VBox）

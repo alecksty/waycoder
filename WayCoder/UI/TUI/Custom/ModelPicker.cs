@@ -375,7 +375,8 @@ public static class ModelPicker
         return slot >= 0;
     }
 
-    private static void Apply(string modelId, bool isLarge, int slot)
+    /// <summary>应用选中模型到配置/槽位（public 供 /model 命令等复用）。</summary>
+    public static void Apply(string modelId, bool isLarge, int slot)
     {
         var cfg = Config.Instance;
         if (slot == -1)
