@@ -1,0 +1,10 @@
+<!-- 聊天列表项布局模板 —— 配合 TuiListItem code-behind：布局写标记，每条消息按 {role} 占位符填充。
+     动态内容（markdown/宽度/续接隐藏 header）由 code-behind 覆盖。 -->
+<VBox id="item" spacing="0">
+  <HBox id="header" height="1" align="left">
+    <Label id="icon" width="2" height="1" text="●" />
+    <Label id="roleLabel" width="12" height="1" />
+    <Label id="timeLabel" width="8" height="1" />
+  </HBox>
+  <Markdown id="body" role="{role}" />
+</VBox>
