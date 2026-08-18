@@ -18,7 +18,7 @@ public partial class App : Application
             Environment.Exit(code);
             return;
         }
-        // 诊断转储：--dump <file.tui> [cols rows] → 渲染并把网格逐行写入当前目录 tuidump.txt（核对宽字符数据）
+        // 诊断转储：--dump <file.tui> [cols rows] → 渲染并把网格逐行写入 %TEMP%/tuidump.txt（核对宽字符数据）
         if (e.Args.Length >= 2 && e.Args[0] == "--dump")
         {
             int dc = 80, dr = 25;
@@ -54,18 +54,18 @@ public partial class App : Application
         win.Show();
     }
 
-    /// <summary>诊断转储：渲染并把网格逐行写入当前目录 tuidump.txt（核对宽字符数据与 IsWide 判定）。</summary>
+    /// <summary>诊断转储：渲染并把网格逐行写入 %TEMP%/tuidump.txt（核对宽字符数据与 IsWide 判定）。</summary>
     private static void DumpGrid(string path, int colsArg, int rowsArg)
     {
-        string outPath = Path.Combine(Directory.GetCurrentDirectory(), "tuidump.txt");
+        string outPath = Path.Combine(Path.GetTempPath(), "tuidump.txt");
         try
         {
             var content = File.ReadAllText(path);
             var (frame, cols, rows) = TuiFrameRenderer.Render(content, colsArg, rowsArg);
             // 原始帧（剥离 ANSI 版 + 原始 ANSI 版）另存，便于核对窗口实际渲染内容
-            File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), "tuiframe.txt"),
+            File.WriteAllText(Path.Combine(Path.GetTempPath(), "tuiframe.txt"),
                 WayCoder.UI.Shared.Terminal.AnsiString.Strip(frame));
-            File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), "tuiframe_raw.txt"), frame);
+            File.WriteAllText(Path.Combine(Path.GetTempPath(), "tuiframe_raw.txt"), frame);
             var snap = FrameSnapshot.Capture(frame, 0, 0, cols, rows);
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"尺寸 {cols}x{rows}");
