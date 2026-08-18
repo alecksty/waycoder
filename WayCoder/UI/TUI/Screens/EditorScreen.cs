@@ -179,14 +179,14 @@ public class EditorScreen : TuiScreen
         }
 
         // 首次与 resize 共用：标记只声明结构，终端尺寸以 TW/TH 为准
-        int mainH = Math.Max(5, TH - 4); // -title(1) -status1(1) -status2(1) - spare(1)
+        // mainHBox 高由 flex="1" 撑满（标题 1 + 状态栏 2 之外），编辑器随终端 resize 自适应
+        int mainH = Math.Max(5, TH - 4); // 侧栏/编辑区高度参考（HBox ChildVAlign=Stretch 拉伸）
         int leftW = Math.Min(25, TW / 4);
         int editorW = TW - (leftW + 1) - (leftW + 1); // 初始假设两侧都开
 
         RootView.Width = TW;
         RootView.Height = TH;
         TitleBar.Width = TW;
-        _markup.Find<TuiHBox>("mainHBox")!.Height = mainH;
         _leftPanel.Width = leftW;
         _leftPanel.Height = mainH;
         _leftSep.Height = mainH;

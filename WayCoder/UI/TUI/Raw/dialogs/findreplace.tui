@@ -1,5 +1,5 @@
 <!-- 查找/替换对话框（编辑器用，两个输入 + 三选项 + 四按钮，状态由 code-behind 注入） -->
-<Dialog title="查找/替换" border="rounded" borderColor="cyan" shortcut="escape">
+<Dialog title="查找/替换" border="rounded" borderColor="cyan" shortcut="escape" height="12">
   <VBox align="left" spacing="1">
     <HBox spacing="1">
       <Label text="查找:" width="6" />

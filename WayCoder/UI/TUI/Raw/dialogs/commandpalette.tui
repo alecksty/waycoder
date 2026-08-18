@@ -1,7 +1,7 @@
 <!-- 命令面板 —— 配合 CommandPalette code-behind。
      标记声明结构；分类头/命令项逐行 AddItem + 双色高亮、过滤由代码填充。 -->
 <Dialog title="🔍 命令面板" border="solid" borderColor="info"
-        minWidth="52" maxWidth="90"
+        minWidth="52" maxWidth="90" height="15"
         gradient="true" gradientStart="#00e6ff" gradientEnd="#0064dc">
   <VBox>
     <Input id="search" height="1" focused="true" />
