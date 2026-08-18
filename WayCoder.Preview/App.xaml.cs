@@ -1,5 +1,6 @@
 using System.Windows;
 using WayCoder.Preview.Render;
+using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.Preview;
@@ -46,11 +47,11 @@ public partial class App : Application
             return;
         }
 
-        // 颜色对照表：--colors → 打开展示所有 ANSI 颜色渲染的窗口（比对哪色不准）
+        // 颜色对照表：--colors → 打开 tuidemo/colors.tui（布局文件，含全部 ANSI 颜色渲染，比对哪色不准）
         if (e.Args.Length == 1 && e.Args[0] == "--colors")
         {
             var colorWin = new MainWindow();
-            colorWin.LoadMarkup(Render.ColorPalette.GenerateMarkup());
+            colorWin.LoadFile(TuiMarkupPaths.ResolveDemoFile("colors.tui"));
             MainWindow = colorWin;
             colorWin.Show();
             return;
