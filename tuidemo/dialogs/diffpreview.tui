@@ -1,0 +1,11 @@
+<!-- Diff 预览 —— 配合 DiffPreview code-behind。
+     窗口标题/宽高、DiffView 主体（flex 填充）、Y/N/A/Q 状态机由代码处理；
+     DiffView 控件由 code 创建并注入 body 首位。 -->
+<Dialog title="Diff 预览" border="solid" borderColor="info" mask="true"
+        minWidth="40" minHeight="10"
+        gradient="true" gradientStart="#ffb400" gradientEnd="#ffff50">
+  <VBox id="body">
+    <!-- DiffView（自定义 TuiControl）由 code-behind Insert(0) 注入，flex=1 填充剩余空间 -->
+    <Label id="status" height="1" fg="0" bg="7" />
+  </VBox>
+</Dialog>

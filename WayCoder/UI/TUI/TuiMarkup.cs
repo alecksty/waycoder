@@ -364,6 +364,7 @@ public static class TuiMarkup
             "DynamicBar" => new TuiDynamicBar(),
             "PromptBar" => new TuiPromptBar(),
             "SidePanel" => new TuiSidePanel(),
+            "ScrollView" => new TuiScrollView(),
             _ => null,
         };
         if (c == null) return null;
@@ -572,6 +573,8 @@ public static class TuiMarkup
                 var sepChar = Attr(node, "lineChar");
                 if (sepChar.Length > 0) sep.LineChar = sepChar;
                 if (Color(node, "lineColor") is int sepLc) sep.LineColor = sepLc;
+                if (Bool(node, "vertical") is bool vsep)
+                    sep.Direction = vsep ? SeparatorDirection.Vertical : SeparatorDirection.Horizontal;
                 break;
             case "ListView":
                 var lv = (TuiListView)c;
@@ -594,6 +597,9 @@ public static class TuiMarkup
                 if (Color(node, "borderColor") is int spBc) sPanel.BorderColor = spBc;
                 if (Bool(node, "panelVisible") is bool spPv) sPanel.PanelVisible = spPv;
                 // 分区（PanelSection）由 code-behind RefreshSidePanel() 填充；SidePanel 是叶子控件，不支持嵌套 Section 声明
+                break;
+            case "ScrollView":
+                if (Bool(node, "autoScroll") is bool svAuto) ((TuiScrollView)c).IsAutoScrollToEnd = svAuto;
                 break;
         }
 

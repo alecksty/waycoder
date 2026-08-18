@@ -1,0 +1,15 @@
+<!-- 文件选择器 —— 配合 FilePicker code-behind。
+     标记声明结构；目录遍历/路径文本/表格行列/搜索过滤由代码填充。 -->
+<Dialog title="打开文件" border="solid" borderColor="info"
+        minWidth="70" maxWidth="100"
+        gradient="true" gradientStart="#00e6ff" gradientEnd="#0064dc">
+  <VBox>
+    <Label id="path" height="1" fg="8" />
+    <HBox spacing="1">
+      <Label text="搜索:" width="6" fg="8" />
+      <Input id="search" height="1" flex="1" focused="true" />
+    </HBox>
+    <TableList id="table" height="10" showHeader="true" />
+    <Label id="help" height="1" fg="8" />
+  </VBox>
+</Dialog>
