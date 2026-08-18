@@ -99,28 +99,43 @@ public static class TuiMarkup
         ["info"] = () => TuiTheme.Current.DialogInfoBorder,
     };
 
-    /// <summary>解析标记，按根元素类型构建对应对象（App/Screen→屏幕、Window/Dialog→窗口、控件→视图）。</summary>
-    public static TuiMarkupResult Load(string xml)
-    {
-        var root = Xml.Parse(xml) ?? throw new ArgumentException("标记为空或解析失败");
-        var byId = new Dictionary<string, TuiControl>();
+    /// <summary>当前标记绑定的变量（{key} 占位符替换用），AsyncLocal 保证并发安全。</summary>
+    private static readonly System.Threading.AsyncLocal<Dictionary<string, string>?> BindVars = new();
 
-        switch (root.Name)
+    /// <summary>解析标记，按根元素类型构建对应对象（App/Screen→屏幕、Window/Dialog→窗口、控件→视图）。vars 用于 {key} 占位符替换。</summary>
+    public static TuiMarkupResult Load(string xml, Dictionary<string, string>? vars = null)
+    {
+        BindVars.Value = vars;
+        try
         {
-            case "App":
-            case "Screen":
-                return new TuiMarkupResult(BuildScreen(root, byId), null, null, byId);
-            case "Window":
-            case "Dialog":
-                return new TuiMarkupResult(null, BuildWindow(root, byId), null, byId);
-            default:
-                var view = (TuiView)BuildControl(root, byId)!;
-                return new TuiMarkupResult(null, null, view, byId);
+            var root = Xml.Parse(xml) ?? throw new ArgumentException("标记为空或解析失败");
+            var byId = new Dictionary<string, TuiControl>();
+
+            switch (root.Name)
+            {
+                case "App":
+                case "Screen":
+                    return new TuiMarkupResult(BuildScreen(root, byId), null, null, byId);
+                case "Window":
+                case "Dialog":
+                    return new TuiMarkupResult(null, BuildWindow(root, byId), null, byId);
+                default:
+                    var view = (TuiView)BuildControl(root, byId)!;
+                    return new TuiMarkupResult(null, null, view, byId);
+            }
+        }
+        finally
+        {
+            BindVars.Value = null;
         }
     }
 
     /// <summary>从 .tui 文件加载。</summary>
     public static TuiMarkupResult LoadFile(string path) => Load(File.ReadAllText(path));
+
+    /// <summary>加载单元格模板（.tui 片段）并绑定数据，返回视图（供 list/tree/table 自定义单元格用）。</summary>
+    public static TuiView LoadCell(string markup, Dictionary<string, string> vars)
+        => (TuiView)Load(markup, vars).View!;
 
     // ── 屏幕 ──
 
@@ -315,6 +330,7 @@ public static class TuiMarkup
             "Input" => new TuiInput(),
             "TextArea" => new TuiTextArea(),
             "List" => new TuiList(),
+            "DataList" => new TuiDataList(),
             "Checkbox" => new TuiCheckbox(Attr(node, "text")),
             "ComboBox" => new TuiComboBox(),
             "RadioGroup" => new TuiRadioGroup(),
@@ -370,6 +386,18 @@ public static class TuiMarkup
                 var items = Attr(node, "items");
                 if (items.Length > 0) list.Items = [.. items.Split(',')];
                 if (Int(node, "selected") is int sel) list.SelectedIndex = sel;
+                break;
+            case "DataList":
+                var dl = (TuiDataList)c;
+                var dlItems = Attr(node, "items");
+                if (dlItems.Length > 0)
+                {
+                    var arr = dlItems.Split(',');
+                    for (int i = 0; i < arr.Length; i++)
+                        dl.Items.Add(new Dictionary<string, string> { ["text"] = arr[i].Trim(), ["index"] = i.ToString() });
+                }
+                dl.CellMarkup = Attr(node, "cell");
+                if (Int(node, "selected") is int dlSel) dl.SelectedIndex = dlSel;
                 break;
             case "Progress":
                 if (double.TryParse(Attr(node, "value", Attr(node, "percent")), out var pv))
@@ -503,7 +531,19 @@ public static class TuiMarkup
 
     // ── 属性解析辅助 ──
 
-    private static string Attr(XNode node, string key, string def = "") => node.GetAttr(key) ?? def;
+    private static string Attr(XNode node, string key, string def = "")
+    {
+        var s = node.GetAttr(key) ?? def;
+        return BindVars.Value is { } vars && s.Contains('{') ? Substitute(s, vars) : s;
+    }
+
+    /// <summary>替换 {key} 占位符。</summary>
+    private static string Substitute(string s, Dictionary<string, string> vars)
+    {
+        foreach (var kv in vars)
+            s = s.Replace("{" + kv.Key + "}", kv.Value);
+        return s;
+    }
 
     private static int? Int(XNode node, string key)
         => int.TryParse(node.GetAttr(key), out var v) ? v : null;
@@ -522,13 +562,21 @@ public static class TuiMarkup
 
     private static int? Color(XNode node, string key)
     {
-        var s = node.GetAttr(key);
+        var s = AttrOrNull(node, key);
         if (s == null) return null;
         if (SemanticColors.TryGetValue(s, out var fn)) return fn(); // 语义色（随主题）
         if (Colors.TryGetValue(s, out var c)) return c;
         if (int.TryParse(s, out var n)) return n;
         if (TryParseRgbColor(s, out var rgb)) return rgb;
         return null;
+    }
+
+    /// <summary>取属性（含 {key} 占位符替换），缺失返回 null。</summary>
+    private static string? AttrOrNull(XNode node, string key)
+    {
+        var raw = node.GetAttr(key);
+        if (raw == null) return null;
+        return BindVars.Value is { } vars && raw.Contains('{') ? Substitute(raw, vars) : raw;
     }
 
     /// <summary>解析 RGB 颜色：#RRGGBB、#RGB、rgb(r,g,b) → TrueColor 码（≥0x1000000）。</summary>

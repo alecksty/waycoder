@@ -645,6 +645,12 @@ public static partial class SelfTest
         Check("TuiMarkup 按钮快捷键", scBtn != null && scBtn.ShortcutKey == ConsoleKey.Y);
         Check("TuiMarkup 按钮下划线", scBtn != null && scBtn.UnderlineIndex >= 0);
         Check("TuiMarkup 窗口快捷键", scRes.Window!.KeyShortcuts.ContainsKey(ConsoleKey.Escape));
+        // 占位符替换（单元格数据绑定）
+        var cellRes = WayCoder.UI.TUI.TuiMarkup.Load(
+            "<VBox><Label id=\"l\" text=\"{name}\" fg=\"{color}\"/></VBox>",
+            new Dictionary<string, string> { ["name"] = "张三", ["color"] = "green" });
+        Check("TuiMarkup 占位符替换文本", cellRes.Find<TuiLabel>("l")!.Text == "张三");
+        Check("TuiMarkup 占位符替换颜色", cellRes.Find<TuiLabel>("l")!.Fg == AnsiColors.Green);
         Console.WriteLine();
 
         // ================================================================
