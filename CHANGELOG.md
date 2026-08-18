@@ -1,5 +1,25 @@
 # 更新日志
 
+## v0.79.6 (2026-08-19) — TUI 模型对话框完善：供应商分组 + 扫描/导入/OpenCode/设置key
+
+参考 Web 版模型弹窗完善 TUI 版 `ModelPicker`：
+
+### 🗂️ 供应商分组
+- **分组显示**：模型列表按供应商分组，组头行显示供应商名 + 连通状态（✅/❌）
+- `TuiTableList` 新增**组头行支持**：`AddGroupHeader`（独立淡色样式、不可选中、导航跳过），`NextSelectable` 定位首个数据行
+
+### ⌨️ 操作快捷键
+- **S 扫描连通性**：后台 `Task.Run` 跑 `ModelCli.TestList`，结果 `lock` 保护，组头实时显示 ✅/❌
+- **I 自动导入**：后台 `ModelCli.Import`（本地配置）
+- **O OpenCode 在线导入**：后台拉取 `https://opencode.ai/zen/go/v1/models` + 批量写入，完成后刷新列表
+- **K 设置 key**：弹输入框 `TuiDialog.InputLine` 保存 `ApiKeyStore`
+- **L 清除 key**
+- 帮助行更新全部快捷键提示
+
+### ✅ 验证
+- 主项目 + GUI 编译 0 错误
+- 自测 3561→3565（+4 组头断言：标记/导航跳过/NextSelectable）
+
 ## v0.79.5 (2026-08-19) — Web 前端审查修复：忙碌状态上报 + system 事件 + 槽位切换竞态
 
 对 Web 前端 app.js（2500 行）做专项审查，修复多槽位并行的状态缺陷。
