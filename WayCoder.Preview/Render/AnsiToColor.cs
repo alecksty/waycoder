@@ -20,9 +20,15 @@ public static class AnsiToColor
             var (r, g, b) = AnsiTty.DecodeRgb(code);
             return Color.FromRgb((byte)r, (byte)g, (byte)b);
         }
+        // 基础色（30-37/40-47/90-97/100-107）优先按 VGA 表：它们恰好落在 16-255 区间，
+        // 若先查 256 色会被误当作立方体索引（如 40=黑会被渲染成绿）
+        if (IsBasicColor(code)) return Vga(code);
         if (code is >= 16 and <= 255) return Xterm256(code);
         return Vga(code);
     }
+
+    private static bool IsBasicColor(int code)
+        => code is (>= 30 and <= 37) or (>= 40 and <= 47) or (>= 90 and <= 97) or (>= 100 and <= 107);
 
     /// <summary>取（可缓存的）实心画刷。</summary>
     public static SolidColorBrush GetBrush(int code, Dictionary<int, SolidColorBrush> cache)
