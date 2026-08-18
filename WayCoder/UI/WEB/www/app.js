@@ -606,8 +606,32 @@ function renderSettingsDetail(g) {
     ctrl.dataset.key = it.key;
     ctrl.dataset.type = it.type;
     row.appendChild(ctrl);
+    if (it.default !== undefined && it.default !== '') {
+      const reset = document.createElement('button');
+      reset.className = 'btn ghost';
+      reset.textContent = '↺ 默认';
+      reset.title = '设回默认值';
+      reset.onclick = () => {
+        const body = { key: it.key, value: it.default };
+        fetch('/settings', { method: 'POST', body: JSON.stringify(body) }).then(() => renderSettingsDetail(g)).catch(() => {});
+      };
+      row.appendChild(reset);
+    }
     settingsDetail.appendChild(row);
   });
+  // 分组全部复位
+  const resetAll = document.createElement('button');
+  resetAll.className = 'btn ghost';
+  resetAll.textContent = '♻ 全部复位默认';
+  resetAll.onclick = () => {
+    const pending = [];
+    g.items.forEach(it => { if (it.default !== undefined && it.default !== '') pending.push({ key: it.key, value: it.default }); });
+    if (pending.length) {
+      Promise.all(pending.map(p => fetch('/settings', { method: 'POST', body: JSON.stringify(p) })))
+        .then(() => renderSettingsDetail(g));
+    }
+  };
+  settingsDetail.insertBefore(resetAll, settingsDetail.firstChild);
 }
 function saveSetting(ctrl) {
   let value;
