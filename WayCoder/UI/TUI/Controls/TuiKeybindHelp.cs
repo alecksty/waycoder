@@ -1,6 +1,7 @@
 ﻿using WayCoder.UI.Shared.Terminal;
 
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
@@ -87,44 +88,30 @@ public static class TuiKeybindHelp
         int winH = Math.Min(Tty.Rows - 2, ListH + 3);
         int listH = Math.Max(5, winH - 3);
 
-        var win = new TuiWindow
-        {
-            Title = "⌨ 快捷键速查",
-            Modal = true, HasMask = true,
-            BorderStyle = WindowBorder.Solid,
-            BorderColor = TuiTheme.Current.DialogInfoBorder,
-            WinBg = TuiTheme.Current.WindowBg,
-            Width = winW, Height = winH,
-            MinWidth = MinW, MinHeight = 8,
-            WindowHAlign = EHAlign.Center,
-            WindowVAlign = EVAlign.Middle,
-        };
+        // 标记加载：结构/ids 来自 keybindhelp.tui（布局写标记），列表项 code-behind 填充
+        var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "keybindhelp.tui")));
+        var win = res.Window ?? throw new InvalidOperationException("keybindhelp.tui 根应为 Window");
+        win.Width = winW; win.Height = winH;
+        win.MinWidth = MinW; win.MinHeight = 8;
+        win.WinBg = TuiTheme.Current.WindowBg;
         var g = TuiTheme.Current.GradCyanBlue;
         win.GradientBorder = true;
         win.GradientStart = g.start;
         win.GradientEnd = g.end;
 
-        // 列表（分类头 + 键位行，聚焦后 ↑↓ 滚动）
-        var list = new TuiListView { Height = listH, IsAutoScrollToEnd = false, Focused = true };
+        // 控件接线（结构在标记里，列表项数据/样式在此）
+        var list = res.Find<TuiListView>("list")!;
+        var hint = res.Find<TuiLabel>("hint")!;
+        list.Height = listH;
+        list.IsAutoScrollToEnd = false;
+        list.Focused = true;
+        hint.Text = "↑↓ 滚动  PgUp/PgDn 翻页  Home/End 首尾  Esc / Q 关闭";
         foreach (var (cat, bindings) in Groups)
         {
             list.AddItem(new TuiLabel("─ " + cat + " ─") { Height = 1, Fg = AnsiColors.Cyan });
             foreach (var (key, desc) in bindings)
                 list.AddItem(new TuiLabel("  " + PadKey(key, KeyW) + "  " + desc) { Height = 1, Fg = AnsiColors.White });
         }
-
-        // 底部提示行
-        var hint = new TuiLabel
-        {
-            Height = 1,
-            Fg = AnsiColors.BrightBlack,
-            Text = "↑↓ 滚动  PgUp/PgDn 翻页  Home/End 首尾  Esc / Q 关闭",
-        };
-
-        var vbox = new TuiVBox { ChildHAlign = EHAlign.Stretch };
-        vbox.Add(list);
-        vbox.Add(hint);
-        win.RootView = vbox;
 
         void Close()
         {

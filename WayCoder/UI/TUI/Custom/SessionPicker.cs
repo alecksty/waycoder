@@ -2,6 +2,7 @@
 using WayCoder.UI.Tui.Controls;
 
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui;
@@ -62,18 +63,12 @@ public static class SessionPicker
         int listW = Math.Max(10, winW - 2);          // 内容区宽（去左右边框）
         int winH = ListH + 6;                         // 统计+搜索+列表+按钮+帮助 + 上下边框
 
-        var win = new TuiWindow
-        {
-            Title = "会话管理",
-            Modal = true, HasMask = true,
-            BorderStyle = WindowBorder.Solid,
-            BorderColor = TuiTheme.Current.DialogInfoBorder,
-            WinBg = TuiTheme.Current.WindowBg,
-            Width = winW, Height = winH,
-            MinWidth = MinW, MinHeight = winH,
-            WindowHAlign = EHAlign.Center,
-            WindowVAlign = EVAlign.Middle,
-        };
+        // 标记加载：结构/ids 来自 sessionpicker.tui（布局写标记），动态内容与事件 code-behind
+        var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "sessionpicker.tui")));
+        var win = res.Window ?? throw new InvalidOperationException("sessionpicker.tui 根应为 Dialog");
+        win.Width = winW; win.Height = winH;
+        win.MinWidth = MinW; win.MinHeight = winH;
+        win.WinBg = TuiTheme.Current.WindowBg;
         var g = TuiTheme.Current.GradCyanBlue;
         win.GradientBorder = true;
         win.GradientStart = g.start;
@@ -85,46 +80,23 @@ public static class SessionPicker
         var rowLabels = new List<TuiLabel>(); // 与 filtered 一一对应
         int sel = -1;
 
-        // 统计行
-        var stats = new TuiLabel { Height = 1, Fg = AnsiColors.Blue };
-
-        // 搜索行（标签 + 输入框，输入框聚焦）
-        var search = new TuiInput
-        {
-            Height = 1,
-            Flex = 1,
-            Fg = AnsiColors.White, Bg = AnsiColors.BgBlack,
-            Focused = true,
-        };
-        var searchRow = new TuiHBox { Spacing = 1 };
-        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = AnsiColors.BrightBlack });
-        searchRow.Add(search);
-
-        // 会话列表（单行格式化字符串，选中/当前手动着色）
-        var list = new TuiListView { Height = ListH, IsAutoScrollToEnd = false };
-
-        // 按钮行
-        var openBtn = new TuiButton("打开 (Enter)") { Flex = 1 };
-        var renameBtn = new TuiButton("重命名 (R)") { Flex = 1 };
-        var delBtn = new TuiButton("删除 (Del)") { Flex = 1 };
-        var closeBtn = new TuiButton("关闭 (Esc)") { Flex = 1 };
-        var btnRow = new TuiHBox { Spacing = 2 };
-        btnRow.Add(openBtn); btnRow.Add(renameBtn); btnRow.Add(delBtn); btnRow.Add(closeBtn);
+        // 控件接线（结构在标记里，精确样式/数据/事件在此）
+        var stats = res.Find<TuiLabel>("stats")!;
+        var search = res.Find<TuiInput>("search")!;
+        var list = res.Find<TuiListView>("list")!;
+        var openBtn = res.Find<TuiButton>("openBtn")!;
+        var renameBtn = res.Find<TuiButton>("renameBtn")!;
+        var delBtn = res.Find<TuiButton>("delBtn")!;
+        var closeBtn = res.Find<TuiButton>("closeBtn")!;
+        var help = res.Find<TuiLabel>("help")!;
+        search.Fg = AnsiColors.White;
+        search.Bg = AnsiColors.BgBlack;
+        list.Height = ListH;
+        list.IsAutoScrollToEnd = false;
         Grad(openBtn, TuiTheme.Current.BtnCyanBlue);
         Grad(renameBtn, TuiTheme.Current.BtnOrangeYellow);
         Grad(delBtn, TuiTheme.Current.BtnRedOrange);
         Grad(closeBtn, TuiTheme.Current.BtnOrangeYellow);
-
-        // 帮助行
-        var help = new TuiLabel { Height = 1, Fg = AnsiColors.BrightBlack };
-
-        var vbox = new TuiVBox { ChildHAlign = EHAlign.Stretch };
-        vbox.Add(stats);
-        vbox.Add(searchRow);
-        vbox.Add(list);
-        vbox.Add(btnRow);
-        vbox.Add(help);
-        win.RootView = vbox;
 
         // ── 刷新 ──
 

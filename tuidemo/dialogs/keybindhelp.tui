@@ -1,0 +1,10 @@
+<!-- 快捷键速查 —— 配合 TuiKeybindHelp code-behind（最适合作标记化样板）。
+     列表项（分类头 + 键位行 PadKey 对齐）由代码 AddItem 填充。 -->
+<Window title="⌨ 快捷键速查" modal="true" mask="true" border="solid" borderColor="info"
+        minWidth="52" minHeight="8"
+        gradient="true" gradientStart="#00e6ff" gradientEnd="#0064dc">
+  <VBox>
+    <ListView id="list" autoScroll="false" />
+    <Label id="hint" height="1" fg="8" />
+  </VBox>
+</Window>

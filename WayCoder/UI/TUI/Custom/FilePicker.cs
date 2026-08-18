@@ -2,6 +2,7 @@
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui;
@@ -80,59 +81,35 @@ public static class FilePicker
         int nameW = Math.Max(8, listW - 1 - SizeW - DateW - TimeW); // 预留 1 列滚动条
         int winH = ListH + 5; // 上框 + 路径 + 搜索 + 列表 + 帮助 + 下框
 
-        var win = new TuiWindow
-        {
-            Title = title,
-            Modal = true, HasMask = true,
-            BorderStyle = WindowBorder.Solid,
-            BorderColor = TuiTheme.Current.DialogInfoBorder,
-            WinBg = TuiTheme.Current.WindowBg,
-            Width = winW, Height = winH,
-            MinWidth = MinW, MinHeight = 10,
-            WindowHAlign = EHAlign.Center,
-            WindowVAlign = EVAlign.Middle,
-        };
+        // 标记加载：结构/ids 来自 filepicker.tui（布局写标记），动态内容与事件 code-behind
+        var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "filepicker.tui")));
+        var win = res.Window ?? throw new InvalidOperationException("filepicker.tui 根应为 Dialog");
+        win.Title = title;
+        win.Width = winW; win.Height = winH;
+        win.MinWidth = MinW; win.MinHeight = 10;
+        win.WinBg = TuiTheme.Current.WindowBg;
         var g = TuiTheme.Current.GradCyanBlue;
         win.GradientBorder = true;
         win.GradientStart = g.start;
         win.GradientEnd = g.end;
 
-        // ── 状态 ──
-        var dir = initialDir;
-        var entries = LoadDir(dir, pattern);
-        var filtered = new List<FileEntry>();
-
-        // 路径栏
-        var pathLabel = new TuiLabel { Height = 1, Fg = AnsiColors.BrightBlack };
-
-        // 搜索行（标签 + 输入框，输入框聚焦）
-        var search = new TuiInput
-        {
-            Height = 1,
-            Flex = 1,
-            Fg = AnsiColors.White, Bg = AnsiColors.BgBlack,
-            Focused = true,
-        };
-        var searchRow = new TuiHBox { Spacing = 1 };
-        searchRow.Add(new TuiLabel("搜索:") { Width = 6, Fg = AnsiColors.BrightBlack });
-        searchRow.Add(search);
-
-        // 文件列表（多列：文件/大小/日期/时间）
-        var table = new TuiTableList { Height = ListH };
+        // 控件接线（结构在标记里，精确样式/列/数据/事件在此）
+        var pathLabel = res.Find<TuiLabel>("path")!;
+        var search = res.Find<TuiInput>("search")!;
+        var table = res.Find<TuiTableList>("table")!;
+        var help = res.Find<TuiLabel>("help")!;
+        search.Fg = AnsiColors.White;
+        search.Bg = AnsiColors.BgBlack;
+        table.Height = ListH;
         table.AddColumn("文件", nameW);
         table.AddColumn("大小", SizeW);
         table.AddColumn("日期", DateW);
         table.AddColumn("时间", TimeW);
 
-        // 帮助行（兼显示过滤计数）
-        var help = new TuiLabel { Height = 1, Fg = AnsiColors.BrightBlack };
-
-        var vbox = new TuiVBox { ChildHAlign = EHAlign.Stretch };
-        vbox.Add(pathLabel);
-        vbox.Add(searchRow);
-        vbox.Add(table);
-        vbox.Add(help);
-        win.RootView = vbox;
+        // ── 状态 ──
+        var dir = initialDir;
+        var entries = LoadDir(dir, pattern);
+        var filtered = new List<FileEntry>();
 
         // ── 刷新 / 动作 ──
 
