@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.79.9 (2026-08-19) — GUI 权限/选择对话框对齐：命令着色 + 单选/多选 checkbox
+
+### 🔧 权限确认对话框（对齐 TUI InlinePermission）
+- **工具图标标题**：bash→🔧、write→📝、edit→✏️、read→📄
+- **命令着色**：bash 命令绿色 / 文件路径青色（对齐 TUI 参数着色），等宽可选中
+- 保留允许/全部允许/拒绝三键 + 超时
+
+### ☑️ 单选/多选对话框（对齐 Web/TUI）
+- **多选**：CheckBox 列表（对齐 Web 多选 checkbox，勾选明确）
+- **单选**：ListBox 列表
+- 标题带 emoji（📋 单选 / ☑ 多选）
+
+### ✅ 验证
+- GUI 编译 0 错误，启动运行正常
+- 三端对话框能力对齐：权限（TUI 行内 Y/A/D / Web 弹窗 / GUI 模态+着色）、单选/多选（TUI 列表 / Web checkbox / GUI checkbox）
+
 ## v0.79.8 (2026-08-19) — GUI 设置对话框 Schema 驱动（对齐 TUI/Web）
 
 GUI 版设置对话框从手写 4 项（API Key/Temperature/MaxTokens/自动提交）升级为 **Schema 驱动**（对齐 TUI SettingsPage / Web 设置抽屉）：

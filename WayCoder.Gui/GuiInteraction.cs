@@ -1,6 +1,7 @@
 using System.Text;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -223,19 +224,41 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
         {
             var win = new Window
             {
-                Title = title,
+                Title = (multi ? "☑ 多选 — " : "📋 单选 — ") + title,
                 Width = 480,
-                Height = 420,
+                Height = 440,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Background = new SolidColorBrush(Color.Parse("#171a23")),
             };
             var panel = new StackPanel { Margin = new Avalonia.Thickness(20), Spacing = 12 };
-            var list = new ListBox { ItemsSource = choices, SelectionMode = multi ? SelectionMode.Multiple : SelectionMode.Single };
-            panel.Children.Add(list);
+
+            // 多选 → CheckBox 列表（对齐 Web 多选 checkbox）；单选 → ListBox
+            List<CheckBox>? checks = null;
+            ListBox? list = null;
+            if (multi)
+            {
+                checks = choices.Select(c => new CheckBox
+                {
+                    Content = c,
+                    IsChecked = false,
+                    Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")),
+                }).ToList();
+                foreach (var c in checks) panel.Children.Add(c);
+            }
+            else
+            {
+                list = new ListBox { ItemsSource = choices, SelectionMode = SelectionMode.Single };
+                panel.Children.Add(list);
+            }
+
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
             btnRow.Children.Add(MakeButton("确定", "#2f6bff", () =>
             {
-                var picked = list.SelectedItems?.Cast<string>().ToList() ?? [];
+                List<string> picked;
+                if (checks != null)
+                    picked = checks.Where(c => c.IsChecked == true).Select(c => (string)c.Content!).ToList();
+                else
+                    picked = list?.SelectedItems?.Cast<string>().ToList() ?? [];
                 win.Close();
                 tcs.TrySetResult(picked.Count > 0 ? picked : null);
             }));
@@ -246,6 +269,39 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
             win.ShowDialog(_owner);
         });
         return tcs.Task;
+    }
+
+    /// <summary>权限确认标题：工具名 + emoji（对齐 TUI InlinePermission 的工具图标）。</summary>
+    private static string PermissionTitle(string toolName) => toolName switch
+    {
+        "bash" => "🔧 Bash 确认",
+        "write_file" => "📝 写文件确认",
+        "edit_file" => "✏️ 编辑文件确认",
+        "read_file" => "📄 读文件确认",
+        _ => $"⚠️ {toolName} 确认",
+    };
+
+    /// <summary>权限正文：bash 命令绿色 / 文件路径青色（对齐 TUI 参数着色），等宽可选中。</summary>
+    private static Control BuildPermissionBody(string toolName, string message)
+    {
+        var tb = new SelectableTextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 13 };
+        var mono = new FontFamily("Menlo,Consolas,monospace");
+
+        if (toolName == "bash" && message.StartsWith("命令: "))
+        {
+            tb.Inlines.Add(new Run("命令: ") { Foreground = new SolidColorBrush(Color.Parse("#3fb950")) });
+            tb.Inlines.Add(new Run(message[4..]) { Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")), FontFamily = mono });
+            return tb;
+        }
+        if ((toolName == "write_file" || toolName == "edit_file" || toolName == "read_file") && message.StartsWith("文件: "))
+        {
+            tb.Inlines.Add(new Run("文件: ") { Foreground = new SolidColorBrush(Color.Parse("#58a6ff")) });
+            tb.Inlines.Add(new Run(message[4..]) { Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")), FontFamily = mono });
+            return tb;
+        }
+        tb.Text = message;
+        tb.Foreground = new SolidColorBrush(Color.Parse("#e6e8ee"));
+        return tb;
     }
 
     /// <summary>带超时的等待：超时返回 fallback（防 Agent 因对话框无人点击而无限挂起）。</summary>
