@@ -19,6 +19,18 @@
   </PropertyGroup>
 
 
+  <!-- 编译期合并 Web 前端资源（www/*.html/css/js → WebAssets.Generated.cs），编辑源文件后重新构建即可 -->
+  <Target Name="GenerateWebAssets" BeforeTargets="CoreCompile"
+          Inputs="$(MSBuildProjectDirectory)/UI/WEB/www/index.html;$(MSBuildProjectDirectory)/UI/WEB/www/style.css;$(MSBuildProjectDirectory)/UI/WEB/www/app.js"
+          Outputs="$(MSBuildProjectDirectory)/UI/WEB/WebAssets.Generated.cs">
+    <Exec Command="python3 ../scripts/merge_webassets.py" WorkingDirectory="$(MSBuildProjectDirectory)" />
+    <ItemGroup>
+      <!-- glob 以相对路径 Identity 自动包含生成文件，先按相对路径 Remove 去重，再显式 Include 一次 -->
+      <Compile Remove="UI/WEB/WebAssets.Generated.cs" />
+      <Compile Include="$(MSBuildProjectDirectory)/UI/WEB/WebAssets.Generated.cs" />
+    </ItemGroup>
+  </Target>
+
   <ItemGroup>
     <Compile Remove="game/**/*.cs" />
     <Compile Remove="games/**/*.cs" />

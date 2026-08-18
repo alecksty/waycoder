@@ -170,6 +170,7 @@ WayCoder/
 - **Dialog Overlay 栈**：`DialogOverlay` 栈式对话框管理 + `DialogAction` 类型化结果（对标 Crush overlay + typed actions），Push/Pop/按 ID 替换 + Esc 关闭栈顶
 - **懒渲染列表**：`ILazyItem` 接口（`MeasureHeight`/`IsRenderCached`）+ `TuiListView` 二分查找首可见项 O(log n)（对标 Crush List + Item 接口）
 - **渲染缓存**：`TuiMarkdown._parsed` + `_lastContent` + `_lastMaxWidth` 三级缓存，`EnsureParsed()` 仅在内容/宽度变更时重解析（对标 Crush cachedMessageItem）
+- **自定义单元格**：`TuiDataList`/`TuiTreeView`/`TuiTableList` 支持 `CellMarkup` 用 `.tui` 片段做单元格模板，`TuiMarkup.LoadCell(markup, vars)` 替换 `{key}` 占位符（AsyncLocal 并发安全）——向「布局写 `.tui`、逻辑写 code-behind」架构靠拢；`Load` 对叶子根自动包装 `TuiVBox`（任意控件可当 cell 模板）；cell 渲染前 `OnResize` 触发布局 + `ClampCellWidths` 递归钳宽防 DrawLine 直接写屏串列（超宽不裁剪）；TreeView `items="文档>概览"` 路径语法建树自动展开中间节点
 - **模型选择对话框**：`ModelPicker.Show()` 全屏 ANSI 直写，21+ 模型按供应商分组，Tab 切大/小模型，实时搜索过滤，Ctrl+M 打开（对标 Crush models.go）
 - **按钮组 + 独立滚动条**：`TuiButtonGroup` 水平/垂直布局 + Tab 导航 + 字母快捷键（对标 Crush button.go）；`TuiScrollbar` 拖拽滑块 + 鼠标滚轮 + 自动隐藏（对标 Crush scrollbar.go）
 - **文件选择 + 命令面板**：`FilePicker.Show()` 目录浏览 + 文件搜索（对标 Crush filepicker）；`CommandPalette.Show()` 分类分组 + 模糊搜索 + 快捷键显示

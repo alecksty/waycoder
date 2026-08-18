@@ -1,8 +1,9 @@
+using System.Globalization;
 using System.Text;
-using System.Text.RegularExpressions;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using WayCoder.UI.Tui;
@@ -191,6 +192,89 @@ public partial class MainWindow : Window
         {
             AppendSlot(_activeSlot, $"\n[切换模型失败] {ex.Message}\n");
         }
+    }
+
+    private void Settings_Click(object? sender, RoutedEventArgs e) => ShowSettings();
+
+    private void ShowSettings()
+    {
+        var cfg = Config.Instance;
+        var providerId = ModelCatalog.Find(cfg.Model)?.ProviderId ?? cfg.Provider;
+        var currentKey = ApiKeyStore.Get(providerId) ?? cfg.ApiKey;
+
+        var win = new Window
+        {
+            Title = "设置",
+            Width = 460,
+            SizeToContent = SizeToContent.Height,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            CanResize = false,
+            Background = new SolidColorBrush(Color.Parse("#171a23")),
+        };
+
+        var panel = new StackPanel { Margin = new Avalonia.Thickness(20), Spacing = 10 };
+        var keyBox = new TextBox { Text = currentKey ?? "", PasswordChar = '•', PlaceholderText = "API Key（留空则沿用 .env）" };
+        var tempBox = new TextBox { Text = cfg.Temperature.ToString(CultureInfo.InvariantCulture) };
+        var tokBox = new TextBox { Text = cfg.MaxTokens.ToString() };
+        var commitCb = new CheckBox { Content = "自动 git commit", IsChecked = cfg.AutoGitCommit, Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")) };
+
+        panel.Children.Add(SettingsLabel("API Key"));
+        panel.Children.Add(keyBox);
+        panel.Children.Add(SettingsLabel("Temperature"));
+        panel.Children.Add(tempBox);
+        panel.Children.Add(SettingsLabel("MaxTokens"));
+        panel.Children.Add(tokBox);
+        panel.Children.Add(commitCb);
+
+        var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
+        btnRow.Children.Add(MakeButton("保存", "#2f6bff", () =>
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(keyBox.Text))
+                    ApiKeyStore.Set(providerId, keyBox.Text.Trim());
+                if (float.TryParse(tempBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var t))
+                    cfg.Temperature = t;
+                if (int.TryParse(tokBox.Text, out var mt) && mt > 0)
+                    cfg.MaxTokens = mt;
+                cfg.AutoGitCommit = commitCb.IsChecked == true;
+                cfg.SaveToEnvFile();
+                foreach (var agent in _agents)
+                {
+                    if (agent == null) continue;
+                    var info = ModelCatalog.Find(agent.LlmClient.Model);
+                    agent.LlmClient.Reconfigure(ApiKeyStore.Get(providerId) ?? cfg.ApiKey, info?.DefaultBaseUrl ?? cfg.BaseUrl);
+                }
+                AppendSlot(_activeSlot, "\n[设置已保存]\n");
+            }
+            catch (Exception ex) { AppendSlot(_activeSlot, $"\n[保存设置失败] {ex.Message}\n"); }
+            win.Close();
+        }));
+        btnRow.Children.Add(MakeButton("取消", "#5b6472", () => win.Close()));
+        panel.Children.Add(btnRow);
+
+        win.Content = panel;
+        win.ShowDialog(this);
+    }
+
+    private static TextBlock SettingsLabel(string text) => new()
+    {
+        Text = text,
+        Foreground = new SolidColorBrush(Color.Parse("#8b93a7")),
+        FontSize = 12,
+    };
+
+    private static Button MakeButton(string text, string colorHex, Action onClick)
+    {
+        var btn = new Button
+        {
+            Content = text,
+            Padding = new Avalonia.Thickness(14, 6),
+            Background = new SolidColorBrush(Color.Parse(colorHex)),
+            Foreground = new SolidColorBrush(Colors.White),
+        };
+        btn.Click += (_, _) => onClick();
+        return btn;
     }
 
     private async Task SendAsync()

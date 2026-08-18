@@ -1,0 +1,10 @@
+<!-- 多选列表对话框 -->
+<Dialog title="多选主题" width="40" height="10" border="rounded" borderColor="accent" shortcut="escape">
+  <VBox align="center" spacing="1">
+    <List id="list" items="深海蓝,翡翠绿,琥珀橙,薰衣紫,暗黑模式" selected="0" width="30" height="5" />
+    <HBox align="center" spacing="2">
+      <Button id="ok" text="确定" />
+      <Button id="cancel" text="取消" />
+    </HBox>
+  </VBox>
+</Dialog>

@@ -1,0 +1,7 @@
+<!-- 列表选择对话框 -->
+<Dialog title="选择操作" width="40" height="10" border="rounded" borderColor="cyan">
+  <VBox align="center" spacing="1">
+    <List id="list" items="新建文件,打开文件夹,搜索符号,重新加载,打开设置" selected="0" width="30" height="5" />
+    <Button id="cancel" text="取消" />
+  </VBox>
+</Dialog>

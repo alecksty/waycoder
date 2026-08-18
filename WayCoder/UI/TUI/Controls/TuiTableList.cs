@@ -1,5 +1,7 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI;
+using WayCoder.UI.TUI.Base;
 using Terminal = WayCoder.UI.Shared.Terminal;
 
 namespace WayCoder.UI.Tui.Controls;
@@ -36,6 +38,9 @@ public class TuiTableList : TuiControl
 
     /// <summary>列头背景色（0=继承窗口底色）</summary>
     public int HeaderBg { get; set; }
+
+    /// <summary>自定义单元格模板（.tui 片段，{value}/{colN}/{text}/{index} 占位符），非空时每列用该模板渲染。</summary>
+    public string CellMarkup { get; set; } = "";
 
     /// <summary>选中行激活（Enter/空格）回调</summary>
     public Action<int>? OnSelect { get; set; }
@@ -181,9 +186,12 @@ public class TuiTableList : TuiControl
             int idx = ScrollOffset + i;
             if (idx >= total) break;
             bool selected = idx == SelectedIndex;
-            WriteTableRow(sb, absX, dataStart + i, FormatRow(_rows[idx]),
-                selected ? TuiTheme.Current.ListSelFg : (Fg > 0 ? Fg : TuiTheme.Current.ListFg),
-                selected ? TuiTheme.Current.ListSelBg : (Bg > 0 ? Bg : TuiTheme.Current.ListBg), dataWidth);
+            int fg = selected ? TuiTheme.Current.ListSelFg : (Fg > 0 ? Fg : TuiTheme.Current.ListFg);
+            int bg = selected ? TuiTheme.Current.ListSelBg : (Bg > 0 ? Bg : TuiTheme.Current.ListBg);
+            if (!string.IsNullOrEmpty(CellMarkup))
+                RenderCellRow(sb, absX, dataStart + i, idx, fg, bg, dataWidth);
+            else
+                WriteTableRow(sb, absX, dataStart + i, FormatRow(_rows[idx]), fg, bg, dataWidth);
         }
 
         // 内联滚动条
@@ -211,6 +219,52 @@ public class TuiTableList : TuiControl
         if (AnsiHelper.DisplayWidth(line) > dataWidth)
             line = AnsiHelper.TruncateByWidth(line, dataWidth);
         WriteAt(sb, row, absX, line + new string(' ', Math.Max(0, dataWidth - AnsiHelper.DisplayWidth(line))), fg, bg);
+    }
+
+    /// <summary>用自定义单元格模板渲染整行：每列一个 cell（宽度=列宽，占位符 {value}/{colN}/{text}/{index}）。</summary>
+    private void RenderCellRow(StringBuilder sb, int absX, int row, int rowIdx, int fg, int bg, int dataWidth)
+    {
+        // 先画整行背景（选中行反白；cell 内透明处透出该背景）
+        if (bg > 0)
+            WriteAt(sb, row, absX, new string(' ', dataWidth), fg, bg);
+
+        var cells = _rows[rowIdx];
+        var vars = new Dictionary<string, string>
+        {
+            ["text"] = FormatRow(cells),
+            ["index"] = rowIdx.ToString(),
+        };
+        for (int i = 0; i < _columns.Count; i++)
+            vars[$"col{i}"] = i < cells.Length ? cells[i] : "";
+
+        int x = absX;
+        for (int i = 0; i < _columns.Count; i++)
+        {
+            int avail = Math.Min(_columns[i].Width, absX + dataWidth - x);
+            if (avail <= 0) break;
+            vars["value"] = i < cells.Length ? cells[i] : "";
+            try
+            {
+                var cell = TuiMarkup.LoadCell(CellMarkup, vars);
+                cell.Width = avail;
+                cell.Height = 1;
+                if (bg > 0) cell.Bg = bg; // 使 cell 内透明控件继承选中/背景色
+                ClampCellWidths(cell, avail); // 约束子控件宽度 ≤ 列宽（DrawLine 直接写屏不裁剪，防串列）
+                cell.OnResize(avail, 1);       // 触发布局（否则子控件堆在 0,0 重叠）
+                cell.Render(sb, x, row, ClipLeft, ClipTop, ClipRight, ClipBottom);
+            }
+            catch { WriteAt(sb, row, x, FormatCell(vars["value"], avail), fg, bg); }
+            x += _columns[i].Width;
+        }
+    }
+
+    /// <summary>递归把 cell 树内所有控件宽度约束到 ≤ maxW，防止直接写屏的文本溢出串列。</summary>
+    private static void ClampCellWidths(TuiControl c, int maxW)
+    {
+        if (c.Width > maxW) c.Width = maxW;
+        if (c is TuiView v)
+            foreach (var child in v.Children)
+                ClampCellWidths(child, maxW);
     }
 
     // ── 输入 ──
