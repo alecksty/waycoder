@@ -651,6 +651,46 @@ public static partial class SelfTest
             new Dictionary<string, string> { ["name"] = "张三", ["color"] = "green" });
         Check("TuiMarkup 占位符替换文本", cellRes.Find<TuiLabel>("l")!.Text == "张三");
         Check("TuiMarkup 占位符替换颜色", cellRes.Find<TuiLabel>("l")!.Fg == AnsiColors.Green);
+        // TableList：声明式列/行/cell + 每列占位符渲染（叶子根模板也支持）
+        var tblRes = WayCoder.UI.TUI.TuiMarkup.Load(
+            "<VBox><TableList id=\"t\" columns=\"模型:16,供应商:10\" " +
+            "items=\"deepseek-v4-pro,深度求索|gpt-5.4-mini,OpenAI\" " +
+            "cell=\"&lt;Label text='{value}' fg='cyan'/&gt;\" selected=\"1\"/></VBox>");
+        var tblList = tblRes.Find<TuiTableList>("t");
+        Check("TuiMarkup TableList 列", tblList != null && tblList.ColumnCount == 2);
+        Check("TuiMarkup TableList 行", tblList != null && tblList.RowCount == 2);
+        Check("TuiMarkup TableList 选中", tblList != null && tblList.SelectedIndex == 1);
+        Check("TuiMarkup TableList cell", tblList != null && tblList.CellMarkup.Contains("value"));
+        if (tblList != null)
+        {
+            tblList.Width = 28;
+            tblList.Height = 4;
+            var tblSb = new StringBuilder();
+            tblList.Render(tblSb, 0, 0, 0, 0, 28, 4);
+            string tblOut = tblSb.ToString();
+            Check("TuiMarkup TableList 渲染第0列", tblOut.Contains("deepseek-v4-pro"));
+            Check("TuiMarkup TableList 渲染第1列", tblOut.Contains("深度求索"));
+            Check("TuiMarkup TableList 渲染第2行", tblOut.Contains("OpenAI"));
+            // cell 模板 fg='cyan' 生效 → 渲染输出含青色 ANSI 前景码（36）
+            Check("TuiMarkup TableList cell 颜色", tblOut.Contains("\x1b[36m"));
+        }
+        // TreeView：声明式 items（路径语法）→ 建树 + cell 模板
+        var tvRes = WayCoder.UI.TUI.TuiMarkup.Load(
+            "<VBox><TreeView id=\"tv\" items=\"文档>概览,文档>入门\" " +
+            "cell=\"&lt;Label text='{text}' fg='yellow'/&gt;\"/></VBox>");
+        var tree = tvRes.Find<TuiTreeView>("tv");
+        Check("TuiMarkup TreeView 根节点", tree != null && tree.RootNodes.Count == 1);
+        Check("TuiMarkup TreeView 子节点", tree != null && tree.RootNodes.Count == 1 && tree.RootNodes[0].Children.Count == 2);
+        Check("TuiMarkup TreeView 展开", tree != null && tree.RootNodes.Count == 1 && tree.RootNodes[0].IsExpanded);
+        Check("TuiMarkup TreeView cell", tree != null && tree.CellMarkup.Contains("text"));
+        if (tree != null)
+        {
+            tree.Width = 16;
+            tree.Height = 3;
+            var tvSb = new StringBuilder();
+            tree.Render(tvSb, 0, 0, 0, 0, 16, 3);
+            Check("TuiMarkup TreeView 渲染", tvSb.ToString().Contains("概览"));
+        }
         Console.WriteLine();
 
         // ================================================================

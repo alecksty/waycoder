@@ -53,7 +53,6 @@ public class TuiAnimatedText : TuiControl
 
     private bool _running = true;
     private bool _directWrite;
-    private int _lastAbsX, _lastAbsY;
 
     /// <summary>是否直接写屏（true=跳过 frame buffer，由 RenderDirect 直接写终端）。</summary>
     public bool DirectWrite
@@ -94,8 +93,6 @@ public class TuiAnimatedText : TuiControl
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
-        _lastAbsX = absX;
-        _lastAbsY = absY;
         if (DirectWrite) return; // 直接写屏模式：不写 frame buffer
 
         ControlRenderer.DrawLabelLine(sb, this, absX, absY,
