@@ -529,13 +529,15 @@ public static class TuiMarkup
                 break;
             case "VBox":
                 if (Int(node, "spacing") is int vsp) ((TuiVBox)c).Spacing = vsp;
-                if (Enum.TryParse<EHAlign>(Attr(node, "align"), true, out var va))
-                    ((TuiVBox)c).ChildHAlign = va;
+                // 标记 VBox 默认拉伸子控件宽度（声明式布局的子控件依赖容器定宽；显式 align 才走 Left/Center/Right）
+                ((TuiVBox)c).ChildHAlign = Enum.TryParse<EHAlign>(Attr(node, "align"), true, out var va) ? va : EHAlign.Stretch;
                 break;
             case "HBox":
                 if (Int(node, "spacing") is int hsp) ((TuiHBox)c).Spacing = hsp;
                 if (Enum.TryParse<EHAlign>(Attr(node, "align"), true, out var ha))
                     ((TuiHBox)c).ContentHAlign = ha;
+                // 标记 HBox 默认纵向拉伸子控件（flex 分配高度时子控件填满，避免按内容撑高溢出；显式 valign 才覆盖）
+                ((TuiHBox)c).ChildVAlign = Enum.TryParse<EVAlign>(Attr(node, "valign"), true, out var hv) ? hv : EVAlign.Stretch;
                 break;
             case "Grid":
                 var grid = (TuiGrid)c;
