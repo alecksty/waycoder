@@ -112,7 +112,7 @@ public static class DiffPreview
         bool isAllMode = false; // "review" | "all"
 
         // 标记加载：窗口壳/状态栏来自 diffpreview.tui，DiffView 自定义控件 code 注入 body 首位
-        var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "diffpreview.tui")));
+        var res = TuiMarkup.LoadResource("dialogs/diffpreview.tui");
         var win = res.Window ?? throw new InvalidOperationException("diffpreview.tui 根应为 Dialog");
         win.Title = $"Diff 预览: {filePath}  ({hunks.Count} hunks)";
         win.Width = winW; win.Height = winH;

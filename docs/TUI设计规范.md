@@ -10,7 +10,7 @@
 |------|------|------|
 | 走控件库 | `ChatScreen`/`EditorScreen`/`SettingsScreen`、`TuiDialog`、`UxHelper` | 统一、可切主题 |
 | 手写自绘 | ~~`ModelPicker`/`DiffPreview` 等 8 个选择器：`StringBuilder` 拼 `\x1b` + `Console.Write` + `while(true) ReadKey`~~（v0.76.0 已全部标记化，此写法废弃） | 边框/间距/配色各写各的 |
-| 声明式标记 | `tuidemo/**/*.tui` + code-behind（`MarkupChatScreen` 及全部窗口型界面） | 布局写标记、交互写代码，可 `--tui-preview` 预览 |
+| 声明式标记 | `UI/TUI/Raw/**/*.tui` + code-behind（`MarkupChatScreen`、全部窗口型界面、`TuiDialog` 全部对话框） | 布局写标记、交互写代码，可 `--tui-preview` / WPF 预览 |
 
 这就是「一部分满意、一部分丑陋」的根因。规范的落点只有一条：**所有界面都必须由控件库渲染，取色只走设计令牌，禁止任何控件直接碰 `Console` 或裸 ANSI 转义。**
 
@@ -18,8 +18,8 @@
 
 新界面一律优先用 `.tui` 标记声明布局 + code-behind 写交互：
 
-- **资源位置**：`tuidemo/**/*.tui`（主界面 `chat.tui`、对话框/选择器 `dialogs/*.tui`），发布时由 csproj 复制到输出，`TuiMarkupPaths.ResolveDemoFile(name)` 定位。
-- **加载模式**：`TuiMarkup.LoadFile(path)` → `res.Find<T>(id)` 取控件 → 接线数据/事件。窗口型界面沿用 `screen.ShowWindow(win)` + `UxHelper.RenderWait`。
+- **资源位置**：`WayCoder/UI/TUI/Raw/**/*.tui`（主界面 `chat.tui`、对话框/选择器 `dialogs/*.tui`），**嵌入程序集**（逻辑名 `WayCoder.UI.TUI.Raw.<path>`，AOT 单文件 exe 内可读）且发布时复制到输出 `Raw/` 供文件系统定位。
+- **加载模式**：`TuiMarkup.LoadResource(name[, vars])`（文件系统优先、嵌入资源兜底，支持 `{title}` 等占位符）→ `res.Find<T>(id)` 取控件 → 接线数据/事件。窗口型界面沿用 `screen.ShowWindow(win)` + `UxHelper.RenderWait`。
 - **预览**：`--tui-preview <file.tui>` / `--tui-watch <file.tui>` 终端预览；**WPF 图形预览** `WayCoder.Preview/`（`dotnet run --project WayCoder.Preview -- <file.tui>`）——支持缩放、屏幕尺寸模拟（80x25~240x72 快选）、文件保存自动刷新、最近文件。
 - **切分原则**：静态布局（容器/控件/层级/id/基础样式）写标记；动态内容（列表项、过滤、着色、快捷键、落盘）留 code-behind。
 - **环境特性**：所有元素（`TuiBase`）带 `InDesign`（设计/预览模式）与 `SimulatedScreen`（true=模拟/离屏，false=物理终端），由 `TuiMarkup.InDesign`/`TuiMarkup.SimulatedScreen` 环境量注入。预览程序（`--tui-preview`/WPF）下为 true，正常 REPL 为 false——元素可据此在「设计态」与「运行态」渲染不同内容。

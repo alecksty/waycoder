@@ -1,0 +1,26 @@
+<!-- 查找/替换对话框（编辑器用，两个输入 + 三选项 + 四按钮，状态由 code-behind 注入） -->
+<Dialog title="查找/替换" border="rounded" borderColor="cyan" shortcut="escape">
+  <VBox align="left" spacing="1">
+    <HBox spacing="1">
+      <Label text="查找:" width="6" />
+      <Input id="find" flex="1" value="" focused="true" />
+    </HBox>
+    <HBox spacing="1">
+      <Label text="替换:" width="6" />
+      <Input id="repl" flex="1" value="" />
+    </HBox>
+    <HBox spacing="3">
+      <Checkbox id="case" text="区分大小写" />
+      <Checkbox id="regex" text="正则" />
+      <Checkbox id="word" text="整词" />
+    </HBox>
+    <HBox align="center" spacing="2">
+      <Button id="findNext" text="查找下一个" />
+      <Button id="replace" text="替换" />
+    </HBox>
+    <HBox align="center" spacing="2">
+      <Button id="replaceAll" text="全部替换" />
+      <Button id="close" text="取消 (Esc)" />
+    </HBox>
+  </VBox>
+</Dialog>

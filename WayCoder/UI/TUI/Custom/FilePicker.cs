@@ -82,7 +82,7 @@ public static class FilePicker
         int winH = ListH + 5; // 上框 + 路径 + 搜索 + 列表 + 帮助 + 下框
 
         // 标记加载：结构/ids 来自 filepicker.tui（布局写标记），动态内容与事件 code-behind
-        var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "filepicker.tui")));
+        var res = TuiMarkup.LoadResource("dialogs/filepicker.tui");
         var win = res.Window ?? throw new InvalidOperationException("filepicker.tui 根应为 Dialog");
         win.Title = title;
         win.Width = winW; win.Height = winH;

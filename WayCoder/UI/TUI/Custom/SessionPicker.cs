@@ -64,7 +64,7 @@ public static class SessionPicker
         int winH = ListH + 6;                         // 统计+搜索+列表+按钮+帮助 + 上下边框
 
         // 标记加载：结构/ids 来自 sessionpicker.tui（布局写标记），动态内容与事件 code-behind
-        var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "sessionpicker.tui")));
+        var res = TuiMarkup.LoadResource("dialogs/sessionpicker.tui");
         var win = res.Window ?? throw new InvalidOperationException("sessionpicker.tui 根应为 Dialog");
         win.Width = winW; win.Height = winH;
         win.MinWidth = MinW; win.MinHeight = winH;

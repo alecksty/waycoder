@@ -64,7 +64,7 @@ public static class ModelPicker
         int nameW = Math.Max(8, listW - 1 - keyW - provW - ctxW - priceW - largeW - smallW);
 
         // 标记加载：结构/ids 来自 modelpicker.tui（布局写标记），动态内容与事件 code-behind
-        var res = TuiMarkup.LoadFile(TuiMarkupPaths.ResolveDemoFile(Path.Combine("dialogs", "modelpicker.tui")));
+        var res = TuiMarkup.LoadResource("dialogs/modelpicker.tui");
         var win = res.Window ?? throw new InvalidOperationException("modelpicker.tui 根应为 Dialog");
         win.Width = winW; win.Height = winH;
         win.MinWidth = MinW; win.MinHeight = MinH;

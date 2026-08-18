@@ -148,6 +148,14 @@ public static class TuiMarkup
     /// <summary>从 .tui 文件加载。</summary>
     public static TuiMarkupResult LoadFile(string path) => Load(File.ReadAllText(path));
 
+    /// <summary>从标记资源（UI/TUI/Raw/，文件系统优先、嵌入资源兜底）加载。</summary>
+    /// <param name="name">相对 Raw/ 的资源名，如 "chat.tui"、"dialogs/confirm.tui"。</param>
+    public static TuiMarkupResult LoadResource(string name) => Load(TuiMarkupPaths.LoadText(name));
+
+    /// <summary>从标记资源加载，并绑定 {key} 占位符（对话框标题/默认文本等动态数据）。</summary>
+    public static TuiMarkupResult LoadResource(string name, Dictionary<string, string> vars)
+        => Load(TuiMarkupPaths.LoadText(name), vars);
+
     /// <summary>加载单元格模板（.tui 片段）并绑定数据，返回视图（供 list/tree/table 自定义单元格用）。</summary>
     public static TuiView LoadCell(string markup, Dictionary<string, string> vars)
         => (TuiView)Load(markup, vars).View!;
@@ -400,7 +408,9 @@ public static class TuiMarkup
                 }
                 break;
             case "Input":
-                ((TuiInput)c).Text = Attr(node, "value", Attr(node, "text"));
+                var inp = (TuiInput)c;
+                inp.Text = Attr(node, "value", Attr(node, "text"));
+                if (Bool(node, "password") is bool pw) inp.Password = pw;
                 break;
             case "TextArea":
                 var ta = (TuiTextArea)c;

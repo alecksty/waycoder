@@ -1,0 +1,7 @@
+<!-- 单选列表对话框（列表项/标题由 code-behind 注入） -->
+<Dialog title="{title}" border="rounded" borderColor="cyan">
+  <VBox align="center" spacing="1">
+    <List id="list" items="选项一,选项二,选项三" selected="0" width="30" height="5" />
+    <Button id="cancel" text="取消 (Esc)" />
+  </VBox>
+</Dialog>

@@ -27,6 +27,10 @@
     <Compile Include="../WayCoder/UI/TUI/TuiMarkup.cs" />
     <Compile Include="../WayCoder/UI/TUI/TuiMarkupPaths.cs" />
     <Compile Include="../WayCoder/Config/Global.cs" />
+    <!-- 标记资源：把主项目 UI/TUI/Raw/**/*.tui 复制到预览输出 Raw/，供 TuiMarkupPaths 文件系统定位（颜色对照命令等） -->
+    <None Include="../WayCoder/UI/TUI/Raw/**/*.tui"
+          Link="Raw/%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../WayCoder/Config/Config.cs" />
     <Compile Include="../WayCoder/Config/ApiKeyStore.cs" />
     <Compile Include="../WayCoder/Config/ModelCatalog.cs" />
