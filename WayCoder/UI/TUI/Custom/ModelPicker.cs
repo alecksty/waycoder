@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Net.Http;
+using System.Text;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui;
@@ -91,8 +92,12 @@ public static class ModelPicker
         table.AddColumn("小", smallW);
 
         // ── 状态 ──
-        var models = GetAvailableModels();
+        List<ModelEntry> models = GetAvailableModels();
         var filtered = new List<ModelEntry>();
+        var rowModels = new List<ModelEntry?>();     // table 行 → 模型（组头行 null）
+        var modelLock = new object();                 // 保护 models（导入/扫描后台刷新）
+        var scanLock = new object();
+        var scanResult = new Dictionary<string, bool>(); // providerId → 连通
         string large = cfg.Model, small = cfg.SmallModel;
         bool isLarge = true;
         int targetSlot = currentSlot; // -2=全部, -1=全局, 0-9=具体槽位
@@ -106,40 +111,53 @@ public static class ModelPicker
         void Refresh(bool resetToCurrent)
         {
             SyncModels();
+            List<ModelEntry> src;
+            lock (modelLock) src = models;
             filtered = string.IsNullOrEmpty(search.Text)
-                ? models
-                : models.Where(m =>
+                ? src
+                : src.Where(m =>
                     m.DisplayName.Contains(search.Text, StringComparison.OrdinalIgnoreCase) ||
                     m.Id.Contains(search.Text, StringComparison.OrdinalIgnoreCase) ||
                     m.Provider.Contains(search.Text, StringComparison.OrdinalIgnoreCase)).ToList();
 
+            // 按供应商分组渲染（组头行 + 扫描状态）
             table.ClearRows();
-            foreach (var m in filtered)
+            rowModels.Clear();
+            foreach (var group in filtered.GroupBy(m => m.ProviderId).OrderBy(g => g.Key))
             {
-                bool isL = m.Id == large, isS = m.Id == small;
-                table.AddRow(
-                    m.HasApiKey ? "🔑" : "  ",
-                    m.DisplayName,
-                    m.Provider,
-                    FmtCtx(m.ContextWindow).PadLeft(ctxW),
-                    FmtPrice(m.InputPrice).PadLeft(priceW),
-                    isL ? "✓" : " ",
-                    isS ? "✓" : " ");
+                bool ok; bool hasScan;
+                lock (scanLock) { hasScan = scanResult.TryGetValue(group.Key, out ok); }
+                var mark = hasScan ? (ok ? "  ✅ 连通" : "  ❌ 不通") : "";
+                table.AddGroupHeader(group.Key + mark);
+                rowModels.Add(null);
+                foreach (var m in group)
+                {
+                    bool isL = m.Id == large, isS = m.Id == small;
+                    table.AddRow(
+                        m.HasApiKey ? "🔑" : "  ",
+                        m.DisplayName,
+                        m.Provider,
+                        FmtCtx(m.ContextWindow).PadLeft(ctxW),
+                        FmtPrice(m.InputPrice).PadLeft(priceW),
+                        isL ? "✓" : " ",
+                        isS ? "✓" : " ");
+                    rowModels.Add(m);
+                }
             }
 
-            table.SelectedIndex = 0;
-            if (resetToCurrent)
+            table.SelectedIndex = table.NextSelectable(0);
+            if (resetToCurrent && rowModels.Count > 0)
             {
                 string cur = isLarge ? large : small;
-                for (int i = 0; i < filtered.Count; i++)
-                    if (filtered[i].Id == cur) { table.SelectedIndex = i; break; }
+                for (int i = 0; i < rowModels.Count; i++)
+                    if (rowModels[i]?.Id == cur) { table.SelectedIndex = i; break; }
             }
             table.ScrollOffset = 0;
             table.EnsureSelectedVisible();
 
             win.Title = TitleText();
             slotBar.Text = SlotBarText(targetSlot, currentSlot);
-            help.Text = "↑↓ 导航  Enter 选择  Esc 取消  Tab 大/小  A 全部  1-0 槽位  输入搜索";
+            help.Text = "↑↓ 选择  Enter 确认  Tab 大/小  S 扫描  I 导入  O OpenCode  K 设key  L 清key  输入搜索";
             screen?.MarkDirty();
         }
 
@@ -152,8 +170,103 @@ public static class ModelPicker
         }
         void Commit()
         {
-            var r = EnterOrPromptKey(filtered, table.SelectedIndex, isLarge, targetSlot);
+            var m = table.SelectedIndex >= 0 && table.SelectedIndex < rowModels.Count
+                ? rowModels[table.SelectedIndex] : null;
+            if (m == null) return; // 组头行不可选
+            var r = EnterOrPromptKey(m, isLarge, targetSlot);
             if (r != null) Finish(r);
+        }
+
+        // ── 后台操作：扫描/导入/OpenCode（结果 lock 保护，下次 Refresh 读取）──
+        void TriggerScan()
+        {
+            help.Text = "📡 扫描连通性中…（完成后按 ↑↓/输入刷新）";
+            screen?.MarkDirty();
+            Task.Run(() =>
+            {
+                var dict = new Dictionary<string, bool>();
+                try
+                {
+                    foreach (var p in ModelCli.TestList()) dict[p.ProviderId] = p.Ok;
+                }
+                catch { }
+                lock (scanLock) { scanResult = dict; }
+                screen?.MarkDirty();
+            });
+        }
+
+        void TriggerImport(string kind)
+        {
+            help.Text = kind == "opencode" ? "🌐 OpenCode 在线导入中…" : "📥 自动导入中…";
+            screen?.MarkDirty();
+            Task.Run(() =>
+            {
+                string report;
+                try
+                {
+                    if (kind == "opencode")
+                    {
+                        const string url = "https://opencode.ai/zen/go/v1/models";
+                        const string apiBase = "https://opencode.ai/zen/go/v1";
+                        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+                        client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder/1.0");
+                        var json = client.GetStringAsync(url).GetAwaiter().GetResult();
+                        var list = ModelCatalog.ImportOpenCodeApi(json, apiBase);
+                        var builtIn = new HashSet<string>(ModelCatalog.BuiltIn.Select(x => x.Id), StringComparer.OrdinalIgnoreCase);
+                        var toAdd = list.Where(x => !builtIn.Contains(x.Id)).ToList();
+                        ModelCatalog.AddCustomRange(toAdd);
+                        report = $"✅ OpenCode 导入 {toAdd.Count} 个模型" + (list.Count - toAdd.Count > 0 ? $"，跳过 {list.Count - toAdd.Count} 内置" : "");
+                    }
+                    else
+                    {
+                        report = ModelCli.Import(null);
+                    }
+                }
+                catch (Exception ex) { report = $"❌ 导入失败: {ex.Message}"; }
+                try
+                {
+                    var fresh = GetAvailableModels();
+                    lock (modelLock) { models = fresh; }
+                }
+                catch { }
+                help.Text = report + "（按 ↑↓/输入刷新）";
+                screen?.MarkDirty();
+            });
+        }
+
+        void ClearKeyForSelected()
+        {
+            var m = table.SelectedIndex >= 0 && table.SelectedIndex < rowModels.Count
+                ? rowModels[table.SelectedIndex] : null;
+            if (m == null) return;
+            if (m.ProviderId is "local" or "custom") { help.Text = "本地模型无需 API Key"; return; }
+            try { ApiKeyStore.Remove(m.ProviderId); } catch { }
+            help.Text = $"已清除 {m.ProviderId} 的 Key";
+            Refresh(false);
+        }
+
+        void PromptKeyForSelected()
+        {
+            var m = table.SelectedIndex >= 0 && table.SelectedIndex < rowModels.Count
+                ? rowModels[table.SelectedIndex] : null;
+            if (m == null) return;
+            if (m.ProviderId is "local" or "custom") { help.Text = "本地模型无需 API Key"; return; }
+            var current = "";
+            try { current = ApiKeyStore.Get(m.ProviderId) ?? ""; } catch { }
+            // 在模型窗口之上再弹子输入框（RenderWait 循环会把按键路由到当前 active 窗口）
+            var inputWin = TuiDialog.InputLine(
+                $"🔑 设置 {m.ProviderId} 的 API Key",
+                "输入 API Key（Enter 保存，Esc 取消）",
+                current,
+                text =>
+                {
+                    try { ApiKeyStore.Set(m.ProviderId, text.Trim()); } catch { }
+                    help.Text = $"已保存 {m.ProviderId} 的 Key";
+                    screen?.MarkDirty();
+                    Refresh(false);
+                });
+            screen?.ShowWindow(inputWin);
+            screen?.MarkDirty();
         }
         void ToggleMode()
         {
@@ -196,6 +309,21 @@ public static class ModelPicker
                 case ConsoleKey.A:
                     if (hasCtrl || search.Text.Length == 0) { ToggleAllSlots(); return true; }
                     return false;
+                case ConsoleKey.S:
+                    if (hasCtrl || search.Text.Length == 0) { TriggerScan(); return true; }
+                    return false;
+                case ConsoleKey.I:
+                    if (hasCtrl || search.Text.Length == 0) { TriggerImport("import"); return true; }
+                    return false;
+                case ConsoleKey.O:
+                    if (hasCtrl || search.Text.Length == 0) { TriggerImport("opencode"); return true; }
+                    return false;
+                case ConsoleKey.L:
+                    if (hasCtrl || search.Text.Length == 0) { ClearKeyForSelected(); return true; }
+                    return false;
+                case ConsoleKey.K:
+                    if (hasCtrl || search.Text.Length == 0) { PromptKeyForSelected(); return true; }
+                    return false;
                 default:
                     if (TrySlotKey(key, out int slot) && (hasCtrl || search.Text.Length == 0))
                     { SetSlot(slot); return true; }
@@ -216,10 +344,9 @@ public static class ModelPicker
     // ═══════════════════════════════════════════════════
 
     /// <summary>Enter：无 key 则返回 NeedsApiKey，有 key 则直接应用</summary>
-    private static Result? EnterOrPromptKey(List<ModelEntry> models, int idx, bool isLarge, int slot)
+    private static Result? EnterOrPromptKey(ModelEntry m, bool isLarge, int slot)
     {
-        if (idx < 0 || idx >= models.Count) return null;
-        var m = models[idx];
+        if (m == null) return null;
         if (!m.HasApiKey)
         {
             // 返回 NeedsApiKey，由调用方弹出输入框
