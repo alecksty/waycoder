@@ -170,32 +170,9 @@ public partial class MainWindow : Window
         if (_zoomIndex > 0) { _zoomIndex--; ZoomSlider.Value = ZoomLevels[_zoomIndex]; }
     }
 
-    private string? _markupContent; // 非文件内容（如 --colors 颜色表）
-
-    /// <summary>渲染任意 .tui 标记内容（不读文件，供颜色表等内置视图使用）。</summary>
-    public void LoadMarkup(string content)
-    {
-        _markupContent = content;
-        _currentPath = null;
-        RenderCurrent();
-    }
-
     private void RenderCurrent()
     {
-        // 用内存标记内容（如颜色表），否则读文件
-        string content;
-        string title;
-        if (_markupContent != null)
-        {
-            content = _markupContent;
-            title = "颜色对照";
-        }
-        else if (!string.IsNullOrEmpty(_currentPath) && File.Exists(_currentPath))
-        {
-            content = File.ReadAllText(_currentPath);
-            title = Path.GetFileName(_currentPath);
-        }
-        else
+        if (string.IsNullOrEmpty(_currentPath) || !File.Exists(_currentPath))
         {
             Grid.SetGrid(null);
             Status.Content = "文件不存在";
@@ -204,12 +181,13 @@ public partial class MainWindow : Window
 
         try
         {
+            var content = File.ReadAllText(_currentPath);
             // 用当前模拟屏幕尺寸渲染（行列按钮调整）
             var (frame, cols, rows) = TuiFrameRenderer.Render(content, _simCols, _simRows);
             var snap = FrameSnapshot.Capture(frame, 0, 0, cols, rows);
             Grid.SetGrid(snap);
             SizeLabel.Text = $"{cols}x{rows}";
-            Title = $"WayCoder .tui 预览 — {title}";
+            Title = $"WayCoder .tui 预览 — {Path.GetFileName(_currentPath)}";
             Status.Content = $"{cols}×{rows}  ·  {DateTime.Now:HH:mm:ss}";
         }
         catch (Exception ex)
