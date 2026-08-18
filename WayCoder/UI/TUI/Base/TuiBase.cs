@@ -24,6 +24,20 @@ public abstract class TuiBase
     /// <summary>用户数据挂载点（任意对象）</summary>
     public object? Tag { get; set; }
 
+    /// <summary>
+    /// 是否处于设计/预览模式（InDesign = true）。由 TuiMarkup.InDesign 环境量注入，
+    /// 预览程序（--tui-preview / WPF 预览）下为 true，正常运行（REPL）为 false。
+    /// 元素可在该模式下渲染不同内容（占位数据、设计边界提示等）。
+    /// </summary>
+    public bool InDesign { get; set; }
+
+    /// <summary>
+    /// 是否渲染到模拟屏幕（离屏缓冲，如 WPF 预览的固定行列屏幕）。
+    /// true=模拟屏幕（预览/设计），false=物理终端。由 TuiMarkup.SimulatedScreen 环境量注入，
+    /// 用于区分「真实终端行为」与「模拟屏幕行为」（如 resize 响应、滚动依赖物理行列时）。
+    /// </summary>
+    public bool SimulatedScreen { get; set; }
+
     // ── 脏标记（增量渲染） ──
 
     /// <summary>是否需要重绘。true=下一帧重新渲染此元素。</summary>
