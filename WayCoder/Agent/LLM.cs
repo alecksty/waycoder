@@ -60,6 +60,18 @@ public class LLM
 {
     private static readonly HttpClient _http = CreateHttpClient();
 
+    /// <summary>
+    /// 解析 API 端点：BaseUrl 约定不含 /v1（自动追加路径）；
+    /// 兼容用户误传 http://host:port/v1（剥离尾部 /v1 后再追加，避免 /v1/v1）。
+    /// </summary>
+    private static string ResolveApiEndpoint(string? baseUrl, string path)
+    {
+        var b = (baseUrl ?? "https://api.openai.com").TrimEnd('/');
+        if (b.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
+            b = b[..^3].TrimEnd('/');
+        return b + path;
+    }
+
     private static HttpClient CreateHttpClient()
     {
         var handler = new HttpClientHandler();
@@ -200,8 +212,8 @@ public class LLM
     public string ApiKey { get; private set; }
     /// <summary>API 基础 URL（默认 https://api.openai.com）</summary>
     public string? BaseUrl { get; private set; }
-    /// <summary>有效的 API endpoint URL</summary>
-    public string Endpoint => (BaseUrl ?? "https://api.openai.com").TrimEnd('/') + "/v1/chat/completions";
+    /// <summary>有效的 API endpoint URL（BaseUrl 不含 /v1，自动追加；兼容误传 /v1）</summary>
+    public string Endpoint => ResolveApiEndpoint(BaseUrl, "/v1/chat/completions");
     /// <summary>每次请求最大输出 token 数</summary>
     public int MaxTokens { get; }
     /// <summary>采样温度（0=精确，1=创意）</summary>
@@ -355,7 +367,7 @@ public class LLM
         _reasoningBuffer.Clear();
 
         // 超时由 CallWithRetryAsync 内部逐次加长管理，外部仅传取消令牌
-        var endpoint = (BaseUrl ?? "https://api.openai.com").TrimEnd('/') + "/v1/chat/completions";
+        var endpoint = ResolveApiEndpoint(BaseUrl, "/v1/chat/completions");
 
         // 调试日志：记录发送内容
         DebugLog.LogRequest(messages, tools ?? []);
@@ -631,7 +643,7 @@ public class LLM
         string text, string? model = null, CancellationToken cancellationToken = default)
     {
         var embeddingModel = model ?? "text-embedding-3-small";
-        var endpoint = (BaseUrl ?? "https://api.openai.com").TrimEnd('/') + "/v1/embeddings";
+        var endpoint = ResolveApiEndpoint(BaseUrl, "/v1/embeddings");
 
         var body = JNode.Object()
             .Set("model", embeddingModel)

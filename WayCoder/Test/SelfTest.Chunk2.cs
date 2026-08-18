@@ -211,6 +211,14 @@ public static partial class SelfTest
             Check("LLM onToolCall 支持 (编译期)", true);
         }
         catch { Fail("LLM onToolCall 支持 (编译期)"); }
+
+        // 端点解析：BaseUrl 约定不含 /v1；误传 /v1 或尾部斜杠都被归一化，避免 /v1/v1
+        var llmEp1 = new LLM("m", "k", "http://localhost:1234");
+        Check("LLM 端点: 无 /v1", llmEp1.Endpoint == "http://localhost:1234/v1/chat/completions");
+        var llmEp2 = new LLM("m", "k", "http://localhost:1234/v1");
+        Check("LLM 端点: 误传 /v1 不重复", llmEp2.Endpoint == "http://localhost:1234/v1/chat/completions");
+        var llmEp3 = new LLM("m", "k", "http://localhost:1234/");
+        Check("LLM 端点: 尾部斜杠", llmEp3.Endpoint == "http://localhost:1234/v1/chat/completions");
         Console.WriteLine();
 
         // ---- LLM 定价 ----
