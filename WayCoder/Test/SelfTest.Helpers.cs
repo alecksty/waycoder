@@ -518,10 +518,10 @@ public static partial class SelfTest
         Check("TokenCalib: 校准值 > 原始估算", calCm.EstimateCalibratedTokens(calMsgs) > calEst);
     }
 
-    /// <summary>/init 项目初始化（ProjectInitializer 生成 CLAUDE.md + 命令检测）测试</summary>
+    /// <summary>/init 项目初始化（ProjectInitializer 生成 AGENT.md + 命令检测）测试</summary>
     private static void TestProjectInit(Action<string, bool> Check)
     {
-        // ── GenerateClaudeMd 结构 ──
+        // ── GenerateAgentMd 结构（默认 AGENT.md，/init claude 传 CLAUDE.md）──
         var info = new ProjectInfo
         {
             ProjectRoot = "/tmp/demo-project",
@@ -529,8 +529,11 @@ public static partial class SelfTest
             Frameworks = new List<string> { "Go" },
             BuildTools = new List<string> { "go" },
         };
-        var md = ProjectInitializer.GenerateClaudeMd(info);
-        Check("init: 生成含标题", md.Contains("# CLAUDE.md"));
+        var md = ProjectInitializer.GenerateAgentMd(info);
+        Check("init: 默认生成 AGENT.md 标题", md.Contains("# AGENT.md"));
+        Check("init: 不含 CLAUDE.md 标题", !md.Contains("# CLAUDE.md"));
+        var mdClaude = ProjectInitializer.GenerateAgentMd(info, "CLAUDE.md");
+        Check("init: claude 参数生成 CLAUDE.md 标题", mdClaude.Contains("# CLAUDE.md"));
         Check("init: 含项目概述区块", md.Contains("## 项目概述"));
         Check("init: 含项目名", md.Contains("demo-project"));
         Check("init: 含主语言", md.Contains("主语言: Go"));

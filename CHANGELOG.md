@@ -23,6 +23,7 @@
 | FindReplace（编辑器） | `dialogs/findreplace.tui` |
 | **EditorScreen（终端编辑器）** | `editor.tui`（标题栏/文件列表/大纲/状态栏标记化，`TuiRichEditor` 编辑控件 code 注入 mainHBox） |
 
+- **`/init` 默认生成 AGENT.md**（`ProjectInitializer.GenerateAgentMd` + `InitCommand` 写 AGENT.md；`/init claude` 生成 CLAUDE.md 兼容 Claude Code）；`ProjectContext.LoadInstructions` 指令加载新增识别 `AGENT.md`
 - 模板支持 `{title}` 占位符注入；`msgBox` 容器由 code-behind 填折行消息标签（预览态显示占位）
 - `Input` 标记新增 `password` 属性（Secret 掩码输入）
 - `TuiView` 新增 `InsertAt(index, child)`（设置 Parent + 触发 OnCreate，供 EditorScreen 在 mainHBox 指定位置注入编辑控件）

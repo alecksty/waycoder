@@ -85,7 +85,7 @@ WayCoder/
 ├── WatchMode.cs        Watch 模式 (文件监听 + AI! 注释)
 ├── PermissionManager.cs 权限确认系统
 ├── ProjectContext.cs  项目检测 + CLAUDE.md 加载
-├── ProjectInitializer.cs /init 项目初始化 (生成 CLAUDE.md)
+├── ProjectInitializer.cs /init 项目初始化 (生成 AGENT.md，/init claude 生成 CLAUDE.md)
 ├── ReviewMode.cs      代码审查模式
 ├── FallbackLLM.cs     模型回退链 (6 模型, 跨供应商 Key 解析)
 ├── MemoryStore.cs     记忆系统 (旧格式, 迁移源)
@@ -199,7 +199,7 @@ WayCoder/
 /stats           查看会话统计 (token/PromptCache/LLM指标)
 /recent          查看本次会话改过的文件 (别名 /diff)
 /plan            计划模式，先规划再执行
-/init            分析项目并生成 CLAUDE.md（对标 Claude Code /init）
+/init            分析项目并生成 AGENT.md（/init claude 生成 CLAUDE.md）
 /mcp             查看 MCP 服务器状态 / 重连
 /git              Git 操作（status/log/diff/commit/branch）
 /perm ask|auto|smartauto|yolo  权限模式切换
@@ -267,7 +267,7 @@ quit / exit      退出 (Ctrl+Q)
 - **Diff 预览**：`WAYCODER_DIFF_PREVIEW=1` 开启写文件前逐 hunk 确认，非交互模式自动跳过
 - **Bash 安全防护**：70+ 禁止命令 + 47 安全白名单，管道中每个命令独立检查
 - **计划审批门**：`计划` 模式（Shift+Tab）下模型产出计划后不自动执行，就地弹出审批框——批准则切回 `建造` 模式继续执行，拒绝则停止（对标 Claude Code Plan Mode）
-- **项目初始化 `/init`**：扫描项目生成中文 CLAUDE.md（语言/框架/构建工具 + 构建/测试/lint 命令探测），对标 Claude Code /init；下次启动自动注入系统提示词
+- **项目初始化 `/init`**：扫描项目生成中文 AGENT.md（默认；`/init claude` 生成 CLAUDE.md 兼容 Claude Code；语言/框架/构建工具 + 构建/测试/lint 命令探测）；下次启动经 `ProjectContext.LoadInstructions` 自动注入系统提示词
 - **MCP 状态管理 `/mcp`**：结构化状态模型（Connecting/Connected/Failed）+ 热重连，`/mcp` 查看服务器状态、`/mcp reload [name]` 重连，对标 Claude Code /mcp
 - **MCP 资源/提示词**：`resources/list` + `resources/read` 注册为 `mcp__<server>__resources` 读取工具、`prompts/list` + `prompts/get` 每个模板注册为 `mcp__<server>__prompt__<name>` 工具，对标 Claude Code MCP resources/prompts
 - **内置自动升级**：`/update` 检查、`/update now`/`--update` 自替换；版本检查优先 Gitee Releases（国内快）、回退 GitHub（环境变量可覆盖）；Windows 落 `.new`+`upgrade.bat` 退出后自动替换重启、Unix 原子 rename 覆盖运行中二进制（对标 Claude Code `claude update`）

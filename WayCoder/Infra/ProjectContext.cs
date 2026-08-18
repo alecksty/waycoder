@@ -5,19 +5,19 @@ namespace WayCoder;
 /// <summary>
 /// 项目上下文检测 —— 启动时自动分析项目结构和指令文件。
 ///
-/// 1. 向上查找 CLAUDE.md / AGENTS.md 注入自定义指令
+/// 1. 向上查找 AGENT.md / AGENTS.md / CLAUDE.md 注入自定义指令
 /// 2. 检测项目类型、语言、框架、构建工具
 /// 3. 汇总 .gitignore、README 等关键文件
 /// </summary>
 public static class ProjectContext
 {
     /// <summary>
-    /// 从当前目录向上查找并读取 CLAUDE.md / AGENTS.md。
+    /// 从当前目录向上查找并读取 AGENT.md / AGENTS.md / CLAUDE.md。
     /// 返回 Markdown 格式的注入文本（可直接附加到系统提示词）。
     /// </summary>
     public static string LoadInstructions()
     {
-        var files = FindUpward([".claude", ".waycoder", ".corecoder", "CLAUDE.md", "AGENTS.md", ".cursorrules"]);
+        var files = FindUpward([".claude", ".waycoder", ".corecoder", "AGENT.md", "AGENTS.md", "CLAUDE.md", ".cursorrules"]);
         if (files.Count == 0) return "";
 
         var sb = new System.Text.StringBuilder();
