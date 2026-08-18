@@ -25,14 +25,14 @@ public static class TuiDialog
 
     /// <summary>对话框默认宽度比例</summary>
     private const double DefaultXScale = 0.25;
-    
+
     private const double WideXScale = 0.75; // 宽对话框：最多占屏幕 3/4
     private const double NarrowXScale = 0.4;
 
     /// <summary>对话框最小宽度</summary>
-    private const int MinDialogW = 24;
+    private const int MinDialogW = 24 / 2;
 
-    private const int MinDialogH = 7;
+    private const int MinDialogH = 3;
 
     /// <summary>根据 XScale 计算内容可用宽度（减去边框和内边距）</summary>
     private static int ContentW(double xScale = DefaultXScale, int innerPad = 4)
@@ -94,7 +94,7 @@ public static class TuiDialog
             Title = title,
             Modal = true, HasMask = true,
             BorderColor = borderColor,
-            Border = WindowBorder.Solid,
+            BorderStyle = WindowBorder.Solid,
             WinBg = TuiTheme.Current.WindowBg,
             XScale = xScale,
             WindowHAlign = EHAlign.Center,
@@ -112,7 +112,9 @@ public static class TuiDialog
     public static TuiWindow Info(string title, string message)
     {
         var win = NewDialog(title, TuiTheme.Current.DialogInfoBorder);
-        BuildSingleButton(win, message, "确定", TuiTheme.Current.BtnCyanBlue, TuiTheme.Current.GradCyanBlue);
+        BuildSingleButton(win, message, "确定",
+            TuiTheme.Current.BtnCyanBlue,
+            TuiTheme.Current.GradCyanBlue);
         return win;
     }
 
@@ -142,7 +144,8 @@ public static class TuiDialog
 
     /// <summary>单按钮消息框通用构建（宽高随消息内容自适应）</summary>
     private static void BuildSingleButton(TuiWindow win, string message, string btnLabel,
-        (int start, int end) btnGrad, (int start, int end) winGrad)
+        (int start, int end) btnGrad,
+        (int start, int end) winGrad)
     {
         var (cw, msgLines, winW, winH) = AutoSizeMessageDialog(message, [btnLabel]);
 
@@ -185,21 +188,22 @@ public static class TuiDialog
 
     /// <summary>
     /// 消息/确认对话框自适应尺寸：宽度取「消息最宽行」与「按钮行宽」的较大者（含内边距），
-    /// 高度取折行数（含按钮/边框/标题分隔线）。返回 (内容宽 cw, 折行后的消息行, 窗口宽 winW, 窗口高 winH)。
+    /// 高度取折行数（含按钮/边框）。返回 (内容宽 cw, 折行后的消息行, 窗口宽 winW, 窗口高 winH)。
     /// </summary>
     private static (int cw, List<string> lines, int winW, int winH) AutoSizeMessageDialog(
         string message, IReadOnlyList<string> btnLabels)
     {
-        const int hPad = 4;                            // 内容区左右内边距（各 2 列）
-        const int btnSpacing = 2;                      // 按钮间水平间距
-        int maxContentW = Math.Max(12, Tty.Cols - 8);  // 屏宽 - 左右边距(各3) - 边框(2)
-        int maxMsgLines = Math.Max(1, Tty.Rows - 8);   // 高度上限：留标题/边框/按钮/上下边距
+        const int hPad = 4; // 内容区左右内边距（各 2 列）
+        const int btnSpacing = 2; // 按钮间水平间距
+
+        var maxContentW = Math.Max(12, Tty.Cols - 8); // 屏宽 - 左右边距(各3) - 边框(2)
+        var maxMsgLines = Math.Max(1, Tty.Rows - 8); // 高度上限：留标题/边框/按钮/上下边距
 
         // 消息最宽自然行（按显示宽度，CJK/emoji 各占 2/1 列）
-        int naturalW = 0;
+        var naturalW = 0;
         foreach (var raw in message.Replace("\r\n", "\n").Split('\n'))
         {
-            int w = AnsiHelper.DisplayWidth(raw);
+            var w = AnsiHelper.DisplayWidth(raw);
             if (w > naturalW) naturalW = w;
         }
 
@@ -214,7 +218,7 @@ public static class TuiDialog
         int cw = Math.Clamp(Math.Max(naturalW, btnRowW) + hPad, 10, maxContentW);
         var lines = AnsiHelper.WrapText(message, cw - hPad, maxMsgLines);
 
-        return (cw, lines, cw + 2, lines.Count + 4); // 宽=内容+2边框；高=消息+按钮+2边框+1标题分隔线
+        return (cw, lines, cw + 2, lines.Count + 3); // 宽=内容+2边框；高=消息+按钮+2边框（无标题分隔线）
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -233,10 +237,12 @@ public static class TuiDialog
 
         var vbox = new TuiVBox { Width = cw, ChildHAlign = EHAlign.Center };
         foreach (var line in msgLines)
+        {
             vbox.Add(new TuiLabel(line) { Width = cw, TextAlign = EHAlign.Center, Fg = TuiTheme.Current.DialogFg });
+        }
 
         // 按钮用 Flex 均分
-        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = EHAlign.Center };
+        var hbox = new TuiHBox { Width = cw, Height = 1, Spacing = 2, ContentHAlign = EHAlign.Center };
         var yesBtn = new TuiButton("是 (Y)") { Focused = true };
         var noBtn = new TuiButton("否 (N)") { };
         yesBtn.OnClick = _ =>
@@ -290,8 +296,11 @@ public static class TuiDialog
         win.Height = winH;
 
         var vbox = new TuiVBox { Width = cw, ChildHAlign = EHAlign.Center };
+
         foreach (var line in msgLines)
+        {
             vbox.Add(new TuiLabel(line) { Width = cw, TextAlign = EHAlign.Center, Fg = TuiTheme.Current.DialogFg });
+        }
 
         var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = EHAlign.Center };
         var yesBtn = new TuiButton("是 (Y)") { Focused = true };
@@ -342,6 +351,7 @@ public static class TuiDialog
             onResult(EDialogResult.Cancel);
             win.OnClosed?.Invoke();
         });
+
         return win;
     }
 
@@ -360,8 +370,7 @@ public static class TuiDialog
         var win = NewDialog(displayTitle, TuiTheme.Current.DialogInfoBorder, WideXScale);
         win.MinHeight = 8;
 
-        int cw = ContentW(WideXScale, 2);
-
+        var cw = ContentW(WideXScale, 2);
         var promptLines = AnsiHelper.WrapText(prompt, cw, maxPromptLines);
 
         var vbox = new TuiVBox { Width = cw, ChildHAlign = EHAlign.Center };
@@ -787,7 +796,6 @@ public static class TuiDialog
     // ═══════════════════════════════════════════════════════════════
     // LLM 提问对话框（标题 + 消息 + 单选/多选按钮）
     // ═══════════════════════════════════════════════════════════════
-
     /// <summary>消息正文最多行数（超出末尾加省略号）</summary>
     private const int AskMaxMessageLines = 5;
 
@@ -896,8 +904,8 @@ public static class TuiDialog
             win.OnClosed?.Invoke();
         });
 
-        // 精确高度：边框(2) + 标题行(1) + 消息 + spacer(1) + 列表 + spacer(1) + 底部按钮(1)
-        win.Height = msgLines.Count + listH + 6;
+        // 精确高度：边框(2) + 消息 + spacer(1) + 列表 + spacer(1) + 底部按钮(1)
+        win.Height = msgLines.Count + listH + 5;
 
         return win;
     }
@@ -924,26 +932,31 @@ public static class TuiDialog
             TitleBg = warnBg,
             Modal = true, HasMask = true,
             BorderColor = AnsiColors.Yellow,
-            Border = WindowBorder.Solid,
+            BorderStyle = WindowBorder.Solid,
             WinBg = warnBg,
             XScale = WideXScale,
             WindowHAlign = EHAlign.Center,
             WindowVAlign = EVAlign.Middle,
             MinWidth = MinDialogW,
-            Height = 7,
+            Height = MinDialogH,
         };
 
         int cw = ContentW(WideXScale, 4);
         var msgLabels = BuildMessageLabels(message, cw, blackFg);
 
         var vbox = new TuiVBox { Width = cw, ChildHAlign = EHAlign.Center };
+
+        vbox.Add(new TuiLabel("") { Height = 1 });
+
         foreach (var lbl in msgLabels)
         {
             lbl.Fg = blackFg;
             vbox.Add(lbl);
         }
 
-        var hbox = new TuiHBox { Width = cw, Spacing = 2, ContentHAlign = EHAlign.Center };
+        vbox.Add(new TuiLabel("") { Height = 1 });
+
+        var hbox = new TuiHBox { Width = cw, Height = 1, Spacing = 2, ContentHAlign = EHAlign.Center };
         var yesBtn = MakePermBtn("允许 (Y)", 1, EDialogResult.Yes);
         var noBtn = MakePermBtn("拒绝 (N)", 1, EDialogResult.No);
         var allBtn = MakePermBtn("全允 (A)", 1, EDialogResult.Ok);
@@ -955,6 +968,8 @@ public static class TuiDialog
         vbox.Add(hbox);
 
         win.RootView = vbox;
+        win.Width = vbox.GetMaxWidth() + 4;
+        win.Height = vbox.GetTotalHeight() + 2;
         ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
 
         win.RegisterShortcut(ConsoleKey.Y, () =>
@@ -981,6 +996,8 @@ public static class TuiDialog
             onResult(EDialogResult.No);
             win.OnClosed?.Invoke();
         });
+
+
         return win;
 
         TuiButton MakePermBtn(string text, int flex, EDialogResult result)
@@ -1044,6 +1061,10 @@ public static class TuiDialog
     /// <summary>仅绘制用的最小屏幕：暴露 SetSize 以便在无管理器/无输入循环下渲染单个窗口。</summary>
     private sealed class RenderOnlyScreen : TuiScreen
     {
-        public void SetSize(int w, int h) { TW = w; TH = h; }
+        public void SetSize(int w, int h)
+        {
+            TW = w;
+            TH = h;
+        }
     }
 }

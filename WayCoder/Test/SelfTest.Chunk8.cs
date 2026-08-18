@@ -531,8 +531,8 @@ public static partial class SelfTest
             Check($"{name}: 高≤3/4屏", win.Height <= maxH + 1);
             if (expectBar)
             {
-                Check($"{name}: 内容区从标题+分隔线后开始(ContentTop=Y+2)", win.ContentTop == win.Y + 2);
-                Check($"{name}: 内容高度扣除标题行", win.ContentHeight == win.Height - 3);
+                Check($"{name}: 内容区从标题下开始(ContentTop=Y+1)", win.ContentTop == win.Y + 1);
+                Check($"{name}: 内容高度无分隔线扣除", win.ContentHeight == win.Height - 2);
             }
         }
 
@@ -554,6 +554,7 @@ public static partial class SelfTest
                     var chat = new ChatScreen();
                     mgr2.PushScreen(chat);
                     chat.AddWindow(win);
+                    Check($"{name}: 模态窗口已截取背景快照", win.BackgroundSnapshot != null);
                     mgr2.Render();
                     raw = mgr2.LastCleanFrame;
                     frame = AnsiString.Strip(raw);
@@ -575,11 +576,11 @@ public static partial class SelfTest
             Check($"{name}: 渲染非空", frame.Length > 0);
             if (expectBar && raw.Length > 0 && winY >= 0)
             {
-                // 用 ANSI 网格解释验证标题落在独立行（win.Y+1），而非嵌在上边框（win.Y）
+                // 用 ANSI 网格解释验证标题嵌在上边框行（win.Y），而非独立标题行。
+                // 无分隔线后 win.Y+1 是内容行，其文本可能恰含标题子串（如"错误"），故只断言顶边框行含标题。
                 var dialogGrid = TuiAudit.AnsiToGrid(raw, rows, cols);
                 bool topRowHasTitle = winY < dialogGrid.Count && dialogGrid[winY].Contains(title);
-                bool titleRowHasTitle = winY + 1 < dialogGrid.Count && dialogGrid[winY + 1].Contains(title);
-                Check($"{name}: 标题嵌上边框(顶部行)", topRowHasTitle && !titleRowHasTitle);
+                Check($"{name}: 标题嵌上边框(顶部行)", topRowHasTitle);
             }
         }
         Console.WriteLine();
@@ -1286,6 +1287,41 @@ public static partial class SelfTest
         var table3 = new TuiTable().AddColumn("标记");
         table3.AddMarkupRow("\x1b[32m绿色\x1b[0m");
         Check("TuiTable AddMarkupRow 非空渲染", !string.IsNullOrEmpty(table3.RenderToString()));
+        Console.WriteLine();
+
+        // ================================================================
+        // FrameSnapshot 背景快照（颜色感知解析 + 贴回）
+        // ================================================================
+        Section("[FrameSnapshot]");
+
+        // 构造 ANSI 帧：光标定位 + 颜色 + 文本 + 复位
+        var snapFrame = new StringBuilder();
+        snapFrame.Append("\x1b[2;3H").Append(AnsiTty.FgBgCode(31, 44)).Append("AB").Append("\x1b[39;49m"); // (2,3)=(31红/44蓝) AB
+        snapFrame.Append("\x1b[3;5H").Append(AnsiTty.FgCode(36)).Append("OK").Append("\x1b[39m");          // (3,5)=青色 OK
+        var snap = FrameSnapshot.Capture(snapFrame.ToString(), 2, 1, 6, 3); // 区域 (x=2,y=1) 宽6 高3
+        Check("FrameSnapshot 非空", snap != null);
+        Check("FrameSnapshot 区域坐标", snap!.X == 2 && snap.Y == 1 && snap.W == 6 && snap.H == 3);
+
+        // 解析：字符与颜色。CUP 1-based → 0-based：绝对(2,3)→0-based(1,2)，区域(x=2,y=1) → 相对(0,0)；(3,5)→(1,3)
+        Check("FrameSnapshot 解析字符 A", snap.CharAt(0, 0) == "A");
+        Check("FrameSnapshot 解析颜色 31/44", snap.ColorAt(0, 0) == (31, 44));
+        Check("FrameSnapshot 解析字符 B", snap.CharAt(0, 1) == "B");
+        Check("FrameSnapshot 解析青色 O", snap.CharAt(1, 2) == "O" && snap.ColorAt(1, 2).fg == 36);
+        Check("FrameSnapshot 解析青色 K", snap.CharAt(1, 3) == "K");
+        // 区域外返回空串；区域内未写格子保持默认
+        Check("FrameSnapshot 区域外空串", snap.CharAt(9, 9) == "");
+        Check("FrameSnapshot 未写格子默认", snap.CharAt(2, 5) == " " && snap.ColorAt(2, 5) == (0, 0));
+
+        // 贴回：输出含定位、文本与颜色
+        var snapOut = new StringBuilder();
+        snap.Blit(snapOut);
+        var snapStr = snapOut.ToString();
+        Check("FrameSnapshot 贴回含光标定位", snapStr.Contains("\x1b[2;3H"));
+        Check("FrameSnapshot 贴回含文本", snapStr.Contains("AB") && snapStr.Contains("OK"));
+        Check("FrameSnapshot 贴回含颜色", snapStr.Contains(AnsiTty.FgBgCode(31, 44)));
+
+        // 无效区域返回 null
+        Check("FrameSnapshot 无效区域 null", FrameSnapshot.Capture("\x1b[H", 0, 0, 0, 5) == null);
         Console.WriteLine();
 
         // ================================================================

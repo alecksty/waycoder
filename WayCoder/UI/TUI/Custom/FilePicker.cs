@@ -84,7 +84,7 @@ public static class FilePicker
         {
             Title = title,
             Modal = true, HasMask = true,
-            Border = WindowBorder.Solid,
+            BorderStyle = WindowBorder.Solid,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             Width = winW, Height = winH,

@@ -48,6 +48,30 @@ public abstract class TuiView : TuiControl
         Children.Clear();
     }
 
+    /// <summary>
+    /// 获取子控件中宽度最大的那个的宽度。
+    /// </summary>
+    /// <returns></returns>
+    public int GetMaxWidth()
+    {
+        var maxWidth = 0;
+        foreach (var child in Children)
+        {
+            maxWidth = Math.Max(maxWidth, child.Width);
+        }
+        return maxWidth;
+    }
+    
+    public int GetTotalHeight()
+    {
+        var totalHeight = 0;
+        foreach (var child in Children)
+        {
+            totalHeight += child.Height;
+        }
+        return totalHeight;
+    }
+
     /// <summary>递归初始化所有子控件的生命周期</summary>
     public override void OnCreate()
     {

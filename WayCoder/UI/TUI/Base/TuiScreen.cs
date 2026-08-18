@@ -56,6 +56,9 @@ public abstract class TuiScreen : TuiBase
     /// <summary>需要重绘的脏区域（窗口关闭时记录其覆盖区）</summary>
     private readonly List<(int x, int y, int w, int h)> _dirtyRects = [];
 
+    /// <summary>关闭对话框后待贴回的背景快照（下一帧渲染开始时逐块还原）</summary>
+    private readonly List<FrameSnapshot> _pendingSnapshots = [];
+
     /// <summary>是否为增量更新（仅脏控件刷新，跳过全屏清除和窗口背景/边框重绘）</summary>
     public bool IsIncrementalUpdate { get; set; }
 
@@ -159,6 +162,29 @@ public abstract class TuiScreen : TuiBase
         win.OnCreate();
         win.OnResize(TW, TH);
         ClampOverlayToContent(win);
+
+        // 模态对话框显示前截取背景快照，关闭后整块贴回还原（消除「默认背景清屏+部分重绘」的残留条带）
+        if (win.Modal)
+            win.BackgroundSnapshot = CaptureBackground(win);
+    }
+
+    /// <summary>
+    /// 截取窗口区域下根视图的背景快照（不含遮罩/浮层）。
+    /// 强制整棵根视图渲染进临时缓冲再解析成带色格子；失败/区域非法返回 null（关闭时走重绘兜底）。
+    /// </summary>
+    private FrameSnapshot? CaptureBackground(TuiWindow win)
+    {
+        if (win.X < 0 || win.Y < 0 || win.Width <= 0 || win.Height <= 0) return null;
+        try
+        {
+            var scratch = new StringBuilder();
+            RootView.Invalidate(); // 强制全量渲染进 scratch（临时缓冲，不影响屏幕）
+            RootView.Render(scratch, 0, 0,
+                clipL: win.X, clipT: win.Y,
+                clipR: win.X + win.Width, clipB: win.Y + win.Height);
+            return FrameSnapshot.Capture(scratch.ToString(), win.X, win.Y, win.Width, win.Height);
+        }
+        catch { return null; }
     }
 
     /// <summary>
@@ -195,11 +221,18 @@ public abstract class TuiScreen : TuiBase
     /// <summary>关闭窗口</summary>
     public void CloseWindow(TuiWindow win)
     {
-        // 1. 记录窗口覆盖区域，用于关闭后裁剪重绘被遮挡的根视图控件（安全网）
-        _dirtyRects.Add((win.X, win.Y, win.Width, win.Height));
-
-        // 2. 遍历控件树精准标记被窗口遮挡的叶子控件为脏（增量渲染优化）
-        MarkDirtyInRect(RootView, 0, 0, win.X, win.Y, win.Width, win.Height);
+        // 1. 有背景快照 → 整块贴回还原（含真实底色，避免「默认背景清屏+部分重绘」残留条带）；
+        //    无快照（非模态/截取失败）→ 原路径：记录脏区 + 裁剪重绘被遮挡的根视图控件（安全网）
+        if (win.BackgroundSnapshot != null)
+        {
+            _pendingSnapshots.Add(win.BackgroundSnapshot);
+            win.BackgroundSnapshot = null;
+        }
+        else
+        {
+            _dirtyRects.Add((win.X, win.Y, win.Width, win.Height));
+            MarkDirtyInRect(RootView, 0, 0, win.X, win.Y, win.Width, win.Height);
+        }
 
         win.OnDestroy();
         bool wasModal = win.Modal;
@@ -420,6 +453,15 @@ public abstract class TuiScreen : TuiBase
     {
         bool incremental = IsIncrementalUpdate;
 
+        // 0. 贴回关闭对话框的背景快照。须在根视图重绘之前：快照先把窗口区域的底色/内容还原，
+        //    随后的根视图全量重绘（MarkDirty 触发）再以最新内容覆盖，动画/实时区域不会残留旧帧。
+        if (_pendingSnapshots.Count > 0)
+        {
+            foreach (var snap in _pendingSnapshots)
+                snap.Blit(sb);
+            _pendingSnapshots.Clear();
+        }
+
         // 1. 渲染根视图（光标先隐藏，仅记录位置）
         //    增量模式：仅脏控件输出；全量模式：全量输出
         RootView.Render(sb, 0, 0);
@@ -532,7 +574,7 @@ public abstract class TuiScreen : TuiBase
         int fillBg = win.WinBg > 0 ? win.WinBg : 100; // WinBg=0 时透明不填充
 
         // 无边框模式：直接渲染控件树 + 背景
-        if (win.Border == WindowBorder.None)
+        if (win.BorderStyle == WindowBorder.None)
         {
             if (fillBg > 0)
                 for (int r = 0; r < win.Height; r++)
@@ -645,16 +687,7 @@ public abstract class TuiScreen : TuiBase
 
         int contentTop = win.Y + 1; // 上边框下面一行
         int innerHeight = win.Height - 2; // 边框内部高度
-
-        // 标题嵌在上边框行（Y），此处在其下画一行分隔线（Y+1），内容从 Y+2 开始
-        if (drawTitle)
-        {
-            WriteAt(sb, win.Y + 1, win.X, vv, bc, fillBg);
-            WriteAt(sb, win.Y + 1, win.X + 1, new string(hh[0], Math.Max(0, win.Width - 2)), bc, fillBg);
-            WriteAt(sb, win.Y + 1, win.X + win.Width - 1, vv, bc, fillBg);
-            contentTop = win.Y + 2;
-            innerHeight -= 1;
-        }
+        // 标题嵌在上边框行（Y），内容直接从其下 Y+1 开始（无标题分隔线）
 
         // ── 窗口背景填充（raw ANSI，不重置，底色持续到后续控件渲染）──
         if (fillBg > 0 && innerHeight > 0)
