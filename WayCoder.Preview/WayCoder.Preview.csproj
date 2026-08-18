@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <!-- 共享源码依赖隐式 using；WPF 临时工程不提供，改由 GlobalUsings.cs 显式补全（避免 CS0103） -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>WayCoder.Preview</RootNamespace>
+    <AssemblyName>waycoder-preview</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      抽库（最小集）：预览只走「TuiMarkup 解析 + TuiScreen/TuiDialog 渲染 + FrameSnapshot 网格」路径。
+      主项目 SelfContained Exe 不可被引用（NETSDK1151），故走共享源码。
+      包含：UI/Shared + UI/TUI/Base + UI/TUI/Controls + TuiMarkup + Config + XmlLib(XNode) + SlotState(enum)。
+      排除：TuiRichEditor（仅被 EditorScreen 引用，其依赖 EditorCore 编辑器引擎）、
+      Screens/（ChatScreen 等，拖入 Agent/LLM/Tools）、Custom/、Edit/、TuiApp、
+      Tools/Infra/LLM/Agent、CLI/Web/Plugins/Test。
+    -->
+    <Compile Include="../WayCoder/UI/Shared/**/*.cs" />
+    <Compile Include="../WayCoder/UI/TUI/Base/**/*.cs" />
+    <Compile Include="../WayCoder/UI/TUI/Controls/**/*.cs" Exclude="../WayCoder/UI/TUI/Controls/TuiRichEditor.cs" />
+    <Compile Include="../WayCoder/UI/TUI/Screens/SlotState.cs" />
+    <Compile Include="../WayCoder/UI/TUI/TuiMarkup.cs" />
+    <Compile Include="../WayCoder/UI/TUI/TuiMarkupPaths.cs" />
+    <Compile Include="../WayCoder/Config/Global.cs" />
+    <Compile Include="../WayCoder/Config/Config.cs" />
+    <Compile Include="../WayCoder/Config/ApiKeyStore.cs" />
+    <Compile Include="../WayCoder/Config/ModelCatalog.cs" />
+    <Compile Include="../WayCoder/Infra/XmlLib.cs" />
+    <Compile Include="../WayCoder/Infra/JsonLib.cs" />
+    <Compile Include="../WayCoder/Infra/ClipboardHelper.cs" />
+  </ItemGroup>
+
+</Project>

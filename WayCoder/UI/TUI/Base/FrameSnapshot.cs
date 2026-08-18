@@ -68,15 +68,15 @@ public sealed class FrameSnapshot
         sb.Append(rb.ToString());
     }
 
-    /// <summary>读取区域相对坐标的字符（测试/审计用；越界返回空串）</summary>
-    internal string CharAt(int relRow, int relCol)
+    /// <summary>读取区域相对坐标的字符（测试/审计/外部渲染用；越界返回空串）</summary>
+    public string CharAt(int relRow, int relCol)
     {
         if (relRow < 0 || relRow >= H || relCol < 0 || relCol >= W) return "";
         return _ch[relRow * W + relCol];
     }
 
-    /// <summary>读取区域相对坐标的颜色 (前景, 背景)（测试/审计用）</summary>
-    internal (int fg, int bg) ColorAt(int relRow, int relCol)
+    /// <summary>读取区域相对坐标的颜色 (前景, 背景)（测试/审计/外部渲染用；0=无/默认）</summary>
+    public (int fg, int bg) ColorAt(int relRow, int relCol)
     {
         if (relRow < 0 || relRow >= H || relCol < 0 || relCol >= W) return (0, 0);
         int i = relRow * W + relCol;

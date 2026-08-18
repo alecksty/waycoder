@@ -148,6 +148,31 @@ public static partial class SelfTest
         }
         Console.WriteLine();
 
+        // ── 环境量：InDesign / SimulatedScreen 传播到加载的元素 ──
+        Section("[TuiMarkup 环境量]");
+        bool prevD = WayCoder.UI.TUI.TuiMarkup.InDesign;
+        bool prevS = WayCoder.UI.TUI.TuiMarkup.SimulatedScreen;
+        try
+        {
+            WayCoder.UI.TUI.TuiMarkup.InDesign = true;
+            WayCoder.UI.TUI.TuiMarkup.SimulatedScreen = true;
+            var dsRes = TuiMarkup.Load("<Dialog title=\"d\"><VBox><Label id=\"l\" text=\"x\"/></VBox></Dialog>");
+            var dLabel = dsRes.Find<TuiLabel>("l");
+            Check("InDesign=true 注入控件", dLabel != null && dLabel.InDesign && dLabel.SimulatedScreen);
+            Check("InDesign=true 注入窗口", dsRes.Window != null && dsRes.Window.InDesign && dsRes.Window.SimulatedScreen);
+
+            WayCoder.UI.TUI.TuiMarkup.InDesign = false;
+            WayCoder.UI.TUI.TuiMarkup.SimulatedScreen = false;
+            var rtRes = TuiMarkup.Load("<Dialog title=\"d\"><VBox><Label id=\"l2\" text=\"x\"/></VBox></Dialog>");
+            Check("InDesign=false 不注入", rtRes.Find<TuiLabel>("l2") is { InDesign: false, SimulatedScreen: false });
+        }
+        finally
+        {
+            WayCoder.UI.TUI.TuiMarkup.InDesign = prevD;
+            WayCoder.UI.TUI.TuiMarkup.SimulatedScreen = prevS;
+        }
+        Console.WriteLine();
+
         // 检查在恢复输出后执行
         Check("MarkupChatScreen 渲染非空", !string.IsNullOrEmpty(frame));
         Check("MarkupChatScreen 子视图就位", mScreen.TitleBar != null && mScreen.ChatList != null

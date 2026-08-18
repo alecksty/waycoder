@@ -777,7 +777,7 @@ public abstract class TuiScreen : TuiBase
     }
 
     /// <summary>绘制渐变水平线：左角 + N×横线(渐变色) + 右角</summary>
-    private static void WriteGradientHLine(StringBuilder sb, int row, int col, int width,
+    private void WriteGradientHLine(StringBuilder sb, int row, int col, int width,
         string leftChar, string midChar, string rightChar,
         int startColor, int endColor, int bg)
     {
@@ -797,7 +797,7 @@ public abstract class TuiScreen : TuiBase
     }
 
     /// <summary>绘制渐变竖线：height 行逐行渐变色</summary>
-    private static void WriteGradientVLine(StringBuilder sb, int startRow, int col, int height,
+    private void WriteGradientVLine(StringBuilder sb, int startRow, int col, int height,
         string vChar, int startColor, int endColor, int bg)
     {
         for (int i = 0; i < height; i++)
@@ -808,11 +808,14 @@ public abstract class TuiScreen : TuiBase
         }
     }
 
-    /// <summary>在指定位置写入 ANSI 文本</summary>
-    protected static void WriteAt(StringBuilder sb, int row, int col, string text,
+    /// <summary>
+    /// 在指定位置写入 ANSI 文本。边界用屏幕高度 TH（而非终端高度 Tty.Rows）：
+    /// 正常 App 里两者相等；预览/离屏渲染模拟更大屏幕时，TH 才是正确的可见边界。
+    /// </summary>
+    protected void WriteAt(StringBuilder sb, int row, int col, string text,
         int fg = 0, int bg = 0)
     {
-        if (row < 0 || row >= Tty.Rows) return;
+        if (row < 0 || row >= TH) return;
         var rb = new RenderBuffer();
         rb.Write(row, col, text, fg: fg, bg: bg);
         sb.Append(rb.ToString());

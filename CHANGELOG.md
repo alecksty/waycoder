@@ -1,5 +1,33 @@
 # 更新日志
 
+## v0.77.0 (2026-08-18) — 独立 WPF `.tui` 预览程序 + InDesign 环境特性
+
+新增独立 WPF 预览程序 `WayCoder.Preview/`：图形化渲染 `.tui` 声明式布局，边写边看；并为 TUI 元素引入设计/模拟环境特性。
+
+### 🖥 WPF 预览程序（`WayCoder.Preview/`）
+- **复用主项目渲染管线**：共享源码编译 `TuiMarkup`/`TuiDialog`/`TuiScreen` + `FrameSnapshot`，把 `.tui` 渲染成带色字符网格后 WPF 逐格绘制（等宽字体、黑背景）
+- **实时预览**：打开文件自动渲染，文件保存自动刷新（FileSystemWatcher 防抖）
+- **宽字符正确渲染**：修复 CJK/emoji 占 2 格时延续格残留背景盖住右半的问题（跳过延续格 + 2 格底色扩展）
+- **屏幕尺寸模拟**：分辨率快选下拉（80x25 / 100x30 / 120x36 / 128x40 / 160x48 / 200x60 / 240x72）+ 行列增减按钮，模拟不同终端尺寸看布局自适应（XScale 比例窗口、min/max 钳制、居中）
+- **缩放**：长滑块（25%~400%）+ 放大/缩小按钮（25/50/100/200/400% 档位）+ **Ctrl+鼠标滚轮**
+- **网格开关**：显示/隐藏单元格网格线（设计期看格子边界）
+- **内容居中**：小于视口时居中，大于时可滚动；纯黑背景
+- **最近文件**：路径框改为可编辑组合框，记住最近打开 10 个文件（持久化到 `%LocalAppData%/WayCoder.Preview/recent.txt`）
+- `--selftest` 无头自检（渲染非空网格），`--dump` 诊断转储
+
+### 🧩 TUI 环境特性（InDesign / SimulatedScreen）
+- `TuiBase` 新增 `InDesign`（设计/预览模式）+ `SimulatedScreen`（true=模拟/离屏渲染，false=物理终端），由 `TuiMarkup` 环境量注入到所有加载的元素（控件 + 窗口）
+- 预览程序（`--tui-preview` / WPF）下为 true，正常 REPL 为 false——元素可据此区分设计态与运行态
+- `TuiMarkup.InDesign` / `TuiMarkup.SimulatedScreen` 静态环境量，加载前设置即注入
+
+### 🐛 渲染修复
+- **高分辨率对话框消失**：`TuiScreen.WriteAt` 边界检查用 `Tty.Rows`（真实控制台高度），预览模拟更大屏幕时超过真实高度的行被跳过 → 改用屏幕高度 `TH`（真实 App 中两者相等，行为不变）。这是主项目真正的 bug 修复
+- `FrameSnapshot.CharAt/ColorAt` 改 `public`（供外部渲染读取格子）
+
+### ✅ 验证
+- 主项目自测 3475 全绿（新增 InDesign/SimulatedScreen 传播断言）
+- 预览：80x25~240x72 全尺寸对话框正常渲染、冒烟通过、`--selftest` 通过
+
 ## v0.76.0 (2026-08-18) — TUI 所有窗口型界面 `.tui` 标记化
 
 把全部窗口型界面（选择器/快捷键/设置/Diff 预览）迁移到声明式 `.tui` 资源架构——「布局写标记、交互写 code-behind」，与主界面（v0.75.0 标记化）统一。
