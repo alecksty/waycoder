@@ -1,128 +1,161 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WayCoder（道码）</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WayCoder（道码）</title>
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-<header>
-  <div class="logo">🤖 道码 Way<span>Coder</span></div>
-  <div class="agent-label" id="agent-label">智能体1</div>
-  <div class="spacer"></div>
-  <select id="perm-select" title="权限模式（YOLO=直接执行 / Ask=每次确认）">
-    <option value="ask">🛡 Ask</option>
-    <option value="auto">✅ Auto</option>
-    <option value="smartauto">🧭 SmartAuto</option>
-    <option value="yolo">⚡ YOLO</option>
-  </select>
-  <button class="btn ghost" id="theme-btn" title="切换主题">🌙</button>
-  <button class="btn" id="settings-btn" title="设置">⚙ 设置</button>
-  <span class="version" id="version-label">__VERSION__</span>
-</header>
+  <header>
+    <div class="logo">🤖 道码 Way<span>Coder</span></div>
+    <div class="agent-label" id="agent-label">智能体1</div>
+    <div class="spacer"></div>
+    <select id="perm-select" title="权限模式（YOLO=直接执行 / Ask=每次确认）">
+      <option value="ask">🛡 Ask</option>
+      <option value="auto">✅ Auto</option>
+      <option value="smartauto">🧭 SmartAuto</option>
+      <option value="yolo">⚡ YOLO</option>
+    </select>
+    <button class="btn ghost" id="theme-btn" title="切换主题">🌙</button>
+    <button class="btn" id="settings-btn" title="设置">⚙ 设置</button>
+    <span class="version" id="version-label">__VERSION__</span>
+  </header>
 
-<div class="layout">
-  <aside id="sidebar-left">
-    <div class="panel-head">🗂 槽位</div>
-    <div id="slot-list"></div>
-    <div class="panel-head">📜 历史会话</div>
-    <div class="session-actions">
-      <button class="btn" id="new-session">＋ 新建会话</button>
-      <button class="btn danger" id="clear-sessions" title="清空所有会话记录">🗑 清空</button>
-    </div>
-    <div id="session-list"><div class="empty">加载中…</div></div>
-  </aside>
+  <div class="layout">
+    <aside id="sidebar-left">
+      <div class="panel-head">🗂 槽位</div>
+      <div id="slot-list"></div>
+      <div class="panel-head">📜 历史会话</div>
+      <div class="session-actions">
+        <button class="btn" id="new-session">＋ 新建会话</button>
+        <button class="btn danger" id="clear-sessions" title="清空所有会话记录">🗑 清空</button>
+      </div>
+      <div id="session-list">
+        <div class="empty">加载中…</div>
+      </div>
+    </aside>
 
-  <main id="chat-col">
-    <div id="compress-indicator">
-      <span class="cspin"></span>
-      <span id="compress-label">压缩中…</span>
-      <span class="cbar"><i id="compress-fill"></i></span>
-      <span class="cpct" id="compress-pct"></span>
-    </div>
-    <div id="messages"></div>
-    <div id="input-bar">
-      <div id="suggest-box"></div>
-      <button class="btn ghost" id="attach-btn" title="上传图片 / 音频">📎</button>
-      <input type="file" id="file-input" accept="image/*,audio/*" style="display:none">
-      <textarea id="input" placeholder="输入消息，Enter 发送，Ctrl+Enter 换行" rows="3"></textarea>
-      <button class="btn" id="send" title="发送"><svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
-    </div>
-    <div id="model-bar">
-      <button class="btn model-pick-btn" id="big-model-btn" title="选择大模型（复杂任务）">🤖 大模型: <b id="big-model-label">…</b></button>
-      <button class="btn model-pick-btn" id="small-model-btn" title="选择小模型（简单 / 压缩）">🔧 小模型: <b id="small-model-label">…</b></button>
-      <select id="economy-select" title="省 Token 模式"></select>
-      <span id="model-status" class="model-status"></span>
-    </div>
-  </main>
+    <main id="chat-col">
+      <div id="compress-indicator">
+        <span class="cspin"></span>
+        <span id="compress-label">压缩中…</span>
+        <span class="cbar"><i id="compress-fill"></i></span>
+        <span class="cpct" id="compress-pct"></span>
+      </div>
+      <div id="messages"></div>
+      <div id="input-bar">
+        <div id="suggest-box"></div>
+        <button class="btn ghost" id="attach-btn" title="上传图片 / 音频">📎</button>
+        <input type="file" id="file-input" accept="image/*,audio/*" style="display:none">
+        <textarea id="input" placeholder="输入消息，Enter 发送，Ctrl+Enter 换行" rows="3"></textarea>
+        <button class="btn" id="send" title="发送"><svg viewBox="0 0 24 24">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+          </svg></button>
+      </div>
+      <div id="model-bar">
+        <button class="btn model-pick-btn" id="big-model-btn" title="选择大模型（复杂任务）">🤖 大模型: <b
+            id="big-model-label">…</b></button>
+        <button class="btn model-pick-btn" id="small-model-btn" title="选择小模型（简单 / 压缩）">🔧 小模型: <b
+            id="small-model-label">…</b></button>
+        <select id="economy-select" title="省 Token 模式"></select>
+        <span id="model-status" class="model-status"></span>
+      </div>
+    </main>
 
-  <aside id="sidebar-right">
-    <div class="card"><div class="card-head">📋 任务</div><div id="panel-todos"><div class="empty">无任务</div></div></div>
-    <div class="card"><div class="card-head">💰 Token / 费用</div><div id="panel-tokens"></div></div>
-    <div class="card"><div class="card-head">🔧 修改文件</div><div id="panel-files"><div class="empty">无</div></div></div>
-    <div class="card"><div class="card-head">🔌 MCP 服务器</div><div id="panel-mcp"><div class="empty">未配置</div></div></div>
-    <div class="card"><div class="card-head">🧠 LSP 会话</div><div id="panel-lsp"><div class="empty">无活动会话</div></div></div>
-  </aside>
-</div>
-
-<div id="drawer">
-  <div id="drawer-head"><b>⚙ 设置</b><button class="btn ghost" id="drawer-close" style="font-size:20px;">×</button></div>
-  <div id="drawer-body">
-    <div id="settings-nav"></div>
-    <div id="settings-detail"></div>
+    <aside id="sidebar-right">
+      <div class="card">
+        <div class="card-head">📋 任务</div>
+        <div id="panel-todos">
+          <div class="empty">无任务</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">💰 Token / 费用</div>
+        <div id="panel-tokens"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">🔧 修改文件</div>
+        <div id="panel-files">
+          <div class="empty">无</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">🔌 MCP 服务器</div>
+        <div id="panel-mcp">
+          <div class="empty">未配置</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">🧠 LSP 会话</div>
+        <div id="panel-lsp">
+          <div class="empty">无活动会话</div>
+        </div>
+      </div>
+    </aside>
   </div>
-  <div id="drawer-foot">
-    <button class="btn" id="settings-save">💾 保存</button>
-  </div>
-</div>
 
-<div class="modal" id="model-modal">
-  <div class="modal-card model-card">
-    <div class="model-title">
-      <h2 id="model-title">🧠 选择模型</h2>
-      <button class="btn ghost" id="model-close" title="关闭">×</button>
+  <div id="drawer">
+    <div id="drawer-head"><b>⚙ 设置</b><button class="btn ghost" id="drawer-close" style="font-size:20px;">×</button>
     </div>
-    <input id="model-search" type="text" placeholder="搜索模型名称 / 供应商…">
-    <div class="model-head">
-      <span>🔑</span><span>模型</span><span>厂商</span><span class="r">窗口</span><span class="r">价格</span><span class="r">大</span><span class="r">小</span>
+    <div id="drawer-body">
+      <div id="settings-nav"></div>
+      <div id="settings-detail"></div>
     </div>
-    <div id="model-list"></div>
-    <div class="model-foot">
-      <button class="btn" id="model-scan-btn" title="测试各服务商端点连通性">📡 扫描</button>
-      <button class="btn" id="model-import-btn" title="导入其他软件的模型与 API Key">📥 自动导入</button>
-      <button class="btn" id="model-set-key-btn" title="为当前选中的模型设置 API Key">🔑 设置 key</button>
-      <button class="btn" id="model-clear-key-btn" title="清除当前选中模型的 API Key">🗑 清除 key</button>
-      <span id="model-scan-status" style="font-size:12px;color:var(--dim);"></span>
-      <span class="spacer"></span>
-      <button class="btn ghost" id="model-cancel">取消</button>
-      <button class="btn" id="model-save-btn" title="保存选中的模型为默认配置（不中断当前任务）">💾 保存</button>
-      <button class="btn" id="model-confirm">切换模型</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal" id="key-modal">
-  <div class="modal-card">
-    <h2>🔑 输入 API Key</h2>
-    <p id="key-hint">当前模型需要 API Key（将按供应商保存到本地）。</p>
-    <input id="key-input" type="password" placeholder="sk-...">
-    <div class="row">
-      <button class="btn" id="key-cancel">取消</button>
-      <button class="btn primary" id="key-save">保存</button>
+    <div id="drawer-foot">
+      <button class="btn" id="settings-save">💾 保存</button>
     </div>
   </div>
-</div>
 
-<div class="modal" id="ask-modal">
-  <div class="modal-card">
-    <h2 id="ask-title"></h2>
-    <div id="ask-body"></div>
-    <div class="row" id="ask-actions"></div>
+  <div class="modal" id="model-modal">
+    <div class="modal-card model-card">
+      <div class="model-title">
+        <h2 id="model-title">🧠 选择模型</h2>
+        <button class="btn ghost" id="model-close" title="关闭">×</button>
+      </div>
+      <input id="model-search" type="text" placeholder="搜索模型名称 / 供应商…">
+      <div class="model-head">
+        <span>🔑</span><span>模型</span><span>厂商</span><span class="r">窗口</span><span class="r">价格</span><span
+          class="r">大</span><span class="r">小</span>
+      </div>
+      <div id="model-list"></div>
+      <div class="model-foot">
+        <button class="btn" id="model-scan-btn" title="测试各服务商端点连通性">📡 扫描</button>
+        <button class="btn" id="model-import-btn" title="导入其他软件的模型与 API Key">📥 自动导入</button>
+        <button class="btn" id="model-set-key-btn" title="为当前选中的模型设置 API Key">🔑 设置 key</button>
+        <button class="btn" id="model-clear-key-btn" title="清除当前选中模型的 API Key">🗑 清除 key</button>
+        <span id="model-scan-status" style="font-size:12px;color:var(--dim);"></span>
+        <span class="spacer"></span>
+        <button class="btn ghost" id="model-cancel">取消</button>
+        <button class="btn" id="model-save-btn" title="保存选中的模型为默认配置（不中断当前任务）">💾 保存</button>
+        <button class="btn" id="model-confirm">切换模型</button>
+      </div>
+    </div>
   </div>
-</div>
 
-<script src="app.js"></script>
+  <div class="modal" id="key-modal">
+    <div class="modal-card">
+      <h2>🔑 输入 API Key</h2>
+      <p id="key-hint">当前模型需要 API Key（将按供应商保存到本地）。</p>
+      <input id="key-input" type="password" placeholder="sk-...">
+      <div class="row">
+        <button class="btn" id="key-cancel">取消</button>
+        <button class="btn primary" id="key-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="ask-modal">
+    <div class="modal-card">
+      <h2 id="ask-title"></h2>
+      <div id="ask-body"></div>
+      <div class="row" id="ask-actions"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
+
 </html>
