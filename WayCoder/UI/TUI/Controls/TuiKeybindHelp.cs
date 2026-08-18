@@ -1,4 +1,5 @@
-﻿using WayCoder.UI.Shared.Terminal;
+﻿using System.Text;
+using WayCoder.UI.Shared.Terminal;
 
 using WayCoder.UI.Shared;
 using WayCoder.UI.TUI;
@@ -132,6 +133,19 @@ public static class TuiKeybindHelp
     }
 
     // ── 工具 ──
+
+    /// <summary>把快捷键表转为纯文本（供启动欢迎 / 槽位首条对话输出）。</summary>
+    public static string GetHelpText()
+    {
+        var sb = new StringBuilder();
+        foreach (var (cat, bindings) in Groups)
+        {
+            sb.AppendLine("── " + cat + " ──");
+            foreach (var (key, desc) in bindings)
+                sb.AppendLine("  " + PadKey(key, KeyW) + "  " + desc);
+        }
+        return sb.ToString().TrimEnd();
+    }
 
     /// <summary>键名按显示宽度补齐到固定列宽（CJK 键名正确对齐）。</summary>
     private static string PadKey(string key, int width)

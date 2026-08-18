@@ -4,6 +4,7 @@ using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.TUI.Base;
+using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.Tui.Screens;
 using WayCoder.UI.Web;
 using Arguments = WayCoder.UI.Cli.Arguments;
@@ -124,6 +125,8 @@ public partial class Program
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"{Global.AppFullName} · {Global.Version}", Centered = true });
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = "深圳市探索智能科技有限公司", Centered = true });
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助", Centered = true });
+        // 快捷键表输出到首条对话（每个槽位首次激活也会显示，见 SlotWelcome）
+        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = TuiKeybindHelp.GetHelpText() });
         slot0.StatusLeft = Global.AppFullName;
         slot0.HasWelcome = true;
         _llm!.SmallModel = _config.SmallModel;
@@ -726,7 +729,7 @@ public partial class Program
                 slot.ChatMessages.Add(new ChatMsg
                 {
                     Role = "system",
-                    Content = $"🤖 Agent 槽位 F{idx + 1} — 独立会话，Ctrl+E编辑器 Ctrl+T设置 Ctrl+H帮助 Ctrl+B面板 Ctrl+Q退出",
+                    Content = $"🤖 Agent 槽位 F{idx + 1} — 独立会话\n\n{TuiKeybindHelp.GetHelpText()}",
                 });
             }
 
