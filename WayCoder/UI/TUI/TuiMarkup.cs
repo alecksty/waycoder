@@ -186,7 +186,7 @@ public static class TuiMarkup
             Title = Attr(node, "title"),
             Width = Int(node, "width") ?? 40,
             Height = Int(node, "height") ?? 10,
-            Border = ParseBorder(Attr(node, "border")),
+            BorderStyle = ParseBorder(Attr(node, "border")),
             Modal = Bool(node, "modal") ?? isDialog,        // Dialog 默认模态
             HasMask = Bool(node, "mask") ?? isDialog,        // Dialog 默认带遮罩
         };
@@ -221,8 +221,8 @@ public static class TuiMarkup
         if (Attr(node, "size") == "content" && win.RootView != null)
         {
             var (cw, ch) = MeasureContent(win.RootView);
-            int borderW = win.Border == WindowBorder.None ? 0 : 2;
-            int borderH = win.Border == WindowBorder.None ? 0 : 2;
+            int borderW = win.BorderStyle == WindowBorder.None ? 0 : 2;
+            int borderH = win.BorderStyle == WindowBorder.None ? 0 : 2;
             int titleH = win.ShowTitle && !string.IsNullOrEmpty(win.Title) ? 1 : 0;
             win.Width = cw + borderW;
             win.Height = ch + borderH + titleH;
@@ -242,7 +242,7 @@ public static class TuiMarkup
         if (view is TuiVBox vbox)
         {
             int w = 0, h = 0;
-            for (int i = 0; i < vbox.Children.Count; i++)
+            for (var i = 0; i < vbox.Children.Count; i++)
             {
                 var (cw, ch) = MeasureChild(vbox.Children[i]);
                 w = Math.Max(w, cw);
@@ -253,7 +253,7 @@ public static class TuiMarkup
         if (view is TuiHBox hbox)
         {
             int w = 0, h = 0;
-            for (int i = 0; i < hbox.Children.Count; i++)
+            for (var i = 0; i < hbox.Children.Count; i++)
             {
                 var (cw, ch) = MeasureChild(hbox.Children[i]);
                 w += cw + (i > 0 ? hbox.Spacing : 0);

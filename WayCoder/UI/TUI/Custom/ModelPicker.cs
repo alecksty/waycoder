@@ -66,7 +66,7 @@ public static class ModelPicker
         {
             Title = "选择模型",
             Modal = true, HasMask = true,
-            Border = WindowBorder.Solid,
+            BorderStyle = WindowBorder.Solid,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             Width = winW, Height = winH,
