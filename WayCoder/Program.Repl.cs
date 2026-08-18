@@ -19,8 +19,41 @@ public partial class Program
     // 交互式 REPL
     // ========================================================================
 
+    /// <summary>管道模式：echo "任务" | waycoder 逐行读 stdin 交给 Agent，纯文本输出，EOF 退出。</summary>
+    private static async Task RunPipeModeAsync()
+    {
+        var agent = _agent;
+        if (agent == null) { Console.Error.WriteLine("Agent 未初始化"); return; }
+        string? line;
+        while ((line = Console.In.ReadLine()) != null)
+        {
+            var input = line.Trim();
+            if (string.IsNullOrWhiteSpace(input)) continue;
+            Console.WriteLine();
+            Console.WriteLine($"[2m🤖 {input}[0m");
+            try
+            {
+                await agent.ChatAsync(input,
+                    onToken: t => Console.Write(t),
+                    onTool: (name, brief) => Console.WriteLine($"\n[90m🔧 [{name}] {brief}[0m"));
+                Console.WriteLine();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\n[31m[✘ 错误][0m {ex.Message}");
+            }
+        }
+    }
+
     private static async Task RunReplAsync(string? editFile = null)
     {
+        // 非交互（管道/重定向）：echo "任务" | waycoder 读 stdin 执行后退出，不启动全屏 TUI
+        if (Console.IsInputRedirected)
+        {
+            await RunPipeModeAsync();
+            return;
+        }
+
         var mgr = TuiManager.Instance;
         // 标记版界面（.tui 声明式布局）：--tui-chat 或 WAYCODER_MARKUP_UI=1 时启用；测试通过后翻默认
         var screen = _config.MarkupUi ? (ChatScreen)new MarkupChatScreen() : new ChatScreen();

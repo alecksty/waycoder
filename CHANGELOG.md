@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.79.14 (2026-08-19) — TUI 管道模式：echo "任务" | waycoder 自动执行
+
+承接 v0.79.13 非交互崩溃修复，补齐管道 stdin 完整语义：
+- `echo "任务" | waycoder` 逐行读 stdin 交给 Agent，纯文本输出（不启动全屏 TUI）
+- 支持 `onToken` 流式回复 + `onTool` 工具调用行 + 异常兜底
+- EOF 自动退出；交互终端行为不变
+
+### ✅ 验证
+- 管道输入实测：读 stdin → 显示输入 → Agent 执行 → 退出（LLM 401 为本地无 key，非代码问题）
+- 自测 3565 通过
+
 ## v0.79.13 (2026-08-19) — 修复 TUI 非交互崩溃（管道/重定向/CI）
 
 4 端验证发现：`echo "x" | waycoder`、CI 后台等非交互场景，`InputManager.ReadInput` 的 `Console.KeyAvailable` 在输入重定向下抛 `InvalidOperationException` 崩溃。
