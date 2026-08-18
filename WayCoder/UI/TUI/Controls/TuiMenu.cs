@@ -66,13 +66,13 @@ public static class TuiMenu
             ShowTitle = hasTitle,
             X = x, Y = y,
             Width = contentW + 2,
-            Height = visCount + titleH + 2, // +上下边框
+            Height = visCount + 2, // +上下边框（无标题分隔线）
             // 弹出菜单按调用方指定的 (x, y) 定位，不参与居中/停靠对齐
             WindowHAlign = EHAlign.Stretch,
             WindowVAlign = EVAlign.Stretch,
             Modal = true,
             HasMask = false,
-            Border = WindowBorder.Rounded,
+            BorderStyle = WindowBorder.Rounded,
             BorderColor = TuiTheme.Current.WindowBorderFocused,
             WinBg = TuiTheme.Current.WindowBg,
         };

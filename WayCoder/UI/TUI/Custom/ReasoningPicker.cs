@@ -69,7 +69,7 @@ public static class ReasoningPicker
         {
             Title = $"推理深度 — {modelName}",
             Modal = true, HasMask = true,
-            Border = WindowBorder.Solid,
+            BorderStyle = WindowBorder.Solid,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             XScale = 0.6,

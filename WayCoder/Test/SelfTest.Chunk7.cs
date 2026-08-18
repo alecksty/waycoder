@@ -36,10 +36,10 @@ public static partial class SelfTest
         var tw = new TuiWindow { Title = "test" };
         ThemeConfig.ApplyPreset("ocean");
         ThemeConfig.Instance.ApplyTo(tw);
-        Check("ApplyTo 边框ocean", tw.Border == WindowBorder.Rounded);
+        Check("ApplyTo 边框ocean", tw.BorderStyle == WindowBorder.Rounded);
         ThemeConfig.ApplyPreset("default");
         ThemeConfig.Instance.ApplyTo(tw);
-        Check("ApplyTo 恢复默认", tw.Border == WindowBorder.Single);
+        Check("ApplyTo 恢复默认", tw.BorderStyle == WindowBorder.Single);
         Console.WriteLine();
 
         // ================================================================
@@ -51,11 +51,11 @@ public static partial class SelfTest
             WindowBorder.Triangle, WindowBorder.Ascii, WindowBorder.None, WindowBorder.Solid];
         foreach (var s in bstyles)
         {
-            var win = new TuiWindow { Border = s };
+            var win = new TuiWindow { BorderStyle = s };
             var (tl, tr, bl, br, h, v, hTop, hBot) = win.GetBorderChars();
             Check($"GetBorderChars {s} 非空", tl.Length > 0 && tr.Length > 0 && h.Length > 0 && v.Length > 0);
         }
-        var customWin = new TuiWindow { Border = WindowBorder.Ascii, CustomBorder = "+-+|||-" };
+        var customWin = new TuiWindow { BorderStyle = WindowBorder.Ascii, CustomBorder = "+-+|||-" };
         var chars = customWin.GetBorderChars();
         Check("自定义边框 ASCII", chars.h == "-" && chars.v == "|");
         Console.WriteLine();

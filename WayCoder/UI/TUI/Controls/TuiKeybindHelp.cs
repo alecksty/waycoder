@@ -91,7 +91,7 @@ public static class TuiKeybindHelp
         {
             Title = "⌨ 快捷键速查",
             Modal = true, HasMask = true,
-            Border = WindowBorder.Solid,
+            BorderStyle = WindowBorder.Solid,
             BorderColor = TuiTheme.Current.DialogInfoBorder,
             WinBg = TuiTheme.Current.WindowBg,
             Width = winW, Height = winH,

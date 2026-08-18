@@ -99,18 +99,9 @@ public class TuiPanel : TuiView
         }
         WriteAt(sb, absY, absX + w - 1, tr, bc, Bg);
 
-        int contentTop = HasTitle ? absY + 1 : absY + 0;
-        int innerH = HasTitle ? h - 2 : h - 1;
-        int titleSepY = HasTitle ? absY + 1 : absY;
+        int contentTop = HasTitle ? absY + 1 : absY;
 
-        // 标题栏下方分隔线
-        if (HasTitle && innerH > 0)
-        {
-            WriteAt(sb, titleSepY, absX, "├", bc, Bg);
-            WriteAt(sb, titleSepY, absX + 1, new string('─', w - 2), bc, Bg);
-            WriteAt(sb, titleSepY, absX + w - 1, "┤", bc, Bg);
-            contentTop = absY + 2;
-        }
+        // 标题栏下方不再画分隔线，内容直接从标题行下开始
 
         // ── 竖边框 ──
         for (int i = 0; i < Math.Max(0, HasTitle ? h - 2 : h - 1); i++)

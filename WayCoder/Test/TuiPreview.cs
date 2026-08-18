@@ -27,7 +27,7 @@ public static class TuiPreview
             var content = File.ReadAllText(path);
             var result = TuiMarkup.Load(content);
             TuiWindow win = result.Window
-                ?? new TuiWindow { RootView = result.View ?? result.Screen!.RootView, Border = WayCoder.UI.Shared.WindowBorder.None };
+                ?? new TuiWindow { RootView = result.View ?? result.Screen!.RootView, BorderStyle = WayCoder.UI.Shared.WindowBorder.None };
             Console.Write(TuiDialog.Show(win));
             return 0;
         }
@@ -59,7 +59,7 @@ public static class TuiPreview
             {
                 var result = TuiMarkup.Load(File.ReadAllText(path));
                 TuiWindow win = result.Window
-                    ?? new TuiWindow { RootView = result.View ?? result.Screen!.RootView, Border = WayCoder.UI.Shared.WindowBorder.None };
+                    ?? new TuiWindow { RootView = result.View ?? result.Screen!.RootView, BorderStyle = WayCoder.UI.Shared.WindowBorder.None };
                 Console.Write(TuiDialog.Show(win));
                 Console.Write("\x1b[0m\n—— 实时预览中（保存即刷新），Ctrl+C 退出 ——\n");
             }

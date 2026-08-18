@@ -36,7 +36,7 @@ public class ThemeConfig
     /// <summary>强制应用主题（覆盖所有窗口属性）</summary>
     public void ApplyTo(TuiWindow win)
     {
-        win.Border = BorderStyle switch
+        win.BorderStyle = BorderStyle switch
         {
             "double" => WindowBorder.Double,
             "rounded" => WindowBorder.Rounded,

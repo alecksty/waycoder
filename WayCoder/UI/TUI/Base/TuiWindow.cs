@@ -50,7 +50,7 @@ public class TuiWindow : TuiBase
     /// 窗口外框样式。WindowBorder.None 表示无边框。
     /// 无边框时内容区域 = 窗口区域，无标题栏。
     /// </summary>
-    public WindowBorder Border { get; set; } = WindowBorder.Rounded;
+    public WindowBorder BorderStyle { get; set; } = WindowBorder.Rounded;
 
     /// <summary>边框颜色（ANSI 色码）。聚焦时自动加亮。默认读主题。</summary>
     public int BorderColor { get; set; } = TuiTheme.Current.WindowBorderFocused;
@@ -135,6 +135,12 @@ public class TuiWindow : TuiBase
     /// </summary>
     public Action? OnResizeContent { get; set; }
 
+    /// <summary>
+    /// 对话框显示前截取的背景快照（由 TuiScreen 在 AddWindow 时填充，关闭后贴回还原）。
+    /// null = 无快照，关闭时走「脏区清除 + 重绘」兜底。
+    /// </summary>
+    public FrameSnapshot? BackgroundSnapshot { get; set; }
+
     // ── 生命周期 ──
 
     /// <summary>窗口创建/显示时调用。初始化 RootView 控件树。</summary>
@@ -151,7 +157,7 @@ public class TuiWindow : TuiBase
     // ── 边框字符解析 ──
     public (string tl, string tr, string bl, string br, string h, string v, string hTop, string hBot) GetBorderChars()
     {
-        var bc = AnsiHelper.GetBorderChars(Border);
+        var bc = AnsiHelper.GetBorderChars(BorderStyle);
         return (bc.TL, bc.TR, bc.BL, bc.BR, bc.H, bc.V, bc.HT, bc.HB);
     }
 
@@ -162,41 +168,33 @@ public class TuiWindow : TuiBase
         BorderColor;
 
     /// <summary>内容可绘制区域左边界（不含边框）</summary>
-    public int ContentLeft => Border == WindowBorder.None ? X : X + 1;
+    public int ContentLeft => BorderStyle == WindowBorder.None ? X : X + 1;
 
-    /// <summary>内容可绘制区域上边界（不含边框、标题行、标题分隔线）</summary>
+    /// <summary>内容可绘制区域上边界（不含边框、标题行）</summary>
     public int ContentTop
     {
         get
         {
-            if (Border == WindowBorder.None)
+            if (BorderStyle == WindowBorder.None)
             {
                 return Y;
             }
 
-            // 标题嵌在上边框行（Y），其下另有一行分隔线（Y+1），内容从 Y+2 开始（对齐 RenderWindow）；
-            // 无标题则内容从上边框下面一行（Y+1）开始。
-            return ShowTitle && !string.IsNullOrEmpty(Title) ? Y + 2 : Y + 1;
+            // 标题嵌在上边框行（Y），内容从其下 Y+1 开始（无标题分隔线）
+            return Y + 1;
         }
     }
 
     /// <summary>内容可绘制区域宽度（不含边框）</summary>
-    public int ContentWidth => Border == WindowBorder.None ? Width : Width - 2;
+    public int ContentWidth => BorderStyle == WindowBorder.None ? Width : Width - 2;
 
-    /// <summary>内容可绘制区域高度（不含边框和标题栏）</summary>
+    /// <summary>内容可绘制区域高度（不含边框）</summary>
     public int ContentHeight
     {
         get
         {
-            if (Border == WindowBorder.None) return Height;
-            var h = Height - 2; // 上下边框
-            // 标题栏有分隔线或粗体独占一行时才扣除标题行高度
-            if (ShowTitle && !string.IsNullOrEmpty(Title))
-            {
-                h -= 1;
-            }
-
-            return Math.Max(0, h);
+            if (BorderStyle == WindowBorder.None) return Height;
+            return Math.Max(0, Height - 2); // 上下边框（无标题分隔线）
         }
     }
 
@@ -278,6 +276,9 @@ public class TuiWindow : TuiBase
     /// </summary>
     public override void OnResize(int newTermW, int newTermH)
     {
+        // 终端尺寸变化 → 背景快照坐标失效，关闭时回退「脏区清除 + 重绘」兜底
+        BackgroundSnapshot = null;
+
         // 0. 根据 XScale/YScale 比例重新计算窗口尺寸
         if (XScale > 0)
         {

@@ -461,7 +461,7 @@ public static class TuiDemo
             Width = 49, Height = 17,
             X = 4, Y = 2,
             Modal = true, HasMask = false,
-            Border = WindowBorder.Rounded,
+            BorderStyle = WindowBorder.Rounded,
             BorderColor = 33, WinBg = 7,
         };
         win.RegisterShortcut(ConsoleKey.Escape, () => win.OnClosed?.Invoke());
@@ -526,7 +526,7 @@ public static class TuiDemo
             Width = 46, Height = 21,
             X = 4, Y = 1,
             Modal = true, HasMask = false,
-            Border = WindowBorder.Rounded,
+            BorderStyle = WindowBorder.Rounded,
             BorderColor = 35, WinBg = 7,
         };
         win.RegisterShortcut(ConsoleKey.Escape, () => win.OnClosed?.Invoke());
@@ -590,7 +590,7 @@ public static class TuiDemo
             Width = 50, Height = 18,
             X = 4, Y = 1,
             Modal = true, HasMask = false,
-            Border = WindowBorder.Rounded,
+            BorderStyle = WindowBorder.Rounded,
             BorderColor = 33, WinBg = 7,
         };
         win.RegisterShortcut(ConsoleKey.Escape, () => win.OnClosed?.Invoke());
@@ -756,7 +756,7 @@ if (result != null)
             RootView = vbox, Width = 48, Height = 24,
             X = 2, Y = 1,
             Modal = true, HasMask = false,
-            Border = WindowBorder.Rounded,
+            BorderStyle = WindowBorder.Rounded,
             BorderColor = 36, WinBg = 7,
         };
         win.RegisterShortcut(ConsoleKey.Escape, () => win.OnClosed?.Invoke());
