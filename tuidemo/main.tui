@@ -8,6 +8,11 @@
     <Input id="input" width="60" placeholder="输入消息，Enter 发送" />
     <HBox align="center" spacing="2">
       <Button id="send" text="发送" />
+      <Button id="showcase" text="控件合集" />
+      <Button id="permission" text="权限" />
+      <Button id="multiselect" text="多选" />
+    </HBox>
+    <HBox align="center" spacing="2">
       <Button id="info" text="信息框" />
       <Button id="confirm" text="确认框" />
       <Button id="inputdlg" text="输入框" />

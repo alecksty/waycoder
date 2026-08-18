@@ -1,0 +1,35 @@
+<!-- 控件合集 showcase：覆盖全部控件类别 -->
+<Window title="控件合集（.tui 重构）" width="66" height="22" border="double" borderColor="accent">
+  <VBox spacing="0">
+    <Label text="① 基础控件" bold="true" fg="accent" />
+    <HBox spacing="2" align="left">
+      <Button text="按钮" />
+      <Checkbox text="复选" checked="true" />
+      <ComboBox items="选项一,选项二,选项三" selected="0" width="18" />
+      <Spinner text="加载中" />
+    </HBox>
+
+    <Label text="② 选择控件" bold="true" fg="accent" />
+    <HBox spacing="3" align="left">
+      <RadioGroup items="深海蓝,翡翠绿,琥珀橙" selected="0" width="26" />
+      <SeekBar min="0" max="100" value="60" width="22" />
+    </HBox>
+
+    <Label text="③ 进度与列表" bold="true" fg="accent" />
+    <Progress value="67" width="40" />
+    <List items="列表项一,列表项二,列表项三" selected="0" width="30" height="3" />
+
+    <Label text="④ 线框与装饰" bold="true" fg="accent" />
+    <Line width="56" style="double" fg="accent" />
+    <Rect width="42" height="4" style="rounded" fg="success" />
+
+    <Label text="⑤ 文字特征" bold="true" fg="accent" />
+    <HBox spacing="3" align="left">
+      <Label text="粗体" bold="true" />
+      <Label text="斜体" italic="true" />
+      <Label text="下划线" underline="true" />
+      <Label text="淡色" dim="true" />
+      <Label text="RGB色" fg="#ff8700" />
+    </HBox>
+  </VBox>
+</Window>
