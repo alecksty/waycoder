@@ -43,6 +43,8 @@ public enum EconomyMode
     Off,
     Auto,
     On,
+    /// <summary>极致：提示词尽量不注入、上下文尽量少给（比 On 更激进）</summary>
+    Extreme,
 }
 
 /// <summary>
@@ -543,12 +545,13 @@ public class Config
 
             P("EconomyMode", "WAYCODER_ECONOMY", null,
               "省 Token 模式", "⚙ 参数", "关=完整 / 开=精简+更早压缩 / 自动=按任务轮数复杂度调节（简单省、复杂保质量）",
-              "select", ["off","auto","on"], 20,
+              "select", ["off","auto","on","extreme"], 20,
               c => c.EconomyMode.ToString().ToLowerInvariant(),
               (c, v) => c.EconomyMode = v.ToLowerInvariant() switch
               {
                   "auto" => EconomyMode.Auto,
                   "on" => EconomyMode.On,
+                  "extreme" => EconomyMode.Extreme,
                   _ => EconomyMode.Off,
               }, "off"),
 
