@@ -10,7 +10,11 @@ namespace WayCoder;
 /// </summary>
 public static class EnvScrubber
 {
-    private static readonly Regex SensitivePattern = new(@"KEY|PASSWORD|SECRET|TOKEN", RegexOptions.IgnoreCase);
+    // 覆盖常见凭据形状：KEY/PASSWORD/PASS/PWD/SECRET/TOKEN/CREDENTIAL/AUTH/CONNECTION_STRING 等。
+    // 补齐此前漏掉的 DB_PASS / MYSQL_PWD / GOOGLE_APPLICATION_CREDENTIALS / DOCKER_AUTH / NETRC / AZURE_*_CONNECTION_STRING。
+    private static readonly Regex SensitivePattern = new(
+        @"KEY|PASSWORD|PASSWD|PASS|PWD|SECRET|TOKEN|CREDENTIAL|CRED|AUTH|CONNECTION_STRING|NETRC|PRIVATE_KEY",
+        RegexOptions.IgnoreCase);
 
     /// <summary>
     /// 判断环境变量名是否敏感：匹配 KEY/PASSWORD/SECRET/TOKEN，或以 WAYCODER_ 开头

@@ -48,6 +48,11 @@ public class RmTool : ITool
         {
             var fullPath = Path.GetFullPath(path, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
 
+            // 敏感路径防护（SSH 密钥/shell 配置/系统凭据，防提示注入删除）
+            var sensitive = PathSafety.CheckSensitive(fullPath);
+            if (sensitive != null)
+                return $"❌ 已阻止：{sensitive}（安全策略：敏感文件读写受保护）";
+
             // 安全检查
             foreach (var p in ProtectedPaths)
             {

@@ -84,6 +84,11 @@ public class EditFileTool : ITool
 
         var path = Path.GetFullPath(filePath, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
 
+        // 敏感路径防护（SSH 密钥/shell 配置/系统凭据，防提示注入写后门）
+        var sensitive = PathSafety.CheckSensitive(path);
+        if (sensitive != null)
+            return $"❌ 已阻止：{sensitive}（安全策略：敏感文件读写受保护）";
+
         // 文件锁检查
         if (!FileLockManager.TryAcquire(path, agentId))
         {

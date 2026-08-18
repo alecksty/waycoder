@@ -45,7 +45,7 @@ public class FetchTool : ITool, ICancellableTool
 
     private static HttpClient _client => _lazyClient.Value;
     private static readonly Lazy<HttpClient> _lazyClient = new(() => new HttpClient(
-        new HttpClientHandler { AllowAutoRedirect = false })  // 手动跟随重定向，每跳做 SSRF 校验
+        SsgfGuard.CreateSafeHandler())  // 手动跟随重定向 + ConnectCallback 原子「解析+校验+连接」，防 DNS 重绑定
     { Timeout = TimeSpan.FromSeconds(Config.Instance.FetchTimeoutSec) });
 
     /// <summary>需移除的噪音 HTML 元素（对标 crush）</summary>

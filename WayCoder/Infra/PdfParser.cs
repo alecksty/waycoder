@@ -207,6 +207,9 @@ public sealed class PdfParser
             SkipWs(ref pos);
             var s2 = pos; ReadNumber(ref pos);
             int count = (int)ParseDouble(Ascii(s2, pos));
+            // 钳制 xref 子段条目数：条目数不可能超过文件字节数，声明值（如 0 2147483647）超出即损坏，
+            // 否则 for 循环数十亿次空转（每轮数据耗尽后 pos 不再前进仍继续）。
+            if (count < 0 || count > _buf.Length) count = _buf.Length;
             for (int i = 0; i < count; i++)
             {
                 SkipWs(ref pos);
@@ -552,7 +555,17 @@ public sealed class PdfParser
                     using var ms = new MemoryStream(data);
                     using var z = new ZLibStream(ms, CompressionMode.Decompress);
                     using var outMs = new MemoryStream();
-                    z.CopyTo(outMs);
+                    // 限制解压输出上限，防 zip bomb（恶意小文件声明高压缩比 → 解压出数 GB 内存尖峰/OOM）。
+                    // 64MB 对齐 OfficeExtractor 条目上限，正常 PDF 内容流远小于此。
+                    const int maxOut = 64 * 1024 * 1024;
+                    var buffer = new byte[64 * 1024];
+                    int total = 0, n;
+                    while ((n = z.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        if (total + n > maxOut) return data; // 解压超限，返回原始压缩数据（视为损坏）
+                        outMs.Write(buffer, 0, n);
+                        total += n;
+                    }
                     return outMs.ToArray();
                 }
                 catch { return data; }
@@ -700,8 +713,11 @@ public sealed class PdfParser
         }
     }
 
-    private static PdfObj? ParseStreamValue(byte[] d, ref int pos)
+    private static PdfObj? ParseStreamValue(byte[] d, ref int pos, int depth = 0)
     {
+        // 嵌套数组深度护栏：[[[[[ 恶意嵌套会在此处递归 ParseStreamArray↔ParseStreamValue，
+        // 无上限时触发 StackOverflowException（不可捕获，直接杀进程）。
+        if (depth >= 128) return null;
         if (pos >= d.Length) return null;
         byte c = d[pos];
         if (c == '<' && pos + 1 < d.Length && d[pos + 1] == '<')
@@ -715,7 +731,7 @@ public sealed class PdfParser
             return PdfNull.Instance; // 字典（罕见，如 BDC）跳过
         }
         if (c == '<') return ParseStreamHex(d, ref pos);
-        if (c == '[') return ParseStreamArray(d, ref pos);
+        if (c == '[') return ParseStreamArray(d, ref pos, depth + 1);
         if (c == '(') return ParseStreamLiteral(d, ref pos);
         if (c == '/') return ParseStreamName(d, ref pos);
         if (IsNumberStart(c)) return ParseStreamNumber(d, ref pos);
@@ -800,7 +816,7 @@ public sealed class PdfParser
         return new PdfStr { Bytes = ms.ToArray() };
     }
 
-    private static PdfArray ParseStreamArray(byte[] d, ref int pos)
+    private static PdfArray ParseStreamArray(byte[] d, ref int pos, int depth)
     {
         pos++;
         var arr = new PdfArray();
@@ -809,7 +825,7 @@ public sealed class PdfParser
             SkipStreamWs(d, ref pos);
             if (pos < d.Length && d[pos] == ']') { pos++; break; }
             if (pos >= d.Length) break;
-            var val = ParseStreamValue(d, ref pos);
+            var val = ParseStreamValue(d, ref pos, depth);
             if (val == null) pos++;
             else if (val is not PdfNull) arr.Items.Add(val);
         }

@@ -1,4 +1,6 @@
 using System.Net;
+using System.Net.Http;
+using System.Net.Sockets;
 
 namespace WayCoder;
 
@@ -62,8 +64,25 @@ public static class SsgfGuard
     /// </summary>
     public static (bool safe, string? reason) CheckDns(string host)
     {
-        if (string.IsNullOrEmpty(host)) return (false, "主机名为空");
-        if (IPAddress.TryParse(host, out _)) return (true, null); // 字面量 IP 已在 CheckUrl 处理
+        var (safe, reason, _) = ResolveSafeAddresses(host);
+        return (safe, reason);
+    }
+
+    /// <summary>
+    /// 解析主机名并校验，返回 (是否安全, 原因, 解析到的地址)。
+    /// 供 <see cref="CreateSafeHandler"/> 的 ConnectCallback 使用：连接时直接用返回的地址，
+    /// 消除「CheckDns 校验通过后 HttpClient 再解析一次得到内网 IP」的 DNS 重绑定 TOCTOU。
+    /// </summary>
+    public static (bool safe, string? reason, IPAddress[] addrs) ResolveSafeAddresses(string host)
+    {
+        if (string.IsNullOrEmpty(host)) return (false, "主机名为空", []);
+        if (IPAddress.TryParse(host, out var literal))
+        {
+            // ConnectCallback 是独立防护层，字面量内网 IP 也需在此拒绝（不能依赖 CheckUrl 先行拦截）
+            if (IsPrivateOrReserved(literal))
+                return (false, $"已阻止访问内网/保留地址 {host}（SSRF 防护）", []);
+            return (true, null, [literal]);
+        }
 
         try
         {
@@ -71,12 +90,42 @@ public static class SsgfGuard
             foreach (var addr in addrs)
             {
                 if (IsPrivateOrReserved(addr))
-                    return (false, $"已阻止访问解析到内网地址 {addr} 的主机 {host}（SSRF 防护）");
+                    return (false, $"已阻止访问解析到内网地址 {addr} 的主机 {host}（SSRF 防护）", []);
             }
+            return (true, null, addrs);
         }
-        catch { /* DNS 解析失败，放行（不因网络问题误伤） */ }
+        catch { return (true, null, []); } // DNS 解析失败：ConnectCallback 因无地址而抛连接异常
+    }
 
-        return (true, null);
+    /// <summary>
+    /// 创建带 SSRF 连接校验的 SocketsHttpHandler：ConnectCallback 里原子完成
+    /// 「DNS 解析 → 内网校验 → 连接」，HttpClient 不再自行解析 DNS，杜绝 DNS 重绑定。
+    /// 供 fetch/download 工具使用（替换 HttpClientHandler）。
+    /// </summary>
+    public static SocketsHttpHandler CreateSafeHandler()
+    {
+        var handler = new SocketsHttpHandler { AllowAutoRedirect = false };
+        handler.ConnectCallback = async (context, ct) =>
+        {
+            var host = context.DnsEndPoint.Host;
+            var port = context.DnsEndPoint.Port;
+            var (safe, reason, addrs) = ResolveSafeAddresses(host);
+            if (!safe) throw new SsgfBlockedException(reason!);
+            if (addrs.Length == 0) throw new HttpRequestException($"无法解析主机 {host}");
+
+            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+            try
+            {
+                await socket.ConnectAsync(addrs, port, ct).ConfigureAwait(false);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        };
+        return handler;
     }
 
     /// <summary>判断 IP 字符串是否为私网/环回/链路本地/保留地址（无效 IP 返回 false）。</summary>

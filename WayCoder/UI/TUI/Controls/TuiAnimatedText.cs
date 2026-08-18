@@ -77,19 +77,23 @@ public class TuiAnimatedText : TuiControl
     /// <summary>停止动画（静态显示完整文本）。</summary>
     public void Stop() => _running = false;
 
+    /// <summary>控件销毁时从静态 DirectWriters 列表移除，防陈旧控件继续写屏（泄漏）。</summary>
+    public override void OnDestroy()
+    {
+        DirectWriters.Remove(this);
+        base.OnDestroy();
+    }
+
     private static long NowMs => DateTime.UtcNow.Ticks / TimeSpan.TicksPerMillisecond;
 
     private int Interval => Math.Max(MinFrameMs, FrameMs);
 
-    /// <summary>当前帧索引（时间驱动，循环）。</summary>
-    private int FrameIndex
-    {
-        get
-        {
-            int total = CustomFrames is { Count: > 0 } cf ? cf.Count : 1;
-            return (int)((NowMs / Interval) % Math.Max(1, total));
-        }
-    }
+    /// <summary>
+    /// 当前帧索引（时间驱动的递增帧号，大周期循环防溢出）。
+    /// 各调用方再按各自帧数取模：Spinner 取 %SpinnerFrames.Length、CustomFrames 取 %Count、
+    /// FrameProvider 收到递增帧号自行处理（修复此前 total=1 导致 FrameProvider 恒收到帧 0 的 bug）。
+    /// </summary>
+    private int FrameIndex => (int)((NowMs / Interval) % 1_000_000);
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {

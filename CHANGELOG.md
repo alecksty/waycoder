@@ -1,5 +1,34 @@
 # 更新日志
 
+## v0.79.1 (2026-08-18) — 安全审计：白名单绕过 + 解析器崩溃护栏 + 并发/SSRF/路径防护
+
+对全系统做 4 路并行安全审查（TUI 渲染 / Agent 并发 / 工具安全 / 手搓编解码），修复一批安全漏洞与健壮性问题。
+
+### 🔒 安全（P0）
+- **BashGuard 只读白名单绕过**：`find -exec/-delete`、`env <cmd>`、`git config` 被当作只读自动放行，提示注入可零确认执行任意命令。移除 `env`/`git config`，`find` 加 `-exec/-execdir/-delete/-ok/-okdir` 危险 flag 逐 token 拦截
+- **路径防护 `PathSafety`（新增）**：拦截 SSH 密钥 / shell 配置 / 云凭据 / 系统凭据路径（`id_rsa`/`.bashrc`/`.ssh/`/`.pem`/`/etc/passwd` 等），接入 read_file / write_file / edit_file / rm
+- **SSRF DNS 重绑定**：`SsgfGuard.CreateSafeHandler()` 用 `ConnectCallback` 原子「解析+校验+连接」，消除 CheckDns 校验后 HttpClient 再解析的 TOCTOU
+
+### 🛡️ 崩溃 / DoS 护栏（P0/P1）
+- **PdfParser** 内容流数组递归无深度护栏（StackOverflow）→ 加 128 层护栏；FlateDecode zip bomb → 64MB 解压上限；xref `count` 未钳制 → 钳制到文件大小
+- **CfbParser** DIFAT 链 `numDifatSectors` 未校验（OOM）→ 钳制 + 循环内 `fatSectors` 上限
+- **JpegCodec** 分量采样数组 ~800MB → 总采样点 ≤ 3×MaxPixels
+- **find_replace** 正则无超时（灾难性回溯卡死主循环）→ 对齐 GrepTool 加 `RegexTimeoutSec`
+
+### 🧵 并发（P1）
+- **Messages 锁纪律**：主循环/压缩层无锁枚举与 Web 请求线程加锁写并发 → 4 处改快照/锁（压缩、FullMessages、RepairOrphanedToolPairs、DetectAndBreakLoop）
+
+### 🖥️ TUI / 其他
+- 输入/选择类对话框窗口宽不自适应（模板默认 30 列裁剪）→ `ApplyContentWidth`；Permission 对话框按钮被裁剪 → 高度公式修正
+- `TuiAnimatedText.FrameIndex` 恒 0 bug + `DirectWriters` 静态列表泄漏
+- `EnvScrubber` 凭据名覆盖扩展（`MYSQL_PWD`/`GOOGLE_APPLICATION_CREDENTIALS`/`DOCKER_AUTH` 等）
+- `FileLockManager` 大小写不敏感系统锁绕过（字典 `OrdinalIgnoreCase` comparer）
+- GUI 项目 WebAssets 重复包含（CS2002）
+
+### ✅ 验证
+- 自测 3507→3539 全绿（+32 断言）
+- 主项目 + GUI 项目 0 警告 0 错误
+
 ## v0.79.0 (2026-08-18) — 本地模型（LM Studio / Ollama）集成可用性修复
 
 用本地模型（LM Studio `qwen3.5-9b`）实测跑通编程任务时发现并修复 BaseUrl 端点归一化问题，补齐本地模型使用文档。

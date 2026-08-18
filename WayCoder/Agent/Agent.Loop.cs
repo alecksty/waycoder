@@ -29,9 +29,12 @@ public partial class Agent
     /// </summary>
     private void RepairOrphanedToolPairs()
     {
+        // 快照读：避免与 Web 请求线程加锁写并发枚举抛异常（修复幂等，读快照足够）
+        var snapshot = SnapshotMessages();
+
         // 1. 收集所有 assistant 消息中的 tool_call ID
         var callIds = new HashSet<string>();
-        foreach (var msg in Messages)
+        foreach (var msg in snapshot)
         {
             if (msg["role"]?.AsString() != "assistant") continue;
             var toolCalls = msg["tool_calls"];
@@ -48,7 +51,7 @@ public partial class Agent
 
         // 2. 收集所有 tool 结果消息的 tool_call_id
         var resultIds = new HashSet<string>();
-        foreach (var msg in Messages)
+        foreach (var msg in snapshot)
         {
             if (msg["role"]?.AsString() != "tool") continue;
             var id = msg["tool_call_id"]?.AsString();
@@ -63,9 +66,9 @@ public partial class Agent
             // 找到该 tool-call 的 assistant 消息位置，在其后插入合成 tool-result
             int callMsgIdx = -1;
             string? toolName = null;
-            for (int i = 0; i < Messages.Count; i++)
+            for (int i = 0; i < snapshot.Count; i++)
             {
-                var msg = Messages[i];
+                var msg = snapshot[i];
                 if (msg["role"]?.AsString() != "assistant") continue;
                 var tcs = msg["tool_calls"];
                 if (tcs == null) continue;
@@ -100,9 +103,9 @@ public partial class Agent
         }
 
         // 4. 删除无对应 tool-call 的 tool-result（反向遍历，安全删除）
-        for (int i = Messages.Count - 1; i >= 0; i--)
+        for (int i = snapshot.Count - 1; i >= 0; i--)
         {
-            var msg = Messages[i];
+            var msg = snapshot[i];
             if (msg["role"]?.AsString() != "tool") continue;
             var id = msg["tool_call_id"]?.AsString();
             if (!string.IsNullOrEmpty(id) && !callIds.Contains(id))

@@ -37,7 +37,7 @@
             测试/演示（Test）、编译期插件（Plugins）、游戏引擎误置目录、Properties。
     -->
     <Compile Include="../WayCoder/**/*.cs"
-             Exclude="../WayCoder/Program*.cs;../WayCoder/SlashCommand.cs;../WayCoder/Test/**/*.cs;../WayCoder/UI/CLI/**/*.cs;../WayCoder/Plugins/**/*.cs;../WayCoder/Properties/**/*.cs;../WayCoder/bin/**/*.cs;../WayCoder/obj/**/*.cs;../WayCoder/WayEngine/**/*.cs;../WayCoder/game/**/*.cs;../WayCoder/games/**/*.cs;../WayCoder/lottery/**/*.cs;../WayCoder/subs/**/*.cs;../WayCoder/works/**/*.cs" />
+             Exclude="../WayCoder/Program*.cs;../WayCoder/SlashCommand.cs;../WayCoder/Test/**/*.cs;../WayCoder/UI/CLI/**/*.cs;../WayCoder/Plugins/**/*.cs;../WayCoder/Properties/**/*.cs;../WayCoder/bin/**/*.cs;../WayCoder/obj/**/*.cs;../WayCoder/WayEngine/**/*.cs;../WayCoder/game/**/*.cs;../WayCoder/games/**/*.cs;../WayCoder/lottery/**/*.cs;../WayCoder/subs/**/*.cs;../WayCoder/works/**/*.cs;../WayCoder/UI/WEB/WebAssets.Generated.cs" />
   </ItemGroup>
 
 </Project>
