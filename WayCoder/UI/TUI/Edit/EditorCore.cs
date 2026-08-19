@@ -17,6 +17,9 @@ public class EditorCore
     public string FilePath { get; private set; } = "";
     public bool Modified { get; private set; }
 
+    /// <summary>只读模式：不允许修改缓冲区（编辑方法拒绝），只能查看/滚动/查找。</summary>
+    public bool ReadOnly { get; set; }
+
     // ── 光标 (0-based) ──
     public int Cy { get; set; }
     public int Cx { get; set; }
@@ -206,6 +209,7 @@ public class EditorCore
 
     public void InsertText(string text)
     {
+        if (ReadOnly) return; // 只读模式：禁止修改
         text = text.Replace("\r\n", "\n");
         if (string.IsNullOrEmpty(text)) return;
         if (HasSelection) DeleteSelection();
@@ -237,6 +241,7 @@ public class EditorCore
 
     public void Backspace()
     {
+        if (ReadOnly) return; // 只读模式：禁止修改
         if (HasSelection) { DeleteSelection(); return; }
         if (Cx > 0)
         {
@@ -262,6 +267,7 @@ public class EditorCore
 
     public void Delete()
     {
+        if (ReadOnly) return; // 只读模式：禁止修改
         if (HasSelection) { DeleteSelection(); return; }
         if (Cx < Lines[Cy].Length)
         {
@@ -283,6 +289,7 @@ public class EditorCore
 
     public void NewLine()
     {
+        if (ReadOnly) return; // 只读模式：禁止修改
         if (HasSelection) DeleteSelection();
         var indent = GetIndent(Lines[Cy].ToString());
         var text = "\n" + indent;
@@ -295,6 +302,7 @@ public class EditorCore
 
     public void InsertTab()
     {
+        if (ReadOnly) return; // 只读模式：禁止修改
         // 缩进模式可配置：默认 tab（制表符），space 模式用 4 空格
         InsertText(IndentMode == "space" ? "    " : "\t");
     }
@@ -325,6 +333,7 @@ public class EditorCore
 
     public void DeleteLine()
     {
+        if (ReadOnly) return; // 只读模式：禁止修改
         if (HasSelection) { DeleteSelection(); return; }
         var content = Lines[Cy].ToString();
         if (Lines.Count == 1)
@@ -382,6 +391,7 @@ public class EditorCore
     /// <summary>删除光标前一个词（空白 + 连续非空白）。</summary>
     public void DeleteWordBefore()
     {
+        if (ReadOnly) return; // 只读模式：禁止修改
         if (HasSelection) { DeleteSelection(); return; }
         var line = Lines[Cy].ToString();
         int p = Cx;
@@ -398,6 +408,7 @@ public class EditorCore
     /// <summary>删除光标后一个词（连续非空白，不含后续空白）。</summary>
     public void DeleteWordAfter()
     {
+        if (ReadOnly) return; // 只读模式：禁止修改
         if (HasSelection) { DeleteSelection(); return; }
         var line = Lines[Cy].ToString();
         int len = line.Length;
@@ -415,6 +426,7 @@ public class EditorCore
     /// <summary>删除从光标到行尾的文本。</summary>
     public void DeleteToLineEnd()
     {
+        if (ReadOnly) return; // 只读模式：禁止修改
         if (HasSelection) { DeleteSelection(); return; }
         var line = Lines[Cy].ToString();
         int col = Math.Min(Cx, line.Length);
@@ -686,6 +698,7 @@ public class EditorCore
 
     public void DeleteSelection()
     {
+        if (ReadOnly) return; // 只读模式：禁止修改
         if (!HasSelection) return;
         var (sl, sc, el, ec) = NormalizedSelection();
         var text = GetSelectedText()!;

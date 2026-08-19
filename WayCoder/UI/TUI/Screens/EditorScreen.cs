@@ -73,10 +73,14 @@ public class EditorScreen : TuiScreen
     /// <summary>缓存的标记树：仅首次加载解析，resize 只重排不重解析。</summary>
     private TuiMarkupResult? _markup;
 
-    public EditorScreen(string filePath = "")
+    /// <summary>只读模式：不允许修改文件，只能查看/滚动/查找（编辑操作被 EditorCore 拒绝）。</summary>
+    public bool ReadOnly { get; set; }
+
+    public EditorScreen(string filePath = "", bool readOnly = false)
     {
         Name = "editor";
         FilePath = filePath;
+        ReadOnly = readOnly;
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -165,7 +169,7 @@ public class EditorScreen : TuiScreen
 
             // 注入编辑区：mainHBox 子顺序 = leftPanel, leftSep, [EditorView], rightSep, rightPanel
             var mainHBox = _markup.Find<TuiHBox>("mainHBox") ?? throw Missing("mainHBox");
-            EditorView = new TuiRichEditor { Core = Core, Focused = true };
+            EditorView = new TuiRichEditor { Core = Core, Focused = true, ReadOnly = ReadOnly };
             EditorView.OnSaveRequested += HandleSave;
             EditorView.OnJumpRequested += HandleJump;
             EditorView.OnFindRequested += HandleFindReplace;
@@ -282,6 +286,7 @@ public class EditorScreen : TuiScreen
         var fileName = Path.GetFileName(Core.FilePath);
         var title = $" /edit: {fileName} ";
         if (Core.Modified) title += "[已修改] ";
+        if (ReadOnly) title += "[只读] ";
         TitleBar.CenterText = title;
 
         var (errors, warnings) = Core.GetDiagSummary();
@@ -296,7 +301,9 @@ public class EditorScreen : TuiScreen
         var pathDisplay = Core.FilePath;
         if (pathDisplay.Length > 50) pathDisplay = "..." + pathDisplay[^47..];
         StatusBar2.Text = $" {pathDisplay}  " +
-                          "^S保存 ^Z撤销 ^F查找/替换 F3下一处 F8诊断 Tab缩进 ^Tab焦点 ^B文件 ^⇧O大纲 Esc退出";
+                          (ReadOnly
+                              ? "只读查看 · ^F查找 F3下一处 F8诊断 Tab缩进 ^Tab焦点 ^B文件 ^⇧O大纲 Esc退出"
+                              : "^S保存 ^Z撤销 ^F查找/替换 F3下一处 F8诊断 Tab缩进 ^Tab焦点 ^B文件 ^⇧O大纲 Esc退出");
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -651,6 +658,11 @@ public class EditorScreen : TuiScreen
 
     private void HandleSave()
     {
+        if (ReadOnly)
+        {
+            ShowToast("只读模式，无法保存", 1500);
+            return;
+        }
         try
         {
             Core.Save();
