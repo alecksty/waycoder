@@ -44,9 +44,10 @@ public class TuiDynamicBar : TuiControl
     /// 够看出在转，又不至于逐帧整条重绘造成卡顿。</summary>
     public const int FrameMs = 500;
 
-    /// <summary>基于时钟的当前帧（无需 Tick）</summary>
+    /// <summary>基于时钟的当前帧（无需 Tick）。先对帧数取模再强转 int——
+    /// 毫秒数/500 远超 int.MaxValue（2026 年约 1.28e11），直接 (int) 会溢出为负数索引导致 IndexOutOfRange。</summary>
     private static string CurrentFrame =>
-        Frames[(int)(DateTime.UtcNow.Ticks / TimeSpan.TicksPerMillisecond / FrameMs) % Frames.Length];
+        Frames[(int)((DateTime.UtcNow.Ticks / TimeSpan.TicksPerMillisecond / FrameMs) % Frames.Length)];
 
     // ═══════════════════════════════════════════════════════════
     // 公开属性

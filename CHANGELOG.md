@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.79.54 (2026-08-19) — 修复 TuiDynamicBar 动画帧数组越界崩溃
+
+**根因**：`CurrentFrame` 先 `(int)` 强转再取模——`毫秒数/500` 约 1.28e11 远超 int.MaxValue，强转溢出为负数索引 → `IndexOutOfRangeException` 崩溃（v0.79.51 动态栏改动引入）。
+
+**修复**：先对帧数取模（long）再强转 int（结果 0-7 安全）。
+
+### ✅ 验证
+- 自测 3928 通过，编译 0 错误，tty 聊天屏渲染正常
+
 ## v0.79.53 (2026-08-19) — 修复对话框粘贴关闭/花屏（RenderWait 共享 InputManager）
 
 **根因**：`UxHelper.RenderWait`（ModelPicker/DiffPreview 等阻塞对话框）用裸 `Console.ReadKey`，不解析 bracketed paste——粘贴的 `\x1b[200~` 被当 Esc 关闭对话框、内容逐字符乱入花屏。
