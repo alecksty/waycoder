@@ -67,6 +67,20 @@ public partial class ChatScreen : TuiScreen
         if (string.IsNullOrEmpty(text)) return;
 
         var normalized = text.Replace("\r\n", "\n");
+
+        // 模态对话框（api-key 输入/提问等）打开时：粘贴到对话框的焦点输入控件，
+        // 否则 bracketed paste 内容只进主输入框，对话框输入框粘贴花屏/丢失
+        if (HasModal && FocusedWindow?.RootView != null)
+        {
+            var focused = FocusedWindow.RootView.FindFocused();
+            if (focused is TuiEditBase editInput)
+            {
+                editInput.PasteFromExternal(normalized);
+                MarkDirty();
+                return;
+            }
+        }
+
         var lines = normalized.Split('\n');
 
         // 粘贴确认：超长(>500字符)或多行(>3行)时弹出确认
