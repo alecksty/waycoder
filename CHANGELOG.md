@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.79.63 (2026-08-20) — 对话框渐变随主题统一切换（默认金黄）
+
+- **新增 `TuiTheme.DialogGradient` 主题属性**（对话框统一渐变，默认金黄=橙黄渐变），各主题覆盖自身风格色：
+  Ocean 青蓝 / Forest 绿 / Sunset 橙红 / Monochrome 灰 / Retro 琥珀 —— 切主题（`/theme`）时对话框渐变自动跟随
+- **所有对话框改用 `DialogGradient`**：TuiDialog 系（confirm/input/select/perm 等）、自定义对话框（SessionPicker/FilePicker/CommandPalette/ReasoningPicker/DiffPreview）、标记 `gradient="warning"`（ModelPicker 等）
+- **保留语义色**：Info/Success/Warn/Error 边框（青/绿/黄/红）区分消息类型；按钮渐变（橙黄）暂保持品牌色
+
+### ✅ 验证
+- 自测 3952 通过
+
 ## v0.79.62 (2026-08-20) — 对话框风格统一 + Keypad 对话框容量/长度测试
 
 - **对话框风格统一为橙黄渐变**——SessionPicker / FilePicker / CommandPalette / ReasoningPicker 原用青蓝/紫粉渐变，统一为 `GradOrangeYellow`（与 TuiDialog 系一致）；按钮统一「主操作橙黄 + 危险红橙」（SessionPicker openBtn 青蓝→橙黄，delBtn 保留红橙）

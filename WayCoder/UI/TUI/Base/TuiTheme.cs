@@ -50,6 +50,11 @@ public class TuiTheme
         AnsiTty.RgbCode(255, 180, 0),
         AnsiTty.RgbCode(255, 255, 80));
 
+    /// <summary>对话框统一渐变（默认金黄=GradOrangeYellow；切主题时随主题风格变，各主题可覆盖）。</summary>
+    public (int start, int end) DialogGradient { get; set; } = (
+        AnsiTty.RgbCode(255, 180, 0),
+        AnsiTty.RgbCode(255, 255, 80));
+
     /// <summary>红→橙渐变（错误框默认）</summary>
     public (int start, int end) GradRedOrange => (
         AnsiTty.RgbCode(255, 60, 60),
@@ -272,6 +277,7 @@ public class TuiTheme
         DialogInfoBorder = AnsiColors.Blue,
         DialogWarnBorder = AnsiColors.Yellow,
         DialogConfirmBorder = AnsiColors.Blue,
+        DialogGradient = (AnsiTty.RgbCode(0, 180, 255), AnsiTty.RgbCode(0, 120, 220)), // 海洋青蓝
     };
 
     /// <summary>5. 森林 —— 绿色系，舒适护眼</summary>
@@ -293,6 +299,7 @@ public class TuiTheme
         DialogSuccessBorder = AnsiColors.Green,
         DialogWarnBorder = AnsiColors.Yellow,
         DialogConfirmBorder = AnsiColors.Green,
+        DialogGradient = (AnsiTty.RgbCode(0, 220, 120), AnsiTty.RgbCode(0, 150, 80)), // 森林绿
     };
 
     /// <summary>6. 日落 —— 暖色系，橙黄基调</summary>
@@ -315,6 +322,7 @@ public class TuiTheme
         DialogSuccessBorder = AnsiColors.Green,
         DialogWarnBorder = AnsiColors.Red,
         DialogConfirmBorder = AnsiColors.Yellow,
+        DialogGradient = (AnsiTty.RgbCode(255, 110, 40), AnsiTty.RgbCode(255, 190, 0)), // 日落橙红
     };
 
     /// <summary>7. 单色 —— 灰度系，极简风格</summary>
@@ -338,6 +346,7 @@ public class TuiTheme
         DialogSuccessBorder = AnsiColors.White,
         DialogWarnBorder = AnsiColors.White,
         DialogConfirmBorder = AnsiColors.White,
+        DialogGradient = (AnsiTty.RgbCode(200, 200, 200), AnsiTty.RgbCode(130, 130, 130)), // 单色灰
         DialogFg = AnsiColors.White, // 黑底窗口用白正文
     };
 
@@ -372,6 +381,7 @@ public class TuiTheme
         DialogSuccessBorder = AnsiColors.Yellow,
         DialogWarnBorder = AnsiColors.Red,
         DialogConfirmBorder = AnsiColors.Yellow,
+        DialogGradient = (AnsiTty.RgbCode(255, 200, 80), AnsiTty.RgbCode(180, 120, 40)), // 复古琥珀
         DialogFg = AnsiColors.Yellow, // 黑底窗口用黄正文
         CodeBlockFg = AnsiColors.Yellow,
         CodeBlockBorderFg = AnsiColors.Yellow,

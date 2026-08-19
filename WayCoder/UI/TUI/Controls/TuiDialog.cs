@@ -241,7 +241,7 @@ public static class TuiDialog
     /// <summary>警告提示框（黄色边框）</summary>
     public static TuiWindow Warn(string title, string message)
         => BuildMessageBox(title, message, TuiTheme.Current.DialogWarnBorder,
-            TuiTheme.Current.BtnOrangeYellow, TuiTheme.Current.GradOrangeYellow);
+            TuiTheme.Current.BtnOrangeYellow, TuiTheme.Current.DialogGradient);
 
     /// <summary>错误提示框（红色边框）</summary>
     public static TuiWindow Error(string title, string message)
@@ -320,7 +320,7 @@ public static class TuiDialog
             win.OnClosed?.Invoke();
         });
 
-        ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
+        ApplyGradient(win, TuiTheme.Current.DialogGradient);
         return win;
     }
 
@@ -373,7 +373,7 @@ public static class TuiDialog
             win.OnClosed?.Invoke();
         });
 
-        ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
+        ApplyGradient(win, TuiTheme.Current.DialogGradient);
         return win;
     }
 
@@ -437,7 +437,7 @@ public static class TuiDialog
         // 高度按填好内容后的控件树实测（提示行 + 输入区 + 按钮行 + 各处 spacing）。
         // 此前根本没算高，直接吃模板默认 height —— 内容比内容区高一行，按钮就被切在框外
         TuiMarkup.FitWindowToContent(win, fitWidth: false);
-        ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
+        ApplyGradient(win, TuiTheme.Current.DialogGradient);
         return win;
     }
 
@@ -506,7 +506,7 @@ public static class TuiDialog
         // 高度按填好内容后的控件树实测（提示行 + 输入区 + 按钮行 + 各处 spacing）。
         // 此前根本没算高，直接吃模板默认 height —— 内容比内容区高一行，按钮就被切在框外
         TuiMarkup.FitWindowToContent(win, fitWidth: false);
-        ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
+        ApplyGradient(win, TuiTheme.Current.DialogGradient);
         return win;
     }
 
@@ -603,7 +603,7 @@ public static class TuiDialog
         });
         win.RegisterShortcut(ConsoleKey.Escape, () => win.OnClosed?.Invoke());
 
-        ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
+        ApplyGradient(win, TuiTheme.Current.DialogGradient);
         return win;
     }
 
@@ -661,7 +661,7 @@ public static class TuiDialog
         // 高度按填好内容后的控件树实测（提示行 + 输入区 + 按钮行 + 各处 spacing）。
         // 此前根本没算高，直接吃模板默认 height —— 内容比内容区高一行，按钮就被切在框外
         TuiMarkup.FitWindowToContent(win, fitWidth: false);
-        ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
+        ApplyGradient(win, TuiTheme.Current.DialogGradient);
         return win;
     }
 
@@ -889,7 +889,7 @@ public static class TuiDialog
         // 于是第一行永远多出一个左对齐的省略号。
         // 放在按钮接线之后：FitWindowToContent 要量控件树，按钮宽度得先定下来。
         FitAndBindResize(win, res, message, ["允许 (Y)", "拒绝 (N)", "全允 (A)"]);
-        ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
+        ApplyGradient(win, TuiTheme.Current.DialogGradient);
 
         win.RegisterShortcut(ConsoleKey.Y, () =>
         {
