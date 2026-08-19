@@ -391,6 +391,7 @@ public class HelpArg : CliArg
 // 工具/动作参数（匹配后立即执行并退出）
 // ═══════════════════════════════════════════════════════════════
 
+#if WAYCODER_TEST
 public class TestArg : CliArg
 {
     public override string Description => "运行自测（可选指定模块名）";
@@ -420,6 +421,7 @@ public class LimitsArg : CliArg
     public LimitsArg() : base("limits", "-tl", "--test-limits", "--limits") { }
     public override int? OnMatch(List<string> values) { Benchmark.LimitsReport(); return 0; }
 }
+#endif // WAYCODER_TEST
 
 public class ScreenshotArg : CliArg
 {
@@ -429,6 +431,7 @@ public class ScreenshotArg : CliArg
     public override int? OnMatch(List<string> values) { Program.RunScreenshot(); return 0; }
 }
 
+#if WAYCODER_TEST
 public class TuiDemoArg : CliArg
 {
     public override string Description => "TUI 控件演示";
@@ -488,6 +491,7 @@ public class TuiMarkupDemoArg : CliArg
     public TuiMarkupDemoArg() : base("tui-markup-demo", "--tui-markup-demo") { }
     public override int? OnMatch(List<string> values) { TuiMarkupDemo.Run(); return 0; }
 }
+#endif // WAYCODER_TEST
 
 /// <summary>用 .tui 标记版聊天界面启动（等价 WAYCODER_MARKUP_UI=1，供测试标记版界面）。</summary>
 public class TuiChatArg : CliArg
@@ -543,6 +547,7 @@ public class GuiArg : CliArg
     }
 }
 
+#if WAYCODER_TEST
 public class KeypadArg : CliArg
 {
     public override string Description => "按键脚本驱动 TUI（KEY/TEXT/DELAY/SNAP/DIALOG）+ 帧截图";
@@ -560,6 +565,7 @@ public class KeypadArg : CliArg
         return Keypad.Run(path);
     }
 }
+#endif // WAYCODER_TEST
 
 public class ThemeVerifyArg : CliArg
 {
@@ -654,19 +660,27 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new ConfigArg());
         CliArgRegistry.Register(new DebugArg());
         CliArgRegistry.Register(new HelpArg());
+#if WAYCODER_TEST
         CliArgRegistry.Register(new TestArg());
         CliArgRegistry.Register(new BenchmarkArg());
         CliArgRegistry.Register(new LimitsArg());
+#endif
         CliArgRegistry.Register(new ScreenshotArg());
+#if WAYCODER_TEST
         CliArgRegistry.Register(new TuiDemoArg());
         CliArgRegistry.Register(new TuiAuditArg());
         CliArgRegistry.Register(new DialogShowArg());
+#endif
         CliArgRegistry.Register(new GuiArg());
+#if WAYCODER_TEST
         CliArgRegistry.Register(new TuiPreviewArg());
         CliArgRegistry.Register(new TuiWatchArg());
         CliArgRegistry.Register(new TuiMarkupDemoArg());
+#endif
         CliArgRegistry.Register(new TuiChatArg());
+#if WAYCODER_TEST
         CliArgRegistry.Register(new KeypadArg());
+#endif
         CliArgRegistry.Register(new ThemeVerifyArg());
 
         // 槽位任务参数：-pa 共享前缀 + -p1 ~ -p9, -p0(=F10)
