@@ -902,7 +902,7 @@ public static class TuiDialog
     }
 
     /// <summary>仅绘制用的最小屏幕：暴露 SetSize 以便在无管理器/无输入循环下渲染单个窗口。</summary>
-    private sealed class RenderOnlyScreen : TuiScreen
+    public sealed class RenderOnlyScreen : TuiScreen
     {
         public void SetSize(int w, int h)
         {
