@@ -520,7 +520,8 @@ public static partial class SelfTest
         try
         {
             Directory.SetCurrentDirectory(promptTestDir);
-            var sysPrompt = SystemPrompt.Generate(Tools.ToolRegistry.AllTools);
+            // 完整版基线：显式 Off（极致档规则文案是「edit_file 前必须 read_file」，无「先读后改」字样）
+            var sysPrompt = PromptWithMode(EconomyMode.Off);
             Check("系统提示词非空", sysPrompt.Length > 0);
             Check("系统提示词包含工具列表", sysPrompt.Contains("read_file") || sysPrompt.Contains("write_file"));
             Check("系统提示词包含规则", sysPrompt.Contains("先读后改"));

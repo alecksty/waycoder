@@ -1,10 +1,12 @@
 <!-- 快捷键速查 —— 配合 TuiKeybindHelp code-behind（最适合作标记化样板）。
      列表项（分类头 + 键位行 PadKey 对齐）由代码 AddItem 填充。 -->
 <Window title="⌨ 快捷键速查" modal="true" mask="true" border="solid" borderColor="info"
-        minWidth="52" minHeight="8" height="14"
+        width="60" minWidth="52" minHeight="8" height="14"
         gradient="true" gradientStart="#00e6ff" gradientEnd="#0064dc">
   <VBox>
-    <ListView id="list" autoScroll="false" />
+    <!-- 列表项 code-behind 动态填充；{InDesign '…'} 内为设计态样本，真实运行解析为空串 -->
+    <ListView id="list" autoScroll="false"
+              items="{InDesign '─ 常用 ─,Ctrl+H 快捷键帮助,Shift+Tab 计划模式,F1-F10 槽位切换,Ctrl+S 切换会话'}" />
     <Label id="hint" height="1" fg="8" />
   </VBox>
 </Window>

@@ -10,7 +10,7 @@
             <Button x:Name="OpenBtn" DockPanel.Dock="Right" Content="打开…" Padding="16,3"
                     Margin="6,0,0,0" Click="OpenBtn_Click" />
             <ComboBox x:Name="PathBox" IsEditable="True" VerticalContentAlignment="Center"
-                      Padding="2,1" ToolTip="输入 .tui 路径，或从下拉选择最近打开的文件（最多 10 个）" />
+                      Padding="2,1" ToolTip="输入 .tui 文件路径或资源名（如 dialogs/modelpicker.tui），或从下拉选择可用资源/最近打开" />
         </DockPanel>
 
         <!-- 底部控制栏（先停靠，保证始终可见）：左侧屏幕尺寸模拟 + 右侧缩放 -->

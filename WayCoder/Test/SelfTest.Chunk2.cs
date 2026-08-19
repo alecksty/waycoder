@@ -271,7 +271,9 @@ public static partial class SelfTest
 
         // ---- 系统提示词 ----
         Section("[系统提示词]");
-        var prompt = SystemPrompt.Generate(ToolRegistry.AllTools);
+        // 完整版基线：显式指定 Off 生成，不受 .env 的 WAYCODER_ECONOMY 影响
+        // （省钱模式换的是另一套精简提示词，拿它跑完整版断言会集体假失败）
+        var prompt = PromptWithMode(EconomyMode.Off);
         Check("包含 read_file", prompt.Contains("read_file"));
         Check("包含 edit_file", prompt.Contains("edit_file"));
         Check("包含当前目录", prompt.Contains(Directory.GetCurrentDirectory()));
@@ -298,6 +300,31 @@ public static partial class SelfTest
         Check("包含提交阶段", prompt.Contains("提交"));
         Check("包含总结阶段", prompt.Contains("总结"));
         Check("包含流水线说明", prompt.Contains("内部流水线"));
+
+        // 当前生效档位（.env / 环境变量 WAYCODER_ECONOMY）实际会喂给模型什么：
+        // 未开=完整版；on=精简版（留硬骨架、砍软性区块）；extreme=极致版（仅工具名+核心规则）
+        var liveMode = Config.Instance.EconomyMode;
+        var live = SystemPrompt.Generate(ToolRegistry.AllTools);
+        Check($"生效档位[{liveMode}]: 含 read_file/edit_file",
+            live.Contains("read_file") && live.Contains("edit_file"));
+        switch (liveMode)
+        {
+            case EconomyMode.Extreme:
+                Check("生效档位[Extreme]: 极简标识", live.Contains("极简模式"));
+                Check("生效档位[Extreme]: 砍掉 10 阶段流水线", !live.Contains("<systematic_phases>"));
+                Check("生效档位[Extreme]: 比精简版更短", live.Length < PromptWithMode(EconomyMode.On).Length);
+                break;
+            case EconomyMode.On:
+                Check("生效档位[On]: 含工作目录", live.Contains(Directory.GetCurrentDirectory()));
+                Check("生效档位[On]: 含先读后改规则", live.Contains("先读后改"));
+                Check("生效档位[On]: 砍掉 10 阶段流水线", !live.Contains("<systematic_phases>"));
+                Check("生效档位[On]: 比完整版更短", live.Length < prompt.Length);
+                break;
+            default: // Off / Auto 均用完整提示词（Auto 只动压缩阈值，不换提示词）
+                Check($"生效档位[{liveMode}]: 用完整提示词", live.Contains("<systematic_phases>"));
+                Check($"生效档位[{liveMode}]: 含 15 条规则", live.Contains("15."));
+                break;
+        }
         Console.WriteLine();
         Section("[Agent]");
         var agent = new Agent(new LLM("test", "sk-test"));

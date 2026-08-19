@@ -18,6 +18,14 @@ namespace WayCoder.UI.Tui.ToolRenderers
 
 namespace WayCoder
 {
+    /// <summary>统一错误日志桩（预览不写日志文件；真实实现见主项目 Infra/ErrorLog.cs）。
+    /// ModelCatalog 读取模型文件失败时调用 Warning，此处仅吞掉并保留现场。</summary>
+    public static class ErrorLog
+    {
+        public static void Warning(string source, string message, Exception? ex = null) { }
+        public static void Error(string source, string message, Exception? ex = null) { }
+    }
+
     /// <summary>工作模式（预览桩，与主项目 WorkModeManager.cs 一致）。</summary>
     public enum WorkMode
     {
