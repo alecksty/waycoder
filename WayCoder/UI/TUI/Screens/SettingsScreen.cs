@@ -217,32 +217,38 @@ public class SettingsScreen : TuiScreen
                 ToggleFocus();
                 return true;
 
-            // ── ↑ — 上一项 ──
+            // ── ↑ — 上一项（焦点在左侧分类列表时列表自身处理，右侧才移动设置项）──
             case ConsoleKey.UpArrow:
+                if (!_focusOnDetail && MoveCategoryList(key)) return true;
                 NavigateItem(-1, itemCount);
                 return true;
 
             // ── ↓ — 下一项 ──
             case ConsoleKey.DownArrow:
+                if (!_focusOnDetail && MoveCategoryList(key)) return true;
                 NavigateItem(1, itemCount);
                 return true;
 
             // ── PgUp / PgDn — 翻页 ──
             case ConsoleKey.PageUp:
+                if (!_focusOnDetail && MoveCategoryList(key)) return true;
                 NavigateItem(-Math.Max(1, (TH - 6) / 3), itemCount);
                 return true;
 
             case ConsoleKey.PageDown:
+                if (!_focusOnDetail && MoveCategoryList(key)) return true;
                 NavigateItem(Math.Max(1, (TH - 6) / 3), itemCount);
                 return true;
 
             case ConsoleKey.Home:
+                if (!_focusOnDetail && MoveCategoryList(key)) return true;
                 _itemIdx = 0;
                 ApplyHighlight();
                 MarkDirty();
                 return true;
 
             case ConsoleKey.End:
+                if (!_focusOnDetail && MoveCategoryList(key)) return true;
                 _itemIdx = Math.Max(0, itemCount - 1);
                 ApplyHighlight();
                 MarkDirty();
@@ -263,7 +269,7 @@ public class SettingsScreen : TuiScreen
 
             // ── 类别列表获得 ↑↓ 时自行处理 ──
             default:
-                if (!_focusOnDetail && _catList.OnKey(key))
+                if (!_focusOnDetail && MoveCategoryList(key))
                     return true;
                 return base.OnKey(key);
         }
@@ -275,6 +281,23 @@ public class SettingsScreen : TuiScreen
         _catList.Focused = !_focusOnDetail;
         ApplyHighlight();
         MarkDirty();
+    }
+
+    /// <summary>
+    /// 把导航键交给左侧分类列表（TuiList），移动选中后同步分类并重建右侧详情。
+    /// TuiList 的 OnSelect 只在空格激活时触发，↑↓ 移动不触发 —— 这里手动比较 SelectedIndex 刷新。
+    /// </summary>
+    private bool MoveCategoryList(ConsoleKeyInfo key)
+    {
+        var before = _catList.SelectedIndex;
+        if (!_catList.OnKey(key)) return false;
+        if (_catList.SelectedIndex != before)
+        {
+            _catIdx = _catList.SelectedIndex;
+            _itemIdx = 0;
+            RebuildDetailPanel();
+        }
+        return true;
     }
 
     private void NavigateItem(int delta, int itemCount)
