@@ -79,7 +79,7 @@ public static partial class SelfTest
             Check("chat.tui Screen 根", main.Screen != null);
             Check("chat.tui RootView 非空", main.Screen?.RootView != null);
             int childCount = main.Screen?.RootView?.Children.Count ?? 0;
-            Check("chat.tui RootView 子节点=11", childCount == 11);
+            Check("chat.tui RootView 子节点=12", childCount == 12); // 含 modelInfoSpacer 空行
 
             Check("chat.tui titleBar", main.Find<TuiTitleBar>("titleBar") != null);
             Check("chat.tui chatList", main.Find<TuiListView>("chatList") != null);
