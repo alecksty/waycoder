@@ -20,10 +20,47 @@ public static class TuiFrameRenderer
     /// （对话框居中，超出的部分被钳制），用于模拟不同终端尺寸下布局如何适应。</returns>
     public static (string Frame, int Cols, int Rows) Render(string content, int cols = 80, int rows = 24)
     {
+        Prepare();
+        var result = TuiMarkup.Load(content);
+        return Finish(result, cols, rows);
+    }
+
+    /// <summary>
+    /// 按资源名渲染（dialogs/modelpicker.tui 等）：文件系统 Raw/ 优先、嵌入资源兜底；
+    /// 自动填充 {title} 占位符（与主项目 --tui-preview 资源名加载行为一致）。
+    /// </summary>
+    public static (string Frame, int Cols, int Rows) RenderResource(string name, int cols = 80, int rows = 24)
+    {
+        Prepare();
+        var result = TuiMarkup.LoadResource(name,
+            new Dictionary<string, string> { ["title"] = Path.GetFileName(name) });
+        return Finish(result, cols, rows);
+    }
+
+    /// <summary>路径或资源名统一入口：文件存在→读内容；否则按资源名加载。供命令行/无头模式共用。</summary>
+    public static (string Frame, int Cols, int Rows) RenderPathOrResource(string pathOrName, int cols = 80, int rows = 24)
+        => File.Exists(pathOrName)
+            ? Render(File.ReadAllText(pathOrName), cols, rows)
+            : RenderResource(pathOrName, cols, rows);
+
+    /// <summary>路径或资源名是否可加载（文件存在，或文件系统 Raw/ / 嵌入资源可解析）。</summary>
+    public static bool IsLoadable(string pathOrName)
+    {
+        if (string.IsNullOrWhiteSpace(pathOrName)) return false;
+        if (File.Exists(pathOrName)) return true;
+        try { TuiMarkupPaths.LoadText(pathOrName); return true; }
+        catch { return false; }
+    }
+
+    private static void Prepare()
+    {
         // 预览 = 设计/模拟模式：注入环境量，加载的元素 InDesign/SimulatedScreen 为 true
         TuiMarkup.InDesign = true;
         TuiMarkup.SimulatedScreen = true;
-        var result = TuiMarkup.Load(content);
+    }
+
+    private static (string Frame, int Cols, int Rows) Finish(TuiMarkupResult result, int cols, int rows)
+    {
         cols = Math.Clamp(cols, 20, 240);
         rows = Math.Clamp(rows, 10, 100);
 

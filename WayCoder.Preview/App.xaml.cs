@@ -58,8 +58,8 @@ public partial class App : Application
         }
 
         var win = new MainWindow();
-        // 命令行参数 = 待预览 .tui 路径（可选）
-        if (e.Args.Length > 0 && File.Exists(e.Args[0]))
+        // 命令行参数 = 待预览 .tui 文件路径或资源名（可选，如 dialogs/modelpicker.tui，与 --tui-preview 一致）
+        if (e.Args.Length > 0 && TuiFrameRenderer.IsLoadable(e.Args[0]))
             win.LoadFile(e.Args[0]);
         MainWindow = win;
         win.Show();
@@ -71,8 +71,7 @@ public partial class App : Application
         string outPath = Path.Combine(Path.GetTempPath(), "tuidump.txt");
         try
         {
-            var content = File.ReadAllText(path);
-            var (frame, cols, rows) = TuiFrameRenderer.Render(content, colsArg, rowsArg);
+            var (frame, cols, rows) = TuiFrameRenderer.RenderPathOrResource(path, colsArg, rowsArg);
             // 原始帧（剥离 ANSI 版 + 原始 ANSI 版）另存，便于核对窗口实际渲染内容
             File.WriteAllText(Path.Combine(Path.GetTempPath(), "tuiframe.txt"),
                 WayCoder.UI.Shared.Terminal.AnsiString.Strip(frame));
@@ -183,8 +182,7 @@ public partial class App : Application
     {
         try
         {
-            var content = File.ReadAllText(path);
-            var (frame, cols, rows) = TuiFrameRenderer.Render(content);
+            var (frame, cols, rows) = TuiFrameRenderer.RenderPathOrResource(path);
             var snap = FrameSnapshot.Capture(frame, 0, 0, cols, rows);
 
             // 诊断：标题行每格的字符/span/裁剪宽度
@@ -222,9 +220,8 @@ public partial class App : Application
     {
         try
         {
-            if (!File.Exists(path)) return 1;
-            var content = File.ReadAllText(path);
-            var (frame, cols, rows) = TuiFrameRenderer.Render(content);
+            if (!TuiFrameRenderer.IsLoadable(path)) return 1;
+            var (frame, cols, rows) = TuiFrameRenderer.RenderPathOrResource(path);
             var snap = FrameSnapshot.Capture(frame, 0, 0, cols, rows);
             if (snap == null) return 1;
             int nonEmpty = 0;

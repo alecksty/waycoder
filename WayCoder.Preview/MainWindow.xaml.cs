@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Win32;
 using WayCoder.Preview.Render;
+using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.Preview;
@@ -68,13 +69,12 @@ public partial class MainWindow : Window
         {
             if (File.Exists(RecentStore))
                 foreach (var line in File.ReadAllLines(RecentStore))
-                    if (!string.IsNullOrWhiteSpace(line) && File.Exists(line)
+                    if (TuiFrameRenderer.IsLoadable(line)
                         && !_recent.Contains(line, StringComparer.OrdinalIgnoreCase))
                         _recent.Add(line);
         }
         catch { }
-        foreach (var p in _recent) PathBox.Items.Add(p);
-        if (_recent.Count > 0) PathBox.Text = _recent[0];
+        RefreshPathBoxItems(_recent.Count > 0 ? _recent[0] : null);
     }
 
     private void AddRecentFile(string path)
@@ -82,9 +82,7 @@ public partial class MainWindow : Window
         _recent.RemoveAll(p => p.Equals(path, StringComparison.OrdinalIgnoreCase));
         _recent.Insert(0, path);
         if (_recent.Count > 10) _recent.RemoveRange(10, _recent.Count - 10);
-        PathBox.Items.Clear();
-        foreach (var p in _recent) PathBox.Items.Add(p);
-        if (PathBox.Text != path) PathBox.Text = path;
+        RefreshPathBoxItems(path);
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(RecentStore)!);
@@ -92,6 +90,43 @@ public partial class MainWindow : Window
         }
         catch { }
     }
+
+    /// <summary>刷新路径下拉：可用资源名 + 最近打开（文件或资源名）。</summary>
+    private void RefreshPathBoxItems(string? select = null)
+    {
+        PathBox.Items.Clear();
+        foreach (var r in _resources.Value)
+            if (!PathBox.Items.Contains(r)) PathBox.Items.Add(r);
+        foreach (var p in _recent)
+            if (!PathBox.Items.Contains(p)) PathBox.Items.Add(p);
+        if (select != null) PathBox.Text = select;
+        else if (PathBox.Text.Length == 0 && _recent.Count > 0) PathBox.Text = _recent[0];
+    }
+
+    /// <summary>可用标记资源名（输出 Raw/ 复制 + 开发态向上查找），启动时缓存一次。</summary>
+    private static readonly Lazy<List<string>> _resources = new(static () =>
+    {
+        var set = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        var roots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var rel in new[] { Path.Combine("Raw"), Path.Combine("UI", "TUI", "Raw"), Path.Combine("WayCoder", "UI", "TUI", "Raw") })
+        {
+            var baseDir = Path.Combine(AppContext.BaseDirectory, rel);
+            if (Directory.Exists(baseDir)) roots.Add(Path.GetFullPath(baseDir));
+            var dir = Directory.GetCurrentDirectory();
+            while (dir != null)
+            {
+                var p = Path.Combine(dir, rel);
+                if (Directory.Exists(p)) roots.Add(Path.GetFullPath(p));
+                var parent = Path.GetDirectoryName(dir);
+                if (parent == dir) break;
+                dir = parent;
+            }
+        }
+        foreach (var root in roots)
+            foreach (var f in Directory.GetFiles(root, "*.tui", SearchOption.AllDirectories))
+                set.Add(Path.GetRelativePath(root, f).Replace('\\', '/'));
+        return set.ToList();
+    });
 
     /// <summary>加载并渲染一个 .tui 文件（命令行参数/打开对话框/下拉选择共用）。</summary>
     public void LoadFile(string path)
@@ -105,7 +140,7 @@ public partial class MainWindow : Window
     private void PathBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         var p = PathBox.Text.Trim();
-        if (!string.IsNullOrEmpty(p) && File.Exists(p) && p != _currentPath)
+        if (!string.IsNullOrEmpty(p) && p != _currentPath && TuiFrameRenderer.IsLoadable(p))
         {
             _currentPath = p;
             RenderCurrent();
@@ -172,23 +207,24 @@ public partial class MainWindow : Window
 
     private void RenderCurrent()
     {
-        if (string.IsNullOrEmpty(_currentPath) || !File.Exists(_currentPath))
+        if (string.IsNullOrEmpty(_currentPath))
         {
             Grid.SetGrid(null);
-            Status.Content = "文件不存在";
+            Status.Content = "未指定文件或资源名";
             return;
         }
 
         try
         {
-            var content = File.ReadAllText(_currentPath);
-            // 用当前模拟屏幕尺寸渲染（行列按钮调整）
-            var (frame, cols, rows) = TuiFrameRenderer.Render(content, _simCols, _simRows);
-            var snap = FrameSnapshot.Capture(frame, 0, 0, cols, rows);
+            // 文件存在→读内容；否则按资源名（自动填充 {title}）。两种都用当前模拟屏幕尺寸渲染（行列按钮调整）
+            (string Frame, int Cols, int Rows) r = File.Exists(_currentPath)
+                ? TuiFrameRenderer.Render(File.ReadAllText(_currentPath), _simCols, _simRows)
+                : TuiFrameRenderer.RenderResource(_currentPath, _simCols, _simRows);
+            var snap = FrameSnapshot.Capture(r.Frame, 0, 0, r.Cols, r.Rows);
             Grid.SetGrid(snap);
-            SizeLabel.Text = $"{cols}x{rows}";
-            Title = $"WayCoder .tui 预览 — {Path.GetFileName(_currentPath)}";
-            Status.Content = $"{cols}×{rows}  ·  {DateTime.Now:HH:mm:ss}";
+            SizeLabel.Text = $"{r.Cols}x{r.Rows}";
+            Title = $"WayCoder .tui 预览 — {_currentPath}";
+            Status.Content = $"{r.Cols}×{r.Rows}  ·  {DateTime.Now:HH:mm:ss}";
         }
         catch (Exception ex)
         {
@@ -197,11 +233,14 @@ public partial class MainWindow : Window
         }
     }
 
-    private void StartWatch(string path)
+    private void StartWatch(string source)
     {
         _watcher?.Dispose();
-        var dir = Path.GetDirectoryName(Path.GetFullPath(path))!;
-        var fname = Path.GetFileName(path);
+        // 资源名→真实文件（文件系统 Raw/ 命中才可监视；纯嵌入资源无文件，跳过热刷新）
+        var real = File.Exists(source) ? source : TuiMarkupPaths.TryResolveFile(source);
+        if (real == null) return;
+        var dir = Path.GetDirectoryName(Path.GetFullPath(real))!;
+        var fname = Path.GetFileName(real);
         _watcher = new FileSystemWatcher(dir, fname)
         {
             NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size,

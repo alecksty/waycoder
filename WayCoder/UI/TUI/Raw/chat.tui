@@ -11,7 +11,10 @@
     <HBox id="middleHBox" flex="1">
       <!-- 聊天消息项由 code-behind ChatList.AddItem(new TuiListItem(...)) 动态填充。
            flex="1" 填满剩余宽度，侧栏保持固定宽度。 -->
-      <ListView id="chatList" itemSpacing="1" autoScroll="true" flex="1" />
+      <!-- 聊天项由 code-behind ChatList.AddItem(new TuiListItem(...)) 动态填充；
+           {InDesign '…'} 内为设计态样本，真实运行解析为空串 -->
+      <ListView id="chatList" itemSpacing="1" autoScroll="true" flex="1"
+                items="{InDesign '👤 用户：今天新加的属性特征预览器能支持吗？,🤖 智能体：可以，共享同一份 TuiMarkup 解析器,👤 用户：那表格和列表的数据呢？,🤖 智能体：标记里声明的都能显示，运行时数据需要样本'}" />
       <!-- 侧栏分区在标记中声明（布局写标记）；真实 App 运行时按 RefreshSidePanel()/SidePanelVisible 覆盖 -->
       <SidePanel id="sidePanel" width="30" visible="true" borderColor="brightblack">
         <Section title="🏷 道码">

@@ -623,10 +623,14 @@ public static partial class SelfTest
             var skillToolMissing = skillTool.ExecuteAsync(new Dictionary<string, object?> { ["name"] = "不存在" }).Result;
             Check("技能: SkillTool 未知技能报错", skillToolMissing.Contains("未找到技能"));
 
-            var promptWithSkills = SystemPrompt.Generate(ToolRegistry.AllTools);
+            // 完整版基线：显式 Off（省钱模式砍掉技能段，拿环境档位断言会假失败）
+            var promptWithSkills = PromptWithMode(EconomyMode.Off);
             Check("技能: 系统提示词包含技能段", promptWithSkills.Contains("<available_skills>"));
             Check("技能: 系统提示词包含 my-skill", promptWithSkills.Contains("my-skill"));
             Check("技能: 系统提示词不加载 body", !promptWithSkills.Contains("技能正文内容"));
+            // 省钱档位反向断言：技能段属可砍的软性注入
+            Check("技能: 省 token 模式不注入技能段",
+                !PromptWithMode(EconomyMode.On).Contains("<available_skills>"));
 
             // 空目录不加载为技能
             var emptySkillDir = Path.Combine(skillBaseDir, ".waycoder", "skills", "empty-skill");
@@ -718,9 +722,11 @@ public static partial class SelfTest
         Check("仓库地图包含根路径",
             repoMap.Contains(":/") || repoMap.Contains(":\\") || repoMap.Contains("\n/"));
 
-        // 验证系统提示词包含仓库地图
-        var promptWithMap = SystemPrompt.Generate(ToolRegistry.AllTools);
+        // 验证系统提示词包含仓库地图（完整版基线：显式 Off，不受环境省钱档位影响）
+        var promptWithMap = PromptWithMode(EconomyMode.Off);
         Check("系统提示词包含仓库地图", promptWithMap.Contains("仓库地图"));
+        // 省钱档位反向断言：RepoMap 是最大块的可砍注入
+        Check("省 token 模式不注入仓库地图", !PromptWithMode(EconomyMode.On).Contains("仓库地图"));
 
         Console.WriteLine();
 

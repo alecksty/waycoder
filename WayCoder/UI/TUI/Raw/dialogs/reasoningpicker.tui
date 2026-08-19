@@ -6,7 +6,8 @@
   <VBox>
     <Label text="选择推理深度：控制模型思考强度（↑↓ 选择 · Enter 确认）" />
     <Input id="search" height="1" focused="true" />
-    <List id="list" height="5" />
+    <List id="list" height="5"
+          items="{InDesign '极简（速度优先）,标准（平衡）,深度（慢但更好）,极限（最深入）'}" />
     <Label text="↑↓ 选择 · Enter 确认 · ← 重置 · Esc 取消" fg="8" />
   </VBox>
 </Dialog>
