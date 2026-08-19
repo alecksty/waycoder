@@ -644,7 +644,7 @@ public partial class ChatScreen : TuiScreen
             switch (key.Key)
             {
                 case ConsoleKey.E:
-                    Manager?.PushScreen(new EditorScreen());
+                    Manager?.PushScreen(new EditorScreen(readOnly: WorkModeManager.CurrentMode == WorkMode.Plan)); // Plan 模式默认只读
                     return true;
                 case ConsoleKey.T:
                 case ConsoleKey.O:

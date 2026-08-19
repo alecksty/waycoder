@@ -175,8 +175,13 @@ public static class Keypad
 
                     case "EDITOR":
                         // 直接打开带文件的编辑器（绕过无文件时的文件选择框），便于测试编辑/保存
-                        try { mgr.PushScreen(new EditorScreen(value.Trim())); }
-                        catch (Exception ex) { Emit(orig, $"# (第 {step} 行) 打开编辑器失败: {ex.Message}"); }
+                        // EDITOR:/path --readonly → 只读模式（禁止修改）
+                        {
+                            bool ro = value.Contains("--readonly", StringComparison.OrdinalIgnoreCase);
+                            string path = value.Replace("--readonly", "", StringComparison.OrdinalIgnoreCase).Trim();
+                            try { mgr.PushScreen(new EditorScreen(path, ro)); }
+                            catch (Exception ex) { Emit(orig, $"# (第 {step} 行) 打开编辑器失败: {ex.Message}"); }
+                        }
                         break;
 
                     case "SNAP":
