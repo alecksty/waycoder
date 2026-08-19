@@ -225,6 +225,8 @@ public static class TuiMarkup
         if (Color(node, "gradientStart") is int gs) win.GradientStart = gs;
         if (Color(node, "gradientEnd") is int ge) win.GradientEnd = ge;
         if (Color(node, "bg") is int winBg) win.WinBg = winBg; // 窗口背景（布局/颜色放标记）
+        if (Color(node, "titleFg") is int tf) win.TitleFg = tf; // 标题前景
+        if (Color(node, "titleBg") is int tbg) win.TitleBg = tbg; // 标题背景
 
         foreach (var child in node.Children)
             if (BuildControl(child, byId) is TuiView v) { win.RootView = v; break; }
@@ -659,6 +661,8 @@ public static class TuiMarkup
         if (Int(node, "flex") is int f) c.Flex = f;
         if (Color(node, "fg") is int fg) c.Fg = fg;
         if (Color(node, "bg") is int bg) c.Bg = bg;
+        if (Color(node, "focusedFg") is int ff) c.FocusedFg = ff; // 聚焦前景
+        if (Color(node, "focusedBg") is int fbg) c.FocusedBg = fbg; // 聚焦背景
         if (Bool(node, "visible") is bool v) c.Visible = v;
         if (Bool(node, "focused") is bool fo) c.Focused = fo;
         if (Bool(node, "disabled") is bool dis) c.IsEnabled = !dis;

@@ -809,34 +809,20 @@ public static class TuiDialog
     /// </summary>
     public static TuiWindow Permission(string title, string message, Action<EDialogResult> onResult)
     {
-        const int warnBg = AnsiColors.BgYellow;
-        const int blackFg = AnsiColors.Black;
-        const int btnBg = AnsiColors.BgCyan;
-        const int btnFocusBg = AnsiColors.BgWhite;
-
+        // 黄底黑字风格由 permission.tui 声明（bg/titleFg/titleBg/按钮 focusedBg）
         var (win, res) = LoadDialog("permission", title, AnsiColors.Yellow);
-        // 黄底黑字风格（模板只声明结构，配色由 code-behind 注入）
-        win.TitleFg = blackFg;
-        win.TitleBg = warnBg;
-        win.WinBg = warnBg;
 
         int cw = ContentW(WideXScale, 4);
         var msgBox = res.Find<TuiVBox>("msgBox") ?? throw Invalid("permission.tui", "msgBox");
         msgBox.Width = cw;
-        foreach (var lbl in BuildMessageLabels(message, cw, blackFg))
+        foreach (var lbl in BuildMessageLabels(message, cw, AnsiColors.Black))
             msgBox.Add(lbl);
 
         var yesBtn = res.Find<TuiButton>("allow") ?? throw Invalid("permission.tui", "allow");
         var noBtn = res.Find<TuiButton>("deny") ?? throw Invalid("permission.tui", "deny");
         var allBtn = res.Find<TuiButton>("always") ?? throw Invalid("permission.tui", "always");
         foreach (var b in new[] { yesBtn, noBtn, allBtn })
-        {
-            b.Flex = 1;
-            b.Fg = blackFg;
-            b.Bg = btnBg;
-            b.FocusedFg = blackFg;
-            b.FocusedBg = btnFocusBg;
-        }
+            b.Flex = 1; // 颜色由模板声明
         yesBtn.Focused = true;
         yesBtn.OnClick = _ => { win.Result = EDialogResult.Yes; onResult(EDialogResult.Yes); win.OnClosed?.Invoke(); };
         noBtn.OnClick = _ => { win.Result = EDialogResult.No; onResult(EDialogResult.No); win.OnClosed?.Invoke(); };
