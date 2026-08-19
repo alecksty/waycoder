@@ -20,9 +20,13 @@
 
 - **资源位置**：`WayCoder/UI/TUI/Raw/**/*.tui`（主界面 `chat.tui`、对话框/选择器 `dialogs/*.tui`），**嵌入程序集**（逻辑名 `WayCoder.UI.TUI.Raw.<path>`，AOT 单文件 exe 内可读）且发布时复制到输出 `Raw/` 供文件系统定位。
 - **加载模式**：`TuiMarkup.LoadResource(name[, vars])`（文件系统优先、嵌入资源兜底，支持 `{title}` 等占位符）→ `res.Find<T>(id)` 取控件 → 接线数据/事件。窗口型界面沿用 `screen.ShowWindow(win)` + `UxHelper.RenderWait`。
-- **预览**：`--tui-preview <file.tui>` / `--tui-watch <file.tui>` 终端预览；**WPF 图形预览** `WayCoder.Preview/`（`dotnet run --project WayCoder.Preview -- <file.tui>`）——支持缩放、屏幕尺寸模拟（80x25~240x72 快选）、文件保存自动刷新、最近文件。
+- **预览**：`--tui-preview <file.tui|资源名>` / `--tui-watch <file.tui>` 终端预览；**WPF 图形预览** `WayCoder.Preview/`（`dotnet run --project WayCoder.Preview -- <file.tui|资源名>`）——支持缩放、屏幕尺寸模拟（80x25~240x72 快选）、文件保存自动刷新、最近文件。两者都接受**资源名**（如 `dialogs/modelpicker.tui`）；WPF 下拉框直接列出全部可用资源，命中文件系统 `Raw/` 时才热刷新（纯嵌入资源无文件可监视）。
 - **切分原则**：静态布局（容器/控件/层级/id/基础样式）写标记；动态内容（列表项、过滤、着色、快捷键、落盘）留 code-behind。
 - **环境特性**：所有元素（`TuiBase`）带 `InDesign`（设计/预览模式）与 `SimulatedScreen`（true=模拟/离屏，false=物理终端），由 `TuiMarkup.InDesign`/`TuiMarkup.SimulatedScreen` 环境量注入。预览程序（`--tui-preview`/WPF）下为 true，正常 REPL 为 false——元素可据此在「设计态」与「运行态」渲染不同内容。
+- **设计态样本数据 `{InDesign '…'}`**：任意属性值可内嵌该标记，**设计/预览态取引号内内容，真实运行取空串**——列表/表格的占位数据写进 `.tui` 即可预览，不会泄漏进真实 UI。
+  - 例：`<ListView items="{InDesign '甲,乙,丙'}" />`、`<TableList items="{InDesign 'a,b|c,d'}" />`、`<Label text="前{InDesign '（样本）'}后" />`
+  - 引号可省（读到 `}` 为止）；一个属性可含多处；`{InDesignMode}` 这类同前缀占位符不受影响；引号未闭合则原样保留（暴露笔误而非静默吞掉）。
+  - 与 code-behind 的关系：真实数据仍由代码填（`ModelPicker.ClearRows`/`SettingsScreen.Items=` 等），样本只在预览器出现。
 - **保持 code**：本质 code 驱动的部分不硬套标记——编辑器缓冲（`TuiRichEditor` 语法高亮/gutter/增量重绘）、`TuiMenu`（紧凑自包含+动态定位）、`InlinePermission`（已由 `ShowPermissionDialog` 取代）、`TuiToastQueue`（非控件，静态队列管理器）。
 
 ## 0. 三条铁律（不可违反）

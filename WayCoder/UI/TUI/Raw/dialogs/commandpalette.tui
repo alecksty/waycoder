@@ -1,11 +1,13 @@
 <!-- 命令面板 —— 配合 CommandPalette code-behind。
      标记声明结构；分类头/命令项逐行 AddItem + 双色高亮、过滤由代码填充。 -->
 <Dialog title="🔍 命令面板" border="solid" borderColor="info"
-        minWidth="52" maxWidth="90" height="15"
+        width="60" minWidth="52" maxWidth="90" height="15"
         gradient="true" gradientStart="#00e6ff" gradientEnd="#0064dc">
   <VBox>
     <Input id="search" height="1" focused="true" />
-    <ListView id="list" height="10" autoScroll="false" />
+    <!-- 列表项 code-behind 动态填充；{InDesign '…'} 内为设计态样本，真实运行解析为空串 -->
+    <ListView id="list" height="10" autoScroll="false"
+              items="{InDesign '─ 常用 ─,/help 帮助,/model 切换模型,/session 会话列表,─ 文件 ─,/open 打开文件,/save 保存'}" />
     <Label id="help" height="1" fg="8" />
   </VBox>
 </Dialog>

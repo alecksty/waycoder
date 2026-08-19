@@ -13,6 +13,19 @@ namespace WayCoder;
 
 public static partial class SelfTest
 {
+    /// <summary>
+    /// 按指定省钱档位生成系统提示词（用完恢复原档位）。
+    /// 提示词内容随 <c>WAYCODER_ECONOMY</c> 变形（Off/Auto=完整、On=精简、Extreme=极致），
+    /// 断言必须自带基线，否则用户 .env 开了省钱模式就会让完整版断言集体假失败。
+    /// </summary>
+    private static string PromptWithMode(EconomyMode mode)
+    {
+        var saved = Config.Instance.EconomyMode;
+        Config.Instance.EconomyMode = mode;
+        try { return SystemPrompt.Generate(ToolRegistry.AllTools); }
+        finally { Config.Instance.EconomyMode = saved; }
+    }
+
     /// <summary>获取 notebook cell 的 source 文本（测试助手）</summary>
     private static string GetNotebookSource(JNode notebook, int cellIndex)
     {
@@ -159,6 +172,7 @@ public static partial class SelfTest
 
         var before = msgs.Count;
         var cm = new ContextManager(2000); // 极小 maxTokens 压低三层阈值
+        // 不固定档位：三层压缩在任何省钱档位下都应触发（极致档曾因百分比误用 2000 下限而完全压不动）
         var compressed = cm.MaybeCompressAsync(msgs, null).GetAwaiter().GetResult();
 
         Check("压缩保真: 压缩确实发生", compressed);
@@ -223,6 +237,7 @@ public static partial class SelfTest
         {
             JNode.Object().Set("role", "tool").Set("content", longTool[0]["content"]!.AsString())
         };
+        // 不固定档位：小窗口在任何省钱档位下都该触发压缩
         var compressedSmall = smallCm.MaybeCompressAsync(smallCopy, null).GetAwaiter().GetResult();
         Check("窗口: 小窗口触发压缩", compressedSmall);
 
@@ -371,16 +386,23 @@ public static partial class SelfTest
         Check("Economy: 费用优先-复杂任务仍省", ContextManager.ResolveRatio(50, 35, 1.0) == 35);
         Check("Economy: 费用优先-收紧系数恒=1", ContextManager.AutoAggressiveness(0.9) == 1);
 
+        // Extreme：在 On 基础上再收紧 20%；下限按调用方量纲传入，不得污染百分比
+        Config.Instance.EconomyMode = EconomyMode.Extreme;
+        Check("Economy: Extreme 百分比再收紧 20%", ContextManager.ResolveRatio(50, 35, 0.5) == 28);
+        Check("Economy: Extreme 百分比无 2000 下限(压缩线不失效)",
+            ContextManager.ResolveRatio(50, 35, 0.5) < 100);
+        Check("Economy: Extreme 字符数收紧至下限",
+            ContextManager.ResolveRatio(4000, 2000, 0.5, extremeFloor: 2000) == 2000);
+
         // Auto + 均衡：复杂任务保留一半省钱
+        Config.Instance.EconomyMode = EconomyMode.Auto;
         Config.Instance.EconomyPriority = EconomyPriority.Balanced;
         Check("Economy: 均衡-简单任务省", ContextManager.ResolveRatio(50, 35, 0.0) == 35);
         Check("Economy: 均衡-复杂任务保留一半省钱", ContextManager.ResolveRatio(50, 35, 1.0) == 42);
 
-        // 系统提示词精简（仅 On 生效）
-        Config.Instance.EconomyMode = EconomyMode.On;
-        var economyPrompt = SystemPrompt.Generate(ToolRegistry.AllTools);
-        Config.Instance.EconomyMode = savedEconomy;
-        var fullPrompt = SystemPrompt.Generate(ToolRegistry.AllTools);
+        // 系统提示词精简（仅 On 生效）。两侧都显式指定档位——不能拿「当前环境」当完整版基线
+        var economyPrompt = PromptWithMode(EconomyMode.On);
+        var fullPrompt = PromptWithMode(EconomyMode.Off);
         Check("Economy: 提示词比完整版更短", economyPrompt.Length < fullPrompt.Length);
         Check("Economy: 含工具列表", economyPrompt.Contains("bash"));
         Check("Economy: 含先读后改规则", economyPrompt.Contains("先读后改"));

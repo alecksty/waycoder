@@ -1,5 +1,28 @@
 # 更新日志
 
+## v0.79.33 (2026-08-19) — 设计态样本数据 `{InDesign '…'}` + 自测按省钱档位分叉（修极致档压缩失效）
+
+**`.tui` 设计态数据标记**：任意属性值可写 `{InDesign '样本'}`——设计/预览态取引号内内容，真实运行取空串：
+- `TuiMarkup.ResolveDesign` 在 `Attr` 统一解析，**所有属性通用**（items/text/columns…），不必给每个控件开后门
+- 引号可省（读到 `}` 为止）、一属性可多处、`{InDesignMode}` 同前缀占位符不误伤、引号未闭合原样保留（暴露笔误）
+- 7 个界面就地声明样本：`chat.tui`（聊天气泡）、`commandpalette`/`keybindhelp`/`sessionpicker`（列表项）、`modelpicker`（表格行）、`reasoningpicker`/`settings`（选单项）
+- 预览器（`--tui-preview` / WPF）直接看到数据，真实 UI 一行不漏；样本仍由 code-behind 覆盖（`ClearRows`/`Items=`）
+
+**预览器支持资源名**：WPF 预览与 `--tui-preview` 一致——路径或资源名（`dialogs/modelpicker.tui`）皆可，下拉框列出全部可用资源，命中文件系统 `Raw/` 才热刷新。
+
+**自测按省钱档位分叉**（用户 `.env` 开 `WAYCODER_ECONOMY=on` 时曾有 24 条假失败）：
+- 新增 `PromptWithMode(档位)` 测试辅助：完整版断言自带 `Off` 基线，不再拿「当前环境」当完整版
+- `[系统提示词]` 段按生效档位分叉断言：`Off/Auto`=完整提示词 + 15 条规则；`On`=含工作目录/先读后改、砍流水线、比完整版短；`Extreme`=极简标识、比精简版更短
+- 补反向断言：省 token 模式不注入技能段 / 不注入仓库地图
+
+**修复：极致档上下文压缩完全失效**（本次分档跑测暴露）：
+- `ContextManager.ResolveRatio` 被百分比阈值与字符数阈值两种量纲复用，`Extreme` 分支却写死 `Math.Max(2000, …)`——把压缩线抬到 `MaxTokens × 20`，三层压缩永不触发
+- 下限改为调用方按量纲显式传入（`extremeFloor`）：百分比不设下限，字符数传 2000
+
+### ✅ 验证
+- 四档全绿：`off` 3576 / `on` 3578 / `auto` 3576 / `extreme` 3577，**失败均为 0**（修复前 extreme 4 失败、on 24 失败）
+- 编译 0 错误 0 警告；`--tui-preview dialogs/commandpalette.tui` 实测样本行正常显示
+
 ## v0.79.32 (2026-08-19) — TUI 预览支持 Screen 根 + 数据控件完整显示
 
 - `TuiPreview.Run` 对 **Screen 根**（showcase/chat/main）用 `RenderOnlyScreen` 渲染（此前只窗口化渲染，数据控件不显示）

@@ -94,13 +94,16 @@ public class ContextManager
     /// 三态阈值：Off=正常值；On=省 token 值（二者较小值）；Auto=按复杂度在正常与省 token 之间插值。
     /// internal static 便于自测直接断言。
     /// </summary>
-    internal static int ResolveRatio(int normal, int economy, double complexity)
+    /// <param name="extremeFloor">Extreme 档收紧后的下限，按调用方量纲给：
+    /// 百分比阈值不设下限（0），字符数阈值给 2000 防裁得过碎。
+    /// 曾经写死 2000 —— 对字符数合理，套到百分比上却把压缩线抬到 MaxTokens 的 20 倍，极致档压缩全失效。</param>
+    internal static int ResolveRatio(int normal, int economy, double complexity, int extremeFloor = 0)
     {
         var target = Math.Min(normal, economy);
         return Config.Instance.EconomyMode switch
         {
             EconomyMode.On => target,
-            EconomyMode.Extreme => Math.Max(2000, (int)(target * 0.8)), // 极致：比 economy 再收紧 20%（下限 2000 防过小）
+            EconomyMode.Extreme => Math.Max(extremeFloor, (int)(target * 0.8)), // 极致：比 economy 再收紧 20%
             EconomyMode.Auto => Lerp(normal, target, AutoAggressiveness(complexity)),
             _ => normal,
         };
@@ -122,9 +125,10 @@ public class ContextManager
     private static int Lerp(int normal, int target, double a) =>
         (int)Math.Round(normal + (target - normal) * a);
 
-    /// <summary>当前模式下的工具输出裁剪字符阈值（自动模式按复杂度插值）。</summary>
+    /// <summary>当前模式下的工具输出裁剪字符阈值（自动模式按复杂度插值；极致档下限 2000 字符）。</summary>
     private int EffectiveSnipChars() =>
-        ResolveRatio(Config.Instance.SnipCharsNormal, Config.Instance.EconomySnipChars, Complexity());
+        ResolveRatio(Config.Instance.SnipCharsNormal, Config.Instance.EconomySnipChars, Complexity(),
+                     extremeFloor: 2000);
 
     /// <summary>
     /// 从 LLM 响应中累积真实 token 使用量。

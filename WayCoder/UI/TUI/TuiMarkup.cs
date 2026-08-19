@@ -603,7 +603,16 @@ public static class TuiMarkup
                 var lv = (TuiListView)c;
                 if (Bool(node, "autoScroll") is bool lvAs) lv.IsAutoScrollToEnd = lvAs;
                 if (Int(node, "itemSpacing") is int lvIs) lv.ItemSpacing = lvIs;
-                // 聊天项（TuiListItem：角色/时间戳/续接/缩进）由 code-behind AddItem 动态填，不在标记声明
+                // 聊天项（TuiListItem：角色/时间戳/续接/缩进）由 code-behind AddItem 动态填。
+                // items 一般只用于设计态样本，写成 items="{InDesign '甲,乙'}"（真实运行解析为空串→不加项）。
+                var lvItems = Attr(node, "items");
+                if (lvItems.Length > 0)
+                    foreach (var it in lvItems.Split(','))
+                    {
+                        var t = it.Trim();
+                        if (t.Length == 0) continue;
+                        lv.AddItem(new TuiLabel(t) { Height = 1 });
+                    }
                 break;
             case "DynamicBar":
                 // 运行态（Agent 状态/工具/压缩进度）由 ChatScreen.Render 每帧同步，标记无静态属性
@@ -681,7 +690,48 @@ public static class TuiMarkup
     private static string Attr(XNode node, string key, string def = "")
     {
         var s = node.GetAttr(key) ?? def;
-        return BindVars.Value is { } vars && s.Contains('{') ? Substitute(s, vars) : s;
+        if (BindVars.Value is { } vars && s.Contains('{')) s = Substitute(s, vars);
+        return s.Contains('{') ? ResolveDesign(s) : s;
+    }
+
+    /// <summary>
+    /// 设计态数据标记：<c>{InDesign '样本'}</c> —— 设计/预览模式取引号内内容，真实运行取空串。
+    /// 任意属性可用（items/text/columns…），让 .tui 就地声明预览样本而不泄漏进真实 UI，
+    /// 例：<c>items="{InDesign '甲,乙,丙'}"</c>。引号可省（读到 <c>}</c> 为止）；一个属性可含多处。
+    /// </summary>
+    internal static string ResolveDesign(string s)
+    {
+        const string Key = "{InDesign";
+        int at;
+        while ((at = s.IndexOf(Key, StringComparison.OrdinalIgnoreCase)) >= 0)
+        {
+            int i = at + Key.Length;
+            // 关键字后须为空白或 } —— 否则是同前缀的别的占位符（如 {InDesignMode}），跳过不动
+            if (i < s.Length && s[i] != '}' && !char.IsWhiteSpace(s[i])) break;
+            while (i < s.Length && char.IsWhiteSpace(s[i])) i++;
+
+            string inner;
+            int end; // 标记结束（} 的下一位）
+            if (i < s.Length && (s[i] == '\'' || s[i] == '"'))
+            {
+                char q = s[i];
+                int close = s.IndexOf(q, i + 1);
+                if (close < 0) break;              // 引号未闭合：原样保留，暴露笔误而非静默吞掉
+                inner = s[(i + 1)..close];
+                int brace = s.IndexOf('}', close + 1);
+                if (brace < 0) break;
+                end = brace + 1;
+            }
+            else
+            {
+                int brace = s.IndexOf('}', i);
+                if (brace < 0) break;
+                inner = s[i..brace].Trim();
+                end = brace + 1;
+            }
+            s = string.Concat(s.AsSpan(0, at), InDesign ? inner : "", s.AsSpan(end));
+        }
+        return s;
     }
 
     /// <summary>替换 {key} 占位符。</summary>

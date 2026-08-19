@@ -172,10 +172,26 @@ public static partial class SelfTest
             Check("InDesign=true 注入控件", dLabel != null && dLabel.InDesign && dLabel.SimulatedScreen);
             Check("InDesign=true 注入窗口", dsRes.Window != null && dsRes.Window.InDesign && dsRes.Window.SimulatedScreen);
 
+            // {InDesign '样本'} 设计态数据标记：设计态取引号内内容
+            const string DsMarkup = "<Dialog title=\"d\"><VBox>"
+                + "<List id=\"dl\" items=\"{InDesign '甲,乙,丙'}\"/>"
+                + "<Label id=\"dt\" text=\"前{InDesign '中'}后\"/></VBox></Dialog>";
+            var dsData = TuiMarkup.Load(DsMarkup);
+            Check("设计态数据标记: 列表出样本", dsData.Find<TuiList>("dl")?.Items is { Count: 3 } dsIt && dsIt[0] == "甲");
+            Check("设计态数据标记: 文本内联展开", dsData.Find<TuiLabel>("dt")?.Text == "前中后");
+            Check("设计态数据标记: 无引号形式", TuiMarkup.ResolveDesign("{InDesign 样本}") == "样本");
+            Check("设计态数据标记: 同前缀占位符不误伤", TuiMarkup.ResolveDesign("{InDesignMode}") == "{InDesignMode}");
+            Check("设计态数据标记: 引号未闭合原样保留", TuiMarkup.ResolveDesign("{InDesign '甲}") == "{InDesign '甲}");
+
             WayCoder.UI.TUI.TuiMarkup.InDesign = false;
             WayCoder.UI.TUI.TuiMarkup.SimulatedScreen = false;
             var rtRes = TuiMarkup.Load("<Dialog title=\"d\"><VBox><Label id=\"l2\" text=\"x\"/></VBox></Dialog>");
             Check("InDesign=false 不注入", rtRes.Find<TuiLabel>("l2") is { InDesign: false, SimulatedScreen: false });
+
+            // 运行态：样本解析为空串 —— 列表不加项、文本只剩固定部分（杜绝样本泄漏进真实 UI）
+            var rtData = TuiMarkup.Load(DsMarkup);
+            Check("运行态数据标记: 列表无样本", (rtData.Find<TuiList>("dl")?.Items.Count ?? 0) == 0);
+            Check("运行态数据标记: 文本剔除样本", rtData.Find<TuiLabel>("dt")?.Text == "前后");
         }
         finally
         {
