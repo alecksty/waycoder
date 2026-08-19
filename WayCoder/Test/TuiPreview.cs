@@ -16,19 +16,28 @@ public static class TuiPreview
     {
         try { Console.OutputEncoding = Encoding.UTF8; } catch { }
 
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        if (string.IsNullOrWhiteSpace(path))
         {
-            Console.Error.WriteLine($"文件不存在: {path}");
+            Console.Error.WriteLine("未指定 .tui 文件或资源名（如 dialogs/modelpicker.tui / chat.tui / menu.tui）");
             return 1;
         }
 
         try
         {
-            var content = File.ReadAllText(path);
             // 预览 = 设计/模拟模式：元素 InDesign/SimulatedScreen 为 true
             TuiMarkup.InDesign = true;
             TuiMarkup.SimulatedScreen = true;
-            var result = TuiMarkup.Load(content);
+            TuiMarkupResult result;
+            if (File.Exists(path))
+            {
+                result = TuiMarkup.Load(File.ReadAllText(path));
+            }
+            else
+            {
+                // 非文件 → 尝试内嵌资源名（dialogs/modelpicker.tui 等），支持预览任意内嵌对话框
+                result = TuiMarkup.LoadResource(path,
+                    new Dictionary<string, string> { ["title"] = Path.GetFileName(path) });
+            }
             TuiWindow win = result.Window
                 ?? new TuiWindow { RootView = result.View ?? result.Screen!.RootView, BorderStyle = WayCoder.UI.Shared.WindowBorder.None };
             Console.Write(TuiDialog.Show(win));
