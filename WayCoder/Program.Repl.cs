@@ -61,7 +61,9 @@ public partial class Program
         try
         {
             await agent.ChatAsync(input,
-                onToken: t => Console.Write(t),
+                // 流式 token 含 «» 中间格式（LLM 在推理段首尾注入 «dim»/«/»），
+                // 必须解码成 ANSI 效果 —— 否则终端里直接显示出转义标记本身
+                onToken: t => Console.Write(SpectreToAnsi(t)),
                 onTool: (name, brief) => Console.WriteLine($"\n[90m🔧 [{name}] {brief}[0m"));
             Console.WriteLine();
         }
