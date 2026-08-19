@@ -40,7 +40,7 @@ public partial class Program
     /// 与 MarkdownRenderer.MapMarkupTag 保持语义一致：复合标签（bold/bright + 颜色）
     /// 先于单标签替换，避免「bold yellow」被单标签误替换；「bold X」必须同时带粗体（SgrBold）。
     /// </remarks>
-    private static string SpectreToAnsi(string markup)
+    internal static string SpectreToAnsi(string markup)
     {
         return markup
             // ── 复合标签（先替换，避免被单标签截断）──
