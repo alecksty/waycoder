@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.79.52 (2026-08-19) — 修复对话框输入框粘贴花屏（bracketed paste 路由）
+
+**bug**：api-key 等输入对话框（TuiDialog.InputLine/Input）粘贴花屏——bracketed paste 事件固定插入主聊天输入框，对话框焦点输入控件收不到内容。
+
+**修复**：
+- `TuiEditBase.PasteFromExternal`（public 粘贴入口）
+- `ChatScreen.HandleBracketedPaste`：模态对话框打开时，粘贴内容路由到对话框**焦点输入控件**（TuiInput/TuiTextArea），否则才走主输入框
+
+### ✅ 验证
+- 自测 3928 通过（TuiTextArea 粘贴/撤销测试全绿）
+
 ## v0.79.51 (2026-08-19) — 模型信息行 + 状态栏/动态栏精简 + 修 diff 对话框按键
 
 ### 模型信息行（输入区下方，灰字）

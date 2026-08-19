@@ -72,6 +72,10 @@ public abstract class TuiEditBase : TuiControl
     // ── 获取全部文本（供默认 InsertNewLine 提交用）──
     protected abstract string GetText();
 
+    /// <summary>公开粘贴入口：bracketed paste 事件由 ChatScreen.HandleBracketedPaste 路由到
+    /// 模态对话框的焦点输入控件（api-key 输入框等，否则粘贴内容只进主输入框导致花屏）。</summary>
+    public void PasteFromExternal(string text) => PasteText(text);
+
     // ═══════════════════════════════════════════════════════════════
     // 剪贴板组合操作
     // ═══════════════════════════════════════════════════════════════
