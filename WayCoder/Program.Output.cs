@@ -154,7 +154,8 @@ public partial class Program
             onToken: tok =>
             {
                 StopSpinner();
-                Console.Write(tok);
+                // 同 CLI 模式：token 里的 «dim»/«/» 等中间格式要转成 ANSI 效果，不能裸打印
+                Console.Write(SpectreToAnsi(tok));
                 if (setStreamed != null) setStreamed(true);
             },
             onTool: (name, brief) =>
