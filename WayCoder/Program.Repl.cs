@@ -101,8 +101,7 @@ public partial class Program
         };
 
         // 输入管理器：拦截键盘 + 鼠标 + resize 即时重绘
-        using var inputMgr = new InputManager();
-        inputMgr.Init();
+        var inputMgr = TuiManager.Instance.Input; // 共享输入管理器（RenderWait 复用，统一 paste 解析）
 
         // 初始化 10 个槽位（槽位 0 已在 Main 中持有主 Agent）
         for (int i = 0; i < AgentSlot.Count; i++) _slots[i] ??= new AgentSlot();

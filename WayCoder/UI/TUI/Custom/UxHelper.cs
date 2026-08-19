@@ -420,14 +420,18 @@ public static class UxHelper
     {
         if (screen == null) { evt.Wait(TimeSpan.FromSeconds(30)); return; }
         var manager = TuiManager.Instance;
+        var inputMgr = TuiManager.Instance.Input; // 共享 InputManager：统一 bracketed paste/CSI 解析
         var start = Environment.TickCount64;
         while (!evt.IsSet)
         {
             manager?.Render();
-            if (readKeys && Console.KeyAvailable)
+            if (readKeys)
             {
-                var key = Console.ReadKey(intercept: true);
-                screen.OnKey(key);
+                var ev = inputMgr.ReadInput(30);
+                if (ev.Type == InputType.Key) screen.OnKey(ev.KeyInfo);
+                else if (ev.Type == InputType.Paste && screen is ChatScreen cs && !string.IsNullOrEmpty(ev.PasteText))
+                    cs.HandleBracketedPaste(ev.PasteText); // 粘贴到对话框焦点输入控件
+                else if (ev.Type == InputType.Resize) manager?.OnResize();
             }
             else
             {

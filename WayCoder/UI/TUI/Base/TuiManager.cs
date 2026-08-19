@@ -37,6 +37,17 @@ public class TuiManager : IDisposable
     private readonly Stack<TuiScreen> _screenStack = new();
     public TuiScreen? ActiveScreen { get; private set; }
 
+    private InputManager? _input;
+    /// <summary>共享输入管理器：主循环与 RenderWait（ModalPicker/DiffPreview 等阻塞对话框）共用，
+    /// 统一 bracketed paste / CSI 解析——否则 RenderWait 用裸 ReadKey 会把粘贴的 \x1b[200~ 当 Esc 关闭对话框。</summary>
+    public InputManager Input => _input ??= CreateInput();
+    private InputManager CreateInput()
+    {
+        var mgr = new InputManager();
+        mgr.Init();
+        return mgr;
+    }
+
     // ── 渲染缓存 ──
     /// <summary>上一帧无浮层窗口的干净输出（窗口关闭时用于还原背景）</summary>
     public string LastCleanFrame { get; private set; } = "";
