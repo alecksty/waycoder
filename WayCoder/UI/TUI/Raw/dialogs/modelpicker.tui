@@ -11,5 +11,6 @@
     <TableList id="table" height="13" showHeader="true" />
     <Label id="slotBar" height="1" fg="8" />
     <Label id="help" height="1" fg="8" />
+    <Label id="help2" height="1" fg="8" />
   </VBox>
 </Dialog>
