@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.79.30 (2026-08-19) — 权限对话框样式移入 .tui（少写代码）
+
+「属性特征尽量放资源文件」推广：权限对话框（黄底黑字）固定样式移入 `permission.tui`：
+- **TuiMarkup 扩展**：Window 支持 `titleFg`/`titleBg`，控件支持 `focusedFg`/`focusedBg`
+- `permission.tui` 声明：`bg="yellow"` `titleFg="black"` `titleBg="yellow"` + 按钮 `fg/bg/focusedFg/focusedBg`
+- `TuiDialog.Permission` 删除硬编码颜色，只留 Flex/事件/消息内容
+
+### ✅ 验证
+- 自测 3569 通过，编译 0 错误，tty 聊天屏正常
+
 ## v0.79.29 (2026-08-19) — 模型对话框布局/颜色移入 .tui
 
 「布局写标记、颜色写标记」：模型对话框的静态样式全部移到 `modelpicker.tui` 声明：
