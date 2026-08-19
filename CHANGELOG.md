@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.79.64 (2026-08-20) — 长命令不阻塞界面 + Release 不含 test 指令
+
+- **`/test all` 卡死修复**——自测模块（50s+）此前同步在 UI 线程跑，主循环 `await` 期间无法读键 → 界面完全卡死。新增 `Program.RunWithUiLoop`（后台任务 + UI 渲染循环），TestCommand 自测改用后台跑，UI 线程保持渲染 + 读键（可打字排队、对话框路由），完成后结果回写聊天
+- **编译开关：Release 不含 test 系列指令**——csproj Debug 定义 `WAYCODER_TEST`、Release 排除 `Test/` 目录；`/test` 命令（TestCommand + 注册）、`--test`/`--keypad`/`--tui-demo`/`--tui-preview`/`--tui-audit`/`--bench`/`--limits` 等测试入口全部 `#if WAYCODER_TEST` 包裹，Release 版本不编译、运行被忽略
+- **Keypad 新增 `COMMAND` 命令**——后台执行斜杠命令 + 8s 超时检测，排查哪些命令卡住界面；实测 `/test` 系为模块耗时（修复后后台跑不卡），其余命令全部正常
+
+### ✅ 验证
+- 自测 3952 通过；Debug `/test` 正常、Release 无 test 入口
+
 ## v0.79.63 (2026-08-20) — 对话框渐变随主题统一切换（默认金黄）
 
 - **新增 `TuiTheme.DialogGradient` 主题属性**（对话框统一渐变，默认金黄=橙黄渐变），各主题覆盖自身风格色：

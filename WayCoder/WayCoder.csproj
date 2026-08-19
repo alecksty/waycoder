@@ -16,7 +16,14 @@
     <!-- AOT: 项目中使用的 JsonSerializer/JsonArray.Add<T> 在 AOT 路径中已被 JsonHelper 替代，
          这些 IL 警告仅在非 AOT Debug 构建中产生，不影响 AOT 发布 -->
     <NoWarn>IL2026;IL3050</NoWarn>
+    <!-- 测试代码开关：WAYCODER_TEST 仅在 Debug 定义（/test 指令、Keypad、SelfTest 等）；
+         Release 不定义并排除 Test/ 目录 —— 生产版不含 test 系列指令 -->
+    <DefineConstants Condition="'$(Configuration)'=='Debug'">$(DefineConstants);WAYCODER_TEST</DefineConstants>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(Configuration)'=='Release'">
+    <Compile Remove="Test/**" />
+  </ItemGroup>
 
 
   <!-- 编译期合并 Web 前端资源（www/*.html/css/js → WebAssets.Generated.cs），编辑源文件后重新构建即可 -->

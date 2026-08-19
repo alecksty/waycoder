@@ -111,7 +111,9 @@ public static class SlashCommandRegistry
         if (_commands.Count > 0) return; // 幂等：已注册则跳过
 
         // P0 — 高频命令
-        Register(new Commands.TestCommand());
+#if WAYCODER_TEST
+        Register(new Commands.TestCommand()); // /test 仅 Debug/开发版
+#endif
         Register(new Commands.HelpCommand());
         Register(new Commands.ResetCommand());
         Register(new Commands.ModelCommand());
