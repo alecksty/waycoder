@@ -1204,6 +1204,12 @@ public static partial class SelfTest
         Check("ParseInline 未知标签按字面",
             MarkdownParser.ParseInline("«nope»文本").Any(r => r.Text.Contains("nope")));
 
+        // CLI/一次性模式的解码器（TUI 走 MarkdownParser，CLI 走 SpectreToAnsi，两条路都得转）
+        var cliDim = Program.SpectreToAnsi("«dim»思考中«/»");
+        Check("SpectreToAnsi «dim» 转 ANSI", cliDim.Contains(AnsiTty.SgrDim) && cliDim.Contains(AnsiTty.SgrReset));
+        Check("SpectreToAnsi 不残留书名号标记", !cliDim.Contains("«dim»") && !cliDim.Contains("«/»"));
+        Check("SpectreToAnsi 保留正文", cliDim.Contains("思考中"));
+
         // 端到端：RenderMessage 单段落回退路径也要识别 markup（此前直接字面输出）
         var rm = WayCoder.UI.Tui.TuiMarkdown.RenderMessage("«dim»思考«/»回答", "assistant", 80);
         Check("RenderMessage markup 淡化", rm.Any(line => line.Any(seg => seg.Fg == 2)));
