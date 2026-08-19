@@ -69,11 +69,9 @@ public static class ModelPicker
         var win = res.Window ?? throw new InvalidOperationException("modelpicker.tui 根应为 Dialog");
         win.Width = winW; win.Height = winH;
         win.MinWidth = MinW; win.MinHeight = MinH;
-        win.WinBg = TuiTheme.Current.WindowBg;
-        var g = TuiTheme.Current.GradOrangeYellow;
-        win.GradientBorder = true;
-        win.GradientStart = g.start;
-        win.GradientEnd = g.end;
+        win.WinBg = AnsiColors.BgBlack; // 黑色背景（用户要求）
+        win.GradientBorder = false;      // 黑底去橙黄渐变边框
+        win.BorderColor = AnsiColors.BrightBlack; // 暗色边框
 
         // 控件接线（结构在标记里，精确样式/列/数据/事件在此）
         var search = res.Find<TuiInput>("search")!;
@@ -157,7 +155,7 @@ public static class ModelPicker
 
             win.Title = TitleText();
             slotBar.Text = SlotBarText(targetSlot, currentSlot);
-            help.Text = "↑↓ 选择  Enter 确认  Tab 大/小  S 扫描  I 导入  O OpenCode  K 设key  L 清key  输入搜索";
+            help.Text = "↑↓ 选择  Enter 确认  Tab 大/小  S扫描  I导入  O在线  K设key  L清key  Ctrl+A添加  Del删除  Ctrl+E编辑";
             screen?.MarkDirty();
         }
 
@@ -245,6 +243,69 @@ public static class ModelPicker
             Refresh(false);
         }
 
+        /// <summary>添加自定义模型（Ctrl+A）：弹输入框，格式 模型名|ProviderId|BaseUrl。</summary>
+        void PromptAddModel()
+        {
+            var inputWin = TuiDialog.InputLine("➕ 添加模型",
+                "格式: 模型名|ProviderId|BaseUrl（可空）", "",
+                text =>
+                {
+                    var parts = (text ?? "").Split('|');
+                    var id = parts.Length > 0 ? parts[0].Trim() : "";
+                    if (string.IsNullOrWhiteSpace(id)) { help.Text = "❌ 模型名不能为空"; return; }
+                    var pid = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1].Trim() : "custom";
+                    var baseUrl = parts.Length > 2 && !string.IsNullOrWhiteSpace(parts[2]) ? parts[2].Trim() : null;
+                    ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
+                        id, id, pid, pid, "*", "Custom", 0, 0, 0, baseUrl, "手动添加", 0));
+                    help.Text = $"✅ 已添加模型 {id}";
+                    Refresh(false);
+                });
+            screen?.ShowWindow(inputWin);
+            screen?.MarkDirty();
+        }
+
+        /// <summary>删除选中自定义模型（Delete）：确认后从库移除（内置不可删）。</summary>
+        void DeleteSelectedModel()
+        {
+            var m = table.SelectedIndex >= 0 && table.SelectedIndex < rowModels.Count
+                ? rowModels[table.SelectedIndex] : null;
+            if (m == null) return;
+            if (ModelCatalog.BuiltIn.Any(b => b.Id == m.Id))
+            { help.Text = "⚠ 内置模型不可删除"; return; }
+            var confirmWin = TuiDialog.Confirm("🗑 删除模型", $"删除 {m.Id}？（自定义模型，删除后不可恢复）", ok =>
+            {
+                if (ok) { ModelCatalog.RemoveCustom(m.Id); help.Text = $"✅ 已删除 {m.Id}"; Refresh(false); }
+            });
+            screen?.ShowWindow(confirmWin);
+            screen?.MarkDirty();
+        }
+
+        /// <summary>编辑选中自定义模型（Ctrl+E）：预填当前值，改后覆盖保存。</summary>
+        void PromptEditModel()
+        {
+            var m = table.SelectedIndex >= 0 && table.SelectedIndex < rowModels.Count
+                ? rowModels[table.SelectedIndex] : null;
+            if (m == null) return;
+            if (ModelCatalog.BuiltIn.Any(b => b.Id == m.Id))
+            { help.Text = "⚠ 内置模型不可编辑（选自定义模型）"; return; }
+            var info = ModelCatalog.Find(m.Id);
+            var prefill = $"{m.Id}|{m.ProviderId}|{info?.DefaultBaseUrl ?? ""}";
+            var inputWin = TuiDialog.InputLine($"✏️ 编辑模型 {m.Id}",
+                "格式: 模型名|ProviderId|BaseUrl", prefill, text =>
+                {
+                    var parts = (text ?? "").Split('|');
+                    var id = parts.Length > 0 ? parts[0].Trim() : m.Id;
+                    var pid = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1].Trim() : m.ProviderId;
+                    var baseUrl = parts.Length > 2 && !string.IsNullOrWhiteSpace(parts[2]) ? parts[2].Trim() : null;
+                    ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
+                        id, id, pid, pid, "*", "Custom", 0, 0, 0, baseUrl, "手动编辑", 0));
+                    help.Text = $"✅ 已保存模型 {id}";
+                    Refresh(false);
+                });
+            screen?.ShowWindow(inputWin);
+            screen?.MarkDirty();
+        }
+
         void PromptKeyForSelected()
         {
             var m = table.SelectedIndex >= 0 && table.SelectedIndex < rowModels.Count
@@ -307,7 +368,8 @@ public static class ModelPicker
                     Commit();
                     return true;
                 case ConsoleKey.A:
-                    if (hasCtrl || search.Text.Length == 0) { ToggleAllSlots(); return true; }
+                    if (hasCtrl) { PromptAddModel(); return true; } // Ctrl+A 添加模型
+                    if (search.Text.Length == 0) { ToggleAllSlots(); return true; } // 空搜索 A 全部槽位
                     return false;
                 case ConsoleKey.S:
                     if (hasCtrl || search.Text.Length == 0) { TriggerScan(); return true; }
@@ -323,6 +385,12 @@ public static class ModelPicker
                     return false;
                 case ConsoleKey.K:
                     if (hasCtrl || search.Text.Length == 0) { PromptKeyForSelected(); return true; }
+                    return false;
+                case ConsoleKey.E:
+                    if (hasCtrl) { PromptEditModel(); return true; }
+                    return false;
+                case ConsoleKey.Delete:
+                    if (search.Text.Length == 0) { DeleteSelectedModel(); return true; }
                     return false;
                 default:
                     if (TrySlotKey(key, out int slot) && (hasCtrl || search.Text.Length == 0))
