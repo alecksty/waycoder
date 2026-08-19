@@ -411,11 +411,10 @@ public static class UxHelper
     /// 由 ShowInputDialog/ShowSelectDialog 等内部调用，也可由工具（如 AskUserQuestion）外部调用。
     /// </summary>
     /// <param name="timeoutMs">超时毫秒数（默认 30s，AskUserQuestion 等需更长超时）</param>
-    /// <param name="readKeys">是否自己读控制台按键。
-    /// 默认 true（对话框由本循环收键）。diff 预览传 <c>false</c>：它运行在 Agent 执行期间，
-    /// 外层循环（REPL / RunAgentWithRenderLoop）已按「键位作用域闸」把按键路由到栈顶窗口，
-    /// 本循环再读一次就与主循环抢同一个控制台输入（双线程 Console.ReadKey 竞态），
-    /// 导致 diff 对话框的 Y/N/A/Q/Enter 时而按了没反应。</param>
+    /// <param name="readKeys">是否由本循环全权处理（渲染 + 读键 + 路由）。
+    /// 默认 true（对话框由本循环收键，命令/UI 场景）。diff 预览传 <c>false</c>（Agent 执行期）：
+    /// 外层循环（RunAgentWithRenderLoop）负责渲染 + 按「键位作用域闸」路由按键，本循环只等待事件 ——
+    /// 既避免双线程读控制台（Console.ReadKey 竞态），也避免 RenderWait 与外层循环并发 Render（双线程渲染花屏）。</param>
     public static void RenderWait(TuiScreen? screen, ManualResetEventSlim evt, int timeoutMs = 30_000, TuiWindow? win = null, bool readKeys = true)
     {
         if (screen == null) { evt.Wait(TimeSpan.FromSeconds(30)); return; }
@@ -424,18 +423,21 @@ public static class UxHelper
         var start = Environment.TickCount64;
         while (!evt.IsSet)
         {
-            if (screen is ChatScreen chat) chat.PumpUIQueue(); // 对话框期间也消费后台投递的 UI 操作
-            manager?.Render();
             if (readKeys)
             {
+                if (screen is ChatScreen chat) chat.PumpUIQueue(); // 对话框期间也消费后台投递的 UI 操作
+                manager?.Render();
                 var ev = inputMgr.ReadInput(30);
-                if (ev.Type == InputType.Key) screen.OnKey(ev.KeyInfo);
+                if (ev.Type == InputType.Mouse && TuiManager.MouseEnabled)
+                    manager?.HandleMouse(ev); // 对话框按钮点击
+                else if (ev.Type == InputType.Key) screen.OnKey(ev.KeyInfo);
                 else if (ev.Type == InputType.Paste && screen is ChatScreen cs && !string.IsNullOrEmpty(ev.PasteText))
                     cs.HandleBracketedPaste(ev.PasteText); // 粘贴到对话框焦点输入控件
                 else if (ev.Type == InputType.Resize) manager?.OnResize();
             }
             else
             {
+                // Agent 场景：外层循环（RunAgentWithRenderLoop）负责渲染 + 键路由，这里只等待事件
                 Thread.Sleep(30);
             }
             if (timeoutMs > 0 && Environment.TickCount64 - start > timeoutMs) break;
@@ -443,7 +445,7 @@ public static class UxHelper
         // 超时兜底：关闭仍残留的模态窗口，避免窗口停在屏幕上
         if (!evt.IsSet && win != null)
             screen.CloseWindow(win);
-        manager?.Render();
+        if (readKeys) manager?.Render(); // readKeys:false 时渲染由外层负责
     }
 }
 

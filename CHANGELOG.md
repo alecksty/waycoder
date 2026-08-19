@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.79.58 (2026-08-19) — 界面修复批次：Agent 忙时可输入排队 + diff 交互/美化
+
+- **Agent 忙时可输入排队**：`RunAgentWithRenderLoop` 改用共享 InputManager，普通键路由给 ChatScreen——Agent 执行中输入框可编辑，Enter 提交进 `PendingSubmissions` 队列，Agent 空闲后由主循环逐个处理（排队等响应，界面不卡死）
+- **diff 对话框交互修复**（三层根因）：DirectWrite 直写覆盖窗口（门控：非活跃屏幕/栈顶有窗口跳过）；Agent 场景鼠标点击无人处理（RunAgentWithRenderLoop 补鼠标路由 + RenderWait 补鼠标）；双线程并发渲染（`InAgentRenderLoop` 标志 + TuiManager.Render 加锁，RenderWait `readKeys:false` 只等待交给外层）
+- **权限/计划对话框统一共享 InputManager**：`ChatScreen.RenderWait` 委托 `UxHelper.RenderWait`——此前裸 `Console.ReadKey` 与主循环双读竞态（按键时灵时不灵）、粘贴前导 `\x1b` 被当 Esc 静默拒绝
+- **DirectWrite 光标错位修复**：无脏 + 脏渲染路径末尾 `EmitCursor()` 恢复光标（spinner 直写不再把输入区光标拉到动态栏）
+- **diff 美化**：split 模式右面板背景色填充到面板右边界（左右对齐）；有色背景改**深色调**（深红 #800000 / 深绿 #008700 / 深青 #005f5f）+ 亮前景，替代刺眼的 ANSI 亮色 41/42/46（`FgBg`→`FgBgCode` 支持 256 色）
+- **提示栏**：行背景填充移到图标前（图标不再被擦掉）；窄容器负空格崩溃 `Math.Max(0,…)`
+- **压缩进度条**：`CursorPos0` 修正 1/0-based 错位（画到错误行被覆盖，实为不可见）
+- **ComboBox 折叠残影**：`CloseDropdown` 标脏窗口根视图重绘
+- **DiffCommand**：支持 `/diff <关键词>` 文件名过滤 + 一次预览上限 10 个
+- TuiMenu 可空警告、TuiDynamicBar 过期注释清理
+
+### ✅ 验证
+- 自测 3930 通过，编译 0 警告
+
 ## v0.79.57 (2026-08-19) — UI 线程模型根治 + /diff 命令 + 侧边栏会话列表
 
 - **UI 线程模型根治并发崩溃**：`ChatScreen` 加 UI 消息队列（`PostToUI` 线程判定直接执行/入队 + `PumpUIQueue` 消费）——后台 Agent 回调（Route / RunAgentWithRenderLoop 的 onToken/onTool/onToolOutput）、权限确认、上下文压缩进度、工作模式变更全部改为**只投递消息**，控件树被 UI 线程独占；`TuiView` 高频遍历（FindFocused/OnRender/OnKey 等）改 `for` + 重读 Count 防御。修复 `Collection was modified` 崩溃（后台线程与 UI 线程 `FindFocused` 遍历 Children 竞态）

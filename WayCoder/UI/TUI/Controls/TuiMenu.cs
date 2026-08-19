@@ -66,7 +66,7 @@ public static class TuiMenu
         var res = TuiMarkup.LoadResource("menu.tui",
             new Dictionary<string, string> { ["title"] = title ?? "" });
         var win = res.Window ?? throw new InvalidOperationException("menu.tui 根应为 Dialog");
-        win.Title = title;
+        win.Title = title ?? "";
         win.ShowTitle = hasTitle;
         win.X = x; win.Y = y;
         win.Width = contentW + 2;
