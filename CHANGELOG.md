@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.79.53 (2026-08-19) — 修复对话框粘贴关闭/花屏（RenderWait 共享 InputManager）
+
+**根因**：`UxHelper.RenderWait`（ModelPicker/DiffPreview 等阻塞对话框）用裸 `Console.ReadKey`，不解析 bracketed paste——粘贴的 `\x1b[200~` 被当 Esc 关闭对话框、内容逐字符乱入花屏。
+
+**修复**：
+- `TuiManager.Input` 持有**共享 InputManager**（主循环 + RenderWait 复用，统一 bracketed paste/CSI 解析）
+- `RenderWait` 改用 `InputManager.ReadInput`：Key→控件、**Paste→HandleBracketedPaste**（路由对话框焦点输入控件）、Resize→重绘
+- `RunReplAsync` 改用共享 InputManager
+
+### ✅ 验证
+- 自测 3928 通过，编译 0 错误，tty 聊天屏正常
+
 ## v0.79.52 (2026-08-19) — 修复对话框输入框粘贴花屏（bracketed paste 路由）
 
 **bug**：api-key 等输入对话框（TuiDialog.InputLine/Input）粘贴花屏——bracketed paste 事件固定插入主聊天输入框，对话框焦点输入控件收不到内容。
