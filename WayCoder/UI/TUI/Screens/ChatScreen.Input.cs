@@ -243,10 +243,12 @@ public partial class ChatScreen : TuiScreen
     /// <summary>
     /// 每帧同步侧栏：数据指纹变了才重建分区并标脏。
     /// 逐帧重建分区在 30ms 渲染循环里是白烧 GC，指纹比对是纯计数/状态拼串，代价可忽略。
+    /// 弹窗/对话框打开时不刷新（侧栏被遮罩盖住，且避免与弹窗渲染竞争）；关闭后恢复。
     /// </summary>
     public void SyncSidePanel()
     {
         if (!SidePanelVisible) return;
+        if (FocusedWindow != null) return; // 弹窗/对话框在场 → 侧栏不刷新
         var stamp = SidePanelStamp();
         if (stamp == _sidePanelStamp) return;
         _sidePanelStamp = stamp;
@@ -276,6 +278,7 @@ public partial class ChatScreen : TuiScreen
         foreach (var s in McpManager.Servers) sb.Append((int)s.Status).Append(s.ToolCount).Append(',');
         sb.Append('|');
         foreach (var t in TodoTool.Items) sb.Append(t.Id).Append(t.Status.Length > 0 ? t.Status[0] : '?').Append(',');
+        sb.Append("|sess:").Append(GetSessionList().Count).Append(':').Append(CurrentSessionId).Append('|');
         return sb.ToString();
     }
 
@@ -284,18 +287,25 @@ public partial class ChatScreen : TuiScreen
     {
         var sections = new List<PanelSection>();
 
-        // ── 会话区（实时：模型/模式/上下文/用量，随每帧指纹比对自动更新）──
-        var sessionLines = new List<string>
+        // ── 会话区（最近会话记录，按槽位隔离；当前会话 ✓ 高亮）──
+        var sessionList = GetSessionList();
+        var sessionLines = new List<string>();
+        if (sessionList.Count == 0)
         {
-            $"  🤖 {(string.IsNullOrEmpty(StatusLeft) ? "(未设置)" : StatusLeft)}",
-            $"  🔄 {WorkModeManager.Format(WorkModeManager.CurrentMode)}",
-            $"  💬 智能体 {ActiveSlotIndex + 1} · {(AgentBusy ? "工作中" : "空闲")}",
-        };
-        if (_contextPercent is { } pct) sessionLines.Add($"  🧠 上下文 {pct:F0}%");
-        if (!string.IsNullOrEmpty(StatusRight)) sessionLines.Add("  " + StatusRight);
-        if (!string.IsNullOrEmpty(GitBranch)) sessionLines.Add($"  🌿 {GitBranch}");
-        if (_currentToolName != null) sessionLines.Add($"  🔧 {_currentToolName}");
-        sections.Add(new PanelSection { Title = "⚡ 会话", Lines = sessionLines });
+            sessionLines.Add("  (无历史会话)");
+        }
+        else
+        {
+            foreach (var s in sessionList)
+            {
+                bool isCur = s.Id == CurrentSessionId && !string.IsNullOrEmpty(CurrentSessionId);
+                string time = SessionPicker.FormatRelativeTime(s.SavedAt);
+                sessionLines.Add(isCur
+                    ? $"  ✓ {s.Id} · {time} · {s.MessageCount}条"
+                    : $"  {s.Id} · {time} · {s.MessageCount}条");
+            }
+        }
+        sections.Add(new PanelSection { Title = $"⚡ 会话 ({sessionList.Count})", Lines = sessionLines });
 
         // ── Todo 区 ──
         var todoItems = TodoTool.Items;
@@ -379,6 +389,27 @@ public partial class ChatScreen : TuiScreen
         });
 
         SidePanelSections = sections;
+    }
+
+    // ── 会话列表缓存 ──
+
+    private List<SessionInfo>? _sessionList;
+    private long _sessionListTicks;
+    private int _sessionListSlot = -1;
+    private const long SessionListCacheMs = 500;
+
+    /// <summary>最近会话列表（500ms 缓存避免每帧读盘；切槽位立即失效）。侧边栏会话区用。</summary>
+    private List<SessionInfo> GetSessionList()
+    {
+        long now = Environment.TickCount64;
+        if (_sessionList == null || _sessionListSlot != ActiveSlotIndex
+            || now - _sessionListTicks >= SessionListCacheMs)
+        {
+            _sessionList = SessionManager.ListSessions(limit: 5, offset: 0, slot: ActiveSlotIndex);
+            _sessionListSlot = ActiveSlotIndex;
+            _sessionListTicks = now;
+        }
+        return _sessionList;
     }
 
     // ── 提示栏 ──
@@ -655,6 +686,9 @@ public partial class ChatScreen : TuiScreen
                     // 全屏强制重绘（修复终端残留，保留聊天内容）
                     MarkDirty();
                     Manager?.Render();
+                    return true;
+                case ConsoleKey.D:
+                    OnOpenDiff?.Invoke(); // diff 预览（/diff）
                     return true;
                 // 聊天滚动
                 case ConsoleKey.Home:

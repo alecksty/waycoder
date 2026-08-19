@@ -4,13 +4,12 @@ using WayCoder.UI.Tui.Screens;
 namespace WayCoder.UI.Cli.Commands;
 
 /// <summary>
-/// 最近修改文件 —— 合并原 /recent 和 /diff。
-/// 用法：/recent 或 /diff
+/// 最近修改文件列表。用法：/recent
+/// （diff 预览已拆分到 /diff 命令，本命令只列文件名）
 /// </summary>
 public class RecentCommand : SlashCommand
 {
     public override string Name => "/recent";
-    public override string[] Aliases => ["/diff", "/d"];
     public override string Description => "最近修改文件";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)

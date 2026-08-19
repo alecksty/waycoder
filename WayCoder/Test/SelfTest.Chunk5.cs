@@ -161,6 +161,13 @@ public static partial class SelfTest
         Check("SlashCommandRegistry 含 /help", SlashCommandRegistry.Commands.Any(c => c.Name == "/help"));
         Check("SlashCommandRegistry 含 /model", SlashCommandRegistry.Commands.Any(c => c.Name == "/model"));
         Check("SlashCommandRegistry 覆盖原硬编码 14 条", SlashCommandRegistry.Commands.Count >= 14);
+        // /diff 拆分：/diff + /d 归 DiffCommand（diff 预览），/recent 只留文件列表
+        var (diffCmd, _) = SlashCommandRegistry.Match("/diff");
+        Check("命令注册: /diff → DiffCommand", diffCmd?.GetType().Name == "DiffCommand");
+        var (diffAlias, _) = SlashCommandRegistry.Match("/d");
+        Check("命令别名: /d → DiffCommand", diffAlias?.GetType().Name == "DiffCommand");
+        var (recentCmd, _) = SlashCommandRegistry.Match("/recent");
+        Check("命令拆分: /recent 仍列文件（非 DiffCommand）", recentCmd != null && recentCmd.GetType().Name == "RecentCommand");
         Console.WriteLine();
 
         // ---- MCP 环境变量解析 ----

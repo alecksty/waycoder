@@ -159,6 +159,7 @@ public class TuiManager : IDisposable
         {
             // 无脏变化也刷新直接写屏的动画控件（不依赖 Dirty 标志）
             TuiAnimatedText.RenderAllDirect();
+            TuiDynamicBar.RenderAllDirect(); // 动态栏 spinner 直写屏幕（不等 dirty）
             return;
         }
         IsDirty = false;
@@ -196,6 +197,7 @@ public class TuiManager : IDisposable
 
         // 4. 直接写屏的动画控件（不依赖 Dirty 标志，帧写完后叠加写终端）
         TuiAnimatedText.RenderAllDirect();
+        TuiDynamicBar.RenderAllDirect();
     }
 
     /// <summary>写入干净帧（窗口关闭后还原背景）</summary>

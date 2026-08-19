@@ -281,8 +281,8 @@ public static class SessionPicker
         return chars == text.Length ? text : text[..chars] + "…";
     }
 
-    /// <summary>格式化相对时间</summary>
-    private static string FormatRelativeTime(string savedAt)
+    /// <summary>格式化相对时间（侧边栏会话区也复用）</summary>
+    internal static string FormatRelativeTime(string savedAt)
     {
         if (!DateTime.TryParse(savedAt, out var dt))
             return savedAt.Length > 14 ? savedAt[..14] : savedAt;

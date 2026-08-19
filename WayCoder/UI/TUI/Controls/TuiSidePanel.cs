@@ -85,6 +85,7 @@ public class TuiSidePanel : TuiControl
             if (quota < 0) break;                 // 高度已耗尽，后面的分区一行都放不下
             if (curRow >= row + Height) break;
 
+            curRow++; // section 上方空行（两边间隔）
             // ── 标题行 ──
             if (curRow >= ClipTop && curRow < ClipBottom)
             {
@@ -99,7 +100,7 @@ public class TuiSidePanel : TuiControl
                 sb.Append(titleRb.ToString());
             }
             curRow++; // 标题行
-            curRow++; // section 之间空一行（呼吸间隔）
+            curRow++; // section 下方空行（两边间隔）
 
             // ── 内容行 ──
             bool clipped = quota < sec.Lines.Count;
@@ -143,7 +144,7 @@ public class TuiSidePanel : TuiControl
     /// </summary>
     public static List<int> AllocateHeights(IReadOnlyList<PanelSection> sections, int height)
     {
-        const int Overhead = 2;   // 标题横线行 + section 间隔空行
+        const int Overhead = 3;   // section 上间隔 + 标题横线行 + 下间隔
         var visible = new List<int>();          // 各分区内容行需求
         foreach (var s in sections)
             if (!s.Collapsed) visible.Add(s.Lines.Count);

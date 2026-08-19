@@ -63,6 +63,7 @@ public static class TuiKeybindHelp
             ("拖拽边缘", "缩放浮窗"),
         ]),
         ("🛠 工具", [
+            ("Ctrl+D", "Diff 预览修改文件"),
             ("Ctrl+R", "搜索对话历史"),
             ("Ctrl+H", "打开本帮助面板"),
         ]),
