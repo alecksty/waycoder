@@ -125,8 +125,40 @@ public partial class ChatScreen : TuiScreen
     /// <summary>聊天消息锁（保护后台线程回调中的 ChatMessages/ChatList 写入）</summary>
     private readonly object _chatLock = new();
 
+    /// <summary>后台线程 → UI 线程消息队列：子线程永不直接碰控件树，只投递操作，UI 线程 PumpUIQueue 消费。</summary>
+    private readonly ConcurrentQueue<Action> _uiQueue = new();
+
+    /// <summary>UI 线程 ID（构造时捕获；PostToUI 据此判定直接执行还是投递）</summary>
+    private readonly int _uiThreadId = Environment.CurrentManagedThreadId;
+
+    /// <summary>
+    /// 投递 UI 操作：UI 线程调用直接执行（无延迟），后台线程调用入队（UI 线程 PumpUIQueue 消费）。
+    /// 这样所有 ChatScreen 的 UI 方法都能安全地从任意线程调用，控件树只被 UI 线程触碰。
+    /// </summary>
+    public void PostToUI(Action action)
+    {
+        if (action == null) return;
+        if (Environment.CurrentManagedThreadId == _uiThreadId)
+            action();
+        else
+            _uiQueue.Enqueue(action);
+    }
+
+    /// <summary>消费并执行 UI 操作队列（仅 UI 线程调用：REPL 主循环 / RunAgentWithRenderLoop / RenderWait）。</summary>
+    public void PumpUIQueue()
+    {
+        while (_uiQueue.TryDequeue(out var action))
+        {
+            try { action(); }
+            catch { /* 单条操作失败不拖垮整帧 */ }
+        }
+    }
+
     /// <summary>状态栏左侧（模型名、git 分支等）</summary>
     public string StatusLeft { get; set; } = "";
+
+    /// <summary>当前会话 ID（侧边栏会话区标记「当前」；由 REPL 主循环按活跃槽位同步）</summary>
+    public string CurrentSessionId { get; set; } = "";
 
     /// <summary>状态栏右侧（Token 信息）</summary>
     public string StatusRight { get; set; } = "";
@@ -189,18 +221,22 @@ public partial class ChatScreen : TuiScreen
 
     private void OnCompressProgress(int layer, string message, double percent)
     {
-        if (ContextManager.IsCompressing && DynamicBar != null)
+        // 压缩在 Agent 后台线程执行，事件可能从后台触发 → 投递到 UI 线程（UI 线程触发则直接执行）
+        PostToUI(() =>
         {
-            DynamicBar.Status = AgentStatus.Compressing;
-            DynamicBar.ProgressPercent = percent;
-            DynamicBar.ProgressLabel = $"[L{layer}] {message}";
-            MarkDynamicBarDirty();
-        }
-        else if (DynamicBar != null)
-        {
-            DynamicBar.ProgressPercent = null;
-            DynamicBar.ProgressLabel = "";
-        }
+            if (ContextManager.IsCompressing && DynamicBar != null)
+            {
+                DynamicBar.Status = AgentStatus.Compressing;
+                DynamicBar.ProgressPercent = percent;
+                DynamicBar.ProgressLabel = $"[L{layer}] {message}";
+                MarkDynamicBarDirty();
+            }
+            else if (DynamicBar != null)
+            {
+                DynamicBar.ProgressPercent = null;
+                DynamicBar.ProgressLabel = "";
+            }
+        });
     }
 
     /// <summary>
@@ -213,9 +249,7 @@ public partial class ChatScreen : TuiScreen
         DynamicBar.ContextPercent = _contextPercent; // 常驻上下文占用%
 
         // 动画节流：活跃态每 FrameMs（500ms）标一次脏让 spinner 转起来。
-        // 不加这道节流，思考态没有任何状态变化会触发 MarkDirty，spinner 就冻住不动（「卡住」）；
-        // 逐帧标脏又会整条重绘浪费。500ms 一帧 ≈ 2 FPS，够转又不卡。
-        if (DynamicBar.IsActive)
+        // 动画常驻标脏（spinner 每 FrameMs 转，不依赖 IsActive —— 空闲也显示旋转动画）
         {
             long now = Environment.TickCount64;
             if (now - _lastAnimDirtyTicks >= TuiDynamicBar.FrameMs)
@@ -341,18 +375,24 @@ public partial class ChatScreen : TuiScreen
         MarkDynamicBarDirty();
     }
 
-    /// <summary>标记权限等待开始（只刷动态栏，不弄脏根，防标题栏闪）</summary>
+    /// <summary>标记权限等待开始（只刷动态栏，不弄脏根，防标题栏闪）。可后台线程调用（投递到 UI）。</summary>
     public void OnPermissionWaiting(string toolName)
     {
-        _pendingPermissionTool = toolName;
-        MarkDynamicBarDirty();
+        PostToUI(() =>
+        {
+            _pendingPermissionTool = toolName;
+            MarkDynamicBarDirty();
+        });
     }
 
-    /// <summary>标记权限等待结束（只刷动态栏，不弄脏根，防标题栏闪）</summary>
+    /// <summary>标记权限等待结束（只刷动态栏，不弄脏根，防标题栏闪）。可后台线程调用（投递到 UI）。</summary>
     public void OnPermissionResolved()
     {
-        _pendingPermissionTool = null;
-        MarkDynamicBarDirty();
+        PostToUI(() =>
+        {
+            _pendingPermissionTool = null;
+            MarkDynamicBarDirty();
+        });
     }
 
     /// <summary>终端尺寸变化——重建完整布局，保留输入状态和全部聊天消息</summary>
@@ -438,7 +478,11 @@ public partial class ChatScreen : TuiScreen
         SidePanel.Width = panelW;
         SidePanel.Height = chatH;
         if (SidePanelVisible)
+        {
             SidePanel.Sections = SidePanelSections;
+            if (FocusedWindow == null)
+                SidePanel.MarkDirty(); // 无弹窗才标脏重绘（弹窗在场侧栏被遮罩，且避免与弹窗渲染竞争）
+        }
     }
 
     /// <summary>
@@ -531,6 +575,7 @@ public partial class ChatScreen : TuiScreen
             Height = 1,
             Bg = 0,
         };
+        DynamicBar.RegisterDirectWrite(this); // spinner 直写终端（不依赖 dirty 整条重绘，按所属屏幕门控）
         RootView.Add(DynamicBar);
 
         // ── 输入区上分隔线 ──
@@ -946,6 +991,9 @@ public partial class ChatScreen : TuiScreen
 
     /// <summary>回调：打开会话管理（Program.cs 注入）</summary>
     public Action? OnOpenSessions;
+
+    /// <summary>回调：打开 diff 预览（/diff，Program.cs 注入，Ctrl+D）</summary>
+    public Action? OnOpenDiff;
 
     /// <summary>回调：选择推理深度（Program.cs 注入）</summary>
     public Action? OnReasoningEffort;

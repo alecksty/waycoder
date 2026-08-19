@@ -128,8 +128,11 @@ public abstract class TuiView : TuiControl
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
         var parentDirty = IsDirty;
-        foreach (var child in Children)
+        // for + 每步重读 Count（同 FindFocused）：后台 Agent 流式 AddItem 并发改 Children，
+        // foreach 枚举器会抛 version 异常崩溃。for 循环至多读到部分新项/跳过移除项，不抛异常。
+        for (int i = 0; i < Children.Count; i++)
         {
+            var child = Children[i];
             if (!child.Visible) continue;
 
             if (child is TuiView)
@@ -154,8 +157,8 @@ public abstract class TuiView : TuiControl
     public override void Invalidate()
     {
         IsDirty = true;
-        foreach (var child in Children)
-            child.Invalidate();
+        for (int i = 0; i < Children.Count; i++) // for + 重读 Count：防后台并发 AddItem 崩
+            Children[i].Invalidate();
     }
 
     /// <summary>
@@ -167,15 +170,15 @@ public abstract class TuiView : TuiControl
     protected void MarkDirtyTree()
     {
         MarkDirty();
-        foreach (var child in Children)
+        for (int i = 0; i < Children.Count; i++) // for + 重读 Count：防后台并发 AddItem 崩
         {
-            if (child is TuiView v)
+            if (Children[i] is TuiView v)
             {
                 v.MarkDirtyTree();
             }
             else
             {
-                child.MarkDirty();
+                Children[i].MarkDirty();
             }
         }
     }
@@ -187,8 +190,10 @@ public abstract class TuiView : TuiControl
     {
         if (!IsEnabled) return false;
         // 丢给子焦点子对象（直接聚焦的子控件，或内部有聚焦控件的子视图）
-        foreach (var child in Children)
+        // for + 重读 Count：防后台 AddItem 并发改 Children 触发 foreach version 崩溃
+        for (int i = 0; i < Children.Count; i++)
         {
+            var child = Children[i];
             if ((child.Focused || (child is TuiView v && v.FindFocused() != null))
                 && child.OnKey(key))
             {
@@ -256,15 +261,20 @@ public abstract class TuiView : TuiControl
     {
         // 子类可在此调整自身尺寸
         Layout();
-        foreach (var child in Children)
-            child.OnResize(Width, Height);
+        for (int i = 0; i < Children.Count; i++) // for + 重读 Count：防后台并发 AddItem 崩
+            Children[i].OnResize(Width, Height);
     }
 
     /// <summary>查找焦点控件</summary>
     public TuiControl? FindFocused()
     {
-        foreach (var c in Children)
+        // 用 for + 每步重读 Count，而非 foreach：后台线程（Agent 流式回调）在 _chatLock 内
+        // AddItem/RemoveItem 改 Children，UI 线程这里遍历不拿同一把锁，foreach 枚举器
+        // 检测到 version 变更会抛 InvalidOperationException 崩溃。for 循环只依赖索引 < Count，
+        // 并发增删至多读到部分新项/跳过移除项，绝不抛异常（下帧再同步即可）。
+        for (int i = 0; i < Children.Count; i++)
         {
+            var c = Children[i];
             if (c.Focused) return c;
             if (c is TuiView v)
             {

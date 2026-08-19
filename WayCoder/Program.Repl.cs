@@ -164,17 +164,24 @@ public partial class Program
         screen.ActiveSlotIndex = 0;
 
         // 权限确认框信号 → 槽位状态栏标记"等待权限" + 桌面通知
+        // 回调在后台线程触发（Agent 请求权限），UI 部分投递到 UI 线程，绝不直接碰控件
         PermissionManager.PermissionPromptStarted += toolName =>
         {
-            screen.SlotStates[screen.ActiveSlotIndex] = SlotState.WaitingPerm;
-            screen.OnPermissionWaiting(toolName);
-            DesktopNotifier.NotifyPermissionWaiting(toolName);
+            screen.PostToUI(() =>
+            {
+                screen.SlotStates[screen.ActiveSlotIndex] = SlotState.WaitingPerm;
+                screen.OnPermissionWaiting(toolName);
+            });
+            DesktopNotifier.NotifyPermissionWaiting(toolName); // 非 UI 操作，后台直接做
         };
         PermissionManager.PermissionPromptResolved += _ =>
         {
-            if (screen.SlotStates[screen.ActiveSlotIndex] == SlotState.WaitingPerm)
-                screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Working;
-            screen.OnPermissionResolved();
+            screen.PostToUI(() =>
+            {
+                if (screen.SlotStates[screen.ActiveSlotIndex] == SlotState.WaitingPerm)
+                    screen.SlotStates[screen.ActiveSlotIndex] = SlotState.Working;
+                screen.OnPermissionResolved();
+            });
         };
 
         // 工作模式变更信号 → 同步当前槽位持久模式 + Agent 实例模式 + 状态栏显示
@@ -182,10 +189,13 @@ public partial class Program
         //   后台槽位批准计划走 Agent.OnWorkModeChanged，不经过此全局事件，避免污染活跃槽位）
         WorkModeManager.ModeChanged += mode =>
         {
-            _slots[_activeSlot].WorkMode = mode;
-            if (_slots[_activeSlot].Agent != null)
-                _slots[_activeSlot].Agent!.WorkMode = mode;
-            screen.StatusBar.CurrentWorkMode = mode;
+            screen.PostToUI(() =>
+            {
+                _slots[_activeSlot].WorkMode = mode;
+                if (_slots[_activeSlot].Agent != null)
+                    _slots[_activeSlot].Agent!.WorkMode = mode;
+                screen.StatusBar.CurrentWorkMode = mode;
+            });
         };
 
         // Watch 模式 — 监听外部编辑器文件变更
@@ -216,6 +226,12 @@ public partial class Program
         screen.OnSearchHistory = query => SearchHistory(query, screen);
         screen.OnOpenSessions = () => OpenSessions(screen);
         screen.OnReasoningEffort = () => PickReasoningEffort(screen);
+        screen.OnOpenDiff = () =>
+        {
+            // Ctrl+D → /diff：匹配并同步执行（DiffCommand 无 await，RenderWait 自驱渲染）
+            var (cmd, args) = SlashCommandRegistry.Match("/diff");
+            if (cmd != null) cmd.ExecuteAsync(args, screen).GetAwaiter().GetResult();
+        };
 
         // ── 自动投递命令行槽位任务队列（-p1 ~ -p0，同一槽位可排队）──
         foreach (var (slotIdx, tasks) in _pendingSlotQueues.OrderBy(kv => kv.Key))
@@ -265,6 +281,8 @@ public partial class Program
         var running = true;
         while (running && !_exitRequested)
         {
+            screen.CurrentSessionId = _currentSessionIds[_activeSlot]; // 侧边栏会话区标记「当前」
+            screen.PumpUIQueue(); // 消费后台投递的 UI 操作（Agent 流式 / 权限回调等）
             mgr.Render();
 
             // 处理 ChatScreen 提交的消息（Enter 键 → async LLM 调用）
@@ -572,27 +590,38 @@ public partial class Program
             await _agent!.ChatAsync(_currentUserInput!,
                 onToken: tok =>
                 {
-                    screen_!.Running = false;
-                    screen_!.OnToolFinished(); // token 开始流入 = 回到思考状态
-                    screen_!.EnsureAgentStreaming();
-                    screen_!.AppendToken(tok);
+                    // 后台回调只投递，不直接改控件树（UI 线程 PumpUIQueue 消费，杜绝并发遍历崩溃）
+                    screen_!.PostToUI(() =>
+                    {
+                        screen_!.Running = false;
+                        screen_!.OnToolFinished(); // token 开始流入 = 回到思考状态
+                        screen_!.EnsureAgentStreaming();
+                        screen_!.AppendToken(tok);
+                    });
                 },
                 onTool: (name, brief) =>
                 {
-                    screen_!.FinishAgentMsg();
-                    // 完整 brief 交给 AddToolProgress 按聊天区宽度截取 —— 提前砍 57 字符会把
-                    // bash 命令/文件路径的参数截得没法看；动态栏那份仍截短（一行小空间）
-                    screen_!.AddToolProgress(name, brief);
-                    screen_!.OnToolStarted(name, brief.Length > 40 ? ContextManager.TruncateByRunes(brief, 37) + "..." : brief);
-                    // 不立刻 StartAgentMsg，等 onToolOutput 流式输出完毕再懒启动
-                    // 每 3 次工具调用自动保存
+                    string briefCopy = brief;
+                    screen_!.PostToUI(() =>
+                    {
+                        screen_!.FinishAgentMsg();
+                        // 完整 brief 交给 AddToolProgress 按聊天区宽度截取 —— 提前砍 57 字符会把
+                        // bash 命令/文件路径的参数截得没法看；动态栏那份仍截短（一行小空间）
+                        screen_!.AddToolProgress(name, briefCopy);
+                        screen_!.OnToolStarted(name, briefCopy.Length > 40 ? ContextManager.TruncateByRunes(briefCopy, 37) + "..." : briefCopy);
+                        // 不立刻 StartAgentMsg，等 onToolOutput 流式输出完毕再懒启动
+                    });
+                    // 每 3 次工具调用自动保存（文件 IO，非 UI 操作，留在后台线程）
                     if (++_toolCallCount % 3 == 0)
                         AutoSaveSession();
                 },
                 onToolOutput: line =>
                 {
-                    screen_!.AppendToLast(line + "\n");
-                    screen_!.OnToolFinished(); // 流式输出 = 工具已执行完毕，回到思考
+                    screen_!.PostToUI(() =>
+                    {
+                        screen_!.AppendToLast(line + "\n");
+                        screen_!.OnToolFinished(); // 流式输出 = 工具已执行完毕，回到思考
+                    });
                 },
                 cancellationToken: cts.Token);
         });
@@ -600,6 +629,7 @@ public partial class Program
         var mgr = TuiManager.Instance;
         while (!agentTask.IsCompleted)
         {
+            screen_?.PumpUIQueue(); // 消费后台投递的 UI 操作（Agent 流式回调）
             mgr.Render();
             if (Console.KeyAvailable)
             {
@@ -975,14 +1005,17 @@ public partial class Program
         var agent = slot.Agent!;
         var llm = agent.LlmClient;
 
-        // 输出路由：活跃槽位实时写屏，非活跃槽位缓冲到槽位。整个"判定+写入"在 Sync 锁内原子完成。
+        // 输出路由：活跃槽位投递到 UI 线程（PostToUI 队列），非活跃槽位缓冲到槽位。
+        // 后台 Agent 线程绝不直接改 ChatScreen 控件树 —— 那会与 UI 线程的
+        // FindFocused/OnRender 遍历 Children 竞态崩溃（Collection was modified）。
+        // 整个"判定+投递"在 Sync 锁内原子完成。
         void Route(Action<ChatScreen> live, Action<AgentSlot> buffered)
         {
             lock (slot.Sync)
             {
                 var active = TuiManager.Instance.ActiveScreen as ChatScreen;
                 if (_activeSlot == slotIdx && active != null)
-                    live(active);
+                    active.PostToUI(() => live(active)); // 投递：UI 线程 PumpUIQueue 消费
                 else
                     buffered(slot);
             }
@@ -1090,7 +1123,7 @@ public partial class Program
         {
             cs.UpdateTokenDisplayFull(
                 llm.TotalPromptTokens, llm.TotalCompletionTokens,
-                llm.EstimatedCost,
+                llm.EstimatedCost ?? llm.TaskCost, // 累计费用优先，回退本轮费用
                 ContextManager.EstimateTokens(agent.SnapshotMessages()), _config.MaxContextTokens,
                 llm.LastLatencyMs, llm.LastTokensPerSec);
         }, _ => { });

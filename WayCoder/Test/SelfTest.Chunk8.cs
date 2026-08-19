@@ -416,16 +416,16 @@ public static partial class SelfTest
         // 折叠分区不参与分配
         var withCollapsed = TuiSidePanel.AllocateHeights([Sec(2), Sec(3, collapsed: true)], 20);
         Check("侧栏分配: 折叠分区不占位", withCollapsed is [2]);
-        // 不够放：每区先留「2 行开销 + ≥1 行内容」，余量按需分
+        // 不够放：每区先留「3 行开销（上间隔+标题+下间隔）+ ≥1 行内容」，余量按需分
         var tight = TuiSidePanel.AllocateHeights([Sec(10), Sec(10)], 10);
-        Check("侧栏分配: 不够则均分", tight is [3, 3]);
-        Check("侧栏分配: 不超总高", tight.Sum(q => q + 2) <= 10);
+        Check("侧栏分配: 不够则均分", tight is [2, 2]);
+        Check("侧栏分配: 不超总高", tight.Sum(q => q + 3) <= 10);
         // 要得少的先拿满，省下的轮给还差的 —— 不浪费行
         var uneven = TuiSidePanel.AllocateHeights([Sec(1), Sec(10)], 10);
-        Check("侧栏分配: 少的拿满多的兜底", uneven is [1, 5]);
+        Check("侧栏分配: 少的拿满多的兜底", uneven is [1, 3]);
         // 高度耗尽：装不下的分区标 -1（整块不画），而不是画半个标题
         var starved = TuiSidePanel.AllocateHeights([Sec(3), Sec(3), Sec(3)], 6);
-        Check("侧栏分配: 放不下的分区标 -1", starved is [1, 1, -1]);
+        Check("侧栏分配: 放不下的分区标 -1", starved is [3, -1, -1]);
         Check("侧栏分配: 零高度返回全 0", TuiSidePanel.AllocateHeights([Sec(3)], 0) is [0]);
         Check("侧栏分配: 空列表不崩", TuiSidePanel.AllocateHeights([], 10).Count == 0);
         Console.WriteLine();
