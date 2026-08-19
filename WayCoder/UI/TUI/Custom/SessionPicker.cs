@@ -69,7 +69,7 @@ public static class SessionPicker
         win.Width = winW; win.Height = winH;
         win.MinWidth = MinW; win.MinHeight = winH;
         win.WinBg = TuiTheme.Current.WindowBg;
-        var g = TuiTheme.Current.GradCyanBlue;
+        var g = TuiTheme.Current.GradOrangeYellow; // 统一对话框渐变（与 TuiDialog 系一致）
         win.GradientBorder = true;
         win.GradientStart = g.start;
         win.GradientEnd = g.end;
@@ -93,7 +93,7 @@ public static class SessionPicker
         search.Bg = AnsiColors.BgBlack;
         list.Height = ListH;
         list.IsAutoScrollToEnd = false;
-        Grad(openBtn, TuiTheme.Current.BtnCyanBlue);
+        Grad(openBtn, TuiTheme.Current.BtnOrangeYellow); // 统一：主操作橙黄，危险操作红橙
         Grad(renameBtn, TuiTheme.Current.BtnOrangeYellow);
         Grad(delBtn, TuiTheme.Current.BtnRedOrange);
         Grad(closeBtn, TuiTheme.Current.BtnOrangeYellow);
