@@ -25,6 +25,16 @@ namespace WayCoder.UI.Tui;
 /// </summary>
 public static class DiffPreview
 {
+    // diff 有色背景：深色调（接近黑，柔和不刺眼；替代 ANSI 亮色背景 41/42/46 —— 亮色太刺眼）
+    private const int BgDelete = 52;   // 深红  #800000（删除行）
+    private const int BgInsert = 28;   // 深绿  #008700（添加行）
+    private const int BgContext = 23;  // 深青  #005f5f（当前 hunk 高亮行）
+
+    /// <summary>diff 有色行样式：深背景 + 前景（粗体可选）。
+    /// 用 FgBgCode（自动识别 256 色/TrueColor），FgBg 只支持标准 16 色合并，传 256 色码会错乱。</summary>
+    private static string ColorStyle(int fg, int bg, bool bold)
+        => AnsiTty.FgBgCode(fg, bg) + (bold ? AnsiTty.Sgr(1) : "");
+
     /// <summary>
     /// 一个 diff hunk：上下文行 + 删除行 + 添加行。
     /// </summary>
@@ -92,10 +102,10 @@ public static class DiffPreview
                 evt.Set();
             });
             screen?.ShowWindow(win);
-            // readKeys: false —— 运行在 Agent 执行期，外层循环（REPL / RunAgentWithRenderLoop）
-            // 按「键位作用域闸」已把按键路由到栈顶窗口；这里再读一次控制台会与主循环抢输入，
-            // 造成 Y/N/A/Q/Enter 按了没反应（双线程 Console.ReadKey 竞态）。
-            UxHelper.RenderWait(screen, evt, 120_000, win, readKeys: false);
+            // Agent 执行期（外层 RunAgentWithRenderLoop 渲染 + 按「键位作用域闸」路由按键）→ readKeys:false 只等待，
+            // 避免 RenderWait 与外层循环并发渲染（双线程 Render 竞态花屏）与双读控制台；
+            // 命令场景（/diff，主循环阻塞无外层循环）→ readKeys:true 自己渲染 + 读键。
+            UxHelper.RenderWait(screen, evt, 120_000, win, readKeys: !Program.InAgentRenderLoop);
         }
         catch { evt.Set(); }
         return (result, resultAccepted);
@@ -760,11 +770,11 @@ public static class DiffPreview
         if (line.Kind == '-')
         {
             var prefix = $"{Padding(line.OldLine),4} -";
-            int fg = isCurrentHunk ? 30 : 37;
-            int bg = 41;
+            int fg = isCurrentHunk ? 97 : 37; // 深背景配亮/白前景
+            int bg = BgDelete;
             var maxTextW = tw - 7;
             FillBg(sb, absY, absX, tw, bg);
-            sb.Append(isCurrentHunk ? AnsiTty.Sgr(fg, bg, 1) : AnsiTty.FgBg(fg, bg));
+            sb.Append(ColorStyle(fg, bg, isCurrentHunk));
             sb.Append(prefix).Append(' ');
             AppendHighlightedCode(sb, line.Text, syntax, fg, bg, isCurrentHunk, maxTextW);
             sb.Append(AnsiTty.SgrReset);
@@ -772,11 +782,11 @@ public static class DiffPreview
         else if (line.Kind == '+')
         {
             var prefix = "     +";
-            int fg = isCurrentHunk ? 30 : 37;
-            int bg = 42;
+            int fg = isCurrentHunk ? 97 : 37;
+            int bg = BgInsert;
             var maxTextW = tw - 7;
             FillBg(sb, absY, absX, tw, bg);
-            sb.Append(isCurrentHunk ? AnsiTty.Sgr(fg, bg, 1) : AnsiTty.FgBg(fg, bg));
+            sb.Append(ColorStyle(fg, bg, isCurrentHunk));
             sb.Append(prefix).Append(' ');
             AppendHighlightedCode(sb, line.Text, syntax, fg, bg, isCurrentHunk, maxTextW);
             sb.Append(AnsiTty.SgrReset);
@@ -787,10 +797,10 @@ public static class DiffPreview
             var maxTextW = tw - 7;
             if (isCurrentHunk)
             {
-                FillBg(sb, absY, absX, tw, 46);
-                sb.Append(AnsiTty.FgBg(30, 46));
+                FillBg(sb, absY, absX, tw, BgContext);
+                sb.Append(ColorStyle(97, BgContext, false));
                 sb.Append(prefix).Append(' ');
-                AppendHighlightedCode(sb, line.Text, syntax, 30, 46, false, maxTextW);
+                AppendHighlightedCode(sb, line.Text, syntax, 97, BgContext, false, maxTextW);
                 sb.Append(AnsiTty.SgrReset);
             }
             else if (isAccepted)
@@ -832,9 +842,9 @@ public static class DiffPreview
         int leftFg, leftBg;
         bool leftBold = isCurrentHunk && row.LeftKind == '-';
         if (row.LeftKind == '-')
-            { leftFg = isCurrentHunk ? 30 : 37; leftBg = 41; }
+            { leftFg = isCurrentHunk ? 97 : 37; leftBg = BgDelete; }
         else if (isCurrentHunk)
-            { leftFg = 30; leftBg = 46; leftBold = false; }
+            { leftFg = 97; leftBg = BgContext; leftBold = false; }
         else
             { leftFg = 37; leftBg = 0; }
 
@@ -852,8 +862,7 @@ public static class DiffPreview
         }
         else
         {
-            sb.Append(leftBold ? AnsiTty.Sgr(leftFg, leftBg, 1) :
-                     leftBg > 0 ? AnsiTty.FgBg(leftFg, leftBg) : "");
+            sb.Append(leftBg > 0 ? ColorStyle(leftFg, leftBg, leftBold) : "");
             sb.Append(leftPrefix).Append(' ');
             int maxCodeW = panelWidth - VW(leftPrefix) - 1;
             var leftCode = TruncateByVW(row.LeftText, maxCodeW);
@@ -871,9 +880,9 @@ public static class DiffPreview
         int rightFg, rightBg;
         bool rightBold = isCurrentHunk && row.RightKind == '+';
         if (row.RightKind == '+')
-            { rightFg = isCurrentHunk ? 30 : 37; rightBg = 42; }
+            { rightFg = isCurrentHunk ? 97 : 37; rightBg = BgInsert; }
         else if (isCurrentHunk)
-            { rightFg = 30; rightBg = 46; rightBold = false; }
+            { rightFg = 97; rightBg = BgContext; rightBold = false; }
         else
             { rightFg = 37; rightBg = 0; }
 
@@ -889,12 +898,17 @@ public static class DiffPreview
         }
         else
         {
-            sb.Append(rightBold ? AnsiTty.Sgr(rightFg, rightBg, 1) :
-                     rightBg > 0 ? AnsiTty.FgBg(rightFg, rightBg) : "");
+            // 右面板实际宽度（tw 减去左面板 + 分隔符；奇数差时右面板多 1 列）
+            int rightPanelW = tw - panelWidth - 3;
+            sb.Append(rightBg > 0 ? ColorStyle(rightFg, rightBg, rightBold) : "");
             sb.Append(rightPrefix).Append(' ');
-            int maxCodeW = panelWidth - VW(rightPrefix) - 1;
+            int maxCodeW = rightPanelW - VW(rightPrefix) - 1;
             var rightCode = TruncateByVW(row.RightText, maxCodeW);
+            int codeVW = VW(rightCode);
             AppendHighlightedCode(sb, rightCode, syntax, rightFg, rightBg, rightBold, int.MaxValue);
+            // 背景色填充到右面板边界（与左面板 leftPad 对称），否则 + 行色条只到文字末尾、左右不对齐
+            int rightPad = Math.Max(0, rightPanelW - VW(rightPrefix) - 1 - codeVW);
+            sb.Append(new string(' ', rightPad));
             sb.Append(AnsiTty.SgrReset);
         }
     }
@@ -934,8 +948,8 @@ public static class DiffPreview
         if (syntax == null || string.IsNullOrEmpty(code))
         {
             var t = TruncateByVW(code, maxWidth);
-            if (bold) sb.Append(AnsiTty.Sgr(baseFg, bgColor, 1));
-            else if (bgColor > 0) sb.Append(AnsiTty.FgBg(baseFg, bgColor));
+            if (bold) sb.Append(ColorStyle(baseFg, bgColor, true));
+            else if (bgColor > 0) sb.Append(ColorStyle(baseFg, bgColor, false));
             sb.Append(t);
             return;
         }
@@ -951,9 +965,9 @@ public static class DiffPreview
 
             int fg = tokFg > 0 ? tokFg : baseFg;
             if (bold)
-                sb.Append(AnsiTty.Sgr(fg, bgColor, 1));
+                sb.Append(ColorStyle(fg, bgColor, true));
             else if (bgColor > 0)
-                sb.Append(AnsiTty.FgBg(fg, bgColor));
+                sb.Append(ColorStyle(fg, bgColor, false));
             else
                 sb.Append(AnsiTty.Fg(fg));
             sb.Append(t);

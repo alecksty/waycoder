@@ -294,6 +294,9 @@ public class TuiComboBox : TuiControl
         _searchText = "";
         _filteredIndices = [];
         OnExpandedChanged?.Invoke(false);
+        // 下拉行是覆盖式画在控件下方的屏幕区域，折叠后不重绘会残留旧像素；
+        // 标脏整个窗口根视图触发全窗口重绘，由窗口背景覆盖掉下拉残影
+        Window?.RootView.MarkDirty();
     }
 
     /// <summary>设置为指定索引</summary>

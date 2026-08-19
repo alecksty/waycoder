@@ -37,6 +37,10 @@ public class TuiManager : IDisposable
     private readonly Stack<TuiScreen> _screenStack = new();
     public TuiScreen? ActiveScreen { get; private set; }
 
+    /// <summary>渲染互斥锁：主循环 / RunAgentWithRenderLoop / 各对话框 RenderWait 可能跨线程调 Render，
+    /// 串行化避免双线程并发遍历控件树与写终端（帧交错花屏）。</summary>
+    private readonly object _renderLock = new();
+
     private InputManager? _input;
     /// <summary>共享输入管理器：主循环与 RenderWait（ModalPicker/DiffPreview 等阻塞对话框）共用，
     /// 统一 bracketed paste / CSI 解析——否则 RenderWait 用裸 ReadKey 会把粘贴的 \x1b[200~ 当 Esc 关闭对话框。</summary>
@@ -155,49 +159,56 @@ public class TuiManager : IDisposable
     public void Render()
     {
         if (!IsActive) return;
-        if (!IsDirty && !_needsFullRefresh)
+        // 渲染互斥：主循环 / RunAgentWithRenderLoop / 对话框 RenderWait 可能跨线程调 Render，
+        // 串行化避免双线程并发遍历控件树 + 写终端（帧交错花屏）
+        lock (_renderLock)
         {
-            // 无脏变化也刷新直接写屏的动画控件（不依赖 Dirty 标志）
+            if (!IsDirty && !_needsFullRefresh)
+            {
+                // 无脏变化也刷新直接写屏的动画控件（不依赖 Dirty 标志）
+                TuiAnimatedText.RenderAllDirect();
+                TuiDynamicBar.RenderAllDirect(); // 动态栏 spinner 直写屏幕（不等 dirty）
+                ActiveScreen?.EmitCursor();      // 直写用 CursorPos 移动了光标 → 恢复，防输入区光标错位
+                return;
+            }
+            IsDirty = false;
+
+            (TW, TH) = (Tty.Cols, Tty.Rows);
+
+            // 确定当前光标所有者（每屏一个光标）
+            ActiveScreen?.SetCursorOwner();
+
+            var sb = new StringBuilder();
+            sb.Append(AnsiTty.CursorHide).Append(AnsiTty.Home);
+
+            // 全刷新仅首帧 / 切屏 / Resize 时清除整个屏幕。
+            // RootView 因子控件变化而标记脏时走增量路径：不清屏，控件原地重绘覆盖。
+            bool fullRefresh = _needsFullRefresh;
+            if (fullRefresh)
+            {
+                sb.Append(AnsiTty.ClearScreen);
+                ActiveScreen?.RootView.Invalidate();
+                _needsFullRefresh = false;
+            }
+
+            // 通知 Screen 当前是否为增量更新（仅脏控件刷新）
+            if (ActiveScreen != null)
+                ActiveScreen.IsIncrementalUpdate = !fullRefresh;
+
+            // 1. 渲染活跃屏幕
+            ActiveScreen?.Render(sb);
+
+            // 2. 保存干净帧
+            LastCleanFrame = sb.ToString();
+
+            // 3. 全局输出
+            Tty.Write(sb.ToString());
+
+            // 4. 直接写屏的动画控件（不依赖 Dirty 标志，帧写完后叠加写终端）
             TuiAnimatedText.RenderAllDirect();
-            TuiDynamicBar.RenderAllDirect(); // 动态栏 spinner 直写屏幕（不等 dirty）
-            return;
+            TuiDynamicBar.RenderAllDirect();
+            ActiveScreen?.EmitCursor(); // 直写也移动了光标 → 恢复（脏路径同样不能丢输入区光标）
         }
-        IsDirty = false;
-
-        (TW, TH) = (Tty.Cols, Tty.Rows);
-
-        // 确定当前光标所有者（每屏一个光标）
-        ActiveScreen?.SetCursorOwner();
-
-        var sb = new StringBuilder();
-        sb.Append(AnsiTty.CursorHide).Append(AnsiTty.Home);
-
-        // 全刷新仅首帧 / 切屏 / Resize 时清除整个屏幕。
-        // RootView 因子控件变化而标记脏时走增量路径：不清屏，控件原地重绘覆盖。
-        bool fullRefresh = _needsFullRefresh;
-        if (fullRefresh)
-        {
-            sb.Append(AnsiTty.ClearScreen);
-            ActiveScreen?.RootView.Invalidate();
-            _needsFullRefresh = false;
-        }
-
-        // 通知 Screen 当前是否为增量更新（仅脏控件刷新）
-        if (ActiveScreen != null)
-            ActiveScreen.IsIncrementalUpdate = !fullRefresh;
-
-        // 1. 渲染活跃屏幕
-        ActiveScreen?.Render(sb);
-
-        // 2. 保存干净帧
-        LastCleanFrame = sb.ToString();
-
-        // 3. 全局输出
-        Tty.Write(sb.ToString());
-
-        // 4. 直接写屏的动画控件（不依赖 Dirty 标志，帧写完后叠加写终端）
-        TuiAnimatedText.RenderAllDirect();
-        TuiDynamicBar.RenderAllDirect();
     }
 
     /// <summary>写入干净帧（窗口关闭后还原背景）</summary>

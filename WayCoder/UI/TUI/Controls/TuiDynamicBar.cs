@@ -10,19 +10,19 @@ namespace WayCoder.UI.Tui.Controls;
 /// </summary>
 public enum AgentStatus
 {
-    /// <summary>空闲 — 无动画，灰字</summary>
+    /// <summary>空闲 — 灰色 spinner + 就绪</summary>
     Idle,
-    /// <summary>思考中 — 绿色 spinner + 模型名</summary>
+    /// <summary>思考中 — 黄色 spinner + 模型名</summary>
     Thinking,
     /// <summary>工具执行 — 黄色 spinner + 工具详情</summary>
     ToolRunning,
-    /// <summary>上下文压缩 — 蓝色 spinner + 进度条</summary>
+    /// <summary>上下文压缩 — 黄色 spinner + 进度条</summary>
     Compressing,
-    /// <summary>等待权限 — 橙色闪烁</summary>
+    /// <summary>等待权限 — 黄色 spinner + 等待确认</summary>
     WaitingPerm,
-    /// <summary>计划模式 — 紫色（只读分析，不执行写操作）</summary>
+    /// <summary>计划模式 — 黄色 spinner（只读分析，不执行写操作）</summary>
     Planning,
-    /// <summary>错误 — 红色</summary>
+    /// <summary>错误 — 红色 spinner</summary>
     Error,
 }
 
@@ -41,7 +41,7 @@ public class TuiDynamicBar : TuiControl
 
     private static readonly string[] Frames = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"];
 
-    /// <summary>动画帧间隔（毫秒）。每帧由 ChatScreen 按此节流标脏，500ms 一帧 ≈ 2 FPS ——
+    /// <summary>动画帧间隔（毫秒）。每帧由 ChatScreen 按此节流标脏，250ms 一帧 ≈ 4 FPS ——
     /// 够看出在转，又不至于逐帧整条重绘造成卡顿。</summary>
     public const int FrameMs = 250; // 250ms/帧 ≈ 4 FPS：流畅又不卡
 
