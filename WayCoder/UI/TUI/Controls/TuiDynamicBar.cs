@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -42,7 +43,58 @@ public class TuiDynamicBar : TuiControl
 
     /// <summary>动画帧间隔（毫秒）。每帧由 ChatScreen 按此节流标脏，500ms 一帧 ≈ 2 FPS ——
     /// 够看出在转，又不至于逐帧整条重绘造成卡顿。</summary>
-    public const int FrameMs = 500;
+    public const int FrameMs = 250; // 250ms/帧 ≈ 4 FPS：流畅又不卡
+
+    /// <summary>按 Agent 状态取 spinner 前景色（DirectWrite 直写与 OnRender 共用）。</summary>
+    private static int SpinnerFg(AgentStatus st) => st switch
+    {
+        // 动画图标统一用黄色（用户要求橙/黄），错误仍红
+        AgentStatus.Thinking => AnsiColors.Yellow,
+        AgentStatus.ToolRunning => AnsiColors.Yellow,
+        AgentStatus.Compressing => AnsiColors.Yellow,
+        AgentStatus.WaitingPerm => AnsiColors.Yellow,
+        AgentStatus.Planning => AnsiColors.Yellow,
+        AgentStatus.Error => AnsiColors.Red,
+        _ => AnsiColors.BrightBlack,
+    };
+
+    /// <summary>spinner 动画直写屏幕（不依赖 dirty 整条重绘）：记录位置，RenderAllDirect 时写当前帧。
+    /// owner 为所属屏幕，用于直写门控（活跃屏幕一致 + 栈顶无窗口才直写，避免画到别的屏幕或覆盖对话框）。</summary>
+    public void RegisterDirectWrite(TuiScreen? owner = null)
+    {
+        _owner = owner;
+        if (!DirectWriters.Contains(this)) DirectWriters.Add(this);
+    }
+
+    private TuiScreen? _owner; // 所属屏幕：直写门控
+
+    public override void OnDestroy()
+    {
+        DirectWriters.Remove(this);
+        base.OnDestroy();
+    }
+
+    /// <summary>直接把当前 spinner 帧写到终端（TuiManager.Render 末尾调用，不等 dirty）。
+    /// 门控：自己不在活跃屏幕不写（直写坐标已失效）；栈顶有窗口不写（直写会把 spinner 画到对话框/浮层上）。</summary>
+    public void RenderDirect()
+    {
+        if (_spinnerX <= 0) return;
+        if (TuiManager.Instance?.ActiveScreen != _owner) return; // 不在当前屏幕 → 直写污染别的屏幕
+        if (_owner?.FocusedWindow != null) return;               // 有窗口覆盖 → 直写破坏窗口像素
+        var sb = new StringBuilder();
+        sb.Append(AnsiTty.CursorPos0(_spinnerY, _spinnerX));
+        int fg = SpinnerFg(Status); // 直写方法独立计算 spinner 色（不依赖 OnRender 局部变量）
+        sb.Append(AnsiTty.FgBgCode(fg, AnsiColors.BgBlack));
+        sb.Append(CurrentFrame);
+        sb.Append(AnsiTty.SgrReset);
+        Tty.Write(sb.ToString());
+    }
+
+    /// <summary>刷新所有直写 spinner 的动态栏（TuiManager.Render 末尾调用）。</summary>
+    public static void RenderAllDirect()
+    {
+        foreach (var w in DirectWriters) w.RenderDirect();
+    }
 
     /// <summary>基于时钟的当前帧（无需 Tick）。先对帧数取模再强转 int——
     /// 毫秒数/500 远超 int.MaxValue（2026 年约 1.28e11），直接 (int) 会溢出为负数索引导致 IndexOutOfRange。</summary>
@@ -76,6 +128,9 @@ public class TuiDynamicBar : TuiControl
 
     public override bool CanFocus => false;
 
+    private static readonly List<TuiDynamicBar> DirectWriters = [];
+    private int _spinnerX, _spinnerY; // 渲染时记录 spinner 位置（DirectWrite 直写用）
+
     public TuiDynamicBar()
     {
         Height = 1;
@@ -106,17 +161,18 @@ public class TuiDynamicBar : TuiControl
         {
             AgentStatus.Thinking => (AnsiColors.Green, AnsiColors.Grey),
             AgentStatus.ToolRunning => (AnsiColors.Yellow, AnsiColors.BrightBlack),
-            AgentStatus.Compressing => (AnsiColors.Cyan, AnsiColors.Grey),
+            AgentStatus.Compressing => (AnsiColors.Yellow, AnsiColors.Grey),
             AgentStatus.WaitingPerm => (AnsiColors.Yellow, AnsiColors.Yellow),
-            AgentStatus.Planning => (AnsiColors.Magenta, AnsiColors.Grey),
+            AgentStatus.Planning => (AnsiColors.Yellow, AnsiColors.Grey),
             AgentStatus.Error => (AnsiColors.Red, AnsiColors.Red),
             _ => (AnsiColors.BrightBlack, AnsiColors.BrightBlack),
         };
 
         // ── 左段：动画字符位（预留 1 字符 + 空格，活跃=spinner / 空闲=占位空格）──
         // 始终占位让左段文字水平位置稳定：idle→active 切换时状态文本不左右跳。
+        _spinnerX = absX + 1; _spinnerY = absY; // 记录 spinner 位置（DirectWrite 直写用）
         int col = absX + 1;
-        rb.Write(absY, col, IsActive ? CurrentFrame : " ",
+        rb.Write(absY, col, CurrentFrame, // spinner 常驻转（空闲灰、活跃彩）
             fg: IsActive ? spinnerColor : AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
         col += 2;
 

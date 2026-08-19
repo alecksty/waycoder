@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.79.57 (2026-08-19) — UI 线程模型根治 + /diff 命令 + 侧边栏会话列表
+
+- **UI 线程模型根治并发崩溃**：`ChatScreen` 加 UI 消息队列（`PostToUI` 线程判定直接执行/入队 + `PumpUIQueue` 消费）——后台 Agent 回调（Route / RunAgentWithRenderLoop 的 onToken/onTool/onToolOutput）、权限确认、上下文压缩进度、工作模式变更全部改为**只投递消息**，控件树被 UI 线程独占；`TuiView` 高频遍历（FindFocused/OnRender/OnKey 等）改 `for` + 重读 Count 防御。修复 `Collection was modified` 崩溃（后台线程与 UI 线程 `FindFocused` 遍历 Children 竞态）
+- **动态栏 spinner DirectWrite 直写**：`FrameMs` 250ms、spinner 常驻旋转（空闲灰/活跃彩）、各状态统一黄色；直写终端不依赖整条重绘；**门控**（非活跃屏幕 / 栈顶有窗口跳过直写）——修复 diff 对话框打开时 spinner 画到窗口上导致按钮/按键「无效」的假象
+- **`/diff` 命令 + Ctrl+D 快捷键**：新建 `DiffCommand` 遍历修改文件逐个弹 `DiffPreview`（旧内容取 `git show HEAD`，非 git/新文件回退全新增）；`/recent` 拆分回纯文件列表；帮助面板补 Ctrl+D
+- **侧边栏「⚡ 会话」区改历史会话列表**：`SessionManager.ListSessions` 按槽位取最近 5 条（名称·相对时间·消息数），当前会话 ✓ 高亮，500ms 缓存避免每帧读盘
+- **侧边栏弹窗时暂停刷新**：`SyncSidePanel` / `ApplyDynamicSizes` 加 `FocusedWindow` 判断，对话框在场不重建分区不标脏
+- **费用显示**：累计费用优先回退本轮费用；模型无定价表时显示 `¥-` 占位
+- **侧边栏 section 上下间隔**：`Overhead` 2→3（上间隔+标题+下间隔），对应测试同步更新
+
+### ✅ 验证
+- 自测 3930 通过（新增 /diff 命令注册测试 3 项），编译 0 错误
+
 ## v0.79.56 (2026-08-19) — 侧边栏优化：标题横线到边 + section 间隔 + 灰色文字
 
 - **标题行**：`名称(num)` + 横线到边（少一格，长度随内容区宽，数据变动不错位）；删除固定 20 长度分隔线

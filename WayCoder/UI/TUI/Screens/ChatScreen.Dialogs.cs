@@ -78,8 +78,9 @@ public partial class ChatScreen : TuiScreen
         if (maxContext > 0)
             sb.Append($"/{FormatNum(maxContext)}");
         sb.Append(" 词元");
-        if (estimatedCost.HasValue)
-            sb.Append($" · ¥{estimatedCost.Value * 7.25:F2}");
+        sb.Append(estimatedCost.HasValue
+            ? $" · ¥{estimatedCost.Value * 7.25:F2}"
+            : " · ¥-"); // 模型无定价表时显示占位，用户仍可见计费位置
         if (lastLatencyMs > 0)
             sb.Append($" · {lastLatencyMs / 1000:F1}s");
         StatusRight = sb.ToString();

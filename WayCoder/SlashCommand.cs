@@ -131,6 +131,7 @@ public static class SlashCommandRegistry
         Register(new Commands.EditCommand());
         Register(new Commands.SearchCommand());
         Register(new Commands.RecentCommand());
+        Register(new Commands.DiffCommand());
         Register(new Commands.TodoCommand());
         Register(new Commands.LintCommand());
 

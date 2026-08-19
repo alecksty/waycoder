@@ -424,6 +424,7 @@ public static class UxHelper
         var start = Environment.TickCount64;
         while (!evt.IsSet)
         {
+            if (screen is ChatScreen chat) chat.PumpUIQueue(); // 对话框期间也消费后台投递的 UI 操作
             manager?.Render();
             if (readKeys)
             {
