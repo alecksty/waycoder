@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.79.32 (2026-08-19) — TUI 预览支持 Screen 根 + 数据控件完整显示
+
+- `TuiPreview.Run` 对 **Screen 根**（showcase/chat/main）用 `RenderOnlyScreen` 渲染（此前只窗口化渲染，数据控件不显示）
+- 实测 showcase 预览：**List/DataList/Tree/TableList/ComboBox/RadioGroup** 数据全部显示
+  - List `items`、DataList `items`+cell 模板、Tree `items` 路径、TableList `columns`+`items`
+- 模板声明 items 即可预览数据；自定义项数据（cell 模板/占位符）同样显示
+
+### ✅ 验证
+- 自测 3569 通过，编译 0 错误
+
 ## v0.79.31 (2026-08-19) — TUI 预览支持内嵌资源名（预览任意对话框/新属性）
 
 - `TuiPreview.Run`（`--tui-preview`）：非文件路径时按**内嵌资源名**加载（`dialogs/modelpicker.tui` / `chat.tui` / `menu.tui` 等），预览任意内嵌界面
