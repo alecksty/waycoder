@@ -145,6 +145,44 @@ public static partial class SelfTest
         tree.MoveUp();
         Check("MoveUp 回到第一个根", tree.SelectedNode == tree.RootNodes[0]);
 
+        // ── 键盘通路（此前只测 MoveUp/MoveDown 这类方法，键根本没走到控件也照样绿）──
+        static ConsoleKeyInfo K(ConsoleKey k) => new('\0', k, false, false, false);
+        var keyTree = new TuiTreeView { Width = 30, Height = 10 };
+        var kA = keyTree.AddRoot("A");
+        var kB = keyTree.AddRoot("B");
+        kA.Add(new TuiTreeNode("A-1"));
+        keyTree.SelectNode(kA);
+        Check("树 OnKey ↓ 生效", keyTree.OnKey(K(ConsoleKey.DownArrow)) && keyTree.SelectedNode == kB);
+        Check("树 OnKey ↑ 生效", keyTree.OnKey(K(ConsoleKey.UpArrow)) && keyTree.SelectedNode == kA);
+        Check("树 OnKey → 展开", keyTree.OnKey(K(ConsoleKey.RightArrow)) && kA.IsExpanded);
+        Check("树 OnKey ← 折叠", keyTree.OnKey(K(ConsoleKey.LeftArrow)) && !kA.IsExpanded);
+
+        // 窗口里没人 Focused 时，TuiView.OnKey 无处派发 → 整窗键盘失灵。AddWindow 兜底聚焦首控件。
+        var treeBox = new TuiVBox { Width = 30, Height = 10 };
+        treeBox.Add(keyTree);
+        var treeWin = new TuiWindow { RootView = treeBox, Width = 32, Height = 12, Modal = false };
+        keyTree.Focused = false;
+        Check("入窗前无人聚焦", treeBox.FindFocused() == null);
+        new ChatScreen().AddWindow(treeWin);
+        Check("AddWindow 兜底聚焦首个可聚焦控件", treeBox.FindFocused() == keyTree);
+        keyTree.SelectNode(kA);
+        Check("窗口按键能到达树形视图",
+            treeWin.OnKey(K(ConsoleKey.DownArrow)) && keyTree.SelectedNode == kB);
+
+        // 增量渲染的命门：控件处理了按键却不标脏 → 画面停在旧帧 = 用户眼里的「按键无用」
+        keyTree.IsDirty = false;
+        keyTree.SelectNode(kA);
+        Check("SelectNode 标脏", keyTree.IsDirty);
+        keyTree.IsDirty = false;
+        keyTree.ExpandNode(kA);
+        Check("ExpandNode 标脏", keyTree.IsDirty);
+        keyTree.IsDirty = false;
+        keyTree.CollapseNode(kA);
+        Check("CollapseNode 标脏", keyTree.IsDirty);
+        keyTree.IsDirty = false;
+        treeBox.OnKey(K(ConsoleKey.DownArrow));
+        Check("派发口兜底标脏（控件自己没标也不会漏画）", keyTree.IsDirty);
+
         Console.WriteLine();
 
         // ================================================================
@@ -1197,6 +1235,87 @@ public static partial class SelfTest
         // Ctrl+Y 重做
         input3.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Y, false, false, true));
         Check("TuiInput Ctrl+Y 重做", input3.Text == "x");
+
+        // ── 脏标记：增量渲染只画脏控件，忘标脏＝按了键界面不刷新 ──
+        // 单行/多行两种输入框都盖到（用户口径：「输入框分单行、多行」）
+        Section("[控件脏标记 / 增量刷新]");
+        {
+            // 单行：光标移动、选择、撤销这些不改文本的操作也必须标脏
+            var di = new TuiInput { Text = "hello", CursorPos = 5 };
+            di.Focused = true;
+            foreach (var (name, k) in ((string, ConsoleKeyInfo)[])[
+                ("←光标左移", new ConsoleKeyInfo('\0', ConsoleKey.LeftArrow, false, false, false)),
+                ("Home", new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false)),
+                ("End", new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false)),
+                ("Shift+←选择", new ConsoleKeyInfo('\0', ConsoleKey.LeftArrow, true, false, false)),
+                ("Ctrl+A全选", new ConsoleKeyInfo('\0', ConsoleKey.A, false, false, true)),
+                ("打字", new ConsoleKeyInfo('x', ConsoleKey.X, false, false, false)),
+                ("Ctrl+Z撤销", new ConsoleKeyInfo('\0', ConsoleKey.Z, false, false, true))])
+            {
+                di.ClearDirty();
+                di.OnKey(k);
+                Check($"单行输入框: {name} 后标脏", di.IsDirty);
+            }
+
+            // 未处理的键不该白标脏（增量渲染的意义就在于少画）
+            di.ClearDirty();
+            di.OnKey(new ConsoleKeyInfo('\t', ConsoleKey.Tab, false, false, false));
+            Check("单行输入框: Tab 未处理不标脏", !di.IsDirty);
+
+            // 多行：同一条基类路径，另加上下移动与翻页
+            var dt = new TuiTextArea { Text = "l1\nl2\nl3", Height = 3, Width = 20 };
+            dt.Focused = true;
+            foreach (var (name, k) in ((string, ConsoleKeyInfo)[])[
+                ("↓下移", new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false)),
+                ("↑上移", new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false)),
+                ("→右移", new ConsoleKeyInfo('\0', ConsoleKey.RightArrow, false, false, false)),
+                ("PageDown", new ConsoleKeyInfo('\0', ConsoleKey.PageDown, false, false, false)),
+                ("回车换行", new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false))])
+            {
+                dt.ClearDirty();
+                dt.OnKey(k);
+                Check($"多行输入框: {name} 后标脏", dt.IsDirty);
+            }
+
+            // 外部赋值（code-behind 改文案/预填）同样要标脏，否则「改了看不见」
+            var dl = new TuiLabel("旧");
+            dl.ClearDirty();
+            dl.Text = "新";
+            Check("标签: 改 Text 标脏", dl.IsDirty);
+            dl.ClearDirty();
+            dl.Text = "新"; // 同值
+            Check("标签: 同值赋值不标脏", !dl.IsDirty);
+
+            var db = new TuiButton("确定");
+            db.ClearDirty();
+            db.Text = "取消";
+            Check("按钮: 改 Text 标脏", db.IsDirty);
+            db.ClearDirty();
+            db.Focused = true;
+            Check("按钮: 获得焦点标脏（Tab 切过去要变高亮）", db.IsDirty);
+            db.ClearDirty();
+            db.Focused = false;
+            Check("按钮: 失去焦点标脏（原来那个要复原）", db.IsDirty);
+            db.ClearDirty();
+            db.IsHovered = true;
+            Check("按钮: 悬停标脏", db.IsDirty);
+
+            var di2 = new TuiInput();
+            di2.ClearDirty();
+            di2.Text = "预填";
+            Check("单行输入框: 外部赋 Text 标脏", di2.IsDirty);
+            di2.ClearDirty();
+            di2.CursorPos = 2;
+            Check("单行输入框: 外部移光标标脏", di2.IsDirty);
+
+            var dt2 = new TuiTextArea();
+            dt2.ClearDirty();
+            dt2.Text = "外部预填";
+            Check("多行输入框: 外部赋 Text 标脏", dt2.IsDirty);
+            dt2.ClearDirty();
+            dt2.ScrollRow = 3;
+            Check("多行输入框: 滚动标脏", dt2.IsDirty);
+        }
 
         // Password 模式
         var inputPw = new TuiInput { Text = "secret", Password = true };

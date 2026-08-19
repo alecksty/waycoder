@@ -1,5 +1,453 @@
 # 更新日志
 
+## v0.79.50 (2026-08-19) — GUI 启动引导 + 消息时间线修复 + 侧栏实时化
+
+### GUI：独立进程补齐启动初始化（GuiBootstrap）
+
+GUI 是独立进程、有自己的 `Program.Main`，csproj 排除了主项目 `Program*.cs`，此前从不执行 CLI 的启动初始化
+（错误日志/异常钩子/MCP/检查点全靠主项目 `Program.Main`）。新增 `GuiBootstrap` 补齐「进程级、与 UI 无关」的部分，对齐 `Program.Main` 序列：
+
+- 错误日志最先（`ErrorLog.Initialize`）+ 全局未处理异常 / 未观察任务异常钩子——崩溃时经 `GuiBootstrap.OnCrashSave`
+  尽力保存各槽位会话（`MainWindow` 构造时挂 `SaveAllSessions`）
+- 主题预设 / 沙箱 / 提示词缓存 / 自定义命令 / Hook（`RunSessionStart`）/ MCP / 检查点，逐项失败只记日志不阻断启动
+- 窗口关闭走 `GuiBootstrap.Shutdown()` 补 `RunSessionEnd`（对齐 CLI 退出流程）；内部幂等可重入
+
+### GUI 消息时间线：工具消息 / 推理段另起气泡
+
+聊天气泡的时间线此前会错位——工具消息之后的回复正文写回工具消息「之前」的旧气泡，视觉上
+「对话全堆在上面、工具消息全堆在下面」。修法：
+
+- `FinalizeStreaming` 由「封最后一条流式气泡」改为「封全部流式气泡」——推理 + 正文可能同时开着，只封最后一条封不干净
+- `AppendTool`/`AppendToolOutput` 先封口正文气泡，工具消息之后的回复另起一条（对齐 TUI `onTool→FinishAgentMsg`）
+- `GetOrCreateStreamingMsg` 必须同时判角色：只看 `Streaming` 会把正文写进还开着的推理气泡
+- 推理段 `«/»` 收尾即封口推理气泡，正文另起一条
+
+### 侧栏实时化：Ctrl+B 立即可见 + 每帧指纹同步
+
+侧栏此前是「摆设」：`Ctrl+B` 只翻标记位，侧栏叶子不标脏，增量渲染跳过，得等手动改一次终端尺寸才
+「突然」冒出来；数据也只开侧栏那一刻刷一次。重构：
+
+- `ToggleSidePanel()`：走完整 resize 路径（重排布局 + 按新宽重灌消息）+ 整屏刷新，开关立即生效
+- `SyncSidePanel()` + `SidePanelStamp()`：每帧数据指纹比对（模型/模式/槽位忙闲/上下文%/当前工具/Git 分支/
+  改动文件数/MCP/LSP/Todo），变了才重建分区并标脏，避免逐帧白烧 GC
+- 品牌区「🏷 道码」换成「⚡ 会话」实时区；Todo/文件/MCP 列表不再 `Take(15)` 预截断
+- `TuiSidePanel` 删除恒为 0 的死代码 `ScrollOffset`，新增纯函数 `AllocateHeights` 按实际可用高度给各分区配额，
+  超出的折成「… 还有 N 条」
+
+### 顺带
+
+- 修 `ThemeConfig` 静态初始化顺序：`Instance = Load()` 挪到 `Presets` 字典之后，避免加载预设时字典未初始化
+- `TuiScreen.AddWindow` 兜底聚焦：窗口内没有控件带焦点时 `win.FocusNext()` 聚焦首个可聚焦控件，
+  修「树形视图演示建了控件却没人 `Focused`」的键盘失灵
+- 删除仓库根目录三个与产品无关的 Python 示例/压力脚本（2048/贪吃蛇），保持仓库纯净
+
+### ✅ 验证
+
+- 自测 3910 通过、0 失败（另有 4 条因本机 `~/.waycoder/provider/opencode.json` 自定义模型改写 deepseek 供应商而失败，属本地配置，非代码回归）
+- 主项目 + GUI 编译 0 错误
+
+## v0.79.49 (2026-08-19) — 启动快捷键简版 + Diff 对话框按钮化 + 工具参数加长 + 标题栏不闪
+
+### 启动快捷键显示简版
+
+启动欢迎 / 槽位首条消息不再列全量快捷键（40 条太挤），只显示常用键：
+`F1-F10` 槽位、`Esc` 中断、`Ctrl+Z` 暂停、`Ctrl+C` 退出、`Ctrl+S` 会话、`Enter` 发送、
+`Ctrl+V` 粘贴、`↑↓` 历史/滚动、`Shift+Tab` 切模式、`Ctrl+M / /model` 模型、`PgUp/PgDn` 翻页、
+`Ctrl+E` 编辑器、`Ctrl+B` 侧栏、`Ctrl+H` 帮助。完整版按 `Ctrl+H` / `F1` 打开速查面板。
+`TuiKeybindHelp.StartupKeys` 是筛选集，与全量表单一事实源（`Groups`），加新键默认只进完整版。
+
+### Diff 对话框：缩小 + 底部按键
+
+- 尺寸不再逼近全屏：宽 `3/4` 屏、高 `70%` 屏（各留边距），小终端还能再小
+- 底部加四个渐变按钮（接受/跳过/全部接受/取消），Tab 切焦点 + 空格执行，
+  与 `Y/N/A/Q` 快捷键走同一动作 —— 按钮是快捷键的图形化替身
+- 修 `/loop` 等走 `RunAgentWithRenderLoop` 的路径：它在栈顶有窗口时仍会把
+  `Y/N/A/Q` 当无用键吃掉（只认 Esc/Ctrl+Z/Q），现在与 REPL 主循环同规矩——
+  有窗口先给窗口（键位作用域闸）
+
+### 工具消息参数加长
+
+`onTool` 回调原先把参数摘要硬砍 57 字符，bash 命令/文件路径一眼看不全。
+改为完整传给 `AddToolProgress`，由它按聊天区宽度截取（宽度减 4 列，带省略号）。
+动态栏那份仍截短（一行小空间）。
+
+### 标题栏：商标恒定 + 不闪烁
+
+- 左上角恒为商标名（`Global.AppFullName`）—— 之前 `TitleBar.Title = StatusLeft`，
+  模型一换/loop 计数一变就把商标顶掉（「商标变模型名」）
+- 修闪烁：工具开始/结束、权限等待、压缩进度、加聊天消息都只刷各自控件
+  （动态栏 / 聊天列表），不再把整棵根标脏。根一脏，标题栏作为叶子被
+  `parentDirty` 拉着整行重绘，金色渐变重画一次就是一次闪。工具一多就连续闪。
+
+自测 3899 → 3910 通过、0 失败（另有 4 条因本机 `~/.waycoder/provider/opencode.json`
+自定义模型把 deepseek 供应商改写为 opencode 而失败，属本地配置，非代码回归）。
+
+## v0.79.48 (2026-08-19) — 修「输入对话框改屏幕尺寸，按钮不见了」
+
+两个叠加的根因：
+
+### 1. 窗口高度在 resize 时不重算（按钮被裁在窗口外）
+
+输入类对话框（`Input`/`InputLine`/`Secret`）的提示文本在窄屏会折成更多行 → 内容变高。
+但 `ApplyContentWidth` 注册的 resize 处理器只重算宽度，**高度留在构建时那个值**，
+内容比内容区高一行 → 底部按钮落在窗口外 =「按钮不见了」。
+
+改法：`ApplyContentWidth` 新增 `afterResize` 钩子，三个输入对话框传
+`() => FitWindowToContent(win, fitWidth: false)`，窄屏重折行后高度跟着内容重算。
+
+### 2. resize 后窗口子树没被标记重绘（按钮渲染被增量跳过）
+
+`TuiWindow.OnResize` 原先 `RootView.MarkDirty()` —— `parentDirty` 只向下传播一层，
+套在 `HBox` 里的按钮（父容器不脏、自身也不脏）被增量渲染的
+`child.IsDirty || parentDirty` 过滤跳过。resize 改变了所有控件的位置/尺寸，
+任何一层都可能要重画 → 改成递归 `RootView.Invalidate()`。
+
+自测加 8 条输入对话框 resize 断言（真渲染一帧，断言缩窄终端后确定/取消按钮仍在帧里、
+窗口高度确实变高）。3864 → 3899 通过、0 失败。
+
+## v0.79.47 (2026-08-19) — 修「输入框/按钮按了键不刷新」：状态变了必须标脏
+
+增量渲染只画脏控件（`TuiView.OnRender` 里 `child.IsDirty || parentDirty`），
+所以**任何改变绘制结果却没标脏的状态变更 = 界面不刷新**。此前漏标脏的地方：
+
+| 漏的地方 | 表现 |
+|---|---|
+| 单行 `TuiInput` 的光标移动 / 选择 / 撤销重做 | 按 ←→/Home/End/Shift+方向/Ctrl+Z，选中高亮与滚动位不变 |
+| 多行 `TuiTextArea` 的左右移动 / Home / End / 选择 | 同上（上下移动和翻页原先有单独补的 `MarkDirty`） |
+| `TuiControl.Focused` 直接赋值 | Tab 之外的换焦点路径（鼠标点选、`ClearFocus`、code-behind）按钮高亮不变 |
+| `TuiLabel.Text` / `TuiButton.Text` 外部赋值 | code-behind 改状态回显（「扫描中…」、「→小模型」）看不见变化 |
+| `TuiInput.Text/CursorPos`、`TuiTextArea.Lines/CursorRow/CursorCol/ScrollRow` 外部赋值 | 预填/清空/滚动不显示 |
+
+只有改文本的原语会走 `NotifyChanged`（内含 `MarkDirty`），其余全靠各处自觉——自觉不了。改法：
+
+- `TuiControl` 新增 `SetDirty(ref field, value)`：值真变了才写入并标脏。上表那些属性全部改走它
+- `TuiEditBase.OnKey` 处理完按键统一标脏（**单行和多行共用这一条路径**），
+  省得每个编辑原语各记一次；没处理的键不标脏，增量渲染该省的还是省
+- `TuiControl.MarkDirty` 顺带叫醒 `TuiManager.IsDirty` 帧闸门——控件脏了却没有帧，等于没脏
+
+自测加了 23 条脏标记断言 + 4 条**端到端**断言（真渲染一帧，断言新内容确实写进了增量帧、
+没变的控件确实没被重画）。3864 → 3891 通过、0 失败。
+
+## v0.79.46 (2026-08-19) — 按钮渐变成系统默认风格 + .tui 可设渐变 + 模型框 Ctrl 加速键
+
+### 按钮渐变：默认风格放主题，标记只管覆盖
+
+按钮的渐变开关和配色不再由各处 code-behind 挨个调 `ApplyButtonGradient`，改成**控件默认值 + 系统级主题项**：
+
+- `TuiTheme` 新增 `ButtonGradientByDefault`（默认 true）与 `ButtonGradient`（默认橙→黄 `BtnOrangeYellow`）
+- `TuiButton` 的 `GradientBg`/`GradientBgStart`/`GradientBgEnd` 都改成空值回落到主题，**显式设过的不受主题改动影响**
+- **标记不写特征就跟默认走**；要覆盖才写
+
+`.tui` 新增渐变属性（窗口边框与按钮底共用一套解析 `TuiMarkup.ParseGradient`）：
+
+| 写法 | 效果 |
+|---|---|
+| 不写 | 跟控件/主题默认 |
+| `gradient="false"` | 关成扁平 |
+| `gradient="btnCyanBlue"` | 开 + 取语义渐变（随主题） |
+| `gradientStart="#102030" gradientEnd="#405060"` | 显式给色（写了色即隐含开） |
+
+语义名两族：`cyanBlue`/`greenCyan`/`orangeYellow`/`redOrange`/`purplePink`/`titleBar` 给边框，
+`btn*` 那族比边框亮 30% 给按钮底；另有 `info`/`success`/`warning`/`danger` 别名，与 `fg`/`bg` 的语义色对齐。
+语义名与显式色同写时显式色赢。
+
+模型对话框由此瘦身：窗口边框改 `gradient="warning"` 写在 `modelpicker.tui` 里，code-behind 不再写死 RGB；
+十个按钮一个属性都不用写，直接吃默认金色渐变（之前是一排扁平黑底，像堵黑墙）。
+
+### 模型对话框
+
+- 搜索框与表格之间加一行空行——两个都是黑底控件，贴在一起分不出边界
+- `Ctrl+字母` 加速键回归（按钮仍在，键只是快捷方式）：`^T` 大小模型 `^G` 全部槽位 `^S` 扫描 `^R` 导入
+  `^O` 在线 `^P` 设Key `^L` 清Key `^N` 添加 `^U` 编辑 `^D` 删除。
+  裸字母一律留给过滤，`Ctrl+A/C/X/V/Z/Y/E/K` 留给搜索框编辑（`KeyHook` 跑在 `TuiEditBase.HandleCtrlKey` 前面，占了就等于把全选/复制/粘贴/撤销抢走）
+
+自测 3826 → 3864 通过、0 失败。
+
+## v0.79.45 (2026-08-19) — 键位两级作用域：系统键只剩 Ctrl+C，其余全归窗口
+
+规范：**系统键**任何时候最高优先级（目前只有 `Ctrl+C`）；**窗口键**只在所属窗口是栈顶时生效，
+弹子窗口即被屏蔽，子窗口关闭后随焦点回到父窗口而恢复。由此子窗口与父窗口用同一个键不冲突。
+
+窗口层本来就是对的（`TuiScreen.OnKey` 模态独占后直接 return、`CloseWindow` 把焦点还给栈里上一个窗口），
+**破口在 REPL 主循环**：`Program.Repl.cs` 有 6 组标着「系统级」的先判分支，排在 `mgr.OnKey` 之前无条件执行。
+
+平时看不出来，因为对话框多半用 `RenderWait` 阻塞主循环。但 `PermissionManager` 的权限确认框走
+**Agent 后台线程**的 `RenderWait`，只阻塞后台线程，主 REPL 循环仍在读键——两个循环抢同一个控制台缓冲区，
+REPL 抢到就截胡：
+
+| 对话框开着时按下 | 之前的后果 |
+|---|---|
+| `F1`–`F10` | 底下换槽位，且先 `while (...) PopScreen()` **把屏幕栈拆掉** |
+| `Ctrl+K` / `Shift+Tab` | 切工作模式 |
+| `Ctrl+Q` | 整个进程 PanicExit |
+| `Esc` / `Ctrl+Z`（槽位忙时） | 直接 Cancel Agent，而不是关对话框 |
+
+改法：
+
+- 新增 `UI/TUI/Base/TuiKeyScope.cs` —— `IsSystemKey` 是「哪些键能穿透对话框」的唯一事实源，
+  目前只认 `Ctrl+C`（它本就走 OS 的 `CancelKeyPress`，任何线程都能触发，这里只是把事实写进代码）
+- REPL 主循环加**一道总闸**：栈顶有窗口时，非系统键一律 `mgr.OnKey` 下发。一处生效，
+  下面 5 组分支自动全部降级为窗口键，不用逐条改。顺带把 `Shift+Tab` 这种独立事件类型
+  补成真的 `ConsoleKeyInfo` 再下发（原先 `KeyInfo` 可能是空的）
+- 修次要穿透路径：`AddWindow` 里非模态浮层（Toast）不再抢走模态对话框的焦点，
+  `TuiScreen.OnKey` 改按「栈顶模态优先」路由而非认 `FocusedWindow`——
+  否则 Toast 叠在模态上时键会漏到根视图（表现为对话框开着还能往输入框打字）
+
+按用户裁定：`Ctrl+Q` 降级为窗口键（严格按规范，`Ctrl+C` 仍是万能退路）；
+`Esc`/`Ctrl+Z` 在对话框开着时归对话框（权限框正是靠 `Esc` 表示拒绝）。
+
+未做：REPL 的 F1-F10 与 `ChatScreen.HandleGlobalShortcut` 里那份是重复实现（前者多做 Agent 侧绑定），
+合并要给 ChatScreen 接回调，属独立重构；加闸后无窗口时行为不变，已在代码里标注。
+
+自测 3803 → 3818，新增 15 条：系统键白名单、F 键被对话框屏蔽/关闭后恢复、
+父子窗口同键各归其主、非模态浮层不抢模态的键与焦点。
+
+## v0.79.44 (2026-08-19) — 模型对话框：功能改按钮，字母键还给过滤
+
+用户报的「输入字符串过滤功能没有」，根因不是过滤没实现，是**首字符被快捷键吞了**：
+`S`/`I`/`O`/`L`/`K`/`A` 和数字在「搜索框为空」时被当动作键，于是想打 `openai`、
+`siliconflow`、`4o` 时，第一个字符触发的是扫描/导入/设 Key，压根进不了搜索框。
+
+改法不是换几个快捷键，而是**把功能全做成按钮**：`Tab` 切焦点、空格/Enter 执行。
+框架本来就支持（`TuiScreen` 的 Tab 焦点遍历 + `TuiButton` 的空格激活），
+之前用不上只是因为 ModelPicker 把 `Tab` 注册成了「切大/小模型」的快捷键，把遍历挡了。
+
+- 10 个按钮分两行：`→小/大模型`｜`全部槽位`｜`扫描`｜`导入`｜`在线` / `设Key`｜`清Key`｜`添加`｜`编辑`｜`删除`
+- `ClassifyKey` 从 13 个动作缩到 4 个（Nav / Commit / Slot / None），**裸键一律落回搜索框**
+- 按钮不注册字母快捷键 —— `TuiWindow.OnKey` 的快捷键匹配会按 `KeyChar` 回退到大写键，
+  注册了照样抢字符；自测里钉死这条
+- 保留 `F1`–`F10` 选槽位（F 键打不出字符，安全）
+
+同一轮修的其余四条外观问题：
+
+| 问题 | 根因 | 修法 |
+|---|---|---|
+| 分组横线背景格格不入 | `TuiTableList` 组头传 `bg: 0`（透明），透出对话框灰底，而数据行是 `ListBg` 黑底 | 组头/列头/分隔线统一走行底色，只用前景色区分 |
+| 窗口不是金色边框 | `.tui` 写的 `borderColor="brightblack" gradient="false"` | 换权限框同款 `GradOrangeYellow` 渐变 |
+| 标题左对齐 | `TuiScreen.RenderWindow` **只在渐变分支居中标题**，非渐变分支硬写在 `X+1` | 上一条换成渐变边框后自动居中 |
+| 表格内容全挤在左边 | 列宽声明合计 54，控件宽约 76，右侧空 22 列 | 新增 `TuiTableList.StretchColumns`，按声明比例放大铺满，余数补给最宽列 |
+| 底部提示左对齐 | 标签没设对齐 | `.tui` 加 `align="center"`（`TuiLabel.TextAlign` 与标记解析本来就有） |
+
+自测 3758 → 3803。
+
+## v0.79.43 (2026-08-19) — 终端缩放时对话框内容跟着重算，不再只动外框
+
+`TuiWindow` 早就留了 `OnResizeContent` 钩子，注释白纸黑字写着「由 TuiDialog 工厂方法设置」——
+但翻遍代码，**注册它的只有自测**（`SelfTest.Chunk9.cs` 十几处），没有一个真实对话框用过。
+于是对话框的尺寸全是构建时按当时屏宽算死的，缩放终端只有外框跟着动，里面的标签还按老宽度折行。
+
+两个家族分别接上：
+
+| 家族 | 对话框 | 之前 resize 的表现 |
+|---|---|---|
+| `FillMsgBox` 系 | info / success / warn / error / confirm / confirm3 / permission | 外框变，消息不重折行 |
+| `ApplyContentWidth` 系 | input / inputline / secret / select / multiselect / ask | `XScale=0` 之后**外框都不动** |
+
+- 新增 `FitAndBindResize`：定尺寸和注册重算是同一件事，避免下次再有人只做前一半
+- `ApplyContentWidth` 加 `applyWidth` 回调参数——「把内容宽刷到控件上」这个动作本身
+  就是 resize 处理器，注册进 `OnResizeContent` 即可，调用点只需把控件查找提前
+- `ask` 的窗口高度也挪进回调：窄屏下消息折行变多，高度不跟着长会把选项列表挤出去
+- `Tty.SizeOverride`（仅自测用）：布局代码遍地直接读 `Tty.Cols`/`Rows`，
+  不给钩子就没法断言「缩放后有没有重算」——真实控制台尺寸自测改不动
+- 自测 3748 → 3758：把终端从 160 列缩到 60 列，断言窗口变窄、标签宽度跟着缩、
+  **消息行数变多**（真的重新折行了，不只是框变小）
+
+## v0.79.42 (2026-08-19) — 权限框宽度自适应 + 清掉残留占位符 + 按钮渐变底还原
+
+### 第一行那个左对齐的 `…`
+
+`permission.tui` 里 `msgBox` 有个设计态占位标签 `<Label text="…" />`。别的对话框走 `FillMsgBox`，
+里面有 `msgBox.Children.Clear()`（`TuiDialog.cs:140`/`:487`/`:756` 三处都清），
+唯独 `Permission` 是自己 `foreach + Add`，**漏了 Clear** —— 占位符就永远留在第一行。
+
+### 内容很窄，框却很宽
+
+`Permission` 的宽度来自 `ContentW(WideXScale, 4)` —— 屏宽 × 0.75，**压根不看消息内容**，
+一行短消息也撑出一个大宽框。改成和 Info/Confirm 同一条自适应路径（`FillMsgBox` + `FitWindowToContent`），
+宽度取「消息最宽行」与「按钮行宽」的较大者：短消息下按钮行成为约束项，
+120 列终端上由 ~90 列缩到 46 列。一次改动同时修掉上面那个 `…`。
+
+### 按钮渐变底还原
+
+v0.79.39 把按钮统一成黑底白字，彩色渐变（青蓝/绿青/橙黄/红橙）好看得多，还原。
+但不能直接回退——渐变分支用的是 `t.ButtonFg`，而那次为了黑底扁平按钮把它从黑改成了白，
+**白字压在橙黄渐变上几乎看不见**。所以拆成两个字段：
+
+| 渲染路径 | 前景 | 背景 |
+|---|---|---|
+| 扁平按钮 | `ButtonFg` = 白 | `ButtonBg` = 黑底 |
+| 渐变按钮 | `ButtonGradientFg` = 黑（新增） | RGB 渐变（亮） |
+
+- 自测 3743 → 3748：25 条按钮断言由「黑底白字」翻成「渐变底且 RGB ≥0x1000000」
+  （低于这个值 `TuiButton` 会悄悄回退成扁平分支），加 3 条权限框宽度/占位符，
+  2 条锁住两个前景字段不许合并
+
+## v0.79.41 (2026-08-19) — 修好 Shift+Tab（Windows）+ 状态栏显示模式名 + 砍掉重复品牌
+
+### Shift+Tab 在 Windows 上是漏判，不是没法修
+
+`InputManager` 只认 Unix 终端发的 `ESC[Z`（`InputManager.cs:176`），而 Windows 的 `Console.ReadKey`
+给的是 `ConsoleKey.Tab` + Shift 修饰键，永远不可能有 `ESC[Z`——所以 Windows 上按 Shift+Tab 毫无反应。
+补上修饰键判断即可，两平台都通了：
+
+- 模式切换现在认三个入口：`InputType.ShiftTab`（Unix）、`Tab`+Shift（Windows）、
+  **`Ctrl+K`**（两平台通用别名，新增）
+- 判定抽成纯函数 `InputEvent.IsModeSwitchKey` —— REPL 主循环是个读真实按键的 async 大方法，没法自测，
+  而这个条件已经写错过一次。抽出来后 9 条断言锁住，含两条最要命的反向：
+  **裸 `Tab` 必须放行**（否则路径补全没了）、**裸 `k` 必须放行**（否则打字就切模式）
+- 帮助表的平台差异脚注从 3 条缩到 2 条——`Shift+Tab` 那条删掉，剩下的 `Ctrl+M`/`Ctrl+H`
+  是 Unix 终端层的硬冲突（≡Enter / ≡Backspace），真的无解，继续给 `/model`、`/help` 兜底
+
+### 状态栏只画了个 🔨，没人认得出那是「建造模式」
+
+- `TuiStatusBar` 模式指示由 `Emojis[mode]` 改 `WorkModeManager.Format(mode)`，显示 `🔨 建造`
+- 顺手按模式着色：建造=青 / 计划=黄 / 审查=亮青 / 自动=绿，非建造态一眼能看出「现在不写文件」
+
+### 品牌名在主界面上有三份
+
+`slot0.StatusLeft` 启动时被赋成 `Global.AppFullName`，而它同时喂给顶栏标题、动态栏左段、动态栏右段、
+侧栏会话区——于是「WayCoder 道码·通用编程智能体」在一屏里出现 3 次，其中两次还在**同一根动态栏**上。
+
+- `TuiDynamicBar` 右段空闲时重画 `LeftText` 的分支删掉（注释写着「显示模型名」，可 `LeftText` 就是左段那份）
+- `slot0.StatusLeft` 启动值由品牌名改 `_config.Model`——`/model` 切换后本来就会写成模型名，启动态跟着一致
+- 品牌保留在顶栏标题 + 聊天流欢迎横幅两处，各司其职
+
+- 自测 3728 → 3734：4 条锁模式中文名（渲染后 StripAnsi 断言），2 条锁 Ctrl+K 别名与脚注收缩
+
+## v0.79.40 (2026-08-19) — 快捷键表改成实话：11 条对齐实现 + 平台差异脚注
+
+`Ctrl+H` 帮助面板和启动首条消息共用一张表，但那张表是照着「打算做成什么样」写的，不是照着代码写的。
+逐条核对实现后发现 11 条不符，其中 `Ctrl+C` 一条最误导——表里写「中断」，实际是**退出**。
+这次只改表和手册，**不动任何行为**（改键的方案另议）。
+
+- **改对的**：`Ctrl+C` 中断 → 退出（先存会话）；`Ctrl+↑↓` 输入历史 → 聊天滚动 3 行；
+  `Tab` 切换焦点 → 路径补全 / 插 4 空格；`Ctrl+P` 命令面板 → 输入建议条；
+  `Home/End` 跳列表首尾 → 输入区行首/行尾；`Ctrl+O` 打开文件 → 打开设置（同 `Ctrl+T`）
+- **补上的**：`Esc` 中断当前 Agent、`Ctrl+Z` 优雅暂停——两个最常用的键此前一个字没写
+- **拆开的**：裸 `↑↓` 一个键两种行为，按输入区空不空分流，拆进「编辑」（输入历史）和「导航」（聊天滚动）两组
+- **删掉的**：`Ctrl+Shift+F1/F2` 切主题——REPL 的 F 键分支不看修饰键，这两个组合实际是切槽位 1/2
+- **平台差异脚注**：输入走 `Console.ReadKey`，Windows 拿虚拟键码、Unix 拿字节流，
+  而 `Ctrl+M≡0x0D≡Enter`、`Ctrl+H≡0x08≡Backspace`、`Shift+Tab≡ESC[Z`——
+  于是两边坏的是**不同的**键：Unix 下 `Ctrl+M`/`Ctrl+H` 失效，Windows 下 `Shift+Tab` 失效，
+  各自的兜底命令（`/model`、`/help`、`/mode`）一并写进脚注
+- `docs/使用手册.md` 两张快捷键表同步重写，加「⚠ 平台差异」矩阵
+- 自测 3719 → 3728：9 条锁住这次的更正，表再被改回去会红
+
+## v0.79.39 (2026-08-19) — 对话框配色统一：灰底黑字 + 控件黑底白字 + 选中反色
+
+主题里本来就写着「灰底黑字」（`WindowBg=PanelGrey` / `DialogFg=Black`），但各对话框自己又覆盖了一层，
+于是权限框黄底、模型选择器黑底、设置页蓝标题栏、按钮四套彩色渐变，看着不像一套东西。这次把覆盖全撤掉：
+
+| 层 | 配色 |
+|---|---|
+| 对话框 | 灰底（`PanelGrey`）黑字 |
+| 输入框 / 按钮 | 黑底白字，聚焦反色（白底黑字） |
+| 列表 / 树 / 表格 | 黑底白字，选中行反色（白底黑字） |
+
+- **撤掉的写死值**：`permission.tui` 黄底黄标题 → 主题灰底（黄边框留着，那是「权限确认」的语义信号）；
+  `modelpicker.tui` `bg="black"` → 主题灰底；`settings.tui` 标题栏 `bg="44"`（蓝）→ 灰；
+  各对话框提示文字 `fg="8"`/`fg="brightblack"`/`fg="4"` → `black`
+- **按钮不再用渐变底**：`ApplyButtonGradient` 改成统一设黑底白字 + 聚焦反色。
+  每个对话框一套渐变（青蓝/绿青/橙黄/红橙）压在灰底上太花；按钮和输入框一样是可操作控件，跟着走同一套
+- **选中色 青 → 反色**：`ListSelBg`/`TreeViewSelBg` 由 `BgCyan` 改 `BgWhite`（`ListSelFg` 本来就是黑）
+- **树补底色**：新增 `TreeViewBg`。此前树的未选中行是透明的（`Bg > 0 ? Bg : 0`），放进灰底对话框会漏灰底；
+  同时改成整块控件区先铺底，节点不满一屏时底部不再露出灰底
+- **命令面板 / 会话管理器**未选中行同理由透明改黑底；会话管理器「当前会话」标记色 `Blue` → `BrightCyan`（蓝压黑底看不见）
+- **浅色 / 高对比度主题补 `ButtonFg`**：基类默认由黑字改白字，这两个主题只覆盖了 `ButtonBg`，
+  不补就会白字白底（`--theme-verify` 实测 1.00:1）。高对比度顺手把灰底按钮改白底黑字（2.17:1 → 21:1）
+- 自测 3675 → 3719：主题 8 条 + 每个对话框「灰底 + 按钮黑底白字」逐个校验
+
+## v0.79.38 (2026-08-19) — `/test dialog` 对话框巡检
+
+在运行中的会话里把对话框挨个弹一遍，肉眼核对排版/按钮/快捷键——之前 `/test` 只有 `perm`/`toast`/`menu` 三个，
+要看全套得退出去开 `--tui-demo`。
+
+- `/test dialog` —— 21 个对话框依次弹出，**关掉一个自动弹下一个**，每个的结果（选了什么/取消）回写聊天流
+- `/test dialog <名字>` —— 只弹一个：`info` `success` `warn` `error` `confirm` `confirm3`
+  `input` `inputline` `secret` `select` `multiselect` `ask` `askmulti` `perm` `toast` `menu`
+  `model` `session` `reasoning` `palette` `file`
+- 串链靠 `win.OnClosed`（Esc 走 `TuiScreen.OnKey` 也会触发，且 `ShowWindow` 保留调用方设的回调），无需状态机；
+  全屏 ANSI 选择器自带 `RenderWait` 泵、串不进回调链，放在链前顺序跑
+- 自测补 14 条：每个窗口式对话框都必须能构建（`LoadDialog` 找不到 `.tui` 里的 id 会直接抛，
+  光靠人工弹窗得弹到那个才发现）
+
+## v0.79.37 (2026-08-19) — 模型对话框底部快捷键提示被裁掉 + 权限按钮改灰底
+
+- **模型选择对话框看不到快捷键提示**：`ModelPicker.BuildWindow` 手算 `listH = winH - 5`，
+  但内容区只有 `winH - 2` 行，而固定行是 4 行（搜索/槽位/帮助/帮助2）——总高比内容区多 1 行，
+  最后一行帮助（`Ctrl+A添加 Del删除 Ctrl+E编辑…`）被下边框裁掉。
+  改由 `modelpicker.tui` 给表格标 `flex="1"`，剩余高度交 `TuiVBox` 分配，code-behind 不再手算行数
+- **权限对话框按钮底色 cyan → grey**：cyan 在 Campbell 等主流终端配色里是 `#3A96DD` 的蓝，
+  压在黄底对话框上刺眼；聚焦态仍是白底黑字，对比度不变
+- 自测补 16 条断言：模型选择器在 h=16/20/28/40 四档高度下三行提示均在内容区内 + 表格 flex 高度正确；
+  权限三按钮底色为灰
+
+## v0.79.36 (2026-08-19) — «» 中间格式支持真彩：`«fg:#rrggbb»` / `«bg:#rrggbb»`
+
+命名色枚举不完，且此前**背景色根本没有语法**（只有内联代码那处硬写数字，还写错成残缺的 48）。补上带参颜色标签：
+
+| 写法 | 含义 |
+|---|---|
+| `«fg:#rrggbb»` / `«#rrggbb»` / `«#rgb»` | 真彩前景（`#rgb` 缩写等价 `#rrggbb`） |
+| `«bg:#rrggbb»` / `«bg:#rgb»` | 真彩背景 |
+| `«bg:red»` / `«bg:cyan»` | 命名背景（标准 16 色前景码自动 +10；256 色码不偏移） |
+
+- 解析集中在 `MarkdownParser.TryMapTag(tag, out code, out isBg)`，**三端同一套语法**：
+  TUI（`ParseInline`/`ParseMarkupOnly`）、CLI（`SpectreToAnsi` 新增 `ExpandColorTags` 前置扫描，
+  因为 Replace 链枚举不到带参标签）、Web（`app.js` 新增 `markupTokenStyle`）
+- 真彩码沿用既有约定 `AnsiTty.RgbCode` = `0x1000000 | rgb`，`FgCode`/`BgCode` 已能展开成 `38;2;` / `48;2;`
+- **前景与背景各自独立入栈**：`«bg:#000080»底«fg:#f00»红«/»还底«/»` 中内层 `«/»` 只弹前景，背景留着
+- 大小写不敏感；非法写法（`#gg0000`、`#ff00`）不认，标签原样输出暴露笔误
+- Web 侧十六进制走严格白名单正则再拼进 `style` 属性，不给注入留口子
+
+### ✅ 验证
+- 自测 3608 通过 0 失败（新增 15 条：语法解析 7 条、前景/背景栈 4 条、CLI 解码 3 条、未知标签 1 条）
+
+## v0.79.35 (2026-08-19) — 首屏快捷键表改成左对齐两列表格 + 修内联代码「亮绿底」+ 纯文本漏解码 «»
+
+**快捷键表（`TuiKeybindHelp.GetHelpText`）**：原先是空格拼的自由排版，落到首屏还被前一条居中的
+system 消息带偏成参差居中。改为「键 │ 说明」两列表格：
+- 键列按 `AnsiHelper.DisplayWidth` 补齐（CJK 安全），各分类块共用同一列宽 + `─` 分隔线，整体一张表
+- `ChatScreen.AddMessage` 的 `centered` 参数改 `bool?`：`null` 才继承前一条同角色消息的对齐，
+  显式传 `false` 强制左对齐——此前无条件继承，表格类内容一律被前一条居中消息带歪
+- 键名保持亮色，其余（标题/分类/分隔线/竖线/说明）走 `«grey»`，用中间格式而非裸 ANSI
+- 删除作废的 `Ctrl+Shift+F1/F2`（主题选择/轮换）两行，主题仍可走 `/theme` 与设置界面
+
+**修「亮绿底色」**：`MarkdownParser.ParseInline` 给内联代码 `` `路径` `` 配的背景码写的是 **48**，
+注释还标着「深色背景」——但 48 是 SGR 的**扩展背景色引导码**，必须跟 `5;n` 或 `2;r;g;b`，
+裸发 `ESC[48m` 是残缺序列，各终端解释不一（Windows Terminal 渲染成亮绿底），
+于是聊天里每个路径/命令都糊一片刺眼绿。改为不加底色（`defaultBg`），只保留黄色文字。
+
+**修纯文本漏解码 «»**：`TuiMarkdown.RenderMessage` 的 plainText 分支（system/tool 消息）
+把每行原样输出，`«grey»` 直接印成字面量。新增 `MarkdownParser.ParseMarkupOnly`——
+**只解码 `«tag»`/`«/»`，其余字符一律原样保留**：不能对这条路径套完整内联解析，
+因为 shell 输出里的反引号、`**`、`#` 是数据不是格式，会被当 Markdown 吃掉。
+
+### ✅ 验证
+- 自测 3593 通过 0 失败（新增 12 条：表格形态/列对齐/左对齐/颜色标记归属、48 背景码、纯文本解码 4 条）
+- 编译 0 错误（构建输出改指 `bin/verify/` 以免占用正在运行的 waycoder.exe）
+
+## v0.79.34 (2026-08-19) — 修 CLI/一次性模式漏解码 «» 中间格式（终端显示出转义标记）
+
+**症状**：CLI 模式下推理内容显示成字面的 `«dim»…«/»`，而不是暗色效果。
+
+**根因**：`LLM.cs:520` 在推理段首尾经 `onToken` 注入 `«dim»`/`«/»` 中间格式标记，各端须自行解码——
+TUI 走 `MarkdownParser.MapMarkupTag`、Web 走 `markupToHtml`、GUI 剥离标记分流到推理气泡，
+**唯独两条 CLI 路径直接 `Console.Write(tok)` 裸打印**：
+- `Program.Repl.cs:66`（`--cli` 交互模式）
+- `Program.Output.cs:156`（`-p` 一次性 / 管道模式）
+
+**修复**：两处均改为 `Console.Write(SpectreToAnsi(tok))`（与同文件 `MarkupLine` 同源解码器，
+无状态纯替换，标记由 LLM 整体一次发出不会被切片）。`SpectreToAnsi` 开为 `internal` 便于自测断言。
+
+**顺带修一条脆弱断言**：`grep 空路径不崩溃`（`SelfTest.Chunk1.cs`）要求结果含「错误」或「未找到」，
+但空路径语义就是搜 cwd，在 WayCoder 源码目录里搜 `test` 必然命中——它测的其实是「当前目录里有什么」。
+改用新增的 `TryToolCall` 助手，只验「不抛异常且返回非空」，回归其注释本意。
+
+### ✅ 验证
+- 自测 3581 通过 0 失败（新增 3 条 `SpectreToAnsi` 解码断言）
+- 编译 0 错误
+
 ## v0.79.33 (2026-08-19) — 设计态样本数据 `{InDesign '…'}` + 自测按省钱档位分叉（修极致档压缩失效）
 
 **`.tui` 设计态数据标记**：任意属性值可写 `{InDesign '样本'}`——设计/预览态取引号内内容，真实运行取空串：

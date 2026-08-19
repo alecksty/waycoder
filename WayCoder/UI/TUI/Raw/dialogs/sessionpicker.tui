@@ -4,9 +4,9 @@
         width="68" minWidth="68" maxWidth="100" height="18"
         gradient="true" gradientStart="#00e6ff" gradientEnd="#0064dc">
   <VBox>
-    <Label id="stats" height="1" fg="4" />
+    <Label id="stats" height="1" fg="black" />
     <HBox spacing="1">
-      <Label text="搜索:" width="6" fg="8" />
+      <Label text="搜索:" width="6" fg="black" />
       <Input id="search" height="1" flex="1" focused="true" />
     </HBox>
     <!-- 列表项 code-behind 动态填充；{InDesign '…'} 内为设计态样本，真实运行解析为空串 -->
@@ -18,6 +18,6 @@
       <Button id="delBtn" text="删除 (Del)" flex="1" />
       <Button id="closeBtn" text="关闭 (Esc)" flex="1" />
     </HBox>
-    <Label id="help" height="1" fg="8" />
+    <Label id="help" height="1" fg="black" />
   </VBox>
 </Dialog>

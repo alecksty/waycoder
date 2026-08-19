@@ -36,6 +36,11 @@ public partial class ChatScreen : TuiScreen
         string label = $"  {renderer.FormatHeader(brief)}";
         lock (_chatLock)
         {
+            // 参数摘要按聊天区宽度截取（减一点留边距），不再依赖调用方提前砍短 ——
+            // 之前调用方硬截 57 字符，bash 命令/文件路径一眼看不全参数。
+            int avail = Math.Max(30, ChatList.Width - 4);
+            if (AnsiHelper.DisplayWidth(label) > avail)
+                label = AnsiHelper.TruncateByWidth(label, avail);
             var msg = new ChatMsg { Role = "tool", Content = label, Indent = 1 };
             ChatMessages.Add(msg);
             AddMessage(label, "tool", indent: 1);

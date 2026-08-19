@@ -153,15 +153,27 @@ public abstract class TuiScreen : TuiBase
             if (_savedRootFocus != null) _savedRootFocus.Focused = false;
         }
 
-        // 激活窗口获得焦点，之前的焦点窗口失焦
-        if (FocusedWindow != null) FocusedWindow.Focused = false;
+        // 激活窗口获得焦点，之前的焦点窗口失焦。
+        // 但非模态浮层（Toast 等）不得抢走模态对话框的焦点 —— 抢走了 OnKey 的模态分支就不成立，
+        // 键会漏到根视图（表现为：对话框开着还能往聊天输入框里打字）。
+        bool takesFocus = win.Modal || !HasModal;
+        if (takesFocus)
+        {
+            if (FocusedWindow != null) FocusedWindow.Focused = false;
+            win.Focused = true;
+        }
         win.ZOrder = _nextZ++;
-        win.Focused = true;
         Windows.Add(win);
-        FocusedWindow = win;
+        if (takesFocus) FocusedWindow = win;
         win.OnCreate();
         win.OnResize(TW, TH);
         ClampOverlayToContent(win);
+
+        // 兜底聚焦：窗口里没有任何控件带焦点时，TuiView.OnKey 只往「聚焦的子控件」派发，
+        // 按键就无处可去，整个窗口键盘失灵（树形视图演示正是这样：建了控件却没人 Focused=true）。
+        // 这里补一次「聚焦第一个可聚焦控件」，让忘了写 focused 的窗口也能用键盘。
+        if (win.RootView?.FindFocused() == null)
+            win.FocusNext();
 
         // 模态对话框显示前截取背景快照，关闭后整块贴回还原（消除「默认背景清屏+部分重绘」的残留条带）
         if (win.Modal)
@@ -433,15 +445,22 @@ public abstract class TuiScreen : TuiBase
             return true;
         }
 
-        // ── 路由到子节点：模态窗口 → 焦点窗口 → 根视图 ──
-        if (FocusedWindow?.Modal == true)
-            return FocusedWindow.OnKey(key);
+        // ── 路由到子节点：栈顶模态窗口 → 焦点窗口 → 根视图 ──
+        // 模态在场就由它独占，且直接 return（不往下漏给根视图）：这就是
+        // 「子窗口屏蔽父窗口的键」；它关闭后 CloseWindow 把焦点还给栈里上一个窗口，父层自然恢复。
+        var modal = TopModal();
+        if (modal != null)
+            return modal.OnKey(key);
 
         if (FocusedWindow != null && FocusedWindow.OnKey(key))
             return true;
 
         return RootView.OnKey(key);
     }
+
+    /// <summary>栈顶模态窗口（无模态返回 null）。键路由以它为准，而非 FocusedWindow ——
+    /// 非模态浮层可能叠在模态之上，认 FocusedWindow 会让键漏到根视图。</summary>
+    private TuiWindow? TopModal() => Windows.LastOrDefault(w => w.Modal);
 
     // ── 渲染 ──
 

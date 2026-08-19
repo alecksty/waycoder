@@ -6,9 +6,28 @@ namespace WayCoder.UI.Tui.Controls;
 /// <summary>单行文本输入框 —— 支持光标移动、插入、删除、文本选择、撤销重做。</summary>
 public class TuiInput : TuiEditBase
 {
-    public string Text { get; set; } = "";
-    public int CursorPos { get; set; }
-    public bool Password { get; set; }
+    // 三个属性都走 SetDirty：编辑原语改它们，code-behind（预填/清空）也改它们，
+    // 增量渲染只画脏控件，漏一处就是「改了看不见」。
+    public string Text
+    {
+        get => _text;
+        set => SetDirty(ref _text, value);
+    }
+    private string _text = "";
+
+    public int CursorPos
+    {
+        get => _cursorPos;
+        set => SetDirty(ref _cursorPos, value);
+    }
+    private int _cursorPos;
+
+    public bool Password
+    {
+        get => _password;
+        set => SetDirty(ref _password, value);
+    }
+    private bool _password;
 
     // ── 撤销 / 重做 ──
     private record struct EditAction(char Type, int Position, string Text); // 'I'=插入 'D'=删除
@@ -66,9 +85,20 @@ public class TuiInput : TuiEditBase
 
     // ── 文本选择 ──
     /// <summary>选择起始字符索引（-1 = 无选择）</summary>
-    public int SelectionStart { get; set; } = -1;
+    public int SelectionStart
+    {
+        get => _selStart;
+        set => SetDirty(ref _selStart, value);
+    }
+    private int _selStart = -1;
+
     /// <summary>选择结束字符索引（-1 = 无选择，与 Start 相同时 = 光标位）</summary>
-    public int SelectionEnd { get; set; } = -1;
+    public int SelectionEnd
+    {
+        get => _selEnd;
+        set => SetDirty(ref _selEnd, value);
+    }
+    private int _selEnd = -1;
 
     /// <summary>是否有活动的文本选择</summary>
     public override bool HasSelection => SelectionStart >= 0 && SelectionEnd >= 0 && SelectionStart != SelectionEnd;

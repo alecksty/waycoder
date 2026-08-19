@@ -86,8 +86,10 @@ public static class CommandPalette
                 bool isSel = sel >= 0 && sel < rows.Count && !rows[sel].IsHeader && rows[sel].CmdIdx == i;
                 var lbl = cmdRowLabels[i];
                 lbl.Text = FormatCommandRow(filtered[i], isSel, listW);
-                lbl.Fg = isSel ? TuiTheme.Current.ListSelFg : AnsiColors.White;
-                lbl.Bg = isSel ? TuiTheme.Current.ListSelBg : 0;
+                // 未选中行给黑底而不是 0（透明）—— 透明会漏出对话框的灰底，
+                // 列表就成了灰底白字，跟其他数据控件的黑底白字对不上
+                lbl.Fg = isSel ? TuiTheme.Current.ListSelFg : TuiTheme.Current.ListFg;
+                lbl.Bg = isSel ? TuiTheme.Current.ListSelBg : TuiTheme.Current.ListBg;
             }
             list.SelectedIndex = sel; // 驱动 TuiListView 自动滚动到选中项
             list.MarkDirty();

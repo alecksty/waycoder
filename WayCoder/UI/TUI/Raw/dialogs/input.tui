@@ -1,7 +1,7 @@
 <!-- 输入对话框（多行 TextArea，标题/提示/默认值由 code-behind 注入） -->
 <Dialog title="{title}" border="rounded" borderColor="cyan">
   <VBox align="center" spacing="1">
-    <VBox id="msgBox"><Label text="…" fg="brightblack" /></VBox>
+    <VBox id="msgBox"><Label text="…" fg="black" /></VBox>
     <TextArea id="input" width="40" height="5" value="" focused="true" showLineNumbers="false" />
     <HBox align="center" spacing="2">
       <Button id="ok" text="确定" />

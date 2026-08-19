@@ -468,9 +468,10 @@ public static partial class SelfTest
         // glob/grep/wc 空路径校验 — 防止 Path.GetFullPath("") 崩溃
         Check("glob 空路径不崩溃",
             new GlobTool().ExecuteAsync(new() { ["pattern"] = "*.cs", ["path"] = "" }).Result.Contains("错误") == false);
-        Check("grep 空路径不崩溃",
-            new GrepTool().ExecuteAsync(new() { ["pattern"] = "test", ["path"] = "" }).Result.Contains("错误")
-            || new GrepTool().ExecuteAsync(new() { ["pattern"] = "test", ["path"] = "" }).Result.Contains("未找到"));
+        // 空路径 = 搜当前目录，命不命中取决于 cwd 里有什么 —— 断言只看「没崩、有结果字符串」，
+        // 不能要求「错误/未找到」（在 WayCoder 源码目录里搜 test 必然命中，那样是测目录内容不是测工具）
+        Check("grep 空路径不崩溃", TryToolCall(() =>
+            new GrepTool().ExecuteAsync(new() { ["pattern"] = "test", ["path"] = "" }).Result));
         Check("wc 空路径不崩溃",
             new WcTool().ExecuteAsync(new() { ["glob"] = "*.cs", ["path"] = "" }).Result.Contains("错误") == false);
 

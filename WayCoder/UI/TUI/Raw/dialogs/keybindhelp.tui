@@ -7,6 +7,6 @@
     <!-- 列表项 code-behind 动态填充；{InDesign '…'} 内为设计态样本，真实运行解析为空串 -->
     <ListView id="list" autoScroll="false"
               items="{InDesign '─ 常用 ─,Ctrl+H 快捷键帮助,Shift+Tab 计划模式,F1-F10 槽位切换,Ctrl+S 切换会话'}" />
-    <Label id="hint" height="1" fg="8" />
+    <Label id="hint" height="1" fg="black" />
   </VBox>
 </Window>

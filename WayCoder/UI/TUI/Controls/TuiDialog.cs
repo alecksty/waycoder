@@ -50,12 +50,32 @@ public static class TuiDialog
     /// 修复输入/选择类对话框只设控件宽、不设 win.Width 导致窗口停留在模板默认 30 列、内容被裁剪的问题。
     /// 关系：cw = winW - 2(边框) - innerPad，故 winW = cw + 2 + innerPad。
     /// </summary>
-    private static int ApplyContentWidth(TuiWindow win, double xScale, int innerPad)
+    /// <param name="applyWidth">
+    /// 把算出来的内容宽刷到各控件上。传了它就一并注册到 <see cref="TuiWindow.OnResizeContent"/>，
+    /// 终端缩放时重算一遍 —— 不注册的话 XScale=0 会让窗口对 resize 彻底无反应，
+    /// 内容和外框一起卡在构建时那个屏宽算出来的尺寸上。
+    /// </param>
+    /// <param name="afterResize">
+    /// 在 resize 处理器里「刷完宽度」之后再跑的动作。输入类对话框的提示文本在窄屏会折成更多行，
+    /// 只重算宽度不重算高度 → 内容比内容区高、底部按钮被挤出窗口 =「改屏幕尺寸按钮不见了」。
+    /// 传 <c>() =&gt; TuiMarkup.FitWindowToContent(win, fitWidth: false)</c> 让高度跟着内容走。
+    /// </param>
+    private static int ApplyContentWidth(TuiWindow win, double xScale, int innerPad,
+        Action<int>? applyWidth = null, Action? afterResize = null)
     {
-        var cw = ContentW(xScale, innerPad);
-        win.XScale = 0; // 禁用比例算宽，用固定宽度（OnResize 不再覆盖）
-        win.Width = cw + 2 + innerPad;
-        return cw;
+        int Apply()
+        {
+            var cw = ContentW(xScale, innerPad);
+            win.Width = cw + 2 + innerPad;
+            applyWidth?.Invoke(cw);
+            return cw;
+        }
+
+        win.XScale = 0; // 宽度由 ContentW 统一决定，不走比例缩放；resize 时靠上面的回调重算
+        var cw0 = Apply();
+        if (applyWidth != null)
+            win.OnResizeContent = () => { Apply(); afterResize?.Invoke(); };
+        return cw0;
     }
 
     /// <summary>
@@ -81,7 +101,10 @@ public static class TuiDialog
     /// </summary>
     private static int MaxMessageLines() => 5;
 
-    /// <summary>给按钮启用渐变背景</summary>
+    /// <summary>
+    /// 给按钮启用渐变背景。文字色走 <see cref="TuiTheme.ButtonGradientFg"/>（亮底黑字），
+    /// 不是 ButtonFg —— 后者是给黑底扁平按钮的白字，压在橙黄渐变上看不清。
+    /// </summary>
     private static void ApplyButtonGradient((int start, int end) grad, params TuiButton[] buttons)
     {
         foreach (var btn in buttons)
@@ -137,6 +160,33 @@ public static class TuiDialog
                 Fg = TuiTheme.Current.DialogFg,
             });
         return (cw, winW, winH);
+    }
+
+    /// <summary>
+    /// 按消息内容定窗口尺寸，并注册 resize 回调让内容跟着终端一起重算。
+    ///
+    /// 消息是构建时按当时屏宽折行的。只算一次的话，终端缩放时只有外框跟着动，
+    /// 里面的标签还按老宽度折行 —— 就是「对话框只刷新外框、不刷新控件」。
+    /// <see cref="TuiWindow.OnResizeContent"/> 这个钩子早就留好了（注释写着「由 TuiDialog 工厂方法设置」），
+    /// 但在此之前没有任何对话框注册过，只有自测在用。
+    ///
+    /// XScale=0 是必须的：留着比例缩放，OnResize 步骤 0 会先按屏宽比覆盖 Width，
+    /// 步骤 1 的回调再按内容算一遍，两者打架。宽度的唯一来源就是内容。
+    /// </summary>
+    private static void FitAndBindResize(TuiWindow win, TuiMarkupResult res,
+        string message, IReadOnlyList<string> btnLabels)
+    {
+        void Refit()
+        {
+            // FillMsgBox 自带 Children.Clear()，重复调用是幂等的
+            var (_, winW, _) = FillMsgBox(res, message, btnLabels);
+            win.Width = winW;
+            TuiMarkup.FitWindowToContent(win, fitWidth: false);
+        }
+
+        win.XScale = 0;
+        Refit();
+        win.OnResizeContent = Refit;
     }
 
     /// <summary>
@@ -203,12 +253,7 @@ public static class TuiDialog
         (int start, int end) btnGrad, (int start, int end) winGrad)
     {
         var (win, res) = LoadDialog("info", title, borderColor);
-        var (cw, winW, winH) = FillMsgBox(res, message, ["确定"]);
-
-        // 自适应：禁用 XScale 自动算宽，改用按内容计算的固定宽高（OnResize 不再覆盖）
-        win.XScale = 0;
-        win.Width = winW;
-        win.Height = winH;
+        FitAndBindResize(win, res, message, ["确定"]);
 
         var btn = res.Find<TuiButton>("ok") ?? throw Invalid("info.tui", "ok");
         btn.Width = Math.Max(8, AnsiHelper.DisplayWidth("确定") + 4);
@@ -237,10 +282,7 @@ public static class TuiDialog
     public static TuiWindow Confirm(string title, string message, Action<bool> onResult)
     {
         var (win, res) = LoadDialog("confirm", title, TuiTheme.Current.DialogConfirmBorder);
-        var (_, winW, winH) = FillMsgBox(res, message, ["是 (Y)", "否 (N)"]);
-        win.XScale = 0;
-        win.Width = winW;
-        win.Height = winH;
+        FitAndBindResize(win, res, message, ["是 (Y)", "否 (N)"]);
 
         var yesBtn = res.Find<TuiButton>("yes") ?? throw Invalid("confirm.tui", "yes");
         var noBtn = res.Find<TuiButton>("no") ?? throw Invalid("confirm.tui", "no");
@@ -286,10 +328,7 @@ public static class TuiDialog
     public static TuiWindow Confirm3(string title, string message, Action<EDialogResult> onResult)
     {
         var (win, res) = LoadDialog("confirm3", title, TuiTheme.Current.DialogConfirmBorder);
-        var (_, winW, winH) = FillMsgBox(res, message, ["是 (Y)", "否 (N)", "取消 (Esc)"]);
-        win.XScale = 0;
-        win.Width = winW;
-        win.Height = winH;
+        FitAndBindResize(win, res, message, ["是 (Y)", "否 (N)", "取消 (Esc)"]);
 
         var yesBtn = res.Find<TuiButton>("yes") ?? throw Invalid("confirm3.tui", "yes");
         var noBtn = res.Find<TuiButton>("no") ?? throw Invalid("confirm3.tui", "no");
@@ -352,12 +391,13 @@ public static class TuiDialog
         var (win, res) = LoadDialog("input", displayTitle, TuiTheme.Current.DialogInfoBorder);
         win.MinHeight = 8;
 
-        var cw = ApplyContentWidth(win, WideXScale, 2);
-        FillPrompt(res, prompt, cw);
-
         var input = res.Find<TuiTextArea>("input")
                     ?? throw Invalid("input.tui", "input");
-        input.Width = cw;
+        var cw = ApplyContentWidth(win, WideXScale, 2, w =>
+        {
+            FillPrompt(res, prompt, w); // 内部自带 Children.Clear()，重复调用幂等
+            input.Width = w;
+        }, () => AfterResizeRefitHeight(win)); // 窄屏重折行 → 高度跟着重算，别让按钮被挤出窗口
         input.Height = inputHeight;
         input.Fg = AnsiColors.White;
         input.Bg = AnsiColors.BgBlack;
@@ -394,6 +434,9 @@ public static class TuiDialog
             win.OnClosed?.Invoke();
         });
 
+        // 高度按填好内容后的控件树实测（提示行 + 输入区 + 按钮行 + 各处 spacing）。
+        // 此前根本没算高，直接吃模板默认 height —— 内容比内容区高一行，按钮就被切在框外
+        TuiMarkup.FitWindowToContent(win, fitWidth: false);
         ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
         return win;
     }
@@ -413,9 +456,6 @@ public static class TuiDialog
         var (win, res) = LoadDialog("inputline", displayTitle, TuiTheme.Current.DialogInfoBorder);
         win.MinHeight = 6;
 
-        int cw = ApplyContentWidth(win, WideXScale, 2);
-        FillPrompt(res, prompt, cw);
-
         var hist = TuiInputHistory.Get(title);
         var initVal = !string.IsNullOrEmpty(defaultValue) ? defaultValue
             : hist.Count > 0 ? hist[0] : "";
@@ -423,7 +463,11 @@ public static class TuiDialog
         var input = res.Find<TuiInput>("input") ?? throw Invalid("inputline.tui", "input");
         input.Text = initVal;
         input.CursorPos = initVal.Length;
-        input.Width = cw;
+        int cw = ApplyContentWidth(win, WideXScale, 2, w =>
+        {
+            FillPrompt(res, prompt, w);
+            input.Width = w;
+        }, () => AfterResizeRefitHeight(win)); // 窄屏重折行 → 高度跟着重算，别让按钮被挤出窗口
         input.Height = 1;
         input.Fg = AnsiColors.White;
         input.Bg = AnsiColors.BgBlack;
@@ -459,6 +503,9 @@ public static class TuiDialog
             win.OnClosed?.Invoke();
         });
 
+        // 高度按填好内容后的控件树实测（提示行 + 输入区 + 按钮行 + 各处 spacing）。
+        // 此前根本没算高，直接吃模板默认 height —— 内容比内容区高一行，按钮就被切在框外
+        TuiMarkup.FitWindowToContent(win, fitWidth: false);
         ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
         return win;
     }
@@ -472,6 +519,14 @@ public static class TuiDialog
         foreach (var line in AnsiHelper.WrapText(prompt, cw, 5))
             msgBox.Add(new TuiLabel(line) { Width = cw, Fg = AnsiColors.Black });
     }
+
+    /// <summary>
+    /// resize 回调的公共收尾：按填充后的控件树重算窗口高度。
+    /// 输入对话框的提示在窄屏折成更多行，只重算宽度会让内容比窗口高、按钮被挤出窗口。
+    /// 注意只用 fitHeight —— 宽度归 <see cref="ApplyContentWidth"/> 管，两者各司其职不打架。
+    /// </summary>
+    private static void AfterResizeRefitHeight(TuiWindow win)
+        => TuiMarkup.FitWindowToContent(win, fitWidth: false);
 
     // ═══════════════════════════════════════════════════════════════
     // 查找/替换对话框
@@ -564,13 +619,14 @@ public static class TuiDialog
         var (win, res) = LoadDialog("secret", displayTitle, TuiTheme.Current.DialogInfoBorder);
         win.MinHeight = 6;
 
-        int cw = ApplyContentWidth(win, NarrowXScale, 4);
-        FillPrompt(res, prompt, cw);
-
         var input = res.Find<TuiInput>("input") ?? throw Invalid("secret.tui", "input");
         input.Text = defaultValue;
         input.CursorPos = defaultValue.Length;
-        input.Width = cw;
+        int cw = ApplyContentWidth(win, NarrowXScale, 4, w =>
+        {
+            FillPrompt(res, prompt, w);
+            input.Width = w;
+        }, () => AfterResizeRefitHeight(win)); // 窄屏重折行 → 高度跟着重算，别让按钮被挤出窗口
         input.Password = true;
         input.Focused = true;
 
@@ -602,6 +658,9 @@ public static class TuiDialog
             win.OnClosed?.Invoke();
         });
 
+        // 高度按填好内容后的控件树实测（提示行 + 输入区 + 按钮行 + 各处 spacing）。
+        // 此前根本没算高，直接吃模板默认 height —— 内容比内容区高一行，按钮就被切在框外
+        TuiMarkup.FitWindowToContent(win, fitWidth: false);
         ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
         return win;
     }
@@ -616,13 +675,12 @@ public static class TuiDialog
     {
         var (win, res) = LoadDialog("select", title, TuiTheme.Current.DialogInfoBorder);
 
-        int cw = ApplyContentWidth(win, NarrowXScale, 2);
         var visItems = Math.Min(items.Count, 12);
 
         var list = res.Find<TuiList>("list") ?? throw Invalid("select.tui", "list");
         list.Items = items;
         list.SelectedIndex = 0;
-        list.Width = cw;
+        ApplyContentWidth(win, NarrowXScale, 2, w => list.Width = w);
         list.Height = visItems;
         list.Focused = true;
         list.OnSelect = idx =>
@@ -658,14 +716,13 @@ public static class TuiDialog
     {
         var (win, res) = LoadDialog("multiselect", title, TuiTheme.Current.DialogInfoBorder);
 
-        int cw = ApplyContentWidth(win, NarrowXScale, 2);
         var visItems = Math.Min(items.Count, 12);
 
         var list = res.Find<TuiList>("list") ?? throw Invalid("multiselect.tui", "list");
         list.Items = items;
         list.SelectedIndex = 0;
         list.MultiSelect = true;
-        list.Width = cw;
+        ApplyContentWidth(win, NarrowXScale, 2, w => list.Width = w);
         list.Height = visItems;
         list.Focused = true;
 
@@ -729,14 +786,9 @@ public static class TuiDialog
         Action? onCancel = null)
     {
         var (win, res) = LoadDialog("ask", title, TuiTheme.Current.DialogInfoBorder);
-        var cw = ApplyContentWidth(win, WideXScale, 4);
 
         // ── 消息正文（1~5 行，超出末尾加省略号）──
         var msgBox = res.Find<TuiVBox>("msgBox") ?? throw Invalid("ask.tui", "msgBox");
-        msgBox.Width = cw;
-        msgBox.Children.Clear(); // 清掉模板里的预览占位标签
-        foreach (var line in AnsiHelper.WrapText(message, cw, AskMaxMessageLines))
-            msgBox.Add(new TuiLabel(line) { Width = cw, TextAlign = EHAlign.Center, Fg = TuiTheme.Current.DialogFg });
 
         // ── 选项列表（单选 ▶ 选中，多选 ☑/☐ 勾选，复用现有 TuiList）──
         int listH = Math.Max(1, Math.Min(options.Count, AskMaxListItems));
@@ -744,7 +796,19 @@ public static class TuiDialog
         list.Items = options;
         list.SelectedIndex = 0;
         list.MultiSelect = multiSelect;
-        list.Width = cw;
+
+        // 宽度 + 折行都放进回调，终端缩放时整套重来一遍
+        ApplyContentWidth(win, WideXScale, 4, w =>
+        {
+            msgBox.Width = w;
+            msgBox.Children.Clear(); // 也清掉模板里的预览占位标签
+            foreach (var line in AnsiHelper.WrapText(message, w, AskMaxMessageLines))
+                msgBox.Add(new TuiLabel(line) { Width = w, TextAlign = EHAlign.Center, Fg = TuiTheme.Current.DialogFg });
+            list.Width = w;
+            // 精确高度：边框(2) + 消息 + spacer(1) + 列表 + spacer(1) + 底部按钮(1)。
+            // 也得在回调里 —— 窄屏下消息折行变多，高度不跟着长就把列表挤出去了
+            win.Height = msgBox.Children.Count + listH + 5;
+        });
         list.Height = listH;
         list.Focused = true;
 
@@ -792,10 +856,6 @@ public static class TuiDialog
         });
 
         ApplyGradient(win, TuiTheme.Current.GradCyanBlue);
-
-        // 精确高度：边框(2) + 消息 + spacer(1) + 列表 + spacer(1) + 底部按钮(1)
-        win.Height = AnsiHelper.WrapText(message, cw, AskMaxMessageLines).Count + listH + 5;
-
         return win;
     }
 
@@ -809,28 +869,26 @@ public static class TuiDialog
     /// </summary>
     public static TuiWindow Permission(string title, string message, Action<EDialogResult> onResult)
     {
-        // 黄底黑字风格由 permission.tui 声明（bg/titleFg/titleBg/按钮 focusedBg）
+        // 灰底黑字与其他对话框一致（主题 WindowBg/DialogFg）；黄边框保留为「权限确认」的语义信号
         var (win, res) = LoadDialog("permission", title, AnsiColors.Yellow);
-
-        int cw = ContentW(WideXScale, 4);
-        var msgBox = res.Find<TuiVBox>("msgBox") ?? throw Invalid("permission.tui", "msgBox");
-        msgBox.Width = cw;
-        foreach (var lbl in BuildMessageLabels(message, cw, AnsiColors.Black))
-            msgBox.Add(lbl);
 
         var yesBtn = res.Find<TuiButton>("allow") ?? throw Invalid("permission.tui", "allow");
         var noBtn = res.Find<TuiButton>("deny") ?? throw Invalid("permission.tui", "deny");
         var allBtn = res.Find<TuiButton>("always") ?? throw Invalid("permission.tui", "always");
         foreach (var b in new[] { yesBtn, noBtn, allBtn })
-            b.Flex = 1; // 颜色由模板声明
+            b.Flex = 1; // 配色由 ApplyButtonGradient 设（橙黄渐变底 + 黑字）
         yesBtn.Focused = true;
         yesBtn.OnClick = _ => { win.Result = EDialogResult.Yes; onResult(EDialogResult.Yes); win.OnClosed?.Invoke(); };
         noBtn.OnClick = _ => { win.Result = EDialogResult.No; onResult(EDialogResult.No); win.OnClosed?.Invoke(); };
         allBtn.OnClick = _ => { win.Result = EDialogResult.Ok; onResult(EDialogResult.Ok); win.OnClosed?.Invoke(); };
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, yesBtn, noBtn, allBtn);
 
-        win.Width = msgBox.GetMaxWidth() + 4;
-        win.Height = msgBox.GetTotalHeight() + 4; // 消息 N 行 + 2 边框 + 1 VBox spacing + 1 按钮行
+        // 尺寸走和 Info/Confirm 同一条自适应路径。此前是 ContentW(WideXScale, 4) —— 不看内容，
+        // 一律占屏宽 3/4，于是一行短消息也撑出一个大宽框。
+        // FillMsgBox 顺带 Children.Clear() 掉模板里的 "…" 占位标签：别的对话框都清了，就这儿漏了，
+        // 于是第一行永远多出一个左对齐的省略号。
+        // 放在按钮接线之后：FitWindowToContent 要量控件树，按钮宽度得先定下来。
+        FitAndBindResize(win, res, message, ["允许 (Y)", "拒绝 (N)", "全允 (A)"]);
         ApplyGradient(win, TuiTheme.Current.GradOrangeYellow);
 
         win.RegisterShortcut(ConsoleKey.Y, () =>
