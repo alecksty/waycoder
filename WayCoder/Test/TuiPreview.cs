@@ -1,4 +1,5 @@
 using System.Text;
+using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.TUI;
@@ -38,8 +39,22 @@ public static class TuiPreview
                 result = TuiMarkup.LoadResource(path,
                     new Dictionary<string, string> { ["title"] = Path.GetFileName(path) });
             }
+            if (result.Screen != null)
+            {
+                // Screen 根（showcase/chat/main）：用 RenderOnlyScreen 渲染（数据控件正常布局）
+                var screen = new TuiDialog.RenderOnlyScreen();
+                screen.SetSize(Tty.Cols, Tty.Rows);
+                screen.RootView = result.Screen.RootView;
+                screen.RootView.OnCreate();
+                screen.RootView.OnResize(Tty.Cols, Tty.Rows);
+                var sb = new StringBuilder();
+                sb.Append(AnsiTty.CursorHide).Append(AnsiTty.Home).Append(AnsiTty.ClearScreen);
+                screen.Render(sb);
+                Console.Write(sb.ToString());
+                return 0;
+            }
             TuiWindow win = result.Window
-                ?? new TuiWindow { RootView = result.View ?? result.Screen!.RootView, BorderStyle = WayCoder.UI.Shared.WindowBorder.None };
+                ?? new TuiWindow { RootView = result.View!, BorderStyle = WayCoder.UI.Shared.WindowBorder.None };
             Console.Write(TuiDialog.Show(win));
             return 0;
         }
