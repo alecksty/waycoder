@@ -78,6 +78,7 @@ public static class ModelPicker
         var table = res.Find<TuiTableList>("table")!;
         var slotBar = res.Find<TuiLabel>("slotBar")!;
         var help = res.Find<TuiLabel>("help")!;
+        var help2 = res.Find<TuiLabel>("help2")!;
         search.Fg = AnsiColors.White;
         search.Bg = AnsiColors.BgBlack;
         table.Height = listH;
@@ -116,7 +117,8 @@ public static class ModelPicker
                 : src.Where(m =>
                     m.DisplayName.Contains(search.Text, StringComparison.OrdinalIgnoreCase) ||
                     m.Id.Contains(search.Text, StringComparison.OrdinalIgnoreCase) ||
-                    m.Provider.Contains(search.Text, StringComparison.OrdinalIgnoreCase)).ToList();
+                    m.Provider.Contains(search.Text, StringComparison.OrdinalIgnoreCase) ||
+                    m.ProviderId.Contains(search.Text, StringComparison.OrdinalIgnoreCase)).ToList();
 
             // 按供应商分组渲染（组头行 + 扫描状态）
             table.ClearRows();
@@ -155,7 +157,8 @@ public static class ModelPicker
 
             win.Title = TitleText();
             slotBar.Text = SlotBarText(targetSlot, currentSlot);
-            help.Text = "↑↓ 选择  Enter 确认  Tab 大/小  S扫描  I导入  O在线  K设key  L清key  Ctrl+A添加  Del删除  Ctrl+E编辑";
+            help.Text = "↑↓选择  Enter确认  Tab大/小  S扫描  I导入  O在线  K设key  L清key";
+            help2.Text = "Ctrl+A添加  Del删除  Ctrl+E编辑  输入过滤: 名称/厂商/供应商";
             screen?.MarkDirty();
         }
 
@@ -179,6 +182,7 @@ public static class ModelPicker
         void TriggerScan()
         {
             help.Text = "📡 扫描连通性中…（完成后按 ↑↓/输入刷新）";
+            help2.Text = "";
             screen?.MarkDirty();
             Task.Run(() =>
             {
@@ -196,6 +200,7 @@ public static class ModelPicker
         void TriggerImport(string kind)
         {
             help.Text = kind == "opencode" ? "🌐 OpenCode 在线导入中…" : "📥 自动导入中…";
+            help2.Text = "";
             screen?.MarkDirty();
             Task.Run(() =>
             {
@@ -228,6 +233,7 @@ public static class ModelPicker
                 }
                 catch { }
                 help.Text = report + "（按 ↑↓/输入刷新）";
+            help2.Text = "";
                 screen?.MarkDirty();
             });
         }
@@ -237,10 +243,12 @@ public static class ModelPicker
             var m = table.SelectedIndex >= 0 && table.SelectedIndex < rowModels.Count
                 ? rowModels[table.SelectedIndex] : null;
             if (m == null) return;
-            if (m.ProviderId == "local") { help.Text = "本地模型无需 API Key"; return; }
+            if (m.ProviderId == "local") { help.Text = "本地模型无需 API Key";
+            help2.Text = ""; return; }
             try { ApiKeyStore.Remove(m.ProviderId); } catch { }
             ReconfigureAgent(m.ProviderId, Config.Instance.ApiKey ?? ""); // 回退全局 key
             help.Text = $"已清除 {m.ProviderId} 的 Key";
+            help2.Text = "";
             Refresh(false);
         }
 
@@ -253,12 +261,13 @@ public static class ModelPicker
                 {
                     var parts = (text ?? "").Split('|');
                     var id = parts.Length > 0 ? parts[0].Trim() : "";
-                    if (string.IsNullOrWhiteSpace(id)) { help.Text = "❌ 模型名不能为空"; return; }
+                    if (string.IsNullOrWhiteSpace(id)) { help.Text = "❌ 模型名不能为空"; help2.Text = ""; return; }
                     var pid = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1].Trim() : "custom";
                     var baseUrl = parts.Length > 2 && !string.IsNullOrWhiteSpace(parts[2]) ? parts[2].Trim() : null;
                     ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
                         id, id, pid, pid, "*", "Custom", 0, 0, 0, baseUrl, "手动添加", 0));
                     help.Text = $"✅ 已添加模型 {id}";
+                    help2.Text = "";
                     Refresh(false);
                 });
             screen?.ShowWindow(inputWin);
@@ -272,10 +281,11 @@ public static class ModelPicker
                 ? rowModels[table.SelectedIndex] : null;
             if (m == null) return;
             if (ModelCatalog.BuiltIn.Any(b => b.Id == m.Id))
-            { help.Text = "⚠ 内置模型不可删除"; return; }
+            { help.Text = "⚠ 内置模型不可删除"; help2.Text = ""; return; }
             var confirmWin = TuiDialog.Confirm("🗑 删除模型", $"删除 {m.Id}？（自定义模型，删除后不可恢复）", ok =>
             {
-                if (ok) { ModelCatalog.RemoveCustom(m.Id); help.Text = $"✅ 已删除 {m.Id}"; Refresh(false); }
+                if (ok) { ModelCatalog.RemoveCustom(m.Id); help.Text = $"✅ 已删除 {m.Id}";
+                help2.Text = ""; Refresh(false); }
             });
             screen?.ShowWindow(confirmWin);
             screen?.MarkDirty();
@@ -288,7 +298,7 @@ public static class ModelPicker
                 ? rowModels[table.SelectedIndex] : null;
             if (m == null) return;
             if (ModelCatalog.BuiltIn.Any(b => b.Id == m.Id))
-            { help.Text = "⚠ 内置模型不可编辑（选自定义模型）"; return; }
+            { help.Text = "⚠ 内置模型不可编辑（选自定义模型）"; help2.Text = ""; return; }
             var info = ModelCatalog.Find(m.Id);
             var prefill = $"{m.Id}|{m.ProviderId}|{info?.DefaultBaseUrl ?? ""}";
             var inputWin = TuiDialog.InputLine($"✏️ 编辑模型 {m.Id}",
@@ -301,6 +311,7 @@ public static class ModelPicker
                     ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
                         id, id, pid, pid, "*", "Custom", 0, 0, 0, baseUrl, "手动编辑", 0));
                     help.Text = $"✅ 已保存模型 {id}";
+                    help2.Text = "";
                     Refresh(false);
                 });
             screen?.ShowWindow(inputWin);
@@ -323,7 +334,8 @@ public static class ModelPicker
             var m = table.SelectedIndex >= 0 && table.SelectedIndex < rowModels.Count
                 ? rowModels[table.SelectedIndex] : null;
             if (m == null) return;
-            if (m.ProviderId == "local") { help.Text = "本地模型无需 API Key"; return; }
+            if (m.ProviderId == "local") { help.Text = "本地模型无需 API Key";
+            help2.Text = ""; return; }
             var current = "";
             try { current = ApiKeyStore.Get(m.ProviderId) ?? ""; } catch { }
             // 在模型窗口之上再弹子输入框（RenderWait 循环会把按键路由到当前 active 窗口）
@@ -336,6 +348,7 @@ public static class ModelPicker
                     try { ApiKeyStore.Set(m.ProviderId, text.Trim()); } catch { }
                     ReconfigureAgent(m.ProviderId, text.Trim()); // 运行时生效
                     help.Text = $"已保存 {m.ProviderId} 的 Key";
+            help2.Text = "";
                     screen?.MarkDirty();
                     Refresh(false);
                 });
