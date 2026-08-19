@@ -68,6 +68,14 @@ public static class Keypad
             mgr.PushScreen(screen);
             screen.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"⌨ Keypad 回放: {Path.GetFileName(scriptPath)}" });
 
+            // 绑定快捷键回调（真实 REPL 在 Program.Repl 注入）——Keypad 只记录触发，不执行阻塞对话框
+            screen.OnOpenSessions = () => Emit(orig, "# [键] Ctrl+S → 会话列表回调");
+            screen.OnOpenDiff = () => Emit(orig, "# [键] Ctrl+D → diff 预览回调");
+            screen.OnCycleModel = () => Emit(orig, "# [键] Ctrl+M → 模型选择回调");
+            screen.OnReasoningEffort = () => Emit(orig, "# [键] Ctrl+G → 推理深度回调");
+            screen.OnShowHelp = () => Emit(orig, "# [键] Ctrl+H → 帮助回调");
+            screen.OnSearchHistory = q => Emit(orig, $"# [键] Ctrl+R → 搜索回调: {q}");
+
             // 支持 WAYCODER_KEYPAD_SIZE=WxH 覆盖帧尺寸（排查不同终端宽度下的布局）
             var envSize = Environment.GetEnvironmentVariable("WAYCODER_KEYPAD_SIZE");
             if (!string.IsNullOrEmpty(envSize))
@@ -139,6 +147,12 @@ public static class Keypad
 
                     case "SETTINGSALL":
                         DiagnoseSettingsAll(orig);
+                        break;
+
+                    case "EDITOR":
+                        // 直接打开带文件的编辑器（绕过无文件时的文件选择框），便于测试编辑/保存
+                        try { mgr.PushScreen(new EditorScreen(value.Trim())); }
+                        catch (Exception ex) { Emit(orig, $"# (第 {step} 行) 打开编辑器失败: {ex.Message}"); }
                         break;
 
                     case "SNAP":
@@ -315,6 +329,17 @@ public static class Keypad
             case "controls": TuiDemo.ShowControlsDemo(screen); return;
             case "panel": TuiDemo.ShowPanelDemo(screen); return;
             case "tree": TuiDemo.ShowTreeDemo(screen); return;
+            // ── TuiDialog 系（非阻塞 ShowWindow，可脚本按键测试；confirm/input/select/multiselect 已在上面 TuiDemo 分支覆盖）──
+            case "info": screen.ShowWindow(TuiDialog.Info("信息", "这是一条信息")); return;
+            case "success": screen.ShowWindow(TuiDialog.Success("成功", "操作成功")); return;
+            case "warn": screen.ShowWindow(TuiDialog.Warn("警告", "请注意")); return;
+            case "error": screen.ShowWindow(TuiDialog.Error("错误", "出错了")); return;
+            case "confirm3": screen.ShowWindow(TuiDialog.Confirm3("确认", "确定执行？", _ => { })); return;
+            case "inputline": screen.ShowWindow(TuiDialog.InputLine("输入", "输入内容", "", _ => { })); return;
+            case "secret": screen.ShowWindow(TuiDialog.Secret("密钥", "输入密钥", "", _ => { })); return;
+            case "ask": screen.ShowWindow(TuiDialog.Ask("提问", "请选择一个选项",
+                ["选项 1", "选项 2", "选项 3"], false, _ => { }, _ => { })); return;
+            case "perm": screen.ShowWindow(TuiDialog.Permission("权限确认", "允许执行此命令？", _ => { })); return;
         }
     }
 
@@ -473,7 +498,7 @@ public static class Keypad
             int ax = c.X, ay = c.Y;
             for (var p = c.Parent; p != null; p = p.Parent) { ax += p.X; ay += p.Y; }
             string text = DescribeContent(c);
-            w.WriteLine($"{new string(' ', depth * 2)}{c.GetType().Name} x={c.X} y={c.Y} w={c.Width} h={c.Height} abs=({ax},{ay}){text}");
+            w.WriteLine($"{new string(' ', depth * 2)}{c.GetType().Name} x={c.X} y={c.Y} w={c.Width} h={c.Height} vis={c.Visible} foc={c.Focused} abs=({ax},{ay}){text}");
             if (c is TuiView v)
                 foreach (var ch in v.Children)
                     Walk(ch, depth + 1);
