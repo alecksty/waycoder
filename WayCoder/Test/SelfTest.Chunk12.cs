@@ -183,9 +183,10 @@ public static partial class SelfTest
         // ── 窗口型界面 .tui 资源加载（选择器/帮助/设置/Diff 壳）──
         Section("[TuiMarkup 窗口界面]");
         {
-            // (文件, 关键 id 数组)
+            // (文件, 关键 id 数组) —— 覆盖 dialogs/ 全部 19 个，id 从对应代码的 res.Find 调用提取
             var files = new (string File, string[] Ids)[]
             {
+                // 选择器/帮助/设置/Diff 壳（Custom/*.cs）
                 ("modelpicker.tui", ["search", "table", "slotBar", "help"]),
                 ("filepicker.tui", ["path", "search", "table", "help"]),
                 ("sessionpicker.tui", ["stats", "search", "list", "openBtn", "renameBtn", "delBtn", "closeBtn", "help"]),
@@ -193,7 +194,19 @@ public static partial class SelfTest
                 ("reasoningpicker.tui", ["search", "list"]),
                 ("keybindhelp.tui", ["list", "hint"]),
                 ("settings.tui", ["header", "catList", "detailPanel", "hintBar"]),
-                ("diffpreview.tui", ["body", "status"]),
+                ("diffpreview.tui", ["body", "status", "btnAccept", "btnSkip", "btnAll", "btnCancel"]),
+                // 对话框工厂（TuiDialog.cs 的 Find ?? throw 引用）
+                ("ask.tui", ["msgBox", "list", "ok", "cancel"]),
+                ("confirm.tui", ["msgBox", "yes", "no"]),
+                ("confirm3.tui", ["msgBox", "yes", "no", "cancel"]),
+                ("findreplace.tui", ["find", "repl", "case", "regex", "word", "findNext", "replace", "replaceAll", "close"]),
+                ("info.tui", ["msgBox", "ok"]),
+                ("input.tui", ["msgBox", "input", "ok", "cancel"]),
+                ("inputline.tui", ["msgBox", "input", "ok", "cancel"]),
+                ("multiselect.tui", ["list", "ok", "cancel"]),
+                ("permission.tui", ["msgBox", "allow", "deny", "always"]),
+                ("secret.tui", ["msgBox", "input", "ok", "cancel"]),
+                ("select.tui", ["list", "cancel"]),
             };
             foreach (var (file, ids) in files)
             {
