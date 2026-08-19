@@ -237,8 +237,9 @@ public static class ModelPicker
             var m = table.SelectedIndex >= 0 && table.SelectedIndex < rowModels.Count
                 ? rowModels[table.SelectedIndex] : null;
             if (m == null) return;
-            if (m.ProviderId is "local" or "custom") { help.Text = "本地模型无需 API Key"; return; }
+            if (m.ProviderId == "local") { help.Text = "本地模型无需 API Key"; return; }
             try { ApiKeyStore.Remove(m.ProviderId); } catch { }
+            ReconfigureAgent(m.ProviderId, Config.Instance.ApiKey ?? ""); // 回退全局 key
             help.Text = $"已清除 {m.ProviderId} 的 Key";
             Refresh(false);
         }
@@ -306,22 +307,34 @@ public static class ModelPicker
             screen?.MarkDirty();
         }
 
+        /// <summary>设置/清除 key 后重配当前 Agent（运行时生效，无需重启）。</summary>
+        void ReconfigureAgent(string providerId, string key)
+        {
+            var agent = ProgramContext.Agent;
+            if (agent == null) return;
+            var cfg = Config.Instance;
+            var info = ModelCatalog.Find(agent.LlmClient.Model);
+            var baseUrl = info?.DefaultBaseUrl ?? cfg.BaseUrl;
+            agent.LlmClient.Reconfigure(string.IsNullOrEmpty(key) ? (ApiKeyStore.Get(providerId) ?? cfg.ApiKey) : key, baseUrl);
+        }
+
         void PromptKeyForSelected()
         {
             var m = table.SelectedIndex >= 0 && table.SelectedIndex < rowModels.Count
                 ? rowModels[table.SelectedIndex] : null;
             if (m == null) return;
-            if (m.ProviderId is "local" or "custom") { help.Text = "本地模型无需 API Key"; return; }
+            if (m.ProviderId == "local") { help.Text = "本地模型无需 API Key"; return; }
             var current = "";
             try { current = ApiKeyStore.Get(m.ProviderId) ?? ""; } catch { }
             // 在模型窗口之上再弹子输入框（RenderWait 循环会把按键路由到当前 active 窗口）
             var inputWin = TuiDialog.InputLine(
                 $"🔑 设置 {m.ProviderId} 的 API Key",
-                "输入 API Key（Enter 保存，Esc 取消）",
+                "输入 API Key（Enter 保存修改，Esc 取消）",
                 current,
                 text =>
                 {
                     try { ApiKeyStore.Set(m.ProviderId, text.Trim()); } catch { }
+                    ReconfigureAgent(m.ProviderId, text.Trim()); // 运行时生效
                     help.Text = $"已保存 {m.ProviderId} 的 Key";
                     screen?.MarkDirty();
                     Refresh(false);
