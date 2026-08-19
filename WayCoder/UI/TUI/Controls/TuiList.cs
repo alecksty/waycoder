@@ -1,10 +1,11 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 using Terminal = WayCoder.UI.Shared.Terminal;
 
 namespace WayCoder.UI.Tui.Controls;
 
-/// <summary>可滚动列表选单 —— 单选/多选，键盘导航。</summary>
+/// <summary>可滚动列表选单 —— 单选/多选，键盘 + 鼠标。</summary>
 public class TuiList : TuiControl
 {
     public List<string> Items { get; set; } = [];
@@ -18,6 +19,51 @@ public class TuiList : TuiControl
     {
         Height = 5;
         Width = 30;
+    }
+
+    /// <summary>鼠标支持：滚轮滚动 + 左键点击选中（单选触发 OnSelect，多选勾选切换）。
+    /// 此前无 OnMouse —— 设置界面分类列表等点击无效，只能键盘导航。</summary>
+    public override bool OnMouse(InputEvent ev)
+    {
+        if (ev.Type != InputType.Mouse) return false;
+        int absX = GetAbsoluteX();
+        int absY = GetAbsoluteY();
+        if (ev.MouseX < absX || ev.MouseX >= absX + Width ||
+            ev.MouseY < absY || ev.MouseY >= absY + Height)
+            return false;
+
+        if (ev.MouseScrollUp)
+        {
+            ScrollOffset = Math.Max(0, ScrollOffset - 3);
+            MarkDirty();
+            return true;
+        }
+        if (ev.MouseScrollDown)
+        {
+            ScrollOffset = Math.Min(Math.Max(0, Items.Count - Height), ScrollOffset + 3);
+            MarkDirty();
+            return true;
+        }
+        if (ev.MouseLeft)
+        {
+            int idx = ScrollOffset + (ev.MouseY - absY);
+            if (idx >= 0 && idx < Items.Count)
+            {
+                if (MultiSelect)
+                {
+                    if (CheckedIndices.Contains(idx)) CheckedIndices.Remove(idx);
+                    else CheckedIndices.Add(idx);
+                }
+                else
+                {
+                    SelectedIndex = idx;
+                    OnSelect?.Invoke(idx); // 点击 = 激活（对齐空格键语义）
+                }
+                MarkDirty();
+            }
+            return true; // 区域内消费事件
+        }
+        return base.OnMouse(ev);
     }
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)

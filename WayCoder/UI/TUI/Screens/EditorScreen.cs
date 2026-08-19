@@ -182,7 +182,10 @@ public class EditorScreen : TuiScreen
         // mainHBox 高由 flex="1" 撑满（标题 1 + 状态栏 2 之外），编辑器随终端 resize 自适应
         int mainH = Math.Max(5, TH - 4); // 侧栏/编辑区高度参考（HBox ChildVAlign=Stretch 拉伸）
         int leftW = Math.Min(25, TW / 4);
-        int editorW = TW - (leftW + 1) - (leftW + 1); // 初始假设两侧都开
+        // 按实际面板状态算 editor 宽（此前假设两侧都开 → 面板隐藏时 editor 只占 38 列，
+        // 且 Render 的 SyncPanelLayout 改宽后 HBox 布局不重算，HBox.Width 仍 38 ——
+        // 鼠标点击 x>38 被 HBox.HitTest 拒绝，编辑器右侧点击无效）
+        int editorW = TW - (_leftVisible ? leftW + 1 : 0) - (_rightVisible ? leftW + 1 : 0);
 
         RootView.Width = TW;
         RootView.Height = TH;
