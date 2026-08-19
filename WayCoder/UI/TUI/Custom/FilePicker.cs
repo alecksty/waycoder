@@ -88,7 +88,7 @@ public static class FilePicker
         win.Width = winW; win.Height = winH;
         win.MinWidth = MinW; win.MinHeight = 10;
         win.WinBg = TuiTheme.Current.WindowBg;
-        var g = TuiTheme.Current.GradCyanBlue;
+        var g = TuiTheme.Current.GradOrangeYellow; // 统一对话框渐变（与 TuiDialog 系一致）
         win.GradientBorder = true;
         win.GradientStart = g.start;
         win.GradientEnd = g.end;
