@@ -163,6 +163,32 @@ public static class Keypad
                         EmitFrame(orig, value, frame.DumpAnsi());
                         break;
 
+                    case "MOUSE":
+                        // MOUSE:x,y —— 模拟鼠标左键点击（0-based 坐标），路由到当前屏幕
+                        {
+                            var p = value.Split(',');
+                            if (p.Length == 2
+                                && int.TryParse(p[0].Trim(), out var mx) && int.TryParse(p[1].Trim(), out var my))
+                            {
+                                mgr.HandleMouse(new InputEvent { Type = InputType.Mouse, MouseX = mx, MouseY = my, MouseLeft = true });
+                            }
+                            else Emit(orig, $"# (第 {step} 行) MOUSE 需 x,y（0-based 屏幕坐标）: {value}");
+                        }
+                        break;
+
+                    case "SCROLL":
+                        // SCROLL:up|down —— 模拟鼠标滚轮（真实滚轮带指针坐标；TuiListView 等按坐标命中才滚动）
+                        {
+                            int mx = Math.Clamp(Tty.Cols / 2, 0, Math.Max(0, Tty.Cols - 1));
+                            int my = Math.Clamp(2, 0, Math.Max(0, Tty.Rows - 1)); // 聊天列表/内容区域
+                            if (value.Trim().ToLowerInvariant() == "up")
+                                mgr.HandleMouse(new InputEvent { Type = InputType.Mouse, MouseX = mx, MouseY = my, MouseScrollUp = true });
+                            else if (value.Trim().ToLowerInvariant() == "down")
+                                mgr.HandleMouse(new InputEvent { Type = InputType.Mouse, MouseX = mx, MouseY = my, MouseScrollDown = true });
+                            else Emit(orig, $"# (第 {step} 行) SCROLL 需 up|down: {value}");
+                        }
+                        break;
+
                     case "SHOT":
                         // 截屏：把当前帧渲染为 PNG（TrueTypeFont 矢量渲染，CJK 可读）
                         try
@@ -516,6 +542,8 @@ public static class Keypad
                 return $" text=\"{t}\"";
             case TuiList l:
                 return $" items={l.Items.Count} sel={l.SelectedIndex}";
+            case TuiListView lv:
+                return $" items={lv.Children.Count} sel={lv.SelectedIndex} scroll={lv.ScrollOffset} auto={lv.IsAutoScrollToEnd}";
             default:
                 return "";
         }

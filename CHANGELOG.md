@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.79.61 (2026-08-20) — 鼠标支持补全 + Keypad 鼠标指令
+
+- **`TuiList` 加 OnMouse**——此前无鼠标处理，设置界面分类列表等点击无效（只能键盘导航）。现支持：滚轮滚动、左键点击选中（单选触发 `OnSelect`，多选勾选切换）
+- **EditorScreen 修复 editorW 初始宽**——`BuildLayout` 假设两侧面板都开（`TW - 2*(leftW+1)` = 38），面板隐藏时 editor 只占 38 列；Render 的 `SyncPanelLayout` 改宽后 HBox 布局不重算（Width 仍 38）→ `HBox.HitTest` 拒绝 x>38，**editor 右侧整片鼠标点击无效**。按实际面板状态算 editorW
+- **Keypad 鼠标指令**：
+  - `MOUSE:x,y` — 模拟鼠标左键点击（0-based 屏幕坐标），路由当前屏幕
+  - `SCROLL:up|down` — 模拟滚轮（带指针坐标；TuiListView/TuiList 按坐标命中才滚动）
+- **排查验证**：聊天界面（点击定位/滚轮滚动）、对话框（点按钮）、设置界面（点分类）、editor（点定位光标）鼠标功能均正常
+
+### ✅ 验证
+- 自测 3952 通过；设置巡检 85/85；editor 点击全区域定位正常
+
 ## v0.79.60 (2026-08-20) — 布局隐藏控件修复 + Keypad 全量对话框/编辑器测试
 
 - **HBox/VBox 布局跳过 `Visible=false` 控件**——隐藏控件不占位、flex 不参与分配。修复 **editor 面板关闭残留**（ToggleLeftPanel/RightPanel 只翻转标志，面板仍占位导致 editor 不扩展覆盖、左侧残留旧像素）；这是通用布局修复，影响所有面板/隐藏控件场景
