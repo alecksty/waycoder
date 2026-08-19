@@ -125,8 +125,8 @@ public static class TuiMarkup
         // 语义别名：跟 fg/bg 的 warning/danger/... 对齐，换主题自动换色
         ["info"] = () => TuiTheme.Current.GradCyanBlue,
         ["success"] = () => TuiTheme.Current.GradGreenCyan,
-        ["warning"] = () => TuiTheme.Current.GradOrangeYellow,
-        ["warn"] = () => TuiTheme.Current.GradOrangeYellow,
+        ["warning"] = () => TuiTheme.Current.DialogGradient, // 对话框主渐变：跟随主题，默认金黄
+        ["warn"] = () => TuiTheme.Current.DialogGradient,
         ["danger"] = () => TuiTheme.Current.GradRedOrange,
         ["error"] = () => TuiTheme.Current.GradRedOrange,
     };

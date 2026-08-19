@@ -133,7 +133,7 @@ public static class DiffPreview
         win.Width = winW; win.Height = winH;
         win.MinWidth = 60; win.MinHeight = 12;
         win.WinBg = contentBg;
-        var g = TuiTheme.Current.GradOrangeYellow;
+        var g = TuiTheme.Current.DialogGradient;
         win.GradientBorder = true;
         win.GradientStart = g.start;
         win.GradientEnd = g.end;
