@@ -151,5 +151,35 @@ public static partial class SelfTest
         tbl.SelectedIndex = 3; tbl.SelectPrev();
         Check("TableList: 导航向上跳过组头", tbl.SelectedIndex == 1);
         Check("TableList: NextSelectable 跳到首个数据行", tbl.NextSelectable(0) == 1);
+
+        // ── 列宽等比铺开（StretchColumns）──
+        // 固定列宽在宽窗口里把内容全挤在左边，右侧一大片空白；开了之后按声明比例放大铺满
+        var wide = new TuiTableList();
+        wide.AddColumn("A", 2);
+        wide.AddColumn("B", 24);
+        wide.AddColumn("C", 12);   // 声明合计 38
+
+        var fixedW = wide.EffectiveWidths(100);
+        Check("TableList: 不开 stretch 时列宽保持声明值",
+            fixedW[0] == 2 && fixedW[1] == 24 && fixedW[2] == 12);
+
+        wide.StretchColumns = true;
+        var strW = wide.EffectiveWidths(100);
+        int strSum = strW[0] + strW[1] + strW[2];
+        Check("TableList: stretch 后各列之和铺满整宽（右侧不留白）", strSum == 100);
+        Check("TableList: stretch 后每列都变宽", strW[0] >= 2 && strW[1] > 24 && strW[2] > 12);
+        Check("TableList: stretch 保持列间比例（B 仍最宽、约为 C 的两倍）",
+            strW[1] > strW[2] && strW[2] > strW[0] && Math.Abs(strW[1] - strW[2] * 2) <= 3);
+
+        // 窄于声明宽度时不缩（缩了会把内容截没，交给 TruncateByWidth 逐格处理）
+        var narrow = wide.EffectiveWidths(20);
+        Check("TableList: 控件比声明列宽还窄时不等比缩",
+            narrow[0] == 2 && narrow[1] == 24 && narrow[2] == 12);
+
+        // 列头分隔线跟着有效列宽走，不能还按声明宽度画（会短一截对不齐）
+        wide.Width = 101;   // DataWidth = 100（右侧 1 列给滚动条）
+        var wideHeader = wide.RenderHeader();
+        var sepLine = wideHeader.Split('\n')[1];
+        Check("TableList: stretch 后分隔线长度跟随有效列宽", sepLine.Length == 100);
     }
 }

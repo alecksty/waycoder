@@ -1,7 +1,7 @@
 <!-- 三选确认框（是/否/取消，标题与消息由 code-behind 注入） -->
 <Dialog title="{title}" border="rounded" borderColor="yellow" shortcut="escape">
   <VBox align="center" spacing="1">
-    <VBox id="msgBox"><Label text="…" fg="brightblack" /></VBox>
+    <VBox id="msgBox"><Label text="…" fg="black" /></VBox>
     <HBox align="center" spacing="2">
       <Button id="yes" text="是 (Y)" />
       <Button id="no" text="否 (N)" />

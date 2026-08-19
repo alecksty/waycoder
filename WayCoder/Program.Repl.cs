@@ -129,7 +129,9 @@ public partial class Program
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助", Centered = true });
         // 快捷键表输出到首条对话（每个槽位首次激活也会显示，见 SlotWelcome）
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = TuiKeybindHelp.GetHelpText() });
-        slot0.StatusLeft = Global.AppFullName;
+        // 状态栏左侧写模型名，不写品牌名 —— 品牌在顶栏标题和上面的欢迎横幅里已经有了，
+        // 这里再来一遍就是第三遍；而且 /model 切换后本来就会把这里改成模型名，启动态跟着一致
+        slot0.StatusLeft = _config.Model;
         slot0.HasWelcome = true;
         _llm!.SmallModel = _config.SmallModel;
 
@@ -324,6 +326,22 @@ public partial class Program
             var key = ev.KeyInfo;
             bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
 
+            // Shift+Tab 是独立事件类型（Unix 下是 ESC[Z），KeyInfo 可能是空的 ——
+            // 下发给窗口前补成真键，否则窗口收到一个空 ConsoleKeyInfo
+            if (ev.Type == InputType.ShiftTab && key.Key != ConsoleKey.Tab)
+                key = new ConsoleKeyInfo('\t', ConsoleKey.Tab, shift: true, alt: false, control: false);
+
+            // ── 键位作用域总闸（规则见 TuiKeyScope）──
+            // 栈顶有窗口/对话框时键盘归它：除系统键（仅 Ctrl+C）外，REPL 这一层一律不得截胡。
+            // 没有这道闸，后台线程弹确认框时主循环仍在读键，下面那几组「系统级」分支就会穿透对话框 ——
+            // 按 F1 在对话框底下切槽位、还先 PopScreen 把屏幕栈拆掉，Ctrl+Q 直接退进程。
+            if (mgr.ActiveScreen?.FocusedWindow != null && !TuiKeyScope.IsSystemKey(key))
+            {
+                mgr.OnKey(key);
+                mgr.Render();
+                continue;
+            }
+
             // 系统级：Ctrl+C 设置退出标志，走正常清理路径
             if (key.Key == ConsoleKey.C && ctrl)
             {
@@ -331,24 +349,31 @@ public partial class Program
                 continue;
             }
 
-            // 系统级：Ctrl+Q 紧急退出（强制保存所有槽位 + 恢复终端）
+            // 以下全是窗口键：能走到这里就说明栈顶没有窗口（被上面的总闸拦掉了），
+            // 也就是焦点在 ChatScreen 上。对话框开着时它们一律不生效。
+
+            // 窗口键：Ctrl+Q 紧急退出（强制保存所有槽位 + 恢复终端）
             if (key.Key == ConsoleKey.Q && ctrl)
             {
                 PanicExit("用户 Ctrl+Q 紧急退出");
             }
 
-            // 系统级：Shift+Tab 切换工作模式（Build → Plan → Review → Auto）
-            if (ev.Type == InputType.ShiftTab)
+            // 窗口键：切换工作模式（Build → Plan → Review → Auto）
+            // 判定见 InputEvent.IsModeSwitchKey —— Unix 的 ESC[Z / Windows 的 Tab+Shift / 通用 Ctrl+K
+            if (InputEvent.IsModeSwitchKey(ev))
             {
                 var newMode = WorkModeManager.CycleNext();
                 _slots[_activeSlot].WorkMode = newMode;
                 screen.StatusBar.CurrentWorkMode = newMode;
-                screen.AddSystemMsg($"工作模式: {WorkModeManager.Format(newMode)}（Shift+Tab 切换）");
+                screen.AddSystemMsg($"工作模式: {WorkModeManager.Format(newMode)}（Shift+Tab / Ctrl+K 切换）");
                 mgr.Render();
                 continue;
             }
 
-            // 系统级：F1~F10 切换 Agent 槽位
+            // 窗口键：F1~F10 切换 Agent 槽位。
+            // 注意 ChatScreen.HandleGlobalShortcut 里还有一份（只切 UI，不绑 Agent），
+            // 两份重复：这里先命中就 continue，那份只在对话框自带收键循环里才有机会跑。
+            // 合并需要给 ChatScreen 接一个回调来做 Agent 侧绑定，属独立重构，暂不动。
             if (key.Key >= ConsoleKey.F1 && key.Key <= ConsoleKey.F10)
             {
                 int slotIdx = key.Key - ConsoleKey.F1;
@@ -556,7 +581,9 @@ public partial class Program
                 onTool: (name, brief) =>
                 {
                     screen_!.FinishAgentMsg();
-                    screen_!.AddToolProgress(name, brief.Length > 60 ? ContextManager.TruncateByRunes(brief, 57) + "..." : brief);
+                    // 完整 brief 交给 AddToolProgress 按聊天区宽度截取 —— 提前砍 57 字符会把
+                    // bash 命令/文件路径的参数截得没法看；动态栏那份仍截短（一行小空间）
+                    screen_!.AddToolProgress(name, brief);
                     screen_!.OnToolStarted(name, brief.Length > 40 ? ContextManager.TruncateByRunes(brief, 37) + "..." : brief);
                     // 不立刻 StartAgentMsg，等 onToolOutput 流式输出完毕再懒启动
                     // 每 3 次工具调用自动保存
@@ -578,6 +605,14 @@ public partial class Program
             if (Console.KeyAvailable)
             {
                 var key = Console.ReadKey(intercept: true);
+                // 键位作用域：栈顶有窗口/对话框时键盘归它（同 REPL 主循环的总闸）。
+                // 没有这道闸，/loop 这类走本循环的路径会在 diff/权限对话框开着时把
+                // Y/N/A/Q 之类按键当无用键吃掉 —— 就是「对话框快捷键按不了」。
+                if (mgr.ActiveScreen?.FocusedWindow != null && !TuiKeyScope.IsSystemKey(key))
+                {
+                    mgr.OnKey(key);
+                    continue;
+                }
                 if (key.Key == ConsoleKey.Escape)
                     cts.Cancel();
                 else if (key.Key == ConsoleKey.Z && key.Modifiers.HasFlag(ConsoleModifiers.Control))
@@ -983,8 +1018,8 @@ public partial class Program
                         cs => { cs.Running = false; cs.OnToolFinished(); cs.EnsureAgentStreaming(); cs.AppendToken(tok); },
                         s => s.BufferedAppendToken(tok)),
                     onTool: (name, brief) => Route(
-                        cs => { cs.FinishAgentMsg(); cs.AddToolProgress(name, brief.Length > 60 ? ContextManager.TruncateByRunes(brief, 57) + "..." : brief); cs.OnToolStarted(name, brief.Length > 40 ? ContextManager.TruncateByRunes(brief, 37) + "..." : brief); },
-                        s => { s.BufferedFinishStream(); s.BufferedAddMsg("tool", ToolLabel(name, brief.Length > 60 ? ContextManager.TruncateByRunes(brief, 57) + "..." : brief), indent: 1); }),
+                        cs => { cs.FinishAgentMsg(); cs.AddToolProgress(name, brief); cs.OnToolStarted(name, brief.Length > 40 ? ContextManager.TruncateByRunes(brief, 37) + "..." : brief); },
+                        s => { s.BufferedFinishStream(); s.BufferedAddMsg("tool", ToolLabel(name, brief), indent: 1); }),
                     onToolOutput: line => Route(
                         cs => { cs.AppendToLast(line + "\n"); cs.OnToolFinished(); },
                         s => s.BufferedAppendToLast(line + "\n")),

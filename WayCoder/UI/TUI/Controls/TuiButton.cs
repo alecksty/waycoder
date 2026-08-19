@@ -13,7 +13,13 @@ public class TuiButton : TuiControl
     /// <summary>
     /// 按钮文本
     /// </summary>
-    public string Text { get; set; } = "OK";
+    /// <summary>按钮文字（改了自动标脏，如「→小模型」/「→大模型」来回切）。</summary>
+    public string Text
+    {
+        get => _text;
+        set => SetDirty(ref _text, value);
+    }
+    private string _text = "OK";
 
     /// <summary>
     /// 点击回调
@@ -26,24 +32,53 @@ public class TuiButton : TuiControl
     /// <summary>快捷键（标记 shortcut="Y" 解析；窗口 OnKey 匹配后触发 OnClick）。</summary>
     public ConsoleKey? ShortcutKey { get; set; }
 
-    /// <summary>是否被选中/高亮</summary>
-    public bool IsSelected { get; set; }
+    /// <summary>是否被选中/高亮（改了自动标脏）</summary>
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set => SetDirty(ref _isSelected, value);
+    }
+    private bool _isSelected;
 
     /// <summary>最小显示宽度（不足补空格）</summary>
     public int MinWidth { get; set; }
     public int MaxWidth { get; set; }
 
-    /// <summary>是否启用渐变背景</summary>
-    public bool GradientBg { get; set; }
+    // 渐变三属性都不写死默认值，未显式设置时回落到主题的「按钮默认风格」——
+    // 系统级一处（TuiTheme.ButtonGradientByDefault/ButtonGradient）决定全项目按钮长相，
+    // 标记里 gradient="false" / gradient="btnCyanBlue" / gradientStart=… 就地覆盖。
 
-    /// <summary>渐变背景起始色（TrueColor 码）</summary>
-    public int GradientBgStart { get; set; }
+    /// <summary>是否启用渐变背景，默认跟随主题 <see cref="TuiTheme.ButtonGradientByDefault"/>。</summary>
+    public bool GradientBg
+    {
+        get => _gradientBg ?? TuiTheme.Current.ButtonGradientByDefault;
+        set => _gradientBg = value;
+    }
 
-    /// <summary>渐变背景终止色（TrueColor 码）</summary>
-    public int GradientBgEnd { get; set; }
+    /// <summary>渐变背景起始色（TrueColor 码），默认跟随主题 <see cref="TuiTheme.ButtonGradient"/>。</summary>
+    public int GradientBgStart
+    {
+        get => _gradStart > 0 ? _gradStart : TuiTheme.Current.ButtonGradient.start;
+        set => _gradStart = value;
+    }
 
-    /// <summary>悬停状态（由 ButtonGroup 管理）</summary>
-    public bool IsHovered { get; set; }
+    /// <summary>渐变背景终止色（TrueColor 码），默认跟随主题 <see cref="TuiTheme.ButtonGradient"/>。</summary>
+    public int GradientBgEnd
+    {
+        get => _gradEnd > 0 ? _gradEnd : TuiTheme.Current.ButtonGradient.end;
+        set => _gradEnd = value;
+    }
+
+    private bool? _gradientBg;
+    private int _gradStart, _gradEnd;
+
+    /// <summary>悬停状态（由 ButtonGroup 管理，改了自动标脏）</summary>
+    public bool IsHovered
+    {
+        get => _isHovered;
+        set => SetDirty(ref _isHovered, value);
+    }
+    private bool _isHovered;
 
     public TuiButton()
     {
@@ -83,7 +118,7 @@ public class TuiButton : TuiControl
             ControlRenderer.DrawButtonGradientLine(sb, this, absX, absY,
                 ControlRenderer.PadText(Text),
                 TextAlign,
-                t.ButtonFg,
+                t.ButtonGradientFg, // 渐变底很亮，走黑字；ButtonFg 是给黑底扁平按钮的白字
                 t.ControlFocusedFg,
                 t.ControlDisabledFg,
                 GradientBgStart,

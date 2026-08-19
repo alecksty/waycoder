@@ -75,11 +75,19 @@ public static class Tty
     // 尺寸
     // ================================================================
 
+    /// <summary>
+    /// 尺寸覆盖（仅自测用，用完置回 null）。
+    /// 布局代码遍地直接读 <see cref="Cols"/>/<see cref="Rows"/>，不给个钩子，
+    /// 「终端缩放后对话框内容有没有跟着重算」这类断言就没法写 —— 真实控制台尺寸自测改不动。
+    /// </summary>
+    public static (int W, int H)? SizeOverride { get; set; }
+
     /// <summary>终端宽度（列数），无控制台时返回 80 安全默认值</summary>
     public static int Cols
     {
         get
         {
+            if (SizeOverride is { } o) return o.W;
             try { return Console.WindowWidth; }
             catch (IOException) { return 80; }
         }
@@ -90,6 +98,7 @@ public static class Tty
     {
         get
         {
+            if (SizeOverride is { } o) return o.H;
             try { return Console.WindowHeight; }
             catch (IOException) { return 24; }
         }

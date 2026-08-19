@@ -94,8 +94,26 @@ public class TuiTheme
     public int ControlDisabledFg { get; set; } = AnsiColors.BrightBlack; // 禁用前景（暗灰）
 
     // ── 按钮 ──
-    public int ButtonFg { get; set; } = AnsiColors.Black; // 按钮文字（黑字，蓝底可读）
-    public int ButtonBg { get; set; } = AnsiColors.BgBlue; // 按钮背景（蓝底）
+    // 两条渲染路径，前景色不能共用一个字段：
+    //   扁平按钮（无渐变）—— 黑底，要白字
+    //   渐变按钮（Btn*Grad 那几套 RGB，都很亮）—— 亮底，要黑字
+    // 共用会二选一糊掉：白字压橙黄渐变几乎看不见，黑字压黑底同理。
+    public int ButtonFg { get; set; } = AnsiColors.White; // 扁平按钮文字（黑底白字）
+    public int ButtonBg { get; set; } = AnsiColors.BgBlack; // 扁平按钮背景（黑底）
+    public int ButtonGradientFg { get; set; } = AnsiColors.Black; // 渐变按钮文字（亮底黑字）
+
+    // ── 按钮默认风格（系统级：一处决定全项目按钮长相）──
+    // TuiButton 不写死渐变，未显式设置时回落到这两项；标记里 gradient="false"/"btnCyanBlue" 可就地覆盖。
+    /// <summary>按钮默认是否用渐变底（true=金色渐变，false=扁平黑底）</summary>
+    public bool ButtonGradientByDefault { get; set; } = true;
+
+    /// <summary>按钮默认渐变配色，未设置时用橙→黄（BtnOrangeYellow）</summary>
+    public (int start, int end) ButtonGradient
+    {
+        get => _buttonGradient ?? BtnOrangeYellow;
+        set => _buttonGradient = value;
+    }
+    private (int start, int end)? _buttonGradient;
 
     // ── 输入框 ──
     public int InputFg { get; set; } = AnsiColors.White;
@@ -104,10 +122,12 @@ public class TuiTheme
     public int InputPlaceholderFg { get; set; } = AnsiColors.BrightBlack;
 
     // ── 列表 ──
+    // 数据类控件（列表/树/表格）统一黑底白字，选中行取反色（白底黑字），
+    // 不再用青底 —— 青底在浅色终端配色里和白字/黑字都糊
     public int ListFg { get; set; } = AnsiColors.White;
     public int ListBg { get; set; } = AnsiColors.BgBlack; // 列表项默认背景（黑底）
-    public int ListSelFg { get; set; } = AnsiColors.Black;
-    public int ListSelBg { get; set; } = AnsiColors.BgCyan;
+    public int ListSelFg { get; set; } = AnsiColors.Black; // 选中行 = 正文反色
+    public int ListSelBg { get; set; } = AnsiColors.BgWhite;
 
     // ── 文本区 ──
     public int TextAreaFg { get; set; } = AnsiColors.White;
@@ -168,7 +188,8 @@ public class TuiTheme
 
     // ── 树形视图 ──
     public int TreeViewFg { get; set; } = AnsiColors.White;
-    public int TreeViewSelBg { get; set; } = AnsiColors.BgCyan;
+    public int TreeViewBg { get; set; } = AnsiColors.BgBlack; // 黑底（此前是 0=透明，会漏出对话框灰底）
+    public int TreeViewSelBg { get; set; } = AnsiColors.BgWhite; // 选中行反色，与列表一致
 
     // ── 图标 ──
     public int IconUserFg { get; set; } = AnsiColors.Green;
@@ -201,6 +222,7 @@ public class TuiTheme
         ControlFocusedBg = AnsiColors.BgBlue,
         ControlFocusedFg = AnsiColors.White,
         ButtonBg = AnsiColors.BgWhite,
+        ButtonFg = AnsiColors.Black, // 白底按钮用黑字（基类默认已改成白字，浅色主题必须显式覆盖）
         InputFg = AnsiColors.Black, // 白底输入框用黑字，避免白字白底不可见
         InputCursorBg = AnsiColors.BgWhite,
         TextAreaFg = AnsiColors.Black,
@@ -222,7 +244,8 @@ public class TuiTheme
         ControlFg = AnsiColors.BrightWhite,
         ControlFocusedBg = AnsiColors.BgWhite,
         ControlFocusedFg = AnsiColors.Black,
-        ButtonBg = AnsiColors.BgBrightBlack,
+        ButtonBg = AnsiColors.BgWhite,
+        ButtonFg = AnsiColors.Black, // 白底黑字按钮：黑底主题里对比度拉满（灰底 100 只有 2.2:1）
         StatusBarBg = AnsiColors.BgWhite,
         StatusBarFg = AnsiColors.Black,
         ChatUserFg = AnsiColors.BrightGreen,

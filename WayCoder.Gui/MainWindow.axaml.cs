@@ -35,6 +35,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // 崩溃时保存各槽位会话（GuiBootstrap 已在 Program.Main 装好全局异常钩子）
+        GuiBootstrap.OnCrashSave = SaveAllSessions;
         // 注入 GUI 交互桥：Agent 的权限确认/提问走 Avalonia 对话框，而非回退 Console I/O
         UxHelper.WebInteraction = new GuiInteraction(this);
         // 系统通知：UxHelper.Info/Success/Warn/Error 显示到当前槽位聊天流（否则回退 Console 丢失）
@@ -114,13 +116,16 @@ public partial class MainWindow : Window
     }
 
     /// <summary>把流式中的消息定稿（Streaming=false），供切槽位时调用。</summary>
+    /// <summary>
+    /// 给当前所有流式气泡封口（推理 + 正文可能同时开着）。
+    /// 封口后 EnsureAssistant/EnsureReasoning 会新建气泡 —— 这是消息按时间线排列的前提：
+    /// 不封口的话，工具消息之后的正文会继续写回工具消息「之前」的旧气泡，
+    /// 视觉上就成了「对话全堆在上面、工具消息全堆在下面」。
+    /// </summary>
     private void FinalizeStreaming(int slot)
     {
-        var list = _messages[slot];
-        for (int i = list.Count - 1; i >= 0; i--)
-        {
-            if (list[i].Streaming) { list[i].Streaming = false; break; }
-        }
+        foreach (var m in _messages[slot])
+            if (m.Streaming) m.Streaming = false;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -191,6 +196,7 @@ public partial class MainWindow : Window
     {
         _rightTimer?.Stop();
         SaveAllSessions();
+        GuiBootstrap.Shutdown(); // session-end hook（对齐 CLI 退出流程）
         base.OnClosed(e);
     }
 
@@ -932,6 +938,7 @@ public partial class MainWindow : Window
 
     private void AppendTool(int slot, string name, string brief)
     {
+        FinalizeStreaming(slot); // 封口正文气泡，工具消息之后的回复另起一条（对齐 TUI onTool→FinishAgentMsg）
         var msg = new ChatMessage(ChatRole.Tool);
         msg.Text.Append($"🔧 [{name}] {brief}");
         AddMessage(slot, msg);
@@ -939,6 +946,7 @@ public partial class MainWindow : Window
 
     private void AppendToolOutput(int slot, string output)
     {
+        FinalizeStreaming(slot);
         var truncated = output.Length > 2000
             ? ContextManager.TruncateByRunes(output, 2000) + "\n…（截断）"
             : output;
@@ -953,7 +961,8 @@ public partial class MainWindow : Window
         var list = _messages[slot];
         for (int i = list.Count - 1; i >= 0; i--)
         {
-            if (list[i].Streaming) return list[i];
+            // 必须同时判角色：只看 Streaming 会把正文写进还开着的推理气泡
+            if (list[i].Role == ChatRole.Assistant && list[i].Streaming) return list[i];
         }
         var msg = new ChatMessage(ChatRole.Assistant) { Streaming = true };
         AddMessage(slot, msg);
@@ -966,7 +975,13 @@ public partial class MainWindow : Window
 
         // 推理内容分流（«dim»/«/» 标记，对齐 Web reasoning 独立气泡）
         if (token.Contains("«dim»")) _inReasoning[slot] = true;
-        if (token.Contains("«/»")) _inReasoning[slot] = false;
+        if (token.Contains("«/»"))
+        {
+            _inReasoning[slot] = false;
+            // 推理段收尾：封口推理气泡，正文另起一条（否则它一直开着，正文位置会错乱）
+            foreach (var m in _messages[slot])
+                if (m.Role == ChatRole.Reasoning && m.Streaming) m.Streaming = false;
+        }
         var clean = token.Replace("«dim»", "").Replace("«/»", "");
         if (string.IsNullOrEmpty(clean)) return;
 

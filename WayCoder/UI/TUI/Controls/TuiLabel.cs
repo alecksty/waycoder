@@ -6,7 +6,13 @@ namespace WayCoder.UI.Tui.Controls;
 /// <summary>静态文本标签 —— 单行文本，可设前景色。</summary>
 public class TuiLabel : TuiControl
 {
-    public string Text { get; set; } = "";
+    /// <summary>标签文字。改了自动标脏 —— code-behind 常拿它当状态回显（「扫描中…」），不标脏就看不见变化。</summary>
+    public string Text
+    {
+        get => _text;
+        set => SetDirty(ref _text, value);
+    }
+    private string _text = "";
 
     /// <summary>标签是纯展示控件，不可获得焦点</summary>
     public override bool CanFocus => false;

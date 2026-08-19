@@ -1,7 +1,7 @@
 <!-- LLM 提问对话框（标题/消息/选项由 code-behind 注入；单选隐藏确定按钮，多选保留） -->
 <Dialog title="{title}" border="rounded" borderColor="cyan" shortcut="escape">
   <VBox align="center" spacing="1">
-    <VBox id="msgBox"><Label text="…" fg="brightblack" /></VBox>
+    <VBox id="msgBox"><Label text="…" fg="black" /></VBox>
     <List id="list" items="选项一,选项二,选项三" selected="0" width="40" height="3" />
     <HBox align="center" spacing="2">
       <Button id="ok" text="确定" visible="false" />

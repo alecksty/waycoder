@@ -45,7 +45,12 @@ public static class TuiMarkdown
             int defaultFg = FgForRole(role);
             foreach (var rawLine in content.Split('\n'))
             {
-                result.Add(new List<(string, int, int)> { (rawLine, defaultFg, 0) });
+                // «grey» 这类中间格式标记必须在渲染层解码成颜色段，否则用户直接看到字面量。
+                // 只解码 «»、不做完整内联解析 —— 纯文本走的是 system/tool 输出，
+                // 里面的反引号/星号是数据，交给 ParseInline 会被当 Markdown 吃掉。
+                result.Add(rawLine.Contains('\xAB')
+                    ? MarkdownParser.ParseMarkupOnly(rawLine, defaultFg)
+                    : [(rawLine, defaultFg, 0)]);
             }
             return result;
         }

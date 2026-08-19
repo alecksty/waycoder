@@ -8,6 +8,6 @@
     <!-- 列表项 code-behind 动态填充；{InDesign '…'} 内为设计态样本，真实运行解析为空串 -->
     <ListView id="list" height="10" autoScroll="false"
               items="{InDesign '─ 常用 ─,/help 帮助,/model 切换模型,/session 会话列表,─ 文件 ─,/open 打开文件,/save 保存'}" />
-    <Label id="help" height="1" fg="8" />
+    <Label id="help" height="1" fg="black" />
   </VBox>
 </Dialog>

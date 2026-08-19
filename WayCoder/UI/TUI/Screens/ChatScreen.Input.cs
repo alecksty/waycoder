@@ -211,22 +211,77 @@ public partial class ChatScreen : TuiScreen
 
     // ── 侧栏 ──
 
+    /// <summary>
+    /// 切换侧栏（Ctrl+B）。
+    /// 侧栏宽度变化会连带改聊天区宽度，所以必须走一遍 resize 路径：重排布局 + 按新宽重灌消息，
+    /// 再整屏刷新。此前只翻了个标记位——`TuiManager.OnKey` 只置 manager 级 `IsDirty`，
+    /// 下一帧是增量渲染，`TuiView.OnRender` 会跳过没标脏的 SidePanel 叶子，
+    /// 于是侧栏得等到用户手动改一次终端尺寸（走 `_needsFullRefresh` 全量重绘）才「突然」冒出来。
+    /// </summary>
+    public void ToggleSidePanel()
+    {
+        SidePanelVisible = !SidePanelVisible;
+        RefreshSidePanel();   // 关闭时也刷：下次打开先显示的是最新数据而不是上次的残影
+        OnResize(TW, TH);
+        TuiManager.RequestFullRefresh();
+    }
+
+    /// <summary>
+    /// 每帧同步侧栏：数据指纹变了才重建分区并标脏。
+    /// 逐帧重建分区在 30ms 渲染循环里是白烧 GC，指纹比对是纯计数/状态拼串，代价可忽略。
+    /// </summary>
+    public void SyncSidePanel()
+    {
+        if (!SidePanelVisible) return;
+        var stamp = SidePanelStamp();
+        if (stamp == _sidePanelStamp) return;
+        _sidePanelStamp = stamp;
+        RefreshSidePanel();
+        SidePanel.Sections = SidePanelSections;
+        SidePanel.MarkDirty();   // 叶子控件不标脏，增量渲染这一帧就会跳过它
+    }
+
+    private string _sidePanelStamp = "";
+
+    /// <summary>
+    /// 侧栏数据指纹 —— 覆盖侧栏显示的每一项，任何一项变化都要让串变化，
+    /// 否则界面会停在旧值上（这正是「侧栏是个摆设」的根源：以前只有开侧栏那一刻刷一次）。
+    /// </summary>
+    private string SidePanelStamp()
+    {
+        var sb = new StringBuilder();
+        sb.Append(StatusLeft).Append('|').Append(StatusRight).Append('|')
+          .Append(WorkModeManager.CurrentMode).Append('|')
+          .Append(ActiveSlotIndex).Append(AgentBusy ? 'B' : '-').Append('|')
+          .Append(_contextPercent?.ToString("F0") ?? "-").Append('|')
+          .Append(_currentToolName ?? "-").Append('|')
+          .Append(GitBranch).Append('|')
+          .Append(ModifiedFiles.Count).Append('|')
+          .Append(McpManager.Servers.Count).Append(':').Append(McpManager.DiscoveredTools.Count).Append('|')
+          .Append(LspTool.SupportedServers.Count).Append('|');
+        foreach (var s in McpManager.Servers) sb.Append((int)s.Status).Append(s.ToolCount).Append(',');
+        sb.Append('|');
+        foreach (var t in TodoTool.Items) sb.Append(t.Id).Append(t.Status.Length > 0 ? t.Status[0] : '?').Append(',');
+        return sb.ToString();
+    }
+
     /// <summary>刷新侧栏所有分区内容</summary>
     public void RefreshSidePanel()
     {
         var sections = new List<PanelSection>();
 
-        // ── 品牌区 ──
-        sections.Add(new PanelSection
+        // ── 会话区（实时：模型/模式/上下文/用量，随每帧指纹比对自动更新）──
+        var sessionLines = new List<string>
         {
-            Title = "🏷 道码",
-            Lines =
-            [
-                $"  WayCoder v{Global.Version}",
-                "  中文版 AI 编程助手",
-                "  C# (.NET 10) AOT",
-            ]
-        });
+            $"  🤖 {(string.IsNullOrEmpty(StatusLeft) ? "(未设置)" : StatusLeft)}",
+            $"  🔄 {WorkModeManager.Format(WorkModeManager.CurrentMode)}",
+            $"  💬 智能体 {ActiveSlotIndex + 1} · {(AgentBusy ? "工作中" : "空闲")}",
+        };
+        if (_contextPercent is { } pct) sessionLines.Add($"  🧠 上下文 {pct:F0}%");
+        if (!string.IsNullOrEmpty(StatusRight)) sessionLines.Add("  " + StatusRight);
+        if (!string.IsNullOrEmpty(GitBranch)) sessionLines.Add($"  🌿 {GitBranch}");
+        if (_currentToolName != null) sessionLines.Add($"  🔧 {_currentToolName}");
+        sections.Add(new PanelSection { Title = "⚡ 会话", Lines = sessionLines });
 
         // ── Todo 区 ──
         var todoItems = TodoTool.Items;
@@ -237,8 +292,9 @@ public partial class ChatScreen : TuiScreen
         }
         else
         {
-            var completed = todoItems.Count(i => i.Status == "completed");
-            foreach (var item in todoItems.OrderBy(i => i.Id).Take(15))
+            // 不再 Take(15) 预截断：截多少由 TuiSidePanel.AllocateHeights 按实际可用高度决定，
+            // 高终端能多显示几条，矮终端才折成「… +N」
+            foreach (var item in todoItems.OrderBy(i => i.Id))
             {
                 var icon = item.Status switch
                 {
@@ -263,7 +319,7 @@ public partial class ChatScreen : TuiScreen
         if (ModifiedFiles.Count == 0)
             fileLines.Add("  (无)");
         else
-            foreach (var f in ModifiedFiles.Take(15))
+            foreach (var f in ModifiedFiles)
                 fileLines.Add($"  📄 {Path.GetFileName(f)}");
         sections.Add(new PanelSection
         {
@@ -277,7 +333,7 @@ public partial class ChatScreen : TuiScreen
         if (mcpServers.Count == 0)
             mcpLines.Add($"  {McpManager.Info}");
         else
-            foreach (var s in mcpServers.Take(15))
+            foreach (var s in mcpServers)
             {
                 var mark = s.Status switch
                 {
@@ -550,9 +606,7 @@ public partial class ChatScreen : TuiScreen
                     Manager?.PushScreen(new SettingsScreen());
                     return true;
                 case ConsoleKey.B:
-                    SidePanelVisible = !SidePanelVisible;
-                    if (SidePanelVisible)
-                        RefreshSidePanel();
+                    ToggleSidePanel();
                     return true;
                 case ConsoleKey.R:
                     var searchQuery = UxHelper.Ask("搜索对话历史");

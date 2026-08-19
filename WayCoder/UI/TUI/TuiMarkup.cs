@@ -105,6 +105,32 @@ public static class TuiMarkup
         ["info"] = () => TuiTheme.Current.DialogInfoBorder,
     };
 
+    /// <summary>
+    /// 语义渐变 token：随主题切换（运行时读 TuiTheme.Current）。
+    /// 标记里 gradient="orangeYellow" 即开渐变并取该套色，不必在 code-behind 里写死 RGB。
+    /// 两族：Grad* 给边框，Btn* 比边框亮 30% 给按钮底（亮底配黑字，见 ButtonGradientFg）。
+    /// </summary>
+    private static readonly Dictionary<string, Func<(int start, int end)>> Gradients = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["cyanBlue"] = () => TuiTheme.Current.GradCyanBlue,
+        ["greenCyan"] = () => TuiTheme.Current.GradGreenCyan,
+        ["orangeYellow"] = () => TuiTheme.Current.GradOrangeYellow,
+        ["redOrange"] = () => TuiTheme.Current.GradRedOrange,
+        ["purplePink"] = () => TuiTheme.Current.GradPurplePink,
+        ["titleBar"] = () => TuiTheme.Current.GradTitleBar,
+        ["btnCyanBlue"] = () => TuiTheme.Current.BtnCyanBlue,
+        ["btnGreenCyan"] = () => TuiTheme.Current.BtnGreenCyan,
+        ["btnOrangeYellow"] = () => TuiTheme.Current.BtnOrangeYellow,
+        ["btnRedOrange"] = () => TuiTheme.Current.BtnRedOrange,
+        // 语义别名：跟 fg/bg 的 warning/danger/... 对齐，换主题自动换色
+        ["info"] = () => TuiTheme.Current.GradCyanBlue,
+        ["success"] = () => TuiTheme.Current.GradGreenCyan,
+        ["warning"] = () => TuiTheme.Current.GradOrangeYellow,
+        ["warn"] = () => TuiTheme.Current.GradOrangeYellow,
+        ["danger"] = () => TuiTheme.Current.GradRedOrange,
+        ["error"] = () => TuiTheme.Current.GradRedOrange,
+    };
+
     /// <summary>当前标记绑定的变量（{key} 占位符替换用），AsyncLocal 保证并发安全。</summary>
     private static readonly System.Threading.AsyncLocal<Dictionary<string, string>?> BindVars = new();
 
@@ -221,9 +247,10 @@ public static class TuiMarkup
         // 线框：自定义 6 字符 + 渐变（gradientStart/gradientEnd 用 RGB TrueColor）
         var custom = Attr(node, "customBorder");
         if (custom.Length > 0) win.CustomBorder = custom;
-        if (Bool(node, "gradient") is bool grad) win.GradientBorder = grad;
-        if (Color(node, "gradientStart") is int gs) win.GradientStart = gs;
-        if (Color(node, "gradientEnd") is int ge) win.GradientEnd = ge;
+        var wgrad = Gradient(node); // gradient="true" 只开关；gradient="orangeYellow" 连色一起给
+        if (wgrad.on is bool grad) win.GradientBorder = grad;
+        if (wgrad.start is int gs) win.GradientStart = gs;
+        if (wgrad.end is int ge) win.GradientEnd = ge;
         if (Color(node, "bg") is int winBg) win.WinBg = winBg; // 窗口背景（布局/颜色放标记）
         if (Color(node, "titleFg") is int tf) win.TitleFg = tf; // 标题前景
         if (Color(node, "titleBg") is int tbg) win.TitleBg = tbg; // 标题背景
@@ -237,15 +264,8 @@ public static class TuiMarkup
         SetWindowRef(win.RootView, win);
 
         // 内容自适应尺寸（size="content"）：按控件树自然尺寸计算窗口宽高；默认 size="screen" 用 width/height/scale
-        if (Attr(node, "size") == "content" && win.RootView != null)
-        {
-            var (cw, ch) = MeasureContent(win.RootView);
-            int borderW = win.BorderStyle == WindowBorder.None ? 0 : 2;
-            int borderH = win.BorderStyle == WindowBorder.None ? 0 : 2;
-            int titleH = win.ShowTitle && !string.IsNullOrEmpty(win.Title) ? 1 : 0;
-            win.Width = cw + borderW;
-            win.Height = ch + borderH + titleH;
-        }
+        if (Attr(node, "size") == "content")
+            FitWindowToContent(win);
 
         // 快捷键：遍历 RootView 树注册按钮 shortcut，窗口 shortcut 映射到关闭
         RegisterButtonShortcuts(win, win.RootView);
@@ -253,6 +273,24 @@ public static class TuiMarkup
             win.RegisterShortcut(wsc, () => win.OnClosed?.Invoke());
 
         return win;
+    }
+
+    /// <summary>
+    /// 按当前控件树的自然尺寸重算窗口尺寸。
+    /// 供两处共用：标记里的 <c>size="content"</c>，以及 code-behind 往模板里填完内容后重算
+    /// （对话框的消息行数、输入框高度都是运行时才定的，加载时量不到）。
+    ///
+    /// 高度按 <see cref="TuiWindow.ContentHeight"/> 的口径算 = 内容 + 上下边框，不额外留标题行
+    /// —— 标题嵌在上边框上，不独占行。手写行数极易漏掉 VBox 的 Spacing（漏一行按钮就被挤出内容区，
+    /// 表现为「对话框看不到按钮」），交给测量函数就不会漏。
+    /// </summary>
+    public static void FitWindowToContent(TuiWindow win, bool fitWidth = true, bool fitHeight = true)
+    {
+        if (win.RootView == null) return;
+        var (cw, ch) = MeasureContent(win.RootView);
+        int border = win.BorderStyle == WindowBorder.None ? 0 : 2;
+        if (fitWidth) win.Width = Math.Max(win.MinWidth, cw + border);
+        if (fitHeight) win.Height = Math.Max(win.MinHeight, ch + border);
     }
 
     /// <summary>测量视图树的自然尺寸（VBox 纵向堆叠、HBox 横向排列，递归子视图）。</summary>
@@ -409,6 +447,12 @@ public static class TuiMarkup
                     int idx = btn.Text.IndexOf(keyChar, StringComparison.OrdinalIgnoreCase);
                     if (idx >= 0) btn.UnderlineIndex = idx;
                 }
+                // 渐变底：gradient="btnOrangeYellow" 一句搞定，不必 code-behind 调 ApplyButtonGradient。
+                // 文字色由 TuiButton 自己走 ButtonGradientFg（亮底黑字），标记不用管
+                var bgrad = Gradient(node);
+                if (bgrad.on is bool bg) btn.GradientBg = bg;
+                if (bgrad.start is int bs) btn.GradientBgStart = bs;
+                if (bgrad.end is int be) btn.GradientBgEnd = be;
                 break;
             case "Input":
                 var inp = (TuiInput)c;
@@ -485,6 +529,7 @@ public static class TuiMarkup
                 }
                 tl.CellMarkup = Attr(node, "cell");
                 if (Bool(node, "showHeader") is bool tlSh) tl.ShowHeader = tlSh;
+                if (Bool(node, "stretch") is bool tlSt) tl.StretchColumns = tlSt;
                 if (Int(node, "selected") is int tlSel) tl.SelectedIndex = tlSel;
                 break;
             case "Progress":
@@ -749,17 +794,20 @@ public static class TuiMarkup
         => double.TryParse(node.GetAttr(key), System.Globalization.NumberStyles.Float,
             System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
 
-    private static bool? Bool(XNode node, string key)
+    private static bool? Bool(XNode node, string key) => ParseBool(node.GetAttr(key));
+
+    private static bool? ParseBool(string? s)
     {
-        var s = node.GetAttr(key);
         if (s == null) return null;
         return s.Equals("true", StringComparison.OrdinalIgnoreCase)
             || s == "1" || s.Equals("yes", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static int? Color(XNode node, string key)
+    private static int? Color(XNode node, string key) => ParseColorValue(AttrOrNull(node, key));
+
+    /// <summary>解析颜色值：语义名（accent/warning/…）→ 具名色 → 纯数字码 → #RRGGBB/rgb()。</summary>
+    private static int? ParseColorValue(string? s)
     {
-        var s = AttrOrNull(node, key);
         if (s == null) return null;
         if (SemanticColors.TryGetValue(s, out var fn)) return fn(); // 语义色（随主题）
         if (Colors.TryGetValue(s, out var c)) return c;
@@ -767,6 +815,33 @@ public static class TuiMarkup
         if (TryParseRgbColor(s, out var rgb)) return rgb;
         return null;
     }
+
+    /// <summary>
+    /// 解析渐变三属性，返回「开关 + 起止色」，全 null 表示标记没写、保持控件原值。
+    /// <list type="bullet">
+    /// <item><c>gradient="true"/"false"</c> —— 只开关，颜色留给控件默认值或 code-behind</item>
+    /// <item><c>gradient="orangeYellow"</c> —— 开 + 取语义渐变（随主题，见 <see cref="Gradients"/>）</item>
+    /// <item><c>gradientStart/gradientEnd</c> —— 显式色（#RRGGBB / rgb() / 语义色名），写了就隐含开</item>
+    /// </list>
+    /// 语义名与显式色同写时显式色赢（后者更具体）。纯逻辑、无副作用，便于自测。
+    /// </summary>
+    public static (bool? on, int? start, int? end) ParseGradient(string? gradient, string? startColor, string? endColor)
+    {
+        bool? on = null;
+        int? s = null, e = null;
+        if (gradient != null)
+        {
+            if (Gradients.TryGetValue(gradient, out var fn)) { var g = fn(); on = true; s = g.start; e = g.end; }
+            else on = ParseBool(gradient);
+        }
+        if (ParseColorValue(startColor) is int cs) { s = cs; on ??= true; }
+        if (ParseColorValue(endColor) is int ce) { e = ce; on ??= true; }
+        return (on, s, e);
+    }
+
+    /// <summary>从节点取渐变三属性（gradient/gradientStart/gradientEnd）。</summary>
+    private static (bool? on, int? start, int? end) Gradient(XNode node)
+        => ParseGradient(AttrOrNull(node, "gradient"), AttrOrNull(node, "gradientStart"), AttrOrNull(node, "gradientEnd"));
 
     /// <summary>取属性（含 {key} 占位符替换），缺失返回 null。</summary>
     private static string? AttrOrNull(XNode node, string key)

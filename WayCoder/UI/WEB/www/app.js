@@ -1131,6 +1131,20 @@ const MARKUP_STYLES = {
   'dim': 'opacity:.6;', 'bold': 'font-weight:700;',
   'underline': 'text-decoration:underline;', 'italic': 'font-style:italic;',
 };
+// 单个标签词 → CSS 片段。命名词查表；«fg:#rrggbb» / «bg:#rrggbb» / «#rgb» 走十六进制，
+// «bg:red» 这类命名背景把 color: 改写成 background-color:。与 C# MarkdownParser.TryMapTag 同语法。
+// 安全：十六进制走严格白名单正则（只允许 3/6 位 hex），杜绝往 style 属性里注入任意串。
+function markupTokenStyle(tok) {
+  if (MARKUP_STYLES[tok]) return MARKUP_STYLES[tok];
+  const hex = /^(?:(fg|bg):)?(#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}))$/.exec(tok);
+  if (hex) return (hex[1] === 'bg' ? 'background-color:' : 'color:') + hex[2] + ';';
+  const named = /^(fg|bg):(.+)$/.exec(tok);
+  if (named && MARKUP_STYLES[named[2]]) {
+    const base = MARKUP_STYLES[named[2]];
+    return named[1] === 'bg' ? base.replace(/(^|;)color:/g, '$1background-color:') : base;
+  }
+  return '';
+}
 function markupToHtml(text) {
   if (!text) return '';
   let out = '';
@@ -1158,7 +1172,7 @@ function markupToHtml(text) {
     } else {
       // 复合标签如 «bold yellow» 按空格拆分，多个样式合并到单个 span
       const styles = [];
-      for (const p of tag.split(/\s+/)) if (MARKUP_STYLES[p]) styles.push(MARKUP_STYLES[p]);
+      for (const p of tag.split(/\s+/)) { const st = markupTokenStyle(p); if (st) styles.push(st); }
       if (styles.length) stack.push(styles.join(''));
       else buf += '«' + tag + '»';   // 未知标签原样保留
     }

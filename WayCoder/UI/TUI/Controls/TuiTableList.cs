@@ -40,6 +40,13 @@ public class TuiTableList : TuiControl
     /// <summary>列头背景色（0=继承窗口底色）</summary>
     public int HeaderBg { get; set; }
 
+    /// <summary>
+    /// 列宽是否按控件宽度等比铺开（false=用声明的固定列宽）。
+    /// 固定列宽在宽窗口里会把内容全挤在左边、右侧留一大片空白；开了之后各列
+    /// 按声明宽度的比例放大到铺满整行。
+    /// </summary>
+    public bool StretchColumns { get; set; }
+
     /// <summary>自定义单元格模板（.tui 片段，{value}/{colN}/{text}/{index} 占位符），非空时每列用该模板渲染。</summary>
     public string CellMarkup { get; set; } = "";
 
@@ -106,31 +113,58 @@ public class TuiTableList : TuiControl
     private static string FormatCell(string cell, int width)
         => AnsiHelper.PadRightByWidth(AnsiHelper.TruncateByWidth(cell, width), width);
 
+    /// <summary>
+    /// 实际渲染用的列宽 —— StretchColumns 时按声明宽度等比放大到铺满 dataWidth。
+    /// 整除余数补给最宽的列（通常是名称列），保证各列之和恰好等于 dataWidth，右侧不留白。
+    /// </summary>
+    public int[] EffectiveWidths(int dataWidth)
+    {
+        var w = new int[_columns.Count];
+        for (int i = 0; i < _columns.Count; i++) w[i] = _columns[i].Width;
+
+        int total = TotalColWidth;
+        if (!StretchColumns || total <= 0 || dataWidth <= total || w.Length == 0) return w;
+
+        int used = 0, widest = 0;
+        for (int i = 0; i < w.Length; i++)
+        {
+            w[i] = Math.Max(1, w[i] * dataWidth / total);
+            used += w[i];
+            if (w[i] > w[widest]) widest = i;
+        }
+        w[widest] += dataWidth - used;
+        return w;
+    }
+
     /// <summary>把一行单元格拼成定宽字符串（各格已对齐）。</summary>
-    private string FormatRow(string[] cells)
+    private string FormatRow(string[] cells, int[] widths)
     {
         var sb = new StringBuilder();
         for (int i = 0; i < _columns.Count; i++)
-            sb.Append(FormatCell(i < cells.Length ? cells[i] : "", _columns[i].Width));
+            sb.Append(FormatCell(i < cells.Length ? cells[i] : "", widths[i]));
         return sb.ToString();
     }
 
     /// <summary>列头标题行纯文本（各标题已按列宽对齐，无分隔线）。</summary>
-    private string FormatHeaderTitles()
+    private string FormatHeaderTitles(int[] widths)
     {
         var sb = new StringBuilder();
         for (int i = 0; i < _columns.Count; i++)
-            sb.Append(FormatCell(_columns[i].Title, _columns[i].Width));
+            sb.Append(FormatCell(_columns[i].Title, widths[i]));
         return sb.ToString();
     }
 
     /// <summary>列头纯文本（标题行 + 分隔线），无 ANSI，供渲染与自测复用。</summary>
     public string RenderHeader()
     {
+        var widths = EffectiveWidths(DataWidth);
+        int total = 0;
+        foreach (var w in widths) total += w;
+
         var sb = new StringBuilder();
-        sb.Append(FormatHeaderTitles());
+        sb.Append(FormatHeaderTitles(widths));
         sb.Append('\n');
-        sb.Append(new string('─', TotalColWidth));
+        sb.Append(new string('─', total));
         return sb.ToString();
     }
 
@@ -186,14 +220,19 @@ public class TuiTableList : TuiControl
         int total = _rows.Count;
         int dataWidth = DataWidth;
         int dataStart = absY;
+        var widths = EffectiveWidths(dataWidth);
+        int lineW = 0;
+        foreach (var w in widths) lineW += w;
 
-        // 列头 + 分隔线
+        // 列头 + 分隔线（底色跟数据行一致，别透出窗口灰底）
+        int rowBg = Bg > 0 ? Bg : TuiTheme.Current.ListBg;
         if (ShowHeader && Height >= 3)
         {
-            WriteTableRow(sb, absX, dataStart, FormatHeaderTitles(),
-                HeaderFg > 0 ? HeaderFg : TuiTheme.Current.MdHeadingFg, HeaderBg, dataWidth);
-            WriteTableRow(sb, absX, dataStart + 1, new string('─', TotalColWidth),
-                TuiTheme.Current.SeparatorFg, 0, dataWidth);
+            WriteTableRow(sb, absX, dataStart, FormatHeaderTitles(widths),
+                HeaderFg > 0 ? HeaderFg : TuiTheme.Current.MdHeadingFg,
+                HeaderBg > 0 ? HeaderBg : rowBg, dataWidth);
+            WriteTableRow(sb, absX, dataStart + 1, new string('─', lineW),
+                TuiTheme.Current.SeparatorFg, rowBg, dataWidth);
             dataStart += 2;
         }
 
@@ -204,22 +243,25 @@ public class TuiTableList : TuiControl
             int idx = ScrollOffset + i;
             if (idx >= total) break;
 
-            // 组头行：整行显示组名 + 淡色分隔，不可选中
+            // 组头行：整行显示组名 + 淡色分隔，不可选中。
+            // 底色必须跟数据行一致（此前传 0=透明，于是组头这一条透出对话框的灰底，
+            // 夹在黑底数据行中间格外扎眼）——区分靠前景色就够了。
             if (IsGroupRow(idx))
             {
                 var title = _rows[idx][0] ?? "";
-                var line = $"── {title} " + new string('─', Math.Max(0, dataWidth - title.Length - 4));
-                WriteTableRow(sb, absX, dataStart + i, line, TuiTheme.Current.ControlDisabledFg, 0, dataWidth);
+                var line = $"── {title} " + new string('─', Math.Max(0, dataWidth - AnsiHelper.DisplayWidth(title) - 4));
+                WriteTableRow(sb, absX, dataStart + i, line,
+                    TuiTheme.Current.ControlDisabledFg, rowBg, dataWidth);
                 continue;
             }
 
             bool selected = idx == SelectedIndex;
             int fg = selected ? TuiTheme.Current.ListSelFg : (Fg > 0 ? Fg : TuiTheme.Current.ListFg);
-            int bg = selected ? TuiTheme.Current.ListSelBg : (Bg > 0 ? Bg : TuiTheme.Current.ListBg);
+            int bg = selected ? TuiTheme.Current.ListSelBg : rowBg;
             if (!string.IsNullOrEmpty(CellMarkup))
-                RenderCellRow(sb, absX, dataStart + i, idx, fg, bg, dataWidth);
+                RenderCellRow(sb, absX, dataStart + i, idx, fg, bg, dataWidth, widths);
             else
-                WriteTableRow(sb, absX, dataStart + i, FormatRow(_rows[idx]), fg, bg, dataWidth);
+                WriteTableRow(sb, absX, dataStart + i, FormatRow(_rows[idx], widths), fg, bg, dataWidth);
         }
 
         // 内联滚动条
@@ -250,7 +292,7 @@ public class TuiTableList : TuiControl
     }
 
     /// <summary>用自定义单元格模板渲染整行：每列一个 cell（宽度=列宽，占位符 {value}/{colN}/{text}/{index}）。</summary>
-    private void RenderCellRow(StringBuilder sb, int absX, int row, int rowIdx, int fg, int bg, int dataWidth)
+    private void RenderCellRow(StringBuilder sb, int absX, int row, int rowIdx, int fg, int bg, int dataWidth, int[] widths)
     {
         // 先画整行背景（选中行反白；cell 内透明处透出该背景）
         if (bg > 0)
@@ -259,7 +301,7 @@ public class TuiTableList : TuiControl
         var cells = _rows[rowIdx];
         var vars = new Dictionary<string, string>
         {
-            ["text"] = FormatRow(cells),
+            ["text"] = FormatRow(cells, widths),
             ["index"] = rowIdx.ToString(),
         };
         for (int i = 0; i < _columns.Count; i++)
@@ -268,7 +310,7 @@ public class TuiTableList : TuiControl
         int x = absX;
         for (int i = 0; i < _columns.Count; i++)
         {
-            int avail = Math.Min(_columns[i].Width, absX + dataWidth - x);
+            int avail = Math.Min(widths[i], absX + dataWidth - x);
             if (avail <= 0) break;
             vars["value"] = i < cells.Length ? cells[i] : "";
             try
@@ -282,7 +324,7 @@ public class TuiTableList : TuiControl
                 cell.Render(sb, x, row, ClipLeft, ClipTop, ClipRight, ClipBottom);
             }
             catch { WriteAt(sb, row, x, FormatCell(vars["value"], avail), fg, bg); }
-            x += _columns[i].Width;
+            x += widths[i];
         }
     }
 

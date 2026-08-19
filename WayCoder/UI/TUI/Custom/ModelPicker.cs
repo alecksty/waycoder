@@ -14,7 +14,7 @@ namespace WayCoder.UI.TUI.Custom;
 /// 橙→黄渐变外框（对标权限确认对话框 GradOrangeYellow）、多列模型列表、实时搜索、大/小模型切换、槽位分配。
 ///
 /// 功能：
-///   - 大/小模型切换（Tab）、全部/指定槽位（A / 1-0）、实时搜索过滤
+///   - 大/小模型切换（Tab）、全部/指定槽位（Ctrl+A / F1-F10）、实时搜索过滤（直接打字）
 ///   - 多列列表（🔑 key 状态 / 模型 / 厂商 / 窗口 / 价格 / 大 ✓ / 小 ✓）
 ///   - 底部槽位状态条（▶ 目标、* 已配置、· 当前）
 ///
@@ -31,8 +31,8 @@ public static class ModelPicker
 
     private const int MinW = 62, MinH = 16;
 
-    // 列宽（名称列弹性，其余固定）
-    private const int keyW = 2, provW = 11, ctxW = 6, priceW = 7, largeW = 2, smallW = 2;
+    // 单元格内右对齐用的宽度（列宽本身在 modelpicker.tui 的 columns 里声明）
+    private const int ctxW = 6, priceW = 7;
 
     /// <summary>
     /// 显示模型选择对话框。
@@ -55,21 +55,27 @@ public static class ModelPicker
 
     // ── 窗口构建 ──
 
+    /// <summary>把标记里的按钮接到动作上（缺 id 静默跳过，标记改名不至于崩窗口）。样式全在 .tui 里。</summary>
+    private static void Wire(TuiMarkupResult res, string id, Action action)
+    {
+        var btn = res.Find<TuiButton>(id);
+        if (btn != null) btn.OnClick = _ => action();
+    }
+
     private static TuiWindow BuildWindow(int currentSlot, TuiScreen? screen, Action<Result?> onDone)
     {
         var cfg = Config.Instance;
         int winW = Math.Min(Tty.Cols - 2, Math.Max(MinW, Tty.Cols * 2 / 3));
         int winH = Math.Min(Tty.Rows - 2, Math.Max(MinH, Tty.Rows * 2 / 3));
-        int listW = Math.Max(10, winW - 2);                                    // 内容区宽（去左右边框）
-        int listH = Math.Max(5, winH - 5);                                     // 列表行数（内容=搜索+列表+槽位+帮助）
-        int nameW = Math.Max(8, listW - 1 - keyW - provW - ctxW - priceW - largeW - smallW);
+        // 列宽不在这算了：.tui 里声明比例，TuiTableList.StretchColumns 按控件宽等比铺开
 
         // 标记加载：结构/ids 来自 modelpicker.tui（布局写标记），动态内容与事件 code-behind
         var res = TuiMarkup.LoadResource("dialogs/modelpicker.tui");
         var win = res.Window ?? throw new InvalidOperationException("modelpicker.tui 根应为 Dialog");
         win.Width = winW; win.Height = winH;
         win.MinWidth = MinW; win.MinHeight = MinH;
-        // 背景/边框/渐变 由 modelpicker.tui 声明（bg/borderColor/gradient）
+        // 背景/边框/渐变全在 modelpicker.tui 里声明（gradient="warning" → 主题 GradOrangeYellow）。
+        // 走渐变分支还有个副作用是我们要的：TuiScreen.RenderWindow 只在渐变分支居中标题。
 
         // 控件接线（结构在标记里，精确样式/列/数据/事件在此）
         var search = res.Find<TuiInput>("search")!;
@@ -77,7 +83,8 @@ public static class ModelPicker
         var slotBar = res.Find<TuiLabel>("slotBar")!;
         var help = res.Find<TuiLabel>("help")!;
         var help2 = res.Find<TuiLabel>("help2")!;
-        table.Height = listH; // 列定义在 modelpicker.tui（columns 属性）
+        var btnMode = res.Find<TuiButton>("btnMode")!;   // 文本随大/小模型切换，Refresh 里刷
+        // 表格高度由 modelpicker.tui 的 flex="1" 交给 VBox 分配（列定义同样在标记的 columns 属性）
 
         // ── 状态 ──
         List<ModelEntry> models = GetAvailableModels();
@@ -146,8 +153,9 @@ public static class ModelPicker
 
             win.Title = TitleText();
             slotBar.Text = SlotBarText(targetSlot, currentSlot);
-            help.Text = "↑↓选择  Enter确认  Tab大/小  S扫描  I导入  O在线  K设key  L清key";
-            help2.Text = "Ctrl+A添加  Del删除  Ctrl+E编辑  输入过滤: 名称/厂商/供应商";
+            btnMode.Text = isLarge ? "→小模型" : "→大模型";
+            help.Text = "Tab切焦点  空格执行按钮  ↑↓选择  Enter确认  Esc取消  F1-F10槽位  直接打字过滤";
+            help2.Text = "^T大小 ^G槽位 ^S扫描 ^R导入 ^O在线 ^P设Key ^L清Key ^N添加 ^U编辑 ^D删除";
             screen?.MarkDirty();
         }
 
@@ -361,61 +369,50 @@ public static class ModelPicker
             Refresh(true);
         }
 
-        // 搜索输入：字母进过滤词（OnTextChanged 实时过滤），↑↓ 导航列表，Enter 选择；
-        // A / 数字键在「筛选空或 Ctrl」时切换槽位，否则作为普通字符输入过滤词。
+        // 搜索输入：所有可打印字符都进过滤词（OnTextChanged 实时过滤），动作键见 ClassifyKey。
         search.OnTextChanged = () => Refresh(false);
         search.KeyHook = key =>
         {
-            bool hasCtrl = (key.Modifiers & ConsoleModifiers.Control) != 0;
-            switch (key.Key)
+            var action = ClassifyKey(key, out int slot);
+            switch (action)
             {
-                case ConsoleKey.UpArrow:
-                case ConsoleKey.DownArrow:
-                case ConsoleKey.Home:
-                case ConsoleKey.End:
-                case ConsoleKey.PageUp:
-                case ConsoleKey.PageDown:
+                case EKeyAction.Nav:
                     table.OnKey(key);
                     table.MarkDirty();
                     screen?.MarkDirty();
                     return true;
-                case ConsoleKey.Enter:
-                    Commit();
-                    return true;
-                case ConsoleKey.A:
-                    if (hasCtrl) { PromptAddModel(); return true; } // Ctrl+A 添加模型
-                    if (search.Text.Length == 0) { ToggleAllSlots(); return true; } // 空搜索 A 全部槽位
-                    return false;
-                case ConsoleKey.S:
-                    if (hasCtrl || search.Text.Length == 0) { TriggerScan(); return true; }
-                    return false;
-                case ConsoleKey.I:
-                    if (hasCtrl || search.Text.Length == 0) { TriggerImport("import"); return true; }
-                    return false;
-                case ConsoleKey.O:
-                    if (hasCtrl || search.Text.Length == 0) { TriggerImport("opencode"); return true; }
-                    return false;
-                case ConsoleKey.L:
-                    if (hasCtrl || search.Text.Length == 0) { ClearKeyForSelected(); return true; }
-                    return false;
-                case ConsoleKey.K:
-                    if (hasCtrl || search.Text.Length == 0) { PromptKeyForSelected(); return true; }
-                    return false;
-                case ConsoleKey.E:
-                    if (hasCtrl) { PromptEditModel(); return true; }
-                    return false;
-                case ConsoleKey.Delete:
-                    if (search.Text.Length == 0) { DeleteSelectedModel(); return true; }
-                    return false;
-                default:
-                    if (TrySlotKey(key, out int slot) && (hasCtrl || search.Text.Length == 0))
-                    { SetSlot(slot); return true; }
-                    return false;
+                case EKeyAction.Commit: Commit(); return true;
+                case EKeyAction.Slot: SetSlot(slot); return true;
+                // Ctrl+字母：与下面同名按钮走同一个动作
+                case EKeyAction.ToggleMode: ToggleMode(); return true;
+                case EKeyAction.AllSlots: ToggleAllSlots(); return true;
+                case EKeyAction.Scan: TriggerScan(); return true;
+                case EKeyAction.Import: TriggerImport("import"); return true;
+                case EKeyAction.ImportOnline: TriggerImport("opencode"); return true;
+                case EKeyAction.SetKey: PromptKeyForSelected(); return true;
+                case EKeyAction.ClearKey: ClearKeyForSelected(); return true;
+                case EKeyAction.AddModel: PromptAddModel(); return true;
+                case EKeyAction.EditModel: PromptEditModel(); return true;
+                case EKeyAction.DeleteModel: DeleteSelectedModel(); return true;
+                default: return false; // 落回搜索框，当普通字符
             }
         };
         table.OnSelect = _ => Commit(); // 若焦点切到列表，Enter 亦可选择
 
-        win.RegisterShortcut(ConsoleKey.Tab, ToggleMode);
+        // 功能按钮：Tab 切焦点过来、空格/Enter 执行（TuiButton.OnKey 内建）。
+        // 做成按钮就不用占字母快捷键 —— 那些字母得留给搜索框打过滤词。
+        Wire(res, "btnMode", ToggleMode);
+        Wire(res, "btnAllSlots", ToggleAllSlots);
+        Wire(res, "btnScan", TriggerScan);
+        Wire(res, "btnImport", () => TriggerImport("import"));
+        Wire(res, "btnOnline", () => TriggerImport("opencode"));
+        Wire(res, "btnSetKey", PromptKeyForSelected);
+        Wire(res, "btnClrKey", ClearKeyForSelected);
+        Wire(res, "btnAdd", PromptAddModel);
+        Wire(res, "btnEdit", PromptEditModel);
+        Wire(res, "btnDel", DeleteSelectedModel);
+
+        // Tab 不再抢去切大/小模型（那是 btnMode 的活），交回 TuiScreen 做焦点遍历
         win.RegisterShortcut(ConsoleKey.Escape, () => Finish(null));
 
         Refresh(true);
@@ -425,6 +422,73 @@ public static class ModelPicker
     // ═══════════════════════════════════════════════════
     // 模型操作（纯逻辑）
     // ═══════════════════════════════════════════════════
+
+    /// <summary>模型框里搜索框拦截的按键动作。None = 不拦截，落回搜索框当普通字符。</summary>
+    public enum EKeyAction
+    {
+        None, Nav, Commit, Slot,
+        // 以下都是按钮的 Ctrl 加速键，与按钮一一对应
+        ToggleMode, AllSlots, Scan, Import, ImportOnline,
+        SetKey, ClearKey, AddModel, EditModel, DeleteModel,
+    }
+
+    /// <summary>
+    /// 按键 → 动作分类（纯逻辑，供自测断言）。
+    ///
+    /// 铁律：<b>任何能打出字符的键都不做快捷键</b>。此前 S/I/O/L/K/A 与数字在「搜索框为空」时
+    /// 被当动作键，于是 openai、siliconflow、4o 这类过滤词的第一个字符全被吞掉 ——
+    /// 用户看到的现象就是「输入字符串过滤功能没有」。
+    /// 现在功能全做成按钮（Tab 切焦点 + 空格执行），只留下打不出字符的键：
+    ///   Tab/Shift+Tab  切焦点（搜索框 → 表格 → 各按钮）
+    ///   空格/Enter     执行焦点所在按钮（TuiButton.OnKey 自己处理，不经这里）
+    ///   ↑↓/PgUp/PgDn   表格导航；Enter 确认选中模型；Esc 取消
+    ///   F1-F10         目标槽位（F 键打不出字符，安全）
+    ///   Ctrl+字母      各按钮的加速键（带 Ctrl 打不出字符，同样安全）
+    /// 其余按键一律 None → 落回搜索框当过滤词。
+    /// </summary>
+    public static EKeyAction ClassifyKey(ConsoleKeyInfo key, out int slot)
+    {
+        slot = -1;
+
+        switch (key.Key)
+        {
+            case ConsoleKey.UpArrow:
+            case ConsoleKey.DownArrow:
+            case ConsoleKey.Home:
+            case ConsoleKey.End:
+            case ConsoleKey.PageUp:
+            case ConsoleKey.PageDown:
+                return EKeyAction.Nav;
+            case ConsoleKey.Enter:
+                return EKeyAction.Commit;
+        }
+
+        // F1-F10 → 槽位 0-9（模态框里 F 键不会被 REPL 抢走，RenderWait 自己收键）
+        if (key.Key is >= ConsoleKey.F1 and <= ConsoleKey.F10)
+        { slot = key.Key - ConsoleKey.F1; return EKeyAction.Slot; }
+
+        if ((key.Modifiers & ConsoleModifiers.Control) == 0)
+            return EKeyAction.None; // 裸键一律给搜索框，保证过滤永远能打字
+
+        // Ctrl+字母 = 按钮加速键。选键有两条禁区：
+        //   1. Unix 下与控制键同码的 Ctrl+I(Tab) / Ctrl+M(Enter) / Ctrl+H(Backspace) 收不到；
+        //   2. TuiEditBase.HandleCtrlKey 已占的编辑键 Ctrl+A/C/X/V/Z/Y/E/K —— KeyHook 跑在它前面，
+        //      占了就等于把搜索框的全选/复制/粘贴/撤销抢走。
+        return key.Key switch
+        {
+            ConsoleKey.T => EKeyAction.ToggleMode,
+            ConsoleKey.G => EKeyAction.AllSlots,
+            ConsoleKey.S => EKeyAction.Scan,
+            ConsoleKey.R => EKeyAction.Import,
+            ConsoleKey.O => EKeyAction.ImportOnline,
+            ConsoleKey.P => EKeyAction.SetKey,
+            ConsoleKey.L => EKeyAction.ClearKey,
+            ConsoleKey.N => EKeyAction.AddModel,
+            ConsoleKey.U => EKeyAction.EditModel,
+            ConsoleKey.D => EKeyAction.DeleteModel,
+            _ => EKeyAction.None,
+        };
+    }
 
     /// <summary>Enter：无 key 则返回 NeedsApiKey，有 key 则直接应用</summary>
     private static Result? EnterOrPromptKey(ModelEntry m, bool isLarge, int slot)

@@ -165,9 +165,15 @@ public abstract class TuiEditBase : TuiControl
         bool shift = key.Modifiers.HasFlag(ConsoleModifiers.Shift);
         bool ctrl  = key.Modifiers.HasFlag(ConsoleModifiers.Control);
 
-        if (ctrl)  return HandleCtrlKey(key);
-        if (shift) return HandleShiftKey(key);
-        return HandleRegularKey(key);
+        bool handled = ctrl ? HandleCtrlKey(key)
+                     : shift ? HandleShiftKey(key)
+                     : HandleRegularKey(key);
+
+        // 处理了就一定重绘：光标移动、选择变化、撤销重做都改变绘制结果，
+        // 但只有改文本的原语会走 NotifyChanged。这里兜底，省得每个原语各记一次
+        // （单行 TuiInput 与多行 TuiTextArea 共用这条路径）。
+        if (handled) MarkDirty();
+        return handled;
     }
 
     /// <summary>Ctrl 组合键分发</summary>

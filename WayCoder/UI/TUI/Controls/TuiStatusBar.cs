@@ -110,11 +110,20 @@ public class TuiStatusBar : TuiControl
             col += 2;
         }
 
-        // 2.6 工作模式指示（Shift+Tab 切换）
+        // 2.6 工作模式指示（Shift+Tab / Ctrl+K 切换）
+        // 带中文名而不是只画 emoji —— 只有一个 🔨 谁也认不出来那是「建造模式」；
+        // 再按模式给色，非建造态一眼能看出「现在不写文件」
         {
-            var modeStr = WorkModeManager.Emojis.GetValueOrDefault(CurrentWorkMode, "?");
+            var modeStr = WorkModeManager.Format(CurrentWorkMode);
+            var modeFg = CurrentWorkMode switch
+            {
+                WorkMode.Plan   => AnsiColors.Yellow,
+                WorkMode.Review => AnsiColors.BrightCyan,
+                WorkMode.Auto   => AnsiColors.Green,
+                _               => AnsiColors.Cyan,
+            };
             ControlRenderer.WriteGradientTextAt(sb, row, col, $" {modeStr}",
-                AnsiColors.Cyan, gs, ge, absX, Width);
+                modeFg, gs, ge, absX, Width);
             col += AnsiHelper.DisplayWidth(modeStr) + 1;
         }
 

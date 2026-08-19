@@ -97,7 +97,12 @@ int fg = 36;   // 切主题后不变色，就是这里
 
 ### 4.1 按钮
 
-- 渐变底 `ApplyButtonGradient`（`TuiDialog.cs`）——比边框亮 30%，层次分明（`BtnCyanBlue`/`BtnGreenCyan`/`BtnOrangeYellow`/`BtnRedOrange`）。
+- **渐变底是默认长相**：`TuiButton` 的 `GradientBg`/`GradientBgStart`/`GradientBgEnd` 都不写死，未显式设置时回落到主题的
+  `ButtonGradientByDefault`（默认 true）+ `ButtonGradient`（默认橙→黄 `BtnOrangeYellow`）。一处改主题，全项目按钮跟着变。
+- 要另一套配色仍可用 `ApplyButtonGradient`（`TuiDialog.cs`）显式指定——比边框亮 30%，层次分明
+  （`BtnCyanBlue`/`BtnGreenCyan`/`BtnOrangeYellow`/`BtnRedOrange`）。
+- 标记里就地覆盖：`gradient="false"` 关成扁平、`gradient="btnCyanBlue"` 换语义配色、
+  `gradientStart="#102030" gradientEnd="#405060"` 直接给色（写了色即隐含开）。**不写属性 = 跟默认走。**
 - 快捷键字母下划线；按钮组（`TuiButtonGroup`）支持 `Tab` 导航 + 字母快捷键。
 
 ### 4.2 模态选择器统一模板
@@ -138,6 +143,17 @@ RenderWait(screen, evt, timeoutMs, win); // 阻塞轮询渲染 + 按键，直到
 - **对齐填充**：`TuiHelper.PadRightByWidth`/`PadLeftByWidth` 按显示宽度补齐，禁止 `new string(' ', n)` 按字符数补（CJK 下错位）。
 - **折行**：`TuiHelper.WrapText`（优先空格断行，CJK 按字符边界）。
 - **标记转义**：内部标记用书名号 `«color»text«/»`，与方括号 `[ ]` 不冲突、无需双写；`TuiHelper.Esc` 负责转义用户文本中的 `« »`。
+- **标记语法**（唯一真源 `MarkdownParser.TryMapTag`，TUI/CLI/Web 三端同一套）：
+
+  | 写法 | 含义 |
+  |---|---|
+  | `«red»` `«bold yellow»` `«dim»` `«underline»` | 命名色与样式（前景） |
+  | `«fg:#rrggbb»` `«#rrggbb»` `«#rgb»` | 真彩前景（`#rgb` 等价 `#rrggbb`） |
+  | `«bg:#rrggbb»` `«bg:red»` | 真彩 / 命名背景 |
+  | `«/»` | 回到上一级（前景与背景各自独立入栈，只弹自己那层） |
+
+  认不出的标签**原样输出**，让笔误暴露而不是静默消失。真彩码 = `AnsiTty.RgbCode` = `0x1000000 | rgb`。
+- **纯文本消息（system/tool）走 `MarkdownParser.ParseMarkupOnly`**：只解码 `«»`，反引号/`**`/`#` 一律当数据原样保留——这条路径上跑的是 shell 输出，套完整 Markdown 会把内容当格式吃掉。
 
 ---
 
@@ -151,6 +167,10 @@ RenderWait(screen, evt, timeoutMs, win); // 阻塞轮询渲染 + 按键，直到
 4. **键盘**：`↑↓`/`Home`/`End`/`PgUp`/`PgDn`/`Enter`/`Space`，边界钳制不越界；`EnsureSelectedVisible()` 保证选中行始终可见。
 5. **AOT 安全**：纯数据 + `TuiHelper`，无反射。
 6. **单测**：`Test/SelfTest.Chunk11.cs` 里补 `[TuiTableList]` 段——数据、截断、键盘边界、回调触发、列头渲染字符串。
+7. **凡影响绘制的属性都要标脏**：增量渲染只画脏叶子（`TuiView.OnRender` 的 `child.IsDirty || parentDirty`），
+   状态变了不标脏 = 界面不刷新。属性一律写成 `get => _f; set => SetDirty(ref _f, value);`
+   （`TuiControl.SetDirty` 值真变了才标）；键盘路径可像 `TuiEditBase.OnKey` 那样在「处理了」之后统一标一次。
+   自测除了断言 `IsDirty`，最好再渲染一帧断言新内容**确实进了增量帧**——标志位对了、渲染链路断了照样不刷新。
 
 ### 6.1 自定义单元格（cell 模板 + 占位符绑定）
 

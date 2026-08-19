@@ -90,6 +90,126 @@ public static partial class SelfTest
         Check("快捷键表: 含 F1-F10 槽位", helpText.Contains("F1 - F10"));
         Check("快捷键表: 含 Ctrl+H 帮助", helpText.Contains("Ctrl+H"));
         Check("快捷键表: 含模型快捷键", helpText.Contains("/model"));
+        Check("快捷键表: 已删除作废的主题快捷键", !helpText.Contains("Ctrl+Shift+F"));
+        // 对齐要按「渲染后」的样子量：«grey» 等标记不占屏宽，带着标记量会把标记长度算进列宽，
+        // 各行标记一样长时仍能歪打正着，一旦某行标记不同就漏判 —— 先剥标记再量
+        static string StripMarkup(string s) =>
+            System.Text.RegularExpressions.Regex.Replace(s, "«[^»]*»", "");
+        // 表格形态：两列以 │ 分隔，键列按显示宽度补齐 → 同一分类内竖线必须在同一列。
+        // 启动只显示简版（StartupKeys 里的高频键），完整表在 Ctrl+H 面板，行数变少是预期
+        var kbRows = helpText.Split('\n')
+            .Where(l => l.Contains('│')).Select(l => StripMarkup(l).TrimEnd()).ToList();
+        Check("快捷键表: 是两列表格（简版）", kbRows.Count >= 8);
+        Check("快捷键表: 简版行数明显少于完整表", kbRows.Count <= 20);
+        Check("快捷键表: 竖线列对齐(CJK 安全)",
+            kbRows.Select(l => AnsiHelper.DisplayWidth(l[..l.IndexOf('│')])).Distinct().Count() == 1);
+        Check("快捷键表: 行首左对齐(无居中前导空格)",
+            kbRows.TrueForAll(l => l.StartsWith("  ") && !l.StartsWith("   ")));
+        Check("快捷键表: 含分隔线", StripMarkup(helpText).Contains("────"));
+        // 键名不着色、其余灰白：竖线之前不得出现标记，说明列必须被 «grey» 包住
+        Check("快捷键表: 键名不带颜色标记",
+            helpText.Split('\n').Where(l => l.Contains('│'))
+                .All(l => !l[..l.IndexOf('│')].Replace("«grey»", "").Contains('«')));
+        Check("快捷键表: 说明列走灰白标记",
+            helpText.Split('\n').Where(l => l.Contains('│')).All(l => l.Contains("«grey»│")));
+
+        // ---- 表述必须与实现一致（逐条对着代码核过，别再漂回去）----
+        var kbPlain = StripMarkup(helpText);
+        // Ctrl+C 走 CancelKeyPress 退出（InputManager.cs 关了 TreatControlCAsInput），中断是 Esc
+        Check("快捷键表: Ctrl+C 不再谎称中断 Agent", !kbPlain.Contains("Ctrl+C") || !kbPlain.Contains("中断当前 Agent 操作"));
+        Check("快捷键表: 补上 Esc 中断", kbPlain.Contains("Esc") && kbPlain.Contains("中断当前 Agent"));
+        Check("快捷键表: 补上 Ctrl+Z 暂停", kbPlain.Contains("Ctrl+Z"));
+        // Ctrl+↑↓ 是聊天滚动，输入历史是裸 ↑↓（ChatScreen.Input.cs:652 / :975）
+        Check("快捷键表: Ctrl+↑↓ 不再谎称输入历史", !kbPlain.Contains("输入历史翻页"));
+        // Tab 被 HandleTabCompletion 吃掉，从不切焦点（ChatScreen.Input.cs:784）
+        Check("快捷键表: Tab 不再谎称切换焦点", !kbPlain.Contains("切换焦点（输入区"));
+        // Ctrl+P 是 ShowPromptBar 建议条，不是 CommandPalette（ChatScreen.Input.cs:628）
+        Check("快捷键表: Ctrl+P 不再谎称命令面板", !kbPlain.Contains("命令面板（斜杠"));
+        // 裸 Home/End 落到输入区光标，列表首尾要 Ctrl+Home/End（TuiEditBase.cs:226）
+        Check("快捷键表: Home/End 不再谎称跳列表首尾", !kbPlain.Contains("跳到列表顶部"));
+        // 脚注只剩 Unix 一条：Ctrl+M≡0x0D≡Enter、Ctrl+H≡0x08≡Backspace 抢码，无解，给斜杠命令兜底
+        Check("快捷键表: 有 Unix 同码脚注", kbPlain.Contains("Unix") && kbPlain.Contains("同码"));
+        Check("快捷键表: 脚注给出兜底命令", kbPlain.Contains("/model") && kbPlain.Contains("/help"));
+        // Shift+Tab 已在 Windows 修好（Program.Repl.cs 认 Tab+Shift 修饰键），脚注不该再说它坏
+        Check("快捷键表: 不再声称 Shift+Tab 在 Windows 失效",
+            !kbPlain.Contains("Shift+Tab") || !kbPlain.Contains("Windows 下失效"));
+        // Ctrl+K 是两平台通用的模式切换别名，表里必须写出来，否则用户只知道 Shift+Tab
+        Check("快捷键表: 模式切换列出 Ctrl+K 别名", kbPlain.Contains("Ctrl+K"));
+
+        // ---- 模式切换键判定（REPL 主循环没法自测，判定抽到 InputEvent.IsModeSwitchKey）----
+        // 三个入口都得认：Unix 的 ESC[Z、Windows 的 Tab+Shift、通用 Ctrl+K
+        static UI.TUI.Base.InputEvent KeyEv(ConsoleKey k, ConsoleModifiers mods = 0) => new()
+        {
+            Type = UI.TUI.Base.InputType.Key,
+            KeyInfo = new ConsoleKeyInfo('\0', k,
+                mods.HasFlag(ConsoleModifiers.Shift),
+                mods.HasFlag(ConsoleModifiers.Alt),
+                mods.HasFlag(ConsoleModifiers.Control)),
+        };
+        Check("模式键: Unix ESC[Z",
+            UI.TUI.Base.InputEvent.IsModeSwitchKey(new UI.TUI.Base.InputEvent { Type = UI.TUI.Base.InputType.ShiftTab }));
+        Check("模式键: Windows Tab+Shift",
+            UI.TUI.Base.InputEvent.IsModeSwitchKey(KeyEv(ConsoleKey.Tab, ConsoleModifiers.Shift)));
+        Check("模式键: Ctrl+K 别名",
+            UI.TUI.Base.InputEvent.IsModeSwitchKey(KeyEv(ConsoleKey.K, ConsoleModifiers.Control)));
+        // 反向两条最要命：裸 Tab 抢走了就没法补全路径，裸 k 抢走了打字就切模式
+        Check("模式键: 裸 Tab 放行（留给路径补全）",
+            !UI.TUI.Base.InputEvent.IsModeSwitchKey(KeyEv(ConsoleKey.Tab)));
+        Check("模式键: 裸 k 放行（当普通字符）",
+            !UI.TUI.Base.InputEvent.IsModeSwitchKey(KeyEv(ConsoleKey.K)));
+        Check("模式键: Ctrl+Tab 不算",
+            !UI.TUI.Base.InputEvent.IsModeSwitchKey(KeyEv(ConsoleKey.Tab, ConsoleModifiers.Control)));
+        Check("模式键: Shift+K 不算",
+            !UI.TUI.Base.InputEvent.IsModeSwitchKey(KeyEv(ConsoleKey.K, ConsoleModifiers.Shift)));
+        Check("模式键: 回车不算", !UI.TUI.Base.InputEvent.IsModeSwitchKey(KeyEv(ConsoleKey.Enter)));
+        Check("模式键: 超时事件不算",
+            !UI.TUI.Base.InputEvent.IsModeSwitchKey(new UI.TUI.Base.InputEvent { Type = UI.TUI.Base.InputType.Timeout }));
+        // 内联代码不再带底色：48 是扩展背景引导码，裸发会被终端渲染成刺眼亮绿
+        var inlineCode = UI.Shared.MarkdownParser.ParseInline("路径 `D:\\a\\b` 结束", 0);
+        Check("内联代码: 不写残缺背景码 48", inlineCode.TrueForAll(s => s.Bg != 48));
+        // 纯文本消息（system/tool）也要解码 «» —— 否则快捷键表直接把 «grey» 印给用户
+        var plainSegs = UI.Tui.TuiMarkdown.RenderMessage("«grey»─灰«/»白", "system", 40, plainText: true);
+        var plainFlat = plainSegs.SelectMany(l => l).ToList();
+        Check("纯文本: «» 标记不外泄", plainFlat.TrueForAll(s => !s.Text.Contains('«')));
+        Check("纯文本: «grey» 段着灰色", plainFlat.Exists(s => s.Text.Contains('灰') && s.Fg == 90));
+        Check("纯文本: «/» 后恢复默认色", plainFlat.Exists(s => s.Text.Contains('白') && s.Fg != 90));
+        // 只解码 «»，不做完整 Markdown —— shell 输出里的反引号/星号是数据，不能被吃掉
+        var plainRaw = UI.Tui.TuiMarkdown.RenderMessage("cmd `x` **y**", "tool", 40, plainText: true)
+            .SelectMany(l => l).Aggregate("", (a, s) => a + s.Text);
+        Check("纯文本: 反引号/星号原样保留", plainRaw.Contains("`x`") && plainRaw.Contains("**y**"));
+
+        // ---- «fg:#rrggbb» / «bg:#rrggbb» 真彩标记 ----
+        const int RgbRed = 0x1000000 | 0xFF0000;
+        Check("真彩: fg:#rrggbb", UI.Shared.MarkdownParser.TryMapTag("fg:#ff0000", out var cFg, out var bFg)
+            && cFg == RgbRed && !bFg);
+        Check("真彩: bg:#rrggbb 归背景", UI.Shared.MarkdownParser.TryMapTag("bg:#ff0000", out var cBg, out var bBg)
+            && cBg == RgbRed && bBg);
+        Check("真彩: 裸 #rrggbb 当前景", UI.Shared.MarkdownParser.TryMapTag("#ff0000", out var cBare, out var bBare)
+            && cBare == RgbRed && !bBare);
+        Check("真彩: #rgb 缩写等价 #rrggbb",
+            UI.Shared.MarkdownParser.TryMapTag("#f00", out var cShort, out _) && cShort == RgbRed);
+        Check("真彩: 大小写不敏感",
+            UI.Shared.MarkdownParser.TryMapTag("FG:#FF0000", out var cUp, out _) && cUp == RgbRed);
+        Check("真彩: 命名背景 bg:red → 41",
+            UI.Shared.MarkdownParser.TryMapTag("bg:red", out var cNamed, out var bNamed) && cNamed == 41 && bNamed);
+        Check("真彩: 非法十六进制不认",
+            !UI.Shared.MarkdownParser.TryMapTag("fg:#gg0000", out _, out _)
+            && !UI.Shared.MarkdownParser.TryMapTag("#ff00", out _, out _));
+        // 前景/背景各自独立入栈：«bg» 里嵌 «fg» 再 «/»，背景必须留着
+        var rgbSegs = UI.Shared.MarkdownParser.ParseInline("«bg:#000080»底«fg:#ff0000»红«/»还底«/»外");
+        Check("真彩: 背景段落生效", rgbSegs.Exists(s => s.Text == "底" && s.Bg == (0x1000000 | 0x000080)));
+        Check("真彩: 内层前景不吃掉背景",
+            rgbSegs.Exists(s => s.Text == "红" && s.Color == RgbRed && s.Bg == (0x1000000 | 0x000080)));
+        Check("真彩: «/» 只弹一层",
+            rgbSegs.Exists(s => s.Text == "还底" && s.Bg == (0x1000000 | 0x000080) && s.Color == 0));
+        Check("真彩: 出栈后恢复默认", rgbSegs.Exists(s => s.Text == "外" && s.Bg == 0 && s.Color == 0));
+        Check("真彩: 未知标签原样保留",
+            UI.Shared.MarkdownParser.ParseInline("«fg:#zz»x").Exists(s => s.Text.Contains("«fg:#zz»")));
+        // CLI 解码器（Replace 链枚举不到带参标签，须走 ExpandColorTags）
+        var cliRgb = Program.SpectreToAnsi("«fg:#ff0000»红«/»«bg:#00ff00»底«/»");
+        Check("真彩: CLI 前景转 38;2", cliRgb.Contains("38;2;255;0;0"));
+        Check("真彩: CLI 背景转 48;2", cliRgb.Contains("48;2;0;255;0"));
+        Check("真彩: CLI 不残留书名号", !cliRgb.Contains('«'));
         Console.WriteLine();
 
         // ---- Markdown 表格 ----

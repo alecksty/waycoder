@@ -1,7 +1,7 @@
 <!-- 消息提示框（Info/Success/Warn/Error 共用：标题/边框色/消息由 code-behind 注入，单确定按钮） -->
 <Dialog title="{title}" border="rounded" borderColor="{bcolor}">
   <VBox align="center" spacing="1">
-    <VBox id="msgBox"><Label text="…" fg="brightblack" /></VBox>
+    <VBox id="msgBox"><Label text="…" fg="black" /></VBox>
     <Button id="ok" text="确定" />
   </VBox>
 </Dialog>

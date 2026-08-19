@@ -173,6 +173,17 @@ public partial class ChatScreen : TuiScreen
         base.Deactivate();
     }
 
+    /// <summary>
+    /// 只刷新动态栏并触发下一帧，不弄脏整棵根。
+    /// 工具状态/压缩进度/权限等待都只影响动态栏，而 <see cref="MarkDirty"/> 会把根标脏，
+    /// 标题栏作为叶子被 parentDirty 拉着整行重绘（金色渐变重画一次就是一次闪）。
+    /// </summary>
+    private void MarkDynamicBarDirty()
+    {
+        DynamicBar?.MarkDirty();
+        if (Manager != null) Manager.IsDirty = true;
+    }
+
     private void OnCompressProgress(int layer, string message, double percent)
     {
         if (ContextManager.IsCompressing && DynamicBar != null)
@@ -180,7 +191,7 @@ public partial class ChatScreen : TuiScreen
             DynamicBar.Status = AgentStatus.Compressing;
             DynamicBar.ProgressPercent = percent;
             DynamicBar.ProgressLabel = $"[L{layer}] {message}";
-            MarkDirty();
+            MarkDynamicBarDirty();
         }
         else if (DynamicBar != null)
         {
@@ -263,34 +274,34 @@ public partial class ChatScreen : TuiScreen
     /// <summary>上下文占用百分比（null=未知，用于动态栏常驻显示）</summary>
     private double? _contextPercent;
 
-    /// <summary>标记工具开始执行</summary>
+    /// <summary>标记工具开始执行（只刷动态栏，不弄脏根，防标题栏闪）</summary>
     public void OnToolStarted(string toolName, string brief)
     {
         _currentToolName = toolName;
         _currentToolBrief = brief;
-        MarkDirty();
+        MarkDynamicBarDirty();
     }
 
-    /// <summary>标记工具执行结束</summary>
+    /// <summary>标记工具执行结束（只刷动态栏，不弄脏根，防标题栏闪）</summary>
     public void OnToolFinished()
     {
         _currentToolName = null;
         _currentToolBrief = null;
-        MarkDirty();
+        MarkDynamicBarDirty();
     }
 
-    /// <summary>标记权限等待开始</summary>
+    /// <summary>标记权限等待开始（只刷动态栏，不弄脏根，防标题栏闪）</summary>
     public void OnPermissionWaiting(string toolName)
     {
         _pendingPermissionTool = toolName;
-        MarkDirty();
+        MarkDynamicBarDirty();
     }
 
-    /// <summary>标记权限等待结束</summary>
+    /// <summary>标记权限等待结束（只刷动态栏，不弄脏根，防标题栏闪）</summary>
     public void OnPermissionResolved()
     {
         _pendingPermissionTool = null;
-        MarkDirty();
+        MarkDynamicBarDirty();
     }
 
     /// <summary>终端尺寸变化——重建完整布局，保留输入状态和全部聊天消息</summary>
@@ -523,18 +534,22 @@ public partial class ChatScreen : TuiScreen
     /// 添加一条消息到聊天列表。system/tool 消息使用纯文本模式避免 Markdown 行合并，连续同角色自动续接。
     /// indent&gt;0 表示嵌套子消息（如工具输出嵌套在所属 assistant 消息下）：续接无角色头 + 左缩进。
     /// </summary>
-    public void AddMessage(string content, string role = "assistant", bool centered = false, int indent = 0)
+    /// <param name="centered">null=续接同角色消息时继承前一条对齐（否则左对齐）；
+    /// 显式 true/false 则强制该对齐 —— 表格类内容必须显式传 false，
+    /// 否则会被前一条居中的 system 消息带偏，每行按各自宽度居中而参差不齐。</param>
+    public void AddMessage(string content, string role = "assistant", bool? centered = null, int indent = 0)
     {
         bool continuation = false;
         bool plainText = role is "system" or "tool" or "banner";
+        bool align = centered ?? false;
         if (plainText && role != "banner")
         {
             var last = ChatList.GetItem(ChatList.ItemCount - 1) as TuiListItem;
             if (last != null && last.Role == role)
             {
                 continuation = true;
-                // 续接消息继承前一条的对齐设置
-                centered = last.ContentAlign == EHAlign.Center;
+                // 仅在调用方未指定时继承前一条对齐
+                if (centered == null) align = last.ContentAlign == EHAlign.Center;
             }
         }
 
@@ -544,7 +559,7 @@ public partial class ChatScreen : TuiScreen
 
         var item = new TuiListItem(role, content, ChatList.Width - 2,
             role == "banner" ? true : continuation, plainText,
-            centered ? EHAlign.Center : EHAlign.Left)
+            align ? EHAlign.Center : EHAlign.Left)
         {
             Indent = indent
         };
@@ -555,8 +570,7 @@ public partial class ChatScreen : TuiScreen
         if (plainText && IsErrorOutput(content))
             item.Body.IsError = true;
 
-        ChatList.AddItem(item);
-        MarkDirty();
+        ChatList.AddItem(item); // AddItem 内部 MarkDirtyTree：聊天区整棵标脏 + 触发下一帧，无需再弄脏根
     }
 
     /// <summary>检测工具输出内容是否包含错误标记</summary>
@@ -765,10 +779,12 @@ public partial class ChatScreen : TuiScreen
     public override void Render(StringBuilder sb)
     {
         // ── 同步标题栏数据 ──
+        // 左上角永远是商标名，不跟 StatusLeft（那是模型名/loop 计数，动态栏用）。
+        // 用户反馈「商标变模型名」：StatusLeft 被塞进 Title 槽位，模型一切就顶掉商标。
         TitleBar.Width = TW;
         TitleBar.Bg = TuiTheme.Current.StatusBarBg;
         TitleBar.Fg = TuiTheme.Current.StatusBarFg;
-        TitleBar.Title = StatusLeft;
+        TitleBar.Title = Global.AppFullName;
         TitleBar.GitBranch = GitBranch;
         TitleBar.Version = Global.Version;
         TitleBar.CenterText = $"💬 智能体 {ActiveSlotIndex + 1}";
@@ -784,6 +800,9 @@ public partial class ChatScreen : TuiScreen
 
         // ── 同步动态栏 ──
         SyncDynamicBar();
+
+        // ── 同步侧栏（数据变了才重建分区）──
+        SyncSidePanel();
 
         // ── 动态尺寸 ──
         ComputeLayout(out var panelW, out var inputH, out var promptH, out var progressH, out var chatH);

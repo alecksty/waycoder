@@ -139,7 +139,7 @@ public class TuiTreeView : TuiControl
         // 构建展开节点列表
         BuildFlatList();
 
-        if (_flatList.Count == 0) return;
+        // 空树也要往下走：底色面板照铺（提前 return 会留下一块没画的洞）
 
         // 确保选中节点可见
         if (SelectedNode != null)
@@ -156,6 +156,23 @@ public class TuiTreeView : TuiControl
         }
 
         int visH = Height;
+
+        // 先把整块控件区铺成底色 —— 节点数不满一屏时，剩下的空行也得是黑底，
+        // 否则底部会露出对话框的灰底，看着像树只画了半截
+        int panelBg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : TuiTheme.Current.TreeViewBg)
+                                 : (Bg > 0 ? Bg : TuiTheme.Current.TreeViewBg);
+        if (panelBg != 0)
+        {
+            var rbPanel = new RenderBuffer();
+            for (int i = 0; i < visH; i++)
+            {
+                int r = absY + i;
+                if (r < ClipTop || r >= ClipBottom) continue;
+                rbPanel.Write(r, absX, new string(' ', Width), bg: panelBg);
+            }
+            sb.Append(rbPanel.ToString());
+        }
+
         for (int i = 0; i < visH; i++)
         {
             int flatIdx = _scrollOffset + i;
@@ -170,14 +187,15 @@ public class TuiTreeView : TuiControl
 
             int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
                    : sel ? SelFg : (Fg > 0 ? Fg : TuiTheme.Current.TreeViewFg);
-            int bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : 0)
-                   : sel ? SelBg : (Bg > 0 ? Bg : 0);
+            int bg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : TuiTheme.Current.TreeViewBg)
+                   : sel ? SelBg : (Bg > 0 ? Bg : TuiTheme.Current.TreeViewBg);
 
-            // 行背景
-            if (sel)
+            // 行背景：整行铺满。以前只在选中行铺，未选中行是透明的，
+            // 放进灰底对话框里就漏出灰底 —— 树/列表/表格要一律黑底
+            if (bg != 0)
             {
                 var rbBg = new RenderBuffer();
-                rbBg.Write(row, absX, new string(' ', Width), bg: SelBg);
+                rbBg.Write(row, absX, new string(' ', Width), bg: bg);
                 sb.Append(rbBg.ToString());
             }
 
@@ -376,6 +394,7 @@ public class TuiTreeView : TuiControl
             node.IsExpanded = true;
             SelectedNode = node;
             BuildFlatList(); // 子节点现在可见
+            MarkDirty();
         }
     }
 
@@ -384,6 +403,7 @@ public class TuiTreeView : TuiControl
         node.IsExpanded = false;
         SelectedNode = node;
         BuildFlatList();
+        MarkDirty();
     }
 
     public void ToggleExpand(TuiTreeNode node)
@@ -392,9 +412,14 @@ public class TuiTreeView : TuiControl
         else ExpandNode(node);
     }
 
+    /// <summary>
+    /// 选中节点。必须标脏 —— 渲染是增量的，只重画标脏的叶子控件；
+    /// 光改 SelectedNode 不标脏，画面停在旧帧上，用户看到的就是「按键没反应」。
+    /// </summary>
     public void SelectNode(TuiTreeNode node)
     {
         SelectedNode = node;
+        MarkDirty();
         OnSelectionChanged?.Invoke(node);
     }
 
@@ -416,6 +441,7 @@ public class TuiTreeView : TuiControl
         SelectedNode = null;
         _flatList.Clear();
         _depthCache.Clear();
+        MarkDirty();
     }
 
     /// <summary>节点数（含所有层级）</summary>

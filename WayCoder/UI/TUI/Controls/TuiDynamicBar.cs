@@ -206,15 +206,8 @@ public class TuiDynamicBar : TuiControl
                 col += AnsiHelper.DisplayWidth(ctxStr) + 1;
             }
 
-            // 空闲时显示模型名（在上下文%之后）
-            if (Status == AgentStatus.Idle)
-            {
-                var modelDisplay = LeftText;
-                if (!string.IsNullOrEmpty(modelDisplay) && AnsiHelper.DisplayWidth(modelDisplay) > 25)
-                    modelDisplay = AnsiHelper.TruncateByWidth(modelDisplay, 25);
-                rb.Write(absY, col, modelDisplay ?? "",
-                    fg: AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
-            }
+            // 这里原来空闲时再写一遍 LeftText（注释说是「模型名」，可 LeftText 就是左段那一份）——
+            // 同一根条上左右各画一次同样的字，纯重复，删掉。模型名看左段就够了。
         }
 
         sb.Append(rb.ToString());

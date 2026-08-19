@@ -103,8 +103,10 @@ public static class DiffPreview
     internal static TuiWindow BuildDiffWindow(List<Hunk> hunks, string filePath,
         TuiScreen? screen, Action<Decision, HashSet<int>?> onDone)
     {
-        int winW = Math.Max(40, Tty.Cols - 2);
-        int winH = Math.Max(10, Tty.Rows - 2);
+        // 窗口尺寸：别逼近全屏。宽度 3/4、高度 70%（各留边距），小终端还能再小 ——
+        // diff 内容可滚动，窗口不用为了显示全部而顶满整屏。
+        int winW = Math.Clamp((int)(Tty.Cols * 0.75), 50, Tty.Cols - 4);
+        int winH = Math.Clamp((int)(Tty.Rows * 0.7), 12, Tty.Rows - 4);
         int contentBg = AnsiColors.BgBlack; // diff 视图固定深色底，保证语法高亮/红绿行对比
 
         var accepted = new HashSet<int>();
@@ -116,7 +118,7 @@ public static class DiffPreview
         var win = res.Window ?? throw new InvalidOperationException("diffpreview.tui 根应为 Dialog");
         win.Title = $"Diff 预览: {filePath}  ({hunks.Count} hunks)";
         win.Width = winW; win.Height = winH;
-        win.MinWidth = 40; win.MinHeight = 10;
+        win.MinWidth = 60; win.MinHeight = 12;
         win.WinBg = contentBg;
         var g = TuiTheme.Current.GradOrangeYellow;
         win.GradientBorder = true;
@@ -195,6 +197,13 @@ public static class DiffPreview
 
         diff.OnChanged = UpdateStatus;
 
+        // 底部按钮 = 快捷键的图形化替身：Tab 切焦点 + 空格执行，与直接按字母走同一动作。
+        // 按钮文本里的 (Y/N/A/Q) 由标记 shortcut 属性画下划线；窗口 RegisterShortcut 优先命中。
+        Wire(res, "btnAccept", OnY);
+        Wire(res, "btnSkip", OnN);
+        Wire(res, "btnAll", OnA);
+        Wire(res, "btnCancel", Quit);
+
         win.RegisterShortcut(ConsoleKey.Y, OnY);
         win.RegisterShortcut(ConsoleKey.N, OnN);
         win.RegisterShortcut(ConsoleKey.A, OnA);
@@ -207,6 +216,13 @@ public static class DiffPreview
 
         UpdateStatus();
         return win;
+    }
+
+    /// <summary>把标记里的按钮接到动作上（缺 id 静默跳过，标记改名不至于崩窗口）。渐变底是 TuiButton 默认值。</summary>
+    private static void Wire(TuiMarkupResult res, string id, Action action)
+    {
+        var btn = res.Find<TuiButton>(id);
+        if (btn != null) btn.OnClick = _ => action();
     }
 
     /// <summary>
