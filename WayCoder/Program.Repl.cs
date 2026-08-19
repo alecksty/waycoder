@@ -695,6 +695,34 @@ public partial class Program
     /// 命令场景（/diff）无外层循环，RenderWait 自己渲染+读键。</summary>
     internal static volatile bool InAgentRenderLoop;
 
+    /// <summary>
+    /// 后台任务 + UI 渲染循环：长命令（如 /test all 同步跑 20-30s 自测）此前直接 await 在 UI 线程
+    /// 阻塞主循环 → 界面卡死无法输入。本方法把任务丢后台线程跑，UI 线程保持渲染 + 读键路由
+    /// （普通键可继续打字排队，对话框正常路由），任务完成返回结果。
+    /// </summary>
+    internal static async Task<T> RunWithUiLoop<T>(Func<T> background, ChatScreen screen)
+    {
+        var task = Task.Run(background);
+        var mgr = TuiManager.Instance;
+        var inputMgr = TuiManager.Instance.Input;
+        while (!task.IsCompleted)
+        {
+            screen.PumpUIQueue();
+            mgr.Render();
+            var ev = inputMgr.ReadInput(30);
+            if (ev.Type == InputType.Timeout) continue;
+            if (ev.Type == InputType.Mouse && TuiManager.MouseEnabled) { mgr.HandleMouse(ev); continue; }
+            if (ev.Type == InputType.Paste) { if (!string.IsNullOrEmpty(ev.PasteText)) screen.HandleBracketedPaste(ev.PasteText); continue; }
+            if (ev.Type == InputType.Resize) { mgr.OnResize(); continue; }
+            var key = ev.KeyInfo;
+            // 键位作用域：栈顶有窗口/对话框时键盘归它
+            if (mgr.ActiveScreen?.FocusedWindow != null && !TuiKeyScope.IsSystemKey(key)) { mgr.OnKey(key); continue; }
+            // 命令执行期：普通键路由给 ChatScreen（输入框可编辑，Enter 提交排队）
+            mgr.OnKey(key);
+        }
+        return await task;
+    }
+
     // 当前正在处理的用户输入 + 屏幕引用（供 RunAgentWithRenderLoop 使用）
     private static string? _currentUserInput;
     private static ChatScreen? screen_;

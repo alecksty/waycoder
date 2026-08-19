@@ -63,6 +63,7 @@ public static class Keypad
         {
             mgr.Enter();
             mgr.RefreshTheme();
+            SlashCommandRegistry.RegisterAll(); // COMMAND 命令测试需命令注册表
 
             var screen = new ChatScreen { ChatDisplayStyle = Config.Instance.ChatDisplayStyle };
             mgr.PushScreen(screen);
@@ -155,6 +156,21 @@ public static class Keypad
 
                     case "DIAGSELECT":
                         DiagnoseSelectN(orig);
+                        break;
+
+                    case "COMMAND":
+                        // 执行斜杠命令（后台线程 + 超时检测），排查哪些命令卡住界面
+                        {
+                            var (cmd, cargs) = SlashCommandRegistry.Match(value.Trim());
+                            if (cmd == null) { Emit(orig, $"# 未知命令: {value}"); break; }
+                            var ctask = Task.Run(() =>
+                            {
+                                try { cmd.ExecuteAsync(cargs, screen).GetAwaiter().GetResult(); return true; }
+                                catch (Exception ex) { Emit(orig, $"# 命令 {value} 异常: {ex.GetType().Name}: {ex.Message}"); return true; }
+                            });
+                            if (ctask.Wait(8000)) Emit(orig, $"# ✓ {value}: 完成");
+                            else Emit(orig, $"# ⚠ {value}: 卡住（8s 未完成，仍在后台跑）");
+                        }
                         break;
 
                     case "EDITOR":
