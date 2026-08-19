@@ -18,7 +18,7 @@ public class TuiVBox : TuiView
         var flowCount = 0;
         foreach (var child in Children)
         {
-            if (child.Floating) continue;
+            if (child.Floating || !child.Visible) continue;
             flowCount++;
             if (child.Flex > 0)
                 totalFlex += child.Flex;
@@ -30,7 +30,7 @@ public class TuiVBox : TuiView
         {
             int flexMarginH = 0;
             foreach (var child in Children)
-                if (child.Flex > 0 && !child.Floating)
+                if (child.Flex > 0 && !child.Floating && child.Visible)
                     flexMarginH += child.Margin.Vertical;
             int remaining = Height - totalFixedH - flexMarginH - Math.Max(0, flowCount - 1) * Spacing;
             if (remaining > 0)
@@ -39,7 +39,7 @@ public class TuiVBox : TuiView
                 TuiBase? lastFlexChild = null;
                 foreach (var child in Children)
                 {
-                    if (child.Flex > 0 && !child.Floating)
+                    if (child.Flex > 0 && !child.Floating && child.Visible)
                     {
                         int h = Math.Max(1, remaining * child.Flex / totalFlex);
                         child.Height = h;
@@ -59,7 +59,7 @@ public class TuiVBox : TuiView
         var totalH = 0;
         foreach (var child in Children)
         {
-            if (child.Floating) continue;
+            if (child.Floating || !child.Visible) continue;
             if (ChildHAlign == EHAlign.Stretch)
                 child.Width = Width;
             if (child is TuiView childView)
@@ -81,7 +81,7 @@ public class TuiVBox : TuiView
         var y = Math.Max(0, contentOffset);
         foreach (var child in Children)
         {
-            if (child.Floating) continue;
+            if (child.Floating || !child.Visible) continue;
             child.Y = y + child.Margin.Top;
             child.X = AlignX(child.Width) + child.Margin.Left;
             y += child.Height + child.Margin.Vertical + Spacing;

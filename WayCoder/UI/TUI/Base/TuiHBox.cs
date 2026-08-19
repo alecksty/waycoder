@@ -21,7 +21,7 @@ public class TuiHBox : TuiView
         int flowCount = 0;
         foreach (var child in Children)
         {
-            if (child.Floating) continue;
+            if (child.Floating || !child.Visible) continue;
             flowCount++;
             if (child.Flex > 0)
                 totalFlex += child.Flex;
@@ -33,7 +33,7 @@ public class TuiHBox : TuiView
         {
             int flexMarginW = 0;
             foreach (var child in Children)
-                if (child.Flex > 0 && !child.Floating)
+                if (child.Flex > 0 && !child.Floating && child.Visible)
                     flexMarginW += child.Margin.Horizontal;
             int remaining = Width - totalFixedW - flexMarginW - Math.Max(0, flowCount - 1) * Spacing;
             if (remaining > 0)
@@ -43,7 +43,7 @@ public class TuiHBox : TuiView
                 TuiBase? lastFlexChild = null;
                 foreach (var child in Children)
                 {
-                    if (child.Flex > 0 && !child.Floating)
+                    if (child.Flex > 0 && !child.Floating && child.Visible)
                     {
                         int w = Math.Max(1, remaining * child.Flex / totalFlex);
                         child.Width = w;
@@ -65,7 +65,7 @@ public class TuiHBox : TuiView
         {
             if (child is TuiView childView)
                 childView.Layout();
-            if (child.Floating) continue;
+            if (child.Floating || !child.Visible) continue;
             if (ChildVAlign == EVAlign.Stretch)
                 child.Height = Height;
             totalW += child.Width + child.Margin.Horizontal + Spacing;
@@ -87,7 +87,7 @@ public class TuiHBox : TuiView
         int x = Math.Max(0, contentOffset);
         foreach (var child in Children)
         {
-            if (child.Floating) continue;
+            if (child.Floating || !child.Visible) continue;
             child.X = x + child.Margin.Left;
             child.Y = AlignY(child.Height + child.Margin.Vertical, maxH) + child.Margin.Top;
             x += child.Width + child.Margin.Horizontal + Spacing;

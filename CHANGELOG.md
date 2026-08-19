@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.79.60 (2026-08-20) — 布局隐藏控件修复 + Keypad 全量对话框/编辑器测试
+
+- **HBox/VBox 布局跳过 `Visible=false` 控件**——隐藏控件不占位、flex 不参与分配。修复 **editor 面板关闭残留**（ToggleLeftPanel/RightPanel 只翻转标志，面板仍占位导致 editor 不扩展覆盖、左侧残留旧像素）；这是通用布局修复，影响所有面板/隐藏控件场景
+- **EditorScreen**：面板开关后 `SyncPanelLayout()` + `RootView.Layout()` 重新布局（editor 扩展覆盖）
+- **Keypad 工具扩充**：
+  - `EDITOR:<文件>` — 直接打开带文件编辑器（绕过无文件时的文件选择框）
+  - `TREE` 输出 Visible/Focused 状态（定位布局/焦点问题）
+  - 绑定 ChatScreen 快捷键回调（记录触发，验证 Ctrl+D/Ctrl+S/Ctrl+M 等按键处理）
+  - `DIALOG` 支持全部 TuiDialog 对话框（info/confirm3/inputline/secret/ask/perm 等补全）
+- **排查验证**：editor 全部功能（编辑/光标/删除/面板/查找/退出）、聊天界面全部快捷键、13 个对话框按键均正常无 bug
+
+### ✅ 验证
+- 自测 3952 通过；editor 面板开关残影消除；设置巡检 85/85；对话框按键全部正常
+
 ## v0.79.59 (2026-08-20) — 设置界面修复 + Keypad 排查工具
 
 - **设置界面：左侧分类 ↑↓ 上下移动修复**——`SettingsScreen.OnKey` 的 ↑↓/PgUp/PgDn/Home/End 无条件调 `NavigateItem`（移动右侧项），不路由给左侧 `_catList`；现焦点在左侧时导航键路由列表（`MoveCategoryList`），并手动比较 `SelectedIndex` 刷新右侧（`TuiList.OnSelect` 只在空格激活时触发）

@@ -449,6 +449,8 @@ public class EditorScreen : TuiScreen
                 _leftPanel.Focused = false;
             }
         }
+        SyncPanelLayout();   // 更新 Visible + 尺寸
+        RootView.Layout();   // 重新布局：editor 扩展覆盖面板区域（否则面板关闭后左侧残留旧像素）
         MarkDirty();
     }
 
@@ -575,6 +577,8 @@ public class EditorScreen : TuiScreen
                 _rightPanel.Focused = false;
             }
         }
+        SyncPanelLayout();   // 更新 Visible + 尺寸
+        RootView.Layout();   // 重新布局：editor 扩展覆盖面板区域（否则面板关闭后右侧残留旧像素）
         MarkDirty();
     }
 
