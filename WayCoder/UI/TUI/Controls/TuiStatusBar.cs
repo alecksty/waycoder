@@ -35,9 +35,6 @@ public class TuiStatusBar : TuiControl
     /// <summary>旋转动画帧（Agent 忙碌时）</summary>
     private int _spinFrame;
 
-    /// <summary>全局心跳帧（始终自增，表示 UI 渲染循环存活）</summary>
-    private static int _heartbeat;
-
     /// <summary>当前工作模式（Build/Plan/Review/Auto）</summary>
     public WorkMode CurrentWorkMode { get; set; } = WorkMode.Build;
 
@@ -100,46 +97,7 @@ public class TuiStatusBar : TuiControl
             }
         }
 
-        // 2.5 心跳动画（始终跳动，证明 UI 渲染循环存活）
-        {
-            string[] heartbeatFrames = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"];
-            _heartbeat = (_heartbeat + 1) % heartbeatFrames.Length;
-            col += 1;
-            ControlRenderer.WriteGradientTextAt(sb, row, col, heartbeatFrames[_heartbeat],
-                AgentBusy ? AnsiColors.Green : dimFg, gs, ge, absX, Width);
-            col += 2;
-        }
-
-        // 2.6 工作模式指示（Shift+Tab / Ctrl+K 切换）
-        // 带中文名而不是只画 emoji —— 只有一个 🔨 谁也认不出来那是「建造模式」；
-        // 再按模式给色，非建造态一眼能看出「现在不写文件」
-        {
-            var modeStr = WorkModeManager.Format(CurrentWorkMode);
-            var modeFg = CurrentWorkMode switch
-            {
-                WorkMode.Plan   => AnsiColors.Yellow,
-                WorkMode.Review => AnsiColors.BrightCyan,
-                WorkMode.Auto   => AnsiColors.Green,
-                _               => AnsiColors.Cyan,
-            };
-            ControlRenderer.WriteGradientTextAt(sb, row, col, $" {modeStr}",
-                modeFg, gs, ge, absX, Width);
-            col += AnsiHelper.DisplayWidth(modeStr) + 1;
-        }
-
-        // 2.7 省 Token 模式标志（三态图标：💵不省钱 / 💰省钱 / 🧮自动）
-        {
-            var (economyIcon, economyColor) = Config.Instance.EconomyMode switch
-            {
-                EconomyMode.On   => ("💰", AnsiColors.Yellow),
-                EconomyMode.Auto => ("🧮", AnsiColors.Cyan),
-                EconomyMode.Extreme => ("🔥", AnsiColors.Red),
-                _                => ("💵", dimFg),
-            };
-            ControlRenderer.WriteGradientTextAt(sb, row, col, $" {economyIcon}",
-                economyColor, gs, ge, absX, Width);
-            col += AnsiHelper.DisplayWidth(economyIcon) + 1;
-        }
+        // 2.5 动画图标/工作模式/经济模式已移入动态栏与模型信息行（输入区下方），此处不再重复。
 
         // 3. 中间：提示文本
         if (!string.IsNullOrEmpty(HintText))

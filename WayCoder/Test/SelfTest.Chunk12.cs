@@ -1,3 +1,4 @@
+using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.Tui.Screens;
 using WayCoder.UI.TUI;
@@ -78,7 +79,7 @@ public static partial class SelfTest
             Check("chat.tui Screen 根", main.Screen != null);
             Check("chat.tui RootView 非空", main.Screen?.RootView != null);
             int childCount = main.Screen?.RootView?.Children.Count ?? 0;
-            Check("chat.tui RootView 子节点=9", childCount == 9);
+            Check("chat.tui RootView 子节点=11", childCount == 11);
 
             Check("chat.tui titleBar", main.Find<TuiTitleBar>("titleBar") != null);
             Check("chat.tui chatList", main.Find<TuiListView>("chatList") != null);
@@ -88,6 +89,7 @@ public static partial class SelfTest
             Check("chat.tui dynamicBar", main.Find<TuiDynamicBar>("dynamicBar") != null);
             Check("chat.tui inputArea", main.Find<TuiTextArea>("inputArea") != null);
             Check("chat.tui statusBar", main.Find<TuiStatusBar>("statusBar") != null);
+            Check("chat.tui modelInfoRow", main.Find<TuiLabel>("modelInfoRow") != null);
         }
         catch (Exception ex)
         {
@@ -124,6 +126,59 @@ public static partial class SelfTest
         finally
         {
             if (entered) { try { mgr.Exit(); } catch { } }
+        }
+
+        // ── 模型信息行（输入区下方，Render 每帧同步；动态栏不放模型）──
+        {
+            var savedSz = Tty.SizeOverride;
+            var mscr2 = new MarkupChatScreen();
+            bool entered2 = false;
+            try
+            {
+                Tty.SizeOverride = (200, 40);
+                var prevOut = Console.Out;
+                Console.SetOut(TextWriter.Null);
+                try
+                {
+                    if (!mgr.IsActive) { mgr.Enter(); entered2 = true; }
+                    mgr.PushScreen(mscr2);
+                    mscr2.SyncTheme();
+                    mscr2.RefreshTheme();
+                    mgr.Render();
+
+                    var row = mscr2.ModelInfoRow;
+                    Check("模型信息行: 可见", row is { Visible: true });
+                    Check("模型信息行: 含工作模式", row is { } r && r.Text.Contains("工作模式:"));
+                    Check("模型信息行: 含经济模式", row is { } r1 && r1.Text.Contains("经济模式:"));
+                    Check("模型信息行: 含大模型", row is { } r2 && r2.Text.Contains("大模型:"));
+                    Check("模型信息行: 含小模型", row is { } r3 && r3.Text.Contains("小模型:"));
+                    Check("模型信息行: 无尖括号", row is { } r4 && !r4.Text.Contains('<') && !r4.Text.Contains('>'));
+                    Check("模型信息行: · 分隔", row is { } r5 && r5.Text.Contains(" · "));
+
+                    // 模式切换 → 下一帧刷新内容
+                    var savedMode = WorkModeManager.CurrentMode;
+                    try
+                    {
+                        WorkModeManager.SetMode(WorkMode.Plan);
+                        mgr.Render();
+                        Check("模型信息行: 模式切换刷新",
+                            mscr2.ModelInfoRow is { } r6 && r6.Text.Contains("计划模式"));
+                    }
+                    finally { WorkModeManager.SetMode(savedMode); }
+
+                    mgr.PopScreen();
+                }
+                finally { Console.SetOut(prevOut); }
+            }
+            catch (Exception ex)
+            {
+                Check($"模型信息行测试异常: {ex.Message}", false);
+            }
+            finally
+            {
+                Tty.SizeOverride = savedSz;
+                if (entered2) { try { mgr.Exit(); } catch { } }
+            }
         }
         // ── 窗口型界面 .tui 资源加载（选择器/帮助/设置/Diff 壳）──
         Section("[TuiMarkup 窗口界面]");

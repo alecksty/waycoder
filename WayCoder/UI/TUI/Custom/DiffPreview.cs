@@ -92,7 +92,10 @@ public static class DiffPreview
                 evt.Set();
             });
             screen?.ShowWindow(win);
-            UxHelper.RenderWait(screen, evt, 120_000, win);
+            // readKeys: false —— 运行在 Agent 执行期，外层循环（REPL / RunAgentWithRenderLoop）
+            // 按「键位作用域闸」已把按键路由到栈顶窗口；这里再读一次控制台会与主循环抢输入，
+            // 造成 Y/N/A/Q/Enter 按了没反应（双线程 Console.ReadKey 竞态）。
+            UxHelper.RenderWait(screen, evt, 120_000, win, readKeys: false);
         }
         catch { evt.Set(); }
         return (result, resultAccepted);

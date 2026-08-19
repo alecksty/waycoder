@@ -39,7 +39,10 @@ public class TuiDynamicBar : TuiControl
     // ═══════════════════════════════════════════════════════════
 
     private static readonly string[] Frames = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"];
-    private const int FrameMs = 150; // 150ms/帧 ≈ 6.7 FPS
+
+    /// <summary>动画帧间隔（毫秒）。每帧由 ChatScreen 按此节流标脏，500ms 一帧 ≈ 2 FPS ——
+    /// 够看出在转，又不至于逐帧整条重绘造成卡顿。</summary>
+    public const int FrameMs = 500;
 
     /// <summary>基于时钟的当前帧（无需 Tick）</summary>
     private static string CurrentFrame =>
@@ -109,13 +112,12 @@ public class TuiDynamicBar : TuiControl
             _ => (AnsiColors.BrightBlack, AnsiColors.BrightBlack),
         };
 
-        // ── 左段：spinner + 状态 ──
+        // ── 左段：动画字符位（预留 1 字符 + 空格，活跃=spinner / 空闲=占位空格）──
+        // 始终占位让左段文字水平位置稳定：idle→active 切换时状态文本不左右跳。
         int col = absX + 1;
-        if (IsActive)
-        {
-            rb.Write(absY, col, CurrentFrame + " ", fg: spinnerColor, bg: AnsiColors.BgBlack);
-            col += 2;
-        }
+        rb.Write(absY, col, IsActive ? CurrentFrame : " ",
+            fg: IsActive ? spinnerColor : AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
+        col += 2;
 
         var leftDisplay = LeftText;
         if (string.IsNullOrEmpty(leftDisplay))
@@ -141,14 +143,13 @@ public class TuiDynamicBar : TuiControl
             col += AnsiHelper.DisplayWidth(leftStr);
         }
 
-        // ── 分隔 ──
+        // ── 分段留白（不画分隔竖线，靠间距区分左/中/右段）──
         int midStart = absX + Width / 3;
         if (col < midStart)
         {
             rb.Write(absY, col, new string(' ', midStart - col),
                 fg: AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
         }
-        rb.Write(absY, midStart, "│", fg: AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
         col = midStart + 2;
 
         // ── 中段：工具/任务 ──
@@ -162,9 +163,8 @@ public class TuiDynamicBar : TuiControl
         }
         col = midStart + Width / 3;
 
-        // ── 分隔 ──
+        // ── 右段留白 ──
         int rightStart = absX + Width * 2 / 3;
-        rb.Write(absY, rightStart, "│", fg: AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
         col = rightStart + 2;
 
         // ── 右段：进度条 ──
@@ -205,9 +205,7 @@ public class TuiDynamicBar : TuiControl
                 rb.Write(absY, col, ctxStr, fg: ctxFg, bg: AnsiColors.BgBlack);
                 col += AnsiHelper.DisplayWidth(ctxStr) + 1;
             }
-
-            // 这里原来空闲时再写一遍 LeftText（注释说是「模型名」，可 LeftText 就是左段那一份）——
-            // 同一根条上左右各画一次同样的字，纯重复，删掉。模型名看左段就够了。
+            // 模型/模式信息统一由输入区下方模型栏显示，动态栏不放（重复）。
         }
 
         sb.Append(rb.ToString());

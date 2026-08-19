@@ -411,7 +411,12 @@ public static class UxHelper
     /// 由 ShowInputDialog/ShowSelectDialog 等内部调用，也可由工具（如 AskUserQuestion）外部调用。
     /// </summary>
     /// <param name="timeoutMs">超时毫秒数（默认 30s，AskUserQuestion 等需更长超时）</param>
-    public static void RenderWait(TuiScreen? screen, ManualResetEventSlim evt, int timeoutMs = 30_000, TuiWindow? win = null)
+    /// <param name="readKeys">是否自己读控制台按键。
+    /// 默认 true（对话框由本循环收键）。diff 预览传 <c>false</c>：它运行在 Agent 执行期间，
+    /// 外层循环（REPL / RunAgentWithRenderLoop）已按「键位作用域闸」把按键路由到栈顶窗口，
+    /// 本循环再读一次就与主循环抢同一个控制台输入（双线程 Console.ReadKey 竞态），
+    /// 导致 diff 对话框的 Y/N/A/Q/Enter 时而按了没反应。</param>
+    public static void RenderWait(TuiScreen? screen, ManualResetEventSlim evt, int timeoutMs = 30_000, TuiWindow? win = null, bool readKeys = true)
     {
         if (screen == null) { evt.Wait(TimeSpan.FromSeconds(30)); return; }
         var manager = TuiManager.Instance;
@@ -419,7 +424,7 @@ public static class UxHelper
         while (!evt.IsSet)
         {
             manager?.Render();
-            if (Console.KeyAvailable)
+            if (readKeys && Console.KeyAvailable)
             {
                 var key = Console.ReadKey(intercept: true);
                 screen.OnKey(key);
