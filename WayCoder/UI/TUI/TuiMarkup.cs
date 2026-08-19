@@ -642,7 +642,12 @@ public static class TuiMarkup
                 if (sepChar.Length > 0) sep.LineChar = sepChar;
                 if (Color(node, "lineColor") is int sepLc) sep.LineColor = sepLc;
                 if (Bool(node, "vertical") is bool vsep)
+                {
                     sep.Direction = vsep ? SeparatorDirection.Vertical : SeparatorDirection.Horizontal;
+                    // 默认构造宽 60（横线用），垂直分隔线必须 1 列——
+                    // 否则占满 HBox 剩余宽度，把右侧兄弟控件挤出屏幕（设置界面 detailPanel 被推到屏外）
+                    if (vsep) sep.Width = 1;
+                }
                 break;
             case "ListView":
                 var lv = (TuiListView)c;

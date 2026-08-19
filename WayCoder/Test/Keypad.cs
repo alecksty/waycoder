@@ -1,6 +1,7 @@
 using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
+using WayCoder.Infra;
 using WayCoder.UI.Tui;
 using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Controls;
@@ -67,6 +68,16 @@ public static class Keypad
             mgr.PushScreen(screen);
             screen.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"⌨ Keypad 回放: {Path.GetFileName(scriptPath)}" });
 
+            // 支持 WAYCODER_KEYPAD_SIZE=WxH 覆盖帧尺寸（排查不同终端宽度下的布局）
+            var envSize = Environment.GetEnvironmentVariable("WAYCODER_KEYPAD_SIZE");
+            if (!string.IsNullOrEmpty(envSize))
+            {
+                var parts = envSize.Split('x');
+                if (parts.Length == 2
+                    && int.TryParse(parts[0], out var ew) && int.TryParse(parts[1], out var eh))
+                    Tty.SizeOverride = (Math.Clamp(ew, 40, 240), Math.Clamp(eh, 12, 120));
+            }
+
             int rows = Math.Clamp(Tty.Rows, 12, 120);
             int cols = Math.Clamp(Tty.Cols, 40, 240);
             var frame = new FrameBuffer(rows, cols);
@@ -122,12 +133,34 @@ public static class Keypad
                         DumpFocus(screen, orig);
                         break;
 
+                    case "TREE":
+                        DumpTree(screen, orig);
+                        break;
+
+                    case "SETTINGSALL":
+                        DiagnoseSettingsAll(orig);
+                        break;
+
                     case "SNAP":
                         EmitFrame(orig, value, frame.Dump());
                         break;
 
                     case "SNAPCOLOR":
                         EmitFrame(orig, value, frame.DumpAnsi());
+                        break;
+
+                    case "SHOT":
+                        // 截屏：把当前帧渲染为 PNG（TrueTypeFont 矢量渲染，CJK 可读）
+                        try
+                        {
+                            string p = string.IsNullOrWhiteSpace(value) ? $"keypad_{step}.png" : value;
+                            frame.RenderPng(p);
+                            Emit(orig, $"# (第 {step} 行) 截屏已保存: {p}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Emit(orig, $"# (第 {step} 行) 截屏失败: {ex.Message}");
+                        }
                         break;
 
                     default:
@@ -321,6 +354,77 @@ public static class Keypad
         }
     }
 
+    // ── 设置界面全项巡检 ──
+
+    /// <summary>自动巡检设置界面所有设置项：逐项 Enter 弹编辑对话框，检查窗口弹出，Esc 关闭。
+    /// Model/SmallModel 走阻塞 ModelPicker（RenderWait），跳过不测。结果输出到 w。</summary>
+    static void DiagnoseSettingsAll(TextWriter w)
+    {
+        var mgr = TuiManager.Instance;
+        var schema = Config.SettingSchema();
+        var groups = schema.GroupBy(s => s.Category)
+            .Select(g => (Cat: g.Key, Items: g.OrderBy(s => s.Order).ToList()))
+            .ToList();
+
+        var sc = new SettingsScreen();
+        mgr.PushScreen(sc);
+
+        var down = new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false);
+        var tab = new ConsoleKeyInfo('\0', ConsoleKey.Tab, false, false, false);
+        var enter = new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false);
+        var esc = new ConsoleKeyInfo('\x1b', ConsoleKey.Escape, false, false, false);
+
+        int curCat = 0, curItem = 0;
+        bool onDetail = false;
+        int pass = 0, fail = 0, skip = 0;
+
+        w.WriteLine($"[SETTINGSALL] 设置界面全项巡检（{groups.Count} 个分类，{schema.Count} 项）");
+        for (int gi = 0; gi < groups.Count; gi++)
+        {
+            var g = groups[gi];
+            while (curCat < gi) { mgr.OnKey(down); curCat++; }
+            if (!onDetail) { mgr.OnKey(tab); onDetail = true; }
+
+            for (int ji = 0; ji < g.Items.Count; ji++)
+            {
+                var item = g.Items[ji];
+                while (curItem < ji) { mgr.OnKey(down); curItem++; }
+
+                if (item.Key is "Model" or "SmallModel")
+                {
+                    w.WriteLine($"  [跳过] {g.Cat}/{item.Label}（ModelPicker 阻塞，另测）");
+                    skip++;
+                    mgr.OnKey(down); // 实际按 Down 移到下一项，保持逻辑 curItem 与 UI 选中同步
+                    curItem++;
+                    continue;
+                }
+
+                w.WriteLine($"    [编辑] {g.Cat}/{item.Label} (ji={ji} curItem={curItem})");
+                mgr.OnKey(enter);
+                mgr.Render();
+                var win = sc.FocusedWindow;
+                bool ok = win != null && win.Title == item.Label;
+                if (ok) pass++;
+                else { fail++; w.WriteLine($"  [✗] {g.Cat}/{item.Label} ({item.Type}): 窗口={(win == null ? "<无>" : "「" + win.Title + "」")}"); }
+                if (ok)
+                    w.WriteLine($"  [✓] {g.Cat}/{item.Label} ({item.Type}): 窗口「{win!.Title}」");
+                if (win != null)
+                {
+                    mgr.CloseWindow(win);
+                    mgr.Render();
+                }
+                mgr.OnKey(down); // 每一项（含跳过项）后都按 Down 移到下一项，curItem 与 UI 选中同步
+                curItem++;
+            }
+            curItem = 0;
+            mgr.OnKey(tab); onDetail = false; // 回左侧，切下一分类
+        }
+
+        w.WriteLine($"[SETTINGSALL] 巡检结果: 通过 {pass}  失败 {fail}  跳过 {skip}  共 {schema.Count}");
+        mgr.OnKey(esc); // 退出设置界面
+        mgr.Render();
+    }
+
     // ── 焦点转储 ──
 
     /// <summary>输出当前焦点状态：焦点窗口、RootView 类型、焦点控件、可聚焦控件列表。</summary>
@@ -350,6 +454,45 @@ public static class Keypad
             w.WriteLine($"[FOCUS] 可聚焦控件 ({list.Count}):");
             for (int i = 0; i < list.Count; i++)
                 w.WriteLine($"  [{i}] {list[i].GetType().Name}{(list[i].Focused ? "  ◀ 已聚焦" : "")}");
+        }
+    }
+
+    // ── 控件树转储 ──
+
+    /// <summary>输出当前屏幕控件树：每个控件的 X/Y/Width/Height/绝对坐标，用于排查布局错位（如内容渲染到错误位置）。</summary>
+    static void DumpTree(ChatScreen screen, TextWriter w)
+    {
+        var active = TuiManager.Instance?.ActiveScreen;
+        var root = active?.RootView;
+        if (root == null) { w.WriteLine("[TREE] RootView 为空"); return; }
+        w.WriteLine($"[TREE] 屏幕 {active!.GetType().Name} RootView: {root.GetType().Name} W={root.Width} H={root.Height}");
+
+        void Walk(TuiControl c, int depth)
+        {
+            // GetAbsoluteX 是 protected，用 Parent 链累加（RootView.Parent=null，X 即绝对）
+            int ax = c.X, ay = c.Y;
+            for (var p = c.Parent; p != null; p = p.Parent) { ax += p.X; ay += p.Y; }
+            string text = DescribeContent(c);
+            w.WriteLine($"{new string(' ', depth * 2)}{c.GetType().Name} x={c.X} y={c.Y} w={c.Width} h={c.Height} abs=({ax},{ay}){text}");
+            if (c is TuiView v)
+                foreach (var ch in v.Children)
+                    Walk(ch, depth + 1);
+        }
+        Walk(root, 0);
+    }
+
+    static string DescribeContent(TuiControl c)
+    {
+        switch (c)
+        {
+            case TuiLabel l:
+                var t = l.Text;
+                if (t.Length > 24) t = t[..24] + "…";
+                return $" text=\"{t}\"";
+            case TuiList l:
+                return $" items={l.Items.Count} sel={l.SelectedIndex}";
+            default:
+                return "";
         }
     }
 
@@ -632,6 +775,69 @@ public static class Keypad
                 100 => "亮黑底", 101 => "亮红底", 102 => "亮绿底", 103 => "亮黄底", 104 => "亮蓝底", 105 => "亮紫底", 106 => "亮青底", 107 => "亮白底",
                 _ => $"#{code}",
             };
+        }
+
+        // ── 截屏（SHOT 命令）：渲染字符网格为 PNG ──
+
+        /// <summary>把当前帧渲染为 PNG 保存。用 TrueTypeFont 矢量渲染（CJK 可读），
+        /// 背景按 _bg 填色、字符按 _fg 前景色绘制。</summary>
+        public void RenderPng(string path)
+        {
+            const int cellW = 11, cellH = 22; // 等宽格子（字号 ≈ cellH）
+            var font = TrueTypeFont.Resolve(null)
+                ?? TrueTypeFont.Load(FontFinder.Find().FirstOrDefault()?.Path ?? "");
+            if (font == null)
+                throw new InvalidOperationException("未找到可用系统字体");
+
+            var canvas = new Canvas(_cols * cellW, _rows * cellH, 0xFF0B0B0B);
+            for (int r = 0; r < _rows; r++)
+            {
+                for (int c = 0; c < _cols; c++)
+                {
+                    if (_cont[r][c]) continue; // 宽字符延续格跳过
+                    int bg = _bg[r][c];
+                    if (bg > 0)
+                        canvas.FillRect(c * cellW, r * cellH, cellW, cellH, AnsiToRgba(bg));
+                    string ch = _cell[r][c];
+                    if (ch.Length == 0 || ch == " " || ch == "\0") continue;
+                    int fg = _fg[r][c];
+                    font.Render(canvas, ch, c * cellW, r * cellH, cellH, AnsiToRgba(fg), "start", false, false);
+                }
+            }
+            File.WriteAllBytes(path, canvas.ToPng());
+        }
+
+        /// <summary>ANSI 色码 → RGBA。支持标准 16 色 / 256 色（48;5 已并入 _bg 前剥离？此处覆盖标准色；256 码尽量映射）。</summary>
+        static uint AnsiToRgba(int code)
+        {
+            if (code == 0) return 0xFFBBBBBB; // 默认前景
+            if (code >= 0x1000000) return (uint)(code & 0xFFFFFF) | 0xFF000000; // TrueColor
+            uint rgb = code switch
+            {
+                30 or 40 => 0x1E1E1E, 31 or 41 => 0xAA2E2E, 32 or 42 => 0x2E7D32, 33 or 43 => 0xB07A1E,
+                34 or 44 => 0x2E5FAA, 35 or 45 => 0x8E3AA8, 36 or 46 => 0x2E8E8E, 37 or 47 => 0xC8C8C8,
+                90 or 100 => 0x555555, 91 or 101 => 0xE05A5A, 92 or 102 => 0x5EB26E, 93 or 103 => 0xE0B84A,
+                94 or 104 => 0x6E8FE0, 95 or 105 => 0xC06EC8, 96 or 106 => 0x6EC8C8, 97 or 107 => 0xFFFFFF,
+                _ => Xterm256(code),
+            };
+            return rgb | 0xFF000000;
+        }
+
+        /// <summary>xterm 256 调色板映射（0-15 标准色，16-231 立方体，232-255 灰度）。</summary>
+        static uint Xterm256(int code)
+        {
+            if (code is >= 0 and <= 15)
+                return AnsiToRgba(code is >= 8 ? code - 8 + 90 : code is >= 30 ? code - 30 + 40 : code);
+            if (code is >= 16 and <= 231)
+            {
+                int v = code - 16;
+                int r = v / 36, g = (v / 6) % 6, b = v % 6;
+                uint Comp(int x) => x == 0 ? 0u : (uint)(55 + x * 40);
+                return (Comp(r) << 16) | (Comp(g) << 8) | Comp(b);
+            }
+            int gray = code - 232;
+            uint gv = (uint)(8 + gray * 10);
+            return (gv << 16) | (gv << 8) | gv;
         }
     }
 }

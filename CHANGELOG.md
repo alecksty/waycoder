@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.79.59 (2026-08-20) — 设置界面修复 + Keypad 排查工具
+
+- **设置界面：左侧分类 ↑↓ 上下移动修复**——`SettingsScreen.OnKey` 的 ↑↓/PgUp/PgDn/Home/End 无条件调 `NavigateItem`（移动右侧项），不路由给左侧 `_catList`；现焦点在左侧时导航键路由列表（`MoveCategoryList`），并手动比较 `SelectedIndex` 刷新右侧（`TuiList.OnSelect` 只在空格激活时触发）
+- **设置界面：右侧详情被挤出屏幕修复**——`TuiMarkup` 创建 `<Separator vertical="true">` 用默认构造（宽 60），垂直分隔线占满 HBox 剩余宽度，把 detailPanel 推到屏外；现垂直 Separator 强制 `Width=1`
+- **Keypad 排查工具新增**（`--keypad 脚本.txt`）：
+  - `SETTINGSALL` — 自动巡检设置界面全部设置项（逐项 Enter 弹编辑框 + 验证窗口 Title + 关闭），本次实测 9 分类 87 项全部通过
+  - `TREE` — 输出当前屏幕控件树（每控件 X/Y/W/H/绝对坐标），定位布局错位
+  - `SHOT:<文件.png>` — 截屏当前帧为 PNG（TrueTypeFont 矢量渲染，CJK 可读）
+  - `WAYCODER_KEYPAD_SIZE=WxH` 环境变量 — 控制帧尺寸，排查不同终端宽度布局
+
+### ✅ 验证
+- 自测 3952 通过；Keypad 巡检设置界面 85/85 项弹框正常（2 项 ModelPicker 由自测覆盖）
+
 ## v0.79.58 (2026-08-19) — 界面修复批次：Agent 忙时可输入排队 + diff 交互/美化
 
 - **Agent 忙时可输入排队**：`RunAgentWithRenderLoop` 改用共享 InputManager，普通键路由给 ChatScreen——Agent 执行中输入框可编辑，Enter 提交进 `PendingSubmissions` 队列，Agent 空闲后由主循环逐个处理（排队等响应，界面不卡死）
