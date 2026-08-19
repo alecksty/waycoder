@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.79.29 (2026-08-19) — 模型对话框布局/颜色移入 .tui
+
+「布局写标记、颜色写标记」：模型对话框的静态样式全部移到 `modelpicker.tui` 声明：
+- **背景/边框**：`bg="black"` + `borderColor="brightblack"` + `gradient="false"`（TuiMarkup 新增 Window `bg` 属性支持）
+- **搜索框**：`fg="white" bg="black"`
+- **表格列**：`columns="🔑:2,模型:24,厂商:11,窗口:6,价格:7,大:2,小:2"`（列定义移模板）
+
+`ModelPicker` code-behind 删除硬编码颜色/列，只保留动态数据/事件。
+
+### ✅ 验证
+- 自测 3569 通过（TuiMarkup WinBg/模板测试全绿），编译 0 错误，tty 聊天屏正常
+
 ## v0.79.28 (2026-08-19) — 模型对话框帮助提示两行 + 搜索过滤增强
 
 - **帮助提示分两行**显示（help + help2）：全部按键提示完整可见（↑↓/Enter/Tab/S/I/O/K/L + Ctrl+A/Del/Ctrl+E）；状态提示时第二行清空
