@@ -69,9 +69,7 @@ public static class ModelPicker
         var win = res.Window ?? throw new InvalidOperationException("modelpicker.tui 根应为 Dialog");
         win.Width = winW; win.Height = winH;
         win.MinWidth = MinW; win.MinHeight = MinH;
-        win.WinBg = AnsiColors.BgBlack; // 黑色背景（用户要求）
-        win.GradientBorder = false;      // 黑底去橙黄渐变边框
-        win.BorderColor = AnsiColors.BrightBlack; // 暗色边框
+        // 背景/边框/渐变 由 modelpicker.tui 声明（bg/borderColor/gradient）
 
         // 控件接线（结构在标记里，精确样式/列/数据/事件在此）
         var search = res.Find<TuiInput>("search")!;
@@ -79,16 +77,7 @@ public static class ModelPicker
         var slotBar = res.Find<TuiLabel>("slotBar")!;
         var help = res.Find<TuiLabel>("help")!;
         var help2 = res.Find<TuiLabel>("help2")!;
-        search.Fg = AnsiColors.White;
-        search.Bg = AnsiColors.BgBlack;
-        table.Height = listH;
-        table.AddColumn("🔑", keyW);
-        table.AddColumn("模型", nameW);
-        table.AddColumn("厂商", provW);
-        table.AddColumn("窗口", ctxW);
-        table.AddColumn("价格", priceW);
-        table.AddColumn("大", largeW);
-        table.AddColumn("小", smallW);
+        table.Height = listH; // 列定义在 modelpicker.tui（columns 属性）
 
         // ── 状态 ──
         List<ModelEntry> models = GetAvailableModels();

@@ -224,6 +224,7 @@ public static class TuiMarkup
         if (Bool(node, "gradient") is bool grad) win.GradientBorder = grad;
         if (Color(node, "gradientStart") is int gs) win.GradientStart = gs;
         if (Color(node, "gradientEnd") is int ge) win.GradientEnd = ge;
+        if (Color(node, "bg") is int winBg) win.WinBg = winBg; // 窗口背景（布局/颜色放标记）
 
         foreach (var child in node.Children)
             if (BuildControl(child, byId) is TuiView v) { win.RootView = v; break; }

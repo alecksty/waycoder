@@ -1,14 +1,14 @@
 <!-- 模型选择器 —— 配合 ModelPicker code-behind。
      标记声明结构；搜索过滤/表格列与行数据/槽位/帮助文本/键盘拦截由代码填充。 -->
-<Dialog title="选择模型" border="solid" borderColor="info"
-        minWidth="62" minHeight="16" height="20"
-        gradient="true" gradientStart="#ffb400" gradientEnd="#ffff50">
+<Dialog title="选择模型" border="solid" borderColor="brightblack" bg="black"
+        minWidth="62" minHeight="16" height="20" gradient="false">
   <VBox>
     <HBox spacing="1">
       <Label text="搜索:" width="6" fg="8" />
-      <Input id="search" height="1" flex="1" focused="true" />
+      <Input id="search" height="1" flex="1" focused="true" fg="white" bg="black" />
     </HBox>
-    <TableList id="table" height="13" showHeader="true" />
+    <TableList id="table" height="13" showHeader="true"
+               columns="🔑:2,模型:24,厂商:11,窗口:6,价格:7,大:2,小:2" />
     <Label id="slotBar" height="1" fg="8" />
     <Label id="help" height="1" fg="8" />
     <Label id="help2" height="1" fg="8" />
