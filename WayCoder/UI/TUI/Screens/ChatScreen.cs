@@ -929,9 +929,9 @@ public partial class ChatScreen : TuiScreen
             var barW = TW - 12;
             var filled = Math.Clamp((int)Math.Round(barW * pct / 100.0), 0, barW);
             var empty = barW - filled;
-            var progressY = TH - 2; // 状态栏上方一行
+            var progressY = TH - 2; // 状态栏上方一行（0-based 行号）
             var barText = $"«{new string('█', filled)}{new string('░', empty)}» {pct,3:F0}%";
-            sb.Append(AnsiTty.CursorPos(progressY, 0))
+            sb.Append(AnsiTty.CursorPos0(progressY, 0)) // CursorPos0 才是 0-based，CursorPos 是 1-based 会错位到 TH-3
               .Append(AnsiTty.Fg(AnsiColors.Yellow))
               .Append(barText.Length > TW ? barText[..TW] : barText.PadRight(TW))
               .Append(AnsiTty.SgrReset);

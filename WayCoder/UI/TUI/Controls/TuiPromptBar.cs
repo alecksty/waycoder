@@ -76,7 +76,7 @@ public class TuiPromptBar : TuiControl
 
         var fillLeft = Math.Max(absX + 1, ClipLeft);
         var fillRight = Math.Min(absX + Width - 2, ClipRight);
-        var strSpaces = new string(' ', fillRight - fillLeft);
+        var strSpaces = new string(' ', Math.Max(0, fillRight - fillLeft)); // 负值（左缘被裁过右缘）防崩溃
 
         // ── 列表行（只渲染实际条目，不预留空行；高度由 ShowPromptBar 按条目数设定）──
         for (var i = 0; i < visibleCount; i++)
@@ -118,13 +118,15 @@ public class TuiPromptBar : TuiControl
                     rb.Write(row, absX, bc.V, fg: borderFg, rowBg);
                 }
 
+                // 行背景填充（先于图标写入，避免把图标列擦成空格）
+                if (fillLeft < fillRight)
+                    rb.Write(row, fillLeft, strSpaces, bg: Bg > 0 ? Bg : rowBg);
+
                 // 图标 + 标签 + 详情
                 var col = absX + 1 + leftPad;
                 var iconStr = item.Icon + " ";
                 rb.Write(row, col, iconStr, fg: itemFg, bg: rowBg > 0 || !bordered ? rowBg : 0);
                 col += AnsiHelper.DisplayWidth(iconStr);
-
-                rb.Write(row, fillLeft, strSpaces, bg: Bg > 0 ? Bg : rowBg);
 
                 // 标签（截断）
                 var detailW = string.IsNullOrEmpty(item.Detail)

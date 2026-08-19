@@ -585,6 +585,9 @@ public partial class Program
     /// <returns>Agent 的 ChatAsync 任务，调用方需 await 以获取异常</returns>
     private static async Task RunAgentWithRenderLoop(CancellationTokenSource cts)
     {
+        InAgentRenderLoop = true; // 对话框（diff 等）据此区分 Agent 场景：外层渲染，RenderWait 只等
+        try
+        {
         var agentTask = Task.Run(async () =>
         {
             await _agent!.ChatAsync(_currentUserInput!,
@@ -627,42 +630,70 @@ public partial class Program
         });
 
         var mgr = TuiManager.Instance;
+        var inputMgr = TuiManager.Instance.Input; // 共享 InputManager：统一 paste/CSI/鼠标解析
         while (!agentTask.IsCompleted)
         {
             screen_?.PumpUIQueue(); // 消费后台投递的 UI 操作（Agent 流式回调）
             mgr.Render();
-            if (Console.KeyAvailable)
+            var ev = inputMgr.ReadInput(30);
+            if (ev.Type == InputType.Timeout) continue;
+
+            // 鼠标：Agent 忙时对话框按钮点击（diff/权限框）→ 路由窗口（原 Console.ReadKey 只读键盘，按钮点不了）
+            if (ev.Type == InputType.Mouse)
             {
-                var key = Console.ReadKey(intercept: true);
-                // 键位作用域：栈顶有窗口/对话框时键盘归它（同 REPL 主循环的总闸）。
-                // 没有这道闸，/loop 这类走本循环的路径会在 diff/权限对话框开着时把
-                // Y/N/A/Q 之类按键当无用键吃掉 —— 就是「对话框快捷键按不了」。
-                if (mgr.ActiveScreen?.FocusedWindow != null && !TuiKeyScope.IsSystemKey(key))
-                {
-                    mgr.OnKey(key);
-                    continue;
-                }
-                if (key.Key == ConsoleKey.Escape)
-                    cts.Cancel();
-                else if (key.Key == ConsoleKey.Z && key.Modifiers.HasFlag(ConsoleModifiers.Control))
-                {
-                    // Ctrl+Z 优雅暂停：置位标志，Agent 在当前批次完成后的下一轮边界停机
-                    _agent!.PauseRequested = true;
-                    screen_!.AddSystemMsg("⏸ 已请求暂停 — 当前批次完成后自动提交并停机（再按 Esc 立即中断）");
-                }
-                else if (key.Key == ConsoleKey.Q && key.Modifiers.HasFlag(ConsoleModifiers.Control))
-                {
-                    cts.Cancel();
-                    PanicExit("Agent 运行中 Ctrl+Q 紧急退出");
-                }
+                if (TuiManager.MouseEnabled) mgr.HandleMouse(ev);
+                continue;
+            }
+            // 粘贴 → bracketed paste 路由 ChatScreen
+            if (ev.Type == InputType.Paste)
+            {
+                if (!string.IsNullOrEmpty(ev.PasteText)) screen_?.HandleBracketedPaste(ev.PasteText);
+                continue;
+            }
+            if (ev.Type == InputType.Resize) { mgr.OnResize(); continue; }
+
+            var key = ev.KeyInfo;
+            // Shift+Tab 是独立事件（Unix 下是 ESC[Z，KeyInfo 可能空），补成真键
+            if (ev.Type == InputType.ShiftTab && key.Key != ConsoleKey.Tab)
+                key = new ConsoleKeyInfo('\t', ConsoleKey.Tab, shift: true, alt: false, control: false);
+
+            // 键位作用域：栈顶有窗口/对话框时键盘归它（同 REPL 主循环的总闸）。
+            // 没有这道闸，/loop 这类走本循环的路径会在 diff/权限对话框开着时把
+            // Y/N/A/Q 之类按键当无用键吃掉 —— 就是「对话框快捷键按不了」。
+            if (mgr.ActiveScreen?.FocusedWindow != null && !TuiKeyScope.IsSystemKey(key))
+            {
+                mgr.OnKey(key);
+                continue;
+            }
+            if (key.Key == ConsoleKey.Escape)
+                cts.Cancel();
+            else if (key.Key == ConsoleKey.Z && key.Modifiers.HasFlag(ConsoleModifiers.Control))
+            {
+                // Ctrl+Z 优雅暂停：置位标志，Agent 在当前批次完成后的下一轮边界停机
+                _agent!.PauseRequested = true;
+                screen_!.AddSystemMsg("⏸ 已请求暂停 — 当前批次完成后自动提交并停机（再按 Esc 立即中断）");
+            }
+            else if (key.Key == ConsoleKey.Q && key.Modifiers.HasFlag(ConsoleModifiers.Control))
+            {
+                cts.Cancel();
+                PanicExit("Agent 运行中 Ctrl+Q 紧急退出");
             }
             else
             {
-                await Task.Delay(30);
+                // Agent 忙：普通键路由给 ChatScreen —— 输入框继续可编辑，Enter 提交进
+                // PendingSubmissions 队列，Agent 空闲后由 REPL 主循环逐个处理（排队等响应，界面不卡死）
+                mgr.OnKey(key);
             }
         }
         await agentTask; // 传播异常
+        }
+        finally { InAgentRenderLoop = false; }
     }
+
+    /// <summary>是否处于 Agent 渲染循环（RunAgentWithRenderLoop 活跃）。
+    /// 对话框（DiffPreview 等）据此区分：Agent 场景外层循环负责渲染+路由，RenderWait 只等待；
+    /// 命令场景（/diff）无外层循环，RenderWait 自己渲染+读键。</summary>
+    internal static volatile bool InAgentRenderLoop;
 
     // 当前正在处理的用户输入 + 屏幕引用（供 RunAgentWithRenderLoop 使用）
     private static string? _currentUserInput;

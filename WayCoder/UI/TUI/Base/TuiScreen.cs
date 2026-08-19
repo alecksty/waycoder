@@ -358,6 +358,23 @@ public abstract class TuiScreen : TuiBase
         }
     }
 
+    /// <summary>
+    /// 直接输出光标位置到终端（无脏帧直写动画移动了光标后调用）。
+    /// 无脏分支不渲染整帧，光标会被 RenderDirect 的 CursorPos 拉走（如动态栏 spinner），
+    /// 这里把光标恢复到所有者位置，避免输入区光标消失/错位。
+    /// </summary>
+    internal void EmitCursor()
+    {
+        if (_cursorOwner == null) return;
+        var cs = _cursorOwner.GetCursorState();
+        if (cs.HasValue)
+        {
+            var rb = new RenderBuffer();
+            rb.CursorAt(cs.Value.row, cs.Value.col);
+            Tty.Write(rb.ToString());
+        }
+    }
+
     // ── 鼠标 ──
 
     /// <summary>
