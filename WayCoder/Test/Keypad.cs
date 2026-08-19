@@ -149,6 +149,14 @@ public static class Keypad
                         DiagnoseSettingsAll(orig);
                         break;
 
+                    case "DIAGDIALOG":
+                        DiagnoseDialogLengths(orig);
+                        break;
+
+                    case "DIAGSELECT":
+                        DiagnoseSelectN(orig);
+                        break;
+
                     case "EDITOR":
                         // 直接打开带文件的编辑器（绕过无文件时的文件选择框），便于测试编辑/保存
                         try { mgr.PushScreen(new EditorScreen(value.Trim())); }
@@ -340,6 +348,16 @@ public static class Keypad
 
     static void OpenDialog(ChatScreen screen, string name)
     {
+        // 支持 DIALOG:name 或 DIALOG:name:长度（内容=「测」×长度，测长内容显示/折行）
+        int textLen = 0;
+        int colon = name.LastIndexOf(':');
+        if (colon > 0 && int.TryParse(name[(colon + 1)..], out var tl) && tl > 0)
+        {
+            textLen = tl;
+            name = name[..colon];
+        }
+        string Txt(string fallback) => textLen > 0 ? new string('测', textLen) : fallback;
+
         switch (name.ToLowerInvariant())
         {
             case "permission": TuiDemo.ShowPermissionDemo(screen); return;
@@ -356,13 +374,13 @@ public static class Keypad
             case "panel": TuiDemo.ShowPanelDemo(screen); return;
             case "tree": TuiDemo.ShowTreeDemo(screen); return;
             // ── TuiDialog 系（非阻塞 ShowWindow，可脚本按键测试；confirm/input/select/multiselect 已在上面 TuiDemo 分支覆盖）──
-            case "info": screen.ShowWindow(TuiDialog.Info("信息", "这是一条信息")); return;
-            case "success": screen.ShowWindow(TuiDialog.Success("成功", "操作成功")); return;
-            case "warn": screen.ShowWindow(TuiDialog.Warn("警告", "请注意")); return;
-            case "error": screen.ShowWindow(TuiDialog.Error("错误", "出错了")); return;
-            case "confirm3": screen.ShowWindow(TuiDialog.Confirm3("确认", "确定执行？", _ => { })); return;
-            case "inputline": screen.ShowWindow(TuiDialog.InputLine("输入", "输入内容", "", _ => { })); return;
-            case "secret": screen.ShowWindow(TuiDialog.Secret("密钥", "输入密钥", "", _ => { })); return;
+            case "info": screen.ShowWindow(TuiDialog.Info("信息", Txt("这是一条信息"))); return;
+            case "success": screen.ShowWindow(TuiDialog.Success("成功", Txt("操作成功"))); return;
+            case "warn": screen.ShowWindow(TuiDialog.Warn("警告", Txt("请注意"))); return;
+            case "error": screen.ShowWindow(TuiDialog.Error("错误", Txt("出错了"))); return;
+            case "confirm3": screen.ShowWindow(TuiDialog.Confirm3("确认", Txt("确定执行？"), _ => { })); return;
+            case "inputline": screen.ShowWindow(TuiDialog.InputLine("输入", Txt("输入内容"), "", _ => { })); return;
+            case "secret": screen.ShowWindow(TuiDialog.Secret("密钥", Txt("输入密钥"), "", _ => { })); return;
             case "ask": screen.ShowWindow(TuiDialog.Ask("提问", "请选择一个选项",
                 ["选项 1", "选项 2", "选项 3"], false, _ => { }, _ => { })); return;
             case "perm": screen.ShowWindow(TuiDialog.Permission("权限确认", "允许执行此命令？", _ => { })); return;
@@ -474,6 +492,113 @@ public static class Keypad
         w.WriteLine($"[SETTINGSALL] 巡检结果: 通过 {pass}  失败 {fail}  跳过 {skip}  共 {schema.Count}");
         mgr.OnKey(esc); // 退出设置界面
         mgr.Render();
+    }
+
+    // ── 对话框内容长度测试 ──
+
+    /// <summary>遍历常用对话框 × 内容长度（1/10/50/100/500/1000 字），打开→检查窗口弹出→关闭，
+    /// 验证长内容不崩溃、窗口正常显示（花屏需配合 SNAP 抽查）。</summary>
+    static void DiagnoseDialogLengths(TextWriter w)
+    {
+        var mgr = TuiManager.Instance;
+        var screen = mgr.ActiveScreen as ChatScreen;
+        if (screen == null) { w.WriteLine("[DIAGDIALOG] 无 ChatScreen"); return; }
+
+        int[] lengths = [1, 10, 50, 100, 500, 1000];
+        var builders = new (string Name, Func<string, string, TuiWindow> Build)[]
+        {
+            ("info",      (t, m) => TuiDialog.Info(t, m)),
+            ("confirm",   (t, m) => TuiDialog.Confirm(t, m, _ => { })),
+            ("confirm3",  (t, m) => TuiDialog.Confirm3(t, m, _ => { })),
+            ("input",     (t, m) => TuiDialog.Input(t, m, "", _ => { })),
+            ("inputline", (t, m) => TuiDialog.InputLine(t, m, "", _ => { })),
+            ("secret",    (t, m) => TuiDialog.Secret(t, m, "", _ => { })),
+        };
+
+        int pass = 0, fail = 0;
+        foreach (var (name, build) in builders)
+        {
+            foreach (var len in lengths)
+            {
+                string content = new string('测', len);
+                try
+                {
+                    var win = build("长度测试", content);
+                    screen.ShowWindow(win);
+                    mgr.Render();
+                    bool ok = screen.HasModal && screen.FocusedWindow == win;
+                    if (!ok) { fail++; w.WriteLine($"  [✗] {name} 长度{len}: 窗口未弹出"); }
+                    else pass++;
+                    screen.CloseWindow(win);
+                    mgr.Render();
+                }
+                catch (Exception ex)
+                {
+                    fail++;
+                    w.WriteLine($"  [✗] {name} 长度{len}: 异常 {ex.GetType().Name}: {ex.Message}");
+                }
+            }
+            w.WriteLine($"  {name}: 6 个长度完成");
+        }
+        w.WriteLine($"[DIAGDIALOG] 对话框长度测试: 通过 {pass}  失败 {fail}");
+    }
+
+    // ── 单选/多选列表容量测试 ──
+
+    /// <summary>实测 Select（单选）/ MultiSelect（多选）在选项数 12/50/100/500/1000 下：
+    /// 窗口正常弹出、可见项 ≤12、滚动到末项、无崩溃。输出可见项数与滚动偏移。</summary>
+    static void DiagnoseSelectN(TextWriter w)
+    {
+        var mgr = TuiManager.Instance;
+        var screen = mgr.ActiveScreen as ChatScreen;
+        if (screen == null) { w.WriteLine("[DIAGSELECT] 无 ChatScreen"); return; }
+
+        int[] counts = [12, 50, 100, 500, 1000];
+        int pass = 0, fail = 0;
+        foreach (var n in counts)
+        {
+            var items = Enumerable.Range(1, n).Select(i => $"选项 {i}").ToList();
+            try
+            {
+                // 单选
+                var selWin = TuiDialog.Select($"单选 {n} 项", items, _ => { });
+                screen.ShowWindow(selWin);
+                mgr.Render();
+                var selList = selWin.RootView.FindFocused() as TuiList;
+                int vis = Math.Min(n, 12);
+                if (screen.HasModal && selList != null)
+                {
+                    // 滚动到底，验证末项可达
+                    for (int i = 0; i < n; i++) mgr.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
+                    mgr.Render();
+                    bool endReached = selList.SelectedIndex == n - 1 || selList.SelectedIndex >= n - 1;
+                    pass++;
+                    w.WriteLine($"  单选 {n} 项: 可见={vis} 末项选中={selList.SelectedIndex} {(endReached ? "✓" : "✗")}");
+                }
+                else { fail++; w.WriteLine($"  单选 {n} 项: 窗口/列表异常"); }
+                screen.CloseWindow(selWin);
+
+                // 多选
+                var multiWin = TuiDialog.MultiSelect($"多选 {n} 项", items, _ => { });
+                screen.ShowWindow(multiWin);
+                mgr.Render();
+                var multiList = multiWin.RootView.FindFocused() as TuiList;
+                if (screen.HasModal && multiList != null)
+                {
+                    pass++;
+                    w.WriteLine($"  多选 {n} 项: 可见={Math.Min(n, 12)} 项数={multiList.Items.Count} ✓");
+                }
+                else { fail++; w.WriteLine($"  多选 {n} 项: 窗口/列表异常"); }
+                screen.CloseWindow(multiWin);
+                mgr.Render();
+            }
+            catch (Exception ex)
+            {
+                fail++;
+                w.WriteLine($"  [✗] 选项数 {n}: 异常 {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+        w.WriteLine($"[DIAGSELECT] 单选/多选容量测试: 通过 {pass}  失败 {fail}");
     }
 
     // ── 焦点转储 ──
