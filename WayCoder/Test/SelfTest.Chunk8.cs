@@ -188,8 +188,7 @@ public static partial class SelfTest
         sb1.AgentBusy = true;
         Check("TuiStatusBar AgentBusy=true", sb1.AgentBusy);
 
-        // 工作模式必须带中文名渲染出来。此前只画一个 emoji（🔨/🧠/🔍/🤖），
-        // 用户实测「界面上根本看不到当前是什么模式」——改回 Emojis-only 这里就会红。
+        // 工作模式/经济模式/动画图标已移入动态栏与模型信息行，状态栏不再重复显示。
         sb1.Width = 120;
         sb1.AgentBusy = false;
         foreach (var (mode, label) in new[]
@@ -202,7 +201,7 @@ public static partial class SelfTest
             var modeFrame = new StringBuilder();
             sb1.Render(modeFrame, 0, 0);
             var modePlain = ScreenshotTool.StripAnsi(modeFrame.ToString());
-            Check($"TuiStatusBar 模式显示中文名「{label}」", modePlain.Contains(label));
+            Check($"TuiStatusBar 不再重复模式名「{label}」", !modePlain.Contains(label));
         }
         Console.WriteLine();
 

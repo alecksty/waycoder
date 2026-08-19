@@ -37,6 +37,7 @@ public class MarkupChatScreen : ChatScreen
             DynamicBar = _markup.Find<TuiDynamicBar>("dynamicBar") ?? throw Missing("dynamicBar");
             InputTopBorder = _markup.Find<TuiSeparator>("inputTopBorder") ?? throw Missing("inputTopBorder");
             InputBotBorder = _markup.Find<TuiSeparator>("inputBotBorder") ?? throw Missing("inputBotBorder");
+            ModelInfoRow = _markup.Find<TuiLabel>("modelInfoRow"); // 可空：动态栏放得下模型信息时整行隐藏
             SuggestPanel = _markup.Find<TuiVBox>("suggestPanel") ?? throw Missing("suggestPanel");
             SidePanel = _markup.Find<TuiSidePanel>("sidePanel") ?? throw Missing("sidePanel");
 
