@@ -30,7 +30,7 @@ public class TuiSidePanel : TuiControl
     public WindowBorder BorderStyle { get; set; } = WindowBorder.Rounded;
 
     /// <summary>分区标题颜色</summary>
-    public int SectionHeaderFg { get; set; } = AnsiColors.BrightWhite; // 分区标题：白色
+    public int SectionHeaderFg { get; set; } = AnsiColors.BrightBlack; // 分区标题：灰色（不抢眼）
 
     /// <summary>分隔线颜色</summary>
     public int SeparatorColor { get; set; } = AnsiColors.BrightBlack;
@@ -52,7 +52,7 @@ public class TuiSidePanel : TuiControl
 
         var bc = AnsiHelper.GetBorderChars(BorderStyle);
         int bg = Bg > 0 ? Bg : TuiTheme.Current.TerminalBg;
-        int fg = Fg > 0 ? Fg : AnsiColors.White; // 内容行：浅白色（比标题稍暗）
+        int fg = Fg > 0 ? Fg : AnsiColors.BrightBlack; // 内容行：灰色
         int contentBg = 0; // 内容（标题/分隔线/行）透明背景，只显示文字，不铺色块
         int row = absY;
 
@@ -92,23 +92,14 @@ public class TuiSidePanel : TuiControl
                 string title = AnsiHelper.DisplayWidth(sec.Title) > contentW - 2
                     ? AnsiHelper.TruncateByWidth(sec.Title, contentW - 2)
                     : sec.Title;
-                titleRb.Write(curRow, contentX, " " + title, fg: SectionHeaderFg, bg: contentBg);
+                // 名称 + 横线到边（少一格）：名称(num)────…… 横线长度随内容区宽，动数据不错位
+                int titleW = AnsiHelper.DisplayWidth(title);
+                int sepLen = Math.Max(1, contentW - 2 - titleW);
+                titleRb.Write(curRow, contentX, " " + title + new string(bc.H[0], sepLen), fg: SectionHeaderFg, bg: contentBg);
                 sb.Append(titleRb.ToString());
             }
-            curRow++;
-
-            // ── 分隔线（标题下方）──
-            if (curRow < row + Height)
-            {
-                if (curRow >= ClipTop && curRow < ClipBottom)
-                {
-                    var sepRb = new RenderBuffer();
-                    int sepLen = Math.Min(contentW - 1, 20);
-                    sepRb.Write(curRow, contentX + 1, new string(bc.H[0], sepLen), fg: SeparatorColor, bg: contentBg);
-                    sb.Append(sepRb.ToString());
-                }
-                curRow++;
-            }
+            curRow++; // 标题行
+            curRow++; // section 之间空一行（呼吸间隔）
 
             // ── 内容行 ──
             bool clipped = quota < sec.Lines.Count;
@@ -152,7 +143,7 @@ public class TuiSidePanel : TuiControl
     /// </summary>
     public static List<int> AllocateHeights(IReadOnlyList<PanelSection> sections, int height)
     {
-        const int Overhead = 2;   // 标题行 + 分隔线
+        const int Overhead = 2;   // 标题横线行 + section 间隔空行
         var visible = new List<int>();          // 各分区内容行需求
         foreach (var s in sections)
             if (!s.Collapsed) visible.Add(s.Lines.Count);
