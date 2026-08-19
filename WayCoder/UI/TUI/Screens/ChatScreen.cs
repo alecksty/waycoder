@@ -58,6 +58,9 @@ public partial class ChatScreen : TuiScreen
     /// <summary>输入区下分隔线</summary>
     public TuiSeparator InputBotBorder { get; protected set; } = null!;
 
+    /// <summary>模型/模式信息行（输入面板下方，动态栏放不下模型时显示）。标记版来自 chat.tui，可空。</summary>
+    public TuiLabel? ModelInfoRow { get; protected set; }
+
     /// <summary>建议下拉面板</summary>
     public TuiVBox SuggestPanel { get; protected set; } = null!;
 
@@ -209,6 +212,19 @@ public partial class ChatScreen : TuiScreen
         DynamicBar.Width = TW;
         DynamicBar.ContextPercent = _contextPercent; // 常驻上下文占用%
 
+        // 动画节流：活跃态每 FrameMs（500ms）标一次脏让 spinner 转起来。
+        // 不加这道节流，思考态没有任何状态变化会触发 MarkDirty，spinner 就冻住不动（「卡住」）；
+        // 逐帧标脏又会整条重绘浪费。500ms 一帧 ≈ 2 FPS，够转又不卡。
+        if (DynamicBar.IsActive)
+        {
+            long now = Environment.TickCount64;
+            if (now - _lastAnimDirtyTicks >= TuiDynamicBar.FrameMs)
+            {
+                _lastAnimDirtyTicks = now;
+                DynamicBar.MarkDirty();
+            }
+        }
+
         // 压缩中（从 CompressProgress 事件已设置，保持不变）
         if (DynamicBar.Status == AgentStatus.Compressing && ContextManager.IsCompressing)
             return;
@@ -268,11 +284,46 @@ public partial class ChatScreen : TuiScreen
         DynamicBar.ToolText = "";
     }
 
+    /// <summary>
+    /// 同步模型/模式信息行（输入区下方）：工作模式/经济模式/大模型/小模型，`·` 分隔。
+    /// 每帧读取实时模式/模型，变了才标脏重绘（模式切换后下一帧自动刷新）。
+    /// </summary>
+    private void SyncModelInfo()
+    {
+        string large = AgentSlotConfig.ResolveLargeModel(AgentSlotConfig.Get(ActiveSlotIndex), ActiveSlotIndex);
+        string small = AgentSlotConfig.ResolveSmallModel(AgentSlotConfig.Get(ActiveSlotIndex), ActiveSlotIndex);
+        string modeStr = WorkModeManager.Format(WorkModeManager.CurrentMode);
+        string economyStr = Config.Instance.EconomyMode switch
+        {
+            EconomyMode.On => "省钱",
+            EconomyMode.Auto => "自动",
+            EconomyMode.Extreme => "极致",
+            _ => "关闭",
+        };
+        string rowStr = $"工作模式:{modeStr} · 经济模式:{economyStr} · 大模型:{large} · 小模型:{small}";
+
+        SetModelInfoRow(true, rowStr);
+    }
+
+    /// <summary>设置模型信息行可见性与内容；可见性变了才重排，文本变了只标脏。</summary>
+    private void SetModelInfoRow(bool visible, string text)
+    {
+        var row = ModelInfoRow;
+        if (row == null) return;
+        bool visChanged = row.Visible != visible;
+        row.Visible = visible;
+        if (row.Text != text) row.Text = text;
+        if (visChanged) { RootView?.Layout(); row.MarkDirty(); }
+    }
+
     /// <summary>等待权限的工具名（非 null = 正在等待）</summary>
     private string? _pendingPermissionTool;
 
     /// <summary>上下文占用百分比（null=未知，用于动态栏常驻显示）</summary>
     private double? _contextPercent;
+
+    /// <summary>动态栏动画上次标脏时间戳（TickCount64，节流用，避免逐帧整条重绘）</summary>
+    private long _lastAnimDirtyTicks;
 
     /// <summary>标记工具开始执行（只刷动态栏，不弄脏根，防标题栏闪）</summary>
     public void OnToolStarted(string toolName, string brief)
@@ -369,7 +420,8 @@ public partial class ChatScreen : TuiScreen
         inputH = Math.Clamp(InputArea.Lines.Count + 1, 3, 5);
         promptH = PromptBar.Visible ? PromptBar.Height : 0;
         progressH = (ProgressPercent.HasValue && ContextManager.IsCompressing) ? 1 : 0;
-        chatH = Math.Max(1, TH - 1 - promptH - 1 - 1 - inputH - 1 - progressH - 1); // TH - title - prompt - dynamicBar(1) - topBorder - input - botBorder - progress - status
+        chatH = Math.Max(1, TH - 1 - promptH - 1 - 1 - 1 - inputH - 1 - progressH - 1
+            - (ModelInfoRow?.Visible == true ? 1 : 0)); // TH - title - prompt - spacer(1) - dynamicBar(1) - topBorder - input - botBorder - progress - modelInfoRow - status
     }
 
     /// <summary>应用动态尺寸到各子视图（Render / OnResize 共用）。</summary>
@@ -469,6 +521,9 @@ public partial class ChatScreen : TuiScreen
         };
         RootView.Add(PromptBar);
 
+        // ── 动态栏上方空一行（与聊天列表分隔，更好看）──
+        RootView.Add(new TuiLabel { Width = TW, Height = 1 });
+
         // ── 动态栏（始终可见，对标 Claude Code SpinnerWithVerb）──
         DynamicBar = new TuiDynamicBar
         {
@@ -515,6 +570,18 @@ public partial class ChatScreen : TuiScreen
             LineChar = "━", LineColor = TuiTheme.Current.SeparatorFg
         };
         RootView.Add(InputBotBorder);
+
+        // ── 模型/模式信息行（输入区下方，灰字不抢眼）──
+        ModelInfoRow = new TuiLabel
+        {
+            Width = TW,
+            Height = 1,
+            Visible = false,
+            Fg = AnsiColors.Grey,
+            Dim = true,
+            TextAlign = EHAlign.Center,
+        };
+        RootView.Add(ModelInfoRow);
 
         // ── 底部状态栏 ──
         StatusBar = new TuiStatusBar
@@ -800,6 +867,9 @@ public partial class ChatScreen : TuiScreen
 
         // ── 同步动态栏 ──
         SyncDynamicBar();
+
+        // ── 同步模型/模式信息（动态栏右段 / 输入区下方兜底行）──
+        SyncModelInfo();
 
         // ── 同步侧栏（数据变了才重建分区）──
         SyncSidePanel();

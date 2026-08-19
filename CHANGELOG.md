@@ -1,5 +1,51 @@
 # 更新日志
 
+## v0.79.51 (2026-08-19) — 模型信息行 + 状态栏/动态栏精简 + 修 diff 对话框按键
+
+### 模型信息行（输入区下方，灰字）
+
+新增常驻信息行显示当前配置，字段用 `·` 分隔、不再用尖括号，模式切换后自动刷新：
+
+`工作模式:计划模式 · 经济模式:自动 · 大模型:deepseek-v4-pro · 小模型:deepseek-v4-flash`
+
+- 大/小模型按活跃槽位解析（`AgentSlotConfig.ResolveLargeModel/SmallModel`，槽位继承 F1、回退全局）
+- 每帧读 `WorkModeManager.CurrentMode` / `Config.EconomyMode`，内容变了才重绘（模式切换下一帧自动更新）
+- 布局：`chat.tui` 加 `<Label id="modelInfoRow">`（代码版 `ChatScreen` 同步），灰字（`dim`）不抢眼
+
+### 动态栏精简
+
+- **不再显示模型**（与模型信息行重复），模型信息统一由模型信息行承担
+- **去掉分段竖线 `│`**，靠间距区分左/中/右段
+- **上方空一行**与聊天列表分隔（布局加 spacer，代码版 chatH 同步 -1）
+- **动画预留字符位**：最前一个字符永远占位（活跃=spinner / 空闲=空格），状态切换不左右跳
+- **动画节流 500ms**：`FrameMs` 150→500，活跃态每 500ms 标一次脏——修复"思考态无状态变化 → spinner 冻住不动"，
+  又不逐帧整条重绘卡顿
+
+### 状态栏精简
+
+去掉**动画图标（心跳）/ 工作模式 / 经济模式**三个区域——它们已由动态栏 spinner 与模型信息行承担，不再重复。
+状态栏保留：槽位指示条（F1-F10）、中间提示文本、右侧 Agent 状态/Token。
+
+### 修 diff 对话框按键无效
+
+根因：`DiffPreview.ShowFullScreen` 的 `UxHelper.RenderWait`（代理线程）与主循环（REPL / `RunAgentWithRenderLoop`）
+**双线程同时 `Console.ReadKey`** 抢同一控制台输入，Y/N/A/Q/Enter 按了没反应。
+修法：`RenderWait` 加 `readKeys` 参数，diff 对话框传 `false`——按键完全交给外层循环经「键位作用域闸」路由到窗口
+（窗口 `RegisterShortcut` 优先命中，测试 `dscr.OnKey` 逐键路由已覆盖）。
+
+### 模型价格校准
+
+按 OpenRouter 在线目录快照校准 `ModelCatalog` 部分模型价格（Claude Opus 5 / Sonnet 5、DeepSeek V4 Pro、
+Gemini 2.5 Flash、Qwen Plus、Kimi K2.5 等），并删除仓库根目录的价格提取临时脚本 `extract_prices.py`。
+
+### ✅ 验证
+
+- 自测 3917 通过、0 失败（6 条失败全为本机环境：Tiny 自动探测目录、LSP 项目根、deepseek 供应商被
+  `~/.waycoder/provider/opencode.json` 改写，非代码回归）
+- 新增断言：模型信息行可见/含四字段/无尖括号/`·`分隔/模式切换刷新、chat.tui 子节点=11、
+  状态栏不再重复模式名
+- 主项目编译 0 错误
+
 ## v0.79.50 (2026-08-19) — GUI 启动引导 + 消息时间线修复 + 侧栏实时化
 
 ### GUI：独立进程补齐启动初始化（GuiBootstrap）
