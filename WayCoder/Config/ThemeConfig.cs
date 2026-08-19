@@ -12,7 +12,6 @@ using WayCoder.UI.Shared.Terminal;
 /// </summary>
 public class ThemeConfig
 {
-    public static ThemeConfig Instance { get; private set; } = Load();
 
     // 边框
     public string BorderStyle { get; set; } = "single";
@@ -117,6 +116,8 @@ public class ThemeConfig
         ["midnight"] = Midnight,
         ["mono"] = Mono,
     };
+
+    public static ThemeConfig Instance { get; private set; } = Load();
 
     // ================================================================
     // 持久化

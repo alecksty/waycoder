@@ -62,7 +62,13 @@ public abstract class TuiControl : TuiBase
     /// <summary>是否在获得焦点时显示终端光标。仅输入类控件应覆写为 true。</summary>
     public virtual bool HasCursor => false;
 
-    public bool Focused { get; set; }
+    /// <summary>是否持有键盘焦点。改动自动标脏 —— 焦点框/反色本来就是要重画的东西。</summary>
+    public bool Focused
+    {
+        get => _focused;
+        set => SetDirty(ref _focused, value);
+    }
+    private bool _focused;
 
     /// <summary>
     /// 父控件。放宽为 TuiControl?（而非 TuiView?）：TuiButtonGroup/TuiTabs 等非容器控件
@@ -72,11 +78,28 @@ public abstract class TuiControl : TuiBase
 
     // ── 增量渲染 ──
 
-    /// <summary>标记控件需要重绘。仅标记自身，不传播到父链（增量渲染按需遍历子控件）。</summary>
+    /// <summary>
+    /// 标记控件需要重绘。仅标记自身，不传播到父链（增量渲染按需遍历子控件）。
+    /// 同时叫醒 TuiManager 的帧闸门：控件脏了却没有帧，等于没脏。
+    /// </summary>
     public override void MarkDirty()
     {
+        // 先叫醒帧闸门再看自身标记：控件可能已是脏的，但那一帧已经渲染过、闸门被关上了
+        if (TuiManager.Instance is { IsActive: true } mgr) mgr.IsDirty = true;
         if (IsDirty) return;
         IsDirty = true;
+    }
+
+    /// <summary>
+    /// 属性赋值助手：值真的变了才写入并标脏。
+    /// 增量渲染只画脏控件（<see cref="TuiView"/>.OnRender 里 `child.IsDirty || parentDirty`），
+    /// 所以任何影响绘制结果的属性都该走这里 —— 忘了标脏的表现就是「按了键界面不刷新」。
+    /// </summary>
+    protected void SetDirty<T>(ref T field, T value)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value)) return;
+        field = value;
+        MarkDirty();
     }
 
     /// <summary>强制刷新：递归标记控件及其所有子控件为脏，确保下一帧完全重绘。</summary>

@@ -330,8 +330,10 @@ public class TuiWindow : TuiBase
         RootView.Height = ContentHeight;
         RootView.OnResize(ContentWidth, ContentHeight);
 
-        // 5. 标记脏，强制下一帧重绘窗口（否则增量渲染可能跳过）
-        RootView.MarkDirty();
+        // 5. 递归标记整棵控件树为脏 —— resize 改变了所有控件的位置/尺寸，任何一层都可能要重画。
+        //    不能只 MarkDirty() 根：parentDirty 只向下传播一层，套在 HBox 里的按钮（父容器不脏、
+        //    自身也不脏）会被增量渲染跳过，表现就是「改屏幕尺寸，对话框按钮不见了」。
+        RootView.Invalidate();
     }
 
     /// <summary>路由按键到控件树。快捷键优先于控件路由。</summary>

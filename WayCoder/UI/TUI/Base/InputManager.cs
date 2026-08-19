@@ -595,6 +595,25 @@ public enum InputType
 /// <summary>输入事件数据</summary>
 public class InputEvent
 {
+    /// <summary>
+    /// 是否「切换工作模式」键。三个入口，因为 Shift+Tab 在两个平台上长得不一样：
+    ///   Unix    终端发 ESC[Z → <see cref="InputType.ShiftTab"/>
+    ///   Windows Console.ReadKey 给 ConsoleKey.Tab + Shift 修饰键，永远没有 ESC[Z
+    ///   Ctrl+K  两平台通用别名
+    /// 抽成纯函数是因为这个条件错过一次（只认第一种，Windows 上按 Shift+Tab 变成插 4 空格），
+    /// REPL 主循环没法自测，判定逻辑放这儿能锁住 —— 尤其两条反向：
+    /// 裸 Tab 必须放行给路径补全，裸 k 必须当普通字符打进输入框。
+    /// </summary>
+    public static bool IsModeSwitchKey(InputEvent ev)
+    {
+        if (ev.Type == InputType.ShiftTab) return true;
+        if (ev.Type != InputType.Key) return false;
+        var k = ev.KeyInfo;
+        if (k.Key == ConsoleKey.Tab && k.Modifiers.HasFlag(ConsoleModifiers.Shift)) return true;
+        if (k.Key == ConsoleKey.K && k.Modifiers.HasFlag(ConsoleModifiers.Control)) return true;
+        return false;
+    }
+
     public InputType Type { get; set; }
     public ConsoleKeyInfo KeyInfo { get; set; }
     public int MouseX { get; set; }

@@ -26,6 +26,17 @@ public static partial class SelfTest
         finally { Config.Instance.EconomyMode = saved; }
     }
 
+    /// <summary>
+    /// 「工具调用不崩溃」断言助手：正常返回非空结果为真，抛异常为假。
+    /// 用于边界输入（空路径/空参数）—— 只验工具自身健壮，不对结果内容作假设
+    /// （对内容作假设会把「测工具」变成「测当前目录里有什么」）。
+    /// </summary>
+    private static bool TryToolCall(Func<string> call)
+    {
+        try { return !string.IsNullOrEmpty(call()); }
+        catch { return false; }
+    }
+
     /// <summary>获取 notebook cell 的 source 文本（测试助手）</summary>
     private static string GetNotebookSource(JNode notebook, int cellIndex)
     {
@@ -4914,5 +4925,48 @@ public static partial class SelfTest
         Check("Ansi: 悬空 ESC 序列不越界", ansiOk);
         var ansiRes = AnsiString.TruncateByWidth("\x1b[31mhello world", 5);
         Check("Ansi: 正常截断保留文本", ansiRes.Contains("hello"));
+    }
+
+    /// <summary>递归收集控件树里的按钮（校验对话框配色是否统一时用）。</summary>
+    private static void CollectButtons(WayCoder.UI.Tui.TuiControl? root,
+        List<WayCoder.UI.Tui.Controls.TuiButton> into)
+    {
+        switch (root)
+        {
+            case null: return;
+            case WayCoder.UI.Tui.Controls.TuiButton b: into.Add(b); return;
+            case WayCoder.UI.TUI.Base.TuiView v:
+                foreach (var c in v.Children) CollectButtons(c, into);
+                return;
+        }
+    }
+
+    /// <summary>找控件树里第一个列表控件（校验 resize 后控件宽度有没有跟着算时用）。</summary>
+    private static WayCoder.UI.Tui.Controls.TuiList? FindFirstList(WayCoder.UI.Tui.TuiControl? root)
+    {
+        switch (root)
+        {
+            case null: return null;
+            case WayCoder.UI.Tui.Controls.TuiList l: return l;
+            case WayCoder.UI.TUI.Base.TuiView v:
+                foreach (var c in v.Children)
+                    if (FindFirstList(c) is { } found) return found;
+                return null;
+            default: return null;
+        }
+    }
+
+    /// <summary>递归收集控件树里的标签（查模板占位符有没有被清干净时用）。</summary>
+    private static void CollectLabels(WayCoder.UI.Tui.TuiControl? root,
+        List<WayCoder.UI.Tui.Controls.TuiLabel> into)
+    {
+        switch (root)
+        {
+            case null: return;
+            case WayCoder.UI.Tui.Controls.TuiLabel l: into.Add(l); return;
+            case WayCoder.UI.TUI.Base.TuiView v:
+                foreach (var c in v.Children) CollectLabels(c, into);
+                return;
+        }
     }
 }

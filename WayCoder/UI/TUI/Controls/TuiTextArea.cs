@@ -12,8 +12,13 @@ public class TuiTextArea : TuiEditBase
 {
     // ── 文本缓冲 ──
 
-    /// <summary>文本行列表（每行不含换行符）</summary>
-    public List<string> Lines { get; set; } = [""];
+    /// <summary>文本行列表（每行不含换行符）。整表替换自动标脏；就地改 List 元素的调用方需自行 MarkDirty。</summary>
+    public List<string> Lines
+    {
+        get => _lines;
+        set => SetDirty(ref _lines, value);
+    }
+    private List<string> _lines = [""];
 
     /// <summary>获取/设置全部文本</summary>
     public string Text
@@ -24,6 +29,7 @@ public class TuiTextArea : TuiEditBase
             Lines = string.IsNullOrEmpty(value)
                 ? [""]
                 : [.. value.Replace("\r\n", "\n").Split('\n')];
+            MarkDirty(); // 新 List 与旧 List 内容可能相等，但引用换了、绘制结果也可能变
             // 整体替换文本：清空撤销/重做历史，防止旧操作引用已不存在的行导致越界崩溃
             _undoStack.Clear();
             _redoStack.Clear();
@@ -34,19 +40,40 @@ public class TuiTextArea : TuiEditBase
 
     // ── 光标 ──
 
+    // 光标/滚动都影响绘制（光标行高亮、可视窗口位移），一律走 SetDirty
     /// <summary>光标行（0-based，相对于 Lines）</summary>
-    public int CursorRow { get; set; }
+    public int CursorRow
+    {
+        get => _cursorRowIdx;
+        set => SetDirty(ref _cursorRowIdx, value);
+    }
+    private int _cursorRowIdx;
 
     /// <summary>光标列（0-based，相对于当前行文本）</summary>
-    public int CursorCol { get; set; }
+    public int CursorCol
+    {
+        get => _cursorColIdx;
+        set => SetDirty(ref _cursorColIdx, value);
+    }
+    private int _cursorColIdx;
 
     // ── 滚动 ──
 
     /// <summary>垂直滚动偏移（行）</summary>
-    public int ScrollRow { get; set; }
+    public int ScrollRow
+    {
+        get => _scrollRow;
+        set => SetDirty(ref _scrollRow, value);
+    }
+    private int _scrollRow;
 
     /// <summary>水平滚动偏移（字符列）</summary>
-    public int ScrollCol { get; set; }
+    public int ScrollCol
+    {
+        get => _scrollCol;
+        set => SetDirty(ref _scrollCol, value);
+    }
+    private int _scrollCol;
 
     // ── 显示选项 ──
 

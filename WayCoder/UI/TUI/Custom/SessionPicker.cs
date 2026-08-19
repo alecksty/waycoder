@@ -109,8 +109,11 @@ public static class SessionPicker
                 bool isCur = s.Id == currentSessionId;
                 var lbl = rowLabels[i];
                 lbl.Text = FormatSessionRow(s, isSel, isCur, listW);
-                lbl.Fg = isSel ? TuiTheme.Current.ListSelFg : (isCur ? AnsiColors.Blue : AnsiColors.White);
-                lbl.Bg = isSel ? TuiTheme.Current.ListSelBg : 0;
+                // 未选中行给黑底而不是 0（透明）—— 透明会漏出对话框的灰底。
+                // 当前会话用亮青标记（原来的 Blue 压在黑底上几乎看不见）
+                lbl.Fg = isSel ? TuiTheme.Current.ListSelFg
+                       : isCur ? AnsiColors.BrightCyan : TuiTheme.Current.ListFg;
+                lbl.Bg = isSel ? TuiTheme.Current.ListSelBg : TuiTheme.Current.ListBg;
             }
             list.SelectedIndex = sel; // 驱动 TuiListView 自动滚动到选中项
             list.MarkDirty();

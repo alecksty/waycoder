@@ -1,12 +1,16 @@
-<!-- 权限确认对话框（黄底黑字风格，标题/消息由 code-behind 注入，Y=允许 N=拒绝 A=全允） -->
+<!-- 权限确认对话框（标题/消息由 code-behind 注入，Y=允许 N=拒绝 A=全允）。
+     底色/文字不在这里写死：跟所有对话框一样走主题的灰底黑字（WindowBg/DialogFg），
+     按钮走橙黄渐变底 + 黑字（ApplyButtonGradient 统一设）。
+     只留黄色边框——它是「这是权限确认，看清楚再按」的语义信号。
+     msgBox 里那个 "…" 是设计态占位，运行时由 FillMsgBox 先 Clear 再填真实消息 -->
 <Dialog title="{title}" border="solid" borderColor="warning" shortcut="escape"
-        bg="yellow" titleFg="black" titleBg="yellow">
+        titleFg="black">
   <VBox align="center" spacing="1">
-    <VBox id="msgBox"><Label text="…" fg="brightblack" /></VBox>
+    <VBox id="msgBox"><Label text="…" fg="black" /></VBox>
     <HBox align="center" spacing="2">
-      <Button id="allow" text="允许 (Y)" shortcut="y" fg="black" bg="cyan" focusedFg="black" focusedBg="white" />
-      <Button id="deny" text="拒绝 (N)" shortcut="n" fg="black" bg="cyan" focusedFg="black" focusedBg="white" />
-      <Button id="always" text="全允 (A)" shortcut="a" fg="black" bg="cyan" focusedFg="black" focusedBg="white" />
+      <Button id="allow" text="允许 (Y)" shortcut="y" />
+      <Button id="deny" text="拒绝 (N)" shortcut="n" />
+      <Button id="always" text="全允 (A)" shortcut="a" />
     </HBox>
   </VBox>
 </Dialog>

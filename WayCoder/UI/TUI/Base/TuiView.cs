@@ -191,7 +191,14 @@ public abstract class TuiView : TuiControl
         {
             if ((child.Focused || (child is TuiView v && v.FindFocused() != null))
                 && child.OnKey(key))
+            {
+                // 处理了按键 = 状态多半变了，就地标脏。
+                // 渲染是增量的（只重画标脏的控件），控件自己忘了标脏就会停在旧帧上，
+                // 表现为「按键没反应」—— TuiTreeView/ComboBox/Tabs 等十来个控件都没标，
+                // 与其逐个补漏，不如在唯一的派发口兜住；多标一次的代价只是重画一个控件。
+                child.MarkDirty();
                 return true;
+            }
         }
 
         return false;

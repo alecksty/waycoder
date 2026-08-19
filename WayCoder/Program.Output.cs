@@ -42,7 +42,7 @@ public partial class Program
     /// </remarks>
     internal static string SpectreToAnsi(string markup)
     {
-        return markup
+        return ExpandColorTags(markup)
             // ── 复合标签（先替换，避免被单标签截断）──
             .Replace("«bold yellow»", AnsiTty.SgrBold + AnsiTty.FgCode(AnsiColors.Yellow))
             .Replace("«bold cyan»", AnsiTty.SgrBold + AnsiTty.FgCode(AnsiColors.Cyan))
@@ -79,6 +79,41 @@ public partial class Program
             .Replace("«orange»", AnsiTty.FgCode(AnsiColors.Orange))
             .Replace("«grey»", AnsiTty.FgCode(AnsiColors.Grey))
             .Replace("«gray»", AnsiTty.FgCode(AnsiColors.Grey));
+    }
+
+    /// <summary>
+    /// 先行展开带参数的颜色标签：«fg:#rrggbb» / «bg:#rrggbb» / «#rgb» / «bg:red»。
+    /// 这类标签取值无穷，枚举不出来，没法走上面的 Replace 链，交给共享的
+    /// <see cref="MarkdownParser.TryMapTag"/> 判定 —— 与 TUI/Web 同一套语法，改一处三端一致。
+    /// 只吃带 #、fg:、bg: 的标签，命名标签仍留给 Replace 链（那里有「bold+颜色」复合处理）。
+    /// 认不出的写法原样保留，暴露笔误而非静默吞掉。
+    /// </summary>
+    private static string ExpandColorTags(string markup)
+    {
+        if (markup.IndexOf('\xAB') < 0) return markup;
+        var sb = new StringBuilder();
+        for (int i = 0; i < markup.Length;)
+        {
+            if (markup[i] == '\xAB')
+            {
+                int close = markup.IndexOf('\xBB', i + 1);
+                if (close > i)
+                {
+                    var tag = markup[(i + 1)..close].Trim();
+                    bool parameterized = tag.StartsWith('#')
+                        || tag.StartsWith("fg:", StringComparison.OrdinalIgnoreCase)
+                        || tag.StartsWith("bg:", StringComparison.OrdinalIgnoreCase);
+                    if (parameterized && MarkdownParser.TryMapTag(tag, out int code, out bool isBg))
+                    {
+                        sb.Append(isBg ? AnsiTty.BgCode(code) : AnsiTty.FgCode(code));
+                        i = close + 1;
+                        continue;
+                    }
+                }
+            }
+            sb.Append(markup[i++]);
+        }
+        return sb.ToString();
     }
 
     /// <summary>

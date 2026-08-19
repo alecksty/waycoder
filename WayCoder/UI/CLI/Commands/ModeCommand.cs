@@ -54,7 +54,7 @@ public class ModeCommand : SlashCommand
             };
 
             screen.AddMessage(
-                $"**工作模式已切换**: {WorkModeManager.Format(target.Value)}\n\n{desc}\n\n💡 快捷键: **Shift+Tab** 循环切换模式",
+                $"**工作模式已切换**: {WorkModeManager.Format(target.Value)}\n\n{desc}\n\n💡 快捷键: **Shift+Tab** 或 **Ctrl+K** 循环切换模式",
                 "system");
         }
         else
@@ -87,7 +87,7 @@ public class ModeCommand : SlashCommand
             }
 
             lines.Add("");
-            lines.Add("💡 **Shift+Tab** 循环切换 · `/mode <名称>` 直接切换");
+            lines.Add("💡 **Shift+Tab** / **Ctrl+K** 循环切换 · `/mode <名称>` 直接切换");
 
             screen.AddMessage(string.Join("\n", lines), "system");
         }

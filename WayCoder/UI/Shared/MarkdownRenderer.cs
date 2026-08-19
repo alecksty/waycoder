@@ -258,6 +258,60 @@ public static class MarkdownParser
     /// 返回 (文本, ANSI颜色码, 背景色码) 列表。
     /// 颜色码语义：1-9=样式属性(粗体/淡化/斜体/下划线/反白/删除线)，30-37/90-97=标准色。
     /// </summary>
+    /// <summary>
+    /// 只解码 «tag» / «/» 样式标记，其余字符一律原样保留。
+    /// 供「纯文本」消息（system / tool 输出）用：这类内容里的 `反引号`、**星号**、# 号
+    /// 属于数据而不是格式，走完整内联解析会把它们当标记吃掉；但 «» 是我们自己的中间格式，
+    /// 必须在渲染层解码成颜色，否则用户直接看到 «grey» 字面量。
+    /// </summary>
+    public static List<(string Text, int Color, int Bg)> ParseMarkupOnly(string text,
+        int defaultColor = 0, int defaultBg = 0)
+    {
+        var result = new List<(string Text, int Color, int Bg)>();
+        var styleStack = new Stack<(int Fg, int Bg)>();
+        var current = new System.Text.StringBuilder();
+        int curColor = defaultColor, curBg = defaultBg;
+
+        void Flush()
+        {
+            if (current.Length == 0) return;
+            result.Add((current.ToString(), curColor, curBg));
+            current.Clear();
+        }
+
+        for (int i = 0; i < text.Length;)
+        {
+            if (text[i] == '\xAB') // «
+            {
+                int close = text.IndexOf('\xBB', i + 1);
+                if (close > i)
+                {
+                    string tag = text[(i + 1)..close].Trim();
+                    if (tag == "/")
+                    {
+                        Flush();
+                        (curColor, curBg) = styleStack.Count > 0 ? styleStack.Pop() : (defaultColor, defaultBg);
+                        i = close + 1;
+                        continue;
+                    }
+                    if (TryMapTag(tag, out int code, out bool isBg) && code > 0)
+                    {
+                        Flush();
+                        styleStack.Push((curColor, curBg));
+                        if (isBg) curBg = code; else curColor = code;
+                        i = close + 1;
+                        continue;
+                    }
+                    // 未知标签：不认识就当普通文字，原样落到输出里暴露笔误
+                }
+            }
+            current.Append(text[i++]);
+        }
+        Flush();
+        if (result.Count == 0) result.Add(("", defaultColor, defaultBg));
+        return result;
+    }
+
     public static List<(string Text, int Color, int Bg)> ParseInline(string text,
         int defaultColor = 0, int defaultBg = 0)
     {
@@ -270,15 +324,16 @@ public static class MarkdownParser
 
         int i = 0;
         var current = new System.Text.StringBuilder();
-        // «tag» 样式栈：进入 span 前压栈，«/» 弹栈恢复（支持嵌套与流式未闭合 span）
-        var styleStack = new Stack<int>();
-        int curColor = defaultColor;
+        // «tag» 样式栈：进入 span 前压栈，«/» 弹栈恢复（支持嵌套与流式未闭合 span）。
+        // 前景/背景一起进栈 —— «bg:#333» 里嵌 «red» 再 «/» 时，背景必须留着而不是被一并弹掉
+        var styleStack = new Stack<(int Fg, int Bg)>();
+        int curColor = defaultColor, curBg = defaultBg;
 
         void FlushCurrent()
         {
             if (current.Length > 0)
             {
-                result.Add((current.ToString(), curColor, defaultBg));
+                result.Add((current.ToString(), curColor, curBg));
                 current.Clear();
             }
         }
@@ -295,16 +350,15 @@ public static class MarkdownParser
                     if (tag == "/")
                     {
                         FlushCurrent();
-                        curColor = styleStack.Count > 0 ? styleStack.Pop() : defaultColor;
+                        (curColor, curBg) = styleStack.Count > 0 ? styleStack.Pop() : (defaultColor, defaultBg);
                         i = close + 1;
                         continue;
                     }
-                    int code = MapMarkupTag(tag);
-                    if (code > 0)
+                    if (TryMapTag(tag, out int code, out bool isBg) && code > 0)
                     {
                         FlushCurrent();
-                        styleStack.Push(curColor);
-                        curColor = code;
+                        styleStack.Push((curColor, curBg));
+                        if (isBg) curBg = code; else curColor = code;
                         i = close + 1;
                         continue;
                     }
@@ -324,9 +378,9 @@ public static class MarkdownParser
                         FlushCurrent();
                         var linkText = text[(i + 1)..closeBracket];
                         var url = text[(closeBracket + 2)..closeParen];
-                        result.Add((linkText, 36, defaultBg)); // 青色链接文字
+                        result.Add((linkText, 36, curBg)); // 青色链接文字
                         if (!string.IsNullOrEmpty(url) && url != linkText)
-                            result.Add(($" ({url})", 2, defaultBg)); // 弱化显示 URL
+                            result.Add(($" ({url})", 2, curBg)); // 弱化显示 URL
                         i = closeParen + 1;
                         continue;
                     }
@@ -340,7 +394,10 @@ public static class MarkdownParser
                 if (end > i)
                 {
                     FlushCurrent();
-                    result.Add((text[(i + 1)..end], 33, 48));  // 黄色文字 + 深色背景
+                    // 黄色文字、不加底色 —— 曾经写 48 当「深色背景」，但 48 是 SGR 的
+                    // 「扩展背景色引导码」，必须跟 5;n 或 2;r;g;b；裸发 ESC[48m 是残缺序列，
+                    // 各终端解释不一（Windows Terminal 渲染成亮绿底），路径/命令一片刺眼绿
+                    result.Add((text[(i + 1)..end], 33, curBg));
                     i = end + 1;
                     continue;
                 }
@@ -353,7 +410,7 @@ public static class MarkdownParser
                 if (end > i)
                 {
                     FlushCurrent();
-                    result.Add((text[(i + 2)..end], 1, defaultBg)); // Bold
+                    result.Add((text[(i + 2)..end], 1, curBg)); // Bold
                     i = end + 2;
                     continue;
                 }
@@ -366,7 +423,7 @@ public static class MarkdownParser
                 if (end > i)
                 {
                     FlushCurrent();
-                    result.Add((text[(i + 2)..end], 2, defaultBg)); // 弱化 = 删除线
+                    result.Add((text[(i + 2)..end], 2, curBg)); // 弱化 = 删除线
                     i = end + 2;
                     continue;
                 }
@@ -380,7 +437,7 @@ public static class MarkdownParser
                 if (end > i + 1 && (end + 1 >= text.Length || text[end + 1] != '*'))
                 {
                     FlushCurrent();
-                    result.Add((text[(i + 1)..end], 3, defaultBg)); // Italic
+                    result.Add((text[(i + 1)..end], 3, curBg)); // Italic
                     i = end + 1;
                     continue;
                 }
@@ -399,9 +456,59 @@ public static class MarkdownParser
     /// 未知标签返回 0（调用方按字面输出）。多词标签（如「bold yellow」「bright red」）
     /// 取颜色词、样式前缀丢弃（对齐 Program.cs MarkupLine 的「粗体=颜色」约定）。
     /// </summary>
-    private static int MapMarkupTag(string tag)
+    private static int MapMarkupTag(string tag) => TryMapTag(tag, out var code, out bool isBg) && !isBg ? code : 0;
+
+    /// <summary>
+    /// 解析 «tag» 标签为颜色/样式码，并告知它作用于前景还是背景。
+    /// 支持三类写法：
+    ///   «red» / «bold yellow» / «dim»    —— 命名色与样式（前景）
+    ///   «fg:#rrggbb» / «#rgb»            —— 真彩前景（编码走 AnsiTty.RgbCode，≥0x1000000）
+    ///   «bg:#rrggbb» / «bg:red»          —— 真彩/命名背景
+    /// 返回 false 表示不认识这个标签，调用方应把它当普通文字原样输出（暴露笔误而非静默吞掉）。
+    /// </summary>
+    public static bool TryMapTag(string tag, out int code, out bool isBg)
     {
         tag = tag.Trim().ToLowerInvariant();
+        isBg = false;
+        code = 0;
+        if (tag.Length == 0) return false;
+
+        // fg:/bg: 前缀 —— 前缀只决定作用通道，值本身仍走下面的命名色/十六进制解析
+        if (tag.StartsWith("bg:", StringComparison.Ordinal)) { isBg = true; tag = tag[3..].Trim(); }
+        else if (tag.StartsWith("fg:", StringComparison.Ordinal)) tag = tag[3..].Trim();
+
+        if (tag.StartsWith('#'))
+        {
+            if (!TryParseHex(tag, out int rgb)) return false;
+            code = rgb;             // 真彩码，前景/背景同码，由 FgCode/BgCode 各自展开
+            return true;
+        }
+
+        code = MapNamedTag(tag);
+        if (code == 0) return false;
+        // 命名色转背景：标准 16 色前景 30-37/90-97 → 背景 40-47/100-107；
+        // 256 色码（16-255）与样式属性（1-9）无需偏移，BgCode 会按 48;5;N 展开
+        if (isBg && code is >= 30 and <= 37 or >= 90 and <= 97) code += 10;
+        return true;
+    }
+
+    /// <summary>解析 #rgb / #rrggbb 为 AnsiTty 真彩码（0x1000000 | rgb）。非法写法返回 false。</summary>
+    private static bool TryParseHex(string tag, out int code)
+    {
+        code = 0;
+        var hex = tag[1..];
+        if (hex.Length == 3)   // #abc → #aabbcc
+            hex = string.Concat(hex[0], hex[0], hex[1], hex[1], hex[2], hex[2]);
+        if (hex.Length != 6) return false;
+        foreach (var c in hex)
+            if (!Uri.IsHexDigit(c)) return false;
+        int rgb = Convert.ToInt32(hex, 16);
+        code = Terminal.AnsiTty.RgbCode((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+        return true;
+    }
+
+    private static int MapNamedTag(string tag)
+    {
         switch (tag)
         {
             case "bold": case "bright": return 1;    // 粗体/加亮
