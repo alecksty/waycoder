@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.79.77 (2026-08-20) — 卡死/崩溃排查修复
+
+排查全部锁/阻塞异步/死循环/网络调用，修复 3 处真实卡死点（其余已验证安全）：
+
+- **`LspTool.ActiveSessions` 锁无超时**（Web 面板/侧栏刷新走 UI 线程）——LSP 握手最坏持锁 10s，此前 UI 线程 `_sessionLock.Wait()` 会被卡住 → 界面卡死。加 `Wait(100)` 超时 + 缓存快照（超时返回缓存，下次刷新再读）
+- **`PersistentShell` 锁无超时**（`Dispose`/`ShutdownAll` 退出路径）——会话命令可能跑分钟级，退出被 `_lock.Wait()` 卡死。加 2s 超时，超时跳过
+- **主循环 `mgr.Render()` 无异常兜底**——某控件 `OnRender` 偶发异常会直接崩（虽有自动存会话兜底，但属非预期退出）。包 try/catch：记日志 + `RequestFullRefresh` 全刷重试
+
+### ✅ 验证（其余扫描点均安全）
+- GitRunner/SystemPrompt 进程读取：并发读 + 超时杀进程（防管道死锁）✅
+- `while(true)` 循环：LLM 流（300s 正文超时）/tar 解压/目录上溯 均有退出条件 ✅
+- HTTP 阻塞调用（ModelCatalog 2s / ModelCli 4s）均有 HttpClient 超时 ✅
+- 自测 3970 通过（0 真实失败）
+
 ## v0.79.76 (2026-08-20) — 鼠标支持默认开启 + 开关进设置
 
 - **鼠标支持默认开启**（此前默认关闭、仅 `WAYCODER_MOUSE=1` 门控，导致点击无效）——SGR 鼠标（点击/滚动/移动）现在开箱即用
