@@ -511,7 +511,7 @@ public static class ModelCatalog
     /// 未知模型或窗口为 0 时回退到 fallback（默认 1M）。
     /// 用于切换模型时同步 Agent 的上下文窗口上限。
     /// </summary>
-    public static int ResolveContextWindow(string? modelId, int fallback = 1_048_576)
+    public static int ResolveContextWindow(string? modelId, int fallback = 128_000)
     {
         if (Config.Instance.TinyMode) return Config.Instance.TinyWindow;
         if (string.IsNullOrWhiteSpace(modelId)) return fallback;

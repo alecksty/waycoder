@@ -207,9 +207,9 @@ public static partial class SelfTest
         Check("窗口: deepseek-v4-pro = 1M", ModelCatalog.ResolveContextWindow("deepseek-v4-pro") == 1_048_576);
         Check("窗口: deepseek-chat = 64K", ModelCatalog.ResolveContextWindow("deepseek-chat") == 64_000);
         Check("窗口: ollama 本地模型 = 128K", ModelCatalog.ResolveContextWindow("deepseek-coder-v2:latest") == 128_000);
-        Check("窗口: 未知模型回退 1M", ModelCatalog.ResolveContextWindow("no-such-model") == 1_048_576);
-        Check("窗口: null 回退 1M", ModelCatalog.ResolveContextWindow(null) == 1_048_576);
-        Check("窗口: 空字符串回退 1M", ModelCatalog.ResolveContextWindow("") == 1_048_576);
+        Check("窗口: 未知模型回退 128K", ModelCatalog.ResolveContextWindow("no-such-model") == 128_000);
+        Check("窗口: null 回退 128K", ModelCatalog.ResolveContextWindow(null) == 128_000);
+        Check("窗口: 空字符串回退 128K", ModelCatalog.ResolveContextWindow("") == 128_000);
         Check("窗口: 自定义回退值生效", ModelCatalog.ResolveContextWindow("unknown", 64_000) == 64_000);
 
         // ── 3. ImportOpenCodeApi：OpenAI 兼容 /models 端点解析（opencode 在线导入）──
