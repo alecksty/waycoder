@@ -154,6 +154,10 @@ public partial class Agent
         _maxRounds = maxRounds;
         _effectiveMaxRounds = maxRounds > 0 ? maxRounds : Math.Max(1, Config.Instance.MaxRounds); // 下限 1，防 MaxRounds≤0 时循环体一次都不跑
         _systemPrompt = SystemPrompt.Generate(Tools);
+        // --system-prompt / --append-system-prompt（Claude Code 对齐）：追加自定义系统提示词
+        var extraPrompt = Config.Instance.ExtraSystemPrompt?.Trim();
+        if (!string.IsNullOrEmpty(extraPrompt))
+            _systemPrompt += "\n\n" + extraPrompt;
 
         // 连接子智能体能力
         foreach (var t in Tools)

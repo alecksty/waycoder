@@ -2742,7 +2742,7 @@ public static partial class SelfTest
         // ── 6c. HasKeyFor / SerializeScan / TestList（模型 key 检测 + 连通性扫描）──
         Check("HasKeyFor: local 无需 key", WayCoder.ApiKeyStore.HasKeyFor("local", "qwen2.5-coder:latest"));
         Check("HasKeyFor: custom 无需 key", WayCoder.ApiKeyStore.HasKeyFor("custom", "my-custom-model"));
-        Check("HasKeyFor: 无 key 供应商返回 false", !WayCoder.ApiKeyStore.HasKeyFor("openai", "gpt-5.5"));
+        Check("HasKeyFor: 无 key 供应商返回 false", !WayCoder.ApiKeyStore.HasKeyFor("__selftest_nokey__", "gpt-5.5"));
         ApiKeyStore.Set("__selftest_probe__", "sk-probe-123");
         Check("HasKeyFor: 已存 key 返回 true", WayCoder.ApiKeyStore.HasKeyFor("__selftest_probe__", "any-model"));
         ApiKeyStore.Remove("__selftest_probe__");

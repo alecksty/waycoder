@@ -171,7 +171,8 @@ public class PromptArg : CliArg
     public override string Description => "一次性提示词。-p1~-p0 投递槽位, -pa 共享前缀, 同槽位可排队";
     public override int ValueCount => 1;
     public override string? ValueLabel => "文本";
-    public PromptArg() : base("prompt", "-p", "--prompt") { }
+    // --print 对齐 Claude Code（-p/--print），OpenCode 对应 run <message>
+    public PromptArg() : base("prompt", "-p", "--prompt", "--print") { }
 }
 
 public class ResumeArg : CliArg
@@ -217,7 +218,8 @@ public class InitArg : CliArg
 public class YoloArg : CliArg
 {
     public override string Description => "跳过所有权限确认（非交互模式自动开启）";
-    public YoloArg() : base("yolo", "-y", "--yolo") { }
+    // --dangerously-skip-permissions 对齐 Claude Code
+    public YoloArg() : base("yolo", "-y", "--yolo", "--dangerously-skip-permissions") { }
 }
 
 public class WatchArg : CliArg
@@ -286,6 +288,75 @@ public class CliModeArg : CliArg
     public override string Description => "强制 CLI 文本界面（非全屏，逐行交互）";
     public override int ValueCount => 0;
     public CliModeArg() : base("cli", "--cli") { }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 竞品参数对齐（Claude Code / OpenCode）—— 仅新增别名，不动现有参数
+// ═══════════════════════════════════════════════════════════════
+
+/// <summary>
+/// --output-format &lt;text|json|stream-json&gt;（Claude Code）/ --format &lt;default|json&gt;（OpenCode）。
+/// json/stream-json 对应 WayCoder 的 --json 输出模式。
+/// </summary>
+public class OutputFormatArg : CliArg
+{
+    public override string Description => "输出格式（Claude Code --output-format / OpenCode --format）：json|stream-json 等同 --json，text|default 普通输出";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "格式";
+    public OutputFormatArg() : base("output-format", "--output-format", "--format") { }
+}
+
+/// <summary>
+/// --permission-mode &lt;default|acceptEdits|plan|bypassPermissions&gt;（Claude Code）。
+/// bypassPermissions → --yolo；其余保持默认权限确认。
+/// </summary>
+public class PermissionModeArg : CliArg
+{
+    public override string Description => "权限模式（Claude Code --permission-mode）：bypassPermissions 等同 --yolo";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "模式";
+    public PermissionModeArg() : base("permission-mode", "--permission-mode") { }
+}
+
+/// <summary>工具白名单（Claude Code --allowedTools / --allowed-tools，空格分隔）</summary>
+public class AllowedToolsArg : CliArg
+{
+    public override string Description => "工具白名单（Claude Code --allowedTools，空格/逗号分隔），等同 WAYCODER_ALLOWED_TOOLS";
+    public override int ValueCount => -1;
+    public override string? ValueLabel => "工具名";
+    public override bool Greedy => true; // 空格分隔多值
+    public AllowedToolsArg() : base("allowed-tools", "--allowedTools", "--allowed-tools") { }
+}
+
+/// <summary>工具黑名单（Claude Code --disallowedTools / --disallowed-tools，空格分隔）</summary>
+public class DisallowedToolsArg : CliArg
+{
+    public override string Description => "工具黑名单（Claude Code --disallowedTools，空格/逗号分隔），等同 WAYCODER_DISABLED_TOOLS";
+    public override int ValueCount => -1;
+    public override string? ValueLabel => "工具名";
+    public override bool Greedy => true;
+    public DisallowedToolsArg() : base("disallowed-tools", "--disallowedTools", "--disallowed-tools") { }
+}
+
+/// <summary>
+/// --system-prompt &lt;text&gt; / --append-system-prompt &lt;text&gt;（Claude Code）。
+/// WayCoder 系统提示词为结构化基础提示，此处实现为追加（整体替换会丢失结构）。
+/// </summary>
+public class SystemPromptArg : CliArg
+{
+    public override string Description => "追加到系统提示词的文本（Claude Code --system-prompt / --append-system-prompt，WayCoder 统一为追加）";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "文本";
+    public SystemPromptArg() : base("system-prompt", "--system-prompt", "--append-system-prompt") { }
+}
+
+/// <summary>按会话 id 恢复（OpenCode --session / Claude Code --resume-session-id / --session-id）</summary>
+public class SessionArg : CliArg
+{
+    public override string Description => "按会话 id 恢复（OpenCode --session / Claude Code --resume-session-id），等同 --resume <id>";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "会话ID";
+    public SessionArg() : base("session", "--session", "--resume-session-id", "--session-id") { }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -644,6 +715,12 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new VersionArg());
         CliArgRegistry.Register(new InitArg());
         CliArgRegistry.Register(new YoloArg());
+        CliArgRegistry.Register(new OutputFormatArg());
+        CliArgRegistry.Register(new PermissionModeArg());
+        CliArgRegistry.Register(new AllowedToolsArg());
+        CliArgRegistry.Register(new DisallowedToolsArg());
+        CliArgRegistry.Register(new SystemPromptArg());
+        CliArgRegistry.Register(new SessionArg());
         CliArgRegistry.Register(new WatchArg());
         CliArgRegistry.Register(new TinyArg());
         CliArgRegistry.Register(new EconomyArg());
