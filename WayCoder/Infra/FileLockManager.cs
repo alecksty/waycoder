@@ -58,6 +58,14 @@ public static class FileLockManager
         return false; // 被其他 agent 锁定
     }
 
+    /// <summary>
+    /// 尝试获取锁，失败返回统一错误文案（null=成功）。各写文件工具共用，消除逐字重复的锁检查块。
+    /// </summary>
+    public static string? TryAcquireOrError(string filePath, string agentId = "main", string suffix = "")
+        => TryAcquire(filePath, agentId)
+            ? null
+            : $"❌ 文件被锁定: {GetLockInfo(filePath)?.Status ?? "未知"}{(string.IsNullOrEmpty(suffix) ? "" : $" — {suffix}")}";
+
     /// <summary>释放文件锁</summary>
     public static void Release(string filePath, string agentId = "main")
     {

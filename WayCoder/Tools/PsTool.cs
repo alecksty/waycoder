@@ -82,8 +82,8 @@ public class PsTool : ITool
                 return "错误：ps 命令超时（10s）";
             }
 
-            var result = await stdoutTask;
-            var errResult = await stderrTask;
+            var result = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
+            var errResult = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
             if (string.IsNullOrWhiteSpace(result))
                 result = errResult;
             if (string.IsNullOrWhiteSpace(result))

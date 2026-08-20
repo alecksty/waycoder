@@ -56,7 +56,7 @@ public static class OfficeExtractor
 
             var result = sb.ToString().Trim();
             if (result.Length > maxChars)
-                result = ContextManager.TruncateByRunes(result, maxChars) + $"\n...(截断于 {maxChars:N0} 字符)";
+                result = ContextManager.TruncateWithNotice(result, maxChars);
 
             return result.Length > 0 ? result : "(DOCX 文件无文本内容)";
         }
@@ -169,7 +169,7 @@ public static class OfficeExtractor
 
             var result = sb.ToString();
             if (result.Length > maxChars)
-                result = ContextManager.TruncateByRunes(result, maxChars) + $"\n...(截断于 {maxChars:N0} 字符)";
+                result = ContextManager.TruncateWithNotice(result, maxChars);
             return result;
         }
         catch (Exception ex)
@@ -224,7 +224,7 @@ public static class OfficeExtractor
 
             var result = sb.ToString().Trim();
             if (result.Length > maxChars)
-                result = ContextManager.TruncateByRunes(result, maxChars) + $"\n...(截断于 {maxChars:N0} 字符)";
+                result = ContextManager.TruncateWithNotice(result, maxChars);
 
             return result.Length > 0 ? result : $"(PPTX 文件，{slideNum} 张幻灯片，无文本内容)";
         }
