@@ -38,6 +38,7 @@
       <Button id="btnAdd" text="添加" />
       <Button id="btnEdit" text="编辑" />
       <Button id="btnDel" text="删除" />
+      <Button id="btnSave" text="✓ 保存" />
     </HBox>
     <!-- 两行提示：静态键位说明 + 状态回显（扫描/导入结果覆盖 help、清空 help2） -->
     <Label id="help" height="1" fg="black" align="center" />
