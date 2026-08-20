@@ -150,6 +150,10 @@ public class Config
     public bool DiffPreview { get; set; } = false;
     public bool WriteContentView { get; set; } = true;
     public bool MouseEnabled { get; set; } = true;
+    /// <summary>聊天区显示消息上限：超过后自动丢弃最旧消息（Agent 会话仍在、会话文件持久化，仅裁剪显示层保持流畅）</summary>
+    public int MaxChatMessages { get; set; } = 1000;
+    /// <summary>聊天代码块预览行数上限：超过后保留头尾、中间折叠省略</summary>
+    public int MaxCodePreviewLines { get; set; } = 500;
     public bool DesktopNotifications { get; set; } = false;
     public int ToolTimeoutSec { get; set; } = 120;
     public string AllowedTools { get; set; } = "";     // 逗号分隔白名单，空=全部允许
@@ -693,6 +697,18 @@ public class Config
               "select", ["false","true"], 8,
               c => c.MouseEnabled.ToString().ToLowerInvariant(),
               (c, v) => c.MouseEnabled = bool.Parse(v), "true"),
+
+            P("MaxChatMessages",   "WAYCODER_MAX_CHAT_MESSAGES", null,
+              "聊天显示上限", "🔧 系统", "聊天区显示消息上限（100~10000），超过自动丢最旧（会话仍在、文件持久化，仅显示层裁剪保流畅）",
+              "number", null, 8,
+              c => c.MaxChatMessages.ToString(),
+              (c, v) => c.MaxChatMessages = Math.Clamp(int.Parse(v), 100, 10_000), "1000"),
+
+            P("MaxCodePreviewLines","WAYCODER_MAX_CODE_LINES",  null,
+              "代码预览行数", "🔧 系统", "聊天代码块预览行数上限（10~1000），超过保留头尾中间折叠省略",
+              "number", null, 8,
+              c => c.MaxCodePreviewLines.ToString(),
+              (c, v) => c.MaxCodePreviewLines = Math.Clamp(int.Parse(v), 10, 1000), "500"),
 
             P("DesktopNotifications", "WAYCODER_ENABLE_NOTIFICATIONS", null,
               "桌面通知", "🔧 系统", "Agent 完成/权限等待时发送桌面通知（默认关闭）",
