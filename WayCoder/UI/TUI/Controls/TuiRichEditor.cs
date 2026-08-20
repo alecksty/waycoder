@@ -40,11 +40,11 @@ public class TuiRichEditor : TuiEditBase
         }
     }
 
-    /// <summary>只读模式（转发 Core.ReadOnly）：不允许修改缓冲区，只能查看/滚动/查找。</summary>
-    public bool ReadOnly
+    /// <summary>只读模式（转发 Core.ReadOnly 并同步基类）：不允许修改缓冲区，只能查看/滚动/查找。</summary>
+    public new bool ReadOnly
     {
         get => Core.ReadOnly;
-        set { Core.ReadOnly = value; MarkDirty(); }
+        set { Core.ReadOnly = value; base.ReadOnly = value; MarkDirty(); }
     }
 
     // ── 按行增量重绘状态 ──
