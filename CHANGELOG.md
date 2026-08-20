@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.79.76 (2026-08-20) — 鼠标支持默认开启 + 开关进设置
+
+- **鼠标支持默认开启**（此前默认关闭、仅 `WAYCODER_MOUSE=1` 门控，导致点击无效）——SGR 鼠标（点击/滚动/移动）现在开箱即用
+- **开关进设置文件**：`Config.MouseEnabled`（默认 true）+ 设置界面「鼠标支持」项（`WAYCODER_MOUSE` 环境变量 / `.env` 均可改，设置页可关）
+- `TuiManager.MouseEnabled` 改为读 `Config.Instance`，启动时 `EnableMouse()` 按配置决定
+
+### ✅ 验证
+- 自测 3971 通过（新增鼠标默认开启/设置项 2 项）
+- Keypad 鼠标冒烟：点击聊天区/中部/标题栏均正常路由不崩
+
 ## v0.79.75 (2026-08-20) — 修复 Ctrl+Shift+P 拦截 + Keypad 快捷键验证脚本
 
 - **修复 Ctrl+Shift+P 被 Ctrl+P 建议条拦截**：`HandleGlobalShortcut` 的 `if (ctrl)` 块不区分 shift，`case ConsoleKey.P` 会把 Ctrl+Shift+P 当 Ctrl+P 处理 → 打开建议条而非命令面板。现将 Ctrl+Shift+P 检查移到 `if (ctrl)` 块之前，命令面板正常打开

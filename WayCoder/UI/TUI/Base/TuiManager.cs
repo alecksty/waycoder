@@ -17,16 +17,10 @@ public class TuiManager : IDisposable
 
     // ── 鼠标支持 ──
     /// <summary>
-    /// 是否启用鼠标输入。当前默认关闭（鼠标定位尚未调好，影响使用体验）。
-    /// 调好后设环境变量 WAYCODER_MOUSE=1 即可重新启用，无需改代码。
+    /// 是否启用鼠标输入（SGR 鼠标：点击/滚动/移动）。默认开启。
+    /// 开关在设置文件（.env / 设置界面），WAYCODER_MOUSE=0 或设置页关闭可停用。
     /// </summary>
-    public static bool MouseEnabled { get; } = IsMouseEnvEnabled();
-
-    private static bool IsMouseEnvEnabled()
-    {
-        var v = Environment.GetEnvironmentVariable("WAYCODER_MOUSE");
-        return v is "1" or "true" or "on" or "TRUE" or "ON" or "True" or "On";
-    }
+    public static bool MouseEnabled => Config.Instance.MouseEnabled;
 
     // ── 终端尺寸 ──
     public int TW { get; private set; }

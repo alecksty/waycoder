@@ -450,6 +450,7 @@ public class SettingsScreen : TuiScreen
         "EditorLint"         => _config.EditorLint ? "true" : "false",
         "DiffPreview"        => _config.DiffPreview ? "true" : "false",
         "WriteContentView"   => _config.WriteContentView ? "true" : "false",
+        "MouseEnabled"       => _config.MouseEnabled ? "true" : "false",
         "ToolTimeoutSec"     => _config.ToolTimeoutSec.ToString(),
         "LintTimeoutSec"     => _config.LintTimeoutSec.ToString(),
         "BackgroundTaskTimeoutSec" => _config.BackgroundTaskTimeoutSec.ToString(),
@@ -526,6 +527,7 @@ public class SettingsScreen : TuiScreen
             case "EditorLint":         _config.EditorLint = bool.TryParse(value, out var b4) && b4; break;
             case "DiffPreview":        _config.DiffPreview = bool.TryParse(value, out var b5) && b5; break;
             case "WriteContentView":   _config.WriteContentView = bool.TryParse(value, out var wcv) && wcv; break;
+            case "MouseEnabled":       _config.MouseEnabled = bool.TryParse(value, out var me) && me; break;
             case "ToolTimeoutSec":     if (int.TryParse(value, out var v3)) _config.ToolTimeoutSec = v3; break;
             case "LintTimeoutSec":     if (int.TryParse(value, out var v4)) _config.LintTimeoutSec = v4; break;
             case "BackgroundTaskTimeoutSec": if (int.TryParse(value, out var v31)) _config.BackgroundTaskTimeoutSec = v31; break;
