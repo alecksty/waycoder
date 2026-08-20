@@ -7,8 +7,8 @@
   --scroll:rgba(255,255,255,.16); --scroll-hover:rgba(255,255,255,.32);
 }
 [data-theme="light"] {
-  --bg:#f5f6f8; --panel:#ffffff; --panel2:#f0f2f6; --border:#e2e5ec; --text:#1a1d24; --dim:#6b7280;
-  --accent:#2f6bff; --user:#e3ecff; --tool:#fff4dc; --danger:#ffe2e2; --shadow:0 4px 20px rgba(0,0,0,.12);
+  --bg:#dde1e9; --panel:#f6f7fa; --panel2:#e5e9f0; --border:#bcc4d2; --text:#1a1d24; --dim:#5f6b7a;
+  --accent:#2f6bff; --user:#e3ecff; --tool:#fff4dc; --danger:#ffe2e2; --shadow:0 6px 24px rgba(0,0,0,.18);
   --diff-del:#d73a49; --diff-del-bg:rgba(255,129,130,.15); --diff-add:#1a7f37; --diff-add-bg:rgba(63,185,80,.15);
   --tok-kw:#cf222e; --tok-str:#0a3069; --tok-num:#0550ae; --tok-fn:#6639ba; --tok-com:#57606a;
   --scroll:rgba(0,0,0,.18); --scroll-hover:rgba(0,0,0,.32);
