@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.79.92 (2026-08-21) — OpenCode 分 Go/Zen 服务商 + providers.json 服务商数据库
+
+- **OpenCode 分两个服务商**：`opencode-go`（`https://opencode.ai/zen/go/v1`，订阅制）与 `opencode-zen`（`https://opencode.ai/zen/v1`，按量付费），各自保留地址
+- **在线导入可选服务商**：Web 与 TUI 在线导入时弹框选择 OpenCode Go / Zen，用对应地址拉取模型并导入；导入的模型按实际地址归类（zen/go/v1 → opencode-go，zen/v1 → opencode-zen）
+- **providers.json 服务商数据库**：首次运行生成 `~/.waycoder/providers.json`（服务商 id / name / base_url），用户可编辑扩展服务商；代码从它加载并按 base_url 识别服务商
+
+### ✅ 验证
+- 自测 4071 通过（0 失败）
+
 ## v0.79.91 (2026-08-21) — 模型管理大升级 + Diff 预览简化 + Web 端多项修复
 
 ### 模型选择对话框

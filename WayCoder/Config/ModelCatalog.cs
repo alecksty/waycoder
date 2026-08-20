@@ -140,12 +140,62 @@ public static class ModelCatalog
             ["together"]   = ("Together AI",  "https://api.together.xyz/v1"),
             ["gitee"]      = ("Gitee AI",     "https://ai.gitee.com/v1"),
             ["bailian"]    = ("Alibaba Bailian", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
-            ["opencode"]   = ("OpenCode Zen", "https://opencode.ai/zen/v1"),
+            ["opencode-go"]  = ("OpenCode Go",  "https://opencode.ai/zen/go/v1"),  // 订阅制
+            ["opencode-zen"] = ("OpenCode Zen", "https://opencode.ai/zen/v1"),     // 按量付费
+            ["opencode"]     = ("OpenCode",     "https://opencode.ai/zen/v1"),     // 旧数据兼容别名
             ["minimax"]    = ("MiniMax",      "https://api.minimaxi.com/v1"),
             ["aihubmix"]   = ("AIHubMix",     "https://aihubmix.com/v1"),
             ["local"]      = ("Local",        ""),
             ["custom"]     = ("Custom",       ""),
         };
+        // 服务商数据库：首次运行生成 ~/.waycoder/providers.json，之后从它加载（用户可编辑扩展服务商）
+        LoadOrCreateProvidersJson();
+    }
+
+    /// <summary>服务商数据库文件（~/.waycoder/providers.json）：id / name / base_url，可编辑扩展。</summary>
+    public static string ProvidersJsonPath => Global.GlobalConfigPath("providers.json");
+
+    /// <summary>从 providers.json 加载服务商（覆盖内置同名 + 新增自定义）；文件不存在则先生成。</summary>
+    private static void LoadOrCreateProvidersJson()
+    {
+        try
+        {
+            if (!File.Exists(ProvidersJsonPath)) { SaveProvidersJson(); return; }
+            var root = Json.Parse(NormalizeJson5(File.ReadAllText(ProvidersJsonPath)));
+            foreach (var (id, p) in Obj(root?["providers"])?.Entries ?? [])
+            {
+                var name = p?["name"]?.AsString() ?? id;
+                var url = p?["base_url"]?.AsString() ?? p?["baseUrl"]?.AsString() ?? "";
+                Providers[id] = (name, url);
+            }
+        }
+        catch { }
+    }
+
+    /// <summary>把当前内置服务商写为 providers.json 数据库（含 id / name / base_url 备注）。</summary>
+    private static void SaveProvidersJson()
+    {
+        try
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("{");
+            sb.AppendLine("  // 服务商数据库：id / name / base_url。可编辑扩展，代码按 base_url 识别服务商。");
+            sb.AppendLine("  // 新增服务商：{ \"providers\": { \"myai\": { \"name\": \"MyAI\", \"base_url\": \"https://myai.com/v1\" } } }");
+            sb.AppendLine("  \"providers\": {");
+            var entries = Providers.ToList();
+            for (int i = 0; i < entries.Count; i++)
+            {
+                var kv = entries[i];
+                var comma = i < entries.Count - 1 ? "," : "";
+                sb.Append($"    \"{kv.Key}\": {{ \"name\": \"{kv.Value.DisplayName}\", \"base_url\": \"{kv.Value.DefaultBaseUrl}\" }}{comma}\n");
+            }
+            sb.AppendLine("  }");
+            sb.AppendLine("}");
+            var dir = Path.GetDirectoryName(ProvidersJsonPath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            File.WriteAllText(ProvidersJsonPath, sb.ToString());
+        }
+        catch { }
     }
 
     // ════════════════════════════════════════════════════════════
@@ -811,10 +861,11 @@ public static class ModelCatalog
         {
             var id = m?["id"]?.AsString();
             if (string.IsNullOrWhiteSpace(id)) continue;
-            // 按服务地址归类：本函数从 opencode 在线 /models 导入，所有模型调用地址都是 opencode 网关 →
-            // 服务商归 opencode（此前按模型名推断成 deepseek/openai 等，但请求仍打到 opencode 地址，与真实调用不符）
-            result.Add(new ModelInfo(id, id, "OpenCode", "opencode", "*", "Imported",
-                0, 0, 0, baseUrl, "从 OpenCode 在线导入（OpenCode 网关）", 0));
+            // 按服务地址归类：opencode 网关分 Go(zen/go/v1) / Zen(zen/v1) 两个服务商，地址决定归属
+            var pid = InferProviderFromBaseUrl(baseUrl) ?? "opencode-go";
+            var pname = pid == "opencode-zen" ? "OpenCode Zen" : "OpenCode Go";
+            result.Add(new ModelInfo(id, id, pname, pid, "*", "Imported",
+                0, 0, 0, baseUrl, $"从 OpenCode 在线导入（{pname}）", 0));
         }
         return result;
     }
@@ -854,7 +905,12 @@ public static class ModelCatalog
         try { host = Uri.TryCreate(baseUrl, UriKind.Absolute, out var u) ? u.Host.ToLowerInvariant() : baseUrl.ToLowerInvariant(); }
         catch { host = baseUrl.ToLowerInvariant(); }
 
-        if (host.Contains("opencode")) return "opencode";
+        if (host.Contains("opencode"))
+        {
+            // OpenCode 分两个服务商：Go（zen/go/v1，订阅制）与 Zen（zen/v1，按量付费），按路径区分
+            var p = (baseUrl ?? "").ToLowerInvariant();
+            return (p.Contains("/zen/go/") || p.Contains("/go/v1")) ? "opencode-go" : "opencode-zen";
+        }
         if (host.Contains("openrouter")) return "openrouter";
         if (host.Contains("deepseek")) return "deepseek";
         if (host.Contains("openai")) return "openai";

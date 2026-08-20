@@ -472,18 +472,33 @@ const IMPORT_SOURCES = [
   ['crush', 'Crush（~/.config/crush）'],
   ['openclaw', 'OpenClaw（~/.openclaw）'],
 ];
+const sourceModal = document.getElementById('source-modal');
+const sourceTitle = document.getElementById('source-modal-title');
+let importMode = 'local'; // 'local' 本地导入 | 'online' 在线导入
+function openSourcePicker(title, html) {
+  sourceTitle.textContent = title;
+  document.getElementById('source-options').innerHTML = html;
+  sourceModal.classList.add('open');
+}
 document.getElementById('model-import-btn').onclick = () => {
-  document.getElementById('source-options').innerHTML = IMPORT_SOURCES.map(([v, label]) =>
-    '<label class="src-item"><input type="checkbox" value="' + v + '"> ' + label + '</label>').join('');
-  document.getElementById('source-modal').classList.add('open');
+  importMode = 'local';
+  openSourcePicker('📥 本地导入 · 选择来源',
+    IMPORT_SOURCES.map(([v, label]) => '<label class="src-item"><input type="checkbox" value="' + v + '"> ' + label + '</label>').join(''));
+};
+document.getElementById('model-opencode-btn').onclick = () => {
+  importMode = 'online';
+  openSourcePicker('🌐 在线导入 · 选择 OpenCode 服务商',
+    '<label class="src-item"><input type="checkbox" value="go" checked> OpenCode Go（订阅 · zen/go/v1）</label>' +
+    '<label class="src-item"><input type="checkbox" value="zen"> OpenCode Zen（按量 · zen/v1）</label>');
 };
 document.getElementById('source-confirm').onclick = () => {
   const checks = [...document.querySelectorAll('#source-options input:checked')].map(c => c.value);
-  document.getElementById('source-modal').classList.remove('open');
+  sourceModal.classList.remove('open');
   if (!checks.length) return; // 一个都没勾 → 取消
-  doLocalImport(checks.join(','));
+  if (importMode === 'online') doOnlineImport(checks[0]); // Go/Zen 单选
+  else doLocalImport(checks.join(','));
 };
-document.getElementById('source-cancel').onclick = () => document.getElementById('source-modal').classList.remove('open');
+document.getElementById('source-cancel').onclick = () => sourceModal.classList.remove('open');
 function doLocalImport(sources) {
   const status = document.getElementById('model-scan-status');
   status.textContent = '本地导入中…';
@@ -494,6 +509,15 @@ function doLocalImport(sources) {
     alert('本地导入：' + (res.modelReport || '完成') + '\n' + keySummary);
     fetchModels();
   }).catch(() => { status.textContent = '本地导入失败'; });
+}
+function doOnlineImport(mode) {
+  const status = document.getElementById('model-scan-status');
+  status.textContent = '在线导入中…';
+  fetch('/models/import-opencode', { method: 'POST', body: JSON.stringify({ mode }) }).then(r => r.json()).then(res => {
+    status.textContent = '';
+    alert(res.modelReport || '在线导入完成');
+    fetchModels();
+  }).catch(() => { status.textContent = '在线导入失败'; });
 }
 
 // ── 清空全部模型（内置+自定义），清空后可重新导入 ──

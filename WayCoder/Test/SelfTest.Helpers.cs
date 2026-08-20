@@ -217,7 +217,7 @@ public static partial class SelfTest
         var ocApiModels = ModelCatalog.ImportOpenCodeApi(ocApiJson, "https://opencode.ai/zen/go/v1");
         Check("OpenCode在线: 解析 3 个模型", ocApiModels.Count == 3);
         Check("OpenCode在线: id 正确", ocApiModels[0].Id == "deepseek-v4-pro");
-        Check("OpenCode在线: provider=opencode(按服务地址)", ocApiModels[0].ProviderId == "opencode");
+        Check("OpenCode在线: provider=opencode-go(Go 网关)", ocApiModels[0].ProviderId == "opencode-go");
         Check("OpenCode在线: baseUrl 保留 opencode 网关", ocApiModels[0].DefaultBaseUrl == "https://opencode.ai/zen/go/v1");
         Check("OpenCode在线: minimax 推断", ModelCatalog.InferProviderFromId("minimax-m3").ProviderId == "minimax");
         Check("OpenCode在线: kimi 推断", ModelCatalog.InferProviderFromId("kimi-k3").ProviderId == "moonshot");
@@ -228,7 +228,8 @@ public static partial class SelfTest
         Check("OpenCode在线: 畸形返回空", ModelCatalog.ImportOpenCodeApi("not json", "http://x").Count == 0);
 
         // ── 3.5 按服务地址(base_url)归类服务商（导入的模型按「请求打到哪」分类，而非模型名/配置 pid）──
-        Check("按地址: opencode 网关→opencode", ModelCatalog.InferProviderFromBaseUrl("https://opencode.ai/zen/go/v1") == "opencode");
+        Check("按地址: go 网关→opencode-go", ModelCatalog.InferProviderFromBaseUrl("https://opencode.ai/zen/go/v1") == "opencode-go");
+        Check("按地址: zen 网关→opencode-zen", ModelCatalog.InferProviderFromBaseUrl("https://opencode.ai/zen/v1") == "opencode-zen");
         Check("按地址: openrouter→openrouter", ModelCatalog.InferProviderFromBaseUrl("https://openrouter.ai/api/v1") == "openrouter");
         Check("按地址: deepseek.com→deepseek", ModelCatalog.InferProviderFromBaseUrl("https://api.deepseek.com") == "deepseek");
         Check("按地址: openai.com→openai", ModelCatalog.InferProviderFromBaseUrl("https://api.openai.com/v1") == "openai");
@@ -239,7 +240,7 @@ public static partial class SelfTest
         // 本地 opencode.json：provider 配了 opencode 网关地址 → 归 opencode（而非配置里的 deepseek pid）
         var ocLocal = ModelCatalog.ImportOpenCode(
             """{"provider":{"deepseek":{"name":"DeepSeek","options":{"baseURL":"https://opencode.ai/zen/go/v1"},"models":{"deepseek-v4-flash":{"name":"deepseek-v4-flash"}}}}}""");
-        Check("本地opencode: 网关地址归 opencode", ocLocal.Count == 1 && ocLocal[0].ProviderId == "opencode");
+        Check("本地opencode: Go 网关地址归 opencode-go", ocLocal.Count == 1 && ocLocal[0].ProviderId == "opencode-go");
         // 本地 codex：provider 配 deepseek 官方地址 → 归 deepseek
         var cxLocal = ModelCatalog.ImportCodex(
             "[model_providers.deepseek]\nname=\"DeepSeek\"\nbase_url=\"https://api.deepseek.com\"\n\n[profiles.deepseek]\nmodel_provider=\"deepseek\"\nmodel=\"deepseek-chat\"");
@@ -247,7 +248,7 @@ public static partial class SelfTest
         // Claude Code 配 opencode 网关地址 → 归 opencode
         var clLocal = ModelCatalog.ImportClaude(
             """{"env":{"ANTHROPIC_BASE_URL":"https://opencode.ai/zen/go/v1","ANTHROPIC_MODEL":"claude-sonnet-5"}}""");
-        Check("本地claude: 网关地址归 opencode", clLocal.Count > 0 && clLocal.All(m => m.ProviderId == "opencode"));
+        Check("本地claude: Go 网关地址归 opencode-go", clLocal.Count > 0 && clLocal.All(m => m.ProviderId == "opencode-go"));
 
         // ── 4. 模型按供应商分类存储：ProviderGroupName 分组 ──
         Check("Provider分组: opencode→opencode", ModelCatalog.ProviderGroupName("opencode") == "opencode");

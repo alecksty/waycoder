@@ -153,7 +153,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         if (req.Method == "POST" && req.Path == "/models/import")
             return ImportExternalModels(req.Body);
         if (req.Method == "POST" && req.Path == "/models/import-opencode")
-            return ImportOpenCodeOnline();
+            return ImportOpenCodeOnline(req.Body);
         if (req.Method == "POST" && req.Path == "/models/clear")
         {
             var cleared = ModelCatalog.ClearAll();
@@ -771,19 +771,25 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         }
     }
 
-    /// <summary>从 opencode 在线 /models 端点导入模型列表（OpenAI 兼容格式，统一走 zen 网关）。</summary>
-    private static HttpResponse ImportOpenCodeOnline()
+    /// <summary>从 opencode 在线 /models 端点导入模型列表（OpenAI 兼容格式）。
+    /// body.mode = "go"（zen/go/v1，订阅制）默认 / "zen"（zen/v1，按量付费）——两个服务商地址不同。</summary>
+    private static HttpResponse ImportOpenCodeOnline(string? body)
     {
         try
         {
-            const string url = "https://opencode.ai/zen/go/v1/models";
-            const string apiBase = "https://opencode.ai/zen/go/v1";
+            // 选择 OpenCode 服务商：Go(zen/go/v1 订阅) / Zen(zen/v1 按量)，默认 Go
+            string? mode = null;
+            var bodyObj = Json.Parse(body);
+            if (bodyObj != null && bodyObj["mode"] is { } modeNode) mode = modeNode.AsString()?.Trim().ToLowerInvariant();
+            var baseUrl = mode == "zen" ? "https://opencode.ai/zen/v1" : "https://opencode.ai/zen/go/v1";
+            var url = baseUrl + "/models";
+            var pname = baseUrl.Contains("/zen/go/") ? "OpenCode Go" : "OpenCode Zen";
 
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder/1.0");
             var json = client.GetStringAsync(url).GetAwaiter().GetResult();
 
-            var list = ModelCatalog.ImportOpenCodeApi(json, apiBase);
+            var list = ModelCatalog.ImportOpenCodeApi(json, baseUrl);
             if (list.Count == 0)
                 return HttpResponse.JsonBody(Err("在线导入未返回可识别的模型"));
 
@@ -794,7 +800,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             ModelCatalog.AddCustomRange(toAdd);
 
             var sb = new System.Text.StringBuilder();
-            sb.Append($"✅ 在线导入 {toAdd.Count} 个模型" +
+            sb.Append($"✅ 在线导入（{pname}）{toAdd.Count} 个模型" +
                 (skipped > 0 ? $"，跳过 {skipped} 个内置已有" : "") + "：");
             foreach (var m in toAdd)
                 sb.Append($"\n  {m.Id}");
