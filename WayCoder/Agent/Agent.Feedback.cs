@@ -59,9 +59,10 @@ public partial class Agent
         }
     }
 
-    /// <summary>上次自动跑测试的时间（防抖：同一项目 60s 内不重复跑）</summary>
-    private static DateTime _lastTestRun;
-    private static string? _lastTestProject;
+    /// <summary>上次自动跑测试的时间（防抖：同一项目 N 秒内不重复跑）。实例级：
+    /// 静态会让多槽位/多子智能体并行写文件时互相抑制测试反馈（一个跑过抑制另一个）。</summary>
+    private DateTime _lastTestRun;
+    private string? _lastTestProject;
 
     /// <summary>
     /// 写源码文件后自动运行项目测试，失败结果注入工具结果，形成自动修复闭环。
