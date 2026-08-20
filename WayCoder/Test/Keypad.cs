@@ -76,6 +76,7 @@ public static class Keypad
             screen.OnReasoningEffort = () => Emit(orig, "# [键] Ctrl+G → 推理深度回调");
             screen.OnShowHelp = () => Emit(orig, "# [键] Ctrl+H → 帮助回调");
             screen.OnSearchHistory = q => Emit(orig, $"# [键] Ctrl+R → 搜索回调: {q}");
+            screen.OnOpenCommandPalette = () => Emit(orig, "# [键] Ctrl+Shift+P → 命令面板回调");
 
             // 支持 WAYCODER_KEYPAD_SIZE=WxH 覆盖帧尺寸（排查不同终端宽度下的布局）
             var envSize = Environment.GetEnvironmentVariable("WAYCODER_KEYPAD_SIZE");

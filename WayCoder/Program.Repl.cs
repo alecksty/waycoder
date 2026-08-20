@@ -232,6 +232,12 @@ public partial class Program
             var (cmd, args) = SlashCommandRegistry.Match("/diff");
             if (cmd != null) cmd.ExecuteAsync(args, screen).GetAwaiter().GetResult();
         };
+        // Ctrl+Shift+P → 命令面板（对齐 Claude Code quickOpen / OpenCode）
+        screen.OnOpenCommandPalette = () =>
+        {
+            var cmds = WayCoder.UI.Tui.CommandPalette.BuildDefaultCommands(screen);
+            if (cmds.Count > 0) WayCoder.UI.Tui.CommandPalette.Show(cmds);
+        };
 
         // ── 自动投递命令行槽位任务队列（-p1 ~ -p0，同一槽位可排队）──
         foreach (var (slotIdx, tasks) in _pendingSlotQueues.OrderBy(kv => kv.Key))
