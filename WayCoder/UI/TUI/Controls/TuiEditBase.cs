@@ -100,13 +100,23 @@ public abstract class TuiEditBase : TuiControl
             PasteText(text);
     }
 
+    /// <summary>内部剪贴板兜底：复制/剪切优先写这里，粘贴优先读这里 ——
+    /// CLI 无 GUI 剪贴板会话时（如 Keypad 测试、SSH）系统剪贴板不可靠（读到残留），
+    /// 内部兜底保证项目内复制→粘贴一致。</summary>
+    private static string? _clipboard;
+
+    /// <summary>内部剪贴板内容（ChatScreen.PasteAsync 等共享，保证复制→粘贴一致）。</summary>
+    internal static string? InternalClipboard => _clipboard;
+
     protected static void CopyToClipboard(string text)
     {
+        _clipboard = text;
         try { ClipboardHelper.SetText(text); } catch { }
     }
 
     protected static string? GetClipboardText()
     {
+        if (_clipboard != null) return _clipboard; // 内部优先（刚复制/剪切的）
         try { return ClipboardHelper.GetText(); } catch { return null; }
     }
 

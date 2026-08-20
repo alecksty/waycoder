@@ -660,6 +660,18 @@ public class TuiTextArea : TuiEditBase
         NotifyChange();
     }
 
+    /// <summary>Ctrl+Enter = 换行（多行输入；单行 TuiInput 走基类 Ctrl+Enter 提交）。
+    /// 对话区 Enter 由 ChatScreen 拦截为提交，Ctrl+Enter 走这里实现多行换行。</summary>
+    protected override bool HandleCtrlKey(ConsoleKeyInfo key)
+    {
+        if (key.Key == ConsoleKey.Enter)
+        {
+            InsertNewLine();
+            return true;
+        }
+        return base.HandleCtrlKey(key);
+    }
+
     protected override void InsertNewLine()
     {
         var line = SafeLine(CursorRow);
