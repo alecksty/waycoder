@@ -565,6 +565,21 @@ public static class ModelPicker
                 BaseUrl = e.BaseUrl, ApiKeyProviderId = e.ApiKeyProviderId, ApiKey = e.ApiKey,
             });
         }
+
+        // 运行时生效（与 /model 命令后处理对齐）：全局模型切换立即更新当前 LLM，
+        // 大模型切换同步按模型重算上下文窗口 —— 此前设置页/空格预览路径缺失此步，
+        // 切模型后 cfg.Model 变了但窗口残留旧模型值，压缩阈值也跟着错，直到重启或走 /model。
+        if (slot is -1 or -2)
+        {
+            var agent = ProgramContext.Agent;
+            if (agent != null)
+            {
+                if (isLarge) agent.LlmClient.Model = cfg.Model;
+                else agent.LlmClient.SmallModel = cfg.SmallModel;
+                if (isLarge)
+                    agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(cfg.Model, cfg.MaxContextTokens));
+            }
+        }
     }
 
     /// <summary>根据 targetSlot 解析该槽位的大/小模型配置</summary>

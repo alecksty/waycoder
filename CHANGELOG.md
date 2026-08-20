@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.79.70 (2026-08-20) — 修复设置页切模型不更新上下文窗口
+
+- **修复：设置页/空格预览切换模型后上下文窗口不更新**——`ModelPicker.Apply` 此前只改 `cfg.Model`，设置界面（`SettingsScreen` 直接调 `ModelPicker.Show()`，走不到 `/model` 命令的 `UpdateContextWindow` 后处理）切模型后窗口残留旧模型值、压缩阈值跟着错，直到重启或走 `/model` 命令
+  - 现集中到 `Apply`：全局（slot -1/-2）切换立即更新当前 LLM 的 `Model`/`SmallModel`，大模型切换同步 `UpdateContextWindow(ModelCatalog.ResolveContextWindow(cfg.Model, MaxContextTokens))`，与 `/model` 命令后处理对齐——设置页、空格预览、`/model` 全部路径统一生效
+
+### ✅ 验证
+- 自测 3944 通过
+
 ## v0.79.69 (2026-08-20) — 写文件内容聊天区展示 + Crush 模型导入
 
 - **写文件内容聊天区内联展示**（对标 Claude Code `FileEditToolUpdatedMessage` 内联 diff）——write_file/edit_file/multiedit 完成后，把写入内容以 diff 格式（行号 + `+`/`-` 标记 + 颜色）直接内联展示在聊天区，占满聊天宽度、无弹窗：
