@@ -325,9 +325,13 @@ public class EditorCore
 
     public void PasteClipboard()
     {
-        string? text = null;
-        try { text = ClipboardHelper.GetText(); } catch { }
-        if (string.IsNullOrEmpty(text)) text = _clipboard;
+        // 内部剪贴板优先（刚复制/剪切的）——CLI 无 GUI 剪贴板会话（Keypad 测试/SSH）时
+        // 系统剪贴板读到残留内容，内部兜底保证项目内复制→粘贴一致；内部空才回退系统。
+        var text = _clipboard;
+        if (string.IsNullOrEmpty(text))
+        {
+            try { text = ClipboardHelper.GetText(); } catch { }
+        }
         if (!string.IsNullOrEmpty(text)) InsertText(text);
     }
 

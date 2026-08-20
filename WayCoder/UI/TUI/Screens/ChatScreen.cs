@@ -457,7 +457,8 @@ public partial class ChatScreen : TuiScreen
     protected void ComputeLayout(out int panelW, out int inputH, out int promptH, out int progressH, out int chatH)
     {
         panelW = SidePanelVisible ? Math.Min(30, TW / 3) : 0;
-        inputH = Math.Clamp(InputArea.Lines.Count + 1, 3, 5);
+        // 输入区高度 = 行数（默认 1 行，Ctrl+Enter 换行增高，删除键减行，最大 5 行超出滚动）
+        inputH = Math.Clamp(InputArea.Lines.Count, 1, 5);
         promptH = PromptBar.Visible ? PromptBar.Height : 0;
         progressH = (ProgressPercent.HasValue && ContextManager.IsCompressing) ? 1 : 0;
         chatH = Math.Max(1, TH - 1 - promptH - 1 - 1 - 1 - inputH - 1 - progressH - 1

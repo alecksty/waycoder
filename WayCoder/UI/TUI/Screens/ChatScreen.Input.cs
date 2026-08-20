@@ -29,7 +29,10 @@ public partial class ChatScreen : TuiScreen
     {
         try
         {
-            var text = await ClipboardHelper.GetTextAsync();
+            // 内部剪贴板优先（Ctrl+C/X 刚复制的，保证复制→粘贴一致；CLI 无 GUI 剪贴板会话时系统读到残留）
+            var text = WayCoder.UI.Tui.Controls.TuiEditBase.InternalClipboard;
+            if (string.IsNullOrEmpty(text))
+                text = await ClipboardHelper.GetTextAsync();
             if (string.IsNullOrEmpty(text)) return;
 
             // 粘贴确认：超长(>500字符)或多行(>3行)时弹出确认
