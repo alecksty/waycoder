@@ -996,6 +996,9 @@ public partial class ChatScreen : TuiScreen
     /// <summary>回调：打开 diff 预览（/diff，Program.cs 注入，Ctrl+D）</summary>
     public Action? OnOpenDiff;
 
+    /// <summary>回调：打开命令面板（Ctrl+Shift+P，Program.Repl 注入）</summary>
+    public Action? OnOpenCommandPalette;
+
     /// <summary>回调：选择推理深度（Program.cs 注入）</summary>
     public Action? OnReasoningEffort;
 
@@ -1013,9 +1016,11 @@ public partial class ChatScreen : TuiScreen
         ShowWindow(win);
     }
 
-    /// <summary>Ctrl+Shift+P：打开命令面板（对齐 Claude Code quickOpen / OpenCode）</summary>
+    /// <summary>Ctrl+Shift+P：打开命令面板（对齐 Claude Code quickOpen / OpenCode）。
+    /// 走 OnOpenCommandPalette 回调（Program.Repl 接线，Keypad 可绑定标记验证）。</summary>
     private void OpenCommandPalette()
     {
+        if (OnOpenCommandPalette != null) { OnOpenCommandPalette(); return; }
         var commands = WayCoder.UI.Tui.CommandPalette.BuildDefaultCommands(this);
         if (commands.Count == 0) return;
         WayCoder.UI.Tui.CommandPalette.Show(commands);
