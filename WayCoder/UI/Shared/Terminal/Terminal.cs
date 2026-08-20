@@ -160,8 +160,15 @@ public static class Tty
         return true;
     }
 
+    /// <summary>是否 macOS 自带终端（Terminal.app：不支持 Kitty 键盘协议 / ?1003h 移动追踪 / ?1015h UTF-8 鼠标）。</summary>
+    public static bool IsAppleTerminal
+        => string.Equals(Environment.GetEnvironmentVariable("TERM_PROGRAM"), "Apple_Terminal", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>启用鼠标跟踪（SGR 扩展协议）</summary>
     public static void EnableMouse() => Write(AnsiTty.MouseEnable);
+
+    /// <summary>启用基础鼠标（点击 + SGR 坐标）—— Terminal.app 兼容降级。</summary>
+    public static void EnableMouseBasic() => Write(AnsiTty.MouseEnableBasic);
 
     /// <summary>禁用鼠标跟踪</summary>
     public static void DisableMouse() => Write(AnsiTty.MouseDisable);
