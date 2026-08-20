@@ -138,40 +138,55 @@ public static class ModelCli
     }
 
     /// <summary>
-    /// 导入外部模型数据库（OpenCode / OpenClaw / Crush / Claude Code / Codex / 通用 JSON 文件），写入全局模型库。
-    /// source: null/auto/all=自动探测全部；opencode/openclaw/crush/claude/codex=指定来源；否则视为文件路径。
+    /// 导入外部模型数据库（OpenCode / OpenClaw / Crush / Claude Code / Codex / 通用 JSON 文件 / 内置目录），写入全局模型库。
+    /// source: null/auto/all=自动探测全部；逗号分隔多来源（opencode,codex,claude）；单来源；builtin=恢复被清空的内置目录；否则视为文件路径。
     /// </summary>
     public static string Import(string? source = null)
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var imported = new List<ModelCatalog.ModelInfo>();
         var reports = new List<string>();
+        bool restoredBuiltIn = false;
 
-        var s = source?.Trim().ToLowerInvariant();
-        if (string.IsNullOrWhiteSpace(s) || s is "auto" or "all")
+        // 解析来源列表：null/auto/all → 全部；否则按逗号拆分（支持「本地导入」勾选多来源）
+        var s = source?.Trim();
+        var sources = string.IsNullOrWhiteSpace(s) || s.ToLowerInvariant() is "auto" or "all"
+            ? new[] { "opencode", "openclaw", "crush", "claude", "codex" }.ToList()
+            : s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+
+        foreach (var raw in sources)
         {
-            foreach (var src in new[] { "opencode", "openclaw", "crush", "claude", "codex" })
+            var src = raw.ToLowerInvariant();
+            if (src == "builtin")
+            {
+                ModelCatalog.RestoreBuiltIn();
+                restoredBuiltIn = true;
+                continue;
+            }
+            if (src is "opencode" or "openclaw" or "crush" or "claude" or "claudecode" or "codex")
+            {
                 imported.AddRange(ImportOne(src, home, reports));
-        }
-        else if (s is "opencode" or "openclaw" or "crush" or "claude" or "claudecode" or "codex")
-        {
-            imported.AddRange(ImportOne(s, home, reports));
-        }
-        else
-        {
+                continue;
+            }
             // 文件路径（支持 JSONC/JSON5 注释与裸 key；.toml 按 Codex 解析）
-            if (!File.Exists(source))
-                return $"❌ 未找到文件: {source}";
-            var text = File.ReadAllText(source);
-            var list = source.EndsWith(".toml", StringComparison.OrdinalIgnoreCase)
+            if (!File.Exists(raw))
+                return $"❌ 未找到文件: {raw}";
+            var text = File.ReadAllText(raw);
+            var list = raw.EndsWith(".toml", StringComparison.OrdinalIgnoreCase)
                 ? ModelCatalog.ImportCodex(text)
                 : ModelCatalog.ImportFromJson(ModelCatalog.NormalizeJson5(text));
             imported.AddRange(list);
-            reports.Add($"文件 {source}");
+            reports.Add($"文件 {raw}");
         }
 
+        var sb = new StringBuilder();
+        if (restoredBuiltIn)
+            sb.AppendLine("✅ 已恢复内置模型目录（清空标记清除）");
+
         if (imported.Count == 0)
-            return "❌ 未导入任何模型（未找到可识别的模型配置）。\n   支持: --model import [opencode|openclaw|crush|claude|codex|<配置文件路径>]";
+            return sb.Length > 0
+                ? sb.ToString().Trim()
+                : "❌ 未导入任何模型（未找到可识别的模型配置）。\n   支持: --model import [builtin|opencode|openclaw|crush|claude|codex|<配置文件路径>]";
 
         // 去重：同一 Id（大小写不敏感）只保留第一个（OpenCode/OpenClaw 可能重复声明同一模型）
         var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -190,7 +205,6 @@ public static class ModelCli
         }
         ModelCatalog.AddCustomRange(added); // 批量一次写（防 N 次磁盘写）
 
-        var sb = new StringBuilder();
         sb.AppendLine($"✅ 导入 {added.Count} 个模型到全局模型库（{string.Join("、", reports)}）" +
             (skipped.Count > 0 ? $"，跳过 {skipped.Count} 个内置已有" : "") + "：");
         foreach (var m in added)

@@ -151,9 +151,18 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 .ToJson());
         }
         if (req.Method == "POST" && req.Path == "/models/import")
-            return ImportExternalModels();
+            return ImportExternalModels(req.Body);
         if (req.Method == "POST" && req.Path == "/models/import-opencode")
             return ImportOpenCodeOnline();
+        if (req.Method == "POST" && req.Path == "/models/clear")
+        {
+            var cleared = ModelCatalog.ClearAll();
+            return HttpResponse.JsonBody(JNode.Object()
+                .Set("ok", true)
+                .Set("cleared", cleared)
+                .Set("modelReport", $"🗑 已清空全部模型（删除 {cleared} 个自定义模型文件，内置目录已隐藏）")
+                .ToJson());
+        }
         if (req.Method == "GET" && req.Path == "/state")
             return HttpResponse.JsonBody(SerializeState(slot, AgentView(), SlotBusyFlags()));
 
@@ -727,14 +736,21 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     }
 
     /// <summary>
-    /// 自动导入其他软件的模型列表 + API Key：复用 ModelCli.Import（写全局模型库）+ ApiKeyStore.ImportFromKnownSources（写 key）。
+    /// 本地导入：按 body.sources 勾选的来源导入（builtin/opencode/openclaw/crush/claude/codex 逗号串或数组；缺省=全部）。
+    /// 复用 ModelCli.Import（写全局模型库）+ ApiKeyStore.ImportFromKnownSources（写 key）。
     /// 返回 JSON：{ok, modelReport, keys:[{providerId, source}]}。
     /// </summary>
-    private static HttpResponse ImportExternalModels()
+    private static HttpResponse ImportExternalModels(string? body)
     {
         try
         {
-            var modelReport = ModelCli.Import(null);
+            string? source = null;
+            var bodyObj = Json.Parse(body);
+            if (bodyObj != null && bodyObj["sources"] is { } sourcesNode)
+                source = sourcesNode.Kind == JKind.Array
+                    ? string.Join(",", sourcesNode.Items.Select(x => x?.AsString() ?? "").Where(s => !string.IsNullOrWhiteSpace(s)))
+                    : sourcesNode.AsString();
+            var modelReport = ModelCli.Import(source);
             var keys = ApiKeyStore.ImportFromKnownSources();
             ModelCatalog.Invalidate();
             ApiKeyStore.ClearCache();
@@ -769,7 +785,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
             var list = ModelCatalog.ImportOpenCodeApi(json, apiBase);
             if (list.Count == 0)
-                return HttpResponse.JsonBody(Err("OpenCode 在线未返回可识别的模型"));
+                return HttpResponse.JsonBody(Err("在线导入未返回可识别的模型"));
 
             // 去重：跳过内置目录已有模型（避免被导入的空数据覆盖）；批量一次写（防 N 次磁盘写）
             var builtInIds = new HashSet<string>(ModelCatalog.BuiltIn.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
@@ -778,7 +794,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             ModelCatalog.AddCustomRange(toAdd);
 
             var sb = new System.Text.StringBuilder();
-            sb.Append($"✅ 从 OpenCode 在线导入 {toAdd.Count} 个模型" +
+            sb.Append($"✅ 在线导入 {toAdd.Count} 个模型" +
                 (skipped > 0 ? $"，跳过 {skipped} 个内置已有" : "") + "：");
             foreach (var m in toAdd)
                 sb.Append($"\n  {m.Id}");
@@ -789,7 +805,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         }
         catch (Exception ex)
         {
-            return HttpResponse.JsonBody(Err($"OpenCode 在线导入失败：{ex.Message}"));
+            return HttpResponse.JsonBody(Err($"在线导入失败：{ex.Message}"));
         }
     }
 

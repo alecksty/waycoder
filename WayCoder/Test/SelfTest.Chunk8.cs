@@ -659,8 +659,8 @@ public static partial class SelfTest
                         lb.Y >= 0 && lb.Y + lb.Height <= mpWin.ContentHeight);
                 }
                 var mpTable = mpRes.Find<TuiTableList>("table")!;
-                // 固定占 7 行：搜索 + 空行 + 槽位条 + 两行按钮 + 两行提示
-                Check($"模型选择器 h={h}: 表格按 flex 撑开", mpTable.Height == mpWin.ContentHeight - 7);
+                // 固定占 8 行：搜索 + 空行 + 槽位条 + 空行(两行按钮间) + 两行按钮 + 两行提示
+                Check($"模型选择器 h={h}: 表格按 flex 撑开", mpTable.Height == mpWin.ContentHeight - 8);
             }
         }
         catch (Exception ex) { Check($"模型选择器布局: 加载异常 {ex.Message}", false); }
@@ -689,26 +689,25 @@ public static partial class SelfTest
                     mpRes2.Find<TuiLabel>(id)!.TextAlign == EHAlign.Center);
 
             // 功能做成按钮 → Tab 切焦点 + 空格执行，就不必占字母快捷键（字母得留给过滤）
-            foreach (var id in (string[])["btnMode", "btnAllSlots", "btnScan", "btnImport", "btnOnline",
+            foreach (var id in (string[])["btnMode", "btnAllSlots", "btnScan", "btnImport", "btnOnline", "btnClear",
                                           "btnSetKey", "btnClrKey", "btnAdd", "btnEdit", "btnDel"])
             {
                 var b = mpRes2.Find<TuiButton>(id);
                 Check($"模型选择器: 按钮「{id}」存在且可获得焦点", b != null && b.CanFocus);
             }
             // 按钮不带字母快捷键：带了就会在搜索框打字时被窗口 OnKey 抢走（它按 KeyChar 匹配大写键）
-            foreach (var id in (string[])["btnScan", "btnImport", "btnAdd", "btnDel"])
+            foreach (var id in (string[])["btnScan", "btnImport", "btnAdd", "btnDel", "btnClear"])
                 Check($"模型选择器: 按钮「{id}」不注册字母快捷键",
                     mpRes2.Find<TuiButton>(id)!.ShortcutKey == null);
 
-            // 两行按钮在最窄窗口（minWidth=62 → 内容区 60）也不能溢出，否则末尾按钮被裁掉
-            int minContentW = mpRes2.Window!.MinWidth - 2;
+            // 两行按钮 flex=1 均分铺满整行，窄窗口自适应不溢出（固定 Width 估算会漏算按钮数，改用 flex 断言）
             foreach (var (row, ids) in ((string, string[])[])[
-                ("第一行", ["btnMode", "btnAllSlots", "btnScan", "btnImport", "btnOnline"]),
-                ("第二行", ["btnSetKey", "btnClrKey", "btnAdd", "btnEdit", "btnDel"])])
+                ("第一行", ["btnMode", "btnAllSlots", "btnScan", "btnImport", "btnOnline", "btnClear"]),
+                ("第二行", ["btnSetKey", "btnClrKey", "btnAdd", "btnEdit", "btnDel", "btnSave"])])
             {
-                int rowW = ids.Length - 1; // HBox spacing="1"
-                foreach (var id in ids) rowW += mpRes2.Find<TuiButton>(id)!.Width;
-                Check($"模型选择器: 按钮{row}窄屏不溢出({rowW}≤{minContentW})", rowW <= minContentW);
+                foreach (var id in ids)
+                    Check($"模型选择器: 按钮「{id}」flex 均分(窄屏自适应不溢出)",
+                        mpRes2.Find<TuiButton>(id)!.Flex > 0);
             }
 
             // 金色渐变底是 TuiButton 默认值：标记和 code-behind 都不用写
@@ -721,6 +720,156 @@ public static partial class SelfTest
             }
         }
         catch (Exception ex) { Check($"模型选择器样式: 加载异常 {ex.Message}", false); }
+
+        // ── 状态列：连通性探测 → 状态枚举（纯逻辑）+ 标记里声明状态列 ──
+        {
+            static WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus PS(string pid, bool ok, string d)
+                => WayCoder.UI.TUI.Custom.ModelPicker.ProbeStatus(
+                    new ModelCli.EndpointProbe(pid, pid, null, ok, d, []));
+
+            Check("状态列: 已连接 → Connected", PS("d", true, "已连接（200）") == WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus.Connected);
+            Check("状态列: HTTP 402 → 欠费", PS("d", false, "HTTP 402") == WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus.Overdue);
+            Check("状态列: 密钥无效 → BadKey", PS("d", false, "密钥无效（401）") == WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus.BadKey);
+            Check("状态列: 无端点 → NoEndpoint", PS("d", false, "无端点（未配置 base_url）") == WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus.NoEndpoint);
+            Check("状态列: 无法连接 → Unreachable", PS("d", false, "无法连接（超时/拒绝）") == WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus.Unreachable);
+
+            var mpRes3 = WayCoder.UI.TUI.TuiMarkup.LoadResource("dialogs/modelpicker.tui");
+            var mpTbl3 = mpRes3.Find<WayCoder.UI.Tui.Controls.TuiTableList>("table")!;
+            Check("状态列: 表格声明 8 列（含状态）", mpTbl3.ColumnCount == 8);
+            var mpHeader = mpTbl3.RenderHeader();
+            Check("状态列: 列头含「状态」", mpHeader.Contains("状态"));
+            // 🔑 列头曾因列宽 2、非末列按 widths-1=1 渲染被 TruncateByWidth 截成空 ——
+            // 已把 🔑 列加宽到 3（从价格列匀 1），表头 emoji 能完整显示
+            Check("状态列: 列头含「🔑」", mpHeader.Contains("🔑"));
+        }
+
+        // ── ModelCatalog 清空/恢复内置：清空标记决定 All 是否含内置（不删真实用户模型，只临时写/删标记）──
+        {
+            var clearPath = ModelCatalog.BuiltInClearedPath;
+            bool hadMark = File.Exists(clearPath);
+            try
+            {
+                File.WriteAllText(clearPath, "1");
+                var allCleared = ModelCatalog.All;
+                Check("清空标记: 标记后 All 不含内置",
+                    ModelCatalog.BuiltInCleared && !allCleared.Any(m => ModelCatalog.BuiltIn.Any(b => b.Id == m.Id)));
+
+                ModelCatalog.RestoreBuiltIn();
+                var allRestored = ModelCatalog.All;
+                Check("清空标记: RestoreBuiltIn 恢复内置",
+                    !ModelCatalog.BuiltInCleared && allRestored.Any(m => ModelCatalog.BuiltIn.Any(b => b.Id == m.Id)));
+            }
+            finally
+            {
+                if (!hadMark) try { File.Delete(clearPath); } catch { }
+            }
+        }
+
+        // ── 搜索过滤端到端：Refresh 改数据后必须标脏窗口根视图，否则增量渲染跳过表格 ──
+        // 旧 bug：OnTextChanged → Refresh 清空/重填 table 的 rows，但 table 与窗口根视图都没标脏，
+        // 下一帧增量渲染（child.IsDirty || parentDirty 才渲染）直接跳过表格 → 用户「搜索输入后列表不动」。
+        {
+            var mpW2 = WayCoder.UI.TUI.TuiMarkup.LoadResource("dialogs/modelpicker.tui");
+            var ww = mpW2.Window!;
+            ww.OnResize(120, 30);
+            var tbl2 = mpW2.Find<WayCoder.UI.Tui.Controls.TuiTableList>("table")!;
+
+            // 初始渲染一次，消费初始 IsDirty，进入「干净」状态
+            var sbInit = new StringBuilder();
+            ww.RootView.Render(sbInit, ww.X, ww.Y);
+            ww.RootView.ClearDirty(); tbl2.ClearDirty();
+
+            // 模拟 Refresh：清空 + 填入过滤后的新行（不标脏 = 旧 bug 路径）。
+            // 8 列顺序与标记 columns 一致：🔑,状态,模型,厂商,窗口,价格,大,小
+            tbl2.ClearRows();
+            tbl2.AddRow("🔑", "✔连通", "deepseek-v4-pro", "deepseek", "128k", "x", "✓", " ");
+            var sbNoDirty = new StringBuilder();
+            ww.RootView.Render(sbNoDirty, ww.X, ww.Y);
+            Check("搜索过滤: 改数据不标脏 → 增量渲染跳过表格（旧 bug 复现）",
+                !sbNoDirty.ToString().Contains("deepseek-v4-pro"));
+
+            // 修复：Refresh 末尾 win.RootView.MarkDirty() → 走全量重绘，新行可见
+            ww.RootView.MarkDirty();
+            var sbDirty = new StringBuilder();
+            ww.RootView.Render(sbDirty, ww.X, ww.Y);
+            Check("搜索过滤: 标脏后渲染出新行（修复生效）",
+                sbDirty.ToString().Contains("deepseek-v4-pro"));
+        }
+
+        // ── 嵌套对话框 ESC：必须触发 onCancel（父级刷新链路的起点 —— ModelPicker 的
+        //    设Key/添加/编辑/删除子弹窗都靠 onCancel 调 RefreshParent 刷新父级底部+整体）──
+        try
+        {
+            int cancelHits = 0;
+            var savedSz = Tty.SizeOverride;
+            Tty.SizeOverride = (100, 30);
+            try
+            {
+                var ilWin = TuiDialog.InputLine("嵌套框", "prompt", "", _ => { }, () => cancelHits++);
+                ilWin.OnKey(new ConsoleKeyInfo('\x1b', ConsoleKey.Escape, false, false, false));
+                Check("嵌套框: Esc 触发 onCancel（父级刷新入口）", cancelHits == 1);
+            }
+            finally { Tty.SizeOverride = savedSz; }
+        }
+        catch (Exception ex) { Check($"嵌套框: 构造异常 {ex.Message}", false); }
+
+        // ── 多级弹窗：按键脚本逐层弹出 + ESC 逐层关闭 ──
+        {
+            var mscr = new ChatScreen();
+            mscr.Activate();
+            var l1 = TuiDialog.Confirm("第一层", "确认?", _ => { });
+            mscr.ShowWindow(l1);
+            Check("多级弹窗: 第一层弹出(栈=1)", mscr.Windows.Count == 1 && mscr.FocusedWindow == l1);
+            var l2 = TuiDialog.InputLine("第二层", "输入", "", _ => { });
+            mscr.ShowWindow(l2);
+            Check("多级弹窗: 第二层弹出(栈=2)", mscr.Windows.Count == 2 && mscr.FocusedWindow == l2);
+            var l3 = TuiDialog.Confirm("第三层", "再确认?", _ => { });
+            mscr.ShowWindow(l3);
+            Check("多级弹窗: 第三层弹出(栈=3)", mscr.Windows.Count == 3 && mscr.FocusedWindow == l3);
+
+            var escK = new ConsoleKeyInfo('\x1b', ConsoleKey.Escape, false, false, false);
+            mscr.OnKey(escK);
+            Check("多级弹窗: ESC 关第三层(栈=2,焦点回第二层)",
+                mscr.Windows.Count == 2 && mscr.FocusedWindow == l2);
+            mscr.OnKey(escK);
+            Check("多级弹窗: ESC 关第二层(栈=1,焦点回第一层)",
+                mscr.Windows.Count == 1 && mscr.FocusedWindow == l1);
+            mscr.OnKey(escK);
+            Check("多级弹窗: ESC 关第一层(栈=0)", mscr.Windows.Count == 0);
+            mscr.Deactivate();
+        }
+
+        // ── 多级弹窗截屏验证：渲染屏幕，最上层窗口可见，ESC 逐层关闭 ──
+        {
+            var mgr4 = TuiManager.Instance;
+            bool entered4 = false;
+            try
+            {
+                if (!mgr4.IsActive) { mgr4.Enter(); entered4 = true; }
+                var schat = new ChatScreen();
+                mgr4.PushScreen(schat);
+                var wA = TuiDialog.Confirm("弹窗甲", "确认?", _ => { });
+                var wB = TuiDialog.InputLine("弹窗乙", "输入", "", _ => { });
+                // 用 ShowWindow（包装 OnClosed→CloseWindow）：ESC 触发 onCancel/onResult 后才会真正关窗
+                schat.ShowWindow(wA);
+                schat.ShowWindow(wB);
+                mgr4.Render();
+                var frame = AnsiString.Strip(mgr4.LastCleanFrame);
+                // 弹出验证（截屏）：最上层窗口标题渲染可见（下层被上层居中窗口覆盖，不断言）
+                Check("多级弹窗截屏: 两层渲染最上层标题可见", frame.Contains("弹窗乙"));
+                // 关闭验证：窗口栈逐层关闭
+                schat.OnKey(new ConsoleKeyInfo('\x1b', ConsoleKey.Escape, false, false, false));
+                Check("多级弹窗截屏: ESC 关上层(栈=1)", schat.Windows.Count == 1);
+                schat.OnKey(new ConsoleKeyInfo('\x1b', ConsoleKey.Escape, false, false, false));
+                Check("多级弹窗截屏: ESC 关底层(栈=0)", schat.Windows.Count == 0);
+                mgr4.PopScreen();
+            }
+            catch (Exception ex) { Check($"多级弹窗截屏: 异常 {ex.Message}", false); }
+            finally
+            {
+                if (entered4) { try { mgr4.Exit(); } catch { } }
+            }
+        }
 
         // ── 标记里的渐变开关/配色（gradient / gradientStart / gradientEnd）──
         {
@@ -1092,15 +1241,62 @@ public static partial class SelfTest
             var dbtns = dwin.RootView!.GetAllFocusable().OfType<WayCoder.UI.Tui.Controls.TuiButton>().ToList();
             Check("Diff 窗口: 有可聚焦按钮", dbtns.Count >= 3);
 
-            // 快捷键能按：A 进全接受模式 → Y 确认 → 回调收到 AcceptAll
+            // A 直接全部接受（简化后不再需要 Y 确认）
             dscr.OnKey(new ConsoleKeyInfo('a', ConsoleKey.A, false, false, false));
-            dscr.OnKey(new ConsoleKeyInfo('y', ConsoleKey.Y, false, false, false));
-            Check("Diff 窗口: A→Y 全接受生效", dd == WayCoder.UI.Tui.DiffPreview.Decision.AcceptAll);
+            Check("Diff 窗口: A 直接全接受", dd == WayCoder.UI.Tui.DiffPreview.Decision.AcceptAll);
 
-            // 重置后按 Q 取消 → 无接受项时 RejectAll
+            // 重置后按 Q 完成 → 无接受项时 RejectAll
             dd = WayCoder.UI.Tui.DiffPreview.Decision.RejectAll;
             dscr.OnKey(new ConsoleKeyInfo('q', ConsoleKey.Q, false, false, false));
-            Check("Diff 窗口: Q 取消生效", dd == WayCoder.UI.Tui.DiffPreview.Decision.RejectAll);
+            Check("Diff 窗口: Q 完成(无接受→RejectAll)", dd == WayCoder.UI.Tui.DiffPreview.Decision.RejectAll);
+
+            // ── Y 逐 hunk 接受立即生效：状态栏计数 + 已接受行打 ✓ ──
+            // 此前按 Y 只标记 accepted 不前进、行又无 ✓ 标记，界面毫无变化 → 用户以为要确认两遍才生效
+            {
+                var dscr2 = new ChatScreen();
+                dscr2.Activate();
+                var dh2 = WayCoder.UI.Tui.DiffPreview.BuildHunks(
+                    "l1\nl2\nl3\n", "l1\nL2-X\nl3\n");
+                WayCoder.UI.Tui.DiffPreview.Decision dd2 = WayCoder.UI.Tui.DiffPreview.Decision.RejectAll;
+                HashSet<int>? da2 = null;
+                var dwin2 = WayCoder.UI.Tui.DiffPreview.BuildDiffWindow(dh2, "t.txt", dscr2,
+                    (d, a) => { dd2 = d; da2 = a; });
+                dscr2.AddWindow(dwin2);
+
+                // 按 Y：立即接受 hunk(0)（无需二次确认），Q 提交 → Partial，接受的正是刚按 Y 的 hunk
+                dscr2.OnKey(new ConsoleKeyInfo('y', ConsoleKey.Y, false, false, false));
+                dscr2.OnKey(new ConsoleKeyInfo('q', ConsoleKey.Q, false, false, false));
+                Check("Diff 快捷键: Y 立即接受 → Q 提交 Partial(1 hunk)",
+                    dd2 == WayCoder.UI.Tui.DiffPreview.Decision.Partial && da2 != null && da2.Count == 1);
+
+                dscr2.Deactivate();
+            }
+
+            // 双 hunk 连续按 Y：每次立即接受各自 hunk，无需中间确认
+            {
+                var dscr3 = new ChatScreen();
+                dscr3.Activate();
+                // 两处变更相距 7 行，hunk 合并算法不会并成一块（hunk 头连 diff 分隔线 2 个）
+                // 变更行 2 与 10（11 行）：context 扩展区间不重叠 → 独立 2 hunk
+                var dh3 = WayCoder.UI.Tui.DiffPreview.BuildHunks(
+                    "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\n", "a\nB\nc\nd\ne\nf\ng\nh\ni\nJ\nk\n");
+                WayCoder.UI.Tui.DiffPreview.Decision dd3 = WayCoder.UI.Tui.DiffPreview.Decision.RejectAll;
+                HashSet<int>? da3 = null;
+                var dwin3 = WayCoder.UI.Tui.DiffPreview.BuildDiffWindow(dh3, "t.txt", dscr3,
+                    (d, a) => { dd3 = d; da3 = a; });
+                dscr3.AddWindow(dwin3);
+
+                Check("Diff 快捷键: 该输入产生 2 个 hunk", dh3.Count == 2);
+
+                // 窗口直接驱动（绕过屏幕路由，聚焦验证 Y 的逐 hunk 接受逻辑）
+                dwin3.OnKey(new ConsoleKeyInfo('y', ConsoleKey.Y, false, false, false));
+                dwin3.OnKey(new ConsoleKeyInfo('y', ConsoleKey.Y, false, false, false));
+                dwin3.OnKey(new ConsoleKeyInfo('q', ConsoleKey.Q, false, false, false));
+                Check("Diff 快捷键: 连续两次 Y 各接受一个 hunk（Partial 2）",
+                    dd3 == WayCoder.UI.Tui.DiffPreview.Decision.Partial && da3 != null && da3.Count == 2);
+
+                dscr3.Deactivate();
+            }
 
             dscr.Deactivate();
         }

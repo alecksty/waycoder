@@ -399,6 +399,7 @@ public static class TuiMarkup
             "DataList" => new TuiDataList(),
             "TreeView" => new TuiTreeView(),
             "TableList" => new TuiTableList(),
+            "Space" => new TuiSpace(),
             "Checkbox" => new TuiCheckbox(Attr(node, "text")),
             "ComboBox" => new TuiComboBox(),
             "RadioGroup" => new TuiRadioGroup(),

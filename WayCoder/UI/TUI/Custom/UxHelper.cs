@@ -235,12 +235,12 @@ public static class UxHelper
     /// 多选列表 —— TUI 下弹出多选对话框，非 TUI 回退到逐项 y/n 确认。
     /// 返回选中的项（原样）；null = 用户取消，空列表 = 确认但未选。
     /// </summary>
-    public static List<string>? MultiSelect(string title, List<string> choices, int timeoutMs = 30_000)
+    public static List<string>? MultiSelect(string title, List<string> choices, int timeoutMs = 30_000, bool preCheckAll = false)
     {
         if (choices.Count == 0) return new List<string>();
 
         if (IsTuiMode)
-            return ShowMultiSelectDialog(title, choices, timeoutMs);
+            return ShowMultiSelectDialog(title, choices, timeoutMs, preCheckAll);
 
         var selected = new List<string>();
         Console.WriteLine($"{AnsiTty.BoldText(title)} (多选，逐项输入 y/n)");
@@ -255,12 +255,13 @@ public static class UxHelper
         return selected;
     }
 
-    private static List<string>? ShowMultiSelectDialog(string title, List<string> choices, int timeoutMs)
+    private static List<string>? ShowMultiSelectDialog(string title, List<string> choices, int timeoutMs, bool preCheckAll = false)
     {
         List<string>? result = null;
         using var evt = new ManualResetEventSlim(false);
         try
         {
+            var pre = preCheckAll ? Enumerable.Range(0, choices.Count).ToHashSet() : null;
             var win = TuiDialog.MultiSelect(title, choices,
                 onConfirm: indices =>
                 {
@@ -269,7 +270,8 @@ public static class UxHelper
                         if (indices.Contains(i)) result.Add(choices[i]);
                     evt.Set();
                 },
-                onCancel: () => { result = null; evt.Set(); });
+                onCancel: () => { result = null; evt.Set(); },
+                preChecked: pre);
             var screen = TuiManager.Instance?.ActiveScreen;
             screen?.ShowWindow(win);
             RenderWait(screen, evt, timeoutMs, win);

@@ -205,7 +205,8 @@ public static class ModelCatalog
             lock (_lock)
             {
                 if (_all != null) return _all;
-                var list = new List<ModelInfo>(BuiltIn);
+                // 清空过内置模型（ClearAll）后 All 不再包含内置目录，只有自定义 —— 「清空后重新导入」的纯粹模型库
+                var list = BuiltInCleared ? new List<ModelInfo>() : new List<ModelInfo>(BuiltIn);
                 foreach (var (id, m) in LoadCustom())
                 {
                     var idx = list.FindIndex(x => x.Id == id);
@@ -275,6 +276,57 @@ public static class ModelCatalog
 
     /// <summary>仅列出自定义模型（不含内置）</summary>
     public static ModelInfo[] ListCustom() => LoadCustom().Values.OrderBy(m => m.Id).ToArray();
+
+    /// <summary>内置模型是否已被清空（清空标记文件存在）。持久化：重启后 All 也不含内置目录。</summary>
+    public static string BuiltInClearedPath => Global.GlobalConfigPath("models_cleared");
+    public static bool BuiltInCleared
+    {
+        get { try { return File.Exists(BuiltInClearedPath); } catch { return false; } }
+    }
+
+    /// <summary>清空全部模型（内置 + 所有自定义），供「清空后重新导入」获得纯粹的空模型库。
+    /// 删除自定义模型文件 + 持久化内置已清空标记；返回删除的自定义文件数。清空后需 Invalidate 已由内部处理。</summary>
+    public static int ClearAll()
+    {
+        int n;
+        lock (_lock)
+        {
+            n = DeleteAllCustomFiles();
+            try { File.WriteAllText(BuiltInClearedPath, "1"); } catch { }
+            _all = null;
+            _custom = null;
+        }
+        return n;
+    }
+
+    /// <summary>恢复内置模型目录（清除清空标记）。清空（ClearAll）后可经「本地导入→内置模型」恢复。</summary>
+    public static void RestoreBuiltIn()
+    {
+        lock (_lock)
+        {
+            try { if (File.Exists(BuiltInClearedPath)) File.Delete(BuiltInClearedPath); } catch { }
+            _all = null;
+        }
+    }
+
+    /// <summary>删除全局+本地全部自定义模型文件（provider 分文件 + 汇总 models.json），返回删除数。</summary>
+    private static int DeleteAllCustomFiles()
+    {
+        int n = 0;
+        foreach (var dir in new[] { GlobalProviderDir, LocalProviderDir })
+        {
+            try
+            {
+                if (!Directory.Exists(dir)) continue;
+                foreach (var f in Directory.EnumerateFiles(dir, "*.json"))
+                { try { File.Delete(f); n++; } catch { } }
+            }
+            catch { }
+        }
+        TryDeleteFile(GlobalModelsPath);
+        TryDeleteFile(LocalModelsPath);
+        return n;
+    }
 
     /// <summary>删除某服务商下的所有自定义模型（删除对应分类文件或从旧 models.json 移除），返回删除数量。</summary>
     public static int RemoveCustomByProvider(string providerId)
@@ -759,9 +811,10 @@ public static class ModelCatalog
         {
             var id = m?["id"]?.AsString();
             if (string.IsNullOrWhiteSpace(id)) continue;
-            var (pid, pname) = InferProviderFromId(id);
-            result.Add(new ModelInfo(id, id, pname, pid, "*", "Imported",
-                0, 0, 0, baseUrl, $"从 OpenCode 在线导入（{pname}）", 0));
+            // 按服务地址归类：本函数从 opencode 在线 /models 导入，所有模型调用地址都是 opencode 网关 →
+            // 服务商归 opencode（此前按模型名推断成 deepseek/openai 等，但请求仍打到 opencode 地址，与真实调用不符）
+            result.Add(new ModelInfo(id, id, "OpenCode", "opencode", "*", "Imported",
+                0, 0, 0, baseUrl, "从 OpenCode 在线导入（OpenCode 网关）", 0));
         }
         return result;
     }
@@ -789,6 +842,36 @@ public static class ModelCatalog
         return P("opencode", "OpenCode");
     }
 
+    /// <summary>
+    /// 按服务地址(base_url)推断服务商：识别常见网关/供应商主机名，不可识别返回 null（调用方回退来源 pid）。
+    /// 导入时优先用它归类 —— 服务商由「请求打到哪」决定，而非模型名或配置里的 pid（opencode 网关提供的
+    /// deepseek-v4-flash 归 opencode，不归 deepseek）。
+    /// </summary>
+    public static string? InferProviderFromBaseUrl(string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl)) return null;
+        string host;
+        try { host = Uri.TryCreate(baseUrl, UriKind.Absolute, out var u) ? u.Host.ToLowerInvariant() : baseUrl.ToLowerInvariant(); }
+        catch { host = baseUrl.ToLowerInvariant(); }
+
+        if (host.Contains("opencode")) return "opencode";
+        if (host.Contains("openrouter")) return "openrouter";
+        if (host.Contains("deepseek")) return "deepseek";
+        if (host.Contains("openai")) return "openai";
+        if (host.Contains("anthropic")) return "anthropic";
+        if (host.Contains("generativelanguage") || host.Contains("googleapis")) return "google";
+        if (host.Contains("dashscope") || host.Contains("aliyun")) return "qwen";
+        if (host.Contains("bigmodel") || host.Contains("zhipu")) return "zhipu";
+        if (host.Contains("moonshot")) return "moonshot";
+        if (host.Contains("volces") || host.Contains("bytedance") || host.Contains("ark")) return "bytedance";
+        if (host.Contains("x.ai") || host.Contains("xai")) return "xai";
+        if (host.Contains("mistral")) return "mistral";
+        if (host.Contains("groq")) return "groq";
+        if (host.Contains("together")) return "together";
+        if (host.StartsWith("localhost") || host.StartsWith("127.") || host.StartsWith("0.0.0.0")) return "local";
+        return null;
+    }
+
     /// <summary>OpenCode 格式：provider.&lt;pid&gt;.models.&lt;mid&gt; = { name, limit{context,output}, options{baseURL} }</summary>
     public static List<ModelInfo> ImportOpenCode(string json)
     {
@@ -814,7 +897,9 @@ public static class ModelCatalog
                 var cost = Obj(mcfg?["cost"]);
                 var inPrice = DblOpt(cost?["input"]) ?? 0;
                 var outPrice = DblOpt(cost?["output"]) ?? 0;
-                result.Add(new ModelInfo(mid, name, pname, pid.ToLowerInvariant(), "*", "Imported",
+                // 按服务地址归类（opencode 网关地址 → opencode，而非配置里的 pid）
+                var effPid = InferProviderFromBaseUrl(baseUrl) ?? pid.ToLowerInvariant();
+                result.Add(new ModelInfo(mid, name, pname, effPid, "*", "Imported",
                     ctx, inPrice, outPrice, baseUrl, $"从 OpenCode 导入（{pname}）", maxOut));
             }
         }
@@ -839,10 +924,11 @@ public static class ModelCatalog
             {
                 var info = ParseModelNode(m);
                 if (info == null) continue;
-                // OpenClaw 用 provider id 作为 key，模型节点无 provider 字段，需回填
+                // OpenClaw 用 provider id 作为 key，模型节点无 provider 字段，需回填；服务商按 base_url 归类
+                var effPid = InferProviderFromBaseUrl(baseUrl) ?? pid.ToLowerInvariant();
                 result.Add(info with
                 {
-                    ProviderId = pid.ToLowerInvariant(),
+                    ProviderId = effPid,
                     Provider = pid,
                     DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl,
                     Description = $"从 OpenClaw 导入（{pid}）",
@@ -879,9 +965,11 @@ public static class ModelCatalog
                 {
                     var info = ParseModelNode(m);
                     if (info == null) continue;
+                    // 服务商按 base_url 归类
+                    var effPid = InferProviderFromBaseUrl(baseUrl) ?? pid.ToLowerInvariant();
                     result.Add(info with
                     {
-                        ProviderId = pid.ToLowerInvariant(),
+                        ProviderId = effPid,
                         Provider = pname,
                         DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl,
                         Description = $"从 Crush 导入（{pname}）",
@@ -910,7 +998,7 @@ public static class ModelCatalog
                         if (info == null) continue;
                         result.Add(info with
                         {
-                            ProviderId = pid.ToLowerInvariant(),
+                            ProviderId = InferProviderFromBaseUrl(baseUrl) ?? pid.ToLowerInvariant(),
                             Provider = pid,
                             DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl,
                             Description = $"从 Crush 导入（{pid}）",
@@ -926,7 +1014,7 @@ public static class ModelCatalog
                             result.Add(info with
                             {
                                 Id = mid,
-                                ProviderId = pid.ToLowerInvariant(),
+                                ProviderId = InferProviderFromBaseUrl(baseUrl) ?? pid.ToLowerInvariant(),
                                 Provider = pid,
                                 DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl,
                                 Description = $"从 Crush 导入（{pid}）",
@@ -958,7 +1046,9 @@ public static class ModelCatalog
             if (string.IsNullOrEmpty(name) || name.Equals("any", StringComparison.OrdinalIgnoreCase)) continue;
             var clean = name.Split('[')[0].Trim();  // 去 [1M] 后缀
             if (!seen.Add(clean)) continue;
-            result.Add(new ModelInfo(clean, clean, "Claude Code", "claude", "C", "Imported",
+            // 服务商按 base_url 归类（Claude Code 若配了 opencode/其它网关地址，归对应服务商而非 claude）
+            var effPid = InferProviderFromBaseUrl(baseUrl) ?? "claude";
+            result.Add(new ModelInfo(clean, clean, "Claude Code", effPid, "C", "Imported",
                 0, 0, 0, baseUrl, $"从 Claude Code 导入（{key}）", 0));
         }
         return result;
@@ -986,8 +1076,12 @@ public static class ModelCatalog
             providers.TryGetValue(pid, out var p);
             var pname = string.IsNullOrEmpty(p.Name) ? pid : p.Name;
             if (seen.Add(profModel))
-                result.Add(new ModelInfo(profModel, pname, pname, pid.ToLowerInvariant(), "*", "Imported",
+            {
+                // 服务商按 base_url 归类（配了 opencode/其它网关地址则归对应服务商）
+                var effPid = InferProviderFromBaseUrl(p.BaseUrl) ?? pid.ToLowerInvariant();
+                result.Add(new ModelInfo(profModel, pname, pname, effPid, "*", "Imported",
                     0, 0, 0, p.BaseUrl, $"从 Codex 导入（profile {pid}）", 0));
+            }
             profProvider = null; profModel = null;
         }
 
@@ -1040,14 +1134,17 @@ public static class ModelCatalog
         }
         FlushProfile();  // 最后一个 profile
 
-        // provider sections → 每个一个模型条目（当前激活的 provider 用全局 model 名）
+        // provider sections → 每个一个模型条目（当前激活的 provider 用全局 model 名）；服务商按 base_url 归类
         foreach (var (pid, (pname, baseUrl)) in providers)
         {
             var modelId = pid.Equals(globalProvider, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(globalModel)
                 ? globalModel : pid;
             if (seen.Add(modelId))
-                result.Add(new ModelInfo(modelId, pname, pname, pid.ToLowerInvariant(), "*", "Imported",
+            {
+                var effPid = InferProviderFromBaseUrl(baseUrl) ?? pid.ToLowerInvariant();
+                result.Add(new ModelInfo(modelId, pname, pname, effPid, "*", "Imported",
                     0, 0, 0, baseUrl, $"从 Codex 导入（{pname}）", 0));
+            }
         }
 
         return result;

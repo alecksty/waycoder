@@ -712,7 +712,8 @@ public static class TuiDialog
 
     /// <summary>多选列表对话框</summary>
     public static TuiWindow MultiSelect(string title, List<string> items,
-        Action<HashSet<int>> onConfirm, Action? onCancel = null)
+        Action<HashSet<int>> onConfirm, Action? onCancel = null,
+        HashSet<int>? preChecked = null)
     {
         var (win, res) = LoadDialog("multiselect", title, TuiTheme.Current.DialogInfoBorder);
 
@@ -722,6 +723,7 @@ public static class TuiDialog
         list.Items = items;
         list.SelectedIndex = 0;
         list.MultiSelect = true;
+        if (preChecked != null) list.CheckedIndices = new HashSet<int>(preChecked);
         ApplyContentWidth(win, NarrowXScale, 2, w => list.Width = w);
         list.Height = visItems;
         list.Focused = true;

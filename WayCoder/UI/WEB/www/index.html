@@ -133,13 +133,15 @@
           class="r">大</span><span class="r">小</span>
       </div>
       <div id="model-list"></div>
+      <!-- 状态文字单独一行，避免与按钮挤在一起显示太窄 -->
+      <div id="model-scan-status"></div>
       <div class="model-foot">
         <button class="btn" id="model-scan-btn" title="测试各服务商端点连通性">📡 扫描</button>
-        <button class="btn" id="model-import-btn" title="导入其他软件的模型与 API Key">📥 自动导入</button>
-        <button class="btn" id="model-opencode-btn" title="从 opencode 在线拉取模型列表">🌐 OpenCode 在线</button>
+        <button class="btn" id="model-import-btn" title="从本地已安装软件导入模型与 API Key">📥 本地导入</button>
+        <button class="btn" id="model-opencode-btn" title="从 opencode 在线拉取模型列表">🌐 在线导入</button>
         <button class="btn" id="model-set-key-btn" title="为当前选中的模型设置 API Key">🔑 设置 key</button>
         <button class="btn" id="model-clear-key-btn" title="清除当前选中模型的 API Key">🗑 清除 key</button>
-        <span id="model-scan-status" style="font-size:12px;color:var(--dim);"></span>
+        <button class="btn" id="model-clear-all-btn" title="清空全部模型（内置+自定义），可清空后重新导入">🧹 清空</button>
         <span class="spacer"></span>
         <button class="btn ghost" id="model-cancel">取消</button>
         <button class="btn" id="model-save-btn" title="保存选中的模型为默认配置（不中断当前任务）">💾 保存</button>
@@ -156,6 +158,19 @@
       <div class="row">
         <button class="btn" id="key-cancel">取消</button>
         <button class="btn primary" id="key-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 本地导入：勾选来源 -->
+  <div class="modal" id="source-modal">
+    <div class="modal-card">
+      <h2>📥 本地导入 · 选择来源</h2>
+      <p>勾选要导入的来源（可多选），未勾选任何来源则取消。</p>
+      <div id="source-options"></div>
+      <div class="row">
+        <button class="btn" id="source-cancel">取消</button>
+        <button class="btn primary" id="source-confirm">导入所选</button>
       </div>
     </div>
   </div>

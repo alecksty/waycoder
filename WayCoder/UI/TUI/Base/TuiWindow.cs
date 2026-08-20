@@ -339,6 +339,15 @@ public class TuiWindow : TuiBase
     /// <summary>路由按键到控件树。快捷键优先于控件路由。</summary>
     public override bool OnKey(ConsoleKeyInfo key)
     {
+        // 焦点在按钮上时 Enter 优先给按钮：按钮 OnKey 的 Enter → OnClick。
+        // 否则窗口级 Enter 快捷键（diff 等对话框注册「提交」）会抢走「焦点按钮按 Enter 触发」，
+        // 用户 Tab 聚焦到按钮按 Enter 却没反应。
+        if (key.Key == ConsoleKey.Enter
+            && FocusedControl is WayCoder.UI.Tui.Controls.TuiButton focusedBtn && focusedBtn.IsEnabled)
+        {
+            if (RootView.OnKey(key)) return true;
+        }
+
         // ── 1. 窗口级快捷键（优先，无需控件焦点）──
         if (KeyShortcuts.Count > 0)
         {
