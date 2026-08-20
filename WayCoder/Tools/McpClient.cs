@@ -29,10 +29,11 @@ public static class McpManager
     /// 同时 ToolRegistry.AllTools / McpCache.Save 在另一线程枚举 —— 无锁会抛 Collection was modified。</summary>
     private static readonly object _toolsLock = new();
 
-    /// <summary>加锁执行工具列表变更（RemoveAll/Add/Clear 统一走这里）。</summary>
+    /// <summary>加锁执行工具列表变更（RemoveAll/Add/Clear 统一走这里）。变更后使 AllTools 缓存失效。</summary>
     private static void MutateTools(Action action)
     {
         lock (_toolsLock) action();
+        ToolRegistry.InvalidateAllToolsCache();
     }
 
     /// <summary>安全快照（读者用）：锁内拷贝，避免与并发发现竞态。</summary>
