@@ -72,6 +72,7 @@ WayCoder/
 │   │   ├── TuiList.cs         列表选单
 │   │   ├── TuiTable.cs        表格控件
 │   │   ├── TuiTableList.cs    表格列表 (列头/选中/滚动钳制)
+│   │   ├── TuiSpace.cs        空白占位 (布局留白/隔行, 不渲染不聚焦)
 │   │   ├── TuiBox.cs          对话框
 │   │   ├── TuiPrompt.cs       输入框
 │   │   ├── TuiProgress.cs     进度条

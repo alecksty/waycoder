@@ -33,6 +33,7 @@ public class MarkupChatScreen : ChatScreen
             StatusBar = _markup.Find<TuiStatusBar>("statusBar") ?? throw Missing("statusBar");
             ChatList = _markup.Find<TuiListView>("chatList") ?? throw Missing("chatList");
             InputArea = _markup.Find<TuiTextArea>("inputArea") ?? throw Missing("inputArea");
+            InputArea.SyntaxHighlight = true; // 粘贴/输入代码自动语法高亮（Syntax.Detect 内容启发式）
             PromptBar = _markup.Find<TuiPromptBar>("promptBar") ?? throw Missing("promptBar");
             DynamicBar = _markup.Find<TuiDynamicBar>("dynamicBar") ?? throw Missing("dynamicBar");
             InputTopBorder = _markup.Find<TuiSeparator>("inputTopBorder") ?? throw Missing("inputTopBorder");

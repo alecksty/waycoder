@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
+using WayCoder.UI.Tui.Edit;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -88,6 +89,27 @@ public class TuiTextArea : TuiEditBase
 
     /// <summary>文字自动换行列宽（0 = 不限）。超出此列宽自动折行，可视区 Width 可小于此值以实现水平滚动。</summary>
     public int MaxColumnWidth { get; set; } = 0;
+
+    /// <summary>是否启用代码语法高亮（粘贴/输入代码时按内容自动检测语言并多色渲染）。</summary>
+    public bool SyntaxHighlight { get; set; }
+
+    // 懒缓存：文本未变不重测（渲染每帧读，避免反复扫描全文）
+    private Syntax? _detectedSyntax;
+    private string _detectedFor = "";
+
+    /// <summary>按当前文本懒检测的语法（SyntaxHighlight 关闭时恒 null；文本变化才重测）。</summary>
+    private Syntax? DetectedSyntax
+    {
+        get
+        {
+            if (!SyntaxHighlight) return null;
+            var t = Text;
+            if (_detectedFor == t) return _detectedSyntax;
+            _detectedFor = t;
+            _detectedSyntax = Syntax.Detect(t);
+            return _detectedSyntax;
+        }
+    }
 
     // ── 样式 ──
 
@@ -419,8 +441,24 @@ public class TuiTextArea : TuiEditBase
                 }
                 else
                 {
-                    // 无选择：正常渲染
-                    WriteAt(sb, screenRow, absX + lineNumW, fullDisplay + new string(' ', pad), fg, bg);
+                    // 语法高亮：按 token 逐段渲染（token 色优先，默认色用本行 fg）。选择/光标行仍单色。
+                    var syn = DetectedSyntax;
+                    if (syn != null)
+                    {
+                        int x = absX + lineNumW;
+                        foreach (var (t, c) in syn.Tokenize(fullDisplay))
+                        {
+                            if (string.IsNullOrEmpty(t)) continue;
+                            WriteAt(sb, screenRow, x, t, c > 0 ? c : fg, bg);
+                            x += AnsiHelper.DisplayWidth(t);
+                        }
+                        if (pad > 0) WriteAt(sb, screenRow, x, new string(' ', pad), fg, bg);
+                    }
+                    else
+                    {
+                        // 无高亮：整行单色
+                        WriteAt(sb, screenRow, absX + lineNumW, fullDisplay + new string(' ', pad), fg, bg);
+                    }
                 }
             }
             else if (lineIdx == 0 && string.IsNullOrEmpty(Text) && !string.IsNullOrEmpty(Placeholder))

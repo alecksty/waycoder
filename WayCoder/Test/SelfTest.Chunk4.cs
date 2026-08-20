@@ -178,6 +178,19 @@ public static partial class SelfTest
             .SelectMany(l => l).Aggregate("", (a, s) => a + s.Text);
         Check("纯文本: 反引号/星号原样保留", plainRaw.Contains("`x`") && plainRaw.Contains("**y**"));
 
+        // 代码块语法高亮：C# 代码块应产出多色 token（关键字青 36 ≠ 字符串绿 32 ≠ 数字黄 33）
+        var cbSegs = UI.Tui.TuiMarkdown.RenderMessage(
+            "```csharp\nstring s = \"hi\";\nvar n = 42;\n```", "assistant", 80);
+        var cbColors = cbSegs.SelectMany(l => l).Where(s => s.Fg > 0).Select(s => s.Fg).Distinct().ToList();
+        Check("代码块高亮: 产出多种颜色", cbColors.Count >= 3);
+        Check("代码块高亮: 含关键字青色(36)", cbColors.Contains(36));
+
+        // 4 反引号围栏（````js，AI 在内容含 ``` 时常用）：语言标签不得残留多余反引号（旧 bug：lang="`js"）
+        var fence4 = UI.Tui.TuiMarkdown.RenderMessage(
+            "````js\nconst x = \"hi\";\n````", "assistant", 80);
+        var fence4Text = fence4.SelectMany(l => l).Aggregate("", (a, s) => a + s.Text);
+        Check("代码块围栏: 4反引号语言标签无残留反引号", !fence4Text.Contains("`js") && fence4Text.Contains("js"));
+
         // ---- «fg:#rrggbb» / «bg:#rrggbb» 真彩标记 ----
         const int RgbRed = 0x1000000 | 0xFF0000;
         Check("真彩: fg:#rrggbb", UI.Shared.MarkdownParser.TryMapTag("fg:#ff0000", out var cFg, out var bFg)
@@ -393,7 +406,7 @@ public static partial class SelfTest
         var claude = ModelCatalog.ImportClaude(claudeJson);
         Check("Claude 导入去重为 1 个模型", claude.Count == 1);
         Check("Claude 导入模型 id", claude.Count == 1 && claude[0].Id == "deepseek-v4-pro");
-        Check("Claude 导入 providerId=claude", claude.Count == 1 && claude[0].ProviderId == "claude");
+        Check("Claude 导入 providerId=deepseek(按base_url)", claude.Count == 1 && claude[0].ProviderId == "deepseek");
         Check("Claude 导入 baseUrl", claude.Count == 1 && claude[0].DefaultBaseUrl == "https://api.deepseek.com/anthropic");
 
         // 外部配置导入：Codex config.toml（[model_providers.*] + 顶层 model + [profiles.*]）
@@ -410,8 +423,8 @@ public static partial class SelfTest
         base_url = "http://127.0.0.1:15721/v1"
         """;
         var codex = ModelCatalog.ImportCodex(codexToml);
-        Check("Codex 导入 provider 模型（全局 model）",
-            codex.Any(m => m.Id == "gpt-5.6-sol" && m.ProviderId == "custom"
+        Check("Codex 导入 provider 模型（全局 model，base_url 127.0.0.1 → local）",
+            codex.Any(m => m.Id == "gpt-5.6-sol" && m.ProviderId == "local"
                 && m.DefaultBaseUrl == "http://127.0.0.1:15721/v1"));
         Check("Codex 导入 profile 模型",
             codex.Any(m => m.Id == "deepseek V4 Flash" && m.ProviderId == "goai"));

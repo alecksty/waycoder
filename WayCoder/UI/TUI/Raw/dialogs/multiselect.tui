@@ -2,6 +2,8 @@
 <Dialog title="{title}" border="rounded" borderColor="accent" shortcut="escape">
   <VBox align="center" spacing="1">
     <List id="list" items="选项一,选项二,选项三" selected="0" width="30" height="5" />
+    <!-- 交互提示：空格勾选/取消，↑↓ 移动，Enter 确定（打勾选择导入哪些来源） -->
+    <Label id="hint" text="空格 勾选/取消 · ↑↓ 移动 · Enter 确定" height="1" fg="black" align="center" />
     <HBox align="center" spacing="2">
       <Button id="ok" text="确定" />
       <Button id="cancel" text="取消" />
