@@ -53,6 +53,9 @@ public class TuiTableList : TuiControl
     /// <summary>选中行激活（Enter/空格）回调</summary>
     public Action<int>? OnSelect { get; set; }
 
+    /// <summary>空格键单独处理（默认=激活选中）。ModelPicker 用它实现「空格应用选中但不关闭对话框」。</summary>
+    public Action? OnSpace { get; set; }
+
     /// <summary>选中行变化回调</summary>
     public Action<int>? OnSelectionChanged { get; set; }
 
@@ -136,21 +139,32 @@ public class TuiTableList : TuiControl
         return w;
     }
 
-    /// <summary>把一行单元格拼成定宽字符串（各格已对齐）。</summary>
+    /// <summary>把一行单元格拼成定宽字符串（各格已对齐，列间加 │ 分隔竖线）。
+    /// 非最后列：内容宽 width-1 + 竖线；最后列：全宽 —— 总宽 = 列宽和，与分隔线/数据行对齐。</summary>
     private string FormatRow(string[] cells, int[] widths)
     {
         var sb = new StringBuilder();
         for (int i = 0; i < _columns.Count; i++)
-            sb.Append(FormatCell(i < cells.Length ? cells[i] : "", widths[i]));
+        {
+            if (i == _columns.Count - 1)
+                sb.Append(FormatCell(i < cells.Length ? cells[i] : "", widths[i]));
+            else
+                sb.Append(FormatCell(i < cells.Length ? cells[i] : "", Math.Max(0, widths[i] - 1))).Append('│');
+        }
         return sb.ToString();
     }
 
-    /// <summary>列头标题行纯文本（各标题已按列宽对齐，无分隔线）。</summary>
+    /// <summary>列头标题行纯文本（各标题按列宽对齐，列间加 │ 分隔竖线）。</summary>
     private string FormatHeaderTitles(int[] widths)
     {
         var sb = new StringBuilder();
         for (int i = 0; i < _columns.Count; i++)
-            sb.Append(FormatCell(_columns[i].Title, widths[i]));
+        {
+            if (i == _columns.Count - 1)
+                sb.Append(FormatCell(_columns[i].Title, widths[i]));
+            else
+                sb.Append(FormatCell(_columns[i].Title, Math.Max(0, widths[i] - 1))).Append('│');
+        }
         return sb.ToString();
     }
 
@@ -376,7 +390,10 @@ public class TuiTableList : TuiControl
                 EnsureSelectedVisible();
                 return true;
             case ConsoleKey.Enter:
+                ActivateSelected();
+                return true;
             case ConsoleKey.Spacebar:
+                if (OnSpace != null) { OnSpace(); return true; } // 空格可定制（如 ModelPicker 应用不关）
                 ActivateSelected();
                 return true;
         }

@@ -154,7 +154,7 @@ public static class ModelPicker
             win.Title = TitleText();
             slotBar.Text = SlotBarText(targetSlot, currentSlot);
             btnMode.Text = isLarge ? "→小模型" : "→大模型";
-            help.Text = "Tab切焦点  空格执行按钮  ↑↓选择  Enter确认  Esc取消  F1-F10槽位  直接打字过滤";
+            help.Text = "↑↓选择  空格应用不关  Enter确认关闭  保存按钮  Esc取消  F1-F10槽位  打字过滤";
             help2.Text = "^T大小 ^G槽位 ^S扫描 ^R导入 ^O在线 ^P设Key ^L清Key ^N添加 ^U编辑 ^D删除";
             screen?.MarkDirty();
         }
@@ -173,6 +173,20 @@ public static class ModelPicker
             if (m == null) return; // 组头行不可选
             var r = EnterOrPromptKey(m, isLarge, targetSlot);
             if (r != null) Finish(r);
+        }
+
+        /// <summary>空格：应用当前选中模型但保持对话框打开（预览/暂选，可连续试多个模型）。</summary>
+        void CommitNoClose()
+        {
+            var m = table.SelectedIndex >= 0 && table.SelectedIndex < rowModels.Count
+                ? rowModels[table.SelectedIndex] : null;
+            if (m == null) return; // 组头行不可选
+            var r = EnterOrPromptKey(m, isLarge, targetSlot);
+            if (r != null)
+            {
+                Refresh(true); // 应用选中（生效显示），不 Finish 关闭
+                help.Text = $"✅ 已应用 {m.Id}（空格换选 / Enter 确认并关闭）";
+            }
         }
 
         // ── 后台操作：扫描/导入/OpenCode（结果 lock 保护，下次 Refresh 读取）──
@@ -397,7 +411,8 @@ public static class ModelPicker
                 default: return false; // 落回搜索框，当普通字符
             }
         };
-        table.OnSelect = _ => Commit(); // 若焦点切到列表，Enter 亦可选择
+        table.OnSelect = _ => Commit();     // Enter：应用并关闭
+        table.OnSpace = CommitNoClose;      // 空格：应用选中但保持对话框（可连续试多个模型）
 
         // 功能按钮：Tab 切焦点过来、空格/Enter 执行（TuiButton.OnKey 内建）。
         // 做成按钮就不用占字母快捷键 —— 那些字母得留给搜索框打过滤词。
@@ -411,6 +426,7 @@ public static class ModelPicker
         Wire(res, "btnAdd", PromptAddModel);
         Wire(res, "btnEdit", PromptEditModel);
         Wire(res, "btnDel", DeleteSelectedModel);
+        Wire(res, "btnSave", Commit); // 保存按钮 = 应用选中模型并关闭对话框
 
         // Tab 不再抢去切大/小模型（那是 btnMode 的活），交回 TuiScreen 做焦点遍历
         win.RegisterShortcut(ConsoleKey.Escape, () => Finish(null));

@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.79.67 (2026-08-20) — Table 表头竖线 + ModelPicker 空格应用/回车确认
+
+- **TuiTableList 表头加分割竖线**：`FormatHeaderTitles`/`FormatRow` 列间加 `│`（非最后列 width-1 + 竖线，最后列全宽，总宽与分隔线/数据行对齐）
+- **ModelPicker 交互**：
+  - **空格**：应用选中模型但保持对话框打开（`CommitNoClose`，可连续试多个模型）
+  - **回车**：应用选中并关闭（原有 Commit）
+  - **`✓ 保存` 按钮**：点击 = 应用选中并关闭（`Wire btnSave → Commit`）
+  - `TuiTableList` 新增 `OnSpace` 回调（空格可定制，默认仍激活选中）
+
+### ✅ 验证
+- 自测 3952 通过；预览确认表头竖线
+
 ## v0.79.66 (2026-08-20) — 输入区高度自适应 + 内部剪贴板兜底
 
 - **对话输入区**：启动默认 1 行；`Ctrl+Enter` 换行（TuiTextArea override HandleCtrlKey）自动增高（高度=行数，最大 5 行）；删除键合并行减行（至少 1 行）；超 5 行滚动显示最新内容
