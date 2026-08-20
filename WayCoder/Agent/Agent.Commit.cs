@@ -68,11 +68,14 @@ public partial class Agent
                     await RunGitAsync($"add {EscArg(f)}");
             }
 
-            // 提交
+            // 提交（finally 清理临时文件：git 抛异常时也不残留 %TEMP%）
             var msgFile = Path.GetTempFileName();
-            await File.WriteAllTextAsync(msgFile, commitMsg);
-            await RunGitAsync($"commit -F {EscArg(msgFile)}");
-            try { File.Delete(msgFile); } catch { }
+            try
+            {
+                await File.WriteAllTextAsync(msgFile, commitMsg);
+                await RunGitAsync($"commit -F {EscArg(msgFile)}");
+            }
+            finally { try { File.Delete(msgFile); } catch { } }
 
             // 用户反馈
             _onAutoCommit?.Invoke(summary, modifiedFiles.Length);
