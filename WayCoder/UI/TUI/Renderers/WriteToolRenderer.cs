@@ -19,10 +19,10 @@ public class WriteToolRenderer : IToolRenderer
         if (string.IsNullOrEmpty(rawOutput)) return rawOutput;
 
         if (rawOutput.StartsWith("错误：") || rawOutput.StartsWith("❌"))
-            return AnsiTty.FgBg(37, 41) + rawOutput + AnsiTty.SgrReset;
+            return AnsiTty.ErrorBlock(rawOutput);
 
         if (rawOutput.Contains("用户拒绝变更"))
-            return AnsiTty.Fg(33) + rawOutput + AnsiTty.SgrReset;
+            return AnsiTty.Warn(rawOutput);
 
         // 成功消息绿色
         if (rawOutput.StartsWith("已写入"))

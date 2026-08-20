@@ -22,11 +22,11 @@ public class EditToolRenderer : IToolRenderer
 
         // 错误情况直接返回
         if (rawOutput.StartsWith("错误：") || rawOutput.StartsWith("❌"))
-            return AnsiTty.FgBg(37, 41) + rawOutput + AnsiTty.SgrReset;
+            return AnsiTty.ErrorBlock(rawOutput);
 
         // 取消编辑
         if (rawOutput.Contains("用户拒绝变更"))
-            return AnsiTty.Fg(33) + rawOutput + AnsiTty.SgrReset; // 黄色
+            return AnsiTty.Warn(rawOutput); // 黄色
 
         // 解析并着色 diff
         var lines = rawOutput.Replace("\r\n", "\n").Split('\n');

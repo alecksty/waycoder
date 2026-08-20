@@ -90,7 +90,7 @@ public class WcTool : ITool
         }
         catch (Exception ex)
         {
-            return $"wc 错误：{ex.GetType().Name}: {ex.Message}";
+            return $"错误：wc: {ex.GetType().Name}: {ex.Message}";
         }
     }
 

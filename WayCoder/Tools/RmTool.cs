@@ -86,7 +86,7 @@ public class RmTool : ITool
         }
         catch (Exception ex)
         {
-            return $"rm 错误：{ex.GetType().Name}: {ex.Message}";
+            return $"错误：rm: {ex.GetType().Name}: {ex.Message}";
         }
     }
 }

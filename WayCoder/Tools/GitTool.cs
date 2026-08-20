@@ -58,7 +58,7 @@ public class GitTool : ITool, ICancellableTool
         }
         catch (Exception ex)
         {
-            return $"Git 错误：{ex.GetType().Name}: {ex.Message}";
+            return $"错误：Git: {ex.GetType().Name}: {ex.Message}";
         }
     }
 

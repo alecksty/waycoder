@@ -48,13 +48,13 @@ public class AgentToolRenderer : IToolRenderer
         // 错误着色
         if (result.StartsWith("子智能体错误") || result.StartsWith("并行子智能体错误"))
         {
-            result = AnsiTty.FgBg(37, 41) + result + AnsiTty.SgrReset;
+            result = AnsiTty.ErrorBlock(result);
         }
 
         // --- 子任务 N --- 分隔线着色
         result = System.Text.RegularExpressions.Regex.Replace(
             result, @"^--- .+ ---$",
-            m => AnsiTty.Fg(33) + m.Value + AnsiTty.SgrReset,
+            m => AnsiTty.Warn(m.Value),
             System.Text.RegularExpressions.RegexOptions.Multiline);
 
         return result;
