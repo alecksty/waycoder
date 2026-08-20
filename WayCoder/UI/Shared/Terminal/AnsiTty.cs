@@ -63,6 +63,9 @@ public static class AnsiTty
     // ═══════════════════════════════════════════════════════════════
 
     public static readonly string MouseEnable = $"{AnsiCharPrefix}{AnsiCharEscape}?1000h{AnsiCharPrefix}{AnsiCharEscape}?1003h{AnsiCharPrefix}{AnsiCharEscape}?1015h{AnsiCharPrefix}{AnsiCharEscape}?1006h";
+
+    /// <summary>基础鼠标（点击 + SGR 坐标）—— macOS Terminal.app 兼容（不支持 ?1003h 移动追踪 / ?1015h UTF-8 鼠标）。</summary>
+    public static readonly string MouseEnableBasic = $"{AnsiCharPrefix}{AnsiCharEscape}?1000h{AnsiCharPrefix}{AnsiCharEscape}?1006h";
     public static readonly string MouseDisable = $"{AnsiCharPrefix}{AnsiCharEscape}?1006l{AnsiCharPrefix}{AnsiCharEscape}?1015l{AnsiCharPrefix}{AnsiCharEscape}?1003l{AnsiCharPrefix}{AnsiCharEscape}?1000l";
 
     // ═══════════════════════════════════════════════════════════════

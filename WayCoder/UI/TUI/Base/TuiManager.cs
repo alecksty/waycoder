@@ -63,7 +63,8 @@ public class TuiManager : IDisposable
     {
         Tty.EnterAltScreen();
         Tty.HideCursor();
-        if (MouseEnabled) Tty.EnableMouse();
+        // macOS 自带终端不支持 ?1003h/?1015h，用基础鼠标（点击+SGR）避免显示/输入异常
+        if (MouseEnabled) { if (Tty.IsAppleTerminal) Tty.EnableMouseBasic(); else Tty.EnableMouse(); }
         (TW, TH) = (Tty.Cols, Tty.Rows);
         IsActive = true;
     }
