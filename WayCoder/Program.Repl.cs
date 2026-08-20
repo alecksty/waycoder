@@ -640,7 +640,13 @@ public partial class Program
         while (!agentTask.IsCompleted)
         {
             screen_?.PumpUIQueue(); // 消费后台投递的 UI 操作（Agent 流式回调）
-            mgr.Render();
+            try { mgr.Render(); }
+            catch (Exception ex)
+            {
+                // 控件渲染异常不崩溃：记日志 + 强制全刷新重试（某控件 OnRender 偶发异常）
+                ErrorLog.Error("UI.Render", $"渲染异常（已兜底继续）: {ex.GetType().Name}: {ex.Message}");
+                WayCoder.UI.TUI.Base.TuiManager.RequestFullRefresh();
+            }
             var ev = inputMgr.ReadInput(30);
             if (ev.Type == InputType.Timeout) continue;
 
