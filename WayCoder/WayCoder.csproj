@@ -52,6 +52,10 @@
     <!-- WayEngine 是独立游戏引擎（自带 .sln），误置于本源码树内，排除出主项目编译 -->
     <Compile Remove="WayEngine/**/*.cs" />
     <None Remove="WayEngine/**/*" />
+    <!-- SnakeGame 是独立控制台游戏（自带 .csproj + Main），误置于本源码树内，
+         其 obj/Debug、obj/Release 生成的 AssemblyInfo 会与主项目编译冲突（CS0579），排除 -->
+    <Compile Remove="SnakeGame/**/*.cs" />
+    <None Remove="SnakeGame/**/*" />
   </ItemGroup>
 
   <ItemGroup>
