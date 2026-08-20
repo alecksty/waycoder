@@ -46,7 +46,10 @@ public class ContextManager
     /// <summary>压缩结束事件（无论是否实际压缩都触发）— UI 可订阅以隐藏「压缩中」指示</summary>
     public static event Action? CompressFinished;
     /// <summary>是否正在压缩中</summary>
-    public static bool IsCompressing { get; private set; }
+    /// <summary>当前是否任一 Agent 正在压缩。计数器实现：多 Agent 并行压缩时，
+    /// 先完成的不能把指示提前清掉（此前静态 bool 被先完成的置 false → UI「压缩中」提前消失）。</summary>
+    private static int _compressingCount;
+    public static bool IsCompressing => _compressingCount > 0;
 
     public ContextManager(int maxTokens = 128_000)
     {
@@ -190,7 +193,7 @@ public class ContextManager
     {
         var current = EstimateCalibratedTokens(messages);
         var compressed = false;
-        IsCompressing = true;
+        Interlocked.Increment(ref _compressingCount);
 
         try
         {
@@ -232,8 +235,9 @@ public class ContextManager
         }
         finally
         {
-            IsCompressing = false;
-            CompressFinished?.Invoke();
+            // 最后一个压缩结束才广播 CompressFinished（并行时先完成的只减计数不触发）
+            if (Interlocked.Decrement(ref _compressingCount) <= 0)
+                CompressFinished?.Invoke();
         }
 
         return compressed;

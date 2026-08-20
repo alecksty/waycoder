@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.79.80 (2026-08-20) — 并发细节 + 资源泄漏 三轮修复
+
+- **`ContextManager.IsCompressing` 静态 bool → 计数器**：多 Agent 并行压缩时先完成的会把指示提前清掉（UI「压缩中」消失）。改为 `static int` 计数，最后一个压缩结束才广播 `CompressFinished`
+- **`Agent.Feedback` 自动测试防抖改实例级**：静态 `_lastTestRun`/`_lastTestProject` 会让多槽位/多子智能体并行写文件时互相抑制测试反馈（一个跑过抑制另一个）。改 per-Agent
+- **`Agent.Commit` 临时文件 finally 清理**：git commit 抛异常时不再残留 %TEMP% 消息文件
+- **`BashTool` 沙箱 `sandboxCts` 改 `using`**：沙箱违规路径不再泄漏 CancellationTokenSource
+
+### ✅ 验证
+- 自测 3970 通过（0 真实失败）
+
 ## v0.79.79 (2026-08-20) — 静默失败/孤儿进程/超时 二轮修复
 
 - **`ApiKeyStore` 保存失败可见**：`Save`/`Set` 改返回 bool + 记 ErrorLog，此前静默吞 → 用户以为存了重启后 Key 丢失。ModelPicker 保存 Key 失败时提示

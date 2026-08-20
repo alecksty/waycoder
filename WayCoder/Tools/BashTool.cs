@@ -182,7 +182,7 @@ public class BashTool : ITool, ICancellableTool
                 var stderrTask = proc.StandardError.ReadToEndAsync();
 
                 // 沙箱模式：后台监控内存 + CPU 时间（使用实际处理器时间，非墙上时钟）
-                var sandboxCts = new CancellationTokenSource();
+                using var sandboxCts = new CancellationTokenSource();
                 Task<string?>? memTask = null;
                 Task<string?>? cpuTask = null;
                 if (SandboxManager.IsSandboxed)
