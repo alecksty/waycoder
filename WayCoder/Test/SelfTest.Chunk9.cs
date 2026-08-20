@@ -273,6 +273,28 @@ public static partial class SelfTest
         Check("对齐: --session 解析", Arguments.CliArgRegistry.Get(pSession, "session") == "abc123");
         Console.WriteLine();
 
+        // ---- 命令面板: 精选常用命令（Ctrl+Shift+P，对齐 Claude Code/OpenCode）----
+        Section("[命令面板]");
+        var paletteScreen = new ChatScreen();
+        paletteScreen.OnCycleModel = () => { };
+        paletteScreen.OnShowHelp = () => { };
+        paletteScreen.OnOpenSessions = () => { };
+        paletteScreen.OnOpenDiff = () => { };
+        var cmds = WayCoder.UI.Tui.CommandPalette.BuildDefaultCommands(paletteScreen);
+        Check("命令面板: 非空", cmds.Count > 0);
+        Check("命令面板: 含高频动作-模型选择", cmds.Any(c => c.Label == "模型选择"));
+        Check("命令面板: 含高频动作-设置", cmds.Any(c => c.Label == "设置"));
+        Check("命令面板: 含精选斜杠 /help", cmds.Any(c => c.Id == "slash-/help"));
+        Check("命令面板: 含精选斜杠 /model", cmds.Any(c => c.Id == "slash-/model"));
+        Check("命令面板: 含精选斜杠 /settings", cmds.Any(c => c.Id == "slash-/settings"));
+        Check("命令面板: 含精选斜杠 /undo", cmds.Any(c => c.Id == "slash-/undo"));
+        Check("命令面板: 不含非精选 /architect", !cmds.Any(c => c.Id == "slash-/architect"));
+        Check("命令面板: 不含非精选 /debugon", !cmds.Any(c => c.Id == "slash-/debugon"));
+        // 无回调时动作项被跳过、只剩斜杠命令
+        var cmdsNoCb = WayCoder.UI.Tui.CommandPalette.BuildDefaultCommands(new ChatScreen());
+        Check("命令面板: 无回调时无动作项", !cmdsNoCb.Any(c => c.Id == "model") && cmdsNoCb.Any(c => c.Id.StartsWith("slash-")));
+        Console.WriteLine();
+
         // ---- 会话详情: MessageCount ----
         Section("[会话详情: MessageCount]");
         var mcTestId = "mc_test_" + DateTime.Now.ToString("yyyyMMddHHmmss");

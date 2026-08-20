@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.79.74 (2026-08-20) — 快捷键对齐 Claude Code / OpenCode（命令面板）
+
+- **`Ctrl+Shift+P` 命令面板**（对齐 Claude Code quickOpen / OpenCode）——`CommandPalette` 此前已实现但从未接线，现接上并精选最常用命令（对标竞品，避免刷屏）：
+  - ⚡ 常用动作：模型选择 / 快捷键帮助 / 设置 / 会话列表 / Diff 预览 / 推理深度 / 搜索历史
+  - 🗂 常用斜杠命令：`/help` `/reset` `/compact` `/model` `/settings` `/undo` `/diff` `/edit` `/recent` `/session` `/mcp` `/init` `/update` `/stats` `/tokens` `/config` `/provider` `/search` `/git` `/todo` `/theme` `/mode`
+- **`Alt+P` 模型选择**（对齐 Claude Code `meta+p`，与 `Ctrl+M` 等价）
+- 已对齐：`Esc` 中断、`Ctrl+L` 重绘、`Ctrl+R` 搜索历史；冲突键（`Ctrl+D`=diff、`Ctrl+T`=设置）保留 WayCoder 语义并在文档注明
+- 帮助面板 + 使用手册登记新键位
+
+### ✅ 验证
+- 自测 3969 通过（新增命令面板 10 项）
+
 ## v0.79.73 (2026-08-20) — CLI 参数对齐 Claude Code / OpenCode
 
 - **命令参数对齐竞品（迁移用户无需重新学习）**，全部为新增别名、不动现有参数：

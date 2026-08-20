@@ -710,6 +710,13 @@ public partial class ChatScreen : TuiScreen
             }
         }
 
+        // ── Ctrl+Shift+P 命令面板（对齐 Claude Code quickOpen / OpenCode）──
+        if (ctrl && shift && key.Key == ConsoleKey.P)
+        {
+            OpenCommandPalette();
+            return true;
+        }
+
         // ── Ctrl+Shift+F1 主题选择 / Ctrl+Shift+F2 直接轮转 ──
         if (ctrl && shift)
         {
@@ -722,6 +729,13 @@ public partial class ChatScreen : TuiScreen
                     CycleThemeDirect();
                     return true;
             }
+        }
+
+        // ── Alt+P 模型选择（对齐 Claude Code meta+p）──
+        if (key.Modifiers.HasFlag(ConsoleModifiers.Alt) && key.Key == ConsoleKey.P)
+        {
+            OnCycleModel?.Invoke();
+            return true;
         }
 
         // ── F5 刷新/重绘 ──
