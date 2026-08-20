@@ -44,6 +44,8 @@ public static class TuiKeybindHelp
         ("🔄 模式", [
             ("Shift+Tab / Ctrl+K", "切模式 Build→Plan→Review→Auto"),
             ("Ctrl+M / /model", "打开模型选择对话框"),
+            ("Alt+P", "模型选择（对齐 Claude Code meta+p）"),
+            ("Ctrl+Shift+P", "命令面板（对齐 Claude Code/OpenCode）"),
             ("Ctrl+G", "切换推理深度"),
             ("Ctrl+P", "输入建议条（非命令面板）"),
         ]),
