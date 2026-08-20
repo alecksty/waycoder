@@ -1183,7 +1183,7 @@ public partial class Program
             cs.UpdateTokenDisplayFull(
                 llm.TotalPromptTokens, llm.TotalCompletionTokens,
                 llm.EstimatedCost ?? llm.TaskCost, // 累计费用优先，回退本轮费用
-                ContextManager.EstimateTokens(agent.SnapshotMessages()), _config.MaxContextTokens,
+                ContextManager.EstimateTokens(agent.SnapshotMessages()), agent.Context.MaxTokens,
                 llm.LastLatencyMs, llm.LastTokensPerSec);
         }, _ => { });
     }

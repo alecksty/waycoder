@@ -137,7 +137,7 @@ public class Config
     public string? BaseUrl { get; set; }
     public int MaxTokens { get; set; } = 32768;
     public float Temperature { get; set; } = 0.1f;
-    public int MaxContextTokens { get; set; } = 1_048_576;
+    public int MaxContextTokens { get; set; } = 128_000;
     public string Provider { get; set; } = "openai";
     public string SmallProvider { get; set; } = "deepseek";
     public double? MaxBudgetUsd { get; set; }
@@ -347,9 +347,9 @@ public class Config
               c => c.Temperature.ToString("F1"), (c, v) => c.Temperature = float.Parse(v, System.Globalization.CultureInfo.InvariantCulture), "0.1"),
 
             P("MaxContextTokens", "WAYCODER_MAX_CONTEXT",       null,
-              "上下文窗口", "⚙ 参数", "上下文窗口大小",
+              "上下文窗口", "⚙ 参数", "上下文窗口大小（未知模型兜底，默认 128K）",
               "number", null, 2,
-              c => c.MaxContextTokens.ToString(), (c, v) => c.MaxContextTokens = int.Parse(v), "1048576"),
+              c => c.MaxContextTokens.ToString(), (c, v) => c.MaxContextTokens = int.Parse(v), "131072"),
 
             P("ToolTimeoutSec",   "WAYCODER_TOOL_TIMEOUT",      null,
               "工具超时 (秒)", "⚙ 参数", "Bash 等工具执行超时，默认 120 秒",
