@@ -297,13 +297,18 @@ public static class ModelPicker
                 if (picked == null || picked.Count == 0) return; // 取消 / 未勾选
                 string[] keys = ["builtin", "claudecode", "codex", "opencode", "crush", "openclaw"];
                 var sources = string.Join(",", picked.Select(p => keys[Math.Max(0, choices.IndexOf(p))]));
-                RunImport(sources, "📥 本地导入中…");
+                RunImport(sources, null, "📥 本地导入中…");
                 return;
             }
-            RunImport(null, "🌐 在线导入中…");
+            // 在线导入：弹框选 OpenCode 服务商（Go 订阅 / Zen 按量，地址不同）
+            var mode = UxHelper.Select("🌐 在线导入 · 选择 OpenCode 服务商",
+                new List<string> { "OpenCode Go（订阅 · zen/go/v1）", "OpenCode Zen（按量 · zen/v1）" });
+            if (mode == null) return;
+            var onlineBase = mode.StartsWith("OpenCode Go") ? "https://opencode.ai/zen/go/v1" : "https://opencode.ai/zen/v1";
+            RunImport(null, onlineBase, "🌐 在线导入中…");
         }
 
-        void RunImport(string? sources, string busyText)
+        void RunImport(string? sources, string? onlineBaseUrl, string busyText)
         {
             help.Text = busyText;
             help2.Text = "";
@@ -315,9 +320,10 @@ public static class ModelPicker
                 {
                     if (sources == null)
                     {
-                        // opencode 在线拉取
-                        const string url = "https://opencode.ai/zen/go/v1/models";
-                        const string apiBase = "https://opencode.ai/zen/go/v1";
+                        // opencode 在线拉取（Go=zen/go/v1 订阅 / Zen=zen/v1 按量，地址由调用方选）
+                        var apiBase = onlineBaseUrl ?? "https://opencode.ai/zen/go/v1";
+                        var url = apiBase + "/models";
+                        var pname = apiBase.Contains("/zen/go/") ? "OpenCode Go" : "OpenCode Zen";
                         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
                         client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder/1.0");
                         var json = client.GetStringAsync(url).GetAwaiter().GetResult();
@@ -325,7 +331,7 @@ public static class ModelPicker
                         var builtIn = new HashSet<string>(ModelCatalog.BuiltIn.Select(x => x.Id), StringComparer.OrdinalIgnoreCase);
                         var toAdd = list.Where(x => !builtIn.Contains(x.Id)).ToList();
                         ModelCatalog.AddCustomRange(toAdd);
-                        report = $"✅ 在线导入 {toAdd.Count} 个模型" + (list.Count - toAdd.Count > 0 ? $"，跳过 {list.Count - toAdd.Count} 内置" : "");
+                        report = $"✅ 在线导入（{pname}）{toAdd.Count} 个模型" + (list.Count - toAdd.Count > 0 ? $"，跳过 {list.Count - toAdd.Count} 内置" : "");
                     }
                     else
                     {
