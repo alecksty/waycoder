@@ -336,22 +336,9 @@ public class LintTool : ITool
                 }
             };
 
-            proc.Start();
-            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
-            var stderrTask = proc.StandardError.ReadToEndAsync();
-
-            var lintTimeout = Config.Instance.LintTimeoutSec * 1000;
-            var exitTask = proc.WaitForExitAsync();
-            var delayTask = Task.Delay(lintTimeout);
-            var completed = await Task.WhenAny(exitTask, delayTask);
-            if (completed != exitTask || !exitTask.IsCompletedSuccessfully)
-            {
-                try { proc.Kill(entireProcessTree: true); } catch { }
-                return $"Lint 超时（{Config.Instance.LintTimeoutSec} 秒）: {cmd} {args}";
-            }
-
-            var output = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
-            var errors = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
+            var r = await WayCoder.Infra.ProcUtil.RunAsync(proc.StartInfo, Config.Instance.LintTimeoutSec * 1000);
+            if (r == null) return $"Lint 超时（{Config.Instance.LintTimeoutSec} 秒）: {cmd} {args}";
+            var (exitCode, output, errors) = r.Value;
 
             // 去除 ANSI 转义序列
             output = Terminal.AnsiString.StripWithRegex(output);

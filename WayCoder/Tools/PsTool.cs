@@ -69,21 +69,9 @@ public class PsTool : ITool
                 CreateNoWindow = true,
             };
 
-            using var proc = Process.Start(psi)!;
-            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
-            var stderrTask = proc.StandardError.ReadToEndAsync();
-
-            var exitTask = proc.WaitForExitAsync();
-            var delayTask = Task.Delay(10_000);
-            var completed = await Task.WhenAny(exitTask, delayTask);
-            if (completed != exitTask || !exitTask.IsCompletedSuccessfully)
-            {
-                proc.Kill(entireProcessTree: true);
-                return "错误：ps 命令超时（10s）";
-            }
-
-            var result = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
-            var errResult = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
+            var r = await WayCoder.Infra.ProcUtil.RunAsync(psi, 10_000);
+            if (r == null) return "错误：ps 命令超时（10s）";
+            var (exitCode, result, errResult) = r.Value;
             if (string.IsNullOrWhiteSpace(result))
                 result = errResult;
             if (string.IsNullOrWhiteSpace(result))

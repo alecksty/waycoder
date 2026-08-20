@@ -107,29 +107,20 @@ public class KillTool : ITool
                 CreateNoWindow = true,
             };
 
-            using var proc = Process.Start(psi)!;
-            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
-            var stderrTask = proc.StandardError.ReadToEndAsync();
-
-            var exitTask = proc.WaitForExitAsync();
-            var delayTask = Task.Delay(10_000);
-            var completed = await Task.WhenAny(exitTask, delayTask);
-            if (completed != exitTask || !exitTask.IsCompletedSuccessfully)
+            var r = await WayCoder.Infra.ProcUtil.RunAsync(psi, Config.Instance.KillTimeoutSec * 1000);
+            if (r == null)
             {
-                proc.Kill(entireProcessTree: true);
                 ErrorLog.ToolError("kill", $"进程终止超时（{Config.Instance.KillTimeoutSec}s）");
                 return $"错误：kill 命令超时（{Config.Instance.KillTimeoutSec}s）";
             }
-
-            var result = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
-            var err = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
+            var (exitCode, result, err) = r.Value;
 
             if (!string.IsNullOrEmpty(err))
                 result += $"\n[stderr]\n{err}";
 
             var target = pid > 0 ? $"PID {pid}" : name;
-            if (proc.ExitCode != 0)
-                result += $"\n[退出码：{proc.ExitCode}] 终止 {target} 可能失败";
+            if (exitCode != 0)
+                result += $"\n[退出码：{exitCode}] 终止 {target} 可能失败";
 
             return string.IsNullOrWhiteSpace(result)
                 ? $"✔ 已终止 {target}"
