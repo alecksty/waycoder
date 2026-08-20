@@ -633,6 +633,40 @@ public static partial class SelfTest
         // ── AppendToLast 追加到最后一条（工具流式输出）──
         slot.BufferedAppendToLast(" 追加");
         Check("并行: AppendToLast 追加到最后一条", slot.ChatMessages[^1].Content == "继续 追加");
+
+        // ── 多槽位并发压力：10 槽 × 并行线程各自写入，不崩溃、消息隔离（WAYCODER_STRESS=1 才跑）──
+        if (Environment.GetEnvironmentVariable("WAYCODER_STRESS") == "1")
+        {
+            var slots = new AgentSlot[10];
+            for (int i = 0; i < 10; i++) slots[i] = new AgentSlot();
+            try
+            {
+                Parallel.For(0, 10, s =>
+                {
+                    for (int j = 0; j < 200; j++)
+                    {
+                        slots[s].BufferedAddMsg("user", $"槽位{s} 消息{j}");
+                        slots[s].BufferedAppendToken($"token{j}");
+                        slots[s].BufferedFinishStream();
+                    }
+                });
+                bool isolated = true;
+                for (int s = 0; s < 10; s++)
+                {
+                    if (slots[s].ChatMessages.Count < 200)
+                        isolated = false; // 至少 200 条（每条 AddMsg + 自建的 token 消息）
+                    // 隔离检查：本槽位消息不得包含其他槽位的标记（无跨槽位串扰）
+                    for (int k = 0; k < 10 && isolated; k++)
+                        if (k != s && slots[s].ChatMessages.Any(m => m.Content.Contains($"槽位{k}")))
+                            isolated = false;
+                }
+                Check("槽位并发: 10 槽并行写入不崩溃且隔离", isolated);
+            }
+            catch (Exception ex)
+            {
+                Check($"槽位并发: 异常 {ex.GetType().Name}: {ex.Message}", false);
+            }
+        }
     }
 
     private static void TestWorkModePerAgent(Action<string, bool> Check)

@@ -1903,7 +1903,7 @@ public static partial class SelfTest
                 {
                     for (int i = 0; i < 10_000; i++)
                     {
-                        switch (i % 6)
+                        switch (i % 8)
                         {
                             case 0: scr1w.AddMessage($"用户消息 {i}", "user"); break;
                             case 1: scr1w.AddMessage($"智能体回复内容 {i}", "assistant"); break;
@@ -1911,6 +1911,8 @@ public static partial class SelfTest
                             case 3: scr1w.AddMessage($"工具输出: read_file 返回内容 {i}", "tool"); break;
                             case 4: scr1w.AddMessage($"```csharp\nvar x{i} = {i};\n```", "assistant"); break;
                             case 5: scr1w.AddMessage($"| 列{i} | 值 |\n|---|---|\n| {i} | data |", "assistant"); break;
+                            case 6: scr1w.AddMessage("```csharp\n" + string.Join("\n", Enumerable.Range(1, 500).Select(k => $"var v{k} = {k};")) + "\n```", "assistant"); break; // 500 行代码块
+                            case 7: scr1w.AddMessage(new string('长', 5000), "assistant"); break; // 5000 字符超长文本
                         }
                     }
                     scr1w.ChatList.ReLayout();
@@ -1936,6 +1938,83 @@ public static partial class SelfTest
                     Check($"1万消息: 异常 {ex.GetType().Name}: {ex.Message}", false);
                 }
                 scr1w.Deactivate();
+            }
+
+            // Web 版 HTTP 并发压力（WAYCODER_STRESS=1 才跑）：并发 GET 请求，无 5xx/无崩溃
+            if (Environment.GetEnvironmentVariable("WAYCODER_STRESS") == "1")
+            {
+                var webAgent = new Agent(new LLM("test", "sk-test"));
+                try
+                {
+                    var webSrv = new WayCoder.UI.Web.WebChatServer(webAgent, 0);
+                    webSrv.Start();
+                    var wport = webSrv.Port;
+                    try
+                    {
+                        var failures = 0;
+                        Parallel.For(0, 30, i =>
+                        {
+                            try
+                            {
+                                using var hc = new HttpClient();
+                                var url = (int)(i % 3) switch
+                                {
+                                    0 => $"http://127.0.0.1:{wport}/models",
+                                    1 => $"http://127.0.0.1:{wport}/state",
+                                    _ => $"http://127.0.0.1:{wport}/",
+                                };
+                                var resp = hc.GetAsync(url).GetAwaiter().GetResult();
+                                if ((int)resp.StatusCode >= 500) Interlocked.Increment(ref failures);
+                            }
+                            catch { Interlocked.Increment(ref failures); }
+                        });
+                        Check($"Web压力: 30 并发 GET 无 5xx ({failures} 失败)", failures == 0);
+                    }
+                    finally { webSrv.Stop(); }
+                }
+                catch (Exception ex)
+                {
+                    Check($"Web压力: 异常 {ex.GetType().Name}: {ex.Message}", false);
+                }
+            }
+
+            // 聊天显示裁剪：超过上限自动丢最旧（会话仍在、文件持久化，仅显示层裁剪）
+            {
+                var scrEv = new ChatScreen();
+                scrEv.Activate();
+                scrEv.ChatList.Width = 80;
+                scrEv.ChatList.Height = 10;
+                var savedMax = Config.Instance.MaxChatMessages;
+                try
+                {
+                    Config.Instance.MaxChatMessages = 100;
+                    for (int i = 0; i < 150; i++)
+                        scrEv.AddMessage($"裁剪消息{i}", "user");
+                    Check($"聊天裁剪: 超过上限丢旧 ({scrEv.ChatList.ItemCount} ≤ 100)", scrEv.ChatList.ItemCount <= 100);
+                    var firstItem = scrEv.ChatList.GetItem(0) as WayCoder.UI.Tui.Controls.TuiListItem;
+                    var lastItem = scrEv.ChatList.GetItem(scrEv.ChatList.ItemCount - 1) as WayCoder.UI.Tui.Controls.TuiListItem;
+                    Check("聊天裁剪: 最旧消息被丢弃", firstItem != null && !firstItem.MarkdownContent.Contains("裁剪消息0"));
+                    Check("聊天裁剪: 新消息保留", lastItem != null && lastItem.MarkdownContent.Contains("裁剪消息149"));
+                }
+                finally { Config.Instance.MaxChatMessages = savedMax; }
+                scrEv.Deactivate();
+            }
+
+            // 代码块预览行数封顶：超过保留头尾 + 省略标记
+            {
+                var savedCap = Config.Instance.MaxCodePreviewLines;
+                try
+                {
+                    Config.Instance.MaxCodePreviewLines = 100;
+                    var bigCode = "```csharp\n" + string.Join("\n", Enumerable.Range(1, 1000).Select(i => $"x{i} = {i};")) + "\n```";
+                    var rCap = WayCoder.UI.Tui.TuiMarkdown.RenderMessage(bigCode, "assistant", 76);
+                    Check($"代码封顶: 渲染 {rCap.Count} 行 ≤ 102", rCap.Count <= 102);
+                    Check("代码封顶: 含省略标记", rCap.Any(l => l.Any(s => s.Text.Contains("省略"))));
+                    // 语法高亮把行拆成 token 片段，检查单词片段即可
+                    Check("代码封顶: 保留头部内容", rCap.Any(l => l.Any(s => s.Text == "x1")));
+                    Check("代码封顶: 保留尾部内容", rCap.Any(l => l.Any(s => s.Text == "x1000")));
+                }
+                finally { Config.Instance.MaxCodePreviewLines = savedCap; }
             }
 
             // 非法/畸形格式消息：不崩溃（用户反馈场景）

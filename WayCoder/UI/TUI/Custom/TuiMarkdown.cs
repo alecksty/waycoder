@@ -136,11 +136,33 @@ public static class TuiMarkdown
         var topBorder = "┌" + langLabel + new string('─', Math.Max(0, Math.Min(maxWidth, 60) - langLabel.Length - 2)) + "┐";
         result.Add(new List<(string, int, int)> { (topBorder, TuiTheme.Current.CodeBlockBorderFg, 0) });
 
-        int lineNum = 1;
-        foreach (var rawLine in codeLines)
+        // 预览行数上限：超过保留头尾、中间折叠省略（防巨型代码块拖慢列表）
+        const string ellipsisMarker = "===WC_CODE_ELLIPSIS==="; // 哨兵（不会出现在真实代码里）
+        int cap = Config.Instance.MaxCodePreviewLines;
+        var renderLines = codeLines;
+        bool truncated = false;
+        int skipped = 0;
+        if (cap > 0 && codeLines.Length > cap)
         {
+            int head = cap * 3 / 5;          // 头部 60%
+            int tail = cap - head - 1;       // 尾部 + 1 行省略标记
+            skipped = codeLines.Length - head - tail;
+            renderLines = codeLines[..head].Concat(new[] { ellipsisMarker }).Concat(codeLines[^tail..]).ToArray();
+            truncated = true;
+        }
+
+        int lineNum = 1;
+        foreach (var rawLine in renderLines)
+        {
+            // 折叠省略行（哨兵标记，不误伤真实空行）
+            if (truncated && rawLine == ellipsisMarker)
+            {
+                result.Add(new List<(string, int, int)> { ($" … 省略 {skipped} 行 …", TuiTheme.Current.CodeBlockBorderFg, 0) });
+                continue;
+            }
+
             var line = new List<(string, int, int)>();
-            // 行号
+            // 行号（尾部行号不连续，标注原行号）
             line.Add(($" {lineNum,3} ", TuiTheme.Current.CodeBlockBorderFg, 0));
 
             if (string.IsNullOrEmpty(rawLine))

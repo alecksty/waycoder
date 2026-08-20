@@ -684,6 +684,30 @@ public partial class ChatScreen : TuiScreen
             item.Body.IsError = true;
 
         ChatList.AddItem(item); // AddItem 内部 MarkDirtyTree：聊天区整棵标脏 + 触发下一帧，无需再弄脏根
+
+        // 显示层裁剪：超过上限自动丢弃最旧消息（Agent 会话仍在、会话文件持久化——仅显示层裁剪保流畅）
+        PruneChatHistory();
+    }
+
+    /// <summary>
+    /// 聊天显示裁剪：超过 <see cref="Config.MaxChatMessages"/> 自动丢弃最旧消息。
+    /// 只裁显示层（ChatMessages/ChatList），Agent 的 Messages 与会话文件不受影响——
+    /// 恢复会话时按 Agent 消息重建显示。避免万级消息下列表布局/渲染越来越慢。
+    /// </summary>
+    private void PruneChatHistory()
+    {
+        int max = Config.Instance.MaxChatMessages;
+        if (max <= 0) return;
+        int excess = ChatList.ItemCount - max;
+        if (excess <= 0) return;
+        for (int i = 0; i < excess; i++)
+        {
+            if (ChatList.ItemCount > 0) ChatList.RemoveItem(0);
+            if (ChatMessages.Count > 0) ChatMessages.RemoveAt(0);
+        }
+        // 裁剪后滚动偏移可能越界（最旧项被删），钳制到有效范围
+        if (ChatList.ScrollOffset > 0)
+            ChatList.ClampScroll();
     }
 
     /// <summary>检测工具输出内容是否包含错误标记</summary>
