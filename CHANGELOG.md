@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.79.89 (2026-08-20) — 聊天显示裁剪 + 代码预览封顶
+
+- **聊天显示裁剪**：超过 `MaxChatMessages`（默认 1000，范围 100~10000）自动丢弃最旧消息——仅裁显示层（ChatMessages/ChatList），Agent 的 Messages 与会话文件不受影响（恢复会话时按 Agent 消息重建），万级消息下列表不再越滚越慢
+- **代码块预览封顶**：超过 `MaxCodePreviewLines`（默认 500，范围 10~1000）保留头尾（60%/尾）、中间折叠「省略 N 行」标记
+- **设置可改**：两项均加入设置界面（`Ctrl+T` → 系统分类）与环境变量 `WAYCODER_MAX_CHAT_MESSAGES` / `WAYCODER_MAX_CODE_LINES`
+- **压力测试**（`WAYCODER_STRESS=1 waycoder --test`）：1 万条混合消息 + 500 行代码块 + 5000 字符超长文本（25s 无崩溃）、10 槽并发写入隔离、Web 30 并发 GET 无 5xx；非法格式（未闭合代码块/畸形表格/ANSI/NUL/emoji 代理对/超长单行）渲染+滚动不崩溃
+
+### ✅ 验证
+- 自测 3995 通过（0 真实失败）
+
 ## v0.79.88 (2026-08-20) — 修复长消息折叠致无法滚屏
 
 > 含远程同步的修复：在 home 目录启动 TUI 卡死（RepoMap/项目扫描限制）、macOS Terminal.app 鼠标协议兼容（降级基础鼠标 + 禁用 Kitty 键盘协议）。

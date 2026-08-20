@@ -160,6 +160,13 @@ public class TuiListView : TuiView
         MarkDirtyTree();
     }
 
+    /// <summary>钳制滚动偏移到有效范围（内容被裁剪删除后调用，防偏移越界）。</summary>
+    public void ClampScroll()
+    {
+        int maxScroll = Math.Max(0, ContentHeight - Height);
+        if (ScrollOffset > maxScroll) { ScrollOffset = maxScroll; MarkDirtyTree(); }
+    }
+
     public void ScrollToTop()
     {
         if (ScrollOffset == 0 && !IsAutoScrollToEnd) return; // 已在顶部
