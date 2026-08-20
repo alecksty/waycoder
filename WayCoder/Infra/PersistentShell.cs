@@ -170,7 +170,8 @@ public sealed class PersistentShell : IDisposable
 
     public void Dispose()
     {
-        _lock.Wait();
+        // 有超时：会话命令可能还在跑（分钟级），退出/清理不能被它卡死
+        if (!_lock.Wait(2000)) return;
         try { KillSession(); }
         finally { _lock.Release(); }
     }
@@ -229,7 +230,8 @@ public static class PersistentShellManager
     /// <summary>关闭所有会话（进程退出/测试清理时调用）。</summary>
     public static void ShutdownAll()
     {
-        _lock.Wait();
+        // 有超时：有会话正在跑长命令时不能阻塞退出
+        if (!_lock.Wait(2000)) return;
         try
         {
             foreach (var s in _shells.Values) s.Dispose();

@@ -40,17 +40,20 @@ public class LspTool : ITool
     /// <summary>运行中的 LSP 会话快照（供 Web 面板/侧栏展示）。</summary>
     public record ActiveLspInfo(string Command, string Root, bool Initialized, bool HasExited);
 
-    /// <summary>当前运行中的 LSP 会话列表（在会话锁内快照，线程安全）。</summary>
+    /// <summary>当前运行中的 LSP 会话列表（在会话锁内快照，线程安全）。
+    /// 有超时的锁：LSP 握手最坏持锁 ~10s，UI 线程（Web 面板/侧栏刷新）不能为此卡死，
+    /// 超时则返回当前缓存快照（可能略旧），下次刷新再读。</summary>
     public static List<ActiveLspInfo> ActiveSessions
     {
         get
         {
-            _sessionLock.Wait();
+            if (!_sessionLock.Wait(100)) return _cachedSnapshot ?? [];
             try
             {
                 var list = new List<ActiveLspInfo>(_sessions.Count);
                 foreach (var s in _sessions.Values)
                     list.Add(new ActiveLspInfo(s.Command, s.Root, s.Initialized, s.Process.HasExited));
+                _cachedSnapshot = list;
                 return list;
             }
             finally
@@ -329,6 +332,8 @@ public class LspTool : ITool
     // 按 (项目根, 命令) 区分会话；空闲超时自动回收；进程崩溃自动重建。
     private static readonly Dictionary<string, LspSession> _sessions = new();
     private static readonly SemaphoreSlim _sessionLock = new(1, 1);
+    /// <summary>上次成功快照（锁被慢操作持有时供 UI 返回缓存，避免卡死）</summary>
+    private static List<ActiveLspInfo>? _cachedSnapshot;
     // 单位毫秒，与 Environment.TickCount64 一致。此前用 TimeSpan.FromMinutes(5).Ticks（100 纳秒=3e9）
     // 与毫秒差值比较，5 分钟回收实际变成约 34.7 天，空闲 LSP 进程长期不释放。
     private static readonly long SessionIdleTimeoutMs = 5L * 60 * 1000;
