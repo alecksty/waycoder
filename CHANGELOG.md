@@ -1,5 +1,12 @@
 # 更新日志
 
+## v0.79.90 (2026-08-20) — 修复 SnakeGame 误置源码树致编译失败
+
+- **修复**：`WayCoder/SnakeGame/`（独立控制台游戏，自带 `.csproj` + `Main`）误置于本源码树内，其 `obj/Debug`、`obj/Release` 生成的 `AssemblyInfo.cs` 被主项目默认 `**/*.cs` glob 编入 → `CS0579` 特性重复，Release/Debug 均编译失败。已从主项目编译中排除（`Compile/None Remove="SnakeGame/**/*.cs"`），SnakeGame 仍可 `dotnet run --project WayCoder/SnakeGame` 独立运行
+
+### ✅ 验证
+- Release / Debug 构建 0 错误通过
+
 ## v0.79.89 (2026-08-20) — 聊天显示裁剪 + 代码预览封顶
 
 - **聊天显示裁剪**：超过 `MaxChatMessages`（默认 1000，范围 100~10000）自动丢弃最旧消息——仅裁显示层（ChatMessages/ChatList），Agent 的 Messages 与会话文件不受影响（恢复会话时按 Agent 消息重建），万级消息下列表不再越滚越慢
