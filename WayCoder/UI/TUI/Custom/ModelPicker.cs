@@ -356,9 +356,11 @@ public static class ModelPicker
                 current,
                 text =>
                 {
-                    try { ApiKeyStore.Set(m.ProviderId, text.Trim()); } catch { }
+                    bool saved;
+                    try { saved = ApiKeyStore.Set(m.ProviderId, text.Trim()); }
+                    catch (Exception ex) { saved = false; ErrorLog.Error("ModelPicker", $"保存 Key 失败: {ex.Message}"); }
                     ReconfigureAgent(m.ProviderId, text.Trim()); // 运行时生效
-                    help.Text = $"已保存 {m.ProviderId} 的 Key";
+                    help.Text = saved ? $"已保存 {m.ProviderId} 的 Key" : $"❌ 保存失败（{m.ProviderId}）——检查写入权限/磁盘";
             help2.Text = "";
                     screen?.MarkDirty();
                     Refresh(false);

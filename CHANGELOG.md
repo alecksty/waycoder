@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.79.79 (2026-08-20) — 静默失败/孤儿进程/超时 二轮修复
+
+- **`ApiKeyStore` 保存失败可见**：`Save`/`Set` 改返回 bool + 记 ErrorLog，此前静默吞 → 用户以为存了重启后 Key 丢失。ModelPicker 保存 Key 失败时提示
+- **致命错误保存会话如实报告**：`Agent` 全部模型失败时 SaveSession 失败不再声称「会话已保存」，改提示检查磁盘/权限
+- **`CheckpointManager` git 命令无超时**：`/checkpoint`、`/undo` 在卡住仓库/网络盘会永久阻塞 → `WaitForExitAsync` 加 15s 超时 + 进程树杀 + 读取 5s 兜底
+- **退出清理孤儿进程**：新增 `ProcessExit` 处理器 → `PersistentShellManager.ShutdownAll()` + `BackgroundTaskManager.ShutdownAll()`（此前应用退出后 cmd/bash 及其内长命令残留）
+- **`StatTool` 目录枚举失败误报「0 个文件」**（权限问题）→ 改为报告错误
+- `BackgroundTaskManager` 新增 `ShutdownAll`
+
+### ✅ 验证
+- 自测 3970 通过（0 真实失败）
+
 ## v0.79.78 (2026-08-20) — 并发/资源/正确性批量修复
 
 双子代理并发审查 + 资源审查结果修复（分三类）：

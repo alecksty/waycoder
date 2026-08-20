@@ -263,6 +263,20 @@ public static class BackgroundTaskManager
         }
     }
 
+    /// <summary>退出时终止所有运行中的后台任务进程（防 cmd/bash 孤儿残留）。</summary>
+    public static void ShutdownAll()
+    {
+        foreach (var id in _tasks.Keys.ToArray())
+        {
+            try
+            {
+                if (_tasks.TryGetValue(id, out var task) && task.Status == "running")
+                    task.Process?.Kill(entireProcessTree: true);
+            }
+            catch { }
+        }
+    }
+
     /// <summary>
     /// 清理已完成的任务。
     /// </summary>

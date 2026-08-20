@@ -76,6 +76,13 @@ public partial class Program
             e.SetObserved();
         };
 
+        // 退出时清理孤儿进程：持久 shell 会话 / 后台任务进程（避免 cmd/bash 及其内长命令残留）
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            try { PersistentShellManager.ShutdownAll(); } catch { }
+            try { BackgroundTaskManager.ShutdownAll(); } catch { }
+        };
+
         // 注册 + 解析 CLI 参数（重复名称自动报错）
         Arguments.BuiltinArgs.RegisterAll();
         var (parsed, exitCode) = Arguments.CliArgRegistry.Parse(args);

@@ -23,8 +23,8 @@ public static class ApiKeyStore
         return keys.TryGetValue(providerId.ToLowerInvariant(), out var key) ? key : null;
     }
 
-    /// <summary>存储指定服务商的 API Key</summary>
-    public static void Set(string providerId, string apiKey)
+    /// <summary>存储指定服务商的 API Key。返回是否保存成功（失败已记日志，调用方可提示用户）。</summary>
+    public static bool Set(string providerId, string apiKey)
     {
         lock (_lock)
         {
@@ -34,7 +34,7 @@ public static class ApiKeyStore
                 keys.Remove(pid);
             else
                 keys[pid] = apiKey.Trim();
-            Save(keys);
+            return Save(keys);
         }
     }
 
@@ -367,7 +367,7 @@ public static class ApiKeyStore
         return null;
     }
 
-    private static void Save(Dictionary<string, string> keys)
+    private static bool Save(Dictionary<string, string> keys)
     {
         try
         {
@@ -381,8 +381,14 @@ public static class ApiKeyStore
             _keys = keys;
             var json = arr.ToJson(true);
             File.WriteAllText(FilePath, json);
+            return true;
         }
-        catch { /* 写入失败不崩溃 */ }
+        catch (Exception ex)
+        {
+            // 保存失败可见：此前静默吞 → 用户以为存了，重启后 Key 丢失
+            ErrorLog.Error("ApiKeyStore", $"API Key 保存失败（{FilePath}）: {ex.Message}");
+            return false;
+        }
     }
 
     /// <summary>清除缓存（测试用）</summary>
