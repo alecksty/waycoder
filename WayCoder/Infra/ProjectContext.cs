@@ -271,16 +271,33 @@ public static class ProjectContext
         var files = new List<string>();
         try
         {
-            foreach (var file in Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories))
-            {
-                var rel = Path.GetRelativePath(root, file);
-                if (IsIgnoredPath(rel)) continue;
-                files.Add(file);
-                if (files.Count >= maxFiles) break;
-            }
+            WalkFiles(root, root, 0, files, maxFiles);
         }
         catch (Exception ex) { DebugLog.Log("ProjectContext", $"SafeGetFiles 失败: {ex.Message}"); }
         return files;
+    }
+
+    /// <summary>受限递归：深度 ≤ 5 + 跳过忽略目录（node_modules/.git/bin 等）+ 提前到 maxFiles 停止。
+    /// 此前 AllDirectories 全递归——在 ~（home）目录启动时 FindProjectRoot 返回 home，递归扫描几十万文件导致启动卡死（TUI 不出现）。</summary>
+    private static void WalkFiles(string root, string dir, int depth, List<string> files, int max)
+    {
+        if (depth > 5 || files.Count >= max) return;
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(dir))
+            {
+                if (files.Count >= max) return;
+                if (IsIgnoredPath(Path.GetRelativePath(root, file))) continue;
+                files.Add(file);
+            }
+            foreach (var sub in Directory.EnumerateDirectories(dir))
+            {
+                if (files.Count >= max) return;
+                if (IsIgnoredPath(Path.GetRelativePath(root, sub))) continue;
+                WalkFiles(root, sub, depth + 1, files, max);
+            }
+        }
+        catch (Exception) { /* 无权限目录等，跳过 */ }
     }
 }
 

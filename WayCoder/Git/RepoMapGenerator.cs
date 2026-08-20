@@ -122,6 +122,7 @@ public static class RepoMapGenerator
         // 1. 收集文件树 + 符号 + 引用
         FileRefs.Clear();
         FileRank.Clear();
+        _entryCount = 0; // 重置条目计数（见 CollectEntries 上限）
         var entries = CollectEntries(root, root);
 
         // 2. 构建引用图谱（扫描 import/using）
@@ -256,34 +257,43 @@ public static class RepoMapGenerator
         string? SymbolInfo
     );
 
+    private static readonly int EntryLimit = 300;   // 单次 RepoMap 收集条目上限
+    private static int _entryCount;                  // 当前收集数（Generate 重置）
+
     private static List<FileEntry> CollectEntries(string root, string currentDir, int depth = 0)
     {
         var entries = new List<FileEntry>();
-        if (depth > 64) return entries; // 深度上限防符号链接环无限递归 → StackOverflow
+        // 深度上限防符号链接环 → StackOverflow；条目上限防 home/超大目录全量递归扫描卡死
+        // （在 ~ 目录启动时 root 是 home，递归几十万文件导致 TUI 永远不出现）
+        if (depth > 8 || _entryCount >= EntryLimit) return entries;
         var rootPrefix = root.Replace('\\', '/').TrimEnd('/') + "/";
 
         try
         {
             foreach (var dir in Directory.GetDirectories(currentDir))
             {
+                if (_entryCount >= EntryLimit) break;
                 var name = Path.GetFileName(dir);
                 var relPath = Path.GetRelativePath(root, dir).Replace('\\', '/');
 
                 if (IsIgnored(relPath) || IsIgnored(relPath + "/") || name.StartsWith('.'))
                     continue;
 
+                _entryCount++;
                 entries.Add(new FileEntry(relPath, name, true, 0, Directory.GetLastWriteTime(dir), null));
                 entries.AddRange(CollectEntries(root, dir, depth + 1));
             }
 
             foreach (var file in Directory.GetFiles(currentDir))
             {
+                if (_entryCount >= EntryLimit) break;
                 var name = Path.GetFileName(file);
                 var relPath = Path.GetRelativePath(root, file).Replace('\\', '/');
 
                 if (IsIgnored(relPath) || name.StartsWith('.') && name != ".env.example")
                     continue;
 
+                _entryCount++;
                 var fi = new FileInfo(file);
                 var symbols = ExtractSymbols(file);
                 var symbolInfo = string.IsNullOrEmpty(symbols) ? null : symbols;
