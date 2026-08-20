@@ -525,6 +525,14 @@ public class ContextManager
     }
 
     /// <summary>
+    /// Rune 安全截断并追加「截断于 N 字符」提示（Office/文档提取等场景统一文案，消除逐字重复）。
+    /// </summary>
+    internal static string TruncateWithNotice(string text, int maxChars, string? suffix = null)
+        => text.Length > maxChars
+            ? TruncateByRunes(text, maxChars) + $"\n...(截断于 {maxChars:N0} 字符{(string.IsNullOrEmpty(suffix) ? "" : $"，{suffix}")})"
+            : text;
+
+    /// <summary>
     /// 取末尾 maxRunes 个 Unicode 码点（不切半代理对），用于「保留头尾」截断的尾部。
     /// text 码点数 &lt;= maxRunes 时原样返回。
     /// </summary>

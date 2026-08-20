@@ -617,8 +617,9 @@ public static class HooksManager
                 return (-1, $"Hook 超时（{actualTimeout / 1000} 秒）");
             }
 
-            var stdout = await stdoutTask;
-            var stderr = await stderrTask;
+            // 守护子进程继承管道会让读取永不 EOF：加超时兜底
+            var stdout = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
+            var stderr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
 
             // stdout 是结构化输出主通道（JSON 决策/理由）；stderr 仅诊断。
             // 若 stderr 非空就改用 stderr，hook 的 block 决策 JSON 会被丢弃 → 危险工具被放行

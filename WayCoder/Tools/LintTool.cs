@@ -350,8 +350,8 @@ public class LintTool : ITool
                 return $"Lint 超时（{Config.Instance.LintTimeoutSec} 秒）: {cmd} {args}";
             }
 
-            var output = await stdoutTask;
-            var errors = await stderrTask;
+            var output = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
+            var errors = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
 
             // 去除 ANSI 转义序列
             output = Terminal.AnsiString.StripWithRegex(output);

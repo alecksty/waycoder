@@ -65,8 +65,8 @@ public class SqliteTool : ITool
                 return "错误：SQL 执行超时（30 秒）";
             }
 
-            var stdout = await stdoutTask;
-            var stderr = await stderrTask;
+            var stdout = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
+            var stderr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
 
             if (proc.ExitCode != 0 && !string.IsNullOrWhiteSpace(stderr))
                 return $"错误：SQL 执行失败 — {stderr.Trim()}";

@@ -90,11 +90,8 @@ public class EditFileTool : ITool
             return $"❌ 已阻止：{sensitive}（安全策略：敏感文件读写受保护）";
 
         // 文件锁检查
-        if (!FileLockManager.TryAcquire(path, agentId))
-        {
-            var lockInfo = FileLockManager.GetLockInfo(path);
-            return $"❌ 文件被锁定: {lockInfo?.Status ?? "未知"} — 请等待锁释放";
-        }
+        var lockErr = FileLockManager.TryAcquireOrError(path, agentId, "请等待锁释放");
+        if (lockErr != null) return lockErr;
 
         try
         {

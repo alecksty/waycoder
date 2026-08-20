@@ -121,8 +121,8 @@ public class KillTool : ITool
                 return $"错误：kill 命令超时（{Config.Instance.KillTimeoutSec}s）";
             }
 
-            var result = await stdoutTask;
-            var err = await stderrTask;
+            var result = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
+            var err = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
 
             if (!string.IsNullOrEmpty(err))
                 result += $"\n[stderr]\n{err}";

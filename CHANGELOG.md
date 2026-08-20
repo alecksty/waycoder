@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.79.81 (2026-08-20) — 重复代码提炼合并 + 管道超时全覆盖
+
+按重复代码审查报告合并（消除约 15 处样板 + 统一语义）：
+
+- **`FileLockManager.TryAcquireOrError`**：合并 4 处逐字相同的「文件被锁定」检查块（EditFile/MultiEdit/NotebookEdit/WriteFile）
+- **`ContextManager.TruncateWithNotice`**：合并 4 处「截断于 N 字符」标记（OfficeExtractor×3 + LegacyOffice），统一 rune 安全截断 + 文案
+- **进程读取超时全覆盖**：把 `ProcUtil.AwaitReadWithTimeoutAsync`（守护子进程继承管道防挂起）补到剩余 9 处裸 `await stdoutTask/stderrTask`（KillTool/LintTool/PsTool/SqliteTool/TestTool/Agent.Feedback/BackgroundTask×2/HooksManager）——消除同类挂起隐患在 Lint/进程/测试/hook 路径的遗漏
+
+### ✅ 验证
+- 自测 3970 通过（0 真实失败）
+- 稳定性验证：WayCoder 自主写 10,428 行网页游戏（22 文件），全程 ~40 分钟无卡死无异常，自测 PASS
+
 ## v0.79.80 (2026-08-20) — 并发细节 + 资源泄漏 三轮修复
 
 - **`ContextManager.IsCompressing` 静态 bool → 计数器**：多 Agent 并行压缩时先完成的会把指示提前清掉（UI「压缩中」消失）。改为 `static int` 计数，最后一个压缩结束才广播 `CompressFinished`
