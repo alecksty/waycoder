@@ -632,8 +632,11 @@ public static class HooksManager
         }
         catch (Exception ex)
         {
-            DebugLog.Log("hooks", $"Hook 异常: {ex.Message}");
-            return (0, "");
+            // fail-closed：hook 启动失败（脚本缺失/解释器错误/权限）按 exit 2 强阻止处理，
+            // PreToolUse 会 block 工具而非放行（此前返回 (0,"") = 放行危险工具，与「不能误放行」设计相悖）。
+            // 非 PreToolUse 事件不读 block 决策，不受影响。
+            DebugLog.Log("hooks", $"Hook 异常（按 exit 2 强阻止处理）: {ex.Message}");
+            return (2, "");
         }
     }
 

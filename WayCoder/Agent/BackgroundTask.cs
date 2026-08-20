@@ -174,14 +174,14 @@ public static class BackgroundTaskManager
         {
             try { proc.Kill(entireProcessTree: true); } catch { }
             task.Status = "timeout";
-            await ioCompletion();
+            await DrainOutput(ioCompletion);
             task.Output = outputGetter().Trim() + "\n[超时]";
             ErrorLog.Warning("BackgroundTask", $"后台任务超时 (id={task.Id}, timeout={timeoutSec}s): {task.Command}");
         }
         else
         {
-            // 进程已退出，等待异步 IO 完成
-            await ioCompletion();
+            // 进程已退出，等待异步 IO 完成（守护子进程继承管道会让读永不 EOF → 加超时）
+            await DrainOutput(ioCompletion);
             task.Status = proc.ExitCode == 0 ? "completed" : "failed";
             task.ExitCode = proc.ExitCode;
             task.Output = outputGetter().Trim();
@@ -192,6 +192,10 @@ public static class BackgroundTaskManager
 
     /// <summary>
     /// 获取任务状态和输出（截断）。
+    /// <summary>等待 IO 收尾（守护子进程继承管道会让 ReadToEndAsync 永不 EOF → 加 5s 兜底，不挂死任务）。</summary>
+    private static async Task DrainOutput(Func<Task> ioCompletion)
+        => await Task.WhenAny(ioCompletion(), Task.Delay(5000));
+
     /// </summary>
     public static string GetOutput(int id)
     {

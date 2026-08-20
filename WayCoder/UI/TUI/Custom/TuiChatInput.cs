@@ -630,9 +630,22 @@ public static class TuiChatInput
                 CreateNoWindow = true,
             };
             using var p = System.Diagnostics.Process.Start(psi);
-            var output = p?.StandardOutput.ReadToEnd();
-            p?.WaitForExitAsync(new CancellationTokenSource(2000).Token).GetAwaiter().GetResult();
-            return output?.TrimEnd();
+            if (p == null) return null;
+            // UI 线程：同步 ReadToEnd 无超时会永久卡死（剪贴板工具被锁）；且守护子进程继承管道会让读永不 EOF。
+            // 改为并发读 + WaitForExit(2s) 超时杀进程 + 读完成再带 2s 兜底，总阻塞上限 ~4s。
+            var readTask = p.StandardOutput.ReadToEndAsync();
+            if (!p.WaitForExit(2000))
+            {
+                try { p.Kill(entireProcessTree: true); } catch { }
+                return null;
+            }
+            var finished = Task.WaitAny(readTask, Task.Delay(2000));
+            if (finished != 0)
+            {
+                try { p.Kill(entireProcessTree: true); } catch { }
+                return null;
+            }
+            return readTask.Result.TrimEnd();
         }
         catch { return null; }
     }

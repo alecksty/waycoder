@@ -1,5 +1,26 @@
 # 更新日志
 
+## v0.79.78 (2026-08-20) — 并发/资源/正确性批量修复
+
+双子代理并发审查 + 资源审查结果修复（分三类）：
+
+**并发崩溃/竞态**
+- **`McpManager.DiscoveredTools` 无锁并发改写**（最确定崩溃）：多 MCP 服务器 fire-and-forget 并行发现时并发 `RemoveAll/Add` 普通 `List`，`ToolRegistry.AllTools` / `McpCache.Save` 枚举会抛 `Collection was modified`。加 `_toolsLock` + 快照方法，变更统一走 `MutateTools`
+- **`/loop`、`/plan` 绕过 IsBusy**：当前槽位 Agent 运行中直接启动第二个 `ChatAsync` → 同一 Agent/LLM 并发（推理缓冲/模型覆盖竞态、输出错乱）。加 IsBusy 守卫拒绝并提示
+- **子智能体 `cd` 泄漏回父 cwd**：`BashTool.CurrentCwd` 是 static AsyncLocal，子智能体 cd 沿同一 async 上下文回传污染父相对路径。执行前保存父值、finally 恢复
+
+**进程读取永久挂起（HIGH）**
+- **守护子进程继承管道 → `ReadToEndAsync` 永不 EOF**：`nohup node &` 等孙进程持有 stdout 写端，主进程退出后读取无超时永久阻塞（BashTool×2 / GitRunner / BatchRunner / BackgroundTask）。新增 `Infra/ProcUtil.AwaitReadWithTimeoutAsync`，统一加 5s 读取超时
+- **`TuiChatInput.ReadClipboard` UI 线程同步 `ReadToEnd` 无超时**（剪贴板工具被锁 → TUI 渲染线程永久卡死）。改并发读 + WaitForExit(2s) + 读完成 2s 兜底
+
+**安全/静默失败**
+- **HooksManager fail-open**：hook 启动失败返回 `(0,"")` 放行危险工具（与「不能误放行」相悖）。改返回 `(2,"")` = 强阻止（仅 PreToolUse 读 block 决策）
+- **`FindReplaceTool` 单文件失败静默吞** → Agent 误以为全部成功。改为报告失败文件
+- **`LegacyOffice.Truncate` 按 char 硬切** → CJK 代理对切出 U+FFFD。改用 `TruncateByRunes`
+
+### ✅ 验证
+- 自测 3970 通过（0 真实失败）
+
 ## v0.79.77 (2026-08-20) — 卡死/崩溃排查修复
 
 排查全部锁/阻塞异步/死循环/网络调用，修复 3 处真实卡死点（其余已验证安全）：

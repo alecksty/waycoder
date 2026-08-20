@@ -629,7 +629,8 @@ public static class LegacyOffice
     }
 
     private static string Truncate(string s, int maxChars)
-        => s.Length > maxChars ? s[..maxChars] + $"\n...(截断于 {maxChars:N0} 字符)" : s;
+        // Rune 安全截断：`s[..maxChars]` 会在 CJK 代理对中间切出 U+FFFD（CLAUDE.md 硬约束）
+        => s.Length > maxChars ? ContextManager.TruncateByRunes(s, maxChars) + $"\n...(截断于 {maxChars:N0} 字符)" : s;
 
     /// <summary>cp1252 单字节 → Unicode（0x80–0x9F 特殊映射，其余 Latin-1）。</summary>
     private static char Cp1252(byte b)
