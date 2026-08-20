@@ -237,7 +237,7 @@ public static class MarkdownParser
                     && !IsHorizontalRule(lines[i].Trim())
                     && !IsListItem(lines[i].TrimStart(), out _, out _, out _))
                 {
-                    if (paraSb.Length > 0) paraSb.Append(' ');
+                    if (paraSb.Length > 0) paraSb.Append('\n'); // 保留换行：多行内容不被空格连接压缩（否则长消息行数塌缩、条目高度不足滚不动）
                     paraSb.Append(lines[i].Trim());
                     i++;
                 }

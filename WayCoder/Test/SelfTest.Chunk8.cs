@@ -1793,6 +1793,55 @@ public static partial class SelfTest
         Check("MarkdownParser 代码块", cNodes.Count == 1 && cNodes[0] is MdCodeBlock cb && cb.Language == "csharp");
         Check("MdCodeBlock 内容", ((MdCodeBlock)cNodes[0]).Code.Contains("Console"));
 
+        // 代码块渲染（TuiMarkdown.RenderMessage → RenderCodeBlock）：文本必须出现在色段里
+        var cRender = WayCoder.UI.Tui.TuiMarkdown.RenderMessage("```csharp\ncode001 = 1;\n```", "assistant", 80);
+        Check("TuiMarkdown 代码块渲染含文本", cRender.Any(l => l.Any(s => s.Text.Contains("code001"))));
+        Check("TuiMarkdown 代码块渲染含行号", cRender.Any(l => l.Any(s => s.Text.Contains("1"))));
+
+        // 端到端：ChatScreen 渲染帧应包含消息正文（TuiListItem → TuiMarkdown → WriteAt 全链路）
+        {
+            var msgScreen = new ChatScreen();
+            msgScreen.Activate();
+            msgScreen.ChatList.Width = 80;
+            msgScreen.ChatList.Height = 20;
+            msgScreen.AddMessage("这是正文测试内容ABCXYZ", "assistant");
+            msgScreen.IsIncrementalUpdate = false;
+            var msgFrame = new System.Text.StringBuilder();
+            msgScreen.Render(msgFrame);
+            Check("ChatScreen 渲染含消息正文", msgFrame.ToString().Contains("ABCXYZ"));
+            msgScreen.Deactivate();
+        }
+
+        // 长消息滚屏：条目高度随正文增长 + 滚动后帧变化（修复「代码超过屏幕卡住无法滚屏」）
+        {
+            var scr2 = new ChatScreen();
+            scr2.Activate();
+            scr2.ChatList.Width = 60;
+            scr2.ChatList.Height = 10;
+            // 多行消息（用户反馈「超过屏幕卡住无法滚屏」——此前多行被段落折叠，条目高度不足）
+            // 纯文本多行：应保留 60 行
+            var longMsg = string.Join("\n", Enumerable.Range(1, 60).Select(i => $"第{i:000}行内容"));
+            scr2.AddMessage(longMsg, "assistant");
+            scr2.ChatList.ReLayout();
+            var bodyRenderLines = WayCoder.UI.Tui.TuiMarkdown.RenderMessage(longMsg, "assistant", 56).Count;
+            Check($"多行纯文本: 正文渲染 {bodyRenderLines} 行 ≥ 60", bodyRenderLines >= 60);
+            Check($"多行纯文本: 条目高度随正文增长 (ContentHeight={scr2.ChatList.ContentHeight})", scr2.ChatList.ContentHeight >= 60);
+            // 代码块长消息也应保留行数
+            var longCode = "```csharp\n" + string.Join("\n", Enumerable.Range(1, 60).Select(i => $"code{i:000} = {i};")) + "\n```";
+            var codeLines2 = WayCoder.UI.Tui.TuiMarkdown.RenderMessage(longCode, "assistant", 56).Count;
+            Check($"长代码块: 正文渲染 {codeLines2} 行 ≥ 60", codeLines2 >= 60);
+            scr2.ChatList.ScrollToBottom();
+            scr2.IsIncrementalUpdate = false;
+            var scr2f1 = new System.Text.StringBuilder();
+            scr2.Render(scr2f1);
+            var bottomFrame2 = scr2f1.ToString();
+            scr2.ChatList.ScrollUp(10);
+            var scr2f2 = new System.Text.StringBuilder();
+            scr2.Render(scr2f2);
+            Check("长消息滚屏: 上滚后帧变化", bottomFrame2 != scr2f2.ToString());
+            scr2.Deactivate();
+        }
+
         // 表格
         var tNodes = MarkdownParser.Parse("| A | B |\n|---|---|\n| 1 | 2 |");
         Check("MarkdownParser 表格", tNodes.Count == 1 && tNodes[0] is MdTable t && t.Headers.Count == 2);
