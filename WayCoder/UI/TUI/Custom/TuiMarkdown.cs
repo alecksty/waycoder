@@ -301,20 +301,25 @@ public static class TuiMarkdown
     private static void RenderParagraph(MdParagraph p,
         List<List<(string, int, int)>> result, int maxWidth, int defaultFg)
     {
-        var segments = MarkdownParser.ParseInline(p.Text, defaultFg);
-        if (segments.Count == 1 && segments[0].Color == defaultFg)
+        // 逐行处理（段落保留原始换行）：每行各自解析内联 + 折行，
+        // 避免多行内容被当成整段折行导致行数塌缩（条目高度不足 → 长内容滚不动）
+        foreach (var rawLine in p.Text.Split('\n'))
         {
-            // 纯文本，需要折行
-            var text = segments[0].Text;
-            foreach (var wrapped in WrapText(text, maxWidth - 2))
+            var segments = MarkdownParser.ParseInline(rawLine, defaultFg);
+            if (segments.Count == 1 && segments[0].Color == defaultFg)
             {
-                result.Add(new List<(string, int, int)> { (wrapped, defaultFg, 0) });
+                // 纯文本，需要折行
+                var text = segments[0].Text;
+                foreach (var wrapped in WrapText(text, maxWidth - 2))
+                {
+                    result.Add(new List<(string, int, int)> { (wrapped, defaultFg, 0) });
+                }
             }
-        }
-        else
-        {
-            // 有内联格式
-            result.Add(segments.ToList());
+            else
+            {
+                // 有内联格式
+                result.Add(segments.ToList());
+            }
         }
     }
 
@@ -330,27 +335,32 @@ public static class TuiMarkdown
     // 工具方法
     // ================================================================
 
-    /// <summary>按视觉宽度折行</summary>
+    /// <summary>按视觉宽度折行。保留原始换行：`\n` 是行分隔符（先按行拆，再各自折行），
+    /// 否则多行消息会被当作一个长段落按宽度折，行数被压缩、条目高度不足 → 长内容显示不全/滚不动。</summary>
     private static List<string> WrapText(string text, int maxVw)
     {
         var lines = new List<string>();
         if (string.IsNullOrEmpty(text)) { lines.Add(""); return lines; }
-        int start = 0;
-        while (start < text.Length)
+        foreach (var rawLine in text.Split('\n'))
         {
-            var slice = text[start..];
-            int vw = 0, chars = 0;
-            foreach (var rune in slice.EnumerateRunes())
+            int start = 0;
+            while (start < rawLine.Length)
             {
-                var w = AnsiHelper.RuneWidth(rune);
-                if (vw + w > maxVw) break;
-                vw += w; chars += rune.Utf16SequenceLength;
+                var slice = rawLine[start..];
+                int vw = 0, chars = 0;
+                foreach (var rune in slice.EnumerateRunes())
+                {
+                    var w = AnsiHelper.RuneWidth(rune);
+                    if (vw + w > maxVw) break;
+                    vw += w; chars += rune.Utf16SequenceLength;
+                }
+                if (chars == 0)
+                    // 首个字符超宽：完整取一个字符，避免切半代理对成 U+FFFD
+                    chars = System.Text.Rune.GetRuneAt(rawLine, start).Utf16SequenceLength;
+                lines.Add(rawLine[start..(start + chars)]);
+                start += chars;
             }
-            if (chars == 0)
-                // 首个字符超宽：完整取一个字符，避免切半代理对成 U+FFFD
-                chars = System.Text.Rune.GetRuneAt(text, start).Utf16SequenceLength;
-            lines.Add(text[start..(start + chars)]);
-            start += chars;
+            if (rawLine.Length == 0) lines.Add("");
         }
         return lines;
     }
