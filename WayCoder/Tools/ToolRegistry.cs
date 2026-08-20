@@ -55,17 +55,27 @@ public static class ToolRegistry
         new TestTool(),
     ];
 
-    /// <summary>所有工具（内置 + MCP 自动发现 + 编译期插件贡献）</summary>
+    /// <summary>缓存：Agent 构造/10 槽位/子智能体频繁访问 AllTools，避免每次重建列表。</summary>
+    private static List<ITool>? _cachedAllTools;
+
+    /// <summary>所有工具（内置 + MCP 自动发现 + 编译期插件贡献）。缓存，MCP 工具变更时失效。</summary>
     public static List<ITool> AllTools
     {
         get
         {
-            var all = new List<ITool>(BuiltinTools);
-            all.AddRange(McpManager.GetDiscoveredToolsSnapshot()); // 快照：MCP 发现并发改写列表中
-            all.AddRange(PluginRegistry.CollectTools());
-            return all;
+            if (_cachedAllTools == null)
+            {
+                var all = new List<ITool>(BuiltinTools);
+                all.AddRange(McpManager.GetDiscoveredToolsSnapshot()); // 快照：MCP 发现并发改写列表中
+                all.AddRange(PluginRegistry.CollectTools());
+                _cachedAllTools = all;
+            }
+            return _cachedAllTools;
         }
     }
+
+    /// <summary>MCP 工具变更时使缓存失效（McpManager.MutateTools 每次变更后调用）。</summary>
+    public static void InvalidateAllToolsCache() => _cachedAllTools = null;
 
     /// <summary>
     /// 子智能体禁止使用的工具名称集合。

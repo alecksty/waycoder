@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.79.84 (2026-08-20) — 优化批次：行尾根治 + 缓存 + 注入防护 + Web 竞态
+
+- **`.gitattributes` 根治 CRLF 行尾噪音**：`* text=auto`（.bat/.ps1/.cmd 保持 CRLF），此后编辑工具写 LF 不再产生整文件行尾 diff
+- **`AllTools` 缓存**：Agent 构造/10 槽位/子智能体频繁访问，改为缓存（MCP 工具变更 + 插件注册/卸载时失效）
+- **提示注入防护**：新增 `PromptInjection` 检测器，read_file 读取内容含「忽略之前指令/你现在是…」等注入模式时附加安全警告（把内容当数据处理）
+- **Web 换模型/存 key 竞态修复**：WebSlot 加 `RunningTask`，/model 与 /model 命令在 Reconfigure 前 `WaitForSlotIdleAsync` 等退场 ChatAsync 收尾（此前中断后立即改配置可能发「新 key+旧端点」）
+
+### ✅ 验证
+- 自测 3970 通过（0 真实失败）
+
 ## v0.79.83 (2026-08-20) — ProcRunner 统一进程运行
 
 - **新增 `ProcUtil.RunAsync(psi, timeoutMs, ct)`**：统一「启动进程 + 并发读 stdout/stderr + 等退出（带超时）+ 超时杀进程树 + 读取兜底」，消除各工具重复样板与三种超时语义差异
