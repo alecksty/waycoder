@@ -393,9 +393,17 @@ public static class CheckpointManager
         // 若只读 stdout，stderr 管道缓冲区写满会阻塞子进程 → 死锁。
         var stdoutTask = proc.StandardOutput.ReadToEndAsync();
         var stderrTask = proc.StandardError.ReadToEndAsync();
-        await proc.WaitForExitAsync();
-        _ = await stderrTask;
-        return await stdoutTask;
+        // WaitForExitAsync 加超时：卡住的仓库/网络盘不能让 /checkpoint、/undo 永久阻塞
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        try { await proc.WaitForExitAsync(timeoutCts.Token); }
+        catch (OperationCanceledException)
+        {
+            try { proc.Kill(entireProcessTree: true); } catch { }
+            return "[checkpoint 命令超时（15s）]";
+        }
+        // 守护子进程继承管道会让读取永不 EOF：加超时兜底
+        _ = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5));
+        return await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
     }
 
     /// <summary>

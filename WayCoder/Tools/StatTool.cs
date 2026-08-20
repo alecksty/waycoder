@@ -53,18 +53,22 @@ public class StatTool : ITool
                 var di = new DirectoryInfo(fullPath);
                 var fileCount = 0;
                 var dirCount = 0;
+                string? enumError = null;
                 try
                 {
                     fileCount = Directory.GetFiles(fullPath).Length;
                     dirCount = Directory.GetDirectories(fullPath).Length;
                 }
-                catch { }
+                catch (Exception ex) { enumError = ex.Message; } // 权限问题不能误报「0 个文件」
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"📁 目录: {di.FullName}");
                 sb.AppendLine($"  创建: {di.CreationTime:yyyy-MM-dd HH:mm:ss}");
                 sb.AppendLine($"  修改: {di.LastWriteTime:yyyy-MM-dd HH:mm:ss}");
-                sb.AppendLine($"  包含: {fileCount} 个文件, {dirCount} 个子目录");
+                if (enumError != null)
+                    sb.AppendLine($"  ⚠ 枚举失败（无权限？）: {enumError}");
+                else
+                    sb.AppendLine($"  包含: {fileCount} 个文件, {dirCount} 个子目录");
                 sb.AppendLine($"  属性: {(di.Attributes == 0 ? "Normal" : di.Attributes.ToString())}");
                 return sb.ToString().TrimEnd();
             }

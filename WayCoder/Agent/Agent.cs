@@ -355,8 +355,13 @@ public partial class Agent
                 // 致命错误（如所有模型失败）：保存会话后退出
                 if (resp.IsFatalError)
                 {
-                    try { SessionManager.SaveSession(Messages, LlmClient.EffectiveModel); } catch { }
-                    return resp.Content ?? "[致命错误] 所有模型失败，会话已保存。";
+                    // 保存失败要如实说：此前 catch{} 后仍声称「会话已保存」，磁盘满时误导用户丢失会话
+                    bool saved;
+                    try { saved = SessionManager.SaveSession(Messages, LlmClient.EffectiveModel) != null; }
+                    catch (Exception ex) { saved = false; ErrorLog.Error("Agent", $"致命错误时保存会话失败: {ex.Message}"); }
+                    return resp.Content ?? (saved
+                        ? "[致命错误] 所有模型失败，会话已保存。"
+                        : "[致命错误] 所有模型失败，且会话保存失败（检查磁盘/权限）。");
                 }
 
                 AddMessage(resp.ToMessage());
