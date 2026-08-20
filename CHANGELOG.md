@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.79.69 (2026-08-20) — 写文件内容聊天区展示 + Crush 模型导入
+
+- **写文件内容聊天区内联展示**（对标 Claude Code `FileEditToolUpdatedMessage` 内联 diff）——write_file/edit_file/multiedit 完成后，把写入内容以 diff 格式（行号 + `+`/`-` 标记 + 颜色）直接内联展示在聊天区，占满聊天宽度、无弹窗：
+  - 新增 `ContentDiffFormatter`（纯函数，`«»` 中间格式）：`write_file` 全量新增（头行 `path · N 行` + 每行 `行号 +内容` 绿色）；`edit_file`/`multiedit` 变更 diff（`+N/-M` 头行 + hunk 头青色 + `+`绿/`-`红/上下文灰）；CRLF 归一化、超 2000 行截断防刷屏
+  - `Agent.ExecuteToolAsync` 写盘成功后读回内容，经既有 `onToolOutput` 单次注入聊天区 —— **仅展示、LLM 上下文保持摘要不膨胀**（显示与模型解耦）；非 TUI/一次性模式自动跳过
+  - 新增开关 `WAYCODER_WRITE_CONTENT_VIEW`（`Config.WriteContentView`，默认开，SettingsScreen 同步）
+- **删除 Tiny 测试代码**（`TestTinyMode`/`TestTinyWindow`，tiny 模式已作废）
+- **支持导入 Crush 模型数据**——`--model import crush` 现可读取 `%LOCALAPPDATA%\crush\crush.json` + `providers.json`（Catwalk 内置目录，40 provider / 1506 模型），Unix `~/.config/crush/` 兜底：
+  - `ImportCrush` 支持 providers.json 数组格式 + crush.json providers 对象格式，读 `api_endpoint`/`base_url`
+  - `ParseModelNode` 支持 Crush snake_case 字段（`cost_per_1m_in/out`、`context_window`、`default_max_tokens`）
+  - 使用手册导入路径说明同步
+- **清理误归属模型数据**：移除 `~/.waycoder/provider/opencode.json` 中误归属为 opencode 的内置 deepseek 模型（`deepseek-v4-pro/flash`）——修复切换模型错误路由到 opencode baseUrl + 2 项自测失败
+
+### ✅ 验证
+- 自测 3944 通过（新增 ContentDiff 14 项 + Crush 导入 4 项；0 真实失败，框架既有 1 项 Console 重定向计数怪癖不计）
+
 ## v0.79.68 (2026-08-20) — 界面打磨批次
 
 - **侧边栏空分区误导截断**：配额 0 时不再显示"… 还有 N 条"（Todo 0/0 却显示"还有 1 条"），只留标题

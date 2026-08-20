@@ -202,11 +202,15 @@ public static class ModelCli
     private static List<ModelCatalog.ModelInfo> ImportOne(string source, string home, List<string> reports)
     {
         var src = source is "claudecode" ? "claude" : source;
+
+        // Crush：crush.json（自定义 providers）+ providers.json（Catwalk 目录），Windows/Unix 双位置
+        if (src == "crush")
+            return ImportCrushFiles(home, reports);
+
         var (path, name) = src switch
         {
             "opencode" => (Path.Combine(home, ".config", "opencode", "opencode.json"), "OpenCode"),
             "openclaw" => (Path.Combine(home, ".openclaw", "openclaw.json"), "OpenClaw"),
-            "crush" => (Path.Combine(home, ".config", "crush", "config.json"), "Crush"),
             "claude" => (Path.Combine(home, ".claude", "settings.json"), "Claude Code"),
             "codex" => (Path.Combine(home, ".codex", "config.toml"), "Codex"),
             _ => ("", ""),
@@ -231,7 +235,6 @@ public static class ModelCli
             {
                 "opencode" => ModelCatalog.ImportOpenCode(text),
                 "openclaw" => ModelCatalog.ImportOpenClaw(text),
-                "crush" => ModelCatalog.ImportCrush(text),
                 "claude" => ModelCatalog.ImportClaude(text),
                 "codex" => ModelCatalog.ImportCodex(text),
                 _ => [],
@@ -240,6 +243,39 @@ public static class ModelCli
             return list;
         }
         catch { return []; }
+    }
+
+    /// <summary>导入 Crush 模型数据：crush.json（用户自定义 providers）+ providers.json（Catwalk 内置目录）。
+    /// Windows 用 %LOCALAPPDATA%\crush，Unix 用 ~/.config/crush；旧 config.json 兜底兼容。</summary>
+    private static List<ModelCatalog.ModelInfo> ImportCrushFiles(string home, List<string> reports)
+    {
+        var result = new List<ModelCatalog.ModelInfo>();
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+        var candidates = new[]
+        {
+            (Path.Combine(localAppData, "crush", "crush.json"),      "Crush 配置"),
+            (Path.Combine(localAppData, "crush", "providers.json"),  "Crush 模型目录"),
+            (Path.Combine(home, ".config", "crush", "crush.json"),   "Crush 配置"),
+            (Path.Combine(home, ".config", "crush", "providers.json"), "Crush 模型目录"),
+            (Path.Combine(home, ".config", "crush", "config.json"),  "Crush 配置"), // 旧文档兼容
+        };
+
+        foreach (var (path, name) in candidates)
+        {
+            if (!File.Exists(path)) continue;
+            try
+            {
+                var list = ModelCatalog.ImportCrush(File.ReadAllText(path));
+                if (list.Count > 0)
+                {
+                    result.AddRange(list);
+                    reports.Add(name);
+                }
+            }
+            catch { }
+        }
+        return result;
     }
 
     /// <summary>删除自定义模型（从全局+本地模型库移除）</summary>

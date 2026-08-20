@@ -312,56 +312,6 @@ public static partial class SelfTest
         Check("StopWhen: Reset 后不触发压缩", !cm5.ShouldStopAndSummarize());
     }
 
-    /// <summary>Tiny 模式测试（4K 窗口 + 精简提示词）</summary>
-    private static void TestTinyMode(Action<string, bool> Check)
-    {
-        Check("Tiny: 窗口常量 = 4096", Config.TinyContextWindow == 4096);
-        Check("Tiny: 默认关闭", new Config().TinyMode == false);
-
-        // ResolveContextWindow 在 TinyMode 下固定 4K，忽略模型窗口
-        var saved = Config.Instance.TinyMode;
-        Config.Instance.TinyMode = true;
-        Check("Tiny: 窗口固定 4K（忽略模型）", ModelCatalog.ResolveContextWindow("deepseek-v4-pro") == 4096);
-        Config.Instance.TinyMode = false;
-        Check("Tiny: 关闭后恢复模型窗口", ModelCatalog.ResolveContextWindow("deepseek-v4-pro") == 1_048_576);
-
-        // 系统提示词精简
-        Config.Instance.TinyMode = true;
-        var tinyPrompt = SystemPrompt.Generate(ToolRegistry.AllTools);
-        Config.Instance.TinyMode = saved;
-        Check("Tiny: 提示词精简 <3000 字符", tinyPrompt.Length < 3000);
-        Check("Tiny: 含工具列表", tinyPrompt.Contains("bash"));
-        Check("Tiny: 含先读后改规则", tinyPrompt.Contains("先读后改"));
-        Check("Tiny: 含工作目录", tinyPrompt.Contains("工作目录"));
-    }
-
-    private static void TestTinyWindow(Action<string, bool> Check)
-    {
-        // 窗口规格解析
-        Check("Tiny: ParseWindowSpec 8k → 8192", ModelCatalog.ParseWindowSpec("8k") == 8192);
-        Check("Tiny: ParseWindowSpec 8192 → 8192", ModelCatalog.ParseWindowSpec("8192") == 8192);
-        Check("Tiny: ParseWindowSpec 4K → 4096", ModelCatalog.ParseWindowSpec("4K") == 4096);
-        Check("Tiny: ParseWindowSpec 16k → 16384", ModelCatalog.ParseWindowSpec("16k") == 16384);
-        Check("Tiny: ParseWindowSpec 非法 → null", ModelCatalog.ParseWindowSpec("abc") == null);
-        Check("Tiny: ParseWindowSpec 空 → null", ModelCatalog.ParseWindowSpec("") == null);
-        Check("Tiny: ParseWindowSpec 0 → null", ModelCatalog.ParseWindowSpec("0") == null);
-
-        // 显式指定窗口
-        Check("Tiny: --tiny 8k 指定窗口", ModelCatalog.ResolveTinyWindow("8k", null, null) == 8192);
-
-        // 自动探测：非 ollama 走目录；未知模型兜底 4K
-        Check("Tiny: 自动探测目录窗口", ModelCatalog.ResolveTinyWindow(null, "deepseek-v4-pro", null) == 1_048_576);
-        Check("Tiny: 自动探测失败兜底 4K", ModelCatalog.ResolveTinyWindow(null, "未知模型xyz", null) == 4096);
-
-        // ProbeModelWindow
-        Check("Tiny: ProbeModelWindow 目录命中", ModelCatalog.ProbeModelWindow("deepseek-v4-pro", null, 1000) == 1_048_576);
-        Check("Tiny: ProbeModelWindow 兜底", ModelCatalog.ProbeModelWindow("未知xyz", null, 4096) == 4096);
-
-        // Ollama base url 识别
-        Check("Tiny: IsOllamaBaseUrl localhost", ModelCatalog.IsOllamaBaseUrl("http://localhost:11434"));
-        Check("Tiny: IsOllamaBaseUrl 非 ollama", !ModelCatalog.IsOllamaBaseUrl("https://api.deepseek.com"));
-    }
-
     /// <summary>省 token 模式（EconomyMode 三态 + 优先级）测试</summary>
     private static void TestEconomyMode(Action<string, bool> Check)
     {

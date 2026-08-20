@@ -148,6 +148,7 @@ public class Config
     public bool EditorLint { get; set; } = true;
     public string EditorIndent { get; set; } = "tab";   // "tab"=制表符 / "space"=4 空格
     public bool DiffPreview { get; set; } = false;
+    public bool WriteContentView { get; set; } = true;
     public bool DesktopNotifications { get; set; } = false;
     public int ToolTimeoutSec { get; set; } = 120;
     public string AllowedTools { get; set; } = "";     // 逗号分隔白名单，空=全部允许
@@ -677,6 +678,12 @@ public class Config
               "select", ["false","true"], 6,
               c => c.DiffPreview.ToString().ToLowerInvariant(),
               (c, v) => c.DiffPreview = bool.Parse(v), "false"),
+
+            P("WriteContentView", "WAYCODER_WRITE_CONTENT_VIEW", null,
+              "写入内容展示", "🔧 系统", "write_file/edit_file/multiedit 完成后在聊天区内联展示写入内容（diff 格式：行号+标记；非交互模式自动跳过）",
+              "select", ["false","true"], 8,
+              c => c.WriteContentView.ToString().ToLowerInvariant(),
+              (c, v) => c.WriteContentView = bool.Parse(v), "true"),
 
             P("DesktopNotifications", "WAYCODER_ENABLE_NOTIFICATIONS", null,
               "桌面通知", "🔧 系统", "Agent 完成/权限等待时发送桌面通知（默认关闭）",

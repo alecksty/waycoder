@@ -691,26 +691,30 @@ public static class ModelCatalog
               ?? node.AsString();
         if (string.IsNullOrWhiteSpace(id)) return null;
 
-        // 上下文 / 输出窗口：兼容 contextWindow / maxTokens / limit.context / limit.output
+        // 上下文 / 输出窗口：兼容 contextWindow / maxTokens / limit.context / limit.output / Crush snake_case
         var limit = Obj(node["limit"]);
         var contextWindow = IntOpt(node["contextWindow"])
             ?? IntOpt(limit?["context"])
             ?? IntOpt(node["contextLength"])
+            ?? IntOpt(node["context_window"]) // Crush
             ?? 0;
         var maxOutput = IntOpt(node["maxOutput"])
             ?? IntOpt(limit?["output"])
             ?? IntOpt(node["maxTokens"])
+            ?? IntOpt(node["default_max_tokens"]) // Crush
             ?? 0;
 
-        // 计费：兼容 cost.input/output、pricing.input/output、inputPrice/outputPrice
+        // 计费：兼容 cost.input/output、pricing.input/output、inputPrice/outputPrice、Crush cost_per_1m_*
         var cost = Obj(node["cost"]);
         var inputPrice = DblOpt(node["inputPrice"])
             ?? DblOpt(cost?["input"])
             ?? DblOpt(node["pricing"]?["input"])
+            ?? DblOpt(node["cost_per_1m_in"]) // Crush
             ?? 0;
         var outputPrice = DblOpt(node["outputPrice"])
             ?? DblOpt(cost?["output"])
             ?? DblOpt(node["pricing"]?["output"])
+            ?? DblOpt(node["cost_per_1m_out"]) // Crush
             ?? 0;
 
         var providerId = (node["provider"]?.AsString() ?? "import").ToLowerInvariant().Replace(" ", "-");
@@ -848,19 +852,54 @@ public static class ModelCatalog
         return result;
     }
 
-    /// <summary>Crush 格式：config.providers（若为 JSON），否则返回空（Crush 用 SQLite 存储）</summary>
+    /// <summary>
+    /// Crush 模型数据。两种格式：
+    ///   1. providers.json（Catwalk 内置目录）—— 数组 [{ id, name, api_endpoint, models:[{id,name,cost_per_1m_in/out,context_window,default_max_tokens}] }]
+    ///   2. crush.json（用户自定义）—— { providers: { &lt;pid&gt;: { type, base_url, models:[...] } } }
+    /// </summary>
     public static List<ModelInfo> ImportCrush(string json)
     {
         var result = new List<ModelInfo>();
         var root = Json.Parse(NormalizeJson5(json));
         if (root == null) return result;
+
+        // 格式 1：providers.json 数组（Catwalk 目录）
+        if (Arr(root) is { } list)
+        {
+            foreach (var item in list.Items)
+            {
+                var pid = item?["id"]?.AsString() ?? item?["name"]?.AsString();
+                if (string.IsNullOrWhiteSpace(pid)) continue;
+                var pname = item?["name"]?.AsString() ?? pid;
+                var baseUrl = item?["api_endpoint"]?.AsString()
+                           ?? item?["base_url"]?.AsString()
+                           ?? item?["baseUrl"]?.AsString();
+                if (Arr(item?["models"]) is not { } models) continue;
+                foreach (var m in models.Items)
+                {
+                    var info = ParseModelNode(m);
+                    if (info == null) continue;
+                    result.Add(info with
+                    {
+                        ProviderId = pid.ToLowerInvariant(),
+                        Provider = pname,
+                        DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl,
+                        Description = $"从 Crush 导入（{pname}）",
+                    });
+                }
+            }
+            return result;
+        }
+
+        // 格式 2：crush.json providers 对象
         var providers = Obj(root["providers"])
                      ?? Obj(root["provider"]);
         if (providers != null)
         {
             foreach (var (pid, pcfg) in providers.Entries)
             {
-                var baseUrl = pcfg?["baseUrl"]?.AsString()
+                var baseUrl = pcfg?["base_url"]?.AsString() // Crush 用 snake_case
+                           ?? pcfg?["baseUrl"]?.AsString()
                            ?? pcfg?["baseURL"]?.AsString();
                 var modelsNode = pcfg?["models"];
                 if (Arr(modelsNode) is { } arr)
@@ -869,7 +908,13 @@ public static class ModelCatalog
                     {
                         var info = ParseModelNode(m);
                         if (info == null) continue;
-                        result.Add(info with { ProviderId = pid.ToLowerInvariant(), Provider = pid, DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl });
+                        result.Add(info with
+                        {
+                            ProviderId = pid.ToLowerInvariant(),
+                            Provider = pid,
+                            DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl,
+                            Description = $"从 Crush 导入（{pid}）",
+                        });
                     }
                 }
                 else if (Obj(modelsNode) is { } mobj)
@@ -878,7 +923,14 @@ public static class ModelCatalog
                     {
                         var info = ParseModelNode(mcfg);
                         if (info != null)
-                            result.Add(info with { Id = mid, ProviderId = pid.ToLowerInvariant(), Provider = pid, DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl });
+                            result.Add(info with
+                            {
+                                Id = mid,
+                                ProviderId = pid.ToLowerInvariant(),
+                                Provider = pid,
+                                DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl,
+                                Description = $"从 Crush 导入（{pid}）",
+                            });
                     }
                 }
             }
