@@ -149,6 +149,7 @@ public class Config
     public string EditorIndent { get; set; } = "tab";   // "tab"=制表符 / "space"=4 空格
     public bool DiffPreview { get; set; } = false;
     public bool WriteContentView { get; set; } = true;
+    public bool MouseEnabled { get; set; } = true;
     public bool DesktopNotifications { get; set; } = false;
     public int ToolTimeoutSec { get; set; } = 120;
     public string AllowedTools { get; set; } = "";     // 逗号分隔白名单，空=全部允许
@@ -686,6 +687,12 @@ public class Config
               "select", ["false","true"], 8,
               c => c.WriteContentView.ToString().ToLowerInvariant(),
               (c, v) => c.WriteContentView = bool.Parse(v), "true"),
+
+            P("MouseEnabled",      "WAYCODER_MOUSE",            null,
+              "鼠标支持", "🔧 系统", "启用终端鼠标（点击/滚动/移动；终端不支持或误触时关闭）",
+              "select", ["false","true"], 8,
+              c => c.MouseEnabled.ToString().ToLowerInvariant(),
+              (c, v) => c.MouseEnabled = bool.Parse(v), "true"),
 
             P("DesktopNotifications", "WAYCODER_ENABLE_NOTIFICATIONS", null,
               "桌面通知", "🔧 系统", "Agent 完成/权限等待时发送桌面通知（默认关闭）",
