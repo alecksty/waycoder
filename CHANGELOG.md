@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.79.75 (2026-08-20) — 修复 Ctrl+Shift+P 拦截 + Keypad 快捷键验证脚本
+
+- **修复 Ctrl+Shift+P 被 Ctrl+P 建议条拦截**：`HandleGlobalShortcut` 的 `if (ctrl)` 块不区分 shift，`case ConsoleKey.P` 会把 Ctrl+Shift+P 当 Ctrl+P 处理 → 打开建议条而非命令面板。现将 Ctrl+Shift+P 检查移到 `if (ctrl)` 块之前，命令面板正常打开
+- **命令面板走回调**：ChatScreen 新增 `OnOpenCommandPalette`（Program.Repl 接线、Keypad 可绑定标记），与其它快捷键回调一致
+- **Keypad 快捷键验证脚本** `Test/keypad_keybinds.txt`：`waycoder --keypad keypad_keybinds.txt` 一键验证全部回调绑定快捷键 —— `Ctrl+S/D/M/G/H` + 新增 `Alt+P`（模型）+ `Ctrl+Shift+P`（命令面板）均触发对应回调标记；导航/模式/刷新/槽位/退出确认以 SNAP 帧核对
+- 说明：`Ctrl+R` 弹阻塞输入框（UxHelper.Ask）无法脚本驱动，由单元自测覆盖
+
+### ✅ 验证
+- Keypad 脚本：7 个回调绑定键全部触发标记
+- 自测 3969 通过（新增命令面板 10 项）
+
 ## v0.79.74 (2026-08-20) — 快捷键对齐 Claude Code / OpenCode（命令面板）
 
 - **`Ctrl+Shift+P` 命令面板**（对齐 Claude Code quickOpen / OpenCode）——`CommandPalette` 此前已实现但从未接线，现接上并精选最常用命令（对标竞品，避免刷屏）：

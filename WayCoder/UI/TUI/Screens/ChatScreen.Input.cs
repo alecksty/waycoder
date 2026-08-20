@@ -642,6 +642,14 @@ public partial class ChatScreen : TuiScreen
     /// <summary>全局快捷键：Ctrl+E/T/O/B/R/M/H/Q, F1-F10, Ctrl+Home/End/Up/Down</summary>
     private bool HandleGlobalShortcut(ConsoleKeyInfo key, bool ctrl, bool shift)
     {
+        // ── Ctrl+Shift+P 命令面板（对齐 Claude Code quickOpen / OpenCode）──
+        // 必须在 `if (ctrl)` 块之前：否则 case ConsoleKey.P 会先把它当 Ctrl+P 建议条处理。
+        if (ctrl && shift && key.Key == ConsoleKey.P)
+        {
+            OpenCommandPalette();
+            return true;
+        }
+
         // ── Ctrl 组合键 ──
         if (ctrl)
         {
@@ -708,13 +716,6 @@ public partial class ChatScreen : TuiScreen
                     ChatScrollDown(3);
                     return true;
             }
-        }
-
-        // ── Ctrl+Shift+P 命令面板（对齐 Claude Code quickOpen / OpenCode）──
-        if (ctrl && shift && key.Key == ConsoleKey.P)
-        {
-            OpenCommandPalette();
-            return true;
         }
 
         // ── Ctrl+Shift+F1 主题选择 / Ctrl+Shift+F2 直接轮转 ──
