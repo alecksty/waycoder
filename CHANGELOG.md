@@ -1,5 +1,26 @@
 # 更新日志
 
+## v0.79.85 (2026-08-20) — 能力验证：10K 行游戏自主开发 + 自主修复
+
+**稳定性/自主能力里程碑验证**：
+
+- **WayCoder 自主开发 10,428 行网页游戏**（`/d/code-agents/game-test`，22 文件，类吸血鬼幸存者）：
+  - 全程 ~40 分钟运行，**无卡死、无异常**（错误日志 0 条），验证本轮全部稳定性修复（进程管道超时/锁/渲染兜底/并发）
+  - 模块化结构：combat/ui/entities/ai/levels/items/skills/shop/weather/bestiary/elites/tutorial/stats/save…
+  - 自主写 `smoke-test.js` 并运行通过（SMOKE TEST PASSED）
+- **WayCoder 自主诊断并修复游戏 bug**（「点不进去」= 主菜单点击/按键失效）：
+  - 根因：`engine.js` 输入边沿检测时序错误——浏览器事件先于 rAF 帧执行，`prevDown` 快照已同步，`mousePressed()/keyPressed()` 恒 false
+  - 修复：改事件驱动「按下标志 + 消费即清除 + 帧末防残留」，移除失效快照
+  - 验证：事件时序模拟 + `smoke-test.js` PASS，无回归
+- 闭环验证了「写码 → 用户发现 bug → 自主诊断修复」的完整自愈能力
+
+### ✅ 本轮会话累计（v0.79.77→85）
+- 卡死/崩溃排查修复（进程管道超时、锁超时、渲染兜底）
+- 并发竞态（McpManager 列表、/loop /plan IsBusy、子智能体 cd）
+- 资源泄漏/孤儿进程/静默失败
+- 重复代码提炼合并（FileLock/截断/错误前缀/渲染器/ProcRunner）
+- 提示注入防护、Web 竞态、行尾根治（.gitattributes）、AllTools 缓存
+
 ## v0.79.84 (2026-08-20) — 优化批次：行尾根治 + 缓存 + 注入防护 + Web 竞态
 
 - **`.gitattributes` 根治 CRLF 行尾噪音**：`* text=auto`（.bat/.ps1/.cmd 保持 CRLF），此后编辑工具写 LF 不再产生整文件行尾 diff
