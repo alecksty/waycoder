@@ -230,9 +230,9 @@ public class BashTool : ITool, ICancellableTool
                            $"使用 job_kill 工具终止任务（参数 shell_id={bgId}）";
                 }
 
-                // 等待异步读取完成
-                var outStr = await stdoutTask;
-                var errStr = await stderrTask;
+                // 等待异步读取完成（带超时：守护子进程继承管道会让 ReadToEndAsync 永不 EOF）
+                var outStr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
+                var errStr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
 
                 // 跟踪 cd 命令
                 if (proc.ExitCode == 0)
@@ -339,8 +339,8 @@ public class BashTool : ITool, ICancellableTool
                        $"使用 job_kill 工具终止任务（参数 shell_id={bgId}）";
             }
 
-            // 给流读取一个收尾窗口
-            await Task.WhenAll(stdoutTask, stderrTask);
+            // 给流读取一个收尾窗口（守护子进程继承管道会让读永不 EOF，加超时防挂起）
+            await Task.WhenAny(Task.WhenAll(stdoutTask, stderrTask), Task.Delay(5000));
 
             var outStream = outBuilder.ToString();
 

@@ -107,7 +107,10 @@ public static class GitRunner
                 try { proc.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
                 throw;
             }
-            return (proc.ExitCode, await stdoutTask, await stderrTask);
+            // 守护子进程继承管道会让 ReadToEndAsync 永不 EOF：读取加超时，超时按空输出降级
+            var outStr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
+            var errStr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
+            return (proc.ExitCode, outStr, errStr);
         }
         catch (OperationCanceledException)
         {

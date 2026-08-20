@@ -954,14 +954,26 @@ public partial class Program
             return;
         }
 
+        // /loop 与 /plan 会直接启动 ChatAsync：若当前槽位 Agent 正在后台运行，
+        // 不检查 IsBusy 会造成同一 Agent/LLM 并发 ChatAsync（推理缓冲/模型覆盖竞态、输出错乱）。
         if (userInput.StartsWith("/loop "))
         {
+            if (_slots[_activeSlot].IsBusy)
+            {
+                screen.AddSystemMsg("⚠ 当前槽位 Agent 正在运行中，/loop 无法启动（请先 Esc 中断或等待完成）");
+                return;
+            }
             await RunLoopAsync(userInput[6..].Trim(), screen);
             return;
         }
 
         if (userInput == "/plan")
         {
+            if (_slots[_activeSlot].IsBusy)
+            {
+                screen.AddSystemMsg("⚠ 当前槽位 Agent 正在运行中，/plan 无法启动（请先 Esc 中断或等待完成）");
+                return;
+            }
             screen.AddSystemMsg("📋 计划模式");
             await PlanModeAsync();
             return;

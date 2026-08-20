@@ -22,8 +22,24 @@ public static class McpManager
     private static readonly object _stateLock = new();
     private static bool _initialized;
 
-    /// <summary>所有已发现的 MCP 工具</summary>
+    /// <summary>所有已发现的 MCP 工具（仅经 <see cref="MutateTools"/> 修改，读者用快照）。</summary>
     public static List<ITool> DiscoveredTools { get; } = [];
+
+    /// <summary>DiscoveredTools 互斥锁：多服务器并行发现（fire-and-forget）会并发 RemoveAll/Add，
+    /// 同时 ToolRegistry.AllTools / McpCache.Save 在另一线程枚举 —— 无锁会抛 Collection was modified。</summary>
+    private static readonly object _toolsLock = new();
+
+    /// <summary>加锁执行工具列表变更（RemoveAll/Add/Clear 统一走这里）。</summary>
+    private static void MutateTools(Action action)
+    {
+        lock (_toolsLock) action();
+    }
+
+    /// <summary>安全快照（读者用）：锁内拷贝，避免与并发发现竞态。</summary>
+    public static List<ITool> GetDiscoveredToolsSnapshot()
+    {
+        lock (_toolsLock) return new List<ITool>(DiscoveredTools);
+    }
 
     /// <summary>MCP 连接状态信息，供 UI 面板展示</summary>
     public static string Info { get; private set; } = "未配置";
@@ -212,7 +228,7 @@ public static class McpManager
             await DiscoverToolsAsync(conn, name);
 
             // 发现成功后更新缓存
-            McpCache.Save(DiscoveredTools);
+            McpCache.Save(GetDiscoveredToolsSnapshot());
             UpdateInfo();
         }
         catch (Exception ex)
@@ -233,7 +249,7 @@ public static class McpManager
             await DiscoverToolsAsync(conn, name);
 
             // 发现成功后更新缓存
-            McpCache.Save(DiscoveredTools);
+            McpCache.Save(GetDiscoveredToolsSnapshot());
             UpdateInfo();
         }
         catch (Exception ex)
@@ -254,7 +270,7 @@ public static class McpManager
             await DiscoverToolsAsync(conn, name);
 
             // 发现成功后更新缓存
-            McpCache.Save(DiscoveredTools);
+            McpCache.Save(GetDiscoveredToolsSnapshot());
             UpdateInfo();
         }
         catch (Exception ex)
@@ -287,7 +303,7 @@ public static class McpManager
 
         // 移除该服务器的旧工具/资源/提示词（缓存可能有旧版本）
         var prefix = $"mcp__{name}__";
-        DiscoveredTools.RemoveAll(t => t.Name.StartsWith(prefix, StringComparison.Ordinal));
+        MutateTools(() => DiscoveredTools.RemoveAll(t => t.Name.StartsWith(prefix, StringComparison.Ordinal)));
 
         // 发现工具: tools/list
         int toolCount = 0;
@@ -297,7 +313,7 @@ public static class McpManager
         {
             foreach (var toolNode in tools.Items)
             {
-                DiscoveredTools.Add(new McpTool(name, toolNode, conn));
+                MutateTools(() => DiscoveredTools.Add(new McpTool(name, toolNode, conn)));
                 toolCount++;
             }
         }
@@ -323,7 +339,7 @@ public static class McpManager
             var resp = await conn.SendRequestAsync("resources/list", JNode.Object());
             var resources = resp?["result"]?["resources"];
             if (resources == null || resources.Count == 0) return 0;
-            DiscoveredTools.Add(new McpResourceTool(name, resources, conn));
+            MutateTools(() => DiscoveredTools.Add(new McpResourceTool(name, resources, conn)));
             return resources.Count;
         }
         catch (Exception ex)
@@ -344,7 +360,7 @@ public static class McpManager
             int count = 0;
             foreach (var p in prompts.Items)
             {
-                DiscoveredTools.Add(new McpPromptTool(name, p, conn));
+                MutateTools(() => DiscoveredTools.Add(new McpPromptTool(name, p, conn)));
                 count++;
             }
             return count;
@@ -416,7 +432,7 @@ public static class McpManager
 
         // 移除该服务器的旧工具
         var prefix = $"mcp__{name}__";
-        DiscoveredTools.RemoveAll(t => t.Name.StartsWith(prefix, StringComparison.Ordinal));
+        MutateTools(() => DiscoveredTools.RemoveAll(t => t.Name.StartsWith(prefix, StringComparison.Ordinal)));
     }
 
     /// <summary>
@@ -476,7 +492,7 @@ public static class McpManager
             catch { }
         }
         _connections.Clear();
-        DiscoveredTools.Clear();
+        MutateTools(() => DiscoveredTools.Clear());
         lock (_stateLock) _states.Clear();
     }
 

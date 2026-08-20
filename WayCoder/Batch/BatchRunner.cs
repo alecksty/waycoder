@@ -125,8 +125,9 @@ public sealed class BatchRunner
         var stdoutTask = proc.StandardOutput.ReadToEndAsync();
         var stderrTask = proc.StandardError.ReadToEndAsync();
         await proc.WaitForExitAsync();
-        var stdout = await stdoutTask;
-        var stderr = await stderrTask;
+        // 守护子进程继承管道会让 ReadToEndAsync 永不 EOF：读取加超时
+        var stdout = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
+        var stderr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
         if (ct.IsCancellationRequested)
             return (-1, stdout, $"任务超时被终止");
         return (proc.ExitCode, stdout, stderr);
