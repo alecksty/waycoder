@@ -154,11 +154,11 @@ public static class TuiKeybindHelp
         {
             list.AddItem(new TuiLabel("─ " + cat + " ─") { Height = 1, Fg = AnsiColors.Cyan });
             foreach (var (key, desc) in bindings)
-                list.AddItem(new TuiLabel("  " + PadKey(key, KeyW) + "  " + desc) { Height = 1, Fg = AnsiColors.White });
+                list.AddItem(new TuiLabel("  " + PadKey(key, KeyW) + "  " + desc) { Height = 1, Fg = AnsiColors.Black }); // 灰底黑字（白字压灰底对比度低）
         }
         list.AddItem(new TuiLabel("") { Height = 1 });
         foreach (var line in Footnote)
-            list.AddItem(new TuiLabel(line) { Height = 1, Fg = AnsiColors.Yellow });
+            list.AddItem(new TuiLabel(line) { Height = 1, Fg = AnsiColors.Black });
 
         void Close()
         {

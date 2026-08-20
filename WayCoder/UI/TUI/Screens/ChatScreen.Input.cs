@@ -207,7 +207,7 @@ public partial class ChatScreen : TuiScreen
                 Width = panelW,
                 Height = 1,
                 Fg = i == selectedIdx ? 30 : 37,
-                Bg = i == selectedIdx ? 46 : 7
+                Bg = i == selectedIdx ? AnsiColors.BgWhite : 0 // 选中=白底黑字（7 是反白转义，浅色主题下会错乱）
             };
             SuggestPanel.Add(label);
         }
@@ -427,8 +427,9 @@ public partial class ChatScreen : TuiScreen
         var h = Math.Min(items.Count, PromptBar.MaxVisible);
         // Bg==0 边框模式需 +2（上下边框），Bg>0 填充模式需 +1（底部分隔线）
         var extra = PromptBar.Bg == 0 ? 2 : 1;
-        
-        PromptBar.Height = PromptBar.MaxVisible+2;
+
+        // 高度随条目数（此前恒为 MaxVisible+2=10 行，1 条建议也占 10 行把输入区往下推）
+        PromptBar.Height = Math.Max(1, h) + extra;
 
         // 在 InputArea 上挂 KeyHook：拦截 ↑↓/Enter/Esc/Tab，透传其他键
         InputArea.KeyHook = PromptKeyHook;
@@ -532,7 +533,7 @@ public partial class ChatScreen : TuiScreen
         items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "/model set <id>", Detail = "设置大模型", Value = "/model set " });
         items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "/model list", Detail = "列出所有模型", Value = "/model list" });
         items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "/model import <path>", Detail = "导入外部配置", Value = "/model import " });
-        items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "清空对话", Detail = "重置上下文", Value = "/clear" });
+        items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "清空对话", Detail = "重置上下文", Value = "/reset" });
         items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "历史搜索", Detail = "搜索对话记录", Value = "/history " });
         items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "YOLO 模式", Detail = "跳过权限确认", Value = "/perm yolo" });
         items.Add(new PromptItem { Kind = EPromptKind.Command, Label = "/perm ask", Detail = "每次确认模式", Value = "/perm ask" });

@@ -51,7 +51,7 @@ public class TuiStatusBar : TuiControl
         var t = TuiTheme.Current;
         var (gs, ge) = t.GradTitleBar;
         int fg = AnsiColors.Black;
-        int dimFg = AnsiColors.BrightBlack;
+        int dimFg = AnsiColors.Black; // 提示/Token 与主标题一致用黑字（灰字压金色渐变对比度低）
         int row = absY;
 
         // 1. 整行渐变背景填充

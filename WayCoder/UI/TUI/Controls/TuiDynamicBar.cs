@@ -156,10 +156,10 @@ public class TuiDynamicBar : TuiControl
             rb.Write(absY, left, new string(' ', right - left),
                 fg: AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
 
-        // 根据状态计算颜色
+        // 根据状态计算颜色（spinner 统一用 SpinnerFg 的黄色，与 DirectWrite 直写一致）
         var (spinnerColor, textColor) = Status switch
         {
-            AgentStatus.Thinking => (AnsiColors.Green, AnsiColors.Grey),
+            AgentStatus.Thinking => (AnsiColors.Yellow, AnsiColors.Grey),
             AgentStatus.ToolRunning => (AnsiColors.Yellow, AnsiColors.BrightBlack),
             AgentStatus.Compressing => (AnsiColors.Yellow, AnsiColors.Grey),
             AgentStatus.WaitingPerm => (AnsiColors.Yellow, AnsiColors.Yellow),

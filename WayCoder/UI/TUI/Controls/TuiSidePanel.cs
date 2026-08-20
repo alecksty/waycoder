@@ -111,7 +111,9 @@ public class TuiSidePanel : TuiControl
                     WriteContentLine(sb, curRow, contentX, contentW, sec.Lines[i], fg, contentBg);
                 curRow++;
             }
-            if (clipped && curRow < row + Height)
+            // 配额 0（高度耗尽）时不再显示「… 还有 N 条」——空分区（如 Todo (0)）只留标题即可，
+            // 避免「0 项却显示 … 还有 1 条」的误导截断
+            if (clipped && quota > 0 && curRow < row + Height)
             {
                 if (curRow >= ClipTop && curRow < ClipBottom)
                     WriteContentLine(sb, curRow, contentX, contentW,
