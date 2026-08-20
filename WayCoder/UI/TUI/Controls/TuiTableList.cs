@@ -139,18 +139,12 @@ public class TuiTableList : TuiControl
         return w;
     }
 
-    /// <summary>把一行单元格拼成定宽字符串（各格已对齐，列间加 │ 分隔竖线）。
-    /// 非最后列：内容宽 width-1 + 竖线；最后列：全宽 —— 总宽 = 列宽和，与分隔线/数据行对齐。</summary>
+    /// <summary>把一行单元格拼成定宽字符串（各格已对齐）。数据行不加列间竖线（表头才有，列边界对齐）。</summary>
     private string FormatRow(string[] cells, int[] widths)
     {
         var sb = new StringBuilder();
         for (int i = 0; i < _columns.Count; i++)
-        {
-            if (i == _columns.Count - 1)
-                sb.Append(FormatCell(i < cells.Length ? cells[i] : "", widths[i]));
-            else
-                sb.Append(FormatCell(i < cells.Length ? cells[i] : "", Math.Max(0, widths[i] - 1))).Append('│');
-        }
+            sb.Append(FormatCell(i < cells.Length ? cells[i] : "", widths[i]));
         return sb.ToString();
     }
 

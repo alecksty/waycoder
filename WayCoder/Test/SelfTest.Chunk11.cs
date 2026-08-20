@@ -1,4 +1,6 @@
+using System.Text;
 using WayCoder.UI.Tui.Controls;
+using WayCoder.UI.Tui.Edit;
 
 namespace WayCoder;
 
@@ -8,6 +10,106 @@ public static partial class SelfTest
     {
         TestUiLint(Section, Check, Fail);
         TestTableList(Section, Check, Fail);
+        TestTuiSpace(Section, Check, Fail);
+        TestTextAreaSyntax(Section, Check, Fail);
+        TestWindowButtonEnter(Section, Check, Fail);
+    }
+
+    // ── 窗口：焦点按钮按 Enter 直接触发按钮，不被窗口级 Enter 快捷键抢走 ──
+    private static void TestWindowButtonEnter(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        Section("[窗口按钮 Enter]");
+
+        var w = new WayCoder.UI.TUI.Base.TuiWindow();
+        var btn = new TuiButton("接受(Y)");
+        int btnClicks = 0, winEnter = 0;
+        btn.OnClick = _ => btnClicks++;
+        w.RootView.Add(btn);
+        btn.Focused = true;
+        w.RegisterShortcut(ConsoleKey.Enter, () => winEnter++);
+
+        // 焦点在按钮上 → Enter 触发按钮 OnClick，窗口 Enter 快捷键不触发
+        w.OnKey(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false));
+        Check("窗口: 焦点按钮 Enter 触发按钮", btnClicks == 1);
+        Check("窗口: 焦点按钮 Enter 不触发窗口快捷键", winEnter == 0);
+
+        // 焦点离开按钮 → Enter 走窗口快捷键
+        btn.Focused = false;
+        w.OnKey(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false));
+        Check("窗口: 非按钮焦点时 Enter 走窗口快捷键", winEnter == 1 && btnClicks == 1);
+    }
+
+    // ── TuiTextArea 代码语法高亮：Syntax.Detect 内容检测 + tokenize 多色渲染 ──
+    private static void TestTextAreaSyntax(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        Section("[TuiTextArea 高亮]");
+
+        Check("检测: C# 命中", Syntax.Detect("namespace Demo { public class X { } }") != null);
+        Check("检测: Python 命中", Syntax.Detect("import os\ndef main():\n    print(1)") != null);
+        Check("检测: JS 命中", Syntax.Detect("function f() { const x = 1; }") != null);
+        Check("检测: JSON 命中", Syntax.Detect("{\"name\": \"a\", \"id\": 1}") != null);
+        Check("检测: SQL 命中", Syntax.Detect("SELECT * FROM users WHERE id = 1") != null);
+        Check("检测: 普通对话不命中", Syntax.Detect("今天天气不错,我们聊一下项目") == null);
+        Check("检测: 空串不命中", Syntax.Detect("") == null);
+
+        // 渲染多色：C# 代码同时产出关键字青色(36)与字符串绿色(32)ANSI 前景码
+        var ta = new TuiTextArea
+        {
+            Text = "namespace Demo { public class X { string s = \"hi\"; } }",
+            Width = 50,
+            Height = 3,
+            SyntaxHighlight = true,
+        };
+        var sb = new StringBuilder();
+        ta.Render(sb, 0, 0);
+        var raw = sb.ToString();
+        Check("输入框高亮: 关键字青色码 \\x1b[36", raw.Contains("\x1b[36"));
+        Check("输入框高亮: 字符串绿色码 \\x1b[32", raw.Contains("\x1b[32"));
+
+        // 关闭高亮 → 单色（无 token 色码）
+        ta.SyntaxHighlight = false;
+        var sb2 = new StringBuilder();
+        ta.Render(sb2, 0, 0);
+        Check("输入框高亮: 关闭后无 token 色码",
+            !sb2.ToString().Contains("\x1b[36") && !sb2.ToString().Contains("\x1b[32"));
+    }
+
+    // ── TuiSpace：空白占位控件（布局占位、什么都不画、不响应输入）──
+    private static void TestTuiSpace(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        Section("[TuiSpace]");
+
+        var sp = new TuiSpace();
+        Check("TuiSpace: 默认占 1×1", sp.Height == 1 && sp.Width == 1);
+
+        sp.Height = 3; sp.Width = 10;
+        var sb = new StringBuilder();
+        sp.Render(sb, 0, 0);
+        Check("TuiSpace: 渲染零输出（占位不显示）", sb.Length == 0);
+
+        Check("TuiSpace: 不响应键盘",
+            !sp.OnKey(new ConsoleKeyInfo('x', ConsoleKey.X, false, false, false)));
+        Check("TuiSpace: 不参与焦点遍历", !sp.CanFocus);
+
+        // 标记里 <Space height="2"> 解析成 TuiSpace 并占两行高
+        var res = WayCoder.UI.TUI.TuiMarkup.Load(
+            """
+            <VBox width="20">
+              <Space id="sp" height="2" />
+              <Label id="a" text="A" height="1" />
+            </VBox>
+            """);
+        var space = res.Find<TuiSpace>("sp");
+        Check("TuiSpace: 标记解析为 TuiSpace 且占两行", space != null && space.Height == 2);
+
+        // 布局占位：VBox 里 Space 占 2 行，后续 Label 被推到第 2 行（不再贴住前一控件）
+        var box = new WayCoder.UI.TUI.Base.TuiVBox { Width = 20 };
+        var sp2 = new TuiSpace { Height = 2 };
+        var lbl2 = new TuiLabel("A") { Height = 1 };
+        box.Add(sp2);
+        box.Add(lbl2);
+        box.Layout();
+        Check("TuiSpace: 占位后后续控件下移两行", sp2.Y == 0 && lbl2.Y == 2);
     }
 
     // ── UI Lint：UI 层禁止硬编码屏幕写入（直接 Console.* / 裸 ANSI 转义字面量）──

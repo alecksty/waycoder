@@ -83,6 +83,32 @@ public class Syntax
         };
     }
 
+    /// <summary>
+    /// 按内容启发式检测编程语言（供聊天输入框等无文件扩展名的场景做语法高亮）。
+    /// 保守策略：多重特征组合或强特征才认定，检测不到返回 null（保持单色，避免普通对话被误上色）。
+    /// </summary>
+    public static Syntax? Detect(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        if (text.Length > 4000) text = text[..4000]; // 只扫前 4K 特征，防大文本拖慢
+
+        // 强特征（出现即基本可认定是代码）
+        if (text.Contains("namespace ")) return CSharp(); // C# 专属关键词
+        if (text.Contains("using System")) return CSharp();
+        if (text.Contains("public class ") || text.Contains("public static ")) return CSharp();
+        if (text.StartsWith("import ") || text.StartsWith("from ")) return Python();
+        if (text.Contains("def ") && text.Contains("import ")) return Python();
+        if (text.Contains("func ") && text.Contains("package ")) return Go();
+        if (text.Contains("SELECT ") && text.Contains(" FROM ")) return Sql();
+        if (text.Contains("<html") || text.Contains("<div")) return Xml();
+
+        // 中强特征（组合才认定，降误判）
+        if (text.Contains("function ") && (text.Contains("const ") || text.Contains("let ") || text.Contains("=>"))) return JavaScript();
+        if (text.Contains("\":") && text.Contains('{') && text.Contains('}')) return Json();
+
+        return null;
+    }
+
     /// <summary>将一行文本拆分为 (text, ansiColor) 的 token 序列</summary>
     public List<(string Text, int Color)> Tokenize(string line)
     {

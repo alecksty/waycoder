@@ -162,7 +162,7 @@ public static partial class SelfTest
                         WorkModeManager.SetMode(WorkMode.Plan);
                         mgr.Render();
                         Check("模型信息行: 模式切换刷新",
-                            mscr2.ModelInfoRow is { } r6 && r6.Text.Contains("计划模式"));
+                            mscr2.ModelInfoRow is { } r6 && r6.Text.Contains("计划"));
                     }
                     finally { WorkModeManager.SetMode(savedMode); }
 
@@ -194,7 +194,7 @@ public static partial class SelfTest
                 ("reasoningpicker.tui", ["search", "list"]),
                 ("keybindhelp.tui", ["list", "hint"]),
                 ("settings.tui", ["header", "catList", "detailPanel", "hintBar"]),
-                ("diffpreview.tui", ["body", "status", "btnAccept", "btnSkip", "btnAll", "btnCancel"]),
+                ("diffpreview.tui", ["body", "btnAccept", "btnSkip", "btnAll", "btnCancel"]),
                 // 对话框工厂（TuiDialog.cs 的 Find ?? throw 引用）
                 ("ask.tui", ["msgBox", "list", "ok", "cancel"]),
                 ("confirm.tui", ["msgBox", "yes", "no"]),

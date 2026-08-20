@@ -124,7 +124,6 @@ public static class DiffPreview
 
         var accepted = new HashSet<int>();
         var syntax = GetSyntaxForFile(filePath);
-        bool isAllMode = false; // "review" | "all"
 
         // 标记加载：窗口壳/状态栏来自 diffpreview.tui，DiffView 自定义控件 code 注入 body 首位
         var res = TuiMarkup.LoadResource("dialogs/diffpreview.tui");
@@ -139,11 +138,8 @@ public static class DiffPreview
         win.GradientEnd = g.end;
 
         var body = res.Find<TuiVBox>("body")!;
-        var status = res.Find<TuiLabel>("status")!;
-        status.Fg = AnsiColors.Black;
-        status.Bg = AnsiColors.BgWhite;
 
-        // diff 视图（自定义控件，code 注入 body 首位；结构在标记，渲染逻辑在控件）
+        // diff 视图（自定义控件，code 注入 body 首位；flex=1 吃满剩余高度，按钮行固定底部）
         var diff = new DiffView(hunks, accepted, syntax)
         {
             Flex = 1,
@@ -153,15 +149,7 @@ public static class DiffPreview
         };
         body.Children.Insert(0, diff);
 
-        // ── 刷新 / 动作 ──
-
-        void UpdateStatus()
-        {
-            status.Text = isAllMode
-                ? " 全部接受?  [Y]是  [N]否  "
-                : $" [{diff.CurrentHunk + 1}/{hunks.Count}]  [Y]接受 [N]跳过 [A]全接受 [Q]取消  ";
-            screen?.MarkDirty();
-        }
+        // ── 动作（仅按钮四个动作：接受/跳过/全部接受/完成）──
 
         void Finish(Decision d, HashSet<int>? a)
         {
@@ -169,65 +157,41 @@ public static class DiffPreview
             win.OnClosed?.Invoke();
         }
 
-        void ToggleCurrent()
+        void OnY()
         {
-            if (accepted.Contains(diff.CurrentHunk)) accepted.Remove(diff.CurrentHunk);
-            else accepted.Add(diff.CurrentHunk);
+            // 接受当前 hunk 并前进到下一块：已接受行打 ✓、高亮立即移走（接受反馈即时可见）
+            if (!accepted.Contains(diff.CurrentHunk))
+                accepted.Add(diff.CurrentHunk);
+            if (diff.CurrentHunk < hunks.Count - 1)
+                diff.SetCurrentHunk(diff.CurrentHunk + 1);
             diff.MarkDirty();
-            UpdateStatus();
         }
-
-        void SkipCurrent()
+        void OnN()
         {
-            // N=跳过当前 hunk：保留已接受的 hunk（不取消），前进到下一个（SetCurrentHunk 内部钳制）
+            // 跳过当前 hunk（不标记接受），前进到下一块
             diff.SetCurrentHunk(diff.CurrentHunk + 1);
             diff.MarkDirty();
-            UpdateStatus();
         }
-
+        void OnA()
+        {
+            // 全部接受：立即完成，无需再确认
+            Finish(Decision.AcceptAll, null);
+        }
         void Quit()
         {
+            // 完成：已接受的部分提交（Partial）；一个都没接受则全部拒绝
             if (accepted.Count == 0) Finish(Decision.RejectAll, null);
             else Finish(Decision.Partial, accepted);
         }
 
-        void OnY()
-        {
-            if (isAllMode) { Finish(Decision.AcceptAll, null); return; }
-            ToggleCurrent();
-        }
-        void OnN()
-        {
-            if (isAllMode) { isAllMode = false; UpdateStatus(); return; }
-            SkipCurrent();
-        }
-        void OnA()
-        {
-            if (isAllMode) return;
-            isAllMode = true;
-            UpdateStatus();
-        }
-
-        diff.OnChanged = UpdateStatus;
-
-        // 底部按钮 = 快捷键的图形化替身：Tab 切焦点 + 空格执行，与直接按字母走同一动作。
-        // 按钮文本里的 (Y/N/A/Q) 由标记 shortcut 属性画下划线；窗口 RegisterShortcut 优先命中。
         Wire(res, "btnAccept", OnY);
         Wire(res, "btnSkip", OnN);
         Wire(res, "btnAll", OnA);
         Wire(res, "btnCancel", Quit);
 
-        win.RegisterShortcut(ConsoleKey.Y, OnY);
-        win.RegisterShortcut(ConsoleKey.N, OnN);
-        win.RegisterShortcut(ConsoleKey.A, OnA);
-        win.RegisterShortcut(ConsoleKey.Q, Quit);
+        // Y/N/A/Q 由按钮自带快捷键（标记 shortcut="y/n/a/q"）经 RegisterButtonShortcuts 注册到窗口：
+        // 按下即触发对应按钮 OnClick，无需聚焦。仅保留 Esc 关闭（模态对话框必需，否则无法退出）。
         win.RegisterShortcut(ConsoleKey.Escape, Quit);
-        win.RegisterShortcut(ConsoleKey.Enter, () =>
-        {
-            if (!isAllMode && accepted.Count > 0) Finish(Decision.Partial, accepted);
-        });
-
-        UpdateStatus();
         return win;
     }
 
@@ -769,7 +733,10 @@ public static class DiffPreview
 
         if (line.Kind == '-')
         {
-            var prefix = $"{Padding(line.OldLine),4} -";
+            // 已接受的删除行：符号位改 ✓（宽 2，去掉原空格保持前缀 6 宽对齐），行内容仍保留供回看
+            var prefix = isAccepted
+                ? $"{Padding(line.OldLine),4}✓"
+                : $"{Padding(line.OldLine),4} -";
             int fg = isCurrentHunk ? 97 : 37; // 深背景配亮/白前景
             int bg = BgDelete;
             var maxTextW = tw - 7;
@@ -781,7 +748,8 @@ public static class DiffPreview
         }
         else if (line.Kind == '+')
         {
-            var prefix = "     +";
+            // 已接受的添加行：符号位改 ✓（宽 2，前缀保持 6 宽）
+            var prefix = isAccepted ? "    ✓" : "     +";
             int fg = isCurrentHunk ? 97 : 37;
             int bg = BgInsert;
             var maxTextW = tw - 7;
@@ -849,7 +817,7 @@ public static class DiffPreview
             { leftFg = 37; leftBg = 0; }
 
         var leftPrefix = row.LeftKind == '-'
-            ? $"{Padding(row.LeftLineNo),4} -"
+            ? (isAccepted ? $"{Padding(row.LeftLineNo),4}✓" : $"{Padding(row.LeftLineNo),4} -")
             : row.LeftText.Length > 0 ? $"{Padding(row.LeftLineNo),4}  " : "      ";
 
         if (isAccepted && !isCurrentHunk && row.LeftKind != '-')
@@ -887,7 +855,7 @@ public static class DiffPreview
             { rightFg = 37; rightBg = 0; }
 
         var rightPrefix = row.RightKind == '+'
-            ? $"{Padding(row.RightLineNo),4} +"
+            ? (isAccepted ? $"{Padding(row.RightLineNo),4}✓" : $"{Padding(row.RightLineNo),4} +")
             : row.RightText.Length > 0 ? $"{Padding(row.RightLineNo),4}  " : "      ";
 
         if (isAccepted && !isCurrentHunk && row.RightKind != '+')

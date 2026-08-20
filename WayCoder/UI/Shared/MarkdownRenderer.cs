@@ -129,7 +129,12 @@ public static class MarkdownParser
             // 代码块 ```lang\n...\n```
             if (line.TrimStart().StartsWith("```"))
             {
-                var lang = line.TrimStart()[3..].Trim();
+                // 围栏由连续反引号组成（可 3 个以上——AI 在内容含 ``` 时常用 4 个），
+                // 语言标签从围栏结束后取，避免把多余反引号带进标签（旧 bug：````js → lang="`js"）
+                var fenceLine = line.TrimStart();
+                int fenceEnd = 0;
+                while (fenceEnd < fenceLine.Length && fenceLine[fenceEnd] == '`') fenceEnd++;
+                var lang = fenceLine[fenceEnd..].Trim();
                 var sb = new System.Text.StringBuilder();
                 i++;
                 while (i < lines.Length)

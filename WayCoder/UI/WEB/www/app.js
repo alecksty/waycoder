@@ -463,28 +463,60 @@ document.getElementById('model-scan-btn').onclick = () => {
   }).catch(() => { btn.disabled = false; status.textContent = '扫描失败'; });
 };
 
-// ── 自动导入（其他软件的模型列表与 API Key）──
+// ── 本地导入：弹框勾选来源后导入（内置模型 / Claude Code / Codex / OpenCode / Crush / OpenClaw）──
+const IMPORT_SOURCES = [
+  ['builtin', '内置模型（恢复被清空的内置目录）'],
+  ['claudecode', 'Claude Code（~/.claude/settings.json）'],
+  ['codex', 'Codex（~/.codex/config.toml）'],
+  ['opencode', 'OpenCode（~/.config/opencode）'],
+  ['crush', 'Crush（~/.config/crush）'],
+  ['openclaw', 'OpenClaw（~/.openclaw）'],
+];
 document.getElementById('model-import-btn').onclick = () => {
+  document.getElementById('source-options').innerHTML = IMPORT_SOURCES.map(([v, label]) =>
+    '<label class="src-item"><input type="checkbox" value="' + v + '"> ' + label + '</label>').join('');
+  document.getElementById('source-modal').classList.add('open');
+};
+document.getElementById('source-confirm').onclick = () => {
+  const checks = [...document.querySelectorAll('#source-options input:checked')].map(c => c.value);
+  document.getElementById('source-modal').classList.remove('open');
+  if (!checks.length) return; // 一个都没勾 → 取消
+  doLocalImport(checks.join(','));
+};
+document.getElementById('source-cancel').onclick = () => document.getElementById('source-modal').classList.remove('open');
+function doLocalImport(sources) {
   const status = document.getElementById('model-scan-status');
-  status.textContent = '导入中…';
-  fetch('/models/import', { method: 'POST' }).then(r => r.json()).then(res => {
+  status.textContent = '本地导入中…';
+  fetch('/models/import', { method: 'POST', body: JSON.stringify({ sources }) }).then(r => r.json()).then(res => {
     status.textContent = '';
     const keys = res.keys || [];
     const keySummary = keys.length ? ('导入 Key: ' + keys.map(k => k.providerId + '(' + k.source + ')').join(', ')) : '未发现新 Key';
-    alert('模型导入：' + (res.modelReport || '完成') + '\n' + keySummary);
+    alert('本地导入：' + (res.modelReport || '完成') + '\n' + keySummary);
     fetchModels();
-  }).catch(() => { status.textContent = '导入失败'; });
+  }).catch(() => { status.textContent = '本地导入失败'; });
+}
+
+// ── 清空全部模型（内置+自定义），清空后可重新导入 ──
+document.getElementById('model-clear-all-btn').onclick = () => {
+  if (!confirm('确定清空全部模型？内置目录与已导入的自定义模型都会移除，可清空后重新导入。')) return;
+  const status = document.getElementById('model-scan-status');
+  status.textContent = '清空中…';
+  fetch('/models/clear', { method: 'POST' }).then(r => r.json()).then(res => {
+    status.textContent = '';
+    alert(res.modelReport || '已清空全部模型');
+    fetchModels();
+  }).catch(() => { status.textContent = '清空失败'; });
 };
 
-// ── OpenCode 在线导入（拉取 https://opencode.ai/zen/go/v1/models 模型列表）──
+// ── 在线导入（拉取 opencode 在线 /models 列表）──
 document.getElementById('model-opencode-btn').onclick = () => {
   const status = document.getElementById('model-scan-status');
-  status.textContent = 'OpenCode 在线导入中…';
+  status.textContent = '在线导入中…';
   fetch('/models/import-opencode', { method: 'POST' }).then(r => r.json()).then(res => {
     status.textContent = '';
-    alert('OpenCode 在线导入：' + (res.modelReport || res.error || '完成'));
+    alert('在线导入：' + (res.modelReport || res.error || '完成'));
     fetchModels();
-  }).catch(() => { status.textContent = 'OpenCode 导入失败'; });
+  }).catch(() => { status.textContent = '在线导入失败'; });
 };
 
 // ── 设置 / 清除 key（对当前选中的模型所属供应商）──

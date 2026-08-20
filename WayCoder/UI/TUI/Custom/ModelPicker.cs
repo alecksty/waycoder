@@ -3,6 +3,7 @@ using System.Text;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui;
+using WayCoder.UI.Tui.Screens;
 using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Controls;
@@ -15,7 +16,8 @@ namespace WayCoder.UI.TUI.Custom;
 ///
 /// 功能：
 ///   - 大/小模型切换（Tab）、全部/指定槽位（Ctrl+A / F1-F10）、实时搜索过滤（直接打字）
-///   - 多列列表（🔑 key 状态 / 模型 / 厂商 / 窗口 / 价格 / 大 ✓ / 小 ✓）
+///   - 多列列表（🔑 key 状态 / 状态列(连通/无key/欠费/不通) / 模型 / 厂商 / 窗口 / 价格 / 大 ✓ / 小 ✓）
+///   - 状态列只显示不落盘：由扫描结果实时推导（未扫描=「未测」；无 key=「无key」；402=欠费）
 ///   - 底部槽位状态条（▶ 目标、* 已配置、· 当前）
 ///
 /// 实现：TuiWindow（模态）+ TuiVBox + TuiHBox（搜索）+ TuiInput + TuiTableList + TuiLabel，
@@ -29,10 +31,16 @@ public static class ModelPicker
     public record Result(string ModelId, bool IsLarge, int TargetSlot,
         bool NeedsApiKey = false, string? ProviderId = null);
 
+    /// <summary>
+    /// 模型连通性状态 —— 仅供状态列/组头显示，由扫描结果实时推导，不写入任何模型文件。
+    /// Unknown=未扫描；NoKey=无 API key；Overdue=欠费（HTTP 402）。
+    /// </summary>
+    public enum ScanStatus { Unknown, Connected, NoKey, BadKey, Overdue, NoEndpoint, Unreachable }
+
     private const int MinW = 62, MinH = 16;
 
     // 单元格内右对齐用的宽度（列宽本身在 modelpicker.tui 的 columns 里声明）
-    private const int ctxW = 6, priceW = 7;
+    private const int ctxW = 6, priceW = 6;
 
     /// <summary>
     /// 显示模型选择对话框。
@@ -92,10 +100,53 @@ public static class ModelPicker
         var rowModels = new List<ModelEntry?>();     // table 行 → 模型（组头行 null）
         var modelLock = new object();                 // 保护 models（导入/扫描后台刷新）
         var scanLock = new object();
-        var scanResult = new Dictionary<string, bool>(); // providerId → 连通
+        var scanResult = new Dictionary<string, ScanStatus>(); // providerId → 扫描状态（不落盘，仅状态列/组头显示）
         string large = cfg.Model, small = cfg.SmallModel;
         bool isLarge = true;
         int targetSlot = currentSlot; // -2=全部, -1=全局, 0-9=具体槽位
+
+        // ── 状态列（纯显示：由扫描结果实时推导，不写模型文件）──
+        ScanStatus ScannedStatus(string pid)
+        {
+            lock (scanLock)
+                if (scanResult.TryGetValue(pid, out var s)) return s;
+            return ScanStatus.Unknown;
+        }
+
+        /// <summary>行状态单元格文本：无key / 欠费 / 不通 / 连通…</summary>
+        string StatusCell(ModelEntry m)
+        {
+            if (m.ProviderId is "local" or "custom") // 无需 key，只有扫描能判断连通
+                return ScannedStatus(m.ProviderId) == ScanStatus.Connected ? "✔本地" : "本地";
+            if (!m.HasApiKey) return "无key";
+            return ScannedStatus(m.ProviderId) switch
+            {
+                ScanStatus.Connected => "✔连通",
+                ScanStatus.BadKey => "✖key",
+                ScanStatus.Overdue => "欠费",
+                ScanStatus.NoEndpoint => "无端点",
+                ScanStatus.Unreachable => "✖不通",
+                _ => "未测",
+            };
+        }
+
+        /// <summary>组头尾缀：供应商级聚合状态（该组任一模型有 key 才算有 key）。</summary>
+        string GroupStatusMark(string pid, bool anyKey)
+        {
+            var st = ScannedStatus(pid);
+            if (pid is "local" or "custom")
+                return st == ScanStatus.Connected ? "  ✔本地" : "  本地";
+            if (!anyKey) return "  无key";
+            return st switch
+            {
+                ScanStatus.Connected => "  ✔连通",
+                ScanStatus.BadKey => "  ✖key无效",
+                ScanStatus.Overdue => "  💸欠费",
+                ScanStatus.NoEndpoint => "  无端点",
+                ScanStatus.Unreachable => "  ✖不通",
+                _ => "",
+            };
+        }
 
         // ── 标题 / 刷新 ──
 
@@ -116,21 +167,19 @@ public static class ModelPicker
                     m.Provider.Contains(search.Text, StringComparison.OrdinalIgnoreCase) ||
                     m.ProviderId.Contains(search.Text, StringComparison.OrdinalIgnoreCase)).ToList();
 
-            // 按供应商分组渲染（组头行 + 扫描状态）
+            // 按供应商分组渲染（组头行 + 聚合状态）
             table.ClearRows();
             rowModels.Clear();
             foreach (var group in filtered.GroupBy(m => m.ProviderId).OrderBy(g => g.Key))
             {
-                bool ok; bool hasScan;
-                lock (scanLock) { hasScan = scanResult.TryGetValue(group.Key, out ok); }
-                var mark = hasScan ? (ok ? "  ✅ 连通" : "  ❌ 不通") : "";
-                table.AddGroupHeader(group.Key + mark);
+                table.AddGroupHeader(group.Key + GroupStatusMark(group.Key, group.Any(m => m.HasApiKey)));
                 rowModels.Add(null);
                 foreach (var m in group)
                 {
                     bool isL = m.Id == large, isS = m.Id == small;
                     table.AddRow(
                         m.HasApiKey ? "🔑" : "  ",
+                        StatusCell(m),
                         m.DisplayName,
                         m.Provider,
                         FmtCtx(m.ContextWindow).PadLeft(ctxW),
@@ -156,7 +205,25 @@ public static class ModelPicker
             btnMode.Text = isLarge ? "→小模型" : "→大模型";
             help.Text = "↑↓选择  空格应用不关  Enter确认关闭  保存按钮  Esc取消  F1-F10槽位  打字过滤";
             help2.Text = "^T大小 ^G槽位 ^S扫描 ^R导入 ^O在线 ^P设Key ^L清Key ^N添加 ^U编辑 ^D删除";
+            // 数据/标题/组头都改了，必须把窗口根视图标脏 —— 否则增量渲染只画脏控件，
+            // 表格行与窗口标题不重绘（搜索过滤输入后列表「不动」就源于此：OnTextChanged→Refresh
+            // 改的是 table 的 rows，但 table 与窗口根视图都没标脏，下一帧增量渲染直接跳过它）
+            win.RootView.MarkDirty();
             screen?.MarkDirty();
+        }
+
+        /// <summary>子对话框（设Key/添加/编辑/删除）关闭后刷新父级对话框：
+        /// 重绘表格 + 底部提示（slotBar/help/help2/btnMode）+ 标脏（Refresh 内含 win.RootView.MarkDirty）。
+        /// message 非空时在刷新后覆盖 help 作操作结果提示 —— 确认/取消/ESC 都走这里，
+        /// 保证返回父级时底部内容是最新的、父级整体被重绘（不留上一帧残影）。</summary>
+        void RefreshParent(string? message = null)
+        {
+            Refresh(false);
+            if (!string.IsNullOrEmpty(message))
+            {
+                help.Text = message;
+                help2.Text = "";
+            }
         }
 
         // ── 动作 ──
@@ -192,25 +259,53 @@ public static class ModelPicker
         // ── 后台操作：扫描/导入/OpenCode（结果 lock 保护，下次 Refresh 读取）──
         void TriggerScan()
         {
-            help.Text = "📡 扫描连通性中…（完成后按 ↑↓/输入刷新）";
+            help.Text = "📡 扫描连通性中…";
             help2.Text = "";
             screen?.MarkDirty();
             Task.Run(() =>
             {
-                var dict = new Dictionary<string, bool>();
+                var dict = new Dictionary<string, ScanStatus>();
                 try
                 {
-                    foreach (var p in ModelCli.TestList()) dict[p.ProviderId] = p.Ok;
+                    foreach (var p in ModelCli.TestList())
+                        dict[p.ProviderId] = ProbeStatus(p);
                 }
                 catch { }
                 lock (scanLock) { scanResult = dict; }
-                screen?.MarkDirty();
+                // 完成后回 UI 线程刷新（组头/状态列实时更新；后台线程不碰控件树）
+                if (screen is ChatScreen chat) chat.PostToUI(() => Refresh(false));
+                else screen?.MarkDirty();
             });
         }
 
         void TriggerImport(string kind)
         {
-            help.Text = kind == "opencode" ? "🌐 OpenCode 在线导入中…" : "📥 自动导入中…";
+            if (kind == "import")
+            {
+                // 本地导入：弹框勾选来源（内置模型恢复 / Claude Code / Codex / OpenCode / Crush / OpenClaw）
+                var choices = new List<string>
+                {
+                    "内置模型（恢复被清空的内置目录）",
+                    "Claude Code（~/.claude/settings.json）",
+                    "Codex（~/.codex/config.toml）",
+                    "OpenCode（~/.config/opencode）",
+                    "Crush（~/.config/crush）",
+                    "OpenClaw（~/.openclaw）",
+                };
+                // 默认全部勾选（☑ 空格取消不需要的来源，Enter 确认），与 Web 勾选体验一致
+                var picked = UxHelper.MultiSelect("📥 本地导入 · 选择来源", choices, preCheckAll: true);
+                if (picked == null || picked.Count == 0) return; // 取消 / 未勾选
+                string[] keys = ["builtin", "claudecode", "codex", "opencode", "crush", "openclaw"];
+                var sources = string.Join(",", picked.Select(p => keys[Math.Max(0, choices.IndexOf(p))]));
+                RunImport(sources, "📥 本地导入中…");
+                return;
+            }
+            RunImport(null, "🌐 在线导入中…");
+        }
+
+        void RunImport(string? sources, string busyText)
+        {
+            help.Text = busyText;
             help2.Text = "";
             screen?.MarkDirty();
             Task.Run(() =>
@@ -218,8 +313,9 @@ public static class ModelPicker
                 string report;
                 try
                 {
-                    if (kind == "opencode")
+                    if (sources == null)
                     {
+                        // opencode 在线拉取
                         const string url = "https://opencode.ai/zen/go/v1/models";
                         const string apiBase = "https://opencode.ai/zen/go/v1";
                         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
@@ -229,11 +325,17 @@ public static class ModelPicker
                         var builtIn = new HashSet<string>(ModelCatalog.BuiltIn.Select(x => x.Id), StringComparer.OrdinalIgnoreCase);
                         var toAdd = list.Where(x => !builtIn.Contains(x.Id)).ToList();
                         ModelCatalog.AddCustomRange(toAdd);
-                        report = $"✅ OpenCode 导入 {toAdd.Count} 个模型" + (list.Count - toAdd.Count > 0 ? $"，跳过 {list.Count - toAdd.Count} 内置" : "");
+                        report = $"✅ 在线导入 {toAdd.Count} 个模型" + (list.Count - toAdd.Count > 0 ? $"，跳过 {list.Count - toAdd.Count} 内置" : "");
                     }
                     else
                     {
-                        report = ModelCli.Import(null);
+                        // 与 Web 端一致：本地导入同时导入已知软件的模型 + API Key
+                        report = ModelCli.Import(sources);
+                        var keys = ApiKeyStore.ImportFromKnownSources();
+                        ModelCatalog.Invalidate();
+                        ApiKeyStore.ClearCache();
+                        if (keys.Count > 0)
+                            report += $"\n🔑 导入 Key: {string.Join("、", keys.Select(k => $"{k.ProviderId}({k.Source})"))}";
                     }
                 }
                 catch (Exception ex) { report = $"❌ 导入失败: {ex.Message}"; }
@@ -272,15 +374,14 @@ public static class ModelPicker
                 {
                     var parts = (text ?? "").Split('|');
                     var id = parts.Length > 0 ? parts[0].Trim() : "";
-                    if (string.IsNullOrWhiteSpace(id)) { help.Text = "❌ 模型名不能为空"; help2.Text = ""; return; }
+                    if (string.IsNullOrWhiteSpace(id)) { RefreshParent("❌ 模型名不能为空"); return; }
                     var pid = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1].Trim() : "custom";
                     var baseUrl = parts.Length > 2 && !string.IsNullOrWhiteSpace(parts[2]) ? parts[2].Trim() : null;
                     ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
                         id, id, pid, pid, "*", "Custom", 0, 0, 0, baseUrl, "手动添加", 0));
-                    help.Text = $"✅ 已添加模型 {id}";
-                    help2.Text = "";
-                    Refresh(false);
-                });
+                    RefreshParent($"✅ 已添加模型 {id}");
+                },
+                onCancel: () => RefreshParent()); // Esc 取消 → 父级恢复默认底部 + 整体重绘
             screen?.ShowWindow(inputWin);
             screen?.MarkDirty();
         }
@@ -295,9 +396,23 @@ public static class ModelPicker
             { help.Text = "⚠ 内置模型不可删除"; help2.Text = ""; return; }
             var confirmWin = TuiDialog.Confirm("🗑 删除模型", $"删除 {m.Id}？（自定义模型，删除后不可恢复）", ok =>
             {
-                if (ok) { ModelCatalog.RemoveCustom(m.Id); help.Text = $"✅ 已删除 {m.Id}";
-                help2.Text = ""; Refresh(false); }
+                // 是→删除 + 刷新父级；否/Esc 取消→父级恢复默认底部 + 整体重绘
+                if (ok) { ModelCatalog.RemoveCustom(m.Id); RefreshParent($"✅ 已删除 {m.Id}"); }
+                else RefreshParent();
             });
+            screen?.ShowWindow(confirmWin);
+            screen?.MarkDirty();
+        }
+
+        /// <summary>清空全部模型（内置 + 自定义），确认后清空，可重新导入。</summary>
+        void ClearModels()
+        {
+            var confirmWin = TuiDialog.Confirm("🧹 清空全部模型",
+                "确定清空全部模型？内置目录与已导入的自定义模型都会移除，可清空后重新导入。", ok =>
+                {
+                    if (ok) { ModelCatalog.ClearAll(); RefreshParent("✅ 已清空全部模型，可重新导入"); }
+                    else RefreshParent();
+                });
             screen?.ShowWindow(confirmWin);
             screen?.MarkDirty();
         }
@@ -321,10 +436,9 @@ public static class ModelPicker
                     var baseUrl = parts.Length > 2 && !string.IsNullOrWhiteSpace(parts[2]) ? parts[2].Trim() : null;
                     ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
                         id, id, pid, pid, "*", "Custom", 0, 0, 0, baseUrl, "手动编辑", 0));
-                    help.Text = $"✅ 已保存模型 {id}";
-                    help2.Text = "";
-                    Refresh(false);
-                });
+                    RefreshParent($"✅ 已保存模型 {id}");
+                },
+                onCancel: () => RefreshParent()); // Esc 取消 → 父级恢复默认底部 + 整体重绘
             screen?.ShowWindow(inputWin);
             screen?.MarkDirty();
         }
@@ -360,11 +474,9 @@ public static class ModelPicker
                     try { saved = ApiKeyStore.Set(m.ProviderId, text.Trim()); }
                     catch (Exception ex) { saved = false; ErrorLog.Error("ModelPicker", $"保存 Key 失败: {ex.Message}"); }
                     ReconfigureAgent(m.ProviderId, text.Trim()); // 运行时生效
-                    help.Text = saved ? $"已保存 {m.ProviderId} 的 Key" : $"❌ 保存失败（{m.ProviderId}）——检查写入权限/磁盘";
-            help2.Text = "";
-                    screen?.MarkDirty();
-                    Refresh(false);
-                });
+                    RefreshParent(saved ? $"✅ 已保存 {m.ProviderId} 的 Key" : $"❌ 保存失败（{m.ProviderId}）——检查写入权限/磁盘");
+                },
+                onCancel: () => RefreshParent()); // Esc 取消 → 父级恢复默认底部 + 整体重绘
             screen?.ShowWindow(inputWin);
             screen?.MarkDirty();
         }
@@ -428,6 +540,7 @@ public static class ModelPicker
         Wire(res, "btnAdd", PromptAddModel);
         Wire(res, "btnEdit", PromptEditModel);
         Wire(res, "btnDel", DeleteSelectedModel);
+        Wire(res, "btnClear", ClearModels);
         Wire(res, "btnSave", Commit); // 保存按钮 = 应用选中模型并关闭对话框
 
         // Tab 不再抢去切大/小模型（那是 btnMode 的活），交回 TuiScreen 做焦点遍历
@@ -662,6 +775,21 @@ public static class ModelPicker
             foreach (var m in Config.Instance.FallbackChain.Split(','))
             { var t = m.Trim(); if (!string.IsNullOrEmpty(t) && seen.Add(t)) list.Add(new(t, t, "自定义", "custom", true, 128_000, 0)); }
         return list;
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 状态推导（纯逻辑，供自测）
+    // ═══════════════════════════════════════════════════
+
+    /// <summary>连通性探测结果 → 状态枚举：已连接=连通；HTTP 402=欠费；401/403=key 无效；其余失败=不通。</summary>
+    public static ScanStatus ProbeStatus(ModelCli.EndpointProbe p)
+    {
+        if (p.Ok) return ScanStatus.Connected;
+        var d = p.Detail ?? "";
+        if (d.Contains("402")) return ScanStatus.Overdue;
+        if (d.StartsWith("密钥无效", StringComparison.Ordinal)) return ScanStatus.BadKey;
+        if (d.StartsWith("无端点", StringComparison.Ordinal)) return ScanStatus.NoEndpoint;
+        return ScanStatus.Unreachable; // 无法连接 / HTTP 4xx/5xx 等
     }
 
     // ═══════════════════════════════════════════════════
