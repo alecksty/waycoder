@@ -164,7 +164,12 @@ public class FindReplaceTool : ITool
                     sb.AppendLine($"### {Path.GetRelativePath(path, file)}  (正则匹配超时，已跳过)");
                     sb.AppendLine();
                 }
-                catch { /* 文件读取失败，跳过 */ }
+                catch (Exception ex)
+                {
+                    // 报告失败文件（而非静默吞，防 Agent 误以为全部替换成功）
+                    sb.AppendLine($"### {Path.GetRelativePath(path, file)}  (处理失败: {ex.GetType().Name}: {ex.Message})");
+                    sb.AppendLine();
+                }
             }
 
             sb.AppendLine($"---");

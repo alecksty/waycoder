@@ -61,7 +61,7 @@ public static class ToolRegistry
         get
         {
             var all = new List<ITool>(BuiltinTools);
-            all.AddRange(McpManager.DiscoveredTools);
+            all.AddRange(McpManager.GetDiscoveredToolsSnapshot()); // 快照：MCP 发现并发改写列表中
             all.AddRange(PluginRegistry.CollectTools());
             return all;
         }
