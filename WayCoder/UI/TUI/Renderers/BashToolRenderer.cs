@@ -43,7 +43,7 @@ public class BashToolRenderer : IToolRenderer
         // 错误前缀着色
         if (result.StartsWith("错误：") || result.StartsWith("⚠ 已阻止"))
         {
-            result = AnsiTty.FgBg(37, 41) + result + AnsiTty.SgrReset;
+            result = AnsiTty.ErrorBlock(result);
         }
 
         // 无输出提示

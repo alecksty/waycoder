@@ -238,6 +238,8 @@ public static class AnsiTty
     public static string Accent(string text) => $"{Fg(36)}{text}{SgrReset}";
     public static string Warn(string text) => $"{Fg(33)}{text}{SgrReset}";
     public static string Error(string text) => $"{Fg(31)}{text}{SgrReset}";
+    /// <summary>白字红底错误块（工具渲染器错误着色统一入口）。</summary>
+    public static string ErrorBlock(string text) => $"{FgBg(37, 41)}{text}{SgrReset}";
     public static string Success(string text) => $"{Fg(32)}{text}{SgrReset}";
     public static string DimText(string text) => $"{SgrDim}{text}{SgrReset}";
     public static string BoldText(string text) => $"{SgrBold}{text}{SgrReset}";
