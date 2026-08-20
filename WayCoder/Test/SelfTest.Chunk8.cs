@@ -1860,6 +1860,36 @@ public static partial class SelfTest
                 Check("500行代码: 渲染无异常", true);
                 scr500.Deactivate();
             }
+
+            // 1000 行 markdown 纯文本 + 1000 行表格：不崩溃、行数保留
+            {
+                var md1000 = string.Join("\n", Enumerable.Range(1, 1000).Select(i => $"这是第{i:0000}行 markdown 内容"));
+                var rMd = WayCoder.UI.Tui.TuiMarkdown.RenderMessage(md1000, "assistant", 76).Count;
+                Check($"1000行markdown: 渲染 {rMd} 行", rMd >= 1000);
+
+                var tbl1000 = "| A | B |\n|---|---|\n" + string.Join("\n", Enumerable.Range(1, 1000).Select(i => $"| {i} | 值{i} |"));
+                var rTbl = WayCoder.UI.Tui.TuiMarkdown.RenderMessage(tbl1000, "assistant", 76);
+                Check($"1000行表格: 渲染不崩溃 ({rTbl.Count} 行)", rTbl.Count > 0);
+                Check($"1000行表格: 含表头", rTbl.Any(l => l.Any(s => s.Text.Contains('A'))));
+
+                // 端到端：1000 行 markdown 渲染到 ChatScreen 帧
+                var scr1000 = new ChatScreen();
+                scr1000.Activate();
+                scr1000.ChatList.Width = 80;
+                scr1000.ChatList.Height = 15;
+                scr1000.AddMessage(md1000, "assistant");
+                scr1000.ChatList.ReLayout();
+                Check($"1000行markdown: 高度随正文 (ContentHeight={scr1000.ChatList.ContentHeight})", scr1000.ChatList.ContentHeight >= 1000);
+                scr1000.ChatList.ScrollToBottom();
+                scr1000.IsIncrementalUpdate = false;
+                var f1000a = new System.Text.StringBuilder();
+                scr1000.Render(f1000a);
+                scr1000.ChatList.ScrollUp(100);
+                var f1000b = new System.Text.StringBuilder();
+                scr1000.Render(f1000b);
+                Check("1000行markdown: 滚屏帧变化", f1000a.ToString() != f1000b.ToString());
+                scr1000.Deactivate();
+            }
             scr2.ChatList.ScrollToBottom();
             scr2.IsIncrementalUpdate = false;
             var scr2f1 = new System.Text.StringBuilder();
