@@ -356,6 +356,21 @@ public static partial class SelfTest
         Check("qwen 多模型共享服务商",
             ModelCatalog.Find("qwen3-max")?.ProviderId == "qwen"
             && ModelCatalog.Find("qwen-turbo")?.ProviderId == "qwen");
+
+        // Crush 模型数据导入：providers.json 数组 + crush.json providers 对象（snake_case 字段）
+        {
+            var crushArr = """[{"id":"deepseek","name":"DeepSeek","api_endpoint":"https://api.deepseek.com/v1","models":[{"id":"deepseek-chat","name":"DeepSeek V3","cost_per_1m_in":0.27,"cost_per_1m_out":1.1,"context_window":64000,"default_max_tokens":5000}]}]""";
+            var ci = ModelCatalog.ImportCrush(crushArr);
+            Check("Crush: providers.json 数组解析", ci.Count == 1 && ci[0].ProviderId == "deepseek");
+            Check("Crush: api_endpoint 为 base_url", ci.Count == 1 && (ci[0].DefaultBaseUrl ?? "").Contains("deepseek"));
+            Check("Crush: snake_case 字段映射", ci.Count == 1 && ci[0].ContextWindow == 64000
+                && ci[0].InputPrice == 0.27 && ci[0].OutputPrice == 1.1 && ci[0].MaxOutput == 5000);
+
+            var crushObj = """{"providers":{"deepseek":{"type":"openai-compat","base_url":"https://api.deepseek.com/v1","models":[{"id":"deepseek-chat","name":"DeepSeek V3","cost_per_1m_in":0.27,"context_window":64000}]}}}""";
+            var co = ModelCatalog.ImportCrush(crushObj);
+            Check("Crush: crush.json providers 对象解析", co.Count == 1 && co[0].ProviderId == "deepseek"
+                && (co[0].DefaultBaseUrl ?? "").Contains("deepseek") && co[0].ContextWindow == 64000);
+        }
         // 服务商 key 存取（一个服务商一个 key）
         ApiKeyStore.Set("__waycoder_test__", "sk-test-1234567890");
         Check("ApiKeyStore 按服务商存取 key", ApiKeyStore.Get("__waycoder_test__") == "sk-test-1234567890");

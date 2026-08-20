@@ -1125,6 +1125,45 @@ public static partial class SelfTest
             tscr.Deactivate();
         }
 
+        // ── 写文件内容聊天区展示（ContentDiffFormatter）：«» 标记 diff 格式 ──
+        {
+            Section("[DiffPreview]");
+
+            // 全量新增：3 行内容（结尾 \n 的空行应去掉）
+            var added = ContentDiffFormatter.FormatAddedContent("a\nb\nc\n", "x.cs");
+            Check("ContentDiff: 头行含路径与行数", added.StartsWith("«bright green»x.cs · 3 行«/»"));
+            Check("ContentDiff: 行号+标记", added.Contains("   1 +a") && added.Contains("   2 +b") && added.Contains("   3 +c"));
+            Check("ContentDiff: 绿色包裹每行", added.Contains("«bright green»   1 +a«/»"));
+            Check("ContentDiff: 无尾部换行", !added.EndsWith("\n"));
+
+            // 编辑 diff：old "a\nb\nc" → new "a\nX\nc"（第 2 行 b→X）
+            var edit = ContentDiffFormatter.FormatEditContent("a\nb\nc", "a\nX\nc", "x.cs");
+            Check("ContentDiff: 头行 +N/-M", edit.Contains("· +1/-1 行"));
+            Check("ContentDiff: 含 hunk 头", edit.Contains("@@"));
+            Check("ContentDiff: 删除行红色", edit.Contains("«bright red»   2 -b«/»"));
+            Check("ContentDiff: 新增行绿色", edit.Contains("«bright green»   2 +X«/»"));
+            Check("ContentDiff: 上下文灰色", edit.Contains("«grey»   1  a«/»") && edit.Contains("«grey»   3  c«/»"));
+
+            // CRLF 归一化：\r\n 拆行不花屏
+            var crlf = ContentDiffFormatter.FormatAddedContent("a\r\nb\r\n", "win.cs");
+            Check("ContentDiff: CRLF 归一化", crlf.Contains("1 +a") && crlf.Contains("2 +b") && !crlf.Contains('\r'));
+
+            // maxLines 截断：头行 + 5 行 + 截断提示 = 7 行
+            var big = string.Join("\n", Enumerable.Range(1, 3000).Select(i => $"line{i}")) + "\n";
+            var capped = ContentDiffFormatter.FormatAddedContent(big, "big.cs", maxLines: 5);
+            Check("ContentDiff: maxLines 截断", capped.Contains("仅显示前 5 行") && capped.Split('\n').Length == 7);
+
+            // RenderMessage 纯文本解码出彩色片段（绿 92 / 红 91 / 灰 90）
+            var addedSegRows = WayCoder.UI.Tui.TuiMarkdown.RenderMessage(added, "tool", 80, plainText: true);
+            Check("ContentDiff: 渲染绿色片段", addedSegRows.Any(r => r.Any(s => s.Fg == 92)));
+            var editSegRows = WayCoder.UI.Tui.TuiMarkdown.RenderMessage(edit, "tool", 80, plainText: true);
+            Check("ContentDiff: 渲染红/灰片段", editSegRows.Any(r => r.Any(s => s.Fg == 91)) &&
+                                                editSegRows.Any(r => r.Any(s => s.Fg == 90)));
+
+            // 默认开关开启（WAYCODER_WRITE_CONTENT_VIEW）
+            Check("ContentDiff: 默认开关开启", Config.Instance.WriteContentView);
+        }
+
         // ── 标题栏：左上角恒为商标，工具事件不整行重绘（防闪烁） ──
         {
             var tscr2 = new ChatScreen();
