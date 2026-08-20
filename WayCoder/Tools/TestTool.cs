@@ -74,8 +74,8 @@ public class TestTool : ITool
                 return $"错误：测试命令在 {timeout} 秒后超时";
             }
 
-            var stdout = await stdoutTask;
-            var stderr = await stderrTask;
+            var stdout = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
+            var stderr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
             var combined = stdout + (string.IsNullOrWhiteSpace(stderr) ? "" : "\n" + stderr);
 
             return BuildSummary(proc.ExitCode, combined);

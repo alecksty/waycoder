@@ -68,7 +68,7 @@ public static class BackgroundTaskManager
         var outStr = "";
         var errStr = "";
         _ = RunAdoptedTaskAsync(task,
-            async () => { outStr = await stdoutTask; errStr = await stderrTask; },
+            async () => { outStr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? ""; errStr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? ""; },
             () => outStr + "\n" + errStr);
 
         return id;
@@ -115,7 +115,7 @@ public static class BackgroundTaskManager
             var errStr = "";
 
             await WaitAndCollectAsync(task, timeoutSec,
-                async () => { outStr = await stdoutTask; errStr = await stderrTask; },
+                async () => { outStr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? ""; errStr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? ""; },
                 () => outStr + "\n" + errStr);
         }
         catch (Exception ex)

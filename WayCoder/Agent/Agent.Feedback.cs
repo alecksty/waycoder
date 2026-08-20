@@ -131,8 +131,9 @@ public partial class Agent
                 return toolResult;
             }
 
-            var output = await stdoutTask;
-            var errorOutput = await stderrTask;
+            // 守护子进程继承管道会让读取永不 EOF：加超时兜底
+            var output = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
+            var errorOutput = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
             await proc.WaitForExitAsync();
 
             var fullOutput = output + errorOutput;
