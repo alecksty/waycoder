@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.79.73 (2026-08-20) — CLI 参数对齐 Claude Code / OpenCode
+
+- **命令参数对齐竞品（迁移用户无需重新学习）**，全部为新增别名、不动现有参数：
+  - `--print`（CC）→ 等同 `-p/--prompt`；`--dangerously-skip-permissions`（CC）→ 等同 `--yolo`
+  - `--output-format <text|json|stream-json>`（CC）/ `--format <default|json>`（OC）→ json/stream-json 等同 `--json`
+  - `--permission-mode <default|acceptEdits|plan|bypassPermissions>`（CC）→ bypassPermissions 等同 `--yolo`
+  - `--allowedTools` / `--disallowedTools`（CC）→ 工具白/黑名单（等同 WAYCODER_ALLOWED/DISABLED_TOOLS）
+  - `--system-prompt` / `--append-system-prompt`（CC）→ 追加到系统提示词（WayCoder 结构化基础提示，统一为追加）
+  - `--session <id>`（OC）/ `--resume-session-id`（CC）→ 等同 `--resume <id>`
+  - 已对齐：`-c/--continue`、`-r/--resume`、`-m/--model <id>`、`-v/--version`、`-h/--help`、`--init`
+- 自测补 14 项（别名定义 + 解析行为）；修复 HasKeyFor 测试对用户真实 api_keys.json（含 openai key）的脆弱依赖
+
+### ✅ 验证
+- 自测 3958 通过
+
 ## v0.79.72 (2026-08-20) — Web 亮色主题对比度修复
 
 - **Web 亮色主题太亮、线框看不清**：`www/style.css` 亮色主题（`/theme` 切换）调暗背景（`--bg:#f5f6f8→#dde1e9`）、面板改为柔和近白（`--panel:#f6f7fa`）、边框加深（`--border:#e2e5ec→#bcc4d2`）使对话框/区域线框清晰，对话框阴影加强（`0 6px 24px`）让浮层突出；重新生成 `WebAssets.Generated.cs`
