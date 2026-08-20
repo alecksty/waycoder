@@ -1890,6 +1890,96 @@ public static partial class SelfTest
                 Check("1000行markdown: 滚屏帧变化", f1000a.ToString() != f1000b.ToString());
                 scr1000.Deactivate();
             }
+
+            // 1 万条混合消息压力测试（WAYCODER_STRESS=1 才跑，避免拖慢常规自测）：不崩溃、可渲染、可滚动
+            if (Environment.GetEnvironmentVariable("WAYCODER_STRESS") == "1")
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var scr1w = new ChatScreen();
+                scr1w.Activate();
+                scr1w.ChatList.Width = 80;
+                scr1w.ChatList.Height = 15;
+                try
+                {
+                    for (int i = 0; i < 10_000; i++)
+                    {
+                        switch (i % 6)
+                        {
+                            case 0: scr1w.AddMessage($"用户消息 {i}", "user"); break;
+                            case 1: scr1w.AddMessage($"智能体回复内容 {i}", "assistant"); break;
+                            case 2: scr1w.AddMessage($"系统提示第 {i} 条", "system"); break;
+                            case 3: scr1w.AddMessage($"工具输出: read_file 返回内容 {i}", "tool"); break;
+                            case 4: scr1w.AddMessage($"```csharp\nvar x{i} = {i};\n```", "assistant"); break;
+                            case 5: scr1w.AddMessage($"| 列{i} | 值 |\n|---|---|\n| {i} | data |", "assistant"); break;
+                        }
+                    }
+                    scr1w.ChatList.ReLayout();
+                    sw.Stop();
+                    Check($"1万消息: 添加+布局 {sw.ElapsedMilliseconds}ms < 30s", sw.ElapsedMilliseconds < 30_000);
+                    Check($"1万消息: 内容高度合理 (ContentHeight={scr1w.ChatList.ContentHeight})", scr1w.ChatList.ContentHeight > 0);
+                    // 渲染三帧（底部/中间/顶部）验证不崩溃
+                    scr1w.ChatList.ScrollToBottom();
+                    scr1w.IsIncrementalUpdate = false;
+                    var fW1 = new System.Text.StringBuilder();
+                    scr1w.Render(fW1);
+                    scr1w.ChatList.ScrollUp(200);
+                    var fW2 = new System.Text.StringBuilder();
+                    scr1w.Render(fW2);
+                    scr1w.ChatList.ScrollToTop();
+                    var fW3 = new System.Text.StringBuilder();
+                    scr1w.Render(fW3);
+                    Check("1万消息: 底/中/顶渲染帧不同", fW1.ToString() != fW2.ToString() && fW2.ToString() != fW3.ToString());
+                    Check("1万消息: 渲染无异常", true);
+                }
+                catch (Exception ex)
+                {
+                    Check($"1万消息: 异常 {ex.GetType().Name}: {ex.Message}", false);
+                }
+                scr1w.Deactivate();
+            }
+
+            // 非法/畸形格式消息：不崩溃（用户反馈场景）
+            {
+                var scrBad = new ChatScreen();
+                scrBad.Activate();
+                scrBad.ChatList.Width = 80;
+                scrBad.ChatList.Height = 15;
+                string[] badMessages = [
+                    "```csharp\n没有闭合的代码块",                                        // 未闭合代码块
+                    "| A | B |\n| 只有表头",                                              // 畸形表格
+                    "| 1 | 2 | 3 |\n|---|---|\n| 列数不一致",                              // 表格列数不一致
+                    "\x1b[31mANSI红\x1b[0m \x1b[2m淡化",                                  // ANSI 转义
+                    "文本 \x00 NUL \x1b 混合控制字符",                                     // NUL/控制字符
+                    "😀😃😄 emoji 中文混合 " + new string('超', 300),                     // emoji + 长
+                    "😀 独立代理对",                                            // emoji 代理对
+                    "```\n```\n```",                                                      // 连续代码围栏
+                    "*b* **b2** `c` # h ## h2 > 引用 - 列表",                             // 混合格式
+                    new string('a', 5000),                                               // 5000 字符超长单行
+                    "",                                                                   // 空内容
+                    "| a\\|b | c |\n|---|---|\n| x\\|y | z |",                             // 转义竖线
+                    "1. 有序\n2. 列表\n3. 项",                                            // 列表
+                ];
+                try
+                {
+                    foreach (var bm in badMessages)
+                        scrBad.AddMessage(bm, "assistant");
+                    scrBad.ChatList.ReLayout();
+                    scrBad.IsIncrementalUpdate = false;
+                    var fBad = new System.Text.StringBuilder();
+                    scrBad.Render(fBad);
+                    Check("非法格式: 渲染不崩溃", fBad.Length > 0);
+                    scrBad.ChatList.ScrollToBottom();
+                    scrBad.ChatList.ScrollUp(5);
+                    var fBad2 = new System.Text.StringBuilder();
+                    scrBad.Render(fBad2);
+                    Check("非法格式: 滚动不崩溃", fBad2.Length > 0);
+                }
+                catch (Exception ex)
+                {
+                    Check($"非法格式: 异常 {ex.GetType().Name}: {ex.Message}", false);
+                }
+                scrBad.Deactivate();
+            }
             scr2.ChatList.ScrollToBottom();
             scr2.IsIncrementalUpdate = false;
             var scr2f1 = new System.Text.StringBuilder();
