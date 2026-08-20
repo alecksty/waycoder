@@ -295,6 +295,12 @@ public static partial class SelfTest
         Check("命令面板: 无回调时无动作项", !cmdsNoCb.Any(c => c.Id == "model") && cmdsNoCb.Any(c => c.Id.StartsWith("slash-")));
         Console.WriteLine();
 
+        // ---- 鼠标支持：默认开启 + 设置项存在 ----
+        Section("[鼠标支持]");
+        Check("鼠标: 默认开启", new Config().MouseEnabled);
+        Check("鼠标: 设置项存在", ConfigCli.Get("MouseEnabled").Contains("MouseEnabled"));
+        Console.WriteLine();
+
         // ---- 会话详情: MessageCount ----
         Section("[会话详情: MessageCount]");
         var mcTestId = "mc_test_" + DateTime.Now.ToString("yyyyMMddHHmmss");
