@@ -65,7 +65,7 @@ public class LsTool : ITool
         }
         catch (Exception ex)
         {
-            return $"ls 错误：{ex.GetType().Name}: {ex.Message}";
+            return $"错误：ls: {ex.GetType().Name}: {ex.Message}";
         }
     }
 
