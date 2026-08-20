@@ -72,6 +72,25 @@ public partial class Agent
             if (staleWarning != null)
                 return staleWarning;
 
+            // 写文件内容展示：edit/multiedit 与 write-append 需要编辑前的旧内容做 diff。
+            // 仅交互 TUI（有 onToolOutput）且开关开启时才读，避免无关文件 IO。
+            string? oldContentForDisplay = null;
+            bool needOldForDisplay = tc.Name is "edit_file" or "multiedit" ||
+                (tc.Name == "write_file" &&
+                 tc.Arguments.TryGetValue("append", out var wcApArg) &&
+                 wcApArg?.ToString()?.ToLowerInvariant() == "true");
+            if (needOldForDisplay && onToolOutput != null && Config.Instance.WriteContentView &&
+                tc.Arguments.TryGetValue("file_path", out var wcOldFpObj) &&
+                wcOldFpObj is string wcOldFpStr && !string.IsNullOrWhiteSpace(wcOldFpStr))
+            {
+                try
+                {
+                    var wcOldPath = Path.GetFullPath(wcOldFpStr, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory());
+                    if (File.Exists(wcOldPath)) oldContentForDisplay = File.ReadAllText(wcOldPath);
+                }
+                catch { }
+            }
+
             // 可取消工具：中断（Web 停止按钮 / Ctrl+C）时能真正杀掉子进程（如 bash）。
             // bash 走流式路径（有 onToolOutput 时）；其余可取消工具统一走 ICancellableTool。
             var result = tool is BashTool bashTool && onToolOutput != null
@@ -93,6 +112,39 @@ public partial class Agent
                     // 更新 FileTracker 哈希，防止下次编辑时误报 stale
                     FileTracker.RecordWrite(path);
                 }
+            }
+
+            // ── 写文件内容聊天区展示 ──
+            // 写盘成功后读回全文，按 diff 格式（行号 + 标记）经 onToolOutput 内联展示。
+            // 仅展示、不进 LLM 上下文（result 保持摘要）；读取/格式化失败静默跳过。
+            if (onToolOutput != null && Config.Instance.WriteContentView &&
+                tc.Arguments.TryGetValue("file_path", out var wcFpObj) &&
+                wcFpObj is string wcFpStr && !string.IsNullOrWhiteSpace(wcFpStr))
+            {
+                try
+                {
+                    bool isWrite = tc.Name == "write_file";
+                    bool isEdit = tc.Name == "edit_file";
+                    bool isMulti = tc.Name == "multiedit";
+                    bool writeOk = isWrite && (result.StartsWith("已写入") || result.StartsWith("已追加"));
+                    bool editOk = isEdit && result.StartsWith("已编辑");
+                    bool multiOk = isMulti && (result.StartsWith("✅ 已创建") || result.StartsWith("✅ 已编辑"));
+                    if (writeOk || editOk || multiOk)
+                    {
+                        var wcPath = Path.GetFullPath(wcFpStr, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory());
+                        if (File.Exists(wcPath))
+                        {
+                            var wcNewContent = File.ReadAllText(wcPath);
+                            bool addedView = (isWrite && !result.StartsWith("已追加")) ||
+                                             (isMulti && result.StartsWith("✅ 已创建"));
+                            string display = addedView
+                                ? ContentDiffFormatter.FormatAddedContent(wcNewContent, wcPath)
+                                : ContentDiffFormatter.FormatEditContent(oldContentForDisplay ?? "", wcNewContent, wcPath);
+                            onToolOutput(display);
+                        }
+                    }
+                }
+                catch { }
             }
 
             // PostToolUse hook（可修改结果）
@@ -157,7 +209,9 @@ public partial class Agent
             {
                 var tc = batch[0];
                 onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
-                results[tc.Id] = await RunToolAndRecordAsync(tc, null, cancellationToken);
+                // 单工具批次独占执行（write/edit 为 Exclusive）：传 onToolOutput，
+                // 使写文件内容展示与 bash 流式在多工具轮次中也生效（批次内无并发穿插）。
+                results[tc.Id] = await RunToolAndRecordAsync(tc, onToolOutput, cancellationToken);
             }
             else
             {
