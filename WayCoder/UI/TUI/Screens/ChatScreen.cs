@@ -584,7 +584,7 @@ public partial class ChatScreen : TuiScreen
         {
             Width = TW,
             Height = 1,
-            LineChar = "━",
+            LineChar = "─",
             LineColor = TuiTheme.Current.SeparatorFg
         };
 
@@ -613,7 +613,7 @@ public partial class ChatScreen : TuiScreen
         InputBotBorder = new TuiSeparator
         {
             Width = TW, Height = 1,
-            LineChar = "━", LineColor = TuiTheme.Current.SeparatorFg
+            LineChar = "─", LineColor = TuiTheme.Current.SeparatorFg
         };
         RootView.Add(InputBotBorder);
 
@@ -930,7 +930,7 @@ public partial class ChatScreen : TuiScreen
             var barW = TW - 12;
             var filled = Math.Clamp((int)Math.Round(barW * pct / 100.0), 0, barW);
             var empty = barW - filled;
-            var progressY = TH - 2; // 状态栏上方一行（0-based 行号）
+            var progressY = TH - 3; // 布局预留的 progressH 行（0-based；TH-2 是模型信息行，避免覆盖）
             var barText = $"«{new string('█', filled)}{new string('░', empty)}» {pct,3:F0}%";
             sb.Append(AnsiTty.CursorPos0(progressY, 0)) // CursorPos0 才是 0-based，CursorPos 是 1-based 会错位到 TH-3
               .Append(AnsiTty.Fg(AnsiColors.Yellow))
@@ -1023,7 +1023,7 @@ public partial class ChatScreen : TuiScreen
             {
                 TuiTheme.Apply(TuiTheme.Presets[idx], idx);
                 ApplyThemeToScreen();
-                TuiToastQueue.Enqueue($"主题已切换：{TuiTheme.PresetNames[idx]}", TuiToastQueue.ToastType.Success);
+                ShowToast($"🎨 主题已切换：{TuiTheme.PresetNames[idx]}", 1500);
             }
         });
         ShowWindow(win);
@@ -1034,7 +1034,7 @@ public partial class ChatScreen : TuiScreen
     {
         var name = TuiTheme.CycleNext();
         ApplyThemeToScreen();
-        TuiToastQueue.Enqueue($"主题：{name}", TuiToastQueue.ToastType.Info);
+        ShowToast($"🎨 主题：{name}", 1500);
     }
 
     /// <summary>将当前主题颜色应用到屏幕各组件并强制重绘</summary>

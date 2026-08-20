@@ -56,8 +56,6 @@
 
     <!-- 模型/模式信息行：工作模式/经济模式/大模型/小模型，内容由 code-behind 每帧填充；灰字不抢眼 -->
     <Label id="modelInfoRow" height="1" visible="false" fg="gray" dim="true" align="center" />
-    <!-- 模式行与状态栏之间的空行（呼吸感） -->
-    <Label id="modelInfoSpacer" height="1" />
 
     <!-- 底部状态栏 -->
     <StatusBar id="statusBar" height="1"
