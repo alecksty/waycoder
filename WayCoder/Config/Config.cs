@@ -153,6 +153,8 @@ public class Config
     public int ToolTimeoutSec { get; set; } = 120;
     public string AllowedTools { get; set; } = "";     // 逗号分隔白名单，空=全部允许
     public string DisabledTools { get; set; } = "";    // 逗号分隔黑名单
+    /// <summary>追加到系统提示词的自定义文本（--system-prompt / --append-system-prompt）</summary>
+    public string ExtraSystemPrompt { get; set; } = "";
     public int LintTimeoutSec { get; set; } = 60;
     public int SubAgentMaxDepth { get; set; } = 3;
     public int BashOutputMaxChars { get; set; } = 50_000;

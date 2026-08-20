@@ -86,7 +86,8 @@ public partial class Program
         string? baseUrl = Arguments.CliArgRegistry.Get(parsed, "base-url");
         string? apiKey = Arguments.CliArgRegistry.Get(parsed, "api-key");
         string? prompt = Arguments.CliArgRegistry.Get(parsed, "prompt");
-        string? resumeId = Arguments.CliArgRegistry.Get(parsed, "resume");
+        string? resumeId = Arguments.CliArgRegistry.Get(parsed, "resume")
+            ?? Arguments.CliArgRegistry.Get(parsed, "session"); // --session <id>（OpenCode/Claude Code）等同 --resume <id>
         string? editFile = Arguments.CliArgRegistry.Get(parsed, "edit");
 
         // 共享前缀（-pa "前缀" → 拼到每个 -pN 任务前面）
@@ -127,7 +128,13 @@ public partial class Program
         string? tinyWindowSpec = Arguments.CliArgRegistry.Get(parsed, "tiny");
         bool economyMode = Arguments.CliArgRegistry.Has(parsed, "economy");
         string? economySpec = Arguments.CliArgRegistry.Get(parsed, "economy");
-        bool jsonMode = Arguments.CliArgRegistry.Has(parsed, "json");
+        // --output-format（Claude Code）/ --format（OpenCode）：json|stream-json 等同 --json
+        var outFormat = Arguments.CliArgRegistry.Get(parsed, "output-format");
+        bool jsonMode = Arguments.CliArgRegistry.Has(parsed, "json") || outFormat is "json" or "stream-json";
+
+        // --permission-mode bypassPermissions（Claude Code）→ yolo
+        if (Arguments.CliArgRegistry.Get(parsed, "permission-mode") == "bypassPermissions")
+            yoloMode = true;
         bool webMode = Arguments.CliArgRegistry.Has(parsed, "web");
         string? webPortSpec = Arguments.CliArgRegistry.Get(parsed, "web");
         bool tuiMode = Arguments.CliArgRegistry.Has(parsed, "tui");
@@ -207,6 +214,18 @@ public partial class Program
         if (maxBudget != null) _config.MaxBudgetUsd = maxBudget;
         if (maxRequeue != null) _config.MaxAutoRequeue = maxRequeue.Value;
         if (watchMode) _config.WatchMode = true;
+
+        // 竞品参数对齐：工具白/黑名单（Claude Code --allowedTools / --disallowedTools）、
+        // 系统提示词追加（--system-prompt / --append-system-prompt）。均在 agent 创建前设置。
+        var cliAllowed = Arguments.CliArgRegistry.GetAll(parsed, "allowed-tools");
+        if (cliAllowed != null)
+            _config.AllowedTools = string.Join(",", cliAllowed);
+        var cliDisabled = Arguments.CliArgRegistry.GetAll(parsed, "disallowed-tools");
+        if (cliDisabled != null)
+            _config.DisabledTools = string.Join(",", cliDisabled);
+        var cliSysPrompt = Arguments.CliArgRegistry.Get(parsed, "system-prompt");
+        if (cliSysPrompt != null)
+            _config.ExtraSystemPrompt = cliSysPrompt;
         if (economyMode)
             _config.EconomyMode = (economySpec?.ToLowerInvariant()) switch
             {
@@ -322,8 +341,9 @@ public partial class Program
         McpManager.Init();
         CheckpointManager.LoadFromDisk();
 
-        // 恢复会话（-c/--continue/--resume）
-        var hasResumeFlag = Arguments.CliArgRegistry.Has(parsed, "resume");
+        // 恢复会话（-c/--continue/--resume/--session）
+        var hasResumeFlag = Arguments.CliArgRegistry.Has(parsed, "resume")
+            || Arguments.CliArgRegistry.Has(parsed, "session");
         if (hasResumeFlag)
         {
             // 无参数时：优先 _auto，回退最新会话（一次性模式 = 主槽位 0，旧版本存全局则回退）

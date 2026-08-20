@@ -237,6 +237,42 @@ public static partial class SelfTest
         Check("EconomyArg: 描述含 '任务复杂度'", economyArg.Description.Contains("任务复杂度"));
         Console.WriteLine();
 
+        // ---- CLI 参数: 竞品别名对齐（Claude Code / OpenCode）----
+        Section("[CLI 参数: 竞品对齐]");
+        var promptAlias = new Arguments.PromptArg();
+        Check("对齐: PromptArg 含 --print", promptAlias.Names.Contains("--print"));
+        var yoloAlias = new Arguments.YoloArg();
+        Check("对齐: YoloArg 含 --dangerously-skip-permissions", yoloAlias.Names.Contains("--dangerously-skip-permissions"));
+        var outFmtAlias = new Arguments.OutputFormatArg();
+        Check("对齐: OutputFormatArg 含 --output-format/--format", outFmtAlias.Names.Contains("--output-format") && outFmtAlias.Names.Contains("--format"));
+        var permAlias = new Arguments.PermissionModeArg();
+        Check("对齐: PermissionModeArg 含 --permission-mode", permAlias.Names.Contains("--permission-mode"));
+        var allowedAlias = new Arguments.AllowedToolsArg();
+        Check("对齐: AllowedToolsArg 含 --allowedTools", allowedAlias.Names.Contains("--allowedTools"));
+        var disallowedAlias = new Arguments.DisallowedToolsArg();
+        Check("对齐: DisallowedToolsArg 含 --disallowed-tools", disallowedAlias.Names.Contains("--disallowed-tools"));
+        var sysPromptAlias = new Arguments.SystemPromptArg();
+        Check("对齐: SystemPromptArg 含 --append-system-prompt", sysPromptAlias.Names.Contains("--append-system-prompt"));
+        var sessionAlias = new Arguments.SessionArg();
+        Check("对齐: SessionArg 含 --session/--resume-session-id", sessionAlias.Names.Contains("--session") && sessionAlias.Names.Contains("--resume-session-id"));
+
+        // Parse 行为：注册全部内置参数（幂等），验证别名解析到既有 key
+        Arguments.BuiltinArgs.RegisterAll();
+        var (pPrint, _) = Arguments.CliArgRegistry.Parse(new[] { "--print", "写个 hello" });
+        Check("对齐: --print 解析为 prompt", Arguments.CliArgRegistry.Get(pPrint, "prompt") == "写个 hello");
+        var (pYolo, _) = Arguments.CliArgRegistry.Parse(new[] { "--dangerously-skip-permissions" });
+        Check("对齐: --dangerously-skip-permissions 解析为 yolo", Arguments.CliArgRegistry.Has(pYolo, "yolo"));
+        var (pFmt, _) = Arguments.CliArgRegistry.Parse(new[] { "--output-format", "json" });
+        Check("对齐: --output-format json 解析", Arguments.CliArgRegistry.Get(pFmt, "output-format") == "json");
+        var (pFmt2, _) = Arguments.CliArgRegistry.Parse(new[] { "--format", "stream-json" });
+        Check("对齐: --format stream-json 解析", Arguments.CliArgRegistry.Get(pFmt2, "output-format") == "stream-json");
+        var (pAllowed, _) = Arguments.CliArgRegistry.Parse(new[] { "--allowedTools", "Bash(git:*)", "Edit" });
+        var pAllowedVals = Arguments.CliArgRegistry.GetAll(pAllowed, "allowed-tools");
+        Check("对齐: --allowedTools 贪婪多值", pAllowedVals != null && pAllowedVals.Count == 2 && pAllowedVals[0] == "Bash(git:*)");
+        var (pSession, _) = Arguments.CliArgRegistry.Parse(new[] { "--session", "abc123" });
+        Check("对齐: --session 解析", Arguments.CliArgRegistry.Get(pSession, "session") == "abc123");
+        Console.WriteLine();
+
         // ---- 会话详情: MessageCount ----
         Section("[会话详情: MessageCount]");
         var mcTestId = "mc_test_" + DateTime.Now.ToString("yyyyMMddHHmmss");
