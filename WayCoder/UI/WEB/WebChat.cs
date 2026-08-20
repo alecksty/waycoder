@@ -43,6 +43,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         public volatile Agent? Agent;
         public volatile bool IsBusy;
         public CancellationTokenSource? Cts;
+        /// <summary>运行中的后台 Agent 任务（换模型/存 key 时 await 收尾，避免与退场 ChatAsync 竞态）。</summary>
+        public Task? RunningTask;
         /// <summary>串行化 StartSlotTask 的 check-then-act 与 Interrupt 的 Cts 摘除，防同槽位并发请求双启动 / 中断被丢。</summary>
         public readonly object StartLock = new();
         /// <summary>串行化 EnsureSlot 的懒建 check-then-act，防并发首建产生双 Agent 相互覆盖。</summary>
@@ -178,6 +180,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             if (string.IsNullOrWhiteSpace(modelId))
                 return HttpResponse.JsonBody(Err("缺少 modelId"));
             Interrupt(slot);
+            WaitForSlotIdleAsync(_slots[slot]).GetAwaiter().GetResult(); // 等退场 ChatAsync 收尾，避免与 Reconfigure 竞态
             var agent = EnsureSlot(slot);
             var error = ApplyModel(agent, modelId, apiKey);
             if (error != null) return HttpResponse.JsonBody(Err(error));
@@ -272,6 +275,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                     return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true)
                         .Set("output", WebModelListText()).ToJson());
                 Interrupt(slot);
+                WaitForSlotIdleAsync(_slots[slot]).GetAwaiter().GetResult(); // 等退场 ChatAsync 收尾再 Reconfigure
                 var matches = ModelCatalog.Search(name);
                 if (matches.Length == 0)
                     return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true)
@@ -608,7 +612,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             slot.IsBusy = true;
         }
         var token = roundCts.Token;
-        _ = Task.Run(async () =>
+        slot.RunningTask = Task.Run(async () =>
         {
             _currentSlot.Value = slotIdx;
             StructuredMemory.CurrentSlotIndex = slotIdx; // 绑定本槽位记忆目录（AsyncLocal）
@@ -643,9 +647,18 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                     }
                     slot.IsBusy = false;
                 }
+                slot.RunningTask = null;
                 _currentSlot.Value = 0;
             }
         });
+    }
+
+    /// <summary>等待槽位的后台 Agent 任务收尾（换模型/存 key 前调用，避免与退场的 ChatAsync 竞态读写 LLM 配置）。</summary>
+    private static async Task WaitForSlotIdleAsync(WebSlot slot, int timeoutMs = 5000)
+    {
+        var task = slot.RunningTask;
+        if (task == null) return;
+        try { await Task.WhenAny(task, Task.Delay(timeoutMs)); } catch { /* 任务异常不影响换模型 */ }
     }
 
     // ═══════════════════════════════════════════════════════════

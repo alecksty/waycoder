@@ -58,6 +58,13 @@ public class ReadFileTool : ITool
 
     private static string Execute(string filePath, int offset, int limit, int tail)
     {
+        var result = ResolveExecute(filePath, offset, limit, tail);
+        // 提示注入防护：读取内容含「忽略之前指令/你现在是…」等注入模式时附加警告
+        return result + (WayCoder.Infra.PromptInjection.WarningIfInjected(result, $"文件 {filePath}") ?? "");
+    }
+
+    private static string ResolveExecute(string filePath, int offset, int limit, int tail)
+    {
         try
         {
             if (string.IsNullOrWhiteSpace(filePath))

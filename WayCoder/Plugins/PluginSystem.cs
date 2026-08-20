@@ -58,12 +58,15 @@ public static class PluginRegistry
         var idx = _plugins.FindIndex(p => string.Equals(p.Name, plugin.Name, StringComparison.OrdinalIgnoreCase));
         if (idx >= 0) _plugins[idx] = plugin;
         else _plugins.Add(plugin);
+        WayCoder.Tools.ToolRegistry.InvalidateAllToolsCache(); // 动态注册插件后 AllTools 缓存失效
     }
 
     /// <summary>按名移除插件。返回是否移除了任何插件。</summary>
     public static bool Unregister(string name)
     {
-        return _plugins.RemoveAll(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)) > 0;
+        var removed = _plugins.RemoveAll(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)) > 0;
+        if (removed) WayCoder.Tools.ToolRegistry.InvalidateAllToolsCache(); // 移除插件后 AllTools 缓存失效
+        return removed;
     }
 
     /// <summary>收集所有插件贡献的工具（去 null，防御不严谨插件）。</summary>

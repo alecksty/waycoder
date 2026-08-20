@@ -1,0 +1,8 @@
+# 行尾统一：文本文件在 index 中存 LF（core.autocrlf=true 时 checkout 转 CRLF），
+# 根治「编辑工具写 LF、仓库存 CRLF」导致的每次提交全文件行尾噪音。
+* text=auto
+
+# Windows 脚本需要 CRLF 才能正确执行
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
