@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.79.71 (2026-08-20) — 未知模型上下文兜底改 128K
+
+- **未知模型上下文窗口兜底 1M → 128K**：`WAYCODER_MAX_CONTEXT`（`Config.MaxContextTokens`）默认从 1048576 改为 131072，未知/未收录模型（含 `ContextWindow=0` 的自定义导入模型）按 128K 处理，避免高估窗口导致请求超限
+- **token 显示上限改用 agent 真实窗口**：右下角「当前/上限」不再显示配置兜底值，改用 `agent.Context.MaxTokens`（切换模型后同步显示真实窗口）
+
+### ✅ 验证
+- 自测 3944 通过
+
 ## v0.79.70 (2026-08-20) — 修复设置页切模型不更新上下文窗口
 
 - **修复：设置页/空格预览切换模型后上下文窗口不更新**——`ModelPicker.Apply` 此前只改 `cfg.Model`，设置界面（`SettingsScreen` 直接调 `ModelPicker.Show()`，走不到 `/model` 命令的 `UpdateContextWindow` 后处理）切模型后窗口残留旧模型值、压缩阈值跟着错，直到重启或走 `/model` 命令
