@@ -21,4 +21,31 @@ public static class ProcUtil
         try { return await readTask; }
         catch { return null; }
     }
+
+    /// <summary>
+    /// 统一「启动进程 + 并发读 stdout/stderr + 等退出（带超时） + 超时杀进程树 + 读取兜底」。
+    /// 返回 null = 超时/取消（调用方自行格式化超时文案）；否则 (退出码, stdout, stderr)。
+    /// 消除各工具重复的进程运行样板 + 三种超时语义差异。
+    /// </summary>
+    public static async Task<(int ExitCode, string Stdout, string Stderr)?> RunAsync(
+        System.Diagnostics.ProcessStartInfo psi, int timeoutMs, CancellationToken ct = default)
+    {
+        using var proc = new System.Diagnostics.Process { StartInfo = psi };
+        proc.Start();
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+        var stderrTask = proc.StandardError.ReadToEndAsync();
+        using var timeoutCts = timeoutMs > 0 ? new CancellationTokenSource(timeoutMs) : null;
+        using var linked = timeoutCts != null
+            ? CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token)
+            : CancellationTokenSource.CreateLinkedTokenSource(ct);
+        try { await proc.WaitForExitAsync(linked.Token); }
+        catch (OperationCanceledException)
+        {
+            try { proc.Kill(entireProcessTree: true); } catch { }
+            return null; // 超时/取消
+        }
+        var stdout = await AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
+        var stderr = await AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
+        return (proc.ExitCode, stdout, stderr);
+    }
 }

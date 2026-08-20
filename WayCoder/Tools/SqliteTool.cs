@@ -53,22 +53,11 @@ public class SqliteTool : ITool
             psi.ArgumentList.Add("-column");
             psi.ArgumentList.Add(query);
 
-            using var proc = new Process { StartInfo = psi };
-            proc.Start();
+            var r = await WayCoder.Infra.ProcUtil.RunAsync(psi, 30_000);
+            if (r == null) return "错误：SQL 执行超时（30 秒）";
+            var (exitCode, stdout, stderr) = r.Value;
 
-            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
-            var stderrTask = proc.StandardError.ReadToEndAsync();
-
-            if (!proc.WaitForExit(30_000))
-            {
-                try { proc.Kill(entireProcessTree: true); } catch { }
-                return "错误：SQL 执行超时（30 秒）";
-            }
-
-            var stdout = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
-            var stderr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
-
-            if (proc.ExitCode != 0 && !string.IsNullOrWhiteSpace(stderr))
+            if (exitCode != 0 && !string.IsNullOrWhiteSpace(stderr))
                 return $"错误：SQL 执行失败 — {stderr.Trim()}";
 
             return string.IsNullOrWhiteSpace(stdout) ? "（查询无结果）" : stdout.TrimEnd();
