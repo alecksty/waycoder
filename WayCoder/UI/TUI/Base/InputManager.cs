@@ -49,7 +49,9 @@ public class InputManager : IDisposable
         {
             try
             {
-                Tty.EnableMouse();
+                // macOS 自带终端不支持 ?1003h（移动追踪）/ ?1015h（UTF-8 鼠标），启用后显示/输入异常
+                if (Tty.IsAppleTerminal) Tty.EnableMouseBasic();
+                else Tty.EnableMouse();
                 _mouseEnabled = true;
             }
             catch
@@ -68,14 +70,18 @@ public class InputManager : IDisposable
             /* 非关键功能 */
         }
 
-        // 启用 Kitty 键盘协议：现代终端（iTerm2/Kitty/WezTerm）支持修饰键完整报告
-        try
+        // 启用 Kitty 键盘协议：现代终端（iTerm2/Kitty/WezTerm）支持修饰键完整报告；
+        // macOS 自带终端不支持 Kitty，启用后可能产生异常（不做协议协商就发 >1u）。
+        if (!Tty.IsAppleTerminal)
         {
-            Tty.EnableKittyKeyboard();
-        }
-        catch
-        {
-            /* 非关键功能 */
+            try
+            {
+                Tty.EnableKittyKeyboard();
+            }
+            catch
+            {
+                /* 非关键功能 */
+            }
         }
     }
 
