@@ -1013,6 +1013,14 @@ public partial class ChatScreen : TuiScreen
         ShowWindow(win);
     }
 
+    /// <summary>Ctrl+Shift+P：打开命令面板（对齐 Claude Code quickOpen / OpenCode）</summary>
+    private void OpenCommandPalette()
+    {
+        var commands = WayCoder.UI.Tui.CommandPalette.BuildDefaultCommands(this);
+        if (commands.Count == 0) return;
+        WayCoder.UI.Tui.CommandPalette.Show(commands);
+    }
+
     /// <summary>Ctrl+Shift+F1：弹出主题选择对话框</summary>
     private void ShowThemePicker()
     {

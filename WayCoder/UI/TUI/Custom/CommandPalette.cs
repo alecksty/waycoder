@@ -1,5 +1,6 @@
 ﻿using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui.Controls;
+using WayCoder.UI.Tui.Screens;
 
 using WayCoder.UI.Shared;
 using WayCoder.UI.TUI;
@@ -43,6 +44,50 @@ public static class CommandPalette
         // 窗口关闭后再执行命令，避免命令内部再弹模态框造成 RenderWait 嵌套
         toRun?.Action?.Invoke();
         return toRun != null;
+    }
+
+    /// <summary>
+    /// 构建默认命令列表（高频动作 + 精选常用斜杠命令），供 Ctrl+Shift+P 命令面板使用。
+    /// 对标 Claude Code / OpenCode 命令面板：只列最常用命令，避免刷屏。
+    /// 高频动作复用 ChatScreen 已暴露的回调；斜杠命令经 SlashCommandRegistry 按白名单精选。
+    /// </summary>
+    public static List<Command> BuildDefaultCommands(ChatScreen screen)
+    {
+        var list = new List<Command>();
+        const string cat = "⚡ 常用";
+
+        if (screen.OnCycleModel != null)
+            list.Add(new("model", "模型选择", cat, "Ctrl+M", "打开模型选择对话框", () => screen.OnCycleModel()));
+        if (screen.OnShowHelp != null)
+            list.Add(new("help", "快捷键帮助", cat, "Ctrl+H", "打开快捷键速查面板", () => screen.OnShowHelp()));
+        list.Add(new("settings", "设置", cat, "Ctrl+T", "打开设置界面", () => screen.Manager?.PushScreen(new SettingsScreen())));
+        if (screen.OnOpenSessions != null)
+            list.Add(new("sessions", "会话列表", cat, "Ctrl+S", "查看 / 切换会话", () => screen.OnOpenSessions()));
+        if (screen.OnOpenDiff != null)
+            list.Add(new("diff", "Diff 预览", cat, "Ctrl+D", "查看修改文件差异", () => screen.OnOpenDiff()));
+        if (screen.OnReasoningEffort != null)
+            list.Add(new("reasoning", "推理深度", cat, "Ctrl+G", "切换推理深度", () => screen.OnReasoningEffort()));
+        if (screen.OnSearchHistory != null)
+            list.Add(new("search", "搜索历史", cat, "Ctrl+R", "搜索对话历史",
+                () => { var q = UxHelper.Ask("搜索对话历史"); if (!string.IsNullOrWhiteSpace(q)) screen.OnSearchHistory?.Invoke(q); }));
+
+        // 精选常用斜杠命令（对标 Claude Code / OpenCode 命令面板的常见项）
+        var common = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "help", "reset", "compact", "model", "settings", "undo", "diff", "edit",
+            "recent", "session", "mcp", "init", "update", "stats", "tokens", "config",
+            "provider", "search", "git", "todo", "theme", "mode",
+        };
+        const string slashCat = "🗂 常用命令";
+        foreach (var cmd in SlashCommandRegistry.Commands)
+        {
+            var name = cmd.Name.TrimStart('/').ToLowerInvariant();
+            if (!common.Contains(name)) continue;
+            var label = cmd.Name + (string.IsNullOrEmpty(cmd.Usage) ? "" : " " + cmd.Usage);
+            list.Add(new("slash-" + cmd.Name, label, slashCat, "", cmd.Description,
+                () => { try { cmd.ExecuteAsync("", screen).GetAwaiter().GetResult(); } catch { } }));
+        }
+        return list;
     }
 
     // ── 窗口构建 ──
