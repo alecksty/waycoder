@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.79.83 (2026-08-20) — ProcRunner 统一进程运行
+
+- **新增 `ProcUtil.RunAsync(psi, timeoutMs, ct)`**：统一「启动进程 + 并发读 stdout/stderr + 等退出（带超时）+ 超时杀进程树 + 读取兜底」，消除各工具重复样板与三种超时语义差异
+- **应用到 5 个简单工具**：TestTool / SqliteTool / PsTool / KillTool / LintTool（各自保留自定义超时文案）；复杂工具（BashTool 流式/后台/沙箱、GitRunner、BatchRunner、BackgroundTask）保留定制逻辑（已做超时修复）
+
+### ✅ 验证
+- 自测 3970 通过（0 真实失败）
+
 ## v0.79.82 (2026-08-20) — 错误前缀统一 + 渲染器着色合并
 
 - **工具错误前缀统一为「错误：」开头**：`cp/Git/ls/mv/rm/wc` 6 个工具此前返回 `"cp 错误：…"`（工具名开头），`ToolResultClassifier.IsError` 只认 `错误/Error/❌/失败` 前缀 → 这些失败被**误判为成功**（Agent 不注入重试提示）。统一后分类器全部识别

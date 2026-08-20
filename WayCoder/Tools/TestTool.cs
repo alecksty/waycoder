@@ -64,21 +64,12 @@ public class TestTool : ITool
 
         try
         {
-            using var proc = Process.Start(psi)!;
-            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
-            var stderrTask = proc.StandardError.ReadToEndAsync();
-
-            if (!proc.WaitForExit(timeout * 1000))
-            {
-                try { proc.Kill(entireProcessTree: true); } catch { }
-                return $"错误：测试命令在 {timeout} 秒后超时";
-            }
-
-            var stdout = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
-            var stderr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
+            var r = await WayCoder.Infra.ProcUtil.RunAsync(psi, timeout * 1000);
+            if (r == null) return $"错误：测试命令在 {timeout} 秒后超时";
+            var (exitCode, stdout, stderr) = r.Value;
             var combined = stdout + (string.IsNullOrWhiteSpace(stderr) ? "" : "\n" + stderr);
 
-            return BuildSummary(proc.ExitCode, combined);
+            return BuildSummary(exitCode, combined);
         }
         catch (Exception ex)
         {
