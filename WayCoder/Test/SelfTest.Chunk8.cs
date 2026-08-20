@@ -1830,6 +1830,36 @@ public static partial class SelfTest
             var longCode = "```csharp\n" + string.Join("\n", Enumerable.Range(1, 60).Select(i => $"code{i:000} = {i};")) + "\n```";
             var codeLines2 = WayCoder.UI.Tui.TuiMarkdown.RenderMessage(longCode, "assistant", 56).Count;
             Check($"长代码块: 正文渲染 {codeLines2} 行 ≥ 60", codeLines2 >= 60);
+
+            // 500 行代码块：渲染 + 高度 + 滚屏（用户反馈场景）
+            {
+                var scr500 = new ChatScreen();
+                scr500.Activate();
+                scr500.ChatList.Width = 80;
+                scr500.ChatList.Height = 15;
+                var code500 = "```csharp\n" + string.Join("\n", Enumerable.Range(1, 500).Select(i => $"var x{i} = {i};")) + "\n```";
+                scr500.AddMessage(code500, "assistant");
+                scr500.ChatList.ReLayout();
+                var r500 = WayCoder.UI.Tui.TuiMarkdown.RenderMessage(code500, "assistant", 76).Count;
+                Check($"500行代码: 渲染 {r500} 行 ≈ 502", Math.Abs(r500 - 502) <= 2);
+                Check($"500行代码: 高度随正文 (ContentHeight={scr500.ChatList.ContentHeight})", scr500.ChatList.ContentHeight >= 500);
+                scr500.ChatList.ScrollToBottom();
+                scr500.IsIncrementalUpdate = false;
+                var f500a = new System.Text.StringBuilder();
+                scr500.Render(f500a);
+                var bottom500 = f500a.ToString();
+                scr500.ChatList.ScrollUp(100); // 向上滚 100 行
+                var f500b = new System.Text.StringBuilder();
+                scr500.Render(f500b);
+                var mid500 = f500b.ToString();
+                scr500.ChatList.ScrollToTop();
+                var f500c = new System.Text.StringBuilder();
+                scr500.Render(f500c);
+                var top500 = f500c.ToString();
+                Check("500行代码: 滚到底/中间/顶部帧互不相同", bottom500 != mid500 && mid500 != top500 && bottom500 != top500);
+                Check("500行代码: 渲染无异常", true);
+                scr500.Deactivate();
+            }
             scr2.ChatList.ScrollToBottom();
             scr2.IsIncrementalUpdate = false;
             var scr2f1 = new System.Text.StringBuilder();
