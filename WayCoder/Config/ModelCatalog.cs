@@ -279,14 +279,12 @@ public static class ModelCatalog
     }
 
     /// <summary>
-    /// 模型唯一键：按地址(baseUrl) + 模型名去重——不同网址生成不同名字但同地址同模型视为唯一数据。
-    /// 有地址用 baseUrl|id（同一地址同模型唯一，防止不同服务商名产生重复数据）；
-    /// 无地址（依赖 provider 默认）用 providerId|id。
+    /// 模型唯一键：服务商 + 模型名（同一服务商下模型 id 唯一，不因导入来源/地址差异产生重复；
+    /// 不同服务商可同名，如 opencode-go/deepseek-v4-pro 与 opencode-zen/deepseek-v4-pro 是两个不同服务商）。
+    /// 服务商唯一性由 providers.json 按地址去重负责（同地址只一个 provider）。
     /// </summary>
-    internal static string ModelKey(string providerId, string? baseUrl, string id) =>
-        string.IsNullOrWhiteSpace(baseUrl)
-            ? (string.IsNullOrWhiteSpace(providerId) ? id + "|" : providerId + "|" + id)
-            : baseUrl.Trim().TrimEnd('/') + "|" + id;
+    internal static string ModelKey(string providerId, string id) =>
+        string.IsNullOrWhiteSpace(providerId) ? id + "|" : providerId + "|" + id;
 
     /// <summary>
     /// 完整模型目录 = 内置目录 + 自定义库（自定义按 Id 覆盖内置，新增项追加到末尾）。
@@ -324,7 +322,7 @@ public static class ModelCatalog
         {
             var path = ProviderFile(info.ProviderId, local);
             var models = ReadFile(path);
-            models[ModelKey(info.ProviderId, info.DefaultBaseUrl, info.Id)] = info;
+            models[ModelKey(info.ProviderId, info.Id)] = info;
             SaveCustom(models, path);
             Invalidate();
             return path;
@@ -341,7 +339,7 @@ public static class ModelCatalog
             foreach (var g in list.GroupBy(m => ProviderFile(m.ProviderId, local)))
             {
                 var models = ReadFile(g.Key);
-                foreach (var m in g) models[ModelKey(m.ProviderId, m.DefaultBaseUrl, m.Id)] = m;
+                foreach (var m in g) models[ModelKey(m.ProviderId, m.Id)] = m;
                 SaveCustom(models, g.Key);
             }
             Invalidate();
@@ -502,7 +500,7 @@ public static class ModelCatalog
             MigrateLegacyModels(); // 首次加载：把旧 models.json 迁移到 provider/ 分类文件
             var merged = new Dictionary<string, ModelInfo>();
             foreach (var file in EnumerateModelFiles())
-                foreach (var m in ReadFile(file).Values) merged[ModelKey(m.ProviderId, m.DefaultBaseUrl, m.Id)] = m;
+                foreach (var m in ReadFile(file).Values) merged[ModelKey(m.ProviderId, m.Id)] = m;
             _custom = merged;
             return _custom;
         }
@@ -549,7 +547,7 @@ public static class ModelCatalog
                 var path = Path.Combine(dir, g.Key + ".json");
                 var existing = ReadFile(path);
                 foreach (var m in g)
-                    existing[ModelKey(m.ProviderId, m.DefaultBaseUrl, m.Id)] = m;
+                    existing[ModelKey(m.ProviderId, m.Id)] = m;
                 if (!SaveCustom(existing, path)) { allOk = false; break; }
             }
 
@@ -573,7 +571,7 @@ public static class ModelCatalog
                 foreach (var node in arr.Items)
                 {
                     var info = FromJson(node);
-                    if (info != null) result[ModelKey(info.ProviderId, info.DefaultBaseUrl, info.Id)] = info;
+                    if (info != null) result[ModelKey(info.ProviderId, info.Id)] = info;
                 }
             }
         }
