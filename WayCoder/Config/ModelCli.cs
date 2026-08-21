@@ -81,8 +81,11 @@ public static class ModelCli
 
         Config.Instance.Model = info.Id;
         Config.Instance.Provider = info.ProviderId;   // 同步当前服务商（key 跟服务商走）
-        if (info.DefaultBaseUrl != null)
-            Config.Instance.BaseUrl = info.DefaultBaseUrl;
+        // 两层架构：provider 唯一地址优先，模型默认地址兜底
+        var selBaseUrl = (ModelCatalog.Providers.TryGetValue(info.ProviderId, out var sp) && !string.IsNullOrEmpty(sp.DefaultBaseUrl) ? sp.DefaultBaseUrl : null)
+            ?? info.DefaultBaseUrl;
+        if (selBaseUrl != null)
+            Config.Instance.BaseUrl = selBaseUrl;
         Config.Instance.SaveToEnvFile();
 
         var keyHint = info.DefaultBaseUrl != null
@@ -523,12 +526,12 @@ public static class ModelCli
         return sb.ToString().Trim();
     }
 
-    /// <summary>解析模型的有效 base_url：显式 > 服务商默认 > 本地(Ollama)默认 localhost:11434</summary>
+    /// <summary>解析模型的有效 base_url：provider 唯一地址优先 > 模型默认地址 > 本地(Ollama)默认 localhost:11434</summary>
     private static string? EffectiveBaseUrl(ModelCatalog.ModelInfo m)
     {
-        if (!string.IsNullOrWhiteSpace(m.DefaultBaseUrl)) return m.DefaultBaseUrl;
         if (ModelCatalog.Providers.TryGetValue(m.ProviderId, out var p) && !string.IsNullOrEmpty(p.DefaultBaseUrl))
             return p.DefaultBaseUrl;
+        if (!string.IsNullOrWhiteSpace(m.DefaultBaseUrl)) return m.DefaultBaseUrl;
         if (m.ProviderId is "ollama" or "local") return "http://localhost:11434";
         return null;
     }
