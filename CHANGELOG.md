@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.79.94 (2026-08-21) — 本地导入不再自动同步 API Key
+
+- **本地导入只导入模型**：API Key 仅由 `~/.waycoder/api_keys.json` + 环境变量决定，不再从 Claude Code / Codex 等导入来源文件自动同步 key（避免「导入本地模型后模型列表冒出 OPENAI 等无关 key」）
+- Web / TUI / GUI 三处本地导入逻辑统一移除 `ImportFromKnownSources` 自动调用；模型列表的 🔑 只反映已保存 key 与环境变量
+
+### ✅ 验证
+- 自测 4071 通过（0 失败）
+
 ## v0.79.93 (2026-08-21) — GUI 模型窗口对齐 Web/TUI
 
 - **GUI 模型窗口按钮对齐**：本地导入 / 在线导入分离；本地导入弹来源勾选（内置模型 / Claude Code / Codex / OpenCode / Crush / OpenClaw，默认全选）；在线导入可选 OpenCode Go / Zen（不同地址）；新增「清空」按钮（清空内置目录 + 自定义模型，可重新导入）

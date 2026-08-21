@@ -366,12 +366,10 @@ public sealed class ModelWindow : Window
         {
             var report = await Task.Run(() =>
             {
+                // 本地导入只导模型；key 仅由 api_keys.json + 环境变量决定（不自动同步来源文件的 key）
                 var r = ModelCli.Import(sources);
-                var keys = ApiKeyStore.ImportFromKnownSources();
                 ModelCatalog.Invalidate();
                 ApiKeyStore.ClearCache();
-                if (keys.Count > 0)
-                    r += $"\n🔑 导入 Key: {string.Join("、", keys.Select(k => $"{k.ProviderId}({k.Source})"))}";
                 return r;
             });
             Dispatcher.UIThread.Post(() =>

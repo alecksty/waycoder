@@ -335,13 +335,10 @@ public static class ModelPicker
                     }
                     else
                     {
-                        // 与 Web 端一致：本地导入同时导入已知软件的模型 + API Key
+                        // 本地导入只导模型；key 仅由 api_keys.json + 环境变量决定（不自动同步来源文件的 key）
                         report = ModelCli.Import(sources);
-                        var keys = ApiKeyStore.ImportFromKnownSources();
                         ModelCatalog.Invalidate();
                         ApiKeyStore.ClearCache();
-                        if (keys.Count > 0)
-                            report += $"\n🔑 导入 Key: {string.Join("、", keys.Select(k => $"{k.ProviderId}({k.Source})"))}";
                     }
                 }
                 catch (Exception ex) { report = $"❌ 导入失败: {ex.Message}"; }

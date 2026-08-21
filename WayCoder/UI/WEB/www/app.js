@@ -504,9 +504,8 @@ function doLocalImport(sources) {
   status.textContent = '本地导入中…';
   fetch('/models/import', { method: 'POST', body: JSON.stringify({ sources }) }).then(r => r.json()).then(res => {
     status.textContent = '';
-    const keys = res.keys || [];
-    const keySummary = keys.length ? ('导入 Key: ' + keys.map(k => k.providerId + '(' + k.source + ')').join(', ')) : '未发现新 Key';
-    alert('本地导入：' + (res.modelReport || '完成') + '\n' + keySummary);
+    // 本地导入只导模型；key 由 api_keys.json + 环境变量决定，不随导入来源同步
+    alert('本地导入：' + (res.modelReport || '完成'));
     fetchModels();
   }).catch(() => { status.textContent = '本地导入失败'; });
 }
