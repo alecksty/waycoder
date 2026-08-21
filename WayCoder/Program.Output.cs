@@ -15,10 +15,10 @@ namespace WayCoder;
 public partial class Program
 {
     // ========================================================================
-    /// <summary>构建模型回退链：当前模型 + 备选模型</summary>
-    private static string[] BuildFallbackChain()
+    /// <summary>构建模型回退链：当前模型 + 备选模型。primary 应为实际请求模型（槽位解析），而非全局配置——</summary>
+    /// <summary>否则槽位模型与 _config.Model（.env）不一致时，回退链首项/失败消息会显示错误的模型名。</summary>
+    private static string[] BuildFallbackChain(string primary)
     {
-        var primary = _config.Model;
         var fallbacks = new List<string> { primary };
         foreach (var fb in new[] { "deepseek-v4-flash", "gpt-5.4-mini", "deepseek-v4-pro", "gpt-5.4" })
             if (fb != primary && !fallbacks.Contains(fb))

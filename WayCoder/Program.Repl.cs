@@ -755,7 +755,10 @@ public partial class Program
         // ModelOverride/_reasoningBuffer/_reasoningShown 等非线程安全实例字段。
         if (slotCfg.UseGlobal)
         {
-            if (slot.LlmClient != null && slot.LastLargeModel == _llm!.Model)
+            // 复用须校验 LlmClient.Model 未被回退残留污染（RunSlotAgentAsync 回退会改写 llm.Model）
+            if (slot.LlmClient != null
+                && slot.LastLargeModel == _llm!.Model
+                && slot.LlmClient.Model == _llm.Model)
                 return slot.LlmClient;
             var clone = _llm!.Clone();
             clone.ModelOverride = null; // 槽位从无覆盖状态起步，不继承瞬时小模型覆盖
@@ -765,18 +768,19 @@ public partial class Program
             return clone;
         }
 
-        var largeModel = AgentSlotConfig.ResolveLargeModel(slotCfg, slotIdx);
+        // 独立配置槽位：统一解析模型/key/baseUrl（槽位优先 → .env 回退 → 写回槽位），
+        // 保证与状态栏（ResolveLargeModel）同源、与实际请求一致。
+        var (largeModel, apiKey, baseUrl, _) = AgentSlotConfig.ResolveEffectiveModel(slotIdx);
         var smallModel = AgentSlotConfig.ResolveSmallModel(slotCfg, slotIdx);
 
-        // 模型未变 → 复用已有 LLM
+        // 模型/key 未变 → 复用已有 LLM；LlmClient.Model 被回退残留污染（≠解析值）时重建
         if (slot.LlmClient != null
             && slot.LastLargeModel == largeModel
-            && slot.LastSmallModel == smallModel)
+            && slot.LastSmallModel == smallModel
+            && slot.LlmClient.Model == largeModel)
             return slot.LlmClient;
 
         // 创建新的 LLM（使用槽位专属 API Key 和 BaseUrl）
-        var apiKey = AgentSlotConfig.ResolveApiKey(slotCfg);
-        var baseUrl = AgentSlotConfig.ResolveBaseUrl(slotCfg, largeModel);
         var llm = new LLM(largeModel, apiKey, baseUrl,
             _config.MaxTokens, _config.Temperature)
         {
@@ -1108,7 +1112,9 @@ public partial class Program
         static string ToolLabel(string name, string brief)
             => $"  {WayCoder.UI.Tui.ToolRenderers.ToolRendererFactory.Get(name).FormatHeader(brief)}";
 
-        var modelStack = BuildFallbackChain();
+        // 回退链首项用槽位实际模型（llm.Model），而非全局 _config.Model——
+        // 否则槽位模型与 .env 不一致时，首项/失败消息会显示错误模型（如 mimo-v2.5）
+        var modelStack = BuildFallbackChain(llm.Model);
         var startTime = DateTime.UtcNow;
         var completed = false;
 

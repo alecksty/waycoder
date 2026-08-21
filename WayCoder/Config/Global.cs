@@ -13,14 +13,14 @@ public static class Global
     /// <summary>应用全称</summary>
     public const string AppFullName = "WayCoder 道码·通用编程智能体";
     /// <summary>版本号</summary>
-    public const string Version = "v0.79.95";
+    public const string Version = "v0.80.0";
     /// <summary>应用名 + 版本号</summary>
     public static string AppNameVersion => $"{AppName} {Version} ({AppNameCN})";
 
     // ── 公司 / 开发者 ──
     /// <summary>公司名称</summary>
-    public const string Company = "施探宇";
-    /// <summary>开发者</summary>
+    public const string Company = "深圳市探索智能科技有限公司";
+    /// <summary>开发者（作者）</summary>
     public const string Developer = "施探宇 (aleck)";
     /// <summary>开发者邮箱</summary>
     public const string Email = "alecksty@163.com";
