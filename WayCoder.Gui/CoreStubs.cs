@@ -39,6 +39,12 @@ public static class SlashCommandRegistry
     public static (ISlashCommand? Command, string Args) Match(string userInput) => (null, userInput);
 }
 
+/// <summary>GUI 进程占位：主项目 CLI Program 的静态成员（GUI 无 REPL 主循环，InAgentRenderLoop 恒 false）。</summary>
+public static partial class Program
+{
+    public static bool InAgentRenderLoop { get; set; }
+}
+
 public static class ProgramContext
 {
     public static Agent? Agent { get; set; }

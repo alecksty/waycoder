@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.79.93 (2026-08-21) — GUI 模型窗口对齐 Web/TUI
+
+- **GUI 模型窗口按钮对齐**：本地导入 / 在线导入分离；本地导入弹来源勾选（内置模型 / Claude Code / Codex / OpenCode / Crush / OpenClaw，默认全选）；在线导入可选 OpenCode Go / Zen（不同地址）；新增「清空」按钮（清空内置目录 + 自定义模型，可重新导入）
+- **GUI 模型列表加状态列**：每模型显示 无key / 连通 / 欠费 / 不通 / 未测，与 Web/TUI 状态列一致（仅显示不落盘，扫描结果推导）
+- **修复 GUI 编译**：排除 `SnakeGame/` 误置目录（主项目 v0.79.90 已排除，GUI csproj 未同步）+ 补 `Program.InAgentRenderLoop` 占位
+- GUI 走 Avalonia 多选/单选/确认对话框（对齐 Web 勾选交互）
+
+### ✅ 验证
+- 主项目自测 4071 通过（0 失败）；GUI 构建通过
+
 ## v0.79.92 (2026-08-21) — OpenCode 分 Go/Zen 服务商 + providers.json 服务商数据库
 
 - **OpenCode 分两个服务商**：`opencode-go`（`https://opencode.ai/zen/go/v1`，订阅制）与 `opencode-zen`（`https://opencode.ai/zen/v1`，按量付费），各自保留地址
