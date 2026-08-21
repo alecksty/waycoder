@@ -208,22 +208,23 @@ public static class ModelCli
 
         // 去重：同一 (Id, baseUrl) 只保留第一个（地址不同=不同服务商，同 id 不同地址都保留）
         var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        imported = imported.Where(m => seenIds.Add(ModelCatalog.ModelKey(m.ProviderId, m.Id))).ToList();
+        imported = imported.Where(m => seenIds.Add(ModelCatalog.ModelKey(m.ProviderId, m.DefaultBaseUrl, m.Id))).ToList();
 
         // 跳过内置：仅当同 id 且同 baseUrl（地址不同视为不同服务商，不跳过）
         var builtInIds = new HashSet<string>(
-            ModelCatalog.BuiltIn.Select(m => ModelCatalog.ModelKey(m.ProviderId, m.Id)),
+            ModelCatalog.BuiltIn.Select(m => ModelCatalog.ModelKey(m.ProviderId, m.DefaultBaseUrl, m.Id)),
             StringComparer.OrdinalIgnoreCase);
         var added = new List<ModelCatalog.ModelInfo>();
         var skipped = new List<string>();
         foreach (var m in imported)
         {
-            if (builtInIds.Contains(ModelCatalog.ModelKey(m.ProviderId, m.Id)))
+            if (builtInIds.Contains(ModelCatalog.ModelKey(m.ProviderId, m.DefaultBaseUrl, m.Id)))
                 skipped.Add(m.Id);
             else
                 added.Add(m);
         }
-        ModelCatalog.AddCustomRange(added); // 批量一次写（防 N 次磁盘写）
+        ModelCatalog.AddCustomRange(added);
+        RegisterImportProviders(added); // 批量一次写（防 N 次磁盘写）
 
         sb.AppendLine($"✅ 导入 {added.Count} 个模型到全局模型库（{string.Join("、", reports)}）" +
             (skipped.Count > 0 ? $"，跳过 {skipped.Count} 个内置已有" : "") + "：");
@@ -275,6 +276,7 @@ public static class ModelCli
             return "未发现本地模型服务（Ollama 11434 / LM Studio 1234 未运行或无已安装模型）。";
 
         ModelCatalog.AddCustomRange(added);
+        RegisterImportProviders(added);
         var sb = new StringBuilder();
         sb.AppendLine($"✅ 从本地服务接口导入 {added.Count} 个模型：");
         foreach (var m in added.OrderBy(m => m.Id))
@@ -317,9 +319,94 @@ public static class ModelCli
         var builtInIds = new HashSet<string>(ModelCatalog.BuiltIn.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
         var toAdd = list.Where(m => !builtInIds.Contains(m.Id)).ToList();
         ModelCatalog.AddCustomRange(toAdd);
+        RegisterImportProviders(toAdd);
         return $"✅ 在线导入（{src.Name}）{toAdd.Count} 个模型" +
             (list.Count - toAdd.Count > 0 ? $"，跳过 {list.Count - toAdd.Count} 内置" : "") +
             "：\n  " + string.Join("\n  ", toAdd.Select(m => m.Id));
+    }
+
+    /// <summary>
+    /// 确认导入的服务商地址正确可用（探测 /models 端点），可用的写入 providers.json（服务商数据库）。
+    /// 连通(2xx) 或端点存在但需认证(401/403) 都视为地址正确。
+    /// </summary>
+    public static void RegisterImportProviders(IEnumerable<ModelCatalog.ModelInfo> models)
+    {
+        foreach (var g in models
+            .Where(m => !string.IsNullOrWhiteSpace(m.DefaultBaseUrl) && !string.IsNullOrWhiteSpace(m.ProviderId))
+            .GroupBy(m => m.ProviderId))
+        {
+            var first = g.First();
+            var baseUrl = (first.DefaultBaseUrl ?? "").Trim().TrimEnd('/');
+            if (baseUrl.Length == 0) continue;
+            // 服务商按地址去重：该地址已注册（不管 providerId）→ 跳过，避免同地址重复服务商
+            bool addrExists = ModelCatalog.Providers.Values.Any(p =>
+                string.Equals((p.DefaultBaseUrl ?? "").Trim().TrimEnd('/'), baseUrl, StringComparison.OrdinalIgnoreCase));
+            if (addrExists) continue;
+            var key = ApiKeyStore.Get(g.Key);
+            var (ok, detail) = ProbeEndpoint(first.DefaultBaseUrl, key);
+            // 可用：连通(2xx) 或端点存在但需认证(401/403) —— 都说明地址正确
+            if (ok || detail.Contains("401") || detail.Contains("403"))
+                ModelCatalog.RegisterProvider(g.Key, first.Provider, first.DefaultBaseUrl!);
+        }
+    }
+
+    /// <summary>服务商管理 CLI（--provider list/add/rm/clean，管理 providers.json 数据库）。</summary>
+    public static class ProviderCli
+    {
+        public static int Run(List<string> values)
+        {
+            var cmd = values.Count > 0 ? values[0].ToLowerInvariant() : "list";
+            switch (cmd)
+            {
+                case "list":
+                case "ls":
+                {
+                    var sb = new StringBuilder();
+                    foreach (var (id, p) in ModelCatalog.Providers.OrderBy(x => x.Key))
+                        sb.AppendLine($"  {id,-20} {p.DisplayName,-22} {p.DefaultBaseUrl}");
+                    Console.WriteLine($"服务商数据库（{ModelCatalog.Providers.Count}）：\n{sb.ToString().TrimEnd()}");
+                    return 0;
+                }
+                case "add":
+                {
+                    if (values.Count < 4) { Console.WriteLine("用法: --provider add <id> <名称> <base-url>"); return 1; }
+                    ModelCatalog.RegisterProvider(values[1], values[2], values[3]);
+                    Console.WriteLine($"✅ 已添加服务商 {values[1]} → {values[3]}");
+                    return 0;
+                }
+                case "rm":
+                case "remove":
+                case "delete":
+                case "del":
+                {
+                    if (values.Count < 2) { Console.WriteLine("用法: --provider rm <id>"); return 1; }
+                    ModelCatalog.RemoveProvider(values[1]);
+                    Console.WriteLine($"🗑 已移除服务商 {values[1]}");
+                    return 0;
+                }
+                case "clean":
+                case "prune":
+                {
+                    // 清理无效服务商（探测 /models 失败）
+                    int removed = 0;
+                    foreach (var (id, p) in ModelCatalog.Providers.ToList())
+                    {
+                        if (id is "local" or "custom") continue;
+                        var key = ApiKeyStore.Get(id);
+                        var (ok, detail) = ProbeEndpoint(p.DefaultBaseUrl, key);
+                        if (!ok && !detail.Contains("401") && !detail.Contains("403"))
+                        {
+                            if (ModelCatalog.RemoveProvider(id)) removed++;
+                        }
+                    }
+                    Console.WriteLine(removed > 0 ? $"🗑 已清理 {removed} 个无效服务商" : "没有无效服务商");
+                    return 0;
+                }
+                default:
+                    Console.WriteLine($"未知子命令「{cmd}」。用法: --provider list|add <id> <名称> <base-url>|rm <id>|clean");
+                    return 1;
+            }
+        }
     }
 
     private static List<ModelCatalog.ModelInfo> ImportOne(string source, string home, List<string> reports)
@@ -651,7 +738,7 @@ public static class ModelCli
     }
 
     /// <summary>探测一个 OpenAI 兼容端点：GET {base}/models（401/403=密钥无效，404/405 时回退 /v1/models）</summary>
-    private static (bool Ok, string Detail) ProbeEndpoint(string? baseUrl, string? apiKey)
+    internal static (bool Ok, string Detail) ProbeEndpoint(string? baseUrl, string? apiKey)
     {
         if (string.IsNullOrWhiteSpace(baseUrl))
             return (false, "无端点（未配置 base_url）");

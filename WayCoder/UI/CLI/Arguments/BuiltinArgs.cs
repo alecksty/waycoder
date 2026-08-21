@@ -809,6 +809,24 @@ public class PurgeArg : CliArg
     public override int? OnMatch(List<string> values) => CachePurger.Run();
 }
 
+/// <summary>管理服务商数据库（providers.json）——list / add / rm / clean。</summary>
+public class ProviderArg : CliArg
+{
+    public override string Description => "管理服务商数据库（providers.json）";
+    public override int ValueCount => -1;
+    public override bool Greedy => true;
+    public override string? ValueLabel => "子命令";
+    public override (string Cmd, string Desc)[]? SubCommands =>
+    [
+        ("list", "列出所有服务商"),
+        ("add <id> <名称> <base-url>", "添加服务商"),
+        ("rm <id>", "移除服务商（同时清除其 Key）"),
+        ("clean", "清理无效服务商（探测失败的）"),
+    ];
+    public ProviderArg() : base("provider", "--provider") { }
+    public override int? OnMatch(List<string> values) => ModelCli.ProviderCli.Run(values);
+}
+
 /// <summary>MCP 管理 CLI 纯逻辑（列出 / 重连，输出到 Console）。</summary>
 public static class McpCli
 {
@@ -930,6 +948,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new McpArg());
         CliArgRegistry.Register(new ResetArg());
         CliArgRegistry.Register(new PurgeArg());
+        CliArgRegistry.Register(new ProviderArg());
 #if WAYCODER_TEST
         CliArgRegistry.Register(new TestArg());
         CliArgRegistry.Register(new BenchmarkArg());

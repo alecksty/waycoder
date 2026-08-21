@@ -123,7 +123,7 @@ public static class CliArgRegistry
         "yolo" or "permission-mode" or "allowed-tools" or "disallowed-tools" => "权限",
         "tui" or "cli" or "web" or "gui" or "keypad" or "theme" or "quiet" or "no-color" => "界面",
         "edit" or "watch" or "update" or "init" or "config" or "debug" or "system-prompt" or "screenshot"
-            or "auto-commit" or "mcp" or "mcp-config" or "reset" or "purge" => "系统",
+            or "auto-commit" or "mcp" or "mcp-config" or "reset" or "purge" or "provider" => "系统",
         "batch" or "batch-repo" or "batch-task" or "batch-keep" => "批量",
         "test" or "test-benchmark" or "test-limits" => "测试",
         "version" or "help" => "通用",
