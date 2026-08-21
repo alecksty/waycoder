@@ -313,8 +313,9 @@ public partial class Agent
     private static List<ITool> FilterTools(Agent agent, List<ITool> tools)
     {
         var config = Config.Instance;
-        // 极简模式（economy Extreme）：所有工具禁用，仅聊天
-        if (config.EconomyMode == EconomyMode.Extreme)
+        // 极简：economy Extreme 或 权限 TINY（仅聊天）→ 所有工具禁用
+        if (config.EconomyMode == EconomyMode.Extreme
+            || PermissionManager.CurrentMode == PermissionManager.Mode.TINY)
             return [];
 
         // 按工作模式选择工具集：Plan → 计划工具集（危险工具不放行），Build/Review/Auto → 建造工具集；
