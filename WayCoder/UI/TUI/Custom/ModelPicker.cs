@@ -27,9 +27,9 @@ namespace WayCoder.UI.TUI.Custom;
 public static class ModelPicker
 {
     public record ModelEntry(string Id, string DisplayName, string Provider,
-        string ProviderId, bool HasApiKey, int ContextWindow, double InputPrice);
+        string ProviderId, bool HasApiKey, int ContextWindow, double InputPrice, string? BaseUrl = null);
     public record Result(string ModelId, bool IsLarge, int TargetSlot,
-        bool NeedsApiKey = false, string? ProviderId = null);
+        bool NeedsApiKey = false, string? ProviderId = null, string? BaseUrl = null);
 
     /// <summary>
     /// 模型连通性状态 —— 仅供状态列/组头显示，由扫描结果实时推导，不写入任何模型文件。
@@ -631,10 +631,10 @@ public static class ModelPicker
         if (!m.HasApiKey)
         {
             // 返回 NeedsApiKey，由调用方弹出输入框
-            return new(m.Id, isLarge, slot, NeedsApiKey: true, ProviderId: m.ProviderId);
+            return new(m.Id, isLarge, slot, NeedsApiKey: true, ProviderId: m.ProviderId, BaseUrl: m.BaseUrl);
         }
-        Apply(m.Id, isLarge, slot);
-        return new(m.Id, isLarge, slot);
+        Apply(m.Id, isLarge, slot, m.BaseUrl, m.ProviderId);
+        return new(m.Id, isLarge, slot, BaseUrl: m.BaseUrl);
     }
 
     private static bool TrySlotKey(ConsoleKeyInfo key, out int slot)
@@ -656,20 +656,33 @@ public static class ModelPicker
         return slot >= 0;
     }
 
-    /// <summary>应用选中模型到配置/槽位（public 供 /model 命令等复用）。</summary>
-    public static void Apply(string modelId, bool isLarge, int slot)
+    /// <summary>
+    /// 应用选中模型到配置/槽位（public 供 /model 命令等复用）。
+    /// baseUrl/providerId 来自所选模型（地址不同 = 不同服务商）——保存后请求走对应网关。
+    /// </summary>
+    public static void Apply(string modelId, bool isLarge, int slot, string? baseUrl = null, string? providerId = null)
     {
         var cfg = Config.Instance;
         if (slot == -1)
         {
             if (isLarge) cfg.Model = modelId; else cfg.SmallModel = modelId;
+            if (providerId != null) cfg.Provider = providerId;  // 同步服务商（key 跟服务商走）
+            if (baseUrl != null) cfg.BaseUrl = baseUrl;         // 同步网关地址
             cfg.SaveToEnvFile();
         }
         else if (slot == -2)
         {
             AgentSlotConfig.SetUniform(new AgentSlotConfig.SlotConfig
-            { UseGlobal = false, LargeModel = isLarge ? modelId : null, SmallModel = isLarge ? null : modelId });
+            {
+                UseGlobal = false,
+                LargeModel = isLarge ? modelId : null,
+                SmallModel = isLarge ? null : modelId,
+                BaseUrl = baseUrl,
+                ApiKeyProviderId = providerId,
+            });
             if (isLarge) cfg.Model = modelId; else cfg.SmallModel = modelId;
+            if (providerId != null) cfg.Provider = providerId;
+            if (baseUrl != null) cfg.BaseUrl = baseUrl;
             cfg.SaveToEnvFile();
         }
         else if (slot is >= 0 and < 10)
@@ -680,7 +693,9 @@ public static class ModelPicker
                 UseGlobal = false,
                 LargeModel = isLarge ? modelId : e.LargeModel,
                 SmallModel = isLarge ? e.SmallModel : modelId,
-                BaseUrl = e.BaseUrl, ApiKeyProviderId = e.ApiKeyProviderId, ApiKey = e.ApiKey,
+                BaseUrl = baseUrl ?? e.BaseUrl,
+                ApiKeyProviderId = providerId ?? e.ApiKeyProviderId,
+                ApiKey = e.ApiKey,
             });
         }
 
@@ -770,9 +785,10 @@ public static class ModelPicker
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var info in ModelCatalog.All)
         {
-            if (!seen.Add(info.Id)) continue;
+            // 地址不同 = 不同服务商：同 id 不同 baseUrl 都保留（不再按 id 去重）
+            if (!seen.Add(ModelCatalog.ModelKey(info.Id, info.DefaultBaseUrl))) continue;
             var hasKey = ModelHasKey(info.ProviderId, info.Id);
-            list.Add(new(info.Id, info.DisplayName, info.Provider, info.ProviderId, hasKey, info.ContextWindow, info.InputPrice));
+            list.Add(new(info.Id, info.DisplayName, info.Provider, info.ProviderId, hasKey, info.ContextWindow, info.InputPrice, info.DefaultBaseUrl));
         }
         if (!string.IsNullOrEmpty(Config.Instance.FallbackChain))
             foreach (var m in Config.Instance.FallbackChain.Split(','))
