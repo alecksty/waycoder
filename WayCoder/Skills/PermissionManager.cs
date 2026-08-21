@@ -17,7 +17,7 @@ namespace WayCoder;
 /// </summary>
 public static class PermissionManager
 {
-    public enum Mode { Ask, Auto, SmartAuto, Yolo }
+    public enum Mode { Ask, Auto, SmartAuto, Yolo, TINY }
 
     public static Mode CurrentMode { get; set; } = Mode.Ask;
 
@@ -213,6 +213,7 @@ public static class PermissionManager
             "yolo" or "god" => Mode.Yolo,
             "smartauto" or "smart-auto" or "smart" => Mode.SmartAuto,
             "auto" => Mode.Auto,
+            "tiny" or "极简" => Mode.TINY,
             _ => Mode.Ask,
         };
 
@@ -221,14 +222,16 @@ public static class PermissionManager
             Mode.Yolo => AnsiColors.Red,
             Mode.SmartAuto => AnsiColors.Cyan,
             Mode.Auto => AnsiColors.Green,
+            Mode.TINY => AnsiColors.Grey,
             _ => AnsiColors.Yellow,
         };
         var label = CurrentMode switch
         {
-            Mode.Yolo => "YOLO (上帝模式)",
-            Mode.SmartAuto => "SmartAuto (智能分级)",
-            Mode.Auto => "Auto (智能确认)",
-            _ => "Ask (每次确认)",
+            Mode.Yolo => "畅通 YOLO",
+            Mode.SmartAuto => "智能 SMART",
+            Mode.Auto => "自动 AUTO",
+            Mode.TINY => "极简 TINY",
+            _ => "问答 ACK",
         };
 
         // -q/--quiet 静默模式：抑制权限横幅输出
