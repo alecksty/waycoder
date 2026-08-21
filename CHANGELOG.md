@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.81.4 (2026-08-21) — 多选框列表溢出修复 + 在线导入不因 key 阻塞
+
+- **多选框列表溢出下边框修复**：`TuiDialog.Select`/`MultiSelect` 把列表高度改成可见项数（≤12）后，**窗口高度未重算**——选项多（如在线导入 8 源）时列表底部跑出下边框。修复：
+  - 改高列表后按内容重算窗口高度（`FitWindowToContent`）
+  - 可见项数受屏幕可用高度钳制（`min(项数, 屏幕行-4/-6)`），小终端不超屏
+- **在线导入不再被 API Key 阻塞**：`ImportOnline` 此前无 key 直接拒绝（`未找到 xxx 的 API Key`）——但 opencode go/zen 等端点 `/models` **公开**（HTTP 200 无需 key）。改为：
+  - 无 key 也尝试拉取（不带 Authorization 头）；401/403 才提示需要/无效 key
+  - 无 key 导入成功时结果标注「未配置 API Key，导入的模型需设 key 后使用」
+- 自测：MultiSelect 8 项高度适配断言（列表高度/窗口容纳/不超屏）、OnlineSources 源存在断言
+
+### ✅ 验证
+- 自测 4099 通过（0 失败）；GUI Release 构建通过；opencode go/zen `/models` 无 key 实测 HTTP 200
+
 ## v0.81.3 (2026-08-21) — 设置对话框排查 + YOLO diff 自动放行显示对比
 
 - **设置界面输入框改单行**：text/number/secret 设置项编辑改用 `TuiDialog.InputLine`（单行输入框，回车=确定）——设置值（模型名/超时秒数/密钥等）都是单行文本，多行输入框不适配

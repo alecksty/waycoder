@@ -675,7 +675,8 @@ public static class TuiDialog
     {
         var (win, res) = LoadDialog("select", title, TuiTheme.Current.DialogInfoBorder);
 
-        var visItems = Math.Min(items.Count, 12);
+        // 可见项：不超过全部项，也不超过屏幕可用高度（标题+列表+按钮+边框 ≈ 列表 + 4）
+        var visItems = Math.Min(items.Count, Math.Max(3, Tty.Rows - 4));
 
         var list = res.Find<TuiList>("list") ?? throw Invalid("select.tui", "list");
         list.Items = items;
@@ -683,6 +684,9 @@ public static class TuiDialog
         ApplyContentWidth(win, NarrowXScale, 2, w => list.Width = w);
         list.Height = visItems;
         list.Focused = true;
+        // 模板里 list 默认 height=5，改大后必须按内容重算窗口高度，否则列表底部溢出下边框
+        TuiMarkup.FitWindowToContent(win, fitWidth: false);
+        win.MaxHeight = Math.Max(0, Tty.Rows - 1);
         list.OnSelect = idx =>
         {
             win.Result = idx;
@@ -717,7 +721,8 @@ public static class TuiDialog
     {
         var (win, res) = LoadDialog("multiselect", title, TuiTheme.Current.DialogInfoBorder);
 
-        var visItems = Math.Min(items.Count, 12);
+        // 可见项：不超过全部项，也不超过屏幕可用高度（标题+列表+hint+按钮+边框 ≈ 列表 + 6）
+        var visItems = Math.Min(items.Count, Math.Max(3, Tty.Rows - 6));
 
         var list = res.Find<TuiList>("list") ?? throw Invalid("multiselect.tui", "list");
         list.Items = items;
@@ -727,6 +732,9 @@ public static class TuiDialog
         ApplyContentWidth(win, NarrowXScale, 2, w => list.Width = w);
         list.Height = visItems;
         list.Focused = true;
+        // 模板里 list 默认 height=5，改大后必须按内容重算窗口高度，否则列表底部溢出下边框
+        TuiMarkup.FitWindowToContent(win, fitWidth: false);
+        win.MaxHeight = Math.Max(0, Tty.Rows - 1);
 
         var okBtn = res.Find<TuiButton>("ok") ?? throw Invalid("multiselect.tui", "ok");
         var cancelBtn = res.Find<TuiButton>("cancel") ?? throw Invalid("multiselect.tui", "cancel");
