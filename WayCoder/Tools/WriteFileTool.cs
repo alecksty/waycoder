@@ -69,6 +69,7 @@ public class WriteFileTool : ITool
             if (dir != null) Directory.CreateDirectory(dir);
 
             string? oldContent = null;
+            string? diffMarkup = null; // YOLO 自动放行时把 diff 渲染进工具输出（声明在 try 级，else 块外也要引用）
             if (append)
             {
                 // 追加模式：不覆写、不做先读后改检查、不做 diff 预览
@@ -85,15 +86,24 @@ public class WriteFileTool : ITool
                     oldContent = File.ReadAllText(path, Encoding.UTF8);
                 }
 
-                // Diff 预览：仅当开关开启、非交互模式（管道/重定向/测试）、且文件已存在时
+                // Diff 预览：开关开启且文件已存在时
+                //  - YOLO（畅通）：自动放行不弹窗，但把 diff 渲染进工具输出，聊天区仍显示源码对比（三端统一）
+                //  - 非 YOLO：仅非交互模式（管道/重定向/测试）跳过，交互态弹逐 hunk 确认窗
                 var cfg = Config.Instance;
-                if (cfg.DiffPreview && !Console.IsInputRedirected && !Console.IsOutputRedirected && oldContent != null)
+                if (cfg.DiffPreview && oldContent != null)
                 {
-                    var (decision, accepted) = DiffPreview.Show(oldContent, content, filePath);
-                    if (decision == DiffPreview.Decision.RejectAll)
-                        return $"已取消写入 {filePath}（用户拒绝变更）";
-                    if (decision == DiffPreview.Decision.Partial && accepted != null)
-                        content = DiffPreview.ApplyAccepted(oldContent, DiffPreview.BuildHunks(oldContent, content), accepted);
+                    if (PermissionManager.CurrentMode == PermissionManager.Mode.Yolo)
+                    {
+                        diffMarkup = DiffPreview.RenderAsMarkup(oldContent, content, filePath);
+                    }
+                    else if (!Console.IsInputRedirected && !Console.IsOutputRedirected)
+                    {
+                        var (decision, accepted) = DiffPreview.Show(oldContent, content, filePath);
+                        if (decision == DiffPreview.Decision.RejectAll)
+                            return $"已取消写入 {filePath}（用户拒绝变更）";
+                        if (decision == DiffPreview.Decision.Partial && accepted != null)
+                            content = DiffPreview.ApplyAccepted(oldContent, DiffPreview.BuildHunks(oldContent, content), accepted);
+                    }
                 }
 
                 File.WriteAllText(path, content, encoding);
@@ -104,6 +114,9 @@ public class WriteFileTool : ITool
 
             var lineCount = content.Count(c => c == '\n') + (string.IsNullOrEmpty(content) || content.EndsWith('\n') ? 0 : 1);
             var writeResult = $"已{(append ? "追加" : "写入")} {lineCount} 行到 {filePath}";
+            // YOLO 自动放行：diff 渲染进工具输出，聊天区显示源码对比
+            if (!string.IsNullOrEmpty(diffMarkup))
+                writeResult = diffMarkup + "\n\n" + writeResult;
 
             // LSP 诊断自动附加：运行 lint 检查新写入文件的错误
             var writeDiag = await DiagnosticManager.TryRunLintWithTimeout(path, 3000);

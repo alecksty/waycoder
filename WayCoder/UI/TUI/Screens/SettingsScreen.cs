@@ -412,7 +412,8 @@ public class SettingsScreen : TuiScreen
         else if (setting.Type is "text" or "number" or "secret")
         {
             bool sec = setting.Type == "secret";
-            ShowWindow(TuiDialog.Input(setting.Label,
+            // 设置值（模型名/超时秒数/密钥等）都是单行文本 → 用单行输入框 InputLine（回车=确定）
+            ShowWindow(TuiDialog.InputLine(setting.Label,
                 sec ? "输入密钥（不显示）" : $"输入新值（当前: {cur}）",
                 sec ? "" : cur,
                 input =>

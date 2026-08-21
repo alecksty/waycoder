@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.81.3 (2026-08-21) — 设置对话框排查 + YOLO diff 自动放行显示对比
+
+- **设置界面输入框改单行**：text/number/secret 设置项编辑改用 `TuiDialog.InputLine`（单行输入框，回车=确定）——设置值（模型名/超时秒数/密钥等）都是单行文本，多行输入框不适配
+- **YOLO diff 自动放行 + 聊天区显示源码对比**：
+  - `DiffPreview.Show` 入口加 YOLO 放行——畅通模式下写文件不弹 diff 确认窗（此前 Web/TUI 仍会弹）
+  - 自动放行时**把 diff 渲染进工具输出**，聊天区气泡显示源码对比差异（红删绿增）——write_file/edit_file/multiedit 三工具、TUI/Web/GUI 三端统一（`RenderAsMarkup` 生成 `«red»/«green»` 中间格式标记，各端渲染器解析）
+- **设置对话框构建巡检**：遍历配置 schema 92 个设置项，逐个构建+渲染其编辑对话框（select→Select / text/number/secret→InputLine），断言不崩溃、窗口不超屏——抓「某设置项弹框才炸」类问题
+- 自测断言：YOLO 下 DiffPreview 直接接受全部变更、RenderAsMarkup 含红删绿增标记
+
+### ✅ 验证
+- 自测 4094 通过（0 失败）；GUI Release 构建通过
+
 ## v0.81.2 (2026-08-21) — 终端字符宽度实测探针 + 静态宽度表修复
 
 - **终端宽度实测探针 `--width-probe [目录]`**：用「`+字符*` + CPR 光标位置查询」测量字符在当前终端字体下的真实显示列宽——

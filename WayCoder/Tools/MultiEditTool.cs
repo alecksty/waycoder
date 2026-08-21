@@ -165,11 +165,20 @@ public class MultiEditTool : ITool
 
         // Diff 预览
         var cfg = Config.Instance;
-        if (cfg.DiffPreview && !Console.IsInputRedirected && !Console.IsOutputRedirected)
+        string? diffMarkup = null;
+        if (cfg.DiffPreview)
         {
-            var (decision, accepted) = DiffPreview.Show("", content, path);
-            if (decision == DiffPreview.Decision.RejectAll)
-                return $"已取消创建 {path}（用户拒绝变更）";
+            if (PermissionManager.CurrentMode == PermissionManager.Mode.Yolo)
+            {
+                // YOLO 自动放行：新建文件全量新增渲染进工具输出，聊天区显示（三端统一）
+                diffMarkup = DiffPreview.RenderAsMarkup("", content, path);
+            }
+            else if (!Console.IsInputRedirected && !Console.IsOutputRedirected)
+            {
+                var (decision, accepted) = DiffPreview.Show("", content, path);
+                if (decision == DiffPreview.Decision.RejectAll)
+                    return $"已取消创建 {path}（用户拒绝变更）";
+            }
         }
 
         // 创建父目录
@@ -187,6 +196,9 @@ public class MultiEditTool : ITool
             : "";
 
         var multiResult1 = $"✅ 已创建 {path}（{applied}/{total} 编辑成功，+{CountLines(content)} 行）{failedMsg}";
+        // YOLO 自动放行：diff 渲染进工具输出，聊天区显示源码对比
+        if (!string.IsNullOrEmpty(diffMarkup))
+            multiResult1 = diffMarkup + "\n\n" + multiResult1;
 
         // LSP 诊断自动附加
         var multiDiag1 = await DiagnosticManager.TryRunLintWithTimeout(path, 3000);
@@ -236,9 +248,10 @@ public class MultiEditTool : ITool
         if (oldContent == newContent)
             return "未做出任何修改 — 所有编辑应用后内容不变";
 
-        // Diff 预览
+        // Diff 预览：YOLO（畅通）自动放行不弹窗——下方统一生成的 unified diff 已进工具输出，聊天区仍显示对比（三端统一）
         var cfg = Config.Instance;
-        if (cfg.DiffPreview && !Console.IsInputRedirected && !Console.IsOutputRedirected)
+        if (cfg.DiffPreview && !Console.IsInputRedirected && !Console.IsOutputRedirected
+            && PermissionManager.CurrentMode != PermissionManager.Mode.Yolo)
         {
             var (decision, accepted) = DiffPreview.Show(oldContent, newContent, path);
             if (decision == DiffPreview.Decision.RejectAll)

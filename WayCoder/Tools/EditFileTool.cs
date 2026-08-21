@@ -142,9 +142,11 @@ public class EditFileTool : ITool
                 newContent = content.ReplaceFirst(oldString, newString);
             }
 
-            // Diff 预览：仅当开关开启且非交互模式（管道/重定向/测试）时
+            // Diff 预览：开关开启且非交互模式（管道/重定向/测试）时。
+            // YOLO（畅通）自动放行不弹窗——下方统一生成的 unified diff 已进工具输出，聊天区仍显示对比（三端统一）。
             var cfg = Config.Instance;
-            if (cfg.DiffPreview && !Console.IsInputRedirected && !Console.IsOutputRedirected)
+            if (cfg.DiffPreview && !Console.IsInputRedirected && !Console.IsOutputRedirected
+                && PermissionManager.CurrentMode != PermissionManager.Mode.Yolo)
             {
                 var (decision, accepted) = DiffPreview.Show(content, newContent, filePath);
                 if (decision == DiffPreview.Decision.RejectAll)
