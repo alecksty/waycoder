@@ -16,6 +16,8 @@
     <!-- AOT: 项目中使用的 JsonSerializer/JsonArray.Add<T> 在 AOT 路径中已被 JsonHelper 替代，
          这些 IL 警告仅在非 AOT Debug 构建中产生，不影响 AOT 发布 -->
     <NoWarn>IL2026;IL3050</NoWarn>
+    <!-- TerminalRawMode 用 [LibraryImport] P/Invoke termios（探测字符宽度），源生成要求 unsafe -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- 测试代码开关：WAYCODER_TEST 仅在 Debug 定义（/test 指令、Keypad、SelfTest 等）；
          Release 不定义并排除 Test/ 目录 —— 生产版不含 test 系列指令 -->
     <DefineConstants Condition="'$(Configuration)'=='Debug'">$(DefineConstants);WAYCODER_TEST</DefineConstants>

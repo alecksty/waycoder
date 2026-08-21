@@ -141,6 +141,8 @@ public static partial class SelfTest
             "ThemeVerify.cs",
             // 终端 ANSI 底层原语：本就负责发射 \x1b 转义序列，属 Tty 层而非界面层
             "AnsiString.cs", "AnsiTty.cs", "RenderBuffer.cs", "Terminal.cs",
+            // 终端宽度探针 + raw 模式：直接操作 Console.Out/\x1b + libc termios，属终端底层
+            "TerminalWidthProbe.cs", "TerminalRawMode.cs",
             // CLI 参数解析层（--keypad/--test/--model 等），一次性模式直接打印 stdout，非全屏界面
             "BuiltinArgs.cs",
         };

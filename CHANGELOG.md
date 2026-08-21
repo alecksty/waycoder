@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.81.2 (2026-08-21) — 终端字符宽度实测探针 + 静态宽度表修复
+
+- **终端宽度实测探针 `--width-probe [目录]`**：用「`+字符*` + CPR 光标位置查询」测量字符在当前终端字体下的真实显示列宽——
+  - 无参：实测内置代表字符集（ProbeSet），与静态宽度表 `AnsiString.CharWidth` 逐项比对，输出 ✅/❌ 判定表
+  - 带目录：扫描该目录源码中出现的**全部非 ASCII 字符**（排除 bin/obj/.git，按首次出现去重），逐个实测，列出不一致项 + 按宽度的字符分布——「检查整个程序所有字符宽度」
+  - Windows 走 `Console.CursorLeft`，Unix/macOS/Linux 走 CPR + libc termios
+- **`TerminalRawMode`**：libc termios P/Invoke（`cfmakeraw` 设 raw + `poll`/`read` 直连 fd0 读原始字节）——`Console.ReadKey` 会把 CPR 回复的 `\x1b` 当 escape 前缀吞掉、`Console.OpenStandardInput` 与手动 raw 不兼容，均不可用，实测踩坑后改用 libc 原始读取
+- **修静态宽度表**：漏覆盖的 emoji 由 1 列改 2 列——媒体控制/时钟 emoji `⏩⏪⏫⏬⏭⏮⏯⏰⏱⏲⏳`（23E9-23F3，全 Emoji_Presentation）、杂项符号与箭头 `⬛⬜⭐⭕⬆⬇⬅`（2B00-2BFF，EA=W/Emoji_Presentation）
+- **自测新增 [终端实测宽度] 段**：源码字符扫描纯逻辑测试（始终执行）+ 终端实测校准（真实 TTY 才跑）
+- 静态审计：交叉比对源码 1774 个非 ASCII 字符，定位并修复静态表遗漏（⏰⏳⭐ 等 EA=W 误判 1 列）
+
+### ✅ 验证
+- 假终端（pty + CPR 模拟）全链路验证通过：协议、raw 读取、解析、报告正常
+- 自测 4089 通过（0 失败）；主项目 Release 构建通过；GUI Release 构建通过；AOT publish 验证中
+
 ## v0.81.1 (2026-08-21) — Web diff 窗口增强 + YOLO 无问答阻止 + 回车不停止任务
 
 - **Web diff 窗口**：加宽（`min(94vw, 980px)`）+ 显示行号（旧/新行号列，对齐等宽字体）；内容超屏时**底部按钮固定可见**（吸底，不随内容滚出屏幕）

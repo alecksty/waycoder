@@ -11,6 +11,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <!-- GUI 是独立 JIT 进程，不复用主项目的 AOT 约束 -->
+    <!-- 编译主项目源文件含 TerminalRawMode 的 [LibraryImport] P/Invoke，源生成要求 unsafe -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>

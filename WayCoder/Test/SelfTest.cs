@@ -120,6 +120,7 @@ public static partial class SelfTest
         ["[TuiScreen]"] = "ui",   ["[BoxBuffer]"] = "ui",   ["[AnsiColors]"] = "ui",
         ["[TuiTheme]"] = "ui",    ["[MarkdownRenderer]"] = "ui",
         ["[TuiTable]"] = "ui",    ["[DiffPreview]"] = "ui",  ["[UxHelper]"] = "ui",
+        ["[终端实测宽度]"] = "ui",
         ["[UI Lint]"] = "ui",     ["[TuiTableList]"] = "ui",
         ["[TuiMarkup"] = "ui",       ["[CommandPalette 导航"] = "ui",
         ["[对话框 resize]"] = "ui",
@@ -255,6 +256,8 @@ public static partial class SelfTest
         TestChunk11(Section, Check, Fail);
 
         TestChunk12(Section, Check, Fail);
+
+        TestChunk13(Section, Check, Fail);
 
         // ---- 结果 ----
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");

@@ -273,9 +273,11 @@ public static class AnsiString
 
         // 命令符 ⌘（文字符号，1 列，非 emoji）
         if (cp == 0x2318) return 1;
-        // 计时图标 ⏱：Emoji_Presentation=Yes，等宽终端按 emoji 2 列渲染（设置界面「⏱ 超时」分类要对齐，
-        // 算 1 列会整行短一截）
-        if (cp == 0x23F1) return 2;
+        // 媒体控制 + 时钟 emoji（23E9-23F3 全 Emoji_Presentation，等宽终端按 emoji 2 列渲染）：
+        // ⏩⏪⏫⏬⏭⏮⏯⏰⏱⏲⏳ —— 其中 ⏱ 曾单独特判，现并入整段（⏰⏳ EA=W 必 2 列，算 1 会整行短一截）
+        if (cp is >= 0x23E9 and <= 0x23F3) return 2;
+        // 杂项符号与箭头（2B00-2BFF：Emoji_Presentation ⬅⬆⬇ + EA=W ⬛⬜⭐⭕ 等，终端 2 列）
+        if (cp is >= 0x2B00 and <= 0x2BFF) return 2;
 
         // 全角 / 宽字符（East Asian Wide + Fullwidth + Emoji）
         if (cp is >= 0x1100 and <= 0x115F) return 2; // 韩文 Choseong

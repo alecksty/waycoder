@@ -525,6 +525,22 @@ public class ScreenshotArg : CliArg
     public override int? OnMatch(List<string> values) { Program.RunScreenshot(); return 0; }
 }
 
+/// <summary>
+/// --width-probe [目录]：终端实测字符宽度，与静态宽度表 AnsiString.CharWidth 比对，输出不一致项供校准。
+/// 用「+字符*」+ CPR 光标位置查询测量真实显示列宽（需真实 TTY）。
+/// 无目录 → 测内置代表字符集（ProbeSet）；带目录 → 扫描该目录源码中全部非 ASCII 字符逐个实测。
+/// </summary>
+public class WidthProbeArg : CliArg
+{
+    public override string Description => "终端实测字符宽度，与静态宽度表比对校准（可带目录扫描源码字符）";
+    public override bool Internal => true;
+    public override int ValueCount => -1;
+    public override string? ValueLabel => "目录";
+    public WidthProbeArg() : base("width-probe", "--width-probe", "-wp") { }
+    public override int? OnMatch(List<string> values)
+        => UI.Shared.Terminal.TerminalWidthProbe.PrintReport(values.Count > 0 ? values[0] : null);
+}
+
 #if WAYCODER_TEST
 public class TuiDemoArg : CliArg
 {
@@ -974,6 +990,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new LimitsArg());
 #endif
         CliArgRegistry.Register(new ScreenshotArg());
+        CliArgRegistry.Register(new WidthProbeArg());
 #if WAYCODER_TEST
         CliArgRegistry.Register(new TuiDemoArg());
         CliArgRegistry.Register(new TuiAuditArg());
