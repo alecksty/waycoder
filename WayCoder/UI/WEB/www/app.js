@@ -414,6 +414,7 @@ function renderModelList(filter) {
       // 列序：模型，厂商，状态，窗口，价格，大，小（🔑 在模型前）
       [key, name, prov, modelStatus, ctx, price, large, small].forEach(c => item.appendChild(c));
       item.onclick = () => selectModel(m);
+      item.ondblclick = () => openEditModel(m); // 双击编辑单个模型
       g.appendChild(item);
     });
     el.appendChild(g);
@@ -481,6 +482,39 @@ function scanModels() {
   }).catch(() => { if (btn) btn.disabled = false; if (status) status.textContent = '扫描失败'; });
 }
 document.getElementById('model-scan-btn').onclick = scanModels;
+
+// ── 编辑单个模型（服务商 / 地址 / API Key / 模型 / 上下文 / 价格）──
+function openEditModel(m) {
+  document.getElementById('me-id').value = m.id;
+  document.getElementById('me-provider').value = m.providerId;
+  document.getElementById('me-baseurl').value = m.baseUrl || '';
+  document.getElementById('me-apikey').value = '';
+  document.getElementById('me-context').value = m.context || 128000;
+  document.getElementById('me-price').value = m.inputPrice || 0;
+  document.getElementById('model-edit-modal').classList.add('open');
+}
+function saveEditModel() {
+  const id = document.getElementById('me-id').value.trim();
+  if (!id) return;
+  const body = {
+    id,
+    providerId: document.getElementById('me-provider').value.trim(),
+    baseUrl: document.getElementById('me-baseurl').value.trim(),
+    apiKey: document.getElementById('me-apikey').value.trim(),
+    context: parseInt(document.getElementById('me-context').value) || 0,
+    price: parseFloat(document.getElementById('me-price').value) || 0
+  };
+  fetch('/models/edit', { method: 'POST', body: JSON.stringify(body) })
+    .then(r => r.json()).then(res => {
+      if (res.ok) {
+        document.getElementById('model-edit-modal').classList.remove('open');
+        fetchModels();
+        scanModels();
+      }
+    }).catch(() => {});
+}
+document.getElementById('me-save').onclick = saveEditModel;
+document.getElementById('me-cancel').onclick = () => document.getElementById('model-edit-modal').classList.remove('open');
 
 // ── 本地导入：弹框勾选来源后导入（内置模型 / Claude Code / Codex / OpenCode / Crush / OpenClaw）──
 const IMPORT_SOURCES = [

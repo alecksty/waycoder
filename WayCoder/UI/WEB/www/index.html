@@ -161,6 +161,25 @@
     </div>
   </div>
 
+  <!-- 编辑单个模型：服务商 / 地址 / API Key / 模型 / 上下文 / 价格 -->
+  <div id="model-edit-modal" class="modal">
+    <div class="modal-card">
+      <h2>✏️ 编辑模型</h2>
+      <div class="edit-grid">
+        <label>模型 ID</label><input id="me-id" type="text">
+        <label>服务商</label><input id="me-provider" type="text" placeholder="如 opencode-go">
+        <label>地址</label><input id="me-baseurl" type="text" placeholder="https://api.example.com/v1">
+        <label>API Key</label><input id="me-apikey" type="password" placeholder="留空 = 不修改">
+        <label>上下文</label><input id="me-context" type="number" placeholder="128000">
+        <label>价格 ($/MTok)</label><input id="me-price" type="number" step="0.01">
+      </div>
+      <div class="row">
+        <button class="btn" id="me-cancel">取消</button>
+        <button class="btn primary" id="me-save">保存</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 本地导入 / 在线导入：勾选来源（在线导入时动态换成 Go/Zen 单选） -->
   <div class="modal" id="source-modal">
     <div class="modal-card">
