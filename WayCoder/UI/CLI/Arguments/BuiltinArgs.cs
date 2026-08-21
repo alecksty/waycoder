@@ -831,9 +831,17 @@ public class ProviderArg : CliArg
 /// <summary>启动权限模式（极简TINY/问答ACK/自动AUTO/智能SMART/畅通YOLO）。</summary>
 public class PermitArg : CliArg
 {
-    public override string Description => "启动权限模式（tiny/ack/auto/smart/yolo）";
+    public override string Description => "启动权限模式";
     public override int ValueCount => 1;
-    public override string? ValueLabel => "模式";
+    public override string? ValueLabel => "tiny|ack|auto|smart|yolo";
+    public override (string Cmd, string Desc)[]? SubCommands =>
+    [
+        ("tiny", "极简：仅聊天，禁用工具"),
+        ("ack", "问答：逐次确认"),
+        ("auto", "自动：自动确认"),
+        ("smart", "智能：智能分级确认"),
+        ("yolo", "畅通：跳过所有确认"),
+    ];
     public PermitArg() : base("permit", "--permit") { }
 }
 
