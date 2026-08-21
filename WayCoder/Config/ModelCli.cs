@@ -387,25 +387,47 @@ public static class ModelCli
                 case "clean":
                 case "prune":
                 {
-                    // 清理无效服务商（探测 /models 失败）
-                    int removed = 0;
-                    foreach (var (id, p) in ModelCatalog.Providers.ToList())
-                    {
-                        if (id is "local" or "custom") continue;
-                        var key = ApiKeyStore.Get(id);
-                        var (ok, detail) = ProbeEndpoint(p.DefaultBaseUrl, key);
-                        if (!ok && !detail.Contains("401") && !detail.Contains("403"))
-                        {
-                            if (ModelCatalog.RemoveProvider(id)) removed++;
-                        }
-                    }
-                    Console.WriteLine(removed > 0 ? $"🗑 已清理 {removed} 个无效服务商" : "没有无效服务商");
+                    Console.WriteLine(CleanText());
                     return 0;
                 }
                 default:
                     Console.WriteLine($"未知子命令「{cmd}」。用法: --provider list|add <id> <名称> <base-url>|rm <id>|clean");
                     return 1;
             }
+        }
+
+        /// <summary>统一清理无效服务商（探测 /models 失败）：移除 providers.json 条目 + API Key + 模型文件。返回报告。</summary>
+        public static string CleanText()
+        {
+            var allIds = ModelCatalog.Providers.Keys
+                .Union(ApiKeyStore.ListAll().Keys)
+                .Where(id => id is not "local" and not "custom")
+                .Distinct()
+                .ToList();
+            int removed = 0;
+            foreach (var id in allIds)
+            {
+                var baseUrl = ModelCatalog.Providers.TryGetValue(id, out var p) ? p.DefaultBaseUrl
+                    : ResolveProviderBaseUrl(id);
+                if (string.IsNullOrWhiteSpace(baseUrl))
+                {
+                    if (ApiKeyStore.Has(id)) ApiKeyStore.Remove(id);
+                    if (ModelCatalog.RemoveCustomByProvider(id) > 0) removed++;
+                    continue;
+                }
+                var key = ApiKeyStore.Get(id);
+                var (ok, detail) = ProbeEndpoint(baseUrl, key);
+                if (ok || detail.Contains("401") || detail.Contains("403")) continue; // 可用保留
+                if (ModelCatalog.Providers.ContainsKey(id))
+                    ModelCatalog.RemoveProvider(id); // 同时清 providers.json 与 key
+                else
+                {
+                    ApiKeyStore.Remove(id);
+                    ModelCatalog.RemoveCustomByProvider(id);
+                }
+                removed++;
+            }
+            return removed > 0 ? $"🗑 已清理 {removed} 个无效服务商（含 key 与模型）" : "没有无效服务商";
         }
     }
 

@@ -92,7 +92,8 @@ public class ModelArg : CliArg
                 break;
             case "prune":
             case "clean":
-                result = ModelCli.Prune();
+                // 统一清理（对齐 --provider clean）：无效服务商 → 删 providers.json + key + 模型
+                result = ModelCli.ProviderCli.CleanText();
                 break;
             default:
                 // 裸模型名：本次会话快捷选中，交给 Program 继续运行
