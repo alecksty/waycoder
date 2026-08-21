@@ -411,7 +411,8 @@ function renderModelList(filter) {
       const modelStatus = document.createElement('span');
       modelStatus.className = 'status';
       modelStatus.textContent = m.hasKey ? statusText(scanMap[pid]) : '无key';
-      [key, modelStatus, name, prov, ctx, price, large, small].forEach(c => item.appendChild(c));
+      // 列序：模型，厂商，状态，窗口，价格，大，小（🔑 在模型前）
+      [key, name, prov, modelStatus, ctx, price, large, small].forEach(c => item.appendChild(c));
       item.onclick = () => selectModel(m);
       g.appendChild(item);
     });
