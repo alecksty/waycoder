@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.80.1 (2026-08-21) — 模型唯一性按 baseUrl（地址不同=不同服务商）+ 内置 BaseUrl 修复
+
+- **模型唯一键改 (id, baseUrl)**：同 id 不同网关地址的模型都保留，不再被后加载覆盖——如 `deepseek-v4-pro` 分属内置 DeepSeek（api.deepseek.com）与 OpenCode Go（opencode.ai/zen/go/v1）两组，可分别选择走各自网关
+- **分组点选**：TUI ModelPicker 按服务商分组，选择时保存所选模型的 `DefaultBaseUrl` + `ProviderId` 到槽位/配置，请求走对应网关
+- **新增 `Find(id, baseUrl)`**：按地址精确查模型；`Find(id)` 内置官方优先（兜底默认）
+- **内置 BaseUrl 修复**：gemini 内置地址补 `/v1beta/openai`（OpenAI 兼容端点）；`LLM.ResolveApiEndpoint` 对 `/openai` 结尾去 `/v1` 前缀，避免 `v1/v1` 重复
+- **导入去重按 (id, baseUrl)**；跳过内置仅当同 id 同地址
+
+### ✅ 验证
+- Release 编译 0 错误；config 自测 86 通过；system 自测 542 通过
+
 ## v0.80.0 (2026-08-21) — 全局 config.json 配置架构 + --help 全面格式化 + 槽位模型修复
 
 ### 配置架构：全局 config.json

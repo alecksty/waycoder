@@ -188,17 +188,19 @@ public static class ModelCli
                 ? sb.ToString().Trim()
                 : "❌ 未导入任何模型（未找到可识别的模型配置）。\n   支持: --model import [builtin|opencode|openclaw|crush|claude|codex|<配置文件路径>]";
 
-        // 去重：同一 Id（大小写不敏感）只保留第一个（OpenCode/OpenClaw 可能重复声明同一模型）
+        // 去重：同一 (Id, baseUrl) 只保留第一个（地址不同=不同服务商，同 id 不同地址都保留）
         var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        imported = imported.Where(m => seenIds.Add(m.Id)).ToList();
+        imported = imported.Where(m => seenIds.Add(ModelCatalog.ModelKey(m.Id, m.DefaultBaseUrl))).ToList();
 
-        // 去重：跳过内置目录已存在的模型（内置为精选元数据，避免被导入的空数据覆盖）
-        var builtInIds = new HashSet<string>(ModelCatalog.BuiltIn.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
+        // 跳过内置：仅当同 id 且同 baseUrl（地址不同视为不同服务商，不跳过）
+        var builtInIds = new HashSet<string>(
+            ModelCatalog.BuiltIn.Select(m => ModelCatalog.ModelKey(m.Id, m.DefaultBaseUrl)),
+            StringComparer.OrdinalIgnoreCase);
         var added = new List<ModelCatalog.ModelInfo>();
         var skipped = new List<string>();
         foreach (var m in imported)
         {
-            if (builtInIds.Contains(m.Id))
+            if (builtInIds.Contains(ModelCatalog.ModelKey(m.Id, m.DefaultBaseUrl)))
                 skipped.Add(m.Id);
             else
                 added.Add(m);
