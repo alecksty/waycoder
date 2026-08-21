@@ -114,6 +114,11 @@ public static class AgentSlotConfig
         if (largeModelId != null)
         {
             var info = ModelCatalog.Find(largeModelId);
+            // 两层架构：provider 承载唯一地址（地址不同=不同服务商），模型用所属 provider 的地址连接
+            if (info != null
+                && ModelCatalog.Providers.TryGetValue(info.ProviderId, out var p)
+                && !string.IsNullOrEmpty(p.DefaultBaseUrl))
+                return p.DefaultBaseUrl;
             if (info?.DefaultBaseUrl != null)
                 return info.DefaultBaseUrl;
         }

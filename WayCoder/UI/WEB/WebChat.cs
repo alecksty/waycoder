@@ -816,12 +816,15 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         }
     }
 
-    /// <summary>BaseUrl 优先级：模型目录默认 Url > 全局 Config.BaseUrl（与 AgentSlotConfig.ResolveBaseUrl 一致）。</summary>
+    /// <summary>
+    /// BaseUrl 优先级（两层架构：provider 承载唯一地址）：provider 唯一地址 &gt; 模型目录 Url &gt; 全局 Config.BaseUrl。
+    /// 地址不同 = 不同服务商，模型用所属 provider 的地址连接。
+    /// </summary>
     private static string? ResolveBaseUrl(ModelCatalog.ModelInfo? info, string providerId, string? globalBaseUrl)
     {
-        if (info?.DefaultBaseUrl != null) return info.DefaultBaseUrl;
         if (ModelCatalog.Providers.TryGetValue(providerId, out var p) && !string.IsNullOrEmpty(p.DefaultBaseUrl))
             return p.DefaultBaseUrl;
+        if (info?.DefaultBaseUrl != null) return info.DefaultBaseUrl;
         return globalBaseUrl;
     }
 
