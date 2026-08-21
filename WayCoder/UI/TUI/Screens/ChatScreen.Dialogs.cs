@@ -68,16 +68,13 @@ public partial class ChatScreen : TuiScreen
         MarkDirty();
     }
 
-    /// <summary>更新 Token 显示（完整版：含用量、限额、成本、延迟、速度）</summary>
-    public void UpdateTokenDisplayFull(int promptTokens, int completionTokens,
+    /// <summary>更新状态栏右侧显示：大/小模型上下文用量 + 累计花费 + 延迟</summary>
+    public void UpdateTokenDisplayFull(int largeTokens, int smallTokens,
         double? estimatedCost, int contextTokens, int maxContext,
         double lastLatencyMs, double lastTokensPerSec)
     {
         var sb = new System.Text.StringBuilder();
-        sb.Append($"📊 {FormatNum(promptTokens + completionTokens)}");
-        if (maxContext > 0)
-            sb.Append($"/{FormatNum(maxContext)}");
-        sb.Append(" 词元");
+        sb.Append($"📊 大:{FormatNum(largeTokens)} · 小:{FormatNum(smallTokens)}");
         sb.Append(estimatedCost.HasValue
             ? $" · ¥{estimatedCost.Value * 7.25:F2}"
             : " · ¥-"); // 模型无定价表时显示占位，用户仍可见计费位置

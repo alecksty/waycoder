@@ -676,7 +676,7 @@ public partial class ChatScreen : TuiScreen
         };
         RootView.Add(ModelInfoRow);
 
-        // 模式栏下方快捷键行：只显示切换快捷键（Shift+Tab/Ctrl+P/E/X），模式栏可见时跟随显示
+        // 模式栏下方快捷键行：居中显示快捷键（切换 + 基础操作），模式栏可见时跟随显示
         _shortcutRow = new TuiSmartLabel
         {
             Width = TW,
@@ -684,7 +684,7 @@ public partial class ChatScreen : TuiScreen
             Visible = false,
             Fg = AnsiColors.White,
             TextAlign = EHAlign.Center,
-            Text = "«dim»Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+X 换模型«/»",
+            Text = "«dim»Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+X 换模型 · Enter 发送 · ↑↓ 历史 · Tab 补全 · F1-F10 · Ctrl+H 帮助«/»",
         };
         RootView.Add(_shortcutRow);
 
@@ -697,8 +697,8 @@ public partial class ChatScreen : TuiScreen
         {
             Width = TW, Height = 1,
             Bg = TuiTheme.Current.StatusBarBg, Fg = TuiTheme.Current.StatusBarFg,
-            // 切换快捷键已在模式栏下方单独一行，状态栏只留基础操作提示
-            HintText = "Enter 发送 · ↑↓ 历史 · Tab 补全 · F1-F10 槽位 · Ctrl+H 帮助"
+            // 快捷键已全部并入模式栏下方快捷键行，状态栏不再显示快捷键提示
+            HintText = ""
         };
         RootView.Add(StatusBar);
 

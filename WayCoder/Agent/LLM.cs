@@ -237,6 +237,17 @@ public class LLM
     private int _totalCompletionTokens;
     public int TotalCompletionTokens => _totalCompletionTokens;
 
+    /// <summary>大模型（Model）累计输入 token —— 状态栏右侧分大小模型显示用量</summary>
+    private int _largePromptTokens, _largeCompletionTokens;
+    public int LargePromptTokens => _largePromptTokens;
+    public int LargeCompletionTokens => _largeCompletionTokens;
+    public int LargeTotalTokens => _largePromptTokens + _largeCompletionTokens;
+    /// <summary>小模型（SmallModel/压缩）累计输入 token</summary>
+    private int _smallPromptTokens, _smallCompletionTokens;
+    public int SmallPromptTokens => _smallPromptTokens;
+    public int SmallCompletionTokens => _smallCompletionTokens;
+    public int SmallTotalTokens => _smallPromptTokens + _smallCompletionTokens;
+
     /// <summary>当前任务开始时已用的输入 token 数（快照）</summary>
     private int _taskStartPromptTokens;
     /// <summary>当前任务开始时已用的输出 token 数（快照）</summary>
@@ -355,6 +366,18 @@ public class LLM
     {
         Interlocked.Add(ref _totalPromptTokens, promptTokens);
         Interlocked.Add(ref _totalCompletionTokens, completionTokens);
+        // 按当前生效模型区分大/小模型用量：小模型压缩等经 ModelOverride=SmallModel 切换，
+        // EffectiveModel==SmallModel 时计入小模型，否则计入大模型（状态栏右侧分大小显示）
+        if (EffectiveModel == SmallModel)
+        {
+            Interlocked.Add(ref _smallPromptTokens, promptTokens);
+            Interlocked.Add(ref _smallCompletionTokens, completionTokens);
+        }
+        else
+        {
+            Interlocked.Add(ref _largePromptTokens, promptTokens);
+            Interlocked.Add(ref _largeCompletionTokens, completionTokens);
+        }
     }
 
     /// <summary>

@@ -57,12 +57,12 @@
     <!-- 模型/模式信息行：工作模式/经济模式/大模型/小模型，内容由 code-behind 每帧填充；灰字不抢眼 -->
     <SmartLabel id="modelInfoRow" height="1" visible="false" fg="white" align="center" />
 
-    <!-- 模式栏下方快捷键行：只显示切换快捷键，可见性由 code-behind 跟随 modelInfoRow -->
+    <!-- 模式栏下方快捷键行：左对齐显示全部快捷键（切换 + 基础操作），可见性由 code-behind 跟随 modelInfoRow -->
     <SmartLabel id="shortcutRow" height="1" visible="false" fg="white" align="center"
-                text="«dim»Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+X 换模型«/»" />
+                text="«dim»Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+X 换模型 · Enter 发送 · ↑↓ 历史 · Tab 补全 · F1-F10 · Ctrl+H 帮助«/»" />
 
     <!-- 底部状态栏 -->
     <StatusBar id="statusBar" height="1"
-               hint="Enter 发送 · ↑↓ 历史 · Tab 补全 · F1-F10 槽位 · Ctrl+H 帮助" />
+               hint="" />
   </VBox>
 </Screen>

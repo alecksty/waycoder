@@ -540,7 +540,8 @@ public partial class Agent
                 var beforeTokens = ContextManager.EstimateTokens(Messages);
                 // 触发依据是最近一次真实 prompt（当前上下文大小），而非累计用量——显示两者避免误判窗口未生效
                 var usedTokens = Context.LastPromptTokens;
-                onToken?.Invoke($"\n⏳ **上下文压缩中... (当前上下文 {usedTokens}/{Context.MaxTokens} tokens，消息估算 {beforeTokens})**\n\n");
+                // 压缩状态只走动态栏（CompressProgress → TuiDynamicBar 压缩进度），不再注入聊天流 ——
+                // 压缩是背景状态不是对话内容，聊天区保持干净
                 await CompressWithSmallModel(onToken);
                 var afterCount = Messages.Count;
                 var afterTokens = ContextManager.EstimateTokens(Messages);
@@ -550,7 +551,6 @@ public partial class Agent
                 if (!Context.ContinuePromptInjected && afterCount < beforeCount)
                 {
                     InjectContinuePrompt("之前的会话因上下文过长而被压缩");
-                    onToken?.Invoke("\n🔄 **上下文已自动压缩，继续执行...**\n\n");
                 }
             }
 
