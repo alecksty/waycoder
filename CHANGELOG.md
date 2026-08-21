@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.81.8 (2026-08-21) — 模式栏/快捷键行居中 + Ctrl+X 完整交换
+
+- **模式栏/快捷键行居中**：TuiMarkup 的 `align` 属性此前只对 `TuiLabel` 生效，
+  `TuiSmartLabel`（chat.tui 的 modelInfoRow/shortcutRow）未应用 → 靠左显示；
+  现在 Label 与 SmartLabel 都支持 align，模式栏/快捷键行按 `align="center"` 居中
+- **修复 align 解析卡死**：`Attr("align")` 对缺失属性返回 null，无条件 `Enum.TryParse(null)`
+  抛 ArgumentNullException 使标记加载中断（TuiAudit 卡死）——判空 + 仅 Label/SmartLabel 处理
+- **Ctrl+X 交换大/小模型整套**：模型 id + 服务商 + 网关 + KEY 一起交换
+  （key 是服务商级，交换服务商后自动取 store 对应 key），且运行时真正生效——
+  更新当前槽位 Agent 的 LLM 实例 + 上下文窗口（此前只改配置/模型栏，「仅仅交换了显示」，
+  RunSlotAgentAsync 用的是 agent.LlmClient 旧实例）
+- 自测：chat.tui modelInfoRow/shortcutRow 居中断言、子节点数适配
+
+### ✅ 验证
+- 自测 4105 通过（0 失败）；GUI Release 构建通过
+
 ## v0.81.7 (2026-08-21) — 模式栏下方独立快捷键行 + 状态栏回归干净
 
 - **模式栏（模型信息行）下方插入独立快捷键行**：只显示切换快捷键

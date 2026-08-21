@@ -91,6 +91,8 @@ public static partial class SelfTest
             Check("chat.tui statusBar", main.Find<TuiStatusBar>("statusBar") != null);
             Check("chat.tui modelInfoRow(SmartLabel)", main.Find<TuiSmartLabel>("modelInfoRow") != null);
             Check("chat.tui shortcutRow(SmartLabel)", main.Find<TuiSmartLabel>("shortcutRow") != null);
+            Check("chat.tui modelInfoRow 居中", main.Find<TuiSmartLabel>("modelInfoRow")?.TextAlign == EHAlign.Center);
+            Check("chat.tui shortcutRow 居中", main.Find<TuiSmartLabel>("shortcutRow")?.TextAlign == EHAlign.Center);
         }
         catch (Exception ex)
         {

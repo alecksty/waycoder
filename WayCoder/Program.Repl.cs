@@ -463,30 +463,72 @@ public partial class Program
             // 窗口键：Ctrl+X 交换当前槽位的大小模型
             if (key.Key == ConsoleKey.X && ctrl)
             {
+                // 交换 = 大小模型整套（模型 id + 服务商 + 网关 + KEY）整体互换：
+                // 新大模型继承原小模型的服务商/网关/Key，新小模型继承原大模型的。
+                // key 是服务商级（ApiKeyStore），交换服务商后新模型自动取对应 store key。
                 var slotCfg = AgentSlotConfig.Get(_activeSlot);
                 if (!slotCfg.UseGlobal)
                 {
+                    var oldLarge = slotCfg.LargeModel;
+                    var smallModel = slotCfg.SmallModel ?? _config.SmallModel;
+                    var smallInfo = ModelCatalog.Find(smallModel);
+                    var smallProvider = smallInfo?.ProviderId ?? _config.SmallProvider;
+                    var smallGw = smallInfo?.DefaultBaseUrl
+                        ?? (ModelCatalog.Providers.TryGetValue(smallProvider, out var p) ? p.DefaultBaseUrl : null);
                     AgentSlotConfig.Set(_activeSlot, new AgentSlotConfig.SlotConfig
                     {
                         UseGlobal = false,
-                        LargeModel = slotCfg.SmallModel,
-                        SmallModel = slotCfg.LargeModel,
-                        BaseUrl = slotCfg.BaseUrl,
-                        ApiKeyProviderId = slotCfg.ApiKeyProviderId,
-                        ApiKey = slotCfg.ApiKey,
+                        LargeModel = smallModel,                 // 新大模型 = 原小模型
+                        SmallModel = oldLarge,                   // 新小模型 = 原大模型
+                        BaseUrl = smallGw,                       // 原小模型网关
+                        ApiKeyProviderId = smallProvider,        // 原小模型服务商
+                        ApiKey = ApiKeyStore.Get(smallProvider) ?? "", // 原小模型 key
                     });
-                    // 强制槽位下次使用重建 LLM（模型变了）
-                    var slotSwap = _slots[_activeSlot];
-                    if (slotSwap != null) { slotSwap.LastLargeModel = null; slotSwap.LastSmallModel = null; }
                 }
                 else
                 {
                     (_config.Model, _config.SmallModel) = (_config.SmallModel, _config.Model);
+                    (_config.Provider, _config.SmallProvider) = (_config.SmallProvider, _config.Provider);
+                    // 新大模型（原小模型）网关：模型目录默认
+                    var newLargeInfo = ModelCatalog.Find(_config.Model);
+                    if (newLargeInfo?.DefaultBaseUrl != null)
+                        _config.BaseUrl = newLargeInfo.DefaultBaseUrl;
+                    // 新大模型 key = 新服务商（原 SmallProvider）在 store 的 key（key 是服务商级）
+                    _config.ApiKey = ApiKeyStore.Get(_config.Provider) ?? "";
                     _config.SaveToEnvFile();
-                    if (_llm != null) { _llm.Model = _config.Model; _llm.SmallModel = _config.SmallModel; }
                 }
+
                 var lg = AgentSlotConfig.ResolveLargeModel(AgentSlotConfig.Get(_activeSlot), _activeSlot);
                 var sm = AgentSlotConfig.ResolveSmallModel(AgentSlotConfig.Get(_activeSlot), _activeSlot);
+
+                // 运行时真正生效（对齐 CycleModel）：只改配置/模型栏是「仅仅交换了显示」，
+                // RunSlotAgentAsync 用的是 agent.LlmClient（Agent 持有的实例）——
+                // 必须更新当前槽位 Agent 的 LLM + 上下文窗口，实际请求才会走新模型
+                var curAgent = _slots[_activeSlot].Agent;
+                if (curAgent?.LlmClient != null)
+                {
+                    curAgent.LlmClient.Model = lg;
+                    curAgent.LlmClient.SmallModel = sm;
+                }
+                curAgent?.UpdateContextWindow(ModelCatalog.ResolveContextWindow(lg, _config.MaxContextTokens));
+                if (slotCfg.UseGlobal && _llm != null)
+                {
+                    _llm.Model = _config.Model;
+                    _llm.SmallModel = _config.SmallModel;
+                }
+                var slotSwap = _slots[_activeSlot];
+                if (slotSwap != null)
+                {
+                    // 同步槽位 LLM 实例与 Last* 记录，避免 GetSlotLlm 下次误判模型变化而重建
+                    if (slotSwap.LlmClient != null)
+                    {
+                        slotSwap.LlmClient.Model = lg;
+                        slotSwap.LlmClient.SmallModel = sm;
+                    }
+                    slotSwap.LastLargeModel = lg;
+                    slotSwap.LastSmallModel = sm;
+                }
+
                 screen.AddSystemMsg($"🔄 大小模型交换 → 大:{lg} · 小:{sm}");
                 mgr.Render();
                 continue;
