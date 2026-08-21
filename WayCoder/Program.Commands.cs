@@ -429,6 +429,33 @@ public partial class Program
         Console.WriteLine("初始化完成！现在可以运行 waycoder 开始编码。");
     }
 
+    /// <summary>对比各模式 SystemPrompt + 工具 schema 大小（极致省钱效果验证）。</summary>
+    internal static void RunSyspromptSize()
+    {
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        var all = WayCoder.Tools.ToolRegistry.AllTools;
+        var wl = new[] { "read_file", "write_file", "edit_file", "bash", "web_search" };
+        var wlTools = all.Where(t => wl.Contains(t.Name, StringComparer.OrdinalIgnoreCase)).ToList();
+        Console.WriteLine($"工具数: 全 {all.Count} vs 白名单 {wlTools.Count}（read/write/edit/bash/web_search）");
+
+        void M(string label, List<WayCoder.Tools.ITool> tools)
+        {
+            var sp = SystemPrompt.Generate(tools);
+            int schemaChars = tools.Sum(t => t.Schema().ToJson().Length);
+            int total = sp.Length + schemaChars;
+            Console.WriteLine($"{label,-26} SP={sp.Length,6}字符  schema={schemaChars,6}字符  合计={total,7}  ≈{total / 3,5} tok(估)");
+        }
+
+        var saved = Config.Instance.EconomyMode;
+        Config.Instance.EconomyMode = EconomyMode.Off;
+        M("normal 全工具", all);
+        M("normal 白名单5", wlTools);
+        Config.Instance.EconomyMode = EconomyMode.Extreme;
+        M("extreme 全工具", all);
+        M("extreme 白名单5", wlTools);
+        Config.Instance.EconomyMode = saved;
+    }
+
     /// <summary>截图模式：TUI 控件截图验证</summary>
     internal static void RunScreenshot()
     {
