@@ -263,6 +263,16 @@ public partial class ChatScreen : TuiScreen
             }
         }
 
+        // 排队中：Agent 忙且有待处理指令 → 动态栏突出排队（⏳排队N），不弹聊天区。
+        // 独立于此前的 Agent 状态分支处理，确保无论 Agent 处于思考/工具/压缩都显示排队。
+        if (_queuedCount > 0)
+        {
+            DynamicBar.Status = AgentStatus.Thinking;
+            DynamicBar.LeftText = StatusLeft;
+            DynamicBar.ToolText = $"⏳排队{_queuedCount}";
+            return;
+        }
+
         // 压缩中（从 CompressProgress 事件已设置，保持不变）
         if (DynamicBar.Status == AgentStatus.Compressing && ContextManager.IsCompressing)
             return;
@@ -272,12 +282,17 @@ public partial class ChatScreen : TuiScreen
             DynamicBar.ProgressLabel = "";     // 同时清标签，避免残留 "[L3] 压缩完成" 覆盖常驻上下文%
         }
 
+        // 排队叠加：Agent 忙且有待处理指令 → 动态栏中段显示「⏳排队N」（不弹聊天区）
+        string WithQueue(string tool) => _queuedCount > 0
+            ? (string.IsNullOrEmpty(tool) ? $"⏳排队{_queuedCount}" : $"{tool} · ⏳排队{_queuedCount}")
+            : tool;
+
         // 等待权限
         if (_pendingPermissionTool != null)
         {
             DynamicBar.Status = AgentStatus.WaitingPerm;
             DynamicBar.LeftText = $"等待确认: {_pendingPermissionTool}";
-            DynamicBar.ToolText = "";
+            DynamicBar.ToolText = WithQueue("");
             return;
         }
 
@@ -286,7 +301,7 @@ public partial class ChatScreen : TuiScreen
         {
             DynamicBar.Status = AgentStatus.ToolRunning;
             DynamicBar.LeftText = _currentToolName;
-            DynamicBar.ToolText = _currentToolBrief ?? "";
+            DynamicBar.ToolText = WithQueue(_currentToolBrief ?? "");
             return;
         }
 
@@ -295,7 +310,7 @@ public partial class ChatScreen : TuiScreen
         {
             DynamicBar.Status = AgentStatus.Thinking;
             DynamicBar.LeftText = StatusLeft;
-            DynamicBar.ToolText = "";
+            DynamicBar.ToolText = WithQueue("");
             return;
         }
 
@@ -395,6 +410,18 @@ public partial class ChatScreen : TuiScreen
 
     /// <summary>上下文占用百分比（null=未知，用于动态栏常驻显示）</summary>
     private double? _contextPercent;
+    /// <summary>排队任务数（Agent 忙时待处理指令），动态栏显示；0=无排队</summary>
+    private int _queuedCount;
+    public int QueuedCount => _queuedCount;
+
+    /// <summary>设置排队任务数并在动态栏显示（Agent 忙时不弹聊天区，状态走动态栏）。</summary>
+    public void SetQueuedCount(int count)
+    {
+        if (_queuedCount == count) return;
+        _queuedCount = count;
+        DynamicBar?.MarkDirty();
+        MarkDirty();
+    }
 
     /// <summary>动态栏动画上次标脏时间戳（TickCount64，节流用，避免逐帧整条重绘）</summary>
     private long _lastAnimDirtyTicks;
