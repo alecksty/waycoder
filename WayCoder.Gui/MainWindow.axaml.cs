@@ -623,18 +623,20 @@ public partial class MainWindow : Window
     private void Stop_Click(object? sender, RoutedEventArgs e) => _cts[_activeSlot]?.Cancel();
 
     /// <summary>切换当前槽位模型（Phase 4 模型弹窗复用此逻辑）。</summary>
-    internal void ApplyModel(string modelId)
+    internal void ApplyModel(string modelId, string? providerId = null, string? baseUrl = null)
     {
         UpdateHeader();
         try
         {
             var cfg = Config.Instance;
-            var info = ModelCatalog.Find(modelId);
+            // 显式传 baseUrl（GUI 分组点选）→ 精确匹配所选网关；否则内置官方优先
+            var info = string.IsNullOrWhiteSpace(baseUrl) ? ModelCatalog.Find(modelId) : ModelCatalog.Find(modelId, baseUrl);
             if (info == null) return;
-            var key = ApiKeyStore.Get(info.ProviderId) ?? cfg.ApiKey;
-            var baseUrl = info.DefaultBaseUrl ?? cfg.BaseUrl;
+            var effProviderId = !string.IsNullOrWhiteSpace(providerId) ? providerId : info.ProviderId;
+            var key = ApiKeyStore.Get(effProviderId) ?? cfg.ApiKey;
+            var effBaseUrl = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl : (info.DefaultBaseUrl ?? cfg.BaseUrl);
             var agent = EnsureSlot(_activeSlot);
-            agent.LlmClient.Reconfigure(key, baseUrl);
+            agent.LlmClient.Reconfigure(key, effBaseUrl);
             agent.LlmClient.Model = modelId;
             agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(modelId, cfg.MaxContextTokens));
         }
@@ -680,21 +682,25 @@ public partial class MainWindow : Window
     }
 
     /// <summary>保存默认模型到配置（不中断当前任务，新会话/重启生效），供模型弹窗调用。</summary>
-    internal void SaveDefaultModel(string modelId, bool small)
+    internal void SaveDefaultModel(string modelId, bool small, string? providerId = null, string? baseUrl = null)
     {
         var cfg = Config.Instance;
         if (small) cfg.SmallModel = modelId;
         else cfg.Model = modelId;
+        if (providerId != null) { if (small) cfg.SmallProvider = providerId; else cfg.Provider = providerId; }
+        if (baseUrl != null) cfg.BaseUrl = baseUrl;
         try { cfg.SaveToEnvFile(); } catch { }
         UpdateHeader();
         AppendSystem(_activeSlot, $"[已保存默认{(small ? "小" : "大")}模型 {modelId}]");
     }
 
     /// <summary>切换当前槽位小模型，供模型弹窗调用。</summary>
-    internal void ApplySmallModel(string modelId)
+    internal void ApplySmallModel(string modelId, string? providerId = null, string? baseUrl = null)
     {
         var cfg = Config.Instance;
         cfg.SmallModel = modelId;
+        if (providerId != null) cfg.SmallProvider = providerId;
+        if (baseUrl != null) cfg.BaseUrl = baseUrl;
         var agent = _agents[_activeSlot];
         if (agent != null) agent.LlmClient.SmallModel = modelId;
         UpdateHeader();

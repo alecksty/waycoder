@@ -57,9 +57,6 @@ public partial class Program
     /// <summary>Watch 模式线程安全提示队列</summary>
     private static readonly System.Collections.Concurrent.ConcurrentQueue<string> _pendingWatchPrompts = new();
 
-    /// <summary>静默模式（-q/--quiet）：抑制权限横幅等非必要输出</summary>
-    public static bool QuietMode;
-
     public static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
@@ -94,7 +91,7 @@ public partial class Program
         // --no-color / -q 提前生效：ShowUsage（-h）等输出早于 _config 初始化，须在此设置
         if (Arguments.CliArgRegistry.Has(parsed, "no-color"))
             WayCoder.UI.Shared.Terminal.AnsiTty.Enabled = false;
-        QuietMode = Arguments.CliArgRegistry.Has(parsed, "quiet");
+        Config.Instance.QuietMode = Arguments.CliArgRegistry.Has(parsed, "quiet");
 
         // 读取值参数
         string? model = Arguments.CliArgRegistry.Get(parsed, "model");

@@ -185,13 +185,15 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         {
             var body = Json.Parse(req.Body);
             var modelId = body?["modelId"]?.AsString() ?? "";
+            var providerId = body?["providerId"]?.AsString() ?? "";
+            var baseUrl = body?["baseUrl"]?.AsString() ?? "";
             var apiKey = body?["apiKey"]?.AsString();
             if (string.IsNullOrWhiteSpace(modelId))
                 return HttpResponse.JsonBody(Err("缺少 modelId"));
             Interrupt(slot);
             WaitForSlotIdleAsync(_slots[slot]).GetAwaiter().GetResult(); // 等退场 ChatAsync 收尾，避免与 Reconfigure 竞态
             var agent = EnsureSlot(slot);
-            var error = ApplyModel(agent, modelId, apiKey);
+            var error = ApplyModel(agent, modelId, apiKey, providerId, baseUrl);
             if (error != null) return HttpResponse.JsonBody(Err(error));
             BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
@@ -202,13 +204,15 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         {
             var body = Json.Parse(req.Body);
             var modelId = body?["modelId"]?.AsString() ?? "";
-            var info = ModelCatalog.Find(modelId);
+            var providerId = body?["providerId"]?.AsString() ?? "";
+            var baseUrl = body?["baseUrl"]?.AsString() ?? "";
+            var info = string.IsNullOrWhiteSpace(baseUrl) ? ModelCatalog.Find(modelId) : ModelCatalog.Find(modelId, baseUrl);
             if (info == null) return HttpResponse.JsonBody(Err($"未知模型「{modelId}」"));
             var cfg = Config.Instance;
             cfg.Model = modelId;
-            cfg.Provider = info.ProviderId;
-            var baseUrl = ResolveBaseUrl(info, info.ProviderId, cfg.BaseUrl);
-            if (baseUrl != null) cfg.BaseUrl = baseUrl;
+            cfg.Provider = !string.IsNullOrWhiteSpace(providerId) ? providerId : info.ProviderId;
+            var effBaseUrl = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl : ResolveBaseUrl(info, cfg.Provider, cfg.BaseUrl);
+            if (effBaseUrl != null) cfg.BaseUrl = effBaseUrl;
             cfg.SaveToEnvFile();
             BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
@@ -678,33 +682,34 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     /// 运行时换模型：更新 Config + 重配置当前 Agent 的 LLM（key/baseUrl/Model/上下文窗口）+ 持久化。
     /// 返回 null=成功，否则返回错误信息。纯逻辑，便于自测。
     /// </summary>
-    public static string? ApplyModel(Agent agent, string modelId, string? apiKey)
+    public static string? ApplyModel(Agent agent, string modelId, string? apiKey, string? providerId = null, string? baseUrl = null)
     {
-        var info = ModelCatalog.Find(modelId);
+        // 显式传 baseUrl（Web 分组点选）→ Find 精确匹配所选网关；否则内置官方优先
+        var info = string.IsNullOrWhiteSpace(baseUrl) ? ModelCatalog.Find(modelId) : ModelCatalog.Find(modelId, baseUrl);
         if (info == null) return $"未知模型「{modelId}」";
 
-        var providerId = info.ProviderId;
+        var effProviderId = !string.IsNullOrWhiteSpace(providerId) ? providerId : info.ProviderId;
 
         // key 解析：显式 apiKey > ApiKeyStore(provider) > 全局 Config.ApiKey
         string key;
         if (!string.IsNullOrWhiteSpace(apiKey))
         {
             key = apiKey.Trim();
-            ApiKeyStore.Set(providerId, key);
+            ApiKeyStore.Set(effProviderId, key);
         }
         else
         {
-            key = ApiKeyStore.Get(providerId) ?? Config.Instance.ApiKey;
+            key = ApiKeyStore.Get(effProviderId) ?? Config.Instance.ApiKey;
         }
 
         var cfg = Config.Instance;
-        var baseUrl = ResolveBaseUrl(info, providerId, cfg.BaseUrl);
+        var effBaseUrl = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl : ResolveBaseUrl(info, effProviderId, cfg.BaseUrl);
 
         cfg.Model = modelId;
-        cfg.Provider = providerId;
-        if (baseUrl != null) cfg.BaseUrl = baseUrl;
+        cfg.Provider = effProviderId;
+        if (effBaseUrl != null) cfg.BaseUrl = effBaseUrl;
 
-        agent.LlmClient.Reconfigure(key, baseUrl);
+        agent.LlmClient.Reconfigure(key, effBaseUrl);
         agent.LlmClient.Model = modelId;
         agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(modelId, cfg.MaxContextTokens));
         cfg.SaveToEnvFile();
