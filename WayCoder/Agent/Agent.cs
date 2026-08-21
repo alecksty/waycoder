@@ -153,10 +153,13 @@ public partial class Agent
         Context = new ContextManager(maxContextTokens);
         _maxRounds = maxRounds;
         _effectiveMaxRounds = maxRounds > 0 ? maxRounds : Math.Max(1, Config.Instance.MaxRounds); // 下限 1，防 MaxRounds≤0 时循环体一次都不跑
-        _systemPrompt = SystemPrompt.Generate(Tools);
+        // TINY 极简权限：不注入任何系统提示词（仅聊天）
+        _systemPrompt = PermissionManager.CurrentMode == PermissionManager.Mode.TINY
+            ? ""
+            : SystemPrompt.Generate(Tools);
         // --system-prompt / --append-system-prompt（Claude Code 对齐）：追加自定义系统提示词
         var extraPrompt = Config.Instance.ExtraSystemPrompt?.Trim();
-        if (!string.IsNullOrEmpty(extraPrompt))
+        if (_systemPrompt.Length > 0 && !string.IsNullOrEmpty(extraPrompt))
             _systemPrompt += "\n\n" + extraPrompt;
 
         // 连接子智能体能力
@@ -178,7 +181,10 @@ public partial class Agent
         Tools.AddRange(filtered);
         ToolByName.Clear();
         foreach (var t in filtered) ToolByName[t.Name] = t;
-        _systemPrompt = SystemPrompt.Generate(Tools) + "\n\n" + Config.Instance.ExtraSystemPrompt?.Trim();
+        // TINY 极简权限：不注入系统提示词（仅聊天）
+        _systemPrompt = PermissionManager.CurrentMode == PermissionManager.Mode.TINY
+            ? ""
+            : SystemPrompt.Generate(Tools) + "\n\n" + Config.Instance.ExtraSystemPrompt?.Trim();
     }
 
     /// <summary>
