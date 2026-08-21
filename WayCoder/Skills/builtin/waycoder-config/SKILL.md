@@ -14,9 +14,15 @@ WayCoder 通过环境变量和配置文件进行配置。
 
 ## 配置文件层次
 
-1. `.waycoder/config.json`（项目本地）
-2. `~/.waycoder/config.json`（全局）
-3. 环境变量（`WAYCODER_*` / `CORECODER_*`，优先级最高）
+配置按优先级从高到低：
+
+1. `~/.waycoder/config.json`（全局，**权威源**）— 保存全部配置（schema 非密钥项，Key 即属性名，如 `"Model": "deepseek-v4-pro"`）。首次启动时若存在 `.env` 会自动迁移生成。
+2. `.env`（项目根目录）— 仅保留 **5 个基本引导配置**：服务商 `WAYCODER_PROVIDER`、基本地址 `WAYCODER_BASE_URL`、`WAYCODER_API_KEY`、经济模式 `WAYCODER_ECONOMY`、是否使用鼠标 `WAYCODER_MOUSE`。当 `config.json` 不存在时才作为兜底使用。
+3. 环境变量（`WAYCODER_*` / `CORECODER_*`）— 最低优先级。
+
+密钥（API Key）不写入 config.json，独立存于 `~/.waycoder/api_keys.json`（一个服务商一个 key）。
+
+> 每次启动时，若全局 `~/.waycoder/config.json` 有更新，会自动复制一份到项目本地 `.waycoder/config.json` 保存（内容相同则跳过），防止全局配置意外损坏无法恢复。
 
 ## 核心配置
 

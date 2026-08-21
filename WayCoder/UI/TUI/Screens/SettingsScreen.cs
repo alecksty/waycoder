@@ -162,7 +162,8 @@ public class SettingsScreen : TuiScreen
             _detailPanel.Add(valLabel);
             _detailControls.Add(valLabel);
 
-            var desc = new TuiLabel($"  {setting.Desc}  [{setting.EnvVar}]")
+            // 不再显示环境变量名（config.json 成为权威源后多数 WAYCODER_* 已作废，避免噪音）
+            var desc = new TuiLabel($"  {setting.Desc}")
                 { Width = dW - 2, Height = 1, Fg = 90 };
             _detailPanel.Add(desc);
             _detailControls.Add(desc);

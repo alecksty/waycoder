@@ -23,10 +23,24 @@ namespace WayCoder.UI.Cli.Arguments;
 /// </summary>
 public class ModelArg : CliArg
 {
-    public override string Description => "模型管理（list / name <id> / small <id> / key / connect / import [来源] / add [model|provider|key] / remove [model|provider|key] / test / prune，或 --model <模型ID> 快捷选中）";
+    public override string Description => "模型管理";
     public override int ValueCount => -1;
     public override bool Greedy => true;
     public override string? ValueLabel => "模型ID/子命令";
+    public override (string Cmd, string Desc)[]? SubCommands =>
+    [
+        ("list [供应商]", "列出模型目录"),
+        ("name <id>", "选中大模型"),
+        ("small <id>", "选中小模型"),
+        ("key [set|remove]", "管理 API Key"),
+        ("connect <base-url>", "设置 API 地址"),
+        ("import [来源]", "导入模型（opencode/crush/...）"),
+        ("add model/provider/key", "添加模型 / 服务商 / Key"),
+        ("remove <id>", "移除模型或服务商"),
+        ("test", "测试连接"),
+        ("prune", "清理无效条目"),
+        ("<模型ID>", "快捷选中模型"),
+    ];
     public ModelArg() : base("model", "-m", "--model") { }
 
     public override int? OnMatch(List<string> values)
@@ -171,13 +185,13 @@ public class PromptArg : CliArg
     public override string Description => "一次性提示词。-p1~-p0 投递槽位, -pa 共享前缀, 同槽位可排队";
     public override int ValueCount => 1;
     public override string? ValueLabel => "文本";
-    // --print 对齐 Claude Code（-p/--print），OpenCode 对应 run <message>
+    // --print 别名（-p/--print），OpenCode 对应 run <message>
     public PromptArg() : base("prompt", "-p", "--prompt", "--print") { }
 }
 
 public class ResumeArg : CliArg
 {
-    public override string Description => "恢复会话（-c 无参=最近会话，-c 名称=指定会话）";
+    public override string Description => "恢复会话,会话名为空,就是上一次的。";
     public override int ValueCount => -1; // 可选值：无参时恢复最近会话
     public override string? ValueLabel => "会话名";
     public ResumeArg() : base("resume", "-r", "--resume", "-c", "--continue") { }
@@ -218,7 +232,7 @@ public class InitArg : CliArg
 public class YoloArg : CliArg
 {
     public override string Description => "跳过所有权限确认（非交互模式自动开启）";
-    // --dangerously-skip-permissions 对齐 Claude Code
+    // --dangerously-skip-permissions 别名
     public YoloArg() : base("yolo", "-y", "--yolo", "--dangerously-skip-permissions") { }
 }
 
@@ -291,47 +305,47 @@ public class CliModeArg : CliArg
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 竞品参数对齐（Claude Code / OpenCode）—— 仅新增别名，不动现有参数
+// 兼容参数别名 —— 仅新增别名，不动现有参数
 // ═══════════════════════════════════════════════════════════════
 
 /// <summary>
-/// --output-format &lt;text|json|stream-json&gt;（Claude Code）/ --format &lt;default|json&gt;（OpenCode）。
+/// --output-format &lt;text|json|stream-json&gt;（）/ --format &lt;default|json&gt;（OpenCode）。
 /// json/stream-json 对应 WayCoder 的 --json 输出模式。
 /// </summary>
 public class OutputFormatArg : CliArg
 {
-    public override string Description => "输出格式（Claude Code --output-format / OpenCode --format）：json|stream-json 等同 --json，text|default 普通输出";
+    public override string Description => "输出格式：json|stream-json 等同 --json，text|default 普通输出";
     public override int ValueCount => 1;
     public override string? ValueLabel => "格式";
     public OutputFormatArg() : base("output-format", "--output-format", "--format") { }
 }
 
 /// <summary>
-/// --permission-mode &lt;default|acceptEdits|plan|bypassPermissions&gt;（Claude Code）。
+/// --permission-mode &lt;default|acceptEdits|plan|bypassPermissions&gt;（）。
 /// bypassPermissions → --yolo；其余保持默认权限确认。
 /// </summary>
 public class PermissionModeArg : CliArg
 {
-    public override string Description => "权限模式（Claude Code --permission-mode）：bypassPermissions 等同 --yolo";
+    public override string Description => "权限模式：bypassPermissions 等同 --yolo";
     public override int ValueCount => 1;
     public override string? ValueLabel => "模式";
     public PermissionModeArg() : base("permission-mode", "--permission-mode") { }
 }
 
-/// <summary>工具白名单（Claude Code --allowedTools / --allowed-tools，空格分隔）</summary>
+/// <summary>工具白名单（--allowedTools / --allowed-tools，空格分隔）</summary>
 public class AllowedToolsArg : CliArg
 {
-    public override string Description => "工具白名单（Claude Code --allowedTools，空格/逗号分隔），等同 WAYCODER_ALLOWED_TOOLS";
+    public override string Description => "工具白名单（空格/逗号分隔），等同 WAYCODER_ALLOWED_TOOLS";
     public override int ValueCount => -1;
     public override string? ValueLabel => "工具名";
     public override bool Greedy => true; // 空格分隔多值
     public AllowedToolsArg() : base("allowed-tools", "--allowedTools", "--allowed-tools") { }
 }
 
-/// <summary>工具黑名单（Claude Code --disallowedTools / --disallowed-tools，空格分隔）</summary>
+/// <summary>工具黑名单（--disallowedTools / --disallowed-tools，空格分隔）</summary>
 public class DisallowedToolsArg : CliArg
 {
-    public override string Description => "工具黑名单（Claude Code --disallowedTools，空格/逗号分隔），等同 WAYCODER_DISABLED_TOOLS";
+    public override string Description => "工具黑名单（空格/逗号分隔），等同 WAYCODER_DISABLED_TOOLS";
     public override int ValueCount => -1;
     public override string? ValueLabel => "工具名";
     public override bool Greedy => true;
@@ -339,21 +353,21 @@ public class DisallowedToolsArg : CliArg
 }
 
 /// <summary>
-/// --system-prompt &lt;text&gt; / --append-system-prompt &lt;text&gt;（Claude Code）。
+/// --system-prompt &lt;text&gt; / --append-system-prompt &lt;text&gt;（）。
 /// WayCoder 系统提示词为结构化基础提示，此处实现为追加（整体替换会丢失结构）。
 /// </summary>
 public class SystemPromptArg : CliArg
 {
-    public override string Description => "追加到系统提示词的文本（Claude Code --system-prompt / --append-system-prompt，WayCoder 统一为追加）";
+    public override string Description => "追加到系统提示词的文本（--append-system-prompt 为别名）";
     public override int ValueCount => 1;
     public override string? ValueLabel => "文本";
     public SystemPromptArg() : base("system-prompt", "--system-prompt", "--append-system-prompt") { }
 }
 
-/// <summary>按会话 id 恢复（OpenCode --session / Claude Code --resume-session-id / --session-id）</summary>
+/// <summary>按会话 id 恢复（OpenCode --session / --resume-session-id / --session-id）</summary>
 public class SessionArg : CliArg
 {
-    public override string Description => "按会话 id 恢复（OpenCode --session / Claude Code --resume-session-id），等同 --resume <id>";
+    public override string Description => "按会话 id 恢复，等同 --resume <id>";
     public override int ValueCount => 1;
     public override string? ValueLabel => "会话ID";
     public SessionArg() : base("session", "--session", "--resume-session-id", "--session-id") { }
@@ -412,10 +426,17 @@ public class DebugArg : CliArg
 /// </summary>
 public class ConfigArg : CliArg
 {
-    public override string Description => "命令行配置（list / get <key> / set <key> <value> 或 <key> [value]）";
+    public override string Description => "命令行配置";
     public override int ValueCount => -1;
     public override bool Greedy => true;
     public override string? ValueLabel => "项 [值]";
+    public override (string Cmd, string Desc)[]? SubCommands =>
+    [
+        ("list", "列出全部设置项"),
+        ("get <key>", "读取单项值"),
+        ("set <key> <value>", "设置并写入 config.json"),
+        ("<key> [value]", "简写：查值或设置"),
+    ];
     public ConfigArg() : base("config", "-C", "--config") { }
 
     public override int? OnMatch(List<string> values)

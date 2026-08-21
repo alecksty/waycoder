@@ -58,7 +58,7 @@ public static class ConfigCli
             var newVal = Config.GetPropValue(key) ?? "";
             if (p?.Type == "secret" && newVal.Length > 0) newVal = "••••••••";
 
-            return $"已设置 {p?.Label ?? key} = {newVal}（已写入 .env）";
+            return $"已设置 {p?.Label ?? key} = {newVal}（已写入 ~/.waycoder/config.json）";
         }
         return $"错误: {err}";
     }

@@ -38,6 +38,9 @@ public class CliArg
     /// <summary>是否为内部/开发参数（默认不在帮助中显示）</summary>
     public virtual bool Internal => false;
 
+    /// <summary>二级参数（子命令）说明列表，帮助中纵向对齐列出。每项：(子命令写法, 说明)。</summary>
+    public virtual (string Cmd, string Desc)[]? SubCommands => null;
+
     protected CliArg(string key, params string[] names)
     {
         Key = key;

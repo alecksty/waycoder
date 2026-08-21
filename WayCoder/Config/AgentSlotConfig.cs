@@ -160,6 +160,53 @@ public static class AgentSlotConfig
         return Config.Instance.SmallModel;
     }
 
+    /// <summary>
+    /// 解析槽位实际生效的大模型、API Key 与 BaseUrl —— 状态栏与实际请求共用的统一来源。
+    /// 优先级：
+    ///   1. 槽位配置（agent_slots.json）有模型 + 有可用 key → 用槽位配置，不碰全局 .env 模型；
+    ///   2. 槽位缺 key（模型目录/服务商库无该模型的 key）→ 回退全局 .env（WAYCODER_MODEL + 对应 key）；
+    ///   3. .env 可用 → 把 .env 的模型/provider/baseUrl 写回槽位配置持久化，
+    ///      使下次状态栏显示与实际请求一致（不再出现「状态栏 A、实际用 B」）。
+    /// 返回：(模型, key, baseUrl, 是否写回槽位配置)。
+    /// </summary>
+    public static (string Model, string ApiKey, string? BaseUrl, bool WroteBack) ResolveEffectiveModel(int slotIndex)
+    {
+        var slot = Get(slotIndex);
+        var model = ResolveLargeModel(slot, slotIndex);
+        var apiKey = ResolveApiKey(slot);
+        var baseUrl = ResolveBaseUrl(slot, model);
+
+        // 槽位模型已有可用 key → 直接使用槽位配置（含 UseGlobal 继承全局且有全局 key 的情况）
+        if (!string.IsNullOrWhiteSpace(apiKey))
+            return (model, apiKey, baseUrl, false);
+
+        // 槽位缺 key → 回退全局 .env 模型（WAYCODER_MODEL），需有对应 key 才可用
+        var cfg = Config.Instance;
+        var envModel = cfg.Model;
+        if (string.IsNullOrWhiteSpace(envModel) || envModel == model)
+            return (model, apiKey, baseUrl, false);
+
+        var envProvider = ModelCatalog.InferProviderFromId(envModel).ProviderId;
+        var envKey = ApiKeyStore.Get(envProvider)
+            ?? ApiKeyStore.ForModel(envModel)
+            ?? cfg.ApiKey;
+        if (string.IsNullOrWhiteSpace(envKey))
+            return (model, apiKey, baseUrl, false);
+
+        // .env 可用 → 写回槽位配置持久化（含 provider / base-url，保证模型与端点匹配）
+        var info = ModelCatalog.Find(envModel);
+        var envBaseUrl = info?.DefaultBaseUrl
+            ?? (ModelCatalog.Providers.TryGetValue(envProvider, out var p) ? p.DefaultBaseUrl : null)
+            ?? cfg.BaseUrl;
+        slot.LargeModel = envModel;
+        slot.ApiKeyProviderId = envProvider;
+        slot.BaseUrl = string.IsNullOrWhiteSpace(envBaseUrl) ? null : envBaseUrl;
+        slot.UseGlobal = false;
+        Set(slotIndex, slot);
+
+        return (envModel, envKey, envBaseUrl, true);
+    }
+
     // ════════════════════════════════════════════════════════════
     // 持久化
     // ════════════════════════════════════════════════════════════

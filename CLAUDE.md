@@ -29,7 +29,7 @@ WayCoder/
 ├── ContextManager.cs  Crush 风格上下文管理 (token 追踪 + 自动摘要 + 进度事件)
 ├── SessionManager.cs  会话持久化
 ├── SystemPrompt.cs    系统提示词 (对标 Crush coder.md.tpl，15 个结构化区块)
-├── Config.cs          配置 (.env 加载)
+├── Config.cs          配置 (全局 ~/.waycoder/config.json 权威源 + .env 5 项最小引导)
 ├── WatchMode.cs        Watch 模式 (文件监听 + AI! 注释)
 ├── PermissionManager.cs 权限确认系统
 ├── ProjectContext.cs  项目检测 + CLAUDE.md 加载
@@ -162,6 +162,7 @@ WayCoder/
 - **MCP 资源/提示词**：`resources/list` + `resources/read` 注册为 `mcp__<server>__resources` 读取工具（省略 `uri` 列出、传 `uri` 读取）；`prompts/list` + `prompts/get` 每个模板注册为 `mcp__<server>__prompt__<name>` 工具（参数从模板 `arguments` 数组生成 inputSchema）；发现响应统一从 JSON-RPC `result` 字段读取（修复此前顶层读取导致工具发现为空的 bug）
 - **双模型架构**：大模型做复杂任务，小模型做压缩/摘要，自动分工省钱
 - **模型回退链**：失败自动尝试备选 deepseek-v4-flash→deepseek-v4-pro→gemini-2.0-flash(免费)→qwen-turbo→glm-4-flash→gpt-5.4-mini，自动解析跨供应商 API Key
+- **配置架构**：全局 `~/.waycoder/config.json` 保存全部配置（Key 格式，优先级 config.json > .env > 环境变量）；.env 仅 5 项基本引导配置（服务商/地址/API_KEY/经济模式/鼠标）；首次启动无 config.json 时自动从 .env 迁移生成并精简 .env；每次启动 config.json 有更新则同步一份到项目 `.waycoder/config.json` 本地备份（先验证文件正常才备份）
 - **文件锁**：FileLockManager 防止多 Agent 并发修改冲突，30s 超时自动释放；`Agent.AgentId`（F1-F10）+ `ExecuteToolAsync` 注入 `_agent_id` 到工具参数，跨槽位冲突按槽位归属检测（WriteFile/EditFile 读 `_agent_id` 报「文件被锁定」提醒，而非同源续期）
 - **工具取消令牌**：`ICancellableTool` 接口——bash（流式 + 杀子进程）/ fetch / web_search / download / git（`WaitForExitAsync(ct)` + 取消时 `Kill(entireProcessTree)`）/ agent（子智能体透传 ct）中断时真正终止在途操作，取消抛 `OperationCanceledException` 向上传播（不吞）；区分「中断」与「超时」：`OperationCanceledException when ct.IsCancellationRequested` 重抛 vs `TaskCanceledException` 返回超时文案
 - **Watch 模式**：FileSystemWatcher 监听文件变更 → 提取 AI! / AI? 注释 → 线程安全队列 → REPL 轮询执行
