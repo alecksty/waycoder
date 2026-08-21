@@ -14,6 +14,9 @@ public static class AnsiTty
     public const char AnsiCharPrefix = '\x1b';
     public const char AnsiCharEscape = '[';
 
+    /// <summary>全局 ANSI 颜色开关（--no-color 置 false；SpectreToAnsi 等据此剥离颜色）</summary>
+    public static bool Enabled = true;
+
     // ═══════════════════════════════════════════════════════════════
     // 光标控制
     // ═══════════════════════════════════════════════════════════════

@@ -231,6 +231,8 @@ public static class PermissionManager
             _ => "Ask (每次确认)",
         };
 
+        // -q/--quiet 静默模式：抑制权限横幅输出
+        if (WayCoder.Program.QuietMode) return;
         Console.WriteLine($"权限模式: {AnsiText.Fg(label, color)}");
     }
 

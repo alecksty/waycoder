@@ -57,6 +57,9 @@ public partial class Program
     /// <summary>Watch 模式线程安全提示队列</summary>
     private static readonly System.Collections.Concurrent.ConcurrentQueue<string> _pendingWatchPrompts = new();
 
+    /// <summary>静默模式（-q/--quiet）：抑制权限横幅等非必要输出</summary>
+    public static bool QuietMode;
+
     public static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
@@ -87,6 +90,11 @@ public partial class Program
         Arguments.BuiltinArgs.RegisterAll();
         var (parsed, exitCode) = Arguments.CliArgRegistry.Parse(args);
         if (exitCode.HasValue) return exitCode.Value;
+
+        // --no-color / -q 提前生效：ShowUsage（-h）等输出早于 _config 初始化，须在此设置
+        if (Arguments.CliArgRegistry.Has(parsed, "no-color"))
+            WayCoder.UI.Shared.Terminal.AnsiTty.Enabled = false;
+        QuietMode = Arguments.CliArgRegistry.Has(parsed, "quiet");
 
         // 读取值参数
         string? model = Arguments.CliArgRegistry.Get(parsed, "model");
@@ -149,7 +157,8 @@ public partial class Program
 
         if (Arguments.CliArgRegistry.Has(parsed, "version"))
         {
-            Console.WriteLine(Global.AppNameVersion);
+            // -v/--version：单行固定格式，方便其他软件正则抓取版本号
+            Console.WriteLine($"{Global.AppName} ({Global.AppNameCN}) 版本:{Global.Version.TrimStart('v', 'V')}");
             return 0;
         }
 
@@ -202,6 +211,21 @@ public partial class Program
         if (MarkupChatOverride) _config.MarkupUi = true; // --tui-chat 强制走标记版界面
         // 加载主题配色：theme.json 记住的 preset 优先，回退 .env ThemePreset（首次启动无 theme.json）
         ThemeConfig.ApplyPreset(ThemeConfig.Instance.PresetKey ?? _config.ThemePreset);
+
+        // ── 竞品 / 增强参数消费 ──
+        if (Arguments.CliArgRegistry.Get(parsed, "max-turns") is string mtStr && int.TryParse(mtStr, out var maxTurns))
+            _config.MaxRounds = Math.Clamp(maxTurns, 5, 500);
+        if (Arguments.CliArgRegistry.Has(parsed, "auto-commit"))
+        {
+            var ac = Arguments.CliArgRegistry.Get(parsed, "auto-commit");
+            _config.AutoGitCommit = ac == null
+                || ac.Equals("on", StringComparison.OrdinalIgnoreCase)
+                || ac.Equals("true", StringComparison.OrdinalIgnoreCase);
+        }
+        if (Arguments.CliArgRegistry.Get(parsed, "mcp-config") is string mcpCfgPath)
+            WayCoder.Tools.McpManager.ConfigPathOverride = mcpCfgPath;
+        if (Arguments.CliArgRegistry.Get(parsed, "theme") is string themeName)
+            Config.ApplyColorScheme(_config, themeName);
         if (model != null) _config.Model = model;
         if (baseUrl != null) _config.BaseUrl = baseUrl;
         if (apiKey != null)

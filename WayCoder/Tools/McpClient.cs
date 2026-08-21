@@ -74,6 +74,9 @@ public static class McpManager
         return McpTransportType.Stdio;
     }
 
+    /// <summary>自定义 MCP 配置文件路径（--mcp-config 指定）；null 则按默认查找 .waycoder/mcp_servers.json</summary>
+    public static string? ConfigPathOverride { get; set; }
+
     /// <summary>
     /// 从配置文件初始化所有 MCP 服务器连接。
     /// 先尝试从缓存加载工具（快速启动），再异步连接发现。
@@ -83,7 +86,7 @@ public static class McpManager
         if (_initialized) return;
         _initialized = true;
 
-        var configPath = Global.FindConfigFileInTree(Environment.CurrentDirectory, "mcp_servers.json");
+        var configPath = ConfigPathOverride ?? Global.FindConfigFileInTree(Environment.CurrentDirectory, "mcp_servers.json");
         if (configPath == null) return;
 
         try
@@ -442,7 +445,7 @@ public static class McpManager
     /// </summary>
     public static async Task<string> ReloadAsync(string? name)
     {
-        var configPath = Global.FindConfigFileInTree(Environment.CurrentDirectory, "mcp_servers.json");
+        var configPath = ConfigPathOverride ?? Global.FindConfigFileInTree(Environment.CurrentDirectory, "mcp_servers.json");
         if (configPath == null) return "未找到 mcp_servers.json 配置";
 
         try
