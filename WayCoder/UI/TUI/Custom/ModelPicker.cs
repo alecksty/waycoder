@@ -174,7 +174,7 @@ public static class ModelPicker
             {
                 table.AddGroupHeader(group.Key + GroupStatusMark(group.Key, group.Any(m => m.HasApiKey)));
                 rowModels.Add(null);
-                foreach (var m in group)
+                foreach (var m in group.OrderBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
                 {
                     bool isL = m.Id == large, isS = m.Id == small;
                     table.AddRow(
