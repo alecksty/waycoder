@@ -463,23 +463,24 @@ document.getElementById('model-modal').addEventListener('click', e => {
 });
 
 // ── 扫描（测试各服务商端点连通性）──
-document.getElementById('model-scan-btn').onclick = () => {
+function scanModels() {
   const btn = document.getElementById('model-scan-btn');
   const status = document.getElementById('model-scan-status');
-  btn.disabled = true;
-  status.textContent = '扫描中…';
+  if (btn) btn.disabled = true;
+  if (status) status.textContent = '扫描中…';
   fetch('/models/scan', { method: 'POST' }).then(r => r.json()).then(res => {
-    btn.disabled = false;
+    if (btn) btn.disabled = false;
     scanMap = {};
     let ok = 0, fail = 0;
     (res.results || []).forEach(p => {
       scanMap[p.providerId] = p.status || (p.ok ? 'ok' : 'fail');
       if (p.ok) ok++; else fail++;
     });
-    status.textContent = ok + ' 连通 / ' + fail + ' 不通';
+    if (status) status.textContent = ok + ' 连通 / ' + fail + ' 不通';
     renderModelList(document.getElementById('model-search').value);
-  }).catch(() => { btn.disabled = false; status.textContent = '扫描失败'; });
-};
+  }).catch(() => { if (btn) btn.disabled = false; if (status) status.textContent = '扫描失败'; });
+}
+document.getElementById('model-scan-btn').onclick = scanModels;
 
 // ── 本地导入：弹框勾选来源后导入（内置模型 / Claude Code / Codex / OpenCode / Crush / OpenClaw）──
 const IMPORT_SOURCES = [
@@ -623,6 +624,7 @@ function saveKey() {
           .catch(() => {});
       }
       fetchModels();
+      scanModels(); // 保存 key 后自动重扫：状态列从「无key」更新为实际连通状态
     })
     .catch(() => { status.textContent = '保存 Key 失败（网络错误）'; });
 }
