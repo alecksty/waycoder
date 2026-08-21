@@ -89,7 +89,7 @@ public static partial class SelfTest
             Check("chat.tui dynamicBar", main.Find<TuiDynamicBar>("dynamicBar") != null);
             Check("chat.tui inputArea", main.Find<TuiTextArea>("inputArea") != null);
             Check("chat.tui statusBar", main.Find<TuiStatusBar>("statusBar") != null);
-            Check("chat.tui modelInfoRow", main.Find<TuiLabel>("modelInfoRow") != null);
+            Check("chat.tui modelInfoRow(SmartLabel)", main.Find<TuiSmartLabel>("modelInfoRow") != null);
         }
         catch (Exception ex)
         {

@@ -1,3 +1,4 @@
+using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui;
@@ -112,9 +113,15 @@ public static partial class SelfTest
         Check("Ask 下 DiffPreview 窗口构建正常", winD != null);
         Check("RenderAsMarkup 含红删绿增标记", DiffPreview.RenderAsMarkup("旧行\n", "新行\n", "t.cs").Contains("«green»+") && DiffPreview.RenderAsMarkup("旧行\n", "新行\n", "t.cs").Contains("«red»-"));
 
-        // ── 在线导入源定义：opencode go/zen 的 /models 端点公开（无 key 可拉取），KeyProvider 存在 ──
+        // ── TuiSmartLabel 核心：«tag» 标记解析分段着色（模型信息行渲染链路）──
+        var seg = MarkdownParser.ParseMarkupOnly("«dim»权限:«/»«red»畅通YOLO«/»", 37, 0);
+        Check("ParseMarkupOnly 分 2 段", seg.Count == 2);
+        Check("ParseMarkupOnly dim 段(样式码2)", seg[0].Text == "权限:" && seg[0].Color == 2);
+        Check("ParseMarkupOnly red 段(前景31)", seg[1].Text == "畅通YOLO" && seg[1].Color == 31);
+
+        // ── 在线导入源定义：opencode go/zen 的 /models 端点公开（ImportOnline 无 key 也尝试拉取，不因 key 阻塞）──
         Check("OnlineSources 含 OpenCode Go/Zen", ModelCli.OnlineSources.Any(s => s.Name == "OpenCode Go") && ModelCli.OnlineSources.Any(s => s.Name == "OpenCode Zen"));
-        Check("opencode-go 无 key 时 Get 返回空（导入不因 key 阻塞）", string.IsNullOrEmpty(ApiKeyStore.Get("opencode-go")));
+        Check("OnlineSources 的 /models 公开端点（go/zen）", ModelCli.OnlineSources.Where(s => s.KeyProvider is "opencode-go" or "opencode-zen").All(s => s.BaseUrl.EndsWith("/v1", StringComparison.Ordinal)));
     }
 
     private static T? FindDescendant<T>(TuiControl? control) where T : class

@@ -281,6 +281,19 @@ public class Config
     // 省 token 模式：三态（关/自动/开）。保持正常窗口，从提示词/压缩/输出上限综合降 token
     public EconomyMode EconomyMode { get; set; } = EconomyMode.Off;
 
+    /// <summary>循环切换到下一个经济模式（关闭→自动→开启→极致→关闭）。返回新模式。</summary>
+    public EconomyMode CycleEconomy()
+    {
+        EconomyMode = EconomyMode switch
+        {
+            EconomyMode.Off => EconomyMode.Auto,
+            EconomyMode.Auto => EconomyMode.On,
+            EconomyMode.On => EconomyMode.Extreme,
+            _ => EconomyMode.Off,
+        };
+        return EconomyMode;
+    }
+
     /// <summary>自动模式优先级（仅 Auto 生效）：质量优先（默认）/均衡/费用优先</summary>
     public EconomyPriority EconomyPriority { get; set; } = EconomyPriority.Quality;
 

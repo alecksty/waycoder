@@ -58,8 +58,10 @@ public partial class ChatScreen : TuiScreen
     /// <summary>输入区下分隔线</summary>
     public TuiSeparator InputBotBorder { get; protected set; } = null!;
 
-    /// <summary>模型/模式信息行（输入面板下方，动态栏放不下模型时显示）。标记版来自 chat.tui，可空。</summary>
-    public TuiLabel? ModelInfoRow { get; protected set; }
+    /// <summary>模型/模式信息行（输入面板下方、状态栏上方）。TuiSmartLabel 渲染 «tag» 分段着色。</summary>
+    public TuiSmartLabel? ModelInfoRow { get; protected set; }
+    /// <summary>模型信息行下方空行（与底部状态栏分隔），可见性跟随 ModelInfoRow。</summary>
+    private TuiSpace? _modelInfoSpacer;
 
     /// <summary>建议下拉面板</summary>
     public TuiVBox SuggestPanel { get; protected set; } = null!;
@@ -319,8 +321,9 @@ public partial class ChatScreen : TuiScreen
     }
 
     /// <summary>
-    /// 同步模型/模式信息行（输入区下方）：工作模式/经济模式/大模型/小模型，`·` 分隔。
+    /// 同步模型/模式信息行（输入区下方、状态栏上方）：权限/工作模式/经济模式/大模型/小模型，`·` 分隔。
     /// 每帧读取实时模式/模型，变了才标脏重绘（模式切换后下一帧自动刷新）。
+    /// 用 «tag»…«/» 标记分段着色（TuiLabel.ParseMarkup）：标签暗、值亮/彩，当前模型加粗 —— 比此前整行灰暗更醒目。
     /// </summary>
     private void SyncModelInfo()
     {
@@ -336,20 +339,52 @@ public partial class ChatScreen : TuiScreen
         };
         // 权限模式（确认级别）：极简TINY/问答ACK/自动AUTO/智能SMART/畅通YOLO
         string permStr = PermissionManager.FormatMode();
-        string rowStr = $"权限:{permStr} · 工作模式:{modeStr} · 经济模式:{economyStr} · 大模型:{large} · 小模型:{small}";
+
+        string permColor = PermissionManager.CurrentMode switch
+        {
+            PermissionManager.Mode.Yolo => "red",
+            PermissionManager.Mode.SmartAuto => "cyan",
+            PermissionManager.Mode.Auto => "green",
+            PermissionManager.Mode.TINY => "grey",
+            _ => "yellow",
+        };
+        string modeColor = WorkModeManager.CurrentMode switch
+        {
+            WorkMode.Plan => "cyan",
+            WorkMode.Review => "magenta",
+            WorkMode.Auto => "yellow",
+            _ => "green",
+        };
+        string economyColor = Config.Instance.EconomyMode switch
+        {
+            EconomyMode.On => "green",
+            EconomyMode.Auto => "cyan",
+            EconomyMode.Extreme => "red",
+            _ => "grey",
+        };
+
+        string rowStr = $"«dim»权限:«/»«{permColor}»{permStr}«/»"
+            + $" · «dim»工作模式:«/»«{modeColor}»{modeStr}«/»"
+            + $" · «dim»经济模式:«/»«{economyColor}»{economyStr}«/»"
+            + $" · «dim»大模型:«/»«bold»{large}«/»"
+            + $" · «dim»小模型:«/»«bold»{small}«/»";
 
         SetModelInfoRow(true, rowStr);
     }
 
-    /// <summary>设置模型信息行可见性与内容；可见性变了才重排，文本变了只标脏。</summary>
+    /// <summary>设置模型信息行可见性与内容；可见性变了重排，文本变了也要标脏该行——
+    /// 否则增量渲染不重绘它，切换模型后状态栏上方这行会一直显示旧模型。</summary>
     private void SetModelInfoRow(bool visible, string text)
     {
         var row = ModelInfoRow;
         if (row == null) return;
         bool visChanged = row.Visible != visible;
         row.Visible = visible;
-        if (row.Text != text) row.Text = text;
-        if (visChanged) { RootView?.Layout(); row.MarkDirty(); }
+        // 下方空行可见性跟随（模型栏显示时才占位，与状态栏分隔）
+        if (_modelInfoSpacer != null) _modelInfoSpacer.Visible = visible;
+        bool textChanged = row.Text != text;
+        if (textChanged) row.Text = text;
+        if (visChanged || textChanged) { RootView?.Layout(); row.MarkDirty(); }
     }
 
     /// <summary>等待权限的工具名（非 null = 正在等待）</summary>
@@ -464,7 +499,7 @@ public partial class ChatScreen : TuiScreen
         promptH = PromptBar.Visible ? PromptBar.Height : 0;
         progressH = (ProgressPercent.HasValue && ContextManager.IsCompressing) ? 1 : 0;
         chatH = Math.Max(1, TH - 1 - promptH - 1 - 1 - 1 - inputH - 1 - progressH - 1
-            - (ModelInfoRow?.Visible == true ? 1 : 0)); // TH - title - prompt - spacer(1) - dynamicBar(1) - topBorder - input - botBorder - progress - modelInfoRow - status
+            - (ModelInfoRow?.Visible == true ? 2 : 0)); // TH - title - prompt - spacer(1) - dynamicBar(1) - topBorder - input - botBorder - progress - modelInfoRow - modelInfoSpacer - status
     }
 
     /// <summary>应用动态尺寸到各子视图（Render / OnResize 共用）。</summary>
@@ -621,17 +656,22 @@ public partial class ChatScreen : TuiScreen
         };
         RootView.Add(InputBotBorder);
 
-        // ── 模型/模式信息行（输入区下方，灰字不抢眼）──
-        ModelInfoRow = new TuiLabel
+        // ── 模型/模式信息行（输入区下方、状态栏上方）──
+        // TuiSmartLabel：SyncModelInfo 用 «tag» 分段着色（权限/模式彩字、模型名加粗），
+        // 白字打底，不再整行灰暗看不清。
+        ModelInfoRow = new TuiSmartLabel
         {
             Width = TW,
             Height = 1,
             Visible = false,
-            Fg = AnsiColors.Grey,
-            Dim = true,
+            Fg = AnsiColors.White,
             TextAlign = EHAlign.Center,
         };
         RootView.Add(ModelInfoRow);
+
+        // 模型信息行下方空行：与底部状态栏分隔（只在模型行可见时占位）
+        _modelInfoSpacer = new TuiSpace { Height = 1, Visible = false };
+        RootView.Add(_modelInfoSpacer);
 
         // ── 底部状态栏 ──
         StatusBar = new TuiStatusBar
