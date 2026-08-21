@@ -306,15 +306,21 @@ public partial class Program
                     mgr.Exit();
                     Environment.Exit(0);
                 }
-                // 队头是普通对话且 Agent 忙 → 不取走（排队等待），本轮到此为止
+                // 队头是普通对话且 Agent 忙 → 不取走（排队等待）：状态显示在动态栏（⏳排队N），不弹聊天区
                 if (slotBusy && !peek.StartsWith('/'))
+                {
                     break;
+                }
                 if (!screen.PendingSubmissions.TryDequeue(out var submission))
                     break;
                 mgr.Render();
                 await ProcessUserInput(submission, screen);
                 slotBusy = _slots[_activeSlot].IsBusy; // 处理普通对话会启动任务 → 下一轮跳过后续队列
             }
+            // 动态栏排队显示：每轮按队列实际待处理指令数更新
+            // （Agent 忙时队列有等待指令 → 显示 ⏳排队N；空闲处理完 → 0）
+            int queueCount = screen.PendingSubmissions.Count(q => !q.StartsWith('/') && q != "\x1b");
+            screen.SetQueuedCount(queueCount);
 
             // 检查 Watch 模式待处理提示
             while (_pendingWatchPrompts.TryDequeue(out var watchPrompt))

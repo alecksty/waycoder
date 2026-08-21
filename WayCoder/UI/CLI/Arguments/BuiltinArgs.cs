@@ -525,6 +525,19 @@ public class ScreenshotArg : CliArg
     public override int? OnMatch(List<string> values) { Program.RunScreenshot(); return 0; }
 }
 
+/// <summary>--sysprompt-size：对比各模式 SystemPrompt + 工具 schema 大小（省钱模式效果验证）。</summary>
+public class SyspromptSizeArg : CliArg
+{
+    public override string Description => "对比 SystemPrompt 各模式大小（省钱验证）";
+    public override bool Internal => true;
+    public SyspromptSizeArg() : base("sysprompt-size", "--sysprompt-size") { }
+    public override int? OnMatch(List<string> values)
+    {
+        Program.RunSyspromptSize();
+        return 0;
+    }
+}
+
 /// <summary>
 /// --width-probe [目录]：终端实测字符宽度，与静态宽度表 AnsiString.CharWidth 比对，输出不一致项供校准。
 /// 用「+字符*」+ CPR 光标位置查询测量真实显示列宽（需真实 TTY）。
@@ -991,6 +1004,7 @@ public static class BuiltinArgs
 #endif
         CliArgRegistry.Register(new ScreenshotArg());
         CliArgRegistry.Register(new WidthProbeArg());
+        CliArgRegistry.Register(new SyspromptSizeArg());
 #if WAYCODER_TEST
         CliArgRegistry.Register(new TuiDemoArg());
         CliArgRegistry.Register(new TuiAuditArg());
