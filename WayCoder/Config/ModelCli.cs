@@ -307,17 +307,33 @@ public static class ModelCli
         new("Moonshot", "https://api.moonshot.cn/v1", "moonshot"),
     ];
 
-    /// <summary>在线导入：拉取指定端点 /models（用该服务商 key），写入全局模型库。返回报告。</summary>
+    /// <summary>
+    /// 在线导入：拉取指定端点 /models，写入全局模型库。返回报告。
+    /// 拉取模型列表本身不需要 key（opencode 等端点公开）；有 key 才带 Authorization 头，
+    /// 无 key / key 无效（401/403）时给出友好提示，而不是直接拒绝导入。
+    /// </summary>
     public static string ImportOnline(OnlineSource src)
     {
         var key = ApiKeyStore.Get(src.KeyProvider);
-        if (string.IsNullOrEmpty(key))
-            return $"未找到 {src.KeyProvider} 的 API Key（--model key {src.KeyProvider} &lt;key&gt; 设置后重试）";
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
         client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder/1.0");
-        client.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", key);
-        var json = client.GetStringAsync(src.BaseUrl + "/models").GetAwaiter().GetResult();
+        if (!string.IsNullOrEmpty(key))
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", key);
+
+        string json;
+        try
+        {
+            json = client.GetStringAsync(src.BaseUrl + "/models").GetAwaiter().GetResult();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            var hint = string.IsNullOrEmpty(key)
+                ? $"需要 {src.KeyProvider} 的 API Key（--model key {src.KeyProvider} &lt;key&gt; 设置后重试）"
+                : $"「{src.KeyProvider}」的 API Key 无效或已失效";
+            return $"在线导入（{src.Name}）失败：{hint}（{ex.Message}）";
+        }
+
         var list = ModelCatalog.ImportOpenCodeApi(json, src.BaseUrl);
         if (list.Count == 0)
             return $"在线导入（{src.Name}）未返回可识别的模型";
@@ -327,6 +343,7 @@ public static class ModelCli
         RegisterImportProviders(toAdd);
         return $"✅ 在线导入（{src.Name}）{toAdd.Count} 个模型" +
             (list.Count - toAdd.Count > 0 ? $"，跳过 {list.Count - toAdd.Count} 内置" : "") +
+            (string.IsNullOrEmpty(key) ? "（未配置 API Key，导入的模型需设 key 后使用）" : "") +
             "：\n  " + string.Join("\n  ", toAdd.Select(m => m.Id));
     }
 
