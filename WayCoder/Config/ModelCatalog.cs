@@ -23,7 +23,9 @@ public static class ModelCatalog
         double OutputPrice,
         string? DefaultBaseUrl,
         string Description,
-        int MaxOutput = 0
+        int MaxOutput = 0,
+        double InputPriceOffpeak = 0,   // 闲时输入价（$ / MTok，0=无闲时价，只显示忙时价）
+        double OutputPriceOffpeak = 0   // 闲时输出价（$ / MTok）
     );
 
     public static readonly ModelInfo[] BuiltIn =
@@ -628,6 +630,8 @@ public static class ModelCatalog
         .Set("maxOutput", m.MaxOutput)
         .Set("inputPrice", m.InputPrice)
         .Set("outputPrice", m.OutputPrice)
+        .Set("inputPriceOffpeak", m.InputPriceOffpeak)
+        .Set("outputPriceOffpeak", m.OutputPriceOffpeak)
         .Set("baseUrl", m.DefaultBaseUrl)
         .Set("description", m.Description);
 
@@ -649,7 +653,9 @@ public static class ModelCatalog
             DblOpt(node["outputPrice"]) ?? 0,
             node["baseUrl"]?.AsString(),
             node["description"]?.AsString() ?? "",
-            IntOpt(node["maxOutput"]) ?? 0
+            IntOpt(node["maxOutput"]) ?? 0,
+            DblOpt(node["inputPriceOffpeak"]) ?? 0,
+            DblOpt(node["outputPriceOffpeak"]) ?? 0
         );
     }
 
