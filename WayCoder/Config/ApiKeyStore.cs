@@ -184,6 +184,13 @@ public static class ApiKeyStore
     /// 从其他软件已知配置文件导入 API Key（Claude Code / Codex / OpenCode / Cursor）+ 环境变量。
     /// 全部容错：某文件缺失/解析失败只跳过该项。返回已导入的 (供应商ID, 来源) 列表。
     /// </summary>
+    /// <summary>环境变量引用形式的伪 key（$VAR / ${VAR}）——非真实字面 key，从配置文件导入来源时应跳过。</summary>
+    internal static bool IsEnvVarRef(string raw)
+    {
+        var s = raw.TrimStart();
+        return s.StartsWith('$') || s.StartsWith("${");
+    }
+
     public static List<(string ProviderId, string Source)> ImportFromKnownSources()
     {
         var imported = new List<(string, string)>();
@@ -216,7 +223,7 @@ public static class ApiKeyStore
                         if (!key.Contains("API_KEY", StringComparison.OrdinalIgnoreCase) &&
                             !key.Contains("AUTH_TOKEN", StringComparison.OrdinalIgnoreCase)) continue;
                         var raw = val?.AsString();
-                        if (string.IsNullOrWhiteSpace(raw)) continue;
+                        if (string.IsNullOrWhiteSpace(raw) || IsEnvVarRef(raw)) continue;
                         var pid = ProviderFromEnvVarName(key);
                         if (pid == null) continue;
                         Set(pid, raw.Trim());
@@ -240,7 +247,7 @@ public static class ApiKeyStore
                     {
                         if (key.Contains("tokens", StringComparison.OrdinalIgnoreCase)) continue;
                         var raw = val?.AsString();
-                        if (string.IsNullOrWhiteSpace(raw)) continue;
+                        if (string.IsNullOrWhiteSpace(raw) || IsEnvVarRef(raw)) continue;
                         var pid = ProviderFromEnvVarName(key);
                         if (pid == null) continue;
                         Set(pid, raw.Trim());
@@ -265,7 +272,7 @@ public static class ApiKeyStore
                 })
                 {
                     var raw = root?[field]?.AsString();
-                    if (string.IsNullOrWhiteSpace(raw)) continue;
+                    if (string.IsNullOrWhiteSpace(raw) || IsEnvVarRef(raw)) continue;
                     Set(pid, raw.Trim());
                     Add(pid, "Cursor");
                 }
@@ -292,7 +299,7 @@ public static class ApiKeyStore
                         raw = val["key"]?.AsString() ?? val["apiKey"]?.AsString();
                     else
                         raw = val?.AsString();
-                    if (string.IsNullOrWhiteSpace(raw)) continue;
+                    if (string.IsNullOrWhiteSpace(raw) || IsEnvVarRef(raw)) continue;
                     Set(pid, raw.Trim());
                     Add(pid, "OpenCode");
                 }

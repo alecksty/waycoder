@@ -390,6 +390,12 @@ public static partial class SelfTest
         ApiKeyStore.Remove("__waycoder_test__");
         Check("ApiKeyStore 删除服务商 key", ApiKeyStore.Get("__waycoder_test__") == null);
 
+        // 从配置文件导入来源时：$VAR / ${VAR} 是环境变量引用，非真实 key，应跳过
+        Check("ApiKeyStore key过滤: $变量是伪 key",
+            ApiKeyStore.IsEnvVarRef("$OPENAI_API_KEY") && ApiKeyStore.IsEnvVarRef("${OPENAI_API_KEY}"));
+        Check("ApiKeyStore key过滤: 真实 key 不是伪 key",
+            !ApiKeyStore.IsEnvVarRef("sk-abc123") && !ApiKeyStore.IsEnvVarRef("  sk-abc123  "));
+
         // 外部配置导入：Claude Code settings.json（env 中 *_MODEL + BASE_URL，去 [1M] 后缀 + 去重 + 跳过 *_MODEL_NAME）
         var claudeJson = """
         {
