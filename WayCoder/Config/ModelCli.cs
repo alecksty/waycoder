@@ -193,17 +193,17 @@ public static class ModelCli
 
         // 去重：同一 (Id, baseUrl) 只保留第一个（地址不同=不同服务商，同 id 不同地址都保留）
         var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        imported = imported.Where(m => seenIds.Add(ModelCatalog.ModelKey(m.Id, m.DefaultBaseUrl))).ToList();
+        imported = imported.Where(m => seenIds.Add(ModelCatalog.ModelKey(m.ProviderId, m.Id))).ToList();
 
         // 跳过内置：仅当同 id 且同 baseUrl（地址不同视为不同服务商，不跳过）
         var builtInIds = new HashSet<string>(
-            ModelCatalog.BuiltIn.Select(m => ModelCatalog.ModelKey(m.Id, m.DefaultBaseUrl)),
+            ModelCatalog.BuiltIn.Select(m => ModelCatalog.ModelKey(m.ProviderId, m.Id)),
             StringComparer.OrdinalIgnoreCase);
         var added = new List<ModelCatalog.ModelInfo>();
         var skipped = new List<string>();
         foreach (var m in imported)
         {
-            if (builtInIds.Contains(ModelCatalog.ModelKey(m.Id, m.DefaultBaseUrl)))
+            if (builtInIds.Contains(ModelCatalog.ModelKey(m.ProviderId, m.Id)))
                 skipped.Add(m.Id);
             else
                 added.Add(m);

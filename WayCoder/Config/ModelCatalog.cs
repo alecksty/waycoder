@@ -244,11 +244,11 @@ public static class ModelCatalog
     }
 
     /// <summary>
-    /// 模型唯一键：id + baseUrl（地址不同 = 不同服务商，同 id 不同地址都保留）。
-    /// 空 baseUrl 用占位「|」区分，避免与「|」开头碰撞。
+    /// 模型唯一键：服务商 + 模型名（同一服务商下模型 id 唯一；不同服务商可同名，
+    /// 如 opencode-go/deepseek-v4-pro 与 opencode-zen/deepseek-v4-pro 是两个不同服务商）。
     /// </summary>
-    internal static string ModelKey(string id, string? baseUrl) =>
-        string.IsNullOrWhiteSpace(baseUrl) ? id + "|" : id + "|" + baseUrl.Trim();
+    internal static string ModelKey(string providerId, string id) =>
+        string.IsNullOrWhiteSpace(providerId) ? id + "|" : providerId + "|" + id;
 
     /// <summary>
     /// 完整模型目录 = 内置目录 + 自定义库（自定义按 Id 覆盖内置，新增项追加到末尾）。
@@ -286,7 +286,7 @@ public static class ModelCatalog
         {
             var path = ProviderFile(info.ProviderId, local);
             var models = ReadFile(path);
-            models[ModelKey(info.Id, info.DefaultBaseUrl)] = info;
+            models[ModelKey(info.ProviderId, info.Id)] = info;
             SaveCustom(models, path);
             Invalidate();
             return path;
@@ -303,7 +303,7 @@ public static class ModelCatalog
             foreach (var g in list.GroupBy(m => ProviderFile(m.ProviderId, local)))
             {
                 var models = ReadFile(g.Key);
-                foreach (var m in g) models[ModelKey(m.Id, m.DefaultBaseUrl)] = m;
+                foreach (var m in g) models[ModelKey(m.ProviderId, m.Id)] = m;
                 SaveCustom(models, g.Key);
             }
             Invalidate();
@@ -320,9 +320,9 @@ public static class ModelCatalog
             foreach (var file in EnumerateModelFiles())
             {
                 var models = ReadFile(file);
-                // 移除该 id 的全部变体（同 id 不同 baseUrl 的服务商条目都删）
+                // 移除该 id 的全部变体（providerId|id，跨服务商同名都删）
                 var toRemove = models.Keys.Where(k =>
-                    k.StartsWith(id + "|", StringComparison.OrdinalIgnoreCase)).ToList();
+                    k.EndsWith("|" + id, StringComparison.OrdinalIgnoreCase)).ToList();
                 if (toRemove.Count > 0)
                 {
                     foreach (var k in toRemove) models.Remove(k);
@@ -464,7 +464,7 @@ public static class ModelCatalog
             MigrateLegacyModels(); // 首次加载：把旧 models.json 迁移到 provider/ 分类文件
             var merged = new Dictionary<string, ModelInfo>();
             foreach (var file in EnumerateModelFiles())
-                foreach (var m in ReadFile(file).Values) merged[ModelKey(m.Id, m.DefaultBaseUrl)] = m;
+                foreach (var m in ReadFile(file).Values) merged[ModelKey(m.ProviderId, m.Id)] = m;
             _custom = merged;
             return _custom;
         }
@@ -511,7 +511,7 @@ public static class ModelCatalog
                 var path = Path.Combine(dir, g.Key + ".json");
                 var existing = ReadFile(path);
                 foreach (var m in g)
-                    existing[ModelKey(m.Id, m.DefaultBaseUrl)] = m;
+                    existing[ModelKey(m.ProviderId, m.Id)] = m;
                 if (!SaveCustom(existing, path)) { allOk = false; break; }
             }
 
@@ -535,7 +535,7 @@ public static class ModelCatalog
                 foreach (var node in arr.Items)
                 {
                     var info = FromJson(node);
-                    if (info != null) result[ModelKey(info.Id, info.DefaultBaseUrl)] = info;
+                    if (info != null) result[ModelKey(info.ProviderId, info.Id)] = info;
                 }
             }
         }
