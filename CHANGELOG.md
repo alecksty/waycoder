@@ -1,5 +1,10 @@
 # 更新日志
 
+## v0.79.95 (2026-08-21) — 导入 key 过滤 $变量伪 key
+
+- `ImportFromKnownSources` 从配置文件（Claude Code / Codex / Cursor / OpenCode）导入 key 时，跳过 `$VAR` / `${VAR}` 形式的环境变量引用伪 key（非真实字面 key）
+- 自测 4073 通过（0 失败）
+
 ## v0.79.94 (2026-08-21) — 本地导入不再自动同步 API Key
 
 - **本地导入只导入模型**：API Key 仅由 `~/.waycoder/api_keys.json` + 环境变量决定，不再从 Claude Code / Codex 等导入来源文件自动同步 key（避免「导入本地模型后模型列表冒出 OPENAI 等无关 key」）
