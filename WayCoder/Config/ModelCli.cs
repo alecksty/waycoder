@@ -523,13 +523,18 @@ public static class ModelCli
     public static string AddModel(string id, string? providerId = null, string? baseUrl = null)
     {
         if (string.IsNullOrWhiteSpace(id))
-            return "用法: --model add model <id> <供应商ID> [baseUrl]";
-        var pid = string.IsNullOrWhiteSpace(providerId) ? "custom" : providerId.Trim().ToLowerInvariant();
+            return "用法: --model add model <id> [<供应商ID> [baseUrl]]";
+        // 不指定服务商 → 当前 provider（Config.Provider）；否则规范化指定 id
+        var pid = ModelCatalog.NormalizeId(string.IsNullOrWhiteSpace(providerId) ? Config.Instance.Provider : providerId);
+        if (pid.Length == 0) pid = "custom";
         var display = ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DisplayName)
-            ? p.DisplayName
-            : (string.IsNullOrWhiteSpace(providerId) ? "custom" : providerId.Trim());
+            ? p.DisplayName : pid;
+        // 未指定 baseUrl → 用服务商默认地址
+        var effBaseUrl = string.IsNullOrWhiteSpace(baseUrl)
+            ? (ModelCatalog.Providers.TryGetValue(pid, out var pp) && !string.IsNullOrEmpty(pp.DefaultBaseUrl) ? pp.DefaultBaseUrl : null)
+            : baseUrl.Trim();
         var info = new ModelCatalog.ModelInfo(id.Trim(), id.Trim(), display, pid, "*", "Custom",
-            0, 0, 0, string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl.Trim(), $"手动添加（{pid}）", 0);
+            0, 0, 0, effBaseUrl, $"手动添加（{pid}）", 0);
         var path = ModelCatalog.AddCustom(info);
         return $"已添加模型 `{id.Trim()}`（服务商 `{pid}`）到 {path}";
     }
