@@ -8,6 +8,7 @@ using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Threading;
+using WayCoder.UI.TUI.Custom;
 
 namespace WayCoder.UI.Gui;
 
@@ -23,7 +24,7 @@ public sealed class ModelWindow : Window
     private readonly StackPanel _listHost = new() { Spacing = 2 };
     private readonly TextBlock _status = new();
     private string _selectedId = "";
-    private Dictionary<string, bool> _scanResult = new();
+    private Dictionary<string, ModelPicker.ScanStatus> _scanResult = new();
     private volatile bool _busy; // volatile：快速连点扫描/导入防并发执行
 
     public ModelWindow(MainWindow owner, bool smallMode = false)
@@ -48,8 +49,9 @@ public sealed class ModelWindow : Window
         };
         DockPanel.SetDock(btnRow, Dock.Bottom);
         btnRow.Children.Add(MakeBtn("📡 扫描", () => Task.Run(ScanAsync)));
-        btnRow.Children.Add(MakeBtn("📥 自动导入", () => Task.Run(ImportAsync)));
-        btnRow.Children.Add(MakeBtn("🌐 OpenCode 在线", () => Task.Run(ImportOpenCodeAsync)));
+        btnRow.Children.Add(MakeBtn("📥 本地导入", async () => await ImportAsync()));
+        btnRow.Children.Add(MakeBtn("🌐 在线导入", async () => await ImportOnlineAsync()));
+        btnRow.Children.Add(MakeBtn("🧹 清空", async () => await ClearAllAsync()));
         btnRow.Children.Add(MakeBtn("🔑 设置 key", () => ShowKeyDialog(set: true)));
         btnRow.Children.Add(MakeBtn("🗑 清除 key", () => ShowKeyDialog(set: false)));
         var spacer = new StackPanel { HorizontalAlignment = HorizontalAlignment.Right };
@@ -100,12 +102,13 @@ public sealed class ModelWindow : Window
     {
         var grid = NewModelGrid();
         AddCol(grid, 0, "🔑", bold: true);
-        AddCol(grid, 1, "模型", bold: true);
-        AddCol(grid, 2, "厂商", bold: true);
-        AddCol(grid, 3, "窗口", bold: true, alignRight: true);
-        AddCol(grid, 4, "价格", bold: true, alignRight: true);
-        AddCol(grid, 5, "大", bold: true, alignCenter: true);
-        AddCol(grid, 6, "小", bold: true, alignCenter: true);
+        AddCol(grid, 1, "状态", bold: true);
+        AddCol(grid, 2, "模型", bold: true);
+        AddCol(grid, 3, "厂商", bold: true);
+        AddCol(grid, 4, "窗口", bold: true, alignRight: true);
+        AddCol(grid, 5, "价格", bold: true, alignRight: true);
+        AddCol(grid, 6, "大", bold: true, alignCenter: true);
+        AddCol(grid, 7, "小", bold: true, alignCenter: true);
         return grid;
     }
 
@@ -113,6 +116,7 @@ public sealed class ModelWindow : Window
     {
         var grid = new Grid { Margin = new Thickness(0, 0, 0, 2) };
         grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Parse("28")));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Parse("56")));
         grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
         grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Parse("96")));
         grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Parse("58")));
@@ -163,8 +167,8 @@ public sealed class ModelWindow : Window
                 Margin = new Thickness(4, 8, 4, 2),
             };
             gname[!TextBlock.ForegroundProperty] = new DynamicResourceExtension("DimTextBrush");
-            if (_scanResult.TryGetValue(group.Key, out var ok))
-                gname.Text += ok ? "  ✅" : "  ❌";
+            if (_scanResult.TryGetValue(group.Key, out var gs))
+                gname.Text += gs == ModelPicker.ScanStatus.Connected ? "  ✅" : "  ❌";
             _listHost.Children.Add(gname);
 
             foreach (var m in group)
@@ -188,29 +192,34 @@ public sealed class ModelWindow : Window
         Grid.SetColumn(keyTb, 0);
         grid.Children.Add(keyTb);
 
+        // 状态列（对齐 Web/TUI：无key / 连通 / 欠费 / 不通…，仅显示不落盘）
+        var stTb = new TextBlock { Text = StatusText(m), FontSize = 11 };
+        Grid.SetColumn(stTb, 1);
+        grid.Children.Add(stTb);
+
         var nameTb = new TextBlock { Text = m.DisplayName, FontSize = 12.5, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
         ToolTip.SetTip(nameTb, m.Id);
-        Grid.SetColumn(nameTb, 1);
+        Grid.SetColumn(nameTb, 2);
         grid.Children.Add(nameTb);
 
         var provTb = new TextBlock { Text = m.Provider, FontSize = 11.5, TextTrimming = TextTrimming.CharacterEllipsis };
-        Grid.SetColumn(provTb, 2);
+        Grid.SetColumn(provTb, 3);
         grid.Children.Add(provTb);
 
         var ctxTb = new TextBlock { Text = Panels.FormatCtx(m.ContextWindow), FontSize = 11.5, HorizontalAlignment = HorizontalAlignment.Right };
-        Grid.SetColumn(ctxTb, 3);
+        Grid.SetColumn(ctxTb, 4);
         grid.Children.Add(ctxTb);
 
         var priceTb = new TextBlock { Text = Panels.FormatPrice(m.InputPrice), FontSize = 11.5, HorizontalAlignment = HorizontalAlignment.Right };
-        Grid.SetColumn(priceTb, 4);
+        Grid.SetColumn(priceTb, 5);
         grid.Children.Add(priceTb);
 
         var bigTb = new TextBlock { Text = isBig ? "✓" : "", FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center };
-        Grid.SetColumn(bigTb, 5);
+        Grid.SetColumn(bigTb, 6);
         grid.Children.Add(bigTb);
 
         var smallTb = new TextBlock { Text = isSmall ? "✓" : "", FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center };
-        Grid.SetColumn(smallTb, 6);
+        Grid.SetColumn(smallTb, 7);
         grid.Children.Add(smallTb);
 
         var row = new Border
@@ -229,6 +238,24 @@ public sealed class ModelWindow : Window
             RenderList(_search.Text ?? "");
         };
         return row;
+    }
+
+    /// <summary>行状态文本（与 Web/TUI 状态列一致）：无key / 连通 / 欠费 / 不通 / 未测 / 本地。</summary>
+    private string StatusText(ModelCatalog.ModelInfo m)
+    {
+        if (m.ProviderId is "local" or "custom")
+            return _scanResult.TryGetValue(m.ProviderId, out var ls) && ls == ModelPicker.ScanStatus.Connected ? "✔本地" : "本地";
+        if (!ApiKeyStore.HasKeyFor(m.ProviderId, m.Id)) return "无key";
+        if (!_scanResult.TryGetValue(m.ProviderId, out var st)) return "未测";
+        return st switch
+        {
+            ModelPicker.ScanStatus.Connected => "✔连通",
+            ModelPicker.ScanStatus.BadKey => "✖key",
+            ModelPicker.ScanStatus.Overdue => "欠费",
+            ModelPicker.ScanStatus.NoEndpoint => "无端点",
+            ModelPicker.ScanStatus.Unreachable => "✖不通",
+            _ => "未测",
+        };
     }
 
     // ── 操作 ──
@@ -300,12 +327,12 @@ public sealed class ModelWindow : Window
         try
         {
             var probes = await Task.Run(ModelCli.TestList);
-            var dict = new Dictionary<string, bool>();
-            foreach (var p in probes) dict[p.ProviderId] = p.Ok;
+            var dict = new Dictionary<string, ModelPicker.ScanStatus>();
+            foreach (var p in probes) dict[p.ProviderId] = ModelPicker.ProbeStatus(p);
             Dispatcher.UIThread.Post(() =>
             {
                 _scanResult = dict;
-                var ok = dict.Count(x => x.Value);
+                var ok = dict.Count(x => x.Value == ModelPicker.ScanStatus.Connected);
                 _status.Text = $"{ok} 连通 / {dict.Count - ok} 不通";
                 RenderList(_search.Text ?? "");
             });
@@ -317,14 +344,36 @@ public sealed class ModelWindow : Window
         finally { _busy = false; }
     }
 
+    /// <summary>本地导入：弹来源勾选框（与 Web/TUI 一致），导入所选来源模型 + API Key。</summary>
     private async Task ImportAsync()
     {
         if (_busy) return;
+        var options = new (string Key, string Label)[]
+        {
+            ("builtin", "内置模型（恢复被清空的内置目录）"),
+            ("claudecode", "Claude Code（~/.claude/settings.json）"),
+            ("codex", "Codex（~/.codex/config.toml）"),
+            ("opencode", "OpenCode（~/.config/opencode）"),
+            ("crush", "Crush（~/.config/crush）"),
+            ("openclaw", "OpenClaw（~/.openclaw）"),
+        };
+        var picked = await ShowMultiCheckAsync("📥 本地导入 · 选择来源", options, preCheckAll: true);
+        if (picked == null || picked.Count == 0) return; // 取消 / 未勾选
+        var sources = string.Join(",", picked.Select(x => x.Key));
         _busy = true;
-        Dispatcher.UIThread.Post(() => _status.Text = "自动导入中…");
+        Dispatcher.UIThread.Post(() => _status.Text = "本地导入中…");
         try
         {
-            var report = await Task.Run(() => ModelCli.Import(null));
+            var report = await Task.Run(() =>
+            {
+                var r = ModelCli.Import(sources);
+                var keys = ApiKeyStore.ImportFromKnownSources();
+                ModelCatalog.Invalidate();
+                ApiKeyStore.ClearCache();
+                if (keys.Count > 0)
+                    r += $"\n🔑 导入 Key: {string.Join("、", keys.Select(k => $"{k.ProviderId}({k.Source})"))}";
+                return r;
+            });
             Dispatcher.UIThread.Post(() =>
             {
                 _status.Text = report;
@@ -339,22 +388,27 @@ public sealed class ModelWindow : Window
         finally { _busy = false; }
     }
 
-    private async Task ImportOpenCodeAsync()
+    /// <summary>在线导入：选择 OpenCode Go（zen/go/v1 订阅）/ Zen（zen/v1 按量），用对应地址拉取。</summary>
+    private async Task ImportOnlineAsync()
     {
         if (_busy) return;
+        var choice = await ShowSelectAsync("🌐 在线导入 · 选择 OpenCode 服务商",
+            ["OpenCode Go（订阅 · zen/go/v1）", "OpenCode Zen（按量 · zen/v1）"]);
+        if (choice == null) return;
+        var baseUrl = choice.Contains("OpenCode Go") ? "https://opencode.ai/zen/go/v1" : "https://opencode.ai/zen/v1";
+        var pname = baseUrl.Contains("/zen/go/") ? "OpenCode Go" : "OpenCode Zen";
         _busy = true;
-        Dispatcher.UIThread.Post(() => _status.Text = "OpenCode 在线导入中…");
+        Dispatcher.UIThread.Post(() => _status.Text = "在线导入中…");
         try
         {
             var sb = new StringBuilder();
             await Task.Run(() =>
             {
-                const string url = "https://opencode.ai/zen/go/v1/models";
-                const string apiBase = "https://opencode.ai/zen/go/v1";
+                var url = baseUrl + "/models";
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder/1.0");
                 var json = client.GetStringAsync(url).GetAwaiter().GetResult();
-                var list = ModelCatalog.ImportOpenCodeApi(json, apiBase);
+                var list = ModelCatalog.ImportOpenCodeApi(json, baseUrl);
                 var builtIn = new HashSet<string>(ModelCatalog.BuiltIn.Select(x => x.Id), StringComparer.OrdinalIgnoreCase);
                 var added = 0; var skipped = 0;
                 foreach (var m in list)
@@ -363,7 +417,7 @@ public sealed class ModelWindow : Window
                     ModelCatalog.AddCustom(m);
                     added++;
                 }
-                sb.Append($"✅ 从 OpenCode 在线导入 {added} 个模型" + (skipped > 0 ? $"，跳过 {skipped} 个内置已有" : ""));
+                sb.Append($"✅ 在线导入（{pname}）{added} 个模型" + (skipped > 0 ? $"，跳过 {skipped} 个内置已有" : ""));
             });
             Dispatcher.UIThread.Post(() =>
             {
@@ -374,9 +428,126 @@ public sealed class ModelWindow : Window
         }
         catch (Exception ex)
         {
-            Dispatcher.UIThread.Post(() => _status.Text = "OpenCode 导入失败: " + ex.Message);
+            Dispatcher.UIThread.Post(() => _status.Text = "在线导入失败: " + ex.Message);
         }
         finally { _busy = false; }
+    }
+
+    /// <summary>清空全部模型（内置目录 + 自定义），确认后清空可重新导入。</summary>
+    private async Task ClearAllAsync()
+    {
+        if (_busy) return;
+        if (!await ConfirmAsync("🧹 清空全部模型",
+            "确定清空全部模型？内置目录与已导入的自定义模型都会移除，可清空后重新导入。")) return;
+        _busy = true;
+        Dispatcher.UIThread.Post(() => _status.Text = "清空中…");
+        try
+        {
+            var n = await Task.Run(() => ModelCatalog.ClearAll());
+            Dispatcher.UIThread.Post(() =>
+            {
+                _status.Text = $"🗑 已清空全部模型（删除 {n} 个自定义模型文件，内置目录已隐藏）";
+                ModelCatalog.Invalidate();
+                RenderList(_search.Text ?? "");
+            });
+        }
+        catch (Exception ex)
+        {
+            Dispatcher.UIThread.Post(() => _status.Text = "清空失败: " + ex.Message);
+        }
+        finally { _busy = false; }
+    }
+
+    // ── Avalonia 辅助对话框（对齐 Web 交互）──
+
+    /// <summary>多选勾选对话框（CheckBox 列表，默认全选），返回选中的 (Key, Label)，取消返回 null。</summary>
+    private async Task<List<(string Key, string Label)>?> ShowMultiCheckAsync(string title, (string Key, string Label)[] options, bool preCheckAll = false)
+    {
+        var tcs = new TaskCompletionSource<List<(string, string)>?>();
+        var dlg = new Window
+        {
+            Title = title,
+            Width = 440,
+            Height = 380,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+        };
+        dlg[!BackgroundProperty] = new DynamicResourceExtension("WindowBgBrush");
+        var panel = new StackPanel { Margin = new Thickness(16), Spacing = 10 };
+        var list = new StackPanel { Spacing = 6 };
+        var checks = new List<CheckBox>();
+        foreach (var (key, label) in options)
+            checks.Add(new CheckBox { Content = label, IsChecked = preCheckAll });
+        foreach (var c in checks) list.Children.Add(c);
+        panel.Children.Add(list);
+        var btns = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+        var cancel = new Button { Content = "取消" };
+        var ok = new Button { Content = "导入所选", Classes = { "accent" } };
+        btns.Children.Add(cancel);
+        btns.Children.Add(ok);
+        panel.Children.Add(btns);
+        dlg.Content = panel;
+        ok.Click += (_, _) => { tcs.TrySetResult(options.Where((_, i) => checks[i].IsChecked == true).ToList()); dlg.Close(); };
+        cancel.Click += (_, _) => { tcs.TrySetResult(null); dlg.Close(); };
+        dlg.Closed += (_, _) => tcs.TrySetResult(null);
+        await dlg.ShowDialog(this);
+        return await tcs.Task;
+    }
+
+    /// <summary>单选下拉对话框，返回选中项 label，取消返回 null。</summary>
+    private async Task<string?> ShowSelectAsync(string title, string[] options)
+    {
+        var tcs = new TaskCompletionSource<string?>();
+        var dlg = new Window
+        {
+            Title = title,
+            Width = 420,
+            Height = 170,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+        };
+        dlg[!BackgroundProperty] = new DynamicResourceExtension("WindowBgBrush");
+        var panel = new StackPanel { Margin = new Thickness(16), Spacing = 12 };
+        var combo = new ComboBox { ItemsSource = options, SelectedIndex = 0 };
+        panel.Children.Add(combo);
+        var btns = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+        var cancel = new Button { Content = "取消" };
+        var ok = new Button { Content = "导入", Classes = { "accent" } };
+        btns.Children.Add(cancel);
+        btns.Children.Add(ok);
+        panel.Children.Add(btns);
+        dlg.Content = panel;
+        ok.Click += (_, _) => { tcs.TrySetResult(combo.SelectedItem as string ?? options[0]); dlg.Close(); };
+        cancel.Click += (_, _) => { tcs.TrySetResult(null); dlg.Close(); };
+        dlg.Closed += (_, _) => tcs.TrySetResult(null);
+        await dlg.ShowDialog(this);
+        return await tcs.Task;
+    }
+
+    /// <summary>确认对话框，返回是否确认。</summary>
+    private async Task<bool> ConfirmAsync(string title, string message)
+    {
+        var tcs = new TaskCompletionSource<bool>();
+        var dlg = new Window
+        {
+            Title = title,
+            Width = 430,
+            Height = 180,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+        };
+        dlg[!BackgroundProperty] = new DynamicResourceExtension("WindowBgBrush");
+        var panel = new StackPanel { Margin = new Thickness(16), Spacing = 12 };
+        panel.Children.Add(new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap });
+        var btns = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+        var cancel = new Button { Content = "取消" };
+        var ok = new Button { Content = "确定", Classes = { "accent" } };
+        btns.Children.Add(cancel);
+        btns.Children.Add(ok);
+        panel.Children.Add(btns);
+        dlg.Content = panel;
+        ok.Click += (_, _) => { tcs.TrySetResult(true); dlg.Close(); };
+        cancel.Click += (_, _) => { tcs.TrySetResult(false); dlg.Close(); };
+        dlg.Closed += (_, _) => tcs.TrySetResult(false);
+        await dlg.ShowDialog(this);
+        return await tcs.Task;
     }
 
     private static Button MakeBtn(string text, Action onClick, bool ghost = false, bool accent = false)
