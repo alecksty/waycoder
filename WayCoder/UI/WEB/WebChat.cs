@@ -49,6 +49,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         public readonly object StartLock = new();
         /// <summary>串行化 EnsureSlot 的懒建 check-then-act，防并发首建产生双 Agent 相互覆盖。</summary>
         public readonly object AgentLock = new();
+        /// <summary>待处理指令队列：Agent 忙碌时输入入队，当前批次完成后自动取下一个执行（输入排队机制）。</summary>
+        public readonly System.Collections.Concurrent.ConcurrentQueue<string> PendingInputs = new();
     }
 
     /// <summary>SSE 客户端（写失败 = 断开）。</summary>
@@ -632,7 +634,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         {
             if (slot.IsBusy)
             {
-                BroadcastTo(slotIdx, "system", JsonStr("当前槽位仍在运行，请先停止再发送"));
+                // 排队：不打断当前任务 —— 指令入队，当前批次完成后由 TryStartNextPending 自动取下一个执行
+                slot.PendingInputs.Enqueue(userInput);
+                BroadcastTo(slotIdx, "system", JsonStr("⏳ Agent 忙碌中 — 指令已排队，当前批次完成后自动执行"));
                 return;
             }
             try
@@ -687,8 +691,19 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 }
                 slot.RunningTask = null;
                 _currentSlot.Value = 0;
+                // 批次完成：取队列中的下一条指令继续执行（输入排队机制）
+                TryStartNextPending(slotIdx);
             }
         });
+    }
+
+    /// <summary>Agent 批次完成后，若该槽位有待处理指令则取下一个自动执行（排队机制）。</summary>
+    private void TryStartNextPending(int slotIdx)
+    {
+        if (slotIdx < 0 || slotIdx >= _slots.Length) return;
+        var slot = _slots[slotIdx];
+        if (slot.PendingInputs.TryDequeue(out var next))
+            StartSlotTask(slotIdx, next);
     }
 
     /// <summary>等待槽位的后台 Agent 任务收尾（换模型/存 key 前调用，避免与退场的 ChatAsync 竞态读写 LLM 配置）。</summary>

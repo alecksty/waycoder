@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
 using Avalonia;
@@ -21,6 +22,9 @@ public partial class MainWindow : Window
     private readonly Agent?[] _agents = new Agent?[SlotCount];
     private readonly List<ChatMessage>[] _messages = new List<ChatMessage>[SlotCount];
     private readonly CancellationTokenSource?[] _cts = new CancellationTokenSource?[SlotCount];
+    /// <summary>各槽位待处理指令队列：Agent 忙碌时输入入队，当前批次完成后自动取下一个执行（输入排队机制）。</summary>
+    private readonly ConcurrentQueue<string>[] _pendingInputs =
+        Enumerable.Range(0, SlotCount).Select(_ => new ConcurrentQueue<string>()).ToArray();
     private readonly Button[] _slotButtons = new Button[SlotCount];
     private readonly string[] _drafts = new string[SlotCount];
     /// <summary>各槽位是否在接收推理内容（«dim»…«/»，对齐 Web reasoning 分流）。</summary>
@@ -869,10 +873,17 @@ public partial class MainWindow : Window
     private async Task SendAsync()
     {
         int slot = _activeSlot;
-        if (_cts[slot] != null) return; // 该槽位正在运行
-
         var input = InputBox.Text?.Trim();
         if (string.IsNullOrEmpty(input)) return;
+        if (_cts[slot] != null)
+        {
+            // 排队：不打断当前任务 —— 指令入队，当前批次完成后由 finally 取下一个自动执行
+            _pendingInputs[slot].Enqueue(input);
+            InputBox.Text = "";
+            _drafts[slot] = "";
+            AppendSystem(slot, "⏳ Agent 忙碌中 — 指令已排队，当前批次完成后自动执行");
+            return;
+        }
         InputBox.Text = "";
         _drafts[slot] = "";
 
@@ -921,6 +932,17 @@ public partial class MainWindow : Window
                 StopButton.IsEnabled = false;
             }
             RefreshPanel(); // 任务完成后立即刷新面板
+            TrySendNextPending(slot); // 排队机制：取队列中的下一条指令继续执行
+        }
+    }
+
+    /// <summary>当前批次完成后，若该槽位有待处理指令则取下一个自动执行（输入排队机制）。</summary>
+    private void TrySendNextPending(int slot)
+    {
+        if (_pendingInputs[slot].TryDequeue(out var next))
+        {
+            InputBox.Text = next;
+            _ = SendAsync(); // fire-and-forget：继续处理下一条（SendAsync 内部判断 busy）
         }
     }
 
