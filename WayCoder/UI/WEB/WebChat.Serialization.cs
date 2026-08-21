@@ -22,7 +22,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     public static string SerializeModels()
     {
         var arr = JNode.Array();
-        foreach (var m in ModelCatalog.All)
+        foreach (var m in ModelCatalog.All.OrderBy(x => x.Provider).ThenBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
         {
             arr.Add(JNode.Object()
                 .Set("id", m.Id)

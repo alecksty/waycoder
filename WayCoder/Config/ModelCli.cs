@@ -50,7 +50,7 @@ public static class ModelCli
         {
             sb.AppendLine();
             sb.AppendLine($"【{g.Key}】");
-            foreach (var m in g)
+            foreach (var m in g.OrderBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
             {
                 var price = m.InputPrice > 0 ? $"${m.InputPrice}/${m.OutputPrice}" : "?";
                 var ctx = m.ContextWindow > 0
