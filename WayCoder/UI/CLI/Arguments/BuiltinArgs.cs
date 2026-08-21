@@ -123,9 +123,9 @@ public class ModelArg : CliArg
         switch (sub)
         {
             case "model":
-                return rest.Length >= 3
-                    ? ModelCli.AddModel(rest[1], rest[2], rest.Length > 3 ? rest[3] : null)
-                    : "用法: --model add model <id> <供应商ID> [baseUrl]";
+                return rest.Length >= 2
+                    ? ModelCli.AddModel(rest[1], rest.Length > 2 ? rest[2] : null, rest.Length > 3 ? rest[3] : null)
+                    : "用法: --model add model <id> [<供应商ID> [baseUrl]]";
             case "provider":
             case "prov":
                 return rest.Length >= 2
