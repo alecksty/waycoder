@@ -62,6 +62,8 @@ public partial class ChatScreen : TuiScreen
     public TuiSmartLabel? ModelInfoRow { get; protected set; }
     /// <summary>模型信息行下方空行（与底部状态栏分隔），可见性跟随 ModelInfoRow。</summary>
     private TuiSpace? _modelInfoSpacer;
+    /// <summary>模式栏下方快捷键提示行（只显示 Shift+Tab/Ctrl+P/E/X 切换快捷键），可见性跟随 ModelInfoRow。</summary>
+    protected TuiSmartLabel? _shortcutRow;
 
     /// <summary>建议下拉面板</summary>
     public TuiVBox SuggestPanel { get; protected set; } = null!;
@@ -380,7 +382,8 @@ public partial class ChatScreen : TuiScreen
         if (row == null) return;
         bool visChanged = row.Visible != visible;
         row.Visible = visible;
-        // 下方空行可见性跟随（模型栏显示时才占位，与状态栏分隔）
+        // 下方快捷键行/空行可见性跟随（模式栏显示时才占位）
+        if (_shortcutRow != null) _shortcutRow.Visible = visible;
         if (_modelInfoSpacer != null) _modelInfoSpacer.Visible = visible;
         bool textChanged = row.Text != text;
         if (textChanged) row.Text = text;
@@ -498,8 +501,12 @@ public partial class ChatScreen : TuiScreen
         inputH = Math.Clamp(InputArea.Lines.Count, 1, 5);
         promptH = PromptBar.Visible ? PromptBar.Height : 0;
         progressH = (ProgressPercent.HasValue && ContextManager.IsCompressing) ? 1 : 0;
+        // 模式栏区域占行：模式栏(1) + 快捷键行(1) + 分隔空行(仅代码版有 spacer；chat.tui 版无)
+        int modelRows = ModelInfoRow is { Visible: true }
+            ? 1 + (_shortcutRow?.Visible == true ? 1 : 0) + (_modelInfoSpacer != null ? 1 : 0)
+            : 0;
         chatH = Math.Max(1, TH - 1 - promptH - 1 - 1 - 1 - inputH - 1 - progressH - 1
-            - (ModelInfoRow?.Visible == true ? 2 : 0)); // TH - title - prompt - spacer(1) - dynamicBar(1) - topBorder - input - botBorder - progress - modelInfoRow - modelInfoSpacer - status
+            - modelRows); // TH - title - prompt - spacer(1) - dynamicBar(1) - topBorder - input - botBorder - progress - [模式栏/快捷键/空行] - status
     }
 
     /// <summary>应用动态尺寸到各子视图（Render / OnResize 共用）。</summary>
@@ -669,7 +676,19 @@ public partial class ChatScreen : TuiScreen
         };
         RootView.Add(ModelInfoRow);
 
-        // 模型信息行下方空行：与底部状态栏分隔（只在模型行可见时占位）
+        // 模式栏下方快捷键行：只显示切换快捷键（Shift+Tab/Ctrl+P/E/X），模式栏可见时跟随显示
+        _shortcutRow = new TuiSmartLabel
+        {
+            Width = TW,
+            Height = 1,
+            Visible = false,
+            Fg = AnsiColors.White,
+            TextAlign = EHAlign.Center,
+            Text = "«dim»Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+X 换模型«/»",
+        };
+        RootView.Add(_shortcutRow);
+
+        // 模式栏下方空行：与底部状态栏分隔（只在模式栏可见时占位）
         _modelInfoSpacer = new TuiSpace { Height = 1, Visible = false };
         RootView.Add(_modelInfoSpacer);
 
@@ -678,8 +697,8 @@ public partial class ChatScreen : TuiScreen
         {
             Width = TW, Height = 1,
             Bg = TuiTheme.Current.StatusBarBg, Fg = TuiTheme.Current.StatusBarFg,
-            // 切换快捷键优先（状态栏右侧 busy/token 会挤占尾部，重要提示放前面；完整清单见 Ctrl+H 帮助面板）
-            HintText = "Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+X 换模型 · Enter 发送 · Ctrl+H 帮助"
+            // 切换快捷键已在模式栏下方单独一行，状态栏只留基础操作提示
+            HintText = "Enter 发送 · ↑↓ 历史 · Tab 补全 · F1-F10 槽位 · Ctrl+H 帮助"
         };
         RootView.Add(StatusBar);
 
