@@ -156,6 +156,7 @@ public static class ModelCli
         var sources = string.IsNullOrWhiteSpace(s) || s.ToLowerInvariant() is "auto" or "all"
             ? new[] { "opencode", "openclaw", "crush", "claude", "codex" }.ToList()
             : s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        string? localServiceReport = null;
 
         foreach (var raw in sources)
         {
@@ -164,6 +165,12 @@ public static class ModelCli
             {
                 ModelCatalog.RestoreBuiltIn();
                 restoredBuiltIn = true;
+                continue;
+            }
+            if (src is "ollama" or "lmstudio" or "cc-switch")
+            {
+                // 本地服务（Ollama/LM Studio/CC Switch）从本地官方接口实时拉取真实模型
+                localServiceReport = ImportLocalServices();
                 continue;
             }
             if (src is "opencode" or "openclaw" or "crush" or "claude" or "claudecode" or "codex")
@@ -191,11 +198,13 @@ public static class ModelCli
         var sb = new StringBuilder();
         if (restoredBuiltIn)
             sb.AppendLine("✅ 已恢复内置模型目录（清空标记清除）");
+        if (localServiceReport != null)
+            sb.AppendLine(localServiceReport);
 
         if (imported.Count == 0)
             return sb.Length > 0
                 ? sb.ToString().Trim()
-                : "❌ 未导入任何模型（未找到可识别的模型配置）。\n   支持: --model import [builtin|opencode|openclaw|crush|claude|codex|<配置文件路径>]";
+                : "❌ 未导入任何模型（未找到可识别的模型配置）。\n   支持: --model import [builtin|opencode|openclaw|crush|claude|codex|ollama|lmstudio|cc-switch|<配置文件路径>]";
 
         // 去重：同一 (Id, baseUrl) 只保留第一个（地址不同=不同服务商，同 id 不同地址都保留）
         var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
