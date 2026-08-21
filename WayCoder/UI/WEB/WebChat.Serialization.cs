@@ -33,6 +33,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 .Set("context", m.ContextWindow)
                 .Set("inputPrice", m.InputPrice)
                 .Set("outputPrice", m.OutputPrice)
+                .Set("baseUrl", m.DefaultBaseUrl ?? "")
                 .Set("hasKey", ApiKeyStore.HasKeyFor(m.ProviderId, m.Id)));
         }
         return arr.ToJson();
@@ -52,6 +53,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 .Set("baseUrl", p.BaseUrl ?? "")
                 .Set("ok", p.Ok)
                 .Set("detail", p.Detail)
+                .Set("status", WayCoder.UI.TUI.Custom.ModelPicker.ProbeStatus(p).ToString().ToLowerInvariant())
                 .Set("models", models));
         }
         return arr.ToJson();

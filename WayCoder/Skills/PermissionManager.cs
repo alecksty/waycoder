@@ -232,7 +232,7 @@ public static class PermissionManager
         };
 
         // -q/--quiet 静默模式：抑制权限横幅输出
-        if (WayCoder.Program.QuietMode) return;
+        if (Config.Instance.QuietMode) return;
         Console.WriteLine($"权限模式: {AnsiText.Fg(label, color)}");
     }
 

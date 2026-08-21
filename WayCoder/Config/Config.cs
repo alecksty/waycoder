@@ -159,6 +159,8 @@ public class Config
     public bool DiffPreview { get; set; } = false;
     public bool WriteContentView { get; set; } = true;
     public bool MouseEnabled { get; set; } = true;
+    /// <summary>静默模式运行标志（-q/--quiet，非持久化运行时开关）</summary>
+    public bool QuietMode { get; set; }
     /// <summary>聊天区显示消息上限：超过后自动丢弃最旧消息（Agent 会话仍在、会话文件持久化，仅裁剪显示层保持流畅）</summary>
     public int MaxChatMessages { get; set; } = 1000;
     /// <summary>聊天代码块预览行数上限：超过后保留头尾、中间折叠省略</summary>

@@ -352,6 +352,18 @@ function openModelModal(mode) {
   renderModelList('');
   document.getElementById('model-modal').classList.add('open');
 }
+function statusText(s) {
+  switch (s) {
+    case 'connected': return '✔连通';
+    case 'overdue': return '欠费';
+    case 'badkey': return 'key无效';
+    case 'noendpoint': return '无端点';
+    case 'unreachable': return '✖不通';
+    case 'ok': return '✔连通';
+    case 'fail': return '✖不通';
+    default: return '';
+  }
+}
 function renderModelList(filter) {
   const el = document.getElementById('model-list');
   const f = (filter || '').trim().toLowerCase();
@@ -369,7 +381,7 @@ function renderModelList(filter) {
     const gn = document.createElement('div');
     gn.className = 'gname';
     const st = scanMap[pid];
-    gn.textContent = pid + (st === 'ok' ? ' ✅' : (st === 'fail' ? ' ❌' : ''));
+    gn.textContent = pid + (st ? ' ' + statusText(st) : '');
     g.appendChild(gn);
     byProvider[pid].forEach(m => {
       const item = document.createElement('div');
@@ -396,7 +408,10 @@ function renderModelList(filter) {
       const small = document.createElement('span');
       small.className = 'chk';
       small.textContent = m.id === currentSmallModel ? '✓' : '';
-      [key, name, prov, ctx, price, large, small].forEach(c => item.appendChild(c));
+      const modelStatus = document.createElement('span');
+      modelStatus.className = 'status';
+      modelStatus.textContent = m.hasKey ? statusText(scanMap[pid]) : '无key';
+      [key, modelStatus, name, prov, ctx, price, large, small].forEach(c => item.appendChild(c));
       item.onclick = () => selectModel(m);
       g.appendChild(item);
     });
@@ -419,7 +434,9 @@ function chooseModel(m) {
     keyModal.classList.add('open');
     return;
   }
-  const body = isSmall ? { key: 'SmallModel', value: m.id } : { modelId: m.id };
+  const body = isSmall
+    ? { key: 'SmallModel', value: m.id, providerId: m.providerId, baseUrl: m.baseUrl || '' }
+    : { modelId: m.id, providerId: m.providerId, baseUrl: m.baseUrl || '' };
   const url = isSmall ? '/settings' : cq('/model');
   fetch(url, { method: 'POST', body: JSON.stringify(body) })
     .then(() => {
@@ -455,7 +472,7 @@ document.getElementById('model-scan-btn').onclick = () => {
     scanMap = {};
     let ok = 0, fail = 0;
     (res.results || []).forEach(p => {
-      scanMap[p.providerId] = p.ok ? 'ok' : 'fail';
+      scanMap[p.providerId] = p.status || (p.ok ? 'ok' : 'fail');
       if (p.ok) ok++; else fail++;
     });
     status.textContent = ok + ' 连通 / ' + fail + ' 不通';
@@ -570,7 +587,9 @@ document.getElementById('model-save-btn').onclick = () => {
   const status = document.getElementById('model-scan-status');
   if (!m) { status.textContent = '请先选择一个模型'; return; }
   const isSmall = pendingMode === 'small';
-  const body = isSmall ? { key: 'SmallModel', value: m.id } : { modelId: m.id };
+  const body = isSmall
+    ? { key: 'SmallModel', value: m.id, providerId: m.providerId, baseUrl: m.baseUrl || '' }
+    : { modelId: m.id, providerId: m.providerId, baseUrl: m.baseUrl || '' };
   const url = isSmall ? '/settings' : '/model/save';
   fetch(url, { method: 'POST', body: JSON.stringify(body) })
     .then(() => {

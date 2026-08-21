@@ -24,6 +24,8 @@ public sealed class ModelWindow : Window
     private readonly StackPanel _listHost = new() { Spacing = 2 };
     private readonly TextBlock _status = new();
     private string _selectedId = "";
+    private string _selectedProviderId = "";
+    private string? _selectedBaseUrl;
     private Dictionary<string, ModelPicker.ScanStatus> _scanResult = new();
     private volatile bool _busy; // volatile：快速连点扫描/导入防并发执行
 
@@ -65,7 +67,7 @@ public sealed class ModelWindow : Window
         };
         spacer.Children.Add(rightRow);
         rightRow.Children.Add(MakeBtn("取消", Close, ghost: true));
-        rightRow.Children.Add(MakeBtn("💾 保存", () => { _owner.SaveDefaultModel(_selectedId, _smallMode); }));
+        rightRow.Children.Add(MakeBtn("💾 保存", () => { _owner.SaveDefaultModel(_selectedId, _smallMode, _selectedProviderId, _selectedBaseUrl); }));
         rightRow.Children.Add(MakeBtn("切换模型", SwitchModel, accent: true));
         root.Children.Add(btnRow);
 
@@ -234,6 +236,9 @@ public sealed class ModelWindow : Window
         row.PointerPressed += (_, _) =>
         {
             _selectedId = m.Id;
+            // 记录所选模型的网关地址 + 服务商（地址不同=不同服务商，请求走对应网关）
+            _selectedProviderId = m.ProviderId;
+            _selectedBaseUrl = m.DefaultBaseUrl;
             // 重新渲染全部行以刷新高亮
             RenderList(_search.Text ?? "");
         };
@@ -272,11 +277,11 @@ public sealed class ModelWindow : Window
             var cfg = Config.Instance;
             cfg.SmallModel = _selectedId;
             cfg.SaveToEnvFile();
-            _owner.ApplySmallModel(_selectedId);
+            _owner.ApplySmallModel(_selectedId, _selectedProviderId, _selectedBaseUrl);
         }
         else
         {
-            _owner.ApplyModel(_selectedId);
+            _owner.ApplyModel(_selectedId, _selectedProviderId, _selectedBaseUrl);
         }
         Close();
     }
