@@ -258,6 +258,9 @@ public static class ModelCli
         // LM Studio：GET /v1/models → { data: [{ id: "qwen2.5-7b-instruct", ... }] }
         AddLocal("http://localhost:1234/v1/models", "lmstudio", "LM Studio", "http://localhost:1234",
             j => j?["data"]?.Items.Select(m => m?["id"]?.AsString() ?? "").Where(n => n.Length > 0) ?? []);
+        // CC Switch（本地 API 路由）：GET /v1/models → { data: [{ id, ... }] }（默认端口 15721）
+        AddLocal("http://127.0.0.1:15721/v1/models", "cc-switch", "CC Switch", "http://127.0.0.1:15721",
+            j => j?["data"]?.Items.Select(m => m?["id"]?.AsString() ?? "").Where(n => n.Length > 0) ?? []);
 
         if (added.Count == 0)
             return "未发现本地模型服务（Ollama 11434 / LM Studio 1234 未运行或无已安装模型）。";
