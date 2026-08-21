@@ -120,7 +120,7 @@ public static class CliArgRegistry
         "resume" or "session" or "session-list" => "会话",
         "prompt" or "json" or "output-format" or "prompt-all" => "执行",
         "max-budget-usd" or "max-requeue" or "max-turns" => "预算",
-        "yolo" or "permission-mode" or "allowed-tools" or "disallowed-tools" => "权限",
+        "yolo" or "permission-mode" or "allowed-tools" or "disallowed-tools" or "permit" => "权限",
         "tui" or "cli" or "web" or "gui" or "keypad" or "theme" or "quiet" or "no-color" => "界面",
         "edit" or "watch" or "update" or "init" or "config" or "debug" or "system-prompt" or "screenshot"
             or "auto-commit" or "mcp" or "mcp-config" or "reset" or "purge" or "provider" => "系统",

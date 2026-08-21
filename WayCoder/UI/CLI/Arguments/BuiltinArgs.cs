@@ -828,6 +828,15 @@ public class ProviderArg : CliArg
     public override int? OnMatch(List<string> values) => ModelCli.ProviderCli.Run(values);
 }
 
+/// <summary>启动权限模式（极简TINY/问答ACK/自动AUTO/智能SMART/畅通YOLO）。</summary>
+public class PermitArg : CliArg
+{
+    public override string Description => "启动权限模式（tiny/ack/auto/smart/yolo）";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "模式";
+    public PermitArg() : base("permit", "--permit") { }
+}
+
 /// <summary>MCP 管理 CLI 纯逻辑（列出 / 重连，输出到 Console）。</summary>
 public static class McpCli
 {
@@ -950,6 +959,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new ResetArg());
         CliArgRegistry.Register(new PurgeArg());
         CliArgRegistry.Register(new ProviderArg());
+        CliArgRegistry.Register(new PermitArg());
 #if WAYCODER_TEST
         CliArgRegistry.Register(new TestArg());
         CliArgRegistry.Register(new BenchmarkArg());
