@@ -751,18 +751,14 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                     ? string.Join(",", sourcesNode.Items.Select(x => x?.AsString() ?? "").Where(s => !string.IsNullOrWhiteSpace(s)))
                     : sourcesNode.AsString();
             var modelReport = ModelCli.Import(source);
-            var keys = ApiKeyStore.ImportFromKnownSources();
             ModelCatalog.Invalidate();
             ApiKeyStore.ClearCache();
-
-            var keyArr = JNode.Array();
-            foreach (var (pid, src) in keys)
-                keyArr.Add(JNode.Object().Set("providerId", pid).Set("source", src));
+            // key 仅由 api_keys.json + 环境变量决定；导入来源文件的 key 不自动同步（避免导入模型后冒出无关 key）
 
             return HttpResponse.JsonBody(JNode.Object()
                 .Set("ok", true)
                 .Set("modelReport", modelReport)
-                .Set("keys", keyArr)
+                .Set("keys", JNode.Array())
                 .ToJson());
         }
         catch (Exception ex)
