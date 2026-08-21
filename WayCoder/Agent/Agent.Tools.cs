@@ -310,10 +310,20 @@ public partial class Agent
     /// <summary>
     /// 根据配置过滤工具列表（白名单 + 黑名单）。
     /// </summary>
-    private static List<ITool> FilterTools(List<ITool> tools)
+    private static List<ITool> FilterTools(Agent agent, List<ITool> tools)
     {
         var config = Config.Instance;
-        var allowed = config.AllowedTools?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        // 极简模式（economy Extreme）：所有工具禁用，仅聊天
+        if (config.EconomyMode == EconomyMode.Extreme)
+            return [];
+
+        // 按工作模式选择工具集：Plan → 计划工具集（危险工具不放行），Build/Review/Auto → 建造工具集；
+        // YOLO 权限模式 → YOLO 工具集（空 = 全部允许，仅叠加全局黑名单）
+        string? modeAllow = agent.WorkMode == WorkMode.Plan ? config.PlanToolAllowList : config.BuildToolAllowList;
+        if (PermissionManager.CurrentMode == PermissionManager.Mode.Yolo)
+            modeAllow = config.YoloToolAllowList;
+
+        var allowed = modeAllow?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(s => s.Trim().ToLowerInvariant()).ToHashSet();
         var disabled = config.DisabledTools?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(s => s.Trim().ToLowerInvariant()).ToHashSet();
@@ -325,7 +335,7 @@ public partial class Agent
             result = result.Where(t => !disabled.Contains(t.Name.ToLowerInvariant())).ToList();
 
         if (result.Count < tools.Count)
-            DebugLog.Log("tool-filter", $"工具过滤: {tools.Count} → {result.Count} (白名单={allowed?.Count ?? 0}, 黑名单={disabled?.Count ?? 0})");
+            DebugLog.Log("tool-filter", $"工具过滤: {tools.Count} → {result.Count} ({agent.WorkMode}, YOLO={PermissionManager.CurrentMode == PermissionManager.Mode.Yolo})");
 
         return result;
     }
