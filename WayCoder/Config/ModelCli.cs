@@ -182,6 +182,12 @@ public static class ModelCli
             reports.Add($"文件 {raw}");
         }
 
+        // 第三方数据库（Crush/OpenCode 等）里的本地模型条目（ollama/lmstudio/local）是静态假数据——
+        // 识别并全部过滤；真实本地模型由 ImportLocalServices 从本地服务接口实时拉取（Ollama /api/tags、LM Studio /v1/models）
+        var fakeLocal = imported.Where(m => m.ProviderId is "ollama" or "lmstudio" or "local").ToList();
+        if (fakeLocal.Count > 0)
+            imported = imported.Where(m => m.ProviderId is not "ollama" and not "lmstudio" and not "local").ToList();
+
         var sb = new StringBuilder();
         if (restoredBuiltIn)
             sb.AppendLine("✅ 已恢复内置模型目录（清空标记清除）");
@@ -215,6 +221,53 @@ public static class ModelCli
         foreach (var m in added)
             sb.AppendLine($"  {m.Id,-32} {m.Provider,-10} ctx={FormatCtx(m.ContextWindow),-6} ${m.InputPrice}/{m.OutputPrice}");
         sb.AppendLine("已写入: " + ModelCatalog.GlobalProviderDir + "/（按供应商分类）");
+        return sb.ToString().Trim();
+    }
+
+    /// <summary>
+    /// 从本地服务接口导入已安装模型（Ollama /api/tags、LM Studio /v1/models）——
+    /// 实时反映本地模型库（比静态目录更准确）。服务未运行则跳过。
+    /// </summary>
+    public static string ImportLocalServices()
+    {
+        var added = new List<ModelCatalog.ModelInfo>();
+        var reports = new List<string>();
+
+        void AddLocal(string endpoint, string pid, string pname, string baseUrl, Func<JNode?, IEnumerable<string>> extract)
+        {
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+                var json = client.GetStringAsync(endpoint).GetAwaiter().GetResult();
+                var root = Json.Parse(json);
+                foreach (var id in extract(root))
+                {
+                    if (string.IsNullOrWhiteSpace(id)) continue;
+                    added.Add(new ModelCatalog.ModelInfo(
+                        id, id, pname, pid, "L", "Local", 0, 0, 0, baseUrl,
+                        $"从 {pname} 接口导入", 0));
+                }
+                reports.Add(pname);
+            }
+            catch { /* 本地服务未运行 / 请求失败 → 跳过 */ }
+        }
+
+        // Ollama：GET /api/tags → { models: [{ name: "qwen2.5:7b", ... }] }
+        AddLocal("http://localhost:11434/api/tags", "ollama", "Ollama", "http://localhost:11434",
+            j => j?["models"]?.Items.Select(m => m?["name"]?.AsString() ?? "").Where(n => n.Length > 0) ?? []);
+        // LM Studio：GET /v1/models → { data: [{ id: "qwen2.5-7b-instruct", ... }] }
+        AddLocal("http://localhost:1234/v1/models", "lmstudio", "LM Studio", "http://localhost:1234",
+            j => j?["data"]?.Items.Select(m => m?["id"]?.AsString() ?? "").Where(n => n.Length > 0) ?? []);
+
+        if (added.Count == 0)
+            return "未发现本地模型服务（Ollama 11434 / LM Studio 1234 未运行或无已安装模型）。";
+
+        ModelCatalog.AddCustomRange(added);
+        var sb = new StringBuilder();
+        sb.AppendLine($"✅ 从本地服务接口导入 {added.Count} 个模型：");
+        foreach (var m in added.OrderBy(m => m.Id))
+            sb.AppendLine($"  {m.Id,-32} {m.Provider}");
+        sb.AppendLine("已写入 locals.json（本地模型，无需 API Key）");
         return sb.ToString().Trim();
     }
 

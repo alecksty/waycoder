@@ -524,6 +524,8 @@ const IMPORT_SOURCES = [
   ['opencode', 'OpenCode（~/.config/opencode）'],
   ['crush', 'Crush（~/.config/crush）'],
   ['openclaw', 'OpenClaw（~/.openclaw）'],
+  ['ollama', 'Ollama（本地接口实时拉取）'],
+  ['lmstudio', 'LM Studio（本地接口实时拉取）'],
 ];
 const sourceModal = document.getElementById('source-modal');
 const sourceTitle = document.getElementById('source-modal-title');

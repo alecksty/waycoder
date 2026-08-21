@@ -291,11 +291,13 @@ public static class ModelPicker
                     "OpenCode（~/.config/opencode）",
                     "Crush（~/.config/crush）",
                     "OpenClaw（~/.openclaw）",
+                    "Ollama（本地接口实时拉取）",
+                    "LM Studio（本地接口实时拉取）",
                 };
                 // 默认全部勾选（☑ 空格取消不需要的来源，Enter 确认），与 Web 勾选体验一致
                 var picked = UxHelper.MultiSelect("📥 本地导入 · 选择来源", choices, preCheckAll: true);
                 if (picked == null || picked.Count == 0) return; // 取消 / 未勾选
-                string[] keys = ["builtin", "claudecode", "codex", "opencode", "crush", "openclaw"];
+                string[] keys = ["builtin", "claudecode", "codex", "opencode", "crush", "openclaw", "ollama", "lmstudio"];
                 var sources = string.Join(",", picked.Select(p => keys[Math.Max(0, choices.IndexOf(p))]));
                 RunImport(sources, null, "📥 本地导入中…");
                 return;
@@ -336,7 +338,22 @@ public static class ModelPicker
                     else
                     {
                         // 本地导入只导模型；key 仅由 api_keys.json + 环境变量决定（不自动同步来源文件的 key）
-                        report = ModelCli.Import(sources);
+                        // 本地服务（Ollama/LM Studio）从本地官方接口实时拉取真实模型；其余从第三方库导入
+                        var hasLocalService = sources.Contains("ollama", StringComparison.OrdinalIgnoreCase)
+                            || sources.Contains("lmstudio", StringComparison.OrdinalIgnoreCase);
+                        if (hasLocalService)
+                        {
+                            var nonLocal = string.Join(",", sources.Split(',').Select(s => s.Trim()).Where(s =>
+                                s.Length > 0 && !s.Equals("ollama", StringComparison.OrdinalIgnoreCase) && !s.Equals("lmstudio", StringComparison.OrdinalIgnoreCase)));
+                            var parts = new List<string>();
+                            if (!string.IsNullOrWhiteSpace(nonLocal)) parts.Add(ModelCli.Import(nonLocal).Trim());
+                            parts.Add(ModelCli.ImportLocalServices().Trim());
+                            report = string.Join("\n", parts);
+                        }
+                        else
+                        {
+                            report = ModelCli.Import(sources);
+                        }
                         ModelCatalog.Invalidate();
                         ApiKeyStore.ClearCache();
                     }
