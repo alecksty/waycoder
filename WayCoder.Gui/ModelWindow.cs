@@ -54,6 +54,7 @@ public sealed class ModelWindow : Window
         btnRow.Children.Add(MakeBtn("📥 本地导入", async () => await ImportAsync()));
         btnRow.Children.Add(MakeBtn("🌐 在线导入", async () => await ImportOnlineAsync()));
         btnRow.Children.Add(MakeBtn("🧹 清空", async () => await ClearAllAsync()));
+        btnRow.Children.Add(MakeBtn("✏️ 编辑", () => ShowEditModelDialog()));
         btnRow.Children.Add(MakeBtn("🔑 设置 key", () => ShowKeyDialog(set: true)));
         btnRow.Children.Add(MakeBtn("🗑 清除 key", () => ShowKeyDialog(set: false)));
         var spacer = new StackPanel { HorizontalAlignment = HorizontalAlignment.Right };
@@ -315,6 +316,57 @@ public sealed class ModelWindow : Window
         {
             if (set) ApiKeyStore.Set(m.ProviderId, box.Text.Trim());
             else ApiKeyStore.Remove(m.ProviderId);
+            win.Close();
+            RenderList(_search.Text ?? "");
+        }));
+        btns.Children.Add(MakeBtn("取消", win.Close, ghost: true));
+        panel.Children.Add(btns);
+        win.Content = panel;
+        win.ShowDialog(this);
+    }
+
+    /// <summary>编辑单个模型（两层架构：服务商/地址/APIKey/模型/上下文/价格）。</summary>
+    private void ShowEditModelDialog()
+    {
+        if (string.IsNullOrEmpty(_selectedId)) { _status.Text = "请先选择一个模型"; return; }
+        var info = ModelCatalog.Find(_selectedId);
+        var win = new Window
+        {
+            Title = "✏️ 编辑模型",
+            Width = 440,
+            SizeToContent = SizeToContent.Height,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            CanResize = false,
+            Background = new SolidColorBrush(Color.Parse("#171a23")),
+        };
+        var panel = new StackPanel { Margin = new Thickness(20), Spacing = 10 };
+        TextBox id, prov, url, key, ctx, price;
+        void Row(string label, out TextBox box)
+        {
+            var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+            sp.Children.Add(new TextBlock { Text = label, Width = 100, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")) });
+            box = new TextBox { MinWidth = 260 };
+            sp.Children.Add(box);
+            panel.Children.Add(sp);
+        }
+        Row("模型 ID", out id); id.Text = _selectedId;
+        Row("服务商", out prov); prov.Text = _selectedProviderId;
+        Row("地址", out url); url.Text = _selectedBaseUrl ?? "";
+        Row("API Key", out key); key.Text = ApiKeyStore.Get(_selectedProviderId) ?? ""; key.PasswordChar = '•';
+        Row("上下文", out ctx); ctx.Text = (info?.ContextWindow ?? 0).ToString();
+        Row("价格 ($/MTok)", out price); price.Text = (info?.InputPrice ?? 0).ToString("0.##");
+        var btns = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
+        btns.Children.Add(MakeBtn("保存", () =>
+        {
+            var pid = string.IsNullOrWhiteSpace(prov.Text) ? "custom" : prov.Text.Trim();
+            var apiKey = key.Text?.Trim() ?? "";
+            if (!string.IsNullOrWhiteSpace(apiKey)) ApiKeyStore.Set(pid, apiKey); // key 按服务商存
+            int ctxV = int.TryParse(ctx.Text, out var c) ? c : 0;
+            double priceV = double.TryParse(price.Text, out var p) ? p : 0;
+            var mid = id.Text?.Trim() ?? _selectedId;
+            ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
+                mid, mid, pid, pid, "*", "Custom", ctxV, priceV, 0,
+                string.IsNullOrWhiteSpace(url.Text) ? null : url.Text?.Trim(), "手动编辑", 0));
             win.Close();
             RenderList(_search.Text ?? "");
         }));
