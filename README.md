@@ -39,10 +39,13 @@ WayCoder --watch
 WayCoder --tiny
 WayCoder --tiny 8k
 
-# 省 Token 模式（保持正常窗口；--economy [on|auto|off]，缺省 on）
+# 省 Token 模式（保持正常窗口；--economy [on|auto|off|extreme]，缺省 on）
 WayCoder --economy          # 开：精简提示词 + 更早压缩 + 输出上限
 WayCoder --economy auto     # 自动：按任务复杂度动态调节阈值（简单省、复杂保质量）
+WayCoder --economy extreme  # 极致：最小提示词（265 字符）+ 工具白名单，token 再省一半
 # 优先级偏好（仅 auto 生效）：WAYCODER_ECONOMY_PRIORITY=quality|balanced|cost（默认 quality）
+# 实测（写 1 万行贪吃蛇，minimax-m3，白名单 5 工具）：auto 8.0M token → extreme 4.2M token（↓48%），花费约减半
+# 配置优先级：config.json 为权威源，环境变量不覆盖（切换模式用 --economy 或改配置）
 
 # 自动升级（检查并自替换，优先 Gitee、回退 GitHub）
 WayCoder --update
