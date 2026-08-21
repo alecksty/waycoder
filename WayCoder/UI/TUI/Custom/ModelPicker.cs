@@ -303,12 +303,19 @@ public static class ModelPicker
                 RunImport(sources, null, "📥 本地导入中…");
                 return;
             }
-            // 在线导入：弹框选 OpenCode 服务商（Go 订阅 / Zen 按量，地址不同）
-            var mode = UxHelper.Select("🌐 在线导入 · 选择 OpenCode 服务商",
-                new List<string> { "OpenCode Go（订阅 · zen/go/v1）", "OpenCode Zen（按量 · zen/v1）" });
-            if (mode == null) return;
-            var onlineBase = mode.StartsWith("OpenCode Go") ? "https://opencode.ai/zen/go/v1" : "https://opencode.ai/zen/v1";
-            RunImport(null, onlineBase, "🌐 在线导入中…");
+            // 在线导入：弹框选服务商（OpenCode Go/Zen / OpenRouter / Groq / SiliconFlow / Together / DeepSeek / OpenAI / Moonshot），可多选
+            var onlineNames = ModelCli.OnlineSources.Select(s => s.Name).ToList();
+            var pickedOnline = UxHelper.MultiSelect("🌐 在线导入 · 选择服务商", onlineNames, preCheckAll: false);
+            if (pickedOnline == null || pickedOnline.Count == 0) return;
+            var repList = new List<string>();
+            foreach (var name in pickedOnline)
+            {
+                var src = ModelCli.OnlineSources.FirstOrDefault(s => s.Name == name);
+                if (src != null) repList.Add(ModelCli.ImportOnline(src));
+            }
+            help.Text = string.Join("\n", repList);
+            help2.Text = "";
+            RefreshParent();
         }
 
         void RunImport(string? sources, string? onlineBaseUrl, string busyText)

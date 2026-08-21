@@ -274,6 +274,45 @@ public static class ModelCli
         return sb.ToString().Trim();
     }
 
+    /// <summary>在线导入来源（OpenAI 兼容 /models 端点 + 所需 key 服务商）。</summary>
+    public record OnlineSource(string Name, string BaseUrl, string KeyProvider);
+
+    /// <summary>在线导入可选端点（除 opencode 外，支持 OpenRouter/Groq/SiliconFlow/Together/DeepSeek/OpenAI 等）。</summary>
+    public static readonly OnlineSource[] OnlineSources =
+    [
+        new("OpenCode Go", "https://opencode.ai/zen/go/v1", "opencode-go"),
+        new("OpenCode Zen", "https://opencode.ai/zen/v1", "opencode-zen"),
+        new("OpenRouter", "https://openrouter.ai/api/v1", "openrouter"),
+        new("Groq", "https://api.groq.com/openai/v1", "groq"),
+        new("SiliconFlow", "https://api.siliconflow.cn/v1", "siliconflow"),
+        new("Together AI", "https://api.together.xyz/v1", "together"),
+        new("DeepSeek", "https://api.deepseek.com/v1", "deepseek"),
+        new("OpenAI", "https://api.openai.com/v1", "openai"),
+        new("Moonshot", "https://api.moonshot.cn/v1", "moonshot"),
+    ];
+
+    /// <summary>在线导入：拉取指定端点 /models（用该服务商 key），写入全局模型库。返回报告。</summary>
+    public static string ImportOnline(OnlineSource src)
+    {
+        var key = ApiKeyStore.Get(src.KeyProvider);
+        if (string.IsNullOrEmpty(key))
+            return $"未找到 {src.KeyProvider} 的 API Key（--model key {src.KeyProvider} &lt;key&gt; 设置后重试）";
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder/1.0");
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", key);
+        var json = client.GetStringAsync(src.BaseUrl + "/models").GetAwaiter().GetResult();
+        var list = ModelCatalog.ImportOpenCodeApi(json, src.BaseUrl);
+        if (list.Count == 0)
+            return $"在线导入（{src.Name}）未返回可识别的模型";
+        var builtInIds = new HashSet<string>(ModelCatalog.BuiltIn.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
+        var toAdd = list.Where(m => !builtInIds.Contains(m.Id)).ToList();
+        ModelCatalog.AddCustomRange(toAdd);
+        return $"✅ 在线导入（{src.Name}）{toAdd.Count} 个模型" +
+            (list.Count - toAdd.Count > 0 ? $"，跳过 {list.Count - toAdd.Count} 内置" : "") +
+            "：\n  " + string.Join("\n  ", toAdd.Select(m => m.Id));
+    }
+
     private static List<ModelCatalog.ModelInfo> ImportOne(string source, string home, List<string> reports)
     {
         var src = source is "claudecode" ? "claude" : source;

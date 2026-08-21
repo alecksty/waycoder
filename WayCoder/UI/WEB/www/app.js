@@ -543,15 +543,22 @@ document.getElementById('model-import-btn').onclick = () => {
 };
 document.getElementById('model-opencode-btn').onclick = () => {
   importMode = 'online';
-  openSourcePicker('🌐 在线导入 · 选择 OpenCode 服务商',
-    '<label class="src-item"><input type="checkbox" value="go" checked> OpenCode Go（订阅 · zen/go/v1）</label>' +
-    '<label class="src-item"><input type="checkbox" value="zen"> OpenCode Zen（按量 · zen/v1）</label>');
+  openSourcePicker('🌐 在线导入 · 选择服务商',
+    '<label class="src-item"><input type="checkbox" value="OpenCode Go" checked> OpenCode Go（订阅 · zen/go/v1）</label>' +
+    '<label class="src-item"><input type="checkbox" value="OpenCode Zen"> OpenCode Zen（按量 · zen/v1）</label>' +
+    '<label class="src-item"><input type="checkbox" value="OpenRouter"> OpenRouter</label>' +
+    '<label class="src-item"><input type="checkbox" value="Groq"> Groq</label>' +
+    '<label class="src-item"><input type="checkbox" value="SiliconFlow"> SiliconFlow</label>' +
+    '<label class="src-item"><input type="checkbox" value="Together AI"> Together AI</label>' +
+    '<label class="src-item"><input type="checkbox" value="DeepSeek"> DeepSeek</label>' +
+    '<label class="src-item"><input type="checkbox" value="OpenAI"> OpenAI</label>' +
+    '<label class="src-item"><input type="checkbox" value="Moonshot"> Moonshot</label>');
 };
 document.getElementById('source-confirm').onclick = () => {
   const checks = [...document.querySelectorAll('#source-options input:checked')].map(c => c.value);
   sourceModal.classList.remove('open');
   if (!checks.length) return; // 一个都没勾 → 取消
-  if (importMode === 'online') doOnlineImport(checks[0]); // Go/Zen 单选
+  if (importMode === 'online') checks.forEach(s => doOnlineImport(s)); // 多服务商逐个导入
   else doLocalImport(checks.join(','));
 };
 document.getElementById('source-cancel').onclick = () => sourceModal.classList.remove('open');

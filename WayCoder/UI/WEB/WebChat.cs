@@ -820,37 +820,14 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     {
         try
         {
-            // 选择 OpenCode 服务商：Go(zen/go/v1 订阅) / Zen(zen/v1 按量)，默认 Go
-            string? mode = null;
+            // 在线导入：选择端点（OpenCode Go/Zen / OpenRouter / Groq / SiliconFlow / Together / DeepSeek / OpenAI / Moonshot 等）
+            string? name = null;
             var bodyObj = Json.Parse(body);
-            if (bodyObj != null && bodyObj["mode"] is { } modeNode) mode = modeNode.AsString()?.Trim().ToLowerInvariant();
-            var baseUrl = mode == "zen" ? "https://opencode.ai/zen/v1" : "https://opencode.ai/zen/go/v1";
-            var url = baseUrl + "/models";
-            var pname = baseUrl.Contains("/zen/go/") ? "OpenCode Go" : "OpenCode Zen";
-
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder/1.0");
-            var json = client.GetStringAsync(url).GetAwaiter().GetResult();
-
-            var list = ModelCatalog.ImportOpenCodeApi(json, baseUrl);
-            if (list.Count == 0)
-                return HttpResponse.JsonBody(Err("在线导入未返回可识别的模型"));
-
-            // 去重：跳过内置目录已有模型（避免被导入的空数据覆盖）；批量一次写（防 N 次磁盘写）
-            var builtInIds = new HashSet<string>(ModelCatalog.BuiltIn.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
-            var toAdd = list.Where(m => !builtInIds.Contains(m.Id)).ToList();
-            var skipped = list.Count - toAdd.Count;
-            ModelCatalog.AddCustomRange(toAdd);
-
-            var sb = new System.Text.StringBuilder();
-            sb.Append($"✅ 在线导入（{pname}）{toAdd.Count} 个模型" +
-                (skipped > 0 ? $"，跳过 {skipped} 个内置已有" : "") + "：");
-            foreach (var m in toAdd)
-                sb.Append($"\n  {m.Id}");
-            return HttpResponse.JsonBody(JNode.Object()
-                .Set("ok", true)
-                .Set("modelReport", sb.ToString())
-                .ToJson());
+            if (bodyObj != null && bodyObj["mode"] is { } modeNode) name = modeNode.AsString()?.Trim();
+            var src = ModelCli.OnlineSources.FirstOrDefault(s =>
+                s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ?? ModelCli.OnlineSources[0];
+            var report = ModelCli.ImportOnline(src);
+            return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("modelReport", report).ToJson());
         }
         catch (Exception ex)
         {

@@ -468,11 +468,9 @@ public sealed class ModelWindow : Window
     private async Task ImportOnlineAsync()
     {
         if (_busy) return;
-        var choice = await ShowSelectAsync("🌐 在线导入 · 选择 OpenCode 服务商",
-            ["OpenCode Go（订阅 · zen/go/v1）", "OpenCode Zen（按量 · zen/v1）"]);
-        if (choice == null) return;
-        var baseUrl = choice.Contains("OpenCode Go") ? "https://opencode.ai/zen/go/v1" : "https://opencode.ai/zen/v1";
-        var pname = baseUrl.Contains("/zen/go/") ? "OpenCode Go" : "OpenCode Zen";
+        var onlineOptions = ModelCli.OnlineSources.Select(s => (s.Name, s.Name)).ToArray();
+        var picked = await ShowMultiCheckAsync("🌐 在线导入 · 选择服务商", onlineOptions, preCheckAll: false);
+        if (picked == null || picked.Count == 0) return;
         _busy = true;
         Dispatcher.UIThread.Post(() => _status.Text = "在线导入中…");
         try
@@ -480,20 +478,12 @@ public sealed class ModelWindow : Window
             var sb = new StringBuilder();
             await Task.Run(() =>
             {
-                var url = baseUrl + "/models";
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder/1.0");
-                var json = client.GetStringAsync(url).GetAwaiter().GetResult();
-                var list = ModelCatalog.ImportOpenCodeApi(json, baseUrl);
-                var builtIn = new HashSet<string>(ModelCatalog.BuiltIn.Select(x => x.Id), StringComparer.OrdinalIgnoreCase);
-                var added = 0; var skipped = 0;
-                foreach (var m in list)
+                foreach (var (name, _) in picked)
                 {
-                    if (builtIn.Contains(m.Id)) { skipped++; continue; }
-                    ModelCatalog.AddCustom(m);
-                    added++;
+                    var src = ModelCli.OnlineSources.FirstOrDefault(s => s.Name == name);
+                    if (src != null)
+                        sb.AppendLine(ModelCli.ImportOnline(src));
                 }
-                sb.Append($"✅ 在线导入（{pname}）{added} 个模型" + (skipped > 0 ? $"，跳过 {skipped} 个内置已有" : ""));
             });
             Dispatcher.UIThread.Post(() =>
             {
