@@ -79,7 +79,7 @@ public static partial class SelfTest
             Check("chat.tui Screen 根", main.Screen != null);
             Check("chat.tui RootView 非空", main.Screen?.RootView != null);
             int childCount = main.Screen?.RootView?.Children.Count ?? 0;
-            Check("chat.tui RootView 子节点=11", childCount == 11); // 移除了 modelInfoSpacer（ComputeLayout 未预留导致状态栏顶出）
+            Check("chat.tui RootView 子节点=12", childCount == 12); // 模式栏下新增 shortcutRow（快捷键行）
 
             Check("chat.tui titleBar", main.Find<TuiTitleBar>("titleBar") != null);
             Check("chat.tui chatList", main.Find<TuiListView>("chatList") != null);
@@ -90,6 +90,7 @@ public static partial class SelfTest
             Check("chat.tui inputArea", main.Find<TuiTextArea>("inputArea") != null);
             Check("chat.tui statusBar", main.Find<TuiStatusBar>("statusBar") != null);
             Check("chat.tui modelInfoRow(SmartLabel)", main.Find<TuiSmartLabel>("modelInfoRow") != null);
+            Check("chat.tui shortcutRow(SmartLabel)", main.Find<TuiSmartLabel>("shortcutRow") != null);
         }
         catch (Exception ex)
         {
