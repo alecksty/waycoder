@@ -1,5 +1,33 @@
 # 更新日志
 
+## v0.80.0 (2026-08-21) — 全局 config.json 配置架构 + --help 全面格式化 + 槽位模型修复
+
+### 配置架构：全局 config.json
+- **`~/.waycoder/config.json` 成为配置权威源**：保存全部配置（Key 格式），优先级 config.json > .env > 环境变量
+- **.env 精简为 5 项基本引导配置**：服务商 / 地址 / API_KEY / 经济模式 / 鼠标（无 config.json 时兜底）
+- **首次启动自动迁移**：无 config.json 且存在 .env 时自动生成并精简 .env
+- **每次启动本地备份**：config.json 有更新则同步一份到项目 `.waycoder/config.json`（先验证文件正常才备份）
+
+### 槽位模型不一致修复
+- **回退链用槽位实际模型**：`BuildFallbackChain` 参数化，不再用全局 .env 模型——修复「状态栏 deepseek-v4-pro 却显示 mimo-v2.5 失败」
+- **`GetSlotLlm` 复用防污染**（回退残留模型不再污染下次请求）+ 新增 `AgentSlotConfig.ResolveEffectiveModel` 统一槽位解析（槽位优先 → .env 回退 → 写回）
+
+### --help 全面格式化
+- **线框横幅**：┌─┐│ 框住应用名 + 公司名 + 版本号（居中/右对齐）
+- **分类分组**：`---< 模型 >` 分隔线 + 标题上方空行
+- **三列对齐**：短名 / 长名 / 说明列（CJK 宽度感知）
+- **别名与子命令纵向列出**（暗灰），`-r, --resume` / `-c, --continue` 成组
+- **可选值 `[x]` / 必填值 `<x>`**，示例注释纵向对齐
+- **清除 "Claude Code" 品牌字样**
+
+### 其他
+- 设置界面不再显示环境变量名（config.json 权威后大部分 WAYCODER_* 作废）
+- 导入配置写入 config.json + .env 5 项
+- Global 区分公司名 / 作者
+
+### ✅ 验证
+- Release 编译 0 错误；config 模块自测 86 通过（0 失败）；system 模块 537 通过（5 项 [项目检测] 环境性失败，与基线一致非回归）
+
 ## v0.79.95 (2026-08-21) — 导入 key 过滤 $变量伪 key
 
 - `ImportFromKnownSources` 从配置文件（Claude Code / Codex / Cursor / OpenCode）导入 key 时，跳过 `$VAR` / `${VAR}` 形式的环境变量引用伪 key（非真实字面 key）

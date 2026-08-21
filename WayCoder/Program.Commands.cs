@@ -524,24 +524,53 @@ deepseek 性价比最高。"
 
     private static void ShowUsage()
     {
-        MarkupLine("«bold yellow»WayCoder (道码)«/» — 中文版易用编程智能体");
+        // ── 顶部横幅：线框边框（┌─┐│），标题/公司名居中，版本右对齐 ──
+        const int bannerW = 44;
+        string Mid(string s)
+        {
+            var sw = WayCoder.UI.Shared.Terminal.AnsiString.DisplayWidth(s);
+            var pad = Math.Max(0, bannerW - 2 - sw);
+            var left = pad / 2;
+            return "│" + new string(' ', left) + s + new string(' ', pad - left) + "│";
+        }
+        Console.WriteLine("┌" + new string('─', bannerW - 2) + "┐");
+        // 标题用 ASCII 连字符「-」替代「—」（U+2014）：后者 CharWidth 按 2 列算但部分终端显示 1 列，
+        // 导致居中后右框线差 1 列不对齐
+        Console.WriteLine(Mid("WayCoder (道码) - 中文编程智能体"));
+        Console.WriteLine(Mid(Global.Company));
+        Console.WriteLine("└" + new string('─', bannerW - 2) + "┘");
+        var verLine = $"版本: {Global.Version}";
+        Console.WriteLine(new string(' ', Math.Max(0, bannerW - WayCoder.UI.Shared.Terminal.AnsiString.DisplayWidth(verLine))) + verLine);
         Console.WriteLine();
         MarkupLine("«bold»使用方法:«/» «cyan»waycoder [选项]«/»");
         Console.WriteLine();
         MarkupLine("  «bold»选项:«/»");
-        // 从参数注册表自动生成（排除内部/开发参数）
+        // 从参数注册表自动生成（排除内部/开发参数，按分类分组显示；分类标题含标记需 MarkupLine 渲染）
+        // 空行也输出：分类标题上方的分隔空行需保留
         foreach (var line in Arguments.CliArgRegistry.HelpText(2, 36).Split('\n'))
         {
-            if (!string.IsNullOrWhiteSpace(line))
-                Console.WriteLine(line);
+            MarkupLine(line);
         }
         Console.WriteLine();
         MarkupLine("  «bold»示例:«/»");
-        MarkupLine("  «dim»$«/» waycoder                                     «dim»# 交互式 REPL«/»");
-        MarkupLine("  «dim»$«/» waycoder «cyan»-p«/» «green»\"列出当前目录\"«/»               «dim»# 一次性模式«/»");
-        MarkupLine("  «dim»$«/» waycoder «cyan»-m«/» deepseek-v4-pro             «dim»# 指定模型«/»");
-        MarkupLine("  «dim»$«/» waycoder «cyan»-t«/»                              «dim»# 运行自测«/»");
-        MarkupLine("  «dim»$«/» echo «green»\"列出目录\"«/» «dim»|«/» waycoder                   «dim»# 管道模式«/»");
+        // 示例命令 + 注释纵向对齐（注释列固定，CJK 感知）
+        const int exNoteCol = 36;
+        void Ex(string plain, string markup, string note)
+        {
+            var line = "  «dim»$«/» " + markup;
+            var w = WayCoder.UI.Shared.Terminal.AnsiString.DisplayWidth("  $ " + plain);
+            if (w < exNoteCol) line += new string(' ', exNoteCol - w);
+            line += $"«dim»# {note}«/»";
+            MarkupLine(line);
+        }
+        Ex("waycoder", "waycoder", "交互式 REPL");
+        Ex("waycoder --web", "waycoder «cyan»--web«/»", "浏览器网页模式");
+        Ex("waycoder -p \"列出当前目录\"", "waycoder «cyan»-p«/» «green»\"列出当前目录\"«/»", "一次性模式");
+        Ex("waycoder -m deepseek-v4-pro", "waycoder «cyan»-m«/» deepseek-v4-pro", "指定模型");
+        Ex("waycoder -t", "waycoder «cyan»-t«/»", "运行自测");
+        Ex("echo \"列出目录\" | waycoder", "echo «green»\"列出目录\"«/» «dim»|«/» waycoder", "管道模式");
+        Console.WriteLine();
+        MarkupLine("  «bold green»💡 强烈推荐使用 Web 模式：waycoder --web«/»");
     }
 
     /// <summary>Ctrl+M 打开模型选择对话框</summary>

@@ -421,39 +421,21 @@ public static class ImportHelper
             sb.AppendLine($"     → 设置: export WAYCODER_MODEL={sonnetModel}");
             sb.AppendLine($"     → 设置: export WAYCODER_SMALL_MODEL={haikuModel}");
 
-            // 尝试写入 .env 文件
-            var envPath = FindOrCreateEnvFile();
-            if (envPath != null)
+            // 写入配置：config.json 全量 + .env 精简为 5 项基本引导配置（服务商/地址/API_KEY/经济模式/鼠标）
+            try
             {
-                try
-                {
-                    var lines = new List<string>();
-                    if (File.Exists(envPath))
-                        lines.AddRange(File.ReadAllLines(envPath));
-
-                    void SetOrAdd(string key, string value)
-                    {
-                        var prefix = $"{key}=";
-                        var idx = lines.FindIndex(l => l.TrimStart().StartsWith(prefix));
-                        if (idx >= 0)
-                            lines[idx] = $"{prefix}{value}";
-                        else
-                            lines.Add($"{prefix}{value}");
-                    }
-
-                    if (!string.IsNullOrEmpty(apiKey)) SetOrAdd("WAYCODER_API_KEY", apiKey);
-                    if (!string.IsNullOrEmpty(baseUrl)) SetOrAdd("WAYCODER_BASE_URL", baseUrl);
-                    SetOrAdd("WAYCODER_MODEL", sonnetModel);
-                    SetOrAdd("WAYCODER_SMALL_MODEL", haikuModel);
-                    SetOrAdd("WAYCODER_PROVIDER", "openai");
-
-                    File.WriteAllLines(envPath, lines);
-                    sb.AppendLine($"  📝 已写入: {envPath}");
-                }
-                catch (Exception ex)
-                {
-                    sb.AppendLine($"  ⚠ 写入 .env 失败: {ex.Message}");
-                }
+                var cfg = Config.Instance;
+                if (!string.IsNullOrEmpty(apiKey)) cfg.ApiKey = apiKey;
+                if (!string.IsNullOrEmpty(baseUrl)) cfg.BaseUrl = baseUrl;
+                cfg.Model = sonnetModel;
+                cfg.SmallModel = haikuModel;
+                cfg.Provider = "openai";
+                cfg.SaveToEnvFile();
+                sb.AppendLine("  📝 已写入: ~/.waycoder/config.json（全量）+ .env（5 项基本配置）");
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"  ⚠ 写入配置失败: {ex.Message}");
             }
 
             return sb.ToString().Trim();
@@ -1012,24 +994,6 @@ public static class ImportHelper
         }
 
         return result.ToString();
-    }
-
-    /// <summary>查找或创建 .env 文件</summary>
-    private static string? FindOrCreateEnvFile()
-    {
-        // 优先在项目根目录
-        var cwd = Environment.CurrentDirectory;
-        var envPath = Path.Combine(cwd, ".env");
-
-        // 如果项目已有 .waycoder，在项目根目录 .env 写
-        if (!File.Exists(envPath))
-        {
-            // 检查 WayCoder 项目自身目录
-            var waycoderEnv = Path.Combine(cwd, "WayCoder", ".env");
-            if (File.Exists(waycoderEnv)) return waycoderEnv;
-        }
-
-        return envPath;
     }
 
     internal static string FormatSize(long bytes)
