@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.81.12 (2026-08-22) — Extreme 省钱模式保留白名单工具（可干活）
+
+- **修复 Extreme 禁用所有工具**：`FilterTools` 此前 `EconomyMode.Extreme` 时 `return []`
+  （极致省钱 = 纯聊天，写不了代码）。改为 Extreme 只最小化提示词（GenerateExtreme），
+  工具保留白名单/黑名单过滤（`WAYCODER_ALLOWED_TOOLS` 等）——极致省钱仍可干活
+- 仅权限 TINY（纯聊天）禁用所有工具
+- 配置优先级确认：config.json 为权威源，环境变量不覆盖（测试 extreme 走 CLI `--economy` 或改 config）
+- 验证：`--economy extreme` + 白名单(bash/read_file) 成功写文件（token 68K 小任务）
+
+### ✅ 验证
+- 自测 4106 通过（0 失败）；GUI Release 构建通过
+
 ## v0.81.11 (2026-08-22) — 排队状态显示在动态栏 + 省钱模式验证命令
 
 - **排队状态显示在动态栏**：Agent 忙碌且有待处理指令时，动态栏显示 `⏳排队N`

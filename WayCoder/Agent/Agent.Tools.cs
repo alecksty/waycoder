@@ -313,9 +313,9 @@ public partial class Agent
     private static List<ITool> FilterTools(Agent agent, List<ITool> tools)
     {
         var config = Config.Instance;
-        // 极简：economy Extreme 或 权限 TINY（仅聊天）→ 所有工具禁用
-        if (config.EconomyMode == EconomyMode.Extreme
-            || PermissionManager.CurrentMode == PermissionManager.Mode.TINY)
+        // 极简：仅权限 TINY（纯聊天）禁用所有工具；economy Extreme 只最小化提示词，
+        // 工具保留白名单/黑名单过滤（极致省钱仍可干活，否则 extreme 写不了代码）
+        if (PermissionManager.CurrentMode == PermissionManager.Mode.TINY)
             return [];
 
         // 按工作模式选择工具集：Plan → 计划工具集（危险工具不放行），Build/Review/Auto → 建造工具集；
