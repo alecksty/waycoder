@@ -678,7 +678,8 @@ public partial class ChatScreen : TuiScreen
         {
             Width = TW, Height = 1,
             Bg = TuiTheme.Current.StatusBarBg, Fg = TuiTheme.Current.StatusBarFg,
-            HintText = "Enter 发送 · Shift+Tab 切模式 · ↑↓ 历史 · Tab 补全 · F1-F10 槽位 · Ctrl+H 帮助"
+            // 切换快捷键优先（状态栏右侧 busy/token 会挤占尾部，重要提示放前面；完整清单见 Ctrl+H 帮助面板）
+            HintText = "Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+X 换模型 · Enter 发送 · Ctrl+H 帮助"
         };
         RootView.Add(StatusBar);
 
