@@ -200,8 +200,8 @@ public static class AgentSlotConfig
 
         // .env 可用 → 写回槽位配置持久化（含 provider / base-url，保证模型与端点匹配）
         var info = ModelCatalog.Find(envModel);
-        var envBaseUrl = info?.DefaultBaseUrl
-            ?? (ModelCatalog.Providers.TryGetValue(envProvider, out var p) ? p.DefaultBaseUrl : null)
+        var envBaseUrl = (ModelCatalog.Providers.TryGetValue(envProvider, out var p) ? p.DefaultBaseUrl : null)
+            ?? info?.DefaultBaseUrl
             ?? cfg.BaseUrl;
         slot.LargeModel = envModel;
         slot.ApiKeyProviderId = envProvider;
