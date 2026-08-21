@@ -65,9 +65,42 @@ public static class DiffPreview
     /// oldContent = 原始文件内容, newContent = 修改后内容, filePath = 文件名。
     /// 返回：(决策, 被接受的 hunk 索引集合)
     /// </summary>
+    /// <summary>
+    /// 把 old/new 渲染成带中间格式标记（«red»/«green»）的 diff 文本，供聊天区展示源码对比。
+    /// 三端渲染器统一解析：TUI→ANSI、Web→HTML、GUI→富文本。工具返回值里拼入此文本，
+    /// 工具输出气泡即显示差异（YOLO 自动放行时不弹确认窗但保留可视化）。
+    /// </summary>
+    public static string RenderAsMarkup(string oldContent, string newContent, string filePath)
+    {
+        var hunks = BuildHunks(oldContent, newContent);
+        if (hunks.Count == 0) return "";
+        var sb = new StringBuilder();
+        sb.Append("«bold»📄 变更预览：").Append(filePath).Append("«/»\n");
+        foreach (var h in hunks)
+        {
+            if (!string.IsNullOrEmpty(h.Header))
+                sb.Append("«dim»").Append(h.Header).Append("«/»\n");
+            foreach (var l in h.Lines)
+            {
+                switch (l.Kind)
+                {
+                    case '+': sb.Append("«green»+").Append(l.Text).Append("«/»\n"); break;
+                    case '-': sb.Append("«red»-").Append(l.Text).Append("«/»\n"); break;
+                    default:  sb.Append("  ").Append(l.Text).Append('\n'); break;
+                }
+            }
+        }
+        return sb.ToString().TrimEnd('\n');
+    }
+
     public static (Decision Decision, HashSet<int>? AcceptedHunks) Show(
         string oldContent, string newContent, string filePath)
     {
+        // YOLO（畅通）：无任何确认阻止，直接接受全部变更 —— Web/TUI/GUI 三端统一
+        // （AskUserQuestionTool 已做 YOLO 自动回答，diff 预览是 write/edit 的独立确认，此处补齐）
+        if (PermissionManager.CurrentMode == PermissionManager.Mode.Yolo)
+            return (Decision.AcceptAll, null);
+
         var hunks = BuildHunks(oldContent, newContent);
 
         // 无实际变更 → 直接放行
