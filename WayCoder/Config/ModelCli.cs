@@ -52,12 +52,17 @@ public static class ModelCli
             sb.AppendLine($"【{g.Key}】");
             foreach (var m in g.OrderBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
             {
-                var price = m.InputPrice > 0 ? $"${m.InputPrice}/${m.OutputPrice}" : "?";
+                // 忙闲两种价格（有闲时价则显示「忙$in/out 闲$in/out」）
+                var price = m.InputPrice > 0
+                    ? (m.InputPriceOffpeak > 0
+                        ? $"忙${m.InputPrice}/{m.OutputPrice} 闲${m.InputPriceOffpeak}/{m.OutputPriceOffpeak}"
+                        : $"${m.InputPrice}/{m.OutputPrice}")
+                    : "?";
                 var ctx = m.ContextWindow > 0
                     ? m.ContextWindow >= 1_000_000 ? $"{m.ContextWindow / 1_000_000}M" : $"{m.ContextWindow / 1000}K"
                     : "?";
                 var mark = m.Id == current ? "  ← 当前" : "";
-                sb.AppendLine($"  {m.Id,-28} {ctx,-5}ctx  {price,-13}/MTok  [{m.Category}]{mark}");
+                sb.AppendLine($"  {m.Id,-28} {ctx,-5}ctx  {price,-30}  [{m.Category}]{mark}");
             }
         }
 

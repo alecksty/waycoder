@@ -33,6 +33,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 .Set("context", m.ContextWindow)
                 .Set("inputPrice", m.InputPrice)
                 .Set("outputPrice", m.OutputPrice)
+                .Set("inputPriceOffpeak", m.InputPriceOffpeak)
+                .Set("outputPriceOffpeak", m.OutputPriceOffpeak)
                 .Set("baseUrl", m.DefaultBaseUrl ?? "")
                 .Set("hasKey", ApiKeyStore.HasKeyFor(m.ProviderId, m.Id)));
         }
