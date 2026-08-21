@@ -51,7 +51,7 @@ public partial class Agent
 
     private readonly int _maxRounds;
     private readonly double? _maxBudgetUsd;
-    private readonly string _systemPrompt;
+    private string _systemPrompt;
 
     private bool _autoCommit;
 
@@ -139,7 +139,7 @@ public partial class Agent
         Tools = tools ?? ToolRegistry.AllTools;
 
         // 工具白名单/黑名单过滤
-        Tools = FilterTools(Tools);
+        Tools = FilterTools(this, Tools);
 
         // 每个 Agent 持有独立的 AgentTool 实例：共享单例会让 ParentAgent 被后构造的
         // 子智能体覆写（AgentId 继承失效、花费归并到错误实例、跨槽位重绑竞态）。
@@ -165,6 +165,20 @@ public partial class Agent
             if (t is AgentTool agentTool)
                 agentTool.ParentAgent = this;
         }
+    }
+
+    /// <summary>
+    /// 按当前工作模式/权限模式重新过滤工具（切换 Plan/Build/YOLO/极简 后调用）。
+    /// 同时重建 ToolByName 与系统提示词（工具集变化影响可用能力与提示）。
+    /// </summary>
+    public void ReapplyToolFilter()
+    {
+        var filtered = FilterTools(this, Tools.ToList());
+        Tools.Clear();
+        Tools.AddRange(filtered);
+        ToolByName.Clear();
+        foreach (var t in filtered) ToolByName[t.Name] = t;
+        _systemPrompt = SystemPrompt.Generate(Tools) + "\n\n" + Config.Instance.ExtraSystemPrompt?.Trim();
     }
 
     /// <summary>

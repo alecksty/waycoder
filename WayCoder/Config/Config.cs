@@ -169,6 +169,9 @@ public class Config
     public int ToolTimeoutSec { get; set; } = 120;
     public string AllowedTools { get; set; } = "";     // 逗号分隔白名单，空=全部允许
     public string DisabledTools { get; set; } = "";    // 逗号分隔黑名单
+    public string PlanToolAllowList { get; set; } = "";   // 计划模式工具白名单（空=全部，危险工具默认不放行）
+    public string BuildToolAllowList { get; set; } = "";  // 建造模式工具白名单（空=全部）
+    public string YoloToolAllowList { get; set; } = "";   // YOLO 模式工具白名单（空=全部）
     /// <summary>追加到系统提示词的自定义文本（--system-prompt / --append-system-prompt）</summary>
     public string ExtraSystemPrompt { get; set; } = "";
     public int LintTimeoutSec { get; set; } = 60;
@@ -383,6 +386,21 @@ public class Config
               "工具黑名单", "🔒 安全", "逗号分隔的工具名列表，禁止这些工具（空=不禁用）",
               "text", null, 5,
               c => c.DisabledTools, (c, v) => c.DisabledTools = v, ""),
+
+            P("PlanToolAllowList", "WAYCODER_PLAN_TOOLS", null,
+              "计划模式工具集", "🔒 安全", "计划(Plan)模式允许的工具（空=全部；危险工具不放行）",
+              "text", null, 6,
+              c => c.PlanToolAllowList, (c, v) => c.PlanToolAllowList = v, ""),
+
+            P("BuildToolAllowList", "WAYCODER_BUILD_TOOLS", null,
+              "建造模式工具集", "🔒 安全", "建造(Build)模式允许的工具（空=全部）",
+              "text", null, 7,
+              c => c.BuildToolAllowList, (c, v) => c.BuildToolAllowList = v, ""),
+
+            P("YoloToolAllowList", "WAYCODER_YOLO_TOOLS", null,
+              "YOLO模式工具集", "🔒 安全", "YOLO 模式允许的工具（空=全部）",
+              "text", null, 8,
+              c => c.YoloToolAllowList, (c, v) => c.YoloToolAllowList = v, ""),
 
             P("LintTimeoutSec",   "WAYCODER_LINT_TIMEOUT",      null,
               "Lint 超时 (秒)", "⚙ 参数", "Lint 检查超时，默认 60 秒（大项目可调大）",

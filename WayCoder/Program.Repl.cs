@@ -388,6 +388,7 @@ public partial class Program
                 var newMode = WorkModeManager.CycleNext();
                 _slots[_activeSlot].WorkMode = newMode;
                 screen.StatusBar.CurrentWorkMode = newMode;
+                _slots[_activeSlot].Agent?.ReapplyToolFilter(); // 工具集随工作模式变化（Plan 限集 / Build 全集）
                 screen.AddSystemMsg($"工作模式: {WorkModeManager.Format(newMode)}（Shift+Tab / Ctrl+K 切换）");
                 mgr.Render();
                 continue;
