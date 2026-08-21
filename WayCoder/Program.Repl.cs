@@ -291,20 +291,29 @@ public partial class Program
             screen.PumpUIQueue(); // 消费后台投递的 UI 操作（Agent 流式 / 权限回调等）
             mgr.Render();
 
-            // 处理 ChatScreen 提交的消息（Enter 键 → async LLM 调用）
-            while (screen.PendingSubmissions.TryDequeue(out var submission))
+            // 处理 ChatScreen 提交的消息（Enter 键 → async LLM 调用）。
+            // 输入排队机制：Agent 忙碌时不打断 —— 普通对话留在队列（TryPeek 不取走），
+            // 等当前槽位 Agent 批次完成后由本循环继续取指令；斜杠命令即时处理不受限。
+            bool slotBusy = _slots[_activeSlot].IsBusy;
+            while (screen.PendingSubmissions.TryPeek(out var peek))
             {
                 // "\x1b" 特殊标记：退出请求
-                if (submission == "\x1b")
+                if (peek == "\x1b")
                 {
+                    screen.PendingSubmissions.TryDequeue(out _);
                     AutoSaveSession();
                     _watchMode?.Dispose();
                     mgr.Exit();
                     Environment.Exit(0);
                 }
-
+                // 队头是普通对话且 Agent 忙 → 不取走（排队等待），本轮到此为止
+                if (slotBusy && !peek.StartsWith('/'))
+                    break;
+                if (!screen.PendingSubmissions.TryDequeue(out var submission))
+                    break;
                 mgr.Render();
                 await ProcessUserInput(submission, screen);
+                slotBusy = _slots[_activeSlot].IsBusy; // 处理普通对话会启动任务 → 下一轮跳过后续队列
             }
 
             // 检查 Watch 模式待处理提示
@@ -1120,7 +1129,9 @@ public partial class Program
         var slot = _slots[slotIdx];
         if (slot.IsBusy)
         {
-            screen.AddSystemMsg("⚠ 当前槽位的 Agent 仍在运行，请等待完成或按 Esc 中断后再提交新任务");
+            // 排队：不打断当前任务 —— 指令入队，等 Agent 当前批次完成后由主循环取指令自动执行
+            screen.PendingSubmissions.Enqueue(userInput);
+            screen.AddSystemMsg("⏳ Agent 忙碌中 — 指令已排队，当前批次完成后自动执行");
             return;
         }
 
