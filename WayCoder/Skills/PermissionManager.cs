@@ -202,6 +202,20 @@ public static class PermissionManager
         AutoModeClassifier.Reset();
     }
 
+    /// <summary>循环切换到下一个权限模式（问答→自动→智能→畅通→极简→问答）。返回新模式。</summary>
+    public static Mode CycleMode()
+    {
+        CurrentMode = CurrentMode switch
+        {
+            Mode.Ask => Mode.Auto,
+            Mode.Auto => Mode.SmartAuto,
+            Mode.SmartAuto => Mode.Yolo,
+            Mode.Yolo => Mode.TINY,
+            _ => Mode.Ask,
+        };
+        return CurrentMode;
+    }
+
     /// <summary>
     /// 设置模式。
     /// </summary>

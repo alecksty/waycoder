@@ -435,6 +435,63 @@ public partial class Program
                 }
             }
 
+            // 窗口键：Ctrl+P 循环切换权限模式（问答→自动→智能→畅通→极简）
+            if (key.Key == ConsoleKey.P && ctrl)
+            {
+                PermissionManager.CycleMode();
+                screen.AddSystemMsg($"权限模式: {PermissionManager.FormatMode()}（Ctrl+P 循环切换）");
+                mgr.Render();
+                continue;
+            }
+
+            // 窗口键：Ctrl+E 循环切换经济模式（关闭→自动→开启→极致）
+            if (key.Key == ConsoleKey.E && ctrl)
+            {
+                var eco = _config.CycleEconomy();
+                var name = eco switch
+                {
+                    EconomyMode.On => "省钱",
+                    EconomyMode.Auto => "自动",
+                    EconomyMode.Extreme => "极致",
+                    _ => "关闭",
+                };
+                screen.AddSystemMsg($"经济模式: {name}（Ctrl+E 循环切换）");
+                mgr.Render();
+                continue;
+            }
+
+            // 窗口键：Ctrl+X 交换当前槽位的大小模型
+            if (key.Key == ConsoleKey.X && ctrl)
+            {
+                var slotCfg = AgentSlotConfig.Get(_activeSlot);
+                if (!slotCfg.UseGlobal)
+                {
+                    AgentSlotConfig.Set(_activeSlot, new AgentSlotConfig.SlotConfig
+                    {
+                        UseGlobal = false,
+                        LargeModel = slotCfg.SmallModel,
+                        SmallModel = slotCfg.LargeModel,
+                        BaseUrl = slotCfg.BaseUrl,
+                        ApiKeyProviderId = slotCfg.ApiKeyProviderId,
+                        ApiKey = slotCfg.ApiKey,
+                    });
+                    // 强制槽位下次使用重建 LLM（模型变了）
+                    var slotSwap = _slots[_activeSlot];
+                    if (slotSwap != null) { slotSwap.LastLargeModel = null; slotSwap.LastSmallModel = null; }
+                }
+                else
+                {
+                    (_config.Model, _config.SmallModel) = (_config.SmallModel, _config.Model);
+                    _config.SaveToEnvFile();
+                    if (_llm != null) { _llm.Model = _config.Model; _llm.SmallModel = _config.SmallModel; }
+                }
+                var lg = AgentSlotConfig.ResolveLargeModel(AgentSlotConfig.Get(_activeSlot), _activeSlot);
+                var sm = AgentSlotConfig.ResolveSmallModel(AgentSlotConfig.Get(_activeSlot), _activeSlot);
+                screen.AddSystemMsg($"🔄 大小模型交换 → 大:{lg} · 小:{sm}");
+                mgr.Render();
+                continue;
+            }
+
             // 其余全部下发到活跃 Screen → Window → 控件冒泡
             mgr.OnKey(key);
             mgr.Render();

@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.81.5 (2026-08-21) — 模型栏彩色显示 + 状态切换快捷键 + TuiSmartLabel
+
+- **模型信息行（状态栏上方）彩色加亮**：新增 `TuiSmartLabel` 控件（支持 `«tag»…«/»` 分段着色，
+  颜色真源 MarkdownParser），模型栏改用它——标签暗、值亮/彩（权限/工作模式/经济模式按模式着色、
+  大/小模型名加粗白色），不再整行灰暗看不清；下方插入空行与状态栏分隔
+- **修复模型栏切换后不刷新**：`SetModelInfoRow` 文本更新时未 `MarkDirty`，增量渲染不重绘该行，
+  切换模型后状态栏上方一直显示旧模型（标签只改 Text 不标脏）
+- **状态切换快捷键（TUI）**：Ctrl+P 循环权限模式（问答→自动→智能→畅通→极简）、
+  Ctrl+E 循环经济模式（关闭→自动→开启→极致）、Ctrl+X 交换当前槽位大/小模型；
+  工作模式切换沿用 Shift+Tab / Ctrl+K
+- **TuiMarkup 新增 SmartLabel 标签**：chat.tui 的 modelInfoRow 改用 `<SmartLabel>`
+- 自测：ParseMarkupOnly 分段着色断言、chat.tui modelInfoRow 断言适配
+
+### ✅ 验证
+- 自测 4102 通过（0 失败）；GUI Release 构建通过
+
 ## v0.81.4 (2026-08-21) — 多选框列表溢出修复 + 在线导入不因 key 阻塞
 
 - **多选框列表溢出下边框修复**：`TuiDialog.Select`/`MultiSelect` 把列表高度改成可见项数（≤12）后，**窗口高度未重算**——选项多（如在线导入 8 源）时列表底部跑出下边框。修复：

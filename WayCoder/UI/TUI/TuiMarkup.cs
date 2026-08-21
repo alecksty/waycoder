@@ -392,6 +392,7 @@ public static class TuiMarkup
             "Grid" => new TuiGrid(),
             "WrapPanel" => new TuiWrapPanel(),
             "Label" => new TuiLabel(Attr(node, "text")),
+            "SmartLabel" => new TuiSmartLabel(Attr(node, "text")),
             "Button" => new TuiButton(Attr(node, "text")),
             "Input" => new TuiInput(),
             "TextArea" => new TuiTextArea(),
@@ -432,10 +433,20 @@ public static class TuiMarkup
         switch (node.Name)
         {
             case "Label":
-                var lbl = (TuiLabel)c;
-                lbl.Text = Attr(node, "text");
-                if (Int(node, "width") == null)
-                    lbl.Width = AnsiHelper.DisplayWidth(lbl.Text) + 2;
+            case "SmartLabel":
+                if (c is TuiLabel lbl)
+                {
+                    lbl.Text = Attr(node, "text");
+                    if (Int(node, "width") == null)
+                        lbl.Width = AnsiHelper.DisplayWidth(lbl.Text) + 2;
+                }
+                else if (c is TuiSmartLabel sl)
+                {
+                    sl.Text = Attr(node, "text");
+                    // 含 «tag» 标记：宽度按去标记后的纯文本算
+                    if (Int(node, "width") == null)
+                        sl.Width = AnsiHelper.DisplayWidth(AnsiHelper.StripMarkup(sl.Text)) + 2;
+                }
                 break;
             case "Button":
                 var btn = (TuiButton)c;
