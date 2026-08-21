@@ -779,7 +779,24 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 source = sourcesNode.Kind == JKind.Array
                     ? string.Join(",", sourcesNode.Items.Select(x => x?.AsString() ?? "").Where(s => !string.IsNullOrWhiteSpace(s)))
                     : sourcesNode.AsString();
-            var modelReport = ModelCli.Import(source);
+            // 本地服务（Ollama/LM Studio）从本地接口实时拉取真实模型；其余从第三方库导入
+            var hasLocalService = source != null
+                && (source.Contains("ollama", StringComparison.OrdinalIgnoreCase)
+                    || source.Contains("lmstudio", StringComparison.OrdinalIgnoreCase));
+            var report = new StringBuilder();
+            if (hasLocalService)
+            {
+                var nonLocal = string.Join(",", (source ?? "").Split(',').Select(s => s.Trim()).Where(s =>
+                    s.Length > 0 && !s.Equals("ollama", StringComparison.OrdinalIgnoreCase) && !s.Equals("lmstudio", StringComparison.OrdinalIgnoreCase)));
+                if (!string.IsNullOrWhiteSpace(nonLocal))
+                    report.AppendLine(ModelCli.Import(nonLocal).Trim());
+                report.AppendLine(ModelCli.ImportLocalServices().Trim());
+            }
+            else
+            {
+                report.AppendLine(ModelCli.Import(source).Trim());
+            }
+            var modelReport = report.ToString().Trim();
             ModelCatalog.Invalidate();
             ApiKeyStore.ClearCache();
             // key 仅由 api_keys.json + 环境变量决定；导入来源文件的 key 不自动同步（避免导入模型后冒出无关 key）
