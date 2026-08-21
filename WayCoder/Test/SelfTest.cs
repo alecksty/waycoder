@@ -180,8 +180,26 @@ public static partial class SelfTest
         var failed = 0;
         var _secEnabled = true;
 
+        // ── 计时：统计每条 Check / 每个 Section 的耗时，末尾输出最慢项，便于定位慢测试去优化 ──
+        // Check 收到的是调用方已算好的 bool，无法在 Check 内部包住被测逻辑；
+        // 故用「上一次计时点（Section 起始 或 上一条 Check）到本条 Check」的间隔近似本条测试耗时
+        // （含其前置 setup，仍能准确定位慢点）。Section 耗时独立按段累计，不受 Check 门控影响。
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var sectionAccum = new Dictionary<string, double>();  // Section 名 → 累计耗时 ms
+        var itemTimes = new List<(string Name, double Ms)>(); // 单条测试耗时 ms
+        string currentSection = "";
+        double sectionStartMs = 0;
+        double lastPointMs = 0;
+
         void Section(string title)
         {
+            var now = sw.Elapsed.TotalMilliseconds;
+            if (!string.IsNullOrEmpty(currentSection))
+                sectionAccum[currentSection] = sectionAccum.GetValueOrDefault(currentSection) + (now - sectionStartMs);
+            currentSection = title;
+            sectionStartMs = now;
+            lastPointMs = now; // 新段起始：避免把跨段 / 被过滤段的耗时算进某条 Check
+
             Console.WriteLine(title);
             _secEnabled = filter == null || filter.Any(f => title.StartsWith(f));
         }
@@ -189,12 +207,23 @@ public static partial class SelfTest
         void Check(string name, bool condition)
         {
             if (!_secEnabled) return;
+            var now = sw.Elapsed.TotalMilliseconds;
+            var gap = now - lastPointMs;
+            lastPointMs = now;
+            if (gap >= 0.5) itemTimes.Add(($"{currentSection} ▸ {name}", gap));
+
             if (condition) { passed++; Console.WriteLine($"  ✅ {name}"); }
             else { failed++; Console.WriteLine($"  ❌ {name}"); }
         }
 
         void Fail(string name)
         {
+            if (!_secEnabled) return;
+            var now = sw.Elapsed.TotalMilliseconds;
+            var gap = now - lastPointMs;
+            lastPointMs = now;
+            if (gap >= 0.5) itemTimes.Add(($"{currentSection} ▸ {name}", gap));
+
             failed++;
             Console.WriteLine($"  ❌ {name}");
         }
@@ -229,7 +258,30 @@ public static partial class SelfTest
 
         // ---- 结果 ----
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
-        Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");
+
+        // 结算最后一个 Section 的耗时
+        var endMs = sw.Elapsed.TotalMilliseconds;
+        if (!string.IsNullOrEmpty(currentSection))
+            sectionAccum[currentSection] = sectionAccum.GetValueOrDefault(currentSection) + (endMs - sectionStartMs);
+        sw.Stop();
+
+        // ── 最慢项报告 ──
+        Console.WriteLine("\n── 最慢 Section（耗时降序，前 5）──");
+        var topSections = sectionAccum.OrderByDescending(kv => kv.Value).Take(5).ToList();
+        if (topSections.Count == 0) Console.WriteLine("  (无)");
+        foreach (var (name, ms) in topSections)
+            Console.WriteLine($"  {FmtMs(ms)}  {name}");
+
+        Console.WriteLine("\n── 最慢测试项（耗时降序，前 10，≥0.5ms）──");
+        var topItems = itemTimes.OrderByDescending(t => t.Ms).Take(10).ToList();
+        if (topItems.Count == 0) Console.WriteLine("  (全部 < 0.5ms)");
+        foreach (var (name, ms) in topItems)
+            Console.WriteLine($"  {FmtMs(ms)}  {name}");
+
         return failed == 0;
     }
+
+    /// <summary>耗时格式化：≥100ms 整毫秒，否则保留 1 位小数</summary>
+    private static string FmtMs(double ms) =>
+        ms >= 100 ? $"{ms,7:F0}ms" : $"{ms,7:F1}ms";
 }

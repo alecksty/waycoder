@@ -118,6 +118,7 @@ public static class SlashCommandRegistry
         Register(new Commands.ResetCommand());
         Register(new Commands.ModelCommand());
         Register(new Commands.ProviderCommand());
+        Register(new Commands.PermitCommand());
         Register(new Commands.TokensCommand());
         Register(new Commands.StatsCommand());
         Register(new Commands.CompactCommand());

@@ -63,10 +63,21 @@ public class WebSearchTool : ITool, ICancellableTool
     }
 
     /// <summary>
+    /// 测试注入：非空时跳过真实网络，直接请求该地址（{0}=URL 编码后的 query）。
+    /// 自测用本地 mock 服务器返回假 HTML，避免依赖外网可达性（国内 DDG 常不可达、Bing 慢，真实搜索会卡满 15s 超时）。
+    /// </summary>
+    internal static string? OverrideSearchUrl;
+
+    /// <summary>
     /// 依次尝试 DuckDuckGo 与 Bing，任一返回结果即停。
     /// </summary>
     private static async Task<List<SearchResult>> SearchWithFallback(string query, int num, CancellationToken cancellationToken)
     {
+        // 测试注入：单引擎直连本地 mock，快且确定
+        if (!string.IsNullOrEmpty(OverrideSearchUrl))
+            return await TrySearch(query, num, "Mock",
+                OverrideSearchUrl + "?q={0}", ParseBingResults, cancellationToken) ?? [];
+
         var ddg = await TrySearch(query, num, "DuckDuckGo",
             "https://html.duckduckgo.com/html/?q={0}", ParseDuckDuckGoResults, cancellationToken);
         if (ddg is { Count: > 0 }) return ddg;

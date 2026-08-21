@@ -19,7 +19,7 @@ public class PromptItem
         EPromptKind.Shell => "⚡",
         EPromptKind.Slash => "/",
         EPromptKind.History => "↺",
-        EPromptKind.Recent => "⏱",
+        EPromptKind.Recent => "⏱️",
         _ => "·",
     };
 }

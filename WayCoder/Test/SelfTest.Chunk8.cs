@@ -453,7 +453,7 @@ public static partial class SelfTest
         Check("PromptKind.Shell Icon", new PromptItem { Kind = EPromptKind.Shell }.Icon == "⚡");
         Check("PromptKind.Slash Icon", new PromptItem { Kind = EPromptKind.Slash }.Icon == "/");
         Check("PromptKind.History Icon", new PromptItem { Kind = EPromptKind.History }.Icon == "↺");
-        Check("PromptKind.Recent Icon", new PromptItem { Kind = EPromptKind.Recent }.Icon == "⏱");
+        Check("PromptKind.Recent Icon", new PromptItem { Kind = EPromptKind.Recent }.Icon == "⏱️");
 
         // 填充项目
         promptBar.Items.Add(new PromptItem { Kind = EPromptKind.File, Label = "a.cs" });

@@ -434,6 +434,9 @@ public partial class ChatScreen : TuiScreen
         // 在 InputArea 上挂 KeyHook：拦截 ↑↓/Enter/Esc/Tab，透传其他键
         InputArea.KeyHook = PromptKeyHook;
 
+        // 提示栏挤压/让出聊天区：标脏聊天列表，强制填充背景+重绘，清掉被覆盖的残留像素
+        ChatList.MarkDirty();
+
         MarkDirty();
     }
 
@@ -452,6 +455,8 @@ public partial class ChatScreen : TuiScreen
         PromptBar.SelectedIndex = -1;
         PromptBar.ViewIndex = 0;
         InputArea.KeyHook = null;
+        // 提示栏消失 → 聊天区高度还原：标脏聊天列表强制填充背景+重绘，清掉被提示栏盖住的残留（否则花屏）
+        ChatList.MarkDirty();
         MarkDirty();
     }
 
@@ -793,6 +798,7 @@ public partial class ChatScreen : TuiScreen
         if (key.Key == ConsoleKey.Enter && !ctrl && !shift)
         {
             SuggestActive = false;
+            HidePromptBar(); // 提交消息时提示栏必须消失（防止悬浮建议残留）
             var input = GetInputText();
             if (string.IsNullOrWhiteSpace(input)) return true;
             AddUserMsg(input);
@@ -936,9 +942,9 @@ public partial class ChatScreen : TuiScreen
                         cmd.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
                         cmd.Aliases.Any(a => a.Contains(q, StringComparison.OrdinalIgnoreCase)))
                     {
-                        // Usage 自带 "/" 前缀（如 "/perm [yolo|ask]"），而 Slash 图标也是 "/"，
-                        // 去掉标签前导 "/" 避免每行出现两个 "/"（"/ /perm ..."）。
-                        var label = (cmd.Usage ?? "/" + cmd.Name).TrimStart('/');
+                        // 只显示命令名，不显示子参数（Usage 里 [..]/<..> 太长太多导致列表参差不齐、
+                        // 详情列对不齐）。Slash 图标本身是 "/"，去掉 Name 前导 "/" 避免出现 "//"。
+                        var label = cmd.Name.TrimStart('/');
                         items.Add(new PromptItem
                         {
                             Kind = EPromptKind.Slash,

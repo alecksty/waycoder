@@ -115,7 +115,8 @@ public class SettingsScreen : TuiScreen
         _hintBar.Width = TW;
         _hintBar.Bg = TuiTheme.Current.StatusBarBg;
         _hintBar.Fg = TuiTheme.Current.StatusBarFg;
-        _hintBar.Text = " ↑↓ 选择  ←→ 切换面板  PgUp/PgDn 翻页  Enter 修改  Ctrl+S 保存  Esc 退出";
+        _hintBar.TextAlign = EHAlign.Center; // 状态栏提示文字居中
+        _hintBar.Text = "↑↓ 选择  ←→ 切换面板  PgUp/PgDn 翻页  Enter 修改  Ctrl+S 保存  Esc 退出";
         RootView.Width = TW;
         RootView.Height = TH;
         RootView.Layout();
@@ -173,6 +174,10 @@ public class SettingsScreen : TuiScreen
         _itemIdx = Math.Clamp(_itemIdx, 0, Math.Max(0, items.Count - 1));
 
         _detailPanel.Layout();
+        // 切换类别：滚动归零 + 标脏整区擦除（TuiScrollView 内容变更时填充背景清残留，
+        // 否则新类别条目少时，旧内容残留在底部）
+        _detailPanel.ScrollOffset = 0;
+        _detailPanel.MarkDirty();
         ApplyHighlight();
     }
 

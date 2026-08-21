@@ -492,6 +492,14 @@ public static partial class SelfTest
         Check("web_search 描述非空", searchTool.Description.Length > 0);
         Check("web_search 空查询返回错误",
             searchTool.ExecuteAsync(new Dictionary<string, object?>()).Result.Contains("错误"));
+        // 本地 mock 服务器替代真实网络（国内 DDG 常不可达 / Bing 慢，真实搜索会卡满 15s 超时拖慢自测；
+        // 离线 HTML 解析逻辑另有独立用例覆盖，这里只验「工具不崩溃 + 全流程走通」）。
+        var mockHtml = "<li class=\"b_algo\"><div class=\"b_title\"><h2><a href=\"https://example.com/docs\">Example 文档</a></h2></div><div class=\"b_caption\"><p>这是摘要内容</p></div></li>";
+        var searchMock = new WayCoder.UI.Web.HttpServer(0);
+        searchMock.OnRequest = _ => WayCoder.UI.Web.HttpResponse.Text(mockHtml);
+        searchMock.Start();
+        var savedSearchOverride = WebSearchTool.OverrideSearchUrl;
+        WebSearchTool.OverrideSearchUrl = $"http://127.0.0.1:{searchMock.ActualPort}/search";
         try
         {
             var searchResult = searchTool.ExecuteAsync(new Dictionary<string, object?> { ["query"] = "hello world", ["num"] = 2 }).Result;
@@ -500,6 +508,11 @@ public static partial class SelfTest
             Check("web_search 包含搜索词", searchResult.Contains("hello world") || searchResult.Contains("搜索"));
         }
         catch { Fail("web_search 搜索不崩溃"); }
+        finally
+        {
+            WebSearchTool.OverrideSearchUrl = savedSearchOverride;
+            searchMock.Stop();
+        }
 
         // 解析器离线测试（不发起网络，验证双引擎解析逻辑）
         var bingHtml = "<li class=\"b_algo\"><div class=\"b_title\"><h2><a href=\"https://example.com/docs\">Example 文档</a></h2></div><div class=\"b_caption\"><p>这是摘要内容</p></div></li>";
@@ -767,10 +780,23 @@ public static partial class SelfTest
         Check("LeftDblQuote U+201C width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x201C)) == 2);
         Check("RightDblQuote U+201D width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x201D)) == 2);
         Check("ReferenceMark U+203B width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x203B)) == 2);
-        // Emoji / 符号 (U+2600-U+27BF, U+1F000-U+1FAFF)
+        // Emoji / 符号（emoji 展示 2 列；对勾/叉等文字符号按 1 列，0x2713-0x2718 为宽区间例外）
         Check("Star U+2605 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2605)) == 2);
         Check("Heart U+2665 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2665)) == 2);
-        Check("CheckMark U+2713 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2713)) == 2);
+        Check("CheckMark U+2713 width=1", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2713)) == 1);
+        Check("HeavyCheck U+2714 width=1", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2714)) == 1);
+        Check("BallotX U+2717 width=1", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2717)) == 1);
+        // 常用符号统一标定：箭头/几何图形/项目符号/命令符 1 列
+        Check("ArrowRight U+2192 width=1", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2192)) == 1);
+        Check("GeomTriangle U+25B2 width=1", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x25B2)) == 1);
+        Check("Bullet U+2022 width=1", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2022)) == 1);
+        Check("Command U+2318 width=1", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2318)) == 1);
+        // 设置界面分类图标：⚙/🎙（Emoji_Presentation=No，加 VS16 后按 2 列 emoji）、⏱（emoji 默认 2 列）
+        Check("Gear U+2699 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2699)) == 2);
+        Check("Mic U+1F399 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x1F399)) == 2);
+        Check("Stopwatch U+23F1 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x23F1)) == 2);
+        Check("VS16 U+FE0F width=0", UI.Shared.AnsiHelper.RuneWidth(new Rune(0xFE0F)) == 0);
+        Check("Gear+VS16 宽度=2", UI.Shared.AnsiHelper.DisplayWidth("⚙️ 参数") == 7);
         Check("MahjongTile U+1F000 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x1F000)) == 2);
         Check("DominoTile U+1F030 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x1F030)) == 2);
         Check("PlayingCard U+1F0A0 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x1F0A0)) == 2);

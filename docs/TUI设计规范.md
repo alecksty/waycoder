@@ -139,6 +139,7 @@ RenderWait(screen, evt, timeoutMs, win); // 阻塞轮询渲染 + 按键，直到
 ## 5. 排版
 
 - **宽度真源**：`Terminal/AnsiString.cs` 是 CJK/emoji 显示宽度的唯一真源；`TuiHelper.DisplayWidth`（CJK=2、ASCII=1）与其对齐，禁止两套宽度算法。
+- **常用符号显式标定**：`CharWidth` 里统一登记常用符号宽度（`✓✗✔✘`、箭头、几何图形、圆点、`⌘` 按 1 列；`⏱` 等 emoji 按 2 列）——新增符号在此登记，别在调用处硬编码宽度（曾因 `✓` 被算成 2 列导致 diff 打钩错位）。`Emoji_Presentation=No` 的图标（`🎙⚙⏱`）需加 VS16（U+FE0F）强制 emoji 2 列展示，分类/图标才对齐。
 - **截断**：一律 `TuiHelper.TruncateByWidth(text, width)`——末尾追加全角省略号 `…` 并预留其宽度，禁止 `text.Substring(0, n)` 按字符数硬截（会截断半个中文字符）。
 - **对齐填充**：`TuiHelper.PadRightByWidth`/`PadLeftByWidth` 按显示宽度补齐，禁止 `new string(' ', n)` 按字符数补（CJK 下错位）。
 - **折行**：`TuiHelper.WrapText`（优先空格断行，CJK 按字符边界）。

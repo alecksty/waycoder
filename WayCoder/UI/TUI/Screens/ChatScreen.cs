@@ -472,7 +472,9 @@ public partial class ChatScreen : TuiScreen
     {
         InputArea.Width = TW;
         InputArea.Height = inputH;
-        PromptBar.Width = TW;
+        // 提示栏只做聊天列表一样宽：侧栏可见时收窄到 TW-panelW，不覆盖侧栏 →
+        // 收起提示栏只需重绘聊天区，不用刷新聊天区以外的区域（避免侧栏残留/额外重绘）。
+        PromptBar.Width = panelW > 0 ? TW - panelW : TW;
         InputTopBorder.Width = TW;
         InputBotBorder.Width = TW;
         ChatList.Width = panelW > 0 ? TW - panelW : TW;

@@ -255,12 +255,34 @@ public static class AnsiString
         if (cp == 0xAA4C) return 0;
         if (cp is >= 0xFE00 and <= 0xFE0F) return 0;
 
+        // ═══════════════════════════════════════════════════════════
+        // 常用符号统一标定（TUI 等宽终端主场景）—— 新增符号在此登记，
+        // 别在调用处硬编码宽度假设；TUI 一律经本函数（AnsiHelper.RuneWidth 委托到此）算宽。
+        // ═══════════════════════════════════════════════════════════
+
+        // 对勾/叉（Dingbats 文字符号，等宽字体按 1 列）：✓ ✔ ✕ ✖ ✗ ✘
+        // 曾因落进下方 0x2600-0x27BF 宽区间被算成 2 列 → diff 打钩行文字错位
+        if (cp is >= 0x2713 and <= 0x2718) return 1;
+
+        // 箭头（1 列）：← ↑ → ↓ ↔ ↺ ↻ ⇄
+        if (cp is >= 0x2190 and <= 0x21FF) return 1;
+
+        // 几何图形 / 项目符号（1 列）：■ □ ▲ △ ▼ ◆ ◇ ● ○ ◦ · •
+        if (cp is >= 0x25A0 and <= 0x25FF) return 1;
+        if (cp == 0x00B7 || cp == 0x2022 || cp == 0x25E6) return 1;
+
+        // 命令符 ⌘（文字符号，1 列，非 emoji）
+        if (cp == 0x2318) return 1;
+        // 计时图标 ⏱：Emoji_Presentation=Yes，等宽终端按 emoji 2 列渲染（设置界面「⏱ 超时」分类要对齐，
+        // 算 1 列会整行短一截）
+        if (cp == 0x23F1) return 2;
+
         // 全角 / 宽字符（East Asian Wide + Fullwidth + Emoji）
         if (cp is >= 0x1100 and <= 0x115F) return 2; // 韩文 Choseong
         if (cp is >= 0x2010 and <= 0x2027) return 2; // 通用标点（— … " " ' ' ※ 等 EA Ambiguous）
         if (cp is >= 0x2030 and <= 0x2043) return 2; // 补充标点（‰ ′ ″ ※ 等）
         if (cp is >= 0x2329 and <= 0x232A) return 2; // 〈 〉
-        if (cp is >= 0x2600 and <= 0x27BF) return 2; // 杂项符号 + 装饰符号（☀ ★ ❤ ➿ 等）
+        if (cp is >= 0x2600 and <= 0x27BF) return 2; // 杂项符号 + 装饰符号（☀ ⚡ ★ ❤ ➿ 等 emoji 展示 2 列）
         if (cp is >= 0x2E80 and <= 0xA4CF) return 2; // CJK 部首 ~ 彝文
         if (cp is >= 0xA960 and <= 0xA97C) return 2; // 韩文扩展
         if (cp is >= 0xAC00 and <= 0xD7A3) return 2; // 韩文音节

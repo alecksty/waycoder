@@ -45,9 +45,9 @@ public static class WorkReporter
             sb.AppendLine("|------|------|");
             if (stats.FilesCreated > 0) sb.AppendLine($"| 📝 创建文件 | {stats.FilesCreated} |");
             if (stats.FilesModified > 0) sb.AppendLine($"| ✏ 修改文件 | {stats.FilesModified} |");
-            if (stats.FilesDeleted > 0) sb.AppendLine($"| 🗑 删除文件 | {stats.FilesDeleted} |");
+            if (stats.FilesDeleted > 0) sb.AppendLine($"| 🗑️ 删除文件 | {stats.FilesDeleted} |");
             if (stats.FilesRead > 0) sb.AppendLine($"| 📖 读取文件 | {stats.FilesRead} |");
-            if (stats.BashRuns > 0) sb.AppendLine($"| ⚙ 执行命令 | {stats.BashRuns} |");
+            if (stats.BashRuns > 0) sb.AppendLine($"| ⚙️ 执行命令 | {stats.BashRuns} |");
             if (stats.Searches > 0) sb.AppendLine($"| 🔍 搜索操作 | {stats.Searches} |");
             if (stats.Errors > 0) sb.AppendLine($"| ❌ 错误 | {stats.Errors} |");
             sb.AppendLine();
