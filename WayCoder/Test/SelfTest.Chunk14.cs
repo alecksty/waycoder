@@ -66,6 +66,28 @@ public static partial class SelfTest
                     problems.Add($"{s.Key}({s.Type}): {ex.GetType().Name}: {ex.Message}");
                 }
             }
+
+            // ── 多选框高度适配：模拟在线导入 8 源，列表不溢出窗口下边框 ──
+            var multiItems = Enumerable.Range(1, 8).Select(i => $"在线源{i}").ToList();
+            var winM = TuiDialog.MultiSelect("在线导入 · 选择服务商", multiItems, _ => { }, preChecked: []);
+            var screenM = new ChatScreen();
+            mgr.PushScreen(screenM);
+            try
+            {
+                Console.SetOut(TextWriter.Null);
+                screenM.ShowWindow(winM);
+                mgr.Render();
+                Console.SetOut(origOut);
+                var listM = FindDescendant<TuiList>(winM.RootView);
+                Check("MultiSelect 8 项列表高度=8", listM != null && listM.Height == 8);
+                Check("MultiSelect 窗口高度容纳列表+按钮（不溢出下边框）", listM != null && winM.Height >= listM.Height + 5);
+                Check("MultiSelect 窗口不超屏", winM.Height <= rows && winM.Width <= cols);
+            }
+            finally
+            {
+                Console.SetOut(origOut);
+                mgr.PopScreen();
+            }
         }
         finally { try { mgr.Exit(); } catch { } }
 
@@ -89,5 +111,24 @@ public static partial class SelfTest
         var winD = DiffPreview.BuildDiffWindow(hunks, "test.txt", null, (_, _) => { });
         Check("Ask 下 DiffPreview 窗口构建正常", winD != null);
         Check("RenderAsMarkup 含红删绿增标记", DiffPreview.RenderAsMarkup("旧行\n", "新行\n", "t.cs").Contains("«green»+") && DiffPreview.RenderAsMarkup("旧行\n", "新行\n", "t.cs").Contains("«red»-"));
+
+        // ── 在线导入源定义：opencode go/zen 的 /models 端点公开（无 key 可拉取），KeyProvider 存在 ──
+        Check("OnlineSources 含 OpenCode Go/Zen", ModelCli.OnlineSources.Any(s => s.Name == "OpenCode Go") && ModelCli.OnlineSources.Any(s => s.Name == "OpenCode Zen"));
+        Check("opencode-go 无 key 时 Get 返回空（导入不因 key 阻塞）", string.IsNullOrEmpty(ApiKeyStore.Get("opencode-go")));
+    }
+
+    private static T? FindDescendant<T>(TuiControl? control) where T : class
+    {
+        if (control == null) return null;
+        if (control is T t) return t;
+        if (control is TuiView view)
+        {
+            foreach (var c in view.Children)
+            {
+                var found = FindDescendant<T>(c);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 }
