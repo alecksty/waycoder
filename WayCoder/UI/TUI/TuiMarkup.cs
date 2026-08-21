@@ -743,8 +743,17 @@ public static class TuiMarkup
         if (Bool(node, "dim") is bool dm) c.Dim = dm;
         if (Bool(node, "floating") is bool fl) c.Floating = fl;
 
-        if (c is TuiLabel lbl && Enum.TryParse<EHAlign>(Attr(node, "align"), true, out var la))
-            lbl.TextAlign = la;
+        // 仅 Label/SmartLabel 处理 align（其他控件不碰）；Attr 对无 align 节点可能返回 null，
+        // 必须判空再 TryParse —— 无条件 TryParse 会在缺失属性时抛 ArgumentNullException 使加载中断
+        if (c is TuiLabel or TuiSmartLabel)
+        {
+            var alignStr = Attr(node, "align");
+            if (!string.IsNullOrEmpty(alignStr) && Enum.TryParse<EHAlign>(alignStr, true, out var la))
+            {
+                if (c is TuiLabel lbl) lbl.TextAlign = la;
+                else if (c is TuiSmartLabel sl) sl.TextAlign = la; // SmartLabel 同样支持 align（模式栏/快捷键行居中）
+            }
+        }
     }
 
     // ── 属性解析辅助 ──
