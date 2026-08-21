@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.81.10 (2026-08-22) — 输入排队机制（三端）：Agent 忙碌时不打断，排队等批次完成后自动取指令
+
+- **TUI**：主循环处理提交队列改用 `TryPeek`——Agent 忙时普通对话留在队列不取走
+  （斜杠命令即时处理），等当前槽位批次完成后继续取；`StartSlotTask` 忙时不再拒绝，
+  改为入队 + 提示「⏳ 指令已排队，当前批次完成后自动执行」
+- **Web**：`WebSlot.PendingInputs` 待处理队列——忙时输入入队，Agent 批次完成
+  （finally 置 IsBusy=false）后 `TryStartNextPending` 自动取下一个执行
+- **GUI**：每槽位 `_pendingInputs` 队列——`SendAsync` 忙时入队 + 提示，
+  批次完成 finally 后 `TrySendNextPending` 取下一个自动执行
+- 此前行为：Agent 忙时提交被拒绝（TUI/Web 提示等待、GUI 直接丢弃输入）
+
+### ✅ 验证
+- 自测 4106 通过（0 失败）；主项目 Debug + GUI Release 构建通过
+
 ## v0.81.9 (2026-08-21) — 状态栏大/小模型用量+花费 + 压缩状态动态栏 + 快捷键栏居中
 
 - **状态栏右侧显示大/小模型上下文用量 + 累计花费**：LLM 分模型统计 token
