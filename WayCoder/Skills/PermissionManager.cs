@@ -239,6 +239,16 @@ public static class PermissionManager
         Console.WriteLine($"权限模式: {AnsiText.Fg(label, color)}");
     }
 
+    /// <summary>权限模式显示名（极简TINY/问答ACK/自动AUTO/智能SMART/畅通YOLO）。</summary>
+    public static string FormatMode() => CurrentMode switch
+    {
+        Mode.Yolo => "畅通YOLO",
+        Mode.SmartAuto => "智能SMART",
+        Mode.Auto => "自动AUTO",
+        Mode.TINY => "极简TINY",
+        _ => "问答ACK",
+    };
+
     /// <summary>
     /// 显示当前权限状态。
     /// </summary>

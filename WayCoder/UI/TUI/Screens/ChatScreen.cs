@@ -334,7 +334,9 @@ public partial class ChatScreen : TuiScreen
             EconomyMode.Extreme => "极致",
             _ => "关闭",
         };
-        string rowStr = $"工作模式:{modeStr} · 经济模式:{economyStr} · 大模型:{large} · 小模型:{small}";
+        // 权限模式（确认级别）：极简TINY/问答ACK/自动AUTO/智能SMART/畅通YOLO
+        string permStr = PermissionManager.FormatMode();
+        string rowStr = $"权限:{permStr} · 工作模式:{modeStr} · 经济模式:{economyStr} · 大模型:{large} · 小模型:{small}";
 
         SetModelInfoRow(true, rowStr);
     }
