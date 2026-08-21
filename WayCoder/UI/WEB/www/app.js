@@ -526,6 +526,7 @@ const IMPORT_SOURCES = [
   ['openclaw', 'OpenClaw（~/.openclaw）'],
   ['ollama', 'Ollama（本地接口实时拉取）'],
   ['lmstudio', 'LM Studio（本地接口实时拉取）'],
+  ['cc-switch', 'CC Switch（本地路由实时拉取）'],
 ];
 const sourceModal = document.getElementById('source-modal');
 const sourceTitle = document.getElementById('source-modal-title');

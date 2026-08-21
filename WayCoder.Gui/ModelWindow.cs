@@ -415,6 +415,7 @@ public sealed class ModelWindow : Window
             ("openclaw", "OpenClaw（~/.openclaw）"),
             ("ollama", "Ollama（本地接口实时拉取）"),
             ("lmstudio", "LM Studio（本地接口实时拉取）"),
+            ("cc-switch", "CC Switch（本地路由实时拉取）"),
         };
         var picked = await ShowMultiCheckAsync("📥 本地导入 · 选择来源", options, preCheckAll: true);
         if (picked == null || picked.Count == 0) return; // 取消 / 未勾选
@@ -427,13 +428,15 @@ public sealed class ModelWindow : Window
             {
                 // 本地导入只导模型；key 仅由 api_keys.json + 环境变量决定（不自动同步来源文件的 key）
                 // 本地服务（Ollama/LM Studio）从本地官方接口实时拉取真实模型；其余从第三方库导入
-                var hasLocalService = sources.Contains("ollama", StringComparison.OrdinalIgnoreCase)
-                    || sources.Contains("lmstudio", StringComparison.OrdinalIgnoreCase);
+                bool IsLocalService(string s) => s.Equals("ollama", StringComparison.OrdinalIgnoreCase)
+                    || s.Equals("lmstudio", StringComparison.OrdinalIgnoreCase)
+                    || s.Equals("cc-switch", StringComparison.OrdinalIgnoreCase);
+                var hasLocalService = sources.Split(',').Any(IsLocalService);
                 string r;
                 if (hasLocalService)
                 {
                     var nonLocal = string.Join(",", sources.Split(',').Select(s => s.Trim()).Where(s =>
-                        s.Length > 0 && !s.Equals("ollama", StringComparison.OrdinalIgnoreCase) && !s.Equals("lmstudio", StringComparison.OrdinalIgnoreCase)));
+                        s.Length > 0 && !IsLocalService(s)));
                     var parts = new List<string>();
                     if (!string.IsNullOrWhiteSpace(nonLocal)) parts.Add(ModelCli.Import(nonLocal).Trim());
                     parts.Add(ModelCli.ImportLocalServices().Trim());

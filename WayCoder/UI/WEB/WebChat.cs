@@ -779,15 +779,16 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 source = sourcesNode.Kind == JKind.Array
                     ? string.Join(",", sourcesNode.Items.Select(x => x?.AsString() ?? "").Where(s => !string.IsNullOrWhiteSpace(s)))
                     : sourcesNode.AsString();
-            // 本地服务（Ollama/LM Studio）从本地接口实时拉取真实模型；其余从第三方库导入
-            var hasLocalService = source != null
-                && (source.Contains("ollama", StringComparison.OrdinalIgnoreCase)
-                    || source.Contains("lmstudio", StringComparison.OrdinalIgnoreCase));
+            // 本地服务（Ollama/LM Studio/CC Switch 路由）从本地接口实时拉取真实模型；其余从第三方库导入
+            bool IsLocalService(string s) => s.Equals("ollama", StringComparison.OrdinalIgnoreCase)
+                || s.Equals("lmstudio", StringComparison.OrdinalIgnoreCase)
+                || s.Equals("cc-switch", StringComparison.OrdinalIgnoreCase);
+            var hasLocalService = source != null && source.Split(',').Any(IsLocalService);
             var report = new StringBuilder();
             if (hasLocalService)
             {
                 var nonLocal = string.Join(",", (source ?? "").Split(',').Select(s => s.Trim()).Where(s =>
-                    s.Length > 0 && !s.Equals("ollama", StringComparison.OrdinalIgnoreCase) && !s.Equals("lmstudio", StringComparison.OrdinalIgnoreCase)));
+                    s.Length > 0 && !IsLocalService(s)));
                 if (!string.IsNullOrWhiteSpace(nonLocal))
                     report.AppendLine(ModelCli.Import(nonLocal).Trim());
                 report.AppendLine(ModelCli.ImportLocalServices().Trim());
