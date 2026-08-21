@@ -381,8 +381,11 @@ public static class ModelCatalog
             try
             {
                 if (!Directory.Exists(dir)) continue;
+                // 删除所有供应商模型列表 json 文件（两层架构：provider 下模型库）
                 foreach (var f in Directory.EnumerateFiles(dir, "*.json"))
                 { try { File.Delete(f); n++; } catch { } }
+                // 删空后移除 provider 目录本身，避免残留空目录
+                try { if (!Directory.EnumerateFileSystemEntries(dir).Any()) Directory.Delete(dir); } catch { }
             }
             catch { }
         }
