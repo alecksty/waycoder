@@ -198,6 +198,25 @@ public static class ModelCatalog
         catch { }
     }
 
+    /// <summary>注册/更新服务商到 providers.json（导入的服务商地址确认可用后调用）。id 规范化（全小写、去特殊符号）。</summary>
+    public static void RegisterProvider(string providerId, string displayName, string baseUrl)
+    {
+        providerId = NormalizeId(providerId);
+        if (string.IsNullOrWhiteSpace(providerId) || string.IsNullOrWhiteSpace(baseUrl)) return;
+        Providers[providerId] = (displayName, baseUrl);
+        SaveProvidersJson();
+    }
+
+    /// <summary>移除服务商（providers.json），同时清除其 API Key。返回是否移除。</summary>
+    public static bool RemoveProvider(string providerId)
+    {
+        if (string.IsNullOrWhiteSpace(providerId)) return false;
+        if (!Providers.Remove(providerId)) return false;
+        SaveProvidersJson();
+        ApiKeyStore.Remove(providerId);
+        return true;
+    }
+
     // ════════════════════════════════════════════════════════════
     // 自定义模型库（按供应商分类分文件：全局 ~/.waycoder/provider/{供应商}.json + 本地 .waycoder/provider/）。
     // 兼容旧单文件 models.json：仍作为读源（迁移后写入 provider/ 分类文件）。
@@ -230,25 +249,44 @@ public static class ModelCatalog
         return Path.Combine(dir, group + ".json");
     }
 
-    /// <summary>计算供应商归属的分类文件名（不含扩展名）。非法字符剥离，防路径穿越。</summary>
+    /// <summary>计算供应商归属的分类文件名（不含扩展名）。id 规范化（全小写、去特殊符号），防路径穿越。</summary>
     public static string ProviderGroupName(string? providerId)
     {
-        var pid = (providerId ?? "custom").Trim().ToLowerInvariant();
+        var pid = NormalizeId(providerId ?? "custom");
         if (pid is "local" or "custom" or "ollama" or "lmstudio" or "lm-studio" or "locals" or "open-webui" or "vllm" or "text-generation-webui" or "localai")
             return "locals";
-        var sb = new System.Text.StringBuilder();
-        foreach (var c in pid)
-            if (char.IsLetterOrDigit(c) || c is '-' or '_' or '.')
-                sb.Append(c);
-        return sb.Length > 0 ? sb.ToString() : "custom";
+        return pid.Length > 0 ? pid : "custom";
     }
 
     /// <summary>
-    /// 模型唯一键：服务商 + 模型名（同一服务商下模型 id 唯一；不同服务商可同名，
-    /// 如 opencode-go/deepseek-v4-pro 与 opencode-zen/deepseek-v4-pro 是两个不同服务商）。
+    /// 规范化 id：全小写、特殊符号（空格/点/下划线/斜杠 等）统一为连字符或去掉，作为唯一 id 表示。
+    /// 服务商和模型都用此规范化 id 区分。例：AIHubMix → aihubmix；01.AI → 01ai；AWS Bedrock → aws-bedrock。
     /// </summary>
-    internal static string ModelKey(string providerId, string id) =>
-        string.IsNullOrWhiteSpace(providerId) ? id + "|" : providerId + "|" + id;
+    internal static string NormalizeId(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return id;
+        var sb = new StringBuilder();
+        foreach (var c in id.Trim().ToLowerInvariant())
+        {
+            if (char.IsLetterOrDigit(c)) sb.Append(c);
+            else if (c is '-' or '_' or ' ' or '.' or '/')
+            {
+                if (sb.Length > 0 && sb[^1] != '-') sb.Append('-');
+            }
+            // 其他特殊符号（括号/emoji 等）直接去掉
+        }
+        return sb.ToString().Trim('-');
+    }
+
+    /// <summary>
+    /// 模型唯一键：按地址(baseUrl) + 模型名去重——不同网址生成不同名字但同地址同模型视为唯一数据。
+    /// 有地址用 baseUrl|id（同一地址同模型唯一，防止不同服务商名产生重复数据）；
+    /// 无地址（依赖 provider 默认）用 providerId|id。
+    /// </summary>
+    internal static string ModelKey(string providerId, string? baseUrl, string id) =>
+        string.IsNullOrWhiteSpace(baseUrl)
+            ? (string.IsNullOrWhiteSpace(providerId) ? id + "|" : providerId + "|" + id)
+            : baseUrl.Trim().TrimEnd('/') + "|" + id;
 
     /// <summary>
     /// 完整模型目录 = 内置目录 + 自定义库（自定义按 Id 覆盖内置，新增项追加到末尾）。
@@ -286,7 +324,7 @@ public static class ModelCatalog
         {
             var path = ProviderFile(info.ProviderId, local);
             var models = ReadFile(path);
-            models[ModelKey(info.ProviderId, info.Id)] = info;
+            models[ModelKey(info.ProviderId, info.DefaultBaseUrl, info.Id)] = info;
             SaveCustom(models, path);
             Invalidate();
             return path;
@@ -303,7 +341,7 @@ public static class ModelCatalog
             foreach (var g in list.GroupBy(m => ProviderFile(m.ProviderId, local)))
             {
                 var models = ReadFile(g.Key);
-                foreach (var m in g) models[ModelKey(m.ProviderId, m.Id)] = m;
+                foreach (var m in g) models[ModelKey(m.ProviderId, m.DefaultBaseUrl, m.Id)] = m;
                 SaveCustom(models, g.Key);
             }
             Invalidate();
@@ -464,7 +502,7 @@ public static class ModelCatalog
             MigrateLegacyModels(); // 首次加载：把旧 models.json 迁移到 provider/ 分类文件
             var merged = new Dictionary<string, ModelInfo>();
             foreach (var file in EnumerateModelFiles())
-                foreach (var m in ReadFile(file).Values) merged[ModelKey(m.ProviderId, m.Id)] = m;
+                foreach (var m in ReadFile(file).Values) merged[ModelKey(m.ProviderId, m.DefaultBaseUrl, m.Id)] = m;
             _custom = merged;
             return _custom;
         }
@@ -511,7 +549,7 @@ public static class ModelCatalog
                 var path = Path.Combine(dir, g.Key + ".json");
                 var existing = ReadFile(path);
                 foreach (var m in g)
-                    existing[ModelKey(m.ProviderId, m.Id)] = m;
+                    existing[ModelKey(m.ProviderId, m.DefaultBaseUrl, m.Id)] = m;
                 if (!SaveCustom(existing, path)) { allOk = false; break; }
             }
 
@@ -535,7 +573,7 @@ public static class ModelCatalog
                 foreach (var node in arr.Items)
                 {
                     var info = FromJson(node);
-                    if (info != null) result[ModelKey(info.ProviderId, info.Id)] = info;
+                    if (info != null) result[ModelKey(info.ProviderId, info.DefaultBaseUrl, info.Id)] = info;
                 }
             }
         }
