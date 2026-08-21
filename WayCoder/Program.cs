@@ -93,6 +93,10 @@ public partial class Program
             WayCoder.UI.Shared.Terminal.AnsiTty.Enabled = false;
         Config.Instance.QuietMode = Arguments.CliArgRegistry.Has(parsed, "quiet");
 
+        // --permit <tiny/ack/auto/smart/yolo>：启动权限模式（极简TINY/问答ACK/自动AUTO/智能SMART/畅通YOLO）
+        if (Arguments.CliArgRegistry.Get(parsed, "permit") is string permitMode)
+            PermissionManager.SetMode(permitMode);
+
         // 读取值参数
         string? model = Arguments.CliArgRegistry.Get(parsed, "model");
         string? baseUrl = Arguments.CliArgRegistry.Get(parsed, "base-url");
