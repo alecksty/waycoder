@@ -872,7 +872,10 @@ function showAsk(d) {
       (h.lines || []).forEach(l => {
         const ln = document.createElement('span');
         ln.className = 'diff-line ' + (l.kind === '-' ? 'del' : l.kind === '+' ? 'add' : 'ctx');
-        ln.textContent = (l.kind === ' ' ? ' ' : l.kind) + (l.text || '');
+        // 行号：删除/上下文显旧行号，添加/上下文显新行号，右侧符号 + 内容
+        const o = l.kind === '+' ? '' : (l.oldLine != null ? String(l.oldLine) : '');
+        const n = l.kind === '-' ? '' : (l.newLine != null ? String(l.newLine) : '');
+        ln.textContent = o.padStart(4) + ' ' + n.padStart(4) + '  ' + (l.kind === ' ' ? ' ' : l.kind) + (l.text || '');
         pre.appendChild(ln);
       });
       block.appendChild(head);
@@ -1071,8 +1074,12 @@ function addShellOutput(text) {
   return el;
 }
 
-function send() {
-  if (isBusy) { fetch(cq('/interrupt'), { method: 'POST' }).catch(() => {}); return; }
+function send(fromButton) {
+  // 任务运行中：只有点停止按钮(⏹)才中断；回车(发送)绝不停止任务
+  if (isBusy) {
+    if (fromButton) fetch(cq('/interrupt'), { method: 'POST' }).catch(() => {});
+    return;
+  }
   hideSuggest();
   const text = normalizeFullWidth(input.value.trim());
   if (!text) return;
@@ -1136,7 +1143,7 @@ function send() {
 
   fetch(cq('/chat'), { method: 'POST', body: text }).catch(() => { setBusy(false); addMsg('system', '⚠ 发送失败（网络错误）'); });
 }
-document.getElementById('send').onclick = send;
+document.getElementById('send').onclick = () => send(true);
 input.addEventListener('keydown', e => {
   if (suggestBox.classList.contains('open')) {
     if (e.key === 'ArrowDown') { e.preventDefault(); suggestActive = (suggestActive + 1) % suggestItems.length; renderSuggest(); return; }

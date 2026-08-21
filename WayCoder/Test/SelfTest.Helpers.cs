@@ -257,7 +257,7 @@ public static partial class SelfTest
         Check("Provider分组: local→locals", ModelCatalog.ProviderGroupName("local") == "locals");
         Check("Provider分组: custom→locals", ModelCatalog.ProviderGroupName("custom") == "locals");
         Check("Provider分组: ollama→locals", ModelCatalog.ProviderGroupName("ollama") == "locals");
-        Check("Provider分组: 特殊字符剥离", ModelCatalog.ProviderGroupName("my provider/2") == "myprovider2");
+        Check("Provider分组: 特殊字符剥离(空格/斜杠→连字符)", ModelCatalog.ProviderGroupName("my provider/2") == "my-provider-2");
         Check("Provider分组: null→locals", ModelCatalog.ProviderGroupName(null) == "locals");
 
         // ── 2. UpdateMaxTokens 重算阈值：小窗口压缩、放大后不再压缩 ──

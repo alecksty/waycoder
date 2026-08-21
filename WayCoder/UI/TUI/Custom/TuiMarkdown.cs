@@ -17,8 +17,9 @@ public static class TuiMarkdown
     /// 渲染一条聊天消息为屏幕行列表。
     /// 每行是 (文本, 前景色, 背景色) 片段列表。
     /// </summary>
+    /// <param name="isError">错误输出模式：整体保持角色默认色（红色由控件层应用），不做语法高亮</param>
     public static List<List<(string Text, int Fg, int Bg)>> RenderMessage(
-        string content, string role, int maxWidth, bool plainText = false)
+        string content, string role, int maxWidth, bool plainText = false, bool isError = false)
     {
         var result = new List<List<(string Text, int Fg, int Bg)>>();
 
@@ -43,14 +44,35 @@ public static class TuiMarkdown
         if (plainText || content.Contains(AnsiTty.AnsiCharPrefix))
         {
             int defaultFg = FgForRole(role);
+            // 工具输出（system/tool 纯文本）启发式检测为代码时逐行语法着色：
+            // read_file 读出的源码、grep 结果等不再单调灰色，与 assistant 代码块一致。
+            // 错误输出/已含 ANSI 码的内容保持原样（红色由控件层 IsError 应用，避免被 token 色覆盖）。
+            Syntax? codeSyntax = plainText && !isError
+                && !content.Contains(AnsiTty.AnsiCharPrefix)
+                ? Syntax.Detect(content)
+                : null;
+
             foreach (var rawLine in content.Split('\n'))
             {
                 // «grey» 这类中间格式标记必须在渲染层解码成颜色段，否则用户直接看到字面量。
                 // 只解码 «»、不做完整内联解析 —— 纯文本走的是 system/tool 输出，
                 // 里面的反引号/星号是数据，交给 ParseInline 会被当 Markdown 吃掉。
-                result.Add(rawLine.Contains('\xAB')
-                    ? MarkdownParser.ParseMarkupOnly(rawLine, defaultFg)
-                    : [(rawLine, defaultFg, 0)]);
+                if (rawLine.Contains('\xAB'))
+                {
+                    result.Add(MarkdownParser.ParseMarkupOnly(rawLine, defaultFg));
+                    continue;
+                }
+                if (codeSyntax != null && !string.IsNullOrEmpty(rawLine))
+                {
+                    var segments = new List<(string, int, int)>();
+                    foreach (var (text, color) in codeSyntax.Tokenize(rawLine))
+                        segments.Add((text, color, 0));
+                    result.Add(segments);
+                }
+                else
+                {
+                    result.Add([(rawLine, defaultFg, 0)]);
+                }
             }
             return result;
         }

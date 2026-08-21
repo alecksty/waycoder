@@ -147,9 +147,10 @@ public static partial class SelfTest
         SandboxManager.SetLevel("suggest");
         Check("suggest 级别设置", SandboxManager.Level == "suggest");
 
-        // yolo 等同于 full-auto
+        // yolo 是纯权限模式：全部允许、不启用沙箱（沙箱会拦 curl/wget/sudo，与语义矛盾）
         SandboxManager.SetLevel("yolo");
-        Check("yolo → full-auto", SandboxManager.Level == "full-auto");
+        Check("yolo 不沙箱化", !SandboxManager.IsSandboxed);
+        Check("yolo 权限模式", PermissionManager.CurrentMode == PermissionManager.Mode.Yolo);
 
         // 命令安全检查（开启沙箱）
         SandboxManager.SetLevel("full-auto");

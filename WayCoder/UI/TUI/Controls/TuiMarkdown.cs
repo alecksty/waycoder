@@ -43,6 +43,7 @@ public class TuiMarkdown : TuiControl, ILazyItem
     private int _lastMaxWidth;
     private string _lastRole = "";
     private bool _lastPlain;
+    private bool _lastIsError;
 
     public TuiMarkdown()
     {
@@ -105,12 +106,13 @@ public class TuiMarkdown : TuiControl, ILazyItem
     {
         int effectiveMaxW = MaxWidth > 0 ? MaxWidth : Width;
         if (_parsed && _lastContent == Content && _lastMaxWidth == effectiveMaxW &&
-            _lastRole == Role && _lastPlain == IsPlainText) return;
+            _lastRole == Role && _lastPlain == IsPlainText && _lastIsError == IsError) return;
 
         _lastContent = Content;
         _lastMaxWidth = effectiveMaxW;
         _lastRole = Role;
         _lastPlain = IsPlainText;
+        _lastIsError = IsError;
 
         if (string.IsNullOrEmpty(Content))
         {
@@ -121,7 +123,7 @@ public class TuiMarkdown : TuiControl, ILazyItem
         }
 
         // 使用旧的静态渲染器生成带色段列表
-        _rendered = OldMd.RenderMessage(Content, Role, effectiveMaxW, IsPlainText);
+        _rendered = OldMd.RenderMessage(Content, Role, effectiveMaxW, IsPlainText, IsError);
         Height = Math.Max(1, _rendered.Count);
         _parsed = true;
     }
