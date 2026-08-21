@@ -45,6 +45,9 @@ public class TuiSmartLabel : TuiControl
         };
 
         var rb = new RenderBuffer();
+        // 先清整行：切换后文本变短时，旧字符会残留在最右侧（只覆盖新文本不清理旧内容），
+        // 用背景色空格填满 Width 覆盖掉残留。
+        rb.Fill(absY, absX, Width, Bg > 0 ? Bg : 0);
         int col = startX;
         foreach (var (t, color, bg) in segments)
         {
