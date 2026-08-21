@@ -230,7 +230,7 @@ select optgroup { background:var(--panel); color:var(--text); }
 .model-head { display:grid; grid-template-columns:28px 1fr 96px 58px 68px 36px 36px; gap:6px; padding:7px 12px 5px; font-size:11px; color:var(--dim); font-weight:700; border-bottom:1px solid var(--border); }
 .model-head span.r { text-align:right; }
 .model-group .gname { font-size:12px; color:var(--dim); font-weight:700; margin:10px 6px 5px; text-transform:uppercase; letter-spacing:.4px; }
-.model-item { display:grid; grid-template-columns:28px 58px 1fr 96px 58px 68px 36px 36px; gap:6px; align-items:center; padding:7px 6px; border-radius:9px; border:1px solid transparent; cursor:pointer; }
+.model-item { display:grid; grid-template-columns:28px 1fr 96px 58px 58px 68px 36px 36px; gap:6px; align-items:center; padding:7px 6px; border-radius:9px; border:1px solid transparent; cursor:pointer; }
 .model-item:hover { background:var(--panel2); border-color:var(--border); }
 .model-item.selected { border-color:var(--accent); background:var(--panel); }
 .model-item .key { text-align:center; }
