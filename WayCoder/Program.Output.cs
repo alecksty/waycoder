@@ -42,6 +42,10 @@ public partial class Program
     /// </remarks>
     internal static string SpectreToAnsi(string markup)
     {
+        // --no-color：剥离全部颜色标记，纯文本输出（AnsiTty.Enabled=false）
+        if (!AnsiTty.Enabled)
+            return StripMarkup(markup);
+
         return ExpandColorTags(markup)
             // ── 复合标签（先替换，避免被单标签截断）──
             .Replace("«bold yellow»", AnsiTty.SgrBold + AnsiTty.FgCode(AnsiColors.Yellow))
@@ -79,6 +83,23 @@ public partial class Program
             .Replace("«orange»", AnsiTty.FgCode(AnsiColors.Orange))
             .Replace("«grey»", AnsiTty.FgCode(AnsiColors.Grey))
             .Replace("«gray»", AnsiTty.FgCode(AnsiColors.Grey));
+    }
+
+    /// <summary>剥离全部 «标记»（保留内容文本），--no-color 时输出纯文本。</summary>
+    private static string StripMarkup(string markup)
+    {
+        var sb = new StringBuilder(markup.Length);
+        int i = 0;
+        while (i < markup.Length)
+        {
+            int start = markup.IndexOf("«", i);
+            if (start < 0) { sb.Append(markup.AsSpan(i)); break; }
+            sb.Append(markup.AsSpan(i, start - i));
+            int end = markup.IndexOf("»", start);
+            if (end < 0) { sb.Append(markup.AsSpan(start)); break; }
+            i = end + 1;
+        }
+        return sb.ToString();
     }
 
     /// <summary>
