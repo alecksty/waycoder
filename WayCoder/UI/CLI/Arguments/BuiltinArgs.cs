@@ -1,4 +1,5 @@
-﻿using WayCoder.UI.Tui;
+﻿using WayCoder.Tools;
+using WayCoder.UI.Tui;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Cli.Arguments;
@@ -712,6 +713,168 @@ public class SessionListArg : CliArg
 }
 
 // ═══════════════════════════════════════════════════════════════
+// 竞品对标参数（Claude Code / Aider / OpenCode 主要参数）
+// ═══════════════════════════════════════════════════════════════
+
+/// <summary>对话最大轮次上限（对标 Claude Code --max-turns）</summary>
+public class MaxTurnsArg : CliArg
+{
+    public override string Description => "对话最大轮次上限";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "次数";
+    public MaxTurnsArg() : base("max-turns", "--max-turns") { }
+}
+
+/// <summary>自动 git 提交开关（对标 Aider / OpenCode，缺省 on）</summary>
+public class AutoCommitArg : CliArg
+{
+    public override string Description => "自动 git 提交开关（on|off，缺省 on）";
+    public override int ValueCount => -1;
+    public override string? ValueLabel => "on|off";
+    public AutoCommitArg() : base("auto-commit", "--auto-commit") { }
+}
+
+/// <summary>指定 MCP 服务器配置文件路径（对标 Claude Code --mcp-config）</summary>
+public class McpConfigArg : CliArg
+{
+    public override string Description => "指定 MCP 服务器配置文件路径";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "路径";
+    public McpConfigArg() : base("mcp-config", "--mcp-config") { }
+}
+
+/// <summary>切换颜色主题（对标 Claude Code --theme）</summary>
+public class ThemeArg : CliArg
+{
+    public override string Description => "切换颜色主题（ocean/forest/sunset/mono/cyberpunk）";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "名字";
+    public ThemeArg() : base("theme", "--theme") { }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 增强参数
+// ═══════════════════════════════════════════════════════════════
+
+/// <summary>静默模式：抑制横幅等非必要输出</summary>
+public class QuietArg : CliArg
+{
+    public override string Description => "静默模式：抑制横幅等非必要输出";
+    public QuietArg() : base("quiet", "-q", "--quiet") { }
+}
+
+/// <summary>禁用 ANSI 颜色输出</summary>
+public class NoColorArg : CliArg
+{
+    public override string Description => "禁用 ANSI 颜色输出";
+    public NoColorArg() : base("no-color", "--no-color") { }
+}
+
+/// <summary>MCP 服务器管理 CLI（无参列出，reload [name] 重连）</summary>
+public class McpArg : CliArg
+{
+    public override string Description => "MCP 服务器管理（无参列出，reload [name] 重连）";
+    public override int ValueCount => -1;
+    public override bool Greedy => true;
+    public override string? ValueLabel => "子命令";
+    public override (string Cmd, string Desc)[]? SubCommands =>
+    [
+        ("(无参)", "列出 MCP 服务器状态"),
+        ("reload [name]", "重连 MCP 服务器"),
+    ];
+    public McpArg() : base("mcp", "--mcp") { }
+    public override int? OnMatch(List<string> values) => McpCli.Run(values);
+}
+
+/// <summary>清空当前会话历史（对标 /reset 斜杠命令）</summary>
+public class ResetArg : CliArg
+{
+    public override string Description => "清空当前会话历史";
+    public ResetArg() : base("reset", "--reset") { }
+    public override int? OnMatch(List<string> values)
+    {
+        var agent = ProgramContext.Agent;
+        if (agent == null) { Console.WriteLine("无活跃会话（--reset 需配合 -p 提示词或 TUI 使用）"); return 0; }
+        agent.Reset();
+        Console.WriteLine("♻ 对话已重置");
+        return 0;
+    }
+}
+
+/// <summary>清理缓存文件（file-tracker/todos/trajectory）</summary>
+public class PurgeArg : CliArg
+{
+    public override string Description => "清理缓存文件（file-tracker/todos/trajectory）";
+    public PurgeArg() : base("purge", "--purge") { }
+    public override int? OnMatch(List<string> values) => CachePurger.Run();
+}
+
+/// <summary>MCP 管理 CLI 纯逻辑（列出 / 重连，输出到 Console）。</summary>
+public static class McpCli
+{
+    public static int Run(List<string> values)
+    {
+        if (values.Count > 0 && values[0].Equals("reload", StringComparison.OrdinalIgnoreCase))
+        {
+            var name = values.Count > 1 ? values[1] : null;
+            Console.WriteLine(McpManager.ReloadAsync(name).GetAwaiter().GetResult());
+            return 0;
+        }
+
+        var servers = McpManager.Servers;
+        if (servers.Count == 0)
+        {
+            Console.WriteLine("未配置 MCP 服务器（--mcp-config <路径> 可指定配置文件）。");
+            return 0;
+        }
+        Console.WriteLine($"MCP 服务器 ({servers.Count})");
+        foreach (var s in servers)
+        {
+            var mark = s.Status switch
+            {
+                McpServerStatus.Connected => "✅",
+                McpServerStatus.Connecting => "⏳",
+                McpServerStatus.Failed => "❌",
+                _ => "❓",
+            };
+            var line = $"{mark} {s.Name} [{s.Transport}] {s.ToolCount} 工具";
+            if (s.ResourceCount > 0) line += $" · {s.ResourceCount} 资源";
+            if (s.PromptCount > 0) line += $" · {s.PromptCount} 提示词";
+            if (s.Error != null) line += $" — {s.Error}";
+            Console.WriteLine(line);
+        }
+        Console.WriteLine("重连: --mcp reload [name]");
+        return 0;
+    }
+}
+
+/// <summary>清理缓存文件（保守：只清明确是缓存的内容，不动会话/记忆/检查点）</summary>
+public static class CachePurger
+{
+    public static int Run()
+    {
+        var purged = new List<string>();
+        var cwd = Directory.GetCurrentDirectory();
+        TryPurgeFile(Path.Combine(cwd, ".waycoder", "file-tracker.json"), purged);
+        TryPurgeFile(Path.Combine(cwd, ".waycoder", "todos.json"), purged);
+        TryPurgeDir(Path.Combine(cwd, ".waycoder", "trajectory"), purged);
+        Console.WriteLine(purged.Count == 0 ? "没有可清理的缓存文件" : $"已清理 {purged.Count} 项缓存:");
+        foreach (var p in purged) Console.WriteLine($"  - {p}");
+        return 0;
+    }
+
+    private static void TryPurgeFile(string path, List<string> purged)
+    {
+        try { if (File.Exists(path)) { File.Delete(path); purged.Add(path); } } catch { }
+    }
+
+    private static void TryPurgeDir(string dir, List<string> purged)
+    {
+        try { if (Directory.Exists(dir)) { Directory.Delete(dir, true); purged.Add(dir); } } catch { }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // 注册入口 —— 应用启动时调用一次
 // ═══════════════════════════════════════════════════════════════
 
@@ -758,6 +921,15 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new ConfigArg());
         CliArgRegistry.Register(new DebugArg());
         CliArgRegistry.Register(new HelpArg());
+        CliArgRegistry.Register(new MaxTurnsArg());
+        CliArgRegistry.Register(new AutoCommitArg());
+        CliArgRegistry.Register(new McpConfigArg());
+        CliArgRegistry.Register(new ThemeArg());
+        CliArgRegistry.Register(new QuietArg());
+        CliArgRegistry.Register(new NoColorArg());
+        CliArgRegistry.Register(new McpArg());
+        CliArgRegistry.Register(new ResetArg());
+        CliArgRegistry.Register(new PurgeArg());
 #if WAYCODER_TEST
         CliArgRegistry.Register(new TestArg());
         CliArgRegistry.Register(new BenchmarkArg());
