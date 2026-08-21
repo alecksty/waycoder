@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Text;
 using WayCoder.Tools;
 using WayCoder.UI.Shared;
@@ -775,7 +775,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         try
         {
             string? source = null;
-            var bodyObj = Json.Parse(body);
+            var bodyObj = Json.Parse(body ?? "");
             if (bodyObj != null && bodyObj["sources"] is { } sourcesNode)
                 source = sourcesNode.Kind == JKind.Array
                     ? string.Join(",", sourcesNode.Items.Select(x => x?.AsString() ?? "").Where(s => !string.IsNullOrWhiteSpace(s)))
@@ -823,7 +823,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         {
             // 在线导入：选择端点（OpenCode Go/Zen / OpenRouter / Groq / SiliconFlow / Together / DeepSeek / OpenAI / Moonshot 等）
             string? name = null;
-            var bodyObj = Json.Parse(body);
+            var bodyObj = Json.Parse(body ?? "");
             if (bodyObj != null && bodyObj["mode"] is { } modeNode) name = modeNode.AsString()?.Trim();
             var src = ModelCli.OnlineSources.FirstOrDefault(s =>
                 s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ?? ModelCli.OnlineSources[0];

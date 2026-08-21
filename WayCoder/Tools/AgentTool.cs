@@ -1,4 +1,4 @@
-namespace WayCoder.Tools;
+﻿namespace WayCoder.Tools;
 
 /// <summary>
 /// 子智能体生成（灵感源自 Claude Code 的 AgentTool）。
@@ -211,8 +211,8 @@ public class AgentTool : ITool, ICancellableTool
             _currentDepth.Value = depth;
             // 回收子智能体实例的花费统计到父智能体（Clone 后统计独立，否则会丢失）
             parent.LlmClient.MergeUsageFrom(subLLM);
-            // 恢复父智能体 cwd（子智能体 cd 污染防护）
-            BashTool.CurrentCwd.Value = parentCwd;
+            // 恢复父智能体 cwd（子智能体 cd 污染防护）；父未设过 cwd 时回退进程目录
+            BashTool.CurrentCwd.Value = parentCwd ?? Directory.GetCurrentDirectory();
         }
     }
 

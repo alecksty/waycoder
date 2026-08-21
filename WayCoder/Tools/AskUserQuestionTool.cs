@@ -75,15 +75,26 @@ public class AskUserQuestionTool : ITool
             foreach (var q in questions)
             {
                 object? answer;
-                try
+                // YOLO（畅通）：无任何问答阻止，自动选第一个选项/文本留空，不弹框（Web/TUI/GUI 三端统一）
+                if (PermissionManager.CurrentMode == PermissionManager.Mode.Yolo)
                 {
-                    answer = await ShowQuestionAsync(q);
+                    if (q.Options.Count > 0)
+                        answer = q.MultiSelect ? JNode.Array().Add(q.Options[0].Label) : q.Options[0].Label;
+                    else
+                        answer = "";
                 }
-                catch (OperationCanceledException)
+                else
                 {
-                    // 用户取消 → 剩余问题跳过
-                    answers[q.Header] = JNode.From("已取消");
-                    break;
+                    try
+                    {
+                        answer = await ShowQuestionAsync(q);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // 用户取消 → 剩余问题跳过
+                        answers[q.Header] = JNode.From("已取消");
+                        break;
+                    }
                 }
 
                 if (answer == null)

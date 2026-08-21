@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web;
 
@@ -66,7 +66,7 @@ public class WebSearchTool : ITool, ICancellableTool
     /// 测试注入：非空时跳过真实网络，直接请求该地址（{0}=URL 编码后的 query）。
     /// 自测用本地 mock 服务器返回假 HTML，避免依赖外网可达性（国内 DDG 常不可达、Bing 慢，真实搜索会卡满 15s 超时）。
     /// </summary>
-    internal static string? OverrideSearchUrl;
+    internal static string? OverrideSearchUrl { get; set; }
 
     /// <summary>
     /// 依次尝试 DuckDuckGo 与 Bing，任一返回结果即停。
