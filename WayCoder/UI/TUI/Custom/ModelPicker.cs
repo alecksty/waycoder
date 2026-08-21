@@ -791,7 +791,7 @@ public static class ModelPicker
         foreach (var info in ModelCatalog.All)
         {
             // 地址不同 = 不同服务商：同 id 不同 baseUrl 都保留（不再按 id 去重）
-            if (!seen.Add(ModelCatalog.ModelKey(info.Id, info.DefaultBaseUrl))) continue;
+            if (!seen.Add(ModelCatalog.ModelKey(info.ProviderId, info.Id))) continue;
             var hasKey = ModelHasKey(info.ProviderId, info.Id);
             list.Add(new(info.Id, info.DisplayName, info.Provider, info.ProviderId, hasKey, info.ContextWindow, info.InputPrice, info.DefaultBaseUrl));
         }
