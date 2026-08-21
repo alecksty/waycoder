@@ -38,9 +38,10 @@ public static partial class SelfTest
         Check("AddToolProgress 为 tool 角色", screen.ChatMessages[^1].Role == "tool");
         Check("AddToolProgress 嵌套=1", screen.ChatMessages[^1].Indent == 1);
 
-        // Token 显示
+        // Token 显示（大/小模型用量 + 花费）
         screen.UpdateTokenDisplayFull(1234, 567, 0.0123, 80000, 128000, 0, 0);
         Check("StatusRight 非空", screen.StatusRight.Length > 0);
+        Check("StatusRight 含大/小模型用量", screen.StatusRight.Contains("大:") && screen.StatusRight.Contains("小:"));
 
         // 输入编辑
         screen.InputArea.Text = "";

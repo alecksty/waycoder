@@ -1311,7 +1311,7 @@ public partial class Program
         Route(cs =>
         {
             cs.UpdateTokenDisplayFull(
-                llm.TotalPromptTokens, llm.TotalCompletionTokens,
+                llm.LargeTotalTokens, llm.SmallTotalTokens, // 分大小模型上下文用量
                 llm.EstimatedCost ?? llm.TaskCost, // 累计费用优先，回退本轮费用
                 ContextManager.EstimateTokens(agent.SnapshotMessages()), agent.Context.MaxTokens,
                 llm.LastLatencyMs, llm.LastTokensPerSec);
