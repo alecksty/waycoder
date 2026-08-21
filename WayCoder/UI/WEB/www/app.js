@@ -339,8 +339,11 @@ function formatContext(ctx) {
 function formatPrice(m) {
   const p = m.inputPrice;
   if (!p || p <= 0) return 'Free';
-  if (p < 0.01) return '<$0.01';
-  return '$' + p.toFixed(2);
+  const fmt = v => v < 0.01 ? '<$0.01' : '$' + v.toFixed(2);
+  const s = fmt(p);
+  // 有闲时价且与忙时不同 → 显示「忙$xx 闲$yy」
+  if (m.inputPriceOffpeak && m.inputPriceOffpeak > 0 && m.inputPriceOffpeak !== p) return s + '·闲' + fmt(m.inputPriceOffpeak);
+  return s;
 }
 function openModelModal(mode) {
   pendingMode = mode;
@@ -491,6 +494,7 @@ function openEditModel(m) {
   document.getElementById('me-apikey').value = '';
   document.getElementById('me-context').value = m.context || 128000;
   document.getElementById('me-price').value = m.inputPrice || 0;
+  document.getElementById('me-price-off').value = m.inputPriceOffpeak || 0;
   document.getElementById('model-edit-modal').classList.add('open');
 }
 function saveEditModel() {
@@ -502,7 +506,8 @@ function saveEditModel() {
     baseUrl: document.getElementById('me-baseurl').value.trim(),
     apiKey: document.getElementById('me-apikey').value.trim(),
     context: parseInt(document.getElementById('me-context').value) || 0,
-    price: parseFloat(document.getElementById('me-price').value) || 0
+    price: parseFloat(document.getElementById('me-price').value) || 0,
+    priceOff: parseFloat(document.getElementById('me-price-off').value) || 0
   };
   fetch('/models/edit', { method: 'POST', body: JSON.stringify(body) })
     .then(r => r.json()).then(res => {

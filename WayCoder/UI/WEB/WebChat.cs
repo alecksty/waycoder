@@ -173,6 +173,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var apiKey = body?["apiKey"]?.AsString() ?? "";
             var context = body?["context"]?.AsNumber() ?? 0;
             var price = body?["price"]?.AsNumber() ?? 0;
+            var priceOff = body?["priceOff"]?.AsNumber() ?? 0;
             if (string.IsNullOrWhiteSpace(id))
                 return HttpResponse.JsonBody(Err("缺少模型 id"));
             if (string.IsNullOrWhiteSpace(providerId)) providerId = "custom";
@@ -183,7 +184,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 id, id, providerId, providerId, "*", "Custom",
                 (int)context, price, 0,
                 string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl,
-                "手动编辑", 0));
+                "手动编辑", 0, priceOff, 0));
             BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
         }
