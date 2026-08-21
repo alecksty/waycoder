@@ -179,9 +179,9 @@ public static class ModelPicker
                     bool isL = m.Id == large, isS = m.Id == small;
                     table.AddRow(
                         m.HasApiKey ? "🔑" : "  ",
-                        StatusCell(m),
                         m.DisplayName,
                         m.Provider,
+                        StatusCell(m),
                         FmtCtx(m.ContextWindow).PadLeft(ctxW),
                         FmtPrice(m.InputPrice).PadLeft(priceW),
                         isL ? "✓" : " ",
@@ -203,7 +203,7 @@ public static class ModelPicker
             win.Title = TitleText();
             slotBar.Text = SlotBarText(targetSlot, currentSlot);
             btnMode.Text = isLarge ? "→小模型" : "→大模型";
-            help.Text = "↑↓选择  空格应用不关  Enter确认关闭  保存按钮  Esc取消  F1-F10槽位  打字过滤";
+            help.Text = "↑↓选择  Enter应用(不关闭)  Esc取消  保存按钮关闭  F1-F10槽位  打字过滤";
             help2.Text = "^T大小 ^G槽位 ^S扫描 ^R导入 ^O在线 ^P设Key ^L清Key ^N添加 ^U编辑 ^D删除";
             // 数据/标题/组头都改了，必须把窗口根视图标脏 —— 否则增量渲染只画脏控件，
             // 表格行与窗口标题不重绘（搜索过滤输入后列表「不动」就源于此：OnTextChanged→Refresh
@@ -239,7 +239,12 @@ public static class ModelPicker
                 ? rowModels[table.SelectedIndex] : null;
             if (m == null) return; // 组头行不可选
             var r = EnterOrPromptKey(m, isLarge, targetSlot);
-            if (r != null) Finish(r);
+            if (r != null)
+            {
+                // 应用选中但保持对话框打开（不自动关闭）——只能 Esc / 取消 / 保存 人为关闭
+                Refresh(true);
+                help.Text = $"✅ 已应用 {m.Id}（Enter 换选 / Esc 取消并关闭）";
+            }
         }
 
         /// <summary>空格：应用当前选中模型但保持对话框打开（预览/暂选，可连续试多个模型）。</summary>
@@ -252,7 +257,7 @@ public static class ModelPicker
             if (r != null)
             {
                 Refresh(true); // 应用选中（生效显示），不 Finish 关闭
-                help.Text = $"✅ 已应用 {m.Id}（空格换选 / Enter 确认并关闭）";
+                help.Text = $"✅ 已应用 {m.Id}（Enter 换选 / Esc 取消并关闭）";
             }
         }
 
@@ -576,7 +581,7 @@ public static class ModelPicker
         Wire(res, "btnEdit", PromptEditModel);
         Wire(res, "btnDel", DeleteSelectedModel);
         Wire(res, "btnClear", ClearModels);
-        Wire(res, "btnSave", Commit); // 保存按钮 = 应用选中模型并关闭对话框
+        Wire(res, "btnSave", () => { Commit(); Finish(null); }); // 保存 = 应用选中模型并人为关闭对话框
 
         // Tab 不再抢去切大/小模型（那是 btnMode 的活），交回 TuiScreen 做焦点遍历
         win.RegisterShortcut(ConsoleKey.Escape, () => Finish(null));
