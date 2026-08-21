@@ -729,14 +729,14 @@ public class LLM
                 {
                     // 释放响应体（ResponseHeadersRead 下 body 未被读取，不释放会泄漏连接/套接字）
                     resp.Dispose();
-                    await Task.Delay((int)Math.Pow(2, attempt) * 1000, cancellationToken);
+                    await Task.Delay((int)Math.Pow(2, attempt) * RetryBackoffMs, cancellationToken);
                     continue;
                 }
 
                 // 429 速率限制重试（解析 Retry-After 头）
                 if (resp.StatusCode == System.Net.HttpStatusCode.TooManyRequests && attempt < effectiveMaxRetries - 1)
                 {
-                    var delay = ParseRetryAfter(resp) ?? (int)Math.Pow(2, attempt) * 1000;
+                    var delay = ParseRetryAfter(resp) ?? (int)Math.Pow(2, attempt) * RetryBackoffMs;
                     resp.Dispose(); // 同上，释放未读取的响应体，避免连接泄漏
                     await Task.Delay(delay, cancellationToken);
                     continue;
@@ -757,12 +757,12 @@ public class LLM
                 var nextTimeout = baseTimeoutSec * GetTimeoutMultiplier(attempt + 1);
                 ErrorLog.Warning("LLM",
                     $"请求超时 {thisTimeoutSec:F0}s，第 {attempt + 2}/{effectiveMaxRetries} 次加长至 {nextTimeout:F0}s");
-                await Task.Delay((int)Math.Pow(2, attempt) * 1000, cancellationToken);
+                await Task.Delay((int)Math.Pow(2, attempt) * RetryBackoffMs, cancellationToken);
             }
             catch (HttpRequestException ex) when (attempt < effectiveMaxRetries - 1)
             {
                 ErrorLog.Warning("LLM", $"网络错误，重试 {attempt + 1}/{effectiveMaxRetries}: {ex.Message}");
-                await Task.Delay((int)Math.Pow(2, attempt) * 1000, cancellationToken);
+                await Task.Delay((int)Math.Pow(2, attempt) * RetryBackoffMs, cancellationToken);
             }
         }
 
@@ -772,6 +772,10 @@ public class LLM
 
     /// <summary>超时逐次加长倍率（索引 = 尝试次数）。</summary>
     internal static readonly double[] TimeoutMultipliers = [1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0];
+
+    /// <summary>重试指数退避的基准延迟（毫秒）。重试延迟 = 2^attempt × 此值。
+    /// 默认 1000；自测把值调小可把「5xx 重试后成功」用例从 ~3s 压到毫秒级。</summary>
+    internal static int RetryBackoffMs = 1000;
 
     /// <summary>计算第 attempt 次尝试（从 0 开始）的超时倍率。</summary>
     internal static double GetTimeoutMultiplier(int attempt) =>

@@ -1,4 +1,5 @@
 using System.Text;
+using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui;
 
 namespace WayCoder.UI.TUI.Base;
@@ -63,6 +64,25 @@ public class TuiScrollView : TuiView
     /// <param name="absY">绝对 Y 坐标</param>
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
+        // 内容变更/滚动时整区擦除（仿 TuiListView）：子项渲染不补齐整行宽度，
+        // 增删/切换后旧像素会残留在底部/右侧。仅在自身脏时填充，避免无变化时闪屏。
+        if (IsDirty)
+        {
+            int fillBg = GetInheritedBg();
+            int fl = Math.Max(ClipLeft, absX);
+            int fr = Math.Min(ClipRight, absX + Width);
+            int ft = Math.Max(ClipTop, absY);
+            int fb = Math.Min(ClipBottom, absY + Height);
+            if (fr > fl && fb > ft)
+            {
+                var rb = new RenderBuffer();
+                if (fillBg <= 0) rb.Reset(); // 透明背景：先复位，空格才能清掉残留
+                for (int row = ft; row < fb; row++)
+                    rb.Fill(row, fl, fr - fl, fillBg);
+                sb.Append(rb.ToString());
+            }
+        }
+
         // 调整裁剪区域：Y 偏移减去滚动量。须与父容器裁剪区取交集，否则嵌套在更紧裁剪的
         // 父容器内时，子控件会越过父裁剪边界越界绘制。
         var savedTop = ClipTop;

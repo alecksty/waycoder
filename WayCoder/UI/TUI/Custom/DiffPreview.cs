@@ -25,10 +25,16 @@ namespace WayCoder.UI.Tui;
 /// </summary>
 public static class DiffPreview
 {
-    // diff 有色背景：深色调（接近黑，柔和不刺眼；替代 ANSI 亮色背景 41/42/46 —— 亮色太刺眼）
-    private const int BgDelete = 52;   // 深红  #800000（删除行）
-    private const int BgInsert = 28;   // 深绿  #008700（添加行）
-    private const int BgContext = 23;  // 深青  #005f5f（当前 hunk 高亮行）
+    // diff 有色背景：近黑的深色调（黑底带一点点红/绿/青 tint，柔和不刺眼）。
+    // 用 TrueColor RGB 而非 256 色码：色值压到 50 以下，肉眼接近黑、又带一点色相，
+    // 替代此前的 52/28/23（#5f0000/#008700/#005f5f 过饱和，与「代码背景默认黑」不协调）。
+    private static readonly int BgDelete  = AnsiTty.RgbCode(50, 0, 0);   // 黑带一点点红（删除行）
+    private static readonly int BgInsert  = AnsiTty.RgbCode(0, 50, 0);   // 黑带一点点绿（添加行）
+    private static readonly int BgContext = AnsiTty.RgbCode(0, 35, 35);  // 黑带一点点青（当前 hunk 高亮行）
+
+    // 行号/符号前缀前景：近白带一点点红/绿（区分增删，又不刺眼）
+    private static readonly int FgDelNum = AnsiTty.RgbCode(255, 210, 210); // 白带一点点红（删除行行号）
+    private static readonly int FgInsNum = AnsiTty.RgbCode(210, 255, 210); // 白带一点点绿（添加行行号）
 
     /// <summary>diff 有色行样式：深背景 + 前景（粗体可选）。
     /// 用 FgBgCode（自动识别 256 色/TrueColor），FgBg 只支持标准 16 色合并，传 256 色码会错乱。</summary>
@@ -733,35 +739,34 @@ public static class DiffPreview
 
         if (line.Kind == '-')
         {
-            // 已接受的删除行：符号位改 ✓（宽 2，去掉原空格保持前缀 6 宽对齐），行内容仍保留供回看
-            var prefix = isAccepted
-                ? $"{Padding(line.OldLine),4}✓"
-                : $"{Padding(line.OldLine),4} -";
+            // 已接受的删除行：符号位改 ✓（前缀仍 6 列对齐），行内容仍保留供回看
+            var prefix = Prefix(line.OldLine, '-', isAccepted);
             int fg = isCurrentHunk ? 97 : 37; // 深背景配亮/白前景
             int bg = BgDelete;
             var maxTextW = tw - 7;
             FillBg(sb, absY, absX, tw, bg);
-            sb.Append(ColorStyle(fg, bg, isCurrentHunk));
+            // 行号/符号前缀用「白带一点点红」，代码区恢复普通前景
+            sb.Append(ColorStyle(FgDelNum, bg, isCurrentHunk));
             sb.Append(prefix).Append(' ');
             AppendHighlightedCode(sb, line.Text, syntax, fg, bg, isCurrentHunk, maxTextW);
             sb.Append(AnsiTty.SgrReset);
         }
         else if (line.Kind == '+')
         {
-            // 已接受的添加行：符号位改 ✓（宽 2，前缀保持 6 宽）
-            var prefix = isAccepted ? "    ✓" : "     +";
+            // 已接受的添加行：符号位改 ✓（前缀仍 6 列对齐）
+            var prefix = Prefix(0, '+', isAccepted);
             int fg = isCurrentHunk ? 97 : 37;
             int bg = BgInsert;
             var maxTextW = tw - 7;
             FillBg(sb, absY, absX, tw, bg);
-            sb.Append(ColorStyle(fg, bg, isCurrentHunk));
+            sb.Append(ColorStyle(FgInsNum, bg, isCurrentHunk));
             sb.Append(prefix).Append(' ');
             AppendHighlightedCode(sb, line.Text, syntax, fg, bg, isCurrentHunk, maxTextW);
             sb.Append(AnsiTty.SgrReset);
         }
         else
         {
-            var prefix = $"{Padding(line.OldLine),4}  ";
+            var prefix = Prefix(line.OldLine, ' ', false);
             var maxTextW = tw - 7;
             if (isCurrentHunk)
             {
@@ -817,8 +822,8 @@ public static class DiffPreview
             { leftFg = 37; leftBg = 0; }
 
         var leftPrefix = row.LeftKind == '-'
-            ? (isAccepted ? $"{Padding(row.LeftLineNo),4}✓" : $"{Padding(row.LeftLineNo),4} -")
-            : row.LeftText.Length > 0 ? $"{Padding(row.LeftLineNo),4}  " : "      ";
+            ? Prefix(row.LeftLineNo, '-', isAccepted)
+            : row.LeftText.Length > 0 ? Prefix(row.LeftLineNo, ' ', false) : "      ";
 
         if (isAccepted && !isCurrentHunk && row.LeftKind != '-')
         {
@@ -830,7 +835,9 @@ public static class DiffPreview
         }
         else
         {
-            sb.Append(leftBg > 0 ? ColorStyle(leftFg, leftBg, leftBold) : "");
+            // 删除行行号前缀用「白带一点点红」，代码区恢复普通前景
+            int prefixFg = row.LeftKind == '-' ? FgDelNum : leftFg;
+            sb.Append(leftBg > 0 ? ColorStyle(prefixFg, leftBg, leftBold) : "");
             sb.Append(leftPrefix).Append(' ');
             int maxCodeW = panelWidth - VW(leftPrefix) - 1;
             var leftCode = TruncateByVW(row.LeftText, maxCodeW);
@@ -855,8 +862,8 @@ public static class DiffPreview
             { rightFg = 37; rightBg = 0; }
 
         var rightPrefix = row.RightKind == '+'
-            ? (isAccepted ? $"{Padding(row.RightLineNo),4}✓" : $"{Padding(row.RightLineNo),4} +")
-            : row.RightText.Length > 0 ? $"{Padding(row.RightLineNo),4}  " : "      ";
+            ? Prefix(row.RightLineNo, '+', isAccepted)
+            : row.RightText.Length > 0 ? Prefix(row.RightLineNo, ' ', false) : "      ";
 
         if (isAccepted && !isCurrentHunk && row.RightKind != '+')
         {
@@ -868,7 +875,9 @@ public static class DiffPreview
         {
             // 右面板实际宽度（tw 减去左面板 + 分隔符；奇数差时右面板多 1 列）
             int rightPanelW = tw - panelWidth - 3;
-            sb.Append(rightBg > 0 ? ColorStyle(rightFg, rightBg, rightBold) : "");
+            // 添加行行号前缀用「白带一点点绿」，代码区恢复普通前景
+            int prefixFg = row.RightKind == '+' ? FgInsNum : rightFg;
+            sb.Append(rightBg > 0 ? ColorStyle(prefixFg, rightBg, rightBold) : "");
             sb.Append(rightPrefix).Append(' ');
             int maxCodeW = rightPanelW - VW(rightPrefix) - 1;
             var rightCode = TruncateByVW(row.RightText, maxCodeW);
@@ -942,6 +951,21 @@ public static class DiffPreview
         }
     }
 
+    /// <summary>
+    /// 行前缀统一 6 列：4 位行号 + 2 列符号区。
+    /// 符号区：非接受态 "- "/"+ "；接受态 "✓"。宽度一律经 <see cref="VW"/>（AnsiHelper.DisplayWidth，
+    /// 委托到唯一宽度真源 AnsiString.CharWidth）补齐到 6 列 —— 不再假设某个符号的固定宽度
+    /// （如 ✓ 在多数等宽字体按 1 列渲染，硬编码「✓ 宽 2」会导致打钩后文字错位）。
+    /// </summary>
+    private static string Prefix(int lineNo, char sign, bool accepted)
+    {
+        var num = (lineNo > 0 ? lineNo.ToString() : "").PadLeft(4);
+        var symbol = accepted ? "✓" : sign + " ";
+        var p = num + symbol;
+        var vw = VW(p);
+        return vw < 6 ? p + new string(' ', 6 - vw) : p;
+    }
+
     private static int VW(string text) => AnsiHelper.DisplayWidth(text);
     private static string TruncateByVW(string text, int maxVW)
     {
@@ -956,5 +980,4 @@ public static class DiffPreview
         }
         return chars == text.Length ? text : text[..chars] + "…";
     }
-    private static string Padding(int n) => n > 0 ? n.ToString() : "";
 }

@@ -2058,6 +2058,9 @@ public static partial class SelfTest
         FileLockManager.Release(racePath, "renewer");
 
         // ── 6. LLM 5xx 重试（响应释放 + 重试成功）──
+        // 退避基准调小到 1ms：重试机制照常验证（≥3 次请求），但不再干等 2^attempt×1000ms ≈ 3s
+        var savedRetryBackoff = LLM.RetryBackoffMs;
+        LLM.RetryBackoffMs = 1;
         var retryServer = new WayCoder.UI.Web.HttpServer(0);
         int attempts = 0;
         retryServer.OnRequest = _ =>
@@ -2083,7 +2086,11 @@ public static partial class SelfTest
             DebugLog.Log("selftest", "LLM retry test: " + ex);
             Check("P3: LLM 5xx 重试后成功", false);
         }
-        finally { retryServer.Stop(); }
+        finally
+        {
+            retryServer.Stop();
+            LLM.RetryBackoffMs = savedRetryBackoff;
+        }
     }
 
     /// <summary>跨平台运行器选择（CrossPlatform）单元测试：shell/python 可执行文件与参数标志。</summary>

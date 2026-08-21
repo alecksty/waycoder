@@ -434,7 +434,7 @@ public static class TuiChatInput
         {
             var preview = clip.Length > 200 ? ContextManager.TruncateByRunes(clip, 200) + "..." : clip;
             Tty.RestoreCursor();
-            Tty.Write(AnsiTty.ClearToEndScreen); // restore + clear
+            Tty.Write(AnsiTty.ClearToEndScreen); // 恢复光标 + 清除输入区
             Tty.Write($"粘贴 {pasteLines.Length} 行 / {clip.Length} 字符? ");
             Tty.WriteLine(preview);
             Tty.Write("[Y] 确认粘贴  [N] 取消 ");

@@ -580,6 +580,30 @@ public static class ModelCli
             $" → {path}";
     }
 
+    /// <summary>连通性探测任务。</summary>
+    private sealed record ProbeTarget(string ProviderId, string Display, string? BaseUrl, string? Key,
+        string[] Models, bool IsLocal);
+
+    /// <summary>
+    /// 并发探测一组端点（每项独立 HttpClient、4s 超时），保持传入顺序返回结果。
+    /// 顺序探测 N 个端点累计 N×超时；并发后总耗时 ≈ 最慢单端点超时，
+    /// 显著加快 --model test 与 /models/scan（自测最慢项从 ~15s 降到 ~4s）。
+    /// </summary>
+    private static (ProbeTarget Target, bool Ok, string Detail)[] RunProbes(List<ProbeTarget> targets)
+    {
+        var results = new (ProbeTarget, bool, string)[targets.Count];
+        var indexed = targets.Select((t, i) => (t, i)).ToArray();
+        System.Threading.Tasks.Parallel.ForEach(indexed,
+            new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = 4 },
+            item =>
+            {
+                var (t, i) = item;
+                var (o, d) = ProbeEndpoint(t.BaseUrl, t.Key);
+                results[i] = (t, o, d); // 各索引只写一次，无竞态；顺序由数组下标保证
+            });
+        return results;
+    }
+
     /// <summary>
     /// 模型连通性测试：逐一测试所有「已存 API key」的端点 + 所有「本地模型」端点能否连上。
     /// 返回 Markdown 文本报告。
@@ -590,24 +614,17 @@ public static class ModelCli
         sb.AppendLine("**模型连通性测试**");
         int ok = 0, total = 0;
 
+        var targets = new List<ProbeTarget>();
+
         // ── 1. 已存 API key：按供应商逐一测试（含目录内无模型的供应商） ──
         var keys = ApiKeyStore.ListAll().OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase).ToArray();
-        if (keys.Length > 0)
+        foreach (var (pid, key) in keys)
         {
-            sb.AppendLine();
-            sb.AppendLine($"### API Key（{keys.Length} 个供应商）");
-            foreach (var (pid, key) in keys)
-            {
-                var baseUrl = ResolveProviderBaseUrl(pid);
-                var models = ModelCatalog.ByProvider(pid).Select(m => m.Id).ToArray();
-                var display = ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DisplayName)
-                    ? p.DisplayName : pid;
-                var (o, d) = ProbeEndpoint(baseUrl, key);
-                total++;
-                if (o) ok++;
-                sb.AppendLine($"【{display}】{(string.IsNullOrEmpty(baseUrl) ? "" : " " + baseUrl)}");
-                sb.AppendLine($"  {(o ? "✅" : "❌")} {d}" + (models.Length > 0 ? $"  —  {string.Join(", ", models)}" : ""));
-            }
+            var baseUrl = ResolveProviderBaseUrl(pid);
+            var models = ModelCatalog.ByProvider(pid).Select(m => m.Id).ToArray();
+            var display = ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DisplayName)
+                ? p.DisplayName : pid;
+            targets.Add(new ProbeTarget(pid, display, baseUrl, key, models, IsLocal: false));
         }
 
         // ── 2. 本地端点（无需 key）：按 base_url 分组探测 ──
@@ -620,23 +637,35 @@ public static class ModelCli
             .GroupBy(m => EffectiveBaseUrl(m) ?? "")
             .ToList();
 
-        if (localGroups.Count > 0)
-        {
-            sb.AppendLine();
-            sb.AppendLine("### 本地端点（无需 key）");
-            foreach (var g in localGroups)
-            {
-                var (o, d) = ProbeEndpoint(g.Key, null);
-                total++;
-                if (o) ok++;
-                sb.AppendLine($"【{g.First().Provider}】{g.Key}");
-                sb.AppendLine($"  {(o ? "✅" : "❌")} {d}  —  {string.Join(", ", g.Select(m => m.Id).Distinct())}");
-            }
-        }
+        foreach (var g in localGroups)
+            targets.Add(new ProbeTarget(g.First().ProviderId, g.First().Provider, g.Key, null,
+                g.Select(m => m.Id).Distinct().ToArray(), IsLocal: true));
 
-        if (total == 0)
+        if (targets.Count == 0)
             return "没有可测试的端点：既无已存 key，也无本地模型。\n" +
                    "  存 key: --model key <供应商> <key>　本地模型: --model connect <localhost:port>";
+
+        if (targets.Any(t => !t.IsLocal))
+        {
+            sb.AppendLine();
+            sb.AppendLine($"### API Key（{targets.Count(t => !t.IsLocal)} 个供应商）");
+        }
+
+        // 并发探测（每项独立 HttpClient+4s 超时），保持原顺序输出
+        bool localHeaderShown = false;
+        foreach (var (t, o, d) in RunProbes(targets))
+        {
+            if (t.IsLocal && !localHeaderShown)
+            {
+                sb.AppendLine();
+                sb.AppendLine("### 本地端点（无需 key）");
+                localHeaderShown = true;
+            }
+            total++;
+            if (o) ok++;
+            sb.AppendLine($"【{t.Display}】{(string.IsNullOrEmpty(t.BaseUrl) ? "" : " " + t.BaseUrl)}");
+            sb.AppendLine($"  {(o ? "✅" : "❌")} {d}" + (t.Models.Length > 0 ? $"  —  {string.Join(", ", t.Models)}" : ""));
+        }
 
         sb.AppendLine();
         sb.AppendLine($"**结论：{ok} / {total} 个端点可连接**");
@@ -652,7 +681,7 @@ public static class ModelCli
     /// </summary>
     public static List<EndpointProbe> TestList()
     {
-        var result = new List<EndpointProbe>();
+        var targets = new List<ProbeTarget>();
 
         // ── 1. 已存 API key：按供应商逐一测试 ──
         var keys = ApiKeyStore.ListAll().OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase).ToArray();
@@ -662,8 +691,7 @@ public static class ModelCli
             var models = ModelCatalog.ByProvider(pid).Select(m => m.Id).ToArray();
             var display = ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DisplayName)
                 ? p.DisplayName : pid;
-            var (o, d) = ProbeEndpoint(baseUrl, key);
-            result.Add(new EndpointProbe(pid, display, baseUrl, o, d, models));
+            targets.Add(new ProbeTarget(pid, display, baseUrl, key, models, IsLocal: false));
         }
 
         // ── 2. 本地端点（无需 key）：按 base_url 分组探测 ──
@@ -677,13 +705,14 @@ public static class ModelCli
             .ToList();
 
         foreach (var g in localGroups)
-        {
-            var (o, d) = ProbeEndpoint(g.Key, null);
-            result.Add(new EndpointProbe(g.First().ProviderId, g.First().Provider, g.Key, o, d,
-                g.Select(m => m.Id).Distinct().ToArray()));
-        }
+            targets.Add(new ProbeTarget(g.First().ProviderId, g.First().Provider, g.Key, null,
+                g.Select(m => m.Id).Distinct().ToArray(), IsLocal: true));
 
-        return result;
+        // 并发探测，保持原顺序
+        return RunProbes(targets)
+            .Select(r => new EndpointProbe(r.Target.ProviderId, r.Target.Display, r.Target.BaseUrl,
+                r.Ok, r.Detail, r.Target.Models))
+            .ToList();
     }
 
     /// <summary>
@@ -798,7 +827,8 @@ public static class ModelCli
                     if (code is 404 or 405) continue;  // 该路径不存在，试 /v1/models
                     return (false, $"HTTP {code}");
                 }
-                catch { /* 该 URL 失败，试下一个 */ }
+                catch { break; } // 网络层失败（超时/拒绝）：同一主机第二个 URL 结果相同，直接放弃，
+                                 // 避免不可达端点每个 URL 各耗满 4s（两 URL 共 8s）拖慢 --model test / /models/scan
             }
             return gotHttpResponse
                 ? (false, "端点可达但无 /models 接口（可能非 OpenAI 兼容端点）")

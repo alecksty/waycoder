@@ -82,6 +82,8 @@ public class TuiDynamicBar : TuiControl
         if (TuiManager.Instance?.ActiveScreen != _owner) return; // 不在当前屏幕 → 直写污染别的屏幕
         if (_owner?.FocusedWindow != null) return;               // 有窗口覆盖 → 直写破坏窗口像素
         var sb = new StringBuilder();
+        // 动画图标旁不显示闪烁光标：直写前隐藏（EmitCursor 稍后会把光标恢复到输入区）
+        sb.Append(AnsiTty.CursorHide);
         sb.Append(AnsiTty.CursorPos0(_spinnerY, _spinnerX));
         int fg = SpinnerFg(Status); // 直写方法独立计算 spinner 色（不依赖 OnRender 局部变量）
         sb.Append(AnsiTty.FgBgCode(fg, AnsiColors.BgBlack));
