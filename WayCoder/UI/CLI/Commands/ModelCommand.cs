@@ -26,7 +26,11 @@ public class ModelCommand : SlashCommand
         var info = ModelCatalog.Find(modelId);
         var pid = info?.ProviderId ?? providerId ?? cfg.Provider;
         var key = ApiKeyStore.Get(pid) ?? cfg.ApiKey;
-        var baseUrl = info?.DefaultBaseUrl ?? cfg.BaseUrl;
+        // 两层架构：provider 唯一地址优先，模型默认地址兜底
+        var baseUrl = info != null
+            && ModelCatalog.Providers.TryGetValue(info.ProviderId, out var mp)
+            && !string.IsNullOrEmpty(mp.DefaultBaseUrl)
+            ? mp.DefaultBaseUrl : (info?.DefaultBaseUrl ?? cfg.BaseUrl);
         agent.LlmClient.Reconfigure(key, baseUrl);
         agent.LlmClient.Model = modelId;
         agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(modelId, cfg.MaxContextTokens));

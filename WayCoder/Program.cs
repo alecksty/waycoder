@@ -263,12 +263,16 @@ public partial class Program
                 _ => EconomyMode.On,
             };
 
-        // 从模型目录自动设置 base URL（支持 Ollama/DeepSeek/OpenAI 等所有模型）
+        // 从模型目录自动设置 base URL（两层架构：provider 唯一地址优先，模型默认地址兜底）
         if (_config.BaseUrl == null)
         {
             var catInfo = ModelCatalog.Find(_config.Model);
-            if (catInfo?.DefaultBaseUrl != null)
-                _config.BaseUrl = catInfo.DefaultBaseUrl;
+            var catBaseUrl = catInfo != null
+                && ModelCatalog.Providers.TryGetValue(catInfo.ProviderId, out var cp)
+                && !string.IsNullOrEmpty(cp.DefaultBaseUrl)
+                ? cp.DefaultBaseUrl : catInfo?.DefaultBaseUrl;
+            if (catBaseUrl != null)
+                _config.BaseUrl = catBaseUrl;
         }
 
         // Tiny 模式：仅显式 --tiny 启用（压测 / 本地小模型省 token），不再按模型窗口自动进入
