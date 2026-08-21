@@ -54,9 +54,9 @@ public static class ModelCatalog
         new("deepseek-reasoner", "DeepSeek R1", "DeepSeek", "deepseek", "D", "Reasoning", 64_000, 0.55, 2.19, "https://api.deepseek.com", "Deep reasoning"),
 
         // Google
-        new("gemini-2.5-pro", "Gemini 2.5 Pro", "Google", "google", "G", "Flagship", 1_000_000, 1.25, 10, "https://generativelanguage.googleapis.com", "Ultra-long context"),
-        new("gemini-2.5-flash", "Gemini 2.5 Flash", "Google", "google", "G", "Light", 1_000_000, 0.30, 2.50, "https://generativelanguage.googleapis.com", "Ultra-long light"),
-        new("gemini-2.0-flash", "Gemini 2.0 Flash", "Google", "google", "G", "Light", 1_000_000, 0.10, 0.4, "https://generativelanguage.googleapis.com", "Ultra-fast light"),
+        new("gemini-2.5-pro", "Gemini 2.5 Pro", "Google", "google", "G", "Flagship", 1_000_000, 1.25, 10, "https://generativelanguage.googleapis.com/v1beta/openai", "Ultra-long context"),
+        new("gemini-2.5-flash", "Gemini 2.5 Flash", "Google", "google", "G", "Light", 1_000_000, 0.30, 2.50, "https://generativelanguage.googleapis.com/v1beta/openai", "Ultra-long light"),
+        new("gemini-2.0-flash", "Gemini 2.0 Flash", "Google", "google", "G", "Light", 1_000_000, 0.10, 0.4, "https://generativelanguage.googleapis.com/v1beta/openai", "Ultra-fast light"),
 
         // Alibaba Qwen
         new("qwen3-max", "Qwen3 Max", "Alibaba", "qwen", "Q", "Flagship", 128_000, 0.78, 3.9, "https://dashscope.aliyuncs.com/compatible-mode/v1", "Alibaba flagship"),
@@ -126,7 +126,7 @@ public static class ModelCatalog
             ["openai"]     = ("OpenAI",       "https://api.openai.com"),
             ["anthropic"]  = ("Anthropic",    "https://api.anthropic.com"),
             ["deepseek"]   = ("DeepSeek",     "https://api.deepseek.com"),
-            ["google"]     = ("Google",       "https://generativelanguage.googleapis.com"),
+            ["google"]     = ("Google",       "https://generativelanguage.googleapis.com/v1beta/openai"),
             ["qwen"]       = ("Alibaba Qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
             ["moonshot"]   = ("Moonshot",     "https://api.moonshot.cn"),
             ["zhipu"]      = ("Zhipu GLM",    "https://open.bigmodel.cn/api/paas/v4"),
@@ -244,6 +244,13 @@ public static class ModelCatalog
     }
 
     /// <summary>
+    /// 模型唯一键：id + baseUrl（地址不同 = 不同服务商，同 id 不同地址都保留）。
+    /// 空 baseUrl 用占位「|」区分，避免与「|」开头碰撞。
+    /// </summary>
+    internal static string ModelKey(string id, string? baseUrl) =>
+        string.IsNullOrWhiteSpace(baseUrl) ? id + "|" : id + "|" + baseUrl.Trim();
+
+    /// <summary>
     /// 完整模型目录 = 内置目录 + 自定义库（自定义按 Id 覆盖内置，新增项追加到末尾）。
     /// 内置目录始终可用：找不到外置库时，内置数据兜底。
     /// </summary>
@@ -257,11 +264,13 @@ public static class ModelCatalog
                 if (_all != null) return _all;
                 // 清空过内置模型（ClearAll）后 All 不再包含内置目录，只有自定义 —— 「清空后重新导入」的纯粹模型库
                 var list = BuiltInCleared ? new List<ModelInfo>() : new List<ModelInfo>(BuiltIn);
-                foreach (var (id, m) in LoadCustom())
+                foreach (var (_, m) in LoadCustom())
                 {
-                    var idx = list.FindIndex(x => x.Id == id);
-                    if (idx >= 0) list[idx] = m;   // 覆盖内置
-                    else list.Add(m);              // 追加自定义
+                    // 同 Id 且同 baseUrl 覆盖内置；不同 baseUrl 视为不同服务商追加（都保留显示）
+                    var idx = list.FindIndex(x => x.Id == m.Id
+                        && string.Equals(x.DefaultBaseUrl ?? "", m.DefaultBaseUrl ?? "", StringComparison.OrdinalIgnoreCase));
+                    if (idx >= 0) list[idx] = m;
+                    else list.Add(m);
                 }
                 _all = list.ToArray();
                 return _all;
@@ -277,7 +286,7 @@ public static class ModelCatalog
         {
             var path = ProviderFile(info.ProviderId, local);
             var models = ReadFile(path);
-            models[info.Id] = info;
+            models[ModelKey(info.Id, info.DefaultBaseUrl)] = info;
             SaveCustom(models, path);
             Invalidate();
             return path;
@@ -294,7 +303,7 @@ public static class ModelCatalog
             foreach (var g in list.GroupBy(m => ProviderFile(m.ProviderId, local)))
             {
                 var models = ReadFile(g.Key);
-                foreach (var m in g) models[m.Id] = m;
+                foreach (var m in g) models[ModelKey(m.Id, m.DefaultBaseUrl)] = m;
                 SaveCustom(models, g.Key);
             }
             Invalidate();
@@ -311,8 +320,12 @@ public static class ModelCatalog
             foreach (var file in EnumerateModelFiles())
             {
                 var models = ReadFile(file);
-                if (models.Remove(id))
+                // 移除该 id 的全部变体（同 id 不同 baseUrl 的服务商条目都删）
+                var toRemove = models.Keys.Where(k =>
+                    k.StartsWith(id + "|", StringComparison.OrdinalIgnoreCase)).ToList();
+                if (toRemove.Count > 0)
                 {
+                    foreach (var k in toRemove) models.Remove(k);
                     // 分类文件删空后删除文件本身，避免残留空 [  ] 文件
                     if (models.Count == 0) { TryDeleteFile(file); }
                     else SaveCustom(models, file);
@@ -448,7 +461,7 @@ public static class ModelCatalog
             MigrateLegacyModels(); // 首次加载：把旧 models.json 迁移到 provider/ 分类文件
             var merged = new Dictionary<string, ModelInfo>();
             foreach (var file in EnumerateModelFiles())
-                foreach (var m in ReadFile(file).Values) merged[m.Id] = m;
+                foreach (var m in ReadFile(file).Values) merged[ModelKey(m.Id, m.DefaultBaseUrl)] = m;
             _custom = merged;
             return _custom;
         }
@@ -495,7 +508,7 @@ public static class ModelCatalog
                 var path = Path.Combine(dir, g.Key + ".json");
                 var existing = ReadFile(path);
                 foreach (var m in g)
-                    existing[m.Id] = m;
+                    existing[ModelKey(m.Id, m.DefaultBaseUrl)] = m;
                 if (!SaveCustom(existing, path)) { allOk = false; break; }
             }
 
@@ -519,7 +532,7 @@ public static class ModelCatalog
                 foreach (var node in arr.Items)
                 {
                     var info = FromJson(node);
-                    if (info != null) result[info.Id] = info;
+                    if (info != null) result[ModelKey(info.Id, info.DefaultBaseUrl)] = info;
                 }
             }
         }
@@ -602,10 +615,29 @@ public static class ModelCatalog
     }
 
     // Query helpers
+    /// <summary>
+    /// 按 id 查模型（无 baseUrl 上下文）：内置官方网关优先（默认访问入口），无内置则第一个自定义变体。
+    /// 同 id 不同 baseUrl 视为不同服务商——需精确指定服务商时用 <see cref="Find(string, string?)"/>。
+    /// </summary>
     public static ModelInfo? Find(string id)
     {
+        var builtIn = BuiltIn.FirstOrDefault(m => m.Id == id);
+        if (builtIn != null) return builtIn;
         var custom = LoadCustom();
-        return custom.TryGetValue(id, out var c) ? c : BuiltIn.FirstOrDefault(m => m.Id == id);
+        return custom.Values.FirstOrDefault(m => m.Id == id);
+    }
+
+    /// <summary>按 id + baseUrl 精确查模型（地址不同 = 不同服务商）。baseUrl 为空回退 <see cref="Find(string)"/>。</summary>
+    public static ModelInfo? Find(string id, string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl)) return Find(id);
+        var url = baseUrl.Trim();
+        var custom = LoadCustom();
+        var c = custom.Values.FirstOrDefault(m => m.Id == id
+            && string.Equals(m.DefaultBaseUrl ?? "", url, StringComparison.OrdinalIgnoreCase));
+        if (c != null) return c;
+        return BuiltIn.FirstOrDefault(m => m.Id == id
+            && string.Equals(m.DefaultBaseUrl ?? "", url, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

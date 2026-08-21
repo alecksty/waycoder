@@ -69,7 +69,13 @@ public class LLM
         var b = (baseUrl ?? "https://api.openai.com").TrimEnd('/');
         if (b.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
             b = b[..^3].TrimEnd('/');
-        return b + path;
+        // Gemini OpenAI 兼容端点以 /v1beta/openai 结尾：path 去掉 /v1 前缀避免重复
+        //（baseUrl=.../v1beta/openai → .../v1beta/openai/chat/completions）
+        var p = path;
+        if (b.EndsWith("/openai", StringComparison.OrdinalIgnoreCase)
+            && p.StartsWith("/v1/", StringComparison.OrdinalIgnoreCase))
+            p = p["/v1".Length..];
+        return b + p;
     }
 
     private static HttpClient CreateHttpClient()

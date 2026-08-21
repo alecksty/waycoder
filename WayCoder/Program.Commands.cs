@@ -574,19 +574,29 @@ deepseek 性价比最高。"
     }
 
     /// <summary>Ctrl+M 打开模型选择对话框</summary>
-    /// <summary>应用模型到指定槽位（供 CycleModel 调用）</summary>
-    internal static void ApplyModel(string modelId, bool isLarge, int slot)
+    /// <summary>应用模型到指定槽位（供 CycleModel 调用）。baseUrl/providerId 来自所选模型（地址不同=不同服务商）。</summary>
+    internal static void ApplyModel(string modelId, bool isLarge, int slot, string? baseUrl = null, string? providerId = null)
     {
         if (slot == -1)
         {
             if (isLarge) _config.Model = modelId; else _config.SmallModel = modelId;
+            if (providerId != null) _config.Provider = providerId;
+            if (baseUrl != null) _config.BaseUrl = baseUrl;
             _config.SaveToEnvFile();
         }
         else if (slot == -2)
         {
             AgentSlotConfig.SetUniform(new AgentSlotConfig.SlotConfig
-            { UseGlobal = false, LargeModel = isLarge ? modelId : null, SmallModel = isLarge ? null : modelId });
+            {
+                UseGlobal = false,
+                LargeModel = isLarge ? modelId : null,
+                SmallModel = isLarge ? null : modelId,
+                BaseUrl = baseUrl,
+                ApiKeyProviderId = providerId,
+            });
             if (isLarge) _config.Model = modelId; else _config.SmallModel = modelId;
+            if (providerId != null) _config.Provider = providerId;
+            if (baseUrl != null) _config.BaseUrl = baseUrl;
             _config.SaveToEnvFile();
         }
         else if (slot is >= 0 and < 10)
@@ -597,7 +607,9 @@ deepseek 性价比最高。"
                 UseGlobal = false,
                 LargeModel = isLarge ? modelId : e.LargeModel,
                 SmallModel = isLarge ? e.SmallModel : modelId,
-                BaseUrl = e.BaseUrl, ApiKeyProviderId = e.ApiKeyProviderId, ApiKey = e.ApiKey,
+                BaseUrl = baseUrl ?? e.BaseUrl,
+                ApiKeyProviderId = providerId ?? e.ApiKeyProviderId,
+                ApiKey = e.ApiKey,
             });
         }
     }
@@ -624,8 +636,8 @@ deepseek 性价比最高。"
                 }
             }
 
-            // 应用模型到配置
-            ApplyModel(result.ModelId, result.IsLarge, result.TargetSlot);
+            // 应用模型到配置（携带所选模型的网关地址 + 服务商，地址不同=不同服务商）
+            ApplyModel(result.ModelId, result.IsLarge, result.TargetSlot, result.BaseUrl, result.ProviderId);
 
             var modelName = result.ModelId;
             _llm!.Model = _config.Model;
