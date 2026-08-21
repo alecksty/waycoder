@@ -429,16 +429,21 @@ public static class ModelPicker
             if (ModelCatalog.BuiltIn.Any(b => b.Id == m.Id))
             { help.Text = "⚠ 内置模型不可编辑（选自定义模型）"; help2.Text = ""; return; }
             var info = ModelCatalog.Find(m.Id);
-            var prefill = $"{m.Id}|{m.ProviderId}|{info?.DefaultBaseUrl ?? ""}";
+            // 两层架构：模型名|服务商|地址|APIKey|上下文|价格（key 按服务商存）
+            var prefill = $"{m.Id}|{m.ProviderId}|{info?.DefaultBaseUrl ?? ""}|{ApiKeyStore.Get(m.ProviderId) ?? ""}|{info?.ContextWindow ?? 0}|{info?.InputPrice ?? 0}";
             var inputWin = TuiDialog.InputLine($"✏️ 编辑模型 {m.Id}",
-                "格式: 模型名|ProviderId|BaseUrl", prefill, text =>
+                "格式: 模型名|服务商|地址|APIKey|上下文|价格", prefill, text =>
                 {
                     var parts = (text ?? "").Split('|');
                     var id = parts.Length > 0 ? parts[0].Trim() : m.Id;
                     var pid = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1].Trim() : m.ProviderId;
                     var baseUrl = parts.Length > 2 && !string.IsNullOrWhiteSpace(parts[2]) ? parts[2].Trim() : null;
+                    var apiKey = parts.Length > 3 && !string.IsNullOrWhiteSpace(parts[3]) ? parts[3].Trim() : null;
+                    int ctx = parts.Length > 4 && int.TryParse(parts[4], out var c) ? c : 0;
+                    double price = parts.Length > 5 && double.TryParse(parts[5], out var pr) ? pr : 0;
+                    if (!string.IsNullOrWhiteSpace(apiKey)) ApiKeyStore.Set(pid, apiKey);
                     ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
-                        id, id, pid, pid, "*", "Custom", 0, 0, 0, baseUrl, "手动编辑", 0));
+                        id, id, pid, pid, "*", "Custom", ctx, price, 0, baseUrl, "手动编辑", 0));
                     RefreshParent($"✅ 已保存模型 {id}");
                 },
                 onCancel: () => RefreshParent()); // Esc 取消 → 父级恢复默认底部 + 整体重绘
