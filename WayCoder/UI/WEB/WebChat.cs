@@ -163,6 +163,30 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 .Set("modelReport", $"🗑 已清空全部模型（删除 {cleared} 个自定义模型文件，内置目录已隐藏）")
                 .ToJson());
         }
+        // 编辑单个模型（两层架构：服务商/地址/key 在 provider 层，模型/上下文/价格在模型层）
+        if (req.Method == "POST" && req.Path == "/models/edit")
+        {
+            var body = Json.Parse(req.Body);
+            var id = body?["id"]?.AsString() ?? "";
+            var providerId = body?["providerId"]?.AsString() ?? "";
+            var baseUrl = body?["baseUrl"]?.AsString() ?? "";
+            var apiKey = body?["apiKey"]?.AsString() ?? "";
+            var context = body?["context"]?.AsNumber() ?? 0;
+            var price = body?["price"]?.AsNumber() ?? 0;
+            if (string.IsNullOrWhiteSpace(id))
+                return HttpResponse.JsonBody(Err("缺少模型 id"));
+            if (string.IsNullOrWhiteSpace(providerId)) providerId = "custom";
+            // key 按服务商存（一个服务商一个 key）
+            if (!string.IsNullOrWhiteSpace(apiKey))
+                ApiKeyStore.Set(providerId, apiKey);
+            ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
+                id, id, providerId, providerId, "*", "Custom",
+                (int)context, price, 0,
+                string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl,
+                "手动编辑", 0));
+            BroadcastStateForAll();
+            return HttpResponse.JsonBody(Ok());
+        }
         if (req.Method == "GET" && req.Path == "/state")
             return HttpResponse.JsonBody(SerializeState(slot, AgentView(), SlotBusyFlags()));
 
