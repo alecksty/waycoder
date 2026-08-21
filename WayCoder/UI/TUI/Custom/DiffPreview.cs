@@ -226,7 +226,6 @@ public static class DiffPreview
 
         public int CurrentHunk => _currentHunk;
         public HashSet<int> Accepted => _accepted;
-        public Action? OnChanged;
 
         public DiffView(List<Hunk> hunks, HashSet<int> accepted, Syntax? syntax)
         {
@@ -345,7 +344,6 @@ public static class DiffPreview
         private void Changed()
         {
             MarkDirty();
-            OnChanged?.Invoke();
         }
 
         protected override void OnRender(StringBuilder sb, int absX, int absY)

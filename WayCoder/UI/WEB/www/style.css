@@ -195,7 +195,10 @@ select optgroup { background:var(--panel); color:var(--text); }
 .modal { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:60; }
 .modal.open { display:flex; }
 .modal-card { background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:20px 22px; width:440px; max-width:92vw; max-height:86vh; overflow-y:auto; box-shadow:var(--shadow); }
-.modal-card.diff { width:680px; }
+/* diff 窗口：加宽 + 内容(hunks)滚动、底部按钮固定可见（不随内容滚出屏幕） */
+.modal-card.diff { width:min(94vw, 980px); max-width:94vw; display:flex; flex-direction:column; overflow:hidden; }
+.modal-card.diff #ask-body { flex:1; min-height:0; overflow-y:auto; }
+.modal-card.diff #ask-actions { flex-shrink:0; padding-top:10px; }
 .modal-card h2 { font-size:16px; margin-bottom:6px; }
 .modal-card p { font-size:13px; color:var(--dim); margin-bottom:12px; }
 .modal-card input[type="text"], .modal-card input[type="password"] { width:100%; height:37px; border-radius:11px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font:inherit; padding:0 12px; outline:none; margin-bottom:12px; }

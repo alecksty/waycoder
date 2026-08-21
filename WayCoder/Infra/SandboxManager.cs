@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 
@@ -342,9 +342,20 @@ public static class SandboxManager
     /// </summary>
     public static void SetLevel(string level)
     {
-        Level = level.ToLowerInvariant() switch
+        var normalized = level.ToLowerInvariant();
+
+        // yolo 是纯权限模式：畅通无阻、不启用沙箱（沙箱会拦 curl/wget/sudo 等命令，
+        // 与"全部允许"语义矛盾）。显式 full-auto 才启用沙箱。
+        if (normalized is "yolo" or "god")
         {
-            "full-auto" or "yolo" => "full-auto",
+            Level = normalized;
+            PermissionManager.SetMode("yolo");
+            return;
+        }
+
+        Level = normalized switch
+        {
+            "full-auto" => "full-auto",
             "smart-auto" or "smartauto" or "smart" => "smart-auto",
             "auto-edit" or "auto" => "auto-edit",
             _ => "suggest",

@@ -780,9 +780,9 @@ public static partial class SelfTest
             ww.RootView.ClearDirty(); tbl2.ClearDirty();
 
             // 模拟 Refresh：清空 + 填入过滤后的新行（不标脏 = 旧 bug 路径）。
-            // 8 列顺序与标记 columns 一致：🔑,状态,模型,厂商,窗口,价格,大,小
+            // 8 列顺序与标记 columns 一致：🔑,模型,厂商,状态,窗口,价格,大,小
             tbl2.ClearRows();
-            tbl2.AddRow("🔑", "✔连通", "deepseek-v4-pro", "deepseek", "128k", "x", "✓", " ");
+            tbl2.AddRow("🔑", "deepseek-v4-pro", "deepseek", "✔连通", "128k", "x", "✓", " ");
             var sbNoDirty = new StringBuilder();
             ww.RootView.Render(sbNoDirty, ww.X, ww.Y);
             Check("搜索过滤: 改数据不标脏 → 增量渲染跳过表格（旧 bug 复现）",

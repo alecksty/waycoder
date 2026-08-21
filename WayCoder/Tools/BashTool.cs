@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text.RegularExpressions;
 
 namespace WayCoder.Tools;
@@ -51,6 +51,17 @@ public class BashTool : ITool, ICancellableTool
         (new(@":\(\)\s*\{.*:\|:.*\}"), "fork 炸弹"),
         (new(@"\bcurl\b.*\|\s*(sudo\s+)?(ba)?sh\b"), "curl 管道到 shell"),
         (new(@"\bwget\b.*\|\s*(sudo\s+)?(ba)?sh\b"), "wget 管道到 shell"),
+    ];
+
+    // 绝对红线：即使 YOLO 模式也拦截（不可逆系统级破坏，防止误操作毁机）
+    private static readonly (Regex Pattern, string Reason)[] RedLinePatterns =
+    [
+        (new(@"\brm\s+(-\w*)?-r\w*\s+(/|~|\$HOME)"), "对家目录/根目录的递归删除"),
+        (new(@":\(\)\s*\{.*:\|:.*\}"), "fork 炸弹"),
+        (new(@"\bdd\s+.*of=/dev/"), "原始磁盘写入"),
+        (new(@">\s*/dev/sd[a-z]"), "覆盖块设备"),
+        (new(@"\bmkfs\b"), "格式化文件系统"),
+        (new(@"\bchmod\s+(-R\s+)?777\s+/"), "对根目录 chmod 777"),
     ];
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
@@ -106,13 +117,20 @@ public class BashTool : ITool, ICancellableTool
 
     private async Task<string> Execute(string command, int timeout, Func<string, Task>? onLine = null, string? sessionId = null, CancellationToken cancellationToken = default)
     {
-        // BashGuard 命令黑名单检查（对标 crush 三层防护）
-        var (blocked, reason) = BashGuard.CheckBanned(command);
-        if (blocked)
-            return $"{reason}\n命令：{command}";
+        // YOLO 模式（畅通/上帝模式）：跳过 BashGuard 黑名单与普通危险检查，全部放行；
+        // 仅保留绝对红线（rm -rf /、fork 炸弹、dd 写磁盘、mkfs 等不可逆系统破坏）
+        var yolo = PermissionManager.CurrentMode == PermissionManager.Mode.Yolo;
 
-        // 已有危险模式检查
-        var warning = CheckDangerous(command);
+        // BashGuard 命令黑名单检查（对标 crush 三层防护；yolo 跳过）
+        if (!yolo)
+        {
+            var (blocked, reason) = BashGuard.CheckBanned(command);
+            if (blocked)
+                return $"{reason}\n命令：{command}";
+        }
+
+        // 已有危险模式检查（yolo 仅查绝对红线）
+        var warning = CheckDangerous(command, yolo);
         if (warning != null)
             return $"⚠ 已阻止：{warning}\n命令：{command}\n如有意执行，请修改命令使其更具体。";
 
@@ -120,7 +138,7 @@ public class BashTool : ITool, ICancellableTool
         var worktreePath = WorktreeIsolation.CurrentWorktree;
         var cwd = worktreePath ?? CurrentCwd.Value ?? Directory.GetCurrentDirectory();
 
-        // 沙箱检查（full-auto 模式）
+        // 沙箱检查（full-auto 模式；yolo 不启用沙箱，见 SandboxManager.SetLevel）
         if (SandboxManager.IsSandboxed)
         {
             var violation = SandboxManager.CheckSandboxViolation(command, cwd);
@@ -393,10 +411,12 @@ public class BashTool : ITool, ICancellableTool
 
     /// <summary>
     /// 如果命令看起来具有破坏性，返回警告字符串；否则返回 null。
+    /// yoloOnly=true（YOLO 模式）时仅检查绝对红线（不可逆系统破坏）。
     /// </summary>
-    internal static string? CheckDangerous(string cmd)
+    internal static string? CheckDangerous(string cmd, bool yoloOnly = false)
     {
-        foreach (var (pattern, reason) in DangerousPatterns)
+        var patterns = yoloOnly ? RedLinePatterns : DangerousPatterns;
+        foreach (var (pattern, reason) in patterns)
         {
             if (pattern.IsMatch(cmd)) return reason;
         }
