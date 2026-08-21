@@ -2,9 +2,9 @@
      类别列表 items、详情面板内容（schema 驱动）、高亮/滚动/交互由代码填充。 -->
 <Screen>
   <VBox>
-    <TitleBar id="header" height="1" center="⚙ 设置 / 配置" bg="grey" fg="black" />
+    <TitleBar id="header" height="1" center="⚙️ 设置 / 配置" bg="grey" fg="black" />
     <HBox id="mainHBox" flex="1">
-      <List id="catList" items="{InDesign '🤖 模型,⚙ 参数,💰 计费,🔒 安全,🎨 界面'}" />
+      <List id="catList" items="{InDesign '🤖 模型,⚙️ 参数,💰 计费,🔒 安全,🎨 界面'}" />
       <Separator vertical="true" lineColor="8" />
       <ScrollView id="detailPanel" autoScroll="false" />
     </HBox>

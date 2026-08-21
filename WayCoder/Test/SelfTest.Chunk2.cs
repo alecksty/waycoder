@@ -170,8 +170,14 @@ public static partial class SelfTest
         Section("[后台任务]");
         var bgId = BackgroundTaskManager.Start("echo bg_test", 5);
         Check("后台任务启动", bgId > 0);
-        System.Threading.Thread.Sleep(1500); // 等任务完成
-        var bgOutput = BackgroundTaskManager.GetOutput(bgId);
+        // 轮询等输出：echo 毫秒级完成，固定 Sleep(1500) 白白拖慢自测；最多轮询 5s 兜底
+        var bgOutput = "";
+        var bgDeadline = System.Environment.TickCount64 + 5000;
+        while (!bgOutput.Contains("bg_test") && System.Environment.TickCount64 < bgDeadline)
+        {
+            bgOutput = BackgroundTaskManager.GetOutput(bgId);
+            if (!bgOutput.Contains("bg_test")) System.Threading.Thread.Sleep(50);
+        }
         Check("后台任务输出", bgOutput.Contains("bg_test"));
         var bgList = BackgroundTaskManager.ListTasks();
         Check("后台任务列表", bgList.Contains("completed") || bgList.Contains("running"));

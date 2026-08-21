@@ -107,6 +107,8 @@ public class TuiAnimatedText : TuiControl
     public void RenderDirect()
     {
         var sb = new StringBuilder();
+        // 动画图标旁不显示闪烁光标：直写前隐藏（EmitCursor 稍后把光标恢复到输入区）
+        sb.Append(AnsiTty.CursorHide);
         sb.Append(AnsiTty.CursorPos0(_lastAbsY, _lastAbsX));
         if (EffectiveFg > 0 || EffectiveBg > 0)
             sb.Append(AnsiTty.FgBgCode(EffectiveFg, EffectiveBg));

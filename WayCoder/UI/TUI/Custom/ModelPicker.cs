@@ -154,6 +154,26 @@ public static class ModelPicker
         string TitleText() => (isLarge ? "🤖 选择大模型 (复杂任务)" : "🔧 选择小模型 (简单任务)") + SlotLabel(targetSlot);
         void SyncModels() => (large, small) = ResolveSlotModels(targetSlot, large, small);
 
+        /// <summary>当前目标下大/小模型应匹配的网关：全局优先 cfg.BaseUrl（Apply 时写入所选网关），
+        /// 槽位走 AgentSlotConfig.ResolveBaseUrl（槽位 BaseUrl > 模型目录默认 > 全局）。</summary>
+        string? CurrentModelGateway(string modelId)
+        {
+            var cfg = Config.Instance;
+            if (targetSlot == -1 && !string.IsNullOrEmpty(cfg.BaseUrl))
+                return cfg.BaseUrl;
+            var slot = targetSlot >= 0
+                ? AgentSlotConfig.Get(targetSlot)
+                : new AgentSlotConfig.SlotConfig { UseGlobal = true };
+            return AgentSlotConfig.ResolveBaseUrl(slot, modelId);
+        }
+
+        /// <summary>该行是否就是当前大/小模型：id 相同且网关匹配（同 id 多服务商用网关区分）。
+        /// 网关为空（未选过 / 全部槽位）时退化为纯 id 匹配——由调用方保证只取首个同 id 行。</summary>
+        bool MatchesModel(ModelEntry m, string modelId, string? gw)
+            => m.Id == modelId
+               && (string.IsNullOrEmpty(gw)
+                   || string.Equals(m.BaseUrl, gw, StringComparison.OrdinalIgnoreCase));
+
         void Refresh(bool resetToCurrent)
         {
             SyncModels();
@@ -167,26 +187,51 @@ public static class ModelPicker
                     m.Provider.Contains(search.Text, StringComparison.OrdinalIgnoreCase) ||
                     m.ProviderId.Contains(search.Text, StringComparison.OrdinalIgnoreCase)).ToList();
 
+            // 当前大/小模型应匹配的网关：同 id 不同服务商（baseUrl 不同）用网关区分，
+            // 否则「大模型出现 2 个 ✓」不合逻辑（deepseek-v4-pro 分属内置 DeepSeek 与 OpenCode 等）
+            string? largeGw = CurrentModelGateway(large);
+            string? smallGw = CurrentModelGateway(small);
+            // 先算大/小模型在表行中的位置（网关未知时只认首个同 id，保证只勾一个）
+            int largeRow = -1, smallRow = -1;
+            {
+                int ri = 0;
+                foreach (var group in filtered.GroupBy(m => m.ProviderId).OrderBy(g => g.Key))
+                {
+                    ri++; // 组头行
+                    foreach (var m in group.OrderBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
+                    {
+                        if (largeRow < 0 && MatchesModel(m, large, largeGw)) largeRow = ri;
+                        if (smallRow < 0 && MatchesModel(m, small, smallGw)) smallRow = ri;
+                        ri++;
+                    }
+                }
+            }
+
             // 按供应商分组渲染（组头行 + 聚合状态）
             table.ClearRows();
             rowModels.Clear();
-            foreach (var group in filtered.GroupBy(m => m.ProviderId).OrderBy(g => g.Key))
             {
-                table.AddGroupHeader(group.Key + GroupStatusMark(group.Key, group.Any(m => m.HasApiKey)));
-                rowModels.Add(null);
-                foreach (var m in group.OrderBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
+                int ri = 0;
+                foreach (var group in filtered.GroupBy(m => m.ProviderId).OrderBy(g => g.Key))
                 {
-                    bool isL = m.Id == large, isS = m.Id == small;
-                    table.AddRow(
-                        m.HasApiKey ? "🔑" : "  ",
-                        m.DisplayName,
-                        m.Provider,
-                        StatusCell(m),
-                        FmtCtx(m.ContextWindow).PadLeft(ctxW),
-                        FmtPrice(m.InputPrice).PadLeft(priceW),
-                        isL ? "✓" : " ",
-                        isS ? "✓" : " ");
-                    rowModels.Add(m);
+                    table.AddGroupHeader(group.Key + GroupStatusMark(group.Key, group.Any(m => m.HasApiKey)));
+                    rowModels.Add(null);
+                    ri++;
+                    foreach (var m in group.OrderBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
+                    {
+                        bool isL = ri == largeRow, isS = ri == smallRow;
+                        table.AddRow(
+                            m.HasApiKey ? "🔑" : "  ",
+                            m.DisplayName,
+                            m.Provider,
+                            StatusCell(m),
+                            FmtCtx(m.ContextWindow).PadLeft(ctxW),
+                            FmtPrice(m.InputPrice).PadLeft(priceW),
+                            isL ? "✓" : " ",
+                            isS ? "✓" : " ");
+                        rowModels.Add(m);
+                        ri++;
+                    }
                 }
             }
 
@@ -203,12 +248,14 @@ public static class ModelPicker
             win.Title = TitleText();
             slotBar.Text = SlotBarText(targetSlot, currentSlot);
             btnMode.Text = isLarge ? "→小模型" : "→大模型";
-            help.Text = "↑↓选择  Enter应用(不关闭)  Esc取消  保存按钮关闭  F1-F10槽位  打字过滤";
+            help.Text = "↑↓选择  Enter确认保存关闭  空格预览不关  Esc取消  F1-F10槽位  打字过滤";
             help2.Text = "^T大小 ^G槽位 ^S扫描 ^R导入 ^O在线 ^P设Key ^L清Key ^N添加 ^U编辑 ^D删除";
-            // 数据/标题/组头都改了，必须把窗口根视图标脏 —— 否则增量渲染只画脏控件，
+            // 数据/标题/组头都改了，必须把窗口根视图整体标脏 —— 否则增量渲染只画脏控件，
             // 表格行与窗口标题不重绘（搜索过滤输入后列表「不动」就源于此：OnTextChanged→Refresh
-            // 改的是 table 的 rows，但 table 与窗口根视图都没标脏，下一帧增量渲染直接跳过它）
-            win.RootView.MarkDirty();
+            // 改的是 table 的 rows，但 table 与窗口根视图都没标脏，下一帧增量渲染直接跳过它）。
+            // 用 Invalidate（递归标脏）而非 MarkDirty：子对话框（确认/清空等）关闭后窗口需整棵重绘，
+            // 否则窗口底色先铺、子控件没重绘 → 按钮/背景被清掉。
+            win.RootView.Invalidate();
             screen?.MarkDirty();
         }
 
@@ -233,18 +280,21 @@ public static class ModelPicker
             onDone(r);
             win.OnClosed?.Invoke();
         }
+        /// <summary>Enter / 保存：应用选中并保存关闭对话框，返回当前选中的 providerId+modelId。
+        /// 无 key 的模型先弹 key 输入框，保存 key 后自动应用并关闭。</summary>
         void Commit()
         {
             var m = table.SelectedIndex >= 0 && table.SelectedIndex < rowModels.Count
                 ? rowModels[table.SelectedIndex] : null;
             if (m == null) return; // 组头行不可选
             var r = EnterOrPromptKey(m, isLarge, targetSlot);
-            if (r != null)
+            if (r == null) return;
+            if (r.NeedsApiKey)
             {
-                // 应用选中但保持对话框打开（不自动关闭）——只能 Esc / 取消 / 保存 人为关闭
-                Refresh(true);
-                help.Text = $"✅ 已应用 {m.Id}（Enter 换选 / Esc 取消并关闭）";
+                PromptKeyForSelected(finishAfter: true); // 先填 key，保存后应用并关闭
+                return;
             }
+            Finish(r); // 应用已写入 → 保存关闭并返回结果
         }
 
         /// <summary>空格：应用当前选中模型但保持对话框打开（预览/暂选，可连续试多个模型）。</summary>
@@ -257,7 +307,7 @@ public static class ModelPicker
             if (r != null)
             {
                 Refresh(true); // 应用选中（生效显示），不 Finish 关闭
-                help.Text = $"✅ 已应用 {m.Id}（Enter 换选 / Esc 取消并关闭）";
+                help.Text = $"✅ 已应用 {m.Id}（空格再试 / Esc 取消）";
             }
         }
 
@@ -445,7 +495,14 @@ public static class ModelPicker
             var confirmWin = TuiDialog.Confirm("🧹 清空全部模型",
                 "确定清空全部模型？内置目录与已导入的自定义模型都会移除，可清空后重新导入。", ok =>
                 {
-                    if (ok) { ModelCatalog.ClearAll(); RefreshParent("✅ 已清空全部模型，可重新导入"); }
+                    if (ok)
+                    {
+                        ModelCatalog.ClearAll();
+                        // 重新读模型列表：清空后表格真正清空（此前 Refresh 用缓存的旧 models，
+                        // 清空后表格仍显示旧模型，看起来像没清掉）
+                        try { lock (modelLock) { models = GetAvailableModels(); } } catch { }
+                        RefreshParent("✅ 已清空全部模型，可重新导入");
+                    }
                     else RefreshParent();
                 });
             screen?.ShowWindow(confirmWin);
@@ -494,7 +551,7 @@ public static class ModelPicker
             agent.LlmClient.Reconfigure(string.IsNullOrEmpty(key) ? (ApiKeyStore.Get(providerId) ?? cfg.ApiKey) : key, baseUrl);
         }
 
-        void PromptKeyForSelected()
+        void PromptKeyForSelected(bool finishAfter = false)
         {
             var m = table.SelectedIndex >= 0 && table.SelectedIndex < rowModels.Count
                 ? rowModels[table.SelectedIndex] : null;
@@ -514,7 +571,14 @@ public static class ModelPicker
                     try { saved = ApiKeyStore.Set(m.ProviderId, text.Trim()); }
                     catch (Exception ex) { saved = false; ErrorLog.Error("ModelPicker", $"保存 Key 失败: {ex.Message}"); }
                     ReconfigureAgent(m.ProviderId, text.Trim()); // 运行时生效
-                    RefreshParent(saved ? $"✅ 已保存 {m.ProviderId} 的 Key" : $"❌ 保存失败（{m.ProviderId}）——检查写入权限/磁盘");
+                    if (finishAfter)
+                    {
+                        // 从 Enter 确认路径来：key 已保存 → 应用该模型并保存关闭（返回 providerId+modelId）
+                        Apply(m.Id, isLarge, targetSlot, m.BaseUrl, m.ProviderId);
+                        Finish(new Result(m.Id, isLarge, targetSlot, ProviderId: m.ProviderId, BaseUrl: m.BaseUrl));
+                    }
+                    else
+                        RefreshParent(saved ? $"✅ 已保存 {m.ProviderId} 的 Key" : $"❌ 保存失败（{m.ProviderId}）——检查写入权限/磁盘");
                 },
                 onCancel: () => RefreshParent()); // Esc 取消 → 父级恢复默认底部 + 整体重绘
             screen?.ShowWindow(inputWin);
@@ -575,13 +639,13 @@ public static class ModelPicker
         Wire(res, "btnScan", TriggerScan);
         Wire(res, "btnImport", () => TriggerImport("import"));
         Wire(res, "btnOnline", () => TriggerImport("opencode"));
-        Wire(res, "btnSetKey", PromptKeyForSelected);
+        Wire(res, "btnSetKey", () => PromptKeyForSelected());
         Wire(res, "btnClrKey", ClearKeyForSelected);
         Wire(res, "btnAdd", PromptAddModel);
         Wire(res, "btnEdit", PromptEditModel);
         Wire(res, "btnDel", DeleteSelectedModel);
         Wire(res, "btnClear", ClearModels);
-        Wire(res, "btnSave", () => { Commit(); Finish(null); }); // 保存 = 应用选中模型并人为关闭对话框
+        Wire(res, "btnSave", () => Commit()); // 保存 = 应用选中并保存关闭（同 Enter，返回结果）
 
         // Tab 不再抢去切大/小模型（那是 btnMode 的活），交回 TuiScreen 做焦点遍历
         win.RegisterShortcut(ConsoleKey.Escape, () => Finish(null));
@@ -671,7 +735,7 @@ public static class ModelPicker
             return new(m.Id, isLarge, slot, NeedsApiKey: true, ProviderId: m.ProviderId, BaseUrl: m.BaseUrl);
         }
         Apply(m.Id, isLarge, slot, m.BaseUrl, m.ProviderId);
-        return new(m.Id, isLarge, slot, BaseUrl: m.BaseUrl);
+        return new(m.Id, isLarge, slot, BaseUrl: m.BaseUrl, ProviderId: m.ProviderId);
     }
 
     private static bool TrySlotKey(ConsoleKeyInfo key, out int slot)

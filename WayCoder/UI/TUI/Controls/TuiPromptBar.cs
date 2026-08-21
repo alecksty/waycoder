@@ -57,13 +57,14 @@ public class TuiPromptBar : TuiControl
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
         var bordered = Bg == 0;
-        var visibleCount = MaxVisible;
+        // 实际可见行数 = 高度减去边框/分隔线后能容纳的行数，受 MaxVisible 封顶。
+        // 不能用 MaxVisible 硬算：ShowPromptBar 把 Height 设为「条目数+边框」，条目少时按
+        // MaxVisible(8) 渲染会把空行和底边框画到控件下方（盖住动态栏/分隔线）造成花屏。
+        var visibleCount = Math.Min(MaxVisible, Math.Max(0, Height - (bordered ? 2 : 1)));
 
         var fg = Fg > 0 ? Fg : TuiTheme.Current.ControlFg;
         var borderFg = SeparatorColor;
         var bc = AnsiHelper.GetBorderChars(BorderStyle);
-        var highlightFg = TuiTheme.Current.ControlFocusedFg;
-        var highlightBg = TuiTheme.Current.ControlFocusedBg;
 
         // ── 上边框 ──
         if (bordered)
@@ -77,6 +78,20 @@ public class TuiPromptBar : TuiControl
         var fillLeft = Math.Max(absX + 1, ClipLeft);
         var fillRight = Math.Min(absX + Width - 2, ClipRight);
         var strSpaces = new string(' ', Math.Max(0, fillRight - fillLeft)); // 负值（左缘被裁过右缘）防崩溃
+
+        // ── 对齐列：详情统一从「图标+标签」最宽处后的固定列开始，避免长短不齐 ──
+        var labelStartCol = absX + 1 + leftPad;
+        var contentMaxCol = absX + Width - 1; // 右框内缘列
+        var maxPrefixVW = 0;
+        for (var ai = 0; ai < Items.Count; ai++)
+        {
+            var it = Items[ai];
+            var pv = AnsiHelper.DisplayWidth(it.Icon + " ") + AnsiHelper.DisplayWidth(it.Label);
+            if (pv > maxPrefixVW) maxPrefixVW = pv;
+        }
+        // 至少留 3 列给 " 详情"，防止对齐把详情挤出右框
+        var maxPrefixAllowed = Math.Max(0, contentMaxCol - labelStartCol - 3);
+        if (maxPrefixVW > maxPrefixAllowed) maxPrefixVW = maxPrefixAllowed;
 
         // ── 列表行（只渲染实际条目，不预留空行；高度由 ShowPromptBar 按条目数设定）──
         for (var i = 0; i < visibleCount; i++)
@@ -122,30 +137,34 @@ public class TuiPromptBar : TuiControl
                 if (fillLeft < fillRight)
                     rb.Write(row, fillLeft, strSpaces, bg: Bg > 0 ? Bg : rowBg);
 
-                // 图标 + 标签 + 详情
-                var col = absX + 1 + leftPad;
+                // 图标 + 标签（补位对齐）+ 详情
+                var col = labelStartCol;
                 var iconStr = item.Icon + " ";
+                var iconVW = AnsiHelper.DisplayWidth(iconStr);
                 rb.Write(row, col, iconStr, fg: itemFg, bg: rowBg > 0 || !bordered ? rowBg : 0);
-                col += AnsiHelper.DisplayWidth(iconStr);
+                col += iconVW;
 
-                // 标签（截断）
-                var detailW = string.IsNullOrEmpty(item.Detail)
-                    ? 0
-                    : AnsiHelper.DisplayWidth(item.Detail) + 3;
-
-                var labelMax = Width - leftPad * 2 - (col - absX) - detailW - 2;
+                // 标签：本行占宽 = 对齐宽 - 图标宽；超出截断
                 var label = item.Label;
-
-                if (AnsiHelper.DisplayWidth(label) > labelMax)
-                    label = AnsiHelper.TruncateByWidth(label, labelMax);
+                var labelColW = Math.Max(0, maxPrefixVW - iconVW);
+                if (AnsiHelper.DisplayWidth(label) > labelColW)
+                    label = AnsiHelper.TruncateByWidth(label, labelColW);
 
                 rb.Write(row, col, label, fg: itemFg, bg: rowBg > 0 || !bordered ? rowBg : 0);
                 col += AnsiHelper.DisplayWidth(label);
 
-                // 详情
+                // 补空格到对齐列（让详情从固定列开始）
+                var padW = labelColW - AnsiHelper.DisplayWidth(label);
+                if (padW > 0)
+                    rb.Write(row, col, new string(' ', padW), bg: rowBg > 0 || !bordered ? rowBg : 0);
+
+                // 详情（固定列对齐，超宽截断防挤出右框）
+                // 选中行详情用与标签相同的蓝色：此前用 ControlFocusedFg（默认黑）配黑底 = 黑字黑底隐形，
+                // 用户反馈「光标处说明不见了」——选中时文字必须可见。
                 if (!string.IsNullOrEmpty(item.Detail))
-                    rb.Write(row, col + 2, item.Detail,
-                        fg: sel ? highlightFg : AnsiColors.BrightBlack,
+                    rb.WriteTruncate(row, labelStartCol + maxPrefixVW + 2, item.Detail,
+                        contentMaxCol,
+                        fg: sel ? itemFg : AnsiColors.BrightBlack,
                         bg: rowBg > 0 || !bordered ? rowBg : 0);
 
                 // 右边框
