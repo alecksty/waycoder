@@ -202,9 +202,36 @@ public partial class Agent
     internal static async Task<T?> WithModelOverrideAsync<T>(LLM llm, string? overrideModel, Func<Task<T>> action)
     {
         var saved = llm.ModelOverride;
+        var savedKey = llm.ApiKey;
+        var savedUrl = llm.BaseUrl;
         llm.ModelOverride = overrideModel;
+        // 跨 provider 大小 connect：override 到小 connect（且与大模型不同模型）时，
+        // 按小 connect 的 provider 重配 endpoint（key/baseUrl 一起换），finally 恢复——
+        // 否则大/小模型分属不同服务商时，压缩/Architect 会拿大模型的 key/地址去请求小模型。
+        var reconfigured = false;
+        if (!string.IsNullOrEmpty(overrideModel) && !string.Equals(overrideModel, llm.Model, StringComparison.Ordinal))
+        {
+            var connect = ConnectionConfig.FindConnectByModel(overrideModel);
+            var active = ConnectionConfig.CurrentByConfig();
+            if (active != null)
+            {
+                var small = ConnectionConfig.FindConnect(active.SmallConnect);
+                if (small != null && string.Equals(small.ModelId, overrideModel, StringComparison.OrdinalIgnoreCase))
+                    connect = small;
+            }
+            var prov = connect != null ? ConnectionConfig.ResolveProvider(connect.ProviderId) : null;
+            if (prov != null && !string.IsNullOrEmpty(prov.ApiKey))
+            {
+                llm.Reconfigure(prov.ApiKey, prov.BaseUrl);
+                reconfigured = true;
+            }
+        }
         try { return await action(); }
-        finally { llm.ModelOverride = saved; }
+        finally
+        {
+            llm.ModelOverride = saved;
+            if (reconfigured) llm.Reconfigure(savedKey, savedUrl);
+        }
     }
 
     /// <summary>无返回值版本（压缩/摘要等副作用任务）。</summary>

@@ -315,8 +315,23 @@ public partial class ChatScreen : TuiScreen
     /// </summary>
     private void SyncModelInfo()
     {
-        string large = AgentSlotConfig.ResolveLargeModel(AgentSlotConfig.Get(ActiveSlotIndex), ActiveSlotIndex);
-        string small = AgentSlotConfig.ResolveSmallModel(AgentSlotConfig.Get(ActiveSlotIndex), ActiveSlotIndex);
+        // 模型栏用 `(provider)model` 格式：即使同名模型分属不同服务商（如两个 deepseek）也能区分。
+        // 大模型显示「实际生效」的模型：回退/切换后 agent.LlmClient.Model 变了，模型栏立即反映真实值，
+        // 并标 (回退)，避免「不知道当前模型是哪个」。
+        var slotCfg = AgentSlotConfig.Get(ActiveSlotIndex);
+        var cfgLargeModel = AgentSlotConfig.ResolveLargeModel(slotCfg, ActiveSlotIndex);
+        var liveLlm = ProgramContext.Agent?.LlmClient;
+        var isLargeFallback = liveLlm != null && !string.IsNullOrWhiteSpace(liveLlm.Model)
+            && !string.Equals(liveLlm.Model, cfgLargeModel, StringComparison.OrdinalIgnoreCase);
+        var largeModel = isLargeFallback ? liveLlm!.Model : cfgLargeModel;
+        var largeProv = isLargeFallback
+            ? ModelCatalog.InferProviderFromBaseUrl(liveLlm?.BaseUrl) ?? AgentSlotConfig.ResolveLargeProvider(slotCfg, ActiveSlotIndex)
+            : AgentSlotConfig.ResolveLargeProvider(slotCfg, ActiveSlotIndex);
+        string large = ConnectionConfig.FormatModel(largeProv, largeModel)
+            + (isLargeFallback ? "«dim»(回退)«/»" : "");
+        string small = ConnectionConfig.FormatModel(
+            AgentSlotConfig.ResolveSmallProvider(slotCfg, ActiveSlotIndex),
+            AgentSlotConfig.ResolveSmallModel(slotCfg, ActiveSlotIndex));
         string modeStr = WorkModeManager.Format(WorkModeManager.CurrentMode);
         string economyStr = Config.Instance.EconomyMode switch
         {
@@ -680,7 +695,7 @@ public partial class ChatScreen : TuiScreen
             Visible = false,
             Fg = AnsiColors.White,
             TextAlign = EHAlign.Center,
-            Text = "«dim»Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+X 换模型 · Enter 发送 · ↑↓ 历史 · Tab 补全 · F1-F10 · Ctrl+H 帮助«/»",
+            Text = "«dim»Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+X 换模型 · Ctrl+Shift+M 切连接 · Enter 发送 · ↑↓ 历史 · Tab 补全 · F1-F10 · Ctrl+H 帮助«/»",
         };
         RootView.Add(_shortcutRow);
 

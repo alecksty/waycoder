@@ -91,14 +91,27 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 .Set("busy", busy != null && i < busy.Length && busy[i]));
         }
 
+        var currentConn = ConnectionConfig.CurrentByConfig();
+        var bigConnect = currentConn != null ? ConnectionConfig.FindConnect(currentConn.BigConnect) : null;
+        var smallConnect = currentConn != null ? ConnectionConfig.FindConnect(currentConn.SmallConnect) : null;
+        var smallProviderId = ModelCatalog.Find(cfg.SmallModel)?.ProviderId ?? cfg.SmallProvider;
+
         return JNode.Object()
             .Set("activeSlot", activeSlot)
             .Set("model", cfg.Model)
             .Set("smallModel", cfg.SmallModel)
+            // 模型栏显示：`(provider)model` —— 即使同名模型分属不同服务商也能区分
+            .Set("modelLabel", ConnectionConfig.FormatModel(providerId, cfg.Model))
+            .Set("smallModelLabel", ConnectionConfig.FormatModel(smallProviderId, cfg.SmallModel))
             .Set("economy", cfg.EconomyMode.ToString().ToLowerInvariant())
             .Set("provider", providerId)
             .Set("providerName", ModelCatalog.Providers.TryGetValue(providerId, out var p) ? p.DisplayName : providerId)
             .Set("hasKey", hasKey)
+            .Set("activeConnection", currentConn?.Name ?? "")
+            .Set("bigConnect", bigConnect?.Name ?? "")
+            .Set("bigConnectProvider", bigConnect?.ProviderId ?? "")
+            .Set("smallConnect", smallConnect?.Name ?? "")
+            .Set("smallConnectProvider", smallConnect?.ProviderId ?? "")
             .Set("permMode", PermissionManager.CurrentMode.ToString().ToLowerInvariant())
             .Set("slots", slotArr)
             .ToJson();
