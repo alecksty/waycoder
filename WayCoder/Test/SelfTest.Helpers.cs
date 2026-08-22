@@ -447,6 +447,111 @@ public static partial class SelfTest
         Check("工具精简: Off 返回原集不动", ReferenceEquals(off, all));
     }
 
+    /// <summary>模型/厂商调用参数约束（reasoning_effort 允许集 + temperature 精度）测试</summary>
+    private static void TestModelParams(Action<string, bool> Check)
+    {
+        // ── 1. 纯函数：两级合并（模型级 > 厂商级 > 全局默认）──
+        var (a1, p1) = ModelCatalog.MergeModelProviderConstraints("low,high,max", 3, "low,high", 2);
+        Check("模型参数: 模型级>厂商级", a1 == "low,high,max" && p1 == 3);
+        var (a2, p2) = ModelCatalog.MergeModelProviderConstraints(null, null, "low,high", 2);
+        Check("模型参数: 模型null→厂商级", a2 == "low,high" && p2 == 2);
+        var (a3, p3) = ModelCatalog.MergeModelProviderConstraints(null, null, null, null);
+        Check("模型参数: 都null→默认2", a3 == null && p3 == 2);
+        var (a4, p4) = ModelCatalog.MergeModelProviderConstraints("low", 0, null, 3);
+        Check("模型参数: 模型0不被厂商覆盖", a4 == "low" && p4 == 0);
+
+        // ── 2. 纯函数：reasoning_effort 越界跳过（glm-5.3 场景）──
+        Check("模型参数: 无约束→原样返回", ModelCatalog.ResolveReasoningEffort(null, "medium") == "medium");
+        Check("模型参数: 越界→跳过", ModelCatalog.ResolveReasoningEffort("low,high,max", "medium") == null);
+        Check("模型参数: 命中→返回", ModelCatalog.ResolveReasoningEffort("low,high,max", "high") == "high");
+        Check("模型参数: 全局空→null", ModelCatalog.ResolveReasoningEffort("low,high,max", "") == null);
+        Check("模型参数: 大小写不敏感", ModelCatalog.ResolveReasoningEffort("Low,High,Max", "medium") == null);
+
+        // ── 3. 往返：约束字段序列化保留 ──
+        var prevLocalExists = File.Exists(ModelCatalog.LocalModelsPath);
+        ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
+            "__selftest_params__", "__selftest_params__", "SelfTest", "selftestp", "T", "Imported",
+            128_000, 1.5, 3.0, "https://selftest.example/v1", "params 描述",
+            ReasoningEffortAllowed: "low,high,max", TemperaturePrecision: 3), local: true);
+        var rt = ModelCatalog.Find("__selftest_params__");
+        Check("模型参数: 往返允许集保留", rt?.ReasoningEffortAllowed == "low,high,max");
+        Check("模型参数: 往返精度保留", rt?.TemperaturePrecision == 3);
+        ModelCatalog.RemoveCustom("__selftest_params__");
+        if (!prevLocalExists && File.Exists(ModelCatalog.LocalModelsPath))
+        {
+            var leftover = File.ReadAllText(ModelCatalog.LocalModelsPath).Replace(" ", "").Replace("\n", "").Replace("\r", "").Replace("\t", "");
+            if (leftover == "[]") File.Delete(ModelCatalog.LocalModelsPath);
+        }
+
+        // ── 4. 集成：LLM 请求体按模型应用（HttpServer 捕获）──
+        var savedReasoning = Config.Instance.ReasoningEffort;
+        var server = new WayCoder.UI.Web.HttpServer(0);
+        string? lastBody = null;
+        server.OnRequest = req =>
+        {
+            lastBody = req.Body;
+            var sse = "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n\n" +
+                      "data: {\"choices\":[{\"delta\":{\"content\":\"!\"}}]}\n\n" +
+                      "data: [DONE]\n\n";
+            return WayCoder.UI.Web.HttpResponse.JsonBody(sse);
+        };
+        server.Start();
+        try
+        {
+            var url = $"http://127.0.0.1:{server.ActualPort}";
+            var glmMi = new ModelCatalog.ModelInfo(
+                "__selftest_glm__", "__selftest_glm__", "SelfTest", "selftestp", "T", "Imported",
+                0, 0, 0, url, "test", ReasoningEffortAllowed: "low,high,max", TemperaturePrecision: 3);
+            ModelCatalog.AddCustom(glmMi, local: true);
+            try
+            {
+                // glm 场景：全局 medium 越界 → 请求体无 reasoning_effort；temp 按模型 3 位
+                Config.Instance.ReasoningEffort = "medium";
+                new LLM("__selftest_glm__", "k", url, temperature: 0.123456f)
+                    .ChatAsync(new List<JNode> { JNode.Object().Set("role", "user").Set("content", "hi") })
+                    .GetAwaiter().GetResult();
+                Check("模型参数: 越界→请求体无 reasoning_effort",
+                    lastBody != null && !lastBody.Contains("reasoning_effort"));
+                Check("模型参数: temperature 按模型精度3位",
+                    lastBody != null && lastBody.Contains("\"temperature\":0.123"));
+
+                // 命中 → 发送 reasoning_effort
+                Config.Instance.ReasoningEffort = "high";
+                new LLM("__selftest_glm__", "k", url)
+                    .ChatAsync(new List<JNode> { JNode.Object().Set("role", "user").Set("content", "hi") })
+                    .GetAwaiter().GetResult();
+                Check("模型参数: 命中→请求体含 reasoning_effort high",
+                    lastBody != null && lastBody.Contains("\"reasoning_effort\":\"high\""));
+
+                // 无约束模型 → 原样发 medium（回归现状）
+                ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
+                    "__selftest_plain__", "__selftest_plain__", "SelfTest", "selftestp", "T", "Imported",
+                    0, 0, 0, url, "test"), local: true);
+                Config.Instance.ReasoningEffort = "medium";
+                new LLM("__selftest_plain__", "k", url)
+                    .ChatAsync(new List<JNode> { JNode.Object().Set("role", "user").Set("content", "hi") })
+                    .GetAwaiter().GetResult();
+                Check("模型参数: 无约束→原样发 medium",
+                    lastBody != null && lastBody.Contains("\"reasoning_effort\":\"medium\""));
+            }
+            finally
+            {
+                ModelCatalog.RemoveCustom("__selftest_glm__");
+                ModelCatalog.RemoveCustom("__selftest_plain__");
+                Config.Instance.ReasoningEffort = savedReasoning;
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Log("selftest", "TestModelParams: " + ex.Message);
+            Check("模型参数: 集成测试不崩溃", false);
+        }
+        finally
+        {
+            server.Stop();
+        }
+    }
+
     /// <summary>ExtractKeyInfo 增强版测试</summary>
     private static void TestExtractKeyInfo(Action<string, bool> Check)
     {
