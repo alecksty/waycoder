@@ -321,8 +321,7 @@ public partial class ChatScreen : TuiScreen
             var (emoji, label, tooltip) = mode switch
             {
                 WorkMode.Plan => ("🧠", "计划模式", "只读分析 · 阻止写操作"),
-                WorkMode.Review => ("🔍", "审查模式", "只读审查 · 阻止写操作"),
-                WorkMode.Auto => ("🤖", "自动模式", "全自动执行 · 不确认"),
+                WorkMode.Chat => ("💬", "聊天模式", "纯聊天 · 无工具"),
                 _ => ("", "未知", ""),
             };
             DynamicBar.Status = AgentStatus.Planning;
@@ -354,7 +353,7 @@ public partial class ChatScreen : TuiScreen
             EconomyMode.Extreme => "极致",
             _ => "关闭",
         };
-        // 权限模式（确认级别）：极简TINY/问答ACK/自动AUTO/智能SMART/畅通YOLO
+        // 权限模式（确认级别）：问答ACK/自动AUTO/智能SMART/畅通YOLO
         string permStr = PermissionManager.FormatMode();
 
         string permColor = PermissionManager.CurrentMode switch
@@ -362,14 +361,12 @@ public partial class ChatScreen : TuiScreen
             PermissionManager.Mode.Yolo => "red",
             PermissionManager.Mode.SmartAuto => "cyan",
             PermissionManager.Mode.Auto => "green",
-            PermissionManager.Mode.TINY => "grey",
             _ => "yellow",
         };
         string modeColor = WorkModeManager.CurrentMode switch
         {
             WorkMode.Plan => "cyan",
-            WorkMode.Review => "magenta",
-            WorkMode.Auto => "yellow",
+            WorkMode.Chat => "grey",
             _ => "green",
         };
         string economyColor = Config.Instance.EconomyMode switch

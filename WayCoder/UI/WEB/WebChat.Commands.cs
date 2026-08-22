@@ -109,7 +109,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         {
             PermissionManager.Mode.Yolo => "YOLO（直接执行）",
             PermissionManager.Mode.SmartAuto => "SmartAuto（智能分级）",
-            PermissionManager.Mode.Auto => "Auto（首次确认后自动）",
+            PermissionManager.Mode.Auto => "Auto（改必问：只读放行，写操作确认）",
             _ => "Ask（每次确认）",
         };
 
@@ -117,6 +117,12 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     {
         if (string.IsNullOrWhiteSpace(args))
             return $"当前权限模式: **{WebPermLabel()}**";
+        // 纯聊天别名（tiny/chat）→ 切工作模式 Chat（0 工具 0 提示词）
+        if (PermissionManager.IsChatModeAlias(args))
+        {
+            WorkModeManager.SetMode(WorkMode.Chat);
+            return $"工作模式已切换: **💬 聊天**（纯聊天 · 0 工具 0 提示词）";
+        }
         PermissionManager.SetMode(args);
         return $"权限模式已切换: **{WebPermLabel()}**";
     }

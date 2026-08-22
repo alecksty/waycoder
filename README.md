@@ -43,9 +43,9 @@ WayCoder --tiny 8k
 WayCoder --economy          # 开：精简提示词 + 更早压缩 + 输出上限
 WayCoder --economy auto     # 自动：按任务复杂度动态调节阈值（简单省、复杂保质量）
 WayCoder --economy extreme  # 极致：最小提示词（265 字符）+ 核心 7 工具（read/write/edit/bash/web_search/fetch/ask），每轮 token 省 90%
-WayCoder --permit tiny      # 纯聊天：无任何工具 + 无系统提示词，每轮 token≈0（权限极简）
-# 省钱模式工具精简（关=全量，开=去重复，开的越大越精简）：
-#   Off=46 → Auto=34（去 bash 可替代）→ On=29（再搜索编辑冗余）→ Extreme=7（核心集）→ 纯聊天 TINY=0
+WayCoder --permit tiny      # 纯聊天工作模式（Chat）：无任何工具 + 无系统提示词，每轮 token≈0
+# 省钱模式工具精简（仅 Build 档，关=全量，开=去重复，开的越大越精简）：
+#   Off=46 → Auto=34（去 bash 可替代）→ On=29（再搜索编辑冗余）→ Extreme=7（核心集）→ 纯聊天 Chat=0
 # 优先级偏好（仅 auto 生效）：WAYCODER_ECONOMY_PRIORITY=quality|balanced|cost（默认 quality）
 # 实测（写 1 万行贪吃蛇，minimax-m3，白名单 5 工具）：auto 8.0M token → extreme 4.2M token（↓48%），花费约减半
 # 配置优先级：config.json 为权威源，环境变量不覆盖（切换模式用 --economy 或改配置）
@@ -92,7 +92,6 @@ WayCoder/
 ├── PermissionManager.cs 权限确认系统
 ├── ProjectContext.cs  项目检测 + CLAUDE.md 加载
 ├── ProjectInitializer.cs /init 项目初始化 (生成 AGENT.md，/init claude 生成 CLAUDE.md)
-├── ReviewMode.cs      代码审查模式
 ├── FallbackLLM.cs     模型回退链 (6 模型, 跨供应商 Key 解析)
 ├── MemoryStore.cs     记忆系统 (旧格式, 迁移源)
 ├── StructuredMemory.cs 结构化记忆 (frontmatter 多文件 + MEMORY.md 索引)
@@ -208,10 +207,10 @@ WayCoder/
 /init            分析项目并生成 AGENT.md（/init claude 生成 CLAUDE.md）
 /mcp             查看 MCP 服务器状态 / 重连
 /git              Git 操作（status/log/diff/commit/branch）
-/perm ask|auto|smartauto|yolo  权限模式切换
-/mode build|plan|review|auto  工作模式切换 (Shift+Tab)
+/perm ask|auto|smartauto|yolo  权限模式切换（tiny/chat=纯聊天工作模式）
+/mode build|plan|chat  工作模式切换 (Shift+Tab)
 /update [check|now]  检查/自动升级到最新版本
-/auto            自动模式切换
+/auto            智能分级确认
 /watch           切换 Watch 模式
 /session         会话管理 (list/save/load/resume)
 /export          导出对话历史

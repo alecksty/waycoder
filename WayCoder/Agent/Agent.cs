@@ -21,6 +21,11 @@ public partial class Agent
     public LLM LlmClient { get; }
     /// <summary>已注册的工具列表</summary>
     public List<ITool> Tools { get; }
+    /// <summary>
+    /// 未过滤的原始工具集（独立副本）。ReapplyToolFilter 从它全集重滤，
+    /// 避免「经济精简已删工具 → 切 Plan 时只读白名单工具永久丢失」的问题。
+    /// </summary>
+    private readonly List<ITool> _allTools;
     /// <summary>工具名 → 工具实例的快速查找字典</summary>
     public Dictionary<string, ITool> ToolByName { get; }
     /// <summary>对话消息历史（OpenAI 格式）</summary>
@@ -84,7 +89,7 @@ public partial class Agent
     public bool ArchitectMode { get; set; }
 
     /// <summary>
-    /// 该 Agent 实例的工作模式（Build/Plan/Review/Auto），默认 Build。
+    /// 该 Agent 实例的工作模式（Build/Plan/Chat），默认 Build。
     /// 与全局 <see cref="WorkModeManager.CurrentMode"/> 解耦——每个槽位 Agent 持有自己的模式，
     /// 后台槽位并行时不再读到活跃槽位的模式（修复混合模式并行污染）。
     /// </summary>
@@ -136,27 +141,32 @@ public partial class Agent
         LlmClient = llm;
         _maxBudgetUsd = maxBudgetUsd;
         _autoCommit = autoCommit;
-        Tools = tools ?? ToolRegistry.AllTools;
-
-        // 工具白名单/黑名单过滤
-        Tools = FilterTools(this, Tools);
+        // 保存未过滤原始集（独立副本，供 ReapplyToolFilter 从全集重滤）
+        _allTools = new List<ITool>(tools ?? ToolRegistry.AllTools);
 
         // 每个 Agent 持有独立的 AgentTool 实例：共享单例会让 ParentAgent 被后构造的
         // 子智能体覆写（AgentId 继承失效、花费归并到错误实例、跨槽位重绑竞态）。
-        for (var i = 0; i < Tools.Count; i++)
+        // 在 _allTools 上替换（Tools 与 _allTools 共享这些实例，重滤时不会退回共享单例）。
+        for (var i = 0; i < _allTools.Count; i++)
         {
-            if (Tools[i] is AgentTool)
-                Tools[i] = new AgentTool();
+            if (_allTools[i] is AgentTool)
+                _allTools[i] = new AgentTool();
         }
+
+        // 工具白名单/黑名单过滤（从 _allTools 全集过滤；强制新列表避免与 _allTools 同引用）
+        Tools = new List<ITool>(FilterTools(this, _allTools));
 
         ToolByName = Tools.ToDictionary(t => t.Name);
         Context = new ContextManager(maxContextTokens);
         _maxRounds = maxRounds;
         _effectiveMaxRounds = maxRounds > 0 ? maxRounds : Math.Max(1, Config.Instance.MaxRounds); // 下限 1，防 MaxRounds≤0 时循环体一次都不跑
-        // TINY 极简权限：不注入任何系统提示词（仅聊天）
-        _systemPrompt = PermissionManager.CurrentMode == PermissionManager.Mode.TINY
-            ? ""
-            : SystemPrompt.Generate(Tools);
+        // 工作模式决定系统提示词：Chat=空（纯聊天）、Plan=精简只读分析提示词、Build=正常档位（受经济模式管理）
+        _systemPrompt = WorkMode switch
+        {
+            WorkMode.Chat => "",
+            WorkMode.Plan => SystemPrompt.GeneratePlan(Tools),
+            _ => SystemPrompt.Generate(Tools),
+        };
         // --system-prompt / --append-system-prompt（Claude Code 对齐）：追加自定义系统提示词
         var extraPrompt = Config.Instance.ExtraSystemPrompt?.Trim();
         if (_systemPrompt.Length > 0 && !string.IsNullOrEmpty(extraPrompt))
@@ -176,15 +186,21 @@ public partial class Agent
     /// </summary>
     public void ReapplyToolFilter()
     {
-        var filtered = FilterTools(this, Tools.ToList());
+        var filtered = FilterTools(this, _allTools);
         Tools.Clear();
         Tools.AddRange(filtered);
         ToolByName.Clear();
         foreach (var t in filtered) ToolByName[t.Name] = t;
-        // TINY 极简权限：不注入系统提示词（仅聊天）
-        _systemPrompt = PermissionManager.CurrentMode == PermissionManager.Mode.TINY
-            ? ""
-            : SystemPrompt.Generate(Tools) + "\n\n" + Config.Instance.ExtraSystemPrompt?.Trim();
+        // 工作模式决定系统提示词：Chat=空（纯聊天）、Plan=精简只读分析提示词、Build=正常档位（受经济模式管理）
+        _systemPrompt = WorkMode switch
+        {
+            WorkMode.Chat => "",
+            WorkMode.Plan => SystemPrompt.GeneratePlan(Tools),
+            _ => SystemPrompt.Generate(Tools),
+        };
+        var extraPrompt = Config.Instance.ExtraSystemPrompt?.Trim();
+        if (_systemPrompt.Length > 0 && !string.IsNullOrEmpty(extraPrompt))
+            _systemPrompt += "\n\n" + extraPrompt;
     }
 
     /// <summary>
@@ -203,24 +219,29 @@ public partial class Agent
         // 修复孤立的 tool-call/tool-result 配对（防止中断后对话损坏）
         RepairOrphanedToolPairs();
 
-        // 模式专用提示（Plan/Review/Auto 模式会在主提示词前注入约束）
-        var modePrompt = WorkModeManager.GetModePrompt(WorkMode);
-        var systemContent = string.IsNullOrEmpty(modePrompt)
-            ? _systemPrompt
-            : modePrompt + "\n" + _systemPrompt;
+        var result = new List<JNode>();
 
-        // 快速模式：替换工作流和规则 1 为直接执行版本
-        if (_fastMode)
+        // Chat 模式（纯聊天）：不注入任何 system 消息 —— 每轮只剩 user/assistant 消息
+        if (WorkMode != WorkMode.Chat)
         {
-            systemContent = systemContent
-                .Replace(SystemPrompt.StandardWorkflow, SystemPrompt.FastModeWorkflow)
-                .Replace(SystemPrompt.StandardRule1, SystemPrompt.FastModeRule1);
+            // 模式专用提示（Plan 模式在主提示词前注入约束）
+            var modePrompt = WorkModeManager.GetModePrompt(WorkMode);
+            var systemContent = string.IsNullOrEmpty(modePrompt)
+                ? _systemPrompt
+                : modePrompt + "\n" + _systemPrompt;
+
+            // 快速模式：替换工作流和规则 1 为直接执行版本
+            if (_fastMode)
+            {
+                systemContent = systemContent
+                    .Replace(SystemPrompt.StandardWorkflow, SystemPrompt.FastModeWorkflow)
+                    .Replace(SystemPrompt.StandardRule1, SystemPrompt.FastModeRule1);
+            }
+
+            // 空 system 内容不注入（Chat 的 _systemPrompt 为空串）
+            if (!string.IsNullOrEmpty(systemContent))
+                result.Add(JNode.Object().Set("role", "system").Set("content", systemContent));
         }
-
-        var result = new List<JNode>
-        {
-            JNode.Object().Set("role", "system").Set("content", systemContent),
-        };
         // 深克隆消息，避免 JsonNode 的 Parent 冲突（同一消息不能加入两个树）
         // 用快照枚举，避免与 Web 请求线程加锁写并发触发 List 枚举期间修改异常
         foreach (var m in SnapshotMessages())
@@ -356,7 +377,7 @@ public partial class Agent
 
             var resp = await LlmClient.ChatAsync(
                 messages: FullMessages(),
-                tools: ToolSchemas(),
+                tools: Tools.Count == 0 ? null : ToolSchemas(), // Chat 模式 0 工具：不传工具 schema
                 onToken: onToken,
                 cancellationToken: cancellationToken);
 
@@ -385,6 +406,16 @@ public partial class Agent
                 }
 
                 AddMessage(resp.ToMessage());
+
+                // 纯聊天模式（Chat）：0 工具，首条回复即完成，立即返回。
+                // 必须在「无工具调用催促」逻辑之前——否则 Chat 的普通长回复会被误判为
+                // 停滞/口述代码而注入「请立即调用工具」的错误催促。
+                if (WorkMode == WorkMode.Chat)
+                {
+                    SaveWorkReport();
+                    return resp.Content ?? "";
+                }
+
                 // 自动继续检测：
                 // 0. 模型输出大量推理内容但不产生实际输出（DeepSeek V4 等模型的常见问题）
                 // 1. 模型首轮只输出分析不调用工具（toolCallCount==0, content>100）

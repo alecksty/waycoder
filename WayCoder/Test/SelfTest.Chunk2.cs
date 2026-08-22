@@ -506,51 +506,47 @@ public static partial class SelfTest
         // 格式输出
         Check("Format(Build) 含🔨", WorkModeManager.Format(WorkMode.Build).Contains("🔨"));
         Check("Format(Plan) 含🧠", WorkModeManager.Format(WorkMode.Plan).Contains("🧠"));
-        Check("Format(Review) 含🔍", WorkModeManager.Format(WorkMode.Review).Contains("🔍"));
-        Check("Format(Auto) 含🤖", WorkModeManager.Format(WorkMode.Auto).Contains("🤖"));
+        Check("Format(Chat) 含💬", WorkModeManager.Format(WorkMode.Chat).Contains("💬"));
 
-        // 工具约束：Plan 模式
+        // 工具约束：Plan 模式（只读白名单 + bash 命令门控）
         Check("Plan: write_file 阻止", WorkModeManager.CheckToolAllowed("write_file", WorkMode.Plan) != null);
         Check("Plan: edit_file 阻止", WorkModeManager.CheckToolAllowed("edit_file", WorkMode.Plan) != null);
-        Check("Plan: bash 阻止", WorkModeManager.CheckToolAllowed("bash", WorkMode.Plan) != null);
         Check("Plan: rm 阻止", WorkModeManager.CheckToolAllowed("rm", WorkMode.Plan) != null);
         Check("Plan: git 阻止", WorkModeManager.CheckToolAllowed("git", WorkMode.Plan) != null);
         Check("Plan: agent 阻止", WorkModeManager.CheckToolAllowed("agent", WorkMode.Plan) != null);
+        Check("Plan: sqlite 阻止", WorkModeManager.CheckToolAllowed("sqlite", WorkMode.Plan) != null);
         Check("Plan: read_file 允许", WorkModeManager.CheckToolAllowed("read_file", WorkMode.Plan) == null);
         Check("Plan: grep 允许", WorkModeManager.CheckToolAllowed("grep", WorkMode.Plan) == null);
         Check("Plan: lsp 允许", WorkModeManager.CheckToolAllowed("lsp", WorkMode.Plan) == null);
+        Check("Plan: doc 允许", WorkModeManager.CheckToolAllowed("doc", WorkMode.Plan) == null);
+        // Plan 的 bash 只读命令门控（fail-closed：无参数默认阻止）
+        Check("Plan: bash 无参数 阻止", WorkModeManager.CheckToolAllowed("bash", WorkMode.Plan) != null);
+        Check("Plan: bash git status 允许", WorkModeManager.CheckToolAllowed("bash", WorkMode.Plan, new Dictionary<string, object?> { ["command"] = "git status" }) == null);
+        Check("Plan: bash rm 阻止", WorkModeManager.CheckToolAllowed("bash", WorkMode.Plan, new Dictionary<string, object?> { ["command"] = "rm -rf x" }) != null);
 
-        // 工具约束：Review 模式
-        Check("Review: write_file 阻止", WorkModeManager.CheckToolAllowed("write_file", WorkMode.Review) != null);
-        Check("Review: bash 阻止", WorkModeManager.CheckToolAllowed("bash", WorkMode.Review) != null);
-        Check("Review: agent 允许", WorkModeManager.CheckToolAllowed("agent", WorkMode.Review) == null);
-        Check("Review: read_file 允许", WorkModeManager.CheckToolAllowed("read_file", WorkMode.Review) == null);
+        // 工具约束：Chat 模式全禁（纯聊天 0 工具）
+        Check("Chat: read_file 阻止", WorkModeManager.CheckToolAllowed("read_file", WorkMode.Chat) != null);
+        Check("Chat: bash 阻止", WorkModeManager.CheckToolAllowed("bash", WorkMode.Chat) != null);
 
         // 工具约束：Build 模式全允许
         Check("Build: write_file 允许", WorkModeManager.CheckToolAllowed("write_file", WorkMode.Build) == null);
         Check("Build: bash 允许", WorkModeManager.CheckToolAllowed("bash", WorkMode.Build) == null);
         Check("Build: rm 允许", WorkModeManager.CheckToolAllowed("rm", WorkMode.Build) == null);
 
-        // 工具约束：Auto 模式全允许
-        Check("Auto: bash 允许", WorkModeManager.CheckToolAllowed("bash", WorkMode.Auto) == null);
-        Check("Auto: write_file 允许", WorkModeManager.CheckToolAllowed("write_file", WorkMode.Auto) == null);
-
         // 模式切换
         WorkModeManager.SetMode(WorkMode.Plan);
         Check("SetMode→Plan", WorkModeManager.CurrentMode == WorkMode.Plan);
-        WorkModeManager.SetMode(WorkMode.Review);
-        Check("SetMode→Review", WorkModeManager.CurrentMode == WorkMode.Review);
+        WorkModeManager.SetMode(WorkMode.Chat);
+        Check("SetMode→Chat", WorkModeManager.CurrentMode == WorkMode.Chat);
 
-        // 循环切换
+        // 循环切换 Build→Plan→Chat→Build
         WorkModeManager.SetMode(WorkMode.Build);
         var m1 = WorkModeManager.CycleNext();
         Check("CycleNext: Build→Plan", m1 == WorkMode.Plan);
         var m2 = WorkModeManager.CycleNext();
-        Check("CycleNext: Plan→Review", m2 == WorkMode.Review);
+        Check("CycleNext: Plan→Chat", m2 == WorkMode.Chat);
         var m3 = WorkModeManager.CycleNext();
-        Check("CycleNext: Review→Auto", m3 == WorkMode.Auto);
-        var m4 = WorkModeManager.CycleNext();
-        Check("CycleNext: Auto→Build", m4 == WorkMode.Build);
+        Check("CycleNext: Chat→Build", m3 == WorkMode.Build);
 
         // ModeChanged 事件
         bool eventFired = false;
@@ -565,8 +561,8 @@ public static partial class SelfTest
         // System Prompt 生成
         var planPrompt = WorkModeManager.GetModePrompt(WorkMode.Plan);
         Check("Plan Prompt 含计划模式", planPrompt.Contains("计划模式"));
-        var reviewPrompt = WorkModeManager.GetModePrompt(WorkMode.Review);
-        Check("Review Prompt 含审查模式", reviewPrompt.Contains("审查模式"));
+        var chatPrompt = WorkModeManager.GetModePrompt(WorkMode.Chat);
+        Check("Chat Prompt 为空", string.IsNullOrEmpty(chatPrompt));
         var buildPrompt = WorkModeManager.GetModePrompt(WorkMode.Build);
         Check("Build Prompt 为空", string.IsNullOrEmpty(buildPrompt));
 
@@ -574,8 +570,7 @@ public static partial class SelfTest
         Check("审批门: Plan+计划文本 触发", Agent.ShouldPromptPlanApproval(WorkMode.Plan, 200));
         Check("审批门: Plan+空文本 不触发", !Agent.ShouldPromptPlanApproval(WorkMode.Plan, 0));
         Check("审批门: Build+计划文本 不触发", !Agent.ShouldPromptPlanApproval(WorkMode.Build, 200));
-        Check("审批门: Review+计划文本 不触发", !Agent.ShouldPromptPlanApproval(WorkMode.Review, 200));
-        Check("审批门: Auto+计划文本 不触发", !Agent.ShouldPromptPlanApproval(WorkMode.Auto, 200));
+        Check("审批门: Chat+计划文本 不触发", !Agent.ShouldPromptPlanApproval(WorkMode.Chat, 200));
 
         // 恢复默认
         WorkModeManager.SetMode(WorkMode.Build);
