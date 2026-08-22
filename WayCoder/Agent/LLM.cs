@@ -425,7 +425,9 @@ public class LLM
                 .Set("model", EffectiveModel)
                 .Set("messages", messagesArray)
                 .Set("stream", true)
-                .Set("temperature", Math.Clamp(Temperature, 0f, 2f))
+                // temperature 先转 double 再 round 到 2 位小数：float 0.1f → double 0.10000000149011612，
+                // JSON "R" 序列化输出长尾小数，被 glm-5.3 等严格网关（限 2 位）以 HTTP 400 拒绝
+                .Set("temperature", Math.Round((double)Math.Clamp(Temperature, 0f, 2f), 2))
                 .Set("max_tokens", maxTokens);
 
             if (includeStreamOptions)
