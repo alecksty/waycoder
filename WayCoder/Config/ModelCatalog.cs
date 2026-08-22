@@ -25,7 +25,9 @@ public static class ModelCatalog
         string Description,
         int MaxOutput = 0,
         double InputPriceOffpeak = 0,   // 闲时输入价（$ / MTok，0=无闲时价，只显示忙时价）
-        double OutputPriceOffpeak = 0   // 闲时输出价（$ / MTok）
+        double OutputPriceOffpeak = 0,  // 闲时输出价（$ / MTok）
+        string? ReasoningEffortAllowed = null,  // 模型级 reasoning_effort 允许集（逗号分隔，如 "low,high,max"）；null=未声明→厂商/全局
+        int? TemperaturePrecision = null        // 模型级 temperature 小数位精度；null=未声明→厂商/全局默认 2
     );
 
     public static readonly ModelInfo[] BuiltIn =
@@ -50,8 +52,8 @@ public static class ModelCatalog
         new("claude-sonnet-4-6", "Claude Sonnet 4.6", "Anthropic", "anthropic", "A", "Flagship", 200_000, 3, 15, "https://api.anthropic.com", "High-perf code (old)"),
 
         // DeepSeek
-        new("deepseek-v4-pro", "DeepSeek V4 Pro", "DeepSeek", "deepseek", "D", "Flagship", 1_048_576, 0.66, 1.98, "https://api.deepseek.com", "Flagship deep reasoning"),
-        new("deepseek-v4-flash", "DeepSeek V4 Flash", "DeepSeek", "deepseek", "D", "Light", 1_048_576, 0.14, 0.28, "https://api.deepseek.com", "Fast and cost-effective"),
+        new("deepseek-v4-pro", "DeepSeek V4 Pro", "DeepSeek", "deepseek", "D", "Flagship", 1_048_576, 0.66, 1.98, "https://api.deepseek.com", "Flagship deep reasoning", ReasoningEffortAllowed: "low,medium,high"),
+        new("deepseek-v4-flash", "DeepSeek V4 Flash", "DeepSeek", "deepseek", "D", "Light", 1_048_576, 0.14, 0.28, "https://api.deepseek.com", "Fast and cost-effective", ReasoningEffortAllowed: "low,medium,high"),
         new("deepseek-chat", "DeepSeek V3 (old)", "DeepSeek", "deepseek", "D", "Flagship", 64_000, 0.27, 1.10, "https://api.deepseek.com", "V3 legacy"),
         new("deepseek-reasoner", "DeepSeek R1", "DeepSeek", "deepseek", "D", "Reasoning", 64_000, 0.55, 2.19, "https://api.deepseek.com", "Deep reasoning"),
 
@@ -71,8 +73,8 @@ public static class ModelCatalog
         new("kimi-k2.5", "Kimi K2.5", "Moonshot", "moonshot", "M", "Flagship", 128_000, 0.45, 2.25, "https://api.moonshot.cn", "Chinese flagship"),
 
         // Zhipu GLM
-        new("glm-4-plus", "GLM-4 Plus", "Zhipu", "zhipu", "Z", "Flagship", 128_000, 0.47, 0.54, "https://open.bigmodel.cn/api/paas/v4", "Chinese flagship"),
-        new("glm-4-flash", "GLM-4 Flash", "Zhipu", "zhipu", "Z", "Light", 128_000, 0.07, 0.14, null, "Chinese cost-effective"),
+        new("glm-4-plus", "GLM-4 Plus", "Zhipu", "zhipu", "Z", "Flagship", 128_000, 0.47, 0.54, "https://open.bigmodel.cn/api/paas/v4", "Chinese flagship", ReasoningEffortAllowed: "low,medium,high"),
+        new("glm-4-flash", "GLM-4 Flash", "Zhipu", "zhipu", "Z", "Light", 128_000, 0.07, 0.14, null, "Chinese cost-effective", ReasoningEffortAllowed: "low,medium,high"),
 
         // ByteDance Doubao
         new("doubao-pro-1.5", "Doubao Pro 1.5", "ByteDance", "bytedance", "B", "Flagship", 128_000, 0.87, 2.6, "https://ark.cn-beijing.volces.com/api/v3", "Doubao flagship"),
@@ -118,37 +120,52 @@ public static class ModelCatalog
         new("custom", "Custom Model", "Custom", "custom", "*", "Custom", 0, 0, 0, null, "Enter model ID and API endpoint"),
     ];
 
+    /// <summary>
+    /// 厂商/网关级注册信息（providers.json 条目）。
+    /// ApiKeyEnvVar=官方 API key 环境变量名（无官方则为空）；ModelsEndpoint=官方模型列表接口（相对 baseUrl，无则为空）；
+    /// CommonModels=官方常用模型 id（逗号分隔）；ReasoningEffortAllowed/TemperaturePrecision=厂商级调用参数默认（模型未声明时继承）。
+    /// </summary>
+    public sealed record ProviderInfo(
+        string DisplayName,
+        string DefaultBaseUrl,
+        string? ApiKeyEnvVar = null,            // 官方 API key 环境变量名（如 DEEPSEEK_API_KEY）
+        string? ModelsEndpoint = null,          // 官方模型列表接口（如 /v1/models）；没有为空
+        string? CommonModels = null,            // 官方常用模型 id（逗号分隔）
+        string? ReasoningEffortAllowed = null,  // 厂商级 reasoning_effort 允许集；null=不约束
+        int? TemperaturePrecision = null);      // 厂商级 temperature 小数位；null=用全局默认 2
+
     /// <summary>Provider registry with default base URLs</summary>
-    public static readonly Dictionary<string, (string DisplayName, string DefaultBaseUrl)> Providers;
+    public static readonly Dictionary<string, ProviderInfo> Providers;
 
     static ModelCatalog()
     {
-        Providers = new Dictionary<string, (string, string)>
+        Providers = new Dictionary<string, ProviderInfo>
         {
-            ["openai"]     = ("OpenAI",       "https://api.openai.com"),
-            ["anthropic"]  = ("Anthropic",    "https://api.anthropic.com"),
-            ["deepseek"]   = ("DeepSeek",     "https://api.deepseek.com"),
-            ["google"]     = ("Google",       "https://generativelanguage.googleapis.com/v1beta/openai"),
-            ["qwen"]       = ("Alibaba Qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
-            ["moonshot"]   = ("Moonshot",     "https://api.moonshot.cn"),
-            ["zhipu"]      = ("Zhipu GLM",    "https://open.bigmodel.cn/api/paas/v4"),
-            ["bytedance"]  = ("ByteDance",    "https://ark.cn-beijing.volces.com/api/v3"),
-            ["01ai"]       = ("01.AI",        "https://api.lingyiwanwu.com"),
-            ["xai"]        = ("xAI",          "https://api.x.ai"),
-            ["mistral"]    = ("Mistral",      "https://api.mistral.ai"),
-            ["siliconflow"]= ("SiliconFlow",  "https://api.siliconflow.cn"),
-            ["openrouter"] = ("OpenRouter",   "https://openrouter.ai/api/v1"),
-            ["groq"]       = ("Groq",         "https://api.groq.com/openai/v1"),
-            ["together"]   = ("Together AI",  "https://api.together.xyz/v1"),
-            ["gitee"]      = ("Gitee AI",     "https://ai.gitee.com/v1"),
-            ["bailian"]    = ("Alibaba Bailian", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
-            ["opencode-go"]  = ("OpenCode Go",  "https://opencode.ai/zen/go/v1"),  // 订阅制
-            ["opencode-zen"] = ("OpenCode Zen", "https://opencode.ai/zen/v1"),     // 按量付费
-            ["opencode"]     = ("OpenCode",     "https://opencode.ai/zen/v1"),     // 旧数据兼容别名
-            ["minimax"]    = ("MiniMax",      "https://api.minimaxi.com/v1"),
-            ["aihubmix"]   = ("AIHubMix",     "https://aihubmix.com/v1"),
-            ["local"]      = ("Local",        ""),
-            ["custom"]     = ("Custom",       ""),
+            // 官方环境变量 / 常用模型 / 模型列表接口；不确定的留空（没有则为空）
+            ["openai"]     = new("OpenAI",       "https://api.openai.com", "OPENAI_API_KEY", "/models", "gpt-5.4,gpt-5.4-mini,gpt-4o,gpt-4o-mini"),
+            ["anthropic"]  = new("Anthropic",    "https://api.anthropic.com", "ANTHROPIC_API_KEY", "", "claude-opus-5,claude-sonnet-5,claude-haiku-4-5"),
+            ["deepseek"]   = new("DeepSeek",     "https://api.deepseek.com", "DEEPSEEK_API_KEY", "/models", "deepseek-v4-pro,deepseek-v4-flash,deepseek-chat,deepseek-reasoner", "low,medium,high"),
+            ["google"]     = new("Google",       "https://generativelanguage.googleapis.com/v1beta/openai", "GEMINI_API_KEY", "/models", "gemini-2.5-pro,gemini-2.5-flash,gemini-2.0-flash"),
+            ["qwen"]       = new("Alibaba Qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1", "DASHSCOPE_API_KEY", "/models", "qwen3-max,qwen3-plus,qwen-turbo"),
+            ["moonshot"]   = new("Moonshot",     "https://api.moonshot.cn", "MOONSHOT_API_KEY", "/models", "kimi-k2.5"),
+            ["zhipu"]      = new("Zhipu GLM",    "https://open.bigmodel.cn/api/paas/v4", "ZHIPU_API_KEY", "/models", "glm-4-plus,glm-4-flash", "low,medium,high"),
+            ["bytedance"]  = new("ByteDance",    "https://ark.cn-beijing.volces.com/api/v3", "ARK_API_KEY", "", ""),
+            ["01ai"]       = new("01.AI",        "https://api.lingyiwanwu.com", "LINGYIWANWU_API_KEY", "/models", ""),
+            ["xai"]        = new("xAI",          "https://api.x.ai", "XAI_API_KEY", "/models", "grok-4.5"),
+            ["mistral"]    = new("Mistral",      "https://api.mistral.ai", "MISTRAL_API_KEY", "/models", ""),
+            ["siliconflow"]= new("SiliconFlow",  "https://api.siliconflow.cn", "SILICONFLOW_API_KEY", "/models", ""),
+            ["openrouter"] = new("OpenRouter",   "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "/models", ""),
+            ["groq"]       = new("Groq",         "https://api.groq.com/openai/v1", "GROQ_API_KEY", "/models", ""),
+            ["together"]   = new("Together AI",  "https://api.together.xyz/v1", "TOGETHER_API_KEY", "/models", ""),
+            ["gitee"]      = new("Gitee AI",     "https://ai.gitee.com/v1", "GITEE_AI_API_KEY", "", ""),
+            ["bailian"]    = new("Alibaba Bailian", "https://dashscope.aliyuncs.com/compatible-mode/v1", "DASHSCOPE_API_KEY", "/models", "qwen3-max,qwen3-plus"),
+            ["opencode-go"]  = new("OpenCode Go",  "https://opencode.ai/zen/go/v1", "OPENCODE_API_KEY", "", "", null, 2),  // 订阅制；网关级温度限 2 位
+            ["opencode-zen"] = new("OpenCode Zen", "https://opencode.ai/zen/v1", "OPENCODE_API_KEY", "", ""),              // 按量付费
+            ["opencode"]     = new("OpenCode",     "https://opencode.ai/zen/v1", "OPENCODE_API_KEY", "", ""),              // 旧数据兼容别名
+            ["minimax"]    = new("MiniMax",      "https://api.minimaxi.com/v1", "MINIMAX_API_KEY", "/models", ""),
+            ["aihubmix"]   = new("AIHubMix",     "https://aihubmix.com/v1", "AIHUBMIX_API_KEY", "/models", ""),
+            ["local"]      = new("Local",        "", "", "", ""),
+            ["custom"]     = new("Custom",       "", "", "", ""),
         };
         // 服务商数据库：首次运行生成 ~/.waycoder/providers.json，之后从它加载（用户可编辑扩展服务商）
         LoadOrCreateProvidersJson();
@@ -168,7 +185,16 @@ public static class ModelCatalog
             {
                 var name = p?["name"]?.AsString() ?? id;
                 var url = p?["base_url"]?.AsString() ?? p?["baseUrl"]?.AsString() ?? "";
-                Providers[id] = (name, url);
+                // 官方元数据 + 厂商级调用参数默认（模型未声明时继承）；兼容 snake_case
+                var apiKeyEnv = p?["apiKeyEnvVar"]?.AsString() ?? p?["api_key_env"]?.AsString();
+                var modelsEndpoint = p?["modelsEndpoint"]?.AsString() ?? p?["models_endpoint"]?.AsString();
+                var commonModels = p?["commonModels"]?.AsString() ?? p?["common_models"]?.AsString();
+                var reasoningAllowed = p?["reasoningEffortAllowed"]?.AsString()
+                    ?? p?["reasoning_effort"]?.AsString()
+                    ?? p?["reasoning_effort_allowed"]?.AsString();
+                var tempPrec = IntOpt(p?["temperaturePrecision"])
+                    ?? IntOpt(p?["temperature_precision"]);
+                Providers[id] = new ProviderInfo(name, url, apiKeyEnv, modelsEndpoint, commonModels, reasoningAllowed, tempPrec);
             }
         }
         catch { }
@@ -189,7 +215,18 @@ public static class ModelCatalog
             {
                 var kv = entries[i];
                 var comma = i < entries.Count - 1 ? "," : "";
-                sb.Append($"    \"{kv.Key}\": {{ \"name\": \"{kv.Value.DisplayName}\", \"base_url\": \"{kv.Value.DefaultBaseUrl}\" }}{comma}\n");
+                sb.Append($"    \"{kv.Key}\": {{ \"name\": \"{kv.Value.DisplayName}\", \"base_url\": \"{kv.Value.DefaultBaseUrl}\"");
+                if (!string.IsNullOrWhiteSpace(kv.Value.ApiKeyEnvVar))
+                    sb.Append($", \"apiKeyEnvVar\": \"{kv.Value.ApiKeyEnvVar}\"");
+                if (!string.IsNullOrWhiteSpace(kv.Value.ModelsEndpoint))
+                    sb.Append($", \"modelsEndpoint\": \"{kv.Value.ModelsEndpoint}\"");
+                if (!string.IsNullOrWhiteSpace(kv.Value.CommonModels))
+                    sb.Append($", \"commonModels\": \"{kv.Value.CommonModels}\"");
+                if (!string.IsNullOrWhiteSpace(kv.Value.ReasoningEffortAllowed))
+                    sb.Append($", \"reasoningEffortAllowed\": \"{kv.Value.ReasoningEffortAllowed}\"");
+                if (kv.Value.TemperaturePrecision is { } tp)
+                    sb.Append($", \"temperaturePrecision\": {tp}");
+                sb.Append($" }}{comma}\n");
             }
             sb.AppendLine("  }");
             sb.AppendLine("}");
@@ -205,7 +242,7 @@ public static class ModelCatalog
     {
         providerId = NormalizeId(providerId);
         if (string.IsNullOrWhiteSpace(providerId) || string.IsNullOrWhiteSpace(baseUrl)) return;
-        Providers[providerId] = (displayName, baseUrl);
+        Providers[providerId] = new ProviderInfo(displayName, baseUrl);
         SaveProvidersJson();
     }
 
@@ -619,21 +656,30 @@ public static class ModelCatalog
     static int? IntOpt(JNode? n) => n != null && n.Kind == JKind.Number ? (int)Math.Round(n.AsNumber()) : null;
     static double? DblOpt(JNode? n) => n != null && n.Kind == JKind.Number ? n.AsNumber() : null;
 
-    private static JNode ToJson(ModelInfo m) => JNode.Object()
-        .Set("id", m.Id)
-        .Set("displayName", m.DisplayName)
-        .Set("provider", m.Provider)
-        .Set("providerId", m.ProviderId)
-        .Set("icon", m.ProviderIcon)
-        .Set("category", m.Category)
-        .Set("contextWindow", m.ContextWindow)
-        .Set("maxOutput", m.MaxOutput)
-        .Set("inputPrice", m.InputPrice)
-        .Set("outputPrice", m.OutputPrice)
-        .Set("inputPriceOffpeak", m.InputPriceOffpeak)
-        .Set("outputPriceOffpeak", m.OutputPriceOffpeak)
-        .Set("baseUrl", m.DefaultBaseUrl)
-        .Set("description", m.Description);
+    private static JNode ToJson(ModelInfo m)
+    {
+        var n = JNode.Object()
+            .Set("id", m.Id)
+            .Set("displayName", m.DisplayName)
+            .Set("provider", m.Provider)
+            .Set("providerId", m.ProviderId)
+            .Set("icon", m.ProviderIcon)
+            .Set("category", m.Category)
+            .Set("contextWindow", m.ContextWindow)
+            .Set("maxOutput", m.MaxOutput)
+            .Set("inputPrice", m.InputPrice)
+            .Set("outputPrice", m.OutputPrice)
+            .Set("inputPriceOffpeak", m.InputPriceOffpeak)
+            .Set("outputPriceOffpeak", m.OutputPriceOffpeak)
+            .Set("baseUrl", m.DefaultBaseUrl)
+            .Set("description", m.Description);
+        // 条件写非默认值：未声明约束的旧文件往返字节不变（不刷噪音 key）
+        if (!string.IsNullOrWhiteSpace(m.ReasoningEffortAllowed))
+            n.Set("reasoningEffortAllowed", m.ReasoningEffortAllowed);
+        if (m.TemperaturePrecision is { } tp)
+            n.Set("temperaturePrecision", tp);
+        return n;
+    }
 
     /// <summary>从 models.json 反序列化（精确读回所有字段，不推断 providerId/description，避免往返损坏）</summary>
     private static ModelInfo? FromJson(JNode? node)
@@ -655,7 +701,9 @@ public static class ModelCatalog
             node["description"]?.AsString() ?? "",
             IntOpt(node["maxOutput"]) ?? 0,
             DblOpt(node["inputPriceOffpeak"]) ?? 0,
-            DblOpt(node["outputPriceOffpeak"]) ?? 0
+            DblOpt(node["outputPriceOffpeak"]) ?? 0,
+            StrOpt(node["reasoningEffortAllowed"]),
+            IntOpt(node["temperaturePrecision"])
         );
     }
 
@@ -696,6 +744,55 @@ public static class ModelCatalog
         if (string.IsNullOrWhiteSpace(modelId)) return fallback;
         var info = Find(modelId);
         return info != null && info.ContextWindow > 0 ? info.ContextWindow : fallback;
+    }
+
+    /// <summary>模型调用参数约束（解析后最终取值）。</summary>
+    public sealed record ModelCallConstraints(string? ReasoningEffortAllowed, int TemperaturePrecision);
+
+    /// <summary>
+    /// 两级合并：模型级 &gt; 厂商级 &gt; 全局默认。纯函数，可自测。
+    /// 模型级显式 0（整数精度）不会被厂商级覆盖（null 才继承）。
+    /// </summary>
+    internal static (string? Allowed, int Precision) MergeModelProviderConstraints(
+        string? modelAllowed, int? modelPrecision,
+        string? providerAllowed, int? providerPrecision,
+        int globalDefault = 2)
+        => (
+            !string.IsNullOrWhiteSpace(modelAllowed) ? modelAllowed : providerAllowed,
+            modelPrecision ?? providerPrecision ?? globalDefault);
+
+    /// <summary>
+    /// 解析当前模型的有效调用参数约束（LLM 每请求调用一次）。
+    /// Find 带网关反查（同 id 不同网关是两个条目），再按 ProviderId 取厂商级，两级合并。
+    /// </summary>
+    public static ModelCallConstraints ResolveModelCallConstraints(string? modelId, string? baseUrl)
+    {
+        var info = string.IsNullOrWhiteSpace(modelId) ? null : Find(modelId, baseUrl);
+        string? provAllowed = null;
+        int? provPrec = null;
+        if (info != null && Providers.TryGetValue(info.ProviderId, out var prov))
+        {
+            provAllowed = prov.ReasoningEffortAllowed;
+            provPrec = prov.TemperaturePrecision;
+        }
+        var (allowed, prec) = MergeModelProviderConstraints(
+            info?.ReasoningEffortAllowed, info?.TemperaturePrecision,
+            provAllowed, provPrec);
+        return new ModelCallConstraints(allowed, prec);
+    }
+
+    /// <summary>
+    /// 决定要发送的 reasoning_effort 值：全局值在有效允许集内→原样返回；不在→null（跳过字段，让模型用默认 thinking，避免 HTTP 400）。
+    /// 无约束（allowedCsv 空）→ 原样返回全局值（现状）；全局未设置→null。
+    /// </summary>
+    public static string? ResolveReasoningEffort(string? allowedCsv, string? globalValue)
+    {
+        if (string.IsNullOrEmpty(globalValue)) return null;
+        if (string.IsNullOrWhiteSpace(allowedCsv)) return globalValue;
+        return allowedCsv.Split(',')
+            .Any(v => v.Trim().Equals(globalValue.Trim(), StringComparison.OrdinalIgnoreCase))
+            ? globalValue
+            : null;
     }
 
     /// <summary>
