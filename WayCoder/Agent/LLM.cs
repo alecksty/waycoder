@@ -416,6 +416,8 @@ public class LLM
             : Config.Instance.EconomyMode == EconomyMode.On ? Math.Min(MaxTokens, Config.Instance.EconomyMaxTokens) : MaxTokens;
 
         // 构建请求体。JNode 无 Remove，400 回退时用 includeStreamOptions 参数重建不带 stream_options 的请求体。
+        // 模型调用参数约束：模型级 > 厂商级 > 全局默认（Find 带网关：同 id 不同网关是两个条目）
+        var constraints = ModelCatalog.ResolveModelCallConstraints(EffectiveModel, BaseUrl);
         JNode BuildBody(bool includeStreamOptions)
         {
             var messagesArray = JNode.Array();
@@ -425,9 +427,9 @@ public class LLM
                 .Set("model", EffectiveModel)
                 .Set("messages", messagesArray)
                 .Set("stream", true)
-                // temperature 先转 double 再 round 到 2 位小数：float 0.1f → double 0.10000000149011612，
+                // temperature 先转 double 再 round 到约束精度（默认 2 位）：float 0.1f → double 0.10000000149011612，
                 // JSON "R" 序列化输出长尾小数，被 glm-5.3 等严格网关（限 2 位）以 HTTP 400 拒绝
-                .Set("temperature", Math.Round((double)Math.Clamp(Temperature, 0f, 2f), 2))
+                .Set("temperature", Math.Round((double)Math.Clamp(Temperature, 0f, 2f), constraints.TemperaturePrecision))
                 .Set("max_tokens", maxTokens);
 
             if (includeStreamOptions)
@@ -440,11 +442,19 @@ public class LLM
                 b.Set("tools", toolsArray);
             }
 
-            // 推理深度：DeepSeek V4 / OpenAI o-series 支持 reasoning_effort 参数
-            var reasoningEffort = Config.Instance.ReasoningEffort;
+            // 推理深度：DeepSeek V4 / OpenAI o-series 支持 reasoning_effort 参数。
+            // 值恒来自全局，但模型/厂商声明了允许集时，全局值越界→跳过字段（不发，让模型用默认 thinking，避免 HTTP 400）
+            var reasoningEffort = ModelCatalog.ResolveReasoningEffort(
+                constraints.ReasoningEffortAllowed, Config.Instance.ReasoningEffort);
             if (!string.IsNullOrEmpty(reasoningEffort))
             {
                 b.Set("reasoning_effort", reasoningEffort);
+            }
+            else if (!string.IsNullOrEmpty(Config.Instance.ReasoningEffort))
+            {
+                DebugLog.Log("llm",
+                    $"模型 {EffectiveModel} 限制 reasoning_effort 允许集 [{constraints.ReasoningEffortAllowed}]，" +
+                    $"全局值 {Config.Instance.ReasoningEffort} 越界，已跳过该字段");
             }
 
             return b;

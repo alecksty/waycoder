@@ -73,6 +73,8 @@ public static partial class SelfTest
         TestEconomyMode(Check);
         // 省钱模式工具精简测试（Off=全量 / 开=去重复 / 开的越大越精简）
         TestEconomyToolTrim(Check);
+        // 模型/厂商调用参数约束测试（reasoning_effort 允许集 + temperature 精度）
+        TestModelParams(Check);
         // /init 项目初始化测试（生成 AGENT.md + 命令检测）
         TestProjectInit(Check);
         // 多槽位后台并行执行测试（槽位缓冲输出 + 运行状态）
