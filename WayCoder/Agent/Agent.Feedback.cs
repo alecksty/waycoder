@@ -111,11 +111,13 @@ public partial class Agent
                 Arguments = string.Join(' ', testCmd.Split(' ').Skip(1)),
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                RedirectStandardInput = true, // 不共享主控台 stdin（防与 TUI 主循环抢控制台输入致 ReadKey 永久阻塞）
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
             using var proc = System.Diagnostics.Process.Start(psi);
             if (proc == null) return toolResult;
+            try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
 
             // 最多等 N 秒。stdout/stderr 必须并发读：先读完 stdout 再读 stderr，
             // 子进程向 stderr 写满管道缓冲（约 4KB+）时会阻塞在写 stderr，永远不退出

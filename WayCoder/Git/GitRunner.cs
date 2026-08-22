@@ -16,6 +16,7 @@ public static class GitRunner
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            RedirectStandardInput = true, // 不共享主控台 stdin（防与 TUI 主循环抢控制台输入致 ReadKey 永久阻塞）
             UseShellExecute = false,
             CreateNoWindow = true,
         };
@@ -30,6 +31,7 @@ public static class GitRunner
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            RedirectStandardInput = true, // 不共享主控台 stdin（防与 TUI 主循环抢控制台输入致 ReadKey 永久阻塞）
             UseShellExecute = false,
             CreateNoWindow = true,
         };
@@ -44,6 +46,7 @@ public static class GitRunner
         try
         {
             using var proc = Process.Start(BuildStartInfo(args, cwd))!;
+            try { proc.StandardInput.Close(); } catch { /* 进程已退出 */ } // stdin 置 EOF，不共享控制台
             // 并发读取 stdout/stderr，避免经典死锁：stderr 缓冲写满时进程阻塞，
             // 而同步先读 stdout 永远等不到 EOF。
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
@@ -84,6 +87,7 @@ public static class GitRunner
         try
         {
             using var proc = Process.Start(psi)!;
+            try { proc.StandardInput.Close(); } catch { /* 进程已退出 */ } // stdin 置 EOF，不共享控制台
             // 并发读取 stdout/stderr，避免同步先读 stdout 的死锁。
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();

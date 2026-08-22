@@ -1,5 +1,23 @@
 # 更新日志
 
+## v0.84.0 (2026-08-22) — 模型配置三层重构：connect / provider / connection + 命令按域分类 + 回退链开关
+
+**模型配置重构**：connect = {providerId, modelId} 命名注册表；provider = {name, baseUrl, apikey} 逻辑一体（物理分文件）；connection = 大 connect + 小 connect 一起切换；回退链 = 一串 connect。
+
+- **三层数据模型落地**：`ConnectionConfig` 重写为分类存储（`connections.json` 分 connects / connections / fallbackChain 区）；`ApplyModelChoice` / `SetActiveConnect` 统一「切换模型 = 切换 connect」入口，ModelPicker / ModelCli / Web / GUI / CLI 全部路由到它；旧配置自动迁移（旧 connections.json、扁平 Config 字段、FallbackChain 模型名 → connect 名）
+- **/connect 一键切换**：`/connect <connectId | providerId.modelId | providerId/modelId | baseUrl:model | modelId>` 双分隔符解析（`TryParseSpec` 纯逻辑可自测）；`Ctrl+Shift+M` 快捷键循环切换 connect
+- **命令按域分类**：`/connect` 只管 connect 层（注册表 / 命名连接 / 回退链 / 切换），`/provider` 只管 provider（list/add/rm/select/test/import + apikey），`/model` 只管模型目录；CLI 新增 `--connect`、`--provider` 补 select/key/test/import
+- **模型栏 `(provider)model`**：区分同名模型不同服务商；显示「实际生效」模型（回退/切换后立即反映 + `(回退)` 标记）
+- **回退链开关（默认关）**：`/connect chain on|off`；关 = 只用当前模型失败即停；回退消息明确去向 + 剩余链
+- **跨 provider 大/小模型**：`WithModelOverrideAsync` 按小 connect 的 provider 重配 endpoint（finally 恢复）
+- **修复**：在线导入分类错配（pname 跟随推断 provider，不再硬编码 OpenCode Go）、导入/清空白屏（connect 迁移预热到启动、渲染路径防抛）、TUI 设置屏缺 SmallProvider、Web 切小模型丢 provider/baseUrl、FallbackLLM `WriteFallback` 自递归
+- **槽位 connect 化**：`SlotConfig` 增 BigConnect / SmallConnect 引用，槽位模型切换同步登记 connect
+
+### ✅ 验证
+- 主项目 + GUI `dotnet build -c Debug` 0 错误；自测 4152/4153（唯一失败为环境相关的 minimax 本地 providers.json 覆盖）
+
+---
+
 ## v0.83.1 (2026-08-22) — TUI 跨线程安全：PostToUI 提炼到基类 + 修 6 处后台直接碰 UI/终端
 
 **修复「本地导入卡住 + 花屏」**（ModelPicker 本地导入期间后台线程直接写控件 → 与渲染循环并发帧交错花屏）。

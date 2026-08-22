@@ -397,6 +397,113 @@ public static partial class SelfTest
         Check("ApiKeyStore key过滤: 真实 key 不是伪 key",
             !ApiKeyStore.IsEnvVarRef("sk-abc123") && !ApiKeyStore.IsEnvVarRef("  sk-abc123  "));
 
+        // ---- ConnectConfig：connect/provider/connection 三层分类存储 ----
+        Section("[ConnectionConfig]");
+        {
+            // FilePathOverride 已由测试入口指向临时文件并预置 base fixture（迁移应为空操作）
+            ConnectionConfig.ClearCache();
+            Check("ConnectConfig: connects 读取", ConnectionConfig.ListConnects().Count == 4);
+            Check("ConnectConfig: 按名查 connect",
+                ConnectionConfig.FindConnect("deepseek/deepseek-v4-pro")?.ModelId == "deepseek-v4-pro");
+            Check("ConnectConfig: 按内容查 connect",
+                ConnectionConfig.FindConnectByContent("deepseek", "deepseek-v4-flash")?.Name == "deepseek/deepseek-v4-flash");
+            Check("ConnectConfig: 按模型反查 connect",
+                ConnectionConfig.FindConnectByModel("qwen-turbo")?.Name == "qwen/qwen-turbo");
+            Check("ConnectConfig: 命名连接读取", ConnectionConfig.ListConnections().Count == 1);
+            Check("ConnectConfig: ActiveName", ConnectionConfig.ActiveName == "default");
+            Check("ConnectConfig: 回退链读取",
+                ConnectionConfig.FallbackChain.Count == 4 && ConnectionConfig.FallbackChain[0] == "deepseek/deepseek-v4-pro");
+            Check("ConnectConfig: 默认 connect 名",
+                ConnectionConfig.DefaultConnectName("deepseek", "deepseek-v4-pro") == "deepseek/deepseek-v4-pro");
+            Check("ConnectConfig: 模型栏格式 (provider)model",
+                ConnectionConfig.FormatModel("deepseek", "deepseek-v4-pro") == "(deepseek)deepseek-v4-pro");
+
+            // /connect spec 解析：点号 / 斜杠双分隔符都支持
+            Check("Spec: 点号分隔 providerId.modelId",
+                ConnectionConfig.TryParseSpec("deepseek.deepseek-v4-pro", out var sp1, out var sm1, out _)
+                    && sp1 == "deepseek" && sm1 == "deepseek-v4-pro");
+            Check("Spec: 斜杠分隔 providerId/modelId",
+                ConnectionConfig.TryParseSpec("deepseek/deepseek-v4-pro", out var sp2, out var sm2, out _)
+                    && sp2 == "deepseek" && sm2 == "deepseek-v4-pro");
+            Check("Spec: baseUrl:model",
+                ConnectionConfig.TryParseSpec("https://api.openai.com:gpt-5.4", out _, out var sm4, out var b4)
+                    && sm4 == "gpt-5.4" && b4 == "https://api.openai.com");
+            Check("Spec: 裸模型名",
+                ConnectionConfig.TryParseSpec("deepseek-v4-pro", out var sp5, out var sm5, out _)
+                    && sp5 == "deepseek" && sm5 == "deepseek-v4-pro");
+            Check("Spec: 空指令 false", !ConnectionConfig.TryParseSpec("", out _, out _, out _));
+
+            // provider 逻辑一体解析（读 providers.json + api_keys.json，只读）
+            var prov = ConnectionConfig.ResolveProvider("deepseek");
+            Check("ConnectConfig: provider 组合", prov != null && prov!.BaseUrl.Length > 0 && prov.Name.Length > 0);
+            Check("ConnectConfig: connect→provider",
+                ConnectionConfig.ResolveProviderForConnect("deepseek/deepseek-v4-pro") != null);
+
+            // 新增/删除 connect 与命名连接（写临时文件）
+            Check("ConnectConfig: 新增 connect",
+                ConnectionConfig.AddConnect("qwen-turbo", "qwen", "qwen-turbo", out var addErr) && string.IsNullOrEmpty(addErr));
+            Check("ConnectConfig: 重名 connect 拒绝",
+                !ConnectionConfig.AddConnect("qwen-turbo", "qwen", "qwen-turbo", out _));
+            Check("ConnectConfig: 新增命名连接",
+                ConnectionConfig.AddConnection("hybrid", "deepseek/deepseek-v4-pro", "qwen-turbo", out _));
+            Check("ConnectConfig: 引用中 connect 不可删",
+                !ConnectionConfig.RemoveConnect("deepseek/deepseek-v4-pro", out _));
+            Check("ConnectConfig: 删除命名连接",
+                ConnectionConfig.RemoveConnection("hybrid", out _));
+            Check("ConnectConfig: 删除后 connect 可删",
+                ConnectionConfig.RemoveConnect("qwen-turbo", out _));
+            Check("ConnectConfig: 已删 connect 不存在", ConnectionConfig.FindConnect("qwen-turbo") == null);
+
+            // 文件往返：ClearCache 后重新 Load
+            ConnectionConfig.ClearCache();
+            Check("ConnectConfig: 文件往返 connects", ConnectionConfig.ListConnects().Count == 4);
+            Check("ConnectConfig: 文件往返 connections", ConnectionConfig.ListConnections().Count == 1);
+            ConnectionConfig.ClearCache();
+
+            // 跨 provider 小 connect：WithModelOverride 期间按小 connect 的 provider 换 endpoint，结束后恢复
+            ApiKeyStore.Set("qwen", "sk-qwen-test-1234");
+            try
+            {
+                var overrideLlm = new LLM("deepseek-v4-pro", "bigkey", "https://big.example.com")
+                { SmallModel = "qwen-turbo" };
+                Agent.WithModelOverrideAsync(overrideLlm, "qwen-turbo",
+                    async () => { await Task.CompletedTask; return 1; }).GetAwaiter().GetResult();
+                Check("ConnectConfig: 跨 provider override 恢复 endpoint",
+                    overrideLlm.ApiKey == "bigkey" && overrideLlm.BaseUrl == "https://big.example.com");
+            }
+            finally { ApiKeyStore.Remove("qwen"); }
+
+            // 旧格式迁移：{active, connections:[{name,providerId,largeModel,smallModel}]} → 自动注册 connect
+            var legacyPath = Path.Combine(Path.GetTempPath(), "waycoder_conn_legacy.json");
+            ConnectionConfig.FilePathOverride = legacyPath;
+            try
+            {
+                File.WriteAllText(legacyPath, """
+                {
+                  "active": "legacy",
+                  "connections": [
+                    { "name": "legacy", "providerId": "deepseek", "largeModel": "deepseek-v4-pro", "smallModel": "deepseek-v4-flash" }
+                  ],
+                  "fallbackChain": ["deepseek/deepseek-v4-pro"]
+                }
+                """);
+                ConnectionConfig.ClearCache();
+                var legacyConns = ConnectionConfig.ListConnections();
+                Check("ConnectConfig: 旧格式迁移连接", legacyConns.Count == 1 && legacyConns[0].Name == "legacy");
+                Check("ConnectConfig: 旧格式自动注册大 connect",
+                    ConnectionConfig.FindConnectByContent("deepseek", "deepseek-v4-pro") != null);
+                Check("ConnectConfig: 旧格式自动注册小 connect",
+                    ConnectionConfig.FindConnectByContent("deepseek", "deepseek-v4-flash") != null);
+                Check("ConnectConfig: 旧格式 active 保留", ConnectionConfig.ActiveName == "legacy");
+            }
+            finally
+            {
+                ConnectionConfig.ClearCache();
+                ConnectionConfig.FilePathOverride = null; // 恢复真实路径（后续无 ConnectionConfig 测试）
+                try { if (File.Exists(legacyPath)) File.Delete(legacyPath); } catch { }
+            }
+        }
+
         // 外部配置导入：Claude Code settings.json（env 中 *_MODEL + BASE_URL，去 [1M] 后缀 + 去重 + 跳过 *_MODEL_NAME）
         var claudeJson = """
         {

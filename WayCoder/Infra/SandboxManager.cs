@@ -134,6 +134,7 @@ public static class SandboxManager
             WorkingDirectory = AllowedDirectory ?? cwd,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            RedirectStandardInput = true, // 不共享主控台 stdin（BashTool 启动后置 EOF，防 TUI ReadKey 竞态）
             UseShellExecute = false,
             CreateNoWindow = true,
         };

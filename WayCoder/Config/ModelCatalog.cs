@@ -938,9 +938,16 @@ public static class ModelCatalog
         {
             var id = m?["id"]?.AsString();
             if (string.IsNullOrWhiteSpace(id)) continue;
-            // 按服务地址归类：opencode 网关分 Go(zen/go/v1) / Zen(zen/v1) 两个服务商，地址决定归属
+            // 按服务地址归类：opencode 网关分 Go(zen/go/v1) / Zen(zen/v1) 两个服务商，地址决定归属。
+            // pname 跟随 providerId（注册表显示名），避免「从 DeepSeek 源在线导入」得到 providerId=deepseek 却标 OpenCode Go 的错配
             var pid = InferProviderFromBaseUrl(baseUrl) ?? "opencode-go";
-            var pname = pid == "opencode-zen" ? "OpenCode Zen" : "OpenCode Go";
+            var pname = pid switch
+            {
+                "opencode-go" => "OpenCode Go",
+                "opencode-zen" => "OpenCode Zen",
+                _ => ModelCatalog.Providers.TryGetValue(pid, out var prov) && !string.IsNullOrWhiteSpace(prov.DisplayName)
+                    ? prov.DisplayName : pid,
+            };
             result.Add(new ModelInfo(id, id, pname, pid, "*", "Imported",
                 0, 0, 0, baseUrl, $"从 OpenCode 在线导入（{pname}）", 0));
         }
