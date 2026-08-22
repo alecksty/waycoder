@@ -6,3 +6,6 @@
 *.bat  text eol=crlf
 *.cmd  text eol=crlf
 *.ps1  text eol=crlf
+
+# shell 脚本必须 LF（CRLF 会让 set -euo pipefail 报 "无效的选项名"）
+*.sh   text eol=lf
