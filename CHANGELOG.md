@@ -1,5 +1,23 @@
 # 更新日志
 
+## v0.83.0 (2026-08-22) — 模式体系 v3：行为轴三档（Chat/Plan/Build）落地
+
+- **工作模式三档**（行为轴）：删 Review 与 Auto，改为 `🔨 Build（建造）/ 🧠 Plan（规划）/ 💬 Chat（聊天）`；Shift+Tab / Ctrl+K 循环 `Build→Plan→Chat`
+  - **Chat 聊天**：0 工具 + 0 系统提示词，每轮只剩 user/assistant 消息（token≈0）；不注入 system 消息、不传工具 schema、首条回复即完成（不被「请立即调用工具」误催）
+  - **Plan 规划**：只读白名单 `PlanReadOnlyTools`（read_file/glob/grep/ls/tree/stat/wc/pwd/diff/doc/web_search/fetch/lsp/lint/skill/memory/transcribe/view_image/ask_user_question/job_output/ps/todo/**bash**，bash 运行时按 `BashGuard.IsSafeReadOnly` 门控只读命令）+ 精简提示词 `GeneratePlan`（~460 字符，完整版 27K）——schema 层硬过滤，写工具不进 schema
+  - **Build 建造**：工具与提示词受经济模式管理（TrimToolsForEconomy + SystemPrompt 档位），现状不变
+- **TINY 并入 Chat**：`PermissionManager.Mode` 删除 TINY（只剩 Ask/Auto/SmartAuto/Yolo）；`--permit tiny/chat`、`/perm tiny/chat`、Web/GUI `/perm` 路由到 Chat 工作模式
+- **权限 AUTO 改必问**：去掉「首次确认后会话记忆」，只读工具放行、危险/修改操作逐次确认（≈Ask）；`AutoAllowed` 保留给 SmartAuto Cautious
+- **修复 P0-1**：`/mode`、`/permit`、Ctrl+P、计划审批门批准等入口统一刷新工具集+提示词（`ModeChanged` 处理器 + `Program.RefreshActiveSlotTools` + `WireSlotWorkMode` 回调）
+- **修复 ReapplyToolFilter 缺陷**：Agent 保存 `_allTools` 原始集，重滤从全集进行——经济精简删掉的工具（如 grep）在切 Plan 时恢复
+- `--sysprompt-size` 新增 Chat（0/0）与 Plan（23 工具 + GeneratePlan）对照行
+- docs/模式体系.md v3 重写、使用手册/CLAUDE.md/README 同步；自测新增 Plan 白名单 / Chat 0 工具 / 权限四档 / Auto 改必问断言（4122/4123 通过）
+
+### ✅ 验证
+- 全项目 `dotnet build -c Debug` 0 错误（主项目 + GUI）；自测 4122/4123（唯一失败为环境相关的 minimax 本地 providers.json 覆盖，与本次无关）；`--sysprompt-size` 输出 Chat/Plan 行尺寸正确
+
+---
+
 ## v0.82.3 (2026-08-22) — 模式体系 v2：参考竞品（Claude Code / Codex / Crush / Aider）四轴正交划分
 
 - **四正交轴模型**（对齐 Codex 双轴 `sandbox_mode × approval_policy` + Claude Code `plan` mode 语义）：

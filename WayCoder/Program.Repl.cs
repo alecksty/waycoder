@@ -193,7 +193,11 @@ public partial class Program
             {
                 _slots[_activeSlot].WorkMode = mode;
                 if (_slots[_activeSlot].Agent != null)
+                {
                     _slots[_activeSlot].Agent!.WorkMode = mode;
+                    // 统一刷新工具集 + 系统提示词（修 P0-1：/mode、Shift+Tab 等入口此前不刷新）
+                    _slots[_activeSlot].Agent!.ReapplyToolFilter();
+                }
                 screen.StatusBar.CurrentWorkMode = mode;
             });
         };
@@ -396,14 +400,12 @@ public partial class Program
                 PanicExit("用户 Ctrl+Q 紧急退出");
             }
 
-            // 窗口键：切换工作模式（Build → Plan → Review → Auto）
+            // 窗口键：切换工作模式（Build → Plan → Chat）
             // 判定见 InputEvent.IsModeSwitchKey —— Unix 的 ESC[Z / Windows 的 Tab+Shift / 通用 Ctrl+K
+            // 槽位/Agent 模式同步 + 工具集刷新 + 状态栏由 ModeChanged 处理器统一完成
             if (InputEvent.IsModeSwitchKey(ev))
             {
                 var newMode = WorkModeManager.CycleNext();
-                _slots[_activeSlot].WorkMode = newMode;
-                screen.StatusBar.CurrentWorkMode = newMode;
-                _slots[_activeSlot].Agent?.ReapplyToolFilter(); // 工具集随工作模式变化（Plan 限集 / Build 全集）
                 screen.AddSystemMsg($"工作模式: {WorkModeManager.Format(newMode)}（Shift+Tab / Ctrl+K 切换）");
                 mgr.Render();
                 continue;
@@ -450,11 +452,12 @@ public partial class Program
                 }
             }
 
-            // 窗口键：Ctrl+P 循环切换权限模式（问答→自动→智能→畅通→极简）
+            // 窗口键：Ctrl+P 循环切换权限模式（问答→自动→智能→畅通）
             if (key.Key == ConsoleKey.P && ctrl)
             {
                 PermissionManager.CycleMode();
                 screen.AddSystemMsg($"权限模式: {PermissionManager.FormatMode()}（Ctrl+P 循环切换）");
+                RefreshActiveSlotTools(); // 权限模式可影响工具集（YOLO 换 YoloToolAllowList），切换后刷新
                 mgr.Render();
                 continue;
             }
@@ -918,9 +921,11 @@ public partial class Program
     {
         var slot = _slots[slotIdx];
         agent.WorkMode = slot.WorkMode;
+        agent.ReapplyToolFilter(); // 绑定槽位模式后按档位重建工具集/提示词（补「持久模式为 Chat/Plan 的槽位不刷新」缺口）
         agent.OnWorkModeChanged = mode =>
         {
             _slots[slotIdx].WorkMode = mode;
+            agent.ReapplyToolFilter(); // 计划审批门批准回 Build 等内部切模式后刷新工具集/提示词
             // 仅当该槽位是活跃槽位时才同步全局镜像与状态栏（后台线程安全：枚举赋值原子）
             if (slotIdx == _activeSlot)
             {

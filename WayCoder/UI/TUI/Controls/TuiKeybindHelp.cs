@@ -42,7 +42,7 @@ public static class TuiKeybindHelp
             ("Home / End", "输入区行首 / 行尾"),
         ]),
         ("🔄 模式", [
-            ("Shift+Tab / Ctrl+K", "切模式 Build→Plan→Review→Auto"),
+            ("Shift+Tab / Ctrl+K", "切模式 Build→Plan→Chat"),
             ("Ctrl+M / /model", "打开模型选择对话框"),
             ("Alt+P", "模型选择（对齐 Claude Code meta+p）"),
             ("Ctrl+Shift+P", "命令面板（对齐 Claude Code/OpenCode）"),

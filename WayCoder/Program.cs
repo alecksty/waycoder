@@ -35,6 +35,19 @@ public partial class Program
 
     /// <summary>所有槽位数组（供外部命令访问）</summary>
     public static AgentSlot[] GetSlots() => _slots;
+
+    /// <summary>
+    /// 刷新活跃槽位 Agent 的工具集与系统提示词（模式/权限切换后调用）。
+    /// 供 /mode、/permit、Ctrl+P 等入口统一调用，修 P0-1「其余入口不刷新工具集」。
+    /// </summary>
+    public static void RefreshActiveSlotTools()
+    {
+        var slots = _slots;
+        if (slots == null) return;
+        if (_activeSlot < 0 || _activeSlot >= slots.Length) return;
+        slots[_activeSlot].Agent?.ReapplyToolFilter();
+    }
+
     private static WatchMode? _watchMode;
     private static volatile bool _exitRequested;
     private static readonly Task?[] _slotTasks = new Task?[AgentSlot.Count];
@@ -93,9 +106,15 @@ public partial class Program
             WayCoder.UI.Shared.Terminal.AnsiTty.Enabled = false;
         Config.Instance.QuietMode = Arguments.CliArgRegistry.Has(parsed, "quiet");
 
-        // --permit <tiny/ack/auto/smart/yolo>：启动权限模式（极简TINY/问答ACK/自动AUTO/智能SMART/畅通YOLO）
+        // --permit <tiny/chat/ack/auto/smart/yolo>：启动权限模式（问答ACK/自动AUTO/智能SMART/畅通YOLO）；
+        // tiny/chat 是纯聊天别名 → 切工作模式 Chat（0 工具 0 提示词），而非落到权限枚举
         if (Arguments.CliArgRegistry.Get(parsed, "permit") is string permitMode)
-            PermissionManager.SetMode(permitMode);
+        {
+            if (PermissionManager.IsChatModeAlias(permitMode))
+                WorkModeManager.SetMode(WorkMode.Chat);
+            else
+                PermissionManager.SetMode(permitMode);
+        }
 
         // 读取值参数
         string? model = Arguments.CliArgRegistry.Get(parsed, "model");
@@ -332,6 +351,11 @@ public partial class Program
         _agent.AgentId = "F1"; // 主 Agent = 槽位 1，供文件锁跨槽位冲突检测
         ProgramContext.Agent = _agent;
         _slots[0] = new AgentSlot { Agent = _agent }; // 槽位 0 持有主 Agent
+
+        // 主/一次性 Agent 沿用全局工作模式（--permit tiny/chat → Chat 等）；非 Build 时刷新工具集与提示词
+        _agent.WorkMode = WorkModeManager.CurrentMode;
+        if (_agent.WorkMode != WorkMode.Build)
+            _agent.ReapplyToolFilter();
 
         // --yolo / -p / 管道输入: 非交互模式下跳过所有权限确认
         if (yoloMode)

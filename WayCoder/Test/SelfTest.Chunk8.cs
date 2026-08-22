@@ -194,7 +194,7 @@ public static partial class SelfTest
         foreach (var (mode, label) in new[]
         {
             (WorkMode.Build, "建造"), (WorkMode.Plan, "计划"),
-            (WorkMode.Review, "审查"), (WorkMode.Auto, "自动"),
+            (WorkMode.Chat, "聊天"),
         })
         {
             sb1.CurrentWorkMode = mode;

@@ -519,6 +519,13 @@ public partial class MainWindow : Window
                 if (parts.Length < 2) { AppendSystem(_activeSlot, "用法: /perm <ask|auto|smartauto|yolo>"); return true; }
                 try
                 {
+                    // 纯聊天别名（tiny/chat）→ 切工作模式 Chat（0 工具 0 提示词）
+                    if (PermissionManager.IsChatModeAlias(parts[1]))
+                    {
+                        WorkModeManager.SetMode(WorkMode.Chat);
+                        AppendSystem(_activeSlot, $"[工作模式已切换: 💬 聊天（纯聊天 · 0 工具 0 提示词）]");
+                        return true;
+                    }
                     PermissionManager.SetMode(parts[1]);
                     var idx = Array.FindIndex(new[] { "Ask", "Auto", "SmartAuto", "YOLO" },
                         m => m.Equals(parts[1], StringComparison.OrdinalIgnoreCase));
