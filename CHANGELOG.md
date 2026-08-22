@@ -1,5 +1,24 @@
 # 更新日志
 
+## v0.83.1 (2026-08-22) — TUI 跨线程安全：PostToUI 提炼到基类 + 修 6 处后台直接碰 UI/终端
+
+**修复「本地导入卡住 + 花屏」**（ModelPicker 本地导入期间后台线程直接写控件 → 与渲染循环并发帧交错花屏）。
+
+- **基类提炼**：`PostToUI` / `PumpUIQueue` / `_uiQueue` / `_uiThreadId` 从 ChatScreen 上移到 `TuiScreen` 基类——所有屏幕共用「后台线程投递、UI 线程 PumpUIQueue 消费」机制；`UxHelper.RenderWait` 消费改为 `screen?.PumpUIQueue()`（不再限 ChatScreen）
+- **修复 6 处后台直接碰控件树/终端**：
+  - `ModelPicker.RunImport`：后台线程写 help.Text/MarkDirty → `PostToUI`（**修复本地导入花屏**，导入完成表格即时刷新）
+  - `TodoTool.RefreshSidebar`：agent 线程调 RefreshSidePanel → `PostToUI`
+  - `ShowPermissionDialog` / `ShowPlanApproval`：agent 线程 ShowWindow（改窗口栈）→ `PostToUI`
+  - `UpdateChecker` 后台续延：线程池线程 AddSystemMsg → `PostToUI`
+  - `ShowToast` 自动关闭：后台 ContinueWith CloseWindow → `PostToUI`
+  - `FallbackLLM`：agent 线程 9 处 Console.Error 写终端 → `WriteFallback`（TUI 活跃时抑制，仅非 TUI 输出）
+- **审计确认安全**：Agent 流式回调（Route/onToken 已 PostToUI）、TuiToastQueue（数据锁）、EditorCore 脏标记、WatchMode（队列轮询）、日志系统（默认未启用）均不涉及后台直接控 UI
+
+### ✅ 验证
+- 主项目 + GUI `dotnet build` 0 错误；自测 4122/4123（唯一失败为环境相关的 minimax 本地 providers.json 覆盖）
+
+---
+
 ## v0.83.0 (2026-08-22) — 模式体系 v3：行为轴三档（Chat/Plan/Build）落地
 
 - **工作模式三档**（行为轴）：删 Review 与 Auto，改为 `🔨 Build（建造）/ 🧠 Plan（规划）/ 💬 Chat（聊天）`；Shift+Tab / Ctrl+K 循环 `Build→Plan→Chat`
