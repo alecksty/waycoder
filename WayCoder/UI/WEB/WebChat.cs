@@ -235,12 +235,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var baseUrl = body?["baseUrl"]?.AsString() ?? "";
             var info = string.IsNullOrWhiteSpace(baseUrl) ? ModelCatalog.Find(modelId) : ModelCatalog.Find(modelId, baseUrl);
             if (info == null) return HttpResponse.JsonBody(Err($"未知模型「{modelId}」"));
-            var cfg = Config.Instance;
-            cfg.Model = modelId;
-            cfg.Provider = !string.IsNullOrWhiteSpace(providerId) ? providerId : info.ProviderId;
-            var effBaseUrl = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl : ResolveBaseUrl(info, cfg.Provider, cfg.BaseUrl);
-            if (effBaseUrl != null) cfg.BaseUrl = effBaseUrl;
-            cfg.SaveToEnvFile();
+            var effProviderId = !string.IsNullOrWhiteSpace(providerId) ? providerId : info.ProviderId;
+            var effBaseUrl = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl : info.DefaultBaseUrl;
+            ConnectionConfig.ApplyModelChoice(effProviderId, modelId, isLarge: true, out _, effBaseUrl);
             BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
         }
@@ -268,6 +265,22 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var value = body?["value"]?.AsString() ?? "";
             if (string.IsNullOrWhiteSpace(key))
                 return HttpResponse.JsonBody(Err("缺少设置项 key"));
+            // 模型类设置项走 connect 统一入口（携带 providerId/baseUrl——修掉小模型丢字段的 bug）
+            if (key.Equals("Model", StringComparison.OrdinalIgnoreCase)
+                || key.Equals("SmallModel", StringComparison.OrdinalIgnoreCase))
+            {
+                var providerId = body?["providerId"]?.AsString() ?? "";
+                var baseUrl = body?["baseUrl"]?.AsString() ?? "";
+                var isLarge = key.Equals("Model", StringComparison.OrdinalIgnoreCase);
+                var info = string.IsNullOrWhiteSpace(baseUrl) ? ModelCatalog.Find(value) : ModelCatalog.Find(value, baseUrl);
+                var effProviderId = !string.IsNullOrWhiteSpace(providerId)
+                    ? providerId : (info?.ProviderId ?? Config.Instance.Provider);
+                ConnectionConfig.ApplyModelChoice(effProviderId, value, isLarge, out _,
+                    string.IsNullOrWhiteSpace(baseUrl) ? info?.DefaultBaseUrl : baseUrl);
+                Config.Instance.SaveToEnvFile();
+                BroadcastStateForAll();
+                return HttpResponse.JsonBody(Ok());
+            }
             var ok = Config.TrySetPropValue(key, value, out var error);
             if (!ok) return HttpResponse.JsonBody(Err(error ?? "设置失败"));
             Config.Instance.SaveToEnvFile();
@@ -747,16 +760,14 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         }
 
         var cfg = Config.Instance;
-        var effBaseUrl = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl : ResolveBaseUrl(info, effProviderId, cfg.BaseUrl);
+        var effBaseUrl = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl : info.DefaultBaseUrl;
 
-        cfg.Model = modelId;
-        cfg.Provider = effProviderId;
-        if (effBaseUrl != null) cfg.BaseUrl = effBaseUrl;
+        // 「切换模型 = 切换 connect」：统一入口同步扁平字段 + 持久化
+        ConnectionConfig.ApplyModelChoice(effProviderId, modelId, isLarge: true, out _, effBaseUrl);
 
         agent.LlmClient.Reconfigure(key, effBaseUrl);
         agent.LlmClient.Model = modelId;
         agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(modelId, cfg.MaxContextTokens));
-        cfg.SaveToEnvFile();
         return null;
     }
 

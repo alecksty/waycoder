@@ -592,11 +592,13 @@ public static class SystemPrompt
                 Arguments = "rev-parse --git-dir",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                RedirectStandardInput = true, // 不共享主控台 stdin（防 TUI ReadKey 竞态）
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
             using var testProcess = Process.Start(psi);
             if (testProcess == null) return "";
+            try { testProcess.StandardInput.Close(); } catch { }
             testProcess.WaitForExit(5000);
             if (testProcess.ExitCode != 0) return "";
 
@@ -655,11 +657,13 @@ public static class SystemPrompt
                 Arguments = arguments,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                RedirectStandardInput = true, // 不共享主控台 stdin（防 TUI ReadKey 竞态）
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
             using var process = Process.Start(psi);
             if (process == null) return "";
+            try { process.StandardInput.Close(); } catch { }
             // 先并发读 stdout/stderr 再等退出：stderr 写满 4KB 管道缓冲时进程阻塞，
             // 先同步 ReadToEnd() stdout 会永久卡死（stderr 无人读，进程无法继续写 stdout）
             var stdoutTask = process.StandardOutput.ReadToEndAsync();

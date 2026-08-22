@@ -125,7 +125,7 @@ public partial class Program
         slot0.ChatMessages.Add(new ChatMsg { Role = "banner", Content = logo, Centered = true });
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"{Global.AppFullName} · {Global.Version}", Centered = true });
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = "深圳市探索智能科技有限公司", Centered = true });
-        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"大模型: {_config.Model} · 小模型: {_config.SmallModel}  ·  /help 帮助", Centered = true });
+        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"大模型: {ConnectionConfig.FormatModel(_config.Provider, _config.Model)} · 小模型: {ConnectionConfig.FormatModel(_config.SmallProvider, _config.SmallModel)}  ·  /help 帮助", Centered = true });
         // 快捷键表输出到首条对话（每个槽位首次激活也会显示，见 SlotWelcome）
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = TuiKeybindHelp.GetHelpText() });
         // 状态栏左侧写模型名，不写品牌名 —— 品牌在顶栏标题和上面的欢迎横幅里已经有了，
@@ -211,6 +211,10 @@ public partial class Program
 
         // 尝试恢复上次会话
         TryRestoreSession(screen);
+
+        // 预热 connect 注册表：首次迁移（旧配置→connect 名，含写盘）在启动时完成，
+        // 避免首帧渲染/导入/清空后刷新时同步触发迁移 → 卡顿/白屏
+        try { ConnectionConfig.ListConnects(); } catch { }
 
         // 启动后台版本检查（异步、静默，有新版本才提示；不阻塞主循环）
         _ = UpdateChecker.CheckAsync().ContinueWith(t =>
@@ -496,6 +500,9 @@ public partial class Program
                     AgentSlotConfig.Set(_activeSlot, new AgentSlotConfig.SlotConfig
                     {
                         UseGlobal = false,
+                        BigConnect = ConnectionConfig.FindOrCreateConnect(smallProvider, smallModel).Name,
+                        SmallConnect = ConnectionConfig.FindOrCreateConnect(
+                            ModelCatalog.Find(oldLarge ?? "")?.ProviderId ?? _config.Provider, oldLarge ?? _config.Model).Name,
                         LargeModel = smallModel,                 // 新大模型 = 原小模型
                         SmallModel = oldLarge,                   // 新小模型 = 原大模型
                         BaseUrl = smallGw,                       // 原小模型网关
@@ -505,12 +512,13 @@ public partial class Program
                 }
                 else
                 {
-                    (_config.Model, _config.SmallModel) = (_config.SmallModel, _config.Model);
-                    (_config.Provider, _config.SmallProvider) = (_config.SmallProvider, _config.Provider);
-                    // 新大模型（原小模型）网关：模型目录默认
-                    var newLargeInfo = ModelCatalog.Find(_config.Model);
-                    if (newLargeInfo?.DefaultBaseUrl != null)
-                        _config.BaseUrl = newLargeInfo.DefaultBaseUrl;
+                    // 「切换模型 = 切换 connect」：互换激活连接的大/小 connect（连带 provider/网关/key）
+                    var big = ConnectionConfig.FindConnectByContent(_config.Provider, _config.Model)
+                        ?? ConnectionConfig.FindOrCreateConnect(_config.Provider, _config.Model);
+                    var small = ConnectionConfig.FindConnectByContent(_config.SmallProvider, _config.SmallModel)
+                        ?? ConnectionConfig.FindOrCreateConnect(_config.SmallProvider, _config.SmallModel);
+                    ConnectionConfig.SetActiveConnect(isLarge: true, small.Name, out _);  // 大 = 原小
+                    ConnectionConfig.SetActiveConnect(isLarge: false, big.Name, out _);   // 小 = 原大
                     // 新大模型 key = 新服务商（原 SmallProvider）在 store 的 key（key 是服务商级）
                     _config.ApiKey = ApiKeyStore.Get(_config.Provider) ?? "";
                     _config.SaveToEnvFile();
@@ -552,6 +560,14 @@ public partial class Program
                 continue;
             }
 
+            // 窗口键：Ctrl+Shift+M 快速循环切换 connect（大模型）—— 创建多个 connect 后一键轮流切换
+            if (key.Key == ConsoleKey.M && ctrl && key.Modifiers.HasFlag(ConsoleModifiers.Shift))
+            {
+                CycleConnect(screen);
+                mgr.Render();
+                continue;
+            }
+
             // 其余全部下发到活跃 Screen → Window → 控件冒泡
             mgr.OnKey(key);
             mgr.Render();
@@ -560,6 +576,50 @@ public partial class Program
         AutoSaveSession();
         _watchMode?.Dispose();
         mgr.Exit();
+    }
+
+    /// <summary>
+    /// Ctrl+Shift+M：快速循环切换 connect（大模型）。按一下切到 connect 注册表的下一个，
+    /// 重配运行时 LLM 并提示 `已切换至 (provider)model 模型（n/total）`。
+    /// </summary>
+    private static void CycleConnect(ChatScreen screen)
+    {
+        var connects = ConnectionConfig.ListConnects();
+        if (connects.Count == 0)
+        {
+            screen.AddSystemMsg("尚无 connect。用 `/connect add <name> <providerId> <modelId>` 创建，如 `/connect add deepseek-pro deepseek deepseek-v4-pro`。");
+            return;
+        }
+
+        // 当前大 connect：激活连接的大 connect；未匹配则从第一个开始
+        var current = ConnectionConfig.CurrentByConfig();
+        var curName = current?.BigConnect ?? "";
+        int idx = -1;
+        for (int i = 0; i < connects.Count; i++)
+            if (string.Equals(connects[i].Name, curName, StringComparison.OrdinalIgnoreCase)) { idx = i; break; }
+        if (idx < 0) idx = 0;
+        var next = connects[(idx + 1) % connects.Count];
+
+        if (!ConnectionConfig.SetActiveConnect(isLarge: true, next.Name, out var msg))
+        {
+            screen.AddSystemMsg(msg);
+            return;
+        }
+
+        // 运行时重配当前槽位 LLM（model + key + baseUrl + 上下文窗口）
+        var cfg = Config.Instance;
+        var prov = ConnectionConfig.ResolveProvider(next.ProviderId);
+        var key = prov?.ApiKey ?? cfg.ApiKey;
+        var agent = ProgramContext.Agent;
+        if (agent != null)
+        {
+            agent.LlmClient.Reconfigure(key, cfg.BaseUrl);
+            agent.LlmClient.Model = cfg.Model;
+            agent.LlmClient.SmallModel = cfg.SmallModel;
+            agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(cfg.Model, cfg.MaxContextTokens));
+        }
+        screen.AddSystemMsg($"✅ {msg}（{(idx + 1) % connects.Count + 1}/{connects.Count}，Ctrl+Shift+M 下一个）" +
+            (string.IsNullOrEmpty(key) ? "\n  ⚠ 该服务商尚未存 key（/provider apikey set <pid> <key>）" : ""));
     }
 
     /// <summary>启动时检测上次自动保存的会话 + 崩溃恢复标记。</summary>
@@ -1235,20 +1295,39 @@ public partial class Program
             => $"  {WayCoder.UI.Tui.ToolRenderers.ToolRendererFactory.Get(name).FormatHeader(brief)}";
 
         // 回退链首项用槽位实际模型（llm.Model），而非全局 _config.Model——
-        // 否则槽位模型与 .env 不一致时，首项/失败消息会显示错误模型（如 mimo-v2.5）
-        var modelStack = BuildFallbackChain(llm.Model);
+        // 否则槽位模型与 .env 不一致时，首项/失败消息会显示错误模型（如 mimo-v2.5）。
+        // 回退链开关（默认关）：关=只用当前模型，失败即停，不会「退到哪里不清楚」。
+        var stack = BuildFallbackChain(llm.Model);
+        var modelStack = Config.Instance.FallbackEnabled
+            ? stack
+            : (stack.Length > 0 ? new[] { stack[0] } : Array.Empty<string>());
         var startTime = DateTime.UtcNow;
         var completed = false;
 
         for (int attempt = 0; attempt < modelStack.Length; attempt++)
         {
-            var model = modelStack[attempt];
+            // 回退项是 connect 名：解析出 model + key + baseUrl（整个 connect 一起换）
+            var connectName = modelStack[attempt];
+            var connect = ConnectionConfig.FindConnect(connectName);
+            var model = connect?.ModelId ?? connectName;
+            var prov = connect != null
+                ? ConnectionConfig.ResolveProvider(connect.ProviderId)
+                : ConnectionConfig.ResolveProvider(Config.Instance.Provider);
+            var fbKey = prov?.ApiKey ?? llm.ApiKey;
+            var fbUrl = prov?.BaseUrl ?? llm.BaseUrl;
             if (attempt > 0)
             {
                 // 仅改槽位专属 LLM，避免并发槽位间对全局 _config.Model 的竞态
+                llm.Reconfigure(fbKey, fbUrl);   // key/baseUrl 随 connect 一起换（可跨服务商）
                 llm.Model = model;
-                Route(cs => { cs.StatusLeft = model; cs.AddSystemMsg($"🔄 自动回退到: {model}"); cs.StartAgentMsg(); },
-                      s => { s.StatusLeft = model; s.BufferedAddMsg("system", $"🔄 自动回退到: {model}"); s.BufferedStartStream(); });
+                agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(model, Config.Instance.MaxContextTokens));
+                // 明确告知当前回退到哪个模型 + 剩余链，避免「退到哪里不清楚」
+                var fmt = ConnectionConfig.FormatModel(connect?.ProviderId ?? Config.Instance.Provider, model);
+                var remaining = modelStack.Skip(attempt + 1)
+                    .Select(n => ConnectionConfig.FindConnect(n)?.ModelId ?? n).ToList();
+                var chainHint = remaining.Count > 0 ? $"（剩余: {string.Join(" → ", remaining)}）" : "";
+                Route(cs => { cs.StatusLeft = model; cs.AddSystemMsg($"🔄 自动回退到: {fmt}{chainHint}"); cs.StartAgentMsg(); },
+                      s => { s.StatusLeft = model; s.BufferedAddMsg("system", $"🔄 自动回退到: {fmt}{chainHint}"); s.BufferedStartStream(); });
             }
 
             try
