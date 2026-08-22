@@ -71,6 +71,8 @@ public static partial class SelfTest
         TestContextStopWhen(Check);
         // 省 token 模式测试（EconomyMode 开关）
         TestEconomyMode(Check);
+        // 省钱模式工具精简测试（Off=全量 / 开=去重复 / 开的越大越精简）
+        TestEconomyToolTrim(Check);
         // /init 项目初始化测试（生成 AGENT.md + 命令检测）
         TestProjectInit(Check);
         // 多槽位后台并行执行测试（槽位缓冲输出 + 运行状态）

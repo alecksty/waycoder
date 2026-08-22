@@ -4,7 +4,7 @@
 
 **中文编程智能体,Vibe Coding Agent CLI**
 
-*支持多模型 + 44个工具 + Watch 模式 + 单文件 + 多智能体*
+*支持多模型 + 46个工具 + Watch 模式 + 单文件 + 多智能体*
 
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -42,7 +42,9 @@ WayCoder --tiny 8k
 # 省 Token 模式（保持正常窗口；--economy [on|auto|off|extreme]，缺省 on）
 WayCoder --economy          # 开：精简提示词 + 更早压缩 + 输出上限
 WayCoder --economy auto     # 自动：按任务复杂度动态调节阈值（简单省、复杂保质量）
-WayCoder --economy extreme  # 极致：最小提示词（265 字符）+ 工具白名单，token 再省一半
+WayCoder --economy extreme  # 极致：最小提示词（265 字符）+ 核心 7 工具（read/write/edit/bash/web_search/fetch/ask），每轮 token 省 90%
+# 省钱模式工具精简（关=全量，开=去重复，开的越大越精简）：
+#   Off=46 → Auto=34（去 bash 可替代）→ On=29（再搜索编辑冗余）→ Extreme=7（核心集）
 # 优先级偏好（仅 auto 生效）：WAYCODER_ECONOMY_PRIORITY=quality|balanced|cost（默认 quality）
 # 实测（写 1 万行贪吃蛇，minimax-m3，白名单 5 工具）：auto 8.0M token → extreme 4.2M token（↓48%），花费约减半
 # 配置优先级：config.json 为权威源，环境变量不覆盖（切换模式用 --economy 或改配置）
@@ -123,7 +125,7 @@ WayCoder/
 │   │   ├── TuiListView.cs   懒列表 (二分查找 + 提前终止)
 │   │   └── TuiButton.cs     增强按钮 (快捷键下划线/悬停)
 │   └── TuiScreens/        全屏界面
-└── Tools/             44 个工具
+└── Tools/             46 个工具
     ├── BashTool.cs    GitTool.cs    LspTool.cs
     ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
     ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
@@ -144,7 +146,7 @@ WayCoder/
     └── ImageConvertTool.cs 图片互转（PNG/JPG/BMP）
 ```
 
-## 44 个工具
+## 46 个工具
 
 | 工具 | 用途 |
 |---|---|

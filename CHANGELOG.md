@@ -1,5 +1,25 @@
 # 更新日志
 
+## v0.82.0 (2026-08-22) — 省钱模式工具精简：关=全量，开=去重复，开得越大越精简
+
+- **省钱模式按档位精简工具集**（设计原则：省钱关 = 全量 46 工具；开 = 去掉重复（bash 可替代）；开的越大，工具越精简）：
+
+  | 档位 | 工具数 | 精简逻辑 |
+  |---|---|---|
+  | Off 关闭 | 46 | 全量 |
+  | Auto 自动 | 34 | 去掉 12 个 bash 基础命令可替代的重复工具（cd/pwd/ls/mkdir/cp/mv/rm/tree/wc/stat/ps/kill） |
+  | On 开启 | 29 | 再去掉 5 个搜索/编辑冗余（glob/grep/diff/find_replace/multiedit） |
+  | Extreme 极致 | 7 | 只留读改写 + 执行 + 联网 + 问用户核心（read/write/edit/bash/web_search/fetch/ask_user_question） |
+
+- **白名单优先**：配置了显式白名单（WAYCODER_ALLOWED_TOOLS / Plan/Build/YOLO 工具集）时完全按白名单执行，省钱精简不干扰；黑名单始终叠加
+- **实测每轮 token 开销**（`--sysprompt-size` 完整矩阵）：Off ≈17,260 → Auto ≈15,864（↓8%）→ On ≈7,487（↓57%）→ Extreme ≈1,714（**↓90%**）
+- **Extreme 定稿 7 工具**：读改写（read_file/write_file/edit_file）+ 执行（bash）+ 联网查/下载（web_search/fetch）+ 问用户（ask_user_question）——完整能力最小集，写代码可自测、可 git
+- **`--sysprompt-size` 升级**：从 normal/extreme 两行扩展为完整矩阵（4 提示词档 × 各档工具数 + 白名单对照），一行看清提示词量 + 工具 schema 双维度
+- 新增自测 `TestEconomyToolTrim`：断言工具数 46>34>29>7 单调递减 + 各档精确数量 + Extreme 核心集一致性
+
+### ✅ 验证
+- 自测 4106 通过（0 失败）；Release 构建通过
+
 ## v0.81.13 (2026-08-22) — 省钱模式实测验证：extreme 比 auto 省一半 token
 
 - **实测对比**（写一万行贪吃蛇游戏，minimax-m3，白名单 5 工具）：

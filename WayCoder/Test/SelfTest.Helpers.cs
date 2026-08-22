@@ -414,6 +414,39 @@ public static partial class SelfTest
         Config.Instance.EconomyPriority = savedPriority;
     }
 
+    /// <summary>省钱模式工具精简（Off=全量 / 开=去重复 / 开的越大越精简）</summary>
+    private static void TestEconomyToolTrim(Action<string, bool> Check)
+    {
+        var all = ToolRegistry.AllTools;
+        Check($"工具精简: 全量工具 = {all.Count}", all.Count == 46);
+
+        var off = Agent.TrimToolsForEconomy(all, EconomyMode.Off);
+        var auto = Agent.TrimToolsForEconomy(all, EconomyMode.Auto);
+        var on = Agent.TrimToolsForEconomy(all, EconomyMode.On);
+        var extreme = Agent.TrimToolsForEconomy(all, EconomyMode.Extreme);
+
+        // 档位工具数单调递减：全量 > Auto > On > Extreme
+        Check($"工具精简: Off({off.Count}) > Auto({auto.Count}) > On({on.Count}) > Extreme({extreme.Count})",
+            off.Count > auto.Count && auto.Count > on.Count && on.Count > extreme.Count);
+
+        // 精确数量：Off=全量 / Auto=去 bash 可替代重复 / On=再搜编辑冗余 / Extreme=核心集
+        Check("工具精简: Auto 去掉 bash 可替代重复",
+            auto.Count == all.Count - Agent.BashRedundantTools.Count);
+        Check("工具精简: On 再搜编辑冗余",
+            on.Count == all.Count - Agent.BashRedundantTools.Count - Agent.EditRedundantTools.Count);
+        Check("工具精简: Extreme 只留核心集",
+            extreme.Count == Agent.ExtremeCoreTools.Count);
+
+        // Extreme 保留写代码核心 + 联网查资料，去掉 bash 基础
+        var names = extreme.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Check("工具精简: Extreme 核心集与实际工具名一致", names.SetEquals(Agent.ExtremeCoreTools));
+        Check("工具精简: Extreme 去掉 bash 基础 cd/ls",
+            !extreme.Any(t => t.Name is "cd" or "ls"));
+
+        // Off 返回原集（不换实例）
+        Check("工具精简: Off 返回原集不动", ReferenceEquals(off, all));
+    }
+
     /// <summary>ExtractKeyInfo 增强版测试</summary>
     private static void TestExtractKeyInfo(Action<string, bool> Check)
     {
