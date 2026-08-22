@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.82.2 (2026-08-22) — 模式职责划分文档化：权限/工作/经济三正交维度理清边界
+
+- **新增 [docs/模式体系.md](docs/模式体系.md)**：三分钟看懂三类模式——权限管「要不要确认」、工作管「工具有没有 + 干什么活」、经济管「省多少 token」
+- **职责边界表**：每维度「归它管 / 明确不归它管 / 现状违规点」（TINY 禁工具+清提示词、YOLO 换白名单、经济悄悄删工具为三处越界）
+- **单一决策链**：工具有没有 = 白名单 > 工作模式 AllowList > 黑名单 > 全量；确认只看权限；省钱只看经济
+- **命名对照表**：消除同名异义（Auto×5：工作/权限/权限Smart/经济/沙箱；权限 TINY vs 窗口 `--tiny`）
+- **已知问题清单 P0/P1/P2**（本次不修，标注影响 + 修复方向）：ReapplyToolFilter 仅 Shift+Tab 刷新、YOLO 受经济裁剪、WorkMode.Auto 名不副实、`--permission-mode plan` 静默忽略、Review schema 浪费、危险工具数据集 5 处不一致、AllowedTools 死代码等
+- **CLAUDE.md 新增「模式体系（三分钟版）」摘要节**，指向 docs/模式体系.md
+
+### ✅ 验证
+- 文档中代码引用与源码逐项核对（枚举/FilterTools/SystemPrompt 分派/ReapplyToolFilter 调用点全部吻合）；纯文档改动，无需编译
+
 ## v0.82.1 (2026-08-22) — 纯聊天 TINY 模式纳入省钱体系对照（无工具 + 无提示词）
 
 - **纯聊天模式 = 权限极简 TINY**（`--permit tiny` / `/permit tiny`）：`FilterTools` 直接 `return []`（无任何工具）+ `Agent` 系统提示词置空（不调 `SystemPrompt.Generate`）——每轮只剩用户/助手消息，**工具 0 + 提示词 0，token 开销≈0**
