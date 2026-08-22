@@ -593,6 +593,7 @@ public static class HooksManager
                     Arguments = arguments,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
+                    RedirectStandardInput = true, // 不共享主控台 stdin（防 TUI ReadKey 竞态）
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     WorkingDirectory = Environment.CurrentDirectory,
@@ -603,6 +604,7 @@ public static class HooksManager
                 proc.StartInfo.Environment[key] = value;
 
             proc.Start();
+            try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
 
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();

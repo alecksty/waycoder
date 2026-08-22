@@ -8,11 +8,11 @@ namespace WayCoder;
 /// </summary>
 public static class FallbackLLM
 {
-    /// <summary>默认回退链（从 Config.Instance.FallbackChain 读取）</summary>
+    /// <summary>默认回退链（从 ConnectionConfig.FallbackChain 读取，一串 connect 名）</summary>
     public static string[] DefaultFallbackChain =>
-        Config.Instance.FallbackChain.Split(',').Select(m => m.Trim()).Where(m => m.Length > 0).ToArray();
+        ConnectionConfig.FallbackChain.ToArray();
 
-    /// <summary>当前回退链</summary>
+    /// <summary>当前回退链（connect 名数组）</summary>
     public static string[] FallbackChain { get; set; } = null!;  // 首次使用时从 DefaultFallbackChain 读取
 
     static FallbackLLM()
@@ -53,7 +53,7 @@ public static class FallbackLLM
     private static void WriteFallback(string msg)
     {
         if (TuiManager.Instance?.IsActive != true)
-            WriteFallback(msg);
+            Console.Error.WriteLine(msg);
     }
 
     /// <summary>
@@ -81,10 +81,22 @@ public static class FallbackLLM
                 $"主模型失败，启动回退链: {ex.Message}", ex);
         }
 
-        // 回退链
-        int skipped = 0;
-        foreach (var (model, idx) in FallbackChain.Select((m, i) => (m, i)))
+        // 回退链开关（默认关）：关 = 只用当前模型，失败即停，明确告诉用户当前模型就是它
+        if (!Config.Instance.FallbackEnabled)
         {
+            WriteFallback($"[fallback] 回退链已关闭，不再尝试备选模型（/config set FallbackEnabled true 开启）");
+            return new LLMResponse
+            {
+                Content = $"[错误] {originalLlm.Model} 请求失败，回退链已关闭。修复网络/API Key，或 /config set FallbackEnabled true 开启自动回退。",
+                IsFatalError = true,
+            };
+        }
+
+        // 回退链（一串 connect：{providerId, modelId}，回退时 model+key+baseUrl 一起换）
+        int skipped = 0;
+        foreach (var (connectName, idx) in FallbackChain.Select((m, i) => (m, i)))
+        {
+            var (model, fbKey, fbUrl) = ResolveConnect(connectName, originalLlm.ApiKey);
             if (model == originalLlm.Model) continue;
 
             // 预算检查：超过预算时记录警告并跳过回退（优雅降级，不崩溃）
@@ -96,11 +108,10 @@ public static class FallbackLLM
 
             FallbackIndex = idx;
 
-            // 解析跨供应商 API Key 和 BaseUrl
-            var (fbKey, fbUrl) = ResolveKeyAndUrl(model, originalLlm.ApiKey);
+            // connect → provider 解析 key/baseUrl（逻辑一体）
             if (string.IsNullOrEmpty(fbKey))
             {
-                WriteFallback($"[fallback] ⏭ 跳过 {model}（无 API Key，设置 {GetKeyEnvName(model)} 环境变量）");
+                WriteFallback($"[fallback] ⏭ 跳过 {connectName}（无 API Key，/provider apikey set <pid> <key> 保存）");
                 skipped++;
                 continue;
             }
@@ -110,13 +121,14 @@ public static class FallbackLLM
 
             try
             {
-                WriteFallback($"[fallback] 尝试 {model}...");
+                WriteFallback($"[fallback] 尝试 {model}（{connectName}）...");
                 var resp = await fallbackLlm.ChatAsync(messages, tools, onToken, cancellationToken: ct);
                 AddSpent(fallbackLlm.EstimatedCost ?? 0);
 
-                // 回退成功，更新原始 LLM 的模型
+                // 回退成功：应用整个 connect（模型 + key + baseUrl 一起换，走 Reconfigure）
+                originalLlm.Reconfigure(fbKey, fbUrl);
                 originalLlm.Model = model;
-                WriteFallback($"[fallback] ✓ 已切换到 {model}");
+                WriteFallback($"[fallback] ✓ 已切换到 {model}（{connectName}）");
                 return resp;
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
@@ -164,71 +176,28 @@ public static class FallbackLLM
     }
 
     /// <summary>
-    /// 根据模型查找其供应商，解析对应的 API Key 和 BaseUrl。
+    /// 按 connect 名解析回退端点：connect → (modelId, key, baseUrl)。
+    /// connect 的 provider（逻辑一体：providers.json + api_keys.json）解析 key/baseUrl；
+    /// 兼容旧配置：connect 名若是裸模型名，则从模型目录解析 provider。
+    /// key 缺省回退 WAYCODER_API_KEY / API_KEY / 原始密钥。
     /// </summary>
-    private static (string? key, string? baseUrl) ResolveKeyAndUrl(string model, string originalKey)
+    private static (string model, string? key, string? baseUrl) ResolveConnect(string connectName, string originalKey)
     {
-        var info = ModelCatalog.Find(model);
-        var provider = info?.ProviderId ?? "";
-
-        // 两层架构：provider 承载唯一地址（地址不同=不同服务商），provider 地址优先，模型默认地址兜底
-        //（否则 qwen-turbo/glm-4-flash 等 DefaultBaseUrl=null 的模型会把 key 发到 OpenAI 端点）
-        var baseUrl = (provider.Length > 0
-                && ModelCatalog.Providers.TryGetValue(provider, out var p)
-                && !string.IsNullOrEmpty(p.DefaultBaseUrl)
-                ? p.DefaultBaseUrl : null)
-            ?? info?.DefaultBaseUrl;
-
-        // 按供应商查找专用密钥，回退到通用密钥
-        var key = provider switch
+        var connect = ConnectionConfig.FindConnect(connectName);
+        if (connect == null)
         {
-            "deepseek" => Env("DEEPSEEK_API_KEY"),
-            "openai" => Env("OPENAI_API_KEY"),
-            "google" => Env("GEMINI_API_KEY") ?? Env("GOOGLE_API_KEY"),
-            "anthropic" => Env("ANTHROPIC_API_KEY"),
-            "qwen" => Env("DASHSCOPE_API_KEY"),
-            "zhipu" => Env("ZHIPU_API_KEY") ?? Env("GLM_API_KEY"),
-            "bytedance" => Env("ARK_API_KEY") ?? Env("DOUBAO_API_KEY"),
-            "moonshot" => Env("MOONSHOT_API_KEY"),
-            "mistral" => Env("MISTRAL_API_KEY"),
-            "xai" => Env("XAI_API_KEY") ?? Env("GROK_API_KEY"),
-            "siliconflow" => Env("SILICONFLOW_API_KEY"),
-            "groq" => Env("GROQ_API_KEY"),
-            "together" => Env("TOGETHER_API_KEY"),
-            "openrouter" => Env("OPENROUTER_API_KEY"),
-            "local" => "ollama",   // 本地模型不需要密钥
-            _ => null,
-        };
-
-        // 回退: WAYCODER_API_KEY → API_KEY → 原始密钥
-        key ??= Env("WAYCODER_API_KEY") ?? Env("API_KEY") ?? originalKey;
-
-        return (key, baseUrl);
-    }
-
-    /// <summary>获取模型对应的 API Key 环境变量名（用于提示）</summary>
-    private static string GetKeyEnvName(string model)
-    {
-        var info = ModelCatalog.Find(model);
-        return info?.ProviderId switch
-        {
-            "deepseek" => "DEEPSEEK_API_KEY",
-            "openai" => "OPENAI_API_KEY",
-            "google" => "GEMINI_API_KEY",
-            "anthropic" => "ANTHROPIC_API_KEY",
-            "qwen" => "DASHSCOPE_API_KEY",
-            "zhipu" => "ZHIPU_API_KEY",
-            "bytedance" => "ARK_API_KEY",
-            "moonshot" => "MOONSHOT_API_KEY",
-            "mistral" => "MISTRAL_API_KEY",
-            "xai" => "XAI_API_KEY",
-            "siliconflow" => "SILICONFLOW_API_KEY",
-            "groq" => "GROQ_API_KEY",
-            "together" => "TOGETHER_API_KEY",
-            "openrouter" => "OPENROUTER_API_KEY",
-            "local" => "(本地模型无需密钥)",
-            _ => "WAYCODER_API_KEY",
-        };
+            // 兼容旧配置：connect 名可能是裸模型名
+            var info = ModelCatalog.Find(connectName);
+            var prov = info != null ? ConnectionConfig.ResolveProvider(info.ProviderId) : null;
+            return (connectName,
+                prov?.ApiKey ?? Env("WAYCODER_API_KEY") ?? Env("API_KEY") ?? originalKey,
+                prov?.BaseUrl ?? info?.DefaultBaseUrl);
+        }
+        var provider = ConnectionConfig.ResolveProvider(connect.ProviderId);
+        var key = provider?.ApiKey;
+        if (string.IsNullOrEmpty(key)) key = Env("WAYCODER_API_KEY") ?? Env("API_KEY") ?? originalKey;
+        var baseUrl = provider?.BaseUrl ?? ConnectionConfig.ResolveBaseUrl(connect.ProviderId);
+        return (connect.ModelId, key, baseUrl);
     }
 
     private static string? Env(string name) =>

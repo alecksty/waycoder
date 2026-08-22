@@ -62,11 +62,13 @@ public static class ClipboardHelper
                 Arguments = OperatingSystem.IsWindows() ? $"/c \"{cmd}\"" : $"-c \"{cmd}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                RedirectStandardInput = true, // 不共享主控台 stdin（防 TUI ReadKey 竞态）
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
             using var proc = Process.Start(psi);
             if (proc == null) return null;
+            try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
             var result = await proc.StandardOutput.ReadToEndAsync();
             await proc.WaitForExitAsync();
             return result?.TrimEnd('\n', '\r');

@@ -318,11 +318,13 @@ public class ScreenshotTool : ITool
             Arguments = arguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            RedirectStandardInput = true, // 不共享主控台 stdin（防 TUI ReadKey 竞态）
             UseShellExecute = false,
             CreateNoWindow = true,
         };
         using var proc = Process.Start(psi);
         if (proc == null) return (-1, "");
+        try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
         var stdout = proc.StandardOutput.ReadToEnd();
         var stderr = proc.StandardError.ReadToEnd();
         proc.WaitForExit();

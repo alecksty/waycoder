@@ -83,12 +83,18 @@ public static partial class SelfTest
         // ---- 模型回退 ----
         Section("[模型回退]");
         FallbackLLM.Reset();
-        Check("默认回退链长度 >= 3", FallbackLLM.DefaultFallbackChain.Length >= 3);
-        Check("回退链包含 deepseek-v4-flash", FallbackLLM.DefaultFallbackChain.Contains("deepseek-v4-flash"));
-        Check("回退链包含 deepseek-v4-pro", FallbackLLM.DefaultFallbackChain.Contains("deepseek-v4-pro"));
-        Check("回退链包含 qwen-turbo", FallbackLLM.DefaultFallbackChain.Contains("qwen-turbo"));
-        Check("回退链包含 glm-4-flash", FallbackLLM.DefaultFallbackChain.Contains("glm-4-flash"));
-        Check("回退链长度 >= 4", FallbackLLM.DefaultFallbackChain.Length >= 4);
+        // 回退链现在是一串 connect 名（回退时 model+key+baseUrl 一起换）
+        var fChain = FallbackLLM.DefaultFallbackChain;
+        bool ChainHasModel(string[] chain, string model) => chain.Any(cn =>
+            ConnectionConfig.FindConnect(cn)?.ModelId == model
+            || string.Equals(cn, model, StringComparison.OrdinalIgnoreCase));
+        Check("默认回退链长度 >= 4", fChain.Length >= 4);
+        Check("回退链为可解析 connect 名", fChain.All(cn =>
+            ConnectionConfig.FindConnect(cn) != null || ModelCatalog.Find(cn) != null));
+        Check("回退链包含 deepseek-v4-flash connect", ChainHasModel(fChain, "deepseek-v4-flash"));
+        Check("回退链包含 deepseek-v4-pro connect", ChainHasModel(fChain, "deepseek-v4-pro"));
+        Check("回退链包含 qwen-turbo connect", ChainHasModel(fChain, "qwen-turbo"));
+        Check("回退链包含 glm-4-flash connect", ChainHasModel(fChain, "glm-4-flash"));
         Check("默认最大预算 == 5.0", Math.Abs((FallbackLLM.MaxBudget ?? 0) - 5.0) < 0.01);
         Check("初始 TotalSpent == 0", Math.Abs(FallbackLLM.TotalSpent) < 0.001);
         Check("初始 FallbackIndex == -1", FallbackLLM.FallbackIndex == -1);

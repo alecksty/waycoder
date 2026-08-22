@@ -14,10 +14,13 @@ public static class ModelCli
     {
         var cfg = Config.Instance;
         var sb = new StringBuilder();
-        sb.AppendLine($"当前大模型：{cfg.Model}（服务商 {cfg.Provider}）");
-        sb.AppendLine($"当前小模型：{cfg.SmallModel}（服务商 {cfg.SmallProvider}）");
-        if (!string.IsNullOrWhiteSpace(cfg.BaseUrl))
-            sb.AppendLine($"BaseUrl：{cfg.BaseUrl}");
+        sb.AppendLine($"当前大模型：{ConnectionConfig.FormatModel(cfg.Provider, cfg.Model)}");
+        sb.AppendLine($"当前小模型：{ConnectionConfig.FormatModel(cfg.SmallProvider, cfg.SmallModel)}");
+        var bigProv = ConnectionConfig.ResolveProvider(cfg.Provider);
+        sb.AppendLine($"BaseUrl：{cfg.BaseUrl ?? bigProv?.BaseUrl ?? "?"}");
+        var active = ConnectionConfig.CurrentByConfig();
+        if (active != null)
+            sb.AppendLine($"激活连接：{active.Name}（大={active.BigConnect} 小={active.SmallConnect}）");
         sb.AppendLine("\n列出目录: --model list　选大模型: --model name <id>　选小模型: --model small <id>　存 key: --model key <供应商> <key>");
         return sb.ToString();
     }
@@ -72,26 +75,18 @@ public static class ModelCli
         return sb.ToString();
     }
 
-    /// <summary>选中模型：按目录解析，自动设置 base-url，写入 .env 持久化</summary>
+    /// <summary>选中模型：按目录解析，自动设置 base-url，经 connect 统一入口持久化</summary>
     public static string Select(string modelId)
     {
         var info = ModelCatalog.Find(modelId.Trim()) ?? ModelCatalog.Search(modelId.Trim()).FirstOrDefault();
 
         if (info == null)
         {
-            Config.Instance.Model = modelId.Trim();
-            Config.Instance.SaveToEnvFile();
-            return $"已设置模型为 `{modelId}`（目录外模型，已写入 .env）。若非 OpenAI 兼容端点请另行 --config set BaseUrl <url>";
+            ConnectionConfig.ApplyModelChoice(Config.Instance.Provider, modelId.Trim(), isLarge: true, out _);
+            return $"已切换至 **{ConnectionConfig.FormatModel(Config.Instance.Provider, modelId.Trim())}** 模型（目录外模型，已写入 .env）。若非 OpenAI 兼容端点请另行 --config set BaseUrl <url>";
         }
 
-        Config.Instance.Model = info.Id;
-        Config.Instance.Provider = info.ProviderId;   // 同步当前服务商（key 跟服务商走）
-        // 两层架构：provider 唯一地址优先，模型默认地址兜底
-        var selBaseUrl = (ModelCatalog.Providers.TryGetValue(info.ProviderId, out var sp) && !string.IsNullOrEmpty(sp.DefaultBaseUrl) ? sp.DefaultBaseUrl : null)
-            ?? info.DefaultBaseUrl;
-        if (selBaseUrl != null)
-            Config.Instance.BaseUrl = selBaseUrl;
-        Config.Instance.SaveToEnvFile();
+        ConnectionConfig.ApplyModelChoice(info.ProviderId, info.Id, isLarge: true, out _, info.DefaultBaseUrl);
 
         var keyHint = info.DefaultBaseUrl != null
             && !ApiKeyStore.Has(info.ProviderId)
@@ -99,27 +94,24 @@ public static class ModelCli
             ? $"\n  该供应商需 API key：--model key {info.ProviderId} <key>"
             : "";
 
-        return $"已选中 **{info.DisplayName}**（`{info.Id}`，服务商 `{info.ProviderId}`）并写入 .env" +
+        return $"已切换至 **{ConnectionConfig.FormatModel(info.ProviderId, info.Id)}** 模型（{info.DisplayName}）并写入 .env" +
             (info.DefaultBaseUrl != null ? $"\n  BaseUrl 已自动设为 {info.DefaultBaseUrl}" : "") + keyHint;
     }
 
-    /// <summary>选中小模型：按目录解析，写入 .env 持久化（同步小模型服务商）</summary>
+    /// <summary>选中小模型：按目录解析，经 connect 统一入口持久化（同步小模型服务商）</summary>
     public static string SelectSmall(string modelId)
     {
         var info = ModelCatalog.Find(modelId.Trim()) ?? ModelCatalog.Search(modelId.Trim()).FirstOrDefault();
 
         if (info == null)
         {
-            Config.Instance.SmallModel = modelId.Trim();
-            Config.Instance.SaveToEnvFile();
-            return $"已设置小模型为 `{modelId}`（目录外模型，已写入 .env）";
+            ConnectionConfig.ApplyModelChoice(Config.Instance.SmallProvider, modelId.Trim(), isLarge: false, out _);
+            return $"已切换至 **{ConnectionConfig.FormatModel(Config.Instance.SmallProvider, modelId.Trim())}** 小模型（目录外模型，已写入 .env）";
         }
 
-        Config.Instance.SmallModel = info.Id;
-        Config.Instance.SmallProvider = info.ProviderId;   // 同步小模型服务商
-        Config.Instance.SaveToEnvFile();
+        ConnectionConfig.ApplyModelChoice(info.ProviderId, info.Id, isLarge: false, out _);
 
-        return $"已选中小模型 **{info.DisplayName}**（`{info.Id}`，服务商 `{info.ProviderId}`）并写入 .env";
+        return $"已切换至 **{ConnectionConfig.FormatModel(info.ProviderId, info.Id)}** 小模型（{info.DisplayName}）并写入 .env";
     }
 
     /// <summary>列出已保存的 API keys（打码）</summary>
@@ -383,13 +375,18 @@ public static class ModelCli
                 case "list":
                 case "ls":
                 {
+                    // 只显示「有无 key」（🔑/—），绝不输出 key 本身
                     var sb = new StringBuilder();
                     foreach (var (id, p) in ModelCatalog.Providers.OrderBy(x => x.Key))
-                        sb.AppendLine($"  {id,-20} {p.DisplayName,-22} {p.DefaultBaseUrl}");
+                    {
+                        var hasKey = ApiKeyStore.Has(id);
+                        sb.AppendLine($"  {(hasKey ? "🔑" : "—")} {id,-20} {p.DisplayName,-22} {p.DefaultBaseUrl}");
+                    }
                     Console.WriteLine($"服务商数据库（{ModelCatalog.Providers.Count}）：\n{sb.ToString().TrimEnd()}");
                     return 0;
                 }
                 case "add":
+                case "new":
                 {
                     if (values.Count < 4) { Console.WriteLine("用法: --provider add <id> <名称> <base-url>"); return 1; }
                     ModelCatalog.RegisterProvider(values[1], values[2], values[3]);
@@ -406,6 +403,29 @@ public static class ModelCli
                     Console.WriteLine($"🗑 已移除服务商 {values[1]}");
                     return 0;
                 }
+                case "select":
+                case "switch":
+                case "use":
+                {
+                    if (values.Count < 2) { Console.WriteLine("用法: --provider select <id>"); return 1; }
+                    var pid = values[1].Trim().ToLowerInvariant();
+                    ConnectionConfig.ApplyModelChoice(pid, Config.Instance.Model, isLarge: true, out var msg);
+                    Console.WriteLine($"✅ {msg}");
+                    return 0;
+                }
+                case "key":
+                case "apikey":
+                {
+                    if (values.Count >= 3) { Console.WriteLine(SetKey(values[1], values[2])); return 0; }
+                    Console.WriteLine(ListKeys());
+                    return 0;
+                }
+                case "test":
+                    Console.WriteLine(Test());
+                    return 0;
+                case "import":
+                    Console.WriteLine(Import(values.Count > 1 ? values[1] : null));
+                    return 0;
                 case "clean":
                 case "prune":
                 {
@@ -413,7 +433,7 @@ public static class ModelCli
                     return 0;
                 }
                 default:
-                    Console.WriteLine($"未知子命令「{cmd}」。用法: --provider list|add <id> <名称> <base-url>|rm <id>|clean");
+                    Console.WriteLine($"未知子命令「{cmd}」。用法: --provider list|add <id> <名称> <base-url>|rm <id>|select <id>|key <id> <key>|test|import [source]|clean");
                     return 1;
             }
         }

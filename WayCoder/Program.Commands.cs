@@ -629,34 +629,35 @@ deepseek 性价比最高。"
     /// <summary>应用模型到指定槽位（供 CycleModel 调用）。baseUrl/providerId 来自所选模型（地址不同=不同服务商）。</summary>
     internal static void ApplyModel(string modelId, bool isLarge, int slot, string? baseUrl = null, string? providerId = null)
     {
-        if (slot == -1)
+        if (slot is -1 or -2)
         {
-            if (isLarge) _config.Model = modelId; else _config.SmallModel = modelId;
-            if (providerId != null) _config.Provider = providerId;
-            if (baseUrl != null) _config.BaseUrl = baseUrl;
-            _config.SaveToEnvFile();
-        }
-        else if (slot == -2)
-        {
-            AgentSlotConfig.SetUniform(new AgentSlotConfig.SlotConfig
+            // 「切换模型 = 切换 connect」：经 ConnectConfig.ApplyModelChoice 统一入口
+            var pid = providerId ?? ModelCatalog.Find(modelId)?.ProviderId ?? _config.Provider;
+            ConnectionConfig.ApplyModelChoice(pid, modelId, isLarge, out _, baseUrl);
+            if (slot == -2)
             {
-                UseGlobal = false,
-                LargeModel = isLarge ? modelId : null,
-                SmallModel = isLarge ? null : modelId,
-                BaseUrl = baseUrl,
-                ApiKeyProviderId = providerId,
-            });
-            if (isLarge) _config.Model = modelId; else _config.SmallModel = modelId;
-            if (providerId != null) _config.Provider = providerId;
-            if (baseUrl != null) _config.BaseUrl = baseUrl;
-            _config.SaveToEnvFile();
+                var uniformConnect = ConnectionConfig.FindOrCreateConnect(pid, modelId);
+                AgentSlotConfig.SetUniform(new AgentSlotConfig.SlotConfig
+                {
+                    UseGlobal = false,
+                    BigConnect = isLarge ? uniformConnect.Name : null,
+                    SmallConnect = isLarge ? null : uniformConnect.Name,
+                    LargeModel = isLarge ? modelId : null,
+                    SmallModel = isLarge ? null : modelId,
+                    BaseUrl = baseUrl ?? _config.BaseUrl,
+                    ApiKeyProviderId = providerId ?? pid,
+                });
+            }
         }
         else if (slot is >= 0 and < 10)
         {
             var e = AgentSlotConfig.Get(slot);
+            var spid = providerId ?? e.ApiKeyProviderId ?? ModelCatalog.Find(modelId)?.ProviderId ?? _config.Provider;
             AgentSlotConfig.Set(slot, new AgentSlotConfig.SlotConfig
             {
                 UseGlobal = false,
+                BigConnect = isLarge ? ConnectionConfig.FindOrCreateConnect(spid, modelId).Name : e.BigConnect,
+                SmallConnect = isLarge ? e.SmallConnect : ConnectionConfig.FindOrCreateConnect(spid, modelId).Name,
                 LargeModel = isLarge ? modelId : e.LargeModel,
                 SmallModel = isLarge ? e.SmallModel : modelId,
                 BaseUrl = baseUrl ?? e.BaseUrl,

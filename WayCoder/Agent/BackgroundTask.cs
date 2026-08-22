@@ -100,12 +100,14 @@ public static class BackgroundTaskManager
                     : $"-c \"{task.Command.Replace("\"", "\\\"")}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                RedirectStandardInput = true, // 不共享主控台 stdin（防 TUI ReadKey 竞态）
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 WorkingDirectory = Directory.GetCurrentDirectory(),
             };
 
             proc = Process.Start(psi)!;
+            try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
             task.Process = proc;
 
             // 异步读取输出（防止管道缓冲区满死锁）

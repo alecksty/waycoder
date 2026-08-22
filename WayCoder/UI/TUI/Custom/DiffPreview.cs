@@ -141,10 +141,11 @@ public static class DiffPreview
                 evt.Set();
             });
             screen?.ShowWindow(win);
-            // Agent 执行期（外层 RunAgentWithRenderLoop 渲染 + 按「键位作用域闸」路由按键）→ readKeys:false 只等待，
-            // 避免 RenderWait 与外层循环并发渲染（双线程 Render 竞态花屏）与双读控制台；
-            // 命令场景（/diff，主循环阻塞无外层循环）→ readKeys:true 自己渲染 + 读键。
-            UxHelper.RenderWait(screen, evt, 120_000, win, readKeys: !Program.InAgentRenderLoop);
+            // readKeys 自动判定（TuiScreen.IsUiThread）：
+            //   UI 线程（/diff 命令场景，主循环阻塞无外层循环）→ 本循环自己渲染 + 读键；
+            //   后台线程（Agent 写文件前的 diff 确认，外层 RunAgentWithRenderLoop / REPL 主循环渲染 + 路由按键）
+            //   → 只等待事件，绝不与主循环并发渲染（双线程 Render 竞态花屏）或双读控制台。
+            UxHelper.RenderWait(screen, evt, 120_000, win);
         }
         catch { evt.Set(); }
         return (result, resultAccepted);

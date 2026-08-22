@@ -405,7 +405,12 @@ public partial class Agent
                         : "[致命错误] 所有模型失败，且会话保存失败（检查磁盘/权限）。");
                 }
 
-                AddMessage(resp.ToMessage());
+                // 只有真正有内容才入历史：DeepSeek V4 等模型在大量推理（reasoning）后
+                // content 可能为空且无工具调用，此时 resp.ToMessage() 会生成 {role:assistant, content:null}
+                // 的非法消息 —— OpenAI 兼容 API 报 400 "content or tool_calls must be set"，下一轮必崩。
+                // 空内容本就该走下面的「无工具调用催促」逻辑注入 user 提示，无需保留空 assistant 消息。
+                if (!string.IsNullOrEmpty(resp.Content))
+                    AddMessage(resp.ToMessage());
 
                 // 纯聊天模式（Chat）：0 工具，首条回复即完成，立即返回。
                 // 必须在「无工具调用催促」逻辑之前——否则 Chat 的普通长回复会被误判为

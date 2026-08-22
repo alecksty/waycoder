@@ -5,17 +5,25 @@ using WayCoder.UI.Tui.Screens;
 namespace WayCoder.UI.Cli.Commands;
 
 /// <summary>
-/// Model management — list, select, import, manage API keys.
-/// Supports per-slot model selection and uniform mode for all 10 agent slots.
-/// /model [name] — quick switch (backward compatible)
-/// /model list|set|uniform|import|keys|slot
+/// Model management — model 只管模型目录（list/add/rm/select/test/import）+ 大小模型选择。
+/// 切换模型 = 切换 connect（经 ConnectionConfig.ApplyModelChoice）。
+/// provider（{name,baseUrl,apikey}）与 API key 归 /provider，connect 层归 /connect。
+///   /model [id]                      → 快速切换大模型（= select）
+///   /model list [filter]             → 列出模型目录
+///   /model select <id> / set <id>    → 切换大模型（全局，经 connect）
+///   /model small <id>                → 切换小模型（全局，经 connect）
+///   /model add <id> [pid] [baseUrl]  → 手动添加模型
+///   /model rm <id>                   → 删除自定义模型
+///   /model test                      → 连通性测试
+///   /model import [source|file]      → 导入外部模型库
+///   /model slot <N> <large|small> <id> / uniform <id> / #N <id> → 槽位模型
 /// </summary>
 public class ModelCommand : SlashCommand
 {
     public override string Name => "/model";
     public override string[] Aliases => ["/m"];
-    public override string Description => "Model management — per-slot model selection, catalog, import, keys";
-    public override string? Usage => "/model [name] | #N <name> [key] | list|set <id>|uniform <id>|import <file>|keys|add [model|provider|key]|remove [model|provider|key]|test|slot <N> <large|small> <id>";
+    public override string Description => "Model management — model catalog + large/small selection (switch = switch connect)";
+    public override string? Usage => "/model [<id> | select <id> | small <id> | list [filter] | add <id> [pid] [baseUrl] | rm <id> | test | import [source] | slot <N> <large|small> <id> | uniform <id>]";
 
     /// <summary>把选中模型应用到当前 Agent 运行时（重配 LlmClient）。</summary>
     private static void ApplyRuntime(string modelId, string? providerId)
@@ -91,22 +99,21 @@ public class ModelCommand : SlashCommand
         switch (first)
         {
             case "list":
+            case "ls":
                 ListModels(screen, rest);
                 break;
+            case "select":
             case "set":
-                SetModel(screen, rest);
+                SelectModel(screen, rest);
+                break;
+            case "small":
+                QuickSwitchSmall(screen, rest);
                 break;
             case "uniform":
                 SetUniform(screen, rest);
                 break;
             case "import":
                 ImportModels(screen, rest);
-                break;
-            case "keys":
-                if (rest.StartsWith("set ", StringComparison.OrdinalIgnoreCase))
-                    SetApiKey(screen, rest[4..].Trim());
-                else
-                    ListKeys(screen);
                 break;
             case "slot":
                 SetSlotModel(screen, rest);
@@ -119,20 +126,38 @@ public class ModelCommand : SlashCommand
                 screen.AddSystemMsg(ModelCli.Prune());
                 break;
             case "add":
+            case "new":
                 AddModels(screen, rest);
                 break;
             case "remove":
             case "rm":
             case "delete":
+            case "del":
                 RemoveModels(screen, rest);
                 break;
             default:
-                // Quick switch by model name
-                QuickSwitchLarge(screen, trimmed);
+                // /model <id> → 快速切换大模型（= select，经 connect）
+                SelectModel(screen, trimmed);
                 break;
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>切换大模型（全局，经 connect）：`/model select <id>` 与 `/model <id>`。</summary>
+    static void SelectModel(ChatScreen screen, string modelId)
+    {
+        if (string.IsNullOrWhiteSpace(modelId))
+        {
+            screen.AddSystemMsg("用法: /model select <modelId>");
+            return;
+        }
+        var info = ModelCatalog.Find(modelId.Trim()) ?? ModelCatalog.Search(modelId.Trim()).FirstOrDefault();
+        var id = info?.Id ?? modelId.Trim();
+        var pid = info?.ProviderId ?? Config.Instance.Provider;
+        ConnectionConfig.ApplyModelChoice(pid, id, isLarge: true, out var msg, info?.DefaultBaseUrl);
+        ApplyRuntime(id, pid);
+        screen.AddSystemMsg($"✅ {msg}");
     }
 
     static void ShowCurrent(ChatScreen screen)
@@ -158,30 +183,19 @@ public class ModelCommand : SlashCommand
         screen.AddSystemMsg(sb.ToString());
     }
 
-    void QuickSwitchLarge(ChatScreen screen, string modelId)
-    {
-        var info = ModelCatalog.Find(modelId) ?? ModelCatalog.Search(modelId).FirstOrDefault();
-        if (info == null)
-        {
-            // Fallback to direct model name switch
-            ProgramContext.Config.Model = modelId;
-            if (ProgramContext.LLM != null) ProgramContext.LLM.Model = modelId;
-            screen.AddSystemMsg($"Model switched: {modelId}");
-            return;
-        }
-        ApplyModel(screen, info, "large");
-    }
-
     void QuickSwitchSmall(ChatScreen screen, string modelId)
     {
-        var info = ModelCatalog.Find(modelId) ?? ModelCatalog.Search(modelId).FirstOrDefault();
-        if (info == null)
+        if (string.IsNullOrWhiteSpace(modelId))
         {
-            if (ProgramContext.LLM != null) ProgramContext.LLM.SmallModel = modelId;
-            screen.AddSystemMsg($"Small model switched: {modelId}");
+            screen.AddSystemMsg("用法: /model small <modelId>");
             return;
         }
-        ApplyModel(screen, info, "small");
+        var info = ModelCatalog.Find(modelId.Trim()) ?? ModelCatalog.Search(modelId.Trim()).FirstOrDefault();
+        var id = info?.Id ?? modelId.Trim();
+        var pid = info?.ProviderId ?? Config.Instance.SmallProvider;
+        ConnectionConfig.ApplyModelChoice(pid, id, isLarge: false, out var msg, info?.DefaultBaseUrl);
+        if (ProgramContext.LLM != null) ProgramContext.LLM.SmallModel = id;
+        screen.AddSystemMsg($"✅ {msg}");
     }
 
     static void ApplyModel(ChatScreen screen, ModelCatalog.ModelInfo info, string type)
@@ -192,6 +206,7 @@ public class ModelCommand : SlashCommand
         if (type == "large")
         {
             slotCfg.LargeModel = info.Id;
+            slotCfg.BigConnect = ConnectionConfig.FindOrCreateConnect(info.ProviderId, info.Id).Name;
             if (ProgramContext.Agent != null)
             {
                 ProgramContext.Agent.LlmClient.Model = info.Id;
@@ -202,6 +217,7 @@ public class ModelCommand : SlashCommand
         else
         {
             slotCfg.SmallModel = info.Id;
+            slotCfg.SmallConnect = ConnectionConfig.FindOrCreateConnect(info.ProviderId, info.Id).Name;
             if (ProgramContext.LLM != null) ProgramContext.LLM.SmallModel = info.Id;
         }
 
@@ -256,26 +272,6 @@ public class ModelCommand : SlashCommand
         screen.AddSystemMsg(sb.ToString());
     }
 
-    static void SetModel(ChatScreen screen, string modelId)
-    {
-        if (string.IsNullOrWhiteSpace(modelId))
-        {
-            screen.AddSystemMsg("Usage: /model set <modelId>");
-            return;
-        }
-
-        var info = ModelCatalog.Find(modelId.Trim())
-                ?? ModelCatalog.Search(modelId.Trim()).FirstOrDefault();
-
-        if (info == null)
-        {
-            screen.AddSystemMsg($"Model '{modelId}' not found.");
-            return;
-        }
-
-        ApplyModel(screen, info, "large");
-    }
-
     static void SetUniform(ChatScreen screen, string modelId)
     {
         if (string.IsNullOrWhiteSpace(modelId))
@@ -293,10 +289,13 @@ public class ModelCommand : SlashCommand
             return;
         }
 
+        var uniformConnect = ConnectionConfig.FindOrCreateConnect(info.ProviderId, info.Id);
         var template = new AgentSlotConfig.SlotConfig
         {
             LargeModel = info.Id,
             SmallModel = info.Id,
+            BigConnect = uniformConnect.Name,
+            SmallConnect = uniformConnect.Name,
             UseGlobal = false,
         };
         if (info.DefaultBaseUrl != null) template.BaseUrl = info.DefaultBaseUrl;
@@ -346,8 +345,8 @@ public class ModelCommand : SlashCommand
         }
 
         var slotCfg = AgentSlotConfig.Get(slotN - 1);
-        if (type == "large") slotCfg.LargeModel = info.Id;
-        else slotCfg.SmallModel = info.Id;
+        if (type == "large") { slotCfg.LargeModel = info.Id; slotCfg.BigConnect = ConnectionConfig.FindOrCreateConnect(info.ProviderId, info.Id).Name; }
+        else { slotCfg.SmallModel = info.Id; slotCfg.SmallConnect = ConnectionConfig.FindOrCreateConnect(info.ProviderId, info.Id).Name; }
         slotCfg.UseGlobal = false;
         if (info.DefaultBaseUrl != null) slotCfg.BaseUrl = info.DefaultBaseUrl;
         AgentSlotConfig.Set(slotN - 1, slotCfg);
@@ -355,61 +354,13 @@ public class ModelCommand : SlashCommand
         screen.AddSystemMsg($"F{slotN} {type} model -> **{info.DisplayName}** (`{info.Id}`)");
     }
 
-    static void ImportModels(ChatScreen screen, string filePath)
+    static void ImportModels(ChatScreen screen, string source)
     {
-        if (string.IsNullOrWhiteSpace(filePath))
-        {
-            screen.AddSystemMsg("Usage: /model import <path>\nSupported: OpenCode, Crush, Cline, Continue, JSON array.");
-            return;
-        }
-
-        try
-        {
-            if (!File.Exists(filePath))
-            {
-                screen.AddSystemMsg($"File not found: {filePath}");
-                return;
-            }
-
-            var json = File.ReadAllText(filePath);
-            var (models, format) = ModelCatalog.TryImport(json);
-
-            if (models.Count == 0)
-            {
-                screen.AddSystemMsg("No models found or unsupported format.");
-                return;
-            }
-
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"Imported {models.Count} models ({format}):");
-            foreach (var m in models.Take(20))
-                sb.AppendLine($"  `{m.Id}` — {m.Provider}");
-            if (models.Count > 20)
-                sb.AppendLine($"  ... and {models.Count - 20} more");
-
-            screen.AddSystemMsg(sb.ToString());
-        }
-        catch (Exception ex)
-        {
-            screen.AddSystemMsg($"Import failed: {ex.Message}");
-        }
-    }
-
-    static void ListKeys(ChatScreen screen)
-    {
-        var keys = ApiKeyStore.ListAll();
-        if (keys.Count == 0)
-        {
-            screen.AddSystemMsg("No API keys saved.\nUse `/model keys set <providerId> <key>` to save one.");
-            return;
-        }
-
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("Saved API Keys:");
-        foreach (var (pid, _) in keys)
-            sb.AppendLine($"  `{pid}`: {ApiKeyStore.Masked(pid)}");
-        sb.AppendLine("\nUse `/model keys set <providerId> <key>` to add/update.");
-        screen.AddSystemMsg(sb.ToString());
+        // 复用 ModelCli.Import：source 为空→auto；all/opencode/openclaw/crush/claude/codex→指定来源；否则视为文件路径
+        var result = string.IsNullOrWhiteSpace(source) || source.Equals("all", StringComparison.OrdinalIgnoreCase)
+            ? ModelCli.Import(null)
+            : ModelCli.Import(source);
+        screen.AddSystemMsg(result);
     }
 
     /// <summary>
@@ -455,8 +406,11 @@ public class ModelCommand : SlashCommand
         if (info == null)
         {
             var slotCfg = AgentSlotConfig.Get(slotIdx);
+            var unknownConn = ConnectionConfig.FindOrCreateConnect(Config.Instance.Provider, modelName).Name;
             slotCfg.LargeModel = modelName;
             slotCfg.SmallModel = modelName;
+            slotCfg.BigConnect = unknownConn;
+            slotCfg.SmallConnect = unknownConn;
             slotCfg.UseGlobal = false;
             if (baseUrl != null) slotCfg.BaseUrl = baseUrl;
             if (apiKey != null) slotCfg.ApiKey = apiKey;
@@ -476,8 +430,11 @@ public class ModelCommand : SlashCommand
         }
 
         var cfg = AgentSlotConfig.Get(slotIdx);
+        var bothConn = ConnectionConfig.FindOrCreateConnect(info.ProviderId, info.Id).Name;
         cfg.LargeModel = info.Id;
         cfg.SmallModel = info.Id;
+        cfg.BigConnect = bothConn;
+        cfg.SmallConnect = bothConn;
         cfg.UseGlobal = false;
 
         // Local model: use localhost:port as BaseUrl
@@ -515,76 +472,28 @@ public class ModelCommand : SlashCommand
         screen.AddSystemMsg(result);
     }
 
-    static void SetApiKey(ChatScreen screen, string args)
-    {
-        var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length < 2)
-        {
-            screen.AddSystemMsg("Usage: /model keys set <providerId> <api-key>");
-            return;
-        }
-
-        ApiKeyStore.Set(parts[0], parts[1]);
-        screen.AddSystemMsg($"API key saved for `{parts[0]}`: {ApiKeyStore.Masked(parts[0])}");
-    }
-
-    /// <summary>/model add [model <id> <pid> [baseUrl]|provider <pid> [baseUrl]|key <pid> <key>] — 手动添加模型/服务商/API key</summary>
+    /// <summary>/model add <id> [providerId] [baseUrl] — 手动添加模型到目录（provider 管理在 /provider）</summary>
     static void AddModels(ChatScreen screen, string args)
     {
         var parts = args.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length == 0)
         {
-            screen.AddSystemMsg("Usage: /model add [model <id> <providerId> [baseUrl] | provider <providerId> [baseUrl] | key <providerId> <key>]");
+            screen.AddSystemMsg("用法: /model add <id> [providerId] [baseUrl]\n例: `/model add my-model deepseek https://api.deepseek.com/v1`");
             return;
         }
-
-        var sub = parts[0].ToLowerInvariant();
-        switch (sub)
-        {
-            case "model":
-                screen.AddSystemMsg(parts.Length >= 3
-                    ? ModelCli.AddModel(parts[1], parts[2], parts.Length > 3 ? parts[3] : null)
-                    : "Usage: /model add model <id> <providerId> [baseUrl]");
-                break;
-            case "provider":
-            case "prov":
-                screen.AddSystemMsg(parts.Length >= 2
-                    ? ModelCli.AddProvider(parts[1], parts.Length > 2 ? parts[2] : null)
-                    : "Usage: /model add provider <providerId> [baseUrl]");
-                break;
-            case "key":
-            case "keys":
-            case "apikey":
-                screen.AddSystemMsg(parts.Length >= 3
-                    ? ModelCli.SetKey(parts[1], parts[2])
-                    : "Usage: /model add key <providerId> <key>");
-                break;
-            default:
-                screen.AddSystemMsg(parts.Length >= 2
-                    ? ModelCli.AddModel(parts[0], parts[1], parts.Length > 2 ? parts[2] : null)
-                    : ModelCli.AddModel(parts[0], null, null));
-                break;
-        }
+        screen.AddSystemMsg(ModelCli.AddModel(parts[0],
+            parts.Length >= 2 ? parts[1] : null,
+            parts.Length >= 3 ? parts[2] : null));
     }
 
-    /// <summary>/model remove [model <id>|provider <pid>|key <pid>] — 删除模型/服务商/API key（无子命令时 <id> 视为删模型）</summary>
+    /// <summary>/model rm <id> — 删除自定义模型（provider 删除在 /provider，key 删除在 /provider apikey）</summary>
     static void RemoveModels(ChatScreen screen, string args)
     {
-        var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 0)
+        if (string.IsNullOrWhiteSpace(args))
         {
-            screen.AddSystemMsg("Usage: /model remove [model <id> | provider <pid> | key <pid>]");
+            screen.AddSystemMsg("用法: /model rm <modelId>");
             return;
         }
-
-        var sub = parts[0].ToLowerInvariant();
-        if (parts.Length >= 2 && sub == "model")
-            screen.AddSystemMsg(ModelCli.Remove(parts[1]));
-        else if (parts.Length >= 2 && sub is "provider" or "prov")
-            screen.AddSystemMsg(ModelCli.RemoveProvider(parts[1]));
-        else if (parts.Length >= 2 && sub is "key" or "keys" or "apikey")
-            screen.AddSystemMsg(ModelCli.RemoveKey(parts[1]));
-        else
-            screen.AddSystemMsg(ModelCli.Remove(parts[0]));
+        screen.AddSystemMsg(ModelCli.Remove(args.Trim()));
     }
 }

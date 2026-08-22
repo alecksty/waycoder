@@ -235,6 +235,8 @@ public class Config
     public int LlmRateLimitMaxWaitSec { get; set; } = 120;
 
     // ── 回退链 ──
+    /// <summary>回退链开关：默认关。开=模型失败时按 connect 链自动回退；关=只用当前模型，失败即停。</summary>
+    public bool FallbackEnabled { get; set; } = false;
     public string FallbackChain { get; set; } = "deepseek-v4-pro,deepseek-v4-flash,qwen-turbo,glm-4-flash";
 
     // ── 文件锁 ──
@@ -648,6 +650,12 @@ public class Config
               "Tiny 窗口", "💰 计费", "Tiny 模式实际上下文窗口（--tiny 指定）",
               "number", null, 29,
               c => c.TinyWindow.ToString(), (c, v) => c.TinyWindow = Math.Clamp(int.Parse(v), 1024, 262144), "4096"),
+
+            P("FallbackEnabled", "WAYCODER_FALLBACK_ENABLED",  null,
+              "回退链开关", "🤖 模型", "模型失败时按回退链自动切换备选 connect（默认关：只用当前模型，失败即停）",
+              "select", ["false","true"], 6,
+              c => c.FallbackEnabled.ToString().ToLowerInvariant(),
+              (c, v) => c.FallbackEnabled = bool.TryParse(v, out var b) && b, "false"),
 
             P("FallbackChain", "WAYCODER_FALLBACK_CHAIN",     null,
               "回退模型链", "🤖 模型", "逗号分隔的备选模型列表",
