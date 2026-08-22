@@ -307,14 +307,46 @@ public partial class Agent
             }
         }
     }
+    // ── 省钱模式工具精简 ──
+    // 设计原则：省钱关 = 全量工具；开 = 去掉重复（bash 可替代）；开的越大，工具越精简。
+    // 档位顺序（Off→Auto→On→Extreme）工具数单调递减：
+    //   Off      = 全量 46
+    //   Auto     = 去掉 bash 基础命令可替代的重复工具（cd/pwd/ls/mkdir/cp/mv/rm/tree/wc/stat/ps/kill）
+    //   On       = Auto + 再去掉搜索/编辑冗余（glob/grep/diff/find_replace/multiedit，bash 或 read+edit 可替代）
+    //   Extreme  = 只留读改写 + 执行(bash) + 联网查/下载(web_search/fetch) + 问用户核心（白名单式保留）
+    /// <summary>bash 基础命令可直接替代的重复工具（Auto 及以上去掉）</summary>
+    internal static readonly HashSet<string> BashRedundantTools = new(StringComparer.OrdinalIgnoreCase)
+    { "cd", "pwd", "ls", "mkdir", "cp", "mv", "rm", "tree", "wc", "stat", "ps", "kill" };
+    /// <summary>搜索/编辑冗余工具（On 及以上再去掉）</summary>
+    internal static readonly HashSet<string> EditRedundantTools = new(StringComparer.OrdinalIgnoreCase)
+    { "glob", "grep", "diff", "find_replace", "multiedit" };
+    /// <summary>Extreme 核心工具（极致省钱最小集：读改写 + 执行 + 联网查/下载 + 问用户）</summary>
+    internal static readonly HashSet<string> ExtremeCoreTools = new(StringComparer.OrdinalIgnoreCase)
+    { "read_file", "write_file", "edit_file", "bash", "web_search", "fetch", "ask_user_question" };
+
     /// <summary>
-    /// 根据配置过滤工具列表（白名单 + 黑名单）。
+    /// 按省钱模式档位精简工具（去重复）。Off 返回原集不动。
+    /// </summary>
+    internal static List<ITool> TrimToolsForEconomy(List<ITool> tools, EconomyMode mode)
+    {
+        if (mode == EconomyMode.Off) return tools;
+        if (mode == EconomyMode.Extreme)
+            return tools.Where(t => ExtremeCoreTools.Contains(t.Name)).ToList();
+        var keep = tools.Where(t => !BashRedundantTools.Contains(t.Name)).ToList();
+        if (mode == EconomyMode.On)
+            keep = keep.Where(t => !EditRedundantTools.Contains(t.Name)).ToList();
+        return keep;
+    }
+
+    /// <summary>
+    /// 根据配置过滤工具列表（白名单 + 省钱精简 + 黑名单）。
+    /// 优先级：显式白名单 > 省钱模式按档位去重复精简 > 黑名单剔除。
     /// </summary>
     private static List<ITool> FilterTools(Agent agent, List<ITool> tools)
     {
         var config = Config.Instance;
         // 极简：仅权限 TINY（纯聊天）禁用所有工具；economy Extreme 只最小化提示词，
-        // 工具保留白名单/黑名单过滤（极致省钱仍可干活，否则 extreme 写不了代码）
+        // 工具保留白名单/精简/黑名单过滤（极致省钱仍可干活，否则 extreme 写不了代码）
         if (PermissionManager.CurrentMode == PermissionManager.Mode.TINY)
             return [];
 
@@ -331,12 +363,20 @@ public partial class Agent
 
         var result = tools;
         if (allowed is { Count: > 0 })
+        {
+            // 显式白名单：完全按用户指定，省钱精简不干扰
             result = result.Where(t => allowed.Contains(t.Name.ToLowerInvariant())).ToList();
+        }
+        else
+        {
+            // 无白名单：省钱模式按档位去重复精简（关=全量，开=去重，开的越大越精简）
+            result = TrimToolsForEconomy(result, config.EconomyMode);
+        }
         if (disabled is { Count: > 0 })
             result = result.Where(t => !disabled.Contains(t.Name.ToLowerInvariant())).ToList();
 
         if (result.Count < tools.Count)
-            DebugLog.Log("tool-filter", $"工具过滤: {tools.Count} → {result.Count} ({agent.WorkMode}, YOLO={PermissionManager.CurrentMode == PermissionManager.Mode.Yolo})");
+            DebugLog.Log("tool-filter", $"工具过滤: {tools.Count} → {result.Count} ({agent.WorkMode}, YOLO={PermissionManager.CurrentMode == PermissionManager.Mode.Yolo}, economy={config.EconomyMode})");
 
         return result;
     }

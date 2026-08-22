@@ -447,13 +447,31 @@ public partial class Program
         }
 
         var saved = Config.Instance.EconomyMode;
-        Config.Instance.EconomyMode = EconomyMode.Off;
-        M("normal 全工具", all);
-        M("normal 白名单5", wlTools);
-        Config.Instance.EconomyMode = EconomyMode.Extreme;
-        M("extreme 全工具", all);
-        M("extreme 白名单5", wlTools);
-        Config.Instance.EconomyMode = saved;
+        try
+        {
+            // 4 个提示词档位 × 对应工具精简档位：省钱关=全量，开=去重复，开的越大越精简
+            var modes = new (string Label, EconomyMode Mode)[]
+            {
+                ("Off 全量", EconomyMode.Off),
+                ("Auto 去bash冗余", EconomyMode.Auto),
+                ("On 去搜索编辑冗余", EconomyMode.On),
+                ("Extreme 核心集", EconomyMode.Extreme),
+            };
+            Console.WriteLine("── 提示词档位 × 工具精简档位 ──");
+            foreach (var (label, mode) in modes)
+            {
+                Config.Instance.EconomyMode = mode;
+                var trimmed = Agent.TrimToolsForEconomy(all, mode);
+                M($"{label} 工具{trimmed.Count}", trimmed);
+            }
+            Console.WriteLine("── 对照：白名单固定 5 工具，仅提示词档位变化 ──");
+            foreach (var (label, mode) in modes)
+            {
+                Config.Instance.EconomyMode = mode;
+                M($"{label} 白名单5", wlTools);
+            }
+        }
+        finally { Config.Instance.EconomyMode = saved; }
     }
 
     /// <summary>截图模式：TUI 控件截图验证</summary>
