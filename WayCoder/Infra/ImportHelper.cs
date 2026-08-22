@@ -425,11 +425,14 @@ public static class ImportHelper
             try
             {
                 var cfg = Config.Instance;
-                if (!string.IsNullOrEmpty(apiKey)) cfg.ApiKey = apiKey;
-                if (!string.IsNullOrEmpty(baseUrl)) cfg.BaseUrl = baseUrl;
-                cfg.Model = sonnetModel;
-                cfg.SmallModel = haikuModel;
-                cfg.Provider = "openai";
+                if (!string.IsNullOrEmpty(apiKey))
+                {
+                    cfg.ApiKey = apiKey;
+                    ApiKeyStore.Set("openai", apiKey);
+                }
+                // 「切换模型 = 切换 connect」：经 connect 统一入口写大/小模型
+                ConnectionConfig.ApplyModelChoice("openai", sonnetModel, isLarge: true, out _, baseUrl);
+                ConnectionConfig.ApplyModelChoice("openai", haikuModel, isLarge: false, out _);
                 cfg.SaveToEnvFile();
                 sb.AppendLine("  📝 已写入: ~/.waycoder/config.json（全量）+ .env（5 项基本配置）");
             }

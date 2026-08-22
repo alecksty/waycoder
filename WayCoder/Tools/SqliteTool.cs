@@ -45,6 +45,7 @@ public class SqliteTool : ITool
                 FileName = "sqlite3",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                RedirectStandardInput = true, // 不共享主控台 stdin（ProcUtil 启动后置 EOF，防 TUI ReadKey 竞态）
                 UseShellExecute = false,
             };
             // database 为空时用 :memory: 占位，否则 query 会被当作数据库文件名

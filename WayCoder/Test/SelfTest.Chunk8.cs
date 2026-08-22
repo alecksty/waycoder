@@ -750,9 +750,11 @@ public static partial class SelfTest
             try
             {
                 File.WriteAllText(clearPath, "1");
+                ModelCatalog.Invalidate(); // 直接写标记不经过 ClearAll，需手动失效缓存，否则 All 返回旧缓存
                 var allCleared = ModelCatalog.All;
                 Check("清空标记: 标记后 All 不含内置",
-                    ModelCatalog.BuiltInCleared && !allCleared.Any(m => ModelCatalog.BuiltIn.Any(b => b.Id == m.Id)));
+                    ModelCatalog.BuiltInCleared
+                    && !allCleared.Any(m => ModelCatalog.BuiltIn.Any(b => b.Id == m.Id && b.ProviderId == m.ProviderId)));
 
                 ModelCatalog.RestoreBuiltIn();
                 var allRestored = ModelCatalog.All;

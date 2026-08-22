@@ -1,4 +1,4 @@
-using WayCoder.UI.Tui.Screens;
+﻿using WayCoder.UI.Tui.Screens;
 using Commands = WayCoder.UI.Cli.Commands;
 
 namespace WayCoder;
@@ -118,6 +118,7 @@ public static class SlashCommandRegistry
         Register(new Commands.ResetCommand());
         Register(new Commands.ModelCommand());
         Register(new Commands.ProviderCommand());
+        Register(new Commands.ConnectionCommand());
         Register(new Commands.PermitCommand());
         Register(new Commands.TokensCommand());
         Register(new Commands.StatsCommand());

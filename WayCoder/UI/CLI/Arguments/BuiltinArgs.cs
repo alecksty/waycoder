@@ -839,6 +839,124 @@ public class PurgeArg : CliArg
     public override int? OnMatch(List<string> values) => CachePurger.Run();
 }
 
+/// <summary>管理连接层（connect 注册表 / 命名连接 / 回退链）——list/add/rm/select/&lt;id&gt;/test/import。</summary>
+public class ConnectArg : CliArg
+{
+    public override string Description => "连接层管理（connect 注册表 / 命名连接 / 回退链）";
+    public override int ValueCount => -1;
+    public override bool Greedy => true;
+    public override string? ValueLabel => "connect名/子命令";
+    public override (string Cmd, string Desc)[]? SubCommands =>
+    [
+        ("list", "列出 connect + 命名连接 + 回退链"),
+        ("add <name> <providerId> <modelId>", "新增 connect"),
+        ("rm <name>", "删除 connect"),
+        ("select <id>", "切换大 connect（connect名 | providerId.modelId | providerId/modelId | baseUrl:model | modelId）"),
+        ("<id>", "快捷切换（同 select）"),
+        ("test", "连通性测试"),
+        ("import", "登记当前大/小/回退模型为 connect"),
+        ("conn add <name> <大> <小>", "新增命名连接（大/小一起切）"),
+        ("use <name>", "切换命名连接"),
+        ("chain <c1> <c2> ...", "设置全局回退链（connect 名）"),
+    ];
+    public ConnectArg() : base("connect", "--connect") { }
+    public override int? OnMatch(List<string> values)
+    {
+        if (values.Count == 0)
+        {
+            var cfg = Config.Instance;
+            var cur = ConnectionConfig.CurrentByConfig();
+            Console.WriteLine(cur != null
+                ? $"当前连接：`{cur.Name}`\n  大 = {ConnectionConfig.FormatModel(ConnectionConfig.FindConnect(cur.BigConnect)?.ProviderId ?? "", ConnectionConfig.FindConnect(cur.BigConnect)?.ModelId ?? "")}\n  小 = {ConnectionConfig.FormatModel(ConnectionConfig.FindConnect(cur.SmallConnect)?.ProviderId ?? "", ConnectionConfig.FindConnect(cur.SmallConnect)?.ModelId ?? "")}"
+                : $"当前：大={ConnectionConfig.FormatModel(cfg.Provider, cfg.Model)} · 小={ConnectionConfig.FormatModel(cfg.SmallProvider, cfg.SmallModel)}");
+            return 0;
+        }
+
+        var first = values[0].ToLowerInvariant();
+        var rest = values.Skip(1).ToArray();
+        switch (first)
+        {
+            case "list":
+            case "ls":
+            {
+                var sb = new System.Text.StringBuilder("**connect 注册表**：\n");
+                foreach (var c in ConnectionConfig.ListConnects())
+                {
+                    var hasKey = !string.IsNullOrEmpty(ConnectionConfig.ResolveProvider(c.ProviderId)?.ApiKey);
+                    sb.AppendLine($"  `{c.Name}` {c.ProviderId} / {c.ModelId}" + (hasKey ? " 🔑" : " ⚠"));
+                }
+                var chain = ConnectionConfig.FallbackChain;
+                sb.AppendLine($"回退链：{(chain.Count > 0 ? string.Join(" → ", chain) : "（无）")}");
+                Console.WriteLine(sb.ToString().TrimEnd());
+                return 0;
+            }
+            case "add":
+            case "new":
+                if (rest.Length < 3) { Console.WriteLine("用法: --connect add <name> <providerId> <modelId>"); return 1; }
+                Console.WriteLine(ConnectionConfig.AddConnect(rest[0], rest[1], rest[2], out var e)
+                    ? $"✅ 已新增 connect「{rest[0]}」" : $"❌ {e}");
+                return 0;
+            case "rm":
+            case "remove":
+            case "delete":
+            case "del":
+                if (rest.Length < 1) { Console.WriteLine("用法: --connect rm <name>"); return 1; }
+                Console.WriteLine(ConnectionConfig.RemoveConnect(rest[0], out var re)
+                    ? $"🗑 已删除 connect「{rest[0]}」" : $"❌ {re}");
+                return 0;
+            case "select":
+            case "switch":
+                if (rest.Length < 1) { Console.WriteLine("用法: --connect select <id>"); return 1; }
+                ConnectionConfig.ApplySpec(rest[0], true, out var sm);
+                Console.WriteLine($"✅ {sm}");
+                return 0;
+            case "test":
+            {
+                var sb = new System.Text.StringBuilder("**connect 连通性测试**：\n");
+                foreach (var pid in ConnectionConfig.ListConnects().Select(c => c.ProviderId).Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    var p = ConnectionConfig.ResolveProvider(pid);
+                    if (string.IsNullOrWhiteSpace(p?.BaseUrl)) { sb.AppendLine($"  ❌ `{pid}` — 无端点"); continue; }
+                    var (o, d) = ModelCli.ProbeEndpoint(p!.BaseUrl, p.ApiKey);
+                    sb.AppendLine($"  {(o ? "✅" : "❌")} `{pid}` {p.BaseUrl} — {d}");
+                }
+                Console.WriteLine(sb.ToString().TrimEnd());
+                return 0;
+            }
+            case "import":
+            {
+                ConnectionConfig.FindOrCreateConnect(Config.Instance.Provider, Config.Instance.Model);
+                ConnectionConfig.FindOrCreateConnect(Config.Instance.SmallProvider, Config.Instance.SmallModel);
+                Console.WriteLine($"✅ 已登记大/小模型为 connect：{ConnectionConfig.FormatModel(Config.Instance.Provider, Config.Instance.Model)} / {ConnectionConfig.FormatModel(Config.Instance.SmallProvider, Config.Instance.SmallModel)}");
+                return 0;
+            }
+            case "use":
+                if (rest.Length < 1) { Console.WriteLine("用法: --connect use <connectionName>"); return 1; }
+                ConnectionConfig.ActivateConnection(rest[0], out var um);
+                Console.WriteLine($"✅ {um}");
+                return 0;
+            case "chain":
+            case "fallback":
+                if (rest.Length > 0 && (rest[0].Equals("on", StringComparison.OrdinalIgnoreCase) || rest[0].Equals("off", StringComparison.OrdinalIgnoreCase)))
+                {
+                    Config.Instance.FallbackEnabled = rest[0].Equals("on", StringComparison.OrdinalIgnoreCase);
+                    Config.Instance.SaveToEnvFile();
+                    Console.WriteLine($"✅ 回退链已{(Config.Instance.FallbackEnabled ? "开启" : "关闭")}");
+                    return 0;
+                }
+                ConnectionConfig.SetFallbackChain(rest);
+                Console.WriteLine($"✅ 回退链：{string.Join(" → ", ConnectionConfig.FallbackChain)}" +
+                    (Config.Instance.FallbackEnabled ? "（开）" : "（关，/connect chain on 开启）"));
+                return 0;
+            default:
+                // <id> → 快捷切换
+                ConnectionConfig.ApplySpec(values[0], true, out var dm);
+                Console.WriteLine($"✅ {dm}");
+                return 0;
+        }
+    }
+}
+
 /// <summary>管理服务商数据库（providers.json）——list / add / rm / clean。</summary>
 public class ProviderArg : CliArg
 {
@@ -851,6 +969,10 @@ public class ProviderArg : CliArg
         ("list", "列出所有服务商"),
         ("add <id> <名称> <base-url>", "添加服务商"),
         ("rm <id>", "移除服务商（同时清除其 Key）"),
+        ("select <id>", "切换当前服务商（作用于当前大模型 connect）"),
+        ("key <id> <key>", "保存某服务商的 API key"),
+        ("test", "连通性测试"),
+        ("import [source]", "导入外部模型库"),
         ("clean", "清理无效服务商（探测失败的）"),
     ];
     public ProviderArg() : base("provider", "--provider") { }
@@ -954,6 +1076,7 @@ public static class BuiltinArgs
         _registered = true;
 
         CliArgRegistry.Register(new ModelArg());
+        CliArgRegistry.Register(new ConnectArg());
         CliArgRegistry.Register(new BaseUrlArg());
         CliArgRegistry.Register(new ApiKeyArg());
         CliArgRegistry.Register(new PromptArg());

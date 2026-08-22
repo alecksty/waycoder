@@ -173,6 +173,9 @@ public class BashTool : ITool, ICancellableTool
                     WorkingDirectory = cwd,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
+                    // 必须重定向 stdin：否则子进程继承主控台 stdin，与 TUI 主循环的 Console.KeyAvailable/ReadKey
+                    // 抢控制台输入 —— 子进程读到按键时主循环的 ReadKey 会永久阻塞（YOLO 模式任务执行中卡死的根源）。
+                    RedirectStandardInput = true,
                     UseShellExecute = false,
                     CreateNoWindow = true,
                 };
@@ -182,6 +185,8 @@ public class BashTool : ITool, ICancellableTool
             EnvScrubber.Scrub(psi);
 
             var proc = Process.Start(psi)!;
+            // 立即关闭 stdin 管道：子进程读到 EOF（而非挂起/共享控制台）。非交互命令不受影响。
+            try { proc.StandardInput.Close(); } catch { /* 进程已退出 */ }
 
             // 中断令牌 → 立即杀掉子进程（Web 停止按钮 / Ctrl+C 真正终止 bash）
             using var cancelReg = cancellationToken.Register(() => KillQuietly(proc));

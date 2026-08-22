@@ -108,6 +108,7 @@ public sealed class BatchRunner
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            RedirectStandardInput = true, // 不共享主控台 stdin（防 TUI ReadKey 竞态）
             CreateNoWindow = true,
         };
         foreach (var a in args) psi.ArgumentList.Add(a);
@@ -115,6 +116,7 @@ public sealed class BatchRunner
         using var proc = new Process { StartInfo = psi };
         try { proc.Start(); }
         catch (Exception ex) { return (-1, "", $"启动子进程失败: {ex.Message}"); }
+        try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
 
         // 超时/取消时终止整个进程树（含 bash 子进程）
         using var reg = ct.Register(() =>

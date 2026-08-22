@@ -15,15 +15,21 @@ namespace WayCoder;
 public partial class Program
 {
     // ========================================================================
-    /// <summary>构建模型回退链：当前模型 + 备选模型。primary 应为实际请求模型（槽位解析），而非全局配置——</summary>
-    /// <summary>否则槽位模型与 _config.Model（.env）不一致时，回退链首项/失败消息会显示错误的模型名。</summary>
+    /// <summary>构建回退链（一串 connect 名）：首项 = primary 模型对应的 connect，随后 = 全局回退链。
+    /// primary 应为实际请求模型（槽位解析），而非全局配置——否则槽位模型与 _config.Model 不一致时，
+    /// 回退链首项/失败消息会显示错误的模型名。回退执行时每个 connect 解析出 model+key+baseUrl 一起换。</summary>
     private static string[] BuildFallbackChain(string primary)
     {
-        var fallbacks = new List<string> { primary };
-        foreach (var fb in new[] { "deepseek-v4-flash", "gpt-5.4-mini", "deepseek-v4-pro", "gpt-5.4" })
-            if (fb != primary && !fallbacks.Contains(fb))
-                fallbacks.Add(fb);
-        return fallbacks.ToArray();
+        var result = new List<string>();
+        var primaryInfo = ModelCatalog.Find(primary);
+        var primaryConnect = ConnectionConfig.FindConnectByModel(primary)
+            ?? (primaryInfo != null ? ConnectionConfig.FindOrCreateConnect(primaryInfo.ProviderId, primaryInfo.Id) : null);
+        // 首项一定是 primary：有 connect 用 connect 名，否则用模型名本身（回退循环按 connect?.ModelId ?? connectName 兜底）
+        result.Add(primaryConnect?.Name ?? primary);
+        foreach (var cn in ConnectionConfig.FallbackChain)
+            if (!result.Contains(cn, StringComparer.OrdinalIgnoreCase))
+                result.Add(cn);
+        return result.ToArray();
     }
 
     // 辅助方法: 安全的控制台输出 + 状态动画
