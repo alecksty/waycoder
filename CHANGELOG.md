@@ -1,5 +1,24 @@
 # 更新日志
 
+## v0.82.3 (2026-08-22) — 模式体系 v2：参考竞品（Claude Code / Codex / Crush / Aider）四轴正交划分
+
+- **四正交轴模型**（对齐 Codex 双轴 `sandbox_mode × approval_policy` + Claude Code `plan` mode 语义）：
+
+  | 轴 | 决定什么 | WayCoder 映射 | 竞品参照 |
+  |---|---|---|---|
+  | 确认轴 | 何时打断确认 | 权限模式 Ask/Auto/SmartAuto/Yolo | Codex approval_policy |
+  | 边界轴 | 能碰什么（可写/网络） | 沙箱 SandboxManager | Codex sandbox_mode |
+  | 行为轴 | 干什么活 + 工具集 | 工作模式 Build/Plan/Review | Claude plan（只读规划） |
+  | 省钱轴 | 花多少 token | 经济模式（提示词+压缩+输出） | Aider/Crush（模型选择+压缩） |
+
+- **竞品共识：省钱不删工具**——四大竞品（Claude/Aider/Crush/Codex）省钱全靠模型选择 + 上下文压缩 + 提示词精简，无一家靠删工具；WayCoder 经济模式含 `TrimToolsForEconomy` 属偏离共识特色，文档标注（§6-P1-⑤），建议移出或显式化
+- **Codex 双轴启示**：沙箱（边界）与确认（approval）应解耦——WayCoder 现状 `full-auto→Yolo` 联动待拆（§6-P0-②）
+- **TINY 纯聊天**：重新定义——从权限枚举降级为「组合预设」（边界=read-only + 行为=聊天），非确认轴职责
+- **docs/模式体系.md v2** 全重写（新增 §0 竞品对标 + 四轴模型 + 修订决策链/命名对照/问题清单）；CLAUDE.md 摘要更新
+
+### ✅ 验证
+- 竞品设计来自官方文档调研（code.claude.com / openai/codex docs / Aider 文档）；文档代码引用沿用 v0.82.2 已核对结果；纯文档改动
+
 ## v0.82.2 (2026-08-22) — 模式职责划分文档化：权限/工作/经济三正交维度理清边界
 
 - **新增 [docs/模式体系.md](docs/模式体系.md)**：三分钟看懂三类模式——权限管「要不要确认」、工作管「工具有没有 + 干什么活」、经济管「省多少 token」
