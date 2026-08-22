@@ -384,11 +384,13 @@ public static class CheckpointManager
                 Arguments = CrossPlatform.ShellArgs(command),
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                RedirectStandardInput = true, // 不共享主控台 stdin（防 TUI ReadKey 竞态）
                 UseShellExecute = false,
                 CreateNoWindow = true,
             }
         };
         proc.Start();
+        try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
         // 同时排空 stdout 与 stderr：命令输出大量 stderr（如 git 报错）时，
         // 若只读 stdout，stderr 管道缓冲区写满会阻塞子进程 → 死锁。
         var stdoutTask = proc.StandardOutput.ReadToEndAsync();

@@ -558,8 +558,8 @@ public static class ModelPicker
             var agent = ProgramContext.Agent;
             if (agent == null) return;
             var cfg = Config.Instance;
-            var info = ModelCatalog.Find(agent.LlmClient.Model);
-            var baseUrl = info?.DefaultBaseUrl ?? cfg.BaseUrl;
+            var prov = ConnectionConfig.ResolveProvider(providerId);
+            var baseUrl = prov?.BaseUrl ?? cfg.BaseUrl;
             agent.LlmClient.Reconfigure(string.IsNullOrEmpty(key) ? (ApiKeyStore.Get(providerId) ?? cfg.ApiKey) : key, baseUrl);
         }
 
@@ -776,34 +776,36 @@ public static class ModelPicker
     public static void Apply(string modelId, bool isLarge, int slot, string? baseUrl = null, string? providerId = null)
     {
         var cfg = Config.Instance;
-        if (slot == -1)
+        if (slot is -1 or -2)
         {
-            if (isLarge) cfg.Model = modelId; else cfg.SmallModel = modelId;
-            if (providerId != null) cfg.Provider = providerId;  // 同步服务商（key 跟服务商走）
-            if (baseUrl != null) cfg.BaseUrl = baseUrl;         // 同步网关地址
-            cfg.SaveToEnvFile();
-        }
-        else if (slot == -2)
-        {
-            AgentSlotConfig.SetUniform(new AgentSlotConfig.SlotConfig
+            // 「切换模型 = 切换 connect」：经 ConnectConfig.ApplyModelChoice 找/建 connect、
+            // 更新激活连接的大/小 connect、同步扁平字段并持久化
+            var pid = providerId ?? ModelCatalog.Find(modelId)?.ProviderId ?? cfg.Provider;
+            ConnectionConfig.ApplyModelChoice(pid, modelId, isLarge, out _, baseUrl);
+            if (slot == -2)
             {
-                UseGlobal = false,
-                LargeModel = isLarge ? modelId : null,
-                SmallModel = isLarge ? null : modelId,
-                BaseUrl = baseUrl,
-                ApiKeyProviderId = providerId,
-            });
-            if (isLarge) cfg.Model = modelId; else cfg.SmallModel = modelId;
-            if (providerId != null) cfg.Provider = providerId;
-            if (baseUrl != null) cfg.BaseUrl = baseUrl;
-            cfg.SaveToEnvFile();
+                var uniformConnect = ConnectionConfig.FindOrCreateConnect(pid, modelId);
+                AgentSlotConfig.SetUniform(new AgentSlotConfig.SlotConfig
+                {
+                    UseGlobal = false,
+                    BigConnect = isLarge ? uniformConnect.Name : null,
+                    SmallConnect = isLarge ? null : uniformConnect.Name,
+                    LargeModel = isLarge ? modelId : null,
+                    SmallModel = isLarge ? null : modelId,
+                    BaseUrl = baseUrl ?? cfg.BaseUrl,
+                    ApiKeyProviderId = providerId ?? pid,
+                });
+            }
         }
         else if (slot is >= 0 and < 10)
         {
             var e = AgentSlotConfig.Get(slot);
+            var spid = providerId ?? e.ApiKeyProviderId ?? ModelCatalog.Find(modelId)?.ProviderId ?? Config.Instance.Provider;
             AgentSlotConfig.Set(slot, new AgentSlotConfig.SlotConfig
             {
                 UseGlobal = false,
+                BigConnect = isLarge ? ConnectionConfig.FindOrCreateConnect(spid, modelId).Name : e.BigConnect,
+                SmallConnect = isLarge ? e.SmallConnect : ConnectionConfig.FindOrCreateConnect(spid, modelId).Name,
                 LargeModel = isLarge ? modelId : e.LargeModel,
                 SmallModel = isLarge ? e.SmallModel : modelId,
                 BaseUrl = baseUrl ?? e.BaseUrl,
@@ -903,9 +905,23 @@ public static class ModelPicker
             var hasKey = ModelHasKey(info.ProviderId, info.Id);
             list.Add(new(info.Id, info.DisplayName, info.Provider, info.ProviderId, hasKey, info.ContextWindow, info.InputPrice, info.DefaultBaseUrl));
         }
-        if (!string.IsNullOrEmpty(Config.Instance.FallbackChain))
-            foreach (var m in Config.Instance.FallbackChain.Split(','))
-            { var t = m.Trim(); if (!string.IsNullOrEmpty(t) && seen.Add(t)) list.Add(new(t, t, "自定义", "custom", true, 128_000, 0)); }
+        // 回退链 connect 也加入列表（按 connect 名解析真实 provider，不再硬编码 custom）。
+        // 防抛：渲染路径不触发 connect 迁移/解析异常（否则导入/清空后刷新会白屏崩掉）
+        try
+        {
+            foreach (var cn in ConnectionConfig.FallbackChain)
+            {
+                var connect = ConnectionConfig.FindConnect(cn);
+                if (connect == null) continue;
+                var prov = ConnectionConfig.ResolveProvider(connect.ProviderId);
+                var pname = prov?.Name ?? connect.ProviderId;
+                var hasKey = !string.IsNullOrEmpty(prov?.ApiKey) || connect.ProviderId is "local" or "custom";
+                if (seen.Add(connect.ModelId))
+                    list.Add(new(connect.ModelId, $"{pname} · {connect.Name}", pname, connect.ProviderId,
+                        hasKey, 128_000, 0, prov?.BaseUrl));
+            }
+        }
+        catch { /* connect 数据异常不阻断模型列表渲染 */ }
         return list;
     }
 

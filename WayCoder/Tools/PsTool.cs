@@ -65,6 +65,7 @@ public class PsTool : ITool
                 Arguments = args,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                RedirectStandardInput = true, // 不共享主控台 stdin（ProcUtil 启动后置 EOF，防 TUI ReadKey 竞态）
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };

@@ -275,9 +275,7 @@ public sealed class ModelWindow : Window
         }
         if (_smallMode)
         {
-            var cfg = Config.Instance;
-            cfg.SmallModel = _selectedId;
-            cfg.SaveToEnvFile();
+            // ApplySmallModel 经 connect 统一入口设置小模型（含 provider/baseUrl 持久化）
             _owner.ApplySmallModel(_selectedId, _selectedProviderId, _selectedBaseUrl);
         }
         else

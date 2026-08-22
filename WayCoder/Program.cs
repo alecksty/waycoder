@@ -246,7 +246,13 @@ public partial class Program
             WayCoder.Tools.McpManager.ConfigPathOverride = mcpCfgPath;
         if (Arguments.CliArgRegistry.Get(parsed, "theme") is string themeName)
             Config.ApplyColorScheme(_config, themeName);
-        if (model != null) _config.Model = model;
+        if (model != null)
+        {
+            // 「切换模型 = 切换 connect」：--model 也注册/切换大 connect
+            var catInfo = ModelCatalog.Find(model);
+            ConnectionConfig.ApplyModelChoice(catInfo?.ProviderId ?? _config.Provider, model,
+                isLarge: true, out _, catInfo?.DefaultBaseUrl);
+        }
         if (baseUrl != null) _config.BaseUrl = baseUrl;
         if (apiKey != null)
         {

@@ -450,6 +450,7 @@ public class SettingsScreen : TuiScreen
         "MaxContextTokens"   => _config.MaxContextTokens.ToString(),
         "MaxBudgetUsd"       => _config.MaxBudgetUsd?.ToString("F2") ?? "",
         "Provider"           => _config.Provider,
+        "SmallProvider"      => _config.SmallProvider,
         "AutoGitCommit"      => _config.AutoGitCommit ? "true" : "false",
         "WatchMode"          => _config.WatchMode ? "true" : "false",
         "PromptCaching"      => _config.PromptCaching ? "true" : "false",
@@ -520,8 +521,8 @@ public class SettingsScreen : TuiScreen
     {
         switch (key)
         {
-            case "Model":              _config.Model = value; break;
-            case "SmallModel":         _config.SmallModel = value; break;
+            case "Model":              ConnectionConfig.ApplyModelChoice(_config.Provider, value, true, out _); break;
+            case "SmallModel":         ConnectionConfig.ApplyModelChoice(_config.SmallProvider, value, false, out _); break;
             case "BaseUrl":            _config.BaseUrl = value; break;
             case "ApiKey":             _config.ApiKey = value; break;
             case "MaxTokens":          if (int.TryParse(value, out var v)) _config.MaxTokens = v; break;
@@ -529,6 +530,7 @@ public class SettingsScreen : TuiScreen
             case "MaxContextTokens":   if (int.TryParse(value, out var v2)) _config.MaxContextTokens = v2; break;
             case "MaxBudgetUsd":       _config.MaxBudgetUsd = double.TryParse(value, out var d) ? d : null; break;
             case "Provider":           _config.Provider = value; break;
+            case "SmallProvider":      _config.SmallProvider = value; break;
             case "AutoGitCommit":      _config.AutoGitCommit = bool.TryParse(value, out var b) && b; break;
             case "WatchMode":          _config.WatchMode = bool.TryParse(value, out var b2) && b2; break;
             case "PromptCaching":      _config.PromptCaching = bool.TryParse(value, out var b3) && b3; break;
