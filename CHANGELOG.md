@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.84.1 (2026-08-23) — 修复 temperature 序列化 bug（glm-5.3 严格网关）+ waycoder 5000 行 C++ 能力检验
+
+- **修复 `LLM.cs` temperature 序列化**：float 0.1f 经 JSON `"R"` 格式输出 `0.10000000149011612`，被 opencode.ai/zen/go 网关的 glm-5.3（限制小数点 2 位）以 HTTP 400 拒绝；改为发送前 `(double)Math.Clamp + Math.Round(2)`
+- **真实场景验证**：waycoder 写 5000 行 C++ 程序时暴露（glm-5.3 首轮直接 400），修复后 `--json` 回复正常
+- **waycoder 能力检验**：TinyL 脚本语言解释器 **5,584 行 C++**（lexer/parser/AST/求值器/GC/标准库/REPL，25 个内置函数 + switch + 位运算），g++ C++17 编译 0 错误，**25/25 测试通过**，中文输出/闭包/类继承/异常全部可运行
+- 过程中还发现：glm-5.3 强制思考，`ReasoningEffort` 只接受 low/high/max（medium → 400），已调低配置
+
+### ✅ 验证
+- waycoder 独立验证编译 + 25 测试全过；`--json -p` 请求正常返回
+
 ## v0.84.0 (2026-08-22) — 模型配置三层重构：connect / provider / connection + 命令按域分类 + 回退链开关
 
 **模型配置重构**：connect = {providerId, modelId} 命名注册表；provider = {name, baseUrl, apikey} 逻辑一体（物理分文件）；connection = 大 connect + 小 connect 一起切换；回退链 = 一串 connect。
