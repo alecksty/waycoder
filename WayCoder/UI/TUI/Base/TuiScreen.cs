@@ -49,6 +49,13 @@ public abstract class TuiScreen : TuiBase
     private readonly int _uiThreadId = Environment.CurrentManagedThreadId;
 
     /// <summary>
+    /// 当前线程是否本屏幕所属 UI 线程。
+    /// 渲染/读键/窗口栈只能有一个所有者：UI 线程调用对话框 RenderWait 时由本线程接管（主循环被阻塞）；
+    /// 后台线程调用时必须只等待，由常驻主循环负责 —— 判定依据即此属性。
+    /// </summary>
+    public bool IsUiThread => Environment.CurrentManagedThreadId == _uiThreadId;
+
+    /// <summary>
     /// 投递 UI 操作：UI 线程调用直接执行（无延迟），后台线程调用入队（UI 线程 PumpUIQueue 消费）。
     /// 这样所有 TuiScreen 子类的 UI 方法都能安全地从任意线程调用，控件树只被 UI 线程触碰。
     /// </summary>

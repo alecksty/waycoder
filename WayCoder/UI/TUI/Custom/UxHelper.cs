@@ -413,21 +413,30 @@ public static class UxHelper
     /// 由 ShowInputDialog/ShowSelectDialog 等内部调用，也可由工具（如 AskUserQuestion）外部调用。
     /// </summary>
     /// <param name="timeoutMs">超时毫秒数（默认 30s，AskUserQuestion 等需更长超时）</param>
-    /// <param name="readKeys">是否由本循环全权处理（渲染 + 读键 + 路由）。
-    /// 默认 true（对话框由本循环收键，命令/UI 场景）。diff 预览传 <c>false</c>（Agent 执行期）：
-    /// 外层循环（RunAgentWithRenderLoop）负责渲染 + 按「键位作用域闸」路由按键，本循环只等待事件 ——
-    /// 既避免双线程读控制台（Console.ReadKey 竞态），也避免 RenderWait 与外层循环并发 Render（双线程渲染花屏）。</param>
-    public static void RenderWait(TuiScreen? screen, ManualResetEventSlim evt, int timeoutMs = 30_000, TuiWindow? win = null, bool readKeys = true)
+    /// <param name="readKeys">
+    /// 谁接管「渲染 + 读键 + 路由」—— 单所有者原则，绝不双线程并发：
+    ///   null（默认）→ 按调用线程自动判定：UI 线程 = true（主循环被本调用阻塞，本循环全权接管）；
+    ///                            后台线程 = false（常驻主循环/外层渲染循环负责，本循环只等待事件）。
+    ///   true  → 本循环渲染+读键（UI 线程命令/对话框场景，如 /model、ModelPicker）。
+    ///   false → 只等待事件，外层循环负责渲染与按键路由（Agent 执行期）。
+    /// 此前用 <c>readKeys:!Program.InAgentRenderLoop</c> 判定，槽位任务路径（REPL 主循环常驻）漏判 →
+    /// 后台 Agent 线程自己也渲染+读键，与主循环并发写终端/抢 Console 输入/改窗口栈
+    /// （Windows 列表竞态、焦点捕获丢失、输入被抢），正是「任务执行中卡死 + 任务后输入框失灵」的根源。
+    /// </param>
+    public static void RenderWait(TuiScreen? screen, ManualResetEventSlim evt, int timeoutMs = 30_000, TuiWindow? win = null, bool? readKeys = null)
     {
         if (screen == null) { evt.Wait(TimeSpan.FromSeconds(30)); return; }
         var manager = TuiManager.Instance;
         var inputMgr = TuiManager.Instance.Input; // 共享 InputManager：统一 bracketed paste/CSI 解析
+        // 单一 UI 循环所有者：后台线程调用一律只等待（渲染+读键交给常驻主循环/外层循环），
+        // 只有 UI 线程调用才由本循环全权接管（此时主循环正被本调用阻塞，不接管没人渲染）。
+        bool ownLoop = readKeys ?? screen.IsUiThread;
         var start = Environment.TickCount64;
         while (!evt.IsSet)
         {
-            if (readKeys)
+            if (ownLoop)
             {
-                screen?.PumpUIQueue(); // 对话框期间也消费后台投递的 UI 操作（PostToUI 已提炼到基类）
+                screen.PumpUIQueue(); // 对话框期间也消费后台投递的 UI 操作（PostToUI 已提炼到基类）
                 manager?.Render();
                 var ev = inputMgr.ReadInput(30);
                 if (ev.Type == InputType.Mouse && TuiManager.MouseEnabled)
@@ -439,15 +448,19 @@ public static class UxHelper
             }
             else
             {
-                // Agent 场景：外层循环（RunAgentWithRenderLoop）负责渲染 + 键路由，这里只等待事件
+                // 后台线程：只等待事件，渲染 + 键路由由常驻主循环 / RunAgentWithRenderLoop / RunWithUiLoop 负责
                 Thread.Sleep(30);
             }
             if (timeoutMs > 0 && Environment.TickCount64 - start > timeoutMs) break;
         }
-        // 超时兜底：关闭仍残留的模态窗口，避免窗口停在屏幕上
+        // 超时兜底：关闭仍残留的模态窗口，避免窗口停在屏幕上。
+        // 后台线程绝不直接改窗口栈（Windows 列表无锁），投递到 UI 线程关闭。
         if (!evt.IsSet && win != null)
-            screen.CloseWindow(win);
-        if (readKeys) manager?.Render(); // readKeys:false 时渲染由外层负责
+        {
+            if (ownLoop) screen.CloseWindow(win);
+            else screen.PostToUI(() => screen.CloseWindow(win));
+        }
+        if (ownLoop) manager?.Render(); // 后台线程：渲染由外层负责
     }
 }
 
