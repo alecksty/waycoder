@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.85.1 (2026-08-23) — 环境变量 key 自动导入补全（connect add 路径）+ providers.json 字段继承内置默认
+
+- **key 自动导入补到 `connect add`**：`AutoImportKeyFromEnv` 抽取为公共方法，`ApplyModelChoice`（选模型）与 CLI/TUI `/connect add`（建 connect）共用——新建 connect 时无 key 自动从官方环境变量复制 + `IsPlausibleApiKey` 校验
+- **修复 providers.json 覆盖内置丢失元数据**：`LoadOrCreateProvidersJson` 字段缺失时继承内置默认——旧 providers.json（只有 name/base_url）会把内置 `ApiKeyEnvVar`/`ApiFormat`/`CommonModels` 等覆盖为 null，导致 key 自动导入失效、ApiFormat 解析回退 openai
+- 验证：删 minimax key → `MINIMAX_API_KEY` 环境变量 + `--connect add` → ✅ 自动导入 + 提示
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）
+
 ## v0.85.0 (2026-08-23) — 非 OpenAI 格式兼容（Anthropic 原生 + Gemini 原生）+ 模型/厂商参数约束 + 环境变量 key 自动导入
 
 ### 非 OpenAI 原生 API 兼容（ProviderInfo.ApiFormat）
