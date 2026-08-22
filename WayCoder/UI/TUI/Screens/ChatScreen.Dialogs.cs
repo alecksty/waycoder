@@ -160,9 +160,11 @@ public partial class ChatScreen : TuiScreen
     /// <summary>渲染循环等待对话框关闭。
     /// 统一走 <see cref="UxHelper.RenderWait"/>（共享 InputManager：paste/CSI/鼠标解析）——
     /// 此前裸 Console.ReadKey 与主循环双读竞态，且把粘贴前导 \x1b 当 Esc 关闭对话框（静默拒绝）。
-    /// Agent 执行期（外层 RunAgentWithRenderLoop 渲染+路由）传 readKeys:false 只等待，避免双线程并发渲染。</summary>
+    /// readKeys 自动判定（TuiScreen.IsUiThread）：UI 线程调用 → 本循环接管渲染+读键；
+    /// 后台线程调用（Agent 请求权限/审批）→ 只等待，由常驻 REPL 主循环/外层渲染循环渲染+路由按键——
+    /// 绝不让后台线程与主循环并发渲染/读键/改窗口栈（Windows 列表竞态 + 焦点丢失 + 输入被抢 = 卡死）。</summary>
     private void RenderWait(ManualResetEventSlim evt)
-        => UxHelper.RenderWait(this, evt, timeoutMs: 0, readKeys: !Program.InAgentRenderLoop);
+        => UxHelper.RenderWait(this, evt, timeoutMs: 0);
     // ── 工具 ──
 
     /// <summary>数字自动换算 K/M（如 128000→128K, 1000000→1M）</summary>
