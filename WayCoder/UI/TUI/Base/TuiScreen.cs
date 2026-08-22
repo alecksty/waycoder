@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Collections.Concurrent;
+using System.Text;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui;
@@ -37,6 +38,38 @@ public abstract class TuiScreen : TuiBase
 
     /// <summary>屏幕根视图（状态栏、主区域、输入区等）</summary>
     public TuiView RootView { get; set; } = new TuiVBox();
+
+    // ── 跨线程安全 UI 调用 ──
+    // 提炼到基类：任何后台线程（Agent 流式回调 / 工具执行 / 后台任务）都不允许直接碰控件树，
+    // 只能 PostToUI 投递操作，由 UI 线程的渲染循环（REPL 主循环 / RunAgentWithRenderLoop / RenderWait）PumpUIQueue 消费。
+    /// <summary>后台线程 → UI 线程消息队列：子线程永不直接碰控件树，只投递操作，UI 线程 PumpUIQueue 消费。</summary>
+    private readonly ConcurrentQueue<Action> _uiQueue = new();
+
+    /// <summary>UI 线程 ID（构造时捕获；PostToUI 据此判定直接执行还是投递）。所有 TuiScreen 都在 UI 线程构造。</summary>
+    private readonly int _uiThreadId = Environment.CurrentManagedThreadId;
+
+    /// <summary>
+    /// 投递 UI 操作：UI 线程调用直接执行（无延迟），后台线程调用入队（UI 线程 PumpUIQueue 消费）。
+    /// 这样所有 TuiScreen 子类的 UI 方法都能安全地从任意线程调用，控件树只被 UI 线程触碰。
+    /// </summary>
+    public void PostToUI(Action action)
+    {
+        if (action == null) return;
+        if (Environment.CurrentManagedThreadId == _uiThreadId)
+            action();
+        else
+            _uiQueue.Enqueue(action);
+    }
+
+    /// <summary>消费并执行 UI 操作队列（仅 UI 线程调用：REPL 主循环 / RunAgentWithRenderLoop / RenderWait）。</summary>
+    public void PumpUIQueue()
+    {
+        while (_uiQueue.TryDequeue(out var action))
+        {
+            try { action(); }
+            catch { /* 单条操作失败不拖垮整帧 */ }
+        }
+    }
 
     /// <summary>浮层窗口列表</summary>
     public readonly List<TuiWindow> Windows = [];
@@ -929,14 +962,13 @@ public abstract class TuiScreen : TuiBase
             BorderColor = AnsiColors.Green,
         };
         AddWindow(win);
-        // 使用 Windows.Contains 守卫：屏幕销毁后不再关闭窗口
-        Task.Delay(durationMs).ContinueWith(_ =>
+        // 自动消失：后台定时线程只投递，CloseWindow 在 UI 线程执行（Windows 列表无锁，
+        // 后台直接改会与渲染循环 foreach 并发 → 帧交错花屏）。Windows.Contains 守卫：屏幕销毁后不再关闭。
+        Task.Delay(durationMs).ContinueWith(_ => PostToUI(() =>
         {
             if (Windows.Contains(win))
-            {
                 CloseWindow(win);
-            }
-        });
+        }));
         return win;
     }
 }

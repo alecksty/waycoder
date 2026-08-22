@@ -430,9 +430,21 @@ public static class ModelPicker
                     lock (modelLock) { models = fresh; }
                 }
                 catch { }
-                help.Text = report + "（按 ↑↓/输入刷新）";
-            help2.Text = "";
-                screen?.MarkDirty();
+                // 回 UI 线程刷新结果：后台线程不碰控件树（否则与渲染循环并发遍历/写终端 → 帧交错花屏），
+                // 且 Refresh(false) 让表格立即显示导入的模型（此前只置 help 文本，视觉无反馈像卡住）
+                if (screen is ChatScreen chat)
+                    chat.PostToUI(() =>
+                    {
+                        help.Text = report + "（按 ↑↓/输入刷新）";
+                        help2.Text = "";
+                        Refresh(false);
+                    });
+                else
+                {
+                    help.Text = report + "（按 ↑↓/输入刷新）";
+                    help2.Text = "";
+                    screen?.MarkDirty();
+                }
             });
         }
 

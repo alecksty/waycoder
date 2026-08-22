@@ -324,13 +324,14 @@ public class TodoTool : ITool
         return result;
     }
 
-    /// <summary>刷新 TUI 侧边栏 Todo 面板</summary>
+    /// <summary>刷新 TUI 侧边栏 Todo 面板。
+    /// 工具在 Agent 后台线程执行——RefreshSidePanel 投递到 UI 线程（PostToUI 非 UI 线程入队，渲染循环 PumpUIQueue 消费）。</summary>
     private static void RefreshSidebar()
     {
         try
         {
             if (TuiManager.Instance?.ActiveScreen is WayCoder.UI.Tui.Screens.ChatScreen screen)
-                screen.RefreshSidePanel();
+                screen.PostToUI(() => screen.RefreshSidePanel());
         }
         catch { /* 非 TUI 模式，静默忽略 */ }
     }

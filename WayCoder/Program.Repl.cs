@@ -219,7 +219,7 @@ public partial class Program
             {
                 var msg = t.IsCompletedSuccessfully ? t.Result : "";
                 if (msg.StartsWith("🆕", StringComparison.Ordinal))
-                    screen.AddSystemMsg(msg);
+                    screen.PostToUI(() => screen.AddSystemMsg(msg)); // ContinueWith 在线程池：投递 UI 线程
             }
             catch { /* REPL 已退出时静默忽略 */ }
         });
