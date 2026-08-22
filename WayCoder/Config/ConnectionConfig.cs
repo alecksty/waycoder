@@ -94,7 +94,7 @@ public static class ConnectionConfig
             if (string.Equals(_active, removedName, StringComparison.OrdinalIgnoreCase))
                 _active = "";
             Save();
-            error = null;
+            error = "";
             return true;
         }
     }
