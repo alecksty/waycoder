@@ -69,10 +69,10 @@ public static class ConnectionConfig
                 error = $"连接「{trimmed}」已存在（名称需唯一）";
                 return false;
             }
-            _cache.Add(new Connection(trimmed, providerId.Trim().ToLowerInvariant(),
+            _cache!.Add(new Connection(trimmed, providerId.Trim().ToLowerInvariant(),
                 largeModel.Trim(), smallModel.Trim()));
             Save();
-            error = null;
+            error = "";
             return true;
         }
     }
