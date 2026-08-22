@@ -232,6 +232,31 @@ public static partial class SelfTest
         Console.WriteLine("WayCoder 自测");
         Console.WriteLine("===================\n");
 
+        // ---- ConnectConfig 测试隔离：重定向 connections.json 到临时文件并预置完整新格式，
+        //      避免迁移写真实 ~/.waycoder/connections.json 与 config.json/.env ----
+        var connTmpPath = Path.Combine(Path.GetTempPath(), "waycoder_conn_selftest.json");
+        ConnectionConfig.FilePathOverride = connTmpPath;
+        ConnectionConfig.ClearCache();
+        try
+        {
+            File.WriteAllText(connTmpPath, """
+            {
+              "active": "default",
+              "connects": [
+                { "name": "deepseek/deepseek-v4-pro", "providerId": "deepseek", "modelId": "deepseek-v4-pro" },
+                { "name": "deepseek/deepseek-v4-flash", "providerId": "deepseek", "modelId": "deepseek-v4-flash" },
+                { "name": "qwen/qwen-turbo", "providerId": "qwen", "modelId": "qwen-turbo" },
+                { "name": "zhipu/glm-4-flash", "providerId": "zhipu", "modelId": "glm-4-flash" }
+              ],
+              "connections": [
+                { "name": "default", "big": "deepseek/deepseek-v4-pro", "small": "deepseek/deepseek-v4-flash" }
+              ],
+              "fallbackChain": ["deepseek/deepseek-v4-pro", "deepseek/deepseek-v4-flash", "qwen/qwen-turbo", "zhipu/glm-4-flash"]
+            }
+            """);
+        }
+        catch { }
+
         // ---- 工具注册 ----
         TestChunk1(Section, Check, Fail);
 
@@ -260,6 +285,11 @@ public static partial class SelfTest
         TestChunk13(Section, Check, Fail);
 
         TestChunk14(Section, Check, Fail);
+
+        // 清理 ConnectConfig 测试隔离
+        ConnectionConfig.FilePathOverride = null;
+        ConnectionConfig.ClearCache();
+        try { if (File.Exists(connTmpPath)) File.Delete(connTmpPath); } catch { }
 
         // ---- 结果 ----
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");

@@ -14,6 +14,12 @@ public static class AgentSlotConfig
     /// <summary>单个槽位的模型配置</summary>
     public class SlotConfig
     {
+        /// <summary>大模型 connect 名（「切换模型=切换 connect」的引用；空=由下方平铺字段解析）。</summary>
+        public string? BigConnect { get; set; }
+
+        /// <summary>小模型 connect 名（同上）。</summary>
+        public string? SmallConnect { get; set; }
+
         /// <summary>大模型 ID（复杂任务），默认继承全局 Config.Model</summary>
         public string? LargeModel { get; set; }
 
@@ -165,6 +171,36 @@ public static class AgentSlotConfig
         return Config.Instance.SmallModel;
     }
 
+    /// <summary>解析槽位实际生效的大模型 provider（优先槽位 connect，其次模型目录，最后全局）。供模型栏 `(provider)model` 展示。</summary>
+    public static string ResolveLargeProvider(SlotConfig slot, int slotIndex = -1)
+        => ResolveSlotProvider(slot, slotIndex, isLarge: true);
+
+    /// <summary>解析槽位实际生效的小模型 provider。供模型栏 `(provider)model` 展示。</summary>
+    public static string ResolveSmallProvider(SlotConfig slot, int slotIndex = -1)
+        => ResolveSlotProvider(slot, slotIndex, isLarge: false);
+
+    private static string ResolveSlotProvider(SlotConfig slot, int slotIndex, bool isLarge)
+    {
+        // 槽位显式 connect → 用其 provider
+        var connName = !slot.UseGlobal && !string.IsNullOrWhiteSpace(isLarge ? slot.BigConnect : slot.SmallConnect)
+            ? (isLarge ? slot.BigConnect : slot.SmallConnect) : null;
+        if (connName == null && slotIndex != 0)
+        {
+            var f1 = Get(0);
+            if (!f1.UseGlobal) connName = isLarge ? f1.BigConnect : f1.SmallConnect;
+        }
+        if (!string.IsNullOrWhiteSpace(connName))
+        {
+            var c = ConnectionConfig.FindConnect(connName);
+            if (c != null) return c.ProviderId;
+        }
+        // 按解析出的模型查目录
+        var model = isLarge ? ResolveLargeModel(slot, slotIndex) : ResolveSmallModel(slot, slotIndex);
+        var info = ModelCatalog.Find(model);
+        if (info != null) return info.ProviderId;
+        return isLarge ? Config.Instance.Provider : Config.Instance.SmallProvider;
+    }
+
     /// <summary>
     /// 解析槽位实际生效的大模型、API Key 与 BaseUrl —— 状态栏与实际请求共用的统一来源。
     /// 优先级：
@@ -283,6 +319,8 @@ public static class AgentSlotConfig
 
     private static SlotConfig Clone(SlotConfig src) => new()
     {
+        BigConnect = src.BigConnect,
+        SmallConnect = src.SmallConnect,
         LargeModel = src.LargeModel,
         SmallModel = src.SmallModel,
         BaseUrl = src.BaseUrl,
@@ -294,6 +332,8 @@ public static class AgentSlotConfig
     /// <summary>JNode → SlotConfig（手搓解析，零反射；键名保持 PascalCase 兼容历史文件）。</summary>
     internal static SlotConfig SlotFromNode(JNode n) => new()
     {
+        BigConnect = n.GetString("BigConnect"),
+        SmallConnect = n.GetString("SmallConnect"),
         LargeModel = n.GetString("LargeModel"),
         SmallModel = n.GetString("SmallModel"),
         BaseUrl = n.GetString("BaseUrl"),
@@ -304,6 +344,8 @@ public static class AgentSlotConfig
 
     /// <summary>SlotConfig → JNode（手搓序列化，零反射）。</summary>
     internal static JNode SlotToNode(SlotConfig s) => JNode.Object()
+        .Set("BigConnect", s.BigConnect)
+        .Set("SmallConnect", s.SmallConnect)
         .Set("LargeModel", s.LargeModel)
         .Set("SmallModel", s.SmallModel)
         .Set("BaseUrl", s.BaseUrl)
