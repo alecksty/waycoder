@@ -401,7 +401,14 @@ public class LLM
         _reasoningBuffer.Clear();
 
         // 超时由 CallWithRetryAsync 内部逐次加长管理，外部仅传取消令牌
-        var endpoint = ResolveApiEndpoint(BaseUrl, "/v1/chat/completions");
+        // API 格式（openai/anthropic/gemini）：从当前模型的 provider 反查（模型级/厂商级），原生格式用各自端点
+        var apiFormat = ModelCatalog.ResolveApiFormat(EffectiveModel, BaseUrl);
+        var endpoint = apiFormat switch
+        {
+            "anthropic" => ResolveApiEndpoint(BaseUrl, "/v1/messages"),
+            "gemini" => $"{BaseUrl?.TrimEnd('/')}/v1beta/models/{Uri.EscapeDataString(EffectiveModel)}:streamGenerateContent?alt=sse",
+            _ => ResolveApiEndpoint(BaseUrl, "/v1/chat/completions"),
+        };
 
         // 调试日志：记录发送内容
         DebugLog.LogRequest(messages, tools ?? []);
@@ -420,6 +427,9 @@ public class LLM
         var constraints = ModelCatalog.ResolveModelCallConstraints(EffectiveModel, BaseUrl);
         JNode BuildBody(bool includeStreamOptions)
         {
+            if (apiFormat == "anthropic") return BuildAnthropicBody(clonedMessages, clonedTools, maxTokens, constraints);
+            if (apiFormat == "gemini") return BuildGeminiBody(clonedMessages, clonedTools, maxTokens, constraints);
+
             var messagesArray = JNode.Array();
             foreach (var m in clonedMessages) messagesArray.Add(m);
 
@@ -460,6 +470,36 @@ public class LLM
             return b;
         }
 
+        // ── Anthropic 原生格式（POST /v1/messages）──
+        JNode BuildAnthropicBody(List<JNode> msgs, List<JNode>? tools, int maxTok, ModelCatalog.ModelCallConstraints cons)
+        {
+            var (system, messagesArray) = ConvertMessagesToAnthropic(msgs);
+            var b = JNode.Object()
+                .Set("model", EffectiveModel)
+                .Set("messages", messagesArray)
+                .Set("max_tokens", maxTok)                     // Anthropic 必填
+                .Set("temperature", Math.Round((double)Math.Clamp(Temperature, 0f, 1f), cons.TemperaturePrecision))
+                .Set("stream", true);
+            if (system != null) b.Set("system", system);
+            if (tools is { Count: > 0 }) b.Set("tools", ConvertToolsToAnthropic(tools));
+            return b;
+        }
+
+        // ── Gemini 原生格式（POST /v1beta/models/{model}:streamGenerateContent）──
+        JNode BuildGeminiBody(List<JNode> msgs, List<JNode>? tools, int maxTok, ModelCatalog.ModelCallConstraints cons)
+        {
+            var (contents, system) = ConvertMessagesToGemini(msgs);
+            var b = JNode.Object()
+                .Set("contents", contents)
+                .Set("generationConfig", JNode.Object()
+                    .Set("temperature", Math.Round((double)Math.Clamp(Temperature, 0f, 1f), cons.TemperaturePrecision))
+                    .Set("maxOutputTokens", maxTok));
+            if (system != null)
+                b.Set("systemInstruction", JNode.Object().Set("parts", JNode.Array().Add(JNode.Object().Set("text", system))));
+            if (tools is { Count: > 0 }) b.Set("tools", ConvertToolsToGemini(tools));
+            return b;
+        }
+
         var body = BuildBody(includeStreamOptions: true);
 
         // 构造带鉴权头的请求（局部函数，供首次与 400 回退两处复用）
@@ -469,7 +509,20 @@ public class LLM
             {
                 Content = new StringContent(requestBody.ToJson(), Encoding.UTF8, "application/json"),
             };
-            req.Headers.Add("Authorization", $"Bearer {ApiKey}");
+            // 鉴权头按 API 格式：openai=Bearer；anthropic=x-api-key+版本头；gemini=x-goog-api-key
+            if (apiFormat == "anthropic")
+            {
+                req.Headers.TryAddWithoutValidation("x-api-key", ApiKey);
+                req.Headers.TryAddWithoutValidation("anthropic-version", "2023-06-01");
+            }
+            else if (apiFormat == "gemini")
+            {
+                req.Headers.TryAddWithoutValidation("x-goog-api-key", ApiKey);
+            }
+            else
+            {
+                req.Headers.Add("Authorization", $"Bearer {ApiKey}");
+            }
             return req;
         }
 
@@ -512,6 +565,108 @@ public class LLM
         using var bodyCts = new CancellationTokenSource(TimeSpan.FromSeconds(300));
         using var bodyLinked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, bodyCts.Token);
 
+        // ── Anthropic 原生 SSE（message_start/content_block_*/message_stop）──
+        void ParseAnthropicChunk(string data)
+        {
+            JNode? chunk;
+            try { chunk = Json.Parse(data); } catch { return; }
+            if (chunk == null) return;
+            switch (chunk["type"]?.AsString())
+            {
+                case "message_start":
+                    promptTok = (int?)(chunk["message"]?["usage"]?["input_tokens"]?.AsNumber()) ?? 0;
+                    break;
+                case "message_delta":
+                    completionTok = (int?)(chunk["usage"]?["output_tokens"]?.AsNumber()) ?? 0;
+                    break;
+                case "message_stop":
+                    streamEndedGracefully = true;
+                    break;
+                case "content_block_start":
+                    var cb = chunk["content_block"];
+                    if (cb?["type"]?.AsString() == "tool_use")
+                    {
+                        var bidx = (int?)(chunk["index"]?.AsNumber()) ?? 0;
+                        tcMap[bidx] = (cb["id"]?.AsString() ?? "", cb["name"]?.AsString() ?? "", "");
+                    }
+                    break;
+                case "content_block_delta":
+                    var delta = chunk["delta"];
+                    var dtype = delta?["type"]?.AsString();
+                    var bidx2 = (int?)(chunk["index"]?.AsNumber()) ?? 0;
+                    if (dtype == "text_delta" && delta?["text"]?.AsString() is { } txt && txt.Length > 0)
+                    {
+                        if (_reasoningShown) { _reasoningShown = false; onToken?.Invoke("«/»\n"); }
+                        contentParts.Add(txt); onToken?.Invoke(txt);
+                    }
+                    else if (dtype == "thinking_delta" && delta?["thinking"]?.AsString() is { } th && th.Length > 0)
+                    {
+                        if (!_reasoningShown) { _reasoningShown = true; onToken?.Invoke("\n«dim»"); }
+                        onToken?.Invoke(th); _reasoningBuffer.Append(th);
+                    }
+                    else if (dtype == "input_json_delta" && delta?["partial_json"]?.AsString() is { } pj)
+                    {
+                        var (id, name, args) = tcMap.TryGetValue(bidx2, out var v) ? v : ("", "", "");
+                        args += pj; tcMap[bidx2] = (id, name, args);
+                        if (onToolCall != null && id != "" && name != "" && !firedToolCalls.Contains(bidx2)
+                            && TryParseCompleteJson(args, out var parsedArgs))
+                        {
+                            firedToolCalls.Add(bidx2);
+                            onToolCall(new ToolCall(id, name, parsedArgs!));
+                        }
+                    }
+                    break;
+            }
+        }
+
+        // ── Gemini 原生 SSE（candidates[0].content.parts + usageMetadata）──
+        void ParseGeminiChunk(string data)
+        {
+            JNode? chunk;
+            try { chunk = Json.Parse(data); } catch { return; }
+            if (chunk == null) return;
+            if (chunk["usageMetadata"] is { } usage)
+            {
+                promptTok = (int?)(usage["promptTokenCount"]?.AsNumber()) ?? 0;
+                completionTok = (int?)(usage["candidatesTokenCount"]?.AsNumber()) ?? 0;
+            }
+            var cands = chunk["candidates"];
+            if (cands is not { Count: > 0 }) return;
+            var cand = cands[0];
+            var parts = cand?["content"]?["parts"];
+            if (parts != null)
+            {
+                foreach (var p in parts.Items)
+                {
+                    if (p["text"]?.AsString() is { } txt && txt.Length > 0)
+                    {
+                        if (_reasoningShown) { _reasoningShown = false; onToken?.Invoke("«/»\n"); }
+                        contentParts.Add(txt); onToken?.Invoke(txt);
+                    }
+                    else if (p["thought"]?.AsString() is { } th && th.Length > 0)
+                    {
+                        if (!_reasoningShown) { _reasoningShown = true; onToken?.Invoke("\n«dim»"); }
+                        onToken?.Invoke(th); _reasoningBuffer.Append(th);
+                    }
+                    else if (p["functionCall"] is { } fc)
+                    {
+                        // Gemini 无工具 id / 无增量：整对象一次性到达，合成 id
+                        var name = fc["name"]?.AsString() ?? "";
+                        var idx = tcMap.Count;
+                        var argsJson = fc["args"]?.ToJson() ?? "{}";
+                        tcMap[idx] = ($"{name}#{idx}", name, argsJson);
+                        if (onToolCall != null && ParseArgs(argsJson) is { } pargs)
+                        {
+                            firedToolCalls.Add(idx);
+                            onToolCall(new ToolCall($"{name}#{idx}", name, pargs));
+                        }
+                    }
+                }
+            }
+            if (cand?["finishReason"]?.AsString() is { } fr && (fr == "STOP" || fr == "TOOL_CALL"))
+                streamEndedGracefully = true;
+        }
+
         while (true)
         {
             bodyLinked.Token.ThrowIfCancellationRequested();
@@ -520,6 +675,8 @@ public class LLM
             if (!line.StartsWith("data: ")) continue;
 
             var data = line[6..];
+            if (apiFormat == "anthropic") { ParseAnthropicChunk(data); continue; }
+            if (apiFormat == "gemini") { ParseGeminiChunk(data); continue; }
             if (data == "[DONE]") { streamEndedGracefully = true; continue; }
 
             JNode? chunk;
@@ -865,6 +1022,154 @@ public class LLM
         if (delta["reasoning"]?.AsString() is { } t2 && t2.Length > 0)
         { text = t2; return true; }
         return false;
+    }
+
+    // ── 非 OpenAI 格式：消息/工具转换（AOT 安全，手写 JSON）──
+
+    /// <summary>OpenAI 内部消息 → Anthropic messages（system 提取到顶层；tool 消息转 tool_result 块；assistant tool_calls 转 tool_use 块）。</summary>
+    private static (string? System, JNode Messages) ConvertMessagesToAnthropic(List<JNode> messages)
+    {
+        var arr = JNode.Array();
+        string? system = null;
+        foreach (var m in messages)
+        {
+            var role = m["role"]?.AsString() ?? "user";
+            var contentNode = m["content"];
+            var content = contentNode?.AsString() ?? "";
+            if (role == "system") { system = content; continue; }
+            var blocks = JNode.Array();
+            if (role == "tool")
+            {
+                // Anthropic 要求 tool_result 放在 user 消息的 content 块
+                blocks.Add(JNode.Object()
+                    .Set("type", "tool_result")
+                    .Set("tool_use_id", m["tool_call_id"]?.AsString() ?? "")
+                    .Set("content", content));
+                arr.Add(JNode.Object().Set("role", "user").Set("content", blocks));
+                continue;
+            }
+            if (contentNode?.Kind == JKind.Array)
+            {
+                // 多模态数组 content（text + image_url）→ 文本块 + 图片块
+                foreach (var c in contentNode.Items)
+                {
+                    if (c["type"]?.AsString() == "image_url"
+                        && c["image_url"]?["url"]?.AsString() is { } url
+                        && url.Split(',', 2) is { Length: 2 } dp)
+                    {
+                        var mime = dp[0].Replace("data:", "").Split(';')[0];
+                        blocks.Add(JNode.Object()
+                            .Set("type", "image")
+                            .Set("source", JNode.Object()
+                                .Set("type", "base64")
+                                .Set("media_type", mime)
+                                .Set("data", dp[1])));
+                    }
+                    else
+                    {
+                        blocks.Add(JNode.Object().Set("type", "text").Set("text", c["text"]?.AsString() ?? ""));
+                    }
+                }
+            }
+            else
+            {
+                blocks.Add(JNode.Object().Set("type", "text").Set("text", content));
+            }
+            // assistant 的工具调用 → tool_use 块（附在 assistant 消息 content 数组）
+            if (role == "assistant" && m["tool_calls"] is { } tcs)
+            {
+                foreach (var tc in tcs.Items)
+                {
+                    var fn = tc["function"];
+                    blocks.Add(JNode.Object()
+                        .Set("type", "tool_use")
+                        .Set("id", tc["id"]?.AsString() ?? "")
+                        .Set("name", fn?["name"]?.AsString() ?? "")
+                        .Set("input", Json.Parse(fn?["arguments"]?.AsString() ?? "{}") ?? JNode.Object()));
+                }
+            }
+            arr.Add(JNode.Object().Set("role", role == "assistant" ? "assistant" : "user").Set("content", blocks));
+        }
+        return (system, arr);
+    }
+
+    /// <summary>OpenAI 内部消息 → Gemini contents（system 提为 systemInstruction；assistant→model；tool 消息转 functionResponse）。</summary>
+    private static (JNode Contents, string? System) ConvertMessagesToGemini(List<JNode> messages)
+    {
+        var arr = JNode.Array();
+        string? system = null;
+        foreach (var m in messages)
+        {
+            var role = m["role"]?.AsString() ?? "user";
+            var contentNode = m["content"];
+            var content = contentNode?.AsString() ?? "";
+            if (role == "system") { system = content; continue; }
+            var parts = JNode.Array();
+            if (role == "tool")
+            {
+                parts.Add(JNode.Object()
+                    .Set("functionResponse", JNode.Object()
+                        .Set("name", m["name"]?.AsString() ?? "unknown")
+                        .Set("response", JNode.Object().Set("result", content))));
+                arr.Add(JNode.Object().Set("role", "user").Set("parts", parts));
+                continue;
+            }
+            if (contentNode?.Kind == JKind.Array)
+            {
+                // 多模态数组 content（text + image_url）→ text part + inlineData part
+                foreach (var c in contentNode.Items)
+                {
+                    if (c["type"]?.AsString() == "image_url"
+                        && c["image_url"]?["url"]?.AsString() is { } url
+                        && url.Split(',', 2) is { Length: 2 } dp)
+                    {
+                        var mime = dp[0].Replace("data:", "").Split(';')[0];
+                        parts.Add(JNode.Object()
+                            .Set("inlineData", JNode.Object().Set("mimeType", mime).Set("data", dp[1])));
+                    }
+                    else
+                    {
+                        parts.Add(JNode.Object().Set("text", c["text"]?.AsString() ?? ""));
+                    }
+                }
+            }
+            else
+            {
+                parts.Add(JNode.Object().Set("text", content));
+            }
+            arr.Add(JNode.Object().Set("role", role == "assistant" ? "model" : "user").Set("parts", parts));
+        }
+        return (arr, system);
+    }
+
+    /// <summary>OpenAI 工具 schema → Anthropic tools（name/description/input_schema，无 type/function 包裹）。</summary>
+    private static JNode ConvertToolsToAnthropic(List<JNode> tools)
+    {
+        var arr = JNode.Array();
+        foreach (var t in tools)
+        {
+            var fn = t["function"];
+            arr.Add(JNode.Object()
+                .Set("name", fn?["name"]?.AsString() ?? "")
+                .Set("description", fn?["description"]?.AsString() ?? "")
+                .Set("input_schema", fn?["parameters"] ?? JNode.Object()));
+        }
+        return arr;
+    }
+
+    /// <summary>OpenAI 工具 schema → Gemini tools（functionDeclarations 数组）。</summary>
+    private static JNode ConvertToolsToGemini(List<JNode> tools)
+    {
+        var arr = JNode.Array();
+        foreach (var t in tools)
+        {
+            var fn = t["function"];
+            arr.Add(JNode.Object()
+                .Set("name", fn?["name"]?.AsString() ?? "")
+                .Set("description", fn?["description"]?.AsString() ?? "")
+                .Set("parameters", fn?["parameters"] ?? JNode.Object()));
+        }
+        return JNode.Object().Set("functionDeclarations", arr);
     }
 
     /// <summary>

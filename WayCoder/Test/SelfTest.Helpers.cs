@@ -552,6 +552,106 @@ public static partial class SelfTest
         }
     }
 
+    /// <summary>非 OpenAI 格式兼容（Anthropic /v1/messages + Gemini streamGenerateContent）测试</summary>
+    private static void TestApiFormat(Action<string, bool> Check)
+    {
+        // ── 1. 纯函数：ResolveApiFormat / IsPlausibleApiKey ──
+        Check("ApiFormat: 未知模型默认 openai", ModelCatalog.ResolveApiFormat("__nope__", "http://x") == "openai");
+        Check("ApiFormat: 内置 anthropic=anthropic", ModelCatalog.ResolveApiFormat("claude-sonnet-5", "https://api.anthropic.com") == "anthropic");
+        Check("ApiFormat: 内置 gemini=gemini", ModelCatalog.ResolveApiFormat("gemini-2.5-pro", "https://generativelanguage.googleapis.com") == "gemini");
+        Check("ApiKey: 合法 key 通过", ConnectionConfig.IsPlausibleApiKey("sk-abcdef1234567890"));
+        Check("ApiKey: URL 拒绝", !ConnectionConfig.IsPlausibleApiKey("https://example.com/v1"));
+        Check("ApiKey: 含空白拒绝", !ConnectionConfig.IsPlausibleApiKey("sk-ab cd"));
+        Check("ApiKey: 过短拒绝", !ConnectionConfig.IsPlausibleApiKey("short"));
+
+        // ── 2. 集成：Anthropic 原生（模拟 message_*/content_block_* SSE）──
+        var server = new WayCoder.UI.Web.HttpServer(0);
+        string? antBody = null, antKey = null, antVer = null, antPath = null;
+        server.OnRequest = req =>
+        {
+            antBody = req.Body; antKey = req.Headers.GetValueOrDefault("x-api-key");
+            antVer = req.Headers.GetValueOrDefault("anthropic-version"); antPath = req.Path;
+            var sse = string.Join("\n\n",
+                "data: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":5}}}",
+                "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hello\"}}",
+                "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" world\"}}",
+                "data: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":3}}",
+                "data: {\"type\":\"message_stop\"}") + "\n\n";
+            return WayCoder.UI.Web.HttpResponse.JsonBody(sse);
+        };
+        server.Start();
+        try
+        {
+            var url = $"http://127.0.0.1:{server.ActualPort}";
+            var savedProv = ModelCatalog.Providers.TryGetValue("__antprov__", out var sp) ? sp : null;
+            ModelCatalog.Providers["__antprov__"] = new ModelCatalog.ProviderInfo("AntTest", url, ApiFormat: "anthropic");
+            ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
+                "__selftest_ant__", "__selftest_ant__", "AntTest", "__antprov__", "A", "Imported",
+                0, 0, 0, url, "test"), local: true);
+            try
+            {
+                var msgs = new List<JNode>
+                {
+                    JNode.Object().Set("role", "system").Set("content", "你是助手"),
+                    JNode.Object().Set("role", "user").Set("content", "hi"),
+                };
+                var resp = new LLM("__selftest_ant__", "sk-ant-test", url).ChatAsync(msgs).GetAwaiter().GetResult();
+                Check("Anthropic: 内容解析", resp.Content == "hello world");
+                Check("Anthropic: x-api-key 头", antKey == "sk-ant-test");
+                Check("Anthropic: anthropic-version 头", antVer == "2023-06-01");
+                Check("Anthropic: 端点 /v1/messages", antPath != null && antPath.Contains("/v1/messages"));
+                Check("Anthropic: system 提取到顶层", antBody != null && antBody.Contains("\"system\":\"你是助手\""));
+                Check("Anthropic: max_tokens 必填", antBody != null && antBody.Contains("max_tokens"));
+                Check("Anthropic: 无 stream_options", antBody != null && !antBody.Contains("stream_options"));
+                Check("Anthropic: usage 解析", resp.PromptTokens == 5 && resp.CompletionTokens == 3);
+            }
+            finally
+            {
+                ModelCatalog.RemoveCustom("__selftest_ant__");
+                if (savedProv != null) ModelCatalog.Providers["__antprov__"] = savedProv; else ModelCatalog.Providers.Remove("__antprov__");
+            }
+        }
+        finally { server.Stop(); }
+
+        // ── 3. 集成：Gemini 原生（模拟 candidates[0].content.parts SSE）──
+        var server2 = new WayCoder.UI.Web.HttpServer(0);
+        string? gBody = null, gKey = null, gPath = null;
+        server2.OnRequest = req =>
+        {
+            gBody = req.Body; gKey = req.Headers.GetValueOrDefault("x-goog-api-key"); gPath = req.Path;
+            var sse = "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"你好\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2}}\n\n";
+            return WayCoder.UI.Web.HttpResponse.JsonBody(sse);
+        };
+        server2.Start();
+        try
+        {
+            var url2 = $"http://127.0.0.1:{server2.ActualPort}";
+            var savedProv2 = ModelCatalog.Providers.TryGetValue("__gemprov__", out var sp2) ? sp2 : null;
+            ModelCatalog.Providers["__gemprov__"] = new ModelCatalog.ProviderInfo("GemTest", url2, ApiFormat: "gemini");
+            ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
+                "__selftest_gem__", "__selftest_gem__", "GemTest", "__gemprov__", "G", "Imported",
+                0, 0, 0, url2, "test"), local: true);
+            try
+            {
+                var resp = new LLM("__selftest_gem__", "AIza-test-key", url2)
+                    .ChatAsync(new List<JNode> { JNode.Object().Set("role", "user").Set("content", "hi") })
+                    .GetAwaiter().GetResult();
+                Check("Gemini: 内容解析", resp.Content == "你好");
+                Check("Gemini: x-goog-api-key 头", gKey == "AIza-test-key");
+                Check("Gemini: URL 嵌模型名+流式端点", gPath != null && gPath.Contains("__selftest_gem__:streamGenerateContent"));
+                Check("Gemini: generationConfig+maxOutputTokens", gBody != null && gBody.Contains("generationConfig") && gBody.Contains("maxOutputTokens"));
+                Check("Gemini: 无 stream 字段", gBody != null && !gBody.Contains("\"stream\":true"));
+                Check("Gemini: usage 解析", resp.PromptTokens == 3 && resp.CompletionTokens == 2);
+            }
+            finally
+            {
+                ModelCatalog.RemoveCustom("__selftest_gem__");
+                if (savedProv2 != null) ModelCatalog.Providers["__gemprov__"] = savedProv2; else ModelCatalog.Providers.Remove("__gemprov__");
+            }
+        }
+        finally { server2.Stop(); }
+    }
+
     /// <summary>ExtractKeyInfo 增强版测试</summary>
     private static void TestExtractKeyInfo(Action<string, bool> Check)
     {
