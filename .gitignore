@@ -62,3 +62,7 @@ plane-war/
 
 # Web 前端编译期生成（scripts/merge_webassets.py）
 WayCoder/UI/WEB/WebAssets.Generated.cs
+
+# 实验目录与构建产物（勿提交）
+QBasic/
+*.deb
