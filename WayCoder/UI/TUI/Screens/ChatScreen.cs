@@ -128,35 +128,7 @@ public partial class ChatScreen : TuiScreen
 
     /// <summary>聊天消息锁（保护后台线程回调中的 ChatMessages/ChatList 写入）</summary>
     private readonly object _chatLock = new();
-
-    /// <summary>后台线程 → UI 线程消息队列：子线程永不直接碰控件树，只投递操作，UI 线程 PumpUIQueue 消费。</summary>
-    private readonly ConcurrentQueue<Action> _uiQueue = new();
-
-    /// <summary>UI 线程 ID（构造时捕获；PostToUI 据此判定直接执行还是投递）</summary>
-    private readonly int _uiThreadId = Environment.CurrentManagedThreadId;
-
-    /// <summary>
-    /// 投递 UI 操作：UI 线程调用直接执行（无延迟），后台线程调用入队（UI 线程 PumpUIQueue 消费）。
-    /// 这样所有 ChatScreen 的 UI 方法都能安全地从任意线程调用，控件树只被 UI 线程触碰。
-    /// </summary>
-    public void PostToUI(Action action)
-    {
-        if (action == null) return;
-        if (Environment.CurrentManagedThreadId == _uiThreadId)
-            action();
-        else
-            _uiQueue.Enqueue(action);
-    }
-
-    /// <summary>消费并执行 UI 操作队列（仅 UI 线程调用：REPL 主循环 / RunAgentWithRenderLoop / RenderWait）。</summary>
-    public void PumpUIQueue()
-    {
-        while (_uiQueue.TryDequeue(out var action))
-        {
-            try { action(); }
-            catch { /* 单条操作失败不拖垮整帧 */ }
-        }
-    }
+    // 注：PostToUI / PumpUIQueue / _uiQueue / _uiThreadId 已提炼到基类 TuiScreen（所有屏幕共用）。
 
     /// <summary>状态栏左侧（模型名、git 分支等）</summary>
     public string StatusLeft { get; set; } = "";
@@ -377,8 +349,8 @@ public partial class ChatScreen : TuiScreen
             _ => "grey",
         };
 
-        string rowStr = $"«dim»权限:«/»«{permColor}»{permStr}«/»"
-            + $" · «dim»工作模式:«/»«{modeColor}»{modeStr}«/»"
+        string rowStr = $"«dim»工作模式:«/»«{modeColor}»{modeStr}«/»"
+            + $" · «dim»权限:«/»«{permColor}»{permStr}«/»"
             + $" · «dim»经济模式:«/»«{economyColor}»{economyStr}«/»"
             + $" · «dim»大模型:«/»«bold»{large}«/»"
             + $" · «dim»小模型:«/»«bold»{small}«/»";
