@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 namespace WayCoder;
 
@@ -89,8 +89,9 @@ public static class ConnectionConfig
                 error = $"未找到连接「{name}」。用 /connect list 查看全部。";
                 return false;
             }
+            var removedName = _cache[idx].Name;
             _cache.RemoveAt(idx);
-            if (string.Equals(_active, _cache[idx] is null ? "" : _cache[idx].Name, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(_active, removedName, StringComparison.OrdinalIgnoreCase))
                 _active = "";
             Save();
             error = null;
