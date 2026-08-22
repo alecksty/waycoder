@@ -279,23 +279,31 @@ public static class ConnectionConfig
             cfg.SaveToConfigJson();
             cfg.SaveToEnvFile();
         }
-        // 无 key 时尝试从 provider 官方环境变量自动复制（如 DEEPSEEK_API_KEY → api_keys.json）。
-        // 先校验值是否「像真正的 key」（可能用户设错变量/值是 URL/占位）
-        if (ModelCatalog.Providers.TryGetValue(pid, out var prov)
-            && !ApiKeyStore.Has(pid)
-            && !string.IsNullOrWhiteSpace(prov.ApiKeyEnvVar))
+        // 无 key 时尝试从 provider 官方环境变量自动复制（如 DEEPSEEK_API_KEY → api_keys.json），校验防误复制
+        if (!ApiKeyStore.Has(pid))
+            message += AutoImportKeyFromEnv(pid);
+    }
+
+    /// <summary>
+    /// 该 provider 无 key 时，从官方环境变量（ApiKeyEnvVar）自动导入到 api_keys.json。
+    /// 返回提示消息（导入成功 / 值不像是 key）；无动作返回 null。
+    /// 调用方：ApplyModelChoice（选择模型）与 AddConnect（新建 connect）共用。
+    /// </summary>
+    public static string? AutoImportKeyFromEnv(string providerId)
+    {
+        var pid = (providerId ?? "").Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(pid) || ApiKeyStore.Has(pid)) return null;
+        if (!ModelCatalog.Providers.TryGetValue(pid, out var prov)
+            || string.IsNullOrWhiteSpace(prov.ApiKeyEnvVar))
+            return null;
+        var envKey = Environment.GetEnvironmentVariable(prov.ApiKeyEnvVar);
+        if (string.IsNullOrWhiteSpace(envKey)) return null;
+        if (IsPlausibleApiKey(envKey))
         {
-            var envKey = Environment.GetEnvironmentVariable(prov.ApiKeyEnvVar);
-            if (!string.IsNullOrWhiteSpace(envKey) && IsPlausibleApiKey(envKey))
-            {
-                ApiKeyStore.Set(pid, envKey);
-                message += $" ✅ 已自动从环境变量 {prov.ApiKeyEnvVar} 复制 API key";
-            }
-            else if (!string.IsNullOrWhiteSpace(envKey))
-            {
-                message += $" ⚠️ 环境变量 {prov.ApiKeyEnvVar} 存在但值不像是 key（可能设错了变量名），未自动导入";
-            }
+            ApiKeyStore.Set(pid, envKey);
+            return $" ✅ 已自动从环境变量 {prov.ApiKeyEnvVar} 复制 API key";
         }
+        return $" ⚠️ 环境变量 {prov.ApiKeyEnvVar} 存在但值不像是 key（可能设错了变量名），未自动导入";
     }
 
     /// <summary>
