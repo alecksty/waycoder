@@ -857,17 +857,17 @@ public class ProviderArg : CliArg
     public override int? OnMatch(List<string> values) => ModelCli.ProviderCli.Run(values);
 }
 
-/// <summary>启动权限模式（极简TINY/问答ACK/自动AUTO/智能SMART/畅通YOLO）。</summary>
+/// <summary>启动权限模式（问答ACK/自动AUTO/智能SMART/畅通YOLO；tiny/chat=纯聊天工作模式）。</summary>
 public class PermitArg : CliArg
 {
-    public override string Description => "启动权限模式";
+    public override string Description => "启动权限模式（tiny/chat=纯聊天工作模式）";
     public override int ValueCount => 1;
-    public override string? ValueLabel => "tiny|ack|auto|smart|yolo";
+    public override string? ValueLabel => "tiny|chat|ack|auto|smart|yolo";
     public override (string Cmd, string Desc)[]? SubCommands =>
     [
-        ("tiny", "极简：仅聊天，禁用工具"),
+        ("tiny", "聊天：纯聊天工作模式（0 工具 0 提示词）"),
         ("ack", "问答：逐次确认"),
-        ("auto", "自动：自动确认"),
+        ("auto", "自动：改必问，只读放行、写操作确认"),
         ("smart", "智能：智能分级确认"),
         ("yolo", "畅通：跳过所有确认"),
     ];

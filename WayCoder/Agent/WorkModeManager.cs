@@ -3,18 +3,16 @@ namespace WayCoder;
 /// <summary>
 /// Agent 工作模式 —— 每个槽位独立设置，Shift+Tab 切换。
 ///
-/// 四种模式：
-///   Build (建造)  — 完整工具访问，正常编程（默认）
-///   Plan  (计划)  — 只分析规划，不修改代码
-///   Review(审查)  — 只读 + 审查工具，代码审查
-///   Auto  (自动)  — 全工具 + SmartAuto 智能分级确认
+/// 三种模式：
+///   Build (建造) — 完整工具访问，正常编程（默认），工具与提示词受经济模式管理
+///   Plan  (规划) — 只读分析/规划，白名单只读工具 + 精简提示词，产出计划后经审批门切回 Build
+///   Chat  (聊天) — 纯聊天：0 工具 + 0 系统提示词，每轮只剩 user/assistant 消息
 /// </summary>
 public enum WorkMode
 {
     Build,
     Plan,
-    Review,
-    Auto,
+    Chat,
 }
 
 /// <summary>
@@ -25,35 +23,32 @@ public static class WorkModeManager
     /// <summary>每个模式的显示名称</summary>
     public static readonly Dictionary<WorkMode, string> Labels = new()
     {
-        [WorkMode.Build]  = "建造",
-        [WorkMode.Plan]   = "计划",
-        [WorkMode.Review] = "审查",
-        [WorkMode.Auto]   = "自动",
+        [WorkMode.Build] = "建造",
+        [WorkMode.Plan]  = "计划",
+        [WorkMode.Chat]  = "聊天",
     };
 
     /// <summary>每个模式的 emoji 图标</summary>
     public static readonly Dictionary<WorkMode, string> Emojis = new()
     {
-        [WorkMode.Build]  = "🔨",
-        [WorkMode.Plan]   = "🧠",
-        [WorkMode.Review] = "🔍",
-        [WorkMode.Auto]   = "🤖",
+        [WorkMode.Build] = "🔨",
+        [WorkMode.Plan]  = "🧠",
+        [WorkMode.Chat]  = "💬",
     };
 
-    /// <summary>Plan 模式下禁止的工具（写入 + 破坏性操作）</summary>
-    private static readonly HashSet<string> PlanBlockedTools = new(StringComparer.OrdinalIgnoreCase)
+    /// <summary>
+    /// Plan 模式的只读工具白名单（schema 层硬过滤，单一事实源）。
+    /// bash 特殊：仅放行 BashGuard.IsSafeReadOnly 的只读命令（git log/diff/status、ls/cat 等），
+    /// 由 CheckToolAllowed 按命令参数门控 —— 使规划模式具备 git 历史/文件只读分析能力。
+    /// 明确排除写/执行/风险工具：write_file/edit_file/multiedit/find_replace/notebook_edit/agent/git/git_pr/
+    /// download/sqlite/test/draw/convert_image/export_chat/job_kill/kill/rm/mkdir/cp/mv/cd/screenshot/struct_todo。
+    /// </summary>
+    public static readonly HashSet<string> PlanReadOnlyTools = new(StringComparer.OrdinalIgnoreCase)
     {
-        "write_file", "edit_file", "notebook_edit",
-        "bash", "rm", "mkdir", "cp", "mv",
-        "git", "kill", "agent",
-    };
-
-    /// <summary>Review 模式下禁止的工具（写入 + 破坏性操作，但保留 agent 用于审查子代理）</summary>
-    private static readonly HashSet<string> ReviewBlockedTools = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "write_file", "edit_file", "notebook_edit",
-        "bash", "rm", "mkdir", "cp", "mv",
-        "git", "kill",
+        "read_file", "glob", "grep", "ls", "tree", "stat", "wc", "pwd", "diff",
+        "doc", "web_search", "fetch", "lsp", "lint", "skill", "memory",
+        "transcribe", "view_image", "ask_user_question", "job_output", "ps", "todo",
+        "bash",
     };
 
     /// <summary>当前活跃槽位的工作模式（由 Program.cs 在切换时更新）</summary>
@@ -63,17 +58,16 @@ public static class WorkModeManager
     public static event Action<WorkMode>? ModeChanged;
 
     /// <summary>
-    /// 切换到下一个模式（Build → Plan → Review → Auto → Build ...）
+    /// 切换到下一个模式（Build → Plan → Chat → Build ...）
     /// </summary>
     public static WorkMode CycleNext()
     {
         CurrentMode = CurrentMode switch
         {
-            WorkMode.Build  => WorkMode.Plan,
-            WorkMode.Plan   => WorkMode.Review,
-            WorkMode.Review => WorkMode.Auto,
-            WorkMode.Auto   => WorkMode.Build,
-            _               => WorkMode.Build,
+            WorkMode.Build => WorkMode.Plan,
+            WorkMode.Plan  => WorkMode.Chat,
+            WorkMode.Chat  => WorkMode.Build,
+            _              => WorkMode.Build,
         };
         ModeChanged?.Invoke(CurrentMode);
         return CurrentMode;
@@ -92,25 +86,33 @@ public static class WorkModeManager
     /// <summary>
     /// 检查指定工具在给定模式下是否允许执行。
     /// 返回 null 表示允许，返回字符串表示阻止原因。
+    /// args 供 bash 命令参数门控使用（Plan 模式仅放行只读命令）。
     /// </summary>
-    public static string? CheckToolAllowed(string toolName, WorkMode mode)
+    public static string? CheckToolAllowed(string toolName, WorkMode mode, Dictionary<string, object?>? args = null)
     {
         switch (mode)
         {
+            case WorkMode.Chat:
+                return $"聊天模式不提供任何工具（纯聊天）。请切换到建造/规划模式（Shift+Tab）后再操作。";
             case WorkMode.Plan:
-                if (PlanBlockedTools.Contains(toolName))
-                    return $"计划模式禁止执行 {toolName}。请切换到建造模式（Shift+Tab）后再操作。";
-                break;
-            case WorkMode.Review:
-                if (ReviewBlockedTools.Contains(toolName))
-                    return $"审查模式禁止执行 {toolName}。请切换到建造模式（Shift+Tab）后再操作。";
+                // bash：仅放行只读命令（fail-closed：拿不到 command 参数一律阻止）
+                if (string.Equals(toolName, "bash", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (args is not null && args.TryGetValue("command", out var cmdObj) && cmdObj is string cmdStr &&
+                        BashGuard.IsSafeReadOnly(cmdStr))
+                        return null;
+                    return $"规划模式仅允许只读 bash 命令（如 git log/diff/status、ls/cat/grep）。请切换到建造模式（Shift+Tab）后再操作。";
+                }
+                if (!PlanReadOnlyTools.Contains(toolName))
+                    return $"规划模式仅允许只读工具（read_file/web_search/doc 等）。请切换到建造模式（Shift+Tab）后再操作。";
                 break;
         }
-        return null; // Build / Auto：所有工具允许
+        return null; // Build：所有工具允许
     }
 
     /// <summary>
     /// 获取模式的 System Prompt 前缀（附加在正常 prompt 前）。
+    /// Chat 模式返回空串（纯聊天，连模式提示也不注入）。
     /// </summary>
     public static string GetModePrompt(WorkMode mode)
     {
@@ -119,29 +121,13 @@ public static class WorkModeManager
             WorkMode.Plan => """
                 # 当前模式：🧠 计划模式
 
-                你当前处于**计划模式**——只能分析和规划，不能修改任何代码。
-                禁止使用 write_file、edit_file、bash 等修改性工具。
-                你需要：1. 分析需求 2. 探索代码 3. 制定详细执行计划
+                你当前处于**只读分析/规划模式** —— 只能读、查、规划，不能修改任何代码。
+                禁止使用 write_file、edit_file 等写入工具；bash 仅限只读命令（git log/diff/status、ls/cat 等）。
+                你需要：1. 分析需求 2. 探索代码/文档 3. 制定详细执行计划（含涉及文件与验证方式）。
                 用户确认计划后会切换到建造模式执行。
 
                 """,
-            WorkMode.Review => """
-                # 当前模式：🔍 审查模式
-
-                你当前处于**审查模式**——只读代码审查，不能修改任何代码。
-                你需要：检查代码质量、发现潜在 bug、提出改进建议。
-                使用 read_file、grep、glob、lsp、diff 等只读工具进行分析。
-
-                """,
-            WorkMode.Auto => """
-                # 当前模式：🤖 自动模式
-
-                你当前处于**自动模式**——所有工具可用，Safe 工具自动放行，
-                Cautious 工具首次确认后记住，Dangerous 工具每次确认。
-                你可以自由编写和修改代码。
-
-                """,
-            _ => "" // Build 模式：标准 prompt，不附加
+            _ => "" // Build / Chat：不附加模式提示
         };
     }
 

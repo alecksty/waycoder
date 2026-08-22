@@ -31,8 +31,7 @@ namespace WayCoder
     {
         Build,
         Plan,
-        Review,
-        Auto,
+        Chat,
     }
 
     /// <summary>工作模式管理器桩（TuiStatusBar 读取 Emojis 指示当前模式）。</summary>
@@ -42,8 +41,7 @@ namespace WayCoder
         {
             [WorkMode.Build] = "🔨",
             [WorkMode.Plan] = "🧠",
-            [WorkMode.Review] = "🔍",
-            [WorkMode.Auto] = "🤖",
+            [WorkMode.Chat] = "💬",
         };
     }
 }

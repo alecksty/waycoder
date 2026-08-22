@@ -282,7 +282,11 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var mode = body?["mode"]?.AsString() ?? "";
             if (string.IsNullOrWhiteSpace(mode))
                 return HttpResponse.JsonBody(Err("缺少 mode"));
-            PermissionManager.SetMode(mode);
+            // 纯聊天别名（tiny/chat）→ 切工作模式 Chat（0 工具 0 提示词）
+            if (PermissionManager.IsChatModeAlias(mode))
+                WorkModeManager.SetMode(WorkMode.Chat);
+            else
+                PermissionManager.SetMode(mode);
             BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
         }

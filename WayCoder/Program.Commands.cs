@@ -470,9 +470,13 @@ public partial class Program
                 Config.Instance.EconomyMode = mode;
                 M($"{label} 白名单5", wlTools);
             }
-            // 纯聊天 TINY（权限极简）：无工具 + 无系统提示词（Agent 直接置空，不调 Generate），每轮只剩用户/助手消息
-            Console.WriteLine("── 对照：纯聊天 TINY（权限极简：无工具 + 无提示词）──");
-            Console.WriteLine("TINY 纯聊天 工具0                  SP=      0字符  schema=       0字符  合计=        0  ≈     0 tok(估)  (仅用户/助手消息)");
+            // 工作模式对照：Chat=0 工具 0 提示词；Plan=只读白名单 + GeneratePlan（体系提示词少量）
+            var planTools = all.Where(t => WorkModeManager.PlanReadOnlyTools.Contains(t.Name)).ToList();
+            var planSp = SystemPrompt.GeneratePlan(planTools);
+            int planSchema = planTools.Sum(t => t.Schema().ToJson().Length);
+            Console.WriteLine("── 对照：工作模式（Chat / Plan）──");
+            Console.WriteLine($"Chat 聊天    工具0                  SP=      0字符  schema=       0字符  合计=        0  ≈     0 tok(估)  (仅用户/助手消息)");
+            Console.WriteLine($"Plan 规划    工具{planTools.Count,2}                SP={planSp.Length,6}字符  schema={planSchema,6}字符  合计={planSp.Length + planSchema,7}  ≈{(planSp.Length + planSchema) / 3,5} tok(估)  (只读白名单 + GeneratePlan)");
         }
         finally { Config.Instance.EconomyMode = saved; }
     }

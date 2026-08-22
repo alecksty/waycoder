@@ -757,6 +757,47 @@ public static partial class SelfTest
         // ── 计划审批门纯逻辑（实例模式驱动）──
         Check("模式: Plan 触发审批", Agent.ShouldPromptPlanApproval(WorkMode.Plan, 50));
         Check("模式: Build 不触发审批", !Agent.ShouldPromptPlanApproval(WorkMode.Build, 50));
+        Check("模式: Chat 不触发审批", !Agent.ShouldPromptPlanApproval(WorkMode.Chat, 50));
+
+        // ── v3：Plan 只读白名单 / Chat 0 工具 / 权限四档无 TINY / 聊天别名 / Auto 改必问 ──
+        var planAgent = new Agent(new LLM("test", "sk-test"));
+        planAgent.WorkMode = WorkMode.Plan;
+        planAgent.ReapplyToolFilter();
+        var planNames = planAgent.Tools.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Check("v3: Plan 含 read_file", planNames.Contains("read_file"));
+        Check("v3: Plan 含 grep", planNames.Contains("grep"));
+        Check("v3: Plan 含 doc", planNames.Contains("doc"));
+        Check("v3: Plan 含 bash", planNames.Contains("bash"));
+        Check("v3: Plan 不含 write_file", !planNames.Contains("write_file"));
+        Check("v3: Plan 不含 git", !planNames.Contains("git"));
+        Check("v3: Plan 不含 sqlite", !planNames.Contains("sqlite"));
+
+        var chatAgent = new Agent(new LLM("test", "sk-test"));
+        chatAgent.WorkMode = WorkMode.Chat;
+        chatAgent.ReapplyToolFilter();
+        Check("v3: Chat 工具数为 0", chatAgent.Tools.Count == 0);
+
+        // 权限四档循环（无 TINY）
+        PermissionManager.SetMode("ask");
+        Check("v3: 权限循环 Ask→Auto", PermissionManager.CycleMode() == PermissionManager.Mode.Auto);
+        Check("v3: 权限循环 Auto→SmartAuto", PermissionManager.CycleMode() == PermissionManager.Mode.SmartAuto);
+        Check("v3: 权限循环 SmartAuto→Yolo", PermissionManager.CycleMode() == PermissionManager.Mode.Yolo);
+        Check("v3: 权限循环 Yolo→Ask（无 TINY）", PermissionManager.CycleMode() == PermissionManager.Mode.Ask);
+
+        // 聊天别名
+        Check("v3: IsChatModeAlias('tiny')", PermissionManager.IsChatModeAlias("tiny"));
+        Check("v3: IsChatModeAlias('chat')", PermissionManager.IsChatModeAlias("chat"));
+        Check("v3: IsChatModeAlias('yolo') 为假", !PermissionManager.IsChatModeAlias("yolo"));
+
+        // Auto 改必问（≈Ask）：只读工具直接放行（读路径不弹框）
+        PermissionManager.SetMode("auto");
+        Check("v3: Auto 只读 read_file 放行",
+            PermissionManager.CheckAsync("read_file", new() { ["file_path"] = "/tmp/x" }).Result);
+        Check("v3: Auto 只读 grep 放行",
+            PermissionManager.CheckAsync("grep", new() { ["pattern"] = "x" }).Result);
+        Check("v3: Auto bash 只读命令放行",
+            PermissionManager.CheckAsync("bash", new() { ["command"] = "git status" }).Result);
+        PermissionManager.SetMode("ask");
 
         WorkModeManager.CurrentMode = savedGlobal;
     }

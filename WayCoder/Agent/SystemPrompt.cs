@@ -483,6 +483,28 @@ public static class SystemPrompt
             """;
     }
 
+    /// <summary>
+    /// 规划模式精简系统提示词：只读分析 + 计划产出格式，~600 字符（体系提示词少量）。
+    /// 中性措辞（「只读分析模式」）兼容规划与审查两类请求；bash 仅限只读命令。
+    /// </summary>
+    public static string GeneratePlan(List<ITool> tools)
+    {
+        var toolNames = string.Join(", ", tools.Select(t => t.Name));
+        return $"""
+            你是 WayCoder（道码），终端 AI 编程助手。当前处于**只读分析模式**。
+
+            # 工具（仅只读）
+            {toolNames}
+
+            # 规则
+            1. 只读：不得写文件、执行写命令或提交 git；bash 仅限只读命令（git log/diff/status、ls/cat/grep 等）。
+            2. 探索：读代码/文档/搜索，理解需求与现状。
+            3. 产出：规划类请求给「## 分析 / ## 执行计划（步骤·涉及文件·验证方式）/ ## 预估」；审查类请求给发现的问题与改进建议。
+            4. 用户批准后会自动切换到建造模式执行，届时再动手改代码。
+            5. 默认回复 ≤3 行（工具调用不计）。
+            """;
+    }
+
     /// <summary>标准工作流文本（公开，供 Agent.FullMessages 做快速模式替换）</summary>
     public static string StandardWorkflow => s_standardWorkflow;
     /// <summary>快速模式工作流文本</summary>

@@ -10,14 +10,15 @@ namespace WayCoder;
 /// 权限确认系统 —— 危险操作执行前弹窗确认。
 ///
 /// 四种模式：
-///   Ask       — 每次都确认（默认）
-///   Auto      — 首次确认后会话内自动允许
-///   SmartAuto — 智能分级：Safe 放行 / Cautious 记一次 / Dangerous 每次确认，连续 3 次阻止退回 Ask
-///   Yolo      — 不确认直接执行（上帝模式）
+///   Ask       — 必问：危险/修改操作每次都确认（默认），只读自动放行
+///   Auto      — 改必问：与 Ask 同路径（只确认危险/修改操作），去掉旧「首肯后记住」会话记忆
+///   SmartAuto — 危必问：智能分级：Safe 放行 / Cautious 记一次 / Dangerous 每次确认，连续 3 次阻止退回 Ask
+///   Yolo      — 不问：不确认直接执行（上帝模式）
+/// 纯聊天（0 工具 0 提示词）已移入行为轴工作模式 Chat，不再属于权限枚举。
 /// </summary>
 public static class PermissionManager
 {
-    public enum Mode { Ask, Auto, SmartAuto, Yolo, TINY }
+    public enum Mode { Ask, Auto, SmartAuto, Yolo }
 
     public static Mode CurrentMode { get; set; } = Mode.Ask;
 
@@ -42,6 +43,12 @@ public static class PermissionManager
 
     /// <summary>测试钩子：判断工具名是否在需确认名单中（验证权限绕过修复，如 test/cp/mv/find_replace）。</summary>
     internal static bool IsDangerousTool(string toolName) => DangerousTools.Contains(toolName);
+
+    /// <summary>
+    /// 判断权限模式参数是否命中「纯聊天」别名（tiny/chat/极简/聊天）。
+    /// 命中时调用方应切到工作模式 Chat（0 工具 0 提示词），而非落到权限枚举。
+    /// </summary>
+    internal static bool IsChatModeAlias(string modeName) => modeName.ToLowerInvariant() is "tiny" or "chat" or "极简" or "聊天";
 
     static PermissionManager()
     {
@@ -108,21 +115,16 @@ public static class PermissionManager
             }
         }
 
-        // ── 传统模式（Ask / Auto）──
+        // ── 传统模式（Ask / Auto「改必问」）──
+        // Ask 与 Auto 走同一路径：非危险工具（只读）直接放行，危险/修改操作逐次确认。
+        // Auto 不再保留「首次确认后记住」的会话记忆（AutoAllowed 仅 SmartAuto Cautious 使用）。
 
-        // 非危险工具直接放行
+        // 非危险工具（只读）直接放行
         if (!DangerousTools.Contains(toolName))
             return true;
 
-        // Auto 模式：首次确认后记住
-        var legacyAutoKey = BuildAutoKey(toolName, args);
-        if (CurrentMode == Mode.Auto && AutoAllowed.Contains(legacyAutoKey))
-            return true;
-
-        var legacyAllowed = await ShowConfirmDialog(toolName, args, isDangerous: true);
-        if (legacyAllowed && CurrentMode == Mode.Auto)
-            AutoAllowed.Add(legacyAutoKey);
-        return legacyAllowed;
+        // 危险/修改操作逐次确认
+        return await ShowConfirmDialog(toolName, args, isDangerous: true);
     }
 
     /// <summary>
@@ -202,7 +204,7 @@ public static class PermissionManager
         AutoModeClassifier.Reset();
     }
 
-    /// <summary>循环切换到下一个权限模式（问答→自动→智能→畅通→极简→问答）。返回新模式。</summary>
+    /// <summary>循环切换到下一个权限模式（问答→自动→智能→畅通→问答）。返回新模式。</summary>
     public static Mode CycleMode()
     {
         CurrentMode = CurrentMode switch
@@ -210,7 +212,7 @@ public static class PermissionManager
             Mode.Ask => Mode.Auto,
             Mode.Auto => Mode.SmartAuto,
             Mode.SmartAuto => Mode.Yolo,
-            Mode.Yolo => Mode.TINY,
+            Mode.Yolo => Mode.Ask,
             _ => Mode.Ask,
         };
         return CurrentMode;
@@ -222,12 +224,13 @@ public static class PermissionManager
     public static void SetMode(string modeName)
     {
         Reset();
+        // 注意：纯聊天别名（tiny/chat/极简/聊天）由调用方先经 IsChatModeAlias 拦截，
+        // 转到工作模式 Chat；此处只处理四种权限枚举值。
         CurrentMode = modeName.ToLowerInvariant() switch
         {
             "yolo" or "god" => Mode.Yolo,
             "smartauto" or "smart-auto" or "smart" => Mode.SmartAuto,
             "auto" => Mode.Auto,
-            "tiny" or "极简" => Mode.TINY,
             _ => Mode.Ask,
         };
 
@@ -236,7 +239,6 @@ public static class PermissionManager
             Mode.Yolo => AnsiColors.Red,
             Mode.SmartAuto => AnsiColors.Cyan,
             Mode.Auto => AnsiColors.Green,
-            Mode.TINY => AnsiColors.Grey,
             _ => AnsiColors.Yellow,
         };
         var label = CurrentMode switch
@@ -244,7 +246,6 @@ public static class PermissionManager
             Mode.Yolo => "畅通 YOLO",
             Mode.SmartAuto => "智能 SMART",
             Mode.Auto => "自动 AUTO",
-            Mode.TINY => "极简 TINY",
             _ => "问答 ACK",
         };
 
@@ -253,13 +254,12 @@ public static class PermissionManager
         Console.WriteLine($"权限模式: {AnsiText.Fg(label, color)}");
     }
 
-    /// <summary>权限模式显示名（极简TINY/问答ACK/自动AUTO/智能SMART/畅通YOLO）。</summary>
+    /// <summary>权限模式显示名（问答ACK/自动AUTO/智能SMART/畅通YOLO）。</summary>
     public static string FormatMode() => CurrentMode switch
     {
         Mode.Yolo => "畅通YOLO",
         Mode.SmartAuto => "智能SMART",
         Mode.Auto => "自动AUTO",
-        Mode.TINY => "极简TINY",
         _ => "问答ACK",
     };
 
@@ -272,8 +272,8 @@ public static class PermissionManager
         {
             Mode.Yolo => ("YOLO", "不确认，直接执行", AnsiColors.Red),
             Mode.SmartAuto => ("SmartAuto", "智能分级：Safe 放行 / Cautious 记一次 / Dangerous 每次确认", AnsiColors.Cyan),
-            Mode.Auto => ("Auto", "首次确认后自动允许", AnsiColors.Green),
-            _ => ("Ask", "每次都确认", AnsiColors.Yellow),
+            Mode.Auto => ("Auto", "改必问：只读放行，危险/修改操作逐次确认", AnsiColors.Green),
+            _ => ("Ask", "必问：危险/修改操作每次都确认", AnsiColors.Yellow),
         };
 
         var sandboxInfo = SandboxManager.IsSandboxed

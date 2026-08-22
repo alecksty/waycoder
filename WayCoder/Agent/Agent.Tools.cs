@@ -31,8 +31,8 @@ public partial class Agent
 
         try
         {
-            // 工作模式约束检查：Plan/Review 模式下阻止修改性工具
-            var modeBlock = WorkModeManager.CheckToolAllowed(tc.Name, WorkMode);
+            // 工作模式约束检查：Plan 阻止写工具（含只读 bash 门控）、Chat 全禁
+            var modeBlock = WorkModeManager.CheckToolAllowed(tc.Name, WorkMode, tc.Arguments);
             if (modeBlock != null)
                 return modeBlock;
 
@@ -339,27 +339,43 @@ public partial class Agent
     }
 
     /// <summary>
-    /// 根据配置过滤工具列表（白名单 + 省钱精简 + 黑名单）。
-    /// 优先级：显式白名单 > 省钱模式按档位去重复精简 > 黑名单剔除。
+    /// 根据配置过滤工具列表（工作模式 + 白名单 + 省钱精简 + 黑名单）。
+    /// 决策链：Chat → 0 工具；Plan → 只读白名单（用户 PlanToolAllowList 可交集收窄）→ 黑名单；
+    ///         Build → 显式白名单（YOLO 覆盖 YoloToolAllowList）→ 经济精简 → 黑名单。
     /// </summary>
     private static List<ITool> FilterTools(Agent agent, List<ITool> tools)
     {
         var config = Config.Instance;
-        // 极简：仅权限 TINY（纯聊天）禁用所有工具；economy Extreme 只最小化提示词，
-        // 工具保留白名单/精简/黑名单过滤（极致省钱仍可干活，否则 extreme 写不了代码）
-        if (PermissionManager.CurrentMode == PermissionManager.Mode.TINY)
+
+        // 1. Chat 工作模式：纯聊天，0 工具（由行为轴 WorkMode 决定，不再依赖权限 TINY）
+        if (agent.WorkMode == WorkMode.Chat)
             return [];
 
-        // 按工作模式选择工具集：Plan → 计划工具集（危险工具不放行），Build/Review/Auto → 建造工具集；
-        // YOLO 权限模式 → YOLO 工具集（空 = 全部允许，仅叠加全局黑名单）
-        string? modeAllow = agent.WorkMode == WorkMode.Plan ? config.PlanToolAllowList : config.BuildToolAllowList;
+        // 2. Plan 工作模式：只读工具白名单（schema 层硬过滤，单一事实源 WorkModeManager.PlanReadOnlyTools）。
+        //    bash 也在白名单，运行时由 CheckToolAllowed 按 BashGuard.IsSafeReadOnly 门控只读命令。
+        //    用户 PlanToolAllowList 仅可交集收窄（只可更严，不可放开写工具）。
+        //    YOLO 权限不覆盖 Plan 工具集 —— 只读是行为轴硬约束。
+        if (agent.WorkMode == WorkMode.Plan)
+        {
+            var planUserAllow = ParseCsvSet(config.PlanToolAllowList);
+            var disabled = ParseCsvSet(config.DisabledTools);
+            return tools.Where(t =>
+            {
+                var name = t.Name.ToLowerInvariant();
+                if (!WorkModeManager.PlanReadOnlyTools.Contains(name)) return false;
+                if (planUserAllow is { Count: > 0 } && !planUserAllow.Contains(name)) return false;
+                if (disabled is { Count: > 0 } && disabled.Contains(name)) return false;
+                return true;
+            }).ToList();
+        }
+
+        // 3. Build 工作模式：显式白名单（YOLO 覆盖）→ 经济精简 → 黑名单
+        string? modeAllow = config.BuildToolAllowList;
         if (PermissionManager.CurrentMode == PermissionManager.Mode.Yolo)
             modeAllow = config.YoloToolAllowList;
 
-        var allowed = modeAllow?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(s => s.Trim().ToLowerInvariant()).ToHashSet();
-        var disabled = config.DisabledTools?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(s => s.Trim().ToLowerInvariant()).ToHashSet();
+        var allowed = ParseCsvSet(modeAllow);
+        var disabledAll = ParseCsvSet(config.DisabledTools);
 
         var result = tools;
         if (allowed is { Count: > 0 })
@@ -372,12 +388,19 @@ public partial class Agent
             // 无白名单：省钱模式按档位去重复精简（关=全量，开=去重，开的越大越精简）
             result = TrimToolsForEconomy(result, config.EconomyMode);
         }
-        if (disabled is { Count: > 0 })
-            result = result.Where(t => !disabled.Contains(t.Name.ToLowerInvariant())).ToList();
+        if (disabledAll is { Count: > 0 })
+            result = result.Where(t => !disabledAll.Contains(t.Name.ToLowerInvariant())).ToList();
 
         if (result.Count < tools.Count)
             DebugLog.Log("tool-filter", $"工具过滤: {tools.Count} → {result.Count} ({agent.WorkMode}, YOLO={PermissionManager.CurrentMode == PermissionManager.Mode.Yolo}, economy={config.EconomyMode})");
 
         return result;
     }
+
+    /// <summary>把逗号分隔配置解析成小写工具名集合（null/空 → null）。</summary>
+    private static HashSet<string>? ParseCsvSet(string? csv)
+        => string.IsNullOrWhiteSpace(csv)
+            ? null
+            : csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => s.Trim().ToLowerInvariant()).ToHashSet();
 }
