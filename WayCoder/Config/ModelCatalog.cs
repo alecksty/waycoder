@@ -186,16 +186,19 @@ public static class ModelCatalog
             {
                 var name = p?["name"]?.AsString() ?? id;
                 var url = p?["base_url"]?.AsString() ?? p?["baseUrl"]?.AsString() ?? "";
-                // 官方元数据 + 厂商级调用参数默认（模型未声明时继承）；兼容 snake_case
-                var apiKeyEnv = p?["apiKeyEnvVar"]?.AsString() ?? p?["api_key_env"]?.AsString();
-                var modelsEndpoint = p?["modelsEndpoint"]?.AsString() ?? p?["models_endpoint"]?.AsString();
-                var commonModels = p?["commonModels"]?.AsString() ?? p?["common_models"]?.AsString();
+                // 字段缺失时继承内置默认（旧 providers.json 只有 name/base_url，不能把内置的官方元数据覆盖为 null）
+                var builtin = Providers.TryGetValue(id, out var b) ? b : null;
+                var apiKeyEnv = p?["apiKeyEnvVar"]?.AsString() ?? p?["api_key_env"]?.AsString() ?? builtin?.ApiKeyEnvVar;
+                var modelsEndpoint = p?["modelsEndpoint"]?.AsString() ?? p?["models_endpoint"]?.AsString() ?? builtin?.ModelsEndpoint;
+                var commonModels = p?["commonModels"]?.AsString() ?? p?["common_models"]?.AsString() ?? builtin?.CommonModels;
                 var reasoningAllowed = p?["reasoningEffortAllowed"]?.AsString()
                     ?? p?["reasoning_effort"]?.AsString()
-                    ?? p?["reasoning_effort_allowed"]?.AsString();
+                    ?? p?["reasoning_effort_allowed"]?.AsString()
+                    ?? builtin?.ReasoningEffortAllowed;
                 var tempPrec = IntOpt(p?["temperaturePrecision"])
-                    ?? IntOpt(p?["temperature_precision"]);
-                var apiFormat = p?["apiFormat"]?.AsString() ?? p?["api_format"]?.AsString();
+                    ?? IntOpt(p?["temperature_precision"])
+                    ?? builtin?.TemperaturePrecision;
+                var apiFormat = p?["apiFormat"]?.AsString() ?? p?["api_format"]?.AsString() ?? builtin?.ApiFormat;
                 Providers[id] = new ProviderInfo(name, url, apiKeyEnv, modelsEndpoint, commonModels, reasoningAllowed, tempPrec, apiFormat);
             }
         }

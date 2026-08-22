@@ -893,8 +893,10 @@ public class ConnectArg : CliArg
             case "add":
             case "new":
                 if (rest.Length < 3) { Console.WriteLine("用法: --connect add <name> <providerId> <modelId>"); return 1; }
+                // 先尝试从官方环境变量自动导入 key（无 key 时），再建 connect
+                var keyHint = ConnectionConfig.AutoImportKeyFromEnv(rest[1]);
                 Console.WriteLine(ConnectionConfig.AddConnect(rest[0], rest[1], rest[2], out var e)
-                    ? $"✅ 已新增 connect「{rest[0]}」" : $"❌ {e}");
+                    ? $"✅ 已新增 connect「{rest[0]}」{keyHint ?? ""}" : $"❌ {e}");
                 return 0;
             case "rm":
             case "remove":
