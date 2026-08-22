@@ -1,3 +1,5 @@
+using WayCoder.UI.TUI.Base;
+
 namespace WayCoder;
 
 /// <summary>
@@ -45,6 +47,16 @@ public static class FallbackLLM
     }
 
     /// <summary>
+    /// 回退进度输出：TUI 全屏模式下回退发生在 Agent 后台线程，直接写 stderr 会与渲染交错花屏
+    /// （TUI 渲染走 stdout，stderr 也落在同一终端）→ 仅非 TUI 模式输出；回退信息本身已进 ErrorLog + 聊天提示。
+    /// </summary>
+    private static void WriteFallback(string msg)
+    {
+        if (TuiManager.Instance?.IsActive != true)
+            WriteFallback(msg);
+    }
+
+    /// <summary>
     /// 尝试用回退模型执行。成功返回响应，失败尝试下一个模型。
     /// </summary>
     public static async Task<LLMResponse> TryWithFallback(
@@ -64,7 +76,7 @@ public static class FallbackLLM
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
-            Console.Error.WriteLine($"[fallback] 模型 {originalLlm.Model} 失败: {ex.Message}");
+            WriteFallback($"[fallback] 模型 {originalLlm.Model} 失败: {ex.Message}");
             ErrorLog.LlmError(originalLlm.Model, originalLlm.Endpoint,
                 $"主模型失败，启动回退链: {ex.Message}", ex);
         }
@@ -78,7 +90,7 @@ public static class FallbackLLM
             // 预算检查：超过预算时记录警告并跳过回退（优雅降级，不崩溃）
             if (BudgetExceeded())
             {
-                Console.Error.WriteLine($"[fallback] ⚠ 已达回退预算上限 ${MaxBudget:F2}，停止尝试备选模型");
+                WriteFallback($"[fallback] ⚠ 已达回退预算上限 ${MaxBudget:F2}，停止尝试备选模型");
                 break;
             }
 
@@ -88,7 +100,7 @@ public static class FallbackLLM
             var (fbKey, fbUrl) = ResolveKeyAndUrl(model, originalLlm.ApiKey);
             if (string.IsNullOrEmpty(fbKey))
             {
-                Console.Error.WriteLine($"[fallback] ⏭ 跳过 {model}（无 API Key，设置 {GetKeyEnvName(model)} 环境变量）");
+                WriteFallback($"[fallback] ⏭ 跳过 {model}（无 API Key，设置 {GetKeyEnvName(model)} 环境变量）");
                 skipped++;
                 continue;
             }
@@ -98,18 +110,18 @@ public static class FallbackLLM
 
             try
             {
-                Console.Error.WriteLine($"[fallback] 尝试 {model}...");
+                WriteFallback($"[fallback] 尝试 {model}...");
                 var resp = await fallbackLlm.ChatAsync(messages, tools, onToken, cancellationToken: ct);
                 AddSpent(fallbackLlm.EstimatedCost ?? 0);
 
                 // 回退成功，更新原始 LLM 的模型
                 originalLlm.Model = model;
-                Console.Error.WriteLine($"[fallback] ✓ 已切换到 {model}");
+                WriteFallback($"[fallback] ✓ 已切换到 {model}");
                 return resp;
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             {
-                Console.Error.WriteLine($"[fallback] {model} 也失败: {ex.Message}");
+                WriteFallback($"[fallback] {model} 也失败: {ex.Message}");
                 ErrorLog.LlmError(model, fallbackLlm.Endpoint,
                     $"回退模型也失败: {ex.Message}", ex);
                 continue;
@@ -118,21 +130,21 @@ public static class FallbackLLM
 
         // 全部回退模型失败或跳过 → 给原始模型最后一次重试机会（临时错误可能已恢复）
         string skipMsg = skipped > 0 ? $"（{skipped} 个因无 Key 跳过）" : "";
-        Console.Error.WriteLine($"[fallback] 所有回退模型均失败{skipMsg}，最后一次重试原始模型 {originalLlm.Model}...");
+        WriteFallback($"[fallback] 所有回退模型均失败{skipMsg}，最后一次重试原始模型 {originalLlm.Model}...");
         try
         {
             var resp = await originalLlm.ChatAsync(messages, tools, onToken, cancellationToken: ct);
             AddSpent(originalLlm.EstimatedCost ?? 0);
             FallbackIndex = -1;
-            Console.Error.WriteLine($"[fallback] ✓ 原始模型 {originalLlm.Model} 重试成功");
+            WriteFallback($"[fallback] ✓ 原始模型 {originalLlm.Model} 重试成功");
             return resp;
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
-            Console.Error.WriteLine($"[fallback] 原始模型 {originalLlm.Model} 重试也失败: {ex.Message}");
+            WriteFallback($"[fallback] 原始模型 {originalLlm.Model} 重试也失败: {ex.Message}");
         }
 
-        Console.Error.WriteLine("[fallback] 所有回退模型均已失败，请检查网络或 API 密钥。");
+        WriteFallback("[fallback] 所有回退模型均已失败，请检查网络或 API 密钥。");
         ErrorLog.Error("FallbackLLM", "所有回退模型均已失败（包括主模型），请检查网络或 API 密钥");
         return new LLMResponse
         {

@@ -427,7 +427,7 @@ public static class UxHelper
         {
             if (readKeys)
             {
-                if (screen is ChatScreen chat) chat.PumpUIQueue(); // 对话框期间也消费后台投递的 UI 操作
+                screen?.PumpUIQueue(); // 对话框期间也消费后台投递的 UI 操作（PostToUI 已提炼到基类）
                 manager?.Render();
                 var ev = inputMgr.ReadInput(30);
                 if (ev.Type == InputType.Mouse && TuiManager.MouseEnabled)

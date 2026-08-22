@@ -126,7 +126,9 @@ public partial class ChatScreen : TuiScreen
             };
             evt.Set();
         });
-        ShowWindow(win);
+        // 此方法由 Agent 后台线程调用（PermissionManager.CheckAsync）：ShowWindow 改窗口栈，
+        // 投递到 UI 线程，避免与渲染循环并发遍历 Windows 列表（帧交错花屏）。RenderWait 在 agent 期只等待。
+        PostToUI(() => ShowWindow(win));
         RenderWait(evt);
         return resolved;
     }
@@ -149,7 +151,8 @@ public partial class ChatScreen : TuiScreen
             approved = r;
             evt.Set();
         });
-        ShowWindow(win);
+        // 此方法由 Agent 后台线程调用（Agent 计划审批门）：ShowWindow 投递到 UI 线程（同权限框，防窗口栈并发）。
+        PostToUI(() => ShowWindow(win));
         RenderWait(evt);
         return approved;
     }
