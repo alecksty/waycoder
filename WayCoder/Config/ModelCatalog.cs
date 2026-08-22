@@ -58,9 +58,9 @@ public static class ModelCatalog
         new("deepseek-reasoner", "DeepSeek R1", "DeepSeek", "deepseek", "D", "Reasoning", 64_000, 0.55, 2.19, "https://api.deepseek.com", "Deep reasoning"),
 
         // Google
-        new("gemini-2.5-pro", "Gemini 2.5 Pro", "Google", "google", "G", "Flagship", 1_000_000, 1.25, 10, "https://generativelanguage.googleapis.com/v1beta/openai", "Ultra-long context"),
-        new("gemini-2.5-flash", "Gemini 2.5 Flash", "Google", "google", "G", "Light", 1_000_000, 0.30, 2.50, "https://generativelanguage.googleapis.com/v1beta/openai", "Ultra-long light"),
-        new("gemini-2.0-flash", "Gemini 2.0 Flash", "Google", "google", "G", "Light", 1_000_000, 0.10, 0.4, "https://generativelanguage.googleapis.com/v1beta/openai", "Ultra-fast light"),
+        new("gemini-2.5-pro", "Gemini 2.5 Pro", "Google", "google", "G", "Flagship", 1_000_000, 1.25, 10, "https://generativelanguage.googleapis.com", "Ultra-long context"),
+        new("gemini-2.5-flash", "Gemini 2.5 Flash", "Google", "google", "G", "Light", 1_000_000, 0.30, 2.50, "https://generativelanguage.googleapis.com", "Ultra-long light"),
+        new("gemini-2.0-flash", "Gemini 2.0 Flash", "Google", "google", "G", "Light", 1_000_000, 0.10, 0.4, "https://generativelanguage.googleapis.com", "Ultra-fast light"),
 
         // Alibaba Qwen
         new("qwen3-max", "Qwen3 Max", "Alibaba", "qwen", "Q", "Flagship", 128_000, 0.78, 3.9, "https://dashscope.aliyuncs.com/compatible-mode/v1", "Alibaba flagship"),
@@ -132,7 +132,8 @@ public static class ModelCatalog
         string? ModelsEndpoint = null,          // 官方模型列表接口（如 /v1/models）；没有为空
         string? CommonModels = null,            // 官方常用模型 id（逗号分隔）
         string? ReasoningEffortAllowed = null,  // 厂商级 reasoning_effort 允许集；null=不约束
-        int? TemperaturePrecision = null);      // 厂商级 temperature 小数位；null=用全局默认 2
+        int? TemperaturePrecision = null,       // 厂商级 temperature 小数位；null=用全局默认 2
+        string? ApiFormat = null);              // API 请求格式：null/空/openai=OpenAI 兼容；anthropic=原生 /v1/messages；gemini=原生 streamGenerateContent
 
     /// <summary>Provider registry with default base URLs</summary>
     public static readonly Dictionary<string, ProviderInfo> Providers;
@@ -143,9 +144,9 @@ public static class ModelCatalog
         {
             // 官方环境变量 / 常用模型 / 模型列表接口；不确定的留空（没有则为空）
             ["openai"]     = new("OpenAI",       "https://api.openai.com", "OPENAI_API_KEY", "/models", "gpt-5.4,gpt-5.4-mini,gpt-4o,gpt-4o-mini"),
-            ["anthropic"]  = new("Anthropic",    "https://api.anthropic.com", "ANTHROPIC_API_KEY", "", "claude-opus-5,claude-sonnet-5,claude-haiku-4-5"),
+            ["anthropic"]  = new("Anthropic",    "https://api.anthropic.com", "ANTHROPIC_API_KEY", "", "claude-opus-5,claude-sonnet-5,claude-haiku-4-5", ApiFormat: "anthropic"),
             ["deepseek"]   = new("DeepSeek",     "https://api.deepseek.com", "DEEPSEEK_API_KEY", "/models", "deepseek-v4-pro,deepseek-v4-flash,deepseek-chat,deepseek-reasoner", "low,medium,high"),
-            ["google"]     = new("Google",       "https://generativelanguage.googleapis.com/v1beta/openai", "GEMINI_API_KEY", "/models", "gemini-2.5-pro,gemini-2.5-flash,gemini-2.0-flash"),
+            ["google"]     = new("Google",       "https://generativelanguage.googleapis.com/v1beta/openai", "GEMINI_API_KEY", "/models", "gemini-2.5-pro,gemini-2.5-flash,gemini-2.0-flash", ApiFormat: "gemini"),
             ["qwen"]       = new("Alibaba Qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1", "DASHSCOPE_API_KEY", "/models", "qwen3-max,qwen3-plus,qwen-turbo"),
             ["moonshot"]   = new("Moonshot",     "https://api.moonshot.cn", "MOONSHOT_API_KEY", "/models", "kimi-k2.5"),
             ["zhipu"]      = new("Zhipu GLM",    "https://open.bigmodel.cn/api/paas/v4", "ZHIPU_API_KEY", "/models", "glm-4-plus,glm-4-flash", "low,medium,high"),
@@ -194,7 +195,8 @@ public static class ModelCatalog
                     ?? p?["reasoning_effort_allowed"]?.AsString();
                 var tempPrec = IntOpt(p?["temperaturePrecision"])
                     ?? IntOpt(p?["temperature_precision"]);
-                Providers[id] = new ProviderInfo(name, url, apiKeyEnv, modelsEndpoint, commonModels, reasoningAllowed, tempPrec);
+                var apiFormat = p?["apiFormat"]?.AsString() ?? p?["api_format"]?.AsString();
+                Providers[id] = new ProviderInfo(name, url, apiKeyEnv, modelsEndpoint, commonModels, reasoningAllowed, tempPrec, apiFormat);
             }
         }
         catch { }
@@ -226,6 +228,8 @@ public static class ModelCatalog
                     sb.Append($", \"reasoningEffortAllowed\": \"{kv.Value.ReasoningEffortAllowed}\"");
                 if (kv.Value.TemperaturePrecision is { } tp)
                     sb.Append($", \"temperaturePrecision\": {tp}");
+                if (!string.IsNullOrWhiteSpace(kv.Value.ApiFormat) && !kv.Value.ApiFormat.Equals("openai", StringComparison.OrdinalIgnoreCase))
+                    sb.Append($", \"apiFormat\": \"{kv.Value.ApiFormat}\"");
                 sb.Append($" }}{comma}\n");
             }
             sb.AppendLine("  }");
@@ -793,6 +797,19 @@ public static class ModelCatalog
             .Any(v => v.Trim().Equals(globalValue.Trim(), StringComparison.OrdinalIgnoreCase))
             ? globalValue
             : null;
+    }
+
+    /// <summary>
+    /// 解析当前模型的 API 请求格式（openai / anthropic / gemini）。
+    /// Find 带网关反查（同 id 不同网关是两个条目），再按 ProviderId 取厂商级；默认 openai。
+    /// </summary>
+    public static string ResolveApiFormat(string? modelId, string? baseUrl)
+    {
+        var info = string.IsNullOrWhiteSpace(modelId) ? null : Find(modelId, baseUrl);
+        if (info != null && Providers.TryGetValue(info.ProviderId, out var prov)
+            && !string.IsNullOrWhiteSpace(prov.ApiFormat))
+            return prov.ApiFormat;
+        return "openai";
     }
 
     /// <summary>

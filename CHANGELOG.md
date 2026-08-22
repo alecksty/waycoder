@@ -1,5 +1,25 @@
 # 更新日志
 
+## v0.85.0 (2026-08-23) — 非 OpenAI 格式兼容（Anthropic 原生 + Gemini 原生）+ 模型/厂商参数约束 + 环境变量 key 自动导入
+
+### 非 OpenAI 原生 API 兼容（ProviderInfo.ApiFormat）
+- **Anthropic 原生**（`POST /v1/messages`）：`x-api-key` + `anthropic-version` 头；`system` 提取到顶层；`content` 块数组；`max_tokens` 必填；SSE 解析 `message_start/content_block_delta/message_stop`；工具 `tool_use` + `input_json_delta` 累积
+- **Gemini 原生**（`POST /v1beta/models/{model}:streamGenerateContent?alt=sse`）：URL 嵌模型名；`x-goog-api-key`；`contents/parts` + `generationConfig`；SSE 解析 `candidates[0].content.parts` + `usageMetadata`；工具 `functionCall`（无 id 合成）
+- 多模态按格式转换（Anthropic image/source + Gemini inlineData）
+- 内置 `anthropic`/`google` 改走原生端点（gemini baseUrl 改回原生根）；`ResolveApiFormat` 每请求反查，FallbackLLM 跨格式回退自动适配
+
+### 模型/厂商调用参数约束（此前提交未发版）
+- `ModelInfo.ReasoningEffortAllowed`（允许集）+ `TemperaturePrecision`；`ProviderInfo` 同字段为厂商级默认，两级解析「模型级 > 厂商级 > 全局」
+- `reasoning_effort` 值恒来自全局，越界 → 跳过字段（glm-5.3 medium → 不 400）；temperature 精度按模型级联
+- `ReasoningPicker` 按模型允许集过滤级别
+
+### 内置厂商官方元数据 + 环境变量 key 自动导入
+- 24 个内置厂商补 `ApiKeyEnvVar`（官方环境变量名）/`ModelsEndpoint`（模型列表接口）/`CommonModels`（官方常用模型）
+- 首次选择模型无 key 时自动从官方环境变量复制到 api_keys.json，`IsPlausibleApiKey` 校验防误复制（URL/空白/占位拒绝）
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）：新增 `TestModelParams`（约束纯函数/往返/集成）+ `TestApiFormat`（Anthropic/Gemini 请求体头/SSE 解析/工具/usage 全断言）
+
 ## v0.84.1 (2026-08-23) — 修复 temperature 序列化 bug（glm-5.3 严格网关）+ waycoder 5000 行 C++ 能力检验
 
 - **修复 `LLM.cs` temperature 序列化**：float 0.1f 经 JSON `"R"` 格式输出 `0.10000000149011612`，被 opencode.ai/zen/go 网关的 glm-5.3（限制小数点 2 位）以 HTTP 400 拒绝；改为发送前 `(double)Math.Clamp + Math.Round(2)`

@@ -75,6 +75,8 @@ public static partial class SelfTest
         TestEconomyToolTrim(Check);
         // 模型/厂商调用参数约束测试（reasoning_effort 允许集 + temperature 精度）
         TestModelParams(Check);
+        // 非 OpenAI 格式兼容测试（Anthropic /v1/messages + Gemini streamGenerateContent）
+        TestApiFormat(Check);
         // /init 项目初始化测试（生成 AGENT.md + 命令检测）
         TestProjectInit(Check);
         // 多槽位后台并行执行测试（槽位缓冲输出 + 运行状态）
