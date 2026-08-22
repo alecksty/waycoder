@@ -470,6 +470,9 @@ public partial class Program
                 Config.Instance.EconomyMode = mode;
                 M($"{label} 白名单5", wlTools);
             }
+            // 纯聊天 TINY（权限极简）：无工具 + 无系统提示词（Agent 直接置空，不调 Generate），每轮只剩用户/助手消息
+            Console.WriteLine("── 对照：纯聊天 TINY（权限极简：无工具 + 无提示词）──");
+            Console.WriteLine("TINY 纯聊天 工具0                  SP=      0字符  schema=       0字符  合计=        0  ≈     0 tok(估)  (仅用户/助手消息)");
         }
         finally { Config.Instance.EconomyMode = saved; }
     }
