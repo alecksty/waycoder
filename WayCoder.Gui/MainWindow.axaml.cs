@@ -81,9 +81,9 @@ public partial class MainWindow : Window
     private void UpdateHeader()
     {
         var cfg = Config.Instance;
-        ModelButton.Content = $"🧠 {cfg.Model}";
-        BigModelBtn.Content = $"🤖 {cfg.Model}";
-        SmallModelBtn.Content = $"🔧 {cfg.SmallModel}";
+        ModelButton.Content = $"🧠 {ConnectionConfig.FormatModel(cfg.Provider, cfg.Model)}";
+        BigModelBtn.Content = $"🤖 {ConnectionConfig.FormatModel(cfg.Provider, cfg.Model)}";
+        SmallModelBtn.Content = $"🔧 {ConnectionConfig.FormatModel(cfg.SmallProvider, cfg.SmallModel)}";
     }
 
     /// <summary>初始化 composer 工具栏：省钱模式 + 交互权限模式下拉。</summary>
@@ -644,10 +644,11 @@ public partial class MainWindow : Window
             var info = string.IsNullOrWhiteSpace(baseUrl) ? ModelCatalog.Find(modelId) : ModelCatalog.Find(modelId, baseUrl);
             if (info == null) return;
             var effProviderId = !string.IsNullOrWhiteSpace(providerId) ? providerId : info.ProviderId;
+            var effBaseUrl = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl : info.DefaultBaseUrl;
+            ConnectionConfig.ApplyModelChoice(effProviderId, modelId, true, out _, effBaseUrl);
             var key = ApiKeyStore.Get(effProviderId) ?? cfg.ApiKey;
-            var effBaseUrl = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl : (info.DefaultBaseUrl ?? cfg.BaseUrl);
             var agent = EnsureSlot(_activeSlot);
-            agent.LlmClient.Reconfigure(key, effBaseUrl);
+            agent.LlmClient.Reconfigure(key, cfg.BaseUrl);
             agent.LlmClient.Model = modelId;
             agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(modelId, cfg.MaxContextTokens));
         }
@@ -696,11 +697,8 @@ public partial class MainWindow : Window
     internal void SaveDefaultModel(string modelId, bool small, string? providerId = null, string? baseUrl = null)
     {
         var cfg = Config.Instance;
-        if (small) cfg.SmallModel = modelId;
-        else cfg.Model = modelId;
-        if (providerId != null) { if (small) cfg.SmallProvider = providerId; else cfg.Provider = providerId; }
-        if (baseUrl != null) cfg.BaseUrl = baseUrl;
-        try { cfg.SaveToEnvFile(); } catch { }
+        var pid = providerId ?? (small ? cfg.SmallProvider : cfg.Provider);
+        ConnectionConfig.ApplyModelChoice(pid, modelId, !small, out _, baseUrl);
         UpdateHeader();
         AppendSystem(_activeSlot, $"[已保存默认{(small ? "小" : "大")}模型 {modelId}]");
     }
@@ -709,9 +707,7 @@ public partial class MainWindow : Window
     internal void ApplySmallModel(string modelId, string? providerId = null, string? baseUrl = null)
     {
         var cfg = Config.Instance;
-        cfg.SmallModel = modelId;
-        if (providerId != null) cfg.SmallProvider = providerId;
-        if (baseUrl != null) cfg.BaseUrl = baseUrl;
+        ConnectionConfig.ApplyModelChoice(providerId ?? cfg.SmallProvider, modelId, false, out _, baseUrl);
         var agent = _agents[_activeSlot];
         if (agent != null) agent.LlmClient.SmallModel = modelId;
         UpdateHeader();

@@ -44,6 +44,7 @@ public static class TuiKeybindHelp
         ("🔄 模式", [
             ("Shift+Tab / Ctrl+K", "切模式 Build→Plan→Chat"),
             ("Ctrl+M / /model", "打开模型选择对话框"),
+            ("Ctrl+Shift+M", "快速切换 connect（下一个）"),
             ("Alt+P", "模型选择（对齐 Claude Code meta+p）"),
             ("Ctrl+Shift+P", "命令面板（对齐 Claude Code/OpenCode）"),
             ("Ctrl+G", "切换推理深度"),
@@ -80,6 +81,7 @@ public static class TuiKeybindHelp
     {
         "F1 - F10", "Esc", "Ctrl+Z", "Ctrl+C", "Ctrl+S",      // 全局
         "Enter", "Ctrl+V", "↑↓",                               // 编辑
+        "Ctrl+Shift+M",                                         // 模式：快速切换 connect
         "Shift+Tab / Ctrl+K", "Ctrl+M / /model",               // 模式
         "PgUp / PgDn", "Ctrl+E", "Ctrl+B",                     // 导航
         "Ctrl+H",                                              // 工具

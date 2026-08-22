@@ -32,6 +32,10 @@ public static class ProcUtil
     {
         using var proc = new System.Diagnostics.Process { StartInfo = psi };
         proc.Start();
+        // psi 设置了 RedirectStandardInput 时，立即置 EOF：子进程不共享主控台 stdin，
+        // 防与 TUI 主循环的 Console.KeyAvailable/ReadKey 抢控制台输入（ReadKey 永久阻塞 = 界面卡死）。
+        // 未重定向 stdin 的调用方此处访问会抛异常，被捕获忽略。
+        try { proc.StandardInput.Close(); } catch { }
         var stdoutTask = proc.StandardOutput.ReadToEndAsync();
         var stderrTask = proc.StandardError.ReadToEndAsync();
         using var timeoutCts = timeoutMs > 0 ? new CancellationTokenSource(timeoutMs) : null;
