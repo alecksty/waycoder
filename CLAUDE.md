@@ -198,6 +198,17 @@ WayCoder/
 - **编译期插件系统**：`IPlugin`/`Plugin`/`PluginRegistry`——`WayCoder/Plugins/` 目录放 `.cs` 文件 + `[ModuleInitializer]` 自动注册（AOT 无反射、随单文件 exe 分发），插件可贡献工具（并入 `ToolRegistry.AllTools`）与斜杠命令（并入 `SlashCommandRegistry.RegisterAll`）；与 SKILL.md/Hooks/MCP 三种扩展机制互补，同名覆盖、null 防御、按名卸载，详见 docs/插件系统.md
 - **JSON 输出模式（IDE 桥接）**：`--json -p "任务"`（或 `echo "任务" | waycoder --json`）一次性模式静默执行 Agent（onToken/onTool/onToolOutput 全 null、不流式、不写 ANSI），stdout 只输出一个 `JsonResult.Build` 结构化 JSON 对象——`schema`/`success`/`answer`/`error`/`model`/`usage{prompt,completion,total_tokens}`/`cost_usd`/`duration_ms`/`changed_files`，退出码 0 成功 1 失败；供 VS Code 扩展、CI 脚本、外部工具直接解析，纯函数构建器便于自测（对标 Claude Code `--output-format json`）
 
+## 模式体系（三分钟版）
+
+WayCoder 有三类**正交**模式，各管一件事（完整版见 [docs/模式体系.md](docs/模式体系.md)）：
+
+- **权限模式**（`PermissionManager.Mode`，Ctrl+P · `/permit`）：只管「执行时**要不要确认**」——Ask/Auto/SmartAuto/Yolo；TINY=纯聊天（禁所有工具 + 清空提示词，别名语义，勿与 `--tiny` 窗口混淆）
+- **工作模式**（`WorkMode`，Shift+Tab · `/mode`）：只管「**工具有没有 + 干什么活**」——Build 全量 / Plan 只读规划（有审批门）/ Review 只读审查；**槽位实例级**（`Agent.cs:91`）
+- **经济模式**（`EconomyMode`，Ctrl+E · `/config economy`）：只管「**省多少 token**」——Off/Auto/On/Extreme，影响提示词档位 + 压缩阈值 + 输出上限（当前也越界精简工具，见模式体系.md §6）
+
+**工具集单一决策链**（`Agent.Tools.cs:345-382`）：显式白名单 > 工作模式 AllowList > 黑名单 > 默认全量；确认只看权限模式；省钱只看经济模式。
+**注意**：权限模式是全局静态（多槽位共享）、工作模式是槽位实例、经济模式是全局 config；同名异义（Auto×5、权限 TINY vs 窗口 `--tiny`）见 docs/模式体系.md §5。
+
 ## 非显而易见的约束
 
 - **孤立的工具消息是非法的**：压缩时必须保持 tool 消息紧跟其 assistant 消息
