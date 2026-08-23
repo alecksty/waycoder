@@ -2437,6 +2437,14 @@ public static partial class SelfTest
             styleBgAnsi.Contains(AnsiTty.Sgr(22)) && styleBgAnsi.Contains(AnsiTty.SgrResetBg)
             && !styleBgAnsi.Contains(AnsiTty.SgrReset));
 
+        // RenderBuffer 越界裁剪：内容不得溢出屏幕（否则终端自动换行把文字泄到相邻行，如动态栏文字泄到下方横线）
+        var rbClipCol = new RenderBuffer();
+        rbClipCol.Write(0, 10000, "超界"); // 列远超任何终端宽 → 整体丢弃（不写定位/文字）
+        Check("RenderBuffer 越界列丢弃", !rbClipCol.ToString().Contains("超界"));
+        var rbClipRow = new RenderBuffer();
+        rbClipRow.Write(10000, 0, "越行"); // 行越界 → 丢弃
+        Check("RenderBuffer 越界行丢弃", !rbClipRow.ToString().Contains("越行"));
+
         // RenderBuffer 超宽首个字符（代理对 emoji 宽 2 > 可用列）完整写入不切半（v0.71.30 修复）
         var rbRuneWrap = new RenderBuffer();
         rbRuneWrap.WriteWrap(0, 0, "😀", maxCol: 0, indentCol: 0);
