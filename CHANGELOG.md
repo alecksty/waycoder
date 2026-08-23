@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.87.1 (2026-08-23) — API key 永不自动删除（删除需询问确认）
+
+- **`RemoveProvider` 不再连带删除 API key**——clean / provider 清理可以删 provider 注册与模型，但 key 一律保留
+- **无效 key 删除需询问**：探测到 401/403 无效 key 时交互确认 `[y/N]`，同意才删；非交互（管道/一次性模式）默认保留
+- **显式删 key**：`--model key rm <provider>`（唯一删除路径）
+- 修复：clean 误删 opencode-go key、重新导入丢能力字段（glm-5.3 补回 `ReasoningEffortAllowed`）
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）；glm-5.3 恢复可用
+
 ## v0.87.0 (2026-08-23) — `--model report / free / clean` 模型管理命令 + 本地模型按地址判断
 
 - **`--model report`**：测试所有 connect 的连通性，生成报告（✅ 可用 / ❌ 失败原因 / ⏭ 无 key）
