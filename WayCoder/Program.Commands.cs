@@ -498,7 +498,7 @@ public partial class Program
         screen.ChatMessages.Add(new ChatMsg { Role = "user", Content = "对比模型价格和功能" });
         screen.ChatMessages.Add(new ChatMsg
         {
-            Role = "agent", Content = @"### 价格对比
+            Role = "assistant", Content = @"### 价格对比
 
 | 模型 | 输入/1M | 输出/1M | 上下文 |
 |------|---------|---------|--------|
