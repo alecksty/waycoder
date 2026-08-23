@@ -79,6 +79,24 @@ public class JoinCommand : SlashCommand
     /// <summary>读取会话 → 生成交接文档 → 注入 Agent + 显示给用户。</summary>
     static async Task HandoffAsync(ContextBridge.ExternalSession session, ChatScreen screen, string cwd)
     {
+        // 已有聊天记录则提示：导入会叠加在现有对话之后，用户取消则不导入
+        var agent = ProgramContext.Agent;
+        if (agent != null)
+        {
+            int userMsgCount = agent.SnapshotMessages().Count(m => m["role"]?.AsString() == "user");
+            if (userMsgCount > 0)
+            {
+                bool ok = screen.ConfirmDialog("⚠ 会话覆盖提示",
+                    $"当前会话已有 {userMsgCount} 条聊天记录，导入 {session.ToolLabel} 上下文会叠加在现有对话之后。\n\n" +
+                    "确定要导入吗？取消则不做任何改动。");
+                if (!ok)
+                {
+                    screen.AddMessage("已取消导入，未做任何改动。", "system");
+                    return;
+                }
+            }
+        }
+
         screen.AddMessage($"🔄 正在读取 {session.ToolLabel} 会话：{session.Title}…", "system");
 
         // 读大文件 / SQLite / 执行 git 属重 IO，放后台线程避免阻塞 UI
