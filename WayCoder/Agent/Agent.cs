@@ -457,9 +457,14 @@ public partial class Agent
                     return resp.Content ?? "";
                 }
 
+                // 模型不支持工具（如 Ollama gemma2 等本地小模型）：不传工具 schema，也不催促调用工具
+                // ——做不到的事不催（否则每轮都收到「请立即调用 write_file」的错误催促）
+                bool modelSupportsTools = ModelCatalog.ResolveModelCallConstraints(
+                    LlmClient.EffectiveModel, LlmClient.BaseUrl).SupportsTools;
+
                 // 检测 0：DeepSeek V4 等模型将大量输出花在推理（reasoning）上而不产生实际内容
                 // reasoning 被显示但不计入 Content，所以 contentLen 可能极短
-                if (reasoningLen > 300 && toolCallCount == 0 && contentLen < 80)
+                if (modelSupportsTools && reasoningLen > 300 && toolCallCount == 0 && contentLen < 80)
                 {
                     _analysisOnlyStreak++;
                     string nudge = _analysisOnlyStreak switch
@@ -474,7 +479,7 @@ public partial class Agent
                     continue;
                 }
 
-                if (toolCallCount == 0 && contentLen > 100)
+                if (modelSupportsTools && toolCallCount == 0 && contentLen > 100)
                 {
                     // 首轮分析但未行动 — 渐进式催促（逐次加强）
                     _analysisOnlyStreak++;
@@ -490,7 +495,7 @@ public partial class Agent
                     continue;
                 }
 
-                if (hasCodeContent && !resp.Content!.Contains("✅"))
+                if (modelSupportsTools && hasCodeContent && !resp.Content!.Contains("✅"))
                 {
                     // 模型在"口述"代码而非写入文件 — 渐进式追问使其用工具
                     _talksCodeStreak++;
@@ -509,7 +514,7 @@ public partial class Agent
                 // 检测 3：任务进行中（已有工具调用历史）但本轮无工具调用且无明确完成信号
                 // （推理型模型长链思考后流被截断、只读不写后输出"计划"、或"只思考不行动"的中途停滞）
                 // → 催其继续而非误判完成退出。真正完成须带 ✅/完成 等信号，否则一律续跑。
-                if (toolCallCount > 0 && !hasCompletionSignal)
+                if (modelSupportsTools && toolCallCount > 0 && !hasCompletionSignal)
                 {
                     _analysisOnlyStreak++;
                     string nudge = _analysisOnlyStreak switch
