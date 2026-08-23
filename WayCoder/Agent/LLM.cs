@@ -425,7 +425,7 @@ public class LLM
         // 构建请求体。JNode 无 Remove，400 回退时用 includeStreamOptions 参数重建不带 stream_options 的请求体。
         // 模型调用参数约束：模型级 > 厂商级 > 全局默认（Find 带网关：同 id 不同网关是两个条目）
         var constraints = ModelCatalog.ResolveModelCallConstraints(EffectiveModel, BaseUrl);
-        JNode BuildBody(bool includeStreamOptions)
+        JNode BuildBody(bool includeStreamOptions, bool includeTools = true)
         {
             if (apiFormat == "anthropic") return BuildAnthropicBody(clonedMessages, clonedTools, maxTokens, constraints);
             if (apiFormat == "gemini") return BuildGeminiBody(clonedMessages, clonedTools, maxTokens, constraints);
@@ -445,7 +445,8 @@ public class LLM
             if (includeStreamOptions)
                 b.Set("stream_options", JNode.Object().Set("include_usage", true));
 
-            if (clonedTools is { Count: > 0 })
+            // includeTools=false：模型不支持工具（如 Ollama gemma2）→ 400 回退时去掉 tools，退化纯文本
+            if (includeTools && clonedTools is { Count: > 0 })
             {
                 var toolsArray = JNode.Array();
                 foreach (var t in clonedTools) toolsArray.Add(t);
@@ -500,9 +501,7 @@ public class LLM
             return b;
         }
 
-        var body = BuildBody(includeStreamOptions: true);
-
-        // 构造带鉴权头的请求（局部函数，供首次与 400 回退两处复用）
+        // 构造带鉴权头的请求（局部函数，供首次与 400 回退多处复用）
         HttpRequestMessage CreateAuthRequest(JNode requestBody)
         {
             var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
@@ -530,13 +529,18 @@ public class LLM
         // 注意：CallWithRetryAsync 对 4xx 是「返回响应」而非抛异常（其抛出的 HttpRequestException
         // 也不带 StatusCode），故必须在返回后检查状态码再回退——此前 catch-when(StatusCode==BadRequest)
         // 永远不会命中，是死代码，导致 400 被当成 SSE 流解析、静默返回空响应。
-        var resp = await CallWithRetryAsync(() => CreateAuthRequest(body), cancellationToken);
+        // 400 两级回退：① 去 stream_options（OpenAI 扩展，部分兼容端点不认）
+        // ② 再去 tools（Ollama gemma2 等模型不支持工具调用 → 退化纯文本）。每次重试前释放旧响应。
+        var resp = await CallWithRetryAsync(() => CreateAuthRequest(BuildBody(includeStreamOptions: true, includeTools: true)), cancellationToken);
         if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest)
         {
-            // 400 回退：释放旧响应，重试一次（重试后由下方 using 声明统一释放）
             resp.Dispose();
-            body = BuildBody(includeStreamOptions: false);
-            resp = await CallWithRetryAsync(() => CreateAuthRequest(body), cancellationToken);
+            resp = await CallWithRetryAsync(() => CreateAuthRequest(BuildBody(includeStreamOptions: false, includeTools: true)), cancellationToken);
+            if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                resp.Dispose();
+                resp = await CallWithRetryAsync(() => CreateAuthRequest(BuildBody(includeStreamOptions: false, includeTools: false)), cancellationToken);
+            }
         }
         // using 声明只读，不能重新赋值，故上面用普通变量 resp 重试，此处捕获最终响应统一释放
         using var response = resp;

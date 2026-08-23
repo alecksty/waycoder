@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.85.4 (2026-08-23) — 本地模型兼容：Ollama/LM Studio 支持 + LLM 400 两级回退（去 stream_options / 去 tools）
+
+- **本地服务模型（ollama/lmstudio/local）导入时设 `ReasoningEffortAllowed="none"`**：Ollama 等不支持 thinking，全局 `reasoning_effort` 会导致 400——`none` 使任何全局值都跳过（不发）
+- **LLM 400 两级回退**：① 去 `stream_options`（OpenAI 扩展）② 再去 `tools`（Ollama gemma2 等不支持工具调用的模型）——退化纯文本回复，不再 400 中断
+- 验证：Ollama gemma2:2b ✅ 输出 ok（1.9s）；LM Studio qwen3.5-4b 联通（thinking 模型默认思考 content 空，需关 thinking）
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）
+
 ## v0.85.3 (2026-08-23) — 模型列表显示短名（OpenRouter 路由前缀去除）
 
 - **OpenRouter 等在线导入模型 id 带厂商路由前缀**（`openai/gpt-3.5-turbo`），列表显示太长
