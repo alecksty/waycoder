@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace WayCoder.Infra;
@@ -14,6 +15,8 @@ namespace WayCoder.Infra;
 ///   - Codex:       ~/.codex/sessions/**/*.jsonl（JSONL）
 ///   - OpenCode:    ~/.local/share/opencode/opencode.db（SQLite，session/message/part）
 ///   - Crush:       &lt;project&gt;/.crush/crush.db（SQLite，sessions/messages）+ projects.json 定位
+///   - Aider:       &lt;project&gt;/.aider.chat.history.md（纯 Markdown）
+///   - Gemini CLI:  ~/.gemini/tmp/&lt;sha256(projectRoot)&gt;/chats/session-*.jsonl（JSONL）
 ///
 /// 纯逻辑（无 LLM 依赖）：聊天直接搬文本，todo 取竞品自带的待办状态，git 执行只读命令。
 /// SQLite 读取走 <see cref="SqliteReader"/>（零依赖手写解析器）。
@@ -34,6 +37,7 @@ public static class ContextBridge
             "opencode" => "OpenCode",
             "crush" => "Crush",
             "aider" => "Aider",
+            "gemini" => "Gemini CLI",
             _ => Tool,
         };
     }
@@ -43,6 +47,7 @@ public static class ContextBridge
     static readonly string CodexSessionsDir = Path.Combine(Home, ".codex", "sessions");
     static readonly string OpenCodeDb = Path.Combine(Home, ".local", "share", "opencode", "opencode.db");
     static readonly string CrushProjectsJson = Path.Combine(Home, ".local", "share", "crush", "projects.json");
+    static readonly string GeminiTmpDir = Path.Combine(Home, ".gemini", "tmp");
 
     const int MaxChatLines = 60;      // 最多保留的聊天行数（user/assistant/工具）
     const int MaxLineRunes = 600;     // 单条聊天文本截断长度（按码点）
@@ -92,6 +97,9 @@ public static class ContextBridge
 
         if (toolFilter is null or "aider")
             FindAiderSession(result, norm, cwd);
+
+        if (toolFilter is null or "gemini")
+            FindGeminiSessions(result, norm, cwd);
 
         result.Sort((a, b) => b.UpdatedAt.CompareTo(a.UpdatedAt));
         return result;
@@ -257,6 +265,103 @@ public static class ContextBridge
     }
 
     // ─────────────────────────────────────────────────────────────
+    // Gemini CLI（JSONL）
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>从 ~/.gemini/tmp 定位 Gemini CLI 会话（项目目录 = sha256(projectRoot)）。</summary>
+    static void FindGeminiSessions(List<ExternalSession> result, string norm, string cwd)
+    {
+        if (!Directory.Exists(GeminiTmpDir)) return;
+        var seen = new HashSet<string>();
+
+        // 方式一：精确 hash —— 从 cwd 向上遍历祖先目录，算 sha256 定位对应项目子目录
+        var dir = new DirectoryInfo(cwd);
+        while (dir != null)
+        {
+            var chatsDir = Path.Combine(GeminiTmpDir, Sha256Hex(dir.FullName), "chats");
+            if (Directory.Exists(chatsDir))
+            {
+                foreach (var f in SafeGetFiles(chatsDir, "session-*.jsonl"))
+                {
+                    if (!seen.Add(f)) continue;
+                    var s = ProbeGemini(f, dir.FullName);
+                    if (s != null && IsRelevant(norm, s.Cwd))
+                        result.Add(s);
+                }
+            }
+            dir = dir.Parent;
+        }
+
+        // 方式二：兜底枚举 —— hash 算法有差异（symlink/大小写）时，靠 metadata.directories 恢复 cwd 做相关性匹配
+        foreach (var projDir in SafeGetDirs(GeminiTmpDir))
+        {
+            var chatsDir = Path.Combine(projDir, "chats");
+            if (!Directory.Exists(chatsDir)) continue;
+            foreach (var f in SafeGetFiles(chatsDir, "session-*.jsonl"))
+            {
+                if (!seen.Add(f)) continue;
+                var s = ProbeGemini(f, null);
+                if (s != null && IsRelevant(norm, s.Cwd))
+                    result.Add(s);
+            }
+        }
+    }
+
+    /// <summary>探测 Gemini CLI 会话文件（JSONL：首行 metadata + 后续 message 记录）。</summary>
+    static ExternalSession? ProbeGemini(string file, string? fallbackCwd)
+    {
+        try
+        {
+            string? title = null, cwd = null;
+            foreach (var raw in File.ReadLines(file, Encoding.UTF8))
+            {
+                var node = Json.Parse(raw);
+                if (node == null) continue;
+
+                if (node.GetString("id") != null)
+                {
+                    // message 记录：取第一条用户消息当标题
+                    if (title == null && node.GetString("type") == "user")
+                    {
+                        title = ExtractGeminiText(node["content"]);
+                        if (!string.IsNullOrWhiteSpace(title))
+                            title = Truncate(title, 60);
+                    }
+                }
+                else
+                {
+                    // metadata 记录：summary 优先当标题，directories 恢复 cwd
+                    if (title == null)
+                    {
+                        var summary = node.GetString("summary");
+                        if (!string.IsNullOrWhiteSpace(summary))
+                            title = Truncate(summary, 60);
+                    }
+                    if (cwd == null && node["directories"] is { Kind: JKind.Array } dirs)
+                    {
+                        foreach (var d in dirs.Items)
+                        {
+                            var p = d?.AsString();
+                            if (!string.IsNullOrWhiteSpace(p)) { cwd = p; break; }
+                        }
+                    }
+                }
+                if (title != null && (cwd != null || fallbackCwd != null)) break;
+            }
+            return new ExternalSession("gemini", file, File.GetLastWriteTime(file),
+                title ?? Path.GetFileNameWithoutExtension(file), cwd ?? fallbackCwd ?? "");
+        }
+        catch { return null; }
+    }
+
+    /// <summary>计算字符串的 SHA256 小写十六进制（与 Gemini CLI 的 projectHash 算法一致）。</summary>
+    static string Sha256Hex(string input)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
+        return Convert.ToHexStringLower(hash);
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // 交接文档生成
     // ─────────────────────────────────────────────────────────────
 
@@ -273,6 +378,7 @@ public static class ContextBridge
             case "opencode": ParseOpencode(session.Path, session.SessionId, chat, todos); break;
             case "crush": ParseCrush(session.Path, session.SessionId, chat, todos); break;
             case "aider": ParseAider(session.Path, chat); break;
+            case "gemini": ParseGemini(session.Path, chat); break;
         }
 
         var sb = new StringBuilder();
@@ -586,6 +692,70 @@ public static class ContextBridge
             Flush();
         }
         catch { }
+    }
+
+    /// <summary>解析 Gemini CLI 会话文件（JSONL：metadata + message 记录）。</summary>
+    static void ParseGemini(string file, List<(string, string)> chat)
+    {
+        try
+        {
+            foreach (var raw in File.ReadLines(file, Encoding.UTF8))
+            {
+                var node = Json.Parse(raw);
+                if (node == null) continue;
+
+                var type = node.GetString("type");
+                if (node.GetString("id") == null || type == null) continue; // 跳过 metadata / 非消息记录
+
+                if (type == "user")
+                {
+                    var text = ExtractGeminiText(node["content"]);
+                    if (!string.IsNullOrWhiteSpace(text))
+                        AddChat(chat, "用户", text);
+                }
+                else if (type is "gemini" or "gemini_content")
+                {
+                    var text = ExtractGeminiText(node["content"]);
+                    if (!string.IsNullOrWhiteSpace(text))
+                        AddChat(chat, "助手", text);
+                }
+            }
+        }
+        catch { }
+    }
+
+    /// <summary>提取 Gemini 消息文本（content 为 parts 数组：text / functionCall / functionResponse 等）。</summary>
+    static string ExtractGeminiText(JNode? content)
+    {
+        if (content == null) return "";
+        if (content.Kind == JKind.String) return content.AsString() ?? "";
+        if (content.Kind != JKind.Array) return "";
+
+        var sb = new StringBuilder();
+        foreach (var part in content.Items)
+        {
+            if (part == null) continue;
+            var text = part.GetString("text");
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                sb.AppendLine(text);
+                continue;
+            }
+            var call = part["functionCall"];
+            if (call != null)
+            {
+                sb.AppendLine($"[工具调用: {call.GetString("name") ?? "工具"}]");
+                continue;
+            }
+            var resp = part["functionResponse"];
+            if (resp != null)
+            {
+                sb.AppendLine($"[工具结果: {resp.GetString("name") ?? "工具"}]");
+                continue;
+            }
+            // thought / codeExecutionResult / inlineData 等非文本 part 忽略
+        }
+        return sb.ToString().Trim();
     }
 
     // ─────────────────────────────────────────────────────────────

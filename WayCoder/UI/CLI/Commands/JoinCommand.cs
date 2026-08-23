@@ -18,10 +18,10 @@ public class JoinCommand : SlashCommand
 {
     public override string Name => "/join";
     public override string[] Aliases => ["/接手", "/续跑", "/handoff"];
-    public override string Description => "从 Claude/Codex/OpenCode/Crush/Aider 会话接着跑（聊天+todo+git）";
-    public override string? Usage => "/join [claude|codex|opencode|crush|aider|list|<序号>]";
+    public override string Description => "从 Claude/Codex/OpenCode/Crush/Aider/Gemini 会话接着跑（聊天+todo+git）";
+    public override string? Usage => "/join [claude|codex|opencode|crush|aider|gemini|list|<序号>]";
 
-    static readonly string[] Tools = ["claude", "codex", "opencode", "crush", "aider"];
+    static readonly string[] Tools = ["claude", "codex", "opencode", "crush", "aider", "gemini"];
 
     public override async Task ExecuteAsync(string args, ChatScreen screen)
     {
@@ -40,7 +40,8 @@ public class JoinCommand : SlashCommand
                     "- Codex（~/.codex/sessions/）\n" +
                     "- OpenCode（~/.local/share/opencode/opencode.db）\n" +
                     "- Crush（&lt;项目&gt;/.crush/crush.db）\n" +
-                    "- Aider（&lt;项目&gt;/.aider.chat.history.md）\n\n" +
+                    "- Aider（&lt;项目&gt;/.aider.chat.history.md）\n" +
+                    "- Gemini CLI（~/.gemini/tmp/）\n\n" +
                     "提示：需在竞品工具中曾在**当前目录（或其祖先目录）**有过会话记录。", "system");
                 return;
             }
@@ -124,7 +125,7 @@ public class JoinCommand : SlashCommand
             sb.AppendLine($"| {i + 1} | {s.ToolLabel} | {s.UpdatedAt:MM-dd HH:mm} | {s.Title} |");
         }
         sb.AppendLine();
-        sb.AppendLine("接手方式：`/join <序号>`，或 `/join claude|codex|opencode|crush` 直接接手最新会话。");
+        sb.AppendLine("接手方式：`/join <序号>`，或 `/join claude|codex|opencode|crush|aider|gemini` 直接接手最新会话。");
         return sb.ToString().Trim();
     }
 }
