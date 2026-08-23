@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.85.2 (2026-08-23) — CLI 模型导入增强：`--model import alllocal / allonline / all` + 在线指定源
+
+- **组合命令**：
+  - `--model import alllocal` — 导入全部本地模型（Ollama /api/tags + LM Studio /v1/models + CC Switch）
+  - `--model import allonline`（或 `online`）— 导入全部在线端点模型列表（OpenCode/OpenRouter/Groq/SiliconFlow/Together/DeepSeek/OpenAI/Moonshot 共 9 个）
+  - `--model import all`（或 `auto`）— 本地 + 在线全部
+  - `--model import online <源名>` — 在线指定源
+- 新增 `ModelCli.ImportOnlineAll`（在线批量拉取 /models 写全局库，无 key 也拉模型、使用前设 key）
+- 验证：`import alllocal` 导入 LM Studio embed 模型；`import online opencode` 拉取 muse-spark/mimo/hy3/nemotron 等
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）
+
 ## v0.85.1 (2026-08-23) — 环境变量 key 自动导入补全（connect add 路径）+ providers.json 字段继承内置默认
 
 - **key 自动导入补到 `connect add`**：`AutoImportKeyFromEnv` 抽取为公共方法，`ApplyModelChoice`（选模型）与 CLI/TUI `/connect add`（建 connect）共用——新建 connect 时无 key 自动从官方环境变量复制 + `IsPlausibleApiKey` 校验
