@@ -18,10 +18,10 @@ public class JoinCommand : SlashCommand
 {
     public override string Name => "/join";
     public override string[] Aliases => ["/接手", "/续跑", "/handoff"];
-    public override string Description => "从 Claude/Codex/OpenCode/Crush 会话接着跑（聊天+todo+git）";
-    public override string? Usage => "/join [claude|codex|opencode|crush|list|<序号>]";
+    public override string Description => "从 Claude/Codex/OpenCode/Crush/Aider 会话接着跑（聊天+todo+git）";
+    public override string? Usage => "/join [claude|codex|opencode|crush|aider|list|<序号>]";
 
-    static readonly string[] Tools = ["claude", "codex", "opencode", "crush"];
+    static readonly string[] Tools = ["claude", "codex", "opencode", "crush", "aider"];
 
     public override async Task ExecuteAsync(string args, ChatScreen screen)
     {
@@ -39,7 +39,8 @@ public class JoinCommand : SlashCommand
                     "- Claude Code（~/.claude/projects/）\n" +
                     "- Codex（~/.codex/sessions/）\n" +
                     "- OpenCode（~/.local/share/opencode/opencode.db）\n" +
-                    "- Crush（&lt;项目&gt;/.crush/crush.db）\n\n" +
+                    "- Crush（&lt;项目&gt;/.crush/crush.db）\n" +
+                    "- Aider（&lt;项目&gt;/.aider.chat.history.md）\n\n" +
                     "提示：需在竞品工具中曾在**当前目录（或其祖先目录）**有过会话记录。", "system");
                 return;
             }

@@ -33,6 +33,7 @@ public static class ContextBridge
             "codex" => "Codex",
             "opencode" => "OpenCode",
             "crush" => "Crush",
+            "aider" => "Aider",
             _ => Tool,
         };
     }
@@ -88,6 +89,9 @@ public static class ContextBridge
 
         if (toolFilter is null or "crush" && File.Exists(CrushProjectsJson))
             FindCrushSessions(result, norm);
+
+        if (toolFilter is null or "aider")
+            FindAiderSession(result, norm, cwd);
 
         result.Sort((a, b) => b.UpdatedAt.CompareTo(a.UpdatedAt));
         return result;
@@ -207,6 +211,51 @@ public static class ContextBridge
         catch { }
     }
 
+    /// <summary>从 cwd 向上找 .aider.chat.history.md（项目根），找到即加入。</summary>
+    static void FindAiderSession(List<ExternalSession> result, string norm, string cwd)
+    {
+        try
+        {
+            var dir = new DirectoryInfo(cwd);
+            while (dir != null)
+            {
+                var f = Path.Combine(dir.FullName, ".aider.chat.history.md");
+                if (File.Exists(f))
+                {
+                    var s = ProbeAider(f);
+                    if (s != null && IsRelevant(norm, s.Cwd))
+                        result.Add(s);
+                    return;
+                }
+                dir = dir.Parent;
+            }
+        }
+        catch { }
+    }
+
+    /// <summary>探测 Aider 历史文件（.aider.chat.history.md，纯 Markdown）。</summary>
+    static ExternalSession? ProbeAider(string file)
+    {
+        try
+        {
+            var cwd = Path.GetDirectoryName(file);
+            if (string.IsNullOrEmpty(cwd)) return null;
+
+            string? title = null;
+            foreach (var line in File.ReadLines(file, Encoding.UTF8))
+            {
+                if (line.StartsWith("USER:", StringComparison.Ordinal))
+                {
+                    title = Truncate(line[5..].Trim(), 60);
+                    break;
+                }
+                if (line.StartsWith("#", StringComparison.Ordinal)) continue;
+            }
+            return new ExternalSession("aider", file, File.GetLastWriteTime(file), title ?? "Aider 会话", cwd);
+        }
+        catch { return null; }
+    }
+
     // ─────────────────────────────────────────────────────────────
     // 交接文档生成
     // ─────────────────────────────────────────────────────────────
@@ -223,6 +272,7 @@ public static class ContextBridge
             case "codex": ParseCodex(session.Path, chat, todos); break;
             case "opencode": ParseOpencode(session.Path, session.SessionId, chat, todos); break;
             case "crush": ParseCrush(session.Path, session.SessionId, chat, todos); break;
+            case "aider": ParseAider(session.Path, chat); break;
         }
 
         var sb = new StringBuilder();
@@ -484,6 +534,58 @@ public static class ContextBridge
                 }
             }
         }
+    }
+
+    /// <summary>解析 Aider 历史文件（USER:/ASSISTANT:/TOOL: 段落，纯 Markdown）。</summary>
+    static void ParseAider(string file, List<(string, string)> chat)
+    {
+        try
+        {
+            string? role = null;
+            var sb = new StringBuilder();
+
+            void Flush()
+            {
+                if (role == null) return;
+                var text = sb.ToString().Trim();
+                if (text.Length > 0)
+                    AddChat(chat, role, text);
+                sb.Clear();
+            }
+
+            foreach (var line in File.ReadLines(file, Encoding.UTF8))
+            {
+                var t = line.TrimEnd();
+                if (t.StartsWith("USER:", StringComparison.Ordinal))
+                {
+                    Flush();
+                    role = "用户";
+                    sb.AppendLine(t[5..].Trim());
+                }
+                else if (t.StartsWith("ASSISTANT:", StringComparison.Ordinal))
+                {
+                    Flush();
+                    role = "助手";
+                    sb.AppendLine(t[10..].Trim());
+                }
+                else if (t.StartsWith("TOOL:", StringComparison.Ordinal))
+                {
+                    Flush();
+                    role = "工具";
+                    sb.AppendLine(t[5..].Trim());
+                }
+                else if (t.StartsWith("# Aider", StringComparison.Ordinal))
+                {
+                    // 跳过标题行 "# Aider chat conversation"
+                }
+                else if (role != null && sb.Length > 0)
+                {
+                    sb.AppendLine(t); // 多行消息的续行
+                }
+            }
+            Flush();
+        }
+        catch { }
     }
 
     // ─────────────────────────────────────────────────────────────
