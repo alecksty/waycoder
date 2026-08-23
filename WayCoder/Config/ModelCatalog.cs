@@ -882,6 +882,16 @@ public static class ModelCatalog
         => ResolveModelCallConstraints(modelId, baseUrl).SupportsVision;
 
     /// <summary>
+    /// 判断是否「本地服务」地址：localhost / 127.0.0.1 / 0.0.0.0 / 空。
+    /// 注意：Ollama 也有云端（ollama.com），不能只看 providerId=ollama，必须按地址判断。
+    /// </summary>
+    public static bool IsLocalUrl(string? baseUrl)
+        => string.IsNullOrWhiteSpace(baseUrl)
+        || baseUrl.Contains("localhost", StringComparison.OrdinalIgnoreCase)
+        || baseUrl.Contains("127.0.0.1")
+        || baseUrl.Contains("0.0.0.0");
+
+    /// <summary>
     /// 解析当前模型的 API 请求格式（openai / anthropic / gemini）。
     /// Find 带网关反查（同 id 不同网关是两个条目），再按 ProviderId 取厂商级；默认 openai。
     /// </summary>

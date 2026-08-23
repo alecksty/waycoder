@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.87.0 (2026-08-23) — `--model report / free / clean` 模型管理命令 + 本地模型按地址判断
+
+- **`--model report`**：测试所有 connect 的连通性，生成报告（✅ 可用 / ❌ 失败原因 / ⏭ 无 key）
+- **`--model free`**：测试模型库所有 free 模型（opencode zen `-free` + openrouter `:free`），列出可用的
+- **`--model clean`**（统一）：清理无效服务商 + 合并重复模型 + 删无效 connect
+  - **修复误删 bug**：clean 只在 **baseUrl 无效**（空/非 http(s)）时删服务商——探测失败/无 key/临时网络都不是删除理由（此前误删 opencode-go/zen/openrouter 模型）
+  - 遍历只做标记、结束后统一删除（不能边遍历边删）
+- **本地模型按地址判断**：`ModelCatalog.IsLocalUrl`（localhost/127.0.0.1 才算本地）——Ollama 也有云端（ollama.com），是否免 key 看 baseUrl 而非 providerId
+- 实测 `--model free`：**9 个可用**（zen：laguna/nemotron-3-ultra/nemotron-3.5；openrouter：nemotron-3 系/laguna/nemotron-nano）
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）
+
 ## v0.86.1 (2026-08-23) — README 补模型管理命令文档
 
 - README 增加「模型管理」命令段：`--model import alllocal/allonline/all`、`--model check [connect]`、`--connect test`
