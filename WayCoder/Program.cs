@@ -50,8 +50,17 @@ public partial class Program
 
     private static WatchMode? _watchMode;
     private static volatile bool _exitRequested;
+
+    /// <summary>请求退出（/exit、/quit 斜杠命令调用）：设退出标志，REPL 主循环走正常清理路径退出。</summary>
+    public static void RequestExit() => _exitRequested = true;
     private static readonly Task?[] _slotTasks = new Task?[AgentSlot.Count];
     private static (List<JNode> Messages, string Model)? _pendingRestore;
+
+    /// <summary>待恢复的自动保存会话（/resume 用；TryRestoreSession 启动时填充）。</summary>
+    public static (List<JNode> Messages, string Model)? PendingRestore => _pendingRestore;
+
+    /// <summary>恢复后清空待恢复会话。</summary>
+    public static void ClearPendingRestore() => _pendingRestore = null;
 
     /// <summary>一次性/管道模式 POSIX 信号注册（保持引用防 GC 回收，Windows 下为 null）。</summary>
     private static System.Runtime.InteropServices.PosixSignalRegistration? _sigintReg;
