@@ -1,0 +1,12 @@
+MODEL:force
+DELAY:1500
+SNAP:ModelPicker打开
+INJECT:Down
+INJECT:Down
+DELAY:400
+SNAP:选中移动后
+INJECT:Enter
+DELAY:400
+SNAP:选择后
+INJECT:Escape
+DELAY:200

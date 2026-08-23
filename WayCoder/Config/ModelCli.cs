@@ -190,15 +190,88 @@ public static class ModelCli
     }
 
     /// <summary>
-    /// 测试模型库中所有 free 模型（id 含 free 的 openrouter :free / opencode zen -free），列出可用的。
+    /// 切换免费模型前记住的模型（/free-restore / --model restore 恢复）。
+    /// 持久化到 config.json（freePrevProvider/Model/BaseUrl）：跨会话可恢复（CLI 一次性进程也能还原）。
     /// </summary>
-    public static string Free(string? timeoutArg = null)
+    public static (string Provider, string Model, string? BaseUrl)? PreviousModel
     {
-        var freeModels = ModelCatalog.All
+        get
+        {
+            var c = Config.Instance;
+            if (string.IsNullOrEmpty(c.FreePrevModel)) return null;
+            return (c.FreePrevProvider ?? "", c.FreePrevModel, c.FreePrevBaseUrl);
+        }
+        set
+        {
+            var c = Config.Instance;
+            if (value is { } v)
+            {
+                c.FreePrevProvider = v.Provider;
+                c.FreePrevModel = v.Model;
+                c.FreePrevBaseUrl = v.BaseUrl;
+            }
+            else
+            {
+                c.FreePrevProvider = null;
+                c.FreePrevModel = null;
+                c.FreePrevBaseUrl = null;
+            }
+            c.SaveToConfigJson(); // 跨会话持久化
+        }
+    }
+
+    /// <summary>记住当前模型（切换免费模型前调用；未记录才记，避免覆盖已记住的）。</summary>
+    public static void RememberCurrentModel()
+    {
+        if (PreviousModel == null)
+            PreviousModel = (Config.Instance.Provider, Config.Instance.Model, Config.Instance.BaseUrl);
+    }
+
+    /// <summary>恢复 /free 切换前的模型（三端共用：TUI /free-restore、Web /free-restore、CLI --model restore）。</summary>
+    public static string RestorePrevious()
+    {
+        if (PreviousModel is not { } prev) return "⚠️ 无之前模型可恢复（先切换免费模型）";
+        ConnectionConfig.ApplyModelChoice(prev.Provider, prev.Model, isLarge: true, out var msg, prev.BaseUrl);
+        PreviousModel = null;
+        return $"✅ 已恢复之前模型：{ModelCatalog.ShortDisplayName(prev.Model)}（{prev.Provider}）";
+    }
+
+    /// <summary>枚举模型库中所有 free 模型（id 含 free，同 provider+id 去重）。</summary>
+    public static List<ModelCatalog.ModelInfo> EnumerateFreeModels()
+        => ModelCatalog.All
             .Where(m => m.Id.ToLowerInvariant().Contains("free"))
             .GroupBy(m => $"{m.ProviderId}|{m.Id.ToLowerInvariant()}")   // 同 provider+id 去重
             .Select(g => g.First())
             .ToList();
+
+    /// <summary>
+    /// 扫描可用的 free 模型（发简单请求验证，有 key 的才测），返回可用列表。
+    /// 供 /free 交互菜单（省钱：直接列可用免费模型切换）。
+    /// </summary>
+    public static List<ModelCatalog.ModelInfo> ScanFreeAvailable(int timeoutSec = 15)
+    {
+        var result = new List<ModelCatalog.ModelInfo>();
+        var all = EnumerateFreeModels();
+        int total = 0;
+        foreach (var m in all)
+        {
+            total++;
+            var key = ApiKeyStore.Get(m.ProviderId);
+            if (string.IsNullOrEmpty(key)) continue;
+            var baseUrl = m.DefaultBaseUrl ?? ConnectionConfig.ResolveProvider(m.ProviderId)?.BaseUrl ?? "";
+            Console.Error.WriteLine($"正在扫描 [{m.ProviderId}] 第 {total}/{all.Count} 个（{ModelCatalog.ShortDisplayName(m.Id)}）...");
+            var (ok, _) = ProbeChat(m.ProviderId, m.Id, baseUrl, timeoutSec);
+            if (ok) result.Add(m);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// 测试模型库中所有 free 模型（id 含 free 的 openrouter :free / opencode zen -free），列出可用的。
+    /// </summary>
+    public static string Free(string? timeoutArg = null)
+    {
+        var freeModels = EnumerateFreeModels();
         if (freeModels.Count == 0)
             return "模型库中没有 free 模型（--model import online opencode-zen / openrouter 导入后测试）";
         var timeout = ParseTimeout(timeoutArg);

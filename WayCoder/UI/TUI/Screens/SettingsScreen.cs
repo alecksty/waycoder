@@ -491,7 +491,8 @@ public class SettingsScreen : TuiScreen
         "AccentColor"        => _config.AccentColor,
         "ColorScheme"        => _config.ColorScheme,
         "ChatDisplayStyle"   => _config.ChatDisplayStyle,
-        _ => "",
+        // 其余配置项走 Schema Getter 自动读取（补全 45 项缺失，与 /config 命令共用逻辑）
+        _ => Config.GetPropValue(key) ?? "",
     };
 
     /// <summary>复位当前选中项为 schema 默认值（改错的值设回默认）。</summary>
@@ -571,6 +572,10 @@ public class SettingsScreen : TuiScreen
             case "AccentColor":        _config.AccentColor = value; break;
             case "ColorScheme":        Config.ApplyColorScheme(_config, value); break;
             case "ChatDisplayStyle":  _config.ChatDisplayStyle = value; break;
+            // 其余配置项走 Schema Setter 自动解析/钳制/select 校验（补全 45 项缺失，与 /config 命令共用逻辑）
+            default:
+                Config.TrySetPropValue(key, value, out _);
+                break;
         }
     }
 }

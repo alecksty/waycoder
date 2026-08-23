@@ -100,7 +100,13 @@ public class TuiScrollView : TuiView
             if (childAbsY + child.Height <= ClipTop || childAbsY >= ClipBottom)
                 continue;
 
-            child.Render(sb, absX, absY - ScrollOffset, ClipLeft, ClipTop, ClipRight, ClipBottom);
+            // 增量模式只画脏子项（对齐 TuiView.OnRender）：否则滚动视图内容每次 Render 全量重绘，
+            // 会把盖在上层的模态弹框区域覆盖掉（弹框增量只补自身脏控件，边框/背景不重画 → 花屏）。
+            // 视图容器（嵌套 TuiView）始终遍历递归查脏后代；滚动/内容变更时 MarkDirtyTree 已全树标脏，
+            // 因此「只画脏」不影响滚动与增删的正确性。
+            if (child is TuiView || child.IsDirty || IsDirty)
+                child.Render(sb, absX, absY - ScrollOffset, ClipLeft, ClipTop, ClipRight, ClipBottom);
+            child.IsDirty = false; // 渲染后清脏（TuiScrollView 不走 TuiView.OnRender 的清理路径）
         }
 
         ClipTop = savedTop;

@@ -145,7 +145,7 @@ public static class DiffPreview
             //   UI 线程（/diff 命令场景，主循环阻塞无外层循环）→ 本循环自己渲染 + 读键；
             //   后台线程（Agent 写文件前的 diff 确认，外层 RunAgentWithRenderLoop / REPL 主循环渲染 + 路由按键）
             //   → 只等待事件，绝不与主循环并发渲染（双线程 Render 竞态花屏）或双读控制台。
-            UxHelper.RenderWait(screen, evt, 120_000, win);
+            UxHelper.RenderWait(screen, evt, 0, win); // 用户主动对话框：不超时，等用户操作才关
         }
         catch { evt.Set(); }
         return (result, resultAccepted);

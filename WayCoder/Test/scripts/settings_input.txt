@@ -1,0 +1,14 @@
+COMMAND:/settings
+KEY:Tab
+KEY:Down
+KEY:Down
+KEY:Down
+KEY:Enter
+SNAP:BaseUrl输入弹框
+FOCUS
+TEXT:https://test.example.com/v1
+SNAP:输入后
+KEY:Enter
+SNAP:确认后
+FOCUS
+KEY:Escape
