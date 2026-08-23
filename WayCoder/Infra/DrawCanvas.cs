@@ -154,6 +154,23 @@ public sealed class Canvas
         }
     }
 
+    /// <summary>虚线线段：把线段切成「实段/空段」交替（dashOn/dashOff），逐实段调用 DrawLine。</summary>
+    public void DrawLineDashed(double x1, double y1, double x2, double y2, uint c, double width,
+        string cap = "butt", double dashOn = 6, double dashOff = 4)
+    {
+        double dx = x2 - x1, dy = y2 - y1;
+        double len = Math.Sqrt(dx * dx + dy * dy);
+        if (len < 1e-6) { DrawLine(x1, y1, x2, y2, c, width, cap); return; }
+        double ux = dx / len, uy = dy / len;
+        double t = 0;
+        while (t < len)
+        {
+            double segEnd = Math.Min(t + dashOn, len);
+            DrawLine(x1 + ux * t, y1 + uy * t, x1 + ux * segEnd, y1 + uy * segEnd, c, width, cap);
+            t = segEnd + dashOff;
+        }
+    }
+
     void Bresenham(int x0, int y0, int x1, int y1, uint c)
     {
         // 防整数溢出/病态坐标死循环：端点跨度超 int 范围时 Math.Abs(x1-x0) 溢出为负
