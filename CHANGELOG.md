@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.87.11 (2026-08-23) — /join 跨工具会话桥接 + 手搓 SQLite 只读解析器
+
+- **`/join`（`/接手` `/续跑` `/handoff`）**：从 Claude Code / Codex / OpenCode / Crush 会话「接着跑」——读取竞品会话的**聊天内容 + todo 清单 + 当前 git 状态**组装成交接文档注入当前 Agent，换工具无缝续跑
+  - `/join` 或 `/join list` 列出匹配当前 cwd 的候选会话（来源 + 更新时间 + 标题）
+  - `/join claude|codex|opencode|crush` 直接接手该工具最新会话
+  - `/join <序号>` 接手列表第 N 个
+- **手搓 `SqliteReader`**（`Infra/SqliteReader.cs`）：零依赖、AOT 安全的 SQLite 只读解析器，按 fileformat2 手写——文件头 → `sqlite_master` 定位表 → B-tree 遍历（leaf/interior + 右侧指针 + cell pointer array）→ overflow 页链式读取 → record 解码 + 全类型还原（int/double/text/blob/null），列名从 CREATE TABLE 解析
+- **`ContextBridge`**（`Infra/ContextBridge.cs`）：跨工具会话桥接——`FindSessions(cwd)` 按目录匹配扫描四种竞品存储（Claude `~/.claude/projects/*/*.jsonl`、Codex `~/.codex/sessions/`、OpenCode `~/.local/share/opencode/opencode.db`、Crush `<项目>/.crush/crush.db`），`BuildHandoffDoc` 组装 Markdown 交接文档（会话标题/更新时间/工作目录/对话记录/todo/git 状态）
+- **`ImportHelper` 修正 Claude 会话路径**：`~/.claude/sessions/*.json` → `~/.claude/projects/*/*.jsonl`（新版 Claude Code 实际存储位置）
+
+### ✅ 验证
+- **真实数据核验**：opencode.db 读 session 57 / message 1845 / part 9250 行，行数与 `sqlite3` 一致；大消息数据 SHA256 与 Python `sqlite3` 模块逐字节一致
+- **修复 6 字节整数（serialType 5）解码 bug**：漏 `buf[pos+1]` + 移位错（`<<32` 应 `<<40`），导致毫秒时间戳（2³²~2⁴⁸ 区间）全读错成 1970 年——修复后 opencode/crush 时间戳正确显示 2026-08-09
+- 当前项目实测找到 30 个候选会话（claude 14 / codex 1 / opencode 14 / crush 1），交接文档正确含真实聊天内容 + 工具调用
+- 编译 0 错误（1 个既有警告 ProviderCommand.cs，非本次引入）
+
 ## v0.87.10 (2026-08-23) — 新增 /exit /quit 退出指令 + /resume 恢复会话指令
 
 - **`/exit`（/quit / /退出）**：退出 WayCoder（`Program.RequestExit` 设退出标志，走 REPL 正常清理路径：保存会话 + 退出全屏）

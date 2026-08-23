@@ -1,0 +1,685 @@
+using System.Diagnostics;
+using System.Text;
+
+namespace WayCoder.Infra;
+
+/// <summary>
+/// 跨工具上下文桥接 —— 从 Claude Code / Codex / OpenCode / Crush 会话「接着跑」。
+///
+/// 读取竞品会话的「聊天内容 + todo 清单」，叠加当前 git 状态，组装成交接文档注入 WayCoder 新会话，
+/// 让用户从别的编程智能体切到 WayCoder 后能无缝续跑。
+///
+/// 数据源：
+///   - Claude Code: ~/.claude/projects/*/*.jsonl（JSONL，逐行 JSON）
+///   - Codex:       ~/.codex/sessions/**/*.jsonl（JSONL）
+///   - OpenCode:    ~/.local/share/opencode/opencode.db（SQLite，session/message/part）
+///   - Crush:       &lt;project&gt;/.crush/crush.db（SQLite，sessions/messages）+ projects.json 定位
+///
+/// 纯逻辑（无 LLM 依赖）：聊天直接搬文本，todo 取竞品自带的待办状态，git 执行只读命令。
+/// SQLite 读取走 <see cref="SqliteReader"/>（零依赖手写解析器）。
+///
+/// 用法：
+///   ContextBridge.FindSessions(cwd, tool)     → 候选会话列表（按更新时间倒序）
+///   ContextBridge.BuildHandoffDoc(session, cwd) → 交接文档 Markdown
+/// </summary>
+public static class ContextBridge
+{
+    /// <summary>一条外部会话的定位信息。Path=数据文件路径，SessionId=db 内主键（JSONL 源为 null）。</summary>
+    public record ExternalSession(string Tool, string Path, DateTime UpdatedAt, string Title, string Cwd, string? SessionId = null)
+    {
+        public string ToolLabel => Tool switch
+        {
+            "claude" => "Claude Code",
+            "codex" => "Codex",
+            "opencode" => "OpenCode",
+            "crush" => "Crush",
+            _ => Tool,
+        };
+    }
+
+    static readonly string Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    static readonly string ClaudeProjectsDir = Path.Combine(Home, ".claude", "projects");
+    static readonly string CodexSessionsDir = Path.Combine(Home, ".codex", "sessions");
+    static readonly string OpenCodeDb = Path.Combine(Home, ".local", "share", "opencode", "opencode.db");
+    static readonly string CrushProjectsJson = Path.Combine(Home, ".local", "share", "crush", "projects.json");
+
+    const int MaxChatLines = 60;      // 最多保留的聊天行数（user/assistant/工具）
+    const int MaxLineRunes = 600;     // 单条聊天文本截断长度（按码点）
+    const int MaxCwdScanLines = 120;  // 查找 cwd 时最多扫的行数
+
+    // ─────────────────────────────────────────────────────────────
+    // 会话查找
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 查找匹配当前 cwd 的竞品会话。toolFilter 为 "claude"/"codex"/"opencode"/"crush"/null（全部）。
+    /// 匹配规则：会话记录的 cwd 是当前 cwd 或其祖先目录（从子目录启动也能找到项目根会话）。
+    /// </summary>
+    public static List<ExternalSession> FindSessions(string cwd, string? toolFilter = null)
+    {
+        var result = new List<ExternalSession>();
+        var norm = Normalize(cwd);
+
+        if (toolFilter is null or "claude" && Directory.Exists(ClaudeProjectsDir))
+        {
+            foreach (var projDir in SafeGetDirs(ClaudeProjectsDir))
+            {
+                foreach (var f in SafeGetFiles(projDir, "*.jsonl"))
+                {
+                    var s = ProbeClaude(f);
+                    if (s != null && IsRelevant(norm, s.Cwd))
+                        result.Add(s);
+                }
+            }
+        }
+
+        if (toolFilter is null or "codex" && Directory.Exists(CodexSessionsDir))
+        {
+            foreach (var f in SafeGetFilesRecursive(CodexSessionsDir, "*.jsonl"))
+            {
+                var s = ProbeCodex(f);
+                if (s != null && IsRelevant(norm, s.Cwd))
+                    result.Add(s);
+            }
+        }
+
+        if (toolFilter is null or "opencode" && File.Exists(OpenCodeDb))
+            FindOpencodeSessions(result, norm);
+
+        if (toolFilter is null or "crush" && File.Exists(CrushProjectsJson))
+            FindCrushSessions(result, norm);
+
+        result.Sort((a, b) => b.UpdatedAt.CompareTo(a.UpdatedAt));
+        return result;
+    }
+
+    /// <summary>探测 Claude Code 会话文件，返回会话信息；不匹配/无法解析返回 null。</summary>
+    static ExternalSession? ProbeClaude(string file)
+    {
+        try
+        {
+            string? cwd = null, title = null;
+            int line = 0;
+            foreach (var raw in File.ReadLines(file, Encoding.UTF8))
+            {
+                if (++line > MaxCwdScanLines) break;
+                var node = Json.Parse(raw);
+                if (node == null) continue;
+
+                var type = node.GetString("type");
+                if (type == "user" && cwd == null)
+                {
+                    cwd = node.GetString("cwd");
+                    title = ExtractText(node["message"]?["content"]);
+                    if (title != null) title = Truncate(title, 60);
+                }
+                if (cwd != null && title != null) break;
+            }
+            if (cwd == null) return null;
+            var updated = File.GetLastWriteTime(file);
+            return new ExternalSession("claude", file, updated, title ?? Path.GetFileNameWithoutExtension(file), cwd);
+        }
+        catch { return null; }
+    }
+
+    /// <summary>探测 Codex 会话文件（从 session_meta 读 cwd）。</summary>
+    static ExternalSession? ProbeCodex(string file)
+    {
+        try
+        {
+            string? cwd = null, title = null;
+            int line = 0;
+            foreach (var raw in File.ReadLines(file, Encoding.UTF8))
+            {
+                if (++line > MaxCwdScanLines) break;
+                var node = Json.Parse(raw);
+                if (node == null) continue;
+
+                var type = node.GetString("type");
+                if (type == "session_meta" && cwd == null)
+                {
+                    cwd = node["payload"]?.GetString("cwd");
+                }
+                else if (type == "response_item" && title == null)
+                {
+                    var payload = node["payload"];
+                    if (payload?.GetString("type") == "message" && payload.GetString("role") == "user")
+                    {
+                        var text = ExtractTextCodex(payload["content"]);
+                        if (!string.IsNullOrWhiteSpace(text) && !text.StartsWith("<environment_context>"))
+                            title = Truncate(text, 60);
+                    }
+                }
+                if (cwd != null && title != null) break;
+            }
+            if (cwd == null) return null;
+            var updated = File.GetLastWriteTime(file);
+            return new ExternalSession("codex", file, updated, title ?? Path.GetFileNameWithoutExtension(file), cwd);
+        }
+        catch { return null; }
+    }
+
+    /// <summary>从 OpenCode db 的 session 表查找匹配 cwd 的会话。</summary>
+    static void FindOpencodeSessions(List<ExternalSession> result, string norm)
+    {
+        var t = SqliteReader.Open(OpenCodeDb, "session");
+        if (t == null) return;
+        for (int r = 0; r < t.Rows.Count; r++)
+        {
+            var dir = t.GetString(r, "directory");
+            if (dir == null || !IsRelevant(norm, dir)) continue;
+            var id = t.GetString(r, "id") ?? "";
+            var title = t.GetString(r, "title") ?? "Untitled";
+            var updated = FromMs(t.GetLong(r, "time_updated"));
+            result.Add(new ExternalSession("opencode", OpenCodeDb, updated, title, dir, id));
+        }
+    }
+
+    /// <summary>从 crush projects.json 定位项目，读各项目 .crush/crush.db 的 sessions。</summary>
+    static void FindCrushSessions(List<ExternalSession> result, string norm)
+    {
+        try
+        {
+            var node = Json.Parse(File.ReadAllText(CrushProjectsJson, Encoding.UTF8));
+            var projects = node?["projects"];
+            if (projects is not { Kind: JKind.Array }) return;
+
+            foreach (var p in projects.Items)
+            {
+                var path = p?["path"]?.AsString();
+                var dataDir = p?["data_dir"]?.AsString();
+                if (path == null || dataDir == null || !IsRelevant(norm, path)) continue;
+
+                var db = Path.Combine(dataDir, "crush.db");
+                if (!File.Exists(db)) continue;
+
+                var t = SqliteReader.Open(db, "sessions");
+                if (t == null) continue;
+                for (int r = 0; r < t.Rows.Count; r++)
+                {
+                    var id = t.GetString(r, "id") ?? "";
+                    var title = t.GetString(r, "title") ?? "Untitled";
+                    var updated = FromMs(t.GetLong(r, "updated_at"));
+                    result.Add(new ExternalSession("crush", db, updated, title, path, id));
+                }
+            }
+        }
+        catch { }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 交接文档生成
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>读取外部会话，组装交接文档（聊天 + todo + git 状态）。</summary>
+    public static string BuildHandoffDoc(ExternalSession session, string cwd)
+    {
+        var chat = new List<(string Role, string Text)>();
+        var todos = new List<TodoItem>();
+
+        switch (session.Tool)
+        {
+            case "claude": ParseClaude(session.Path, chat, todos); break;
+            case "codex": ParseCodex(session.Path, chat, todos); break;
+            case "opencode": ParseOpencode(session.Path, session.SessionId, chat, todos); break;
+            case "crush": ParseCrush(session.Path, session.SessionId, chat, todos); break;
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"# 跨工具会话交接（来自 {session.ToolLabel}）");
+        sb.AppendLine();
+        sb.AppendLine($"- **会话**：`{session.Title}`");
+        sb.AppendLine($"- **更新时间**：{session.UpdatedAt:yyyy-MM-dd HH:mm}");
+        sb.AppendLine($"- **工作目录**：`{session.Cwd}`");
+        sb.AppendLine();
+
+        // 待办清单放在最前 —— 是「接着跑」的第一抓手
+        if (todos.Count > 0)
+        {
+            sb.AppendLine("## 待办清单（todo）");
+            sb.AppendLine();
+            foreach (var t in todos)
+            {
+                var mark = t.Status switch
+                {
+                    "completed" => "✅",
+                    "in_progress" => "🔄",
+                    _ => "⬜",
+                };
+                sb.AppendLine($"- {mark} {t.Content}");
+            }
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("## 对话记录（最近）");
+        sb.AppendLine();
+        foreach (var (role, text) in chat)
+        {
+            sb.AppendLine($"### {role}");
+            sb.AppendLine(text);
+            sb.AppendLine();
+        }
+
+        var git = GitState(cwd);
+        if (!string.IsNullOrEmpty(git))
+        {
+            sb.AppendLine("## 当前 Git 状态");
+            sb.AppendLine();
+            sb.AppendLine("```");
+            sb.AppendLine(git);
+            sb.AppendLine("```");
+        }
+
+        sb.AppendLine("---");
+        sb.AppendLine("> 以上是上一个智能体的工作交接。请先阅读，再继续未完成的任务。");
+        return sb.ToString();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Claude Code / Codex（JSONL）
+    // ─────────────────────────────────────────────────────────────
+
+    static void ParseClaude(string file, List<(string, string)> chat, List<TodoItem> todos)
+    {
+        try
+        {
+            foreach (var raw in File.ReadLines(file, Encoding.UTF8))
+            {
+                var node = Json.Parse(raw);
+                if (node == null) continue;
+                var type = node.GetString("type");
+                if (type == null) continue;
+
+                if (type == "user")
+                {
+                    if (node.GetBool("isSidechain")) continue; // 跳过侧链（子智能体）消息
+                    var text = ExtractText(node["message"]?["content"]);
+                    if (!string.IsNullOrWhiteSpace(text))
+                        AddChat(chat, "用户", text);
+                }
+                else if (type == "assistant")
+                {
+                    var content = node["message"]?["content"];
+                    if (content == null) continue;
+                    if (content.Kind == JKind.Array)
+                    {
+                        foreach (var block in content.Items)
+                        {
+                            var bt = block?.GetString("type");
+                            if (bt == "text")
+                            {
+                                var text = block?.GetString("text");
+                                if (!string.IsNullOrWhiteSpace(text))
+                                    AddChat(chat, "助手", text!);
+                            }
+                            else if (bt == "tool_use")
+                            {
+                                var name = block?.GetString("name") ?? "工具";
+                                var input = block?["input"];
+                                if (name.Contains("odo", StringComparison.OrdinalIgnoreCase))
+                                    CollectTodoArray(input?["todos"], todos);
+                                else
+                                    AddChat(chat, "工具", SummarizeTool(name, input));
+                            }
+                        }
+                    }
+                    else
+                    {
+                        var text = ExtractText(content);
+                        if (!string.IsNullOrWhiteSpace(text))
+                            AddChat(chat, "助手", text);
+                    }
+                }
+                else if (type == "summary")
+                {
+                    var summary = node.GetString("summary");
+                    if (!string.IsNullOrWhiteSpace(summary))
+                        AddChat(chat, "摘要", summary);
+                }
+            }
+        }
+        catch { }
+    }
+
+    static void ParseCodex(string file, List<(string, string)> chat, List<TodoItem> todos)
+    {
+        try
+        {
+            foreach (var raw in File.ReadLines(file, Encoding.UTF8))
+            {
+                var node = Json.Parse(raw);
+                if (node == null) continue;
+                if (node.GetString("type") != "response_item") continue;
+
+                var payload = node["payload"];
+                if (payload == null) continue;
+                var pt = payload.GetString("type");
+
+                if (pt == "message")
+                {
+                    var role = payload.GetString("role");
+                    if (role == "developer" || role == "system") continue; // 跳过系统指令
+                    var text = ExtractTextCodex(payload["content"]);
+                    if (string.IsNullOrWhiteSpace(text)) continue;
+                    if (text.StartsWith("<environment_context>")) continue; // 跳过环境上下文注入
+                    AddChat(chat, role == "assistant" ? "助手" : "用户", text);
+                }
+                else if (pt == "function_call")
+                {
+                    var name = payload.GetString("name") ?? "工具";
+                    var args = payload.GetString("arguments") ?? "";
+                    if (name.Contains("odo", StringComparison.OrdinalIgnoreCase))
+                        CollectTodoArray(Json.Parse(args)?["todos"], todos);
+                    else
+                        AddChat(chat, "工具", SummarizeToolArgs(name, args));
+                }
+            }
+        }
+        catch { }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // OpenCode / Crush（SQLite）
+    // ─────────────────────────────────────────────────────────────
+
+    static void ParseOpencode(string db, string? sessionId, List<(string, string)> chat, List<TodoItem> todos)
+    {
+        if (sessionId == null) return;
+        var msgs = SqliteReader.Open(db, "message");
+        var parts = SqliteReader.Open(db, "part");
+        if (msgs == null || parts == null) return;
+
+        var msgList = new List<(string Id, string Role, long Time)>();
+        for (int r = 0; r < msgs.Rows.Count; r++)
+        {
+            if (msgs.GetString(r, "session_id") != sessionId) continue;
+            var id = msgs.GetString(r, "id");
+            if (id == null) continue;
+            var data = Json.Parse(msgs.GetString(r, "data") ?? "");
+            var role = data?["role"]?.AsString() ?? "assistant";
+            msgList.Add((id, role, msgs.GetLong(r, "time_created")));
+        }
+        msgList.Sort((a, b) => a.Time.CompareTo(b.Time));
+
+        var partsByMsg = new Dictionary<string, List<(long Time, string Kind, string Text)>>();
+        for (int r = 0; r < parts.Rows.Count; r++)
+        {
+            if (parts.GetString(r, "session_id") != sessionId) continue;
+            var mid = parts.GetString(r, "message_id");
+            if (mid == null) continue;
+            var data = Json.Parse(parts.GetString(r, "data") ?? "");
+            var type = data?["type"]?.AsString() ?? "";
+            var time = parts.GetLong(r, "time_created");
+            if (!partsByMsg.TryGetValue(mid, out var list)) partsByMsg[mid] = list = new();
+
+            if (type == "text")
+                list.Add((time, "text", data?["text"]?.AsString() ?? ""));
+            else if (type == "tool")
+                list.Add((time, "tool", $"[{data?["tool"]?.AsString() ?? "tool"}] {Truncate(data?["state"]?["input"]?.ToJson() ?? "", 200)}"));
+        }
+
+        foreach (var (id, role, _) in msgList)
+        {
+            if (!partsByMsg.TryGetValue(id, out var pl)) continue;
+            pl.Sort((a, b) => a.Time.CompareTo(b.Time));
+            foreach (var (_, kind, text) in pl)
+            {
+                if (kind == "text" && !string.IsNullOrWhiteSpace(text))
+                    AddChat(chat, role == "user" ? "用户" : "助手", text);
+                else if (kind == "tool")
+                    AddChat(chat, "工具", text);
+            }
+        }
+    }
+
+    static void ParseCrush(string db, string? sessionId, List<(string, string)> chat, List<TodoItem> todos)
+    {
+        if (sessionId == null) return;
+        var sessions = SqliteReader.Open(db, "sessions");
+        var msgs = SqliteReader.Open(db, "messages");
+        if (msgs == null) return;
+
+        // todo 从 sessions.todos（JSON 数组）
+        if (sessions != null)
+        {
+            for (int r = 0; r < sessions.Rows.Count; r++)
+            {
+                if (sessions.GetString(r, "id") != sessionId) continue;
+                var todosJson = sessions.GetString(r, "todos");
+                if (!string.IsNullOrEmpty(todosJson))
+                    CollectTodoArray(Json.Parse(todosJson), todos);
+                break;
+            }
+        }
+
+        // 消息按 created_at 排序
+        var rows = new List<(long Time, string Role, string Parts)>();
+        for (int r = 0; r < msgs.Rows.Count; r++)
+        {
+            if (msgs.GetString(r, "session_id") != sessionId) continue;
+            if (msgs.GetLong(r, "is_summary_message") != 0) continue;
+            rows.Add((msgs.GetLong(r, "created_at"), msgs.GetString(r, "role") ?? "", msgs.GetString(r, "parts") ?? ""));
+        }
+        rows.Sort((a, b) => a.Time.CompareTo(b.Time));
+
+        foreach (var (_, role, partsJson) in rows)
+        {
+            var arr = Json.Parse(partsJson);
+            if (arr is not { Kind: JKind.Array }) continue;
+            foreach (var part in arr.Items)
+            {
+                var type = part?["type"]?.AsString();
+                var data = part?["data"];
+                if (type == "text")
+                {
+                    var text = data?["text"]?.AsString();
+                    if (!string.IsNullOrWhiteSpace(text))
+                        AddChat(chat, role == "user" ? "用户" : "助手", text);
+                }
+                else if (type == "tool_result")
+                {
+                    var name = data?["name"]?.AsString() ?? "tool";
+                    var content = data?["content"]?.AsString() ?? "";
+                    AddChat(chat, "工具", $"[{name}] {Truncate(content, 200)}");
+                }
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 提取辅助
+    // ─────────────────────────────────────────────────────────────
+
+    static string? ExtractText(JNode? content)
+    {
+        if (content == null) return null;
+        if (content.Kind == JKind.String) return content.AsString();
+        if (content.Kind == JKind.Array)
+        {
+            var sb = new StringBuilder();
+            foreach (var block in content.Items)
+            {
+                if (block?.GetString("type") == "text")
+                {
+                    var t = block.GetString("text");
+                    if (!string.IsNullOrWhiteSpace(t)) sb.AppendLine(t);
+                }
+            }
+            return sb.ToString().Trim();
+        }
+        return null;
+    }
+
+    static string ExtractTextCodex(JNode? content)
+    {
+        if (content == null) return "";
+        var sb = new StringBuilder();
+        if (content.Kind == JKind.Array)
+        {
+            foreach (var block in content.Items)
+            {
+                if (block?.GetString("type") == "input_text")
+                {
+                    var t = block.GetString("text");
+                    if (!string.IsNullOrWhiteSpace(t)) sb.AppendLine(t);
+                }
+            }
+        }
+        else if (content.Kind == JKind.String)
+        {
+            sb.Append(content.AsString());
+        }
+        return sb.ToString().Trim();
+    }
+
+    /// <summary>从 todos JSON 数组提取待办（取最后一次调用覆盖，todo 是增量更新）。</summary>
+    static void CollectTodoArray(JNode? arr, List<TodoItem> todos)
+    {
+        if (arr is not { Kind: JKind.Array }) return;
+        todos.Clear();
+        foreach (var item in arr.Items)
+        {
+            var content = item?["content"]?.AsString();
+            if (string.IsNullOrWhiteSpace(content)) continue;
+            todos.Add(new TodoItem(content, item?["status"]?.AsString() ?? "pending"));
+        }
+    }
+
+    static string SummarizeTool(string name, JNode? input)
+    {
+        var arg = input?["command"]?.AsString()
+               ?? input?["path"]?.AsString()
+               ?? input?["pattern"]?.AsString()
+               ?? input?["description"]?.AsString()
+               ?? input?.ToJson();
+        if (arg != null) arg = Truncate(arg, 200);
+        return $"[{name}] {arg}";
+    }
+
+    static string SummarizeToolArgs(string name, string args)
+    {
+        var node = Json.Parse(args);
+        var arg = node?["command"]?.AsString()
+               ?? node?["path"]?.AsString()
+               ?? node?["pattern"]?.AsString()
+               ?? node?["description"]?.AsString();
+        if (arg == null && args.Length > 0) arg = Truncate(args, 200);
+        return $"[{name}] {arg}";
+    }
+
+    static void AddChat(List<(string, string)> chat, string role, string text)
+    {
+        chat.Add((role, Truncate(text, MaxLineRunes)));
+        if (chat.Count > MaxChatLines)
+            chat.RemoveAt(0);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // git 状态（只读命令）
+    // ─────────────────────────────────────────────────────────────
+
+    static string GitState(string cwd)
+    {
+        var sb = new StringBuilder();
+        var status = RunGit(cwd, "status --short --branch");
+        if (!string.IsNullOrEmpty(status))
+        {
+            sb.AppendLine("$ git status --short --branch");
+            sb.AppendLine(TruncateLines(status, 60));
+            sb.AppendLine();
+        }
+        var diffstat = RunGit(cwd, "diff --stat");
+        if (!string.IsNullOrEmpty(diffstat))
+        {
+            sb.AppendLine("$ git diff --stat");
+            sb.AppendLine(TruncateLines(diffstat, 60));
+        }
+        return sb.ToString().Trim();
+    }
+
+    static string RunGit(string cwd, string args)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo("git", args)
+            {
+                WorkingDirectory = cwd,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+            };
+            using var p = Process.Start(psi);
+            if (p == null) return "";
+            var outp = p.StandardOutput.ReadToEnd();
+            p.WaitForExit();
+            return outp.Trim();
+        }
+        catch { return ""; }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 通用辅助
+    // ─────────────────────────────────────────────────────────────
+
+    static bool IsRelevant(string normCwd, string sessionCwd)
+    {
+        if (string.IsNullOrEmpty(sessionCwd)) return false;
+        var s = Normalize(sessionCwd);
+        if (normCwd == s) return true;
+        var sep = Path.DirectorySeparatorChar;
+        return normCwd.StartsWith(s + sep, StringComparison.Ordinal);
+    }
+
+    static string Normalize(string path)
+    {
+        try { return Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar); }
+        catch { return path; }
+    }
+
+    static DateTime FromMs(long ms)
+    {
+        try { return ms > 0 ? DateTimeOffset.FromUnixTimeMilliseconds(ms).LocalDateTime : DateTime.MinValue; }
+        catch { return DateTime.MinValue; }
+    }
+
+    /// <summary>按码点安全截断（禁止 char 切片切半代理对，见 CLAUDE.md 约束）。</summary>
+    static string Truncate(string s, int maxRunes)
+    {
+        if (s.Length <= maxRunes) return s;
+        var sb = new StringBuilder();
+        int n = 0;
+        foreach (var r in s.EnumerateRunes())
+        {
+            if (n++ >= maxRunes) break;
+            sb.Append(r.ToString());
+        }
+        return sb.ToString() + "…";
+    }
+
+    static string TruncateLines(string s, int maxLines)
+    {
+        var lines = s.Split('\n');
+        if (lines.Length <= maxLines) return s;
+        return string.Join('\n', lines.Take(maxLines)) + $"\n…（共 {lines.Length} 行，截断）";
+    }
+
+    static IEnumerable<string> SafeGetDirs(string dir)
+    {
+        try { return Directory.GetDirectories(dir); }
+        catch { return []; }
+    }
+
+    static IEnumerable<string> SafeGetFiles(string dir, string pattern)
+    {
+        try { return Directory.GetFiles(dir, pattern); }
+        catch { return []; }
+    }
+
+    static IEnumerable<string> SafeGetFilesRecursive(string dir, string pattern)
+    {
+        try { return Directory.EnumerateFiles(dir, pattern, SearchOption.AllDirectories); }
+        catch { return []; }
+    }
+
+    record TodoItem(string Content, string Status);
+}
