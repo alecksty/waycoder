@@ -84,10 +84,10 @@ public class ModelArg : CliArg
                 result = ModelCli.Check(rest.Length > 0 ? rest[0] : null);
                 break;
             case "report":
-                result = ModelCli.Report();
+                result = ModelCli.Report(rest.Length > 1 ? rest[1] : null);
                 break;
             case "free":
-                result = ModelCli.Free();
+                result = ModelCli.Free(rest.Length > 1 ? rest[1] : null);
                 break;
             case "import":
                 // 组合命令：alllocal=全部本地(ollama/lmstudio/cc-switch)、allonline=全部在线端点、all/auto=本地+在线；
