@@ -274,7 +274,8 @@ public static class ModelCatalog
         if (string.IsNullOrWhiteSpace(providerId)) return false;
         if (!Providers.Remove(providerId)) return false;
         SaveProvidersJson();
-        ApiKeyStore.Remove(providerId);
+        // 关键：不连带删除 API Key——key 永不自动删除（clean 等自动清理不得删 key），
+        // 用户要删 key 请显式 --model key rm <provider>
         return true;
     }
 
