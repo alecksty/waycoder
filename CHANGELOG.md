@@ -1,5 +1,40 @@
 # 更新日志
 
+## v0.87.6 (2026-08-23) — 补日志文档 + free 弹框切换回归
+
+- 补记 v0.87.4 / v0.87.5 更新日志（此前已提交代码但日志滞后）
+- 使用手册 / README 补 `/free`、`/free-restore`、free.json 缓存与 `--model free/restore` 说明
+- 新增 `Test/scripts/free_switch.txt`：`/free` 弹框方向键选择 + Enter 切换的按键回归
+
+### ✅ 验证
+- 自测 4194+ 通过（1 失败为预先存在的「无约束模型原样发 medium」断言，与本次无关）
+
+## v0.87.5 (2026-08-23) — /free 读 free.json 缓存不重扫 + 修复弹窗未弹出 + 扫描不误判 chat/think
+
+- **free.json 缓存**：`--model free` 扫描生成的可用免费 connect 列表写入 `~/.waycoder/free.json`（增量持久化：逐模型扫到可用立即写，中途中断也能用已扫到的）；`/free`（TUI + Web）直接读缓存弹窗，**不再每次扫描**；free.json 空/不存在 → 提示先跑 `--model free`
+- **修复 `/free` 弹窗没弹出来**：FreeCommand 漏了 `screen.ShowWindow`（TuiDialog.Select 构建了窗口但没显示）
+- **扫描默认每模型 5s** 没回复即跳过（`--model free <秒>` 覆盖）
+- **不误判 chat/think**：`ProbeChat` 判可用加 `ReasoningTokens > 0`（think 模型内容在 reasoning_content 不再误判「空回复」）；LLM 400 回退加**第三级去 `reasoning_effort`**（chat-only 模型被误发 thinking 参数自动降级）；LLM 加 `TimeoutSeconds`（探测固定单次超时，不渐进加长）
+
+### ✅ 验证
+- 实测 `--model free`：28 个免费模型 → **4 个可用**（hy3-free / laguna-s-2.1-free / nemotron-3-ultra-free / nemotron-3.5-lightning-free）已写入 free.json
+- `/free` 弹框 → 方向键选择 → Enter 切换 laguna-s-2.1-free → 对话正常 → `/free-restore` 恢复 deepseek-v4-flash → 对话正常
+- 自测 4194+ 通过（1 失败同 v0.87.6）
+
+## v0.87.4 (2026-08-23) — /free-restore 三端持久化 + 设置弹框渲染/读写修复 + 对话框不自动关闭
+
+- **`/free` + `/free-restore` 三端**：切换免费模型前记住当前模型（`PreviousModel` 持久化到 config.json，跨会话可还原）；TUI 菜单 / Web `/free-restore` / CLI `--model restore` 统一走 `RememberCurrentModel` / `RestorePrevious`；CLI `--model name` 切换前自动记住
+- **修复设置界面弹框输入花屏**（两层渲染 bug）：
+  - `TuiScrollView` 增量模式无条件重绘全部子项并覆盖模态弹框 → 只画脏子项 + 渲染后清脏
+  - 弹框脏判断 `win.RootView.IsDirty` 不覆盖子控件（MarkDirty 只标叶子不冒泡）→ 改 `HasDirtyDescendant` 递归 + RenderWindow 整窗重绘时内容区全量
+- **修复设置界面 45 项配置读写缺失**（推理深度/Whisper/工具白名单/经济模式/沙箱/回退链/Watch 等）：`GetValue`/`SetValue` default 走 Schema Getter/Setter 自动补全
+- **修复对话框开着自动关闭**：用户主动选择器（ModelPicker/SessionPicker/FilePicker/ReasoningPicker/CommandPalette/键盘帮助/DiffPreview）`RenderWait` 超时改 0 无限等；LLM 询问（Ask/Secret/Select）保留超时默认 cancel；TUI 权限对话框本就不超时
+- **Keypad 测试设施**：`INJECT`/`MODEL` 脚本化驱动阻塞式选择器 + `InputManager.InjectKey` + ModelPicker `forceReadKeys` + `FOCUS` 查活跃屏幕 + `RAW` 原始 ANSI 调试
+
+### ✅ 验证
+- keypad 脚本实测：设置界面 text/secret/number 弹框输入完整、select 弹框选择后值正确保存（推理深度 low）、ModelPicker 打开/导航/Enter 确认/Esc 取消
+- 自测 4194+ 通过（1 失败同 v0.87.6）
+
 ## v0.87.3 (2026-08-23) — report/free 实时进度 + 可选单模型超时参数
 
 - **实时进度（stderr）**：`--model report` / `--model free` 测试时逐条输出「正在扫描 [provider] 第 n/N 个（模型）...」，不再干等
