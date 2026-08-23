@@ -50,6 +50,17 @@ WayCoder --permit tiny      # 纯聊天工作模式（Chat）：无任何工具 
 # 实测（写 1 万行贪吃蛇，minimax-m3，白名单 5 工具）：auto 8.0M token → extreme 4.2M token（↓48%），花费约减半
 # 配置优先级：config.json 为权威源，环境变量不覆盖（切换模式用 --economy 或改配置）
 
+# 模型管理（导入 / 能力检查 / 连接测试）
+WayCoder --model import alllocal          # 导入全部本地模型（Ollama /api/tags + LM Studio + CC Switch）
+WayCoder --model import allonline         # 导入全部在线模型列表（OpenRouter/Groq/SiliconFlow/DeepSeek/OpenAI 等 9 个端点）
+WayCoder --model import all               # 本地 + 在线全部
+WayCoder --model import online openrouter # 在线指定源
+WayCoder --model check [connect]          # 检查模型能力：think / tools / vision / API 格式 / 上下文 / key
+WayCoder --connect test                   # 连通性测试全部 connect（端点到关键）
+# 模型能力特性（SupportsThinking / SupportsTools / SupportsVision）存于 provider/*.json 模型条目，
+# LLM 请求按能力门控：不支持 tools 不发 schema、不支持 thinking 不发 reasoning；旧文件无字段自动推断
+# OpenRouter 等在线导入模型列表显示短名（openai/gpt-5.4 → gpt-5.4），调用仍用完整 id
+
 # 自动升级（检查并自替换，优先 Gitee、回退 GitHub）
 WayCoder --update
 
