@@ -106,6 +106,22 @@ public static class ModelCli
         return sb.ToString().TrimEnd();
     }
 
+    /// <summary>
+    /// 交互确认（Y/N）：删除 key 等敏感操作必须询问用户。
+    /// 非交互环境（管道/一次性模式/无终端）默认返回 false（保留，不删除）。
+    /// </summary>
+    private static bool ConfirmDelete(string prompt)
+    {
+        if (Console.IsInputRedirected || !Environment.UserInteractive) return false;
+        Console.Write($"{prompt} [y/N] ");
+        try
+        {
+            var r = Console.ReadLine()?.Trim().ToLowerInvariant();
+            return r is "y" or "yes";
+        }
+        catch { return false; }
+    }
+
     /// <summary>探测单个模型连通性：发一个简单 chat 请求，返回 (可用, 说明/原因)。</summary>
     private static (bool Ok, string Detail) ProbeChat(string providerId, string modelId, string baseUrl)
     {
@@ -647,12 +663,12 @@ public static class ModelCli
                     || !Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri)
                     || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps);
                 if (!badUrl) continue;
-                if (ApiKeyStore.Has(id)) ApiKeyStore.Remove(id);
+                // 只删无效的 provider 注册与模型，绝不删 key（key 永不自动删除，要删走 --model key rm）
                 if (ModelCatalog.Providers.ContainsKey(id))
-                    ModelCatalog.RemoveProvider(id); // 同时清 providers.json 与 key
+                    ModelCatalog.RemoveProvider(id);
                 if (ModelCatalog.RemoveCustomByProvider(id) > 0) removed++;
             }
-            return removed > 0 ? $"🗑 已清理 {removed} 个无效服务商（含 key 与模型）" : "没有无效服务商";
+            return removed > 0 ? $"🗑 已清理 {removed} 个无效服务商（保留 API key，模型已删）" : "没有无效服务商";
         }
     }
 
@@ -957,14 +973,12 @@ public static class ModelCli
             var display = ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DisplayName)
                 ? p.DisplayName : pid;
 
-            // 无端点：供应商不存在或未配置 base_url（写错地址/拼错供应商）→ 删除
+            // 无端点：供应商不存在或未配置 base_url（写错地址/拼错供应商）→ 删模型，key 保留
             if (string.IsNullOrWhiteSpace(baseUrl))
             {
                 var n = ModelCatalog.RemoveCustomByProvider(pid);
-                ApiKeyStore.Remove(pid);
-                removedKeys++;
                 removedModels += n;
-                sb.AppendLine($"🗑️  【{display}】无端点（供应商不存在或未配置 base_url）— 已删除 key" + (n > 0 ? $" + {n} 个自定义模型" : ""));
+                sb.AppendLine($"🗑️  【{display}】无端点（供应商不存在或未配置 base_url）— 已删模型" + (n > 0 ? $" {n} 个" : "") + "（key 保留）");
                 continue;
             }
 
@@ -976,21 +990,25 @@ public static class ModelCli
                 continue;
             }
 
-            // 仅 key 无效（401/403）：供应商真实可达，模型保留，只删 key
+            // 无效 key：询问用户是否删除（交互确认）；非交互（管道/一次性）默认保留
             if (detail.StartsWith("密钥无效", StringComparison.Ordinal))
             {
-                ApiKeyStore.Remove(pid);
-                removedKeys++;
-                sb.AppendLine($"🗑️  【{display}】{detail} — 已删除 key（模型保留）");
+                if (ConfirmDelete($"【{display}】检测到无效 API key（{pid}），是否删除？"))
+                {
+                    ApiKeyStore.Remove(pid);
+                    removedKeys++;
+                    sb.AppendLine($"🗑️  【{display}】{detail} — 已删除无效 key");
+                }
+                else
+                {
+                    sb.AppendLine($"⚠️  【{display}】{detail} — key 保留（--model key rm {pid} 显式删除）");
+                }
                 continue;
             }
 
-            // 其余失效（无法连接/写错地址/无 /models 接口）：供应商本身不可用 → 删 key + 模型
             var m = ModelCatalog.RemoveCustomByProvider(pid);
-            ApiKeyStore.Remove(pid);
-            removedKeys++;
             removedModels += m;
-            sb.AppendLine($"🗑️  【{display}】{detail} — 已删除 key" + (m > 0 ? $" + {m} 个自定义模型" : ""));
+            sb.AppendLine($"🗑️  【{display}】{detail} — 已删模型" + (m > 0 ? $" {m} 个" : "") + "（key 保留）");
         }
 
         sb.AppendLine();
