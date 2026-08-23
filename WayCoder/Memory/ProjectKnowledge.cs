@@ -21,11 +21,13 @@ public static class ProjectKnowledge
 
     /// <summary>
     /// 摄入项目文档（幂等：文档 mtime 指纹未变则复用缓存，避免每轮重读磁盘）。
+    /// 同时合并 <see cref="CodeKnowledge"/> 摄入的源码符号块，让检索覆盖「文档 + 代码」。
     /// </summary>
     public static int Ingest(string? cwd = null)
     {
         cwd ??= Directory.GetCurrentDirectory();
-        var fp = BuildFingerprint(cwd);
+        var codeDocs = CodeKnowledge.Ingest(cwd); // 自带缓存：指纹未变复用已提取符号
+        var fp = BuildFingerprint(cwd) + "|code:" + CodeKnowledge.Fingerprint;
         if (fp == _cacheFingerprint && _docs.Count > 0) return _docs.Count;
 
         var docs = new List<SemanticMemory.MemoryDocument>();
@@ -41,6 +43,9 @@ public static class ProjectKnowledge
             foreach (var f in Directory.EnumerateFiles(docsDir, "*.md", SearchOption.AllDirectories).Take(60))
                 AddFile(docs, f, "docs/" + Path.GetRelativePath(docsDir, f));
         }
+
+        // 合并代码符号块（代码块数可配：0 关闭，默认按 CodeKnowledge 上限）
+        docs.AddRange(codeDocs);
 
         _docs = docs;
         _cacheFingerprint = fp;

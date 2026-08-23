@@ -268,10 +268,10 @@ public partial class Agent
                 }
             }
 
-            // 项目知识库 RAG：注入与本目标最相关的项目文档片段（与任务无关时忽略）
+            // 项目知识库 RAG：注入与本目标最相关的项目文档/代码片段（与任务无关时忽略）
             if (!string.IsNullOrEmpty(_kbContext))
             {
-                systemContent += "\n\n<project_knowledge>\n以下是与当前目标最相关的项目文档片段（与任务无关时忽略）：\n" + _kbContext + "\n</project_knowledge>";
+                systemContent += "\n\n<project_knowledge>\n以下是与当前目标最相关的项目文档/代码片段（与任务无关时忽略）：\n" + _kbContext + "\n</project_knowledge>";
             }
 
             // 空 system 内容不注入（Chat 的 _systemPrompt 为空串）

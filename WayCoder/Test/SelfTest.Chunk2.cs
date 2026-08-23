@@ -136,6 +136,52 @@ public static partial class SelfTest
         }
         Console.WriteLine();
 
+        // ---- 代码知识库（源码符号提取 + TF-IDF 召回）----
+        Section("[代码知识库]");
+        var codeDir = Path.Combine(Path.GetTempPath(), "waycoder_codetest_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(codeDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(codeDir, "auth.cs"),
+                @"/// <summary>验证用户登录凭证并返回 JWT token。</summary>
+public string Authenticate(string username, string password)
+{
+    return IssueToken(username);
+}
+
+public class UserRepository
+{
+    public User FindByEmail(string email) { return null; }
+}");
+            File.WriteAllText(Path.Combine(codeDir, "util.py"),
+                @"# 计算两个字符串的编辑距离
+def levenshtein_distance(a, b):
+    return 0
+
+class Matrix:
+    def multiply(self, x, y):
+        return []");
+
+            var chunks = CodeKnowledge.Ingest(codeDir);
+            var titles = chunks.Select(c => c.Title).ToList();
+            Check("代码符号块数 > 0", chunks.Count > 0);
+            Check("提取 C# 方法 Authenticate", titles.Any(t => t.Contains("auth.cs") && t.Contains("Authenticate")));
+            Check("提取 C# 类 UserRepository", titles.Any(t => t.Contains("UserRepository")));
+            Check("提取 Python 函数 levenshtein_distance", titles.Any(t => t.Contains("levenshtein_distance")));
+            Check("提取 Python 类 Matrix", titles.Any(t => t.Contains("Matrix")));
+
+            var authChunk = chunks.FirstOrDefault(c => c.Title.Contains("Authenticate"));
+            Check("Authenticate 块含文档注释", authChunk != null && authChunk.Content.Contains("验证用户登录"));
+
+            var hits = SemanticMemory.SearchRelevant(chunks, "用户登录凭证 JWT token", 3);
+            Check("TF-IDF 召回登录相关代码", hits.Any(h => h.Doc.Title.Contains("Authenticate")));
+        }
+        finally
+        {
+            try { Directory.Delete(codeDir, true); } catch { }
+        }
+        Console.WriteLine();
+
         // ---- frontmatter 解析边界（未闭合不污染正文）----
         Section("[StructuredMemory.ParseFrontmatter]");
         var pfOk = StructuredMemory.ParseFrontmatter("---\nname: x\ndescription: d\n---\n正文内容");

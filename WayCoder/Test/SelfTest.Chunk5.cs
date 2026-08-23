@@ -289,6 +289,48 @@ public static partial class SelfTest
         Check("Reload: 未匹配服务器返回非空提示",
             !string.IsNullOrEmpty(McpManager.ReloadAsync("___waycoder_test_nonexistent___").Result));
 
+        // ---- MCP 生态目录 ----
+        Section("[MCP 目录]");
+
+        Check("目录: 内置数量 >= 10", McpCatalog.All.Count >= 10);
+        Check("目录: 查 git 命中", McpCatalog.Find("git")?.Name == "git");
+        Check("目录: 忽略大小写", McpCatalog.Find("GIT")?.Name == "git");
+        Check("目录: 查不存在返回 null", McpCatalog.Find("___nope___") == null);
+
+        var searchDb = McpCatalog.Search("数据库");
+        Check("目录: 按分类搜索「数据库」", searchDb.Count >= 2 && searchDb.Any(e => e.Name == "sqlite"));
+        var searchName = McpCatalog.Search("playwright");
+        Check("目录: 按名称搜索", searchName.Count >= 1 && searchName[0].Name == "playwright");
+        Check("目录: 空关键词返回全部", McpCatalog.Search(null).Count == McpCatalog.All.Count);
+
+        var ghNode = McpCatalog.ToServerNode(McpCatalog.Find("github")!);
+        Check("目录: ToServerNode name", ghNode["name"]?.AsString() == "github");
+        Check("目录: ToServerNode command", ghNode["command"]?.AsString() == "npx");
+        Check("目录: ToServerNode args 含包名",
+            ghNode["args"]?.Items.Any(a => a.AsString() == "@modelcontextprotocol/server-github") == true);
+        Check("目录: ToServerNode env ${VAR} 占位",
+            ghNode["env"]?["GITHUB_PERSONAL_ACCESS_TOKEN"]?.AsString() == "${GITHUB_TOKEN}");
+
+        // AddServerToConfig 隔离测试：切到临时目录，验证写入 + 去重，不污染真实配置
+        var origCwd = Environment.CurrentDirectory;
+        var tmpDir = Path.Combine(Path.GetTempPath(), "waycoder_mcpcat_" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tmpDir);
+        try
+        {
+            Environment.CurrentDirectory = tmpDir;
+            var timeNode = McpCatalog.ToServerNode(McpCatalog.Find("time")!);
+            var add1 = McpManager.AddServerToConfig(timeNode);
+            Check("AddServerToConfig: 首次写入成功", add1.Success);
+            Check("AddServerToConfig: 配置落盘", File.Exists(Path.Combine(tmpDir, ".waycoder", "mcp_servers.json")));
+            var add2 = McpManager.AddServerToConfig(timeNode);
+            Check("AddServerToConfig: 重复添加返回 false", !add2.Success);
+        }
+        finally
+        {
+            Environment.CurrentDirectory = origCwd;
+            try { Directory.Delete(tmpDir, true); } catch { }
+        }
+
         // ---- MCP 资源 / 提示词 ----
         Section("[MCP 资源/提示词]");
 
