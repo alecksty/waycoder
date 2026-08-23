@@ -6,6 +6,7 @@
   - `/join` 或 `/join list` 列出匹配当前 cwd 的候选会话（来源 + 更新时间 + 标题）
   - `/join claude|codex|opencode|crush` 直接接手该工具最新会话
   - `/join <序号>` 接手列表第 N 个
+  - **已有聊天记录则提示覆盖**：当前会话已存在 user 消息时，先弹确认框（「导入会叠加在现有对话之后」），取消则不做任何改动
 - **手搓 `SqliteReader`**（`Infra/SqliteReader.cs`）：零依赖、AOT 安全的 SQLite 只读解析器，按 fileformat2 手写——文件头 → `sqlite_master` 定位表 → B-tree 遍历（leaf/interior + 右侧指针 + cell pointer array）→ overflow 页链式读取 → record 解码 + 全类型还原（int/double/text/blob/null），列名从 CREATE TABLE 解析
 - **`ContextBridge`**（`Infra/ContextBridge.cs`）：跨工具会话桥接——`FindSessions(cwd)` 按目录匹配扫描四种竞品存储（Claude `~/.claude/projects/*/*.jsonl`、Codex `~/.codex/sessions/`、OpenCode `~/.local/share/opencode/opencode.db`、Crush `<项目>/.crush/crush.db`），`BuildHandoffDoc` 组装 Markdown 交接文档（会话标题/更新时间/工作目录/对话记录/todo/git 状态）
 - **`ImportHelper` 修正 Claude 会话路径**：`~/.claude/sessions/*.json` → `~/.claude/projects/*/*.jsonl`（新版 Claude Code 实际存储位置）

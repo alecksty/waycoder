@@ -9,16 +9,16 @@ class Waycoder < Formula
   desc "中文版易用编程智能体，C# (.NET) NativeAOT 单文件 CLI 编程 Agent"
   homepage "https://gitee.com/aleckstygit/way-coder"
   license "MIT"
-  version "0.87.10"
+  version "0.87.11"
 
   on_arm do
-    url "https://gitee.com/aleckstygit/way-coder/releases/download/v0.87.10/waycoder-v0.87.10-osx-arm64.tar.gz"
-    sha256 "ec291b30f0c6e884e492d23470da4f3e2df89e5ecb6a052dee74011d5fb68dfa"
+    url "https://gitee.com/aleckstygit/way-coder/releases/download/v0.87.11/waycoder-v0.87.11-osx-arm64.tar.gz"
+    sha256 "7be07dcbedd82c6ccd4c8e454259b42427d40d3f420e87e390ded92e0b012d22"
   end
 
   on_intel do
-    url "https://gitee.com/aleckstygit/way-coder/releases/download/v0.87.10/waycoder-v0.87.10-osx-x64.tar.gz"
-    sha256 "31b501ec6312510f7f275d80dd5aae047e7e2c897843ea09ceb8084ec2f2677c"
+    url "https://gitee.com/aleckstygit/way-coder/releases/download/v0.87.11/waycoder-v0.87.11-osx-x64.tar.gz"
+    sha256 "69fce101d632c64322f5b886873353703e49feb87010c3031e715070fc010f82"
   end
 
   def install
