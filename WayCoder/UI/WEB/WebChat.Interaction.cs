@@ -273,7 +273,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         if (kind == "image")
         {
             var model = Config.Instance.Model;
-            if (!LLM.ModelSupportsVision(model))
+            if (!ModelCatalog.ResolveSupportsVision(model, Config.Instance.BaseUrl))
                 return HttpResponse.JsonBody(Err($"当前模型 {model} 不支持图片输入（vision），请切换支持 vision 的模型"));
             // 按客户端绑定槽位的 agentId 入队，隔离多槽位图片（与 view_image 工具的 _agent_id 路径一致）
             var slot = ResolveSlot(ParseClientQuery(req.Query));
