@@ -1,0 +1,107 @@
+namespace WayCoder.Tools;
+
+/// <summary>
+/// 内置 MCP 服务器目录 —— 精选社区常用 MCP 服务器（对标 Claude Code 800+ 服务器的精选子集），
+/// 供 <c>/mcp list</c> 浏览、<c>/mcp add &lt;name&gt;</c> 一键写入 .waycoder/mcp_servers.json。
+///
+/// 设计约束：AOT 零反射、零网络依赖 —— 纯静态数据表，只在用户显式 add 时生成配置。
+/// 全部采用 stdio（npx）传输（最通用、跨平台），需要 API key 的服务器用 ${VAR} 环境变量占位，
+/// 用户先 export 对应环境变量再 add 即可直接可用（连接时经 ExpandEnvVars 展开）。
+/// </summary>
+public static class McpCatalog
+{
+    /// <summary>单条目录项：服务器名 + 描述 + 分类 + stdio 启动命令/参数/环境变量。</summary>
+    public sealed class Entry
+    {
+        public string Name = "";
+        public string Description = "";
+        public string Category = "";
+        public string Command = "npx";
+        public List<string> Args = [];
+        public Dictionary<string, string> Env = [];
+    }
+
+    /// <summary>内置目录（静态数据表，按分类分组排序）。</summary>
+    private static readonly Entry[] Catalog =
+    [
+        // ── 文件 / 搜索 ──
+        new() { Name = "filesystem", Category = "文件", Description = "文件系统读写/遍历（安全受限目录）", Args = ["-y", "@modelcontextprotocol/server-filesystem", "."] },
+        new() { Name = "everything", Category = "文件", Description = "Everything 桌面文件搜索（Windows）", Args = ["-y", "@modelcontextprotocol/server-everything"] },
+        new() { Name = "fetch", Category = "文件", Description = "网页抓取并转 Markdown", Args = ["-y", "@modelcontextprotocol/server-fetch"] },
+
+        // ── 版本控制 ──
+        new() { Name = "git", Category = "版本控制", Description = "Git 仓库操作（status/log/diff/commit）", Args = ["-y", "@modelcontextprotocol/server-git"] },
+        new() { Name = "github", Category = "版本控制", Description = "GitHub 仓库/PR/Issue（需 GITHUB_TOKEN）", Args = ["-y", "@modelcontextprotocol/server-github"], Env = new() { ["GITHUB_PERSONAL_ACCESS_TOKEN"] = "${GITHUB_TOKEN}" } },
+
+        // ── 浏览器 ──
+        new() { Name = "puppeteer", Category = "浏览器", Description = "无头浏览器自动化（截图/导航/点击）", Args = ["-y", "@modelcontextprotocol/server-puppeteer"] },
+        new() { Name = "playwright", Category = "浏览器", Description = "Playwright 浏览器自动化（微软出品）", Args = ["-y", "@playwright/mcp@latest"] },
+
+        // ── 搜索 ──
+        new() { Name = "brave-search", Category = "搜索", Description = "Brave 网页搜索（需 BRAVE_API_KEY）", Args = ["-y", "@modelcontextprotocol/server-brave-search"], Env = new() { ["BRAVE_API_KEY"] = "${BRAVE_API_KEY}" } },
+
+        // ── 数据库 ──
+        new() { Name = "sqlite", Category = "数据库", Description = "SQLite 数据库查询", Args = ["-y", "@modelcontextprotocol/server-sqlite", "data.db"] },
+        new() { Name = "postgres", Category = "数据库", Description = "PostgreSQL 查询（改连接串）", Args = ["-y", "@modelcontextprotocol/server-postgres", "postgresql://localhost:5432/postgres"] },
+
+        // ── 记忆 / 思考 ──
+        new() { Name = "memory", Category = "记忆", Description = "知识图谱持久记忆", Args = ["-y", "@modelcontextprotocol/server-memory"] },
+        new() { Name = "sequential-thinking", Category = "记忆", Description = "多步顺序思考（复杂推理）", Args = ["-y", "@modelcontextprotocol/server-sequential-thinking"] },
+
+        // ── 开发工具 ──
+        new() { Name = "context7", Category = "开发", Description = "最新库/框架文档查询", Args = ["-y", "@upstash/context7-mcp"] },
+        new() { Name = "docker", Category = "开发", Description = "Docker 容器/镜像管理", Args = ["-y", "@docker/mcp"] },
+        new() { Name = "sentry", Category = "开发", Description = "Sentry 错误追踪（需 SENTRY_TOKEN）", Args = ["-y", "@sentry/mcp@latest"], Env = new() { ["SENTRY_TOKEN"] = "${SENTRY_TOKEN}" } },
+
+        // ── 云 / 服务 ──
+        new() { Name = "time", Category = "服务", Description = "时间/时区转换", Args = ["-y", "@modelcontextprotocol/server-time"] },
+        new() { Name = "slack", Category = "服务", Description = "Slack 消息/频道（需 SLACK_BOT_TOKEN）", Args = ["-y", "@modelcontextprotocol/server-slack"], Env = new() { ["SLACK_BOT_TOKEN"] = "${SLACK_BOT_TOKEN}" } },
+        new() { Name = "google-maps", Category = "服务", Description = "Google Maps 地理/路线（需 API key）", Args = ["-y", "@modelcontextprotocol/server-google-maps"], Env = new() { ["GOOGLE_MAPS_API_KEY"] = "${GOOGLE_MAPS_API_KEY}" } },
+    ];
+
+    /// <summary>全部目录项（快照）。</summary>
+    public static IReadOnlyList<Entry> All => Catalog;
+
+    /// <summary>按名称精确查找（忽略大小写），未找到返回 null。</summary>
+    public static Entry? Find(string name)
+    {
+        foreach (var e in Catalog)
+            if (e.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                return e;
+        return null;
+    }
+
+    /// <summary>按关键词模糊匹配（名称或描述包含关键词，忽略大小写），空关键词返回全部。</summary>
+    public static List<Entry> Search(string? keyword)
+    {
+        if (string.IsNullOrWhiteSpace(keyword)) return new List<Entry>(Catalog);
+        var kw = keyword.Trim();
+        var result = new List<Entry>();
+        foreach (var e in Catalog)
+            if (e.Name.Contains(kw, StringComparison.OrdinalIgnoreCase)
+                || e.Description.Contains(kw, StringComparison.OrdinalIgnoreCase)
+                || e.Category.Contains(kw, StringComparison.OrdinalIgnoreCase))
+                result.Add(e);
+        return result;
+    }
+
+    /// <summary>把目录项转成 mcp_servers.json 的服务器节点（stdio 传输）。</summary>
+    public static JNode ToServerNode(Entry e)
+    {
+        var args = JNode.Array();
+        foreach (var a in e.Args) args.Add(a);
+
+        var node = JNode.Object()
+            .Set("name", e.Name)
+            .Set("command", e.Command)
+            .Set("args", args);
+
+        if (e.Env.Count > 0)
+        {
+            var env = JNode.Object();
+            foreach (var kv in e.Env) env.Set(kv.Key, kv.Value);
+            node.Set("env", env);
+        }
+        return node;
+    }
+}

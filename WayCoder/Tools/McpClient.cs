@@ -163,7 +163,7 @@ public static class McpManager
                         {
                             var val = kv.Value?.AsString();
                             if (!string.IsNullOrEmpty(val))
-                                env[kv.Key] = val;
+                                env[kv.Key] = ExpandEnvVars(val);
                         }
                     }
 
@@ -478,6 +478,68 @@ public static class McpManager
         catch (Exception ex)
         {
             return $"重连失败: {ex.GetType().Name}: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// 把一个服务器节点写入 mcp_servers.json（去重 + 跳过示例项）。
+    /// 供 /mcp add 使用：成功后返回 true 与配置路径；已存在返回 false。
+    /// </summary>
+    public static (bool Success, string Message) AddServerToConfig(JNode server)
+    {
+        var name = server["name"]?.AsString();
+        if (string.IsNullOrEmpty(name))
+            return (false, "服务器配置缺少 name");
+
+        var cwd = Environment.CurrentDirectory;
+        var waycoderDir = Global.FindExistingConfigDir(cwd);
+        string targetDir;
+        if (waycoderDir != null)
+        {
+            targetDir = Path.Combine(cwd, waycoderDir);
+        }
+        else
+        {
+            targetDir = Path.Combine(cwd, ".waycoder");
+            Directory.CreateDirectory(targetDir);
+        }
+
+        var mcpPath = Path.Combine(targetDir, "mcp_servers.json");
+        var existing = JNode.Array();
+        if (File.Exists(mcpPath))
+        {
+            try
+            {
+                var existingJson = Json.Parse(File.ReadAllText(mcpPath, Encoding.UTF8));
+                if (existingJson is { Kind: JKind.Array } arr)
+                {
+                    foreach (var item in arr.Items)
+                    {
+                        var comment = item?["_comment"]?.AsString() ?? "";
+                        if (!comment.Contains("示例"))
+                            existing.Add(item!.Clone()!);
+                    }
+                }
+            }
+            catch { /* 旧配置损坏则重建 */ }
+        }
+
+        var existingNames = existing.Items
+            .Select(e => e?["name"]?.AsString())
+            .Where(n => n != null)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (existingNames.Contains(name))
+            return (false, $"服务器 {name} 已存在配置中");
+
+        existing.Add(server);
+        try
+        {
+            File.WriteAllText(mcpPath, existing.ToJson(true), Encoding.UTF8);
+            return (true, mcpPath);
+        }
+        catch (Exception ex)
+        {
+            return (false, $"写入失败: {ex.Message}");
         }
     }
 
