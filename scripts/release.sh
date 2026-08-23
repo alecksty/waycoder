@@ -86,11 +86,15 @@ else
   rm -rf "$NEW_DIR"
   cp -r "$WINGET_BASE/$LATEST_VER" "$NEW_DIR"
   # 版本号全局替换（PackageVersion + InstallerUrl 里的 vX.Y.Z 一并覆盖）
-  grep -rl "$LATEST_VER" "$NEW_DIR" | xargs -r sed -i "s/$LATEST_VER/$VER/g"
-  # 填 sha256（顺序：x64 → arm64，与 installer.yaml 一致）
+  # 点号转义为字面点（sed BRE 中 . 是通配符）；sed -i '' 兼容 GNU/BSD（BSD 需显式空备份后缀）
+  LATEST_VER_RE="${LATEST_VER//./\\.}"
+  for f in "$NEW_DIR"/*.yaml; do
+    sed -i '' "s/$LATEST_VER_RE/$VER/g" "$f"
+  done
+  # 填 sha256（按 Architecture 范围替换上一版真实 sha256，顺序：x64 → arm64）
   INST="$NEW_DIR/Aleckstygit.WayCoder.installer.yaml"
-  sed -i "0,/REPLACE_WITH_SHA256/s//${SHA[win-x64]}/" "$INST"
-  sed -i "0,/REPLACE_WITH_SHA256/s//${SHA[win-arm64]}/" "$INST"
+  sed -i '' "/Architecture: x64/,/InstallerSha256:/s/InstallerSha256:.*/InstallerSha256: ${SHA[win-x64]}/" "$INST"
+  sed -i '' "/Architecture: arm64/,/InstallerSha256:/s/InstallerSha256:.*/InstallerSha256: ${SHA[win-arm64]}/" "$INST"
   ok "  已生成 $NEW_DIR"
 fi
 
@@ -107,9 +111,10 @@ OLD_VER="$(sed -n 's/.*version "\([0-9.]*\)".*/\1/p' "$FORMULA" | head -1)"
 if [[ -z "$OLD_VER" ]]; then
   warn "  无法从 formula 提取版本号，跳过（请手动改 $FORMULA）"
 else
-  sed -i "s/$OLD_VER/$VER/g" "$FORMULA"
-  sed -i "0,/REPLACE_WITH_SHA256/s//${SHA[osx-arm64]}/" "$FORMULA"
-  sed -i "0,/REPLACE_WITH_SHA256/s//${SHA[osx-x64]}/" "$FORMULA"
+  OLD_VER_RE="${OLD_VER//./\\.}"
+  sed -i '' "s/$OLD_VER_RE/$VER/g" "$FORMULA"
+  sed -i '' "/on_arm do/,/sha256 /s/sha256 \".*\"/sha256 \"${SHA[osx-arm64]}\"/" "$FORMULA"
+  sed -i '' "/on_intel do/,/sha256 /s/sha256 \".*\"/sha256 \"${SHA[osx-x64]}\"/" "$FORMULA"
   ok "  已更新 $FORMULA → $VER"
 fi
 
@@ -134,10 +139,10 @@ echo ""
 c "【0. 上传发行资产】"
 cat <<EOF
   ① Gitee Release（国内主渠道，waycoder --update 优先走这里）:
-    https://gitee.com/aleckstygit/my-coder/releases
+    https://gitee.com/aleckstygit/way-coder/releases
     上传 dist/waycoder-$VERSION-*.zip / *.tar.gz 共 6 个资产
 
-  ② GitHub Release（海外 mirror；winget/brew 清单 URL 必须指向它——Gitee 附件是数字 ID URL 不可预测）:
+  ② GitHub Release（海外 mirror；winget/brew 清单 URL 指向 Gitee 可预测 release URL releases/download/<tag>/<file>）:
     走 Actions： git push github $VERSION
     或手动： https://github.com/alecksty/waycoder/releases/new?tag=$VERSION
 EOF
