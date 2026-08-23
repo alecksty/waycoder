@@ -1,0 +1,6 @@
+COMMANDMAIN:/free
+DELAY:400
+SNAP:/free弹窗
+FOCUS
+KEY:Enter
+SNAP:切换后
