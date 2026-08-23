@@ -340,6 +340,23 @@ public static class ModelCli
     }
 
     /// <summary>
+    /// 在线导入所有端点（或按名称/服务商过滤指定一个）：拉取各 /models 写入全局模型库。
+    /// CLI 入口 `--model import online [源名...]`；空 = 全部。
+    /// </summary>
+    public static string ImportOnlineAll(IReadOnlyList<string>? names = null)
+    {
+        var sources = names is { Count: > 0 }
+            ? OnlineSources.Where(s =>
+                names.Any(n => s.Name.Contains(n.Trim(), StringComparison.OrdinalIgnoreCase)
+                            || s.KeyProvider.Contains(n.Trim(), StringComparison.OrdinalIgnoreCase))).ToList()
+            : OnlineSources.ToList();
+        if (sources.Count == 0)
+            return "未找到匹配的在线源（可用: " + string.Join(", ", OnlineSources.Select(s => s.Name)) + "）";
+        var reports = sources.Select(s => ImportOnline(s)).ToList();
+        return string.Join("\n", reports);
+    }
+
+    /// <summary>
     /// 确认导入的服务商地址正确可用（探测 /models 端点），可用的写入 providers.json（服务商数据库）。
     /// 连通(2xx) 或端点存在但需认证(401/403) 都视为地址正确。
     /// </summary>

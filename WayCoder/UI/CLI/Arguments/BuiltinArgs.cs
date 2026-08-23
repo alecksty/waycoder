@@ -76,7 +76,26 @@ public class ModelArg : CliArg
                 result = rest.Length == 0 ? "用法: --model connect <base-url>" : ModelCli.Connect(rest[0]);
                 break;
             case "import":
-                result = ModelCli.Import(rest.Length > 0 ? rest[0] : null);
+                // 组合命令：alllocal=全部本地(ollama/lmstudio/cc-switch)、allonline=全部在线端点、all/auto=本地+在线；
+                // online [源名...]=在线拉取指定端点；其余走 Import（单源本地/配置文件/opencode 等）
+                var src0 = rest.Length > 0 ? rest[0].ToLowerInvariant() : "";
+                if (src0 is "all" or "auto")
+                {
+                    result = ModelCli.ImportLocalServices() + "\n" + ModelCli.ImportOnlineAll(null);
+                }
+                else if (src0 == "alllocal")
+                {
+                    result = ModelCli.ImportLocalServices();
+                }
+                else if (src0 is "online" or "allonline")
+                {
+                    var names = rest.Skip(1).ToArray();
+                    result = ModelCli.ImportOnlineAll(names.Length > 0 ? names : null);
+                }
+                else
+                {
+                    result = ModelCli.Import(rest.Length > 0 ? rest[0] : null);
+                }
                 break;
             case "add":
                 result = DispatchAdd(rest);
