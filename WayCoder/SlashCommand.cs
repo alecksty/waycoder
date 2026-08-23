@@ -114,6 +114,8 @@ public static class SlashCommandRegistry
 #if WAYCODER_TEST
         Register(new Commands.TestCommand()); // /test 仅 Debug/开发版
 #endif
+        Register(new Commands.ExitCommand());
+        Register(new Commands.ResumeCommand());
         Register(new Commands.HelpCommand());
         Register(new Commands.ResetCommand());
         Register(new Commands.ModelCommand());

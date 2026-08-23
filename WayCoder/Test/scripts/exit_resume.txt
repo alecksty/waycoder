@@ -1,0 +1,4 @@
+COMMANDMAIN:/exit
+SNAP:退出命令
+COMMANDMAIN:/resume
+SNAP:恢复命令

@@ -1129,14 +1129,7 @@ public partial class Program
             return;
         }
 
-        if ((userInput == "/resume" || userInput == "/continue") && _pendingRestore != null)
-        {
-            var (msgs, model) = _pendingRestore.Value;
-            _agent!.ReplaceMessages(msgs);
-            _pendingRestore = null;
-            screen.AddSystemMsg($"✔ 已恢复 {msgs.Count} 条消息 (模型: {model})");
-            return;
-        }
+        // /resume /continue 已注册为 ResumeCommand（SlashCommand 分发），走 Program.PendingRestore 恢复。
 
         // /loop 与 /plan 会直接启动 ChatAsync：若当前槽位 Agent 正在后台运行，
         // 不检查 IsBusy 会造成同一 Agent/LLM 并发 ChatAsync（推理缓冲/模型覆盖竞态、输出错乱）。
