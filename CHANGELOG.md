@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.86.1 (2026-08-23) — README 补模型管理命令文档
+
+- README 增加「模型管理」命令段：`--model import alllocal/allonline/all`、`--model check [connect]`、`--connect test`
+- 说明模型能力特性（SupportsThinking/Tools/Vision）存储与按能力门控、OpenRouter 短名显示
+
+### ✅ 验证
+- 纯文档更新，无代码改动
+
 ## v0.86.0 (2026-08-23) — 模型能力特性显式标识（SupportsThinking / SupportsTools / SupportsVision）+ `--model check`
 
 - **ModelInfo / ProviderInfo 加能力字段**：`SupportsThinking` / `SupportsTools` / `SupportsVision`（bool?，null=未声明→厂商/家族推断）；三级合并「模型 > 厂商 > 推断」
