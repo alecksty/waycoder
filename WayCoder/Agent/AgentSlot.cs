@@ -87,14 +87,14 @@ public class AgentSlot
     /// <summary>缓冲：开始一段 Agent 流式回复（占位消息）。</summary>
     public void BufferedStartStream()
     {
-        ChatMessages.Add(new ChatMsg { Role = "agent", Content = "", Streaming = true });
+        ChatMessages.Add(new ChatMsg { Role = "assistant", Content = "", Streaming = true });
     }
 
     /// <summary>缓冲：追加 token 到流式消息（无流式消息则自动新建）。</summary>
     public void BufferedAppendToken(string delta)
     {
         if (ChatMessages.Count == 0 || !ChatMessages[^1].Streaming)
-            ChatMessages.Add(new ChatMsg { Role = "agent", Content = "", Streaming = true });
+            ChatMessages.Add(new ChatMsg { Role = "assistant", Content = "", Streaming = true });
         ChatMessages[^1].Content += delta;
     }
 

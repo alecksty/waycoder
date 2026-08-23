@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Security.Cryptography;
 using System.Text;
 
 namespace WayCoder.Infra;
@@ -16,7 +15,7 @@ namespace WayCoder.Infra;
 ///   - OpenCode:    ~/.local/share/opencode/opencode.db（SQLite，session/message/part）
 ///   - Crush:       &lt;project&gt;/.crush/crush.db（SQLite，sessions/messages）+ projects.json 定位
 ///   - Aider:       &lt;project&gt;/.aider.chat.history.md（纯 Markdown）
-///   - Gemini CLI:  ~/.gemini/tmp/&lt;sha256(projectRoot)&gt;/chats/session-*.jsonl（JSONL）
+///   - Gemini CLI:  ~/.gemini/{tmp,history}/&lt;slug&gt;/chats/session-*.jsonl（JSONL，slug=slugify(basename)，cwd 存 .project_root / projects.json）
 ///
 /// 纯逻辑（无 LLM 依赖）：聊天直接搬文本，todo 取竞品自带的待办状态，git 执行只读命令。
 /// SQLite 读取走 <see cref="SqliteReader"/>（零依赖手写解析器）。
@@ -48,6 +47,8 @@ public static class ContextBridge
     static readonly string OpenCodeDb = Path.Combine(Home, ".local", "share", "opencode", "opencode.db");
     static readonly string CrushProjectsJson = Path.Combine(Home, ".local", "share", "crush", "projects.json");
     static readonly string GeminiTmpDir = Path.Combine(Home, ".gemini", "tmp");
+    static readonly string GeminiHistoryDir = Path.Combine(Home, ".gemini", "history");
+    static readonly string GeminiProjectsJson = Path.Combine(Home, ".gemini", "projects.json");
 
     const int MaxChatLines = 60;      // 最多保留的聊天行数（user/assistant/工具）
     const int MaxLineRunes = 600;     // 单条聊天文本截断长度（按码点）
@@ -268,51 +269,110 @@ public static class ContextBridge
     // Gemini CLI（JSONL）
     // ─────────────────────────────────────────────────────────────
 
-    /// <summary>从 ~/.gemini/tmp 定位 Gemini CLI 会话（项目目录 = sha256(projectRoot)）。</summary>
+    /// <summary>从 ~/.gemini/{tmp,history} 定位 Gemini CLI 会话（项目目录 = slugify(basename)，cwd 存 .project_root / projects.json）。</summary>
     static void FindGeminiSessions(List<ExternalSession> result, string norm, string cwd)
     {
-        if (!Directory.Exists(GeminiTmpDir)) return;
         var seen = new HashSet<string>();
 
-        // 方式一：精确 hash —— 从 cwd 向上遍历祖先目录，算 sha256 定位对应项目子目录
-        var dir = new DirectoryInfo(cwd);
-        while (dir != null)
+        // 方式一：projects.json 精确映射 {cwd: slug} —— 从当前 cwd 向上找最近的祖先项目
+        var cwdToSlug = LoadGeminiProjectsJson();
+        if (cwdToSlug.Count > 0)
         {
-            var chatsDir = Path.Combine(GeminiTmpDir, Sha256Hex(dir.FullName), "chats");
-            if (Directory.Exists(chatsDir))
+            var dir = new DirectoryInfo(cwd);
+            while (dir != null)
             {
+                if (cwdToSlug.TryGetValue(Normalize(dir.FullName), out var slug))
+                {
+                    CollectGeminiBySlug(result, seen, slug, dir.FullName, norm);
+                    break;
+                }
+                dir = dir.Parent;
+            }
+        }
+
+        // 方式二：精确 slug 兜底 —— slugify(basename) 直接算（无 projects.json 时仍可命中）
+        CollectGeminiBySlug(result, seen, Slugify(Path.GetFileName(cwd)), cwd, norm);
+
+        // 方式三：全量枚举 —— 读每个项目目录的 .project_root 恢复 cwd 做相关性匹配（处理 slug 碰撞后缀等）
+        foreach (var baseDir in new[] { GeminiTmpDir, GeminiHistoryDir })
+        {
+            if (!Directory.Exists(baseDir)) continue;
+            foreach (var projDir in SafeGetDirs(baseDir))
+            {
+                var chatsDir = Path.Combine(projDir, "chats");
+                if (!Directory.Exists(chatsDir)) continue;
+                var projCwd = ReadGeminiProjectRoot(projDir);
+                if (string.IsNullOrEmpty(projCwd) || !IsRelevant(norm, projCwd)) continue;
                 foreach (var f in SafeGetFiles(chatsDir, "session-*.jsonl"))
                 {
                     if (!seen.Add(f)) continue;
-                    var s = ProbeGemini(f, dir.FullName);
-                    if (s != null && IsRelevant(norm, s.Cwd))
-                        result.Add(s);
+                    var s = ProbeGemini(f, projCwd);
+                    if (s != null) result.Add(s);
                 }
             }
-            dir = dir.Parent;
         }
+    }
 
-        // 方式二：兜底枚举 —— hash 算法有差异（symlink/大小写）时，靠 metadata.directories 恢复 cwd 做相关性匹配
-        foreach (var projDir in SafeGetDirs(GeminiTmpDir))
+    /// <summary>按 slug 收集某个项目在 tmp 与 history 两个 baseDir 下的会话。</summary>
+    static void CollectGeminiBySlug(List<ExternalSession> result, HashSet<string> seen, string slug, string cwd, string norm)
+    {
+        if (string.IsNullOrEmpty(slug)) return;
+        foreach (var baseDir in new[] { GeminiTmpDir, GeminiHistoryDir })
         {
-            var chatsDir = Path.Combine(projDir, "chats");
+            var chatsDir = Path.Combine(baseDir, slug, "chats");
             if (!Directory.Exists(chatsDir)) continue;
             foreach (var f in SafeGetFiles(chatsDir, "session-*.jsonl"))
             {
                 if (!seen.Add(f)) continue;
-                var s = ProbeGemini(f, null);
+                var s = ProbeGemini(f, cwd);
                 if (s != null && IsRelevant(norm, s.Cwd))
                     result.Add(s);
             }
         }
     }
 
-    /// <summary>探测 Gemini CLI 会话文件（JSONL：首行 metadata + 后续 message 记录）。</summary>
+    /// <summary>读取 ~/.gemini/projects.json 的 {cwd: slug} 映射。</summary>
+    static Dictionary<string, string> LoadGeminiProjectsJson()
+    {
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (!File.Exists(GeminiProjectsJson)) return map;
+        try
+        {
+            var node = Json.Parse(File.ReadAllText(GeminiProjectsJson, Encoding.UTF8));
+            var projects = node?["projects"];
+            if (projects is { Kind: JKind.Object })
+            {
+                foreach (var (key, val) in projects.Entries)
+                {
+                    var slug = val.AsString();
+                    if (!string.IsNullOrEmpty(slug) && !string.IsNullOrEmpty(key))
+                        map[Normalize(key)] = slug;
+                }
+            }
+        }
+        catch { }
+        return map;
+    }
+
+    /// <summary>读取项目目录下的 .project_root 标记文件（含完整 cwd 路径）。</summary>
+    static string? ReadGeminiProjectRoot(string projDir)
+    {
+        var marker = Path.Combine(projDir, ".project_root");
+        if (!File.Exists(marker)) return null;
+        try
+        {
+            var text = File.ReadAllText(marker, Encoding.UTF8).Trim();
+            return string.IsNullOrEmpty(text) ? null : Normalize(text);
+        }
+        catch { return null; }
+    }
+
+    /// <summary>探测 Gemini CLI 会话文件（JSONL：首行 metadata + 后续 message 记录）。cwd 由调用方传入。</summary>
     static ExternalSession? ProbeGemini(string file, string? fallbackCwd)
     {
         try
         {
-            string? title = null, cwd = null;
+            string? title = null;
             foreach (var raw in File.ReadLines(file, Encoding.UTF8))
             {
                 var node = Json.Parse(raw);
@@ -330,35 +390,45 @@ public static class ContextBridge
                 }
                 else
                 {
-                    // metadata 记录：summary 优先当标题，directories 恢复 cwd
+                    // metadata 记录：summary 优先当标题
                     if (title == null)
                     {
                         var summary = node.GetString("summary");
                         if (!string.IsNullOrWhiteSpace(summary))
                             title = Truncate(summary, 60);
                     }
-                    if (cwd == null && node["directories"] is { Kind: JKind.Array } dirs)
-                    {
-                        foreach (var d in dirs.Items)
-                        {
-                            var p = d?.AsString();
-                            if (!string.IsNullOrWhiteSpace(p)) { cwd = p; break; }
-                        }
-                    }
                 }
-                if (title != null && (cwd != null || fallbackCwd != null)) break;
+                if (title != null) break;
             }
             return new ExternalSession("gemini", file, File.GetLastWriteTime(file),
-                title ?? Path.GetFileNameWithoutExtension(file), cwd ?? fallbackCwd ?? "");
+                title ?? Path.GetFileNameWithoutExtension(file), fallbackCwd ?? "");
         }
         catch { return null; }
     }
 
-    /// <summary>计算字符串的 SHA256 小写十六进制（与 Gemini CLI 的 projectHash 算法一致）。</summary>
-    static string Sha256Hex(string input)
+    /// <summary>复现 Gemini CLI 的 slugify：小写 + 非 [a-z0-9] 转 '-' + 折叠连续 '-' + 去首尾，空则 "project"。</summary>
+    static string Slugify(string text)
     {
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
-        return Convert.ToHexStringLower(hash);
+        var lower = text.ToLowerInvariant();
+        var sb = new StringBuilder(lower.Length);
+        bool prevDash = false;
+        foreach (var r in lower.EnumerateRunes())
+        {
+            int v = r.Value;
+            bool keep = v >= 'a' && v <= 'z' || v >= '0' && v <= '9';
+            if (keep)
+            {
+                sb.Append((char)v);
+                prevDash = false;
+            }
+            else if (!prevDash)
+            {
+                sb.Append('-');
+                prevDash = true;
+            }
+        }
+        var result = sb.ToString().Trim('-');
+        return string.IsNullOrEmpty(result) ? "project" : result;
     }
 
     // ─────────────────────────────────────────────────────────────

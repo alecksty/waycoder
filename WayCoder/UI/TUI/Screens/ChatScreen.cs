@@ -890,10 +890,10 @@ public partial class ChatScreen : TuiScreen
     {
         lock (_chatLock)
         {
-            var msg = new ChatMsg { Role = "agent", Content = "", Streaming = true };
+            var msg = new ChatMsg { Role = "assistant", Content = "", Streaming = true };
             ChatMessages.Add(msg);
             // 在 ChatList 中添加空白占位项
-            var item = new TuiListItem("agent", "", ChatList.Width - 2);
+            var item = new TuiListItem("assistant", "", ChatList.Width - 2);
             item.SetTime(DateTime.Now);
             ChatList.AddItem(item);
         }

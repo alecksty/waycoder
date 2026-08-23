@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.87.15 (2026-08-24) — 修复 /join gemini 会话定位 + 聊天角色统一
+
+- **修复 `/join gemini` 目录命名与 cwd 恢复 bug**（`ContextBridge`）：
+  - 项目目录名从错误的 `sha256(cwd)` 改为 Gemini CLI 实际算法 `slugify(basename)`（小写 + 非 `[a-z0-9]` 转 `-` + 折叠连续 `-` + 去首尾，空则 `project`），逐字复现
+  - metadata 的 cwd 恢复从错误的 `directories` 字段（实际不存在）改为读 `.project_root` 标记文件 + `~/.gemini/projects.json` 的 `{cwd:slug}` 映射
+  - 补齐 `~/.gemini/history/` baseDir（原只扫 `tmp/`，历史会话漏掉）
+  - 三路定位：① `projects.json` 精确映射 → ② `slugify` 兜底 → ③ 全量枚举读 `.project_root` 相关性匹配（应对 slug 碰撞后缀）
+  - 删除死代码 `Sha256Hex` 及 `System.Security.Cryptography` 引用
+- **聊天角色统一**：流式回复占位消息的 `Role` 从 `"agent"` 收敛为标准 `"assistant"`（`ChatScreen.StartAgentMsg` / `AgentSlot.BufferedStartStream` / `BufferedAppendToken`），消除同一 Agent 回复「agent / assistant」双标识混用导致的「两个智能体」；界面只显示一个「智能体」
+
+### ✅ 验证
+- 自测 4216 通过 / 1 失败（1 失败为预先存在的「无约束模型原样发 medium」断言，非本次引入）
+- 编译 0 错误（1 个既有警告 ProviderCommand.cs，非本次引入）
+
 ## v0.87.14 (2026-08-24) — 竞品痛点九连击：可回滚 / 护栏 / 测试驱动 / RAG / 复现 / 可视化 / 离线 / 中文优化
 
 针对竞品痛点补齐 9 项能力（对应 `/todo` 中 #12–#20）：

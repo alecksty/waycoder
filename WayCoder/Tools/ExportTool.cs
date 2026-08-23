@@ -78,7 +78,7 @@ public class ExportTool : ITool
             var content = m["content"]?.AsString() ?? "";
             var icon = role switch
             {
-                "user" => "👤", "assistant" => "🤖", "system" => "⚙",
+                "user" => "👤", "assistant" => "🤖", "agent" => "🤖", "system" => "⚙",
                 "tool" => "🔧", _ => "❓",
             };
 
@@ -156,6 +156,7 @@ public class ExportTool : ITool
     {
         "user" => "用户",
         "assistant" => "智能体",
+        "agent" => "智能体",
         "system" => "系统",
         "tool" => "工具",
         _ => role,
