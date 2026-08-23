@@ -229,7 +229,7 @@ WayCoder/
 /auto            智能分级确认
 /watch           切换 Watch 模式
 /session         会话管理 (list/save/load/resume)
-/join            从 Claude/Codex/OpenCode/Crush/Aider 会话接着跑（聊天+todo+git）
+/join            从 Claude/Codex/OpenCode/Crush/Aider/Gemini 会话接着跑（聊天+todo+git）
 /export          导出对话历史
 /history         搜索对话历史
 /settings        图形化设置界面

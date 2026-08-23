@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.87.13 (2026-08-24) — /join 新增 Gemini CLI 支持
+
+- **`/join gemini`**：读取 `~/.gemini/tmp/<sha256(项目路径)>/chats/session-*.jsonl`（JSONL：首行 metadata + 后续 message 记录）——解析 `user`/`gemini` 消息与 `functionCall`/`functionResponse` 工具调用，标题取 `summary` 或第一条用户消息，cwd 从 `directories` 恢复
+- 定位用**双通道**：① 从 cwd 向上遍历祖先目录算 SHA256 精确定位项目子目录；② 兜底枚举所有 `tmp/*/chats`，靠 metadata `directories` 做相关性匹配（应对 symlink/大小写等 hash 差异）
+- `/join` 候选来源扩到 6 个（Claude/Codex/OpenCode/Crush/Aider/**Gemini CLI**）
+
+### ✅ 验证
+- 构造 gemini 格式样例 JSONL 端到端：FindSessions 命中、标题/cwd 正确、用户↔助手对话 + `[工具调用]`/`[工具结果]` 完整还原进交接文档
+- 格式基于 gemini-cli 0.56.0 bundle 源码反推（`partToString`/`isMessageRecord`/`projectHash=sha256(cwd)`），**未经真实 gemini 会话验证**（需 Google OAuth 登录）
+- 编译 0 错误（1 个既有警告 ProviderCommand.cs，非本次引入）
+
 ## v0.87.12 (2026-08-23) — /join 新增 Aider 支持
 
 - **`/join aider`**：读取 `.aider.chat.history.md`（纯 Markdown）——从 cwd 向上找项目根历史文件，解析 `USER:`/`ASSISTANT:`/`TOOL:` 段落（多行消息合并），标题取第一条用户消息
