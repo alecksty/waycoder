@@ -1,5 +1,24 @@
 # 更新日志
 
+## v0.87.14 (2026-08-24) — 竞品痛点九连击：可回滚 / 护栏 / 测试驱动 / RAG / 复现 / 可视化 / 离线 / 中文优化
+
+针对竞品痛点补齐 9 项能力（对应 `/todo` 中 #12–#20）：
+
+1. **改坏可回滚**：每次轮对话首次写文件前自动文件快照（不污染 git stash，`~/.waycoder/checkpoints/`），`/timeline` 树状时间线 + `/undo <id> [文件]` 回退整点或单文件；`AutoCheckpoint` 配置开关（默认开）
+2. **目标护栏**：每轮把用户任务注入 `<current_goal>`，≥10 轮仍无进展时注入 `<goal_check>` 偏离拉回提示，防止智能体跑偏
+3. **成本护栏**：预算到 80%（`BudgetWarnPercent` 可调）即时预警、超预算即止（沿用既有 `--max-budget-usd`）；`/stats` 仪表盘加 10 段预算进度条
+4. **测试驱动修复**：`TestCommand` 配置指定测试命令优先于自动探测；本轮内测试失败 → 收尾前「硬绿判定」再跑一次，仍失败则强制继续修复不放行结束（`_turnTestFailed`/`_hardGreenGateDone` 双状态防死循环）
+5. **项目知识库 RAG**：`ProjectKnowledge` 摄入 README/AGENT.md/CLAUDE.md/docs/*.md，按标题分块（rune 安全），复用 `SemanticMemory` TF-IDF 检索，把最相关片段注入 `<project_knowledge>`（mtime 指纹缓存，零网络零向量）
+6. **可复现脚本导出**：`/repro` 从会话历史提取 bash 命令 + 写文件路径，生成 `repro_*.sh`（`set -euo pipefail`）
+7. **可视化**：DrawTool 加 `flowchart` 语义指令（Mermaid 风格 `A[开始]-->B{判断}-->C((结束))`，自动分层布局，节点 `[方]/(圆角)/{菱形}/((圆))` + 连线 `-->/-.->/==>/---`）；`line/arrow/polyline` 支持 `dash` 虚线；`text` 支持 `\n` 多行
+8. **内网/离线部署**：`UpdateEnabled` 关闭自动升级（`/update`/`--update` 门控）；`OllamaNumCtx` 显式注入 Ollama `options.num_ctx` 上下文窗口
+9. **中文 + 国内模型深度优化**：`ProviderInfo.Temperature` 厂商级温度覆盖（per-provider 参数）；`LLM.LocalizeError` 网络错误中文本地化（超时/连接拒绝/DNS 等映射为可读中文）
+
+### ✅ 验证
+- 新增自测：虚线（line/arrow/polyline 解析+SVG+PNG）、多行文字（tspan 拆分）、flowchart（8 图元结构 + SVG/PNG + 错误路径），全部通过
+- 自测 4215 通过 / 1 失败（1 失败为预先存在的「无约束模型原样发 medium」断言，非本次引入）
+- 编译 0 错误（1 个既有警告 ProviderCommand.cs，非本次引入）
+
 ## v0.87.13 (2026-08-24) — /join 新增 Gemini CLI 支持
 
 - **`/join gemini`**：读取 `~/.gemini/tmp/<sha256(项目路径)>/chats/session-*.jsonl`（JSONL：首行 metadata + 后续 message 记录）——解析 `user`/`gemini` 消息与 `functionCall`/`functionResponse` 工具调用，标题取 `summary` 或第一条用户消息，cwd 从 `directories` 恢复

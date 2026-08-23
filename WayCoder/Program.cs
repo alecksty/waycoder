@@ -206,6 +206,11 @@ public partial class Program
         // 一次性自动升级（--update）：检查并自替换，幂等（已最新则提示后退出）
         if (Arguments.CliArgRegistry.Has(parsed, "update"))
         {
+            if (!Config.Instance.UpdateEnabled)
+            {
+                Console.WriteLine("🔒 更新已禁用（内网/离线模式）。设置 WAYCODER_UPDATE_ENABLED=true 或 /config 打开「更新开关」后重试。");
+                return 0;
+            }
             var updateResult = await UpdateChecker.SelfUpdateAsync();
             Console.WriteLine(updateResult);
             return updateResult.StartsWith("✅", StringComparison.Ordinal) ? 0 : 1;
@@ -415,6 +420,7 @@ public partial class Program
         HooksManager.RunSessionStart("startup");
         McpManager.Init();
         CheckpointManager.LoadFromDisk();
+        CheckpointManager.AutoCheckpoint = Config.Instance.AutoCheckpoint;
 
         // 恢复会话（-c/--continue/--resume/--session）
         var hasResumeFlag = Arguments.CliArgRegistry.Has(parsed, "resume")

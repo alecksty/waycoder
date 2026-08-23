@@ -154,7 +154,15 @@ public class Config
     public string? FreePrevModel { get; set; }
     public string? FreePrevBaseUrl { get; set; }
     public double? MaxBudgetUsd { get; set; }
+    /// <summary>预算预警阈值（%）：花费达到预算此百分比时发出一次提醒（0=关闭预警）。</summary>
+    public double BudgetWarnPercent { get; set; } = 80.0;
     public bool AutoGitCommit { get; set; } = false;
+    /// <summary>写文件前自动快照（改坏可回滚）：每轮对话首次写文件前自动创建文件备份检查点。</summary>
+    public bool AutoCheckpoint { get; set; } = true;
+    /// <summary>更新开关（内网/离线部署）：关闭后 /update 与 --update 不做任何网络请求，直接提示已禁用。</summary>
+    public bool UpdateEnabled { get; set; } = true;
+    /// <summary>Ollama 显式 num_ctx（上下文窗口大小，0=自动探测不发送）。内网本地模型可强制指定。</summary>
+    public int OllamaNumCtx { get; set; } = 0;
     public bool WatchMode { get; set; } = false;
     public bool PromptCaching { get; set; } = true;
     public string SandboxLevel { get; set; } = "suggest";
@@ -250,6 +258,8 @@ public class Config
     public int BackgroundTaskTimeoutSec { get; set; } = 600;
     public int AutoTestTimeoutSec { get; set; } = 30;
     public int AutoTestDebounceSec { get; set; } = 60;
+    /// <summary>指定测试命令（测试驱动修复）：非空时优先用它而非自动探测；测试失败会硬绿判定直到通过。</summary>
+    public string TestCommand { get; set; } = "";
     public int GitTimeoutSec { get; set; } = 15;
     public int KillTimeoutSec { get; set; } = 10;
     public int DownloadTimeoutSec { get; set; } = 60;
@@ -511,6 +521,11 @@ public class Config
               c => c.AutoTestDebounceSec.ToString(),
               (c, v) => c.AutoTestDebounceSec = Math.Clamp(int.Parse(v), 10, 600), "60"),
 
+            P("TestCommand", "WAYCODER_TEST_COMMAND", null,
+              "指定测试命令", "🧪 测试", "测试驱动修复：非空时优先用它而非自动探测，测试失败会硬绿判定直到通过",
+              "text", null, 14,
+              c => c.TestCommand, (c, v) => c.TestCommand = v, ""),
+
             P("GitTimeoutSec", "WAYCODER_GIT_TIMEOUT_SEC", null,
               "Git 操作超时 (秒)", "⏱️ 超时", "Git 命令执行超时",
               "number", null, 14,
@@ -682,6 +697,12 @@ public class Config
               (c, v) => c.MaxBudgetUsd = string.IsNullOrEmpty(v) ? null : double.Parse(v, System.Globalization.CultureInfo.InvariantCulture),
               skipIfEmpty: true),
 
+            P("BudgetWarnPercent","WAYCODER_BUDGET_WARN_PCT",   null,
+              "预算预警阈值 (%)", "💰 预算", "花费达到预算此百分比时发出一次提醒（0=关闭）",
+              "number", null, 1,
+              c => c.BudgetWarnPercent.ToString("F0"),
+              (c, v) => c.BudgetWarnPercent = Math.Clamp(double.Parse(v, System.Globalization.CultureInfo.InvariantCulture), 0, 100), "80"),
+
             // ── 系统 ──
             P("Provider",         "WAYCODER_PROVIDER",          null,
               "提供商", "🔧 系统", "API 提供商 (openai/deepseek/...)",
@@ -693,6 +714,24 @@ public class Config
               "select", ["false","true"], 1,
               c => c.AutoGitCommit.ToString().ToLowerInvariant(),
               (c, v) => c.AutoGitCommit = bool.Parse(v), "false"),
+
+            P("AutoCheckpoint",   "WAYCODER_AUTO_CHECKPOINT",   null,
+              "写前自动快照", "🔧 系统", "每轮对话首次写文件前自动创建文件备份检查点（改坏可 /timeline 回滚）",
+              "select", ["true","false"], 2,
+              c => c.AutoCheckpoint.ToString().ToLowerInvariant(),
+              (c, v) => c.AutoCheckpoint = bool.Parse(v), "true"),
+
+            P("UpdateEnabled",    "WAYCODER_UPDATE_ENABLED",    null,
+              "更新开关", "🔧 系统", "内网/离线部署：关闭后 /update、--update 不做网络请求",
+              "select", ["true","false"], 3,
+              c => c.UpdateEnabled.ToString().ToLowerInvariant(),
+              (c, v) => c.UpdateEnabled = bool.Parse(v), "true"),
+
+            P("OllamaNumCtx",     "WAYCODER_OLLAMA_NUM_CTX",    null,
+              "Ollama num_ctx", "🔧 系统", "本地 Ollama 显式上下文窗口（0=自动探测不发送）",
+              "number", null, 4,
+              c => c.OllamaNumCtx.ToString(),
+              (c, v) => c.OllamaNumCtx = Math.Max(0, int.Parse(v)), "0"),
 
             P("WatchMode",        "WAYCODER_WATCH",             null,
               "Watch 模式", "🔧 系统", "监听外部编辑器 AI! 注释自动触发 Agent",

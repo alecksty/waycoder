@@ -20,6 +20,16 @@ public class UpdateCommand : SlashCommand
 
     public override async Task ExecuteAsync(string args, ChatScreen screen)
     {
+        // 内网/离线部署：更新开关关闭时不做任何网络请求
+        if (!Config.Instance.UpdateEnabled)
+        {
+            screen.AddMessage(
+                "**WayCoder 更新**\n\n🔒 更新已禁用（内网/离线模式）。\n\n" +
+                "如需启用：`/config` 中把「更新开关」设为 true，或设置环境变量 `WAYCODER_UPDATE_ENABLED=true`。",
+                "system");
+            return;
+        }
+
         var arg = args.Trim().ToLowerInvariant();
 
         if (arg is "now" or "yes" or "up" or "upgrade" or "升级")

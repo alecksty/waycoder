@@ -73,6 +73,24 @@ public partial class Agent
     /// <summary>会话中所有修改过的文件（不清空，用于 ContinuePrompt 等需要全量清单的场景）</summary>
     private readonly HashSet<string> _allSessionFiles = [];
 
+    /// <summary>本轮对话是否尚未自动快照（每轮首次写文件前触发一次文件备份，实现改坏可回滚）。</summary>
+    private bool _pendingAutoSnapshot;
+
+    /// <summary>自动快照的描述文本（取本轮用户输入截断，供 /timeline 回滚点识别）。</summary>
+    private string _autoSnapshotDesc = "";
+
+    /// <summary>预算预警是否已发出（每次会话只提醒一次，避免每轮重复刷屏）。</summary>
+    private bool _budgetWarned;
+
+    /// <summary>本轮任务目标（取用户输入，注入系统提示词做目标护栏，防偏离）。</summary>
+    private string _taskGoal = "";
+
+    /// <summary>项目知识库（RAG）本轮检索出的相关片段（每轮对话开始计算一次，注入系统提示词）。</summary>
+    private string _kbContext = "";
+
+    /// <summary>当前主循环轮次（供 FullMessages 在偏离拉回阈值处强化目标提醒）。</summary>
+    private int _currentRound;
+
     /// <summary>SHA256 循环检测：最近几轮的哈希值（检测 Agent 是否陷入重复操作循环）</summary>
     private readonly List<string> _recentActionHashes = [];
     private const int PerToolLoopWindow = 10;
@@ -238,6 +256,24 @@ public partial class Agent
                     .Replace(SystemPrompt.StandardRule1, SystemPrompt.FastModeRule1);
             }
 
+            // 目标护栏：注入本轮任务目标；多轮未完成时追加「偏离拉回」核对提示（防跑偏）
+            if (!string.IsNullOrEmpty(_taskGoal))
+            {
+                systemContent += "\n\n<current_goal>\n你当前的任务目标（务必始终围绕它推进，不要偏离到无关工作）：\n" + _taskGoal + "\n</current_goal>";
+                const int ReinforceRound = 10;
+                if (_currentRound >= ReinforceRound)
+                {
+                    systemContent += "\n\n<goal_check>\n你已连续执行超过 " + ReinforceRound +
+                        " 轮。请对照 <current_goal> 核对：当前工作是否仍与目标直接相关？若已偏离，立即回到目标；若目标已达成，请停止并输出总结。\n</goal_check>";
+                }
+            }
+
+            // 项目知识库 RAG：注入与本目标最相关的项目文档片段（与任务无关时忽略）
+            if (!string.IsNullOrEmpty(_kbContext))
+            {
+                systemContent += "\n\n<project_knowledge>\n以下是与当前目标最相关的项目文档片段（与任务无关时忽略）：\n" + _kbContext + "\n</project_knowledge>";
+            }
+
             // 空 system 内容不注入（Chat 的 _systemPrompt 为空串）
             if (!string.IsNullOrEmpty(systemContent))
                 result.Add(JNode.Object().Set("role", "system").Set("content", systemContent));
@@ -330,6 +366,21 @@ public partial class Agent
 
         int userMsgIndex = Messages.Count;
         AddMessage(JNode.Object().Set("role", "user").Set("content", userInput));
+        // 每轮对话开始时待自动快照：首次写文件前备份当前改动（回滚点 = 本轮动手前的状态）
+        _pendingAutoSnapshot = true;
+        _autoSnapshotDesc = "auto: " + ContextManager.TruncateByRunes(userInput, 48);
+        // 目标护栏：记录本轮任务目标，注入系统提示词防偏离
+        _taskGoal = ContextManager.TruncateByRunes(userInput, 500);
+        // 项目知识库 RAG：摄入项目文档 + 检索与本目标最相关的片段（每轮对话计算一次）
+        try
+        {
+            ProjectKnowledge.Ingest();
+            _kbContext = ProjectKnowledge.Query(_taskGoal);
+        }
+        catch (Exception ex) { DebugLog.Log("rag", $"项目知识库检索失败: {ex.Message}"); _kbContext = ""; }
+        // 测试驱动修复（硬绿判定）状态复位：每轮对话重新跟踪
+        _turnTestFailed = false;
+        _hardGreenGateDone = false;
         await CompressWithSmallModel(onToken);
 
         // ── Architect 模式：大模型出计划 → 小模型执行 ──
@@ -358,6 +409,7 @@ public partial class Agent
         for (int round = 0; round < _effectiveMaxRounds; round++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            _currentRound = round;
 
             // ── 优雅暂停（Ctrl+Z）──
             // 收到暂停请求后，在当前批次完成后的下一轮边界停机：提交进度 + 写检查点 + 存会话。
@@ -367,12 +419,21 @@ public partial class Agent
                 return await GracefulPauseAsync(onToken);
             }
 
-            // 预算检查：超过上限则停止
+            // 预算检查：超过上限则停止；逼近上限时一次性预警（成本护栏）
             if (_maxBudgetUsd != null)
             {
                 var spent = LlmClient.EstimatedCost ?? 0;
                 if (spent >= _maxBudgetUsd.Value)
                     return $"🛑 已达到预算上限 ${_maxBudgetUsd:F2}（已花费 ${spent:F4}，{round} 轮）。增加预算请使用 --max-budget-usd。";
+
+                var warnPct = Config.Instance.BudgetWarnPercent;
+                if (!_budgetWarned && warnPct > 0 && spent >= _maxBudgetUsd.Value * warnPct / 100.0)
+                {
+                    _budgetWarned = true;
+                    onToken?.Invoke(
+                        $"\n⚠️ **预算预警**：已花费 ${spent:F4} / 上限 ${_maxBudgetUsd:F2}（{warnPct:F0}%）。" +
+                        $"继续执行可能超支，可 /stats 查看、--max-budget-usd 提额。\n\n");
+                }
             }
 
             var resp = await LlmClient.ChatAsync(
@@ -403,6 +464,37 @@ public partial class Agent
                     return resp.Content ?? (saved
                         ? "[致命错误] 所有模型失败，会话已保存。"
                         : "[致命错误] 所有模型失败，且会话保存失败（检查磁盘/权限）。");
+                }
+
+                // ── 硬绿判定（测试驱动修复）──
+                // 本轮有测试失败且尚未验证 → 收尾前再跑一次测试确认。仍红则注入失败继续修复
+                //（不结束本轮），绿则放行。每轮最多执行一次，防测试无法修复时无限循环。
+                if (_turnTestFailed && !_hardGreenGateDone)
+                {
+                    _hardGreenGateDone = true;
+                    var gateCmd = DetectTestCommand();
+                    if (gateCmd != null)
+                    {
+                        var (gateExit, gateOut) = await RunTestCommandAsync(gateCmd, Config.Instance.AutoTestTimeoutSec);
+                        if (gateExit == 0)
+                        {
+                            _turnTestFailed = false; // 已绿，正常收尾
+                        }
+                        else if (gateExit != null)
+                        {
+                            // 仍红：保留完成消息 + 注入失败摘要，继续修复
+                            if (!string.IsNullOrEmpty(resp.Content))
+                                AddMessage(resp.ToMessage());
+                            var gateSnippet = ContextManager.TruncateByRunes(gateOut, 1500);
+                            AddMessage(JNode.Object()
+                                .Set("role", "user")
+                                .Set("content", "🔴 收尾前测试仍失败（exit=" + gateExit + "）：\n" + gateSnippet +
+                                    "\n\n请继续修复代码使测试通过，不要结束本轮任务。"));
+                            _analysisOnlyStreak = 0;
+                            _talksCodeStreak = 0;
+                            continue;
+                        }
+                    }
                 }
 
                 // 只有真正有内容才入历史：DeepSeek V4 等模型在大量推理（reasoning）后

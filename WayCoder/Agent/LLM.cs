@@ -443,7 +443,9 @@ public class LLM
                 .Set("stream", true)
                 // temperature 先转 double 再 round 到约束精度（默认 2 位）：float 0.1f → double 0.10000000149011612，
                 // JSON "R" 序列化输出长尾小数，被 glm-5.3 等严格网关（限 2 位）以 HTTP 400 拒绝
-                .Set("temperature", Math.Round((double)Math.Clamp(Temperature, 0f, 2f), constraints.TemperaturePrecision))
+                .Set("temperature", Math.Round(Math.Clamp(
+                    ModelCatalog.ResolveProviderTemperature(EffectiveModel, BaseUrl) ?? (double)Temperature,
+                    0.0, 2.0), constraints.TemperaturePrecision))
                 .Set("max_tokens", maxTokens);
 
             if (includeStreamOptions)
@@ -474,6 +476,12 @@ public class LLM
                         $"模型 {EffectiveModel} 限制 reasoning_effort 允许集 [{constraints.ReasoningEffortAllowed}]，" +
                         $"全局值 {Config.Instance.ReasoningEffort} 越界，已跳过该字段");
                 }
+            }
+
+            // 内网/离线部署：本地 Ollama 显式 num_ctx（上下文窗口），覆盖默认探测（0=自动，不发该字段）
+            if (Config.Instance.OllamaNumCtx > 0 && ModelCatalog.IsOllamaBaseUrl(BaseUrl))
+            {
+                b.Set("options", JNode.Object().Set("num_ctx", Config.Instance.OllamaNumCtx));
             }
 
             return b;
@@ -986,9 +994,15 @@ public class LLM
                     $"请求超时 {thisTimeoutSec:F0}s，第 {attempt + 2}/{effectiveMaxRetries} 次加长至 {nextTimeout:F0}s");
                 await Task.Delay((int)Math.Pow(2, attempt) * RetryBackoffMs, cancellationToken);
             }
-            catch (HttpRequestException ex) when (attempt < effectiveMaxRetries - 1)
+            catch (HttpRequestException ex)
             {
-                ErrorLog.Warning("LLM", $"网络错误，重试 {attempt + 1}/{effectiveMaxRetries}: {ex.Message}");
+                // 中文错误本地化：把 OS 级英文网络错误（Connection refused 等）转中文
+                if (attempt == effectiveMaxRetries - 1)
+                {
+                    ErrorLog.LlmError(Model, Endpoint, $"网络错误：{ex.Message}");
+                    throw new HttpRequestException(LocalizeError(ex.Message), ex);
+                }
+                ErrorLog.Warning("LLM", $"网络错误，重试 {attempt + 1}/{effectiveMaxRetries}: {LocalizeError(ex.Message)}");
                 await Task.Delay((int)Math.Pow(2, attempt) * RetryBackoffMs, cancellationToken);
             }
         }
@@ -1009,6 +1023,26 @@ public class LLM
         attempt < TimeoutMultipliers.Length
             ? TimeoutMultipliers[attempt]
             : TimeoutMultipliers[^1] + (attempt - TimeoutMultipliers.Length + 1);
+
+    /// <summary>把常见英文网络/HTTP 错误本地化为中文（纯子串替换，未命中保留原文）。</summary>
+    internal static string LocalizeError(string message)
+    {
+        if (string.IsNullOrEmpty(message)) return message;
+        return message
+            .Replace("Connection refused", "连接被拒绝")
+            .Replace("connection refused", "连接被拒绝")
+            .Replace("No such host is known", "无法解析主机名")
+            .Replace("Name or service not known", "无法解析主机名")
+            .Replace("The remote name could not be resolved", "无法解析远程主机名")
+            .Replace("Unable to connect to the remote server", "无法连接到远程服务器")
+            .Replace("An existing connection was forcibly closed", "连接被强制关闭")
+            .Replace("Connection reset by peer", "连接被对端重置")
+            .Replace("connection reset", "连接被重置")
+            .Replace("timed out", "超时")
+            .Replace("Timed out", "超时")
+            .Replace("The operation was canceled", "操作已取消")
+            .Replace("The request was canceled", "请求已取消");
+    }
 
     /// <summary>解析 HTTP Retry-After 头（秒数或 HTTP-date），返回毫秒延迟。</summary>
     internal static int? ParseRetryAfter(HttpResponseMessage resp)

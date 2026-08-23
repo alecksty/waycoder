@@ -91,6 +91,18 @@ public partial class Agent
                 catch { }
             }
 
+            // ── 改坏可回滚：每轮首次写文件前自动快照 ──
+            // 仅在改文件内容的工具前触发；每轮对话只快照一次（_pendingAutoSnapshot 防抖），
+            // 走纯文件备份（不进 git stash），回滚点 = 本轮动手前的工作区状态。
+            if (_pendingAutoSnapshot && CheckpointManager.AutoCheckpoint &&
+                tc.Name is "write_file" or "edit_file" or "multiedit" or "notebook_edit")
+            {
+                _pendingAutoSnapshot = false;
+                var cp = await CheckpointManager.CreateAutoSnapshotAsync(_autoSnapshotDesc);
+                if (cp != null && cp.Type != CheckpointType.Empty)
+                    onToolOutput?.Invoke($"«dim»📸 已自动快照 #{cp.Id}（{_autoSnapshotDesc}）· /timeline 可回滚«/»");
+            }
+
             // 可取消工具：中断（Web 停止按钮 / Ctrl+C）时能真正杀掉子进程（如 bash）。
             // bash 走流式路径（有 onToolOutput 时）；其余可取消工具统一走 ICancellableTool。
             var result = tool is BashTool bashTool && onToolOutput != null

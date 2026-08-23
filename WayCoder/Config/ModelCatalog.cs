@@ -139,7 +139,8 @@ public static class ModelCatalog
         string? ApiFormat = null,               // API 请求格式：null/空/openai=OpenAI 兼容；anthropic=原生 /v1/messages；gemini=原生 streamGenerateContent
         bool? SupportsThinking = null,          // 厂商级是否支持思考；null=模型/推断决定
         bool? SupportsTools = null,             // 厂商级是否支持工具；null=模型/默认 true
-        bool? SupportsVision = null);           // 厂商级是否支持视觉；null=模型/按 id 推断
+        bool? SupportsVision = null,            // 厂商级是否支持视觉；null=模型/按 id 推断
+        double? Temperature = null);            // 厂商级 temperature 覆盖；null=用全局 Config.Temperature
 
     /// <summary>Provider registry with default base URLs</summary>
     public static readonly Dictionary<string, ProviderInfo> Providers;
@@ -827,6 +828,15 @@ public static class ModelCatalog
             MergeBool(info?.SupportsThinking, provThink, InferSupportsThinking(modelId, info?.ReasoningEffortAllowed)),
             MergeBool(info?.SupportsTools, provTools, InferSupportsTools(modelId)),
             MergeBool(info?.SupportsVision, provVision, InferSupportsVision(modelId)));
+    }
+
+    /// <summary>厂商级 temperature 覆盖（per-provider 参数）：ProviderInfo.Temperature 优先，未声明返回 null 用全局。</summary>
+    public static double? ResolveProviderTemperature(string? modelId, string? baseUrl)
+    {
+        var info = string.IsNullOrWhiteSpace(modelId) ? null : Find(modelId, baseUrl);
+        if (info != null && Providers.TryGetValue(info.ProviderId, out var prov))
+            return prov.Temperature;
+        return null;
     }
 
     /// <summary>推断是否支持思考：声明了允许集（非 none）视为支持；Reasoning/推理家族（gpt-5/o/claude/gemini/deepseek-reasoner/qwen3-max 等）支持。</summary>

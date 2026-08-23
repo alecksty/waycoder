@@ -133,6 +133,7 @@ public static class SlashCommandRegistry
         Register(new Commands.SessionCommand());
         Register(new Commands.HistoryCommand());
         Register(new Commands.ExportCommand());
+        Register(new Commands.ReproduceCommand());
         Register(new Commands.ArchitectCommand());
 
         // 编辑/工具
@@ -155,6 +156,7 @@ public static class SlashCommandRegistry
         // 检查点
         Register(new Commands.CheckpointCommand());
         Register(new Commands.CheckpointsCommand());
+        Register(new Commands.TimelineCommand());
         Register(new Commands.UndoCommand());
 
         // 配置/系统
