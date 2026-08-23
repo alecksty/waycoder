@@ -135,7 +135,8 @@ public static class ModelCli
         try
         {
             var key = ApiKeyStore.Get(providerId) ?? "";
-            var llm = new LLM(modelId, key, baseUrl, maxTokens: 16);
+            // timeoutSeconds 固定单次超时（不渐进加长重试）：连通性探测要快速可控，别被全局重试链拖住
+            var llm = new LLM(modelId, key, baseUrl, maxTokens: 16, timeoutSeconds: timeoutSec);
             var resp = llm.ChatAsync(
                 new List<JNode> { JNode.Object().Set("role", "user").Set("content", "只回复两个字：ok") },
                 cancellationToken: new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSec)).Token
@@ -144,6 +145,8 @@ public static class ModelCli
             if (resp.IsFatalError) return (false, "致命错误");
             if (content.Length > 0) return (true, "回复: " + content[..Math.Min(content.Length, 20)]);
             if (resp.ToolCalls.Count > 0) return (true, "工具调用");
+            // think 模型：内容在 reasoning_content（不并入 Content），有思考即算连通，别误判为不可用
+            if (resp.ReasoningTokens > 0) return (true, $"思考 {resp.ReasoningTokens} tok");
             return (false, "空回复（模型可能只思考不输出）");
         }
         catch (Exception ex)
@@ -244,39 +247,72 @@ public static class ModelCli
             .Select(g => g.First())
             .ToList();
 
-    /// <summary>
-    /// 扫描可用的 free 模型（发简单请求验证，有 key 的才测），返回可用列表。
-    /// 供 /free 交互菜单（省钱：直接列可用免费模型切换）。
-    /// </summary>
-    public static List<ModelCatalog.ModelInfo> ScanFreeAvailable(int timeoutSec = 15)
+    /// <summary>免费可用 connect（/free 弹窗切换用，持久化到 free.json）。</summary>
+    public sealed record FreeConnect(string ProviderId, string ModelId, string? BaseUrl);
+
+    /// <summary>免费可用列表缓存路径（~/.waycoder/free.json，--model free 扫描生成，/free 直接读不重扫）。</summary>
+    public static string FreeJsonPath => Global.GlobalConfigPath("free.json");
+
+    /// <summary>保存可用免费 connect 列表到 free.json（--model free 扫描完写入）。</summary>
+    public static void SaveFreeJson(List<FreeConnect> items)
     {
-        var result = new List<ModelCatalog.ModelInfo>();
-        var all = EnumerateFreeModels();
-        int total = 0;
-        foreach (var m in all)
+        try
         {
-            total++;
-            var key = ApiKeyStore.Get(m.ProviderId);
-            if (string.IsNullOrEmpty(key)) continue;
-            var baseUrl = m.DefaultBaseUrl ?? ConnectionConfig.ResolveProvider(m.ProviderId)?.BaseUrl ?? "";
-            Console.Error.WriteLine($"正在扫描 [{m.ProviderId}] 第 {total}/{all.Count} 个（{ModelCatalog.ShortDisplayName(m.Id)}）...");
-            var (ok, _) = ProbeChat(m.ProviderId, m.Id, baseUrl, timeoutSec);
-            if (ok) result.Add(m);
+            var arr = JNode.Array();
+            foreach (var c in items)
+                arr.Add(JNode.Object()
+                    .Set("providerId", JNode.From(c.ProviderId))
+                    .Set("modelId", JNode.From(c.ModelId))
+                    .Set("baseUrl", JNode.From(c.BaseUrl ?? "")));
+            var root = JNode.Object().Set("free", arr);
+            var path = FreeJsonPath;
+            var dir = Path.GetDirectoryName(path);
+            if (dir != null) Directory.CreateDirectory(dir);
+            var tmp = path + ".tmp";
+            File.WriteAllText(tmp, Json.Serialize(root, indent: true));
+            File.Move(tmp, path, overwrite: true); // 原子替换
         }
+        catch { /* 写失败不阻塞 */ }
+    }
+
+    /// <summary>读取 free.json 缓存的免费可用 connect 列表（空 = 尚未扫描生成）。</summary>
+    public static List<FreeConnect> LoadFreeJson()
+    {
+        var result = new List<FreeConnect>();
+        try
+        {
+            var path = FreeJsonPath;
+            if (!File.Exists(path)) return result;
+            var root = Json.Parse(File.ReadAllText(path));
+            if (root is not { Kind: JKind.Object }) return result;
+            var arr = root["free"];
+            if (arr == null) return result;
+            foreach (var item in arr.Items)
+            {
+                var pid = item["providerId"]?.AsString();
+                var mid = item["modelId"]?.AsString();
+                if (string.IsNullOrEmpty(pid) || string.IsNullOrEmpty(mid)) continue;
+                result.Add(new FreeConnect(pid, mid, item["baseUrl"]?.AsString()));
+            }
+        }
+        catch { /* 损坏静默忽略 */ }
         return result;
     }
 
     /// <summary>
-    /// 测试模型库中所有 free 模型（id 含 free 的 openrouter :free / opencode zen -free），列出可用的。
+    /// 测试模型库中所有 free 模型（id 含 free 的 openrouter :free / opencode zen -free），列出可用的，
+    /// 并把可用列表写入 free.json（/free 之后直接读缓存弹窗，不再每次扫描）。
     /// </summary>
     public static string Free(string? timeoutArg = null)
     {
         var freeModels = EnumerateFreeModels();
         if (freeModels.Count == 0)
             return "模型库中没有 free 模型（--model import online opencode-zen / openrouter 导入后测试）";
-        var timeout = ParseTimeout(timeoutArg);
-        var sb = new StringBuilder($"Free 模型连通性测试（{freeModels.Count} 个，单模型超时 {timeout}s）：\n");
+        // 默认每模型 5s：没回复就跳过（连通性探测，不拖沓）。可传参覆盖（--model free <秒>）
+        var timeout = ParseTimeout(timeoutArg, fallback: 5);
+        var sb = new StringBuilder($"Free 模型连通性测试（{freeModels.Count} 个，单模型超时 {timeout}s，没回复即跳过）：\n");
         int ok = 0, fail = 0, skip = 0, total = 0;
+        var okList = new List<FreeConnect>();
         foreach (var m in freeModels)
         {
             total++;
@@ -291,10 +327,21 @@ public static class ModelCli
             Console.Error.WriteLine($"正在扫描 [{m.ProviderId}] 第 {total}/{freeModels.Count} 个（{ModelCatalog.ShortDisplayName(m.Id)}）...");
             var baseUrl = m.DefaultBaseUrl ?? ConnectionConfig.ResolveProvider(m.ProviderId)?.BaseUrl ?? "";
             var (ok2, detail) = ProbeChat(m.ProviderId, m.Id, baseUrl, timeout);
-            if (ok2) { ok++; sb.AppendLine($"  ✅ {ModelCatalog.ShortDisplayName(m.Id)}（{m.ProviderId}）{detail}"); }
+            if (ok2)
+            {
+                ok++;
+                okList.Add(new FreeConnect(m.ProviderId, m.Id, string.IsNullOrEmpty(baseUrl) ? null : baseUrl));
+                // 增量持久化：每扫到可用立即写 free.json——28 个模型逐个探测可能较久，
+                // 中途 Ctrl+C / 超时也能用已扫到的可用项（下次 /free 直接读缓存）
+                SaveFreeJson(okList);
+                sb.AppendLine($"  ✅ {ModelCatalog.ShortDisplayName(m.Id)}（{m.ProviderId}）{detail}");
+            }
             else { fail++; sb.AppendLine($"  ❌ {ModelCatalog.ShortDisplayName(m.Id)}（{m.ProviderId}）{detail}"); }
         }
+        if (okList.Count > 0) SaveFreeJson(okList); // 最终全量（幂等）
         sb.AppendLine($"\n汇总：可用 {ok}　失败 {fail}　跳过(无key) {skip}");
+        if (okList.Count > 0)
+            sb.AppendLine($"已把 {okList.Count} 个可用免费模型写入 free.json（/free 直接读缓存，不再重复扫描；重新扫描跑 --model free）");
         return sb.ToString();
     }
 

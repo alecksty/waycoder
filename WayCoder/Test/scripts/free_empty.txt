@@ -1,0 +1,2 @@
+COMMAND:/free
+SNAP:/free空缓存

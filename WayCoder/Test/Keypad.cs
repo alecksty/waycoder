@@ -179,6 +179,24 @@ public static class Keypad
                         DiagnoseSelectN(orig);
                         break;
 
+                    case "COMMANDMAIN":
+                        // 主线程同步执行斜杠命令（模拟真实 REPL：Program.Repl 在 UI 线程 await 命令）。
+                        // 弹窗类命令（/free 等）必须在主线程 ShowWindow 才能渲染 —— COMMAND 后台线程弹窗不画。
+                        {
+                            var (cmd2, cargs2) = SlashCommandRegistry.Match(value.Trim());
+                            if (cmd2 == null) { Emit(orig, $"# 未知命令: {value}"); break; }
+                            try
+                            {
+                                cmd2.ExecuteAsync(cargs2, screen).GetAwaiter().GetResult();
+                                Emit(orig, $"# ✓ {value}: 完成");
+                            }
+                            catch (Exception ex)
+                            {
+                                Emit(orig, $"# 命令 {value} 异常: {ex.GetType().Name}: {ex.Message}");
+                            }
+                        }
+                        break;
+
                     case "COMMAND":
                         // 执行斜杠命令（后台线程 + 超时检测），排查哪些命令卡住界面
                         {

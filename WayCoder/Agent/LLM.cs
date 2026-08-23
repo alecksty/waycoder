@@ -313,14 +313,18 @@ public class LLM
     }
 
     public LLM(string model, string apiKey, string? baseUrl = null,
-        int maxTokens = 32768, float temperature = 0.1f)
+        int maxTokens = 32768, float temperature = 0.1f, int timeoutSeconds = 0)
     {
         Model = model;
         ApiKey = apiKey;
         BaseUrl = baseUrl;
         MaxTokens = maxTokens;
         Temperature = temperature;
+        TimeoutSeconds = timeoutSeconds;
     }
+
+    /// <summary>单次请求超时（秒）。&gt;0 时覆盖全局 LlmHttpTimeoutSec 且不渐进加长重试——探测/连通性测试用。</summary>
+    public int TimeoutSeconds { get; set; }
 
     /// <summary>
     /// 运行时重配置 API 密钥与基础 URL（换供应商/换 key 时用）。
@@ -425,7 +429,7 @@ public class LLM
         // 构建请求体。JNode 无 Remove，400 回退时用 includeStreamOptions 参数重建不带 stream_options 的请求体。
         // 模型调用参数约束：模型级 > 厂商级 > 全局默认（Find 带网关：同 id 不同网关是两个条目）
         var constraints = ModelCatalog.ResolveModelCallConstraints(EffectiveModel, BaseUrl);
-        JNode BuildBody(bool includeStreamOptions, bool includeTools = true)
+        JNode BuildBody(bool includeStreamOptions, bool includeTools = true, bool includeThinking = true)
         {
             if (apiFormat == "anthropic") return BuildAnthropicBody(clonedMessages, clonedTools, maxTokens, constraints);
             if (apiFormat == "gemini") return BuildGeminiBody(clonedMessages, clonedTools, maxTokens, constraints);
@@ -455,7 +459,8 @@ public class LLM
 
             // 推理深度：DeepSeek V4 / OpenAI o-series 支持 reasoning_effort 参数。
             // 值恒来自全局，但：不支持思考的模型（本地等）一律不发；允许集越界→跳过（不发，避免 HTTP 400）
-            if (constraints.SupportsThinking)
+            // includeThinking=false：400 回退第三级——能力推断为支持思考但网关实际不认（chat-only 模型），去 thinking 重试防误判
+            if (includeThinking && constraints.SupportsThinking)
             {
                 var reasoningEffort = ModelCatalog.ResolveReasoningEffort(
                     constraints.ReasoningEffortAllowed, Config.Instance.ReasoningEffort);
@@ -546,8 +551,9 @@ public class LLM
         // 注意：CallWithRetryAsync 对 4xx 是「返回响应」而非抛异常（其抛出的 HttpRequestException
         // 也不带 StatusCode），故必须在返回后检查状态码再回退——此前 catch-when(StatusCode==BadRequest)
         // 永远不会命中，是死代码，导致 400 被当成 SSE 流解析、静默返回空响应。
-        // 400 两级回退：① 去 stream_options（OpenAI 扩展，部分兼容端点不认）
-        // ② 再去 tools（Ollama gemma2 等模型不支持工具调用 → 退化纯文本）。每次重试前释放旧响应。
+        // 400 三级回退：① 去 stream_options（OpenAI 扩展，部分兼容端点不认）
+        // ② 再去 tools（Ollama gemma2 等模型不支持工具调用 → 退化纯文本）
+        // ③ 再去 reasoning_effort（chat-only 模型被误发 thinking 参数 → 退化纯对话）。每次重试前释放旧响应。
         var resp = await CallWithRetryAsync(() => CreateAuthRequest(BuildBody(includeStreamOptions: true, includeTools: true)), cancellationToken);
         if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest)
         {
@@ -557,6 +563,11 @@ public class LLM
             {
                 resp.Dispose();
                 resp = await CallWithRetryAsync(() => CreateAuthRequest(BuildBody(includeStreamOptions: false, includeTools: false)), cancellationToken);
+                if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                {
+                    resp.Dispose();
+                    resp = await CallWithRetryAsync(() => CreateAuthRequest(BuildBody(includeStreamOptions: false, includeTools: false, includeThinking: false)), cancellationToken);
+                }
             }
         }
         // using 声明只读，不能重新赋值，故上面用普通变量 resp 重试，此处捕获最终响应统一释放
@@ -920,7 +931,10 @@ public class LLM
         // （实际 4 次重试），超时倍率表 [1,1.5,2,3,4,6,8] 永远走不到 6x/8x。
         var retries = maxRetries > 0 ? maxRetries : Config.Instance.LlmMaxRetries;
         var effectiveMaxRetries = Math.Max(1, retries + 1);
-        var baseTimeoutSec = timeoutSeconds > 0 ? timeoutSeconds : Config.Instance.LlmHttpTimeoutSec;
+        // TimeoutSeconds 显式设置（探测/连通测试）优先：固定单次超时，不做渐进加长，扫描可控不拖沓
+        var baseTimeoutSec = TimeoutSeconds > 0
+            ? TimeoutSeconds
+            : timeoutSeconds > 0 ? timeoutSeconds : Config.Instance.LlmHttpTimeoutSec;
 
         for (int attempt = 0; attempt < effectiveMaxRetries; attempt++)
         {

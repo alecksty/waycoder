@@ -150,23 +150,23 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return sb.ToString();
     }
 
-    /// <summary>/free — 列出可用的免费模型（省钱）。查看前记住当前模型，/free-restore 可恢复。</summary>
+    /// <summary>/free — 列出缓存的可用免费模型（free.json，--model free 扫描生成）。查看前记住当前模型，/free-restore 可恢复。</summary>
     private static string WebFreeText()
     {
         // 记住当前模型（/free-restore 恢复；未记录才记，不覆盖已记住的）
         ModelCli.RememberCurrentModel();
-        var available = ModelCli.ScanFreeAvailable(15);
+        var available = ModelCli.LoadFreeJson();
         if (available.Count == 0)
-            return "⚠️ 暂无可用免费模型（确认已 --model import online opencode-zen / openrouter 导入且有 key）";
+            return "⚠️ 暂无免费可用列表。先跑 `--model free` 扫描一次生成 free.json，之后 /free 直接读缓存（不重复扫描）";
         var sb = new StringBuilder();
-        sb.AppendLine($"💰 **可用免费模型（省钱）**（{available.Count} 个）");
+        sb.AppendLine($"💰 **可用免费模型（省钱）**（{available.Count} 个 · 缓存）");
         sb.AppendLine();
         sb.AppendLine("| 模型 | 供应商 |");
         sb.AppendLine("|---|---|");
-        foreach (var m in available)
-            sb.AppendLine($"| `{ModelCatalog.ShortDisplayName(m.Id)}` | {m.ProviderId} |");
+        foreach (var c in available)
+            sb.AppendLine($"| `{ModelCatalog.ShortDisplayName(c.ModelId)}` | {c.ProviderId} |");
         sb.AppendLine();
-        sb.AppendLine("用 `/model <名称>` 切换；`/free-restore` 恢复之前模型");
+        sb.AppendLine("用 `/model <名称>` 切换；`/free-restore` 恢复之前模型；重新扫描跑 `--model free`");
         return sb.ToString();
     }
 
