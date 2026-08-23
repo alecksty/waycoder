@@ -80,6 +80,12 @@ public class ModelArg : CliArg
             case "capabilities":
                 result = ModelCli.Check(rest.Length > 0 ? rest[0] : null);
                 break;
+            case "report":
+                result = ModelCli.Report();
+                break;
+            case "free":
+                result = ModelCli.Free();
+                break;
             case "import":
                 // 组合命令：alllocal=全部本地(ollama/lmstudio/cc-switch)、allonline=全部在线端点、all/auto=本地+在线；
                 // online [源名...]=在线拉取指定端点；其余走 Import（单源本地/配置文件/opencode 等）
@@ -116,8 +122,9 @@ public class ModelArg : CliArg
                 break;
             case "prune":
             case "clean":
-                // 统一清理（对齐 --provider clean）：无效服务商 → 删 providers.json + key + 模型
-                result = ModelCli.ProviderCli.CleanText();
+            case "cleanup":
+                // 统一清理：无效服务商（删 providers.json + key + 模型）+ 合并重复模型 + 删无效 connect
+                result = ModelCli.ProviderCli.CleanText() + "\n" + ModelCli.Clean();
                 break;
             default:
                 // 裸模型名：本次会话快捷选中，交给 Program 继续运行

@@ -106,6 +106,146 @@ public static class ModelCli
         return sb.ToString().TrimEnd();
     }
 
+    /// <summary>探测单个模型连通性：发一个简单 chat 请求，返回 (可用, 说明/原因)。</summary>
+    private static (bool Ok, string Detail) ProbeChat(string providerId, string modelId, string baseUrl)
+    {
+        try
+        {
+            var key = ApiKeyStore.Get(providerId) ?? "";
+            var llm = new LLM(modelId, key, baseUrl, maxTokens: 16);
+            var resp = llm.ChatAsync(
+                new List<JNode> { JNode.Object().Set("role", "user").Set("content", "只回复两个字：ok") },
+                cancellationToken: new CancellationTokenSource(TimeSpan.FromSeconds(60)).Token
+            ).GetAwaiter().GetResult();
+            var content = (resp.Content ?? "").Trim();
+            if (resp.IsFatalError) return (false, "致命错误");
+            if (content.Length > 0) return (true, "回复: " + content[..Math.Min(content.Length, 20)]);
+            if (resp.ToolCalls.Count > 0) return (true, "工具调用");
+            return (false, "空回复（模型可能只思考不输出）");
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// 测试所有 connect 的模型连通性，生成报告：
+    /// 遍历每个 connect（有 key 的 + 本地无需 key 的），发简单请求，列出可用 / 失败原因。
+    /// </summary>
+    public static string Report()
+    {
+        var connects = ConnectionConfig.ListConnects();
+        if (connects.Count == 0) return "暂无 connect（--connect add <name> <providerId> <modelId> 添加）";
+        var sb = new StringBuilder($"模型连通性报告（{connects.Count} 个 connect）：\n");
+        var seen = new HashSet<(string, string)>();
+        int ok = 0, fail = 0, skip = 0;
+        foreach (var c in connects)
+        {
+            if (!seen.Add((c.ProviderId, c.ModelId))) continue;
+            var prov = ConnectionConfig.ResolveProvider(c.ProviderId);
+            var baseUrl = prov?.BaseUrl ?? ModelCatalog.Find(c.ModelId, null)?.DefaultBaseUrl ?? "";
+            // 本地服务（localhost/127.0.0.1）无需 key；Ollama 云端（ollama.com）也要 key——按地址判断，不看 providerId
+            var isLocal = ModelCatalog.IsLocalUrl(baseUrl);
+            var hasKey = ApiKeyStore.Has(c.ProviderId);
+            if (!isLocal && !hasKey)
+            {
+                skip++;
+                sb.AppendLine($"  ⏭ {c.Name}（{ModelCatalog.ShortDisplayName(c.ModelId)}）无 key");
+                continue;
+            }
+            var (ok2, detail) = ProbeChat(c.ProviderId, c.ModelId, baseUrl);
+            if (ok2) { ok++; sb.AppendLine($"  ✅ {c.Name}（{ModelCatalog.ShortDisplayName(c.ModelId)}）{detail}"); }
+            else { fail++; sb.AppendLine($"  ❌ {c.Name}（{ModelCatalog.ShortDisplayName(c.ModelId)}）{detail}"); }
+        }
+        sb.AppendLine($"\n汇总：✅ {ok} 可用　❌ {fail} 失败　⏭ {skip} 跳过(无key)");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 测试模型库中所有 free 模型（id 含 free 的 openrouter :free / opencode zen -free），列出可用的。
+    /// </summary>
+    public static string Free()
+    {
+        var freeModels = ModelCatalog.All
+            .Where(m => m.Id.ToLowerInvariant().Contains("free"))
+            .GroupBy(m => $"{m.ProviderId}|{m.Id.ToLowerInvariant()}")   // 同 provider+id 去重
+            .Select(g => g.First())
+            .ToList();
+        if (freeModels.Count == 0)
+            return "模型库中没有 free 模型（--model import online opencode-zen / openrouter 导入后测试）";
+        var sb = new StringBuilder($"Free 模型连通性测试（{freeModels.Count} 个）：\n");
+        int ok = 0, fail = 0, skip = 0;
+        foreach (var m in freeModels)
+        {
+            var key = ApiKeyStore.Get(m.ProviderId);
+            if (string.IsNullOrEmpty(key))
+            {
+                skip++;
+                sb.AppendLine($"  ⏭ {ModelCatalog.ShortDisplayName(m.Id)}（{m.ProviderId}）无 key");
+                continue;
+            }
+            var baseUrl = m.DefaultBaseUrl ?? ConnectionConfig.ResolveProvider(m.ProviderId)?.BaseUrl ?? "";
+            var (ok2, detail) = ProbeChat(m.ProviderId, m.Id, baseUrl);
+            if (ok2) { ok++; sb.AppendLine($"  ✅ {ModelCatalog.ShortDisplayName(m.Id)}（{m.ProviderId}）{detail}"); }
+            else { fail++; sb.AppendLine($"  ❌ {ModelCatalog.ShortDisplayName(m.Id)}（{m.ProviderId}）{detail}"); }
+        }
+        sb.AppendLine($"\n汇总：可用 {ok}　失败 {fail}　跳过(无key) {skip}");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 清理脏数据：
+    /// 1. 合并重复模型（同 id + baseUrl 只保留一个）
+    /// 2. 删除「不存在的服务商」模型（ProviderId 不在注册表）
+    /// 3. 删除「不存在的模型」connect（模型在目录中找不到）
+    /// </summary>
+    public static string Clean()
+    {
+        var sb = new StringBuilder();
+        var all = ModelCatalog.All.ToList();  // 只读快照，仅用于遍历标记
+
+        // 遍历时只做标记，统一在最后删除（不能一边遍历一边删除）
+        var toRemoveModels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);  // 模型 id
+        var toRemoveConnects = new List<string>();                                   // connect 名
+        int merged = 0, removedProv = 0, removedConn = 0;
+
+        // 1. 合并重复（同 Id + DefaultBaseUrl，大小写不敏感）
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var m in all)
+        {
+            var key = $"{m.ProviderId}|{m.Id}|{m.DefaultBaseUrl ?? ""}";
+            if (!seen.Add(key)) { toRemoveModels.Add(m.Id); merged++; }
+        }
+
+        // 2. 标记不存在的服务商模型（ProviderId 不在 Providers 注册表）
+        foreach (var m in all)
+        {
+            if (!ModelCatalog.Providers.ContainsKey(m.ProviderId))
+            {
+                toRemoveModels.Add(m.Id);
+                removedProv++;
+            }
+        }
+
+        // 3. 标记不存在的模型 connect（模型在目录找不到）
+        foreach (var c in ConnectionConfig.ListConnects())
+        {
+            bool bad = !ModelCatalog.Providers.ContainsKey(c.ProviderId)
+                || ModelCatalog.Find(c.ModelId, null) == null;
+            if (bad) { toRemoveConnects.Add(c.Name); removedConn++; }
+        }
+
+        // 统一删除（遍历完成后一起删；HashSet 自动去重，同一模型不会删两次）
+        foreach (var id in toRemoveModels) ModelCatalog.RemoveCustom(id);
+        foreach (var name in toRemoveConnects) ConnectionConfig.RemoveConnect(name, out _);
+
+        sb.AppendLine($"✅ 清理完成：合并重复 {merged} 个，删除无效服务商模型 {removedProv} 个，删除无效 connect {removedConn} 个");
+        if (merged + removedProv + removedConn == 0)
+            sb.AppendLine("（模型目录与 connect 已干净，无需清理）");
+        return sb.ToString().TrimEnd();
+    }
+
     /// <summary>选中模型：按目录解析，自动设置 base-url，经 connect 统一入口持久化</summary>
     public static string Select(string modelId)
     {
@@ -501,23 +641,16 @@ public static class ModelCli
             {
                 var baseUrl = ModelCatalog.Providers.TryGetValue(id, out var p) ? p.DefaultBaseUrl
                     : ResolveProviderBaseUrl(id);
-                if (string.IsNullOrWhiteSpace(baseUrl))
-                {
-                    if (ApiKeyStore.Has(id)) ApiKeyStore.Remove(id);
-                    if (ModelCatalog.RemoveCustomByProvider(id) > 0) removed++;
-                    continue;
-                }
-                var key = ApiKeyStore.Get(id);
-                var (ok, detail) = ProbeEndpoint(baseUrl, key);
-                if (ok || detail.Contains("401") || detail.Contains("403")) continue; // 可用保留
+                // 只删 baseUrl 无效的服务商（空 / 非 http(s) 合法 URL）——
+                // 地址有效就保留（探测失败 / 无 key / 临时网络都不是删除理由，避免误删 opencode-go 等）
+                bool badUrl = string.IsNullOrWhiteSpace(baseUrl)
+                    || !Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri)
+                    || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps);
+                if (!badUrl) continue;
+                if (ApiKeyStore.Has(id)) ApiKeyStore.Remove(id);
                 if (ModelCatalog.Providers.ContainsKey(id))
                     ModelCatalog.RemoveProvider(id); // 同时清 providers.json 与 key
-                else
-                {
-                    ApiKeyStore.Remove(id);
-                    ModelCatalog.RemoveCustomByProvider(id);
-                }
-                removed++;
+                if (ModelCatalog.RemoveCustomByProvider(id) > 0) removed++;
             }
             return removed > 0 ? $"🗑 已清理 {removed} 个无效服务商（含 key 与模型）" : "没有无效服务商";
         }
