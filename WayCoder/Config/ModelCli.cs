@@ -251,9 +251,10 @@ public static class ModelCli
                 foreach (var id in extract(root))
                 {
                     if (string.IsNullOrWhiteSpace(id)) continue;
+                    // 本地服务模型不支持 thinking（reasoning_effort 会被 400 拒绝）：允许集设 "none" 使任何全局值都跳过
                     added.Add(new ModelCatalog.ModelInfo(
                         id, id, pname, pid, "L", "Local", 0, 0, 0, baseUrl,
-                        $"从 {pname} 接口导入", 0));
+                        $"从 {pname} 接口导入", 0, ReasoningEffortAllowed: "none"));
                 }
                 reports.Add(pname);
             }
