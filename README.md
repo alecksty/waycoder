@@ -61,7 +61,7 @@ WayCoder --model free                     # 扫描 free 模型（zen -free / ope
 WayCoder --model restore                  # 恢复 /free 切换免费模型之前的模型（跨会话）
 WayCoder --connect test                   # 连通性测试全部 connect（端点到关键）
 # 免费模型：--model free 把可用免费 connect 写入 ~/.waycoder/free.json（增量、每模型 5s 无回复即跳过）；
-# /free（TUI 弹框）/ Web /free 直接读缓存弹窗切换，不再每次扫描；空缓存提示先跑 --model free
+# /free 读缓存切换（无参弹框 / N 直接切换 / restore 还原收费），不再每次扫描；空缓存提示先跑 --model free
 # 模型能力特性（SupportsThinking / SupportsTools / SupportsVision）存于 provider/*.json 模型条目，
 # LLM 请求按能力门控：不支持 tools 不发 schema、不支持 thinking 不发 reasoning；旧文件无字段自动推断
 # OpenRouter 等在线导入模型列表显示短名（openai/gpt-5.4 → gpt-5.4），调用仍用完整 id
