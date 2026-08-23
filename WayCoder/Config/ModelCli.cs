@@ -65,7 +65,8 @@ public static class ModelCli
                     ? m.ContextWindow >= 1_000_000 ? $"{m.ContextWindow / 1_000_000}M" : $"{m.ContextWindow / 1000}K"
                     : "?";
                 var mark = m.Id == current ? "  ← 当前" : "";
-                sb.AppendLine($"  {m.Id,-28} {ctx,-5}ctx  {price,-30}  [{m.Category}]{mark}");
+                // 显示用短名（去 openrouter 类路由前缀），切换/调用仍用完整 id
+                sb.AppendLine($"  {ModelCatalog.ShortDisplayName(m.Id),-28} {ctx,-5}ctx  {price,-30}  [{m.Category}]{mark}");
             }
         }
 

@@ -1065,10 +1065,24 @@ public static class ModelCatalog
                 _ => ModelCatalog.Providers.TryGetValue(pid, out var prov) && !string.IsNullOrWhiteSpace(prov.DisplayName)
                     ? prov.DisplayName : pid,
             };
-            result.Add(new ModelInfo(id, id, pname, pid, "*", "Imported",
+            // OpenRouter 等模型 id 带厂商前缀（openai/gpt-5.4-mini）：显示用去前缀短名，调用仍用完整 id（路由需要）
+            var displayName = id.Contains('/') ? id[(id.IndexOf('/') + 1)..] : id;
+            result.Add(new ModelInfo(id, displayName, pname, pid, "*", "Imported",
                 0, 0, 0, baseUrl, $"从 OpenCode 在线导入（{pname}）", 0));
         }
         return result;
+    }
+
+    /// <summary>
+    /// 模型显示短名：OpenRouter 等在线导入的 id 带厂商路由前缀（openai/gpt-5.4-mini），
+    /// 列表显示时去前缀（gpt-5.4-mini）更清爽；调用仍用完整 id（路由需要）。URL 不处理。
+    /// </summary>
+    public static string ShortDisplayName(string idOrName)
+    {
+        if (string.IsNullOrEmpty(idOrName) || idOrName.Contains("://")) return idOrName;
+        var i = idOrName.IndexOf('/');
+        if (i <= 0 || i >= idOrName.Length - 1) return idOrName;
+        return idOrName[(i + 1)..];
     }
 
     /// <summary>按模型 id 前缀/包含推断供应商（opencode 网关统一提供，但分类按真实供应商）。</summary>

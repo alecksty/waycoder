@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.85.3 (2026-08-23) — 模型列表显示短名（OpenRouter 路由前缀去除）
+
+- **OpenRouter 等在线导入模型 id 带厂商路由前缀**（`openai/gpt-3.5-turbo`），列表显示太长
+- 新增 `ModelCatalog.ShortDisplayName`：**显示时去前缀**（`gpt-3.5-turbo`），**调用仍用完整 id**（路由需要）
+- 应用：`--model list`、ModelPicker（Ctrl+M）表格、新导入模型 `DisplayName` 直接存短名
+- 验证：`--model list` 显示 `gpt-3.5-turbo`（原 `openai/gpt-3.5-turbo`）、`mythomax-l2-13b`（原 `gryphe/mythomax-l2-13b`）
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）
+
 ## v0.85.2 (2026-08-23) — CLI 模型导入增强：`--model import alllocal / allonline / all` + 在线指定源
 
 - **组合命令**：

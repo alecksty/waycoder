@@ -222,7 +222,8 @@ public static class ModelPicker
                         bool isL = ri == largeRow, isS = ri == smallRow;
                         table.AddRow(
                             m.HasApiKey ? "🔑" : "  ",
-                            m.DisplayName,
+                            // 显示短名（去 openrouter 类路由前缀），选中/调用仍用完整 Id
+                            ModelCatalog.ShortDisplayName(m.DisplayName),
                             m.Provider,
                             StatusCell(m),
                             FmtCtx(m.ContextWindow).PadLeft(ctxW),
