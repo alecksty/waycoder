@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.87.12 (2026-08-23) — /join 新增 Aider 支持
+
+- **`/join aider`**：读取 `.aider.chat.history.md`（纯 Markdown）——从 cwd 向上找项目根历史文件，解析 `USER:`/`ASSISTANT:`/`TOOL:` 段落（多行消息合并），标题取第一条用户消息
+- `/join` 候选来源从 4 个扩到 5 个（Claude/Codex/OpenCode/Crush/**Aider**），无候选提示同步补 Aider 路径
+
+### ✅ 验证
+- 样例 `.aider.chat.history.md` 端到端：FindSessions 命中 1 个、标题/cwd 正确、用户↔助手多行对话完整还原进交接文档
+
 ## v0.87.11 (2026-08-23) — /join 跨工具会话桥接 + 手搓 SQLite 只读解析器
 
 - **`/join`（`/接手` `/续跑` `/handoff`）**：从 Claude Code / Codex / OpenCode / Crush 会话「接着跑」——读取竞品会话的**聊天内容 + todo 清单 + 当前 git 状态**组装成交接文档注入当前 Agent，换工具无缝续跑
