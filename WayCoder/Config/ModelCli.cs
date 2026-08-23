@@ -122,8 +122,15 @@ public static class ModelCli
         catch { return false; }
     }
 
+    /// <summary>解析可选超时参数（秒），非法/空返回默认 60。</summary>
+    private static int ParseTimeout(string? arg, int fallback = 60)
+    {
+        if (int.TryParse(arg, out var s) && s is > 0 and <= 600) return s;
+        return fallback;
+    }
+
     /// <summary>探测单个模型连通性：发一个简单 chat 请求，返回 (可用, 说明/原因)。</summary>
-    private static (bool Ok, string Detail) ProbeChat(string providerId, string modelId, string baseUrl)
+    private static (bool Ok, string Detail) ProbeChat(string providerId, string modelId, string baseUrl, int timeoutSec = 60)
     {
         try
         {
@@ -131,7 +138,7 @@ public static class ModelCli
             var llm = new LLM(modelId, key, baseUrl, maxTokens: 16);
             var resp = llm.ChatAsync(
                 new List<JNode> { JNode.Object().Set("role", "user").Set("content", "只回复两个字：ok") },
-                cancellationToken: new CancellationTokenSource(TimeSpan.FromSeconds(60)).Token
+                cancellationToken: new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSec)).Token
             ).GetAwaiter().GetResult();
             var content = (resp.Content ?? "").Trim();
             if (resp.IsFatalError) return (false, "致命错误");
@@ -149,16 +156,18 @@ public static class ModelCli
     /// 测试所有 connect 的模型连通性，生成报告：
     /// 遍历每个 connect（有 key 的 + 本地无需 key 的），发简单请求，列出可用 / 失败原因。
     /// </summary>
-    public static string Report()
+    public static string Report(string? timeoutArg = null)
     {
         var connects = ConnectionConfig.ListConnects();
         if (connects.Count == 0) return "暂无 connect（--connect add <name> <providerId> <modelId> 添加）";
-        var sb = new StringBuilder($"模型连通性报告（{connects.Count} 个 connect）：\n");
+        var timeout = ParseTimeout(timeoutArg);
+        var sb = new StringBuilder($"模型连通性报告（{connects.Count} 个 connect，单模型超时 {timeout}s）：\n");
         var seen = new HashSet<(string, string)>();
-        int ok = 0, fail = 0, skip = 0;
+        int ok = 0, fail = 0, skip = 0, total = 0;
         foreach (var c in connects)
         {
             if (!seen.Add((c.ProviderId, c.ModelId))) continue;
+            total++;
             var prov = ConnectionConfig.ResolveProvider(c.ProviderId);
             var baseUrl = prov?.BaseUrl ?? ModelCatalog.Find(c.ModelId, null)?.DefaultBaseUrl ?? "";
             // 本地服务（localhost/127.0.0.1）无需 key；Ollama 云端（ollama.com）也要 key——按地址判断，不看 providerId
@@ -170,7 +179,9 @@ public static class ModelCli
                 sb.AppendLine($"  ⏭ {c.Name}（{ModelCatalog.ShortDisplayName(c.ModelId)}）无 key");
                 continue;
             }
-            var (ok2, detail) = ProbeChat(c.ProviderId, c.ModelId, baseUrl);
+            // 实时进度（stderr，不污染报告）：让用户知道正在扫哪个
+            Console.Error.WriteLine($"正在测试 [{c.ProviderId}] 第 {total}/{connects.Count} 个（{ModelCatalog.ShortDisplayName(c.ModelId)}）...");
+            var (ok2, detail) = ProbeChat(c.ProviderId, c.ModelId, baseUrl, timeout);
             if (ok2) { ok++; sb.AppendLine($"  ✅ {c.Name}（{ModelCatalog.ShortDisplayName(c.ModelId)}）{detail}"); }
             else { fail++; sb.AppendLine($"  ❌ {c.Name}（{ModelCatalog.ShortDisplayName(c.ModelId)}）{detail}"); }
         }
@@ -181,7 +192,7 @@ public static class ModelCli
     /// <summary>
     /// 测试模型库中所有 free 模型（id 含 free 的 openrouter :free / opencode zen -free），列出可用的。
     /// </summary>
-    public static string Free()
+    public static string Free(string? timeoutArg = null)
     {
         var freeModels = ModelCatalog.All
             .Where(m => m.Id.ToLowerInvariant().Contains("free"))
@@ -190,10 +201,12 @@ public static class ModelCli
             .ToList();
         if (freeModels.Count == 0)
             return "模型库中没有 free 模型（--model import online opencode-zen / openrouter 导入后测试）";
-        var sb = new StringBuilder($"Free 模型连通性测试（{freeModels.Count} 个）：\n");
-        int ok = 0, fail = 0, skip = 0;
+        var timeout = ParseTimeout(timeoutArg);
+        var sb = new StringBuilder($"Free 模型连通性测试（{freeModels.Count} 个，单模型超时 {timeout}s）：\n");
+        int ok = 0, fail = 0, skip = 0, total = 0;
         foreach (var m in freeModels)
         {
+            total++;
             var key = ApiKeyStore.Get(m.ProviderId);
             if (string.IsNullOrEmpty(key))
             {
@@ -201,8 +214,10 @@ public static class ModelCli
                 sb.AppendLine($"  ⏭ {ModelCatalog.ShortDisplayName(m.Id)}（{m.ProviderId}）无 key");
                 continue;
             }
+            // 实时进度（stderr）：让用户知道正在扫哪个 provider 第几个
+            Console.Error.WriteLine($"正在扫描 [{m.ProviderId}] 第 {total}/{freeModels.Count} 个（{ModelCatalog.ShortDisplayName(m.Id)}）...");
             var baseUrl = m.DefaultBaseUrl ?? ConnectionConfig.ResolveProvider(m.ProviderId)?.BaseUrl ?? "";
-            var (ok2, detail) = ProbeChat(m.ProviderId, m.Id, baseUrl);
+            var (ok2, detail) = ProbeChat(m.ProviderId, m.Id, baseUrl, timeout);
             if (ok2) { ok++; sb.AppendLine($"  ✅ {ModelCatalog.ShortDisplayName(m.Id)}（{m.ProviderId}）{detail}"); }
             else { fail++; sb.AppendLine($"  ❌ {ModelCatalog.ShortDisplayName(m.Id)}（{m.ProviderId}）{detail}"); }
         }
