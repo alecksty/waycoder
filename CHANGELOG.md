@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.87.3 (2026-08-23) — report/free 实时进度 + 可选单模型超时参数
+
+- **实时进度（stderr）**：`--model report` / `--model free` 测试时逐条输出「正在扫描 [provider] 第 n/N 个（模型）...」，不再干等
+- **可选超时参数**：`--model report <秒>` / `--model free <秒>`（如 `--model free 10`，默认 60s，范围 1-600s）
+- 进度走 stderr 不污染报告主输出
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）；`--model free 10` 实测进度逐条显示
+
 ## v0.87.2 (2026-08-23) — `--help` 补全今日新增功能
 
 - `--model` 帮助补齐：`check` / `report` / `free` / `clean` / `import alllocal|allonline|all|online <源>`
