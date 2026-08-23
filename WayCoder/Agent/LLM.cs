@@ -445,8 +445,8 @@ public class LLM
             if (includeStreamOptions)
                 b.Set("stream_options", JNode.Object().Set("include_usage", true));
 
-            // includeTools=false：模型不支持工具（如 Ollama gemma2）→ 400 回退时去掉 tools，退化纯文本
-            if (includeTools && clonedTools is { Count: > 0 })
+            // 工具能力门控：模型不支持工具（如 Ollama gemma2）→ 不发 tools（400 回退仅作安全网）
+            if (includeTools && constraints.SupportsTools && clonedTools is { Count: > 0 })
             {
                 var toolsArray = JNode.Array();
                 foreach (var t in clonedTools) toolsArray.Add(t);
@@ -454,18 +454,21 @@ public class LLM
             }
 
             // 推理深度：DeepSeek V4 / OpenAI o-series 支持 reasoning_effort 参数。
-            // 值恒来自全局，但模型/厂商声明了允许集时，全局值越界→跳过字段（不发，让模型用默认 thinking，避免 HTTP 400）
-            var reasoningEffort = ModelCatalog.ResolveReasoningEffort(
-                constraints.ReasoningEffortAllowed, Config.Instance.ReasoningEffort);
-            if (!string.IsNullOrEmpty(reasoningEffort))
+            // 值恒来自全局，但：不支持思考的模型（本地等）一律不发；允许集越界→跳过（不发，避免 HTTP 400）
+            if (constraints.SupportsThinking)
             {
-                b.Set("reasoning_effort", reasoningEffort);
-            }
-            else if (!string.IsNullOrEmpty(Config.Instance.ReasoningEffort))
-            {
-                DebugLog.Log("llm",
-                    $"模型 {EffectiveModel} 限制 reasoning_effort 允许集 [{constraints.ReasoningEffortAllowed}]，" +
-                    $"全局值 {Config.Instance.ReasoningEffort} 越界，已跳过该字段");
+                var reasoningEffort = ModelCatalog.ResolveReasoningEffort(
+                    constraints.ReasoningEffortAllowed, Config.Instance.ReasoningEffort);
+                if (!string.IsNullOrEmpty(reasoningEffort))
+                {
+                    b.Set("reasoning_effort", reasoningEffort);
+                }
+                else if (!string.IsNullOrEmpty(Config.Instance.ReasoningEffort))
+                {
+                    DebugLog.Log("llm",
+                        $"模型 {EffectiveModel} 限制 reasoning_effort 允许集 [{constraints.ReasoningEffortAllowed}]，" +
+                        $"全局值 {Config.Instance.ReasoningEffort} 越界，已跳过该字段");
+                }
             }
 
             return b;
@@ -482,7 +485,15 @@ public class LLM
                 .Set("temperature", Math.Round((double)Math.Clamp(Temperature, 0f, 1f), cons.TemperaturePrecision))
                 .Set("stream", true);
             if (system != null) b.Set("system", system);
-            if (tools is { Count: > 0 }) b.Set("tools", ConvertToolsToAnthropic(tools));
+            // 工具能力门控（原生格式无 400 回退，必须提前判断）
+            if (cons.SupportsTools && tools is { Count: > 0 }) b.Set("tools", ConvertToolsToAnthropic(tools));
+            // 支持思考时开启 extended thinking（当前全局 reasoning_effort 仅 OpenAI 格式用，Anthropic 用 thinking 块）
+            if (cons.SupportsThinking && !string.IsNullOrEmpty(Config.Instance.ReasoningEffort))
+            {
+                b.Set("thinking", JNode.Object()
+                    .Set("type", "enabled")
+                    .Set("budget_tokens", Math.Min(maxTok, 1024)));
+            }
             return b;
         }
 
@@ -497,7 +508,13 @@ public class LLM
                     .Set("maxOutputTokens", maxTok));
             if (system != null)
                 b.Set("systemInstruction", JNode.Object().Set("parts", JNode.Array().Add(JNode.Object().Set("text", system))));
-            if (tools is { Count: > 0 }) b.Set("tools", ConvertToolsToGemini(tools));
+            // 工具能力门控（原生格式无 400 回退，必须提前判断）
+            if (cons.SupportsTools && tools is { Count: > 0 }) b.Set("tools", ConvertToolsToGemini(tools));
+            // 支持思考时开 thinkingConfig（Gemini 思考开关）
+            if (cons.SupportsThinking && !string.IsNullOrEmpty(Config.Instance.ReasoningEffort))
+            {
+                b.Set("thinkingConfig", JNode.Object().Set("thinkingBudget", Math.Min(maxTok, 1024)));
+            }
             return b;
         }
 

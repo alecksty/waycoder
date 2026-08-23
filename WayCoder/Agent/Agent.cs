@@ -248,7 +248,7 @@ public partial class Agent
             result.Add(Json.Parse(m.ToJson())!);
 
         // 视觉支持：view_image 工具附加的图片注入为多模态 user 消息（仅支持 vision 的模型）
-        if (LLM.ModelSupportsVision(LlmClient.EffectiveModel))
+        if (ModelCatalog.ResolveSupportsVision(LlmClient.EffectiveModel, LlmClient.BaseUrl))
         {
             var images = LLM.DrainImages(AgentId);
             if (images.Count > 0)
