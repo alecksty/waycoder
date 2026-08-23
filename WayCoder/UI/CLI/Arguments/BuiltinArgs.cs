@@ -30,16 +30,19 @@ public class ModelArg : CliArg
     public override string? ValueLabel => "模型ID/子命令";
     public override (string Cmd, string Desc)[]? SubCommands =>
     [
-        ("list [供应商]", "列出模型目录"),
+        ("list [供应商]", "列出模型目录（OpenRouter 显示短名）"),
         ("name <id>", "选中大模型"),
         ("small <id>", "选中小模型"),
-        ("key [set|remove]", "管理 API Key"),
-        ("connect <base-url>", "设置 API 地址"),
-        ("import [来源]", "导入模型（opencode/crush/...）"),
+        ("key [set|remove]", "管理 API Key（key 永不自动删除，删除需确认）"),
+        ("check [connect]", "检查模型能力（think/tools/vision/格式/上下文/key）"),
+        ("report", "测试所有 connect 连通性，生成可用/失败报告"),
+        ("free", "测试所有 free 模型（zen -free / openrouter :free），列出可用"),
+        ("import [alllocal|allonline|all|online <源>|来源]", "导入模型（alllocal=本地 / allonline=在线 / all=全部 / online <源>=指定端点）"),
         ("add model/provider/key", "添加模型 / 服务商 / Key"),
         ("remove <id>", "移除模型或服务商"),
+        ("clean", "清理无效服务商/模型 + 合并重复 + 删无效 connect"),
         ("test", "测试连接"),
-        ("prune", "清理无效条目"),
+        ("connect <base-url>", "设置 API 地址"),
         ("<模型ID>", "快捷选中模型"),
     ];
     public ModelArg() : base("model", "-m", "--model") { }

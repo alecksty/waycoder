@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.87.2 (2026-08-23) — `--help` 补全今日新增功能
+
+- `--model` 帮助补齐：`check` / `report` / `free` / `clean` / `import alllocal|allonline|all|online <源>`
+- 更新 `key` 描述（永不自动删除、删除需确认）、`list`（OpenRouter 短名）
+
+### ✅ 验证
+- `waycoder --help` 完整显示所有模型管理子命令
+
 ## v0.87.1 (2026-08-23) — API key 永不自动删除（删除需询问确认）
 
 - **`RemoveProvider` 不再连带删除 API key**——clean / provider 清理可以删 provider 注册与模型，但 key 一律保留
