@@ -37,6 +37,7 @@ public class ModelArg : CliArg
         ("check [connect]", "检查模型能力（think/tools/vision/格式/上下文/key）"),
         ("report", "测试所有 connect 连通性，生成可用/失败报告"),
         ("free", "测试所有 free 模型（zen -free / openrouter :free），列出可用"),
+        ("restore", "恢复 /free 切换免费模型之前的模型"),
         ("import [alllocal|allonline|all|online <源>|来源]", "导入模型（alllocal=本地 / allonline=在线 / all=全部 / online <源>=指定端点）"),
         ("add model/provider/key", "添加模型 / 服务商 / Key"),
         ("remove <id>", "移除模型或服务商"),
@@ -66,7 +67,14 @@ public class ModelArg : CliArg
                 result = ModelCli.List(rest.Length > 0 ? rest[0] : null);
                 break;
             case "name":
-                result = rest.Length == 0 ? "用法: --model name <模型ID>" : ModelCli.Select(rest[0]);
+                if (rest.Length == 0) { result = "用法: --model name <模型ID>"; break; }
+                ModelCli.RememberCurrentModel(); // 记住切换前模型（--model restore / /free-restore 可恢复）
+                result = ModelCli.Select(rest[0]);
+                break;
+            case "restore":
+            case "free-restore":
+            case "恢复":
+                result = ModelCli.RestorePrevious();
                 break;
             case "small":
                 result = rest.Length == 0 ? "用法: --model small <小模型ID>" : ModelCli.SelectSmall(rest[0]);

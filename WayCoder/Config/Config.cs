@@ -149,6 +149,10 @@ public class Config
     public int MaxContextTokens { get; set; } = 128_000;
     public string Provider { get; set; } = "openai";
     public string SmallProvider { get; set; } = "deepseek";
+    /// <summary>切换免费模型前记住的模型（/free-restore / --model restore 恢复，跨会话持久化）。</summary>
+    public string? FreePrevProvider { get; set; }
+    public string? FreePrevModel { get; set; }
+    public string? FreePrevBaseUrl { get; set; }
     public double? MaxBudgetUsd { get; set; }
     public bool AutoGitCommit { get; set; } = false;
     public bool WatchMode { get; set; } = false;
@@ -990,6 +994,11 @@ public class Config
                 try { p.Setter(this, val); }
                 catch { /* 非法值（如越界数字）忽略，保留当前值，避免启动崩溃 */ }
             }
+
+            // 非 schema 的辅助字段：/free 切换前的模型（PreviousModel 跨会话持久化）
+            FreePrevProvider = root["freePrevProvider"]?.AsString();
+            FreePrevModel = root["freePrevModel"]?.AsString();
+            FreePrevBaseUrl = root["freePrevBaseUrl"]?.AsString();
         }
         catch { /* config.json 损坏时静默忽略，回退 .env/默认 */ }
     }
@@ -1017,6 +1026,14 @@ public class Config
                     if (p.SkipIfEmpty && string.IsNullOrEmpty(val)) continue;
                     if (p.DefaultStr != null && val == p.DefaultStr) continue;
                     obj.Set(p.Key, JNode.From(val));
+                }
+
+                // 非 schema 辅助字段：/free 切换前模型（有记录才写，恢复/清空后不再残留）
+                if (!string.IsNullOrEmpty(FreePrevModel))
+                {
+                    obj.Set("freePrevProvider", JNode.From(FreePrevProvider ?? ""));
+                    obj.Set("freePrevModel", JNode.From(FreePrevModel));
+                    obj.Set("freePrevBaseUrl", JNode.From(FreePrevBaseUrl ?? ""));
                 }
 
                 var tmp = path + ".tmp";
