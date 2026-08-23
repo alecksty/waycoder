@@ -97,11 +97,12 @@ echo ""
 echo "═══════════════════════════════════════════════════"
 echo "  打包完成，产物:"
 # ── 生成 SHA256SUMS.txt（供自动升级校验供应链完整性，防篡改）──
+# 仅匹配本版本产物（waycoder-$VERSION-*），避免误吞 dist/ 下旧版本的解包目录/文件
 if command -v sha256sum >/dev/null 2>&1; then
-  ( cd "$DIST" && sha256sum waycoder-* ) > "$DIST/SHA256SUMS.txt"
+  ( cd "$DIST" && sha256sum "waycoder-${VERSION}-"* ) > "$DIST/SHA256SUMS.txt"
 else
-  ( cd "$DIST" && shasum -a 256 waycoder-* ) > "$DIST/SHA256SUMS.txt"
+  ( cd "$DIST" && shasum -a 256 "waycoder-${VERSION}-"* ) > "$DIST/SHA256SUMS.txt"
 fi
 echo "  ✅ $DIST/SHA256SUMS.txt"
-ls -lh "$DIST"/waycoder-* "$DIST"/SHA256SUMS.txt 2>/dev/null || ls -lh "$DIST"
+ls -lh "$DIST"/"waycoder-${VERSION}-"* "$DIST"/SHA256SUMS.txt 2>/dev/null || ls -lh "$DIST"
 echo "═══════════════════════════════════════════════════"
