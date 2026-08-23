@@ -40,7 +40,7 @@ public class ViewImageTool : ITool
 
         // 门控：配置模型不支持 vision 则提前告知，不排队
         var model = Config.Instance.Model;
-        if (!LLM.ModelSupportsVision(model))
+        if (!ModelCatalog.ResolveSupportsVision(model, Config.Instance.BaseUrl))
             return Task.FromResult(
                 $"⚠ 当前模型 {model} 不支持图片输入（vision）。\n" +
                 $"可用 bash 查看文件：ls -la \"{fullPath}\"\n" +

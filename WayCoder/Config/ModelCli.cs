@@ -76,6 +76,36 @@ public static class ModelCli
         return sb.ToString();
     }
 
+    /// <summary>检查当前模型或指定 connect 的能力特性（think / tools / vision / 格式 / 上下文 / key）。</summary>
+    public static string Check(string? connectId = null)
+    {
+        string pid, mid;
+        if (!string.IsNullOrWhiteSpace(connectId))
+        {
+            var c = ConnectionConfig.FindConnect(connectId.Trim());
+            if (c == null) return $"❌ 未找到 connect「{connectId}」（--connect list 查看）";
+            pid = c.ProviderId; mid = c.ModelId;
+        }
+        else
+        {
+            pid = Config.Instance.Provider; mid = Config.Instance.Model;
+        }
+        var caps = ModelCatalog.ResolveModelCallConstraints(mid, Config.Instance.BaseUrl);
+        var fmt = ModelCatalog.ResolveApiFormat(mid, Config.Instance.BaseUrl);
+        var hasKey = ApiKeyStore.Has(pid);
+        var sb = new StringBuilder();
+        sb.AppendLine($"模型: {ModelCatalog.ShortDisplayName(mid)}（{pid}）");
+        sb.AppendLine($"  API 格式: {fmt}");
+        sb.AppendLine($"  思考 think: {(caps.SupportsThinking ? "✅ 支持" : "❌ 不支持")}" +
+            (caps.ReasoningEffortAllowed is { Length: > 0 } and not "none" ? $"（允许 {caps.ReasoningEffortAllowed}）" : ""));
+        sb.AppendLine($"  工具 tools: {(caps.SupportsTools ? "✅ 支持" : "❌ 不支持")}");
+        sb.AppendLine($"  视觉 vision: {(caps.SupportsVision ? "✅ 支持" : "❌ 不支持")}");
+        sb.AppendLine($"  温度精度: {caps.TemperaturePrecision} 位小数");
+        sb.AppendLine($"  上下文: {ModelCatalog.ResolveContextWindow(mid)} tokens");
+        sb.AppendLine($"  API key: {(hasKey ? "🔑 已配置" : "⚠ 未配置（--model key 或设官方环境变量自动导入）")}");
+        return sb.ToString().TrimEnd();
+    }
+
     /// <summary>选中模型：按目录解析，自动设置 base-url，经 connect 统一入口持久化</summary>
     public static string Select(string modelId)
     {
@@ -251,10 +281,11 @@ public static class ModelCli
                 foreach (var id in extract(root))
                 {
                     if (string.IsNullOrWhiteSpace(id)) continue;
-                    // 本地服务模型不支持 thinking（reasoning_effort 会被 400 拒绝）：允许集设 "none" 使任何全局值都跳过
+                    // 本地服务模型不主动发 thinking（reasoning_effort 会被 Ollama 等 400 拒绝）：
+                    // 显式 SupportsThinking=false；SupportsTools 留 null 走推断（gemma2:2b→false，qwen3→true）
                     added.Add(new ModelCatalog.ModelInfo(
                         id, id, pname, pid, "L", "Local", 0, 0, 0, baseUrl,
-                        $"从 {pname} 接口导入", 0, ReasoningEffortAllowed: "none"));
+                        $"从 {pname} 接口导入", 0, SupportsThinking: false));
                 }
                 reports.Add(pname);
             }

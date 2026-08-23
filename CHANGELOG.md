@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.86.0 (2026-08-23) — 模型能力特性显式标识（SupportsThinking / SupportsTools / SupportsVision）+ `--model check`
+
+- **ModelInfo / ProviderInfo 加能力字段**：`SupportsThinking` / `SupportsTools` / `SupportsVision`（bool?，null=未声明→厂商/家族推断）；三级合并「模型 > 厂商 > 推断」
+- **LLM 请求按能力门控**：
+  - `SupportsTools=false`（如 Ollama gemma2）→ 不发 tools（400 回退降级为安全网）
+  - `SupportsThinking=false`（本地模型）→ 一律不发 `reasoning_effort`（替代 `"none"` hack）
+  - Anthropic `thinking` 块 / Gemini `thinkingConfig`：支持思考的模型才开
+- **视觉判定元数据化**：`ModelSupportsVision` 硬编码迁移为 `ResolveSupportsVision`（补齐 o4-mini/llama-4/gemma3 盲点），Agent/ViewImage/WebChat 三处改查元数据
+- **`--model check [connect]` 新命令**：测试当前/指定连接模型的能力特性（格式 / think / tools / vision / 温度精度 / 上下文 / key）
+- 本地模型导入：`ImportLocalServices` 设 `SupportsThinking=false`（删 `"none"` hack）；SupportsTools 留推断（gemma2:2b→false，qwen3→true）
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）；`--model check` 实测：gemma2:2b（思考❌工具❌）、glm-5.3（思考✅工具✅）、qwen3.5-4b（思考❌工具✅）
+
 ## v0.85.4 (2026-08-23) — 本地模型兼容：Ollama/LM Studio 支持 + LLM 400 两级回退（去 stream_options / 去 tools）
 
 - **本地服务模型（ollama/lmstudio/local）导入时设 `ReasoningEffortAllowed="none"`**：Ollama 等不支持 thinking，全局 `reasoning_effort` 会导致 400——`none` 使任何全局值都跳过（不发）

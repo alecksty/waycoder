@@ -27,7 +27,10 @@ public static class ModelCatalog
         double InputPriceOffpeak = 0,   // 闲时输入价（$ / MTok，0=无闲时价，只显示忙时价）
         double OutputPriceOffpeak = 0,  // 闲时输出价（$ / MTok）
         string? ReasoningEffortAllowed = null,  // 模型级 reasoning_effort 允许集（逗号分隔，如 "low,high,max"）；null=未声明→厂商/全局
-        int? TemperaturePrecision = null        // 模型级 temperature 小数位精度；null=未声明→厂商/全局默认 2
+        int? TemperaturePrecision = null,       // 模型级 temperature 小数位精度；null=未声明→厂商/全局默认 2
+        bool? SupportsThinking = null,          // 是否支持思考（thinking/reasoning）；null=未声明→厂商/家族推断
+        bool? SupportsTools = null,             // 是否支持工具调用；null=未声明→厂商/默认 true
+        bool? SupportsVision = null             // 是否支持视觉（图片输入）；null=未声明→厂商/按 id 推断
     );
 
     public static readonly ModelInfo[] BuiltIn =
@@ -133,7 +136,10 @@ public static class ModelCatalog
         string? CommonModels = null,            // 官方常用模型 id（逗号分隔）
         string? ReasoningEffortAllowed = null,  // 厂商级 reasoning_effort 允许集；null=不约束
         int? TemperaturePrecision = null,       // 厂商级 temperature 小数位；null=用全局默认 2
-        string? ApiFormat = null);              // API 请求格式：null/空/openai=OpenAI 兼容；anthropic=原生 /v1/messages；gemini=原生 streamGenerateContent
+        string? ApiFormat = null,               // API 请求格式：null/空/openai=OpenAI 兼容；anthropic=原生 /v1/messages；gemini=原生 streamGenerateContent
+        bool? SupportsThinking = null,          // 厂商级是否支持思考；null=模型/推断决定
+        bool? SupportsTools = null,             // 厂商级是否支持工具；null=模型/默认 true
+        bool? SupportsVision = null);           // 厂商级是否支持视觉；null=模型/按 id 推断
 
     /// <summary>Provider registry with default base URLs</summary>
     public static readonly Dictionary<string, ProviderInfo> Providers;
@@ -199,7 +205,10 @@ public static class ModelCatalog
                     ?? IntOpt(p?["temperature_precision"])
                     ?? builtin?.TemperaturePrecision;
                 var apiFormat = p?["apiFormat"]?.AsString() ?? p?["api_format"]?.AsString() ?? builtin?.ApiFormat;
-                Providers[id] = new ProviderInfo(name, url, apiKeyEnv, modelsEndpoint, commonModels, reasoningAllowed, tempPrec, apiFormat);
+                var supThink = BoolOpt(p?["supportsThinking"]) ?? BoolOpt(p?["supports_thinking"]) ?? builtin?.SupportsThinking;
+                var supTools = BoolOpt(p?["supportsTools"]) ?? BoolOpt(p?["supports_tools"]) ?? builtin?.SupportsTools;
+                var supVision = BoolOpt(p?["supportsVision"]) ?? BoolOpt(p?["supports_vision"]) ?? builtin?.SupportsVision;
+                Providers[id] = new ProviderInfo(name, url, apiKeyEnv, modelsEndpoint, commonModels, reasoningAllowed, tempPrec, apiFormat, supThink, supTools, supVision);
             }
         }
         catch { }
@@ -233,6 +242,12 @@ public static class ModelCatalog
                     sb.Append($", \"temperaturePrecision\": {tp}");
                 if (!string.IsNullOrWhiteSpace(kv.Value.ApiFormat) && !kv.Value.ApiFormat.Equals("openai", StringComparison.OrdinalIgnoreCase))
                     sb.Append($", \"apiFormat\": \"{kv.Value.ApiFormat}\"");
+                if (kv.Value.SupportsThinking is { } st)
+                    sb.Append($", \"supportsThinking\": {(st ? "true" : "false")}");
+                if (kv.Value.SupportsTools is { } st2)
+                    sb.Append($", \"supportsTools\": {(st2 ? "true" : "false")}");
+                if (kv.Value.SupportsVision is { } sv)
+                    sb.Append($", \"supportsVision\": {(sv ? "true" : "false")}");
                 sb.Append($" }}{comma}\n");
             }
             sb.AppendLine("  }");
@@ -662,6 +677,7 @@ public static class ModelCatalog
     static string? StrOpt(JNode? n) => n != null && n.Kind == JKind.String ? n.AsString() : null;
     static int? IntOpt(JNode? n) => n != null && n.Kind == JKind.Number ? (int)Math.Round(n.AsNumber()) : null;
     static double? DblOpt(JNode? n) => n != null && n.Kind == JKind.Number ? n.AsNumber() : null;
+    static bool? BoolOpt(JNode? n) => n != null && n.Kind == JKind.Bool ? n.AsBool() : null;
 
     private static JNode ToJson(ModelInfo m)
     {
@@ -685,6 +701,13 @@ public static class ModelCatalog
             n.Set("reasoningEffortAllowed", m.ReasoningEffortAllowed);
         if (m.TemperaturePrecision is { } tp)
             n.Set("temperaturePrecision", tp);
+        // 能力特性（条件写，null=未声明不刷）
+        if (m.SupportsThinking is { } st)
+            n.Set("supportsThinking", st);
+        if (m.SupportsTools is { } st2)
+            n.Set("supportsTools", st2);
+        if (m.SupportsVision is { } sv)
+            n.Set("supportsVision", sv);
         return n;
     }
 
@@ -710,7 +733,10 @@ public static class ModelCatalog
             DblOpt(node["inputPriceOffpeak"]) ?? 0,
             DblOpt(node["outputPriceOffpeak"]) ?? 0,
             StrOpt(node["reasoningEffortAllowed"]),
-            IntOpt(node["temperaturePrecision"])
+            IntOpt(node["temperaturePrecision"]),
+            BoolOpt(node["supportsThinking"]),
+            BoolOpt(node["supportsTools"]),
+            BoolOpt(node["supportsVision"])
         );
     }
 
@@ -754,7 +780,9 @@ public static class ModelCatalog
     }
 
     /// <summary>模型调用参数约束（解析后最终取值）。</summary>
-    public sealed record ModelCallConstraints(string? ReasoningEffortAllowed, int TemperaturePrecision);
+    public sealed record ModelCallConstraints(
+        string? ReasoningEffortAllowed, int TemperaturePrecision,
+        bool SupportsThinking, bool SupportsTools, bool SupportsVision);
 
     /// <summary>
     /// 两级合并：模型级 &gt; 厂商级 &gt; 全局默认。纯函数，可自测。
@@ -768,24 +796,71 @@ public static class ModelCatalog
             !string.IsNullOrWhiteSpace(modelAllowed) ? modelAllowed : providerAllowed,
             modelPrecision ?? providerPrecision ?? globalDefault);
 
+    /// <summary>bool 三级合并：模型显式（含 false）优先 > 厂商 > 推断兜底。null 才继承。</summary>
+    internal static bool MergeBool(bool? model, bool? provider, bool fallback)
+        => model ?? provider ?? fallback;
+
     /// <summary>
-    /// 解析当前模型的有效调用参数约束（LLM 每请求调用一次）。
-    /// Find 带网关反查（同 id 不同网关是两个条目），再按 ProviderId 取厂商级，两级合并。
+    /// 解析当前模型的有效调用参数约束 + 能力特性（LLM 每请求调用一次）。
+    /// Find 带网关反查（同 id 不同网关是两个条目），再按 ProviderId 取厂商级，三级合并（模型 > 厂商 > 推断）。
     /// </summary>
     public static ModelCallConstraints ResolveModelCallConstraints(string? modelId, string? baseUrl)
     {
         var info = string.IsNullOrWhiteSpace(modelId) ? null : Find(modelId, baseUrl);
         string? provAllowed = null;
         int? provPrec = null;
+        bool? provThink = null, provTools = null, provVision = null;
         if (info != null && Providers.TryGetValue(info.ProviderId, out var prov))
         {
             provAllowed = prov.ReasoningEffortAllowed;
             provPrec = prov.TemperaturePrecision;
+            provThink = prov.SupportsThinking;
+            provTools = prov.SupportsTools;
+            provVision = prov.SupportsVision;
         }
         var (allowed, prec) = MergeModelProviderConstraints(
             info?.ReasoningEffortAllowed, info?.TemperaturePrecision,
             provAllowed, provPrec);
-        return new ModelCallConstraints(allowed, prec);
+        return new ModelCallConstraints(
+            allowed, prec,
+            MergeBool(info?.SupportsThinking, provThink, InferSupportsThinking(modelId, info?.ReasoningEffortAllowed)),
+            MergeBool(info?.SupportsTools, provTools, InferSupportsTools(modelId)),
+            MergeBool(info?.SupportsVision, provVision, InferSupportsVision(modelId)));
+    }
+
+    /// <summary>推断是否支持思考：声明了允许集（非 none）视为支持；Reasoning/推理家族（gpt-5/o/claude/gemini/deepseek-reasoner/qwen3-max 等）支持。</summary>
+    private static bool InferSupportsThinking(string? modelId, string? reasoningAllowed)
+    {
+        if (!string.IsNullOrWhiteSpace(reasoningAllowed) && !reasoningAllowed.Equals("none", StringComparison.OrdinalIgnoreCase))
+            return true;
+        var m = (modelId ?? "").ToLowerInvariant();
+        return m.StartsWith("gpt-5") || m.StartsWith("o1") || m.StartsWith("o3") || m.StartsWith("o4")
+            || m.Contains("claude") || m.Contains("gemini") || m.Contains("deepseek-reasoner")
+            || m.Contains("deepseek-v4") || m.Contains("qwen3-max") || m.Contains("glm-4") || m.Contains("glm-5")
+            || m.Contains("kimi-k2") || m.Contains("grok-3") || m.Contains("minimax-m")
+            || m.Contains("reasoner") || m.Contains("thinking");
+    }
+
+    /// <summary>推断是否支持工具：本地服务模型（ollama/lmstudio/local/cc-switch/embed 类）不支持，其余默认支持。</summary>
+    private static bool InferSupportsTools(string? modelId)
+    {
+        var m = (modelId ?? "").ToLowerInvariant();
+        if (m.Contains("embed")) return false;
+        if (m.Contains(":") && (m.StartsWith("gemma") || m.Contains(":0.5b") || m.Contains(":1b") || m.Contains(":2b")))
+            return false;  // Ollama 小模型如 gemma2:2b 不支持工具
+        return true;
+    }
+
+    /// <summary>推断是否支持视觉：多模态家族子串（原 LLM.ModelSupportsVision 迁移，补齐 o4-mini/llama-4/gemma3 盲点）。</summary>
+    private static bool InferSupportsVision(string? modelId)
+    {
+        var m = (modelId ?? "").ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(m)) return false;
+        return m.Contains("gpt-4o") || m.Contains("gpt-4.1") || m.Contains("gpt-5")
+            || m.StartsWith("o4-mini") || m.Contains("claude") || m.Contains("gemini")
+            || m.Contains("vision") || m.Contains("vl") || m.Contains("llama-4") || m.Contains("llava")
+            || m.Contains("gemma3") || m.Contains("pixtral") || m.Contains("grok")
+            || m.Contains("minimax") || m.Contains("doubao") || m.Contains("hunyuan");
     }
 
     /// <summary>
@@ -801,6 +876,10 @@ public static class ModelCatalog
             ? globalValue
             : null;
     }
+
+    /// <summary>解析当前模型是否支持视觉（模型/厂商声明 > 家族推断）。</summary>
+    public static bool ResolveSupportsVision(string? modelId, string? baseUrl)
+        => ResolveModelCallConstraints(modelId, baseUrl).SupportsVision;
 
     /// <summary>
     /// 解析当前模型的 API 请求格式（openai / anthropic / gemini）。
