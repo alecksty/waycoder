@@ -14,7 +14,8 @@ namespace WayCoder.UI.Cli.Arguments;
 ///   --model list [关键词]          → 列出模型目录（内置 + 自定义合并）
 ///   --model name &lt;id&gt;        → 选中大模型并持久化（同步服务商 + base-url + 写 .env）
 ///   --model small &lt;id&gt;       → 选中小模型并持久化（同步小模型服务商）
-///   --model key &lt;供应商&gt; &lt;key&gt; → 保存 API key（无参列出已存 keys）
+///   --model key &lt;供应商&gt; &lt;key&gt; [有效期] → 保存 API key（有效期=永久/截止日期；无参列出已存 keys）
+///   --model key expiry &lt;供应商&gt; &lt;有效期&gt; → 设置/修改已存 key 的有效期
 ///   --model connect &lt;base-url&gt; → 设置连接地址（写 .env）
 ///   --model import [来源]          → 导入外部模型库（opencode/openclaw/crush/claude/codex/文件，无参自动探测）
 ///   --model add [model|provider|key] → 手动添加模型 / 服务商 / API key
@@ -24,7 +25,7 @@ namespace WayCoder.UI.Cli.Arguments;
 /// </summary>
 public class ModelArg : CliArg
 {
-    public override string Description => "模型管理";
+    public override string Description => "模型管理（key 支持有效期：--model key <供应商> <key> [永久|日期]）";
     public override int ValueCount => -1;
     public override bool Greedy => true;
     public override string? ValueLabel => "模型ID/子命令";
@@ -149,13 +150,19 @@ public class ModelArg : CliArg
     static string DispatchKey(string[] rest)
     {
         if (rest.Length == 0) return ModelCli.ListKeys();
+        // --model key set <供应商> <key> [有效期]
         if (rest.Length >= 3 && rest[0].Equals("set", StringComparison.OrdinalIgnoreCase))
-            return ModelCli.SetKey(rest[1], string.Join(" ", rest.Skip(2)));
+            return ModelCli.SetKey(rest[1], rest[2], rest.Length > 3 ? string.Join(" ", rest.Skip(3)) : null);
+        // --model key expiry <供应商> <有效期>（仅改有效期，不动 key）
+        if (rest.Length >= 3 && rest[0].Equals("expiry", StringComparison.OrdinalIgnoreCase))
+            return ModelCli.SetKeyExpiry(rest[1], string.Join(" ", rest.Skip(2)));
+        // --model key remove <供应商>
         if (rest.Length >= 2 && rest[0].Equals("remove", StringComparison.OrdinalIgnoreCase))
             return ModelCli.RemoveKey(rest[1]);
+        // --model key <供应商> <key> [有效期]
         if (rest.Length >= 2)
-            return ModelCli.SetKey(rest[0], string.Join(" ", rest.Skip(1)));
-        return "用法: --model key [set|remove] <供应商> <key>";
+            return ModelCli.SetKey(rest[0], rest[1], rest.Length > 2 ? string.Join(" ", rest.Skip(2)) : null);
+        return "用法: --model key [set|remove|expiry] <供应商> <key> [有效期]";
     }
 
     static string DispatchAdd(string[] rest)
