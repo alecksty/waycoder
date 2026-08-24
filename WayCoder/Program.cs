@@ -271,14 +271,16 @@ public partial class Program
         if (apiKey != null)
         {
             _config.ApiKey = apiKey;
-            // 命令行配置的 API key 自动保存到全局 ~/.waycoder/api_keys.json（key 跟服务商走，不跟模型走）。
-            // 服务商优先级：--model 指定的模型所属服务商 > 当前服务商。
+            // 命令行配置的 API key：默认优先 api_keys.json——仅当该服务商 json 无 key 时才落盘保存
+            // （否则 --api-key 一传就覆盖掉已存 key，env/CLI 一换 key 就莫名其妙丢了）。
+            // 本次会话始终使用 CLI 传入的 key（_config.ApiKey）。
             var keyProvider = model != null
                 ? (ModelCatalog.Find(model)?.ProviderId ?? _config.Provider)
                 : _config.Provider;
             if (!string.IsNullOrWhiteSpace(keyProvider))
             {
-                ApiKeyStore.Set(keyProvider, apiKey);
+                if (!ApiKeyStore.Has(keyProvider))
+                    ApiKeyStore.Set(keyProvider, apiKey);
                 _config.Provider = keyProvider;
             }
         }

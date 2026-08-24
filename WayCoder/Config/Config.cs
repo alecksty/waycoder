@@ -105,9 +105,8 @@ public class Config
                 }
                 else if (string.IsNullOrEmpty(_instance.ApiKey))
                 {
-                    _instance.ApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-                        ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY")
-                        ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
+                    // json 为空时才用环境变量 key（默认优先 api_keys.json，env 只补空不覆盖）
+                    _instance.ApiKey = ApiKeyStore.EnvKey(_instance.Provider)
                         ?? Environment.GetEnvironmentVariable("API_KEY")
                         ?? "";
                 }
