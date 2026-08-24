@@ -358,8 +358,8 @@ public class ModelCommand : SlashCommand
     {
         // 复用 ModelCli.Import：source 为空→auto；all/opencode/openclaw/crush/claude/codex→指定来源；否则视为文件路径
         var result = string.IsNullOrWhiteSpace(source) || source.Equals("all", StringComparison.OrdinalIgnoreCase)
-            ? ModelCli.Import(null)
-            : ModelCli.Import(source);
+            ? ModelCli.Import(null, msg => screen.AddSystemMsg(msg))
+            : ModelCli.Import(source, msg => screen.AddSystemMsg(msg));
         screen.AddSystemMsg(result);
     }
 

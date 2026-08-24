@@ -151,6 +151,6 @@ public sealed class Trajectory
         var headLen = maxChars * 60 / 100;
         var tailLen = maxChars - headLen - mark.Length;
         if (tailLen <= 0) return ContextManager.TruncateByRunes(s, maxChars);
-        return ContextManager.TruncateByRunes(s, headLen) + mark + ContextManager.TruncateTailByRunes(s, tailLen);
+        return ContextManager.TruncateKeepHeadTail(s, headLen, tailLen, mark);
     }
 }

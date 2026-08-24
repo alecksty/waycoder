@@ -487,8 +487,8 @@ public static partial class SelfTest
         // 统计
         Check("TotalChars > 0", core.TotalChars > 0);
         Check("FileSizeBytes > 0", core.FileSizeBytes > 0);
-        Check("FormatSize B", EditorCore.FormatSize(500) == "500 B");
-        Check("FormatSize KB", EditorCore.FormatSize(2048) == "2.0 KB");
+        Check("FormatSize B", FormatUtil.FormatSize(500) == "500 B");
+        Check("FormatSize KB", FormatUtil.FormatSize(2048) == "2.0 KB");
 
         // emoji 代理对（😀 = U+1F600，占 2 个 UTF-16 code unit）
         var emo = new EditorCore();

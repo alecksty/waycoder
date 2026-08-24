@@ -2215,34 +2215,34 @@ public static partial class SelfTest
     private static void TestImportHelper(Action<string, bool> Check)
     {
         // ---- StripJsonComments：行注释 ----
-        var noLine = ImportHelper.StripJsonComments("{\"a\": 1} // 行注释");
+        var noLine = Json.StripComments("{\"a\": 1} // 行注释");
         Check("Import: 行注释移除", !noLine.Contains("行注释"));
         Check("Import: 行注释后仍可解析", Json.Parse(noLine) is JNode { Kind: JKind.Object });
 
         // ---- StripJsonComments：块注释 ----
-        var noBlock = ImportHelper.StripJsonComments("{\"a\": /* 块注释 */ 1}");
+        var noBlock = Json.StripComments("{\"a\": /* 块注释 */ 1}");
         Check("Import: 块注释移除", !noBlock.Contains("块注释"));
         Check("Import: 块注释后字段值正确", (int?)Json.Parse(noBlock)?["a"]?.AsNumber() == 1);
 
         // ---- StripJsonComments：字符串内注释标记不误删 ----
-        var url = ImportHelper.StripJsonComments("{\"url\": \"http://example.com\"}");
+        var url = Json.StripComments("{\"url\": \"http://example.com\"}");
         Check("Import: 字符串内 // 不误删", url.Contains("http://example.com"));
 
-        var star = ImportHelper.StripJsonComments("{\"s\": \"a/*b*/c\"}");
+        var star = Json.StripComments("{\"s\": \"a/*b*/c\"}");
         Check("Import: 字符串内 /* */ 不误删", star.Contains("a/*b*/c"));
 
         // ---- StripJsonComments：字符串内转义引号不破坏解析 ----
-        var esc = ImportHelper.StripJsonComments("{\"s\": \"a\\\"b\"}");
+        var esc = Json.StripComments("{\"s\": \"a\\\"b\"}");
         Check("Import: 转义引号保留", Json.Parse(esc)?["s"]?.AsString() == "a\"b");
 
         // ---- FormatSize：三档 + 边界 ----
-        Check("Import: FormatSize 0 B", ImportHelper.FormatSize(0) == "0 B");
-        Check("Import: FormatSize 512 B", ImportHelper.FormatSize(512) == "512 B");
-        Check("Import: FormatSize 1023 B 边界", ImportHelper.FormatSize(1023) == "1023 B");
-        Check("Import: FormatSize 1KB 边界", ImportHelper.FormatSize(1024) == "1.0 KB");
-        Check("Import: FormatSize 2KB", ImportHelper.FormatSize(2048) == "2.0 KB");
-        Check("Import: FormatSize 1MB 边界", ImportHelper.FormatSize(1024L * 1024) == "1.0 MB");
-        Check("Import: FormatSize 5MB", ImportHelper.FormatSize(5L * 1024 * 1024) == "5.0 MB");
+        Check("Import: FormatSize 0 B", FormatUtil.FormatSize(0) == "0 B");
+        Check("Import: FormatSize 512 B", FormatUtil.FormatSize(512) == "512 B");
+        Check("Import: FormatSize 1023 B 边界", FormatUtil.FormatSize(1023) == "1023 B");
+        Check("Import: FormatSize 1KB 边界", FormatUtil.FormatSize(1024) == "1.0 KB");
+        Check("Import: FormatSize 2KB", FormatUtil.FormatSize(2048) == "2.0 KB");
+        Check("Import: FormatSize 1MB 边界", FormatUtil.FormatSize(1024L * 1024) == "1.0 MB");
+        Check("Import: FormatSize 5MB", FormatUtil.FormatSize(5L * 1024 * 1024) == "5.0 MB");
     }
 
     /// <summary>文件锁管理器（FileLockManager）单元测试：获取/续期/拒绝/过期强占/释放/等待。</summary>

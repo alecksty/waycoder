@@ -124,7 +124,7 @@ public static class ContextBridge
                 {
                     cwd = node.GetString("cwd");
                     title = ExtractText(node["message"]?["content"]);
-                    if (title != null) title = Truncate(title, 60);
+                    if (title != null) title = ContextManager.TruncateWithEllipsis(title, 60);
                 }
                 if (cwd != null && title != null) break;
             }
@@ -160,7 +160,7 @@ public static class ContextBridge
                     {
                         var text = ExtractTextCodex(payload["content"]);
                         if (!string.IsNullOrWhiteSpace(text) && !text.StartsWith("<environment_context>"))
-                            title = Truncate(text, 60);
+                            title = ContextManager.TruncateWithEllipsis(text, 60);
                     }
                 }
                 if (cwd != null && title != null) break;
@@ -255,7 +255,7 @@ public static class ContextBridge
             {
                 if (line.StartsWith("USER:", StringComparison.Ordinal))
                 {
-                    title = Truncate(line[5..].Trim(), 60);
+                    title = ContextManager.TruncateWithEllipsis(line[5..].Trim(), 60);
                     break;
                 }
                 if (line.StartsWith("#", StringComparison.Ordinal)) continue;
@@ -385,7 +385,7 @@ public static class ContextBridge
                     {
                         title = ExtractGeminiText(node["content"]);
                         if (!string.IsNullOrWhiteSpace(title))
-                            title = Truncate(title, 60);
+                            title = ContextManager.TruncateWithEllipsis(title, 60);
                     }
                 }
                 else
@@ -395,7 +395,7 @@ public static class ContextBridge
                     {
                         var summary = node.GetString("summary");
                         if (!string.IsNullOrWhiteSpace(summary))
-                            title = Truncate(summary, 60);
+                            title = ContextManager.TruncateWithEllipsis(summary, 60);
                     }
                 }
                 if (title != null) break;
@@ -641,7 +641,7 @@ public static class ContextBridge
             if (type == "text")
                 list.Add((time, "text", data?["text"]?.AsString() ?? ""));
             else if (type == "tool")
-                list.Add((time, "tool", $"[{data?["tool"]?.AsString() ?? "tool"}] {Truncate(data?["state"]?["input"]?.ToJson() ?? "", 200)}"));
+                list.Add((time, "tool", $"[{data?["tool"]?.AsString() ?? "tool"}] {ContextManager.TruncateWithEllipsis(data?["state"]?["input"]?.ToJson() ?? "", 200)}"));
         }
 
         foreach (var (id, role, _) in msgList)
@@ -706,7 +706,7 @@ public static class ContextBridge
                 {
                     var name = data?["name"]?.AsString() ?? "tool";
                     var content = data?["content"]?.AsString() ?? "";
-                    AddChat(chat, "工具", $"[{name}] {Truncate(content, 200)}");
+                    AddChat(chat, "工具", $"[{name}] {ContextManager.TruncateWithEllipsis(content, 200)}");
                 }
             }
         }
@@ -894,7 +894,7 @@ public static class ContextBridge
                ?? input?["pattern"]?.AsString()
                ?? input?["description"]?.AsString()
                ?? input?.ToJson();
-        if (arg != null) arg = Truncate(arg, 200);
+        if (arg != null) arg = ContextManager.TruncateWithEllipsis(arg, 200);
         return $"[{name}] {arg}";
     }
 
@@ -905,13 +905,13 @@ public static class ContextBridge
                ?? node?["path"]?.AsString()
                ?? node?["pattern"]?.AsString()
                ?? node?["description"]?.AsString();
-        if (arg == null && args.Length > 0) arg = Truncate(args, 200);
+        if (arg == null && args.Length > 0) arg = ContextManager.TruncateWithEllipsis(args, 200);
         return $"[{name}] {arg}";
     }
 
     static void AddChat(List<(string, string)> chat, string role, string text)
     {
-        chat.Add((role, Truncate(text, MaxLineRunes)));
+        chat.Add((role, ContextManager.TruncateWithEllipsis(text, MaxLineRunes)));
         if (chat.Count > MaxChatLines)
             chat.RemoveAt(0);
     }
@@ -985,18 +985,6 @@ public static class ContextBridge
     }
 
     /// <summary>按码点安全截断（禁止 char 切片切半代理对，见 CLAUDE.md 约束）。</summary>
-    static string Truncate(string s, int maxRunes)
-    {
-        if (s.Length <= maxRunes) return s;
-        var sb = new StringBuilder();
-        int n = 0;
-        foreach (var r in s.EnumerateRunes())
-        {
-            if (n++ >= maxRunes) break;
-            sb.Append(r.ToString());
-        }
-        return sb.ToString() + "…";
-    }
 
     static string TruncateLines(string s, int maxLines)
     {

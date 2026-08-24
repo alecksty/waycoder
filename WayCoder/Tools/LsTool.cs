@@ -112,7 +112,7 @@ public class LsTool : ITool
                 if (longFormat)
                 {
                     var fi = new FileInfo(f);
-                    sb.AppendLine($"{indent}  {name}  {FormatSize(fi.Length),8}  [{fi.LastWriteTime:yyyy-MM-dd HH:mm}]");
+                    sb.AppendLine($"{indent}  {name}  {FormatUtil.FormatSize(fi.Length),8}  [{fi.LastWriteTime:yyyy-MM-dd HH:mm}]");
                 }
                 else
                     sb.AppendLine($"{indent}  {name}");
@@ -123,11 +123,4 @@ public class LsTool : ITool
         catch { /* 权限不足等，静默跳过 */ }
     }
 
-    private static string FormatSize(long bytes) => bytes switch
-    {
-        < 1024 => $"{bytes} B",
-        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
-        < 1024 * 1024 * 1024 => $"{bytes / (1024.0 * 1024):F1} MB",
-        _ => $"{bytes / (1024.0 * 1024 * 1024):F2} GB",
-    };
 }

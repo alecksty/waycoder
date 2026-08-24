@@ -549,6 +549,21 @@ public class ContextManager
     }
 
     /// <summary>
+    /// 保留头尾截断：头部 headRunes 个码点 + 中间省略标记 + 尾部 tailRunes 个码点。
+    /// 消除「TruncateByRunes + 标记 + TruncateTailByRunes」三段拼接的多处重复。
+    /// 调用方自行保证 text 已超长（需要截断）；marker 可在调用点构造含原始长度的文案。
+    /// </summary>
+    internal static string TruncateKeepHeadTail(string text, int headRunes, int tailRunes, string marker)
+        => TruncateByRunes(text, headRunes) + marker + TruncateTailByRunes(text, tailRunes);
+
+    /// <summary>
+    /// Rune 安全截断并追加省略号（默认 "…"）。maxRunes 为保留的内容码点数（不含省略号）。
+    /// 消除「TruncateByRunes + 省略号」的多处重复。
+    /// </summary>
+    internal static string TruncateWithEllipsis(string s, int maxRunes, string ellipsis = "…")
+        => s.Length <= maxRunes ? s : TruncateByRunes(s, maxRunes) + ellipsis;
+
+    /// <summary>
     /// 生成项目状态快照：扫描工作目录的关键文件结构，
     /// 在硬折叠后注入上下文，防止 Agent 完全失忆。
     /// </summary>

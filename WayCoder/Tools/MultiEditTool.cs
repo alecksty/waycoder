@@ -342,14 +342,14 @@ public class MultiEditTool : ITool
         {
             var count = CountOccurrences(content, edit.OldString);
             if (count == 0)
-                return (null, $"未找到 old_string: \"{Truncate(edit.OldString, 60)}\"");
+                return (null, $"未找到 old_string: \"{ContextManager.TruncateWithEllipsis(edit.OldString, 60, "...")}\"");
             return (content.Replace(edit.OldString, edit.NewString), null);
         }
         else
         {
             var idx = content.IndexOf(edit.OldString, StringComparison.Ordinal);
             if (idx < 0)
-                return (null, $"未找到 old_string: \"{Truncate(edit.OldString, 60)}\"");
+                return (null, $"未找到 old_string: \"{ContextManager.TruncateWithEllipsis(edit.OldString, 60, "...")}\"");
 
             // 检查唯一性
             var lastIdx = content.LastIndexOf(edit.OldString, StringComparison.Ordinal);
@@ -436,8 +436,6 @@ public class MultiEditTool : ITool
     // 工具函数
     // ========================================================================
 
-    private static string Truncate(string s, int maxLen) =>
-        s.Length > maxLen ? ContextManager.TruncateByRunes(s, maxLen) + "..." : s;
 
     private static int CountLines(string s) =>
         string.IsNullOrEmpty(s) ? 1 : s.TrimEnd('\n').Split('\n').Length;

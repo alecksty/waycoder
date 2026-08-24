@@ -39,7 +39,7 @@ public class StatTool : ITool
                 var fi = new FileInfo(fullPath);
                 var sb = new StringBuilder();
                 sb.AppendLine($"📄 文件: {fi.FullName}");
-                sb.AppendLine($"  大小: {FormatSize(fi.Length)} ({fi.Length:N0} bytes)");
+                sb.AppendLine($"  大小: {FormatUtil.FormatSize(fi.Length)} ({fi.Length:N0} bytes)");
                 sb.AppendLine($"  创建: {fi.CreationTime:yyyy-MM-dd HH:mm:ss}");
                 sb.AppendLine($"  修改: {fi.LastWriteTime:yyyy-MM-dd HH:mm:ss}");
                 sb.AppendLine($"  访问: {fi.LastAccessTime:yyyy-MM-dd HH:mm:ss}");
@@ -81,11 +81,4 @@ public class StatTool : ITool
         }
     }
 
-    private static string FormatSize(long bytes) => bytes switch
-    {
-        < 1024 => $"{bytes} B",
-        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
-        < 1024 * 1024 * 1024 => $"{bytes / (1024.0 * 1024):F1} MB",
-        _ => $"{bytes / (1024.0 * 1024 * 1024):F2} GB",
-    };
 }

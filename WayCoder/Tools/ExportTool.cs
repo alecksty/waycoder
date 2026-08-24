@@ -54,7 +54,7 @@ public class ExportTool : ITool
             var fullPath = Path.GetFullPath(outputPath, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory());
             File.WriteAllText(fullPath, content);
             var size = new FileInfo(fullPath).Length;
-            return Task.FromResult($"✅ 已导出 {Messages.Count} 条消息到 {fullPath} ({FormatSize(size)})");
+            return Task.FromResult($"✅ 已导出 {Messages.Count} 条消息到 {fullPath} ({FormatUtil.FormatSize(size)})");
         }
         catch (Exception ex)
         {
@@ -91,12 +91,12 @@ public class ExportTool : ITool
                 sb.AppendLine($"_工具调用 ID: {toolId}_");
                 sb.AppendLine();
                 sb.AppendLine("```");
-                sb.AppendLine(TruncateContent(content, 3000));
+                sb.AppendLine(ContextManager.TruncateWithEllipsis(content, 3000, "\n\n... (已截断)"));
                 sb.AppendLine("```");
             }
             else
             {
-                sb.AppendLine(TruncateContent(content, 5000));
+                sb.AppendLine(ContextManager.TruncateWithEllipsis(content, 5000, "\n\n... (已截断)"));
             }
             sb.AppendLine();
             sb.AppendLine("---");
@@ -148,8 +148,6 @@ public class ExportTool : ITool
         return sb.ToString();
     }
 
-    private static string TruncateContent(string content, int maxLen)
-        => content.Length <= maxLen ? content : ContextManager.TruncateByRunes(content, maxLen) + "\n\n... (已截断)";
 
     /// <summary>角色英文标识 → 中文显示名（导出文件里角色标题中文化）。</summary>
     private static string RoleDisplayName(string role) => role switch
@@ -162,10 +160,4 @@ public class ExportTool : ITool
         _ => role,
     };
 
-    private static string FormatSize(long bytes) => bytes switch
-    {
-        < 1024 => $"{bytes} B",
-        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
-        _ => $"{bytes / (1024.0 * 1024):F1} MB",
-    };
 }
