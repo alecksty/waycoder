@@ -132,7 +132,7 @@ public class ReadFileTool : ITool
             if (ext is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".ico" or ".svg")
             {
                 var info = new FileInfo(path);
-                return $"📷 这是一个图片文件: {filePath}\n大小: {FormatSize(info.Length)}\n格式: {ext.TrimStart('.')}\n\n💡 提示：使用 view 查看或 download 下载。";
+                return $"📷 这是一个图片文件: {filePath}\n大小: {FormatUtil.FormatSize(info.Length)}\n格式: {ext.TrimStart('.')}\n\n💡 提示：使用 view 查看或 download 下载。";
             }
 
             // ── 普通文本文件 ──
@@ -152,7 +152,7 @@ public class ReadFileTool : ITool
         var info = new FileInfo(path);
         // PDF 文件不再受 100KB 限制
         if (info.Length > 50 * 1024 * 1024)
-            return $"⚠ PDF 文件过大: {FormatSize(info.Length)}（最大 50 MB）";
+            return $"⚠ PDF 文件过大: {FormatUtil.FormatSize(info.Length)}（最大 50 MB）";
 
         pageLimit = Math.Min(pageLimit, PdfMaxPages);
         var result = PdfExtractor.Extract(path, startPage, pageLimit);
@@ -170,7 +170,7 @@ public class ReadFileTool : ITool
     {
         var fileInfo = new FileInfo(path);
         if (fileInfo.Length > MaxFileSize * 5) // Markdown 给 500KB
-            return $"⚠ 文件过大: {FormatSize(fileInfo.Length)}（最大 {FormatSize(MaxFileSize * 5)}）";
+            return $"⚠ 文件过大: {FormatUtil.FormatSize(fileInfo.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize * 5)}）";
 
         try { _ = Encoding.UTF8.GetString(File.ReadAllBytes(path)); }
         catch { return $"错误：{path} 不是 UTF-8 文本文件"; }
@@ -286,7 +286,7 @@ public class ReadFileTool : ITool
         var fileInfo = new FileInfo(path);
         if (fileInfo.Length > MaxFileSize)
         {
-            return $"⚠ 文件过大: {FormatSize(fileInfo.Length)}（最大 {FormatSize(MaxFileSize)}）\n💡 提示：使用 offset/limit 分段读取。";
+            return $"⚠ 文件过大: {FormatUtil.FormatSize(fileInfo.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize)}）\n💡 提示：使用 offset/limit 分段读取。";
         }
 
         // 读取 + 二进制/UTF-8 验证
@@ -381,7 +381,7 @@ public class ReadFileTool : ITool
 
         var sb = new StringBuilder();
         sb.AppendLine($"<{format.ToLower()}>");
-        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatSize(info.Length)} | 格式: {format}");
+        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatUtil.FormatSize(info.Length)} | 格式: {format}");
         sb.AppendLine();
         sb.Append(content);
         sb.AppendLine();
@@ -396,7 +396,7 @@ public class ReadFileTool : ITool
     {
         var info = new FileInfo(path);
         if (info.Length > MaxFileSize * 5)
-            return $"⚠ 文件过大: {FormatSize(info.Length)}（最大 {FormatSize(MaxFileSize * 5)}）";
+            return $"⚠ 文件过大: {FormatUtil.FormatSize(info.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize * 5)}）";
 
         byte[] raw;
         try { raw = File.ReadAllBytes(path); }
@@ -411,7 +411,7 @@ public class ReadFileTool : ITool
 
         var sb = new StringBuilder();
         sb.AppendLine("<csv>");
-        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatSize(info.Length)}");
+        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatUtil.FormatSize(info.Length)}");
         sb.AppendLine();
         sb.Append(table);
         sb.Append("</csv>");
@@ -425,7 +425,7 @@ public class ReadFileTool : ITool
     {
         var info = new FileInfo(path);
         if (info.Length > MaxFileSize * 5)
-            return $"⚠ 文件过大: {FormatSize(info.Length)}（最大 {FormatSize(MaxFileSize * 5)}）";
+            return $"⚠ 文件过大: {FormatUtil.FormatSize(info.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize * 5)}）";
 
         byte[] raw;
         try { raw = File.ReadAllBytes(path); }
@@ -443,7 +443,7 @@ public class ReadFileTool : ITool
             if (node != null)
             {
                 var pretty = Json.Serialize(node, indent: true);
-                return $"<json>\n文件: {Path.GetFileName(path)} | 大小: {FormatSize(info.Length)}\n\n{pretty}\n</json>";
+                return $"<json>\n文件: {Path.GetFileName(path)} | 大小: {FormatUtil.FormatSize(info.Length)}\n\n{pretty}\n</json>";
             }
         }
         catch { }
@@ -459,7 +459,7 @@ public class ReadFileTool : ITool
     {
         var info = new FileInfo(path);
         if (info.Length > MaxFileSize * 5)
-            return $"⚠ 文件过大: {FormatSize(info.Length)}（最大 {FormatSize(MaxFileSize * 5)}）";
+            return $"⚠ 文件过大: {FormatUtil.FormatSize(info.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize * 5)}）";
 
         byte[] raw;
         try { raw = File.ReadAllBytes(path); }
@@ -473,7 +473,7 @@ public class ReadFileTool : ITool
 
         var sb = new StringBuilder();
         sb.AppendLine("<ini>");
-        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatSize(info.Length)}");
+        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatUtil.FormatSize(info.Length)}");
         sb.AppendLine();
 
         foreach (var rawLine in text.Split('\n'))
@@ -509,7 +509,7 @@ public class ReadFileTool : ITool
     {
         var info = new FileInfo(path);
         if (info.Length > MaxFileSize * 5)
-            return $"⚠ 文件过大: {FormatSize(info.Length)}（最大 {FormatSize(MaxFileSize * 5)}）";
+            return $"⚠ 文件过大: {FormatUtil.FormatSize(info.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize * 5)}）";
 
         byte[] raw;
         try { raw = File.ReadAllBytes(path); }
@@ -551,7 +551,7 @@ public class ReadFileTool : ITool
         sb.AppendLine("<html>");
         if (title != null)
             sb.AppendLine($"# {title}");
-        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatSize(info.Length)}");
+        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatUtil.FormatSize(info.Length)}");
         sb.AppendLine();
         sb.Append(html);
         sb.AppendLine();
@@ -624,10 +624,4 @@ public class ReadFileTool : ITool
         return d[a.Length, b.Length];
     }
 
-    private static string FormatSize(long bytes) => bytes switch
-    {
-        < 1024 => $"{bytes} B",
-        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
-        _ => $"{bytes / (1024.0 * 1024.0):F1} MB",
-    };
 }

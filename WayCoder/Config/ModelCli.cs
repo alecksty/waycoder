@@ -484,7 +484,7 @@ public static class ModelCli
     /// 导入外部模型数据库（OpenCode / OpenClaw / Crush / Claude Code / Codex / 通用 JSON 文件 / 内置目录），写入全局模型库。
     /// source: null/auto/all=自动探测全部；逗号分隔多来源（opencode,codex,claude）；单来源；builtin=恢复被清空的内置目录；否则视为文件路径。
     /// </summary>
-    public static string Import(string? source = null)
+    public static string Import(string? source = null, Action<string>? onProgress = null)
     {
         var home = Global.Home;
         var imported = new List<ModelCatalog.ModelInfo>();
@@ -501,6 +501,7 @@ public static class ModelCli
         foreach (var raw in sources)
         {
             var src = raw.ToLowerInvariant();
+            onProgress?.Invoke($"🔍 正在导入 {raw} ...");
             if (src == "builtin")
             {
                 ModelCatalog.RestoreBuiltIn();
@@ -510,7 +511,7 @@ public static class ModelCli
             if (src is "ollama" or "lmstudio" or "cc-switch")
             {
                 // 本地服务（Ollama/LM Studio/CC Switch）从本地官方接口实时拉取真实模型
-                localServiceReport = ImportLocalServices();
+                localServiceReport = ImportLocalServices(onProgress);
                 continue;
             }
             if (src is "opencode" or "openclaw" or "crush" or "claude" or "claudecode" or "codex")
@@ -578,7 +579,7 @@ public static class ModelCli
     /// 从本地服务接口导入已安装模型（Ollama /api/tags、LM Studio /v1/models）——
     /// 实时反映本地模型库（比静态目录更准确）。服务未运行则跳过。
     /// </summary>
-    public static string ImportLocalServices()
+    public static string ImportLocalServices(Action<string>? onProgress = null)
     {
         var added = new List<ModelCatalog.ModelInfo>();
         var reports = new List<string>();
@@ -587,6 +588,7 @@ public static class ModelCli
         {
             try
             {
+                onProgress?.Invoke($"🔍 探测 {pname}（{endpoint}）...");
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
                 var json = client.GetStringAsync(endpoint).GetAwaiter().GetResult();
                 var root = Json.Parse(json);
@@ -649,7 +651,7 @@ public static class ModelCli
     /// 拉取模型列表本身不需要 key（opencode 等端点公开）；有 key 才带 Authorization 头，
     /// 无 key / key 无效（401/403）时给出友好提示，而不是直接拒绝导入。
     /// </summary>
-    public static string ImportOnline(OnlineSource src)
+    public static string ImportOnline(OnlineSource src, Action<string>? onProgress = null)
     {
         var key = ApiKeyStore.Get(src.KeyProvider);
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
@@ -658,6 +660,7 @@ public static class ModelCli
             client.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", key);
 
+        onProgress?.Invoke($"🔍 拉取 {src.Name} 模型列表（{src.BaseUrl}/models）...");
         string json;
         try
         {
@@ -688,7 +691,7 @@ public static class ModelCli
     /// 在线导入所有端点（或按名称/服务商过滤指定一个）：拉取各 /models 写入全局模型库。
     /// CLI 入口 `--model import online [源名...]`；空 = 全部。
     /// </summary>
-    public static string ImportOnlineAll(IReadOnlyList<string>? names = null)
+    public static string ImportOnlineAll(IReadOnlyList<string>? names = null, Action<string>? onProgress = null)
     {
         var sources = names is { Count: > 0 }
             ? OnlineSources.Where(s =>
@@ -697,7 +700,7 @@ public static class ModelCli
             : OnlineSources.ToList();
         if (sources.Count == 0)
             return "未找到匹配的在线源（可用: " + string.Join(", ", OnlineSources.Select(s => s.Name)) + "）";
-        var reports = sources.Select(s => ImportOnline(s)).ToList();
+        var reports = sources.Select(s => ImportOnline(s, onProgress)).ToList();
         return string.Join("\n", reports);
     }
 

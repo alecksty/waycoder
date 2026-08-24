@@ -852,7 +852,7 @@ public partial class Agent
     private static string FormatBrief(Dictionary<string, object?> args, int maxLen = 80)
     {
         var s = string.Join(", ", args.Select(kv => $"{kv.Key}={FormatValue(kv.Value)}"));
-        return s.Length > maxLen ? ContextManager.TruncateByRunes(s, maxLen) + "..." : s;
+        return ContextManager.TruncateWithEllipsis(s, maxLen, "...");
     }
 
     private static string FormatValue(object? value)
@@ -865,6 +865,6 @@ public partial class Agent
             System.Collections.IEnumerable or System.Collections.IDictionary or JNode => JsonHelper.SerializeValue(value),
             _ => value.ToString() ?? "null",
         };
-        return s.Length > 40 ? ContextManager.TruncateByRunes(s, 40) + "..." : s;
+        return ContextManager.TruncateWithEllipsis(s, 40, "...");
     }
 }

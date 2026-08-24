@@ -274,9 +274,7 @@ public class BashTool : ITool, ICancellableTool
                 {
                     var headLen = maxChars * 40 / 100;
                     var tailLen = maxChars * 40 / 100;
-                    outStr = ContextManager.TruncateByRunes(outStr, headLen)
-                             + $"\n\n... 已截断（共 {outStr.Length} 字符）...\n\n"
-                             + ContextManager.TruncateTailByRunes(outStr, tailLen);
+                    outStr = ContextManager.TruncateKeepHeadTail(outStr, headLen, tailLen, $"\n\n... 已截断（共 {outStr.Length} 字符）...\n\n");
                 }
 
                 // 文件追踪：检查已读取文件是否被此外部命令修改
@@ -377,9 +375,7 @@ public class BashTool : ITool, ICancellableTool
             {
                 var headLen = maxStreamChars * 40 / 100;
                 var tailLen = maxStreamChars * 40 / 100;
-                outStream = ContextManager.TruncateByRunes(outStream, headLen)
-                             + $"\n\n... 已截断（共 {outStream.Length} 字符）...\n\n"
-                             + ContextManager.TruncateTailByRunes(outStream, tailLen);
+                outStream = ContextManager.TruncateKeepHeadTail(outStream, headLen, tailLen, $"\n\n... 已截断（共 {outStream.Length} 字符）...\n\n");
             }
 
             // 文件追踪：检查已读取文件是否被此外部命令修改

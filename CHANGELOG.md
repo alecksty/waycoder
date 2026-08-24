@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.87.21 (2026-08-25) — 代码重构（拆大文件/合重复代码）+ --model import 进度输出
+
+- **拆分 4 个大文件**（纯物理移动/partial，零行为改动）：`BuiltinArgs.cs`（1204 行）按关注点拆 7 文件（`ModelArgs`/`ModeArgs`/`BatchArgs`/`DebugArgs`/`UtilityArgs`/`McpCli`/`CachePurger`）；`McpClient.cs`（1467 行）拆 `McpClient`/`McpTransport`/`McpTools` 3 文件；`LLM.cs` 移出 `JsonHelper` 到 `Infra/JsonHelper.cs`；`ModelCatalog.cs`（1645 行）拆 3 个 partial（核心 / 文件 IO / 供应商）
+- **合并重复代码**（聚焦「同一函数被复制」的明确重复）：`FormatSize` 8 处 → `Infra/FormatUtil.cs`（统一含 GB 档）；「保尾截断」7 处 → `ContextManager.TruncateKeepHeadTail`；「Rune 截断+省略号」约 10 处 → `ContextManager.TruncateWithEllipsis`；`StripJsonComments` 2 处 + JSON 转义 2 份 → `Json.StripComments` / `Json.EscapeString`
+- **`--model import` 进度输出**：`ModelCli` 导入系列新增 `onProgress` 回调（CLI 走 `Console.WriteLine`、REPL 走 `screen.AddSystemMsg`），导入 / 探测 / 拉取模型列表实时打印，不再干等
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测 4337 通过 / 0 失败
+- `--model import opencode` / `alllocal` 实测打印进度后正常导入
+
 ## v0.87.20 (2026-08-24) — 模式轴解耦 + 工具风险统一 + MCP 目录扩充 + 自测/代理健壮性
 
 - **边界/确认轴解耦**（Codex 双轴对齐）：`SandboxManager.SetLevel` 不再联动 `PermissionManager`；`/perm` 只管理沙箱边界（suggest/auto-edit/full-auto），`/permit` 只管理确认模式（ack/auto/smart/yolo）；`--yolo`、`--permission-mode bypassPermissions` 等组合入口显式同时设置两轴

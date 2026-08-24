@@ -125,7 +125,7 @@ public static class FilePicker
             {
                 table.AddRow(
                     (e.IsDir ? "📁 " : "📄 ") + e.Name,
-                    e.IsDir ? "" : FormatSize(e.Size).PadLeft(SizeW),
+                    e.IsDir ? "" : FormatUtil.FormatSizeCompact(e.Size).PadLeft(SizeW),
                     e.Modified != DateTime.MinValue ? e.Modified.ToString("MM-dd") : "",
                     e.Modified != DateTime.MinValue ? e.Modified.ToString("HH:mm") : "");
             }
@@ -254,13 +254,6 @@ public static class FilePicker
             .ToList();
     }
 
-    private static string FormatSize(long bytes) => bytes switch
-    {
-        < 1024 => $"{bytes}B",
-        < 1024 * 1024 => $"{bytes / 1024.0:F1}K",
-        < 1024 * 1024 * 1024 => $"{bytes / (1024.0 * 1024):F1}M",
-        _ => $"{bytes / (1024.0 * 1024 * 1024):F1}G"
-    };
 
     /// <summary>超长时从左侧截断（保留末尾，用于路径显示）。</summary>
     private static string TruncLeftVW(string text, int maxVW)

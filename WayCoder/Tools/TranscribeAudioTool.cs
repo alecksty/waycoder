@@ -84,12 +84,12 @@ public class TranscribeAudioTool : ITool
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-                return $"转录失败（HTTP {(int)response.StatusCode}）：{Truncate(body, 300)}";
+                return $"转录失败（HTTP {(int)response.StatusCode}）：{ContextManager.TruncateWithEllipsis(body, 300)}";
 
             var json = Json.Parse(body);
             var text = json?["text"]?.AsString();
             if (string.IsNullOrWhiteSpace(text))
-                return $"转录返回空文本。原始响应：{Truncate(body, 200)}";
+                return $"转录返回空文本。原始响应：{ContextManager.TruncateWithEllipsis(body, 200)}";
 
             return text.Trim();
         }
@@ -164,6 +164,4 @@ public class TranscribeAudioTool : ITool
         };
     }
 
-    private static string Truncate(string s, int max)
-        => s.Length <= max ? s : ContextManager.TruncateByRunes(s, max) + "…";
 }

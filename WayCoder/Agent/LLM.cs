@@ -1406,55 +1406,10 @@ public class LLM
             // 解析失败 — 记录日志，返回空字典（不再暴露 _parse_error 伪参数）
             // v0.36.0 修复：此前返回 _parse_error/_parse_error_type/_raw_json_snippet，
             // 被上层当作工具参数传递，导致 write_file(_parse_error=True, ...) 幻觉
-            DebugLog.Log("llm", $"ParseArgs 失败 — JSON 不完整或无效: {ex.Message} — raw: {TruncateForLog(json, 200)}");
+            DebugLog.Log("llm", $"ParseArgs 失败 — JSON 不完整或无效: {ex.Message} — raw: {ContextManager.TruncateWithEllipsis(json, 200, "...")}");
         }
         return result;
     }
 
     /// <summary>按 Unicode 码点截断用于日志预览，避免 UTF-16 切片在 emoji/扩展区字符（代理对）中间切断。</summary>
-    private static string TruncateForLog(string text, int maxRunes)
-    {
-        if (maxRunes <= 0) return "";
-        if (text.Length <= maxRunes) return text;
-        var sb = new StringBuilder();
-        int n = 0;
-        foreach (var r in text.EnumerateRunes())
-        {
-            if (n >= maxRunes) break;
-            sb.Append(r.ToString());
-            n++;
-        }
-        return sb + "...";
-    }
-}
-
-/// <summary>
-/// AOT 兼容的 JSON 辅助方法。统一委托给 JsonLib 的 <see cref="Json.SerializeValue"/> / <see cref="Json.Quote"/>，
-/// 消除重复实现，并统一 NaN/Inf→null、控制字符转义等语义。
-/// </summary>
-internal static class JsonHelper
-{
-    /// <summary>
-    /// 将参数字典手动序列化为 JSON 字符串（无反射，AOT 安全）。
-    /// </summary>
-    public static string SerializeArgs(Dictionary<string, object?> args)
-    {
-        var sb = new StringBuilder("{");
-        var first = true;
-        foreach (var (key, value) in args)
-        {
-            if (!first) sb.Append(',');
-            first = false;
-            sb.Append(Json.Quote(key));
-            sb.Append(':');
-            sb.Append(Json.SerializeValue(value));
-        }
-        sb.Append('}');
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// 序列化任意对象（无反射，AOT 安全）。委托 <see cref="Json.SerializeValue"/>。
-    /// </summary>
-    public static string SerializeValue(object? value) => Json.SerializeValue(value);
 }

@@ -106,7 +106,7 @@ public static class ImportHelper
         {
             var size = new FileInfo(claudeMd).Length;
             items.Add(new ImportItem("📋 项目上下文", "[Claude] CLAUDE.md",
-                $"{claudeMd} ({FormatSize(size)})", true));
+                $"{claudeMd} ({FormatUtil.FormatSize(size)})", true));
         }
 
         // 4. 会话/数据（Claude Code 会话为 JSONL：~/.claude/projects/<路径编码>/*.jsonl）
@@ -156,7 +156,7 @@ public static class ImportHelper
         try
         {
             var raw = File.ReadAllText(configPath, Encoding.UTF8);
-            var json = Json.Parse(StripJsonComments(raw));
+            var json = Json.Parse(Json.StripComments(raw));
             if (json == null) return;
 
             // MCP 服务器
@@ -265,7 +265,7 @@ public static class ImportHelper
         {
             var size = new FileInfo(clineRules).Length;
             items.Add(new ImportItem("📋 项目上下文", "[Cline] Rules",
-                $".clinerules ({FormatSize(size)})", true));
+                $".clinerules ({FormatUtil.FormatSize(size)})", true));
         }
 
         // Cline MCP settings (通常存在 VS Code 全局存储中)
@@ -539,7 +539,7 @@ public static class ImportHelper
         try
         {
             var raw = File.ReadAllText(configPath, Encoding.UTF8);
-            var json = Json.Parse(StripJsonComments(raw));
+            var json = Json.Parse(Json.StripComments(raw));
             var mcp = json?["mcp"];
             if (mcp == null || mcp.Count == 0)
                 return "⏭ OpenCode MCP: 无 mcp 配置";
@@ -1008,66 +1008,5 @@ public static class ImportHelper
     }
 
     /// <summary>去除 JSONC 注释（// 和 /* */），返回纯 JSON 字符串</summary>
-    internal static string StripJsonComments(string jsonc)
-    {
-        var result = new StringBuilder();
-        var inString = false;
-        var inBlockComment = false;
-        var inLineComment = false;
 
-        for (int i = 0; i < jsonc.Length; i++)
-        {
-            var ch = jsonc[i];
-            var next = i + 1 < jsonc.Length ? jsonc[i + 1] : '\0';
-
-            if (inBlockComment)
-            {
-                if (ch == '*' && next == '/') { inBlockComment = false; i++; }
-                continue;
-            }
-            if (inLineComment)
-            {
-                if (ch == '\n' || ch == '\r') { inLineComment = false; result.Append(ch); }
-                continue;
-            }
-            if (inString)
-            {
-                result.Append(ch);
-                if (ch == '\\' && next != '\0') { result.Append(next); i++; }
-                else if (ch == '"') inString = false;
-                continue;
-            }
-            if (ch == '"')
-            {
-                inString = true;
-                result.Append(ch);
-                continue;
-            }
-            if (ch == '/' && next == '*')
-            {
-                inBlockComment = true;
-                i++;
-                continue;
-            }
-            if (ch == '/' && next == '/')
-            {
-                inLineComment = true;
-                i++;
-                continue;
-            }
-            result.Append(ch);
-        }
-
-        return result.ToString();
-    }
-
-    internal static string FormatSize(long bytes)
-    {
-        return bytes switch
-        {
-            < 1024 => $"{bytes} B",
-            < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
-            _ => $"{bytes / (1024.0 * 1024.0):F1} MB"
-        };
-    }
 }
