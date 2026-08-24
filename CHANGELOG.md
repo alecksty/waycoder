@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.87.26 (2026-08-25) — MCP 目录补国内通讯 + 国内搜索
+
+按用户要求补齐两块：
+
+- **通讯**：微信（`weixin-mcp`，扫码登录即用，无需公众号）、QQ（`qq-mcp`，经 HTTP API 向 QQ 群发消息，需 `QQ_API_URL` + `QQ_TOKEN`，uvx 启动）
+- **搜索（国内）**：百度（`baidu-search-mcp`，免费无需 key，中文搜索）、SearXNG（`searxng-mcp`，自托管元搜索，可接国内实例，需 `SEARXNG_SERVER_URL`）
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测通过（新增 8 项：weixin/qq/baidu/searxng 命中 + env 占位 + 通讯分类含微信/QQ）
+
 ## v0.87.25 (2026-08-25) — MCP 生态目录 47→83（达 80+ 目标）
 
 内置目录一次扩充到 **83 个**，覆盖 Claude Code 热门生态九成方向。新增 36 个服务器，包名均经 `npm view` 逐条核实存在：
