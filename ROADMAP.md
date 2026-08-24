@@ -1,6 +1,6 @@
 # WayCoder（道码）竞品分析与路线图
 
-> 版本：v0.87.24 | 日期：2026-08-25
+> 版本：v0.87.25 | 日期：2026-08-25
 
 ---
 
@@ -278,7 +278,7 @@ Week 5+ ─ 生态拓展（按需启动）
 | 模式体系 | 确认轴（`/permit`）、边界轴（`/perm`）、行为轴、省钱轴四轴正交 | Codex `sandbox_mode × approval_policy`、Claude permission modes | 已按竞品解耦，组合预设仍保留 `--yolo` / `--permission-mode bypassPermissions` |
 | 代理连通 | LLM 代理读取 `HTTP(S)_PROXY` 时同时遵守 `NO_PROXY`，回环地址自动绕过 | curl / 现代 CLI 标准行为 | 修复本地 Ollama/LM Studio 与自测 mock 被代理劫持的问题 |
 | 自测隔离 | 自测全局配置目录重定向到临时 home，不写真实用户目录 | CI 常见测试隔离 | 修复受限环境 `UnauthorizedAccessException` 崩溃 |
-| MCP 生态 | 内置 47 个服务器 + `/mcp add`（npx/uvx 双启动）+ 零配置共用 Claude Code MCP | Claude Code 800+ 生态 | 目录数量仍与 800+ 有差距，但「共用 Claude Code 配置」抹平了生态壁垒，下一步继续扩充内置目录、补 Docker 启动 |
+| MCP 生态 | 内置 83 个服务器 + `/mcp add`（npx/uvx 双启动）+ 零配置共用 Claude Code MCP | Claude Code 800+ 生态 | 目录数量仍与 800+ 有差距，但「共用 Claude Code 配置」抹平了生态壁垒，83 个精选目录已覆盖热门方向，下一步补 Docker 启动 |
 | 安全层级 | 软件沙箱（cwd/环境/资源限制） | Codex Seatbelt/Landlock 内核级 | 短期保留“软件沙箱 + 文件锁 + SSRF + 命令防护”组合；内核级留作长期 |
 | IDE 集成 | `--json` / `--output-format json` 桥接 | Claude Code beta、Codex VS Code 扩展 | 轻量桥接够用；完整扩展仍是 P1 |
 
@@ -292,7 +292,9 @@ Week 5+ ─ 生态拓展（按需启动）
 - MCP 内置目录 35→40：新增「部署」分类（Netlify）+ 搜索（Perplexity/DuckDuckGo）+ 开发（Figma/Chrome DevTools），并引入 uvx 启动方式（DuckDuckGo 走 Python/uvx）。
 - 零配置共用 Claude Code MCP：`ClaudeMcp` 读取三处配置源（`.mcp.json` / `~/.claude.json` user 级 / project 级），`type`→`transport` 自动映射，同名去重后追加到 WayCoder，`/mcp` 标注 `〔Claude〕` 来源。
 - MCP 内置目录 40→47：补齐向量库四件套（Chroma/Qdrant/Elasticsearch/Weaviate）+ 云沙箱 E2B + 浏览器云 Browserbase + 邮件 Resend，包名均经 `npm view` 逐条核实。
+- MCP 内置目录 47→83（达 80+ 目标）：新增数据仓库（Snowflake/DuckDB/ClickHouse）、云平台（AWS/Google Cloud/Firebase/DigitalOcean）、通讯（Discord/Telegram/WhatsApp/Twilio）、CRM/办公（Salesforce/HubSpot/Gmail/Calendar/Shopify/Zendesk/Mailchimp/Trello/ClickUp）、开发（Blender/K8s/Midscene/Magic/Composio/OpenRouter/PostHog）、服务（Weather/Spotify/Zapier/n8n/Datadog）等 36 个，包名均经 `npm view` 逐条核实。
 
 下一优先项：
-- MCP 内置目录继续扩到常见搜索/协作/部署类服务器，并补一键 Docker 启动模板（目录目前 0 个 docker 启动条目，`McpCatalog` 的 `Command="docker"` 能力已就绪待填充）。
+- MCP 内置目录补一键 Docker 启动模板（目录目前 0 个 docker 启动条目，`McpCatalog` 的 `Command="docker"` 能力已就绪待填充）。
+- VS Code 扩展（复用 `--json` 桥接，补齐安装/运行任务/diff 预览，P1）。
 - 完整 VS Code 扩展复用 `--json` 桥接，补齐安装、运行任务、diff 预览三个核心界面。

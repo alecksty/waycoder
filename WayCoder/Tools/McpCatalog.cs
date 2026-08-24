@@ -48,6 +48,7 @@ public static class McpCatalog
         new() { Name = "perplexity", Category = "搜索", Description = "Perplexity 实时搜索/深度研究（需 PERPLEXITY_API_KEY）", Args = ["-y", "@perplexity-ai/mcp-server"], Env = new() { ["PERPLEXITY_API_KEY"] = "${PERPLEXITY_API_KEY}" } },
         new() { Name = "duckduckgo", Category = "搜索", Description = "DuckDuckGo 网页搜索（Python/uvx，无需 key）", Command = "uvx", Args = ["duckduckgo-mcp-server"] },
         new() { Name = "aws-kb-retrieval", Category = "搜索", Description = "AWS Bedrock Knowledge Base RAG（需 AWS 凭证）", Args = ["-y", "@modelcontextprotocol/server-aws-kb-retrieval"], Env = new() { ["AWS_ACCESS_KEY_ID"] = "${AWS_ACCESS_KEY_ID}", ["AWS_SECRET_ACCESS_KEY"] = "${AWS_SECRET_ACCESS_KEY}", ["AWS_REGION"] = "${AWS_REGION}" } },
+        new() { Name = "serper", Category = "搜索", Description = "Serper Google 搜索 API（需 SERPER_API_KEY）", Args = ["-y", "mcp-server-serper"], Env = new() { ["SERPER_API_KEY"] = "${SERPER_API_KEY}" } },
 
         // ── 数据库 ──
         new() { Name = "sqlite", Category = "数据库", Description = "SQLite 数据库查询", Args = ["-y", "@modelcontextprotocol/server-sqlite", "data.db"] },
@@ -60,6 +61,17 @@ public static class McpCatalog
         new() { Name = "qdrant", Category = "数据库", Description = "Qdrant 向量数据库（需 QDRANT_URL/API_KEY）", Args = ["-y", "mcp-server-qdrant"], Env = new() { ["QDRANT_URL"] = "${QDRANT_URL}", ["QDRANT_API_KEY"] = "${QDRANT_API_KEY}" } },
         new() { Name = "elasticsearch", Category = "数据库", Description = "Elasticsearch 全文检索（需 ES_URL/ES_API_KEY）", Args = ["-y", "@elastic/mcp-server-elasticsearch"], Env = new() { ["ES_URL"] = "${ES_URL}", ["ES_API_KEY"] = "${ES_API_KEY}" } },
         new() { Name = "weaviate", Category = "数据库", Description = "Weaviate 向量数据库（需 WEAVIATE_URL/API_KEY）", Args = ["-y", "mcp-server-weaviate"], Env = new() { ["WEAVIATE_URL"] = "${WEAVIATE_URL}", ["WEAVIATE_API_KEY"] = "${WEAVIATE_API_KEY}" } },
+        new() { Name = "snowflake", Category = "数据库", Description = "Snowflake 数据仓库（需 SNOWFLAKE_ACCOUNT/USER/PASSWORD）", Args = ["-y", "snowflake-mcp"], Env = new() { ["SNOWFLAKE_ACCOUNT"] = "${SNOWFLAKE_ACCOUNT}", ["SNOWFLAKE_USER"] = "${SNOWFLAKE_USER}", ["SNOWFLAKE_PASSWORD"] = "${SNOWFLAKE_PASSWORD}" } },
+        new() { Name = "duckdb", Category = "数据库", Description = "DuckDB 嵌入式分析数据库（本地文件）", Args = ["-y", "duckdb-mcp"] },
+        new() { Name = "clickhouse", Category = "数据库", Description = "ClickHouse 列式分析库（需 CLICKHOUSE_URL）", Args = ["-y", "clickhouse-mcp"], Env = new() { ["CLICKHOUSE_URL"] = "${CLICKHOUSE_URL}" } },
+        new() { Name = "typesense", Category = "数据库", Description = "Typesense 搜索引擎（需 TYPESENSE_HOST/API_KEY）", Args = ["-y", "typesense-mcp"], Env = new() { ["TYPESENSE_HOST"] = "${TYPESENSE_HOST}", ["TYPESENSE_API_KEY"] = "${TYPESENSE_API_KEY}" } },
+        new() { Name = "pinecone", Category = "数据库", Description = "Pinecone 向量数据库（需 PINECONE_API_KEY）", Args = ["-y", "@pinecone-database/mcp"], Env = new() { ["PINECONE_API_KEY"] = "${PINECONE_API_KEY}" } },
+
+        // ── 云平台 ──
+        new() { Name = "aws", Category = "云", Description = "AWS 云服务（EC2/S3/Lambda 等，需 AWS 凭证）", Args = ["-y", "aws-mcp"], Env = new() { ["AWS_ACCESS_KEY_ID"] = "${AWS_ACCESS_KEY_ID}", ["AWS_SECRET_ACCESS_KEY"] = "${AWS_SECRET_ACCESS_KEY}", ["AWS_REGION"] = "${AWS_REGION}" } },
+        new() { Name = "google-cloud", Category = "云", Description = "Google Cloud 服务（需项目 + 凭证）", Args = ["-y", "google-cloud-mcp"], Env = new() { ["GOOGLE_CLOUD_PROJECT"] = "${GOOGLE_CLOUD_PROJECT}", ["GOOGLE_APPLICATION_CREDENTIALS"] = "${GOOGLE_APPLICATION_CREDENTIALS}" } },
+        new() { Name = "firebase", Category = "云", Description = "Firebase 数据库/认证/存储（需项目 + 凭证）", Args = ["-y", "firebase-mcp"], Env = new() { ["FIREBASE_PROJECT_ID"] = "${FIREBASE_PROJECT_ID}", ["GOOGLE_APPLICATION_CREDENTIALS"] = "${GOOGLE_APPLICATION_CREDENTIALS}" } },
+        new() { Name = "digitalocean", Category = "云", Description = "DigitalOcean 云主机/对象存储（需 DIGITALOCEAN_TOKEN）", Args = ["-y", "@digitalocean/mcp"], Env = new() { ["DIGITALOCEAN_TOKEN"] = "${DIGITALOCEAN_TOKEN}" } },
 
         // ── 记忆 / 思考 ──
         new() { Name = "memory", Category = "记忆", Description = "知识图谱持久记忆", Args = ["-y", "@modelcontextprotocol/server-memory"] },
@@ -72,12 +84,35 @@ public static class McpCatalog
         new() { Name = "figma", Category = "开发", Description = "Figma 设计文件/组件/样式读取（需 FIGMA_ACCESS_TOKEN）", Args = ["-y", "@figma/mcp-server"], Env = new() { ["FIGMA_ACCESS_TOKEN"] = "${FIGMA_ACCESS_TOKEN}" } },
         new() { Name = "chrome-devtools", Category = "开发", Description = "Chrome DevTools 浏览器调试（性能/网络/控制台）", Args = ["-y", "chrome-devtools-mcp@latest"] },
         new() { Name = "e2b", Category = "开发", Description = "E2B 云沙箱执行代码（隔离容器，需 E2B_API_KEY）", Args = ["-y", "@e2b/mcp-server"], Env = new() { ["E2B_API_KEY"] = "${E2B_API_KEY}" } },
+        new() { Name = "blender", Category = "开发", Description = "Blender 3D 建模/场景/渲染（需本地 Blender 运行并开启插件）", Args = ["-y", "blender-mcp"] },
+        new() { Name = "kubernetes", Category = "开发", Description = "Kubernetes 集群管理（pod/部署/日志，用本地 kubeconfig）", Args = ["-y", "mcp-server-kubernetes"] },
+        new() { Name = "screenshotone", Category = "开发", Description = "ScreenshotOne 网页截图（需 SCREENSHOTONE_ACCESS_KEY）", Args = ["-y", "@screenshotone/mcp"], Env = new() { ["SCREENSHOTONE_ACCESS_KEY"] = "${SCREENSHOTONE_ACCESS_KEY}" } },
+        new() { Name = "midscene", Category = "开发", Description = "Midscene AI UI 自动化测试（需 OPENAI_API_KEY）", Args = ["-y", "@midscene/mcp"], Env = new() { ["OPENAI_API_KEY"] = "${OPENAI_API_KEY}" } },
+        new() { Name = "magic", Category = "开发", Description = "Magic AI 前端组件生成（需 TWENTY_FIRST_API_KEY）", Args = ["-y", "@21st-dev/magic"], Env = new() { ["TWENTY_FIRST_API_KEY"] = "${TWENTY_FIRST_API_KEY}" } },
+        new() { Name = "composio", Category = "开发", Description = "Composio 工具集成平台（需 COMPOSIO_API_KEY）", Args = ["-y", "@composio/mcp"], Env = new() { ["COMPOSIO_API_KEY"] = "${COMPOSIO_API_KEY}" } },
+        new() { Name = "openrouter", Category = "开发", Description = "OpenRouter 多模型路由（需 OPENROUTER_API_KEY）", Args = ["-y", "@openrouter/mcp"], Env = new() { ["OPENROUTER_API_KEY"] = "${OPENROUTER_API_KEY}" } },
+        new() { Name = "posthog", Category = "开发", Description = "PostHog 产品分析（需 POSTHOG_API_KEY）", Args = ["-y", "@posthog/mcp"], Env = new() { ["POSTHOG_API_KEY"] = "${POSTHOG_API_KEY}", ["POSTHOG_HOST"] = "${POSTHOG_HOST}" } },
 
         // ── 协作 / 办公 ──
         new() { Name = "notion", Category = "协作", Description = "Notion 页面/数据库读写（需 NOTION_TOKEN）", Args = ["-y", "@notionhq/notion-mcp-server"], Env = new() { ["NOTION_TOKEN"] = "${NOTION_TOKEN}" } },
         new() { Name = "linear", Category = "协作", Description = "Linear 项目/Issue 管理（需 LINEAR_API_KEY）", Args = ["-y", "@linear/mcp"], Env = new() { ["LINEAR_API_KEY"] = "${LINEAR_API_KEY}" } },
         new() { Name = "atlassian", Category = "协作", Description = "Atlassian Jira/Confluence（需 ATLASSIAN_API_KEY）", Args = ["-y", "@atlassian/atlassian-mcp"], Env = new() { ["ATLASSIAN_API_KEY"] = "${ATLASSIAN_API_KEY}" } },
         new() { Name = "gdrive", Category = "协作", Description = "Google Drive 文件搜索/读取（首次需 OAuth auth）", Args = ["-y", "@modelcontextprotocol/server-gdrive"], Env = new() { ["GDRIVE_OAUTH_PATH"] = "${GDRIVE_OAUTH_PATH}", ["GDRIVE_CREDENTIALS_PATH"] = "${GDRIVE_CREDENTIALS_PATH}" } },
+        new() { Name = "trello", Category = "协作", Description = "Trello 看板/卡片/列表（需 TRELLO_API_KEY/TOKEN）", Args = ["-y", "mcp-server-trello"], Env = new() { ["TRELLO_API_KEY"] = "${TRELLO_API_KEY}", ["TRELLO_TOKEN"] = "${TRELLO_TOKEN}" } },
+        new() { Name = "clickup", Category = "协作", Description = "ClickUp 任务/列表/文档（需 CLICKUP_API_KEY）", Args = ["-y", "mcp-server-clickup"], Env = new() { ["CLICKUP_API_KEY"] = "${CLICKUP_API_KEY}" } },
+        new() { Name = "gmail", Category = "协作", Description = "Gmail 邮件读写/搜索（需 OAuth token）", Args = ["-y", "gmail-mcp"], Env = new() { ["GMAIL_OAUTH_TOKEN"] = "${GMAIL_OAUTH_TOKEN}" } },
+        new() { Name = "google-calendar", Category = "协作", Description = "Google Calendar 日程/会议（需 OAuth token）", Args = ["-y", "google-calendar-mcp"], Env = new() { ["GOOGLE_OAUTH_TOKEN"] = "${GOOGLE_OAUTH_TOKEN}" } },
+        new() { Name = "shopify", Category = "协作", Description = "Shopify 商品/订单/客户（需 SHOPIFY_ACCESS_TOKEN）", Args = ["-y", "shopify-mcp"], Env = new() { ["SHOPIFY_SHOP_URL"] = "${SHOPIFY_SHOP_URL}", ["SHOPIFY_ACCESS_TOKEN"] = "${SHOPIFY_ACCESS_TOKEN}" } },
+        new() { Name = "hubspot", Category = "协作", Description = "HubSpot CRM 客户/线索（需 HUBSPOT_API_KEY）", Args = ["-y", "hubspot-mcp"], Env = new() { ["HUBSPOT_API_KEY"] = "${HUBSPOT_API_KEY}" } },
+        new() { Name = "salesforce", Category = "协作", Description = "Salesforce CRM 客户/机会（需实例 + token）", Args = ["-y", "@salesforce/mcp"], Env = new() { ["SALESFORCE_INSTANCE_URL"] = "${SALESFORCE_INSTANCE_URL}", ["SALESFORCE_ACCESS_TOKEN"] = "${SALESFORCE_ACCESS_TOKEN}" } },
+        new() { Name = "zendesk", Category = "协作", Description = "Zendesk 工单/客服（需子域 + email + token）", Args = ["-y", "zendesk-mcp"], Env = new() { ["ZENDESK_SUBDOMAIN"] = "${ZENDESK_SUBDOMAIN}", ["ZENDESK_EMAIL"] = "${ZENDESK_EMAIL}", ["ZENDESK_API_TOKEN"] = "${ZENDESK_API_TOKEN}" } },
+        new() { Name = "mailchimp", Category = "协作", Description = "Mailchimp 邮件营销/订阅者（需 MAILCHIMP_API_KEY）", Args = ["-y", "mailchimp-mcp"], Env = new() { ["MAILCHIMP_API_KEY"] = "${MAILCHIMP_API_KEY}" } },
+
+        // ── 通讯 ──
+        new() { Name = "discord", Category = "通讯", Description = "Discord 消息/频道/机器人（需 DISCORD_TOKEN）", Args = ["-y", "discord-mcp"], Env = new() { ["DISCORD_TOKEN"] = "${DISCORD_TOKEN}" } },
+        new() { Name = "telegram", Category = "通讯", Description = "Telegram 消息/群组/机器人（需 TELEGRAM_BOT_TOKEN）", Args = ["-y", "telegram-mcp"], Env = new() { ["TELEGRAM_BOT_TOKEN"] = "${TELEGRAM_BOT_TOKEN}" } },
+        new() { Name = "whatsapp", Category = "通讯", Description = "WhatsApp 消息（需 WHATSAPP_API_TOKEN）", Args = ["-y", "whatsapp-mcp"], Env = new() { ["WHATSAPP_API_TOKEN"] = "${WHATSAPP_API_TOKEN}" } },
+        new() { Name = "twilio", Category = "通讯", Description = "Twilio 短信/语音/验证码（需 SID + Auth Token）", Args = ["-y", "twilio-mcp"], Env = new() { ["TWILIO_ACCOUNT_SID"] = "${TWILIO_ACCOUNT_SID}", ["TWILIO_AUTH_TOKEN"] = "${TWILIO_AUTH_TOKEN}" } },
 
         // ── 云 / 服务 ──
         new() { Name = "time", Category = "服务", Description = "时间/时区转换", Args = ["-y", "@modelcontextprotocol/server-time"] },
@@ -87,6 +122,11 @@ public static class McpCatalog
         new() { Name = "supabase", Category = "服务", Description = "Supabase 数据库/认证（需 SUPABASE_ACCESS_TOKEN）", Args = ["-y", "@supabase/mcp-server-supabase"], Env = new() { ["SUPABASE_ACCESS_TOKEN"] = "${SUPABASE_ACCESS_TOKEN}" } },
         new() { Name = "cloudflare", Category = "服务", Description = "Cloudflare Workers/KV（需 CLOUDFLARE_API_TOKEN）", Args = ["-y", "@cloudflare/mcp-server-cloudflare"], Env = new() { ["CLOUDFLARE_API_TOKEN"] = "${CLOUDFLARE_API_TOKEN}", ["CLOUDFLARE_ACCOUNT_ID"] = "${CLOUDFLARE_ACCOUNT_ID}" } },
         new() { Name = "resend", Category = "服务", Description = "Resend 邮件发送（需 RESEND_API_KEY）", Args = ["-y", "resend-mcp"], Env = new() { ["RESEND_API_KEY"] = "${RESEND_API_KEY}" } },
+        new() { Name = "weather", Category = "服务", Description = "天气/预报查询（免费，无需 key）", Args = ["-y", "mcp-server-weather"] },
+        new() { Name = "spotify", Category = "服务", Description = "Spotify 音乐/歌单/播放（需 CLIENT_ID/SECRET）", Args = ["-y", "spotify-mcp"], Env = new() { ["SPOTIFY_CLIENT_ID"] = "${SPOTIFY_CLIENT_ID}", ["SPOTIFY_CLIENT_SECRET"] = "${SPOTIFY_CLIENT_SECRET}" } },
+        new() { Name = "zapier", Category = "服务", Description = "Zapier 自动化工作流（需 ZAPIER_API_KEY）", Args = ["-y", "zapier-mcp"], Env = new() { ["ZAPIER_API_KEY"] = "${ZAPIER_API_KEY}" } },
+        new() { Name = "n8n", Category = "服务", Description = "n8n 自动化工作流（需 N8N_API_KEY/HOST）", Args = ["-y", "n8n-mcp"], Env = new() { ["N8N_API_KEY"] = "${N8N_API_KEY}", ["N8N_HOST"] = "${N8N_HOST}" } },
+        new() { Name = "datadog", Category = "服务", Description = "Datadog 监控/日志/指标（需 DD_API_KEY/APP_KEY）", Args = ["-y", "datadog-mcp"], Env = new() { ["DD_API_KEY"] = "${DD_API_KEY}", ["DD_APP_KEY"] = "${DD_APP_KEY}", ["DD_SITE"] = "${DD_SITE}" } },
 
         // ── 部署 ──
         new() { Name = "netlify", Category = "部署", Description = "Netlify 站点部署/环境变量/域名（需 NETLIFY_AUTH_TOKEN）", Args = ["-y", "@netlify/mcp"], Env = new() { ["NETLIFY_AUTH_TOKEN"] = "${NETLIFY_AUTH_TOKEN}" } },
