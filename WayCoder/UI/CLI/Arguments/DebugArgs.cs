@@ -94,6 +94,14 @@ public class TuiAuditArg : CliArg
     public override int? OnMatch(List<string> values) { TuiAudit.Run(); return 0; }
 }
 
+public class TuiMouseArg : CliArg
+{
+    public override string Description => "TUI 鼠标支持测试（离屏模拟点击/滚轮/悬停/拖拽，逐项报告）";
+    public override bool Internal => true;
+    public TuiMouseArg() : base("tui-mouse", "--tui-mouse") { }
+    public override int? OnMatch(List<string> values) => TuiMouseTest.Run();
+}
+
 public class DialogShowArg : CliArg
 {
     public override string Description => "对话框仅绘制演示（1~6 行消息 + 指定位置，抓屏核对布局）";

@@ -485,6 +485,13 @@ public static partial class SelfTest
         try { Directory.Delete(wt, true); } catch { }
     }
 
+    /// <summary>TUI 鼠标支持（所有控件/界面的 OnMouse 离屏模拟）测试</summary>
+    private static void TestTuiMouse(Action<string, bool> Check)
+    {
+        foreach (var (name, pass) in TuiMouseTest.CollectChecks())
+            Check("TuiMouse: " + name, pass);
+    }
+
     /// <summary>省 token 模式（EconomyMode 三态 + 优先级）测试</summary>
     private static void TestEconomyMode(Action<string, bool> Check)
     {
