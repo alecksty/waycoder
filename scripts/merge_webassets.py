@@ -11,6 +11,14 @@
 import pathlib
 import sys
 
+# Windows runner（GitHub Actions / 本地 cmd）默认控制台编码非 UTF-8（cp1252/GBK），
+# 打印中文/emoji 会抛 UnicodeEncodeError → 统一重配置为 UTF-8（Python 3.7+ 支持 reconfigure）
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WWW = ROOT / "WayCoder" / "UI" / "WEB" / "www"
 OUT = ROOT / "WayCoder" / "UI" / "WEB" / "WebAssets.Generated.cs"
