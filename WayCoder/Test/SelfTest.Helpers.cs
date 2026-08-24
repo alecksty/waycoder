@@ -523,21 +523,33 @@ public static partial class SelfTest
                 Check("模型参数: 命中→请求体含 reasoning_effort high",
                     lastBody != null && lastBody.Contains("\"reasoning_effort\":\"high\""));
 
-                // 无约束模型 → 原样发 medium（回归现状）
+                // 无约束但支持思考 → 原样发 medium（v0.87.5 门控：reasoning_effort 仅支持思考的模型发）
                 ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
                     "__selftest_plain__", "__selftest_plain__", "SelfTest", "selftestp", "T", "Imported",
-                    0, 0, 0, url, "test"), local: true);
+                    0, 0, 0, url, "test", SupportsThinking: true), local: true);
                 Config.Instance.ReasoningEffort = "medium";
                 new LLM("__selftest_plain__", "k", url)
                     .ChatAsync(new List<JNode> { JNode.Object().Set("role", "user").Set("content", "hi") })
                     .GetAwaiter().GetResult();
-                Check("模型参数: 无约束→原样发 medium",
+                Check("模型参数: 无约束但支持思考→原样发 medium",
                     lastBody != null && lastBody.Contains("\"reasoning_effort\":\"medium\""));
+
+                // 不支持思考的模型 → 一律不发（本地/chat-only 模型避免 HTTP 400）
+                ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
+                    "__selftest_nothink__", "__selftest_nothink__", "SelfTest", "selftestp", "T", "Imported",
+                    0, 0, 0, url, "test"), local: true);
+                Config.Instance.ReasoningEffort = "medium";
+                new LLM("__selftest_nothink__", "k", url)
+                    .ChatAsync(new List<JNode> { JNode.Object().Set("role", "user").Set("content", "hi") })
+                    .GetAwaiter().GetResult();
+                Check("模型参数: 不支持思考→不发 reasoning_effort",
+                    lastBody != null && !lastBody.Contains("reasoning_effort"));
             }
             finally
             {
                 ModelCatalog.RemoveCustom("__selftest_glm__");
                 ModelCatalog.RemoveCustom("__selftest_plain__");
+                ModelCatalog.RemoveCustom("__selftest_nothink__");
                 Config.Instance.ReasoningEffort = savedReasoning;
             }
         }
