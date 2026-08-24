@@ -372,12 +372,12 @@ public class OutputFormatArg : CliArg
 }
 
 /// <summary>
-/// --permission-mode &lt;default|acceptEdits|plan|bypassPermissions&gt;（）。
-/// bypassPermissions → --yolo；其余保持默认权限确认。
+/// --permission-mode &lt;default|acceptEdits|plan|bypassPermissions&gt;（Claude Code）。
+/// plan → 行为轴 Plan；acceptEdits → 边界轴 auto-edit；bypassPermissions → full-auto。
 /// </summary>
 public class PermissionModeArg : CliArg
 {
-    public override string Description => "权限模式：bypassPermissions 等同 --yolo";
+    public override string Description => "权限模式：default|acceptEdits|plan|bypassPermissions（plan=只读规划，acceptEdits=自动编辑，bypassPermissions=全开）";
     public override int ValueCount => 1;
     public override string? ValueLabel => "模式";
     public PermissionModeArg() : base("permission-mode", "--permission-mode") { }

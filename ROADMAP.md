@@ -1,6 +1,6 @@
 # WayCoder（道码）竞品分析与路线图
 
-> 版本：v0.87.17 | 日期：2026-08-24
+> 版本：v0.87.20 | 日期：2026-08-24
 
 ---
 
@@ -140,7 +140,7 @@
 | ✅ MCP 生态目录 | v0.87.16 | 内置 18 个社区服务器目录 + `/mcp list` 浏览 + `/mcp add` 一键添加 |
 | ✅ 子智能体失败重试 | v0.87.17 | `SubAgentRetryCount` 失败自动换方法重试，LLM 抽风给第二次机会 |
 | ✅ 超大规模分批调度 | v0.87.17 | 批内并行批间串行，废除「超并行数即报错」，`SubAgentMaxTotalTasks` 硬上限防失控 |
-| ✅ MCP 目录扩充 | v0.87.17 | 内置 18→29 个，新增搜索/数据库/协作/服务四类生态服务器 |
+| ✅ MCP 目录扩充 | v0.87.17~v0.87.20 | 内置 18→34 个，新增搜索/数据库/协作/服务四类生态服务器 |
 
 ---
 
@@ -258,13 +258,38 @@ Week 5+ ─ 生态拓展（按需启动）
   • MCP 生态目录 ✅ (v0.87.16)
   • 子智能体失败重试 ✅ (v0.87.17)
   • 超大规模分批调度 ✅ (v0.87.17，批内并行批间串行 + 总任务硬上限)
-  • MCP 目录扩充 ✅ (v0.87.17，18→29 个)
+  • MCP 目录扩充 ✅ (v0.87.17~v0.87.20，18→34 个)
 
 待补齐的（对标 2026 竞品新能力）:
   • 超大规模并行编排 → 已落地「分批调度」✅ (v0.87.17，几十~上百任务自动分批串行；跨仓库 worktree 隔离大规模编排仍待扩展)
   • 内核级沙箱（对标 Codex Seatbelt/Landlock）
   • VS Code 扩展（复用 --json 桥接，完整版 P1）
-  • MCP 生态目录自建 ✅ (v0.87.17，内置 29 个 + /mcp add 一键添加，Claude Code 有 800+ 仍在扩)
+  • MCP 生态目录自建 ✅ (v0.87.20，内置 34 个 + /mcp add 一键添加，Claude Code 有 800+ 仍在扩)
 
 	第二阶段生态拓展全部补完 🎉（v0.49~v0.51）→ 第三阶段竞品短板补齐 🎉（v0.87.14~v0.87.17）
 ```
+
+---
+
+## 九、2026-08-24 竞品差异复核
+
+| 维度 | WayCoder 现状 | 竞品参照 | 结论 |
+|---|---|---|---|
+| 模式体系 | 确认轴（`/permit`）、边界轴（`/perm`）、行为轴、省钱轴四轴正交 | Codex `sandbox_mode × approval_policy`、Claude permission modes | 已按竞品解耦，组合预设仍保留 `--yolo` / `--permission-mode bypassPermissions` |
+| 代理连通 | LLM 代理读取 `HTTP(S)_PROXY` 时同时遵守 `NO_PROXY`，回环地址自动绕过 | curl / 现代 CLI 标准行为 | 修复本地 Ollama/LM Studio 与自测 mock 被代理劫持的问题 |
+| 自测隔离 | 自测全局配置目录重定向到临时 home，不写真实用户目录 | CI 常见测试隔离 | 修复受限环境 `UnauthorizedAccessException` 崩溃 |
+| MCP 生态 | 内置 34 个服务器 + `/mcp add` | Claude Code 800+ 生态 | 仍是明显差距，下一步继续扩充目录与一键安装覆盖 |
+| 安全层级 | 软件沙箱（cwd/环境/资源限制） | Codex Seatbelt/Landlock 内核级 | 短期保留“软件沙箱 + 文件锁 + SSRF + 命令防护”组合；内核级留作长期 |
+| IDE 集成 | `--json` / `--output-format json` 桥接 | Claude Code beta、Codex VS Code 扩展 | 轻量桥接够用；完整扩展仍是 P1 |
+
+本轮已落地：
+- `LLM` 代理选择遵守 `NO_PROXY`，本地回环请求不再经过失效代理。
+- 自测通过 `Global.HomeOverride` 隔离会话/检查点等全局写入。
+- `SandboxManager.SetLevel` 与 `PermissionManager` 解耦；`--permission-mode` 三档映射补齐。
+- `AllowedTools` 接入通用白名单决策链；`Ctrl+E` 切换经济档位后刷新并持久化。
+- `ToolSafetyRegistry` 统一工具级风险数据，权限确认与智能分类不再维护两份名单。
+- MCP 内置目录从 29 扩到 34：新增 GitLab、Redis、MySQL、PDF、AWS KB RAG、Google Drive。
+
+下一优先项：
+- MCP 内置目录继续扩到常见搜索/数据库/协作/部署类服务器，并补一键 `npx`/`uvx`/Docker 启动模板。
+- 完整 VS Code 扩展复用 `--json` 桥接，补齐安装、运行任务、diff 预览三个核心界面。

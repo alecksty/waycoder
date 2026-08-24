@@ -1,5 +1,23 @@
 # 更新日志
 
+## v0.87.20 (2026-08-24) — 模式轴解耦 + 工具风险统一 + MCP 目录扩充 + 自测/代理健壮性
+
+- **边界/确认轴解耦**（Codex 双轴对齐）：`SandboxManager.SetLevel` 不再联动 `PermissionManager`；`/perm` 只管理沙箱边界（suggest/auto-edit/full-auto），`/permit` 只管理确认模式（ack/auto/smart/yolo）；`--yolo`、`--permission-mode bypassPermissions` 等组合入口显式同时设置两轴
+- **`--permission-mode` 补齐**：`plan`→行为轴 Plan、`acceptEdits`→边界轴 auto-edit、`bypassPermissions`→full-auto + Yolo、`default` 不覆盖持久化配置、未知值警告
+- **`ToolSafetyRegistry` 单一风险数据源**：PermissionManager 确认名单与 AutoModeClassifier 三级分类统一从注册表读取；补齐 git/git_pr/sqlite/job_kill/test 等高风险工具确认路径；未知插件/MCP 工具默认按高风险处理
+- **通用白名单 `AllowedTools` 接入决策链**：Build 档与 Build/Yolo 白名单合并，`DisabledTools` 仍最后剔除
+- **LLM 代理遵守 `NO_PROXY`**：`localhost`/`127.0.0.1` 自动绕过代理，修复本地 Ollama/LM Studio 与自测 mock 被代理劫持
+- **自测全局目录隔离**：`Global.HomeOverride` 支持测试/嵌入场景重定向 home，完整自测不再写真实用户 `.waycoder`
+- **MCP 生态目录 29→34**：新增 GitLab、Redis、MySQL、PDF、AWS Bedrock KB RAG、Google Drive，包名/参数经 npm registry 核实，带 `${VAR}` 环境变量占位
+- **发行后自检 `/doctor`**：只读检查 config/api_keys/.env/MCP/hooks/临时文件等，`/doctor fix` 执行安全修复
+- **Ctrl+E 经济切换完善**：切换后立即刷新 Build 工具集并持久化到 `.env`
+- **README/使用手册/模式体系文档同步**：`/perm` 与 `/permit` 语义分开，竞品差异复核与路线图更新
+
+### ✅ 验证
+- 新增自测：NO_PROXY 回环/域名匹配、沙箱与确认解耦、permission-mode 映射、ToolSafetyRegistry 一致性、MCP 34 个目录与 env 占位、Doctor 自检隔离
+- 完整自测 4328 通过 / 3 失败（剩余为本机 git 进程解析与 bash 大输出管道环境相关）
+- 编译 0 错误（2 个既有警告：WebAssets.Generated.cs 重复、ProviderCommand.cs 空引用，非本次引入）
+
 ## v0.87.19 (2026-08-24) — API key 解析机制加固 + Keypad 无头修复 + 脚本跨平台
 
 - **API key 解析机制加固**（`ApiKeyStore`/`Program`/`Config`）：**api_keys.json 为权威源，默认优先使用**；环境变量 key 仅在 json 该服务商为空时才导入/使用（`ImportFromEnvironment`/`ImportFromKnownSources`/`--api-key`/自动导入全部加「只补空不覆盖」守卫）；`--api-key` CLI 仅本次会话生效，json 已有 key 不落盘覆盖；**只有手动 `--model key <供应商> <key>` 才允许覆盖**；新增 `ApiKeyStore.EnvKey()` 读取辅助。修复「env/CLI 一换就覆盖 api_keys.json」导致密钥污染、切换模型连不上

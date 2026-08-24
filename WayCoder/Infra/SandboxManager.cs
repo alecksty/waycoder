@@ -345,14 +345,9 @@ public static class SandboxManager
     {
         var normalized = level.ToLowerInvariant();
 
-        // yolo 是纯权限模式：畅通无阻、不启用沙箱（沙箱会拦 curl/wget/sudo 等命令，
-        // 与"全部允许"语义矛盾）。显式 full-auto 才启用沙箱。
+        // yolo/god 作为边界轴兼容别名看待：启用受限沙箱。确认轴是否放行由 PermissionManager 独立决定。
         if (normalized is "yolo" or "god")
-        {
-            Level = normalized;
-            PermissionManager.SetMode("yolo");
-            return;
-        }
+            normalized = "full-auto";
 
         Level = normalized switch
         {
@@ -361,15 +356,6 @@ public static class SandboxManager
             "auto-edit" or "auto" => "auto-edit",
             _ => "suggest",
         };
-
-        // 同步到 PermissionManager
-        PermissionManager.SetMode(Level switch
-        {
-            "full-auto" => "yolo",
-            "smart-auto" => "smartauto",
-            "auto-edit" => "auto",
-            _ => "ask",
-        });
     }
 
     /// <summary>

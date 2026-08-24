@@ -81,18 +81,71 @@ public class LLM
     private static HttpClient CreateHttpClient()
     {
         var handler = new HttpClientHandler();
-        // HTTP 代理支持 — 读取环境变量 HTTP_PROXY / HTTPS_PROXY
+        // HTTP 代理支持 — 读取环境变量 HTTP_PROXY / HTTPS_PROXY，同时遵守 NO_PROXY。
         var proxyUrl = Environment.GetEnvironmentVariable("HTTPS_PROXY")
                     ?? Environment.GetEnvironmentVariable("HTTP_PROXY")
                     ?? Environment.GetEnvironmentVariable("ALL_PROXY");
         if (!string.IsNullOrWhiteSpace(proxyUrl))
         {
-            handler.Proxy = new System.Net.WebProxy(proxyUrl);
+            handler.Proxy = new ProxyFromEnvironment(proxyUrl, GetNoProxy());
             handler.UseProxy = true;
         }
         // Timeout 由内部 CancellationTokenSource 逐次控制，不通过 HttpClient.Timeout
         // （HttpClient.Timeout 发送首次请求后不可修改，渐进重试会报错）
         return new HttpClient(handler) { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
+    }
+
+    private static string? GetNoProxy()
+        => Environment.GetEnvironmentVariable("NO_PROXY")
+           ?? Environment.GetEnvironmentVariable("no_proxy");
+
+    internal static bool ShouldBypassProxy(string host, string? noProxy)
+    {
+        if (string.IsNullOrWhiteSpace(host)) return false;
+
+        var normalizedHost = host.Trim('[', ']').ToLowerInvariant();
+        if (IsLoopbackHost(normalizedHost)) return true;
+        if (string.IsNullOrWhiteSpace(noProxy)) return false;
+
+        foreach (var raw in noProxy.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var entry = raw.Trim();
+            if (entry.Length == 0) continue;
+            if (entry == "*") return true;
+
+            // no_proxy 条目常见 host:port，端口不参与匹配；IPv6 地址含多个冒号，不拆端口。
+            var colon = entry.LastIndexOf(':');
+            if (colon > 0 && entry.IndexOf(':') == colon)
+                entry = entry[..colon].Trim();
+
+            entry = entry.TrimStart('.').Trim('[', ']').ToLowerInvariant();
+            if (entry.Length == 0) continue;
+            if (normalizedHost == entry || normalizedHost.EndsWith("." + entry, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsLoopbackHost(string host)
+        => host is "localhost" or "127.0.0.1" or "::1" || host.StartsWith("127.", StringComparison.Ordinal);
+
+    private sealed class ProxyFromEnvironment : System.Net.IWebProxy
+    {
+        private readonly Uri _proxy;
+        private readonly string? _noProxy;
+
+        public ProxyFromEnvironment(string proxyUrl, string? noProxy)
+        {
+            _proxy = new Uri(proxyUrl);
+            _noProxy = noProxy;
+        }
+
+        public System.Net.ICredentials? Credentials { get; set; }
+
+        public Uri? GetProxy(Uri destination) => IsBypassed(destination) ? null : _proxy;
+
+        public bool IsBypassed(Uri host) => ShouldBypassProxy(host.Host, _noProxy);
     }
 
     /// <summary>当前活跃模型 (大模型)</summary>

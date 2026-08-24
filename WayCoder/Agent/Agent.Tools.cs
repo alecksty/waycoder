@@ -353,7 +353,7 @@ public partial class Agent
     /// <summary>
     /// 根据配置过滤工具列表（工作模式 + 白名单 + 省钱精简 + 黑名单）。
     /// 决策链：Chat → 0 工具；Plan → 只读白名单（用户 PlanToolAllowList 可交集收窄）→ 黑名单；
-    ///         Build → 显式白名单（YOLO 覆盖 YoloToolAllowList）→ 经济精简 → 黑名单。
+    ///         Build → AllowedTools + 显式白名单（YOLO 覆盖 YoloToolAllowList）→ 经济精简 → 黑名单。
     /// </summary>
     private static List<ITool> FilterTools(Agent agent, List<ITool> tools)
     {
@@ -370,23 +370,29 @@ public partial class Agent
         if (agent.WorkMode == WorkMode.Plan)
         {
             var planUserAllow = ParseCsvSet(config.PlanToolAllowList);
+            var genericAllow = ParseCsvSet(config.AllowedTools);
             var disabled = ParseCsvSet(config.DisabledTools);
             return tools.Where(t =>
             {
                 var name = t.Name.ToLowerInvariant();
                 if (!WorkModeManager.PlanReadOnlyTools.Contains(name)) return false;
                 if (planUserAllow is { Count: > 0 } && !planUserAllow.Contains(name)) return false;
+                if (genericAllow is { Count: > 0 } && !genericAllow.Contains(name)) return false;
                 if (disabled is { Count: > 0 } && disabled.Contains(name)) return false;
                 return true;
             }).ToList();
         }
 
-        // 3. Build 工作模式：显式白名单（YOLO 覆盖）→ 经济精简 → 黑名单
-        string? modeAllow = config.BuildToolAllowList;
-        if (PermissionManager.CurrentMode == PermissionManager.Mode.Yolo)
-            modeAllow = config.YoloToolAllowList;
-
-        var allowed = ParseCsvSet(modeAllow);
+        // 3. Build 工作模式：通用白名单 + 显式白名单（YOLO 覆盖）→ 经济精简 → 黑名单
+        var allowed = ParseCsvSet(config.AllowedTools);
+        var modeAllow = ParseCsvSet(PermissionManager.CurrentMode == PermissionManager.Mode.Yolo
+            ? config.YoloToolAllowList
+            : config.BuildToolAllowList);
+        if (modeAllow is { Count: > 0 })
+        {
+            allowed ??= new HashSet<string>();
+            allowed.UnionWith(modeAllow);
+        }
         var disabledAll = ParseCsvSet(config.DisabledTools);
 
         var result = tools;
