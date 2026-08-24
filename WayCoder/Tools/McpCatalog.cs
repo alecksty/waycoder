@@ -49,6 +49,8 @@ public static class McpCatalog
         new() { Name = "duckduckgo", Category = "搜索", Description = "DuckDuckGo 网页搜索（Python/uvx，无需 key）", Command = "uvx", Args = ["duckduckgo-mcp-server"] },
         new() { Name = "aws-kb-retrieval", Category = "搜索", Description = "AWS Bedrock Knowledge Base RAG（需 AWS 凭证）", Args = ["-y", "@modelcontextprotocol/server-aws-kb-retrieval"], Env = new() { ["AWS_ACCESS_KEY_ID"] = "${AWS_ACCESS_KEY_ID}", ["AWS_SECRET_ACCESS_KEY"] = "${AWS_SECRET_ACCESS_KEY}", ["AWS_REGION"] = "${AWS_REGION}" } },
         new() { Name = "serper", Category = "搜索", Description = "Serper Google 搜索 API（需 SERPER_API_KEY）", Args = ["-y", "mcp-server-serper"], Env = new() { ["SERPER_API_KEY"] = "${SERPER_API_KEY}" } },
+        new() { Name = "baidu", Category = "搜索", Description = "百度中文搜索（免费，无需 key）", Args = ["-y", "baidu-search-mcp"] },
+        new() { Name = "searxng", Category = "搜索", Description = "SearXNG 自托管元搜索（需 SEARXNG_SERVER_URL，可接国内实例）", Args = ["-y", "searxng-mcp"], Env = new() { ["SEARXNG_SERVER_URL"] = "${SEARXNG_SERVER_URL}" } },
 
         // ── 数据库 ──
         new() { Name = "sqlite", Category = "数据库", Description = "SQLite 数据库查询", Args = ["-y", "@modelcontextprotocol/server-sqlite", "data.db"] },
@@ -113,6 +115,8 @@ public static class McpCatalog
         new() { Name = "telegram", Category = "通讯", Description = "Telegram 消息/群组/机器人（需 TELEGRAM_BOT_TOKEN）", Args = ["-y", "telegram-mcp"], Env = new() { ["TELEGRAM_BOT_TOKEN"] = "${TELEGRAM_BOT_TOKEN}" } },
         new() { Name = "whatsapp", Category = "通讯", Description = "WhatsApp 消息（需 WHATSAPP_API_TOKEN）", Args = ["-y", "whatsapp-mcp"], Env = new() { ["WHATSAPP_API_TOKEN"] = "${WHATSAPP_API_TOKEN}" } },
         new() { Name = "twilio", Category = "通讯", Description = "Twilio 短信/语音/验证码（需 SID + Auth Token）", Args = ["-y", "twilio-mcp"], Env = new() { ["TWILIO_ACCOUNT_SID"] = "${TWILIO_ACCOUNT_SID}", ["TWILIO_AUTH_TOKEN"] = "${TWILIO_AUTH_TOKEN}" } },
+        new() { Name = "weixin", Category = "通讯", Description = "微信收发消息（扫码登录即用，无需公众号）", Args = ["-y", "weixin-mcp"] },
+        new() { Name = "qq", Category = "通讯", Description = "QQ 群消息发送（需 QQ_API_URL + QQ_TOKEN，走 HTTP API）", Command = "uvx", Args = ["qq-mcp"], Env = new() { ["QQ_API_URL"] = "${QQ_API_URL}", ["QQ_TOKEN"] = "${QQ_TOKEN}", ["QQ_GROUP_ID"] = "${QQ_GROUP_ID}" } },
 
         // ── 云 / 服务 ──
         new() { Name = "time", Category = "服务", Description = "时间/时区转换", Args = ["-y", "@modelcontextprotocol/server-time"] },

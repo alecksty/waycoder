@@ -337,7 +337,7 @@ public static partial class SelfTest
         Check("目录: trello env 占位", trelloNode["env"]?["TRELLO_API_KEY"]?.AsString() == "${TRELLO_API_KEY}"
             && trelloNode["env"]?["TRELLO_TOKEN"]?.AsString() == "${TRELLO_TOKEN}");
         Check("目录: blender 无需 key", McpCatalog.Find("blender")!.Env.Count == 0);
-        // v0.87.26 扩充：数据仓库/云/通讯/CRM/自动化（包名经 npm 核实，总量达 80+）
+        // v0.87.25 扩充：数据仓库/云/通讯/CRM/自动化（包名经 npm 核实，总量达 80+）
         Check("目录: 新增 snowflake 命中", McpCatalog.Find("snowflake")?.Name == "snowflake");
         Check("目录: 新增 duckdb 命中", McpCatalog.Find("duckdb")?.Name == "duckdb");
         Check("目录: 新增 pinecone 命中", McpCatalog.Find("pinecone")?.Name == "pinecone");
@@ -352,6 +352,19 @@ public static partial class SelfTest
         Check("目录: 云分类存在", McpCatalog.Search("云").Any(e => e.Name == "aws"));
         Check("目录: 通讯分类存在", McpCatalog.Search("通讯").Any(e => e.Name == "discord"));
         Check("目录: 协作分类扩充", McpCatalog.Search("协作").Count >= 12);
+        // v0.87.26 扩充：通讯补微信/QQ + 搜索补国内（百度/SearXNG，包名经 npm/PyPI 核实）
+        Check("目录: 新增 weixin 命中", McpCatalog.Find("weixin")?.Name == "weixin");
+        Check("目录: 新增 qq 命中", McpCatalog.Find("qq")?.Name == "qq");
+        Check("目录: 新增 baidu 命中", McpCatalog.Find("baidu")?.Name == "baidu");
+        Check("目录: 新增 searxng 命中", McpCatalog.Find("searxng")?.Name == "searxng");
+        Check("目录: weixin 无需 key（扫码即用）", McpCatalog.Find("weixin")!.Env.Count == 0);
+        var qqNode = McpCatalog.ToServerNode(McpCatalog.Find("qq")!);
+        Check("目录: qq env 占位", qqNode["env"]?["QQ_API_URL"]?.AsString() == "${QQ_API_URL}"
+            && qqNode["env"]?["QQ_TOKEN"]?.AsString() == "${QQ_TOKEN}");
+        var searxngNode = McpCatalog.ToServerNode(McpCatalog.Find("searxng")!);
+        Check("目录: searxng env 占位", searxngNode["env"]?["SEARXNG_SERVER_URL"]?.AsString() == "${SEARXNG_SERVER_URL}");
+        Check("目录: 通讯分类含微信/QQ", McpCatalog.Search("通讯").Any(e => e.Name == "weixin")
+            && McpCatalog.Search("通讯").Any(e => e.Name == "qq"));
 
         var searchDb = McpCatalog.Search("数据库");
         Check("目录: 按分类搜索「数据库」", searchDb.Count >= 10 && searchDb.Any(e => e.Name == "sqlite"));
