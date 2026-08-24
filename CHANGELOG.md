@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.87.18 (2026-08-24) — API key 有效期 + aihubmix/openrouter 内置模型 + 启动界面精简
+
+- **API key 有效期字段**（`ApiKeyStore`）：每条 key 支持 `expiry`（永久 / 截止日期），`~/.waycoder/api_keys.json` 向后兼容（无 expiry=永久）；`--model key <供应商> <key> [有效期]` 保存带有效期、`--model key expiry <供应商> <有效期>` 改有效期；`--model key` 列表显示有效期并标 `⚠`（已过期 / 临期 ≤7 天），末尾汇总过期数
+- **aihubmix / openrouter 内置常用模型**（`ModelCatalog`）：开箱即用无需先导入——aihubmix 内置 6 个（deepseek-v4-pro/flash、coding-kimi-k3、coding-minimax-m3-free、glm-5.2、gemini-2.5-flash），openrouter 内置 5 个（openrouter/free、north-mini-code:free、deepseek-v3、gemini-2.5-flash、claude-sonnet-4-5）；价格/上下文取真实目录
+- **aihubmix 默认端点改 `api.inferera.com/v1`**：官网 `aihubmix.com` 常被墙，按回退规则切到可达端点，免费模型实测可用
+- **启动界面精简**：聊天区首条对话不再注入快捷键表（太占地方），需要时 `/help` 弹出控件化面板；槽位欢迎改为简短提示
+- **自测修复**：`/mcp add` 缺目录创建 bug（祖先 `.waycoder` 命中时写失败）、reasoning_effort 测试对齐 `SupportsThinking` 门控、服务商端点测试用 `BuiltinProviders` 快照隔离本地覆盖
+- **安全**：清除公开仓库历史中泄露的 DeepSeek API key（`git filter-repo` 重写全历史 + 强推分支/标签），此 key 仍须在 DeepSeek 平台轮换
+
+### ✅ 验证
+- 新增自测：有效期往返/旧格式兼容/展示文本/SetExpiry、清空内置断言改「仅内置源被移除」，全部通过
+- 自测 4275 通过 / 0 失败
+- 编译 0 错误（2 个既有警告：WebAssets.Generated.cs 重复、ProviderCommand.cs 空引用，非本次引入）
+
 ## v0.87.17 (2026-08-24) — 子智能体健壮性三连：失败重试 / 分批调度 / MCP 目录扩充
 
 - **子智能体失败自动重试**（`AgentTool`）：新增 `SubAgentRetryCount` 配置（默认 1，可 0–5），子任务返回「子智能体错误」时自动把「换一种方法重试」提示追加到任务文本重跑，最多重试 N 次——LLM 偶发抽风（错误工具选择、中途异常）时给第二次机会，不再一次失败就报废
