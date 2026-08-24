@@ -486,7 +486,7 @@ public static class ModelCli
     /// </summary>
     public static string Import(string? source = null)
     {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var home = Global.Home;
         var imported = new List<ModelCatalog.ModelInfo>();
         var reports = new List<string>();
         bool restoredBuiltIn = false;

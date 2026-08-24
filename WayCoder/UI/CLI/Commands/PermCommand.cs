@@ -6,7 +6,7 @@ public class PermCommand : SlashCommand
 {
     public override string Name => "/permissions";
     public override string[] Aliases => ["/perm"];
-    public override string Description => "权限管理";
+    public override string Description => "沙箱边界管理（suggest/auto-edit/full-auto）";
     public override string? Usage => "/perm [suggest|auto-edit|full-auto]";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)

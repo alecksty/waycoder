@@ -127,7 +127,7 @@ public class ThemeConfig
 
     /// <summary>旧主题路径（向后兼容读取）</summary>
     private static string LegacyThemePath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        Global.Home,
         ".corecoder", "theme.json");
 
     private static ThemeConfig Load()

@@ -136,21 +136,25 @@ public static partial class SelfTest
         Check("默认级别 suggest", SandboxManager.Level == "suggest");
         Check("默认不沙箱化", !SandboxManager.IsSandboxed);
 
+        PermissionManager.CurrentMode = PermissionManager.Mode.Ask;
         SandboxManager.SetLevel("full-auto");
         Check("full-auto 级别设置", SandboxManager.Level == "full-auto");
         Check("full-auto IsSandboxed", SandboxManager.IsSandboxed);
+        Check("full-auto 不联动确认模式", PermissionManager.CurrentMode == PermissionManager.Mode.Ask);
 
         SandboxManager.SetLevel("auto-edit");
         Check("auto-edit 级别设置", SandboxManager.Level == "auto-edit");
         Check("auto-edit 不沙箱化", !SandboxManager.IsSandboxed);
+        Check("auto-edit 不联动确认模式", PermissionManager.CurrentMode == PermissionManager.Mode.Ask);
 
         SandboxManager.SetLevel("suggest");
         Check("suggest 级别设置", SandboxManager.Level == "suggest");
+        Check("suggest 不联动确认模式", PermissionManager.CurrentMode == PermissionManager.Mode.Ask);
 
-        // yolo 是纯权限模式：全部允许、不启用沙箱（沙箱会拦 curl/wget/sudo，与语义矛盾）
+        // yolo/god 在边界轴兼容别名到 full-auto；确认轴仍独立，不因边界设置而放行
         SandboxManager.SetLevel("yolo");
-        Check("yolo 不沙箱化", !SandboxManager.IsSandboxed);
-        Check("yolo 权限模式", PermissionManager.CurrentMode == PermissionManager.Mode.Yolo);
+        Check("yolo 边界别名映射 full-auto", SandboxManager.Level == "full-auto" && SandboxManager.IsSandboxed);
+        Check("yolo 边界别名不联动确认", PermissionManager.CurrentMode == PermissionManager.Mode.Ask);
 
         // 命令安全检查（开启沙箱）
         SandboxManager.SetLevel("full-auto");

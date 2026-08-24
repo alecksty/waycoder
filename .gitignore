@@ -72,3 +72,11 @@ WayCoder/UI/WEB/WebAssets.Generated.cs
 # 实验目录与构建产物（勿提交）
 QBasic/
 *.deb
+
+
+StarGo/
+
+# 源码树内杂散演示项目（主 csproj 已排除，勿提交）
+WayCoder/Hello/
+WayCoder/Hello.Tests/
+WayCoder/.github/

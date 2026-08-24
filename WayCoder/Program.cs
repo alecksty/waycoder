@@ -48,6 +48,32 @@ public partial class Program
         slots[_activeSlot].Agent?.ReapplyToolFilter();
     }
 
+    /// <summary>
+    /// 应用 --permission-mode（Claude Code 对齐）：plan→行为轴 Plan，
+    /// acceptEdits→边界轴 auto-edit，bypassPermissions→full-auto。未知值返回 false。
+    /// </summary>
+    internal static bool ApplyPermissionMode(string mode)
+    {
+        switch (mode.Trim().ToLowerInvariant())
+        {
+            case "plan":
+                WorkModeManager.SetMode(WorkMode.Plan);
+                return true;
+            case "acceptedits":
+                SandboxManager.SetLevel("auto-edit");
+                return true;
+            case "bypasspermissions":
+                SandboxManager.SetLevel("full-auto");
+                PermissionManager.CurrentMode = PermissionManager.Mode.Yolo;
+                return true;
+            case "default":
+                return true;
+            default:
+                Console.WriteLine($"⚠ 未知 --permission-mode: {mode}（支持 default / acceptEdits / plan / bypassPermissions）");
+                return false;
+        }
+    }
+
     private static WatchMode? _watchMode;
     private static volatile bool _exitRequested;
 
@@ -177,7 +203,8 @@ public partial class Program
         bool jsonMode = Arguments.CliArgRegistry.Has(parsed, "json") || outFormat is "json" or "stream-json";
 
         // --permission-mode bypassPermissions（Claude Code）→ yolo
-        if (Arguments.CliArgRegistry.Get(parsed, "permission-mode") == "bypassPermissions")
+        string? permissionMode = Arguments.CliArgRegistry.Get(parsed, "permission-mode");
+        if (string.Equals(permissionMode, "bypassPermissions", StringComparison.OrdinalIgnoreCase))
             yoloMode = true;
         bool webMode = Arguments.CliArgRegistry.Has(parsed, "web");
         string? webPortSpec = Arguments.CliArgRegistry.Get(parsed, "web");
@@ -308,6 +335,15 @@ public partial class Program
                 _ => EconomyMode.On,
             };
 
+        // --permission-mode plan/acceptEdits/bypassPermissions（Claude Code 对齐）。
+        // default 不覆盖 config.json 中已持久化的边界轴级别，其余模式在 agent 创建前应用。
+        bool permissionModeApplied = false;
+        if (!string.IsNullOrWhiteSpace(permissionMode)
+            && !permissionMode.Equals("default", StringComparison.OrdinalIgnoreCase))
+        {
+            permissionModeApplied = ApplyPermissionMode(permissionMode);
+        }
+
         // 从模型目录自动设置 base URL（两层架构：provider 唯一地址优先，模型默认地址兜底）
         if (_config.BaseUrl == null)
         {
@@ -387,8 +423,9 @@ public partial class Program
         }
         else
         {
-            // 从配置初始化沙箱级别
-            SandboxManager.SetLevel(_config.SandboxLevel);
+            // 从配置初始化沙箱级别；--permission-mode 已在上面应用时不覆盖
+            if (!permissionModeApplied)
+                SandboxManager.SetLevel(_config.SandboxLevel);
             // 同步 PromptCache 设置
             PromptCache.Enabled = _config.PromptCaching;
         }
