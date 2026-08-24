@@ -627,7 +627,7 @@ public static partial class SelfTest
         Check("供应商注册表 minimax 端点",
             ModelCatalog.BuiltinProviders.TryGetValue("minimax", out var pMinimax) && pMinimax.DefaultBaseUrl == "https://api.minimaxi.com/v1");
         Check("供应商注册表 aihubmix 端点",
-            ModelCatalog.BuiltinProviders.TryGetValue("aihubmix", out var pAihubmix) && pAihubmix.DefaultBaseUrl == "https://aihubmix.com/v1");
+            ModelCatalog.BuiltinProviders.TryGetValue("aihubmix", out var pAihubmix) && pAihubmix.DefaultBaseUrl == "https://api.inferera.com/v1");
 
         if (!prevLocalExists && File.Exists(ModelCatalog.LocalModelsPath))
         {
