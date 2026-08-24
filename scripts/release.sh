@@ -37,6 +37,9 @@ c()   { printf '\033[36m%s\033[0m\n' "$*"; }
 ok()  { printf '\033[32m%s\033[0m\n' "$*"; }
 warn(){ printf '\033[33m%s\033[0m\n' "$*"; }
 
+# GNU/BSD 兼容的 sed 原地编辑（GNU 用 -i，BSD 需 -i '' 空后缀；Git Bash 是 GNU，-i '' 会被误当脚本）
+sedi() { if [[ "$(uname -s)" == "Darwin" ]]; then sed -i '' "$@"; else sed -i "$@"; fi; }
+
 # ── SHA256 计算（sha256sum → shasum → powershell 兜底）──
 sha256() {
   local f="$1"
@@ -89,12 +92,12 @@ else
   # 点号转义为字面点（sed BRE 中 . 是通配符）；sed -i '' 兼容 GNU/BSD（BSD 需显式空备份后缀）
   LATEST_VER_RE="${LATEST_VER//./\\.}"
   for f in "$NEW_DIR"/*.yaml; do
-    sed -i '' "s/$LATEST_VER_RE/$VER/g" "$f"
+    sedi "s/$LATEST_VER_RE/$VER/g" "$f"
   done
   # 填 sha256（按 Architecture 范围替换上一版真实 sha256，顺序：x64 → arm64）
   INST="$NEW_DIR/Aleckstygit.WayCoder.installer.yaml"
-  sed -i '' "/Architecture: x64/,/InstallerSha256:/s/InstallerSha256:.*/InstallerSha256: ${SHA[win-x64]}/" "$INST"
-  sed -i '' "/Architecture: arm64/,/InstallerSha256:/s/InstallerSha256:.*/InstallerSha256: ${SHA[win-arm64]}/" "$INST"
+  sedi "/Architecture: x64/,/InstallerSha256:/s/InstallerSha256:.*/InstallerSha256: ${SHA[win-x64]}/" "$INST"
+  sedi "/Architecture: arm64/,/InstallerSha256:/s/InstallerSha256:.*/InstallerSha256: ${SHA[win-arm64]}/" "$INST"
   ok "  已生成 $NEW_DIR"
 fi
 
@@ -112,9 +115,9 @@ if [[ -z "$OLD_VER" ]]; then
   warn "  无法从 formula 提取版本号，跳过（请手动改 $FORMULA）"
 else
   OLD_VER_RE="${OLD_VER//./\\.}"
-  sed -i '' "s/$OLD_VER_RE/$VER/g" "$FORMULA"
-  sed -i '' "/on_arm do/,/sha256 /s/sha256 \".*\"/sha256 \"${SHA[osx-arm64]}\"/" "$FORMULA"
-  sed -i '' "/on_intel do/,/sha256 /s/sha256 \".*\"/sha256 \"${SHA[osx-x64]}\"/" "$FORMULA"
+  sedi "s/$OLD_VER_RE/$VER/g" "$FORMULA"
+  sedi "/on_arm do/,/sha256 /s/sha256 \".*\"/sha256 \"${SHA[osx-arm64]}\"/" "$FORMULA"
+  sedi "/on_intel do/,/sha256 /s/sha256 \".*\"/sha256 \"${SHA[osx-x64]}\"/" "$FORMULA"
   ok "  已更新 $FORMULA → $VER"
 fi
 
