@@ -82,8 +82,16 @@ for RID in "${RIDS[@]}"; do
   if [[ "$RID" == win-* ]]; then
     ARCHIVE="$DIST/waycoder-${VERSION}-${RID}.zip"
     rm -f "$ARCHIVE"
-    # 跨平台打包：macOS/Linux 用 zip，Windows Git Bash 自带 zip（避免依赖 powershell.exe）
-    (cd "$OUT" && zip -q -r "$ARCHIVE" . -x '*.pdb' '*.DS_Store')
+    if command -v zip >/dev/null 2>&1; then
+      # 跨平台打包：macOS/Linux 用 zip，Windows Git Bash 自带 zip（避免依赖 powershell.exe）
+      (cd "$OUT" && zip -q -r "$ARCHIVE" . -x '*.pdb' '*.DS_Store')
+    else
+      # Git Bash 无 zip 时用 PowerShell Compress-Archive 兜底（打包 OUT 目录内容到 zip 根）。
+      # MSYS 路径 /d/... 必须经 cygpath 转成 Windows 路径，否则 PowerShell 会解析成 D:\d\...
+      PS_OUT="$(cygpath -m "$OUT")"
+      PS_ARCHIVE="$(cygpath -m "$ARCHIVE")"
+      powershell -NoProfile -Command "Get-ChildItem -Path '$PS_OUT' | Compress-Archive -DestinationPath '$PS_ARCHIVE' -Force" >/dev/null
+    fi
     echo "  ✅ $ARCHIVE"
   else
     ARCHIVE="$DIST/waycoder-${VERSION}-${RID}.tar.gz"
