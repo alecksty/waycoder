@@ -64,6 +64,11 @@ public partial class Agent
     private DateTime _lastTestRun;
     private string? _lastTestProject;
 
+    /// <summary>本轮对话是否有测试失败（硬绿判定信号：完成后若仍红则继续修复，不结束）。</summary>
+    private bool _turnTestFailed;
+    /// <summary>本轮硬绿判定是否已执行（每轮最多一次，防止测试无法修复时无限循环）。</summary>
+    private bool _hardGreenGateDone;
+
     /// <summary>
     /// 写源码文件后自动运行项目测试，失败结果注入工具结果，形成自动修复闭环。
     /// </summary>
@@ -105,48 +110,22 @@ public partial class Agent
             _lastTestProject = cwd;
             _lastTestRun = DateTime.UtcNow;
 
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = testCmd.Split(' ')[0],
-                Arguments = string.Join(' ', testCmd.Split(' ').Skip(1)),
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                RedirectStandardInput = true, // 不共享主控台 stdin（防与 TUI 主循环抢控制台输入致 ReadKey 永久阻塞）
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            using var proc = System.Diagnostics.Process.Start(psi);
-            if (proc == null) return toolResult;
-            try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
+            var (exitCode, fullOutput) = await RunTestCommandAsync(testCmd, Config.Instance.AutoTestTimeoutSec);
+            if (exitCode == null)
+                return toolResult; // 超时/启动失败，不影响主流程
 
-            // 最多等 N 秒。stdout/stderr 必须并发读：先读完 stdout 再读 stderr，
-            // 子进程向 stderr 写满管道缓冲（约 4KB+）时会阻塞在写 stderr，永远不退出
-            // → stdout 读任务永不完成 → 被误判超时并强杀本应通过的测试。
-            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
-            var stderrTask = proc.StandardError.ReadToEndAsync();
-            var timeoutTask = Task.Delay(Config.Instance.AutoTestTimeoutSec * 1000);
-            var completed = await Task.WhenAny(Task.WhenAll(stdoutTask, stderrTask), timeoutTask);
-            if (completed == timeoutTask)
+            if (exitCode == 0)
             {
-                try { proc.Kill(entireProcessTree: true); } catch { }
-                ErrorLog.Warning("Agent", $"自动测试超时（{Config.Instance.AutoTestTimeoutSec}s），已终止进程");
-                return toolResult;
+                _turnTestFailed = false;
+                return toolResult; // 测试通过，不追加
             }
 
-            // 守护子进程继承管道会让读取永不 EOF：加超时兜底
-            var output = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
-            var errorOutput = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
-            await proc.WaitForExitAsync();
-
-            var fullOutput = output + errorOutput;
-            if (proc.ExitCode == 0)
-                return toolResult; // 测试通过，不追加
-
+            _turnTestFailed = true;
             // 截断
             if (fullOutput.Length > 2000)
                 fullOutput = ContextManager.TruncateByRunes(fullOutput, 2000) + $"\n... (共 {fullOutput.Length} 字符)";
 
-            return toolResult + $"\n\n--- 🔴 自动测试失败 (exit={proc.ExitCode}) ---\n{fullOutput}\n[请修复代码使测试通过]";
+            return toolResult + $"\n\n--- 🔴 自动测试失败 (exit={exitCode}) ---\n{fullOutput}\n[请修复代码使测试通过]";
         }
         catch
         {
@@ -154,10 +133,52 @@ public partial class Agent
         }
     }
 
-    /// <summary>检测当前项目的测试命令</summary>
+    /// <summary>
+    /// 运行测试命令，返回 (exitCode, 合并输出)。exitCode 为 null 表示超时/无法启动。
+    /// stdout/stderr 必须并发读 + 超时兜底：子进程写满任一管道缓冲会阻塞 → 死锁误判超时。
+    /// </summary>
+    private static async Task<(int? exitCode, string output)> RunTestCommandAsync(string testCmd, int timeoutSec)
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = testCmd.Split(' ')[0],
+            Arguments = string.Join(' ', testCmd.Split(' ').Skip(1)),
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = true, // 不共享主控台 stdin（防与 TUI 主循环抢控制台输入致 ReadKey 永久阻塞）
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        using var proc = System.Diagnostics.Process.Start(psi);
+        if (proc == null) return (null, "");
+        try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
+
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+        var stderrTask = proc.StandardError.ReadToEndAsync();
+        var timeoutTask = Task.Delay(timeoutSec * 1000);
+        var completed = await Task.WhenAny(Task.WhenAll(stdoutTask, stderrTask), timeoutTask);
+        if (completed == timeoutTask)
+        {
+            try { proc.Kill(entireProcessTree: true); } catch { }
+            ErrorLog.Warning("Agent", $"测试命令超时（{timeoutSec}s），已终止进程");
+            return (null, "");
+        }
+
+        // 守护子进程继承管道会让读取永不 EOF：加超时兜底
+        var output = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
+        var errorOutput = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
+        try { await proc.WaitForExitAsync(); } catch { }
+        return (proc.ExitCode, output + errorOutput);
+    }
+
+    /// <summary>检测当前项目的测试命令。优先用户指定的 TestCommand，否则按项目类型自动探测。</summary>
     private static string? DetectTestCommand()
     {
         var cwd = Directory.GetCurrentDirectory();
+
+        // 用户显式指定测试命令（测试驱动修复）：最高优先级
+        if (!string.IsNullOrWhiteSpace(Config.Instance.TestCommand))
+            return Config.Instance.TestCommand;
 
         // WayCoder 自测 (内置 SelfTest)
         if (File.Exists(Path.Combine(cwd, "SelfTest.cs")))

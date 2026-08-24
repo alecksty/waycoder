@@ -1,0 +1,6 @@
+COMMANDMAIN:/free 2
+SNAP:free2直接切换
+COMMANDMAIN:/free restore
+SNAP:restore还原
+COMMANDMAIN:/free
+SNAP:free无参弹框

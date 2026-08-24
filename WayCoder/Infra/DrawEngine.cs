@@ -216,6 +216,8 @@ public sealed class DrawFigure
     public uint Stroke = 0;
     public double StrokeWidth = 1;
     public string LineCap = "butt"; // 线头形状：butt | round | square
+    /// <summary>虚线开关（line/arrow/polyline 支持 dash 关键字）：SVG 用 stroke-dasharray，PNG 按段绘制。</summary>
+    public bool Dashed;
     public double FontSize = 14;
     public string Anchor = "start";
     public string FontFamily = "sans-serif";
@@ -350,6 +352,11 @@ public static class DrawRunner
             if (name.Equals("icon", StringComparison.OrdinalIgnoreCase))
             {
                 ParseIcon(doc, args);
+                continue;
+            }
+            if (name.Equals("flowchart", StringComparison.OrdinalIgnoreCase))
+            {
+                FlowchartCommand.Build(doc, args);
                 continue;
             }
 

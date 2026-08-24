@@ -1,0 +1,2 @@
+COMMANDMAIN:/help
+SNAP:帮助

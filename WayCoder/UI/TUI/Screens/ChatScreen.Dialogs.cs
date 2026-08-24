@@ -157,6 +157,17 @@ public partial class ChatScreen : TuiScreen
         return approved;
     }
 
+    /// <summary>通用确认框（Y 确认 / N 取消）。UI 线程或 Agent 后台线程均可调用（RenderWait 自动判定接管）。</summary>
+    public bool ConfirmDialog(string title, string message)
+    {
+        using var evt = new ManualResetEventSlim(false);
+        bool ok = false;
+        var win = TuiDialog.Confirm(title, message, r => { ok = r; evt.Set(); });
+        PostToUI(() => ShowWindow(win));
+        RenderWait(evt);
+        return ok;
+    }
+
     /// <summary>渲染循环等待对话框关闭。
     /// 统一走 <see cref="UxHelper.RenderWait"/>（共享 InputManager：paste/CSI/鼠标解析）——
     /// 此前裸 Console.ReadKey 与主循环双读竞态，且把粘贴前导 \x1b 当 Esc 关闭对话框（静默拒绝）。

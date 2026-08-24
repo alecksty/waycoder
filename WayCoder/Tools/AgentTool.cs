@@ -14,7 +14,7 @@ public class AgentTool : ITool, ICancellableTool
 {
     public string Name => "agent";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-    public string Description => $"生成子智能体来独立处理复杂任务。支持单个任务（task）或并行批量任务（tasks 数组，最多 {MaxParallelTasks} 个并发）。子智能体拥有自己的上下文和工具访问权限，支持多层递归委派。适用于：研究代码库、独立实现多步骤变更，或任何能从全新上下文中获益的任务。并行模式适合同时探索多个独立方向。";
+    public string Description => $"生成子智能体来独立处理复杂任务。支持单个任务（task）或并行批量任务（tasks 数组，最多 {MaxParallelTasks} 个并发）。tasks 元素可为纯字符串，或对象 {{id, description, depends_on}} 表达任务依赖——依赖任务先执行、其输出注入后续任务，实现流水线编排（DAG 分层调度）。子智能体拥有自己的上下文和工具访问权限，支持多层递归委派。";
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
@@ -25,9 +25,20 @@ public class AgentTool : ITool, ICancellableTool
             .Set("tasks", JNode.Object()
                 .Set("type", "array")
                 .Set("items", JNode.Object()
-                    .Set("type", "string")
-                    .Set("description", "单个并行子任务"))
-                .Set("description", $"并行子任务数组（最多 {MaxParallelTasks} 个），各任务独立上下文并行执行")));
+                    .Set("type", "object")
+                    .Set("properties", JNode.Object()
+                        .Set("description", JNode.Object()
+                            .Set("type", "string")
+                            .Set("description", "子任务描述"))
+                        .Set("id", JNode.Object()
+                            .Set("type", "string")
+                            .Set("description", "子任务唯一标识（供其他任务的 depends_on 引用；省略则按序号 t0/t1...）"))
+                        .Set("depends_on", JNode.Object()
+                            .Set("type", "array")
+                            .Set("items", JNode.Object().Set("type", "string"))
+                            .Set("description", "依赖的子任务 id 列表：这些任务完成后才执行本任务，并注入其输出")))
+                    .Set("description", "单个子任务（纯字符串等价于仅 description）"))
+                .Set("description", $"子任务数组（最多 {MaxParallelTasks} 个），支持 id/depends_on 依赖编排")));
 
     /// <summary>
     /// 由 Agent 在构造后设置，用于访问父智能体。
@@ -72,51 +83,28 @@ public class AgentTool : ITool, ICancellableTool
         return await RunSubAgentAsync(task, depth, maxDepth, cancellationToken);
     }
 
-    /// <summary>并行批量执行多个子任务，结果按序聚合返回。</summary>
+    /// <summary>并行批量执行多个子任务，结果按序聚合返回。带依赖（depends_on）时走 DAG 拓扑调度。</summary>
     private async Task<string> ExecuteParallelAsync(object tasksObj, int depth, CancellationToken cancellationToken)
     {
-        var taskList = new List<string>();
+        var specs = new List<SubTaskSpec>();
+        CollectSpecs(tasksObj, specs);
 
-        if (tasksObj is JNode { Kind: JKind.Array } jsonArr)
-        {
-            CollectTaskTexts(jsonArr.Items, taskList);
-        }
-        else if (tasksObj is System.Collections.IEnumerable enumerable && tasksObj is not string)
-        {
-            // JsonElementToObject 解析后此处收到 List<object?>，每个元素为 string 标量或
-            // Dictionary<string,object?> 嵌套对象（LLM 按 schema 的 items 结构传 {"description":...}）
-            CollectTaskTexts(enumerable, taskList);
-        }
-        else if (tasksObj is string s)
-        {
-            // 防御：string 不是字符集合，绝不逐字符遍历。
-            // 兼容 LLM 直接返回单个字符串，或旧版把数组序列化成 JSON 字符串的情况。
-            var trimmed = s.Trim();
-            if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
-            {
-                try
-                {
-                    if (Json.Parse(trimmed) is JNode { Kind: JKind.Array } arr)
-                        CollectTaskTexts(arr.Items, taskList);
-                }
-                catch { /* 解析失败则退回单任务 */ }
-            }
-            if (taskList.Count == 0 && !string.IsNullOrWhiteSpace(trimmed))
-                taskList.Add(trimmed);
-        }
-
-        if (taskList.Count == 0)
+        if (specs.Count == 0)
             return "错误：tasks 数组不能为空，请提供至少一个子任务";
 
-        if (taskList.Count > MaxParallelTasks)
-            return $"错误：并行子任务数量不能超过 {MaxParallelTasks} 个，当前提供了 {taskList.Count} 个。请减少子任务数量或分批次执行。";
+        if (specs.Count > MaxParallelTasks)
+            return $"错误：并行子任务数量不能超过 {MaxParallelTasks} 个，当前提供了 {specs.Count} 个。请减少子任务数量或分批次执行。";
 
         var maxDepth = MaxDepth;
 
+        // 任一子任务带 depends_on → 走依赖图（DAG 拓扑分层）调度
+        if (specs.Any(s => s.DependsOn.Count > 0))
+            return await ExecuteDependencyAsync(specs, depth, maxDepth, cancellationToken);
+
         try
         {
-            var runningTasks = taskList
-                .Select(t => RunSubAgentAsync(t, depth, maxDepth, cancellationToken))
+            var runningTasks = specs
+                .Select(s => RunSubAgentAsync(s.Text, depth, maxDepth, cancellationToken))
                 .ToList();
             var results = await Task.WhenAll(runningTasks);
 
@@ -145,6 +133,140 @@ public class AgentTool : ITool, ICancellableTool
         {
             return $"并行子智能体错误（深度 {depth + 1}）：{ex.GetType().Name}: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// 依赖编排执行（DAG 拓扑分层调度）：Kahn 算法按「入度」逐层放行，每层内并行、
+    /// 层间串行，依赖任务的输出注入后续任务。突破纯并行「一次性火并」的限制，
+    /// 支持「先分析→再实现」「先骨架→再填肉」等流水线式子任务编排。
+    /// </summary>
+    private async Task<string> ExecuteDependencyAsync(List<SubTaskSpec> specs, int depth, int maxDepth, CancellationToken cancellationToken)
+    {
+        try
+        {
+            List<List<int>> levels;
+            try
+            {
+                levels = TopoSort(specs);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return $"错误：{ex.Message}";
+            }
+
+            var idMap = new Dictionary<string, int>(StringComparer.Ordinal);
+            for (int i = 0; i < specs.Count; i++)
+                if (!idMap.ContainsKey(specs[i].Id)) idMap[specs[i].Id] = i;
+
+            var results = new string[specs.Count];
+            foreach (var level in levels)
+            {
+                // 每层内并行、层间串行：依赖任务的输出已写入 results，供 RunDependentAsync 注入
+                var batch = level
+                    .Select(i => RunDependentAsync(i, specs, idMap, results, depth, maxDepth, cancellationToken))
+                    .ToArray();
+                var batchResults = await Task.WhenAll(batch);
+                for (int k = 0; k < level.Count; k++)
+                    results[level[k]] = batchResults[k];
+            }
+
+            // 聚合结果（保持 specs 原始顺序）
+            var sb = new System.Text.StringBuilder();
+            var totalMax = Config.Instance.SubAgentParallelTotalMaxChars;
+            var perItemMax = totalMax > 0 ? Math.Max(200, totalMax / specs.Count) : -1;
+            for (int i = 0; i < specs.Count; i++)
+            {
+                sb.AppendLine($"--- 子任务 {specs[i].Id} ---");
+                sb.AppendLine(perItemMax > 0 ? TruncateKeepTail(results[i], perItemMax) : results[i]);
+            }
+            var summary = $"[子智能体流水线完成 · {specs.Count} 个任务 · 按依赖拓扑调度]\n{sb}";
+            return totalMax > 0 && summary.Length > totalMax ? TruncateKeepTail(summary, totalMax) : summary;
+        }
+        catch (OperationCanceledException)
+        {
+            throw; // 中断信号向上传播
+        }
+        catch (Exception ex)
+        {
+            return $"依赖编排子智能体错误（深度 {depth + 1}）：{ex.GetType().Name}: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// 依赖图拓扑分层（Kahn 算法）：校验 id 存在/自依赖/环，返回每层可并行的任务索引组。
+    /// 纯逻辑（无 I/O），供 <see cref="ExecuteDependencyAsync"/> 调度与自测复用。
+    /// </summary>
+    internal static List<List<int>> TopoSort(List<SubTaskSpec> specs)
+    {
+        var idMap = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (int i = 0; i < specs.Count; i++)
+            if (!idMap.ContainsKey(specs[i].Id)) idMap[specs[i].Id] = i;
+
+        // indegree[i] = 任务 i 的未完成依赖数；dependents[di] = 依赖 di 的任务集合
+        var indegree = new int[specs.Count];
+        var dependents = new List<int>[specs.Count];
+        for (int i = 0; i < specs.Count; i++) dependents[i] = new List<int>();
+
+        for (int i = 0; i < specs.Count; i++)
+        {
+            foreach (var dep in specs[i].DependsOn)
+            {
+                if (!idMap.TryGetValue(dep, out var di))
+                    throw new InvalidOperationException($"子任务「{specs[i].Id}」依赖的 id「{dep}」不存在");
+                if (di == i)
+                    throw new InvalidOperationException($"子任务「{specs[i].Id}」不能依赖自身");
+                indegree[i]++;
+                dependents[di].Add(i);
+            }
+        }
+
+        var levels = new List<List<int>>();
+        var completed = new bool[specs.Count];
+        int done = 0;
+        while (done < specs.Count)
+        {
+            var level = new List<int>();
+            for (int i = 0; i < specs.Count; i++)
+                if (!completed[i] && indegree[i] == 0)
+                    level.Add(i);
+            if (level.Count == 0)
+                throw new InvalidOperationException("子任务依赖存在环（depends_on 形成循环），无法调度");
+            foreach (var i in level)
+            {
+                completed[i] = true;
+                done++;
+                foreach (var d in dependents[i]) indegree[d]--;
+            }
+            levels.Add(level);
+        }
+        return levels;
+    }
+
+    /// <summary>执行带依赖的子任务：把已完成的依赖任务输出注入到任务文本，再交给子智能体。</summary>
+    private async Task<string> RunDependentAsync(int idx, List<SubTaskSpec> specs, Dictionary<string, int> idMap, string[] results, int depth, int maxDepth, CancellationToken cancellationToken)
+    {
+        var spec = specs[idx];
+        var task = spec.Text;
+
+        if (spec.DependsOn.Count > 0)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("前置子任务已完成，其输出如下（请基于这些结果继续完成本任务）：");
+            var depMax = Config.Instance.SubAgentOutputMaxChars > 0
+                ? Config.Instance.SubAgentOutputMaxChars
+                : 2000;
+            foreach (var depId in spec.DependsOn)
+            {
+                if (!idMap.TryGetValue(depId, out var di)) continue;
+                var outText = results[di];
+                if (outText.Length > depMax)
+                    outText = TruncateKeepTail(outText, depMax);
+                sb.AppendLine($"### 依赖任务「{depId}」输出\n{outText}");
+            }
+            task = $"{sb}\n\n---\n## 本任务\n{task}";
+        }
+
+        return await RunSubAgentAsync(task, depth, maxDepth, cancellationToken);
     }
 
     /// <summary>执行单个子任务（单任务模式与并行模式共用）。</summary>
@@ -266,18 +388,116 @@ public class AgentTool : ITool, ICancellableTool
     private static readonly string[] TaskTextKeys =
         ["description", "task", "name", "title", "text", "prompt", "instruction"];
 
-    /// <summary>
-    /// 从任意集合（JsonArray / List&lt;object?&gt; / 解析出的 JsonArray）中提取非空任务文本，
-    /// 追加到 taskList。消除 ExecuteParallelAsync 三个解析分支里重复的
-    /// 「ExtractTaskText + 非空判断 + Add」样板。
-    /// </summary>
-    private static void CollectTaskTexts(System.Collections.IEnumerable items, List<string> taskList)
+    /// <summary>单个子任务规格：文本 + 逻辑 id + 依赖 id 列表（纯字符串任务等价于仅 Text）。</summary>
+    internal sealed class SubTaskSpec
     {
-        foreach (var item in items)
+        public string Id = "";
+        public string Text = "";
+        public List<string> DependsOn = [];
+    }
+
+    /// <summary>
+    /// 从 tasks 参数（JNode 数组 / List&lt;object?&gt; / JSON 字符串 / 裸字符串）解析出子任务规格列表，
+    /// 统一三个形态分支的解析样板。纯字符串元素默认 id 为 t0/t1/...，无依赖。
+    /// </summary>
+    private static void CollectSpecs(object tasksObj, List<SubTaskSpec> specs)
+    {
+        if (tasksObj is JNode { Kind: JKind.Array } jsonArr)
         {
-            var t = ExtractTaskText(item);
-            if (!string.IsNullOrWhiteSpace(t))
-                taskList.Add(t);
+            int i = 0;
+            foreach (var item in jsonArr.Items)
+            {
+                var spec = ExtractSpec(item, i++);
+                if (!string.IsNullOrWhiteSpace(spec.Text)) specs.Add(spec);
+            }
+        }
+        else if (tasksObj is System.Collections.IEnumerable enumerable && tasksObj is not string)
+        {
+            // JsonElementToObject 解析后此处收到 List<object?>，每个元素为 string 标量或
+            // Dictionary<string,object?> 嵌套对象（LLM 按 schema 的 items 结构传 {"description":...}）
+            int i = 0;
+            foreach (var item in enumerable)
+            {
+                var spec = ExtractSpec(item, i++);
+                if (!string.IsNullOrWhiteSpace(spec.Text)) specs.Add(spec);
+            }
+        }
+        else if (tasksObj is string s)
+        {
+            // 防御：string 不是字符集合，绝不逐字符遍历。
+            // 兼容 LLM 直接返回单个字符串，或旧版把数组序列化成 JSON 字符串的情况。
+            var trimmed = s.Trim();
+            if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+            {
+                try
+                {
+                    if (Json.Parse(trimmed) is JNode { Kind: JKind.Array } arr)
+                    {
+                        int i = 0;
+                        foreach (var item in arr.Items)
+                        {
+                            var spec = ExtractSpec(item, i++);
+                            if (!string.IsNullOrWhiteSpace(spec.Text)) specs.Add(spec);
+                        }
+                    }
+                }
+                catch { /* 解析失败则退回单任务 */ }
+            }
+            if (specs.Count == 0 && !string.IsNullOrWhiteSpace(trimmed))
+                specs.Add(new SubTaskSpec { Id = "t0", Text = trimmed });
+        }
+    }
+
+    /// <summary>从 tasks 数组单个元素解析子任务规格（文本 + id + depends_on），纯字符串元素无 id/依赖。</summary>
+    internal static SubTaskSpec ExtractSpec(object? item, int index)
+    {
+        var spec = new SubTaskSpec { Id = $"t{index}", Text = ExtractTaskText(item) ?? "" };
+
+        switch (item)
+        {
+            case JNode jo:
+                var idStr = jo["id"]?.AsString();
+                if (!string.IsNullOrWhiteSpace(idStr)) spec.Id = idStr;
+                CollectDependsOn(jo["depends_on"], spec.DependsOn);
+                break;
+            case Dictionary<string, object?> dict:
+                if (dict.TryGetValue("id", out var idv) && idv is string ids && !string.IsNullOrWhiteSpace(ids))
+                    spec.Id = ids;
+                if (dict.TryGetValue("depends_on", out var dv))
+                    CollectDependsOn(dv, spec.DependsOn);
+                break;
+        }
+        return spec;
+    }
+
+    /// <summary>从 depends_on 字段解析依赖 id 列表（兼容字符串数组 / 单个字符串 / JNode 数组）。</summary>
+    internal static void CollectDependsOn(object? value, List<string> deps)
+    {
+        switch (value)
+        {
+            case null:
+                break;
+            case string s:
+                if (!string.IsNullOrWhiteSpace(s)) deps.Add(s);
+                break;
+            case JNode { Kind: JKind.Array } arr:
+                foreach (var it in arr.Items)
+                {
+                    var s = it.AsString();
+                    if (!string.IsNullOrWhiteSpace(s)) deps.Add(s);
+                }
+                break;
+            case JNode other:
+                var s2 = other.AsString();
+                if (!string.IsNullOrWhiteSpace(s2)) deps.Add(s2);
+                break;
+            case System.Collections.IEnumerable en:
+                foreach (var it in en)
+                {
+                    var s3 = it?.ToString();
+                    if (!string.IsNullOrWhiteSpace(s3)) deps.Add(s3);
+                }
+                break;
         }
     }
 

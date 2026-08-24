@@ -313,14 +313,18 @@ public class LLM
     }
 
     public LLM(string model, string apiKey, string? baseUrl = null,
-        int maxTokens = 32768, float temperature = 0.1f)
+        int maxTokens = 32768, float temperature = 0.1f, int timeoutSeconds = 0)
     {
         Model = model;
         ApiKey = apiKey;
         BaseUrl = baseUrl;
         MaxTokens = maxTokens;
         Temperature = temperature;
+        TimeoutSeconds = timeoutSeconds;
     }
+
+    /// <summary>单次请求超时（秒）。&gt;0 时覆盖全局 LlmHttpTimeoutSec 且不渐进加长重试——探测/连通性测试用。</summary>
+    public int TimeoutSeconds { get; set; }
 
     /// <summary>
     /// 运行时重配置 API 密钥与基础 URL（换供应商/换 key 时用）。
@@ -401,7 +405,14 @@ public class LLM
         _reasoningBuffer.Clear();
 
         // 超时由 CallWithRetryAsync 内部逐次加长管理，外部仅传取消令牌
-        var endpoint = ResolveApiEndpoint(BaseUrl, "/v1/chat/completions");
+        // API 格式（openai/anthropic/gemini）：从当前模型的 provider 反查（模型级/厂商级），原生格式用各自端点
+        var apiFormat = ModelCatalog.ResolveApiFormat(EffectiveModel, BaseUrl);
+        var endpoint = apiFormat switch
+        {
+            "anthropic" => ResolveApiEndpoint(BaseUrl, "/v1/messages"),
+            "gemini" => $"{BaseUrl?.TrimEnd('/')}/v1beta/models/{Uri.EscapeDataString(EffectiveModel)}:streamGenerateContent?alt=sse",
+            _ => ResolveApiEndpoint(BaseUrl, "/v1/chat/completions"),
+        };
 
         // 调试日志：记录发送内容
         DebugLog.LogRequest(messages, tools ?? []);
@@ -416,8 +427,13 @@ public class LLM
             : Config.Instance.EconomyMode == EconomyMode.On ? Math.Min(MaxTokens, Config.Instance.EconomyMaxTokens) : MaxTokens;
 
         // 构建请求体。JNode 无 Remove，400 回退时用 includeStreamOptions 参数重建不带 stream_options 的请求体。
-        JNode BuildBody(bool includeStreamOptions)
+        // 模型调用参数约束：模型级 > 厂商级 > 全局默认（Find 带网关：同 id 不同网关是两个条目）
+        var constraints = ModelCatalog.ResolveModelCallConstraints(EffectiveModel, BaseUrl);
+        JNode BuildBody(bool includeStreamOptions, bool includeTools = true, bool includeThinking = true)
         {
+            if (apiFormat == "anthropic") return BuildAnthropicBody(clonedMessages, clonedTools, maxTokens, constraints);
+            if (apiFormat == "gemini") return BuildGeminiBody(clonedMessages, clonedTools, maxTokens, constraints);
+
             var messagesArray = JNode.Array();
             foreach (var m in clonedMessages) messagesArray.Add(m);
 
@@ -425,39 +441,117 @@ public class LLM
                 .Set("model", EffectiveModel)
                 .Set("messages", messagesArray)
                 .Set("stream", true)
-                .Set("temperature", Math.Clamp(Temperature, 0f, 2f))
+                // temperature 先转 double 再 round 到约束精度（默认 2 位）：float 0.1f → double 0.10000000149011612，
+                // JSON "R" 序列化输出长尾小数，被 glm-5.3 等严格网关（限 2 位）以 HTTP 400 拒绝
+                .Set("temperature", Math.Round(Math.Clamp(
+                    ModelCatalog.ResolveProviderTemperature(EffectiveModel, BaseUrl) ?? (double)Temperature,
+                    0.0, 2.0), constraints.TemperaturePrecision))
                 .Set("max_tokens", maxTokens);
 
             if (includeStreamOptions)
                 b.Set("stream_options", JNode.Object().Set("include_usage", true));
 
-            if (clonedTools is { Count: > 0 })
+            // 工具能力门控：模型不支持工具（如 Ollama gemma2）→ 不发 tools（400 回退仅作安全网）
+            if (includeTools && constraints.SupportsTools && clonedTools is { Count: > 0 })
             {
                 var toolsArray = JNode.Array();
                 foreach (var t in clonedTools) toolsArray.Add(t);
                 b.Set("tools", toolsArray);
             }
 
-            // 推理深度：DeepSeek V4 / OpenAI o-series 支持 reasoning_effort 参数
-            var reasoningEffort = Config.Instance.ReasoningEffort;
-            if (!string.IsNullOrEmpty(reasoningEffort))
+            // 推理深度：DeepSeek V4 / OpenAI o-series 支持 reasoning_effort 参数。
+            // 值恒来自全局，但：不支持思考的模型（本地等）一律不发；允许集越界→跳过（不发，避免 HTTP 400）
+            // includeThinking=false：400 回退第三级——能力推断为支持思考但网关实际不认（chat-only 模型），去 thinking 重试防误判
+            if (includeThinking && constraints.SupportsThinking)
             {
-                b.Set("reasoning_effort", reasoningEffort);
+                var reasoningEffort = ModelCatalog.ResolveReasoningEffort(
+                    constraints.ReasoningEffortAllowed, Config.Instance.ReasoningEffort);
+                if (!string.IsNullOrEmpty(reasoningEffort))
+                {
+                    b.Set("reasoning_effort", reasoningEffort);
+                }
+                else if (!string.IsNullOrEmpty(Config.Instance.ReasoningEffort))
+                {
+                    DebugLog.Log("llm",
+                        $"模型 {EffectiveModel} 限制 reasoning_effort 允许集 [{constraints.ReasoningEffortAllowed}]，" +
+                        $"全局值 {Config.Instance.ReasoningEffort} 越界，已跳过该字段");
+                }
+            }
+
+            // 内网/离线部署：本地 Ollama 显式 num_ctx（上下文窗口），覆盖默认探测（0=自动，不发该字段）
+            if (Config.Instance.OllamaNumCtx > 0 && ModelCatalog.IsOllamaBaseUrl(BaseUrl))
+            {
+                b.Set("options", JNode.Object().Set("num_ctx", Config.Instance.OllamaNumCtx));
             }
 
             return b;
         }
 
-        var body = BuildBody(includeStreamOptions: true);
+        // ── Anthropic 原生格式（POST /v1/messages）──
+        JNode BuildAnthropicBody(List<JNode> msgs, List<JNode>? tools, int maxTok, ModelCatalog.ModelCallConstraints cons)
+        {
+            var (system, messagesArray) = ConvertMessagesToAnthropic(msgs);
+            var b = JNode.Object()
+                .Set("model", EffectiveModel)
+                .Set("messages", messagesArray)
+                .Set("max_tokens", maxTok)                     // Anthropic 必填
+                .Set("temperature", Math.Round((double)Math.Clamp(Temperature, 0f, 1f), cons.TemperaturePrecision))
+                .Set("stream", true);
+            if (system != null) b.Set("system", system);
+            // 工具能力门控（原生格式无 400 回退，必须提前判断）
+            if (cons.SupportsTools && tools is { Count: > 0 }) b.Set("tools", ConvertToolsToAnthropic(tools));
+            // 支持思考时开启 extended thinking（当前全局 reasoning_effort 仅 OpenAI 格式用，Anthropic 用 thinking 块）
+            if (cons.SupportsThinking && !string.IsNullOrEmpty(Config.Instance.ReasoningEffort))
+            {
+                b.Set("thinking", JNode.Object()
+                    .Set("type", "enabled")
+                    .Set("budget_tokens", Math.Min(maxTok, 1024)));
+            }
+            return b;
+        }
 
-        // 构造带鉴权头的请求（局部函数，供首次与 400 回退两处复用）
+        // ── Gemini 原生格式（POST /v1beta/models/{model}:streamGenerateContent）──
+        JNode BuildGeminiBody(List<JNode> msgs, List<JNode>? tools, int maxTok, ModelCatalog.ModelCallConstraints cons)
+        {
+            var (contents, system) = ConvertMessagesToGemini(msgs);
+            var b = JNode.Object()
+                .Set("contents", contents)
+                .Set("generationConfig", JNode.Object()
+                    .Set("temperature", Math.Round((double)Math.Clamp(Temperature, 0f, 1f), cons.TemperaturePrecision))
+                    .Set("maxOutputTokens", maxTok));
+            if (system != null)
+                b.Set("systemInstruction", JNode.Object().Set("parts", JNode.Array().Add(JNode.Object().Set("text", system))));
+            // 工具能力门控（原生格式无 400 回退，必须提前判断）
+            if (cons.SupportsTools && tools is { Count: > 0 }) b.Set("tools", ConvertToolsToGemini(tools));
+            // 支持思考时开 thinkingConfig（Gemini 思考开关）
+            if (cons.SupportsThinking && !string.IsNullOrEmpty(Config.Instance.ReasoningEffort))
+            {
+                b.Set("thinkingConfig", JNode.Object().Set("thinkingBudget", Math.Min(maxTok, 1024)));
+            }
+            return b;
+        }
+
+        // 构造带鉴权头的请求（局部函数，供首次与 400 回退多处复用）
         HttpRequestMessage CreateAuthRequest(JNode requestBody)
         {
             var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
             {
                 Content = new StringContent(requestBody.ToJson(), Encoding.UTF8, "application/json"),
             };
-            req.Headers.Add("Authorization", $"Bearer {ApiKey}");
+            // 鉴权头按 API 格式：openai=Bearer；anthropic=x-api-key+版本头；gemini=x-goog-api-key
+            if (apiFormat == "anthropic")
+            {
+                req.Headers.TryAddWithoutValidation("x-api-key", ApiKey);
+                req.Headers.TryAddWithoutValidation("anthropic-version", "2023-06-01");
+            }
+            else if (apiFormat == "gemini")
+            {
+                req.Headers.TryAddWithoutValidation("x-goog-api-key", ApiKey);
+            }
+            else
+            {
+                req.Headers.Add("Authorization", $"Bearer {ApiKey}");
+            }
             return req;
         }
 
@@ -465,13 +559,24 @@ public class LLM
         // 注意：CallWithRetryAsync 对 4xx 是「返回响应」而非抛异常（其抛出的 HttpRequestException
         // 也不带 StatusCode），故必须在返回后检查状态码再回退——此前 catch-when(StatusCode==BadRequest)
         // 永远不会命中，是死代码，导致 400 被当成 SSE 流解析、静默返回空响应。
-        var resp = await CallWithRetryAsync(() => CreateAuthRequest(body), cancellationToken);
+        // 400 三级回退：① 去 stream_options（OpenAI 扩展，部分兼容端点不认）
+        // ② 再去 tools（Ollama gemma2 等模型不支持工具调用 → 退化纯文本）
+        // ③ 再去 reasoning_effort（chat-only 模型被误发 thinking 参数 → 退化纯对话）。每次重试前释放旧响应。
+        var resp = await CallWithRetryAsync(() => CreateAuthRequest(BuildBody(includeStreamOptions: true, includeTools: true)), cancellationToken);
         if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest)
         {
-            // 400 回退：释放旧响应，重试一次（重试后由下方 using 声明统一释放）
             resp.Dispose();
-            body = BuildBody(includeStreamOptions: false);
-            resp = await CallWithRetryAsync(() => CreateAuthRequest(body), cancellationToken);
+            resp = await CallWithRetryAsync(() => CreateAuthRequest(BuildBody(includeStreamOptions: false, includeTools: true)), cancellationToken);
+            if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                resp.Dispose();
+                resp = await CallWithRetryAsync(() => CreateAuthRequest(BuildBody(includeStreamOptions: false, includeTools: false)), cancellationToken);
+                if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                {
+                    resp.Dispose();
+                    resp = await CallWithRetryAsync(() => CreateAuthRequest(BuildBody(includeStreamOptions: false, includeTools: false, includeThinking: false)), cancellationToken);
+                }
+            }
         }
         // using 声明只读，不能重新赋值，故上面用普通变量 resp 重试，此处捕获最终响应统一释放
         using var response = resp;
@@ -500,6 +605,108 @@ public class LLM
         using var bodyCts = new CancellationTokenSource(TimeSpan.FromSeconds(300));
         using var bodyLinked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, bodyCts.Token);
 
+        // ── Anthropic 原生 SSE（message_start/content_block_*/message_stop）──
+        void ParseAnthropicChunk(string data)
+        {
+            JNode? chunk;
+            try { chunk = Json.Parse(data); } catch { return; }
+            if (chunk == null) return;
+            switch (chunk["type"]?.AsString())
+            {
+                case "message_start":
+                    promptTok = (int?)(chunk["message"]?["usage"]?["input_tokens"]?.AsNumber()) ?? 0;
+                    break;
+                case "message_delta":
+                    completionTok = (int?)(chunk["usage"]?["output_tokens"]?.AsNumber()) ?? 0;
+                    break;
+                case "message_stop":
+                    streamEndedGracefully = true;
+                    break;
+                case "content_block_start":
+                    var cb = chunk["content_block"];
+                    if (cb?["type"]?.AsString() == "tool_use")
+                    {
+                        var bidx = (int?)(chunk["index"]?.AsNumber()) ?? 0;
+                        tcMap[bidx] = (cb["id"]?.AsString() ?? "", cb["name"]?.AsString() ?? "", "");
+                    }
+                    break;
+                case "content_block_delta":
+                    var delta = chunk["delta"];
+                    var dtype = delta?["type"]?.AsString();
+                    var bidx2 = (int?)(chunk["index"]?.AsNumber()) ?? 0;
+                    if (dtype == "text_delta" && delta?["text"]?.AsString() is { } txt && txt.Length > 0)
+                    {
+                        if (_reasoningShown) { _reasoningShown = false; onToken?.Invoke("«/»\n"); }
+                        contentParts.Add(txt); onToken?.Invoke(txt);
+                    }
+                    else if (dtype == "thinking_delta" && delta?["thinking"]?.AsString() is { } th && th.Length > 0)
+                    {
+                        if (!_reasoningShown) { _reasoningShown = true; onToken?.Invoke("\n«dim»"); }
+                        onToken?.Invoke(th); _reasoningBuffer.Append(th);
+                    }
+                    else if (dtype == "input_json_delta" && delta?["partial_json"]?.AsString() is { } pj)
+                    {
+                        var (id, name, args) = tcMap.TryGetValue(bidx2, out var v) ? v : ("", "", "");
+                        args += pj; tcMap[bidx2] = (id, name, args);
+                        if (onToolCall != null && id != "" && name != "" && !firedToolCalls.Contains(bidx2)
+                            && TryParseCompleteJson(args, out var parsedArgs))
+                        {
+                            firedToolCalls.Add(bidx2);
+                            onToolCall(new ToolCall(id, name, parsedArgs!));
+                        }
+                    }
+                    break;
+            }
+        }
+
+        // ── Gemini 原生 SSE（candidates[0].content.parts + usageMetadata）──
+        void ParseGeminiChunk(string data)
+        {
+            JNode? chunk;
+            try { chunk = Json.Parse(data); } catch { return; }
+            if (chunk == null) return;
+            if (chunk["usageMetadata"] is { } usage)
+            {
+                promptTok = (int?)(usage["promptTokenCount"]?.AsNumber()) ?? 0;
+                completionTok = (int?)(usage["candidatesTokenCount"]?.AsNumber()) ?? 0;
+            }
+            var cands = chunk["candidates"];
+            if (cands is not { Count: > 0 }) return;
+            var cand = cands[0];
+            var parts = cand?["content"]?["parts"];
+            if (parts != null)
+            {
+                foreach (var p in parts.Items)
+                {
+                    if (p["text"]?.AsString() is { } txt && txt.Length > 0)
+                    {
+                        if (_reasoningShown) { _reasoningShown = false; onToken?.Invoke("«/»\n"); }
+                        contentParts.Add(txt); onToken?.Invoke(txt);
+                    }
+                    else if (p["thought"]?.AsString() is { } th && th.Length > 0)
+                    {
+                        if (!_reasoningShown) { _reasoningShown = true; onToken?.Invoke("\n«dim»"); }
+                        onToken?.Invoke(th); _reasoningBuffer.Append(th);
+                    }
+                    else if (p["functionCall"] is { } fc)
+                    {
+                        // Gemini 无工具 id / 无增量：整对象一次性到达，合成 id
+                        var name = fc["name"]?.AsString() ?? "";
+                        var idx = tcMap.Count;
+                        var argsJson = fc["args"]?.ToJson() ?? "{}";
+                        tcMap[idx] = ($"{name}#{idx}", name, argsJson);
+                        if (onToolCall != null && ParseArgs(argsJson) is { } pargs)
+                        {
+                            firedToolCalls.Add(idx);
+                            onToolCall(new ToolCall($"{name}#{idx}", name, pargs));
+                        }
+                    }
+                }
+            }
+            if (cand?["finishReason"]?.AsString() is { } fr && (fr == "STOP" || fr == "TOOL_CALL"))
+                streamEndedGracefully = true;
+        }
+
         while (true)
         {
             bodyLinked.Token.ThrowIfCancellationRequested();
@@ -508,6 +715,8 @@ public class LLM
             if (!line.StartsWith("data: ")) continue;
 
             var data = line[6..];
+            if (apiFormat == "anthropic") { ParseAnthropicChunk(data); continue; }
+            if (apiFormat == "gemini") { ParseGeminiChunk(data); continue; }
             if (data == "[DONE]") { streamEndedGracefully = true; continue; }
 
             JNode? chunk;
@@ -730,7 +939,10 @@ public class LLM
         // （实际 4 次重试），超时倍率表 [1,1.5,2,3,4,6,8] 永远走不到 6x/8x。
         var retries = maxRetries > 0 ? maxRetries : Config.Instance.LlmMaxRetries;
         var effectiveMaxRetries = Math.Max(1, retries + 1);
-        var baseTimeoutSec = timeoutSeconds > 0 ? timeoutSeconds : Config.Instance.LlmHttpTimeoutSec;
+        // TimeoutSeconds 显式设置（探测/连通测试）优先：固定单次超时，不做渐进加长，扫描可控不拖沓
+        var baseTimeoutSec = TimeoutSeconds > 0
+            ? TimeoutSeconds
+            : timeoutSeconds > 0 ? timeoutSeconds : Config.Instance.LlmHttpTimeoutSec;
 
         for (int attempt = 0; attempt < effectiveMaxRetries; attempt++)
         {
@@ -782,9 +994,15 @@ public class LLM
                     $"请求超时 {thisTimeoutSec:F0}s，第 {attempt + 2}/{effectiveMaxRetries} 次加长至 {nextTimeout:F0}s");
                 await Task.Delay((int)Math.Pow(2, attempt) * RetryBackoffMs, cancellationToken);
             }
-            catch (HttpRequestException ex) when (attempt < effectiveMaxRetries - 1)
+            catch (HttpRequestException ex)
             {
-                ErrorLog.Warning("LLM", $"网络错误，重试 {attempt + 1}/{effectiveMaxRetries}: {ex.Message}");
+                // 中文错误本地化：把 OS 级英文网络错误（Connection refused 等）转中文
+                if (attempt == effectiveMaxRetries - 1)
+                {
+                    ErrorLog.LlmError(Model, Endpoint, $"网络错误：{ex.Message}");
+                    throw new HttpRequestException(LocalizeError(ex.Message), ex);
+                }
+                ErrorLog.Warning("LLM", $"网络错误，重试 {attempt + 1}/{effectiveMaxRetries}: {LocalizeError(ex.Message)}");
                 await Task.Delay((int)Math.Pow(2, attempt) * RetryBackoffMs, cancellationToken);
             }
         }
@@ -805,6 +1023,26 @@ public class LLM
         attempt < TimeoutMultipliers.Length
             ? TimeoutMultipliers[attempt]
             : TimeoutMultipliers[^1] + (attempt - TimeoutMultipliers.Length + 1);
+
+    /// <summary>把常见英文网络/HTTP 错误本地化为中文（纯子串替换，未命中保留原文）。</summary>
+    internal static string LocalizeError(string message)
+    {
+        if (string.IsNullOrEmpty(message)) return message;
+        return message
+            .Replace("Connection refused", "连接被拒绝")
+            .Replace("connection refused", "连接被拒绝")
+            .Replace("No such host is known", "无法解析主机名")
+            .Replace("Name or service not known", "无法解析主机名")
+            .Replace("The remote name could not be resolved", "无法解析远程主机名")
+            .Replace("Unable to connect to the remote server", "无法连接到远程服务器")
+            .Replace("An existing connection was forcibly closed", "连接被强制关闭")
+            .Replace("Connection reset by peer", "连接被对端重置")
+            .Replace("connection reset", "连接被重置")
+            .Replace("timed out", "超时")
+            .Replace("Timed out", "超时")
+            .Replace("The operation was canceled", "操作已取消")
+            .Replace("The request was canceled", "请求已取消");
+    }
 
     /// <summary>解析 HTTP Retry-After 头（秒数或 HTTP-date），返回毫秒延迟。</summary>
     internal static int? ParseRetryAfter(HttpResponseMessage resp)
@@ -853,6 +1091,154 @@ public class LLM
         if (delta["reasoning"]?.AsString() is { } t2 && t2.Length > 0)
         { text = t2; return true; }
         return false;
+    }
+
+    // ── 非 OpenAI 格式：消息/工具转换（AOT 安全，手写 JSON）──
+
+    /// <summary>OpenAI 内部消息 → Anthropic messages（system 提取到顶层；tool 消息转 tool_result 块；assistant tool_calls 转 tool_use 块）。</summary>
+    private static (string? System, JNode Messages) ConvertMessagesToAnthropic(List<JNode> messages)
+    {
+        var arr = JNode.Array();
+        string? system = null;
+        foreach (var m in messages)
+        {
+            var role = m["role"]?.AsString() ?? "user";
+            var contentNode = m["content"];
+            var content = contentNode?.AsString() ?? "";
+            if (role == "system") { system = content; continue; }
+            var blocks = JNode.Array();
+            if (role == "tool")
+            {
+                // Anthropic 要求 tool_result 放在 user 消息的 content 块
+                blocks.Add(JNode.Object()
+                    .Set("type", "tool_result")
+                    .Set("tool_use_id", m["tool_call_id"]?.AsString() ?? "")
+                    .Set("content", content));
+                arr.Add(JNode.Object().Set("role", "user").Set("content", blocks));
+                continue;
+            }
+            if (contentNode?.Kind == JKind.Array)
+            {
+                // 多模态数组 content（text + image_url）→ 文本块 + 图片块
+                foreach (var c in contentNode.Items)
+                {
+                    if (c["type"]?.AsString() == "image_url"
+                        && c["image_url"]?["url"]?.AsString() is { } url
+                        && url.Split(',', 2) is { Length: 2 } dp)
+                    {
+                        var mime = dp[0].Replace("data:", "").Split(';')[0];
+                        blocks.Add(JNode.Object()
+                            .Set("type", "image")
+                            .Set("source", JNode.Object()
+                                .Set("type", "base64")
+                                .Set("media_type", mime)
+                                .Set("data", dp[1])));
+                    }
+                    else
+                    {
+                        blocks.Add(JNode.Object().Set("type", "text").Set("text", c["text"]?.AsString() ?? ""));
+                    }
+                }
+            }
+            else
+            {
+                blocks.Add(JNode.Object().Set("type", "text").Set("text", content));
+            }
+            // assistant 的工具调用 → tool_use 块（附在 assistant 消息 content 数组）
+            if (role == "assistant" && m["tool_calls"] is { } tcs)
+            {
+                foreach (var tc in tcs.Items)
+                {
+                    var fn = tc["function"];
+                    blocks.Add(JNode.Object()
+                        .Set("type", "tool_use")
+                        .Set("id", tc["id"]?.AsString() ?? "")
+                        .Set("name", fn?["name"]?.AsString() ?? "")
+                        .Set("input", Json.Parse(fn?["arguments"]?.AsString() ?? "{}") ?? JNode.Object()));
+                }
+            }
+            arr.Add(JNode.Object().Set("role", role == "assistant" ? "assistant" : "user").Set("content", blocks));
+        }
+        return (system, arr);
+    }
+
+    /// <summary>OpenAI 内部消息 → Gemini contents（system 提为 systemInstruction；assistant→model；tool 消息转 functionResponse）。</summary>
+    private static (JNode Contents, string? System) ConvertMessagesToGemini(List<JNode> messages)
+    {
+        var arr = JNode.Array();
+        string? system = null;
+        foreach (var m in messages)
+        {
+            var role = m["role"]?.AsString() ?? "user";
+            var contentNode = m["content"];
+            var content = contentNode?.AsString() ?? "";
+            if (role == "system") { system = content; continue; }
+            var parts = JNode.Array();
+            if (role == "tool")
+            {
+                parts.Add(JNode.Object()
+                    .Set("functionResponse", JNode.Object()
+                        .Set("name", m["name"]?.AsString() ?? "unknown")
+                        .Set("response", JNode.Object().Set("result", content))));
+                arr.Add(JNode.Object().Set("role", "user").Set("parts", parts));
+                continue;
+            }
+            if (contentNode?.Kind == JKind.Array)
+            {
+                // 多模态数组 content（text + image_url）→ text part + inlineData part
+                foreach (var c in contentNode.Items)
+                {
+                    if (c["type"]?.AsString() == "image_url"
+                        && c["image_url"]?["url"]?.AsString() is { } url
+                        && url.Split(',', 2) is { Length: 2 } dp)
+                    {
+                        var mime = dp[0].Replace("data:", "").Split(';')[0];
+                        parts.Add(JNode.Object()
+                            .Set("inlineData", JNode.Object().Set("mimeType", mime).Set("data", dp[1])));
+                    }
+                    else
+                    {
+                        parts.Add(JNode.Object().Set("text", c["text"]?.AsString() ?? ""));
+                    }
+                }
+            }
+            else
+            {
+                parts.Add(JNode.Object().Set("text", content));
+            }
+            arr.Add(JNode.Object().Set("role", role == "assistant" ? "model" : "user").Set("parts", parts));
+        }
+        return (arr, system);
+    }
+
+    /// <summary>OpenAI 工具 schema → Anthropic tools（name/description/input_schema，无 type/function 包裹）。</summary>
+    private static JNode ConvertToolsToAnthropic(List<JNode> tools)
+    {
+        var arr = JNode.Array();
+        foreach (var t in tools)
+        {
+            var fn = t["function"];
+            arr.Add(JNode.Object()
+                .Set("name", fn?["name"]?.AsString() ?? "")
+                .Set("description", fn?["description"]?.AsString() ?? "")
+                .Set("input_schema", fn?["parameters"] ?? JNode.Object()));
+        }
+        return arr;
+    }
+
+    /// <summary>OpenAI 工具 schema → Gemini tools（functionDeclarations 数组）。</summary>
+    private static JNode ConvertToolsToGemini(List<JNode> tools)
+    {
+        var arr = JNode.Array();
+        foreach (var t in tools)
+        {
+            var fn = t["function"];
+            arr.Add(JNode.Object()
+                .Set("name", fn?["name"]?.AsString() ?? "")
+                .Set("description", fn?["description"]?.AsString() ?? "")
+                .Set("parameters", fn?["parameters"] ?? JNode.Object()));
+        }
+        return JNode.Object().Set("functionDeclarations", arr);
     }
 
     /// <summary>

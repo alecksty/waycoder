@@ -124,6 +124,45 @@ public static partial class SelfTest
         Check("linecap butt 不外延", PixelAt(btc, 0, 10) == 0xFFFFFFFF && PixelAt(btc, 2, 10) == 0xFF000000);
         Console.WriteLine();
 
+        // ── 虚线（dash）──
+        Section("[Draw.Dash]");
+        Check("line dash 解析", DrawRunner.Parse("line 0 0 30 0 #000 2 dash").Figures[0].Dashed);
+        Check("line dash 别名 dashed", DrawRunner.Parse("line 0 0 30 0 #000 2 dashed").Figures[0].Dashed);
+        Check("line 无 dash", !DrawRunner.Parse("line 0 0 30 0 #000 2").Figures[0].Dashed);
+        Check("line dash SVG", DrawRunner.ToSvg(DrawRunner.Parse("line 0 0 30 0 #000 2 dash")).Contains("stroke-dasharray=\"6 4\""));
+        Check("arrow dash 解析", DrawRunner.Parse("arrow 0 0 30 0 #000 2 dash").Figures[0].Dashed);
+        Check("polyline dash 解析", DrawRunner.Parse("polyline 0 0 10 0 10 10 #000 dash").Figures[0].Dashed);
+        var dashPng = DrawRunner.ToPng(DrawRunner.Parse("canvas 40 40 #fff\nline 0 0 30 0 #000 2 dash"));
+        Check("dash PNG 签名", dashPng[0] == 0x89 && BE32(dashPng, 16) == 40 && BE32(dashPng, 20) == 40);
+        Console.WriteLine();
+
+        // ── 多行文字（\n）──
+        Section("[Draw.MultilineText]");
+        var ml = DrawRunner.Parse("text 10 10 \"第一行\\n第二行\" 14");
+        Check("多行 text 解析", ml.Figures.Count == 1 && ml.Figures[0].Text == "第一行\n第二行");
+        var mlSvg = DrawRunner.ToSvg(ml);
+        Check("多行 SVG 两个 tspan", mlSvg.Contains("<tspan") && mlSvg.Split("</tspan>").Length == 3);
+        var mlPng = DrawRunner.ToPng(DrawRunner.Parse("canvas 100 60 #fff\ntext 10 10 \"A\\nB\" 14"));
+        Check("多行 PNG 签名", mlPng[0] == 0x89 && BE32(mlPng, 16) == 100 && BE32(mlPng, 20) == 60);
+        Console.WriteLine();
+
+        // ── 语义流程图（flowchart）──
+        Section("[Draw.Flowchart]");
+        var fcDoc = DrawRunner.Parse("flowchart \"A[开始]-->B{判断}-->C((结束))\"");
+        Check("flowchart 无错误", fcDoc.Error == null);
+        Check("flowchart 生成 8 图元(3 节点+3 文字+2 连线)", fcDoc.Figures.Count == 8);
+        Check("flowchart 含箭头", fcDoc.Figures.Any(f => f.Kind == "arrow"));
+        Check("flowchart 含菱形", fcDoc.Figures.Any(f => f.Kind == "polygon"));
+        Check("flowchart 含圆形", fcDoc.Figures.Any(f => f.Kind == "circle"));
+        var fcSvg = DrawRunner.ToSvg(fcDoc);
+        Check("flowchart SVG 生成", fcSvg.Contains("<svg") && fcSvg.Contains("<polyline") == false);
+        var fcPng = DrawRunner.ToPng(fcDoc);
+        Check("flowchart PNG 生成", fcPng[0] == 0x89);
+        var fcDash = DrawRunner.Parse("flowchart \"A-->B\"");
+        Check("flowchart 单边 5 图元(2 节点+2 文字+1 连线)", fcDash.Figures.Count == 5);
+        Check("flowchart 错误报错", DrawRunner.Parse("flowchart \"A-->\"").Error != null);
+        Console.WriteLine();
+
         // ── 消除锯齿（Antialias）──
         Section("[Draw.Antialias]");
         Check("Affine 恒等缩放因子 1", Affine.Identity.ScaleFactor == 1);

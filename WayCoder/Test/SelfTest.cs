@@ -138,6 +138,7 @@ public static partial class SelfTest
         ["[代码审查]"] = "review",
         // mcp
         ["[MCP]"] = "mcp",         ["[MCP 环境变量]"] = "mcp",["[MCP HTTP]"] = "mcp",   ["[MCP 缓存]"] = "mcp",
+        ["[MCP 目录]"] = "mcp",
         // system
         ["[LLM]"] = "system",      ["[系统提示词]"] = "system",["[JSON 辅助]"] = "system",
         ["[模型回退]"] = "system", ["[调试日志]"] = "system",  ["[项目检测]"] = "system",

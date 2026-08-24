@@ -135,6 +135,7 @@ public class TuiListItem : TuiVBox
     {
         "user" => "用户",
         "assistant" => "智能体",
+        "agent" => "智能体",
         "system" => "系统",
         "tool" => "工具",
         _ => role
@@ -145,6 +146,7 @@ public class TuiListItem : TuiVBox
     {
         "user" => TuiTheme.Current.ChatUserFg,
         "assistant" => TuiTheme.Current.ChatAssistantFg,
+        "agent" => TuiTheme.Current.ChatAssistantFg,
         "system" => TuiTheme.Current.ChatSystemFg,
         _ => TuiTheme.Current.ControlFg
     };
@@ -154,6 +156,7 @@ public class TuiListItem : TuiVBox
     {
         "user" => TuiTheme.Current.IconUserFg,
         "assistant" => TuiTheme.Current.IconAssistantFg,
+        "agent" => TuiTheme.Current.IconAssistantFg,
         "system" => TuiTheme.Current.IconSystemFg,
         "tool" => TuiTheme.Current.IconToolFg,
         _ => TuiTheme.Current.ControlFg

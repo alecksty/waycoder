@@ -720,6 +720,81 @@ public static partial class SelfTest
         var extNull = AgentTool.ExtractTaskText(null);
         Check("AgentTool.ExtractTaskText null 返回 null", extNull == null);
 
+        // ── v0.87.15: 子智能体依赖编排（depends_on + DAG 拓扑调度）──
+        static bool TryThrowsInvalidOp(Action action)
+        {
+            try { action(); return false; }
+            catch (InvalidOperationException) { return true; }
+        }
+
+        var specStr = AgentTool.ExtractSpec("纯字符串任务", 2);
+        Check("ExtractSpec 纯字符串 → 默认 id t2", specStr.Id == "t2" && specStr.Text == "纯字符串任务" && specStr.DependsOn.Count == 0);
+
+        var specDict = AgentTool.ExtractSpec(new Dictionary<string, object?>
+        {
+            ["id"] = "analyze",
+            ["description"] = "分析代码结构",
+            ["depends_on"] = new List<object?> { "scan", "index" },
+        }, 0);
+        Check("ExtractSpec Dictionary 提取 id/description/depends_on",
+            specDict.Id == "analyze" && specDict.Text == "分析代码结构"
+            && specDict.DependsOn.Count == 2 && specDict.DependsOn[0] == "scan" && specDict.DependsOn[1] == "index");
+
+        var depsJson = JNode.Array().Add("scan").Add("index");
+        var specJson = AgentTool.ExtractSpec(JNode.Object().Set("id", "implement").Set("description", "实现功能").Set("depends_on", depsJson), 0);
+        Check("ExtractSpec JNode 提取 id/description/depends_on",
+            specJson.Id == "implement" && specJson.Text == "实现功能"
+            && specJson.DependsOn.Count == 2 && specJson.DependsOn[0] == "scan" && specJson.DependsOn[1] == "index");
+
+        var depsSingle = new List<string>();
+        AgentTool.CollectDependsOn("single-dep", depsSingle);
+        Check("CollectDependsOn 单个字符串 → 单元素", depsSingle.Count == 1 && depsSingle[0] == "single-dep");
+
+        // 链式依赖 A→B→C：应为 3 层，每层一个任务
+        var chain = new List<AgentTool.SubTaskSpec>
+        {
+            new() { Id = "a", Text = "A" },
+            new() { Id = "b", Text = "B", DependsOn = ["a"] },
+            new() { Id = "c", Text = "C", DependsOn = ["b"] },
+        };
+        var chainLevels = AgentTool.TopoSort(chain);
+        Check("TopoSort 链式依赖 → 3 层", chainLevels.Count == 3 && chainLevels[0].Count == 1 && chainLevels[1].Count == 1 && chainLevels[2].Count == 1);
+        Check("TopoSort 链式顺序 a→b→c",
+            chainLevels[0][0] == 0 && chainLevels[1][0] == 1 && chainLevels[2][0] == 2);
+
+        // 菱形依赖 A、B 并行 → C 依赖两者：应为 2 层（首层 2 个，次层 1 个）
+        var diamond = new List<AgentTool.SubTaskSpec>
+        {
+            new() { Id = "a", Text = "A" },
+            new() { Id = "b", Text = "B" },
+            new() { Id = "c", Text = "C", DependsOn = ["a", "b"] },
+        };
+        var diamondLevels = AgentTool.TopoSort(diamond);
+        Check("TopoSort 菱形依赖 → 2 层", diamondLevels.Count == 2 && diamondLevels[0].Count == 2 && diamondLevels[1].Count == 1);
+        Check("TopoSort 菱形末层是依赖任务 C", diamondLevels[1][0] == 2);
+
+        // 环检测
+        var cyclic = new List<AgentTool.SubTaskSpec>
+        {
+            new() { Id = "a", Text = "A", DependsOn = ["b"] },
+            new() { Id = "b", Text = "B", DependsOn = ["a"] },
+        };
+        Check("TopoSort 环检测抛异常", TryThrowsInvalidOp(() => AgentTool.TopoSort(cyclic)));
+
+        // 不存在的依赖 id
+        var missing = new List<AgentTool.SubTaskSpec>
+        {
+            new() { Id = "a", Text = "A", DependsOn = ["ghost"] },
+        };
+        Check("TopoSort 不存在的依赖抛异常", TryThrowsInvalidOp(() => AgentTool.TopoSort(missing)));
+
+        // 自依赖
+        var self = new List<AgentTool.SubTaskSpec>
+        {
+            new() { Id = "a", Text = "A", DependsOn = ["a"] },
+        };
+        Check("TopoSort 自依赖抛异常", TryThrowsInvalidOp(() => AgentTool.TopoSort(self)));
+
         // 深度 0（允许 agent 递归）
         var depth0Tools = ToolRegistry.GetSubAgentTools(ToolRegistry.AllTools, 0, 5);
         var depth0Names = depth0Tools.Select(t => t.Name).ToHashSet();

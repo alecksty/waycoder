@@ -556,8 +556,11 @@ public abstract class TuiScreen : TuiBase
         // 3. 按 Z-order 渲染窗口
         foreach (var win in Windows.OrderBy(w => w.ZOrder))
         {
-            // 增量模式 + 窗口整体无变化 → 仅渲染窗口内脏控件
-            if (incremental && !win.RootView.IsDirty)
+            // 增量模式 + 窗口内无脏后代 → 仅渲染窗口内脏控件
+            // 不能用 win.RootView.IsDirty 判定：MarkDirty 只标叶子不冒泡，子控件脏时 RootView 自身不脏，
+            // 走脏控件路径会漏画边框/背景/按钮 —— 若此时底层（如 TuiScrollView 全量重绘）覆盖了窗口区域，
+            // 窗口就只剩补画的脏控件，边框内容全被底层盖掉（设置界面弹框输入时花屏）。
+            if (incremental && !HasDirtyDescendant(win.RootView))
             {
                 RenderWindowDirtyControls(sb, win);
             }
@@ -603,6 +606,19 @@ public abstract class TuiScreen : TuiBase
 
         // 5. 渲染完成后清除脏标记
         ClearDirtyRecursive(RootView);
+    }
+
+    /// <summary>递归查询控件自身或任一后代是否脏（含子树）。MarkDirty 不冒泡到父链，须显式递归。</summary>
+    private static bool HasDirtyDescendant(TuiControl? control)
+    {
+        if (control == null) return false;
+        if (control.IsDirty) return true;
+        if (control is TuiView view)
+        {
+            foreach (var child in view.Children)
+                if (HasDirtyDescendant(child)) return true;
+        }
+        return false;
     }
 
     /// <summary>递归清除控件树的脏标记</summary>
@@ -812,10 +828,15 @@ public abstract class TuiScreen : TuiBase
             // 设置 CascadedBg，让控件的 WriteAt 自动继承窗口底色
             var savedEffectiveBg = TuiControl.CascadedBg;
             TuiControl.CascadedBg = fillBg;
+            // 整窗重绘 = 内容区全量重画：边框/背景已重绘，内容必须同步全画。
+            // 否则增量逻辑（child.IsDirty || parentDirty）下未脏的提示行/按钮不重画，
+            // 被背景填充清成空白（弹框输入时「确定/取消」按钮消失）。
+            win.RootView.Invalidate();
             win.RootView.Render(sb, win.ContentLeft, contentTop,
                 clipL: win.ContentLeft, clipT: contentTop,
                 clipR: win.ContentLeft + win.ContentWidth,
                 clipB: contentTop + innerHeight);
+            ClearDirtyRecursive(win.RootView); // 整窗重绘画完即清，防脏标记残留（RootView 不在屏幕 ClearDirty 范围）
             TuiControl.CascadedBg = savedEffectiveBg;
         }
         if (win.ContentLines.Count > 0)

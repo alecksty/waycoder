@@ -50,8 +50,17 @@ public partial class Program
 
     private static WatchMode? _watchMode;
     private static volatile bool _exitRequested;
+
+    /// <summary>请求退出（/exit、/quit 斜杠命令调用）：设退出标志，REPL 主循环走正常清理路径退出。</summary>
+    public static void RequestExit() => _exitRequested = true;
     private static readonly Task?[] _slotTasks = new Task?[AgentSlot.Count];
     private static (List<JNode> Messages, string Model)? _pendingRestore;
+
+    /// <summary>待恢复的自动保存会话（/resume 用；TryRestoreSession 启动时填充）。</summary>
+    public static (List<JNode> Messages, string Model)? PendingRestore => _pendingRestore;
+
+    /// <summary>恢复后清空待恢复会话。</summary>
+    public static void ClearPendingRestore() => _pendingRestore = null;
 
     /// <summary>一次性/管道模式 POSIX 信号注册（保持引用防 GC 回收，Windows 下为 null）。</summary>
     private static System.Runtime.InteropServices.PosixSignalRegistration? _sigintReg;
@@ -197,6 +206,11 @@ public partial class Program
         // 一次性自动升级（--update）：检查并自替换，幂等（已最新则提示后退出）
         if (Arguments.CliArgRegistry.Has(parsed, "update"))
         {
+            if (!Config.Instance.UpdateEnabled)
+            {
+                Console.WriteLine("🔒 更新已禁用（内网/离线模式）。设置 WAYCODER_UPDATE_ENABLED=true 或 /config 打开「更新开关」后重试。");
+                return 0;
+            }
             var updateResult = await UpdateChecker.SelfUpdateAsync();
             Console.WriteLine(updateResult);
             return updateResult.StartsWith("✅", StringComparison.Ordinal) ? 0 : 1;
@@ -406,6 +420,7 @@ public partial class Program
         HooksManager.RunSessionStart("startup");
         McpManager.Init();
         CheckpointManager.LoadFromDisk();
+        CheckpointManager.AutoCheckpoint = Config.Instance.AutoCheckpoint;
 
         // 恢复会话（-c/--continue/--resume/--session）
         var hasResumeFlag = Arguments.CliArgRegistry.Has(parsed, "resume")

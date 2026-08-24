@@ -1,0 +1,15 @@
+PackageIdentifier: Aleckstygit.WayCoder
+PackageVersion: 0.84.1
+InstallerLocale: zh-CN
+InstallerType: portable
+Commands:
+  - waycoder
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://gitee.com/aleckstygit/my-coder/releases/download/v0.84.1/waycoder-v0.84.1-win-x64.zip
+    InstallerSha256: f053ef96db4bea7890ef8f308cebf9fa8c9e5388c3b1cc8002e7811f55182565
+  - Architecture: arm64
+    InstallerUrl: https://gitee.com/aleckstygit/my-coder/releases/download/v0.84.1/waycoder-v0.84.1-win-arm64.zip
+    InstallerSha256: fbbfc3ca3cc622135be7087d3ed66e5962667f60c972d439abb54c1f7088322e
+ManifestType: installer
+ManifestVersion: 1.6.0

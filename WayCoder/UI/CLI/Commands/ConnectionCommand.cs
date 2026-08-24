@@ -189,8 +189,9 @@ public class ConnectionCommand : SlashCommand
             screen.AddSystemMsg("用法: /connect add <name> <providerId> <modelId>\n例: `/connect add deepseek-pro deepseek deepseek-v4-pro`");
             return;
         }
+        var keyHint = ConnectionConfig.AutoImportKeyFromEnv(p[1]);
         if (ConnectionConfig.AddConnect(p[0], p[1], p[2], out var error))
-            screen.AddSystemMsg($"✅ 已新增 connect「{p[0]}」：{p[1]} / {p[2]}\n  用 `/connect {p[0]}` 切换");
+            screen.AddSystemMsg($"✅ 已新增 connect「{p[0]}」：{p[1]} / {p[2]}{keyHint ?? ""}\n  用 `/connect {p[0]}` 切换");
         else
             screen.AddSystemMsg($"❌ {error}");
     }

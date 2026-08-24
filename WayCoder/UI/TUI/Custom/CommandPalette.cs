@@ -38,7 +38,7 @@ public static class CommandPalette
             var screen = TuiManager.Instance?.ActiveScreen;
             var win = BuildWindow(commands, screen, c => { toRun = c; evt.Set(); });
             screen?.ShowWindow(win);
-            UxHelper.RenderWait(screen, evt, 30_000, win);
+            UxHelper.RenderWait(screen, evt, 0, win); // 用户主动对话框：不超时，等用户操作才关
         }
         catch { evt.Set(); }
         // 窗口关闭后再执行命令，避免命令内部再弹模态框造成 RenderWait 嵌套

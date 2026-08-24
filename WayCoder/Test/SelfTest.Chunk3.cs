@@ -24,7 +24,7 @@ public static partial class SelfTest
         Check("槽位输入相互独立", slots[3].InputText == "槽位4草稿" && string.IsNullOrEmpty(slots[0].InputText));
 
         slots[1].ChatMessages.Add(new ChatMsg { Role = "user", Content = "hello" });
-        slots[1].ChatMessages.Add(new ChatMsg { Role = "agent", Content = "hi" });
+        slots[1].ChatMessages.Add(new ChatMsg { Role = "assistant", Content = "hi" });
         Check("槽位消息相互独立", slots[1].ChatMessages.Count == 2 && slots[0].ChatMessages.Count == 0);
 
         // SaveFrom → RestoreTo 往返

@@ -4,6 +4,7 @@ using WayCoder.UI.Shared;
 using WayCoder.Infra;
 using WayCoder.UI.Tui;
 using WayCoder.UI.TUI.Base;
+using WayCoder.UI.TUI.Custom;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.Tui.Screens;
 
@@ -114,6 +115,25 @@ public static class Keypad
                             Emit(orig, $"# (第 {step} 行) 无法识别的按键: {value}");
                         break;
 
+                    case "INJECT":
+                        // 注入按键到 InputManager 队列：供后台阻塞式选择器（ModelPicker 等）的
+                        // RenderWait(forceReadKeys) 消费 —— 那些选择器主线程阻塞，只能走队列喂键。
+                        if (TryParseKey(value, out var ik))
+                            mgr.Input.InjectKey(ik);
+                        else
+                            Emit(orig, $"# (第 {step} 行) 无法识别的按键: {value}");
+                        break;
+
+                    case "MODEL":
+                        // 后台线程打开 ModelPicker（forceReadKeys=true 主动读队列），主线程可继续
+                        // DELAY/SNAP/INJECT 驱动它；模拟真实 /model 的「弹框选模型」完整交互。
+                        {
+                            bool forceRead = value.Trim().Equals("force", StringComparison.OrdinalIgnoreCase);
+                            var t = Task.Run(() => ModelPicker.Show(-1, true));
+                            Emit(orig, $"# MODEL: 已启动 ModelPicker 后台线程（forceReadKeys=true）");
+                        }
+                        break;
+
                     case "TEXT":
                         foreach (var c in value)
                             mgr.OnKey(CharToKey(c));
@@ -159,6 +179,24 @@ public static class Keypad
                         DiagnoseSelectN(orig);
                         break;
 
+                    case "COMMANDMAIN":
+                        // 主线程同步执行斜杠命令（模拟真实 REPL：Program.Repl 在 UI 线程 await 命令）。
+                        // 弹窗类命令（/free 等）必须在主线程 ShowWindow 才能渲染 —— COMMAND 后台线程弹窗不画。
+                        {
+                            var (cmd2, cargs2) = SlashCommandRegistry.Match(value.Trim());
+                            if (cmd2 == null) { Emit(orig, $"# 未知命令: {value}"); break; }
+                            try
+                            {
+                                cmd2.ExecuteAsync(cargs2, screen).GetAwaiter().GetResult();
+                                Emit(orig, $"# ✓ {value}: 完成");
+                            }
+                            catch (Exception ex)
+                            {
+                                Emit(orig, $"# 命令 {value} 异常: {ex.GetType().Name}: {ex.Message}");
+                            }
+                        }
+                        break;
+
                     case "COMMAND":
                         // 执行斜杠命令（后台线程 + 超时检测），排查哪些命令卡住界面
                         {
@@ -187,6 +225,19 @@ public static class Keypad
 
                     case "SNAP":
                         EmitFrame(orig, value, frame.Dump());
+                        break;
+
+                    case "RAW":
+                        // 调试：输出上次 Render 的原始 ANSI（转义 ESC 便于阅读），排查增量重绘坐标问题
+                        {
+                            var rawSb = mgr.LastCleanFrame
+                                .Replace("\x1b", "«E»")
+                                .Replace("\r", "«R»")
+                                .Replace("\n", "«N»\n");
+                            Emit(orig, $"===== [RAW {value}] =====");
+                            Emit(orig, rawSb);
+                            Emit(orig, $"===== [/RAW {value}] =====");
+                        }
                         break;
 
                     case "SNAPCOLOR":
@@ -628,7 +679,10 @@ public static class Keypad
     /// <summary>输出当前焦点状态：焦点窗口、RootView 类型、焦点控件、可聚焦控件列表。</summary>
     static void DumpFocus(ChatScreen screen, TextWriter w)
     {
-        var win = screen.FocusedWindow;
+        // 用当前活跃屏幕（设置界面/编辑器等 PushScreen 后，弹框窗口在其 Windows 栈上，
+        // 而不是 Keypad 创建的主 ChatScreen 上 —— 否则测设置界面弹框时 FOCUS 恒为空）
+        var active = TuiManager.Instance?.ActiveScreen ?? screen;
+        var win = active.FocusedWindow;
         if (win == null)
         {
             w.WriteLine("[FOCUS] 无焦点窗口");

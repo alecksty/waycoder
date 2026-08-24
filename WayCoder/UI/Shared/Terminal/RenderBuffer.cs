@@ -79,9 +79,21 @@ public class RenderBuffer
     private static string AnsiColorPairSeq(int fg, int bg)
         => AnsiTty.FgBgCode(fg, bg);
 
-    /// <summary>在指定位置写纯文本+颜色。0=无色。</summary>
+    /// <summary>在指定位置写纯文本+颜色。0=无色。越界自动裁剪（所有控件内容不得溢出屏幕）。</summary>
     public RenderBuffer Write(int row, int col, string text, int fg = 0, int bg = 0)
     {
+        if (text.Length == 0) return this;
+
+        // ── 越界裁剪：内容超出屏幕右边界若不加保护，终端会自动换行把文字泄到下一行
+        //    （如动态栏文字泄到下方横线）。这里统一按屏幕尺寸 clamp：行越界丢弃、列越界截断。──
+        int rows = Tty.Rows, cols = Tty.Cols;
+        if (row < 0 || row >= rows) return this;     // 行越界：整行在屏幕外 → 丢弃
+        if (col >= cols) return this;                // 列越界：整体在右外 → 丢弃
+        int textW = AnsiString.DisplayWidth(text);
+        if (textW <= 0) return this;
+        if (col + textW > cols)                      // 部分超出右边界 → 按显示宽度截断
+            text = AnsiString.TruncateByWidth(text, cols - col);
+
         MoveTo(row, col);
         bool hasFg = fg > 0, hasBg = bg > 0;
         if (hasFg || hasBg)

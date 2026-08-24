@@ -114,9 +114,13 @@ public static class SlashCommandRegistry
 #if WAYCODER_TEST
         Register(new Commands.TestCommand()); // /test 仅 Debug/开发版
 #endif
+        Register(new Commands.ExitCommand());
+        Register(new Commands.ResumeCommand());
         Register(new Commands.HelpCommand());
         Register(new Commands.ResetCommand());
         Register(new Commands.ModelCommand());
+        Register(new Commands.FreeCommand());
+        Register(new Commands.FreeRestoreCommand());
         Register(new Commands.ProviderCommand());
         Register(new Commands.ConnectionCommand());
         Register(new Commands.PermitCommand());
@@ -129,6 +133,7 @@ public static class SlashCommandRegistry
         Register(new Commands.SessionCommand());
         Register(new Commands.HistoryCommand());
         Register(new Commands.ExportCommand());
+        Register(new Commands.ReproduceCommand());
         Register(new Commands.ArchitectCommand());
 
         // 编辑/工具
@@ -151,6 +156,7 @@ public static class SlashCommandRegistry
         // 检查点
         Register(new Commands.CheckpointCommand());
         Register(new Commands.CheckpointsCommand());
+        Register(new Commands.TimelineCommand());
         Register(new Commands.UndoCommand());
 
         // 配置/系统
@@ -162,6 +168,7 @@ public static class SlashCommandRegistry
         Register(new Commands.ModeCommand());
         Register(new Commands.UpdateCommand());
         Register(new Commands.ImportCommand());
+        Register(new Commands.JoinCommand());
         Register(new Commands.McpCommand());
         Register(new Commands.AboutCommand());
         Register(new Commands.RepomapCommand());
