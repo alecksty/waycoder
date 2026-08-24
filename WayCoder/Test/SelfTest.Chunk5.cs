@@ -292,16 +292,28 @@ public static partial class SelfTest
         // ---- MCP 生态目录 ----
         Section("[MCP 目录]");
 
-        Check("目录: 内置数量 >= 10", McpCatalog.All.Count >= 10);
+        Check("目录: 内置数量 >= 24", McpCatalog.All.Count >= 24);
         Check("目录: 查 git 命中", McpCatalog.Find("git")?.Name == "git");
         Check("目录: 忽略大小写", McpCatalog.Find("GIT")?.Name == "git");
         Check("目录: 查不存在返回 null", McpCatalog.Find("___nope___") == null);
+        // v0.87.17 扩充：新增搜索/数据库/协作/服务四类生态服务器
+        Check("目录: 新增 firecrawl 命中", McpCatalog.Find("firecrawl")?.Name == "firecrawl");
+        Check("目录: 新增 notion 命中", McpCatalog.Find("notion")?.Name == "notion");
+        Check("目录: 新增 neo4j 命中", McpCatalog.Find("neo4j")?.Name == "neo4j");
+        Check("目录: 新增 cloudflare 命中", McpCatalog.Find("cloudflare")?.Name == "cloudflare");
 
         var searchDb = McpCatalog.Search("数据库");
-        Check("目录: 按分类搜索「数据库」", searchDb.Count >= 2 && searchDb.Any(e => e.Name == "sqlite"));
+        Check("目录: 按分类搜索「数据库」", searchDb.Count >= 4 && searchDb.Any(e => e.Name == "sqlite"));
         var searchName = McpCatalog.Search("playwright");
         Check("目录: 按名称搜索", searchName.Count >= 1 && searchName[0].Name == "playwright");
         Check("目录: 空关键词返回全部", McpCatalog.Search(null).Count == McpCatalog.All.Count);
+
+        // 新服务器 env 占位符验证
+        var fireNode = McpCatalog.ToServerNode(McpCatalog.Find("firecrawl")!);
+        Check("目录: firecrawl env 占位", fireNode["env"]?["FIRECRAWL_API_KEY"]?.AsString() == "${FIRECRAWL_API_KEY}");
+        var neoNode = McpCatalog.ToServerNode(McpCatalog.Find("neo4j")!);
+        Check("目录: neo4j 多 env 占位", neoNode["env"]?["NEO4J_URI"]?.AsString() == "${NEO4J_URI}"
+            && neoNode["env"]?["NEO4J_PASSWORD"]?.AsString() == "${NEO4J_PASSWORD}");
 
         var ghNode = McpCatalog.ToServerNode(McpCatalog.Find("github")!);
         Check("目录: ToServerNode name", ghNode["name"]?.AsString() == "github");
