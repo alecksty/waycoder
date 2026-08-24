@@ -173,6 +173,15 @@ public static class TuiMarkdown
             truncated = true;
         }
 
+        // diff 代码块（```diff 或首行 diff --git/+++/---/@@）：+ 行黑带绿背景、- 行黑带红背景（RGB 更精确），
+        // 只在明确的 diff 块生效，避免普通代码的 +/- 行被误染。
+        bool isDiff = string.Equals(cb.Language, "diff", StringComparison.OrdinalIgnoreCase);
+        if (!isDiff)
+        {
+            var firstNonEmpty = codeLines.FirstOrDefault(l => l.Trim().Length > 0)?.TrimStart();
+            isDiff = firstNonEmpty is not null && (firstNonEmpty.StartsWith("diff --git", StringComparison.OrdinalIgnoreCase)
+                || firstNonEmpty.StartsWith("+++") || firstNonEmpty.StartsWith("---") || firstNonEmpty.StartsWith("@@"));
+        }
         int lineNum = 1;
         foreach (var rawLine in renderLines)
         {
@@ -194,9 +203,16 @@ public static class TuiMarkdown
             else
             {
                 var tokens = syntax.Tokenize(rawLine);
+                int bg = 0;
+                if (isDiff)
+                {
+                    // + 行黑带绿（rgb 0,45,0）、- 行黑带红（rgb 45,0,0）；+++ / --- 文件头行除外
+                    if (rawLine.StartsWith('+') && !rawLine.StartsWith("+++")) bg = AnsiTty.RgbCode(0, 45, 0);
+                    else if (rawLine.StartsWith('-') && !rawLine.StartsWith("---")) bg = AnsiTty.RgbCode(45, 0, 0);
+                }
                 foreach (var (text, color) in tokens)
                 {
-                    line.Add((text, color, 0));
+                    line.Add((text, color, bg));
                 }
             }
             result.Add(line);

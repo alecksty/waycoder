@@ -159,15 +159,11 @@ public class TuiDynamicBar : TuiControl
                 fg: AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
 
         // 根据状态计算颜色（spinner 统一用 SpinnerFg 的黄色，与 DirectWrite 直写一致）
+        // 文字统一橙色（255,180,0 同对话框渐变起始色），Error 保留红便于区分
         var (spinnerColor, textColor) = Status switch
         {
-            AgentStatus.Thinking => (AnsiColors.Yellow, AnsiColors.Grey),
-            AgentStatus.ToolRunning => (AnsiColors.Yellow, AnsiColors.BrightBlack),
-            AgentStatus.Compressing => (AnsiColors.Yellow, AnsiColors.Grey),
-            AgentStatus.WaitingPerm => (AnsiColors.Yellow, AnsiColors.Yellow),
-            AgentStatus.Planning => (AnsiColors.Yellow, AnsiColors.Grey),
             AgentStatus.Error => (AnsiColors.Red, AnsiColors.Red),
-            _ => (AnsiColors.BrightBlack, AnsiColors.BrightBlack),
+            _ => (AnsiColors.Yellow, AnsiTty.RgbCode(255, 180, 0)),
         };
 
         // ── 左段：动画字符位（预留 1 字符 + 空格，活跃=spinner / 空闲=占位空格）──

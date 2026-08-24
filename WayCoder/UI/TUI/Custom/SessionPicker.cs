@@ -49,7 +49,7 @@ public static class SessionPicker
             var screen = TuiManager.Instance?.ActiveScreen;
             var win = BuildWindow(currentSessionId, slot, screen, r => { result = r; evt.Set(); });
             screen?.ShowWindow(win);
-            UxHelper.RenderWait(screen, evt, 60_000, win);
+            UxHelper.RenderWait(screen, evt, 0, win); // 用户主动对话框：不超时，等用户操作才关
         }
         catch { evt.Set(); }
         return result;

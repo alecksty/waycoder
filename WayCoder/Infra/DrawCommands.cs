@@ -364,22 +364,29 @@ internal sealed class LineCommand : IDrawCommand
         for (int i = 4; i < a.Count; i++)
         {
             if (DrawParse.TryCap(a[i].Value, out var cap)) { f.LineCap = cap; continue; }
+            var low = a[i].Value.ToLowerInvariant();
+            if (low is "dash" or "dashed") { f.Dashed = true; continue; }
             if (ColorUtil.TryParse(a[i].Value, out var c)) f.Stroke = c;
             else { var v = DrawParse.Num(a[i]); if (!double.IsNaN(v)) f.StrokeWidth = v; }
         }
         return f;
     }
     public void EmitSvg(StringBuilder sb, DrawFigure f)
-        => sb.Append("  <line x1=\"").Append(DrawParse.F(f.Args[0])).Append("\" y1=\"").Append(DrawParse.F(f.Args[1]))
+    {
+        sb.Append("  <line x1=\"").Append(DrawParse.F(f.Args[0])).Append("\" y1=\"").Append(DrawParse.F(f.Args[1]))
           .Append("\" x2=\"").Append(DrawParse.F(f.Args[2])).Append("\" y2=\"").Append(DrawParse.F(f.Args[3]))
           .Append("\" stroke=\"").Append(ColorUtil.ToHex(f.Stroke))
-          .Append("\" stroke-width=\"").Append(DrawParse.F(f.StrokeWidth)).Append("\" stroke-linecap=\"").Append(f.LineCap).Append("\"/>\n");
+          .Append("\" stroke-width=\"").Append(DrawParse.F(f.StrokeWidth)).Append("\" stroke-linecap=\"").Append(f.LineCap).Append("\"");
+        if (f.Dashed) sb.Append(" stroke-dasharray=\"6 4\"");
+        sb.Append("/>\n");
+    }
     public void Rasterize(Canvas c, DrawFigure f)
     {
         double x1 = f.Args[0], y1 = f.Args[1], x2 = f.Args[2], y2 = f.Args[3];
         var (wx1, wy1) = f.Transform.Apply(x1, y1);
         var (wx2, wy2) = f.Transform.Apply(x2, y2);
-        c.DrawLine(wx1, wy1, wx2, wy2, f.Stroke, f.StrokeWidth, f.LineCap);
+        if (f.Dashed) c.DrawLineDashed(wx1, wy1, wx2, wy2, f.Stroke, f.StrokeWidth, f.LineCap);
+        else c.DrawLine(wx1, wy1, wx2, wy2, f.Stroke, f.StrokeWidth, f.LineCap);
     }
 }
 
@@ -395,6 +402,8 @@ internal sealed class ArrowCommand : IDrawCommand
         for (int i = 4; i < a.Count; i++)
         {
             if (DrawParse.TryCap(a[i].Value, out var cap)) { f.LineCap = cap; continue; }
+            var low = a[i].Value.ToLowerInvariant();
+            if (low is "dash" or "dashed") { f.Dashed = true; continue; }
             if (ColorUtil.TryParse(a[i].Value, out var c)) f.Stroke = c;
             else { var v = DrawParse.Num(a[i]); if (!double.IsNaN(v)) f.StrokeWidth = v; }
         }
@@ -407,7 +416,9 @@ internal sealed class ArrowCommand : IDrawCommand
         sb.Append("  <line x1=\"").Append(DrawParse.F(x1)).Append("\" y1=\"").Append(DrawParse.F(y1))
           .Append("\" x2=\"").Append(DrawParse.F(x2)).Append("\" y2=\"").Append(DrawParse.F(y2))
           .Append("\" stroke=\"").Append(ColorUtil.ToHex(f.Stroke))
-          .Append("\" stroke-width=\"").Append(DrawParse.F(f.StrokeWidth)).Append("\" stroke-linecap=\"").Append(f.LineCap).Append("\"/>\n");
+          .Append("\" stroke-width=\"").Append(DrawParse.F(f.StrokeWidth)).Append("\" stroke-linecap=\"").Append(f.LineCap).Append("\"");
+        if (f.Dashed) sb.Append(" stroke-dasharray=\"6 4\"");
+        sb.Append("/>\n");
         sb.Append("  <polygon points=\"").Append(DrawParse.F(x2)).Append(',').Append(DrawParse.F(y2)).Append(' ')
           .Append(DrawParse.F(hx1)).Append(',').Append(DrawParse.F(hy1)).Append(' ')
           .Append(DrawParse.F(hx2)).Append(',').Append(DrawParse.F(hy2))
@@ -421,7 +432,8 @@ internal sealed class ArrowCommand : IDrawCommand
         var b = f.Transform.Apply(x2, y2);
         var c1 = f.Transform.Apply(hx1, hy1);
         var c2 = f.Transform.Apply(hx2, hy2);
-        c.DrawLine(a.X, a.Y, b.X, b.Y, f.Stroke, f.StrokeWidth, f.LineCap);
+        if (f.Dashed) c.DrawLineDashed(a.X, a.Y, b.X, b.Y, f.Stroke, f.StrokeWidth, f.LineCap);
+        else c.DrawLine(a.X, a.Y, b.X, b.Y, f.Stroke, f.StrokeWidth, f.LineCap);
         c.DrawLine(b.X, b.Y, c1.X, c1.Y, f.Stroke, f.StrokeWidth, f.LineCap);
         c.DrawLine(b.X, b.Y, c2.X, c2.Y, f.Stroke, f.StrokeWidth, f.LineCap);
     }
@@ -474,20 +486,29 @@ internal sealed class PolylineCommand : IDrawCommand
         for (int j = i; j < a.Count; j++)
         {
             if (DrawParse.TryCap(a[j].Value, out var cap)) { f.LineCap = cap; continue; }
+            var low = a[j].Value.ToLowerInvariant();
+            if (low is "dash" or "dashed") { f.Dashed = true; continue; }
             if (ColorUtil.TryParse(a[j].Value, out var c)) f.Stroke = c;
             else { var v = DrawParse.Num(a[j]); if (!double.IsNaN(v)) f.StrokeWidth = v; }
         }
         return f;
     }
     public void EmitSvg(StringBuilder sb, DrawFigure f)
-        => sb.Append("  <polyline points=\"").Append(DrawParse.Points(f))
+    {
+        sb.Append("  <polyline points=\"").Append(DrawParse.Points(f))
           .Append("\" fill=\"none\" stroke=\"").Append(ColorUtil.ToHex(f.Stroke))
-          .Append("\" stroke-width=\"").Append(DrawParse.F(f.StrokeWidth)).Append("\" stroke-linecap=\"").Append(f.LineCap).Append("\"/>\n");
+          .Append("\" stroke-width=\"").Append(DrawParse.F(f.StrokeWidth)).Append("\" stroke-linecap=\"").Append(f.LineCap).Append("\"");
+        if (f.Dashed) sb.Append(" stroke-dasharray=\"6 4\"");
+        sb.Append("/>\n");
+    }
     public void Rasterize(Canvas c, DrawFigure f)
     {
         var w = Canvas.TransformPoints(f.Transform, f.Args);
         for (int i = 0; i + 2 < w.Length; i += 2)
-            c.DrawLine(w[i], w[i + 1], w[i + 2], w[i + 3], f.Stroke, f.StrokeWidth, f.LineCap);
+        {
+            if (f.Dashed) c.DrawLineDashed(w[i], w[i + 1], w[i + 2], w[i + 3], f.Stroke, f.StrokeWidth, f.LineCap);
+            else c.DrawLine(w[i], w[i + 1], w[i + 2], w[i + 3], f.Stroke, f.StrokeWidth, f.LineCap);
+        }
     }
 }
 
@@ -550,7 +571,7 @@ internal sealed class TextCommand : IDrawCommand
         var f = new DrawFigure { Kind = "text" };
         f.Args.Add(DrawParse.Num(a[0]));
         f.Args.Add(DrawParse.Num(a[1]));
-        f.Text = a[2].Value;
+        f.Text = a[2].Value.Replace("\\n", "\n"); // DSL 里 \n 转义 → 真实换行，供多行文字
         for (int i = 3; i < a.Count; i++)
         {
             var s = a[i].Value;
@@ -566,14 +587,31 @@ internal sealed class TextCommand : IDrawCommand
         return f;
     }
     public void EmitSvg(StringBuilder sb, DrawFigure f)
-        => sb.Append("  <text x=\"").Append(DrawParse.F(f.Args[0])).Append("\" y=\"").Append(DrawParse.F(f.Args[1]))
+    {
+        // 多行文字：按 \n 拆分为多个 <tspan>（x 对齐锚点，dy 逐行下移），单行保持原样。
+        var lines = (f.Text ?? "").Split('\n');
+        sb.Append("  <text x=\"").Append(DrawParse.F(f.Args[0])).Append("\" y=\"").Append(DrawParse.F(f.Args[1]))
           .Append("\" font-family=\"").Append(DrawParse.EscapeXml(f.FontFamily))
           .Append("\" font-size=\"").Append(DrawParse.F(f.FontSize))
           .Append("\" font-weight=\"").Append(f.FontWeight)
           .Append("\" font-style=\"").Append(f.FontStyle)
           .Append("\" fill=\"").Append(ColorUtil.ToHex(f.Fill))
-          .Append("\" text-anchor=\"").Append(f.Anchor).Append("\">")
-          .Append(DrawParse.EscapeXml(f.Text ?? "")).Append("</text>\n");
+          .Append("\" text-anchor=\"").Append(f.Anchor).Append("\">");
+        if (lines.Length == 1)
+        {
+            sb.Append(DrawParse.EscapeXml(lines[0])).Append("</text>\n");
+            return;
+        }
+        double lineH = f.FontSize * 1.3;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (i > 0) sb.Append('\n').Append("    ");
+            sb.Append("<tspan x=\"").Append(DrawParse.F(f.Args[0])).Append('"');
+            if (i > 0) sb.Append(" dy=\"").Append(DrawParse.F(lineH)).Append('"');
+            sb.Append('>').Append(DrawParse.EscapeXml(lines[i])).Append("</tspan>");
+        }
+        sb.Append("</text>\n");
+    }
     public void Rasterize(Canvas c, DrawFigure f)
     {
         // 变换仅平移锚点，字重/斜体近似；旋转文字不支持（保持轴对齐）。
@@ -582,14 +620,18 @@ internal sealed class TextCommand : IDrawCommand
         double size = f.FontSize * f.Transform.ScaleFactor;
         // 优先 TrueType 系统字体（含字形抗锯齿），找不到则回退 5×7 位图。
         var font = TrueTypeFont.Resolve(f.FontFamily);
-        if (font != null)
+        var lines = (f.Text ?? "").Split('\n');
+        double lineH = size * 1.3;
+        for (int i = 0; i < lines.Length; i++)
         {
-            font.Render(c, f.Text ?? "", p.X, p.Y, size, f.Fill, f.Anchor,
-                f.FontWeight == "bold", f.FontStyle == "italic");
-            return;
+            double y = p.Y + lineH * i;
+            if (font != null)
+                font.Render(c, lines[i], p.X, y, size, f.Fill, f.Anchor,
+                    f.FontWeight == "bold", f.FontStyle == "italic");
+            else
+                c.DrawText(p.X, y, lines[i], size, f.Fill, f.Anchor,
+                    f.FontWeight == "bold", f.FontStyle == "italic");
         }
-        c.DrawText(p.X, p.Y, f.Text ?? "", size, f.Fill, f.Anchor,
-            f.FontWeight == "bold", f.FontStyle == "italic");
     }
 }
 

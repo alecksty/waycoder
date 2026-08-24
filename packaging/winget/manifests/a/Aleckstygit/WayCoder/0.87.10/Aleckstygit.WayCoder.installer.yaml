@@ -1,0 +1,15 @@
+PackageIdentifier: Aleckstygit.WayCoder
+PackageVersion: 0.87.10
+InstallerLocale: zh-CN
+InstallerType: portable
+Commands:
+  - waycoder
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://gitee.com/aleckstygit/way-coder/releases/download/v0.87.10/waycoder-v0.87.10-win-x64.zip
+    InstallerSha256: 70f9b1cd4d7a5a23fa103baf75d258dd24de291d577225682c3f0eb33e65e92d
+  - Architecture: arm64
+    InstallerUrl: https://gitee.com/aleckstygit/way-coder/releases/download/v0.87.10/waycoder-v0.87.10-win-arm64.zip
+    InstallerSha256: 010cd77cbf797d96861db21e4f7d4b978d8f2054e3219e177e382250a1926d69
+ManifestType: installer
+ManifestVersion: 1.6.0

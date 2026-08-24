@@ -61,7 +61,7 @@ public static class FilePicker
                 evt.Set();
             });
             screen?.ShowWindow(win);
-            UxHelper.RenderWait(screen, evt, 30_000, win);
+            UxHelper.RenderWait(screen, evt, 0, win); // 用户主动对话框：不超时，等用户操作才关
         }
         catch
         {

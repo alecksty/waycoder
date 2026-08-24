@@ -279,6 +279,45 @@ public static class ConnectionConfig
             cfg.SaveToConfigJson();
             cfg.SaveToEnvFile();
         }
+        // 无 key 时尝试从 provider 官方环境变量自动复制（如 DEEPSEEK_API_KEY → api_keys.json），校验防误复制
+        if (!ApiKeyStore.Has(pid))
+            message += AutoImportKeyFromEnv(pid);
+    }
+
+    /// <summary>
+    /// 该 provider 无 key 时，从官方环境变量（ApiKeyEnvVar）自动导入到 api_keys.json。
+    /// 返回提示消息（导入成功 / 值不像是 key）；无动作返回 null。
+    /// 调用方：ApplyModelChoice（选择模型）与 AddConnect（新建 connect）共用。
+    /// </summary>
+    public static string? AutoImportKeyFromEnv(string providerId)
+    {
+        var pid = (providerId ?? "").Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(pid) || ApiKeyStore.Has(pid)) return null;
+        if (!ModelCatalog.Providers.TryGetValue(pid, out var prov)
+            || string.IsNullOrWhiteSpace(prov.ApiKeyEnvVar))
+            return null;
+        var envKey = Environment.GetEnvironmentVariable(prov.ApiKeyEnvVar);
+        if (string.IsNullOrWhiteSpace(envKey)) return null;
+        if (IsPlausibleApiKey(envKey))
+        {
+            ApiKeyStore.Set(pid, envKey);
+            return $" ✅ 已自动从环境变量 {prov.ApiKeyEnvVar} 复制 API key";
+        }
+        return $" ⚠️ 环境变量 {prov.ApiKeyEnvVar} 存在但值不像是 key（可能设错了变量名），未自动导入";
+    }
+
+    /// <summary>
+    /// 判断字符串是否「像真正的 API key」：非空、去首尾空白后 ≥8 字符、无内部空白、非 URL。
+    /// 防止从环境变量误复制（用户可能把 URL / 占位文本 / 别的变量值设进了官方变量名）。
+    /// </summary>
+    public static bool IsPlausibleApiKey(string value)
+    {
+        var s = value.Trim();
+        if (s.Length < 8) return false;
+        if (s.Any(char.IsWhiteSpace)) return false;
+        // URL 特征（http:// 或 host/path）：key 不应含
+        if (s.Contains("://") || (s.Contains('/') && s.Contains('.'))) return false;
+        return true;
     }
 
     /// <summary>

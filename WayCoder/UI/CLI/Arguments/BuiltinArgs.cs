@@ -30,16 +30,20 @@ public class ModelArg : CliArg
     public override string? ValueLabel => "模型ID/子命令";
     public override (string Cmd, string Desc)[]? SubCommands =>
     [
-        ("list [供应商]", "列出模型目录"),
+        ("list [供应商]", "列出模型目录（OpenRouter 显示短名）"),
         ("name <id>", "选中大模型"),
         ("small <id>", "选中小模型"),
-        ("key [set|remove]", "管理 API Key"),
-        ("connect <base-url>", "设置 API 地址"),
-        ("import [来源]", "导入模型（opencode/crush/...）"),
+        ("key [set|remove]", "管理 API Key（key 永不自动删除，删除需确认）"),
+        ("check [connect]", "检查模型能力（think/tools/vision/格式/上下文/key）"),
+        ("report", "测试所有 connect 连通性，生成可用/失败报告"),
+        ("free", "测试所有 free 模型（zen -free / openrouter :free），列出可用"),
+        ("restore", "恢复 /free 切换免费模型之前的模型"),
+        ("import [alllocal|allonline|all|online <源>|来源]", "导入模型（alllocal=本地 / allonline=在线 / all=全部 / online <源>=指定端点）"),
         ("add model/provider/key", "添加模型 / 服务商 / Key"),
         ("remove <id>", "移除模型或服务商"),
+        ("clean", "清理无效服务商/模型 + 合并重复 + 删无效 connect"),
         ("test", "测试连接"),
-        ("prune", "清理无效条目"),
+        ("connect <base-url>", "设置 API 地址"),
         ("<模型ID>", "快捷选中模型"),
     ];
     public ModelArg() : base("model", "-m", "--model") { }
@@ -63,7 +67,14 @@ public class ModelArg : CliArg
                 result = ModelCli.List(rest.Length > 0 ? rest[0] : null);
                 break;
             case "name":
-                result = rest.Length == 0 ? "用法: --model name <模型ID>" : ModelCli.Select(rest[0]);
+                if (rest.Length == 0) { result = "用法: --model name <模型ID>"; break; }
+                ModelCli.RememberCurrentModel(); // 记住切换前模型（--model restore / /free-restore 可恢复）
+                result = ModelCli.Select(rest[0]);
+                break;
+            case "restore":
+            case "free-restore":
+            case "恢复":
+                result = ModelCli.RestorePrevious();
                 break;
             case "small":
                 result = rest.Length == 0 ? "用法: --model small <小模型ID>" : ModelCli.SelectSmall(rest[0]);
@@ -75,8 +86,38 @@ public class ModelArg : CliArg
             case "connect":
                 result = rest.Length == 0 ? "用法: --model connect <base-url>" : ModelCli.Connect(rest[0]);
                 break;
+            case "check":
+            case "caps":
+            case "capabilities":
+                result = ModelCli.Check(rest.Length > 0 ? rest[0] : null);
+                break;
+            case "report":
+                result = ModelCli.Report(rest.Length > 1 ? rest[1] : null);
+                break;
+            case "free":
+                result = ModelCli.Free(rest.Length > 1 ? rest[1] : null);
+                break;
             case "import":
-                result = ModelCli.Import(rest.Length > 0 ? rest[0] : null);
+                // 组合命令：alllocal=全部本地(ollama/lmstudio/cc-switch)、allonline=全部在线端点、all/auto=本地+在线；
+                // online [源名...]=在线拉取指定端点；其余走 Import（单源本地/配置文件/opencode 等）
+                var src0 = rest.Length > 0 ? rest[0].ToLowerInvariant() : "";
+                if (src0 is "all" or "auto")
+                {
+                    result = ModelCli.ImportLocalServices() + "\n" + ModelCli.ImportOnlineAll(null);
+                }
+                else if (src0 == "alllocal")
+                {
+                    result = ModelCli.ImportLocalServices();
+                }
+                else if (src0 is "online" or "allonline")
+                {
+                    var names = rest.Skip(1).ToArray();
+                    result = ModelCli.ImportOnlineAll(names.Length > 0 ? names : null);
+                }
+                else
+                {
+                    result = ModelCli.Import(rest.Length > 0 ? rest[0] : null);
+                }
                 break;
             case "add":
                 result = DispatchAdd(rest);
@@ -92,8 +133,9 @@ public class ModelArg : CliArg
                 break;
             case "prune":
             case "clean":
-                // 统一清理（对齐 --provider clean）：无效服务商 → 删 providers.json + key + 模型
-                result = ModelCli.ProviderCli.CleanText();
+            case "cleanup":
+                // 统一清理：无效服务商（删 providers.json + key + 模型）+ 合并重复模型 + 删无效 connect
+                result = ModelCli.ProviderCli.CleanText() + "\n" + ModelCli.Clean();
                 break;
             default:
                 // 裸模型名：本次会话快捷选中，交给 Program 继续运行
@@ -893,8 +935,10 @@ public class ConnectArg : CliArg
             case "add":
             case "new":
                 if (rest.Length < 3) { Console.WriteLine("用法: --connect add <name> <providerId> <modelId>"); return 1; }
+                // 先尝试从官方环境变量自动导入 key（无 key 时），再建 connect
+                var keyHint = ConnectionConfig.AutoImportKeyFromEnv(rest[1]);
                 Console.WriteLine(ConnectionConfig.AddConnect(rest[0], rest[1], rest[2], out var e)
-                    ? $"✅ 已新增 connect「{rest[0]}」" : $"❌ {e}");
+                    ? $"✅ 已新增 connect「{rest[0]}」{keyHint ?? ""}" : $"❌ {e}");
                 return 0;
             case "rm":
             case "remove":

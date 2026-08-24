@@ -48,14 +48,17 @@ public static class ReasoningPicker
         currentLevel ??= Config.Instance.ReasoningEffort;
         modelName ??= Config.Instance.Model;
 
+        // 按当前模型解析允许集（模型级 > 厂商级），级别列表只显示允许项
+        var allowed = ModelCatalog.ResolveModelCallConstraints(modelName, Config.Instance.BaseUrl).ReasoningEffortAllowed;
+
         Result? result = null;
         using var evt = new ManualResetEventSlim(false);
         try
         {
             var screen = TuiManager.Instance?.ActiveScreen;
-            var win = BuildWindow(currentLevel, modelName, screen, r => { result = r; evt.Set(); });
+            var win = BuildWindow(currentLevel, modelName, allowed, screen, r => { result = r; evt.Set(); });
             screen?.ShowWindow(win);
-            UxHelper.RenderWait(screen, evt, 30_000, win);
+            UxHelper.RenderWait(screen, evt, 0, win); // 用户主动对话框：不超时，等用户操作才关
         }
         catch { evt.Set(); }
         return result;
@@ -63,13 +66,19 @@ public static class ReasoningPicker
 
     // ── 窗口构建 ──
 
-    private static TuiWindow BuildWindow(string currentLevel, string modelName,
+    private static TuiWindow BuildWindow(string currentLevel, string modelName, string? allowedCsv,
         TuiScreen? screen, Action<Result?> onDone)
     {
         // 标记加载：结构/ids 来自 reasoningpicker.tui（布局写标记），动态内容与事件 code-behind
         var res = TuiMarkup.LoadResource("dialogs/reasoningpicker.tui");
         var win = res.Window ?? throw new InvalidOperationException("reasoningpicker.tui 根应为 Dialog");
-        win.Title = $"推理深度 — {modelName}";
+        // 模型声明了允许集：级别基集只保留允许项；当前全局值越界时标题提示
+        var baseLevels = FilterByAllowed(Levels, allowedCsv);
+        var currentOutOfAllowed = !string.IsNullOrEmpty(currentLevel)
+            && !string.IsNullOrWhiteSpace(allowedCsv)
+            && !allowedCsv.Split(',').Any(a => a.Trim().Equals(currentLevel, StringComparison.OrdinalIgnoreCase));
+        win.Title = $"推理深度 — {modelName}"
+            + (currentOutOfAllowed ? $"（当前 {currentLevel} 不在允许集 [{allowedCsv}]，已按模型过滤）" : "");
         win.WinBg = TuiTheme.Current.WindowBg;
         win.XScale = 0.6; // 宽度 = 终端 60%（标记 scale 兜底，此处显式保证）
         // 渐变边框（紫→粉，沿用主题；标记 hex 为兜底）
@@ -85,8 +94,8 @@ public static class ReasoningPicker
         search.Bg = AnsiColors.BgBlack;
         list.Fg = AnsiColors.Black;
 
-        // 当前过滤后的级别列表（搜索输入实时更新）
-        var filtered = FilterLevels("");
+        // 当前过滤后的级别列表（搜索输入实时更新；基集已被模型允许集过滤）
+        var filtered = FilterLevels("", baseLevels);
         list.Items = filtered.Select(l => FormatItem(l, currentLevel)).ToList();
         list.SelectedIndex = IndexOfCurrent(filtered, currentLevel);
 
@@ -120,7 +129,7 @@ public static class ReasoningPicker
         // 搜索输入：字母进过滤词（OnTextChanged 实时过滤），↑↓ 导航列表，Enter 确认
         search.OnTextChanged = () =>
         {
-            filtered = FilterLevels(search.Text);
+            filtered = FilterLevels(search.Text, baseLevels);
             list.Items = filtered.Select(l => FormatItem(l, currentLevel)).ToList();
             list.SelectedIndex = 0;
             list.ScrollOffset = 0;
@@ -157,11 +166,22 @@ public static class ReasoningPicker
 
     // ── 纯逻辑（AOT 安全，可自测）──
 
-    /// <summary>按关键词过滤级别（Label / Id / Description 忽略大小写匹配）。</summary>
-    private static List<ReasoningLevel> FilterLevels(string filter)
+    /// <summary>按模型允许集过滤级别基集（大小写不敏感；允许集为空/不匹配任何级别时全量兜底）。</summary>
+    private static List<ReasoningLevel> FilterByAllowed(IEnumerable<ReasoningLevel> levels, string? allowedCsv)
     {
-        if (string.IsNullOrEmpty(filter)) return Levels.ToList();
-        return Levels.Where(l =>
+        if (string.IsNullOrWhiteSpace(allowedCsv)) return levels.ToList();
+        var allowed = allowedCsv.Split(',').Select(a => a.Trim()).Where(a => a.Length > 0).ToList();
+        if (allowed.Count == 0) return levels.ToList();
+        var filtered = levels.Where(l =>
+            allowed.Any(a => a.Equals(l.Id, StringComparison.OrdinalIgnoreCase))).ToList();
+        return filtered.Count > 0 ? filtered : levels.ToList();
+    }
+
+    /// <summary>按关键词过滤级别（Label / Id / Description 忽略大小写匹配）。</summary>
+    private static List<ReasoningLevel> FilterLevels(string filter, List<ReasoningLevel> baseLevels)
+    {
+        if (string.IsNullOrEmpty(filter)) return baseLevels.ToList();
+        return baseLevels.Where(l =>
             l.Label.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
             l.Id.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
             l.Description.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();

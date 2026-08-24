@@ -1,5 +1,293 @@
 # 更新日志
 
+## v0.87.16 (2026-08-24) — 竞品短板补齐三连：代码语义检索 / 依赖编排 / MCP 生态目录
+
+- **代码级语义检索**（`CodeKnowledge`）：扫描项目源码提取「符号 + 文档注释」分块（类/函数/方法，纯文本启发式零反射零正则），复用 `SemanticMemory` TF-IDF 检索，把与任务最相关的代码段注入系统提示词——从「只能 grep 精确匹配」升级到「语义召回代码」
+- **子智能体依赖编排**（`AgentTool`）：`tasks` 元素支持对象 `{id, description, depends_on}`，DAG 拓扑分层调度（Kahn 算法，每层并行层间串行）+ 环/自依赖/缺依赖校验 + 依赖输出注入后续任务，突破纯并行一次性火并的限制，支持「先分析→再实现」流水线式子任务
+- **MCP 生态目录**（`McpCatalog`）：内置 18 个社区常用 MCP 服务器（文件/版本控制/浏览器/搜索/数据库/记忆/开发/服务），`/mcp list [关键词]` 浏览、`/mcp add <name>` 一键写入 `.waycoder/mcp_servers.json` 并热重连；stdio env 补 `${VAR}` 环境变量展开（与 headers 对齐）
+
+### ✅ 验证
+- 自测 4247 通过 / 1 失败（1 失败为预先存在的「无约束模型原样发 medium」断言，非本次引入）
+- 编译 0 错误（1 个既有警告 ProviderCommand.cs，非本次引入）
+
+## v0.87.15 (2026-08-24) — 修复 /join gemini 会话定位 + 聊天角色统一
+
+- **修复 `/join gemini` 目录命名与 cwd 恢复 bug**（`ContextBridge`）：
+  - 项目目录名从错误的 `sha256(cwd)` 改为 Gemini CLI 实际算法 `slugify(basename)`（小写 + 非 `[a-z0-9]` 转 `-` + 折叠连续 `-` + 去首尾，空则 `project`），逐字复现
+  - metadata 的 cwd 恢复从错误的 `directories` 字段（实际不存在）改为读 `.project_root` 标记文件 + `~/.gemini/projects.json` 的 `{cwd:slug}` 映射
+  - 补齐 `~/.gemini/history/` baseDir（原只扫 `tmp/`，历史会话漏掉）
+  - 三路定位：① `projects.json` 精确映射 → ② `slugify` 兜底 → ③ 全量枚举读 `.project_root` 相关性匹配（应对 slug 碰撞后缀）
+  - 删除死代码 `Sha256Hex` 及 `System.Security.Cryptography` 引用
+- **聊天角色统一**：流式回复占位消息的 `Role` 从 `"agent"` 收敛为标准 `"assistant"`（`ChatScreen.StartAgentMsg` / `AgentSlot.BufferedStartStream` / `BufferedAppendToken`），消除同一 Agent 回复「agent / assistant」双标识混用导致的「两个智能体」；界面只显示一个「智能体」
+
+### ✅ 验证
+- 自测 4216 通过 / 1 失败（1 失败为预先存在的「无约束模型原样发 medium」断言，非本次引入）
+- 编译 0 错误（1 个既有警告 ProviderCommand.cs，非本次引入）
+
+## v0.87.14 (2026-08-24) — 竞品痛点九连击：可回滚 / 护栏 / 测试驱动 / RAG / 复现 / 可视化 / 离线 / 中文优化
+
+针对竞品痛点补齐 9 项能力（对应 `/todo` 中 #12–#20）：
+
+1. **改坏可回滚**：每次轮对话首次写文件前自动文件快照（不污染 git stash，`~/.waycoder/checkpoints/`），`/timeline` 树状时间线 + `/undo <id> [文件]` 回退整点或单文件；`AutoCheckpoint` 配置开关（默认开）
+2. **目标护栏**：每轮把用户任务注入 `<current_goal>`，≥10 轮仍无进展时注入 `<goal_check>` 偏离拉回提示，防止智能体跑偏
+3. **成本护栏**：预算到 80%（`BudgetWarnPercent` 可调）即时预警、超预算即止（沿用既有 `--max-budget-usd`）；`/stats` 仪表盘加 10 段预算进度条
+4. **测试驱动修复**：`TestCommand` 配置指定测试命令优先于自动探测；本轮内测试失败 → 收尾前「硬绿判定」再跑一次，仍失败则强制继续修复不放行结束（`_turnTestFailed`/`_hardGreenGateDone` 双状态防死循环）
+5. **项目知识库 RAG**：`ProjectKnowledge` 摄入 README/AGENT.md/CLAUDE.md/docs/*.md，按标题分块（rune 安全），复用 `SemanticMemory` TF-IDF 检索，把最相关片段注入 `<project_knowledge>`（mtime 指纹缓存，零网络零向量）
+6. **可复现脚本导出**：`/repro` 从会话历史提取 bash 命令 + 写文件路径，生成 `repro_*.sh`（`set -euo pipefail`）
+7. **可视化**：DrawTool 加 `flowchart` 语义指令（Mermaid 风格 `A[开始]-->B{判断}-->C((结束))`，自动分层布局，节点 `[方]/(圆角)/{菱形}/((圆))` + 连线 `-->/-.->/==>/---`）；`line/arrow/polyline` 支持 `dash` 虚线；`text` 支持 `\n` 多行
+8. **内网/离线部署**：`UpdateEnabled` 关闭自动升级（`/update`/`--update` 门控）；`OllamaNumCtx` 显式注入 Ollama `options.num_ctx` 上下文窗口
+9. **中文 + 国内模型深度优化**：`ProviderInfo.Temperature` 厂商级温度覆盖（per-provider 参数）；`LLM.LocalizeError` 网络错误中文本地化（超时/连接拒绝/DNS 等映射为可读中文）
+
+### ✅ 验证
+- 新增自测：虚线（line/arrow/polyline 解析+SVG+PNG）、多行文字（tspan 拆分）、flowchart（8 图元结构 + SVG/PNG + 错误路径），全部通过
+- 自测 4215 通过 / 1 失败（1 失败为预先存在的「无约束模型原样发 medium」断言，非本次引入）
+- 编译 0 错误（1 个既有警告 ProviderCommand.cs，非本次引入）
+
+## v0.87.13 (2026-08-24) — /join 新增 Gemini CLI 支持
+
+- **`/join gemini`**：读取 `~/.gemini/tmp/<sha256(项目路径)>/chats/session-*.jsonl`（JSONL：首行 metadata + 后续 message 记录）——解析 `user`/`gemini` 消息与 `functionCall`/`functionResponse` 工具调用，标题取 `summary` 或第一条用户消息，cwd 从 `directories` 恢复
+- 定位用**双通道**：① 从 cwd 向上遍历祖先目录算 SHA256 精确定位项目子目录；② 兜底枚举所有 `tmp/*/chats`，靠 metadata `directories` 做相关性匹配（应对 symlink/大小写等 hash 差异）
+- `/join` 候选来源扩到 6 个（Claude/Codex/OpenCode/Crush/Aider/**Gemini CLI**）
+
+### ✅ 验证
+- 构造 gemini 格式样例 JSONL 端到端：FindSessions 命中、标题/cwd 正确、用户↔助手对话 + `[工具调用]`/`[工具结果]` 完整还原进交接文档
+- 格式基于 gemini-cli 0.56.0 bundle 源码反推（`partToString`/`isMessageRecord`/`projectHash=sha256(cwd)`），**未经真实 gemini 会话验证**（需 Google OAuth 登录）
+- 编译 0 错误（1 个既有警告 ProviderCommand.cs，非本次引入）
+
+## v0.87.12 (2026-08-23) — /join 新增 Aider 支持
+
+- **`/join aider`**：读取 `.aider.chat.history.md`（纯 Markdown）——从 cwd 向上找项目根历史文件，解析 `USER:`/`ASSISTANT:`/`TOOL:` 段落（多行消息合并），标题取第一条用户消息
+- `/join` 候选来源从 4 个扩到 5 个（Claude/Codex/OpenCode/Crush/**Aider**），无候选提示同步补 Aider 路径
+
+### ✅ 验证
+- 样例 `.aider.chat.history.md` 端到端：FindSessions 命中 1 个、标题/cwd 正确、用户↔助手多行对话完整还原进交接文档
+
+## v0.87.11 (2026-08-23) — /join 跨工具会话桥接 + 手搓 SQLite 只读解析器
+
+- **`/join`（`/接手` `/续跑` `/handoff`）**：从 Claude Code / Codex / OpenCode / Crush 会话「接着跑」——读取竞品会话的**聊天内容 + todo 清单 + 当前 git 状态**组装成交接文档注入当前 Agent，换工具无缝续跑
+  - `/join` 或 `/join list` 列出匹配当前 cwd 的候选会话（来源 + 更新时间 + 标题）
+  - `/join claude|codex|opencode|crush` 直接接手该工具最新会话
+  - `/join <序号>` 接手列表第 N 个
+  - **已有聊天记录则提示覆盖**：当前会话已存在 user 消息时，先弹确认框（「导入会叠加在现有对话之后」），取消则不做任何改动
+- **手搓 `SqliteReader`**（`Infra/SqliteReader.cs`）：零依赖、AOT 安全的 SQLite 只读解析器，按 fileformat2 手写——文件头 → `sqlite_master` 定位表 → B-tree 遍历（leaf/interior + 右侧指针 + cell pointer array）→ overflow 页链式读取 → record 解码 + 全类型还原（int/double/text/blob/null），列名从 CREATE TABLE 解析
+- **`ContextBridge`**（`Infra/ContextBridge.cs`）：跨工具会话桥接——`FindSessions(cwd)` 按目录匹配扫描四种竞品存储（Claude `~/.claude/projects/*/*.jsonl`、Codex `~/.codex/sessions/`、OpenCode `~/.local/share/opencode/opencode.db`、Crush `<项目>/.crush/crush.db`），`BuildHandoffDoc` 组装 Markdown 交接文档（会话标题/更新时间/工作目录/对话记录/todo/git 状态）
+- **`ImportHelper` 修正 Claude 会话路径**：`~/.claude/sessions/*.json` → `~/.claude/projects/*/*.jsonl`（新版 Claude Code 实际存储位置）
+
+### ✅ 验证
+- **真实数据核验**：opencode.db 读 session 57 / message 1845 / part 9250 行，行数与 `sqlite3` 一致；大消息数据 SHA256 与 Python `sqlite3` 模块逐字节一致
+- **修复 6 字节整数（serialType 5）解码 bug**：漏 `buf[pos+1]` + 移位错（`<<32` 应 `<<40`），导致毫秒时间戳（2³²~2⁴⁸ 区间）全读错成 1970 年——修复后 opencode/crush 时间戳正确显示 2026-08-09
+- 当前项目实测找到 30 个候选会话（claude 14 / codex 1 / opencode 14 / crush 1），交接文档正确含真实聊天内容 + 工具调用
+- 编译 0 错误（1 个既有警告 ProviderCommand.cs，非本次引入）
+
+## v0.87.10 (2026-08-23) — 新增 /exit /quit 退出指令 + /resume 恢复会话指令
+
+- **`/exit`（/quit / /退出）**：退出 WayCoder（`Program.RequestExit` 设退出标志，走 REPL 正常清理路径：保存会话 + 退出全屏）
+- **`/resume`（/continue / /恢复）**：恢复上次自动保存的会话（原 REPL 硬编码改为注册指令，`/help` 可见；无自动会话时友好提示）
+- 两个命令注册为 SlashCommand，自动出现在 `/help` 命令表格
+
+### ✅ 验证
+- keypad 实测：`/exit` 提示「再见，正在保存并退出…」、`/resume` 无会话时提示「没有可恢复的会话」
+- 自测 4196+ 通过（1 失败为预先存在的「无约束模型原样发 medium」断言）
+
+## v0.87.9 (2026-08-23) — 模型不支持工具不催促 + 聊天模式零注入验证
+
+- **模型不支持工具不催促**：`SupportsTools=false`（如 Ollama gemma2 等本地小模型）时，跳过全部工具催促——推理催促 / 首轮分析催促 / 口述代码追问 / 中途停滞催促（做不到的事不催，避免每轮收到「请立即调用 write_file」的错误催促）
+- **聊天模式（Chat）零注入实证**：`--permit chat` 一次性模式 prompt 仅 **20 tokens**（纯用户消息），对比 Build 模式 20809 tokens（系统提示词 + RepoMap + Git + 记忆 + 工具 schema）——纯聊天确实 0 注入 0 催促（首条回复即完成，不自动续写/追问）
+
+### ✅ 验证
+- Chat 模式 `--permit chat --json -p` 回复正常、prompt 20 tokens、无任何注入
+- 自测 4196+ 通过（1 失败为预先存在的「无约束模型原样发 medium」断言）
+
+## v0.87.8 (2026-08-23) — 动态栏橙色 + 控件越界裁剪 + diff 行 RGB 背景
+
+- **动态栏文字改橙色**（RGB 255,180,0，同对话框渐变起始色），Error 状态保留红
+- **RenderBuffer.Write 系统级越界裁剪**：行越界丢弃、列越界截断——所有控件内容不得溢出屏幕（修复动态栏文字等超宽时终端自动换行把内容泄漏到下方横线/相邻行）
+- **聊天 diff 代码块**：`+` 行黑带绿背景（rgb 0,45,0）、`-` 行黑带红背景（rgb 45,0,0），RGB 精确控色；只在明确 diff 块（```diff / 首行 diff--git/+++/---/@@）生效，避免普通代码 +/- 行误染
+- 自测加 RenderBuffer 越界行/列裁剪断言
+
+### ✅ 验证
+- keypad RAW 实测：动态栏文字含 `38;2;255;180;0` 橙色前景；diff 块 `+` 行 `48;2;0;45;0`、`-` 行 `48;2;45;0;0`
+- 自测 4196+ 通过（1 失败为预先存在的「无约束模型原样发 medium」断言）
+
+## v0.87.7 (2026-08-23) — /free 支持参数（N 直接切换 / restore 还原收费）
+
+- **`/free` 无参数** → 弹框选择（原行为）
+- **`/free N`（1~可用数）** → 直接切换第 N 个免费模型（读 free.json 缓存，记住切换前模型）
+- **`/free restore`** → 直接还原收费模型（等同 `/free-restore`，跨会话）
+- 未知参数 / 序号越界 → 友好提示并回退弹框
+- 使用手册 / README 同步 `/free [N|restore]` 用法
+
+### ✅ 验证
+- keypad 实测：`/free 2` 切换 laguna-s-2.1-free ✓、`/free restore` 还原 deepseek-v4-flash ✓、`/free` 无参弹框 ✓
+
+## v0.87.6 (2026-08-23) — 补日志文档 + free 弹框切换回归
+
+- 补记 v0.87.4 / v0.87.5 更新日志（此前已提交代码但日志滞后）
+- 使用手册 / README 补 `/free`、`/free-restore`、free.json 缓存与 `--model free/restore` 说明
+- 新增 `Test/scripts/free_switch.txt`：`/free` 弹框方向键选择 + Enter 切换的按键回归
+
+### ✅ 验证
+- 自测 4194+ 通过（1 失败为预先存在的「无约束模型原样发 medium」断言，与本次无关）
+
+## v0.87.5 (2026-08-23) — /free 读 free.json 缓存不重扫 + 修复弹窗未弹出 + 扫描不误判 chat/think
+
+- **free.json 缓存**：`--model free` 扫描生成的可用免费 connect 列表写入 `~/.waycoder/free.json`（增量持久化：逐模型扫到可用立即写，中途中断也能用已扫到的）；`/free`（TUI + Web）直接读缓存弹窗，**不再每次扫描**；free.json 空/不存在 → 提示先跑 `--model free`
+- **修复 `/free` 弹窗没弹出来**：FreeCommand 漏了 `screen.ShowWindow`（TuiDialog.Select 构建了窗口但没显示）
+- **扫描默认每模型 5s** 没回复即跳过（`--model free <秒>` 覆盖）
+- **不误判 chat/think**：`ProbeChat` 判可用加 `ReasoningTokens > 0`（think 模型内容在 reasoning_content 不再误判「空回复」）；LLM 400 回退加**第三级去 `reasoning_effort`**（chat-only 模型被误发 thinking 参数自动降级）；LLM 加 `TimeoutSeconds`（探测固定单次超时，不渐进加长）
+
+### ✅ 验证
+- 实测 `--model free`：28 个免费模型 → **4 个可用**（hy3-free / laguna-s-2.1-free / nemotron-3-ultra-free / nemotron-3.5-lightning-free）已写入 free.json
+- `/free` 弹框 → 方向键选择 → Enter 切换 laguna-s-2.1-free → 对话正常 → `/free-restore` 恢复 deepseek-v4-flash → 对话正常
+- 自测 4194+ 通过（1 失败同 v0.87.6）
+
+## v0.87.4 (2026-08-23) — /free-restore 三端持久化 + 设置弹框渲染/读写修复 + 对话框不自动关闭
+
+- **`/free` + `/free-restore` 三端**：切换免费模型前记住当前模型（`PreviousModel` 持久化到 config.json，跨会话可还原）；TUI 菜单 / Web `/free-restore` / CLI `--model restore` 统一走 `RememberCurrentModel` / `RestorePrevious`；CLI `--model name` 切换前自动记住
+- **修复设置界面弹框输入花屏**（两层渲染 bug）：
+  - `TuiScrollView` 增量模式无条件重绘全部子项并覆盖模态弹框 → 只画脏子项 + 渲染后清脏
+  - 弹框脏判断 `win.RootView.IsDirty` 不覆盖子控件（MarkDirty 只标叶子不冒泡）→ 改 `HasDirtyDescendant` 递归 + RenderWindow 整窗重绘时内容区全量
+- **修复设置界面 45 项配置读写缺失**（推理深度/Whisper/工具白名单/经济模式/沙箱/回退链/Watch 等）：`GetValue`/`SetValue` default 走 Schema Getter/Setter 自动补全
+- **修复对话框开着自动关闭**：用户主动选择器（ModelPicker/SessionPicker/FilePicker/ReasoningPicker/CommandPalette/键盘帮助/DiffPreview）`RenderWait` 超时改 0 无限等；LLM 询问（Ask/Secret/Select）保留超时默认 cancel；TUI 权限对话框本就不超时
+- **Keypad 测试设施**：`INJECT`/`MODEL` 脚本化驱动阻塞式选择器 + `InputManager.InjectKey` + ModelPicker `forceReadKeys` + `FOCUS` 查活跃屏幕 + `RAW` 原始 ANSI 调试
+
+### ✅ 验证
+- keypad 脚本实测：设置界面 text/secret/number 弹框输入完整、select 弹框选择后值正确保存（推理深度 low）、ModelPicker 打开/导航/Enter 确认/Esc 取消
+- 自测 4194+ 通过（1 失败同 v0.87.6）
+
+## v0.87.3 (2026-08-23) — report/free 实时进度 + 可选单模型超时参数
+
+- **实时进度（stderr）**：`--model report` / `--model free` 测试时逐条输出「正在扫描 [provider] 第 n/N 个（模型）...」，不再干等
+- **可选超时参数**：`--model report <秒>` / `--model free <秒>`（如 `--model free 10`，默认 60s，范围 1-600s）
+- 进度走 stderr 不污染报告主输出
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）；`--model free 10` 实测进度逐条显示
+
+## v0.87.2 (2026-08-23) — `--help` 补全今日新增功能
+
+- `--model` 帮助补齐：`check` / `report` / `free` / `clean` / `import alllocal|allonline|all|online <源>`
+- 更新 `key` 描述（永不自动删除、删除需确认）、`list`（OpenRouter 短名）
+
+### ✅ 验证
+- `waycoder --help` 完整显示所有模型管理子命令
+
+## v0.87.1 (2026-08-23) — API key 永不自动删除（删除需询问确认）
+
+- **`RemoveProvider` 不再连带删除 API key**——clean / provider 清理可以删 provider 注册与模型，但 key 一律保留
+- **无效 key 删除需询问**：探测到 401/403 无效 key 时交互确认 `[y/N]`，同意才删；非交互（管道/一次性模式）默认保留
+- **显式删 key**：`--model key rm <provider>`（唯一删除路径）
+- 修复：clean 误删 opencode-go key、重新导入丢能力字段（glm-5.3 补回 `ReasoningEffortAllowed`）
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）；glm-5.3 恢复可用
+
+## v0.87.0 (2026-08-23) — `--model report / free / clean` 模型管理命令 + 本地模型按地址判断
+
+- **`--model report`**：测试所有 connect 的连通性，生成报告（✅ 可用 / ❌ 失败原因 / ⏭ 无 key）
+- **`--model free`**：测试模型库所有 free 模型（opencode zen `-free` + openrouter `:free`），列出可用的
+- **`--model clean`**（统一）：清理无效服务商 + 合并重复模型 + 删无效 connect
+  - **修复误删 bug**：clean 只在 **baseUrl 无效**（空/非 http(s)）时删服务商——探测失败/无 key/临时网络都不是删除理由（此前误删 opencode-go/zen/openrouter 模型）
+  - 遍历只做标记、结束后统一删除（不能边遍历边删）
+- **本地模型按地址判断**：`ModelCatalog.IsLocalUrl`（localhost/127.0.0.1 才算本地）——Ollama 也有云端（ollama.com），是否免 key 看 baseUrl 而非 providerId
+- 实测 `--model free`：**9 个可用**（zen：laguna/nemotron-3-ultra/nemotron-3.5；openrouter：nemotron-3 系/laguna/nemotron-nano）
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）
+
+## v0.86.1 (2026-08-23) — README 补模型管理命令文档
+
+- README 增加「模型管理」命令段：`--model import alllocal/allonline/all`、`--model check [connect]`、`--connect test`
+- 说明模型能力特性（SupportsThinking/Tools/Vision）存储与按能力门控、OpenRouter 短名显示
+
+### ✅ 验证
+- 纯文档更新，无代码改动
+
+## v0.86.0 (2026-08-23) — 模型能力特性显式标识（SupportsThinking / SupportsTools / SupportsVision）+ `--model check`
+
+- **ModelInfo / ProviderInfo 加能力字段**：`SupportsThinking` / `SupportsTools` / `SupportsVision`（bool?，null=未声明→厂商/家族推断）；三级合并「模型 > 厂商 > 推断」
+- **LLM 请求按能力门控**：
+  - `SupportsTools=false`（如 Ollama gemma2）→ 不发 tools（400 回退降级为安全网）
+  - `SupportsThinking=false`（本地模型）→ 一律不发 `reasoning_effort`（替代 `"none"` hack）
+  - Anthropic `thinking` 块 / Gemini `thinkingConfig`：支持思考的模型才开
+- **视觉判定元数据化**：`ModelSupportsVision` 硬编码迁移为 `ResolveSupportsVision`（补齐 o4-mini/llama-4/gemma3 盲点），Agent/ViewImage/WebChat 三处改查元数据
+- **`--model check [connect]` 新命令**：测试当前/指定连接模型的能力特性（格式 / think / tools / vision / 温度精度 / 上下文 / key）
+- 本地模型导入：`ImportLocalServices` 设 `SupportsThinking=false`（删 `"none"` hack）；SupportsTools 留推断（gemma2:2b→false，qwen3→true）
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）；`--model check` 实测：gemma2:2b（思考❌工具❌）、glm-5.3（思考✅工具✅）、qwen3.5-4b（思考❌工具✅）
+
+## v0.85.4 (2026-08-23) — 本地模型兼容：Ollama/LM Studio 支持 + LLM 400 两级回退（去 stream_options / 去 tools）
+
+- **本地服务模型（ollama/lmstudio/local）导入时设 `ReasoningEffortAllowed="none"`**：Ollama 等不支持 thinking，全局 `reasoning_effort` 会导致 400——`none` 使任何全局值都跳过（不发）
+- **LLM 400 两级回退**：① 去 `stream_options`（OpenAI 扩展）② 再去 `tools`（Ollama gemma2 等不支持工具调用的模型）——退化纯文本回复，不再 400 中断
+- 验证：Ollama gemma2:2b ✅ 输出 ok（1.9s）；LM Studio qwen3.5-4b 联通（thinking 模型默认思考 content 空，需关 thinking）
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）
+
+## v0.85.3 (2026-08-23) — 模型列表显示短名（OpenRouter 路由前缀去除）
+
+- **OpenRouter 等在线导入模型 id 带厂商路由前缀**（`openai/gpt-3.5-turbo`），列表显示太长
+- 新增 `ModelCatalog.ShortDisplayName`：**显示时去前缀**（`gpt-3.5-turbo`），**调用仍用完整 id**（路由需要）
+- 应用：`--model list`、ModelPicker（Ctrl+M）表格、新导入模型 `DisplayName` 直接存短名
+- 验证：`--model list` 显示 `gpt-3.5-turbo`（原 `openai/gpt-3.5-turbo`）、`mythomax-l2-13b`（原 `gryphe/mythomax-l2-13b`）
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）
+
+## v0.85.2 (2026-08-23) — CLI 模型导入增强：`--model import alllocal / allonline / all` + 在线指定源
+
+- **组合命令**：
+  - `--model import alllocal` — 导入全部本地模型（Ollama /api/tags + LM Studio /v1/models + CC Switch）
+  - `--model import allonline`（或 `online`）— 导入全部在线端点模型列表（OpenCode/OpenRouter/Groq/SiliconFlow/Together/DeepSeek/OpenAI/Moonshot 共 9 个）
+  - `--model import all`（或 `auto`）— 本地 + 在线全部
+  - `--model import online <源名>` — 在线指定源
+- 新增 `ModelCli.ImportOnlineAll`（在线批量拉取 /models 写全局库，无 key 也拉模型、使用前设 key）
+- 验证：`import alllocal` 导入 LM Studio embed 模型；`import online opencode` 拉取 muse-spark/mimo/hy3/nemotron 等
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）
+
+## v0.85.1 (2026-08-23) — 环境变量 key 自动导入补全（connect add 路径）+ providers.json 字段继承内置默认
+
+- **key 自动导入补到 `connect add`**：`AutoImportKeyFromEnv` 抽取为公共方法，`ApplyModelChoice`（选模型）与 CLI/TUI `/connect add`（建 connect）共用——新建 connect 时无 key 自动从官方环境变量复制 + `IsPlausibleApiKey` 校验
+- **修复 providers.json 覆盖内置丢失元数据**：`LoadOrCreateProvidersJson` 字段缺失时继承内置默认——旧 providers.json（只有 name/base_url）会把内置 `ApiKeyEnvVar`/`ApiFormat`/`CommonModels` 等覆盖为 null，导致 key 自动导入失效、ApiFormat 解析回退 openai
+- 验证：删 minimax key → `MINIMAX_API_KEY` 环境变量 + `--connect add` → ✅ 自动导入 + 提示
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）
+
+## v0.85.0 (2026-08-23) — 非 OpenAI 格式兼容（Anthropic 原生 + Gemini 原生）+ 模型/厂商参数约束 + 环境变量 key 自动导入
+
+### 非 OpenAI 原生 API 兼容（ProviderInfo.ApiFormat）
+- **Anthropic 原生**（`POST /v1/messages`）：`x-api-key` + `anthropic-version` 头；`system` 提取到顶层；`content` 块数组；`max_tokens` 必填；SSE 解析 `message_start/content_block_delta/message_stop`；工具 `tool_use` + `input_json_delta` 累积
+- **Gemini 原生**（`POST /v1beta/models/{model}:streamGenerateContent?alt=sse`）：URL 嵌模型名；`x-goog-api-key`；`contents/parts` + `generationConfig`；SSE 解析 `candidates[0].content.parts` + `usageMetadata`；工具 `functionCall`（无 id 合成）
+- 多模态按格式转换（Anthropic image/source + Gemini inlineData）
+- 内置 `anthropic`/`google` 改走原生端点（gemini baseUrl 改回原生根）；`ResolveApiFormat` 每请求反查，FallbackLLM 跨格式回退自动适配
+
+### 模型/厂商调用参数约束（此前提交未发版）
+- `ModelInfo.ReasoningEffortAllowed`（允许集）+ `TemperaturePrecision`；`ProviderInfo` 同字段为厂商级默认，两级解析「模型级 > 厂商级 > 全局」
+- `reasoning_effort` 值恒来自全局，越界 → 跳过字段（glm-5.3 medium → 不 400）；temperature 精度按模型级联
+- `ReasoningPicker` 按模型允许集过滤级别
+
+### 内置厂商官方元数据 + 环境变量 key 自动导入
+- 24 个内置厂商补 `ApiKeyEnvVar`（官方环境变量名）/`ModelsEndpoint`（模型列表接口）/`CommonModels`（官方常用模型）
+- 首次选择模型无 key 时自动从官方环境变量复制到 api_keys.json，`IsPlausibleApiKey` 校验防误复制（URL/空白/占位拒绝）
+
+### ✅ 验证
+- 自测 4106+ 通过（0 失败）：新增 `TestModelParams`（约束纯函数/往返/集成）+ `TestApiFormat`（Anthropic/Gemini 请求体头/SSE 解析/工具/usage 全断言）
+
+## v0.84.1 (2026-08-23) — 修复 temperature 序列化 bug（glm-5.3 严格网关）+ waycoder 5000 行 C++ 能力检验
+
+- **修复 `LLM.cs` temperature 序列化**：float 0.1f 经 JSON `"R"` 格式输出 `0.10000000149011612`，被 opencode.ai/zen/go 网关的 glm-5.3（限制小数点 2 位）以 HTTP 400 拒绝；改为发送前 `(double)Math.Clamp + Math.Round(2)`
+- **真实场景验证**：waycoder 写 5000 行 C++ 程序时暴露（glm-5.3 首轮直接 400），修复后 `--json` 回复正常
+- **waycoder 能力检验**：TinyL 脚本语言解释器 **5,584 行 C++**（lexer/parser/AST/求值器/GC/标准库/REPL，25 个内置函数 + switch + 位运算），g++ C++17 编译 0 错误，**25/25 测试通过**，中文输出/闭包/类继承/异常全部可运行
+- 过程中还发现：glm-5.3 强制思考，`ReasoningEffort` 只接受 low/high/max（medium → 400），已调低配置
+
+### ✅ 验证
+- waycoder 独立验证编译 + 25 测试全过；`--json -p` 请求正常返回
+
 ## v0.84.0 (2026-08-22) — 模型配置三层重构：connect / provider / connection + 命令按域分类 + 回退链开关
 
 **模型配置重构**：connect = {providerId, modelId} 命名注册表；provider = {name, baseUrl, apikey} 逻辑一体（物理分文件）；connection = 大 connect + 小 connect 一起切换；回退链 = 一串 connect。

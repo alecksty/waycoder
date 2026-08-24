@@ -122,7 +122,28 @@ public static class CheckpointManager
         }
         catch (Exception ex) { DebugLog.Log("Checkpoint", $"Git stash 失败: {ex.Message}"); }
 
-        // 回退：复制修改过的文件
+        // 回退：纯文件备份（不进 git stash，避免污染 stash 栈 / 吞掉用户未提交改动）
+        return await CreateFileBackupAsync(id, timestamp, description);
+    }
+
+    /// <summary>
+    /// 写文件前自动快照：纯文件备份（绝不用 git stash —— stash 会污染 stash 栈并吞掉用户未提交的改动）。
+    /// 每轮对话首次写文件前调用一次，回滚点 = 本轮改动前的状态，实现「改坏可回滚」。
+    /// </summary>
+    public static async Task<Checkpoint?> CreateAutoSnapshotAsync(string description = "")
+    {
+        description = SanitizeCheckpointLabel(description);
+        var id = _nextId++;
+        var timestamp = DateTime.Now;
+        return await CreateFileBackupAsync(id, timestamp, description);
+    }
+
+    /// <summary>
+    /// 纯文件备份实现：检测当前 git 变更文件（含未跟踪），逐一复制到 checkpoints 目录并写元数据。
+    /// 无任何变更时返回 Empty 检查点。由手动 /checkpoint 的回退分支与自动快照共用。
+    /// </summary>
+    private static async Task<Checkpoint?> CreateFileBackupAsync(int id, DateTime timestamp, string description)
+    {
         try
         {
             var backupDir = Path.Combine(CheckpointWriteDir, $"ckpt_{id:000}");
@@ -363,6 +384,47 @@ public static class CheckpointManager
             lines.Add($"  {icon} #{cp.Id}  {cp.Description}  «dim»{cp.Timestamp:HH:mm:ss}«/»  ({cp.Type})");
         }
         return string.Join("\n", lines);
+    }
+
+    /// <summary>
+    /// 回滚时间线视图（最新的检查点在最上，树状分支 + 相对时间 + 文件数）。
+    /// 供 /timeline 命令可视化「改坏可回滚」：一眼看到每个回滚点距现在多久、改了哪些文件。
+    /// </summary>
+    public static string ListTimeline()
+    {
+        if (_checkpoints.Count == 0)
+            return "（暂无检查点。写文件时自动快照，或手动 /checkpoint 创建。）";
+
+        var now = DateTime.Now;
+        var lines = new List<string>();
+        var ordered = _checkpoints.OrderByDescending(c => c.Id).ToList();
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            var cp = ordered[i];
+            var icon = cp.Type switch
+            {
+                CheckpointType.GitStash => "📦",
+                CheckpointType.FileBackup => "📁",
+                CheckpointType.Empty => "📭",
+                _ => "❓"
+            };
+            var fileCount = cp.Type == CheckpointType.FileBackup ? GetCheckpointFiles(cp.Id).Count : -1;
+            var fileStr = fileCount >= 0 ? $" «dim»({fileCount} 文件)«/»" : "";
+            var branch = ordered.Count == 1 ? "──" : (i == 0 ? "┌─" : (i == ordered.Count - 1 ? "└─" : "├─"));
+            lines.Add($"  {branch} {icon} #{cp.Id}  «dim»{RelativeTime(now, cp.Timestamp)}«/»  {cp.Description}{fileStr}");
+        }
+        return string.Join("\n", lines);
+    }
+
+    /// <summary>把时间差格式化为易读相对时间（刚刚 / N 秒前 / N 分钟前 / N 小时前 / N 天前）。</summary>
+    private static string RelativeTime(DateTime now, DateTime past)
+    {
+        var delta = now - past;
+        if (delta.TotalSeconds < 10) return "刚刚";
+        if (delta.TotalSeconds < 60) return $"{(int)delta.TotalSeconds} 秒前";
+        if (delta.TotalMinutes < 60) return $"{(int)delta.TotalMinutes} 分钟前";
+        if (delta.TotalHours < 24) return $"{(int)delta.TotalHours} 小时前";
+        return $"{(int)delta.TotalDays} 天前";
     }
 
     /// <summary>

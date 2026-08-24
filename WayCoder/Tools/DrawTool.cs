@@ -17,8 +17,11 @@ public class DrawTool : ITool
         "可加 crop sx sy sw sh 裁源图子矩形、round r 裁目标圆角、rect 直角矩形裁剪）、" +
         "icon mac|ios|android|windows [颜色] [字形] 一键生成应用图标模板（预设尺寸/圆角/安全区）、" +
         "translate/rotate/scale/push/pop 变换、gradient 渐变定义、" +
-        "antialias 消除锯齿（PNG）。线宽在线/箭头/折线/路径尾部追加数值即可（如 \"line 0 0 100 0 #f00 5\"），" +
-        "线头形状追加 butt/round/square（如 \"line 0 0 100 0 #f00 5 round\"）。" +
+        "antialias 消除锯齿（PNG）。" +
+        "flowchart \"A[开始]-->B{判断}-->C((结束))\" 语义流程图（节点 [方] (圆角) {菱形} ((圆))，连线 -->/-.->/==>/---，自动分层布局）。" +
+        "线宽在线/箭头/折线/路径尾部追加数值即可（如 \"line 0 0 100 0 #f00 5\"），" +
+        "线头形状追加 butt/round/square、虚线追加 dash（如 \"line 0 0 100 0 #f00 2 dash\"）。" +
+        "text 支持多行：文本内用 \\n 换行。" +
         "颜色支持 #hex 与命名色（red/green/blue...）。示例：\"canvas 400 300 #fff\\ncircle 200 150 60 #4a90d9\\ntext 200 20 \\\"标题\\\" 24 #333 middle\"。" +
         "format 选 png 时需给 output 路径，否则返回 SVG 文本。" +
         "另可「看图」：给 image 参数（png/jpg/bmp 路径）则进入像素采样模式，返回颜色而非绘图——" +

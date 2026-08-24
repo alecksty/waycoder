@@ -1,0 +1,4 @@
+DIALOG:info
+DELAY:200
+SNAP:info弹窗
+FOCUS

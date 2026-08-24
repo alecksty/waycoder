@@ -23,6 +23,9 @@ public class InputManager : IDisposable
     /// <summary>ESC 序列解析时暂读的非鼠标字符（保证 Alt+字母 等组合键不丢失）</summary>
     private readonly Queue<ConsoleKeyInfo> _pendingKeys = new();
 
+    /// <summary>注入一个按键到输入队列（脚本测试用：阻塞式选择器 RenderWait 的 ReadInput 优先消费队列）。</summary>
+    public void InjectKey(ConsoleKeyInfo key) => _pendingKeys.Enqueue(key);
+
     /// <summary>窗口大小变化时触发（在 ReadInput 返回前调用）</summary>
     public event Action? OnResize;
 

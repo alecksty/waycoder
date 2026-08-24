@@ -109,16 +109,23 @@ public static class ImportHelper
                 $"{claudeMd} ({FormatSize(size)})", true));
         }
 
-        // 4. 会话/数据
-        var sessionsDir = Path.Combine(ClaudeHome, "sessions");
-        if (Directory.Exists(sessionsDir))
+        // 4. 会话/数据（Claude Code 会话为 JSONL：~/.claude/projects/<路径编码>/*.jsonl）
+        var projectsDir = Path.Combine(ClaudeHome, "projects");
+        if (Directory.Exists(projectsDir))
         {
-            var sessionFiles = Directory.GetFiles(sessionsDir, "*.json");
-            if (sessionFiles.Length > 0)
+            try
             {
-                items.Add(new ImportItem("💬 会话数据", "[Claude] 会话",
-                    $"{sessionFiles.Length} 个会话文件", true));
+                int sessionCount = 0;
+                foreach (var projDir in Directory.GetDirectories(projectsDir))
+                {
+                    try { sessionCount += Directory.GetFiles(projDir, "*.jsonl").Length; }
+                    catch { }
+                }
+                if (sessionCount > 0)
+                    items.Add(new ImportItem("💬 会话数据", "[Claude] 会话",
+                        $"{sessionCount} 个会话文件", true));
             }
+            catch { }
         }
 
         // 5. 项目权限
@@ -782,67 +789,59 @@ public static class ImportHelper
     }
 
     /// <summary>
-    /// 导入 Claude Code 会话数据。
+    /// 导入 Claude Code 会话数据（JSONL：~/.claude/projects/&lt;路径编码&gt;/*.jsonl）。
+    /// 提取 user/assistant 文本消息，转为 WayCoder 会话格式（{role, content}）。
     /// </summary>
     private static async Task<string> ImportSessionsAsync()
     {
-        var sessionsDir = Path.Combine(ClaudeHome, "sessions");
-        if (!Directory.Exists(sessionsDir))
-            return "⏭ 会话: ~/.claude/sessions/ 不存在";
+        var projectsDir = Path.Combine(ClaudeHome, "projects");
+        if (!Directory.Exists(projectsDir))
+            return "⏭ 会话: ~/.claude/projects/ 不存在";
 
         try
         {
-            var sessionFiles = Directory.GetFiles(sessionsDir, "*.json");
-            if (sessionFiles.Length == 0)
-                return "⏭ 会话: 无会话文件";
-
             var targetDir = Global.GlobalConfigPath("sessions");
             Directory.CreateDirectory(targetDir);
 
             var imported = 0;
             var skipped = 0;
+            var scanned = 0;
 
-            foreach (var file in sessionFiles.Take(20)) // 最多导入 20 个
+            foreach (var projDir in Directory.GetDirectories(projectsDir))
             {
-                try
+                string[] files;
+                try { files = Directory.GetFiles(projDir, "*.jsonl"); }
+                catch { continue; }
+
+                foreach (var file in files)
                 {
-                    var fileName = Path.GetFileNameWithoutExtension(file);
-                    var targetPath = Path.Combine(targetDir, $"claude_{fileName}.json");
+                    if (scanned >= 20) break; // 最多扫描 20 个
+                    scanned++;
 
-                    if (File.Exists(targetPath))
+                    try
                     {
-                        skipped++;
-                        continue;
-                    }
+                        var messages = ParseClaudeJsonl(file);
+                        if (messages.Count == 0) { skipped++; continue; }
 
-                    // Claude Code session 格式 → WayCoder 格式（简化）
-                    var json = Json.Parse(await File.ReadAllTextAsync(file, Encoding.UTF8));
-                    if (json == null) { skipped++; continue; }
+                        var sessionId = "claude_" + Path.GetFileNameWithoutExtension(file);
+                        var targetPath = Path.Combine(targetDir, sessionId + ".json");
+                        if (File.Exists(targetPath)) { skipped++; continue; }
 
-                    // 尝试提取消息
-                    var messages = json["messages"];
-                    if (messages == null)
-                    {
-                        // 可能整个文件就是消息数组
-                        messages = json;
-                    }
+                        var data = JNode.Object()
+                            .Set("id", sessionId)
+                            .Set("model", "claude")
+                            .Set("saved_at", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                        var msgArr = JNode.Array();
+                        foreach (var m in messages) msgArr.Add(m);
+                        data.Set("messages", msgArr);
 
-                    if (messages != null && messages.Count > 0)
-                    {
-                        // 简化：直接保存原格式，WayCoder 能读取
-                        await File.WriteAllTextAsync(targetPath,
-                            json.ToJson(true), Encoding.UTF8);
+                        await File.WriteAllTextAsync(targetPath, data.ToJson(true), Encoding.UTF8);
                         imported++;
                     }
-                    else
-                    {
-                        skipped++;
-                    }
+                    catch { skipped++; }
                 }
-                catch
-                {
-                    skipped++;
-                }
+
+                if (scanned >= 20) break;
             }
 
             return $"✅ 会话: 导入 {imported} 个，跳过 {skipped} 个 → {targetDir}";
@@ -851,6 +850,67 @@ public static class ImportHelper
         {
             return $"❌ 会话: 导入失败 — {ex.Message}";
         }
+    }
+
+    /// <summary>把 Claude Code JSONL 会话转换为 WayCoder 消息列表（{role, content}）。</summary>
+    static List<JNode> ParseClaudeJsonl(string file)
+    {
+        var messages = new List<JNode>();
+        foreach (var raw in File.ReadLines(file, Encoding.UTF8))
+        {
+            var node = Json.Parse(raw);
+            if (node == null) continue;
+            var type = node.GetString("type");
+            if (type == null) continue;
+
+            if (type == "user")
+            {
+                if (node.GetBool("isSidechain")) continue; // 跳过侧链（子智能体）
+                var text = ExtractClaudeText(node["message"]?["content"]);
+                if (!string.IsNullOrWhiteSpace(text))
+                    messages.Add(JNode.Object().Set("role", "user").Set("content", text));
+            }
+            else if (type == "assistant")
+            {
+                var content = node["message"]?["content"];
+                if (content == null) continue;
+                if (content.Kind == JKind.Array)
+                {
+                    foreach (var block in content.Items)
+                    {
+                        if (block?.GetString("type") == "text")
+                        {
+                            var text = block.GetString("text");
+                            if (!string.IsNullOrWhiteSpace(text))
+                                messages.Add(JNode.Object().Set("role", "assistant").Set("content", text));
+                        }
+                    }
+                }
+                else
+                {
+                    var text = ExtractClaudeText(content);
+                    if (!string.IsNullOrWhiteSpace(text))
+                        messages.Add(JNode.Object().Set("role", "assistant").Set("content", text));
+                }
+            }
+        }
+        return messages;
+    }
+
+    /// <summary>提取 Claude Code content（text 字符串或 [{type:text,text}] 数组）中的纯文本。</summary>
+    static string? ExtractClaudeText(JNode? content)
+    {
+        if (content == null) return null;
+        if (content.Kind == JKind.String) return content.AsString();
+        if (content.Kind == JKind.Array)
+        {
+            var parts = new List<string>();
+            foreach (var block in content.Items)
+                if (block?.GetString("type") == "text" && block.GetString("text") is { } t)
+                    parts.Add(t);
+            return parts.Count > 0 ? string.Join("\n", parts) : null;
+        }
+        return content.AsString();
     }
 
     /// <summary>

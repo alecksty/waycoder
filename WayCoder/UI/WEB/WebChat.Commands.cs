@@ -46,6 +46,12 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                     return (true, WebModelListText());
                 return (false, ""); // /model 无参 → 前端打开模型选择窗口
 
+            case "/free":
+                return (true, WebFreeText());
+
+            case "/free-restore" or "/恢复模型":
+                return (true, ModelCli.RestorePrevious());
+
             case "/reset" or "/clear":
                 if (agent != null) agent.ClearMessages();
                 return (true, "🗑 已清空当前会话");
@@ -91,6 +97,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         sb.AppendLine("| /model | 打开模型选择窗口 |");
         sb.AppendLine("| /model list | 列出模型 |");
         sb.AppendLine("| /model <名称> | 按名称切换模型 |");
+        sb.AppendLine("| /free | 扫描可用免费模型（省钱，记住切换前模型） |");
+        sb.AppendLine("| /free-restore | 恢复 /free 切换前的模型 |");
         sb.AppendLine("| /theme | 切换明暗主题 |");
         sb.AppendLine("| /settings | 打开设置 |");
         sb.AppendLine("| /reset | 清空当前会话 |");
@@ -139,6 +147,26 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         sb.AppendLine("|---|---|---|");
         foreach (var m in ModelCatalog.All)
             sb.AppendLine($"| {m.DisplayName} | {m.ProviderId} | {WebFormatContext(m.ContextWindow)} |");
+        return sb.ToString();
+    }
+
+    /// <summary>/free — 列出缓存的可用免费模型（free.json，--model free 扫描生成）。查看前记住当前模型，/free-restore 可恢复。</summary>
+    private static string WebFreeText()
+    {
+        // 记住当前模型（/free-restore 恢复；未记录才记，不覆盖已记住的）
+        ModelCli.RememberCurrentModel();
+        var available = ModelCli.LoadFreeJson();
+        if (available.Count == 0)
+            return "⚠️ 暂无免费可用列表。先跑 `--model free` 扫描一次生成 free.json，之后 /free 直接读缓存（不重复扫描）";
+        var sb = new StringBuilder();
+        sb.AppendLine($"💰 **可用免费模型（省钱）**（{available.Count} 个 · 缓存）");
+        sb.AppendLine();
+        sb.AppendLine("| 模型 | 供应商 |");
+        sb.AppendLine("|---|---|");
+        foreach (var c in available)
+            sb.AppendLine($"| `{ModelCatalog.ShortDisplayName(c.ModelId)}` | {c.ProviderId} |");
+        sb.AppendLine();
+        sb.AppendLine("用 `/model <名称>` 切换；`/free-restore` 恢复之前模型；重新扫描跑 `--model free`");
         return sb.ToString();
     }
 

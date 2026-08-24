@@ -1,0 +1,2 @@
+MSG:user:```diff\n- 旧行被删\n+ 新行加入\n 上下文行\n```
+RAW:diff渲染

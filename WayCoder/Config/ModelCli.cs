@@ -65,7 +65,8 @@ public static class ModelCli
                     ? m.ContextWindow >= 1_000_000 ? $"{m.ContextWindow / 1_000_000}M" : $"{m.ContextWindow / 1000}K"
                     : "?";
                 var mark = m.Id == current ? "  ← 当前" : "";
-                sb.AppendLine($"  {m.Id,-28} {ctx,-5}ctx  {price,-30}  [{m.Category}]{mark}");
+                // 显示用短名（去 openrouter 类路由前缀），切换/调用仍用完整 id
+                sb.AppendLine($"  {ModelCatalog.ShortDisplayName(m.Id),-28} {ctx,-5}ctx  {price,-30}  [{m.Category}]{mark}");
             }
         }
 
@@ -73,6 +74,327 @@ public static class ModelCli
         sb.AppendLine("选中: --model name <id> 或 --model <id>");
         sb.AppendLine("存 key: --model key <供应商> <key>　查 key: --model key");
         return sb.ToString();
+    }
+
+    /// <summary>检查当前模型或指定 connect 的能力特性（think / tools / vision / 格式 / 上下文 / key）。</summary>
+    public static string Check(string? connectId = null)
+    {
+        string pid, mid;
+        if (!string.IsNullOrWhiteSpace(connectId))
+        {
+            var c = ConnectionConfig.FindConnect(connectId.Trim());
+            if (c == null) return $"❌ 未找到 connect「{connectId}」（--connect list 查看）";
+            pid = c.ProviderId; mid = c.ModelId;
+        }
+        else
+        {
+            pid = Config.Instance.Provider; mid = Config.Instance.Model;
+        }
+        var caps = ModelCatalog.ResolveModelCallConstraints(mid, Config.Instance.BaseUrl);
+        var fmt = ModelCatalog.ResolveApiFormat(mid, Config.Instance.BaseUrl);
+        var hasKey = ApiKeyStore.Has(pid);
+        var sb = new StringBuilder();
+        sb.AppendLine($"模型: {ModelCatalog.ShortDisplayName(mid)}（{pid}）");
+        sb.AppendLine($"  API 格式: {fmt}");
+        sb.AppendLine($"  思考 think: {(caps.SupportsThinking ? "✅ 支持" : "❌ 不支持")}" +
+            (caps.ReasoningEffortAllowed is { Length: > 0 } and not "none" ? $"（允许 {caps.ReasoningEffortAllowed}）" : ""));
+        sb.AppendLine($"  工具 tools: {(caps.SupportsTools ? "✅ 支持" : "❌ 不支持")}");
+        sb.AppendLine($"  视觉 vision: {(caps.SupportsVision ? "✅ 支持" : "❌ 不支持")}");
+        sb.AppendLine($"  温度精度: {caps.TemperaturePrecision} 位小数");
+        sb.AppendLine($"  上下文: {ModelCatalog.ResolveContextWindow(mid)} tokens");
+        sb.AppendLine($"  API key: {(hasKey ? "🔑 已配置" : "⚠ 未配置（--model key 或设官方环境变量自动导入）")}");
+        return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// 交互确认（Y/N）：删除 key 等敏感操作必须询问用户。
+    /// 非交互环境（管道/一次性模式/无终端）默认返回 false（保留，不删除）。
+    /// </summary>
+    private static bool ConfirmDelete(string prompt)
+    {
+        if (Console.IsInputRedirected || !Environment.UserInteractive) return false;
+        Console.Write($"{prompt} [y/N] ");
+        try
+        {
+            var r = Console.ReadLine()?.Trim().ToLowerInvariant();
+            return r is "y" or "yes";
+        }
+        catch { return false; }
+    }
+
+    /// <summary>解析可选超时参数（秒），非法/空返回默认 60。</summary>
+    private static int ParseTimeout(string? arg, int fallback = 60)
+    {
+        if (int.TryParse(arg, out var s) && s is > 0 and <= 600) return s;
+        return fallback;
+    }
+
+    /// <summary>探测单个模型连通性：发一个简单 chat 请求，返回 (可用, 说明/原因)。</summary>
+    private static (bool Ok, string Detail) ProbeChat(string providerId, string modelId, string baseUrl, int timeoutSec = 60)
+    {
+        try
+        {
+            var key = ApiKeyStore.Get(providerId) ?? "";
+            // timeoutSeconds 固定单次超时（不渐进加长重试）：连通性探测要快速可控，别被全局重试链拖住
+            var llm = new LLM(modelId, key, baseUrl, maxTokens: 16, timeoutSeconds: timeoutSec);
+            var resp = llm.ChatAsync(
+                new List<JNode> { JNode.Object().Set("role", "user").Set("content", "只回复两个字：ok") },
+                cancellationToken: new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSec)).Token
+            ).GetAwaiter().GetResult();
+            var content = (resp.Content ?? "").Trim();
+            if (resp.IsFatalError) return (false, "致命错误");
+            if (content.Length > 0) return (true, "回复: " + content[..Math.Min(content.Length, 20)]);
+            if (resp.ToolCalls.Count > 0) return (true, "工具调用");
+            // think 模型：内容在 reasoning_content（不并入 Content），有思考即算连通，别误判为不可用
+            if (resp.ReasoningTokens > 0) return (true, $"思考 {resp.ReasoningTokens} tok");
+            return (false, "空回复（模型可能只思考不输出）");
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// 测试所有 connect 的模型连通性，生成报告：
+    /// 遍历每个 connect（有 key 的 + 本地无需 key 的），发简单请求，列出可用 / 失败原因。
+    /// </summary>
+    public static string Report(string? timeoutArg = null)
+    {
+        var connects = ConnectionConfig.ListConnects();
+        if (connects.Count == 0) return "暂无 connect（--connect add <name> <providerId> <modelId> 添加）";
+        var timeout = ParseTimeout(timeoutArg);
+        var sb = new StringBuilder($"模型连通性报告（{connects.Count} 个 connect，单模型超时 {timeout}s）：\n");
+        var seen = new HashSet<(string, string)>();
+        int ok = 0, fail = 0, skip = 0, total = 0;
+        foreach (var c in connects)
+        {
+            if (!seen.Add((c.ProviderId, c.ModelId))) continue;
+            total++;
+            var prov = ConnectionConfig.ResolveProvider(c.ProviderId);
+            var baseUrl = prov?.BaseUrl ?? ModelCatalog.Find(c.ModelId, null)?.DefaultBaseUrl ?? "";
+            // 本地服务（localhost/127.0.0.1）无需 key；Ollama 云端（ollama.com）也要 key——按地址判断，不看 providerId
+            var isLocal = ModelCatalog.IsLocalUrl(baseUrl);
+            var hasKey = ApiKeyStore.Has(c.ProviderId);
+            if (!isLocal && !hasKey)
+            {
+                skip++;
+                sb.AppendLine($"  ⏭ {c.Name}（{ModelCatalog.ShortDisplayName(c.ModelId)}）无 key");
+                continue;
+            }
+            // 实时进度（stderr，不污染报告）：让用户知道正在扫哪个
+            Console.Error.WriteLine($"正在测试 [{c.ProviderId}] 第 {total}/{connects.Count} 个（{ModelCatalog.ShortDisplayName(c.ModelId)}）...");
+            var (ok2, detail) = ProbeChat(c.ProviderId, c.ModelId, baseUrl, timeout);
+            if (ok2) { ok++; sb.AppendLine($"  ✅ {c.Name}（{ModelCatalog.ShortDisplayName(c.ModelId)}）{detail}"); }
+            else { fail++; sb.AppendLine($"  ❌ {c.Name}（{ModelCatalog.ShortDisplayName(c.ModelId)}）{detail}"); }
+        }
+        sb.AppendLine($"\n汇总：✅ {ok} 可用　❌ {fail} 失败　⏭ {skip} 跳过(无key)");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 切换免费模型前记住的模型（/free-restore / --model restore 恢复）。
+    /// 持久化到 config.json（freePrevProvider/Model/BaseUrl）：跨会话可恢复（CLI 一次性进程也能还原）。
+    /// </summary>
+    public static (string Provider, string Model, string? BaseUrl)? PreviousModel
+    {
+        get
+        {
+            var c = Config.Instance;
+            if (string.IsNullOrEmpty(c.FreePrevModel)) return null;
+            return (c.FreePrevProvider ?? "", c.FreePrevModel, c.FreePrevBaseUrl);
+        }
+        set
+        {
+            var c = Config.Instance;
+            if (value is { } v)
+            {
+                c.FreePrevProvider = v.Provider;
+                c.FreePrevModel = v.Model;
+                c.FreePrevBaseUrl = v.BaseUrl;
+            }
+            else
+            {
+                c.FreePrevProvider = null;
+                c.FreePrevModel = null;
+                c.FreePrevBaseUrl = null;
+            }
+            c.SaveToConfigJson(); // 跨会话持久化
+        }
+    }
+
+    /// <summary>记住当前模型（切换免费模型前调用；未记录才记，避免覆盖已记住的）。</summary>
+    public static void RememberCurrentModel()
+    {
+        if (PreviousModel == null)
+            PreviousModel = (Config.Instance.Provider, Config.Instance.Model, Config.Instance.BaseUrl);
+    }
+
+    /// <summary>恢复 /free 切换前的模型（三端共用：TUI /free-restore、Web /free-restore、CLI --model restore）。</summary>
+    public static string RestorePrevious()
+    {
+        if (PreviousModel is not { } prev) return "⚠️ 无之前模型可恢复（先切换免费模型）";
+        ConnectionConfig.ApplyModelChoice(prev.Provider, prev.Model, isLarge: true, out var msg, prev.BaseUrl);
+        PreviousModel = null;
+        return $"✅ 已恢复之前模型：{ModelCatalog.ShortDisplayName(prev.Model)}（{prev.Provider}）";
+    }
+
+    /// <summary>枚举模型库中所有 free 模型（id 含 free，同 provider+id 去重）。</summary>
+    public static List<ModelCatalog.ModelInfo> EnumerateFreeModels()
+        => ModelCatalog.All
+            .Where(m => m.Id.ToLowerInvariant().Contains("free"))
+            .GroupBy(m => $"{m.ProviderId}|{m.Id.ToLowerInvariant()}")   // 同 provider+id 去重
+            .Select(g => g.First())
+            .ToList();
+
+    /// <summary>免费可用 connect（/free 弹窗切换用，持久化到 free.json）。</summary>
+    public sealed record FreeConnect(string ProviderId, string ModelId, string? BaseUrl);
+
+    /// <summary>免费可用列表缓存路径（~/.waycoder/free.json，--model free 扫描生成，/free 直接读不重扫）。</summary>
+    public static string FreeJsonPath => Global.GlobalConfigPath("free.json");
+
+    /// <summary>保存可用免费 connect 列表到 free.json（--model free 扫描完写入）。</summary>
+    public static void SaveFreeJson(List<FreeConnect> items)
+    {
+        try
+        {
+            var arr = JNode.Array();
+            foreach (var c in items)
+                arr.Add(JNode.Object()
+                    .Set("providerId", JNode.From(c.ProviderId))
+                    .Set("modelId", JNode.From(c.ModelId))
+                    .Set("baseUrl", JNode.From(c.BaseUrl ?? "")));
+            var root = JNode.Object().Set("free", arr);
+            var path = FreeJsonPath;
+            var dir = Path.GetDirectoryName(path);
+            if (dir != null) Directory.CreateDirectory(dir);
+            var tmp = path + ".tmp";
+            File.WriteAllText(tmp, Json.Serialize(root, indent: true));
+            File.Move(tmp, path, overwrite: true); // 原子替换
+        }
+        catch { /* 写失败不阻塞 */ }
+    }
+
+    /// <summary>读取 free.json 缓存的免费可用 connect 列表（空 = 尚未扫描生成）。</summary>
+    public static List<FreeConnect> LoadFreeJson()
+    {
+        var result = new List<FreeConnect>();
+        try
+        {
+            var path = FreeJsonPath;
+            if (!File.Exists(path)) return result;
+            var root = Json.Parse(File.ReadAllText(path));
+            if (root is not { Kind: JKind.Object }) return result;
+            var arr = root["free"];
+            if (arr == null) return result;
+            foreach (var item in arr.Items)
+            {
+                var pid = item["providerId"]?.AsString();
+                var mid = item["modelId"]?.AsString();
+                if (string.IsNullOrEmpty(pid) || string.IsNullOrEmpty(mid)) continue;
+                result.Add(new FreeConnect(pid, mid, item["baseUrl"]?.AsString()));
+            }
+        }
+        catch { /* 损坏静默忽略 */ }
+        return result;
+    }
+
+    /// <summary>
+    /// 测试模型库中所有 free 模型（id 含 free 的 openrouter :free / opencode zen -free），列出可用的，
+    /// 并把可用列表写入 free.json（/free 之后直接读缓存弹窗，不再每次扫描）。
+    /// </summary>
+    public static string Free(string? timeoutArg = null)
+    {
+        var freeModels = EnumerateFreeModels();
+        if (freeModels.Count == 0)
+            return "模型库中没有 free 模型（--model import online opencode-zen / openrouter 导入后测试）";
+        // 默认每模型 5s：没回复就跳过（连通性探测，不拖沓）。可传参覆盖（--model free <秒>）
+        var timeout = ParseTimeout(timeoutArg, fallback: 5);
+        var sb = new StringBuilder($"Free 模型连通性测试（{freeModels.Count} 个，单模型超时 {timeout}s，没回复即跳过）：\n");
+        int ok = 0, fail = 0, skip = 0, total = 0;
+        var okList = new List<FreeConnect>();
+        foreach (var m in freeModels)
+        {
+            total++;
+            var key = ApiKeyStore.Get(m.ProviderId);
+            if (string.IsNullOrEmpty(key))
+            {
+                skip++;
+                sb.AppendLine($"  ⏭ {ModelCatalog.ShortDisplayName(m.Id)}（{m.ProviderId}）无 key");
+                continue;
+            }
+            // 实时进度（stderr）：让用户知道正在扫哪个 provider 第几个
+            Console.Error.WriteLine($"正在扫描 [{m.ProviderId}] 第 {total}/{freeModels.Count} 个（{ModelCatalog.ShortDisplayName(m.Id)}）...");
+            var baseUrl = m.DefaultBaseUrl ?? ConnectionConfig.ResolveProvider(m.ProviderId)?.BaseUrl ?? "";
+            var (ok2, detail) = ProbeChat(m.ProviderId, m.Id, baseUrl, timeout);
+            if (ok2)
+            {
+                ok++;
+                okList.Add(new FreeConnect(m.ProviderId, m.Id, string.IsNullOrEmpty(baseUrl) ? null : baseUrl));
+                // 增量持久化：每扫到可用立即写 free.json——28 个模型逐个探测可能较久，
+                // 中途 Ctrl+C / 超时也能用已扫到的可用项（下次 /free 直接读缓存）
+                SaveFreeJson(okList);
+                sb.AppendLine($"  ✅ {ModelCatalog.ShortDisplayName(m.Id)}（{m.ProviderId}）{detail}");
+            }
+            else { fail++; sb.AppendLine($"  ❌ {ModelCatalog.ShortDisplayName(m.Id)}（{m.ProviderId}）{detail}"); }
+        }
+        if (okList.Count > 0) SaveFreeJson(okList); // 最终全量（幂等）
+        sb.AppendLine($"\n汇总：可用 {ok}　失败 {fail}　跳过(无key) {skip}");
+        if (okList.Count > 0)
+            sb.AppendLine($"已把 {okList.Count} 个可用免费模型写入 free.json（/free 直接读缓存，不再重复扫描；重新扫描跑 --model free）");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 清理脏数据：
+    /// 1. 合并重复模型（同 id + baseUrl 只保留一个）
+    /// 2. 删除「不存在的服务商」模型（ProviderId 不在注册表）
+    /// 3. 删除「不存在的模型」connect（模型在目录中找不到）
+    /// </summary>
+    public static string Clean()
+    {
+        var sb = new StringBuilder();
+        var all = ModelCatalog.All.ToList();  // 只读快照，仅用于遍历标记
+
+        // 遍历时只做标记，统一在最后删除（不能一边遍历一边删除）
+        var toRemoveModels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);  // 模型 id
+        var toRemoveConnects = new List<string>();                                   // connect 名
+        int merged = 0, removedProv = 0, removedConn = 0;
+
+        // 1. 合并重复（同 Id + DefaultBaseUrl，大小写不敏感）
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var m in all)
+        {
+            var key = $"{m.ProviderId}|{m.Id}|{m.DefaultBaseUrl ?? ""}";
+            if (!seen.Add(key)) { toRemoveModels.Add(m.Id); merged++; }
+        }
+
+        // 2. 标记不存在的服务商模型（ProviderId 不在 Providers 注册表）
+        foreach (var m in all)
+        {
+            if (!ModelCatalog.Providers.ContainsKey(m.ProviderId))
+            {
+                toRemoveModels.Add(m.Id);
+                removedProv++;
+            }
+        }
+
+        // 3. 标记不存在的模型 connect（模型在目录找不到）
+        foreach (var c in ConnectionConfig.ListConnects())
+        {
+            bool bad = !ModelCatalog.Providers.ContainsKey(c.ProviderId)
+                || ModelCatalog.Find(c.ModelId, null) == null;
+            if (bad) { toRemoveConnects.Add(c.Name); removedConn++; }
+        }
+
+        // 统一删除（遍历完成后一起删；HashSet 自动去重，同一模型不会删两次）
+        foreach (var id in toRemoveModels) ModelCatalog.RemoveCustom(id);
+        foreach (var name in toRemoveConnects) ConnectionConfig.RemoveConnect(name, out _);
+
+        sb.AppendLine($"✅ 清理完成：合并重复 {merged} 个，删除无效服务商模型 {removedProv} 个，删除无效 connect {removedConn} 个");
+        if (merged + removedProv + removedConn == 0)
+            sb.AppendLine("（模型目录与 connect 已干净，无需清理）");
+        return sb.ToString().TrimEnd();
     }
 
     /// <summary>选中模型：按目录解析，自动设置 base-url，经 connect 统一入口持久化</summary>
@@ -250,9 +572,11 @@ public static class ModelCli
                 foreach (var id in extract(root))
                 {
                     if (string.IsNullOrWhiteSpace(id)) continue;
+                    // 本地服务模型不主动发 thinking（reasoning_effort 会被 Ollama 等 400 拒绝）：
+                    // 显式 SupportsThinking=false；SupportsTools 留 null 走推断（gemma2:2b→false，qwen3→true）
                     added.Add(new ModelCatalog.ModelInfo(
                         id, id, pname, pid, "L", "Local", 0, 0, 0, baseUrl,
-                        $"从 {pname} 接口导入", 0));
+                        $"从 {pname} 接口导入", 0, SupportsThinking: false));
                 }
                 reports.Add(pname);
             }
@@ -337,6 +661,23 @@ public static class ModelCli
             (list.Count - toAdd.Count > 0 ? $"，跳过 {list.Count - toAdd.Count} 内置" : "") +
             (string.IsNullOrEmpty(key) ? "（未配置 API Key，导入的模型需设 key 后使用）" : "") +
             "：\n  " + string.Join("\n  ", toAdd.Select(m => m.Id));
+    }
+
+    /// <summary>
+    /// 在线导入所有端点（或按名称/服务商过滤指定一个）：拉取各 /models 写入全局模型库。
+    /// CLI 入口 `--model import online [源名...]`；空 = 全部。
+    /// </summary>
+    public static string ImportOnlineAll(IReadOnlyList<string>? names = null)
+    {
+        var sources = names is { Count: > 0 }
+            ? OnlineSources.Where(s =>
+                names.Any(n => s.Name.Contains(n.Trim(), StringComparison.OrdinalIgnoreCase)
+                            || s.KeyProvider.Contains(n.Trim(), StringComparison.OrdinalIgnoreCase))).ToList()
+            : OnlineSources.ToList();
+        if (sources.Count == 0)
+            return "未找到匹配的在线源（可用: " + string.Join(", ", OnlineSources.Select(s => s.Name)) + "）";
+        var reports = sources.Select(s => ImportOnline(s)).ToList();
+        return string.Join("\n", reports);
     }
 
     /// <summary>
@@ -451,25 +792,18 @@ public static class ModelCli
             {
                 var baseUrl = ModelCatalog.Providers.TryGetValue(id, out var p) ? p.DefaultBaseUrl
                     : ResolveProviderBaseUrl(id);
-                if (string.IsNullOrWhiteSpace(baseUrl))
-                {
-                    if (ApiKeyStore.Has(id)) ApiKeyStore.Remove(id);
-                    if (ModelCatalog.RemoveCustomByProvider(id) > 0) removed++;
-                    continue;
-                }
-                var key = ApiKeyStore.Get(id);
-                var (ok, detail) = ProbeEndpoint(baseUrl, key);
-                if (ok || detail.Contains("401") || detail.Contains("403")) continue; // 可用保留
+                // 只删 baseUrl 无效的服务商（空 / 非 http(s) 合法 URL）——
+                // 地址有效就保留（探测失败 / 无 key / 临时网络都不是删除理由，避免误删 opencode-go 等）
+                bool badUrl = string.IsNullOrWhiteSpace(baseUrl)
+                    || !Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri)
+                    || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps);
+                if (!badUrl) continue;
+                // 只删无效的 provider 注册与模型，绝不删 key（key 永不自动删除，要删走 --model key rm）
                 if (ModelCatalog.Providers.ContainsKey(id))
-                    ModelCatalog.RemoveProvider(id); // 同时清 providers.json 与 key
-                else
-                {
-                    ApiKeyStore.Remove(id);
-                    ModelCatalog.RemoveCustomByProvider(id);
-                }
-                removed++;
+                    ModelCatalog.RemoveProvider(id);
+                if (ModelCatalog.RemoveCustomByProvider(id) > 0) removed++;
             }
-            return removed > 0 ? $"🗑 已清理 {removed} 个无效服务商（含 key 与模型）" : "没有无效服务商";
+            return removed > 0 ? $"🗑 已清理 {removed} 个无效服务商（保留 API key，模型已删）" : "没有无效服务商";
         }
     }
 
@@ -774,14 +1108,12 @@ public static class ModelCli
             var display = ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DisplayName)
                 ? p.DisplayName : pid;
 
-            // 无端点：供应商不存在或未配置 base_url（写错地址/拼错供应商）→ 删除
+            // 无端点：供应商不存在或未配置 base_url（写错地址/拼错供应商）→ 删模型，key 保留
             if (string.IsNullOrWhiteSpace(baseUrl))
             {
                 var n = ModelCatalog.RemoveCustomByProvider(pid);
-                ApiKeyStore.Remove(pid);
-                removedKeys++;
                 removedModels += n;
-                sb.AppendLine($"🗑️  【{display}】无端点（供应商不存在或未配置 base_url）— 已删除 key" + (n > 0 ? $" + {n} 个自定义模型" : ""));
+                sb.AppendLine($"🗑️  【{display}】无端点（供应商不存在或未配置 base_url）— 已删模型" + (n > 0 ? $" {n} 个" : "") + "（key 保留）");
                 continue;
             }
 
@@ -793,21 +1125,25 @@ public static class ModelCli
                 continue;
             }
 
-            // 仅 key 无效（401/403）：供应商真实可达，模型保留，只删 key
+            // 无效 key：询问用户是否删除（交互确认）；非交互（管道/一次性）默认保留
             if (detail.StartsWith("密钥无效", StringComparison.Ordinal))
             {
-                ApiKeyStore.Remove(pid);
-                removedKeys++;
-                sb.AppendLine($"🗑️  【{display}】{detail} — 已删除 key（模型保留）");
+                if (ConfirmDelete($"【{display}】检测到无效 API key（{pid}），是否删除？"))
+                {
+                    ApiKeyStore.Remove(pid);
+                    removedKeys++;
+                    sb.AppendLine($"🗑️  【{display}】{detail} — 已删除无效 key");
+                }
+                else
+                {
+                    sb.AppendLine($"⚠️  【{display}】{detail} — key 保留（--model key rm {pid} 显式删除）");
+                }
                 continue;
             }
 
-            // 其余失效（无法连接/写错地址/无 /models 接口）：供应商本身不可用 → 删 key + 模型
             var m = ModelCatalog.RemoveCustomByProvider(pid);
-            ApiKeyStore.Remove(pid);
-            removedKeys++;
             removedModels += m;
-            sb.AppendLine($"🗑️  【{display}】{detail} — 已删除 key" + (m > 0 ? $" + {m} 个自定义模型" : ""));
+            sb.AppendLine($"🗑️  【{display}】{detail} — 已删模型" + (m > 0 ? $" {m} 个" : "") + "（key 保留）");
         }
 
         sb.AppendLine();
