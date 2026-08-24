@@ -435,7 +435,9 @@ public static class ImportHelper
                 if (!string.IsNullOrEmpty(apiKey))
                 {
                     cfg.ApiKey = apiKey;
-                    ApiKeyStore.Set("openai", apiKey);
+                    // 自动导入配置不覆盖已存 key（api_keys.json 优先，只有手动 --model key 可覆盖）
+                    if (!ApiKeyStore.Has("openai"))
+                        ApiKeyStore.Set("openai", apiKey);
                 }
                 // 「切换模型 = 切换 connect」：经 connect 统一入口写大/小模型
                 ConnectionConfig.ApplyModelChoice("openai", sonnetModel, isLarge: true, out _, baseUrl);

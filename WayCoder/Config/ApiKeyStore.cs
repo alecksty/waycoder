@@ -202,6 +202,7 @@ public static class ApiKeyStore
 
     /// <summary>
     /// 从环境变量导入 Key（按供应商专属变量名 + 通用 {PROVIDER}_API_KEY）。
+    /// 默认优先 api_keys.json：仅当该服务商 json 中无 key 时才把环境变量 key 导入（不覆盖已有 json key）。
     /// 返回已导入的供应商 ID 列表。纯逻辑便于自测（不读文件）。
     /// </summary>
     public static List<string> ImportFromEnvironment()
@@ -210,7 +211,7 @@ public static class ApiKeyStore
         foreach (var (pid, envVar) in ProviderEnvVar)
         {
             var val = Environment.GetEnvironmentVariable(envVar);
-            if (!string.IsNullOrWhiteSpace(val))
+            if (!string.IsNullOrWhiteSpace(val) && !Has(pid))
             {
                 Set(pid, val.Trim());
                 imported.Add(pid);
@@ -222,13 +223,27 @@ public static class ApiKeyStore
             if (pid is "local" or "custom" || imported.Contains(pid)) continue;
             var genericEnv = $"{pid}_API_KEY".ToUpperInvariant().Replace('-', '_').Replace(' ', '_');
             var val = Environment.GetEnvironmentVariable(genericEnv);
-            if (!string.IsNullOrWhiteSpace(val))
+            if (!string.IsNullOrWhiteSpace(val) && !Has(pid))
             {
                 Set(pid, val.Trim());
                 imported.Add(pid);
             }
         }
         return imported;
+    }
+
+    /// <summary>读取某服务商的环境变量 key（专属变量名 + 通用 {PROVIDER}_API_KEY），无则返回 null。
+    /// 仅当 api_keys.json 无该服务商 key 时作回退使用（解析优先级：json > 环境变量）。</summary>
+    public static string? EnvKey(string providerId)
+    {
+        if (ProviderEnvVar.TryGetValue(providerId, out var envVar))
+        {
+            var v = Environment.GetEnvironmentVariable(envVar);
+            if (!string.IsNullOrWhiteSpace(v)) return v.Trim();
+        }
+        var genericEnv = $"{providerId}_API_KEY".ToUpperInvariant().Replace('-', '_').Replace(' ', '_');
+        var gv = Environment.GetEnvironmentVariable(genericEnv);
+        return string.IsNullOrWhiteSpace(gv) ? null : gv.Trim();
     }
 
     /// <summary>根据环境变量名反查供应商 ID（ANTHROPIC_API_KEY → anthropic），查不到返回 null。</summary>
@@ -299,7 +314,7 @@ public static class ApiKeyStore
                         if (string.IsNullOrWhiteSpace(raw) || IsEnvVarRef(raw)) continue;
                         var pid = ProviderFromEnvVarName(key);
                         if (pid == null) continue;
-                        Set(pid, raw.Trim());
+                        if (!Has(pid)) Set(pid, raw.Trim());
                         Add(pid, "Claude Code");
                     }
                 }
@@ -323,7 +338,7 @@ public static class ApiKeyStore
                         if (string.IsNullOrWhiteSpace(raw) || IsEnvVarRef(raw)) continue;
                         var pid = ProviderFromEnvVarName(key);
                         if (pid == null) continue;
-                        Set(pid, raw.Trim());
+                        if (!Has(pid)) Set(pid, raw.Trim());
                         Add(pid, "Codex");
                     }
                 }
@@ -346,7 +361,7 @@ public static class ApiKeyStore
                 {
                     var raw = root?[field]?.AsString();
                     if (string.IsNullOrWhiteSpace(raw) || IsEnvVarRef(raw)) continue;
-                    Set(pid, raw.Trim());
+                    if (!Has(pid)) Set(pid, raw.Trim());
                     Add(pid, "Cursor");
                 }
             }
@@ -373,7 +388,7 @@ public static class ApiKeyStore
                     else
                         raw = val?.AsString();
                     if (string.IsNullOrWhiteSpace(raw) || IsEnvVarRef(raw)) continue;
-                    Set(pid, raw.Trim());
+                    if (!Has(pid)) Set(pid, raw.Trim());
                     Add(pid, "OpenCode");
                 }
             }

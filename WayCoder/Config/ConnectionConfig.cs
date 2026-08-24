@@ -556,7 +556,8 @@ public static class ConnectionConfig
         var name = ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrWhiteSpace(p.DisplayName)
             ? p.DisplayName : pid;
         var baseUrl = ResolveBaseUrl(pid) ?? "";
-        var apiKey = ApiKeyStore.Get(pid) ?? "";
+        // 默认优先 api_keys.json；json 为空时才回退到环境变量 key（导入仅补空，不覆盖 json）
+        var apiKey = ApiKeyStore.Get(pid) ?? ApiKeyStore.EnvKey(pid) ?? "";
         return new ProviderRecord(name, baseUrl, apiKey);
     }
 
