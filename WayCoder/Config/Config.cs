@@ -239,6 +239,11 @@ public class Config
     // 并行子智能体聚合结果的总字符上限（0=不限制）。单个子智能体输出各截断到
     // SubAgentOutputMaxChars，但并行 N 个累加仍可能撑爆主智能体上下文，故再设总上限。
     public int SubAgentParallelTotalMaxChars { get; set; } = 15000;
+    // 子智能体失败（返回错误）时的自动重试次数。默认 1：首次失败后换方法重试一次，仍失败则返回错误。
+    public int SubAgentRetryCount { get; set; } = 1;
+    // 子智能体 tasks 数组的硬上限（防 LLM 生成海量任务失控）。超出 SubAgentMaxParallel 的部分自动分批串行，
+    // 但总数一旦超过此上限直接报错（保护资源）。默认 100。
+    public int SubAgentMaxTotalTasks { get; set; } = 100;
 
     // ── LLM 连接 ──
     public int LlmHttpTimeoutSec { get; set; } = 300;
@@ -465,6 +470,18 @@ public class Config
               "number", null, 8,
               c => c.SubAgentParallelTotalMaxChars.ToString(),
               (c, v) => c.SubAgentParallelTotalMaxChars = Math.Max(0, int.Parse(v)), "15000"),
+
+            P("SubAgentRetryCount", "WAYCODER_SUBAGENT_RETRY_COUNT", null,
+              "子智能体重试次数", "🤖 模型", "子智能体失败（返回错误）时的自动重试次数，0=不重试",
+              "number", null, 9,
+              c => c.SubAgentRetryCount.ToString(),
+              (c, v) => c.SubAgentRetryCount = Math.Clamp(int.Parse(v), 0, 5), "1"),
+
+            P("SubAgentMaxTotalTasks", "WAYCODER_SUBAGENT_MAX_TOTAL_TASKS", null,
+              "子智能体总任务上限", "🤖 模型", "子智能体 tasks 数组硬上限（超出并行数的部分自动分批串行，总数超此上限报错）",
+              "number", null, 10,
+              c => c.SubAgentMaxTotalTasks.ToString(),
+              (c, v) => c.SubAgentMaxTotalTasks = Math.Clamp(int.Parse(v), 1, 1000), "100"),
 
             P("MaxRounds",     "WAYCODER_MAX_ROUNDS",         null,
               "最大对话轮次", "⚙️ 参数", "每轮对话最大工具调用次数",

@@ -39,10 +39,15 @@ public static class McpCatalog
 
         // ── 搜索 ──
         new() { Name = "brave-search", Category = "搜索", Description = "Brave 网页搜索（需 BRAVE_API_KEY）", Args = ["-y", "@modelcontextprotocol/server-brave-search"], Env = new() { ["BRAVE_API_KEY"] = "${BRAVE_API_KEY}" } },
+        new() { Name = "firecrawl", Category = "搜索", Description = "Firecrawl 网页抓取+搜索（需 FIRECRAWL_API_KEY）", Args = ["-y", "firecrawl-mcp"], Env = new() { ["FIRECRAWL_API_KEY"] = "${FIRECRAWL_API_KEY}" } },
+        new() { Name = "tavily", Category = "搜索", Description = "Tavily 实时网页搜索（需 TAVILY_API_KEY）", Args = ["-y", "tavily-mcp"], Env = new() { ["TAVILY_API_KEY"] = "${TAVILY_API_KEY}" } },
+        new() { Name = "exa", Category = "搜索", Description = "Exa 语义搜索（需 EXA_API_KEY）", Args = ["-y", "@exa/mcp-server"], Env = new() { ["EXA_API_KEY"] = "${EXA_API_KEY}" } },
 
         // ── 数据库 ──
         new() { Name = "sqlite", Category = "数据库", Description = "SQLite 数据库查询", Args = ["-y", "@modelcontextprotocol/server-sqlite", "data.db"] },
         new() { Name = "postgres", Category = "数据库", Description = "PostgreSQL 查询（改连接串）", Args = ["-y", "@modelcontextprotocol/server-postgres", "postgresql://localhost:5432/postgres"] },
+        new() { Name = "mongodb", Category = "数据库", Description = "MongoDB Atlas 查询（需 MONGODB_URI）", Args = ["-y", "@mongodb/mcp"], Env = new() { ["MONGODB_URI"] = "${MONGODB_URI}" } },
+        new() { Name = "neo4j", Category = "数据库", Description = "Neo4j 图数据库查询（需 NEO4J_URI）", Args = ["-y", "@neo4j/mcp-server"], Env = new() { ["NEO4J_URI"] = "${NEO4J_URI}", ["NEO4J_USERNAME"] = "${NEO4J_USERNAME}", ["NEO4J_PASSWORD"] = "${NEO4J_PASSWORD}" } },
 
         // ── 记忆 / 思考 ──
         new() { Name = "memory", Category = "记忆", Description = "知识图谱持久记忆", Args = ["-y", "@modelcontextprotocol/server-memory"] },
@@ -53,10 +58,18 @@ public static class McpCatalog
         new() { Name = "docker", Category = "开发", Description = "Docker 容器/镜像管理", Args = ["-y", "@docker/mcp"] },
         new() { Name = "sentry", Category = "开发", Description = "Sentry 错误追踪（需 SENTRY_TOKEN）", Args = ["-y", "@sentry/mcp@latest"], Env = new() { ["SENTRY_TOKEN"] = "${SENTRY_TOKEN}" } },
 
+        // ── 协作 / 办公 ──
+        new() { Name = "notion", Category = "协作", Description = "Notion 页面/数据库读写（需 NOTION_TOKEN）", Args = ["-y", "@notionhq/notion-mcp-server"], Env = new() { ["NOTION_TOKEN"] = "${NOTION_TOKEN}" } },
+        new() { Name = "linear", Category = "协作", Description = "Linear 项目/Issue 管理（需 LINEAR_API_KEY）", Args = ["-y", "@linear/mcp"], Env = new() { ["LINEAR_API_KEY"] = "${LINEAR_API_KEY}" } },
+        new() { Name = "atlassian", Category = "协作", Description = "Atlassian Jira/Confluence（需 ATLASSIAN_API_KEY）", Args = ["-y", "@atlassian/atlassian-mcp"], Env = new() { ["ATLASSIAN_API_KEY"] = "${ATLASSIAN_API_KEY}" } },
+
         // ── 云 / 服务 ──
         new() { Name = "time", Category = "服务", Description = "时间/时区转换", Args = ["-y", "@modelcontextprotocol/server-time"] },
         new() { Name = "slack", Category = "服务", Description = "Slack 消息/频道（需 SLACK_BOT_TOKEN）", Args = ["-y", "@modelcontextprotocol/server-slack"], Env = new() { ["SLACK_BOT_TOKEN"] = "${SLACK_BOT_TOKEN}" } },
         new() { Name = "google-maps", Category = "服务", Description = "Google Maps 地理/路线（需 API key）", Args = ["-y", "@modelcontextprotocol/server-google-maps"], Env = new() { ["GOOGLE_MAPS_API_KEY"] = "${GOOGLE_MAPS_API_KEY}" } },
+        new() { Name = "stripe", Category = "服务", Description = "Stripe 支付/账单查询（需 STRIPE_SECRET_KEY）", Args = ["-y", "@stripe/mcp-server"], Env = new() { ["STRIPE_SECRET_KEY"] = "${STRIPE_SECRET_KEY}" } },
+        new() { Name = "supabase", Category = "服务", Description = "Supabase 数据库/认证（需 SUPABASE_ACCESS_TOKEN）", Args = ["-y", "@supabase/mcp-server-supabase"], Env = new() { ["SUPABASE_ACCESS_TOKEN"] = "${SUPABASE_ACCESS_TOKEN}" } },
+        new() { Name = "cloudflare", Category = "服务", Description = "Cloudflare Workers/KV（需 CLOUDFLARE_API_TOKEN）", Args = ["-y", "@cloudflare/mcp-server-cloudflare"], Env = new() { ["CLOUDFLARE_API_TOKEN"] = "${CLOUDFLARE_API_TOKEN}", ["CLOUDFLARE_ACCOUNT_ID"] = "${CLOUDFLARE_ACCOUNT_ID}" } },
     ];
 
     /// <summary>全部目录项（快照）。</summary>
