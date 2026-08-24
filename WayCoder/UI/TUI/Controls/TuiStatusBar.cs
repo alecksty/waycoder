@@ -29,6 +29,9 @@ public class TuiStatusBar : TuiControl
     /// <summary>右侧状态文本（Token 用量等）</summary>
     public string RightText { get; set; } = "";
 
+    /// <summary>中间路径信息（如 "📁 /path · ⎇ main"）。非空时优先于 <see cref="HintText"/> 显示。</summary>
+    public string PathText { get; set; } = "";
+
     /// <summary>Agent 是否忙碌（显示旋转指示）</summary>
     public bool AgentBusy { get; set; }
 
@@ -99,15 +102,7 @@ public class TuiStatusBar : TuiControl
 
         // 2.5 动画图标/工作模式/经济模式已移入动态栏与模型信息行（输入区下方），此处不再重复。
 
-        // 3. 中间：提示文本
-        if (!string.IsNullOrEmpty(HintText))
-        {
-            col += 2;
-            ControlRenderer.WriteGradientTextAt(sb, row, col, HintText,
-                dimFg, gs, ge, absX, Width);
-        }
-
-        // 4. 右侧：Agent busy + Token
+        // 3. 右侧文本先算（中间文本据此截断，避免覆盖右段）
         var rightParts = new List<string>();
         if (AgentBusy)
         {
@@ -119,14 +114,56 @@ public class TuiStatusBar : TuiControl
         {
             rightParts.Add(RightText);
         }
-        if (rightParts.Count > 0)
+        string? rightStr = rightParts.Count > 0 ? string.Join(" · ", rightParts) : null;
+        int rightCol = rightStr != null
+            ? absX + Width - AnsiHelper.DisplayWidth(rightStr) - 1
+            : absX + Width;
+
+        // 4. 中间：路径信息（cwd + 分支），缺省回退快捷键提示
+        var midText = !string.IsNullOrEmpty(PathText) ? PathText : HintText;
+        if (!string.IsNullOrEmpty(midText))
         {
-            var rightStr = string.Join(" · ", rightParts);
-            int rVw = AnsiHelper.DisplayWidth(rightStr);
-            int rightCol = absX + Width - rVw - 1;
-            if (rightCol > col)
-                ControlRenderer.WriteGradientTextAt(sb, row, rightCol, rightStr,
-                    dimFg, gs, ge, absX, Width);
+            col += 2;
+            int avail = rightCol - col;
+            if (avail > 0)
+                midText = TruncateTailByWidth(midText, avail);
+            ControlRenderer.WriteGradientTextAt(sb, row, col, midText,
+                dimFg, gs, ge, absX, Width);
         }
+
+        // 5. 右侧渲染
+        if (rightStr != null && rightCol > col)
+            ControlRenderer.WriteGradientTextAt(sb, row, rightCol, rightStr,
+                dimFg, gs, ge, absX, Width);
+    }
+
+    /// <summary>按显示宽度截断文本，保留尾部（省略号在头）——路径显示要保项目名（末尾），不能保头。</summary>
+    private static string TruncateTailByWidth(string text, int maxWidth)
+    {
+        if (maxWidth <= 0) return "";
+        if (AnsiHelper.DisplayWidth(text) <= maxWidth) return text;
+
+        const string ellipsis = "…"; // 宽 2 列
+        int reserved = AnsiHelper.DisplayWidth(ellipsis);
+        int budget = maxWidth - reserved;
+        if (budget <= 0)
+            return AnsiHelper.TruncateByWidth(ellipsis, maxWidth);
+
+        var runes = text.EnumerateRunes().ToList();
+        int width = 0;
+        int keep = 0;
+        for (int i = runes.Count - 1; i >= 0; i--)
+        {
+            int w = AnsiHelper.DisplayWidth(runes[i].ToString());
+            if (width + w > budget) break;
+            width += w;
+            keep++;
+        }
+
+        var sb = new StringBuilder();
+        sb.Append(ellipsis);
+        for (int i = runes.Count - keep; i < runes.Count; i++)
+            sb.Append(runes[i].ToString());
+        return sb.ToString();
     }
 }

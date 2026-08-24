@@ -150,11 +150,10 @@ public partial class Program
                 Content = $"«bold yellow»🔑 {hint}«/»" });
         }
 
-        // 检测 git 分支
+        // 检测 git 分支（显示在底部状态栏；GitBranch 供标题栏/槽位持久化）
         var branch = DetectGitBranch();
         if (branch != null)
         {
-            slot0.StatusLeft += $" ·  {branch}";
             slot0.GitBranch = branch;
         }
 

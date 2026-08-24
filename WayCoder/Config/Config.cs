@@ -264,6 +264,8 @@ public class Config
     public int AutoTestDebounceSec { get; set; } = 60;
     /// <summary>指定测试命令（测试驱动修复）：非空时优先用它而非自动探测；测试失败会硬绿判定直到通过。</summary>
     public string TestCommand { get; set; } = "";
+    /// <summary>修完必验证：声明完成前若本轮改过源码但未跑过验证（build/test），强制收尾验证一次，防「假修好了」。</summary>
+    public bool VerifyBeforeDone { get; set; } = true;
     public int GitTimeoutSec { get; set; } = 15;
     public int KillTimeoutSec { get; set; } = 10;
     public int DownloadTimeoutSec { get; set; } = 60;
@@ -541,6 +543,12 @@ public class Config
               "指定测试命令", "🧪 测试", "测试驱动修复：非空时优先用它而非自动探测，测试失败会硬绿判定直到通过",
               "text", null, 14,
               c => c.TestCommand, (c, v) => c.TestCommand = v, ""),
+
+            P("VerifyBeforeDone", "WAYCODER_VERIFY_BEFORE_DONE", null,
+              "修完必验证", "🧪 测试", "声明完成前若本轮改过源码但未跑过验证，强制收尾验证一次（防假修好了）",
+              "toggle", null, 15,
+              c => c.VerifyBeforeDone.ToString().ToLowerInvariant(),
+              (c, v) => c.VerifyBeforeDone = bool.Parse(v), "true"),
 
             P("GitTimeoutSec", "WAYCODER_GIT_TIMEOUT_SEC", null,
               "Git 操作超时 (秒)", "⏱️ 超时", "Git 命令执行超时",

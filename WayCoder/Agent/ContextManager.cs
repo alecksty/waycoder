@@ -51,6 +51,43 @@ public class ContextManager
     private static int _compressingCount;
     public static bool IsCompressing => _compressingCount > 0;
 
+    /// <summary>压缩预告事件（压缩发生前触发，携带「将丢 N 条消息」的人类可读提示）— UI 可订阅弹 Toast。</summary>
+    public static event Action<string>? CompactionWarning;
+    /// <summary>压缩完成事件（每次实际压缩一层触发一次，携带压缩前后消息数/ token 变化）— UI 可订阅做「回看」。</summary>
+    public static event Action<CompactionEntry>? CompactionOccurred;
+
+    /// <summary>压缩历史（有界，最近 32 次），供「回看压掉了什么」——UI / 自测读取。</summary>
+    private static readonly List<CompactionEntry> _compactionHistory = [];
+    private static readonly object _compactionHistoryLock = new();
+    /// <summary>压缩历史快照（只读，线程安全）。</summary>
+    public static IReadOnlyList<CompactionEntry> CompactionHistory
+    {
+        get { lock (_compactionHistoryLock) return _compactionHistory.ToArray(); }
+    }
+
+    /// <summary>一次压缩层的记录：层号、时间、前后消息数、前后估算 token。</summary>
+    public sealed record CompactionEntry(
+        int Layer, DateTime At, int BeforeCount, int AfterCount, int BeforeTokens, int AfterTokens)
+    {
+        public override string ToString() =>
+            $"[L{Layer}] {BeforeCount}→{AfterCount} 条消息, {BeforeTokens}→{AfterTokens} tokens";
+    }
+
+    /// <summary>记录一次压缩并广播事件（历史有界防内存无界增长）。</summary>
+    private static void RecordCompaction(int layer, int beforeCount, int afterCount, int beforeTokens, int afterTokens)
+    {
+        var entry = new CompactionEntry(layer, DateTime.UtcNow, beforeCount, afterCount, beforeTokens, afterTokens);
+        lock (_compactionHistoryLock)
+        {
+            _compactionHistory.Add(entry);
+            if (_compactionHistory.Count > 32) _compactionHistory.RemoveAt(0);
+        }
+        CompactionOccurred?.Invoke(entry);
+    }
+
+    /// <summary>广播压缩预告（「将丢 N 条」）。</summary>
+    private static void WarnCompaction(string message) => CompactionWarning?.Invoke(message);
+
     public ContextManager(int maxTokens = 128_000)
     {
         // ≤0 视为未设置回退默认窗口，否则 MaxTokens=0 使三层阈值全 0 + ReportProgress 除零得 NaN
@@ -205,32 +242,42 @@ public class ContextManager
                 if (SnipToolOutputs(messages, EffectiveSnipChars()))
                 {
                     compressed = true;
-                    current = EstimateCalibratedTokens(messages);
+                    var after = EstimateCalibratedTokens(messages);
                     // 上报本轮实际节省量（裁剪前 − 裁剪后），而非裁剪后的剩余容量
-                    ReportProgress(1, "裁剪完成", current, onProgress, $"(-{Math.Max(0, beforeSnip - current)})");
+                    ReportProgress(1, "裁剪完成", after, onProgress, $"(-{Math.Max(0, beforeSnip - after)})");
+                    RecordCompaction(1, messages.Count, messages.Count, beforeSnip, after);
+                    current = after;
                 }
             }
 
             // 第 2 层：LLM 驱动的旧对话摘要
             if (current > _summarizeAt && messages.Count > 20) // 与 SummarizeOldAsync 的 keepRecent=20 对齐，否则 11-20 条时外层进但内层立即 return false
             {
+                var beforeCount = messages.Count;
+                var beforeTokens = current;
+                WarnCompaction($"上下文即将压缩：将把前 {beforeCount - 20} 条早期消息合并为摘要（保留最近 20 条）");
                 ReportProgress(2, "正在摘要旧对话...", current, onProgress);
                 if (await SummarizeOldAsync(messages, llm))
                 {
                     compressed = true;
                     current = EstimateCalibratedTokens(messages);
                     ReportProgress(2, "摘要完成", current, onProgress);
+                    RecordCompaction(2, beforeCount, messages.Count, beforeTokens, current);
                 }
             }
 
             // 第 3 层：硬折叠——最后手段
             if (current > _collapseAt && messages.Count > 4)
             {
+                var beforeCount = messages.Count;
+                var beforeTokens = current;
+                WarnCompaction($"上下文即将硬折叠：仅保留最近 {(messages.Count > 12 ? 12 : 6)} 条消息，其余合并为摘要 + 项目快照");
                 ReportProgress(3, "紧急压缩...", current, onProgress);
                 await HardCollapseAsync(messages, llm);
                 compressed = true;
                 current = EstimateCalibratedTokens(messages);
                 ReportProgress(3, "压缩完成", current, onProgress);
+                RecordCompaction(3, beforeCount, messages.Count, beforeTokens, current);
             }
         }
         finally
