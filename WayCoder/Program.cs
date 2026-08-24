@@ -349,7 +349,7 @@ public partial class Program
             Console.WriteLine("  WAYCODER_API_KEY=sk-你的密钥");
             Console.WriteLine();
             Console.WriteLine("或用全局 JSON 保存多个服务商的 key（一键切换模型/服务商，无需重输）:");
-            Console.WriteLine("  waycoder --model key <供应商> <key>   # 如 --model key deepseek sk-xxx");
+            Console.WriteLine("  waycoder --model key <供应商> <key> [有效期]   # 如 --model key deepseek sk-xxx 2026-12-31（永久省略有效期）");
             Console.WriteLine("  waycoder --model name <模型ID>        # 切换模型，自动匹配对应 key");
             return 1;
         }

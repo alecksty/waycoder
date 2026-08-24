@@ -8,8 +8,11 @@ namespace WayCoder;
 /// </summary>
 public static class ApiKeyStore
 {
+    /// <summary>单个 key 条目：API key + 可选有效期（null/永久 = 不限期）。</summary>
+    public sealed record KeyEntry(string ApiKey, string? Expiry);
+
     private static readonly object _lock = new();
-    private static Dictionary<string, string>? _keys;
+    private static Dictionary<string, KeyEntry>? _keys;
 
     private static string FilePath =>
         Path.Combine(
@@ -20,11 +23,18 @@ public static class ApiKeyStore
     public static string? Get(string providerId)
     {
         var keys = Load();
-        return keys.TryGetValue(providerId.ToLowerInvariant(), out var key) ? key : null;
+        return keys.TryGetValue(providerId.ToLowerInvariant(), out var entry) ? entry.ApiKey : null;
+    }
+
+    /// <summary>获取指定服务商的 API key 有效期（null = 永久）。</summary>
+    public static string? GetExpiry(string providerId)
+    {
+        var keys = Load();
+        return keys.TryGetValue(providerId.ToLowerInvariant(), out var entry) ? entry.Expiry : null;
     }
 
     /// <summary>存储指定服务商的 API Key。返回是否保存成功（失败已记日志，调用方可提示用户）。</summary>
-    public static bool Set(string providerId, string apiKey)
+    public static bool Set(string providerId, string apiKey, string? expiry = null)
     {
         lock (_lock)
         {
@@ -33,7 +43,20 @@ public static class ApiKeyStore
             if (string.IsNullOrWhiteSpace(apiKey))
                 keys.Remove(pid);
             else
-                keys[pid] = apiKey.Trim();
+                keys[pid] = new KeyEntry(apiKey.Trim(), NormalizeExpiry(expiry));
+            return Save(keys);
+        }
+    }
+
+    /// <summary>仅更新指定服务商 key 的有效期（不改动 key 本身）。返回是否成功（未存 key 返回 false）。</summary>
+    public static bool SetExpiry(string providerId, string? expiry)
+    {
+        lock (_lock)
+        {
+            var keys = Load();
+            var pid = providerId.ToLowerInvariant();
+            if (!keys.TryGetValue(pid, out var entry)) return false;
+            keys[pid] = entry with { Expiry = NormalizeExpiry(expiry) };
             return Save(keys);
         }
     }
@@ -50,11 +73,61 @@ public static class ApiKeyStore
     }
 
     /// <summary>列出所有已存服务商（服务商ID → key）</summary>
-    public static Dictionary<string, string> ListAll() => Load();
+    public static Dictionary<string, string> ListAll() =>
+        Load().ToDictionary(kv => kv.Key, kv => kv.Value.ApiKey);
+
+    /// <summary>列出所有已存服务商（服务商ID → key + 有效期）。</summary>
+    public static Dictionary<string, KeyEntry> ListAllEntries() => Load();
 
     /// <summary>检查是否有指定服务商的 Key</summary>
     public static bool Has(string providerId) =>
         Load().ContainsKey(providerId.ToLowerInvariant());
+
+    // ════════════════════════════════════════════════════════════
+    //  有效期（expiry）：null/永久 = 不限期；日期 = 截止日
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>规范化有效期输入：空串/null/永久等 → null（不限期）；日期或自定义标签原样保留。</summary>
+    public static string? NormalizeExpiry(string? expiry)
+    {
+        if (string.IsNullOrWhiteSpace(expiry)) return null;
+        var s = expiry.Trim();
+        if (s is "永久" or "permanent" or "forever" or "∞" or "0" or "-" or "无") return null;
+        return s;
+    }
+
+    /// <summary>
+    /// 有效期展示文本：永久 / 日期（剩 N 天）；已过期或剩 ≤7 天加 ⚠ 前缀；非日期标签原样显示。
+    /// </summary>
+    public static string ExpiryText(string? expiry)
+    {
+        var norm = NormalizeExpiry(expiry);
+        if (norm == null) return "永久";
+        if (DateTime.TryParse(norm, out var dt))
+        {
+            var days = (dt.Date - DateTime.Today).Days;
+            if (days < 0) return $"⚠ {norm} 已过期";
+            if (days <= 7) return $"⚠ {norm}（剩 {days} 天）";
+            return $"{norm}（剩 {days} 天）";
+        }
+        return norm;
+    }
+
+    /// <summary>是否已过期（永久 / 非日期返回 false）。</summary>
+    public static bool IsExpired(string? expiry)
+    {
+        var norm = NormalizeExpiry(expiry);
+        if (norm == null) return false;
+        return DateTime.TryParse(norm, out var dt) && dt.Date < DateTime.Today;
+    }
+
+    /// <summary>距到期剩余天数（永久 / 非日期返回 int.MaxValue）。</summary>
+    public static int DaysLeft(string? expiry)
+    {
+        var norm = NormalizeExpiry(expiry);
+        if (norm == null) return int.MaxValue;
+        return DateTime.TryParse(norm, out var dt) ? (dt.Date - DateTime.Today).Days : int.MaxValue;
+    }
 
     /// <summary>
     /// 按模型 ID 解析其服务商，返回该服务商已存 key；模型不在目录或未存 key 返回 null。
@@ -314,7 +387,7 @@ public static class ApiKeyStore
     // 内部
     // ════════════════════════════════════════════════════════════
 
-    private static Dictionary<string, string> Load()
+    private static Dictionary<string, KeyEntry> Load()
     {
         if (_keys != null) return _keys;
 
@@ -322,7 +395,7 @@ public static class ApiKeyStore
         {
             if (_keys != null) return _keys;
 
-            var result = new Dictionary<string, string>();
+            var result = new Dictionary<string, KeyEntry>();
             try
             {
                 if (File.Exists(FilePath))
@@ -332,14 +405,14 @@ public static class ApiKeyStore
 
                     if (root is { Kind: JKind.Array } arr)
                     {
-                        // 新格式：[ { "provider": "...", "apikey": "..." } ]
+                        // 新格式：[ { "provider": "...", "apikey": "...", "expiry": "2026-11-22" } ]
                         foreach (var item in arr.Items)
                         {
                             if (item.Kind != JKind.Object) continue;
                             var pid = item["provider"]?.AsString();
                             var key = item["apikey"]?.AsString() ?? item["key"]?.AsString();
                             if (!string.IsNullOrWhiteSpace(pid) && !string.IsNullOrWhiteSpace(key))
-                                result[pid.ToLowerInvariant()] = key;
+                                result[pid.ToLowerInvariant()] = new KeyEntry(key, NormalizeExpiry(item["expiry"]?.AsString()));
                         }
                     }
                     else if (root is { Kind: JKind.Object } obj)
@@ -349,7 +422,7 @@ public static class ApiKeyStore
                         {
                             var key = ParseCredentialKey(val);
                             if (key != null)
-                                result[pid.ToLowerInvariant()] = key;
+                                result[pid.ToLowerInvariant()] = new KeyEntry(key, null);
                         }
                     }
                 }
@@ -374,7 +447,7 @@ public static class ApiKeyStore
         return null;
     }
 
-    private static bool Save(Dictionary<string, string> keys)
+    private static bool Save(Dictionary<string, KeyEntry> keys)
     {
         try
         {
@@ -382,8 +455,13 @@ public static class ApiKeyStore
             if (dir != null) Directory.CreateDirectory(dir);
 
             var arr = JNode.Array();
-            foreach (var (pid, key) in keys)
-                arr.Add(JNode.Object().Set("provider", pid).Set("apikey", key));
+            foreach (var (pid, entry) in keys)
+            {
+                var item = JNode.Object().Set("provider", pid).Set("apikey", entry.ApiKey);
+                if (!string.IsNullOrWhiteSpace(entry.Expiry))
+                    item.Set("expiry", entry.Expiry);
+                arr.Add(item);
+            }
 
             _keys = keys;
             var json = arr.ToJson(true);

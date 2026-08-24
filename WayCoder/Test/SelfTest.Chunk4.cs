@@ -397,6 +397,30 @@ public static partial class SelfTest
         Check("ApiKeyStore key过滤: 真实 key 不是伪 key",
             !ApiKeyStore.IsEnvVarRef("sk-abc123") && !ApiKeyStore.IsEnvVarRef("  sk-abc123  "));
 
+        // API key 有效期（expiry）：永久 / 截止日期
+        Check("ApiKeyStore expiry: null=永久", ApiKeyStore.ExpiryText(null) == "永久" && !ApiKeyStore.IsExpired(null));
+        Check("ApiKeyStore expiry: 永久/空串规范化",
+            ApiKeyStore.NormalizeExpiry("永久") == null && ApiKeyStore.NormalizeExpiry("  ") == null);
+        ApiKeyStore.Set("__waycoder_expiry__", "sk-exp-123456", "2026-12-31");
+        Check("ApiKeyStore expiry: Set 带有效期往返", ApiKeyStore.Get("__waycoder_expiry__") == "sk-exp-123456"
+            && ApiKeyStore.GetExpiry("__waycoder_expiry__") == "2026-12-31");
+        Check("ApiKeyStore expiry: ListAllEntries 含有效期",
+            ApiKeyStore.ListAllEntries().TryGetValue("__waycoder_expiry__", out var _expEntry) && _expEntry.Expiry == "2026-12-31");
+        Check("ApiKeyStore expiry: 未来日期展示剩 N 天",
+            ApiKeyStore.ExpiryText("2026-12-31").Contains("剩") && !ApiKeyStore.ExpiryText("2026-12-31").StartsWith("⚠"));
+        Check("ApiKeyStore expiry: 过期日期标 ⚠ 已过期",
+            ApiKeyStore.ExpiryText("2020-01-01").Contains("已过期") && ApiKeyStore.IsExpired("2020-01-01"));
+        Check("ApiKeyStore expiry: 临期(≤7天)加 ⚠",
+            ApiKeyStore.ExpiryText(DateTime.Today.AddDays(3).ToString("yyyy-MM-dd")).StartsWith("⚠"));
+        ApiKeyStore.SetExpiry("__waycoder_expiry__", "永久");
+        Check("ApiKeyStore expiry: SetExpiry 改有效期保留 key", ApiKeyStore.Get("__waycoder_expiry__") == "sk-exp-123456"
+            && ApiKeyStore.GetExpiry("__waycoder_expiry__") == null);
+        Check("ApiKeyStore expiry: SetExpiry 未存 key 返回 false", !ApiKeyStore.SetExpiry("__waycoder_nokey__", "2026-12-31"));
+        ApiKeyStore.Remove("__waycoder_expiry__");
+        Check("ApiKeyStore expiry: 清理后 key 不存在", ApiKeyStore.Get("__waycoder_expiry__") == null);
+        Check("ModelCli.SetKey 带有效期提示", ModelCli.SetKey("__waycoder_expiry2__", "sk-x", "2026-12-31").Contains("有效期"));
+        ApiKeyStore.Remove("__waycoder_expiry2__");
+
         // ---- ConnectConfig：connect/provider/connection 三层分类存储 ----
         Section("[ConnectionConfig]");
         {
