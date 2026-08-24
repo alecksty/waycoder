@@ -145,6 +145,9 @@ public static class ModelCatalog
     /// <summary>Provider registry with default base URLs</summary>
     public static readonly Dictionary<string, ProviderInfo> Providers;
 
+    /// <summary>内置服务商注册表快照（providers.json 用户覆盖前），供测试/展示区分「内置默认」与「用户覆盖」。</summary>
+    public static readonly Dictionary<string, ProviderInfo> BuiltinProviders;
+
     static ModelCatalog()
     {
         Providers = new Dictionary<string, ProviderInfo>
@@ -175,6 +178,8 @@ public static class ModelCatalog
             ["local"]      = new("Local",        "", "", "", ""),
             ["custom"]     = new("Custom",       "", "", "", ""),
         };
+        // 内置快照先于 providers.json 覆盖保存，区分「内置默认」与「用户覆盖」
+        BuiltinProviders = new Dictionary<string, ProviderInfo>(Providers);
         // 服务商数据库：首次运行生成 ~/.waycoder/providers.json，之后从它加载（用户可编辑扩展服务商）
         LoadOrCreateProvidersJson();
     }
