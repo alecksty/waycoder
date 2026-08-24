@@ -222,8 +222,10 @@ WayCoder/
 /plan            计划模式，先规划再执行
 /init            分析项目并生成 AGENT.md（/init claude 生成 CLAUDE.md）
 /mcp             查看 MCP 服务器状态 / 重连
+/doctor          发行后系统自检（/doctor fix 安全修复）
 /git              Git 操作（status/log/diff/commit/branch）
-/perm ask|auto|smartauto|yolo  权限模式切换（tiny/chat=纯聊天工作模式）
+/perm suggest|auto-edit|full-auto  沙箱边界切换
+/permit ack|auto|smart|yolo  权限模式切换（tiny/chat=纯聊天工作模式）
 /mode build|plan|chat  工作模式切换 (Shift+Tab)
 /update [check|now]  检查/自动升级到最新版本
 /auto            智能分级确认
@@ -281,7 +283,7 @@ quit / exit      退出 (Ctrl+Q)
 - **Git 自动提交质量校验**：conventional-commit 前缀强制 + 不合格重试一次 + 兜底默认信息
 - **Worktree 隔离**：bash 自动检测 worktree 路径并切换 cwd
 - **AOT 编译：JSON 手写序列化**，不依赖反射
-- **权限系统**：bash/write/edit/agent 默认行内确认，`/perm yolo` 跳过
+- **权限系统**：bash/write/edit/agent 默认行内确认，`/permit yolo` 跳过确认；`/perm full-auto` 单独启用受限沙箱
 - **双模型架构**：大模型做复杂任务，小模型做压缩/摘要，自动分工省钱
 - **模型回退链**：失败自动尝试备选（6 模型链条，跨供应商 API Key 自动解析）
 - **Watch 模式**：文件监听 + AI! 注释解析 → 线程安全队列 → REPL 自动执行

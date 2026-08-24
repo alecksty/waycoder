@@ -510,6 +510,15 @@ class Matrix:
         // 未知工具默认 Dangerous
         Check("unknown_tool → Dangerous", AutoModeClassifier.Classify("unknown_tool") == AutoModeClassifier.RiskLevel.Dangerous);
 
+        // 单一事实源：权限确认名单与智能分类共用 ToolSafetyRegistry
+        Check("ToolSafety: read_file 无需确认", !ToolSafetyRegistry.RequiresConfirmation("read_file"));
+        Check("ToolSafety: git 需确认", ToolSafetyRegistry.RequiresConfirmation("git"));
+        Check("ToolSafety: job_kill 需确认", ToolSafetyRegistry.RequiresConfirmation("job_kill"));
+        Check("ToolSafety: sqlite 需确认", ToolSafetyRegistry.RequiresConfirmation("sqlite"));
+        Check("ToolSafety: find_replace 归为 Cautious", AutoModeClassifier.Classify("find_replace") == AutoModeClassifier.RiskLevel.Cautious);
+        Check("ToolSafety: test 归为 Dangerous", AutoModeClassifier.Classify("test") == AutoModeClassifier.RiskLevel.Dangerous);
+        Check("ToolSafety: PermissionManager 与注册表一致", PermissionManager.IsDangerousTool("git"));
+
         // 连续阻止计数
         AutoModeClassifier.Reset();
         Check("初始连续阻止=0", AutoModeClassifier.ConsecutiveDangerousBlocks == 0);

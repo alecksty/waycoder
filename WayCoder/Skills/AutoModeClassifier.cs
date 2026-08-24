@@ -22,45 +22,6 @@ public static class AutoModeClassifier
         Dangerous
     }
 
-    /// <summary>Safe 级 —— 只读操作，直接放行</summary>
-    private static readonly HashSet<string> SafeTools = new(StringComparer.OrdinalIgnoreCase)
-    {
-        // 文件读取/搜索
-        "read_file", "ls", "grep", "glob", "stat", "pwd", "wc", "diff", "tree",
-        // 任务管理
-        "todo", "task_create", "task_update", "task_list", "task_get",
-        // LSP / 代码分析
-        "lsp", "lint",
-        // 外部查询（只读）
-        "fetch", "web_search", "doc",
-        // 音频转录（只读，外部语音转文字）
-        "transcribe",
-        // 记忆（只读）
-        "memory",
-        // 技能
-        "skill",
-        // 进程查看
-        "ps",
-        // 用户交互（只问不执行）
-        "ask_user_question",
-        // 后台任务查询（只读）
-        "job_output",
-    };
-
-    /// <summary>Cautious 级 —— 文件修改，首次确认后可记住</summary>
-    private static readonly HashSet<string> CautiousTools = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "write_file", "edit_file", "notebook_edit", "multiedit",
-        "mkdir", "cp", "mv", "cd",
-    };
-
-    /// <summary>Dangerous 级 —— 破坏性/外部操作，每次确认</summary>
-    private static readonly HashSet<string> DangerousTools = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "rm", "bash", "git", "kill", "agent",
-        "download", "job_kill",
-    };
-
     /// <summary>连续拒绝危险操作的计数</summary>
     public static int ConsecutiveDangerousBlocks { get; set; }
 
@@ -77,9 +38,12 @@ public static class AutoModeClassifier
     /// </summary>
     public static RiskLevel Classify(string toolName)
     {
-        if (SafeTools.Contains(toolName)) return RiskLevel.Safe;
-        if (CautiousTools.Contains(toolName)) return RiskLevel.Cautious;
-        return RiskLevel.Dangerous;
+        return ToolSafetyRegistry.ClassifyRisk(toolName) switch
+        {
+            ToolSafetyRegistry.ToolRisk.Safe => RiskLevel.Safe,
+            ToolSafetyRegistry.ToolRisk.Cautious => RiskLevel.Cautious,
+            _ => RiskLevel.Dangerous,
+        };
     }
 
     /// <summary>
@@ -116,6 +80,9 @@ public static class AutoModeClassifier
     /// </summary>
     public static string GetStats()
     {
-        return $"安全: {SafeTools.Count} | 谨慎: {CautiousTools.Count} | 危险: {DangerousTools.Count} | 连续阻止: {ConsecutiveDangerousBlocks}/{BlockThreshold}";
+        return $"安全: {ToolSafetyRegistry.CountRisk(ToolSafetyRegistry.ToolRisk.Safe)}" +
+               $" | 谨慎: {ToolSafetyRegistry.CountRisk(ToolSafetyRegistry.ToolRisk.Cautious)}" +
+               $" | 危险: {ToolSafetyRegistry.CountRisk(ToolSafetyRegistry.ToolRisk.Dangerous)}" +
+               $" | 连续阻止: {ConsecutiveDangerousBlocks}/{BlockThreshold}";
     }
 }

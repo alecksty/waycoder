@@ -447,6 +447,63 @@ public static partial class SelfTest
         Check("工具精简: Off 返回原集不动", ReferenceEquals(off, all));
     }
 
+    /// <summary>AllowedTools 通用白名单参与 FilterTools 决策链（Claude Code --allowedTools 对齐）</summary>
+    private static void TestAllowedToolsFilter(Action<string, bool> Check)
+    {
+        var cfg = Config.Instance;
+        var savedAllowed = cfg.AllowedTools;
+        var savedBuild = cfg.BuildToolAllowList;
+        var savedYolo = cfg.YoloToolAllowList;
+        var savedDisabled = cfg.DisabledTools;
+        var savedEconomy = cfg.EconomyMode;
+        var savedPerm = PermissionManager.CurrentMode;
+        try
+        {
+            var agent = new Agent(new LLM("test", "sk-test"));
+            cfg.EconomyMode = EconomyMode.Off;
+            cfg.DisabledTools = "";
+            cfg.BuildToolAllowList = "";
+            cfg.YoloToolAllowList = "";
+            PermissionManager.CurrentMode = PermissionManager.Mode.Ask;
+            agent.WorkMode = WorkMode.Build;
+
+            cfg.AllowedTools = "read_file,write_file";
+            agent.ReapplyToolFilter();
+            var names = agent.Tools.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            Check("AllowedTools: Build 仅保留通用白名单", names.SetEquals(new[] { "read_file", "write_file" }));
+
+            cfg.AllowedTools = "read_file";
+            cfg.BuildToolAllowList = "grep";
+            agent.ReapplyToolFilter();
+            names = agent.Tools.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            Check("AllowedTools: 与 BuildToolAllowList 合并", names.SetEquals(new[] { "read_file", "grep" }));
+
+            cfg.YoloToolAllowList = "bash";
+            PermissionManager.CurrentMode = PermissionManager.Mode.Yolo;
+            agent.ReapplyToolFilter();
+            names = agent.Tools.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            Check("AllowedTools: YOLO 覆盖为 YoloToolAllowList 合并", names.SetEquals(new[] { "read_file", "bash" }));
+
+            cfg.AllowedTools = "";
+            cfg.BuildToolAllowList = "";
+            cfg.YoloToolAllowList = "";
+            cfg.DisabledTools = "write_file";
+            PermissionManager.CurrentMode = PermissionManager.Mode.Ask;
+            agent.ReapplyToolFilter();
+            Check("AllowedTools: DisabledTools 仍最后剔除",
+                !agent.Tools.Any(t => t.Name.Equals("write_file", StringComparison.OrdinalIgnoreCase)));
+        }
+        finally
+        {
+            cfg.AllowedTools = savedAllowed;
+            cfg.BuildToolAllowList = savedBuild;
+            cfg.YoloToolAllowList = savedYolo;
+            cfg.DisabledTools = savedDisabled;
+            cfg.EconomyMode = savedEconomy;
+            PermissionManager.CurrentMode = savedPerm;
+        }
+    }
+
     /// <summary>模型/厂商调用参数约束（reasoning_effort 允许集 + temperature 精度）测试</summary>
     private static void TestModelParams(Action<string, bool> Check)
     {

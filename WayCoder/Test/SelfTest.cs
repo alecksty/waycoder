@@ -133,7 +133,7 @@ public static partial class SelfTest
         ["[记忆]"] = "memory",     ["[记忆自动注入]"] = "memory",["[语义记忆]"] = "memory",
         // agent
         ["[Agent]"] = "agent",     ["[子智能体]"] = "agent",  ["[权限]"] = "agent",
-        ["[权限系统"] = "agent",   ["[权限确认]"] = "agent",
+        ["[权限系统"] = "agent",   ["[权限确认]"] = "agent", ["[AutoMode 智能分类器]"] = "agent",
         // review
         ["[代码审查]"] = "review",
         // mcp
@@ -151,6 +151,7 @@ public static partial class SelfTest
         ["[会话详情"] = "system", ["[CLI 参数"] = "system",
         ["[Lint 解析:"] = "system",["[Lint 诊断:"] = "system", ["[配置: EditorLint]"] = "system",
         ["[语法: 诊断背景色]"] = "system",["[诊断: Severity]"] = "system",["[诊断: Diagnostic]"] = "system",
+        ["[Doctor]"] = "system", ["[沙箱管理]"] = "system",
     };
 
     // 模块包含关系（如 tools 测试也跑 git 的工具测试）
@@ -233,6 +234,14 @@ public static partial class SelfTest
         Console.WriteLine("WayCoder 自测");
         Console.WriteLine("===================\n");
 
+        // 自测全程隔离全局配置目录，避免 SessionManager/CheckpointManager 等写真实用户目录。
+        var savedHomeOverride = Global.HomeOverride;
+        var testHome = Path.Combine(Path.GetTempPath(), "waycoder_selftest_home_" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(testHome);
+        Global.HomeOverride = testHome;
+
+        try
+        {
         // ---- ConnectConfig 测试隔离：重定向 connections.json 到临时文件并预置完整新格式，
         //      避免迁移写真实 ~/.waycoder/connections.json 与 config.json/.env ----
         var connTmpPath = Path.Combine(Path.GetTempPath(), "waycoder_conn_selftest.json");
@@ -287,10 +296,18 @@ public static partial class SelfTest
 
         TestChunk14(Section, Check, Fail);
 
+        TestChunk15(Section, Check, Fail);
+
         // 清理 ConnectConfig 测试隔离
         ConnectionConfig.FilePathOverride = null;
         ConnectionConfig.ClearCache();
         try { if (File.Exists(connTmpPath)) File.Delete(connTmpPath); } catch { }
+        }
+        finally
+        {
+            Global.HomeOverride = savedHomeOverride;
+            try { Directory.Delete(testHome, true); } catch { }
+        }
 
         // ---- 结果 ----
         Console.WriteLine($"\n通过: {passed}  失败: {failed}  总计: {passed + failed}");

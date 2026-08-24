@@ -36,13 +36,8 @@ public static class PermissionManager
     /// <summary>串行化确认弹框：并行子智能体并发请求 shell 权限时逐个排队，避免抢键盘/渲染竞态。</summary>
     private static readonly SemaphoreSlim ConfirmLock = new(1, 1);
 
-    /// <summary>需要确认的工具名列表（传统模式用）</summary>
-    private static readonly HashSet<string> DangerousTools =
-        ["bash", "write_file", "edit_file", "notebook_edit", "multiedit", "agent", "kill", "rm", "download",
-         "test", "cp", "mv", "find_replace"];
-
     /// <summary>测试钩子：判断工具名是否在需确认名单中（验证权限绕过修复，如 test/cp/mv/find_replace）。</summary>
-    internal static bool IsDangerousTool(string toolName) => DangerousTools.Contains(toolName);
+    internal static bool IsDangerousTool(string toolName) => ToolSafetyRegistry.RequiresConfirmation(toolName);
 
     /// <summary>
     /// 判断权限模式参数是否命中「纯聊天」别名（tiny/chat/极简/聊天）。
@@ -68,10 +63,6 @@ public static class PermissionManager
     /// </summary>
     public static async Task<bool> CheckAsync(string toolName, Dictionary<string, object?> args)
     {
-        // 沙箱 full-auto 模式：bash 工具已在沙箱中保护，直接放行
-        if (toolName == "bash" && SandboxManager.IsSandboxed)
-            return true;
-
         // Yolo 模式：直接放行
         if (CurrentMode == Mode.Yolo)
             return true;
@@ -120,7 +111,7 @@ public static class PermissionManager
         // Auto 不再保留「首次确认后记住」的会话记忆（AutoAllowed 仅 SmartAuto Cautious 使用）。
 
         // 非危险工具（只读）直接放行
-        if (!DangerousTools.Contains(toolName))
+        if (!ToolSafetyRegistry.RequiresConfirmation(toolName))
             return true;
 
         // 危险/修改操作逐次确认
@@ -285,7 +276,7 @@ public static class PermissionManager
             : "";
 
         var content = $"当前模式: {AnsiText.Fg(label, color)} — {AnsiHelper.Esc(desc)}{sandboxInfo}{classifierInfo}\n" +
-            $"{AnsiText.Dim("需要确认:")} {string.Join(", ", DangerousTools)}\n" +
+            $"{AnsiText.Dim("需要确认:")} {string.Join(", ", ToolSafetyRegistry.ConfirmationToolNames)}\n" +
             $"{AnsiText.Dim("直接放行:")} read_file, glob, grep, ls, stat 等只读工具";
 
         UxHelper.Info("权限状态", content);

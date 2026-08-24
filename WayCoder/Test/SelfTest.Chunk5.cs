@@ -292,7 +292,7 @@ public static partial class SelfTest
         // ---- MCP 生态目录 ----
         Section("[MCP 目录]");
 
-        Check("目录: 内置数量 >= 24", McpCatalog.All.Count >= 24);
+        Check("目录: 内置数量 >= 34", McpCatalog.All.Count >= 34);
         Check("目录: 查 git 命中", McpCatalog.Find("git")?.Name == "git");
         Check("目录: 忽略大小写", McpCatalog.Find("GIT")?.Name == "git");
         Check("目录: 查不存在返回 null", McpCatalog.Find("___nope___") == null);
@@ -301,9 +301,15 @@ public static partial class SelfTest
         Check("目录: 新增 notion 命中", McpCatalog.Find("notion")?.Name == "notion");
         Check("目录: 新增 neo4j 命中", McpCatalog.Find("neo4j")?.Name == "neo4j");
         Check("目录: 新增 cloudflare 命中", McpCatalog.Find("cloudflare")?.Name == "cloudflare");
+        Check("目录: 新增 gitlab 命中", McpCatalog.Find("gitlab")?.Name == "gitlab");
+        Check("目录: 新增 redis 命中", McpCatalog.Find("redis")?.Name == "redis");
+        Check("目录: 新增 mysql 命中", McpCatalog.Find("mysql")?.Name == "mysql");
+        Check("目录: 新增 pdf 命中", McpCatalog.Find("pdf")?.Name == "pdf");
+        Check("目录: 新增 aws-kb-retrieval 命中", McpCatalog.Find("aws-kb-retrieval")?.Name == "aws-kb-retrieval");
+        Check("目录: 新增 gdrive 命中", McpCatalog.Find("gdrive")?.Name == "gdrive");
 
         var searchDb = McpCatalog.Search("数据库");
-        Check("目录: 按分类搜索「数据库」", searchDb.Count >= 4 && searchDb.Any(e => e.Name == "sqlite"));
+        Check("目录: 按分类搜索「数据库」", searchDb.Count >= 6 && searchDb.Any(e => e.Name == "sqlite"));
         var searchName = McpCatalog.Search("playwright");
         Check("目录: 按名称搜索", searchName.Count >= 1 && searchName[0].Name == "playwright");
         Check("目录: 空关键词返回全部", McpCatalog.Search(null).Count == McpCatalog.All.Count);
@@ -314,6 +320,11 @@ public static partial class SelfTest
         var neoNode = McpCatalog.ToServerNode(McpCatalog.Find("neo4j")!);
         Check("目录: neo4j 多 env 占位", neoNode["env"]?["NEO4J_URI"]?.AsString() == "${NEO4J_URI}"
             && neoNode["env"]?["NEO4J_PASSWORD"]?.AsString() == "${NEO4J_PASSWORD}");
+        var gitlabNode = McpCatalog.ToServerNode(McpCatalog.Find("gitlab")!);
+        Check("目录: gitlab env 占位", gitlabNode["env"]?["GITLAB_PERSONAL_ACCESS_TOKEN"]?.AsString() == "${GITLAB_TOKEN}");
+        var mysqlNode = McpCatalog.ToServerNode(McpCatalog.Find("mysql")!);
+        Check("目录: mysql env 占位", mysqlNode["env"]?["MYSQL_HOST"]?.AsString() == "${MYSQL_HOST}"
+            && mysqlNode["env"]?["MYSQL_PASS"]?.AsString() == "${MYSQL_PASS}");
 
         var ghNode = McpCatalog.ToServerNode(McpCatalog.Find("github")!);
         Check("目录: ToServerNode name", ghNode["name"]?.AsString() == "github");
@@ -414,6 +425,13 @@ public static partial class SelfTest
         Check("代理环境变量读取不崩溃", true); // 环境变量存在与否都通过
         // 验证环境变量名存在（不检查值）
         Check("HTTPS_PROXY 变量可读", true); // 系统级测试
+        Check("代理: 本地回环自动绕过", LLM.ShouldBypassProxy("127.0.0.1", null));
+        Check("代理: localhost 自动绕过", LLM.ShouldBypassProxy("localhost", null));
+        Check("代理: NO_PROXY 主机精确匹配", LLM.ShouldBypassProxy("api.example.com", "api.example.com"));
+        Check("代理: NO_PROXY 子域匹配", LLM.ShouldBypassProxy("api.example.com", ".example.com"));
+        Check("代理: NO_PROXY host:port 忽略端口", LLM.ShouldBypassProxy("api.example.com", "api.example.com:8080"));
+        Check("代理: NO_PROXY 通配匹配", LLM.ShouldBypassProxy("api.example.com", "*"));
+        Check("代理: NO_PROXY 不匹配不绕过", !LLM.ShouldBypassProxy("api.other.com", "example.com"));
         Console.WriteLine();
 
         // ---- Sub-Agent 增强 ----

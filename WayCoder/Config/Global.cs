@@ -13,7 +13,7 @@ public static class Global
     /// <summary>应用全称</summary>
     public const string AppFullName = "WayCoder 道码·通用编程智能体";
     /// <summary>版本号</summary>
-    public const string Version = "v0.87.19";
+    public const string Version = "v0.87.20";
     /// <summary>应用名 + 版本号</summary>
     public static string AppNameVersion => $"{AppName} {Version} ({AppNameCN})";
 
@@ -38,16 +38,22 @@ public static class Global
     // ── 配置目录 ──
     /// <summary>当前配置目录名</summary>
     public const string ConfigDirName = ".waycoder";
-    
+
+    /// <summary>测试/嵌入式场景可覆写的用户主目录；默认取系统用户目录。</summary>
+    public static string? HomeOverride { get; set; }
+
+    /// <summary>当前生效的用户主目录。</summary>
+    public static string Home =>
+        HomeOverride ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
     /// <summary>搜索顺序：新目录优先，旧目录回退</summary>
     public static string[] ConfigDirSearchOrder => [ConfigDirName];
 
-    /// <summary>全局配置路径（~/。waycoder/...）</summary>
+    /// <summary>全局配置路径（~/waycoder/...）</summary>
     public static string GlobalConfigPath(params string[] segments)
     {
         var parts = new string[segments.Length + 1];
-        parts[0] = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ConfigDirName);
+        parts[0] = Path.Combine(Home, ConfigDirName);
         Array.Copy(segments, 0, parts, 1, segments.Length);
         return Path.Combine(parts);
     }
@@ -84,8 +90,7 @@ public static class Global
     /// <summary>全局读配置路径：~/.waycoder/... 优先，回退 ~/.corecoder/...</summary>
     public static string GlobalReadConfigPath(params string[] segments)
     {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        return ReadConfigPath(home, segments);
+        return ReadConfigPath(Home, segments);
     }
 
     /// <summary>从 cwd 向上查找存在的配置目录，返回目录名（.waycoder / .corecoder），都不存在返回 null</summary>

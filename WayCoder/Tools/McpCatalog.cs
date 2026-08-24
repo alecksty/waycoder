@@ -28,10 +28,12 @@ public static class McpCatalog
         new() { Name = "filesystem", Category = "文件", Description = "文件系统读写/遍历（安全受限目录）", Args = ["-y", "@modelcontextprotocol/server-filesystem", "."] },
         new() { Name = "everything", Category = "文件", Description = "Everything 桌面文件搜索（Windows）", Args = ["-y", "@modelcontextprotocol/server-everything"] },
         new() { Name = "fetch", Category = "文件", Description = "网页抓取并转 Markdown", Args = ["-y", "@modelcontextprotocol/server-fetch"] },
+        new() { Name = "pdf", Category = "文件", Description = "PDF 读取/分页提取/标注（支持本地与 arxiv 等来源）", Args = ["-y", "--silent", "--registry=https://registry.npmjs.org/", "@modelcontextprotocol/server-pdf", "--stdio"] },
 
         // ── 版本控制 ──
         new() { Name = "git", Category = "版本控制", Description = "Git 仓库操作（status/log/diff/commit）", Args = ["-y", "@modelcontextprotocol/server-git"] },
         new() { Name = "github", Category = "版本控制", Description = "GitHub 仓库/PR/Issue（需 GITHUB_TOKEN）", Args = ["-y", "@modelcontextprotocol/server-github"], Env = new() { ["GITHUB_PERSONAL_ACCESS_TOKEN"] = "${GITHUB_TOKEN}" } },
+        new() { Name = "gitlab", Category = "版本控制", Description = "GitLab 项目/文件/Issue/MR（需 GITLAB_TOKEN）", Args = ["-y", "@modelcontextprotocol/server-gitlab"], Env = new() { ["GITLAB_PERSONAL_ACCESS_TOKEN"] = "${GITLAB_TOKEN}", ["GITLAB_API_URL"] = "${GITLAB_API_URL}" } },
 
         // ── 浏览器 ──
         new() { Name = "puppeteer", Category = "浏览器", Description = "无头浏览器自动化（截图/导航/点击）", Args = ["-y", "@modelcontextprotocol/server-puppeteer"] },
@@ -42,12 +44,15 @@ public static class McpCatalog
         new() { Name = "firecrawl", Category = "搜索", Description = "Firecrawl 网页抓取+搜索（需 FIRECRAWL_API_KEY）", Args = ["-y", "firecrawl-mcp"], Env = new() { ["FIRECRAWL_API_KEY"] = "${FIRECRAWL_API_KEY}" } },
         new() { Name = "tavily", Category = "搜索", Description = "Tavily 实时网页搜索（需 TAVILY_API_KEY）", Args = ["-y", "tavily-mcp"], Env = new() { ["TAVILY_API_KEY"] = "${TAVILY_API_KEY}" } },
         new() { Name = "exa", Category = "搜索", Description = "Exa 语义搜索（需 EXA_API_KEY）", Args = ["-y", "@exa/mcp-server"], Env = new() { ["EXA_API_KEY"] = "${EXA_API_KEY}" } },
+        new() { Name = "aws-kb-retrieval", Category = "搜索", Description = "AWS Bedrock Knowledge Base RAG（需 AWS 凭证）", Args = ["-y", "@modelcontextprotocol/server-aws-kb-retrieval"], Env = new() { ["AWS_ACCESS_KEY_ID"] = "${AWS_ACCESS_KEY_ID}", ["AWS_SECRET_ACCESS_KEY"] = "${AWS_SECRET_ACCESS_KEY}", ["AWS_REGION"] = "${AWS_REGION}" } },
 
         // ── 数据库 ──
         new() { Name = "sqlite", Category = "数据库", Description = "SQLite 数据库查询", Args = ["-y", "@modelcontextprotocol/server-sqlite", "data.db"] },
         new() { Name = "postgres", Category = "数据库", Description = "PostgreSQL 查询（改连接串）", Args = ["-y", "@modelcontextprotocol/server-postgres", "postgresql://localhost:5432/postgres"] },
         new() { Name = "mongodb", Category = "数据库", Description = "MongoDB Atlas 查询（需 MONGODB_URI）", Args = ["-y", "@mongodb/mcp"], Env = new() { ["MONGODB_URI"] = "${MONGODB_URI}" } },
         new() { Name = "neo4j", Category = "数据库", Description = "Neo4j 图数据库查询（需 NEO4J_URI）", Args = ["-y", "@neo4j/mcp-server"], Env = new() { ["NEO4J_URI"] = "${NEO4J_URI}", ["NEO4J_USERNAME"] = "${NEO4J_USERNAME}", ["NEO4J_PASSWORD"] = "${NEO4J_PASSWORD}" } },
+        new() { Name = "mysql", Category = "数据库", Description = "MySQL 查询（默认只读，需 MYSQL_HOST/PORT/USER/PASS/DB）", Args = ["-y", "@benborla29/mcp-server-mysql"], Env = new() { ["MYSQL_HOST"] = "${MYSQL_HOST}", ["MYSQL_PORT"] = "${MYSQL_PORT}", ["MYSQL_USER"] = "${MYSQL_USER}", ["MYSQL_PASS"] = "${MYSQL_PASS}", ["MYSQL_DB"] = "${MYSQL_DB}" } },
+        new() { Name = "redis", Category = "数据库", Description = "Redis key-value 查询（默认 localhost:6379）", Args = ["-y", "@modelcontextprotocol/server-redis", "redis://localhost:6379"] },
 
         // ── 记忆 / 思考 ──
         new() { Name = "memory", Category = "记忆", Description = "知识图谱持久记忆", Args = ["-y", "@modelcontextprotocol/server-memory"] },
@@ -62,6 +67,7 @@ public static class McpCatalog
         new() { Name = "notion", Category = "协作", Description = "Notion 页面/数据库读写（需 NOTION_TOKEN）", Args = ["-y", "@notionhq/notion-mcp-server"], Env = new() { ["NOTION_TOKEN"] = "${NOTION_TOKEN}" } },
         new() { Name = "linear", Category = "协作", Description = "Linear 项目/Issue 管理（需 LINEAR_API_KEY）", Args = ["-y", "@linear/mcp"], Env = new() { ["LINEAR_API_KEY"] = "${LINEAR_API_KEY}" } },
         new() { Name = "atlassian", Category = "协作", Description = "Atlassian Jira/Confluence（需 ATLASSIAN_API_KEY）", Args = ["-y", "@atlassian/atlassian-mcp"], Env = new() { ["ATLASSIAN_API_KEY"] = "${ATLASSIAN_API_KEY}" } },
+        new() { Name = "gdrive", Category = "协作", Description = "Google Drive 文件搜索/读取（首次需 OAuth auth）", Args = ["-y", "@modelcontextprotocol/server-gdrive"], Env = new() { ["GDRIVE_OAUTH_PATH"] = "${GDRIVE_OAUTH_PATH}", ["GDRIVE_CREDENTIALS_PATH"] = "${GDRIVE_CREDENTIALS_PATH}" } },
 
         // ── 云 / 服务 ──
         new() { Name = "time", Category = "服务", Description = "时间/时区转换", Args = ["-y", "@modelcontextprotocol/server-time"] },

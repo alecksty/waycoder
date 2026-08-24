@@ -12,7 +12,7 @@ public static class CheckpointManager
 
     private static string[] CheckpointReadDirs => new[] {
         Global.GlobalConfigPath("checkpoints"),
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".corecoder", "checkpoints")
+        Path.Combine(Global.Home, ".corecoder", "checkpoints")
     };
 
     private static string? FindCheckpointDir(int id)
