@@ -103,6 +103,21 @@ public static class ModelCatalog
         new("Pro/deepseek-ai/DeepSeek-V3", "DeepSeek V3 (SiliconFlow)", "SiliconFlow", "siliconflow", "S", "Flagship", 64_000, 0, 0, "https://api.siliconflow.cn", "SiliconFlow proxy"),
         new("Pro/Qwen/Qwen3-235B-A22B", "Qwen3 235B (SiliconFlow)", "SiliconFlow", "siliconflow", "S", "Flagship", 128_000, 0, 0, null, "SiliconFlow proxy"),
 
+        // AIHubMix 聚合网关（官网 aihubmix.com 常被墙，默认走 api.inferera.com）
+        new("deepseek-v4-pro", "DeepSeek V4 Pro", "AIHubMix", "aihubmix", "Ai", "Flagship", 1_000_000, 0.464, 0.928, "https://api.inferera.com/v1", "DeepSeek flagship via AIHubMix"),
+        new("deepseek-v4-flash", "DeepSeek V4 Flash", "AIHubMix", "aihubmix", "Ai", "Light", 1_000_000, 0.154, 0.308, "https://api.inferera.com/v1", "DeepSeek light via AIHubMix"),
+        new("coding-kimi-k3", "Coding Kimi K3", "AIHubMix", "aihubmix", "Ai", "Code", 1_048_576, 0.44, 1.61333, "https://api.inferera.com/v1", "Kimi coding via AIHubMix"),
+        new("coding-minimax-m3-free", "Coding MiniMax M3 (free)", "AIHubMix", "aihubmix", "Ai", "Light", 204_800, 0, 0, "https://api.inferera.com/v1", "免费代码模型 via AIHubMix"),
+        new("glm-5.2", "GLM 5.2", "AIHubMix", "aihubmix", "Ai", "Flagship", 1_000_000, 1.1268, 3.9438, "https://api.inferera.com/v1", "GLM flagship via AIHubMix"),
+        new("gemini-2.5-flash", "Gemini 2.5 Flash", "AIHubMix", "aihubmix", "Ai", "Light", 1_048_576, 0.3, 2.499, "https://api.inferera.com/v1", "Gemini flash via AIHubMix"),
+
+        // OpenRouter 聚合网关（模型 id 走 org/model 格式）
+        new("openrouter/free", "Free (Auto Router)", "OpenRouter", "openrouter", "Or", "Light", 128_000, 0, 0, "https://openrouter.ai/api/v1", "OpenRouter 自动免费路由"),
+        new("cohere/north-mini-code:free", "North Mini Code (free)", "OpenRouter", "openrouter", "Or", "Code", 128_000, 0, 0, "https://openrouter.ai/api/v1", "免费代码模型"),
+        new("deepseek/deepseek-chat-v3-0324", "DeepSeek V3", "OpenRouter", "openrouter", "Or", "Flagship", 64_000, 0.25, 1.0, "https://openrouter.ai/api/v1", "DeepSeek V3 via OpenRouter"),
+        new("google/gemini-2.5-flash", "Gemini 2.5 Flash", "OpenRouter", "openrouter", "Or", "Light", 1_048_576, 0.3, 2.5, "https://openrouter.ai/api/v1", "Gemini flash via OpenRouter"),
+        new("anthropic/claude-sonnet-4-5", "Claude Sonnet 4.5", "OpenRouter", "openrouter", "Or", "Flagship", 200_000, 3, 15, "https://openrouter.ai/api/v1", "Claude Sonnet via OpenRouter"),
+
         // Local / Ollama / LM Studio / vLLM (no API key needed, default base URL http://localhost:11434)
         new("qwen2.5-coder:latest", "Qwen2.5 Coder (Ollama)", "Local", "local", "L", "Local", 128_000, 0, 0, "http://localhost:11434", "Ollama local code model"),
         new("qwen2.5-coder:3b", "Qwen2.5 Coder 3B (Ollama)", "Local", "local", "L", "Local", 32_000, 0, 0, null, "Ollama small code model"),
@@ -165,7 +180,7 @@ public static class ModelCatalog
             ["xai"]        = new("xAI",          "https://api.x.ai", "XAI_API_KEY", "/models", "grok-4.5"),
             ["mistral"]    = new("Mistral",      "https://api.mistral.ai", "MISTRAL_API_KEY", "/models", ""),
             ["siliconflow"]= new("SiliconFlow",  "https://api.siliconflow.cn", "SILICONFLOW_API_KEY", "/models", ""),
-            ["openrouter"] = new("OpenRouter",   "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "/models", ""),
+            ["openrouter"] = new("OpenRouter",   "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "/models", "openrouter/free,deepseek/deepseek-chat-v3-0324,google/gemini-2.5-flash"),
             ["groq"]       = new("Groq",         "https://api.groq.com/openai/v1", "GROQ_API_KEY", "/models", ""),
             ["together"]   = new("Together AI",  "https://api.together.xyz/v1", "TOGETHER_API_KEY", "/models", ""),
             ["gitee"]      = new("Gitee AI",     "https://ai.gitee.com/v1", "GITEE_AI_API_KEY", "", ""),
@@ -174,7 +189,7 @@ public static class ModelCatalog
             ["opencode-zen"] = new("OpenCode Zen", "https://opencode.ai/zen/v1", "OPENCODE_API_KEY", "", ""),              // 按量付费
             ["opencode"]     = new("OpenCode",     "https://opencode.ai/zen/v1", "OPENCODE_API_KEY", "", ""),              // 旧数据兼容别名
             ["minimax"]    = new("MiniMax",      "https://api.minimaxi.com/v1", "MINIMAX_API_KEY", "/models", ""),
-            ["aihubmix"]   = new("AIHubMix",     "https://aihubmix.com/v1", "AIHUBMIX_API_KEY", "/models", ""),
+            ["aihubmix"]   = new("AIHubMix",     "https://api.inferera.com/v1", "AIHUBMIX_API_KEY", "/models", "deepseek-v4-pro,deepseek-v4-flash,coding-minimax-m3-free"),
             ["local"]      = new("Local",        "", "", "", ""),
             ["custom"]     = new("Custom",       "", "", "", ""),
         };
