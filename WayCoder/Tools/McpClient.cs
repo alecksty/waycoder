@@ -79,40 +79,60 @@ public static class McpManager
     /// <summary>
     /// 从配置文件初始化所有 MCP 服务器连接。
     /// 先尝试从缓存加载工具（快速启动），再异步连接发现。
+    /// 配置来源两处：WayCoder 自己的 mcp_servers.json（优先）+ Claude Code 已配置的 MCP（去重追加）。
     /// </summary>
     public static void Init()
     {
         if (_initialized) return;
         _initialized = true;
 
+        // 合并结果：WayCoder 自己的服务器在前，Claude Code 的服务器去重后追加。
+        var merged = JNode.Array();
+        var claudeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // 1. WayCoder 自己的 mcp_servers.json（优先）
         var configPath = ConfigPathOverride ?? Global.FindConfigFileInTree(Environment.CurrentDirectory, "mcp_servers.json");
-        if (configPath == null) return;
-
-        try
+        if (configPath != null)
         {
-            var json = File.ReadAllText(configPath, Encoding.UTF8);
-            var servers = Json.Parse(json);
-            if (servers == null) return;
-
-            // 先尝试从缓存加载工具（加速启动）
-            McpCache.Load(servers);
-
-            foreach (var server in servers.Items)
+            try
             {
-                var name = server?["name"]?.AsString();
-                if (string.IsNullOrEmpty(name)) continue;
-                RegisterState(name, server!);
-                _ = ConnectServerAsync(server!);
+                var own = Json.Parse(File.ReadAllText(configPath, Encoding.UTF8));
+                if (own != null)
+                    foreach (var s in own.Items) merged.Add(s);
+            }
+            catch (Exception ex)
+            {
+                DebugLog.Log("mcp", $"MCP 配置解析失败: {ex.GetType().Name}: {ex.Message}");
             }
         }
-        catch (Exception ex)
+
+        // 2. Claude Code 服务器（同名忽略大小写去重，来源标记 claude）
+        foreach (var server in ClaudeMcp.LoadServers())
         {
-            DebugLog.Log("mcp", $"MCP 初始化失败: {ex.GetType().Name}: {ex.Message}");
+            var name = server["name"]?.AsString();
+            if (string.IsNullOrEmpty(name)) continue;
+            if (merged.Items.Any(s => string.Equals(s["name"]?.AsString(), name, StringComparison.OrdinalIgnoreCase)))
+                continue;
+            merged.Add(server);
+            claudeNames.Add(name);
+        }
+
+        if (merged.Count == 0) return;
+
+        // 先尝试从缓存加载工具（加速启动）
+        McpCache.Load(merged);
+
+        foreach (var server in merged.Items)
+        {
+            var name = server["name"]?.AsString();
+            if (string.IsNullOrEmpty(name)) continue;
+            RegisterState(name, server, claudeNames.Contains(name) ? "claude" : "waycoder");
+            _ = ConnectServerAsync(server);
         }
     }
 
-    /// <summary>注册服务器状态（初始 Connecting）。</summary>
-    private static void RegisterState(string name, JNode server)
+    /// <summary>注册服务器状态（初始 Connecting）。source 标记配置来源：waycoder / claude。</summary>
+    private static void RegisterState(string name, JNode server, string source = "waycoder")
     {
         lock (_stateLock)
         {
@@ -121,6 +141,7 @@ public static class McpManager
                 {
                     Name = name,
                     Transport = DetectTransport(server).ToString().ToLowerInvariant(),
+                    Source = source,
                 };
         }
     }
@@ -583,9 +604,11 @@ public class McpServerInfo
     public int ResourceCount { get; }
     public int PromptCount { get; }
     public string? Error { get; }
+    /// <summary>配置来源："waycoder"（本应用 mcp_servers.json）/ "claude"（Claude Code 共用）。</summary>
+    public string Source { get; }
 
     public McpServerInfo(string name, string transport, McpServerStatus status, int toolCount, string? error,
-        int resourceCount = 0, int promptCount = 0)
+        int resourceCount = 0, int promptCount = 0, string source = "waycoder")
     {
         Name = name;
         Transport = transport;
@@ -594,6 +617,7 @@ public class McpServerInfo
         ResourceCount = resourceCount;
         PromptCount = promptCount;
         Error = error;
+        Source = source;
     }
 }
 
@@ -608,6 +632,7 @@ internal class McpServerState
     public int PromptCount;
     public string? Error;
     public McpConnection? Connection;
+    public string Source = "waycoder";
 
-    public McpServerInfo ToInfo() => new(Name, Transport, Status, ToolCount, Error, ResourceCount, PromptCount);
+    public McpServerInfo ToInfo() => new(Name, Transport, Status, ToolCount, Error, ResourceCount, PromptCount, Source);
 }

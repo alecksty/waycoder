@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.87.23 (2026-08-25) — 共用 Claude Code 的 MCP 配置
+
+- **零配置复用 Claude Code MCP**：新增 `ClaudeMcp` 转换器，自动读取 Claude Code 已配好的 MCP 服务器并复用到 WayCoder——三处配置源（项目级 `.mcp.json`、user 级 `~/.claude.json` 顶层 `mcpServers`、project 级 `~/.claude.json` 的 `projects.<cwd>.mcpServers`），`type` 字段自动映射为 WayCoder 的 `transport`（stdio/http/sse），command/args/env/url/headers 全量透传
+- **合并策略**：WayCoder 自己的 `mcp_servers.json` 优先，Claude Code 服务器同名（忽略大小写）去重后追加；`McpServerInfo`/`McpServerState` 新增 `Source` 字段（waycoder/claude）
+- **来源标记**：`/mcp` 命令、TUI 侧栏 MCP 区、CLI `--mcp`、Web 版 `/mcp` 对 Claude 来源服务器标注 `〔Claude〕`
+- **开关**：`WAYCODER_CLAUDE_MCP=0` 环境变量关闭共用（默认开）
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测 4354 通过 / 0 失败（新增 10 项 ClaudeMcp 断言：type→transport 映射 + 字段透传 + LoadServers 读 user 级 `.claude.json`）
+
 ## v0.87.22 (2026-08-25) — MCP 生态目录扩充 + uvx 启动方式
 
 - **MCP 内置目录 35→40**：新增「部署」分类（Netlify），补充搜索（Perplexity、DuckDuckGo）、开发（Figma、Chrome DevTools），包名均经官方文档/npm 核实
