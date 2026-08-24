@@ -749,12 +749,18 @@ public static partial class SelfTest
             bool hadMark = File.Exists(clearPath);
             try
             {
+                var allBefore = ModelCatalog.All.ToList();
                 File.WriteAllText(clearPath, "1");
                 ModelCatalog.Invalidate(); // 直接写标记不经过 ClearAll，需手动失效缓存，否则 All 返回旧缓存
                 var allCleared = ModelCatalog.All;
-                Check("清空标记: 标记后 All 不含内置",
+                // 清空后仅内置源模型被移除；用户导入的同 id 模型（如 aihubmix 聚合器）合法保留，不算内置残留
+                var removed = allBefore
+                    .Where(b => !allCleared.Any(m => m.Id == b.Id && m.ProviderId == b.ProviderId))
+                    .Select(m => $"{m.Id}|{m.ProviderId}")
+                    .ToHashSet();
+                Check("清空标记: 标记后仅内置被移除",
                     ModelCatalog.BuiltInCleared
-                    && !allCleared.Any(m => ModelCatalog.BuiltIn.Any(b => b.Id == m.Id && b.ProviderId == m.ProviderId)));
+                    && removed.All(rid => ModelCatalog.BuiltIn.Any(b => $"{b.Id}|{b.ProviderId}" == rid)));
 
                 ModelCatalog.RestoreBuiltIn();
                 var allRestored = ModelCatalog.All;
