@@ -436,27 +436,48 @@ public static class ModelCli
         return $"已切换至 **{ConnectionConfig.FormatModel(info.ProviderId, info.Id)}** 小模型（{info.DisplayName}）并写入 .env";
     }
 
-    /// <summary>列出已保存的 API keys（打码）</summary>
+    /// <summary>列出已保存的 API keys（打码 + 有效期）</summary>
     public static string ListKeys()
     {
-        var keys = ApiKeyStore.ListAll();
-        if (keys.Count == 0)
-            return "未保存任何 API key。用 --model key <供应商> <key> 保存。";
+        var entries = ApiKeyStore.ListAllEntries();
+        if (entries.Count == 0)
+            return "未保存任何 API key。用 --model key <供应商> <key> [有效期] 保存。";
 
         var sb = new StringBuilder();
         sb.AppendLine("已保存 API keys：");
-        foreach (var (pid, _) in keys)
-            sb.AppendLine($"  {pid,-12} = {ApiKeyStore.Masked(pid)}");
+        var expired = 0;
+        var expiringSoon = 0;
+        foreach (var (pid, entry) in entries)
+        {
+            var expiryText = ApiKeyStore.ExpiryText(entry.Expiry);
+            if (ApiKeyStore.IsExpired(entry.Expiry)) expired++;
+            else if (ApiKeyStore.DaysLeft(entry.Expiry) <= 7) expiringSoon++;
+            sb.AppendLine($"  {pid,-12} = {ApiKeyStore.Masked(pid),-30}有效期: {expiryText}");
+        }
+        if (expired > 0) sb.AppendLine($"⚠ {expired} 个 key 已过期，请及时更换");
+        if (expiringSoon > 0) sb.AppendLine($"⚠ {expiringSoon} 个 key 临近到期（≤7 天）");
+        sb.AppendLine("设置/修改有效期：--model key expiry <供应商> <有效期>");
         return sb.ToString();
     }
 
-    /// <summary>保存指定供应商的 API key</summary>
-    public static string SetKey(string providerId, string key)
+    /// <summary>保存指定供应商的 API key（可选有效期：永久 / 截止日期）</summary>
+    public static string SetKey(string providerId, string key, string? expiry = null)
     {
         if (string.IsNullOrWhiteSpace(providerId) || string.IsNullOrWhiteSpace(key))
-            return "用法: --model key <供应商> <key>";
-        ApiKeyStore.Set(providerId, key);
-        return $"已保存 {providerId} 的 API key：{ApiKeyStore.Masked(providerId)}";
+            return "用法: --model key <供应商> <key> [有效期]";
+        ApiKeyStore.Set(providerId, key, expiry);
+        return $"已保存 {providerId} 的 API key：{ApiKeyStore.Masked(providerId)}（有效期: {ApiKeyStore.ExpiryText(expiry)}）";
+    }
+
+    /// <summary>给已存 key 设置/修改有效期（不改动 key 本身）。</summary>
+    public static string SetKeyExpiry(string providerId, string? expiry)
+    {
+        if (string.IsNullOrWhiteSpace(providerId))
+            return "用法: --model key expiry <供应商> <有效期>";
+        if (!ApiKeyStore.Has(providerId))
+            return $"服务商 {providerId} 未保存 key，先用 --model key <供应商> <key> 保存";
+        ApiKeyStore.SetExpiry(providerId, expiry);
+        return $"已设置 {providerId} 的 API key 有效期：{ApiKeyStore.ExpiryText(expiry)}";
     }
 
     /// <summary>
@@ -757,9 +778,20 @@ public static class ModelCli
                 case "key":
                 case "apikey":
                 {
-                    if (values.Count >= 3) { Console.WriteLine(SetKey(values[1], values[2])); return 0; }
+                    if (values.Count >= 3)
+                    {
+                        Console.WriteLine(SetKey(values[1], values[2], values.Count > 3 ? values[3] : null));
+                        return 0;
+                    }
                     Console.WriteLine(ListKeys());
                     return 0;
+                }
+                case "keyexpiry":
+                case "expiry":
+                {
+                    if (values.Count >= 3) { Console.WriteLine(SetKeyExpiry(values[1], values[2])); return 0; }
+                    Console.WriteLine("用法: --provider key expiry <供应商> <有效期>");
+                    return 1;
                 }
                 case "test":
                     Console.WriteLine(Test());
