@@ -126,8 +126,7 @@ public partial class Program
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"{Global.AppFullName} · {Global.Version}", Centered = true });
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = "深圳市探索智能科技有限公司", Centered = true });
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"大模型: {ConnectionConfig.FormatModel(_config.Provider, _config.Model)} · 小模型: {ConnectionConfig.FormatModel(_config.SmallProvider, _config.SmallModel)}  ·  /help 帮助", Centered = true });
-        // 快捷键表输出到首条对话（每个槽位首次激活也会显示，见 SlotWelcome）
-        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = TuiKeybindHelp.GetHelpText() });
+        // 快捷键表不再注入首条对话（太占地方），需要时 /help 弹出面板
         // 状态栏左侧写模型名，不写品牌名 —— 品牌在顶栏标题和上面的欢迎横幅里已经有了，
         // 这里再来一遍就是第三遍；而且 /model 切换后本来就会把这里改成模型名，启动态跟着一致
         slot0.StatusLeft = _config.Model;
@@ -1050,7 +1049,7 @@ public partial class Program
                 slot.ChatMessages.Add(new ChatMsg
                 {
                     Role = "system",
-                    Content = $"🤖 Agent 槽位 F{idx + 1} — 独立会话\n\n{TuiKeybindHelp.GetHelpText()}",
+                    Content = $"🤖 Agent 槽位 F{idx + 1} — 独立会话（/help 查看快捷键）",
                 });
             }
 
