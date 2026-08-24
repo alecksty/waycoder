@@ -493,16 +493,10 @@ public static class McpManager
 
         var cwd = Environment.CurrentDirectory;
         var waycoderDir = Global.FindExistingConfigDir(cwd);
-        string targetDir;
-        if (waycoderDir != null)
-        {
-            targetDir = Path.Combine(cwd, waycoderDir);
-        }
-        else
-        {
-            targetDir = Path.Combine(cwd, ".waycoder");
-            Directory.CreateDirectory(targetDir);
-        }
+        // FindExistingConfigDir 只返回目录名（.waycoder/.corecoder），且可能命中祖先目录；
+        // 一律按 cwd 下同名目录写入，并确保目录存在（祖先目录命中时 cwd 下可能没有该目录）。
+        var targetDir = Path.Combine(cwd, waycoderDir ?? ".waycoder");
+        Directory.CreateDirectory(targetDir);
 
         var mcpPath = Path.Combine(targetDir, "mcp_servers.json");
         var existing = JNode.Array();
