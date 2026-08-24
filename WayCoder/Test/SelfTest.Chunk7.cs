@@ -1134,6 +1134,35 @@ public static partial class SelfTest
         Check("SettingDef Label 非空", !string.IsNullOrEmpty(firstDef.Label));
         Check("SettingDef Category 非空", !string.IsNullOrEmpty(firstDef.Category));
         Check("SettingDef Type 有效", firstDef.Type is "text" or "number" or "select" or "secret");
+
+        // 详情面板选中高亮：ApplyHighlight 设置 Bg=46（亮绿）后必须触发重渲染，
+        // 否则滚动视图增量渲染（child.IsDirty||IsDirty）跳过未脏标签 → 高亮不可见
+        var hlMgr = TuiManager.Instance;
+        try { hlMgr.Enter(); } catch { }
+        var hlOrigOut = Console.Out;
+        try
+        {
+            setScreen.Activate(); // 构建布局、填充 _detailControls
+            setScreen.OnResize(100, 30);
+            hlMgr.PushScreen(setScreen);
+            // 模拟 Tab 切到详情面板 → ToggleFocus → ApplyHighlight
+            setScreen.OnKey(new ConsoleKeyInfo('\t', ConsoleKey.Tab, false, false, false));
+            Console.SetOut(TextWriter.Null);
+            hlMgr.Render();
+            Console.SetOut(hlOrigOut);
+            var raw = hlMgr.LastCleanFrame ?? "";
+            Check("SettingsScreen 详情选中项高亮已渲染(46)", raw.Contains("\x1b[46m"));
+        }
+        catch (Exception ex)
+        {
+            Check("SettingsScreen 详情选中项高亮已渲染(46)", false);
+            Console.WriteLine("  设置高亮渲染异常: " + ex.Message);
+        }
+        finally
+        {
+            Console.SetOut(hlOrigOut);
+            hlMgr.PopScreen();
+        }
         Console.WriteLine();
 
         // ================================================================
