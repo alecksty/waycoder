@@ -33,8 +33,13 @@ public class InputManager : IDisposable
     public void Init()
     {
         // 不拦截 Ctrl+C——让 OS 信号触发 CancelKeyPress 实现随时退出
-        Console.TreatControlCAsInput = false;
-        Console.CursorVisible = false;
+        // 非交互环境（管道/重定向/后台/Keypad 脚本回放）：Console 模式设置会抛 IOException
+        // （如 "console input has been redirected"），跳过——Keypad 用注入键 + 空输出，不需要真实终端模式
+        if (!Console.IsInputRedirected && !Console.IsOutputRedirected)
+        {
+            Console.TreatControlCAsInput = false;
+            Console.CursorVisible = false;
+        }
         (_lastWidth, _lastHeight) = (Tty.Cols, Tty.Rows);
 
         // 无论是否启用鼠标，先发送禁用序列：清除上一个程序（如崩溃退出）残留在
