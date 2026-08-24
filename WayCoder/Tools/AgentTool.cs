@@ -14,7 +14,7 @@ public class AgentTool : ITool, ICancellableTool
 {
     public string Name => "agent";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-    public string Description => $"生成子智能体来独立处理复杂任务。支持单个任务（task）或并行批量任务（tasks 数组，最多 {MaxParallelTasks} 个并发）。tasks 元素可为纯字符串，或对象 {{id, description, depends_on}} 表达任务依赖——依赖任务先执行、其输出注入后续任务，实现流水线编排（DAG 分层调度）。子智能体拥有自己的上下文和工具访问权限，支持多层递归委派。";
+    public string Description => $"生成子智能体来独立处理复杂任务。支持单个任务（task）或并行批量任务（tasks 数组，每批最多 {MaxParallelTasks} 个并发，超出自动分批串行，硬上限 {MaxTotalTasks} 个）。tasks 元素可为纯字符串，或对象 {{id, description, depends_on}} 表达任务依赖——依赖任务先执行、其输出注入后续任务，实现流水线编排（DAG 分层调度）。子智能体拥有自己的上下文和工具访问权限，支持多层递归委派。";
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
@@ -38,7 +38,7 @@ public class AgentTool : ITool, ICancellableTool
                             .Set("items", JNode.Object().Set("type", "string"))
                             .Set("description", "依赖的子任务 id 列表：这些任务完成后才执行本任务，并注入其输出")))
                     .Set("description", "单个子任务（纯字符串等价于仅 description）"))
-                .Set("description", $"子任务数组（最多 {MaxParallelTasks} 个），支持 id/depends_on 依赖编排")));
+                .Set("description", $"子任务数组（每批最多 {MaxParallelTasks} 个并发，超出自动分批串行，硬上限 {MaxTotalTasks} 个），支持 id/depends_on 依赖编排")));
 
     /// <summary>
     /// 由 Agent 在构造后设置，用于访问父智能体。
@@ -50,6 +50,9 @@ public class AgentTool : ITool, ICancellableTool
 
     /// <summary>并行子任务数量上限（从 Config.Instance.SubAgentMaxParallel 动态读取）</summary>
     public static int MaxParallelTasks => Config.Instance.SubAgentMaxParallel;
+
+    /// <summary>子任务总数硬上限（从 Config.Instance.SubAgentMaxTotalTasks 动态读取，超出报错防失控）</summary>
+    public static int MaxTotalTasks => Config.Instance.SubAgentMaxTotalTasks;
 
     /// <summary>当前递归深度（线程安全，AsyncLocal 确保异步上下文隔离）</summary>
     private static readonly AsyncLocal<int> _currentDepth = new();
@@ -80,7 +83,7 @@ public class AgentTool : ITool, ICancellableTool
         if (string.IsNullOrWhiteSpace(task))
             return "错误：请提供 task（单任务）或 tasks 数组（并行任务）参数";
 
-        return await RunSubAgentAsync(task, depth, maxDepth, cancellationToken);
+        return await RunSubAgentWithRetryAsync(task, depth, maxDepth, cancellationToken);
     }
 
     /// <summary>并行批量执行多个子任务，结果按序聚合返回。带依赖（depends_on）时走 DAG 拓扑调度。</summary>
@@ -92,8 +95,9 @@ public class AgentTool : ITool, ICancellableTool
         if (specs.Count == 0)
             return "错误：tasks 数组不能为空，请提供至少一个子任务";
 
-        if (specs.Count > MaxParallelTasks)
-            return $"错误：并行子任务数量不能超过 {MaxParallelTasks} 个，当前提供了 {specs.Count} 个。请减少子任务数量或分批次执行。";
+        // 硬上限：防止 LLM 生成海量任务失控（超出并行数的部分本可分批串行，但总数超上限直接拒绝）
+        if (specs.Count > MaxTotalTasks)
+            return $"错误：子任务总数不能超过 {MaxTotalTasks} 个（当前 {specs.Count} 个）。请拆分任务或缩小范围。";
 
         var maxDepth = MaxDepth;
 
@@ -103,10 +107,19 @@ public class AgentTool : ITool, ICancellableTool
 
         try
         {
-            var runningTasks = specs
-                .Select(s => RunSubAgentAsync(s.Text, depth, maxDepth, cancellationToken))
-                .ToList();
-            var results = await Task.WhenAll(runningTasks);
+            // 超大规模分批调度：每批最多 MaxParallelTasks 个并行，批间串行。突破旧「超过并行数即报错」
+            // 的限制，支持几十上百个任务自动流水线化（先并 4 个，再并下 4 个……），避免一次性火并撑爆资源。
+            var results = new string[specs.Count];
+            foreach (var (start, end) in ComputeBatches(specs.Count, MaxParallelTasks))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var batch = new List<Task<string>>(end - start);
+                for (int i = start; i < end; i++)
+                    batch.Add(RunSubAgentWithRetryAsync(specs[i].Text, depth, maxDepth, cancellationToken));
+                var batchResults = await Task.WhenAll(batch);
+                for (int i = start; i < end; i++)
+                    results[i] = batchResults[i - start];
+            }
 
             // 聚合结果，总长受 SubAgentParallelTotalMaxChars 上限约束：单个子智能体输出
             // 各截断到 SubAgentOutputMaxChars，但并行 N 个累加仍可能撑爆主智能体上下文。
@@ -161,13 +174,18 @@ public class AgentTool : ITool, ICancellableTool
             var results = new string[specs.Count];
             foreach (var level in levels)
             {
-                // 每层内并行、层间串行：依赖任务的输出已写入 results，供 RunDependentAsync 注入
-                var batch = level
-                    .Select(i => RunDependentAsync(i, specs, idMap, results, depth, maxDepth, cancellationToken))
-                    .ToArray();
-                var batchResults = await Task.WhenAll(batch);
-                for (int k = 0; k < level.Count; k++)
-                    results[level[k]] = batchResults[k];
+                // 每层内分批并行、层间串行：依赖任务的输出已写入 results，供 RunDependentAsync 注入。
+                // 单层任务数可能超过 MaxParallelTasks（扇形展开），同样按批串行避免一次性火并。
+                foreach (var (start, end) in ComputeBatches(level.Count, MaxParallelTasks))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var batch = new List<Task<string>>(end - start);
+                    for (int k = start; k < end; k++)
+                        batch.Add(RunDependentAsync(level[k], specs, idMap, results, depth, maxDepth, cancellationToken));
+                    var batchResults = await Task.WhenAll(batch);
+                    for (int k = start; k < end; k++)
+                        results[level[k]] = batchResults[k - start];
+                }
             }
 
             // 聚合结果（保持 specs 原始顺序）
@@ -266,7 +284,7 @@ public class AgentTool : ITool, ICancellableTool
             task = $"{sb}\n\n---\n## 本任务\n{task}";
         }
 
-        return await RunSubAgentAsync(task, depth, maxDepth, cancellationToken);
+        return await RunSubAgentWithRetryAsync(task, depth, maxDepth, cancellationToken);
     }
 
     /// <summary>执行单个子任务（单任务模式与并行模式共用）。</summary>
@@ -336,6 +354,41 @@ public class AgentTool : ITool, ICancellableTool
             // 恢复父智能体 cwd（子智能体 cd 污染防护）；父未设过 cwd 时回退进程目录
             BashTool.CurrentCwd.Value = parentCwd ?? Directory.GetCurrentDirectory();
         }
+    }
+
+    /// <summary>判断子智能体结果是否为失败（内部异常被吞并返回的错误文案）。纯逻辑，供自测复用。</summary>
+    internal static bool IsSubAgentFailure(string result)
+        => result.StartsWith("子智能体错误", StringComparison.Ordinal);
+
+    /// <summary>
+    /// 把 [0, total) 切成若干批，每批最多 batchSize 个（末批可不足）。纯逻辑（无 I/O），
+    /// 供超大规模分批调度与自测复用——批内并行、批间串行，突破旧「超过并行数即报错」限制。
+    /// </summary>
+    internal static List<(int Start, int End)> ComputeBatches(int total, int batchSize)
+    {
+        if (batchSize <= 0) batchSize = 1;
+        var batches = new List<(int Start, int End)>();
+        for (int start = 0; start < total; start += batchSize)
+            batches.Add((start, Math.Min(start + batchSize, total)));
+        return batches;
+    }
+
+    /// <summary>
+    /// 带重试执行单个子任务：检测到失败（返回「子智能体错误」）时，把「换一种方法重试」
+    /// 的提示追加到任务文本再重跑，最多重试 <see cref="Config.SubAgentRetryCount"/> 次。
+    /// 提高子任务健壮性——LLM 偶发抽风（错误工具选择、中途异常）时给第二次机会。
+    /// </summary>
+    private async Task<string> RunSubAgentWithRetryAsync(string task, int depth, int maxDepth, CancellationToken cancellationToken)
+    {
+        var retryCount = Config.Instance.SubAgentRetryCount;
+        var result = await RunSubAgentAsync(task, depth, maxDepth, cancellationToken);
+        for (int attempt = 0; attempt < retryCount && IsSubAgentFailure(result); attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var retryTask = $"{task}\n\n（上次尝试失败，请换一种方法重新尝试：避免重复同样的错误）";
+            result = await RunSubAgentAsync(retryTask, depth, maxDepth, cancellationToken);
+        }
+        return result;
     }
 
     /// <summary>提取父智能体最近几轮对话作为上下文摘要。</summary>

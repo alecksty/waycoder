@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.87.17 (2026-08-24) — 子智能体健壮性三连：失败重试 / 分批调度 / MCP 目录扩充
+
+- **子智能体失败自动重试**（`AgentTool`）：新增 `SubAgentRetryCount` 配置（默认 1，可 0–5），子任务返回「子智能体错误」时自动把「换一种方法重试」提示追加到任务文本重跑，最多重试 N 次——LLM 偶发抽风（错误工具选择、中途异常）时给第二次机会，不再一次失败就报废
+- **超大规模分批调度**（`AgentTool`）：废除旧「超过并行数即报错」硬限制，`tasks` 数组改为**批内并行、批间串行**（每批最多 `SubAgentMaxParallel` 个并发，超出自动分批流水线化）；新增 `SubAgentMaxTotalTasks` 硬上限（默认 100）防 LLM 生成海量任务失控；依赖图每层同样按批串行，扇形展开层不再一次性火并
+- **MCP 生态目录扩充**（`McpCatalog`）：内置服务器从 18 扩到 **29** 个，新增搜索（firecrawl/tavily/exa）、数据库（mongodb/neo4j）、协作（notion/linear/atlassian）、服务（stripe/supabase/cloudflare）四类，均带 `${VAR}` 环境变量占位，`/mcp list`/`/mcp add` 直接可用
+
+### ✅ 验证
+- 新增自测：`IsSubAgentFailure` 失败判定、`ComputeBatches` 分批切分（10/4、7/3、batchSize≤0 归一等）、`SubAgentRetryCount`/`SubAgentMaxTotalTasks` 配置注册、MCP 目录 24+ 与新增服务器 env 占位，全部通过
+- 自测 4268 通过 / 1 失败（1 失败为预先存在的「无约束模型原样发 medium」断言，非本次引入）
+- 编译 0 错误（1 个既有警告 ProviderCommand.cs，非本次引入）
+
 ## v0.87.16 (2026-08-24) — 竞品短板补齐三连：代码语义检索 / 依赖编排 / MCP 生态目录
 
 - **代码级语义检索**（`CodeKnowledge`）：扫描项目源码提取「符号 + 文档注释」分块（类/函数/方法，纯文本启发式零反射零正则），复用 `SemanticMemory` TF-IDF 检索，把与任务最相关的代码段注入系统提示词——从「只能 grep 精确匹配」升级到「语义召回代码」

@@ -811,6 +811,28 @@ public static partial class SelfTest
         Check("子Agent最大深度 无 agent", !maxDepthNames.Contains("agent"));
         Check("子Agent最大深度 仍有 read_file", maxDepthNames.Contains("read_file"));
 
+        // ── v0.87.17: 子智能体失败自动重试（IsSubAgentFailure + SubAgentRetryCount 配置）──
+        Check("IsSubAgentFailure 识别异常文案", AgentTool.IsSubAgentFailure("子智能体错误（深度 2）：TimeoutException: 请求超时"));
+        Check("IsSubAgentFailure 识别纯错误文案", AgentTool.IsSubAgentFailure("子智能体错误（深度 1）：..."));
+        Check("IsSubAgentFailure 正常结果非失败", !AgentTool.IsSubAgentFailure("[子智能体已完成 · 深度 1]\n完成结果"));
+        Check("IsSubAgentFailure 空串非失败", !AgentTool.IsSubAgentFailure(""));
+        Check("IsSubAgentFailure 依赖编排错误非子智能体错误", !AgentTool.IsSubAgentFailure("依赖编排子智能体错误（深度 1）：..."));
+        Check("SubAgentRetryCount 默认 1", new Config().SubAgentRetryCount == 1);
+        // 配置注册存在（ConfigCli 能列出该项）
+        Check("SubAgentRetryCount 设置项存在", ConfigCli.Get("SubAgentRetryCount").Contains("SubAgentRetryCount"));
+
+        // ── v0.87.17: 超大规模分批调度（ComputeBatches + 总任务硬上限）──
+        var batches10 = AgentTool.ComputeBatches(10, 4);
+        Check("ComputeBatches 10/4 → 3 批", batches10.Count == 3);
+        Check("ComputeBatches 10/4 → (0,4)(4,8)(8,10)",
+            batches10[0] == (0, 4) && batches10[1] == (4, 8) && batches10[2] == (8, 10));
+        Check("ComputeBatches 4/4 → 1 批", AgentTool.ComputeBatches(4, 4) is { Count: 1 } b && b[0] == (0, 4));
+        Check("ComputeBatches 0/4 → 0 批", AgentTool.ComputeBatches(0, 4).Count == 0);
+        Check("ComputeBatches 7/3 → 3 批末批1个", AgentTool.ComputeBatches(7, 3) is { Count: 3 } c && c[2] == (6, 7));
+        Check("ComputeBatches batchSize<=0 归一为1", AgentTool.ComputeBatches(3, 0) is { Count: 3 } d && d[0] == (0, 1));
+        Check("SubAgentMaxTotalTasks 默认 100", new Config().SubAgentMaxTotalTasks == 100);
+        Check("SubAgentMaxTotalTasks 设置项存在", ConfigCli.Get("SubAgentMaxTotalTasks").Contains("SubAgentMaxTotalTasks"));
+
         // ── v0.36.0: Git 状态注入提示词 ──
         var gitStatusResult = SystemPrompt.GenerateGitStatus();
         Check("Git 状态注入: 非 null", gitStatusResult != null);
