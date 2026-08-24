@@ -421,6 +421,39 @@ public static partial class SelfTest
         Check("ModelCli.SetKey 带有效期提示", ModelCli.SetKey("__waycoder_expiry2__", "sk-x", "2026-12-31").Contains("有效期"));
         ApiKeyStore.Remove("__waycoder_expiry2__");
 
+        // API key 优先级：api_keys.json 优先，环境变量只在 json 为空时补入，绝不覆盖已有 key
+        {
+            var savedDeepseek = ApiKeyStore.Get("deepseek");
+            var savedEnv = ApiKeyStore.EnvKey("deepseek");
+            var envVarName = ApiKeyStore.ProviderEnvVar["deepseek"]; // DEEPSEEK_API_KEY
+            try
+            {
+                Environment.SetEnvironmentVariable(envVarName, "sk-env-aaaa1111");
+                Check("ApiKeyStore EnvKey: 读到环境变量", ApiKeyStore.EnvKey("deepseek") == "sk-env-aaaa1111");
+                Check("ApiKeyStore EnvKey: 无 env 返回 null", ApiKeyStore.EnvKey("__no_such_provider__") == null);
+
+                // 已有 json key → env 不覆盖（json 优先）
+                ApiKeyStore.Set("deepseek", "sk-json-2222");
+                var imported = ApiKeyStore.ImportFromEnvironment();
+                Check("ApiKeyStore 导入: 已有 json key 不被 env 覆盖",
+                    ApiKeyStore.Get("deepseek") == "sk-json-2222"
+                    && !imported.Contains("deepseek"));
+
+                // json 为空 → env 补入
+                ApiKeyStore.Remove("deepseek");
+                var imported2 = ApiKeyStore.ImportFromEnvironment();
+                Check("ApiKeyStore 导入: json 为空时 env 补入",
+                    ApiKeyStore.Get("deepseek") == "sk-env-aaaa1111"
+                    && imported2.Contains("deepseek"));
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(envVarName, savedEnv);
+                if (savedDeepseek != null) ApiKeyStore.Set("deepseek", savedDeepseek);
+                else ApiKeyStore.Remove("deepseek");
+            }
+        }
+
         // ---- ConnectConfig：connect/provider/connection 三层分类存储 ----
         Section("[ConnectionConfig]");
         {
