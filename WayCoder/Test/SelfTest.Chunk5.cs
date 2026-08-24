@@ -344,6 +344,48 @@ public static partial class SelfTest
         Check("目录: ToServerNode env ${VAR} 占位",
             ghNode["env"]?["GITHUB_PERSONAL_ACCESS_TOKEN"]?.AsString() == "${GITHUB_TOKEN}");
 
+        // ---- Claude Code MCP 共用 ----
+        Section("[Claude MCP 共用]");
+
+        // ConvertEntry 纯逻辑：type → transport 映射 + 字段透传
+        var ccStdio = Json.Parse(@"{ ""type"": ""stdio"", ""command"": ""npx"", ""args"": [""-y"", ""x""], ""env"": { ""K"": ""V"" } }")!;
+        var wStdio = ClaudeMcp.ConvertEntry("demo", ccStdio)!;
+        Check("ClaudeMcp: stdio 无 transport", !wStdio.Has("transport"));
+        Check("ClaudeMcp: stdio 透传 command", wStdio["command"]?.AsString() == "npx");
+        Check("ClaudeMcp: stdio 透传 args", wStdio["args"]?.Count == 2);
+        Check("ClaudeMcp: stdio 透传 env", wStdio["env"]?["K"]?.AsString() == "V");
+
+        var ccHttp = Json.Parse(@"{ ""type"": ""http"", ""url"": ""https://x/mcp"", ""headers"": { ""A"": ""1"" } }")!;
+        var wHttp = ClaudeMcp.ConvertEntry("web", ccHttp)!;
+        Check("ClaudeMcp: http→transport http", wHttp["transport"]?.AsString() == "http");
+        Check("ClaudeMcp: http 透传 url", wHttp["url"]?.AsString() == "https://x/mcp");
+
+        var ccSse = Json.Parse(@"{ ""type"": ""sse"", ""url"": ""https://x/sse"" }")!;
+        var wSse = ClaudeMcp.ConvertEntry("legacy", ccSse)!;
+        Check("ClaudeMcp: sse→transport sse", wSse["transport"]?.AsString() == "sse");
+
+        Check("ClaudeMcp: 空名返回 null", ClaudeMcp.ConvertEntry("", ccSse) == null);
+
+        // LoadServers 集成：temp home 放 .claude.json（user 级 mcpServers）
+        var origHome = Global.HomeOverride;
+        var tmpHome = Path.Combine(Path.GetTempPath(), "waycoder_claudemcp_" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tmpHome);
+        File.WriteAllText(Path.Combine(tmpHome, ".claude.json"),
+            @"{ ""mcpServers"": { ""claude-user"": { ""type"": ""stdio"", ""command"": ""node"", ""args"": [""x.js""] } } }");
+        Global.HomeOverride = tmpHome;
+        try
+        {
+            var loaded = ClaudeMcp.LoadServers();
+            Check("ClaudeMcp: LoadServers 读到 user 级", loaded.Any(s => s["name"]?.AsString() == "claude-user"));
+            var claudeUser = loaded.First(s => s["name"]?.AsString() == "claude-user");
+            Check("ClaudeMcp: LoadServers 转换 command", claudeUser["command"]?.AsString() == "node");
+        }
+        finally
+        {
+            Global.HomeOverride = origHome;
+            Directory.Delete(tmpHome, true);
+        }
+
         // AddServerToConfig 隔离测试：切到临时目录，验证写入 + 去重，不污染真实配置
         var origCwd = Environment.CurrentDirectory;
         var tmpDir = Path.Combine(Path.GetTempPath(), "waycoder_mcpcat_" + Guid.NewGuid().ToString("N")[..8]);
