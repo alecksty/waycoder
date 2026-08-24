@@ -292,7 +292,7 @@ public static partial class SelfTest
         // ---- MCP 生态目录 ----
         Section("[MCP 目录]");
 
-        Check("目录: 内置数量 >= 47", McpCatalog.All.Count >= 47);
+        Check("目录: 内置数量 >= 80", McpCatalog.All.Count >= 80);
         Check("目录: 查 git 命中", McpCatalog.Find("git")?.Name == "git");
         Check("目录: 忽略大小写", McpCatalog.Find("GIT")?.Name == "git");
         Check("目录: 查不存在返回 null", McpCatalog.Find("___nope___") == null);
@@ -327,6 +327,31 @@ public static partial class SelfTest
             && qdrantNode["env"]?["QDRANT_API_KEY"]?.AsString() == "${QDRANT_API_KEY}");
         var e2bNode = McpCatalog.ToServerNode(McpCatalog.Find("e2b")!);
         Check("目录: e2b env 占位", e2bNode["env"]?["E2B_API_KEY"]?.AsString() == "${E2B_API_KEY}");
+        // v0.87.25 扩充：搜索 Serper + 协作 Trello/ClickUp + 3D Blender + K8s（包名经 npm 核实）
+        Check("目录: 新增 serper 命中", McpCatalog.Find("serper")?.Name == "serper");
+        Check("目录: 新增 trello 命中", McpCatalog.Find("trello")?.Name == "trello");
+        Check("目录: 新增 clickup 命中", McpCatalog.Find("clickup")?.Name == "clickup");
+        Check("目录: 新增 blender 命中", McpCatalog.Find("blender")?.Name == "blender");
+        Check("目录: 新增 kubernetes 命中", McpCatalog.Find("kubernetes")?.Name == "kubernetes");
+        var trelloNode = McpCatalog.ToServerNode(McpCatalog.Find("trello")!);
+        Check("目录: trello env 占位", trelloNode["env"]?["TRELLO_API_KEY"]?.AsString() == "${TRELLO_API_KEY}"
+            && trelloNode["env"]?["TRELLO_TOKEN"]?.AsString() == "${TRELLO_TOKEN}");
+        Check("目录: blender 无需 key", McpCatalog.Find("blender")!.Env.Count == 0);
+        // v0.87.26 扩充：数据仓库/云/通讯/CRM/自动化（包名经 npm 核实，总量达 80+）
+        Check("目录: 新增 snowflake 命中", McpCatalog.Find("snowflake")?.Name == "snowflake");
+        Check("目录: 新增 duckdb 命中", McpCatalog.Find("duckdb")?.Name == "duckdb");
+        Check("目录: 新增 pinecone 命中", McpCatalog.Find("pinecone")?.Name == "pinecone");
+        Check("目录: 新增 aws 命中", McpCatalog.Find("aws")?.Name == "aws");
+        Check("目录: 新增 firebase 命中", McpCatalog.Find("firebase")?.Name == "firebase");
+        Check("目录: 新增 discord 命中", McpCatalog.Find("discord")?.Name == "discord");
+        Check("目录: 新增 telegram 命中", McpCatalog.Find("telegram")?.Name == "telegram");
+        Check("目录: 新增 salesforce 命中", McpCatalog.Find("salesforce")?.Name == "salesforce");
+        Check("目录: 新增 gmail 命中", McpCatalog.Find("gmail")?.Name == "gmail");
+        Check("目录: 新增 midscene 命中", McpCatalog.Find("midscene")?.Name == "midscene");
+        Check("目录: 新增 datadog 命中", McpCatalog.Find("datadog")?.Name == "datadog");
+        Check("目录: 云分类存在", McpCatalog.Search("云").Any(e => e.Name == "aws"));
+        Check("目录: 通讯分类存在", McpCatalog.Search("通讯").Any(e => e.Name == "discord"));
+        Check("目录: 协作分类扩充", McpCatalog.Search("协作").Count >= 12);
 
         var searchDb = McpCatalog.Search("数据库");
         Check("目录: 按分类搜索「数据库」", searchDb.Count >= 10 && searchDb.Any(e => e.Name == "sqlite"));

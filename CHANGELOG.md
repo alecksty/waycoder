@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.87.25 (2026-08-25) — MCP 生态目录 47→83（达 80+ 目标）
+
+内置目录一次扩充到 **83 个**，覆盖 Claude Code 热门生态九成方向。新增 36 个服务器，包名均经 `npm view` 逐条核实存在：
+
+- **搜索**：Serper（Google 搜索 API）
+- **数据库**：Snowflake（数据仓库）、DuckDB、ClickHouse、Typesense、Pinecone（向量库）
+- **云平台**（新分类）：AWS、Google Cloud、Firebase、DigitalOcean
+- **通讯**（新分类）：Discord、Telegram、WhatsApp、Twilio
+- **协作/办公**：Gmail、Google Calendar、Shopify、HubSpot、Salesforce、Zendesk、Mailchimp、Trello、ClickUp
+- **开发**：Blender（3D）、Kubernetes、ScreenshotOne（截图）、Midscene（AI 测试）、Magic（AI 前端）、Composio、OpenRouter、PostHog
+- **服务**：Weather、Spotify、Zapier、n8n、Datadog
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测 4384 通过 / 0 失败（新增 21 项：服务器命中 + 云/通讯分类 + env 占位）
+
 ## v0.87.24 (2026-08-25) — MCP 生态目录 40→47（向量库/云沙箱/浏览器云/邮件）
 
 - **向量数据库四件套**：Chroma、Qdrant、Elasticsearch、Weaviate——补齐当前最热的 RAG/检索 MCP 需求（`chromadb-mcp`、`mcp-server-qdrant`、`@elastic/mcp-server-elasticsearch`、`mcp-server-weaviate`，均带 `${VAR}` 环境变量占位）
