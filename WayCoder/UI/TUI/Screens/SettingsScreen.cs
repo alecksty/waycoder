@@ -373,6 +373,10 @@ public class SettingsScreen : TuiScreen
             else if (itemTop + 3 > _detailPanel.ScrollOffset + panelH)
                 _detailPanel.ScrollOffset = Math.Max(0, itemTop + 3 - panelH);
         }
+
+        // 高亮改了标签的 Bg/Fg，但 Bg/Fg 是普通属性不 MarkDirty；滚动视图增量渲染
+        // （child.IsDirty || IsDirty）只在面板脏时才重画标签 —— 不标脏则高亮不显示。
+        _detailPanel.Invalidate();
     }
 
     // ════════════════════════════════════════════════════════════════
