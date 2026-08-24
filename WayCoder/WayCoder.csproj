@@ -58,6 +58,12 @@
          其 obj/Debug、obj/Release 生成的 AssemblyInfo 会与主项目编译冲突（CS0579），排除 -->
     <Compile Remove="SnakeGame/**/*.cs" />
     <None Remove="SnakeGame/**/*" />
+    <!-- Hello / Hello.Tests 是独立演示项目（net8.0 + xunit），误置于本源码树内，
+         默认编译通配会卷入其 .cs / obj 生成文件（CS0579/CS0246），排除 -->
+    <Compile Remove="Hello/**/*.cs" />
+    <None Remove="Hello/**/*" />
+    <Compile Remove="Hello.Tests/**/*.cs" />
+    <None Remove="Hello.Tests/**/*" />
   </ItemGroup>
 
   <ItemGroup>
