@@ -273,6 +273,36 @@ public static partial class SelfTest
         Check("对齐: --session 解析", Arguments.CliArgRegistry.Get(pSession, "session") == "abc123");
         Console.WriteLine();
 
+        // ---- CLI 参数: --permission-mode 行为映射（P0-4 回归）----
+        Section("[CLI 参数: permission-mode]");
+        var savedWorkMode = WorkModeManager.CurrentMode;
+        var savedSandboxLevel = SandboxManager.Level;
+        var savedPermissionMode = PermissionManager.CurrentMode;
+        try
+        {
+            PermissionManager.CurrentMode = PermissionManager.Mode.Ask;
+            Check("permission-mode: plan → WorkMode.Plan",
+                Program.ApplyPermissionMode("plan") && WorkModeManager.CurrentMode == WorkMode.Plan);
+            Check("permission-mode: acceptEdits → auto-edit",
+                Program.ApplyPermissionMode("acceptEdits") && SandboxManager.Level == "auto-edit"
+                && PermissionManager.CurrentMode == PermissionManager.Mode.Ask);
+            Check("permission-mode: bypassPermissions → full-auto + Yolo",
+                Program.ApplyPermissionMode("bypassPermissions") && SandboxManager.Level == "full-auto"
+                && PermissionManager.CurrentMode == PermissionManager.Mode.Yolo);
+            Check("permission-mode: default no-op",
+                Program.ApplyPermissionMode("default") && WorkModeManager.CurrentMode == WorkMode.Plan
+                && SandboxManager.Level == "full-auto"
+                && PermissionManager.CurrentMode == PermissionManager.Mode.Yolo);
+            Check("permission-mode: unknown 返回 false", !Program.ApplyPermissionMode("unknown"));
+        }
+        finally
+        {
+            SandboxManager.SetLevel(savedSandboxLevel);
+            PermissionManager.CurrentMode = savedPermissionMode;
+            WorkModeManager.SetMode(savedWorkMode);
+        }
+        Console.WriteLine();
+
         // ---- 命令面板: 精选常用命令（Ctrl+Shift+P，对齐 Claude Code/OpenCode）----
         Section("[命令面板]");
         var paletteScreen = new ChatScreen();

@@ -17,7 +17,7 @@ public static class SessionManager
 
     /// <summary>旧会话目录（向后兼容读取）</summary>
     private static readonly string LegacySessionsDir =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".corecoder", "sessions");
+        Path.Combine(Global.Home, ".corecoder", "sessions");
 
     private static readonly Regex SafeSessionRegex = new(@"[^A-Za-z0-9._-]+", RegexOptions.None, TimeSpan.FromMilliseconds(100));
     private const int MaxSessionIdLen = 100;

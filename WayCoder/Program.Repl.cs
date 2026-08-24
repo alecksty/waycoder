@@ -476,7 +476,9 @@ public partial class Program
                     EconomyMode.Extreme => "极致",
                     _ => "关闭",
                 };
-                screen.AddSystemMsg($"经济模式: {name}（Ctrl+E 循环切换）");
+                RefreshActiveSlotTools(); // 经济档位可影响 Build 工具集，切换后立即刷新
+                _config.SaveToEnvFile();
+                screen.AddSystemMsg($"经济模式: {name}（Ctrl+E 循环切换，已持久化）");
                 mgr.Render();
                 continue;
             }
