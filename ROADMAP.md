@@ -1,6 +1,6 @@
 # WayCoder（道码）竞品分析与路线图
 
-> 版本：v0.87.21 | 日期：2026-08-25
+> 版本：v0.87.22 | 日期：2026-08-25
 
 ---
 
@@ -271,14 +271,14 @@ Week 5+ ─ 生态拓展（按需启动）
 
 ---
 
-## 九、2026-08-24 竞品差异复核
+## 九、2026-08-25 竞品差异复核
 
 | 维度 | WayCoder 现状 | 竞品参照 | 结论 |
 |---|---|---|---|
 | 模式体系 | 确认轴（`/permit`）、边界轴（`/perm`）、行为轴、省钱轴四轴正交 | Codex `sandbox_mode × approval_policy`、Claude permission modes | 已按竞品解耦，组合预设仍保留 `--yolo` / `--permission-mode bypassPermissions` |
 | 代理连通 | LLM 代理读取 `HTTP(S)_PROXY` 时同时遵守 `NO_PROXY`，回环地址自动绕过 | curl / 现代 CLI 标准行为 | 修复本地 Ollama/LM Studio 与自测 mock 被代理劫持的问题 |
 | 自测隔离 | 自测全局配置目录重定向到临时 home，不写真实用户目录 | CI 常见测试隔离 | 修复受限环境 `UnauthorizedAccessException` 崩溃 |
-| MCP 生态 | 内置 34 个服务器 + `/mcp add` | Claude Code 800+ 生态 | 仍是明显差距，下一步继续扩充目录与一键安装覆盖 |
+| MCP 生态 | 内置 40 个服务器 + `/mcp add`（npx/uvx 双启动） | Claude Code 800+ 生态 | 仍是明显差距，下一步继续扩充目录、补 Docker 启动与一键安装覆盖 |
 | 安全层级 | 软件沙箱（cwd/环境/资源限制） | Codex Seatbelt/Landlock 内核级 | 短期保留“软件沙箱 + 文件锁 + SSRF + 命令防护”组合；内核级留作长期 |
 | IDE 集成 | `--json` / `--output-format json` 桥接 | Claude Code beta、Codex VS Code 扩展 | 轻量桥接够用；完整扩展仍是 P1 |
 
@@ -289,7 +289,8 @@ Week 5+ ─ 生态拓展（按需启动）
 - `AllowedTools` 接入通用白名单决策链；`Ctrl+E` 切换经济档位后刷新并持久化。
 - `ToolSafetyRegistry` 统一工具级风险数据，权限确认与智能分类不再维护两份名单。
 - MCP 内置目录从 29 扩到 34：新增 GitLab、Redis、MySQL、PDF、AWS KB RAG、Google Drive。
+- MCP 内置目录 35→40：新增「部署」分类（Netlify）+ 搜索（Perplexity/DuckDuckGo）+ 开发（Figma/Chrome DevTools），并引入 uvx 启动方式（DuckDuckGo 走 Python/uvx）。
 
 下一优先项：
-- MCP 内置目录继续扩到常见搜索/数据库/协作/部署类服务器，并补一键 `npx`/`uvx`/Docker 启动模板。
+- MCP 内置目录继续扩到常见搜索/数据库/协作/部署类服务器（部署类已起头，继续补 Vercel/Cloudflare Pages 等），并补一键 Docker 启动模板。
 - 完整 VS Code 扩展复用 `--json` 桥接，补齐安装、运行任务、diff 预览三个核心界面。

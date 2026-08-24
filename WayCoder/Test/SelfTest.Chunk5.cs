@@ -307,6 +307,13 @@ public static partial class SelfTest
         Check("目录: 新增 pdf 命中", McpCatalog.Find("pdf")?.Name == "pdf");
         Check("目录: 新增 aws-kb-retrieval 命中", McpCatalog.Find("aws-kb-retrieval")?.Name == "aws-kb-retrieval");
         Check("目录: 新增 gdrive 命中", McpCatalog.Find("gdrive")?.Name == "gdrive");
+        // v0.87.21 扩充：新增部署分类 + uvx 启动方式（netlify/perplexity/duckduckgo/figma/chrome-devtools）
+        Check("目录: 新增 netlify 命中", McpCatalog.Find("netlify")?.Name == "netlify");
+        Check("目录: 新增 perplexity 命中", McpCatalog.Find("perplexity")?.Name == "perplexity");
+        Check("目录: 新增 duckduckgo 命中", McpCatalog.Find("duckduckgo")?.Name == "duckduckgo");
+        Check("目录: 新增 figma 命中", McpCatalog.Find("figma")?.Name == "figma");
+        Check("目录: 新增 chrome-devtools 命中", McpCatalog.Find("chrome-devtools")?.Name == "chrome-devtools");
+        Check("目录: 部署分类存在", McpCatalog.Search("部署").Any(e => e.Name == "netlify"));
 
         var searchDb = McpCatalog.Search("数据库");
         Check("目录: 按分类搜索「数据库」", searchDb.Count >= 6 && searchDb.Any(e => e.Name == "sqlite"));
@@ -329,6 +336,9 @@ public static partial class SelfTest
         var ghNode = McpCatalog.ToServerNode(McpCatalog.Find("github")!);
         Check("目录: ToServerNode name", ghNode["name"]?.AsString() == "github");
         Check("目录: ToServerNode command", ghNode["command"]?.AsString() == "npx");
+        var ddgNode = McpCatalog.ToServerNode(McpCatalog.Find("duckduckgo")!);
+        Check("目录: duckduckgo 走 uvx 启动", ddgNode["command"]?.AsString() == "uvx"
+            && ddgNode["args"]?.Items.Any(a => a.AsString() == "duckduckgo-mcp-server") == true);
         Check("目录: ToServerNode args 含包名",
             ghNode["args"]?.Items.Any(a => a.AsString() == "@modelcontextprotocol/server-github") == true);
         Check("目录: ToServerNode env ${VAR} 占位",

@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.87.22 (2026-08-25) — MCP 生态目录扩充 + uvx 启动方式
+
+- **MCP 内置目录 35→40**：新增「部署」分类（Netlify），补充搜索（Perplexity、DuckDuckGo）、开发（Figma、Chrome DevTools），包名均经官方文档/npm 核实
+- **引入 uvx 启动方式**：DuckDuckGo 走 `uvx duckduckgo-mcp-server`（Python），`McpCatalog` stdio 目录从「仅 npx」扩展为「npx/uvx/docker 任意 command」，`ToServerNode` 通用透传启动命令
+- **竞品短板对标**：Claude Code 800+ 生态 vs WayCoder 40 个精选目录，覆盖文件/版本控制/浏览器/搜索/数据库/记忆/开发/协作/服务/部署十大类
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测 4344 通过 / 0 失败（新增 7 项 MCP 目录断言：5 服务器命中 + 部署分类 + uvx 启动）
+
 ## v0.87.21 (2026-08-25) — 代码重构（拆大文件/合重复代码）+ --model import 进度输出
 
 - **拆分 4 个大文件**（纯物理移动/partial，零行为改动）：`BuiltinArgs.cs`（1204 行）按关注点拆 7 文件（`ModelArgs`/`ModeArgs`/`BatchArgs`/`DebugArgs`/`UtilityArgs`/`McpCli`/`CachePurger`）；`McpClient.cs`（1467 行）拆 `McpClient`/`McpTransport`/`McpTools` 3 文件；`LLM.cs` 移出 `JsonHelper` 到 `Infra/JsonHelper.cs`；`ModelCatalog.cs`（1645 行）拆 3 个 partial（核心 / 文件 IO / 供应商）
