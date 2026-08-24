@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.87.19 (2026-08-24) — API key 解析机制加固 + Keypad 无头修复 + 脚本跨平台
+
+- **API key 解析机制加固**（`ApiKeyStore`/`Program`/`Config`）：**api_keys.json 为权威源，默认优先使用**；环境变量 key 仅在 json 该服务商为空时才导入/使用（`ImportFromEnvironment`/`ImportFromKnownSources`/`--api-key`/自动导入全部加「只补空不覆盖」守卫）；`--api-key` CLI 仅本次会话生效，json 已有 key 不落盘覆盖；**只有手动 `--model key <供应商> <key>` 才允许覆盖**；新增 `ApiKeyStore.EnvKey()` 读取辅助。修复「env/CLI 一换就覆盖 api_keys.json」导致密钥污染、切换模型连不上
+- **Keypad 无头自测修复**（`InputManager.Init`）：输出/输入重定向时跳过 Console 终端模式设置，修复 `--keypad` 脚本（用 `INJECT` 喂键的阻塞式选择器如 ModelPicker）在管道/后台环境下未处理异常退出 127
+- **发布脚本跨平台**：`package.sh` Git Bash 无 `zip` 时用 PowerShell `Compress-Archive` 兜底（cygpath 转 Windows 路径）；`release.sh` 的 `sed -i ''` 改 GNU/BSD 兼容 `sedi`；`merge_webassets.py` 重配置 UTF-8 输出，修 Windows runner UnicodeEncodeError
+- **csproj 排除杂散项目**：`Hello/`、`Hello.Tests/` 独立演示项目（net8.0+xunit 误置于源码树）排除出主项目编译（CS0579/CS0246）
+
+### ✅ 验证
+- 新增自测：EnvKey 读取/无 env 返回 null/已有 json key 不被 env 覆盖/json 为空时 env 补入，全部通过
+- 自测 4279 通过 / 0 失败
+- 编译 0 错误
+
 ## v0.87.18 (2026-08-24) — API key 有效期 + aihubmix/openrouter 内置模型 + 启动界面精简
 
 - **API key 有效期字段**（`ApiKeyStore`）：每条 key 支持 `expiry`（永久 / 截止日期），`~/.waycoder/api_keys.json` 向后兼容（无 expiry=永久）；`--model key <供应商> <key> [有效期]` 保存带有效期、`--model key expiry <供应商> <有效期>` 改有效期；`--model key` 列表显示有效期并标 `⚠`（已过期 / 临期 ≤7 天），末尾汇总过期数
