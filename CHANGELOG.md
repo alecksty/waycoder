@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.87.28 (2026-08-25) — TUI 鼠标支持离屏测试（--tui-mouse）
+
+补「鼠标支持可验证」短板——此前鼠标路由只在真实终端手动点、无自动化回归。新增 `--tui-mouse` 命令，离屏模拟点击/滚轮/悬停/拖拽，逐项报告每个控件与界面的 OnMouse 是否正确响应：
+
+- **`TuiMouseTest`（34 断言）**：`OnMouse(InputEvent)` 是纯函数式接口（绝对坐标进 → 消费与否 + 状态变），不依赖真实终端/鼠标硬件，故可完全离屏自动化、无需交互。固定 `Tty.SizeOverride = (100, 40)` 保证窗口拖拽/缩放 clamp 稳定。
+- **覆盖 11 控件 + 3 分发层**：按钮（命中/区域外/悬停进出）、列表（滚轮/点击选中/多选勾选取消）、复选框、滑动条、滚动条（跳转/拖拽/释放）、懒列表（滚轮/激活）、富编辑器（滚轮/点击定位光标）、按钮组（委托子按钮）、行内权限块（允许/已解决不响应）、视图命中路由、窗口拖拽、屏幕模态遮罩拦截。
+- **已知不支持鼠标的界面如实上报**：`ReportUnsupported()` 列出 5 个全屏 ANSI 对话框（ModelPicker/SessionPicker/ReasoningPicker/CommandPalette/FilePicker）——内部虽用 TuiButton 等控件，但输入层走 `Console.ReadKey` 阻塞循环、不经 OnMouse 分发，仅键盘可用。
+- **SelfTest 集成**：`[TuiMouse]` section（模块 ui）复用 `CollectChecks()`，`/test ui`、`/test all` 均覆盖。
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测 4465 通过 / 0 失败（新增 34 项：TuiMouse 12 控件/分发层测试）
+
 ## v0.87.27 (2026-08-25) — 补竞品短板五连（上下文/验证门/审计/护栏/状态栏）
 
 针对 Claude Code / Codex 的痛点，一次性补五块短板：

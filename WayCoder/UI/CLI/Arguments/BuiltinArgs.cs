@@ -74,6 +74,7 @@ public static class BuiltinArgs
 #if WAYCODER_TEST
         CliArgRegistry.Register(new TuiDemoArg());
         CliArgRegistry.Register(new TuiAuditArg());
+        CliArgRegistry.Register(new TuiMouseArg());
         CliArgRegistry.Register(new DialogShowArg());
 #endif
         CliArgRegistry.Register(new GuiArg());
