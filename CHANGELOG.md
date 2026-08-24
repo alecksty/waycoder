@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.87.24 (2026-08-25) — MCP 生态目录 40→47（向量库/云沙箱/浏览器云/邮件）
+
+- **向量数据库四件套**：Chroma、Qdrant、Elasticsearch、Weaviate——补齐当前最热的 RAG/检索 MCP 需求（`chromadb-mcp`、`mcp-server-qdrant`、`@elastic/mcp-server-elasticsearch`、`mcp-server-weaviate`，均带 `${VAR}` 环境变量占位）
+- **云沙箱 E2B**：`@e2b/mcp-server` 隔离容器执行代码（对标 Codex 沙箱的云侧补齐，需 `E2B_API_KEY`）
+- **浏览器云 Browserbase**：`@browserbasehq/mcp` 云端浏览器自动化（需 API Key + Project）
+- **邮件 Resend**：`resend-mcp` 程序化发信（需 `RESEND_API_KEY`）
+- 所有新增包名均经 `npm view` 逐条核实存在，非凭记忆编造
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测 4363 通过 / 0 失败（新增 9 项：7 服务器命中 + qdrant/e2b env 占位）
+
 ## v0.87.23 (2026-08-25) — 共用 Claude Code 的 MCP 配置
 
 - **零配置复用 Claude Code MCP**：新增 `ClaudeMcp` 转换器，自动读取 Claude Code 已配好的 MCP 服务器并复用到 WayCoder——三处配置源（项目级 `.mcp.json`、user 级 `~/.claude.json` 顶层 `mcpServers`、project 级 `~/.claude.json` 的 `projects.<cwd>.mcpServers`），`type` 字段自动映射为 WayCoder 的 `transport`（stdio/http/sse），command/args/env/url/headers 全量透传

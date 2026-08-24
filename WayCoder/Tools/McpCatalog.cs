@@ -38,6 +38,7 @@ public static class McpCatalog
         // ── 浏览器 ──
         new() { Name = "puppeteer", Category = "浏览器", Description = "无头浏览器自动化（截图/导航/点击）", Args = ["-y", "@modelcontextprotocol/server-puppeteer"] },
         new() { Name = "playwright", Category = "浏览器", Description = "Playwright 浏览器自动化（微软出品）", Args = ["-y", "@playwright/mcp@latest"] },
+        new() { Name = "browserbase", Category = "浏览器", Description = "Browserbase 云端浏览器自动化（需 API Key/Project）", Args = ["-y", "@browserbasehq/mcp"], Env = new() { ["BROWSERBASE_API_KEY"] = "${BROWSERBASE_API_KEY}", ["BROWSERBASE_PROJECT_ID"] = "${BROWSERBASE_PROJECT_ID}" } },
 
         // ── 搜索 ──
         new() { Name = "brave-search", Category = "搜索", Description = "Brave 网页搜索（需 BRAVE_API_KEY）", Args = ["-y", "@modelcontextprotocol/server-brave-search"], Env = new() { ["BRAVE_API_KEY"] = "${BRAVE_API_KEY}" } },
@@ -55,6 +56,10 @@ public static class McpCatalog
         new() { Name = "neo4j", Category = "数据库", Description = "Neo4j 图数据库查询（需 NEO4J_URI）", Args = ["-y", "@neo4j/mcp-server"], Env = new() { ["NEO4J_URI"] = "${NEO4J_URI}", ["NEO4J_USERNAME"] = "${NEO4J_USERNAME}", ["NEO4J_PASSWORD"] = "${NEO4J_PASSWORD}" } },
         new() { Name = "mysql", Category = "数据库", Description = "MySQL 查询（默认只读，需 MYSQL_HOST/PORT/USER/PASS/DB）", Args = ["-y", "@benborla29/mcp-server-mysql"], Env = new() { ["MYSQL_HOST"] = "${MYSQL_HOST}", ["MYSQL_PORT"] = "${MYSQL_PORT}", ["MYSQL_USER"] = "${MYSQL_USER}", ["MYSQL_PASS"] = "${MYSQL_PASS}", ["MYSQL_DB"] = "${MYSQL_DB}" } },
         new() { Name = "redis", Category = "数据库", Description = "Redis key-value 查询（默认 localhost:6379）", Args = ["-y", "@modelcontextprotocol/server-redis", "redis://localhost:6379"] },
+        new() { Name = "chroma", Category = "数据库", Description = "Chroma 向量数据库（RAG 检索，默认本地 :8000）", Args = ["-y", "chromadb-mcp"] },
+        new() { Name = "qdrant", Category = "数据库", Description = "Qdrant 向量数据库（需 QDRANT_URL/API_KEY）", Args = ["-y", "mcp-server-qdrant"], Env = new() { ["QDRANT_URL"] = "${QDRANT_URL}", ["QDRANT_API_KEY"] = "${QDRANT_API_KEY}" } },
+        new() { Name = "elasticsearch", Category = "数据库", Description = "Elasticsearch 全文检索（需 ES_URL/ES_API_KEY）", Args = ["-y", "@elastic/mcp-server-elasticsearch"], Env = new() { ["ES_URL"] = "${ES_URL}", ["ES_API_KEY"] = "${ES_API_KEY}" } },
+        new() { Name = "weaviate", Category = "数据库", Description = "Weaviate 向量数据库（需 WEAVIATE_URL/API_KEY）", Args = ["-y", "mcp-server-weaviate"], Env = new() { ["WEAVIATE_URL"] = "${WEAVIATE_URL}", ["WEAVIATE_API_KEY"] = "${WEAVIATE_API_KEY}" } },
 
         // ── 记忆 / 思考 ──
         new() { Name = "memory", Category = "记忆", Description = "知识图谱持久记忆", Args = ["-y", "@modelcontextprotocol/server-memory"] },
@@ -66,6 +71,7 @@ public static class McpCatalog
         new() { Name = "sentry", Category = "开发", Description = "Sentry 错误追踪（需 SENTRY_TOKEN）", Args = ["-y", "@sentry/mcp@latest"], Env = new() { ["SENTRY_TOKEN"] = "${SENTRY_TOKEN}" } },
         new() { Name = "figma", Category = "开发", Description = "Figma 设计文件/组件/样式读取（需 FIGMA_ACCESS_TOKEN）", Args = ["-y", "@figma/mcp-server"], Env = new() { ["FIGMA_ACCESS_TOKEN"] = "${FIGMA_ACCESS_TOKEN}" } },
         new() { Name = "chrome-devtools", Category = "开发", Description = "Chrome DevTools 浏览器调试（性能/网络/控制台）", Args = ["-y", "chrome-devtools-mcp@latest"] },
+        new() { Name = "e2b", Category = "开发", Description = "E2B 云沙箱执行代码（隔离容器，需 E2B_API_KEY）", Args = ["-y", "@e2b/mcp-server"], Env = new() { ["E2B_API_KEY"] = "${E2B_API_KEY}" } },
 
         // ── 协作 / 办公 ──
         new() { Name = "notion", Category = "协作", Description = "Notion 页面/数据库读写（需 NOTION_TOKEN）", Args = ["-y", "@notionhq/notion-mcp-server"], Env = new() { ["NOTION_TOKEN"] = "${NOTION_TOKEN}" } },
@@ -80,6 +86,7 @@ public static class McpCatalog
         new() { Name = "stripe", Category = "服务", Description = "Stripe 支付/账单查询（需 STRIPE_SECRET_KEY）", Args = ["-y", "@stripe/mcp-server"], Env = new() { ["STRIPE_SECRET_KEY"] = "${STRIPE_SECRET_KEY}" } },
         new() { Name = "supabase", Category = "服务", Description = "Supabase 数据库/认证（需 SUPABASE_ACCESS_TOKEN）", Args = ["-y", "@supabase/mcp-server-supabase"], Env = new() { ["SUPABASE_ACCESS_TOKEN"] = "${SUPABASE_ACCESS_TOKEN}" } },
         new() { Name = "cloudflare", Category = "服务", Description = "Cloudflare Workers/KV（需 CLOUDFLARE_API_TOKEN）", Args = ["-y", "@cloudflare/mcp-server-cloudflare"], Env = new() { ["CLOUDFLARE_API_TOKEN"] = "${CLOUDFLARE_API_TOKEN}", ["CLOUDFLARE_ACCOUNT_ID"] = "${CLOUDFLARE_ACCOUNT_ID}" } },
+        new() { Name = "resend", Category = "服务", Description = "Resend 邮件发送（需 RESEND_API_KEY）", Args = ["-y", "resend-mcp"], Env = new() { ["RESEND_API_KEY"] = "${RESEND_API_KEY}" } },
 
         // ── 部署 ──
         new() { Name = "netlify", Category = "部署", Description = "Netlify 站点部署/环境变量/域名（需 NETLIFY_AUTH_TOKEN）", Args = ["-y", "@netlify/mcp"], Env = new() { ["NETLIFY_AUTH_TOKEN"] = "${NETLIFY_AUTH_TOKEN}" } },
