@@ -292,7 +292,7 @@ public static partial class SelfTest
         // ---- MCP 生态目录 ----
         Section("[MCP 目录]");
 
-        Check("目录: 内置数量 >= 34", McpCatalog.All.Count >= 34);
+        Check("目录: 内置数量 >= 47", McpCatalog.All.Count >= 47);
         Check("目录: 查 git 命中", McpCatalog.Find("git")?.Name == "git");
         Check("目录: 忽略大小写", McpCatalog.Find("GIT")?.Name == "git");
         Check("目录: 查不存在返回 null", McpCatalog.Find("___nope___") == null);
@@ -314,9 +314,22 @@ public static partial class SelfTest
         Check("目录: 新增 figma 命中", McpCatalog.Find("figma")?.Name == "figma");
         Check("目录: 新增 chrome-devtools 命中", McpCatalog.Find("chrome-devtools")?.Name == "chrome-devtools");
         Check("目录: 部署分类存在", McpCatalog.Search("部署").Any(e => e.Name == "netlify"));
+        // v0.87.24 扩充：向量库 + 云沙箱 + 浏览器云 + 邮件（包名经 npm 核实）
+        Check("目录: 新增 chroma 命中", McpCatalog.Find("chroma")?.Name == "chroma");
+        Check("目录: 新增 qdrant 命中", McpCatalog.Find("qdrant")?.Name == "qdrant");
+        Check("目录: 新增 elasticsearch 命中", McpCatalog.Find("elasticsearch")?.Name == "elasticsearch");
+        Check("目录: 新增 weaviate 命中", McpCatalog.Find("weaviate")?.Name == "weaviate");
+        Check("目录: 新增 browserbase 命中", McpCatalog.Find("browserbase")?.Name == "browserbase");
+        Check("目录: 新增 e2b 命中", McpCatalog.Find("e2b")?.Name == "e2b");
+        Check("目录: 新增 resend 命中", McpCatalog.Find("resend")?.Name == "resend");
+        var qdrantNode = McpCatalog.ToServerNode(McpCatalog.Find("qdrant")!);
+        Check("目录: qdrant env 占位", qdrantNode["env"]?["QDRANT_URL"]?.AsString() == "${QDRANT_URL}"
+            && qdrantNode["env"]?["QDRANT_API_KEY"]?.AsString() == "${QDRANT_API_KEY}");
+        var e2bNode = McpCatalog.ToServerNode(McpCatalog.Find("e2b")!);
+        Check("目录: e2b env 占位", e2bNode["env"]?["E2B_API_KEY"]?.AsString() == "${E2B_API_KEY}");
 
         var searchDb = McpCatalog.Search("数据库");
-        Check("目录: 按分类搜索「数据库」", searchDb.Count >= 6 && searchDb.Any(e => e.Name == "sqlite"));
+        Check("目录: 按分类搜索「数据库」", searchDb.Count >= 10 && searchDb.Any(e => e.Name == "sqlite"));
         var searchName = McpCatalog.Search("playwright");
         Check("目录: 按名称搜索", searchName.Count >= 1 && searchName[0].Name == "playwright");
         Check("目录: 空关键词返回全部", McpCatalog.Search(null).Count == McpCatalog.All.Count);
