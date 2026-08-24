@@ -310,17 +310,20 @@ public class AgentTool : ITool, ICancellableTool
         // 沿同一 async 上下文回传污染父智能体 cwd（后续父 bash/edit 相对路径解析错）——执行前保存父值。
         var parentCwd = BashTool.CurrentCwd.Value;
 
+        // 明文审计：预先构造任务全文与工具清单，供 finally 统一落盘（成功/失败/中断都留痕）
+        var contextSummary = BuildParentContext(depth);
+        var depthNote = depth > 0 ? $"\n（当前为第 {depth + 1} 层子智能体，最大深度 {maxDepth}）" : "";
+        // 注入子智能体纪律（不建 scratch/csproj、自测到通过、精简回报），固化压力测试铁律
+        var discipline = SystemPrompt.SubAgentDiscipline;
+        var fullTask = string.IsNullOrEmpty(contextSummary)
+            ? $"{discipline}\n\n{task}{depthNote}"
+            : $"{contextSummary}\n\n---\n{discipline}\n\n## 子任务{depthNote}\n{task}";
+        var toolsSummary = string.Join(", ", subTools.Select(t => t.Name));
+        var auditSw = System.Diagnostics.Stopwatch.StartNew();
+        string? auditResult = null;
+
         try
         {
-            // 注入父上下文摘要（最近几轮对话），让子智能体了解背景
-            var contextSummary = BuildParentContext(depth);
-            var depthNote = depth > 0 ? $"\n（当前为第 {depth + 1} 层子智能体，最大深度 {maxDepth}）" : "";
-            // 注入子智能体纪律（不建 scratch/csproj、自测到通过、精简回报），固化压力测试铁律
-            var discipline = SystemPrompt.SubAgentDiscipline;
-            var fullTask = string.IsNullOrEmpty(contextSummary)
-                ? $"{discipline}\n\n{task}{depthNote}"
-                : $"{contextSummary}\n\n---\n{discipline}\n\n## 子任务{depthNote}\n{task}";
-
             // 进入下一层深度
             _currentDepth.Value = depth + 1;
 
@@ -336,7 +339,9 @@ public class AgentTool : ITool, ICancellableTool
             var outputMax = Config.Instance.SubAgentOutputMaxChars;
             if (outputMax > 0 && result.Length > outputMax)
                 result = TruncateKeepTail(result, outputMax);
-            return $"[子智能体已完成 · 深度 {depth + 1}]\n{result}";
+            var final = $"[子智能体已完成 · 深度 {depth + 1}]\n{result}";
+            auditResult = final;
+            return final;
         }
         catch (OperationCanceledException)
         {
@@ -344,10 +349,14 @@ public class AgentTool : ITool, ICancellableTool
         }
         catch (Exception ex)
         {
-            return $"子智能体错误（深度 {depth + 1}）：{ex.GetType().Name}: {ex.Message}";
+            var err = $"子智能体错误（深度 {depth + 1}）：{ex.GetType().Name}: {ex.Message}";
+            auditResult = err;
+            return err;
         }
         finally
         {
+            auditSw.Stop();
+            SubAgentAudit.Record(depth + 1, fullTask, toolsSummary, auditResult ?? "(已中断)", auditSw.ElapsedMilliseconds);
             _currentDepth.Value = depth;
             // 回收子智能体实例的花费统计到父智能体（Clone 后统计独立，否则会丢失）
             parent.LlmClient.MergeUsageFrom(subLLM);

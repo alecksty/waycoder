@@ -413,6 +413,15 @@ public class SettingsScreen : TuiScreen
                 MarkDirty();
             }));
         }
+        else if (setting.Type == "toggle")
+        {
+            // 布尔开关：回车直接翻转 true/false（getter/setter 均为小写字符串，往返一致）
+            bool curBool = string.Equals(cur, "true", StringComparison.OrdinalIgnoreCase);
+            SetValue(setting.Key, curBool ? "false" : "true");
+            RebuildDetailPanel();
+            MarkDirty();
+            ShowToast($"已设为 {(curBool ? "关闭" : "开启")} — {setting.Label}", 1200);
+        }
         else if (setting.Type is "text" or "number" or "secret")
         {
             bool sec = setting.Type == "secret";

@@ -335,6 +335,156 @@ public static partial class SelfTest
         Check("StopWhen: Reset 后不触发压缩", !cm5.ShouldStopAndSummarize());
     }
 
+    /// <summary>
+    /// 上下文压缩可观测（预告 + 回看）：CompactionWarning / CompactionOccurred 事件 + CompactionHistory 有界历史。
+    /// 竞品（Codex 静默砍窗口 / Claude 上下文腐烂）对压缩黑盒，WayCoder 补「压缩前预告将丢 N 条 + 压缩后回看 N→M 条」。
+    /// </summary>
+    private static void TestContextCompactionAudit(Action<string, bool> Check)
+    {
+        // 第 1 层（裁剪工具输出）无需 LLM：纯字符串截断即可触发，且单条消息不进入第 2/3 层
+        int warned = 0;
+        ContextManager.CompactionEntry? occurred = null;
+        Action<string> onWarn = _ => warned++;
+        Action<ContextManager.CompactionEntry> onOccurred = e => occurred = e;
+        ContextManager.CompactionWarning += onWarn;
+        ContextManager.CompactionOccurred += onOccurred;
+        try
+        {
+            var bigTool = JNode.Object().Set("role", "tool")
+                .Set("content", string.Join("\n", Enumerable.Range(0, 200).Select(i => $"行{i}: {new string('x', 80)}")));
+            var cm = new ContextManager(200);
+            var copy = new List<JNode> { JNode.Object().Set("role", "tool").Set("content", bigTool["content"]!.AsString()) };
+            var compressed = cm.MaybeCompressAsync(copy, null).GetAwaiter().GetResult();
+            Check("压缩审计: 裁剪层触发压缩", compressed);
+            Check("压缩审计: CompactionOccurred 事件已触发", occurred != null && occurred.Layer == 1);
+            Check("压缩审计: 历史有记录", ContextManager.CompactionHistory.Count >= 1);
+            var last = ContextManager.CompactionHistory[^1];
+            Check("压缩审计: 记录层号为裁剪层", last.Layer == 1);
+            Check("压缩审计: 压缩后 tokens 下降", last.AfterTokens < last.BeforeTokens);
+
+            // 第 2 层（摘要）：触发预告事件「将丢 N 条」。>20 条消息 + 超阈值 + null LLM 走 ExtractKeyInfo 回退
+            warned = 0;
+            var manyMsgs = new List<JNode>();
+            for (int i = 0; i < 25; i++)
+                manyMsgs.Add(JNode.Object().Set("role", "user").Set("content", $"这是第 {i} 条消息" + new string('x', 40)));
+            var cm2 = new ContextManager(600);
+            var compressed2 = cm2.MaybeCompressAsync(manyMsgs, null).GetAwaiter().GetResult();
+            Check("压缩审计: 摘要层触发压缩", compressed2);
+            Check("压缩审计: 压缩预告事件已触发", warned >= 1);
+            Check("压缩审计: 历史含摘要/折叠层记录", ContextManager.CompactionHistory.Any(e => e.Layer >= 2));
+        }
+        finally
+        {
+            ContextManager.CompactionWarning -= onWarn;
+            ContextManager.CompactionOccurred -= onOccurred;
+        }
+    }
+
+    /// <summary>修完必验证闭环门（源码文件判定 + 配置开关）测试</summary>
+    private static void TestVerifyBeforeDone(Action<string, bool> Check)
+    {
+        Check("验证门: 默认开启", new Config().VerifyBeforeDone);
+        Check("验证门: .cs 是源码文件", Agent.IsSourceFile("a/b/Foo.cs"));
+        Check("验证门: .py 是源码文件", Agent.IsSourceFile("x.py"));
+        Check("验证门: .tsx 是源码文件", Agent.IsSourceFile("c.tsx"));
+        Check("验证门: .md 不是源码文件", !Agent.IsSourceFile("README.md"));
+        Check("验证门: .json 不是源码文件", !Agent.IsSourceFile("config.json"));
+        Check("验证门: 无扩展名不是源码文件", !Agent.IsSourceFile("Makefile"));
+        Check("验证门: 大写扩展名也命中", Agent.IsSourceFile("Foo.CS"));
+    }
+
+    /// <summary>子智能体明文审计日志（记录 + 截断 + 历史）测试</summary>
+    private static void TestSubAgentAudit(Action<string, bool> Check)
+    {
+        var savedEnabled = SubAgentAudit.Enabled;
+        SubAgentAudit.Enabled = true;
+        SubAgentAudit.ClearHistory();
+        try
+        {
+            SubAgentAudit.Record(1, "正常任务", "bash, read", "完成", 123);
+            SubAgentAudit.Record(2, new string('超', 5000), "write", "结果", 45);
+            var hist = SubAgentAudit.History;
+            Check("审计: 记录入历史", hist.Count == 2);
+            Check("审计: 工具清单保留", hist[0].Tools == "bash, read");
+            Check("审计: 深度保留", hist[0].Depth == 1);
+            Check("审计: 耗时保留", hist[0].DurationMs == 123);
+            Check("审计: 超长任务按 4000 码点截断", hist[1].Task.Length <= 4000);
+            SubAgentAudit.ClearHistory();
+            Check("审计: 清空历史", SubAgentAudit.History.Count == 0);
+        }
+        finally
+        {
+            SubAgentAudit.Enabled = savedEnabled;
+            SubAgentAudit.ClearHistory();
+        }
+    }
+
+    /// <summary>任务漂移护栏（目标注入 + 逐级加强 + 文件清单）测试</summary>
+    private static void TestGoalGuard(Action<string, bool> Check)
+    {
+        Check("护栏: 空目标返回空串", Agent.BuildGoalGuard("", 0, []) == "");
+        Check("护栏: 空目标即含清单也空", Agent.BuildGoalGuard("", 20, ["a.cs"]) == "");
+
+        var early = Agent.BuildGoalGuard("修 bug", 3, []);
+        Check("护栏: 早轮含 current_goal", early.Contains("<current_goal>"));
+        Check("护栏: 早轮不含 goal_check", !early.Contains("<goal_check>"));
+
+        var gentle = Agent.BuildGoalGuard("修 bug", 7, []);
+        Check("护栏: 中轮触发 goal_check", gentle.Contains("<goal_check>"));
+        Check("护栏: 中轮措辞=超过 6 轮", gentle.Contains("连续执行超过 " + Agent.GoalReinforceRound));
+
+        var strong = Agent.BuildGoalGuard("修 bug", 15, []);
+        Check("护栏: 晚轮措辞=超过 12 轮", strong.Contains("连续执行超过 " + Agent.GoalReinforceStrongRound));
+        Check("护栏: 晚轮含「已跑偏」", strong.Contains("已跑偏"));
+
+        var withFiles = Agent.BuildGoalGuard("修 bug", 7, ["src/Foo.cs", "src/Bar.cs"]);
+        Check("护栏: 清单列出文件", withFiles.Contains("src/Foo.cs"));
+        Check("护栏: 无文件则无清单", !gentle.Contains("文件清单"));
+
+        var manyFiles = Agent.BuildGoalGuard("修 bug", 7, Enumerable.Range(0, 25).Select(i => $"f{i}.cs").ToArray());
+        Check("护栏: 清单超 20 只列前 20", manyFiles.Contains("仅列前 20"));
+    }
+
+    /// <summary>状态栏路径信息（git 分支探测 + cwd 格式化）测试</summary>
+    private static void TestPathStatus(Action<string, bool> Check)
+    {
+        // 普通仓库（.git 目录）
+        var dir = Path.Combine(Path.GetTempPath(), "wc_git_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(Path.Combine(dir, ".git"));
+        File.WriteAllText(Path.Combine(dir, ".git", "HEAD"), "ref: refs/heads/main\n");
+        Check("路径: 普通仓库分支", PathStatus.TryGetBranch(dir) == "main");
+
+        // detached HEAD → 短哈希
+        File.WriteAllText(Path.Combine(dir, ".git", "HEAD"), "a1b2c3d4e5f6789\n");
+        Check("路径: detached HEAD 短哈希", PathStatus.TryGetBranch(dir) == "a1b2c3d4");
+
+        // 非 git 仓库
+        var noGit = Path.Combine(Path.GetTempPath(), "wc_nogit_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(noGit);
+        Check("路径: 非仓库返回 null", PathStatus.TryGetBranch(noGit) == null);
+
+        // worktree（.git 为文件指向 gitdir）
+        var wtGitDir = Path.Combine(Path.GetTempPath(), "wc_wtg_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(wtGitDir);
+        File.WriteAllText(Path.Combine(wtGitDir, "HEAD"), "ref: refs/heads/feature/x\n");
+        var wt = Path.Combine(Path.GetTempPath(), "wc_wt_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(wt);
+        File.WriteAllText(Path.Combine(wt, ".git"), "gitdir: " + wtGitDir + "\n");
+        Check("路径: worktree 分支", PathStatus.TryGetBranch(wt) == "feature/x");
+
+        // FormatCwd：home 展开
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var sub = Path.Combine(home, "Desktop", "proj");
+        var expectedHome = "~" + Path.DirectorySeparatorChar + "Desktop" + Path.DirectorySeparatorChar + "proj";
+        Check("路径: home 展开为 ~", PathStatus.FormatCwd(sub) == expectedHome);
+        Check("路径: 非 home 路径原样", PathStatus.FormatCwd("/usr/local/bin") == "/usr/local/bin");
+
+        try { Directory.Delete(dir, true); } catch { }
+        try { Directory.Delete(noGit, true); } catch { }
+        try { Directory.Delete(wtGitDir, true); } catch { }
+        try { Directory.Delete(wt, true); } catch { }
+    }
+
     /// <summary>省 token 模式（EconomyMode 三态 + 优先级）测试</summary>
     private static void TestEconomyMode(Action<string, bool> Check)
     {

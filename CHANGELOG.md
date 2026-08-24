@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.87.27 (2026-08-25) — 补竞品短板五连（上下文/验证门/审计/护栏/状态栏）
+
+针对 Claude Code / Codex 的痛点，一次性补五块短板：
+
+- **上下文水位可视化 + 压缩预告/回看**：`ContextManager` 新增 `CompactionWarning`/`CompactionOccurred` 事件与有界 `CompactionHistory`（最多 32 条），压缩前弹预告（即将把前 N 条合并为摘要）、压缩后弹「📦 已压缩 X→Y 条 · A→B tokens」，补足竞品「压缩不可见」的盲区。
+- **修完必验证闭环门**：新配置 `VerifyBeforeDone`（默认开，`WAYCODER_VERIFY_BEFORE_DONE`）——本轮改过源码却从未跑过测试时，收尾前强制验一次（测试命令优先、无测试退 `dotnet build`/`npm run build`/`go build`/`cargo build`），失败则注入摘要继续修，防「假修好了」。设置界面补 `toggle` 类型开关。
+- **子智能体明文审计日志**：每次子智能体任务把「提示词 + 授予工具集 + 结果 + 耗时」追加到 `.waycoder/audit/subagents.log`（gitignore）+ 内存历史（`SubAgentAudit`），对标 Claude Code 的 subagent transcript，`WAYCODER_SUBAGENT_AUDIT=0` 可关。
+- **任务漂移护栏加强**：`BuildGoalGuard` 纯逻辑提示构建器——`<current_goal>` 注入改为逐级加强（6 轮轻提示 → 12 轮强警告「很可能已跑偏」）+ 注入已触碰文件清单（自审是否改到无关文件）。
+- **状态栏显示工作目录 + git 分支**：底部状态栏中间新增 `📁 ~/path · ⎇ branch`（`PathStatus` 探测分支，支持 worktree/子模块 `.git` 文件、detached HEAD；home 展开为 `~`；超长保尾截断），补齐「不知道自己在哪个目录/分支」的痛点。
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测 4431 通过 / 0 失败（新增 47 项：压缩审计 8 + 验证门 8 + 审计 6 + 护栏 11 + 路径 6 + 校验 schema toggle 修正）
+
 ## v0.87.26 (2026-08-25) — MCP 目录补国内通讯 + 国内搜索
 
 按用户要求补齐两块：

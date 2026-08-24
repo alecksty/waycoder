@@ -1,6 +1,6 @@
 # WayCoder（道码）竞品分析与路线图
 
-> 版本：v0.87.26 | 日期：2026-08-25
+> 版本：v0.87.27 | 日期：2026-08-25
 
 ---
 
@@ -294,6 +294,7 @@ Week 5+ ─ 生态拓展（按需启动）
 - MCP 内置目录 40→47：补齐向量库四件套（Chroma/Qdrant/Elasticsearch/Weaviate）+ 云沙箱 E2B + 浏览器云 Browserbase + 邮件 Resend，包名均经 `npm view` 逐条核实。
 - MCP 内置目录 47→83（达 80+ 目标）：新增数据仓库（Snowflake/DuckDB/ClickHouse）、云平台（AWS/Google Cloud/Firebase/DigitalOcean）、通讯（Discord/Telegram/WhatsApp/Twilio）、CRM/办公（Salesforce/HubSpot/Gmail/Calendar/Shopify/Zendesk/Mailchimp/Trello/ClickUp）、开发（Blender/K8s/Midscene/Magic/Composio/OpenRouter/PostHog）、服务（Weather/Spotify/Zapier/n8n/Datadog）等 36 个，包名均经 `npm view` 逐条核实。
 - MCP 内置目录 83→87：通讯补微信（`weixin-mcp` 扫码即用）+ QQ（`qq-mcp` 经 HTTP API 发群消息，uvx 启动），搜索补国内百度（`baidu-search-mcp` 免费）+ SearXNG（`searxng-mcp` 自托管元搜索），包名均经 npm/PyPI 核实。
+- 补竞品短板五连：上下文压缩预告/回看（`CompactionWarning`/`CompactionOccurred` + 有界 `CompactionHistory`）、修完必验证闭环门（`VerifyBeforeDone`，收尾前强制验证防「假修好了」）、子智能体明文审计日志（`.waycoder/audit/subagents.log`）、任务漂移护栏加强（逐级 goal_check + 文件清单）、状态栏显示 cwd + git 分支（`PathStatus` 支持 worktree/detached HEAD）。
 
 下一优先项：
 - MCP 内置目录补一键 Docker 启动模板（目录目前 0 个 docker 启动条目，`McpCatalog` 的 `Command="docker"` 能力已就绪待填充）。
