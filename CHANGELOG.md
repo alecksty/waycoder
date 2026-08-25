@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.96.7 (2026-08-26) — GUI 修复：控件溢出换行 + 浅色主题文字可见
+
+GUI（Avalonia）两处显示缺陷：长内容控件溢出屏幕、切换浅色主题后文字仍是深色浅色导致看不见。
+
+- **表格长单元格换行**：`MarkdownBlocks.Table` 列宽由 `GridLength.Auto`（内容全宽，撑破气泡/屏幕）改为 `Star` 均分——长单元格在列内换行，不再溢出
+- **代码块防溢出**：`CodeBlock` 外层 Border 加 `ClipToBounds`，超长无空格 token（URL/长字符串）不破版
+- **右侧面板长文本换行**：`Panels.Text` 的 `wrap` 模式加 `MaxWidth`——水平 `Row`（StackPanel）测量给无限宽导致 `Wrap` 失效，强制限宽让任务标题/文件名/MCP 名/LSP 命令换行
+- **浅色主题文字可见**：`MarkdownInlines.RenderInline`/`ApplyStyles` 正文色此前硬编码深色主题浅色 `#e6e8ee`，切浅色后仍浅色导致白底白字看不见——改为接受 `defaultFg`/`dimFg`（`MarkdownBlocks` 传入动态 `TextBrush`/`DimTextBrush`），正文/行内代码/dim 文字随主题变色
+- **非活跃槽位气泡刷新**：`RebuildMessages` 对已存在的 `View` 调 `Render()` 重建 block，切主题后切回其他槽位文字色也正确
+- **GUI 编译修复**：`CoreStubs` 补 `Program.GetSlots()` 桩（主项目多槽位 cwd 新增引用，GUI 无 REPL 返回空数组），修复 GUI 项目既有编译错误
+- **编译**：`dotnet build WayCoder.Gui` 0 错误
+
 ## v0.96.6 (2026-08-26) — 聊天代码片段语法高亮 + 代码块去线框
 
 工具贴出的代码片段此前在聊天区统一颜色，现按语法着色；同时代码块去掉 `┌─┐` 线框，观感更简洁。

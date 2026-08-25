@@ -150,11 +150,11 @@ public static class MarkdownBlocks
                 int prefix = ListPrefixLen(l);
                 var bullet = l[..prefix];
                 tb.Inlines.Add(new Run("  " + bullet + " ") { Foreground = new SolidColorBrush(Dim) });
-                AddInlines(tb, MarkdownInlines.RenderInline(l[prefix..]));
+                AddInlines(tb, MarkdownInlines.RenderInline(l[prefix..], Text, Dim));
             }
             else
             {
-                AddInlines(tb, MarkdownInlines.RenderInline(l));
+                AddInlines(tb, MarkdownInlines.RenderInline(l, Text, Dim));
             }
         }
         return tb;
@@ -172,7 +172,7 @@ public static class MarkdownBlocks
         {
             if (k > 0) tb.Inlines.Add(new LineBreak());
             tb.Inlines.Add(new Run("│ ") { Foreground = new SolidColorBrush(Accent) });
-            AddInlines(tb, MarkdownInlines.RenderInline(lines[k]));
+            AddInlines(tb, MarkdownInlines.RenderInline(lines[k], Text, Dim));
         }
         return tb;
     }
@@ -198,6 +198,7 @@ public static class MarkdownBlocks
             CornerRadius = new CornerRadius(10),
             Padding = new Thickness(12, 8),
             Margin = new Thickness(0, 4, 0, 4),
+            ClipToBounds = true, // 超长无空格 token（URL/长字符串）不溢出气泡边界
         };
         if (!string.IsNullOrEmpty(lang))
         {
@@ -224,8 +225,9 @@ public static class MarkdownBlocks
         int colCount = parsed.Max(r => r.Count);
 
         var grid = new Grid { Margin = new Thickness(0, 4, 0, 4) };
+        // Star 均分列：长单元格在列内换行，不再按内容全宽撑破气泡/屏幕（Auto 列会逃逸气泡宽度约束）
         for (int c = 0; c < colCount; c++)
-            grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+            grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
 
         int gridRow = 0;
         for (int r = 0; r < parsed.Count; r++)

@@ -74,6 +74,9 @@ internal static class Panels
             TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap,
             VerticalAlignment = VerticalAlignment.Center,
         };
+        // 水平 Row（StackPanel）测量子元素给无限宽，Wrap 不生效——强制限宽让长文本换行，
+        // 右栏 300 - 卡片 padding 28 ≈ 272，留出状态圆点/计数等同行元素空间。
+        if (wrap) tb.MaxWidth = 230;
         tb[!TextBlock.ForegroundProperty] = new DynamicResourceExtension(dim ? "DimTextBrush" : "TextBrush");
         return tb;
     }
