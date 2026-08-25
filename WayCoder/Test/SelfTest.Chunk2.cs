@@ -253,6 +253,10 @@ class Matrix:
             }
             finally { try { Directory.Delete(logDir, true); } catch { } }
 
+            // /mind 是 /kb 的别名（SlashCommand.Aliases 匹配）
+            Check("/mind 别名匹配 /kb", new WayCoder.UI.Cli.Commands.KbCommand().Matches("/mind save 测试"));
+            Check("/kb 自身匹配", new WayCoder.UI.Cli.Commands.KbCommand().Matches("/kb weak"));
+
             // /mind 手动记忆：save 带日期 / search 检索 / forget 删除 / update 更新 / code 片段
             var manual = KbIndex.SaveManual("用户开发了 a 软件（22 种语言的一体编译器）");
             Check("/mind save 带日期上下文", manual.Content.StartsWith("**20") && manual.Content.Contains("22 种语言"));
