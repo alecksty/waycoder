@@ -222,6 +222,7 @@ WayCoder/
 /plan            计划模式，先规划再执行
 /init            分析项目并生成 AGENT.md（/init claude 生成 CLAUDE.md）
 /mcp             查看 MCP 服务器状态 / 重连
+/kb              编程知识库（mine 提炼经验 / save 记住 / review 自测 / weak 统计，详见 [docs/知识库.md](docs/知识库.md)）
 /doctor          发行后系统自检（/doctor fix 安全修复）
 /git              Git 操作（status/log/diff/commit/branch）
 /perm suggest|auto-edit|full-auto  沙箱边界切换
