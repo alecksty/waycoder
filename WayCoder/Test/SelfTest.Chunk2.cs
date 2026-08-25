@@ -182,6 +182,102 @@ class Matrix:
         }
         Console.WriteLine();
 
+        // ---- 自主学习知识库（四类经验存储 + LLM JSON 提炼 + 间隔重复 + 薄弱统计）----
+        Section("[知识库经验]");
+        try
+        {
+            // 存储 + 四类过滤（全局 ~/.waycoder/kb/，SelfTest 已 HomeOverride 隔离）
+            KbIndex.WriteEntry(new KbIndex.KbEntry { Name = "git-force-push", Description = "push 被拒先 rebase", Kind = "mistake", Content = "**现象**：push 被拒\n**根因**：历史分叉\n**修复**：fetch+rebase\n**教训**：不裸 force", Source = "test", Tags = ["git", "rebase"] });
+            KbIndex.WriteEntry(new KbIndex.KbEntry { Name = "fix-window-size", Description = "CI 无终端尺寸为 0", Kind = "bugfix", Content = "**现象**：CI 崩溃\n**根因**：Console 返回 0\n**修复**：回退 80/24", Source = "test", Tags = ["console", "ci"] });
+            KbIndex.WriteEntry(new KbIndex.KbEntry { Name = "habit-subagent", Description = "子智能体靠约束", Kind = "habit", Content = "**习惯**：不给工具", Source = "test" });
+            KbIndex.WriteEntry(new KbIndex.KbEntry { Name = "gap-aot", Description = "欠缺：AOT 反射禁令", Kind = "gap", Content = "**欠缺**：AOT 无反射", Source = "test", Tags = ["aot"] });
+
+            var all = KbIndex.ListEntries();
+            Check("知识库四类条目入库", all.Count == 4);
+            Check("四类过滤 kind 正确", all.All(e => KbIndex.KbKinds.Contains(e.Kind)));
+            Check("mistake 条目可取回", KbIndex.Get("git-force-push")?.Kind == "mistake");
+            Check("gap 条目带 tags", KbIndex.Get("gap-aot")?.Tags.Contains("aot") == true);
+
+            // BuildEntry（LLM 提炼 JSON 解析）
+            var draft = KbIndex.BuildEntry("{\"name\":\"json-test\",\"description\":\"JSON 提炼\",\"kind\":\"bugfix\",\"phenomenon\":\"P\",\"root_cause\":\"C\",\"fix\":\"F\",\"lesson\":\"L\",\"tags\":[\"a\",\"b\"],\"gaps\":[]}");
+            Check("BuildEntry 解析 kind/tags", draft != null && draft.Kind == "bugfix" && draft.Tags.Count == 2);
+            Check("BuildEntry 内容含现象/教训", draft != null && draft.Content.Contains("**现象**") && draft.Content.Contains("**教训**"));
+            Check("BuildEntry 非法 JSON 返回 null", KbIndex.BuildEntry("not json") == null);
+            Check("BuildEntry 未知 kind 归一", KbIndex.BuildEntry("{\"name\":\"x\",\"description\":\"d\",\"kind\":\"weird\",\"tags\":[]}")?.Kind == "bugfix");
+
+            // gaps[] → 欠缺知识条目
+            var gaps = KbIndex.ExtractGaps("{\"gaps\":[\"AOT 反射禁令\",\"并发锁\"],\"name\":\"x\"}");
+            Check("gaps[] 提取欠缺条目", gaps.Count == 2 && gaps.All(g => g.Kind == "gap"));
+
+            // 降级路径（无 LLM）
+            var fallback = KbIndex.BuildFallback("fix: 修了个 bug", " 1 file changed");
+            Check("Mine 降级生成 bugfix 条目", fallback.Kind == "bugfix" && fallback.Content.Contains("fix: 修了个 bug"));
+
+            // 复习调度：未复习过 = 立即到期；mistake/bugfix 优先于 habit/gap
+            var next = KbIndex.PickNextDue(KbIndex.ListEntries());
+            Check("PickNextDue 未复习即到期且优先高优先级", next != null && (next.Kind is "mistake" or "bugfix"));
+            KbIndex.MarkReview("git-force-push", true, "mistake", ["git", "rebase"]);
+            next = KbIndex.PickNextDue(KbIndex.ListEntries());
+            Check("掌握后跳过该条目", next?.Name == "fix-window-size");
+            KbIndex.MarkReview("fix-window-size", true, "bugfix", ["console", "ci"]);
+            next = KbIndex.PickNextDue(KbIndex.ListEntries());
+            Check("高优先级全掌握后轮候低优先级", next != null && (next.Kind is "habit" or "gap"));
+
+            var st = KbIndex.LoadReviewState();
+            Check("掌握后间隔 3 天", st.First(i => i.Name == "git-force-push").IntervalDays == 3);
+            Check("掌握后间隔 3 天(bugfix)", st.First(i => i.Name == "fix-window-size").IntervalDays == 3);
+
+            // 未掌握 → 间隔重置 1 天 + 关联 gap 权重提升
+            KbIndex.MarkReview("fix-window-size", false, "bugfix", ["aot"]); // tags 含 aot → 关联 gap-aot
+            st = KbIndex.LoadReviewState();
+            Check("未掌握间隔重置 1 天", st.First(i => i.Name == "fix-window-size").IntervalDays == 1);
+            var gapItem = st.FirstOrDefault(i => i.Name == "gap-aot");
+            Check("未掌握提升 gap 权重", gapItem != null && gapItem.Weight > 1.0);
+
+            // weak 统计：gap 按权重排序在前、薄弱标签聚合、ErrorLog 信号
+            var report = KbIndex.WeakStats();
+            Check("weak gap 清单非空", report.Gaps.Count >= 1);
+            Check("weak 薄弱标签聚合 git", report.WeakTags.Any(t => t.Tag == "git" && t.Count >= 1));
+
+            // ErrorLog 信号（假日志文件）
+            var logDir = Path.Combine(Path.GetTempPath(), "waycoder_kblog_" + Guid.NewGuid().ToString("N")[..6]);
+            Directory.CreateDirectory(logDir);
+            try
+            {
+                File.WriteAllText(Path.Combine(logDir, "error_20260825.log"),
+                    "[2026-08-25 10:00:00] [ERROR] [Tool:Bash] command failed\n" +
+                    "[2026-08-25 10:01:00] [ERROR] [Tool:Bash] command failed\n" +
+                    "[2026-08-25 10:02:00] [FATAL] [LLM] timeout\n");
+                var signals = KbIndex.ErrorLogSignals(logDir);
+                Check("ErrorLog 信号按 source 聚合", signals.Count == 2 && signals.First().Source == "Tool:Bash" && signals.First().Count == 2);
+            }
+            finally { try { Directory.Delete(logDir, true); } catch { } }
+
+            // /mind 手动记忆：save 带日期 / search 检索 / forget 删除 / update 更新 / code 片段
+            var manual = KbIndex.SaveManual("用户开发了 a 软件（22 种语言的一体编译器）");
+            Check("/mind save 带日期上下文", manual.Content.StartsWith("**20") && manual.Content.Contains("22 种语言"));
+            var found = KbIndex.Search("一体编译器", 3);
+            Check("/mind search 检索命中", found.Count >= 1 && found.Any(h => h.Entry.Name == manual.Name));
+
+            var snippet = KbIndex.SaveManual("class Fib { int F(int n) => n < 2 ? n : F(n-1) + F(n-2); }", "code");
+            Check("/mind save code 自动识别代码片段", snippet.Kind == "code");
+            Check("/mind save 自动识别代码", KbIndex.SaveManual("public static int Add(int a, int b) { return a + b; }").Kind == "code");
+            Check("/mind save 普通内容默认 habit", KbIndex.SaveManual("我喜欢用 Vim").Kind == "habit");
+
+            var updated = KbIndex.UpdateBestMatch("一体编译器", "a 软件升级为 42 种语言的一体编译器");
+            Check("/mind update 更新内容", updated != null && updated.Content.Contains("42 种语言"));
+            Check("/mind update 可检索新内容", KbIndex.Search("42 种语言", 2).Any(h => h.Entry.Name == manual.Name));
+
+            var removed = KbIndex.DeleteBestMatch("42 种语言的一体编译器");
+            Check("/mind forget 删除命中", removed != null && KbIndex.Get(manual.Name) == null);
+        }
+        finally
+        {
+            foreach (var n in new[] { "git-force-push", "fix-window-size", "habit-subagent", "gap-aot" })
+                KbIndex.DeleteEntry(n);
+        }
+        Console.WriteLine();
+
         // ---- frontmatter 解析边界（未闭合不污染正文）----
         Section("[StructuredMemory.ParseFrontmatter]");
         var pfOk = StructuredMemory.ParseFrontmatter("---\nname: x\ndescription: d\n---\n正文内容");
