@@ -150,6 +150,23 @@ public partial class Program
                 PermissionManager.SetMode(permitMode);
         }
 
+        // --mode <build|plan|chat>：启动工作模式（行为轴）。在 --permit 之后处理，显式指定时覆盖聊天别名。
+        // 与 /mode 斜杠命令同源解析；主/一次性 Agent 在 Main 后续按全局 CurrentMode 同步（_agent.WorkMode = ...）。
+        if (Arguments.CliArgRegistry.Get(parsed, "mode") is string modeName)
+        {
+            var target = modeName.ToLowerInvariant() switch
+            {
+                "build" or "建造" or "b" => WorkMode.Build,
+                "plan" or "计划" or "p" => WorkMode.Plan,
+                "chat" or "聊天" or "c" => WorkMode.Chat,
+                _ => (WorkMode?)null,
+            };
+            if (target != null)
+                WorkModeManager.SetMode(target.Value);
+            else
+                Console.Error.WriteLine($"⚠ 未知工作模式 '{modeName}'（可用: build|plan|chat）。");
+        }
+
         // 读取值参数
         string? model = Arguments.CliArgRegistry.Get(parsed, "model");
         string? baseUrl = Arguments.CliArgRegistry.Get(parsed, "base-url");

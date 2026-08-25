@@ -1,6 +1,6 @@
 # WayCoder（道码）竞品分析与路线图
 
-> 版本：v0.96.2 | 日期：2026-08-25
+> 版本：v0.96.3 | 日期：2026-08-25
 
 ---
 
@@ -153,6 +153,8 @@
 | ✅ CI 自测门禁 + GUI 构建 | v0.96.1 | ci.yml（push/PR）：主工程 + WayCoder.Gui 构建 + 4620 自测门禁（此前 CI 从不跑自测/不编译 GUI） |
 | ✅ 编辑器补齐 | v0.96.1 | Web Ctrl+F/H 查找替换；GUI tab 展开 4 空格 + 横向滚动；LspTool 锁 3s 超时防死锁 |
 | ✅ 修复源文件强加 BOM | v0.96.2 | 双代理测试发现 tetris.py 带 BOM；`Global.WriteAllTextPreserveBom`（原带 BOM 才保留）接入 5 处写文件点 |
+| ✅ 工作模式 CLI 参数 | v0.96.3 | `--mode <build/plan/chat>` CLI 直接启动三模式（行为轴）；`--permit tiny/chat` 聊天别名仍兼容 |
+| ✅ 系统提示词惰性生成 | v0.96.3 | 构造期按 Build 抢先生成被丢弃的昂贵工作消除：`EnsureSystemPrompt` 仅首次请求按当时模式/工具集生成并缓存；Chat 全程不生成 |
 
 ---
 
