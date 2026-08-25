@@ -12,8 +12,10 @@
   - `/kb review`：**间隔重复自测**——展示「现象+根因」提问，揭示「修复+教训」，掌握 → 间隔 1→3→7→14→30 天递增，未掌握 → 重置 1 天 + 关联 gap 权重提升（薄弱信号）
   - `/kb weak`：欠缺知识清单（gap 按权重）+ 薄弱标签（mistake/bugfix 聚合）+ ErrorLog 错误信号（按 source 计数）
   - `/kb list`：列出全部条目
+- **运行时检索 `kb` 工具**：聊天中 Agent 遇到**不熟悉的术语或疑似 bug** 时可调用 `kb` 工具在全局知识库 TF-IDF 检索相关经验（`KbTool`，已注册 ToolRegistry）
 - **运行时不打扰注入**：`SystemPrompt` 启动时 `KbIndex.GetRelevant(query)` 把相关经验并入记忆区块（TF-IDF 复用 `SemanticMemory`）
-- **纯函数可测**：BuildEntry（LLM JSON 解析）/ SaveManual / Search / UpdateBestMatch / DeleteBestMatch / 复习调度 / weak 统计 / ErrorLog 信号，全部离屏单测覆盖
+- **文档**：新增 [docs/知识库.md](docs/知识库.md)，README 命令表补 `/kb`
+- **纯函数可测**：BuildEntry（LLM JSON 解析）/ SaveManual / Search / UpdateBestMatch / DeleteBestMatch / 复习调度 / weak 统计 / ErrorLog 信号 / kb 工具，全部离屏单测覆盖
 
 ### ✅ 验证
 - 完整自测 **4529 通过 / 0 失败**（新增 `[知识库经验]` 节 30 项），无崩溃

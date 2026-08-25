@@ -274,6 +274,11 @@ class Matrix:
 
             var removed = KbIndex.DeleteBestMatch("42 种语言的一体编译器");
             Check("/mind forget 删除命中", removed != null && KbIndex.Get(manual.Name) == null);
+
+            // kb 工具：聊天中运行时检索全局知识库
+            Check("kb 工具已注册", WayCoder.Tools.ToolRegistry.BuiltinTools.Any(t => t.Name == "kb"));
+            var kbOut = new WayCoder.Tools.KbTool().ExecuteAsync(new() { ["query"] = "git rebase push" }).GetAwaiter().GetResult();
+            Check("kb 工具检索返回条目", kbOut.Contains("知识库匹配") && kbOut.Contains("push 被拒"));
         }
         finally
         {
