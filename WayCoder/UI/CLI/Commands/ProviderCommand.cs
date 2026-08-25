@@ -118,7 +118,7 @@ public class ProviderCommand : SlashCommand
             ModelCatalog.Providers.TryGetValue(pid, out var prov);
             var baseUrl = firstModel.DefaultBaseUrl ?? prov.DefaultBaseUrl;
             var hasKey = ApiKeyStore.Has(pid);
-            var keyMark = hasKey ? "🔑" : "—";
+            var keyMark = hasKey ? "🔑" : "— ";   // 统一占 2 列显示宽度（🔑 2 列，— 补空格），避免有/无 key 行错位
             var current = pid.Equals(Config.Instance.Provider, StringComparison.OrdinalIgnoreCase) ? " ← 当前" : "";
 
             sb.AppendLine($"  {keyMark} `{pid,-14}` {firstModel.Provider,-12} {g.Count(),3} 模型  {(string.IsNullOrEmpty(baseUrl) ? "" : baseUrl)}{current}");

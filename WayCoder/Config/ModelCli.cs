@@ -49,6 +49,12 @@ public static class ModelCli
         var sb = new StringBuilder();
         sb.AppendLine($"模型目录（共 {models.Length} 个）：");
 
+        // 第一列宽度：取所有模型短名的最大长度（+2 余量），避免名称溢出到第二列
+        var nameWidth = 0;
+        foreach (var m in models)
+            nameWidth = Math.Max(nameWidth, ModelCatalog.ShortDisplayName(m.Id).Length);
+        nameWidth = Math.Max(nameWidth + 2, 20);
+
         foreach (var g in models.GroupBy(m => m.Provider))
         {
             sb.AppendLine();
@@ -66,7 +72,7 @@ public static class ModelCli
                     : "?";
                 var mark = m.Id == current ? "  ← 当前" : "";
                 // 显示用短名（去 openrouter 类路由前缀），切换/调用仍用完整 id
-                sb.AppendLine($"  {ModelCatalog.ShortDisplayName(m.Id),-28} {ctx,-5}ctx  {price,-30}  [{m.Category}]{mark}");
+                sb.AppendLine($"  {ModelCatalog.ShortDisplayName(m.Id).PadRight(nameWidth)} {ctx,-5}ctx  {price,-30}  [{m.Category}]{mark}");
             }
         }
 
@@ -745,7 +751,9 @@ public static class ModelCli
                     foreach (var (id, p) in ModelCatalog.Providers.OrderBy(x => x.Key))
                     {
                         var hasKey = ApiKeyStore.Has(id);
-                        sb.AppendLine($"  {(hasKey ? "🔑" : "—")} {id,-20} {p.DisplayName,-22} {p.DefaultBaseUrl}");
+                        // keyMark 统一占 2 列显示宽度（🔑 宽 emoji 2 列，— 窄 1 列需补空格），否则有/无 key 行第二列起错位
+                        var keyMark = hasKey ? "🔑" : "— ";
+                        sb.AppendLine($"  {keyMark} {id,-20} {p.DisplayName,-22} {p.DefaultBaseUrl}");
                     }
                     Console.WriteLine($"服务商数据库（{ModelCatalog.Providers.Count}）：\n{sb.ToString().TrimEnd()}");
                     return 0;
