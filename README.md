@@ -231,6 +231,7 @@ WayCoder/
 /undo            回退（<文件> [n] 编辑级 / [id] [文件] 检查点级）
 /perm off|project|network-off|hard  沙箱边界切换（独立于权限）
 /permit ack|auto|smart|yolo  权限模式切换（独立于边界）
+/edit            内置源码编辑器（三端共享 EditorCore：TUI / Web `✏ 编辑器` / GUI `--gui [文件]`）
 /mode build|plan|chat  工作模式切换 (Shift+Tab)
 /update [check|now]  检查/自动升级到最新版本
 /auto            智能分级确认
@@ -291,6 +292,7 @@ quit / exit      退出 (Ctrl+Q)
 - **权限系统**：bash/write/edit/agent 默认行内确认，`/permit yolo` 跳过确认；`/perm full-auto` 单独启用受限沙箱
 - **双模型架构**：大模型做复杂任务，小模型做压缩/摘要，自动分工省钱
 - **模型回退链**：失败自动尝试备选（6 模型链条，跨供应商 API Key 自动解析）
+- **内置编辑器三端**：同一 `EditorCore` 模型在 TUI（`/edit` 全屏）/ Web（`✏ 编辑器`，透明 textarea 保中文 IME）/ GUI（Avalonia `EditorWindow`）可用——语法高亮/行号/撤销/查找/保存后 Lint 摘要；`waycoder --gui [文件]` 直开编辑器
 - **Watch 模式**：文件监听 + AI! 注释解析 → 线程安全队列 → REPL 自动执行
 - **结构化记忆**：`.waycoder/memory/*.md` frontmatter 多文件 + MEMORY.md 索引，支持跨会话检索
 - **Diff 预览**：`/config DiffPreview true` 开启写文件前逐 hunk 确认，非交互模式自动跳过
