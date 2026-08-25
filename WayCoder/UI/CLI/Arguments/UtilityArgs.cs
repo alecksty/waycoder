@@ -204,6 +204,24 @@ public class McpArg : CliArg
     public override int? OnMatch(List<string> values) => McpCli.Run(values);
 }
 
+/// <summary>编程知识库 CLI（mine 提炼经验 / review 间隔重复自测 / weak 薄弱点统计）</summary>
+public class KbArg : CliArg
+{
+    public override string Description => "编程知识库（mine 提炼经验 / review 间隔重复自测 / weak 薄弱点统计）";
+    public override int ValueCount => -1;
+    public override bool Greedy => true;
+    public override string? ValueLabel => "子命令";
+    public override (string Cmd, string Desc)[]? SubCommands =>
+    [
+        ("mine [N]", "从 git 历史提炼经验条目（默认 20）"),
+        ("review", "间隔重复自测一条到期经验"),
+        ("weak", "欠缺知识清单 + 薄弱点统计"),
+        ("list", "列出全部经验条目"),
+    ];
+    public KbArg() : base("kb", "--kb") { }
+    public override int? OnMatch(List<string> values) => KbCli.Run(values);
+}
+
 /// <summary>清空当前会话历史（对标 /reset 斜杠命令）</summary>
 public class ResetArg : CliArg
 {

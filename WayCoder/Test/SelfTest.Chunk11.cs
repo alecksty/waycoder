@@ -146,6 +146,7 @@ public static partial class SelfTest
             // CLI 参数解析层（--keypad/--test/--model 等），一次性模式直接打印 stdout，非全屏界面。
             // BuiltinArgs.cs 已按关注点拆分为 7 个文件，逐一白名单。
             "BuiltinArgs.cs", "ModelArgs.cs", "McpCli.cs", "DebugArgs.cs", "CachePurger.cs", "UtilityArgs.cs",
+            "KbCli.cs",
         };
 
         // 禁用模式：直接写 Console / 裸 ANSI 转义字面量（Terminal/ 底层与 Test/ 不在 UI/ 内，天然排除）
