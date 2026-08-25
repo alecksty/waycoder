@@ -169,7 +169,7 @@
 - **团队知识库共享** ✅ (v0.25.5)：多人项目共享 memory.md + git 同步
 - **自动升级** ✅ (v0.48.7)：`UpdateChecker` 自替换，对标 Claude Code `claude update`
 
-> 第二阶段原计划的「VS Code 扩展」以 `--json` 桥接的轻量方案落地（v0.51.0），完整 VS Code 扩展留作 P1。
+> 第二阶段原计划的「VS Code 扩展」以 `--json` 桥接的轻量方案落地（v0.51.0），完整 VS Code 扩展已交付 MVP（vscode-extension/，基于 --web SSE 流式对话）。
 
 ---
 
@@ -263,7 +263,7 @@ Week 5+ ─ 生态拓展（按需启动）
 待补齐的（对标 2026 竞品新能力）:
   • 超大规模并行编排 → 已落地「分批调度」✅ (v0.87.17，几十~上百任务自动分批串行；跨仓库 worktree 隔离大规模编排仍待扩展)
   • 内核级沙箱（对标 Codex Seatbelt/Landlock）
-  • VS Code 扩展（复用 --json 桥接，完整版 P1）
+  • VS Code 扩展 MVP ✅（vscode-extension/，--web SSE 流式对话 + 选中代码解释/修复）
   • MCP 生态目录自建 ✅ (v0.87.20，内置 34 个 + /mcp add 一键添加，Claude Code 有 800+ 仍在扩)
 
 	第二阶段生态拓展全部补完 🎉（v0.49~v0.51）→ 第三阶段竞品短板补齐 🎉（v0.87.14~v0.87.17）
@@ -280,7 +280,7 @@ Week 5+ ─ 生态拓展（按需启动）
 | 自测隔离 | 自测全局配置目录重定向到临时 home，不写真实用户目录 | CI 常见测试隔离 | 修复受限环境 `UnauthorizedAccessException` 崩溃 |
 | MCP 生态 | 内置 87 个服务器 + `/mcp add`（npx/uvx 双启动）+ 零配置共用 Claude Code MCP | Claude Code 800+ 生态 | 目录数量仍与 800+ 有差距，但「共用 Claude Code 配置」抹平了生态壁垒，87 个精选目录已覆盖热门方向（含国内通讯微信/QQ + 国内搜索百度/SearXNG），下一步补 Docker 启动 |
 | 安全层级 | 软件沙箱（cwd/环境/资源限制） | Codex Seatbelt/Landlock 内核级 | 短期保留“软件沙箱 + 文件锁 + SSRF + 命令防护”组合；内核级留作长期 |
-| IDE 集成 | `--json` / `--output-format json` 桥接 | Claude Code beta、Codex VS Code 扩展 | 轻量桥接够用；完整扩展仍是 P1 |
+| IDE 集成 | `--json` / `--output-format json` 桥接 | Claude Code beta、Codex VS Code 扩展 | 轻量桥接够用；完整扩展 MVP 已交付（vscode-extension/） |
 
 本轮已落地：
 - `LLM` 代理选择遵守 `NO_PROXY`，本地回环请求不再经过失效代理。
@@ -298,5 +298,5 @@ Week 5+ ─ 生态拓展（按需启动）
 
 下一优先项：
 - MCP 内置目录补一键 Docker 启动模板（目录目前 0 个 docker 启动条目，`McpCatalog` 的 `Command="docker"` 能力已就绪待填充）。
-- VS Code 扩展（复用 `--json` 桥接，补齐安装/运行任务/diff 预览，P1）。
+- VS Code 扩展 MVP 已交付（vscode-extension/，--web SSE 流式对话；补齐 diff 预览/运行任务仍可后续增强）。
 - 完整 VS Code 扩展复用 `--json` 桥接，补齐安装、运行任务、diff 预览三个核心界面。
