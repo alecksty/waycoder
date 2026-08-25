@@ -169,7 +169,11 @@ public partial class Agent
 
             // 错误自恢复：工具返回真实错误时追加修正提示（用户取消/权限拒绝/安全阻止不提示）
             if (ToolResultClassifier.IsError(result))
+            {
                 result += "\n[请分析错误原因，修正参数后重试]";
+                // 学习型智能体：召回知识库 + git 修复史中「同类错误上次怎么修的」（永不抛异常，失败静默）
+                try { result += await KbIndex.DiagnoseError(result, 2); } catch { }
+            }
 
             DebugLog.LogToolResult(tc.Name, result);
             return result;

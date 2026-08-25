@@ -214,6 +214,10 @@ public static class KbIndex
 
     /// <summary>真实 LLM 提炼（小模型一次性补全；不可用返回 null → 走降级）。</summary>
     public static async Task<string?> SummarizeWithLLM(string info)
+        => await CallSmallModel(SummarizerPrompt, info);
+
+    /// <summary>小模型一次性补全（system + user）。Agent/LLM 不可用返回 null。</summary>
+    public static async Task<string?> CallSmallModel(string systemPrompt, string userContent)
     {
         var agent = ProgramContext.Agent;
         if (agent?.LlmClient == null) return null;
@@ -222,12 +226,67 @@ public static class KbIndex
         {
             var resp = await llm.ChatAsync(
                 [
-                    JNode.Object().Set("role", "system").Set("content", SummarizerPrompt),
-                    JNode.Object().Set("role", "user").Set("content", info),
+                    JNode.Object().Set("role", "system").Set("content", systemPrompt),
+                    JNode.Object().Set("role", "user").Set("content", userContent),
                 ],
                 tools: null);
             return resp?.Content;
         });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 会话复盘 —— 会话结束提炼经验入知识库
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>会话复盘提炼器 system 提示词。</summary>
+    public const string RetroPrompt = """
+        你是资深编程经验提炼器。给定一次编程会话的对话记录（含用户请求、AI 回复、工具执行/报错），
+        提炼 1-5 条值得记住的经验（踩坑/bug 修复/决策/习惯/欠缺知识）。输出严格 JSON，不要多余文字：
+        {"lessons":[{"kind":"mistake|bugfix|habit|gap|code","description":"一行摘要","content":"经验正文（含现象/根因/做法）","tags":["标签"]}]}
+        """;
+
+    /// <summary>
+    /// 复盘一次会话：小模型提炼经验 → 写入知识库。返回 (写入条数, LLM 原始输出)。
+    /// </summary>
+    public static async Task<(int Saved, string Raw)> Retrospect(string transcript)
+    {
+        if (string.IsNullOrWhiteSpace(transcript)) return (0, "");
+        var json = await CallSmallModel(RetroPrompt,
+            ContextManager.TruncateByRunes($"【会话记录】\n{transcript}", 20000));
+        if (string.IsNullOrWhiteSpace(json)) return (0, "");
+
+        var lessons = ParseLessons(json);
+        int saved = 0;
+        foreach (var e in lessons) { WriteEntry(e); saved++; }
+        return (saved, json);
+    }
+
+    /// <summary>纯函数：解析复盘 JSON 的 lessons[] 为条目列表。</summary>
+    public static List<KbEntry> ParseLessons(string json)
+    {
+        var list = new List<KbEntry>();
+        JNode? root;
+        try { root = Json.Parse(json); }
+        catch { return list; }
+        if (root?.Kind != JKind.Object) return list;
+
+        foreach (var l in root["lessons"]?.Items ?? [])
+        {
+            var desc = l["description"]?.AsString() ?? "";
+            if (desc.Length == 0) continue;
+            var tags = (l["tags"]?.Items ?? [])
+                .Select(t => t.AsString() ?? "").Where(t => t.Length > 0).ToList();
+            list.Add(new KbEntry
+            {
+                Name = SanitizeName(desc),
+                Description = desc,
+                Kind = NormalizeKind(l["kind"]?.AsString() ?? ""),
+                Content = l["content"]?.AsString() ?? desc,
+                Source = "retro",
+                Tags = tags,
+            });
+        }
+        return list;
     }
 
     /// <summary>把 LLM 返回 JSON 解析成条目草稿；解析失败返回 null。</summary>
@@ -379,6 +438,181 @@ public static class KbIndex
         }).ToList();
         var hits = SemanticMemory.SearchRelevant(docs, text, topN);
         return hits.Select(h => (entries[h.Doc.Index], h.Score)).ToList();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 即时错误诊断 —— 报错时召回「同类错误上次怎么修的」
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 错误诊断：① 知识库 TF-IDF 检索相关经验；② git 历史 fix/refactor 提交按关键词匹配。
+    /// 返回「📎 历史经验」块文本；无匹配返回空串。gitLogOverride 供测试注入（null 时真实读 git）。
+    /// </summary>
+    public static async Task<string> DiagnoseError(string errorText, int topN = 2, string? gitLogOverride = null)
+    {
+        if (string.IsNullOrWhiteSpace(errorText)) return "";
+        var sb = new StringBuilder();
+
+        var kbHits = Search(errorText, topN);
+        if (kbHits.Count > 0)
+        {
+            sb.AppendLine("\n📎 知识库经验：");
+            foreach (var (e, score) in kbHits)
+                sb.AppendLine($"  · [{KindLabel(e.Kind)}] {e.Description}（相关度 {score:F2}）：{ContextManager.TruncateByRunes(e.Content.ReplaceLineEndings(" "), 120)}");
+        }
+
+        var gitHits = gitLogOverride != null
+            ? MatchFixCommits(errorText, gitLogOverride, 3)
+            : await GitFixMatchesAsync(errorText, 3);
+        if (gitHits.Count > 0)
+        {
+            sb.AppendLine("🔧 历史修复提交：");
+            foreach (var (subject, hash) in gitHits)
+                sb.AppendLine($"  · {subject}（{hash[..Math.Min(7, hash.Length)]}）");
+        }
+
+        return sb.Length > 0 ? sb.ToString() : "";
+    }
+
+    /// <summary>真实读 git 历史（最近 100 提交中取 fix/refactor），按错误文本相关度取 count 条。</summary>
+    static async Task<List<(string Subject, string Hash)>> GitFixMatchesAsync(string errorText, int count)
+    {
+        var (ec, logOut, _) = await GitRunner.RunAsync("log --format=%H|%s -100", null, CancellationToken.None);
+        return ec != 0 ? [] : MatchFixCommits(errorText, logOut, count);
+    }
+
+    /// <summary>
+    /// 纯函数：从 git log 输出（"%H|%s" 每行）筛出 fix:/refactor: 提交，与错误文本做 TF-IDF 相关度，取最相关 count 条。
+    /// </summary>
+    public static List<(string Subject, string Hash)> MatchFixCommits(string errorText, string gitLogOutput, int count)
+    {
+        if (string.IsNullOrWhiteSpace(gitLogOutput)) return [];
+        var fixes = new List<(string Subject, string Hash)>();
+        foreach (var line in gitLogOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var bar = line.IndexOf('|');
+            if (bar <= 0) continue;
+            var hash = line[..bar].Trim();
+            var subject = line[(bar + 1)..].Trim();
+            var prefix = subject.Split(' ')[0].Split(':')[0].Trim().ToLowerInvariant();
+            if (prefix is "fix" or "refactor") fixes.Add((subject, hash));
+        }
+        if (fixes.Count == 0) return [];
+
+        var docs = fixes.Select((f, i) => new SemanticMemory.MemoryDocument
+        { Title = f.Subject, Content = f.Subject, Timestamp = DateTime.MinValue, Index = i }).ToList();
+        var hits = SemanticMemory.SearchRelevant(docs, errorText, count);
+        if (hits.Count == 0)
+            return fixes.Take(count).ToList(); // 无词面相关也回退最近 fix/refactor 记录，诊断永不空
+        return hits.Select(h => fixes[h.Doc.Index]).ToList();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 技能画像 —— 聚合历史生成能力雷达
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>技能画像（四维聚合：KB 分类分布 / 薄弱标签 / ErrorLog 信号 / git 提交类型）。</summary>
+    public class SkillProfile
+    {
+        public int TotalEntries;
+        public int TotalCommits;
+        public List<(string Kind, int Count)> KbKinds = [];
+        public List<(string Tag, int Count)> WeakTags = [];
+        public List<(string Source, int Count)> ErrorSignals = [];
+        public Dictionary<string, int> GitCommitTypes = [];
+    }
+
+    /// <summary>
+    /// 生成技能画像。gitLogOverride / logDirOverride 供测试注入（null 时真实读 git/日志）。
+    /// </summary>
+    public static SkillProfile ProfileStats(string? gitLogOverride = null, string? logDirOverride = null)
+    {
+        var entries = ListEntries();
+        var profile = new SkillProfile { TotalEntries = entries.Count };
+
+        profile.KbKinds = entries.GroupBy(e => e.Kind)
+            .Select(g => (Kind: g.Key, Count: g.Count()))
+            .OrderByDescending(x => x.Count)
+            .ToList();
+
+        profile.WeakTags = entries.Where(e => e.Kind is "mistake" or "bugfix")
+            .SelectMany(e => e.Tags)
+            .GroupBy(t => t, StringComparer.OrdinalIgnoreCase)
+            .Select(g => (Tag: g.Key, Count: g.Count()))
+            .OrderByDescending(x => x.Count)
+            .ToList();
+
+        profile.ErrorSignals = ErrorLogSignals(logDirOverride);
+
+        string logOut;
+        if (gitLogOverride != null)
+            logOut = gitLogOverride;
+        else
+        {
+            var (ec, out_, _) = GitRunner.Run("log --format=%s -200", null);
+            logOut = ec == 0 ? out_ : "";
+        }
+        if (!string.IsNullOrWhiteSpace(logOut))
+        {
+            var (types, total) = ParseGitLog(logOut);
+            profile.GitCommitTypes = types;
+            profile.TotalCommits = total;
+        }
+        return profile;
+    }
+
+    /// <summary>
+    /// 纯函数：解析 git log 提交主题（每行一条），按 conventional 前缀计数（fix/feat/refactor/docs/...）。
+    /// </summary>
+    public static (Dictionary<string, int> Types, int Total) ParseGitLog(string gitLogOutput)
+    {
+        var types = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        int total = 0;
+        foreach (var line in gitLogOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        {
+            total++;
+            var subject = line.Trim();
+            var prefix = subject.Split(' ')[0].Split(':')[0].Trim().ToLowerInvariant();
+            if (prefix.Length > 0 && prefix.Length < 20)
+                types[prefix] = types.GetValueOrDefault(prefix) + 1;
+        }
+        return (types, total);
+    }
+
+    /// <summary>渲染技能画像为终端文本。</summary>
+    public static string FormatProfile(SkillProfile p)
+    {
+        var sb = new StringBuilder("🧭 技能画像\n");
+
+        sb.AppendLine($"\n── 知识库分布（共 {p.TotalEntries} 条）──");
+        if (p.KbKinds.Count == 0) sb.AppendLine("（暂无，/kb mine 提炼）");
+        else
+        {
+            int max = Math.Max(1, p.KbKinds.Max(k => k.Count));
+            foreach (var (kind, cnt) in p.KbKinds)
+            {
+                int bars = (int)Math.Round(10.0 * cnt / max);
+                int pct = (int)Math.Round(100.0 * cnt / Math.Max(1, p.TotalEntries));
+                sb.AppendLine($"  [{KindLabel(kind)}] {cnt} {new string('█', bars)}{new string('░', 10 - bars)} {pct}%");
+            }
+        }
+
+        if (p.TotalCommits > 0)
+        {
+            sb.AppendLine($"\n── git 提交画像（最近 {p.TotalCommits}）──");
+            sb.AppendLine("  " + string.Join(" · ", p.GitCommitTypes.OrderByDescending(kv => kv.Value)
+                .Take(8).Select(kv => $"{kv.Key} {kv.Value}")));
+        }
+
+        sb.AppendLine("\n── 薄弱标签 ──");
+        if (p.WeakTags.Count == 0) sb.AppendLine("（暂无）");
+        else sb.AppendLine("  " + string.Join(" · ", p.WeakTags.Take(10).Select(t => $"{t.Tag} ×{t.Count}")));
+
+        sb.AppendLine("\n── ErrorLog 错误信号 ──");
+        if (p.ErrorSignals.Count == 0) sb.AppendLine("（暂无）");
+        else sb.AppendLine("  " + string.Join(" · ", p.ErrorSignals.Take(8).Select(s => $"{s.Source} ×{s.Count}")));
+
+        return sb.ToString();
     }
 
     /// <summary>删除与文本最匹配的一条（name/description 精确优先，否则 TF-IDF 最佳）。返回被删条目或 null。</summary>

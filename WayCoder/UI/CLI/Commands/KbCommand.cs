@@ -1,4 +1,5 @@
 using System.Text;
+using WayCoder.Infra;
 using WayCoder.UI.Tui;
 using WayCoder.UI.Tui.Screens;
 
@@ -21,8 +22,8 @@ public class KbCommand : SlashCommand
 {
     public override string Name => "/kb";
     public override string[] Aliases => ["/mind"];
-    public override string Description => "编程知识库（mine 提炼 / save 记住 / update 更新 / forget 忘记 / search 查找 / review 自测 / weak 统计）";
-    public override string? Usage => "/kb <mine [N]|save|update|forget|search|find|review|weak|list>";
+    public override string Description => "编程知识库（mine 提炼 / save 记住 / diagnose 诊断 / profile 画像 / retro 复盘 / review 自测 / weak 统计）";
+    public override string? Usage => "/kb <mine [N]|save|update|forget|search|find|diagnose|profile|retro|review|weak|list>";
 
     public override async Task ExecuteAsync(string args, ChatScreen screen)
     {
@@ -51,6 +52,15 @@ public class KbCommand : SlashCommand
             case "find":
                 Search(screen, rest);
                 break;
+            case "diagnose":
+                await Diagnose(screen, rest);
+                break;
+            case "profile":
+                Profile(screen);
+                break;
+            case "retro":
+                await Retro(screen);
+                break;
             case "review":
                 Review(screen);
                 break;
@@ -75,9 +85,12 @@ public class KbCommand : SlashCommand
             "  /kb update <关键词> <新> 更新最匹配条目的内容\n" +
             "  /kb forget <内容>     忘记（删除）最匹配条目\n" +
             "  /kb search <内容>     查找相关条目\n" +
-            "  /kb review           间隔重复自测一条到期经验\n" +
-            "  /kb weak             欠缺知识清单 + 薄弱点统计\n" +
-            "  /kb list             列出全部条目");
+            "  /kb diagnose <报错>   诊断报错（召回知识库 + git 修复史）\n" +
+            "  /kb profile           技能画像（知识库/git/薄弱标签/ErrorLog）\n" +
+            "  /kb retro             复盘本次会话，提炼经验入知识库\n" +
+            "  /kb review            间隔重复自测一条到期经验\n" +
+            "  /kb weak              欠缺知识清单 + 薄弱点统计\n" +
+            "  /kb list              列出全部条目");
 
     static async Task Mine(ChatScreen screen, string arg)
     {
@@ -137,6 +150,48 @@ public class KbCommand : SlashCommand
         foreach (var (hit, score) in hits)
             msg.AppendLine($"  · {hit.Description}〔{KbIndex.KindLabel(hit.Kind)}·相关度 {score:F2}〕");
         screen.AddSystemMsg(msg.ToString());
+    }
+
+    static async Task Diagnose(ChatScreen screen, string content)
+    {
+        if (content.Length == 0) { screen.AddSystemMsg("用法: /kb diagnose <报错文本>"); return; }
+        var diag = await KbIndex.DiagnoseError(content, 3);
+        screen.AddSystemMsg(diag.Length > 0
+            ? $"🔎 同类错误历史经验：\n{diag}"
+            : "🔎 知识库与 git 修复史中暂无匹配，可 /kb mine 提炼或 /kb save 记录。");
+    }
+
+    static void Profile(ChatScreen screen)
+        => screen.AddSystemMsg(KbIndex.FormatProfile(KbIndex.ProfileStats()));
+
+    static async Task Retro(ChatScreen screen)
+    {
+        var agent = ProgramContext.Agent;
+        if (agent == null) { screen.AddSystemMsg("无活跃会话可复盘。"); return; }
+        var transcript = BuildTranscript(agent.SnapshotMessages());
+        if (transcript.Length < 50) { screen.AddSystemMsg("会话内容太少，暂不复盘。"); return; }
+
+        screen.AddSystemMsg("🔁 正在复盘本次会话并提炼经验…");
+        var (saved, _) = await KbIndex.Retrospect(transcript);
+        screen.AddSystemMsg(saved > 0
+            ? $"✅ 复盘完成：提炼 {saved} 条经验入知识库（/kb list 查看）。"
+            : "复盘未提炼出新经验（可能是模型不可用或内容无要点）。");
+    }
+
+    /// <summary>把会话消息拼成 role 前缀纯文本（供 LLM 复盘）。</summary>
+    static string BuildTranscript(List<JNode> messages)
+    {
+        var sb = new StringBuilder();
+        foreach (var m in messages)
+        {
+            var role = m["role"]?.AsString() ?? "?";
+            var content = m["content"]?.AsString() ?? "";
+            if (content.Length == 0) continue;
+            if (content.Length > 2000) content = ContextManager.TruncateByRunes(content, 2000);
+            sb.AppendLine($"## {role}");
+            sb.AppendLine(content);
+        }
+        return sb.ToString();
     }
 
     static void Review(ChatScreen screen)
