@@ -88,7 +88,9 @@ public static class Tty
         get
         {
             if (SizeOverride is { } o) return o.W;
-            try { return Console.WindowWidth; }
+            // CI/重定向下 Console.WindowWidth 可能返回 0（非抛异常），0 会让布局测试全崩，
+            // 与 IOException 一样回退 80 安全默认值
+            try { return Console.WindowWidth > 0 ? Console.WindowWidth : 80; }
             catch (IOException) { return 80; }
         }
     }
@@ -99,7 +101,7 @@ public static class Tty
         get
         {
             if (SizeOverride is { } o) return o.H;
-            try { return Console.WindowHeight; }
+            try { return Console.WindowHeight > 0 ? Console.WindowHeight : 24; }
             catch (IOException) { return 24; }
         }
     }
