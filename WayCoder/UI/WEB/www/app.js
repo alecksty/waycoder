@@ -263,7 +263,7 @@ function renderFiles(files) {
     const name = String(path).split(/[\\/]/).pop();
     const a = f && f.added, d = f && f.deleted;
     const stat = (a || d) ? (' <span class="stat-add">+' + (a || 0) + '</span><span class="stat-del">-' + (d || 0) + '</span>') : '';
-    return '<div class="item">' + escapeHtml(name) + stat + '</div>';
+    return '<div class="item file-open" data-path="' + escapeHtml(path) + '" title="点击在编辑器打开">' + escapeHtml(name) + stat + '</div>';
   }).join('');
 }
 function renderMcp(mcp) {
@@ -1616,3 +1616,217 @@ fetch('/models').then(r => r.json()).then(models =>
 fetchSessions();
 fetchPanel();
 setInterval(fetchPanel, 2000);
+
+// ═══════════════════════════════════════════════════════════════
+// 内置代码编辑器（三端共享 EditorCore 模型；Web 端透明 textarea 叠 pre）
+// 编辑/选区/光标全走浏览器原生（中文 IME 必需）；后端只做文件 IO + lint
+// ═══════════════════════════════════════════════════════════════
+const editorEl = document.getElementById('editor-overlay');
+const edArea = document.getElementById('editor-area');
+const edGutter = document.getElementById('editor-gutter');
+const ed = { path: '', content: '', saved: '', dirty: false, lang: '' };
+
+function langFromPath(p) {
+  const m = String(p || '').toLowerCase();
+  if (m.endsWith('.cs')) return 'csharp';
+  if (/\.(js|jsx|mjs|cjs)$/.test(m)) return 'js';
+  if (/\.(ts|tsx)$/.test(m)) return 'ts';
+  if (m.endsWith('.py')) return 'python';
+  if (/\.(sh|bash)$/.test(m)) return 'bash';
+  if (m.endsWith('.go')) return 'go';
+  if (m.endsWith('.rs')) return 'rust';
+  if (m.endsWith('.java')) return 'java';
+  if (/\.(c|h)$/.test(m)) return 'c';
+  if (/\.(cpp|cc|cxx|hpp)$/.test(m)) return 'cpp';
+  if (m.endsWith('.json')) return 'json';
+  if (/\.(xml|html|htm)$/.test(m)) return 'html';
+  if (m.endsWith('.css')) return 'css';
+  if (m.endsWith('.sql')) return 'sql';
+  if (/\.(yaml|yml)$/.test(m)) return 'yaml';
+  if (/\.(md|markdown)$/.test(m)) return 'md';
+  return '';
+}
+function edLineCount() { return edArea.value.split('\n').length; }
+function renderGutter() {
+  const n = edLineCount();
+  let html = '';
+  for (let i = 1; i <= n; i++) html += '<div class="ln">' + i + '</div>';
+  edGutter.innerHTML = html;
+  edGutter.scrollTop = edArea.scrollTop;
+}
+function renderHighlight() {
+  document.getElementById('editor-highlight-code').innerHTML =
+    edArea.value ? highlightCode(edArea.value, ed.lang) : '';
+  const pre = document.getElementById('editor-highlight');
+  pre.scrollTop = edArea.scrollTop;
+  pre.scrollLeft = edArea.scrollLeft;
+}
+let edHiTimer = null;
+function scheduleHighlight() {
+  clearTimeout(edHiTimer);
+  edHiTimer = setTimeout(renderHighlight, 150);
+}
+function updateStatus() {
+  const sel = edArea.selectionStart;
+  const cy = (edArea.value.slice(0, sel).split('\n').length) || 1;
+  const cx = sel - (edArea.value.lastIndexOf('\n', sel - 1) + 1) + 1;
+  document.getElementById('editor-pos').textContent = 'L' + cy + ':C' + cx;
+  document.getElementById('editor-meta').textContent =
+    edLineCount() + ' 行 · ' + new Blob([edArea.value]).size + ' B';
+  document.getElementById('editor-lang').textContent = ed.lang || 'plaintext';
+  document.getElementById('editor-dirty').style.visibility = ed.dirty ? 'visible' : 'hidden';
+}
+function edSync() {
+  ed.content = edArea.value;
+  ed.dirty = ed.content !== ed.saved;
+  renderGutter();
+  scheduleHighlight();
+  updateStatus();
+  document.title = (ed.dirty ? '● ' : '') + '道码 编辑器';
+}
+function setEdPath(p) {
+  ed.path = p;
+  ed.lang = langFromPath(p);
+  const el = document.getElementById('editor-path');
+  el.textContent = p || '（未打开文件）';
+  el.title = p;
+}
+async function openEditor(path) {
+  setEdPath(path || '');
+  let content = '';
+  if (path) {
+    try {
+      const r = await fetch(cq('/editor/file?path=' + encodeURIComponent(path)));
+      const d = await r.json();
+      if (d && d.ok) content = d.content || '';
+    } catch (e) { content = ''; }
+  }
+  ed.content = content; ed.saved = content; ed.dirty = false;
+  edArea.value = content;
+  edArea.disabled = false;
+  editorEl.hidden = false;
+  renderGutter(); renderHighlight(); updateStatus();
+  document.getElementById('editor-diags').textContent = '';
+  document.title = '道码 编辑器';
+  edArea.focus();
+  fetchDiags();
+}
+function closeEditor() {
+  if (ed.dirty && !confirm('文件未保存，确定关闭编辑器？')) return;
+  editorEl.hidden = true;
+  document.title = 'WayCoder（道码）';
+}
+async function doSave() {
+  if (!ed.path) { showEditorNewModal(); return; }
+  try {
+    const r = await fetch(cq('/editor/save'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: ed.path, content: edArea.value })
+    });
+    const d = await r.json();
+    if (!d || !d.ok) { alert((d && d.error) || '保存失败'); return; }
+    ed.saved = edArea.value; ed.content = ed.saved; ed.dirty = false;
+    updateStatus();
+    document.getElementById('editor-diags').textContent = '已保存 ✓';
+    setTimeout(fetchDiags, 2500);
+  } catch (e) { alert('保存失败: ' + e); }
+}
+async function fetchDiags() {
+  if (!ed.path) return;
+  try {
+    const r = await fetch(cq('/editor/diags?path=' + encodeURIComponent(ed.path)));
+    const d = await r.json();
+    if (!d || !d.ok) return;
+    const summary = d.summary || {};
+    const el = document.getElementById('editor-diags');
+    el.innerHTML = '';
+    const n = (summary.errors || 0), w = (summary.warnings || 0);
+    const sp = document.createElement('span');
+    if (n) sp.className = 'd-err'; else if (w) sp.className = 'd-warn';
+    sp.textContent = n + ' 错误 · ' + w + ' 警告';
+    el.appendChild(sp);
+    const lines = d.lines || {}, gutter = edGutter.children;
+    for (const lnStr in lines) {
+      const i = parseInt(lnStr, 10) - 1;
+      if (i >= 0 && gutter[i]) {
+        const hasErr = (lines[lnStr] || []).some(x => x.severity === 'error');
+        gutter[i].className = 'ln ' + (hasErr ? 'ln-err' : 'ln-warn');
+      }
+    }
+  } catch (e) { /* 诊断失败不打断编辑 */ }
+}
+// ── 文件树（懒加载目录）──
+async function loadTree(dir, container) {
+  try {
+    const r = await fetch(cq('/editor/list?dir=' + encodeURIComponent(dir)));
+    const d = await r.json();
+    if (!d || !d.ok) { container.innerHTML = '<div class="editor-file">（空或越界）</div>'; return; }
+    container.innerHTML = '';
+    for (const e of (d.entries || [])) {
+      const row = document.createElement('div');
+      row.className = e.isDir ? 'editor-dir' : 'editor-file';
+      row.title = e.path;
+      if (e.isDir) {
+        row.textContent = '▸ ' + e.name;
+        row.onclick = () => {
+          let child = row.nextElementSibling;
+          if (child && child.dataset.childOf === e.path) {
+            child.hidden = !child.hidden;
+          } else {
+            child = document.createElement('div');
+            child.dataset.childOf = e.path;
+            child.style.marginLeft = '12px';
+            row.after(child);
+            loadTree(e.path, child);
+          }
+          row.firstChild.textContent = child.hidden ? '▸ ' : '▾ ';
+        };
+      } else {
+        row.textContent = e.name;
+        row.onclick = () => openEditor(e.path);
+      }
+      container.appendChild(row);
+    }
+  } catch (e) { container.innerHTML = '<div class="editor-file">（加载失败）</div>'; }
+}
+function toggleTree() {
+  const side = document.getElementById('editor-side');
+  side.hidden = !side.hidden;
+  if (!side.hidden && !document.getElementById('editor-tree').children.length) loadTree('', document.getElementById('editor-tree'));
+}
+function showEditorNewModal() { document.getElementById('editor-new-modal').hidden = false; document.getElementById('editor-new-path').focus(); }
+async function createNewFile() {
+  const path = document.getElementById('editor-new-path').value.trim();
+  document.getElementById('editor-new-modal').hidden = true;
+  if (!path) return;
+  await openEditor(path); // 缺失文件后端返回空 content
+  edArea.focus();
+}
+// ── 事件绑定 ──
+document.getElementById('editor-btn').addEventListener('click', () => openEditor(ed.path));
+document.getElementById('editor-close').addEventListener('click', closeEditor);
+document.getElementById('editor-save').addEventListener('click', doSave);
+document.getElementById('editor-tree-btn').addEventListener('click', toggleTree);
+document.getElementById('editor-new-btn').addEventListener('click', showEditorNewModal);
+document.getElementById('editor-new-cancel').addEventListener('click', () => { document.getElementById('editor-new-modal').hidden = true; });
+document.getElementById('editor-new-ok').addEventListener('click', createNewFile);
+edArea.addEventListener('input', edSync);
+edArea.addEventListener('scroll', () => {
+  edGutter.scrollTop = edArea.scrollTop;
+  const pre = document.getElementById('editor-highlight');
+  pre.scrollTop = edArea.scrollTop; pre.scrollLeft = edArea.scrollLeft;
+});
+edArea.addEventListener('click', updateStatus);
+edArea.addEventListener('keyup', updateStatus);
+edArea.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.preventDefault(); closeEditor(); }
+  else if (e.ctrlKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); doSave(); }
+  else if (e.ctrlKey && (e.key === 'o' || e.key === 'O')) { e.preventDefault(); toggleTree(); }
+  else if (e.ctrlKey && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); showEditorNewModal(); }
+});
+window.addEventListener('beforeunload', e => { if (ed.dirty) { e.preventDefault(); e.returnValue = ''; } });
+// 改动文件面板可点开 → 编辑器
+document.addEventListener('click', e => {
+  const t = e.target.closest('.file-open');
+  if (t) openEditor(t.dataset.path);
+});

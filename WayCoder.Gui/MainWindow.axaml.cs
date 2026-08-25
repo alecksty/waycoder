@@ -146,7 +146,7 @@ public partial class MainWindow : Window
             RightCards.Children.Clear();
             RightCards.Children.Add(Panels.TodosCard());
             RightCards.Children.Add(Panels.TokensCard(_agents[_activeSlot]));
-            RightCards.Children.Add(Panels.FilesCard());
+            RightCards.Children.Add(Panels.FilesCard(p => new EditorWindow(p).Show()));
             RightCards.Children.Add(Panels.McpCard());
             RightCards.Children.Add(Panels.LspCard());
         }
@@ -714,6 +714,9 @@ public partial class MainWindow : Window
     }
 
     private void Settings_Click(object? sender, RoutedEventArgs e) => ShowSettings();
+
+    /// <summary>✏ 编辑器：打开内置代码编辑器窗口（三端之一，绑定共享 EditorCore）。</summary>
+    private void EditorButton_Click(object? sender, RoutedEventArgs e) => new EditorWindow().Show();
 
     private void ShowSettings()
     {

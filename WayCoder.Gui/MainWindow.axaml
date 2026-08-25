@@ -9,7 +9,7 @@
         <!-- 顶栏（跨三栏，对齐 Web <header>） -->
         <Border Grid.Row="0" Background="{DynamicResource PanelBgBrush}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" Margin="14,9">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto" Margin="14,9">
                 <!-- 标志：🤖 道码 WayCoder（Coder 品牌蓝高亮） -->
                 <TextBlock x:Name="HeaderLabel"
                            FontSize="15" FontWeight="Bold"
@@ -25,9 +25,11 @@
                         ToolTip.Tip="切换主题" Click="Theme_Click" Margin="0,0,8,0" />
                 <Button Grid.Column="3" x:Name="ModelButton"
                         ToolTip.Tip="选择模型" Click="ModelButton_Click" Margin="0,0,8,0" />
-                <Button Grid.Column="4" x:Name="SettingsButton" Content="⚙ 设置"
+                <Button Grid.Column="4" x:Name="EditorButton" Content="✏ 编辑器"
+                        ToolTip.Tip="打开内置代码编辑器" Click="EditorButton_Click" Margin="0,0,8,0" />
+                <Button Grid.Column="5" x:Name="SettingsButton" Content="⚙ 设置"
                         ToolTip.Tip="设置" Click="Settings_Click" Margin="0,0,8,0" />
-                <Button Grid.Column="5" x:Name="StopButton" Content="⏹ 停止"
+                <Button Grid.Column="6" x:Name="StopButton" Content="⏹ 停止"
                         IsEnabled="False" Click="Stop_Click" />
             </Grid>
         </Border>

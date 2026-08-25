@@ -58,6 +58,9 @@ public sealed class HttpServer
     /// <summary>请求头部分上限（正文另计，普通请求正文仍受 <see cref="MaxRequestBytes"/> 约束）。</summary>
     public const int MaxHeaderBytes = 64 * 1024; // 64 KB
 
+    /// <summary>内置编辑器保存正文上限（源文件保存放宽到 8 MB，普通请求仍 1 MB）。</summary>
+    public const int MaxEditorSaveBytes = 8 * 1024 * 1024; // 8 MB
+
     /// <summary>二进制上传（/upload）正文上限：图片 ≤5MB、音频 ≤25MB，取 32MB 兜底。</summary>
     public const int MaxUploadBytes = 32 * 1024 * 1024; // 32 MB
 
@@ -291,8 +294,11 @@ public sealed class HttpServer
         var headerText = Encoding.UTF8.GetString(ms.ToArray(), 0, headerEnd);
         int contentLength = ParseContentLength(headerText);
 
-        // 正文上限：上传端点放宽到 MaxUploadBytes，其余仍受 MaxRequestBytes 约束
-        int maxBody = ParsePath(headerText) == "/upload" ? MaxUploadBytes : MaxRequestBytes;
+        // 正文上限：上传端点放宽到 MaxUploadBytes，编辑器保存放宽到 MaxEditorSaveBytes，其余受 MaxRequestBytes 约束
+        var reqPath = ParsePath(headerText);
+        int maxBody = reqPath == "/upload" ? MaxUploadBytes
+            : reqPath.StartsWith("/editor/", StringComparison.Ordinal) ? MaxEditorSaveBytes
+            : MaxRequestBytes;
         if (contentLength > maxBody)
             throw new RequestTooLargeException();
 

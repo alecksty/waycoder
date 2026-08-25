@@ -64,6 +64,9 @@ public class EditorScreen : TuiScreen
     private List<EditorCore.OutlineItem>? _lastOutline;
     private int _lastOutlineHighlight = -1;
 
+    /// <summary>保存后待弹 lint 摘要 Toast（标志位防每次 OnDiagnosticsReady 都弹）</summary>
+    private bool _showSaveLintToast;
+
     /// <summary>要编辑的文件路径（空 = 弹出文件选择器）</summary>
     public string FilePath { get; set; }
 
@@ -144,7 +147,19 @@ public class EditorScreen : TuiScreen
         Core.IndentMode = Config.Instance.EditorIndent;   // 从设置注入缩进模式
         _onContentChangedHandler = () => MarkDirty();
         Core.OnContentChanged += _onContentChangedHandler;
-        _onDiagnosticsReadyHandler = () => MarkDirty();
+        _onDiagnosticsReadyHandler = () =>
+        {
+            MarkDirty();
+            // 保存后 lint 完成：一次性弹诊断摘要 Toast（标志位防每次 lint 都弹）
+            if (_showSaveLintToast)
+            {
+                _showSaveLintToast = false;
+                var (errs, warns) = Core.GetDiagSummary();
+                ShowToast(errs > 0 || warns > 0
+                    ? $"已保存 · {errs} 错误 {warns} 警告"
+                    : "已保存 · 无诊断问题", 2500);
+            }
+        };
         Core.OnDiagnosticsReady += _onDiagnosticsReadyHandler;
         _lastOutline = null;
         _lastOutlineHighlight = -1;
@@ -666,6 +681,7 @@ public class EditorScreen : TuiScreen
         try
         {
             Core.Save();
+            _showSaveLintToast = true;   // lint 完成后弹「已保存 · N 错误 M 警告」摘要
             _ = Core.SaveAsync();   // 异步触发 lint
             WasSaved = true;
             ShowToast("已保存", 1200);

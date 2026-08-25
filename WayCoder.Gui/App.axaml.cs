@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using Avalonia.Threading;
 
 namespace WayCoder.UI.Gui;
 
@@ -30,6 +31,12 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow();
+            // `--gui --edit <file>`：主窗口就绪后开编辑器窗口加载该文件
+            if (!string.IsNullOrEmpty(Program.StartupEditFile))
+            {
+                var file = Program.StartupEditFile;
+                Dispatcher.UIThread.Post(() => new EditorWindow(file).Show());
+            }
         }
         base.OnFrameworkInitializationCompleted();
     }

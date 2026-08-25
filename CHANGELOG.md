@@ -1,5 +1,22 @@
 # 更新日志
 
+## v0.96.0 (2026-08-25) — 内置编辑器三端实现（TUI / Web / GUI-Avalonia）+ 修复 lint 全坏 bug
+
+内置编辑器从 TUI 独占升级为**三端可用**——共享同一 `EditorCore` 纯数据模型（已零终端依赖），各端只写视图层。顺带挖出并修复了一个**潜伏的 lint 全坏 bug**（所有语言的保存后 lint 从未真正产出过诊断）。
+
+- **三端编辑器（核心）**：
+  - **共享模型增强**：`EditorCore` 加 `SelectionAnchor` 属性（GUI 画选区矩形）+ **CRLF 行尾保真**（加载探测 `\r\n`，保存不再静默转 LF）
+  - **TUI 端**（已有，完善）：保存后 lint 完成弹「已保存 · N 错误 M 警告」摘要 Toast
+  - **Web 端**（新增）：`✏ 编辑器` 按钮 + 全屏编辑器（透明 textarea 叠 pre，保中文 IME）+ 文件树懒加载 + 行号 gutter + Ctrl+S 保存 + lint 标记轮询 + 改动文件面板可点开；后端 `GET /editor/list|file|diags` + `POST /editor/save` 四路由（`ResolveWithinRoot` 守卫，保存放宽 8MB）
+  - **GUI 端**（新增，Avalonia 原生窗口）：自定义 `EditorView` 控件绑 `EditorCore`（语法高亮 + 行号 + 诊断 gutter + 光标 + 选区 + 中文 IME）、`EditorWindow`（保存/打开/新建/查找/关闭确认）、顶栏「✏ 编辑器」按钮 + 修改文件卡可点开；`waycoder --gui [文件]` 或 `--gui --edit <文件>` 直接打开编辑器
+- **修复：lint 全链路（三端共享收益）**：
+  - `LintTool.RunProcess` 读**未启动的占位 Process** 的 `ExitCode` → 抛「无法运行」→ **所有语言 lint 静默失效**（潜伏 bug，TUI 端同样受影响）。改用 ProcUtil 返回的 ExitCode
+  - cs 分支从 `dotnet build <单文件>`（MSB1003 不匹配）改为**构建包含的项目**（向上找 .csproj）
+  - 输出截断 4000 → 20000 字符（项目级构建量大，目标文件错误行被截掉）
+  - `ParseLintOutput` ⚠-跳过收窄为精确匹配（内建 linter 失败提示也以 ⚠ 开头，不该整体跳过）
+  - `SafeResolveWithinRoot` 相对路径**基于 root 而非 cwd** 解析（web 编辑器保存相对路径时 root≠cwd）
+- **自测 4620 通过 / 0 失败**（新增 `[EditorCore 选区锚点]`/`[EditorCore 行尾]`/`[Syntax ANSI 契约]`/`[Web 编辑器路径]` 四节 23 项）
+
 ## v0.95.0 (2026-08-25) — 环境变量精简（对齐竞品，只留引导级）+ 文档大更新
 
 环境变量从 **107 个**砍到 **14 个**——对齐 Claude Code / Codex（人家只有 `API_KEY`/`BASE_URL`/`MODEL` 几个），配置一律以 `~/.waycoder/config.json` 为权威源。同时补齐 v0.88→v0.94 六版本滞后的五份文档。

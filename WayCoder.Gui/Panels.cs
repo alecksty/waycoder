@@ -155,7 +155,7 @@ internal static class Panels
     }
 
     /// <summary>🔧 修改文件（EditFileTool.ChangedFiles + Stats，全局共享）。</summary>
-    public static Border FilesCard()
+    public static Border FilesCard(Action<string>? onOpen = null)
     {
         var card = Card("🔧 修改文件");
         var content = Content(card);
@@ -175,6 +175,12 @@ internal static class Panels
                     row.Children.Add(ColoredText($"+{st.Added}", "#3fb950"));
                 if (st.Deleted > 0)
                     row.Children.Add(ColoredText($"-{st.Deleted}", "#e5534b"));
+                if (onOpen != null)
+                {
+                    // 点击在编辑器中打开该文件（对齐 Web 改动文件面板可点开）
+                    row.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand);
+                    row.PointerPressed += (_, _) => onOpen(f);
+                }
                 content.Children.Add(row);
             }
         }

@@ -14,6 +14,7 @@
     <div class="agent-label" id="agent-label">智能体1</div>
     <div class="spacer"></div>
     <button class="btn ghost" id="theme-btn" title="切换主题">🌙</button>
+    <button class="btn ghost" id="editor-btn" title="打开内置代码编辑器">✏ 编辑器</button>
     <button class="btn" id="settings-btn" title="设置">⚙ 设置</button>
     <span class="version" id="version-label">__VERSION__</span>
   </header>
@@ -199,6 +200,54 @@
       <h2 id="ask-title"></h2>
       <div id="ask-body"></div>
       <div class="row" id="ask-actions"></div>
+    </div>
+  </div>
+
+  <!-- 内置代码编辑器（三端共享 EditorCore 模型；Web 端透明 textarea 叠 pre，保中文 IME） -->
+  <div id="editor-overlay" hidden>
+    <div class="editor-toolbar">
+      <button class="btn ghost" id="editor-close" title="关闭 (Esc)">✕</button>
+      <span id="editor-path" title="文件路径"></span>
+      <span id="editor-dirty" class="editor-dirty" title="未保存">●</span>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="editor-tree-btn" title="文件树 (Ctrl+O)">🗂 文件树</button>
+      <button class="btn ghost" id="editor-new-btn" title="新建文件">＋ 新建</button>
+      <button class="btn" id="editor-save" title="保存 (Ctrl+S)">💾 保存</button>
+    </div>
+    <div class="editor-main">
+      <div id="editor-side" hidden>
+        <div class="editor-side-head">🗂 项目文件</div>
+        <div id="editor-tree"></div>
+      </div>
+      <div id="editor-body">
+        <div id="editor-gutter"></div>
+        <div id="editor-code">
+          <pre id="editor-highlight"><code id="editor-highlight-code"></code></pre>
+          <textarea id="editor-area" spellcheck="false" autocapitalize="off" autocomplete="off" wrap="off"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="editor-status">
+      <span id="editor-pos">L1:C1</span>
+      <span class="editor-status-sep">·</span>
+      <span id="editor-meta"></span>
+      <span class="editor-status-sep">·</span>
+      <span id="editor-lang"></span>
+      <span class="spacer"></span>
+      <span id="editor-diags"></span>
+    </div>
+  </div>
+
+  <!-- 新建文件路径输入 -->
+  <div class="modal" id="editor-new-modal" hidden>
+    <div class="modal-card">
+      <h2>＋ 新建文件</h2>
+      <p>相对路径（相对项目根目录），不存在则创建空文件。</p>
+      <input id="editor-new-path" type="text" placeholder="src/app/foo.cs">
+      <div class="row">
+        <button class="btn" id="editor-new-cancel">取消</button>
+        <button class="btn primary" id="editor-new-ok">创建</button>
+      </div>
     </div>
   </div>
 
