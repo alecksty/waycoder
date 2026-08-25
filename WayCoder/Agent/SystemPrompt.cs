@@ -21,6 +21,20 @@ public static class SystemPrompt
         "3. 精简回报：只回传本任务的关键结论与结果变化（如「Automata 7→0」），不要粘贴全量测试输出或长日志。\n" +
         "4. 只改本任务指定的模块/文件，不越界修改其它模块。";
 
+    /// <summary>教学模式提示块：AI 不只执行，还讲解为什么 + 结束时提问巩固（覆盖「不叙述/≤3 行」规则）。</summary>
+    static string TeachBlock =>
+        "\n\n<teach_mode>\n" +
+        "本会话为教学模式。以下规则覆盖「极简输出 ≤3 行」与「不要输出思考过程」：\n" +
+        "1. 每次修改/执行前后，用 1-3 句话解释「为什么这么做、涉及什么原理」；\n" +
+        "2. 遇到相关的知识库经验（项目记忆/经验知识）时，顺带讲解该经验；\n" +
+        "3. 完成任务后，用 3 个问题测验用户对本轮改动的理解（问题+答案一并给出）；\n" +
+        "4. 用词偏教学，拆解原理而非只给结论。\n" +
+        "</teach_mode>";
+
+    /// <summary>教学模式开启时把教学块追加到提示词末尾。</summary>
+    static string AppendTeachBlock(string prompt)
+        => Config.Instance.TeachModeEnabled ? prompt + TeachBlock : prompt;
+
     public static string Generate(List<ITool> tools)
     {
         if (Config.Instance.TinyMode) return GenerateTiny(tools);
@@ -382,7 +396,7 @@ public static class SystemPrompt
                 </final_answers>
                 """;
 
-        return template
+        var prompt = template
             .Replace("__CWD__", cwd)
             .Replace("__OS__", os)
             .Replace("__DOTNET__", dotnetVersion)
@@ -395,6 +409,9 @@ public static class SystemPrompt
             .Replace("__TOOL_LIST__", toolList)
             .Replace("__WORKFLOW_CONTENT__", s_standardWorkflow)
             .Replace("__RULE_READ_BEFORE_WRITE__", s_standardRule1);
+
+        // 教学模式：AI 不只执行，还讲解为什么 + 结束时提问巩固（显式覆盖「不叙述/≤3 行」规则）
+        return AppendTeachBlock(prompt);
     }
 
     /// <summary>
@@ -485,7 +502,7 @@ public static class SystemPrompt
             7. 遇到错误→读完整错误→理解根因→试 2-3 种不同方案→验证通过。
             8. 不用思考流生成代码，代码必须通过 write_file 写入文件。
             9. 无依赖的独立工具调用可并行发出。
-            """;
+            """.TrimEnd() + AppendTeachBlock("");
     }
 
     /// <summary>

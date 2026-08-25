@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.88.0 (2026-08-25) — 学习型智能体（错误诊断 / 技能画像 / 教学模式 / 会话复盘）
+
+把「学习」做成智能体内生能力，竞品均无：
+
+- **① 即时错误诊断**：报错/测试失败时自动召回「同类错误上次怎么修的」——`KbIndex.DiagnoseError` 检索知识库（TF-IDF）+ git 历史 fix/refactor 提交（无词面相关回退最近 fix 记录，永不空）。自动注入 `Agent.Tools` 错误自恢复处 + `Agent.Feedback` 自动测试失败处；`kb` 工具加 `diagnose` action；`/kb diagnose <报错>` / `--kb diagnose`
+- **② 技能画像**：`/kb profile` 聚合四维——知识库分类分布（ASCII 条形图）、薄弱标签、ErrorLog 信号、git 提交类型计数（`ParseGitLog` conventional 前缀纯函数）。`/kb weak` 的完整版
+- **③ 教学模式**：`/teach on|off` / `WAYCODER_TEACH_MODE`——SystemPrompt 注入 `<teach_mode>` 块，AI 逐处解释为什么 + 引用知识库经验 + 完成后 3 问测验（显式覆盖「极简输出/不叙述」规则）；全量/Economy 提示词均生效
+- **④ 会话复盘**：`/kb retro` 用会话记录经小模型提炼 1-5 条经验入知识库（`ParseLessons` 纯函数）；`WAYCODER_RETRO_ON_EXIT` 开启后退出 `AutoSaveSession` 自动复盘（默认关）
+- **构建修复**：`WayCoder.csproj` 排除误置于源码树的 CommLib/PortLib（.NET 4.8 老库，默认 glob 卷入导致 CS0579）
+
+### ✅ 验证
+- 完整自测 **4543 通过 / 0 失败**（新增诊断/画像/教学/复盘 11 项），无崩溃
+- 真实 `--kb diagnose "build 失败"` 召回知识库 + git 修复史；`--kb profile` 输出画像（git feat 27/fix 24 + ErrorLog 信号）
+
 ## v0.87.30 (2026-08-25) — 自主学习编程知识库（/kb + /mind）
 
 面向「提高编程技能与经验」：把工作痕迹提炼成经验条目，全局保存（`~/.waycoder/kb/`，跨项目积累个人编程经验），间隔重复自测强化记忆，薄弱点统计指导学习方向。条目支持**文字 / 代码片段 / Markdown / 链接**（纯 frontmatter md 文件，图片/音频留待后续）。
