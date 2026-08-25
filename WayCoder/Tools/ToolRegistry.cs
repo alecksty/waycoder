@@ -19,6 +19,7 @@ public static class ToolRegistry
         new TodoTool(),
         new LspTool(),
         new MemoryTool(),
+        new KbTool(),
         new LintTool(),
         new WebSearchTool(),
         new GitPRTool(),

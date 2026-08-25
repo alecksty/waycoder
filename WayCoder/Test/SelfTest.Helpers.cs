@@ -575,7 +575,7 @@ public static partial class SelfTest
     private static void TestEconomyToolTrim(Action<string, bool> Check)
     {
         var all = ToolRegistry.AllTools;
-        Check($"工具精简: 全量工具 = {all.Count}", all.Count == 46);
+        Check($"工具精简: 全量工具 = {all.Count}", all.Count == 47);
 
         var off = Agent.TrimToolsForEconomy(all, EconomyMode.Off);
         var auto = Agent.TrimToolsForEconomy(all, EconomyMode.Auto);

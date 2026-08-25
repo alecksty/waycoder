@@ -15,7 +15,7 @@ public static partial class SelfTest
     private static void TestChunk1(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
     {
         Section("[工具注册]");
-        Check("工具数量 == 46", ToolRegistry.BuiltinTools.Count == 46);
+        Check("工具数量 == 47", ToolRegistry.BuiltinTools.Count == 47);
         Check("所有工具有有效 schema", ToolRegistry.AllTools.All(t =>
         {
             var s = t.Schema();

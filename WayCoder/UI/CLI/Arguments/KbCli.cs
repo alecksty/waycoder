@@ -6,7 +6,8 @@ public static class KbCli
     public static int Run(List<string> values)
     {
         var sub = values.Count > 0 ? values[0].ToLowerInvariant() : "";
-        var rest = values.Count > 1 ? values[1] : "";
+        // 内容可能含空格，join 剩余全部参数（如 save habit "GitHub 网络..."）
+        var rest = values.Count > 1 ? string.Join(" ", values.Skip(1)) : "";
 
         switch (sub)
         {
