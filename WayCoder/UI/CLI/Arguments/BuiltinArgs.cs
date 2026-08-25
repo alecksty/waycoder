@@ -59,6 +59,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new QuietArg());
         CliArgRegistry.Register(new NoColorArg());
         CliArgRegistry.Register(new McpArg());
+        CliArgRegistry.Register(new KbArg());
         CliArgRegistry.Register(new ResetArg());
         CliArgRegistry.Register(new PurgeArg());
         CliArgRegistry.Register(new ProviderArg());

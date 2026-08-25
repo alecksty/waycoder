@@ -1,5 +1,26 @@
 # 更新日志
 
+## v0.87.30 (2026-08-25) — 自主学习编程知识库（/kb + /mind）
+
+面向「提高编程技能与经验」：把工作痕迹提炼成经验条目，全局保存（`~/.waycoder/kb/`，跨项目积累个人编程经验），间隔重复自测强化记忆，薄弱点统计指导学习方向。条目支持**文字 / 代码片段 / Markdown / 链接**（纯 frontmatter md 文件，图片/音频留待后续）。
+
+- **`/kb` 知识库命令**：
+  - `/kb mine [N]`：扫描 git 历史（`git log`+`git show`），经**小模型**把提交归纳为四类经验 JSON（`mistake` 容易犯的错误 / `bugfix` 复杂 bug 修复 / `habit` 个人使用习惯 / `gap` 欠缺知识），`gaps[]` 自动沉淀欠缺清单；LLM 不可用时降级为基础条目（不失败）
+  - `/kb review`：**间隔重复自测**——展示「现象+根因」提问，揭示「修复+教训」，掌握 → 间隔 1→3→7→14→30 天递增，未掌握 → 重置 1 天 + 关联 gap 权重提升（薄弱信号）
+  - `/kb weak`：欠缺知识清单（gap 按权重）+ 薄弱标签（mistake/bugfix 聚合）+ ErrorLog 错误信号（按 source 计数）
+  - `/kb list`：列出全部条目
+- **`/mind` 手动记忆管理**（与 /kb 自动提炼互补，用户强制干预）：
+  - `/mind save [类别] <内容>`：记住一条（自动带日期上下文，类别自动识别/可显式指定，含 `code` 代码片段）
+  - `/mind update <关键词> <新内容>`：更新最匹配条目
+  - `/mind forget <内容>`：删除最匹配条目；`/mind search`/`/mind find <内容>`：TF-IDF 查找
+- **运行时不打扰注入**：`SystemPrompt` 启动时 `KbIndex.GetRelevant(query)` 把相关经验并入记忆区块（TF-IDF 复用 `SemanticMemory`）
+- **纯函数可测**：BuildEntry（LLM JSON 解析）/ SaveManual / Search / UpdateBestMatch / DeleteBestMatch / 复习调度 / weak 统计 / ErrorLog 信号，全部离屏单测覆盖
+
+### ✅ 验证
+- 完整自测 **4529 通过 / 0 失败**（新增 `[知识库经验]` 节 30 项），无崩溃
+- `--kb mine/list/review/weak` CLI 实测：真实 git 历史 → `~/.waycoder/kb/` 条目生成、weak 输出真实 ErrorLog 信号（ApiKeyStore×136/LLM×101）、review 学习模式正常
+- 全局隔离：`Global.HomeOverride` 使自测不污染真实 `~/.waycoder/kb/`
+
 ## v0.87.29 (2026-08-25) — 全控件鼠标支持 + SGR 解析层测试闭环
 
 让「凡能获得焦点的控件都支持鼠标」成真——此前仅 8 个控件实现 `OnMouse`，`TuiComboBox`/`TuiRadioGroup`/`TuiTreeView`/`TuiTableList`/`TuiTabs`/`TuiInput`/`TuiTextArea`/`TuiPromptBar` 均可聚焦却只能键盘操作；且真实终端字节→事件的 SGR 解析层零测试覆盖。
