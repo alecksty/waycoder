@@ -1,6 +1,6 @@
 # WayCoder（道码）竞品分析与路线图
 
-> 版本：v0.96.0 | 日期：2026-08-25
+> 版本：v0.96.2 | 日期：2026-08-25
 
 ---
 
@@ -150,6 +150,9 @@
 | ✅ 环境变量精简 | v0.95.0 | 107→14（对齐竞品），config.json 权威源 |
 | ✅ 内置编辑器三端 | v0.96.0 | TUI 完善（保存 lint Toast）+ Web 编辑器（透明 textarea 叠 pre + 文件树 + lint 标记）+ Avalonia GUI 编辑器（自定义 EditorView 绑 EditorCore）——共享 EditorCore 纯数据模型 |
 | ✅ 修复 lint 全链路 | v0.96.0 | LintTool 读未启动 Process 的 ExitCode → 所有语言 lint 静默失效（潜伏 bug）；cs 改构建包含项目 + 截断 20000 + ⚠-跳过收窄 |
+| ✅ CI 自测门禁 + GUI 构建 | v0.96.1 | ci.yml（push/PR）：主工程 + WayCoder.Gui 构建 + 4620 自测门禁（此前 CI 从不跑自测/不编译 GUI） |
+| ✅ 编辑器补齐 | v0.96.1 | Web Ctrl+F/H 查找替换；GUI tab 展开 4 空格 + 横向滚动；LspTool 锁 3s 超时防死锁 |
+| ✅ 修复源文件强加 BOM | v0.96.2 | 双代理测试发现 tetris.py 带 BOM；`Global.WriteAllTextPreserveBom`（原带 BOM 才保留）接入 5 处写文件点 |
 
 ---
 
