@@ -302,3 +302,12 @@ select optgroup { background:var(--panel); color:var(--text); }
 #editor-diags .d-warn { color:var(--tok-num); }
 .file-open { cursor:pointer; }
 .file-open:hover { color:var(--accent); }
+
+/* ═══════ 编辑器查找替换条 ═══════ */
+.editor-findbar { display:flex; align-items:center; gap:6px; padding:6px 12px; border-bottom:1px solid var(--border); background:var(--panel2); flex-shrink:0; }
+.editor-findbar[hidden] { display:none; }
+.editor-findbar input { height:28px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text); font:12px monospace; padding:0 8px; outline:none; }
+#editor-find-input { width:220px; }
+#editor-replace-input { width:220px; }
+.editor-findbar input:focus { border-color:var(--accent); }
+.editor-findbar .btn { height:28px; padding:0 10px; font-size:12px; }

@@ -1823,10 +1823,94 @@ edArea.addEventListener('keydown', e => {
   else if (e.ctrlKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); doSave(); }
   else if (e.ctrlKey && (e.key === 'o' || e.key === 'O')) { e.preventDefault(); toggleTree(); }
   else if (e.ctrlKey && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); showEditorNewModal(); }
+  else if (e.ctrlKey && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); showFindBar(); }
+  else if (e.ctrlKey && (e.key === 'h' || e.key === 'H')) { e.preventDefault(); showFindBar(); edReplaceInput.focus(); }
 });
 window.addEventListener('beforeunload', e => { if (ed.dirty) { e.preventDefault(); e.returnValue = ''; } });
 // 改动文件面板可点开 → 编辑器
 document.addEventListener('click', e => {
   const t = e.target.closest('.file-open');
   if (t) openEditor(t.dataset.path);
+});
+
+// ── 编辑器查找替换（浏览器原生 Ctrl+F 只查不换，这里补替换）──
+const edFindInput = document.getElementById('editor-find-input');
+const edReplaceInput = document.getElementById('editor-replace-input');
+
+function showFindBar() {
+  document.getElementById('editor-findbar').hidden = false;
+  edFindInput.focus();
+  edFindInput.select();
+}
+function closeFindBar() { document.getElementById('editor-findbar').hidden = true; }
+function flashFindStatus(msg) {
+  const el = document.getElementById('editor-replace-one');
+  el.textContent = msg;
+  setTimeout(() => { el.textContent = '↻ 替换'; }, 1500);
+}
+// 从 from 起找下一个匹配，返回 [start,end]；找不到 null
+function edFindNextPos(from) {
+  const term = edFindInput.value;
+  if (!term) return null;
+  const idx = edArea.value.indexOf(term, from);
+  return idx < 0 ? null : [idx, idx + term.length];
+}
+function edSelectMatch(pos) {
+  if (!pos) return;
+  edArea.focus();
+  edArea.setSelectionRange(pos[0], pos[1]);
+  // 滚动到匹配行可见
+  const lineNo = edArea.value.slice(0, pos[0]).split('\n').length;
+  const lineH = 19.5, y = (lineNo - 1) * lineH - 8;
+  if (y < edArea.scrollTop) edArea.scrollTop = Math.max(0, y);
+  else if (y + lineH > edArea.scrollTop + edArea.clientHeight) edArea.scrollTop = y - edArea.clientHeight + lineH;
+  updateStatus(); renderHighlight();
+}
+function edFindNextAction() {
+  const term = edFindInput.value;
+  if (!term) return;
+  const from = edArea.selectionEnd || 0;
+  let pos = edFindNextPos(from);
+  if (!pos) pos = edFindNextPos(0); // 循环
+  if (pos) edSelectMatch(pos); else flashFindStatus('无匹配');
+}
+function edFindPrevAction() {
+  const term = edFindInput.value;
+  if (!term) return;
+  const from = Math.max(0, (edArea.selectionStart || 0) - term.length);
+  const idx = edArea.value.lastIndexOf(term, from);
+  if (idx >= 0) edSelectMatch([idx, idx + term.length]);
+}
+function edReplaceOne() {
+  const term = edFindInput.value;
+  if (!term) return;
+  // 当前选区正好是匹配 → 替换并保持选中，再找下一个
+  if (edArea.selectionStart !== edArea.selectionEnd
+      && edArea.value.slice(edArea.selectionStart, edArea.selectionEnd) === term) {
+    edArea.setRangeText(edReplaceInput.value, edArea.selectionStart, edArea.selectionEnd, 'select');
+    edSync();
+  }
+  edFindNextAction();
+}
+function edReplaceAll() {
+  const term = edFindInput.value;
+  if (!term) return;
+  if (edArea.value.indexOf(term) < 0) { flashFindStatus('无匹配'); return; }
+  edArea.value = edArea.value.split(term).join(edReplaceInput.value);
+  edSync();
+  flashFindStatus('已全部替换');
+}
+// 事件绑定
+document.getElementById('editor-find-next').addEventListener('click', edFindNextAction);
+document.getElementById('editor-find-prev').addEventListener('click', edFindPrevAction);
+document.getElementById('editor-replace-one').addEventListener('click', edReplaceOne);
+document.getElementById('editor-replace-all').addEventListener('click', edReplaceAll);
+document.getElementById('editor-find-close').addEventListener('click', closeFindBar);
+edFindInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); e.shiftKey ? edFindPrevAction() : edFindNextAction(); }
+  else if (e.key === 'Escape') { e.preventDefault(); closeFindBar(); }
+});
+edReplaceInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); e.ctrlKey ? edReplaceOne() : edFindNextAction(); }
+  else if (e.key === 'Escape') { e.preventDefault(); closeFindBar(); }
 });
