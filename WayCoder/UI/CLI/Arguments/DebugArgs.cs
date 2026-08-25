@@ -17,11 +17,14 @@ public class TestArg : CliArg
     public TestArg() : base("test", "-t", "--test") { }
     public override int? OnMatch(List<string> values)
     {
+        // 退出码必须反映测试结果，否则 CI（dotnet run -- --test）失败也不拦截
         if (values.Count > 0)
-            Console.WriteLine(SelfTest.RunModule(values[0]));
-        else
-            SelfTest.Run();
-        return 0;
+        {
+            var result = SelfTest.RunModule(values[0]);
+            Console.WriteLine(result);
+            return result.StartsWith("✅") ? 0 : 1;
+        }
+        return SelfTest.Run() ? 0 : 1;
     }
 }
 
