@@ -134,33 +134,10 @@ public sealed class LogEntry
     }
 
     /// <summary>
-    /// 将字符串转义为可安全放入 JSON 双引号内的形式。null 返回 "null"。
+    /// 将字符串转义为可安全放入 JSON 双引号内的形式。null 返回 "null"。委托 <see cref="Json.EscapeString"/>。
     /// </summary>
     public static string EscapeJson(string? value)
-    {
-        if (value is null) return "null";
-        var sb = new StringBuilder(value.Length + 8);
-        foreach (var c in value)
-        {
-            switch (c)
-            {
-                case '"': sb.Append("\\\""); break;
-                case '\\': sb.Append("\\\\"); break;
-                case '\b': sb.Append("\\b"); break;
-                case '\f': sb.Append("\\f"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                default:
-                    if (c < 0x20)
-                        sb.Append("\\u").Append(((int)c).ToString("x4", CultureInfo.InvariantCulture));
-                    else
-                        sb.Append(c);
-                    break;
-            }
-        }
-        return sb.ToString();
-    }
+        => value is null ? "null" : Json.EscapeString(value);
 
     /// <summary>人类可读的单行表示：`[INF 12:00:00.000] 消息`。</summary>
     public override string ToString()

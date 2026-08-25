@@ -53,7 +53,7 @@ public class TreeTool : ITool
 
             var result = sb.ToString();
             if (result.Length > 8000)
-                result = ContextManager.TruncateByRunes(result, 6000) + "\n... (已截断) ...\n" + ContextManager.TruncateTailByRunes(result, 1000);
+                result = ContextManager.TruncateKeepHeadTail(result, 6000, 1000, "\n... (已截断) ...\n");
             return result.TrimEnd();
         }
         catch (Exception ex)
@@ -96,7 +96,7 @@ public class TreeTool : ITool
                 else
                 {
                     var fi = new FileInfo(entries[i]);
-                    sb.AppendLine($"{prefix}{connector}{name}  ({FormatSize(fi.Length)})");
+                    sb.AppendLine($"{prefix}{connector}{name}  ({FormatUtil.FormatSize(fi.Length)})");
                     remaining--;
                 }
             }
@@ -104,10 +104,4 @@ public class TreeTool : ITool
         catch { }
     }
 
-    private static string FormatSize(long bytes) => bytes switch
-    {
-        < 1024 => $"{bytes} B",
-        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
-        _ => $"{bytes / (1024.0 * 1024):F1} MB",
-    };
 }

@@ -252,6 +252,6 @@ public class NotebookEditTool : ITool
     {
         text = text.Replace("\n", "\\n").Replace("\r", "");
         if (text.Length <= maxLen) return text;
-        return ContextManager.TruncateByRunes(text, maxLen) + "...";
+        return ContextManager.TruncateWithEllipsis(text, maxLen, "...");
     }
 }

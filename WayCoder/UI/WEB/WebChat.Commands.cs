@@ -230,7 +230,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         {
             var icon = s.Status == McpServerStatus.Connected ? "🟢"
                 : s.Status == McpServerStatus.Connecting ? "🟡" : "🔴";
-            sb.AppendLine($"- {icon} `{s.Name}`（{s.Transport}）· {s.ToolCount} 工具");
+            var src = s.Source == "claude" ? "〔Claude〕" : "";
+            sb.AppendLine($"- {icon} `{s.Name}`{src}（{s.Transport}）· {s.ToolCount} 工具");
             if (!string.IsNullOrEmpty(s.Error)) sb.AppendLine($"  - ⚠ {s.Error}");
         }
         return sb.ToString();

@@ -311,10 +311,12 @@ public static class Json
     }
 
     /// <summary>字符串转义为 JSON 字符串字面量（含双引号）。中文等非 ASCII 保留原样。</summary>
-    internal static string Quote(string s)
+    internal static string Quote(string s) => "\"" + EscapeString(s) + "\"";
+
+    /// <summary>字符串转义为可安全放入 JSON 双引号内的形式（不含引号）。中文等非 ASCII 保留原样。</summary>
+    public static string EscapeString(string s)
     {
         var sb = new StringBuilder(s.Length + 2);
-        sb.Append('"');
         foreach (var c in s)
         {
             switch (c)
@@ -327,13 +329,51 @@ public static class Json
                 case '\b': sb.Append("\\b"); break;
                 case '\f': sb.Append("\\f"); break;
                 default:
-                    if (c < 0x20) sb.Append("\\u").Append(((int)c).ToString("x4"));
+                    if (c < 0x20) sb.Append("\\u").Append(((int)c).ToString("x4", CultureInfo.InvariantCulture));
                     else sb.Append(c);
                     break;
             }
         }
-        sb.Append('"');
         return sb.ToString();
+    }
+
+    /// <summary>去除 JSONC/JSON5 注释（// 行注释与 /* */ 块注释），字符串内注释标记不误删。返回纯 JSON。</summary>
+    public static string StripComments(string jsonc)
+    {
+        var result = new StringBuilder();
+        var inString = false;
+        var inBlockComment = false;
+        var inLineComment = false;
+
+        for (int i = 0; i < jsonc.Length; i++)
+        {
+            var ch = jsonc[i];
+            var next = i + 1 < jsonc.Length ? jsonc[i + 1] : '\0';
+
+            if (inBlockComment)
+            {
+                if (ch == '*' && next == '/') { inBlockComment = false; i++; }
+                continue;
+            }
+            if (inLineComment)
+            {
+                if (ch == '\n' || ch == '\r') { inLineComment = false; result.Append(ch); }
+                continue;
+            }
+            if (inString)
+            {
+                result.Append(ch);
+                if (ch == '\\' && next != '\0') { result.Append(next); i++; }
+                else if (ch == '"') inString = false;
+                continue;
+            }
+            if (ch == '"') { inString = true; result.Append(ch); continue; }
+            if (ch == '/' && next == '*') { inBlockComment = true; i++; continue; }
+            if (ch == '/' && next == '/') { inLineComment = true; i++; continue; }
+            result.Append(ch);
+        }
+
+        return result.ToString();
     }
 
     // ============ 内部：递归下降解析器 ============

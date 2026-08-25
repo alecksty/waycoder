@@ -69,6 +69,24 @@ public partial class Agent
     /// <summary>本轮硬绿判定是否已执行（每轮最多一次，防止测试无法修复时无限循环）。</summary>
     private bool _hardGreenGateDone;
 
+    /// <summary>本轮是否已通过验证（测试 exit 0）。修完必验证门据此决定收尾前是否再验一次。</summary>
+    private bool _turnVerified;
+    /// <summary>本轮是否改过源码文件（write/edit 命中源码扩展名）。</summary>
+    private bool _turnModifiedSource;
+    /// <summary>本轮「修完必验证」门是否已执行（每轮最多一次，防验证命令反复失败死循环）。</summary>
+    private bool _verifyGateDone;
+
+    /// <summary>源码扩展名集合（触发自动测试/修完必验证的文件类型）。</summary>
+    private static readonly string[] SourceExtensions =
+        [".cs", ".py", ".ts", ".js", ".tsx", ".jsx", ".go", ".rs", ".java", ".kt", ".swift", ".c", ".cpp", ".rb"];
+
+    /// <summary>判断文件路径是否为源码文件（按扩展名）。</summary>
+    internal static bool IsSourceFile(string path)
+    {
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        return SourceExtensions.Contains(ext);
+    }
+
     /// <summary>
     /// 写源码文件后自动运行项目测试，失败结果注入工具结果，形成自动修复闭环。
     /// </summary>
@@ -81,9 +99,7 @@ public partial class Agent
         if (string.IsNullOrWhiteSpace(filePath)) return toolResult;
 
         // 仅源码文件触发测试
-        var ext = Path.GetExtension(filePath).ToLowerInvariant();
-        var srcExts = new[] { ".cs", ".py", ".ts", ".js", ".go", ".rs", ".java", ".kt", ".swift", ".c", ".cpp", ".rb" };
-        if (!srcExts.Contains(ext)) return toolResult;
+        if (!IsSourceFile(filePath)) return toolResult;
 
         // 防抖：同一项目 N 秒内不重复跑
         var cwd = Directory.GetCurrentDirectory();
@@ -117,6 +133,7 @@ public partial class Agent
             if (exitCode == 0)
             {
                 _turnTestFailed = false;
+                _turnVerified = true; // 本轮已通过测试验证，修完必验证门不再重复验
                 return toolResult; // 测试通过，不追加
             }
 
@@ -215,6 +232,46 @@ public partial class Agent
         if (Directory.GetFiles(cwd, "test_*.py", SearchOption.AllDirectories).Any() ||
             Directory.GetFiles(cwd, "*_test.py", SearchOption.AllDirectories).Any())
             return "python -m pytest -q";
+
+        return null;
+    }
+
+    /// <summary>
+    /// 检测当前项目的构建命令（修完必验证：无测试命令时回退到构建验证）。
+    /// 与 <see cref="DetectTestCommand"/> 互补——测试优先，无测试才退构建。
+    /// </summary>
+    internal static string? DetectBuildCommand()
+    {
+        var cwd = Directory.GetCurrentDirectory();
+
+        // .NET：csproj / sln 直接构建
+        try
+        {
+            if (Directory.GetFiles(cwd, "*.csproj", SearchOption.TopDirectoryOnly).Any() ||
+                Directory.GetFiles(cwd, "*.sln", SearchOption.TopDirectoryOnly).Any())
+                return "dotnet build --nologo -v q";
+        }
+        catch { }
+
+        // Node.js：仅当 package.json 声明了 build 脚本
+        if (File.Exists(Path.Combine(cwd, "package.json")))
+        {
+            try
+            {
+                var pkg = Json.Parse(File.ReadAllText(Path.Combine(cwd, "package.json")));
+                if (pkg?["scripts"]?["build"] != null)
+                    return "npm run build --silent";
+            }
+            catch { }
+        }
+
+        // Go
+        if (File.Exists(Path.Combine(cwd, "go.mod")))
+            return "go build ./...";
+
+        // Rust
+        if (File.Exists(Path.Combine(cwd, "Cargo.toml")))
+            return "cargo build -q";
 
         return null;
     }

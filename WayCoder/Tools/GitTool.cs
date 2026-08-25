@@ -52,7 +52,7 @@ public class GitTool : ITool, ICancellableTool
 
             // 截断长输出
             if (result.Length > 8000)
-                result = ContextManager.TruncateByRunes(result, 6000) + $"\n... (已截断，共 {result.Length} 字符) ...\n" + ContextManager.TruncateTailByRunes(result, 1000);
+                result = ContextManager.TruncateKeepHeadTail(result, 6000, 1000, $"\n... (已截断，共 {result.Length} 字符) ...\n");
 
             return string.IsNullOrWhiteSpace(result) ? "（无输出）" : result.Trim();
         }

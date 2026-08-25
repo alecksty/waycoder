@@ -123,6 +123,9 @@ public partial class Agent
                         _allSessionFiles.Add(path);
                     // 更新 FileTracker 哈希，防止下次编辑时误报 stale
                     FileTracker.RecordWrite(path);
+                    // 修完必验证：本轮改过源码文件 → 收尾前若未验证则强制验一次
+                    if (IsSourceFile(path))
+                        _turnModifiedSource = true;
                 }
             }
 
