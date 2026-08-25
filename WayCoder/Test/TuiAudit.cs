@@ -141,6 +141,9 @@ public static class TuiAudit
     /// <summary>把 CursorPos/SGR 定位的原始 ANSI 输出解释成 rows×cols 文本网格。</summary>
     internal static List<string> AnsiToGrid(string ansi, int rows, int cols)
     {
+        // 尺寸 ≤ 0（无控制台/CI）会令下方 Math.Clamp 抛异常终止整个自测，保底 1×1 网格
+        rows = Math.Max(rows, 1);
+        cols = Math.Max(cols, 1);
         var cell = new string[rows][];
         var cont = new bool[rows][];
         for (int r = 0; r < rows; r++)
