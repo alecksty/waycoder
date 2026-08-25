@@ -22,6 +22,12 @@ public static class KbCli
             case "search":
             case "find":
                 return Search(rest);
+            case "diagnose":
+                return Diagnose(rest).GetAwaiter().GetResult();
+            case "profile":
+                return Profile();
+            case "retro":
+                return Retro().GetAwaiter().GetResult();
             case "review":
                 return Review();
             case "weak":
@@ -29,12 +35,15 @@ public static class KbCli
             case "list":
                 return List();
             default:
-                Console.WriteLine("编程知识库 --kb <mine [N]|save|update|forget|search|review|weak|list>");
+                Console.WriteLine("编程知识库 --kb <mine [N]|save|update|forget|search|diagnose|profile|retro|review|weak|list>");
                 Console.WriteLine("  mine [N]            从 git 历史提炼经验（默认 20）");
                 Console.WriteLine("  save [类别] <内容>    手动记住一条（自动带日期）");
                 Console.WriteLine("  update <关键词> <新>  更新最匹配条目");
                 Console.WriteLine("  forget <内容>        忘记（删除）最匹配条目");
                 Console.WriteLine("  search <内容>        查找相关条目");
+                Console.WriteLine("  diagnose <报错>      诊断报错（召回知识库 + git 修复史）");
+                Console.WriteLine("  profile             技能画像");
+                Console.WriteLine("  retro               复盘本次会话提炼经验");
                 Console.WriteLine("  review              间隔重复自测一条到期经验");
                 Console.WriteLine("  weak                欠缺知识清单 + 薄弱点统计");
                 Console.WriteLine("  list                列出全部经验条目");
@@ -93,6 +102,38 @@ public static class KbCli
         var (mined, errors) = KbIndex.MineAsync(count).GetAwaiter().GetResult();
         Console.WriteLine($"✅ 新增 {mined} 条经验 → {KbIndex.Dir}");
         foreach (var e in errors) Console.WriteLine($"  ⚠️ {e}");
+        return 0;
+    }
+
+    static async Task<int> Diagnose(string arg)
+    {
+        if (arg.Length == 0) { Console.WriteLine("用法: --kb diagnose <报错文本>"); return 1; }
+        var diag = await KbIndex.DiagnoseError(arg.Trim(), 3);
+        Console.WriteLine(diag.Length > 0 ? $"🔎 同类错误历史经验：\n{diag}" : "🔎 知识库与 git 修复史中暂无匹配。");
+        return 0;
+    }
+
+    static int Profile()
+    {
+        Console.WriteLine(KbIndex.FormatProfile(KbIndex.ProfileStats()));
+        return 0;
+    }
+
+    static async Task<int> Retro()
+    {
+        var agent = ProgramContext.Agent;
+        if (agent == null) { Console.WriteLine("无活跃会话可复盘（--kb retro 需在 TUI/-p 会话中使用）。"); return 1; }
+        var sb = new System.Text.StringBuilder();
+        foreach (var m in agent.SnapshotMessages())
+        {
+            var role = m["role"]?.AsString() ?? "?";
+            var content = m["content"]?.AsString() ?? "";
+            if (content.Length == 0) continue;
+            sb.AppendLine($"## {role}\n{content}");
+        }
+        if (sb.Length < 50) { Console.WriteLine("会话内容太少，暂不复盘。"); return 0; }
+        var (saved, _) = await KbIndex.Retrospect(sb.ToString());
+        Console.WriteLine(saved > 0 ? $"✅ 复盘完成：提炼 {saved} 条经验入知识库。" : "复盘未提炼出新经验。");
         return 0;
     }
 

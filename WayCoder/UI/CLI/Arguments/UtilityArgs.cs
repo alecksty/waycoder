@@ -214,6 +214,9 @@ public class KbArg : CliArg
     public override (string Cmd, string Desc)[]? SubCommands =>
     [
         ("mine [N]", "从 git 历史提炼经验条目（默认 20）"),
+        ("diagnose <报错>", "诊断报错（召回知识库 + git 修复史）"),
+        ("profile", "技能画像"),
+        ("retro", "复盘本次会话提炼经验"),
         ("review", "间隔重复自测一条到期经验"),
         ("weak", "欠缺知识清单 + 薄弱点统计"),
         ("list", "列出全部经验条目"),

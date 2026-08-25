@@ -197,6 +197,10 @@ public class Config
     public int EmbeddingDimensions { get; set; } = 0;
     public bool TeamMemoryEnabled { get; set; } = false;
     public bool TeamMemoryAutoSync { get; set; } = true;
+    /// <summary>教学模式：AI 不只执行，还讲解为什么 + 结束时提问巩固。</summary>
+    public bool TeachModeEnabled { get; set; } = false;
+    /// <summary>会话退出时自动复盘并提炼经验入知识库。</summary>
+    public bool RetroOnExitEnabled { get; set; } = false;
     public string ThemePreset { get; set; } = "黄金甲";
     /// <summary>GUI 版深/浅主题（dark/light）</summary>
     public string GuiTheme { get; set; } = "dark";
@@ -867,6 +871,18 @@ public class Config
               "select", ["false","true"], 11,
               c => c.TeamMemoryAutoSync.ToString().ToLowerInvariant(),
               (c, v) => c.TeamMemoryAutoSync = bool.Parse(v), "true"),
+
+            P("TeachModeEnabled", "WAYCODER_TEACH_MODE", null,
+              "教学模式", "🧠 学习", "AI 不只执行，还逐处解释为什么 + 结束时提问巩固（覆盖极简输出规则）",
+              "select", ["false","true"], 12,
+              c => c.TeachModeEnabled.ToString().ToLowerInvariant(),
+              (c, v) => c.TeachModeEnabled = bool.Parse(v), "false"),
+
+            P("RetroOnExitEnabled", "WAYCODER_RETRO_ON_EXIT", null,
+              "退出自动复盘", "🧠 学习", "会话退出时自动复盘并提炼经验入知识库（需配置模型）",
+              "select", ["false","true"], 13,
+              c => c.RetroOnExitEnabled.ToString().ToLowerInvariant(),
+              (c, v) => c.RetroOnExitEnabled = bool.Parse(v), "false"),
 
             P("SandboxMaxMemoryMb", "WAYCODER_SANDBOX_MAX_MEMORY_MB", null,
               "沙箱最大内存 (MB)", "🔧 系统", "子进程最大内存，超限自动 kill",
