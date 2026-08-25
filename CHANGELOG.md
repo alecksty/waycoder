@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.90.0 (2026-08-25) — Checkpoint 补短板（编辑级版本 / 保留策略 / 还原测试）
+
+探查确认 CheckpointManager 全文件快照 + `/undo` 字节还原已存在（每轮开始打点）。补齐真正缺口（对标 Claude Code checkpoint）：
+
+- **编辑级文件版本（`FileVersionStore`）**：每次写文件前记录旧内容 → `/undo <文件> [n]` 逐编辑回退（撤销最后一次编辑）。`/versions <文件>` 列版本历史。与轮级整树快照互补
+- **保留策略**：`WAYCODER_CHECKPOINT_MAX`（默认 50），创建超上限自动删最旧 ckpt 目录；`/checkpoints prune [N]` 手动清理
+- **还原路径测试补齐**（此前因风险跳过）：临时目录内验证 `UndoAsync` FileBackup **字节还原**；`FileVersionStore` 记录/还原/去重/保留全测
+- **顺带修复 CheckpointManager 既有 bug**：非 git 目录下 `git diff --name-only` 的错误输出（"warning: Not a git repository"，不含 fatal）被当成变更文件塞进检查点——现在用 `IsGitError` 识别 fatal/warning/usage
+- **FindReplaceTool 追踪补齐**：写入后补 `RecordChange` + `FileTracker.RecordWrite`（此前漏记，自动 commit 精准暂存收不到它）
+
+### ✅ 验证
+- 完整自测 **4574 通过 / 0 失败**（新增 `[编辑级文件版本]` 节 9 项 + 还原测试 3 项）
+- 还原测试：非 git 目录建文件 → 检查点 → 改坏 → `/undo` → 内容还原 ✅
+
 ## v0.89.0 (2026-08-25) — 沙箱边界解耦（边界轴独立于确认轴）
 
 CLAUDE.md 待办落地：边界轴（可写范围/网络）与确认轴（Ask/Auto/SmartAuto/Yolo）彻底解耦，对齐 Codex sandbox_mode / Claude 权限分层。**`--yolo` 现在只跳过确认，不解除边界**——可叠加 `hard` 边界（仅项目内写 + 无网络）。

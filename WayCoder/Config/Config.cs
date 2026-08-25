@@ -336,6 +336,9 @@ public class Config
     /// <summary>沙箱边界模式（独立于权限确认轴）：Off / ProjectWrite / NetworkOff / Hard。</summary>
     public SandboxMode SandboxMode { get; set; } = SandboxMode.Off;
 
+    /// <summary>检查点保留上限（超过自动删除最旧）。</summary>
+    public int CheckpointMax { get; set; } = 50;
+
     /// <summary>循环切换到下一个沙箱模式（关闭→项目写→网络关→严格→关闭）。返回新模式。</summary>
     public SandboxMode CycleSandbox()
     {
@@ -777,6 +780,12 @@ public class Config
               "select", ["true","false"], 2,
               c => c.AutoCheckpoint.ToString().ToLowerInvariant(),
               (c, v) => c.AutoCheckpoint = bool.Parse(v), "true"),
+
+            P("CheckpointMax", "WAYCODER_CHECKPOINT_MAX", null,
+              "检查点保留上限", "🔧 系统", "超过上限自动删除最旧检查点（防磁盘无限增长）",
+              "number", null, 3,
+              c => c.CheckpointMax.ToString(),
+              (c, v) => c.CheckpointMax = Math.Clamp(int.Parse(v), 1, 1000), "50"),
 
             P("UpdateEnabled",    "WAYCODER_UPDATE_ENABLED",    null,
               "更新开关", "🔧 系统", "内网/离线部署：关闭后 /update、--update 不做网络请求",

@@ -158,6 +158,7 @@ public static class SlashCommandRegistry
         Register(new Commands.CheckpointsCommand());
         Register(new Commands.TimelineCommand());
         Register(new Commands.UndoCommand());
+        Register(new Commands.VersionsCommand());
 
         // 配置/系统
         Register(new Commands.ConfigCommand());

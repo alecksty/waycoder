@@ -555,8 +555,25 @@ public static partial class SelfTest
             Check("检查点描述正确", cp2!.Description == "自测检查点");
             Check("列表包含检查点", CheckpointManager.ListCheckpoints().Contains($"#{cp2.Id}"));
 
-            // 不测试 UndoAsync：FileBackup 恢复路径会把备份拷贝回工作树，
-            // 若备份路径/文件列表解析出错可能覆盖真实文件，风险大于收益（曾误伤工作树）
+            // 还原路径测试（安全：临时目录内验证 FileBackup 字节还原，补齐此前因风险跳过的覆盖）
+            var cpFile = Path.Combine(cpWorkDir, "rollback.txt");
+            File.WriteAllText(cpFile, "原始内容 v1");
+            EditFileTool.RecordChange(cpFile, null, "原始内容 v1"); // 注册已变更 → 非 git 目录下文件备份会包含它
+            var cp3 = CheckpointManager.CreateAsync("还原测试").Result;
+            Check("还原测试: 检查点创建", cp3 != null);
+            if (cp3 != null && cp3.Type == CheckpointType.FileBackup)
+            {
+                File.WriteAllText(cpFile, "被改坏了 v2");
+                var undoOut = CheckpointManager.UndoAsync(cp3.Id, "rollback.txt").Result;
+                Check("还原测试: UndoAsync 报告还原", undoOut.Contains("已恢复") || undoOut.Contains("还原") || undoOut.Contains("回退"));
+                Check("还原测试: 文件内容已还原", File.ReadAllText(cpFile) == "原始内容 v1");
+            }
+            else
+            {
+                Check("还原测试: 非 git 目录走文件备份", cp3 != null);
+            }
+            EditFileTool.ChangedFiles.Clear(); // 清理，避免污染后续检查点
+
             CheckpointManager.Clear();
             Check("清理后列表为空", CheckpointManager.ListCheckpoints().Contains("暂无检查点"));
         }
@@ -570,6 +587,63 @@ public static partial class SelfTest
         // FileBackup 还原会向工作树写文件，一旦备份路径/文件列表解析出错即覆盖真实文件
         Check("GetCheckpointFiles 返回 List", CheckpointManager.GetCheckpointFiles() is List<string>);
 
+        Console.WriteLine();
+
+        // ---- 编辑级文件版本（FileVersionStore：/undo <file> 逐编辑回退）----
+        Section("[编辑级文件版本]");
+        var verCwd = Path.Combine(Path.GetTempPath(), "fv_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(verCwd);
+        var verSaved = Environment.CurrentDirectory;
+        Environment.CurrentDirectory = verCwd;
+        try
+        {
+            FileVersionStore.Reset();
+
+            // 辅助：写入 v1→v2→v3 各记一版，再写到当前内容
+            void Seed(string p, string cur)
+            {
+                File.WriteAllText(p, "v1"); FileVersionStore.RecordBefore(p);
+                File.WriteAllText(p, "v2"); FileVersionStore.RecordBefore(p);
+                File.WriteAllText(p, "v3"); FileVersionStore.RecordBefore(p);
+                File.WriteAllText(p, cur);
+            }
+
+            var f1 = Path.Combine(verCwd, "a1.cs"); Seed(f1, "v4");
+            Check("记录 3 个编辑前版本", FileVersionStore.List(f1).Count == 3);
+            Check("还原 1 步回退 v3", FileVersionStore.Restore(f1, 1) && File.ReadAllText(f1) == "v3");
+
+            var f2 = Path.Combine(verCwd, "a2.cs"); Seed(f2, "v4");
+            Check("还原 2 步回退 v2", FileVersionStore.Restore(f2, 2) && File.ReadAllText(f2) == "v2");
+
+            var f3 = Path.Combine(verCwd, "a3.cs"); Seed(f3, "v4");
+            Check("还原 3 步回退 v1", FileVersionStore.Restore(f3, 3) && File.ReadAllText(f3) == "v1");
+            Check("超步数回退失败", !FileVersionStore.Restore(f3, 9));
+
+            // 内容未变不记录版本
+            var f4 = Path.Combine(verCwd, "a4.cs");
+            File.WriteAllText(f4, "v1"); FileVersionStore.RecordBefore(f4);
+            File.WriteAllText(f4, "v2"); FileVersionStore.RecordBefore(f4);
+            File.WriteAllText(f4, "v2"); // 内容未变
+            FileVersionStore.RecordBefore(f4);
+            Check("内容未变跳过版本", FileVersionStore.List(f4).Count == 2);
+
+            // 保留策略：>20 版滚动删最旧
+            var fMany = Path.Combine(verCwd, "many.cs");
+            for (int i = 0; i < 30; i++)
+            {
+                File.WriteAllText(fMany, $"content-{i}");
+                FileVersionStore.RecordBefore(fMany);
+            }
+            Check("保留策略每文件 ≤20 版", FileVersionStore.List(fMany).Count <= 20);
+            Check("总版本 ≤ 上限", FileVersionStore.TotalVersions <= 200);
+
+            Check("ListAll 返回有版本文件", FileVersionStore.ListAll().Count >= 4);
+        }
+        finally
+        {
+            Environment.CurrentDirectory = verSaved;
+            try { Directory.Delete(verCwd, true); } catch { }
+        }
         Console.WriteLine();
 
         // ---- 自定义命令 ----
