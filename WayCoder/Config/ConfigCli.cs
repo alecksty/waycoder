@@ -43,7 +43,8 @@ public static class ConfigCli
         var val = Config.GetPropValue(p.Key) ?? "";
         if (p.Type == "secret" && val.Length > 0) val = "••••••••";
 
-        return $"{p.Label} ({p.Key}) = {val}\n  {p.Desc}\n  环境变量: {p.EnvVar}" +
+        return $"{p.Label} ({p.Key}) = {val}\n  {p.Desc}\n  " +
+            (string.IsNullOrEmpty(p.EnvVar) ? "来源: 仅 config.json" : $"环境变量: {p.EnvVar}") +
             (p.Options is { Length: > 0 } ? $"\n  可选: {string.Join(" / ", p.Options)}" : "");
     }
 

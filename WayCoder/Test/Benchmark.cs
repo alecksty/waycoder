@@ -1629,19 +1629,19 @@ public static class Benchmark
         var configItems = _limitsList.Where(i => i.IsConfigurable).ToList();
         if (configItems.Count > 0)
         {
-            Console.WriteLine("\n── ⚙ 可配置上限（可通过设置界面或环境变量调整）──");
-            Console.WriteLine($"  {"项目",-28} {"环境变量",-32} 设置路径");
+            Console.WriteLine("\n── ⚙ 可配置上限（设置界面或 /config 调整）──");
+            Console.WriteLine($"  {"项目",-28} {"配置键",-32} 设置路径");
             Console.WriteLine($"  {new string('─', 28)} {new string('─', 32)} {new string('─', 36)}");
-            Console.WriteLine($"  {"预算上限",-28} {"WAYCODER_MAX_BUDGET_USD",-32} 设置 → 💰 预算 → 预算上限");
-            Console.WriteLine($"  {"子智能体最大深度",-28} {"WAYCODER_SUBAGENT_DEPTH",-32} 设置 → 🤖 模型 → 子智能体深度");
-            Console.WriteLine($"  {"LLM 上下文窗口",-28} {"WAYCODER_MAX_CONTEXT",-32} 设置 → ⚙ 参数 → 上下文窗口");
-            Console.WriteLine($"  {"工具执行超时",-28} {"WAYCODER_TOOL_TIMEOUT",-32} 设置 → ⚙ 参数 → 工具超时");
-            Console.WriteLine($"  {"Lint 执行超时",-28} {"WAYCODER_LINT_TIMEOUT",-32} 设置 → ⚙ 参数 → Lint 超时");
-            Console.WriteLine($"  {"记忆注入条数",-28} {"WAYCODER_MEMORY_TOPN",-32} 设置 → 🔧 系统 → 记忆注入条数");
-            Console.WriteLine($"  {"嵌入维度",-28} {"WAYCODER_EMBEDDING_DIMS",-32} 设置 → 🔧 系统 → 嵌入维度");
-            Console.WriteLine($"  {"工具输出折叠风格",-28} {"WAYCODER_CHAT_STYLE",-32} 设置 → 🎨 界面 → 聊天显示风格");
+            Console.WriteLine($"  {"预算上限",-28} {"MaxBudgetUsd",-32} 设置 → 💰 预算 → 预算上限");
+            Console.WriteLine($"  {"子智能体最大深度",-28} {"SubAgentMaxDepth",-32} 设置 → 🤖 模型 → 子智能体深度");
+            Console.WriteLine($"  {"LLM 上下文窗口",-28} {"MaxContextTokens",-32} 设置 → ⚙ 参数 → 上下文窗口");
+            Console.WriteLine($"  {"工具执行超时",-28} {"ToolTimeoutSec",-32} 设置 → ⚙ 参数 → 工具超时");
+            Console.WriteLine($"  {"Lint 执行超时",-28} {"LintTimeoutSec",-32} 设置 → ⚙ 参数 → Lint 超时");
+            Console.WriteLine($"  {"记忆注入条数",-28} {"MemoryTopN",-32} 设置 → 🔧 系统 → 记忆注入条数");
+            Console.WriteLine($"  {"嵌入维度",-28} {"EmbeddingDimensions",-32} 设置 → 🔧 系统 → 嵌入维度");
+            Console.WriteLine($"  {"工具输出折叠风格",-28} {"ChatDisplayStyle",-32} 设置 → 🎨 界面 → 聊天显示风格");
             Console.WriteLine();
-            Console.WriteLine("  💡 修改方式：设置界面 Ctrl+S 保存，或手动编辑 .env 文件后重启。");
+            Console.WriteLine("  💡 修改方式：设置界面 Ctrl+S 保存，或 /config <配置键> <值>（写 config.json）。");
         }
 
         Console.WriteLine("\n── 🐛 发现的潜在问题 ──");
