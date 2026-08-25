@@ -749,6 +749,148 @@ public static class KbIndex
             .ToJson();
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // 教学闭环 —— 教学问答评判 → 更新 gap 权重（掌握降、未掌握升+进复习）
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>掌握度权重下限。</summary>
+    public const double GapWeightFloor = 0.3;
+    /// <summary>掌握 = 降权，未掌握 = 加权的幅度。</summary>
+    public const double MasteredDelta = -0.3;
+    public const double WeakDelta = +0.5;
+
+    /// <summary>设置 gap 条目的掌握度权重（封装 Load/SaveReviewState，供测试/命令用）。</summary>
+    public static void SetGapWeight(string name, double weight)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return;
+        var state = LoadReviewState();
+        var item = state.FirstOrDefault(i => i.Name == name);
+        if (item == null)
+        {
+            item = new ReviewItem { Name = name, IntervalDays = 1, NextDue = DateTime.Now, Weight = 1.0 };
+            state.Add(item);
+        }
+        item.Weight = Math.Clamp(weight, GapWeightFloor, 5.0);
+        SaveReviewState(state);
+    }
+
+    /// <summary>按增量调整 gap 权重（当前缺省 1.0），clamp 到 [0.3, 5.0]。</summary>
+    public static void AdjustGapWeight(string name, double delta)
+    {
+        var state = LoadReviewState();
+        var cur = state.FirstOrDefault(i => i.Name == name)?.Weight ?? 1.0;
+        SetGapWeight(name, cur + delta);
+    }
+
+    /// <summary>教学问答评判 system 提示词：从教学会话问答提取掌握/未掌握主题。</summary>
+    public const string AssessPrompt = """
+        你是教学评估教练。给定一次教学会话的问答记录（AI 讲解 + 测验 + 用户回答），
+        判断用户对每个涉及主题的掌握程度。输出严格 JSON，不要多余文字：
+        {"mastered":["掌握的主题（能独立复述/做对）"],"weak":["未掌握的主题（答错/含糊/需要再练）"]}
+        主题用简短名词，尽量与用户原有欠缺知识（gap）条目名或描述对应。
+        """;
+
+    /// <summary>
+    /// 评估教学会话问答，返回 (掌握主题, 未掌握主题)。summarize 可注入供测试。
+    /// </summary>
+    public static async Task<(List<string> Mastered, List<string> Weak)> AssessTranscript(
+        string transcript, Func<string, Task<string?>>? summarize = null)
+    {
+        if (string.IsNullOrWhiteSpace(transcript)) return ([], []);
+        var json = summarize != null
+            ? await summarize(transcript)
+            : await CallSmallModel(AssessPrompt, ContextManager.TruncateByRunes(transcript, 20000));
+        return json != null ? ParseAssessment(json) : ([], []);
+    }
+
+    /// <summary>纯函数：解析评估 JSON 的 mastered/weak 数组。</summary>
+    public static (List<string> Mastered, List<string> Weak) ParseAssessment(string json)
+    {
+        var mastered = new List<string>();
+        var weak = new List<string>();
+        JNode? root;
+        try { root = Json.Parse(json); }
+        catch { return (mastered, weak); }
+        if (root?.Kind != JKind.Object) return (mastered, weak);
+
+        foreach (var s in root["mastered"]?.Items ?? [])
+        {
+            var t = (s.AsString() ?? "").Trim();
+            if (t.Length > 0) mastered.Add(t);
+        }
+        foreach (var s in root["weak"]?.Items ?? [])
+        {
+            var t = (s.AsString() ?? "").Trim();
+            if (t.Length > 0) weak.Add(t);
+        }
+        return (mastered, weak);
+    }
+
+    /// <summary>
+    /// 把评估结果应用到知识库：掌握主题 → 匹配 gap 条目降权；未掌握 → 提权重 + 进复习轮换。
+    /// 返回 (匹配数 mastered, 匹配数 weak)。
+    /// </summary>
+    public static (int MasteredApplied, int WeakApplied) ApplyAssessment(List<string> mastered, List<string> weak)
+    {
+        var entries = ListEntries();
+        var gaps = entries.Where(e => e.Kind == "gap").ToList();
+        int mApplied = 0, wApplied = 0;
+
+        foreach (var topic in mastered)
+        {
+            var g = MatchGap(gaps, topic);
+            if (g == null) continue;
+            AdjustGapWeight(g.Name, MasteredDelta);
+            mApplied++;
+        }
+        foreach (var topic in weak)
+        {
+            var g = MatchGap(gaps, topic);
+            if (g == null) continue;
+            AdjustGapWeight(g.Name, WeakDelta);
+            // 确保 ReviewItem 存在（未复习=立即到期）→ 进 /kb review 轮换
+            wApplied++;
+        }
+        return (mApplied, wApplied);
+    }
+
+    /// <summary>按主题匹配 gap 条目（name/description/tags 含主题关键词）。</summary>
+    static KbEntry? MatchGap(List<KbEntry> gaps, string topic)
+    {
+        var t = topic.Trim();
+        if (t.Length == 0) return null;
+        return gaps.FirstOrDefault(g =>
+            g.Name.Contains(t, StringComparison.OrdinalIgnoreCase)
+            || g.Description.Contains(t, StringComparison.OrdinalIgnoreCase)
+            || g.Tags.Any(tag => tag.Contains(t, StringComparison.OrdinalIgnoreCase)))
+            ?? gaps.FirstOrDefault(g => t.Contains(g.Name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>教学进度文本（/teach status）：按权重分组 gap 条目。</summary>
+    public static string FormatTeachStatus()
+    {
+        var report = WeakStats();
+        var sb = new System.Text.StringBuilder($"🧭 教学进度（{report.Gaps.Count} 项欠缺知识）\n");
+        var mastered = report.Gaps.Where(g => g.Weight <= 0.5).ToList();
+        var weak = report.Gaps.Where(g => g.Weight > 1.0).ToList();
+        var learning = report.Gaps.Where(g => g.Weight > 0.5 && g.Weight <= 1.0).ToList();
+
+        sb.AppendLine($"\n✅ 基本掌握（weight ≤ 0.5）：");
+        if (mastered.Count == 0) sb.AppendLine("  （暂无）");
+        else foreach (var g in mastered) sb.AppendLine($"  · {g.Description}");
+
+        sb.AppendLine($"\n🔴 待复习（weight > 1.0）：");
+        if (weak.Count == 0) sb.AppendLine("  （暂无）");
+        else foreach (var g in weak) sb.AppendLine($"  · {g.Description}（权重 {g.Weight:F1}）");
+
+        sb.AppendLine($"\n○ 学习中/未测：");
+        if (learning.Count == 0) sb.AppendLine("  （暂无）");
+        else foreach (var g in learning) sb.AppendLine($"  · {g.Description}");
+
+        sb.AppendLine("\n提示：`/teach on` 教学 → 完成测验后 `/teach assess` 记录，弱项自动进 `/kb review`。");
+        return sb.ToString();
+    }
+
     /// <summary>删除与文本最匹配的一条（name/description 精确优先，否则 TF-IDF 最佳）。返回被删条目或 null。</summary>
     public static KbEntry? DeleteBestMatch(string text)
     {
