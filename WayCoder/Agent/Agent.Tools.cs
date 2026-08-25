@@ -108,6 +108,12 @@ public partial class Agent
                     onToolOutput?.Invoke($"«dim»📸 已自动快照 #{cp.Id}（{_autoSnapshotDesc}）· /timeline 可回滚«/»");
             }
 
+            // ── 编辑级版本：每次写文件前记录旧内容（/undo <file> 逐编辑回退）──
+            // 与上面的轮级快照互补：这里每次写工具调用都记录目标文件的编辑前内容。
+            if (CheckpointManager.AutoCheckpoint && TryGetWritePath(tc.Name, tc.Arguments, out var writePath)
+                && File.Exists(writePath))
+                FileVersionStore.RecordBefore(writePath);
+
             // 可取消工具：中断（Web 停止按钮 / Ctrl+C）时能真正杀掉子进程（如 bash）。
             // bash 走流式路径（有 onToolOutput 时）；其余可取消工具统一走 ICancellableTool。
             var result = tool is BashTool bashTool && onToolOutput != null
@@ -195,6 +201,23 @@ public partial class Agent
             ErrorLog.ToolError(tc.Name, $"工具执行异常: {ex.Message}", ex, tc.Arguments);
             return $"执行 {tc.Name} 时出错：{ex.Message}\n[请分析错误原因，尝试其他方式完成目标]";
         }
+    }
+
+    /// <summary>从工具参数解析写文件的目标路径（write/edit/multiedit/notebook_edit/find_replace）。</summary>
+    static bool TryGetWritePath(string toolName, Dictionary<string, object?> args, out string path)
+    {
+        path = "";
+        string key = toolName switch
+        {
+            "find_replace" => "path",
+            _ => "file_path",
+        };
+        if (args != null && args.TryGetValue(key, out var v) && v is string s && !string.IsNullOrWhiteSpace(s))
+        {
+            try { path = Path.GetFullPath(s, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); return true; }
+            catch { return false; }
+        }
+        return false;
     }
 
     /// <summary>
