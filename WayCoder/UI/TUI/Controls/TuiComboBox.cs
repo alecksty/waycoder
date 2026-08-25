@@ -153,6 +153,82 @@ public class TuiComboBox : TuiControl
         }
     }
 
+    /// <summary>
+    /// 覆写命中测试：展开时下拉行渲染在控件下方（Height 恒为 1），
+    /// 基类 HitTest 只认 [absY, absY+Height)，容器路由（TuiView.HitTest）就点不到下拉行。
+    /// </summary>
+    public override TuiControl? HitTest(int absX, int absY)
+    {
+        if (!IsExpanded) return base.HitTest(absX, absY);
+        if (!Visible || !IsEnabled) return null;
+
+        int myAbsX = GetAbsoluteX();
+        int myAbsY = GetAbsoluteY();
+        int dropH = 1 + Math.Min(ActiveIndices.Count, 10);
+        if (absX >= myAbsX && absX < myAbsX + Width &&
+            absY >= myAbsY && absY < myAbsY + dropH)
+            return this;
+        return null;
+    }
+
+    public override bool OnMouse(InputEvent ev)
+    {
+        if (ev.Type != InputType.Mouse) return false;
+
+        if (IsExpanded)
+        {
+            int ax = GetAbsoluteX();
+            int ay = GetAbsoluteY();
+            var displayIndices = ActiveIndices;
+            int listH = Math.Min(displayIndices.Count, 10);
+            bool inDropdown = ev.MouseY >= ay + 1 && ev.MouseY < ay + 1 + listH
+                              && ev.MouseX >= ax && ev.MouseX < ax + Width;
+
+            if (inDropdown)
+            {
+                // 滚轮在下拉行上导航（与 OnKey 的 Up/Down 同语义）
+                if (ev.MouseScrollUp) { NavigateFiltered(-1); return true; }
+                if (ev.MouseScrollDown) { NavigateFiltered(1); return true; }
+                if (ev.MouseLeft)
+                {
+                    int i = ev.MouseY - (ay + 1);
+                    if (i >= 0 && i < displayIndices.Count)
+                    {
+                        int optIdx = displayIndices[i];
+                        Focused = true;
+                        SelectedIndex = optIdx;
+                        OnSelectionChanged?.Invoke(optIdx);
+                        CloseDropdown();
+                    }
+                }
+                return true; // 下拉区域内一律消费（防穿透）
+            }
+
+            // 点击主行 → 折叠
+            if (ev.MouseY == ay && ev.MouseX >= ax && ev.MouseX < ax + Width)
+            {
+                if (ev.MouseLeft) { Focused = true; CloseDropdown(); }
+                return true;
+            }
+
+            return false; // 下拉范围外：交给上层（可能点其它控件）
+        }
+
+        // 折叠态：点击主行 → 展开 + 聚焦（对齐 OnKey 的 Enter/Space 语义）
+        if (ev.MouseLeft && MouseInBounds(ev, out _, out _))
+        {
+            Focused = true;
+            IsExpanded = true;
+            _searchText = "";
+            _filteredIndices = [];
+            if (SelectedIndex < 0) SelectedIndex = 0;
+            OnExpandedChanged?.Invoke(true);
+            return true;
+        }
+
+        return false;
+    }
+
     public override bool OnKey(ConsoleKeyInfo key)
     {
         if (!IsEnabled || Options.Count == 0) return false;

@@ -197,6 +197,7 @@ public class InputManager : IDisposable
         }
 
         // SGR 鼠标：\x1b[<Cb;Cx;CyM（按下）/ \x1b[<Cb;Cx;Cym（释放）
+        // 逐字节读入（交互部分），收集完整序列后交给纯函数解析（可测）
         var buf = new System.Text.StringBuilder();
         for (int i = 0; i < 30; i++)
         {
@@ -206,7 +207,15 @@ public class InputManager : IDisposable
             if (ch.KeyChar == 'M' || ch.KeyChar == 'm') break;
         }
 
-        var seq = buf.ToString();
+        return ParseSgrMouse(buf.ToString());
+    }
+
+    /// <summary>
+    /// 把 SGR 鼠标序列（'&lt;' 之后的内容，如 "0;10;5M" / "64;3;9m"）解析成鼠标事件。
+    /// 纯函数：便于离屏单测（喂真实终端字节串断言 InputEvent 字段）。
+    /// </summary>
+    internal static InputEvent? ParseSgrMouse(string seq)
+    {
         if (seq.Length < 2) return null;
 
         // 去掉终止符再解析 C;X;Y
@@ -227,6 +236,8 @@ public class InputManager : IDisposable
             MouseY = y - 1,
             // SGR 鼠标：32/33/34/35 是 motion（32=无按键纯移动），不是点击——
             // 误判会让鼠标悬停在标题栏就触发拖拽
+            // 注意：注释说的 32/33/34/35 与实际代码判定的 35/36/39 不完全一致，
+            // 以代码实现为准（锁定现状，避免改动影响真实终端行为）
             MouseLeft = !isRelease && code == 0,
             MouseRight = !isRelease && code == 2,
             MouseScrollUp = code == 64,

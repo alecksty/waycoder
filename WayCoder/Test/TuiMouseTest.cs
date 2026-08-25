@@ -56,6 +56,15 @@ public static class TuiMouseTest
             TestViewRouting(Check);
             TestWindowDrag(Check);
             TestScreenModal(Check);
+            TestSgrParse(Check);
+            TestComboBox(Check);
+            TestRadioGroup(Check);
+            TestTreeView(Check);
+            TestTableList(Check);
+            TestTabs(Check);
+            TestInput(Check);
+            TestTextArea(Check);
+            TestPromptBar(Check);
         }
         finally
         {
@@ -105,6 +114,7 @@ public static class TuiMouseTest
         int selected = -1;
         list.OnSelect = i => selected = i;
         Check("列表: 点击选中第 2 项", list.OnMouse(Mouse(5, 1, left: true)) && list.SelectedIndex == 1 && selected == 1);
+        Check("列表: 点击后聚焦（方向键可用）", list.Focused);
 
         var multi = new TuiList { X = 0, Y = 0, Width = 20, Height = 5, MultiSelect = true };
         for (int i = 0; i < 5; i++) multi.Items.Add($"m{i}");
@@ -220,6 +230,146 @@ public static class TuiMouseTest
         var screen2 = new TestScreen(100, 40);
         screen2.AddWindow(new TuiWindow { X = 5, Y = 5, Width = 30, Height = 10, Title = "w", WindowHAlign = EHAlign.Stretch, WindowVAlign = EVAlign.Stretch });
         Check("屏幕: 无模态路由到窗口", screen2.OnMouse(Mouse(10, 10, left: true)));
+    }
+
+    // ── SGR 解析层（真实终端字节 → InputEvent）──
+
+    static void TestSgrParse(Action<string, bool> Check)
+    {
+        // \x1b[<0;10;5M → ParseSgrMouse 收到 '<' 之后的内容 "0;10;5M"
+        var ev = InputManager.ParseSgrMouse("0;10;5M");
+        Check("SGR: 按下 0;10;5M → 鼠标事件", ev != null && ev.Type == InputType.Mouse);
+        Check("SGR: 坐标 1-based→0-based (X=9,Y=4)", ev != null && ev.MouseX == 9 && ev.MouseY == 4);
+        Check("SGR: code=0 → 左键非滚轮非移动非释放", ev != null && ev.MouseLeft && !ev.MouseRight && !ev.MouseScrollUp && !ev.MouseScrollDown && !ev.MouseMotion && !ev.MouseRelease);
+        Check("SGR: MouseButton=0", ev != null && ev.MouseButton == 0);
+
+        var rel = InputManager.ParseSgrMouse("0;10;5m");
+        Check("SGR: m 结尾 → 释放事件", rel != null && rel.MouseRelease && !rel.MouseLeft);
+
+        var right = InputManager.ParseSgrMouse("2;3;4M");
+        Check("SGR: code=2 → 右键", right != null && right.MouseRight && !right.MouseLeft);
+
+        var up = InputManager.ParseSgrMouse("64;3;4M");
+        Check("SGR: code=64 → 滚轮上", up != null && up.MouseScrollUp);
+        var down = InputManager.ParseSgrMouse("65;3;4M");
+        Check("SGR: code=65 → 滚轮下", down != null && down.MouseScrollDown);
+
+        var motion = InputManager.ParseSgrMouse("35;3;4M");
+        Check("SGR: code=35 → 移动事件", motion != null && motion.MouseMotion && !motion.MouseLeft);
+
+        Check("SGR: 短序列 → null", InputManager.ParseSgrMouse("0") == null);
+        Check("SGR: 非法数字 → null", InputManager.ParseSgrMouse("a;b;cM") == null);
+    }
+
+    // ── 新增控件的鼠标支持（点击=聚焦+交互）──
+
+    static void TestComboBox(Action<string, bool> Check)
+    {
+        var cb = new TuiComboBox(["A", "B", "C"]) { X = 0, Y = 0, Width = 10, Height = 1 };
+        int changed = -2;
+        cb.OnSelectionChanged = i => changed = i;
+        int expanded = 0;
+        cb.OnExpandedChanged = b => expanded++;
+
+        Check("下拉框: 折叠点击展开+聚焦", cb.OnMouse(Mouse(5, 0, left: true)) && cb.IsExpanded && cb.Focused);
+        Check("下拉框: 展开触发 OnExpandedChanged", expanded == 1);
+        // 下拉行从 absY+1 起：第 2 项在 absY+1+1
+        Check("下拉框: 点下拉第 2 项选中", cb.OnMouse(Mouse(5, 2, left: true)) && cb.SelectedIndex == 1 && changed == 1);
+        Check("下拉框: 选中后自动折叠", !cb.IsExpanded);
+        // 再次展开后点击下拉范围外不消费
+        cb.OnMouse(Mouse(5, 0, left: true));
+        Check("下拉框: 下拉范围外不消费", !cb.OnMouse(Mouse(15, 5, left: true)));
+    }
+
+    static void TestRadioGroup(Action<string, bool> Check)
+    {
+        var rg = new TuiRadioGroup(["甲", "乙", "丙"]) { X = 0, Y = 0 };
+        int changed = -2;
+        rg.OnSelectionChanged = i => changed = i;
+        Check("单选组: 点击第 2 项选中+聚焦", rg.OnMouse(Mouse(3, 1, left: true)) && rg.SelectedIndex == 1 && changed == 1 && rg.Focused);
+        Check("单选组: 点击空白不消费", !rg.OnMouse(Mouse(3, 5, left: true)));
+        rg.OnMouse(Mouse(3, 0, left: true));
+        Check("单选组: 再次点击切换选中", rg.SelectedIndex == 0 && changed == 0);
+    }
+
+    static void TestTreeView(Action<string, bool> Check)
+    {
+        var tv = new TuiTreeView { X = 0, Y = 0, Width = 40, Height = 10 };
+        for (int i = 0; i < 15; i++) tv.AddRoot($"节点{i}"); // 15 根节点 > 视口 10 行，可滚动
+        Check("树: 点击第 1 行选中+聚焦", tv.OnMouse(Mouse(5, 0, left: true)) && tv.SelectedNode == tv.RootNodes[0] && tv.Focused);
+        Check("树: 滚轮下滚消费", tv.OnMouse(Mouse(5, 2, scrollDown: true)));
+        Check("树: 滚动后首行=第4节点", tv.OnMouse(Mouse(5, 0, left: true)) && tv.SelectedNode == tv.RootNodes[3]);
+        Check("树: 滚轮上滚消费", tv.OnMouse(Mouse(5, 2, scrollUp: true)));
+        Check("树: 上滚后首行=第1节点", tv.OnMouse(Mouse(5, 0, left: true)) && tv.SelectedNode == tv.RootNodes[0]);
+
+        // 展开符列：非叶节点行内 2 列 ▼/▶
+        var tv2 = new TuiTreeView { X = 0, Y = 0, Width = 40, Height = 10 };
+        var root = tv2.AddRoot("根");
+        root.Add(new TuiTreeNode("子"));
+        Check("树: 点展开符列展开", tv2.OnMouse(Mouse(0, 0, left: true)) && root.IsExpanded);
+        Check("树: 再点展开符列折叠", tv2.OnMouse(Mouse(0, 0, left: true)) && !root.IsExpanded);
+    }
+
+    static void TestTableList(Action<string, bool> Check)
+    {
+        var tl = new TuiTableList { X = 0, Y = 0, Width = 30, Height = 6 };
+        tl.AddColumn("名称", 10);
+        tl.AddRow("AAA", "1");
+        tl.AddGroupHeader("组 B");
+        tl.AddRow("BBB", "2");
+        int changed = -2;
+        tl.OnSelectionChanged = i => changed = i;
+        // ShowHeader && Height>=3 → 表头 absY、分隔 absY+1、数据自 absY+2
+        Check("表格: 点击第 1 行数据选中+聚焦", tl.OnMouse(Mouse(3, 2, left: true)) && tl.SelectedIndex == 0 && changed == 0 && tl.Focused);
+        Check("表格: 点组头行不选中", !tl.OnMouse(Mouse(3, 3, left: true)) && tl.SelectedIndex == 0);
+        Check("表格: 点组头下数据行选中", tl.OnMouse(Mouse(3, 4, left: true)) && tl.SelectedIndex == 2);
+        Check("表格: 点表头不消费", !tl.OnMouse(Mouse(3, 0, left: true)));
+        Check("表格: 滚轮下滚消费", tl.OnMouse(Mouse(3, 2, scrollDown: true)));
+    }
+
+    static void TestTabs(Action<string, bool> Check)
+    {
+        var tabs = new TuiTabs { X = 0, Y = 0, Width = 30, Height = 1 };
+        tabs.AddTab("甲", new TuiLabel("1"));
+        tabs.AddTab("乙", new TuiLabel("2"));
+        tabs.AddTab("丙", new TuiLabel("3"));
+        int changed = -2;
+        tabs.OnSelectionChanged = i => changed = i;
+        // tabW = Max(6, 30/3=10) = 10；tab2 在 [10,20)
+        Check("标签页: 点击第 2 个切换+聚焦", tabs.OnMouse(Mouse(15, 0, left: true)) && tabs.SelectedIndex == 1 && changed == 1 && tabs.Focused);
+        Check("标签页: 点击第 3 个切换", tabs.OnMouse(Mouse(25, 0, left: true)) && tabs.SelectedIndex == 2);
+        Check("标签页: 点击越界不消费", !tabs.OnMouse(Mouse(0, 5, left: true)));
+    }
+
+    static void TestInput(Action<string, bool> Check)
+    {
+        var input = new TuiInput { X = 0, Y = 0, Width = 20, Height = 1, Text = "hello 世界" };
+        Check("输入框: 点击第 3 列定位光标+聚焦", input.OnMouse(Mouse(2, 0, left: true)) && input.CursorPos == 2 && input.Focused);
+        Check("输入框: 点击 CJK 字符列定位", input.OnMouse(Mouse(8, 0, left: true)) && input.CursorPos == 7);
+        // "hello 世界" = 8 字符；点超长末尾 → 光标落行尾
+        Check("输入框: 点击末尾后定位到行尾", input.OnMouse(Mouse(19, 0, left: true)) && input.CursorPos == 8);
+    }
+
+    static void TestTextArea(Action<string, bool> Check)
+    {
+        var ta = new TuiTextArea { X = 0, Y = 0, Width = 20, Height = 5 };
+        ta.Lines.Add("line one");
+        ta.Lines.Add("line two");
+        Check("多行框: 点击第 2 行定位光标+聚焦", ta.OnMouse(Mouse(3, 1, left: true)) && ta.CursorRow == 1 && ta.CursorCol == 3 && ta.Focused);
+        // Lines 初始为 [""]，Add 两行后共 3 行；点可视空白落到最后一行尾
+        Check("多行框: 点击空白落到底行尾", ta.OnMouse(Mouse(3, 4, left: true)) && ta.CursorRow == 2 && ta.CursorCol == 8);
+    }
+
+    static void TestPromptBar(Action<string, bool> Check)
+    {
+        var bar = new TuiPromptBar { X = 0, Y = 0, Width = 40, Height = 4, MaxVisible = 8 };
+        bar.Items.Add(new PromptItem { Label = "甲", Detail = "d1" });
+        bar.Items.Add(new PromptItem { Label = "乙", Detail = "d2" });
+        PromptItem? selected = null;
+        bar.OnSelect = i => selected = i;
+        // Bg==0 → 有边框，内容自 absY+1 起；Height=4 → 2 行可见
+        Check("提示栏: 点击第 2 项选中+激活+聚焦", bar.OnMouse(Mouse(5, 2, left: true)) && bar.SelectedIndex == 1 && selected != null && bar.Focused);
+        Check("提示栏: 点击边框行不消费", !bar.OnMouse(Mouse(5, 0, left: true)));
     }
 
     /// <summary>最小测试屏幕：手动固定终端尺寸（TW/TH），避免 ChatScreen 完整布局与事件订阅的副作用。</summary>

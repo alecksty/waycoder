@@ -176,6 +176,40 @@ public class TuiTableList : TuiControl
         return sb.ToString();
     }
 
+    public override bool OnMouse(InputEvent ev)
+    {
+        if (!MouseInBounds(ev, out int relX, out int relY)) return false;
+
+        // 滚轮：垂直滚动（每滚 3 行）
+        if (ev.MouseScrollUp)
+        {
+            ScrollOffset = Math.Max(0, ScrollOffset - 3);
+            MarkDirty();
+            return true;
+        }
+        if (ev.MouseScrollDown)
+        {
+            ScrollOffset = Math.Min(Math.Max(0, _rows.Count - VisibleDataRows), ScrollOffset + 3);
+            MarkDirty();
+            return true;
+        }
+        if (!ev.MouseLeft || _columns.Count == 0) return false;
+
+        // 数据区起始行：与 OnRender 的 dataStart 一致（表头占 2 行时偏移）
+        int headerRows = ShowHeader && Height >= 3 ? 2 : 0;
+        int relRow = relY - headerRows;
+        if (relRow < 0) return false; // 点中表头/分隔线，不处理
+        int idx = ScrollOffset + relRow;
+        if (idx < 0 || idx >= _rows.Count || IsGroupRow(idx)) return false; // 组头不可选中
+
+        Focused = true;
+        SelectedIndex = idx;
+        EnsureSelectedVisible();
+        OnSelectionChanged?.Invoke(idx);
+        MarkDirty();
+        return true;
+    }
+
     // ── 滚动 ──
 
     /// <summary>调整 ScrollOffset，保证选中行落在可见数据区。</summary>

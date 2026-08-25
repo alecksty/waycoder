@@ -46,6 +46,7 @@ public class TuiList : TuiControl
         }
         if (ev.MouseLeft)
         {
+            Focused = true; // 点击后方向键才路由到本列表（对齐 TuiView.OnKey 只派发聚焦子控件）
             int idx = ScrollOffset + (ev.MouseY - absY);
             if (idx >= 0 && idx < Items.Count)
             {
