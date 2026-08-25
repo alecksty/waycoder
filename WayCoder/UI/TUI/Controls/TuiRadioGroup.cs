@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -72,6 +73,21 @@ public class TuiRadioGroup : TuiControl
 
         if (Options.Count > 0 && Height < Options.Count)
             Height = Options.Count;
+    }
+
+    public override bool OnMouse(InputEvent ev)
+    {
+        // 每选项一行：row = absY + i（见 OnRender）。点击某行 = 选中该选项 + 聚焦。
+        if (!MouseInBounds(ev, out _, out int relY)) return false;
+        if (!ev.MouseLeft) return false;
+
+        int idx = relY;
+        if (idx < 0 || idx >= Options.Count) return false;
+
+        Focused = true;
+        SetIndex(idx);
+        MarkDirty();
+        return true;
     }
 
     public override bool OnKey(ConsoleKeyInfo key)

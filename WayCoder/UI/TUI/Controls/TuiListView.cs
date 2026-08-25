@@ -204,9 +204,10 @@ public class TuiListView : TuiView
         if (ev.MouseScrollUp) { ScrollUp(3); return true; }
         if (ev.MouseScrollDown) { ScrollDown(3); return true; }
 
-        // 左键点击：定位选中项
+        // 左键点击：定位选中项 + 聚焦（点击后方向键才路由到本列表）
         if (ev.MouseLeft)
         {
+            Focused = true;
             int relY = ev.MouseY - absY + ScrollOffset;
             for (int i = 0; i < Children.Count; i++)
             {

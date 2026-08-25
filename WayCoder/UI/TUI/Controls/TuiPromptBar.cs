@@ -1,6 +1,7 @@
 using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -265,6 +266,47 @@ public class TuiPromptBar : TuiControl
     /// </summary>
     /// <param name="key">按下的键</param>
     /// <returns>是否处理了该键</returns>
+    public override bool OnMouse(InputEvent ev)
+    {
+        if (!MouseInBounds(ev, out _, out int relY)) return false;
+        if (Items.Count == 0) return false;
+
+        var bordered = Bg == 0;
+        int contentStart = bordered ? 1 : 0; // 有边框时内容区从 absY+1 开始
+
+        // 滚轮：上下选择（与 Up/Down 同语义）
+        if (ev.MouseScrollUp)
+        {
+            Focused = true;
+            SelectedIndex = Math.Max(0, SelectedIndex - 1);
+            UpdateSelectedIndex(SelectedIndex);
+            MarkDirty();
+            return true;
+        }
+        if (ev.MouseScrollDown)
+        {
+            Focused = true;
+            SelectedIndex = Math.Min(Items.Count - 1, SelectedIndex + 1);
+            UpdateSelectedIndex(SelectedIndex);
+            MarkDirty();
+            return true;
+        }
+        if (!ev.MouseLeft) return false;
+
+        int relRow = relY - contentStart;
+        if (relRow < 0) return false; // 上边框
+        int i = relRow / ItemHeight;
+        int pos = ViewIndex + i;
+        if (pos < 0 || pos >= Items.Count) return false;
+
+        Focused = true;
+        SelectedIndex = pos;
+        UpdateSelectedIndex(pos);
+        OnSelect?.Invoke(Items[pos]); // 点击 = 选中并激活（对齐 Enter 语义）
+        MarkDirty();
+        return true;
+    }
+
     public override bool OnKey(ConsoleKeyInfo key)
     {
         if (!IsEnabled || !CanFocus) return false;

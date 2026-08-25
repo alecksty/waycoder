@@ -1,5 +1,22 @@
 # 更新日志
 
+## v0.87.29 (2026-08-25) — 全控件鼠标支持 + SGR 解析层测试闭环
+
+让「凡能获得焦点的控件都支持鼠标」成真——此前仅 8 个控件实现 `OnMouse`，`TuiComboBox`/`TuiRadioGroup`/`TuiTreeView`/`TuiTableList`/`TuiTabs`/`TuiInput`/`TuiTextArea`/`TuiPromptBar` 均可聚焦却只能键盘操作；且真实终端字节→事件的 SGR 解析层零测试覆盖。
+
+- **8 控件新增 `OnMouse`**（点击=聚焦+交互，滚轮=滚动）：
+  - `TuiComboBox`：折叠点击展开；展开点下拉行选中+自动折叠；点外部不消费；**覆写 `HitTest`** 展开时命中区扩展到下拉底部（基类只认 Height=1，容器路由点不到下拉行）
+  - `TuiRadioGroup`：点选项选中；`TuiTreeView`：点行选中、点展开符列（▼/▶ 2 列）切换展开、滚轮滚动；`TuiTableList`：点数据行选中、组头行跳过、滚轮；`TuiTabs`：点标签切换；`TuiPromptBar`：点条目选中+激活、滚轮
+  - `TuiInput`/`TuiTextArea`：点击定位光标（新增 `TuiEditBase.VisualToCharCol` 视觉列→字符列，Tab/CJK/emoji 宽度感知）
+- **修复点击聚焦缺口**：`TuiList`/`TuiListView` 点击后置 `Focused=true`（此前点击不聚焦，后续方向键路由不到——`TuiView.OnKey` 只派发聚焦子控件）；`TuiRichEditor` 保留既有 `OnFocusRequested` 宿主机制不改
+- **SGR 解析纯函数化**：`InputManager.TryParseEscapeSequence` 的解析逻辑抽出 `ParseSgrMouse(string)`（`<` 后内容如 `"0;10;5M"`），首次有离屏单测锁定「1-based→0-based 坐标、code→左右键/滚轮/motion」映射（注：注释称 motion 为 32/33/34/35，代码实际认 35/36/39——以代码为准并已注明）
+- **`TuiMouseTest` 34 → 76 断言**：新增 TestSgrParse（9 条）+ 8 控件测试（下拉框 5 / 单选 3 / 树 7 / 表格 5 / 标签页 3 / 输入框 3 / 多行框 2 / 提示栏 2）+ 列表点击聚焦补强
+
+### ✅ 验证
+- 编译 0 错误
+- 完整自测 **4501 通过 / 0 失败**（TuiMouse 76 条全绿，较上版 +42），无崩溃
+- `--tui-mouse` 独立运行 76/76 通过；`--test ui` 含 `[TuiMouse]` 节
+
 ## v0.87.28 (2026-08-25) — TUI 鼠标支持离屏测试（--tui-mouse）
 
 补「鼠标支持可验证」短板——此前鼠标路由只在真实终端手动点、无自动化回归。新增 `--tui-mouse` 命令，离屏模拟点击/滚轮/悬停/拖拽，逐项报告每个控件与界面的 OnMouse 是否正确响应：
