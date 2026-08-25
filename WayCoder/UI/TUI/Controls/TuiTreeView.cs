@@ -300,6 +300,46 @@ public class TuiTreeView : TuiControl
 
     // ── 输入 ──
 
+    public override bool OnMouse(InputEvent ev)
+    {
+        if (!MouseInBounds(ev, out int relX, out int relY)) return false;
+
+        // 滚轮：垂直滚动（扁平列表索引单位，每滚 3 行）
+        if (ev.MouseScrollUp)
+        {
+            BuildFlatList();
+            _scrollOffset = Math.Max(0, _scrollOffset - 3);
+            MarkDirty();
+            return true;
+        }
+        if (ev.MouseScrollDown)
+        {
+            BuildFlatList();
+            _scrollOffset = Math.Min(Math.Max(0, _flatList.Count - Height), _scrollOffset + 3);
+            MarkDirty();
+            return true;
+        }
+        if (!ev.MouseLeft) return false;
+
+        // 点击行 → 扁平列表索引（BuildFlatList 保证一行一节点，见 OnRender）
+        BuildFlatList();
+        int flatIdx = _scrollOffset + relY;
+        if (flatIdx < 0 || flatIdx >= _flatList.Count) return false;
+
+        var node = _flatList[flatIdx];
+        Focused = true;
+
+        // 展开指示符列（非叶节点的 ▼/▶ 占 2 列）→ 切换展开；否则选中
+        int depth = _depthCache.GetValueOrDefault(node, 0);
+        int markerStart = depth > 0 ? (depth - 1) * 2 + 2 : 0;
+        if (!node.IsLeaf && relX >= markerStart && relX < markerStart + 2)
+            ToggleExpand(node);
+        else
+            SelectNode(node);
+
+        return true;
+    }
+
     public override bool OnKey(ConsoleKeyInfo key)
     {
         if (!IsEnabled) return false;

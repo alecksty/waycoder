@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -364,4 +365,20 @@ public class TuiInput : TuiEditBase
     }
 
     protected override string GetText() => Text;
+
+    /// <summary>点击定位光标（rune 感知列换算，含 CJK/emoji 宽字符）+ 聚焦。</summary>
+    public override bool OnMouse(InputEvent ev)
+    {
+        if (!MouseInBounds(ev, out int relX, out int relY)) return false;
+        if (!ev.MouseLeft || relY != 0) return false; // 单行输入区只在第一行
+
+        Focused = true;
+        var text = Password ? new string('•', Text.Length) : Text;
+        int scrollStart = ComputeScrollStart(text, CursorPos, Width);
+        int clickIdx = scrollStart + VisualToCharCol(text[scrollStart..], relX);
+        CursorPos = Math.Min(Text.Length, clickIdx);
+        ClearSelection();
+        MarkDirty();
+        return true;
+    }
 }

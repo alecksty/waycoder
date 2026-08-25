@@ -1,3 +1,5 @@
+using WayCoder.UI.Shared;
+
 namespace WayCoder.UI.Tui.Controls;
 
 /// <summary>
@@ -28,6 +30,22 @@ public abstract class TuiEditBase : TuiControl
         _cursorRow = row;
         _cursorCol = col;
         _showCursor = true;
+    }
+
+    /// <summary>把点击的视觉列映射回行内字符列（Tab=4 / CJK 宽度感知，与 TuiRichEditor.VisualToCol 同语义）。
+    /// 鼠标点击定位光标用：line 为「已滚动到可视起点」的行文本，visualCol 相对该文本起点。</summary>
+    protected static int VisualToCharCol(string line, int visualCol)
+    {
+        if (string.IsNullOrEmpty(line) || visualCol <= 0) return 0;
+        int v = 0, idx = 0;
+        foreach (var rune in line.EnumerateRunes())
+        {
+            int w = rune.Value == '\t' ? 4 : AnsiHelper.DisplayWidth(rune.ToString());
+            if (visualCol < v + w) return idx;
+            v += w;
+            idx += rune.Utf16SequenceLength;
+        }
+        return line.Length;
     }
 
     // ═══════════════════════════════════════════════════════════════
