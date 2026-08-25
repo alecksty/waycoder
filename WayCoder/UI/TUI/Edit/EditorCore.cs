@@ -109,7 +109,7 @@ public class EditorCore
             Directory.CreateDirectory(dir);
 
         var content = string.Join(_newLine, Lines.Select(sb => sb.ToString()));
-        File.WriteAllText(FilePath, content, Encoding.UTF8);
+        Global.WriteAllTextPreserveBom(FilePath, content); // 无 BOM（原文件带 BOM 才保留）
         Modified = false;
     }
 

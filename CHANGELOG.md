@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.96.2 (2026-08-25) — 修复源文件被强加 UTF-8 BOM
+
+双代理并行测试（五子棋网页版 + 俄罗斯方块 Python 版）发现：生成 tetris.py 带 UTF-8 BOM（`EF BB BF`），Python 3 严格解析器会拒绝。定位：`EditFileTool`/`MultiEditTool`/`FindReplaceTool`/`EditorCore.Save`/`Web 编辑器 SaveEditorFile` 直接用 `Encoding.UTF8`（.NET 静态实例带 BOM）。
+
+- **新增 `Global.WriteAllTextPreserveBom`**：原文件带 BOM 才保留，否则写无 BOM UTF-8；5 处写文件点统一接入
+- `WriteFileTool` 默认本就是无 BOM（`UTF8Encoding(false)`），未受影响
+- 自测新增 `[文件编码 BOM]` 节（新写无 BOM / 原带 BOM 保留 / EditorCore 保存不新增 BOM），**4623 通过 / 0 失败**
+- 端到端实测：Web 编辑器保存 .py → 文件直接以 `p` 开头（无 BOM）✓
+
 ## v0.96.1 (2026-08-25) — 质量加固：CI 自测门禁 + 编辑器补齐
 
 - **CI 自测门禁**：新增 `.github/workflows/ci.yml`（任意分支 push/PR 触发）——主工程构建 + **WayCoder.Gui 构建**（Avalonia 独立工程，此前 CI 从不编译）+ **4620 项自测门禁**（非零退出即失败，防回归）

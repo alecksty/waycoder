@@ -680,7 +680,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         var dir = Path.GetDirectoryName(full);
         if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             Directory.CreateDirectory(dir);
-        File.WriteAllText(full, content, Encoding.UTF8);
+        Global.WriteAllTextPreserveBom(full, content);
         return full;
     }
 

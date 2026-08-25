@@ -169,7 +169,7 @@ public class EditFileTool : ITool
             if (hasCrlf)
                 newContent = newContent.Replace("\r\n", "\n").Replace("\n", "\r\n");
 
-            File.WriteAllText(path, newContent, Encoding.UTF8);
+            Global.WriteAllTextPreserveBom(path, newContent);
             FileTracker.RecordWrite(path);
             var replacedMsg = replaceAll && occurrences > 1
                 ? $"（{occurrences} 处替换）"

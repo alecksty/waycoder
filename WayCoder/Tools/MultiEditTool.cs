@@ -196,7 +196,7 @@ public class MultiEditTool : ITool
         if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             Directory.CreateDirectory(dir);
 
-        File.WriteAllText(path, content, Encoding.UTF8);
+        Global.WriteAllTextPreserveBom(path, content);
         EditFileTool.RecordChange(path, null, content);
         FileTracker.RecordWrite(path);
 
@@ -278,7 +278,7 @@ public class MultiEditTool : ITool
         if (hasCrlf)
             newContent = newContent.Replace("\r\n", "\n").Replace("\n", "\r\n");
 
-        File.WriteAllText(path, newContent, Encoding.UTF8);
+        Global.WriteAllTextPreserveBom(path, newContent);
         FileTracker.RecordWrite(path);
 
         var total = edits.Count;
