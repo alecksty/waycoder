@@ -267,11 +267,22 @@ public class ConnectArg : CliArg
             case "list":
             case "ls":
             {
-                var sb = new System.Text.StringBuilder("**connect 注册表**：\n");
-                foreach (var c in ConnectionConfig.ListConnects())
+                var connects = ConnectionConfig.ListConnects();
+                var sb = new System.Text.StringBuilder($"**connect 注册表**（{connects.Count}）：\n");
+
+                // 列宽：取各列最大长度（+2 余量），分列对齐，避免名称溢出错位
+                var nameW = 8; var pidW = 8;
+                foreach (var c in connects)
+                {
+                    nameW = Math.Max(nameW, c.Name.Length + 2);
+                    pidW = Math.Max(pidW, c.ProviderId.Length + 2);
+                }
+
+                foreach (var c in connects)
                 {
                     var hasKey = !string.IsNullOrEmpty(ConnectionConfig.ResolveProvider(c.ProviderId)?.ApiKey);
-                    sb.AppendLine($"  `{c.Name}` {c.ProviderId} / {c.ModelId}" + (hasKey ? " 🔑" : " ⚠"));
+                    var keyMark = hasKey ? "🔑" : "⚠";
+                    sb.AppendLine($"  {c.Name.PadRight(nameW)} {c.ProviderId.PadRight(pidW)} {c.ModelId}  {keyMark}");
                 }
                 var chain = ConnectionConfig.FallbackChain;
                 sb.AppendLine($"回退链：{(chain.Count > 0 ? string.Join(" → ", chain) : "（无）")}");
