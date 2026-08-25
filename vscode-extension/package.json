@@ -1,0 +1,66 @@
+{
+  "name": "waycoder-vscode",
+  "displayName": "WayCoder (道码) AI 编程助手",
+  "description": "把 WayCoder 学习型智能体带到 VS Code：流式对话、解释/修复选中代码、自动应用改动。基于 --web SSE 协议。",
+  "version": "0.1.0",
+  "publisher": "alecksty",
+  "license": "MIT",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Programming Languages", "Other"],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "waycoder.openChat",
+        "title": "WayCoder: 打开对话"
+      },
+      {
+        "command": "waycoder.explainSelection",
+        "title": "WayCoder: 解释选中代码"
+      },
+      {
+        "command": "waycoder.fixSelection",
+        "title": "WayCoder: 修复选中代码"
+      },
+      {
+        "command": "waycoder.interrupt",
+        "title": "WayCoder: 中断当前任务"
+      }
+    ],
+    "keybindings": [
+      { "command": "waycoder.openChat", "key": "ctrl+alt+w", "mac": "cmd+alt+w" }
+    ],
+    "configuration": {
+      "title": "WayCoder",
+      "properties": {
+        "waycoder.path": {
+          "type": "string",
+          "default": "waycoder",
+          "description": "waycoder 可执行文件路径（默认从 PATH 解析；可设为绝对路径）"
+        },
+        "waycoder.port": {
+          "type": "number",
+          "default": 0,
+          "description": "本地服务端口（0 = 自动选空闲端口）"
+        },
+        "waycoder.model": {
+          "type": "string",
+          "default": "",
+          "description": "模型 ID（留空用默认配置）"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.0.0",
+    "@vscode/vsce": "^2.0.0"
+  }
+}

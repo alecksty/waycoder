@@ -1,5 +1,24 @@
 # 更新日志
 
+## v0.92.0 (2026-08-25) — VS Code 扩展（waycoder-vscode，短板 #4 完成）
+
+`--json` 桥接已就绪；本版本做正式 VS Code 扩展，把学习型智能体带到 IDE。基于 `--web` SSE 流式协议（已核实）。
+
+- **`vscode-extension/`（TypeScript，独立目录）**：
+  - **流式对话面板**：webview 聊天 UI（消息列表 + 输入 + 发送/中断），逐 token 渲染
+  - **命令**：`WayCoder: 打开对话`（Ctrl+Alt+W）/ `解释选中代码` / `修复选中代码` / `中断`
+  - **server.ts**：spawn `waycoder --web <空闲端口>`（`WAYCODER_WEB_NO_OPEN=1`，cwd=工作区），解析端口行、停用 kill
+  - **relay.ts**：`POST /chat` + `GET /events` SSE 消费（token/tool/tool_output/done/failed/interrupted）
+  - **配置**：`waycoder.path` / `waycoder.port` / `waycoder.model`
+  - `--web` 启动失败提示确认安装（可配置 path）
+- **ROADMAP**：VS Code 扩展 P1 → MVP 已交付；docs/使用手册补扩展节
+- 补齐短板 #4 完成——**短板清单四项全部交付**（#1 沙箱 ✅ #2 checkpoint ✅ #3 语义检索 ✅ #4 VS Code 扩展 ✅）
+
+### ✅ 验证
+- `npm install && npm run compile`（tsc 零错误），产物 `out/`
+- 打包就绪（`npm run package` → .vsix）
+- 手动验证需 VS Code + waycoder 在 PATH（见 vscode-extension/README.md）
+
 ## v0.91.0 (2026-08-25) — 语义代码检索（向量嵌入接线，对标 Cursor @codebase）
 
 探查重大发现：向量嵌入基建（`EmbeddingStore` 余弦/混合检索 + `LLM.GetEmbeddingAsync`）早已建好但**从未接入生产**——`ProjectKnowledge.Query` 一直跑纯 TF-IDF。本版本把向量检索接进代码块检索，有嵌入用语义混合，无嵌入/API 失败回退 TF-IDF。
