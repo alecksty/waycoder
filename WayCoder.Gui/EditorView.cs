@@ -25,6 +25,7 @@ public class EditorView : Control
     private const double LineHeight = 19.5;
     private const double Padding = 8;
     private const int GutterWidth = 52;
+    private const int TabSize = 4;
     private static readonly IBrush CaretBrush = new SolidColorBrush(Color.Parse("#4f8cff"));
     private static readonly IBrush SelectionBrush = new SolidColorBrush(Color.Parse("#33518c"));
 
@@ -35,6 +36,9 @@ public class EditorView : Control
     private IBrush _gutterBg = Brushes.Transparent;
     private IBrush _border = Brushes.Gray;
     private double _blinkPhase;
+
+    /// <summary>横向滚动偏移（px）。</summary>
+    private double _hScroll;
 
     /// <summary>Core 更换时触发（EditorWindow 借此重订阅状态栏/脏标记）。</summary>
     public event Action? CoreChanged;
@@ -133,17 +137,16 @@ public class EditorView : Control
             dc.DrawText(MakeText((idx + 1).ToString(CultureInfo.InvariantCulture), _gutter),
                 new Point(GutterWidth - Padding - 4, y));
 
-            // 语法高亮（tab 原样渲染，token 偏移与缓冲 1:1；count 钳制防越界）
-            var ft = MakeText(lineText, _text);
-            var offset = 0;
-            foreach (var (text, color) in _core.Syntax.Tokenize(lineText))
+            // 语法高亮：tab 展开 4 空格渲染（不改缓冲），token 偏移映射到展开串；横向滚动裁剪
+            var (display, spans) = ExpandLine(lineText, _core.Syntax.Tokenize(lineText));
+            var ft = MakeText(display, _text);
+            foreach (var (start, len, color) in spans)
             {
-                var count = Math.Min(text.Length, lineText.Length - offset);
-                if (count > 0)
-                    ft.SetForegroundBrush(SyntaxBrushMap.ForFg(color, _text), offset, count);
-                offset += text.Length;
+                if (start + len <= (int)_hScroll) continue;            // 完全在视口左侧
+                if (start >= (int)_hScroll + Bounds.Width) break;      // 已过视口右侧
+                ft.SetForegroundBrush(SyntaxBrushMap.ForFg(color, _text), start, len);
             }
-            dc.DrawText(ft, new Point(GutterWidth + Padding, y));
+            dc.DrawText(ft, new Point(TextX, y));
 
             // 选区
             DrawSelection(dc, idx, y);
@@ -187,9 +190,9 @@ public class EditorView : Control
     private void DrawSelectionRange(DrawingContext dc, int lineIdx, int from, int to, double y)
     {
         var line = _core!.Lines[lineIdx].ToString();
-        var x1 = TextWidth(line, from);
-        var x2 = TextWidth(line, to);
-        dc.FillRectangle(SelectionBrush, new Rect(GutterWidth + Padding + x1, y, Math.Max(0, x2 - x1), LineHeight));
+        var x1 = TextX + TextWidth(line, from);
+        var x2 = TextX + TextWidth(line, to);
+        dc.FillRectangle(SelectionBrush, new Rect(x1, y, Math.Max(0, x2 - x1), LineHeight));
     }
 
     private void DrawCaret(DrawingContext dc)
@@ -199,15 +202,39 @@ public class EditorView : Control
         if ((int)_blinkPhase % 2 == 0) return; // 闪烁
 
         var y = Padding + (_core.Cy - Math.Max(0, _core.Scroll)) * LineHeight;
-        var x = TextWidth(_core.Lines[_core.Cy].ToString(), _core.Cx);
-        dc.FillRectangle(CaretBrush, new Rect(GutterWidth + Padding + x, y, 2, LineHeight));
+        var x = TextX + TextWidth(_core.Lines[_core.Cy].ToString(), _core.Cx);
+        dc.FillRectangle(CaretBrush, new Rect(x, y, 2, LineHeight));
     }
 
+    /// <summary>文本起始 x（gutter 后 + 左内边距 - 横向滚动）。</summary>
+    private double TextX => GutterWidth + Padding - _hScroll;
+
+    /// <summary>tab 展开后的文本宽度（光标/选区定位用，与渲染一致）。</summary>
     private double TextWidth(string line, int col)
     {
         col = Math.Clamp(col, 0, line.Length);
-        var prefix = line[..col];
-        return MakeText(prefix, _text).Width;
+        var prefix = new System.Text.StringBuilder(col + 4);
+        for (var i = 0; i < col; i++)
+            prefix.Append(line[i] == '\t' ? "    " : line[i]);
+        return MakeText(prefix.ToString(), _text).Width;
+    }
+
+    /// <summary>把缓冲行 + token 展开为「显示串 + (起点,长度,色值) 跨度」（tab → 4 空格，不改缓冲）。</summary>
+    private static (string Display, List<(int Start, int Len, int Color)> Spans) ExpandLine(
+        string line, List<(string Text, int Color)> tokens)
+    {
+        var display = new System.Text.StringBuilder(line.Length + 8);
+        foreach (var ch in line) display.Append(ch == '\t' ? "    " : ch);
+        var spans = new List<(int, int, int)>(tokens.Count);
+        var dispPos = 0;
+        foreach (var (text, color) in tokens)
+        {
+            var w = 0;
+            foreach (var ch in text) w += ch == '\t' ? TabSize : 1;
+            if (w > 0) spans.Add((dispPos, w, color));
+            dispPos += w;
+        }
+        return (display.ToString(), spans);
     }
 
     private static FormattedText MakeText(string text, IBrush brush)
@@ -257,19 +284,39 @@ public class EditorView : Control
         var pos = e.GetPosition(this);
         var lineIdx = Math.Clamp((int)((pos.Y - Padding) / LineHeight) + Math.Max(0, _core.Scroll), 0, _core.TotalLines - 1);
         _core.Cy = lineIdx;
-        _core.Cx = VisualToCol(_core.Lines[lineIdx].ToString(), pos.X - GutterWidth - Padding);
+        _core.Cx = VisualToCol(_core.Lines[lineIdx].ToString(), pos.X - TextX);
         InvalidateVisual();
         e.Handled = true;
     }
 
-    /// <summary>把点击 x 折算为缓冲列（按字符宽度走，CJK 双宽）。</summary>
+    /// <summary>滚轮：水平滚动（Shift+纵向或触控板横向）→ 横向滚动；纵向 → 翻页/行滚动。</summary>
+    protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    {
+        base.OnPointerWheelChanged(e);
+        if (_core == null) return;
+        if (Math.Abs(e.Delta.X) > Math.Abs(e.Delta.Y))
+        {
+            _hScroll = Math.Max(0, _hScroll - e.Delta.X * 40);
+            InvalidateVisual();
+            e.Handled = true;
+        }
+        else
+        {
+            var lines = e.Delta.Y > 0 ? -3 : 3;
+            _core.Scroll = Math.Clamp(_core.Scroll + lines, 0, Math.Max(0, _core.TotalLines - 1));
+            InvalidateVisual();
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>把点击 x 折算为缓冲列（按字符宽度走，CJK 双宽，tab 按 4 空格）。</summary>
     private int VisualToCol(string line, double x)
     {
         if (x <= 0) return 0;
         double acc = 0;
         for (var i = 0; i < line.Length; i++)
         {
-            var w = CharWidth(line[i]);
+            var w = CharWidth(line[i]) * (line[i] == '\t' ? TabSize : 1);
             if (acc + w / 2 >= x) return i;
             acc += w;
         }

@@ -1,0 +1,32 @@
+# WayCoder CI 门禁
+# 触发：任意分支 push / PR（v* 标签交给 release.yml 处理）
+# 验证：主工程构建 + WayCoder.Gui 构建（独立 Avalonia 工程）+ 4620 项自测门禁（非零退出即失败）
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+    tags-ignore: ["v*"]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      # 主工程构建（触发 scripts/merge_webassets.py 内联 Web 前端，需要 python3）
+      - name: Build main (NativeAOT 编译期产物)
+        run: dotnet build WayCoder/WayCoder.sln -c Debug
+
+      # WayCoder.Gui 独立 Avalonia JIT 工程（v0.96 起为交付物，编译期验证避免回归）
+      - name: Build GUI (Avalonia)
+        run: dotnet build WayCoder.Gui/WayCoder.Gui.csproj -c Debug
+
+      # 自测门禁：4620 项（Debug 定义 WAYCODER_TEST），任一失败非零退出
+      - name: Self-test gate
+        run: dotnet run --project WayCoder -- --test

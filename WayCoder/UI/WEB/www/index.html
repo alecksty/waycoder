@@ -214,6 +214,16 @@
       <button class="btn ghost" id="editor-new-btn" title="新建文件">＋ 新建</button>
       <button class="btn" id="editor-save" title="保存 (Ctrl+S)">💾 保存</button>
     </div>
+    <!-- 查找替换条（Ctrl+F / Ctrl+H） -->
+    <div class="editor-findbar" id="editor-findbar" hidden>
+      <input id="editor-find-input" type="text" placeholder="查找…（Enter 下一个）">
+      <input id="editor-replace-input" type="text" placeholder="替换为…">
+      <button class="btn ghost" id="editor-find-prev" title="上一个 (Shift+Enter)">⬆</button>
+      <button class="btn ghost" id="editor-find-next" title="下一个 (Enter)">⬇</button>
+      <button class="btn" id="editor-replace-one" title="替换当前 (Ctrl+Enter)">↻ 替换</button>
+      <button class="btn" id="editor-replace-all" title="全部替换">⇅ 全部</button>
+      <button class="btn ghost" id="editor-find-close" title="关闭 (Esc)">✕</button>
+    </div>
     <div class="editor-main">
       <div id="editor-side" hidden>
         <div class="editor-side-head">🗂 项目文件</div>

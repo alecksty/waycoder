@@ -124,8 +124,10 @@ public class LspTool : ITool
         if (config == null)
             return $"错误：未找到 {ext} 的 LSP 服务器。已安装? (支持: {string.Join(", ", ServerConfigs.Keys)})";
 
-        // 串行化：LSP 会话是单连接，不能并发读写，全程持锁避免多槽位抢同一进程
-        await _sessionLock.WaitAsync();
+        // 串行化：LSP 会话是单连接，不能并发读写，全程持锁避免多槽位抢同一进程。
+        // 3s 超时防死锁（另一槽位持锁卡死时本请求不永久挂起，回退错误提示）
+        if (!await _sessionLock.WaitAsync(TimeSpan.FromSeconds(3)))
+            return $"错误：LSP 会话忙（3s 超时，可能被其他槽位占用）";
         try
         {
             var root = FindProjectRoot(filePath);
@@ -218,7 +220,9 @@ public class LspTool : ITool
     /// <summary>关闭所有缓存的 LSP 会话（进程退出/测试清理时调用）。</summary>
     public static void ShutdownAllSessions()
     {
-        _sessionLock.Wait();
+        // 3s 超时防死锁：会话锁被占用时跳过清理（进程退出路径不阻塞）
+        if (!_sessionLock.Wait(TimeSpan.FromSeconds(3)))
+            return;
         try
         {
             foreach (var s in _sessions.Values)
