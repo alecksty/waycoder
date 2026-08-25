@@ -48,6 +48,19 @@ public enum EconomyMode
     Extreme,
 }
 
+/// <summary>沙箱边界模式（独立于权限确认轴）：管「能碰什么」——可写范围 + 网络。</summary>
+public enum SandboxMode
+{
+    /// <summary>无边界（保持现状）</summary>
+    Off,
+    /// <summary>可写范围仅项目根；网络开</summary>
+    ProjectWrite,
+    /// <summary>可写任意（除敏感）；网络关</summary>
+    NetworkOff,
+    /// <summary>仅项目根 + 网络关（最严，bash 进程沙箱化）</summary>
+    Hard,
+}
+
 /// <summary>
 /// 省 Token 自动模式的优先级偏好（仅 Auto 生效）：
 ///   Quality  (质量优先) — 复杂任务几乎不省，简单任务才省（默认，先保质量再谈费用）
@@ -318,6 +331,22 @@ public class Config
             _ => EconomyMode.Off,
         };
         return EconomyMode;
+    }
+
+    /// <summary>沙箱边界模式（独立于权限确认轴）：Off / ProjectWrite / NetworkOff / Hard。</summary>
+    public SandboxMode SandboxMode { get; set; } = SandboxMode.Off;
+
+    /// <summary>循环切换到下一个沙箱模式（关闭→项目写→网络关→严格→关闭）。返回新模式。</summary>
+    public SandboxMode CycleSandbox()
+    {
+        SandboxMode = SandboxMode switch
+        {
+            SandboxMode.Off => SandboxMode.ProjectWrite,
+            SandboxMode.ProjectWrite => SandboxMode.NetworkOff,
+            SandboxMode.NetworkOff => SandboxMode.Hard,
+            _ => SandboxMode.Off,
+        };
+        return SandboxMode;
     }
 
     /// <summary>自动模式优先级（仅 Auto 生效）：质量优先（默认）/均衡/费用优先</summary>
@@ -901,6 +930,24 @@ public class Config
               "select", ["false","true"], 14,
               c => c.SandboxAllowNetwork.ToString().ToLowerInvariant(),
               (c, v) => c.SandboxAllowNetwork = bool.Parse(v), "false"),
+
+            P("SandboxMode", "WAYCODER_SANDBOX_MODE", null,
+              "沙箱边界", "🔧 系统", "边界轴（独立于权限）：off 无边界 / project 仅项目内写 / network-off 禁网络 / hard 仅项目内写+禁网络",
+              "select", ["off","project","network-off","hard"], 15,
+              c => c.SandboxMode switch
+              {
+                  WayCoder.SandboxMode.ProjectWrite => "project",
+                  WayCoder.SandboxMode.NetworkOff => "network-off",
+                  WayCoder.SandboxMode.Hard => "hard",
+                  _ => "off",
+              },
+              (c, v) => c.SandboxMode = v.ToLowerInvariant() switch
+              {
+                  "project" => WayCoder.SandboxMode.ProjectWrite,
+                  "network-off" => WayCoder.SandboxMode.NetworkOff,
+                  "hard" => WayCoder.SandboxMode.Hard,
+                  _ => WayCoder.SandboxMode.Off,
+              }, "off"),
 
             P("FileLockTimeoutSec", "WAYCODER_FILE_LOCK_TIMEOUT_SEC", null,
               "文件锁超时 (秒)", "🔧 系统", "防多 Agent 并发写冲突的锁超时",
