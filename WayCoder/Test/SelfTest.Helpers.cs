@@ -3609,17 +3609,24 @@ public static partial class SelfTest
             Check("WebPanel: POST /answer 无匹配报错",
                 ansResp.Content.ReadAsStringAsync().Result.Contains("\"ok\":false"));
 
-            // /perm 权限模式切换：设置后 state 反映，且恢复 ask 避免污染其它测试
-            var permResp = client.PostAsync(baseUrl + "/perm",
+            // /permit 权限模式切换（确认轴）：设置后 state 反映，且恢复 ask 避免污染其它测试
+            var permitResp = client.PostAsync(baseUrl + "/permit",
                 new StringContent("{\"mode\":\"yolo\"}", Encoding.UTF8, "application/json")).Result;
-            Check("WebPanel: POST /perm 成功", permResp.Content.ReadAsStringAsync().Result.Contains("\"ok\":true"));
-            var stAfterPerm = client.GetStringAsync(baseUrl + "/state").Result;
-            Check("WebPanel: /perm 后 state 反映 yolo", stAfterPerm.Contains("\"permMode\":\"yolo\""));
-            var permBad = client.PostAsync(baseUrl + "/perm",
+            Check("WebPanel: POST /permit 成功", permitResp.Content.ReadAsStringAsync().Result.Contains("\"ok\":true"));
+            var stAfterPermit = client.GetStringAsync(baseUrl + "/state").Result;
+            Check("WebPanel: /permit 后 state 反映 yolo", stAfterPermit.Contains("\"permMode\":\"yolo\""));
+            var permitBad = client.PostAsync(baseUrl + "/permit",
                 new StringContent("{}", Encoding.UTF8, "application/json")).Result;
-            Check("WebPanel: POST /perm 缺 mode 报错", permBad.Content.ReadAsStringAsync().Result.Contains("\"ok\":false"));
-            client.PostAsync(baseUrl + "/perm",
+            Check("WebPanel: POST /permit 缺 mode 报错", permitBad.Content.ReadAsStringAsync().Result.Contains("\"ok\":false"));
+            client.PostAsync(baseUrl + "/permit",
                 new StringContent("{\"mode\":\"ask\"}", Encoding.UTF8, "application/json")).Wait();
+
+            // /perm 沙箱边界切换（边界轴，独立于权限）
+            var permResp = client.PostAsync(baseUrl + "/perm",
+                new StringContent("{\"mode\":\"hard\"}", Encoding.UTF8, "application/json")).Result;
+            Check("WebPanel: POST /perm 成功", permResp.Content.ReadAsStringAsync().Result.Contains("\"ok\":true"));
+            client.PostAsync(baseUrl + "/perm",
+                new StringContent("{\"mode\":\"off\"}", Encoding.UTF8, "application/json")).Wait();
         }
         catch { Check("WebPanel: 端点冒烟", false); }
         finally { web.Stop(); }
@@ -3635,11 +3642,14 @@ public static partial class SelfTest
         Check("WebCmd: /help 处理", hHelp && oHelp.Contains("Web 命令"));
 
         var (hPerm, oPerm) = WayCoder.UI.Web.WebChatServer.HandleCommand("/perm", a);
-        Check("WebCmd: /perm 无参显示当前", hPerm && oPerm.Contains("权限模式"));
+        Check("WebCmd: /perm 无参显示边界", hPerm && oPerm.Contains("沙箱边界"));
 
-        var (hPermSet, oPermSet) = WayCoder.UI.Web.WebChatServer.HandleCommand("/perm yolo", a);
-        Check("WebCmd: /perm yolo 切换", hPermSet && oPermSet.Contains("已切换"));
-        WayCoder.UI.Web.WebChatServer.HandleCommand("/perm ask", a); // 恢复默认
+        var (hPermSet, oPermSet) = WayCoder.UI.Web.WebChatServer.HandleCommand("/perm hard", a);
+        Check("WebCmd: /perm hard 切换", hPermSet && oPermSet.Contains("已切换"));
+        WayCoder.UI.Web.WebChatServer.HandleCommand("/perm off", a); // 恢复默认
+
+        var (hPermit, oPermit) = WayCoder.UI.Web.WebChatServer.HandleCommand("/permit", a);
+        Check("WebCmd: /permit 无参显示权限", hPermit && oPermit.Contains("权限模式"));
 
         var (hModelList, oModelList) = WayCoder.UI.Web.WebChatServer.HandleCommand("/model list", a);
         Check("WebCmd: /model list 列模型", hModelList && oModelList.Contains("模型列表"));

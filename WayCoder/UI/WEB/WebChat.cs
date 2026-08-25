@@ -288,14 +288,25 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             return HttpResponse.JsonBody(Ok());
         }
 
-        // 权限模式切换（Web 版从「强制 YOLO」改为用户可选）
+        // 沙箱边界切换（与 CLI /perm 对齐：边界轴独立于权限轴）
         if (req.Method == "POST" && req.Path == "/perm")
         {
             var body = Json.Parse(req.Body);
             var mode = body?["mode"]?.AsString() ?? "";
             if (string.IsNullOrWhiteSpace(mode))
                 return HttpResponse.JsonBody(Err("缺少 mode"));
-            // 纯聊天别名（tiny/chat）→ 切工作模式 Chat（0 工具 0 提示词）
+            SandboxManager.SetLevel(mode);
+            BroadcastStateForAll();
+            return HttpResponse.JsonBody(Ok());
+        }
+
+        // 权限模式切换（确认轴，与 CLI /permit 对齐）
+        if (req.Method == "POST" && req.Path == "/permit")
+        {
+            var body = Json.Parse(req.Body);
+            var mode = body?["mode"]?.AsString() ?? "";
+            if (string.IsNullOrWhiteSpace(mode))
+                return HttpResponse.JsonBody(Err("缺少 mode"));
             if (PermissionManager.IsChatModeAlias(mode))
                 WorkModeManager.SetMode(WorkMode.Chat);
             else

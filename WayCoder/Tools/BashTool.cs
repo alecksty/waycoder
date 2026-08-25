@@ -117,6 +117,11 @@ public class BashTool : ITool, ICancellableTool
 
     private async Task<string> Execute(string command, int timeout, Func<string, Task>? onLine = null, string? sessionId = null, CancellationToken cancellationToken = default)
     {
+        // 沙箱网络关（独立于权限模式，yolo 下也生效；localhost 例外）
+        var netBlock = SandboxManager.CheckNetworkCommand(command);
+        if (netBlock != null)
+            return $"{netBlock}\n命令：{command}";
+
         // YOLO 模式（畅通/上帝模式）：跳过 BashGuard 黑名单与普通危险检查，全部放行；
         // 仅保留绝对红线（rm -rf /、fork 炸弹、dd 写磁盘、mkfs 等不可逆系统破坏）
         var yolo = PermissionManager.CurrentMode == PermissionManager.Mode.Yolo;
@@ -138,8 +143,8 @@ public class BashTool : ITool, ICancellableTool
         var worktreePath = WorktreeIsolation.CurrentWorktree;
         var cwd = worktreePath ?? CurrentCwd.Value ?? Directory.GetCurrentDirectory();
 
-        // 沙箱检查（full-auto 模式；yolo 不启用沙箱，见 SandboxManager.SetLevel）
-        if (SandboxManager.IsSandboxed)
+        // 沙箱边界检查（Off 放行；危险命令/网络关/cd 逃逸/系统写按模式拦截，独立于权限）
+        if (SandboxManager.Mode != SandboxMode.Off)
         {
             var violation = SandboxManager.CheckSandboxViolation(command, cwd);
             if (violation != null)

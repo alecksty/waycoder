@@ -89,6 +89,11 @@ public class EditFileTool : ITool
         if (sensitive != null)
             return $"❌ 已阻止：{sensitive}（安全策略：敏感文件读写受保护）";
 
+        // 沙箱边界：项目写限（独立于权限模式）
+        var sandbox = SandboxManager.CheckWritable(path);
+        if (sandbox != null)
+            return sandbox;
+
         // 文件锁检查
         var lockErr = FileLockManager.TryAcquireOrError(path, agentId, "请等待锁释放");
         if (lockErr != null) return lockErr;

@@ -36,6 +36,11 @@ public partial class Agent
             if (modeBlock != null)
                 return modeBlock;
 
+            // 沙箱边界检查：独立于权限/工作模式（网络关/项目写限），Yolo 也生效
+            var sandboxBlock = SandboxManager.CheckToolAllowed(tc.Name, tc.Arguments);
+            if (sandboxBlock != null)
+                return sandboxBlock;
+
             // 权限检查：危险操作需要用户确认
             if (!await PermissionManager.CheckAsync(tc.Name, tc.Arguments))
                 return "用户取消了此操作。";

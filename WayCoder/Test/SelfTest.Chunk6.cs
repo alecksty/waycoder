@@ -130,31 +130,36 @@ public static partial class SelfTest
 
         Console.WriteLine();
 
-        // ---- 沙箱管理 ----
+        // ---- 沙箱管理（边界轴：独立于确认轴）----
         Section("[沙箱管理]");
         SandboxManager.Reset();
-        Check("默认级别 suggest", SandboxManager.Level == "suggest");
-        Check("默认不沙箱化", !SandboxManager.IsSandboxed);
+        Check("默认级别 off", SandboxManager.Level == "off" && !SandboxManager.IsSandboxed);
 
         PermissionManager.CurrentMode = PermissionManager.Mode.Ask;
         SandboxManager.SetLevel("full-auto");
-        Check("full-auto 级别设置", SandboxManager.Level == "full-auto");
-        Check("full-auto IsSandboxed", SandboxManager.IsSandboxed);
-        Check("full-auto 不联动确认模式", PermissionManager.CurrentMode == PermissionManager.Mode.Ask);
+        Check("full-auto → hard", SandboxManager.Mode == SandboxMode.Hard && SandboxManager.Level == "hard");
+        Check("hard IsSandboxed", SandboxManager.IsSandboxed);
+        Check("hard 不联动确认模式", PermissionManager.CurrentMode == PermissionManager.Mode.Ask);
 
         SandboxManager.SetLevel("auto-edit");
-        Check("auto-edit 级别设置", SandboxManager.Level == "auto-edit");
-        Check("auto-edit 不沙箱化", !SandboxManager.IsSandboxed);
-        Check("auto-edit 不联动确认模式", PermissionManager.CurrentMode == PermissionManager.Mode.Ask);
+        Check("auto-edit → project", SandboxManager.Mode == SandboxMode.ProjectWrite);
+        Check("project 不沙箱化", !SandboxManager.IsSandboxed);
+        Check("project 限项目写", SandboxManager.IsProjectWrite);
+        Check("project 不联动确认模式", PermissionManager.CurrentMode == PermissionManager.Mode.Ask);
 
         SandboxManager.SetLevel("suggest");
-        Check("suggest 级别设置", SandboxManager.Level == "suggest");
-        Check("suggest 不联动确认模式", PermissionManager.CurrentMode == PermissionManager.Mode.Ask);
+        Check("suggest → off", SandboxManager.Mode == SandboxMode.Off);
+        Check("off 不联动确认模式", PermissionManager.CurrentMode == PermissionManager.Mode.Ask);
 
-        // yolo/god 在边界轴兼容别名到 full-auto；确认轴仍独立，不因边界设置而放行
+        // 解耦：yolo 不再映射到沙箱边界；确认轴独立
         SandboxManager.SetLevel("yolo");
-        Check("yolo 边界别名映射 full-auto", SandboxManager.Level == "full-auto" && SandboxManager.IsSandboxed);
+        Check("yolo 不再映射沙箱", SandboxManager.Mode == SandboxMode.Off);
         Check("yolo 边界别名不联动确认", PermissionManager.CurrentMode == PermissionManager.Mode.Ask);
+
+        SandboxManager.SetLevel("network-off");
+        Check("network-off 关网络", SandboxManager.IsNetworkOff);
+        SandboxManager.SetLevel("hard");
+        Check("hard 关网络 + 限写", SandboxManager.IsNetworkOff && SandboxManager.IsProjectWrite);
 
         // 命令安全检查（开启沙箱）
         SandboxManager.SetLevel("full-auto");
@@ -204,9 +209,49 @@ public static partial class SelfTest
         SandboxManager.SetLevel("full-auto");
         SandboxManager.AllowedDirectory = "/some/path";
         SandboxManager.Reset();
-        Check("Reset 后 suggest", SandboxManager.Level == "suggest");
+        Check("Reset 后 off", SandboxManager.Level == "off");
         Check("Reset 后 AllowedDirectory null", SandboxManager.AllowedDirectory == null);
 
+        Console.WriteLine();
+
+        // ---- 沙箱边界（工具门控：可写范围 + 网络，独立于权限模式）----
+        Section("[沙箱边界]");
+        SandboxManager.Reset();
+        SandboxManager.AllowedDirectory = "/home/user/project";
+        PermissionManager.CurrentMode = PermissionManager.Mode.Ask;
+
+        // Off：无边界，全放行
+        SandboxManager.SetLevel("off");
+        Check("off 放行 fetch", SandboxManager.CheckToolAllowed("fetch", null) == null);
+        Check("off 放行网络命令", SandboxManager.CheckNetworkCommand("curl http://x.com") == null);
+
+        // project：限项目写，网络开
+        SandboxManager.SetLevel("project");
+        Check("project 拦截项目外写", SandboxManager.CheckWritable("/home/user/other/a.cs") != null);
+        Check("project 放行项目内写", SandboxManager.CheckWritable("/home/user/project/a.cs") == null);
+        Check("project 拦截写工具越界", SandboxManager.CheckToolAllowed("write_file", new() { ["file_path"] = "/home/user/other/a.cs" }) != null);
+        Check("project 放行 fetch", SandboxManager.CheckToolAllowed("fetch", null) == null);
+
+        // network-off：网络关，写不限
+        SandboxManager.SetLevel("network-off");
+        Check("network-off 拦截 fetch", SandboxManager.CheckToolAllowed("fetch", null) != null);
+        Check("network-off 拦截 download", SandboxManager.CheckToolAllowed("download", null) != null);
+        Check("network-off 拦截 curl", SandboxManager.CheckNetworkCommand("curl http://x.com") != null);
+        Check("network-off 放行 curl localhost", SandboxManager.CheckNetworkCommand("curl localhost:8080") == null);
+        Check("network-off 放行项目外写", SandboxManager.CheckWritable("/home/user/other/a.cs") == null);
+
+        // hard：限写 + 关网络
+        SandboxManager.SetLevel("hard");
+        Check("hard 拦截 fetch", SandboxManager.CheckToolAllowed("fetch", null) != null);
+        Check("hard 拦截项目外写", SandboxManager.CheckWritable("/home/user/other/a.cs") != null);
+
+        // 解耦：权限 yolo 不解除边界
+        PermissionManager.CurrentMode = PermissionManager.Mode.Yolo;
+        Check("yolo 下边界仍拦截 fetch", SandboxManager.CheckToolAllowed("fetch", null) != null);
+        Check("yolo 下边界仍拦 curl", SandboxManager.CheckNetworkCommand("curl http://x.com") != null);
+        PermissionManager.CurrentMode = PermissionManager.Mode.Ask;
+
+        SandboxManager.Reset();
         Console.WriteLine();
 
         // ---- 编辑器 Lint 诊断 ----
