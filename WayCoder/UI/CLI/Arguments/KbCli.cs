@@ -1,6 +1,6 @@
 namespace WayCoder.UI.Cli.Arguments;
 
-/// <summary>编程知识库 CLI 纯逻辑（mine/review/weak/list，输出到 Console）。</summary>
+/// <summary>编程知识库 CLI 纯逻辑（mine/save/update/forget/search/review/weak/list，输出到 Console）。</summary>
 public static class KbCli
 {
     public static int Run(List<string> values)
@@ -12,6 +12,15 @@ public static class KbCli
         {
             case "mine":
                 return Mine(rest);
+            case "save":
+                return Save(rest);
+            case "update":
+                return Update(rest);
+            case "forget":
+                return Forget(rest);
+            case "search":
+            case "find":
+                return Search(rest);
             case "review":
                 return Review();
             case "weak":
@@ -19,13 +28,60 @@ public static class KbCli
             case "list":
                 return List();
             default:
-                Console.WriteLine("编程知识库 --kb <mine [N]|review|weak|list>");
-                Console.WriteLine("  mine [N]   从 git 历史提炼经验（默认 20）");
-                Console.WriteLine("  review     间隔重复自测一条到期经验");
-                Console.WriteLine("  weak       欠缺知识清单 + 薄弱点统计");
-                Console.WriteLine("  list       列出全部经验条目");
+                Console.WriteLine("编程知识库 --kb <mine [N]|save|update|forget|search|review|weak|list>");
+                Console.WriteLine("  mine [N]            从 git 历史提炼经验（默认 20）");
+                Console.WriteLine("  save [类别] <内容>    手动记住一条（自动带日期）");
+                Console.WriteLine("  update <关键词> <新>  更新最匹配条目");
+                Console.WriteLine("  forget <内容>        忘记（删除）最匹配条目");
+                Console.WriteLine("  search <内容>        查找相关条目");
+                Console.WriteLine("  review              间隔重复自测一条到期经验");
+                Console.WriteLine("  weak                欠缺知识清单 + 薄弱点统计");
+                Console.WriteLine("  list                列出全部经验条目");
                 return 0;
         }
+    }
+
+    static int Save(string arg)
+    {
+        var kind = "";
+        var sp = arg.IndexOf(' ');
+        if (sp > 0)
+        {
+            var first = arg[..sp].ToLowerInvariant();
+            if (KbIndex.KbKinds.Contains(first)) { kind = first; arg = arg[(sp + 1)..].Trim(); }
+        }
+        if (arg.Length == 0) { Console.WriteLine("用法: --kb save [类别] <内容>"); return 1; }
+        var e = KbIndex.SaveManual(arg, kind);
+        Console.WriteLine($"🧠 已记住「{e.Description}」〔{KbIndex.KindLabel(e.Kind)}〕");
+        return 0;
+    }
+
+    static int Update(string arg)
+    {
+        var sp = arg.IndexOf(' ');
+        if (sp <= 0) { Console.WriteLine("用法: --kb update <关键词> <新内容>"); return 1; }
+        var updated = KbIndex.UpdateBestMatch(arg[..sp].Trim(), arg[(sp + 1)..].Trim());
+        Console.WriteLine(updated != null ? $"📝 已更新「{updated.Description}」" : "🤷 未找到要更新的条目。");
+        return 0;
+    }
+
+    static int Forget(string arg)
+    {
+        if (arg.Length == 0) { Console.WriteLine("用法: --kb forget <内容>"); return 1; }
+        var removed = KbIndex.DeleteBestMatch(arg.Trim());
+        Console.WriteLine(removed != null ? $"🗑️ 已忘记「{removed.Description}」" : "🤷 未找到匹配条目。");
+        return 0;
+    }
+
+    static int Search(string arg)
+    {
+        if (arg.Length == 0) { Console.WriteLine("用法: --kb search <内容>"); return 1; }
+        var hits = KbIndex.Search(arg.Trim(), 10);
+        if (hits.Count == 0) { Console.WriteLine("🔍 无匹配条目。"); return 0; }
+        Console.WriteLine($"🔍 找到 {hits.Count} 条：");
+        foreach (var (hit, score) in hits)
+            Console.WriteLine($"  · {hit.Description}〔{KbIndex.KindLabel(hit.Kind)}·相关度 {score:F2}〕");
+        return 0;
     }
 
     static int Mine(string arg)
