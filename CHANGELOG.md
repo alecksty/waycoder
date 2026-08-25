@@ -1,5 +1,103 @@
 # 更新日志
 
+## v0.87.28 (2026-08-25) — TUI 鼠标支持离屏测试（--tui-mouse）
+
+补「鼠标支持可验证」短板——此前鼠标路由只在真实终端手动点、无自动化回归。新增 `--tui-mouse` 命令，离屏模拟点击/滚轮/悬停/拖拽，逐项报告每个控件与界面的 OnMouse 是否正确响应：
+
+- **`TuiMouseTest`（34 断言）**：`OnMouse(InputEvent)` 是纯函数式接口（绝对坐标进 → 消费与否 + 状态变），不依赖真实终端/鼠标硬件，故可完全离屏自动化、无需交互。固定 `Tty.SizeOverride = (100, 40)` 保证窗口拖拽/缩放 clamp 稳定。
+- **覆盖 11 控件 + 3 分发层**：按钮（命中/区域外/悬停进出）、列表（滚轮/点击选中/多选勾选取消）、复选框、滑动条、滚动条（跳转/拖拽/释放）、懒列表（滚轮/激活）、富编辑器（滚轮/点击定位光标）、按钮组（委托子按钮）、行内权限块（允许/已解决不响应）、视图命中路由、窗口拖拽、屏幕模态遮罩拦截。
+- **已知不支持鼠标的界面如实上报**：`ReportUnsupported()` 列出 5 个全屏 ANSI 对话框（ModelPicker/SessionPicker/ReasoningPicker/CommandPalette/FilePicker）——内部虽用 TuiButton 等控件，但输入层走 `Console.ReadKey` 阻塞循环、不经 OnMouse 分发，仅键盘可用。
+- **SelfTest 集成**：`[TuiMouse]` section（模块 ui）复用 `CollectChecks()`，`/test ui`、`/test all` 均覆盖。
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测 4465 通过 / 0 失败（新增 34 项：TuiMouse 12 控件/分发层测试）
+
+## v0.87.27 (2026-08-25) — 补竞品短板五连（上下文/验证门/审计/护栏/状态栏）
+
+针对 Claude Code / Codex 的痛点，一次性补五块短板：
+
+- **上下文水位可视化 + 压缩预告/回看**：`ContextManager` 新增 `CompactionWarning`/`CompactionOccurred` 事件与有界 `CompactionHistory`（最多 32 条），压缩前弹预告（即将把前 N 条合并为摘要）、压缩后弹「📦 已压缩 X→Y 条 · A→B tokens」，补足竞品「压缩不可见」的盲区。
+- **修完必验证闭环门**：新配置 `VerifyBeforeDone`（默认开，`WAYCODER_VERIFY_BEFORE_DONE`）——本轮改过源码却从未跑过测试时，收尾前强制验一次（测试命令优先、无测试退 `dotnet build`/`npm run build`/`go build`/`cargo build`），失败则注入摘要继续修，防「假修好了」。设置界面补 `toggle` 类型开关。
+- **子智能体明文审计日志**：每次子智能体任务把「提示词 + 授予工具集 + 结果 + 耗时」追加到 `.waycoder/audit/subagents.log`（gitignore）+ 内存历史（`SubAgentAudit`），对标 Claude Code 的 subagent transcript，`WAYCODER_SUBAGENT_AUDIT=0` 可关。
+- **任务漂移护栏加强**：`BuildGoalGuard` 纯逻辑提示构建器——`<current_goal>` 注入改为逐级加强（6 轮轻提示 → 12 轮强警告「很可能已跑偏」）+ 注入已触碰文件清单（自审是否改到无关文件）。
+- **状态栏显示工作目录 + git 分支**：底部状态栏中间新增 `📁 ~/path · ⎇ branch`（`PathStatus` 探测分支，支持 worktree/子模块 `.git` 文件、detached HEAD；home 展开为 `~`；超长保尾截断），补齐「不知道自己在哪个目录/分支」的痛点。
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测 4431 通过 / 0 失败（新增 47 项：压缩审计 8 + 验证门 8 + 审计 6 + 护栏 11 + 路径 6 + 校验 schema toggle 修正）
+
+## v0.87.26 (2026-08-25) — MCP 目录补国内通讯 + 国内搜索
+
+按用户要求补齐两块：
+
+- **通讯**：微信（`weixin-mcp`，扫码登录即用，无需公众号）、QQ（`qq-mcp`，经 HTTP API 向 QQ 群发消息，需 `QQ_API_URL` + `QQ_TOKEN`，uvx 启动）
+- **搜索（国内）**：百度（`baidu-search-mcp`，免费无需 key，中文搜索）、SearXNG（`searxng-mcp`，自托管元搜索，可接国内实例，需 `SEARXNG_SERVER_URL`）
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测通过（新增 8 项：weixin/qq/baidu/searxng 命中 + env 占位 + 通讯分类含微信/QQ）
+
+## v0.87.25 (2026-08-25) — MCP 生态目录 47→83（达 80+ 目标）
+
+内置目录一次扩充到 **83 个**，覆盖 Claude Code 热门生态九成方向。新增 36 个服务器，包名均经 `npm view` 逐条核实存在：
+
+- **搜索**：Serper（Google 搜索 API）
+- **数据库**：Snowflake（数据仓库）、DuckDB、ClickHouse、Typesense、Pinecone（向量库）
+- **云平台**（新分类）：AWS、Google Cloud、Firebase、DigitalOcean
+- **通讯**（新分类）：Discord、Telegram、WhatsApp、Twilio
+- **协作/办公**：Gmail、Google Calendar、Shopify、HubSpot、Salesforce、Zendesk、Mailchimp、Trello、ClickUp
+- **开发**：Blender（3D）、Kubernetes、ScreenshotOne（截图）、Midscene（AI 测试）、Magic（AI 前端）、Composio、OpenRouter、PostHog
+- **服务**：Weather、Spotify、Zapier、n8n、Datadog
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测 4384 通过 / 0 失败（新增 21 项：服务器命中 + 云/通讯分类 + env 占位）
+
+## v0.87.24 (2026-08-25) — MCP 生态目录 40→47（向量库/云沙箱/浏览器云/邮件）
+
+- **向量数据库四件套**：Chroma、Qdrant、Elasticsearch、Weaviate——补齐当前最热的 RAG/检索 MCP 需求（`chromadb-mcp`、`mcp-server-qdrant`、`@elastic/mcp-server-elasticsearch`、`mcp-server-weaviate`，均带 `${VAR}` 环境变量占位）
+- **云沙箱 E2B**：`@e2b/mcp-server` 隔离容器执行代码（对标 Codex 沙箱的云侧补齐，需 `E2B_API_KEY`）
+- **浏览器云 Browserbase**：`@browserbasehq/mcp` 云端浏览器自动化（需 API Key + Project）
+- **邮件 Resend**：`resend-mcp` 程序化发信（需 `RESEND_API_KEY`）
+- 所有新增包名均经 `npm view` 逐条核实存在，非凭记忆编造
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测 4363 通过 / 0 失败（新增 9 项：7 服务器命中 + qdrant/e2b env 占位）
+
+## v0.87.23 (2026-08-25) — 共用 Claude Code 的 MCP 配置
+
+- **零配置复用 Claude Code MCP**：新增 `ClaudeMcp` 转换器，自动读取 Claude Code 已配好的 MCP 服务器并复用到 WayCoder——三处配置源（项目级 `.mcp.json`、user 级 `~/.claude.json` 顶层 `mcpServers`、project 级 `~/.claude.json` 的 `projects.<cwd>.mcpServers`），`type` 字段自动映射为 WayCoder 的 `transport`（stdio/http/sse），command/args/env/url/headers 全量透传
+- **合并策略**：WayCoder 自己的 `mcp_servers.json` 优先，Claude Code 服务器同名（忽略大小写）去重后追加；`McpServerInfo`/`McpServerState` 新增 `Source` 字段（waycoder/claude）
+- **来源标记**：`/mcp` 命令、TUI 侧栏 MCP 区、CLI `--mcp`、Web 版 `/mcp` 对 Claude 来源服务器标注 `〔Claude〕`
+- **开关**：`WAYCODER_CLAUDE_MCP=0` 环境变量关闭共用（默认开）
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测 4354 通过 / 0 失败（新增 10 项 ClaudeMcp 断言：type→transport 映射 + 字段透传 + LoadServers 读 user 级 `.claude.json`）
+
+## v0.87.22 (2026-08-25) — MCP 生态目录扩充 + uvx 启动方式
+
+- **MCP 内置目录 35→40**：新增「部署」分类（Netlify），补充搜索（Perplexity、DuckDuckGo）、开发（Figma、Chrome DevTools），包名均经官方文档/npm 核实
+- **引入 uvx 启动方式**：DuckDuckGo 走 `uvx duckduckgo-mcp-server`（Python），`McpCatalog` stdio 目录从「仅 npx」扩展为「npx/uvx/docker 任意 command」，`ToServerNode` 通用透传启动命令
+- **竞品短板对标**：Claude Code 800+ 生态 vs WayCoder 40 个精选目录，覆盖文件/版本控制/浏览器/搜索/数据库/记忆/开发/协作/服务/部署十大类
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测 4344 通过 / 0 失败（新增 7 项 MCP 目录断言：5 服务器命中 + 部署分类 + uvx 启动）
+
+## v0.87.21 (2026-08-25) — 代码重构（拆大文件/合重复代码）+ --model import 进度输出
+
+- **拆分 4 个大文件**（纯物理移动/partial，零行为改动）：`BuiltinArgs.cs`（1204 行）按关注点拆 7 文件（`ModelArgs`/`ModeArgs`/`BatchArgs`/`DebugArgs`/`UtilityArgs`/`McpCli`/`CachePurger`）；`McpClient.cs`（1467 行）拆 `McpClient`/`McpTransport`/`McpTools` 3 文件；`LLM.cs` 移出 `JsonHelper` 到 `Infra/JsonHelper.cs`；`ModelCatalog.cs`（1645 行）拆 3 个 partial（核心 / 文件 IO / 供应商）
+- **合并重复代码**（聚焦「同一函数被复制」的明确重复）：`FormatSize` 8 处 → `Infra/FormatUtil.cs`（统一含 GB 档）；「保尾截断」7 处 → `ContextManager.TruncateKeepHeadTail`；「Rune 截断+省略号」约 10 处 → `ContextManager.TruncateWithEllipsis`；`StripJsonComments` 2 处 + JSON 转义 2 份 → `Json.StripComments` / `Json.EscapeString`
+- **`--model import` 进度输出**：`ModelCli` 导入系列新增 `onProgress` 回调（CLI 走 `Console.WriteLine`、REPL 走 `screen.AddSystemMsg`），导入 / 探测 / 拉取模型列表实时打印，不再干等
+
+### ✅ 验证
+- 编译 0 错误（1 个既有警告 `ProviderCommand.cs:119` CS8602，非本次引入）
+- 完整自测 4337 通过 / 0 失败
+- `--model import opencode` / `alllocal` 实测打印进度后正常导入
+
 ## v0.87.20 (2026-08-24) — 模式轴解耦 + 工具风险统一 + MCP 目录扩充 + 自测/代理健壮性
 
 - **边界/确认轴解耦**（Codex 双轴对齐）：`SandboxManager.SetLevel` 不再联动 `PermissionManager`；`/perm` 只管理沙箱边界（suggest/auto-edit/full-auto），`/permit` 只管理确认模式（ack/auto/smart/yolo）；`--yolo`、`--permission-mode bypassPermissions` 等组合入口显式同时设置两轴

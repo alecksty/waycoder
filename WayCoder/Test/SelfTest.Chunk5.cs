@@ -292,7 +292,7 @@ public static partial class SelfTest
         // ---- MCP 生态目录 ----
         Section("[MCP 目录]");
 
-        Check("目录: 内置数量 >= 34", McpCatalog.All.Count >= 34);
+        Check("目录: 内置数量 >= 80", McpCatalog.All.Count >= 80);
         Check("目录: 查 git 命中", McpCatalog.Find("git")?.Name == "git");
         Check("目录: 忽略大小写", McpCatalog.Find("GIT")?.Name == "git");
         Check("目录: 查不存在返回 null", McpCatalog.Find("___nope___") == null);
@@ -307,9 +307,67 @@ public static partial class SelfTest
         Check("目录: 新增 pdf 命中", McpCatalog.Find("pdf")?.Name == "pdf");
         Check("目录: 新增 aws-kb-retrieval 命中", McpCatalog.Find("aws-kb-retrieval")?.Name == "aws-kb-retrieval");
         Check("目录: 新增 gdrive 命中", McpCatalog.Find("gdrive")?.Name == "gdrive");
+        // v0.87.21 扩充：新增部署分类 + uvx 启动方式（netlify/perplexity/duckduckgo/figma/chrome-devtools）
+        Check("目录: 新增 netlify 命中", McpCatalog.Find("netlify")?.Name == "netlify");
+        Check("目录: 新增 perplexity 命中", McpCatalog.Find("perplexity")?.Name == "perplexity");
+        Check("目录: 新增 duckduckgo 命中", McpCatalog.Find("duckduckgo")?.Name == "duckduckgo");
+        Check("目录: 新增 figma 命中", McpCatalog.Find("figma")?.Name == "figma");
+        Check("目录: 新增 chrome-devtools 命中", McpCatalog.Find("chrome-devtools")?.Name == "chrome-devtools");
+        Check("目录: 部署分类存在", McpCatalog.Search("部署").Any(e => e.Name == "netlify"));
+        // v0.87.24 扩充：向量库 + 云沙箱 + 浏览器云 + 邮件（包名经 npm 核实）
+        Check("目录: 新增 chroma 命中", McpCatalog.Find("chroma")?.Name == "chroma");
+        Check("目录: 新增 qdrant 命中", McpCatalog.Find("qdrant")?.Name == "qdrant");
+        Check("目录: 新增 elasticsearch 命中", McpCatalog.Find("elasticsearch")?.Name == "elasticsearch");
+        Check("目录: 新增 weaviate 命中", McpCatalog.Find("weaviate")?.Name == "weaviate");
+        Check("目录: 新增 browserbase 命中", McpCatalog.Find("browserbase")?.Name == "browserbase");
+        Check("目录: 新增 e2b 命中", McpCatalog.Find("e2b")?.Name == "e2b");
+        Check("目录: 新增 resend 命中", McpCatalog.Find("resend")?.Name == "resend");
+        var qdrantNode = McpCatalog.ToServerNode(McpCatalog.Find("qdrant")!);
+        Check("目录: qdrant env 占位", qdrantNode["env"]?["QDRANT_URL"]?.AsString() == "${QDRANT_URL}"
+            && qdrantNode["env"]?["QDRANT_API_KEY"]?.AsString() == "${QDRANT_API_KEY}");
+        var e2bNode = McpCatalog.ToServerNode(McpCatalog.Find("e2b")!);
+        Check("目录: e2b env 占位", e2bNode["env"]?["E2B_API_KEY"]?.AsString() == "${E2B_API_KEY}");
+        // v0.87.25 扩充：搜索 Serper + 协作 Trello/ClickUp + 3D Blender + K8s（包名经 npm 核实）
+        Check("目录: 新增 serper 命中", McpCatalog.Find("serper")?.Name == "serper");
+        Check("目录: 新增 trello 命中", McpCatalog.Find("trello")?.Name == "trello");
+        Check("目录: 新增 clickup 命中", McpCatalog.Find("clickup")?.Name == "clickup");
+        Check("目录: 新增 blender 命中", McpCatalog.Find("blender")?.Name == "blender");
+        Check("目录: 新增 kubernetes 命中", McpCatalog.Find("kubernetes")?.Name == "kubernetes");
+        var trelloNode = McpCatalog.ToServerNode(McpCatalog.Find("trello")!);
+        Check("目录: trello env 占位", trelloNode["env"]?["TRELLO_API_KEY"]?.AsString() == "${TRELLO_API_KEY}"
+            && trelloNode["env"]?["TRELLO_TOKEN"]?.AsString() == "${TRELLO_TOKEN}");
+        Check("目录: blender 无需 key", McpCatalog.Find("blender")!.Env.Count == 0);
+        // v0.87.25 扩充：数据仓库/云/通讯/CRM/自动化（包名经 npm 核实，总量达 80+）
+        Check("目录: 新增 snowflake 命中", McpCatalog.Find("snowflake")?.Name == "snowflake");
+        Check("目录: 新增 duckdb 命中", McpCatalog.Find("duckdb")?.Name == "duckdb");
+        Check("目录: 新增 pinecone 命中", McpCatalog.Find("pinecone")?.Name == "pinecone");
+        Check("目录: 新增 aws 命中", McpCatalog.Find("aws")?.Name == "aws");
+        Check("目录: 新增 firebase 命中", McpCatalog.Find("firebase")?.Name == "firebase");
+        Check("目录: 新增 discord 命中", McpCatalog.Find("discord")?.Name == "discord");
+        Check("目录: 新增 telegram 命中", McpCatalog.Find("telegram")?.Name == "telegram");
+        Check("目录: 新增 salesforce 命中", McpCatalog.Find("salesforce")?.Name == "salesforce");
+        Check("目录: 新增 gmail 命中", McpCatalog.Find("gmail")?.Name == "gmail");
+        Check("目录: 新增 midscene 命中", McpCatalog.Find("midscene")?.Name == "midscene");
+        Check("目录: 新增 datadog 命中", McpCatalog.Find("datadog")?.Name == "datadog");
+        Check("目录: 云分类存在", McpCatalog.Search("云").Any(e => e.Name == "aws"));
+        Check("目录: 通讯分类存在", McpCatalog.Search("通讯").Any(e => e.Name == "discord"));
+        Check("目录: 协作分类扩充", McpCatalog.Search("协作").Count >= 12);
+        // v0.87.26 扩充：通讯补微信/QQ + 搜索补国内（百度/SearXNG，包名经 npm/PyPI 核实）
+        Check("目录: 新增 weixin 命中", McpCatalog.Find("weixin")?.Name == "weixin");
+        Check("目录: 新增 qq 命中", McpCatalog.Find("qq")?.Name == "qq");
+        Check("目录: 新增 baidu 命中", McpCatalog.Find("baidu")?.Name == "baidu");
+        Check("目录: 新增 searxng 命中", McpCatalog.Find("searxng")?.Name == "searxng");
+        Check("目录: weixin 无需 key（扫码即用）", McpCatalog.Find("weixin")!.Env.Count == 0);
+        var qqNode = McpCatalog.ToServerNode(McpCatalog.Find("qq")!);
+        Check("目录: qq env 占位", qqNode["env"]?["QQ_API_URL"]?.AsString() == "${QQ_API_URL}"
+            && qqNode["env"]?["QQ_TOKEN"]?.AsString() == "${QQ_TOKEN}");
+        var searxngNode = McpCatalog.ToServerNode(McpCatalog.Find("searxng")!);
+        Check("目录: searxng env 占位", searxngNode["env"]?["SEARXNG_SERVER_URL"]?.AsString() == "${SEARXNG_SERVER_URL}");
+        Check("目录: 通讯分类含微信/QQ", McpCatalog.Search("通讯").Any(e => e.Name == "weixin")
+            && McpCatalog.Search("通讯").Any(e => e.Name == "qq"));
 
         var searchDb = McpCatalog.Search("数据库");
-        Check("目录: 按分类搜索「数据库」", searchDb.Count >= 6 && searchDb.Any(e => e.Name == "sqlite"));
+        Check("目录: 按分类搜索「数据库」", searchDb.Count >= 10 && searchDb.Any(e => e.Name == "sqlite"));
         var searchName = McpCatalog.Search("playwright");
         Check("目录: 按名称搜索", searchName.Count >= 1 && searchName[0].Name == "playwright");
         Check("目录: 空关键词返回全部", McpCatalog.Search(null).Count == McpCatalog.All.Count);
@@ -329,10 +387,55 @@ public static partial class SelfTest
         var ghNode = McpCatalog.ToServerNode(McpCatalog.Find("github")!);
         Check("目录: ToServerNode name", ghNode["name"]?.AsString() == "github");
         Check("目录: ToServerNode command", ghNode["command"]?.AsString() == "npx");
+        var ddgNode = McpCatalog.ToServerNode(McpCatalog.Find("duckduckgo")!);
+        Check("目录: duckduckgo 走 uvx 启动", ddgNode["command"]?.AsString() == "uvx"
+            && ddgNode["args"]?.Items.Any(a => a.AsString() == "duckduckgo-mcp-server") == true);
         Check("目录: ToServerNode args 含包名",
             ghNode["args"]?.Items.Any(a => a.AsString() == "@modelcontextprotocol/server-github") == true);
         Check("目录: ToServerNode env ${VAR} 占位",
             ghNode["env"]?["GITHUB_PERSONAL_ACCESS_TOKEN"]?.AsString() == "${GITHUB_TOKEN}");
+
+        // ---- Claude Code MCP 共用 ----
+        Section("[Claude MCP 共用]");
+
+        // ConvertEntry 纯逻辑：type → transport 映射 + 字段透传
+        var ccStdio = Json.Parse(@"{ ""type"": ""stdio"", ""command"": ""npx"", ""args"": [""-y"", ""x""], ""env"": { ""K"": ""V"" } }")!;
+        var wStdio = ClaudeMcp.ConvertEntry("demo", ccStdio)!;
+        Check("ClaudeMcp: stdio 无 transport", !wStdio.Has("transport"));
+        Check("ClaudeMcp: stdio 透传 command", wStdio["command"]?.AsString() == "npx");
+        Check("ClaudeMcp: stdio 透传 args", wStdio["args"]?.Count == 2);
+        Check("ClaudeMcp: stdio 透传 env", wStdio["env"]?["K"]?.AsString() == "V");
+
+        var ccHttp = Json.Parse(@"{ ""type"": ""http"", ""url"": ""https://x/mcp"", ""headers"": { ""A"": ""1"" } }")!;
+        var wHttp = ClaudeMcp.ConvertEntry("web", ccHttp)!;
+        Check("ClaudeMcp: http→transport http", wHttp["transport"]?.AsString() == "http");
+        Check("ClaudeMcp: http 透传 url", wHttp["url"]?.AsString() == "https://x/mcp");
+
+        var ccSse = Json.Parse(@"{ ""type"": ""sse"", ""url"": ""https://x/sse"" }")!;
+        var wSse = ClaudeMcp.ConvertEntry("legacy", ccSse)!;
+        Check("ClaudeMcp: sse→transport sse", wSse["transport"]?.AsString() == "sse");
+
+        Check("ClaudeMcp: 空名返回 null", ClaudeMcp.ConvertEntry("", ccSse) == null);
+
+        // LoadServers 集成：temp home 放 .claude.json（user 级 mcpServers）
+        var origHome = Global.HomeOverride;
+        var tmpHome = Path.Combine(Path.GetTempPath(), "waycoder_claudemcp_" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tmpHome);
+        File.WriteAllText(Path.Combine(tmpHome, ".claude.json"),
+            @"{ ""mcpServers"": { ""claude-user"": { ""type"": ""stdio"", ""command"": ""node"", ""args"": [""x.js""] } } }");
+        Global.HomeOverride = tmpHome;
+        try
+        {
+            var loaded = ClaudeMcp.LoadServers();
+            Check("ClaudeMcp: LoadServers 读到 user 级", loaded.Any(s => s["name"]?.AsString() == "claude-user"));
+            var claudeUser = loaded.First(s => s["name"]?.AsString() == "claude-user");
+            Check("ClaudeMcp: LoadServers 转换 command", claudeUser["command"]?.AsString() == "node");
+        }
+        finally
+        {
+            Global.HomeOverride = origHome;
+            Directory.Delete(tmpHome, true);
+        }
 
         // AddServerToConfig 隔离测试：切到临时目录，验证写入 + 去重，不污染真实配置
         var origCwd = Environment.CurrentDirectory;

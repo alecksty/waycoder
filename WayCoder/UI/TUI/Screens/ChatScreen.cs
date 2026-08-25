@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Text;
+using WayCoder.Infra;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.Tools;
 using WayCoder.UI.Tui.ToolRenderers;
@@ -142,6 +143,11 @@ public partial class ChatScreen : TuiScreen
     /// <summary>Git 分支名</summary>
     public string? GitBranch { get; set; }
 
+    /// <summary>状态栏路径信息缓存（cwd + 分支，节流探测，见 <see cref="SyncPathBar"/>）。</summary>
+    private string? _cachedBranch;
+    private long _lastBranchDetectTicks;
+    private const long BranchDetectIntervalMs = 2000;
+
     /// <summary>建议面板是否活跃</summary>
     public bool SuggestActive { get; set; }
 
@@ -176,12 +182,30 @@ public partial class ChatScreen : TuiScreen
 
         // 订阅上下文压缩进度事件（用于显示进度条）
         ContextManager.CompressProgress += OnCompressProgress;
+        // 订阅压缩预告/完成事件（弹 Toast：预告「将丢 N 条」+ 回看「N→M 条」）
+        ContextManager.CompactionWarning += OnCompactionWarning;
+        ContextManager.CompactionOccurred += OnCompactionOccurred;
     }
 
     public override void Deactivate()
     {
         ContextManager.CompressProgress -= OnCompressProgress;
+        ContextManager.CompactionWarning -= OnCompactionWarning;
+        ContextManager.CompactionOccurred -= OnCompactionOccurred;
         base.Deactivate();
+    }
+
+    /// <summary>压缩预告 → 黄色 Toast（「将丢 N 条早期消息」）。</summary>
+    private void OnCompactionWarning(string message)
+    {
+        TuiToastQueue.Enqueue(message, TuiToastQueue.ToastType.Warn, 4000);
+    }
+
+    /// <summary>压缩完成 → 成功 Toast（「N→M 条消息，X→Y tokens」），供用户「回看」压掉了什么。</summary>
+    private void OnCompactionOccurred(ContextManager.CompactionEntry entry)
+    {
+        TuiToastQueue.Enqueue($"📦 上下文已压缩：{entry.BeforeCount}→{entry.AfterCount} 条消息 · {entry.BeforeTokens}→{entry.AfterTokens} tokens",
+            TuiToastQueue.ToastType.Info, 4000);
     }
 
     /// <summary>
@@ -313,6 +337,20 @@ public partial class ChatScreen : TuiScreen
     /// 每帧读取实时模式/模型，变了才标脏重绘（模式切换后下一帧自动刷新）。
     /// 用 «tag»…«/» 标记分段着色（TuiLabel.ParseMarkup）：标签暗、值亮/彩，当前模型加粗 —— 比此前整行灰暗更醒目。
     /// </summary>
+    /// <summary>构建状态栏路径文本：当前工作目录 + git 分支（分支探测节流 2s，防渲染循环高频读盘）。</summary>
+    private string BuildPathBarText()
+    {
+        var cwd = Directory.GetCurrentDirectory();
+        long now = Environment.TickCount64;
+        if (now - _lastBranchDetectTicks >= BranchDetectIntervalMs)
+        {
+            _lastBranchDetectTicks = now;
+            _cachedBranch = PathStatus.TryGetBranch(cwd);
+        }
+        var cwdDisplay = PathStatus.FormatCwd(cwd);
+        return _cachedBranch == null ? $"📁 {cwdDisplay}" : $"📁 {cwdDisplay} · ⎇ {_cachedBranch}";
+    }
+
     private void SyncModelInfo()
     {
         // 模型栏用 `(provider)model` 格式：即使同名模型分属不同服务商（如两个 deepseek）也能区分。
@@ -1008,6 +1046,7 @@ public partial class ChatScreen : TuiScreen
         StatusBar.ActiveSlotIndex = ActiveSlotIndex;
         StatusBar.AgentBusy = AgentBusy;
         StatusBar.RightText = StatusRight;
+        StatusBar.PathText = BuildPathBarText();
         Array.Copy(SlotStates, StatusBar.SlotStates, 10);
 
         // ── 同步动态栏 ──

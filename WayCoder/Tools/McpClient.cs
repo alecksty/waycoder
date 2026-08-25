@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text;
 
 namespace WayCoder.Tools;
@@ -80,40 +79,60 @@ public static class McpManager
     /// <summary>
     /// 从配置文件初始化所有 MCP 服务器连接。
     /// 先尝试从缓存加载工具（快速启动），再异步连接发现。
+    /// 配置来源两处：WayCoder 自己的 mcp_servers.json（优先）+ Claude Code 已配置的 MCP（去重追加）。
     /// </summary>
     public static void Init()
     {
         if (_initialized) return;
         _initialized = true;
 
+        // 合并结果：WayCoder 自己的服务器在前，Claude Code 的服务器去重后追加。
+        var merged = JNode.Array();
+        var claudeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // 1. WayCoder 自己的 mcp_servers.json（优先）
         var configPath = ConfigPathOverride ?? Global.FindConfigFileInTree(Environment.CurrentDirectory, "mcp_servers.json");
-        if (configPath == null) return;
-
-        try
+        if (configPath != null)
         {
-            var json = File.ReadAllText(configPath, Encoding.UTF8);
-            var servers = Json.Parse(json);
-            if (servers == null) return;
-
-            // 先尝试从缓存加载工具（加速启动）
-            McpCache.Load(servers);
-
-            foreach (var server in servers.Items)
+            try
             {
-                var name = server?["name"]?.AsString();
-                if (string.IsNullOrEmpty(name)) continue;
-                RegisterState(name, server!);
-                _ = ConnectServerAsync(server!);
+                var own = Json.Parse(File.ReadAllText(configPath, Encoding.UTF8));
+                if (own != null)
+                    foreach (var s in own.Items) merged.Add(s);
+            }
+            catch (Exception ex)
+            {
+                DebugLog.Log("mcp", $"MCP 配置解析失败: {ex.GetType().Name}: {ex.Message}");
             }
         }
-        catch (Exception ex)
+
+        // 2. Claude Code 服务器（同名忽略大小写去重，来源标记 claude）
+        foreach (var server in ClaudeMcp.LoadServers())
         {
-            DebugLog.Log("mcp", $"MCP 初始化失败: {ex.GetType().Name}: {ex.Message}");
+            var name = server["name"]?.AsString();
+            if (string.IsNullOrEmpty(name)) continue;
+            if (merged.Items.Any(s => string.Equals(s["name"]?.AsString(), name, StringComparison.OrdinalIgnoreCase)))
+                continue;
+            merged.Add(server);
+            claudeNames.Add(name);
+        }
+
+        if (merged.Count == 0) return;
+
+        // 先尝试从缓存加载工具（加速启动）
+        McpCache.Load(merged);
+
+        foreach (var server in merged.Items)
+        {
+            var name = server["name"]?.AsString();
+            if (string.IsNullOrEmpty(name)) continue;
+            RegisterState(name, server, claudeNames.Contains(name) ? "claude" : "waycoder");
+            _ = ConnectServerAsync(server);
         }
     }
 
-    /// <summary>注册服务器状态（初始 Connecting）。</summary>
-    private static void RegisterState(string name, JNode server)
+    /// <summary>注册服务器状态（初始 Connecting）。source 标记配置来源：waycoder / claude。</summary>
+    private static void RegisterState(string name, JNode server, string source = "waycoder")
     {
         lock (_stateLock)
         {
@@ -122,6 +141,7 @@ public static class McpManager
                 {
                     Name = name,
                     Transport = DetectTransport(server).ToString().ToLowerInvariant(),
+                    Source = source,
                 };
         }
     }
@@ -584,9 +604,11 @@ public class McpServerInfo
     public int ResourceCount { get; }
     public int PromptCount { get; }
     public string? Error { get; }
+    /// <summary>配置来源："waycoder"（本应用 mcp_servers.json）/ "claude"（Claude Code 共用）。</summary>
+    public string Source { get; }
 
     public McpServerInfo(string name, string transport, McpServerStatus status, int toolCount, string? error,
-        int resourceCount = 0, int promptCount = 0)
+        int resourceCount = 0, int promptCount = 0, string source = "waycoder")
     {
         Name = name;
         Transport = transport;
@@ -595,6 +617,7 @@ public class McpServerInfo
         ResourceCount = resourceCount;
         PromptCount = promptCount;
         Error = error;
+        Source = source;
     }
 }
 
@@ -609,859 +632,7 @@ internal class McpServerState
     public int PromptCount;
     public string? Error;
     public McpConnection? Connection;
+    public string Source = "waycoder";
 
-    public McpServerInfo ToInfo() => new(Name, Transport, Status, ToolCount, Error, ResourceCount, PromptCount);
-}
-
-// ============================================================
-// 传输抽象层
-// ============================================================
-
-/// <summary>MCP 传输抽象基类 — 解耦通信方式与协议层</summary>
-internal abstract class McpTransport
-{
-    /// <summary>发送 JSON-RPC 请求并等待匹配 id 的响应</summary>
-    public abstract Task<JNode?> SendRequestAsync(int id, string method, JNode @params, CancellationToken ct);
-
-    /// <summary>发送 JSON-RPC 通知（无 id，无响应）</summary>
-    public abstract void SendNotification(string method, JNode @params);
-
-    /// <summary>断开连接</summary>
-    public abstract Task DisconnectAsync();
-
-    /// <summary>连接是否活跃</summary>
-    public abstract bool IsConnected { get; }
-}
-
-// ============================================================
-// stdio 传输
-// ============================================================
-
-/// <summary>通过子进程 stdin/stdout 进行 MCP 通信</summary>
-internal class StdioMcpTransport : McpTransport
-{
-    private Process? _process;
-    private readonly object _writeLock = new();
-
-    public override bool IsConnected => _process is { HasExited: false };
-
-    public StdioMcpTransport(string command, string[] args, Dictionary<string, string>? env, string workingDirectory)
-    {
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = command,
-            Arguments = string.Join(" ", args.Select(EscapeArg)),
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            WorkingDirectory = workingDirectory,
-        };
-
-        if (env != null)
-        {
-            foreach (var (key, value) in env)
-                startInfo.EnvironmentVariables[key] = value;
-        }
-
-        _process = new Process { StartInfo = startInfo };
-        _process.Start();
-    }
-
-    public override async Task<JNode?> SendRequestAsync(int id, string method, JNode @params, CancellationToken ct)
-    {
-        if (_process == null) return null;
-
-        var request = JNode.Object()
-            .Set("jsonrpc", "2.0")
-            .Set("id", id)
-            .Set("method", method)
-            .Set("params", @params);
-        var json = request.ToJson();
-
-        try
-        {
-            lock (_writeLock)
-            {
-                _process.StandardInput.WriteLine(json);
-                _process.StandardInput.Flush();
-            }
-
-            // 读取响应（可能多行，找到匹配 id 的）
-            while (!ct.IsCancellationRequested)
-            {
-                var line = await _process.StandardOutput.ReadLineAsync(ct);
-                if (line == null) break;
-
-                try
-                {
-                    var resp = Json.Parse(line);
-                    if (resp != null && resp["id"]?.AsNumber() == id)
-                        return resp;
-                }
-                catch { }
-            }
-        }
-        catch (Exception ex)
-        {
-            DebugLog.Log("mcp", $"stdio 请求 {method} 失败: {ex.GetType().Name}: {ex.Message}");
-        }
-
-        return null;
-    }
-
-    public override void SendNotification(string method, JNode @params)
-    {
-        if (_process == null) return;
-
-        var notif = JNode.Object()
-            .Set("jsonrpc", "2.0")
-            .Set("method", method)
-            .Set("params", @params);
-
-        try
-        {
-            lock (_writeLock)
-            {
-                _process.StandardInput.WriteLine(notif.ToJson());
-                _process.StandardInput.Flush();
-            }
-        }
-        catch (Exception ex)
-        {
-            DebugLog.Log("mcp", $"stdio 通知 {method} 失败: {ex.GetType().Name}: {ex.Message}");
-        }
-    }
-
-    public override Task DisconnectAsync()
-    {
-        _process?.Kill(entireProcessTree: true);
-        _process?.Dispose();
-        _process = null;
-        return Task.CompletedTask;
-    }
-
-    private static string EscapeArg(string arg)
-    {
-        if (arg.Contains(' ') || arg.Contains('"'))
-            return $"\"{arg.Replace("\"", "\\\"")}\"";
-        return arg;
-    }
-}
-
-// ============================================================
-// HTTP/SSE 传输
-// ============================================================
-
-/// <summary>通过 HTTP POST + SSE 响应流进行 MCP 通信（Streamable HTTP 传输）</summary>
-internal class HttpMcpTransport : McpTransport
-{
-    private static readonly HttpClient _client = new()
-    {
-        Timeout = TimeSpan.FromSeconds(30),
-    };
-
-    private readonly string _url;
-    private readonly Dictionary<string, string>? _headers;
-    private bool _disposed;
-
-    static HttpMcpTransport()
-    {
-        _client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder/0.17.3");
-    }
-
-    public override bool IsConnected => !_disposed;
-
-    public HttpMcpTransport(string url, Dictionary<string, string>? headers)
-    {
-        _url = url;
-        _headers = headers;
-    }
-
-    public override async Task<JNode?> SendRequestAsync(int id, string method, JNode @params, CancellationToken ct)
-    {
-        if (_disposed) return null;
-
-        var request = JNode.Object()
-            .Set("jsonrpc", "2.0")
-            .Set("id", id)
-            .Set("method", method)
-            .Set("params", @params);
-        var body = request.ToJson();
-
-        try
-        {
-            using var httpReq = new HttpRequestMessage(HttpMethod.Post, _url)
-            {
-                Content = new StringContent(body, Encoding.UTF8, "application/json"),
-            };
-
-            // 添加自定义 headers
-            if (_headers != null)
-            {
-                foreach (var (key, value) in _headers)
-                    httpReq.Headers.TryAddWithoutValidation(key, value);
-            }
-
-            using var response = await _client.SendAsync(httpReq, HttpCompletionOption.ResponseHeadersRead, ct);
-            response.EnsureSuccessStatusCode();
-
-            // 读取 SSE 响应流，匹配 id
-            using var stream = await response.Content.ReadAsStreamAsync(ct);
-            using var reader = new StreamReader(stream, Encoding.UTF8);
-
-            var dataLines = new StringBuilder();
-            while (!ct.IsCancellationRequested)
-            {
-                var line = await reader.ReadLineAsync(ct);
-                if (line == null) break;
-
-                // SSE 事件边界：空行
-                if (line.Length == 0)
-                {
-                    if (dataLines.Length > 0)
-                    {
-                        var data = dataLines.ToString();
-                        dataLines.Clear();
-                        try
-                        {
-                            var resp = Json.Parse(data);
-                            if (resp != null && resp["id"]?.AsNumber() == id)
-                                return resp;
-                        }
-                        catch { }
-                    }
-                    continue;
-                }
-
-                // 累积 data: 行
-                if (line.StartsWith("data:", StringComparison.Ordinal))
-                {
-                    var data = line.Substring(5);
-                    if (data.StartsWith(' ')) data = data.Substring(1);
-                    dataLines.Append(data);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            DebugLog.Log("mcp", $"HTTP 请求 {method} 失败: {ex.GetType().Name}: {ex.Message}");
-        }
-
-        return null;
-    }
-
-    public override void SendNotification(string method, JNode @params)
-    {
-        if (_disposed) return;
-
-        var notif = JNode.Object()
-            .Set("jsonrpc", "2.0")
-            .Set("method", method)
-            .Set("params", @params);
-
-        // 通知是 fire-and-forget，不等待响应
-        _ = SendNotificationAsync(notif);
-    }
-
-    private async Task SendNotificationAsync(JNode notif)
-    {
-        try
-        {
-            var body = notif.ToJson();
-            using var httpReq = new HttpRequestMessage(HttpMethod.Post, _url)
-            {
-                Content = new StringContent(body, Encoding.UTF8, "application/json"),
-            };
-
-            if (_headers != null)
-            {
-                foreach (var (key, value) in _headers)
-                    httpReq.Headers.TryAddWithoutValidation(key, value);
-            }
-
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            await _client.SendAsync(httpReq, cts.Token);
-        }
-        catch (Exception ex)
-        {
-            DebugLog.Log("mcp", $"HTTP 通知失败: {ex.GetType().Name}: {ex.Message}");
-        }
-    }
-
-    public override Task DisconnectAsync()
-    {
-        _disposed = true;
-        return Task.CompletedTask;
-    }
-}
-
-// ============================================================
-// HTTP+SSE 传输（legacy SSE：GET /sse 事件流 + POST /message 发消息）
-// ============================================================
-
-/// <summary>
-/// 通过 HTTP+SSE 双端点进行 MCP 通信（MCP 旧版 SSE 传输，2024-11-05 规范）。
-/// 流程：GET {url} 建立 SSE 事件流 → 服务器推送 endpoint 事件（message 端点）→
-///       客户端 POST JSON-RPC 到 message 端点 → 服务器通过 SSE 流推送响应。
-/// </summary>
-internal class SseMcpTransport : McpTransport
-{
-    private static readonly HttpClient _client = new()
-    {
-        Timeout = Timeout.InfiniteTimeSpan, // SSE 长连接，不设整体超时
-    };
-
-    private readonly string _sseUrl;
-    private readonly Dictionary<string, string>? _headers;
-    private readonly object _lock = new();
-    private readonly Dictionary<int, TaskCompletionSource<JNode?>> _pending = [];
-    private readonly CancellationTokenSource _cts = new();
-    private readonly TaskCompletionSource _endpointReady =
-        new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-    private string? _messageEndpoint;
-    private bool _disposed;
-
-    static SseMcpTransport()
-    {
-        _client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder/0.17.3");
-    }
-
-    public override bool IsConnected => !_disposed && _messageEndpoint != null;
-
-    public SseMcpTransport(string url, Dictionary<string, string>? headers)
-    {
-        _sseUrl = url;
-        _headers = headers;
-        _ = Task.Run(ReadSseLoopAsync);
-    }
-
-    /// <summary>将 SSE endpoint 事件的 data（可能是相对路径）解析为绝对 URL</summary>
-    internal static string? ResolveEndpointUrl(string sseUrl, string? endpointData)
-    {
-        if (string.IsNullOrWhiteSpace(endpointData)) return null;
-        try
-        {
-            return new Uri(new Uri(sseUrl), endpointData).ToString();
-        }
-        catch { return null; }
-    }
-
-    public override async Task<JNode?> SendRequestAsync(int id, string method, JNode @params, CancellationToken ct)
-    {
-        if (_disposed) return null;
-
-        // 等待 endpoint 就绪（服务器推送 message 端点）
-        try { await _endpointReady.Task.WaitAsync(ct); }
-        catch (OperationCanceledException) { return null; }
-        catch (TimeoutException) { return null; }
-
-        var messageUrl = _messageEndpoint;
-        if (messageUrl == null) return null;
-
-        var tcs = new TaskCompletionSource<JNode?>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        lock (_lock) { _pending[id] = tcs; }
-
-        var request = JNode.Object()
-            .Set("jsonrpc", "2.0")
-            .Set("id", id)
-            .Set("method", method)
-            .Set("params", @params);
-
-        try
-        {
-            using var httpReq = new HttpRequestMessage(HttpMethod.Post, messageUrl)
-            {
-                Content = new StringContent(request.ToJson(), Encoding.UTF8, "application/json"),
-            };
-            if (_headers != null)
-                foreach (var (key, value) in _headers)
-                    httpReq.Headers.TryAddWithoutValidation(key, value);
-
-            using var sendCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _cts.Token);
-            using var resp = await _client.SendAsync(httpReq, HttpCompletionOption.ResponseHeadersRead, sendCts.Token);
-            resp.EnsureSuccessStatusCode();
-
-            // 等待 SSE 流推送匹配 id 的响应
-            return await tcs.Task.WaitAsync(ct);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            DebugLog.Log("mcp", $"SSE 请求 {method} 失败: {ex.GetType().Name}: {ex.Message}");
-            return null;
-        }
-        finally
-        {
-            lock (_lock) { _pending.Remove(id); }
-        }
-    }
-
-    public override void SendNotification(string method, JNode @params)
-    {
-        if (_disposed) return;
-        _ = SendNotificationAsync(method, @params);
-    }
-
-    private async Task SendNotificationAsync(string method, JNode @params)
-    {
-        // 等待 endpoint 就绪（最多 10s），失败则静默放弃
-        try { await _endpointReady.Task.WaitAsync(TimeSpan.FromSeconds(10)); }
-        catch { return; }
-
-        var messageUrl = _messageEndpoint;
-        if (messageUrl == null) return;
-
-        try
-        {
-            var notif = JNode.Object()
-                .Set("jsonrpc", "2.0")
-                .Set("method", method)
-                .Set("params", @params);
-            using var httpReq = new HttpRequestMessage(HttpMethod.Post, messageUrl)
-            {
-                Content = new StringContent(notif.ToJson(), Encoding.UTF8, "application/json"),
-            };
-            if (_headers != null)
-                foreach (var (key, value) in _headers)
-                    httpReq.Headers.TryAddWithoutValidation(key, value);
-
-            using var sendCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
-            using var resp = await _client.SendAsync(httpReq, sendCts.Token);
-            resp.EnsureSuccessStatusCode();
-        }
-        catch (Exception ex)
-        {
-            DebugLog.Log("mcp", $"SSE 通知 {method} 失败: {ex.GetType().Name}: {ex.Message}");
-        }
-    }
-
-    public override Task DisconnectAsync()
-    {
-        _disposed = true;
-        _cts.Cancel();
-        lock (_lock)
-        {
-            foreach (var (_, tcs) in _pending)
-                tcs.TrySetResult(null);
-            _pending.Clear();
-        }
-        return Task.CompletedTask;
-    }
-
-    /// <summary>持续读取 SSE 事件流，分发 endpoint / message 事件</summary>
-    private async Task ReadSseLoopAsync()
-    {
-        try
-        {
-            using var httpReq = new HttpRequestMessage(HttpMethod.Get, _sseUrl);
-            httpReq.Headers.Accept.ParseAdd("text/event-stream");
-            if (_headers != null)
-                foreach (var (key, value) in _headers)
-                    httpReq.Headers.TryAddWithoutValidation(key, value);
-
-            using var response = await _client.SendAsync(
-                httpReq, HttpCompletionOption.ResponseHeadersRead, _cts.Token);
-            response.EnsureSuccessStatusCode();
-
-            using var stream = await response.Content.ReadAsStreamAsync(_cts.Token);
-            using var reader = new StreamReader(stream, Encoding.UTF8);
-
-            string? eventName = null;
-            var dataLines = new StringBuilder();
-
-            while (!_cts.IsCancellationRequested)
-            {
-                var line = await reader.ReadLineAsync(_cts.Token);
-                if (line == null) break;
-
-                if (line.Length == 0)
-                {
-                    HandleSseEvent(eventName, dataLines.ToString());
-                    eventName = null;
-                    dataLines.Clear();
-                    continue;
-                }
-
-                if (line.StartsWith("event:", StringComparison.Ordinal))
-                {
-                    eventName = line.Substring(6).Trim();
-                }
-                else if (line.StartsWith("data:", StringComparison.Ordinal))
-                {
-                    var data = line.Substring(5);
-                    if (data.StartsWith(' ')) data = data.Substring(1);
-                    if (dataLines.Length > 0) dataLines.Append('\n');
-                    dataLines.Append(data);
-                }
-            }
-        }
-        catch (OperationCanceledException) { /* 正常断开 */ }
-        catch (Exception ex)
-        {
-            DebugLog.Log("mcp", $"SSE 读取循环异常: {ex.GetType().Name}: {ex.Message}");
-        }
-        finally
-        {
-            _disposed = true;
-            _endpointReady.TrySetResult(); // 唤醒等待者，避免永久阻塞
-            lock (_lock)
-            {
-                foreach (var (_, tcs) in _pending)
-                    tcs.TrySetResult(null);
-                _pending.Clear();
-            }
-        }
-    }
-
-    private void HandleSseEvent(string? eventName, string data)
-    {
-        if (string.IsNullOrEmpty(data)) return;
-
-        if (eventName == "endpoint")
-        {
-            var resolved = ResolveEndpointUrl(_sseUrl, data);
-            if (resolved != null)
-            {
-                _messageEndpoint = resolved;
-                _endpointReady.TrySetResult();
-                DebugLog.Log("mcp", $"SSE endpoint: {resolved}");
-            }
-            return;
-        }
-
-        // message 事件（或无 event 字段的默认事件）—— JSON-RPC 响应
-        if (eventName == "message" || eventName == null)
-        {
-            try
-            {
-                var resp = Json.Parse(data);
-                if (resp == null) return;
-                var id = resp["id"]?.AsNumber();
-                if (id == null) return;
-
-                lock (_lock)
-                {
-                    if (_pending.TryGetValue((int)id.Value, out var tcs))
-                    {
-                        _pending.Remove((int)id.Value);
-                        tcs.TrySetResult(resp);
-                    }
-                }
-            }
-            catch { }
-        }
-    }
-}
-
-// ============================================================
-// MCP 连接（协议层）
-// ============================================================
-
-/// <summary>
-/// MCP 连接 — 管理与单个 MCP 服务器的 JSON-RPC 通信。
-/// 持有传输层实例，负责任务 ID 序列和请求/通知组装。
-/// </summary>
-internal class McpConnection
-{
-    public string Name { get; }
-    private readonly McpTransport _transport;
-
-    private int _nextId = 1;
-    private readonly object _lock = new();
-
-    public McpConnection(string name, McpTransport transport)
-    {
-        Name = name;
-        _transport = transport;
-    }
-
-    /// <summary>发送 JSON-RPC 请求并等待响应</summary>
-    public async Task<JNode?> SendRequestAsync(string method, JNode @params)
-    {
-        int id;
-        lock (_lock) { id = _nextId++; }
-
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        return await _transport.SendRequestAsync(id, method, @params, cts.Token);
-    }
-
-    /// <summary>发送 JSON-RPC 通知（无响应）</summary>
-    public void SendNotification(string method, JNode @params)
-    {
-        _transport.SendNotification(method, @params);
-    }
-
-    /// <summary>断开连接</summary>
-    public async Task DisconnectAsync()
-    {
-        await _transport.DisconnectAsync();
-    }
-}
-
-// ============================================================
-// MCP 工具包装器
-// ============================================================
-
-/// <summary>
-/// MCP 工具包装器 — 将 MCP 工具适配为 WayCoder ITool 接口。
-/// 工具名称格式: mcp__&lt;server&gt;__&lt;tool&gt;
-/// </summary>
-internal class McpTool : ITool
-{
-    private readonly string _serverName;
-    private readonly JNode _toolDef;
-    private readonly McpConnection _connection;
-
-    public string Name { get; }
-    public string Description { get; }
-
-    public JNode Parameters => _toolDef["inputSchema"]
-        ?? JNode.Object().Set("type", "object").Set("properties", JNode.Object());
-
-    public McpTool(string serverName, JNode toolDef, McpConnection connection)
-    {
-        _serverName = serverName;
-        _toolDef = toolDef;
-        _connection = connection;
-
-        var toolName = toolDef["name"]?.AsString() ?? "unknown";
-        Name = $"mcp__{serverName}__{toolName}";
-        Description = toolDef["description"]?.AsString() ?? $"(MCP) {serverName}/{toolName}";
-    }
-
-    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
-    {
-        var toolName = _toolDef["name"]?.AsString() ?? "";
-
-        // 将参数字典转为 JsonObject
-        var @params = JNode.Object()
-            .Set("name", toolName)
-            .Set("arguments", Json.Parse(JsonHelper.SerializeArgs(arguments))!);
-
-        var resp = await _connection.SendRequestAsync("tools/call", @params);
-        if (resp == null)
-            return $"错误: MCP {_serverName}/{toolName} 调用超时";
-
-        var error = resp["error"];
-        if (error != null)
-            return $"错误: MCP {_serverName}/{toolName} — {error["message"]?.AsString() ?? "未知错误"}";
-
-        var result = resp["result"];
-        var content = result?["content"];
-
-        if (content is { Kind: JKind.Array } arr)
-        {
-            var texts = arr.Items.Select(n => n?["text"]?.AsString() ?? "").Where(t => t != "");
-            return string.Join("\n", texts);
-        }
-
-        return result?.ToJson() ?? "(空结果)";
-    }
-}
-
-// ============================================================
-// MCP 资源 / 提示词 包装器
-// ============================================================
-
-/// <summary>
-/// MCP 资源读取工具 — 将服务器的 resources 能力适配为 ITool。
-/// 省略 uri 时列出全部资源；传 uri 时读取指定资源内容。
-/// 工具名称格式: mcp__&lt;server&gt;__resources
-/// </summary>
-internal class McpResourceTool : ITool
-{
-    private readonly string _serverName;
-    private readonly McpConnection _connection;
-    private readonly List<(string Uri, string Name, string Desc)> _resources;
-
-    public string Name { get; }
-    public string Description { get; }
-
-    public JNode Parameters => JNode.Object()
-        .Set("type", "object")
-        .Set("properties", JNode.Object()
-            .Set("uri", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "要读取的资源 URI（省略则列出所有可用资源）")));
-
-    public McpResourceTool(string serverName, JNode resources, McpConnection connection)
-    {
-        _serverName = serverName;
-        _connection = connection;
-        _resources = [];
-
-        foreach (var r in resources.Items)
-        {
-            var uri = r["uri"]?.AsString() ?? "";
-            var rname = r["name"]?.AsString() ?? "";
-            var desc = r["description"]?.AsString() ?? "";
-            _resources.Add((uri, rname, desc));
-        }
-
-        Name = $"mcp__{serverName}__resources";
-
-        var sb = new StringBuilder();
-        sb.Append($"读取 MCP 服务器 {serverName} 提供的资源。省略 uri 参数列出全部资源；传入 uri 读取指定资源内容。可用资源：");
-        foreach (var (uri, rname, desc) in _resources)
-        {
-            sb.Append($"\n- {rname} ({uri})");
-            if (!string.IsNullOrEmpty(desc)) sb.Append($": {desc}");
-        }
-        Description = sb.ToString();
-    }
-
-    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
-    {
-        // 传了 uri → 读取指定资源；否则列出全部资源
-        if (arguments.TryGetValue("uri", out var uriVal) && uriVal is string uri && !string.IsNullOrWhiteSpace(uri))
-        {
-            var readResp = await _connection.SendRequestAsync("resources/read", JNode.Object().Set("uri", uri));
-            return FormatReadResult(readResp, uri);
-        }
-
-        var listResp = await _connection.SendRequestAsync("resources/list", JNode.Object());
-        var resources = listResp?["result"]?["resources"];
-        if (resources == null || resources.Count == 0) return "(无资源)";
-
-        var sb = new StringBuilder();
-        foreach (var r in resources.Items)
-        {
-            var u = r["uri"]?.AsString() ?? "";
-            var n = r["name"]?.AsString() ?? "";
-            var d = r["description"]?.AsString() ?? "";
-            sb.Append($"{n} ({u})");
-            if (!string.IsNullOrEmpty(d)) sb.Append($": {d}");
-            sb.Append('\n');
-        }
-        return sb.ToString().TrimEnd('\n');
-    }
-
-    private string FormatReadResult(JNode? resp, string uri)
-    {
-        if (resp == null) return $"错误: MCP {_serverName} 读取资源 {uri} 超时";
-        var error = resp["error"];
-        if (error != null)
-            return $"错误: MCP {_serverName} 读取资源 {uri} — {error["message"]?.AsString() ?? "未知错误"}";
-
-        var contents = resp["result"]?["contents"];
-        if (contents == null) return "(空资源)";
-
-        var sb = new StringBuilder();
-        foreach (var c in contents.Items)
-        {
-            var text = c["text"]?.AsString();
-            if (text != null) { sb.Append(text); continue; }
-            var blob = c["blob"]?.AsString();
-            if (blob != null) { sb.Append($"[二进制 blob, base64 {blob.Length} 字符]"); continue; }
-            var nestedUri = c["uri"]?.AsString();
-            if (nestedUri != null) { sb.Append($"[嵌套资源: {nestedUri}]"); continue; }
-        }
-        return sb.Length > 0 ? sb.ToString() : "(空资源)";
-    }
-}
-
-/// <summary>
-/// MCP 提示词模板工具 — 将服务器的 prompts 能力适配为 ITool。
-/// 每个提示词模板注册为一个工具，参数从模板 arguments 数组生成。
-/// 工具名称格式: mcp__&lt;server&gt;__prompt__&lt;name&gt;
-/// </summary>
-internal class McpPromptTool : ITool
-{
-    private readonly string _serverName;
-    private readonly JNode _promptDef;
-    private readonly McpConnection _connection;
-
-    public string Name { get; }
-    public string Description { get; }
-    public JNode Parameters { get; }
-
-    public McpPromptTool(string serverName, JNode promptDef, McpConnection connection)
-    {
-        _serverName = serverName;
-        _promptDef = promptDef;
-        _connection = connection;
-
-        var promptName = promptDef["name"]?.AsString() ?? "unknown";
-        Name = $"mcp__{serverName}__prompt__{promptName}";
-        Description = promptDef["description"]?.AsString() ?? $"(MCP) {serverName} 提示词 {promptName}";
-        Parameters = BuildParameters(promptDef["arguments"]);
-    }
-
-    /// <summary>从 prompts/list 的 arguments 数组构造 inputSchema（纯逻辑，便于自测）。</summary>
-    internal static JNode BuildParameters(JNode? args)
-    {
-        var properties = JNode.Object();
-        if (args != null)
-        {
-            foreach (var a in args.Items)
-            {
-                var argName = a["name"]?.AsString();
-                if (string.IsNullOrEmpty(argName)) continue;
-                properties[argName] = JNode.Object()
-                    .Set("type", "string")
-                    .Set("description", a["description"]?.AsString() ?? argName);
-            }
-        }
-        return JNode.Object().Set("type", "object").Set("properties", properties);
-    }
-
-    public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
-    {
-        var promptName = _promptDef["name"]?.AsString() ?? "";
-
-        var @params = JNode.Object()
-            .Set("name", promptName)
-            .Set("arguments", Json.Parse(JsonHelper.SerializeArgs(arguments))!);
-
-        var resp = await _connection.SendRequestAsync("prompts/get", @params);
-        if (resp == null) return $"错误: MCP {_serverName} 提示词 {promptName} 调用超时";
-
-        var error = resp["error"];
-        if (error != null)
-            return $"错误: MCP {_serverName} 提示词 {promptName} — {error["message"]?.AsString() ?? "未知错误"}";
-
-        var messages = resp["result"]?["messages"];
-        if (messages == null) return resp["result"]?.ToJson() ?? "(空提示词)";
-
-        var sb = new StringBuilder();
-        foreach (var m in messages.Items)
-        {
-            var role = m["role"]?.AsString() ?? "";
-            var text = ExtractContentText(m["content"]);
-            if (string.IsNullOrEmpty(text)) continue;
-            sb.Append($"[{role}]\n{text}\n\n");
-        }
-        return sb.ToString().TrimEnd('\n');
-    }
-
-    /// <summary>提取 prompt 消息 content 的纯文本（content 可为字符串 / 对象 / 数组）。</summary>
-    internal static string ExtractContentText(JNode? content)
-    {
-        if (content == null) return "";
-        if (content.Kind == JKind.String)
-            return content.AsString() ?? "";
-        if (content.Kind == JKind.Object)
-        {
-            var text = content["text"]?.AsString();
-            if (text != null) return text;
-            var uri = content["uri"]?.AsString();
-            if (uri != null) return $"[资源: {uri}]";
-            return content.ToJson();
-        }
-        if (content.Kind == JKind.Array)
-        {
-            var sb = new StringBuilder();
-            foreach (var c in content.Items)
-            {
-                var text = c?["text"]?.AsString();
-                if (text != null) sb.Append(text);
-            }
-            return sb.ToString();
-        }
-        return "";
-    }
+    public McpServerInfo ToInfo() => new(Name, Transport, Status, ToolCount, Error, ResourceCount, PromptCount, Source);
 }

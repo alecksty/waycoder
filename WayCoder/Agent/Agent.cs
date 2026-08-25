@@ -256,17 +256,9 @@ public partial class Agent
                     .Replace(SystemPrompt.StandardRule1, SystemPrompt.FastModeRule1);
             }
 
-            // 目标护栏：注入本轮任务目标；多轮未完成时追加「偏离拉回」核对提示（防跑偏）
-            if (!string.IsNullOrEmpty(_taskGoal))
-            {
-                systemContent += "\n\n<current_goal>\n你当前的任务目标（务必始终围绕它推进，不要偏离到无关工作）：\n" + _taskGoal + "\n</current_goal>";
-                const int ReinforceRound = 10;
-                if (_currentRound >= ReinforceRound)
-                {
-                    systemContent += "\n\n<goal_check>\n你已连续执行超过 " + ReinforceRound +
-                        " 轮。请对照 <current_goal> 核对：当前工作是否仍与目标直接相关？若已偏离，立即回到目标；若目标已达成，请停止并输出总结。\n</goal_check>";
-                }
-            }
+            // 目标护栏：注入本轮任务目标 + 已触碰文件清单；多轮未完成时逐级加强「偏离拉回」核对（防跑偏）
+            var fileManifest = SnapshotAllSessionFiles();
+            systemContent += BuildGoalGuard(_taskGoal, _currentRound, fileManifest);
 
             // 项目知识库 RAG：注入与本目标最相关的项目文档/代码片段（与任务无关时忽略）
             if (!string.IsNullOrEmpty(_kbContext))
@@ -298,6 +290,68 @@ public partial class Agent
         }
 
         return result;
+    }
+
+    /// <summary>目标护栏首轮触发轮次（比旧 10 轮更早介入，早拉回早止损）。</summary>
+    internal const int GoalReinforceRound = 6;
+    /// <summary>目标护栏强警告轮次（第二轮，措辞更严厉 + 强调立即停下）。</summary>
+    internal const int GoalReinforceStrongRound = 12;
+
+    /// <summary>
+    /// 构建目标护栏提示（纯逻辑，供 <see cref="FullMessages"/> 注入与自测复用）。
+    /// taskGoal 为空返回空串；否则返回 <c>&lt;current_goal&gt;</c> 块，并按轮次逐级追加
+    /// <c>&lt;goal_check&gt;</c>（含已触碰文件清单，助模型自审是否改到了与目标无关的文件）。
+    /// </summary>
+    internal static string BuildGoalGuard(string taskGoal, int currentRound, IReadOnlyList<string> fileManifest)
+    {
+        if (string.IsNullOrEmpty(taskGoal))
+            return "";
+
+        var guard = "\n\n<current_goal>\n你当前的任务目标（务必始终围绕它推进，不要偏离到无关工作）：\n"
+            + taskGoal + "\n</current_goal>";
+
+        if (currentRound < GoalReinforceRound)
+            return guard;
+
+        var manifest = BuildFileManifest(fileManifest);
+        if (currentRound >= GoalReinforceStrongRound)
+        {
+            guard += "\n\n<goal_check>\n⚠️ 你已连续执行超过 " + GoalReinforceStrongRound +
+                " 轮，远超常规任务轮次，很可能已跑偏。请立即对照 <current_goal> 逐条核对：" +
+                manifest +
+                "\n若当前工作与目标无直接关系，立即停下回到目标；若目标已达成，请停止并输出总结，不要再开启新工作。\n</goal_check>";
+        }
+        else
+        {
+            guard += "\n\n<goal_check>\n你已连续执行超过 " + GoalReinforceRound +
+                " 轮。请对照 <current_goal> 核对：当前工作是否仍与目标直接相关？" +
+                manifest +
+                "若已偏离，立即回到目标；若目标已达成，请停止并输出总结。\n</goal_check>";
+        }
+
+        return guard;
+    }
+
+    /// <summary>把已触碰文件清单渲染成提示片段（空清单返回空串；超 20 个只列前 20）。</summary>
+    private static string BuildFileManifest(IReadOnlyList<string> fileManifest)
+    {
+        if (fileManifest == null || fileManifest.Count == 0)
+            return "";
+
+        const int MaxListed = 20;
+        var shown = fileManifest.Take(MaxListed).ToArray();
+        var list = string.Join("\n", shown.Select(f => "  - " + f));
+        var tail = fileManifest.Count > MaxListed
+            ? "\n  ...（共 " + fileManifest.Count + " 个文件，仅列前 " + MaxListed + " 个）"
+            : "";
+        return "\n本轮已触碰的文件清单（自审是否改到了与目标无关的文件）：\n" + list + tail;
+    }
+
+    /// <summary>快照会话累计触碰的文件集合（线程安全，供目标护栏与继续提示复用）。</summary>
+    private string[] SnapshotAllSessionFiles()
+    {
+        lock (_allSessionFiles)
+            return _allSessionFiles.ToArray();
     }
 
     /// <summary>
@@ -381,6 +435,10 @@ public partial class Agent
         // 测试驱动修复（硬绿判定）状态复位：每轮对话重新跟踪
         _turnTestFailed = false;
         _hardGreenGateDone = false;
+        // 修完必验证（验证闭环门）状态复位：每轮对话重新跟踪
+        _turnVerified = false;
+        _verifyGateDone = false;
+        _turnModifiedSource = false;
         await CompressWithSmallModel(onToken);
 
         // ── Architect 模式：大模型出计划 → 小模型执行 ──
@@ -490,6 +548,38 @@ public partial class Agent
                                 .Set("role", "user")
                                 .Set("content", "🔴 收尾前测试仍失败（exit=" + gateExit + "）：\n" + gateSnippet +
                                     "\n\n请继续修复代码使测试通过，不要结束本轮任务。"));
+                            _analysisOnlyStreak = 0;
+                            _talksCodeStreak = 0;
+                            continue;
+                        }
+                    }
+                }
+
+                // ── 修完必验证闭环门 ──
+                // 本轮改过源码（write/edit 命中源码扩展名）却从未跑过测试 → 收尾前强制验一次。
+                // 测试命令优先，无测试项目退构建命令。通过则放行；失败则注入摘要继续修复，
+                // 不结束本轮。每轮最多执行一次，防验证命令反复失败死循环。
+                if (Config.Instance.VerifyBeforeDone && !_turnVerified && !_verifyGateDone && _turnModifiedSource)
+                {
+                    _verifyGateDone = true;
+                    var verifyCmd = DetectTestCommand() ?? DetectBuildCommand();
+                    if (verifyCmd != null)
+                    {
+                        var (vExit, vOut) = await RunTestCommandAsync(verifyCmd, Config.Instance.AutoTestTimeoutSec);
+                        if (vExit == 0)
+                        {
+                            _turnVerified = true; // 已通过验证，正常收尾
+                        }
+                        else if (vExit != null)
+                        {
+                            // 仍失败：保留完成消息 + 注入失败摘要，继续修复
+                            if (!string.IsNullOrEmpty(resp.Content))
+                                AddMessage(resp.ToMessage());
+                            var vSnippet = ContextManager.TruncateByRunes(vOut, 1500);
+                            AddMessage(JNode.Object()
+                                .Set("role", "user")
+                                .Set("content", "🔴 收尾验证失败（exit=" + vExit + "）：\n" + vSnippet +
+                                    "\n\n请修复代码使构建/测试通过，不要结束本轮任务。"));
                             _analysisOnlyStreak = 0;
                             _talksCodeStreak = 0;
                             continue;
@@ -852,7 +942,7 @@ public partial class Agent
     private static string FormatBrief(Dictionary<string, object?> args, int maxLen = 80)
     {
         var s = string.Join(", ", args.Select(kv => $"{kv.Key}={FormatValue(kv.Value)}"));
-        return s.Length > maxLen ? ContextManager.TruncateByRunes(s, maxLen) + "..." : s;
+        return ContextManager.TruncateWithEllipsis(s, maxLen, "...");
     }
 
     private static string FormatValue(object? value)
@@ -865,6 +955,6 @@ public partial class Agent
             System.Collections.IEnumerable or System.Collections.IDictionary or JNode => JsonHelper.SerializeValue(value),
             _ => value.ToString() ?? "null",
         };
-        return s.Length > 40 ? ContextManager.TruncateByRunes(s, 40) + "..." : s;
+        return ContextManager.TruncateWithEllipsis(s, 40, "...");
     }
 }

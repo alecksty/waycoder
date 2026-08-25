@@ -69,6 +69,16 @@ public static partial class SelfTest
         TestContextWindowSwitch(Check);
         // 上下文预算判断（最近 prompt vs 累计用量）测试
         TestContextStopWhen(Check);
+        // 上下文压缩可观测（预告 + 回看）测试
+        TestContextCompactionAudit(Check);
+        // 修完必验证闭环门（源码判定 + 配置开关）测试
+        TestVerifyBeforeDone(Check);
+        // 子智能体明文审计日志测试
+        TestSubAgentAudit(Check);
+        // 任务漂移护栏（目标注入 + 逐级加强 + 文件清单）测试
+        TestGoalGuard(Check);
+        // 状态栏路径信息（git 分支探测 + cwd 格式化）测试
+        TestPathStatus(Check);
         // 省 token 模式测试（EconomyMode 开关）
         TestEconomyMode(Check);
         // 省钱模式工具精简测试（Off=全量 / 开=去重复 / 开的越大越精简）
