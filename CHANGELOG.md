@@ -1,5 +1,27 @@
 # 更新日志
 
+## v0.95.0 (2026-08-25) — 环境变量精简（对齐竞品，只留引导级）+ 文档大更新
+
+环境变量从 **107 个**砍到 **14 个**——对齐 Claude Code / Codex（人家只有 `API_KEY`/`BASE_URL`/`MODEL` 几个），配置一律以 `~/.waycoder/config.json` 为权威源。同时补齐 v0.88→v0.94 六版本滞后的五份文档。
+
+- **环境变量精简（核心）**：
+  - Schema 驱动机制：107 个 P() 行中 **93 个 envVar 置 null** = 仅走 config.json（`/config <Key>` 或设置界面写入），保留 14 个引导级
+  - **保留 14 个**：服务商引导（Provider/BaseUrl/ApiKey/Model/SmallModel/SmallProvider）、经济模式（Economy）、鼠标（Mouse）、预算上限（MaxBudgetUsd）、工具白/黑名单（AllowedTools/DisabledTools）、Whisper 三项（独立服务凭据）
+  - 内部调参项全部入 config：超时/压缩阈值/沙箱边界/教学模式/向量嵌入/Diff 预览/主题/回退链等
+  - `ConfigProp.EnvVar` 改可空 `string?`；`Env()` 补 null 保护；`/config get` 显示「来源: 仅 config.json」区分保留项
+  - .env 迁移不变：`SaveMinimalDotEnv` 只重写 5 项引导（服务商/地址/API_KEY/经济模式/鼠标），旧 WAYCODER_* 行自动清理
+- **文档大更新**（补齐 v0.87.28-v0.94.0 全部新功能）：
+  - `docs/使用手册.md`：命令表补 `/kb /teach /versions /checkpoints prune /undo 编辑级`；权限章节换 SandboxMode 四值；配置表标「仅 config.json」
+  - `README.md`：命令/功能亮点/架构树刷新；版本徽章 v0.95.0
+  - `docs/知识库.md`：补学习路径/画像导出/教学闭环/向量检索
+  - `docs/模式体系.md`：边界轴换 SandboxMode 四值语义
+  - `ROADMAP.md`：版本头 + 已完成清单 + 自测数 4597
+- **代码侧同步**：Benchmark `/config` 图改「配置键」列；测试断言改「仅 config」
+
+### ✅ 验证
+- 完整自测 **4597 通过 / 0 失败**
+- `--config get` 实测：`MaxTokens` → 「来源: 仅 config.json」；`Model` → 「环境变量: WAYCODER_MODEL」
+
 ## v0.94.0 (2026-08-25) — 教学模式打磨（测验闭环入知识库）
 
 把 `/teach` 做成"最会教你的 AI"——打通「学→测→记→复习」闭环：教学问答 → 评判掌握 → 更新知识库 gap 权重（掌握降、未掌握升+进复习）。

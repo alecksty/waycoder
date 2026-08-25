@@ -46,7 +46,7 @@ WayCoder --economy extreme  # 极致：最小提示词（265 字符）+ 核心 7
 WayCoder --permit tiny      # 纯聊天工作模式（Chat）：无任何工具 + 无系统提示词，每轮 token≈0
 # 省钱模式工具精简（仅 Build 档，关=全量，开=去重复，开的越大越精简）：
 #   Off=46 → Auto=34（去 bash 可替代）→ On=29（再搜索编辑冗余）→ Extreme=7（核心集）→ 纯聊天 Chat=0
-# 优先级偏好（仅 auto 生效）：WAYCODER_ECONOMY_PRIORITY=quality|balanced|cost（默认 quality）
+# 优先级偏好（仅 auto 生效）：/config EconomyPriority quality|balanced|cost（默认 quality）
 # 实测（写 1 万行贪吃蛇，minimax-m3，白名单 5 工具）：auto 8.0M token → extreme 4.2M token（↓48%），花费约减半
 # 配置优先级：config.json 为权威源，环境变量不覆盖（切换模式用 --economy 或改配置）
 
@@ -222,11 +222,15 @@ WayCoder/
 /plan            计划模式，先规划再执行
 /init            分析项目并生成 AGENT.md（/init claude 生成 CLAUDE.md）
 /mcp             查看 MCP 服务器状态 / 重连
-/kb              编程知识库（mine 提炼经验 / save 记住 / review 自测 / weak 统计，详见 [docs/知识库.md](docs/知识库.md)）
+/kb (/mind)      自主学习知识库（mine 提炼 / save 记住 / diagnose 诊断 / path 学习路径 / profile [json] 画像 / retro 复盘 / review 间隔重复 / weak 统计，详见 [docs/知识库.md](docs/知识库.md)）
+/teach           教学模式（on/off 讲解+提问 / assess 评估闭环 / status 进度）
 /doctor          发行后系统自检（/doctor fix 安全修复）
 /git              Git 操作（status/log/diff/commit/branch）
-/perm suggest|auto-edit|full-auto  沙箱边界切换
-/permit ack|auto|smart|yolo  权限模式切换（tiny/chat=纯聊天工作模式）
+/versions        文件编辑版本历史（/undo <文件> [n] 逐编辑回退）
+/checkpoints     列出检查点（/checkpoints prune [N] 清理）
+/undo            回退（<文件> [n] 编辑级 / [id] [文件] 检查点级）
+/perm off|project|network-off|hard  沙箱边界切换（独立于权限）
+/permit ack|auto|smart|yolo  权限模式切换（独立于边界）
 /mode build|plan|chat  工作模式切换 (Shift+Tab)
 /update [check|now]  检查/自动升级到最新版本
 /auto            智能分级确认
@@ -289,7 +293,7 @@ quit / exit      退出 (Ctrl+Q)
 - **模型回退链**：失败自动尝试备选（6 模型链条，跨供应商 API Key 自动解析）
 - **Watch 模式**：文件监听 + AI! 注释解析 → 线程安全队列 → REPL 自动执行
 - **结构化记忆**：`.waycoder/memory/*.md` frontmatter 多文件 + MEMORY.md 索引，支持跨会话检索
-- **Diff 预览**：`WAYCODER_DIFF_PREVIEW=1` 开启写文件前逐 hunk 确认，非交互模式自动跳过
+- **Diff 预览**：`/config DiffPreview true` 开启写文件前逐 hunk 确认，非交互模式自动跳过
 - **Bash 安全防护**：70+ 禁止命令 + 47 安全白名单，管道中每个命令独立检查
 - **计划审批门**：`计划` 模式（Shift+Tab）下模型产出计划后不自动执行，就地弹出审批框——批准则切回 `建造` 模式继续执行，拒绝则停止（对标 Claude Code Plan Mode）
 - **项目初始化 `/init`**：扫描项目生成中文 AGENT.md（默认；`/init claude` 生成 CLAUDE.md 兼容 Claude Code；语言/框架/构建工具 + 构建/测试/lint 命令探测）；下次启动经 `ProjectContext.LoadInstructions` 自动注入系统提示词

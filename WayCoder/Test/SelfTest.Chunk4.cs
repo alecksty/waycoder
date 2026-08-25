@@ -775,7 +775,7 @@ public static partial class SelfTest
         Check("Schema 包含 AutoGitCommit", ac != null);
         Check("AutoGitCommit 是 select 类型", ac?.Type == "select");
         Check("AutoGitCommit 有选项", ac?.Options?.Contains("true") == true);
-        Check("AutoGitCommit EnvVar", ac?.EnvVar == "WAYCODER_AUTO_COMMIT");
+        Check("AutoGitCommit 仅 config（EnvVar 精简置 null）", string.IsNullOrEmpty(ac?.EnvVar));
 
         // Agent.AutoCommitEnabled 属性：通过构造函数和属性均可设置
         // 简单验证类型存在即可（AOT 不支持反射，直接验证功能）

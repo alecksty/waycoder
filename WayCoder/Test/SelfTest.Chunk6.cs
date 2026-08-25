@@ -414,7 +414,7 @@ warning[W0412]: unused variable: `foo`
         var elDef = schemaCheck2.FirstOrDefault(s => s.Key == "EditorLint");
         Check("Schema 包含 EditorLint", elDef != null);
         Check("EditorLint 类型 select", elDef?.Type == "select");
-        Check("EditorLint EnvVar", elDef?.EnvVar == "WAYCODER_EDITOR_LINT");
+        Check("EditorLint 仅 config（EnvVar 精简置 null）", string.IsNullOrEmpty(elDef?.EnvVar));
         Check("EditorLint 有 Options", elDef?.Options?.Contains("true") == true);
 
         // ---- 语法颜色: 诊断背景色 ----
