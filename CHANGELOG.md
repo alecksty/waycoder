@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.91.0 (2026-08-25) — 语义代码检索（向量嵌入接线，对标 Cursor @codebase）
+
+探查重大发现：向量嵌入基建（`EmbeddingStore` 余弦/混合检索 + `LLM.GetEmbeddingAsync`）早已建好但**从未接入生产**——`ProjectKnowledge.Query` 一直跑纯 TF-IDF。本版本把向量检索接进代码块检索，有嵌入用语义混合，无嵌入/API 失败回退 TF-IDF。
+
+- **`CodeEmbeddingCache`（新）**：代码块向量缓存 `.waycoder/code-embeddings.json`（JNode 原子写）。块键 = `Title + 内容哈希前缀`——内容变键变天然失效、没变复用；`Prune` 清理孤儿键防膨胀
+- **`EmbeddingStore.SearchRelevantHybrid(MemoryDocument)`（新）**：返回与 `SemanticMemory.SearchRelevant` 相同元组（调用方零改动）。0.7×余弦 + 0.3×TF-IDF 混合；无向量块纯 TF-IDF；后台 fire-and-forget 补向量（下轮即命中）；embedder 可注入供测试
+- **接线**：`ProjectKnowledge.QueryAsync`（向量优先，失败回退 `Query` TF-IDF）；`Agent.ChatAsyncCore` 每轮检索走 `QueryAsync`（async 一行改动）
+- **激活死配置**：`EmbeddingDimensions>0` 时在 `/v1/embeddings` 请求传 `dimensions`
+- **默认关**：`WAYCODER_EMBEDDING=0` 保持零网络零向量依赖，开启后逐轮语义增强
+
+### ✅ 验证
+- 完整自测 **4582 通过 / 0 失败**（新增 `[语义代码检索]` 节 8 项：缓存键稳定/往返/Prune、混合排序、API 失败回退、QueryAsync 关闭走 TF-IDF）——全部注入假 embedder，不依赖真实 API
+- 补齐短板 #3 完成（#1 沙箱 ✅ #2 checkpoint ✅ #3 语义检索 ✅；剩 #4 VS Code 扩展）
+
 ## v0.90.0 (2026-08-25) — Checkpoint 补短板（编辑级版本 / 保留策略 / 还原测试）
 
 探查确认 CheckpointManager 全文件快照 + `/undo` 字节还原已存在（每轮开始打点）。补齐真正缺口（对标 Claude Code checkpoint）：
