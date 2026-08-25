@@ -283,16 +283,16 @@ public static partial class SelfTest
             PermissionManager.CurrentMode = PermissionManager.Mode.Ask;
             Check("permission-mode: plan → WorkMode.Plan",
                 Program.ApplyPermissionMode("plan") && WorkModeManager.CurrentMode == WorkMode.Plan);
-            Check("permission-mode: acceptEdits → auto-edit",
-                Program.ApplyPermissionMode("acceptEdits") && SandboxManager.Level == "auto-edit"
-                && PermissionManager.CurrentMode == PermissionManager.Mode.Ask);
-            Check("permission-mode: bypassPermissions → full-auto + Yolo",
-                Program.ApplyPermissionMode("bypassPermissions") && SandboxManager.Level == "full-auto"
-                && PermissionManager.CurrentMode == PermissionManager.Mode.Yolo);
+            Check("permission-mode: acceptEdits → 权限 Auto（不碰沙箱）",
+                Program.ApplyPermissionMode("acceptEdits") && PermissionManager.CurrentMode == PermissionManager.Mode.Auto
+                && !SandboxManager.IsProjectWrite);
+            Check("permission-mode: bypassPermissions → 仅 Yolo（不碰沙箱）",
+                Program.ApplyPermissionMode("bypassPermissions") && PermissionManager.CurrentMode == PermissionManager.Mode.Yolo
+                && SandboxManager.Mode == SandboxMode.Off);
             Check("permission-mode: default no-op",
                 Program.ApplyPermissionMode("default") && WorkModeManager.CurrentMode == WorkMode.Plan
-                && SandboxManager.Level == "full-auto"
-                && PermissionManager.CurrentMode == PermissionManager.Mode.Yolo);
+                && PermissionManager.CurrentMode == PermissionManager.Mode.Yolo
+                && SandboxManager.Mode == SandboxMode.Off);
             Check("permission-mode: unknown 返回 false", !Program.ApplyPermissionMode("unknown"));
         }
         finally

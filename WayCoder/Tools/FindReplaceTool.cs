@@ -148,6 +148,10 @@ public class FindReplaceTool : ITool
                     // 执行替换
                     if (hasReplacement && !dryRun)
                     {
+                        // 沙箱边界：项目写限（独立于权限模式）
+                        var sandbox = SandboxManager.CheckWritable(file);
+                        if (sandbox != null) { sb.AppendLine($"  ⛔ {sandbox}"); continue; }
+
                         // 用 MatchEvaluator 返回字面量，避免 replacement 中的 '$' 被解析为
                         // 正则替换符（如 "cost $10" 会因组不存在抛 ArgumentException 被吞）。
                         var newContent = regex.Replace(content, m => replacement!);

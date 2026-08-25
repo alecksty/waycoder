@@ -1,5 +1,22 @@
 # 更新日志
 
+## v0.89.0 (2026-08-25) — 沙箱边界解耦（边界轴独立于确认轴）
+
+CLAUDE.md 待办落地：边界轴（可写范围/网络）与确认轴（Ask/Auto/SmartAuto/Yolo）彻底解耦，对齐 Codex sandbox_mode / Claude 权限分层。**`--yolo` 现在只跳过确认，不解除边界**——可叠加 `hard` 边界（仅项目内写 + 无网络）。
+
+- **边界模型 `SandboxMode { Off / ProjectWrite / NetworkOff / Hard }`**（`WAYCODER_SANDBOX_MODE`，配置持久化）：Off 无边界 / ProjectWrite 仅项目根写 / NetworkOff 禁网络 / Hard 最严。旧 `/perm` 值向后兼容映射（suggest→off、auto-edit→project、full-auto→hard）
+- **删除 4 处硬编码耦合**：`Program.cs` `yoloMode` 不再同时设沙箱；`acceptEdits`→权限 Auto（不再映射边界）；`bypassPermissions`→仅 Yolo；删 `yolo/god→full-auto` 别名；BashTool 沙箱检查基于边界模式而非权限
+- **真实边界强制（3 层）**：
+  1. `Agent.ExecuteToolAsync` 唯一门控：网络关拦 fetch/web_search/download/doc/transcribe/git；项目写限校验写工具路径
+  2. `BashTool.Execute` 顶部网络关（yolo 下也生效，localhost 例外）；复用此前**死配置** `AllowNetwork`
+  3. 文件工具防御纵深：write/edit/multiedit/find_replace 加 `CheckWritable`（顺带补 multiedit 缺失的 PathSafety）
+- **Web `/perm` 语义修复**：`/perm`=沙箱边界、新增 `/permit`=权限（CLI/Web 对齐；Web 权限下拉改走 /permit）
+- **BashGuard** 保持硬层（yolo 可跳过属确认层管控意图）；新边界 yolo 下依然生效
+
+### ✅ 验证
+- 完整自测 **4562 通过 / 0 失败**（新增 `[沙箱边界]` 节 19 项：模式映射/解耦/网络关/项目写限/yolo 不解除边界）
+- 解耦回归：`/permit yolo` 不再改沙箱；`/perm hard` 不再改权限
+
 ## v0.88.0 (2026-08-25) — 学习型智能体（错误诊断 / 技能画像 / 教学模式 / 会话复盘）
 
 把「学习」做成智能体内生能力，竞品均无：
