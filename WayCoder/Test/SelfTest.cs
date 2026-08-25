@@ -106,6 +106,7 @@ public static partial class SelfTest
         ["[CJK "] = "ui",          ["[语法高亮]"] = "ui",     ["[BoxBuffer]"] = "ui",
         ["[主题系统]"] = "ui",     ["[边框风格]"] = "ui",
         ["[EditorCore 选区锚点]"] = "ui", ["[EditorCore 行尾]"] = "ui", ["[Syntax ANSI 契约]"] = "ui",
+        ["[文件编码 BOM]"] = "ui",
         ["[InputManager]"] = "ui", ["[ChatScreen主题]"] = "ui",["[TuiMenu]"] = "ui",
         ["[Markdown 表格]"] = "ui",["[TuiTreeView]"] = "ui",  ["[TuiRadioGroup]"] = "ui",
         ["[TuiComboBox]"] = "ui",  ["[TuiSeekBar]"] = "ui",   ["[TuiSeparator]"] = "ui",

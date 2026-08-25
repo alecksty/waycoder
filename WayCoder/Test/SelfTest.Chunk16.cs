@@ -70,6 +70,37 @@ public static partial class SelfTest
             try { Directory.Delete(tmpDir, true); } catch { }
         }
 
+        Section("[文件编码 BOM]");
+        tmpDir = Path.Combine(Path.GetTempPath(), "wc_selftest_" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tmpDir);
+        try
+        {
+            // 新文件写入：无 BOM
+            var noBom = Path.Combine(tmpDir, "plain.py");
+            Global.WriteAllTextPreserveBom(noBom, "print('hi')\n");
+            var b1 = File.ReadAllBytes(noBom);
+            Check("新文件写入无 BOM", b1.Length >= 3 && !(b1[0] == 0xEF && b1[1] == 0xBB && b1[2] == 0xBF));
+
+            // 原文件带 BOM：保留
+            var bom = Path.Combine(tmpDir, "bom.py");
+            File.WriteAllText(bom, "x = 1\n", new UTF8Encoding(true));
+            Global.WriteAllTextPreserveBom(bom, "x = 2\n");
+            var b2 = File.ReadAllBytes(bom);
+            Check("原带 BOM 文件保留 BOM", b2[0] == 0xEF && b2[1] == 0xBB && b2[2] == 0xBF);
+
+            // EditorCore.Save：无 BOM 文件保存后仍无 BOM
+            var ecBom = new EditorCore();
+            ecBom.LoadFile(noBom);
+            ecBom.InsertText("# ");
+            ecBom.Save();
+            var b3 = File.ReadAllBytes(noBom);
+            Check("EditorCore 保存无 BOM 文件不新增 BOM", b3[0] != 0xEF || b3[1] != 0xBB || b3[2] != 0xBF);
+        }
+        finally
+        {
+            try { Directory.Delete(tmpDir, true); } catch { }
+        }
+
         Section("[Syntax ANSI 契约]");
         var allowed = new HashSet<int> { 0, 2, 31, 32, 33, 34, 35, 36, 41, 103 };
         var samples = new (string Lang, string Line)[]

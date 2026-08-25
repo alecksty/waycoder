@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace WayCoder;
 
 /// <summary>
@@ -5,6 +7,28 @@ namespace WayCoder;
 /// </summary>
 public static class Global
 {
+    // ── 文件编码 ──
+    /// <summary>UTF-8 无 BOM 编码（源文件写入默认；.NET 的 <see cref="Encoding.UTF8"/> 静态实例带 BOM，Python/严格解析器会拒绝）</summary>
+    public static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
+
+    /// <summary>写文本文件：原文件带 BOM 则保留，否则写无 BOM UTF-8（write_file/编辑器/批量工具统一走这里，避免源文件被强加 BOM）。</summary>
+    public static void WriteAllTextPreserveBom(string path, string content)
+        => File.WriteAllText(path, content, FileStartsWithUtf8Bom(path) ? Encoding.UTF8 : Utf8NoBom);
+
+    /// <summary>探测文件是否以 UTF-8 BOM（EF BB BF）开头。</summary>
+    static bool FileStartsWithUtf8Bom(string path)
+    {
+        try
+        {
+            if (!File.Exists(path)) return false;
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var b = new byte[3];
+            if (fs.Read(b, 0, 3) < 3) return false;
+            return b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF;
+        }
+        catch { return false; }
+    }
+
     // ── 应用 ──
     /// <summary>应用品牌名（英文）</summary>
     public const string AppName = "WayCoder";
@@ -13,7 +37,7 @@ public static class Global
     /// <summary>应用全称</summary>
     public const string AppFullName = "WayCoder 道码·通用编程智能体";
     /// <summary>版本号</summary>
-    public const string Version = "v0.96.1";
+    public const string Version = "v0.96.2";
     /// <summary>应用名 + 版本号</summary>
     public static string AppNameVersion => $"{AppName} {Version} ({AppNameCN})";
 

@@ -155,7 +155,7 @@ public class FindReplaceTool : ITool
                         // 用 MatchEvaluator 返回字面量，避免 replacement 中的 '$' 被解析为
                         // 正则替换符（如 "cost $10" 会因组不存在抛 ArgumentException 被吞）。
                         var newContent = regex.Replace(content, m => replacement!);
-                        File.WriteAllText(file, newContent, Encoding.UTF8);
+                        Global.WriteAllTextPreserveBom(file, newContent);
                         // 纳入变更追踪（与 write/edit/multiedit 对齐：自动 commit 精准暂存 + FileTracker 哈希）
                         EditFileTool.RecordChange(file, content, newContent);
                         FileTracker.RecordWrite(file);
