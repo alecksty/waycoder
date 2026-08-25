@@ -56,7 +56,8 @@ public partial class Agent
 
     private readonly int _maxRounds;
     private readonly double? _maxBudgetUsd;
-    private string _systemPrompt;
+    /// <summary>系统提示词（惰性生成：null = 尚未按当前模式/工具集生成，见 <see cref="EnsureSystemPrompt"/>）</summary>
+    private string? _systemPrompt;
 
     private bool _autoCommit;
 
@@ -178,17 +179,11 @@ public partial class Agent
         Context = new ContextManager(maxContextTokens);
         _maxRounds = maxRounds;
         _effectiveMaxRounds = maxRounds > 0 ? maxRounds : Math.Max(1, Config.Instance.MaxRounds); // 下限 1，防 MaxRounds≤0 时循环体一次都不跑
-        // 工作模式决定系统提示词：Chat=空（纯聊天）、Plan=精简只读分析提示词、Build=正常档位（受经济模式管理）
-        _systemPrompt = WorkMode switch
-        {
-            WorkMode.Chat => "",
-            WorkMode.Plan => SystemPrompt.GeneratePlan(Tools),
-            _ => SystemPrompt.Generate(Tools),
-        };
-        // --system-prompt / --append-system-prompt（Claude Code 对齐）：追加自定义系统提示词
-        var extraPrompt = Config.Instance.ExtraSystemPrompt?.Trim();
-        if (_systemPrompt.Length > 0 && !string.IsNullOrEmpty(extraPrompt))
-            _systemPrompt += "\n\n" + extraPrompt;
+        // 系统提示词惰性生成（EnsureSystemPrompt）：
+        // 构造时实例 WorkMode 仍为默认 Build，但调用方随后可能按全局模式同步改写
+        // （如 --permit chat/Plan、槽位持久模式），抢先按 Build 生成会被 ReapplyToolFilter
+        // 整体丢弃 —— 白做 RepoMap 生成/项目检测/记忆检索等昂贵工作。
+        // 首次发送请求需要时才按当时的模式/工具集生成一次并缓存。
 
         // 连接子智能体能力
         foreach (var t in Tools)
@@ -209,16 +204,33 @@ public partial class Agent
         Tools.AddRange(filtered);
         ToolByName.Clear();
         foreach (var t in filtered) ToolByName[t.Name] = t;
-        // 工作模式决定系统提示词：Chat=空（纯聊天）、Plan=精简只读分析提示词、Build=正常档位（受经济模式管理）
+        // 失效系统提示词缓存：模式/工具集已变，首次请求时按新档位重建（EnsureSystemPrompt）
+        _systemPrompt = null;
+    }
+
+    /// <summary>
+    /// 按当前模式/工具集生成系统提示词（惰性 + 缓存）。
+    /// Chat=空串（纯聊天）、Plan=精简只读分析提示词、Build=正常档位（受经济模式管理）。
+    /// 构造/ReapplyToolFilter 不立即生成 —— 模式与工具集在构造后可能被调用方立即改写，
+    /// 抢先生成会被丢弃（白做 RepoMap 生成/项目检测/记忆检索等昂贵工作）。
+    /// 仅首次发送请求（FullMessages）需要时生成一次，此后缓存直至 ReapplyToolFilter 失效。
+    /// </summary>
+    private string EnsureSystemPrompt()
+    {
+        if (_systemPrompt != null) return _systemPrompt;
+
         _systemPrompt = WorkMode switch
         {
             WorkMode.Chat => "",
             WorkMode.Plan => SystemPrompt.GeneratePlan(Tools),
             _ => SystemPrompt.Generate(Tools),
         };
+        // --system-prompt / --append-system-prompt（Claude Code 对齐）：追加自定义系统提示词
         var extraPrompt = Config.Instance.ExtraSystemPrompt?.Trim();
         if (_systemPrompt.Length > 0 && !string.IsNullOrEmpty(extraPrompt))
             _systemPrompt += "\n\n" + extraPrompt;
+        DebugLog.Log("system-prompt", $"系统提示词已生成: 模式={WorkMode} 工具数={Tools.Count} 长度={_systemPrompt.Length}");
+        return _systemPrompt;
     }
 
     /// <summary>
@@ -245,8 +257,8 @@ public partial class Agent
             // 模式专用提示（Plan 模式在主提示词前注入约束）
             var modePrompt = WorkModeManager.GetModePrompt(WorkMode);
             var systemContent = string.IsNullOrEmpty(modePrompt)
-                ? _systemPrompt
-                : modePrompt + "\n" + _systemPrompt;
+                ? EnsureSystemPrompt()
+                : modePrompt + "\n" + EnsureSystemPrompt();
 
             // 快速模式：替换工作流和规则 1 为直接执行版本
             if (_fastMode)
@@ -266,7 +278,7 @@ public partial class Agent
                 systemContent += "\n\n<project_knowledge>\n以下是与当前目标最相关的项目文档/代码片段（与任务无关时忽略）：\n" + _kbContext + "\n</project_knowledge>";
             }
 
-            // 空 system 内容不注入（Chat 的 _systemPrompt 为空串）
+            // 空 system 内容不注入（Chat 模式整块跳过、不生成任何提示词）
             if (!string.IsNullOrEmpty(systemContent))
                 result.Add(JNode.Object().Set("role", "system").Set("content", systemContent));
         }

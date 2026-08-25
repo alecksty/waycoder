@@ -64,6 +64,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new PurgeArg());
         CliArgRegistry.Register(new ProviderArg());
         CliArgRegistry.Register(new PermitArg());
+        CliArgRegistry.Register(new ModeArg());
 #if WAYCODER_TEST
         CliArgRegistry.Register(new TestArg());
         CliArgRegistry.Register(new BenchmarkArg());

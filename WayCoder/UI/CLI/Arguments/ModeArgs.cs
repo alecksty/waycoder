@@ -169,3 +169,16 @@ public class PermitArg : CliArg
     ];
     public PermitArg() : base("permit", "--permit") { }
 }
+
+/// <summary>
+/// 启动工作模式（--mode build|plan|chat，行为轴，对标 Claude Code --permission-mode plan）。
+/// 与 --permit 解耦：--permit 管确认轴（tiny/chat 别名除外，走 Chat 工作模式），
+/// --mode 直接设工作模式（Build 全工具 / Plan 只读 / Chat 0 工具 0 提示词）。
+/// </summary>
+public class ModeArg : CliArg
+{
+    public override string Description => "启动工作模式：build=建造（全工具）/plan=计划（只读白名单）/chat=聊天（0 工具 0 提示词）";
+    public override int ValueCount => 1;
+    public override string? ValueLabel => "build|plan|chat";
+    public ModeArg() : base("mode", "--mode") { }
+}

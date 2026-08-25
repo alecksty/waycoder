@@ -1231,6 +1231,69 @@ public static partial class SelfTest
         PermissionManager.SetMode("ask");
 
         WorkModeManager.CurrentMode = savedGlobal;
+
+        // ── v0.96.3: 惰性系统提示词 + 模式切换请求组合（修复构造期按 Build 抢先生成被丢弃）──
+        {
+            var savedEcon = Config.Instance.EconomyMode;
+            try
+            {
+                Config.Instance.EconomyMode = EconomyMode.On; // 轻量：Build 提示词走精简版，无 RepoMap
+
+                var m = new Agent(new LLM("test", "sk-test"));
+                var field = typeof(Agent).GetField("_systemPrompt",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var fullMsgs = typeof(Agent).GetMethod("FullMessages",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                Check("惰性: 反射找到 _systemPrompt 字段", field != null);
+                Check("惰性: 反射找到 FullMessages", fullMsgs != null);
+                if (field != null && fullMsgs != null)
+                {
+                    // 构造后（默认 Build）不立即生成 —— 惰性
+                    Check("惰性: 构造后未生成", field.GetValue(m) == null);
+
+                    // 注入一条 user 消息，FullMessages 才能组合出实际请求
+                    m.Messages.Add(JNode.Object().Set("role", "user").Set("content", "测试"));
+
+                    // ── Chat：0 工具 + 无 system 注入，且不触发提示词生成 ──
+                    m.WorkMode = WorkMode.Chat;
+                    m.ReapplyToolFilter();
+                    Check("切换Chat: 工具数 0", m.Tools.Count == 0);
+                    var chatMsgs = (List<JNode>)fullMsgs.Invoke(m, null)!;
+                    Check("Chat请求: 无 system 消息", !chatMsgs.Any(x => x["role"]?.AsString() == "system"));
+                    Check("Chat请求: 仅 user 消息", chatMsgs.Count == 1 && chatMsgs[0]["role"]?.AsString() == "user");
+                    Check("Chat请求: 不触发提示词生成(仍 null)", field.GetValue(m) == null);
+
+                    // ── Plan：只读工具 + 计划提示词注入 ──
+                    m.WorkMode = WorkMode.Plan;
+                    m.ReapplyToolFilter();
+                    Check("切换Plan: 工具非空", m.Tools.Count > 0);
+                    Check("切换Plan: 工具全在只读白名单",
+                        m.Tools.All(t => WorkModeManager.PlanReadOnlyTools.Contains(t.Name)));
+                    var planMsgs = (List<JNode>)fullMsgs.Invoke(m, null)!;
+                    var planSys = planMsgs.Where(x => x["role"]?.AsString() == "system")
+                        .Select(x => x["content"]?.AsString()).FirstOrDefault() ?? "";
+                    Check("Plan请求: 注入 system", planSys.Length > 0);
+                    Check("Plan请求: 含计划模式提示", planSys.Contains("计划模式"));
+                    Check("Plan请求: 生成后已缓存", field.GetValue(m) != null);
+
+                    // ── Build：全量工具 + 完整提示词（验证失效重建）──
+                    m.WorkMode = WorkMode.Build;
+                    m.ReapplyToolFilter();
+                    Check("切换Build: 工具非空", m.Tools.Count > 0);
+                    Check("切换Build: 含 write_file",
+                        m.Tools.Any(t => t.Name.Equals("write_file", StringComparison.OrdinalIgnoreCase)));
+                    var buildMsgs = (List<JNode>)fullMsgs.Invoke(m, null)!;
+                    var buildSys = buildMsgs.Where(x => x["role"]?.AsString() == "system")
+                        .Select(x => x["content"]?.AsString()).FirstOrDefault() ?? "";
+                    Check("Build请求: 注入 system", buildSys.Length > 0);
+                    Check("Build请求: 提示词随模式重建(≠Plan)", buildSys != planSys);
+                }
+            }
+            finally
+            {
+                Config.Instance.EconomyMode = savedEcon;
+            }
+        }
     }
 
     private static void TestUpdateChecker(Action<string, bool> Check)

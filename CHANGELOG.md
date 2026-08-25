@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.96.3 (2026-08-25) — 工作模式 CLI 参数补齐 + 系统提示词惰性生成
+
+三模式（建造/计划/聊天）从「仅交互可切换」补齐为 **CLI 可直接启动**，同时修复构造期按 Build 抢先生成系统提示词被丢弃的浪费。
+
+- **新增 `--mode <build|plan|chat>`**：CLI 直接指定工作模式（行为轴）——build=全工具+完整提示词 / plan=只读白名单+精简计划提示词 / chat=0 工具 0 提示词。与 `/mode` 斜杠命令同源解析；`--permit tiny/chat` 聊天别名仍兼容，显式 `--mode` 时覆盖。填补此前只有 Chat（经 `--permit`）能 CLI 启动、Plan 无 CLI 入口的缺口
+- **系统提示词惰性生成（修复浪费）**：`Agent` 构造时实例 `WorkMode` 默认 Build，会抢先执行 `SystemPrompt.Generate`（RepoMap 生成/项目检测/记忆检索等昂贵工作），随后被调用方按全局模式同步并 `ReapplyToolFilter` 整体丢弃。改为 `EnsureSystemPrompt()` 惰性生成——仅首次发送请求时按当时模式/工具集生成并缓存，`ReapplyToolFilter` 只失效缓存。Chat 模式全程不生成任何提示词
+- **自测**：新增 16 项断言覆盖「惰性 + 三模式切换请求组合」（Chat 0 工具无 system 注入且不触发生成 / Plan 只读白名单+计划提示词注入 / Build 全量工具+提示词随模式失效重建），`--test system` 模块 724 通过 / 0 失败
+- **端到端实测**（`--debug` 抓真实请求）：`--mode chat` → `Messages:1, Tools:0` 仅 user 消息、无「系统提示词已生成」；`--mode plan` → 23 只读工具 + 1962 字符计划提示词、模型实际调用只读 bash；`--mode build` → 30 工具（economy 精简）+ 6947 字符完整提示词
+
 ## v0.96.2 (2026-08-25) — 修复源文件被强加 UTF-8 BOM
 
 双代理并行测试（五子棋网页版 + 俄罗斯方块 Python 版）发现：生成 tetris.py 带 UTF-8 BOM（`EF BB BF`），Python 3 严格解析器会拒绝。定位：`EditFileTool`/`MultiEditTool`/`FindReplaceTool`/`EditorCore.Save`/`Web 编辑器 SaveEditorFile` 直接用 `Encoding.UTF8`（.NET 静态实例带 BOM）。
