@@ -182,6 +182,66 @@ class Matrix:
         }
         Console.WriteLine();
 
+        // ---- 语义代码检索（向量嵌入混合检索，注入假 embedder 无需真实 API）----
+        Section("[语义代码检索]");
+        var vecCwd = Path.Combine(Path.GetTempPath(), "vec_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(vecCwd);
+        var vecSaved = Environment.CurrentDirectory;
+        var savedEmbeddingConfig = Config.Instance.EmbeddingEnabled;
+        var savedStoreEnabled = EmbeddingStore.Enabled;
+        Environment.CurrentDirectory = vecCwd;
+        try
+        {
+            CodeEmbeddingCache.Reset();
+
+            // 缓存：块键内容敏感 + 往返 + Prune 孤儿
+            var docA = new SemanticMemory.MemoryDocument { Title = "src/auth.cs › Authenticate", Content = "验证用户登录凭证" };
+            var docA2 = new SemanticMemory.MemoryDocument { Title = "src/auth.cs › Authenticate", Content = "验证用户登录凭证（改了内容）" };
+            Check("块键内容敏感", CodeEmbeddingCache.ChunkKey(docA) != CodeEmbeddingCache.ChunkKey(docA2));
+            Check("块键同内容稳定", CodeEmbeddingCache.ChunkKey(docA) == CodeEmbeddingCache.ChunkKey(
+                new SemanticMemory.MemoryDocument { Title = "src/auth.cs › Authenticate", Content = "验证用户登录凭证" }));
+
+            var keyA = CodeEmbeddingCache.ChunkKey(docA);
+            CodeEmbeddingCache.SaveVector(keyA, new float[] { 1, 0, 0 });
+            Check("缓存往返", CodeEmbeddingCache.GetVector(keyA)?.Length == 3);
+            CodeEmbeddingCache.Prune(new HashSet<string> { "other-key" });
+            Check("Prune 删孤儿", CodeEmbeddingCache.GetVector(keyA) == null);
+
+            // 混合检索：注入确定性 embedder（任何输入返回 [1,0,0]）
+            EmbeddingStore.Enabled = true;
+            Config.Instance.EmbeddingEnabled = true;
+            var loginDoc = new SemanticMemory.MemoryDocument { Title = "src/auth.cs › Authenticate", Content = "验证用户登录凭证，返回 JWT token" };
+            var drawDoc = new SemanticMemory.MemoryDocument { Title = "src/canvas.cs › DrawPixel", Content = "绘制图形像素填充扫描线" };
+            CodeEmbeddingCache.SaveVector(CodeEmbeddingCache.ChunkKey(loginDoc), new float[] { 1, 0, 0 }); // 与查询向量接近
+            var docs2 = new List<SemanticMemory.MemoryDocument> { loginDoc, drawDoc };
+            Func<string, Task<float[]?>> fakeEmbed = _ => Task.FromResult<float[]?>(new float[] { 1, 0, 0 });
+            var hybrid = EmbeddingStore.SearchRelevantHybrid(docs2, "登录验证", 2, fakeEmbed).GetAwaiter().GetResult();
+            Check("混合检索登录块排前", hybrid.Count >= 1 && hybrid[0].Doc.Title.Contains("Authenticate"));
+            Check("混合检索登录块分 > 0", hybrid.Count >= 1 && hybrid[0].Score > 0);
+
+            // 回退：embedder 返回 null（模拟 API 失败）→ 结果与纯 TF-IDF 一致
+            Func<string, Task<float[]?>> nullEmbed = _ => Task.FromResult<float[]?>(null);
+            var fallback = EmbeddingStore.SearchRelevantHybrid(docs2, "登录验证", 2, nullEmbed).GetAwaiter().GetResult();
+            var tfidfTop = SemanticMemory.SearchRelevant(docs2, "登录验证", 2);
+            Check("向量失败回退 TF-IDF", fallback.Count >= 1 && tfidfTop.Count >= 1 && fallback[0].Doc.Title == tfidfTop[0].Doc.Title);
+
+            // QueryAsync：EmbeddingEnabled=false → 走 TF-IDF（不依赖 LLM/API）
+            File.WriteAllText(Path.Combine(vecCwd, "auth.cs"),
+                "public class Auth { public string Authenticate() { return \"登录凭证\"; } }");
+            Config.Instance.EmbeddingEnabled = false;
+            ProjectKnowledge.Ingest(vecCwd);
+            var qa = ProjectKnowledge.QueryAsync("登录").GetAwaiter().GetResult();
+            Check("QueryAsync 关闭嵌入走 TF-IDF", qa.Contains("Authenticate"));
+        }
+        finally
+        {
+            Config.Instance.EmbeddingEnabled = savedEmbeddingConfig;
+            EmbeddingStore.Enabled = savedStoreEnabled;
+            Environment.CurrentDirectory = vecSaved;
+            try { Directory.Delete(vecCwd, true); } catch { }
+        }
+        Console.WriteLine();
+
         // ---- 自主学习知识库（四类经验存储 + LLM JSON 提炼 + 间隔重复 + 薄弱统计）----
         Section("[知识库经验]");
         try

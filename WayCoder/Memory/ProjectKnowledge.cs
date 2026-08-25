@@ -52,13 +52,39 @@ public static class ProjectKnowledge
         return _docs.Count;
     }
 
-    /// <summary>检索与任务最相关的知识片段，返回拼接文本（空=无相关知识）。</summary>
+    /// <summary>检索与任务最相关的知识片段，返回拼接文本（空=无相关知识）。纯 TF-IDF。</summary>
     public static string Query(string query, int topN = 4, int maxChars = 1600)
     {
         if (_docs.Count == 0 || string.IsNullOrWhiteSpace(query)) return "";
         var relevant = SemanticMemory.SearchRelevant(_docs, query, topN);
         if (relevant.Count == 0) return "";
+        return FormatResults(relevant, maxChars);
+    }
 
+    /// <summary>
+    /// 检索（向量优先）：EmbeddingEnabled 且 LLM 可用时走混合语义检索（SearchRelevantHybrid），
+    /// 否则/异常回退同步 Query（纯 TF-IDF）。返回格式与 Query 相同。
+    /// </summary>
+    public static async Task<string> QueryAsync(string query, int topN = 4, int maxChars = 1600)
+    {
+        if (_docs.Count == 0 || string.IsNullOrWhiteSpace(query)) return "";
+        if (!Config.Instance.EmbeddingEnabled || EmbeddingStore.LlmClient == null)
+            return Query(query, topN, maxChars);
+
+        try
+        {
+            var relevant = await EmbeddingStore.SearchRelevantHybrid(_docs, query, topN);
+            if (relevant.Count == 0) return "";
+            return FormatResults(relevant, maxChars);
+        }
+        catch
+        {
+            return Query(query, topN, maxChars); // 向量失败 → TF-IDF 回退
+        }
+    }
+
+    static string FormatResults(List<(SemanticMemory.MemoryDocument Doc, double Score)> relevant, int maxChars)
+    {
         var sb = new StringBuilder();
         foreach (var (doc, _) in relevant)
         {
