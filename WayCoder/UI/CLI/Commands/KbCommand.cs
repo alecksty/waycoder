@@ -22,8 +22,8 @@ public class KbCommand : SlashCommand
 {
     public override string Name => "/kb";
     public override string[] Aliases => ["/mind"];
-    public override string Description => "编程知识库（mine 提炼 / save 记住 / diagnose 诊断 / profile 画像 / retro 复盘 / review 自测 / weak 统计）";
-    public override string? Usage => "/kb <mine [N]|save|update|forget|search|find|diagnose|profile|retro|review|weak|list>";
+    public override string Description => "编程知识库（mine 提炼 / save 记住 / diagnose 诊断 / path 学习路径 / profile 画像 / retro 复盘 / review 自测 / weak 统计）";
+    public override string? Usage => "/kb <mine [N]|save|update|forget|search|find|diagnose|path|profile [json]|retro|review|weak|list>";
 
     public override async Task ExecuteAsync(string args, ChatScreen screen)
     {
@@ -55,8 +55,11 @@ public class KbCommand : SlashCommand
             case "diagnose":
                 await Diagnose(screen, rest);
                 break;
+            case "path":
+                await Path(screen);
+                break;
             case "profile":
-                Profile(screen);
+                Profile(screen, rest);
                 break;
             case "retro":
                 await Retro(screen);
@@ -86,7 +89,8 @@ public class KbCommand : SlashCommand
             "  /kb forget <内容>     忘记（删除）最匹配条目\n" +
             "  /kb search <内容>     查找相关条目\n" +
             "  /kb diagnose <报错>   诊断报错（召回知识库 + git 修复史）\n" +
-            "  /kb profile           技能画像（知识库/git/薄弱标签/ErrorLog）\n" +
+            "  /kb path              生成学习路径（欠缺→进阶，接入 /kb review）\n" +
+            "  /kb profile [json]    技能画像（json 导出供可视化）\n" +
             "  /kb retro             复盘本次会话，提炼经验入知识库\n" +
             "  /kb review            间隔重复自测一条到期经验\n" +
             "  /kb weak              欠缺知识清单 + 薄弱点统计\n" +
@@ -161,8 +165,28 @@ public class KbCommand : SlashCommand
             : "🔎 知识库与 git 修复史中暂无匹配，可 /kb mine 提炼或 /kb save 记录。");
     }
 
-    static void Profile(ChatScreen screen)
-        => screen.AddSystemMsg(KbIndex.FormatProfile(KbIndex.ProfileStats()));
+    static void Profile(ChatScreen screen, string rest)
+        => screen.AddSystemMsg(rest.Equals("json", StringComparison.OrdinalIgnoreCase)
+            ? KbIndex.ProfileToJson()
+            : KbIndex.FormatProfile(KbIndex.ProfileStats()));
+
+    static async Task Path(ChatScreen screen)
+    {
+        screen.AddSystemMsg("🧭 正在根据你的欠缺知识与薄弱点生成学习路径…");
+        var (generated, steps) = await KbIndex.GenerateLearningPath();
+        if (generated == 0) { screen.AddSystemMsg("📭 暂无欠缺知识可生成路径。`/kb mine` 提炼经验，或 `/kb save gap <内容>` 记录短板。"); return; }
+
+        var msg = new System.Text.StringBuilder($"🧭 学习路径（{generated} 步）——已接入 /kb review 间隔重复检验掌握：\n");
+        int i = 1;
+        foreach (var s in steps)
+        {
+            msg.AppendLine($"\n第 {i++} 步：{s.Topic}");
+            if (s.Why.Length > 0) msg.AppendLine($"  为什么：{s.Why}");
+            if (s.Practice.Length > 0) msg.AppendLine($"  实践：{s.Practice}");
+            if (s.Check.Length > 0) msg.AppendLine($"  自测：{s.Check}");
+        }
+        screen.AddSystemMsg(msg.ToString());
+    }
 
     static async Task Retro(ChatScreen screen)
     {

@@ -615,6 +615,140 @@ public static class KbIndex
         return sb.ToString();
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // 学习路径推荐 —— 从欠缺知识/薄弱点合成「接下来该学什么」进阶路线
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>学习路径中的一步。</summary>
+    public class LearningStep
+    {
+        public string Topic = "";
+        public string Why = "";
+        public string Practice = "";
+        public string Check = "";
+        public string GapRef = ""; // 关联的 gap 条目名
+    }
+
+    /// <summary>学习路径提炼器 system 提示词。</summary>
+    public const string PathPrompt = """
+        你是资深编程技能教练。根据用户编程经验的欠缺知识（gap）清单与薄弱标签，
+        合成 3-7 步「接下来该学什么」的进阶学习路径（先补最关键的短板，再串联进阶主题）。
+        输出严格 JSON，不要多余文字：
+        {"path":[{"topic":"学习主题","why":"为什么重要/它解决什么短板","practice":"如何实践（结合用户已有项目）","check":"如何自测掌握（一个可执行检验）","gap_ref":"关联的欠缺知识点（原文，无则空）"}]}
+        """;
+
+    /// <summary>
+    /// 生成学习路径：从 gap 条目 + 薄弱标签 + ErrorLog 信号合成步骤，写入 KB（kind=gap, source=path）。
+    /// 返回 (生成的步骤数, 生成的步骤)。summarize 可注入供测试；LLM 不可用/失败时降级用 gap 清单。
+    /// </summary>
+    public static async Task<(int Generated, List<LearningStep> Steps)> GenerateLearningPath(
+        Func<string, Task<string?>>? summarize = null)
+    {
+        // 1. 收集素材
+        var gaps = ListEntries().Where(e => e.Kind == "gap").ToList();
+        var weak = WeakStats();
+        var sb = new StringBuilder();
+        sb.AppendLine("欠缺知识清单：");
+        foreach (var g in gaps)
+            sb.AppendLine($"- {g.Description}：{ContextManager.TruncateByRunes(g.Content.ReplaceLineEndings(" "), 160)}");
+        sb.AppendLine("\n薄弱标签：" + (weak.WeakTags.Count == 0 ? "（无）" : string.Join(", ", weak.WeakTags.Take(10).Select(t => t.Tag))));
+        sb.AppendLine("ErrorLog 信号：" + (weak.ErrorSignals.Count == 0 ? "（无）" : string.Join(", ", weak.ErrorSignals.Take(8).Select(s => s.Source))));
+        var payload = ContextManager.TruncateByRunes(sb.ToString(), 20000);
+
+        // 2. LLM 合成（可注入）
+        var json = summarize != null ? await summarize(payload) : await CallSmallModel(PathPrompt, payload);
+        var steps = json != null ? ParseLearningPath(json) : [];
+
+        // 3. 降级：LLM 失败时直接用 gap 清单生成基础步骤
+        if (steps.Count == 0)
+            steps = gaps.Select(g => new LearningStep
+            {
+                Topic = g.Description.Replace("欠缺知识：", ""),
+                Why = "来自你的经验回顾：这是暴露过的欠缺知识点。",
+                Practice = "在自己的项目里刻意练习并记录一次成功应用。",
+                Check = "能不看笔记讲清原理并写一段演示代码。",
+                GapRef = g.Name,
+            }).Take(7).ToList();
+
+        // 4. 写入 KB（kind=gap, source=path → 自动接入 /kb review）
+        int generated = 0;
+        foreach (var step in steps)
+        {
+            if (string.IsNullOrWhiteSpace(step.Topic)) continue;
+            WriteEntry(new KbEntry
+            {
+                Name = "path-" + SanitizeName(step.Topic),
+                Description = $"学习路径：{step.Topic}",
+                Kind = "gap",
+                Content = $"**现象**：欠缺「{step.Topic}」\n" +
+                          $"**根因**：{step.Why}\n" +
+                          $"**修复**：{step.Practice}\n" +
+                          $"**教训**：{step.Check}",
+                Source = "path",
+                Tags = ["path"],
+            });
+            generated++;
+        }
+        return (generated, steps);
+    }
+
+    /// <summary>纯函数：解析学习路径 JSON 的 path[]。</summary>
+    public static List<LearningStep> ParseLearningPath(string json)
+    {
+        var list = new List<LearningStep>();
+        JNode? root;
+        try { root = Json.Parse(json); }
+        catch { return list; }
+        if (root?.Kind != JKind.Object) return list;
+
+        foreach (var s in root["path"]?.Items ?? [])
+        {
+            var topic = s["topic"]?.AsString() ?? "";
+            if (topic.Length == 0) continue;
+            list.Add(new LearningStep
+            {
+                Topic = topic,
+                Why = s["why"]?.AsString() ?? "",
+                Practice = s["practice"]?.AsString() ?? "",
+                Check = s["check"]?.AsString() ?? "",
+                GapRef = s["gap_ref"]?.AsString() ?? "",
+            });
+        }
+        return list;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 画像 JSON 导出（供 GUI/外部可视化）
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>技能画像 JSON（schema 1.0），供外部可视化/导入。</summary>
+    public static string ProfileToJson()
+    {
+        var p = ProfileStats();
+        var kinds = JNode.Array();
+        foreach (var (kind, cnt) in p.KbKinds)
+            kinds.Add(JNode.Object().Set("kind", kind).Set("count", cnt));
+        var tags = JNode.Array();
+        foreach (var (tag, cnt) in p.WeakTags)
+            tags.Add(JNode.Object().Set("tag", tag).Set("count", cnt));
+        var errs = JNode.Array();
+        foreach (var (src, cnt) in p.ErrorSignals)
+            errs.Add(JNode.Object().Set("source", src).Set("count", cnt));
+        var git = JNode.Object();
+        foreach (var kv in p.GitCommitTypes.OrderByDescending(x => x.Value).Take(20))
+            git.Set(kv.Key, kv.Value);
+
+        return JNode.Object()
+            .Set("schema", "1.0")
+            .Set("total_entries", p.TotalEntries)
+            .Set("total_commits", p.TotalCommits)
+            .Set("kb_kinds", kinds)
+            .Set("weak_tags", tags)
+            .Set("error_signals", errs)
+            .Set("git_commit_types", git)
+            .ToJson();
+    }
+
     /// <summary>删除与文本最匹配的一条（name/description 精确优先，否则 TF-IDF 最佳）。返回被删条目或 null。</summary>
     public static KbEntry? DeleteBestMatch(string text)
     {
