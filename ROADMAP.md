@@ -16,8 +16,10 @@
 | **双模型架构** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **模型灵活度** | OpenAI 兼容 | 仅 Anthropic | OSS 模式 | 100+ 模型 | 15+ 提供商 | 仅 Gemini |
 | **Git 自动提交** | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ |
-| **子智能体** | ✅ 并行+依赖编排 | ✅ Teams | ✅ V2 | ❌ | ✅ via MCP | ❌ |
-| **沙箱执行** | ✅ 三级¹ | ❌ | ✅ 三级 | ❌ | ❌ | ❌ |
+| **子智能体** | ✅ 并行+依赖编排 | ✅ Teams+嵌套5层 | ✅ Goal 模式 | ❌ | ✅ via MCP | ✅ 多Agent并行 |
+| **沙箱执行** | ✅ 软件级四级¹ | ❌ | ✅ 内核级四级 | ❌ | ❌ | ❌ |
+| **自主学习系统** | ✅ /kb+教学模式+学习路径 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **编辑级回滚** | ✅ 文件版本+快照 | ✅ 部分(/rewind) | ✅ SQLite fork/rollback | ❌ | ❌ | ❌ |
 | **自动 Lint 反馈** | ✅ | ✅ | ✅ | ✅ lint+test | ❌ | ❌ |
 | **自动 Test 循环** | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
 | **Prompt 缓存** | ✅ | ✅ | ✅ 75% | ❌ | ❌ | ❌ |
@@ -29,7 +31,7 @@
 | **MCP 支持** | ✅ HTTP+SSE+目录+Claude共用 | ✅ 800+ | ✅ | ❌ | ✅ 原生 | ✅ |
 | **彩色聊天 TUI** | ✅ v2 | ❌³ | ❌ | ❌ | ❌ | ❌ |
 | **侧栏面板** | ✅ 4 标签页 | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **自测** | 4247 项 | 无 | 无 | 无 | 无 | 无 |
+| **自测** | 4597 项 | 无 | 无 | 无 | 无 | 无 |
 | **智能工作模式** | ✅ 4 模式 Shift+Tab | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **跨槽位消息** | ✅ F1-F10 | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **用户交互对话框** | ✅ AskUserQuestion 工具 | ✅ | ❌ | ❌ | ❌ | ❌ |
@@ -38,8 +40,8 @@
 | **设置持久化** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **Checkpoint 持久化** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
-> ¹ WayCoder 为软件级沙箱（环境清理 + 内存监控），Codex CLI 为内核级沙箱（Seatbelt / Landlock），安全层级不同。
-> ² 中文原生渐成标配（通义灵码、Trae 等亦中文优先），已非独家护城河。
+> ¹ WayCoder 为软件级沙箱（四级：off/project/network-off/hard，环境清理 + 内存监控），Codex CLI 为内核级沙箱（Seatbelt / bubblewrap / Windows 原生），安全层级不同——内核级更强，这是 WayCoder 短板。
+> ² 中文原生渐成标配（通义灵码→Qoder CN、Trae 等亦中文优先），已非独家护城河；WayCoder 仍是中文原生**纯 CLI 智能体**中唯一带全屏 TUI + 学习系统的。
 > ³ Claude Code 支持 ANSI 富文本聊天渲染，但非 WayCoder 级的全屏缓冲 TUI 控件库体系。
 > ⁴ 上下文窗口跟随所选模型（如 deepseek-v4-pro=1M、deepseek-v4-flash=128K、未知模型兜底 128K），由 `ModelCatalog.ResolveContextWindow` 按模型解析、切模型时同步更新。
 
@@ -47,11 +49,12 @@
 
 | 竞品 | 一句话 |
 |------|--------|
-| **Claude Code** | 最强自主性 + 最贵 + 闭源，2026 CLI Agent 标杆 |
-| **Codex CLI** | Rust 高性能 + 开源 + ChatGPT Plus 免费带，增长最快 |
+| **Claude Code** | 最强自主性 + 动态工作流（1000 子智能体/run）+ Opus 4.8 + 闭源最贵，2026 CLI Agent 标杆（作者 ~10% 公共 GitHub 提交） |
+| **Codex CLI** | Rust 高性能 + 内核级四级沙箱 + GPT-5.5 免费带，增长最快 |
 | **Aider** | 最成熟开源 + Git 原生 + 100+ 模型随意换，但无 MCP 无子智能体 |
 | **Goose** | Linux 基金会治理 + Block 全员部署，但编码正确率行业最低 |
-| **Gemini CLI** | 曾免费 1M 上下文，2026.6 停止免费后被 Antigravity 取代 |
+| **Antigravity CLI** | Gemini CLI 继任（2026.6 日落），Go 重写 + 多 Agent 并行 + Gemini 3.5 Flash 免费档 |
+| **Trae 3.0 / Qoder CN** | 国产 GUI 双子星（字节/阿里）：免费带模型 + 中文断层领先，但纯 CLI 深度不如 Claude Code/WayCoder |
 
 ---
 
@@ -61,23 +64,26 @@
 
 | # | 优势 | 技术实现 | 护城河深度 |
 |---|------|----------|:---:|
-| 1 | **AOT 单文件部署** | .NET 10 NativeAOT → 单个 exe，0 依赖 | ⭐⭐⭐ 极深 |
-| 2 | **内置 TUI 编辑器** | 14 种语言语法高亮 + 光标编辑 + 撤销栈 | ⭐⭐⭐ 极深 |
-| 3 | **双模型自动分工** | 大模型写代码，小模型做压缩/摘要，自动切换省钱 | ⭐⭐ 较深 |
-| 4 | **全屏缓冲 TUI 控件库** | ScreenManager + 弹窗菜单 + 侧栏 + CJK 宽度感知 | ⭐⭐ 较深 |
-| 5 | **中文原生** | 系统提示词 + 错误消息 + UI + 竞品分析全部中文 | ⭐⭐ 较深 |
-| 6 | **文件锁机制** | 多 Agent 并发修改冲突防护，30s 超时自动释放 | ⭐⭐ 较深 |
+| 1 | **自主学习系统** | 知识库 /kb（mistake/bugfix/habit/gap/code 五类，TF-IDF+向量混合检索）+ 教学模式 /teach（讲解+测验闭环→gap 权重）+ 学习路径 /kb path + 会话复盘 /kb retro——竞品全是「记忆」，WayCoder 是「会学」 | ⭐⭐⭐ 极深 |
+| 2 | **AOT 单文件部署** | .NET 10 NativeAOT → 单个 exe，0 依赖 | ⭐⭐⭐ 极深 |
+| 3 | **内置 TUI 编辑器** | 14 种语言语法高亮 + 光标编辑 + 撤销栈 + Lint 诊断 | ⭐⭐⭐ 极深 |
+| 4 | **双模型自动分工** | 大模型写代码，小模型做压缩/摘要，自动切换省钱 | ⭐⭐ 较深 |
+| 5 | **全屏缓冲 TUI 控件库** | ScreenManager + 弹窗菜单 + 侧栏 + CJK 宽度感知 | ⭐⭐ 较深 |
+| 6 | **中文原生纯 CLI** | 系统提示词 + 错误消息 + UI + 竞品分析全部中文；国产 GUI 竞品有中文但无纯 CLI 全屏 TUI | ⭐⭐ 较深 |
+| 7 | **编辑级回滚** | 文件版本缓存（每次写前快照，按内容哈希分块）+ 整树 Checkpoint 快照 | ⭐⭐ 较深 |
+| 8 | **文件锁机制** | 多 Agent 并发修改冲突防护，30s 超时自动释放 | ⭐⭐ 较深 |
 
 ### 🟡 相对优势（部分竞品有但不全）
 
 | # | 优势 | 竞品情况 |
 |---|------|------|
-| 7 | **44 个内置工具** | Claude Code 相当，Aider 仅文件编辑，Goose 靠 MCP |
-| 8 | **四层安全防护** | bash/git/rm/kill 四个工具各有独立拦截规则 |
-| 9 | **模型回退链** | Claude Code 有，Codex/Aider/Goose 无自动回退 |
-| 10 | **Hooks 生命周期** | Claude Code 更成熟，Codex 有，Aider/Goose 无 |
-| 11 | **自定义命令** | Claude Code 有 slash commands，Codex 有 |
-| 12 | **4247 项自测** | 所有竞品均无内置自测 |
+| 9 | **47 个内置工具** | Claude Code 相当，Aider 仅文件编辑，Goose 靠 MCP |
+| 10 | **四层安全防护** | bash/git/rm/kill 四个工具各有独立拦截规则 |
+| 11 | **模型回退链** | Claude Code 有，Codex/Aider/Goose 无自动回退 |
+| 12 | **Hooks 生命周期** | Claude Code 更成熟，Codex 有，Aider/Goose 无 |
+| 13 | **F1-F10 多槽位真并行** | Claude Code 有 Teams（共享任务列表+消息），WayCoder 是独立会话槽位，各有千秋 |
+| 14 | **4597 项自测** | 所有竞品均无内置自测 |
+| 15 | **环境变量精简（107→14）** | 对齐竞品（Claude Code/Codex 只留 API_KEY/BASE_URL/MODEL），config.json 权威源 |
 
 ---
 
