@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -155,6 +156,21 @@ public class TuiTabs : TuiControl
     }
 
     // ── 输入 ──
+
+    public override bool OnMouse(InputEvent ev)
+    {
+        // 每个 tab 占 [absX+i*tabW, +tabW)（见 OnRender）。点击标签行 = 切换 + 聚焦。
+        if (!MouseInBounds(ev, out int relX, out int relY)) return false;
+        if (!ev.MouseLeft || relY != 0 || _tabLabels.Count == 0) return false;
+
+        int tabW = Math.Max(MinTabWidth, Width / _tabLabels.Count);
+        int idx = Math.Clamp(relX / tabW, 0, _tabLabels.Count - 1);
+
+        Focused = true;
+        SelectTab(idx);
+        MarkDirty();
+        return true;
+    }
 
     public override bool OnKey(ConsoleKeyInfo key)
     {

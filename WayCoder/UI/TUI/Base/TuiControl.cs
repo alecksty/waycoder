@@ -337,6 +337,26 @@ public abstract class TuiControl : TuiBase
     public override bool OnMouse(InputEvent ev) => false;
 
     /// <summary>
+    /// 鼠标命中判定：事件为鼠标类型且坐标落在控件边界内。
+    /// 命中时输出控件局部相对坐标（relX/relY = 事件坐标 − 控件绝对原点）。
+    /// 子类 OnMouse 的统一入口，替代各处重复的绝对坐标边界判断。
+    /// </summary>
+    protected bool MouseInBounds(InputEvent ev, out int relX, out int relY)
+    {
+        relX = 0;
+        relY = 0;
+        if (ev.Type != InputType.Mouse) return false;
+        int ax = GetAbsoluteX();
+        int ay = GetAbsoluteY();
+        if (ev.MouseX < ax || ev.MouseX >= ax + Width ||
+            ev.MouseY < ay || ev.MouseY >= ay + Height)
+            return false;
+        relX = ev.MouseX - ax;
+        relY = ev.MouseY - ay;
+        return true;
+    }
+
+    /// <summary>
     /// 控件尺寸变化时调用。子类可覆写以响应布局变化。
     /// 例如：容器子类（TuiView）可覆写以调整子节点位置。
     /// 其他控件（如输入框）可覆写以更新显示内容。

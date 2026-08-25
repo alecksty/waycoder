@@ -2,6 +2,7 @@
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui.Edit;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
@@ -941,5 +942,37 @@ public class TuiTextArea : TuiEditBase
         _cursorRow = Math.Clamp(screenRow, absY, absY + visRows - 1);
         _cursorCol = cursorScreenCol;
         _showCursor = true;
+    }
+
+    /// <summary>点击定位光标（多行 + CJK 列换算）+ 聚焦。</summary>
+    public override bool OnMouse(InputEvent ev)
+    {
+        if (!MouseInBounds(ev, out int relX, out int relY)) return false;
+        if (!ev.MouseLeft) return false;
+
+        Focused = true;
+
+        // 行：视口内相对行 → 数据行
+        int row = ScrollRow + relY;
+        if (row >= 0 && row < Lines.Count)
+        {
+            // 列：内容区起点在 absX + lineNumW，文本显示自 ScrollCol 字符起（与 OnRender 一致）
+            int lineNumW = ShowLineNumbers ? (Lines.Count > 0 ? Lines.Count.ToString().Length + 1 : 3) : 0;
+            int textX = Math.Max(0, relX - lineNumW);
+            var line = SafeLine(row);
+            var visible = line.Length > ScrollCol ? line[ScrollCol..] : "";
+            CursorRow = row;
+            CursorCol = ScrollCol + VisualToCharCol(visible, textX);
+        }
+        else
+        {
+            // 点击可视区空白：光标落到最接近的边界行末尾
+            CursorRow = Math.Clamp(row, 0, Math.Max(0, Lines.Count - 1));
+            CursorCol = SafeLine(CursorRow).Length;
+        }
+
+        ClearSelection();
+        MarkDirty();
+        return true;
     }
 }
