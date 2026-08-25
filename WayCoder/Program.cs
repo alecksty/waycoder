@@ -60,11 +60,10 @@ public partial class Program
                 WorkModeManager.SetMode(WorkMode.Plan);
                 return true;
             case "acceptedits":
-                SandboxManager.SetLevel("auto-edit");
+                PermissionManager.SetMode("auto"); // 确认轴：自动接受编辑
                 return true;
             case "bypasspermissions":
-                SandboxManager.SetLevel("full-auto");
-                PermissionManager.CurrentMode = PermissionManager.Mode.Yolo;
+                PermissionManager.CurrentMode = PermissionManager.Mode.Yolo; // 确认轴：不打断（边界独立，不动沙箱）
                 return true;
             case "default":
                 return true;
@@ -415,20 +414,15 @@ public partial class Program
         if (_agent.WorkMode != WorkMode.Build)
             _agent.ReapplyToolFilter();
 
-        // --yolo / -p / 管道输入: 非交互模式下跳过所有权限确认
+        // 边界轴：始终从配置初始化沙箱模式（独立于权限轴；--permission-mode 已设边界时不覆盖）
+        if (!permissionModeApplied)
+            SandboxManager.Mode = _config.SandboxMode;
+        // 确认轴：--yolo / -p / 管道输入 非交互跳过确认（只改权限，不动边界）
         if (yoloMode)
-        {
-            SandboxManager.SetLevel("full-auto");
             PermissionManager.CurrentMode = PermissionManager.Mode.Yolo;
-        }
-        else
-        {
-            // 从配置初始化沙箱级别；--permission-mode 已在上面应用时不覆盖
-            if (!permissionModeApplied)
-                SandboxManager.SetLevel(_config.SandboxLevel);
-            // 同步 PromptCache 设置
-            PromptCache.Enabled = _config.PromptCaching;
-        }
+
+        // 同步 PromptCache 设置
+        PromptCache.Enabled = _config.PromptCaching;
 
         // 设置沙箱允许的目录（项目根目录）
         SandboxManager.AllowedDirectory = Directory.GetCurrentDirectory();
@@ -625,7 +619,8 @@ public partial class Program
     private static async Task RunWebAsync(int port)
     {
         // web 无终端权限弹框 → 强制 yolo（服务仅绑定 127.0.0.1，风险可控）
-        SandboxManager.SetLevel("full-auto");
+        // 边界轴：web 模式边界也来自配置（不强制 full-auto）；确认轴：浏览器交互模型需自主放行
+        SandboxManager.Mode = _config.SandboxMode;
         PermissionManager.CurrentMode = PermissionManager.Mode.Yolo;
         // web 无终端 → diff 预览走浏览器弹窗，强制开启
         Config.Instance.DiffPreview = true;

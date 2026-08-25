@@ -111,13 +111,13 @@ function applyTheme(t) {
 document.getElementById('theme-btn').onclick = () =>
   applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
 
-// ── 交互模式（底部下拉，YOLO/Ask/Auto/SmartAuto）──
+// ── 交互模式（底部下拉，YOLO/Ask/Auto/SmartAuto）→ 走 /permit（权限轴；/perm 已改为沙箱边界轴）
 const permSelect = document.getElementById('perm-select');
 function applyPermMode(mode) {
   if (mode && permSelect && permSelect.value !== mode) permSelect.value = mode;
 }
 permSelect.onchange = () =>
-  fetch('/perm', { method: 'POST', body: JSON.stringify({ mode: permSelect.value }) }).catch(() => {});
+  fetch('/permit', { method: 'POST', body: JSON.stringify({ mode: permSelect.value }) }).catch(() => {});
 
 // ── 槽位（左栏）──
 let currentSlot = 0;          // 本页面当前绑定的槽位
@@ -958,7 +958,8 @@ function handleUiCommand(text) {
 const suggestBox = document.getElementById('suggest-box');
 const SLASH_COMMANDS = [
   ['/help', '显示帮助'],
-  ['/perm', '切换权限模式'],
+  ['/perm', '沙箱边界（off/project/network-off/hard）'],
+  ['/permit', '权限模式（ack/auto/smart/yolo）'],
   ['/model', '打开模型选择'],
   ['/theme', '切换明暗主题'],
   ['/settings', '打开设置'],

@@ -5,30 +5,47 @@ using System.Text.RegularExpressions;
 namespace WayCoder;
 
 /// <summary>
-/// 进程沙箱管理器 —— 在 full-auto 模式下限制 bash 命令的执行环境。
+/// 进程沙箱管理器 —— 边界轴：独立于确认轴（PermissionManager）限制「能碰什么」。
 ///
-/// 三层沙箱级别（与 PermissionManager 协同）：
-///   suggest   — 所有危险工具需确认（= PermissionManager.Mode.Ask）
-///   auto-edit — 文件编辑自动，bash 需确认（= PermissionManager.Mode.Auto）
-///   full-auto — 全部自动，bash 在沙箱中运行，受资源限制
+/// 边界模型 SandboxMode（与权限模式正交）：
+///   Off          — 无边界（保持现状：只受敏感黑名单/系统目录硬约束）
+///   ProjectWrite — 可写范围仅项目根（AllowedDirectory）；网络开
+///   NetworkOff   — 可写任意（除敏感）；网络关（拦 fetch/web_search/curl 等）
+///   Hard         — 仅项目根 + 网络关（最严，bash 进程沙箱化：环境净化/资源监控）
+///
+/// 对齐 Codex sandbox_mode / Claude 权限分层：边界（能碰什么）与确认（何时打断）正交，
+/// 权限 Yolo 只跳过确认，不解除边界。
 ///
 /// 沙箱限制：
-///   1. 环境变量清理（防止 API Key 泄露、网络访问）
-///   2. 工作目录锁定（防止 cd 逃逸项目目录）
-///   3. 文件写入限制（阻止写入系统目录）
-///   4. 额外危险命令拦截（sudo、mount 等）
-///   5. 进程内存监控（超 1GB 自动 kill）
+///   1. 可写范围强制（write/edit/mv/cp/rm 越界拦截）
+///   2. 网络开关（工具层 + bash 命令层拦截）
+///   3. 环境变量清理（防止 API Key 泄露、网络访问，仅 Hard）
+///   4. 工作目录锁定（cd 逃逸拦截）
+///   5. 额外危险命令拦截（sudo、mount 等）
+///   6. 进程内存监控（超 1GB 自动 kill，仅 Hard）
 /// </summary>
 public static class SandboxManager
 {
-    /// <summary>当前沙箱级别</summary>
-    public static string Level { get; set; } = "suggest";
+    /// <summary>当前边界模式（权威字段；复用 Config.SandboxMode 枚举，独立于确认轴）。</summary>
+    public static SandboxMode Mode { get; set; } = SandboxMode.Off;
 
-    /// <summary>是否处于沙箱模式（full-auto）</summary>
-    public static bool IsSandboxed => Level == "full-auto";
+    /// <summary>边界级别显示文本（兼容旧 /perm 输出）。</summary>
+    public static string Level => Mode switch
+    {
+        SandboxMode.ProjectWrite => "project",
+        SandboxMode.NetworkOff => "network-off",
+        SandboxMode.Hard => "hard",
+        _ => "off",
+    };
 
-    /// <summary>是否处于智能自动模式</summary>
-    public static bool IsSmartAuto => Level == "smart-auto";
+    /// <summary>是否限制可写范围为项目根。</summary>
+    public static bool IsProjectWrite => Mode is SandboxMode.ProjectWrite or SandboxMode.Hard;
+
+    /// <summary>是否关闭网络。</summary>
+    public static bool IsNetworkOff => Mode is SandboxMode.NetworkOff or SandboxMode.Hard;
+
+    /// <summary>是否进程级沙箱化（环境净化/资源监控，Hard 时才需要）。</summary>
+    public static bool IsSandboxed => Mode == SandboxMode.Hard;
 
     // 可覆写的私有字段（测试可用），默认从 Config.Instance 读取
     private static long? _maxMemoryBytesOverride;
@@ -59,9 +76,72 @@ public static class SandboxManager
     /// <summary>允许的根目录（null = 不限制）</summary>
     public static string? AllowedDirectory { get; set; }
 
-    // ---- 沙箱额外危险命令（比 BashTool.DangerousPatterns 更严格） ----
+    // ---- 需要网络的工具（network-off 时整体拦截） ----
+    private static readonly HashSet<string> NetworkTools = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "fetch", "web_search", "download", "doc", "transcribe", "git", "git_pr",
+    };
 
-    private static readonly (Regex Pattern, string Reason)[] SandboxBlocked =
+    // ---- 会写文件/移动文件的工具（project-write 时校验路径） ----
+    private static readonly HashSet<string> WriteTools = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "write_file", "edit_file", "multiedit", "find_replace", "mv", "cp", "rm",
+    };
+
+    /// <summary>
+    /// 工具级边界门控（在 Agent.ExecuteToolAsync 唯一门控点调用）。
+    /// 返回拦截原因，null 表示放行。独立于权限模式（Yolo 也生效）。
+    /// </summary>
+    public static string? CheckToolAllowed(string toolName, Dictionary<string, object?>? args)
+    {
+        if (IsNetworkOff && NetworkTools.Contains(toolName))
+            return "⛔ 沙箱（网络已关闭）：此工具需要网络访问，已被边界阻止。";
+
+        if (IsProjectWrite && WriteTools.Contains(toolName) && args != null)
+        {
+            foreach (var key in new[] { "file_path", "path", "source", "dest" })
+            {
+                if (args.TryGetValue(key, out var v) && v is string s && s.Length > 0)
+                {
+                    var block = CheckWritable(s);
+                    if (block != null) return block;
+                }
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 路径级可写校验（文件工具内部防御纵深调用）。项目写边界下，路径须在 AllowedDirectory 内。
+    /// </summary>
+    public static string? CheckWritable(string path)
+    {
+        if (!IsProjectWrite || string.IsNullOrWhiteSpace(path) || AllowedDirectory == null) return null;
+
+        string normalized;
+        try { normalized = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar); }
+        catch { return null; }
+
+        var allowed = Path.GetFullPath(AllowedDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (!normalized.StartsWith(allowed, StringComparison.OrdinalIgnoreCase))
+            return $"⛔ 沙箱（仅项目内写入）：路径在项目根外 — {path}";
+        return null;
+    }
+
+    /// <summary>
+    /// bash 网络关检查（BashTool.Execute 顶部调用，yolo 下也生效）。拦网络命令，localhost 例外。
+    /// </summary>
+    public static string? CheckNetworkCommand(string command)
+    {
+        if (!IsNetworkOff) return null;
+        foreach (var (pattern, reason) in SandboxNetwork)
+            if (pattern.IsMatch(command) && !NetworkAllowed.Any(na => na.IsMatch(command)))
+                return $"⛔ 沙箱（网络已关闭）：{reason}";
+        return null;
+    }
+
+    // ---- 沙箱额外危险命令（任何沙箱模式生效；比 BashTool.DangerousPatterns 更严格） ----
+    private static readonly (Regex Pattern, string Reason)[] SandboxDanger =
     [
         (new(@"\bsudo\b"), "sudo 提权"),
         (new(@"\bsu\b(?=\s+-)"), "切换用户"),
@@ -69,13 +149,18 @@ public static class SandboxManager
         (new(@"\bmount\b"), "挂载文件系统"),
         (new(@"\bumount\b"), "卸载文件系统"),
         (new(@"\biptables\b"), "修改防火墙"),
+        (new(@"\bsystemctl\b"), "系统服务管理"),
+    ];
+
+    // ---- 网络命令（network-off 时拦截；localhost 例外） ----
+    private static readonly (Regex Pattern, string Reason)[] SandboxNetwork =
+    [
         (new(@"\bnc\b"), "网络连接（沙箱禁止）"),
         (new(@"\btelnet\b"), "网络连接（沙箱禁止）"),
         (new(@"\bssh\b(?=\s+\w+@)"), "SSH 远程连接"),
         (new(@"\bscp\b"), "SCP 远程传输"),
         (new(@"\bwget\b"), "网络下载（沙箱禁止）"),
         (new(@"\bcurl\b"), "网络请求（沙箱禁止）"),
-        (new(@"\bsystemctl\b"), "系统服务管理"),
     ];
 
     // 沙箱允许的网络相关命令（本地通信）
@@ -87,36 +172,35 @@ public static class SandboxManager
     ];
 
     /// <summary>
-    /// 检查命令是否违反沙箱规则。返回违规原因，null 表示通过。
+    /// 检查命令是否违反沙箱边界。返回违规原因，null 表示通过。
+    /// 仅 SandboxMode.Off 放行全部；危险命令任何沙箱模式拦，网络命令 network-off 拦，
+    /// cd 逃逸 project-write 拦，系统目录写任何沙箱模式拦。
     /// </summary>
     public static string? CheckSandboxViolation(string command, string cwd)
     {
-        if (!IsSandboxed) return null;
+        if (Mode == SandboxMode.Off) return null;
 
-        // 1. 沙箱额外危险命令
-        foreach (var (pattern, reason) in SandboxBlocked)
+        // 1. 额外危险命令（sudo/chown/mount/systemctl...）
+        foreach (var (pattern, reason) in SandboxDanger)
+            if (pattern.IsMatch(command)) return reason;
+
+        // 2. 网络命令（network-off 才拦；localhost 例外）
+        if (IsNetworkOff)
         {
-            if (!pattern.IsMatch(command)) continue;
-
-            // 网络命令检查是否访问 localhost（允许）
-            if (reason.Contains("网络") || reason.Contains("下载") || reason.Contains("请求"))
-            {
-                if (NetworkAllowed.Any(na => na.IsMatch(command)))
-                    continue;
-            }
-
-            return reason;
+            foreach (var (pattern, reason) in SandboxNetwork)
+                if (pattern.IsMatch(command) && !NetworkAllowed.Any(na => na.IsMatch(command)))
+                    return reason;
         }
 
-        // 2. 工作目录逃逸检测
-        var violation = CheckDirectoryEscape(command, cwd);
-        if (violation != null) return violation;
+        // 3. 工作目录逃逸（project-write）
+        if (IsProjectWrite)
+        {
+            var violation = CheckDirectoryEscape(command, cwd);
+            if (violation != null) return violation;
+        }
 
-        // 3. 文件写入系统目录检测
-        violation = CheckSystemWrite(command);
-        if (violation != null) return violation;
-
-        return null;
+        // 4. 文件写入系统目录
+        return CheckSystemWrite(command);
     }
 
     /// <summary>
@@ -339,22 +423,18 @@ public static class SandboxManager
     }
 
     /// <summary>
-    /// 根据字符串设置沙箱级别。
+    /// 根据字符串设置边界模式（独立于确认轴；yolo/god 不再映射到沙箱）。
+    /// 兼容旧 /perm 值：suggest→Off、auto-edit→ProjectWrite、full-auto→Hard。
     /// </summary>
     public static void SetLevel(string level)
     {
-        var normalized = level.ToLowerInvariant();
-
-        // yolo/god 作为边界轴兼容别名看待：启用受限沙箱。确认轴是否放行由 PermissionManager 独立决定。
-        if (normalized is "yolo" or "god")
-            normalized = "full-auto";
-
-        Level = normalized switch
+        var normalized = (level ?? "").Trim().ToLowerInvariant();
+        Mode = normalized switch
         {
-            "full-auto" => "full-auto",
-            "smart-auto" or "smartauto" or "smart" => "smart-auto",
-            "auto-edit" or "auto" => "auto-edit",
-            _ => "suggest",
+            "project" or "project-write" or "auto-edit" or "auto" => SandboxMode.ProjectWrite,
+            "network-off" or "no-network" or "offline" => SandboxMode.NetworkOff,
+            "hard" or "full-auto" => SandboxMode.Hard,
+            _ => SandboxMode.Off, // "off" / "suggest" / 未知 → 无边界
         };
     }
 
@@ -363,7 +443,7 @@ public static class SandboxManager
     /// </summary>
     public static void Reset()
     {
-        Level = "suggest";
+        Mode = SandboxMode.Off;
         AllowedDirectory = null;
     }
 }

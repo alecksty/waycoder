@@ -38,6 +38,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 return (true, WebHelpText());
 
             case "/perm" or "/permissions":
+                return (true, WebSandboxText(args));
+
+            case "/permit":
                 return (true, WebPermText(args));
 
             case "/model":
@@ -93,7 +96,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         sb.AppendLine("| 命令 | 说明 |");
         sb.AppendLine("|---|---|");
         sb.AppendLine("| /help | 显示帮助 |");
-        sb.AppendLine("| /perm [ask\\|auto\\|smartauto\\|yolo] | 切换权限模式 |");
+        sb.AppendLine("| /perm [off\\|project\\|network-off\\|hard] | 沙箱边界（独立于权限） |");
+        sb.AppendLine("| /permit [ack\\|auto\\|smart\\|yolo] | 权限模式 |");
         sb.AppendLine("| /model | 打开模型选择窗口 |");
         sb.AppendLine("| /model list | 列出模型 |");
         sb.AppendLine("| /model <名称> | 按名称切换模型 |");
@@ -133,6 +137,14 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         }
         PermissionManager.SetMode(args);
         return $"权限模式已切换: **{WebPermLabel()}**";
+    }
+
+    private static string WebSandboxText(string args)
+    {
+        if (string.IsNullOrWhiteSpace(args))
+            return $"当前沙箱边界: **{SandboxManager.Level}**（off/project/network-off/hard；/permit 管权限）";
+        SandboxManager.SetLevel(args);
+        return $"沙箱边界已切换: **{SandboxManager.Level}**（边界独立于权限）";
     }
 
     private static string WebFormatContext(int ctx)
@@ -364,7 +376,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             ### 含转义竖线的单元格
             | 命令 | 用法 |
             |---|---|
-            | /perm | `/perm [ask\|auto\|smartauto\|yolo]` |
+            | /perm | `/perm [off\|project\|network-off\|hard]` |
             | /session | `/session [list\|save\|load <id>]` |
             | /test | `/test [list\|markdown\|table]` |
 
@@ -418,7 +430,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             | 命令 | 说明 |
             |---|---|
             | /help | 显示帮助 |
-            | /perm [ask\|auto\|smartauto\|yolo] | 切换权限模式 |
+            | /perm [off\\|project\\|network-off\\|hard] | 沙箱边界（独立于权限） |
+            | /permit [ack\\|auto\\|smart\\|yolo] | 权限模式 |
             | /test | 显示本测试 |
 
             ## 水平线
