@@ -44,6 +44,13 @@ public class EditorCore
     private int _selAnchorLine = -1;
     private int _selAnchorCol = -1;
 
+    /// <summary>选区锚点（0-based）；无选区返回 null。GUI/Web 视图画选区矩形用（TUI 从不画选区故此前私有）。</summary>
+    public (int Line, int Col)? SelectionAnchor =>
+        _selAnchorLine < 0 ? null : (_selAnchorLine, _selAnchorCol);
+
+    // ── 行尾（加载时探测，保存保真；新建缓冲默认 LF）──
+    private string _newLine = "\n";
+
     // ── 剪贴板（内部兜底缓存，优先系统剪贴板）──
     private static string _clipboard = "";
 
@@ -74,6 +81,13 @@ public class EditorCore
         {
             foreach (var line in File.ReadAllLines(FilePath, Encoding.UTF8))
                 Lines.Add(new StringBuilder(line));
+
+            // 行尾探测：首 4KB 出现 \r\n 则按 CRLF 保存，避免三端编辑 CRLF 文件时静默转 LF
+            _newLine = DetectNewLine(FilePath);
+        }
+        else
+        {
+            _newLine = "\n";
         }
 
         if (Lines.Count == 0)
@@ -94,7 +108,7 @@ public class EditorCore
         if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             Directory.CreateDirectory(dir);
 
-        var content = string.Join("\n", Lines.Select(sb => sb.ToString()));
+        var content = string.Join(_newLine, Lines.Select(sb => sb.ToString()));
         File.WriteAllText(FilePath, content, Encoding.UTF8);
         Modified = false;
     }
@@ -109,6 +123,20 @@ public class EditorCore
             await DiagnosticManager.RunLintAsync(FilePath);
             OnDiagnosticsReady?.Invoke();
         });
+    }
+
+    /// <summary>探测文件行尾：读首 4KB 文本，含 \r\n 则按 CRLF，否则 LF。</summary>
+    private static string DetectNewLine(string path)
+    {
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var buf = new byte[Math.Min(4096, fs.Length)];
+            fs.ReadExactly(buf);
+            var head = Encoding.UTF8.GetString(buf);
+            return head.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+        }
+        catch { return "\n"; }
     }
 
     // ================================================================

@@ -233,7 +233,7 @@ public class LintTool : ITool
     {
         var (cmd, args) = lang switch
         {
-            "cs" => ("dotnet", $"build --nologo -v q \"{target}\""),
+            "cs" => ("dotnet", $"build --nologo -v q \"{FindAnyProjectUp(target)}\""),
             "py" => ("ruff", $"check \"{target}\""),
             "js" or "ts" => ("npx", $"eslint \"{target}\" --format stylish"),
             "go" => ("go", $"vet \"{target}\""),
@@ -266,6 +266,21 @@ public class LintTool : ITool
         };
 
         return await RunProcess(cmd, args, lang);
+    }
+
+    /// <summary>从目标文件/目录向上找任意 .csproj（C# 项目文件名不固定，不能按精确名匹配）。未找到返回空串。</summary>
+    private static string FindAnyProjectUp(string target)
+    {
+        var dir = File.Exists(target) ? Path.GetDirectoryName(target)! : target;
+        while (dir != null)
+        {
+            var csproj = Directory.GetFiles(dir, "*.csproj", SearchOption.TopDirectoryOnly).FirstOrDefault();
+            if (csproj != null) return csproj;
+            var parent = Path.GetDirectoryName(dir);
+            if (parent == dir) break;
+            dir = parent;
+        }
+        return "";
     }
 
     private static string FindProjectFile(string target, string filename)
@@ -349,13 +364,16 @@ public class LintTool : ITool
             if (combined.Length == 0)
                 return $"✅ {lang}: 无问题";
 
-            // 截断
-            if (combined.Length > 4000)
-                combined = ContextManager.TruncateByRunes(combined, 4000) + "\n... (输出已截断)";
+            // 截断（项目级构建输出量大，4000 会把目标文件的错误行截掉导致 lint 静默失效；
+            // 提到 20000 保证 ParseLintOutput 按文件名能捞到目标诊断）
+            if (combined.Length > 20000)
+                combined = ContextManager.TruncateByRunes(combined, 20000) + "\n... (输出已截断)";
 
-            return proc.ExitCode == 0
+            // 注意：proc 是"未启动的占位 Process"（ProcUtil.RunAsync 内部另建并启动 Process），
+            // 读 proc.ExitCode 会抛 "No process is associated" → 用 ProcUtil 返回的 exitCode。
+            return exitCode == 0
                 ? $"✅ {lang}: 检查通过\n{combined}"
-                : $"❌ {lang}: 发现问题 ({proc.ExitCode})\n{combined}";
+                : $"❌ {lang}: 发现问题 ({exitCode})\n{combined}";
         }
         catch (Exception ex)
         {

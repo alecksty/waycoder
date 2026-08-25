@@ -1,6 +1,6 @@
 # WayCoder（道码）竞品分析与路线图
 
-> 版本：v0.95.0 | 日期：2026-08-25
+> 版本：v0.96.0 | 日期：2026-08-25
 
 ---
 
@@ -147,6 +147,9 @@
 | ✅ 子智能体失败重试 | v0.87.17 | `SubAgentRetryCount` 失败自动换方法重试，LLM 抽风给第二次机会 |
 | ✅ 超大规模分批调度 | v0.87.17 | 批内并行批间串行，废除「超并行数即报错」，`SubAgentMaxTotalTasks` 硬上限防失控 |
 | ✅ MCP 目录扩充 | v0.87.17~v0.87.20 | 内置 18→34 个，新增搜索/数据库/协作/服务四类生态服务器 |
+| ✅ 环境变量精简 | v0.95.0 | 107→14（对齐竞品），config.json 权威源 |
+| ✅ 内置编辑器三端 | v0.96.0 | TUI 完善（保存 lint Toast）+ Web 编辑器（透明 textarea 叠 pre + 文件树 + lint 标记）+ Avalonia GUI 编辑器（自定义 EditorView 绑 EditorCore）——共享 EditorCore 纯数据模型 |
+| ✅ 修复 lint 全链路 | v0.96.0 | LintTool 读未启动 Process 的 ExitCode → 所有语言 lint 静默失效（潜伏 bug）；cs 改构建包含项目 + 截断 20000 + ⚠-跳过收窄 |
 
 ---
 

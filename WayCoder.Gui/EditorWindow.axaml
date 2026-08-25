@@ -1,0 +1,56 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:WayCoder.UI.Gui"
+        x:Class="WayCoder.UI.Gui.EditorWindow"
+        Title="编辑器 — WayCoder（道码）"
+        Width="1000" Height="660"
+        Background="{DynamicResource WindowBgBrush}">
+    <DockPanel>
+        <!-- 工具栏 -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource PanelBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,8">
+                <Button x:Name="SaveBtn" Content="💾 保存 (Ctrl+S)" Click="Save_Click" />
+                <Button x:Name="OpenBtn" Content="📂 打开…" Click="Open_Click" />
+                <Button x:Name="NewBtn" Content="＋ 新建" Click="New_Click" />
+                <Button x:Name="FindBtn" Content="🔍 查找" Click="Find_Click" />
+                <TextBlock x:Name="PathLabel" VerticalAlignment="Center" FontSize="12"
+                           Foreground="{DynamicResource AccentBrush}"
+                           TextTrimming="CharacterEllipsis" MaxWidth="380" />
+                <TextBlock x:Name="DirtyLabel" Text="●" VerticalAlignment="Center" FontSize="12"
+                           Foreground="{DynamicResource SuccessBrush}" IsVisible="False"
+                           ToolTip.Tip="未保存" />
+            </StackPanel>
+        </Border>
+
+        <!-- 查找条（Ctrl+F 弹出，Enter 下一个 / F3 下一个 / Esc 关闭） -->
+        <Border x:Name="FindBar" DockPanel.Dock="Top" IsVisible="False"
+                Background="{DynamicResource Panel2BgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,6">
+                <TextBlock Text="🔍" VerticalAlignment="Center" FontSize="12"
+                           Foreground="{DynamicResource DimTextBrush}" />
+                <TextBox x:Name="FindInput" Width="260" FontSize="12"
+                         KeyDown="FindInput_KeyDown" />
+                <TextBlock x:Name="FindStatus" VerticalAlignment="Center" FontSize="11"
+                           Foreground="{DynamicResource DimTextBrush}" />
+                <Button x:Name="FindCloseBtn" Content="✕" Click="FindClose_Click"
+                        FontSize="11" Padding="6,2" />
+            </StackPanel>
+        </Border>
+
+        <!-- 状态栏 -->
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" Spacing="14" Margin="12,4">
+                <TextBlock x:Name="PosLabel" FontSize="11" Foreground="{DynamicResource DimTextBrush}" />
+                <TextBlock x:Name="MetaLabel" FontSize="11" Foreground="{DynamicResource DimTextBrush}" />
+                <TextBlock x:Name="LangLabel" FontSize="11" Foreground="{DynamicResource DimTextBrush}" />
+                <TextBlock x:Name="DiagLabel" FontSize="11" Foreground="{DynamicResource DimTextBrush}" />
+            </StackPanel>
+        </Border>
+
+        <!-- 编辑器视图 -->
+        <local:EditorView x:Name="Editor" />
+    </DockPanel>
+</Window>

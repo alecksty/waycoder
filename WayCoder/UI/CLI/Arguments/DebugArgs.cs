@@ -161,7 +161,9 @@ public class TuiChatArg : CliArg
 
 public class GuiArg : CliArg
 {
-    public override string Description => "启动图形界面（独立 Avalonia 进程）";
+    public override string Description => "启动图形界面（独立 Avalonia 进程，可选 --gui [文件] 直接打开编辑器）";
+    public override int ValueCount => -1; // 可选文件：--gui [文件]
+    public override string? ValueLabel => "文件";
     public GuiArg() : base("gui", "-g", "--gui") { }
     public override int? OnMatch(List<string> values)
     {
@@ -171,8 +173,13 @@ public class GuiArg : CliArg
         var candidates = new[]
         {
             Path.Combine(baseDir, exeName),                       // 已发布（与主程序同级）
+            Path.Combine(baseDir, "..", exeName),                 // RID 子目录（bin/Debug/net10.0/win-x64 → 上级 net10.0）
             Path.Combine(baseDir, "waycoder-gui.dll"),            // 开发态（dotnet 运行）
+            Path.Combine(baseDir, "..", "waycoder-gui.dll"),
             Path.Combine(baseDir, "..", "..", "WayCoder.Gui", "bin", "Debug", "net10.0", "waycoder-gui.dll"),
+            Path.Combine(baseDir, "..", "..", "..", "..", "WayCoder.Gui", "bin", "Debug", "net10.0", "waycoder-gui.dll"),
+            // win-x64 RID 子目录 → 上溯 5 级到仓库根 → WayCoder.Gui 是 WayCoder 的兄弟目录
+            Path.Combine(baseDir, "..", "..", "..", "..", "..", "WayCoder.Gui", "bin", "Debug", "net10.0", "waycoder-gui.dll"),
         };
 
         string? target = null;
@@ -187,12 +194,16 @@ public class GuiArg : CliArg
             return 1;
         }
 
+        // 编辑器打开的文件：`--gui <file>` 或 `--gui --edit <file>`（--edit 独立 arg，从原始命令行兜底捞）
+        var file = values.Count > 0 ? values[0] : ExtractEditFromRawArgs();
+
         try
         {
-            // dll 走 dotnet 宿主；可执行文件直接启动
+            // dll 走 dotnet 宿主；可执行文件直接启动；追加 `--edit <file>` 让 GUI 直接打开编辑器
+            var fileArg = string.IsNullOrEmpty(file) ? "" : $" --edit \"{file}\"";
             var psi = target.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
-                ? new System.Diagnostics.ProcessStartInfo("dotnet", $"\"{target}\"") { UseShellExecute = false }
-                : new System.Diagnostics.ProcessStartInfo(target) { UseShellExecute = true };
+                ? new System.Diagnostics.ProcessStartInfo("dotnet", $"\"{target}\"{fileArg}") { UseShellExecute = false }
+                : new System.Diagnostics.ProcessStartInfo(target) { UseShellExecute = true, Arguments = fileArg.Trim() };
             System.Diagnostics.Process.Start(psi);
             return 0;
         }
@@ -201,6 +212,18 @@ public class GuiArg : CliArg
             Console.Error.WriteLine($"启动 GUI 失败: {ex.Message}");
             return 1;
         }
+    }
+
+    /// <summary>从原始命令行捞 `--edit &lt;file&gt;`（与 --gui 顺序无关）。</summary>
+    private static string? ExtractEditFromRawArgs()
+    {
+        var args = Environment.GetCommandLineArgs();
+        for (var i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i].Equals("--edit", StringComparison.OrdinalIgnoreCase))
+                return args[i + 1];
+        }
+        return null;
     }
 }
 

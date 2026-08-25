@@ -270,3 +270,35 @@ select optgroup { background:var(--panel); color:var(--text); }
 #compress-indicator .cbar i { display:block; height:100%; background:var(--accent); border-radius:3px; transition:width .35s ease; }
 #compress-indicator .cpct { font-size:11px; color:var(--dim); min-width:34px; text-align:right; font-variant-numeric:tabular-nums; }
 @keyframes cspin { to { transform:rotate(360deg); } }
+
+/* ═══════ 内置编辑器（三端共享 EditorCore；Web 透明 textarea 叠 pre）═══════ */
+#editor-overlay { position:fixed; inset:0; z-index:1000; background:var(--bg); display:flex; flex-direction:column; }
+#editor-overlay[hidden] { display:none; }
+.editor-toolbar { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--border); background:var(--panel); flex-shrink:0; }
+#editor-path { font:12px/1 monospace; color:var(--accent); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:55%; }
+.editor-dirty { color:var(--diff-add); font-size:12px; visibility:hidden; }
+.editor-main { flex:1; display:flex; min-height:0; }
+#editor-side { width:240px; border-right:1px solid var(--border); background:var(--panel); overflow:auto; flex-shrink:0; }
+#editor-side[hidden] { display:none; }
+.editor-side-head { padding:8px 12px; font-size:12px; font-weight:700; color:var(--dim); }
+#editor-tree { padding:4px 6px 12px; font:12px/1.7 monospace; }
+.editor-dir { cursor:pointer; color:var(--text); padding:1px 4px; border-radius:4px; white-space:nowrap; }
+.editor-dir:hover { background:var(--panel2); }
+.editor-file { cursor:pointer; color:var(--dim); padding:1px 4px; border-radius:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.editor-file:hover { background:var(--panel2); color:var(--text); }
+#editor-body { flex:1; display:flex; min-width:0; position:relative; }
+#editor-gutter { width:50px; flex-shrink:0; overflow:hidden; background:var(--panel); color:var(--dim); text-align:right; padding:8px 6px 0 0; font:13px/1.5 "Cascadia Code","JetBrains Mono",Consolas,monospace; user-select:none; }
+#editor-gutter .ln { height:19.5px; }
+#editor-gutter .ln.ln-err { color:var(--diff-del); font-weight:700; }
+#editor-gutter .ln.ln-warn { color:var(--tok-num); }
+#editor-code { flex:1; position:relative; overflow:hidden; }
+#editor-highlight { margin:0; padding:8px; font:13px/1.5 "Cascadia Code","JetBrains Mono",Consolas,monospace; tab-size:4; white-space:pre; color:var(--text); pointer-events:none; position:absolute; inset:0; overflow:hidden; }
+#editor-highlight code { font:inherit; }
+#editor-area { position:absolute; inset:0; margin:0; padding:8px; font:13px/1.5 "Cascadia Code","JetBrains Mono",Consolas,monospace; tab-size:4; white-space:pre; overflow:auto; resize:none; color:transparent; caret-color:var(--text); background:transparent; border:none; outline:none; }
+#editor-area::selection { background:rgba(79,140,255,.28); }
+.editor-status { display:flex; align-items:center; gap:8px; padding:4px 12px; border-top:1px solid var(--border); background:var(--panel); font:12px/1 monospace; color:var(--dim); flex-shrink:0; }
+.editor-status-sep { opacity:.5; }
+#editor-diags .d-err { color:var(--diff-del); }
+#editor-diags .d-warn { color:var(--tok-num); }
+.file-open { cursor:pointer; }
+.file-open:hover { color:var(--accent); }

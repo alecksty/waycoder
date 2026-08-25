@@ -3,6 +3,7 @@ using System.Text;
 using WayCoder.Tools;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
+using WayCoder.UI.Tui.Edit;
 
 namespace WayCoder.UI.Web;
 
@@ -507,6 +508,62 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 .Set("files", Json.Parse(SerializeFileList(prefix)) ?? JNode.Array()).ToJson());
         }
 
+        // ═══════════════ 内置编辑器（三端共享 EditorCore 模型，Web 端只做文件 IO + lint）═══════════════
+        // 文件树：列一级目录（dir 为空 = 项目根）
+        if (req.Method == "GET" && req.Path == "/editor/list")
+        {
+            var dir = QueryParam(req.Query, "dir") ?? "";
+            var safeDir = ResolveWithinRoot(string.IsNullOrEmpty(dir) ? "." : dir);
+            if (safeDir == null)
+                return HttpResponse.JsonBody(JNode.Object().Set("ok", false).Set("error", "路径超出项目根目录").ToJson());
+            return HttpResponse.JsonBody(JNode.Object().Set("ok", true)
+                .Set("path", dir)
+                .Set("entries", Json.Parse(SerializeEditorList(safeDir)) ?? JNode.Array()).ToJson());
+        }
+        // 读文件（缺失文件返回空 content，对齐 EditorCore.LoadFile 建空缓冲）
+        if (req.Method == "GET" && req.Path == "/editor/file")
+        {
+            var path = QueryParam(req.Query, "path") ?? "";
+            if (string.IsNullOrWhiteSpace(path))
+                return HttpResponse.JsonBody(Err("缺少 path"));
+            var safe = ResolveWithinRoot(path);
+            if (safe == null)
+                return HttpResponse.JsonBody(JNode.Object().Set("ok", false).Set("error", "路径超出项目根目录").ToJson());
+            var content = "";
+            if (File.Exists(safe))
+            {
+                try { content = File.ReadAllText(safe, Encoding.UTF8); }
+                catch { return HttpResponse.JsonBody(JNode.Object().Set("ok", false).Set("error", "读取失败（编码/权限）").ToJson()); }
+            }
+            return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("path", path).Set("content", content).ToJson());
+        }
+        // 保存（写文件 + fire-and-forget lint，前端稍后轮询 /editor/diags）
+        if (req.Method == "POST" && req.Path == "/editor/save")
+        {
+            var body = Json.Parse(req.Body);
+            var path = body?["path"]?.AsString() ?? "";
+            var content = body?["content"]?.AsString() ?? "";
+            if (string.IsNullOrWhiteSpace(path))
+                return HttpResponse.JsonBody(Err("缺少 path"));
+            var full = SaveEditorFile(Directory.GetCurrentDirectory(), path, content);
+            if (full == null)
+                return HttpResponse.JsonBody(JNode.Object().Set("ok", false).Set("error", "路径超出项目根目录").ToJson());
+            // fire-and-forget lint（前端稍后轮询 /editor/diags；lint 失败不影响保存）
+            _ = Task.Run(async () => { try { await DiagnosticManager.RunLintAsync(full); } catch { /* lint 失败不影响保存 */ } });
+            return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("path", path).ToJson());
+        }
+        // 诊断（读 DiagnosticManager 缓存，按行分组）
+        if (req.Method == "GET" && req.Path == "/editor/diags")
+        {
+            var path = QueryParam(req.Query, "path") ?? "";
+            if (string.IsNullOrWhiteSpace(path))
+                return HttpResponse.JsonBody(Err("缺少 path"));
+            var safe = ResolveWithinRoot(path);
+            if (safe == null)
+                return HttpResponse.JsonBody(JNode.Object().Set("ok", false).Set("error", "路径超出项目根目录").ToJson());
+            return HttpResponse.JsonBody(SerializeEditorDiags(safe));
+        }
+
         return null;
     }
 
@@ -549,12 +606,18 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
     /// <summary>把用户提供的相对/绝对路径解析为绝对路径并限制在项目根目录（cwd）内；越界或非法返回 null。纯静态便于自测。</summary>
     public static string? ResolveWithinRoot(string path)
+        => SafeResolveWithinRoot(Directory.GetCurrentDirectory(), path);
+
+    /// <summary>root 感知版路径守卫：full 须落在 root 内（含 root 自身）。越界/非法返回 null。纯静态便于自测。</summary>
+    /// <remarks>相对路径基于 root 解析（而非进程 cwd）——web 编辑器保存相对路径时 root 可能与 cwd 不同。</remarks>
+    public static string? SafeResolveWithinRoot(string root, string path)
     {
         try
         {
-            var root = Path.GetFullPath(Directory.GetCurrentDirectory());
-            var full = Path.GetFullPath(path);
-            var rel = Path.GetRelativePath(root, full);
+            var rootFull = Path.GetFullPath(root);
+            var combined = Path.IsPathRooted(path) ? path : Path.Combine(rootFull, path);
+            var full = Path.GetFullPath(combined);
+            var rel = Path.GetRelativePath(rootFull, full);
             var outside = rel == ".."
                 || rel.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
                 || rel.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal)
@@ -562,6 +625,95 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             return outside ? null : full;
         }
         catch { return null; }
+    }
+
+    // ═══════════════ 内置编辑器辅助（纯静态，便于自测）═══════════════
+
+    /// <summary>从 query string 提取参数（URL 解码，安全回退）。纯静态便于自测。</summary>
+    public static string? QueryParam(string? query, string name)
+    {
+        if (string.IsNullOrEmpty(query)) return null;
+        foreach (var kv in query.Split('&'))
+        {
+            int eq = kv.IndexOf('=');
+            if (eq <= 0) continue;
+            if (kv[..eq].Equals(name, StringComparison.OrdinalIgnoreCase))
+                return SafeUnescape(kv[(eq + 1)..]);
+        }
+        return null;
+    }
+
+    /// <summary>列出目录条目（dirs 优先 + 名称排序 + 过滤隐藏/构建产物）。dir 为已守卫的绝对路径。纯静态便于自测。</summary>
+    public static string SerializeEditorList(string dir)
+    {
+        var arr = JNode.Array();
+        try
+        {
+            if (!Directory.Exists(dir)) return arr.ToJson();
+            var skip = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { ".git", "node_modules", "bin", "obj", "dist", ".vs", ".idea", ".waycoder", ".svn", "__pycache__", ".claude" };
+            var entries = Directory.EnumerateFileSystemEntries(dir)
+                .Select(e => (Entry: e, Name: Path.GetFileName(e)))
+                .Where(x => !x.Name.StartsWith('.'))
+                .Where(x => !skip.Contains(x.Name))
+                .OrderBy(x => Directory.Exists(x.Entry) ? 0 : 1)
+                .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            foreach (var x in entries)
+            {
+                var isDir = Directory.Exists(x.Entry);
+                arr.Add(JNode.Object()
+                    .Set("name", x.Name + (isDir ? "/" : ""))
+                    .Set("path", Path.Combine(dir, x.Name))
+                    .Set("isDir", isDir));
+            }
+        }
+        catch { /* 权限不足忽略 */ }
+        return arr.ToJson();
+    }
+
+    /// <summary>编辑器保存：路径守卫 + 建父目录 + 写 UTF-8。越界/非法返回 null（不写盘）。纯静态便于自测。</summary>
+    public static string? SaveEditorFile(string root, string relPath, string content)
+    {
+        var full = SafeResolveWithinRoot(root, relPath);
+        if (full == null) return null;
+        var dir = Path.GetDirectoryName(full);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            Directory.CreateDirectory(dir);
+        File.WriteAllText(full, content, Encoding.UTF8);
+        return full;
+    }
+
+    /// <summary>按行分组输出诊断 JSON：{ok, summary:{errors,warnings}, lines:{ "行号":[Diagnostic] }}。纯静态便于自测。</summary>
+    public static string SerializeEditorDiags(string filePath)
+    {
+        var (errors, warnings) = DiagnosticManager.GetSummary(filePath);
+        var byLine = new Dictionary<int, List<Diagnostic>>();
+        foreach (var d in DiagnosticManager.GetAll(filePath))
+        {
+            if (!byLine.TryGetValue(d.Line, out var list))
+                byLine[d.Line] = list = [];
+            list.Add(d);
+        }
+        var lines = JNode.Object();
+        foreach (var kv in byLine)
+        {
+            var arr = JNode.Array();
+            foreach (var d in kv.Value)
+            {
+                arr.Add(JNode.Object()
+                    .Set("line", d.Line).Set("col", d.Column)
+                    .Set("severity", d.Severity.ToString().ToLowerInvariant())
+                    .Set("message", d.Message)
+                    .Set("code", d.Code ?? ""));
+            }
+            lines.Set(kv.Key.ToString(), arr);
+        }
+        return JNode.Object()
+            .Set("ok", true)
+            .Set("summary", JNode.Object().Set("errors", errors).Set("warnings", warnings))
+            .Set("lines", lines)
+            .ToJson();
     }
 
     // ═══════════════════════════════════════════════════════════

@@ -74,6 +74,14 @@ public static class DiagnosticManager
         return list.Where(d => d.Line == line).ToList();
     }
 
+    /// <summary>获取文件全部诊断（供 Web/GUI 编辑器按行分组渲染；空文件返回空表）。纯静态便于自测。</summary>
+    public static List<Diagnostic> GetAll(string filePath)
+    {
+        if (!_diagnostics.TryGetValue(filePath, out var list))
+            return [];
+        return list;
+    }
+
     /// <summary>
     /// 获取文件诊断汇总。
     /// </summary>
@@ -170,9 +178,13 @@ public static class DiagnosticManager
     {
         var diagnostics = new List<Diagnostic>();
 
-        // 跳过"无法运行 linter"的情况；"✅ 检查通过"可能附带 warning（exit 0 时 stderr
-        // 里的 warning 会被拼进 combined），须继续解析而不是整体跳过。
-        if (rawOutput.StartsWith("⚠") || rawOutput.Contains("（无可用 linter）"))
+        // 跳过"无法运行 linter"的情况（精确匹配，不能按 ⚠ 前缀整体跳过——
+        // 内建 linter（CheckJson 等）的失败提示也可能以 ⚠ 开头，须留给通用解析器）；
+        // "✅ 检查通过"可能附带 warning（exit 0 时 stderr 里的 warning 会被拼进 combined），
+        // 同样须继续解析而不是整体跳过。
+        if (rawOutput.Contains("无法运行", StringComparison.Ordinal)
+            || rawOutput.Contains("（无可用 linter）", StringComparison.Ordinal)
+            || rawOutput.Contains("Lint 执行异常", StringComparison.Ordinal))
             return diagnostics;
 
         var fileName = Path.GetFileName(filePath);
