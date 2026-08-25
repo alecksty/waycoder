@@ -1,21 +1,28 @@
+using System.Text;
 using WayCoder.UI.Tui;
 using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder.UI.Cli.Commands;
 
 /// <summary>
-/// /kb —— 自主学习编程知识库：把工作痕迹提炼成四类经验（mistake/bugfix/habit/gap），
-/// 全局保存，间隔重复自测强化记忆，薄弱点统计指导学习方向。
-///   /kb mine [N]   从 git 历史提炼经验条目（默认 20）
-///   /kb review     间隔重复自测一条到期经验
-///   /kb weak       欠缺知识清单 + 薄弱点统计
-///   /kb list       列出全部经验条目
+/// /kb —— 自主学习编程知识库（/mind 为别名）：
+/// 自动提炼（mine）+ 手动记忆（save/update/forget/search）+ 间隔重复自测（review）+ 薄弱点统计（weak）。
+/// 条目全局保存（~/.waycoder/kb/），支持文字 / 代码片段 / Markdown / 链接。
+///   /kb mine [N]        从 git 历史提炼经验（默认 20）
+///   /kb save [类别] <内容>  手动记住一条（自动带日期，类别自动识别/显式指定）
+///   /kb update <关键词> <新> 更新最匹配条目
+///   /kb forget <内容>    忘记（删除）最匹配条目
+///   /kb search <内容>    查找（/kb find 同义）
+///   /kb review           间隔重复自测一条到期经验
+///   /kb weak             欠缺知识清单 + 薄弱点统计
+///   /kb list             列出全部条目
 /// </summary>
 public class KbCommand : SlashCommand
 {
     public override string Name => "/kb";
-    public override string Description => "编程知识库（mine 提炼经验 / review 间隔重复自测 / weak 薄弱点统计）";
-    public override string? Usage => "/kb [mine [N] | review | weak | list]";
+    public override string[] Aliases => ["/mind"];
+    public override string Description => "编程知识库（mine 提炼 / save 记住 / update 更新 / forget 忘记 / search 查找 / review 自测 / weak 统计）";
+    public override string? Usage => "/kb <mine [N]|save|update|forget|search|find|review|weak|list>";
 
     public override async Task ExecuteAsync(string args, ChatScreen screen)
     {
@@ -30,6 +37,19 @@ public class KbCommand : SlashCommand
         {
             case "mine":
                 await Mine(screen, rest);
+                break;
+            case "save":
+                Save(screen, rest);
+                break;
+            case "update":
+                Update(screen, rest);
+                break;
+            case "forget":
+                Forget(screen, rest);
+                break;
+            case "search":
+            case "find":
+                Search(screen, rest);
                 break;
             case "review":
                 Review(screen);
@@ -49,11 +69,15 @@ public class KbCommand : SlashCommand
 
     static void ShowHelp(ChatScreen screen)
         => screen.AddSystemMsg(
-            "/kb 编程知识库\n" +
-            "  /kb mine [N]    从 git 历史提炼经验（默认 20）\n" +
-            "  /kb review      间隔重复自测一条到期经验\n" +
-            "  /kb weak        欠缺知识清单 + 薄弱点统计\n" +
-            "  /kb list        列出全部经验条目");
+            "/kb 编程知识库（/mind 同义）\n" +
+            "  /kb mine [N]         从 git 历史提炼经验（默认 20）\n" +
+            "  /kb save [类别] <内容>  记住一条（自动带日期；类别: mistake/bugfix/habit/gap/code）\n" +
+            "  /kb update <关键词> <新> 更新最匹配条目的内容\n" +
+            "  /kb forget <内容>     忘记（删除）最匹配条目\n" +
+            "  /kb search <内容>     查找相关条目\n" +
+            "  /kb review           间隔重复自测一条到期经验\n" +
+            "  /kb weak             欠缺知识清单 + 薄弱点统计\n" +
+            "  /kb list             列出全部条目");
 
     static async Task Mine(ChatScreen screen, string arg)
     {
@@ -67,6 +91,52 @@ public class KbCommand : SlashCommand
         if (errors.Count > 0)
             msg += "\n\n⚠️ 跳过：\n" + string.Join("\n", errors.Take(5));
         screen.AddSystemMsg(msg);
+    }
+
+    static void Save(ChatScreen screen, string content)
+    {
+        if (content.Length == 0) { screen.AddSystemMsg("用法: /kb save [类别] <内容>"); return; }
+        var kind = "";
+        var sp = content.IndexOf(' ');
+        if (sp > 0)
+        {
+            var first = content[..sp].ToLowerInvariant();
+            if (KbIndex.KbKinds.Contains(first)) { kind = first; content = content[(sp + 1)..].Trim(); }
+        }
+        var e = KbIndex.SaveManual(content, kind);
+        screen.AddSystemMsg($"🧠 已记住「{e.Description}」〔{KbIndex.KindLabel(e.Kind)}〕\n{e.Content}");
+    }
+
+    static void Update(ChatScreen screen, string content)
+    {
+        var sp = content.IndexOf(' ');
+        if (sp <= 0) { screen.AddSystemMsg("用法: /kb update <关键词> <新内容>"); return; }
+        var keyword = content[..sp].Trim();
+        var newContent = content[(sp + 1)..].Trim();
+        var updated = KbIndex.UpdateBestMatch(keyword, newContent);
+        screen.AddSystemMsg(updated != null
+            ? $"📝 已更新「{updated.Description}」〔{KbIndex.KindLabel(updated.Kind)}〕"
+            : "🤷 未找到要更新的条目。");
+    }
+
+    static void Forget(ChatScreen screen, string content)
+    {
+        if (content.Length == 0) { screen.AddSystemMsg("用法: /kb forget <内容>"); return; }
+        var removed = KbIndex.DeleteBestMatch(content);
+        screen.AddSystemMsg(removed != null
+            ? $"🗑️ 已忘记「{removed.Description}」"
+            : "🤷 未找到匹配的记忆。");
+    }
+
+    static void Search(ChatScreen screen, string content)
+    {
+        if (content.Length == 0) { screen.AddSystemMsg("用法: /kb search <内容>"); return; }
+        var hits = KbIndex.Search(content, 10);
+        if (hits.Count == 0) { screen.AddSystemMsg("🔍 无匹配条目。"); return; }
+        var msg = new StringBuilder($"🔍 找到 {hits.Count} 条：\n");
+        foreach (var (hit, score) in hits)
+            msg.AppendLine($"  · {hit.Description}〔{KbIndex.KindLabel(hit.Kind)}·相关度 {score:F2}〕");
+        screen.AddSystemMsg(msg.ToString());
     }
 
     static void Review(ChatScreen screen)
