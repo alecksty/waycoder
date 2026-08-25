@@ -28,6 +28,10 @@ public partial class Agent
 
         // 注入本 Agent 唯一标识，供文件锁等跨 Agent 资源冲突检测（WriteFile/EditFile 等经 _agent_id 读取）
         tc.Arguments["_agent_id"] = AgentId;
+        // 注入本 Agent 实际生效模型与地址，供多模态工具（view_image 等）按当前模型门控，
+        // 而非全局 Config.Model —— 避免槽位独立模型 / 回退链场景下误判 vision 支持
+        tc.Arguments["_model"] = LlmClient.EffectiveModel;
+        tc.Arguments["_base_url"] = LlmClient.BaseUrl ?? "";
 
         try
         {

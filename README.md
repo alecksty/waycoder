@@ -235,6 +235,7 @@ WayCoder/
 /permit ack|auto|smart|yolo  权限模式切换（独立于边界）
 /edit            内置源码编辑器（三端共享 EditorCore：TUI / Web `✏ 编辑器` / GUI `--gui [文件]`）
 /mode build|plan|chat  工作模式切换 (Shift+Tab)
+/cd [路径]            查看/设置当前槽位工作目录（每槽位独立）
 /update [check|now]  检查/自动升级到最新版本
 /auto            智能分级确认
 /watch           切换 Watch 模式

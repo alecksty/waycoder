@@ -186,18 +186,6 @@ public class LLM
         }
     }
 
-    /// <summary>判断模型是否支持图片输入（vision）。用于 view_image 工具与 Agent 主循环的门控。</summary>
-    public static bool ModelSupportsVision(string? model)
-    {
-        if (string.IsNullOrWhiteSpace(model)) return false;
-        var m = model.ToLowerInvariant();
-        return m.Contains("gpt-4o") || m.Contains("gpt-4.1") || m.Contains("gpt-5")
-            || m.Contains("claude") || m.Contains("gemini") || m.Contains("vision")
-            || m.Contains("qwen-vl") || m.Contains("glm-4v") || m.Contains("llava")
-            || m.Contains("pixtral") || m.Contains("grok") || m.Contains("minimax")
-            || m.Contains("doubao") || m.Contains("hunyuan");
-    }
-
     /// <summary>
     /// 构造一条带图片的多模态 user 消息（OpenAI 兼容格式）。
     /// content 为数组：[{type:text,text}, {type:image_url,image_url:{url:data:...}}]。
@@ -220,6 +208,7 @@ public class LLM
                     ".jpg" or ".jpeg" => "image/jpeg",
                     ".gif" => "image/gif",
                     ".webp" => "image/webp",
+                    ".bmp" => "image/bmp",
                     _ => "image/png",
                 };
                 parts.Add(JNode.Object()

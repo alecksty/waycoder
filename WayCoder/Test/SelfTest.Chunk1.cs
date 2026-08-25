@@ -730,10 +730,21 @@ public static partial class SelfTest
 
         // view_image + 多模态（vision）支持
         Check("view_image 已注册", ToolRegistry.GetTool("view_image") != null);
-        Check("ModelSupportsVision: gpt-4o", LLM.ModelSupportsVision("gpt-4o"));
-        Check("ModelSupportsVision: claude", LLM.ModelSupportsVision("claude-sonnet-4-6"));
-        Check("ModelSupportsVision: deepseek 否", !LLM.ModelSupportsVision("deepseek-v4-flash"));
-        Check("ModelSupportsVision: 空模型否", !LLM.ModelSupportsVision(null));
+        // vision 门控统一走 ModelCatalog.ResolveSupportsVision（模型声明 > 厂商 > 家族推断）
+        Check("vision: gpt-4o", ModelCatalog.ResolveSupportsVision("gpt-4o", null));
+        Check("vision: claude", ModelCatalog.ResolveSupportsVision("claude-sonnet-4-6", null));
+        Check("vision: gpt-5", ModelCatalog.ResolveSupportsVision("gpt-5.4", null));
+        Check("vision: o4-mini", ModelCatalog.ResolveSupportsVision("o4-mini", null));
+        Check("vision: gemini", ModelCatalog.ResolveSupportsVision("gemini-2.5-pro", null));
+        Check("vision: qwen-vl", ModelCatalog.ResolveSupportsVision("qwen2.5-vl-72b", null));
+        Check("vision: glm-4v", ModelCatalog.ResolveSupportsVision("glm-4v", null));
+        Check("vision: llama-4", ModelCatalog.ResolveSupportsVision("llama-4-scout", null));
+        Check("vision: gemma3", ModelCatalog.ResolveSupportsVision("gemma3-27b", null));
+        Check("vision: pixtral", ModelCatalog.ResolveSupportsVision("pixtral-12b", null));
+        Check("vision: grok", ModelCatalog.ResolveSupportsVision("grok-4", null));
+        Check("vision: deepseek 否", !ModelCatalog.ResolveSupportsVision("deepseek-v4-flash", null));
+        Check("vision: qwen3-max 否", !ModelCatalog.ResolveSupportsVision("qwen3-max", null));
+        Check("vision: 空模型否", !ModelCatalog.ResolveSupportsVision(null, null));
         try
         {
             var imgTmp = Path.Combine(Path.GetTempPath(), "wc_img_" + Guid.NewGuid().ToString("N")[..6] + ".png");
@@ -755,6 +766,27 @@ public static partial class SelfTest
             File.Delete(imgTmp);
         }
         catch { Fail("BuildImageMessage 多模态"); }
+
+        // view_image 门控按注入的 _model 判定（而非全局 Config.Model）：槽位独立模型/回退链下仍正确
+        try
+        {
+            var vImg = Path.Combine(Path.GetTempPath(), "wc_vimg_" + Guid.NewGuid().ToString("N")[..6] + ".png");
+            File.WriteAllText(vImg, "fake-png");
+            var vt = new ViewImageTool();
+            var oldModel = Config.Instance.Model;
+            try
+            {
+                Config.Instance.Model = "deepseek-v4-flash"; // 全局设非 vision
+                var accept = vt.ExecuteAsync(new() { ["path"] = vImg, ["_model"] = "gpt-4o", ["_base_url"] = "" }).Result;
+                Check("view_image: _model 注入 vision 优先于全局非 vision", accept.Contains("已附加"));
+                var reject = vt.ExecuteAsync(new() { ["path"] = vImg, ["_model"] = "deepseek-v4-flash", ["_base_url"] = "" }).Result;
+                Check("view_image: _model 非 vision 拒绝", reject.Contains("不支持"));
+                LLM.DrainImages("main"); // 清理测试入队
+            }
+            finally { Config.Instance.Model = oldModel; }
+            File.Delete(vImg);
+        }
+        catch { Fail("view_image 门控"); }
 
         // transcribe（音频转录工具）
         Check("transcribe 已注册", ToolRegistry.GetTool("transcribe") != null);

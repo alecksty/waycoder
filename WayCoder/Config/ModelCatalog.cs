@@ -553,15 +553,17 @@ public static partial class ModelCatalog
         return true;
     }
 
-    /// <summary>推断是否支持视觉：多模态家族子串（原 LLM.ModelSupportsVision 迁移，补齐 o4-mini/llama-4/gemma3 盲点）。</summary>
+    /// <summary>推断是否支持视觉：多模态家族子串（原 LLM.ModelSupportsVision 迁移，补齐 o4-mini/llama-4/gemma3 盲点）。
+    /// 注意「vl」泛化覆盖 qwen-vl/internvl/cogvlm 等「-vl/vlm」家族，但 glm-4v 不含「vl」子串，须单独显式匹配。</summary>
     private static bool InferSupportsVision(string? modelId)
     {
         var m = (modelId ?? "").ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(m)) return false;
         return m.Contains("gpt-4o") || m.Contains("gpt-4.1") || m.Contains("gpt-5")
             || m.StartsWith("o4-mini") || m.Contains("claude") || m.Contains("gemini")
-            || m.Contains("vision") || m.Contains("vl") || m.Contains("llama-4") || m.Contains("llava")
-            || m.Contains("gemma3") || m.Contains("pixtral") || m.Contains("grok")
+            || m.Contains("vision") || m.Contains("vl") || m.Contains("glm-4v")
+            || m.Contains("llama-4") || m.Contains("llava") || m.Contains("gemma3")
+            || m.Contains("pixtral") || m.Contains("grok")
             || m.Contains("minimax") || m.Contains("doubao") || m.Contains("hunyuan");
     }
 

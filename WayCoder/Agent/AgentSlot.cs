@@ -42,6 +42,9 @@ public class AgentSlot
     public List<string> RecentFiles { get; } = [];
     public bool SidePanelVisible;
 
+    /// <summary>该槽位的工作目录（独立于其他槽位；Agent cd 后持久化，下次任务从该目录开始）。null=进程启动目录。</summary>
+    public string? WorkingDirectory { get; set; }
+
     /// <summary>当前槽位的工作模式</summary>
     public WorkMode WorkMode { get; set; } = WorkMode.Build;
 
