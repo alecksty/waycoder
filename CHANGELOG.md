@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.93.0 (2026-08-25) — 学习路径推荐 + 画像可视化（增强长处）
+
+短板收官后转增强长处——把学习型智能体做深到不可复制，直接服务「提高技能」目标：
+
+- **`/kb path` 学习路径推荐**：从欠缺知识（gap）清单 + 薄弱标签 + ErrorLog 信号 → 小模型合成 3-7 步「接下来该学什么」进阶路线（主题/为什么/实践/自测）。每步写成 `kind=gap + source=path` 条目：
+  - **自动接入 `/kb review`** 间隔重复检验掌握（未掌握自动提权重）——零改动，现有 PickNextDue/BoostGaps 天然支持
+  - 内容用 `**现象**/**根因**/**修复**/**教训**` 标记 → `QuizQuestion`/`QuizAnswer` 出真实问答
+  - LLM 不可用/失败 → 降级用 gap 清单生成基础路径（不失败）
+- **`/kb profile json` 画像可视化导出**：SkillProfile → JSON（schema 1.0：total_entries/total_commits/kb_kinds/weak_tags/error_signals/git_commit_types），供 GUI/外部可视化；`/kb profile` 保留终端文本
+- **CLI 对齐**：`--kb path` / `--kb profile json`；`/kb` 帮助 + KbArg SubCommands 更新
+
+### ✅ 验证
+- 完整自测 **4590 通过 / 0 失败**（新增 `[学习路径]` 节 8 项：解析/生成/降级/复习集成/ProfileToJson），注入假 summarize 不依赖真实 LLM
+- 真实 `--kb profile json` 输出完整 JSON（4 条目 / 200 提交 / 错误信号）
+
 ## v0.92.0 (2026-08-25) — VS Code 扩展（waycoder-vscode，短板 #4 完成）
 
 `--json` 桥接已就绪；本版本做正式 VS Code 扩展，把学习型智能体带到 IDE。基于 `--web` SSE 流式协议（已核实）。

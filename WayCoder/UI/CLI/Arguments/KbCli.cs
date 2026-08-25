@@ -24,8 +24,10 @@ public static class KbCli
                 return Search(rest);
             case "diagnose":
                 return Diagnose(rest).GetAwaiter().GetResult();
+            case "path":
+                return Path().GetAwaiter().GetResult();
             case "profile":
-                return Profile();
+                return Profile(rest);
             case "retro":
                 return Retro().GetAwaiter().GetResult();
             case "review":
@@ -35,14 +37,15 @@ public static class KbCli
             case "list":
                 return List();
             default:
-                Console.WriteLine("编程知识库 --kb <mine [N]|save|update|forget|search|diagnose|profile|retro|review|weak|list>");
+                Console.WriteLine("编程知识库 --kb <mine [N]|save|update|forget|search|diagnose|path|profile [json]|retro|review|weak|list>");
                 Console.WriteLine("  mine [N]            从 git 历史提炼经验（默认 20）");
                 Console.WriteLine("  save [类别] <内容>    手动记住一条（自动带日期）");
                 Console.WriteLine("  update <关键词> <新>  更新最匹配条目");
                 Console.WriteLine("  forget <内容>        忘记（删除）最匹配条目");
                 Console.WriteLine("  search <内容>        查找相关条目");
                 Console.WriteLine("  diagnose <报错>      诊断报错（召回知识库 + git 修复史）");
-                Console.WriteLine("  profile             技能画像");
+                Console.WriteLine("  path                生成学习路径（欠缺→进阶，接入 /kb review）");
+                Console.WriteLine("  profile [json]       技能画像（json 导出）");
                 Console.WriteLine("  retro               复盘本次会话提炼经验");
                 Console.WriteLine("  review              间隔重复自测一条到期经验");
                 Console.WriteLine("  weak                欠缺知识清单 + 薄弱点统计");
@@ -113,9 +116,29 @@ public static class KbCli
         return 0;
     }
 
-    static int Profile()
+    static int Profile(string rest)
     {
-        Console.WriteLine(KbIndex.FormatProfile(KbIndex.ProfileStats()));
+        if (rest.Equals("json", StringComparison.OrdinalIgnoreCase))
+            Console.WriteLine(KbIndex.ProfileToJson());
+        else
+            Console.WriteLine(KbIndex.FormatProfile(KbIndex.ProfileStats()));
+        return 0;
+    }
+
+    static async Task<int> Path()
+    {
+        Console.WriteLine("🧭 正在生成学习路径…");
+        var (generated, steps) = await KbIndex.GenerateLearningPath();
+        if (generated == 0) { Console.WriteLine("📭 暂无欠缺知识可生成路径。"); return 0; }
+        Console.WriteLine($"🧭 学习路径（{generated} 步）——已接入 /kb review 间隔重复：");
+        int i = 1;
+        foreach (var s in steps)
+        {
+            Console.WriteLine($"\n第 {i++} 步：{s.Topic}");
+            if (s.Why.Length > 0) Console.WriteLine($"  为什么：{s.Why}");
+            if (s.Practice.Length > 0) Console.WriteLine($"  实践：{s.Practice}");
+            if (s.Check.Length > 0) Console.WriteLine($"  自测：{s.Check}");
+        }
         return 0;
     }
 

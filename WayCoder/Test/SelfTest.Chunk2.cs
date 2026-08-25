@@ -242,6 +242,63 @@ class Matrix:
         }
         Console.WriteLine();
 
+        // ---- 学习路径推荐（欠缺→进阶路线，注入假 summarize 无需真实 LLM）----
+        Section("[学习路径]");
+        var pathCwd = Path.Combine(Path.GetTempPath(), "lpath_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(pathCwd);
+        var pathSaved = Environment.CurrentDirectory;
+        Environment.CurrentDirectory = pathCwd;
+        try
+        {
+            // 防御清理 + 种一个 gap 条目（降级测试素材）
+            foreach (var n in new[] { "path-并发编程基础", "path-测试驱动开发", "gap-aot反射" })
+                KbIndex.DeleteEntry(n);
+            KbIndex.WriteEntry(new KbIndex.KbEntry { Name = "gap-aot反射", Description = "欠缺知识：AOT 反射禁令", Kind = "gap", Content = "**欠缺**：AOT 无反射", Source = "git-gap" });
+
+            // ParseLearningPath 纯解析
+            var parsed = KbIndex.ParseLearningPath(
+                "{\"path\":[{\"topic\":\"并发编程基础\",\"why\":\"多线程易错\",\"practice\":\"写生产者消费者\",\"check\":\"无锁实现\"},{\"topic\":\"测试驱动开发\",\"why\":\"回归\",\"practice\":\"红绿重构\",\"check\":\"TDD 流程\"}]}");
+            Check("ParseLearningPath 解析步骤", parsed.Count == 2 && parsed[0].Topic == "并发编程基础" && parsed[0].Check == "无锁实现");
+
+            // GenerateLearningPath 注入假 summarize → 写路径步（kind=gap, source=path）
+            Func<string, Task<string?>> fakePath = _ => Task.FromResult<string?>(
+                "{\"path\":[{\"topic\":\"并发编程基础\",\"why\":\"多线程易错\",\"practice\":\"生产者消费者\",\"check\":\"无锁实现\"}]}");
+            var (gen, steps) = KbIndex.GenerateLearningPath(fakePath).GetAwaiter().GetResult();
+            Check("生成路径步数", gen == 1 && steps.Count == 1);
+            var pathEntry = KbIndex.ListEntries().FirstOrDefault(e => e.Source == "path");
+            Check("路径步写入 source=path", pathEntry != null && pathEntry.Kind == "gap");
+            Check("路径步内容含问答标记", pathEntry != null && pathEntry.Content.Contains("**现象**") && pathEntry.Content.Contains("**教训**"));
+
+            // 复习集成：路径步进入 PickNextDue；未掌握提权重
+            var due = KbIndex.PickNextDue(KbIndex.ListEntries());
+            Check("路径步纳入复习轮换", due != null && due.Source == "path");
+            if (pathEntry != null)
+            {
+                KbIndex.MarkReview(pathEntry.Name, false, "gap", ["path"]);
+                var st = KbIndex.LoadReviewState();
+                Check("路径步未掌握提权重", st.FirstOrDefault(i => i.Name == pathEntry.Name)?.Weight > 1.0);
+            }
+
+            // 降级：summarize 返回 null → 用 gap 清单生成基础路径（不失败）
+            Func<string, Task<string?>> nullPath = _ => Task.FromResult<string?>(null);
+            var (gen2, steps2) = KbIndex.GenerateLearningPath(nullPath).GetAwaiter().GetResult();
+            Check("降级用 gap 清单生成", gen2 >= 1 && steps2.Count >= 1);
+
+            // ProfileToJson 导出
+            var pjson = KbIndex.ProfileToJson();
+            Check("ProfileToJson 含画像字段", pjson.Contains("\"total_entries\"") && pjson.Contains("\"kb_kinds\"") && pjson.Contains("\"schema\""));
+        }
+        finally
+        {
+            // 清理本节的 KB 条目（含降级生成的 path-*），避免污染后续 [知识库经验] 计数断言
+            foreach (var e in KbIndex.ListEntries())
+                if (e.Source == "path") KbIndex.DeleteEntry(e.Name);
+            KbIndex.DeleteEntry("gap-aot反射");
+            Environment.CurrentDirectory = pathSaved;
+            try { Directory.Delete(pathCwd, true); } catch { }
+        }
+        Console.WriteLine();
+
         // ---- 自主学习知识库（四类经验存储 + LLM JSON 提炼 + 间隔重复 + 薄弱统计）----
         Section("[知识库经验]");
         try

@@ -215,7 +215,8 @@ public class KbArg : CliArg
     [
         ("mine [N]", "从 git 历史提炼经验条目（默认 20）"),
         ("diagnose <报错>", "诊断报错（召回知识库 + git 修复史）"),
-        ("profile", "技能画像"),
+        ("path", "生成学习路径（欠缺→进阶，接入 /kb review）"),
+        ("profile [json]", "技能画像（json 导出）"),
         ("retro", "复盘本次会话提炼经验"),
         ("review", "间隔重复自测一条到期经验"),
         ("weak", "欠缺知识清单 + 薄弱点统计"),
