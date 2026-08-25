@@ -168,18 +168,21 @@ public static class MarkdownInlines
         foreach (var inl in inlines) target.Add(inl);
     }
 
-    /// <summary>渲染单行内联：处理 «tag»…«/» 标记、**粗体**、`代码`、[链接](url)。</summary>
-    public static List<Inline> RenderInline(string text)
+    /// <summary>渲染单行内联：处理 «tag»…«/» 标记、**粗体**、`代码`、[链接](url)。
+    /// defaultFg/dimFg 传入主题正文/淡色（不传回退深色默认，供 RenderTo 死代码兼容）。</summary>
+    public static List<Inline> RenderInline(string text, Color? defaultFg = null, Color? dimFg = null)
     {
         var result = new List<Inline>();
         var buf = new StringBuilder();
         var stack = new Stack<string>(); // 活跃的 «tag» 样式（颜色名/样式名）
+        var dfg = defaultFg ?? Color.Parse("#e6e8ee");
+        var ddim = dimFg ?? Color.Parse("#6e7681");
 
         void Flush(bool bold, bool mono)
         {
             if (buf.Length == 0) return;
             var run = new Run(buf.ToString());
-            ApplyStyles(run, stack, bold, mono);
+            ApplyStyles(run, stack, bold, mono, dfg, ddim);
             result.Add(run);
             buf.Clear();
         }
@@ -264,7 +267,7 @@ public static class MarkdownInlines
         return result;
     }
 
-    private static void ApplyStyles(Run run, Stack<string> stack, bool bold, bool mono)
+    private static void ApplyStyles(Run run, Stack<string> stack, bool bold, bool mono, Color defaultFg, Color dimFg)
     {
         bool isBold = bold, isItalic = false, isUnderline = false, isDim = false;
         Color? fg = null;
@@ -289,9 +292,11 @@ public static class MarkdownInlines
         if (isBold) run.FontWeight = FontWeight.Bold;
         if (isItalic) run.FontStyle = FontStyle.Italic;
         if (isUnderline) run.TextDecorations = TextDecorations.Underline;
-        if (mono) { run.FontFamily = MonoFont; run.Foreground = new SolidColorBrush(Color.Parse("#a5d6ff")); }
-        else if (isDim) run.Foreground = new SolidColorBrush(Color.Parse("#6e7681")); // dim 用淡灰
+        // 正文/行内代码/dim 颜色随主题（defaultFg/dimFg 由 MarkdownBlocks 传入动态 TextBrush/DimTextBrush），
+        // 否则切浅色主题时文字仍是深色主题的浅色 #e6e8ee，在浅背景上不可见。
+        if (mono) { run.FontFamily = MonoFont; run.Foreground = new SolidColorBrush(defaultFg); }
+        else if (isDim) run.Foreground = new SolidColorBrush(dimFg); // dim 用主题淡色
         else if (fg.HasValue) run.Foreground = new SolidColorBrush(fg.Value);
-        else run.Foreground = new SolidColorBrush(Color.Parse("#e6e8ee"));
+        else run.Foreground = new SolidColorBrush(defaultFg);
     }
 }

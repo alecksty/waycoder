@@ -43,6 +43,8 @@ public static class SlashCommandRegistry
 public static partial class Program
 {
     public static bool InAgentRenderLoop { get; set; }
+    /// <summary>GUI 无 REPL 多槽位主循环，返回空数组（ChatScreen 状态栏据此取槽位 cwd，空则回退启动目录）。</summary>
+    public static AgentSlot[] GetSlots() => [];
 }
 
 public static class ProgramContext

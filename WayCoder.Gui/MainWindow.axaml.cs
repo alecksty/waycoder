@@ -160,6 +160,7 @@ public partial class MainWindow : Window
         foreach (var msg in _messages[slot])
         {
             if (msg.View == null) msg.View = new MessageBubble(msg);
+            else msg.View.Render(); // 主题切换后重建 block 取当前主题文字色（MarkdownInlines 动态 TextBrush）
             MessagesHost.Children.Add(msg.View);
         }
         if (slot == _activeSlot)
