@@ -61,6 +61,11 @@ public static class SystemPrompt
                     relevantMemory = (relevantMemory ?? "") + retrievedText;
             }
 
+            // 自主学习知识库经验（全局跨项目积累，TF-IDF 匹配当前项目特征注入）
+            var kbRelevant = KbIndex.GetRelevant(query, topN: Math.Max(1, config.MemoryRelevanceTopN));
+            if (!string.IsNullOrWhiteSpace(kbRelevant))
+                relevantMemory = (relevantMemory ?? "") + "\n\n" + kbRelevant;
+
             if (!string.IsNullOrWhiteSpace(relevantMemory))
                 memorySection = $"""
 
