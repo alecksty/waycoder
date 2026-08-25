@@ -117,6 +117,7 @@ public static class CheckpointManager
                     StashRef = stashRef
                 };
                 _checkpoints.Add(cp);
+                PruneIfOverLimit(); // 保留策略：超上限删最旧
                 return cp;
             }
         }
@@ -154,18 +155,26 @@ public static class CheckpointManager
             try
             {
                 var gitStatus = await RunBashAsync("git diff --name-only 2>&1");
-                if (!string.IsNullOrWhiteSpace(gitStatus) && !gitStatus.Contains("fatal"))
+                if (!string.IsNullOrWhiteSpace(gitStatus) && !IsGitError(gitStatus))
                 {
                     changedFiles.AddRange(gitStatus.Split('\n', StringSplitOptions.RemoveEmptyEntries));
                 }
 
                 var gitUntracked = await RunBashAsync("git ls-files --others --exclude-standard 2>&1");
-                if (!string.IsNullOrWhiteSpace(gitUntracked) && !gitUntracked.Contains("fatal"))
+                if (!string.IsNullOrWhiteSpace(gitUntracked) && !IsGitError(gitUntracked))
                 {
                     changedFiles.AddRange(gitUntracked.Split('\n', StringSplitOptions.RemoveEmptyEntries));
                 }
             }
             catch (Exception ex) { DebugLog.Log("Checkpoint", $"获取 Git 变更文件失败: {ex.Message}"); }
+
+            // 非 git 目录下 git 命令输出错误/帮助文本，不能当作文件列表
+            static bool IsGitError(string output)
+                => output.Contains("fatal", StringComparison.Ordinal)
+                || output.Contains("warning:", StringComparison.Ordinal)
+                || output.Contains("usage:", StringComparison.Ordinal)
+                || output.StartsWith("git diff", StringComparison.Ordinal)
+                || output.StartsWith("git ls-files", StringComparison.Ordinal);
 
             if (changedFiles.Count == 0)
             {
@@ -180,6 +189,7 @@ public static class CheckpointManager
                     Id = id, Description = description, Timestamp = timestamp, Type = CheckpointType.Empty
                 };
                 _checkpoints.Add(cp);
+                PruneIfOverLimit(); // 保留策略：超上限删最旧
                 return cp;
             }
 
@@ -224,6 +234,7 @@ public static class CheckpointManager
                 Type = CheckpointType.FileBackup
             };
             _checkpoints.Add(cp2);
+            PruneIfOverLimit(); // 保留策略：超上限删最旧
             return cp2;
         }
         catch (Exception ex)
@@ -231,6 +242,42 @@ public static class CheckpointManager
             DebugLog.Log("checkpoint", $"创建检查点失败: {ex.Message}");
             return null;
         }
+    }
+
+    // ── 保留策略 ──
+
+    /// <summary>超过上限时删除最旧的检查点（内存 + 磁盘目录）。</summary>
+    static void PruneIfOverLimit()
+    {
+        int max = Math.Max(1, Config.Instance.CheckpointMax);
+        if (_checkpoints.Count <= max) return;
+        Prune(max);
+    }
+
+    /// <summary>手动清理：保留最近 keep 个检查点，删除更旧的（含磁盘目录）。返回删除数。</summary>
+    public static int Prune(int keep)
+    {
+        int max = Math.Max(1, keep);
+        int removed = 0;
+        while (_checkpoints.Count > max)
+        {
+            var oldest = _checkpoints.OrderBy(c => c.Id).FirstOrDefault();
+            if (oldest == null) break;
+            DeleteCheckpointDir(oldest.Id);
+            _checkpoints.Remove(oldest);
+            removed++;
+        }
+        return removed;
+    }
+
+    static void DeleteCheckpointDir(int id)
+    {
+        try
+        {
+            var dir = Path.Combine(CheckpointWriteDir, $"ckpt_{id:000}");
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+        catch { }
     }
 
     /// <summary>
