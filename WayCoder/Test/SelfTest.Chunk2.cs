@@ -279,6 +279,41 @@ class Matrix:
             Check("kb 工具已注册", WayCoder.Tools.ToolRegistry.BuiltinTools.Any(t => t.Name == "kb"));
             var kbOut = new WayCoder.Tools.KbTool().ExecuteAsync(new() { ["query"] = "git rebase push" }).GetAwaiter().GetResult();
             Check("kb 工具检索返回条目", kbOut.Contains("知识库匹配") && kbOut.Contains("push 被拒"));
+
+            // ① 即时错误诊断（KB + git 修复史）
+            var diag = KbIndex.DiagnoseError("git push 被拒", 2,
+                "h1|fix: 修复 git push 被拒\nh2|feat: 新功能").GetAwaiter().GetResult();
+            Check("诊断召回知识库", diag.Contains("知识库经验") && diag.Contains("push 被拒先 rebase"));
+            Check("诊断召回 git 修复史", diag.Contains("历史修复") && diag.Contains("fix: 修复 git push 被拒"));
+            var fixHits = KbIndex.MatchFixCommits("push 问题", "a|fix: 重试逻辑\nb|feat: 新功能\nc|refactor: 重构", 5);
+            Check("MatchFixCommits 只取 fix/refactor", fixHits.Count == 2 && fixHits.All(h => !h.Subject.StartsWith("feat")));
+
+            // ② 技能画像
+            var (types, total) = KbIndex.ParseGitLog("fix: a\nfeat: b\nfix: c\ndocs: d");
+            Check("ParseGitLog 前缀计数", total == 4 && types.GetValueOrDefault("fix") == 2 && types.GetValueOrDefault("feat") == 1);
+            var profile = KbIndex.ProfileStats(gitLogOverride: "fix: 修 bug\nfeat: 加功能\nfix: 再修\nrefactor: 重构");
+            Check("画像 KB 分类分布", profile.KbKinds.Any(k => k.Kind == "mistake"));
+            Check("画像 git 计数", profile.TotalCommits == 4 && profile.GitCommitTypes.GetValueOrDefault("fix") == 2);
+            Check("画像渲染含标题", KbIndex.FormatProfile(profile).Contains("技能画像"));
+
+            // ③ 教学模式（SystemPrompt 教学块）
+            var savedTeach = Config.Instance.TeachModeEnabled;
+            Config.Instance.TeachModeEnabled = true;
+            try
+            {
+                var teachPrompt = SystemPrompt.Generate(WayCoder.Tools.ToolRegistry.AllTools);
+                Check("教学模式 SystemPrompt 含教学块", teachPrompt.Contains("<teach_mode>") && teachPrompt.Contains("测验"));
+            }
+            finally { Config.Instance.TeachModeEnabled = savedTeach; }
+
+            // ④ 会话复盘（纯解析）
+            var lessons = KbIndex.ParseLessons(
+                "{\"lessons\":[{\"kind\":\"mistake\",\"description\":\"不要裸 force push\",\"content\":\"先 rebase\",\"tags\":[\"git\"]},{\"kind\":\"weird\",\"description\":\"未知类型\",\"content\":\"c\"}]}");
+            Check("ParseLessons 提炼条目", lessons.Count == 2 && lessons[0].Kind == "mistake" && lessons[1].Kind == "bugfix");
+
+            // kb 工具 diagnose
+            var kbDiag = new WayCoder.Tools.KbTool().ExecuteAsync(new() { ["action"] = "diagnose", ["query"] = "push 被拒" }).GetAwaiter().GetResult();
+            Check("kb 工具 diagnose 召回", kbDiag.Contains("知识库经验") || kbDiag.Contains("历史修复"));
         }
         finally
         {

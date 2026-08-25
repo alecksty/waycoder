@@ -142,7 +142,10 @@ public partial class Agent
             if (fullOutput.Length > 2000)
                 fullOutput = ContextManager.TruncateByRunes(fullOutput, 2000) + $"\n... (共 {fullOutput.Length} 字符)";
 
-            return toolResult + $"\n\n--- 🔴 自动测试失败 (exit={exitCode}) ---\n{fullOutput}\n[请修复代码使测试通过]";
+            var failure = $"\n\n--- 🔴 自动测试失败 (exit={exitCode}) ---\n{fullOutput}\n[请修复代码使测试通过]";
+            // 学习型智能体：召回知识库 + git 修复史中同类错误的已知解法
+            try { failure += await KbIndex.DiagnoseError(fullOutput, 2); } catch { }
+            return toolResult + failure;
         }
         catch
         {

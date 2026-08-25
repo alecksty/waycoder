@@ -64,6 +64,12 @@
     <None Remove="Hello/**/*" />
     <Compile Remove="Hello.Tests/**/*.cs" />
     <None Remove="Hello.Tests/**/*" />
+    <!-- CommLib/PortLib 是独立 .NET 4.8 通信库（用户旧库，自带 csproj + AssemblyInfo），
+         默认编译通配卷入其 .cs/obj 生成文件会与主项目冲突（CS0579 特性重复），排除（调试工具用途另行评估） -->
+    <Compile Remove="CommLib/**/*.cs" />
+    <None Remove="CommLib/**/*" />
+    <Compile Remove="PortLib/**/*.cs" />
+    <None Remove="PortLib/**/*" />
   </ItemGroup>
 
   <ItemGroup>

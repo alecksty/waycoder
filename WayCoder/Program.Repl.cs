@@ -709,6 +709,32 @@ public partial class Program
             }
             if (saved > 0)
                 DebugLog.Log("session", $"会话已自动保存 ({saved} 个槽位)");
+
+            // 学习型智能体：退出自动复盘，提炼经验入知识库（默认关，/config retro-on-exit 开启；LLM 不可用静默跳过）
+            if (saved > 0 && _config.RetroOnExitEnabled)
+            {
+                try
+                {
+                    var msgs = _slots[_activeSlot]?.Agent?.SnapshotMessages();
+                    if (msgs is { Count: > 0 })
+                    {
+                        var sb = new System.Text.StringBuilder();
+                        foreach (var m in msgs)
+                        {
+                            var role = m["role"]?.AsString() ?? "?";
+                            var content = m["content"]?.AsString() ?? "";
+                            if (content.Length == 0) continue;
+                            sb.AppendLine($"## {role}\n{content}");
+                        }
+                        if (sb.Length >= 50)
+                        {
+                            var (n, _) = KbIndex.Retrospect(sb.ToString()).GetAwaiter().GetResult();
+                            if (n > 0) DebugLog.Log("session", $"退出复盘: 提炼 {n} 条经验");
+                        }
+                    }
+                }
+                catch (Exception ex) { DebugLog.Log("session", $"退出复盘失败: {ex.Message}"); }
+            }
         }
         catch (Exception ex)
         {

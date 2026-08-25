@@ -171,6 +171,7 @@ public static class SlashCommandRegistry
         Register(new Commands.JoinCommand());
         Register(new Commands.McpCommand());
         Register(new Commands.KbCommand());
+        Register(new Commands.TeachCommand());
         Register(new Commands.DoctorCommand());
         Register(new Commands.AboutCommand());
         Register(new Commands.RepomapCommand());
