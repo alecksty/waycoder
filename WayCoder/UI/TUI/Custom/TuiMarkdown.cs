@@ -44,6 +44,9 @@ public static class TuiMarkdown
         if (plainText || content.Contains(AnsiTty.AnsiCharPrefix))
         {
             int defaultFg = FgForRole(role);
+            // diff 输出（write/edit/diff 工具的 --- / +++ / @@ 行）→ + 行绿背景、- 行红背景
+            bool isDiff = plainText && !isError && !content.Contains(AnsiTty.AnsiCharPrefix)
+                && IsDiffOutput(content);
             // 工具输出（system/tool 纯文本）启发式检测为代码时逐行语法着色：
             // read_file 读出的源码、grep 结果等不再单调灰色，与 assistant 代码块一致。
             // 错误输出/已含 ANSI 码的内容保持原样（红色由控件层 IsError 应用，避免被 token 色覆盖）。
@@ -62,7 +65,23 @@ public static class TuiMarkdown
                     result.Add(MarkdownParser.ParseMarkupOnly(rawLine, defaultFg));
                     continue;
                 }
-                if (codeSyntax != null && !string.IsNullOrEmpty(rawLine))
+                if (isDiff)
+                {
+                    // diff 行红绿背景（+++/--- 文件头行除外），源码 token 前景仍按语法着色
+                    int bg = 0;
+                    if (rawLine.StartsWith('+') && !rawLine.StartsWith("+++")) bg = AnsiTty.RgbCode(0, 45, 0);
+                    else if (rawLine.StartsWith('-') && !rawLine.StartsWith("---")) bg = AnsiTty.RgbCode(45, 0, 0);
+                    if (codeSyntax != null && !string.IsNullOrEmpty(rawLine))
+                    {
+                        var segments = new List<(string, int, int)>();
+                        foreach (var (text, color) in codeSyntax.Tokenize(rawLine))
+                            segments.Add((text, color, bg));
+                        result.Add(segments);
+                    }
+                    else
+                        result.Add([(rawLine, defaultFg, bg)]);
+                }
+                else if (codeSyntax != null && !string.IsNullOrEmpty(rawLine))
                 {
                     var segments = new List<(string, int, int)>();
                     foreach (var (text, color) in codeSyntax.Tokenize(rawLine))
@@ -150,13 +169,14 @@ public static class TuiMarkdown
     private static void RenderCodeBlock(MdCodeBlock cb,
         List<List<(string, int, int)>> result, int maxWidth)
     {
-        var syntax = GetSyntax(cb.Language);
+        var syntax = GetSyntax(cb.Language, cb.Code);
         var codeLines = cb.Code.Split('\n');
 
-        // 顶部边框：语言标签
-        var langLabel = string.IsNullOrEmpty(cb.Language) ? " code " : $" {cb.Language} ";
-        var topBorder = "┌" + langLabel + new string('─', Math.Max(0, Math.Min(maxWidth, 60) - langLabel.Length - 2)) + "┐";
-        result.Add(new List<(string, int, int)> { (topBorder, TuiTheme.Current.CodeBlockBorderFg, 0) });
+        // 顶部：语言标签（不用 ┌─┐ 线框，仅标签 + 空格，观感更简洁）
+        var langLabel = string.IsNullOrEmpty(cb.Language)
+            ? (string.IsNullOrEmpty(syntax.Name) ? " code " : $" {syntax.Name} ")
+            : $" {cb.Language} ";
+        result.Add(new List<(string, int, int)> { (langLabel, TuiTheme.Current.CodeBlockBorderFg, 0) });
 
         // 预览行数上限：超过保留头尾、中间折叠省略（防巨型代码块拖慢列表）
         const string ellipsisMarker = "===WC_CODE_ELLIPSIS==="; // 哨兵（不会出现在真实代码里）
@@ -219,8 +239,8 @@ public static class TuiMarkdown
             lineNum++;
         }
 
-        // 底部边框
-        result.Add(new List<(string, int, int)> { (new string('─', Math.Min(maxWidth, 60)), TuiTheme.Current.CodeBlockBorderFg, 0) });
+        // 底部不加线框（原 ──── 边框改为空行，观感更简洁）
+        result.Add(new List<(string, int, int)> { (" ", 0, 0) });
     }
 
     private static void RenderTable(MdTable t,
@@ -490,8 +510,33 @@ public static class TuiMarkdown
         _ => TuiTheme.Current.ControlFg,   // agent / 未知角色
     };
 
-    /// <summary>按语言名获取 Syntax 实例（代码块高亮）</summary>
-    private static Syntax GetSyntax(string lang) => Syntax.ByLanguage(lang);
+    /// <summary>按语言名获取 Syntax 实例（代码块高亮）；无语言标签按内容探测，标签为文件名时按扩展名判断。</summary>
+    private static Syntax GetSyntax(string lang, string code)
+    {
+        if (string.IsNullOrWhiteSpace(lang))
+            return Syntax.Detect(code) ?? Syntax.ByLanguage("");
+
+        var syntax = Syntax.ByLanguage(lang);
+        // 语言标签可能是文件名（test.cs / foo.py / main.rs），规范名不认识时按扩展名判断
+        if (syntax.Name.Length == 0)
+            syntax = Syntax.ForFile(lang);
+        return syntax;
+    }
+
+    /// <summary>判断纯文本内容是否为 diff 输出（首个非空行以 ---/+++/@@/diff --git 开头）。</summary>
+    private static bool IsDiffOutput(string content)
+    {
+        foreach (var rawLine in content.Split('\n'))
+        {
+            var t = rawLine.TrimStart();
+            if (t.Length == 0) continue;
+            return t.StartsWith("---", StringComparison.Ordinal)
+                || t.StartsWith("+++", StringComparison.Ordinal)
+                || t.StartsWith("@@", StringComparison.Ordinal)
+                || t.StartsWith("diff --git", StringComparison.OrdinalIgnoreCase);
+        }
+        return false;
+    }
 
     // ════════════════════════════════════════════════════════════
     // 彩虹横幅渲染
