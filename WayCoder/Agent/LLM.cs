@@ -946,6 +946,9 @@ public class LLM
         var body = JNode.Object()
             .Set("model", embeddingModel)
             .Set("input", text);
+        // EmbeddingDimensions>0 时显式请求维度（如 text-embedding-3-small 可降维省空间）
+        if (Config.Instance.EmbeddingDimensions > 0)
+            body.Set("dimensions", Config.Instance.EmbeddingDimensions);
 
         try
         {

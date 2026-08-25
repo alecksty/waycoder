@@ -426,10 +426,11 @@ public partial class Agent
         // 目标护栏：记录本轮任务目标，注入系统提示词防偏离
         _taskGoal = ContextManager.TruncateByRunes(userInput, 500);
         // 项目知识库 RAG：摄入项目文档 + 检索与本目标最相关的片段（每轮对话计算一次）
+        // 向量优先（EmbeddingEnabled 时混合语义检索），失败/关闭回退 TF-IDF
         try
         {
             ProjectKnowledge.Ingest();
-            _kbContext = ProjectKnowledge.Query(_taskGoal);
+            _kbContext = await ProjectKnowledge.QueryAsync(_taskGoal);
         }
         catch (Exception ex) { DebugLog.Log("rag", $"项目知识库检索失败: {ex.Message}"); _kbContext = ""; }
         // 测试驱动修复（硬绿判定）状态复位：每轮对话重新跟踪

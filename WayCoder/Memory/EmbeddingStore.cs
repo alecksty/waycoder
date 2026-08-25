@@ -298,4 +298,101 @@ public static class EmbeddingStore
 
         return result;
     }
+
+    // ================================================================
+    // 代码块混合检索（CodeKnowledge MemoryDocument 块）
+    // ================================================================
+
+    /// <summary>
+    /// 代码块混合检索：有缓存向量的块用 0.7×余弦 + 0.3×TF-IDF，无向量块纯 TF-IDF。
+    /// 返回与 <see cref="SemanticMemory.SearchRelevant"/> 相同的 (MemoryDocument, double) 元组（调用方零改动）。
+    /// embedder 可注入供测试；缺省用 LlmClient。向量失败/未启用 → 纯 TF-IDF（优雅回退）。
+    /// </summary>
+    public static async Task<List<(SemanticMemory.MemoryDocument Doc, double Score)>> SearchRelevantHybrid(
+        List<SemanticMemory.MemoryDocument> docs, string query, int topN = 5,
+        Func<string, Task<float[]?>>? embedder = null, CancellationToken ct = default)
+    {
+        if (docs.Count == 0 || string.IsNullOrWhiteSpace(query)) return [];
+
+        // 1. TF-IDF 分（归一化）
+        var tfidfResults = SemanticMemory.SearchRelevant(docs, query, topN: docs.Count);
+        var tfidfScores = new Dictionary<int, double>();
+        double maxTfIdf = 0.001;
+        foreach (var (doc, score) in tfidfResults)
+        {
+            tfidfScores[doc.Index] = score;
+            if (score > maxTfIdf) maxTfIdf = score;
+        }
+
+        // 2. 查询向量
+        float[]? queryVec = null;
+        if (Enabled && (embedder != null || LlmClient != null))
+        {
+            try
+            {
+                queryVec = embedder != null ? await embedder(query) : await GenerateEmbeddingAsync(query, ct);
+            }
+            catch { /* 向量失败 → 纯 TF-IDF 回退 */ }
+        }
+
+        // 3. 逐块综合分 + 收集待生成
+        var scored = new List<(SemanticMemory.MemoryDocument Doc, double Score)>();
+        var toGenerate = new List<(SemanticMemory.MemoryDocument Doc, string Key)>();
+        var validKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var doc in docs)
+        {
+            var key = CodeEmbeddingCache.ChunkKey(doc);
+            validKeys.Add(key);
+
+            double tfidfScore = tfidfScores.GetValueOrDefault(doc.Index, 0) / maxTfIdf;
+            double embedScore = 0;
+            bool hasVec = false;
+
+            if (queryVec != null)
+            {
+                var vec = CodeEmbeddingCache.GetVector(key);
+                if (vec != null)
+                {
+                    embedScore = (CosineSimilarity(queryVec, vec) + 1) / 2; // [-1,1] → [0,1]
+                    hasVec = true;
+                }
+            }
+
+            var final = hasVec ? 0.7 * embedScore + 0.3 * tfidfScore : tfidfScore;
+            if (final > 0)
+                scored.Add((doc, Math.Round(final, 4)));
+
+            if (Enabled && (embedder != null || LlmClient != null) && !hasVec && tfidfScore > 0)
+                toGenerate.Add((doc, key));
+        }
+
+        // 4. 排序 + topN
+        scored.Sort((a, b) => b.Score.CompareTo(a.Score));
+        var result = scored.Take(topN).ToList();
+
+        // 5. 清理孤儿键（内容变更/文件删除后的旧嵌入）
+        try { CodeEmbeddingCache.Prune(validKeys); } catch { }
+
+        // 6. 后台生成缺失向量（有界并发 3，防首次查询卡顿；下轮即命中缓存）
+        if (toGenerate.Count > 0)
+        {
+            foreach (var (doc, key) in toGenerate.Take(3))
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var vec = embedder != null
+                            ? await embedder(doc.Title + "\n" + doc.Content)
+                            : await GenerateEmbeddingAsync(doc.Title + "\n" + doc.Content, ct);
+                        if (vec != null) CodeEmbeddingCache.SaveVector(key, vec);
+                    }
+                    catch { /* 静默失败 */ }
+                }, ct);
+            }
+        }
+
+        return result;
+    }
 }
