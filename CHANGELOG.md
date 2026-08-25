@@ -8,7 +8,7 @@
 - **② 技能画像**：`/kb profile` 聚合四维——知识库分类分布（ASCII 条形图）、薄弱标签、ErrorLog 信号、git 提交类型计数（`ParseGitLog` conventional 前缀纯函数）。`/kb weak` 的完整版
 - **③ 教学模式**：`/teach on|off` / `WAYCODER_TEACH_MODE`——SystemPrompt 注入 `<teach_mode>` 块，AI 逐处解释为什么 + 引用知识库经验 + 完成后 3 问测验（显式覆盖「极简输出/不叙述」规则）；全量/Economy 提示词均生效
 - **④ 会话复盘**：`/kb retro` 用会话记录经小模型提炼 1-5 条经验入知识库（`ParseLessons` 纯函数）；`WAYCODER_RETRO_ON_EXIT` 开启后退出 `AutoSaveSession` 自动复盘（默认关）
-- **构建修复**：`WayCoder.csproj` 排除误置于源码树的 CommLib/PortLib（.NET 4.8 老库，默认 glob 卷入导致 CS0579）
+- **清理**：删除误置于源码树的 CommLib/PortLib（.NET 4.8 老库 36k 行，含反射/System.Management 等 AOT 障碍，默认 glob 卷入还导致 CS0579；经评估整库移植不值——底层即标准 Socket/SerialPort，真需要串口/TCP 调试工具时原生重写更优）；移除对应 csproj 排除与 gitignore 条目
 
 ### ✅ 验证
 - 完整自测 **4543 通过 / 0 失败**（新增诊断/画像/教学/复盘 11 项），无崩溃

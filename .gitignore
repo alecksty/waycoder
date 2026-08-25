@@ -7,10 +7,6 @@ obj/
 publish/
 dist/
 
-# 用户旧通信库（.NET 4.8，未来调试工具工作项，暂不入库）
-WayCoder/CommLib/
-WayCoder/PortLib/
-
 # Environment
 .env
 .venv/
