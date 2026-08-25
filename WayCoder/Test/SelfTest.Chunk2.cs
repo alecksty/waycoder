@@ -299,6 +299,61 @@ class Matrix:
         }
         Console.WriteLine();
 
+        // ---- 教学模式闭环（测验评判 → 更新 gap 权重，注入假 summarize 无需真实 LLM）----
+        Section("[教学模式]");
+        var teachCwd = Path.Combine(Path.GetTempPath(), "teach_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(teachCwd);
+        var teachSaved = Environment.CurrentDirectory;
+        var savedTeachMode = Config.Instance.TeachModeEnabled;
+        Environment.CurrentDirectory = teachCwd;
+        try
+        {
+            foreach (var n in new[] { "gap-并发", "gap-锁" }) KbIndex.DeleteEntry(n);
+            KbIndex.WriteEntry(new KbIndex.KbEntry { Name = "gap-并发", Description = "欠缺知识：并发编程", Kind = "gap", Content = "**欠缺**：并发", Source = "git-gap" });
+            KbIndex.WriteEntry(new KbIndex.KbEntry { Name = "gap-锁", Description = "欠缺知识：锁与同步", Kind = "gap", Content = "**欠缺**：锁", Source = "git-gap" });
+
+            // 权重方法：降权 / clamp 上限
+            KbIndex.SetGapWeight("gap-并发", 1.0);
+            KbIndex.AdjustGapWeight("gap-并发", KbIndex.MasteredDelta);
+            Check("掌握降权", KbIndex.LoadReviewState().First(i => i.Name == "gap-并发").Weight <= 0.7);
+            KbIndex.AdjustGapWeight("gap-并发", 5.0);
+            Check("权重上限 clamp", KbIndex.LoadReviewState().First(i => i.Name == "gap-并发").Weight <= 5.0);
+            KbIndex.SetGapWeight("gap-并发", 1.0); // 重置，避免干扰后续评估断言
+
+            // ParseAssessment 纯解析
+            var (am, aw) = KbIndex.ParseAssessment("{\"mastered\":[\"并发编程\"],\"weak\":[\"锁\"]}");
+            Check("ParseAssessment 解析", am.Count == 1 && am[0] == "并发编程" && aw.Count == 1 && aw[0] == "锁");
+
+            // AssessTranscript 注入假 summarize → ApplyAssessment 更新权重
+            Func<string, Task<string?>> fakeAssess = _ => Task.FromResult<string?>(
+                "{\"mastered\":[\"并发编程\"],\"weak\":[\"锁与同步\"]}");
+            var (tm, tw) = KbIndex.AssessTranscript("## assistant\n测验：并发与锁\n## user\n回答正确", fakeAssess).GetAwaiter().GetResult();
+            var (mA, wA) = KbIndex.ApplyAssessment(tm, tw);
+            Check("评估应用 mastered 降权", mA == 1 && KbIndex.LoadReviewState().First(i => i.Name == "gap-并发").Weight < 1.0);
+            Check("评估应用 weak 提权", wA == 1 && KbIndex.LoadReviewState().First(i => i.Name == "gap-锁").Weight > 1.0);
+
+            // 复习集成：弱项进 PickNextDue
+            var teachDue = KbIndex.PickNextDue(KbIndex.ListEntries());
+            Check("弱项进复习轮换", teachDue != null);
+
+            // TeachBlock 教学法强化
+            Config.Instance.TeachModeEnabled = true;
+            try
+            {
+                var tp = SystemPrompt.Generate(WayCoder.Tools.ToolRegistry.AllTools);
+                Check("TeachBlock 教学法强化", tp.Contains("归因") || tp.Contains("类比"));
+            }
+            finally { Config.Instance.TeachModeEnabled = false; }
+        }
+        finally
+        {
+            Config.Instance.TeachModeEnabled = savedTeachMode;
+            foreach (var n in new[] { "gap-并发", "gap-锁" }) KbIndex.DeleteEntry(n);
+            Environment.CurrentDirectory = teachSaved;
+            try { Directory.Delete(teachCwd, true); } catch { }
+        }
+        Console.WriteLine();
+
         // ---- 自主学习知识库（四类经验存储 + LLM JSON 提炼 + 间隔重复 + 薄弱统计）----
         Section("[知识库经验]");
         try
