@@ -966,6 +966,21 @@ class Matrix:
         // AgentSlot.Count 常量
         Check("AgentSlot.Count=10", AgentSlot.Count == 10);
 
+        // ---- 槽位独立工作目录 ----
+        Section("[槽位独立工作目录]");
+
+        var cwdSlot = new AgentSlot();
+        Check("新槽位 WorkingDirectory 默认 null（回退进程启动目录）", cwdSlot.WorkingDirectory == null);
+
+        var slotA = Path.Combine(Path.GetTempPath(), "waycoder-slot-a");
+        var slotB = Path.Combine(Path.GetTempPath(), "waycoder-slot-b");
+        cwdSlot.WorkingDirectory = slotA;
+        Check("WorkingDirectory 可设置", cwdSlot.WorkingDirectory == slotA);
+
+        var cwdSlot2 = new AgentSlot { WorkingDirectory = slotB };
+        Check("不同槽位工作目录互不影响", cwdSlot.WorkingDirectory != cwdSlot2.WorkingDirectory);
+        Check("槽位 B 工作目录独立持久化", cwdSlot2.WorkingDirectory == slotB);
+
         Console.WriteLine();
 
         // ---- 会话管理 ----

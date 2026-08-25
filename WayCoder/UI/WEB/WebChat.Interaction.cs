@@ -272,11 +272,15 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
         if (kind == "image")
         {
-            var model = Config.Instance.Model;
-            if (!ModelCatalog.ResolveSupportsVision(model, Config.Instance.BaseUrl))
+            // 按客户端绑定槽位拿该槽位 Agent 的实际生效模型做门控（而非全局 Config.Model），
+            // 与 view_image 工具的 _model/_base_url 注入一致；槽位 Agent 未建时回退 Config
+            var slot = ResolveSlot(ParseClientQuery(req.Query));
+            var slotAgent = _slots[slot].Agent;
+            var model = slotAgent?.LlmClient.EffectiveModel is { Length: > 0 } m ? m : Config.Instance.Model;
+            var baseUrl = slotAgent?.LlmClient.BaseUrl is { Length: > 0 } b ? b : Config.Instance.BaseUrl;
+            if (!ModelCatalog.ResolveSupportsVision(model, baseUrl))
                 return HttpResponse.JsonBody(Err($"当前模型 {model} 不支持图片输入（vision），请切换支持 vision 的模型"));
             // 按客户端绑定槽位的 agentId 入队，隔离多槽位图片（与 view_image 工具的 _agent_id 路径一致）
-            var slot = ResolveSlot(ParseClientQuery(req.Query));
             LLM.QueueImage(WebSlotAgentId(slot), path);
             return HttpResponse.JsonBody(JNode.Object()
                 .Set("ok", true).Set("kind", "image").Set("path", path)

@@ -38,9 +38,11 @@ public class ViewImageTool : ITool
         if (!File.Exists(fullPath))
             return Task.FromResult($"错误：图片不存在 — {fullPath}");
 
-        // 门控：配置模型不支持 vision 则提前告知，不排队
-        var model = Config.Instance.Model;
-        if (!ModelCatalog.ResolveSupportsVision(model, Config.Instance.BaseUrl))
+        // 门控：按当前 Agent 实际生效模型判断（注入的 _model/_base_url），
+        // 而非全局 Config.Model —— 槽位独立模型 / 回退链下仍能正确识别 vision；未注入时回退 Config
+        var model = arguments.GetValueOrDefault("_model")?.ToString() is { Length: > 0 } m ? m : Config.Instance.Model;
+        var baseUrl = arguments.GetValueOrDefault("_base_url")?.ToString() is { Length: > 0 } b ? b : Config.Instance.BaseUrl;
+        if (!ModelCatalog.ResolveSupportsVision(model, baseUrl))
             return Task.FromResult(
                 $"⚠ 当前模型 {model} 不支持图片输入（vision）。\n" +
                 $"可用 bash 查看文件：ls -la \"{fullPath}\"\n" +

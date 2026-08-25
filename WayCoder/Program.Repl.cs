@@ -1260,6 +1260,9 @@ public partial class Program
             // 绑定本槽位记忆目录：AsyncLocal 在该任务 async 链内生效，
             // 主线程后续切槽位不影响本任务读到的槽位值
             StructuredMemory.CurrentSlotIndex = slotIdx;
+            // 绑定本槽位工作目录：用槽位持久化的 cwd 初始化（而非继承主线程 null→进程目录），
+            // 使每个槽位从自己的目录起步、互不影响；Agent cd 后在此 AsyncLocal 内生效
+            BashTool.CurrentCwd.Value = slot.WorkingDirectory ?? Directory.GetCurrentDirectory();
             try
             {
                 await RunSlotAgentAsync(slotIdx, userInput, capturedScreen, ct);
@@ -1270,6 +1273,11 @@ public partial class Program
             }
             finally
             {
+                // 持久化本槽位工作目录：Agent cd 后保存，下次任务从该目录起步。
+                // 须在 AsyncLocal 仍绑定于本任务的 ExecutionContext 内读取，读到的是本槽位 Agent 顶层 cd 后的值
+                // （子智能体的 cd 已被 AgentTool 恢复，不会污染此值）
+                slot.WorkingDirectory = BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory();
+
                 // 必须先摘除 Cts 再置 IsBusy=false：若反过来，二者之间 UI 线程看到 IsBusy=false
                 // 会启动新任务写入新的 Cts，此处的 Exchange 会把新任务的 Cts 摘走并 Dispose，
                 // 导致新任务无法被 Esc 中断（读到 null 即 no-op）。

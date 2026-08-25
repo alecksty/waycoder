@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.96.4 (2026-08-25) — 槽位独立工作目录 + 多模态 vision 门控统一
+
+- **槽位独立工作目录**：F1-F10 每个槽位拥有独立工作目录——Agent 在槽位内 `cd` 后目录被持久化，下次任务从该目录起步、互不影响。新增 `/cd [路径]` 命令查看/设置当前槽位目录（支持 `~` 展开）；状态栏路径栏按槽位显示。补齐此前 `AsyncLocal` 虽已隔离 cwd、但缺「每槽位初始目录」与「跨任务持久化」的缺口
+- **多模态 vision 门控统一**：
+  - 删除死代码 `LLM.ModelSupportsVision`（已无调用点），统一到 `ModelCatalog.ResolveSupportsVision`（模型声明 > 厂商声明 > 家族推断）
+  - 修复 `InferSupportsVision` 回归盲点：`Contains("vl")` 泛化漏掉 `glm-4v`（不含 `vl` 子串），补显式匹配
+  - 修复门控错模型：`view_image` 工具与 Web 上传用全局 `Config.Instance.Model` 判 vision，但切换模型走 `ConnectionConfig` 不更新 `Config.Model`，槽位独立模型/回退链下误判——改为 `Agent.ExecuteToolAsync` 注入 `_model`/`_base_url`（当前 Agent 实际生效模型），`view_image`/Web 端优先用注入值、兜底 Config
+  - 补 `BuildImageMessage` 的 bmp MIME（Web 端已支持 bmp 上传）
+- **自测 4661 通过 / 0 失败**（新增 15 项 vision 门控 + 2 项 view_image 注入 + 4 项槽位 cwd）
+
 ## v0.96.3 (2026-08-25) — 工作模式 CLI 参数补齐 + 系统提示词惰性生成
 
 三模式（建造/计划/聊天）从「仅交互可切换」补齐为 **CLI 可直接启动**，同时修复构造期按 Build 抢先生成系统提示词被丢弃的浪费。

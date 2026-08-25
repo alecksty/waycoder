@@ -340,7 +340,7 @@ public partial class ChatScreen : TuiScreen
     /// <summary>构建状态栏路径文本：当前工作目录 + git 分支（分支探测节流 2s，防渲染循环高频读盘）。</summary>
     private string BuildPathBarText()
     {
-        var cwd = Directory.GetCurrentDirectory();
+        var cwd = GetActiveSlotCwd();
         long now = Environment.TickCount64;
         if (now - _lastBranchDetectTicks >= BranchDetectIntervalMs)
         {
@@ -349,6 +349,19 @@ public partial class ChatScreen : TuiScreen
         }
         var cwdDisplay = PathStatus.FormatCwd(cwd);
         return _cachedBranch == null ? $"📁 {cwdDisplay}" : $"📁 {cwdDisplay} · ⎇ {_cachedBranch}";
+    }
+
+    /// <summary>取当前活跃槽位的工作目录（未设置则回退进程启动目录）。状态栏据此显示各槽位独立 cwd。</summary>
+    private string GetActiveSlotCwd()
+    {
+        var slots = Program.GetSlots();
+        if (slots != null && ActiveSlotIndex >= 0 && ActiveSlotIndex < slots.Length)
+        {
+            var slot = slots[ActiveSlotIndex];
+            if (slot != null && !string.IsNullOrWhiteSpace(slot.WorkingDirectory))
+                return slot.WorkingDirectory!;
+        }
+        return Directory.GetCurrentDirectory();
     }
 
     private void SyncModelInfo()
