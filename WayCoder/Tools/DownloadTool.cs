@@ -31,6 +31,7 @@ public class DownloadTool : ITool, ICancellableTool
     {
         var url = arguments.GetValueOrDefault("url")?.ToString() ?? "";
         var filePath = arguments.GetValueOrDefault("file_path")?.ToString() ?? "";
+        var agentId = arguments.GetValueOrDefault("_agent_id")?.ToString() ?? "main";
         var timeout = Math.Clamp(ToolArgs.GetInt(arguments, "timeout", Config.Instance.DownloadTimeoutSec), 1, 600);
 
         // 安全检查：仅允许 http/https
@@ -42,11 +43,24 @@ public class DownloadTool : ITool, ICancellableTool
         if (url.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
             return "错误：出于安全原因，不允许下载本地文件";
 
-        // 将相对路径转为绝对路径
+        // 将相对路径转为绝对路径（无条件归一化，折叠 ../ 等）
         if (string.IsNullOrWhiteSpace(filePath))
             return "错误：file_path 不能为空 — 请提供有效的文件路径。";
-        if (!Path.IsPathRooted(filePath))
-            filePath = Path.GetFullPath(filePath, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
+        filePath = Path.GetFullPath(filePath, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
+
+        // 敏感路径防护（SSH 密钥/shell 配置/系统凭据，防提示注入下载写后门）
+        var sensitive = PathSafety.CheckSensitive(filePath);
+        if (sensitive != null)
+            return $"❌ 已阻止：{sensitive}（安全策略：敏感文件读写受保护）";
+
+        // 沙箱边界：项目写限（独立于权限模式）
+        var sandbox = SandboxManager.CheckWritable(filePath);
+        if (sandbox != null)
+            return sandbox;
+
+        // 文件锁检查（对齐 write_file/edit_file，防多 Agent 并发写同一目标）
+        var lockErr = FileLockManager.TryAcquireOrError(filePath, agentId, "请等待锁释放或使用其他文件名");
+        if (lockErr != null) return lockErr;
 
         // 确保目标目录存在
         var dir = Path.GetDirectoryName(filePath);
@@ -153,6 +167,10 @@ public class DownloadTool : ITool, ICancellableTool
         {
             try { File.Delete(filePath); } catch { }
             return $"错误：下载失败 — {ex.GetType().Name}: {ex.Message}";
+        }
+        finally
+        {
+            FileLockManager.Release(filePath, agentId);
         }
     }
 

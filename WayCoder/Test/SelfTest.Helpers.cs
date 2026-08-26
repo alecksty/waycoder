@@ -701,7 +701,7 @@ public static partial class SelfTest
         var savedReasoning = Config.Instance.ReasoningEffort;
         var server = new WayCoder.UI.Web.HttpServer(0);
         string? lastBody = null;
-        server.OnRequest = req =>
+        server.OnRequest = async req =>
         {
             lastBody = req.Body;
             var sse = "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n\n" +
@@ -793,7 +793,7 @@ public static partial class SelfTest
         // ── 2. 集成：Anthropic 原生（模拟 message_*/content_block_* SSE）──
         var server = new WayCoder.UI.Web.HttpServer(0);
         string? antBody = null, antKey = null, antVer = null, antPath = null;
-        server.OnRequest = req =>
+        server.OnRequest = async req =>
         {
             antBody = req.Body; antKey = req.Headers.GetValueOrDefault("x-api-key");
             antVer = req.Headers.GetValueOrDefault("anthropic-version"); antPath = req.Path;
@@ -842,7 +842,7 @@ public static partial class SelfTest
         // ── 3. 集成：Gemini 原生（模拟 candidates[0].content.parts SSE）──
         var server2 = new WayCoder.UI.Web.HttpServer(0);
         string? gBody = null, gKey = null, gPath = null;
-        server2.OnRequest = req =>
+        server2.OnRequest = async req =>
         {
             gBody = req.Body; gKey = req.Headers.GetValueOrDefault("x-goog-api-key"); gPath = req.Path;
             var sse = "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"你好\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2}}\n\n";
@@ -2631,7 +2631,7 @@ public static partial class SelfTest
         LLM.RetryBackoffMs = 1;
         var retryServer = new WayCoder.UI.Web.HttpServer(0);
         int attempts = 0;
-        retryServer.OnRequest = _ =>
+        retryServer.OnRequest = async _ =>
         {
             int n = System.Threading.Interlocked.Increment(ref attempts);
             if (n < 3)
@@ -3293,7 +3293,7 @@ public static partial class SelfTest
 
         // ── 5. 端到端冒烟：HTTP 服务 GET / ──
         var server = new WayCoder.UI.Web.HttpServer(0);
-        server.OnRequest = req => req.Path == "/" ? WayCoder.UI.Web.HttpResponse.Html("<html>ok</html>") : null;
+        server.OnRequest = req => Task.FromResult<WayCoder.UI.Web.HttpResponse?>(req.Path == "/" ? WayCoder.UI.Web.HttpResponse.Html("<html>ok</html>") : null);
         server.Start();
         try
         {
@@ -3467,7 +3467,7 @@ public static partial class SelfTest
 
         // ── 2. 超大 Content-Length → 413（端到端，服务端读完头立即拒绝不等待正文）──
         var bigServer = new WayCoder.UI.Web.HttpServer(0);
-        bigServer.OnRequest = req => req.Path == "/chat" ? WayCoder.UI.Web.HttpResponse.Text("ok") : null;
+        bigServer.OnRequest = req => Task.FromResult<WayCoder.UI.Web.HttpResponse?>(req.Path == "/chat" ? WayCoder.UI.Web.HttpResponse.Text("ok") : null);
         bigServer.Start();
         try
         {
@@ -5185,8 +5185,8 @@ public static partial class SelfTest
         var cwdSub = Path.Combine(cwdDir, "sub");
         Directory.CreateDirectory(cwdSub);
         File.WriteAllText(Path.Combine(cwdSub, "hello.txt"), "hello world");
-        var oldCwd = BashTool.CurrentCwd.Value;
-        BashTool.CurrentCwd.Value = cwdDir;
+        var oldCwd = CwdContext.Current.Value;
+        CwdContext.Current.Value = cwdDir;
         try
         {
             var r = new ReadFileTool().ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = "sub/hello.txt" }).GetAwaiter().GetResult();
@@ -5196,7 +5196,7 @@ public static partial class SelfTest
         }
         finally
         {
-            BashTool.CurrentCwd.Value = oldCwd!; // 恢复原值（null 时回到未设置状态）
+            CwdContext.Current.Value = oldCwd!; // 恢复原值（null 时回到未设置状态）
             try { Directory.Delete(cwdDir, true); } catch { }
         }
 
@@ -5370,7 +5370,7 @@ public static partial class SelfTest
         finally { try { Directory.Delete(tmp, true); } catch { } }
 
         // ── #2 CdTool ~ 仅前缀展开：`~user`/路径中段 ~ 不被全量替换 ──
-        var savedCwd = BashTool.CurrentCwd.Value;
+        var savedCwd = CwdContext.Current.Value;
         try
         {
             var r1 = new CdTool().ExecuteAsync(new Dictionary<string, object?> { ["path"] = "~definitely_not_a_user" })
@@ -5380,7 +5380,7 @@ public static partial class SelfTest
             Check("cd: ~user 不展开(保持原样)", r1.Contains("~definitely_not_a_user")
                 && !r1.Contains(home + Path.DirectorySeparatorChar + "definitely_not_a_user"));
         }
-        finally { BashTool.CurrentCwd.Value = savedCwd!; }
+        finally { CwdContext.Current.Value = savedCwd!; }
     }
 
     /// <summary>v0.71.30 批次：CLI 多值累积 / 批处理目录穿越 / 版本溢出 / CJK 单字召回 / Web 畸形解码。</summary>

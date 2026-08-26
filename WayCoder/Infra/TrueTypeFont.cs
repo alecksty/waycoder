@@ -441,8 +441,10 @@ public sealed class TrueTypeFont
             world.Add(w);
         }
         if (world.Count == 0) return;
-        int x0 = (int)Math.Floor(minX), x1 = (int)Math.Ceiling(maxX);
-        int y0 = (int)Math.Floor(minY), y1 = (int)Math.Ceiling(maxY);
+        // bbox 钳制到画布范围：损坏/畸形字体的控制点坐标可能极大或极负（如 1e9），
+        // 不 clamp 的话双层循环会遍历天文数字像素（即使 BlendPixel 越界跳过，循环本身也 DoS）。
+        int x0 = Math.Max(0, (int)Math.Floor(minX)), x1 = Math.Min(c.Width - 1, (int)Math.Ceiling(maxX));
+        int y0 = Math.Max(0, (int)Math.Floor(minY)), y1 = Math.Min(c.Height - 1, (int)Math.Ceiling(maxY));
         const int SS = 4;
         for (int py = y0; py <= y1; py++)
             for (int px = x0; px <= x1; px++)

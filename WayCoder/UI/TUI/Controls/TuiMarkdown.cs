@@ -104,7 +104,9 @@ public class TuiMarkdown : TuiControl, ILazyItem
 
     public void EnsureParsed()
     {
-        int effectiveMaxW = MaxWidth > 0 ? MaxWidth : Width;
+        // 布局尚未确定时（Width 未设/为 0）MaxWidth 可能为负或 0，直接传给渲染器会折行异常。
+        // 钳到 ≥1：折行宽度至少 1，避免 RenderMessage 除零/负宽。
+        int effectiveMaxW = Math.Max(1, MaxWidth > 0 ? MaxWidth : Width);
         if (_parsed && _lastContent == Content && _lastMaxWidth == effectiveMaxW &&
             _lastRole == Role && _lastPlain == IsPlainText && _lastIsError == IsError) return;
 
@@ -139,7 +141,7 @@ public class TuiMarkdown : TuiControl, ILazyItem
     /// <summary>预估渲染高度（无需完整渲染）</summary>
     public int MeasureHeight(int width)
     {
-        int effectiveMaxW = MaxWidth > 0 ? MaxWidth : width;
+        int effectiveMaxW = Math.Max(1, MaxWidth > 0 ? MaxWidth : width);
         if (_parsed && _lastContent == Content && _lastMaxWidth == effectiveMaxW)
             return Height;
         // 内容未解析时，用字符数粗略估算

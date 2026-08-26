@@ -32,7 +32,7 @@ public class StatTool : ITool
 
         try
         {
-            var fullPath = Path.GetFullPath(path, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
+            var fullPath = Path.GetFullPath(path, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
 
             if (File.Exists(fullPath))
             {

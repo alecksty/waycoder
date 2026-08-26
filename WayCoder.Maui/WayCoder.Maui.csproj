@@ -1,0 +1,100 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net10.0-android;net10.0-ios</TargetFrameworks>
+
+		<!-- Note for MacCatalyst:
+		The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.
+		When specifying both architectures, use the plural <RuntimeIdentifiers> instead of the singular <RuntimeIdentifier>.
+		The Mac App Store will NOT accept apps with ONLY maccatalyst-arm64 indicated;
+		either BOTH runtimes must be indicated or ONLY macatalyst-x64. -->
+		<!-- For example: <RuntimeIdentifiers>maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers> -->
+
+		<OutputType>Exe</OutputType>
+		<RootNamespace>WayCoder.Maui</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<!-- 主工程源码含 TerminalRawMode 的 [LibraryImport] P/Invoke，源生成要求 unsafe -->
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+		<!-- Android 工具链路径：本机（macOS）用 `dotnet build -t:InstallAndroidDependencies` 装到
+		     ~/Library/Android/{sdk,jdk}。三重守卫保证跨平台安全：
+		       1. IsOSPlatform('OSX') —— 该路径仅 macOS host 上评估，Windows/Linux 完全不进；
+		       2. Exists() —— 惰性判断，路径不存在则不生效；
+		       3. '$(AndroidSdkDirectory)' == '' —— 不覆盖显式 -p: 传入的值。
+		     其他平台（CI / Windows / Linux 开发者）走 .NET Android 默认探测（ANDROID_HOME / Android Studio）。 -->
+		<AndroidSdkDirectory Condition="'$(AndroidSdkDirectory)' == '' and $([MSBuild]::IsOSPlatform('OSX')) and Exists('$(HOME)/Library/Android/sdk')">$(HOME)/Library/Android/sdk</AndroidSdkDirectory>
+		<JavaSdkDirectory Condition="'$(JavaSdkDirectory)' == '' and $([MSBuild]::IsOSPlatform('OSX')) and Exists('$(HOME)/Library/Android/jdk')">$(HOME)/Library/Android/jdk</JavaSdkDirectory>
+
+		<!-- Enable XAML source generation for faster build times and improved performance.
+		     This generates C# code from XAML at compile time instead of runtime inflation.
+		     To disable, remove this line.
+		     For individual files, you can override by setting Inflator metadata:
+		       <MauiXaml Update="MyPage.xaml" Inflator="Default" /> (reverts to defaults: Runtime for Debug, XamlC for Release)
+		       <MauiXaml Update="MyPage.xaml" Inflator="Runtime" /> (force runtime inflation) -->
+		<MauiXamlInflator>SourceGen</MauiXamlInflator>
+
+		<!-- Display name -->
+		<ApplicationTitle>WayCoder.Maui</ApplicationTitle>
+
+		<!-- App Identifier -->
+		<ApplicationId>com.companyname.waycoder.maui</ApplicationId>
+
+		<!-- Versions -->
+		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+		<ApplicationVersion>1</ApplicationVersion>
+
+		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
+		<WindowsPackageType>None</WindowsPackageType>
+
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
+		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- App Icon -->
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+
+		<!-- Splash Screen -->
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+
+		<!-- Images -->
+		<MauiImage Include="Resources\Images\*" />
+		<MauiImage Update="Resources\Images\dotnet_bot.png" Resize="True" BaseSize="300,185" />
+		
+		<!-- Custom Fonts -->
+		<MauiFont Include="Resources\Fonts\*" />
+
+		<!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
+		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+	</ItemGroup>
+
+	<!--
+	  抽库：复用主项目核心源码（Agent/LLM/Tools/Infra/Memory/UI 等）。
+	  排除（GUI 基线之上增排）：
+	    CLI 入口/命令层、测试/演示、编译期插件、误置游戏目录、Properties —— 同 GUI。
+	    UI/TUI/**（终端 TUI）、UI/WEB/**（Web 服务器）、Batch/**、Watch/** —— 移动端不需要。
+	    进程类工具（iOS 物理禁止 Process.Start）+ MCP 全家桶 + Doctor/Import/McpCache —— 桩或裁掉。
+	    Git/WorktreeIsolation.cs + Git/GitRunner.cs —— git 进程，GitRunner 由 CoreStubs 桩。
+	    ThemeConfig（TUI 主题）、AgentSlot（多槽位）、ToolRegistry（MAUI 自有替代）。
+	  加回：UI/TUI/Edit/（编辑器数据核心 EditorCore/Syntax/DiagnosticManager）、
+	        ContentDiffFormatter（纯逻辑 diff 格式化）。
+	-->
+	<ItemGroup>
+		<Compile Include="../WayCoder/**/*.cs"
+		         Exclude="../WayCoder/Program*.cs;../WayCoder/SlashCommand.cs;../WayCoder/Test/**/*.cs;../WayCoder/UI/CLI/**/*.cs;../WayCoder/Plugins/**/*.cs;../WayCoder/Properties/**/*.cs;../WayCoder/bin/**/*.cs;../WayCoder/obj/**/*.cs;../WayCoder/WayEngine/**/*.cs;../WayCoder/game/**/*.cs;../WayCoder/games/**/*.cs;../WayCoder/lottery/**/*.cs;../WayCoder/subs/**/*.cs;../WayCoder/works/**/*.cs;../WayCoder/SnakeGame/**/*.cs;../WayCoder/UI/WEB/WebAssets.Generated.cs;../WayCoder/UI/TUI/**/*.cs;../WayCoder/UI/WEB/**/*.cs;../WayCoder/Batch/**/*.cs;../WayCoder/Watch/**/*.cs;../WayCoder/Git/WorktreeIsolation.cs;../WayCoder/Git/GitRunner.cs;../WayCoder/Tools/ToolRegistry.cs;../WayCoder/Tools/BashTool.cs;../WayCoder/Tools/GitTool.cs;../WayCoder/Tools/GitPRTool.cs;../WayCoder/Tools/LspTool.cs;../WayCoder/Tools/LintTool.cs;../WayCoder/Tools/PsTool.cs;../WayCoder/Tools/KillTool.cs;../WayCoder/Tools/ScreenshotTool.cs;../WayCoder/Tools/SqliteTool.cs;../WayCoder/Tools/TestTool.cs;../WayCoder/Tools/JobOutputTool.cs;../WayCoder/Tools/JobKillTool.cs;../WayCoder/Tools/McpClient.cs;../WayCoder/Tools/McpTransport.cs;../WayCoder/Tools/McpTools.cs;../WayCoder/Tools/McpCache.cs;../WayCoder/Tools/ClaudeMcp.cs;../WayCoder/Infra/DoctorEngine.cs;../WayCoder/Infra/ImportHelper.cs;../WayCoder/Config/ThemeConfig.cs;../WayCoder/Agent/AgentSlot.cs" />
+		<Compile Include="../WayCoder/UI/TUI/Edit/**/*.cs" />
+		<Compile Include="../WayCoder/UI/TUI/Custom/ContentDiffFormatter.cs" />
+	</ItemGroup>
+
+</Project>

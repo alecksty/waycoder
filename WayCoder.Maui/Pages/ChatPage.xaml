@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="WayCoder.Maui.Pages.ChatPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:models="clr-namespace:WayCoder.Maui.Models"
+    xmlns:pages="clr-namespace:WayCoder.Maui.Pages"
+    Title="对话">
+
+    <ContentPage.Resources>
+        <!-- 用户消息：右对齐气泡 -->
+        <DataTemplate x:Key="UserTemplate" x:DataType="models:ChatMessage">
+            <Grid Padding="12,6">
+                <Border
+                    HorizontalOptions="End"
+                    MaximumWidthRequest="320"
+                    StrokeThickness="0"
+                    BackgroundColor="{AppThemeBinding Light=#D6E9FF, Dark=#1E3A5F}">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="14,14,4,14" />
+                    </Border.StrokeShape>
+                    <Label
+                        Text="{Binding RawText}"
+                        Padding="12,8"
+                        FontSize="15"
+                        TextColor="{AppThemeBinding Light=#111111, Dark=#EEEEEE}" />
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <!-- AI 消息：左对齐，富文本（«» 已解码） -->
+        <DataTemplate x:Key="AssistantTemplate" x:DataType="models:ChatMessage">
+            <Grid Padding="12,6">
+                <Border
+                    HorizontalOptions="Start"
+                    MaximumWidthRequest="480"
+                    StrokeThickness="0"
+                    BackgroundColor="Transparent">
+                    <Label
+                        FormattedText="{Binding Formatted}"
+                        FontSize="15"
+                        LineHeight="1.3" />
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <!-- 工具调用提示：灰色小字 -->
+        <DataTemplate x:Key="ToolTemplate" x:DataType="models:ChatMessage">
+            <Label
+                Text="{Binding RawText}"
+                Padding="12,2"
+                FontSize="12"
+                TextColor="{AppThemeBinding Light=#999999, Dark=#777777}" />
+        </DataTemplate>
+
+        <pages:MessageTemplateSelector
+            x:Key="TemplateSelector"
+            UserTemplate="{StaticResource UserTemplate}"
+            AssistantTemplate="{StaticResource AssistantTemplate}"
+            ToolTemplate="{StaticResource ToolTemplate}" />
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="*,Auto">
+        <CollectionView
+            x:Name="MsgList"
+            ItemsSource="{Binding Messages}"
+            ItemTemplate="{StaticResource TemplateSelector}">
+            <CollectionView.EmptyView>
+                <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="8">
+                    <Label Text="🀄" FontSize="40" HorizontalTextAlignment="Center" />
+                    <Label Text="道码 · 手机编程智能体" FontSize="16" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                    <Label Text="问点什么，或去「文件」页导入项目" FontSize="13" TextColor="{AppThemeBinding Light=#888888, Dark=#999999}" HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+        </CollectionView>
+
+        <!-- 底部输入栏：语音 / 图片 / 输入框 / 发送 -->
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto" Padding="8,6" ColumnSpacing="6">
+            <Button
+                x:Name="VoiceBtn"
+                Text="🎤"
+                FontSize="18"
+                Clicked="OnVoiceClicked"
+                VerticalOptions="End"
+                SemanticProperties.Hint="语音转文字" />
+            <Button
+                x:Name="ImageBtn"
+                Grid.Column="1"
+                Text="📷"
+                FontSize="18"
+                Clicked="OnImageClicked"
+                VerticalOptions="End"
+                SemanticProperties.Hint="拍照或选图让模型看图" />
+            <Editor
+                x:Name="InputBox"
+                Grid.Column="2"
+                Placeholder="问点什么…"
+                AutoSize="TextChanges"
+                MaxLength="8000"
+                VerticalOptions="End" />
+            <Button
+                x:Name="SendBtn"
+                Grid.Column="3"
+                Text="发送"
+                Clicked="OnSendClicked"
+                VerticalOptions="End"
+                SemanticProperties.Hint="发送消息" />
+        </Grid>
+    </Grid>
+</ContentPage>

@@ -12,7 +12,8 @@ namespace WayCoder.Infra;
 internal static class DrawParse
 {
     public static double Num(DrawToken t) => Canvas.TryNum(t.Value, out var v) ? v : double.NaN;
-    public static string F(double v) => Math.Abs(v) < 1e-9 ? "0" : v.ToString("0.###", CultureInfo.InvariantCulture);
+    /// <summary>格式化为 SVG 数值：NaN/Infinity 非法（会生成 "NaN"/"Infinity" 破坏 SVG 解析），钳为 0。</summary>
+    public static string F(double v) => !double.IsFinite(v) ? "0" : Math.Abs(v) < 1e-9 ? "0" : v.ToString("0.###", CultureInfo.InvariantCulture);
 
     /// <summary>线头形状：butt/round/square（忽略大小写）。非三者返回 false 且 cap="butt"。</summary>
     public static bool TryCap(string s, out string cap)
@@ -59,7 +60,7 @@ internal static class DrawParse
     public static string FillStrokeAttrs(DrawFigure f)
     {
         var sb = new StringBuilder();
-        sb.Append(" fill=\"").Append(f.GradientRef != null ? "url(#" + f.GradientRef + ")" : ColorUtil.ToHex(f.Fill)).Append('"');
+        sb.Append(" fill=\"").Append(f.GradientRef != null ? "url(#" + EscapeXml(f.GradientRef) + ")" : ColorUtil.ToHex(f.Fill)).Append('"');
         if (f.Stroke != 0)
         {
             sb.Append(" stroke=\"").Append(ColorUtil.ToHex(f.Stroke)).Append('"')

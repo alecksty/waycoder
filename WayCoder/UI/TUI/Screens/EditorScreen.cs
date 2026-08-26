@@ -538,7 +538,7 @@ public class EditorScreen : TuiScreen
         var text = label.Text.Trim();
 
         // 上级目录
-        if (text == "📁 .." || text == "📁 ..")
+        if (text == "📁 ..")
         {
             _browseDir = Path.GetDirectoryName(_browseDir) ?? _browseDir;
             RefreshFileList();

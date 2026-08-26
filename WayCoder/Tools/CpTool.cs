@@ -40,8 +40,16 @@ public class CpTool : ITool
     {
         try
         {
-            var srcPath = Path.GetFullPath(src, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory());
-            var destPath = Path.GetFullPath(dest, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory());
+            var srcPath = Path.GetFullPath(src, CwdContext.Current.Value ?? Directory.GetCurrentDirectory());
+            var destPath = Path.GetFullPath(dest, CwdContext.Current.Value ?? Directory.GetCurrentDirectory());
+
+            // 敏感路径防护（src 防复制泄露密钥 + dest 防写入后门，含 symlink 解析）
+            var srcSensitive = PathSafety.CheckSensitive(srcPath);
+            if (srcSensitive != null)
+                return $"❌ 已阻止：{srcSensitive}（安全策略：敏感文件读写受保护）";
+            var destSensitive = PathSafety.CheckSensitive(destPath);
+            if (destSensitive != null)
+                return $"❌ 已阻止：{destSensitive}（安全策略：敏感文件读写受保护）";
 
             if (!File.Exists(srcPath) && !Directory.Exists(srcPath))
                 return $"错误：源不存在 — {srcPath}";

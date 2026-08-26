@@ -56,7 +56,10 @@ public static class GitRunner
                 try { proc.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
                 return (-1, "", $"git 命令超时（>{DefaultTimeoutMs / 1000}s）: {args}");
             }
-            return (proc.ExitCode, stdoutTask.GetAwaiter().GetResult(), stderrTask.GetAwaiter().GetResult());
+            // 与 RunCoreAsync 对齐：读取加超时，防止 git 守护子进程继承管道致 ReadToEndAsync 永不 EOF 而永久阻塞
+            var stdout = WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)).GetAwaiter().GetResult() ?? "";
+            var stderr = WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)).GetAwaiter().GetResult() ?? "";
+            return (proc.ExitCode, stdout, stderr);
         }
         catch (Exception ex)
         {

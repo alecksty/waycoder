@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.96.8 (2026-08-26) — 新增 MAUI 移动端第五前端（Android + iOS）+ 实时录音
+
+第五个前端 `WayCoder.Maui`（Android + iOS）——「完全脱离电脑」的手机独立编程智能体：Agent 核心直接编译进 App，离线可用（仅 LLM API 需网络），自带 API Key/配置，手机本地跑真正的编程智能体而非「遥控桌面后端」。
+
+- **共享源码编译、零主工程侵入**：csproj 用 `<Compile Include="../WayCoder/**/*.cs" Exclude="...">` 复用主工程 Agent 核心（与 `WayCoder.Gui` 同款），Exclude 掉 CLI/TUI/Web/Batch/Watch/进程类工具/MCP/多槽位，加回编辑器核心与 `ContentDiffFormatter`；唯一改动是 `Tools/CwdContext.cs` 抽离 `AsyncLocal<string?>`（替代 `BashTool.CurrentCwd`，51 处引用替换），MAUI 才能干净排除 BashTool 而文件工具相对路径解析不崩
+- **`CoreStubs` 桩降级**：10 个进程工具（bash/git/git_pr/lsp/lint/ps/kill/test/sqlite/screenshot）+ CLI/TUI 类型空实现——进程工具在移动端「存在但不可用」，调用得「移动端不支持」清晰提示而非崩溃（iOS 禁 `Process.Start`）
+- **本地配置/会话/记忆落 App 私有目录**：`Global.HomeOverride = FileSystem.Current.AppDataDirectory`
+- **沙箱**：`SandboxManager.SetLevel("project")` + `AllowedDirectory=workspace`，写工具越界自动拦截
+- **四个 Tab（手机屏幕优先）**：对话 / 文件 / 编辑器 / 设置；`AppShell` 底部 TabBar，触控目标 ≥44pt
+- **对话流式**：`Agent.ChatAsync` 纯回调 + `«»` 中间格式 → MAUI `FormattedString`（颜色同源 `TuiColors`），token 流式上屏 + 停止
+- **内置编辑器**：`EditorCore` 纯数据模型绑定 MAUI `Editor`，文件/大纲跳转/保存/撤销重做
+- **交互桥 + 权限确认**：`MauiWebInteraction` 实现 `UxHelper.IWebInteraction` 5 方法，权限确认/计划审批/AskUserQuestion 弹 MAUI 原生对话框（`.NET 10` 新 API `DisplayAlertAsync`/`DisplayActionSheetAsync`，旧 `DisplayAlert` 已过时）
+- **实时录音**：🎤 按钮——Android `MediaRecorder` / iOS `AVAudioRecorder` 手搓平台原生（单文件 `#if` 条件编译，不引第三方录音库），落沙箱 m4a（AAC）后复用 `TranscribeAudioTool` 转录填输入框；也支持选已有音频文件转录
+- **拍照/选图看图**：📷 按钮——`MediaPicker` 拍照/相册 → `view_image` vision 队列（`ModelCatalog.ResolveSupportsVision` 门控），下轮消息自动带上图片
+- **打包**：Android 签名 APK 33MB、iOS Release 编译通过（iOS 真机需开发者证书，MVP 模拟器验证）；主工程自测 4661 项 0 回归
+
 ## v0.96.7 (2026-08-26) — GUI 修复：控件溢出换行 + 浅色主题文字可见
 
 GUI（Avalonia）两处显示缺陷：长内容控件溢出屏幕、切换浅色主题后文字仍是深色浅色导致看不见。

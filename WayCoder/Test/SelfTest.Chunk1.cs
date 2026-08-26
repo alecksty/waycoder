@@ -622,11 +622,11 @@ public static partial class SelfTest
             var testDir = Path.Combine(Path.GetTempPath(), "ct_" + Guid.NewGuid().ToString("N")[..6]);
             var subDir = Path.Combine(testDir, "a", "b");
             Directory.CreateDirectory(subDir);
-            BashTool.CurrentCwd.Value = null!; // 重置 AsyncLocal
+            CwdContext.Current.Value = null!; // 重置 AsyncLocal
             BashTool.UpdateCwd($"cd {testDir} && cd a && cd b", testDir);
-            Check("bash cd 链式解析", BashTool.CurrentCwd.Value == Path.GetFullPath(subDir));
+            Check("bash cd 链式解析", CwdContext.Current.Value == Path.GetFullPath(subDir));
             Directory.Delete(testDir, true);
-            BashTool.CurrentCwd.Value = null!; // 重置
+            CwdContext.Current.Value = null!; // 重置
         }
         catch { Fail("bash cd 链式解析"); }
 
@@ -831,25 +831,26 @@ public static partial class SelfTest
         finally { try { File.Delete(pngPath); } catch { } }
 
         // 2. 跨平台 GUI 抓屏命令构造（纯逻辑，覆盖 Windows/macOS/Linux）
+        // 参数现为 string[]（ArgumentList，不经 shell 引号解析），断言用 Join 还原语义
         var wcFull = ScreenshotTool.BuildWindowsCapture(true, 0, 0, 0, 0, @"C:\tmp\shot.png");
         Check("screenshot Win 用 powershell", wcFull.Tool == "powershell");
-        Check("screenshot Win 全屏含 VirtualScreen", wcFull.Args.Contains("VirtualScreen"));
-        Check("screenshot Win 含 CopyFromScreen", wcFull.Args.Contains("CopyFromScreen"));
-        Check("screenshot Win 含保存路径", wcFull.Args.Contains("shot.png"));
+        Check("screenshot Win 全屏含 VirtualScreen", string.Join(" ", wcFull.Args).Contains("VirtualScreen"));
+        Check("screenshot Win 含 CopyFromScreen", string.Join(" ", wcFull.Args).Contains("CopyFromScreen"));
+        Check("screenshot Win 含保存路径", string.Join(" ", wcFull.Args).Contains("shot.png"));
         var wcRegion = ScreenshotTool.BuildWindowsCapture(false, 10, 20, 100, 50, @"C:\tmp\r.png");
-        Check("screenshot Win 区域 Bitmap(100,50)", wcRegion.Args.Contains("Bitmap(100,50)"));
-        Check("screenshot Win 区域坐标 CopyFromScreen(10,20", wcRegion.Args.Contains("CopyFromScreen(10,20"));
+        Check("screenshot Win 区域 Bitmap(100,50)", string.Join(" ", wcRegion.Args).Contains("Bitmap(100,50)"));
+        Check("screenshot Win 区域坐标 CopyFromScreen(10,20", string.Join(" ", wcRegion.Args).Contains("CopyFromScreen(10,20"));
 
         var mcFull = ScreenshotTool.BuildMacCapture(true, 0, 0, 0, 0, "/tmp/s.png");
         Check("screenshot mac 用 screencapture", mcFull.Tool == "/usr/sbin/screencapture");
-        Check("screenshot mac 全屏 -x", mcFull.Args.StartsWith("-x"));
+        Check("screenshot mac 全屏 -x", mcFull.Args.Contains("-x"));
         var mcRegion = ScreenshotTool.BuildMacCapture(false, 10, 20, 100, 50, "/tmp/s.png");
         Check("screenshot mac 区域 -R 坐标", mcRegion.Args.Contains("-R10,20,100,50"));
 
-        Check("screenshot linux grim 区域 -g", ScreenshotTool.BuildLinuxCommandFor("grim", false, 10, 20, 100, 50, "/tmp/s.png").Args.Contains("\"10,20 100x50\""));
-        Check("screenshot linux import 区域 -crop", ScreenshotTool.BuildLinuxCommandFor("import", false, 10, 20, 100, 50, "/tmp/s.png").Args.Contains("-crop 100x50+10+20"));
-        Check("screenshot linux scrot 区域 -a", ScreenshotTool.BuildLinuxCommandFor("scrot", false, 10, 20, 100, 50, "/tmp/s.png").Args.Contains("-a 10,20,100,50"));
-        Check("screenshot linux maim 区域 -g", ScreenshotTool.BuildLinuxCommandFor("maim", false, 10, 20, 100, 50, "/tmp/s.png").Args.Contains("-g 100x50+10+20"));
+        Check("screenshot linux grim 区域 -g", string.Join(" ", ScreenshotTool.BuildLinuxCommandFor("grim", false, 10, 20, 100, 50, "/tmp/s.png").Args).Contains("10,20 100x50"));
+        Check("screenshot linux import 区域 -crop", string.Join(" ", ScreenshotTool.BuildLinuxCommandFor("import", false, 10, 20, 100, 50, "/tmp/s.png").Args).Contains("-crop 100x50+10+20"));
+        Check("screenshot linux scrot 区域 -a", string.Join(" ", ScreenshotTool.BuildLinuxCommandFor("scrot", false, 10, 20, 100, 50, "/tmp/s.png").Args).Contains("-a 10,20,100,50"));
+        Check("screenshot linux maim 区域 -g", string.Join(" ", ScreenshotTool.BuildLinuxCommandFor("maim", false, 10, 20, 100, 50, "/tmp/s.png").Args).Contains("-g 100x50+10+20"));
         var grFull = ScreenshotTool.BuildLinuxCommandFor("grim", true, 0, 0, 0, 0, "/tmp/s.png");
         Check("screenshot linux grim 全屏无坐标", grFull.Args.Contains("/tmp/s.png") && !grFull.Args.Contains("-g"));
         Check("screenshot linux 回退链含 4 工具",

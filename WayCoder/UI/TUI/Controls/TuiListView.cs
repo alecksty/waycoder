@@ -327,13 +327,12 @@ public class TuiListView : TuiView
                 return true;
             case ConsoleKey.PageUp:
                 ScrollUp(Height);
-                SelectedIndex = Math.Max(0, SelectedIndex - Math.Max(1, Height));
-                OnSelectionChanged?.Invoke(SelectedIndex);
+                // 走 SelectItem：同步 Focused 高亮 + MarkDirtyTree，勿直接改 SelectedIndex（会与反白高亮失步）
+                SelectItem(Math.Max(0, SelectedIndex - Math.Max(1, Height)));
                 return true;
             case ConsoleKey.PageDown:
                 ScrollDown(Height);
-                SelectedIndex = Math.Min(Children.Count - 1, SelectedIndex + Math.Max(1, Height));
-                OnSelectionChanged?.Invoke(SelectedIndex);
+                SelectItem(Math.Min(Children.Count - 1, SelectedIndex + Math.Max(1, Height)));
                 return true;
             case ConsoleKey.Enter:
                 if (SelectedIndex >= 0)

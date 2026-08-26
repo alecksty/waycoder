@@ -247,15 +247,25 @@ public static class BashGuard
             case "timeout":
             {
                 int i = 1;
-                while (i < parts.Length && parts[i].StartsWith('-')) i++;
-                if (i < parts.Length) i++; // 时长参数
+                // -s SIGNAL / -k DURATION 带参数选项：跳过选项与其参数值；
+                // --signal=X / --kill-after=X 自含参数：只跳过选项本身；其余 - 选项无参。
+                while (i < parts.Length && parts[i].StartsWith('-'))
+                {
+                    if (parts[i] == "-s" || parts[i] == "--signal" || parts[i] == "-k" || parts[i] == "--kill-after")
+                        i += 2; // 选项 + 参数
+                    else
+                        i++;   // 无参选项（--preserve-status/--foreground/-v）或自含参数（--signal=X）
+                }
+                if (i < parts.Length) i++; // DURATION 时长参数
                 return i;
             }
             case "nice":
             {
                 int i = 1;
-                if (i < parts.Length && parts[i] == "-n") i += 2;
+                if (i < parts.Length && (parts[i] == "-n" || parts[i] == "--adjustment")) i += 2;
                 else if (i < parts.Length && parts[i].StartsWith("--adjustment=")) i++;
+                else if (i < parts.Length && parts[i].StartsWith("-") && parts[i].Length > 1 && parts[i][1] != '-')
+                    i++; // 旧式语法 `nice -5`：`-5` 为调整值
                 return i;
             }
             case "nohup":
@@ -341,6 +351,9 @@ public static class BashGuard
                     // find 携带 -exec/-execdir/-delete/-ok 时不再是只读（可执行任意命令/删除文件）
                     if (safe == "find" && HasFindDangerousFlag(command))
                         return false;
+                    // sort -o/--output 写文件（覆盖任意路径），不再是只读
+                    if (safe == "sort" && HasSortOutputFlag(command))
+                        return false;
                     return true;
                 }
             }
@@ -359,6 +372,18 @@ public static class BashGuard
         {
             var t = token.ToLowerInvariant();
             if (t is "-exec" or "-execdir" or "-delete" or "-ok" or "-okdir")
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>检测 sort 的写文件 flag：-o FILE / --output=FILE（覆盖任意路径）。</summary>
+    private static bool HasSortOutputFlag(string command)
+    {
+        foreach (var token in command.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var t = token.ToLowerInvariant();
+            if (t == "-o" || t == "--output" || t.StartsWith("--output="))
                 return true;
         }
         return false;

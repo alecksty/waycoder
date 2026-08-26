@@ -178,6 +178,22 @@ public static class AnsiTty
             Math.Max(0, (int)(b * (1 - amount))));
     }
 
+    /// <summary>通用暗化（自动识别 16 色 / 256 色 / TrueColor 三种编码）</summary>
+    /// <remarks>
+    /// 16 色「暗一档」= 亮色(90-97/100-107) → 对应标准色(30-37/40-47)；
+    /// 标准色已是最暗一档、256 色盘无简单暗化映射，均原样返回。
+    /// 禁止用「code-1 / code%2」硬算——那会破坏 TrueColor RGB 码（≥0x1000000）与 256 色码。
+    /// </remarks>
+    public static int Darken(int code, float amount)
+    {
+        if (code <= 0) return code;
+        if (code >= 0x1000000) return DarkenRgb(code, amount);
+        // 亮前景 90-97 / 亮背景 100-107 → 标准色
+        if (code is >= 90 and <= 97 || code is >= 100 and <= 107) return code - 60;
+        // 标准 16 色(30-37/40-47)已最暗、256 色(16-255)无映射 → 原样
+        return code;
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // 颜色码 → 序列（自动识别 16色/256色/TrueColor）
     // ═══════════════════════════════════════════════════════════════

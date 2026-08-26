@@ -164,7 +164,7 @@ public class TuiWindow : TuiBase
     /// <summary>当前有效边框色（考虑焦点状态）</summary>
     public int EffectiveBorderColor => Focused ? BorderColor :
         UnfocusedBorderColor > 0 ? UnfocusedBorderColor :
-        BorderColor > 0 ? (BorderColor % 2 == 0 ? BorderColor : BorderColor - 1) : // 暗一档
+        BorderColor > 0 ? AnsiTty.Darken(BorderColor, 0.5f) : // 暗一档（正确识别 16/256/TrueColor）
         BorderColor;
 
     /// <summary>内容可绘制区域左边界（不含边框）</summary>

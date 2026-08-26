@@ -26,6 +26,10 @@ public static class PdfExtractor
                 };
 
             var totalPages = pdf.NumberOfPages;
+            // 钳制 startPage 到 [1, totalPages]：0/负数会从第 0 页开始读（ExtractPageText(0) 越界/返回垃圾），
+            // 超 totalPages 会得 endPage < startPage 的空循环。pageLimit 同理下限 1 防除零/空区间。
+            startPage = Math.Clamp(startPage, 1, Math.Max(1, totalPages));
+            pageLimit = Math.Max(1, pageLimit);
             var endPage = Math.Min(startPage + pageLimit - 1, totalPages);
 
             var pages = new List<PdfPageContent>();

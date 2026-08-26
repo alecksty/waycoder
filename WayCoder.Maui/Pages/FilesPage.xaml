@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="WayCoder.Maui.Pages.FilesPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:svc="clr-namespace:WayCoder.Maui.Services"
+    Title="文件">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- 顶部导航条：返回上级 + 当前路径 + 导入文档 -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Padding="8,4">
+            <Button
+                x:Name="UpBtn"
+                Text="↩ 上级"
+                FontSize="13"
+                Clicked="OnUpClicked" />
+            <Label
+                x:Name="PathLabel"
+                Grid.Column="1"
+                Text="/"
+                VerticalOptions="Center"
+                FontSize="13"
+                Margin="8,0"
+                LineBreakMode="TailTruncation" />
+            <Button
+                x:Name="ImportBtn"
+                Grid.Column="2"
+                Text="导入"
+                FontSize="13"
+                Clicked="OnImportClicked" />
+        </Grid>
+
+        <!-- 文件列表 -->
+        <CollectionView
+            Grid.Row="1"
+            x:Name="FileList"
+            SelectionMode="Single"
+            SelectionChanged="OnSelectionChanged">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="svc:SandboxFsService+FsEntry">
+                    <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,10">
+                        <Label
+                            Text="{Binding Icon}"
+                            FontSize="20"
+                            VerticalOptions="Center" />
+                        <Label
+                            Grid.Column="1"
+                            Text="{Binding Name}"
+                            FontSize="14"
+                            VerticalOptions="Center"
+                            LineBreakMode="TailTruncation" />
+                        <VerticalStackLayout Grid.Column="2" HorizontalOptions="End" Spacing="0">
+                            <Label
+                                Text="{Binding DisplaySize}"
+                                FontSize="11"
+                                HorizontalTextAlignment="End"
+                                TextColor="{AppThemeBinding Light=#888888, Dark=#999999}" />
+                            <Label
+                                Text="{Binding DisplayModified}"
+                                FontSize="11"
+                                HorizontalTextAlignment="End"
+                                TextColor="{AppThemeBinding Light=#888888, Dark=#999999}" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+            <CollectionView.EmptyView>
+                <Label Text="沙箱工作区为空，点「导入」加入文件" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{AppThemeBinding Light=#888888, Dark=#999999}" />
+            </CollectionView.EmptyView>
+        </CollectionView>
+    </Grid>
+</ContentPage>

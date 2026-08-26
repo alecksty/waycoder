@@ -85,7 +85,11 @@ public static class CommandPalette
             if (!common.Contains(name)) continue;
             var label = cmd.Name + (string.IsNullOrEmpty(cmd.Usage) ? "" : " " + cmd.Usage);
             list.Add(new("slash-" + cmd.Name, label, slashCat, "", cmd.Description,
-                () => { try { cmd.ExecuteAsync("", screen).GetAwaiter().GetResult(); } catch { } }));
+                () =>
+                {
+                    try { cmd.ExecuteAsync("", screen).GetAwaiter().GetResult(); }
+                    catch (Exception ex) { screen.AddSystemMsg($"命令执行失败: {ex.Message}"); }
+                }));
         }
         return list;
     }
