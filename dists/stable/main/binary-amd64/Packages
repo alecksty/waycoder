@@ -1,0 +1,54 @@
+Package: waycoder
+Architecture: amd64
+Version: 0.96.7
+Priority: optional
+Section: devel
+Maintainer: Aleckstygit <aleckstygit@outlook.com>
+Installed-Size: 74748
+Filename: pool/main/w/waycoder/waycoder_0.96.7_amd64.deb
+Size: 26868066
+MD5sum: 829004d7dfc6c6db323f7850995fbdc6
+SHA1: 75eb5228d548c2e3505f21ac6894359b2938cb8c
+SHA256: 4d3596d7fbb49221bf2e82801f91410e35ee8efab0ae04c7469fe4285c0831cb
+SHA512: 025a83b0939ee8f6e955de889df52402bbc69e1fdf5ddc90e017bd0206641e63b897c37917ca9e4bf22d0f8f74ffae587f4c0bbc1a7403aa0c8745ca627d4c86
+Homepage: https://gitee.com/aleckstygit/my-coder
+Description: 中文版易用编程智能体（C# .NET NativeAOT 单文件 CLI 编程 Agent）
+ WayCoder（道码）是一个中文版易用编程智能体，AOT 编译为单文件，
+ 41 个工具 + 多 Agent 工作区 + 权限系统 + Watch 模式。
+
+Package: waycoder
+Architecture: arm64
+Version: 0.96.7
+Priority: optional
+Section: devel
+Maintainer: Aleckstygit <aleckstygit@outlook.com>
+Installed-Size: 81940
+Filename: pool/main/w/waycoder/waycoder_0.96.7_arm64.deb
+Size: 24853400
+MD5sum: ae48d915b3247c4893e11ea3420c27a5
+SHA1: e72a03d70dc699fb2f89fe8cebd605fa9c619a8c
+SHA256: 8111fc10e8e251f6767a14b658f386037dcbc486844b4fdf4de9d513fe848295
+SHA512: c7f49c9bf1b7f6aae4d93a5f2b56cff65cf5f68caddef54a08d24a0d91796b54e00212157d62386cf54e5b743e6edf22a25fa0d764c69ad8ea3b9bc870e5f5f5
+Homepage: https://gitee.com/aleckstygit/my-coder
+Description: 中文版易用编程智能体（C# .NET NativeAOT 单文件 CLI 编程 Agent）
+ WayCoder（道码）是一个中文版易用编程智能体，AOT 编译为单文件，
+ 41 个工具 + 多 Agent 工作区 + 权限系统 + Watch 模式。
+
+Package: waycoder
+Architecture: amd64
+Version: 0.96.8
+Priority: optional
+Section: devel
+Maintainer: Aleckstygit <aleckstygit@outlook.com>
+Installed-Size: 13808
+Filename: pool/main/w/waycoder/waycoder_0.96.8_amd64.deb
+Size: 5457020
+MD5sum: eccdbefa699f93750d6652323c959b63
+SHA1: a29c10682cf1e9ddc46abf12a538e6f2aeba235a
+SHA256: ab9b96a133a02d170e3768b9bd9d780f18d9e6a09e65cb29e3a6df731a499773
+SHA512: 2dca0f32beeae244f53e49f2823f3b377f17e0302250f3d35ae3174661afdf22ca3187ce1c6edfe2cbf4bd17c6273f38130c3adcacf1e79194078f3b07e03e2f
+Homepage: https://gitee.com/aleckstygit/my-coder
+Description: 中文版易用编程智能体（C# .NET NativeAOT 单文件 CLI 编程 Agent）
+ WayCoder（道码）是一个中文版易用编程智能体，AOT 编译为单文件，
+ 41 个工具 + 多 Agent 工作区 + 权限系统 + Watch 模式。
+
