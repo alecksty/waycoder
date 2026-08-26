@@ -41,11 +41,46 @@ public partial class FilesPage : ContentPage
         {
             _currentDir = SandboxFsService.ToRelative(entry.FullPath) ?? _currentDir;
             Refresh();
+            return;
         }
-        else
+
+        // 文件：ActionSheet 打开 / 重命名 / 删除
+        var action = await DisplayActionSheetAsync(entry.Name, "取消", null, "打开", "重命名", "删除");
+        switch (action)
         {
-            await OpenInEditorAsync(entry);
+            case "打开":
+                await OpenInEditorAsync(entry);
+                break;
+            case "重命名":
+                await RenameAsync(entry);
+                break;
+            case "删除":
+                await DeleteAsync(entry);
+                break;
         }
+    }
+
+    private async Task RenameAsync(SandboxFsService.FsEntry entry)
+    {
+        var rel = SandboxFsService.ToRelative(entry.FullPath) ?? entry.Name;
+        var newName = await DisplayPromptAsync("重命名", "输入新名称", accept: "确定", cancel: "取消",
+            initialValue: entry.Name, maxLength: 100);
+        if (string.IsNullOrWhiteSpace(newName) || newName == entry.Name) return;
+        if (SandboxFsService.Rename(rel, newName))
+            Refresh();
+        else
+            await DisplayAlertAsync("重命名失败", "目标名称已存在或路径非法", "关闭");
+    }
+
+    private async Task DeleteAsync(SandboxFsService.FsEntry entry)
+    {
+        var rel = SandboxFsService.ToRelative(entry.FullPath) ?? entry.Name;
+        var confirmed = await DisplayAlertAsync("删除确认", $"确定删除「{entry.Name}」？此操作不可撤销。", "删除", "取消");
+        if (!confirmed) return;
+        if (SandboxFsService.Delete(rel))
+            Refresh();
+        else
+            await DisplayAlertAsync("删除失败", "无法删除该项", "关闭");
     }
 
     /// <summary>点文件 → 跳内置编辑器（携带沙箱相对路径）。</summary>

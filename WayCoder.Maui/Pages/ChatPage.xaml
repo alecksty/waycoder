@@ -15,7 +15,7 @@
                     HorizontalOptions="End"
                     MaximumWidthRequest="320"
                     StrokeThickness="0"
-                    BackgroundColor="{AppThemeBinding Light=#D6E9FF, Dark=#1E3A5F}">
+                    BackgroundColor="{AppThemeBinding Light={StaticResource UserBubbleBgLight}, Dark={StaticResource UserBubbleBgDark}}">
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="14,14,4,14" />
                     </Border.StrokeShape>
@@ -23,21 +23,25 @@
                         Text="{Binding RawText}"
                         Padding="12,8"
                         FontSize="15"
-                        TextColor="{AppThemeBinding Light=#111111, Dark=#EEEEEE}" />
+                        TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                 </Border>
             </Grid>
         </DataTemplate>
 
-        <!-- AI 消息：左对齐，富文本（«» 已解码） -->
+        <!-- AI 消息：左对齐，卡片背景 + 富文本（«» 已解码） -->
         <DataTemplate x:Key="AssistantTemplate" x:DataType="models:ChatMessage">
             <Grid Padding="12,6">
                 <Border
                     HorizontalOptions="Start"
                     MaximumWidthRequest="480"
                     StrokeThickness="0"
-                    BackgroundColor="Transparent">
+                    BackgroundColor="{AppThemeBinding Light={StaticResource AiBubbleBgLight}, Dark={StaticResource AiBubbleBgDark}}">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="14,14,14,4" />
+                    </Border.StrokeShape>
                     <Label
                         FormattedText="{Binding Formatted}"
+                        Padding="12,8"
                         FontSize="15"
                         LineHeight="1.3" />
                 </Border>
@@ -50,7 +54,7 @@
                 Text="{Binding RawText}"
                 Padding="12,2"
                 FontSize="12"
-                TextColor="{AppThemeBinding Light=#999999, Dark=#777777}" />
+                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
         </DataTemplate>
 
         <pages:MessageTemplateSelector
@@ -60,8 +64,27 @@
             ToolTemplate="{StaticResource ToolTemplate}" />
     </ContentPage.Resources>
 
-    <Grid RowDefinitions="*,Auto">
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- 顶部模型快捷切换条 -->
+        <Border Grid.Row="0" BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0"
+                Padding="14,6" Margin="8,6">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="10" />
+            </Border.StrokeShape>
+            <Label x:Name="ModelBar"
+                   FontSize="13"
+                   TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
+                   HorizontalOptions="Start"
+                   VerticalOptions="Center">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnModelBarTapped" />
+                </Label.GestureRecognizers>
+            </Label>
+        </Border>
+
         <CollectionView
+            Grid.Row="1"
             x:Name="MsgList"
             ItemsSource="{Binding Messages}"
             ItemTemplate="{StaticResource TemplateSelector}">
@@ -69,17 +92,19 @@
                 <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="8">
                     <Label Text="🀄" FontSize="40" HorizontalTextAlignment="Center" />
                     <Label Text="道码 · 手机编程智能体" FontSize="16" FontAttributes="Bold" HorizontalTextAlignment="Center" />
-                    <Label Text="问点什么，或去「文件」页导入项目" FontSize="13" TextColor="{AppThemeBinding Light=#888888, Dark=#999999}" HorizontalTextAlignment="Center" />
+                    <Label Text="问点什么，或去「文件」页导入项目" FontSize="13" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
             </CollectionView.EmptyView>
         </CollectionView>
 
         <!-- 底部输入栏：语音 / 图片 / 输入框 / 发送 -->
-        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto" Padding="8,6" ColumnSpacing="6">
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*,Auto" Padding="8,6" ColumnSpacing="6">
             <Button
                 x:Name="VoiceBtn"
                 Text="🎤"
                 FontSize="18"
+                BackgroundColor="Transparent"
+                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
                 Clicked="OnVoiceClicked"
                 VerticalOptions="End"
                 SemanticProperties.Hint="语音转文字" />
@@ -88,16 +113,23 @@
                 Grid.Column="1"
                 Text="📷"
                 FontSize="18"
+                BackgroundColor="Transparent"
+                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
                 Clicked="OnImageClicked"
                 VerticalOptions="End"
                 SemanticProperties.Hint="拍照或选图让模型看图" />
-            <Editor
-                x:Name="InputBox"
-                Grid.Column="2"
-                Placeholder="问点什么…"
-                AutoSize="TextChanges"
-                MaxLength="8000"
-                VerticalOptions="End" />
+            <Border Grid.Column="2" BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0" Margin="0,0,0,4">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="20" />
+                </Border.StrokeShape>
+                <Editor
+                    x:Name="InputBox"
+                    Placeholder="问点什么…"
+                    AutoSize="TextChanges"
+                    MaxLength="8000"
+                    Margin="12,0"
+                    VerticalOptions="Center" />
+            </Border>
             <Button
                 x:Name="SendBtn"
                 Grid.Column="3"

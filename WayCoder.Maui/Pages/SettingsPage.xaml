@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="WayCoder.Maui.Pages.SettingsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="设置">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16,12" Spacing="10">
+
+            <!-- ═══ 连接 ═══ -->
+            <Label Text="连接" FontSize="12" FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Padding="14,8" Spacing="6">
+                    <Label Text="服务商" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="ProviderPicker" Title="选择服务商"
+                            TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
+                            ItemDisplayBinding="{Binding DisplayName}"
+                            SelectedIndexChanged="OnProviderChanged" />
+
+                    <Label Text="模型" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="ModelPicker" Title="选择模型"
+                            TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
+                            ItemDisplayBinding="{Binding DisplayName}" />
+
+                    <Label Text="接口地址 BaseUrl（留空用服务商默认）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+                        <Entry x:Name="BaseUrlEntry" Placeholder="https://api.example.com/v1" Margin="10,2" />
+                    </Border>
+
+                    <Label Text="API Key（留空保留原 Key）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+                        <Entry x:Name="KeyEntry" IsPassword="True" Placeholder="sk-..." Margin="10,2" />
+                    </Border>
+                    <Label x:Name="KeyStatusLabel" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- ═══ 参数 ═══ -->
+            <Label Text="参数" FontSize="12" FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Padding="14,8" Spacing="6">
+                    <Label Text="MaxTokens（最大输出 token）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+                        <Entry x:Name="MaxTokensEntry" Keyboard="Numeric" Placeholder="32768" Margin="10,2" />
+                    </Border>
+
+                    <Label Text="Temperature（温度）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+                        <Entry x:Name="TemperatureEntry" Keyboard="Numeric" Placeholder="0.1" Margin="10,2" />
+                    </Border>
+
+                    <Label Text="经济模式" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="EconomyPicker" Title="经济模式"
+                            TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Button x:Name="SaveBtn" Text="保存配置" Clicked="OnSaveClicked" Margin="0,14,0,0" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

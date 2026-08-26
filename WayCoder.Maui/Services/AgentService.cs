@@ -12,8 +12,10 @@ namespace WayCoder.Maui.Services;
 /// </summary>
 public sealed class AgentService
 {
-    private readonly object _lock = new();
-    private Agent? _agent;
+    // 单槽位 Agent 全局共享：移动端只有一个智能体（AgentId="maui-slot-0"）。
+    // 静态化保证 SettingsPage 改配置后 Reset 对 ChatPage 持有的实例同样生效。
+    private static readonly object _lock = new();
+    private static Agent? _agent;
 
     /// <summary>当前会话是否正在运行（供 UI「停止」按钮 / 防重入）。</summary>
     public bool IsRunning { get; private set; }
@@ -48,8 +50,9 @@ public sealed class AgentService
         }
     }
 
-    /// <summary>丢弃已建 Agent（用户在设置页改了模型/Key 后调用，下次发送按新配置重建）。</summary>
-    public void Reset() => _agent = null;
+    /// <summary>丢弃已建 Agent（用户在设置页改了模型/Key 后调用，下次发送按新配置重建）。
+    /// 静态：单槽位共享，任意 AgentService 实例调用都重置全局 Agent。</summary>
+    public static void Reset() => _agent = null;
 
     /// <summary>发起一轮对话。onToken/onTool/onToolOutput 回调保证在 UI 线程执行。</summary>
     public async Task<string> ChatAsync(

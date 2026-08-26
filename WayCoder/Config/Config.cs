@@ -1193,8 +1193,7 @@ public class Config
     /// </summary>
     private void SaveMinimalDotEnv()
     {
-        var envPath = FindEnvFile() ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".waycoder", ".env");
+        var envPath = FindEnvFile() ?? Global.GlobalConfigPath(".env");
         var dir = Path.GetDirectoryName(envPath);
         if (dir != null) Directory.CreateDirectory(dir);
         var lines = File.Exists(envPath) ? File.ReadAllLines(envPath).ToList() : [];
@@ -1358,7 +1357,7 @@ public class Config
     private static string? FindEnvFile()
     {
         var current = Directory.GetCurrentDirectory();
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var home = Global.Home;
 
         while (true)
         {

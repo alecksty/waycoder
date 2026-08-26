@@ -38,6 +38,36 @@ public partial class ChatPage : ContentPage
         BindingContext = this;
     }
 
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        RefreshModelBar();
+    }
+
+    /// <summary>顶部模型条显示当前生效模型。</summary>
+    private void RefreshModelBar() => ModelBar.Text = $"🧠 模型：{Config.Instance.Model}";
+
+    /// <summary>点模型条 → ActionSheet 列出当前服务商模型，选中即切换（连接层统一入口）。</summary>
+    private async void OnModelBarTapped(object? sender, TappedEventArgs e)
+    {
+        var pid = Config.Instance.Provider.ToLowerInvariant();
+        var models = ModelCatalog.ByProvider(pid).ToList();
+        if (models.Count == 0)
+        {
+            await DisplayAlertAsync("无可用模型", $"服务商 {pid} 没有可用模型，请先到「设置」选择。", "确定");
+            return;
+        }
+
+        var options = models.Select(m => $"{m.DisplayName}（{m.Id}）").ToArray();
+        var chosen = await DisplayActionSheetAsync("选择模型", "取消", null, options);
+        if (string.IsNullOrEmpty(chosen) || chosen == "取消") return;
+
+        var model = models.First(m => $"{m.DisplayName}（{m.Id}）" == chosen);
+        ConnectionConfig.ApplyModelChoice(pid, model.Id, isLarge: true, out _);
+        AgentService.Reset();
+        RefreshModelBar();
+    }
+
     private async void OnSendClicked(object? sender, EventArgs e)
     {
         // 运行中再点 = 停止
@@ -50,10 +80,11 @@ public partial class ChatPage : ContentPage
         var text = InputBox.Text?.Trim();
         if (string.IsNullOrEmpty(text)) return;
 
-        // 未配置 Key 时引导（M5 做设置页，此处先提示）
+        // 未配置 Key 时引导去设置页
         if (string.IsNullOrEmpty(Config.Instance.ApiKey))
         {
-            await DisplayAlertAsync("尚未配置", "请先在「设置」填入服务商与 API Key。", "知道了");
+            var action = await DisplayActionSheetAsync("尚未配置 API Key", "稍后", null, "去设置");
+            if (action == "去设置") await Shell.Current.GoToAsync("//settings");
             return;
         }
 
