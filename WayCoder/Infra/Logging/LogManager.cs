@@ -28,7 +28,7 @@ public static class LogManager
     /// <summary>默认日志目录。未显式指定时，Unix 用 ~/.waycoder/logs，否则 ./logs。</summary>
     public static string DefaultDirectory()
     {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var home = Global.Home;
         return string.IsNullOrEmpty(home)
             ? System.IO.Path.Combine(Environment.CurrentDirectory, "logs")
             : System.IO.Path.Combine(home, ".waycoder", "logs");

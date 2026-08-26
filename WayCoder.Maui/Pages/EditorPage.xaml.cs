@@ -28,6 +28,12 @@ public partial class EditorPage : ContentPage
     private bool _modified;
     private bool _loading; // 装载时抑制 TextChanged 把初值误标为「已修改」
 
+    // 撤销/重做历史（基于文本快照；MAUI Editor 无原生 Undo/Redo，自维护栈）
+    private readonly List<string> _undoStack = new();
+    private readonly List<string> _redoStack = new();
+    private bool _applyingHistory; // 程序化设置文本时置位，避免污染历史
+    private const int MaxHistory = 200;
+
     public EditorPage()
     {
         InitializeComponent();
@@ -55,6 +61,8 @@ public partial class EditorPage : ContentPage
         FileLabel.Text = relPath;
         Title = Path.GetFileName(relPath);
         _modified = false;
+        _undoStack.Clear();
+        _redoStack.Clear();
         _loading = false;
         UpdateStatus();
     }
@@ -62,6 +70,15 @@ public partial class EditorPage : ContentPage
     private void OnTextChanged(object? sender, TextChangedEventArgs e)
     {
         if (_loading) return;
+
+        // 程序化设置文本（撤销/重做/装载）不记录历史，避免栈污染
+        if (!_applyingHistory)
+        {
+            _undoStack.Add(e.OldTextValue ?? "");
+            if (_undoStack.Count > MaxHistory) _undoStack.RemoveAt(0);
+            _redoStack.Clear(); // 新编辑清空重做分支
+        }
+
         _modified = true;
         UpdateStatus();
     }
@@ -80,6 +97,57 @@ public partial class EditorPage : ContentPage
         {
             await DisplayAlertAsync("保存失败", ex.Message, "关闭");
         }
+    }
+
+    /// <summary>撤销：弹出上一快照恢复，当前文本入重做栈。</summary>
+    private void OnUndoClicked(object? sender, EventArgs e)
+    {
+        if (_undoStack.Count == 0) return;
+        _applyingHistory = true;
+        _redoStack.Add(CodeEditor.Text ?? "");
+        var prev = _undoStack[^1];
+        _undoStack.RemoveAt(_undoStack.Count - 1);
+        CodeEditor.Text = prev;
+        _applyingHistory = false;
+        _modified = true;
+        UpdateStatus();
+    }
+
+    /// <summary>重做：弹出下一快照恢复，当前文本入撤销栈。</summary>
+    private void OnRedoClicked(object? sender, EventArgs e)
+    {
+        if (_redoStack.Count == 0) return;
+        _applyingHistory = true;
+        _undoStack.Add(CodeEditor.Text ?? "");
+        var next = _redoStack[^1];
+        _redoStack.RemoveAt(_redoStack.Count - 1);
+        CodeEditor.Text = next;
+        _applyingHistory = false;
+        _modified = true;
+        UpdateStatus();
+    }
+
+    /// <summary>查找：从光标处向后搜索，未命中则从头循环，选中首个匹配并聚焦。</summary>
+    private async void OnFindClicked(object? sender, EventArgs e)
+    {
+        var text = CodeEditor.Text ?? "";
+        if (string.IsNullOrEmpty(text)) return;
+
+        var query = await DisplayPromptAsync("查找", "输入要查找的文本", accept: "查找", cancel: "取消", maxLength: 100);
+        if (string.IsNullOrWhiteSpace(query)) return;
+
+        var from = Math.Clamp(CodeEditor.CursorPosition, 0, text.Length);
+        var idx = text.IndexOf(query, from, StringComparison.Ordinal);
+        if (idx < 0) idx = text.IndexOf(query, 0, StringComparison.Ordinal); // 循环回开头
+        if (idx < 0)
+        {
+            await DisplayAlertAsync("查找", $"未找到「{query}」", "关闭");
+            return;
+        }
+
+        CodeEditor.CursorPosition = idx;
+        CodeEditor.SelectionLength = query.Length;
+        CodeEditor.Focus();
     }
 
     /// <summary>提取大纲并让用户点选跳行。</summary>

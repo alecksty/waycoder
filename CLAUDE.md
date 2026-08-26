@@ -223,6 +223,24 @@ WayCoder 的模式参考 Claude Code / OpenAI Codex / Crush / Aider 划分为**�
 - **Snip 阈值 4000 字符**：裁剪工具输出时保留首尾各 2000 字符 + 错误行（编译错误、异常堆栈），确保 Agent 能看到关键诊断信息
 - **字符串截断必须按码点（Rune）**：禁止用 `[..N]`/`[^N..]` 任意索引切片或逐 `char` 遍历截断——emoji/CJK 扩展 B 是 UTF-16 代理对（2 个 `char`），会切半产生 U+FFFD。统一走 `ContextManager.TruncateByRunes`（截头）/`TruncateTailByRunes`（截尾）/`AnsiString.TruncateByWidth`（按显示宽度）或 `text.EnumerateRunes()`；空格等 BMP 字符定位的 `[..lastSpace]` 切片天然安全，无需改
 
+## Android 项目强制编码约束
+
+> 移动端（`WayCoder.Maui`，.NET MAUI，Android + iOS）涉及权限 / 路径 / 私有存储的代码必须遵守以下 7 条铁律。MAUI 用 `Permissions` / `FileSystem` API 封装了 Android 原生 `checkSelfPermission` / `registerForActivityResult` / `Context.FilesDir`，落地映射随条标注。
+
+1. **危险权限必须双管齐下**：凡用到危险权限（麦克风 / 相机 / 存储 / 通知 / 定位…），必须同时做两件事——① 在 `Platforms/Android/AndroidManifest.xml` 添加对应 `<uses-permission>`；② 写完整运行时权限检查：`Permissions.CheckStatusAsync<T>()`（对应 `checkSelfPermission`）→ 未授权则 `Permissions.RequestAsync<T>()`（MAUI 内部走 `ActivityResult`，对应 `registerForActivityResult`，**禁止直接调废弃的 `requestPermissions`**）→ 处理「拒绝」「不再询问」两种失败场景。示例见 `ChatPage.StartRecordingAsync()`（麦克风）。
+
+2. **禁止硬编码路径**：禁止写死 `/data/data`、`/sdcard` 等字符串路径，一律通过 API 取真实路径——`FileSystem.Current.AppDataDirectory`（对应 `Context.FilesDir`）、`FileSystem.Current.CacheDirectory`（对应 `Context.CacheDir`）、`Platform.AppContext.GetExternalFilesDir(null)`（对应 `Context.ExternalFilesDir`）。
+
+3. **私有存储父目录不可越界**：app 私有目录 `/data/data/[pkg]` 只能访问自己的 `files`/`cache` 子目录，**不能直接枚举 / 访问父目录 `/data/data`**（那是所有 app 的私有数据父目录，无权限，`Directory.GetFiles` 会抛 `UnauthorizedAccessException`）。向上遍历路径时必须在 `Global.Home`（app 私有目录）处停止，或对枚举加 try-catch 兜底（见 `ProjectContext.FindProjectRoot()`）。
+
+4. **权限申请时机**：在调用受保护功能**之前**先校验权限，不要假设权限已授予。每次进入相关功能都要 `CheckStatusAsync`，未授权先申请、再操作。
+
+5. **拒绝权限要有降级逻辑**：用户拒绝权限不能直接崩溃，要给出可用的降级路径（如提示「已取消」、禁用按钮、回退到备选方案）；「不再询问」时提供**跳转系统应用设置页**入口（`AppInfo.Current.ShowSettingsUI()`）。
+
+6. **Android 13+ 用新版权限常量**：通知用 `Permissions.PostNotifications`、照片 / 视频 / 媒体用 `Permissions.Media` / `Permissions.Photos`（对应 Android 13 的 `READ_MEDIA_IMAGES` 等新常量），**不要**用旧的 `READ_EXTERNAL_STORAGE` / `WRITE_EXTERNAL_STORAGE` 存储权限。
+
+7. **输出代码必须完整可编译**：涉及权限的代码必须输出完整样板（manifest 声明 + 运行时检查 + 拒绝降级），**不得省略**任何权限相关样板。
+
 ## 添加新工具 (C# 版)
 
 1. 在 `Tools/` 创建类，实现 `ITool` 接口

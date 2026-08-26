@@ -6,7 +6,7 @@
     xmlns:svc="clr-namespace:WayCoder.Maui.Services"
     Title="文件">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,Auto,*">
 
         <!-- 顶部导航条：返回上级 + 当前路径 + 导入文档 -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Padding="8,4">
@@ -31,9 +31,25 @@
                 Clicked="OnImportClicked" />
         </Grid>
 
+        <!-- 新建文件 / 文件夹 -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,*" Padding="8,2" ColumnSpacing="8">
+            <Button
+                x:Name="NewFileBtn"
+                Grid.Column="0"
+                Text="＋ 新建文件"
+                FontSize="13"
+                Clicked="OnNewFileClicked" />
+            <Button
+                x:Name="NewDirBtn"
+                Grid.Column="1"
+                Text="＋ 新建文件夹"
+                FontSize="13"
+                Clicked="OnNewDirClicked" />
+        </Grid>
+
         <!-- 文件列表 -->
         <CollectionView
-            Grid.Row="1"
+            Grid.Row="2"
             x:Name="FileList"
             SelectionMode="Single"
             SelectionChanged="OnSelectionChanged">

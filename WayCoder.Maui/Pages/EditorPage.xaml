@@ -5,33 +5,54 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     Title="编辑器">
 
-    <Grid RowDefinitions="Auto,*,Auto">
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
 
-        <!-- 顶部工具条：文件名 + 大纲 + 保存 -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Padding="8,4" ColumnSpacing="6">
-            <Label
-                x:Name="FileLabel"
-                Text=""
-                VerticalOptions="Center"
-                FontSize="13"
-                LineBreakMode="TailTruncation" />
+        <!-- 文件名 -->
+        <Label
+            Grid.Row="0"
+            x:Name="FileLabel"
+            Text=""
+            VerticalOptions="Center"
+            FontSize="13"
+            Padding="8,4,8,0"
+            LineBreakMode="TailTruncation" />
+
+        <!-- 编辑工具条：撤销 / 重做 / 查找 / 大纲 / 保存 -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*" Padding="8,2" ColumnSpacing="4">
+            <Button
+                x:Name="UndoBtn"
+                Text="撤销"
+                FontSize="12"
+                Clicked="OnUndoClicked" />
+            <Button
+                x:Name="RedoBtn"
+                Grid.Column="1"
+                Text="重做"
+                FontSize="12"
+                Clicked="OnRedoClicked" />
+            <Button
+                x:Name="FindBtn"
+                Grid.Column="2"
+                Text="查找"
+                FontSize="12"
+                Clicked="OnFindClicked" />
             <Button
                 x:Name="OutlineBtn"
-                Grid.Column="1"
+                Grid.Column="3"
                 Text="大纲"
-                FontSize="13"
+                FontSize="12"
                 Clicked="OnOutlineClicked" />
             <Button
                 x:Name="SaveBtn"
-                Grid.Column="2"
+                Grid.Column="4"
                 Text="保存"
-                FontSize="13"
+                FontSize="12"
                 Clicked="OnSaveClicked" />
         </Grid>
 
         <!-- 编辑区（触控软键盘） -->
         <Editor
-            Grid.Row="1"
+            Grid.Row="2"
             x:Name="CodeEditor"
             TextChanged="OnTextChanged"
             AutoSize="TextChanges"
@@ -39,7 +60,7 @@
 
         <!-- 状态栏：行列 / 字符数 / 修改标记 -->
         <Label
-            Grid.Row="2"
+            Grid.Row="3"
             x:Name="StatusLabel"
             FontSize="11"
             Padding="8,4"

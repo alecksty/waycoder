@@ -48,13 +48,28 @@ public static class SystemPrompt
         var os = $"{RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})";
         var dotnetVersion = Environment.Version.ToString();
 
-        var instructions = ProjectContext.LoadInstructions();
-        var project = ProjectContext.DetectProject();
-        var projectCtx = project.ToMarkdown();
-        var repoMap = RepoMapGenerator.Generate();
+        // 移动端各项目检测均可能因无权限目录（如 /data/data）抛 UnauthorizedAccessException，
+        // 逐个 try-catch 降级：失败只记录日志并跳过，不阻断对话（桌面端行为不变）。
+        string instructions;
+        try { instructions = ProjectContext.LoadInstructions(); }
+        catch (Exception ex) { ErrorLog.Error("SystemPrompt", "LoadInstructions 失败", ex); instructions = ""; }
 
-        var gitSection = GenerateGitStatus();
-        var skillsSection = SkillsManager.GetSkillsXml();
+        ProjectInfo project;
+        try { project = ProjectContext.DetectProject(); }
+        catch (Exception ex) { ErrorLog.Error("SystemPrompt", "DetectProject 失败", ex); project = new ProjectInfo(); }
+        var projectCtx = project.ToMarkdown();
+
+        string repoMap;
+        try { repoMap = RepoMapGenerator.Generate(); }
+        catch (Exception ex) { ErrorLog.Error("SystemPrompt", "RepoMap 失败", ex); repoMap = ""; }
+
+        string gitSection;
+        try { gitSection = GenerateGitStatus(); }
+        catch (Exception ex) { ErrorLog.Error("SystemPrompt", "GitStatus 失败", ex); gitSection = ""; }
+
+        string skillsSection;
+        try { skillsSection = SkillsManager.GetSkillsXml(); }
+        catch (Exception ex) { ErrorLog.Error("SystemPrompt", "GetSkillsXml 失败", ex); skillsSection = ""; }
         if (!string.IsNullOrEmpty(skillsSection))
             skillsSection = "\n" + skillsSection;
 

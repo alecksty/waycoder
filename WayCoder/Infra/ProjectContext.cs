@@ -69,7 +69,7 @@ public static class ProjectContext
         var results = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var current = Directory.GetCurrentDirectory();
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var home = Global.Home;
 
         while (true)
         {
@@ -109,10 +109,24 @@ public static class ProjectContext
     private static string FindProjectRoot()
     {
         var current = Directory.GetCurrentDirectory();
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var home = Global.Home;
 
         while (true)
         {
+            // 移动端（Android/iOS）向上遍历会越过 app 私有目录到系统目录（如 /data/data），
+            // Directory.GetFiles 枚举无权限目录抛 UnauthorizedAccessException —— 需 try-catch 兜底，
+            // 无权限视为「无项目标志」继续向上/停止（不阻断项目检测）。
+            bool hasProjectMarker;
+            try
+            {
+                hasProjectMarker = Directory.GetFiles(current, "*.csproj").Length > 0
+                    || Directory.GetFiles(current, "*.sln").Length > 0;
+            }
+            catch (Exception)
+            {
+                hasProjectMarker = false;
+            }
+
             // 检测项目标志文件（.git 在普通仓库是目录、在 worktree/submodule 是文件，需两者都判）
             if (Directory.Exists(Path.Combine(current, ".git"))
                 || File.Exists(Path.Combine(current, ".git"))
@@ -120,8 +134,7 @@ public static class ProjectContext
                 || File.Exists(Path.Combine(current, "go.mod"))
                 || File.Exists(Path.Combine(current, "Cargo.toml"))
                 || File.Exists(Path.Combine(current, "pyproject.toml"))
-                || Directory.GetFiles(current, "*.csproj").Length > 0
-                || Directory.GetFiles(current, "*.sln").Length > 0)
+                || hasProjectMarker)
             {
                 return current;
             }

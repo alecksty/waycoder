@@ -59,7 +59,7 @@ public static class PathStatus
     {
         try
         {
-            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var home = WayCoder.Global.Home;
             if (!string.IsNullOrEmpty(home))
             {
                 var normDir = dir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);

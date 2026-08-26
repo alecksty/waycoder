@@ -202,7 +202,7 @@ public static class SkillsManager
     {
         var result = new List<string>();
         var cwd = Environment.CurrentDirectory;
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var home = Global.Home;
 
         var dir = cwd;
         while (dir != null)

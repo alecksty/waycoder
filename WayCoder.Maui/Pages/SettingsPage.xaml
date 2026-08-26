@@ -101,6 +101,20 @@
                 </VerticalStackLayout>
             </Border>
 
+            <!-- ═══ 权限 ═══ -->
+            <Label Text="权限（何时打断确认）" FontSize="12" FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Padding="14,8" Spacing="6">
+                    <Label Text="确认模式（Yolo = 不打断，适合信任沙箱内操作）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="PermModePicker" Title="确认模式"
+                            TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                </VerticalStackLayout>
+            </Border>
+
             <!-- ═══ 语音 ═══ -->
             <Label Text="语音（语音输入转录）" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
