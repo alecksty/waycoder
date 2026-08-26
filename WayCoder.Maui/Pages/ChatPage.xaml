@@ -72,15 +72,16 @@
             <Border.StrokeShape>
                 <RoundRectangle CornerRadius="10" />
             </Border.StrokeShape>
+            <!-- 点击手势挂在 Border（容器）上而非 Label：MAUI Label 的 TapGestureRecognizer
+                 在 Android 上不响应（原生 TextView clickable=false），导致模型选择窗口弹不出。 -->
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnModelBarTapped" />
+            </Border.GestureRecognizers>
             <Label x:Name="ModelBar"
                    FontSize="13"
                    TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
                    HorizontalOptions="Start"
-                   VerticalOptions="Center">
-                <Label.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnModelBarTapped" />
-                </Label.GestureRecognizers>
-            </Label>
+                   VerticalOptions="Center" />
         </Border>
 
         <CollectionView
