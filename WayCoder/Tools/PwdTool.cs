@@ -16,7 +16,7 @@ public class PwdTool : ITool
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
-        var cwd = BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory();
+        var cwd = CwdContext.Current.Value ?? Directory.GetCurrentDirectory();
         return Task.FromResult(cwd);
     }
 }

@@ -53,12 +53,13 @@ public class FindReplaceTool : ITool
         var maxPerFile = ToolArgs.GetInt(arguments, "max_per_file", 10);
         var ignoreCase = !arguments.TryGetValue("ignore_case", out var ic) || ic is not bool icb || icb;
         var dryRun = !arguments.TryGetValue("dry_run", out var dr) || dr is not bool drb || drb;
+        var agentId = arguments.GetValueOrDefault("_agent_id")?.ToString() ?? "main";
 
-        return Task.FromResult(Execute(path, pattern, replacement, glob, maxFiles, maxPerFile, ignoreCase, dryRun));
+        return Task.FromResult(Execute(path, pattern, replacement, glob, maxFiles, maxPerFile, ignoreCase, dryRun, agentId));
     }
 
     private static string Execute(string? path, string pattern, string? replacement,
-        string glob, int maxFiles, int maxPerFile, bool ignoreCase, bool dryRun)
+        string glob, int maxFiles, int maxPerFile, bool ignoreCase, bool dryRun, string agentId)
     {
         if (string.IsNullOrEmpty(pattern))
             return "错误：pattern 参数不能为空";
@@ -69,8 +70,8 @@ public class FindReplaceTool : ITool
 
         try
         {
-            path ??= BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory();
-            path = Path.GetFullPath(path, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
+            path ??= CwdContext.Current.Value ?? Directory.GetCurrentDirectory();
+            path = Path.GetFullPath(path, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
             if (!Directory.Exists(path))
                 return $"错误：目录不存在 — {path}";
 
@@ -152,15 +153,30 @@ public class FindReplaceTool : ITool
                         var sandbox = SandboxManager.CheckWritable(file);
                         if (sandbox != null) { sb.AppendLine($"  ⛔ {sandbox}"); continue; }
 
-                        // 用 MatchEvaluator 返回字面量，避免 replacement 中的 '$' 被解析为
-                        // 正则替换符（如 "cost $10" 会因组不存在抛 ArgumentException 被吞）。
-                        var newContent = regex.Replace(content, m => replacement!);
-                        Global.WriteAllTextPreserveBom(file, newContent);
-                        // 纳入变更追踪（与 write/edit/multiedit 对齐：自动 commit 精准暂存 + FileTracker 哈希）
-                        EditFileTool.RecordChange(file, content, newContent);
-                        FileTracker.RecordWrite(file);
-                        filesChanged++;
-                        sb.AppendLine($"  ✔ 已替换");
+                        // 敏感路径防护（防批量改写 .env/id_rsa/.git/config 等敏感文件）
+                        var sensitive = PathSafety.CheckSensitive(file);
+                        if (sensitive != null) { sb.AppendLine($"  ❌ 已阻止：{sensitive}（敏感文件受保护）"); continue; }
+
+                        // 文件锁（防多 Agent 并发改写同一文件）
+                        var lockErr = FileLockManager.TryAcquireOrError(file, agentId, "请等待锁释放");
+                        if (lockErr != null) { sb.AppendLine($"  ❌ {lockErr}"); continue; }
+
+                        try
+                        {
+                            // 用 MatchEvaluator 返回字面量，避免 replacement 中的 '$' 被解析为
+                            // 正则替换符（如 "cost $10" 会因组不存在抛 ArgumentException 被吞）。
+                            var newContent = regex.Replace(content, m => replacement!);
+                            Global.WriteAllTextPreserveBom(file, newContent);
+                            // 纳入变更追踪（与 write/edit/multiedit 对齐：自动 commit 精准暂存 + FileTracker 哈希）
+                            EditFileTool.RecordChange(file, content, newContent);
+                            FileTracker.RecordWrite(file);
+                            filesChanged++;
+                            sb.AppendLine($"  ✔ 已替换");
+                        }
+                        finally
+                        {
+                            FileLockManager.Release(file, agentId);
+                        }
                     }
 
                     sb.AppendLine();

@@ -89,64 +89,70 @@ public class Config
     // 单例
     // ════════════════════════════════════════════════════════════
 
-    /// <summary>全局配置单例（首次访问时初始化）</summary>
-    public static Config Instance
+    /// <summary>全局配置单例（首次访问时线程安全地完整初始化后发布）</summary>
+    public static Config Instance => _instance.Value;
+
+    /// <summary>
+    /// 懒加载单例：完整初始化（加载 .env / schema / config.json / ApiKey 解析 / 迁移 / 同步）
+    /// 全部完成后才由 Lazy 发布，避免并发首次访问读到半初始化的 Config（原实现 _instance 在初始化中途赋值，
+    /// 另一线程可能读到缺失 config.json 覆盖与 ApiKey 的实例）。
+    /// </summary>
+    private static Lazy<Config> _instance = new(CreateInstance);
+
+    private static Config CreateInstance()
     {
-        get
+        LoadDotEnv();
+        var cfg = new Config();
+
+        // Schema 驱动的批量加载
+        foreach (var p in _schema)
         {
-            if (_instance == null)
+            var val = Env(p.EnvVar, p.OldEnvVar);
+            if (!string.IsNullOrEmpty(val))
             {
-                LoadDotEnv();
-                _instance = new Config();
-                // Schema 驱动的批量加载
-                foreach (var p in _schema)
-                {
-                    var val = Env(p.EnvVar, p.OldEnvVar);
-                    if (!string.IsNullOrEmpty(val))
-                    {
-                        try { p.Setter(_instance, val); }
-                        catch { /* 非法值（如 WAYCODER_MAX_TOKENS=abc）忽略，保留默认值，避免启动崩溃 */ }
-                    }
-                }
-                // config.json 优先：覆盖 .env / 环境变量注入的值（优先级 config.json > .env > 环境变量）
-                _instance.LoadConfigJson();
-
-                // 特殊处理：ApiKey 解析 —— 一个服务商一个 key，key 跟服务商走（不跟模型走）。
-                // 优先级：全局 JSON（按当前服务商）> .env WAYCODER_API_KEY > 各家 API_KEY 环境变量。
-                var providerKey = ApiKeyStore.Get(_instance.Provider) ?? ApiKeyStore.ForModel(_instance.Model);
-                if (!string.IsNullOrWhiteSpace(providerKey))
-                {
-                    _instance.ApiKey = providerKey;
-                }
-                else if (string.IsNullOrEmpty(_instance.ApiKey))
-                {
-                    // json 为空时才用环境变量 key（默认优先 api_keys.json，env 只补空不覆盖）
-                    _instance.ApiKey = ApiKeyStore.EnvKey(_instance.Provider)
-                        ?? Environment.GetEnvironmentVariable("API_KEY")
-                        ?? "";
-                }
-                // 特殊处理：BaseUrl 多路回退
-                if (string.IsNullOrEmpty(_instance.BaseUrl))
-                {
-                    _instance.BaseUrl = Environment.GetEnvironmentVariable("OPENAI_BASE_URL");
-                }
-
-                // 首次启动迁移：config.json 不存在但 .env 存在 → 生成 config.json 并精简 .env
-                _instance.MigrateToConfigJsonIfNeeded();
-
-                // 每次启动：全局 config.json 有更新则同步一份到项目本地，防止意外损坏
-                _instance.SyncConfigJsonToLocal();
+                try { p.Setter(cfg, val); }
+                catch { /* 非法值（如 WAYCODER_MAX_TOKENS=abc）忽略，保留默认值，避免启动崩溃 */ }
             }
-            return _instance;
         }
+
+        // config.json 优先：覆盖 .env / 环境变量注入的值（优先级 config.json > .env > 环境变量）
+        cfg.LoadConfigJson();
+
+        // 特殊处理：ApiKey 解析 —— 一个服务商一个 key，key 跟服务商走（不跟模型走）。
+        // 优先级：全局 JSON（按当前服务商）> .env WAYCODER_API_KEY > 各家 API_KEY 环境变量。
+        var providerKey = ApiKeyStore.Get(cfg.Provider) ?? ApiKeyStore.ForModel(cfg.Model);
+        if (!string.IsNullOrWhiteSpace(providerKey))
+        {
+            cfg.ApiKey = providerKey;
+        }
+        else if (string.IsNullOrEmpty(cfg.ApiKey))
+        {
+            // json 为空时才用环境变量 key（默认优先 api_keys.json，env 只补空不覆盖）
+            cfg.ApiKey = ApiKeyStore.EnvKey(cfg.Provider)
+                ?? Environment.GetEnvironmentVariable("API_KEY")
+                ?? "";
+        }
+
+        // 特殊处理：BaseUrl 多路回退
+        if (string.IsNullOrEmpty(cfg.BaseUrl))
+        {
+            cfg.BaseUrl = Environment.GetEnvironmentVariable("OPENAI_BASE_URL");
+        }
+
+        // 首次启动迁移：config.json 不存在但 .env 存在 → 生成 config.json 并精简 .env
+        cfg.MigrateToConfigJsonIfNeeded();
+
+        // 每次启动：全局 config.json 有更新则同步一份到项目本地，防止意外损坏
+        cfg.SyncConfigJsonToLocal();
+
+        return cfg;
     }
-    private static Config? _instance;
 
     /// <summary>.env 写文件锁：Web 设置面板可能并发 POST 多项设置，串行化读改写防止文件锁冲突（IOException）。</summary>
     private static readonly object SaveLock = new();
 
     /// <summary>重新加载配置（读取最新的环境变量和 .env 文件）</summary>
-    public static void Reload() { _instance = null; }
+    public static void Reload() => _instance = new Lazy<Config>(CreateInstance);
 
     /// <summary>从环境变量加载配置（兼容旧调用，返回单例）</summary>
     public static Config FromEnv() => Instance;

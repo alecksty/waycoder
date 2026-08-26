@@ -26,6 +26,16 @@ public static class SessionManager
     private static string SessionsDirFor(int slot)
         => slot < 0 ? SessionsDir : Path.Combine(SessionsDir, $"slot{slot}");
 
+    /// <summary>原子写会话文件：先写临时文件再同卷替换，避免进程崩溃/断电留下半截损坏的会话 JSON。</summary>
+    private static void AtomicWrite(string path, string content)
+    {
+        var dir = Path.GetDirectoryName(path);
+        if (dir != null) Directory.CreateDirectory(dir);
+        var tmp = path + ".tmp";
+        File.WriteAllText(tmp, content);
+        File.Move(tmp, path, overwrite: true); // 同卷原子替换
+    }
+
     /// <summary>
     /// 将对话保存到磁盘。返回会话 ID。
     /// </summary>
@@ -46,7 +56,7 @@ public static class SessionManager
         data.Set("messages", msgArr);
 
         var path = BuildSessionPath(dir, sessionId);
-        File.WriteAllText(path, data.ToJson(true));
+        AtomicWrite(path, data.ToJson(true));
 
         return sessionId;
     }
@@ -152,7 +162,7 @@ public static class SessionManager
                 data.Set("id", newIdNormalized);
                 data.Set("saved_at", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             }
-            File.WriteAllText(newPath, data?.ToJson(true) ?? json);
+            AtomicWrite(newPath, data?.ToJson(true) ?? json);
 
             // 删除旧文件（如果路径不同）
             if (!string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))

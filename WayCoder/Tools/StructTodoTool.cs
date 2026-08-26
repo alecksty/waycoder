@@ -38,7 +38,7 @@ public class StructTodoTool : ITool
         .Set("required", JNode.Array().Add("action"));
 
     private static string StorePath => Path.Combine(
-        BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory(), ".waycoder", "todos.json"); // cd 后基于被跟踪工作目录，而非进程启动目录
+        CwdContext.Current.Value ?? Directory.GetCurrentDirectory(), ".waycoder", "todos.json"); // cd 后基于被跟踪工作目录，而非进程启动目录
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

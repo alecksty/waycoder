@@ -28,6 +28,8 @@ public static class ErrorLog
     private static Timer? _flushTimer;
     private static volatile bool _initialized;
     private static volatile bool _catchAllExceptions;
+    /// <summary>FirstChance 重入保护（线程本地）：Write 内部若再抛异常会再次触发 FirstChanceException，须阻断递归。</summary>
+    [ThreadStatic] private static bool _inFirstChance;
 
     /// <summary>缓冲区最大条目数（达到后自动刷盘）</summary>
     private const int BufferFlushSize = 20;
@@ -322,20 +324,31 @@ public static class ErrorLog
     /// </summary>
     private static void OnFirstChanceException(object? sender, FirstChanceExceptionEventArgs e)
     {
-        // 过滤噪音：忽略常见非致命异常
-        var ex = e.Exception;
-        if (FCEFilter(ex)) return;
+        // 重入保护：Write 内部抛出的异常会再次触发 FirstChanceException，
+        // 若不阻断会无限递归（记录日志 → 抛异常 → 触发 FirstChance → 再记录…）。
+        if (_inFirstChance) return;
+        _inFirstChance = true;
+        try
+        {
+            // 过滤噪音：忽略常见非致命异常
+            var ex = e.Exception;
+            if (FCEFilter(ex)) return;
 
-        // 使用 Error 级别（这些异常可能被上层 catch 处理，
-        // 但我们仍然记录它们以便发现隐藏问题）
-        Write(Level.Info, "FirstChance",
-            $"{ex.GetType().Name}: {ex.Message}",
-            null,
-            new Dictionary<string, object?>
-            {
-                ["source"] = ex.Source ?? "?",
-                ["hresult"] = $"0x{ex.HResult:X8}"
-            });
+            // 使用 Error 级别（这些异常可能被上层 catch 处理，
+            // 但我们仍然记录它们以便发现隐藏问题）
+            Write(Level.Info, "FirstChance",
+                $"{ex.GetType().Name}: {ex.Message}",
+                null,
+                new Dictionary<string, object?>
+                {
+                    ["source"] = ex.Source ?? "?",
+                    ["hresult"] = $"0x{ex.HResult:X8}"
+                });
+        }
+        finally
+        {
+            _inFirstChance = false;
+        }
     }
 
     /// <summary>

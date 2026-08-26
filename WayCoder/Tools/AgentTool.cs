@@ -306,9 +306,9 @@ public class AgentTool : ITool, ICancellableTool
         // 子智能体轮次：随深度递减（顶层上限可配置）
         var subRounds = Math.Max(5, Config.Instance.SubAgentMaxRounds - depth * 5);
 
-        // 子智能体 cd 泄漏防护：BashTool.CurrentCwd 是 static AsyncLocal，子智能体内部 cd 会
+        // 子智能体 cd 泄漏防护：CwdContext.Current 是 static AsyncLocal，子智能体内部 cd 会
         // 沿同一 async 上下文回传污染父智能体 cwd（后续父 bash/edit 相对路径解析错）——执行前保存父值。
-        var parentCwd = BashTool.CurrentCwd.Value;
+        var parentCwd = CwdContext.Current.Value;
 
         // 明文审计：预先构造任务全文与工具清单，供 finally 统一落盘（成功/失败/中断都留痕）
         var contextSummary = BuildParentContext(depth);
@@ -361,7 +361,7 @@ public class AgentTool : ITool, ICancellableTool
             // 回收子智能体实例的花费统计到父智能体（Clone 后统计独立，否则会丢失）
             parent.LlmClient.MergeUsageFrom(subLLM);
             // 恢复父智能体 cwd（子智能体 cd 污染防护）；父未设过 cwd 时回退进程目录
-            BashTool.CurrentCwd.Value = parentCwd ?? Directory.GetCurrentDirectory();
+            CwdContext.Current.Value = parentCwd ?? Directory.GetCurrentDirectory();
         }
     }
 

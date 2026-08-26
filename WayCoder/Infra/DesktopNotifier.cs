@@ -113,8 +113,10 @@ public static class DesktopNotifier
         try
         {
             // 使用 AppID 的方式仅 Windows 10+ 有效
-            var escapedTitle = title.Replace("'", "''");
-            var escapedMessage = message.Replace("'", "''");
+            // 单引号转义为 PowerShell 字面串 ''；换行/回车/空字节会破坏逐行脚本语法
+            // （message 含 "\r\n Remove-Item ..." 时会在脚本中插入新行执行任意命令），须一并清除。
+            var escapedTitle = SanitizePs(title);
+            var escapedMessage = SanitizePs(message);
 
             var psScript = $@"
 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null
@@ -141,6 +143,19 @@ $toast = [Windows.UI.Notifications.ToastNotification]::new($template)
         {
             return false;
         }
+    }
+
+    /// <summary>净化注入 PowerShell 字符串的文本：单引号→''，控制字符（换行/回车/空字节/ESC）→空格。</summary>
+    private static string SanitizePs(string s)
+    {
+        var sb = new System.Text.StringBuilder(s.Length);
+        foreach (var c in s)
+        {
+            if (c == '\'') sb.Append("''");
+            else if (c is '\r' or '\n' or '\0' or '\x1b' or '\t') sb.Append(' ');
+            else sb.Append(c);
+        }
+        return sb.ToString();
     }
 
     /// <summary>

@@ -23,6 +23,12 @@ public static class DiagnosticManager
     /// <summary>每个文件的诊断结果缓存（后台 lint 写、UI 线程读，需线程安全）</summary>
     private static readonly ConcurrentDictionary<string, List<Diagnostic>> _diagnostics = new();
 
+    /// <summary>缓存插入顺序（用于有界淘汰最旧条目）</summary>
+    private static readonly ConcurrentQueue<string> _cacheOrder = new();
+
+    /// <summary>缓存文件数上限：防止长会话中每个 lint 过的文件永久驻留内存（无界增长）</summary>
+    private const int MaxCachedFiles = 200;
+
     /// <summary>是否启用自动 lint（由 Config.EditorLint 控制）</summary>
     public static bool Enabled { get; set; } = true;
 
@@ -54,7 +60,7 @@ public static class DiagnosticManager
             });
 
             var diagnostics = ParseLintOutput(rawResult, lang, filePath);
-            _diagnostics[filePath] = diagnostics;
+            CacheDiagnostics(filePath, diagnostics);
             return diagnostics;
         }
         catch
@@ -165,6 +171,18 @@ public static class DiagnosticManager
     public static void ClearAll()
     {
         _diagnostics.Clear();
+        _cacheOrder.Clear();
+    }
+
+    /// <summary>
+    /// 写入诊断并维护插入顺序，缓存超过上限时按最旧优先淘汰（防止无界增长）。
+    /// </summary>
+    private static void CacheDiagnostics(string filePath, List<Diagnostic> diagnostics)
+    {
+        _diagnostics[filePath] = diagnostics;
+        _cacheOrder.Enqueue(filePath);
+        while (_cacheOrder.Count > MaxCachedFiles && _cacheOrder.TryDequeue(out var oldest))
+            _diagnostics.TryRemove(oldest, out _);
     }
 
     // ================================================================

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="WayCoder.Maui.Pages.EditorPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="编辑器">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- 顶部工具条：文件名 + 大纲 + 保存 -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Padding="8,4" ColumnSpacing="6">
+            <Label
+                x:Name="FileLabel"
+                Text=""
+                VerticalOptions="Center"
+                FontSize="13"
+                LineBreakMode="TailTruncation" />
+            <Button
+                x:Name="OutlineBtn"
+                Grid.Column="1"
+                Text="大纲"
+                FontSize="13"
+                Clicked="OnOutlineClicked" />
+            <Button
+                x:Name="SaveBtn"
+                Grid.Column="2"
+                Text="保存"
+                FontSize="13"
+                Clicked="OnSaveClicked" />
+        </Grid>
+
+        <!-- 编辑区（触控软键盘） -->
+        <Editor
+            Grid.Row="1"
+            x:Name="CodeEditor"
+            TextChanged="OnTextChanged"
+            AutoSize="TextChanges"
+            FontSize="14" />
+
+        <!-- 状态栏：行列 / 字符数 / 修改标记 -->
+        <Label
+            Grid.Row="2"
+            x:Name="StatusLabel"
+            FontSize="11"
+            Padding="8,4"
+            TextColor="{AppThemeBinding Light=#888888, Dark=#999999}" />
+    </Grid>
+</ContentPage>

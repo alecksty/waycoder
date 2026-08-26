@@ -68,7 +68,7 @@ public class GrepTool : ITool
             return $"无效的正则表达式：{ex.GetType().Name}: {ex.Message}";
         }
 
-        var basePath = Path.GetFullPath(searchPath, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
+        var basePath = Path.GetFullPath(searchPath, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
         if (!File.Exists(basePath) && !Directory.Exists(basePath))
             return $"错误：{searchPath} 未找到";
 

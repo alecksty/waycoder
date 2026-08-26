@@ -1012,11 +1012,12 @@ public partial class Program
         {
             _slots[slotIdx].WorkMode = mode;
             agent.ReapplyToolFilter(); // 计划审批门批准回 Build 等内部切模式后刷新工具集/提示词
-            // 仅当该槽位是活跃槽位时才同步全局镜像与状态栏（后台线程安全：枚举赋值原子）
+            // 仅当该槽位是活跃槽位时才同步全局镜像与状态栏。
+            // 此回调在 Agent 后台线程触发，直接改 StatusBar 会与 UI 线程渲染竞态，须经 PostToUI 投递。
             if (slotIdx == _activeSlot)
             {
                 WorkModeManager.CurrentMode = mode;
-                screen.StatusBar.CurrentWorkMode = mode;
+                screen.PostToUI(() => screen.StatusBar.CurrentWorkMode = mode);
             }
         };
     }
@@ -1262,7 +1263,7 @@ public partial class Program
             StructuredMemory.CurrentSlotIndex = slotIdx;
             // 绑定本槽位工作目录：用槽位持久化的 cwd 初始化（而非继承主线程 null→进程目录），
             // 使每个槽位从自己的目录起步、互不影响；Agent cd 后在此 AsyncLocal 内生效
-            BashTool.CurrentCwd.Value = slot.WorkingDirectory ?? Directory.GetCurrentDirectory();
+            CwdContext.Current.Value = slot.WorkingDirectory ?? Directory.GetCurrentDirectory();
             try
             {
                 await RunSlotAgentAsync(slotIdx, userInput, capturedScreen, ct);
@@ -1276,7 +1277,7 @@ public partial class Program
                 // 持久化本槽位工作目录：Agent cd 后保存，下次任务从该目录起步。
                 // 须在 AsyncLocal 仍绑定于本任务的 ExecutionContext 内读取，读到的是本槽位 Agent 顶层 cd 后的值
                 // （子智能体的 cd 已被 AgentTool 恢复，不会污染此值）
-                slot.WorkingDirectory = BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory();
+                slot.WorkingDirectory = CwdContext.Current.Value ?? Directory.GetCurrentDirectory();
 
                 // 必须先摘除 Cts 再置 IsBusy=false：若反过来，二者之间 UI 线程看到 IsBusy=false
                 // 会启动新任务写入新的 Cts，此处的 Exchange 会把新任务的 Cts 摘走并 Dispose，
@@ -1284,8 +1285,13 @@ public partial class Program
                 // 原子摘除并释放 CancellationTokenSource，避免泄漏；Esc 中断路径读到 null 即 no-op，杜绝 dispose 竞态
                 Interlocked.Exchange(ref slot.Cts, null)?.Dispose();
                 slot.IsBusy = false;
-                if (capturedScreen.SlotStates[slotIdx] != SlotState.Error)
-                    capturedScreen.SlotStates[slotIdx] = SlotState.Idle;
+                // 后台线程不直接写 UI 数组：投递到 UI 线程执行，检查与写入在同一队列内 FIFO，
+                // 保证 RunSlotAgentAsync 里先投递的 Error（若有）先被消费，此处的 Idle 检查才能正确跳过。
+                capturedScreen.PostToUI(() =>
+                {
+                    if (capturedScreen.SlotStates[slotIdx] != SlotState.Error)
+                        capturedScreen.SlotStates[slotIdx] = SlotState.Idle;
+                });
             }
         });
     }
@@ -1388,7 +1394,7 @@ public partial class Program
                 Route(cs => { cs.Running = false; cs.FinishAgentMsg(); cs.AddSystemMsg(cancelMsg); },
                       s => { s.BufferedFinishStream(); s.BufferedAddMsg("system", cancelMsg); });
                 if (!cancelled)
-                    screen.SlotStates[slotIdx] = SlotState.Error;
+                    screen.PostToUI(() => screen.SlotStates[slotIdx] = SlotState.Error);
                 break;
             }
             catch (Exception ex) when (attempt < modelStack.Length - 1)
@@ -1402,7 +1408,7 @@ public partial class Program
             {
                 Route(cs => { cs.Running = false; cs.FinishAgentMsg(); cs.AddSystemMsg($"  💔 所有模型均失败: {ex.Message}"); },
                       s => { s.BufferedFinishStream(); s.BufferedAddMsg("system", $"  💔 所有模型均失败: {ex.Message}"); });
-                screen.SlotStates[slotIdx] = SlotState.Error;
+                screen.PostToUI(() => screen.SlotStates[slotIdx] = SlotState.Error);
                 ErrorLog.Error("Program.REPL", $"所有模型均失败: {ex.Message}", ex);
             }
         }

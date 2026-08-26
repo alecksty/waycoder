@@ -23,11 +23,11 @@ public class LintTool : ITool
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var rawPath = arguments.GetValueOrDefault("path")?.ToString();
-        var path = string.IsNullOrWhiteSpace(rawPath) ? (BashTool.CurrentCwd.Value ?? Environment.CurrentDirectory) : rawPath;
+        var path = string.IsNullOrWhiteSpace(rawPath) ? (CwdContext.Current.Value ?? Environment.CurrentDirectory) : rawPath;
 
         // 解析相对路径
         if (!Path.IsPathRooted(path))
-            path = Path.GetFullPath(path, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
+            path = Path.GetFullPath(path, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
 
         if (!File.Exists(path) && !Directory.Exists(path))
             return $"错误: 路径不存在: {path}";

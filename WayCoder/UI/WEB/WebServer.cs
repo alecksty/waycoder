@@ -73,8 +73,8 @@ public sealed class HttpServer
     private Task? _acceptTask;
     private readonly System.Threading.SemaphoreSlim _connLimiter = new(MaxConnections);
 
-    /// <summary>普通请求处理器（返回 null 表示 404）。</summary>
-    public Func<HttpRequest, HttpResponse?>? OnRequest;
+    /// <summary>普通请求处理器（返回 null 表示 404）。异步委托：处理器内部 await 后返回，避免同步阻塞线程池线程。</summary>
+    public Func<HttpRequest, Task<HttpResponse?>>? OnRequest;
 
     /// <summary>SSE 长连接处理器（阻塞写事件直到客户端断开）。接收请求对象以读取 query（如 client 标识）。</summary>
     public Func<HttpRequest, StreamWriter, Task>? OnSse;
@@ -149,7 +149,8 @@ public sealed class HttpServer
                     return;
                 }
 
-                var resp = OnRequest?.Invoke(req) ?? HttpResponse.NotFound();
+                var resp = OnRequest != null ? await OnRequest.Invoke(req) : HttpResponse.NotFound();
+                if (resp == null) resp = HttpResponse.NotFound();
                 await WriteResponseAsync(stream, resp);
             }
             catch (RequestTooLargeException)

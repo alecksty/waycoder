@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="WayCoder.Maui.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:WayCoder.Maui"
+    xmlns:pages="clr-namespace:WayCoder.Maui.Pages"
+    Title="WayCoder 道码">
+
+    <TabBar>
+        <!-- 对话 Tab：流式对话（M3） -->
+        <Tab Title="对话">
+            <ShellContent ContentTemplate="{DataTemplate pages:ChatPage}" Route="chat" />
+        </Tab>
+        <!-- 文件 Tab：沙箱文件浏览（M2） -->
+        <Tab Title="文件">
+            <ShellContent ContentTemplate="{DataTemplate pages:FilesPage}" Route="files" />
+        </Tab>
+    </TabBar>
+</Shell>
