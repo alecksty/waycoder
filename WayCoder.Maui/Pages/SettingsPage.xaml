@@ -27,6 +27,11 @@
                             TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
                             ItemDisplayBinding="{Binding DisplayName}" />
 
+                    <Label Text="小模型（补全/摘要/压缩，便宜快速）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="SmallModelPicker" Title="选择小模型"
+                            TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
+                            ItemDisplayBinding="{Binding DisplayName}" />
+
                     <Label Text="接口地址 BaseUrl（留空用服务商默认）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
                         <Border.StrokeShape>
@@ -70,9 +75,63 @@
                         <Entry x:Name="TemperatureEntry" Keyboard="Numeric" Placeholder="0.1" Margin="10,2" />
                     </Border>
 
+                    <Label Text="上下文窗口（未知模型兜底，默认 128K）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+                        <Entry x:Name="MaxContextEntry" Keyboard="Numeric" Placeholder="131072" Margin="10,2" />
+                    </Border>
+
+                    <Label Text="预算上限 USD（留空不限，防花费失控）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+                        <Entry x:Name="BudgetEntry" Keyboard="Numeric" Placeholder="5.0" Margin="10,2" />
+                    </Border>
+
+                    <Label Text="推理深度（推理模型的思考深度，空=默认）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="ReasoningPicker" Title="推理深度"
+                            TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+
                     <Label Text="经济模式" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Picker x:Name="EconomyPicker" Title="经济模式"
                             TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- ═══ 语音 ═══ -->
+            <Label Text="语音（语音输入转录）" FontSize="12" FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Padding="14,8" Spacing="6">
+                    <Label Text="转录模型" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+                        <Entry x:Name="WhisperModelEntry" Placeholder="whisper-1" Margin="10,2" />
+                    </Border>
+
+                    <Label Text="转录 API 地址（空=默认 OpenAI）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+                        <Entry x:Name="WhisperBaseUrlEntry" Placeholder="https://api.openai.com" Margin="10,2" />
+                    </Border>
+
+                    <Label Text="转录 API Key（空=回退主 Key）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+                        <Entry x:Name="WhisperKeyEntry" IsPassword="True" Placeholder="sk-..." Margin="10,2" />
+                    </Border>
                 </VerticalStackLayout>
             </Border>
 

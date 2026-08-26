@@ -80,8 +80,8 @@ public partial class ChatPage : ContentPage
         var text = InputBox.Text?.Trim();
         if (string.IsNullOrEmpty(text)) return;
 
-        // 未配置 Key 时引导去设置页
-        if (string.IsNullOrEmpty(Config.Instance.ApiKey))
+        // 未配置 Key 时引导去设置页（Key 存于 ApiKeyStore 按服务商，见 AgentService.HasUsableKey）
+        if (!AgentService.HasUsableKey())
         {
             var action = await DisplayActionSheetAsync("尚未配置 API Key", "稍后", null, "去设置");
             if (action == "去设置") await Shell.Current.GoToAsync("//settings");

@@ -54,6 +54,24 @@ public partial class SettingsPage : ContentPage
         EconomyPicker.ItemsSource = new List<string> { "off", "auto", "on", "extreme" };
         EconomyPicker.SelectedItem = cfg.EconomyMode.ToString().ToLowerInvariant();
 
+        // 小模型（双模型架构的补全/摘要/压缩侧）
+        SmallModelPicker.ItemsSource = ModelCatalog.All;
+        SmallModelPicker.SelectedItem = ModelCatalog.All.FirstOrDefault(m => m.Id == cfg.SmallModel)
+            ?? ModelCatalog.All.FirstOrDefault();
+
+        // 推理深度（空=模型默认）
+        ReasoningPicker.ItemsSource = new List<string> { "", "minimal", "low", "medium", "high", "max" };
+        ReasoningPicker.SelectedItem = string.IsNullOrEmpty(cfg.ReasoningEffort) ? "" : cfg.ReasoningEffort;
+
+        // 上下文窗口 + 预算上限
+        MaxContextEntry.Text = cfg.MaxContextTokens.ToString();
+        BudgetEntry.Text = cfg.MaxBudgetUsd?.ToString("0.##") ?? "";
+
+        // Whisper 语音（空 Key 回退主 Key）
+        WhisperModelEntry.Text = cfg.WhisperModel;
+        WhisperBaseUrlEntry.Text = cfg.WhisperBaseUrl ?? "";
+        WhisperKeyEntry.Text = "";
+
         UpdateKeyStatus(current);
     }
 
@@ -102,10 +120,22 @@ public partial class SettingsPage : ContentPage
         // 3) 参数
         if (int.TryParse(MaxTokensEntry.Text, out var mt)) Config.Instance.MaxTokens = mt;
         if (float.TryParse(TemperatureEntry.Text, out var tp)) Config.Instance.Temperature = tp;
+        if (int.TryParse(MaxContextEntry.Text, out var mct)) Config.Instance.MaxContextTokens = mct;
+        Config.Instance.MaxBudgetUsd = double.TryParse(BudgetEntry.Text, out var bud) ? bud : null;
+        if (SmallModelPicker.SelectedItem is ModelCatalog.ModelInfo sm) Config.Instance.SmallModel = sm.Id;
+        if (ReasoningPicker.SelectedItem is string re)
+            Config.Instance.ReasoningEffort = string.IsNullOrEmpty(re) ? "" : re;
         if (EconomyPicker.SelectedItem is string eco && Enum.TryParse<EconomyMode>(eco, true, out var em))
             Config.Instance.EconomyMode = em;
 
-        // 4) 持久化 + 重建 Agent（下次发送按新配置）
+        // 4) 语音（Whisper 转录；空 Key 回退主 Key）
+        Config.Instance.WhisperModel = string.IsNullOrWhiteSpace(WhisperModelEntry.Text) ? "whisper-1" : WhisperModelEntry.Text.Trim();
+        Config.Instance.WhisperBaseUrl = string.IsNullOrWhiteSpace(WhisperBaseUrlEntry.Text) ? null : WhisperBaseUrlEntry.Text.Trim();
+        var whisperKey = WhisperKeyEntry.Text?.Trim();
+        if (!string.IsNullOrEmpty(whisperKey))
+            Config.Instance.WhisperApiKey = whisperKey;
+
+        // 5) 持久化 + 重建 Agent（下次发送按新配置）
         Config.Instance.SaveToEnvFile();
         AgentService.Reset();
 
