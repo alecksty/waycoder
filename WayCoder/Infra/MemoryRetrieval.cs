@@ -120,7 +120,7 @@ public static class MemoryRetrieval
             // Claude Code 兼容路径
             Path.Combine(baseDir, ".claude", "memory"),
             // 用户目录
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            Path.Combine(Global.Home,
                 ".waycoder", "memory"),
         ];
     }

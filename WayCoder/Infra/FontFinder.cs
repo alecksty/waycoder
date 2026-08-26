@@ -19,7 +19,7 @@ public static class FontFinder
     public static List<FontEntry> Find()
     {
         var dirs = new List<string>();
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var home = WayCoder.Global.Home;
         if (OperatingSystem.IsWindows())
         {
             dirs.Add(@"C:\Windows\Fonts");

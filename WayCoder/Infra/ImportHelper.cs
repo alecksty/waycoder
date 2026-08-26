@@ -17,11 +17,11 @@ public static class ImportHelper
 {
     /// <summary>Claude Code 全局配置目录</summary>
     public static readonly string ClaudeHome = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude");
+        Global.Home, ".claude");
 
     /// <summary>OpenCode 全局配置目录</summary>
     public static readonly string OpenCodeHome = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "opencode");
+        Global.Home, ".config", "opencode");
 
     /// <summary>导入结果项</summary>
     public record ImportItem(string Category, string Name, string Description, bool CanImport);
@@ -233,7 +233,7 @@ public static class ImportHelper
 
         // Cursor 全局设置 (模型配置)
         var cursorHome = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".cursor");
+            Global.Home, ".cursor");
         if (Directory.Exists(cursorHome))
         {
             var settingsPath = Path.Combine(cursorHome, "settings.json");
@@ -270,7 +270,7 @@ public static class ImportHelper
 
         // Cline MCP settings (通常存在 VS Code 全局存储中)
         var clineHome = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".cline");
+            Global.Home, ".cline");
         if (Directory.Exists(clineHome))
         {
             var mcpPath = Path.Combine(clineHome, "mcp_settings.json");
@@ -641,7 +641,7 @@ public static class ImportHelper
     private static async Task<string> ImportClineMcpAsync()
     {
         var clineHome = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".cline");
+            Global.Home, ".cline");
         var mcpPath = Path.Combine(clineHome, "mcp_settings.json");
         if (!File.Exists(mcpPath)) return "⏭ Cline MCP: 未找到 ~/.cline/mcp_settings.json";
 

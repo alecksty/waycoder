@@ -97,6 +97,29 @@ public partial class FilesPage : ContentPage
         await Shell.Current.GoToAsync($"editor?path={Uri.EscapeDataString(rel)}");
     }
 
+    /// <summary>在当前目录新建空文件。</summary>
+    private async void OnNewFileClicked(object? sender, EventArgs e)
+        => await CreateNewAsync(isDirectory: false);
+
+    /// <summary>在当前目录新建子文件夹。</summary>
+    private async void OnNewDirClicked(object? sender, EventArgs e)
+        => await CreateNewAsync(isDirectory: true);
+
+    private async Task CreateNewAsync(bool isDirectory)
+    {
+        var prompt = isDirectory ? "新建文件夹" : "新建文件";
+        var name = await DisplayPromptAsync(prompt, "输入名称", accept: "确定", cancel: "取消", maxLength: 100);
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        var rel = string.IsNullOrEmpty(_currentDir)
+            ? name.Trim()
+            : $"{_currentDir.TrimEnd('/')}/{name.Trim()}";
+
+        var ok = isDirectory ? SandboxFsService.CreateDir(rel) : SandboxFsService.CreateFile(rel);
+        if (ok) Refresh();
+        else await DisplayAlertAsync("新建失败", "名称已存在或路径非法", "关闭");
+    }
+
     private async void OnImportClicked(object? sender, EventArgs e)
     {
         try

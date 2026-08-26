@@ -302,7 +302,7 @@ public static class SandboxManager
             {
                 resolved = Path.GetFullPath(Path.Combine(cwd,
                     target.StartsWith('~')
-                        ? target.Replace("~", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))
+                        ? target.Replace("~", Global.Home)
                         : target));
             }
             catch (Exception ex) { DebugLog.Log("SandboxManager", $"路径解析失败: {ex.Message}"); continue; }

@@ -41,7 +41,7 @@ public static class ContextBridge
         };
     }
 
-    static readonly string Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    static readonly string Home = WayCoder.Global.Home;
     static readonly string ClaudeProjectsDir = Path.Combine(Home, ".claude", "projects");
     static readonly string CodexSessionsDir = Path.Combine(Home, ".codex", "sessions");
     static readonly string OpenCodeDb = Path.Combine(Home, ".local", "share", "opencode", "opencode.db");

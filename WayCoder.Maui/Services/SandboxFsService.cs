@@ -96,6 +96,26 @@ public static class SandboxFsService
         Global.WriteAllTextPreserveBom(full, content);
     }
 
+    /// <summary>新建空文件；路径越界、已存在同名文件/目录返回 false。</summary>
+    public static bool CreateFile(string relPath)
+    {
+        var full = ResolveInSandbox(relPath);
+        if (full == null || File.Exists(full) || Directory.Exists(full)) return false;
+        var parent = Path.GetDirectoryName(full);
+        if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
+        File.WriteAllText(full, "");
+        return true;
+    }
+
+    /// <summary>新建目录；路径越界、已存在同名文件/目录返回 false。</summary>
+    public static bool CreateDir(string relPath)
+    {
+        var full = ResolveInSandbox(relPath);
+        if (full == null || File.Exists(full) || Directory.Exists(full)) return false;
+        Directory.CreateDirectory(full);
+        return true;
+    }
+
     /// <summary>文档导入：从系统文件选择器拷入沙箱根，返回落地相对路径。</summary>
     public static async Task<string> ImportAsync(FileResult file)
     {

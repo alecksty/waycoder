@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Text;
+using WayCoder.Infra;
 using WayCoder.Maui.Markup;
 using WayCoder.Maui.Models;
 using WayCoder.Maui.Services;
@@ -44,8 +45,18 @@ public partial class ChatPage : ContentPage
         RefreshModelBar();
     }
 
-    /// <summary>顶部模型条显示当前生效模型。</summary>
-    private void RefreshModelBar() => ModelBar.Text = $"🧠 模型：{Config.Instance.Model}";
+    /// <summary>顶部模型条显示当前生效模型 + 权限模式（确认轴）。</summary>
+    private void RefreshModelBar()
+    {
+        var perm = PermissionManager.CurrentMode switch
+        {
+            PermissionManager.Mode.Yolo => "Yolo",
+            PermissionManager.Mode.SmartAuto => "SmartAuto",
+            PermissionManager.Mode.Auto => "Auto",
+            _ => "Ask",
+        };
+        ModelBar.Text = $"🧠 {Config.Instance.Model} · 🔐 {perm}";
+    }
 
     /// <summary>点模型条 → ActionSheet 列出当前服务商模型，选中即切换（连接层统一入口）。</summary>
     private async void OnModelBarTapped(object? sender, TappedEventArgs e)
@@ -97,7 +108,7 @@ public partial class ChatPage : ContentPage
         var sb = new StringBuilder();
         var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
         _cts = new CancellationTokenSource();
-        SendBtn.Text = "停止";
+        SendBtn.Text = "■";
 
         try
         {
@@ -114,13 +125,15 @@ public partial class ChatPage : ContentPage
         catch (OperationCanceledException) { /* 用户停止 */ }
         catch (Exception ex)
         {
+            // 落盘完整堆栈，便于 adb run-as 读 logs/error_*.log 定位（移动端 logcat 不打 .NET 异常）
+            ErrorLog.Error("Chat", "对话异常", ex);
             Messages.Add(new ChatMessage { Role = ChatRole.Tool, RawText = $"⚠️ {ex.Message}" });
         }
         finally
         {
             aiMsg.IsStreaming = false;
             aiMsg.RawText = sb.ToString();
-            SendBtn.Text = "发送";
+            SendBtn.Text = "↑";
             _cts = null;
             ScrollToEnd();
         }
@@ -133,27 +146,37 @@ public partial class ChatPage : ContentPage
     }
 
     /// <summary>
-    /// 语音🎤：点按进入录音态（🔴），再点停止并转录；或选已有音频文件转录。
-    /// 录音/转录均落沙箱 workspace，复用主工程 <see cref="TranscribeAudioTool"/>。
+    /// 圆形加号：语音/图片的统一入口。点按弹出菜单（语音输入 / 选音频转录 / 拍照看图 / 从相册选图）；
+    /// 录音中再点 = 停止并转录。录音/图片均落沙箱 workspace，复用主工程 <see cref="TranscribeAudioTool"/> / vision 队列。
     /// </summary>
-    private async void OnVoiceClicked(object? sender, EventArgs e)
+    private async void OnAddClicked(object? sender, EventArgs e)
     {
         // 正在录音 → 停止并转录
         if (AudioRecorder.IsRecording)
         {
-            VoiceBtn.Text = "🎤";
+            AddBtn.Text = "＋";
             var path = await AudioRecorder.StopAsync();
             if (path != null) await TranscribeAsync(path);
             return;
         }
 
-        var action = await DisplayActionSheetAsync("语音输入", "取消", null, "🎤 开始录音", "📁 选择音频文件");
-        if (string.IsNullOrEmpty(action) || action == "取消") return;
-
-        if (action == "🎤 开始录音")
-            await StartRecordingAsync();
-        else
-            await PickAndTranscribeAsync();
+        var action = await DisplayActionSheetAsync("添加", "取消", null,
+            "🎤 语音输入", "📁 选择音频转录", "📷 拍照看图", "🖼 从相册选图");
+        switch (action)
+        {
+            case "🎤 语音输入":
+                await StartRecordingAsync();
+                break;
+            case "📁 选择音频转录":
+                await PickAndTranscribeAsync();
+                break;
+            case "📷 拍照看图":
+                await AddPhotoAsync(capture: true);
+                break;
+            case "🖼 从相册选图":
+                await AddPhotoAsync(capture: false);
+                break;
+        }
     }
 
     /// <summary>请求麦克风权限并开始录音。</summary>
@@ -171,7 +194,7 @@ public partial class ChatPage : ContentPage
             }
 
             await AudioRecorder.StartAsync();
-            VoiceBtn.Text = "🔴";
+            AddBtn.Text = "🔴";
         }
         catch (Exception ex)
         {
@@ -218,10 +241,10 @@ public partial class ChatPage : ContentPage
     {
         try
         {
-            VoiceBtn.IsEnabled = false;
+            AddBtn.IsEnabled = false;
             var text = await new TranscribeAudioTool()
                 .ExecuteAsync(new Dictionary<string, object?> { ["path"] = audioPath });
-            VoiceBtn.IsEnabled = true;
+            AddBtn.IsEnabled = true;
 
             if (text.StartsWith("错误", StringComparison.Ordinal)
                 || text.StartsWith("转录失败", StringComparison.Ordinal)
@@ -236,20 +259,17 @@ public partial class ChatPage : ContentPage
         }
         catch (Exception ex)
         {
-            VoiceBtn.IsEnabled = true;
+            AddBtn.IsEnabled = true;
             await DisplayAlertAsync("转录失败", ex.Message, "关闭");
         }
     }
 
-    /// <summary>图片📷：拍照/选图 → 入 vision 队列，下一轮消息自动带上（脱离电脑的「拍照看图」）。</summary>
-    private async void OnImageClicked(object? sender, EventArgs e)
+    /// <summary>图片：拍照(capture=true)/从相册选(capture=false) → 入 vision 队列，下一轮消息自动带上（脱离电脑的「拍照看图」）。</summary>
+    private async Task AddPhotoAsync(bool capture)
     {
         try
         {
-            var action = await DisplayActionSheetAsync("添加图片", "取消", null, "📷 拍照", "🖼 从相册选择");
-            if (string.IsNullOrEmpty(action) || action == "取消") return;
-
-            FileResult? photo = action == "📷 拍照"
+            FileResult? photo = capture
                 ? await MediaPicker.Default.CapturePhotoAsync()
                 : await MediaPicker.Default.PickPhotoAsync();
             if (photo == null) return;

@@ -297,7 +297,7 @@ public static class ApiKeyStore
         foreach (var pid in ImportFromEnvironment())
             Add(pid, "环境变量");
 
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var home = Global.Home;
 
         // 2. Claude Code ~/.claude/settings.json 的 env.{*_API_KEY|*_AUTH_TOKEN}
         try

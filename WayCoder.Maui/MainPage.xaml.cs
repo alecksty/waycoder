@@ -1,4 +1,5 @@
 using WayCoder;
+using WayCoder.Maui.Services;
 
 namespace WayCoder.Maui;
 
@@ -22,9 +23,10 @@ public partial class MainPage : ContentPage
 
         var cfg = Config.Instance;
         ModelLabel.Text = cfg.Model;
-        KeyLabel.Text = string.IsNullOrEmpty(cfg.ApiKey)
-            ? "尚未配置 API Key，先去「设置」填写"
-            : $"已配置 Key · 服务商 {cfg.Provider}";
+        // Key 按服务商存于 ApiKeyStore，不能用 Config.ApiKey 判断（同 ChatPage 修复）
+        KeyLabel.Text = AgentService.HasUsableKey()
+            ? $"已配置 Key · 服务商 {cfg.Provider}"
+            : "尚未配置 API Key，先去「设置」填写";
     }
 
     private async void OnChatClicked(object? sender, EventArgs e)

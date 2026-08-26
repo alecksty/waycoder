@@ -46,7 +46,7 @@ public class CdTool : ITool
 
         static string ExpandHome(string p)
         {
-            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var home = WayCoder.Global.Home;
             if (p == "~") return home;
             if (p.StartsWith("~/") || p.StartsWith("~\\")) return Path.Combine(home, p[2..]);
             return p; // ~user 等形式保持原样

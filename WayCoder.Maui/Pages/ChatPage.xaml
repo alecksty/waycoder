@@ -97,28 +97,22 @@
             </CollectionView.EmptyView>
         </CollectionView>
 
-        <!-- 底部输入栏：语音 / 图片 / 输入框 / 发送 -->
-        <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*,Auto" Padding="8,6" ColumnSpacing="6">
+        <!-- 底部输入栏：圆形加号（语音/图片菜单） / 输入框 / 圆形发送 -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Padding="8,6" ColumnSpacing="8">
             <Button
-                x:Name="VoiceBtn"
-                Text="🎤"
-                FontSize="18"
-                BackgroundColor="Transparent"
+                x:Name="AddBtn"
+                Text="＋"
+                FontSize="22"
+                WidthRequest="44"
+                HeightRequest="44"
+                CornerRadius="22"
+                Padding="0"
+                BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}"
                 TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
-                Clicked="OnVoiceClicked"
+                Clicked="OnAddClicked"
                 VerticalOptions="End"
-                SemanticProperties.Hint="语音转文字" />
-            <Button
-                x:Name="ImageBtn"
-                Grid.Column="1"
-                Text="📷"
-                FontSize="18"
-                BackgroundColor="Transparent"
-                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
-                Clicked="OnImageClicked"
-                VerticalOptions="End"
-                SemanticProperties.Hint="拍照或选图让模型看图" />
-            <Border Grid.Column="2" BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0" Margin="0,0,0,4">
+                SemanticProperties.Hint="添加语音或图片" />
+            <Border Grid.Column="1" BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0" Margin="0,0,0,4">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="20" />
                 </Border.StrokeShape>
@@ -132,8 +126,16 @@
             </Border>
             <Button
                 x:Name="SendBtn"
-                Grid.Column="3"
-                Text="发送"
+                Grid.Column="2"
+                Text="↑"
+                FontSize="20"
+                FontAttributes="Bold"
+                WidthRequest="44"
+                HeightRequest="44"
+                CornerRadius="22"
+                Padding="0"
+                BackgroundColor="{StaticResource Primary}"
+                TextColor="White"
                 Clicked="OnSendClicked"
                 VerticalOptions="End"
                 SemanticProperties.Hint="发送消息" />

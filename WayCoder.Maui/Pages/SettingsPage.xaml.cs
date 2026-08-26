@@ -13,6 +13,10 @@ public partial class SettingsPage : ContentPage
     /// <summary>服务商下拉项（展示名 + 内部 id）。</summary>
     private sealed record ProviderOption(string Id, string DisplayName);
 
+    /// <summary>权限模式标签（索引与 <see cref="PermissionManager.Mode"/> 枚举顺序一致）。</summary>
+    private static readonly string[] PermModeLabels =
+        ["Ask（每次确认）", "Auto（改动必问）", "SmartAuto（危险必问）", "Yolo（不确认）"];
+
     public SettingsPage()
     {
         InitializeComponent();
@@ -71,6 +75,10 @@ public partial class SettingsPage : ContentPage
         WhisperModelEntry.Text = cfg.WhisperModel;
         WhisperBaseUrlEntry.Text = cfg.WhisperBaseUrl ?? "";
         WhisperKeyEntry.Text = "";
+
+        // 权限模式（确认轴：Ask/Auto/SmartAuto/Yolo；索引与 enum 顺序一致）
+        PermModePicker.ItemsSource = PermModeLabels;
+        PermModePicker.SelectedItem = PermModeLabels[(int)PermissionManager.CurrentMode];
 
         UpdateKeyStatus(current);
     }
@@ -134,6 +142,10 @@ public partial class SettingsPage : ContentPage
         var whisperKey = WhisperKeyEntry.Text?.Trim();
         if (!string.IsNullOrEmpty(whisperKey))
             Config.Instance.WhisperApiKey = whisperKey;
+
+        // 4.5) 权限模式（确认轴；仅内存，随 App 会话生效）
+        if (PermModePicker.SelectedIndex >= 0)
+            PermissionManager.CurrentMode = (PermissionManager.Mode)PermModePicker.SelectedIndex;
 
         // 5) 持久化 + 重建 Agent（下次发送按新配置）
         Config.Instance.SaveToEnvFile();
