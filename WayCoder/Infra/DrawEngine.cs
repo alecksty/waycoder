@@ -526,7 +526,7 @@ public static class DrawRunner
     static void EmitGradient(StringBuilder sb, Gradient g)
     {
         sb.Append(g.Radial ? "    <radialGradient id=\"" : "    <linearGradient id=\"")
-          .Append(g.Id).Append('"');
+          .Append(DrawParse.EscapeXml(g.Id)).Append('"');
         if (g.Radial)
         {
             sb.Append(" cx=\"").Append(FmtNum(g.Cx)).Append("\" cy=\"").Append(FmtNum(g.Cy))
@@ -543,7 +543,7 @@ public static class DrawRunner
         sb.Append(g.Radial ? "    </radialGradient>\n" : "    </linearGradient>\n");
     }
 
-    static string FmtNum(double v) => Math.Abs(v) < 1e-9 ? "0" : v.ToString("0.###", CultureInfo.InvariantCulture);
+    static string FmtNum(double v) => !double.IsFinite(v) ? "0" : Math.Abs(v) < 1e-9 ? "0" : v.ToString("0.###", CultureInfo.InvariantCulture);
 
     /// <summary>渲染为 PNG 字节流（doc.Antialias 时走 3× 超采样降采样消除锯齿）。</summary>
     public static byte[] ToPng(DrawDocument doc)

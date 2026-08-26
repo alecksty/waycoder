@@ -386,7 +386,9 @@ public class LLM
     public LLM Clone() => new(Model, ApiKey, BaseUrl, MaxTokens, Temperature)
     {
         SmallModel = SmallModel,
-        ModelOverride = ModelOverride,
+        // 不继承 ModelOverride：它是临时覆盖（如小模型压缩切换）。克隆若带上当前覆盖值，
+        // 子智能体/独立槽位会被永久钉在临时模型上，而非父实例的默认大模型。
+        ModelOverride = null,
     };
 
     /// <summary>

@@ -515,7 +515,7 @@ public partial class Agent
 
             // 累积真实 token 使用量（Crush 风格），并用同请求消息估算值校准固定开销
             Context.AddUsage(resp.PromptTokens, resp.CompletionTokens,
-                ContextManager.EstimateTokens(Messages));
+                ContextManager.EstimateTokens(SnapshotMessages()));
             // 自动省 token 模式：按任务轮数更新复杂度，动态调节压缩阈值
             Context.SetRound(round);
             // 轨迹：记录本轮 LLM 交互（token 消耗 + 输出形态）
@@ -530,7 +530,7 @@ public partial class Agent
                 {
                     // 保存失败要如实说：此前 catch{} 后仍声称「会话已保存」，磁盘满时误导用户丢失会话
                     bool saved;
-                    try { saved = SessionManager.SaveSession(Messages, LlmClient.EffectiveModel) != null; }
+                    try { saved = SessionManager.SaveSession(SnapshotMessages(), LlmClient.EffectiveModel) != null; }
                     catch (Exception ex) { saved = false; ErrorLog.Error("Agent", $"致命错误时保存会话失败: {ex.Message}"); }
                     return resp.Content ?? (saved
                         ? "[致命错误] 所有模型失败，会话已保存。"
@@ -620,7 +620,7 @@ public partial class Agent
                 // 0. 模型输出大量推理内容但不产生实际输出（DeepSeek V4 等模型的常见问题）
                 // 1. 模型首轮只输出分析不调用工具（toolCallCount==0, content>100）
                 // 2. 模型用了一些工具后开始"口述代码"而非写入文件（content 包含代码特征 >300 字符）
-                var toolCallCount = Messages.Count(m => m["role"]?.AsString() == "tool");
+                var toolCallCount = SnapshotMessages().Count(m => m["role"]?.AsString() == "tool");
                 var contentLen = resp.Content?.Length ?? 0;
                 var reasoningLen = resp.ReasoningTokens;
                 var hasCodeContent = contentLen > 300 &&
@@ -806,7 +806,7 @@ public partial class Agent
         SaveWorkReport();
 
         // 检测任务是否可能仍在进行中（最近 5 轮有 write_file/edit_file 调用）
-        var recentTools = Messages.TakeLast(10)
+        var recentTools = SnapshotMessages().TakeLast(10)
             .Where(m => m["role"]?.AsString() == "tool")
             .Select(m => m["content"]?.AsString() ?? "")
             .ToList();
@@ -814,7 +814,7 @@ public partial class Agent
         // multiedit 返回「✅ 已创建 … / ✅ 已编辑 …」。（旧标记「✅ 已写入/✅ 编辑完成」已无任何工具产出，导致自动续跑永远不触发。）
         var wasWriting = recentTools.Any(c =>
             c.Contains("已写入") || c.Contains("已编辑") || c.Contains("已创建"));
-        var lastMsg = Messages.LastOrDefault(m => m["role"]?.AsString() == "assistant")
+        var lastMsg = SnapshotMessages().LastOrDefault(m => m["role"]?.AsString() == "assistant")
             ?["content"]?.AsString() ?? "";
 
         // 自动续跑：仍在写文件（任务未完成）且未超续跑上限 → 压缩 + 注入继续提示后重新跑
@@ -845,7 +845,7 @@ public partial class Agent
     {
         try
         {
-            var report = WorkReporter.Generate(Messages, _chatStartedAt);
+            var report = WorkReporter.Generate(SnapshotMessages(), _chatStartedAt);
             var dir = Path.Combine(Environment.CurrentDirectory, ".waycoder", "reports");
             Directory.CreateDirectory(dir);
             var path = Path.Combine(dir, "latest.md");
@@ -882,7 +882,7 @@ public partial class Agent
         // 3. 保存会话到 _auto，下次启动 TryRestoreSession 可用 /resume 恢复
         try
         {
-            SessionManager.SaveSession(Messages, LlmClient.EffectiveModel, "_auto");
+            SessionManager.SaveSession(SnapshotMessages(), LlmClient.EffectiveModel, "_auto");
         }
         catch (Exception ex) { DebugLog.Log("pause", $"暂停保存会话失败: {ex.Message}"); }
 
@@ -897,6 +897,8 @@ public partial class Agent
         // 在快照上压缩，最后原子替换：ContextManager 的 SummarizeOld/HardCollapse 会整表 Clear/AddRange，
         // 若直接传活引用 Messages 则无锁改写 _messages，与 Web 请求线程的加锁 AddMessage/ReplaceMessages 并发竞态
         // （压缩期间 /fileref 等请求插入消息会被覆盖或撕裂）。
+        var originalCount = 0;
+        lock (MessagesLock) originalCount = _messages.Count;
         var snapshot = SnapshotMessages();
 
         // PreCompact hook
@@ -906,6 +908,14 @@ public partial class Agent
         await WithModelOverrideAsync(LlmClient, LlmClient.SmallModel, () =>
             Context.MaybeCompressAsync(snapshot, LlmClient,
                 onProgress: (layer, msg) => onProgress?.Invoke($"🔄 [{layer}/3] {msg}")));
+
+        // 压缩期间并发 AddMessage（Web /fileref、ask 桥回复）追加到 _messages 末尾的消息：
+        // 合并进压缩结果，避免 ReplaceMessages 整表替换时丢弃它们。
+        lock (MessagesLock)
+        {
+            if (_messages.Count > originalCount)
+                snapshot.AddRange(_messages.Skip(originalCount));
+        }
 
         ReplaceMessages(snapshot);
 
@@ -926,7 +936,7 @@ public partial class Agent
     {
         Context.ContinuePromptInjected = true;
 
-        var originalUserMsg = Messages.FirstOrDefault(m =>
+        var originalUserMsg = SnapshotMessages().FirstOrDefault(m =>
             m["role"]?.AsString() == "user")?["content"]?.AsString() ?? "";
         if (originalUserMsg.Length > 200)
             originalUserMsg = ContextManager.TruncateByRunes(originalUserMsg, 200) + "...";

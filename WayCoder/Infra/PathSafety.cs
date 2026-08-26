@@ -49,7 +49,26 @@ public static class PathSafety
     {
         if (string.IsNullOrWhiteSpace(fullPath)) return null;
 
-        var normalized = fullPath.Replace('\\', '/');
+        // 两个候选路径都做敏感匹配：原始路径（未解析 symlink）+ 解析符号链接后的真实路径。
+        // - 原始路径：macOS 上 /etc 是指向 /private/etc 的 symlink，若只解析后再匹配，
+        //   "/etc/passwd" 会变成 "/private/etc/passwd" 导致敏感绝对路径前缀失配（拦截失效）。
+        // - 解析后路径：防「项目内 symlink → ~/.ssh/id_rsa」绕过文件名/目录段检查
+        //   （Path.GetFullPath 只折叠 . / .. ，不解析 symlink，File.ReadAllText/WriteAllText 会跟随链接）。
+        var original = fullPath.Replace('\\', '/');
+        var resolved = ResolveSymlinks(fullPath);
+
+        foreach (var candidate in new[] { original, resolved })
+        {
+            var hit = MatchSensitive(candidate);
+            if (hit != null) return hit;
+        }
+        return null;
+    }
+
+    /// <summary>对单个归一化路径跑敏感匹配，命中返回拦截原因，未命中返回 null。</summary>
+    private static string? MatchSensitive(string path)
+    {
+        var normalized = path.Replace('\\', '/');
         var withSlash = normalized.EndsWith('/') ? normalized : normalized + "/";
 
         // 1. 系统凭据绝对路径
@@ -77,5 +96,50 @@ public static class PathSafety
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// 逐段解析符号链接到最终真实路径。正确处理「父目录是链接」「文件本身是链接」「嵌套链接」，
+    /// 且对不存在的路径（如写文件的目标）也能解析其已存在的祖先目录链。
+    /// 无法解析（权限/异常）时返回原路径。复杂度 O(路径深度)。
+    /// </summary>
+    public static string ResolveSymlinks(string fullPath)
+    {
+        if (string.IsNullOrWhiteSpace(fullPath)) return fullPath;
+        try
+        {
+            var root = Path.GetPathRoot(fullPath);
+            if (string.IsNullOrEmpty(root)) return fullPath;
+
+            var current = root;
+            var remaining = fullPath[root.Length..];
+            foreach (var segment in remaining.Split(
+                new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                StringSplitOptions.RemoveEmptyEntries))
+            {
+                current = Path.Combine(current, segment);
+                try
+                {
+                    FileSystemInfo? target = null;
+                    var di = new DirectoryInfo(current);
+                    if (di.Exists) target = di.ResolveLinkTarget(returnFinalTarget: true);
+                    else
+                    {
+                        var fi = new FileInfo(current);
+                        if (fi.Exists) target = fi.ResolveLinkTarget(returnFinalTarget: true);
+                    }
+                    if (target != null) current = target.FullName;
+                }
+                catch
+                {
+                    // 该段无法解析（权限/IO），保留 current，继续下一段
+                }
+            }
+            return Path.GetFullPath(current);
+        }
+        catch
+        {
+            return fullPath;
+        }
     }
 }

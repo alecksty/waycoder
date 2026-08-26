@@ -89,6 +89,14 @@ public class RenderBuffer
         int rows = Tty.Rows, cols = Tty.Cols;
         if (row < 0 || row >= rows) return this;     // 行越界：整行在屏幕外 → 丢弃
         if (col >= cols) return this;                // 列越界：整体在右外 → 丢弃
+        if (col < 0)
+        {
+            // 列负越界：起始列在屏幕左外 —— 裁掉左侧越界（视觉宽度 -col）的字符，从 0 列开始写。
+            // 否则 CursorPos0 生成 0 列坐标（-1+1=0），且 cols-col 放大截断宽度导致文字溢出到屏幕外。
+            text = SkipLeadingWidth(text, -col);
+            col = 0;
+            if (text.Length == 0) return this;
+        }
         int textW = AnsiString.DisplayWidth(text);
         if (textW <= 0) return this;
         if (col + textW > cols)                      // 部分超出右边界 → 按显示宽度截断
@@ -114,6 +122,21 @@ public class RenderBuffer
             if (hasBg) _sb.Append(AnsiTty.SgrResetBg);
         }
         return this;
+    }
+
+    /// <summary>按视觉宽度裁掉字符串左侧开头的字符（Rune 安全，不拆代理对）。返回剩余文本。</summary>
+    private static string SkipLeadingWidth(string text, int skipVw)
+    {
+        if (skipVw <= 0 || text.Length == 0) return text;
+        int vw = 0;
+        int i = 0;
+        while (i < text.Length && vw < skipVw)
+        {
+            var rune = System.Text.Rune.GetRuneAt(text, i);
+            vw += AnsiString.CharWidth(rune);
+            i += rune.Utf16SequenceLength;
+        }
+        return text[i..];
     }
 
     /// <summary>样式码对应的关闭序列（仅关该属性，不动前景/背景色）</summary>

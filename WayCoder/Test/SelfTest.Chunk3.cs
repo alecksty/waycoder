@@ -502,7 +502,7 @@ public static partial class SelfTest
         // 离线 HTML 解析逻辑另有独立用例覆盖，这里只验「工具不崩溃 + 全流程走通」）。
         var mockHtml = "<li class=\"b_algo\"><div class=\"b_title\"><h2><a href=\"https://example.com/docs\">Example 文档</a></h2></div><div class=\"b_caption\"><p>这是摘要内容</p></div></li>";
         var searchMock = new WayCoder.UI.Web.HttpServer(0);
-        searchMock.OnRequest = _ => WayCoder.UI.Web.HttpResponse.Text(mockHtml);
+        searchMock.OnRequest = _ => Task.FromResult<WayCoder.UI.Web.HttpResponse?>(WayCoder.UI.Web.HttpResponse.Text(mockHtml));
         searchMock.Start();
         var savedSearchOverride = WebSearchTool.OverrideSearchUrl;
         WebSearchTool.OverrideSearchUrl = $"http://127.0.0.1:{searchMock.ActualPort}/search";

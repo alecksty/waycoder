@@ -34,15 +34,11 @@ public class DocTool : ITool
                 .Set("description", "要抓取的文档 URL（action=fetch 时必填）")))
         .Set("required", JNode.Array().Add("action"));
 
+    // 统一 SSRF 安全 handler：ConnectCallback 原子「解析+校验+连接」杜绝 DNS 重绑定；禁自动重定向，
+    // 所有请求（search/fetch）都手动跟随并每跳重校验，避免 AllowAutoRedirect 跳转目标绕过 SSRF。
     private static HttpClient _client => _lazyClient.Value;
     private static readonly Lazy<HttpClient> _lazyClient = new(() => new HttpClient(
-        new HttpClientHandler { AllowAutoRedirect = true, MaxAutomaticRedirections = 5 })
-    { Timeout = TimeSpan.FromSeconds(Config.Instance.FetchTimeoutSec) });
-
-    /// <summary>fetch 模式专用：禁自动重定向，手动跟随并每跳做 SSRF 校验（对标 FetchTool）。</summary>
-    private static HttpClient _noRedirectClient => _lazyNoRedirectClient.Value;
-    private static readonly Lazy<HttpClient> _lazyNoRedirectClient = new(() => new HttpClient(
-        new HttpClientHandler { AllowAutoRedirect = false })
+        SsgfGuard.CreateSafeHandler())
     { Timeout = TimeSpan.FromSeconds(Config.Instance.FetchTimeoutSec) });
 
     /// <summary>会话级缓存：避免重复查询相同内容</summary>
@@ -193,9 +189,10 @@ public class DocTool : ITool
     }
 
     /// <summary>
-    /// 禁自动重定向、手动跟随跳转并对每一跳做 SSRF 校验。
-    /// 对标 FetchTool.SendWithRedirectAsync——HttpClient 的 AllowAutoRedirect 会
-    /// 静默跟随 30x，跳转目标不再经过 CheckUrl/CheckDns，可绕过 SSRF 访问内网/云元数据。
+    /// 手动跟随跳转并对每一跳做 SSRF 校验。
+    /// 最终连接由 SsgfGuard.CreateSafeHandler 的 ConnectCallback 原子完成「解析→校验→连接」，
+    /// 故这里不再单独 CheckDns（那会再次解析 DNS，重开 DNS 重绑定窗口）；CheckUrl 仅做
+    /// 字面量 IP / 特殊主机名 / 内网后缀的提前拒绝（无 DNS 解析，无 TOCTOU）。
     /// </summary>
     private static async Task<HttpResponseMessage> FetchWithSsgfCheckAsync(string url)
     {
@@ -204,10 +201,8 @@ public class DocTool : ITool
         {
             var (safe, reason) = SsgfGuard.CheckUrl(currentUrl);
             if (!safe) throw new SsgfBlockedException(reason!);
-            var dns = SsgfGuard.CheckDns(new Uri(currentUrl).Host);
-            if (!dns.safe) throw new SsgfBlockedException(dns.reason!);
 
-            var response = await _noRedirectClient.GetAsync(currentUrl);
+            var response = await _client.GetAsync(currentUrl);
             if (SsgfGuard.IsRedirect((int)response.StatusCode) && response.Headers.Location != null)
             {
                 var nextUri = new Uri(new Uri(currentUrl), response.Headers.Location);
@@ -297,7 +292,7 @@ public class DocTool : ITool
     {
         try
         {
-            using var response = await _client.GetAsync(url);
+            using var response = await FetchWithSsgfCheckAsync(url);
             response.EnsureSuccessStatusCode();
 
             var contentType = response.Content.Headers.ContentType?.MediaType ?? "";
@@ -325,7 +320,7 @@ public class DocTool : ITool
             var encoded = Uri.EscapeDataString(query);
             var url = $"https://www.google.com/search?q={encoded}+documentation";
 
-            using var response = await _client.GetAsync(url);
+            using var response = await FetchWithSsgfCheckAsync(url);
             response.EnsureSuccessStatusCode();
 
             var html = await response.Content.ReadAsStringAsync();

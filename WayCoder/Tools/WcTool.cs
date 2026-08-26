@@ -31,7 +31,7 @@ public class WcTool : ITool
         var glob = arguments.GetValueOrDefault("glob")?.ToString();
         var path = arguments.GetValueOrDefault("path")?.ToString() ?? "";
         if (string.IsNullOrWhiteSpace(path))
-            path = BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory();
+            path = CwdContext.Current.Value ?? Directory.GetCurrentDirectory();
 
         return Task.FromResult(Execute(file, glob, path));
     }
@@ -52,7 +52,7 @@ public class WcTool : ITool
             // Glob 批量模式
             if (!string.IsNullOrEmpty(glob))
             {
-                path = Path.GetFullPath(path, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
+                path = Path.GetFullPath(path, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
                 if (!Directory.Exists(path))
                     return $"错误：目录不存在 — {path}";
 

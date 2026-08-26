@@ -92,8 +92,9 @@ public class KillTool : ITool
                 else
                 {
                     var sig = force ? "-9 " : "";
-                    // name 已过 IsSafeProcessName 白名单（不含单引号），单引号包裹可安全保留空格等字面量
-                    args = $"-c \"pkill {sig}'{name}' 2>&1\"";
+                    // name 已过 IsSafeProcessName 白名单（不含单引号），单引号包裹可安全保留空格等字面量；
+                    // -x 精确匹配进程名，防 name="." / "s" 等被 pkill 当作扩展正则误杀无关/自身进程
+                    args = $"-c \"pkill {sig}-x '{name}' 2>&1\"";
                 }
             }
 

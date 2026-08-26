@@ -55,7 +55,7 @@ public class MultiEditTool : ITool
         if (string.IsNullOrWhiteSpace(filePath))
             return "错误：file_path 不能为空 — 请提供有效的文件路径。";
 
-        var path = Path.GetFullPath(filePath, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
+        var path = Path.GetFullPath(filePath, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
 
         // 敏感路径防护（与 write/edit 对齐，此前缺失）
         var sensitive = PathSafety.CheckSensitive(path);

@@ -163,14 +163,18 @@ public static class ControlRenderer
 
         // 单次定位，逐字换背景色，中间不重置不重定位
         sb.Append(AnsiTty.CursorPos0(absY, absX));
-        int charIdx = 0;
+        // 梯度按 rune 数均匀分布，而非 UTF-16 长度——文本含 emoji/CJK 代理对时，
+        // charIdx 按 Utf16SequenceLength 累加会使 t 达不到 1.0（末字符 2 单元时停在 (len-2)/(len-1)），
+        // 渐变端点偏移，末字符颜色错位。
+        int runeIdx = 0;
+        int runeCount = display.EnumerateRunes().Count();
         foreach (var rune in display.EnumerateRunes())
         {
-            float t = display.Length > 1 ? (float)charIdx / (display.Length - 1) : 0;
+            float t = runeCount > 1 ? (float)runeIdx / (runeCount - 1) : 0;
             int bg = AnsiTty.LerpRgb(startBg, endBg, t);
             sb.Append(AnsiTty.FgBgCode(fg, bg));
             sb.Append(rune.ToString()); // 逐 rune 输出，避免切半代理对成 U+FFFD
-            charIdx += rune.Utf16SequenceLength;
+            runeIdx++;
         }
 
         // 末尾重置

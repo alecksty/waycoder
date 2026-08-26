@@ -39,6 +39,13 @@ public static class PermissionManager
     /// <summary>测试钩子：判断工具名是否在需确认名单中（验证权限绕过修复，如 test/cp/mv/find_replace）。</summary>
     internal static bool IsDangerousTool(string toolName) => ToolSafetyRegistry.RequiresConfirmation(toolName);
 
+    /// <summary>是否全桌面抓屏（screenshot target=screen）：抓取整个屏幕并 OCR，隐私敏感，须每次确认而不记忆。</summary>
+    internal static bool IsFullDesktopCapture(Dictionary<string, object?> args)
+    {
+        var target = args.GetValueOrDefault("target")?.ToString() ?? "console";
+        return target.Equals("screen", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// 判断权限模式参数是否命中「纯聊天」别名（tiny/chat/极简/聊天）。
     /// 命中时调用方应切到工作模式 Chat（0 工具 0 提示词），而非落到权限枚举。
@@ -76,6 +83,10 @@ public static class PermissionManager
         if (CurrentMode == Mode.SmartAuto)
         {
             var risk = AutoModeClassifier.Classify(toolName);
+
+            // 全桌面抓屏抓取整个屏幕并 OCR，隐私敏感：即便本列 Cautious，也升级为 Dangerous 逐次确认（不记忆）
+            if (toolName == "screenshot" && IsFullDesktopCapture(args))
+                risk = AutoModeClassifier.RiskLevel.Dangerous;
 
             // Safe → 自动放行
             if (risk == AutoModeClassifier.RiskLevel.Safe)
@@ -170,11 +181,8 @@ public static class PermissionManager
                 default: // "否"
                     if (activeScreen != null)
                         activeScreen.AddSystemMsg("已拒绝");
-                    else
-                    {
-                        Console.WriteLine(AnsiText.Warn("已拒绝"));
-                        Console.WriteLine();
-                    }
+                    else if (UxHelper.WebInteraction == null)
+                        UxHelper.Warn("权限确认", "已拒绝"); // Web 模式由浏览器端自行反馈结果，不写服务端 Console
                     break;
             }
             PermissionPromptResolved?.Invoke(toolName);
@@ -240,8 +248,9 @@ public static class PermissionManager
             _ => "问答 ACK",
         };
 
-        // -q/--quiet 静默模式：抑制权限横幅输出
-        if (Config.Instance.QuietMode) return;
+        // -q/--quiet 静默模式：抑制权限横幅输出；
+        // Web 模式经命令返回文本反馈、TUI 由状态栏反馈，直接写 Console 只会污染服务端 stdout / 干扰备用屏
+        if (Config.Instance.QuietMode || UxHelper.WebInteraction != null || UxHelper.IsTuiMode) return;
         Console.WriteLine($"权限模式: {AnsiText.Fg(label, color)}");
     }
 

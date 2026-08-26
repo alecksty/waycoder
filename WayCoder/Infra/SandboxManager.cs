@@ -85,7 +85,7 @@ public static class SandboxManager
     // ---- 会写文件/移动文件的工具（project-write 时校验路径） ----
     private static readonly HashSet<string> WriteTools = new(StringComparer.OrdinalIgnoreCase)
     {
-        "write_file", "edit_file", "multiedit", "find_replace", "mv", "cp", "rm",
+        "write_file", "edit_file", "multiedit", "find_replace", "mv", "cp", "rm", "download",
     };
 
     /// <summary>
@@ -99,7 +99,7 @@ public static class SandboxManager
 
         if (IsProjectWrite && WriteTools.Contains(toolName) && args != null)
         {
-            foreach (var key in new[] { "file_path", "path", "source", "dest" })
+            foreach (var key in new[] { "file_path", "path", "source", "dest", "src" })
             {
                 if (args.TryGetValue(key, out var v) && v is string s && s.Length > 0)
                 {
@@ -119,10 +119,10 @@ public static class SandboxManager
         if (!IsProjectWrite || string.IsNullOrWhiteSpace(path) || AllowedDirectory == null) return null;
 
         string normalized;
-        try { normalized = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar); }
+        try { normalized = PathSafety.ResolveSymlinks(Path.GetFullPath(path)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar); }
         catch { return null; }
 
-        var allowed = Path.GetFullPath(AllowedDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var allowed = PathSafety.ResolveSymlinks(Path.GetFullPath(AllowedDirectory)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         if (!normalized.StartsWith(allowed, StringComparison.OrdinalIgnoreCase))
             return $"⛔ 沙箱（仅项目内写入）：路径在项目根外 — {path}";
         return null;
