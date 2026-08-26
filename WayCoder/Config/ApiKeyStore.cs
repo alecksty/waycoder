@@ -15,9 +15,9 @@ public static class ApiKeyStore
     private static Dictionary<string, KeyEntry>? _keys;
 
     private static string FilePath =>
-        Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".waycoder", "api_keys.json");
+        // 统一走 Global.Home（桌面 = ~，移动端 MauiBootstrap 重定向为 AppDataDirectory）。
+        // 若用裸 UserProfile，Android 上会解析成根路径 "/"，写 ~/.waycoder 直接 "access to the path '/' is denied"。
+        Global.GlobalConfigPath("api_keys.json");
 
     /// <summary>获取指定服务商的 API Key，未存储返回 null</summary>
     public static string? Get(string providerId)

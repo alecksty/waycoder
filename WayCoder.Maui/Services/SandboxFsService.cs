@@ -114,4 +114,34 @@ public static class SandboxFsService
         if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) return null;
         return full[(root.Length + 1)..];
     }
+
+    /// <summary>重命名沙箱内文件/目录（newName 只取文件名，防路径逃逸）；越界/不存在/目标已存在返回 false。</summary>
+    public static bool Rename(string relPath, string newName)
+    {
+        var full = ResolveInSandbox(relPath);
+        if (full == null || (!File.Exists(full) && !Directory.Exists(full))) return false;
+
+        var safeName = Path.GetFileName(newName?.Trim() ?? "");
+        if (safeName.Length == 0 || string.Equals(safeName, Path.GetFileName(full), StringComparison.Ordinal)) return false;
+
+        var parent = Path.GetDirectoryName(full);
+        var target = ResolveInSandbox(Path.Combine(parent ?? "", safeName));
+        if (target == null || string.Equals(target, full, StringComparison.OrdinalIgnoreCase)) return false;
+        if (File.Exists(target) || Directory.Exists(target)) return false;
+
+        if (File.Exists(full)) File.Move(full, target);
+        else Directory.Move(full, target);
+        return true;
+    }
+
+    /// <summary>删除沙箱内文件/目录（目录递归）；越界或不存在返回 false。</summary>
+    public static bool Delete(string relPath)
+    {
+        var full = ResolveInSandbox(relPath);
+        if (full == null || (!File.Exists(full) && !Directory.Exists(full))) return false;
+
+        if (Directory.Exists(full)) Directory.Delete(full, recursive: true);
+        else File.Delete(full);
+        return true;
+    }
 }

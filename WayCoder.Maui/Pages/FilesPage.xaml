@@ -55,18 +55,18 @@
                                 Text="{Binding DisplaySize}"
                                 FontSize="11"
                                 HorizontalTextAlignment="End"
-                                TextColor="{AppThemeBinding Light=#888888, Dark=#999999}" />
+                                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                             <Label
                                 Text="{Binding DisplayModified}"
                                 FontSize="11"
                                 HorizontalTextAlignment="End"
-                                TextColor="{AppThemeBinding Light=#888888, Dark=#999999}" />
+                                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                         </VerticalStackLayout>
                     </Grid>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
             <CollectionView.EmptyView>
-                <Label Text="沙箱工作区为空，点「导入」加入文件" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{AppThemeBinding Light=#888888, Dark=#999999}" />
+                <Label Text="沙箱工作区为空，点「导入」加入文件" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
             </CollectionView.EmptyView>
         </CollectionView>
     </Grid>
