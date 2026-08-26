@@ -30,7 +30,7 @@ public sealed class AgentService
 
             var cfg = Config.Instance;
             var info = ModelCatalog.Find(cfg.Model);
-            var providerId = info?.ProviderId ?? cfg.Provider;
+            var providerId = ResolveProviderId(cfg);
             var key = ApiKeyStore.Get(providerId) ?? cfg.ApiKey;
             var baseUrl = ResolveBaseUrl(info, providerId, cfg.BaseUrl);
 
@@ -53,6 +53,26 @@ public sealed class AgentService
     /// <summary>丢弃已建 Agent（用户在设置页改了模型/Key 后调用，下次发送按新配置重建）。
     /// 静态：单槽位共享，任意 AgentService 实例调用都重置全局 Agent。</summary>
     public static void Reset() => _agent = null;
+
+    /// <summary>
+    /// 当前配置下是否有可用 API Key（与 <see cref="EnsureAgent"/> 的 key 解析一致）。
+    /// Key 按服务商存于 ApiKeyStore（api_keys.json），不在 Config.ApiKey —— 故不能只看 Config.ApiKey，
+    /// 否则设置页填了 Key 仍被 ChatPage 判为「未配置」而拦下。local/custom 本地模型无需 key。
+    /// </summary>
+    public static bool HasUsableKey()
+    {
+        var cfg = Config.Instance;
+        var providerId = ResolveProviderId(cfg);
+        if (providerId is "local" or "custom") return true;
+        return !string.IsNullOrEmpty(ApiKeyStore.Get(providerId) ?? cfg.ApiKey);
+    }
+
+    /// <summary>解析当前生效服务商 ID（模型目录推断 > 全局配置），key/模型共用。</summary>
+    private static string ResolveProviderId(Config cfg)
+    {
+        var info = ModelCatalog.Find(cfg.Model);
+        return info?.ProviderId ?? cfg.Provider;
+    }
 
     /// <summary>发起一轮对话。onToken/onTool/onToolOutput 回调保证在 UI 线程执行。</summary>
     public async Task<string> ChatAsync(
