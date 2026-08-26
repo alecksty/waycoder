@@ -251,6 +251,33 @@ public static partial class SelfTest
         Check("yolo 下边界仍拦 curl", SandboxManager.CheckNetworkCommand("curl http://x.com") != null);
         PermissionManager.CurrentMode = PermissionManager.Mode.Ask;
 
+        // 回归：相对路径须基于 CwdContext（被跟踪工作目录）解析，而非进程 cwd。
+        // 移动端 MAUI 上进程 cwd 锚到 App 私有目录（Global.Home），而文件工具相对路径锚点是
+        // 沙箱 workspace（CwdContext.Current），两者不同 —— 此前 CheckWritable 用单参
+        // Path.GetFullPath（基于进程 cwd）导致相对路径写入被误判越界、聊天写文件全被拦。
+        {
+            var ws = Path.Combine(Path.GetTempPath(), "wc_sandbox_rel_" + Guid.NewGuid().ToString("N")[..6]);
+            Directory.CreateDirectory(ws);
+            SandboxManager.SetLevel("project");
+            SandboxManager.AllowedDirectory = ws;
+            CwdContext.Current.Value = ws;
+            var oldCwd = Directory.GetCurrentDirectory();
+            try
+            {
+                Directory.SetCurrentDirectory(Path.GetTempPath()); // 进程 cwd ≠ workspace
+                Check("相对路径基于 CwdContext 解析（cwd≠workspace）", SandboxManager.CheckWritable("a.cs") == null);
+                Check("相对路径 ../ 越界仍拦截", SandboxManager.CheckWritable("../other/a.cs") != null);
+                Check("相对路径写工具放行", SandboxManager.CheckToolAllowed("write_file", new() { ["file_path"] = "a.cs" }) == null);
+            }
+            finally
+            {
+                Directory.SetCurrentDirectory(oldCwd);
+                CwdContext.Current.Value = null;
+                SandboxManager.Reset();
+                try { Directory.Delete(ws, true); } catch { }
+            }
+        }
+
         SandboxManager.Reset();
         Console.WriteLine();
 
