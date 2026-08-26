@@ -102,4 +102,44 @@ public static class MauiBootstrap
         try { _ = Config.Instance; }
         catch (Exception ex) { ErrorLog.Warning("MAUI", "配置预热失败", ex); }
     });
+
+    /// <summary>
+    /// 自动化自测钩子（仅模拟器调试用，正常启动不触发）：
+    /// 检测到 Global.Home/autotest.flag 标记文件时，自动发一条「写文件」任务验证
+    /// LLM 连通 + 沙箱 write_file 修复是否生效，结果落 autotest_result.txt。
+    /// 不依赖 UI 输入 —— 用于无辅助功能权限的 iOS 模拟器端到端验证。
+    /// </summary>
+    public static async Task RunAutoTestIfRequestedAsync()
+    {
+        var flag = Path.Combine(Global.Home, "autotest.flag");
+        if (!File.Exists(flag)) return;
+        try { File.Delete(flag); } catch { /* 只跑一次 */ }
+
+        var resultPath = Path.Combine(Global.Home, "autotest_result.txt");
+        try
+        {
+            _ = Config.Instance; // 确保 config.json / api_keys 已加载
+
+            // Yolo 跳过确认轴（write_file 弹框），但边界轴（沙箱 CheckWritable）仍生效 ——
+            // 正好验证「沙箱修复」而非「权限确认」。
+            PermissionManager.CurrentMode = PermissionManager.Mode.Yolo;
+
+            var svc = new AgentService();
+            var sb = new System.Text.StringBuilder();
+            await svc.ChatAsync(
+                "在当前工作目录创建一个 hello.txt 文件，内容为「沙箱修复验证成功」。完成后用一句话告诉我创建结果。",
+                t => sb.Append(t),
+                (name, summary) => sb.Append($"\n[TOOL:{name}]"),
+                _ => { },
+                System.Threading.CancellationToken.None);
+
+            await File.WriteAllTextAsync(resultPath, "RESULT=OK\n" + sb);
+            ErrorLog.Info("MAUI.AutoTest", "自动自测完成 OK");
+        }
+        catch (Exception ex)
+        {
+            try { await File.WriteAllTextAsync(resultPath, "RESULT=FAIL\n" + ex); } catch { }
+            ErrorLog.Error("MAUI.AutoTest", "自动自测失败", ex);
+        }
+    }
 }

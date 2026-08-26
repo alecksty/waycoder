@@ -119,7 +119,10 @@ public static class SandboxManager
         if (!IsProjectWrite || string.IsNullOrWhiteSpace(path) || AllowedDirectory == null) return null;
 
         string normalized;
-        try { normalized = PathSafety.ResolveSymlinks(Path.GetFullPath(path)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar); }
+        // 相对路径须基于被跟踪工作目录（CwdContext）解析，而非进程 cwd ——
+        // 移动端 MAUI 上 cwd 锚到 App 私有目录（Global.Home），而文件工具的相对路径
+        // 锚点是沙箱 workspace（CwdContext.Current），两者不同会导致相对路径写入被误判越界。
+        try { normalized = PathSafety.ResolveSymlinks(Path.GetFullPath(path, Tools.CwdContext.Current.Value ?? Directory.GetCurrentDirectory())).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar); }
         catch { return null; }
 
         var allowed = PathSafety.ResolveSymlinks(Path.GetFullPath(AllowedDirectory)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
