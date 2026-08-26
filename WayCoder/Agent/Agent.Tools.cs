@@ -94,7 +94,7 @@ public partial class Agent
             {
                 try
                 {
-                    var wcOldPath = Path.GetFullPath(wcOldFpStr, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory());
+                    var wcOldPath = Path.GetFullPath(wcOldFpStr, CwdContext.Current.Value ?? Directory.GetCurrentDirectory());
                     if (File.Exists(wcOldPath)) oldContentForDisplay = File.ReadAllText(wcOldPath);
                 }
                 catch { }
@@ -161,7 +161,7 @@ public partial class Agent
                     bool multiOk = isMulti && (result.StartsWith("✅ 已创建") || result.StartsWith("✅ 已编辑"));
                     if (writeOk || editOk || multiOk)
                     {
-                        var wcPath = Path.GetFullPath(wcFpStr, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory());
+                        var wcPath = Path.GetFullPath(wcFpStr, CwdContext.Current.Value ?? Directory.GetCurrentDirectory());
                         if (File.Exists(wcPath))
                         {
                             var wcNewContent = File.ReadAllText(wcPath);
@@ -218,7 +218,7 @@ public partial class Agent
         };
         if (args != null && args.TryGetValue(key, out var v) && v is string s && !string.IsNullOrWhiteSpace(s))
         {
-            try { path = Path.GetFullPath(s, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); return true; }
+            try { path = Path.GetFullPath(s, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); return true; }
             catch { return false; }
         }
         return false;
@@ -344,7 +344,7 @@ public partial class Agent
     private void AnswerPendingToolCalls(List<ToolCall> toolCalls)
     {
         var answered = new HashSet<string>(
-            Messages.Where(m => m["role"]?.AsString() == "tool")
+            SnapshotMessages().Where(m => m["role"]?.AsString() == "tool")
                     .Select(m => m["tool_call_id"]?.AsString() ?? ""));
 
         foreach (var tc in toolCalls)

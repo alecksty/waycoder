@@ -32,12 +32,6 @@ public class BashTool : ITool, ICancellableTool
                 .Set("description", "持久 shell 会话 ID。提供则复用同一 shell 进程，多命令共享 cwd/环境变量/shell 状态（如 export、alias）。省略则每次新建进程。")))
         .Set("required", JNode.Array().Add("command"));
 
-    /// <summary>
-    /// 跨命令跟踪 cwd。AsyncLocal 确保每个异步上下文
-    /// 跟踪自己的工作目录，并行调用不会产生竞态。
-    /// </summary>
-    internal static readonly AsyncLocal<string> CurrentCwd = new();
-
     // 可能破坏文件系统或泄露密钥的危险模式
     private static readonly (Regex Pattern, string Reason)[] DangerousPatterns =
     [
@@ -141,7 +135,7 @@ public class BashTool : ITool, ICancellableTool
 
         // Worktree 隔离：检测 worktree 路径，自动切换 cwd
         var worktreePath = WorktreeIsolation.CurrentWorktree;
-        var cwd = worktreePath ?? CurrentCwd.Value ?? Directory.GetCurrentDirectory();
+        var cwd = worktreePath ?? CwdContext.Current.Value ?? Directory.GetCurrentDirectory();
 
         // 沙箱边界检查（Off 放行；危险命令/网络关/cd 逃逸/系统写按模式拦截，独立于权限）
         if (SandboxManager.Mode != SandboxMode.Off)
@@ -464,7 +458,7 @@ public class BashTool : ITool, ICancellableTool
 
         if (changed)
         {
-            CurrentCwd.Value = running;
+            CwdContext.Current.Value = running;
         }
     }
 }

@@ -23,9 +23,6 @@ public static class RepoMapGenerator
     /// <summary>Gitignore 规则（glob 模式）</summary>
     private static List<string> _ignorePatterns = [];
 
-    /// <summary>已扫描过符号的文件哈希，避免重复扫描</summary>
-    private static readonly Dictionary<string, string> _symbolCache = new();
-
     // ---- 各语言的符号提取正则 ----
 
     private static readonly Dictionary<string, (Regex regex, string kind)> SymbolPatterns = new()
@@ -252,7 +249,6 @@ public static class RepoMapGenerator
         string RelativePath,
         string Name,
         bool IsDir,
-        long Size,
         DateTime LastModified,
         string? SymbolInfo
     );
@@ -266,7 +262,6 @@ public static class RepoMapGenerator
         // 深度上限防符号链接环 → StackOverflow；条目上限防 home/超大目录全量递归扫描卡死
         // （在 ~ 目录启动时 root 是 home，递归几十万文件导致 TUI 永远不出现）
         if (depth > 8 || _entryCount >= EntryLimit) return entries;
-        var rootPrefix = root.Replace('\\', '/').TrimEnd('/') + "/";
 
         try
         {
@@ -280,7 +275,7 @@ public static class RepoMapGenerator
                     continue;
 
                 _entryCount++;
-                entries.Add(new FileEntry(relPath, name, true, 0, Directory.GetLastWriteTime(dir), null));
+                entries.Add(new FileEntry(relPath, name, true, Directory.GetLastWriteTime(dir), null));
                 entries.AddRange(CollectEntries(root, dir, depth + 1));
             }
 
@@ -298,7 +293,7 @@ public static class RepoMapGenerator
                 var symbols = ExtractSymbols(file);
                 var symbolInfo = string.IsNullOrEmpty(symbols) ? null : symbols;
 
-                entries.Add(new FileEntry(relPath, name, false, fi.Length, fi.LastWriteTime, symbolInfo));
+                entries.Add(new FileEntry(relPath, name, false, fi.LastWriteTime, symbolInfo));
             }
         }
         catch (Exception ex) { DebugLog.Log("RepoMap", $"目录扫描失败: {ex.Message}"); }

@@ -38,7 +38,9 @@ public static class ApiKeyStore
     {
         lock (_lock)
         {
-            var keys = Load();
+            // 写时复制：读路径（Get/Has/ListAll*）无锁返回共享 `_keys`，故写侧必须克隆后再改，
+            // 否则并发读者会在原地变异的字典上枚举/取值，抛 InvalidOperationException 或读到撕裂状态。
+            var keys = new Dictionary<string, KeyEntry>(Load());
             var pid = providerId.ToLowerInvariant();
             if (string.IsNullOrWhiteSpace(apiKey))
                 keys.Remove(pid);
@@ -53,7 +55,7 @@ public static class ApiKeyStore
     {
         lock (_lock)
         {
-            var keys = Load();
+            var keys = new Dictionary<string, KeyEntry>(Load());
             var pid = providerId.ToLowerInvariant();
             if (!keys.TryGetValue(pid, out var entry)) return false;
             keys[pid] = entry with { Expiry = NormalizeExpiry(expiry) };
@@ -66,7 +68,7 @@ public static class ApiKeyStore
     {
         lock (_lock)
         {
-            var keys = Load();
+            var keys = new Dictionary<string, KeyEntry>(Load());
             keys.Remove(providerId.ToLowerInvariant());
             Save(keys);
         }
@@ -77,7 +79,7 @@ public static class ApiKeyStore
         Load().ToDictionary(kv => kv.Key, kv => kv.Value.ApiKey);
 
     /// <summary>列出所有已存服务商（服务商ID → key + 有效期）。</summary>
-    public static Dictionary<string, KeyEntry> ListAllEntries() => Load();
+    public static Dictionary<string, KeyEntry> ListAllEntries() => new(Load());
 
     /// <summary>检查是否有指定服务商的 Key</summary>
     public static bool Has(string providerId) =>
@@ -478,9 +480,13 @@ public static class ApiKeyStore
                 arr.Add(item);
             }
 
-            _keys = keys;
+            // 原子写：先落临时文件再 rename 覆盖，避免中途崩溃留下半截 JSON（下次启动解析失败丢全部 key）。
             var json = arr.ToJson(true);
-            File.WriteAllText(FilePath, json);
+            var tmp = FilePath + ".tmp";
+            File.WriteAllText(tmp, json);
+            File.Move(tmp, FilePath, overwrite: true);
+
+            _keys = keys;
             return true;
         }
         catch (Exception ex)

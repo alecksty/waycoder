@@ -135,7 +135,7 @@ public class ScreenshotTool : ITool
             }
             else
             {
-                var fullPath = Path.GetFullPath(savePath, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
+                var fullPath = Path.GetFullPath(savePath, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
                 Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
                 savePath = fullPath;
             }
@@ -188,7 +188,7 @@ public class ScreenshotTool : ITool
     }
 
     /// <summary>执行一次抓屏命令并校验产物文件已生成。</summary>
-    private static (bool Ok, string Err) RunCapture((string Tool, string Args) cmd, string savePath)
+    private static (bool Ok, string Err) RunCapture((string Tool, string[] Args) cmd, string savePath)
     {
         try
         {
@@ -218,8 +218,10 @@ public class ScreenshotTool : ITool
     }
 
     /// <summary>Windows：powershell + System.Drawing.CopyFromScreen（Windows PowerShell 5.1 内置，纯逻辑供自测）。</summary>
-    internal static (string Tool, string Args) BuildWindowsCapture(bool full, int x, int y, int w, int h, string savePath)
+    internal static (string Tool, string[] Args) BuildWindowsCapture(bool full, int x, int y, int w, int h, string savePath)
     {
+        // savePath 只做 PowerShell 单引号字符串内的 '' 转义；作为独立 ArgumentList 参数传入，
+        // 不再经 cmd/CommandLineToArgvW 的引号解析，杜绝 save_path 含 " 或 ; 逃逸出参数边界。
         var psPath = savePath.Replace("'", "''");
         var sb = new StringBuilder();
         sb.Append("Add-Type -AssemblyName System.Windows.Forms;Add-Type -AssemblyName System.Drawing;");
@@ -238,37 +240,36 @@ public class ScreenshotTool : ITool
         }
         sb.Append($"$bmp.Save('{psPath}',[System.Drawing.Imaging.ImageFormat]::Png);");
         sb.Append("$g.Dispose();$bmp.Dispose();");
-        var args = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"{sb}\"";
-        return ("powershell", args);
+        return ("powershell", new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", sb.ToString() });
     }
 
     /// <summary>macOS：screencapture（系统内置，纯逻辑供自测）。</summary>
-    internal static (string Tool, string Args) BuildMacCapture(bool full, int x, int y, int w, int h, string savePath)
+    internal static (string Tool, string[] Args) BuildMacCapture(bool full, int x, int y, int w, int h, string savePath)
     {
-        var flags = "-x"; // 静默，无快门声
-        if (!full) flags += $" -R{x},{y},{w},{h}";
-        return ("/usr/sbin/screencapture", $"{flags} \"{savePath}\"");
+        if (!full)
+            return ("/usr/sbin/screencapture", new[] { "-x", $"-R{x},{y},{w},{h}", savePath });
+        return ("/usr/sbin/screencapture", new[] { "-x", savePath });
     }
 
-    /// <summary>Linux：单个工具的参数构造（纯逻辑供自测）。</summary>
-    internal static (string Tool, string Args) BuildLinuxCommandFor(string tool, bool full, int x, int y, int w, int h, string savePath)
+    /// <summary>Linux：单个工具的参数构造（纯逻辑供自测）。savePath 作为独立参数，不经 shell 引号解析。</summary>
+    internal static (string Tool, string[] Args) BuildLinuxCommandFor(string tool, bool full, int x, int y, int w, int h, string savePath)
     {
         switch (tool)
         {
             case "grim": // Wayland：-g "<x>,<y> <w>x<h>"
-                return full ? ("grim", $"\"{savePath}\"")
-                            : ("grim", $"-g \"{x},{y} {w}x{h}\" \"{savePath}\"");
+                return full ? ("grim", new[] { savePath })
+                            : ("grim", new[] { "-g", $"{x},{y} {w}x{h}", savePath });
             case "import": // ImageMagick：-crop WxH+X+Y
-                return full ? ("import", $"-window root \"{savePath}\"")
-                            : ("import", $"-window root -crop {w}x{h}+{x}+{y} \"{savePath}\"");
+                return full ? ("import", new[] { "-window", "root", savePath })
+                            : ("import", new[] { "-window", "root", "-crop", $"{w}x{h}+{x}+{y}", savePath });
             case "scrot": // -a X,Y,W,H
-                return full ? ("scrot", $"\"{savePath}\"")
-                            : ("scrot", $"-a {x},{y},{w},{h} \"{savePath}\"");
+                return full ? ("scrot", new[] { savePath })
+                            : ("scrot", new[] { "-a", $"{x},{y},{w},{h}", savePath });
             case "maim": // -g WxH+X+Y
-                return full ? ("maim", $"\"{savePath}\"")
-                            : ("maim", $"-g {w}x{h}+{x}+{y} \"{savePath}\"");
+                return full ? ("maim", new[] { savePath })
+                            : ("maim", new[] { "-g", $"{w}x{h}+{x}+{y}", savePath });
             default:
-                return (tool, $"\"{savePath}\"");
+                return (tool, new[] { savePath });
         }
     }
 
@@ -298,7 +299,7 @@ public class ScreenshotTool : ITool
     {
         try
         {
-            var (exitCode, output) = RunProcess("tesseract", $"\"{imagePath}\" stdout 2>/dev/null");
+            var (exitCode, output) = RunProcess("tesseract", new[] { imagePath, "stdout" });
             if (exitCode == 0 && !string.IsNullOrWhiteSpace(output))
                 return output;
         }
@@ -309,19 +310,19 @@ public class ScreenshotTool : ITool
         return null;
     }
 
-    /// <summary>运行一个外部命令，返回（退出码，合并输出）</summary>
-    private static (int ExitCode, string Output) RunProcess(string fileName, string arguments)
+    /// <summary>运行一个外部命令，返回（退出码，合并输出）。参数用 ArgumentList 传，不经 shell 引号解析。</summary>
+    private static (int ExitCode, string Output) RunProcess(string fileName, string[] arguments)
     {
         var psi = new ProcessStartInfo
         {
             FileName = fileName,
-            Arguments = arguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             RedirectStandardInput = true, // 不共享主控台 stdin（防 TUI ReadKey 竞态）
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        foreach (var a in arguments) psi.ArgumentList.Add(a);
         using var proc = Process.Start(psi);
         if (proc == null) return (-1, "");
         try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF

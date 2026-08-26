@@ -237,7 +237,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     }
 
     /// <summary>处理 POST /upload：落盘 + 图片入 vision 队列 / 音频转录。</summary>
-    private HttpResponse HandleUpload(HttpRequest req)
+    private async Task<HttpResponse> HandleUpload(HttpRequest req)
     {
         var kind = ParseUploadKind(req.Query);
         if (kind == null)
@@ -288,9 +288,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         }
 
         // 音频：转录（复用 TranscribeAudioTool）
-        var text = new TranscribeAudioTool()
-            .ExecuteAsync(new Dictionary<string, object?> { ["path"] = path })
-            .GetAwaiter().GetResult();
+        var text = await new TranscribeAudioTool()
+            .ExecuteAsync(new Dictionary<string, object?> { ["path"] = path });
         try { File.Delete(path); } catch { } // 转录完成即清理临时文件（避免 %TEMP% 无界累积）
         if (IsTranscribeError(text))
             return HttpResponse.JsonBody(Err(text));

@@ -70,7 +70,7 @@ public class ReadFileTool : ITool
             if (string.IsNullOrWhiteSpace(filePath))
                 return "错误：file_path 不能为空 — 请提供有效的文件路径。";
 
-            var path = Path.GetFullPath(filePath, BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
+            var path = Path.GetFullPath(filePath, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
 
             // 敏感路径防护（SSH 密钥/云凭据/系统凭据，防提示注入读泄露）
             var sensitive = PathSafety.CheckSensitive(path);

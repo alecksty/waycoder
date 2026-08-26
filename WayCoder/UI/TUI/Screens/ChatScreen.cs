@@ -917,12 +917,15 @@ public partial class ChatScreen : TuiScreen
 
     // ── 便捷消息方法 ──
 
-    /// <summary>添加用户消息</summary>
+    /// <summary>添加用户消息。线程安全：ChatMessages 写入与流式 token 追加统一走 _chatLock。</summary>
     public void AddUserMsg(string content)
     {
-        var msg = new ChatMsg { Role = "user", Content = content };
-        ChatMessages.Add(msg);
-        AddMessage(content, "user");
+        lock (_chatLock)
+        {
+            var msg = new ChatMsg { Role = "user", Content = content };
+            ChatMessages.Add(msg);
+            AddMessage(content, "user");
+        }
     }
 
     /// <summary>添加系统消息。线程安全：可从后台线程调用。</summary>
@@ -986,13 +989,16 @@ public partial class ChatScreen : TuiScreen
         MarkDirty();
     }
 
-    /// <summary>添加工具调用消息（嵌套子消息）</summary>
+    /// <summary>添加工具调用消息（嵌套子消息）。线程安全：ChatMessages 写入统一走 _chatLock。</summary>
     public void AddToolMsg(string toolName, string brief)
     {
-        var content = $"  🔧 {toolName}({brief})";
-        var msg = new ChatMsg { Role = "tool", Content = content, Indent = 1 };
-        ChatMessages.Add(msg);
-        AddMessage(content, "tool", indent: 1);
+        lock (_chatLock)
+        {
+            var content = $"  🔧 {toolName}({brief})";
+            var msg = new ChatMsg { Role = "tool", Content = content, Indent = 1 };
+            ChatMessages.Add(msg);
+            AddMessage(content, "tool", indent: 1);
+        }
     }
 
     /// <summary>更新 Token 显示</summary>

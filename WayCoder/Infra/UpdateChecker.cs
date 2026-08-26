@@ -176,6 +176,24 @@ public static class UpdateChecker
     }
 
     /// <summary>
+    /// 校验 release tag_name 是否安全（仅字母/数字/点/连字符/下划线/加号，长度 ≤64）。
+    /// tag_name 会拼进临时目录名（`waycoder-update-{rid}-{tag}`），含路径分隔符/`..` 可路径穿越
+    /// 写任意位置，含空格/引号可污染后续命令拼接，故必须白名单校验。
+    /// </summary>
+    public static bool IsSafeTagName(string tag)
+    {
+        if (string.IsNullOrEmpty(tag) || tag.Length > 64) return false;
+        foreach (var c in tag)
+        {
+            if (c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9')
+                or '.' or '-' or '_' or '+')
+                continue;
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
     /// 解析 SHA256SUMS 内容（GNU sha256sum 格式：`&lt;64位hex&gt;  &lt;文件名&gt;`，二进制模式文件名前缀 `*`），
     /// 返回 文件名→小写哈希 的字典（大小写不敏感键）。
     /// </summary>
@@ -230,6 +248,7 @@ public static class UpdateChecker
 
             var tag = node["tag_name"]?.AsString() ?? "";
             if (string.IsNullOrEmpty(tag)) return null;
+            if (!IsSafeTagName(tag)) return null; // 恶意 tag_name 可路径穿越临时目录
             var body = node["body"]?.AsString() ?? "";
             var assetUrl = FindAssetUrl(node["assets"], DetectCurrentRid());
             if (assetUrl == null) return null; // 无匹配平台资产
@@ -264,6 +283,7 @@ public static class UpdateChecker
 
             var tag = node["tag_name"]?.AsString() ?? "";
             if (string.IsNullOrEmpty(tag)) return null;
+            if (!IsSafeTagName(tag)) return null; // 恶意 tag_name 可路径穿越临时目录
             var body = node["body"]?.AsString() ?? "";
             var assetUrl = FindAssetUrl(node["assets"], DetectCurrentRid());
             if (assetUrl == null) return null;

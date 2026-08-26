@@ -111,7 +111,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     //  路由
     // ═══════════════════════════════════════════════════════════
 
-    private HttpResponse? HandleRequest(HttpRequest req)
+    private async Task<HttpResponse?> HandleRequest(HttpRequest req)
     {
         // CSRF 防护：状态变更请求（非 GET）必须来自本服务来源。
         // 浏览器跨源 fetch 必带 Origin（攻击者域名），curl/SSE/同源导航不带 Origin 放行；
@@ -219,7 +219,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             if (string.IsNullOrWhiteSpace(modelId))
                 return HttpResponse.JsonBody(Err("缺少 modelId"));
             Interrupt(slot);
-            WaitForSlotIdleAsync(_slots[slot]).GetAwaiter().GetResult(); // 等退场 ChatAsync 收尾，避免与 Reconfigure 竞态
+            await WaitForSlotIdleAsync(_slots[slot]); // 等退场 ChatAsync 收尾，避免与 Reconfigure 竞态
             var agent = EnsureSlot(slot);
             var error = ApplyModel(agent, modelId, apiKey, providerId, baseUrl);
             if (error != null) return HttpResponse.JsonBody(Err(error));
@@ -344,7 +344,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                     return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true)
                         .Set("output", WebModelListText()).ToJson());
                 Interrupt(slot);
-                WaitForSlotIdleAsync(_slots[slot]).GetAwaiter().GetResult(); // 等退场 ChatAsync 收尾再 Reconfigure
+                await WaitForSlotIdleAsync(_slots[slot]); // 等退场 ChatAsync 收尾再 Reconfigure
                 var matches = ModelCatalog.Search(name);
                 if (matches.Length == 0)
                     return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true)
@@ -450,7 +450,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
         // 多模态上传：图片（入 vision 队列）/ 音频（转录为文字）
         if (req.Method == "POST" && req.Path == "/upload")
-            return HandleUpload(req);
+            return await HandleUpload(req);
 
         // ── 特殊前缀输入 ──
         // !Shell指令：直接执行 bash 并返回输出（不回传 Agent，对标 Claude Code `!`）
@@ -463,13 +463,11 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             try
             {
                 // 权限确认：YOLO/只读命令自动放行，危险命令走交互桥弹浏览器确认框（与 Agent 工具一致，不再绕过权限）
-                var allowed = PermissionManager.CheckAsync("bash", new Dictionary<string, object?> { ["command"] = command })
-                    .GetAwaiter().GetResult();
+                var allowed = await PermissionManager.CheckAsync("bash", new Dictionary<string, object?> { ["command"] = command });
                 if (!allowed)
                     return HttpResponse.JsonBody(JNode.Object().Set("ok", false).Set("output", "已拒绝执行").ToJson());
-                var result = new BashTool()
-                    .ExecuteAsync(new Dictionary<string, object?> { ["command"] = command })
-                    .GetAwaiter().GetResult();
+                var result = await new BashTool()
+                    .ExecuteAsync(new Dictionary<string, object?> { ["command"] = command });
                 return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("output", result).ToJson());
             }
             catch (Exception ex)
@@ -489,9 +487,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var safePath = ResolveWithinRoot(path);
             if (safePath == null)
                 return HttpResponse.JsonBody(JNode.Object().Set("ok", false).Set("error", "路径超出项目根目录").ToJson());
-            var content = new ReadFileTool()
-                .ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = safePath })
-                .GetAwaiter().GetResult();
+            var content = await new ReadFileTool()
+                .ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = safePath });
             var agent = EnsureSlot(slot);
             agent.AddMessage(JNode.Object().Set("role", "user")
                 .Set("content", $"【文件引用】{path}\n\n{content}"));

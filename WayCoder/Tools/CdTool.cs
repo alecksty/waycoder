@@ -25,7 +25,7 @@ public class CdTool : ITool
 
         try
         {
-            var current = BashTool.CurrentCwd.Value ?? Directory.GetCurrentDirectory();
+            var current = CwdContext.Current.Value ?? Directory.GetCurrentDirectory();
 
             // 处理 ~ 展开：仅前缀 ~ 或 ~/ 展开为 home，`~user`/路径中段 ~ 保持原样
             if (path.StartsWith('~'))
@@ -36,7 +36,7 @@ public class CdTool : ITool
             if (!Directory.Exists(fullPath))
                 return Task.FromResult($"错误：目录不存在 — {fullPath}");
 
-            BashTool.CurrentCwd.Value = fullPath;
+            CwdContext.Current.Value = fullPath;
             return Task.FromResult($"✔ 工作目录: {fullPath}");
         }
         catch (Exception ex)
