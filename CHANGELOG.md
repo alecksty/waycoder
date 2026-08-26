@@ -1,5 +1,22 @@
 # 更新日志
 
+## v0.96.9 (2026-08-26) — MAUI 移动端界面完善：设置页 + 首页 + 4 Tab + 主题 + 崩溃修复
+
+v0.96.8 新增的 MAUI 手机版此前处于 M1-M4 雏形（无设置页无法配 API Key、MainPage 模板占位、配色模板默认），本次补齐界面并修复三个 Android 运行时崩溃。
+
+- **新增设置页**（`Pages/SettingsPage`）：服务商下拉 → 联动模型下拉 → BaseUrl → API Key → MaxTokens/Temperature/经济模式。保存复用主工程配置链路（`ApiKeyStore.Set` 存密钥、`ConnectionConfig.ApplyModelChoice` 切模型、`Config.SaveToEnvFile` 持久化、`AgentService.Reset` 重建 Agent），不再需要手写配置
+- **首页欢迎页**：MainPage 模板占位（dotnet_bot/"Click me"）→ 真实首页（版本号 + 当前模型/Key 状态卡 + 开始对话/配置入口）
+- **AppShell 4 Tab**：首页/对话/文件/设置 + emoji 图标（此前仅对话/文件两 Tab 无图标）
+- **全局主题品牌化**：Colors/Styles 定义 WayCoder 品牌主色 `#4A6CF7` + 语义色（气泡/卡片/输入框/弱化文字），Button 圆角 12、TabBar 品牌配色，深/浅双主题
+- **聊天页美化**：气泡改语义色、AI 消息加卡片背景、输入栏圆角容器、顶部模型快捷切换条（点模型名 ActionSheet 切换）、未配置 Key 引导跳设置页
+- **文件页补齐**：文件项 ActionSheet（打开/重命名/删除）+ 确认对话框，`SandboxFsService` 补 `Rename`/`Delete`
+- **AgentService 单槽位静态共享**：改配置后 `Reset()` 对全部实例全局生效
+- **崩溃修复**：
+  - `AppThemeBinding` 作为资源 + `StaticResource` 赋颜色属性在 Android 运行时抛 `JavaProxyThrowable` → 改 MAUI 官方模式（Color 分 Light/Dark 成对 + 使用处 `AppThemeBinding` 引用）
+  - `ApiKeyStore`/`Config.SaveMinimalDotEnv` 用裸 `Environment.SpecialFolder.UserProfile`，Android 上解析成根 `/` → 写 `~/.waycoder` 报 `access to the path '/' is denied` → 统一走 `Global.Home`（移动端重定向 App 私有目录）
+  - Android 进程 cwd 为 `/`，所有 `Directory.GetCurrentDirectory()` 派生路径（`SyncConfigJsonToLocal` 等）落根 → `MauiBootstrap` 启动时把 cwd 锚到 App 私有目录
+- **编译**：`dotnet build WayCoder.Maui -f net10.0-android` 0 错误；主项目桌面 CLI 0 错误
+
 ## v0.96.8 (2026-08-26) — 新增 MAUI 移动端第五前端（Android + iOS）+ 实时录音
 
 第五个前端 `WayCoder.Maui`（Android + iOS）——「完全脱离电脑」的手机独立编程智能体：Agent 核心直接编译进 App，离线可用（仅 LLM API 需网络），自带 API Key/配置，手机本地跑真正的编程智能体而非「遥控桌面后端」。

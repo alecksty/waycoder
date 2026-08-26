@@ -41,6 +41,12 @@ public static class MauiBootstrap
         // 1) 配置目录重定向 → App 私有目录（必须最先，ErrorLog/Config 都依赖 Global.Home）
         Global.HomeOverride = FileSystem.Current.AppDataDirectory;
 
+        // Android 进程 cwd 默认是根目录 "/"，任何相对路径写操作（SyncConfigJsonToLocal、
+        // FindEnvFile 等走 Directory.GetCurrentDirectory() 的代码）会解析到 "/"，
+        // 写 ~/.waycoder 直接 "access to the path '/' is denied"。
+        // 统一把 cwd 锚到 App 私有目录，所有 cwd 派生路径落在可写区。
+        try { Directory.SetCurrentDirectory(Global.Home); } catch { }
+
         // 2) 错误日志 —— 落 App 目录（baseDir 显式传，避免用 iOS 上无意义的 CWD）
         ErrorLog.Initialize(baseDir: Global.Home, catchAllExceptions: true);
 
