@@ -42,15 +42,15 @@ public class SyncQrCommand : SlashCommand
             payload.Append('}');
             var json = payload.ToString();
 
-            // ZXing 编码为 BitMatrix（字节模式 + L 纠错）
-            var matrix = ZXing.QrCode.Internal.Encoder.encode(json, ErrorCorrectionLevel.L).Matrix;
+            // ZXing 编码为 BitMatrix（字节模式 + M 纠错——比 L 抗照片反光/噪声，手机扫码更稳）
+            var matrix = ZXing.QrCode.Internal.Encoder.encode(json, ErrorCorrectionLevel.M).Matrix;
             screen.AddSystemMsg($"📱 手机「代码同步」页点「扫二维码」扫描（或扫 sync-qr.png）：\n仓库 {url}\n凭证 {(cred is { } ? "已含（用户名+Token）" : "未配置（/git credential 设置后重新生成）")}");
             screen.AddSystemMsg(RenderAscii(matrix));
 
-            // 存 PNG（项目手写 PngEncoder，AOT 安全）
+            // 存 PNG（项目手写 PngEncoder，AOT 安全；scale 10 更清晰）
             try
             {
-                var png = RenderPng(matrix, scale: 8);
+                var png = RenderPng(matrix, scale: 10);
                 var path = Path.Combine(Environment.CurrentDirectory, "sync-qr.png");
                 File.WriteAllBytes(path, png);
                 screen.AddSystemMsg($"💾 已存二维码图片：{path}");
@@ -69,18 +69,14 @@ public class SyncQrCommand : SlashCommand
 
     private static string Escape(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
-    /// <summary>半块 ASCII 渲染（▀▄█，2 行/行，终端等宽字体可被手机扫码）。</summary>
+    /// <summary>ASCII 渲染（正方形模块：每模块 2 字符宽 × 1 行，终端等宽字体下模块≈正方形，手机可扫码）。</summary>
     private static string RenderAscii(ZXing.QrCode.Internal.ByteMatrix m)
     {
         var sb = new StringBuilder();
-        for (int y = 0; y < m.Height; y += 2)
+        for (int y = 0; y < m.Height; y++)
         {
             for (int x = 0; x < m.Width; x++)
-            {
-                var top = m[x, y] != 0;
-                var bottom = y + 1 < m.Height && m[x, y + 1] != 0;
-                sb.Append(top && bottom ? "█" : top ? "▀" : bottom ? "▄" : " ");
-            }
+                sb.Append(m[x, y] != 0 ? "██" : "  ");
             sb.Append('\n');
         }
         return sb.ToString();

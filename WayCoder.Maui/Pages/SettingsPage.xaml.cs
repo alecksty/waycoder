@@ -1,5 +1,8 @@
+using System.Text;
+using System.Net.Http;
 using System.Text.RegularExpressions;
 using WayCoder;
+using WayCoder.Infra;
 using WayCoder.Maui.Services;
 
 namespace WayCoder.Maui.Pages;
@@ -59,10 +62,18 @@ public partial class SettingsPage : ContentPage
         EconomyPicker.ItemsSource = new List<string> { "off", "auto", "on", "extreme" };
         EconomyPicker.SelectedItem = cfg.EconomyMode.ToString().ToLowerInvariant();
 
-        // 小模型（双模型架构的补全/摘要/压缩侧）
-        SmallModelPicker.ItemsSource = ModelCatalog.All;
-        SmallModelPicker.SelectedItem = ModelCatalog.All.FirstOrDefault(m => m.Id == cfg.SmallModel)
-            ?? ModelCatalog.All.FirstOrDefault();
+        // 小模型（双模型架构的补全/摘要/压缩侧）：独立服务商/模型/地址/Key
+        var smallCurrent = string.IsNullOrEmpty(cfg.SmallProvider) ? current : cfg.SmallProvider.ToLowerInvariant();
+        if (providers.All(p => p.Id != smallCurrent))
+        {
+            var disp = ModelCatalog.Providers.TryGetValue(smallCurrent, out var sp) ? sp.DisplayName : smallCurrent;
+            providers.Insert(0, new ProviderOption(smallCurrent, disp));
+        }
+        SmallProviderPicker.ItemsSource = providers;
+        SmallProviderPicker.SelectedItem = providers.FirstOrDefault(p => p.Id == smallCurrent) ?? providers.FirstOrDefault();
+
+        ReloadSmallModels(smallCurrent, cfg.SmallModel);
+        SmallBaseUrlEntry.Text = ModelCatalog.Providers.GetValueOrDefault(smallCurrent)?.DefaultBaseUrl;
 
         // 推理深度（空=模型默认）
         ReasoningPicker.ItemsSource = new List<string> { "", "minimal", "low", "medium", "high", "max" };
@@ -82,6 +93,58 @@ public partial class SettingsPage : ContentPage
         PermModePicker.SelectedItem = PermModeLabels[(int)PermissionManager.CurrentMode];
 
         UpdateKeyStatus(current);
+        UpdateSmallKeyStatus(smallCurrent);
+        RefreshWorkspaceStatus();
+    }
+
+    /// <summary>刷新 workspace 存储状态（外部/私有）。</summary>
+    private void RefreshWorkspaceStatus()
+    {
+        var ext = WayCoder.Maui.MauiBootstrap.WorkspaceExternal;
+        WorkspaceStatusLabel.Text = ext
+            ? $"✅ workspace 在外部存储：{WayCoder.Maui.MauiBootstrap.WorkspaceDir}"
+            : $"⚠️ workspace 在 App 私有目录（卸载重装会丢失代码）：\n{WayCoder.Maui.MauiBootstrap.WorkspaceDir}";
+        ExternalWorkspaceBtn.Text = ext
+            ? "🗂 外部存储已启用"
+            : "🗂 启用外部存储 workspace（卸载重装代码不丢）";
+    }
+
+    /// <summary>启用外部存储 workspace：未授权先跳系统「所有文件访问」设置，授权后自动迁移。</summary>
+    private async void OnExternalWorkspaceClicked(object? sender, EventArgs e)
+    {
+#if ANDROID
+        if (!Android.OS.Environment.IsExternalStorageManager)
+        {
+            try
+            {
+                // 「所有文件访问」设置页（Android 11+）
+                var intent = new Android.Content.Intent(
+                    "android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION",
+                    Android.Net.Uri.Parse("package:" + Android.App.Application.Context.PackageName));
+                intent.AddFlags(Android.Content.ActivityFlags.NewTask);
+                Android.App.Application.Context.StartActivity(intent);
+            }
+            catch
+            {
+                // 部分 ROM 无该页面，退到应用详情页
+                var intent = new Android.Content.Intent("android.settings.APPLICATION_DETAILS_SETTINGS",
+                    Android.Net.Uri.Parse("package:" + Android.App.Application.Context.PackageName));
+                intent.AddFlags(Android.Content.ActivityFlags.NewTask);
+                Android.App.Application.Context.StartActivity(intent);
+            }
+            await DisplayAlertAsync("已跳转设置", "请开启「允许访问所有文件」，返回后点本按钮完成迁移。", "确定");
+            return;
+        }
+
+        var ok = WayCoder.Maui.MauiBootstrap.TryEnableExternalWorkspace();
+        RefreshWorkspaceStatus();
+        await DisplayAlertAsync(ok ? "已启用" : "启用失败",
+            ok
+                ? "workspace 已迁移到 sdcard/waycoder/workspace、配置到 sdcard/waycoder/config，卸载重装不丢。重启应用后配置完全生效。"
+                : "无法启用外部存储，请检查权限。", "确定");
+#else
+        await DisplayAlertAsync("外部存储", "仅 Android 支持。", "确定");
+#endif
     }
 
     /// <summary>应用模型选择：统一入口切换服务商+模型并刷新 UI。</summary>
@@ -184,6 +247,122 @@ public partial class SettingsPage : ContentPage
         KeyStatusLabel.Text = masked != null ? $"已保存：{masked}" : "未配置 Key";
     }
 
+    /// <summary>小模型组：按服务商刷新模型下拉（含选中兜底）。</summary>
+    private void ReloadSmallModels(string providerId, string? selectModel = null)
+    {
+        var models = ModelCatalog.ByProvider(providerId).ToList();
+        SmallModelPicker.ItemsSource = models;
+
+        var target = selectModel ?? Config.Instance.SmallModel;
+        var match = models.FirstOrDefault(m => string.Equals(m.Id, target, StringComparison.OrdinalIgnoreCase));
+        SmallModelPicker.SelectedItem = match ?? models.FirstOrDefault();
+    }
+
+    private void OnSmallProviderChanged(object? sender, EventArgs e)
+    {
+        if (SmallProviderPicker.SelectedItem is not ProviderOption opt) return;
+        ReloadSmallModels(opt.Id);
+        SmallBaseUrlEntry.Text = ModelCatalog.Providers.GetValueOrDefault(opt.Id)?.DefaultBaseUrl;
+        UpdateSmallKeyStatus(opt.Id);
+    }
+
+    private void UpdateSmallKeyStatus(string providerId)
+    {
+        var masked = ApiKeyStore.Masked(providerId);
+        SmallKeyStatusLabel.Text = masked != null ? $"已保存：{masked}" : "未配置 Key";
+    }
+
+    /// <summary>大模型分组测试 Key。</summary>
+    private async void OnTestKeyClicked(object? sender, EventArgs e) => await TestKeyFlowAsync(large: true);
+
+    /// <summary>小模型分组测试 Key。</summary>
+    private async void OnSmallTestKeyClicked(object? sender, EventArgs e) => await TestKeyFlowAsync(large: false);
+
+    /// <summary>
+    /// 测试 API Key 通用流程（大/小模型分组共用）：用输入框（或已存）key 发最小 chat 请求
+    /// （max_tokens=1）。有效 → 立即写入 ApiKeyStore 并刷新状态；无效 → 弹错误（含服务端信息）。
+    /// </summary>
+    private async Task TestKeyFlowAsync(bool large)
+    {
+        var opt = (large ? ProviderPicker : SmallProviderPicker).SelectedItem as ProviderOption;
+        var model = (large ? ModelPicker : SmallModelPicker).SelectedItem as ModelCatalog.ModelInfo;
+        var keyEntry = large ? KeyEntry : SmallKeyEntry;
+        var baseUrlEntry = large ? BaseUrlEntry : SmallBaseUrlEntry;
+        var btn = large ? TestKeyBtn : SmallTestKeyBtn;
+        var statusRefresher = large ? new Action<string>(UpdateKeyStatus) : UpdateSmallKeyStatus;
+
+        if (opt == null)
+        {
+            await DisplayAlertAsync("未选择", "请先选择服务商", "确定");
+            return;
+        }
+        var key = keyEntry.Text?.Trim();
+        if (string.IsNullOrEmpty(key)) key = ApiKeyStore.Get(opt.Id);
+        if (string.IsNullOrEmpty(key))
+        {
+            await DisplayAlertAsync("无 Key", "请在输入框填入要测试的 API Key", "确定");
+            return;
+        }
+
+        var oldText = btn.Text;
+        btn.Text = "⏳ 测试中…";
+        btn.IsEnabled = false;
+        try
+        {
+            var (ok, message) = await TestKeyCoreAsync(opt.Id, model?.Id ?? "", baseUrlEntry.Text, key);
+            if (ok)
+            {
+                ApiKeyStore.Set(opt.Id, key);   // 有效立即保存
+                statusRefresher(opt.Id);        // 刷新状态标签
+                keyEntry.Text = "";
+                await DisplayAlertAsync("✅ Key 有效", $"服务商 {opt.DisplayName} 的 API Key 验证通过，已自动保存。", "确定");
+            }
+            else
+            {
+                await DisplayAlertAsync("❌ Key 无效", message, "确定");
+            }
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlertAsync("❌ 测试失败", $"{ex.GetType().Name}: {ex.Message}", "确定");
+        }
+        finally
+        {
+            btn.Text = oldText;
+            btn.IsEnabled = true;
+        }
+    }
+
+    /// <summary>用给定 key 发最小 chat 请求测试有效性。返回 (ok, message)。复用 LLM 端点拼接。</summary>
+    private static async Task<(bool Ok, string Message)> TestKeyCoreAsync(
+        string providerId, string modelId, string? baseUrlText, string key)
+    {
+        var baseUrl = string.IsNullOrWhiteSpace(baseUrlText)
+            ? ModelCatalog.Providers.GetValueOrDefault(providerId)?.DefaultBaseUrl
+            : baseUrlText.Trim();
+        var b = (baseUrl ?? "https://api.openai.com").TrimEnd('/');
+        if (b.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)) b = b[..^3].TrimEnd('/');
+        var endpoint = b + "/v1/chat/completions";
+
+        var msgs = JNode.Array();
+        msgs.Add(JNode.Object().Set("role", "user").Set("content", "hi"));
+        var body = JNode.Object()
+            .Set("model", string.IsNullOrEmpty(modelId) ? "gpt-4o-mini" : modelId)
+            .Set("max_tokens", 1)
+            .Set("messages", msgs);
+
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+        using var req = new HttpRequestMessage(HttpMethod.Post, endpoint);
+        req.Headers.Add("Authorization", $"Bearer {key}");
+        req.Content = new StringContent(body.ToJson(), Encoding.UTF8, "application/json");
+        using var resp = await http.SendAsync(req);
+        var respBody = await resp.Content.ReadAsStringAsync();
+
+        if (resp.IsSuccessStatusCode) return (true, "验证通过");
+        var msg = respBody.Length > 300 ? respBody[..300] + "…" : respBody;
+        return (false, $"HTTP {(int)resp.StatusCode}\n{msg}");
+    }
+
     private async void OnSaveClicked(object? sender, EventArgs e)
     {
         if (ProviderPicker.SelectedItem is not ProviderOption opt || ModelPicker.SelectedItem is not ModelCatalog.ModelInfo model)
@@ -196,17 +375,29 @@ public partial class SettingsPage : ContentPage
         var key = KeyEntry.Text?.Trim();
         if (!string.IsNullOrEmpty(key))
             ApiKeyStore.Set(opt.Id, key);
+        UpdateKeyStatus(opt.Id);   // 保存后立即刷新「已保存」状态（此前不刷新显示旧 key）
 
         // 2) 服务商 + 模型 + BaseUrl 统一入口（自动持久化 + 从环境变量导 key）
         var baseUrl = string.IsNullOrWhiteSpace(BaseUrlEntry.Text) ? null : BaseUrlEntry.Text.Trim();
         ConnectionConfig.ApplyModelChoice(opt.Id, model.Id, isLarge: true, out _, baseUrl);
+
+        // 2.5) 小模型分组：独立服务商/模型/地址/Key（同一套 apply + ApiKeyStore）
+        if (SmallProviderPicker.SelectedItem is ProviderOption sopt
+            && SmallModelPicker.SelectedItem is ModelCatalog.ModelInfo smodel)
+        {
+            var skey = SmallKeyEntry.Text?.Trim();
+            if (!string.IsNullOrEmpty(skey))
+                ApiKeyStore.Set(sopt.Id, skey);
+            UpdateSmallKeyStatus(sopt.Id);   // 同样立即刷新
+            var sbaseUrl = string.IsNullOrWhiteSpace(SmallBaseUrlEntry.Text) ? null : SmallBaseUrlEntry.Text.Trim();
+            ConnectionConfig.ApplyModelChoice(sopt.Id, smodel.Id, isLarge: false, out _, sbaseUrl);
+        }
 
         // 3) 参数
         if (int.TryParse(MaxTokensEntry.Text, out var mt)) Config.Instance.MaxTokens = mt;
         if (float.TryParse(TemperatureEntry.Text, out var tp)) Config.Instance.Temperature = tp;
         if (int.TryParse(MaxContextEntry.Text, out var mct)) Config.Instance.MaxContextTokens = mct;
         Config.Instance.MaxBudgetUsd = double.TryParse(BudgetEntry.Text, out var bud) ? bud : null;
-        if (SmallModelPicker.SelectedItem is ModelCatalog.ModelInfo sm) Config.Instance.SmallModel = sm.Id;
         if (ReasoningPicker.SelectedItem is string re)
             Config.Instance.ReasoningEffort = string.IsNullOrEmpty(re) ? "" : re;
         if (EconomyPicker.SelectedItem is string eco && Enum.TryParse<EconomyMode>(eco, true, out var em))

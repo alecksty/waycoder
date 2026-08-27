@@ -24,6 +24,146 @@ public static class MauiBootstrap
     /// <summary>沙箱工作区根目录（Agent 可读写范围）。</summary>
     public static string WorkspaceDir { get; private set; } = "";
 
+    /// <summary>是否已启用外部存储 workspace（sdcard/waycoder/workspace，卸载重装代码不丢）。</summary>
+    public static bool WorkspaceExternal { get; private set; }
+
+    /// <summary>外部 workspace 根：sdcard/waycoder/workspace（Android 公共存储）。</summary>
+    private static string? ExternalWorkspaceDir => ExternalRootDir("workspace");
+
+    /// <summary>外部配置根：sdcard/waycoder/config（配置/会话/记忆，卸载重装不丢）。</summary>
+    private static string? ExternalConfigDir => ExternalRootDir("config");
+
+    /// <summary>外部存储根：sdcard/waycoder/&lt;sub&gt;/。</summary>
+    private static string? ExternalRootDir(string sub)
+    {
+#if ANDROID
+        try
+        {
+            var root = Android.OS.Environment.ExternalStorageDirectory?.AbsolutePath;
+            if (string.IsNullOrEmpty(root)) return null;
+            return Path.Combine(root, "waycoder", sub);
+        }
+        catch { return null; }
+#else
+        return null;
+#endif
+    }
+
+    /// <summary>解析 Global.Home：Android 已授「所有文件访问」→ 外部配置目录；否则 App 私有目录。自动建目录。</summary>
+    private static string ResolveHomeDir()
+    {
+#if ANDROID
+        if (Android.OS.Environment.IsExternalStorageManager)
+        {
+            var ext = ExternalConfigDir;
+            if (ext != null)
+            {
+                try { Directory.CreateDirectory(ext); } catch { }
+                return ext;
+            }
+        }
+#endif
+        return FileSystem.Current.AppDataDirectory;
+    }
+
+    /// <summary>解析 workspace 目录：Android 已授「所有文件访问」→ 外部；否则回退 App 私有目录。自动建目录。</summary>
+    private static string ResolveWorkspaceDir()
+    {
+#if ANDROID
+        if (Android.OS.Environment.IsExternalStorageManager)
+        {
+            var ext = ExternalWorkspaceDir;
+            if (ext != null)
+            {
+                try { Directory.CreateDirectory(ext); } catch { }
+                WorkspaceExternal = true;
+                return ext;
+            }
+        }
+#endif
+        var fallback = Path.Combine(Global.Home, "workspace");
+        try { Directory.CreateDirectory(fallback); } catch { }
+        WorkspaceExternal = false;
+        return fallback;
+    }
+
+    /// <summary>
+    /// 用户授予「所有文件访问」后调用：切换 workspace 到 sdcard/waycoder/workspace，
+    /// 迁移旧私有目录文件，更新沙箱边界与 cwd。返回是否成功启用外部存储。
+    /// </summary>
+    public static bool TryEnableExternalWorkspace()
+    {
+#if ANDROID
+        if (!Android.OS.Environment.IsExternalStorageManager) return false;
+        if (WorkspaceExternal) return true;
+
+        var ext = ExternalWorkspaceDir;
+        if (ext == null) return false;
+
+        var old = WorkspaceDir;
+        try
+        {
+            // 自动创建 + 迁移旧内容（仅当外部为空时拷贝，避免覆盖）
+            Directory.CreateDirectory(ext);
+            if (Directory.Exists(old) && !Directory.EnumerateFileSystemEntries(ext).Any())
+                CopyDirectory(old, ext);
+
+            WorkspaceDir = ext;
+            WorkspaceExternal = true;
+            SandboxManager.AllowedDirectory = ext;
+            CwdContext.Current.Value = ext;
+            try { Directory.SetCurrentDirectory(ext); } catch { }
+
+            // 配置目录也切到外部 sdcard/waycoder/config（迁移旧的 .waycoder/config/session 等）
+            var extConfig = ExternalConfigDir;
+            if (extConfig != null && !string.Equals(Global.Home, extConfig, StringComparison.OrdinalIgnoreCase))
+            {
+                var oldHome = Global.Home;
+                try
+                {
+                    Directory.CreateDirectory(extConfig);
+                    MigrateConfig(oldHome, extConfig);
+                    Global.HomeOverride = extConfig;
+                }
+                catch { }
+            }
+            return true;
+        }
+        catch { return false; }
+#else
+        return false;
+#endif
+    }
+
+    /// <summary>递归拷贝目录（迁移旧 workspace 到外部存储）。</summary>
+    private static void CopyDirectory(string src, string dst)
+    {
+        Directory.CreateDirectory(dst);
+        foreach (var f in Directory.EnumerateFiles(src))
+            File.Copy(f, Path.Combine(dst, Path.GetFileName(f)), overwrite: true);
+        foreach (var d in Directory.EnumerateDirectories(src))
+        {
+            var name = Path.GetFileName(d);
+            if (name == ".git") continue; // 跳过旧 .git（根目录仓库作废）
+            CopyDirectory(d, Path.Combine(dst, name));
+        }
+    }
+
+    /// <summary>迁移配置目录内容到外部 config（跳过 workspace 子目录；目标为空才拷贝）。</summary>
+    private static void MigrateConfig(string src, string dst)
+    {
+        Directory.CreateDirectory(dst);
+        if (Directory.EnumerateFileSystemEntries(dst).Any()) return; // 已有内容不覆盖
+        foreach (var f in Directory.EnumerateFiles(src))
+            File.Copy(f, Path.Combine(dst, Path.GetFileName(f)), overwrite: true);
+        foreach (var d in Directory.EnumerateDirectories(src))
+        {
+            var name = Path.GetFileName(d);
+            if (name == "workspace") continue; // workspace 单独迁移
+            CopyDirectory(d, Path.Combine(dst, name));
+        }
+    }
+
     /// <summary>崩溃时保存会话的回调（M3 建 Agent 后由 AgentService 挂上）。</summary>
     public static Action? OnCrashSave { get; set; }
 
@@ -38,8 +178,9 @@ public static class MauiBootstrap
         if (_done) return;
         _done = true;
 
-        // 1) 配置目录重定向 → App 私有目录（必须最先，ErrorLog/Config 都依赖 Global.Home）
-        Global.HomeOverride = FileSystem.Current.AppDataDirectory;
+        // 1) 配置目录重定向：已授权外部存储 → sdcard/waycoder/config（卸载重装不丢），否则 App 私有目录
+        //    （必须最先，ErrorLog/Config 都依赖 Global.Home）
+        Global.HomeOverride = ResolveHomeDir();
 
         // Android 进程 cwd 默认是根目录 "/"，任何相对路径写操作（SyncConfigJsonToLocal、
         // FindEnvFile 等走 Directory.GetCurrentDirectory() 的代码）会解析到 "/"，
@@ -62,8 +203,9 @@ public static class MauiBootstrap
             e.SetObserved();
         };
 
-        // 4) 沙箱 workspace
-        WorkspaceDir = Path.Combine(Global.Home, "workspace");
+        // 4) 沙箱 workspace —— 优先外部存储 sdcard/waycoder/workspace（卸载重装代码不丢），
+        //    未授予「所有文件访问」时回退 App 私有目录
+        WorkspaceDir = ResolveWorkspaceDir();
         Directory.CreateDirectory(WorkspaceDir);
 
         // 5) 沙箱边界：可写范围仅 workspace（project = SandboxMode.ProjectWrite）

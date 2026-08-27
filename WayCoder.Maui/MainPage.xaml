@@ -30,12 +30,6 @@
                 </VerticalStackLayout>
             </Border>
 
-            <!-- 模式/权限快速切换：点击循环切换（模式 Build/Plan/Chat，权限 Ask/Auto/SmartAuto/Yolo） -->
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,16,0,0">
-                <Button x:Name="ModeBtn" Text="⚙ 建造" FontSize="13" Clicked="OnModeClicked" />
-                <Button x:Name="PermBtn" Grid.Column="1" Text="🔐 Ask" FontSize="13" Clicked="OnPermClicked" />
-            </Grid>
-
             <Button Text="💬  开始对话" Clicked="OnChatClicked" Margin="0,12,0,0" />
             <Button Text="⚙️  配置 API Key" Clicked="OnSettingsClicked" />
             <Button Text="🗂  供应商/模型" Clicked="OnModelsClicked" />

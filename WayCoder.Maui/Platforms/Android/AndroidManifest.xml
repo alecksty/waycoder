@@ -19,4 +19,7 @@
 	<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 	<uses-permission android:name="android.permission.RECORD_AUDIO" />
+	<!-- workspace 放外部存储（/storage/emulated/0/WayCoder/workspace），卸载重装代码不丢。
+	     Android 11+ 需要「所有文件访问」MANAGE_EXTERNAL_STORAGE，设置页引导授予。 -->
+	<uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 </manifest>
