@@ -170,6 +170,15 @@ public static class McpManager
 
                 case McpTransportType.Stdio:
                 {
+                    // 移动端无本地进程（iOS/Android 禁 Process.Start），stdio 传输不支持；
+                    // 直接标记失败并给出指引（Http/Sse 传输正常可用）。
+                    if (OperatingSystem.IsIOS() || OperatingSystem.IsAndroid())
+                    {
+                        SetStatus(name, McpServerStatus.Failed,
+                            error: "移动端不支持 stdio 传输（无本地进程），请改用 http/sse 传输的远程 MCP 服务器");
+                        break;
+                    }
+
                     // stdio 传输（默认，向后兼容）
                     var command = server["command"]?.AsString();
                     var args = server["args"]?.Items

@@ -16,8 +16,8 @@ namespace WayCoder.Maui;
 //       AllowedDirectory=workspace —— 写工具越界拦截（CheckWritable）。
 //    3. CwdContext.Current = workspace —— 文件工具相对路径解析锚点（替代桌面 bash 的 cwd）。
 //
-//  移动端无进程工具/Hook 脚本/MCP stdio（见 CoreStubs），故此处不初始化 HooksManager/
-//  McpManager；这些在 M3 建 Agent 时按「移动端可用子集」单独接线。
+//  移动端无进程工具/Hook 脚本（见 CoreStubs），不初始化 HooksManager；
+//  MCP 已接入（Http/Sse 传输可用，stdio 运行时降级），此处 McpManager.Init() 对齐桌面 Program.Main。
 // ═══════════════════════════════════════════════════════════════
 public static class MauiBootstrap
 {
@@ -94,6 +94,10 @@ public static class MauiBootstrap
 
         // 8) 注册全部斜杠命令（对齐桌面端 54 命令；进程类命令执行时优雅降级为「移动端不支持」）。
         SlashCommandRegistry.RegisterAll();
+
+        // 9) 初始化 MCP（Http/Sse 传输可用，stdio 运行时降级）—— 对齐桌面 Program.Main。
+        //     McpCache 同步加载缓存工具，Agent 懒建时 ToolRegistry.AllTools 已含 MCP 工具。
+        McpManager.Init();
     }
 
     /// <summary>

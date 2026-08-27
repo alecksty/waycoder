@@ -4,14 +4,17 @@ namespace WayCoder.Tools;
 /// MAUI 移动端工具注册表 —— 与主项目 <c>ToolRegistry</c> 同名同命名空间，由 MAUI 项目编译
 /// （主项目 <c>Tools/ToolRegistry.cs</c> 在 Exclude 清单内）。
 ///
-/// 移动端裁掉所有进程类工具（bash/git/git_pr/lsp/lint/ps/kill/screenshot/sqlite/test/
-/// job_output/job_kill），保留纯文件/网络/计算/多模态工具。无 MCP（stdio 传输 iOS 物理不可用）
-/// 与编译期插件，故 AllTools == BuiltinTools，无需缓存失效逻辑。
+/// 移动端裁掉所有进程类工具（bash/git_pr/lsp/lint/ps/kill/screenshot/sqlite/test/
+/// job_output/job_kill），保留纯文件/网络/计算/多模态工具。git 非进程工具——纯 C# 实现
+/// （CoreStubs.GitTool → GitCore/GitRemote/GitBranch，含 pull/push/branch/checkout/merge），
+/// 已注册使模型可自主调用。MCP 已接入（Http/Sse 传输可用，stdio 运行时降级），
+/// 经 McpManager.GetDiscoveredToolsSnapshot 动态注入，故 AllTools 需缓存 + 失效逻辑。
 /// </summary>
 public static class ToolRegistry
 {
     public static readonly List<ITool> BuiltinTools =
     [
+        new GitTool(),
         new ReadFileTool(),
         new WriteFileTool(),
         new EditFileTool(),
@@ -49,11 +52,26 @@ public static class ToolRegistry
         new ImageConvertTool(),
     ];
 
-    /// <summary>移动端工具集：内置即全部（无 MCP / 插件贡献）。</summary>
-    public static List<ITool> AllTools => BuiltinTools;
+    private static List<ITool>? _cachedAllTools;
 
-    /// <summary>移动端无 MCP 工具动态注入，缓存失效为空操作。</summary>
-    public static void InvalidateAllToolsCache() { }
+    /// <summary>所有工具（内置 + MCP 自动发现 + 编译期插件贡献）。缓存，MCP 工具变更时失效。</summary>
+    public static List<ITool> AllTools
+    {
+        get
+        {
+            if (_cachedAllTools == null)
+            {
+                var all = new List<ITool>(BuiltinTools);
+                all.AddRange(McpManager.GetDiscoveredToolsSnapshot());
+                all.AddRange(PluginRegistry.CollectTools());
+                _cachedAllTools = all;
+            }
+            return _cachedAllTools;
+        }
+    }
+
+    /// <summary>MCP 工具变更时使缓存失效（McpManager.MutateTools 每次变更后调用）。</summary>
+    public static void InvalidateAllToolsCache() => _cachedAllTools = null;
 
     /// <summary>
     /// 子智能体禁止使用的工具集合。与主工程保持一致；移动端无进程类工具，

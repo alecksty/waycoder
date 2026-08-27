@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.96.11 (2026-08-27) — MCP Http/Sse 移动端接入 + git 工具注册修复 + /import /doctor 转真实现
+
+继续补齐移动端与桌面端功能差距：git 工具（纯 C#）在移动端已实现但漏注册进工具表（模型无法自主调用）——本次修复；MCP 从「移动端不支持」降级桩升级为 Http/Sse 传输真实现；/import、/doctor 两个命令从降级桩转真实现。
+
+- **git 工具移动端注册修复**：`WayCoder.Maui/ToolRegistry.cs` 漏 `new GitTool()`——模型看不到 git 工具，无法在编码任务中自主 pull/push/切分支。已补注册（与 `/git` 命令一致走纯 C# `GitCore`）
+- **MCP Http/Sse 移动端接入**：移除 csproj Exclude 的 McpClient/McpTransport/McpTools/McpCache/ClaudeMcp 五文件 + 删除 CoreStubs 降级桩，`/mcp` 升级为真实现——Http（Streamable）/ Sse（HTTP+SSE 双端点）传输在移动端可用，`DetectTransport` 自动识别；**stdio 传输运行时降级**（`OperatingSystem.IsIOS()/IsAndroid()` 时标记 Failed 并提示改用 http/sse，因 iOS 禁 `Process.Start`）；`MauiBootstrap` 启动时 `McpManager.Init()`，`McpCache` 同步加载缓存工具，Agent 懒建时 `ToolRegistry.AllTools` 已含 MCP 工具
+- **移动端 ToolRegistry 合并 MCP**：`AllTools` 从「恒等于内置」改为「内置 + `McpManager.GetDiscoveredToolsSnapshot()` + 插件」，加缓存 + `InvalidateAllToolsCache` 失效逻辑（对齐桌面端）
+- **/import 转真实现**：移除 `Infra/ImportHelper.cs` Exclude + 删桩，从 Claude Code / OpenCode / Cursor / Cline 导入模型/API、MCP 服务器、项目上下文（CLAUDE.md）、会话（JSONL）、权限规则
+- **/doctor 转真实现**：移除 `Infra/DoctorEngine.cs` Exclude + 删桩，配置完整性/API Key/错误日志/文件锁/检查点/MCP/Hook/临时文件全量自检（纯文件/环境检查，无进程依赖）
+- **编译**：桌面 0 错误；移动端 `net10.0-android` 0 错误
+
 ## v0.96.10 (2026-08-27) — git 纯 C# 远程操作（pull/push）+ 分支管理 + 凭证双模式 + 移动端思考/工具折叠
 
 移动端（无 git 进程）此前只能本地闭环（init/add/commit/status/diff/log），无法与服务器交换代码、无法分支管理。本次补齐纯 C# git 传输协议 + 分支管理，支持账号密码 / token 双认证；同时移动端聊天区思考过程与工具输出改为折叠显示。
