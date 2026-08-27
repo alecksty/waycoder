@@ -51,6 +51,22 @@
                 </VerticalStackLayout>
             </Border>
 
+            <!-- ═══ 模型工具：导入 / 扫描 / 免费模型 ═══ -->
+            <Label Text="模型工具" FontSize="12" FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0" Margin="0,4,0,0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="12" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Padding="12,8" Spacing="6">
+                    <Button Text="📥 导入模型" FontSize="13" Clicked="OnImportModelsClicked" />
+                    <Button Text="📡 扫描连接" FontSize="13" Clicked="OnScanConnectionsClicked" />
+                    <Label Text="🆓 免费模型（0 价）" FontSize="12" FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <VerticalStackLayout x:Name="FreeModelsLayout" Spacing="4" />
+                </VerticalStackLayout>
+            </Border>
+
             <!-- ═══ 参数 ═══ -->
             <Label Text="参数" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
