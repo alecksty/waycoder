@@ -85,7 +85,13 @@ public sealed class ChatMessage : INotifyPropertyChanged
     public string ToolDetail
     {
         get => _toolDetail;
-        set { _toolDetail = value; OnChanged(nameof(ToolDetail)); }
+        set
+        {
+            _toolDetail = value;
+            _toolDetailFormatted = null;   // 内容变更 → 置空，展开时惰性重算
+            OnChanged(nameof(ToolDetail));
+            OnChanged(nameof(ToolDetailFormatted));
+        }
     }
 
     private bool _hasToolDetail;
@@ -101,7 +107,29 @@ public sealed class ChatMessage : INotifyPropertyChanged
     public bool IsToolDetailExpanded
     {
         get => _isToolDetailExpanded;
-        set { _isToolDetailExpanded = value; OnChanged(nameof(IsToolDetailExpanded)); }
+        set { _isToolDetailExpanded = value; OnChanged(nameof(IsToolDetailExpanded)); OnChanged(nameof(ToolDetailFormatted)); }
+    }
+
+    /// <summary>工具对应文件路径（onTool 从 summary 的 file_path= 解析，供语言推断）。</summary>
+    public string? ToolFilePath { get; set; }
+
+    /// <summary>是否深色主题（工具详情渲染配色用）。</summary>
+    public bool IsDark { get; set; }
+
+    private FormattedString? _toolDetailFormatted;
+    /// <summary>工具详情渲染富文本（«» 解码 + 代码/diff 语法高亮）。仅在展开时惰性计算。</summary>
+    public FormattedString? ToolDetailFormatted
+    {
+        get
+        {
+            if (!IsToolDetailExpanded) return null;
+            if (_toolDetailFormatted == null && !string.IsNullOrEmpty(ToolDetail))
+            {
+                try { _toolDetailFormatted = Markup.ToolOutputFormatter.Render(ToolDetail, ToolFilePath, IsDark); }
+                catch { _toolDetailFormatted = null; }
+            }
+            return _toolDetailFormatted;
+        }
     }
 
     private void OnChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

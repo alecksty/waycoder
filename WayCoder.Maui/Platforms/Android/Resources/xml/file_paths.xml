@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider 可共享路径白名单：只暴露沙箱 workspace（Global.Home = AppDataDirectory = Context.FilesDir，
+     workspace = files/workspace），不暴露配置/会话/日志等私有目录——最小暴露原则。 -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <files-path name="workspace" path="workspace/" />
+</paths>

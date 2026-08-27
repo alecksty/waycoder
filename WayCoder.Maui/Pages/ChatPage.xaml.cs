@@ -41,6 +41,35 @@ public partial class ChatPage : ContentPage
     /// <summary>消息列表是否接近底部（用于智能滚动：接近底部才跟随，用户上翻时不打断）。</summary>
     private bool _isNearBottom = true;
 
+    /// <summary>流式跟随节流时间戳：距上次滚动 &lt;150ms 跳过，避免每 token 触发重排。</summary>
+    private DateTime _lastStreamScroll = DateTime.MinValue;
+
+    /// <summary>富文本重算节流：代码回复每 token 全量重分词会卡 UI，按增长量/时间节流。</summary>
+    private DateTime _lastFormatRecompute = DateTime.MinValue;
+    private int _lastFormattedLen;
+
+    // ── 输入框上方动态状态栏：多状态（空闲/思考/执行工具/等待确认）+ Braille 旋转动画 ──
+    private IDispatcherTimer? _statusTimer;
+    private int _spinnerFrame;
+    private static readonly string[] SpinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+    private enum AgentUiState { Idle, Thinking, Tool, WaitingPermission }
+    private AgentUiState _uiState = AgentUiState.Idle;
+    private string _toolName = "";
+
+    /// <summary>内容增长 ≥300 字符或距上次 ≥120ms 才重算富文本（流式中渐进更新，最终 finally 全量）。</summary>
+    private bool ShouldRecomputeFormatted(int currentLen)
+    {
+        var now = DateTime.UtcNow;
+        if (currentLen - _lastFormattedLen >= 300 || (now - _lastFormatRecompute).TotalMilliseconds >= 120)
+        {
+            _lastFormatRecompute = now;
+            _lastFormattedLen = currentLen;
+            return true;
+        }
+        return false;
+    }
+
     public ChatPage()
     {
         InitializeComponent();
@@ -58,20 +87,79 @@ public partial class ChatPage : ContentPage
         ChatScreen.OnClearChat = () =>
             MainThread.BeginInvokeOnMainThread(Messages.Clear);
         RefreshModelBar();
+        StartStatusTimer();
+        PermissionManager.PermissionPromptStarted += OnPermissionStarted;
+        PermissionManager.PermissionPromptResolved += OnPermissionResolved;
     }
 
-    /// <summary>顶部模型条显示当前生效模型 + 权限模式（确认轴）。</summary>
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _statusTimer?.Stop();
+        _statusTimer = null;
+        PermissionManager.PermissionPromptStarted -= OnPermissionStarted;
+        PermissionManager.PermissionPromptResolved -= OnPermissionResolved;
+    }
+
+    private void OnPermissionStarted(string _)
+    {
+        if (_agent.IsRunning) _uiState = AgentUiState.WaitingPermission;
+    }
+
+    private void OnPermissionResolved(string _)
+    {
+        if (_uiState == AgentUiState.WaitingPermission)
+            _uiState = _agent.IsRunning ? AgentUiState.Thinking : AgentUiState.Idle;
+    }
+
+    /// <summary>启动动态状态栏动画定时器（100ms 一帧旋转图标）。</summary>
+    private void StartStatusTimer()
+    {
+        _statusTimer?.Stop();
+        _statusTimer = Dispatcher.CreateTimer();
+        _statusTimer.Interval = TimeSpan.FromMilliseconds(100);
+        _statusTimer.Tick += (_, _) => TickStatusBar();
+        _statusTimer.Start();
+    }
+
+    /// <summary>每帧刷新动态状态栏：空闲隐藏；其余状态显示旋转图标 + 状态文本。</summary>
+    private void TickStatusBar()
+    {
+        if (_uiState == AgentUiState.Idle)
+        {
+            AgentStatusBar.IsVisible = false;
+            return;
+        }
+        AgentStatusBar.IsVisible = true;
+        _spinnerFrame = (_spinnerFrame + 1) % SpinnerFrames.Length;
+        AgentStatusIcon.Text = SpinnerFrames[_spinnerFrame];
+        AgentStatusText.Text = _uiState switch
+        {
+            AgentUiState.WaitingPermission => "等待确认中...",
+            AgentUiState.Tool => $"🔧 执行工具 {_toolName}...",
+            _ => "思考中...",
+        };
+    }
+
+    /// <summary>顶部状态区行 1：当前生效模型（点击可切换）。行 2 统计见 <see cref="RefreshStatusBar"/>。</summary>
     private void RefreshModelBar()
     {
-        var perm = PermissionManager.CurrentMode switch
-        {
-            PermissionManager.Mode.Yolo => "Yolo",
-            PermissionManager.Mode.SmartAuto => "SmartAuto",
-            PermissionManager.Mode.Auto => "Auto",
-            _ => "Ask",
-        };
-        ModelBar.Text = $"🧠 {Config.Instance.Model} · 🔐 {perm}";
+        ModelBar.Text = $"🧠 {Config.Instance.Model}";
+        RefreshStatusBar();
     }
+
+    /// <summary>顶部状态区行 2：工作模式 / 权限 / todo / 上下文 / 用量 / 花费。</summary>
+    private void RefreshStatusBar()
+    {
+        var s = AgentService.GetStatus();
+        StatusBar.Text = s == null
+            ? "⚙ 建造 · 🔐 Ask"
+            : $"⚙ {s.WorkMode} · 🔐 {s.PermMode} · 📋 todo ×{s.TodoCount} · "
+              + $"上下文 {FormatK(s.ContextUsed)}/{FormatK(s.ContextMax)} · "
+              + $"🪙 {FormatK(s.PromptTokens)}+{FormatK(s.CompletionTokens)} · 💰 ${s.Cost?.ToString("F4") ?? "-"}";
+    }
+
+    private static string FormatK(int n) => n >= 1000 ? $"{n / 1000.0:F1}k" : n.ToString();
 
     /// <summary>点模型条 → ActionSheet 列出当前服务商模型，选中即切换（连接层统一入口）。</summary>
     private async void OnModelBarTapped(object? sender, TappedEventArgs e)
@@ -141,6 +229,7 @@ public partial class ChatPage : ContentPage
 
         InputBox.Text = "";
         Messages.Add(new ChatMessage { Role = ChatRole.User, RawText = text });
+        ScrollToEnd(); // 发送后立即滚到底，保证刚发的消息可见
 
         var aiMsg = new ChatMessage { Role = ChatRole.Assistant, IsStreaming = true };
         Messages.Add(aiMsg);
@@ -153,12 +242,15 @@ public partial class ChatPage : ContentPage
         var contentSb = new StringBuilder();
         _cts = new CancellationTokenSource();
         SendBtn.Text = "■";
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        bool cancelled = false;
 
         try
         {
             await _agent.ChatAsync(text,
                 token =>
                 {
+                    _uiState = AgentUiState.Thinking;
                     if (inReasoning)
                     {
                         if (token == "«/»" || token == "«/»\n")
@@ -171,6 +263,7 @@ public partial class ChatPage : ContentPage
                             reasoningSb.Append(token);
                             aiMsg.Reasoning = reasoningSb.ToString();
                             aiMsg.HasReasoning = true;
+                            FollowStreamScroll();   // 流式跟随：思考过程滚动
                         }
                     }
                     else
@@ -183,13 +276,24 @@ public partial class ChatPage : ContentPage
                         else
                         {
                             contentSb.Append(token);
-                            aiMsg.Formatted = MarkupToFormattedString.Convert(contentSb.ToString(), isDark);
+                            if (ShouldRecomputeFormatted(contentSb.Length))
+                                aiMsg.Formatted = MarkupToFormattedString.Convert(contentSb.ToString(), isDark);
+                            FollowStreamScroll();   // 流式跟随：正文滚动
                         }
                     }
                 },
                 (name, summary) =>
                 {
-                    _currentToolMsg = new ChatMessage { Role = ChatRole.Tool, RawText = $"🔧 {name}", ToolSummary = summary };
+                    _uiState = AgentUiState.Tool;
+                    _toolName = name;
+                    _currentToolMsg = new ChatMessage
+                    {
+                        Role = ChatRole.Tool,
+                        RawText = $"🔧 {name}",
+                        ToolSummary = summary,
+                        ToolFilePath = ExtractFilePath(summary),
+                        IsDark = isDark,
+                    };
                     Messages.Add(_currentToolMsg);
                 },
                 output =>
@@ -197,10 +301,11 @@ public partial class ChatPage : ContentPage
                     if (_currentToolMsg == null) return;
                     _currentToolMsg.ToolDetail += output;
                     _currentToolMsg.HasToolDetail = true;
+                    RefreshStatusBar(); // 工具输出阶段统计变化
                 },
                 _cts.Token);
         }
-        catch (OperationCanceledException) { /* 用户停止 */ }
+        catch (OperationCanceledException) { cancelled = true; /* 用户停止 */ }
         catch (Exception ex)
         {
             // 落盘完整堆栈，便于 adb run-as 读 logs/error_*.log 定位（移动端 logcat 不打 .NET 异常）
@@ -211,8 +316,26 @@ public partial class ChatPage : ContentPage
         {
             aiMsg.IsStreaming = false;
             aiMsg.RawText = contentSb.ToString();
+            aiMsg.Formatted = MarkupToFormattedString.Convert(contentSb.ToString(), isDark); // 节流后补齐最终富文本
             SendBtn.Text = "↑";
             _cts = null;
+            _uiState = AgentUiState.Idle;
+            RefreshStatusBar();
+
+            // 任务完成摘要：用时 / prompt+completion token / 费用（用户主动停止或无消耗则跳过）
+            if (!cancelled)
+            {
+                sw.Stop();
+                var llm = AgentService.CurrentAgent?.LlmClient;
+                var used = (llm?.TaskPromptTokens ?? 0) + (llm?.TaskCompletionTokens ?? 0);
+                if (llm != null && used > 0)
+                {
+                    var cost = llm.TaskCost;
+                    var summary = $"⏱ {sw.Elapsed.TotalSeconds:F1}s · 🪙 {llm.TaskPromptTokens:N0} prompt + {llm.TaskCompletionTokens:N0} completion · 💰 ${cost?.ToString("F4") ?? "-"}";
+                    Messages.Add(new ChatMessage { Role = ChatRole.Tool, RawText = summary });
+                }
+            }
+
             ScrollToEnd();
         }
     }
@@ -224,18 +347,59 @@ public partial class ChatPage : ContentPage
             MsgList.ScrollTo(Messages.Count - 1, position: ScrollToPosition.End, animate: false);
     }
 
-    /// <summary>折叠条点击：切换思考过程展开/收起（sender 是挂手势的 Border，BindingContext 即消息）。</summary>
+    /// <summary>流式跟随：接近底部才滚到底（150ms 节流，供 token 回调每 token 调用，避免重排抖动）。</summary>
+    private void FollowStreamScroll()
+    {
+        if (Messages.Count == 0 || !_isNearBottom) return;
+        var now = DateTime.UtcNow;
+        if ((now - _lastStreamScroll).TotalMilliseconds < 150) return;
+        _lastStreamScroll = now;
+        MsgList.ScrollTo(Messages.Count - 1, position: ScrollToPosition.End, animate: false);
+    }
+
+    /// <summary>从工具摘要里解析 file_path= 值（供语法高亮语言推断；摘要被截断时尽力取扩展名）。</summary>
+    private static string? ExtractFilePath(string summary)
+    {
+        const string key = "file_path=";
+        var idx = summary.IndexOf(key, StringComparison.Ordinal);
+        if (idx < 0) return null;
+        var start = idx + key.Length;
+        var end = summary.IndexOf(',', start);
+        var p = (end < 0 ? summary[start..] : summary[start..end]).Trim();
+        return p.Length == 0 ? null : p;
+    }
+
+    /// <summary>收起聊天里所有折叠项（保持同屏只开一个折叠项）。</summary>
+    private void CollapseAllFolds()
+    {
+        foreach (var msg in Messages)
+        {
+            msg.IsReasoningExpanded = false;
+            msg.IsToolDetailExpanded = false;
+        }
+    }
+
+    /// <summary>折叠条点击：切换思考过程展开/收起（sender 是挂手势的 Border，BindingContext 即消息）。
+    /// 展开前先收起其它折叠项——同屏只开一个。</summary>
     private void OnToggleReasoning(object? sender, TappedEventArgs e)
     {
         if (sender is BindableObject view && view.BindingContext is ChatMessage m && m.HasReasoning)
-            m.IsReasoningExpanded = !m.IsReasoningExpanded;
+        {
+            var willExpand = !m.IsReasoningExpanded;
+            if (willExpand) CollapseAllFolds();
+            m.IsReasoningExpanded = willExpand;
+        }
     }
 
-    /// <summary>折叠条点击：切换工具输出详情展开/收起。</summary>
+    /// <summary>折叠条点击：切换工具输出详情展开/收起。展开前先收起其它折叠项——同屏只开一个。</summary>
     private void OnToggleToolDetail(object? sender, TappedEventArgs e)
     {
         if (sender is BindableObject view && view.BindingContext is ChatMessage m && m.HasToolDetail)
-            m.IsToolDetailExpanded = !m.IsToolDetailExpanded;
+        {
+            var willExpand = !m.IsToolDetailExpanded;
+            if (willExpand) CollapseAllFolds();
+            m.IsToolDetailExpanded = willExpand;
+        }
     }
 
     /// <summary>跟踪列表是否接近底部（智能滚动判定依据）。</summary>

@@ -1,5 +1,27 @@
 # 更新日志
 
+## v0.96.12 (2026-08-27) — 移动端二轮：代码高亮 + 编辑器增强 + 动态状态栏 + 图标 + 多种体验修复
+
+移动端（`WayCoder.Maui`）体验大升级：聊天/编辑器代码片段语法高亮（修复「write/edit diff 裸显示 `«bright green»` 字面标签」bug）、编辑器透明叠加高亮 + 行号 + 不换行横向滚动 + markdown 预览（表格渲染）、输入框上方动态状态栏（思考/执行工具/等待确认多态 + Braille 旋转动画）、任务完成摘要（用时/token/费用）、首页模式/权限一键切换、应用图标换 app.png（四角透明）、文件列表「用外部应用打开」（HTML→浏览器）、聊天区 markdown 表格等宽对齐渲染、流式智能自动滚动、折叠按钮去方形外框 + 折叠项互斥，并修复滚动大聊天卡死 ANR。
+
+- **代码片段语法高亮**（聊天 + 编辑器）：
+  - 新增 `Markup/ToolOutputFormatter.cs`：工具输出按优先级渲染——含 `«»` 标记 → `MarkupToFormattedString.Convert` 解码（修复 write/edit diff 在手机上裸显示 `«bright green»` 等字面标签的 bug）；diff 检测（`---/+++/@@` 首行）→ `+` 绿 / `-` 红 / `@@` 青；代码 → `Syntax.ForFile(file_path)` / `Syntax.Detect` 逐行 Tokenize 上色
+  - `MarkupToFormattedString.Convert` 支持 ```lang 围栏代码块（块内 Syntax 高亮）+ markdown 表格块（列宽补齐 + Courier New 等宽 + 表头加粗）——聊天区 AI 回复的表格不再是「一团乱」
+  - `ChatMessage.ToolDetailFormatted` 惰性渲染（展开才计算）；onTool 解析 `file_path=` 推断语言
+  - **ANR 修复**：相邻同色 Span 合并（大代码块不再拆出上万 Span 卡主线程）+ 超大内容降级纯文本 + 流式富文本节流（≥300 字符/120ms 才重算，finally 补齐最终）
+- **编辑器增强**（`EditorPage`）：
+  - 语法高亮「透明叠加」：透明文字 Editor（`EditorHandler` mapper，StyleId 精确作用，Android 光标 `TextCursorDrawable` 保留）+ 垫底高亮 Label
+  - 左侧行号栏（与代码同 FontFamily/FontSize 对齐，横向固定不随代码滚动）
+  - 不自动换行 + 横向滚动：`EditText.SetHorizontallyScrolling(true)` + `SetOnScrollChangeListener` → 高亮 Label `TranslationX` 平移同步（对齐桌面格式）
+  - markdown 文件「预览」模式（`Markup/MarkdownPreview.cs`）：标题/表格（Grid 渲染）/代码块/列表/段落，源码⇄预览双向切换
+- **输入框上方动态状态栏**（对齐桌面 `TuiDynamicBar`）：`IDispatcherTimer` 100ms 旋转 Braille 图标；多状态——思考中（token 流式）/ 🔧 执行工具 {名}（onTool）/ 等待确认中（`PermissionManager.PermissionPromptStarted`）/ 空闲隐藏
+- **任务完成摘要**：每轮对话结束在聊天区追加 `⏱ 用时 · 🪙 prompt+completion · 💰 费用`（`LLM.Task*` + Stopwatch；用户主动停止/无消耗跳过）
+- **首页模式/权限切换**：一键循环切换工作模式（建造→计划→聊天，同步 Agent.WorkMode）与确认轴权限（Ask→Auto→SmartAuto→Yolo）
+- **应用图标**：`app.png`（1024x1024，四角透明，不设 Color 背景避免透明角染黑）作 MauiIcon/MauiSplashScreen；首页「道码」上方与聊天空态的麻将 🀄 替换为图标
+- **文件列表「用外部应用打开」**：`Services/FileOpenService.cs` + Android FileProvider（`file_paths.xml` 只暴露 workspace）+ `Launcher.OpenAsync`——HTML→浏览器等
+- **聊天体验修复**：流式自动滚动（`FollowStreamScroll` 150ms 节流 + `_isNearBottom` 智能守卫，滚到底自动跟随、滚上去停止）；折叠按钮去方形外框（补 `StrokeThickness="0"`）；折叠项全局互斥（展开一个收起其余）
+- **编译**：桌面 0 错误；移动端 `net10.0-android` 0 错误；手机实测（Xiaomi 13 Pro）全部功能通过
+
 ## v0.96.11 (2026-08-27) — MCP Http/Sse 移动端接入 + git 工具注册修复 + /import /doctor 转真实现
 
 继续补齐移动端与桌面端功能差距：git 工具（纯 C#）在移动端已实现但漏注册进工具表（模型无法自主调用）——本次修复；MCP 从「移动端不支持」降级桩升级为 Http/Sse 传输真实现；/import、/doctor 两个命令从降级桩转真实现。

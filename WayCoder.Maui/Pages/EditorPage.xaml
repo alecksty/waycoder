@@ -17,8 +17,8 @@
             Padding="8,4,8,0"
             LineBreakMode="TailTruncation" />
 
-        <!-- 编辑工具条：撤销 / 重做 / 查找 / 大纲 / 保存 -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*" Padding="8,2" ColumnSpacing="4">
+        <!-- 编辑工具条：撤销 / 重做 / 查找 / 大纲 / 预览(源码) / 保存 -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*,*" Padding="8,2" ColumnSpacing="4">
             <Button
                 x:Name="UndoBtn"
                 Text="撤销"
@@ -43,20 +43,61 @@
                 FontSize="12"
                 Clicked="OnOutlineClicked" />
             <Button
-                x:Name="SaveBtn"
+                x:Name="PreviewBtn"
                 Grid.Column="4"
+                Text="预览"
+                FontSize="12"
+                Clicked="OnPreviewClicked" />
+            <Button
+                x:Name="SaveBtn"
+                Grid.Column="5"
                 Text="保存"
                 FontSize="12"
                 Clicked="OnSaveClicked" />
         </Grid>
 
-        <!-- 编辑区（触控软键盘） -->
-        <Editor
-            Grid.Row="2"
-            x:Name="CodeEditor"
-            TextChanged="OnTextChanged"
-            AutoSize="TextChanges"
-            FontSize="14" />
+        <!-- 编辑/预览区（触控软键盘）：
+             源码 = 透明文字 Editor 叠加高亮 Label（语法高亮「透明叠加」方案）。
+             Editor 文字透明、光标保留、不自动换行（横向滚动）；高亮 Label 同 FontFamily/FontSize
+             对齐、LineBreakMode=NoWrap + IsClippedToBounds 裁剪，横向滚动靠 EditText ScrollChanged
+             平移 TranslationX 同步（EditorPage.xaml.cs HandlerChanged 挂载）。
+             左侧行号栏与代码同处纵向 ScrollView → 纵向同步滚动，横向固定不随代码滚动。
+             markdown 文件点「预览」切换预览区（MarkdownPreview 渲染，表格等成块显示）。 -->
+        <Grid Grid.Row="2">
+            <ScrollView x:Name="EditorScroll" HorizontalScrollBarVisibility="Never">
+                <Grid ColumnDefinitions="Auto,*" VerticalOptions="Start">
+                    <Label
+                        x:Name="LineNumbers"
+                        FontFamily="Courier New"
+                        FontSize="14"
+                        Padding="8,7,4,6"
+                        HorizontalTextAlignment="End"
+                        TextColor="{AppThemeBinding Light=#999999, Dark=#666666}"
+                        IsVisible="False" />
+                    <Grid Grid.Column="1" IsClippedToBounds="True">
+                        <Label
+                            x:Name="HighlightLayer"
+                            FontFamily="Courier New"
+                            FontSize="14"
+                            Padding="4,6"
+                            LineBreakMode="NoWrap"
+                            HorizontalOptions="Start"
+                            IsVisible="False" />
+                        <Editor
+                            x:Name="CodeEditor"
+                            StyleId="code-editor"
+                            TextChanged="OnTextChanged"
+                            AutoSize="TextChanges"
+                            FontFamily="Courier New"
+                            FontSize="14"
+                            HorizontalOptions="Fill" />
+                    </Grid>
+                </Grid>
+            </ScrollView>
+            <ScrollView x:Name="PreviewScroll" IsVisible="False">
+                <VerticalStackLayout x:Name="PreviewContent" />
+            </ScrollView>
+        </Grid>
 
         <!-- 状态栏：行列 / 字符数 / 修改标记 -->
         <Label

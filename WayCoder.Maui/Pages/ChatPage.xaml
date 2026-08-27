@@ -42,7 +42,7 @@
                     <VerticalStackLayout Spacing="2">
                         <!-- 思考过程：流式时实时展开、结束后折叠成一条，点击可展开/收起 -->
                         <VerticalStackLayout IsVisible="{Binding HasReasoning}" Spacing="2">
-                            <Border BackgroundColor="Transparent" Padding="12,6,12,2">
+                            <Border BackgroundColor="Transparent" StrokeThickness="0" Padding="12,6,12,2">
                                 <Border.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnToggleReasoning" />
                                 </Border.GestureRecognizers>
@@ -82,7 +82,7 @@
                     TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
                     IsVisible="{Binding HasToolSummary}" />
                 <VerticalStackLayout IsVisible="{Binding HasToolDetail}" Spacing="1">
-                    <Border BackgroundColor="Transparent" Padding="0,2,0,2">
+                    <Border BackgroundColor="Transparent" StrokeThickness="0" Padding="0,2,0,2">
                         <Border.GestureRecognizers>
                             <TapGestureRecognizer Tapped="OnToggleToolDetail" />
                         </Border.GestureRecognizers>
@@ -92,7 +92,7 @@
                             TextColor="{StaticResource Primary}" />
                     </Border>
                     <Label
-                        Text="{Binding ToolDetail}"
+                        FormattedText="{Binding ToolDetailFormatted}"
                         FontSize="11"
                         FontFamily="Courier New"
                         LineHeight="1.2"
@@ -109,9 +109,9 @@
             ToolTemplate="{StaticResource ToolTemplate}" />
     </ContentPage.Resources>
 
-    <Grid RowDefinitions="Auto,*,Auto">
+    <Grid RowDefinitions="Auto,*,Auto,Auto">
 
-        <!-- 顶部模型快捷切换条 -->
+        <!-- 顶部状态区：行1 模型（点击切换），行2 工作模式/权限/todo/上下文/用量/花费 -->
         <Border Grid.Row="0" BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0"
                 Padding="14,6" Margin="8,6">
             <Border.StrokeShape>
@@ -122,11 +122,17 @@
             <Border.GestureRecognizers>
                 <TapGestureRecognizer Tapped="OnModelBarTapped" />
             </Border.GestureRecognizers>
-            <Label x:Name="ModelBar"
-                   FontSize="13"
-                   TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
-                   HorizontalOptions="Start"
-                   VerticalOptions="Center" />
+            <VerticalStackLayout Spacing="1">
+                <Label x:Name="ModelBar"
+                       FontSize="13"
+                       TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
+                       HorizontalOptions="Start" />
+                <Label x:Name="StatusBar"
+                       FontSize="10"
+                       LineBreakMode="TailTruncation"
+                       TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                       HorizontalOptions="Start" />
+            </VerticalStackLayout>
         </Border>
 
         <CollectionView
@@ -138,15 +144,30 @@
             Scrolled="OnMsgListScrolled">
             <CollectionView.EmptyView>
                 <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="8">
-                    <Label Text="🀄" FontSize="40" HorizontalTextAlignment="Center" />
+                    <Image Source="app.png" WidthRequest="72" HeightRequest="72" HorizontalOptions="Center" />
                     <Label Text="道码 · 手机编程智能体" FontSize="16" FontAttributes="Bold" HorizontalTextAlignment="Center" />
                     <Label Text="问点什么，或去「文件」页导入项目" FontSize="13" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
             </CollectionView.EmptyView>
         </CollectionView>
 
+        <!-- 输入框上方动态状态栏：左侧动画图标（思考旋转）+ 状态文本（思考中/等待确认中） -->
+        <Border Grid.Row="2" x:Name="AgentStatusBar" IsVisible="False"
+                BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}"
+                StrokeThickness="0" Padding="14,4" Margin="8,2">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="10" />
+            </Border.StrokeShape>
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                <Label x:Name="AgentStatusIcon" Text="⠋" FontSize="14" VerticalOptions="Center" />
+                <Label x:Name="AgentStatusText" Grid.Column="1" Text="思考中..."
+                       FontSize="12" VerticalOptions="Center"
+                       TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+            </Grid>
+        </Border>
+
         <!-- 底部输入栏：圆形加号（语音/图片菜单） / 输入框 / 圆形发送 -->
-        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Padding="8,6" ColumnSpacing="8">
+        <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" Padding="8,6" ColumnSpacing="8">
             <Button
                 x:Name="AddBtn"
                 Text="＋"

@@ -8,7 +8,7 @@
     <ScrollView>
         <VerticalStackLayout Padding="28,48" Spacing="12">
 
-            <Label Text="🀄" FontSize="64" HorizontalTextAlignment="Center" />
+            <Image Source="app.png" WidthRequest="72" HeightRequest="72" HorizontalOptions="Center" />
             <Label Text="道码" FontSize="30" FontAttributes="Bold"
                    HorizontalTextAlignment="Center" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
             <Label x:Name="VersionLabel" FontSize="13"
@@ -30,7 +30,13 @@
                 </VerticalStackLayout>
             </Border>
 
-            <Button Text="💬  开始对话" Clicked="OnChatClicked" Margin="0,16,0,0" />
+            <!-- 模式/权限快速切换：点击循环切换（模式 Build/Plan/Chat，权限 Ask/Auto/SmartAuto/Yolo） -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,16,0,0">
+                <Button x:Name="ModeBtn" Text="⚙ 建造" FontSize="13" Clicked="OnModeClicked" />
+                <Button x:Name="PermBtn" Grid.Column="1" Text="🔐 Ask" FontSize="13" Clicked="OnPermClicked" />
+            </Grid>
+
+            <Button Text="💬  开始对话" Clicked="OnChatClicked" Margin="0,12,0,0" />
             <Button Text="⚙️  配置 API Key" Clicked="OnSettingsClicked" />
 
         </VerticalStackLayout>

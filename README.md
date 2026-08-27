@@ -1,5 +1,7 @@
 <div align="center">
 
+![alt text](image.png)
+
 # WayCoder（道码）
 
 **中文编程智能体,Vibe Coding Agent CLI**
