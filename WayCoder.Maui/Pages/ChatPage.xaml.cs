@@ -90,6 +90,7 @@ public partial class ChatPage : ContentPage
         StartStatusTimer();
         PermissionManager.PermissionPromptStarted += OnPermissionStarted;
         PermissionManager.PermissionPromptResolved += OnPermissionResolved;
+        _ = PromptResumeSession(); // 进入时：有上次会话则弹「继续会话 / 新的会话」
     }
 
     protected override void OnDisappearing()
@@ -99,6 +100,30 @@ public partial class ChatPage : ContentPage
         _statusTimer = null;
         PermissionManager.PermissionPromptStarted -= OnPermissionStarted;
         PermissionManager.PermissionPromptResolved -= OnPermissionResolved;
+        if (Messages.Count > 0) MauiSessionStore.Save(Messages); // 退出时记住会话
+    }
+
+    /// <summary>进入聊天页且有上次会话时，弹「继续会话 / 新的会话」选择。</summary>
+    private async Task PromptResumeSession()
+    {
+        if (Messages.Count > 0 || !MauiSessionStore.Exists()) return;
+        var action = await DisplayActionSheetAsync("发现上次会话", "取消", null, "继续会话", "新的会话");
+        if (action == "继续会话")
+        {
+            var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
+            foreach (var m in MauiSessionStore.Load())
+            {
+                m.IsDark = isDark;
+                if (m.Role == ChatRole.Assistant && !string.IsNullOrEmpty(m.RawText))
+                    m.Formatted = MarkupToFormattedString.Convert(m.RawText, isDark);
+                Messages.Add(m);
+            }
+            ScrollToEnd();
+        }
+        else if (action == "新的会话")
+        {
+            MauiSessionStore.Clear();
+        }
     }
 
     private void OnPermissionStarted(string _)
@@ -180,6 +205,76 @@ public partial class ChatPage : ContentPage
         ConnectionConfig.ApplyModelChoice(pid, model.Id, isLarge: true, out _);
         AgentService.Reset();
         RefreshModelBar();
+    }
+
+    /// <summary>右上角菜单：会话/任务/模型/模式/权限等缺失功能集中入口。</summary>
+    private async void OnMenuClicked(object? sender, EventArgs e)
+    {
+        var action = await DisplayActionSheetAsync("菜单", "取消", null,
+            "🧠 模型选择", "⚙ 模式切换", "🔐 权限切换", "📋 会话管理", "📌 任务管理", "ℹ️ 关于");
+        switch (action)
+        {
+            case "🧠 模型选择": OnModelBarTapped(null, null); break;
+            case "⚙ 模式切换": CycleWorkMode(); break;
+            case "🔐 权限切换": CyclePermission(); break;
+            case "📋 会话管理": await ManageSessionsAsync(); break;
+            case "📌 任务管理": await ShowTasksAsync(); break;
+            case "ℹ️ 关于": await Shell.Current.GoToAsync("about"); break;
+        }
+    }
+
+    /// <summary>循环切换工作模式（建造→计划→聊天）并同步到 Agent。</summary>
+    private void CycleWorkMode()
+    {
+        WorkModeManager.CycleNext();
+        if (AgentService.CurrentAgent is { } a) a.WorkMode = WorkModeManager.CurrentMode;
+        RefreshModelBar();
+    }
+
+    /// <summary>循环切换确认轴权限（Ask→Auto→SmartAuto→Yolo）。</summary>
+    private void CyclePermission()
+    {
+        PermissionManager.CycleMode();
+        RefreshModelBar();
+    }
+
+    /// <summary>会话管理：继续上次会话 / 新的会话。</summary>
+    private async Task ManageSessionsAsync()
+    {
+        var action = await DisplayActionSheetAsync("会话管理", "取消", null, "继续会话", "新的会话");
+        if (action == "继续会话")
+        {
+            var loaded = MauiSessionStore.Load(); // 先读再清，避免删了文件读到空
+            var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
+            Messages.Clear();
+            foreach (var m in loaded)
+            {
+                m.IsDark = isDark;
+                if (m.Role == ChatRole.Assistant && !string.IsNullOrEmpty(m.RawText))
+                    m.Formatted = MarkupToFormattedString.Convert(m.RawText, isDark);
+                Messages.Add(m);
+            }
+            MauiSessionStore.Save(Messages); // 重新落盘
+            ScrollToEnd();
+        }
+        else if (action == "新的会话")
+        {
+            Messages.Clear();
+            MauiSessionStore.Clear();
+        }
+    }
+
+    /// <summary>任务管理：展示当前 todo 列表。</summary>
+    private async Task ShowTasksAsync()
+    {
+        var items = new List<string>();
+        try { items = WayCoder.Tools.TodoTool.Items.Select(t => $"{t.Status} · {t.Title}").ToList(); } catch { }
+        if (items.Count == 0)
+        {
+            await DisplayAlertAsync("任务管理", "暂无任务", "关闭");
+            return;
+        }
+        await DisplayActionSheetAsync($"任务列表（{items.Count}）", "关闭", null, items.Take(20).ToArray());
     }
 
     private async void OnSendClicked(object? sender, EventArgs e)
@@ -321,6 +416,7 @@ public partial class ChatPage : ContentPage
             _cts = null;
             _uiState = AgentUiState.Idle;
             RefreshStatusBar();
+            if (Messages.Count > 0) MauiSessionStore.Save(Messages); // 每轮结束落盘，退出/重启可恢复
 
             // 任务完成摘要：用时 / prompt+completion token / 费用（用户主动停止或无消耗则跳过）
             if (!cancelled)

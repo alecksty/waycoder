@@ -122,17 +122,29 @@
             <Border.GestureRecognizers>
                 <TapGestureRecognizer Tapped="OnModelBarTapped" />
             </Border.GestureRecognizers>
-            <VerticalStackLayout Spacing="1">
-                <Label x:Name="ModelBar"
-                       FontSize="13"
-                       TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
-                       HorizontalOptions="Start" />
-                <Label x:Name="StatusBar"
-                       FontSize="10"
-                       LineBreakMode="TailTruncation"
-                       TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
-                       HorizontalOptions="Start" />
-            </VerticalStackLayout>
+            <Grid ColumnDefinitions="*,Auto">
+                <VerticalStackLayout Spacing="1">
+                    <Label x:Name="ModelBar"
+                           FontSize="13"
+                           TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
+                           HorizontalOptions="Start" />
+                    <Label x:Name="StatusBar"
+                           FontSize="10"
+                           LineBreakMode="TailTruncation"
+                           TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                           HorizontalOptions="Start" />
+                </VerticalStackLayout>
+                <!-- 右上角菜单键：会话管理/任务管理/模型选择/模式切换/权限切换 等 -->
+                <Button Grid.Column="1"
+                        x:Name="MenuBtn"
+                        Text="☰"
+                        FontSize="16"
+                        Padding="8,2"
+                        BackgroundColor="Transparent"
+                        TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
+                        Clicked="OnMenuClicked"
+                        SemanticProperties.Hint="菜单" />
+            </Grid>
         </Border>
 
         <CollectionView

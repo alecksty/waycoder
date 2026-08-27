@@ -17,43 +17,63 @@
             Padding="8,4,8,0"
             LineBreakMode="TailTruncation" />
 
-        <!-- 编辑工具条：撤销 / 重做 / 查找 / 大纲 / 预览(源码) / 保存 -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*,*" Padding="8,2" ColumnSpacing="4">
-            <Button
+        <!-- 编辑工具条（SVG 图标按钮）：撤销 / 重做 / 查找 / 大纲 / 预览(源码) / 编辑(只读↔可写) / 保存 -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*,*,*" Padding="8,2" ColumnSpacing="4">
+            <ImageButton
                 x:Name="UndoBtn"
-                Text="撤销"
-                FontSize="12"
-                Clicked="OnUndoClicked" />
-            <Button
+                Source="icon_undo"
+                BackgroundColor="Transparent"
+                Padding="8"
+                Clicked="OnUndoClicked"
+                SemanticProperties.Hint="撤销" />
+            <ImageButton
                 x:Name="RedoBtn"
                 Grid.Column="1"
-                Text="重做"
-                FontSize="12"
-                Clicked="OnRedoClicked" />
-            <Button
+                Source="icon_redo"
+                BackgroundColor="Transparent"
+                Padding="8"
+                Clicked="OnRedoClicked"
+                SemanticProperties.Hint="重做" />
+            <ImageButton
                 x:Name="FindBtn"
                 Grid.Column="2"
-                Text="查找"
-                FontSize="12"
-                Clicked="OnFindClicked" />
-            <Button
+                Source="icon_find"
+                BackgroundColor="Transparent"
+                Padding="8"
+                Clicked="OnFindClicked"
+                SemanticProperties.Hint="查找" />
+            <ImageButton
                 x:Name="OutlineBtn"
                 Grid.Column="3"
-                Text="大纲"
-                FontSize="12"
-                Clicked="OnOutlineClicked" />
-            <Button
+                Source="icon_outline"
+                BackgroundColor="Transparent"
+                Padding="8"
+                Clicked="OnOutlineClicked"
+                SemanticProperties.Hint="大纲" />
+            <ImageButton
                 x:Name="PreviewBtn"
                 Grid.Column="4"
-                Text="预览"
-                FontSize="12"
-                Clicked="OnPreviewClicked" />
-            <Button
-                x:Name="SaveBtn"
+                Source="icon_preview"
+                BackgroundColor="Transparent"
+                Padding="8"
+                Clicked="OnPreviewClicked"
+                SemanticProperties.Hint="预览/源码" />
+            <ImageButton
+                x:Name="EditBtn"
                 Grid.Column="5"
-                Text="保存"
-                FontSize="12"
-                Clicked="OnSaveClicked" />
+                Source="icon_edit"
+                BackgroundColor="Transparent"
+                Padding="8"
+                Clicked="OnEditClicked"
+                SemanticProperties.Hint="切换只读/编辑" />
+            <ImageButton
+                x:Name="SaveBtn"
+                Grid.Column="6"
+                Source="icon_save"
+                BackgroundColor="Transparent"
+                Padding="8"
+                Clicked="OnSaveClicked"
+                SemanticProperties.Hint="保存" />
         </Grid>
 
         <!-- 编辑/预览区（触控软键盘）：
@@ -72,25 +92,32 @@
                         FontSize="14"
                         Padding="8,7,4,6"
                         HorizontalTextAlignment="End"
+                        VerticalOptions="Start"
                         TextColor="{AppThemeBinding Light=#999999, Dark=#666666}"
                         IsVisible="False" />
-                    <Grid Grid.Column="1" IsClippedToBounds="True">
+                    <!-- 内容区：HighlightLayer 按内容高度驱动（Start），Editor 填满同高。
+                         不设 IsClippedToBounds——此前裁剪会把内容压到一行只显示首行（行号外层溢出却全显示）；
+                         横向裁剪交给外层 ScrollView 视口，横向滚动靠 EditorPage 的 TranslationX 平移同步。 -->
+                    <Grid Grid.Column="1" VerticalOptions="Start">
+                        <!-- 高亮层：LineBreakMode 不能用 NoWrap——它会让 FormattedString 里的 \n 不换行，
+                             内容并成一行只有首行可见（行号 Label 未设 NoWrap 所以正常分行）。
+                             宽度靠 UpdateHighlight 按最大行宽设的 WidthRequest 约束，长行不换行、\n 正常分行。 -->
                         <Label
                             x:Name="HighlightLayer"
                             FontFamily="Courier New"
                             FontSize="14"
                             Padding="4,6"
-                            LineBreakMode="NoWrap"
                             HorizontalOptions="Start"
+                            VerticalOptions="Start"
                             IsVisible="False" />
                         <Editor
                             x:Name="CodeEditor"
                             StyleId="code-editor"
                             TextChanged="OnTextChanged"
-                            AutoSize="TextChanges"
                             FontFamily="Courier New"
                             FontSize="14"
-                            HorizontalOptions="Fill" />
+                            HorizontalOptions="Fill"
+                            VerticalOptions="Fill" />
                     </Grid>
                 </Grid>
             </ScrollView>
