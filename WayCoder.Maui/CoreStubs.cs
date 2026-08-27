@@ -71,6 +71,107 @@ namespace WayCoder.Tools
         /// <summary>返回 null 表示无法识别语言 —— 调用方据此跳过 lint（移动端恒跳过）。</summary>
         public static string? DetectLanguage(string path) => null;
     }
+
+    /// <summary>
+    /// git 工具：纯 C# 实现（无 git 进程），复用 <see cref="WayCoder.Git.GitCore"/>（对象模型）+
+    /// <see cref="WayCoder.Git.GitRemote"/>（smart HTTP 传输，pull/push）+ <see cref="WayCoder.Git.GitBranch"/>（分支管理）。
+    /// 覆盖 init/add/commit/status/diff/log/branch/checkout/merge/pull/push/fetch/remote/clone/credential，不依赖系统 git 二进制。
+    /// </summary>
+    public class GitTool : ITool, ICancellableTool
+    {
+        public string Name => "git";
+        public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
+        public string Description => "执行 Git 操作（纯 C# 实现）：init、add、commit、status、diff、log、branch、checkout、merge、pull、push、fetch、remote、clone、credential。";
+        public JNode Parameters => JNode.Object()
+            .Set("type", "object")
+            .Set("properties", JNode.Object()
+                .Set("command", JNode.Object().Set("type", "string").Set("description", "Git 子命令，如 'status'、'add .'、'commit -m \"msg\"'、'log'、'diff'、'branch'、'checkout dev'、'merge dev'、'pull'、'push'、'remote add origin <url>'、'clone <url>'、'credential --token <user> <token>'")));
+
+        public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+            => ExecuteAsync(arguments, CancellationToken.None);
+
+        public Task<string> ExecuteAsync(Dictionary<string, object?> arguments, CancellationToken cancellationToken)
+        {
+            var command = arguments.GetValueOrDefault("command")?.ToString() ?? "";
+            if (string.IsNullOrWhiteSpace(command))
+                return Task.FromResult("用法：git <init|add|commit|status|diff|log|branch|checkout|merge|pull|push|fetch|remote|clone|credential>");
+            try
+            {
+                var cwd = CwdContext.Current.Value ?? Directory.GetCurrentDirectory();
+                var repoRoot = WayCoder.Git.GitCore.FindRepoRoot(cwd);
+
+                // init / clone 可在仓库尚不存在时执行（以 cwd 为根创建仓库）
+                var sub = command.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)[0].ToLowerInvariant();
+                if (sub is "init" or "clone")
+                    return Task.FromResult(WayCoder.Git.GitCore.Run(repoRoot ?? cwd, command));
+                if (repoRoot == null)
+                    return Task.FromResult("⚠ 当前目录不在 git 仓库内。请先 git init，或 /cd 到仓库目录。");
+                return Task.FromResult(WayCoder.Git.GitCore.Run(repoRoot, command));
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult($"错误：git: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>git_pr 工具降级桩：移动端无 git/gh 进程。返回不支持提示，保证 /pr 命令编译通过。</summary>
+    public class GitPRTool : ITool
+    {
+        public string Name => "git_pr";
+        public string Description => "移动端暂不支持创建 Pull Request（无 git/gh 进程）。";
+        public JNode Parameters => JNode.Object()
+            .Set("type", "object")
+            .Set("properties", JNode.Object()
+                .Set("title", JNode.Object().Set("type", "string").Set("description", "PR 标题")));
+
+        public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+            => Task.FromResult("⚠️ 移动端暂不支持创建 Pull Request：无本地 git/gh 进程。");
+    }
+
+    /// <summary>MCP 服务器连接状态。</summary>
+    public enum McpServerStatus { Connecting, Connected, Failed }
+
+    /// <summary>MCP 服务器状态快照（字段对齐主工程，供 /mcp 展示）。</summary>
+    public class McpServerInfo
+    {
+        public string Name { get; }
+        public string Transport { get; }
+        public McpServerStatus Status { get; }
+        public int ToolCount { get; }
+        public int ResourceCount { get; }
+        public int PromptCount { get; }
+        public string? Error { get; }
+        public string Source { get; }
+
+        public McpServerInfo(string name, string transport, McpServerStatus status, int toolCount, string? error,
+            int resourceCount = 0, int promptCount = 0, string source = "waycoder")
+        {
+            Name = name;
+            Transport = transport;
+            Status = status;
+            ToolCount = toolCount;
+            ResourceCount = resourceCount;
+            PromptCount = promptCount;
+            Error = error;
+            Source = source;
+        }
+    }
+
+    /// <summary>
+    /// MCP 管理器降级桩：移动端无 MCP（stdio 传输 iOS 物理不可用）。Servers 恒空、
+    /// Reload/AddServerToConfig 返回不支持提示。Http/Sse 传输作为后续任务补齐。
+    /// </summary>
+    public static class McpManager
+    {
+        public static IReadOnlyList<McpServerInfo> Servers => Array.Empty<McpServerInfo>();
+
+        public static Task<string> ReloadAsync(string? name)
+            => Task.FromResult("⚠️ 移动端暂不支持 MCP：stdio 传输在 iOS 物理不可用，Http/Sse 传输待补齐。");
+
+        public static (bool Success, string Message) AddServerToConfig(JNode server)
+            => (false, "移动端暂不支持添加 MCP 服务器。");
+    }
 }
 
 namespace WayCoder
@@ -103,53 +204,105 @@ namespace WayCoder
             => throw new NotSupportedException(Unsupported);
     }
 
-    // ── CLI 专属类型占位（MAUI 无 REPL 斜杠命令 / 编译期插件 / 程序全局上下文）──
+    // ── CLI 专属类型占位（ISlashCommand/SlashCommand/SlashCommandRegistry/ProgramContext 已由
+    //    主工程 SlashCommand.cs 编译进来，此处不再 stub）。补 Program 单槽位成员 + AgentSlot 占位 + PluginRegistry。 ──
 
-    public interface ISlashCommand
-    {
-        string Name { get; }
-        string[] Aliases { get; }
-        string Description { get; }
-        string? Usage { get; }
-        bool Matches(string input);
-        Task ExecuteAsync(string args, WayCoder.UI.Tui.Screens.ChatScreen screen);
-    }
-
-    public abstract class SlashCommand : ISlashCommand
-    {
-        public abstract string Name { get; }
-        public virtual string[] Aliases => [];
-        public abstract string Description { get; }
-        public virtual string? Usage => null;
-        public virtual bool Matches(string input) => false;
-        public abstract Task ExecuteAsync(string args, WayCoder.UI.Tui.Screens.ChatScreen screen);
-    }
-
-    public static class SlashCommandRegistry
-    {
-        private static readonly List<ISlashCommand> _commands = [];
-        public static IReadOnlyList<ISlashCommand> Commands => _commands;
-        public static void Register(ISlashCommand cmd) { }
-        public static void RegisterAll() { }
-        public static string[] AllNames => [];
-        public static (ISlashCommand? Command, string Args) Match(string userInput) => (null, userInput);
-    }
-
-    /// <summary>MAUI 进程占位：主项目 CLI Program（MAUI 无 REPL 主循环，无需槽位数组）。</summary>
+    /// <summary>MAUI 进程占位：主项目 CLI Program（MAUI 无 REPL 主循环，单槽位语义）。</summary>
     public static partial class Program
     {
+        /// <summary>移动端恒单槽位（槽位 0）。</summary>
+        public static int ActiveSlotIndex => 0;
+
+        /// <summary>移动端无多槽位并行，返回空数组；命令均有 slots != null / idx &lt; slots.Length 边界检查，空数组安全。</summary>
+        public static AgentSlot[] GetSlots() => [];
+
+        /// <summary>移动端无槽位工具集合刷新（工具集静态），no-op。</summary>
+        public static void RefreshActiveSlotTools() { }
+
+        /// <summary>移动端无 REPL 主循环，退出请求 no-op。</summary>
+        public static void RequestExit() { }
+
+        /// <summary>移动端无 CLI --resume 待恢复会话，恒 null。</summary>
+        public static (List<JNode> Messages, string Model)? PendingRestore => null;
+
+        /// <summary>移动端无待恢复会话，no-op。</summary>
+        public static void ClearPendingRestore() { }
     }
 
-    public static class ProgramContext
+    /// <summary>
+    /// AgentSlot 占位：移动端单槽位。命令层只用 Count / Agent / WorkMode / DeliverMessage；
+    /// 真实的多槽位调度（F1-F10）桌面端专属，移动端恒一个槽位。
+    /// </summary>
+    public class AgentSlot
     {
-        public static Agent? Agent { get; set; }
-        public static Config Config { get; set; } = new();
-        public static LLM? LLM { get; set; }
+        public const int Count = 1;
+        public Agent? Agent { get; set; }
+        public string? WorkingDirectory { get; set; }
+        public WorkMode WorkMode { get; set; } = WorkMode.Build;
+        public void DeliverMessage(int fromSlot, string message, WayCoder.UI.Tui.Screens.ChatScreen? activeScreen, int targetIdx) { }
     }
 
     public static class PluginRegistry
     {
         public static IEnumerable<ITool> CollectTools() => [];
+
+        /// <summary>移动端无编译期插件，贡献命令为空（SlashCommandRegistry.RegisterAll 末尾调用）。</summary>
+        public static IEnumerable<ISlashCommand> CollectCommands() => [];
+    }
+
+    /// <summary>
+    /// 主题配置降级桩：移动端主题由 MAUI 原生管。Presets/ApplyPreset 仅为满足 /theme 命令
+    /// 的编译与运行（列出预设名、切换 no-op）。
+    /// </summary>
+    public class ThemeConfig
+    {
+        internal static readonly Dictionary<string, ThemeConfig> Presets = new()
+        {
+            ["默认"] = new ThemeConfig(),
+            ["深色"] = new ThemeConfig(),
+            ["浅色"] = new ThemeConfig(),
+        };
+
+        public static void ApplyPreset(string name) { }
+    }
+
+    /// <summary>Doctor 自检选项（字段对齐主工程，移动端 DoctorEngine 降级为提示）。</summary>
+    public sealed class DoctorOptions
+    {
+        public string Home { get; set; } = "";
+        public string Cwd { get; set; } = "";
+        public bool Fix { get; set; }
+        public IReadOnlyList<string> Models { get; set; } = Array.Empty<string>();
+    }
+
+    /// <summary>Doctor 报告（降级：Render 返回不支持提示）。</summary>
+    public sealed class DoctorReport
+    {
+        public string Render() => "⚠️ 移动端暂不支持系统自检（DoctorEngine 未实现）。";
+    }
+
+    /// <summary>系统自检引擎降级桩：移动端无发行后自检（诊断依赖进程/文件探测），返回不支持提示。</summary>
+    public static class DoctorEngine
+    {
+        public static Task<DoctorReport> RunAsync(DoctorOptions options)
+            => Task.FromResult(new DoctorReport());
+    }
+}
+
+namespace WayCoder.Infra
+{
+    /// <summary>
+    /// 导入助手降级桩：移动端暂不支持从其他智能体导入配置（ImportHelper 未实现）。
+    /// Detect 恒空、ImportAsync 返回提示，保证 /import 命令编译通过并优雅降级。
+    /// </summary>
+    public static class ImportHelper
+    {
+        public record ImportItem(string Category, string Name, string Description, bool CanImport);
+
+        public static List<ImportItem> Detect() => [];
+
+        public static Task<string> ImportAsync(HashSet<string>? categories = null)
+            => Task.FromResult("⚠️ 移动端暂不支持导入（ImportHelper 未实现）。");
     }
 }
 
@@ -159,11 +312,22 @@ namespace WayCoder
 
 namespace WayCoder.UI.TUI.Base
 {
+    /// <summary>终端窗口占位（对话框 / Toast 的载体类型，MAUI 无终端窗口层渲染）。</summary>
+    public class TuiWindow
+    {
+    }
+
     /// <summary>终端屏幕基类桩（MAUI 无终端 TUI，仅作类型占位 + PostToUI 直执行）。</summary>
     public class TuiScreen
     {
         /// <summary>MAUI 无 UI 线程渲染循环，PostToUI 直接同步执行投递的动作。</summary>
         public void PostToUI(Action action) => action();
+
+        /// <summary>弹窗占位：MAUI 无终端窗口层，no-op（真实弹窗走 WebInteraction / 原生页面）。</summary>
+        public void ShowWindow(TuiWindow win) { }
+
+        /// <summary>Toast 占位：MAUI 无终端 Toast，no-op（真实 Toast 由 ChatPage 注入实现）。</summary>
+        public TuiWindow ShowToast(string message, int durationMs = 2000) => new TuiWindow();
     }
 
     /// <summary>终端 TUI 管理器桩：ActiveScreen 恒 null、IsActive 恒 false，触发「非交互环境」分支。</summary>
@@ -172,22 +336,107 @@ namespace WayCoder.UI.TUI.Base
         public static TuiManager Instance { get; } = new();
         public TuiScreen? ActiveScreen { get; private set; }
         public bool IsActive { get; private set; }
+
+        /// <summary>推入屏幕占位：移动端无终端屏幕栈，no-op（真实跳转原生页面由 ChatPage 桥接 EditorScreen/SettingsScreen）。</summary>
+        public void PushScreen(TuiScreen screen) { }
+    }
+}
+
+namespace WayCoder.UI.Tui.Controls
+{
+    /// <summary>
+    /// 对话框占位：MAUI 无终端窗口对话框，Select/MultiSelect 返回空 TuiWindow、不触发回调
+    /// （真实弹窗后续由 ChatPage 桥接原生选择器）。类型仅为满足命令层 TuiDialog.Select 调用。
+    /// </summary>
+    public static class TuiDialog
+    {
+        public static WayCoder.UI.TUI.Base.TuiWindow Select(string title, List<string> items,
+            Action<int> onSelect, Action? onCancel = null)
+            => new WayCoder.UI.TUI.Base.TuiWindow();
+
+        public static WayCoder.UI.TUI.Base.TuiWindow MultiSelect(string title, List<string> items,
+            Action<HashSet<int>> onConfirm, Action? onCancel = null, HashSet<int>? preChecked = null)
+            => new WayCoder.UI.TUI.Base.TuiWindow();
+    }
+
+    /// <summary>
+    /// 状态栏占位：移动端无终端状态栏。命令层仅设置 CurrentWorkMode（/mode 切换），
+    /// 其余桌面端状态字段（SlotStates/AgentBusy 等）移动端不需要。
+    /// </summary>
+    public class TuiStatusBar
+    {
+        public WorkMode CurrentWorkMode { get; set; } = WorkMode.Build;
     }
 }
 
 namespace WayCoder.UI.Tui.Screens
 {
-    /// <summary>聊天屏幕桩：MAUI 用原生 ChatPage 替代。方法为工具层的类型引用占位。</summary>
+    /// <summary>聊天消息 POCO（轻量重定义，去掉主工程 ChatMsg 对 ToolRenderers/Shared 的依赖）。</summary>
+    public class ChatMsg
+    {
+        public string Role { get; set; } = "system";
+        public string Content { get; set; } = "";
+        public string? SessionId { get; set; }
+        public DateTime Time { get; set; } = DateTime.Now;
+        public int TokenCount { get; set; }
+        public bool Streaming { get; set; }
+        public bool Centered { get; set; }
+        public int Indent { get; set; }
+    }
+
+    /// <summary>
+    /// 桥接 ChatScreen：MAUI 无终端 TUI，命令执行时把输出泵回 ChatPage 消息列表。
+    /// ChatPage 注入静态回调（OnAddSystemMsg/OnAddMessage/OnClearChat/OnGetMessages），
+    /// 未注入时方法安全 no-op。其余终端专属方法（ShowWindow/ShowToast/ShowMenu/ConfirmDialog 等）no-op。
+    /// </summary>
     public partial class ChatScreen : WayCoder.UI.TUI.Base.TuiScreen
     {
+        // ── 桥接回调（由 ChatPage 注入）──
+        public static Action<string>? OnAddSystemMsg;
+        public static Action<string, string, bool?, int>? OnAddMessage;
+        public static Action? OnClearChat;
+        public static Func<List<ChatMsg>>? OnGetMessages;
+
+        /// <summary>移动端恒单槽位（槽位 0）。</summary>
+        public int ActiveSlotIndex { get; set; } = 0;
+
+        /// <summary>当前对话消息（委托 ChatPage 的 ObservableCollection 快照；未注入返回空）。</summary>
+        public List<ChatMsg> ChatMessages => OnGetMessages?.Invoke() ?? [];
+
+        /// <summary>状态栏占位实例（命令层 /mode 会设置 CurrentWorkMode）。</summary>
+        public WayCoder.UI.Tui.Controls.TuiStatusBar StatusBar { get; } = new();
+
+        public void AddSystemMsg(string content) => OnAddSystemMsg?.Invoke(content);
+
+        public void AddMessage(string content, string role = "assistant", bool? centered = null, int indent = 0)
+            => OnAddMessage?.Invoke(content, role, centered, indent);
+
+        public void ClearChat() => OnClearChat?.Invoke();
+
+        public void SyncTheme() { }
+
+        public void RefreshSidePanel() { }
+
+        public int ShowMenu(string title, List<string> choices) => -1;
+
+        public bool ConfirmDialog(string title, string message) => false;
+
         public bool ShowPlanApproval(string planSummary, string planDetail) => true;
 
         /// <summary>权限确认桩：返回 0=允许（MAUI 真实确认走 UxHelper.WebInteraction，此分支 ActiveScreen 恒 null 不会命中）。</summary>
         public int ShowPermissionDialog(string toolName, string argsSummary, string argsDetail, bool isDangerous) => 0;
+    }
 
-        public void AddSystemMsg(string content) { }
+    /// <summary>源码编辑器占位（/edit 命令 new）。移动端真实跳转 EditorPage 由 ChatPage 桥接。</summary>
+    public class EditorScreen : WayCoder.UI.TUI.Base.TuiScreen
+    {
+        public EditorScreen(string filePath = "", bool readOnly = false) { }
+    }
 
-        public void RefreshSidePanel() { }
+    /// <summary>设置界面占位（/settings 命令 new）。移动端真实跳转 SettingsPage 由 ChatPage 桥接。</summary>
+    public class SettingsScreen : WayCoder.UI.TUI.Base.TuiScreen
+    {
+        public SettingsScreen() { }
     }
 }
 
@@ -335,5 +584,23 @@ namespace WayCoder.UI.Tui
         /// <summary>逐 hunk 确认对话框（MAUI 恒接受全部；真实确认由 WebInteraction.DiffConfirmAsync 承担）。</summary>
         public static (Decision Decision, HashSet<int>? AcceptedHunks) Show(string oldContent, string newContent, string filePath)
             => (Decision.AcceptAll, null);
+    }
+}
+
+namespace WayCoder.UI.TUI.Custom
+{
+    /// <summary>
+    /// 模型选择对话框占位（/model 无参弹框）。MAUI 无终端 ANSI 直写选择器，
+    /// Show 返回 null 表示「移动端未实现弹框」——命令层 pick == null 时优雅跳过。
+    /// 真实模型选择走 MAUI ChatPage 顶部模型栏（ModelPickerPage）；Apply 供后续桥接复用。
+    /// </summary>
+    public static class ModelPicker
+    {
+        public record Result(string ModelId, bool IsLarge, int TargetSlot,
+            bool NeedsApiKey = false, string? ProviderId = null, string? BaseUrl = null);
+
+        public static Result? Show(int currentSlot = -1, bool forceReadKeys = false) => null;
+
+        public static void Apply(string modelId, bool isLarge, int slot, string? baseUrl = null, string? providerId = null) { }
     }
 }

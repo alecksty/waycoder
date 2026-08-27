@@ -91,6 +91,9 @@ public static class MauiBootstrap
                 ErrorLog.Info("MAUI.Notify", $"[{level}] {title}: {message}");
             }
         };
+
+        // 8) 注册全部斜杠命令（对齐桌面端 54 命令；进程类命令执行时优雅降级为「移动端不支持」）。
+        SlashCommandRegistry.RegisterAll();
     }
 
     /// <summary>

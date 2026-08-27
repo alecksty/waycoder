@@ -1,0 +1,335 @@
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+
+namespace WayCoder.Git;
+
+/// <summary>
+/// git smart HTTP 传输（协议 v1）+ remote/凭证配置 + pull/push/fetch/clone 编排。
+/// 移动端无 git 进程，靠纯 C# 实现拉取/推送；桌面端走系统 git（GitCommand 透传），
+/// 本类主要服务移动端（GitCore.Run 分发进来），但纯 C# 在桌面端同样可用。
+///
+/// 协议要点（v1）：
+///   - advertisement：GET /info/refs?service=git-{upload|receive}-pack，pkt-line 列表
+///   - fetch：POST /git-upload-pack，body = want/have pkt-line + done → 响应 NAK/ACK + packfile
+///   - push：POST /git-receive-pack，body = update 命令 pkt-line + flush + packfile
+///   - 认证：HTTP Basic（username:password 或 username:token，二选一）
+/// </summary>
+public static class GitRemote
+{
+    // git remote 是用户显式配置的目标（非 AI 诱导），用普通 handler；允许内网自建 git 服务。
+    static readonly Lazy<HttpClient> _client = new(() => new HttpClient(new SocketsHttpHandler
+    {
+        AllowAutoRedirect = true,
+    })
+    { Timeout = TimeSpan.FromSeconds(60) });
+
+    // ═══════════════════════════════════════════════════════════
+    //  同步入口（供 GitCore.Run 调用，匹配其同步签名）
+    // ═══════════════════════════════════════════════════════════
+
+    public static string Remote(string repoRoot, string[] rest)
+        => RunSync(() => RemoteAsync(repoRoot, rest));
+
+    public static string Credential(string repoRoot, string[] rest)
+        => RunSync(() => CredentialAsync(repoRoot, rest));
+
+    public static string Pull(string repoRoot, string[] rest)
+        => RunSync(() => FetchCoreAsync(repoRoot, rest, updateLocal: true));
+
+    public static string Fetch(string repoRoot, string[] rest)
+        => RunSync(() => FetchCoreAsync(repoRoot, rest, updateLocal: false));
+
+    public static string Push(string repoRoot, string[] rest)
+        => RunSync(() => PushAsync(repoRoot, rest));
+
+    public static string Clone(string repoRoot, string[] rest)
+        => RunSync(() => CloneAsync(repoRoot, rest));
+
+    static string RunSync(Func<Task<string>> fn)
+    {
+        try { return fn().GetAwaiter().GetResult(); }
+        catch (Exception ex) { return $"错误：git 远程操作: {ex.GetType().Name}: {ex.Message}"; }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  高层编排
+    // ═══════════════════════════════════════════════════════════
+
+    static Task<string> RemoteAsync(string repoRoot, string[] rest)
+    {
+        var gitDir = Path.Combine(repoRoot, ".git");
+        if (rest.Length == 0 || rest[0] == "-v" || rest[0] == "--verbose")
+        {
+            var url = GitCore.ReadRemoteUrl(gitDir);
+            return Task.FromResult(url == null
+                ? "尚未配置远程（/git remote add origin <url>）"
+                : $"origin\t{url} (fetch)");
+        }
+
+        var op = rest[0].ToLowerInvariant();
+        return op switch
+        {
+            "add" => rest.Length < 3
+                ? Task.FromResult("用法：/git remote add <name> <url>")
+                : Task.FromResult(AddRemote(gitDir, rest[1], rest[2])),
+            "set-url" => rest.Length < 3
+                ? Task.FromResult("用法：/git remote set-url <name> <url>")
+                : Task.FromResult(AddRemote(gitDir, rest[1], rest[2])),
+            _ => Task.FromResult("用法：/git remote add <name> <url> | /git remote set-url <name> <url> | /git remote"),
+        };
+    }
+
+    static string AddRemote(string gitDir, string name, string url)
+    {
+        GitCore.WriteRemoteUrl(gitDir, name, url);
+        return $"已添加远程 {name} → {url}（凭证用 /git credential <username> <password|token> 单独设置）";
+    }
+
+    /// <summary>
+    /// 凭证命令（密码 / token 二选一）：
+    ///   /git credential                             查看（脱敏）
+    ///   /git credential <username> <password>       账号密码方式
+    ///   /git credential --token <username> <token>  Token 方式（推荐）
+    /// </summary>
+    static Task<string> CredentialAsync(string repoRoot, string[] rest)
+    {
+        var gitDir = Path.Combine(repoRoot, ".git");
+        if (rest.Length == 0)
+        {
+            var cred = GitCore.ReadCredential(gitDir);
+            return Task.FromResult(cred == null
+                ? "未配置凭证"
+                : $"凭证已配置：{cred.Value.User}（{ModeName(cred.Value.IsToken)}，密钥不显示）");
+        }
+
+        bool isToken = rest[0] is "--token" or "-t";
+        var args = isToken ? rest.Skip(1).ToArray() : rest;
+        if (args.Length < 2)
+            return Task.FromResult("用法：/git credential <username> <password> | /git credential --token <username> <token>");
+
+        GitCore.WriteCredential(gitDir, args[0], args[1], isToken);
+        return Task.FromResult($"已保存凭证：{args[0]}（{ModeName(isToken)}，密钥不显示）");
+    }
+
+    static string ModeName(bool isToken) => isToken ? "Token" : "密码";
+
+    static async Task<string> FetchCoreAsync(string repoRoot, string[] rest, bool updateLocal)
+    {
+        var (origin, branch) = ParseRefSpec(repoRoot, rest);
+        var gitDir = Path.Combine(repoRoot, ".git");
+        var url = GitCore.ReadRemoteUrl(gitDir, origin);
+        if (url == null) return $"⚠ 未配置远程 {origin}。请先 /git remote add {origin} <url>";
+        var cred = GitCore.ReadCredential(gitDir);
+
+        var (newSha, objects) = await FetchObjectsAsync(gitDir, url, cred, branch);
+        if (newSha == null) return $"远端 {origin}/{branch} 不存在或已是最新。";
+
+        // 更新 remote-tracking ref
+        var remoteRefDir = Path.Combine(gitDir, "refs", "remotes", origin);
+        Directory.CreateDirectory(remoteRefDir);
+        File.WriteAllText(Path.Combine(remoteRefDir, branch), newSha + "\n", new UTF8Encoding(false));
+
+        if (updateLocal)
+        {
+            var localBranch = GitCore.ReadHeadBranch(gitDir);
+            if (localBranch == branch)
+            {
+                var headsDir = Path.Combine(gitDir, "refs", "heads");
+                Directory.CreateDirectory(headsDir);
+                File.WriteAllText(Path.Combine(headsDir, branch), newSha + "\n", new UTF8Encoding(false));
+                var written = GitCore.CheckoutWorktree(gitDir, repoRoot, newSha);
+                return $"已拉取 {branch} @ {newSha[..7]}（{objects} 个对象，写入 {written} 个文件）";
+            }
+            return $"已拉取 {branch} @ {newSha[..7]}（{objects} 个对象，未合并到当前分支 {localBranch}）";
+        }
+        return $"已抓取 {branch} @ {newSha[..7]}（{objects} 个对象）";
+    }
+
+    static async Task<string> PushAsync(string repoRoot, string[] rest)
+    {
+        var (origin, branch) = ParseRefSpec(repoRoot, rest);
+        var gitDir = Path.Combine(repoRoot, ".git");
+        var url = GitCore.ReadRemoteUrl(gitDir, origin);
+        if (url == null) return $"⚠ 未配置远程 {origin}。请先 /git remote add {origin} <url>";
+        var cred = GitCore.ReadCredential(gitDir);
+
+        var newSha = GitCore.ReadHeadCommit(gitDir);
+        if (newSha == null) return "⚠ 本地尚无提交，无法推送。";
+
+        // 远端 refs（拿 old sha + 作打包边界）
+        var remoteRefs = await LsRefsAsync(url, "git-receive-pack", cred);
+        var refName = $"refs/heads/{branch}";
+        var old = remoteRefs.FirstOrDefault(r => r.Ref == refName).Sha;
+        if (old == null) old = new string('0', 40); // 新分支
+
+        // 打包：本地可达对象，远端 ref tips 作边界剪枝
+        var stop = new HashSet<string>(remoteRefs.Select(r => r.Sha), StringComparer.Ordinal);
+        var objects = GitCore.WalkReachableObjects(gitDir, newSha, stop);
+        var pack = PackFileWriter.Write(objects);
+
+        var result = await ReceivePackAsync(url, cred, old, newSha, refName, pack);
+        return $"推送 {branch} @ {newSha[..7]}（{objects.Count} 个对象）：{result}";
+    }
+
+    static async Task<string> CloneAsync(string repoRoot, string[] rest)
+    {
+        if (rest.Length == 0) return "用法：/git clone <url> [branch]";
+        var url = rest[0];
+        var branch = rest.Length > 1 ? rest[1] : "master";
+
+        GitCore.Init(repoRoot);
+        var gitDir = Path.Combine(repoRoot, ".git");
+        GitCore.WriteRemoteUrl(gitDir, "origin", url);
+        var cred = GitCore.ReadCredential(gitDir);
+
+        var (newSha, objects) = await FetchObjectsAsync(gitDir, url, cred, branch);
+        if (newSha == null) return $"克隆失败：远端无 {branch} 分支（或需要凭证，请先 /git credential <user> <pass|token>）";
+
+        var headsDir = Path.Combine(gitDir, "refs", "heads");
+        Directory.CreateDirectory(headsDir);
+        File.WriteAllText(Path.Combine(headsDir, branch), newSha + "\n", new UTF8Encoding(false));
+        var written = GitCore.CheckoutWorktree(gitDir, repoRoot, newSha);
+        return $"已克隆 {url} → {branch} @ {newSha[..7]}（{objects} 个对象，{written} 个文件）";
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  底层协议
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>拉取：ls-refs → upload-pack → 解码 packfile → 写 loose objects。返回 (新 sha, 对象数)。</summary>
+    static async Task<(string? NewSha, int ObjectCount)> FetchObjectsAsync(
+        string gitDir, string url, GitCredential? cred, string branch)
+    {
+        var refs = await LsRefsAsync(url, "git-upload-pack", cred);
+        var want = refs.FirstOrDefault(r => r.Ref == $"refs/heads/{branch}");
+        if (want.Sha == null) return (null, 0);
+
+        var localSha = GitCore.ReadHeadCommit(gitDir);
+        if (localSha == want.Sha) return (want.Sha, 0); // 已最新
+
+        var haves = localSha != null ? new[] { localSha } : Array.Empty<string>();
+        var pack = await UploadPackAsync(url, cred, new[] { want.Sha }, haves);
+
+        Func<string, (string, byte[])?> externalBase = sha =>
+        {
+            var obj = GitCore.ReadObject(gitDir, sha);
+            return obj == null ? null : (obj.Value.Type, obj.Value.Content);
+        };
+        var objects = PackFileReader.Read(pack, externalBase);
+        int written = 0;
+        foreach (var (sha, (type, content)) in objects)
+        {
+            GitCore.WriteObject(gitDir, type, content);
+            written++;
+        }
+        return (want.Sha, written);
+    }
+
+    /// <summary>GET /info/refs?service=... 解析远端 refs。</summary>
+    static async Task<List<(string Sha, string Ref)>> LsRefsAsync(string url, string service, GitCredential? cred)
+    {
+        var body = await GetAsync($"{url}/info/refs?service={service}", cred);
+        var result = new List<(string, string)>();
+        using var ms = new MemoryStream(body);
+        while (ms.Position < ms.Length)
+        {
+            var line = PktLine.ReadString(ms);
+            if (line == null || line.StartsWith("# service=", StringComparison.Ordinal)) continue;
+            var nul = line.IndexOf('\0');
+            if (nul >= 0) line = line[..nul];
+            var sp = line.IndexOf(' ');
+            if (sp < 0) continue;
+            var sha = line[..sp];
+            var refName = line[(sp + 1)..].Trim();
+            if (sha.Length == 40) result.Add((sha, refName));
+        }
+        return result;
+    }
+
+    /// <summary>POST /git-upload-pack，返回裸 packfile（去掉前面的 NAK/ACK pkt-line）。</summary>
+    static async Task<byte[]> UploadPackAsync(string url, GitCredential? cred, string[] wants, string[] haves)
+    {
+        using var body = new MemoryStream();
+        foreach (var w in wants) PktLine.WriteString(body, $"want {w}\n");
+        PktLine.Write(body, null); // flush 结束 want
+        foreach (var h in haves) PktLine.WriteString(body, $"have {h}\n");
+        PktLine.Write(body, null); // flush 结束 have
+        PktLine.WriteString(body, "done\n");
+
+        var resp = await PostAsync($"{url}/git-upload-pack", "application/x-git-upload-pack-request", body.ToArray(), cred);
+        int idx = FindPackMarker(resp);
+        if (idx >= resp.Length) throw new InvalidDataException("upload-pack 响应无 packfile");
+        return resp[idx..];
+    }
+
+    /// <summary>POST /git-receive-pack，返回服务端 pkt-line 状态文本。</summary>
+    static async Task<string> ReceivePackAsync(
+        string url, GitCredential? cred, string oldSha, string newSha, string refName, byte[] pack)
+    {
+        using var body = new MemoryStream();
+        PktLine.WriteString(body, $"{oldSha} {newSha} {refName}\0report-status");
+        PktLine.Write(body, null); // flush
+        body.Write(pack, 0, pack.Length);
+
+        var resp = await PostAsync($"{url}/git-receive-pack", "application/x-git-receive-pack-request", body.ToArray(), cred);
+        var lines = new List<string>();
+        using var ms = new MemoryStream(resp);
+        while (ms.Position < ms.Length)
+        {
+            var line = PktLine.ReadString(ms);
+            if (line != null) lines.Add(line);
+        }
+        return lines.Count == 0 ? "（服务端无状态返回）" : string.Join("；", lines);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  HTTP 辅助
+    // ═══════════════════════════════════════════════════════════
+
+    static async Task<byte[]> GetAsync(string url, GitCredential? cred)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        ApplyAuth(req, cred);
+        using var resp = await _client.Value.SendAsync(req);
+        resp.EnsureSuccessStatusCode();
+        return await resp.Content.ReadAsByteArrayAsync();
+    }
+
+    static async Task<byte[]> PostAsync(string url, string contentType, byte[] body, GitCredential? cred)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Post, url);
+        ApplyAuth(req, cred);
+        req.Content = new ByteArrayContent(body);
+        req.Content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        using var resp = await _client.Value.SendAsync(req);
+        resp.EnsureSuccessStatusCode();
+        return await resp.Content.ReadAsByteArrayAsync();
+    }
+
+    // 密码与 token 统一走 HTTP Basic：base64(user:password) 或 base64(user:token)，
+    // Gitee/GitHub 的 git-over-HTTPS 均接受这两种形式。
+    static void ApplyAuth(HttpRequestMessage req, GitCredential? cred)
+    {
+        if (cred == null) return;
+        var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{cred.Value.User}:{cred.Value.Secret}"));
+        req.Headers.Authorization = new AuthenticationHeaderValue("Basic", token);
+    }
+
+    static int FindPackMarker(byte[] data)
+    {
+        for (int i = 0; i + 4 <= data.Length; i++)
+            if (data[i] == 'P' && data[i + 1] == 'A' && data[i + 2] == 'C' && data[i + 3] == 'K')
+                return i;
+        return data.Length;
+    }
+
+    static (string Origin, string Branch) ParseRefSpec(string repoRoot, string[] rest)
+    {
+        var origin = "origin";
+        var branch = GitCore.ReadHeadBranch(Path.Combine(repoRoot, ".git"));
+        if (rest.Length >= 1) origin = rest[0];
+        if (rest.Length >= 2) branch = rest[1];
+        return (origin, branch);
+    }
+}

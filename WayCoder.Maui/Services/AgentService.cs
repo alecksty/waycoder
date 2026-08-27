@@ -46,6 +46,11 @@ public sealed class AgentService
             {
                 AgentId = "maui-slot-0",
             };
+
+            // 运行时注入全局上下文：斜杠命令层（/model /mode /compact /config 等）经 ProgramContext 拿 Agent/LLM/Config。
+            ProgramContext.Agent = _agent;
+            ProgramContext.LLM = llm;
+            ProgramContext.Config = cfg;
             return _agent;
         }
     }
