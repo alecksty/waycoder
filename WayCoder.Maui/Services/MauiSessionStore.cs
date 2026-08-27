@@ -42,13 +42,18 @@ public static class MauiSessionStore
         try
         {
             if (!File.Exists(StorePath)) return result;
-            var lines = File.ReadAllLines(StorePath);
+            // 整串索引解析（不能用 ReadAllLines 分行——多行 RawText 会被 \n 拆散破坏长度前缀）
+            var content = File.ReadAllText(StorePath);
             int i = 0;
-            while (i < lines.Length)
+            while (i < content.Length)
             {
-                if (lines[i].Length < 2 || lines[i][0] != 'R') { i++; continue; }
-                var role = (ChatRole)int.Parse(lines[i][1..]);
-                var raw = ReadField(lines, ref i);
+                if (content[i] != 'R') { i++; continue; }
+                i++;
+                int roleStart = i;
+                while (i < content.Length && content[i] != '\n') i++;
+                var role = (ChatRole)int.Parse(content[roleStart..i]);
+                i++; // 跳过 \n
+                var raw = ReadField(content, ref i);
                 result.Add(new ChatMessage { Role = role, RawText = raw });
             }
         }
@@ -67,12 +72,17 @@ public static class MauiSessionStore
         sb.Append(s.Length).Append('\n').Append(s).Append('\n');
     }
 
-    private static string ReadField(string[] lines, ref int i)
+    /// <summary>按长度前缀精确读取字段（raw 含 \n 也能正确往返）。</summary>
+    private static string ReadField(string content, ref int i)
     {
-        if (i + 1 >= lines.Length) { i = lines.Length; return ""; }
-        if (!int.TryParse(lines[i], out var len) || len < 0) { i++; return ""; }
-        var field = len <= lines[i + 1].Length ? lines[i + 1][..len] : lines[i + 1];
-        i += 2;
-        return field;
+        int lenStart = i;
+        while (i < content.Length && content[i] != '\n') i++;
+        if (!int.TryParse(content[lenStart..i], out var len) || len < 0) { i++; return ""; }
+        i++; // 跳过 \n
+        if (i + len > content.Length) { i = content.Length; return ""; }
+        var raw = content.Substring(i, len);
+        i += len;
+        if (i < content.Length && content[i] == '\n') i++; // 跳过字段尾 \n
+        return raw;
     }
 }
