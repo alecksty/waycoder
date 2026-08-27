@@ -61,16 +61,46 @@ public static class GitRemote
         catch (Exception ex) { return $"错误：git 远程操作: {ex.GetType().Name}: {ex.Message}"; }
     }
 
-    /// <summary>列出远程分支名（ls-refs 的 refs/heads/*）。网络失败返回空数组。</summary>
+    /// <summary>
+    /// 列出远程分支名（ls-refs 的 refs/heads/*）。网络失败/超时返回空数组。
+    /// 用独立短超时 client（5s），避免在 UI 线程同步调用时慢网络导致界面卡死。
+    /// </summary>
     public static string[] ListRemoteBranches(string url, GitCredential? cred)
     {
         try
         {
-            var refs = LsRefsAsync(url, "git-upload-pack", cred).GetAwaiter().GetResult();
-            return refs.Where(r => r.Ref.StartsWith("refs/heads/", StringComparison.Ordinal))
-                       .Select(r => r.Ref["refs/heads/".Length..])
-                       .Distinct()
-                       .ToArray();
+            using var http = new HttpClient(new SocketsHttpHandler
+            {
+                AllowAutoRedirect = true,
+                AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate,
+            })
+            { Timeout = TimeSpan.FromSeconds(5) };
+
+            var req = new HttpRequestMessage(HttpMethod.Get, $"{url}/info/refs?service=git-upload-pack");
+            if (cred != null)
+            {
+                var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{cred.Value.User}:{cred.Value.Secret}"));
+                req.Headers.Authorization = new AuthenticationHeaderValue("Basic", token);
+            }
+            using var resp = http.Send(req);
+            resp.EnsureSuccessStatusCode();
+            var body = resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+
+            var result = new List<string>();
+            using var ms = new MemoryStream(body);
+            while (ms.Position < ms.Length)
+            {
+                var line = PktLine.ReadString(ms);
+                if (line == null || line.StartsWith("# service=", StringComparison.Ordinal)) continue;
+                var nul = line.IndexOf('\0');
+                if (nul >= 0) line = line[..nul];
+                var sp = line.IndexOf(' ');
+                if (sp < 0) continue;
+                var refName = line[(sp + 1)..].Trim();
+                if (refName.StartsWith("refs/heads/", StringComparison.Ordinal))
+                    result.Add(refName["refs/heads/".Length..]);
+            }
+            return result.Distinct().ToArray();
         }
         catch { return Array.Empty<string>(); }
     }
