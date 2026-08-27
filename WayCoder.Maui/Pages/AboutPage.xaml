@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="WayCoder.Maui.Pages.AboutPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="关于">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="24,32" Spacing="8">
+            <Image Source="app.png" WidthRequest="96" HeightRequest="96" HorizontalOptions="Center" />
+            <Label Text="道码 WayCoder" FontSize="24" FontAttributes="Bold"
+                   HorizontalTextAlignment="Center"
+                   TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+            <Label x:Name="VersionLabel" FontSize="14" HorizontalTextAlignment="Center"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+            <Label Text="手机编程智能体" FontSize="13" HorizontalTextAlignment="Center"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+
+            <Label Text="更新日志" FontSize="16" FontAttributes="Bold" Margin="0,20,0,4"
+                   TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+            <Label x:Name="ChangelogLabel" FontSize="12" LineHeight="1.3"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

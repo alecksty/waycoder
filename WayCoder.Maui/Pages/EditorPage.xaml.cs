@@ -47,6 +47,7 @@ public partial class EditorPage : ContentPage
             if (CodeEditor.Handler?.PlatformView is Android.Widget.EditText et)
             {
                 et.SetHorizontallyScrolling(true);
+                et.HorizontalScrollBarEnabled = true; // 显示横向滚动条（内容宽于视口时）
                 if (OperatingSystem.IsAndroidVersionAtLeast(23))
                     et.SetOnScrollChangeListener(new EditorScrollListener(
                         sx => this.Dispatcher.Dispatch(() => HighlightLayer.TranslationX = -sx)));
@@ -94,6 +95,7 @@ public partial class EditorPage : ContentPage
         _redoStack.Clear();
         _loading = false;
         UpdateHighlight();
+        SetReadOnly(true); // 默认只读，需手动点「✎ 编辑」解锁
         UpdateStatus();
     }
 
@@ -105,12 +107,33 @@ public partial class EditorPage : ContentPage
         HighlightLayer.FormattedText = ToolOutputFormatter.RenderEditor(text, _filePath, isDark);
         HighlightLayer.IsVisible = text.Length > 0;
 
+        // 关键：HighlightLayer 是 HorizontalOptions=Start（内容宽），MAUI 会以「无限宽」测量 →
+        // \n 换行被并成一行，高度只剩一行。必须按「最大行宽」显式设 WidthRequest 约束测量宽度，
+        // \n 才能正常分行 → 全高度可滚动。CJK/全角按 2 格计（等宽 Courier New：ASCII≈8.4px/格）。
+        var lines = text.Replace("\r\n", "\n").Split('\n');
+        int maxW = lines.Length > 0 ? lines.Max(DisplayWidth) : 0;
+        HighlightLayer.WidthRequest = maxW * 8.4 + 16;
+
         // 行号栏：统计行数生成 "1\n2\n3..."（与代码同 FontFamily/FontSize 对齐）
-        int lines = 1;
-        foreach (var c in text)
-            if (c == '\n') lines++;
-        LineNumbers.Text = lines > 0 ? string.Join("\n", Enumerable.Range(1, lines)) : "1";
-        LineNumbers.IsVisible = lines > 1;
+        int lineCount = lines.Length;
+        LineNumbers.Text = lineCount > 0 ? string.Join("\n", Enumerable.Range(1, lineCount)) : "1";
+        LineNumbers.IsVisible = lineCount > 1;
+    }
+
+    /// <summary>文本显示宽度：ASCII 1 格、CJK/全角 2 格（EnumerateRunes 码点安全）。</summary>
+    private static int DisplayWidth(string s)
+    {
+        int w = 0;
+        foreach (var r in s.EnumerateRunes())
+        {
+            var cp = r.Value;
+            bool wide = cp >= 0x1100 && (cp <= 0x115F || cp >= 0x2E80 && cp <= 0xA4CF
+                || cp >= 0xAC00 && cp <= 0xD7A3 || cp >= 0xF900 && cp <= 0xFAFF
+                || cp >= 0xFE30 && cp <= 0xFE4F || cp >= 0xFF00 && cp <= 0xFF60
+                || cp >= 0xFFE0 && cp <= 0xFFE6);
+            w += wide ? 2 : 1;
+        }
+        return w;
     }
 
     private void OnTextChanged(object? sender, TextChangedEventArgs e)
@@ -157,15 +180,29 @@ public partial class EditorPage : ContentPage
             PreviewContent.Add(MarkdownPreview.Render(text, isDark));
             EditorScroll.IsVisible = false;
             PreviewScroll.IsVisible = true;
-            PreviewBtn.Text = "源码";
         }
         else
         {
             EditorScroll.IsVisible = true;
             PreviewScroll.IsVisible = false;
-            PreviewBtn.Text = "预览";
         }
     }
+
+    private bool _readOnly = true;
+
+    /// <summary>只读模式切换：默认只读，用户点「✎ 编辑」才允许修改；只读时禁用编辑类按钮。</summary>
+    private void SetReadOnly(bool readOnly)
+    {
+        _readOnly = readOnly;
+        CodeEditor.IsReadOnly = readOnly;
+        EditBtn.Source = readOnly ? "icon_edit" : "icon_lock"; // ✎ 编辑 / 🔒 锁定 图标
+        UndoBtn.IsEnabled = !readOnly;
+        RedoBtn.IsEnabled = !readOnly;
+        SaveBtn.IsEnabled = !readOnly;
+    }
+
+    /// <summary>点「✎ 编辑 / 🔒 锁定」切换只读与可编辑。</summary>
+    private void OnEditClicked(object? sender, EventArgs e) => SetReadOnly(!_readOnly);
 
     private async void OnSaveClicked(object? sender, EventArgs e)
     {

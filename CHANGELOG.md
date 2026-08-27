@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.96.13 (2026-08-27) — 移动端三修：编辑器修复 + 会话持久化 + 右上角菜单 + SVG 图标工具栏
+
+在 v0.96.12 基础上修复编辑器内容只显示首行的严重 bug，补齐编辑器只读保护/横向滚动条、会话持久化（继续会话/新的会话）、右上角功能菜单、SVG 图标工具栏等体验项。
+
+- **编辑器「只显示首行」修复**：根因是 `HighlightLayer` 高亮 Label 的 `LineBreakMode="NoWrap"` 让 FormattedString 里的 `\n` 不换行——内容并成一行只有首行可见（行号 Label 未设 NoWrap 所以正常分行）。移除 NoWrap + `UpdateHighlight` 按最大行宽（CJK 双宽）显式设 `WidthRequest` 约束测量宽度，`\n` 正常分行 → 全高度内容与行号对齐、可滚动
+- **编辑器只读默认**：打开文件默认只读（`CodeEditor.IsReadOnly`），点「✎ 编辑」才解锁编辑（🔒 锁定图标切换），只读时禁用撤销/重做/保存
+- **编辑器横向滚动条**：`EditText.HorizontalScrollBarEnabled` + `SetHorizontallyScrolling(true)` 不换行；行号在独立列，横向滚动不覆盖行号
+- **SVG 图标工具栏**：撤销/重做/查找/大纲/预览/编辑/保存 7 个按钮改为 `ImageButton` + SVG 图标（`Resources/Images/icons/`，MAUI MauiImage 编译内嵌），语义 Hint 保留可访问性
+- **会话持久化**：新增 `Services/MauiSessionStore.cs`——聊天的对话正文（User/Assistant 的 RawText）落盘 `Global.Home/maui_session.txt`（AOT 手写长度前缀格式，无反射）；进入聊天页检测到上次会话弹「继续会话 / 新的会话」，可恢复；**不保存思考过程与工具调用返回结果**（太多会撑爆会话）；每轮对话结束 / 离开页面自动保存
+- **右上角菜单键 ☰**：聊天顶部状态条右侧菜单，集中缺失功能——🧠 模型选择（连接层统一入口）/ ⚙ 模式切换（Build→Plan→Chat 循环，同步 Agent）/ 🔐 权限切换（Ask→Auto→SmartAuto→Yolo）/ 📋 会话管理（继续/新的会话）/ 📌 任务管理（todo 列表）
+- **编译**：桌面 0 错误；移动端 `net10.0-android` 0 错误；手机实测全部通过
+
 ## v0.96.12 (2026-08-27) — 移动端二轮：代码高亮 + 编辑器增强 + 动态状态栏 + 图标 + 多种体验修复
 
 移动端（`WayCoder.Maui`）体验大升级：聊天/编辑器代码片段语法高亮（修复「write/edit diff 裸显示 `«bright green»` 字面标签」bug）、编辑器透明叠加高亮 + 行号 + 不换行横向滚动 + markdown 预览（表格渲染）、输入框上方动态状态栏（思考/执行工具/等待确认多态 + Braille 旋转动画）、任务完成摘要（用时/token/费用）、首页模式/权限一键切换、应用图标换 app.png（四角透明）、文件列表「用外部应用打开」（HTML→浏览器）、聊天区 markdown 表格等宽对齐渲染、流式智能自动滚动、折叠按钮去方形外框 + 折叠项互斥，并修复滚动大聊天卡死 ANR。
