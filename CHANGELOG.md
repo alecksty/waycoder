@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.96.10 (2026-08-27) — git 纯 C# 远程操作（pull/push）+ 分支管理 + 凭证双模式 + 移动端思考/工具折叠
+
+移动端（无 git 进程）此前只能本地闭环（init/add/commit/status/diff/log），无法与服务器交换代码、无法分支管理。本次补齐纯 C# git 传输协议 + 分支管理，支持账号密码 / token 双认证；同时移动端聊天区思考过程与工具输出改为折叠显示。
+
+- **纯 C# git 传输协议**（`Git/PackFile.cs` + `GitRemote.cs`）：git smart HTTP v1（pkt-line 帧 + `info/refs` advertisement + `git-upload-pack`/`git-receive-pack`），packfile 编解码——自实现 zlib/deflate inflate（RFC 1950/1951，精确返回消耗字节以定位 packfile 对象边界，`ZLibStream` 4KB 预读会破坏边界）、`ofs-delta`/`ref-delta` delta 应用、非 delta 全量 push 打包；iOS 禁 `Process.Start` 也能拉取/推送
+- **pull/push/fetch/clone/remote**：`/git pull`、`/git push`、`/git fetch`、`/git clone <url>`、`/git remote add/set-url` 全打通——pull 解码 packfile → 写 loose objects → 更新 refs → checkout 工作区；push 从本地 HEAD 沿 parent/tree/blob 收集可达对象打包上传（远端 refs 作边界剪枝）
+- **凭证双模式**（`/git credential`）：账号密码 `credential <user> <pass>` 与 token `credential --token <user> <token>`，统一 HTTP Basic `base64(user:secret)`（Gitee/GitHub 均接受）；存 `.git/config` `[credential]` 段、remote url 不含凭证（`remote -v` 不泄露）、展示一律脱敏、不进日志/commit
+- **分支管理**（`GitBranch.cs`）：`/git branch`（列表/创建/`-d` 删除）、`/git checkout <branch>`（切换，含旧分支独有文件清理）与 `checkout -b`、`/git merge <branch>`（fast-forward，分叉时提示手动处理）、`/git diff <b1> <b2>`（两提交 tree 对比 unified diff）
+- **桌面端放开白名单**：`GitCommand` 加 pull/push/fetch/remote/clone/branch/checkout/merge（桌面走系统 git 透传）
+- **移动端思考/工具折叠**：AI 思考过程流式实时显示、结束后折叠成「💭 思考过程」条（点击展开）；工具调用显示参数摘要 + 「▸ 输出详情」折叠条；消息列表 `KeepScrollOffset` + 智能滚动（近底部才自动滚到底，否则保持位置可往上翻）
+- **修复 commit 消息引号**：`commit -m "msg"` 首尾引号剥离（此前显示 `"msg`）
+- **编译**：桌面 0 错误；移动端 `net10.0-android` 0 错误；纯 C# git 分支管理端到端自测通过
+
 ## v0.96.9 (2026-08-26) — MAUI 移动端界面完善：设置页 + 首页 + 4 Tab + 主题 + 崩溃修复
 
 v0.96.8 新增的 MAUI 手机版此前处于 M1-M4 雏形（无设置页无法配 API Key、MainPage 模板占位、配色模板默认），本次补齐界面并修复三个 Android 运行时崩溃。

@@ -28,7 +28,7 @@
             </Grid>
         </DataTemplate>
 
-        <!-- AI 消息：左对齐，卡片背景 + 富文本（«» 已解码） -->
+        <!-- AI 消息：左对齐，卡片背景 + 富文本（«» 已解码）+ 思考过程折叠条 -->
         <DataTemplate x:Key="AssistantTemplate" x:DataType="models:ChatMessage">
             <Grid Padding="12,6">
                 <Border
@@ -39,22 +39,67 @@
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="14,14,14,4" />
                     </Border.StrokeShape>
-                    <Label
-                        FormattedText="{Binding Formatted}"
-                        Padding="12,8"
-                        FontSize="15"
-                        LineHeight="1.3" />
+                    <VerticalStackLayout Spacing="2">
+                        <!-- 思考过程：流式时实时展开、结束后折叠成一条，点击可展开/收起 -->
+                        <VerticalStackLayout IsVisible="{Binding HasReasoning}" Spacing="2">
+                            <Border BackgroundColor="Transparent" Padding="12,6,12,2">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnToggleReasoning" />
+                                </Border.GestureRecognizers>
+                                <Label
+                                    Text="💭 思考过程"
+                                    FontSize="12"
+                                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                            </Border>
+                            <Label
+                                Text="{Binding Reasoning}"
+                                Padding="12,0,12,6"
+                                FontSize="12"
+                                LineHeight="1.25"
+                                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                                IsVisible="{Binding IsReasoningExpanded}" />
+                        </VerticalStackLayout>
+                        <Label
+                            FormattedText="{Binding Formatted}"
+                            Padding="12,8"
+                            FontSize="15"
+                            LineHeight="1.3" />
+                    </VerticalStackLayout>
                 </Border>
             </Grid>
         </DataTemplate>
 
-        <!-- 工具调用提示：灰色小字 -->
+        <!-- 工具调用提示：灰色小字 + 参数摘要 + 可展开输出详情 -->
         <DataTemplate x:Key="ToolTemplate" x:DataType="models:ChatMessage">
-            <Label
-                Text="{Binding RawText}"
-                Padding="12,2"
-                FontSize="12"
-                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+            <VerticalStackLayout Padding="12,2" Spacing="1">
+                <Label
+                    Text="{Binding RawText}"
+                    FontSize="12"
+                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                <Label
+                    Text="{Binding ToolSummary}"
+                    FontSize="11"
+                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                    IsVisible="{Binding HasToolSummary}" />
+                <VerticalStackLayout IsVisible="{Binding HasToolDetail}" Spacing="1">
+                    <Border BackgroundColor="Transparent" Padding="0,2,0,2">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnToggleToolDetail" />
+                        </Border.GestureRecognizers>
+                        <Label
+                            Text="▸ 输出详情"
+                            FontSize="11"
+                            TextColor="{StaticResource Primary}" />
+                    </Border>
+                    <Label
+                        Text="{Binding ToolDetail}"
+                        FontSize="11"
+                        FontFamily="Courier New"
+                        LineHeight="1.2"
+                        TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                        IsVisible="{Binding IsToolDetailExpanded}" />
+                </VerticalStackLayout>
+            </VerticalStackLayout>
         </DataTemplate>
 
         <pages:MessageTemplateSelector
@@ -88,7 +133,9 @@
             Grid.Row="1"
             x:Name="MsgList"
             ItemsSource="{Binding Messages}"
-            ItemTemplate="{StaticResource TemplateSelector}">
+            ItemTemplate="{StaticResource TemplateSelector}"
+            ItemsUpdatingScrollMode="KeepScrollOffset"
+            Scrolled="OnMsgListScrolled">
             <CollectionView.EmptyView>
                 <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="8">
                     <Label Text="🀄" FontSize="40" HorizontalTextAlignment="Center" />

@@ -21,14 +21,88 @@ public sealed class ChatMessage : INotifyPropertyChanged
 
     public ChatRole Role { get; init; }
 
+    private string _rawText = "";
     /// <summary>原始文本（用户输入 / AI 正文，含 «» 中间格式标记）。</summary>
-    public string RawText { get; set; } = "";
+    public string RawText
+    {
+        get => _rawText;
+        set { _rawText = value; OnChanged(nameof(RawText)); }
+    }
 
+    private FormattedString? _formatted;
     /// <summary>AI 正文渲染后的富文本（«» 已解码）；用户/工具消息为 null。</summary>
-    public FormattedString? Formatted { get; set; }
+    public FormattedString? Formatted
+    {
+        get => _formatted;
+        set { _formatted = value; OnChanged(nameof(Formatted)); }
+    }
 
+    private bool _isStreaming;
     /// <summary>是否正在流式接收（AI 正文尚未结束）。</summary>
-    public bool IsStreaming { get; set; }
+    public bool IsStreaming
+    {
+        get => _isStreaming;
+        set { _isStreaming = value; OnChanged(nameof(IsStreaming)); }
+    }
+
+    private string _reasoning = "";
+    /// <summary>思考过程文本（仅 Assistant 角色有；与正文分离，默认折叠显示）。</summary>
+    public string Reasoning
+    {
+        get => _reasoning;
+        set { _reasoning = value; OnChanged(nameof(Reasoning)); }
+    }
+
+    private bool _hasReasoning;
+    /// <summary>是否有思考过程（有则显示「💭 思考过程」折叠条）。</summary>
+    public bool HasReasoning
+    {
+        get => _hasReasoning;
+        set { _hasReasoning = value; OnChanged(nameof(HasReasoning)); }
+    }
+
+    private bool _isReasoningExpanded;
+    /// <summary>思考过程是否展开（默认 false = 折叠；流式生成时临时 true 实时显示）。</summary>
+    public bool IsReasoningExpanded
+    {
+        get => _isReasoningExpanded;
+        set { _isReasoningExpanded = value; OnChanged(nameof(IsReasoningExpanded)); }
+    }
+
+    private string _toolSummary = "";
+    /// <summary>工具参数摘要（onTool 的 summary，仅 Tool 角色有）。</summary>
+    public string ToolSummary
+    {
+        get => _toolSummary;
+        set { _toolSummary = value; OnChanged(nameof(ToolSummary)); OnChanged(nameof(HasToolSummary)); }
+    }
+
+    /// <summary>是否有工具参数摘要（非空才显示摘要行，避免空行占位）。</summary>
+    public bool HasToolSummary => !string.IsNullOrEmpty(_toolSummary);
+
+    private string _toolDetail = "";
+    /// <summary>工具输出详情（onToolOutput 累积，仅 Tool 角色有）。</summary>
+    public string ToolDetail
+    {
+        get => _toolDetail;
+        set { _toolDetail = value; OnChanged(nameof(ToolDetail)); }
+    }
+
+    private bool _hasToolDetail;
+    /// <summary>是否有工具输出详情（有则显示「▸ 输出详情」折叠条）。</summary>
+    public bool HasToolDetail
+    {
+        get => _hasToolDetail;
+        set { _hasToolDetail = value; OnChanged(nameof(HasToolDetail)); }
+    }
+
+    private bool _isToolDetailExpanded;
+    /// <summary>工具输出详情是否展开（默认 false = 折叠）。</summary>
+    public bool IsToolDetailExpanded
+    {
+        get => _isToolDetailExpanded;
+        set { _isToolDetailExpanded = value; OnChanged(nameof(IsToolDetailExpanded)); }
+    }
 
     private void OnChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

@@ -5,6 +5,7 @@ using WayCoder.Maui.Markup;
 using WayCoder.Maui.Models;
 using WayCoder.Maui.Services;
 using WayCoder.Tools;
+using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder.Maui.Pages;
 
@@ -31,7 +32,14 @@ public partial class ChatPage : ContentPage
     public ObservableCollection<ChatMessage> Messages { get; } = new();
 
     private readonly AgentService _agent = new();
+    private readonly ChatScreen _screen = new();
     private CancellationTokenSource? _cts;
+
+    /// <summary>最近一次 onTool 创建的工具消息（onToolOutput 累积详情时追加到这里）。</summary>
+    private ChatMessage? _currentToolMsg;
+
+    /// <summary>消息列表是否接近底部（用于智能滚动：接近底部才跟随，用户上翻时不打断）。</summary>
+    private bool _isNearBottom = true;
 
     public ChatPage()
     {
@@ -42,6 +50,13 @@ public partial class ChatPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        // 注入斜杠命令输出桥：命令执行时把 system/消息 泵回本页消息列表（统一灰色小字）。
+        ChatScreen.OnAddSystemMsg = content =>
+            MainThread.BeginInvokeOnMainThread(() => Messages.Add(new ChatMessage { Role = ChatRole.Tool, RawText = content }));
+        ChatScreen.OnAddMessage = (content, role, centered, indent) =>
+            MainThread.BeginInvokeOnMainThread(() => Messages.Add(new ChatMessage { Role = ChatRole.Tool, RawText = content }));
+        ChatScreen.OnClearChat = () =>
+            MainThread.BeginInvokeOnMainThread(Messages.Clear);
         RefreshModelBar();
     }
 
@@ -91,6 +106,31 @@ public partial class ChatPage : ContentPage
         var text = InputBox.Text?.Trim();
         if (string.IsNullOrEmpty(text)) return;
 
+        // 斜杠命令：/ 前缀 → 解析执行（对齐桌面端 54 命令），不再当普通消息发给大模型。
+        if (text.StartsWith('/'))
+        {
+            var (cmd, args) = SlashCommandRegistry.Match(text);
+            if (cmd != null)
+            {
+                InputBox.Text = "";
+                Messages.Add(new ChatMessage { Role = ChatRole.User, RawText = text });
+                try
+                {
+                    // 依赖 ProgramContext.Agent/LLM/Config 的命令（/tokens /model /mode /compact 等）
+                    // 在首次发普通消息前会拿到「未初始化」。先懒建 Agent 注入全局上下文，保证命令首用即正常。
+                    _agent.EnsureAgent();
+                    await cmd.ExecuteAsync(args, _screen);
+                }
+                catch (Exception ex)
+                {
+                    ErrorLog.Error("Chat", $"命令 {cmd.Name} 执行异常", ex);
+                    Messages.Add(new ChatMessage { Role = ChatRole.Tool, RawText = $"⚠️ {ex.Message}" });
+                }
+                ScrollToEnd();
+                return;
+            }
+        }
+
         // 未配置 Key 时引导去设置页（Key 存于 ApiKeyStore 按服务商，见 AgentService.HasUsableKey）
         if (!AgentService.HasUsableKey())
         {
@@ -105,8 +145,12 @@ public partial class ChatPage : ContentPage
         var aiMsg = new ChatMessage { Role = ChatRole.Assistant, IsStreaming = true };
         Messages.Add(aiMsg);
 
-        var sb = new StringBuilder();
         var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
+        // 思考过程与正文分离：reasoning 用 «dim»…«/» 包裹（LLM 层发独立边界 token），
+        // 正文其余 token 归 content。思考流式时实时展开、结束折叠，正文独立渲染富文本。
+        var inReasoning = false;
+        var reasoningSb = new StringBuilder();
+        var contentSb = new StringBuilder();
         _cts = new CancellationTokenSource();
         SendBtn.Text = "■";
 
@@ -115,11 +159,45 @@ public partial class ChatPage : ContentPage
             await _agent.ChatAsync(text,
                 token =>
                 {
-                    sb.Append(token);
-                    aiMsg.Formatted = MarkupToFormattedString.Convert(sb.ToString(), isDark);
+                    if (inReasoning)
+                    {
+                        if (token == "«/»" || token == "«/»\n")
+                        {
+                            inReasoning = false;          // 思考结束 → 折叠
+                            aiMsg.IsReasoningExpanded = false;
+                        }
+                        else
+                        {
+                            reasoningSb.Append(token);
+                            aiMsg.Reasoning = reasoningSb.ToString();
+                            aiMsg.HasReasoning = true;
+                        }
+                    }
+                    else
+                    {
+                        if (token == "«dim»" || token == "\n«dim»")
+                        {
+                            inReasoning = true;           // 思考开始 → 实时展开
+                            aiMsg.IsReasoningExpanded = true;
+                        }
+                        else
+                        {
+                            contentSb.Append(token);
+                            aiMsg.Formatted = MarkupToFormattedString.Convert(contentSb.ToString(), isDark);
+                        }
+                    }
                 },
-                (name, summary) => Messages.Add(new ChatMessage { Role = ChatRole.Tool, RawText = $"🔧 {name}" }),
-                output => { /* 工具输出暂不逐条展示（MVP） */ },
+                (name, summary) =>
+                {
+                    _currentToolMsg = new ChatMessage { Role = ChatRole.Tool, RawText = $"🔧 {name}", ToolSummary = summary };
+                    Messages.Add(_currentToolMsg);
+                },
+                output =>
+                {
+                    if (_currentToolMsg == null) return;
+                    _currentToolMsg.ToolDetail += output;
+                    _currentToolMsg.HasToolDetail = true;
+                },
                 _cts.Token);
         }
         catch (OperationCanceledException) { /* 用户停止 */ }
@@ -132,17 +210,38 @@ public partial class ChatPage : ContentPage
         finally
         {
             aiMsg.IsStreaming = false;
-            aiMsg.RawText = sb.ToString();
+            aiMsg.RawText = contentSb.ToString();
             SendBtn.Text = "↑";
             _cts = null;
             ScrollToEnd();
         }
     }
 
+    /// <summary>智能滚动：仅在列表接近底部时才跟随到底，用户上翻历史时不打断浏览。</summary>
     private void ScrollToEnd()
     {
-        if (Messages.Count > 0)
+        if (Messages.Count > 0 && _isNearBottom)
             MsgList.ScrollTo(Messages.Count - 1, position: ScrollToPosition.End, animate: false);
+    }
+
+    /// <summary>折叠条点击：切换思考过程展开/收起（sender 是挂手势的 Border，BindingContext 即消息）。</summary>
+    private void OnToggleReasoning(object? sender, TappedEventArgs e)
+    {
+        if (sender is BindableObject view && view.BindingContext is ChatMessage m && m.HasReasoning)
+            m.IsReasoningExpanded = !m.IsReasoningExpanded;
+    }
+
+    /// <summary>折叠条点击：切换工具输出详情展开/收起。</summary>
+    private void OnToggleToolDetail(object? sender, TappedEventArgs e)
+    {
+        if (sender is BindableObject view && view.BindingContext is ChatMessage m && m.HasToolDetail)
+            m.IsToolDetailExpanded = !m.IsToolDetailExpanded;
+    }
+
+    /// <summary>跟踪列表是否接近底部（智能滚动判定依据）。</summary>
+    private void OnMsgListScrolled(object? sender, ItemsViewScrolledEventArgs e)
+    {
+        _isNearBottom = e.LastVisibleItemIndex >= Messages.Count - 2;
     }
 
     /// <summary>
