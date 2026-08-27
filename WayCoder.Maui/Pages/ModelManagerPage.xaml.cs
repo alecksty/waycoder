@@ -148,9 +148,12 @@ public partial class ModelManagerPage : ContentPage
     private async void OnAddModelClicked(object? sender, EventArgs e)
     {
         var source = await DisplayActionSheetAsync("导入模型 · 选择来源", "取消", null,
-            "内置模型目录", "Claude Code", "Codex", "OpenCode", "Crush", "OpenClaw", "自定义添加");
+            "🌐 在线导入", "内置模型目录", "Claude Code", "Codex", "OpenCode", "Crush", "OpenClaw", "自定义添加");
         switch (source)
         {
+            case "🌐 在线导入":
+                await ImportOnlineAsync();
+                break;
             case "内置模型目录":
                 await DisplayAlertAsync("内置模型",
                     $"内置目录已含 {ModelCatalog.All.Length} 个模型（DeepSeek/Qwen/Zhipu/OpenAI/Anthropic/AIHubMix 等），无需导入。", "确定");
@@ -191,6 +194,28 @@ public partial class ModelManagerPage : ContentPage
             Populate();
         }
         catch (Exception ex) { await DisplayAlertAsync("导入失败", ex.Message, "关闭"); }
+    }
+
+    /// <summary>在线导入：选服务商端点（OpenCode Go/Zen、OpenRouter、Groq、SiliconFlow 等）→ 拉取 /models → 导入（对齐 Web/TUI）。</summary>
+    private async Task ImportOnlineAsync()
+    {
+        var sources = ModelCli.OnlineSources;
+        var options = sources.Select(s => $"{s.Name}（{s.KeyProvider}）").ToArray();
+        var chosen = await DisplayActionSheetAsync("🌐 在线导入 · 选择服务商", "取消", null, options);
+        if (string.IsNullOrEmpty(chosen) || chosen == "取消") return;
+        var src = sources.First(s => $"{s.Name}（{s.KeyProvider}）" == chosen);
+
+        try
+        {
+            // 网络请求放后台线程，避免卡 UI
+            var report = await Task.Run(() => ModelCli.ImportOnline(src));
+            await DisplayAlertAsync($"在线导入 · {src.Name}", report, "确定");
+            Populate();
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlertAsync("在线导入失败", ex.Message, "关闭");
+        }
     }
 
     /// <summary>从配置文件导入（Claude Code / Codex / OpenCode / Crush / OpenClaw）：文件选择器 → 启发式解析模型/Key → 导入。</summary>
