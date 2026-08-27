@@ -35,6 +35,9 @@ public static class MarkupToFormattedString
     private static readonly Color DarkDim = Color.FromArgb("#888888");
     private static readonly Color LightDim = Color.FromArgb("#666666");
 
+    /// <summary>命令行/代码块等宽字体（对齐、像终端）。</summary>
+    internal const string MonoFont = "Courier New";
+
     /// <summary>把 «» 中间格式文本解析成 MAUI FormattedString（自适应深浅主题默认色）。
     /// 同时支持 ```lang 围栏代码块：块内用 Syntax 逐行 Tokenize 语法高亮。</summary>
     public static FormattedString Convert(string? markup, bool isDark)
@@ -196,27 +199,29 @@ public static class MarkupToFormattedString
         for (int i = 0; i < lines.Length; i++)
         {
             foreach (var (text, color) in syntax.Tokenize(lines[i]))
-                AppendSpan(fs, text, ColorForToken(color, isDark));
+                AppendSpan(fs, text, ColorForToken(color, isDark), MonoFont);
             if (i < lines.Length - 1)
-                AppendSpan(fs, "\n", ColorForToken(0, isDark));
+                AppendSpan(fs, "\n", ColorForToken(0, isDark), MonoFont);
         }
     }
 
-    /// <summary>追加 Span：与上一个同色且无样式的 Span 合并文本，减少 Span 总数（渲染性能）。</summary>
-    internal static void AppendSpan(FormattedString fs, string text, Color color)
+    /// <summary>追加 Span：与上一个同色且无样式的 Span 合并文本，减少 Span 总数（渲染性能）。
+    /// 可选等宽字体（命令行/代码块对齐用）。</summary>
+    internal static void AppendSpan(FormattedString fs, string text, Color color, string? fontFamily = null)
     {
         if (fs.Spans.Count > 0)
         {
             var last = fs.Spans[^1];
             if (last.TextColor == color && last.Text.Length < 4096
                 && last.FontAttributes == FontAttributes.None
-                && last.TextDecorations == TextDecorations.None)
+                && last.TextDecorations == TextDecorations.None
+                && string.Equals(last.FontFamily, fontFamily, StringComparison.OrdinalIgnoreCase))
             {
                 last.Text += text;
                 return;
             }
         }
-        fs.Spans.Add(new Span { Text = text, TextColor = color });
+        fs.Spans.Add(new Span { Text = text, TextColor = color, FontFamily = fontFamily });
     }
 
     /// <summary>Syntax token 色码 → MAUI Color（2=dim，其余走 ANSI 表；供代码高亮复用）。</summary>

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="WayCoder.Maui.Pages.ProviderModelsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="模型列表">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- 顶部：当前模型指示说明 + 右上角大小模型切换（选大→点模型设大模型，选小→设小模型） -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="12,4">
+            <Label x:Name="HintLabel" FontSize="11" VerticalOptions="Center"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+            <HorizontalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                <Button x:Name="BigBtn" Text="大" FontSize="12" Padding="12,2" Clicked="OnToggleSizeClicked" />
+                <Button x:Name="SmallBtn" Text="小" FontSize="12" Padding="12,2" Clicked="OnToggleSizeClicked" />
+            </HorizontalStackLayout>
+        </Grid>
+
+        <CollectionView Grid.Row="1" x:Name="ModelList" SelectionMode="Single"
+                        SelectionChanged="OnModelSelected">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid ColumnDefinitions="Auto,*,Auto" Padding="16,5">
+                        <Label Text="{Binding Marker}" FontSize="13" WidthRequest="76" VerticalOptions="Center"
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="0">
+                            <Label Text="{Binding DisplayName}" FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}">
+                                <Label.Triggers>
+                                    <DataTrigger TargetType="Label" Binding="{Binding IsFree}" Value="True">
+                                        <Setter Property="TextColor" Value="#4CAF50" />
+                                    </DataTrigger>
+                                </Label.Triggers>
+                            </Label>
+                            <Label Text="{Binding Subtitle}" FontSize="11"
+                                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                        </VerticalStackLayout>
+                        <Label Grid.Column="2" Text="{Binding Id}" FontSize="11" VerticalOptions="Center"
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+</ContentPage>

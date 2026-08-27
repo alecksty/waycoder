@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="WayCoder.Maui.Pages.ModelManagerPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="供应商与模型">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- 操作栏：导入供应商 / 导入模型 / 扫描连通性 -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,*,*" Padding="8,4" ColumnSpacing="6">
+            <Button x:Name="AddProviderBtn" Text="＋ 导入供应商" FontSize="12" Clicked="OnAddProviderClicked" />
+            <Button Grid.Column="1" x:Name="AddModelBtn" Text="＋ 导入模型" FontSize="12" Clicked="OnAddModelClicked" />
+            <Button Grid.Column="2" x:Name="ScanBtn" Text="📡 扫描" FontSize="12" Clicked="OnScanClicked" />
+        </Grid>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout x:Name="ProviderList" Padding="8" Spacing="6" />
+        </ScrollView>
+    </Grid>
+</ContentPage>
