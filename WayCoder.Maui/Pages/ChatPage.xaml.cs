@@ -186,35 +186,19 @@ public partial class ChatPage : ContentPage
 
     private static string FormatK(int n) => n >= 1000 ? $"{n / 1000.0:F1}k" : n.ToString();
 
-    /// <summary>点模型条 → ActionSheet 列出当前服务商模型，选中即切换（连接层统一入口）。</summary>
+    /// <summary>点模型条 → 打开模型选择页（TUI ModelPicker 移植：分组+搜索+大/小切换）。</summary>
     private async void OnModelBarTapped(object? sender, TappedEventArgs e)
-    {
-        var pid = Config.Instance.Provider.ToLowerInvariant();
-        var models = ModelCatalog.ByProvider(pid).ToList();
-        if (models.Count == 0)
-        {
-            await DisplayAlertAsync("无可用模型", $"服务商 {pid} 没有可用模型，请先到「设置」选择。", "确定");
-            return;
-        }
-
-        var options = models.Select(m => $"{m.DisplayName}（{m.Id}）").ToArray();
-        var chosen = await DisplayActionSheetAsync("选择模型", "取消", null, options);
-        if (string.IsNullOrEmpty(chosen) || chosen == "取消") return;
-
-        var model = models.First(m => $"{m.DisplayName}（{m.Id}）" == chosen);
-        ConnectionConfig.ApplyModelChoice(pid, model.Id, isLarge: true, out _);
-        AgentService.Reset();
-        RefreshModelBar();
-    }
+        => await Shell.Current.GoToAsync("modelpicker");
 
     /// <summary>右上角菜单：会话/任务/模型/模式/权限等缺失功能集中入口。</summary>
     private async void OnMenuClicked(object? sender, EventArgs e)
     {
         var action = await DisplayActionSheetAsync("菜单", "取消", null,
-            "🧠 模型选择", "⚙ 模式切换", "🔐 权限切换", "📋 会话管理", "📌 任务管理", "ℹ️ 关于");
+            "🧠 模型选择", "🗂 供应商/模型", "⚙ 模式切换", "🔐 权限切换", "📋 会话管理", "📌 任务管理", "ℹ️ 关于");
         switch (action)
         {
             case "🧠 模型选择": OnModelBarTapped(null, null); break;
+            case "🗂 供应商/模型": await Shell.Current.GoToAsync("models"); break;
             case "⚙ 模式切换": CycleWorkMode(); break;
             case "🔐 权限切换": CyclePermission(); break;
             case "📋 会话管理": await ManageSessionsAsync(); break;

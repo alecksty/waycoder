@@ -11,6 +11,44 @@ namespace WayCoder.Maui.Services;
 /// </summary>
 public static class SandboxFsService
 {
+    /// <summary>文件类型分类：源码/文本→编辑器，图片→预览页，音频/视频→系统播放器，未知→仅外部打开。</summary>
+    public enum FileCategory { Source, Image, Audio, Video, Unknown }
+
+    private static readonly HashSet<string> SourceExts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".cs",".js",".ts",".jsx",".tsx",".py",".go",".rs",".java",".c",".h",".cpp",".hpp",".cc",
+        ".json",".xml",".html",".htm",".md",".mdx",".sh",".bash",".zsh",".yml",".yaml",".sql",
+        ".css",".scss",".rb",".php",".swift",".kt",".kts",".vue",".txt",".log",".csv",".ini",
+        ".toml",".conf",".csproj",".sln",".tui",".env",".gitignore",
+    };
+    private static readonly HashSet<string> ImageExts = new(StringComparer.OrdinalIgnoreCase)
+        { ".png",".jpg",".jpeg",".gif",".webp",".bmp",".svg",".ico" };
+    private static readonly HashSet<string> AudioExts = new(StringComparer.OrdinalIgnoreCase)
+        { ".mp3",".wav",".ogg",".m4a",".aac",".flac" };
+    private static readonly HashSet<string> VideoExts = new(StringComparer.OrdinalIgnoreCase)
+        { ".mp4",".webm",".mkv",".mov",".avi" };
+
+    /// <summary>按扩展名分类文件类型。</summary>
+    public static FileCategory DetectCategory(string path)
+    {
+        var ext = System.IO.Path.GetExtension(path);
+        if (SourceExts.Contains(ext)) return FileCategory.Source;
+        if (ImageExts.Contains(ext)) return FileCategory.Image;
+        if (AudioExts.Contains(ext)) return FileCategory.Audio;
+        if (VideoExts.Contains(ext)) return FileCategory.Video;
+        return FileCategory.Unknown;
+    }
+
+    /// <summary>文件类型图标。</summary>
+    public static string CategoryIcon(FileCategory c) => c switch
+    {
+        FileCategory.Source => "📝",
+        FileCategory.Image => "🖼",
+        FileCategory.Audio => "🎵",
+        FileCategory.Video => "🎬",
+        _ => "📄",
+    };
+
     /// <summary>沙箱根（workspace）。</summary>
     public static string Root => MauiBootstrap.WorkspaceDir;
 
@@ -23,7 +61,10 @@ public static class SandboxFsService
         public long Size { get; set; }
         public DateTime Modified { get; set; }
 
-        public string Icon => IsDirectory ? "📁" : "📄";
+        /// <summary>文件类型分类（源码/文本/图片/音频/视频/未知）。</summary>
+        public FileCategory Category { get; set; } = FileCategory.Unknown;
+
+        public string Icon => IsDirectory ? "📁" : CategoryIcon(Category);
         public string DisplaySize => IsDirectory ? "" : FormatSize(Size);
         public string DisplayModified => Modified.ToString("MM-dd HH:mm");
 
@@ -70,7 +111,15 @@ public static class SandboxFsService
         foreach (var file in Directory.EnumerateFiles(dir))
         {
             var fi = new FileInfo(file);
-            result.Add(new FsEntry { Name = fi.Name, FullPath = file, IsDirectory = false, Size = fi.Length, Modified = fi.LastWriteTime });
+            result.Add(new FsEntry
+            {
+                Name = fi.Name,
+                FullPath = file,
+                IsDirectory = false,
+                Size = fi.Length,
+                Modified = fi.LastWriteTime,
+                Category = DetectCategory(file),
+            });
         }
 
         return result

@@ -75,7 +75,7 @@ public static class ToolOutputFormatter
         return Syntax.Detect(content);
     }
 
-    /// <summary>代码逐行 Tokenize 上色（相邻同色 token 合并 Span，防渲染卡死）。</summary>
+    /// <summary>代码逐行 Tokenize 上色（相邻同色 token 合并 Span，防渲染卡死；等宽字体对齐）。</summary>
     private static FormattedString RenderCode(string content, Syntax syntax, bool isDark)
     {
         var fs = new FormattedString();
@@ -83,14 +83,14 @@ public static class ToolOutputFormatter
         for (int i = 0; i < lines.Length; i++)
         {
             foreach (var (text, color) in syntax.Tokenize(lines[i]))
-                MarkupToFormattedString.AppendSpan(fs, text, MarkupToFormattedString.ColorForToken(color, isDark));
+                MarkupToFormattedString.AppendSpan(fs, text, MarkupToFormattedString.ColorForToken(color, isDark), MarkupToFormattedString.MonoFont);
             if (i < lines.Length - 1)
-                MarkupToFormattedString.AppendSpan(fs, "\n", MarkupToFormattedString.ColorForToken(0, isDark));
+                MarkupToFormattedString.AppendSpan(fs, "\n", MarkupToFormattedString.ColorForToken(0, isDark), MarkupToFormattedString.MonoFont);
         }
         return fs;
     }
 
-    /// <summary>diff 逐行着色：+ 绿 / - 红 / @@ 青（每行一个 Span，避免过度拆分）。</summary>
+    /// <summary>diff 逐行着色：+ 绿 / - 红 / @@ 青（等宽字体对齐）。</summary>
     private static FormattedString RenderDiff(string content, bool isDark)
     {
         var green = Color.FromArgb("#16C60C");
@@ -108,9 +108,9 @@ public static class ToolOutputFormatter
             else if (trimmed.StartsWith('+')) c = green;
             else if (trimmed.StartsWith('-')) c = red;
 
-            MarkupToFormattedString.AppendSpan(fs, line, c ?? MarkupToFormattedString.ColorForToken(0, isDark));
+            MarkupToFormattedString.AppendSpan(fs, line, c ?? MarkupToFormattedString.ColorForToken(0, isDark), MarkupToFormattedString.MonoFont);
             if (i < lines.Length - 1)
-                MarkupToFormattedString.AppendSpan(fs, "\n", MarkupToFormattedString.ColorForToken(0, isDark));
+                MarkupToFormattedString.AppendSpan(fs, "\n", MarkupToFormattedString.ColorForToken(0, isDark), MarkupToFormattedString.MonoFont);
         }
         return fs;
     }

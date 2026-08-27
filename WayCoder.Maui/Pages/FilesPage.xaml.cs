@@ -44,8 +44,11 @@ public partial class FilesPage : ContentPage
             return;
         }
 
-        // 文件：ActionSheet 打开 / 用外部应用打开 / 重命名 / 删除
-        var action = await DisplayActionSheetAsync(entry.Name, "取消", null, "打开", "用外部应用打开", "重命名", "删除");
+        // 文件：按类型给操作——源码/文本进编辑器；图片/音频/视频/未知仅系统软件打开
+        var isSource = entry.Category == SandboxFsService.FileCategory.Source;
+        var action = isSource
+            ? await DisplayActionSheetAsync(entry.Name, "取消", null, "打开", "用外部应用打开", "重命名", "删除")
+            : await DisplayActionSheetAsync(entry.Name, "取消", null, "用外部应用打开", "重命名", "删除");
         switch (action)
         {
             case "打开":
