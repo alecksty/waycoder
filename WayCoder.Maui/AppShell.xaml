@@ -13,28 +13,28 @@
             <Tab.Icon>
                 <FontImageSource Glyph="🏠" />
             </Tab.Icon>
-            <ShellContent ContentTemplate="{DataTemplate local:MainPage}" Route="home" />
+            <ShellContent ContentTemplate="{DataTemplate local:MainPage}" Route="home" Shell.NavBarIsVisible="False" />
         </Tab>
         <!-- 对话 Tab：流式对话 -->
         <Tab Title="对话">
             <Tab.Icon>
                 <FontImageSource Glyph="💬" />
             </Tab.Icon>
-            <ShellContent ContentTemplate="{DataTemplate pages:ChatPage}" Route="chat" />
+            <ShellContent ContentTemplate="{DataTemplate pages:ChatPage}" Route="chat" Shell.NavBarIsVisible="False" />
         </Tab>
         <!-- 文件 Tab：沙箱文件浏览 -->
         <Tab Title="文件">
             <Tab.Icon>
                 <FontImageSource Glyph="📁" />
             </Tab.Icon>
-            <ShellContent ContentTemplate="{DataTemplate pages:FilesPage}" Route="files" />
+            <ShellContent ContentTemplate="{DataTemplate pages:FilesPage}" Route="files" Shell.NavBarIsVisible="False" />
         </Tab>
         <!-- 设置 Tab：服务商 / 模型 / API Key -->
         <Tab Title="设置">
             <Tab.Icon>
                 <FontImageSource Glyph="⚙️" />
             </Tab.Icon>
-            <ShellContent ContentTemplate="{DataTemplate pages:SettingsPage}" Route="settings" />
+            <ShellContent ContentTemplate="{DataTemplate pages:SettingsPage}" Route="settings" Shell.NavBarIsVisible="False" />
         </Tab>
     </TabBar>
 </Shell>

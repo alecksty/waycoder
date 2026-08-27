@@ -15,6 +15,29 @@ public partial class MainPage : ContentPage
     {
         base.OnAppearing();
         RefreshStatus();
+        RefreshModeButtons();
+    }
+
+    /// <summary>刷新模式/权限按钮文本（显示当前值）。</summary>
+    private void RefreshModeButtons()
+    {
+        ModeBtn.Text = $"⚙ {WorkModeManager.Format(WorkModeManager.CurrentMode)}";
+        PermBtn.Text = $"🔐 {PermissionManager.FormatMode()}";
+    }
+
+    /// <summary>点「模式」按钮：循环切换工作模式（Build→Plan→Chat）并同步到 Agent。</summary>
+    private void OnModeClicked(object? sender, EventArgs e)
+    {
+        WorkModeManager.CycleNext();
+        if (AgentService.CurrentAgent is { } agent) agent.WorkMode = WorkModeManager.CurrentMode;
+        RefreshModeButtons();
+    }
+
+    /// <summary>点「权限」按钮：循环切换确认轴（Ask→Auto→SmartAuto→Yolo）。</summary>
+    private void OnPermClicked(object? sender, EventArgs e)
+    {
+        PermissionManager.CycleMode();
+        RefreshModeButtons();
     }
 
     private void RefreshStatus()

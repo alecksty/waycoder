@@ -1,4 +1,5 @@
 using System.Text;
+using WayCoder.Maui.Markup;
 using WayCoder.Maui.Services;
 using WayCoder.UI.Tui.Edit;
 
@@ -37,7 +38,34 @@ public partial class EditorPage : ContentPage
     public EditorPage()
     {
         InitializeComponent();
+
+#if ANDROID
+        // 代码编辑器：禁用软换行（横向滚动）+ 高亮 Label 随 EditText 横向平移同步
+        // （透明文字叠加方案：Editor 内部横向滚动，Label 用 TranslationX 跟随，行号栏固定不滚）
+        CodeEditor.HandlerChanged += (_, _) =>
+        {
+            if (CodeEditor.Handler?.PlatformView is Android.Widget.EditText et)
+            {
+                et.SetHorizontallyScrolling(true);
+                if (OperatingSystem.IsAndroidVersionAtLeast(23))
+                    et.SetOnScrollChangeListener(new EditorScrollListener(
+                        sx => this.Dispatcher.Dispatch(() => HighlightLayer.TranslationX = -sx)));
+            }
+        };
+#endif
     }
+
+#if ANDROID
+    /// <summary>EditText 横向滚动监听 → 同步高亮 Label 平移（透明叠加方案）。</summary>
+    private sealed class EditorScrollListener : Java.Lang.Object, Android.Views.View.IOnScrollChangeListener
+    {
+        private readonly Action<int> _onScrollX;
+        public EditorScrollListener(Action<int> onScrollX) => _onScrollX = onScrollX;
+
+        public void OnScrollChange(Android.Views.View? v, int scrollX, int scrollY, int oldScrollX, int oldScrollY)
+            => _onScrollX(scrollX);
+    }
+#endif
 
     /// <summary>从沙箱相对路径加载文件内容到编辑器。</summary>
     private async Task LoadAsync(string relPath)
@@ -52,6 +80,7 @@ public partial class EditorPage : ContentPage
             Title = Path.GetFileName(relPath);
             _modified = false;
             _loading = false;
+            UpdateHighlight();
             UpdateStatus();
             await DisplayAlertAsync("无法打开", $"文件不存在或为二进制：{relPath}", "关闭");
             return;
@@ -64,7 +93,24 @@ public partial class EditorPage : ContentPage
         _undoStack.Clear();
         _redoStack.Clear();
         _loading = false;
+        UpdateHighlight();
         UpdateStatus();
+    }
+
+    /// <summary>按文件扩展名重算语法高亮并刷新垫底 Label 与行号栏。</summary>
+    private void UpdateHighlight()
+    {
+        var text = CodeEditor.Text ?? "";
+        var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
+        HighlightLayer.FormattedText = ToolOutputFormatter.RenderEditor(text, _filePath, isDark);
+        HighlightLayer.IsVisible = text.Length > 0;
+
+        // 行号栏：统计行数生成 "1\n2\n3..."（与代码同 FontFamily/FontSize 对齐）
+        int lines = 1;
+        foreach (var c in text)
+            if (c == '\n') lines++;
+        LineNumbers.Text = lines > 0 ? string.Join("\n", Enumerable.Range(1, lines)) : "1";
+        LineNumbers.IsVisible = lines > 1;
     }
 
     private void OnTextChanged(object? sender, TextChangedEventArgs e)
@@ -80,7 +126,45 @@ public partial class EditorPage : ContentPage
         }
 
         _modified = true;
+        UpdateHighlight();
         UpdateStatus();
+    }
+
+    private bool _previewMode;
+
+    /// <summary>点「预览/源码」切换 markdown 预览（源码编辑 ⇄ MarkdownPreview 渲染视图）。</summary>
+    private async void OnPreviewClicked(object? sender, EventArgs e)
+    {
+        var isMarkdown = _filePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+            || _filePath.EndsWith(".markdown", StringComparison.OrdinalIgnoreCase);
+        if (!isMarkdown)
+        {
+            await DisplayAlertAsync("预览", "仅 Markdown 文件支持预览", "关闭");
+            return;
+        }
+
+        _previewMode = !_previewMode;
+        ApplyPreviewMode();
+    }
+
+    private void ApplyPreviewMode()
+    {
+        if (_previewMode)
+        {
+            var text = CodeEditor.Text ?? "";
+            var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
+            PreviewContent.Clear();
+            PreviewContent.Add(MarkdownPreview.Render(text, isDark));
+            EditorScroll.IsVisible = false;
+            PreviewScroll.IsVisible = true;
+            PreviewBtn.Text = "源码";
+        }
+        else
+        {
+            EditorScroll.IsVisible = true;
+            PreviewScroll.IsVisible = false;
+            PreviewBtn.Text = "预览";
+        }
     }
 
     private async void OnSaveClicked(object? sender, EventArgs e)

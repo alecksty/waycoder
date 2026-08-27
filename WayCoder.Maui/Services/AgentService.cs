@@ -59,6 +59,44 @@ public sealed class AgentService
     /// 静态：单槽位共享，任意 AgentService 实例调用都重置全局 Agent。</summary>
     public static void Reset() => _agent = null;
 
+    /// <summary>当前 Agent 实例（未建时 null；标题栏状态/任务摘要读统计用）。</summary>
+    public static Agent? CurrentAgent => _agent;
+
+    /// <summary>标题栏状态快照（工作模式/权限/todo/上下文/用量/花费）。</summary>
+    public sealed record AgentStatus(
+        string WorkMode, string PermMode, int TodoCount,
+        int ContextUsed, int ContextMax,
+        int PromptTokens, int CompletionTokens, double? Cost);
+
+    /// <summary>读取当前任务统计（Agent 未建返回 null）。</summary>
+    public static AgentStatus? GetStatus()
+    {
+        var agent = _agent;
+        if (agent == null) return null;
+        var llm = agent.LlmClient;
+
+        string perm = PermissionManager.CurrentMode switch
+        {
+            PermissionManager.Mode.Yolo => "Yolo",
+            PermissionManager.Mode.SmartAuto => "SmartAuto",
+            PermissionManager.Mode.Auto => "Auto",
+            _ => "Ask",
+        };
+
+        int todoCount = 0;
+        try { todoCount = TodoTool.Items.Count(i => i.Status is "pending" or "in_progress"); } catch { }
+
+        return new AgentStatus(
+            WorkModeManager.Format(agent.WorkMode),
+            perm,
+            todoCount,
+            agent.Context.CumulativePromptTokens,
+            agent.Context.MaxTokens,
+            llm.TaskPromptTokens,
+            llm.TaskCompletionTokens,
+            llm.TaskCost);
+    }
+
     /// <summary>
     /// 当前配置下是否有可用 API Key（与 <see cref="EnsureAgent"/> 的 key 解析一致）。
     /// Key 按服务商存于 ApiKeyStore（api_keys.json），不在 Config.ApiKey —— 故不能只看 Config.ApiKey，

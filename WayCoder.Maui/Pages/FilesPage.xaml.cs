@@ -44,12 +44,15 @@ public partial class FilesPage : ContentPage
             return;
         }
 
-        // 文件：ActionSheet 打开 / 重命名 / 删除
-        var action = await DisplayActionSheetAsync(entry.Name, "取消", null, "打开", "重命名", "删除");
+        // 文件：ActionSheet 打开 / 用外部应用打开 / 重命名 / 删除
+        var action = await DisplayActionSheetAsync(entry.Name, "取消", null, "打开", "用外部应用打开", "重命名", "删除");
         switch (action)
         {
             case "打开":
                 await OpenInEditorAsync(entry);
+                break;
+            case "用外部应用打开":
+                await OpenWithExternalAsync(entry);
                 break;
             case "重命名":
                 await RenameAsync(entry);
@@ -95,6 +98,14 @@ public partial class FilesPage : ContentPage
         }
 
         await Shell.Current.GoToAsync($"editor?path={Uri.EscapeDataString(rel)}");
+    }
+
+    /// <summary>用系统外部应用打开沙箱内文件（HTML→浏览器等）。FsEntry.FullPath 已是沙箱根内绝对路径。</summary>
+    private async Task OpenWithExternalAsync(SandboxFsService.FsEntry entry)
+    {
+        var ok = await FileOpenService.OpenWithExternalAsync(entry.FullPath, entry.Name);
+        if (!ok)
+            await DisplayAlertAsync("无法打开", $"没有可打开 {entry.Name} 的应用，或文件不在可共享位置", "关闭");
     }
 
     /// <summary>在当前目录新建空文件。</summary>
