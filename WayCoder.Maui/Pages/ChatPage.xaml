@@ -123,17 +123,29 @@
                 <TapGestureRecognizer Tapped="OnModelBarTapped" />
             </Border.GestureRecognizers>
             <Grid ColumnDefinitions="*,Auto">
-                <VerticalStackLayout Spacing="1">
-                    <Label x:Name="ModelBar"
-                           FontSize="13"
-                           TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
-                           HorizontalOptions="Start" />
+                <!-- 行1：模型（左）+ 工作模式/权限（右）；行2：todo/上下文/用量/花费 -->
+                <Grid RowDefinitions="Auto,Auto" RowSpacing="1">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                        <Label x:Name="ModelBar"
+                               FontSize="13"
+                               LineBreakMode="TailTruncation"
+                               TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
+                               HorizontalOptions="Start" VerticalOptions="Center" />
+                        <Label x:Name="ModeBar"
+                               Grid.Column="1"
+                               Margin="8,0,0,0"
+                               FontSize="10"
+                               LineBreakMode="TailTruncation"
+                               TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
+                               HorizontalOptions="End" VerticalOptions="Center" />
+                    </Grid>
                     <Label x:Name="StatusBar"
+                           Grid.Row="1"
                            FontSize="10"
                            LineBreakMode="TailTruncation"
                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
                            HorizontalOptions="Start" />
-                </VerticalStackLayout>
+                </Grid>
                 <!-- 右上角菜单键：会话管理/任务管理/模型选择/模式切换/权限切换 等 -->
                 <Button Grid.Column="1"
                         x:Name="MenuBtn"

@@ -34,6 +34,18 @@ public static partial class SelfTest
         var png = PngEncoder.Encode(size, size, rgba);
         Check("QR: PNG 头有效", png.Length > 100 && png[0] == 0x89 && png[1] == 0x50 && png[2] == 0x4E && png[3] == 0x47);
         Check("QR: PNG 数据合理", png.Length > 1000);
+
+        // 回读验证：渲染出的 RGBA 应能被 ZXing 解码回 payload（证明二维码真实可扫）
+        var rgbBack = new byte[size * size * 3];
+        for (int i = 0; i < size * size; i++)
+        {
+            rgbBack[i * 3] = rgba[i * 4];
+            rgbBack[i * 3 + 1] = rgba[i * 4 + 1];
+            rgbBack[i * 3 + 2] = rgba[i * 4 + 2];
+        }
+        var decoded = new ZXing.BarcodeReaderGeneric()
+            .Decode(new ZXing.RGBLuminanceSource(rgbBack, size, size))?.Text;
+        Check("QR: 解码回 payload", decoded == "{\"url\":\"https://gitee.com/a/b.git\",\"user\":\"u\",\"token\":\"t\"}");
     }
 
     private static bool HasDarkModule(ByteMatrix m)

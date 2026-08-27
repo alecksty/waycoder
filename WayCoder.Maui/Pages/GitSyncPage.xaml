@@ -14,10 +14,19 @@
             <!-- 扫码：桌面 /sync-qr 生成的二维码自动填参数 -->
             <Button Text="📷 扫桌面二维码自动填" FontSize="14" Clicked="OnScanClicked" />
 
-            <!-- 仓库配置 -->
-            <Label Text="仓库地址" FontSize="12" FontAttributes="Bold"
+            <!-- 仓库配置：可输入，也可从拉取过的历史仓库下拉选择 -->
+            <Label Text="仓库地址（可输入或选历史）" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
             <Entry x:Name="RepoUrlEntry" Placeholder="https://gitee.com/user/repo.git" FontSize="13" />
+            <Picker x:Name="RecentRepoPicker" Title="📚 历史仓库（选一个填入）"
+                    FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                    SelectedIndexChanged="OnRecentRepoPicked" />
+
+            <!-- 分支：选择后拉取该分支 / 推送当前分支 -->
+            <Label Text="分支（选择要拉取的分支）" FontSize="12" FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+            <Picker x:Name="BranchPicker" Title="选择分支"
+                    TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
 
             <!-- 凭证（SecureStorage 保存） -->
             <Label Text="凭证（Token/密码，加密保存）" FontSize="12" FontAttributes="Bold"
@@ -28,7 +37,7 @@
             </Grid>
 
             <!-- 操作 -->
-            <Button x:Name="PullBtn" Text="📥 克隆 / 拉取" FontSize="14" Clicked="OnPullClicked" />
+            <Button x:Name="PullBtn" Text="📥 克隆 / 拉取所选分支" FontSize="14" Clicked="OnPullClicked" />
             <Entry x:Name="CommitMsgEntry" Placeholder="提交说明（如：手机同步 12:30）" FontSize="13" />
             <Button x:Name="PushBtn" Text="📤 提交并推送" FontSize="14" Clicked="OnPushClicked" />
 

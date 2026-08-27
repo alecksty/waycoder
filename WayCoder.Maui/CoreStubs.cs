@@ -102,6 +102,13 @@ namespace WayCoder.Tools
 
                 // init / clone 可在仓库尚不存在时执行（以 cwd 为根创建仓库）
                 var sub = command.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)[0].ToLowerInvariant();
+                var target = sub is "init" or "clone" ? (repoRoot ?? cwd) : repoRoot;
+
+                // ⚠️ 系统级守卫：禁止 git 操作 workspace 根目录（只能在项目子目录，
+                //    否则 pull/checkout 等可能误擦全部代码）
+                if (IsWorkspaceRootDir(target))
+                    return Task.FromResult("⛔ 禁止在 workspace 根目录执行 git 操作！请进入 workspace/<项目名>/ 子目录（每个项目独立 .git），或在「代码同步」页把仓库克隆到项目子目录。");
+
                 if (sub is "init" or "clone")
                     return Task.FromResult(WayCoder.Git.GitCore.Run(repoRoot ?? cwd, command));
                 if (repoRoot == null)
@@ -112,6 +119,19 @@ namespace WayCoder.Tools
             {
                 return Task.FromResult($"错误：git: {ex.GetType().Name}: {ex.Message}");
             }
+        }
+
+        /// <summary>是否 workspace 根目录（git 操作禁区，防止误擦全部代码）。</summary>
+        private static bool IsWorkspaceRootDir(string? dir)
+        {
+            if (string.IsNullOrEmpty(dir)) return false;
+            try
+            {
+                var ws = Path.GetFullPath(WayCoder.Maui.MauiBootstrap.WorkspaceDir).TrimEnd('\\', '/');
+                var d = Path.GetFullPath(dir).TrimEnd('\\', '/');
+                return string.Equals(d, ws, StringComparison.OrdinalIgnoreCase);
+            }
+            catch { return false; }
         }
     }
 

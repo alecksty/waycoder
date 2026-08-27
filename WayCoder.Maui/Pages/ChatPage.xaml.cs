@@ -173,14 +173,19 @@ public partial class ChatPage : ContentPage
         RefreshStatusBar();
     }
 
-    /// <summary>顶部状态区行 2：工作模式 / 权限 / todo / 上下文 / 用量 / 花费。</summary>
+    /// <summary>
+    /// 顶部状态区：行 1 右侧 ModeBar = 工作模式 / 权限（提到模型同一行，避免行 2 拥挤）；
+    /// 行 2 StatusBar = todo / 上下文 / 用量 / 花费。
+    /// </summary>
     private void RefreshStatusBar()
     {
         var s = AgentService.GetStatus();
-        StatusBar.Text = s == null
+        ModeBar.Text = s == null
             ? "⚙ 建造 · 🔐 Ask"
-            : $"⚙ {s.WorkMode} · 🔐 {s.PermMode} · 📋 todo ×{s.TodoCount} · "
-              + $"上下文 {FormatK(s.ContextUsed)}/{FormatK(s.ContextMax)} · "
+            : $"⚙ {s.WorkMode} · 🔐 {s.PermMode}";
+        StatusBar.Text = s == null
+            ? "📋 todo ×0"
+            : $"📋 todo ×{s.TodoCount} · 上下文 {FormatK(s.ContextUsed)}/{FormatK(s.ContextMax)} · "
               + $"🪙 {FormatK(s.PromptTokens)}+{FormatK(s.CompletionTokens)} · 💰 ${s.Cost?.ToString("F4") ?? "-"}";
     }
 

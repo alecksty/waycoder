@@ -55,6 +55,22 @@ internal static class PktLine
         return p == null ? null : Encoding.UTF8.GetString(p);
     }
 
+    /// <summary>
+    /// 宽容读一行（protocol v2 用）：len&lt;=1 返回 null —— flush(0000)、delim(0001)、
+    /// side-band 的 channel-0 结束标记等非数据帧一律视为流结束。EOF 返回 null。
+    /// </summary>
+    public static byte[]? ReadTolerant(Stream s)
+    {
+        var header = new byte[4];
+        if (!ReadExact(s, header, 4)) return null;
+        var len = Convert.ToInt32(Encoding.ASCII.GetString(header), 16);
+        if (len <= 1) return null;
+        var payload = new byte[len - 4];
+        if (!ReadExact(s, payload, payload.Length))
+            throw new EndOfStreamException("pkt-line 数据截断");
+        return payload;
+    }
+
     private static bool ReadExact(Stream s, byte[] buf, int count)
     {
         int off = 0;
@@ -77,7 +93,8 @@ public static class PackFileReader
     /// 返回 (type, content)；查不到返回 null。默认 null（假设 base 都在 pack 内）。
     /// </summary>
     public static Dictionary<string, (string Type, byte[] Content)> Read(
-        byte[] pack, Func<string, (string Type, byte[] Content)?>? externalBase = null)
+        byte[] pack, Func<string, (string Type, byte[] Content)?>? externalBase = null,
+        Action<int, int>? onProgress = null)
     {
         if (pack.Length < 12) throw new InvalidDataException("packfile 过短");
         if (pack[0] != 'P' || pack[1] != 'A' || pack[2] != 'C' || pack[3] != 'K')
@@ -91,6 +108,8 @@ public static class PackFileReader
         int pos = 12;
         for (int i = 0; i < count; i++)
         {
+            if ((i & 0x3F) == 0 || i + 1 == count)
+                onProgress?.Invoke(i + 1, count);
             long objOffset = pos;
 
             // 对象头：首字节 bit7=续位、bit6-4=类型、bit3-0=size 低 4 位
@@ -509,20 +528,16 @@ internal static class Inflater
                 if (l > 0 && l < 16) blCount[l]++;
             blCount[0] = 0;
 
-            var nextCode = new int[16];
-            int code = 0;
-            for (int bits = 1; bits <= 15; bits++)
-            {
-                code = (code + blCount[bits - 1]) << 1;
-                nextCode[bits] = code;
-            }
-
+            // _symbols 按「码长分组、符号升序」排列（位置索引），
+            // Decode 用 index + (code - first) 定位 —— 与规范码值无关。
+            // 注意：不能用 nextCode[码长]（规范码值，fixed litlen 可达 511）索引，
+            // 否则 288 长的 _symbols 直接越界。
             _symbols = new int[lengths.Length];
-            for (int sym = 0; sym < lengths.Length; sym++)
-            {
-                int len = lengths[sym];
-                if (len != 0) _symbols[nextCode[len]++] = sym;
-            }
+            int pos = 0;
+            for (int bits = 1; bits <= 15; bits++)
+                for (int sym = 0; sym < lengths.Length; sym++)
+                    if (lengths[sym] == bits) _symbols[pos++] = sym;
+
             _counts = blCount;
         }
 
@@ -533,7 +548,10 @@ internal static class Inflater
             int index = 0;
             for (int len = 1; len <= 15; len++)
             {
-                code |= br.ReadBit() << (len - 1);
+                // 码位 MSB 先传（RFC 1951 §3.2.2），逐位读取时先读位是最高位：
+                // code = (code << 1) | bit 才能还原规范码值，与下方 first 的规范累加一致。
+                // （旧实现 code |= bit << (len-1) 是 LSB 优先构建 → 码值错位 → 解出错误符号）
+                code = (code << 1) | br.ReadBit();
                 int count = _counts[len];
                 if (code - first < count)
                     return _symbols[index + (code - first)];

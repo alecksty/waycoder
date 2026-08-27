@@ -506,20 +506,27 @@ public static class GitCore
 
         // 构建 tree 内容（排序）
         var entries = new List<(string Mode, string Name, byte[] Sha)>();
-        foreach (var (name, entry) in files.OrderBy(k => k.Key))
+        foreach (var (name, entry) in files)
         {
             entries.Add((entry.Mode, name, HexToBytes(entry.Sha)));
         }
-        foreach (var dir in dirs.OrderBy(d => d))
+        foreach (var dir in dirs)
         {
             var name = dir[prefix.Length..];
             var subSha = BuildTreeLevel(gitDir, index, dir + "/");
             entries.Add(("40000", name, HexToBytes(subSha)));
         }
 
+        // git 树排序：文件与目录统一按名排序，目录隐式视为 name + "/"
+        // （git fsck 校验 treeNotSorted：foo.txt 排在 foo/ 目录前，foo/ 排在 foo2 前）。
+        // 旧实现「文件全在前、目录全在后」对含子目录的仓库会产生无序 tree → 服务端 unpacker 拒绝。
+        var sorted = entries
+            .OrderBy(e => e.Mode == "40000" ? e.Name + "/" : e.Name, StringComparer.Ordinal)
+            .ToList();
+
         // 序列化 tree 对象
         using var ms = new MemoryStream();
-        foreach (var (mode, name, sha) in entries)
+        foreach (var (mode, name, sha) in sorted)
         {
             var header = Encoding.UTF8.GetBytes($"{mode} {name}\0");
             ms.Write(header);
@@ -839,7 +846,8 @@ public static class GitCore
     }
 
     /// <summary>把 commitSha 的 tree 展开写入工作区文件（pull 后 checkout）。返回写入文件数。</summary>
-    public static int CheckoutWorktree(string gitDir, string repoRoot, string commitSha)
+    public static int CheckoutWorktree(string gitDir, string repoRoot, string commitSha,
+        Action<int, int>? onProgress = null)
     {
         var obj = ReadObject(gitDir, commitSha);
         if (obj == null) return 0;
@@ -850,6 +858,7 @@ public static class GitCore
         FlattenTree(gitDir, treeSha, "", files);
 
         int written = 0;
+        var total = files.Count;
         foreach (var (rel, entry) in files)
         {
             var blob = ReadObject(gitDir, entry.Sha);
@@ -859,6 +868,8 @@ public static class GitCore
             if (dir != null) Directory.CreateDirectory(dir);
             File.WriteAllBytes(full, blob.Value.Content);
             written++;
+            if (written % 20 == 0 || written == total)
+                onProgress?.Invoke(written, total);
         }
         return written;
     }
