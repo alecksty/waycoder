@@ -229,6 +229,7 @@ public partial class Program
         // 注入 ChatScreen 回调
         screen.OnCycleModel = () => CycleModel(screen);
         screen.OnShowHelp = () => ShowHelpInChat(screen);
+        screen.OnSyncQr = () => RunSyncQr(screen);
         screen.OnSearchHistory = query => SearchHistory(query, screen);
         screen.OnOpenSessions = () => OpenSessions(screen);
         screen.OnReasoningEffort = () => PickReasoningEffort(screen);
@@ -1480,5 +1481,24 @@ public partial class Program
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>Ctrl+R：执行 /sync-qr 生成同步二维码（手机扫码跨设备轮转）。</summary>
+    private static void RunSyncQr(WayCoder.UI.Tui.Screens.ChatScreen screen)
+    {
+        try
+        {
+            var (cmd, _) = SlashCommandRegistry.Match("/sync-qr");
+            if (cmd == null)
+            {
+                screen.AddSystemMsg("❌ /sync-qr 命令未注册");
+                return;
+            }
+            cmd.ExecuteAsync("", screen);
+        }
+        catch (Exception ex)
+        {
+            screen.AddSystemMsg($"❌ 生成二维码失败：{ex.Message}");
+        }
     }
 }

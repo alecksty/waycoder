@@ -77,6 +77,7 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+		<PackageReference Include="ZXing.Net" Version="0.16.9" />
 	</ItemGroup>
 
 	<!--
@@ -91,8 +92,7 @@
 	        ContentDiffFormatter（纯逻辑 diff 格式化）。
 	-->
 	<ItemGroup>
-		<Compile Include="../WayCoder/**/*.cs"
-		         Exclude="../WayCoder/Program*.cs;../WayCoder/Test/**/*.cs;../WayCoder/UI/CLI/Arguments/**/*.cs;../WayCoder/Plugins/**/*.cs;../WayCoder/Properties/**/*.cs;../WayCoder/bin/**/*.cs;../WayCoder/obj/**/*.cs;../WayCoder/WayEngine/**/*.cs;../WayCoder/game/**/*.cs;../WayCoder/games/**/*.cs;../WayCoder/lottery/**/*.cs;../WayCoder/subs/**/*.cs;../WayCoder/works/**/*.cs;../WayCoder/SnakeGame/**/*.cs;../WayCoder/UI/WEB/WebAssets.Generated.cs;../WayCoder/UI/TUI/**/*.cs;../WayCoder/UI/WEB/**/*.cs;../WayCoder/Batch/**/*.cs;../WayCoder/Watch/**/*.cs;../WayCoder/Git/WorktreeIsolation.cs;../WayCoder/Git/GitRunner.cs;../WayCoder/Tools/ToolRegistry.cs;../WayCoder/Tools/BashTool.cs;../WayCoder/Tools/GitTool.cs;../WayCoder/Tools/GitPRTool.cs;../WayCoder/Tools/LspTool.cs;../WayCoder/Tools/LintTool.cs;../WayCoder/Tools/PsTool.cs;../WayCoder/Tools/KillTool.cs;../WayCoder/Tools/ScreenshotTool.cs;../WayCoder/Tools/SqliteTool.cs;../WayCoder/Tools/TestTool.cs;../WayCoder/Tools/JobOutputTool.cs;../WayCoder/Tools/JobKillTool.cs;../WayCoder/Config/ThemeConfig.cs;../WayCoder/Agent/AgentSlot.cs" />
+		<Compile Include="../WayCoder/**/*.cs" Exclude="../WayCoder/Program*.cs;../WayCoder/Test/**/*.cs;../WayCoder/UI/CLI/Arguments/**/*.cs;../WayCoder/Plugins/**/*.cs;../WayCoder/Properties/**/*.cs;../WayCoder/bin/**/*.cs;../WayCoder/obj/**/*.cs;../WayCoder/WayEngine/**/*.cs;../WayCoder/game/**/*.cs;../WayCoder/games/**/*.cs;../WayCoder/lottery/**/*.cs;../WayCoder/subs/**/*.cs;../WayCoder/works/**/*.cs;../WayCoder/SnakeGame/**/*.cs;../WayCoder/UI/WEB/WebAssets.Generated.cs;../WayCoder/UI/TUI/**/*.cs;../WayCoder/UI/WEB/**/*.cs;../WayCoder/Batch/**/*.cs;../WayCoder/Watch/**/*.cs;../WayCoder/Git/WorktreeIsolation.cs;../WayCoder/Git/GitRunner.cs;../WayCoder/Tools/ToolRegistry.cs;../WayCoder/Tools/BashTool.cs;../WayCoder/Tools/GitTool.cs;../WayCoder/Tools/GitPRTool.cs;../WayCoder/Tools/LspTool.cs;../WayCoder/Tools/LintTool.cs;../WayCoder/Tools/PsTool.cs;../WayCoder/Tools/KillTool.cs;../WayCoder/Tools/ScreenshotTool.cs;../WayCoder/Tools/SqliteTool.cs;../WayCoder/Tools/TestTool.cs;../WayCoder/Tools/JobOutputTool.cs;../WayCoder/Tools/JobKillTool.cs;../WayCoder/Config/ThemeConfig.cs;../WayCoder/Agent/AgentSlot.cs" />
 		<Compile Include="../WayCoder/UI/TUI/Edit/**/*.cs" />
 		<Compile Include="../WayCoder/UI/TUI/Custom/ContentDiffFormatter.cs" />
 	</ItemGroup>

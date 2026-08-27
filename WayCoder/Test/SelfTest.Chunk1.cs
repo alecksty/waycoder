@@ -123,6 +123,7 @@ public static partial class SelfTest
         TestHooksManager(Check);      // Hook 系统：session hook 注册/事件执行/匹配器/输出协议
         TestJsonLib(Check);           // 手搓 JSON 库：解析/DOM/序列化/转义/错误分支（AOT 零反射）
         TestXmlLib(Check);            // 手搓 XML 库：解析/实体/CDATA/属性/序列化（AOT 零反射）
+        TestSyncQr(Check);            // 同步二维码：ZXing 编码矩阵 + PNG 渲染
         TestToolScheduler(Check);     // 工具调度器：Parallel/Exclusive 分批 + 有界并发 + 顺序提交
         TestToolResultClassifier(Check); // 工具结果分类器：真实错误 vs 用户取消/安全阻止
         TestTrajectory(Check);         // 运行轨迹：截断纯函数 + JSONL 事件流落盘/读回

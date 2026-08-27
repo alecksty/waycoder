@@ -1147,6 +1147,9 @@ public partial class ChatScreen : TuiScreen
     /// <summary>回调：显示帮助（Program.cs 注入）</summary>
     public Action? OnShowHelp;
 
+    /// <summary>回调：生成同步二维码（Ctrl+R，Program.Repl 注入）</summary>
+    public Action? OnSyncQr;
+
     /// <summary>回调：打开会话管理（Program.cs 注入）</summary>
     public Action? OnOpenSessions;
 

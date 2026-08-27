@@ -194,11 +194,12 @@ public partial class ChatPage : ContentPage
     private async void OnMenuClicked(object? sender, EventArgs e)
     {
         var action = await DisplayActionSheetAsync("菜单", "取消", null,
-            "🧠 模型选择", "🗂 供应商/模型", "⚙ 模式切换", "🔐 权限切换", "📋 会话管理", "📌 任务管理", "ℹ️ 关于");
+            "🧠 模型选择", "🗂 供应商/模型", "🔄 代码同步", "⚙ 模式切换", "🔐 权限切换", "📋 会话管理", "📌 任务管理", "ℹ️ 关于");
         switch (action)
         {
             case "🧠 模型选择": OnModelBarTapped(null, null); break;
             case "🗂 供应商/模型": await Shell.Current.GoToAsync("models"); break;
+            case "🔄 代码同步": await Shell.Current.GoToAsync("gitsync"); break;
             case "⚙ 模式切换": CycleWorkMode(); break;
             case "🔐 权限切换": CyclePermission(); break;
             case "📋 会话管理": await ManageSessionsAsync(); break;

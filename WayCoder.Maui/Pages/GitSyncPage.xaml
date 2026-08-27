@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="WayCoder.Maui.Pages.GitSyncPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="代码同步">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="12" Spacing="8">
+
+            <Label Text="跨设备代码轮转：电脑编辑 → 手机继续 → 家里电脑接着改（git 同步）"
+                   FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+
+            <!-- 扫码：桌面 /sync-qr 生成的二维码自动填参数 -->
+            <Button Text="📷 扫桌面二维码自动填" FontSize="14" Clicked="OnScanClicked" />
+
+            <!-- 仓库配置 -->
+            <Label Text="仓库地址" FontSize="12" FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+            <Entry x:Name="RepoUrlEntry" Placeholder="https://gitee.com/user/repo.git" FontSize="13" />
+
+            <!-- 凭证（SecureStorage 保存） -->
+            <Label Text="凭证（Token/密码，加密保存）" FontSize="12" FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                <Entry x:Name="UserEntry" Placeholder="用户名" FontSize="13" />
+                <Entry Grid.Column="1" x:Name="TokenEntry" IsPassword="True" Placeholder="Token/密码" FontSize="13" />
+            </Grid>
+
+            <!-- 操作 -->
+            <Button x:Name="PullBtn" Text="📥 克隆 / 拉取" FontSize="14" Clicked="OnPullClicked" />
+            <Entry x:Name="CommitMsgEntry" Placeholder="提交说明（如：手机同步 12:30）" FontSize="13" />
+            <Button x:Name="PushBtn" Text="📤 提交并推送" FontSize="14" Clicked="OnPushClicked" />
+
+            <!-- 状态区 -->
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0" Padding="12,8" Margin="0,4,0,0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <Label x:Name="StatusLabel" FontSize="12" LineHeight="1.35"
+                       TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

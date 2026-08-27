@@ -63,4 +63,7 @@ public partial class MainPage : ContentPage
 
     private async void OnModelsClicked(object? sender, EventArgs e)
         => await Shell.Current.GoToAsync("models");
+
+    private async void OnGitSyncClicked(object? sender, EventArgs e)
+        => await Shell.Current.GoToAsync("gitsync");
 }

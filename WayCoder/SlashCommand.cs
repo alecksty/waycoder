@@ -176,6 +176,7 @@ public static class SlashCommandRegistry
         Register(new Commands.TeachCommand());
         Register(new Commands.DoctorCommand());
         Register(new Commands.AboutCommand());
+        Register(new Commands.SyncQrCommand());
         Register(new Commands.RepomapCommand());
         Register(new Commands.DebugOnCommand());
         Register(new Commands.DebugOffCommand());
