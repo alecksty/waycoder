@@ -129,49 +129,6 @@ namespace WayCoder.Tools
             => Task.FromResult("⚠️ 移动端暂不支持创建 Pull Request：无本地 git/gh 进程。");
     }
 
-    /// <summary>MCP 服务器连接状态。</summary>
-    public enum McpServerStatus { Connecting, Connected, Failed }
-
-    /// <summary>MCP 服务器状态快照（字段对齐主工程，供 /mcp 展示）。</summary>
-    public class McpServerInfo
-    {
-        public string Name { get; }
-        public string Transport { get; }
-        public McpServerStatus Status { get; }
-        public int ToolCount { get; }
-        public int ResourceCount { get; }
-        public int PromptCount { get; }
-        public string? Error { get; }
-        public string Source { get; }
-
-        public McpServerInfo(string name, string transport, McpServerStatus status, int toolCount, string? error,
-            int resourceCount = 0, int promptCount = 0, string source = "waycoder")
-        {
-            Name = name;
-            Transport = transport;
-            Status = status;
-            ToolCount = toolCount;
-            ResourceCount = resourceCount;
-            PromptCount = promptCount;
-            Error = error;
-            Source = source;
-        }
-    }
-
-    /// <summary>
-    /// MCP 管理器降级桩：移动端无 MCP（stdio 传输 iOS 物理不可用）。Servers 恒空、
-    /// Reload/AddServerToConfig 返回不支持提示。Http/Sse 传输作为后续任务补齐。
-    /// </summary>
-    public static class McpManager
-    {
-        public static IReadOnlyList<McpServerInfo> Servers => Array.Empty<McpServerInfo>();
-
-        public static Task<string> ReloadAsync(string? name)
-            => Task.FromResult("⚠️ 移动端暂不支持 MCP：stdio 传输在 iOS 物理不可用，Http/Sse 传输待补齐。");
-
-        public static (bool Success, string Message) AddServerToConfig(JNode server)
-            => (false, "移动端暂不支持添加 MCP 服务器。");
-    }
 }
 
 namespace WayCoder
@@ -266,44 +223,6 @@ namespace WayCoder
         public static void ApplyPreset(string name) { }
     }
 
-    /// <summary>Doctor 自检选项（字段对齐主工程，移动端 DoctorEngine 降级为提示）。</summary>
-    public sealed class DoctorOptions
-    {
-        public string Home { get; set; } = "";
-        public string Cwd { get; set; } = "";
-        public bool Fix { get; set; }
-        public IReadOnlyList<string> Models { get; set; } = Array.Empty<string>();
-    }
-
-    /// <summary>Doctor 报告（降级：Render 返回不支持提示）。</summary>
-    public sealed class DoctorReport
-    {
-        public string Render() => "⚠️ 移动端暂不支持系统自检（DoctorEngine 未实现）。";
-    }
-
-    /// <summary>系统自检引擎降级桩：移动端无发行后自检（诊断依赖进程/文件探测），返回不支持提示。</summary>
-    public static class DoctorEngine
-    {
-        public static Task<DoctorReport> RunAsync(DoctorOptions options)
-            => Task.FromResult(new DoctorReport());
-    }
-}
-
-namespace WayCoder.Infra
-{
-    /// <summary>
-    /// 导入助手降级桩：移动端暂不支持从其他智能体导入配置（ImportHelper 未实现）。
-    /// Detect 恒空、ImportAsync 返回提示，保证 /import 命令编译通过并优雅降级。
-    /// </summary>
-    public static class ImportHelper
-    {
-        public record ImportItem(string Category, string Name, string Description, bool CanImport);
-
-        public static List<ImportItem> Detect() => [];
-
-        public static Task<string> ImportAsync(HashSet<string>? categories = null)
-            => Task.FromResult("⚠️ 移动端暂不支持导入（ImportHelper 未实现）。");
-    }
 }
 
 // ── TUI 屏幕类型占位：MAUI 无终端 TUI，ActiveScreen 恒 null。 ──
