@@ -16,9 +16,9 @@
             <Label Text="手机编程智能体" FontSize="13" HorizontalTextAlignment="Center"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
 
-            <Label Text="更新日志" FontSize="16" FontAttributes="Bold" Margin="0,20,0,4"
+            <Label Text="使用说明" FontSize="16" FontAttributes="Bold" Margin="0,20,0,4"
                    TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
-            <Label x:Name="ChangelogLabel" FontSize="12" LineHeight="1.3"
+            <Label x:Name="UsageLabel" FontSize="12" LineHeight="1.4"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
         </VerticalStackLayout>
     </ScrollView>
