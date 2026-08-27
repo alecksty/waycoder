@@ -472,8 +472,9 @@ public static partial class SelfTest
         File.WriteAllText(Path.Combine(wt, ".git"), "gitdir: " + wtGitDir + "\n");
         Check("路径: worktree 分支", PathStatus.TryGetBranch(wt) == "feature/x");
 
-        // FormatCwd：home 展开
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        // FormatCwd：home 展开（基准 = Global.Home，与 PathStatus.FormatCwd 对齐；
+        // 自测框架会把 HomeOverride 指向临时目录，用 UserProfile 作期望值在新实现下永远不成立）
+        var home = WayCoder.Global.Home;
         var sub = Path.Combine(home, "Desktop", "proj");
         var expectedHome = "~" + Path.DirectorySeparatorChar + "Desktop" + Path.DirectorySeparatorChar + "proj";
         Check("路径: home 展开为 ~", PathStatus.FormatCwd(sub) == expectedHome);
