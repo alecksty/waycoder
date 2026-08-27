@@ -153,12 +153,15 @@ public partial class GitSyncPage : ContentPage
         }
     }
 
-    /// <summary>刷新分支下拉：本地分支 + 远程分支（origin/xxx），选中当前分支。</summary>
+    /// <summary>
+    /// 刷新分支下拉：本地分支立即显示；远程分支（origin/xxx）后台线程拉取，
+    /// 网络慢/不可达不阻塞 UI（此前同步 ls-refs 在慢网络下点选仓库会卡死）。
+    /// </summary>
     private void RefreshBranches(string? projectRoot)
     {
         try
         {
-            var branches = new List<string>();
+            var local = new List<string>();
             if (projectRoot != null && Directory.Exists(Path.Combine(projectRoot, ".git")))
             {
                 try
@@ -167,21 +170,10 @@ public partial class GitSyncPage : ContentPage
                     foreach (var line in list.Split('\n'))
                     {
                         var name = line.Trim().TrimStart('*').Trim();
-                        if (name.Length > 0 && !name.Contains(' ')) branches.Add(name);
+                        if (name.Length > 0 && !name.Contains(' ')) local.Add(name);
                     }
                 }
                 catch { }
-            }
-            // 远程分支（ls-refs），标注 origin/ 前缀
-            var url = RepoUrlEntry.Text?.Trim();
-            if (!string.IsNullOrEmpty(url))
-            {
-                var user = UserEntry.Text?.Trim();
-                var token = TokenEntry.Text?.Trim();
-                GitCredential? cred = user != null && token != null
-                    ? new GitCredential(user, token, IsToken: true) : null;
-                foreach (var rb in GitRemote.ListRemoteBranches(url, cred))
-                    if (!branches.Contains(rb)) branches.Add("origin/" + rb);
             }
             var current = "";
             try
@@ -190,7 +182,34 @@ public partial class GitSyncPage : ContentPage
                 if (head.Contains("refs/heads/")) current = head.Split("refs/heads/")[1].Trim();
             }
             catch { }
-            var distinct = branches.Distinct().OrderBy(b => b, StringComparer.Ordinal).ToList();
+
+            ApplyBranches(local, current, []);   // 先显示本地分支
+            var url = RepoUrlEntry.Text?.Trim();
+            if (string.IsNullOrEmpty(url)) return;
+            var user = UserEntry.Text?.Trim();
+            var token = TokenEntry.Text?.Trim();
+            GitCredential? cred = user != null && token != null
+                ? new GitCredential(user, token, IsToken: true) : null;
+            var capture = new WeakReference<GitSyncPage>(this);
+            _ = Task.Run(() =>
+            {
+                var remote = GitRemote.ListRemoteBranches(url, cred);   // 短超时 + 后台，不卡 UI
+                if (capture.TryGetTarget(out var page))
+                    MainThread.BeginInvokeOnMainThread(() => page.ApplyBranches(local, current, remote));
+            });
+        }
+        catch { }
+    }
+
+    /// <summary>合并本地 + 远程分支并更新下拉。</summary>
+    private void ApplyBranches(List<string> local, string current, IEnumerable<string> remote)
+    {
+        try
+        {
+            var all = local.ToList();
+            foreach (var rb in remote)
+                if (!all.Contains(rb)) all.Add("origin/" + rb);
+            var distinct = all.Distinct().OrderBy(b => b, StringComparer.Ordinal).ToList();
             if (distinct.Count == 0) distinct.Add("master");
             BranchPicker.ItemsSource = distinct;
             BranchPicker.SelectedItem = distinct.FirstOrDefault(b => b == current)
