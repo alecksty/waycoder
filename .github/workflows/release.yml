@@ -47,7 +47,8 @@ jobs:
         run: |
           V="${{ github.ref_name }}"
           if [[ "${{ matrix.rid }}" == win-* ]]; then
-            (cd dist/${{ matrix.rid }} && zip -r "../../waycoder-${V}-${{ matrix.rid }}.zip" .)
+            # Windows runner 的 Git Bash 无 zip 命令，改用 PowerShell Compress-Archive（与 scripts/package.sh 兜底一致）
+            powershell -NoProfile -Command "Get-ChildItem -Path 'dist/${{ matrix.rid }}' | Compress-Archive -DestinationPath 'waycoder-${V}-${{ matrix.rid }}.zip' -Force"
           else
             tar -czf "waycoder-${V}-${{ matrix.rid }}.tar.gz" -C dist/${{ matrix.rid }} .
           fi
