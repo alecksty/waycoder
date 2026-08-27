@@ -1,5 +1,32 @@
 # 更新日志
 
+## v0.96.17 (2026-08-27) — 代码同步卡死修复 + 远程分支完整识别
+
+修复点选历史仓库时界面卡死：`ListRemoteBranches`（ls-refs）原为同步网络调用跑在 UI 线程，慢网络/不可达时阻塞界面。改为后台线程拉取远程分支（本地分支立即显示、远程到了再合并），并用独立 5s 短超时 client。
+
+- **代码同步页分支列表**：本地分支 + 远程分支（`origin/xxx` 前缀，ls-refs `refs/heads/*`），way-coder 完整识别 5 个分支（apt-pages/hasee/mac/master/test）
+- **拉取远程新分支**：选 `origin/xxx` 拉取时自动建本地分支 + 切 HEAD + 检出（FetchCoreAsync 对本地不存在的分支建 ref）
+- **卡死修复**：远程分支列表后台线程拉取，UI 永不阻塞；网络不可达 5s 内静默返回
+- **编译**：桌面 0 错误；移动端 `net10.0-android` 0 错误
+
+## v0.96.16 (2026-08-27) — 移动端 git 全链路修复 + 外部存储 + 设置双分组 + 代码同步增强
+
+移动端 git 同步彻底打通（克隆/拉取/推送全链路真机验证），大项目（way-coder 12184 对象）端到端跑通。
+
+- **git 同步重大修复**：
+  - `GitRemote` 改 **protocol v2 fetch**：Gitee 仅响应 v2（v1 请求返回空 → 「upload-pack 无 packfile」），补 `Git-Protocol: version=2` 头 + v2 请求帧（`command=fetch` + `0001` 定界 + want/have/done）
+  - **side-band-64k 解码**：channel1=pack 数据、channel2=进度，解码后定位 PACK 魔数
+  - **Inflater 两个潜伏 bug**：HuffmanDecoder 构造器越界（`_symbols[nextCode]` 用规范码值索引 288 长数组越界 → 改位置索引填充）；码位位序颠倒（`code |= bit << (len-1)` LSB 构建与规范 first 不匹配 → 改 `code = (code << 1) | bit` MSB 优先）
+  - **BuildTree 树排序修复**：git 要求目录按 `name/` 与文件统一排序（旧实现文件全在前目录全在后 → 含子目录仓库 push 被服务端 `treeNotSorted` 拒）。修复后大仓库 push 成功（`unpack ok`）
+  - **远程分支**：`ListRemoteBranches`（ls-refs）+ 拉取远程新分支自动建本地分支
+  - **克隆/拉取进度显示**：下载 pack MB → 解码对象 i/N → 检出文件 i/N，大仓库不误判卡死
+- **外部存储**：workspace 优先 `sdcard/waycoder/workspace`（卸载重装代码不丢），config 落 `sdcard/waycoder/config`，未授「所有文件访问」自动回退 App 私有目录
+- **设置页双分组**：大模型/小模型各自独立「服务商/模型/地址/API-Key/测试按钮/保存状态」；🔍 测试 API Key 按钮（填好立即测，有效自动保存、无效报错）；保存后立即刷新「已保存」状态
+- **界面**：首页移除模式/权限按钮（已有 ☰ 菜单）；聊天顶部模式/权限上移行1右侧（行2 只留 todo/上下文/用量/花费）
+- **代码同步页增强**：仓库地址历史（拉取成功自动记录，最多 50 个，下拉选择/输入两用）、分支选择器、进度显示
+- **自测**：新增 git 包解码测试（Inflater 往返/side-band/tree 排序），共 4677 全过
+- **编译**：桌面 0 错误；移动端 `net10.0-android` 0 错误
+
 ## v0.96.15 (2026-08-27) — 供应商/模型管理 + 模型选择页 + 文件类型路由 + 多源导入
 
 移动端模型体系大升级：新增供应商/模型管理页（图标区分本地/有Key/无Key、点供应商右滑模型列表、点模型设大/小模型、显示上下文/价格、免费模型绿色、大✓/小✓ 双选中勾）、TUI ModelPicker 移植的模型选择页（分组+搜索+大/小切换）、Web 版同款多源导入（内置/Claude Code/Codex/OpenCode/Crush/OpenClaw/自定义）、文件列表按类型路由（源码→编辑器，图片/音频/视频/未知→系统应用打开）、聊天代码块等宽字体。
