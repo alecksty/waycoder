@@ -82,49 +82,6 @@ public partial class SettingsPage : ContentPage
         PermModePicker.SelectedItem = PermModeLabels[(int)PermissionManager.CurrentMode];
 
         UpdateKeyStatus(current);
-        PopulateFreeModels();
-    }
-
-    /// <summary>免费模型（0 价）按服务商分组，点选即切换该服务商+模型。</summary>
-    private void PopulateFreeModels()
-    {
-        FreeModelsLayout.Clear();
-        var free = ModelCatalog.All
-            .Where(m => m.InputPrice == 0 && m.OutputPrice == 0)
-            .GroupBy(m => m.ProviderId)
-            .OrderBy(g => g.Key);
-        var any = false;
-        foreach (var g in free)
-        {
-            var disp = ModelCatalog.Providers.TryGetValue(g.Key, out var p) ? p.DisplayName : g.Key;
-            foreach (var m in g)
-            {
-                any = true;
-                var pid = g.Key; var mid = m.Id;
-                var btn = new Button
-                {
-                    Text = $"🆓 {disp} · {m.DisplayName}",
-                    FontSize = 12,
-                    BackgroundColor = Colors.Transparent,
-                    TextColor = Application.Current?.RequestedTheme == AppTheme.Dark
-                        ? Color.FromArgb("#8AB4F8") : Color.FromArgb("#1A56DB"),
-                    HorizontalOptions = LayoutOptions.Start,
-                };
-                btn.Clicked += async (_, _) =>
-                {
-                    ApplyModel(pid, mid);
-                    await DisplayAlertAsync("已选用", $"{disp} · {m.DisplayName} 已设为当前模型（Key 按服务商在「连接」区填写）", "确定");
-                };
-                FreeModelsLayout.Add(btn);
-            }
-        }
-        if (!any)
-            FreeModelsLayout.Add(new Label
-            {
-                Text = "暂无 0 价模型（低价款见模型下拉列表）",
-                FontSize = 12,
-                TextColor = Color.FromArgb("#888888"),
-            });
     }
 
     /// <summary>应用模型选择：统一入口切换服务商+模型并刷新 UI。</summary>

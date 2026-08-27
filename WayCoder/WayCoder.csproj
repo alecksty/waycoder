@@ -29,9 +29,7 @@
 
 
   <!-- 编译期合并 Web 前端资源（www/*.html/css/js → WebAssets.Generated.cs），编辑源文件后重新构建即可 -->
-  <Target Name="GenerateWebAssets" BeforeTargets="CoreCompile"
-          Inputs="$(MSBuildProjectDirectory)/UI/WEB/www/index.html;$(MSBuildProjectDirectory)/UI/WEB/www/style.css;$(MSBuildProjectDirectory)/UI/WEB/www/app.js"
-          Outputs="$(MSBuildProjectDirectory)/UI/WEB/WebAssets.Generated.cs">
+  <Target Name="GenerateWebAssets" BeforeTargets="CoreCompile" Inputs="$(MSBuildProjectDirectory)/UI/WEB/www/index.html;$(MSBuildProjectDirectory)/UI/WEB/www/style.css;$(MSBuildProjectDirectory)/UI/WEB/www/app.js" Outputs="$(MSBuildProjectDirectory)/UI/WEB/WebAssets.Generated.cs">
     <Exec Command="python3 ../scripts/merge_webassets.py" WorkingDirectory="$(MSBuildProjectDirectory)" />
     <ItemGroup>
       <!-- glob 以相对路径 Identity 自动包含生成文件，先按相对路径 Remove 去重，再显式 Include 一次 -->
@@ -73,9 +71,11 @@
     <EmbeddedResource Include="UI\TUI\Raw\**\*.tui">
       <LogicalName>WayCoder.UI.TUI.Raw.%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
-    <None Include="UI\TUI\Raw\**\*.tui"
-          Link="Raw\%(RecursiveDir)%(Filename)%(Extension)"
-          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="UI\TUI\Raw\**\*.tui" Link="Raw\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ZXing.Net" Version="0.16.9" />
   </ItemGroup>
 
 </Project>

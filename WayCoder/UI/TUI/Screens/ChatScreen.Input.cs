@@ -672,6 +672,9 @@ public partial class ChatScreen : TuiScreen
                     ToggleSidePanel();
                     return true;
                 case ConsoleKey.R:
+                    OnSyncQr?.Invoke(); // 生成同步二维码（手机扫码跨设备轮转）
+                    return true;
+                case ConsoleKey.Y:
                     var searchQuery = UxHelper.Ask("搜索对话历史");
                     if (!string.IsNullOrWhiteSpace(searchQuery))
                         OnSearchHistory?.Invoke("/history " + searchQuery);

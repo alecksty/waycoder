@@ -61,9 +61,6 @@
                 <VerticalStackLayout Padding="12,8" Spacing="6">
                     <Button Text="📥 导入模型" FontSize="13" Clicked="OnImportModelsClicked" />
                     <Button Text="📡 扫描连接" FontSize="13" Clicked="OnScanConnectionsClicked" />
-                    <Label Text="🆓 免费模型（0 价）" FontSize="12" FontAttributes="Bold"
-                           TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-                    <VerticalStackLayout x:Name="FreeModelsLayout" Spacing="4" />
                 </VerticalStackLayout>
             </Border>
 

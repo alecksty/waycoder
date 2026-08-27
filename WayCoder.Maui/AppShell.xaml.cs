@@ -18,5 +18,7 @@ public partial class AppShell : Shell
         Routing.RegisterRoute("modelpicker", typeof(ModelPickerPage));
         // 供应商模型列表详情页：从供应商/模型管理页点供应商滑入
         Routing.RegisterRoute("providermodels", typeof(ProviderModelsPage));
+        // 代码同步页：跨设备 git 轮转
+        Routing.RegisterRoute("gitsync", typeof(GitSyncPage));
     }
 }
