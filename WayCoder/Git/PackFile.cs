@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -87,25 +88,39 @@ internal static class PktLine
 /// <summary>packfile 解码器 —— 解析服务器下发的 packfile（含 ofs-delta / ref-delta）。</summary>
 public static class PackFileReader
 {
+    /// <summary>超过此大小的对象走原生内存路径（安卓托管堆上限装不下几百 MB 单对象）。</summary>
+    internal const long LargeThreshold = 16L * 1024 * 1024;
     /// <summary>
-    /// 解码整个 packfile，返回 sha → (type, content) 字典。
-    /// <paramref name="externalBase"/>：按 sha 查找 pack 外已存在的 base 对象（thin pack 用），
-    /// 返回 (type, content)；查不到返回 null。默认 null（假设 base 都在 pack 内）。
+    /// 解码整个 packfile，逐个对象回调 <paramref name="onObject"/>（调用方立即写盘）。
+    /// 内存关键：不回收集全部对象——base 只经「有字节上限的 LRU 缓存」暂存，miss 时由
+    /// <paramref name="externalBase"/> 从盘上已写入的 loose 对象按 sha 读回。否则 4 万对象
+    /// 大仓库会把全部解压内容堆进内存 → 手机 OOM 直接闪退（实测 VML.git 解到 3 万对象崩溃；
+    /// 本仓 my-coder 仅 12k 对象，delta base 即有 233MB）。
+    /// <paramref name="externalBase"/>：按 sha 返回 (type, content)，查不到返回 null。
+    /// 返回写入回调的对象数。
     /// </summary>
-    public static Dictionary<string, (string Type, byte[] Content)> Read(
-        byte[] pack, Func<string, (string Type, byte[] Content)?>? externalBase = null,
-        Action<int, int>? onProgress = null)
+    public static int Read(
+        byte[] pack,
+        Func<string, (string Type, byte[] Content)?>? externalBase,
+        Action<string, string, byte[]?> onObject,
+        Action<int, int>? onProgress = null,
+        Action<string, string, IntPtr, long>? onLargeObject = null,
+        Func<string, (string Type, IntPtr Ptr, long Len)?>? readBaseNative = null)
     {
         if (pack.Length < 12) throw new InvalidDataException("packfile 过短");
         if (pack[0] != 'P' || pack[1] != 'A' || pack[2] != 'C' || pack[3] != 'K')
             throw new InvalidDataException("非 packfile（缺 PACK 魔数）");
 
         int count = ReadInt32BE(pack, 8);
-        var result = new Dictionary<string, (string, byte[])>();
-        var bySha = new Dictionary<string, (string Type, byte[] Content)>();
-        var byOffset = new Dictionary<long, string>();   // offset → sha（ofs-delta 定位 base）
+        if (count <= 0) return 0;
+
+        // offset → sha：ofs-delta 引用 base 时先取其 sha，再由 externalBase 读回内容
+        var shaByOffset = new Dictionary<long, string>();
+        // base 内容缓存：有字节上限的 LRU（内存有界）；miss 走 externalBase（盘上 loose 对象）
+        var cache = new BaseCache(maxBytes: 24 * 1024 * 1024);
 
         int pos = 12;
+        int written = 0;
         for (int i = 0; i < count; i++)
         {
             if ((i & 0x3F) == 0 || i + 1 == count)
@@ -125,7 +140,7 @@ public static class PackFileReader
             }
 
             long baseOffset = -1;
-            string? baseSha = null;
+            string? refBaseSha = null;
             if (type == 6) // ofs-delta：变长负偏移
             {
                 byte c = pack[pos++];
@@ -139,12 +154,37 @@ public static class PackFileReader
             }
             else if (type == 7) // ref-delta：20 字节 base sha
             {
-                baseSha = Convert.ToHexString(pack, pos, 20).ToLowerInvariant();
+                refBaseSha = Convert.ToHexString(pack, pos, 20).ToLowerInvariant();
                 pos += 20;
             }
 
-            // 解压该对象的 zlib 数据（精确返回消耗字节数，推进 pos）
-            var (inflated, consumed) = Inflater.Decompress(pack, pos);
+            // ── 大对象原生路径：内容写入原生内存，不占托管堆（安卓堆上限装不下几百 MB 单对象，
+            //    实测 VML 单对象 593MB，largeHeap 512MB 也装不下）──
+            if (type is >= 1 and <= 4 && size > LargeThreshold && onLargeObject != null)
+            {
+                unsafe
+                {
+                    byte* ptr = (byte*)NativeMemory.Alloc((nuint)size);
+                    try
+                    {
+                        int consumedN = Inflater.DecompressInto(new Span<byte>(ptr, (int)size), pack, pos);
+                        pos += consumedN;
+                        var gitTypeN = TypeName(type);
+                        var shaN = ObjectShaNative(gitTypeN, ptr, size);
+                        shaByOffset[objOffset] = shaN;
+                        onLargeObject(gitTypeN, shaN, (IntPtr)ptr, size);
+                        onObject(gitTypeN, shaN, null);   // content null = 已原生写盘
+                        written++;
+                    }
+                    finally { NativeMemory.Free(ptr); }
+                }
+                continue;
+            }
+
+            // 解压该对象的 zlib 数据（按头部声明 size 精确分配，单遍解压，不翻倍物化）
+            if (size > int.MaxValue) throw new InvalidDataException($"对象过大（{size} 字节）");
+            var inflated = new byte[(int)size];
+            int consumed = Inflater.DecompressInto(inflated, pack, pos);
             pos += consumed;
 
             string gitType;
@@ -156,50 +196,233 @@ public static class PackFileReader
             }
             else
             {
-                // delta：定位 base（ofs → byOffset；ref → bySha 或 externalBase）
-                byte[]? baseContent = null;
-                string baseType = "";
-                if (type == 6)
-                {
-                    if (byOffset.TryGetValue(baseOffset, out var bSha) &&
-                        bySha.TryGetValue(bSha, out var bm))
-                    {
-                        baseContent = bm.Content;
-                        baseType = bm.Type;
-                    }
-                }
-                else if (baseSha != null)
-                {
-                    if (bySha.TryGetValue(baseSha, out var bm))
-                    {
-                        baseContent = bm.Content;
-                        baseType = bm.Type;
-                    }
-                    else if (externalBase != null)
-                    {
-                        var ext = externalBase(baseSha);
-                        if (ext != null)
-                        {
-                            baseContent = ext.Value.Content;
-                            baseType = ext.Value.Type;
-                        }
-                    }
-                }
-
-                if (baseContent == null)
-                    throw new InvalidDataException($"delta 对象的 base 未找到（{(type == 6 ? $"ofs@{baseOffset}" : baseSha)}）");
-
-                content = ApplyDelta(baseContent, inflated);
-                gitType = baseType;
+                (gitType, content) = ApplyDeltaObject(type, inflated, baseOffset, refBaseSha, shaByOffset, cache, externalBase);
             }
 
             var sha = ObjectSha(gitType, content);
-            byOffset[objOffset] = sha;
-            bySha[sha] = (gitType, content);
-            result[sha] = (gitType, content);
+            shaByOffset[objOffset] = sha;        // 记录 offset→sha（供后续 ofs-delta 定位 base）
+            cache.Put(sha, gitType, content);    // 最近对象入缓存；超上限自动淘汰，miss 读盘
+            onObject(gitType, sha, content);     // 立即写盘
+            written++;
         }
 
-        return result;
+        return written;
+    }
+
+    /// <summary>解析 delta 的 base 并应用 delta（ofs → offset 索引；ref → sha；缓存未命中走 externalBase 读盘）。</summary>
+    static (string Type, byte[] Content) ApplyDeltaObject(
+        int type, byte[] inflated, long baseOffset, string? refBaseSha,
+        Dictionary<long, string> shaByOffset, BaseCache cache,
+        Func<string, (string Type, byte[] Content)?>? externalBase)
+    {
+        string baseSha;
+        if (type == 6)
+        {
+            if (!shaByOffset.TryGetValue(baseOffset, out var bs))
+                throw new InvalidDataException($"delta 对象的 base 未找到（ofs@{baseOffset}）");
+            baseSha = bs;
+        }
+        else
+        {
+            baseSha = refBaseSha!;
+        }
+
+        var bm = cache.Get(baseSha);
+        if (bm == null && externalBase != null) bm = externalBase(baseSha);
+        if (bm == null)
+            throw new InvalidDataException($"delta 对象的 base 未找到（{baseSha}）");
+
+        return (bm.Value.Type, ApplyDelta(bm.Value.Content, inflated));
+    }
+
+    /// <summary>从 packfile 临时文件读取对象数（大端序 @8）。</summary>
+    public static int ReadObjectCount(string packPath)
+    {
+        using var fs = File.OpenRead(packPath);
+        var h = new byte[12];
+        if (fs.Read(h, 0, 12) != 12) return 0;
+        return (h[8] << 24) | (h[9] << 16) | (h[10] << 8) | h[11];
+    }
+
+    /// <summary>
+    /// 从文件解码 packfile（大仓库 pack 数百 MB，整包读进内存会 OOM 闪退——安卓堆上限 256MB，
+    /// 实测 VML.git 单次 ~284MB 分配即崩）。逐对象从文件读块解压，内存上界 ≈
+    /// 单对象解压大小 + base LRU（24MB）+ 索引；其余语义同 <see cref="Read"/>。
+    /// </summary>
+    public static int ReadFile(
+        string packPath,
+        Func<string, (string Type, byte[] Content)?>? externalBase,
+        Action<string, string, byte[]?> onObject,
+        Action<int, int>? onProgress = null,
+        Action<string, string, IntPtr, long>? onLargeObject = null,
+        Func<string, (string Type, IntPtr Ptr, long Len)?>? readBaseNative = null)
+    {
+        const long MaxObjectBytes = 64L * 1024 * 1024;   // 单对象压缩数据读取上限（防病态超大对象）
+        using var fs = File.OpenRead(packPath);
+        var header = new byte[12];
+        if (fs.Read(header, 0, 12) != 12) throw new InvalidDataException("packfile 过短");
+        if (header[0] != 'P' || header[1] != 'A' || header[2] != 'C' || header[3] != 'K')
+            throw new InvalidDataException("非 packfile（缺 PACK 魔数）");
+        int count = (header[8] << 24) | (header[9] << 16) | (header[10] << 8) | header[11];
+        if (count <= 0) return 0;
+
+        var shaByOffset = new Dictionary<long, string>();
+        var cache = new BaseCache(maxBytes: 24 * 1024 * 1024);
+
+        long objOffset = 12;
+        int written = 0;
+        var headBuf = new byte[80];   // 对象头最大约 25 字节（varint + ofs/ref 定位）
+        for (int i = 0; i < count; i++)
+        {
+            if ((i & 0x3F) == 0 || i + 1 == count)
+                onProgress?.Invoke(i + 1, count);
+            long currentOffset = objOffset;
+
+            // 读对象头：首字节 bit7=续位、bit6-4=类型、bit3-0=size 低 4 位
+            fs.Seek(objOffset, SeekOrigin.Begin);
+            int hn = fs.Read(headBuf, 0, headBuf.Length);
+            if (hn < 2) throw new InvalidDataException("packfile 数据截断");
+            int pos = 0;
+            byte b = headBuf[pos++];
+            int type = (b >> 4) & 0x07;
+            long size = b & 0x0F;
+            int shift = 4;
+            while ((b & 0x80) != 0) { b = headBuf[pos++]; size |= (long)(b & 0x7F) << shift; shift += 7; }
+
+            long baseOffset = -1;
+            string? refBaseSha = null;
+            if (type == 6) // ofs-delta：变长负偏移
+            {
+                byte c = headBuf[pos++];
+                long off = c & 0x7F;
+                while ((c & 0x80) != 0) { c = headBuf[pos++]; off = ((off + 1) << 7) | (c & 0x7F); }
+                baseOffset = objOffset - off;
+            }
+            else if (type == 7) // ref-delta：20 字节 base sha
+            {
+                refBaseSha = Convert.ToHexString(headBuf, pos, 20).ToLowerInvariant();
+                pos += 20;
+            }
+
+            // ── 大对象原生路径：内容写入原生内存（压缩数据也从文件读原生缓冲），不占托管堆。
+            //    安卓堆上限（256MB 或 largeHeap 512MB）装不下几百 MB 单对象（实测 VML 593MB）──
+            if (type is >= 1 and <= 4 && size > LargeThreshold && onLargeObject != null)
+            {
+                unsafe
+                {
+                    byte* ptr = (byte*)NativeMemory.Alloc((nuint)size);
+                    try
+                    {
+                        int consumedN = InflateAtInto(new Span<byte>(ptr, (int)size), fs, objOffset + pos, MaxObjectBytes);
+                        objOffset += pos + consumedN;
+                        var gitTypeN = TypeName(type);
+                        var shaN = ObjectShaNative(gitTypeN, ptr, size);
+                        shaByOffset[currentOffset] = shaN;
+                        onLargeObject(gitTypeN, shaN, (IntPtr)ptr, size);
+                        onObject(gitTypeN, shaN, null);   // content null = 已原生写盘
+                        written++;
+                    }
+                    finally { NativeMemory.Free(ptr); }
+                }
+                continue;
+            }
+
+            // 解压该对象：小对象走托管 InflateAt；大对象（stored 块压缩数据也大）压缩数据读入原生缓冲，
+            // 不占托管堆（安卓堆 256MB 上限，几百 MB 对象物化 byte[] 会 OOM）
+            long compressedFileOffset = objOffset + pos;
+            byte[] inflated;
+            int consumed;
+            if (size > LargeThreshold)
+            {
+                if (size > int.MaxValue) throw new InvalidDataException($"对象过大（{size} 字节）");
+                inflated = new byte[(int)size];
+                consumed = InflateAtInto(inflated, fs, compressedFileOffset, MaxObjectBytes);
+            }
+            else
+            {
+                var (data, c) = InflateAt(fs, compressedFileOffset, MaxObjectBytes);
+                inflated = data;
+                consumed = c;
+            }
+            objOffset = compressedFileOffset + consumed;
+
+            string gitType;
+            byte[] content;
+            if (type is >= 1 and <= 4)
+            {
+                gitType = TypeName(type);
+                content = inflated;
+            }
+            else
+            {
+                (gitType, content) = ApplyDeltaObject(type, inflated, baseOffset, refBaseSha, shaByOffset, cache, externalBase);
+            }
+
+            var sha = ObjectSha(gitType, content);
+            shaByOffset[currentOffset] = sha;      // 记录 offset→sha（供后续 ofs-delta 定位 base）
+            cache.Put(sha, gitType, content);      // 最近对象入缓存；超上限自动淘汰，miss 读盘
+            onObject(gitType, sha, content);       // 立即写盘
+            written++;
+        }
+
+        return written;
+    }
+
+    /// <summary>从文件偏移处读取并解压一个对象的 zlib 数据（块不够大时自动加大重读，不整包读入内存）。</summary>
+    static (byte[] Data, int Consumed) InflateAt(FileStream fs, long fileOffset, long maxBytes)
+    {
+        int cap = (int)Math.Min(maxBytes, 1 << 20);
+        while (true)
+        {
+            fs.Seek(fileOffset, SeekOrigin.Begin);
+            var buf = new byte[cap];
+            int n = fs.Read(buf, 0, cap);
+            if (n <= 0) throw new InvalidDataException("packfile 数据截断");
+            byte[] input = n == cap ? buf : buf[..n];
+            try
+            {
+                return Inflater.Decompress(input, 0);
+            }
+            catch (EndOfStreamException) when (n == cap && cap < maxBytes)
+            {
+                cap = (int)Math.Min(cap * 2L, maxBytes);   // 块不够：加倍重读
+            }
+        }
+    }
+
+    /// <summary>
+    /// 大对象解压：压缩数据读入原生缓冲（不占托管堆），解压到 output。
+    /// 安卓托管堆 256MB 上限——几百 MB 对象（尤其 stored 块，压缩数据≈内容）若压缩数据也物化
+    /// 托管 byte[] 会二次占内存 OOM。
+    /// </summary>
+    static unsafe int InflateAtInto(Span<byte> output, FileStream fs, long fileOffset, long maxBytes)
+    {
+        int cap = (int)Math.Min(maxBytes, 1 << 20);
+        while (true)
+        {
+            byte* inputPtr = (byte*)NativeMemory.Alloc((nuint)cap);
+            try
+            {
+                fs.Seek(fileOffset, SeekOrigin.Begin);
+                int n = 0;
+                while (n < cap)
+                {
+                    int r = fs.Read(new Span<byte>(inputPtr + n, cap - n));
+                    if (r <= 0) break;
+                    n += r;
+                }
+                if (n <= 0) throw new InvalidDataException("packfile 数据截断");
+                try
+                {
+                    return Inflater.DecompressInto(output, new ReadOnlySpan<byte>(inputPtr, n), 0);
+                }
+                catch (EndOfStreamException) when (n == cap && cap < maxBytes)
+                {
+                    cap = (int)Math.Min(cap * 2L, maxBytes);   // 块不够：加倍重读
+                }
+            }
+            finally { NativeMemory.Free(inputPtr); }
+        }
     }
 
     static string TypeName(int type) => type switch
@@ -213,11 +436,30 @@ public static class PackFileReader
 
     internal static string ObjectSha(string type, byte[] content)
     {
+        // 流式 sha：不拼 header+content 大数组（几百 MB 对象会二次占内存）
         var header = Encoding.UTF8.GetBytes($"{type} {content.Length}\0");
-        var full = new byte[header.Length + content.Length];
-        Array.Copy(header, 0, full, 0, header.Length);
-        Array.Copy(content, 0, full, header.Length, content.Length);
-        return Convert.ToHexString(SHA1.HashData(full)).ToLowerInvariant();
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
+        hash.AppendData(header);
+        hash.AppendData(content);
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+    }
+
+    /// <summary>原生内容计算 git 对象 sha（流式 IncrementalHash，不物化托管数组）。</summary>
+    internal static unsafe string ObjectShaNative(string type, byte* content, long length)
+    {
+        var header = Encoding.UTF8.GetBytes($"{type} {length}\0");
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
+        hash.AppendData(header);
+        // 分块 AppendData：安卓 Mono 对非数组背书的原生 Span 会物化托管副本（实测 593MB 一次 AppendData → OOM）
+        const int Chunk = 1 << 20;   // 1MB
+        long off = 0;
+        while (off < length)
+        {
+            int n = (int)Math.Min(Chunk, length - off);
+            hash.AppendData(new ReadOnlySpan<byte>(content + off, n));
+            off += n;
+        }
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
     }
 
     static int ReadInt32BE(byte[] b, int off)
@@ -278,6 +520,55 @@ public static class PackFileReader
             }
         }
         return result;
+    }
+}
+
+/// <summary>
+/// delta base 内容缓存（LRU，按字节上限）：主扫描把最近解出的对象入缓存，
+/// delta 引用 base 时优先命中；超限淘汰最久未用，miss 由调用方经 externalBase 从盘上读回。
+/// 内存上界 = maxBytes，保证 4 万对象大仓库解压不 OOM。
+/// </summary>
+sealed class BaseCache
+{
+    private readonly int _maxBytes;
+    private readonly Dictionary<string, (string Type, byte[] Content, LinkedListNode<string> Node)> _map = new(StringComparer.Ordinal);
+    private readonly LinkedList<string> _order = new();
+    private int _bytes;
+
+    public BaseCache(int maxBytes) => _maxBytes = maxBytes;
+
+    /// <summary>取 base 内容并提升为最近使用；未缓存返回 null。</summary>
+    public (string Type, byte[] Content)? Get(string sha)
+    {
+        if (_map.TryGetValue(sha, out var e))
+        {
+            _order.Remove(e.Node);
+            _order.AddFirst(e.Node);
+            return (e.Type, e.Content);
+        }
+        return null;
+    }
+
+    /// <summary>放入 base 内容；超过字节上限时淘汰最久未用（单对象超过上限则不缓存）。</summary>
+    public void Put(string sha, string type, byte[] content)
+    {
+        if (content.Length > _maxBytes) return;
+        if (_map.TryGetValue(sha, out var ex))
+        {
+            _order.Remove(ex.Node);
+            _bytes -= ex.Content.Length;
+            _map.Remove(sha);
+        }
+        var node = _order.AddFirst(sha);
+        _map[sha] = (type, content, node);
+        _bytes += content.Length;
+        while (_bytes > _maxBytes && _order.Count > 1)
+        {
+            var lastKey = _order.Last!.Value;
+            _order.RemoveLast();
+            _bytes -= _map[lastKey].Content.Length;
+            _map.Remove(lastKey);
+        }
     }
 }
 
@@ -347,7 +638,27 @@ public static class PackFileWriter
 /// </summary>
 internal static class Inflater
 {
-    public static (byte[] Data, int Consumed) Decompress(byte[] input, int offset)
+    public static (byte[] Data, int Consumed) Decompress(ReadOnlySpan<byte> input, int offset)
+    {
+        // 两遍：先推进拿大小，再分配精确数组解第二遍（避免 MemoryStream 翻倍物化大对象）
+        var (outLen, consumed) = InflateCore(default, input, offset);
+        var data = new byte[outLen];
+        InflateCore(data, input, offset);
+        return (data, consumed);
+    }
+
+    /// <summary>解压到指定缓冲（可为原生 Span，大对象不占托管堆）。返回消耗的压缩字节数。</summary>
+    public static int DecompressInto(Span<byte> output, ReadOnlySpan<byte> input, int offset)
+    {
+        var (_, consumed) = InflateCore(output, input, offset);
+        return consumed;
+    }
+
+    /// <summary>只推进偏移、不解出内容（packfile 预扫描定位对象边界用，省去物化输出内存）。</summary>
+    public static int Skip(ReadOnlySpan<byte> input, int offset)
+        => InflateCore(default, input, offset).Consumed;
+
+    static (int OutLen, int Consumed) InflateCore(Span<byte> output, ReadOnlySpan<byte> input, int offset)
     {
         int pos = offset;
         byte cmf = input[pos++];
@@ -358,7 +669,7 @@ internal static class Inflater
         if ((flg & 0x20) != 0) pos += 4; // FDICT：跳过 4 字节 dictid（git 不用 preset dictionary）
 
         var br = new BitReader(input, pos);
-        using var output = new MemoryStream();
+        int outLen = 0;   // output 为空（Skip）时仅推进长度，不落内容
 
         bool final;
         do
@@ -367,37 +678,42 @@ internal static class Inflater
             int btype = br.ReadBits(2);
             switch (btype)
             {
-                case 0: DecodeStored(br, output); break;
-                case 1: DecodeHuffman(br, output, FixedLitLen, FixedDist); break;
-                case 2: DecodeDynamic(br, output); break;
+                case 0: DecodeStored(ref br, output, ref outLen); break;
+                case 1: DecodeHuffman(ref br, output, FixedLitLen, FixedDist, ref outLen); break;
+                case 2: DecodeDynamic(ref br, output, ref outLen); break;
                 default: throw new InvalidDataException($"非法 deflate 块类型 {btype}");
             }
         } while (!final);
 
         br.AlignToByte();
         pos = br.BytePosition + 4; // 跳过 adler32
-        return (output.ToArray(), pos - offset);
+        return (outLen, pos - offset);
     }
 
     // ── stored 块（BTYPE=00）──
-    static void DecodeStored(BitReader br, Stream output)
+    static void DecodeStored(ref BitReader br, Span<byte> output, ref int outLen)
     {
         br.AlignToByte();
         int len = br.ReadByte() | (br.ReadByte() << 8);
         int nlen = br.ReadByte() | (br.ReadByte() << 8);
         if ((len ^ 0xFFFF) != nlen) throw new InvalidDataException("stored 块长度校验失败");
-        output.Write(br.ReadBytes(len), 0, len);
+        if (output.IsEmpty) { outLen += len; br.SkipBytes(len); }
+        else
+        {
+            for (int i = 0; i < len; i++) output[outLen++] = (byte)br.ReadByte();
+        }
     }
 
     // ── Huffman 块（BTYPE=01 固定 / 02 动态解码后共用）──
-    static void DecodeHuffman(BitReader br, MemoryStream output, HuffmanDecoder litlen, HuffmanDecoder dist)
+    static void DecodeHuffman(ref BitReader br, Span<byte> output, HuffmanDecoder litlen, HuffmanDecoder dist, ref int outLen)
     {
         while (true)
         {
-            int sym = litlen.Decode(br);
+            int sym = litlen.Decode(ref br);
             if (sym < 256)
             {
-                output.WriteByte((byte)sym);
+                if (output.IsEmpty) outLen++;
+                else output[outLen++] = (byte)sym;
             }
             else if (sym == 256)
             {
@@ -406,14 +722,23 @@ internal static class Inflater
             else
             {
                 int length = LengthBase[sym - 257] + br.ReadBits(LengthExtra[sym - 257]);
-                int distSym = dist.Decode(br);
+                int distSym = dist.Decode(ref br);
                 int distance = DistBase[distSym] + br.ReadBits(DistExtra[distSym]);
-                CopyFromHistory(output, distance, length);
+                if (output.IsEmpty) outLen += length;
+                else
+                {
+                    // 历史回读（可重叠：读到的字节写回同缓冲，后续 copy 能引用到）
+                    for (int i = 0; i < length; i++)
+                    {
+                        output[outLen] = output[outLen - distance];
+                        outLen++;
+                    }
+                }
             }
         }
     }
 
-    static void DecodeDynamic(BitReader br, MemoryStream output)
+    static void DecodeDynamic(ref BitReader br, Span<byte> output, ref int outLen)
     {
         int hlit = br.ReadBits(5) + 257;
         int hdist = br.ReadBits(5) + 1;
@@ -429,7 +754,7 @@ internal static class Inflater
         int idx = 0;
         while (idx < lengths.Length)
         {
-            int sym = codeLenDecoder.Decode(br);
+            int sym = codeLenDecoder.Decode(ref br);
             if (sym < 16)
             {
                 lengths[idx++] = (byte)sym;
@@ -452,28 +777,18 @@ internal static class Inflater
 
         var litlen = new HuffmanDecoder(lengths.AsSpan(0, hlit).ToArray());
         var dist = new HuffmanDecoder(lengths.AsSpan(hlit, hdist).ToArray());
-        DecodeHuffman(br, output, litlen, dist);
+        DecodeHuffman(ref br, output, litlen, dist, ref outLen);
     }
 
-    static void CopyFromHistory(MemoryStream output, int distance, int length)
+    // ── 位读取器（LSB-first，deflate Huffman 位序）；ref struct 支持原生 Span 输入（大对象压缩数据不占托管堆）──
+    ref struct BitReader
     {
-        for (int i = 0; i < length; i++)
-        {
-            int historyLen = (int)output.Length;
-            var buf = output.GetBuffer();
-            output.WriteByte(buf[historyLen - distance]);
-        }
-    }
-
-    // ── 位读取器（LSB-first，deflate Huffman 位序）──
-    sealed class BitReader
-    {
-        private readonly byte[] _data;
+        private readonly ReadOnlySpan<byte> _data;
         private int _pos;
         private uint _buf;
         private int _bits;
 
-        public BitReader(byte[] data, int pos) { _data = data; _pos = pos; }
+        public BitReader(ReadOnlySpan<byte> data, int pos) { _data = data; _pos = pos; }
 
         public int ReadBit()
         {
@@ -506,10 +821,20 @@ internal static class Inflater
             return _data[_pos++];
         }
 
+        /// <summary>直接跳过 n 个字节（Skip 模式下 stored 块不读内容）。</summary>
+        public void SkipBytes(int n)
+        {
+            if (_pos + n > _data.Length) throw new EndOfStreamException("数据截断");
+            _pos += n;
+        }
+
         public byte[] ReadBytes(int n)
         {
+            // 必须与 SkipBytes 一致抛 EndOfStreamException：分块解码靠它识别「块不够大」自动加大重读；
+            // Array.Copy 的 ArgumentException 会逃逸成诡异崩溃。仅小对象 stored 块用（大对象走 span 直接拷贝）
+            if (_pos + n > _data.Length) throw new EndOfStreamException("数据截断");
             var b = new byte[n];
-            Array.Copy(_data, _pos, b, 0, n);
+            _data.Slice(_pos, n).CopyTo(b);
             _pos += n;
             return b;
         }
@@ -541,7 +866,7 @@ internal static class Inflater
             _counts = blCount;
         }
 
-        public int Decode(BitReader br)
+        public int Decode(ref BitReader br)
         {
             int code = 0;
             int first = 0;
