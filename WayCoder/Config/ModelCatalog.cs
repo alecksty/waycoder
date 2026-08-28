@@ -214,9 +214,9 @@ public static partial class ModelCatalog
                 var list = BuiltInCleared ? new List<ModelInfo>() : new List<ModelInfo>(BuiltIn);
                 foreach (var (_, m) in LoadCustom())
                 {
-                    // 同 Id 且同 baseUrl 覆盖内置；不同 baseUrl 视为不同服务商追加（都保留显示）
+                    // 同 Id 且同 baseUrl（规范化去尾部斜杠）覆盖内置；不同 baseUrl 视为不同服务商追加（都保留显示）
                     var idx = list.FindIndex(x => x.Id == m.Id
-                        && string.Equals(x.DefaultBaseUrl ?? "", m.DefaultBaseUrl ?? "", StringComparison.OrdinalIgnoreCase));
+                        && string.Equals(NormalizeBaseUrl(x.DefaultBaseUrl), NormalizeBaseUrl(m.DefaultBaseUrl), StringComparison.OrdinalIgnoreCase));
                     if (idx >= 0) list[idx] = m;
                     else list.Add(m);
                 }
@@ -935,7 +935,7 @@ public static partial class ModelCatalog
         if (id.Contains("llama")) return P("meta", "Meta");
         if (id.Contains("mistral") || id.Contains("codestral")) return P("mistral", "Mistral");
         if (id.Contains("openrouter")) return P("openrouter", "OpenRouter");
-        return P("opencode", "OpenCode");
+        return P("opencode-zen", "OpenCode Zen");
     }
 
     /// <summary>

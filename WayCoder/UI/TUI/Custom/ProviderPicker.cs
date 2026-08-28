@@ -143,7 +143,13 @@ public static class ProviderPicker
                     if (string.IsNullOrWhiteSpace(id)) { Say("❌ 供应商 ID 不能为空"); return; }
                     var name = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1].Trim() : id;
                     var url = parts.Length > 2 && !string.IsNullOrWhiteSpace(parts[2]) ? parts[2].Trim() : "";
-                    ModelCatalog.RegisterProvider(id, name, url);
+                    if (!ModelCatalog.RegisterProvider(id, name, url))
+                    {
+                        Rebuild();
+                        var owner = ModelCatalog.FindProviderByBaseUrl(url);
+                        Say($"❌ 地址已被「{owner}」占用（同地址 = 同供应商，不允许重复）");
+                        return;
+                    }
                     Rebuild();
                     Say($"✅ 已添加供应商 {name}");
                 });
@@ -172,7 +178,13 @@ public static class ProviderPicker
                 text =>
                 {
                     var url = text?.Trim() ?? "";
-                    ModelCatalog.UpdateProviderUrl(r.Id, url);
+                    if (!ModelCatalog.UpdateProviderUrl(r.Id, url))
+                    {
+                        Rebuild();
+                        var owner = ModelCatalog.FindProviderByBaseUrl(url);
+                        Say($"❌ 新地址已被「{owner}」占用（同地址 = 同供应商，不允许重复）");
+                        return;
+                    }
                     Rebuild();
                     Say($"✅ 已更新地址");
                 });
