@@ -1,6 +1,6 @@
 using WayCoder.UI.Shared.Terminal;
 
-namespace WayCoder.UI.Tui.ToolRenderers;
+namespace WayCoder.UI.TUI.Renderers;
 
 /// <summary>
 /// Bash 工具渲染器 —— 命令头 + 退出码标记 + 输出截断提示。

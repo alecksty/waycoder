@@ -2,12 +2,11 @@
 using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.Tools;
-using WayCoder.UI.Tui.ToolRenderers;
-
 using WayCoder.UI.Tui.Controls;
 
 using WayCoder.UI.Shared;
 using WayCoder.UI.TUI.Base;
+using WayCoder.UI.TUI.Renderers;
 
 namespace WayCoder.UI.Tui.Screens;
 

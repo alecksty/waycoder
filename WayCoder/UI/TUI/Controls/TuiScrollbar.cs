@@ -7,7 +7,7 @@ namespace WayCoder.UI.Tui.Controls;
 /// 独立滚动条组件 —— 对标 Crush scrollbar.go。
 /// 垂直滑块、百分比指示、自动隐藏、鼠标滚轮+拖拽。
 /// </summary>
-public class TuiScrollbar : TuiControl
+public class TuiScrollbar : TuiDisplayControl
 {
     /// <summary>内容总高度（行数）</summary>
     public int ContentHeight { get; set; }
@@ -51,7 +51,6 @@ public class TuiScrollbar : TuiControl
         Height = 10;
     }
 
-    public override bool CanFocus => false;
 
     // ── 计算属性 ──
 

@@ -1,6 +1,6 @@
 using WayCoder.UI.Shared.Terminal;
 
-namespace WayCoder.UI.Tui.ToolRenderers;
+namespace WayCoder.UI.TUI.Renderers;
 
 /// <summary>
 /// Write 工具渲染器 —— 文件创建摘要。

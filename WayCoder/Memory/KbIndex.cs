@@ -1,5 +1,4 @@
 using System.Text;
-using WayCoder.Infra;
 
 namespace WayCoder;
 
@@ -84,7 +83,7 @@ public static class KbIndex
             {
                 Name = fm.GetValueOrDefault("name") ?? Path.GetFileNameWithoutExtension(path),
                 Description = fm.GetValueOrDefault("description") ?? "",
-                Kind = kind,
+                Kind = kind!,
                 Content = body.Trim(),
                 Source = fm.GetValueOrDefault("source") ?? "manual",
                 Tags = ParseTags(fm.GetValueOrDefault("tags")),
@@ -921,8 +920,9 @@ public static class KbIndex
 
     static string FirstLine(string s)
     {
-        var nl = (s ?? "").IndexOf('\n');
-        var line = nl >= 0 ? s[..nl] : s;
+        var text = s ?? "";
+        var nl = text.IndexOf('\n');
+        var line = nl >= 0 ? text[..nl] : text;
         return ContextManager.TruncateByRunes(line.Trim(), 60);
     }
 

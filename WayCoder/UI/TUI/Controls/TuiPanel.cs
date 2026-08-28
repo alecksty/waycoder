@@ -70,7 +70,9 @@ public class TuiPanel : TuiView
         int w = Width;
         int h = Height;
 
-        var (tl, tr, bl, br, hh, vv) = GetBorderChars();
+        // 边框字符统一走 AnsiHelper（此前这里各自重写了一份 switch，缺 Solid/Dotted 等新样式）
+        var bch = AnsiHelper.GetBorderChars(BorderStyle);
+        string tl = bch.TL, tr = bch.TR, bl = bch.BL, br = bch.BR, hh = bch.H, vv = bch.V;
 
         // 背景填充
         if (Bg > 0)
@@ -122,17 +124,6 @@ public class TuiPanel : TuiView
         // ── 渲染子控件（在内容区域内）──
         base.OnRender(sb, absX, absY);
     }
-
-    // ── 边框字符 ──
-    private (string tl, string tr, string bl, string br, string h, string v) GetBorderChars() =>
-        BorderStyle switch
-        {
-            WindowBorder.Double => ("╔", "╗", "╚", "╝", "═", "║"),
-            WindowBorder.Thick => ("┏", "┓", "┗", "┛", "━", "┃"),
-            WindowBorder.Single => ("┌", "┐", "└", "┘", "─", "│"),
-            WindowBorder.Ascii => ("+", "+", "+", "+", "-", "|"),
-            _ => ("╭", "╮", "╰", "╯", "─", "│"), // Rounded
-        };
 
     // OnKey 继承自 TuiView，自动路由到子焦点控件
 }

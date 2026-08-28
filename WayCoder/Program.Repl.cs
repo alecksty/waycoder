@@ -5,6 +5,7 @@ using WayCoder.UI.Tui;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Controls;
+using WayCoder.UI.TUI.Renderers;
 using WayCoder.UI.Tui.Screens;
 using WayCoder.UI.Web;
 using Arguments = WayCoder.UI.Cli.Arguments;
@@ -1326,7 +1327,7 @@ public partial class Program
 
         // 与 ChatScreen.AddToolProgress 一致的渲染头（非活跃缓冲也保持相同样式）
         static string ToolLabel(string name, string brief)
-            => $"  {WayCoder.UI.Tui.ToolRenderers.ToolRendererFactory.Get(name).FormatHeader(brief)}";
+            => $"  {ToolRendererFactory.Get(name).FormatHeader(brief)}";
 
         // 回退链首项用槽位实际模型（llm.Model），而非全局 _config.Model——
         // 否则槽位模型与 .env 不一致时，首项/失败消息会显示错误模型（如 mimo-v2.5）。

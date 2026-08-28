@@ -1,5 +1,71 @@
 # 更新日志
 
+## v0.96.25 (2026-08-28) — 控件基类提炼 + 渲染器命名空间重构 + 编译警告清零
+
+- **编译警告清零**：csproj 修复 WebAssets.Generated.cs 重复编译（CS2002——Windows 下 glob Identity 是反斜杠路径，Target 里 Remove 用正斜杠不匹配）；PackFile 位运算符号扩展显式强转（CS0675×3）；KbIndex null 引用修复（CS8601/8602）；自测回调 content! 断言（CS8604×3）；清理全局已声明的冗余 using——`dotnet build` 0 警告 0 错误
+- **控件基类提炼**：新增 `TuiDisplayControl`（CanFocus=false，收纳 15 个纯展示控件）+ `TuiBorderedControl`（BorderStyle/BorderColor/GetBorderChars 统一 4 个边框控件）；TuiPanel 删除自写的不完整边框 switch 改委托 AnsiHelper（补全 Solid/Dotted/Dashed/Slash/Triangle 等新样式）；TuiRect/TuiLine 的 Style 属性统一改名 BorderStyle
+- **渲染器命名空间重构**：`WayCoder.UI.Tui.ToolRenderers` → `WayCoder.UI.TUI.Renderers` 统一命名空间；TuiMarkdown 从 Custom/ 移到 UI/TUI/；编辑器/对话框/列表等控件格式化统一（换行/括号风格）
+- **细节调整**：toast 队列上限 5→10；列表 Home 键直接跳到底部；模型信息栏精简（工作模式→模式、经济模式→经济、大模型→大、小模型→小）；快捷键栏去掉「Tab 补全」提示
+- **自测**：4720 全过
+
+## v0.96.24 (2026-08-28) — TUI 动画心跳：主渲染循环被堵时 spinner 仍持续转
+
+- **需求**：卡死时动画控件也停——动画帧由主渲染循环驱动，循环被堵（ReadKey 被抢 / 锁 / 长任务）Render 不再调用，spinner 冻结
+- **实现**：`TuiManager` 独立动画心跳线程（后台，~120ms/帧）——主循环最近 150ms 内 Render 过则跳过（避免双写+光标跳动），超过则接管直写 spinner 帧；`RenderDirect` 内部门控活跃屏 + 无浮层，安全
+- **效果**：只要 screen 可见（活跃屏且无对话框覆盖），spinner 就一直转，UI 看起来是活的；不取 `_renderLock`（否则主循环堵在 Render 里心跳也停）
+- **配套**：`TuiDynamicBar.RenderAllDirect` 快照迭代（防 DirectWriters 并发增删抛异常）
+- **自测**：4720 全过
+
+## v0.96.23 (2026-08-28) — TUI 卡死修复：后台线程全部桥接 UI 线程 + RenderWait 单帧防御
+
+- **TUI 卡死根因（模型管理对话框）**：在线导入/扫描/连通性测试的进度回调和完成刷新在 `Task.Run` 后台线程**直接改控件树**（`help.Text`/`MarkDirty`/`RefreshParent` 重建表格行），与渲染线程并发读写 → 渲染读到半改态抛异常 → `RenderWait` 异常逃逸、`evt` 永不置位 → 对话框永久卡死
+- **修复**：ModelPicker（在线导入 onProgress、扫描完成、本地导入完成）与 ProviderPicker（连通性测试完成）全部改 `screen.PostToUI` 桥接回 UI 线程执行；后台线程只投递不碰控件
+- **RenderWait 单帧 try/catch**：渲染/读键一帧异常不再逃逸（否则窗口栈残留 → 永久冻结），下一帧照常重绘
+- **自测**：4720 全过
+
+## v0.96.22 (2026-08-28) — provider 数据库两条铁律：不允许重复地址 + 同供应商不允许重复模型
+
+- **地址唯一铁律**：`RegisterProvider`/`UpdateProviderUrl` 拒绝「地址已被其它供应商占用」（同地址 = 同供应商）；CLI `/provider add`、TUI `/provider`、移动端导入供应商均弹出明确拒绝提示
+- **自动修复**：新增 `DeduplicateProviders`——加载 providers.json 后自动归并共享同一地址的重复供应商（内置优先、id 字典序靠前者胜出，被合并者的模型改挂到保留供应商）；`--model clean` 也触发
+- **内置合并**：bailian（百炼）与 opencode 旧别名均并入对应规范供应商（qwen / opencode-zen），内置注册表不再有重复地址
+- **模型唯一铁律**：`AddCustom` 同 providerId+id 二次写入自动合并；`All` 按规范化 baseUrl（去尾部斜杠）覆盖内置，消除「同供应商同模型因地址变体重复」
+- **自测**：4720 全过；Maui Android 编译通过
+
+## v0.96.21 (2026-08-28) — 供应商管理对话框（全端）+ TUI 导入异步 + 模型选择框闪烁/省略号修复
+
+- **TUI `/provider` 供应商管理对话框**（新 `ProviderPicker`）：列出全部供应商（🔑有Key/⚠️无Key/🌿本地 · 显示名 · Key状态 · **模型数量** · 连通性 · 地址），按钮：设Key / 清Key / 测试 / 添加 / 改名 / 改地址 / 删除；改动即落盘 providers.json
+- **移动端供应商 CRUD**：供应商卡片点开菜单「管理模型 / 设Key / 清Key / 改名 / 改地址 / 删除」；「＋导入供应商」正确注册 providers.json
+- **Web 端 models.dev 导入**：在线导入源列表新增 models.dev；导入改后台线程异步（不再阻塞请求线程）
+- **TUI 导入全部异步 + 进度**：在线导入（models.dev 4.4MB/7000 模型）改 Task.Run 后台执行 + 底部进度显示（拉取→解析含 KB→完成），不再卡死 UI；报告含「X 供应商 / Y 模型」
+- **模型选择框闪烁修复**：箭头导航去掉 `screen.MarkDirty()`（它设 RootView.IsDirty 强制整屏重绘）→ 只增量重绘选中行，标题栏/外框不再闪
+- **省略号 U+2026 宽度修复**：等宽终端按 1 列渲染（曾按 EA Ambiguous 算 2 列 → 供应商对话框等表格后列错位）；测试同步更新
+- **供应商注册表**：新增 `RenameProvider`/`UpdateProviderUrl`（保留其他字段落盘）
+- **供应商唯一 id 由 base_url 决定**：新增统一入口 `ResolveProviderId(baseUrl, fallbackPid)`——已知网关 host→规范 id（deepseek/openai…，opencode 按路径分 Go/Zen），未知 host→按 host 派生稳定 id（同地址必同 id，跨来源也能合并去重），无地址才回退来源 pid；models.dev 导入补齐 base_url 归类（此前直接用 pid），OpenCode/OpenClaw/Crush/Claude/Codex 导入全部统一走此入口
+- **自测**：4711 全过
+
+## v0.96.20 (2026-08-28) — 聊天浮动滚底 + 压缩进度进状态区 + models.dev 导入 + 内置模型丰富 + 文件页编辑模式
+
+- **聊天浮动「滚到底」按钮**：手动上翻离开底部 → 右下角 ↓ 浮动按钮，点它滚到底并恢复自动滚动后隐藏
+- **上下文压缩进度进状态区（所有端）**：核心 `CompressWithSmallModel` 不再把压缩进度喂进 token 流（源头修复），只走 `ContextManager.CompressProgress` 事件——桌面动态栏 / Web 状态区 / 移动状态栏固定位置显示，聊天区保持干净；移动端 `ChatPage` 订阅事件显示「🔄 压缩中 [Lx/3]…」，并过滤压缩 token 不进内容
+- **models.dev 导入（所有端）**：`ModelCatalog.ImportModelsDev` 解析 models.dev `api.json`（200+ 服务商、7000+ 模型、价格/上下文/思考/工具），加入 `ModelCli.OnlineSources` → 桌面/Web/移动「在线导入」多出 models.dev 源；模型 id 自动去服务商前缀
+- **内置目录丰富**：更新过时上下文/价格（gpt-5.5/5.4 → 1.05M、claude-sonnet-5 → 1M 等），新增 18 个新模型（GPT-5.5 Pro、GPT-5.6、o3 Pro、Claude Fable 5、Kimi K3/K2.7 Code/K2.6、Grok 4.6、Gemini 3.1 Pro、GLM-5.3/5/4.7、Qwen3.7 Max 等）
+- **导入去重：有价格覆盖没价格**：`MergeModel` 同供应商同模型有价格者胜（多源导入后价格最全）
+- **connectId 去重键规范化**：`ModelKey` 两侧 `NormalizeId`（小写 + 去空格 + 空格转横线），同供应商同模型不因导入来源大小写/空格差异重复；`RemoveCustom` 兼容旧格式
+- **文件页编辑模式**：工具栏「✏️ 编辑/✔ 完成」开关，编辑模式下点任意目录/文件弹「重命名 / 删除 / 创建 ZIP 压缩包」；`SandboxFsService.CreateZip`（ZipArchive 打包，AOT 安全）；点击机制恢复 CollectionView SelectionChanged（TapGesture 在 Android 不可靠）
+- **自测**：新增 models.dev 导入解析 / 去重价格覆盖 / connectId 归一化测试，共 4703 全过
+
+## v0.96.19 (2026-08-28) — 移动端聊天卡死修复 + 发送队列（忙时排队，输入永不卡）
+
+移动端聊天在 agent 长任务/长思考时界面卡死（输入、点击无响应）。两个根因一并修掉：
+
+1. **思考流刷爆主线程**：`aiMsg.Reasoning` 每个思考 token 都 set → 每次触发绑定重渲染。长思考流（DeepSeek 几千字思考）每 token 刷一遍 UI → 主线程被淹没。改为与正文一致节流（≥300 字符 或 ≥120ms 才更新，最终补全全文）。
+2. **发送键 = 停止键**：运行中发送键变「■停止」，忙时无法发新消息。改为**发送始终可用**（忙时入队），新增独立红色 ■ 停止键（运行中才显示）。
+
+- **发送队列**：agent 忙时发送的消息立即可见并标「⏳ 排队中…」，忙完自动取下一条（「📤 发送中…」→ 完成），多条按序串行处理；输入框永不因忙禁用
+- **`ChatPage` 重构**：`OnSendClicked` 拆为 `ProcessQueueAsync`（队列串行循环）+ `RunOneMessageAsync`（单轮对话）+ `OnStopClicked`（独立停止）
+- **思考节流**：`ShouldRecomputeReasoning`（同 Formatted 的 300 字符/120ms 策略），`finally` 补齐最终思考全文
+- **编译**：桌面 0 错误；移动端 `net10.0-android` 0 错误
+
 ## v0.96.18 (2026-08-28) — 移动端 git 拉取大仓库闪退修复（下载/解码/大对象三路 OOM）
 
 移动端 git 同步（克隆/拉取）大仓库时闪退，三个独立 OOM 根因逐一修掉（实测 VML.git 4 万+ 对象、pack 数百 MB、**单对象 593MB**）：

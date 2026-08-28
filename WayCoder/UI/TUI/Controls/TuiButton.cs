@@ -19,6 +19,7 @@ public class TuiButton : TuiControl
         get => _text;
         set => SetDirty(ref _text, value);
     }
+
     private string _text = "OK";
 
     /// <summary>
@@ -38,10 +39,12 @@ public class TuiButton : TuiControl
         get => _isSelected;
         set => SetDirty(ref _isSelected, value);
     }
+
     private bool _isSelected;
 
     /// <summary>最小显示宽度（不足补空格）</summary>
     public int MinWidth { get; set; }
+
     public int MaxWidth { get; set; }
 
     // 渐变三属性都不写死默认值，未显式设置时回落到主题的「按钮默认风格」——
@@ -78,6 +81,7 @@ public class TuiButton : TuiControl
         get => _isHovered;
         set => SetDirty(ref _isHovered, value);
     }
+
     private bool _isHovered;
 
     public TuiButton()

@@ -746,6 +746,125 @@ public static partial class SelfTest
         Check("vision: deepseek 否", !ModelCatalog.ResolveSupportsVision("deepseek-v4-flash", null));
         Check("vision: qwen3-max 否", !ModelCatalog.ResolveSupportsVision("qwen3-max", null));
         Check("vision: 空模型否", !ModelCatalog.ResolveSupportsVision(null, null));
+
+        // ── models.dev 导入解析（api.json 格式）+ 去重价格覆盖 ──
+        {
+            var devJson = """
+            {
+              "deepseek": {
+                "name": "DeepSeek",
+                "api": "https://api.deepseek.com",
+                "models": {
+                  "deepseek/deepseek-v4-flash": { "id": "deepseek/deepseek-v4-flash", "name": "DeepSeek V4 Flash",
+                    "cost": { "input": 0.14, "output": 0.28 }, "limit": { "context": 1048576, "output": 128000 },
+                    "reasoning": true, "tool_call": true }
+                }
+              },
+              "openai": {
+                "name": "OpenAI",
+                "models": {
+                  "openai/gpt-5.5": { "id": "openai/gpt-5.5", "name": "GPT-5.5",
+                    "cost": { "input": 5, "output": 30 }, "limit": { "context": 256000 } }
+                }
+              }
+            }
+            """;
+            var devModels = ModelCatalog.ImportModelsDev(devJson);
+            Check("models.dev 导入 2 个模型", devModels.Count == 2);
+            var flash = devModels.FirstOrDefault(m => m.ProviderId == "deepseek");
+            Check("models.dev id 去服务商前缀", flash != null && flash.Id == "deepseek-v4-flash");
+            Check("models.dev 价格解析", flash != null && Math.Abs(flash.InputPrice - 0.14) < 0.001 && Math.Abs(flash.OutputPrice - 0.28) < 0.001);
+            Check("models.dev 上下文解析", flash != null && flash.ContextWindow == 1_048_576);
+            Check("models.dev thinking/tools", flash != null && flash.SupportsThinking == true && flash.SupportsTools == true);
+            Check("models.dev baseUrl", flash != null && flash.DefaultBaseUrl == "https://api.deepseek.com");
+
+            // 去重：有价格覆盖没价格（同供应商同模型）
+            var priced = new ModelCatalog.ModelInfo("deepseek-chat", "DeepSeek Chat", "DeepSeek", "deepseek", "D", "Imported", 32768, 0.5, 1.0, null, "priced");
+            var unpriced = new ModelCatalog.ModelInfo("deepseek-chat", "DeepSeek Chat", "DeepSeek", "deepseek", "D", "Imported", 32768, 0, 0, null, "unpriced");
+            Check("去重：有价格保留（已有价格）", ModelCatalog.MergeModel(priced, unpriced) == priced);
+            Check("去重：有价格覆盖（导入有价格）", ModelCatalog.MergeModel(unpriced, priced) == priced);
+
+            // connectId 去重键规范化：同供应商同模型不因大小写/空格差异重复（小写 + 空格转横线）
+            Check("connectId: 大小写归一", ModelCatalog.ModelKey("DeepSeek", "DeepSeek V4 Pro") == ModelCatalog.ModelKey("deepseek", "deepseek-v4-pro"));
+            Check("connectId: 空格转横线", ModelCatalog.ModelKey("Open AI", "gpt 5") == "open-ai|gpt-5");
+            Check("connectId: 供应商参与去重", ModelCatalog.ModelKey("deepseek", "chat") != ModelCatalog.ModelKey("qwen", "chat"));
+
+            // 供应商唯一 id 由 base_url 决定：已知网关→规范 id；未知 host→按 host 派生稳定 id（同地址必同 id）
+            Check("provider id: 已知网关按 base_url 归类",
+                ModelCatalog.ResolveProviderId("https://api.deepseek.com", "deepseek-cn") == "deepseek");
+            Check("provider id: opencode 按路径分 Go/Zen",
+                ModelCatalog.ResolveProviderId("https://opencode.ai/zen/go/v1", "x") == "opencode-go"
+                && ModelCatalog.ResolveProviderId("https://opencode.ai/zen/v1", "x") == "opencode-zen");
+            Check("provider id: 未知 host 派生稳定 id",
+                ModelCatalog.ResolveProviderId("https://api.neuralreseller.com/v1", "r1") == "api-neuralreseller-com");
+            Check("provider id: 同 host 同 id（跨来源去重）",
+                ModelCatalog.ResolveProviderId("https://api.neuralreseller.com/v1", "r1") == ModelCatalog.ResolveProviderId("https://api.neuralreseller.com/v1", "r2"));
+            Check("provider id: 无地址回退来源 pid",
+                ModelCatalog.ResolveProviderId(null, "myai") == "myai"
+                && ModelCatalog.ResolveProviderId("", "My AI Co") == "my-ai-co");
+            Check("provider id: 本地回退 local",
+                ModelCatalog.ResolveProviderId("http://localhost:11434", "ollama") == "local");
+
+            // models.dev 导入：未知 host 模型归 host 派生 id（同地址同供应商）
+            var devCustom = ModelCatalog.ImportModelsDev("""
+                {
+                  "reseller-a": { "name": "Reseller A", "api": "https://api.neuralreseller.com/v1",
+                    "models": { "m1": { "id": "m1", "name": "M1" } } },
+                  "reseller-b": { "name": "Reseller B", "api": "https://api.neuralreseller.com/v1",
+                    "models": { "m1": { "id": "m1", "name": "M1", "cost": { "input": 0.1, "output": 0.2 } } } }
+                }
+                """);
+            Check("models.dev 未知 host 归一为同一 provider id",
+                devCustom.Count == 2 && devCustom.All(m => m.ProviderId == "api-neuralreseller-com"));
+            Check("models.dev 同 id 同地址合并（有价覆盖无价）",
+                devCustom.Select(m => m.Id).Distinct().Count() == 1);
+
+            // provider 数据库铁律：不允许重复地址（同地址 = 同供应商）
+            var testUrl = "https://api.wc-dup.example/v1";
+            var testUrlSlashed = testUrl + "/";
+            var testUrlD = "https://api.wc-dup-d.example/v1";
+            ModelCatalog.RegisterProvider("wca", "A", testUrl);
+            Check("provider 地址唯一: 同地址注册被拒",
+                !ModelCatalog.RegisterProvider("wcb", "B", testUrl)
+                && ModelCatalog.FindProviderByBaseUrl(testUrl) == "wca");
+            Check("provider 地址唯一: 尾部斜杠视为同地址",
+                !ModelCatalog.RegisterProvider("wcc", "C", testUrlSlashed));
+            Check("provider 地址唯一: 改地址被占用被拒",
+                ModelCatalog.RegisterProvider("wcd", "D", testUrlD)
+                && !ModelCatalog.UpdateProviderUrl("wcd", testUrl));
+            // 直接注入重复地址模拟历史脏数据 → DeduplicateProviders 归并（保留先注册者）
+            ModelCatalog.Providers["wcb"] = new ModelCatalog.ProviderInfo("B", testUrl);
+            var deduped = ModelCatalog.DeduplicateProviders();
+            Check("provider 地址唯一: 去重归并保留先注册者",
+                deduped >= 1 && ModelCatalog.Providers.ContainsKey("wca") && !ModelCatalog.Providers.ContainsKey("wcb"));
+            // 清理测试供应商（不污染真实注册表/文件）
+            ModelCatalog.RemoveProvider("wca");
+            ModelCatalog.RemoveProvider("wcc");
+            ModelCatalog.RemoveProvider("wcd");
+            Check("provider 地址唯一: 清理后无残留",
+                !ModelCatalog.Providers.ContainsKey("wca")
+                && !ModelCatalog.Providers.ContainsKey("wcb")
+                && !ModelCatalog.Providers.ContainsKey("wcc")
+                && !ModelCatalog.Providers.ContainsKey("wcd"));
+
+            // 同供应商不允许重复模型：同 providerId+id 二次写入自动合并（字典键去重）
+            var dupA = new ModelCatalog.ModelInfo("wc-dup-model", "Dup", "Qwen Test", "wca", "*", "Custom", 0, 0, 0, testUrl, "t1");
+            var dupB = new ModelCatalog.ModelInfo("wc-dup-model", "Dup", "Qwen Test", "wca", "*", "Custom", 0, 0, 0, testUrl, "t2");
+            ModelCatalog.AddCustom(dupA);
+            ModelCatalog.AddCustom(dupB);
+            Check("同供应商不允许重复模型: 同 id 二次写入合并",
+                ModelCatalog.All.Count(m => m.Id == "wc-dup-model" && m.ProviderId == "wca") == 1);
+            ModelCatalog.RemoveCustom("wc-dup-model");
+            Check("同供应商不允许重复模型: 清理后无残留",
+                ModelCatalog.All.All(m => m.Id != "wc-dup-model"));
+
+            // All 按规范化 baseUrl 覆盖内置：同供应商同 id + 尾部斜杠地址 → 覆盖不追加（不产生重复模型）
+            ModelCatalog.AddCustom(new ModelCatalog.ModelInfo("qwen3-max", "Qwen3 Max", "Alibaba", "qwen", "*", "Custom",
+                0, 0, 0, "https://dashscope.aliyuncs.com/compatible-mode/v1/", "尾斜杠覆盖测试"));
+            Check("同供应商不允许重复模型: 尾斜杠地址覆盖内置不重复",
+                ModelCatalog.All.Count(m => m.Id == "qwen3-max" && m.ProviderId == "qwen") == 1);
+            ModelCatalog.RemoveCustom("qwen3-max");
+        }
         try
         {
             var imgTmp = Path.Combine(Path.GetTempPath(), "wc_img_" + Guid.NewGuid().ToString("N")[..6] + ".png");

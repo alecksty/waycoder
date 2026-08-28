@@ -397,7 +397,11 @@ public static class ModelCli
         foreach (var id in toRemoveModels) ModelCatalog.RemoveCustom(id);
         foreach (var name in toRemoveConnects) ConnectionConfig.RemoveConnect(name, out _);
 
-        sb.AppendLine($"✅ 清理完成：合并重复 {merged} 个，删除无效服务商模型 {removedProv} 个，删除无效 connect {removedConn} 个");
+        // 供应商地址去重（同地址 = 同供应商）：归并重复地址的供应商并移除
+        var mergedProv = ModelCatalog.DeduplicateProviders();
+
+        sb.AppendLine($"✅ 清理完成：合并重复 {merged} 个，删除无效服务商模型 {removedProv} 个，删除无效 connect {removedConn} 个" +
+            (mergedProv > 0 ? $"，归并重复地址供应商 {mergedProv} 个" : ""));
         if (merged + removedProv + removedConn == 0)
             sb.AppendLine("（模型目录与 connect 已干净，无需清理）");
         return sb.ToString().TrimEnd();
@@ -650,6 +654,8 @@ public static class ModelCli
         new("DeepSeek", "https://api.deepseek.com/v1", "deepseek"),
         new("OpenAI", "https://api.openai.com/v1", "openai"),
         new("Moonshot", "https://api.moonshot.cn/v1", "moonshot"),
+        // models.dev：开源模型数据库（api.json 专用格式，非 OpenAI /models 端点，ImportOnline 特判）
+        new("models.dev", "https://models.dev/api.json", "models.dev"),
     ];
 
     /// <summary>
@@ -666,11 +672,13 @@ public static class ModelCli
             client.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", key);
 
-        onProgress?.Invoke($"🔍 拉取 {src.Name} 模型列表（{src.BaseUrl}/models）...");
+        // models.dev 是 api.json 专用格式（非 OpenAI /models 端点），URL 即文件本身
+        var isModelsDev = src.KeyProvider == "models.dev";
+        onProgress?.Invoke($"🔍 拉取 {src.Name} 模型列表（{(isModelsDev ? src.BaseUrl : src.BaseUrl + "/models")}）...");
         string json;
         try
         {
-            json = client.GetStringAsync(src.BaseUrl + "/models").GetAwaiter().GetResult();
+            json = client.GetStringAsync(isModelsDev ? src.BaseUrl : src.BaseUrl + "/models").GetAwaiter().GetResult();
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -680,14 +688,20 @@ public static class ModelCli
             return $"在线导入（{src.Name}）失败：{hint}（{ex.Message}）";
         }
 
-        var list = ModelCatalog.ImportOpenCodeApi(json, src.BaseUrl);
+        onProgress?.Invoke($"🔄 解析 {src.Name} 模型列表（{json.Length / 1024} KB）…");
+        var list = isModelsDev
+            ? ModelCatalog.ImportModelsDev(json)
+            : ModelCatalog.ImportOpenCodeApi(json, src.BaseUrl);
         if (list.Count == 0)
             return $"在线导入（{src.Name}）未返回可识别的模型";
+        onProgress?.Invoke($"🔄 解析完成 {list.Count} 个模型，写入模型库…");
         var builtInIds = new HashSet<string>(ModelCatalog.BuiltIn.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
         var toAdd = list.Where(m => !builtInIds.Contains(m.Id)).ToList();
         ModelCatalog.AddCustomRange(toAdd);
         RegisterImportProviders(toAdd);
-        return $"✅ 在线导入（{src.Name}）{toAdd.Count} 个模型" +
+        var providerCount = toAdd.Select(m => m.ProviderId).Distinct().Count();
+        onProgress?.Invoke($"✅ 完成：{providerCount} 个供应商 / {toAdd.Count} 个模型");
+        return $"✅ 在线导入（{src.Name}）{providerCount} 个供应商 / {toAdd.Count} 个模型" +
             (list.Count - toAdd.Count > 0 ? $"，跳过 {list.Count - toAdd.Count} 内置" : "") +
             (string.IsNullOrEmpty(key) ? "（未配置 API Key，导入的模型需设 key 后使用）" : "") +
             "：\n  " + string.Join("\n  ", toAdd.Select(m => m.Id));
@@ -762,9 +776,11 @@ public static class ModelCli
                 case "new":
                 {
                     if (values.Count < 4) { Console.WriteLine("用法: --provider add <id> <名称> <base-url>"); return 1; }
-                    ModelCatalog.RegisterProvider(values[1], values[2], values[3]);
-                    Console.WriteLine($"✅ 已添加服务商 {values[1]} → {values[3]}");
-                    return 0;
+                    var added = ModelCatalog.RegisterProvider(values[1], values[2], values[3]);
+                    if (added) { Console.WriteLine($"✅ 已添加服务商 {values[1]} → {values[3]}"); return 0; }
+                    var owner = ModelCatalog.FindProviderByBaseUrl(values[3]);
+                    Console.WriteLine($"❌ 添加失败：该地址已被服务商「{owner}」占用（同地址 = 同供应商，不允许重复）");
+                    return 1;
                 }
                 case "rm":
                 case "remove":

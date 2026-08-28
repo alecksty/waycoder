@@ -1,4 +1,5 @@
 using System.Text;
+using WayCoder.UI.TUI.Custom;
 using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder.UI.Cli.Commands;
@@ -31,7 +32,12 @@ public class ProviderCommand : SlashCommand
 
         if (string.IsNullOrEmpty(trimmed))
         {
-            ShowCurrent(screen);
+            // TUI 打开供应商管理对话框（设Key/清Key/测试/添加/改名/改地址/删除）；
+            // 非 TUI（Web/GUI）回退文本概览
+            if (WayCoder.UI.TUI.Base.TuiManager.Instance?.ActiveScreen != null)
+                ProviderPicker.Show();
+            else
+                ShowCurrent(screen);
             return Task.CompletedTask;
         }
 
@@ -116,7 +122,7 @@ public class ProviderCommand : SlashCommand
             var pid = g.Key;
             var firstModel = g.First();
             ModelCatalog.Providers.TryGetValue(pid, out var prov);
-            var baseUrl = firstModel.DefaultBaseUrl ?? prov.DefaultBaseUrl;
+            var baseUrl = firstModel.DefaultBaseUrl ?? prov?.DefaultBaseUrl;
             var hasKey = ApiKeyStore.Has(pid);
             var keyMark = hasKey ? "🔑" : "— ";   // 统一占 2 列显示宽度（🔑 2 列，— 补空格），避免有/无 key 行错位
             var current = pid.Equals(Config.Instance.Provider, StringComparison.OrdinalIgnoreCase) ? " ← 当前" : "";

@@ -240,6 +240,18 @@ public static class MauiBootstrap
         // 9) 初始化 MCP（Http/Sse 传输可用，stdio 运行时降级）—— 对齐桌面 Program.Main。
         //     McpCache 同步加载缓存工具，Agent 懒建时 ToolRegistry.AllTools 已含 MCP 工具。
         McpManager.Init();
+
+        // 10) 恢复上次的工作/权限/经济模式（手机无快捷键，记住用户选择，下次直接生效）
+        try
+        {
+            if (Services.MauiModeStore.Load() is { } mm)
+            {
+                WorkModeManager.CurrentMode = mm.Work;
+                PermissionManager.CurrentMode = mm.Perm;
+                Config.Instance.EconomyMode = mm.Economy;
+            }
+        }
+        catch { }
     }
 
     /// <summary>
@@ -328,7 +340,7 @@ public static class MauiBootstrap
                 sw.Stop();
                 var msg = $"nativemem OK: 1GB alloc+rw {sw.Elapsed.TotalMilliseconds:F0}ms verify={ok} managedHeapMB={GC.GetTotalMemory(false) / MB}";
                 try { File.WriteAllText(resultPath, msg); } catch { }
-                Android.Util.Log.Info("WayCoderNativeMem", msg);
+                //Util.Log.Info("WayCoderNativeMem", msg);
                 ErrorLog.Info("MAUI.NativeMem", msg);
             }
             finally { NativeMemory.Free(p); }
@@ -337,7 +349,7 @@ public static class MauiBootstrap
         {
             var msg = $"nativemem FAIL: {ex}";
             try { File.WriteAllText(resultPath, msg); } catch { }
-            Android.Util.Log.Error("WayCoderNativeMem", msg);
+            //Android.Util.Log.Error("WayCoderNativeMem", msg);
         }
     }
 }

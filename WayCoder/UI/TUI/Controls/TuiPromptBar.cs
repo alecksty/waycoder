@@ -9,10 +9,11 @@ namespace WayCoder.UI.Tui.Controls;
 /// 提示栏 —— 输入框上方可显示/隐藏的提示列表。
 /// Bg==0 时绘制边框无底色；Bg>0 时全行填充底色 + 底部分隔线。
 /// </summary>
-public class TuiPromptBar : TuiControl
+public class TuiPromptBar : TuiBorderedControl
 {
     #region 属性
 
+    // 可聚焦输入栏：覆写基类（TuiDisplayControl）的 CanFocus=false 恢复聚焦
     public override bool CanFocus => true;
 
     /// <summary>提示条目列表</summary>
@@ -39,9 +40,6 @@ public class TuiPromptBar : TuiControl
     /// <summary>边框/分隔线颜色</summary>
     public int SeparatorColor { get; set; } = AnsiColors.BrightBlack;
 
-    /// <summary>边框样式（Bg==0 时生效）</summary>
-    public WindowBorder BorderStyle { get; set; } = WindowBorder.Rounded;
-
     #endregion
 
     public TuiPromptBar()
@@ -65,7 +63,7 @@ public class TuiPromptBar : TuiControl
 
         var fg = Fg > 0 ? Fg : TuiTheme.Current.ControlFg;
         var borderFg = SeparatorColor;
-        var bc = AnsiHelper.GetBorderChars(BorderStyle);
+        var bc = GetBorderChars();
 
         // ── 上边框 ──
         if (bordered)

@@ -81,7 +81,7 @@ public static partial class SelfTest
             };
             var writerPack = PackFileWriter.Write(writerObjs);
             var seen = new Dictionary<string, byte[]>();
-            int cbCount = PackFileReader.Read(writerPack, null, (type, sha, content) => seen[sha] = content.ToArray());
+            int cbCount = PackFileReader.Read(writerPack, null, (type, sha, content) => seen[sha] = content!.ToArray());
             Check("PackFileReader 回调对象数=2", cbCount == 2);
             Check("回调 blob A 内容一致",
                 seen.TryGetValue(shaA, out var gotA) && gotA.AsSpan().SequenceEqual(plainA));
@@ -124,7 +124,7 @@ public static partial class SelfTest
             string? gotType = null, gotSha = null;
             byte[]? gotContent = null;
             int ocnt = PackFileReader.Read(opack, null,
-                (type, sha, content) => { gotType = type; gotSha = sha; gotContent = content.ToArray(); });
+                (type, sha, content) => { gotType = type; gotSha = sha; gotContent = content!.ToArray(); });
             // 包含 2 个对象（full blob + ofs-delta），Read 应回调 2 次
             Check("ofs-delta 包回调对象数=2", ocnt == 2);
             Check("ofs-delta 解出类型 blob", gotType == "blob");
@@ -143,7 +143,7 @@ public static partial class SelfTest
             {
                 Check("ReadObjectCount 读取对象数", PackFileReader.ReadObjectCount(rfFile) == 1);
                 byte[]? rfGot = null;
-                int rfCnt = PackFileReader.ReadFile(rfFile, null, (type, sha, content) => rfGot = content.ToArray());
+                int rfCnt = PackFileReader.ReadFile(rfFile, null, (type, sha, content) => rfGot = content!.ToArray());
                 Check("ReadFile 回调对象数=1", rfCnt == 1);
                 Check("ReadFile 内容一致", rfGot != null && rfGot.AsSpan().SequenceEqual(rfPlain));
             }

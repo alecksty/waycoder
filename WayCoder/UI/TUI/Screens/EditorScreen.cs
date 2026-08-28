@@ -2,7 +2,6 @@
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.Tools;
 using WayCoder.UI.Tui.Controls;
-
 using WayCoder.UI.Tui.Edit;
 using WayCoder.UI.Shared;
 using WayCoder.UI.TUI;
@@ -38,15 +37,21 @@ public class EditorScreen : TuiScreen
     public TuiLabel StatusBar2 { get; private set; } = null!;
 
     // ── 侧边栏 ──
-    private TuiListView _leftPanel = null!;    // 文件列表
-    private TuiListView _rightPanel = null!;   // 代码大纲
-    private TuiLabel _leftSep = null!;         // 左侧分隔线
-    private TuiLabel _rightSep = null!;        // 右侧分隔线
+    private TuiListView _leftPanel = null!; // 文件列表
+    private TuiListView _rightPanel = null!; // 代码大纲
+    private TuiLabel _leftSep = null!; // 左侧分隔线
+    private TuiLabel _rightSep = null!; // 右侧分隔线
     private bool _leftVisible;
     private bool _rightVisible;
 
     /// <summary>焦点目标区域</summary>
-    private enum FocusTarget { Editor, LeftPanel, RightPanel }
+    private enum FocusTarget
+    {
+        Editor,
+        LeftPanel,
+        RightPanel
+    }
+
     private FocusTarget _focus = FocusTarget.Editor;
 
     /// <summary>当前浏览的目录（文件列表面板）</summary>
@@ -57,11 +62,13 @@ public class EditorScreen : TuiScreen
 
     /// <summary>搜索状态</summary>
     private string _searchQuery = "";
+
     private string _replaceQuery = "";
     private FindOptions _findOptions = default;
 
     /// <summary>大纲刷新缓存（避免每帧重建 ListView）</summary>
     private List<EditorCore.OutlineItem>? _lastOutline;
+
     private int _lastOutlineHighlight = -1;
 
     /// <summary>保存后待弹 lint 摘要 Toast（标志位防每次 OnDiagnosticsReady 都弹）</summary>
@@ -95,7 +102,7 @@ public class EditorScreen : TuiScreen
         base.Activate();
 
         if (string.IsNullOrWhiteSpace(FilePath))
-            ShowFilePicker();   // 纯回调驱动，不阻塞
+            ShowFilePicker(); // 纯回调驱动，不阻塞
         else
             LoadAndBuild(FilePath);
     }
@@ -144,7 +151,7 @@ public class EditorScreen : TuiScreen
     {
         Core = new EditorCore();
         Core.LoadFile(path);
-        Core.IndentMode = Config.Instance.EditorIndent;   // 从设置注入缩进模式
+        Core.IndentMode = Config.Instance.EditorIndent; // 从设置注入缩进模式
         _onContentChangedHandler = () => MarkDirty();
         Core.OnContentChanged += _onContentChangedHandler;
         _onDiagnosticsReadyHandler = () =>
@@ -190,7 +197,7 @@ public class EditorScreen : TuiScreen
             EditorView.OnFindRequested += HandleFindReplace;
             EditorView.OnExitRequested += HandleExit;
             EditorView.OnFocusRequested += HandleEditorFocus;
-            int insertAt = mainHBox.Children.IndexOf(_leftSep) + 1;
+            var insertAt = mainHBox.Children.IndexOf(_leftSep) + 1;
             mainHBox.InsertAt(insertAt, EditorView);
 
             _leftPanel.OnItemActivated += OnFileItemActivated;
@@ -237,6 +244,7 @@ public class EditorScreen : TuiScreen
             if (_onDiagnosticsReadyHandler != null)
                 Core.OnDiagnosticsReady -= _onDiagnosticsReadyHandler;
         }
+
         if (EditorView != null)
         {
             EditorView.OnSaveRequested -= HandleSave;
@@ -245,6 +253,7 @@ public class EditorScreen : TuiScreen
             EditorView.OnExitRequested -= HandleExit;
             EditorView.OnFocusRequested -= HandleEditorFocus;
         }
+
         if (_leftPanel != null)
             _leftPanel.OnItemActivated -= OnFileItemActivated;
         if (_rightPanel != null)
@@ -258,7 +267,11 @@ public class EditorScreen : TuiScreen
 
     public override void Render(StringBuilder sb)
     {
-        if (EditorView == null) { base.Render(sb); return; }
+        if (EditorView == null)
+        {
+            base.Render(sb);
+            return;
+        }
 
         UpdateStatusBars();
         SyncPanelLayout();
@@ -375,6 +388,7 @@ public class EditorScreen : TuiScreen
             HandleFindNext();
             return true;
         }
+
         if (key.Key == ConsoleKey.F8)
         {
             JumpToNextDiagnostic();
@@ -398,6 +412,7 @@ public class EditorScreen : TuiScreen
                     MarkDirty();
                     return true;
                 }
+
                 return _leftPanel.OnKey(key) || base.OnKey(key);
 
             case FocusTarget.RightPanel:
@@ -407,6 +422,7 @@ public class EditorScreen : TuiScreen
                     MarkDirty();
                     return true;
                 }
+
                 return _rightPanel.OnKey(key) || base.OnKey(key);
 
             default: // Editor
@@ -415,6 +431,7 @@ public class EditorScreen : TuiScreen
                     HandleExit();
                     return true;
                 }
+
                 return EditorView.OnKey(key) || base.OnKey(key);
         }
     }
@@ -474,8 +491,9 @@ public class EditorScreen : TuiScreen
                 _leftPanel.Focused = false;
             }
         }
-        SyncPanelLayout();   // 更新 Visible + 尺寸
-        RootView.Layout();   // 重新布局：editor 扩展覆盖面板区域（否则面板关闭后左侧残留旧像素）
+
+        SyncPanelLayout(); // 更新 Visible + 尺寸
+        RootView.Layout(); // 重新布局：editor 扩展覆盖面板区域（否则面板关闭后左侧残留旧像素）
         MarkDirty();
     }
 
@@ -511,11 +529,14 @@ public class EditorScreen : TuiScreen
         // 文件（仅显示源码文件，过滤二进制和大型文件）
         var files = Directory.GetFiles(_browseDir);
         Array.Sort(files);
-        var codeExts = new HashSet<string> { ".cs", ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs",
+        var codeExts = new HashSet<string>
+        {
+            ".cs", ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs",
             ".java", ".c", ".cpp", ".h", ".hpp", ".swift", ".kt", ".rb", ".php", ".lua",
             ".dart", ".r", ".sql", ".md", ".txt", ".json", ".xml", ".html", ".css",
             ".scss", ".yaml", ".yml", ".sh", ".bash", ".zsh", ".toml", ".ini", ".cfg",
-            ".csproj", ".sln", ".props", ".targets", ".svg", ".gitignore", "Dockerfile" };
+            ".csproj", ".sln", ".props", ".targets", ".svg", ".gitignore", "Dockerfile"
+        };
         foreach (var f in files)
         {
             var name = Path.GetFileName(f);
@@ -563,9 +584,17 @@ public class EditorScreen : TuiScreen
             // 保存当前文件
             if (Core.Modified)
             {
-                try { Core.Save(); }
-                catch (Exception ex) { ShowWindow(TuiDialog.Error("保存失败", ex.Message)); return; }
+                try
+                {
+                    Core.Save();
+                }
+                catch (Exception ex)
+                {
+                    ShowWindow(TuiDialog.Error("保存失败", ex.Message));
+                    return;
+                }
             }
+
             // 卸载旧事件
             if (_onContentChangedHandler != null)
                 Core.OnContentChanged -= _onContentChangedHandler;
@@ -602,8 +631,9 @@ public class EditorScreen : TuiScreen
                 _rightPanel.Focused = false;
             }
         }
-        SyncPanelLayout();   // 更新 Visible + 尺寸
-        RootView.Layout();   // 重新布局：editor 扩展覆盖面板区域（否则面板关闭后右侧残留旧像素）
+
+        SyncPanelLayout(); // 更新 Visible + 尺寸
+        RootView.Layout(); // 重新布局：editor 扩展覆盖面板区域（否则面板关闭后右侧残留旧像素）
         MarkDirty();
     }
 
@@ -678,11 +708,12 @@ public class EditorScreen : TuiScreen
             ShowToast("只读模式，无法保存", 1500);
             return;
         }
+
         try
         {
             Core.Save();
-            _showSaveLintToast = true;   // lint 完成后弹「已保存 · N 错误 M 警告」摘要
-            _ = Core.SaveAsync();   // 异步触发 lint
+            _showSaveLintToast = true; // lint 完成后弹「已保存 · N 错误 M 警告」摘要
+            _ = Core.SaveAsync(); // 异步触发 lint
             WasSaved = true;
             ShowToast("已保存", 1200);
         }
@@ -720,17 +751,22 @@ public class EditorScreen : TuiScreen
         var win = TuiDialog.FindReplace(_searchQuery, _replaceQuery, _findOptions,
             (find, opts) =>
             {
-                _searchQuery = find; _findOptions = opts;
+                _searchQuery = find;
+                _findOptions = opts;
                 FindAndJump(find, opts, Core.Cy, Core.Cx);
             },
             (find, repl, opts) =>
             {
-                _searchQuery = find; _replaceQuery = repl; _findOptions = opts;
+                _searchQuery = find;
+                _replaceQuery = repl;
+                _findOptions = opts;
                 ReplaceNextAndShow(find, repl, opts);
             },
             (find, repl, opts) =>
             {
-                _searchQuery = find; _replaceQuery = repl; _findOptions = opts;
+                _searchQuery = find;
+                _replaceQuery = repl;
+                _findOptions = opts;
                 ReplaceAllAndShow(find, repl, opts);
             });
         ShowWindow(win);
@@ -738,7 +774,12 @@ public class EditorScreen : TuiScreen
 
     private void HandleFindNext()
     {
-        if (string.IsNullOrEmpty(_searchQuery)) { HandleFindReplace(); return; }
+        if (string.IsNullOrEmpty(_searchQuery))
+        {
+            HandleFindReplace();
+            return;
+        }
+
         FindAndJump(_searchQuery, _findOptions, Core.Cy, Core.Cx + 1);
     }
 
@@ -747,17 +788,20 @@ public class EditorScreen : TuiScreen
         var (line, col) = Core.FindNext(query, fromLine, fromCol, opts);
         if (line >= 0)
         {
-            Core.Cy = line; Core.Cx = col;
+            Core.Cy = line;
+            Core.Cx = col;
             EditorView.MarkFullRedraw();
             MarkDirty();
             ShowToast($"已找到 · 第 {line + 1} 行", 1000);
             return;
         }
+
         // 环绕：从头再找
         var (l2, c2) = Core.FindNext(query, 0, 0, opts);
         if (l2 >= 0)
         {
-            Core.Cy = l2; Core.Cx = c2;
+            Core.Cy = l2;
+            Core.Cx = c2;
             EditorView.MarkFullRedraw();
             MarkDirty();
             ShowToast($"已环绕到开头 · 第 {l2 + 1} 行", 1000);
@@ -793,6 +837,7 @@ public class EditorScreen : TuiScreen
             ShowToast("光标处无括号", 1000);
             return;
         }
+
         Core.Cy = match.Value.Line;
         Core.Cx = match.Value.Col;
         EditorView.MarkFullRedraw();
@@ -809,6 +854,7 @@ public class EditorScreen : TuiScreen
             ShowToast("光标处无词", 1000);
             return;
         }
+
         _searchQuery = word;
         // 智能大小写：词含大写则区分，否则忽略（对标 Vim * 的 smartcase）
         bool hasUpper = word.Any(char.IsUpper);
@@ -821,7 +867,8 @@ public class EditorScreen : TuiScreen
 
         if (line >= 0)
         {
-            Core.Cy = line; Core.Cx = col;
+            Core.Cy = line;
+            Core.Cx = col;
             EditorView.MarkFullRedraw();
             MarkDirty();
             ShowToast($"查找词 · 第 {line + 1} 行", 1000);
@@ -845,6 +892,7 @@ public class EditorScreen : TuiScreen
                 return;
             }
         }
+
         ShowToast("无诊断", 800);
     }
 
@@ -863,12 +911,17 @@ public class EditorScreen : TuiScreen
                 switch (result)
                 {
                     case TuiDialog.EDialogResult.Yes:
-                        try { Core.Save(); WasSaved = true; }
+                        try
+                        {
+                            Core.Save();
+                            WasSaved = true;
+                        }
                         catch (Exception ex)
                         {
                             ShowWindow(TuiDialog.Error("保存失败", ex.Message));
                             return;
                         }
+
                         Manager?.PopScreen();
                         break;
                     case TuiDialog.EDialogResult.No:

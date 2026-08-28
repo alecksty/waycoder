@@ -8,7 +8,7 @@ namespace WayCoder.UI.Tui.Controls;
 /// 帧字符循环：⣾⣽⣻⢿⡿⣟⣯⣷
 /// 每帧调用 Tick() 推进动画。
 /// </summary>
-public class TuiSpinner : TuiControl
+public class TuiSpinner : TuiDisplayControl
 {
     /// <summary>
     /// 加载动画帧字符序列。
@@ -21,7 +21,6 @@ public class TuiSpinner : TuiControl
     private int _frame;
 
     /// <summary>加载动画是纯展示控件，不可获得焦点</summary>
-    public override bool CanFocus => false;
 
     public TuiSpinner()
     {

@@ -32,8 +32,11 @@
   <Target Name="GenerateWebAssets" BeforeTargets="CoreCompile" Inputs="$(MSBuildProjectDirectory)/UI/WEB/www/index.html;$(MSBuildProjectDirectory)/UI/WEB/www/style.css;$(MSBuildProjectDirectory)/UI/WEB/www/app.js" Outputs="$(MSBuildProjectDirectory)/UI/WEB/WebAssets.Generated.cs">
     <Exec Command="python3 ../scripts/merge_webassets.py" WorkingDirectory="$(MSBuildProjectDirectory)" />
     <ItemGroup>
-      <!-- glob 以相对路径 Identity 自动包含生成文件，先按相对路径 Remove 去重，再显式 Include 一次 -->
+      <!-- 默认通配 **/*.cs 会自动包含生成文件：Windows 下 glob Identity 是反斜杠相对路径（UI\WEB\...），
+           与正斜杠 Remove 不匹配会重复编译（CS2002）。三种分隔符形态全部 Remove 去重后再 Include 一次 -->
       <Compile Remove="UI/WEB/WebAssets.Generated.cs" />
+      <Compile Remove="UI\WEB\WebAssets.Generated.cs" />
+      <Compile Remove="$(MSBuildProjectDirectory)/UI/WEB/WebAssets.Generated.cs" />
       <Compile Include="$(MSBuildProjectDirectory)/UI/WEB/WebAssets.Generated.cs" />
     </ItemGroup>
   </Target>

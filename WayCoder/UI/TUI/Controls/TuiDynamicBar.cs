@@ -33,7 +33,7 @@ public enum AgentStatus
 /// 布局（1 行，3 段）：
 ///   ⣾ 思考中... gpt-5.4  │  ⚙ bash: dotnet build  │  «████░░░░» 45%
 /// </summary>
-public class TuiDynamicBar : TuiControl
+public class TuiDynamicBar : TuiDisplayControl
 {
     // ═══════════════════════════════════════════════════════════
     // 动画帧（对标 Claude Code ·✢✳✶✻✽ ping-pong 循环）
@@ -92,10 +92,12 @@ public class TuiDynamicBar : TuiControl
         Tty.Write(sb.ToString());
     }
 
-    /// <summary>刷新所有直写 spinner 的动态栏（TuiManager.Render 末尾调用）。</summary>
+    /// <summary>刷新所有直写 spinner 的动态栏（TuiManager.Render 末尾调用 + 独立动画心跳线程）。
+    /// 快照迭代：DirectWriters 可能在 UI 线程增删（RegisterDirectWrite/OnDestroy），
+    /// 独立动画线程读它时若并发修改会抛 InvalidOperationException —— 用 ToArray 快照避免。</summary>
     public static void RenderAllDirect()
     {
-        foreach (var w in DirectWriters) w.RenderDirect();
+        foreach (var w in DirectWriters.ToArray()) w.RenderDirect();
     }
 
     /// <summary>基于时钟的当前帧（无需 Tick）。先对帧数取模再强转 int——
@@ -128,7 +130,6 @@ public class TuiDynamicBar : TuiControl
     /// <summary>是否处于任务活跃状态（显示 spinner）</summary>
     public bool IsActive => Status != AgentStatus.Idle;
 
-    public override bool CanFocus => false;
 
     private static readonly List<TuiDynamicBar> DirectWriters = [];
     private int _spinnerX, _spinnerY; // 渲染时记录 spinner 位置（DirectWrite 直写用）

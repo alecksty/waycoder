@@ -25,7 +25,7 @@ public enum AnimatedTextMode
 /// - 可自定义每帧内容：CustomFrames（固定帧序列）或 FrameProvider（回调按帧索引返回内容）。
 /// - DirectWrite：跳过 Dirty 标志与 frame buffer，由管理器 Render 末尾统一直接写终端。
 /// </summary>
-public class TuiAnimatedText : TuiControl
+public class TuiAnimatedText : TuiDisplayControl
 {
     private static readonly string[] SpinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
@@ -49,7 +49,6 @@ public class TuiAnimatedText : TuiControl
     /// <summary>用户自定义帧回调（按帧索引返回内容，code-behind 用；优先于 CustomFrames）。</summary>
     public Func<int, string>? FrameProvider { get; set; }
 
-    public override bool CanFocus => false;
 
     private bool _running = true;
     private bool _directWrite;

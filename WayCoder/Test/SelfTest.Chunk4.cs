@@ -653,10 +653,17 @@ public static partial class SelfTest
         // 供应商注册表新增条目：内置默认端点校验（用 BuiltinProviders 快照，不受用户 providers.json 覆盖影响）
         Check("供应商注册表 gitee 端点",
             ModelCatalog.BuiltinProviders.TryGetValue("gitee", out var pGitee) && pGitee.DefaultBaseUrl == "https://ai.gitee.com/v1");
-        Check("供应商注册表 bailian 端点",
-            ModelCatalog.BuiltinProviders.TryGetValue("bailian", out var pBailian) && pBailian.DefaultBaseUrl.EndsWith("compatible-mode/v1"));
-        Check("供应商注册表 opencode 端点",
-            ModelCatalog.BuiltinProviders.TryGetValue("opencode", out var pOpencode) && pOpencode.DefaultBaseUrl == "https://opencode.ai/zen/v1");
+        // bailian（百炼）与 qwen 共用 dashscope 地址 → 已并入 qwen，不再单独注册（同地址 = 同供应商）
+        Check("供应商注册表 bailian 并入 qwen（不再单独注册）",
+            !ModelCatalog.BuiltinProviders.ContainsKey("bailian") && ModelCatalog.Providers.ContainsKey("qwen"));
+        Check("供应商注册表内置无重复地址",
+            !ModelCatalog.BuiltinProviders.Values
+                .GroupBy(p => ModelCatalog.NormalizeBaseUrl(p.DefaultBaseUrl))
+                .Where(g => g.Key.Length > 0)
+                .Any(g => g.Count() > 1));
+        Check("供应商注册表 opencode 端点（旧别名 opencode 并入 opencode-zen）",
+            ModelCatalog.BuiltinProviders.TryGetValue("opencode-zen", out var pOpencodeZen) && pOpencodeZen.DefaultBaseUrl == "https://opencode.ai/zen/v1"
+            && !ModelCatalog.BuiltinProviders.ContainsKey("opencode"));
         Check("供应商注册表 minimax 端点",
             ModelCatalog.BuiltinProviders.TryGetValue("minimax", out var pMinimax) && pMinimax.DefaultBaseUrl == "https://api.minimaxi.com/v1");
         Check("供应商注册表 aihubmix 端点",

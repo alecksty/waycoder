@@ -7,12 +7,11 @@ namespace WayCoder.UI.Tui.Controls;
 /// 用于 VBox/HBox 里需要「留白 / 隔行」的占位场景（如对话框两行按钮之间、控件间距），
 /// 语义比「空 Label」更明确；透明区域透出父容器背景。
 /// </summary>
-public class TuiSpace : TuiControl
+public class TuiSpace : TuiDisplayControl
 {
     public TuiSpace() { Height = 1; Width = 1; }
 
     /// <summary>占位控件不参与 Tab 焦点遍历。</summary>
-    public override bool CanFocus => false;
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
