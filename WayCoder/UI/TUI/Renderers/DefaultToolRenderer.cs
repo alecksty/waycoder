@@ -1,4 +1,4 @@
-namespace WayCoder.UI.Tui.ToolRenderers;
+namespace WayCoder.UI.TUI.Renderers;
 
 /// <summary>
 /// 默认工具渲染器 —— 保持现有行为，纯文本直通。

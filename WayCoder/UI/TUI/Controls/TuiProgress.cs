@@ -5,13 +5,12 @@ using WayCoder.UI.TUI.Base;
 namespace WayCoder.UI.Tui.Controls;
 
 /// <summary>进度条控件 —— 百分比条形显示。</summary>
-public class TuiProgress : TuiControl
+public class TuiProgress : TuiDisplayControl
 {
     public double Percent { get; set; }
     public string Label { get; set; } = "";
 
     /// <summary>进度条是纯展示控件，不可获得焦点</summary>
-    public override bool CanFocus => false;
 
     public TuiProgress() { Height = 1; Width = 40; }
 

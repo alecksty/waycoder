@@ -1,5 +1,4 @@
 ﻿using System.Text;
-using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
 using WayCoder.UI.TUI.Base;
 
@@ -10,9 +9,8 @@ namespace WayCoder.UI.Tui.Controls;
 /// 渲染：左侧 App/模型 + 居中标题 + 右侧版本号。
 /// 颜色由主题 StatusBarFg/StatusBarBg 控制。
 /// </summary>
-public class TuiTitleBar : TuiControl
+public class TuiTitleBar : TuiDisplayControl
 {
-    public override bool CanFocus => false;
 
     /// <summary>应用名/模型名</summary>
     public string Title { get; set; } = "";

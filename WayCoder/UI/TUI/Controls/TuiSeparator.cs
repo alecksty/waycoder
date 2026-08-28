@@ -7,13 +7,12 @@ namespace WayCoder.UI.Tui.Controls;
 /// 分割线 —— 水平或垂直分隔符。
 /// 水平模式占 1 行全宽，垂直模式占 1 列全高。
 /// </summary>
-public class TuiSeparator : TuiControl
+public class TuiSeparator : TuiDisplayControl
 {
     /// <summary>分割线方向</summary>
     public SeparatorDirection Direction { get; set; } = SeparatorDirection.Horizontal;
 
     /// <summary>分割线是纯展示控件，不可获得焦点</summary>
-    public override bool CanFocus => false;
 
     /// <summary>线条字符（默认 ─ ）</summary>
     public string LineChar { get; set; } = "─";

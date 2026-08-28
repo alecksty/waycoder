@@ -1,17 +1,11 @@
 ﻿using System.Collections.Concurrent;
 using System.Text;
-using WayCoder.Infra;
 using WayCoder.UI.Shared.Terminal;
-using WayCoder.Tools;
-using WayCoder.UI.Tui.ToolRenderers;
-
 using WayCoder.UI.Tui.Controls;
-
 using WayCoder.UI.Shared;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Screens;
-
 
 /// <summary>
 /// 聊天 REPL 屏幕 —— 主交互界面。
@@ -61,8 +55,10 @@ public partial class ChatScreen : TuiScreen
 
     /// <summary>模型/模式信息行（输入面板下方、状态栏上方）。TuiSmartLabel 渲染 «tag» 分段着色。</summary>
     public TuiSmartLabel? ModelInfoRow { get; protected set; }
+
     /// <summary>模型信息行下方空行（与底部状态栏分隔），可见性跟随 ModelInfoRow。</summary>
     private TuiSpace? _modelInfoSpacer;
+
     /// <summary>模式栏下方快捷键提示行（只显示 Shift+Tab/Ctrl+P/E/X 切换快捷键），可见性跟随 ModelInfoRow。</summary>
     protected TuiSmartLabel? _shortcutRow;
 
@@ -71,6 +67,7 @@ public partial class ChatScreen : TuiScreen
 
     /// <summary>建议面板上一帧的可见矩形（用于移动/缩放/隐藏后补绘被遮挡的聊天内容）。</summary>
     private int _suggestPrevX = -1, _suggestPrevY = -1, _suggestPrevW, _suggestPrevH;
+
     private bool _suggestPrevVisible;
 
     /// <summary>右侧信息面板</summary>
@@ -145,6 +142,7 @@ public partial class ChatScreen : TuiScreen
 
     /// <summary>状态栏路径信息缓存（cwd + 分支，节流探测，见 <see cref="SyncPathBar"/>）。</summary>
     private string? _cachedBranch;
+
     private long _lastBranchDetectTicks;
     private const long BranchDetectIntervalMs = 2000;
 
@@ -162,6 +160,7 @@ public partial class ChatScreen : TuiScreen
 
     /// <summary>当前正在执行的工具名（null=无工具在执行），用于动态栏显示</summary>
     private string? _currentToolName;
+
     /// <summary>当前工具参数摘要</summary>
     private string? _currentToolBrief;
 
@@ -275,7 +274,7 @@ public partial class ChatScreen : TuiScreen
         if (DynamicBar.Status == AgentStatus.Compressing && !ContextManager.IsCompressing)
         {
             DynamicBar.ProgressPercent = null; // 压缩完成，清理
-            DynamicBar.ProgressLabel = "";     // 同时清标签，避免残留 "[L3] 压缩完成" 覆盖常驻上下文%
+            DynamicBar.ProgressLabel = ""; // 同时清标签，避免残留 "[L3] 压缩完成" 覆盖常驻上下文%
         }
 
         // 排队叠加：Agent 忙且有待处理指令 → 动态栏中段显示「⏳排队N」（不弹聊天区）
@@ -347,6 +346,7 @@ public partial class ChatScreen : TuiScreen
             _lastBranchDetectTicks = now;
             _cachedBranch = PathStatus.TryGetBranch(cwd);
         }
+
         var cwdDisplay = PathStatus.FormatCwd(cwd);
         return _cachedBranch == null ? $"📁 {cwdDisplay}" : $"📁 {cwdDisplay} · ⎇ {_cachedBranch}";
     }
@@ -361,6 +361,7 @@ public partial class ChatScreen : TuiScreen
             if (slot != null && !string.IsNullOrWhiteSpace(slot.WorkingDirectory))
                 return slot.WorkingDirectory!;
         }
+
         return Directory.GetCurrentDirectory();
     }
 
@@ -373,13 +374,13 @@ public partial class ChatScreen : TuiScreen
         var cfgLargeModel = AgentSlotConfig.ResolveLargeModel(slotCfg, ActiveSlotIndex);
         var liveLlm = ProgramContext.Agent?.LlmClient;
         var isLargeFallback = liveLlm != null && !string.IsNullOrWhiteSpace(liveLlm.Model)
-            && !string.Equals(liveLlm.Model, cfgLargeModel, StringComparison.OrdinalIgnoreCase);
+                                              && !string.Equals(liveLlm.Model, cfgLargeModel, StringComparison.OrdinalIgnoreCase);
         var largeModel = isLargeFallback ? liveLlm!.Model : cfgLargeModel;
         var largeProv = isLargeFallback
             ? ModelCatalog.InferProviderFromBaseUrl(liveLlm?.BaseUrl) ?? AgentSlotConfig.ResolveLargeProvider(slotCfg, ActiveSlotIndex)
             : AgentSlotConfig.ResolveLargeProvider(slotCfg, ActiveSlotIndex);
         string large = ConnectionConfig.FormatModel(largeProv, largeModel)
-            + (isLargeFallback ? "«dim»(回退)«/»" : "");
+                       + (isLargeFallback ? "«dim»(回退)«/»" : "");
         string small = ConnectionConfig.FormatModel(
             AgentSlotConfig.ResolveSmallProvider(slotCfg, ActiveSlotIndex),
             AgentSlotConfig.ResolveSmallModel(slotCfg, ActiveSlotIndex));
@@ -415,11 +416,11 @@ public partial class ChatScreen : TuiScreen
             _ => "grey",
         };
 
-        string rowStr = $"«dim»工作模式:«/»«{modeColor}»{modeStr}«/»"
-            + $" · «dim»权限:«/»«{permColor}»{permStr}«/»"
-            + $" · «dim»经济模式:«/»«{economyColor}»{economyStr}«/»"
-            + $" · «dim»大模型:«/»«bold»{large}«/»"
-            + $" · «dim»小模型:«/»«bold»{small}«/»";
+        string rowStr = $"«dim»模式:«/»«{modeColor}»{modeStr}«/»"
+                        + $" · «dim»权限:«/»«{permColor}»{permStr}«/»"
+                        + $" · «dim»经济:«/»«{economyColor}»{economyStr}«/»"
+                        + $" · «dim»大:«/»«bold»{large}«/»"
+                        + $" · «dim»小:«/»«bold»{small}«/»";
 
         SetModelInfoRow(true, rowStr);
     }
@@ -437,7 +438,11 @@ public partial class ChatScreen : TuiScreen
         if (_modelInfoSpacer != null) _modelInfoSpacer.Visible = visible;
         bool textChanged = row.Text != text;
         if (textChanged) row.Text = text;
-        if (visChanged || textChanged) { RootView?.Layout(); row.MarkDirty(); }
+        if (visChanged || textChanged)
+        {
+            RootView?.Layout();
+            row.MarkDirty();
+        }
     }
 
     /// <summary>等待权限的工具名（非 null = 正在等待）</summary>
@@ -445,8 +450,10 @@ public partial class ChatScreen : TuiScreen
 
     /// <summary>上下文占用百分比（null=未知，用于动态栏常驻显示）</summary>
     private double? _contextPercent;
+
     /// <summary>排队任务数（Agent 忙时待处理指令），动态栏显示；0=无排队</summary>
     private int _queuedCount;
+
     public int QueuedCount => _queuedCount;
 
     /// <summary>设置排队任务数并在动态栏显示（Agent 忙时不弹聊天区，状态走动态栏）。</summary>
@@ -552,6 +559,7 @@ public partial class ChatScreen : TuiScreen
             if (item != null)
                 saved.Add((item.Role, item.MarkdownContent, item.ContentAlign == EHAlign.Center, item.Indent));
         }
+
         return saved;
     }
 
@@ -568,7 +576,7 @@ public partial class ChatScreen : TuiScreen
             ? 1 + (_shortcutRow?.Visible == true ? 1 : 0) + (_modelInfoSpacer != null ? 1 : 0)
             : 0;
         chatH = Math.Max(1, TH - 1 - promptH - 1 - 1 - 1 - inputH - 1 - progressH - 1
-            - modelRows); // TH - title - prompt - spacer(1) - dynamicBar(1) - topBorder - input - botBorder - progress - [模式栏/快捷键/空行] - status
+                            - modelRows); // TH - title - prompt - spacer(1) - dynamicBar(1) - topBorder - input - botBorder - progress - [模式栏/快捷键/空行] - status
     }
 
     /// <summary>应用动态尺寸到各子视图（Render / OnResize 共用）。</summary>
@@ -602,7 +610,9 @@ public partial class ChatScreen : TuiScreen
     /// <summary>
     /// BuildLayout 保留 ChatList 实例时，resize 后按新宽度重建聊天项内容（基类空实现；非保留路径靠 AddMessage 重灌重建）。
     /// </summary>
-    protected virtual void RebuildChatItems() { }
+    protected virtual void RebuildChatItems()
+    {
+    }
 
     /// <summary>
     /// 构建聊天屏幕布局
@@ -746,7 +756,7 @@ public partial class ChatScreen : TuiScreen
             Visible = false,
             Fg = AnsiColors.White,
             TextAlign = EHAlign.Center,
-            Text = "«dim»Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+X 换模型 · Ctrl+Shift+M 切连接 · Enter 发送 · ↑↓ 历史 · Tab 补全 · F1-F10 · Ctrl+H 帮助«/»",
+            Text = "«dim»Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+X 换模型 · Ctrl+Shift+M 切连接 · Enter 发送 · ↑↓ 历史 · F1-F10 · Ctrl+H 帮助«/»",
         };
         RootView.Add(_shortcutRow);
 
@@ -831,6 +841,7 @@ public partial class ChatScreen : TuiScreen
             if (ChatList.ItemCount > 0) ChatList.RemoveItem(0);
             if (ChatMessages.Count > 0) ChatMessages.RemoveAt(0);
         }
+
         // 裁剪后滚动偏移可能越界（最旧项被删），钳制到有效范围
         if (ChatList.ScrollOffset > 0)
             ChatList.ClampScroll();
@@ -860,6 +871,7 @@ public partial class ChatScreen : TuiScreen
                 case "concise":
                     // 极简模式：不显示工具流式输出，仅保留 ⚙ 一行
                     return;
+
                 case "auto":
                     // 自动模式：最多保留 20 行，超出折叠
                     _toolOutputLineCount++;
@@ -872,6 +884,7 @@ public partial class ChatScreen : TuiScreen
                         // 折叠提示也需要刷新
                         MarkDirty();
                     }
+
                     if (_toolOutputLineCount > 20)
                         return;
                     break;
@@ -951,6 +964,7 @@ public partial class ChatScreen : TuiScreen
             item.SetTime(DateTime.Now);
             ChatList.AddItem(item);
         }
+
         MarkDirty();
     }
 
@@ -986,6 +1000,7 @@ public partial class ChatScreen : TuiScreen
             var last = ChatMessages[^1];
             last.Streaming = false;
         }
+
         MarkDirty();
     }
 
@@ -1090,9 +1105,9 @@ public partial class ChatScreen : TuiScreen
             var progressY = TH - 3; // 布局预留的 progressH 行（0-based；TH-2 是模型信息行，避免覆盖）
             var barText = $"«{new string('█', filled)}{new string('░', empty)}» {pct,3:F0}%";
             sb.Append(AnsiTty.CursorPos0(progressY, 0)) // CursorPos0 才是 0-based，CursorPos 是 1-based 会错位到 TH-3
-              .Append(AnsiTty.Fg(AnsiColors.Yellow))
-              .Append(barText.Length > TW ? barText[..TW] : barText.PadRight(TW))
-              .Append(AnsiTty.SgrReset);
+                .Append(AnsiTty.Fg(AnsiColors.Yellow))
+                .Append(barText.Length > TW ? barText[..TW] : barText.PadRight(TW))
+                .Append(AnsiTty.SgrReset);
         }
 
         // ── 输入区 / 提示栏 / 分隔线 / 中间区域 ──
@@ -1120,6 +1135,7 @@ public partial class ChatScreen : TuiScreen
             if (!spVisible || moved)
                 MarkDirtyRect(_suggestPrevX, _suggestPrevY, _suggestPrevW, _suggestPrevH);
         }
+
         _suggestPrevX = spX;
         _suggestPrevY = spY;
         _suggestPrevW = spW;
@@ -1180,10 +1196,15 @@ public partial class ChatScreen : TuiScreen
     /// 走 OnOpenCommandPalette 回调（Program.Repl 接线，Keypad 可绑定标记验证）。</summary>
     private void OpenCommandPalette()
     {
-        if (OnOpenCommandPalette != null) { OnOpenCommandPalette(); return; }
-        var commands = WayCoder.UI.Tui.CommandPalette.BuildDefaultCommands(this);
+        if (OnOpenCommandPalette != null)
+        {
+            OnOpenCommandPalette();
+            return;
+        }
+
+        var commands = CommandPalette.BuildDefaultCommands(this);
         if (commands.Count == 0) return;
-        WayCoder.UI.Tui.CommandPalette.Show(commands);
+        CommandPalette.Show(commands);
     }
 
     /// <summary>Ctrl+Shift+F1：弹出主题选择对话框</summary>
@@ -1234,7 +1255,7 @@ public partial class ChatScreen : TuiScreen
         if (InputArea != null)
         {
             InputArea.Fg = t.TextAreaFg;
-            InputArea.CursorLineBg = 0;            // 聊天输入框无光标行高亮
+            InputArea.CursorLineBg = 0; // 聊天输入框无光标行高亮
             InputArea.CursorLineFg = t.TextAreaFg; // 无高亮时文字跟随正文色
         }
 

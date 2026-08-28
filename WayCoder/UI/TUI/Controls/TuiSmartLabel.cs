@@ -12,7 +12,7 @@ namespace WayCoder.UI.Tui.Controls;
 /// 等标记解析成各段独立前景/背景色（颜色真源 MarkdownParser.ParseMarkupOnly），
 /// 供「标签暗、值亮/彩」的状态行用（如模型/模式信息行）。普通纯文本标签用 TuiLabel。
 /// </summary>
-public class TuiSmartLabel : TuiControl
+public class TuiSmartLabel : TuiDisplayControl
 {
     /// <summary>标记文本。改了自动标脏。</summary>
     public string Text
@@ -23,7 +23,6 @@ public class TuiSmartLabel : TuiControl
     private string _text = "";
 
     /// <summary>纯展示控件，不可获得焦点</summary>
-    public override bool CanFocus => false;
 
     public TuiSmartLabel() { Height = 1; }
     public TuiSmartLabel(string text) { Text = text; Height = 1; }

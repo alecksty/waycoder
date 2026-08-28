@@ -51,10 +51,11 @@ public static partial class ModelCatalog
             ["groq"]       = new("Groq",         "https://api.groq.com/openai/v1", "GROQ_API_KEY", "/models", ""),
             ["together"]   = new("Together AI",  "https://api.together.xyz/v1", "TOGETHER_API_KEY", "/models", ""),
             ["gitee"]      = new("Gitee AI",     "https://ai.gitee.com/v1", "GITEE_AI_API_KEY", "", ""),
-            ["bailian"]    = new("Alibaba Bailian", "https://dashscope.aliyuncs.com/compatible-mode/v1", "DASHSCOPE_API_KEY", "/models", "qwen3-max,qwen3-plus"),
+            // bailian（百炼）与 qwen 共用 dashscope 同一地址 → 同地址 = 同供应商，已合并进 qwen，不再单独注册
+            // （旧 providers.json 若含 bailian，加载后 DeduplicateProviders 自动归并到 qwen）
             ["opencode-go"]  = new("OpenCode Go",  "https://opencode.ai/zen/go/v1", "OPENCODE_API_KEY", "", "", null, 2),  // 订阅制；网关级温度限 2 位
             ["opencode-zen"] = new("OpenCode Zen", "https://opencode.ai/zen/v1", "OPENCODE_API_KEY", "", ""),              // 按量付费
-            ["opencode"]     = new("OpenCode",     "https://opencode.ai/zen/v1", "OPENCODE_API_KEY", "", ""),              // 旧数据兼容别名
+            // opencode 旧数据兼容别名与 opencode-zen 同地址 → 同地址 = 同供应商，并入 opencode-zen，不再单独注册
             ["minimax"]    = new("MiniMax",      "https://api.minimaxi.com/v1", "MINIMAX_API_KEY", "/models", ""),
             ["aihubmix"]   = new("AIHubMix",     "https://api.inferera.com/v1", "AIHUBMIX_API_KEY", "/models", "deepseek-v4-pro,deepseek-v4-flash,coding-minimax-m3-free"),
             ["local"]      = new("Local",        "", "", "", ""),
@@ -98,6 +99,7 @@ public static partial class ModelCatalog
                 var supVision = BoolOpt(p?["supportsVision"]) ?? BoolOpt(p?["supports_vision"]) ?? builtin?.SupportsVision;
                 Providers[id] = new ProviderInfo(name, url, apiKeyEnv, modelsEndpoint, commonModels, reasoningAllowed, tempPrec, apiFormat, supThink, supTools, supVision);
             }
+            DeduplicateProviders(); // 地址唯一性铁律：同地址 = 同供应商，加载后自动归并重复地址
         }
         catch { }
     }
@@ -147,13 +149,81 @@ public static partial class ModelCatalog
         catch { }
     }
 
-    /// <summary>注册/更新服务商到 providers.json（导入的服务商地址确认可用后调用）。id 规范化（全小写、去特殊符号）。</summary>
-    public static void RegisterProvider(string providerId, string displayName, string baseUrl)
+    /// <summary>
+    /// 注册/更新服务商到 providers.json（导入的服务商地址确认可用后调用）。id 规范化（全小写、去特殊符号）。
+    /// 地址唯一性：base_url 已被其它供应商占用 → 拒绝注册（同地址 = 同供应商，不允许重复），返回 false。
+    /// 同一 id 重复注册 = 更新（新地址未被占用则放行）。
+    /// </summary>
+    public static bool RegisterProvider(string providerId, string displayName, string baseUrl)
     {
         providerId = NormalizeId(providerId);
-        if (string.IsNullOrWhiteSpace(providerId) || string.IsNullOrWhiteSpace(baseUrl)) return;
+        if (string.IsNullOrWhiteSpace(providerId) || string.IsNullOrWhiteSpace(baseUrl)) return false;
+        var owner = FindProviderByBaseUrl(baseUrl);
+        if (owner != null && !owner.Equals(providerId, StringComparison.OrdinalIgnoreCase))
+            return false; // 地址已被其它供应商占用
         Providers[providerId] = new ProviderInfo(displayName, baseUrl);
         SaveProvidersJson();
+        return true;
+    }
+
+    /// <summary>规范化 base_url 用于地址唯一性比较：去首尾空白 + 去尾部斜杠（大小写不敏感比较）。</summary>
+    internal static string NormalizeBaseUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return "";
+        return url.Trim().TrimEnd('/');
+    }
+
+    /// <summary>按 base_url 反查拥有它的供应商 id（地址规范化后比较，大小写不敏感）；无匹配返回 null。</summary>
+    public static string? FindProviderByBaseUrl(string? baseUrl)
+    {
+        var norm = NormalizeBaseUrl(baseUrl);
+        if (norm.Length == 0) return null;
+        foreach (var (pid, p) in Providers)
+            if (string.Equals(NormalizeBaseUrl(p.DefaultBaseUrl), norm, StringComparison.OrdinalIgnoreCase))
+                return pid;
+        return null;
+    }
+
+    /// <summary>
+    /// 供应商去重修复（同地址 = 同供应商）：把共享同一 base_url 的重复供应商合并为一个——
+    /// 其自定义模型归并到保留供应商，从注册表移除重复项并落盘。返回合并对数。
+    /// 保留规则：内置供应商优先，其次 id 字典序靠前者胜出。
+    /// </summary>
+    public static int DeduplicateProviders()
+    {
+        lock (_lock)
+        {
+            var survivors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase); // droppedId → survivorId
+            var addressOwner = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (pid, p) in Providers
+                .OrderBy(kv => BuiltinProviders.ContainsKey(kv.Key) ? 0 : 1)
+                .ThenBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                .ToList())
+            {
+                var norm = NormalizeBaseUrl(p.DefaultBaseUrl);
+                if (norm.Length == 0) continue;
+                if (addressOwner.TryGetValue(norm, out var owner) && owner != pid)
+                    survivors[pid] = owner;
+                else
+                    addressOwner[norm] = pid;
+            }
+            if (survivors.Count == 0) return 0;
+            // 归并模型：被合并供应商的模型改挂到保留供应商
+            foreach (var (drop, keep) in survivors)
+            {
+                var dropped = LoadCustom()
+                    .Where(kv => kv.Value.ProviderId.Equals(drop, StringComparison.OrdinalIgnoreCase))
+                    .Select(kv => kv.Value)
+                    .ToList();
+                if (dropped.Count > 0)
+                    AddCustomRange(dropped.Select(m => m with { ProviderId = keep }), local: false);
+                RemoveCustomByProvider(drop);
+            }
+            // 移除重复供应商条目
+            foreach (var drop in survivors.Keys) Providers.Remove(drop);
+            SaveProvidersJson();
+            return survivors.Count;
+        }
     }
 
     /// <summary>移除服务商（providers.json），同时清除其 API Key。返回是否移除。</summary>
@@ -164,6 +234,30 @@ public static partial class ModelCatalog
         SaveProvidersJson();
         // 关键：不连带删除 API Key——key 永不自动删除（clean 等自动清理不得删 key），
         // 用户要删 key 请显式 --model key rm <provider>
+        return true;
+    }
+
+    /// <summary>改供应商显示名（保留其他字段，providers.json 落盘）。</summary>
+    public static void RenameProvider(string providerId, string displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName)) return;
+        if (Providers.TryGetValue(providerId, out var p))
+        {
+            Providers[providerId] = p with { DisplayName = displayName };
+            SaveProvidersJson();
+        }
+    }
+
+    /// <summary>改供应商 Base URL（保留其他字段，providers.json 落盘）。
+    /// 新地址已被其它供应商占用 → 拒绝修改（同地址 = 同供应商），返回 false。</summary>
+    public static bool UpdateProviderUrl(string providerId, string baseUrl)
+    {
+        if (!Providers.TryGetValue(providerId, out var p)) return false;
+        var owner = FindProviderByBaseUrl(baseUrl);
+        if (owner != null && !owner.Equals(providerId, StringComparison.OrdinalIgnoreCase))
+            return false; // 新地址已被其它供应商占用
+        Providers[providerId] = p with { DefaultBaseUrl = baseUrl ?? "" };
+        SaveProvidersJson();
         return true;
     }
 }

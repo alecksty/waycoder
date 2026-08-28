@@ -1,0 +1,27 @@
+<!-- 供应商管理器 —— 配合 ProviderPicker code-behind。
+     列出全部供应商：图标（🔑有Key/⚠️无Key/🌿本地）、显示名、Key状态、连通性、地址。
+     动作：设Key/清Key/测试连通/添加/改名/改地址/删除/完成。 -->
+<Dialog title="供应商管理" border="solid" borderColor="warning"
+        width="86" minWidth="68" minHeight="18" height="24" gradient="warning">
+  <VBox>
+    <Space height="1" />
+    <!-- flex="1"：表格吃剩余高度；stretch="true"：列宽按比例铺满 -->
+    <TableList id="table" height="12" flex="1" showHeader="true" stretch="true"
+               columns="🔑:3,供应商:18,Key:6,模型:6,连通:7,地址:32"
+               items="{InDesign '🔑,DeepSeek,✔,3,未扫描,https://api.deepseek.com|⚠️,OpenAI,无,9,未扫描,https://api.openai.com|🌿,Local,-,-,本地,http://localhost:11434'}" />
+    <Label id="slotBar" height="1" fg="black" align="center" />
+    <HBox align="center" spacing="1">
+      <Button id="btnSetKey" text="设Key" flex="1" />
+      <Button id="btnClrKey" text="清Key" flex="1" />
+      <Button id="btnTest" text="测试" flex="1" />
+      <Button id="btnAdd" text="添加" flex="1" />
+      <Button id="btnRename" text="改名" flex="1" />
+      <Button id="btnUrl" text="改地址" flex="1" />
+      <Button id="btnDel" text="删除" flex="1" />
+      <Button id="btnDone" text="✓ 完成" flex="1" />
+    </HBox>
+    <Space height="1" />
+    <Label id="help" height="1" fg="black" align="center" />
+    <Label id="help2" height="1" fg="black" align="center" />
+  </VBox>
+</Dialog>

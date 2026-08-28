@@ -557,7 +557,8 @@ document.getElementById('model-opencode-btn').onclick = () => {
     '<label class="src-item"><input type="checkbox" value="Together AI"> Together AI</label>' +
     '<label class="src-item"><input type="checkbox" value="DeepSeek"> DeepSeek</label>' +
     '<label class="src-item"><input type="checkbox" value="OpenAI"> OpenAI</label>' +
-    '<label class="src-item"><input type="checkbox" value="Moonshot"> Moonshot</label>');
+    '<label class="src-item"><input type="checkbox" value="Moonshot"> Moonshot</label>' +
+    '<label class="src-item"><input type="checkbox" value="models.dev"> models.dev（开源模型库 · 200+ 服务商 7000+ 模型）</label>');
 };
 document.getElementById('source-confirm').onclick = () => {
   const checks = [...document.querySelectorAll('#source-options input:checked')].map(c => c.value);

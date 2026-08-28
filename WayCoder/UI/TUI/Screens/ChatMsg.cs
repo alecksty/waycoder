@@ -2,8 +2,6 @@
 using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.Tools;
-using WayCoder.UI.Tui.ToolRenderers;
-
 using WayCoder.UI.Tui.Controls;
 
 using WayCoder.UI.Shared;
