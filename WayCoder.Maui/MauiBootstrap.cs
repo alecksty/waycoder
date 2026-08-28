@@ -291,4 +291,53 @@ public static class MauiBootstrap
             ErrorLog.Error("MAUI.AutoTest", "自动自测失败", ex);
         }
     }
+
+    /// <summary>
+    /// 原生内存实验（验证「大对象走原生内存、不占托管堆」可行）：
+    /// 检测到 Global.Home/nativemem.flag 时，申请 1GB 原生内存（NativeMemory.Alloc），
+    /// 写满 + 读校验，报告到 logcat + nativemem_result.txt，然后释放。
+    /// </summary>
+    public static unsafe void RunNativeMemTestIfRequested()
+    {
+        var flag = Path.Combine(Global.Home, "nativemem.flag");
+        if (!File.Exists(flag)) return;
+        try { File.Delete(flag); } catch { }
+        var resultPath = Path.Combine(Global.Home, "nativemem_result.txt");
+        const int MB = 1024 * 1024;
+        try
+        {
+            const long Total = 1024L * MB;   // 1GB
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            byte* p = (byte*)NativeMemory.Alloc((nuint)Total);
+            try
+            {
+                // 写满 1GB（64KB 块模式）
+                var chunk = new byte[64 * 1024];
+                for (int i = 0; i < chunk.Length; i++) chunk[i] = (byte)(i * 31 + 7);
+                for (long off = 0; off < Total; off += chunk.Length)
+                    Marshal.Copy(chunk, 0, (IntPtr)(p + off), chunk.Length);
+                // 读校验
+                bool ok = true;
+                var tmp = new byte[chunk.Length];
+                for (long off = 0; off < Total && ok; off += chunk.Length)
+                {
+                    Marshal.Copy((IntPtr)(p + off), tmp, 0, chunk.Length);
+                    for (int i = 0; i < chunk.Length; i++)
+                        if (tmp[i] != chunk[i]) { ok = false; break; }
+                }
+                sw.Stop();
+                var msg = $"nativemem OK: 1GB alloc+rw {sw.Elapsed.TotalMilliseconds:F0}ms verify={ok} managedHeapMB={GC.GetTotalMemory(false) / MB}";
+                try { File.WriteAllText(resultPath, msg); } catch { }
+                Android.Util.Log.Info("WayCoderNativeMem", msg);
+                ErrorLog.Info("MAUI.NativeMem", msg);
+            }
+            finally { NativeMemory.Free(p); }
+        }
+        catch (Exception ex)
+        {
+            var msg = $"nativemem FAIL: {ex}";
+            try { File.WriteAllText(resultPath, msg); } catch { }
+            Android.Util.Log.Error("WayCoderNativeMem", msg);
+        }
+    }
 }
