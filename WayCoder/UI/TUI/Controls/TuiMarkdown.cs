@@ -10,13 +10,12 @@ namespace WayCoder.UI.Tui.Controls;
 /// 支持标题、代码块（语法高亮）、表格、列表、分割线、内联格式。
 /// 作为 TuiListView 的子项使用。
 /// </summary>
-public class TuiMarkdown : TuiControl, ILazyItem
+public class TuiMarkdown : TuiDisplayControl, ILazyItem
 {
     /// <summary>Markdown 源文本</summary>
     public string Content { get; set; } = "";
 
     /// <summary>Markdown 渲染控件是展示控件，不可获得焦点</summary>
-    public override bool CanFocus => false;
 
     /// <summary>角色（用于默认颜色：user/assistant/system）</summary>
     public string Role { get; set; } = "assistant";

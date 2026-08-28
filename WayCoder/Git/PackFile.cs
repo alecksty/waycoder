@@ -1,5 +1,4 @@
 using System.IO.Compression;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -148,7 +147,7 @@ public static class PackFileReader
                 while ((c & 0x80) != 0)
                 {
                     c = pack[pos++];
-                    off = ((off + 1) << 7) | (c & 0x7F);
+                    off = ((off + 1) << 7) | (long)(c & 0x7F);
                 }
                 baseOffset = objOffset - off;
             }
@@ -295,7 +294,7 @@ public static class PackFileReader
             {
                 byte c = headBuf[pos++];
                 long off = c & 0x7F;
-                while ((c & 0x80) != 0) { c = headBuf[pos++]; off = ((off + 1) << 7) | (c & 0x7F); }
+                while ((c & 0x80) != 0) { c = headBuf[pos++]; off = ((off + 1) << 7) | (long)(c & 0x7F); }
                 baseOffset = objOffset - off;
             }
             else if (type == 7) // ref-delta：20 字节 base sha
@@ -609,7 +608,7 @@ public static class PackFileWriter
 
     static void WriteObjectHeader(Stream s, int type, long size)
     {
-        byte b = (byte)((type << 4) | (size & 0x0F));
+        byte b = (byte)(((long)type << 4) | (size & 0x0F));
         size >>= 4;
         if (size > 0) b |= 0x80;
         s.WriteByte(b);

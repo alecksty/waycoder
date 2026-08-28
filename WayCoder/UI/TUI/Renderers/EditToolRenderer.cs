@@ -1,7 +1,7 @@
 using System.Text;
 using WayCoder.UI.Shared.Terminal;
 
-namespace WayCoder.UI.Tui.ToolRenderers;
+namespace WayCoder.UI.TUI.Renderers;
 
 /// <summary>
 /// Edit 工具渲染器 —— diff 输出着色（红删绿增）。

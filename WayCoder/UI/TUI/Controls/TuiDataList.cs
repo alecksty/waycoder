@@ -1,5 +1,4 @@
 using System.Text;
-using WayCoder.UI.Shared;
 using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 
@@ -9,7 +8,7 @@ namespace WayCoder.UI.Tui.Controls;
 /// 数据列表 —— 用 .tui 单元格模板渲染每行（自定义单元格）。
 /// 每项数据是 key-value，单元格模板用 {key} 占位符引用（如 text="{name}"）。
 /// </summary>
-public class TuiDataList : TuiControl
+public class TuiDataList : TuiDisplayControl
 {
     /// <summary>数据项（key-value，供单元格模板 {key} 占位符）。</summary>
     public List<Dictionary<string, string>> Items { get; set; } = [];
@@ -19,18 +18,33 @@ public class TuiDataList : TuiControl
 
     public int SelectedIndex { get; set; } = -1;
 
-    public override bool CanFocus => false;
 
-    public TuiDataList() { Height = 1; }
+    public TuiDataList()
+    {
+        Height = 1;
+    }
 
+    /// <summary>
+    /// 渲染数据列表
+    /// </summary>
+    /// <param name="sb">输出缓冲区</param>
+    /// <param name="absX">绝对 X 坐标</param>
+    /// <param name="absY">绝对 Y 坐标</param>
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
-        int h = Math.Min(Items.Count, Height);
-        for (int i = 0; i < h; i++)
+        var h = Math.Min(Items.Count, Height);
+        for (var i = 0; i < h; i++)
         {
             TuiView cell;
-            try { cell = TuiMarkup.LoadCell(CellMarkup, Items[i]); }
-            catch { cell = new TuiVBox(); cell.Add(new TuiLabel(Items[i].GetValueOrDefault("text", ""))); }
+            try
+            {
+                cell = TuiMarkup.LoadCell(CellMarkup, Items[i]);
+            }
+            catch
+            {
+                cell = new TuiVBox();
+                cell.Add(new TuiLabel(Items[i].GetValueOrDefault("text", "")));
+            }
 
             cell.Width = Width;
             cell.Height = 1;

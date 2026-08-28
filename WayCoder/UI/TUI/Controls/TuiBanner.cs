@@ -4,7 +4,7 @@ using WayCoder.UI.TUI.Base;
 namespace WayCoder.UI.Tui.Controls;
 
 /// <summary>横幅控件 —— 居中展示 ASCII 艺术标题。</summary>
-public class TuiBanner : TuiControl
+public class TuiBanner : TuiDisplayControl
 {
     /// <summary>
     /// 横幅标题
@@ -17,7 +17,6 @@ public class TuiBanner : TuiControl
     public string Subtitle { get; set; } = "";
 
     /// <summary>横幅是纯展示控件，不可获得焦点</summary>
-    public override bool CanFocus => false;
 
     public TuiBanner()
     {

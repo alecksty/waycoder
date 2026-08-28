@@ -1,6 +1,6 @@
 using WayCoder.UI.Shared.Terminal;
 
-namespace WayCoder.UI.Tui.ToolRenderers;
+namespace WayCoder.UI.TUI.Renderers;
 
 /// <summary>
 /// Read 文件工具渲染器 —— 文件路径 + 行数摘要。

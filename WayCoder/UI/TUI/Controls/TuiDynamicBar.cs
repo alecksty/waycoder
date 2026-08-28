@@ -33,7 +33,7 @@ public enum AgentStatus
 /// 布局（1 行，3 段）：
 ///   ⣾ 思考中... gpt-5.4  │  ⚙ bash: dotnet build  │  «████░░░░» 45%
 /// </summary>
-public class TuiDynamicBar : TuiControl
+public class TuiDynamicBar : TuiDisplayControl
 {
     // ═══════════════════════════════════════════════════════════
     // 动画帧（对标 Claude Code ·✢✳✶✻✽ ping-pong 循环）
@@ -130,7 +130,6 @@ public class TuiDynamicBar : TuiControl
     /// <summary>是否处于任务活跃状态（显示 spinner）</summary>
     public bool IsActive => Status != AgentStatus.Idle;
 
-    public override bool CanFocus => false;
 
     private static readonly List<TuiDynamicBar> DirectWriters = [];
     private int _spinnerX, _spinnerY; // 渲染时记录 spinner 位置（DirectWrite 直写用）
