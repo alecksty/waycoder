@@ -47,6 +47,12 @@ public partial class ChatPage : ContentPage
     /// <summary>富文本重算节流：代码回复每 token 全量重分词会卡 UI，按增长量/时间节流。</summary>
     private DateTime _lastFormatRecompute = DateTime.MinValue;
     private int _lastFormattedLen;
+    private DateTime _lastReasoningUpdate = DateTime.MinValue;
+    private int _lastReasoningLen;
+
+    /// <summary>发送队列：agent 忙时发送的消息排队，忙完自动取下一条（移动端聊天不卡输入）。</summary>
+    private readonly Queue<QueuedItem> _sendQueue = new();
+    private sealed record QueuedItem(string Text, ChatMessage Msg);
 
     // ── 输入框上方动态状态栏：多状态（空闲/思考/执行工具/等待确认）+ Braille 旋转动画 ──
     private IDispatcherTimer? _statusTimer;
@@ -65,6 +71,19 @@ public partial class ChatPage : ContentPage
         {
             _lastFormatRecompute = now;
             _lastFormattedLen = currentLen;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>思考内容同样节流（Reasoning 属性 setter 每 token 触发绑定重渲染 → 长思考流卡死主线程）。</summary>
+    private bool ShouldRecomputeReasoning(int len)
+    {
+        var now = DateTime.UtcNow;
+        if (len - _lastReasoningLen >= 300 || (now - _lastReasoningUpdate).TotalMilliseconds >= 120)
+        {
+            _lastReasoningUpdate = now;
+            _lastReasoningLen = len;
             return true;
         }
         return false;
@@ -269,13 +288,6 @@ public partial class ChatPage : ContentPage
 
     private async void OnSendClicked(object? sender, EventArgs e)
     {
-        // 运行中再点 = 停止
-        if (_agent.IsRunning)
-        {
-            _cts?.Cancel();
-            return;
-        }
-
         var text = InputBox.Text?.Trim();
         if (string.IsNullOrEmpty(text)) return;
 
@@ -313,9 +325,56 @@ public partial class ChatPage : ContentPage
         }
 
         InputBox.Text = "";
-        Messages.Add(new ChatMessage { Role = ChatRole.User, RawText = text });
-        ScrollToEnd(); // 发送后立即滚到底，保证刚发的消息可见
+        if (_agent.IsRunning)
+        {
+            // 忙 → 排队：消息立即可见并标「排队中」，agent 忙完自动取下一条。输入永不卡死。
+            var msg = new ChatMessage { Role = ChatRole.User, RawText = text + "\n⏳ 排队中…" };
+            _sendQueue.Enqueue(new QueuedItem(text, msg));
+            Messages.Add(msg);
+            ScrollToEnd();
+            return;
+        }
 
+        await ProcessQueueAsync(text, firstUserMsg: null);
+    }
+
+    /// <summary>停止当前一轮（独立停止按钮，发送按钮改为始终发送/排队）。</summary>
+    private void OnStopClicked(object? sender, EventArgs e)
+    {
+        _cts?.Cancel();
+    }
+
+    /// <summary>串行处理发送队列：发完一条取下一条，直到队列空。firstUserMsg 为 null 表示首条需新建用户气泡。</summary>
+    private async Task ProcessQueueAsync(string first, ChatMessage? firstUserMsg)
+    {
+        var text = first;
+        var userMsg = firstUserMsg;
+        while (true)
+        {
+            if (userMsg == null)
+            {
+                userMsg = new ChatMessage { Role = ChatRole.User, RawText = text };
+                Messages.Add(userMsg);
+                ScrollToEnd(); // 发送后立即滚到底，保证刚发的消息可见
+            }
+            else
+            {
+                userMsg.RawText = text + "\n📤 发送中…";   // 排队消息 → 轮到它了
+            }
+
+            await RunOneMessageAsync(text);
+
+            if (_sendQueue.Count == 0) break;
+            var next = _sendQueue.Dequeue();
+            text = next.Text;
+            userMsg = next.Msg;
+            ScrollToEnd();
+        }
+    }
+
+    /// <summary>单轮对话：流式渲染 + 思考/正文分离 + 工具消息 + 摘要。返回后由 ProcessQueueAsync 取下一条。</summary>
+    private async Task RunOneMessageAsync(string text)
+    {
         var aiMsg = new ChatMessage { Role = ChatRole.Assistant, IsStreaming = true };
         Messages.Add(aiMsg);
 
@@ -326,7 +385,10 @@ public partial class ChatPage : ContentPage
         var reasoningSb = new StringBuilder();
         var contentSb = new StringBuilder();
         _cts = new CancellationTokenSource();
-        SendBtn.Text = "■";
+        _lastReasoningLen = 0;
+        _lastReasoningUpdate = DateTime.MinValue;
+        SendBtn.Text = "↑";
+        StopBtn.IsVisible = true;
         var sw = System.Diagnostics.Stopwatch.StartNew();
         bool cancelled = false;
 
@@ -346,7 +408,9 @@ public partial class ChatPage : ContentPage
                         else
                         {
                             reasoningSb.Append(token);
-                            aiMsg.Reasoning = reasoningSb.ToString();
+                            // 思考内容节流：Reasoning setter 每 token 触发绑定重渲染，长思考流会卡死主线程
+                            if (ShouldRecomputeReasoning(reasoningSb.Length))
+                                aiMsg.Reasoning = reasoningSb.ToString();
                             aiMsg.HasReasoning = true;
                             FollowStreamScroll();   // 流式跟随：思考过程滚动
                         }
@@ -401,8 +465,10 @@ public partial class ChatPage : ContentPage
         {
             aiMsg.IsStreaming = false;
             aiMsg.RawText = contentSb.ToString();
+            aiMsg.Reasoning = reasoningSb.ToString();   // 节流后补齐最终思考全文
             aiMsg.Formatted = MarkupToFormattedString.Convert(contentSb.ToString(), isDark); // 节流后补齐最终富文本
             SendBtn.Text = "↑";
+            StopBtn.IsVisible = false;
             _cts = null;
             _uiState = AgentUiState.Idle;
             RefreshStatusBar();

@@ -190,8 +190,8 @@
             </Grid>
         </Border>
 
-        <!-- 底部输入栏：圆形加号（语音/图片菜单） / 输入框 / 圆形发送 -->
-        <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" Padding="8,6" ColumnSpacing="8">
+        <!-- 底部输入栏：圆形加号（语音/图片菜单） / 输入框 / 圆形发送 / 停止（运行中才显示） -->
+        <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto,Auto" Padding="8,6" ColumnSpacing="8">
             <Button
                 x:Name="AddBtn"
                 Text="＋"
@@ -231,7 +231,22 @@
                 TextColor="White"
                 Clicked="OnSendClicked"
                 VerticalOptions="End"
-                SemanticProperties.Hint="发送消息" />
+                SemanticProperties.Hint="发送消息（忙时排队）" />
+            <Button
+                x:Name="StopBtn"
+                Grid.Column="3"
+                Text="■"
+                FontSize="16"
+                WidthRequest="44"
+                HeightRequest="44"
+                CornerRadius="22"
+                Padding="0"
+                IsVisible="false"
+                BackgroundColor="#E5533D"
+                TextColor="White"
+                Clicked="OnStopClicked"
+                VerticalOptions="End"
+                SemanticProperties.Hint="停止" />
         </Grid>
     </Grid>
 </ContentPage>
