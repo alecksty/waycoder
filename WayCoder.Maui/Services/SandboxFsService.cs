@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using WayCoder;
 
 namespace WayCoder.Maui.Services;
@@ -212,5 +213,48 @@ public static class SandboxFsService
         if (Directory.Exists(full)) Directory.Delete(full, recursive: true);
         else File.Delete(full);
         return true;
+    }
+
+    /// <summary>
+    /// 把沙箱内文件/目录打成 zip，落同一父目录下（同名 zip 已存在则不覆盖返回 null）。
+    /// 返回 zip 的相对路径；失败返回 null。
+    /// </summary>
+    public static string? CreateZip(string relPath)
+    {
+        var full = ResolveInSandbox(relPath);
+        if (full == null || (!File.Exists(full) && !Directory.Exists(full))) return null;
+
+        var baseName = Path.GetFileName(full.TrimEnd(Path.DirectorySeparatorChar, '/')) ?? "archive";
+        var parentRel = Path.GetDirectoryName(relPath)?.Replace('\\', '/') ?? "";
+        var zipRel = string.IsNullOrEmpty(parentRel) ? baseName + ".zip" : parentRel + "/" + baseName + ".zip";
+        var zipFull = ResolveInSandbox(zipRel);
+        if (zipFull == null || File.Exists(zipFull)) return null;   // 已存在不覆盖
+
+        try
+        {
+            using var fs = File.Create(zipFull);
+            using var zip = new ZipArchive(fs, ZipArchiveMode.Create);
+            if (Directory.Exists(full))
+            {
+                // 目录：递归加入，条目路径相对目录本身
+                foreach (var f in Directory.EnumerateFiles(full, "*", SearchOption.AllDirectories))
+                {
+                    var rel = Path.GetRelativePath(full, f).Replace('\\', '/');
+                    var entry = zip.CreateEntry(rel);
+                    using var es = entry.Open();
+                    using var src = File.OpenRead(f);
+                    src.CopyTo(es);
+                }
+            }
+            else
+            {
+                var entry = zip.CreateEntry(Path.GetFileName(full));
+                using var es = entry.Open();
+                using var src = File.OpenRead(full);
+                src.CopyTo(es);
+            }
+        }
+        catch { try { File.Delete(zipFull); } catch { } return null; }
+        return zipRel;
     }
 }

@@ -8,8 +8,8 @@
 
     <Grid RowDefinitions="Auto,Auto,*">
 
-        <!-- 顶部导航条：返回上级 + 当前路径 + 导入文档 -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Padding="8,4">
+        <!-- 顶部导航条：返回上级 + 当前路径 + 编辑模式开关 + 导入文档 -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" Padding="8,4" ColumnSpacing="4">
             <Button
                 x:Name="UpBtn"
                 Text="↩ 上级"
@@ -24,8 +24,14 @@
                 Margin="8,0"
                 LineBreakMode="TailTruncation" />
             <Button
-                x:Name="ImportBtn"
+                x:Name="EditBtn"
                 Grid.Column="2"
+                Text="✏️ 编辑"
+                FontSize="13"
+                Clicked="OnEditModeClicked" />
+            <Button
+                x:Name="ImportBtn"
+                Grid.Column="3"
                 Text="导入"
                 FontSize="13"
                 Clicked="OnImportClicked" />
@@ -47,7 +53,7 @@
                 Clicked="OnNewDirClicked" />
         </Grid>
 
-        <!-- 文件列表 -->
+        <!-- 文件列表：正常模式点目录进入/点文件操作；编辑模式（✏️ 编辑开启）点任意项弹删除/改名/打包菜单 -->
         <CollectionView
             Grid.Row="2"
             x:Name="FileList"

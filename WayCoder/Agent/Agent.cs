@@ -452,7 +452,7 @@ public partial class Agent
         _turnVerified = false;
         _verifyGateDone = false;
         _turnModifiedSource = false;
-        await CompressWithSmallModel(onToken);
+        await CompressWithSmallModel();
 
         // ── Architect 模式：大模型出计划 → 小模型执行 ──
         if (ArchitectMode && LlmClient.EffectiveModel != LlmClient.SmallModel)
@@ -778,7 +778,7 @@ public partial class Agent
                 var usedTokens = Context.LastPromptTokens;
                 // 压缩状态只走动态栏（CompressProgress → TuiDynamicBar 压缩进度），不再注入聊天流 ——
                 // 压缩是背景状态不是对话内容，聊天区保持干净
-                await CompressWithSmallModel(onToken);
+                await CompressWithSmallModel();
                 var afterCount = Messages.Count;
                 var afterTokens = ContextManager.EstimateTokens(Messages);
                 DebugLog.Log("context", $"Crush-style auto-summarize: {beforeCount}→{afterCount} msgs, {beforeTokens}→{afterTokens} est.tokens, last prompt={usedTokens}/{Context.MaxTokens}");
@@ -791,7 +791,7 @@ public partial class Agent
             }
 
             // 如果工具输出太大则压缩上下文
-            await CompressWithSmallModel(onToken);
+            await CompressWithSmallModel();
 
             // ── Stop hook（每轮完成后触发）──
             var stopContext = await HooksManager.RunStopAsync();
@@ -822,7 +822,7 @@ public partial class Agent
         {
             requeueCount++;
             onToken?.Invoke($"\n🔁 **已达到 {_effectiveMaxRounds} 轮上限，自动续跑（第 {requeueCount}/{Config.Instance.MaxAutoRequeue} 次）...**\n\n");
-            await CompressWithSmallModel(onToken);
+            await CompressWithSmallModel();
             InjectContinuePrompt($"已达到 {_effectiveMaxRounds} 轮工具调用上限，自动续跑");
             goto Requeue;
         }
@@ -892,7 +892,7 @@ public partial class Agent
     }
 
     /// <summary>使用小模型执行上下文压缩（省钱）</summary>
-    private async Task CompressWithSmallModel(Action<string>? onProgress = null)
+    private async Task CompressWithSmallModel()
     {
         // 在快照上压缩，最后原子替换：ContextManager 的 SummarizeOld/HardCollapse 会整表 Clear/AddRange，
         // 若直接传活引用 Messages 则无锁改写 _messages，与 Web 请求线程的加锁 AddMessage/ReplaceMessages 并发竞态
@@ -905,9 +905,10 @@ public partial class Agent
         var preCompactCtx = await HooksManager.RunPreCompactAsync(
             $"est.tokens={Context.EstimateCalibratedTokens(snapshot)}/{Context.MaxTokens}");
 
+        // 压缩进度只走 CompressProgress 静态事件（桌面动态栏 / Web 状态区 / 移动状态栏），
+        // 不再注入 token 流 → 任何端都不进聊天区
         await WithModelOverrideAsync(LlmClient, LlmClient.SmallModel, () =>
-            Context.MaybeCompressAsync(snapshot, LlmClient,
-                onProgress: (layer, msg) => onProgress?.Invoke($"🔄 [{layer}/3] {msg}")));
+            Context.MaybeCompressAsync(snapshot, LlmClient));
 
         // 压缩期间并发 AddMessage（Web /fileref、ask 桥回复）追加到 _messages 末尾的消息：
         // 合并进压缩结果，避免 ReplaceMessages 整表替换时丢弃它们。

@@ -746,6 +746,49 @@ public static partial class SelfTest
         Check("vision: deepseek 否", !ModelCatalog.ResolveSupportsVision("deepseek-v4-flash", null));
         Check("vision: qwen3-max 否", !ModelCatalog.ResolveSupportsVision("qwen3-max", null));
         Check("vision: 空模型否", !ModelCatalog.ResolveSupportsVision(null, null));
+
+        // ── models.dev 导入解析（api.json 格式）+ 去重价格覆盖 ──
+        {
+            var devJson = """
+            {
+              "deepseek": {
+                "name": "DeepSeek",
+                "api": "https://api.deepseek.com",
+                "models": {
+                  "deepseek/deepseek-v4-flash": { "id": "deepseek/deepseek-v4-flash", "name": "DeepSeek V4 Flash",
+                    "cost": { "input": 0.14, "output": 0.28 }, "limit": { "context": 1048576, "output": 128000 },
+                    "reasoning": true, "tool_call": true }
+                }
+              },
+              "openai": {
+                "name": "OpenAI",
+                "models": {
+                  "openai/gpt-5.5": { "id": "openai/gpt-5.5", "name": "GPT-5.5",
+                    "cost": { "input": 5, "output": 30 }, "limit": { "context": 256000 } }
+                }
+              }
+            }
+            """;
+            var devModels = ModelCatalog.ImportModelsDev(devJson);
+            Check("models.dev 导入 2 个模型", devModels.Count == 2);
+            var flash = devModels.FirstOrDefault(m => m.ProviderId == "deepseek");
+            Check("models.dev id 去服务商前缀", flash != null && flash.Id == "deepseek-v4-flash");
+            Check("models.dev 价格解析", flash != null && Math.Abs(flash.InputPrice - 0.14) < 0.001 && Math.Abs(flash.OutputPrice - 0.28) < 0.001);
+            Check("models.dev 上下文解析", flash != null && flash.ContextWindow == 1_048_576);
+            Check("models.dev thinking/tools", flash != null && flash.SupportsThinking == true && flash.SupportsTools == true);
+            Check("models.dev baseUrl", flash != null && flash.DefaultBaseUrl == "https://api.deepseek.com");
+
+            // 去重：有价格覆盖没价格（同供应商同模型）
+            var priced = new ModelCatalog.ModelInfo("deepseek-chat", "DeepSeek Chat", "DeepSeek", "deepseek", "D", "Imported", 32768, 0.5, 1.0, null, "priced");
+            var unpriced = new ModelCatalog.ModelInfo("deepseek-chat", "DeepSeek Chat", "DeepSeek", "deepseek", "D", "Imported", 32768, 0, 0, null, "unpriced");
+            Check("去重：有价格保留（已有价格）", ModelCatalog.MergeModel(priced, unpriced) == priced);
+            Check("去重：有价格覆盖（导入有价格）", ModelCatalog.MergeModel(unpriced, priced) == priced);
+
+            // connectId 去重键规范化：同供应商同模型不因大小写/空格差异重复（小写 + 空格转横线）
+            Check("connectId: 大小写归一", ModelCatalog.ModelKey("DeepSeek", "DeepSeek V4 Pro") == ModelCatalog.ModelKey("deepseek", "deepseek-v4-pro"));
+            Check("connectId: 空格转横线", ModelCatalog.ModelKey("Open AI", "gpt 5") == "open-ai|gpt-5");
+            Check("connectId: 供应商参与去重", ModelCatalog.ModelKey("deepseek", "chat") != ModelCatalog.ModelKey("qwen", "chat"));
+        }
         try
         {
             var imgTmp = Path.Combine(Path.GetTempPath(), "wc_img_" + Guid.NewGuid().ToString("N")[..6] + ".png");
