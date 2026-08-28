@@ -160,7 +160,12 @@ public partial class ModelManagerPage : ContentPage
         try
         {
             // 注册到 providers.json（/provider 列表可见）+ 占位模型（供应商卡片列表可见）
-            ModelCatalog.RegisterProvider(id, name, baseUrl);
+            if (!ModelCatalog.RegisterProvider(id, name, baseUrl))
+            {
+                var owner = ModelCatalog.FindProviderByBaseUrl(baseUrl);
+                await DisplayAlertAsync("导入失败", $"地址已被服务商「{owner}」占用（同地址 = 同供应商，不允许重复）", "关闭");
+                return;
+            }
             ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
                 $"{id}-placeholder", $"{name} 占位", name, id, "C", "Custom", 131_072, 0, 0, baseUrl,
                 $"自定义供应商 {name}（导入后请在「设置」填 Key）"));
@@ -312,7 +317,12 @@ public partial class ModelManagerPage : ContentPage
         var newUrl = await DisplayPromptAsync("改地址", $"输入 {providerId} 的 Base URL", accept: "保存", cancel: "取消",
             initialValue: url, maxLength: 200);
         if (newUrl == null) return;
-        ModelCatalog.UpdateProviderUrl(providerId, newUrl.Trim());
+        if (!ModelCatalog.UpdateProviderUrl(providerId, newUrl.Trim()))
+        {
+            var owner = ModelCatalog.FindProviderByBaseUrl(newUrl.Trim());
+            await DisplayAlertAsync("改地址失败", $"新地址已被服务商「{owner}」占用（同地址 = 同供应商，不允许重复）", "关闭");
+            return;
+        }
         Populate();
     }
 

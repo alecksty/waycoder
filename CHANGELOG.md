@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.96.22 (2026-08-28) — provider 数据库两条铁律：不允许重复地址 + 同供应商不允许重复模型
+
+- **地址唯一铁律**：`RegisterProvider`/`UpdateProviderUrl` 拒绝「地址已被其它供应商占用」（同地址 = 同供应商）；CLI `/provider add`、TUI `/provider`、移动端导入供应商均弹出明确拒绝提示
+- **自动修复**：新增 `DeduplicateProviders`——加载 providers.json 后自动归并共享同一地址的重复供应商（内置优先、id 字典序靠前者胜出，被合并者的模型改挂到保留供应商）；`--model clean` 也触发
+- **内置合并**：bailian（百炼）与 opencode 旧别名均并入对应规范供应商（qwen / opencode-zen），内置注册表不再有重复地址
+- **模型唯一铁律**：`AddCustom` 同 providerId+id 二次写入自动合并；`All` 按规范化 baseUrl（去尾部斜杠）覆盖内置，消除「同供应商同模型因地址变体重复」
+- **自测**：4720 全过；Maui Android 编译通过
+
 ## v0.96.21 (2026-08-28) — 供应商管理对话框（全端）+ TUI 导入异步 + 模型选择框闪烁/省略号修复
 
 - **TUI `/provider` 供应商管理对话框**（新 `ProviderPicker`）：列出全部供应商（🔑有Key/⚠️无Key/🌿本地 · 显示名 · Key状态 · **模型数量** · 连通性 · 地址），按钮：设Key / 清Key / 测试 / 添加 / 改名 / 改地址 / 删除；改动即落盘 providers.json

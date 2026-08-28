@@ -818,6 +818,52 @@ public static partial class SelfTest
                 devCustom.Count == 2 && devCustom.All(m => m.ProviderId == "api-neuralreseller-com"));
             Check("models.dev 同 id 同地址合并（有价覆盖无价）",
                 devCustom.Select(m => m.Id).Distinct().Count() == 1);
+
+            // provider 数据库铁律：不允许重复地址（同地址 = 同供应商）
+            var testUrl = "https://api.wc-dup.example/v1";
+            var testUrlSlashed = testUrl + "/";
+            var testUrlD = "https://api.wc-dup-d.example/v1";
+            ModelCatalog.RegisterProvider("wca", "A", testUrl);
+            Check("provider 地址唯一: 同地址注册被拒",
+                !ModelCatalog.RegisterProvider("wcb", "B", testUrl)
+                && ModelCatalog.FindProviderByBaseUrl(testUrl) == "wca");
+            Check("provider 地址唯一: 尾部斜杠视为同地址",
+                !ModelCatalog.RegisterProvider("wcc", "C", testUrlSlashed));
+            Check("provider 地址唯一: 改地址被占用被拒",
+                ModelCatalog.RegisterProvider("wcd", "D", testUrlD)
+                && !ModelCatalog.UpdateProviderUrl("wcd", testUrl));
+            // 直接注入重复地址模拟历史脏数据 → DeduplicateProviders 归并（保留先注册者）
+            ModelCatalog.Providers["wcb"] = new ModelCatalog.ProviderInfo("B", testUrl);
+            var deduped = ModelCatalog.DeduplicateProviders();
+            Check("provider 地址唯一: 去重归并保留先注册者",
+                deduped >= 1 && ModelCatalog.Providers.ContainsKey("wca") && !ModelCatalog.Providers.ContainsKey("wcb"));
+            // 清理测试供应商（不污染真实注册表/文件）
+            ModelCatalog.RemoveProvider("wca");
+            ModelCatalog.RemoveProvider("wcc");
+            ModelCatalog.RemoveProvider("wcd");
+            Check("provider 地址唯一: 清理后无残留",
+                !ModelCatalog.Providers.ContainsKey("wca")
+                && !ModelCatalog.Providers.ContainsKey("wcb")
+                && !ModelCatalog.Providers.ContainsKey("wcc")
+                && !ModelCatalog.Providers.ContainsKey("wcd"));
+
+            // 同供应商不允许重复模型：同 providerId+id 二次写入自动合并（字典键去重）
+            var dupA = new ModelCatalog.ModelInfo("wc-dup-model", "Dup", "Qwen Test", "wca", "*", "Custom", 0, 0, 0, testUrl, "t1");
+            var dupB = new ModelCatalog.ModelInfo("wc-dup-model", "Dup", "Qwen Test", "wca", "*", "Custom", 0, 0, 0, testUrl, "t2");
+            ModelCatalog.AddCustom(dupA);
+            ModelCatalog.AddCustom(dupB);
+            Check("同供应商不允许重复模型: 同 id 二次写入合并",
+                ModelCatalog.All.Count(m => m.Id == "wc-dup-model" && m.ProviderId == "wca") == 1);
+            ModelCatalog.RemoveCustom("wc-dup-model");
+            Check("同供应商不允许重复模型: 清理后无残留",
+                ModelCatalog.All.All(m => m.Id != "wc-dup-model"));
+
+            // All 按规范化 baseUrl 覆盖内置：同供应商同 id + 尾部斜杠地址 → 覆盖不追加（不产生重复模型）
+            ModelCatalog.AddCustom(new ModelCatalog.ModelInfo("qwen3-max", "Qwen3 Max", "Alibaba", "qwen", "*", "Custom",
+                0, 0, 0, "https://dashscope.aliyuncs.com/compatible-mode/v1/", "尾斜杠覆盖测试"));
+            Check("同供应商不允许重复模型: 尾斜杠地址覆盖内置不重复",
+                ModelCatalog.All.Count(m => m.Id == "qwen3-max" && m.ProviderId == "qwen") == 1);
+            ModelCatalog.RemoveCustom("qwen3-max");
         }
         try
         {

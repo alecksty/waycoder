@@ -397,7 +397,11 @@ public static class ModelCli
         foreach (var id in toRemoveModels) ModelCatalog.RemoveCustom(id);
         foreach (var name in toRemoveConnects) ConnectionConfig.RemoveConnect(name, out _);
 
-        sb.AppendLine($"✅ 清理完成：合并重复 {merged} 个，删除无效服务商模型 {removedProv} 个，删除无效 connect {removedConn} 个");
+        // 供应商地址去重（同地址 = 同供应商）：归并重复地址的供应商并移除
+        var mergedProv = ModelCatalog.DeduplicateProviders();
+
+        sb.AppendLine($"✅ 清理完成：合并重复 {merged} 个，删除无效服务商模型 {removedProv} 个，删除无效 connect {removedConn} 个" +
+            (mergedProv > 0 ? $"，归并重复地址供应商 {mergedProv} 个" : ""));
         if (merged + removedProv + removedConn == 0)
             sb.AppendLine("（模型目录与 connect 已干净，无需清理）");
         return sb.ToString().TrimEnd();
@@ -772,9 +776,11 @@ public static class ModelCli
                 case "new":
                 {
                     if (values.Count < 4) { Console.WriteLine("用法: --provider add <id> <名称> <base-url>"); return 1; }
-                    ModelCatalog.RegisterProvider(values[1], values[2], values[3]);
-                    Console.WriteLine($"✅ 已添加服务商 {values[1]} → {values[3]}");
-                    return 0;
+                    var added = ModelCatalog.RegisterProvider(values[1], values[2], values[3]);
+                    if (added) { Console.WriteLine($"✅ 已添加服务商 {values[1]} → {values[3]}"); return 0; }
+                    var owner = ModelCatalog.FindProviderByBaseUrl(values[3]);
+                    Console.WriteLine($"❌ 添加失败：该地址已被服务商「{owner}」占用（同地址 = 同供应商，不允许重复）");
+                    return 1;
                 }
                 case "rm":
                 case "remove":
