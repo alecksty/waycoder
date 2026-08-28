@@ -684,16 +684,20 @@ public static class ModelCli
             return $"在线导入（{src.Name}）失败：{hint}（{ex.Message}）";
         }
 
+        onProgress?.Invoke($"🔄 解析 {src.Name} 模型列表（{json.Length / 1024} KB）…");
         var list = isModelsDev
             ? ModelCatalog.ImportModelsDev(json)
             : ModelCatalog.ImportOpenCodeApi(json, src.BaseUrl);
         if (list.Count == 0)
             return $"在线导入（{src.Name}）未返回可识别的模型";
+        onProgress?.Invoke($"🔄 解析完成 {list.Count} 个模型，写入模型库…");
         var builtInIds = new HashSet<string>(ModelCatalog.BuiltIn.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
         var toAdd = list.Where(m => !builtInIds.Contains(m.Id)).ToList();
         ModelCatalog.AddCustomRange(toAdd);
         RegisterImportProviders(toAdd);
-        return $"✅ 在线导入（{src.Name}）{toAdd.Count} 个模型" +
+        var providerCount = toAdd.Select(m => m.ProviderId).Distinct().Count();
+        onProgress?.Invoke($"✅ 完成：{providerCount} 个供应商 / {toAdd.Count} 个模型");
+        return $"✅ 在线导入（{src.Name}）{providerCount} 个供应商 / {toAdd.Count} 个模型" +
             (list.Count - toAdd.Count > 0 ? $"，跳过 {list.Count - toAdd.Count} 内置" : "") +
             (string.IsNullOrEmpty(key) ? "（未配置 API Key，导入的模型需设 key 后使用）" : "") +
             "：\n  " + string.Join("\n  ", toAdd.Select(m => m.Id));

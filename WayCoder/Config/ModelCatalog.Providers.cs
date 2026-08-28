@@ -166,4 +166,25 @@ public static partial class ModelCatalog
         // 用户要删 key 请显式 --model key rm <provider>
         return true;
     }
+
+    /// <summary>改供应商显示名（保留其他字段，providers.json 落盘）。</summary>
+    public static void RenameProvider(string providerId, string displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName)) return;
+        if (Providers.TryGetValue(providerId, out var p))
+        {
+            Providers[providerId] = p with { DisplayName = displayName };
+            SaveProvidersJson();
+        }
+    }
+
+    /// <summary>改供应商 Base URL（保留其他字段，providers.json 落盘）。</summary>
+    public static void UpdateProviderUrl(string providerId, string baseUrl)
+    {
+        if (Providers.TryGetValue(providerId, out var p))
+        {
+            Providers[providerId] = p with { DefaultBaseUrl = baseUrl ?? "" };
+            SaveProvidersJson();
+        }
+    }
 }

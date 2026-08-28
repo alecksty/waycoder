@@ -887,7 +887,7 @@ public static partial class ModelCatalog
             if (string.IsNullOrWhiteSpace(id)) continue;
             // 按服务地址归类：opencode 网关分 Go(zen/go/v1) / Zen(zen/v1) 两个服务商，地址决定归属。
             // pname 跟随 providerId（注册表显示名），避免「从 DeepSeek 源在线导入」得到 providerId=deepseek 却标 OpenCode Go 的错配
-            var pid = InferProviderFromBaseUrl(baseUrl) ?? "opencode-go";
+            var pid = ResolveProviderId(baseUrl, "opencode-go");
             var pname = pid switch
             {
                 "opencode-go" => "OpenCode Go",
@@ -973,6 +973,39 @@ public static partial class ModelCatalog
         return null;
     }
 
+    /// <summary>
+    /// 供应商唯一 id 由 base_url 决定（「同地址 = 同供应商」去重）：识别到内置网关 → 规范 id
+    /// （deepseek/openai…）；否则按 host 派生稳定 id（同 host 必得同 id，跨来源也能合并）；
+    /// 地址为空/不可解析才回退来源 pid。这是「请求打到哪，就归哪个服务商」的唯一入口。
+    /// </summary>
+    public static string ResolveProviderId(string? baseUrl, string? fallbackPid)
+    {
+        var known = InferProviderFromBaseUrl(baseUrl);
+        if (known != null) return known;
+        var host = ExtractHost(baseUrl);
+        if (host.Length > 0) return NormalizeId(host);
+        return NormalizeId(fallbackPid ?? "import");
+    }
+
+    /// <summary>从 base_url 提取规范化 host（小写、去 www.、去端口）：api.deepseek.com → api.deepseek.com。</summary>
+    private static string ExtractHost(string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl)) return "";
+        try
+        {
+            var host = Uri.TryCreate(baseUrl, UriKind.Absolute, out var u) && !string.IsNullOrWhiteSpace(u.Host)
+                ? u.Host
+                : baseUrl;
+            host = host.ToLowerInvariant();
+            if (host.StartsWith("www.", StringComparison.Ordinal)) host = host[4..];
+            // 去端口（localhost:11434 → localhost）；非标准端口用于区分服务商时，保留路径段交给 InferProviderFromBaseUrl 已先判断
+            var colon = host.LastIndexOf(':');
+            if (colon > 0 && host.IndexOf(':') == colon) host = host[..colon];
+            return host;
+        }
+        catch { return ""; }
+    }
+
     /// <summary>OpenCode 格式：provider.&lt;pid&gt;.models.&lt;mid&gt; = { name, limit{context,output}, options{baseURL} }</summary>
     public static List<ModelInfo> ImportOpenCode(string json)
     {
@@ -999,7 +1032,7 @@ public static partial class ModelCatalog
                 var inPrice = DblOpt(cost?["input"]) ?? 0;
                 var outPrice = DblOpt(cost?["output"]) ?? 0;
                 // 按服务地址归类（opencode 网关地址 → opencode，而非配置里的 pid）
-                var effPid = InferProviderFromBaseUrl(baseUrl) ?? pid.ToLowerInvariant();
+                var effPid = ResolveProviderId(baseUrl, pid);
                 result.Add(new ModelInfo(mid, name, pname, effPid, "*", "Imported",
                     ctx, inPrice, outPrice, baseUrl, $"从 OpenCode 导入（{pname}）", maxOut));
             }
@@ -1026,7 +1059,7 @@ public static partial class ModelCatalog
                 var info = ParseModelNode(m);
                 if (info == null) continue;
                 // OpenClaw 用 provider id 作为 key，模型节点无 provider 字段，需回填；服务商按 base_url 归类
-                var effPid = InferProviderFromBaseUrl(baseUrl) ?? pid.ToLowerInvariant();
+                var effPid = ResolveProviderId(baseUrl, pid);
                 result.Add(info with
                 {
                     ProviderId = effPid,
@@ -1078,8 +1111,12 @@ public static partial class ModelCatalog
                 bool? thinking = node.Get("reasoning")?.Kind == JKind.Bool ? node.Get("reasoning")!.AsBool() : null;
                 bool? tools = node.Get("tool_call")?.Kind == JKind.Bool ? node.Get("tool_call")!.AsBool() : null;
 
-                result.Add(new ModelInfo(id, display, provName, pid.ToLowerInvariant(), "*", "Imported",
-                    ctx, inP, outP, baseUrl, $"从 models.dev 导入（{provName}）", maxOut,
+                // 供应商唯一 id 由 base_url 决定：同地址同供应商（deepseek 网关下的转售商也归 deepseek）
+                var effPid = ResolveProviderId(baseUrl, pid);
+                var provDisplay = Providers.TryGetValue(effPid, out var reg) && !string.IsNullOrWhiteSpace(reg.DisplayName)
+                    ? reg.DisplayName : provName;
+                result.Add(new ModelInfo(id, display, provDisplay, effPid, "*", "Imported",
+                    ctx, inP, outP, baseUrl, $"从 models.dev 导入（{provDisplay}）", maxOut,
                     SupportsThinking: thinking, SupportsTools: tools));
             }
         }
@@ -1114,7 +1151,7 @@ public static partial class ModelCatalog
                     var info = ParseModelNode(m);
                     if (info == null) continue;
                     // 服务商按 base_url 归类
-                    var effPid = InferProviderFromBaseUrl(baseUrl) ?? pid.ToLowerInvariant();
+                    var effPid = ResolveProviderId(baseUrl, pid);
                     result.Add(info with
                     {
                         ProviderId = effPid,
@@ -1146,7 +1183,7 @@ public static partial class ModelCatalog
                         if (info == null) continue;
                         result.Add(info with
                         {
-                            ProviderId = InferProviderFromBaseUrl(baseUrl) ?? pid.ToLowerInvariant(),
+                            ProviderId = ResolveProviderId(baseUrl, pid),
                             Provider = pid,
                             DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl,
                             Description = $"从 Crush 导入（{pid}）",
@@ -1162,7 +1199,7 @@ public static partial class ModelCatalog
                             result.Add(info with
                             {
                                 Id = mid,
-                                ProviderId = InferProviderFromBaseUrl(baseUrl) ?? pid.ToLowerInvariant(),
+                                ProviderId = ResolveProviderId(baseUrl, pid),
                                 Provider = pid,
                                 DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl,
                                 Description = $"从 Crush 导入（{pid}）",
@@ -1195,7 +1232,7 @@ public static partial class ModelCatalog
             var clean = name.Split('[')[0].Trim();  // 去 [1M] 后缀
             if (!seen.Add(clean)) continue;
             // 服务商按 base_url 归类（Claude Code 若配了 opencode/其它网关地址，归对应服务商而非 claude）
-            var effPid = InferProviderFromBaseUrl(baseUrl) ?? "claude";
+            var effPid = ResolveProviderId(baseUrl, "claude");
             result.Add(new ModelInfo(clean, clean, "Claude Code", effPid, "C", "Imported",
                 0, 0, 0, baseUrl, $"从 Claude Code 导入（{key}）", 0));
         }
@@ -1226,7 +1263,7 @@ public static partial class ModelCatalog
             if (seen.Add(profModel))
             {
                 // 服务商按 base_url 归类（配了 opencode/其它网关地址则归对应服务商）
-                var effPid = InferProviderFromBaseUrl(p.BaseUrl) ?? pid.ToLowerInvariant();
+                var effPid = ResolveProviderId(p.BaseUrl, pid);
                 result.Add(new ModelInfo(profModel, pname, pname, effPid, "*", "Imported",
                     0, 0, 0, p.BaseUrl, $"从 Codex 导入（profile {pid}）", 0));
             }
@@ -1289,7 +1326,7 @@ public static partial class ModelCatalog
                 ? globalModel : pid;
             if (seen.Add(modelId))
             {
-                var effPid = InferProviderFromBaseUrl(baseUrl) ?? pid.ToLowerInvariant();
+                var effPid = ResolveProviderId(baseUrl, pid);
                 result.Add(new ModelInfo(modelId, pname, pname, effPid, "*", "Imported",
                     0, 0, 0, baseUrl, $"从 Codex 导入（{pname}）", 0));
             }

@@ -542,4 +542,11 @@ namespace WayCoder.UI.TUI.Custom
 
         public static void Apply(string modelId, bool isLarge, int slot, string? baseUrl = null, string? providerId = null) { }
     }
+
+    /// 供应商管理走 MAUI ModelManagerPage（供应商卡片点开设Key/改名/改地址/删除）；桩保证 /provider 命令在移动端编译。
+    /// </summary>
+    public static class ProviderPicker
+    {
+        public static void Show() { }
+    }
 }

@@ -253,7 +253,7 @@ public static class ModelPicker
             slotBar.Text = SlotBarText(targetSlot, currentSlot);
             btnMode.Text = isLarge ? "→小模型" : "→大模型";
             help.Text = "↑↓选择  Enter确认保存关闭  空格预览不关  Esc取消  F1-F10槽位  打字过滤";
-            help2.Text = "^T大小 ^G槽位 ^S扫描 ^R导入 ^O在线 ^P设Key ^L清Key ^N添加 ^U编辑 ^D删除";
+            help2.Text = "^T大小 ^G槽位 ^S扫描 ^R导入 ^O在线 ^P设Key ^L清Key ^N添加 ^U编辑 ^D删除" + ModelStatsText();
             // 数据/标题/组头都改了，必须把窗口根视图整体标脏 —— 否则增量渲染只画脏控件，
             // 表格行与窗口标题不重绘（搜索过滤输入后列表「不动」就源于此：OnTextChanged→Refresh
             // 改的是 table 的 rows，但 table 与窗口根视图都没标脏，下一帧增量渲染直接跳过它）。
@@ -273,8 +273,19 @@ public static class ModelPicker
             if (!string.IsNullOrEmpty(message))
             {
                 help.Text = message;
-                help2.Text = "";
+                help2.Text = ModelStatsText();   // 操作结果覆盖 help，统计仍留在 help2
             }
+        }
+
+        /// <summary>模型库统计（供应商/模型数量），底部常驻显示。</summary>
+        static string ModelStatsText()
+        {
+            try
+            {
+                var all = ModelCatalog.All;
+                return $"   |   模型库 {all.Length} 模型 / {all.Select(m => m.ProviderId).Distinct().Count()} 供应商";
+            }
+            catch { return ""; }
         }
 
         // ── 动作 ──
@@ -362,19 +373,32 @@ public static class ModelPicker
                 RunImport(sources, null, "📥 本地导入中…");
                 return;
             }
-            // 在线导入：弹框选服务商（OpenCode Go/Zen / OpenRouter / Groq / SiliconFlow / Together / DeepSeek / OpenAI / Moonshot），可多选
+            // 在线导入：弹框选服务商（多选），后台线程异步拉取（models.dev 等大源 4.4MB/7000 模型，同步会卡死 UI）+ 进度显示
             var onlineNames = ModelCli.OnlineSources.Select(s => s.Name).ToList();
             var pickedOnline = UxHelper.MultiSelect("🌐 在线导入 · 选择服务商", onlineNames, preCheckAll: false);
             if (pickedOnline == null || pickedOnline.Count == 0) return;
-            var repList = new List<string>();
-            foreach (var name in pickedOnline)
-            {
-                var src = ModelCli.OnlineSources.FirstOrDefault(s => s.Name == name);
-                if (src != null) repList.Add(ModelCli.ImportOnline(src));
-            }
-            help.Text = string.Join("\n", repList);
+            help.Text = "🌐 在线导入中…";
             help2.Text = "";
-            RefreshParent();
+            screen?.MarkDirty();
+            var repList = new List<string>();
+            Task.Run(() =>
+            {
+                foreach (var name in pickedOnline)
+                {
+                    var src = ModelCli.OnlineSources.FirstOrDefault(s => s.Name == name);
+                    if (src == null) continue;
+                    var report = ModelCli.ImportOnline(src, msg =>
+                    {
+                        help.Text = "⏳ " + msg;
+                        help2.Text = "";
+                        screen?.MarkDirty();
+                    });
+                    lock (repList) repList.Add(report);
+                }
+                // RefreshParent(message) 把报告放 help、统计放 help2（直接设置会被 Refresh 的按键提示覆盖）
+                screen?.MarkDirty();
+                RefreshParent(string.Join("\n", repList));
+            });
         }
 
         void RunImport(string? sources, string? onlineBaseUrl, string busyText)
@@ -625,9 +649,10 @@ public static class ModelPicker
             switch (action)
             {
                 case EKeyAction.Nav:
+                    // 只标表格脏（增量重绘选中行），不标整屏 —— screen.MarkDirty 会设 RootView.IsDirty
+                    // 强制整屏重绘，移光标时标题栏/对话框全闪
                     table.OnKey(key);
                     table.MarkDirty();
-                    screen?.MarkDirty();
                     return true;
                 case EKeyAction.Commit: Commit(); return true;
                 case EKeyAction.Slot: SetSlot(slot); return true;

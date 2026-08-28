@@ -51,9 +51,35 @@ public partial class ModelManagerPage : ContentPage
                 Padding = new Thickness(12, 8),
             };
             card.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 12 };
-            // 点卡片 → 右侧滑入该供应商模型列表
+            // 点卡片 → 供应商菜单：管理模型 / 设Key / 清Key / 改名 / 改地址 / 删除（手机没有 /provider 快捷键，统一入口）
             var tap = new TapGestureRecognizer();
-            tap.Tapped += async (_, _) => await Shell.Current.GoToAsync($"providermodels?provider={Uri.EscapeDataString(g.Key)}");
+            tap.Tapped += async (_, _) =>
+            {
+                var action = await DisplayActionSheetAsync($"{display}（{g.Key}）", "取消", null,
+                    "管理模型", "设Key", "清Key", "改名", "改地址", "删除");
+                switch (action)
+                {
+                    case "管理模型":
+                        await Shell.Current.GoToAsync($"providermodels?provider={Uri.EscapeDataString(g.Key)}");
+                        break;
+                    case "设Key":
+                        await SetProviderKeyAsync(g.Key);
+                        break;
+                    case "清Key":
+                        ApiKeyStore.Remove(g.Key);
+                        Populate();
+                        break;
+                    case "改名":
+                        await RenameProviderAsync(g.Key);
+                        break;
+                    case "改地址":
+                        await EditProviderUrlAsync(g.Key);
+                        break;
+                    case "删除":
+                        await DeleteProviderAsync(g.Key);
+                        break;
+                }
+            };
             card.GestureRecognizers.Add(tap);
 
             var models = g.OrderBy(m => m.DisplayName).Select(m => m.DisplayName).ToList();
@@ -133,6 +159,8 @@ public partial class ModelManagerPage : ContentPage
 
         try
         {
+            // 注册到 providers.json（/provider 列表可见）+ 占位模型（供应商卡片列表可见）
+            ModelCatalog.RegisterProvider(id, name, baseUrl);
             ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
                 $"{id}-placeholder", $"{name} 占位", name, id, "C", "Custom", 131_072, 0, 0, baseUrl,
                 $"自定义供应商 {name}（导入后请在「设置」填 Key）"));
@@ -255,5 +283,45 @@ public partial class ModelManagerPage : ContentPage
             Populate();
         }
         catch (Exception ex) { await DisplayAlertAsync("导入失败", ex.Message, "关闭"); }
+    }
+
+    // ── 供应商 CRUD（设Key/改名/改地址/删除）──
+
+    private async Task SetProviderKeyAsync(string providerId)
+    {
+        var key = await DisplayPromptAsync("设Key", $"输入 {providerId} 的 API Key", accept: "保存", cancel: "取消", maxLength: 512);
+        if (string.IsNullOrWhiteSpace(key)) return;
+        ApiKeyStore.Set(providerId, key.Trim());
+        Populate();
+        await DisplayAlertAsync("已保存", $"已保存 {providerId} 的 API Key", "确定");
+    }
+
+    private async Task RenameProviderAsync(string providerId)
+    {
+        var name = ModelCatalog.Providers.TryGetValue(providerId, out var p) ? p.DisplayName : providerId;
+        var newName = await DisplayPromptAsync("改名", $"输入 {providerId} 的新显示名", accept: "保存", cancel: "取消",
+            initialValue: name, maxLength: 40);
+        if (string.IsNullOrWhiteSpace(newName)) return;
+        ModelCatalog.RenameProvider(providerId, newName.Trim());
+        Populate();
+    }
+
+    private async Task EditProviderUrlAsync(string providerId)
+    {
+        var url = ModelCatalog.Providers.TryGetValue(providerId, out var p) ? p.DefaultBaseUrl : "";
+        var newUrl = await DisplayPromptAsync("改地址", $"输入 {providerId} 的 Base URL", accept: "保存", cancel: "取消",
+            initialValue: url, maxLength: 200);
+        if (newUrl == null) return;
+        ModelCatalog.UpdateProviderUrl(providerId, newUrl.Trim());
+        Populate();
+    }
+
+    private async Task DeleteProviderAsync(string providerId)
+    {
+        var name = ModelCatalog.Providers.TryGetValue(providerId, out var p) ? p.DisplayName : providerId;
+        var confirmed = await DisplayAlertAsync("删除供应商", $"确定删除 {name}（{providerId}）？此操作不可恢复。", "删除", "取消");
+        if (!confirmed) return;
+        ModelCatalog.RemoveProvider(providerId);
+        Populate();
     }
 }

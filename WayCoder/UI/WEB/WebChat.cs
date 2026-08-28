@@ -156,7 +156,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         if (req.Method == "POST" && req.Path == "/models/import")
             return ImportExternalModels(req.Body);
         if (req.Method == "POST" && req.Path == "/models/import-opencode")
-            return ImportOpenCodeOnline(req.Body);
+            return await ImportOpenCodeOnline(req.Body);
         if (req.Method == "POST" && req.Path == "/models/clear")
         {
             var cleared = ModelCatalog.ClearAll();
@@ -1007,17 +1007,18 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
     /// <summary>从 opencode 在线 /models 端点导入模型列表（OpenAI 兼容格式）。
     /// body.mode = "go"（zen/go/v1，订阅制）默认 / "zen"（zen/v1，按量付费）——两个服务商地址不同。</summary>
-    private static HttpResponse ImportOpenCodeOnline(string? body)
+    private static async Task<HttpResponse> ImportOpenCodeOnline(string? body)
     {
         try
         {
-            // 在线导入：选择端点（OpenCode Go/Zen / OpenRouter / Groq / SiliconFlow / Together / DeepSeek / OpenAI / Moonshot 等）
+            // 在线导入：选择端点（OpenCode Go/Zen / OpenRouter / Groq / SiliconFlow / Together / DeepSeek / OpenAI / Moonshot / models.dev 等）
             string? name = null;
             var bodyObj = Json.Parse(body ?? "");
             if (bodyObj != null && bodyObj["mode"] is { } modeNode) name = modeNode.AsString()?.Trim();
             var src = ModelCli.OnlineSources.FirstOrDefault(s =>
                 s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ?? ModelCli.OnlineSources[0];
-            var report = ModelCli.ImportOnline(src);
+            // 后台线程执行（models.dev 等大源 4.4MB/7000 模型，同步会阻塞请求线程）
+            var report = await Task.Run(() => ModelCli.ImportOnline(src));
             return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("modelReport", report).ToJson());
         }
         catch (Exception ex)
