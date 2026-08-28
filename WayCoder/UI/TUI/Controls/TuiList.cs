@@ -38,12 +38,14 @@ public class TuiList : TuiControl
             MarkDirty();
             return true;
         }
+
         if (ev.MouseScrollDown)
         {
             ScrollOffset = Math.Min(Math.Max(0, Items.Count - Height), ScrollOffset + 3);
             MarkDirty();
             return true;
         }
+
         if (ev.MouseLeft)
         {
             Focused = true; // 点击后方向键才路由到本列表（对齐 TuiView.OnKey 只派发聚焦子控件）
@@ -60,10 +62,13 @@ public class TuiList : TuiControl
                     SelectedIndex = idx;
                     OnSelect?.Invoke(idx); // 点击 = 激活（对齐空格键语义）
                 }
+
                 MarkDirty();
             }
+
             return true; // 区域内消费事件
         }
+
         return base.OnMouse(ev);
     }
 
@@ -126,28 +131,56 @@ public class TuiList : TuiControl
         switch (key.Key)
         {
             case ConsoleKey.UpArrow:
-                if (SelectedIndex > 0) { SelectedIndex--; MarkDirty(); }
+                if (SelectedIndex > 0)
+                {
+                    SelectedIndex--;
+                    MarkDirty();
+                }
+
                 return true;
             case ConsoleKey.DownArrow:
-                if (SelectedIndex < Items.Count - 1) { SelectedIndex++; MarkDirty(); }
+                if (SelectedIndex < Items.Count - 1)
+                {
+                    SelectedIndex++;
+                    MarkDirty();
+                }
+
                 return true;
             case ConsoleKey.Home:
-                if (SelectedIndex != 0) { SelectedIndex = 0; MarkDirty(); }
+                if (SelectedIndex != 0)
+                {
+                    SelectedIndex = 0;
+                    MarkDirty();
+                }
+
                 return true;
             case ConsoleKey.End:
-                if (SelectedIndex != Items.Count - 1) { SelectedIndex = Items.Count - 1; MarkDirty(); }
+                if (SelectedIndex != Items.Count - 1)
+                {
+                    SelectedIndex = Items.Count - 1;
+                    MarkDirty();
+                }
+
                 return true;
             case ConsoleKey.PageUp:
+            {
+                var next = Math.Max(0, SelectedIndex - Math.Max(1, Height));
+                if (next != SelectedIndex)
                 {
-                    var next = Math.Max(0, SelectedIndex - Math.Max(1, Height));
-                    if (next != SelectedIndex) { SelectedIndex = next; MarkDirty(); }
+                    SelectedIndex = next;
+                    MarkDirty();
                 }
+            }
                 return true;
             case ConsoleKey.PageDown:
+            {
+                var next = Math.Min(Items.Count - 1, SelectedIndex + Math.Max(1, Height));
+                if (next != SelectedIndex)
                 {
-                    var next = Math.Min(Items.Count - 1, SelectedIndex + Math.Max(1, Height));
-                    if (next != SelectedIndex) { SelectedIndex = next; MarkDirty(); }
+                    SelectedIndex = next;
+                    MarkDirty();
                 }
+            }
                 return true;
             case ConsoleKey.Spacebar:
                 if (MultiSelect)
@@ -159,6 +192,7 @@ public class TuiList : TuiControl
                     MarkDirty();
                     return true;
                 }
+
                 OnSelect?.Invoke(SelectedIndex); // 单选：空格 = 激活（等同回车）
                 return true;
             case ConsoleKey.Enter:

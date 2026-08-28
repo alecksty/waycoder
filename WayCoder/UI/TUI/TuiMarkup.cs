@@ -1,4 +1,3 @@
-using WayCoder.Infra;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui;
@@ -585,10 +584,10 @@ public static class TuiMarkup
                 break;
             case "Line":
                 ((TuiLine)c).Vertical = Bool(node, "vertical") ?? false;
-                ((TuiLine)c).Style = ParseBorder(Attr(node, "style", "single"));
+                ((TuiLine)c).BorderStyle = ParseBorder(Attr(node, "style", "single"));
                 break;
             case "Rect":
-                ((TuiRect)c).Style = ParseBorder(Attr(node, "style", "single"));
+                ((TuiRect)c).BorderStyle = ParseBorder(Attr(node, "style", "single"));
                 break;
             case "Markdown":
                 var md = (WayCoder.UI.Tui.Controls.TuiMarkdown)c;

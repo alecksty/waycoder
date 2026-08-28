@@ -5,16 +5,13 @@ using WayCoder.UI.TUI.Base;
 namespace WayCoder.UI.Tui.Controls;
 
 /// <summary>矩形框控件 —— 只画外框（边框），内部空白。纯展示，无交互。</summary>
-public class TuiRect : TuiControl
+public class TuiRect : TuiBorderedControl
 {
-    /// <summary>线形（复用 WindowBorder）。</summary>
-    public WindowBorder Style { get; set; } = WindowBorder.Single;
-
-    public override bool CanFocus => false;
+    public TuiRect() { BorderStyle = WindowBorder.Single; }
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
-        var bc = AnsiHelper.GetBorderChars(Style);
+        var bc = GetBorderChars();
         int fg = EffectiveFg;
         int bg = EffectiveBg;
         int w = Math.Max(1, Width);

@@ -11,9 +11,8 @@ namespace WayCoder.UI.Tui.Controls;
 /// 渲染：左侧槽位指示条 + 中间提示文本 + 右侧 Agent 状态/Token。
 /// 颜色由主题 StatusBarFg/StatusBarBg 控制。
 /// </summary>
-public class TuiStatusBar : TuiControl
+public class TuiStatusBar : TuiDisplayControl
 {
-    public override bool CanFocus => false;
 
     // ── 数据 ──
 

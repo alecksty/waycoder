@@ -1,6 +1,6 @@
 using WayCoder.UI.Shared.Terminal;
 
-namespace WayCoder.UI.Tui.ToolRenderers;
+namespace WayCoder.UI.TUI.Renderers;
 
 /// <summary>
 /// Agent 工具渲染器 —— 子智能体状态 + 深度标记。

@@ -10,10 +10,8 @@ namespace WayCoder.UI.Tui.Controls;
 /// 布局：左边框竖线 + 多个分区（标题 + 分隔线 + 内容），垂直堆叠。
 /// 颜色由主题 WindowBg / ControlBg 控制。
 /// </summary>
-public class TuiSidePanel : TuiControl
+public class TuiSidePanel : TuiBorderedControl
 {
-    public override bool CanFocus => false;
-
     /// <summary>面板分区列表</summary>
     public List<PanelSection> Sections { get; set; } = [];
 
@@ -22,12 +20,6 @@ public class TuiSidePanel : TuiControl
 
     /// <summary>左边框宽度（列数）</summary>
     public int BorderWidth { get; set; } = 1;
-
-    /// <summary>左边框颜色</summary>
-    public int BorderColor { get; set; } = AnsiColors.BrightBlack;
-
-    /// <summary>边框样式（控制竖线/分隔线字符）</summary>
-    public WindowBorder BorderStyle { get; set; } = WindowBorder.Rounded;
 
     /// <summary>分区标题颜色</summary>
     public int SectionHeaderFg { get; set; } = AnsiColors.BrightBlack; // 分区标题：灰色（不抢眼）
@@ -41,6 +33,7 @@ public class TuiSidePanel : TuiControl
     public TuiSidePanel()
     {
         Width = 30; Height = 20;
+        BorderColor = AnsiColors.BrightBlack; // 左边框默认灰色（基类默认 0=自动）
     }
 
     protected override void OnRender(StringBuilder sb, int absX, int absY)
@@ -50,7 +43,7 @@ public class TuiSidePanel : TuiControl
         int contentW = Width - BorderWidth;
         if (contentW <= 0) return;
 
-        var bc = AnsiHelper.GetBorderChars(BorderStyle);
+        var bc = GetBorderChars();
         int bg = Bg > 0 ? Bg : TuiTheme.Current.TerminalBg;
         int fg = Fg > 0 ? Fg : AnsiColors.BrightBlack; // 内容行：灰色
         int contentBg = 0; // 内容（标题/分隔线/行）透明背景，只显示文字，不铺色块

@@ -10,7 +10,13 @@ namespace WayCoder.UI.Tui.Controls;
 /// </summary>
 public static class TuiToastQueue
 {
-    public enum ToastType { Info, Success, Warn, Error }
+    public enum ToastType
+    {
+        Info,
+        Success,
+        Warn,
+        Error
+    }
 
     private static readonly Queue<ToastItem> _queue = new();
     private static readonly Lock _lock = new();
@@ -19,7 +25,7 @@ public static class TuiToastQueue
     private static volatile ToastItem? _current; // 跨线程（worker 写 / UI 渲染线程读），volatile 保证可见性
 
     /// <summary>最大排队数量</summary>
-    public static int MaxQueueSize { get; set; } = 5;
+    public static int MaxQueueSize { get; set; } = 10;
 
     /// <summary>默认显示时长（毫秒）</summary>
     public static int DefaultDurationMs { get; set; } = 2500;
@@ -30,7 +36,10 @@ public static class TuiToastQueue
     /// <summary>排队中的 Toast 数量</summary>
     public static int PendingCount
     {
-        get { lock (_lock) return _queue.Count; }
+        get
+        {
+            lock (_lock) return _queue.Count;
+        }
     }
 
     /// <summary>
@@ -126,9 +135,16 @@ public static class TuiToastQueue
             }
 
             _current = next;
-            try { await Task.Delay(next.DurationMs, ct); }
-            catch (OperationCanceledException) { break; }
+            try
+            {
+                await Task.Delay(next.DurationMs, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
         }
+
         _current = null;
     }
 

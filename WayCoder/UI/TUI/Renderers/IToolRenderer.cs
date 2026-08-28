@@ -1,4 +1,4 @@
-namespace WayCoder.UI.Tui.ToolRenderers;
+namespace WayCoder.UI.TUI.Renderers;
 
 /// <summary>
 /// 工具输出渲染器接口 —— 对标 Crush 的 ToolMessageItem 模式。

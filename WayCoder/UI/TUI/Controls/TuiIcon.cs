@@ -7,13 +7,12 @@ namespace WayCoder.UI.Tui.Controls;
 /// 图标控件 —— 单字符图标，固定 2×1 大小。
 /// 用于角色指示（👤🤖⚙）、状态标记等。
 /// </summary>
-public class TuiIcon : TuiControl
+public class TuiIcon : TuiDisplayControl
 {
     /// <summary>图标字符</summary>
     public string Glyph { get; set; } = "•";
 
     /// <summary>图标是纯展示控件，不可获得焦点</summary>
-    public override bool CanFocus => false;
 
     public TuiIcon()
     {

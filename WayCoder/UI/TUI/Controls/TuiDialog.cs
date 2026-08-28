@@ -74,7 +74,11 @@ public static class TuiDialog
         win.XScale = 0; // 宽度由 ContentW 统一决定，不走比例缩放；resize 时靠上面的回调重算
         var cw0 = Apply();
         if (applyWidth != null)
-            win.OnResizeContent = () => { Apply(); afterResize?.Invoke(); };
+            win.OnResizeContent = () =>
+            {
+                Apply();
+                afterResize?.Invoke();
+            };
         return cw0;
     }
 
@@ -843,6 +847,7 @@ public static class TuiDialog
                 onMultiConfirm(list.CheckedIndices);
                 win.OnClosed?.Invoke();
             }
+
             okBtn.OnClick = _ => Confirm();
             // 多选：空格勾选，Enter = 确认（等同点击"确定"）
             list.OnSelect = _ => Confirm();
@@ -888,9 +893,24 @@ public static class TuiDialog
         foreach (var b in new[] { yesBtn, noBtn, allBtn })
             b.Flex = 1; // 配色由 ApplyButtonGradient 设（橙黄渐变底 + 黑字）
         yesBtn.Focused = true;
-        yesBtn.OnClick = _ => { win.Result = EDialogResult.Yes; onResult(EDialogResult.Yes); win.OnClosed?.Invoke(); };
-        noBtn.OnClick = _ => { win.Result = EDialogResult.No; onResult(EDialogResult.No); win.OnClosed?.Invoke(); };
-        allBtn.OnClick = _ => { win.Result = EDialogResult.Ok; onResult(EDialogResult.Ok); win.OnClosed?.Invoke(); };
+        yesBtn.OnClick = _ =>
+        {
+            win.Result = EDialogResult.Yes;
+            onResult(EDialogResult.Yes);
+            win.OnClosed?.Invoke();
+        };
+        noBtn.OnClick = _ =>
+        {
+            win.Result = EDialogResult.No;
+            onResult(EDialogResult.No);
+            win.OnClosed?.Invoke();
+        };
+        allBtn.OnClick = _ =>
+        {
+            win.Result = EDialogResult.Ok;
+            onResult(EDialogResult.Ok);
+            win.OnClosed?.Invoke();
+        };
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, yesBtn, noBtn, allBtn);
 
         // 尺寸走和 Info/Confirm 同一条自适应路径。此前是 ContentW(WideXScale, 4) —— 不看内容，

@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.96.25 (2026-08-28) — 控件基类提炼 + 渲染器命名空间重构 + 编译警告清零
+
+- **编译警告清零**：csproj 修复 WebAssets.Generated.cs 重复编译（CS2002——Windows 下 glob Identity 是反斜杠路径，Target 里 Remove 用正斜杠不匹配）；PackFile 位运算符号扩展显式强转（CS0675×3）；KbIndex null 引用修复（CS8601/8602）；自测回调 content! 断言（CS8604×3）；清理全局已声明的冗余 using——`dotnet build` 0 警告 0 错误
+- **控件基类提炼**：新增 `TuiDisplayControl`（CanFocus=false，收纳 15 个纯展示控件）+ `TuiBorderedControl`（BorderStyle/BorderColor/GetBorderChars 统一 4 个边框控件）；TuiPanel 删除自写的不完整边框 switch 改委托 AnsiHelper（补全 Solid/Dotted/Dashed/Slash/Triangle 等新样式）；TuiRect/TuiLine 的 Style 属性统一改名 BorderStyle
+- **渲染器命名空间重构**：`WayCoder.UI.Tui.ToolRenderers` → `WayCoder.UI.TUI.Renderers` 统一命名空间；TuiMarkdown 从 Custom/ 移到 UI/TUI/；编辑器/对话框/列表等控件格式化统一（换行/括号风格）
+- **细节调整**：toast 队列上限 5→10；列表 Home 键直接跳到底部；模型信息栏精简（工作模式→模式、经济模式→经济、大模型→大、小模型→小）；快捷键栏去掉「Tab 补全」提示
+- **自测**：4720 全过
+
 ## v0.96.24 (2026-08-28) — TUI 动画心跳：主渲染循环被堵时 spinner 仍持续转
 
 - **需求**：卡死时动画控件也停——动画帧由主渲染循环驱动，循环被堵（ReadKey 被抢 / 锁 / 长任务）Render 不再调用，spinner 冻结
