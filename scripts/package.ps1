@@ -52,6 +52,22 @@ Write-Host "══════════════════════�
 
 New-Item -ItemType Directory -Force -Path $Dist | Out-Null
 
+# 压缩重试：NativeAOT 刚写完 exe 立即压缩可能被文件句柄/杀软扫描短暂锁住（"正由另一进程使用"），
+# 稍等重试即可。最多 5 次、间隔 1s。
+function Retry-Archive {
+    param($Destination, $Items)
+    for ($i = 0; $i -lt 5; $i++) {
+        try {
+            $Items | Compress-Archive -DestinationPath $Destination -Force
+            return
+        }
+        catch {
+            if ($i -eq 4) { throw }
+            Start-Sleep -Milliseconds 1000
+        }
+    }
+}
+
 foreach ($Rid in $TargetRids) {
     $IsAot  = ($Rid -eq $HostRid)
     $Mode   = if ($IsAot) { "NativeAOT" } else { "JIT（非 AOT）" }
@@ -73,8 +89,8 @@ foreach ($Rid in $TargetRids) {
     if ($Rid -like 'win-*') {
         $Archive = Join-Path $Dist "waycoder-$Version-$Rid.zip"
         Remove-Item $Archive -ErrorAction SilentlyContinue
-        Get-ChildItem $Out | Where-Object { $_.Extension -ne '.pdb' } |
-            Compress-Archive -DestinationPath $Archive -Force
+        $Items = @(Get-ChildItem $Out | Where-Object { $_.Extension -ne '.pdb' })
+        Retry-Archive -Destination $Archive -Items $Items
         Write-Host "  ✅ $Archive" -ForegroundColor Green
     }
     else {
