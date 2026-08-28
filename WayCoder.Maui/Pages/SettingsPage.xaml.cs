@@ -410,9 +410,11 @@ public partial class SettingsPage : ContentPage
         if (!string.IsNullOrEmpty(whisperKey))
             Config.Instance.WhisperApiKey = whisperKey;
 
-        // 4.5) 权限模式（确认轴；仅内存，随 App 会话生效）
+        // 4.5) 权限模式（确认轴）
         if (PermModePicker.SelectedIndex >= 0)
             PermissionManager.CurrentMode = (PermissionManager.Mode)PermModePicker.SelectedIndex;
+        // 记住工作/权限/经济三种模式（手机无快捷键，下次启动直接恢复）
+        Services.MauiModeStore.Save(WorkModeManager.CurrentMode, PermissionManager.CurrentMode, Config.Instance.EconomyMode);
 
         // 5) 持久化 + 重建 Agent（下次发送按新配置）
         Config.Instance.SaveToEnvFile();

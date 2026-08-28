@@ -259,20 +259,26 @@ public partial class ChatPage : ContentPage
         }
     }
 
-    /// <summary>循环切换工作模式（建造→计划→聊天）并同步到 Agent。</summary>
+    /// <summary>循环切换工作模式（建造→计划→聊天）并同步到 Agent，持久化供下次启动恢复。</summary>
     private void CycleWorkMode()
     {
         WorkModeManager.CycleNext();
         if (AgentService.CurrentAgent is { } a) a.WorkMode = WorkModeManager.CurrentMode;
+        SaveModes();
         RefreshModelBar();
     }
 
-    /// <summary>循环切换确认轴权限（Ask→Auto→SmartAuto→Yolo）。</summary>
+    /// <summary>循环切换确认轴权限（Ask→Auto→SmartAuto→Yolo），持久化。</summary>
     private void CyclePermission()
     {
         PermissionManager.CycleMode();
+        SaveModes();
         RefreshModelBar();
     }
+
+    /// <summary>把三种模式落到磁盘（手机无快捷键，记住选择，下次启动恢复）。</summary>
+    internal void SaveModes()
+        => Services.MauiModeStore.Save(WorkModeManager.CurrentMode, PermissionManager.CurrentMode, Config.Instance.EconomyMode);
 
     /// <summary>会话管理：继续上次会话 / 新的会话。</summary>
     private async Task ManageSessionsAsync()
