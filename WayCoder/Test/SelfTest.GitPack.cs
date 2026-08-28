@@ -8,7 +8,7 @@ public static partial class SelfTest
 {
     private static void TestChunk17(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
     {
-        Section("[git 包解码（Inflater / side-band / v2 帧）]");
+        Section("[Git 包解码（Inflater / side-band / v2 帧）]");
 
         // ── Inflater 往返（ZLibStream 压缩 → 自实现 inflate 解压）──
         // 曾有两个潜伏 bug：HuffmanDecoder 构造器用规范码值索引（288 长数组越界）、
@@ -52,6 +52,127 @@ public static partial class SelfTest
         var (noisyData, noisyConsumed) = Inflater.Decompress(noisyComp, 0);
         Check("Inflater stored 块解压一致", noisyData.AsSpan().SequenceEqual(noisy));
         Check("Inflater stored 块消耗准确", noisyConsumed == noisyComp.Length);
+
+        // ── Inflater.Skip：只推进偏移不物化输出，消耗字节须与 Decompress 一致（预扫描定位对象边界用）──
+        foreach (var lvl in new[] { CompressionLevel.Fastest, CompressionLevel.Optimal, CompressionLevel.SmallestSize })
+        {
+            var skipPlain = Encoding.UTF8.GetBytes("hello world hello world 测试中文 git pack 解码验证 1234567890\n");
+            byte[] skipComp;
+            using (var skipMs = new MemoryStream())
+            {
+                using (var sz = new ZLibStream(skipMs, lvl, leaveOpen: true)) sz.Write(skipPlain);
+                skipComp = skipMs.ToArray();
+            }
+            var skipConsumed = Inflater.Skip(skipComp, 0);
+            var (_, decConsumed) = Inflater.Decompress(skipComp, 0);
+            Check($"Inflater.Skip 消耗一致（{lvl}）", skipConsumed == decConsumed);
+        }
+
+        // ── PackFileReader 新回调 API：逐对象回调，内容一致 ──
+        {
+            var plainA = Encoding.UTF8.GetBytes("hello world");
+            var plainB = Encoding.UTF8.GetBytes("second blob content");
+            var shaA = PackFileReader.ObjectSha("blob", plainA);
+            var shaB = PackFileReader.ObjectSha("blob", plainB);
+            var writerObjs = new List<(string Type, string Sha, byte[] Content)>
+            {
+                ("blob", shaA, plainA),
+                ("blob", shaB, plainB),
+            };
+            var writerPack = PackFileWriter.Write(writerObjs);
+            var seen = new Dictionary<string, byte[]>();
+            int cbCount = PackFileReader.Read(writerPack, null, (type, sha, content) => seen[sha] = content.ToArray());
+            Check("PackFileReader 回调对象数=2", cbCount == 2);
+            Check("回调 blob A 内容一致",
+                seen.TryGetValue(shaA, out var gotA) && gotA.AsSpan().SequenceEqual(plainA));
+            Check("回调 blob B 内容一致",
+                seen.TryGetValue(shaB, out var gotB) && gotB.AsSpan().SequenceEqual(plainB));
+        }
+
+        // ── ofs-delta 包解码：手动构造 full blob + ofs-delta（base 提前、delta 引用其偏移）──
+        {
+            var baseContent = Encoding.UTF8.GetBytes("abcdefghijklmnop");
+            byte[] CompressZ(byte[] data)
+            {
+                using var ms = new MemoryStream();
+                using (var z = new ZLibStream(ms, CompressionLevel.Optimal, leaveOpen: true)) z.Write(data);
+                return ms.ToArray();
+            }
+            var baseZ = CompressZ(baseContent);
+            // delta = src16 dst16 + copy(offset=0,size=16)；copy 命令须置 bit7(0x80)，
+            // bit0=offset 有 1 字节、bit4=size 有 1 字节 → 0x91
+            byte[] delta = { 0x10, 0x10, 0x91, 0x00, 0x10 };
+            var deltaZ = CompressZ(delta);
+
+            using var opms = new MemoryStream();
+            opms.Write("PACK"u8.ToArray());
+            opms.WriteByte(0); opms.WriteByte(0); opms.WriteByte(0); opms.WriteByte(2);   // version 2
+            opms.WriteByte(0); opms.WriteByte(0); opms.WriteByte(0); opms.WriteByte(2);   // 2 objects
+            // object0：blob size=16 → 头 0xB0 0x01 + zlib
+            opms.WriteByte(0xB0); opms.WriteByte(0x01);
+            opms.Write(baseZ);
+            // object1：ofs-delta size=5 → 头 0x65 + ofs 距离 + zlib；距离 = object0 总长
+            opms.WriteByte(0x65);
+            opms.WriteByte((byte)(2 + baseZ.Length));
+            opms.Write(deltaZ);
+            var opackBody = opms.ToArray();
+            using var ofull = new MemoryStream();
+            ofull.Write(opackBody);
+            ofull.Write(System.Security.Cryptography.SHA1.HashData(opackBody));
+            var opack = ofull.ToArray();
+
+            string? gotType = null, gotSha = null;
+            byte[]? gotContent = null;
+            int ocnt = PackFileReader.Read(opack, null,
+                (type, sha, content) => { gotType = type; gotSha = sha; gotContent = content.ToArray(); });
+            // 包含 2 个对象（full blob + ofs-delta），Read 应回调 2 次
+            Check("ofs-delta 包回调对象数=2", ocnt == 2);
+            Check("ofs-delta 解出类型 blob", gotType == "blob");
+            Check("ofs-delta 解出 sha 正确", gotSha == PackFileReader.ObjectSha("blob", baseContent));
+            Check("ofs-delta 解出内容一致", gotContent != null && gotContent.AsSpan().SequenceEqual(baseContent));
+        }
+
+        // ── ReadFile：从临时文件解码（大仓库 pack 数百 MB 不能整包读内存，走文件分块）──
+        {
+            var rfPlain = Encoding.UTF8.GetBytes("file-backed decode hello world 测试");
+            var rfSha = PackFileReader.ObjectSha("blob", rfPlain);
+            var rfPack = PackFileWriter.Write(new List<(string, string, byte[])> { ("blob", rfSha, rfPlain) });
+            var rfFile = Path.Combine(Path.GetTempPath(), "wcrf_" + Guid.NewGuid().ToString("N")[..8] + ".pack");
+            File.WriteAllBytes(rfFile, rfPack);
+            try
+            {
+                Check("ReadObjectCount 读取对象数", PackFileReader.ReadObjectCount(rfFile) == 1);
+                byte[]? rfGot = null;
+                int rfCnt = PackFileReader.ReadFile(rfFile, null, (type, sha, content) => rfGot = content.ToArray());
+                Check("ReadFile 回调对象数=1", rfCnt == 1);
+                Check("ReadFile 内容一致", rfGot != null && rfGot.AsSpan().SequenceEqual(rfPlain));
+            }
+            finally { try { File.Delete(rfFile); } catch { } }
+        }
+
+        // ── 大对象原生路径：>16MB 对象内容走原生内存（onLargeObject），不物化托管 byte[]（安卓堆装不下）──
+        {
+            var bigPlain = new byte[20 * 1024 * 1024];
+            new Random(7).NextBytes(bigPlain);   // 不可压缩 → stored 块，压缩数据≈内容
+            var bigSha = PackFileReader.ObjectSha("blob", bigPlain);
+            var bigPack = PackFileWriter.Write(new List<(string, string, byte[])> { ("blob", bigSha, bigPlain) });
+            long gotLen = 0;
+            string? gotType = null, shaGot = null;
+            byte[]? gotContent = null;
+            int callbacks = 0;
+            int bcnt = PackFileReader.Read(bigPack, null,
+                (type, sha, content) => { if (content == null) { gotType = type; shaGot = sha; } callbacks++; },
+                null,
+                onLargeObject: (type, sha, ptr, len) =>
+                {
+                    // 必须在回调内复制内容：回调返回后原生内存即被释放
+                    gotLen = len;
+                    gotContent = new byte[len];
+                    unsafe { new ReadOnlySpan<byte>(ptr.ToPointer(), (int)len).CopyTo(gotContent); }
+                });
+            Check("大对象走原生回调（onObject null）", bcnt == 1 && callbacks == 1 && gotType == "blob" && shaGot == bigSha && gotLen == bigPlain.Length);
+            Check("大对象原生内容一致", gotContent != null && gotContent.AsSpan().SequenceEqual(bigPlain));
+        }
 
         // ── side-band-64k 解码：构造 packfile\n + channel1(pack) + channel2(进度) + flush ──
         var packBytes = Encoding.ASCII.GetBytes("PACK1234567890");

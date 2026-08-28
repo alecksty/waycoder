@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-	<application android:allowBackup="true" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true">
+	<application android:allowBackup="true" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true" android:largeHeap="true">
 		<!-- FileProvider：仅暴露沙箱 workspace（file_paths.xml），供「用外部应用打开」生成 content:// URI。
 		     authority 必须为 {applicationId}.fileprovider，MAUI Launcher 在 Android 端按此找 FileProvider。 -->
 		<provider

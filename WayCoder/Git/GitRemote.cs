@@ -271,26 +271,39 @@ public static class GitRemote
         if (localSha == want.Sha) return (want.Sha, 0); // 已最新
 
         var haves = localSha != null ? new[] { localSha } : Array.Empty<string>();
-        var pack = await UploadPackAsync(url, cred, new[] { want.Sha }, haves, progress);
-
-        progress?.Invoke("pack 下载完成，解码对象…");
-        Func<string, (string, byte[])?> externalBase = sha =>
+        // pack 流式落盘（大仓库 pack 数百 MB，整包读内存会 OOM 闪退）
+        var packFile = await DownloadPackToFileAsync(url, cred, new[] { want.Sha }, haves, progress);
+        try
         {
-            var obj = GitCore.ReadObject(gitDir, sha);
-            return obj == null ? null : (obj.Value.Type, obj.Value.Content);
-        };
-        var objects = PackFileReader.Read(pack, externalBase,
-            (done, total) => progress?.Invoke($"解码对象 {done}/{total}"));
-        int written = 0;
-        var count = objects.Count;
-        foreach (var (sha, (type, content)) in objects)
-        {
-            GitCore.WriteObject(gitDir, type, content);
-            written++;
-            if (written % 100 == 0 || written == count)
-                progress?.Invoke($"写入对象 {written}/{count}");
+            progress?.Invoke("pack 下载完成，解码对象…");
+            Func<string, (string, byte[])?> externalBase = sha =>
+            {
+                var obj = GitCore.ReadObject(gitDir, sha);
+                return obj == null ? null : (obj.Value.Type, obj.Value.Content);
+            };
+            // 逐对象从文件解码回调写盘（PackFileReader 只保留 delta base LRU，不整仓驻内存）
+            int total = PackFileReader.ReadObjectCount(packFile);
+            int written = 0;
+            PackFileReader.ReadFile(packFile, externalBase,
+                (type, sha, content) =>
+                {
+                    if (content != null) GitCore.WriteObject(gitDir, type, content);   // null = 大对象已原生写盘
+                    written++;
+                    if (written % 100 == 0 || written == total)
+                        progress?.Invoke($"写入对象 {written}/{total}");
+                },
+                (done, cnt) => progress?.Invoke($"解码对象 {done}/{cnt}"),
+                onLargeObject: (type, sha, ptr, len) =>
+                {
+                    // 大对象（几百 MB）：原生内存内容直接流式写 loose 对象，不占托管堆
+                    unsafe { GitCore.WriteLooseObjectNative(gitDir, type, sha, (byte*)ptr, len); }
+                });
+            return (want.Sha, written);
         }
-        return (want.Sha, written);
+        finally
+        {
+            try { File.Delete(packFile); } catch { }
+        }
     }
 
     /// <summary>GET /info/refs?service=... 解析远端 refs。</summary>
@@ -315,13 +328,13 @@ public static class GitRemote
     }
 
     /// <summary>
-    /// POST /git-upload-pack（protocol v2 fetch），返回裸 packfile。
-    /// Gitee/GitHub 现仅响应 v2 请求：无 Git-Protocol: version=2 头会返回空响应 →
-    /// 「upload-pack 响应无 packfile」。请求体 = command=fetch + 0001 定界 +
+    /// POST /git-upload-pack（protocol v2 fetch），side-band 流式解码 pack 数据到临时文件。
+    /// 关键：大仓库 pack 可能数百 MB，绝不能整包读进内存——安卓堆上限 256MB，
+    /// 单次 ~284MB 分配即 OOM 闪退（实测 VML.git）。请求体 = command=fetch + 0001 定界 +
     /// want/have/done + 0000 flush；响应为 side-band-64k 多路复用
-    /// （channel 1 = pack 数据、channel 2 = 进度），先解码再找 PACK 魔数。
+    /// （channel 1 = pack、channel 2 = 进度），逐帧把 channel-1 写入临时文件。
     /// </summary>
-    static async Task<byte[]> UploadPackAsync(string url, GitCredential? cred, string[] wants, string[] haves,
+    static async Task<string> DownloadPackToFileAsync(string url, GitCredential? cred, string[] wants, string[] haves,
         Action<string>? progress = null)
     {
         using var body = new MemoryStream();
@@ -332,16 +345,45 @@ public static class GitRemote
         PktLine.WriteString(body, "done\n");
         PktLine.Write(body, null); // 0000 flush 结束请求
 
-        var resp = await PostAsync($"{url}/git-upload-pack", "application/x-git-upload-pack-request",
-            body.ToArray(), cred, protocolV2: true,
-            onDownload: (read, total) => progress?.Invoke(
-                total > 0
-                    ? $"下载 pack {read / (1024 * 1024)}/{total / (1024 * 1024)} MB"
-                    : $"下载 pack {read / (1024 * 1024)} MB"));
-        var pack = DeSideband(resp);
-        int idx = FindPackMarker(pack);
-        if (idx >= pack.Length) throw new InvalidDataException("upload-pack 响应无 packfile");
-        return pack[idx..];
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"{url}/git-upload-pack");
+        ApplyAuth(req, cred);
+        req.Headers.TryAddWithoutValidation("Git-Protocol", "version=2");
+        req.Content = new ByteArrayContent(body.ToArray());
+        req.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-git-upload-pack-request");
+
+        using var resp = await _client.Value.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
+        resp.EnsureSuccessStatusCode();
+
+        var tempFile = Path.Combine(Path.GetTempPath(), "wcpack_" + Guid.NewGuid().ToString("N")[..8] + ".pack");
+        long written = 0;
+        long lastMb = -1;
+        try
+        {
+            using var fs = File.Create(tempFile);
+            using var stream = await resp.Content.ReadAsStreamAsync();
+            // 首行是无 channel 的 "packfile\n" 裸头（channel = 'p' 非 1，自然被跳过），
+            // 其余每帧首字节为 channel：1=pack、2=进度、3=错误
+            while (true)
+            {
+                var pkt = PktLine.ReadTolerant(stream);
+                if (pkt == null) break; // flush / 结束标记 / EOF
+                if (pkt.Length <= 1) continue;
+                if (pkt[0] == 1)
+                {
+                    fs.Write(pkt, 1, pkt.Length - 1);
+                    written += pkt.Length - 1;
+                    long mb = written / (1024 * 1024);
+                    if (mb != lastMb) { lastMb = mb; progress?.Invoke($"下载 pack {mb} MB"); }
+                }
+            }
+            fs.Flush();
+        }
+        catch
+        {
+            try { File.Delete(tempFile); } catch { }
+            throw;
+        }
+        return tempFile;
     }
 
     /// <summary>side-band-64k 解码：拼接 channel-1（pack 数据），跳过 channel-2（进度）/3（错误）。</summary>

@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -392,12 +393,12 @@ public static class GitCore
 
     internal static string WriteObject(string gitDir, string type, byte[] content)
     {
+        // 流式 sha + 流式压缩：不拼 header+content 大数组（几百 MB 对象会二次占内存）
         var header = Encoding.UTF8.GetBytes($"{type} {content.Length}\0");
-        var full = new byte[header.Length + content.Length];
-        Array.Copy(header, 0, full, 0, header.Length);
-        Array.Copy(content, 0, full, header.Length, content.Length);
-
-        var sha = Convert.ToHexString(SHA1.HashData(full)).ToLowerInvariant();
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
+        hash.AppendData(header);
+        hash.AppendData(content);
+        var sha = Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
         var dir = Path.Combine(gitDir, "objects", sha[..2]);
         var file = Path.Combine(dir, sha[2..]);
         if (File.Exists(file)) return sha; // 已存在，跳过
@@ -405,7 +406,10 @@ public static class GitCore
         Directory.CreateDirectory(dir);
         using var fs = File.Create(file);
         using (var z = new ZLibStream(fs, CompressionLevel.Fastest, leaveOpen: true))
-            z.Write(full, 0, full.Length);
+        {
+            z.Write(header, 0, header.Length);
+            z.Write(content, 0, content.Length);
+        }
         return sha;
     }
 
@@ -413,20 +417,114 @@ public static class GitCore
     {
         var file = Path.Combine(gitDir, "objects", sha[..2], sha[2..]);
         if (!File.Exists(file)) return null;
-        byte[] raw;
-        using (var fs = File.OpenRead(file))
-        using (var z = new ZLibStream(fs, CompressionMode.Decompress))
-        using (var ms = new MemoryStream())
+        using var fs = File.OpenRead(file);
+        using var z = new ZLibStream(fs, CompressionMode.Decompress);
+
+        // 先解出 header（type size\0），按 contentLen 精确分配，避免 MemoryStream 翻倍物化大对象
+        var prefix = new byte[128];
+        int n = 0;
+        while (n < prefix.Length)
         {
-            z.CopyTo(ms);
-            raw = ms.ToArray();
+            int r = z.Read(prefix, n, prefix.Length - n);
+            if (r <= 0) break;
+            n += r;
         }
-        var nul = Array.IndexOf(raw, (byte)0);
+        int nul = Array.IndexOf(prefix, (byte)0, 0, n);
         if (nul < 0) return null;
-        var header = Encoding.UTF8.GetString(raw, 0, nul);
+        var header = Encoding.UTF8.GetString(prefix, 0, nul);
         var sp = header.IndexOf(' ');
-        if (sp < 0) return null;
-        return (header[..sp], raw[(nul + 1)..]);
+        if (sp < 0 || !long.TryParse(header[(sp + 1)..], out var contentLen) || contentLen > int.MaxValue) return null;
+
+        var content = new byte[contentLen];
+        long copied = n - (nul + 1);
+        if (copied > 0) Array.Copy(prefix, nul + 1, content, 0, (int)Math.Min(copied, contentLen));
+        while (copied < contentLen)
+        {
+            int r = z.Read(content, (int)copied, (int)(contentLen - copied));
+            if (r <= 0) break;
+            copied += r;
+        }
+        if (copied != contentLen) return null;
+        return (header[..sp], content);
+    }
+
+    // ── 大对象原生路径（安卓托管堆 256MB 上限，单对象几百 MB 不能物化 byte[]）──
+
+    /// <summary>原生内容计算 git 对象 sha（流式 IncrementalHash，不拼 header+content 大数组）。</summary>
+    internal static unsafe string ObjectShaNative(string type, byte* content, long length)
+    {
+        var header = Encoding.UTF8.GetBytes($"{type} {length}\0");
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
+        hash.AppendData(header);
+        hash.AppendData(new ReadOnlySpan<byte>(content, (int)length));
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+    }
+
+    /// <summary>从原生内容流式写 loose 对象（header + 压缩，不拼大数组）；sha 已由调用方算好。</summary>
+    internal static unsafe void WriteLooseObjectNative(string gitDir, string type, string sha, byte* content, long length)
+    {
+        var header = Encoding.UTF8.GetBytes($"{type} {length}\0");
+        var dir = Path.Combine(gitDir, "objects", sha[..2]);
+        var file = Path.Combine(dir, sha[2..]);
+        if (File.Exists(file)) return; // 已存在，跳过
+        Directory.CreateDirectory(dir);
+        using var fs = File.Create(file);
+        using (var z = new ZLibStream(fs, CompressionLevel.Fastest, leaveOpen: true))
+        {
+            z.Write(header, 0, header.Length);
+            // 分块写：安卓 Mono 的 ZLibStream 对原生 Span 可能物化托管副本（大对象整块写会 OOM）
+            const int Chunk = 1 << 20;   // 1MB
+            long off = 0;
+            while (off < length)
+            {
+                int n = (int)Math.Min(Chunk, length - off);
+                z.Write(new ReadOnlySpan<byte>(content + off, n));
+                off += n;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 读 loose 对象到原生内存（大 base 用，不物化托管 byte[]）。返回 null = 不存在。
+    /// 调用方负责 <see cref="NativeMemory.Free"/>。
+    /// </summary>
+    internal static unsafe (string Type, IntPtr Ptr, long Len)? ReadLooseObjectNative(string gitDir, string sha)
+    {
+        var file = Path.Combine(gitDir, "objects", sha[..2], sha[2..]);
+        if (!File.Exists(file)) return null;
+        using var fs = File.OpenRead(file);
+        using var z = new ZLibStream(fs, CompressionMode.Decompress);
+
+        // 读头部（type size\0），只读前 128 字节足够
+        var prefix = new byte[128];
+        int n = 0;
+        while (n < prefix.Length)
+        {
+            int r = z.Read(prefix, n, prefix.Length - n);
+            if (r <= 0) break;
+            n += r;
+        }
+        int nul = Array.IndexOf(prefix, (byte)0, 0, n);
+        if (nul < 0) return null;
+        var header = Encoding.UTF8.GetString(prefix, 0, nul);
+        var sp = header.IndexOf(' ');
+        if (sp < 0 || !long.TryParse(header[(sp + 1)..], out var contentLen)) return null;
+
+        var ptr = (byte*)NativeMemory.Alloc((nuint)contentLen);
+        try
+        {
+            long copied = n - (nul + 1);
+            if (copied > 0) Marshal.Copy(prefix, nul + 1, (IntPtr)ptr, (int)Math.Min(copied, contentLen));
+            while (copied < contentLen)
+            {
+                int r = z.Read(new Span<byte>(ptr + copied, (int)(contentLen - copied)));
+                if (r <= 0) break;
+                copied += r;
+            }
+            if (copied != contentLen) { NativeMemory.Free(ptr); return null; }
+            return (header[..sp], (IntPtr)ptr, copied);
+        }
+        catch { NativeMemory.Free(ptr); throw; }
     }
 
     internal static string HashBlob(byte[] content)

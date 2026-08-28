@@ -1,5 +1,24 @@
 # 更新日志
 
+## v0.96.18 (2026-08-28) — 移动端 git 拉取大仓库闪退修复（下载/解码/大对象三路 OOM）
+
+移动端 git 同步（克隆/拉取）大仓库时闪退，三个独立 OOM 根因逐一修掉（实测 VML.git 4 万+ 对象、pack 数百 MB、**单对象 593MB**）：
+
+1. **下载阶段 OOM**：`UploadPackAsync` 把整个响应包读进内存（`ms.ToArray()` + side-band 副本），pack 数百 MB 时单次 ~284MB 分配直接超安卓堆上限（256MB）→ `OutOfMemoryError` SIGABRT 闪退。改为 **side-band 流式解码写入临时文件**，内存上界降到流缓冲区。
+2. **解码阶段 OOM**：`PackFileReader` 把全部解压对象堆进内存字典，解到约 3 万对象即内存不足被杀。改为 **单遍解码 + 有字节上限的 LRU base 缓存**：对象解出即回调写盘、delta base 只经 24MB LRU 暂存，miss 从盘上已写入的 loose 对象按 sha 读回。
+3. **单对象超大 OOM**：VML 有 **单文件 593MB** 的对象，`new byte[size]` 托管分配（哪怕 `largeHeap` 512MB）都装不下 → **内容改走原生内存**（`NativeMemory.Alloc`，不占托管堆，实测 1GB 原生分配读写全通过、托管堆仅 4MB）。SHA1 用 `IncrementalHash` 流式、写盘用 `ZLibStream` 原生流式，全程不物化托管 `byte[]`。
+
+- **`DownloadPackToFileAsync`**：protocol v2 fetch 响应逐帧 `PktLine.ReadTolerant` 解码，channel-1 pack 字节直接写临时文件（每 MB 报一次进度，UI 不刷屏）；`finally` 清理临时文件
+- **`PackFileReader.ReadFile`**：从临时文件分块解码（`InflateAt` 块不够大自动加倍重读），单对象压缩数据读取上限 64MB；`ReadObjectCount` 从文件头读对象数供进度显示
+- **大对象原生路径**（`Read`/`ReadFile`）：>16MB 对象经 `NativeMemory.Alloc` 分配内容缓冲、`DecompressInto` 直接解入原生 Span，`ObjectShaNative` 流式算 sha、`WriteLooseObjectNative` 原生流式写 loose，`onObject` 收 null 内容（已写盘）；压缩数据也从文件读原生缓冲（`InflateAtInto`）不占托管堆
+- **流式哈希/写盘**：`GitCore.WriteObject`/`ReadObject`/`PackFileReader.ObjectSha` 改用 `IncrementalHash` + 精确大小分配，消除 `header+content` 大数组与 `MemoryStream` 翻倍物化
+- **`Inflater` 改造**：核心改 span 输出（`DecompressInto` 写入调用方缓冲，托管/原生皆可），`BitReader` 改 `ref struct`（原生输入支持，注意必须 `ref` 传参否则位置不推进——曾致死循环）
+- **`BitReader.ReadBytes` 修复**：越界抛 `EndOfStreamException`（与 `SkipBytes` 一致）而非 `Array.Copy` 的 `ArgumentException`
+- **`PackFileReader.Read` 内存有界化**：删除「预扫描 + 全量保留 base」，改 `BaseCache`（LRU 按字节上限淘汰）
+- **`android:largeHeap="true"`**：托管堆上限提至 512MB+（小对象/中对象的保底）
+- **自测**：新增 Inflater.Skip / 回调 API / ofs-delta / ReadFile / **大对象原生路径** 测试，共 4692 全过
+- **编译**：桌面 0 错误；移动端 `net10.0-android` 0 错误
+
 ## v0.96.17 (2026-08-27) — 代码同步卡死修复 + 远程分支完整识别
 
 修复点选历史仓库时界面卡死：`ListRemoteBranches`（ls-refs）原为同步网络调用跑在 UI 线程，慢网络/不可达时阻塞界面。改为后台线程拉取远程分支（本地分支立即显示、远程到了再合并），并用独立 5s 短超时 client。
