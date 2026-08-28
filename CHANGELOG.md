@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.96.24 (2026-08-28) — TUI 动画心跳：主渲染循环被堵时 spinner 仍持续转
+
+- **需求**：卡死时动画控件也停——动画帧由主渲染循环驱动，循环被堵（ReadKey 被抢 / 锁 / 长任务）Render 不再调用，spinner 冻结
+- **实现**：`TuiManager` 独立动画心跳线程（后台，~120ms/帧）——主循环最近 150ms 内 Render 过则跳过（避免双写+光标跳动），超过则接管直写 spinner 帧；`RenderDirect` 内部门控活跃屏 + 无浮层，安全
+- **效果**：只要 screen 可见（活跃屏且无对话框覆盖），spinner 就一直转，UI 看起来是活的；不取 `_renderLock`（否则主循环堵在 Render 里心跳也停）
+- **配套**：`TuiDynamicBar.RenderAllDirect` 快照迭代（防 DirectWriters 并发增删抛异常）
+- **自测**：4720 全过
+
 ## v0.96.23 (2026-08-28) — TUI 卡死修复：后台线程全部桥接 UI 线程 + RenderWait 单帧防御
 
 - **TUI 卡死根因（模型管理对话框）**：在线导入/扫描/连通性测试的进度回调和完成刷新在 `Task.Run` 后台线程**直接改控件树**（`help.Text`/`MarkDirty`/`RefreshParent` 重建表格行），与渲染线程并发读写 → 渲染读到半改态抛异常 → `RenderWait` 异常逃逸、`evt` 永不置位 → 对话框永久卡死

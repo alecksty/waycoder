@@ -35,6 +35,51 @@ public class TuiManager : IDisposable
     /// 串行化避免双线程并发遍历控件树与写终端（帧交错花屏）。</summary>
     private readonly object _renderLock = new();
 
+    // ── 独立动画心跳线程 ──
+    // 主渲染循环被阻塞（ReadKey 被抢 / 锁 / 长时间同步任务）时，Render 不再被调用，动态栏 spinner
+    // 也会停 —— 用户看到「卡死」。独立心跳线程周期直写 spinner 帧，与主循环解耦：
+    // 只要 screen 可见（活跃屏幕 + 无浮层窗口），动画就一直转，UI 看起来是活的。
+    // 不取 _renderLock（主循环若堵在 Render 里，取锁会让心跳也停，违背目标）；靠 Console.Write
+    // 单次调用原子 + 下帧全量覆盖自愈（直写只碰 spinner 一格，其余像素不触碰）。
+    private Thread? _animTicker;
+    private CancellationTokenSource? _animCts;
+    private long _lastRenderTicks; // 主渲染循环最近一次 Render 时间戳（心跳据此判断主循环是否还活着）
+
+    private void StartAnimTicker()
+    {
+        if (_animTicker != null) return;
+        _animCts = new CancellationTokenSource();
+        var cts = _animCts;
+        _animTicker = new Thread(() =>
+        {
+            while (!cts.IsCancellationRequested)
+            {
+                try
+                {
+                    if (IsActive)
+                    {
+                        // 主循环活跃（最近 150ms 内 Render 过）：它已在 30ms 循环里直写 spinner + EmitCursor
+                        // 恢复光标，心跳不插嘴（避免双写 + 光标跳回 spinner 格）。仅当主循环被堵
+                        // （Render 不再被调用）心跳才接管直写 —— 这正是「卡死后动画还要转」的关键。
+                        if (Environment.TickCount64 - Volatile.Read(ref _lastRenderTicks) > 150)
+                            TuiDynamicBar.RenderAllDirect(); // RenderDirect 内部门控活跃屏+无浮层，安全
+                    }
+                    // 注：TuiAnimatedText.RenderDirect 无活跃屏/浮层门控，不可从心跳线程调（会写旧位置）
+                }
+                catch { /* 单次直写失败忽略，下轮再试（如 DirectWriters 恰好被改动） */ }
+                try { cts.Token.WaitHandle.WaitOne(120); } catch { break; } // ~120ms ≈ 半帧，转得平滑
+            }
+        })
+        { IsBackground = true, Name = "TuiAnimTicker" };
+        _animTicker.Start();
+    }
+
+    private void StopAnimTicker()
+    {
+        try { _animCts?.Cancel(); } catch { }
+        _animTicker = null;
+    }
+
     private InputManager? _input;
     /// <summary>共享输入管理器：主循环与 RenderWait（ModalPicker/DiffPreview 等阻塞对话框）共用，
     /// 统一 bracketed paste / CSI 解析——否则 RenderWait 用裸 ReadKey 会把粘贴的 \x1b[200~ 当 Esc 关闭对话框。</summary>
@@ -67,11 +112,13 @@ public class TuiManager : IDisposable
         if (MouseEnabled) { if (Tty.IsAppleTerminal) Tty.EnableMouseBasic(); else Tty.EnableMouse(); }
         (TW, TH) = (Tty.Cols, Tty.Rows);
         IsActive = true;
+        StartAnimTicker(); // 独立动画心跳：主循环被堵时 spinner 仍转
     }
 
     /// <summary>恢复终端</summary>
     public void Exit()
     {
+        StopAnimTicker(); // 先停心跳，避免退出时再往已还原的终端写
         Tty.DisableMouse();
         Tty.ShowCursor();
         Tty.ExitAltScreen();
@@ -154,6 +201,7 @@ public class TuiManager : IDisposable
     public void Render()
     {
         if (!IsActive) return;
+        Volatile.Write(ref _lastRenderTicks, Environment.TickCount64); // 心跳据此判断主循环还活着
         // 渲染互斥：主循环 / RunAgentWithRenderLoop / 对话框 RenderWait 可能跨线程调 Render，
         // 串行化避免双线程并发遍历控件树 + 写终端（帧交错花屏）
         lock (_renderLock)
