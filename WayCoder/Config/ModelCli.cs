@@ -650,6 +650,8 @@ public static class ModelCli
         new("DeepSeek", "https://api.deepseek.com/v1", "deepseek"),
         new("OpenAI", "https://api.openai.com/v1", "openai"),
         new("Moonshot", "https://api.moonshot.cn/v1", "moonshot"),
+        // models.dev：开源模型数据库（api.json 专用格式，非 OpenAI /models 端点，ImportOnline 特判）
+        new("models.dev", "https://models.dev/api.json", "models.dev"),
     ];
 
     /// <summary>
@@ -666,11 +668,13 @@ public static class ModelCli
             client.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", key);
 
-        onProgress?.Invoke($"🔍 拉取 {src.Name} 模型列表（{src.BaseUrl}/models）...");
+        // models.dev 是 api.json 专用格式（非 OpenAI /models 端点），URL 即文件本身
+        var isModelsDev = src.KeyProvider == "models.dev";
+        onProgress?.Invoke($"🔍 拉取 {src.Name} 模型列表（{(isModelsDev ? src.BaseUrl : src.BaseUrl + "/models")}）...");
         string json;
         try
         {
-            json = client.GetStringAsync(src.BaseUrl + "/models").GetAwaiter().GetResult();
+            json = client.GetStringAsync(isModelsDev ? src.BaseUrl : src.BaseUrl + "/models").GetAwaiter().GetResult();
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -680,7 +684,9 @@ public static class ModelCli
             return $"在线导入（{src.Name}）失败：{hint}（{ex.Message}）";
         }
 
-        var list = ModelCatalog.ImportOpenCodeApi(json, src.BaseUrl);
+        var list = isModelsDev
+            ? ModelCatalog.ImportModelsDev(json)
+            : ModelCatalog.ImportOpenCodeApi(json, src.BaseUrl);
         if (list.Count == 0)
             return $"在线导入（{src.Name}）未返回可识别的模型";
         var builtInIds = new HashSet<string>(ModelCatalog.BuiltIn.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);

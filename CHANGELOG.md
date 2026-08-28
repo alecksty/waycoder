@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.96.20 (2026-08-28) — 聊天浮动滚底 + 压缩进度进状态区 + models.dev 导入 + 内置模型丰富 + 文件页编辑模式
+
+- **聊天浮动「滚到底」按钮**：手动上翻离开底部 → 右下角 ↓ 浮动按钮，点它滚到底并恢复自动滚动后隐藏
+- **上下文压缩进度进状态区（所有端）**：核心 `CompressWithSmallModel` 不再把压缩进度喂进 token 流（源头修复），只走 `ContextManager.CompressProgress` 事件——桌面动态栏 / Web 状态区 / 移动状态栏固定位置显示，聊天区保持干净；移动端 `ChatPage` 订阅事件显示「🔄 压缩中 [Lx/3]…」，并过滤压缩 token 不进内容
+- **models.dev 导入（所有端）**：`ModelCatalog.ImportModelsDev` 解析 models.dev `api.json`（200+ 服务商、7000+ 模型、价格/上下文/思考/工具），加入 `ModelCli.OnlineSources` → 桌面/Web/移动「在线导入」多出 models.dev 源；模型 id 自动去服务商前缀
+- **内置目录丰富**：更新过时上下文/价格（gpt-5.5/5.4 → 1.05M、claude-sonnet-5 → 1M 等），新增 18 个新模型（GPT-5.5 Pro、GPT-5.6、o3 Pro、Claude Fable 5、Kimi K3/K2.7 Code/K2.6、Grok 4.6、Gemini 3.1 Pro、GLM-5.3/5/4.7、Qwen3.7 Max 等）
+- **导入去重：有价格覆盖没价格**：`MergeModel` 同供应商同模型有价格者胜（多源导入后价格最全）
+- **connectId 去重键规范化**：`ModelKey` 两侧 `NormalizeId`（小写 + 去空格 + 空格转横线），同供应商同模型不因导入来源大小写/空格差异重复；`RemoveCustom` 兼容旧格式
+- **文件页编辑模式**：工具栏「✏️ 编辑/✔ 完成」开关，编辑模式下点任意目录/文件弹「重命名 / 删除 / 创建 ZIP 压缩包」；`SandboxFsService.CreateZip`（ZipArchive 打包，AOT 安全）；点击机制恢复 CollectionView SelectionChanged（TapGesture 在 Android 不可靠）
+- **自测**：新增 models.dev 导入解析 / 去重价格覆盖 / connectId 归一化测试，共 4703 全过
+
 ## v0.96.19 (2026-08-28) — 移动端聊天卡死修复 + 发送队列（忙时排队，输入永不卡）
 
 移动端聊天在 agent 长任务/长思考时界面卡死（输入、点击无响应）。两个根因一并修掉：

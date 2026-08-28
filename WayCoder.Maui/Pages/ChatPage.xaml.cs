@@ -59,9 +59,10 @@ public partial class ChatPage : ContentPage
     private int _spinnerFrame;
     private static readonly string[] SpinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-    private enum AgentUiState { Idle, Thinking, Tool, WaitingPermission }
+    private enum AgentUiState { Idle, Thinking, Tool, WaitingPermission, Compressing }
     private AgentUiState _uiState = AgentUiState.Idle;
     private string _toolName = "";
+    private string _compressStatusText = "";   // 上下文压缩进度（状态栏显示，不进入聊天区）
 
     /// <summary>内容增长 ≥300 字符或距上次 ≥120ms 才重算富文本（流式中渐进更新，最终 finally 全量）。</summary>
     private bool ShouldRecomputeFormatted(int currentLen)
@@ -109,6 +110,9 @@ public partial class ChatPage : ContentPage
         StartStatusTimer();
         PermissionManager.PermissionPromptStarted += OnPermissionStarted;
         PermissionManager.PermissionPromptResolved += OnPermissionResolved;
+        // 上下文压缩进度 → 状态栏（压缩是背景状态，不进入聊天区）
+        ContextManager.CompressProgress += OnCompressProgress;
+        ContextManager.CompressFinished += OnCompressFinished;
         _ = PromptResumeSession(); // 进入时：有上次会话则弹「继续会话 / 新的会话」
     }
 
@@ -119,6 +123,8 @@ public partial class ChatPage : ContentPage
         _statusTimer = null;
         PermissionManager.PermissionPromptStarted -= OnPermissionStarted;
         PermissionManager.PermissionPromptResolved -= OnPermissionResolved;
+        ContextManager.CompressProgress -= OnCompressProgress;
+        ContextManager.CompressFinished -= OnCompressFinished;
         if (Messages.Count > 0) MauiSessionStore.Save(Messages); // 退出时记住会话
     }
 
@@ -181,8 +187,29 @@ public partial class ChatPage : ContentPage
         {
             AgentUiState.WaitingPermission => "等待确认中...",
             AgentUiState.Tool => $"🔧 执行工具 {_toolName}...",
+            AgentUiState.Compressing => _compressStatusText,
             _ => "思考中...",
         };
+    }
+
+    /// <summary>上下文压缩进度 → 状态栏（压缩是背景状态，不进入聊天区）。</summary>
+    private void OnCompressProgress(int layer, string label, double pct)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            _compressStatusText = $"🔄 压缩中 [L{layer}/3] {label} {pct:P0}";
+            _uiState = AgentUiState.Compressing;
+        });
+    }
+
+    private void OnCompressFinished()
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            _compressStatusText = "";
+            if (_uiState == AgentUiState.Compressing)
+                _uiState = _agent.IsRunning ? AgentUiState.Thinking : AgentUiState.Idle;
+        });
     }
 
     /// <summary>顶部状态区行 1：当前生效模型（点击可切换）。行 2 统计见 <see cref="RefreshStatusBar"/>。</summary>
@@ -397,6 +424,10 @@ public partial class ChatPage : ContentPage
             await _agent.ChatAsync(text,
                 token =>
                 {
+                    // 过滤上下文压缩进度文本（🔄 [x/3]...）：压缩是背景状态，
+                    // 进度已由 CompressProgress 事件进状态栏，这里不进入聊天内容
+                    if (token.StartsWith("🔄 [", StringComparison.Ordinal))
+                        return;
                     _uiState = AgentUiState.Thinking;
                     if (inReasoning)
                     {
@@ -554,10 +585,21 @@ public partial class ChatPage : ContentPage
         }
     }
 
-    /// <summary>跟踪列表是否接近底部（智能滚动判定依据）。</summary>
+    /// <summary>跟踪列表是否接近底部（智能滚动判定依据）；不在底部时显示浮动「滚到底」按钮。</summary>
     private void OnMsgListScrolled(object? sender, ItemsViewScrolledEventArgs e)
     {
         _isNearBottom = e.LastVisibleItemIndex >= Messages.Count - 2;
+        // 手动上翻离开底部 → 取消自动滚动 + 显示浮动按钮；回到底部 → 自动滚动恢复 + 按钮隐藏
+        JumpBottomBtn.IsVisible = !_isNearBottom;
+    }
+
+    /// <summary>浮动按钮：滚到底部并恢复自动滚动（隐藏按钮）。</summary>
+    private void OnJumpBottomClicked(object? sender, EventArgs e)
+    {
+        _isNearBottom = true;
+        if (Messages.Count > 0)
+            MsgList.ScrollTo(Messages.Count - 1, position: ScrollToPosition.End, animate: true);
+        JumpBottomBtn.IsVisible = false;
     }
 
     /// <summary>

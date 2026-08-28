@@ -175,6 +175,27 @@
             </CollectionView.EmptyView>
         </CollectionView>
 
+        <!-- 浮动「滚到底」按钮：手动上翻离开底部时显示，点它滚到底并恢复自动滚动后隐藏 -->
+        <Button
+            x:Name="JumpBottomBtn"
+            Grid.Row="1"
+            Text="↓"
+            FontSize="20"
+            FontAttributes="Bold"
+            WidthRequest="46"
+            HeightRequest="46"
+            CornerRadius="23"
+            Padding="0"
+            HorizontalOptions="End"
+            VerticalOptions="End"
+            Margin="0,0,12,10"
+            IsVisible="False"
+            BackgroundColor="{StaticResource Primary}"
+            TextColor="White"
+            Opacity="0.92"
+            Clicked="OnJumpBottomClicked"
+            SemanticProperties.Hint="滚动到底部" />
+
         <!-- 输入框上方动态状态栏：左侧动画图标（思考旋转）+ 状态文本（思考中/等待确认中） -->
         <Border Grid.Row="2" x:Name="AgentStatusBar" IsVisible="False"
                 BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}"

@@ -32,10 +32,42 @@ public partial class FilesPage : ContentPage
         Refresh();
     }
 
+    /// <summary>编辑模式：开启后点任意项弹删除/改名/打包菜单，正常点击不进入目录/打开文件。</summary>
+    private bool _editMode;
+
+    private async void OnEditModeClicked(object? sender, EventArgs e)
+    {
+        _editMode = !_editMode;
+        EditBtn.Text = _editMode ? "✔ 完成" : "✏️ 编辑";
+        PathLabel.Text = _editMode
+            ? "/" + _currentDir.TrimStart('/') + "（编辑模式：点目录/文件可删除/改名/打包）"
+            : "/" + _currentDir.TrimStart('/');
+    }
+
     private async void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (e.CurrentSelection.FirstOrDefault() is not SandboxFsService.FsEntry entry) return;
         FileList.SelectedItem = null; // 清选中态，允许再次点同一项
+
+        // 编辑模式：点任意项 → 删除/改名/打包菜单
+        if (_editMode)
+        {
+            var kind = entry.IsDirectory ? "目录" : "文件";
+            var action = await DisplayActionSheetAsync($"{kind}：{entry.Name}", "取消", null, "重命名", "删除", "创建 ZIP 压缩包");
+            switch (action)
+            {
+                case "重命名":
+                    await RenameAsync(entry);
+                    break;
+                case "删除":
+                    await DeleteAsync(entry);
+                    break;
+                case "创建 ZIP 压缩包":
+                    await CreateZipAsync(entry);
+                    break;
+            }
+            return;
+        }
 
         if (entry.IsDirectory)
         {
@@ -46,10 +78,10 @@ public partial class FilesPage : ContentPage
 
         // 文件：按类型给操作——源码/文本进编辑器；图片/音频/视频/未知仅系统软件打开
         var isSource = entry.Category == SandboxFsService.FileCategory.Source;
-        var action = isSource
+        var action2 = isSource
             ? await DisplayActionSheetAsync(entry.Name, "取消", null, "打开", "用外部应用打开", "重命名", "删除")
             : await DisplayActionSheetAsync(entry.Name, "取消", null, "用外部应用打开", "重命名", "删除");
-        switch (action)
+        switch (action2)
         {
             case "打开":
                 await OpenInEditorAsync(entry);
@@ -64,6 +96,20 @@ public partial class FilesPage : ContentPage
                 await DeleteAsync(entry);
                 break;
         }
+    }
+
+    /// <summary>把文件/目录打包为 ZIP（同目录下 同名.zip）。</summary>
+    private async Task CreateZipAsync(SandboxFsService.FsEntry entry)
+    {
+        var rel = SandboxFsService.ToRelative(entry.FullPath) ?? entry.Name;
+        var zipRel = await Task.Run(() => SandboxFsService.CreateZip(rel));
+        if (zipRel == null)
+        {
+            await DisplayAlertAsync("打包失败", "同名 .zip 已存在，或目录不可写", "关闭");
+            return;
+        }
+        Refresh();
+        await DisplayAlertAsync("已打包", $"已生成 {Path.GetFileName(zipRel)}", "确定");
     }
 
     private async Task RenameAsync(SandboxFsService.FsEntry entry)

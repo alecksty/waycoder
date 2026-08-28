@@ -36,10 +36,10 @@ public static partial class ModelCatalog
     public static readonly ModelInfo[] BuiltIn =
     [
         // OpenAI
-        new("gpt-5.5", "GPT-5.5", "OpenAI", "openai", "O", "Flagship", 256_000, 5, 30, "https://api.openai.com", "Top reasoning + code + multimodal"),
-        new("gpt-5.4", "GPT-5.4", "OpenAI", "openai", "O", "Flagship", 256_000, 2.5, 15, "https://api.openai.com", "Cost-effective flagship"),
-        new("gpt-5.4-mini", "GPT-5.4 Mini", "OpenAI", "openai", "O", "Light", 256_000, 0.75, 4.5, "https://api.openai.com", "Small model daily tasks"),
-        new("gpt-5.4-nano", "GPT-5.4 Nano", "OpenAI", "openai", "O", "Light", 256_000, 0.2, 1.25, "https://api.openai.com", "Tiny model"),
+        new("gpt-5.5", "GPT-5.5", "OpenAI", "openai", "O", "Flagship", 1_050_000, 5, 30, "https://api.openai.com", "Top reasoning + code + multimodal"),
+        new("gpt-5.4", "GPT-5.4", "OpenAI", "openai", "O", "Flagship", 1_050_000, 2.5, 15, "https://api.openai.com", "Cost-effective flagship"),
+        new("gpt-5.4-mini", "GPT-5.4 Mini", "OpenAI", "openai", "O", "Light", 400_000, 0.75, 4.5, "https://api.openai.com", "Small model daily tasks"),
+        new("gpt-5.4-nano", "GPT-5.4 Nano", "OpenAI", "openai", "O", "Light", 400_000, 0.2, 1.25, "https://api.openai.com", "Tiny model"),
         new("o4-mini", "o4 Mini", "OpenAI", "openai", "O", "Reasoning", 200_000, 1.1, 4.4, "https://api.openai.com", "Reasoning specialist"),
         new("gpt-4.1", "GPT-4.1", "OpenAI", "openai", "O", "Flagship", 1_000_000, 2, 8, "https://api.openai.com", "Ultra-long context"),
         new("gpt-4.1-mini", "GPT-4.1 Mini", "OpenAI", "openai", "O", "Light", 1_000_000, 0.4, 1.6, "https://api.openai.com", "Ultra-long context light"),
@@ -49,13 +49,13 @@ public static partial class ModelCatalog
 
         // Anthropic
         new("claude-opus-5", "Claude Opus 5", "Anthropic", "anthropic", "A", "Flagship", 200_000, 5, 25, "https://api.anthropic.com", "Best code intelligence"),
-        new("claude-sonnet-5", "Claude Sonnet 5", "Anthropic", "anthropic", "A", "Flagship", 200_000, 2, 10, "https://api.anthropic.com", "High-performance code"),
+        new("claude-sonnet-5", "Claude Sonnet 5", "Anthropic", "anthropic", "A", "Flagship", 1_000_000, 2, 10, "https://api.anthropic.com", "High-performance code"),
         new("claude-haiku-4-5", "Claude Haiku 4.5", "Anthropic", "anthropic", "A", "Light", 200_000, 1, 5, "https://api.anthropic.com", "Fast and light"),
         new("claude-opus-4-6", "Claude Opus 4.6", "Anthropic", "anthropic", "A", "Flagship", 200_000, 5, 25, "https://api.anthropic.com", "Best code (old)"),
         new("claude-sonnet-4-6", "Claude Sonnet 4.6", "Anthropic", "anthropic", "A", "Flagship", 200_000, 3, 15, "https://api.anthropic.com", "High-perf code (old)"),
 
         // DeepSeek
-        new("deepseek-v4-pro", "DeepSeek V4 Pro", "DeepSeek", "deepseek", "D", "Flagship", 1_048_576, 0.66, 1.98, "https://api.deepseek.com", "Flagship deep reasoning", ReasoningEffortAllowed: "low,medium,high"),
+        new("deepseek-v4-pro", "DeepSeek V4 Pro", "DeepSeek", "deepseek", "D", "Flagship", 1_048_576, 0.435, 0.87, "https://api.deepseek.com", "Flagship deep reasoning", ReasoningEffortAllowed: "low,medium,high"),
         new("deepseek-v4-flash", "DeepSeek V4 Flash", "DeepSeek", "deepseek", "D", "Light", 1_048_576, 0.14, 0.28, "https://api.deepseek.com", "Fast and cost-effective", ReasoningEffortAllowed: "low,medium,high"),
         new("deepseek-chat", "DeepSeek V3 (old)", "DeepSeek", "deepseek", "D", "Flagship", 64_000, 0.27, 1.10, "https://api.deepseek.com", "V3 legacy"),
         new("deepseek-reasoner", "DeepSeek R1", "DeepSeek", "deepseek", "D", "Reasoning", 64_000, 0.55, 2.19, "https://api.deepseek.com", "Deep reasoning"),
@@ -73,7 +73,7 @@ public static partial class ModelCatalog
         new("qwen-turbo", "Qwen Turbo", "Alibaba", "qwen", "Q", "Light", 1_000_000, 0.05, 0.15, null, "Alibaba ultra-fast"),
 
         // Moonshot Kimi
-        new("kimi-k2.5", "Kimi K2.5", "Moonshot", "moonshot", "M", "Flagship", 128_000, 0.45, 2.25, "https://api.moonshot.cn", "Chinese flagship"),
+        new("kimi-k2.5", "Kimi K2.5", "Moonshot", "moonshot", "M", "Flagship", 262_144, 0.45, 2.25, "https://api.moonshot.cn", "Chinese flagship"),
 
         // Zhipu GLM
         new("glm-4-plus", "GLM-4 Plus", "Zhipu", "zhipu", "Z", "Flagship", 128_000, 0.47, 0.54, "https://open.bigmodel.cn/api/paas/v4", "Chinese flagship", ReasoningEffortAllowed: "low,medium,high"),
@@ -117,6 +117,26 @@ public static partial class ModelCatalog
         new("deepseek/deepseek-chat-v3-0324", "DeepSeek V3", "OpenRouter", "openrouter", "Or", "Flagship", 64_000, 0.25, 1.0, "https://openrouter.ai/api/v1", "DeepSeek V3 via OpenRouter"),
         new("google/gemini-2.5-flash", "Gemini 2.5 Flash", "OpenRouter", "openrouter", "Or", "Light", 1_048_576, 0.3, 2.5, "https://openrouter.ai/api/v1", "Gemini flash via OpenRouter"),
         new("anthropic/claude-sonnet-4-5", "Claude Sonnet 4.5", "OpenRouter", "openrouter", "Or", "Flagship", 200_000, 3, 15, "https://openrouter.ai/api/v1", "Claude Sonnet via OpenRouter"),
+
+        // 2026 新模型（models.dev 2026-08 数据）
+        new("gpt-5.5-pro", "GPT-5.5 Pro", "OpenAI", "openai", "O", "Flagship", 1_050_000, 30, 180, "https://api.openai.com", "Top-tier reasoning"),
+        new("gpt-5.6", "GPT-5.6", "OpenAI", "openai", "O", "Flagship", 1_050_000, 4, 20, "https://api.openai.com", "Latest balanced flagship"),
+        new("o3-pro", "o3 Pro", "OpenAI", "openai", "O", "Reasoning", 200_000, 20, 80, "https://api.openai.com", "Deep reasoning specialist"),
+        new("gpt-5.3-codex", "GPT-5.3 Codex", "OpenAI", "openai", "O", "Code", 400_000, 1.75, 14, "https://api.openai.com", "Coding specialist"),
+        new("claude-fable-5", "Claude Fable 5", "Anthropic", "anthropic", "A", "Flagship", 1_000_000, 10, 50, "https://api.anthropic.com", "Latest frontier model"),
+        new("claude-opus-4-8", "Claude Opus 4.8", "Anthropic", "anthropic", "A", "Flagship", 1_000_000, 5, 25, "https://api.anthropic.com", "Opus lineage (old)"),
+        new("deepseek-v4-flash-vision-exp", "DeepSeek V4 Flash Vision", "DeepSeek", "deepseek", "D", "Vision", 1_000_000, 0.14, 0.28, "https://api.deepseek.com", "Vision experimental"),
+        new("kimi-k3", "Kimi K3", "Moonshot", "moonshot", "M", "Flagship", 1_048_576, 3, 15, "https://api.moonshot.cn", "Latest flagship"),
+        new("kimi-k2.7-code", "Kimi K2.7 Code", "Moonshot", "moonshot", "M", "Code", 262_144, 0.95, 4, "https://api.moonshot.cn", "Coding specialist"),
+        new("kimi-k2.6", "Kimi K2.6", "Moonshot", "moonshot", "M", "Flagship", 262_144, 0.95, 4, "https://api.moonshot.cn", "Newer flagship"),
+        new("grok-4.6", "Grok 4.6", "xAI", "xai", "X", "Flagship", 500_000, 2, 6, "https://api.x.ai", "Latest Grok"),
+        new("gemini-3.1-pro", "Gemini 3.1 Pro", "Google", "google", "G", "Flagship", 1_048_576, 2, 12, "https://generativelanguage.googleapis.com", "Latest flagship"),
+        new("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite", "Google", "google", "G", "Light", 1_048_576, 0.1, 0.4, null, "Ultra-cheap"),
+        new("glm-5.3", "GLM-5.3", "Zhipu", "zhipu", "Z", "Flagship", 1_000_000, 1.4, 4.4, "https://open.bigmodel.cn/api/paas/v4", "Latest flagship"),
+        new("glm-5", "GLM-5", "Zhipu", "zhipu", "Z", "Flagship", 204_800, 1, 3.2, null, "Flagship"),
+        new("glm-5.3-flash", "GLM-5.3 Flash", "Zhipu", "zhipu", "Z", "Light", 1_000_000, 0.075, 0.25, null, "Cost-effective"),
+        new("glm-4.7", "GLM-4.7", "Zhipu", "zhipu", "Z", "Flagship", 204_800, 0.6, 2.2, null, "Previous flagship"),
+        new("qwen3.7-max", "Qwen3.7 Max", "Alibaba", "qwen", "Q", "Flagship", 1_000_000, 2.5, 7.5, "https://dashscope.aliyuncs.com/compatible-mode/v1", "Latest flagship"),
 
         // Local / Ollama / LM Studio / vLLM (no API key needed, default base URL http://localhost:11434)
         new("qwen2.5-coder:latest", "Qwen2.5 Coder (Ollama)", "Local", "local", "L", "Local", 128_000, 0, 0, "http://localhost:11434", "Ollama local code model"),
@@ -170,12 +190,13 @@ public static partial class ModelCatalog
     }
 
     /// <summary>
-    /// 模型唯一键：服务商 + 模型名（同一服务商下模型 id 唯一，不因导入来源/地址差异产生重复；
-    /// 不同服务商可同名，如 opencode-go/deepseek-v4-pro 与 opencode-zen/deepseek-v4-pro 是两个不同服务商）。
+    /// 模型唯一键（connectId = 规范化 providerId + 规范化 modelId 拼接）：两边都去空格、转小写、空格转横线，
+    /// 保证同供应商同模型不因导入来源大小写/空格差异重复。同一供应商下模型 id 唯一；
+    /// 不同服务商可同名（opencode-go/deepseek-v4-pro 与 opencode-zen/deepseek-v4-pro 是两个不同服务商）。
     /// 服务商唯一性由 providers.json 按地址去重负责（同地址只一个 provider）。
     /// </summary>
     internal static string ModelKey(string providerId, string id) =>
-        string.IsNullOrWhiteSpace(providerId) ? id + "|" : providerId + "|" + id;
+        string.IsNullOrWhiteSpace(providerId) ? NormalizeId(id) + "|" : NormalizeId(providerId) + "|" + NormalizeId(id);
 
     /// <summary>
     /// 完整模型目录 = 内置目录 + 自定义库（自定义按 Id 覆盖内置，新增项追加到末尾）。
@@ -213,7 +234,8 @@ public static partial class ModelCatalog
         {
             var path = ProviderFile(info.ProviderId, local);
             var models = ReadFile(path);
-            models[ModelKey(info.ProviderId, info.Id)] = info;
+            var key = ModelKey(info.ProviderId, info.Id);
+            models[key] = models.TryGetValue(key, out var existing) ? MergeModel(existing, info) : info;
             SaveCustom(models, path);
             Invalidate();
             return path;
@@ -230,12 +252,25 @@ public static partial class ModelCatalog
             foreach (var g in list.GroupBy(m => ProviderFile(m.ProviderId, local)))
             {
                 var models = ReadFile(g.Key);
-                foreach (var m in g) models[ModelKey(m.ProviderId, m.Id)] = m;
+                foreach (var m in g)
+                {
+                    var key = ModelKey(m.ProviderId, m.Id);
+                    models[key] = models.TryGetValue(key, out var existing) ? MergeModel(existing, m) : m;
+                }
                 SaveCustom(models, g.Key);
             }
             Invalidate();
             return list.Count;
         }
+    }
+
+    /// <summary>合并去重：同供应商同模型，有价格的覆盖没价格的（多源导入后价格信息最全者胜）。</summary>
+    internal static ModelInfo MergeModel(ModelInfo existing, ModelInfo incoming)
+    {
+        var existingPriced = existing.InputPrice > 0 || existing.OutputPrice > 0;
+        var incomingPriced = incoming.InputPrice > 0 || incoming.OutputPrice > 0;
+        if (existingPriced && !incomingPriced) return existing;   // 已有价格、新导入无价格 → 保留价格版
+        return incoming;                                           // 否则用新导入（有价格覆盖无价格 / 新数据）
     }
 
     /// <summary>删除自定义模型（从全局和本地的所有模型文件移除），返回受影响文件列表。</summary>
@@ -247,9 +282,11 @@ public static partial class ModelCatalog
             foreach (var file in EnumerateModelFiles())
             {
                 var models = ReadFile(file);
-                // 移除该 id 的全部变体（providerId|id，跨服务商同名都删）
+                // 移除该 id 的全部变体（providerId|id，跨服务商同名都删）；兼容旧格式原始 id 与新格式规范化 id
+                var norm = NormalizeId(id);
                 var toRemove = models.Keys.Where(k =>
-                    k.EndsWith("|" + id, StringComparison.OrdinalIgnoreCase)).ToList();
+                    k.EndsWith("|" + id, StringComparison.OrdinalIgnoreCase)
+                    || k.EndsWith("|" + norm, StringComparison.OrdinalIgnoreCase)).ToList();
                 if (toRemove.Count > 0)
                 {
                     foreach (var k in toRemove) models.Remove(k);
@@ -997,6 +1034,53 @@ public static partial class ModelCatalog
                     DefaultBaseUrl = info.DefaultBaseUrl ?? baseUrl,
                     Description = $"从 OpenClaw 导入（{pid}）",
                 });
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// models.dev api.json 导入（https://models.dev/api.json）：
+    /// { "&lt;providerId&gt;": { name, api, models: { "&lt;id&gt;": { id, name,
+    ///   cost{input,output,cache_read}, limit{context,output}, reasoning, tool_call } } } }。
+    /// 覆盖 200+ 服务商、7000+ 模型，含每百万 token 价格与上下文。
+    /// 模型 id 去首段服务商前缀（deepseek/deepseek-v4-flash → deepseek-v4-flash，API 调用用实际名；
+    /// 聚合网关 openrouter/... 保留剩余段作路由）。
+    /// </summary>
+    public static List<ModelInfo> ImportModelsDev(string json)
+    {
+        var result = new List<ModelInfo>();
+        JNode? root;
+        try { root = Json.Parse(NormalizeJson5(json)); }
+        catch { return result; }
+        if (root == null || root.Kind != JKind.Object) return result;
+
+        foreach (var (pid, prov) in root.Entries)
+        {
+            if (prov == null || prov.Kind != JKind.Object) continue;
+            var provName = prov.GetString("name") ?? pid;
+            var baseUrl = prov.GetString("api");
+            var models = prov.Get("models");
+            if (models == null || models.Kind != JKind.Object) continue;
+
+            foreach (var (mid, node) in models.Entries)
+            {
+                if (node == null || node.Kind != JKind.Object) continue;
+                var fullId = node.GetString("id") ?? mid;
+                var id = fullId.Contains('/') ? fullId[(fullId.IndexOf('/') + 1)..] : fullId;
+                var display = node.GetString("name") ?? ShortDisplayName(id);
+                var cost = node.Get("cost");
+                double inP = cost?.GetNumber("input") ?? 0;
+                double outP = cost?.GetNumber("output") ?? 0;
+                var limit = node.Get("limit");
+                int ctx = (int)(limit?.GetNumber("context") ?? 0);
+                int maxOut = (int)(limit?.GetNumber("output") ?? 0);
+                bool? thinking = node.Get("reasoning")?.Kind == JKind.Bool ? node.Get("reasoning")!.AsBool() : null;
+                bool? tools = node.Get("tool_call")?.Kind == JKind.Bool ? node.Get("tool_call")!.AsBool() : null;
+
+                result.Add(new ModelInfo(id, display, provName, pid.ToLowerInvariant(), "*", "Imported",
+                    ctx, inP, outP, baseUrl, $"从 models.dev 导入（{provName}）", maxOut,
+                    SupportsThinking: thinking, SupportsTools: tools));
             }
         }
         return result;
