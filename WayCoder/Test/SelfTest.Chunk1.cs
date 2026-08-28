@@ -788,6 +788,36 @@ public static partial class SelfTest
             Check("connectId: 大小写归一", ModelCatalog.ModelKey("DeepSeek", "DeepSeek V4 Pro") == ModelCatalog.ModelKey("deepseek", "deepseek-v4-pro"));
             Check("connectId: 空格转横线", ModelCatalog.ModelKey("Open AI", "gpt 5") == "open-ai|gpt-5");
             Check("connectId: 供应商参与去重", ModelCatalog.ModelKey("deepseek", "chat") != ModelCatalog.ModelKey("qwen", "chat"));
+
+            // 供应商唯一 id 由 base_url 决定：已知网关→规范 id；未知 host→按 host 派生稳定 id（同地址必同 id）
+            Check("provider id: 已知网关按 base_url 归类",
+                ModelCatalog.ResolveProviderId("https://api.deepseek.com", "deepseek-cn") == "deepseek");
+            Check("provider id: opencode 按路径分 Go/Zen",
+                ModelCatalog.ResolveProviderId("https://opencode.ai/zen/go/v1", "x") == "opencode-go"
+                && ModelCatalog.ResolveProviderId("https://opencode.ai/zen/v1", "x") == "opencode-zen");
+            Check("provider id: 未知 host 派生稳定 id",
+                ModelCatalog.ResolveProviderId("https://api.neuralreseller.com/v1", "r1") == "api-neuralreseller-com");
+            Check("provider id: 同 host 同 id（跨来源去重）",
+                ModelCatalog.ResolveProviderId("https://api.neuralreseller.com/v1", "r1") == ModelCatalog.ResolveProviderId("https://api.neuralreseller.com/v1", "r2"));
+            Check("provider id: 无地址回退来源 pid",
+                ModelCatalog.ResolveProviderId(null, "myai") == "myai"
+                && ModelCatalog.ResolveProviderId("", "My AI Co") == "my-ai-co");
+            Check("provider id: 本地回退 local",
+                ModelCatalog.ResolveProviderId("http://localhost:11434", "ollama") == "local");
+
+            // models.dev 导入：未知 host 模型归 host 派生 id（同地址同供应商）
+            var devCustom = ModelCatalog.ImportModelsDev("""
+                {
+                  "reseller-a": { "name": "Reseller A", "api": "https://api.neuralreseller.com/v1",
+                    "models": { "m1": { "id": "m1", "name": "M1" } } },
+                  "reseller-b": { "name": "Reseller B", "api": "https://api.neuralreseller.com/v1",
+                    "models": { "m1": { "id": "m1", "name": "M1", "cost": { "input": 0.1, "output": 0.2 } } } }
+                }
+                """);
+            Check("models.dev 未知 host 归一为同一 provider id",
+                devCustom.Count == 2 && devCustom.All(m => m.ProviderId == "api-neuralreseller-com"));
+            Check("models.dev 同 id 同地址合并（有价覆盖无价）",
+                devCustom.Select(m => m.Id).Distinct().Count() == 1);
         }
         try
         {

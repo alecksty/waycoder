@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.96.21 (2026-08-28) — 供应商管理对话框（全端）+ TUI 导入异步 + 模型选择框闪烁/省略号修复
+
+- **TUI `/provider` 供应商管理对话框**（新 `ProviderPicker`）：列出全部供应商（🔑有Key/⚠️无Key/🌿本地 · 显示名 · Key状态 · **模型数量** · 连通性 · 地址），按钮：设Key / 清Key / 测试 / 添加 / 改名 / 改地址 / 删除；改动即落盘 providers.json
+- **移动端供应商 CRUD**：供应商卡片点开菜单「管理模型 / 设Key / 清Key / 改名 / 改地址 / 删除」；「＋导入供应商」正确注册 providers.json
+- **Web 端 models.dev 导入**：在线导入源列表新增 models.dev；导入改后台线程异步（不再阻塞请求线程）
+- **TUI 导入全部异步 + 进度**：在线导入（models.dev 4.4MB/7000 模型）改 Task.Run 后台执行 + 底部进度显示（拉取→解析含 KB→完成），不再卡死 UI；报告含「X 供应商 / Y 模型」
+- **模型选择框闪烁修复**：箭头导航去掉 `screen.MarkDirty()`（它设 RootView.IsDirty 强制整屏重绘）→ 只增量重绘选中行，标题栏/外框不再闪
+- **省略号 U+2026 宽度修复**：等宽终端按 1 列渲染（曾按 EA Ambiguous 算 2 列 → 供应商对话框等表格后列错位）；测试同步更新
+- **供应商注册表**：新增 `RenameProvider`/`UpdateProviderUrl`（保留其他字段落盘）
+- **供应商唯一 id 由 base_url 决定**：新增统一入口 `ResolveProviderId(baseUrl, fallbackPid)`——已知网关 host→规范 id（deepseek/openai…，opencode 按路径分 Go/Zen），未知 host→按 host 派生稳定 id（同地址必同 id，跨来源也能合并去重），无地址才回退来源 pid；models.dev 导入补齐 base_url 归类（此前直接用 pid），OpenCode/OpenClaw/Crush/Claude/Codex 导入全部统一走此入口
+- **自测**：4711 全过
+
 ## v0.96.20 (2026-08-28) — 聊天浮动滚底 + 压缩进度进状态区 + models.dev 导入 + 内置模型丰富 + 文件页编辑模式
 
 - **聊天浮动「滚到底」按钮**：手动上翻离开底部 → 右下角 ↓ 浮动按钮，点它滚到底并恢复自动滚动后隐藏

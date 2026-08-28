@@ -856,7 +856,8 @@ public static partial class SelfTest
         Check("中文宽度=2", UI.Shared.AnsiHelper.DisplayWidth("你好") == 4);
         // EA Ambiguous 中文标点 (U+2010-U+2027, U+2030-U+2043)
         Check("EmDash U+2014 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2014)) == 2);
-        Check("Ellipsis U+2026 width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2026)) == 2);
+        // 省略号 …（U+2026）等宽终端按 1 列渲染（曾算 2 列 → 供应商对话框表格后列错位）
+        Check("Ellipsis U+2026 width=1", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x2026)) == 1);
         Check("LeftDblQuote U+201C width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x201C)) == 2);
         Check("RightDblQuote U+201D width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x201D)) == 2);
         Check("ReferenceMark U+203B width=2", UI.Shared.AnsiHelper.RuneWidth(new Rune(0x203B)) == 2);

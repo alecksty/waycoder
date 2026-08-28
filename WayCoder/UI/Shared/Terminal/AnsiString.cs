@@ -325,7 +325,9 @@ public static class AnsiString
 
         // 全角 / 宽字符（East Asian Wide + Fullwidth + Emoji）
         if (cp is >= 0x1100 and <= 0x115F) return 2; // 韩文 Choseong
-        if (cp is >= 0x2010 and <= 0x2027) return 2; // 通用标点（— … " " ' ' ※ 等 EA Ambiguous）
+        // 省略号 …（U+2026）等宽终端按 1 列渲染：曾落进 0x2010-0x2027 算成 2 列 → 供应商对话框等表格后列全部错位
+        if (cp == 0x2026) return 1;
+        if (cp is >= 0x2010 and <= 0x2027) return 2; // 通用标点（— " " ' ' ※ 等 EA Ambiguous）
         if (cp is >= 0x2030 and <= 0x2043) return 2; // 补充标点（‰ ′ ″ ※ 等）
         if (cp is >= 0x2329 and <= 0x232A) return 2; // 〈 〉
         if (cp is >= 0x2600 and <= 0x27BF) return 2; // 杂项符号 + 装饰符号（☀ ⚡ ★ ❤ ➿ 等 emoji 展示 2 列）
