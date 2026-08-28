@@ -434,23 +434,29 @@ public static class UxHelper
         var start = Environment.TickCount64;
         while (!evt.IsSet)
         {
-            if (ownLoop)
+            // 单帧 try/catch：渲染/读键一帧异常不逃逸（否则 evt 永不置位 → 对话框永久卡死），
+            // 下一帧照常重绘，窗口栈不残留。
+            try
             {
-                screen.PumpUIQueue(); // 对话框期间也消费后台投递的 UI 操作（PostToUI 已提炼到基类）
-                manager?.Render();
-                var ev = inputMgr.ReadInput(30);
-                if (ev.Type == InputType.Mouse && TuiManager.MouseEnabled)
-                    manager?.HandleMouse(ev); // 对话框按钮点击
-                else if (ev.Type == InputType.Key) screen.OnKey(ev.KeyInfo);
-                else if (ev.Type == InputType.Paste && screen is ChatScreen cs && !string.IsNullOrEmpty(ev.PasteText))
-                    cs.HandleBracketedPaste(ev.PasteText); // 粘贴到对话框焦点输入控件
-                else if (ev.Type == InputType.Resize) manager?.OnResize();
+                if (ownLoop)
+                {
+                    screen.PumpUIQueue(); // 对话框期间也消费后台投递的 UI 操作（PostToUI 已提炼到基类）
+                    manager?.Render();
+                    var ev = inputMgr.ReadInput(30);
+                    if (ev.Type == InputType.Mouse && TuiManager.MouseEnabled)
+                        manager?.HandleMouse(ev); // 对话框按钮点击
+                    else if (ev.Type == InputType.Key) screen.OnKey(ev.KeyInfo);
+                    else if (ev.Type == InputType.Paste && screen is ChatScreen cs && !string.IsNullOrEmpty(ev.PasteText))
+                        cs.HandleBracketedPaste(ev.PasteText); // 粘贴到对话框焦点输入控件
+                    else if (ev.Type == InputType.Resize) manager?.OnResize();
+                }
+                else
+                {
+                    // 后台线程：只等待事件，渲染 + 键路由由常驻主循环 / RunAgentWithRenderLoop / RunWithUiLoop 负责
+                    Thread.Sleep(30);
+                }
             }
-            else
-            {
-                // 后台线程：只等待事件，渲染 + 键路由由常驻主循环 / RunAgentWithRenderLoop / RunWithUiLoop 负责
-                Thread.Sleep(30);
-            }
+            catch { /* 单帧异常吞掉，下帧重绘；不关窗不置位，避免卡死 */ }
             if (timeoutMs > 0 && Environment.TickCount64 - start > timeoutMs) break;
         }
         // 超时兜底：关闭仍残留的模态窗口，避免窗口停在屏幕上。

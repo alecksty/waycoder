@@ -80,3 +80,5 @@ StarGo/
 WayCoder/Hello/
 WayCoder/Hello.Tests/
 WayCoder/.github/
+*.aab
+*.apk

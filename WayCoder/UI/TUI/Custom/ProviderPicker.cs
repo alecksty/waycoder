@@ -127,8 +127,8 @@ public static class ProviderPicker
                 }
                 catch { }
                 lock (scanLock) { scanStatus = dict; }
-                if (screen is ChatScreen chat) chat.PostToUI(() => { Rebuild(); Say($"✅ 测试完成：可达 {dict.Count(v => v.Value)} / {dict.Count}"); });
-                else screen?.MarkDirty();
+                // Rebuild 重建表格行 + 标脏，必须回 UI 线程执行（后台线程并发改控件 → 渲染线程读到半改态 → 卡死）
+                screen?.PostToUI(() => { Rebuild(); Say($"✅ 测试完成：可达 {dict.Count(v => v.Value)} / {dict.Count}"); });
             });
         }
 

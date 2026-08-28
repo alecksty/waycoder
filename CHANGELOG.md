@@ -1,5 +1,12 @@
 # 更新日志
 
+## v0.96.23 (2026-08-28) — TUI 卡死修复：后台线程全部桥接 UI 线程 + RenderWait 单帧防御
+
+- **TUI 卡死根因（模型管理对话框）**：在线导入/扫描/连通性测试的进度回调和完成刷新在 `Task.Run` 后台线程**直接改控件树**（`help.Text`/`MarkDirty`/`RefreshParent` 重建表格行），与渲染线程并发读写 → 渲染读到半改态抛异常 → `RenderWait` 异常逃逸、`evt` 永不置位 → 对话框永久卡死
+- **修复**：ModelPicker（在线导入 onProgress、扫描完成、本地导入完成）与 ProviderPicker（连通性测试完成）全部改 `screen.PostToUI` 桥接回 UI 线程执行；后台线程只投递不碰控件
+- **RenderWait 单帧 try/catch**：渲染/读键一帧异常不再逃逸（否则窗口栈残留 → 永久冻结），下一帧照常重绘
+- **自测**：4720 全过
+
 ## v0.96.22 (2026-08-28) — provider 数据库两条铁律：不允许重复地址 + 同供应商不允许重复模型
 
 - **地址唯一铁律**：`RegisterProvider`/`UpdateProviderUrl` 拒绝「地址已被其它供应商占用」（同地址 = 同供应商）；CLI `/provider add`、TUI `/provider`、移动端导入供应商均弹出明确拒绝提示

@@ -343,8 +343,7 @@ public static class ModelPicker
                 catch { }
                 lock (scanLock) { scanResult = dict; }
                 // 完成后回 UI 线程刷新（组头/状态列实时更新；后台线程不碰控件树）
-                if (screen is ChatScreen chat) chat.PostToUI(() => Refresh(false));
-                else screen?.MarkDirty();
+                screen?.PostToUI(() => Refresh(false));
             });
         }
 
@@ -389,15 +388,14 @@ public static class ModelPicker
                     if (src == null) continue;
                     var report = ModelCli.ImportOnline(src, msg =>
                     {
-                        help.Text = "⏳ " + msg;
-                        help2.Text = "";
-                        screen?.MarkDirty();
+                        // 进度回 UI 线程：后台线程不碰控件树（help.Text/MarkDirty 与渲染循环并发 → 卡死）
+                        screen?.PostToUI(() => { help.Text = "⏳ " + msg; help2.Text = ""; screen.MarkDirty(); });
                     });
                     lock (repList) repList.Add(report);
                 }
-                // RefreshParent(message) 把报告放 help、统计放 help2（直接设置会被 Refresh 的按键提示覆盖）
-                screen?.MarkDirty();
-                RefreshParent(string.Join("\n", repList));
+                // RefreshParent(message) 把报告放 help、统计放 help2（直接设置会被 Refresh 的按键提示覆盖）；
+                // Refresh 会重建表格行，必须回 UI 线程执行
+                screen?.PostToUI(() => RefreshParent(string.Join("\n", repList)));
             });
         }
 
@@ -458,21 +456,14 @@ public static class ModelPicker
                     lock (modelLock) { models = fresh; }
                 }
                 catch { }
-                // 回 UI 线程刷新结果：后台线程不碰控件树（否则与渲染循环并发遍历/写终端 → 帧交错花屏），
+                // 回 UI 线程刷新结果：后台线程不碰控件树（否则与渲染循环并发遍历/写终端 → 帧交错花屏/卡死），
                 // 且 Refresh(false) 让表格立即显示导入的模型（此前只置 help 文本，视觉无反馈像卡住）
-                if (screen is ChatScreen chat)
-                    chat.PostToUI(() =>
-                    {
-                        help.Text = report + "（按 ↑↓/输入刷新）";
-                        help2.Text = "";
-                        Refresh(false);
-                    });
-                else
+                screen?.PostToUI(() =>
                 {
                     help.Text = report + "（按 ↑↓/输入刷新）";
                     help2.Text = "";
-                    screen?.MarkDirty();
-                }
+                    Refresh(false);
+                });
             });
         }
 
