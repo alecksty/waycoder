@@ -84,8 +84,8 @@ public abstract class TuiScreen : TuiBase
     /// <summary>当前焦点窗口（键盘路由优先）</summary>
     public TuiWindow? FocusedWindow { get; set; }
 
-    /// <summary>是否有模态窗口</summary>
-    public bool HasModal => Windows.Any(w => w.Modal);
+    /// <summary>是否有模态窗口（窗口树任意节点为模态）</summary>
+    public bool HasModal => Windows.Any(w => w.Modal || w.AnyDescendantModal());
 
     /// <summary>模态窗口出现前保存的根视图焦点控件</summary>
     private TuiControl? _savedRootFocus;
@@ -95,9 +95,6 @@ public abstract class TuiScreen : TuiBase
 
     /// <summary>需要重绘的脏区域（窗口关闭时记录其覆盖区）</summary>
     private readonly List<(int x, int y, int w, int h)> _dirtyRects = [];
-
-    /// <summary>关闭对话框后待贴回的背景快照（下一帧渲染开始时逐块还原）</summary>
-    private readonly List<FrameSnapshot> _pendingSnapshots = [];
 
     /// <summary>是否为增量更新（仅脏控件刷新，跳过全屏清除和窗口背景/边框重绘）</summary>
     public bool IsIncrementalUpdate { get; set; }
@@ -171,21 +168,33 @@ public abstract class TuiScreen : TuiBase
         RootView.Height = newH;
         RootView.OnResize(newW, newH);
 
-        // 2. 所有浮层窗口重新定位和布局
+        // 2. 所有浮层窗口重新定位和布局（含子窗口子树，逐层钳制回内容区）
         foreach (var win in Windows)
         {
             win.OnResize(newW, newH);
-            ClampOverlayToContent(win);
+            ClampTree(win);
         }
+    }
+
+    /// <summary>递归把窗口及其子窗口钳制回屏幕内容区。</summary>
+    protected void ClampTree(TuiWindow win)
+    {
+        ClampOverlayToContent(win);
+        foreach (var child in win.Children)
+            ClampTree(child);
     }
 
     // ── 窗口管理 ──
 
     private int _nextZ;
 
-    /// <summary>添加浮层窗口</summary>
-    public void AddWindow(TuiWindow win)
+    /// <summary>添加浮层窗口。
+    /// 仅模态窗口自动挂为当前顶层模态的子窗口（「只能弹子窗口」）；非模态/无模态在场时挂为根窗口。
+    /// 需要显式根挂的「替换型对话框」用 <see cref="AddRootWindow"/>（否则父窗关闭会递归把它一起关掉）。</summary>
+    public TuiWindow AddWindow(TuiWindow win, TuiWindow? parent = null)
     {
+        parent ??= win.Modal ? TopModal() : null;
+
         // 首个模态窗口出现时，保存并清除根视图焦点（防止光标穿透）
         if (win.Modal && !HasModal)
         {
@@ -199,11 +208,19 @@ public abstract class TuiScreen : TuiBase
         bool takesFocus = win.Modal || !HasModal;
         if (takesFocus)
         {
-            if (FocusedWindow != null) FocusedWindow.Focused = false;
+            if (FocusedWindow != null)
+            {
+                FocusedWindow.Focused = false;
+                FocusedWindow.RootView.MarkDirty(); // 旧焦点窗边框焦点色要重绘
+            }
             win.Focused = true;
         }
-        win.ZOrder = _nextZ++;
-        Windows.Add(win);
+
+        win.Screen = this;
+        win.Parent = parent;
+        win.ZOrder = parent != null ? parent.AllocChildZ() : _nextZ++; // Z-order 仅同级比较
+        if (parent != null) parent.Children.Add(win);
+        else Windows.Add(win);
         if (takesFocus) FocusedWindow = win;
         win.OnCreate();
         win.OnResize(TW, TH);
@@ -214,30 +231,13 @@ public abstract class TuiScreen : TuiBase
         // 这里补一次「聚焦第一个可聚焦控件」，让忘了写 focused 的窗口也能用键盘。
         if (win.RootView?.FindFocused() == null)
             win.FocusNext();
-
-        // 模态对话框显示前截取背景快照，关闭后整块贴回还原（消除「默认背景清屏+部分重绘」的残留条带）
-        if (win.Modal)
-            win.BackgroundSnapshot = CaptureBackground(win);
+        return win;
     }
 
-    /// <summary>
-    /// 截取窗口区域下根视图的背景快照（不含遮罩/浮层）。
-    /// 强制整棵根视图渲染进临时缓冲再解析成带色格子；失败/区域非法返回 null（关闭时走重绘兜底）。
-    /// </summary>
-    private FrameSnapshot? CaptureBackground(TuiWindow win)
-    {
-        if (win.X < 0 || win.Y < 0 || win.Width <= 0 || win.Height <= 0) return null;
-        try
-        {
-            var scratch = new StringBuilder();
-            RootView.Invalidate(); // 强制全量渲染进 scratch（临时缓冲，不影响屏幕）
-            RootView.Render(scratch, 0, 0,
-                clipL: win.X, clipT: win.Y,
-                clipR: win.X + win.Width, clipB: win.Y + win.Height);
-            return FrameSnapshot.Capture(scratch.ToString(), win.X, win.Y, win.Width, win.Height);
-        }
-        catch { return null; }
-    }
+    /// <summary>显式添加根窗口（不自动挂父）——供「替换型对话框」使用：
+    /// 新对话框须比开启它的对话框长寿；若自动成为其子窗口，父关闭会递归把它一起关掉（如文件选择器的「输入路径」）。</summary>
+    public TuiWindow AddRootWindow(TuiWindow win)
+        => AddWindow(win, parent: null);
 
     /// <summary>
     /// 将浮层窗口的垂直位置收拢到内容区（OverlayTop..OverlayBottom）以内，
@@ -270,34 +270,40 @@ public abstract class TuiScreen : TuiBase
         MarkDirty();
     }
 
-    /// <summary>关闭窗口</summary>
+    /// <summary>关闭窗口。先递归关闭其所有子窗口（「关父窗 = 递归关子树」），再关自身。
+    /// 背景快照回填机制已废弃，一律标记脏区：下一帧用默认背景擦除 + 裁剪重绘被遮挡的背景控件；
+    /// 有残留窗口或关的是带子树的窗口时，整屏重绘兜底。</summary>
     public void CloseWindow(TuiWindow win)
     {
-        // 1. 有背景快照 → 整块贴回还原（含真实底色，避免「默认背景清屏+部分重绘」残留条带）；
-        //    无快照（非模态/截取失败）→ 原路径：记录脏区 + 裁剪重绘被遮挡的根视图控件（安全网）
-        if (win.BackgroundSnapshot != null)
-        {
-            _pendingSnapshots.Add(win.BackgroundSnapshot);
-            win.BackgroundSnapshot = null;
-        }
-        else
-        {
-            _dirtyRects.Add((win.X, win.Y, win.Width, win.Height));
-            MarkDirtyInRect(RootView, 0, 0, win.X, win.Y, win.Width, win.Height);
-        }
+        // 先关子（子窗口永远在父之上，须先销毁），再关父。
+        // hadChildren/subtreeHadModal 必须在关子之前捕获（关子后 Children 已空）
+        bool hadChildren = win.Children.Count > 0;
+        bool subtreeHadModal = win.Modal || win.AnyDescendantModal();
+        foreach (var child in win.Children.ToList())
+            CloseWindow(child);
+
+        // 关窗刷新：记录脏区，下一帧用默认背景擦除窗口残影 + 裁剪重绘被遮挡的背景控件
+        _dirtyRects.Add((win.X, win.Y, win.Width, win.Height));
+        MarkDirtyInRect(RootView, 0, 0, win.X, win.Y, win.Width, win.Height);
 
         win.OnDestroy();
-        bool wasModal = win.Modal;
         win.Focused = false;
-        Windows.Remove(win);
+        (win.Parent?.Children ?? Windows).Remove(win);
+        win.Parent = null;
+        win.Screen = null;
+
         if (FocusedWindow == win)
         {
-            FocusedWindow = Windows.LastOrDefault();
-            if (FocusedWindow != null) FocusedWindow.Focused = true;
+            FocusedWindow = FindTopMostWindow();
+            if (FocusedWindow != null)
+            {
+                FocusedWindow.Focused = true;
+                FocusedWindow.RootView.MarkDirty(); // 新焦点窗边框焦点色要重绘
+            }
         }
 
-        // 最后一个模态窗口关闭后，恢复根视图焦点
-        if (wasModal && !HasModal && _savedRootFocus != null)
+        // 子树里曾有模态窗口且现已无任何模态 → 恢复根视图焦点（子窗自己的 CloseWindow 已处理的会置空，不重复）
+        if (subtreeHadModal && !HasModal && _savedRootFocus != null)
         {
             _savedRootFocus.Focused = true;
             _savedRootFocus = null;
@@ -305,10 +311,11 @@ public abstract class TuiScreen : TuiBase
 
         MarkDirty();
 
-        // 多层窗口：关闭上层后仍有窗口留在其下方（尤其模态），须整屏重绘——
+        // 多层/子树残留：关闭后仍有窗口留在其下方（尤其模态），须整屏重绘——
         // 增量 dirty-rect 只恢复根视图，无法重绘下层窗口的遮罩/边框/内容，会“穿透”。
-        // 单层窗口关闭保持增量恢复（只擦除该窗口区域），避免无谓闪烁。
-        if (Windows.Count > 0)
+        // 子窗口可能伸出父窗口矩形，脏区盖不到，也必须全刷。
+        // 单层根窗口关闭保持增量恢复（只擦除该窗口区域），避免无谓闪烁。
+        if (TotalWindowCount() > 0 || hadChildren)
             TuiManager.RequestFullRefresh();
 
         // 注意：不在此处调用 win.OnClosed，避免无限递归。
@@ -357,11 +364,11 @@ public abstract class TuiScreen : TuiBase
         MarkDirtyInRect(RootView, 0, 0, x, y, w, h);
     }
 
-    /// <summary>关闭所有模态窗口（复用 CloseWindow 的生命周期与焦点/脏区处理）</summary>
+    /// <summary>关闭所有模态窗口（循环关栈顶，递归关子树）</summary>
     public void CloseAllModals()
     {
-        foreach (var w in Windows.Where(w => w.Modal).ToList())
-            CloseWindow(w);
+        while (TopModal() != null)
+            CloseWindow(TopModal()!);
     }
 
     /// <summary>
@@ -381,7 +388,7 @@ public abstract class TuiScreen : TuiBase
         {
             focused = FocusedWindow.FocusedControl;
         }
-        else if (Windows.Count == 0)
+        else if (TotalWindowCount() == 0)
         {
             // 仅在没有浮层窗口时才从根视图取光标（避免 Toast 等窗口下穿透显示）
             focused = RootView.FindFocused();
@@ -423,18 +430,18 @@ public abstract class TuiScreen : TuiBase
     /// </summary>
     public override bool OnMouse(InputEvent ev)
     {
-        // 有模态窗口时，只路由给顶层模态窗口
+        // 有模态窗口时，只路由给顶层模态窗口（窗口树最深层模态）
         if (HasModal)
         {
-            var topModal = Windows.LastOrDefault(w => w.Modal);
+            var topModal = TopModal();
             if (topModal != null && topModal.OnMouse(ev))
                 return true;
             // 模态遮罩：点击模态窗口外部也消费事件（防止穿透）
             return true;
         }
 
-        // 按 Z-order 从高到低路由给窗口
-        foreach (var win in Windows.OrderByDescending(w => w.ZOrder))
+        // 非模态：按「最上优先」序（子先于父、后兄弟先于前兄弟）逐个命中测试
+        foreach (var win in WindowsInTopDownOrder())
         {
             if (win.OnMouse(ev))
             {
@@ -447,6 +454,23 @@ public abstract class TuiScreen : TuiBase
 
         // Fallback：路由给根视图（控件级鼠标交互）
         return RootView.OnMouse(ev);
+    }
+
+    /// <summary>窗口树按「最上优先」的遍历序（反向渲染序：最深子 → 父 → 次深子…）。</summary>
+    private IEnumerable<TuiWindow> WindowsInTopDownOrder()
+    {
+        var list = new List<TuiWindow>();
+        void Walk(List<TuiWindow> wins)
+        {
+            foreach (var w in wins.OrderBy(x => x.ZOrder))
+            {
+                list.Add(w);
+                if (w.Children.Count > 0) Walk(w.Children);
+            }
+        }
+        Walk(Windows);
+        list.Reverse();
+        return list;
     }
 
     /// <summary>鼠标点击窗口时，将键盘焦点转移到该窗口，并重绘新旧窗口的边框焦点色。</summary>
@@ -475,7 +499,7 @@ public abstract class TuiScreen : TuiBase
         // Esc 路由：先给模态窗口处理（快捷键拦截），未处理则关闭窗口
         if (key.Key == ConsoleKey.Escape && HasModal)
         {
-            var topModal = Windows.LastOrDefault(w => w.Modal);
+            var topModal = TopModal();
             if (topModal != null)
             {
                 // 无论快捷键还是默认关闭，都记录时间戳，防按键重复触发退出框
@@ -515,9 +539,59 @@ public abstract class TuiScreen : TuiBase
         return RootView.OnKey(key);
     }
 
-    /// <summary>栈顶模态窗口（无模态返回 null）。键路由以它为准，而非 FocusedWindow ——
-    /// 非模态浮层可能叠在模态之上，认 FocusedWindow 会让键漏到根视图。</summary>
-    private TuiWindow? TopModal() => Windows.LastOrDefault(w => w.Modal);
+    /// <summary>栈顶模态窗口 = 窗口树中最深层的模态窗口（DFS 渲染序最后一个模态节点）。
+    /// 键路由以它为准，而非 FocusedWindow —— 非模态浮层可能叠在模态之上，认 FocusedWindow 会让键漏到根视图。</summary>
+    private TuiWindow? TopModal()
+    {
+        TuiWindow? last = null;
+        void Walk(List<TuiWindow> wins)
+        {
+            foreach (var w in wins.OrderBy(x => x.ZOrder))
+            {
+                if (w.Modal) last = w;
+                if (w.Children.Count > 0) Walk(w.Children);
+            }
+        }
+        Walk(Windows);
+        return last;
+    }
+
+    /// <summary>窗口树中最后一个存活窗口（DFS 渲染序末位）——泛化平铺的 Windows.LastOrDefault()。
+    /// 关闭焦点窗口后用它回退焦点：顶层子窗被关回父、有更年轻兄弟则回同级次高层，自然满足。</summary>
+    private TuiWindow? FindTopMostWindow()
+    {
+        TuiWindow? last = null;
+        void Walk(List<TuiWindow> wins)
+        {
+            foreach (var w in wins.OrderBy(x => x.ZOrder))
+            {
+                last = w;
+                if (w.Children.Count > 0) Walk(w.Children);
+            }
+        }
+        Walk(Windows);
+        return last;
+    }
+
+    /// <summary>窗口树节点总数（根窗口 + 全部后代）。</summary>
+    private int TotalWindowCount()
+    {
+        int n = 0;
+        void Walk(List<TuiWindow> wins)
+        {
+            foreach (var w in wins)
+            {
+                n++;
+                if (w.Children.Count > 0) Walk(w.Children);
+            }
+        }
+        Walk(Windows);
+        return n;
+    }
+
+    /// <summary>窗口树中是否存在带遮罩的窗口（递归）。</summary>
+    private static bool AnyNodeHasMask(TuiWindow win)
+        => win.HasMask || win.Children.Any(AnyNodeHasMask);
 
     // ── 渲染 ──
 
@@ -529,22 +603,13 @@ public abstract class TuiScreen : TuiBase
     {
         bool incremental = IsIncrementalUpdate;
 
-        // 0. 贴回关闭对话框的背景快照。须在根视图重绘之前：快照先把窗口区域的底色/内容还原，
-        //    随后的根视图全量重绘（MarkDirty 触发）再以最新内容覆盖，动画/实时区域不会残留旧帧。
-        if (_pendingSnapshots.Count > 0)
-        {
-            foreach (var snap in _pendingSnapshots)
-                snap.Blit(sb);
-            _pendingSnapshots.Clear();
-        }
-
         // 1. 渲染根视图（光标先隐藏，仅记录位置）
         //    增量模式：仅脏控件输出；全量模式：全量输出
         RootView.Render(sb, 0, 0);
 
         // 2. 渲染模态窗口遮罩（全量模式才需要，增量模式遮罩未变）
         //    遮罩铺满全屏，覆盖窗口外的根视图内容，实现真正的视觉遮挡。
-        if (!incremental && Windows.Any(w => w.HasMask))
+        if (!incremental && Windows.Any(AnyNodeHasMask))
         {
             int maskBg = TuiTheme.Current.MaskBg;
             var rb = new RenderBuffer();
@@ -553,22 +618,13 @@ public abstract class TuiScreen : TuiBase
             sb.Append(rb.ToString());
         }
 
-        // 3. 按 Z-order 渲染窗口
-        foreach (var win in Windows.OrderBy(w => w.ZOrder))
-        {
-            // 增量模式 + 窗口内无脏后代 → 仅渲染窗口内脏控件
-            // 不能用 win.RootView.IsDirty 判定：MarkDirty 只标叶子不冒泡，子控件脏时 RootView 自身不脏，
-            // 走脏控件路径会漏画边框/背景/按钮 —— 若此时底层（如 TuiScrollView 全量重绘）覆盖了窗口区域，
-            // 窗口就只剩补画的脏控件，边框内容全被底层盖掉（设置界面弹框输入时花屏）。
-            if (incremental && !HasDirtyDescendant(win.RootView))
-            {
-                RenderWindowDirtyControls(sb, win);
-            }
-            else
-            {
-                RenderWindow(sb, win);
-            }
-        }
+        // 3. 渲染窗口树（先序 DFS：父先画、子后画 → 子窗口永远盖在父窗口之上）
+        //    层级刷新规则：任一窗口本帧整窗重绘（RenderWindow 会铺满自己的背景/边框，
+        //    把重叠区域里上层窗口的内容盖掉）时，所有后续窗口（子窗口 + 更高兄弟）必须跟着整窗重绘 ——
+        //    「父窗口刷新后自动刷新子对话框」，递归传播，否则子对话框会被父窗口的刷新刷没。
+        //    粘性 forceFull 恰好实现这一传播；且子窗口永远在父之后绘制，「父整窗刷没子窗」结构上消除。
+        bool forceFull = false;
+        RenderLevel(sb, Windows, incremental, ref forceFull);
 
         // 3.5 重绘脏区域（窗口关闭后，补绘被遮挡的根视图控件）
         // 先擦除窗口残影（默认背景），再裁剪重绘根视图，保证背景不残留。
@@ -606,6 +662,34 @@ public abstract class TuiScreen : TuiBase
 
         // 5. 渲染完成后清除脏标记
         ClearDirtyRecursive(RootView);
+    }
+
+    /// <summary>
+    /// 按同级 Z-order 渲染一层窗口树：每个窗口先画自己，再递归画其子窗口（先序 → 子永远盖在父上）。
+    /// 粘性 forceFull：任一窗口整窗重绘后，其子窗口与后续兄弟全部强制整窗重绘——
+    /// 否则父/低兄弟整窗铺满背景会把上层窗口内容刷没（增量脏控件补画救不回边框/背景/内容）。
+    /// </summary>
+    private void RenderLevel(StringBuilder sb, List<TuiWindow> wins, bool incremental, ref bool forceFull)
+    {
+        foreach (var win in wins.OrderBy(w => w.ZOrder))
+        {
+            // 不能用 win.RootView.IsDirty 判定：MarkDirty 只标叶子不冒泡，子控件脏时 RootView 自身不脏，
+            // 走脏控件路径会漏画边框/背景/按钮 —— 若此时底层（如 TuiScrollView 全量重绘）覆盖了窗口区域，
+            // 窗口就只剩补画的脏控件，边框内容全被底层盖掉（设置界面弹框输入时花屏）。
+            bool needFull = forceFull || !incremental || HasDirtyDescendant(win.RootView);
+            if (needFull)
+            {
+                RenderWindow(sb, win);
+                forceFull = true;
+            }
+            else
+            {
+                RenderWindowDirtyControls(sb, win);
+            }
+
+            if (win.Children.Count > 0)
+                RenderLevel(sb, win.Children, incremental, ref forceFull);
+        }
     }
 
     /// <summary>递归查询控件自身或任一后代是否脏（含子树）。MarkDirty 不冒泡到父链，须显式递归。</summary>
@@ -973,7 +1057,8 @@ public abstract class TuiScreen : TuiBase
         return win;
     }
 
-    /// <summary>创建通知提示框（右下角，自动消失）</summary>
+    /// <summary>创建通知提示框（右下角，自动消失）。恒为根窗口——
+    /// 避免成为模态对话框的子窗口后，随模态关闭一起消失。</summary>
     public TuiWindow ShowToast(string message, int durationMs = 2000)
     {
         var vw = AnsiHelper.DisplayWidth(message);
@@ -989,7 +1074,7 @@ public abstract class TuiScreen : TuiBase
             WinBg = AnsiColors.BgBrightBlack, // 深灰底色
             BorderColor = AnsiColors.Green,
         };
-        AddWindow(win);
+        AddRootWindow(win);
         // 自动消失：后台定时线程只投递，CloseWindow 在 UI 线程执行（Windows 列表无锁，
         // 后台直接改会与渲染循环 foreach 并发 → 帧交错花屏）。Windows.Contains 守卫：屏幕销毁后不再关闭。
         Task.Delay(durationMs).ContinueWith(_ => PostToUI(() =>

@@ -42,8 +42,31 @@ public class TuiWindow : TuiBase
     public bool HasMask { get; set; }
 
     // ── Z-order ──
-    /// <summary>层叠顺序（越大越在上）</summary>
+    /// <summary>层叠顺序（越大越在上）。仅在同一父级(含屏幕)的兄弟窗口之间比较。</summary>
     public int ZOrder { get; set; }
+
+    // ── 窗口树 ──
+    /// <summary>子窗口（只能弹子窗口：子窗口永远渲染在父窗口之上）。</summary>
+    public readonly List<TuiWindow> Children = [];
+
+    /// <summary>父窗口（null = 根窗口，直接挂在 TuiScreen.Windows）。</summary>
+    public TuiWindow? Parent { get; set; }
+
+    /// <summary>所属屏幕（AttachWindow 时设置，供 AddChildWindow 委托）。</summary>
+    public TuiScreen? Screen { get; set; }
+
+    private int _nextChildZ; // 同级子窗口 Z 计数（Z-order 仅同级有效）
+
+    /// <summary>分配同级子窗口 Z 序号（Z-order 仅在同级内比较）。由 TuiScreen.Attach 调用。</summary>
+    internal int AllocChildZ() => _nextChildZ++;
+
+    /// <summary>弹子窗口：把 child 挂为本窗口的子窗口（子窗口永远在父之上）。</summary>
+    public TuiWindow AddChildWindow(TuiWindow child)
+        => Screen?.AddWindow(child, parent: this) ?? child;
+
+    /// <summary>本窗口子树中是否存在模态窗口（含自身之下的任意后代）。</summary>
+    public bool AnyDescendantModal()
+        => Children.Any(c => c.Modal || c.AnyDescendantModal());
 
     // ── 边框 ──
     /// <summary>
@@ -135,21 +158,21 @@ public class TuiWindow : TuiBase
     /// </summary>
     public Action? OnResizeContent { get; set; }
 
-    /// <summary>
-    /// 对话框显示前截取的背景快照（由 TuiScreen 在 AddWindow 时填充，关闭后贴回还原）。
-    /// null = 无快照，关闭时走「脏区清除 + 重绘」兜底。
-    /// </summary>
-    public FrameSnapshot? BackgroundSnapshot { get; set; }
-
     // ── 生命周期 ──
 
-    /// <summary>窗口创建/显示时调用。初始化 RootView 控件树。</summary>
-    public override void OnCreate() => RootView?.OnCreate();
+    /// <summary>窗口创建/显示时调用。初始化 RootView 控件树，并递归子窗口。</summary>
+    public override void OnCreate()
+    {
+        RootView?.OnCreate();
+        foreach (var child in Children) child.OnCreate();
+    }
 
-    /// <summary>窗口关闭/销毁时调用。清理 RootView 控件树和事件订阅。</summary>
+    /// <summary>窗口关闭/销毁时调用。清理 RootView 控件树、递归销毁子窗口和事件订阅。</summary>
     public override void OnDestroy()
     {
         RootView?.OnDestroy();
+        foreach (var child in Children) child.OnDestroy();
+        Children.Clear();
         KeyShortcuts.Clear();
         OnClosed = null;
     }
@@ -276,9 +299,6 @@ public class TuiWindow : TuiBase
     /// </summary>
     public override void OnResize(int newTermW, int newTermH)
     {
-        // 终端尺寸变化 → 背景快照坐标失效，关闭时回退「脏区清除 + 重绘」兜底
-        BackgroundSnapshot = null;
-
         // 0. 根据 XScale/YScale 比例重新计算窗口尺寸
         if (XScale > 0)
         {
@@ -334,6 +354,9 @@ public class TuiWindow : TuiBase
         //    不能只 MarkDirty() 根：parentDirty 只向下传播一层，套在 HBox 里的按钮（父容器不脏、
         //    自身也不脏）会被增量渲染跳过，表现就是「改屏幕尺寸，对话框按钮不见了」。
         RootView.Invalidate();
+
+        // 6. 递归通知子窗口重新布局（子窗口永远在父之上，尺寸变化须同步传播）
+        foreach (var child in Children) child.OnResize(newTermW, newTermH);
     }
 
     /// <summary>路由按键到控件树。快捷键优先于控件路由。</summary>

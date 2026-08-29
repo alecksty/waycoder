@@ -575,7 +575,7 @@ public static partial class SelfTest
         }
 
         // 渲染每个对话框：标题独占独立行 + 无异常（先收集帧，再统一断言，避免 Check 输出被抑制）
-        var dialogFrames = new List<(string Name, string Title, string RawFrame, string Frame, int WinY, bool ExpectBar, bool HasSnapshot)>();
+        var dialogFrames = new List<(string Name, string Title, string RawFrame, string Frame, int WinY, bool ExpectBar)>();
         var mgr2 = TuiManager.Instance;
         var prevOut2 = Console.Out;
         Console.SetOut(TextWriter.Null);
@@ -587,13 +587,11 @@ public static partial class SelfTest
             {
                 string raw = "", frame = "";
                 int winY = -1;
-                bool hasSnap = false;
                 try
                 {
                     var chat = new ChatScreen();
                     mgr2.PushScreen(chat);
                     chat.AddWindow(win);
-                    hasSnap = win.BackgroundSnapshot != null;
                     mgr2.Render();
                     raw = mgr2.LastCleanFrame;
                     frame = AnsiString.Strip(raw);
@@ -601,7 +599,7 @@ public static partial class SelfTest
                     mgr2.PopScreen();
                 }
                 catch { frame = ""; }
-                dialogFrames.Add((name, win.Title, raw, frame, winY, expectBar, hasSnap));
+                dialogFrames.Add((name, win.Title, raw, frame, winY, expectBar));
             }
         }
         finally
@@ -610,9 +608,8 @@ public static partial class SelfTest
             Console.SetOut(prevOut2);
         }
 
-        foreach (var (name, title, raw, frame, winY, expectBar, hasSnap) in dialogFrames)
+        foreach (var (name, title, raw, frame, winY, expectBar) in dialogFrames)
         {
-            Check($"{name}: 模态窗口已截取背景快照", hasSnap);
             Check($"{name}: 渲染非空", frame.Length > 0);
             if (expectBar && raw.Length > 0 && winY >= 0)
             {
@@ -634,11 +631,67 @@ public static partial class SelfTest
             ["Confirm3"] = ["(Y)", "(N)", "(Esc)"],
             ["Input"] = ["确定", "取消"], ["InputLine"] = ["确定", "取消"], ["Secret"] = ["确定", "取消"],
         };
-        foreach (var (name, _, _, frame, _, _, _) in dialogFrames)
+        foreach (var (name, _, _, frame, _, _) in dialogFrames)
         {
             if (frame.Length == 0 || !expectBtns.TryGetValue(name, out var labels)) continue;
             foreach (var lb in labels)
                 Check($"{name}: 按钮「{lb}」可见", frame.Contains(lb));
+        }
+
+        // ── 窗口树层级刷新：父窗口整窗重绘后，上层子窗口必须跟着整窗重绘 ──
+        // 父窗口（低层）整窗重绘会铺满自身背景/边框，把重叠区域里子窗口的内容盖掉；
+        // 子窗口若无脏后代，增量模式下被跳过 → 「对话框刷没了」。树先序渲染 + 粘性 forceFull
+        // 保证：父整窗 → 子窗口强制整窗（刷新自己再刷子级）。
+        {
+            var savedSzL = Tty.SizeOverride;
+            var mgrL = TuiManager.Instance;
+            bool enteredL = false;
+            var prevOutL = Console.Out;
+            try
+            {
+                Tty.SizeOverride = (100, 40);
+                var scrL = new ChatScreen();
+                // 真实父-子：子窗口通过 AddChildWindow 挂在父窗口下（子窗口永远在父之上）
+                var parentL = new TuiWindow { X = 5, Y = 3, Width = 40, Height = 12, Title = "父窗口", WinBg = 100, Modal = false };
+                var childL = new TuiWindow { X = 10, Y = 5, Width = 30, Height = 8, Title = "子对话框", WinBg = 100, Modal = false };
+                childL.ContentLines.Add("子级内容标记ABC");
+                if (!mgrL.IsActive) { mgrL.Enter(); enteredL = true; }
+                mgrL.PushScreen(scrL);
+                scrL.AddWindow(parentL);
+                parentL.AddChildWindow(childL);
+                Console.SetOut(TextWriter.Null); // 渲染帧不污染 --test 输出
+                Check("层级刷新: 子窗口挂在父窗口下", parentL.Children.Contains(childL) && childL.Parent == parentL);
+                mgrL.Render(); // 全量基线帧
+
+                // 仅父窗口标脏 → 父整窗重绘覆盖子窗口区域；子窗口必须跟着整窗重绘
+                mgrL.IsDirty = true;
+                parentL.RootView.Invalidate();
+                mgrL.Render(); // 增量帧
+                Console.SetOut(prevOutL);
+                var frameL = AnsiString.Strip(mgrL.LastCleanFrame);
+                Check("层级刷新: 父窗口重绘后子对话框内容仍在", frameL.Contains("子级内容标记ABC"));
+                Check("层级刷新: 子对话框标题仍可见", frameL.Contains("子对话框"));
+                Check("层级刷新: 父窗口本身也重绘", frameL.Contains("父窗口"));
+
+                // 同级子窗口 Z-order：后添加的 Z 更大（渲染在上）
+                var sib1 = new TuiWindow { X = 8, Y = 4, Width = 20, Height = 6, Title = "兄弟一", WinBg = 100 };
+                var sib2 = new TuiWindow { X = 12, Y = 6, Width = 20, Height = 6, Title = "兄弟二", WinBg = 100 };
+                parentL.AddChildWindow(sib1);
+                parentL.AddChildWindow(sib2);
+                Check("同级子窗口 Z-order 递增", sib1.ZOrder < sib2.ZOrder);
+
+                // 关父窗口 → 递归关闭其所有子窗口
+                scrL.CloseWindow(parentL);
+                Check("关父递归关子: 父子链全移除", parentL.Children.Count == 0
+                    && !scrL.Windows.Contains(parentL) && !scrL.Windows.Contains(childL));
+            }
+            finally
+            {
+                Console.SetOut(prevOutL);
+                Tty.SizeOverride = savedSzL;
+                try { mgrL.PopScreen(); } catch { }
+                if (enteredL) { try { mgrL.Exit(); } catch { } }
+            }
         }
 
         // 模型选择器：底部三行（槽位/帮助/帮助2）必须落在内容区内。
@@ -822,29 +875,31 @@ public static partial class SelfTest
         }
         catch (Exception ex) { Check($"嵌套框: 构造异常 {ex.Message}", false); }
 
-        // ── 多级弹窗：按键脚本逐层弹出 + ESC 逐层关闭 ──
+        // ── 多级弹窗：按键脚本逐层弹出 + ESC 逐层关闭（树结构：后弹的自动成为当前模态的子窗口）──
         {
             var mscr = new ChatScreen();
             mscr.Activate();
             var l1 = TuiDialog.Confirm("第一层", "确认?", _ => { });
             mscr.ShowWindow(l1);
-            Check("多级弹窗: 第一层弹出(栈=1)", mscr.Windows.Count == 1 && mscr.FocusedWindow == l1);
+            Check("多级弹窗: 第一层弹出(根=1)", mscr.Windows.Count == 1 && mscr.FocusedWindow == l1);
             var l2 = TuiDialog.InputLine("第二层", "输入", "", _ => { });
             mscr.ShowWindow(l2);
-            Check("多级弹窗: 第二层弹出(栈=2)", mscr.Windows.Count == 2 && mscr.FocusedWindow == l2);
+            Check("多级弹窗: 第二层弹出(l1 子=1,焦点归 l2)",
+                mscr.Windows.Count == 1 && l1.Children.Count == 1 && mscr.FocusedWindow == l2);
             var l3 = TuiDialog.Confirm("第三层", "再确认?", _ => { });
             mscr.ShowWindow(l3);
-            Check("多级弹窗: 第三层弹出(栈=3)", mscr.Windows.Count == 3 && mscr.FocusedWindow == l3);
+            Check("多级弹窗: 第三层弹出(l2 子=1,焦点归 l3)",
+                mscr.Windows.Count == 1 && l2.Children.Count == 1 && mscr.FocusedWindow == l3);
 
             var escK = new ConsoleKeyInfo('\x1b', ConsoleKey.Escape, false, false, false);
             mscr.OnKey(escK);
-            Check("多级弹窗: ESC 关第三层(栈=2,焦点回第二层)",
-                mscr.Windows.Count == 2 && mscr.FocusedWindow == l2);
+            Check("多级弹窗: ESC 关第三层(焦点回第二层)",
+                l2.Children.Count == 0 && mscr.FocusedWindow == l2);
             mscr.OnKey(escK);
-            Check("多级弹窗: ESC 关第二层(栈=1,焦点回第一层)",
-                mscr.Windows.Count == 1 && mscr.FocusedWindow == l1);
+            Check("多级弹窗: ESC 关第二层(焦点回第一层)",
+                l1.Children.Count == 0 && mscr.FocusedWindow == l1);
             mscr.OnKey(escK);
-            Check("多级弹窗: ESC 关第一层(栈=0)", mscr.Windows.Count == 0);
+            Check("多级弹窗: ESC 关第一层(全清)", mscr.Windows.Count == 0);
             mscr.Deactivate();
         }
 
@@ -866,11 +921,11 @@ public static partial class SelfTest
                 var frame = AnsiString.Strip(mgr4.LastCleanFrame);
                 // 弹出验证（截屏）：最上层窗口标题渲染可见（下层被上层居中窗口覆盖，不断言）
                 Check("多级弹窗截屏: 两层渲染最上层标题可见", frame.Contains("弹窗乙"));
-                // 关闭验证：窗口栈逐层关闭
+                // 关闭验证：树逐层关闭（先子后父）
                 schat.OnKey(new ConsoleKeyInfo('\x1b', ConsoleKey.Escape, false, false, false));
-                Check("多级弹窗截屏: ESC 关上层(栈=1)", schat.Windows.Count == 1);
+                Check("多级弹窗截屏: ESC 关上层(根=1,子=0)", schat.Windows.Count == 1 && schat.Windows[0].Children.Count == 0);
                 schat.OnKey(new ConsoleKeyInfo('\x1b', ConsoleKey.Escape, false, false, false));
-                Check("多级弹窗截屏: ESC 关底层(栈=0)", schat.Windows.Count == 0);
+                Check("多级弹窗截屏: ESC 关底层(全清)", schat.Windows.Count == 0);
                 mgr4.PopScreen();
             }
             catch (Exception ex) { Check($"多级弹窗截屏: 异常 {ex.Message}", false); }
@@ -2499,7 +2554,7 @@ public static partial class SelfTest
         Console.WriteLine();
 
         // ================================================================
-        // FrameSnapshot 背景快照（颜色感知解析 + 贴回）
+        // FrameSnapshot 背景快照（颜色感知解析 + 贴回）——类保留供 WayCoder.Preview WPF 渲染器使用
         // ================================================================
         Section("[FrameSnapshot]");
 

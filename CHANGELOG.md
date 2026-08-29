@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.96.27 (2026-08-29) — TUI 窗口树重构：子窗口永远在父之上 + 关窗刷新替代快照回填
+
+- **窗口树结构**：`TuiWindow` 新增 `Children`/`Parent`/`Screen`/同级 ZOrder 计数，`TuiScreen.Windows` 收窄为根窗口列表——子窗口挂在父窗口下，永远渲染在父之上；一个窗口可弹多个子窗口，Z-order 仅在同级子窗口之间有意义；`TuiWindow.AddChildWindow` 显式弹子窗
+- **只能弹子窗口（自动父级）**：模态窗口在场时，新对话框自动成为当前顶层模态的子窗口（回调里 `ShowWindow` 自动挂父，生产调用点零改动）；`ShowToast`/UxHelper 通知恒为根窗口（不被模态关闭递归带走）；`AddRootWindow` 供「替换型对话框」显式根挂——修复 EditorScreen 文件选择器「输入路径」被父选择框关闭递归误杀的隐患
+- **先序渲染 + 粘性 forceFull（层级刷新规则）**：渲染改先序 DFS（父先画、子后画），子窗口从结构上永远盖在父窗口之上，「父窗口整窗重绘把子对话框刷没」根除；任一窗口整窗重绘后，其子窗口与后续更高兄弟强制整窗重绘（递归传播，否则增量脏控件补画救不回边框/背景/内容）
+- **关父递归关子**：`CloseWindow` 先递归关闭全部子窗口再关自身，焦点回退到渲染序末位存活窗口（自然满足「回父」/「回同级次高层」）；`CloseAllModals` 循环关栈顶递归清子树
+- **去掉关窗快照回填**：`BackgroundSnapshot`/`CaptureBackground`/`_pendingSnapshots` 机制废弃（回填老是花屏），关窗一律脏区清除 + 背景控件重绘，有残留窗口/关闭带子树时全量重绘兜底；`FrameSnapshot` 类保留（WayCoder.Preview WPF 渲染器共享源码依赖），仅废弃 TUI 内关窗回填用法
+- **输入/鼠标/焦点树化**：Esc 关最深模态（`TopModal` 树下降取最深层模态）、Tab/方向键走焦点叶子窗口、鼠标非模态按「最上优先」反向渲染序命中、`SetCursorOwner` 空窗判定改全树计数、OnCreate/OnDestroy/OnResize 递归子树 + 逐层钳制回内容区、焦点转移补标脏边框色
+- **自测**：4779 全过（新增层级刷新/同级子窗口 Z/关父递归关子/多级弹窗树断言，适配键位作用域；移除关窗快照断言与 `[FrameSnapshot]` 回填引用）
+
 ## v0.96.26 (2026-08-29) — 符号反向索引 + 手搓 SQL 引擎 + 编码转换 + git pull/push
 
 - **全局符号反向索引**：`RepoMapGenerator` 新增符号名 → {文件:行} 反向索引（复用 SymbolPatterns 提取行号，2 分钟 TTL 缓存），`symbols` 工具一次定位符号定义；注册桌面+移动 ToolRegistry、标记 Safe、9 项自测

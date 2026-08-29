@@ -959,7 +959,9 @@ public class EditorScreen : TuiScreen
                             Manager?.PopScreen();
                     },
                     onCancel: () => Manager?.PopScreen());
-                ShowWindow(inputWin);
+                // 替换型对话框：inputWin 必须比 selectWin 长寿（selectWin 的 onSelect 回调后即关）。
+                // 若自动成为 selectWin 的子窗口，selectWin 关闭会递归把它一起关掉，输入框永远弹不出。
+                AddRootWindow(inputWin);
             }
             else
             {
