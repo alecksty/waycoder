@@ -62,11 +62,21 @@ public class TuiWindow : TuiBase
 
     /// <summary>弹子窗口：把 child 挂为本窗口的子窗口（子窗口永远在父之上）。</summary>
     public TuiWindow AddChildWindow(TuiWindow child)
-        => Screen?.AddWindow(child, parent: this) ?? child;
+    {
+        if (ReferenceEquals(child, this)) return child; // 防自挂子 → 环
+        return Screen?.AddWindow(child, parent: this) ?? child;
+    }
 
     /// <summary>本窗口子树中是否存在模态窗口（含自身之下的任意后代）。</summary>
-    public bool AnyDescendantModal()
-        => Children.Any(c => c.Modal || c.AnyDescendantModal());
+    public bool AnyDescendantModal() => AnyDescendantModal(0);
+
+    private bool AnyDescendantModal(int depth)
+    {
+        if (depth > 64) throw new InvalidOperationException("窗口树检测到环（AnyDescendantModal）");
+        foreach (var c in Children)
+            if (c.Modal || c.AnyDescendantModal(depth + 1)) return true;
+        return false;
+    }
 
     // ── 边框 ──
     /// <summary>

@@ -626,6 +626,7 @@ public static class TuiChatInput
                 FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/bash",
                 Arguments = OperatingSystem.IsWindows() ? $"/c {cmd}" : $"-c \"{cmd}\"",
                 RedirectStandardOutput = true,
+                RedirectStandardInput = true, // 不共享主控台 stdin（防剪贴板工具抢 TUI 控制台输入）
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };

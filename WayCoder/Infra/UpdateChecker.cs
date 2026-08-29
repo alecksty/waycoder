@@ -451,6 +451,7 @@ public static class UpdateChecker
                     Arguments = $"/c \"{batPath}\"",
                     UseShellExecute = false,
                     CreateNoWindow = true,
+                    RedirectStandardInput = true, // 不共享主控台 stdin（防子进程抢 TUI 控制台输入）
                 });
             }
             catch { /* 脚本启动失败时用户可手动运行 */ }

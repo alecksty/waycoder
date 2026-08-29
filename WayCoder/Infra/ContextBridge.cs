@@ -948,6 +948,7 @@ public static class ContextBridge
                 WorkingDirectory = cwd,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                RedirectStandardInput = true, // 不共享主控台 stdin（防与 TUI 主循环抢控制台输入致 ReadKey 永久阻塞 → 任务完成死机）
                 UseShellExecute = false,
             };
             using var p = Process.Start(psi);

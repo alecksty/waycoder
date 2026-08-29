@@ -134,6 +134,7 @@ $toast = [Windows.UI.Notifications.ToastNotification]::new($template)
                 Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{psScript.Replace("\"", "\\\"")}\"",
                 UseShellExecute = false,
                 CreateNoWindow = true,
+                RedirectStandardInput = true, // 不共享主控台 stdin（防子进程抢 TUI 控制台输入）
             };
             var proc = System.Diagnostics.Process.Start(psi);
             proc?.WaitForExit(2000);

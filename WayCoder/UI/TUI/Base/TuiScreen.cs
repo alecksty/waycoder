@@ -195,6 +195,18 @@ public abstract class TuiScreen : TuiBase
     {
         parent ??= win.Modal ? TopModal() : null;
 
+        // ── 防环防御 ──
+        // 窗口已在树中（已挂到某屏幕）时重复挂载，会在窗口树里形成环（A.Children∋B 且
+        // B.Children∋A），渲染/键路由/关闭的递归遍历将无限递归 → 栈溢出 → 整机「死机」
+        // （Ctrl+C 无效、无法输入）。摘除旧位置后再挂载：重复 ShowWindow 变成「移动窗口」。
+        // 注意：旧屏可能是 RenderOnlyScreen（TuiDialog.Show 离屏预览）等临时屏，一律摘除允许跨屏挂载。
+        if (win.Screen != null)
+        {
+            (win.Parent?.Children ?? win.Screen.Windows).Remove(win);
+            win.Parent = null;
+            win.Screen = null;
+        }
+
         // 首个模态窗口出现时，保存并清除根视图焦点（防止光标穿透）
         if (win.Modal && !HasModal)
         {
@@ -273,14 +285,17 @@ public abstract class TuiScreen : TuiBase
     /// <summary>关闭窗口。先递归关闭其所有子窗口（「关父窗 = 递归关子树」），再关自身。
     /// 背景快照回填机制已废弃，一律标记脏区：下一帧用默认背景擦除 + 裁剪重绘被遮挡的背景控件；
     /// 有残留窗口或关的是带子树的窗口时，整屏重绘兜底。</summary>
-    public void CloseWindow(TuiWindow win)
+    public void CloseWindow(TuiWindow win) => CloseWindow(win, 0);
+
+    private void CloseWindow(TuiWindow win, int depth)
     {
+        if (depth > MaxTreeDepth) throw new InvalidOperationException("窗口树检测到环（CloseWindow）");
         // 先关子（子窗口永远在父之上，须先销毁），再关父。
         // hadChildren/subtreeHadModal 必须在关子之前捕获（关子后 Children 已空）
         bool hadChildren = win.Children.Count > 0;
         bool subtreeHadModal = win.Modal || win.AnyDescendantModal();
         foreach (var child in win.Children.ToList())
-            CloseWindow(child);
+            CloseWindow(child, depth + 1);
 
         // 关窗刷新：记录脏区，下一帧用默认背景擦除窗口残影 + 裁剪重绘被遮挡的背景控件
         _dirtyRects.Add((win.X, win.Y, win.Width, win.Height));
@@ -460,15 +475,16 @@ public abstract class TuiScreen : TuiBase
     private IEnumerable<TuiWindow> WindowsInTopDownOrder()
     {
         var list = new List<TuiWindow>();
-        void Walk(List<TuiWindow> wins)
+        void Walk(List<TuiWindow> wins, int depth)
         {
+            if (depth > MaxTreeDepth) throw new InvalidOperationException("窗口树检测到环（WindowsInTopDownOrder）");
             foreach (var w in wins.OrderBy(x => x.ZOrder))
             {
                 list.Add(w);
-                if (w.Children.Count > 0) Walk(w.Children);
+                if (w.Children.Count > 0) Walk(w.Children, depth + 1);
             }
         }
-        Walk(Windows);
+        Walk(Windows, 0);
         list.Reverse();
         return list;
     }
@@ -544,15 +560,16 @@ public abstract class TuiScreen : TuiBase
     private TuiWindow? TopModal()
     {
         TuiWindow? last = null;
-        void Walk(List<TuiWindow> wins)
+        void Walk(List<TuiWindow> wins, int depth)
         {
+            if (depth > MaxTreeDepth) throw new InvalidOperationException("窗口树检测到环（TopModal）");
             foreach (var w in wins.OrderBy(x => x.ZOrder))
             {
                 if (w.Modal) last = w;
-                if (w.Children.Count > 0) Walk(w.Children);
+                if (w.Children.Count > 0) Walk(w.Children, depth + 1);
             }
         }
-        Walk(Windows);
+        Walk(Windows, 0);
         return last;
     }
 
@@ -561,15 +578,16 @@ public abstract class TuiScreen : TuiBase
     private TuiWindow? FindTopMostWindow()
     {
         TuiWindow? last = null;
-        void Walk(List<TuiWindow> wins)
+        void Walk(List<TuiWindow> wins, int depth)
         {
+            if (depth > MaxTreeDepth) throw new InvalidOperationException("窗口树检测到环（FindTopMostWindow）");
             foreach (var w in wins.OrderBy(x => x.ZOrder))
             {
                 last = w;
-                if (w.Children.Count > 0) Walk(w.Children);
+                if (w.Children.Count > 0) Walk(w.Children, depth + 1);
             }
         }
-        Walk(Windows);
+        Walk(Windows, 0);
         return last;
     }
 
@@ -577,15 +595,16 @@ public abstract class TuiScreen : TuiBase
     private int TotalWindowCount()
     {
         int n = 0;
-        void Walk(List<TuiWindow> wins)
+        void Walk(List<TuiWindow> wins, int depth)
         {
+            if (depth > MaxTreeDepth) throw new InvalidOperationException("窗口树检测到环（TotalWindowCount）");
             foreach (var w in wins)
             {
                 n++;
-                if (w.Children.Count > 0) Walk(w.Children);
+                if (w.Children.Count > 0) Walk(w.Children, depth + 1);
             }
         }
-        Walk(Windows);
+        Walk(Windows, 0);
         return n;
     }
 
@@ -669,8 +688,11 @@ public abstract class TuiScreen : TuiBase
     /// 粘性 forceFull：任一窗口整窗重绘后，其子窗口与后续兄弟全部强制整窗重绘——
     /// 否则父/低兄弟整窗铺满背景会把上层窗口内容刷没（增量脏控件补画救不回边框/背景/内容）。
     /// </summary>
-    private void RenderLevel(StringBuilder sb, List<TuiWindow> wins, bool incremental, ref bool forceFull)
+    private void RenderLevel(StringBuilder sb, List<TuiWindow> wins, bool incremental, ref bool forceFull, int depth = 0)
     {
+        if (depth > MaxTreeDepth)
+            throw new InvalidOperationException($"窗口树检测到环或深度异常（depth>{MaxTreeDepth}）——某窗口被重复挂载成自身后代的子窗口。");
+
         foreach (var win in wins.OrderBy(w => w.ZOrder))
         {
             // 不能用 win.RootView.IsDirty 判定：MarkDirty 只标叶子不冒泡，子控件脏时 RootView 自身不脏，
@@ -688,9 +710,12 @@ public abstract class TuiScreen : TuiBase
             }
 
             if (win.Children.Count > 0)
-                RenderLevel(sb, win.Children, incremental, ref forceFull);
+                RenderLevel(sb, win.Children, incremental, ref forceFull, depth + 1);
         }
     }
+
+    /// <summary>窗口树最大合法深度（正常对话框层数远小于此；超过即视为树环，防止递归无限导致死机）。</summary>
+    private const int MaxTreeDepth = 64;
 
     /// <summary>递归查询控件自身或任一后代是否脏（含子树）。MarkDirty 不冒泡到父链，须显式递归。</summary>
     private static bool HasDirtyDescendant(TuiControl? control)
