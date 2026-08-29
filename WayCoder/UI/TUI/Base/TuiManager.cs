@@ -45,6 +45,14 @@ public class TuiManager : IDisposable
     private CancellationTokenSource? _animCts;
     private long _lastRenderTicks; // 主渲染循环最近一次 Render 时间戳（心跳据此判断主循环是否还活着）
 
+    // ── 主循环冻结看门狗 ──
+    // 主循环每完成一个阶段更新 UiLoopTick + 标记当前阶段；看门狗（心跳线程）发现 UiLoopTick
+    // 停滞 >3s 就记一条错误日志，含最后活动阶段 —— 排查「死机」时定位主循环卡在哪个阶段
+    // （PumpUIQueue=某个 PostToUI 动作忙循环 / Render=渲染忙循环 / ReadInput=输入被阻塞）。
+    public static volatile string UiLoopActivity = "idle";
+    public static long UiLoopTick; // 用 Volatile.Read/Write 访问（volatile 不支持 long）
+    private bool _freezeLogged;
+
     private void StartAnimTicker()
     {
         if (_animTicker != null) return;
@@ -63,6 +71,24 @@ public class TuiManager : IDisposable
                         // （Render 不再被调用）心跳才接管直写 —— 这正是「卡死后动画还要转」的关键。
                         if (Environment.TickCount64 - Volatile.Read(ref _lastRenderTicks) > 150)
                             TuiDynamicBar.RenderAllDirect(); // RenderDirect 内部门控活跃屏+无浮层，安全
+
+                        // 冻结看门狗：主循环 UiLoopTick 停滞 >3s → 记一条错误（一次性/冻结段），
+                        // 附最后活动阶段。恢复（tick 前进）后复位，下次再冻再记。
+                        // 门控 UiLoopActivity != "idle"：测试/无主循环场景不更新 tick，不算冻结。
+                        long stale = UiLoopActivity != "idle" ? Environment.TickCount64 - Volatile.Read(ref UiLoopTick) : 0;
+                        if (stale > 3000)
+                        {
+                            if (!_freezeLogged)
+                            {
+                                _freezeLogged = true;
+                                ErrorLog.Error("UI.Freeze",
+                                    $"主循环冻结 {stale}ms，最后活动: {UiLoopActivity} —— 请将本行+上下日志发给开发者定位死机阶段");
+                            }
+                        }
+                        else
+                        {
+                            _freezeLogged = false;
+                        }
                     }
                     // 注：TuiAnimatedText.RenderDirect 无活跃屏/浮层门控，不可从心跳线程调（会写旧位置）
                 }

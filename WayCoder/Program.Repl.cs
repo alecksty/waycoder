@@ -296,8 +296,11 @@ public partial class Program
         while (running && !_exitRequested)
         {
             screen.CurrentSessionId = _currentSessionIds[_activeSlot]; // 侧边栏会话区标记「当前」
+            TuiManager.UiLoopActivity = "PumpUIQueue"; // 冻结看门狗标记：主循环卡在哪个阶段
             screen.PumpUIQueue(); // 消费后台投递的 UI 操作（Agent 流式 / 权限回调等）
+            TuiManager.UiLoopActivity = "Render";
             mgr.Render();
+            TuiManager.UiLoopActivity = "PendingSubmissions";
 
             // 处理 ChatScreen 提交的消息（Enter 键 → async LLM 调用）。
             // 输入排队机制：Agent 忙碌时不打断 —— 普通对话留在队列（TryPeek 不取走），
@@ -338,7 +341,10 @@ public partial class Program
                 await ProcessUserInput(watchPrompt, screen);
             }
 
+            TuiManager.UiLoopActivity = "ReadInput";
             var ev = inputMgr.ReadInput(50);
+            Volatile.Write(ref TuiManager.UiLoopTick, Environment.TickCount64); // 主循环心跳：完成一轮输入轮询
+            TuiManager.UiLoopActivity = "KeyDispatch";
 
             // Resize — 通知全控件树重新布局 + 全屏刷新
             if (ev.Type == InputType.Resize)
@@ -845,7 +851,9 @@ public partial class Program
         var inputMgr = TuiManager.Instance.Input; // 共享 InputManager：统一 paste/CSI/鼠标解析
         while (!agentTask.IsCompleted)
         {
+            TuiManager.UiLoopActivity = "AgentLoop.PumpUIQueue"; // 冻结看门狗标记
             screen_?.PumpUIQueue(); // 消费后台投递的 UI 操作（Agent 流式回调）
+            TuiManager.UiLoopActivity = "AgentLoop.Render";
             try { mgr.Render(); }
             catch (Exception ex)
             {
@@ -925,7 +933,9 @@ public partial class Program
         var inputMgr = TuiManager.Instance.Input;
         while (!task.IsCompleted)
         {
+            TuiManager.UiLoopActivity = "CmdLoop.PumpUIQueue"; // 冻结看门狗标记
             screen.PumpUIQueue();
+            TuiManager.UiLoopActivity = "CmdLoop.Render";
             mgr.Render();
             var ev = inputMgr.ReadInput(30);
             if (ev.Type == InputType.Timeout) continue;
