@@ -1,5 +1,4 @@
 ﻿using System.Text;
-using System.Text.Json;
 using WayCoder.Tools;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
@@ -576,7 +575,7 @@ public static partial class SelfTest
         }
 
         // 渲染每个对话框：标题独占独立行 + 无异常（先收集帧，再统一断言，避免 Check 输出被抑制）
-        var dialogFrames = new List<(string Name, string Title, string RawFrame, string Frame, int WinY, bool ExpectBar)>();
+        var dialogFrames = new List<(string Name, string Title, string RawFrame, string Frame, int WinY, bool ExpectBar, bool HasSnapshot)>();
         var mgr2 = TuiManager.Instance;
         var prevOut2 = Console.Out;
         Console.SetOut(TextWriter.Null);
@@ -588,12 +587,13 @@ public static partial class SelfTest
             {
                 string raw = "", frame = "";
                 int winY = -1;
+                bool hasSnap = false;
                 try
                 {
                     var chat = new ChatScreen();
                     mgr2.PushScreen(chat);
                     chat.AddWindow(win);
-                    Check($"{name}: 模态窗口已截取背景快照", win.BackgroundSnapshot != null);
+                    hasSnap = win.BackgroundSnapshot != null;
                     mgr2.Render();
                     raw = mgr2.LastCleanFrame;
                     frame = AnsiString.Strip(raw);
@@ -601,7 +601,7 @@ public static partial class SelfTest
                     mgr2.PopScreen();
                 }
                 catch { frame = ""; }
-                dialogFrames.Add((name, win.Title, raw, frame, winY, expectBar));
+                dialogFrames.Add((name, win.Title, raw, frame, winY, expectBar, hasSnap));
             }
         }
         finally
@@ -610,8 +610,9 @@ public static partial class SelfTest
             Console.SetOut(prevOut2);
         }
 
-        foreach (var (name, title, raw, frame, winY, expectBar) in dialogFrames)
+        foreach (var (name, title, raw, frame, winY, expectBar, hasSnap) in dialogFrames)
         {
+            Check($"{name}: 模态窗口已截取背景快照", hasSnap);
             Check($"{name}: 渲染非空", frame.Length > 0);
             if (expectBar && raw.Length > 0 && winY >= 0)
             {
@@ -633,7 +634,7 @@ public static partial class SelfTest
             ["Confirm3"] = ["(Y)", "(N)", "(Esc)"],
             ["Input"] = ["确定", "取消"], ["InputLine"] = ["确定", "取消"], ["Secret"] = ["确定", "取消"],
         };
-        foreach (var (name, _, _, frame, _, _) in dialogFrames)
+        foreach (var (name, _, _, frame, _, _, _) in dialogFrames)
         {
             if (frame.Length == 0 || !expectBtns.TryGetValue(name, out var labels)) continue;
             foreach (var lb in labels)

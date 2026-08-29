@@ -132,10 +132,14 @@ public static partial class SelfTest
         }
 
         // ── 模型信息行（输入区下方，Render 每帧同步；动态栏不放模型）──
+        // 静音窗口内只取数据（渲染帧不污染输出），断言挪到恢复后统一做，避免 Check 输出被抑制
         {
             var savedSz = Tty.SizeOverride;
             var mscr2 = new MarkupChatScreen();
             bool entered2 = false;
+            bool rowVisible = false;
+            string? rowText = null;
+            string? planRowText = null;
             try
             {
                 Tty.SizeOverride = (200, 40);
@@ -150,13 +154,8 @@ public static partial class SelfTest
                     mgr.Render();
 
                     var row = mscr2.ModelInfoRow;
-                    Check("模型信息行: 可见", row is { Visible: true });
-                    Check("模型信息行: 含工作模式", row is { } r && r.Text.Contains("工作模式:"));
-                    Check("模型信息行: 含经济模式", row is { } r1 && r1.Text.Contains("经济模式:"));
-                    Check("模型信息行: 含大模型", row is { } r2 && r2.Text.Contains("大模型:"));
-                    Check("模型信息行: 含小模型", row is { } r3 && r3.Text.Contains("小模型:"));
-                    Check("模型信息行: 无尖括号", row is { } r4 && !r4.Text.Contains('<') && !r4.Text.Contains('>'));
-                    Check("模型信息行: · 分隔", row is { } r5 && r5.Text.Contains(" · "));
+                    rowVisible = row is { Visible: true };
+                    rowText = row?.Text;
 
                     // 模式切换 → 下一帧刷新内容
                     var savedMode = WorkModeManager.CurrentMode;
@@ -164,14 +163,22 @@ public static partial class SelfTest
                     {
                         WorkModeManager.SetMode(WorkMode.Plan);
                         mgr.Render();
-                        Check("模型信息行: 模式切换刷新",
-                            mscr2.ModelInfoRow is { } r6 && r6.Text.Contains("计划"));
+                        planRowText = mscr2.ModelInfoRow?.Text;
                     }
                     finally { WorkModeManager.SetMode(savedMode); }
 
                     mgr.PopScreen();
                 }
                 finally { Console.SetOut(prevOut); }
+
+                Check("模型信息行: 可见", rowVisible);
+                Check("模型信息行: 含工作模式", rowText is { } r && r.Contains("模式:"));
+                Check("模型信息行: 含经济模式", rowText is { } r1 && r1.Contains("经济:"));
+                Check("模型信息行: 含大模型", rowText is { } r2 && r2.Contains("大:"));
+                Check("模型信息行: 含小模型", rowText is { } r3 && r3.Contains("小:"));
+                Check("模型信息行: 无尖括号", rowText is { } r4 && !r4.Contains('<') && !r4.Contains('>'));
+                Check("模型信息行: · 分隔", rowText is { } r5 && r5.Contains(" · "));
+                Check("模型信息行: 模式切换刷新", planRowText is { } r6 && r6.Contains("计划"));
             }
             catch (Exception ex)
             {
