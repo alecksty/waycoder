@@ -707,6 +707,14 @@ class Matrix:
         Check("PauseRequested 可置位", pauseAgent.PauseRequested == true);
         pauseAgent.PauseRequested = false;
         Check("PauseRequested 可复位", pauseAgent.PauseRequested == false);
+
+        // 任务/闲聊判定（决定是否催工具：没任务不催）
+        Check("任务判定: 写程序是任务", Agent.LooksLikeTask("写一个 hello world 的 C 程序并运行"));
+        Check("任务判定: 修复 bug 是任务", Agent.LooksLikeTask("修复登录页面的 bug"));
+        Check("任务判定: 分析代码是任务", Agent.LooksLikeTask("分析一下这个项目的架构"));
+        Check("任务判定: 问问题不是任务", !Agent.LooksLikeTask("什么是依赖注入？"));
+        Check("任务判定: 闲聊不是任务", !Agent.LooksLikeTask("你好，今天天气不错"));
+        Check("任务判定: 为什么不是任务", !Agent.LooksLikeTask("为什么这个报错了"));
         Console.WriteLine();
 
         // ---- JsonHelper ----

@@ -64,6 +64,9 @@ public partial class Agent
     /// <summary>是否启用快速模式（跳过探索，直接执行）</summary>
     private bool _fastMode;
 
+    /// <summary>本轮用户输入是否为「任务」（真任务才催工具；纯聊天/提问不催）。</summary>
+    private bool _currentInputIsTask;
+
     /// <summary>连续纯文本轮次计数（用于渐进式催促）</summary>
     private int _analysisOnlyStreak;
     private int _talksCodeStreak; // 模型口述代码而非写入文件的连续次数
@@ -412,6 +415,62 @@ public partial class Agent
         }
     }
 
+    /// <summary>工具催促前的最小「无工具思考」轮次（用户要求：思考 10 轮以上才催促）。</summary>
+    private const int ToolNudgeThreshold = 10;
+
+    /// <summary>
+    /// 工具催促辅助：递增「无工具」轮次；未到阈值只注入「继续」（给长思考模型充分轮次，不催工具），
+    /// 到阈值后注入渐进式催促（由 nudge 按轮次生成文案）。返回后调用方 continue。
+    /// </summary>
+    private void NudgeToolUse(ref int streak, Func<int, string> nudge)
+    {
+        streak++;
+        if (streak < ToolNudgeThreshold)
+        {
+            // 未到 10 轮：轻提示续写即可，不催工具（避免打断长链思考）
+            AddMessage(JNode.Object().Set("role", "user").Set("content", "继续。"));
+            return;
+        }
+        AddMessage(JNode.Object().Set("role", "user").Set("content", nudge(streak)));
+    }
+
+    /// <summary>
+    /// 判断用户输入是否为「任务」（决定是否催工具）。纯聊天/提问返回 false → 不催工具。
+    /// 启发式：先看闲聊/提问特征（问号/疑问词/问候）→ 非任务；再看任务动作词 → 任务；
+    /// 均不中则默认按任务处理（保守，避免漏掉未用动作词表述的任务）。
+    /// </summary>
+    internal static bool LooksLikeTask(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return false;
+
+        // 闲聊/提问特征 → 非任务（不催工具）。「能不能/可以」也可能是任务请求，故不列入。
+        // 英文问候不列入（"hello world" 等代码里含 hello，会误判成闲聊 → 不催工具）。
+        string[] chatMarkers =
+        [
+            "？", "?", "吗", "呢", "什么", "为什么", "如何", "怎么", "怎样",
+            "介绍一下", "讲讲", "说说", "解释", "区别", "是什么", "哪个", "哪些",
+            "你好", "谢谢", "聊聊",
+        ];
+        foreach (var m in chatMarkers)
+            if (input.Contains(m, StringComparison.OrdinalIgnoreCase)) return false;
+
+        // 任务动作词 → 任务（催工具）
+        string[] taskWords =
+        [
+            "写", "实现", "创建", "开发", "构建", "修复", "修改", "重构", "优化", "测试",
+            "运行", "编译", "添加", "配置", "安装", "部署", "生成", "翻译", "总结", "审查",
+            "分析", "制作", "设计", "搭建", "启动", "下载", "合并", "提交", "推送", "搜索",
+            "查找", "帮我", "请", "检查", "打印", "输出", "write", "create", "implement",
+            "fix", "build", "refactor", "add", "delete", "run", "compile", "test",
+            "install", "configure", "make", "print",
+        ];
+        foreach (var w in taskWords)
+            if (input.Contains(w, StringComparison.OrdinalIgnoreCase)) return true;
+
+        // 默认按任务处理（保守）
+        return true;
+    }
+
     /// <summary>ChatAsync 的核心主循环（被 ChatAsync 包裹以统一落轨迹 run_end）。</summary>
     private async Task<string> ChatAsyncCore(
         string userInput,
@@ -429,6 +488,9 @@ public partial class Agent
         _fastMode = SystemPrompt.DetectFastMode(userInput);
         if (_fastMode)
             DebugLog.Log("agent", "检测到快速模式关键词，跳过探索工作流");
+
+        // 是否为「任务」：真任务才催工具，纯聊天/提问不催（否则闲聊几句就被「请立即调用工具」打断）
+        _currentInputIsTask = LooksLikeTask(userInput);
 
         int userMsgIndex = Messages.Count;
         AddMessage(JNode.Object().Set("role", "user").Set("content", userInput));
@@ -657,72 +719,62 @@ public partial class Agent
                 bool modelSupportsTools = ModelCatalog.ResolveModelCallConstraints(
                     LlmClient.EffectiveModel, LlmClient.BaseUrl).SupportsTools;
 
-                // 检测 0：DeepSeek V4 等模型将大量输出花在推理（reasoning）上而不产生实际内容
-                // reasoning 被显示但不计入 Content，所以 contentLen 可能极短
-                if (modelSupportsTools && reasoningLen > 300 && toolCallCount == 0 && contentLen < 80)
+                // ── 工具催促门控：仅当本轮输入是「任务」才催（没任务不催）──
+                // 纯聊天/提问时模型给文本回答是正常行为，不应被误判为「停滞/口述代码」而注入
+                // 「请立即调用 write_file/bash」的错误催促（用户反馈：还没聊几句就被催用工具）。
+                if (_currentInputIsTask)
                 {
-                    _analysisOnlyStreak++;
-                    string nudge = _analysisOnlyStreak switch
+                    // 检测 0：DeepSeek V4 等模型将大量输出花在推理（reasoning）上而不产生实际内容
+                    // reasoning 被显示但不计入 Content，所以 contentLen 可能极短
+                    if (modelSupportsTools && reasoningLen > 300 && toolCallCount == 0 && contentLen < 80)
                     {
-                        1 => $"你的推理思考已消耗 {reasoningLen} 字符，但没有产生任何工具调用。请立即调用 write_file 或 bash 工具执行任务，不要再进行冗长的内部推理。",
-                        2 => $"你已连续 {_analysisOnlyStreak} 轮只输出推理而不调用工具（本轮推理 {reasoningLen} 字符）。请立即调用工具——不要只思考不行动。",
-                        _ => $"⚠️ 严重警告：连续 {_analysisOnlyStreak} 轮纯推理无行动（累计数万字推理内容）。立即停止思考，只输出工具调用。",
-                    };
-                    AddMessage(JNode.Object()
-                        .Set("role", "user")
-                        .Set("content", nudge));
-                    continue;
-                }
+                        NudgeToolUse(ref _analysisOnlyStreak, s => s switch
+                        {
+                            ToolNudgeThreshold => $"你的推理思考已消耗 {reasoningLen} 字符，但没有产生任何工具调用。请立即调用 write_file 或 bash 工具执行任务，不要再进行冗长的内部推理。",
+                            ToolNudgeThreshold + 1 => $"你已连续 {s} 轮只输出推理而不调用工具。请立即调用工具——不要只思考不行动。",
+                            _ => $"⚠️ 严重警告：连续 {s} 轮纯推理无行动。立即停止思考，只输出工具调用。",
+                        });
+                        continue;
+                    }
 
-                if (modelSupportsTools && toolCallCount == 0 && contentLen > 100)
-                {
-                    // 首轮分析但未行动 — 渐进式催促（逐次加强）
-                    _analysisOnlyStreak++;
-                    string nudge = _analysisOnlyStreak switch
+                    if (modelSupportsTools && toolCallCount == 0 && contentLen > 100)
                     {
-                        1 => "请立即用工具执行上述计划。直接调用 write_file/edit_file/bash 等工具，不要再输出分析。",
-                        2 => "你已连续两轮只输出分析不调用工具。请立即行动——调用 write_file 或 bash 执行具体操作。不要再做任何分析。",
-                        _ => "⚠️ 严重警告：你已连续多轮不调用工具，浪费了大量上下文。立即调用工具执行任务，不要输出任何文字——只输出工具调用。",
-                    };
-                    AddMessage(JNode.Object()
-                        .Set("role", "user")
-                        .Set("content", nudge));
-                    continue;
-                }
+                        // 首轮分析但未行动 — 渐进式催促（未到阈值只「继续」，不催）
+                        NudgeToolUse(ref _analysisOnlyStreak, s => s switch
+                        {
+                            ToolNudgeThreshold => "请立即用工具执行上述计划。直接调用 write_file/edit_file/bash 等工具，不要再输出分析。",
+                            ToolNudgeThreshold + 1 => $"你已连续 {s} 轮只输出分析不调用工具。请立即行动——调用 write_file 或 bash 执行具体操作。",
+                            _ => $"⚠️ 严重警告：你已连续 {s} 轮不调用工具。立即调用工具执行任务，只输出工具调用。",
+                        });
+                        continue;
+                    }
 
-                if (modelSupportsTools && hasCodeContent && !resp.Content!.Contains("✅"))
-                {
-                    // 模型在"口述"代码而非写入文件 — 渐进式追问使其用工具
-                    _talksCodeStreak++;
-                    string nudge = _talksCodeStreak switch
+                    if (modelSupportsTools && hasCodeContent && !resp.Content!.Contains("✅"))
                     {
-                        1 => "不要用文字输出代码。立即调用 write_file 工具将上述代码写入文件。",
-                        2 => "你已连续两次只输出代码文字而不调用 write_file。请立即使用 write_file 工具将代码写入磁盘。不要再输出代码文字。",
-                        _ => "⚠️ 严重警告：你已连续多次在文字中输出代码而不使用工具。代码必须通过 write_file 写入文件——请立即调用 write_file，不要输出任何文字。",
-                    };
-                    AddMessage(JNode.Object()
-                        .Set("role", "user")
-                        .Set("content", nudge));
-                    continue;
-                }
+                        // 模型在"口述"代码而非写入文件 — 渐进式追问使其用工具
+                        NudgeToolUse(ref _talksCodeStreak, s => s switch
+                        {
+                            ToolNudgeThreshold => "不要用文字输出代码。立即调用 write_file 工具将上述代码写入文件。",
+                            ToolNudgeThreshold + 1 => $"你已连续 {s} 次只输出代码文字而不调用 write_file。请立即使用 write_file 工具将代码写入磁盘。",
+                            _ => $"⚠️ 严重警告：你已连续 {s} 次在文字中输出代码而不使用工具。代码必须通过 write_file 写入文件——立即调用，不要输出任何文字。",
+                        });
+                        continue;
+                    }
 
-                // 检测 3：任务进行中（已有工具调用历史）但本轮无工具调用且无明确完成信号
-                // （推理型模型长链思考后流被截断、只读不写后输出"计划"、或"只思考不行动"的中途停滞）
-                // → 催其继续而非误判完成退出。真正完成须带 ✅/完成 等信号，否则一律续跑。
-                if (modelSupportsTools && toolCallCount > 0 && !hasCompletionSignal)
-                {
-                    _analysisOnlyStreak++;
-                    string nudge = _analysisOnlyStreak switch
+                    // 检测 3：任务进行中（已有工具调用历史）但本轮无工具调用且无明确完成信号
+                    // （推理型模型长链思考后流被截断、只读不写后输出"计划"、或"只思考不行动"的中途停滞）
+                    // → 催其继续而非误判完成退出。真正完成须带 ✅/完成 等信号，否则一律续跑。
+                    if (modelSupportsTools && toolCallCount > 0 && !hasCompletionSignal)
                     {
-                        1 => "本轮没有调用任何工具——任务尚未完成。请立即调用 write_file/bash 等工具继续执行下一步，不要停在计划或分析阶段。",
-                        2 => "你已连续两轮没有调用工具。任务未完成，请立即调用工具继续执行，不要只输出文字。",
-                        _ => "⚠️ 严重警告：连续多轮无工具调用，任务仍未完成。立即调用工具继续，直到真正完成并明确汇报结果。",
-                    };
-                    AddMessage(JNode.Object()
-                        .Set("role", "user")
-                        .Set("content", nudge));
-                    continue;
-                }
+                        NudgeToolUse(ref _analysisOnlyStreak, s => s switch
+                        {
+                            ToolNudgeThreshold => "本轮没有调用任何工具——任务尚未完成。请立即调用 write_file/bash 等工具继续执行下一步，不要停在计划或分析阶段。",
+                            ToolNudgeThreshold + 1 => $"你已连续 {s} 轮没有调用工具。任务未完成，请立即调用工具继续执行。",
+                            _ => $"⚠️ 严重警告：连续 {s} 轮无工具调用，任务仍未完成。立即调用工具继续，直到真正完成并明确汇报结果。",
+                        });
+                        continue;
+                    }
+                } // end if(_currentInputIsTask) —— 无任务不催工具，直接收尾返回文本回答
 
                 SaveWorkReport();
                 return resp.Content ?? "";
