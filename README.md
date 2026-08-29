@@ -166,7 +166,7 @@ WayCoder/
     └── ImageConvertTool.cs 图片互转（PNG/JPG/BMP）
 ```
 
-## 46 个工具
+## 49 个工具
 
 | 工具 | 用途 |
 |---|---|
@@ -181,6 +181,7 @@ WayCoder/
 | `git` | Git 操作（status/log/diff/commit/branch） |
 | `fetch` | Web 抓取，HTML 净化 + Markdown 提取 |
 | `lsp` | LSP 代码导航（go-to-def, references, hover, symbols），14 种语言 |
+| `symbols` | 全局符号反向索引，一次定位符号定义（file:line） |
 | `memory` | 读写项目记忆（结构化 .waycoder/memory/ 格式，支持 read/write/search/delete/share） |
 | `todo` | 结构化任务列表 |
 | `struct_todo` | 增强版 Todo（优先级、依赖关系、状态追踪） |
@@ -214,6 +215,8 @@ WayCoder/
 | `transcribe` | 转录音频文件为文字（Whisper 兼容 API），补齐多模态音频输入 |
 | `draw` | 用文本指令绘制图形（变换/新形状/描边/渐变/贴图/裁剪/图标模板，20+ 指令），输出 SVG 矢量或 PNG 位图 |
 | `convert_image` | 图片格式互转（PNG/JPG/BMP），按魔数识别输入、按扩展名决定输出 |
+| `convert_encoding` | 文件编码转换（GB18030/GBK/Big5/Shift-JIS 等，默认 UTF-8） |
+| `sqlite` | 只读 SQL 查询（手搓 SQL 引擎，查询本地 SQLite 库） |
 
 ## REPL 命令
 

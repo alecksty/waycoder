@@ -20,6 +20,15 @@ public partial class App : Application
 		MauiBootstrap.RunNativeMemTestIfRequested();
 	}
 
+	/// <summary>切后台（来电/Home/锁屏）时取消在途对话请求。
+	/// 后台流式 SSE 连接可能被系统 Doze/网络策略挂起，不取消会导致 LLM 正文读取永久阻塞
+	/// （最长 5 分钟 body 超时），切回后 IsRunning 卡 true、UI 卡「思考中」无法继续。</summary>
+	protected override void OnSleep()
+	{
+		base.OnSleep();
+		Services.AgentService.CancelActive();
+	}
+
 	protected override Window CreateWindow(IActivationState? activationState)
 	{
 		return new Window(new AppShell());

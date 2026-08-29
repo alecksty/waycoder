@@ -147,7 +147,7 @@ public static class ProjectContext
 
     private static void DetectLanguages(string root, ProjectInfo info)
     {
-        var allFiles = SafeGetFiles(root, 200);
+        var allFiles = SafeGetFiles(root, 2000);
         var exts = new Dictionary<string, int>();
         foreach (var f in allFiles)
         {
@@ -187,7 +187,7 @@ public static class ProjectContext
             catch (Exception ex) { DebugLog.Log("ProjectContext", $"解析 package.json 失败: {ex.Message}"); }
         }
 
-        var csprojFiles = SafeGetFiles(root, 100).Where(f => f.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)).ToList();
+        var csprojFiles = FindProjectFiles(root, "*.csproj");
         if (csprojFiles.Count > 0)
         {
             try
@@ -218,7 +218,7 @@ public static class ProjectContext
     {
         var tools = new List<string>();
         if (File.Exists(Path.Combine(root, "Makefile"))) tools.Add("make");
-        if (SafeGetFiles(root, 100).Any(f => f.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))) tools.Add("dotnet");
+        if (FindProjectFiles(root, "*.csproj").Count > 0) tools.Add("dotnet");
         if (File.Exists(Path.Combine(root, "package.json"))) tools.Add("npm/yarn/pnpm");
         if (File.Exists(Path.Combine(root, "go.mod"))) tools.Add("go");
         if (File.Exists(Path.Combine(root, "Cargo.toml"))) tools.Add("cargo");
@@ -284,20 +284,36 @@ public static class ProjectContext
         var files = new List<string>();
         try
         {
-            WalkFiles(root, root, 0, files, maxFiles);
+            WalkFiles(root, root, 0, files, null, maxFiles);
         }
         catch (Exception ex) { DebugLog.Log("ProjectContext", $"SafeGetFiles 失败: {ex.Message}"); }
         return files;
     }
 
+    /// <summary>受限递归找指定模式的文件（.csproj/.sln 等项目文件数量极少）。
+    /// 用 EnumerateFiles(dir, pattern) 只枚举匹配项，避免通用扫描被 dist/packaging 等杂项占满预算；
+    /// 深度 ≤ 5 + 跳过忽略目录仍防 home 卡死。</summary>
+    private static List<string> FindProjectFiles(string root, string pattern, int maxFiles = 50)
+    {
+        var files = new List<string>();
+        try
+        {
+            WalkFiles(root, root, 0, files, pattern, maxFiles);
+        }
+        catch (Exception ex) { DebugLog.Log("ProjectContext", $"FindProjectFiles 失败: {ex.Message}"); }
+        return files;
+    }
+
     /// <summary>受限递归：深度 ≤ 5 + 跳过忽略目录（node_modules/.git/bin 等）+ 提前到 maxFiles 停止。
     /// 此前 AllDirectories 全递归——在 ~（home）目录启动时 FindProjectRoot 返回 home，递归扫描几十万文件导致启动卡死（TUI 不出现）。</summary>
-    private static void WalkFiles(string root, string dir, int depth, List<string> files, int max)
+    private static void WalkFiles(string root, string dir, int depth, List<string> files, string? pattern, int max)
     {
         if (depth > 5 || files.Count >= max) return;
         try
         {
-            foreach (var file in Directory.EnumerateFiles(dir))
+            foreach (var file in pattern == null
+                ? Directory.EnumerateFiles(dir)
+                : Directory.EnumerateFiles(dir, pattern))
             {
                 if (files.Count >= max) return;
                 if (IsIgnoredPath(Path.GetRelativePath(root, file))) continue;
@@ -307,7 +323,7 @@ public static class ProjectContext
             {
                 if (files.Count >= max) return;
                 if (IsIgnoredPath(Path.GetRelativePath(root, sub))) continue;
-                WalkFiles(root, sub, depth + 1, files, max);
+                WalkFiles(root, sub, depth + 1, files, pattern, max);
             }
         }
         catch (Exception) { /* 无权限目录等，跳过 */ }

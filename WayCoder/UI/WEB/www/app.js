@@ -1625,7 +1625,7 @@ setInterval(fetchPanel, 2000);
 const editorEl = document.getElementById('editor-overlay');
 const edArea = document.getElementById('editor-area');
 const edGutter = document.getElementById('editor-gutter');
-const ed = { path: '', content: '', saved: '', dirty: false, lang: '' };
+const ed = { path: '', content: '', saved: '', dirty: false, lang: '', encoding: '' };
 
 function langFromPath(p) {
   const m = String(p || '').toLowerCase();
@@ -1673,7 +1673,7 @@ function updateStatus() {
   const cx = sel - (edArea.value.lastIndexOf('\n', sel - 1) + 1) + 1;
   document.getElementById('editor-pos').textContent = 'L' + cy + ':C' + cx;
   document.getElementById('editor-meta').textContent =
-    edLineCount() + ' 行 · ' + new Blob([edArea.value]).size + ' B';
+    (ed.encoding || 'UTF-8') + ' · ' + edLineCount() + ' 行 · ' + new Blob([edArea.value]).size + ' B';
   document.getElementById('editor-lang').textContent = ed.lang || 'plaintext';
   document.getElementById('editor-dirty').style.visibility = ed.dirty ? 'visible' : 'hidden';
 }
@@ -1695,11 +1695,12 @@ function setEdPath(p) {
 async function openEditor(path) {
   setEdPath(path || '');
   let content = '';
+  ed.encoding = '';
   if (path) {
     try {
       const r = await fetch(cq('/editor/file?path=' + encodeURIComponent(path)));
       const d = await r.json();
-      if (d && d.ok) content = d.content || '';
+      if (d && d.ok) { content = d.content || ''; ed.encoding = d.encoding || ''; }
     } catch (e) { content = ''; }
   }
   ed.content = content; ed.saved = content; ed.dirty = false;
@@ -1722,7 +1723,7 @@ async function doSave() {
   try {
     const r = await fetch(cq('/editor/save'), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: ed.path, content: edArea.value })
+      body: JSON.stringify({ path: ed.path, content: edArea.value, encoding: ed.encoding })
     });
     const d = await r.json();
     if (!d || !d.ok) { alert((d && d.error) || '保存失败'); return; }

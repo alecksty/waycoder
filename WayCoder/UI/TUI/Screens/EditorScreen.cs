@@ -324,7 +324,7 @@ public class EditorScreen : TuiScreen
 
         StatusBar1.Text = $" L{Core.Cy + 1}:C{Core.Cx + 1} | " +
                           $"行:{Core.TotalLines} 字节:{Core.FileSizeBytes} | " +
-                          $"{Core.Syntax.Name} · UTF-8{diagPart}";
+                          $"{Core.Syntax.Name} · {Core.EncodingName}{diagPart}";
 
         var pathDisplay = Core.FilePath;
         if (pathDisplay.Length > 50) pathDisplay = "..." + pathDisplay[^47..];

@@ -50,6 +50,9 @@ public static class ToolRegistry
         new TranscribeAudioTool(),
         new DrawTool(),
         new ImageConvertTool(),
+        new ConvertEncodingTool(),
+        new SqliteTool(),
+        new SymbolsTool(),
     ];
 
     private static List<ITool>? _cachedAllTools;

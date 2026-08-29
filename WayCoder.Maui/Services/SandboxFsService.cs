@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text;
 using WayCoder;
 
 namespace WayCoder.Maui.Services;
@@ -137,13 +138,22 @@ public static class SandboxFsService
         return File.ReadAllText(full);
     }
 
-    /// <summary>写文本到沙箱内（无 BOM，复用 Global 编码策略）；路径越界抛异常。</summary>
-    public static void WriteText(string relPath, string content)
+    /// <summary>读文本并自动识别编码（返回内容 + 编码名 + 写回 Encoding，供编辑器显示右下角 + 保存保真）；越界/不存在返回 null。</summary>
+    public static TextEncoding.Detected? ReadTextDetected(string relPath)
+    {
+        var full = ResolveInSandbox(relPath);
+        if (full == null || !File.Exists(full)) return null;
+        return TextEncoding.ReadFile(full);
+    }
+
+    /// <summary>写文本到沙箱内；encoding 非空按该编码写回（保真 GB18030/BOM），空则复用旧 BOM 保留策略。路径越界抛异常。</summary>
+    public static void WriteText(string relPath, string content, Encoding? encoding = null)
     {
         var full = ResolveInSandbox(relPath) ?? throw new InvalidOperationException($"路径越界：{relPath}");
         var parent = Path.GetDirectoryName(full);
         if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
-        Global.WriteAllTextPreserveBom(full, content);
+        if (encoding == null) Global.WriteAllTextPreserveBom(full, content);
+        else TextEncoding.WriteFile(full, content, encoding);
     }
 
     /// <summary>新建空文件；路径越界、已存在同名文件/目录返回 false。</summary>

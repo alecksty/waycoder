@@ -1,5 +1,7 @@
 using WayCoder.Infra;
 using WayCoder.Tools;
+using WayCoder.Sql;
+using System.Text;
 
 // ═══════════════════════════════════════════════════════════════
 //  MAUI 移动端占位桩：复用主项目核心源码（Agent/LLM/Tools/Infra/Memory/UI 共享源码编译）时，
@@ -147,6 +149,63 @@ namespace WayCoder.Tools
 
         public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
             => Task.FromResult("⚠️ 移动端暂不支持创建 Pull Request：无本地 git/gh 进程。");
+    }
+
+    /// <summary>
+    /// sqlite 工具：移动端用内置精简 SQL 引擎（<see cref="WayCoder.Sql.SqlDatabase"/>，纯 C# 手搓、
+    /// 零依赖、AOT 安全），绕开 iOS 禁 Process.Start 的限制（桌面端同名工具走 sqlite3 CLI，见主工程 Tools/SqliteTool.cs）。
+    /// 支持 CREATE TABLE/INSERT/SELECT（WHERE/ORDER BY/LIMIT/聚合）/UPDATE/DELETE/DROP，动态类型。
+    /// database 省略则作用内存库（当次调用有效）；指定则持久化到自定格式文件，跨调用保留表数据。
+    /// </summary>
+    public class SqliteTool : ITool
+    {
+        public string Name => "sqlite";
+        public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
+        public string Description => "执行 SQL（内置 SQL 引擎，无需安装 sqlite3）：CREATE TABLE/INSERT/SELECT/UPDATE/DELETE/DROP，SELECT 支持 WHERE/ORDER BY/LIMIT/聚合(COUNT/SUM/AVG/MIN/MAX)。database 省略用内存库（当次调用有效），指定则持久化到文件。";
+
+        public JNode Parameters => JNode.Object()
+            .Set("type", "object")
+            .Set("properties", JNode.Object()
+                .Set("database", JNode.Object()
+                    .Set("type", "string")
+                    .Set("description", "数据库文件路径（省略则作用于内存库，当次调用有效）"))
+                .Set("query", JNode.Object()
+                    .Set("type", "string")
+                    .Set("description", "要执行的 SQL 语句，支持多条语句以分号分隔")))
+            .Set("required", JNode.Array().Add("query"));
+
+        public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
+        {
+            var database = arguments.GetValueOrDefault("database")?.ToString() ?? "";
+            var query = arguments.GetValueOrDefault("query")?.ToString() ?? "";
+            if (string.IsNullOrWhiteSpace(query))
+                return Task.FromResult("错误：请提供 SQL 查询 (query)");
+            return Task.FromResult(Run(database, query));
+        }
+
+        private static string Run(string database, string query)
+        {
+            try
+            {
+                bool persistent = !string.IsNullOrWhiteSpace(database);
+                var path = persistent ? ResolveDbPath(database) : "";
+                var db = persistent ? SqlDatabase.Load(path) : new SqlDatabase();
+                var result = db.Execute(query);
+                if (persistent) db.Save(path);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return $"错误：SQL 执行失败 — {ex.Message}";
+            }
+        }
+
+        private static string ResolveDbPath(string database)
+        {
+            var cwd = CwdContext.Current.Value ?? Directory.GetCurrentDirectory();
+            try { return Path.GetFullPath(database, cwd); }
+            catch { return database; }
+        }
     }
 
 }

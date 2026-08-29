@@ -17,6 +17,12 @@ public class EditorCore
     public string FilePath { get; private set; } = "";
     public bool Modified { get; private set; }
 
+    /// <summary>文件编码（LoadFile 探测；Save 用它写回，保真 GB18030 / BOM）。</summary>
+    public Encoding FileEncoding { get; private set; } = new UTF8Encoding(false);
+
+    /// <summary>编码显示名（状态栏/右下角展示：UTF-8 / UTF-8 BOM / UTF-16 LE / GB18030）。</summary>
+    public string EncodingName { get; private set; } = "UTF-8";
+
     /// <summary>只读模式：不允许修改缓冲区（编辑方法拒绝），只能查看/滚动/查找。</summary>
     public bool ReadOnly { get; set; }
 
@@ -79,7 +85,15 @@ public class EditorCore
 
         if (File.Exists(FilePath))
         {
-            foreach (var line in File.ReadAllLines(FilePath, Encoding.UTF8))
+            // 编码自动识别：BOM → 严格 UTF-8 → GB18030（GBK/GB2312），GBK 文件不再读成乱码
+            var detected = TextEncoding.ReadFile(FilePath);
+            FileEncoding = detected.Encoding;
+            EncodingName = detected.EncodingName;
+
+            // StringReader.ReadLine 语义与 File.ReadAllLines 一致（去行尾、结尾换行不产生空尾行）
+            using var sr = new StringReader(detected.Text);
+            string? line;
+            while ((line = sr.ReadLine()) != null)
                 Lines.Add(new StringBuilder(line));
 
             // 行尾探测：首 4KB 出现 \r\n 则按 CRLF 保存，避免三端编辑 CRLF 文件时静默转 LF
@@ -87,6 +101,8 @@ public class EditorCore
         }
         else
         {
+            FileEncoding = new UTF8Encoding(false);
+            EncodingName = "UTF-8";
             _newLine = "\n";
         }
 
@@ -109,7 +125,7 @@ public class EditorCore
             Directory.CreateDirectory(dir);
 
         var content = string.Join(_newLine, Lines.Select(sb => sb.ToString()));
-        Global.WriteAllTextPreserveBom(FilePath, content); // 无 BOM（原文件带 BOM 才保留）
+        TextEncoding.WriteFile(FilePath, content, FileEncoding); // 按探测到的编码写回（保真 GB18030/BOM）
         Modified = false;
     }
 

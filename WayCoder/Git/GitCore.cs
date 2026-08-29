@@ -413,7 +413,19 @@ public static class GitCore
         return sha;
     }
 
+    // ── pack 对象缓存（thin pack 的 base 可能落在本地 pack 里，非 loose）──
+    static readonly object _packStoreLock = new();
+    static readonly Dictionary<string, PackStore?> _packStores = new(StringComparer.Ordinal);
+
+    /// <summary>读对象：先 loose（.git/objects/xx/yyy），再回退本地 pack（.git/objects/pack/*.pack）。</summary>
     internal static (string Type, byte[] Content)? ReadObject(string gitDir, string sha)
+    {
+        var loose = ReadLooseObject(gitDir, sha);
+        if (loose != null) return loose;
+        return GetPackStore(gitDir)?.Read(sha);
+    }
+
+    static (string Type, byte[] Content)? ReadLooseObject(string gitDir, string sha)
     {
         var file = Path.Combine(gitDir, "objects", sha[..2], sha[2..]);
         if (!File.Exists(file)) return null;
@@ -525,6 +537,24 @@ public static class GitCore
             return (header[..sp], (IntPtr)ptr, copied);
         }
         catch { NativeMemory.Free(ptr); throw; }
+    }
+
+    /// <summary>惰性加载本地 pack 索引（sha→offset）。key = gitDir|pack 目录最新 mtime，变更后重建。</summary>
+    static PackStore? GetPackStore(string gitDir)
+    {
+        var packDir = Path.Combine(gitDir, "objects", "pack");
+        if (!Directory.Exists(packDir)) return null;
+        long stamp = 0;
+        foreach (var f in Directory.EnumerateFiles(packDir))
+            stamp = Math.Max(stamp, File.GetLastWriteTimeUtc(f).Ticks);
+        var key = gitDir + "|" + stamp;
+        lock (_packStoreLock)
+        {
+            if (_packStores.TryGetValue(key, out var s)) return s;
+            var store = PackStore.Load(gitDir);
+            _packStores[key] = store;
+            return store;
+        }
     }
 
     internal static string HashBlob(byte[] content)
@@ -1145,6 +1175,111 @@ public static class GitCore
             if (b != null && head != null) return DiffCommits(repoRoot, head, b);
         }
         return Diff(repoRoot, rest.Length > 0 ? rest[0] : null);
+    }
+}
+
+/// <summary>
+/// 本地 pack 对象存储：解析 .idx（sha→offset）定位对象在 .pack 中的偏移，按需读单对象
+/// （含 ofs-delta/ref-delta 递归）。供增量 pull 时 thin pack 的 base 查找——系统 git 管理
+/// （clone/`gc`）过的仓库对象在 pack 里，loose 读不到。内存友好：只索引 sha→offset，
+/// 不解压全部对象（区别于 <see cref="PackFileReader.Read"/> 的全量载入）。
+/// </summary>
+sealed class PackStore
+{
+    readonly List<byte[]> _packs = new();
+    readonly Dictionary<string, (int PackIdx, long Offset)> _index = new(StringComparer.Ordinal);
+
+    public static PackStore? Load(string gitDir)
+    {
+        var packDir = Path.Combine(gitDir, "objects", "pack");
+        if (!Directory.Exists(packDir)) return null;
+        var store = new PackStore();
+        bool any = false;
+        foreach (var idxPath in Directory.EnumerateFiles(packDir, "*.idx"))
+        {
+            var packPath = idxPath[..^4] + ".pack";
+            if (!File.Exists(packPath)) continue;
+            byte[] pack;
+            try { pack = File.ReadAllBytes(packPath); }
+            catch { continue; }
+            int packIdx = store._packs.Count;
+            store._packs.Add(pack);
+            foreach (var (sha, offset) in ParseIdx(idxPath))
+                store._index[sha] = (packIdx, offset);
+            any = true;
+        }
+        return any ? store : null;
+    }
+
+    public (string Type, byte[] Content)? Read(string sha)
+    {
+        if (!_index.TryGetValue(sha, out var loc)) return null;
+        try { return ReadAt(loc.PackIdx, loc.Offset, 0); }
+        catch { return null; }
+    }
+
+    (string Type, byte[] Content) ReadAt(int packIdx, long offset, int depth)
+    {
+        if (depth > 64) throw new InvalidDataException("delta 链过深");
+        return PackFileReader.ReadObjectAt(_packs[packIdx], offset, sha => ResolveBase(sha, depth + 1));
+    }
+
+    (string Type, byte[] Content)? ResolveBase(string sha, int depth)
+    {
+        if (_index.TryGetValue(sha, out var loc))
+            return ReadAt(loc.PackIdx, loc.Offset, depth);
+        return null;
+    }
+
+    static IEnumerable<(string Sha, long Offset)> ParseIdx(string idxPath)
+    {
+        byte[] b;
+        try { b = File.ReadAllBytes(idxPath); }
+        catch { yield break; }
+        if (b.Length < 8 + 256 * 4 || b[0] != 0xFF || b[1] != 't' || b[2] != 'O' || b[3] != 'c')
+            yield break;
+        int ver = ReadInt32BE(b, 4);
+        if (ver != 2) yield break; // 只支持 idx v2（现代 git 默认）
+
+        var fanout = new int[256];
+        for (int i = 0; i < 256; i++) fanout[i] = ReadInt32BE(b, 8 + i * 4);
+        int n = fanout[255];
+        int pos = 8 + 256 * 4;
+
+        var shas = new string[n];
+        for (int i = 0; i < n; i++)
+        {
+            shas[i] = Convert.ToHexString(b, pos, 20).ToLowerInvariant();
+            pos += 20;
+        }
+        pos += n * 4; // crc32（跳过）
+
+        var offsets = new long[n];
+        var largeIdx = new List<int>();
+        for (int i = 0; i < n; i++)
+        {
+            uint o = (uint)ReadInt32BE(b, pos);
+            pos += 4;
+            if ((o & 0x80000000u) != 0) { offsets[i] = -1; largeIdx.Add(i); }
+            else offsets[i] = o;
+        }
+        for (int li = 0; li < largeIdx.Count; li++)
+        {
+            offsets[largeIdx[li]] = ReadInt64BE(b, pos);
+            pos += 8;
+        }
+        for (int i = 0; i < n; i++)
+            yield return (shas[i], offsets[i]);
+    }
+
+    static int ReadInt32BE(byte[] b, int off)
+        => (b[off] << 24) | (b[off + 1] << 16) | (b[off + 2] << 8) | b[off + 3];
+
+    static long ReadInt64BE(byte[] b, int off)
+    {
+        long v = 0;
+        for (int i = 0; i < 8; i++) v = (v << 8) | b[off + i];
+        return v;
     }
 }
 

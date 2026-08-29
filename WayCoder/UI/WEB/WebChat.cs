@@ -527,12 +527,13 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             if (safe == null)
                 return HttpResponse.JsonBody(JNode.Object().Set("ok", false).Set("error", "路径超出项目根目录").ToJson());
             var content = "";
+            var encoding = "UTF-8";
             if (File.Exists(safe))
             {
-                try { content = File.ReadAllText(safe, Encoding.UTF8); }
+                try { var d = TextEncoding.ReadFile(safe); content = d.Text; encoding = d.EncodingName; }
                 catch { return HttpResponse.JsonBody(JNode.Object().Set("ok", false).Set("error", "读取失败（编码/权限）").ToJson()); }
             }
-            return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("path", path).Set("content", content).ToJson());
+            return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("path", path).Set("content", content).Set("encoding", encoding).ToJson());
         }
         // 保存（写文件 + fire-and-forget lint，前端稍后轮询 /editor/diags）
         if (req.Method == "POST" && req.Path == "/editor/save")
@@ -540,9 +541,10 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var body = Json.Parse(req.Body);
             var path = body?["path"]?.AsString() ?? "";
             var content = body?["content"]?.AsString() ?? "";
+            var encoding = body?["encoding"]?.AsString();
             if (string.IsNullOrWhiteSpace(path))
                 return HttpResponse.JsonBody(Err("缺少 path"));
-            var full = SaveEditorFile(Directory.GetCurrentDirectory(), path, content);
+            var full = SaveEditorFile(Directory.GetCurrentDirectory(), path, content, encoding);
             if (full == null)
                 return HttpResponse.JsonBody(JNode.Object().Set("ok", false).Set("error", "路径超出项目根目录").ToJson());
             // fire-and-forget lint（前端稍后轮询 /editor/diags；lint 失败不影响保存）
@@ -669,15 +671,17 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return arr.ToJson();
     }
 
-    /// <summary>编辑器保存：路径守卫 + 建父目录 + 写 UTF-8。越界/非法返回 null（不写盘）。纯静态便于自测。</summary>
-    public static string? SaveEditorFile(string root, string relPath, string content)
+    /// <summary>编辑器保存：路径守卫 + 建父目录 + 按编码写回。越界/非法返回 null（不写盘）。纯静态便于自测。
+    /// encoding 为前端加载时回传的编码名（保真 GB18030/BOM）；空则沿用旧 BOM 保留策略（兼容旧前端）。</summary>
+    public static string? SaveEditorFile(string root, string relPath, string content, string? encoding = null)
     {
         var full = SafeResolveWithinRoot(root, relPath);
         if (full == null) return null;
         var dir = Path.GetDirectoryName(full);
         if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             Directory.CreateDirectory(dir);
-        Global.WriteAllTextPreserveBom(full, content);
+        if (string.IsNullOrEmpty(encoding)) Global.WriteAllTextPreserveBom(full, content);
+        else TextEncoding.WriteFile(full, content, TextEncoding.GetByName(encoding));
         return full;
     }
 

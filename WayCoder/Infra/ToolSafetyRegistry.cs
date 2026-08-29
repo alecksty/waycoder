@@ -27,6 +27,7 @@ public static class ToolSafetyRegistry
         ["wc"] = ToolRisk.Safe,
         ["diff"] = ToolRisk.Safe,
         ["tree"] = ToolRisk.Safe,
+        ["symbols"] = ToolRisk.Safe,
 
         // 任务管理（只改内部任务清单）
         ["todo"] = ToolRisk.Safe,
@@ -66,6 +67,7 @@ public static class ToolSafetyRegistry
         ["screenshot"] = ToolRisk.Cautious,
         ["draw"] = ToolRisk.Cautious,
         ["image_convert"] = ToolRisk.Cautious,
+        ["convert_encoding"] = ToolRisk.Cautious,
 
         // 破坏性 / 外部执行 / 子智能体
         ["rm"] = ToolRisk.Dangerous,

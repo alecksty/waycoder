@@ -823,6 +823,37 @@ public static partial class SelfTest
 
         Console.WriteLine();
 
+        // ---- 符号反向索引 ----
+        Section("[符号反向索引]");
+        var symDir = Path.Combine(Path.GetTempPath(), "waycoder_symbols_" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(symDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(symDir, "Sample.cs"),
+                "namespace Demo;\npublic class Alpha {}\npublic class Beta : Alpha {}\n");
+            File.WriteAllText(Path.Combine(symDir, "util.py"),
+                "def compute(x):\n    return x * 2\n\nclass Widget:\n    pass\n");
+
+            var alpha = RepoMapGenerator.FindSymbol("Alpha", symDir);
+            Check("符号索引找到类 Alpha", alpha.Count == 1);
+            Check("Alpha 文件相对路径", alpha.Count > 0 && alpha[0].RelativePath == "Sample.cs");
+            Check("Alpha 行号", alpha.Count > 0 && alpha[0].Line == 2);
+
+            var compute = RepoMapGenerator.FindSymbol("compute", symDir);
+            Check("符号索引找到函数 compute", compute.Count == 1);
+            Check("compute 行号", compute.Count > 0 && compute[0].Line == 1);
+            Check("compute 类型", compute.Count > 0 && compute[0].Kind == "def/class");
+
+            var missing = RepoMapGenerator.FindSymbol("NotExist", symDir);
+            Check("符号索引未找到返回空", missing.Count == 0);
+
+            var lower = RepoMapGenerator.FindSymbol("alpha", symDir);
+            Check("符号索引大小写不敏感", lower.Count == 1);
+        }
+        finally { try { Directory.Delete(symDir, true); } catch { } }
+
+        Console.WriteLine();
+
         // ---- Git PR 工具 ----
         Section("[Git PR]");
         var prTool = new GitPRTool();

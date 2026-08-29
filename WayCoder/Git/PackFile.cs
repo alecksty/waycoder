@@ -424,7 +424,66 @@ public static class PackFileReader
         }
     }
 
-    static string TypeName(int type) => type switch
+    /// <summary>
+    /// 从 pack 的指定 offset 读单个对象（含 delta 递归）。
+    /// ofs-delta 的 base 在同一 pack（按相对偏移定位）；ref-delta 的 base 通过
+    /// <paramref name="resolveBase"/> 按 sha 解析（跨 pack / loose）。供 pack 随机读取（PackStore）用。
+    /// </summary>
+    public static (string Type, byte[] Content) ReadObjectAt(
+        byte[] pack, long offset, Func<string, (string Type, byte[] Content)?> resolveBase)
+    {
+        int pos = (int)offset;
+        byte b = pack[pos++];
+        int type = (b >> 4) & 0x07;
+        long size = b & 0x0F;
+        int shift = 4;
+        while ((b & 0x80) != 0)
+        {
+            b = pack[pos++];
+            size |= (long)(b & 0x7F) << shift;
+            shift += 7;
+        }
+
+        long baseOffset = -1;
+        string? baseSha = null;
+        if (type == 6)
+        {
+            byte c = pack[pos++];
+            long off = c & 0x7F;
+            while ((c & 0x80) != 0)
+            {
+                c = pack[pos++];
+                off = ((off + 1) << 7) | (c & 0x7F);
+            }
+            baseOffset = offset - off;
+        }
+        else if (type == 7)
+        {
+            baseSha = Convert.ToHexString(pack, pos, 20).ToLowerInvariant();
+            pos += 20;
+        }
+
+        var (inflated, _) = Inflater.Decompress(pack, pos);
+
+        if (type is >= 1 and <= 4)
+            return (TypeName(type), inflated);
+
+        (string Type, byte[] Content) bm;
+        if (type == 6)
+        {
+            bm = ReadObjectAt(pack, baseOffset, resolveBase);
+        }
+        else
+        {
+            var ext = resolveBase(baseSha!);
+            if (ext == null)
+                throw new InvalidDataException($"delta 对象的 base 未找到（{baseSha}）");
+            bm = ext.Value;
+        }
+        return (bm.Type, ApplyDelta(bm.Content, inflated));
+    }
+
+    internal static string TypeName(int type) => type switch
     {
         1 => "commit",
         2 => "tree",

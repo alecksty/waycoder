@@ -20,6 +20,17 @@ public sealed class AgentService
     /// <summary>当前会话是否正在运行（供 UI「停止」按钮 / 防重入）。</summary>
     public bool IsRunning { get; private set; }
 
+    private static CancellationTokenSource? _activeCts;
+
+    /// <summary>注册/注销当前活跃请求的 CTS（App 切后台取消在途请求用；只持有引用不创建）。</summary>
+    public static void SetActiveCts(CancellationTokenSource? cts) => _activeCts = cts;
+
+    /// <summary>App 切后台时取消当前流式/工具请求，避免后台 SSE 连接被系统挂起导致切回卡死。</summary>
+    public static void CancelActive()
+    {
+        try { _activeCts?.Cancel(); } catch { }
+    }
+
     /// <summary>懒建 Agent（首次发送时按当前 Config 创建；配置变更后需调用 <see cref="Reset"/>）。</summary>
     public Agent EnsureAgent()
     {
