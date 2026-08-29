@@ -543,9 +543,12 @@ public partial class ChatScreen : TuiScreen
         ComputeLayout(out var panelW, out var inputH, out var promptH, out _, out var chatH);
         ApplyDynamicSizes(panelW, inputH, promptH, chatH);
 
-        // 通知所有浮层窗口
+        // 通知所有浮层窗口（含子窗口子树），并钳制回内容区
         foreach (var win in Windows)
+        {
             win.OnResize(newW, newH);
+            ClampTree(win);
+        }
     }
 
     /// <summary>捕获当前 ChatList 的消息数据（Role/Content/Centered/Indent）。</summary>

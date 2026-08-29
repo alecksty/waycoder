@@ -92,7 +92,7 @@ public static class UxHelper
         try
         {
             var screen = TuiManager.Instance?.ActiveScreen;
-            screen?.ShowWindow(win);
+            screen?.AddRootWindow(win); // 通知框恒为根窗口：不被模态对话框的关闭递归带走
         }
         catch { /* 静默回退 */ }
     }
