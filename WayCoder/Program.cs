@@ -545,6 +545,16 @@ public partial class Program
             return 0;
         }
 
+        // --tui 显式且带 -p：提示词投递到槽位 0，走全屏 REPL（复用槽位自动投递机制），
+        // 而非 RunOnceAsync 一次性 spinner 模式——便于观察任务完成阶段的 TUI 渲染/死机。
+        if (tuiMode && !jsonMode && !string.IsNullOrEmpty(prompt))
+        {
+            if (!_pendingSlotQueues.TryGetValue(0, out var list))
+                _pendingSlotQueues[0] = list = [];
+            list.Add(prompt);
+            prompt = null; // 交给 REPL 自动投递
+        }
+
         if (!string.IsNullOrEmpty(prompt))
         {
             if (jsonMode)
