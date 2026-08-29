@@ -178,6 +178,8 @@ public class BashTool : ITool, ICancellableTool
                     UseShellExecute = false,
                     CreateNoWindow = true,
                 };
+                // Windows 中文系统：cmd.exe 输出到管道是 OEM/GBK 字节，必须按 OEM 代码页解码，否则中文乱码
+                WayCoder.Infra.ProcEncoding.Apply(psi);
             }
 
             // 移除凭据形状的环境变量，防止密钥经子进程 env / 输出泄漏

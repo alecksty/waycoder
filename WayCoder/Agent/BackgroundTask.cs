@@ -105,6 +105,8 @@ public static class BackgroundTaskManager
                 CreateNoWindow = true,
                 WorkingDirectory = Directory.GetCurrentDirectory(),
             };
+            // Windows 中文系统：cmd.exe 输出到管道是 OEM/GBK 字节，必须按 OEM 代码页解码，否则中文乱码
+            WayCoder.Infra.ProcEncoding.Apply(psi);
 
             proc = Process.Start(psi)!;
             try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
