@@ -9,7 +9,10 @@
 - **去掉关窗快照回填**：`BackgroundSnapshot`/`CaptureBackground`/`_pendingSnapshots` 机制废弃（回填老是花屏），关窗一律脏区清除 + 背景控件重绘，有残留窗口/关闭带子树时全量重绘兜底；`FrameSnapshot` 类保留（WayCoder.Preview WPF 渲染器共享源码依赖），仅废弃 TUI 内关窗回填用法
 - **输入/鼠标/焦点树化**：Esc 关最深模态（`TopModal` 树下降取最深层模态）、Tab/方向键走焦点叶子窗口、鼠标非模态按「最上优先」反向渲染序命中、`SetCursorOwner` 空窗判定改全树计数、OnCreate/OnDestroy/OnResize 递归子树 + 逐层钳制回内容区、焦点转移补标脏边框色
 - **工具催促节制**：`LooksLikeTask` 判定「没任务不催」——纯聊天/提问（问号/疑问词/问候）不再被误判为停滞而注入「请立即调用 write_file/bash」；真任务也等**思考 10 轮以上**才渐进催促（未到阈值只注入「继续」，不打断长链思考）
-- **自测**：4785 全过（新增层级刷新/同级子窗口 Z/关父递归关子/多级弹窗树断言/任务判定，适配键位作用域；移除关窗快照断言与 `[FrameSnapshot]` 回填引用）
+- **任务完成死机防御（调查中，看门狗待复现确认）**：① 窗口树防环——`AddWindow` 挂载前摘除旧位置（重复 ShowWindow 变移动窗口），渲染/键路由/关闭的树遍历加深度守卫 `MaxTreeDepth=64`（树环从栈溢出死机变为可记录异常）；② 子进程 stdin 重定向补漏——`ContextBridge.RunGit`/`DesktopNotifier`/`UpdateChecker`/`TuiChatInput` 均不共享主控台 stdin（防子进程抢读控制台 → 主循环 `KeyAvailable→ReadKey` 竞态永久阻塞）；③ 完成时 `EstimateTokens(SnapshotMessages)` 移出 UI 线程（任务上下文大时不再卡死 UI）；④ **主循环冻结看门狗**——主循环每阶段记 `UiLoopActivity`，心跳线程发现停滞 >3s 记「主循环冻结 Xms，最后活动: Y」，死机复现后直接定位卡在哪个阶段
+- **子进程输出编码修复**：`ProcEncoding` 统一把 `cmd.exe` 输出按系统 OEM 代码页（中文系统 GBK）解码——`Process.StandardOutput/ErrorEncoding` 默认跟 UTF-8 导致 GBK 字节误解码成乱码；接入 BashTool/BackgroundTask/PersistentShell/SandboxManager
+- **手机端清理**：删除 MAUI 调试/测试代码——`autotest.flag` 自动写文件自测钩子、`nativemem.flag` 1GB 原生内存读写实验、`#if DEBUG` 日志；保留设置页「测试 API Key」用户功能（配置连通性检测）
+- **自测**：4785 全过（新增层级刷新/同级子窗口 Z/关父递归关子/多级弹窗树断言/任务判定，适配键位作用域；移除关窗快照断言与 `[FrameSnapshot]` 回填引用）；Maui Android 构建 0 警告 0 错误
 
 ## v0.96.26 (2026-08-29) — 符号反向索引 + 手搓 SQL 引擎 + 编码转换 + git pull/push
 
