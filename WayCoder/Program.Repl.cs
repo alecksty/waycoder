@@ -1454,12 +1454,16 @@ public partial class Program
 
         // 更新右下角 token 显示 + 性能（仅活跃槽位，缓冲槽位切回时由 RestoreTo 重建）
         // 渲染交给主循环 50ms 轮询（MarkDirty 已置脏），避免后台线程与 UI 线程并发 Render。
+        // 注意：EstimateTokens(SnapshotMessages()) 必须在后台线程先算完 —— 任务上下文大（大文件/
+        // git diff 等工具输出）时它会磨很久，若放在 Route 的 live lambda 里就在 UI 线程执行，
+        // 「✅完成」先渲染、UI 线程随即卡在 token 估算 = 任务完成后死机。
+        int ctxTokens = ContextManager.EstimateTokens(agent.SnapshotMessages()); // 后台线程计算
         Route(cs =>
         {
             cs.UpdateTokenDisplayFull(
                 llm.LargeTotalTokens, llm.SmallTotalTokens, // 分大小模型上下文用量
                 llm.EstimatedCost ?? llm.TaskCost, // 累计费用优先，回退本轮费用
-                ContextManager.EstimateTokens(agent.SnapshotMessages()), agent.Context.MaxTokens,
+                ctxTokens, agent.Context.MaxTokens,
                 llm.LastLatencyMs, llm.LastTokensPerSec);
         }, _ => { });
     }
