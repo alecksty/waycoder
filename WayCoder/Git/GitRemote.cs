@@ -234,13 +234,23 @@ public static class GitRemote
     {
         if (rest.Length == 0) return "用法：/git clone <url> [branch]";
         var url = rest[0];
-        var branch = rest.Length > 1 ? rest[1] : "master";
+        var branch = rest.Length > 1 ? rest[1] : null;
 
         progress?.Invoke("初始化仓库…");
         GitCore.Init(repoRoot);
         var gitDir = Path.Combine(repoRoot, ".git");
         GitCore.WriteRemoteUrl(gitDir, "origin", url);
         var cred = GitCore.ReadCredential(gitDir);
+
+        // 未指定分支：探测远端默认分支（现代仓库多为 main，回退 master，再回退第一个）
+        if (branch == null)
+        {
+            var heads = ListRemoteBranches(url, cred);
+            branch = heads.Length == 0 ? "master"
+                : heads.Contains("main", StringComparer.Ordinal) ? "main"
+                : heads.Contains("master", StringComparer.Ordinal) ? "master"
+                : heads[0];
+        }
 
         var (newSha, objects) = await FetchObjectsAsync(gitDir, url, cred, branch, progress);
         if (newSha == null) return $"克隆失败：远端无 {branch} 分支（或需要凭证，请先 /git credential <user> <pass|token>）";

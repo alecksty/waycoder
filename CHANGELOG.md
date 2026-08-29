@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.96.26 (2026-08-29) — 符号反向索引 + 手搓 SQL 引擎 + 编码转换 + git pull/push
+
+- **全局符号反向索引**：`RepoMapGenerator` 新增符号名 → {文件:行} 反向索引（复用 SymbolPatterns 提取行号，2 分钟 TTL 缓存），`symbols` 工具一次定位符号定义；注册桌面+移动 ToolRegistry、标记 Safe、9 项自测
+- **手搓精简 SQL 引擎**：`WayCoder/Sql/SqlEngine.cs` 纯 C# 只读 SQL 查询引擎（替换 Microsoft.Data.Sqlite 摆脱原生依赖），`sqlite` 工具查询本地 SQLite 库
+- **编码转换工具**：`convert_encoding`（`TextEncoding.cs` + `ConvertEncodingTool.cs`）文件编码互转，支持 GB18030/GBK/Big5/Shift-JIS 等绝大部分编码，默认 UTF-8；编辑器四端（TUI/Web/GUI/移动）自动识别编码 + 保存保真
+- **git pull/push（移动端纯 C# 传输协议）**：`PackFile.cs` pkt-line + packfile 编解码（zlib + delta）、`GitRemote.cs` smart HTTP 协议（fetch/push/clone + remote/凭证配置）、`GitCore.cs` 可达遍历 + checkout + remote config；桌面端 GitCommand 白名单放开 pull/push/fetch/remote/clone；凭证脱敏不进日志/commit
+- **移动端后台切换卡死修复**：App 切后台（来电/Home/锁屏）时 `CancelActive` 取消在途流式请求，避免后台 SSE 连接被系统挂起导致切回 UI 卡「思考中」
+- **项目检测预算 bug 修复**：`WalkFiles` 加 pattern 参数，.csproj/.sln 用 `EnumerateFiles(pattern)` 只枚举匹配项，避免通用扫描被 dist/packaging 占满预算漏检项目类型
+- **卫生项**：winget manifest 补 0.96.25（brew 已对齐）、brew formula 修「体」字乱码 + 删多余 end、codes/ 加 .gitignore
+- **自测**：4788 通过 / 4 失败（4 项为 pre-existing 环境依赖失败，v0.96.25 基线同样 4 失败；本次新增 66 项全过）
+
 ## v0.96.25 (2026-08-28) — 控件基类提炼 + 渲染器命名空间重构 + 编译警告清零
 
 - **编译警告清零**：csproj 修复 WebAssets.Generated.cs 重复编译（CS2002——Windows 下 glob Identity 是反斜杠路径，Target 里 Remove 用正斜杠不匹配）；PackFile 位运算符号扩展显式强转（CS0675×3）；KbIndex null 引用修复（CS8601/8602）；自测回调 content! 断言（CS8604×3）；清理全局已声明的冗余 using——`dotnet build` 0 警告 0 错误

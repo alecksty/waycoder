@@ -332,6 +332,11 @@ public static class PermissionManager
                     result += $"\n+{AnsiHelper.Esc(n.Length > 80 ? ContextManager.TruncateByRunes(n, 80) + "..." : n)}";
                 }
                 return result;
+            case "convert_encoding":
+                var encFile = args.GetValueOrDefault("file_path")?.ToString() ?? "";
+                var encFrom = args.GetValueOrDefault("from_encoding")?.ToString() ?? "auto";
+                var encTo = args.GetValueOrDefault("to_encoding")?.ToString() ?? "utf-8";
+                return $"文件: {AnsiHelper.Esc(encFile)}\n编码: {AnsiHelper.Esc(encFrom)} → {AnsiHelper.Esc(encTo)}";
             case "agent":
                 var task = args.GetValueOrDefault("task")?.ToString() ?? "";
                 return $"任务: {AnsiHelper.Esc(task.Length > 120 ? ContextManager.TruncateByRunes(task, 120) + "..." : task)}";

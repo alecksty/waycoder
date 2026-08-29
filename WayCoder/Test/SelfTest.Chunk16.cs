@@ -101,6 +101,114 @@ public static partial class SelfTest
             try { Directory.Delete(tmpDir, true); } catch { }
         }
 
+        Section("[文件编码 自动识别]");
+        // UTF-8 无 BOM
+        var dUtf8 = TextEncoding.Detect(Encoding.UTF8.GetBytes("hello 中文"));
+        Check("UTF-8 无 BOM 识别", dUtf8.EncodingName == "UTF-8" && dUtf8.Text == "hello 中文");
+
+        // UTF-8 BOM
+        var dUtf8Bom = TextEncoding.Detect(new UTF8Encoding(true).GetPreamble().Concat(Encoding.UTF8.GetBytes("x")).ToArray());
+        Check("UTF-8 BOM 识别", dUtf8Bom.EncodingName == "UTF-8 BOM" && dUtf8Bom.Text == "x");
+
+        // UTF-16 LE / BE BOM
+        var dU16le = TextEncoding.Detect(Encoding.Unicode.GetPreamble().Concat(Encoding.Unicode.GetBytes("ab")).ToArray());
+        Check("UTF-16 LE 识别", dU16le.EncodingName == "UTF-16 LE" && dU16le.Text == "ab");
+        var dU16be = TextEncoding.Detect(Encoding.BigEndianUnicode.GetPreamble().Concat(Encoding.BigEndianUnicode.GetBytes("ab")).ToArray());
+        Check("UTF-16 BE 识别", dU16be.EncodingName == "UTF-16 BE" && dU16be.Text == "ab");
+
+        // GB18030（GBK/GB2312 中文旧编码，GBK 字节序列非合法 UTF-8，应落入 GB18030 分支）
+        var dGb = TextEncoding.Detect(TextEncoding.GB18030.GetBytes("你好，GBK 编码文件"));
+        Check("GB18030 识别 + 解码", dGb.EncodingName == "GB18030" && dGb.Text == "你好，GBK 编码文件");
+
+        // EditorCore 端到端：GB18030 文件 → LoadFile 识别 → Save 保真（不转 UTF-8、不加 BOM）
+        var encDir = Path.Combine(Path.GetTempPath(), "wc_selftest_" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(encDir);
+        try
+        {
+            var gbFile = Path.Combine(encDir, "gbk.txt");
+            File.WriteAllBytes(gbFile, TextEncoding.GB18030.GetBytes("中文内容"));
+            var ecGb = new EditorCore();
+            ecGb.LoadFile(gbFile);
+            Check("EditorCore 识别 GB18030", ecGb.EncodingName == "GB18030" && ecGb.Lines[0].ToString() == "中文内容");
+            ecGb.Save();
+            var gbAfter = TextEncoding.Detect(File.ReadAllBytes(gbFile));
+            Check("EditorCore 保存 GB18030 保真", gbAfter.EncodingName == "GB18030" && gbAfter.Text == "中文内容");
+        }
+        finally
+        {
+            try { Directory.Delete(encDir, true); } catch { }
+        }
+
+        Section("[编码转换]");
+        // ResolveEncoding：编码名/别名/代码页数字解析（默认 UTF-8）
+        Check("ResolveEncoding utf-8 无 BOM", TextEncoding.ResolveEncoding("utf-8").GetPreamble().Length == 0);
+        Check("ResolveEncoding utf-8-bom 带 BOM", TextEncoding.ResolveEncoding("utf-8-bom").GetPreamble().Length == 3);
+        Check("ResolveEncoding gbk=936", TextEncoding.ResolveEncoding("gbk").CodePage == 936);
+        Check("ResolveEncoding big5=950", TextEncoding.ResolveEncoding("big5").CodePage == 950);
+        Check("ResolveEncoding shift-jis=932", TextEncoding.ResolveEncoding("shift-jis").CodePage == 932);
+        Check("ResolveEncoding euc-kr=51949", TextEncoding.ResolveEncoding("euc-kr").CodePage == 51949);
+        Check("ResolveEncoding iso-8859-1=28591", TextEncoding.ResolveEncoding("iso-8859-1").CodePage == 28591);
+        Check("ResolveEncoding windows-1252=1252", TextEncoding.ResolveEncoding("windows-1252").CodePage == 1252);
+        Check("ResolveEncoding 代码页数字 936", TextEncoding.ResolveEncoding("936").CodePage == 936);
+        Check("ResolveEncoding 未知名回退 UTF-8", TextEncoding.ResolveEncoding("不存在的编码xyz").WebName == "utf-8");
+
+        var encConvDir = Path.Combine(Path.GetTempPath(), "wc_enc_conv_" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(encConvDir);
+        try
+        {
+            var tool = new WayCoder.Tools.ConvertEncodingTool();
+            var gbk = TextEncoding.ResolveEncoding("gbk");
+            var srcText = "你好，世界！GBK 编码转换测试";
+
+            // Decode：GBK 字节 → 文本（往返）
+            var gbkBytes = gbk.GetBytes(srcText);
+            Check("Decode GBK 往返", TextEncoding.Decode(gbkBytes, gbk) == srcText);
+
+            // 工具：GBK → UTF-8 原地覆盖
+            var gbkFile = Path.Combine(encConvDir, "gbk.txt");
+            File.WriteAllBytes(gbkFile, gbkBytes);
+            var r1 = tool.ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = gbkFile, ["from_encoding"] = "gbk", ["to_encoding"] = "utf-8" }).GetAwaiter().GetResult();
+            var o1 = File.ReadAllBytes(gbkFile);
+            Check("convert_encoding GBK→UTF-8", Encoding.UTF8.GetString(o1) == srcText && !(o1[0] == 0xEF && o1[1] == 0xBB && o1[2] == 0xBF));
+            Check("convert_encoding 结果含编码名", r1.Contains("gbk") && r1.Contains("utf-8"));
+
+            // 工具：auto 自动识别 GBK → UTF-8（不指定 from）
+            var autoFile = Path.Combine(encConvDir, "auto.txt");
+            File.WriteAllBytes(autoFile, gbkBytes);
+            tool.ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = autoFile }).GetAwaiter().GetResult();
+            Check("convert_encoding auto 识别 GBK", Encoding.UTF8.GetString(File.ReadAllBytes(autoFile)) == srcText);
+
+            // 工具：output 到新路径，原文件不动
+            var keepFile = Path.Combine(encConvDir, "keep.txt");
+            File.WriteAllBytes(keepFile, gbkBytes);
+            var outFile = Path.Combine(encConvDir, "out.txt");
+            tool.ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = keepFile, ["from_encoding"] = "gbk", ["to_encoding"] = "utf-8", ["output"] = outFile }).GetAwaiter().GetResult();
+            Check("convert_encoding output 新路径原文件不动", Encoding.UTF8.GetString(File.ReadAllBytes(outFile)) == srcText && File.ReadAllBytes(keepFile).SequenceEqual(gbkBytes));
+
+            // 工具：UTF-8 → GBK 反向
+            var revFile = Path.Combine(encConvDir, "rev.txt");
+            File.WriteAllText(revFile, srcText, new UTF8Encoding(false));
+            tool.ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = revFile, ["from_encoding"] = "utf-8", ["to_encoding"] = "gbk" }).GetAwaiter().GetResult();
+            Check("convert_encoding UTF-8→GBK 反向", gbk.GetString(File.ReadAllBytes(revFile)) == srcText);
+
+            // 工具：输出 UTF-8 BOM
+            var bomFile = Path.Combine(encConvDir, "bom.txt");
+            File.WriteAllText(bomFile, "hi", new UTF8Encoding(false));
+            tool.ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = bomFile, ["to_encoding"] = "utf-8-bom" }).GetAwaiter().GetResult();
+            var bomOut = File.ReadAllBytes(bomFile);
+            Check("convert_encoding 输出 UTF-8 BOM", bomOut.Length >= 3 && bomOut[0] == 0xEF && bomOut[1] == 0xBB && bomOut[2] == 0xBF);
+
+            // 二进制文件拒绝
+            var binFile = Path.Combine(encConvDir, "bin.dat");
+            File.WriteAllBytes(binFile, new byte[] { 1, 0, 2, 3, 4 });
+            var rBin = tool.ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = binFile }).GetAwaiter().GetResult();
+            Check("convert_encoding 拒绝二进制", rBin.Contains("二进制"));
+        }
+        finally
+        {
+            try { Directory.Delete(encConvDir, true); } catch { }
+        }
+
         Section("[Syntax ANSI 契约]");
         var allowed = new HashSet<int> { 0, 2, 31, 32, 33, 34, 35, 36, 41, 103 };
         var samples = new (string Lang, string Line)[]

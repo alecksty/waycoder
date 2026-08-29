@@ -418,6 +418,7 @@ public partial class ChatPage : ContentPage
         var reasoningSb = new StringBuilder();
         var contentSb = new StringBuilder();
         _cts = new CancellationTokenSource();
+        AgentService.SetActiveCts(_cts); // 注册给 App 生命周期：切后台（来电/Home/锁屏）时取消在途请求
         _lastReasoningLen = 0;
         _lastReasoningUpdate = DateTime.MinValue;
         SendBtn.Text = "↑";
@@ -506,6 +507,7 @@ public partial class ChatPage : ContentPage
             aiMsg.Formatted = MarkupToFormattedString.Convert(contentSb.ToString(), isDark); // 节流后补齐最终富文本
             SendBtn.Text = "↑";
             StopBtn.IsVisible = false;
+            AgentService.SetActiveCts(null);
             _cts = null;
             _uiState = AgentUiState.Idle;
             RefreshStatusBar();

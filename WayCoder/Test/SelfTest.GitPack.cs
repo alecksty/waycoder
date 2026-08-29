@@ -230,6 +230,71 @@ public static partial class SelfTest
             Directory.Delete(tdir, recursive: true);
         }
         catch { try { Directory.Delete(tdir, recursive: true); } catch { } }
+
+        // ── ReadObject 回退到 pack（系统 git gc 后对象入 pack）──
+        // 曾 bug：增量 pull 时 thin pack 的 base 落在本地 pack（系统 git clone/`gc` 过），
+        // ReadObject 只读 loose → 「delta 对象的 base 未找到」。修复后先 loose 再 pack。
+        var gdir = Path.Combine(Path.GetTempPath(), "wcgc_" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(gdir);
+        try
+        {
+            if (RunGit(gdir, "init -q -b main"))
+            {
+                File.WriteAllText(Path.Combine(gdir, "a.txt"), "pack base content 0");
+                RunGit(gdir, "add -A");
+                RunGit(gdir, "commit -q -m init");
+                for (int i = 1; i <= 12; i++)
+                {
+                    File.WriteAllText(Path.Combine(gdir, "a.txt"), "pack base content " + i);
+                    RunGit(gdir, "commit -q -am c" + i);
+                }
+                // repack -d 打包所有对象并删除 loose，但保留 loose ref（gc 会连带 pack-refs，
+                // 使 ReadHeadCommit 读不到 refs/heads/main → head 为 null → 遍历空）。故用 repack。
+                RunGit(gdir, "repack -q -d");
+                var gitDir = Path.Combine(gdir, ".git");
+
+                int packRead = 0, fail = 0, total = 0;
+                var queue = new Queue<string>();
+                var seen = new HashSet<string>();
+                var head = GitCore.ReadHeadCommit(gitDir);
+                if (head != null) queue.Enqueue(head);
+                while (queue.Count > 0 && total < 2000)
+                {
+                    var sha = queue.Dequeue();
+                    if (!seen.Add(sha)) continue;
+                    total++;
+                    var obj = GitCore.ReadObject(gitDir, sha);
+                    if (obj == null) { fail++; continue; }
+                    var loosePath = Path.Combine(gitDir, "objects", sha[..2], sha[2..]);
+                    if (!File.Exists(loosePath)) packRead++;
+                    var (type, content) = obj.Value;
+                    if (type == "commit")
+                    {
+                        foreach (var line in Encoding.UTF8.GetString(content).Split('\n'))
+                        {
+                            if (line.StartsWith("tree ")) queue.Enqueue(line[5..]);
+                            else if (line.StartsWith("parent ")) queue.Enqueue(line[7..]);
+                        }
+                    }
+                    else if (type == "tree")
+                    {
+                        int p = 0;
+                        while (p < content.Length)
+                        {
+                            var sp = Array.IndexOf(content, (byte)' ', p);
+                            if (sp < 0) break;
+                            var nul = Array.IndexOf(content, (byte)0, sp);
+                            if (nul < 0) break;
+                            queue.Enqueue(Convert.ToHexString(content, nul + 1, 20).ToLowerInvariant());
+                            p = nul + 1 + 20;
+                        }
+                    }
+                }
+                Check($"ReadObject 回退 pack（{total} 对象，pack 读 {packRead}，失败 {fail}）", fail == 0 && packRead > 0);
+            }
+            Directory.Delete(gdir, recursive: true);
+        }
+        catch { try { Directory.Delete(gdir, recursive: true); } catch { } }
     }
 
     /// <summary>写一个 side-band pkt：4 字节长度头 + 1 字节 channel + payload。</summary>
@@ -241,5 +306,28 @@ public static partial class SelfTest
         var len = body.Length + 4;
         s.Write(Encoding.ASCII.GetBytes(len.ToString("x4")), 0, 4);
         s.Write(body, 0, body.Length);
+    }
+
+    /// <summary>在指定工作目录跑系统 git（自测构造 pack 仓库用；无 git 环境返回 false）。</summary>
+    private static bool RunGit(string workDir, string args)
+    {
+        try
+        {
+            using var p = new System.Diagnostics.Process();
+            p.StartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "git",
+                Arguments = args,
+                WorkingDirectory = workDir,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            };
+            p.Start();
+            p.WaitForExit();
+            return p.ExitCode == 0;
+        }
+        catch { return false; }
     }
 }

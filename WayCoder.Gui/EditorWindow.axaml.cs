@@ -228,7 +228,7 @@ public partial class EditorWindow : Window
     {
         if (Core == null) return;
         PosLabel.Text = $"L{Core.Cy + 1}:C{Core.Cx + 1}";
-        MetaLabel.Text = $"{Core.TotalLines} 行 · {Core.TotalChars} 字符";
+        MetaLabel.Text = $"{Core.TotalLines} 行 · {Core.TotalChars} 字符 · {Core.EncodingName}";
         LangLabel.Text = Core.Syntax?.Name ?? "";
         var (errors, warnings) = DiagnosticManager.GetSummary(Core.FilePath);
         DiagLabel.Text = errors > 0 || warnings > 0 ? $"{errors} 错误 · {warnings} 警告" : "";

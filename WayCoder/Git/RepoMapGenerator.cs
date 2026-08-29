@@ -98,6 +98,18 @@ public static class RepoMapGenerator
     /// <summary>文件被引用计数：文件名 → 被多少其他文件引用</summary>
     private static readonly Dictionary<string, int> FileRank = new(StringComparer.OrdinalIgnoreCase);
 
+    // ---- 符号反向索引 ----
+
+    /// <summary>符号定义位置：相对路径 + 1 基行号 + 符号类别（type/fn/def 等）</summary>
+    public readonly record struct SymbolLocation(string RelativePath, int Line, string Kind);
+
+    /// <summary>符号反向索引缓存：符号名 → 定义位置列表（大小写不敏感）</summary>
+    private static Dictionary<string, List<SymbolLocation>>? _symbolIndex;
+    private static string? _symbolIndexRoot;
+    private static DateTime _symbolIndexTime;
+    private static readonly TimeSpan SymbolIndexTtl = TimeSpan.FromMinutes(2);
+    private static int _symbolEntryCount; // 当前索引扫描条目数（GetSymbolIndex 重置）
+
     // ---- 公共 API ----
 
     /// <summary>
@@ -174,6 +186,18 @@ public static class RepoMapGenerator
     /// 使缓存失效（通常在文件修改后调用）。
     /// </summary>
     public static void Invalidate() => _cachedMap = null;
+
+    /// <summary>
+    /// 按符号名查询定义位置（类/函数/方法等），返回「文件:行号」列表，省去 grep 试错往返。
+    /// 复用 <see cref="SymbolPatterns"/> 提取符号，带缓存，文件变更后调 <see cref="Invalidate"/>。
+    /// </summary>
+    public static List<SymbolLocation> FindSymbol(string name, string? root = null)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return [];
+        root ??= GetRepoRoot();
+        var index = GetSymbolIndex(root);
+        return index.TryGetValue(name, out var locs) ? locs : [];
+    }
 
     // ---- 内部实现 ----
 
@@ -325,12 +349,7 @@ public static class RepoMapGenerator
                     {
                         // 跳过关键字
                         var v = g.Value;
-                        if (v is "if" or "for" or "while" or "return" or "class" or "struct"
-                            or "public" or "private" or "protected" or "static" or "void"
-                            or "int" or "string" or "bool" or "var" or "let" or "const"
-                            or "function" or "export" or "import" or "from" or "async"
-                            or "await" or "new" or "this" or "super" or "extends"
-                            or "implements" or "override" or "virtual" or "abstract") continue;
+                        if (IsSymbolKeyword(v)) continue;
                         names.Add(v);
                     }
                 }
@@ -341,6 +360,104 @@ public static class RepoMapGenerator
         }
         catch (Exception ex) { DebugLog.Log("RepoMap", $"LSP 符号提取失败: {ex.Message}"); return ""; }
     }
+
+    /// <summary>获取符号反向索引（带缓存，root 变更或 TTL 到期重扫）。</summary>
+    private static Dictionary<string, List<SymbolLocation>> GetSymbolIndex(string root)
+    {
+        if (_symbolIndex != null && _symbolIndexRoot == root && (DateTime.UtcNow - _symbolIndexTime) < SymbolIndexTtl)
+            return _symbolIndex;
+
+        _ignorePatterns = ParseGitignore(root);
+        var index = new Dictionary<string, List<SymbolLocation>>(StringComparer.OrdinalIgnoreCase);
+        _symbolEntryCount = 0;
+        CollectSymbols(root, root, index);
+
+        _symbolIndex = index;
+        _symbolIndexRoot = root;
+        _symbolIndexTime = DateTime.UtcNow;
+        return index;
+    }
+
+    /// <summary>递归扫描项目文件，提取「符号名 → 位置」填充反向索引。</summary>
+    private static void CollectSymbols(string root, string currentDir, Dictionary<string, List<SymbolLocation>> index, int depth = 0)
+    {
+        if (depth > 8 || _symbolEntryCount >= EntryLimit) return;
+
+        try
+        {
+            foreach (var dir in Directory.GetDirectories(currentDir))
+            {
+                if (_symbolEntryCount >= EntryLimit) break;
+                var name = Path.GetFileName(dir);
+                var relPath = Path.GetRelativePath(root, dir).Replace('\\', '/');
+                if (IsIgnored(relPath) || IsIgnored(relPath + "/") || name.StartsWith('.'))
+                    continue;
+                _symbolEntryCount++;
+                CollectSymbols(root, dir, index, depth + 1);
+            }
+
+            foreach (var file in Directory.GetFiles(currentDir))
+            {
+                if (_symbolEntryCount >= EntryLimit) break;
+                var name = Path.GetFileName(file);
+                var relPath = Path.GetRelativePath(root, file).Replace('\\', '/');
+                if (IsIgnored(relPath) || name.StartsWith('.') && name != ".env.example")
+                    continue;
+                _symbolEntryCount++;
+                ExtractSymbolLocations(file, relPath, index);
+            }
+        }
+        catch (Exception ex) { DebugLog.Log("RepoMap", $"符号索引目录扫描失败: {ex.Message}"); }
+    }
+
+    /// <summary>提取单个文件的符号定义位置（名称 + 行号），填充反向索引。</summary>
+    private static void ExtractSymbolLocations(string filePath, string relativePath, Dictionary<string, List<SymbolLocation>> index)
+    {
+        var ext = Path.GetExtension(filePath).ToLowerInvariant();
+        if (!SymbolPatterns.TryGetValue(ext, out var pair)) return;
+
+        try
+        {
+            var content = File.ReadAllText(filePath);
+            if (content.Length > 65536) content = ContextManager.TruncateByRunes(content, 65536);
+
+            var matches = pair.regex.Matches(content);
+            var count = 0;
+            foreach (Match m in matches)
+            {
+                if (count++ > 20) break; // 每个文件最多 20 个符号
+                foreach (Group g in m.Groups)
+                {
+                    if (!g.Success || g.Index == 0 || string.IsNullOrEmpty(g.Value) || g.Value.Length <= 1) continue;
+                    var v = g.Value;
+                    if (IsSymbolKeyword(v)) continue;
+
+                    var line = LineNumber(content, g.Index);
+                    if (!index.TryGetValue(v, out var list)) { list = []; index[v] = list; }
+                    list.Add(new SymbolLocation(relativePath, line, pair.kind));
+                }
+            }
+        }
+        catch (Exception ex) { DebugLog.Log("RepoMap", $"符号索引提取失败: {ex.Message}"); }
+    }
+
+    /// <summary>计算 0 基偏移量对应的 1 基行号（仅统计 '\n'，安全不切片）。</summary>
+    private static int LineNumber(string content, int offset)
+    {
+        var line = 1;
+        var limit = Math.Min(offset, content.Length);
+        for (var i = 0; i < limit; i++)
+            if (content[i] == '\n') line++;
+        return line;
+    }
+
+    /// <summary>符号名是否属于语言关键字（提取时跳过，避免噪音）。</summary>
+    private static bool IsSymbolKeyword(string v) => v is "if" or "for" or "while" or "return" or "class" or "struct"
+        or "public" or "private" or "protected" or "static" or "void"
+        or "int" or "string" or "bool" or "var" or "let" or "const"
+        or "function" or "export" or "import" or "from" or "async"
+        or "await" or "new" or "this" or "super" or "extends"
+        or "implements" or "override" or "virtual" or "abstract";
 
     /// <summary>扫描文件的 import/using 语句，构建引用图谱</summary>
     private static void ScanReferences(string relPath, string fullPath)

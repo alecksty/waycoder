@@ -29,6 +29,10 @@ public partial class EditorPage : ContentPage
     private bool _modified;
     private bool _loading; // 装载时抑制 TextChanged 把初值误标为「已修改」
 
+    // 编码自动识别：加载时探测，右下角显示，保存时按原编码写回（GBK/GB18030 不乱码、不丢 BOM）
+    private string _encodingName = "UTF-8";
+    private Encoding _fileEncoding = new UTF8Encoding(false);
+
     // 撤销/重做历史（基于文本快照；MAUI Editor 无原生 Undo/Redo，自维护栈）
     private readonly List<string> _undoStack = new();
     private readonly List<string> _redoStack = new();
@@ -73,8 +77,8 @@ public partial class EditorPage : ContentPage
     {
         _loading = true;
         _filePath = relPath;
-        var content = SandboxFsService.ReadText(relPath);
-        if (content == null)
+        var detected = SandboxFsService.ReadTextDetected(relPath);
+        if (detected == null)
         {
             CodeEditor.Text = "";
             FileLabel.Text = Path.GetFileName(relPath);
@@ -87,7 +91,9 @@ public partial class EditorPage : ContentPage
             return;
         }
 
-        CodeEditor.Text = content;
+        _encodingName = detected.Value.EncodingName;
+        _fileEncoding = detected.Value.Encoding;
+        CodeEditor.Text = detected.Value.Text;
         FileLabel.Text = relPath;
         Title = Path.GetFileName(relPath);
         _modified = false;
@@ -209,7 +215,7 @@ public partial class EditorPage : ContentPage
         if (string.IsNullOrEmpty(_filePath)) return;
         try
         {
-            SandboxFsService.WriteText(_filePath, CodeEditor.Text ?? "");
+            SandboxFsService.WriteText(_filePath, CodeEditor.Text ?? "", _fileEncoding);
             _modified = false;
             UpdateStatus();
             await DisplayAlertAsync("已保存", _filePath, "确定");
@@ -330,6 +336,6 @@ public partial class EditorPage : ContentPage
             if (c == '\n') lines++;
 
         var mark = _modified ? "● " : "";
-        StatusLabel.Text = $"{mark}{lines} 行 · {chars} 字符";
+        StatusLabel.Text = $"{mark}{_encodingName} · {lines} 行 · {chars} 字符";
     }
 }
