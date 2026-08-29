@@ -212,6 +212,32 @@ public static class Keypad
                         }
                         break;
 
+                    case "COMPLETE":
+                        // 模拟任务完成阶段（RunSlotAgentAsync 完成块）：模型流式宣告「任务已完成」→
+                        // FinishAgentMsg → ✅完成系统消息 → UpdateTokenDisplayFull → 渲染。
+                        // 用于确定性复现「任务已完成出现后 TUI 死机」；COMPLETE:n 可流式 n 条。
+                        {
+                            int streamN = 1;
+                            if (int.TryParse(value.Trim(), out var cnt) && cnt > 0) streamN = Math.Min(cnt, 200);
+                            screen.Running = false;
+                            for (int i = 0; i < streamN; i++)
+                            {
+                                screen.StartAgentMsg();
+                                foreach (var ch in $"任务已完成（第 {i + 1} 批）\n\n已按计划完成全部步骤。")
+                                {
+                                    screen.AppendToken(ch.ToString());
+                                    mgr.Render();
+                                }
+                                screen.FinishAgentMsg();
+                                mgr.Render();
+                            }
+                            screen.AddSystemMsg("✅ 完成 · 耗时 3.2s · 📊 1200+800=2000 词元 · 💰 ¥0.03");
+                            screen.UpdateTokenDisplayFull(12345, 6789, 0.123, 80000, 128000, 0, 0);
+                            mgr.Render();
+                            Emit(orig, $"# COMPLETE: 任务完成阶段已执行（流式 {streamN} 批）");
+                        }
+                        break;
+
                     case "EDITOR":
                         // 直接打开带文件的编辑器（绕过无文件时的文件选择框），便于测试编辑/保存
                         // EDITOR:/path --readonly → 只读模式（禁止修改）
