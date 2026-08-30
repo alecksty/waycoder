@@ -105,7 +105,7 @@ select optgroup { background:var(--panel); color:var(--text); }
 /* ── 输入区（Composer，对标主流 AI 聊天页）── */
 #input-dock { transform:translateY(-1.5cm); }
 #input-bar { position:relative; padding:2px 20px 0; }
-#composer { position:relative; max-width:840px; margin:3px auto 0; background:var(--panel2);
+#composer { position:relative; max-width:960px; margin:3px auto 0; background:var(--panel2);
   border:1px solid var(--border); border-radius:22px; padding:8px 10px 6px;
   box-shadow:0 2px 14px rgba(0,0,0,.14); transition:border-color .2s, box-shadow .2s; }
 #composer:focus-within { border-color:var(--accent);
@@ -270,6 +270,16 @@ select optgroup { background:var(--panel); color:var(--text); }
 #compress-indicator .cbar i { display:block; height:100%; background:var(--accent); border-radius:3px; transition:width .35s ease; }
 #compress-indicator .cpct { font-size:11px; color:var(--dim); min-width:34px; text-align:right; font-variant-numeric:tabular-nums; }
 @keyframes cspin { to { transform:rotate(360deg); } }
+
+/* Agent 动态状态栏（消息区与输入框之间）：空闲隐藏，活动显示状态文字 + Braille 等待动画 */
+#agent-status-bar {
+  display:none; align-items:center; gap:8px; margin:0 auto 2px;
+  max-width:960px; padding:3px 14px; border-radius:14px; font-size:12px; color:var(--text);
+  background:var(--panel2); border:1px solid var(--border);
+}
+#agent-status-bar.show { display:flex; }
+#agent-status-bar .spin { width:1em; font-family:monospace; color:var(--accent); flex-shrink:0; text-align:center; }
+#agent-status-text { color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 /* ═══════ 内置编辑器（三端共享 EditorCore；Web 透明 textarea 叠 pre）═══════ */
 #editor-overlay { position:fixed; inset:0; z-index:1000; background:var(--bg); display:flex; flex-direction:column; }

@@ -22,6 +22,10 @@ public static class PermissionManager
 
     public static Mode CurrentMode { get; set; } = Mode.Ask;
 
+    /// <summary>当前正在等待确认的工具名（null=无）。ShowConfirmDialog 期间置位、解决后清空。
+    /// 供 GUI/Web 动态状态栏同步轮询读（事件是单向的，轮询可随时取当前值）。</summary>
+    public static volatile string? PendingPermissionTool;
+
     /// <summary>权限确认框显示时触发（用于状态栏槽位标记"等待权限"）</summary>
     public static event Action<string>? PermissionPromptStarted;
     /// <summary>权限确认框关闭后触发（恢复"工作"状态）</summary>
@@ -142,6 +146,7 @@ public static class PermissionManager
             var content = $"工具: {AnsiHelper.Esc(toolName)}\n{AnsiHelper.Esc(details)}";
 
             int result;
+            PendingPermissionTool = toolName; // 可轮询状态（GUI/Web 动态状态栏同步读）
             PermissionPromptStarted?.Invoke(toolName);
             var activeScreen = TuiManager.Instance.ActiveScreen as ChatScreen;
             if (activeScreen != null)
@@ -185,6 +190,7 @@ public static class PermissionManager
                         UxHelper.Warn("权限确认", "已拒绝"); // Web 模式由浏览器端自行反馈结果，不写服务端 Console
                     break;
             }
+            PendingPermissionTool = null; // 解决后清空
             PermissionPromptResolved?.Invoke(toolName);
             return result switch { 0 => true, 1 => true, _ => false };
         }

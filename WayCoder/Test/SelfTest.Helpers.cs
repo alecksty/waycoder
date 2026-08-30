@@ -3372,6 +3372,39 @@ public static partial class SelfTest
         Check("WebFull: Origin null 拒绝", !WayCoder.UI.Web.WebChatServer.IsTrustedOrigin("null", 8123));
         Check("WebFull: 端口不匹配拒绝", !WayCoder.UI.Web.WebChatServer.IsTrustedOrigin("http://127.0.0.1:9999", 8123));
 
+        // ── 6c2. AgentStatusResolver 统一状态解析（纯函数，四端动态状态栏共用）──
+        {
+            var busy = new WayCoder.UI.Shared.AgentStatusInput(
+                Busy: true, ToolName: null, Compressing: false, WaitingPermission: false,
+                WaitingUser: false, WaitingSubagent: false, Mode: WayCoder.WorkMode.Build);
+            var idle = busy with { Busy = false };
+            Check("Status: 忙且无工具 → 思考中",
+                WayCoder.UI.Shared.AgentStatusResolver.Resolve(busy).Status == WayCoder.UI.Shared.AgentStatus.Thinking);
+            Check("Status: 忙+工具 → 工具执行",
+                WayCoder.UI.Shared.AgentStatusResolver.Resolve(busy with { ToolName = "bash" }).Status == WayCoder.UI.Shared.AgentStatus.ToolRunning);
+            Check("Status: 忙+ask_user_question → 等待用户",
+                WayCoder.UI.Shared.AgentStatusResolver.Resolve(busy with { ToolName = "ask_user_question" }).Status == WayCoder.UI.Shared.AgentStatus.WaitingUser);
+            Check("Status: 忙+agent → 等待子代理",
+                WayCoder.UI.Shared.AgentStatusResolver.Resolve(busy with { ToolName = "agent" }).Status == WayCoder.UI.Shared.AgentStatus.WaitingSubagent);
+            Check("Status: 压缩优先于忙",
+                WayCoder.UI.Shared.AgentStatusResolver.Resolve(busy with { Compressing = true }).Status == WayCoder.UI.Shared.AgentStatus.Compressing);
+            Check("Status: 等待确认优先于工具",
+                WayCoder.UI.Shared.AgentStatusResolver.Resolve(busy with { WaitingPermission = true, ToolName = "bash" }).Status == WayCoder.UI.Shared.AgentStatus.WaitingPermission);
+            Check("Status: 空闲",
+                WayCoder.UI.Shared.AgentStatusResolver.Resolve(idle).Status == WayCoder.UI.Shared.AgentStatus.Idle);
+            Check("Status: 完成瞬态",
+                WayCoder.UI.Shared.AgentStatusResolver.Resolve(idle with { RecentComplete = true }).Status == WayCoder.UI.Shared.AgentStatus.Complete);
+            Check("Status: 计划模式",
+                WayCoder.UI.Shared.AgentStatusResolver.Resolve(idle with { Mode = WayCoder.WorkMode.Plan }).Status == WayCoder.UI.Shared.AgentStatus.Planning);
+            Check("StatusKey: thinking",
+                WayCoder.UI.Shared.AgentStatusResolver.StatusKey(WayCoder.UI.Shared.AgentStatus.Thinking) == "thinking");
+            Check("StatusKey: waiting_user",
+                WayCoder.UI.Shared.AgentStatusResolver.StatusKey(WayCoder.UI.Shared.AgentStatus.WaitingUser) == "waiting_user");
+            Check("StatusKey: idle",
+                WayCoder.UI.Shared.AgentStatusResolver.StatusKey(WayCoder.UI.Shared.AgentStatus.Idle) == "idle");
+            Check("SpinnerFrames: 10 帧统一", WayCoder.UI.Shared.AgentStatusResolver.SpinnerFrames.Length == 10);
+        }
+
         // ── 6c. HasKeyFor / SerializeScan / TestList（模型 key 检测 + 连通性扫描）──
         Check("HasKeyFor: local 无需 key", WayCoder.ApiKeyStore.HasKeyFor("local", "qwen2.5-coder:latest"));
         Check("HasKeyFor: custom 无需 key", WayCoder.ApiKeyStore.HasKeyFor("custom", "my-custom-model"));

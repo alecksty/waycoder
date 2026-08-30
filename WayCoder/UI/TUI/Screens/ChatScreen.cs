@@ -164,6 +164,10 @@ public partial class ChatScreen : TuiScreen
     /// <summary>当前工具参数摘要</summary>
     private string? _currentToolBrief;
 
+    /// <summary>任务完成瞬态窗口（毫秒）：本轮 ChatAsync 返回后短暂显示「任务完成 ✓」再回落。</summary>
+    private const long CompleteWindowMs = 2500;
+    private long _completeAtTicks;
+
     /// <summary>
     /// 初始化聊天屏幕
     /// </summary>
@@ -280,7 +284,7 @@ public partial class ChatScreen : TuiScreen
         }
 
         // 排队中：Agent 忙且有待处理指令 → 动态栏突出排队（⏳排队N），不弹聊天区。
-        // 独立于此前的 Agent 状态分支处理，确保无论 Agent 处于思考/工具/压缩都显示排队。
+        // 独立于状态解析器处理，确保无论 Agent 处于思考/工具/压缩都显示排队。
         if (_queuedCount > 0)
         {
             DynamicBar.Status = AgentStatus.Thinking;
@@ -289,9 +293,7 @@ public partial class ChatScreen : TuiScreen
             return;
         }
 
-        // 压缩中（从 CompressProgress 事件已设置，保持不变）
-        if (DynamicBar.Status == AgentStatus.Compressing && ContextManager.IsCompressing)
-            return;
+        // 压缩完成清理进度（压缩中状态由解析器统一判定，进度条仍由 OnCompressProgress 写入）
         if (DynamicBar.Status == AgentStatus.Compressing && !ContextManager.IsCompressing)
         {
             DynamicBar.ProgressPercent = null; // 压缩完成，清理
@@ -303,54 +305,30 @@ public partial class ChatScreen : TuiScreen
             ? (string.IsNullOrEmpty(tool) ? $"⏳排队{_queuedCount}" : $"{tool} · ⏳排队{_queuedCount}")
             : tool;
 
-        // 等待权限
-        if (_pendingPermissionTool != null)
-        {
-            DynamicBar.Status = AgentStatus.WaitingPerm;
-            DynamicBar.LeftText = $"等待确认: {_pendingPermissionTool}";
-            DynamicBar.ToolText = WithQueue("");
-            return;
-        }
-
-        // 工具执行中
-        if (_currentToolName != null)
-        {
-            DynamicBar.Status = AgentStatus.ToolRunning;
-            DynamicBar.LeftText = _currentToolName;
-            DynamicBar.ToolText = WithQueue(_currentToolBrief ?? "");
-            return;
-        }
-
-        // Agent 思考中
-        if (AgentBusy)
-        {
-            DynamicBar.Status = AgentStatus.Thinking;
-            DynamicBar.LeftText = StatusLeft;
-            DynamicBar.ToolText = WithQueue("");
-            return;
-        }
-
-        // 非 Build 模式时显示当前工作模式（Build=默认，不特殊显示）
-        var mode = WorkModeManager.CurrentMode;
-        if (mode != WorkMode.Build)
-        {
-            var (emoji, label, tooltip) = mode switch
-            {
-                WorkMode.Plan => ("🧠", "计划模式", "只读分析 · 阻止写操作"),
-                WorkMode.Chat => ("💬", "聊天模式", "纯聊天 · 无工具"),
-                _ => ("", "未知", ""),
-            };
-            DynamicBar.Status = AgentStatus.Planning;
-            DynamicBar.LeftText = $"{emoji} {label}";
-            DynamicBar.ToolText = $"{tooltip} · Shift+Tab 切换";
-            return;
-        }
-
-        // 空闲
-        DynamicBar.Status = AgentStatus.Idle;
-        DynamicBar.LeftText = StatusLeft;
-        DynamicBar.ToolText = "";
+        // 统一状态解析器：思考/工具/等待用户/等待子代理/等待确认/压缩/完成瞬态/计划/空闲。
+        // 用真实 Agent 忙碌（Agent.IsBusy）修「思考中」死分支（原 AgentBusy 从未被置 true）。
+        bool busy = ProgramContext.Agent?.IsBusy == true || AgentBusy;
+        var tool = _currentToolName;
+        var view = AgentStatusResolver.Resolve(new AgentStatusInput(
+            Busy: busy,
+            ToolName: tool,
+            Compressing: ContextManager.IsCompressing,
+            WaitingPermission: _pendingPermissionTool != null,
+            WaitingUser: tool == "ask_user_question",
+            WaitingSubagent: tool == "agent",
+            Mode: WorkModeManager.CurrentMode,
+            RecentComplete: _completeAtTicks != 0 &&
+                            Environment.TickCount64 - _completeAtTicks < CompleteWindowMs));
+        DynamicBar.Status = view.Status;
+        DynamicBar.LeftText = view.Text;
+        // 工具执行时中段显示参数摘要，其余状态显示解析器 Detail（如压缩工具名）
+        DynamicBar.ToolText = view.Status == AgentStatus.ToolRunning
+            ? WithQueue(_currentToolBrief ?? view.Detail ?? "")
+            : WithQueue(view.Detail ?? "");
     }
+
+    /// <summary>本轮 Agent 任务完成（ChatAsync 返回）：打时间戳，动态栏短暂显示「任务完成 ✓」。</summary>
+    public void OnAgentCompleted() => _completeAtTicks = Environment.TickCount64;
 
     /// <summary>
     /// 同步模型/模式信息行（输入区下方、状态栏上方）：权限/工作模式/经济模式/大模型/小模型，`·` 分隔。

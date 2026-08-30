@@ -86,6 +86,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             slotArr.Add(JNode.Object()
                 .Set("slot", i)
                 .Set("model", a?.LlmClient.EffectiveModel ?? "")
+                .Set("providerId", a != null ? SlotProvider(a) : "")
+                .Set("workMode", a?.WorkMode.ToString().ToLowerInvariant() ?? "")
                 .Set("hasHistory", a != null && HasHistory(a))
                 .Set("busy", busy != null && i < busy.Length && busy[i]));
         }
@@ -104,6 +106,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             // 模型栏显示：`(provider)model` —— 即使同名模型分属不同服务商也能区分
             .Set("modelLabel", ConnectionConfig.FormatModel(providerId, cfg.Model))
             .Set("smallModelLabel", ConnectionConfig.FormatModel(smallProviderId, cfg.SmallModel))
+            // 当前大小模型的实际供应商：前端勾选/选中判断用它精确定位（同 id 跨供应商不误勾）
+            .Set("smallProvider", smallProviderId)
             .Set("economy", cfg.EconomyMode.ToString().ToLowerInvariant())
             .Set("provider", providerId)
             .Set("providerName", ModelCatalog.Providers.TryGetValue(providerId, out var p) ? p.DisplayName : providerId)
@@ -125,6 +129,14 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             .Set("label", label)
             .Set("percent", percent)
             .Set("done", done)
+            .ToJson();
+
+    /// <summary>序列化 Agent 状态事件（动态状态栏）。纯函数 AOT 安全：StatusKey 为 switch 定名，不反射枚举。</summary>
+    public static string SerializeStatus(AgentStatusView view)
+        => JNode.Object()
+            .Set("status", AgentStatusResolver.StatusKey(view.Status))
+            .Set("text", view.Text)
+            .Set("tool", view.Detail ?? "")
             .ToJson();
 
     /// <summary>序列化设置面板数据（SettingSchema 按 Category 分组，secret 显示 masked）。</summary>
@@ -205,6 +217,16 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             if (!string.IsNullOrEmpty(m["content"]?.AsString())) return true;
         }
         return false;
+    }
+
+    /// <summary>槽位 Agent 实际生效模型的服务商：按 (id, baseUrl) 精确反查（同 id 跨供应商不误配），
+    /// 未知返回空。供前端模型栏带服务商显示。</summary>
+    private static string SlotProvider(Agent a)
+    {
+        var llm = a?.LlmClient;
+        if (llm == null || string.IsNullOrEmpty(llm.EffectiveModel)) return "";
+        var info = ModelCatalog.Find(llm.EffectiveModel, llm.BaseUrl);
+        return info?.ProviderId ?? "";
     }
 
     /// <summary>序列化右栏信息面板（任务/token/费用/修改文件/MCP/LSP）。纯静态便于自测。</summary>

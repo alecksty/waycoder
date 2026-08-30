@@ -5,6 +5,7 @@ using WayCoder.Maui.Markup;
 using WayCoder.Maui.Models;
 using WayCoder.Maui.Services;
 using WayCoder.Tools;
+using WayCoder.UI.Shared;
 using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder.Maui.Pages;
@@ -97,13 +98,14 @@ public partial class ChatPage : ContentPage
         sb.Append("… 已截断（显示最近内容，旧内容滚动省略）…\n").Append(tail);
     }
 
-    // ── 输入框上方动态状态栏：多状态（空闲/思考/执行工具/等待确认）+ Braille 旋转动画 ──
+    // ── 输入框上方动态状态栏：多状态（空闲/思考/执行工具/等待确认/等待用户/等待子代理/完成/压缩）+ Braille 旋转动画 ──
     private IDispatcherTimer? _statusTimer;
     private int _spinnerFrame;
-    private static readonly string[] SpinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    private static readonly string[] SpinnerFrames = AgentStatusResolver.SpinnerFrames; // 跨端统一帧集
 
-    private enum AgentUiState { Idle, Thinking, Tool, WaitingPermission, Compressing }
-    private AgentUiState _uiState = AgentUiState.Idle;
+    private const long CompleteWindowMs = 2500; // 任务完成瞬态窗口（毫秒）
+    private AgentStatus _uiState = AgentStatus.Idle;
+    private DateTime _completeAt;               // 任务完成时间戳（完成瞬态回落用）
     private string _toolName = "";
     private string _compressStatusText = "";   // 上下文压缩进度（状态栏显示，不进入聊天区）
 
@@ -196,13 +198,13 @@ public partial class ChatPage : ContentPage
 
     private void OnPermissionStarted(string _)
     {
-        if (_agent.IsRunning) _uiState = AgentUiState.WaitingPermission;
+        if (_agent.IsRunning) _uiState = AgentStatus.WaitingPermission;
     }
 
     private void OnPermissionResolved(string _)
     {
-        if (_uiState == AgentUiState.WaitingPermission)
-            _uiState = _agent.IsRunning ? AgentUiState.Thinking : AgentUiState.Idle;
+        if (_uiState == AgentStatus.WaitingPermission)
+            _uiState = _agent.IsRunning ? AgentStatus.Thinking : AgentStatus.Idle;
     }
 
     /// <summary>启动动态状态栏动画定时器（100ms 一帧旋转图标）。</summary>
@@ -215,24 +217,34 @@ public partial class ChatPage : ContentPage
         _statusTimer.Start();
     }
 
-    /// <summary>每帧刷新动态状态栏：空闲隐藏；其余状态显示旋转图标 + 状态文本。</summary>
+    /// <summary>每帧刷新动态状态栏：空闲隐藏；其余状态显示旋转图标 + 状态文本（共享解析器统一文案）。</summary>
     private void TickStatusBar()
     {
-        if (_uiState == AgentUiState.Idle)
+        if (_uiState == AgentStatus.Idle)
         {
             AgentStatusBar.IsVisible = false;
             return;
         }
-        AgentStatusBar.IsVisible = true;
-        _spinnerFrame = (_spinnerFrame + 1) % SpinnerFrames.Length;
-        AgentStatusIcon.Text = SpinnerFrames[_spinnerFrame];
-        AgentStatusText.Text = _uiState switch
+        // 任务完成瞬态 2.5s 后回落
+        if (_uiState == AgentStatus.Complete && (DateTime.UtcNow - _completeAt).TotalMilliseconds >= CompleteWindowMs)
         {
-            AgentUiState.WaitingPermission => "等待确认中...",
-            AgentUiState.Tool => $"🔧 执行工具 {_toolName}...",
-            AgentUiState.Compressing => _compressStatusText,
-            _ => "思考中...",
-        };
+            _uiState = _agent.IsRunning ? AgentStatus.Thinking : AgentStatus.Idle;
+            if (_uiState == AgentStatus.Idle) { AgentStatusBar.IsVisible = false; return; }
+        }
+        AgentStatusBar.IsVisible = true;
+        _spinnerFrame = (_spinnerFrame + 1) % AgentStatusResolver.SpinnerFrames.Length;
+        AgentStatusIcon.Text = AgentStatusResolver.SpinnerFrames[_spinnerFrame];
+        var view = AgentStatusResolver.Resolve(new AgentStatusInput(
+            Busy: _uiState != AgentStatus.Idle,
+            ToolName: _toolName,
+            Compressing: _uiState == AgentStatus.Compressing,
+            WaitingPermission: _uiState == AgentStatus.WaitingPermission,
+            WaitingUser: _uiState == AgentStatus.WaitingUser,
+            WaitingSubagent: _uiState == AgentStatus.WaitingSubagent,
+            Mode: AgentService.CurrentAgent?.WorkMode ?? WorkMode.Build,
+            RecentComplete: _uiState == AgentStatus.Complete));
+        // 压缩显示带进度的详细文本；其余用解析器统一文字
+        AgentStatusText.Text = _uiState == AgentStatus.Compressing ? _compressStatusText : view.Text;
     }
 
     /// <summary>上下文压缩进度 → 状态栏（压缩是背景状态，不进入聊天区）。</summary>
@@ -241,7 +253,7 @@ public partial class ChatPage : ContentPage
         MainThread.BeginInvokeOnMainThread(() =>
         {
             _compressStatusText = $"🔄 压缩中 [L{layer}/3] {label} {pct:P0}";
-            _uiState = AgentUiState.Compressing;
+            _uiState = AgentStatus.Compressing;
         });
     }
 
@@ -250,8 +262,8 @@ public partial class ChatPage : ContentPage
         MainThread.BeginInvokeOnMainThread(() =>
         {
             _compressStatusText = "";
-            if (_uiState == AgentUiState.Compressing)
-                _uiState = _agent.IsRunning ? AgentUiState.Thinking : AgentUiState.Idle;
+            if (_uiState == AgentStatus.Compressing)
+                _uiState = _agent.IsRunning ? AgentStatus.Thinking : AgentStatus.Idle;
         });
     }
 
@@ -362,7 +374,22 @@ public partial class ChatPage : ContentPage
         await DisplayActionSheetAsync($"任务列表（{items.Count}）", "关闭", null, items.Take(20).ToArray());
     }
 
+    /// <summary>发送按钮（单按钮）：空闲=发送；忙时点一下=停止当前任务（取消本轮 + 清空排队）。
+    /// 忙时想发下一条消息用虚拟键盘「发送」键（OnEditorCompleted，忙时进队列）。</summary>
     private async void OnSendClicked(object? sender, EventArgs e)
+    {
+        if (_agent.IsRunning) { StopCurrent(); return; }
+        await SendOrQueueAsync();
+    }
+
+    /// <summary>虚拟键盘「发送」键：空闲=发送；忙时=进队列（消息立即上屏标「排队中」，忙完自动执行）。</summary>
+    private async void OnEditorCompleted(object? sender, EventArgs e)
+    {
+        await SendOrQueueAsync();
+    }
+
+    /// <summary>发送 / 排队公共入口：斜杠命令即时执行；忙时消息进队列（对齐桌面端回车语义）。</summary>
+    private async Task SendOrQueueAsync()
     {
         var text = InputBox.Text?.Trim();
         if (string.IsNullOrEmpty(text)) return;
@@ -425,7 +452,7 @@ public partial class ChatPage : ContentPage
     /// <summary>停止当前一轮 + 清空排队（用户点停止 = 全部停，不只是当前轮）。
     /// 否则队列下一条在 RunOneMessageAsync 取消返回后仍会被 ProcessQueueAsync 取走执行，
     /// 用户以为全停、实际排队消息继续跑。</summary>
-    private void OnStopClicked(object? sender, EventArgs e)
+    private void StopCurrent()
     {
         _cts?.Cancel();
         while (_sendQueue.Count > 0)
@@ -480,8 +507,7 @@ public partial class ChatPage : ContentPage
         AgentService.SetActiveCts(_cts); // 注册给 App 生命周期：切后台（来电/Home/锁屏）时取消在途请求
         _lastReasoningLen = 0;
         _lastReasoningUpdate = DateTime.MinValue;
-        SendBtn.Text = "↑";
-        StopBtn.IsVisible = true;
+        SendBtn.Text = "■"; // 忙时按钮 = 停止
         var sw = System.Diagnostics.Stopwatch.StartNew();
         bool cancelled = false;
 
@@ -494,7 +520,7 @@ public partial class ChatPage : ContentPage
                     // 进度已由 CompressProgress 事件进状态栏，这里不进入聊天内容
                     if (token.StartsWith("🔄 [", StringComparison.Ordinal))
                         return;
-                    _uiState = AgentUiState.Thinking;
+                    _uiState = AgentStatus.Thinking;
                     if (inReasoning)
                     {
                         if (token == "«/»" || token == "«/»\n")
@@ -530,7 +556,13 @@ public partial class ChatPage : ContentPage
                 },
                 (name, summary) =>
                 {
-                    _uiState = AgentUiState.Tool;
+                    // 按工具名分派：ask_user_question=等待用户回复、agent=等待子代理、其余=使用工具中
+                    _uiState = name switch
+                    {
+                        "ask_user_question" => AgentStatus.WaitingUser,
+                        "agent" => AgentStatus.WaitingSubagent,
+                        _ => AgentStatus.ToolRunning,
+                    };
                     _toolName = name;
                     _currentToolMsg = new ChatMessage
                     {
@@ -568,11 +600,11 @@ public partial class ChatPage : ContentPage
             aiMsg.RawText = contentSb.ToString();
             aiMsg.Reasoning = reasoningSb.ToString();   // 节流后补齐最终思考全文
             aiMsg.Formatted = MarkupToFormattedString.Convert(contentSb.ToString(), isDark); // 节流后补齐最终富文本
-            SendBtn.Text = "↑";
-            StopBtn.IsVisible = false;
+            SendBtn.Text = "↑"; // 空闲恢复 = 发送
             AgentService.SetActiveCts(null);
             _cts = null;
-            _uiState = AgentUiState.Idle;
+            _uiState = cancelled ? AgentStatus.Idle : AgentStatus.Complete; // 任务完成瞬态（取消/异常直接回空闲）
+            if (!cancelled) _completeAt = DateTime.UtcNow;
             RefreshStatusBar();
             if (Messages.Count > 0) MauiSessionStore.Save(Messages); // 每轮结束落盘，退出/重启可恢复
 

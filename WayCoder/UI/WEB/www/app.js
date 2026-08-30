@@ -43,6 +43,26 @@ function showCompress(d) {
   el.classList.add('show');
 }
 
+// ── Agent 动态状态栏（消息区与输入框之间）：状态文字 + Braille 等待动画 ──
+const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+const statusBar = document.getElementById('agent-status-bar');
+const statusTextEl = document.getElementById('agent-status-text');
+const statusSpinEl = document.getElementById('agent-status-spin');
+let statusActive = false, statusSpinI = 0;
+function setStatus(d) {
+  const key = (d && d.status) || 'idle';
+  statusTextEl.textContent = (d && d.text) || '空闲';
+  statusActive = key !== 'idle'; // 空闲隐藏整条
+  statusBar.classList.toggle('show', statusActive);
+  // 任务完成瞬态：2.5s 后回落空闲（隐藏）
+  if (key === 'complete') setTimeout(() => setStatus({ status: 'idle', text: '' }), 2500);
+}
+setInterval(() => {
+  if (!statusActive) return;
+  statusSpinI = (statusSpinI + 1) % SPINNER_FRAMES.length;
+  statusSpinEl.textContent = SPINNER_FRAMES[statusSpinI];
+}, 100);
+
 function scroll() { messages.scrollTop = messages.scrollHeight; }
 function addMsg(role, text) {
   const el = document.createElement('div');
@@ -120,6 +140,14 @@ function applyPermMode(mode) {
 permSelect.onchange = () =>
   fetch('/permit', { method: 'POST', body: JSON.stringify({ mode: permSelect.value }) }).catch(() => {});
 
+// ── 工作模式（行为轴：建造/计划/聊天，槽位实例级）→ 走 /mode（改绑定槽位 Agent 实例）
+const workModeSelect = document.getElementById('work-mode-select');
+function applyWorkMode(mode) {
+  if (mode && workModeSelect && workModeSelect.value !== mode) workModeSelect.value = mode;
+}
+workModeSelect.onchange = () =>
+  fetch('/mode', { method: 'POST', body: JSON.stringify({ action: 'set', mode: workModeSelect.value }) }).catch(() => {});
+
 // ── 槽位（左栏）──
 let currentSlot = 0;          // 本页面当前绑定的槽位
 const slotDrafts = {};        // 槽位索引 → 未发送的输入草稿（切换槽位时各自保留）
@@ -128,6 +156,8 @@ let slotsBusy = [];             // 槽位索引 → 是否后台忙碌（来自�
 function renderSlots(state) {
   currentSlot = state.activeSlot;
   slotsBusy = (state.slots || []).map(s => !!s.busy);
+  // 工作模式是槽位实例级：显示本页面绑定槽位的模式（state.slots[activeSlot].workMode）
+  applyWorkMode((state.slots && state.slots[state.activeSlot]) ? state.slots[state.activeSlot].workMode : '');
   document.getElementById('agent-label').textContent = '智能体' + (state.activeSlot + 1);
   slotsEl.innerHTML = '';
   for (let i = 0; i < state.slots.length; i++) {
@@ -135,7 +165,7 @@ function renderSlots(state) {
     const b = document.createElement('div');
     b.className = 'slot' + (i === state.activeSlot ? ' active' : '') + (s.hasHistory ? ' has' : '');
     b.textContent = 'F' + (i + 1);
-    b.title = s.model ? ('F' + (i + 1) + ' · ' + s.model) : ('F' + (i + 1) + ' · 空');
+    b.title = s.model ? ('F' + (i + 1) + ' · (' + (s.providerId || '?') + ')' + s.model) : ('F' + (i + 1) + ' · 空');
     b.onclick = () => switchSlot(i);
     slotsEl.appendChild(b);
   }
@@ -292,10 +322,18 @@ let modelMap = {};
 let allModels = [];
 let currentModelId = '';
 let currentSmallModel = '';
+let currentSmallProvider = '';   // 当前小模型实际供应商（state.smallProvider，勾选精确匹配用）
+let selectedProviderId = '';     // 弹窗内暂选行的供应商（与 selectedModelId 一起精确定位一行）
 let pendingModelId = '';
 let pendingSmallModelId = '';
 let selectedModelId = '';
 let pendingMode = '';   // 'large' | 'small' — 当前弹窗为谁选模型
+// 精确找 (id, providerId) 的模型；找不到回退按 id（modelMap 末尾条目）。同 id 跨供应商（minimax 多网关）必须带供应商定位。
+function findModel(id, pid) {
+  if (!id) return null;
+  const exact = allModels.find(x => x.id === id && x.providerId === (pid || ''));
+  return exact || modelMap[id] || null;
+}
 let scanMap = {};       // providerId -> 'ok' | 'fail'
 function renderModels(models, state) {
   modelMap = {};
@@ -303,6 +341,8 @@ function renderModels(models, state) {
   models.forEach(m => { modelMap[m.id] = m; });
   currentModelId = state.model || currentModelId;
   currentSmallModel = state.smallModel || currentSmallModel;
+  currentProvider = state.provider || currentProvider;
+  currentSmallProvider = state.smallProvider || currentSmallProvider;
   renderModelBar(state);
 }
 function fetchModels() {
@@ -320,13 +360,21 @@ function renderModelBar(state) {
   if (allModels.length && eco.options.length === 0) {
     ECONOMY_OPTIONS.forEach(([v, l]) => { const op = document.createElement('option'); op.value = v; op.textContent = l; eco.appendChild(op); });
   }
-  // 优先显示当前槽位实际模型（/sessions/load 可覆盖槽位模型），回退全局默认
-  const slotModel = (state.slots && state.slots[state.activeSlot]) ? state.slots[state.activeSlot].model : '';
-  const big = modelMap[slotModel || state.model || currentModelId];
-  const small = modelMap[state.smallModel || currentSmallModel];
-  document.getElementById('big-model-label').textContent = big ? big.name : (slotModel || state.model || currentModelId || '选择');
-  document.getElementById('small-model-label').textContent = small ? small.name : (state.smallModel || currentSmallModel || '选择');
+  // 优先显示当前槽位实际模型（/sessions/load 可覆盖槽位模型），回退全局默认。
+  // 带服务商精确定位 + 显示：同 id 跨供应商用 (服务商) 区分，一眼看出当前是哪个服务商的模型
+  const slot = (state.slots && state.slots[state.activeSlot]) ? state.slots[state.activeSlot] : null;
+  const slotModel = slot ? slot.model : '';
+  const slotProvider = (slot && slot.providerId) || currentProvider;
+  const big = findModel(slotModel || state.model || currentModelId, slotProvider);
+  const small = findModel(state.smallModel || currentSmallModel, currentSmallProvider);
+  document.getElementById('big-model-label').textContent = big ? formatModelLabel(big) : (slotModel || state.model || currentModelId || '选择');
+  document.getElementById('small-model-label').textContent = small ? formatModelLabel(small) : (state.smallModel || currentSmallModel || '选择');
   if (state.economy) eco.value = state.economy;
+}
+
+// 模型标签：`(服务商)模型` —— 同 id 跨供应商（minimax 多网关）标明当前所属服务商
+function formatModelLabel(m) {
+  return m ? ('(' + (m.providerId || '?') + ')' + m.id) : '选择';
 }
 document.getElementById('big-model-btn').onclick = () => openModelModal('large');
 document.getElementById('small-model-btn').onclick = () => openModelModal('small');
@@ -350,6 +398,7 @@ function openModelModal(mode) {
   pendingMode = mode;
   const isSmall = mode === 'small';
   selectedModelId = isSmall ? currentSmallModel : currentModelId;
+  selectedProviderId = isSmall ? currentSmallProvider : currentProvider;
   document.getElementById('model-title').textContent = isSmall ? '🔧 选择小模型' : '🤖 选择大模型';
   document.getElementById('model-search').value = '';
   document.getElementById('model-scan-status').textContent = '';
@@ -389,7 +438,8 @@ function renderModelList(filter) {
     g.appendChild(gn);
     byProvider[pid].forEach(m => {
       const item = document.createElement('div');
-      item.className = 'model-item' + (m.id === selectedModelId ? ' selected' : '');
+      // 选中行按 (id + providerId) 精确定位：同 id 跨供应商只高亮用户点的那行
+      item.className = 'model-item' + (m.id === selectedModelId && m.providerId === selectedProviderId ? ' selected' : '');
       const key = document.createElement('span');
       key.className = 'key';
       key.textContent = m.hasKey ? '🔑' : '';
@@ -406,12 +456,13 @@ function renderModelList(filter) {
       const price = document.createElement('span');
       price.className = 'price';
       price.textContent = formatPrice(m);
+      // 大/小勾按 (id + 实际供应商) 精确定位：同 id 跨供应商（minimax 多网关）不误勾
       const large = document.createElement('span');
       large.className = 'chk';
-      large.textContent = m.id === currentModelId ? '✓' : '';
+      large.textContent = (m.id === currentModelId && m.providerId === currentProvider) ? '✓' : '';
       const small = document.createElement('span');
       small.className = 'chk';
-      small.textContent = m.id === currentSmallModel ? '✓' : '';
+      small.textContent = (m.id === currentSmallModel && m.providerId === currentSmallProvider) ? '✓' : '';
       const modelStatus = document.createElement('span');
       modelStatus.className = 'status';
       modelStatus.textContent = m.hasKey ? statusText(scanMap[pid]) : '无key';
@@ -426,6 +477,7 @@ function renderModelList(filter) {
 }
 function selectModel(m) {
   selectedModelId = m.id;
+  selectedProviderId = m.providerId;
   renderModelList(document.getElementById('model-search').value);
 }
 function chooseModel(m) {
@@ -446,18 +498,20 @@ function chooseModel(m) {
   const url = isSmall ? '/settings' : cq('/model');
   fetch(url, { method: 'POST', body: JSON.stringify(body) })
     .then(() => {
-      if (isSmall) currentSmallModel = m.id; else currentModelId = m.id;
-      selectedModelId = ''; pendingMode = '';
+      // 本地同步当前大小模型的 id + 实际供应商（勾选判断用，下次 state 事件以服务端为准覆盖）
+      if (isSmall) { currentSmallModel = m.id; currentSmallProvider = m.providerId; }
+      else { currentModelId = m.id; currentProvider = m.providerId; }
+      selectedModelId = ''; selectedProviderId = ''; pendingMode = '';
       renderModelBar({});
       document.getElementById('model-modal').classList.remove('open');
     })
     .catch(() => {});
 }
 function confirmModel() {
-  const m = modelMap[selectedModelId];
+  const m = findModel(selectedModelId, selectedProviderId);
   if (m) chooseModel(m);
 }
-function closeModelModal() { selectedModelId = ''; pendingMode = ''; document.getElementById('model-modal').classList.remove('open'); }
+function closeModelModal() { selectedModelId = ''; selectedProviderId = ''; pendingMode = ''; document.getElementById('model-modal').classList.remove('open'); }
 document.getElementById('model-search').oninput = e => renderModelList(e.target.value);
 document.getElementById('model-close').onclick = closeModelModal;
 document.getElementById('model-cancel').onclick = closeModelModal;
@@ -614,7 +668,7 @@ document.getElementById('model-opencode-btn').onclick = () => {
 
 // ── 设置 / 清除 key（对当前选中的模型所属供应商）──
 document.getElementById('model-set-key-btn').onclick = () => {
-  const m = modelMap[selectedModelId];
+  const m = findModel(selectedModelId, selectedProviderId);
   const status = document.getElementById('model-scan-status');
   if (!m) { status.textContent = '请先选择一个模型'; return; }
   if (m.providerId === 'local' || m.providerId === 'custom') { status.textContent = '本地模型无需 API Key'; return; }
@@ -625,7 +679,7 @@ document.getElementById('model-set-key-btn').onclick = () => {
   keyModal.classList.add('open');
 };
 document.getElementById('model-clear-key-btn').onclick = () => {
-  const m = modelMap[selectedModelId];
+  const m = findModel(selectedModelId, selectedProviderId);
   const status = document.getElementById('model-scan-status');
   if (!m) { status.textContent = '请先选择一个模型'; return; }
   if (m.providerId === 'local' || m.providerId === 'custom') { status.textContent = '本地模型无需 API Key'; return; }
@@ -636,7 +690,7 @@ document.getElementById('model-clear-key-btn').onclick = () => {
 
 // ── 保存（持久化选中模型，不中断当前会话）──
 document.getElementById('model-save-btn').onclick = () => {
-  const m = modelMap[selectedModelId];
+  const m = findModel(selectedModelId, selectedProviderId);
   const status = document.getElementById('model-scan-status');
   if (!m) { status.textContent = '请先选择一个模型'; return; }
   const isSmall = pendingMode === 'small';
@@ -662,16 +716,17 @@ function saveKey() {
     .then(() => {
       hasKey = true;
       keyModal.classList.remove('open');
+      // 输入 key 后应用暂选模型：带供应商一起提交（同 id 跨供应商不选错网关），并同步本地选中态
       if (pendingModelId) {
         const id = pendingModelId; pendingModelId = '';
-        fetch(cq('/model'), { method: 'POST', body: JSON.stringify({ modelId: id }) })
+        fetch(cq('/model'), { method: 'POST', body: JSON.stringify({ modelId: id, providerId: currentProvider }) })
           .then(() => { currentModelId = id; renderModelBar({}); })
           .catch(() => {});
       }
       if (pendingSmallModelId) {
         const id = pendingSmallModelId; pendingSmallModelId = '';
-        fetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'SmallModel', value: id }) })
-          .then(() => { currentSmallModel = id; renderModelBar({}); })
+        fetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'SmallModel', value: id, providerId: currentProvider }) })
+          .then(() => { currentSmallModel = id; currentSmallProvider = currentProvider; renderModelBar({}); })
           .catch(() => {});
       }
       fetchModels();
@@ -1078,9 +1133,10 @@ function addShellOutput(text) {
 }
 
 function send(fromButton) {
-  // 任务运行中：只有点停止按钮(⏹)才中断；回车(发送)绝不停止任务
-  if (isBusy) {
-    if (fromButton) fetch(cq('/interrupt'), { method: 'POST' }).catch(() => {});
+  // 任务运行中：点按钮(⏹)=停止当前任务；回车(发送)=排队 —— 消息立即上屏并标「排队中」，
+  // 后端 StartSlotTask 忙时入队，当前批次完成后自动取下一个执行（忙时消息绝不吞）。
+  if (isBusy && fromButton) {
+    fetch(cq('/interrupt'), { method: 'POST' }).catch(() => {});
     return;
   }
   hideSuggest();
@@ -1093,7 +1149,7 @@ function send(fromButton) {
   // 纯 UI 斜杠命令（操作 DOM，不进入聊天流）
   if (handleUiCommand(text)) return;
 
-  addMsg('user', text);
+  addMsg('user', isBusy ? text + '\n⏳ 排队中…' : text);
 
   // !Shell 指令 → 直接执行并显示输出（对标 Claude Code `!`）
   if (text.startsWith('!') && text.length > 1) {
@@ -1622,6 +1678,7 @@ es.addEventListener('history', e => {
 es.addEventListener('state', e => {
   const state = JSON.parse(e.data);
   currentProvider = state.provider;
+  currentSmallProvider = state.smallProvider || currentSmallProvider;
   hasKey = state.hasKey;
   applyPermMode(state.permMode);
   renderSlots(state);
@@ -1636,12 +1693,14 @@ es.addEventListener('sessions', () => fetchSessions());
 es.addEventListener('system', e => { addMsg('system', JSON.parse(e.data)); });
 es.addEventListener('ask', e => showAsk(JSON.parse(e.data)));
 es.addEventListener('compress', e => showCompress(JSON.parse(e.data)));
+es.addEventListener('status', e => setStatus(JSON.parse(e.data))); // 动态状态栏（思考/工具/压缩/等待/完成）
 
 // ── 初始化 ──
 updateSendState(); // 空输入禁用发送按钮
 applyTheme(localStorage.getItem('waycoder-theme') || 'dark');
 fetch(cq('/state')).then(r => r.json()).then(state => {
   currentProvider = state.provider;
+  currentSmallProvider = state.smallProvider || currentSmallProvider;
   hasKey = state.hasKey;
   applyPermMode(state.permMode);
   renderSlots(state);

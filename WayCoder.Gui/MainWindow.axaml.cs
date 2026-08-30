@@ -11,6 +11,7 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using WayCoder.Tools;
+using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
 
 namespace WayCoder.UI.Gui;
@@ -22,14 +23,22 @@ public partial class MainWindow : Window
     private readonly Agent?[] _agents = new Agent?[SlotCount];
     private readonly List<ChatMessage>[] _messages = new List<ChatMessage>[SlotCount];
     private readonly CancellationTokenSource?[] _cts = new CancellationTokenSource?[SlotCount];
+    /// <summary>排队项：文本 + 排队时已上屏的消息气泡（轮到执行时复用更新「发送中」，避免重复上屏）。</summary>
+    private sealed record PendingItem(string Text, ChatMessage? Msg);
+
     /// <summary>各槽位待处理指令队列：Agent 忙碌时输入入队，当前批次完成后自动取下一个执行（输入排队机制）。</summary>
-    private readonly ConcurrentQueue<string>[] _pendingInputs =
-        Enumerable.Range(0, SlotCount).Select(_ => new ConcurrentQueue<string>()).ToArray();
+    private readonly ConcurrentQueue<PendingItem>[] _pendingInputs =
+        Enumerable.Range(0, SlotCount).Select(_ => new ConcurrentQueue<PendingItem>()).ToArray();
     private readonly Button[] _slotButtons = new Button[SlotCount];
     private readonly string[] _drafts = new string[SlotCount];
     /// <summary>各槽位是否在接收推理内容（«dim»…«/»，对齐 Web reasoning 分流）。</summary>
     private readonly bool[] _inReasoning = new bool[SlotCount];
     private DispatcherTimer? _rightTimer;
+    /// <summary>Agent 动态状态栏动画定时器（100ms 驱动 Braille 帧 + 刷新状态文字）。</summary>
+    private DispatcherTimer? _statusTimer;
+    private int _spinnerFrame;
+    /// <summary>各槽位任务完成时间戳（完成瞬态显示，TickCount64）。</summary>
+    private readonly long[] _completeAtTicks = new long[SlotCount];
     /// <summary>流式渲染合帧守卫：同一 UI 帧内多个 token 只触发一次气泡重渲染。</summary>
     private bool _renderPending;
     /// <summary>右侧面板刷新重入守卫（2s 定时 + 手动刷新防叠层）。</summary>
@@ -55,6 +64,51 @@ public partial class MainWindow : Window
         _rightTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _rightTimer.Tick += (_, _) => RefreshPanel();
         _rightTimer.Start();
+        // 动态状态栏：压缩/权限事件订阅 + 100ms 动画定时器（Braille 旋转 + 状态文字）
+        ContextManager.CompressProgress += OnCompressProgress;
+        ContextManager.CompressFinished += OnCompressFinished;
+        PermissionManager.PermissionPromptStarted += OnPermissionStarted;
+        PermissionManager.PermissionPromptResolved += OnPermissionResolved;
+        _statusTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+        _statusTimer.Tick += (_, _) =>
+        {
+            RefreshStatusBar(_activeSlot); // 先刷新显隐/文字
+            if (AgentStatusBar.IsVisible)
+            {
+                _spinnerFrame = (_spinnerFrame + 1) % AgentStatusResolver.SpinnerFrames.Length;
+                AgentStatusSpin.Text = AgentStatusResolver.SpinnerFrames[_spinnerFrame];
+            }
+        };
+        _statusTimer.Start();
+    }
+
+    /// <summary>压缩/权限状态变化 → 刷新动态状态栏（事件可能在后台线程触发，回 UI 线程）。</summary>
+    private void OnCompressProgress(int layer, string label, double pct)
+        => Dispatcher.UIThread.Post(() => RefreshStatusBar(_activeSlot));
+    private void OnCompressFinished()
+        => Dispatcher.UIThread.Post(() => RefreshStatusBar(_activeSlot));
+    private void OnPermissionStarted(string tool)
+        => Dispatcher.UIThread.Post(() => RefreshStatusBar(_activeSlot));
+    private void OnPermissionResolved(string tool)
+        => Dispatcher.UIThread.Post(() => RefreshStatusBar(_activeSlot));
+
+    /// <summary>刷新 Agent 动态状态栏（聊天与输入框之间）：空闲隐藏，其余显示状态文字（共享解析器统一文案）。</summary>
+    private void RefreshStatusBar(int slot)
+    {
+        if (slot < 0 || slot >= SlotCount) return;
+        var a = _agents[slot];
+        var view = AgentStatusResolver.Resolve(new AgentStatusInput(
+            Busy: _cts[slot] != null,
+            ToolName: a?.CurrentToolName,
+            Compressing: ContextManager.IsCompressing,
+            WaitingPermission: PermissionManager.PendingPermissionTool != null,
+            WaitingUser: a?.CurrentToolName == "ask_user_question",
+            WaitingSubagent: a?.CurrentToolName == "agent",
+            Mode: a?.WorkMode ?? WorkMode.Build,
+            RecentComplete: _completeAtTicks[slot] != 0 &&
+                            Environment.TickCount64 - _completeAtTicks[slot] < 2500));
+        AgentStatusBar.IsVisible = view.Status != AgentStatus.Idle;
+        AgentStatusText.Text = view.Text;
     }
 
     // ── 初始化 ──
@@ -113,10 +167,18 @@ public partial class MainWindow : Window
                 : new SolidColorBrush(Color.Parse("#1d2230"));
         RebuildMessages(slot);
         SlotLabel.Text = $"槽位 F{slot + 1}";
-        StopButton.IsEnabled = _cts[slot] != null;
-        SendButton.IsEnabled = _cts[slot] == null;
+        UpdateSendButtonState(slot); // 单按钮：空闲=发送(↑)，忙=停止(⏹)，始终可点
         RefreshPanel(); // Token 卡片切换活跃槽位
         RefreshSessions(); // 会话列表按槽位隔离
+        TrySendNextPending(slot); // 切回有排队消息的槽位时继续消费（修「放回队尾无触发点」卡死）
+    }
+
+    /// <summary>单按钮状态：空闲=发送(↑)，忙=停止(⏹)，始终可点（发送按钮兼停止，不额外加按钮）。</summary>
+    private void UpdateSendButtonState(int slot)
+    {
+        var busy = slot >= 0 && slot < _cts.Length && _cts[slot] != null;
+        SendButton.Content = busy ? "⏹" : "↑";
+        SendButton.IsEnabled = true;
     }
 
     /// <summary>把流式中的消息定稿（Streaming=false），供切槽位时调用。</summary>
@@ -200,6 +262,11 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _rightTimer?.Stop();
+        _statusTimer?.Stop();
+        ContextManager.CompressProgress -= OnCompressProgress;
+        ContextManager.CompressFinished -= OnCompressFinished;
+        PermissionManager.PermissionPromptStarted -= OnPermissionStarted;
+        PermissionManager.PermissionPromptResolved -= OnPermissionResolved;
         SaveAllSessions();
         GuiBootstrap.Shutdown(); // session-end hook（对齐 CLI 退出流程）
         base.OnClosed(e);
@@ -632,7 +699,6 @@ public partial class MainWindow : Window
         InputBox.Height = Math.Clamp(lines * 24, 56, 220);
     }
 
-    private void Stop_Click(object? sender, RoutedEventArgs e) => _cts[_activeSlot]?.Cancel();
 
     /// <summary>切换当前槽位模型（Phase 4 模型弹窗复用此逻辑）。</summary>
     internal void ApplyModel(string modelId, string? providerId = null, string? baseUrl = null)
@@ -877,27 +943,37 @@ public partial class MainWindow : Window
         return btn;
     }
 
-    private async Task SendAsync()
+    private async Task SendAsync(ChatMessage? firstUserMsg = null)
     {
         int slot = _activeSlot;
         var input = InputBox.Text?.Trim();
         if (string.IsNullOrEmpty(input)) return;
+
+        // 斜杠命令即时处理（忙时也执行，不排队，对齐 TUI/Web）
+        if (input.StartsWith('/') && input.Length > 1 && TryHandleCommand(input)) return;
+
         if (_cts[slot] != null)
         {
             // 排队：不打断当前任务 —— 指令入队，当前批次完成后由 finally 取下一个自动执行。
-            // 队列防无限增长：满则丢最旧保最新（与 Web/TUI 同语义），丢弃时提示用户避免静默吞消息。
+            // 排队消息立即上屏 + 标「排队中」；队列满则丢最旧并标记「已丢弃」，避免静默吞消息。
             bool dropped = false;
-            while (_pendingInputs[slot].Count >= Global.MaxPendingInput)
+            ChatMessage? droppedMsg = null;
+            while (_pendingInputs[slot].Count >= Global.MaxPendingSubmissions)
             {
-                _pendingInputs[slot].TryDequeue(out _);
+                _pendingInputs[slot].TryDequeue(out var old);
                 dropped = true;
+                droppedMsg = old?.Msg;
             }
-            _pendingInputs[slot].Enqueue(input);
+            var queuedMsg = AppendUser(slot, input + "\n⏳ 排队中…");
+            _pendingInputs[slot].Enqueue(new PendingItem(input, queuedMsg));
             InputBox.Text = "";
             _drafts[slot] = "";
-            AppendSystem(slot, dropped
-                ? "⚠️ 排队已满，丢弃最旧指令"
-                : "⏳ Agent 忙碌中 — 指令已排队，当前批次完成后自动执行");
+            if (dropped && droppedMsg != null)
+            {
+                droppedMsg.Text.Clear();
+                droppedMsg.Text.Append("❌ 已丢弃（排队已满）");
+                RebuildMessages(slot);
+            }
             return;
         }
         InputBox.Text = "";
@@ -907,27 +983,32 @@ public partial class MainWindow : Window
         try { agent = EnsureSlot(slot); }
         catch (Exception ex) { AppendSystem(slot, $"[错误] 初始化 Agent 失败：{ex.Message}"); return; }
 
-        // 斜杠命令（GUI 侧实现常用命令，对齐 Web /command）
-        if (input.StartsWith('/') && input.Length > 1 && TryHandleCommand(input)) return;
-
-        AppendUser(slot, input);
+        if (firstUserMsg != null)
+        {
+            // 复用排队时已上屏的消息气泡：更新为「发送中」（避免重复上屏）
+            firstUserMsg.Text.Clear();
+            firstUserMsg.Text.Append(input + "\n📤 发送中…");
+            RebuildMessages(slot);
+        }
+        else AppendUser(slot, input);
         EnsureAssistant(slot); // 先建 assistant 气泡，流式 token 直接追加
-        SendButton.Content = "⏹"; // busy 态 = 停止按钮
-        StopButton.IsEnabled = true;
         _cts[slot] = new CancellationTokenSource();
+        UpdateSendButtonState(slot); // 单按钮：忙 → ⏹ 停止
 
+        bool completed = false;
         try
         {
             // Task.Run 隔离：Agent 主循环（LLM SSE 流解析/工具执行）跑在后台线程，
             // 回调内已 Dispatcher.UIThread.Post 回 UI 渲染 —— 避免流式解析/同步工具卡 UI 线程
             await Task.Run(() => agent.ChatAsync(input,
-                onToken: t => Dispatcher.UIThread.Post(() => AppendToken(slot, t)),
-                onTool: (name, brief) => Dispatcher.UIThread.Post(() => AppendTool(slot, name, brief)),
+                onToken: t => Dispatcher.UIThread.Post(() => { RefreshStatusBar(slot); AppendToken(slot, t); }),
+                onTool: (name, brief) => Dispatcher.UIThread.Post(() => { RefreshStatusBar(slot); AppendTool(slot, name, brief); }),
                 onToolOutput: o => Dispatcher.UIThread.Post(() =>
                 {
-                    if (!string.IsNullOrEmpty(o)) AppendToolOutput(slot, o);
+                    if (!string.IsNullOrEmpty(o)) { RefreshStatusBar(slot); AppendToolOutput(slot, o); }
                 }),
                 cancellationToken: _cts[slot]!.Token));
+            completed = true;
         }
         catch (OperationCanceledException)
         {
@@ -942,11 +1023,9 @@ public partial class MainWindow : Window
             FinalizeStreaming(slot); // 流式结束定稿
             _cts[slot]?.Dispose();
             _cts[slot] = null;
-            if (slot == _activeSlot)
-            {
-                SendButton.Content = "↑";
-                StopButton.IsEnabled = false;
-            }
+            if (completed) _completeAtTicks[slot] = Environment.TickCount64; // 完成瞬态（2.5s「任务完成 ✓」）
+            if (slot == _activeSlot) UpdateSendButtonState(slot);
+            RefreshStatusBar(slot); // 状态栏回落（完成瞬态 / 空闲）
             RefreshPanel(); // 任务完成后立即刷新面板
             TrySendNextPending(slot); // 排队机制：取队列中的下一条指令继续执行
         }
@@ -958,14 +1037,14 @@ public partial class MainWindow : Window
         if (_pendingInputs[slot].TryDequeue(out var next))
         {
             // 槽位切换保护：用户已切走该槽位时，不把 A 槽的排队消息塞进当前活跃槽位的输入框发出
-            // （否则会作为 B 槽消息发送）——放回队尾，等切回该槽位时再处理。
+            // （否则会作为 B 槽消息发送）——放回队尾，切回该槽位时由 SwitchSlot 重新触发消费。
             if (_activeSlot != slot)
             {
                 _pendingInputs[slot].Enqueue(next);
                 return;
             }
-            InputBox.Text = next;
-            _ = SendAsync(); // fire-and-forget：继续处理下一条（SendAsync 内部判断 busy）
+            InputBox.Text = next.Text;
+            _ = SendAsync(next.Msg); // fire-and-forget：继续处理下一条（复用排队时已上屏的气泡）
         }
     }
 
@@ -973,11 +1052,12 @@ public partial class MainWindow : Window
     //  角色化消息追加（对齐 Web app.js 消息体系）
     // ═══════════════════════════════════════════════════════════
 
-    private void AppendUser(int slot, string text)
+    private ChatMessage AppendUser(int slot, string text)
     {
         var msg = new ChatMessage(ChatRole.User);
         msg.Text.Append(text);
         AddMessage(slot, msg);
+        return msg;
     }
 
     private void AppendSystem(int slot, string text)

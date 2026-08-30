@@ -230,13 +230,14 @@
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="20" />
                 </Border.StrokeShape>
-                <Editor
+                <Entry
                     x:Name="InputBox"
                     Placeholder="问点什么…"
-                    AutoSize="TextChanges"
                     MaxLength="8000"
                     Margin="12,0"
-                    VerticalOptions="Center" />
+                    VerticalOptions="Center"
+                    ReturnType="Send"
+                    Completed="OnEditorCompleted" />
             </Border>
             <Button
                 x:Name="SendBtn"
@@ -252,22 +253,7 @@
                 TextColor="White"
                 Clicked="OnSendClicked"
                 VerticalOptions="End"
-                SemanticProperties.Hint="发送消息（忙时排队）" />
-            <Button
-                x:Name="StopBtn"
-                Grid.Column="3"
-                Text="■"
-                FontSize="16"
-                WidthRequest="44"
-                HeightRequest="44"
-                CornerRadius="22"
-                Padding="0"
-                IsVisible="false"
-                BackgroundColor="#E5533D"
-                TextColor="White"
-                Clicked="OnStopClicked"
-                VerticalOptions="End"
-                SemanticProperties.Hint="停止" />
+                SemanticProperties.Hint="发送（忙时点=停止；键盘发送忙时排队）" />
         </Grid>
     </Grid>
 </ContentPage>

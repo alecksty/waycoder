@@ -41,6 +41,10 @@
         <span class="cpct" id="compress-pct"></span>
       </div>
       <div id="messages"></div>
+      <div id="agent-status-bar">
+        <span class="spin" id="agent-status-spin">⠋</span>
+        <span id="agent-status-text">就绪</span>
+      </div>
       <div id="input-dock">
       <div id="input-bar">
         <div id="composer">
@@ -52,19 +56,25 @@
               <button class="tool-btn" id="attach-btn" title="上传图片 / 音频">📎</button>
             </div>
             <div class="composer-models">
-              <button class="btn model-pick-btn" id="big-model-btn" title="选择大模型（复杂任务）">🤖 大模型: <b
-                  id="big-model-label">…</b></button>
-              <button class="btn model-pick-btn" id="small-model-btn" title="选择小模型（简单 / 压缩）">🔧 小模型: <b
-                  id="small-model-label">…</b></button>
-              <span class="model-bar-label">💰 省钱</span>
-              <select id="economy-select" title="省 Token 模式"></select>
-              <span class="model-bar-label">🛡 交互模式</span>
-              <select id="perm-select" title="交互模式（YOLO=直接执行 / Ask=每次确认）">
-                <option value="ask">Ask</option>
-                <option value="auto">Auto</option>
-                <option value="smartauto">SmartAuto</option>
-                <option value="yolo">YOLO</option>
+              <span class="model-bar-label">模式</span>
+              <select id="work-mode-select" title="工作模式（建造=完整工具 / 计划=只读规划 / 聊天=纯聊天）">
+                <option value="build">建造</option>
+                <option value="plan">计划</option>
+                <option value="chat">聊天</option>
               </select>
+              <span class="model-bar-label">权限</span>
+              <select id="perm-select" title="交互模式（畅通=直接执行 / 询问=每次确认）">
+                <option value="ask">询问</option>
+                <option value="auto">自动</option>
+                <option value="smartauto">智能</option>
+                <option value="yolo">畅通</option>
+              </select>
+              <span class="model-bar-label">经济</span>
+              <select id="economy-select" title="省 Token 模式"></select>
+              <button class="btn model-pick-btn" id="big-model-btn" title="选择大模型（复杂任务）">大: <b
+                  id="big-model-label">…</b></button>
+              <button class="btn model-pick-btn" id="small-model-btn" title="选择小模型（简单 / 压缩）">小: <b
+                  id="small-model-label">…</b></button>
             </div>
             <button class="send-btn" id="send" title="发送" aria-label="发送"><svg viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

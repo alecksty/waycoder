@@ -1401,7 +1401,7 @@ public partial class Program
                         s => s.BufferedAppendToLast(line + "\n")),
                     cancellationToken: ct);
 
-                Route(cs => { cs.Running = false; cs.FinishAgentMsg(); },
+                Route(cs => { cs.Running = false; cs.FinishAgentMsg(); cs.OnAgentCompleted(); },
                       s => s.BufferedFinishStream());
                 completed = true;
                 break; // 成功

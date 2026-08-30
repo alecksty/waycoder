@@ -130,6 +130,15 @@ public partial class Agent
     /// <summary>当前工具参数摘要（截断 80 码点）。</summary>
     public volatile string CurrentToolBrief = "";
 
+    /// <summary>本轮 ChatAsync 是否正在执行（思考中判定；volatile：后台线程写、UI 读）。</summary>
+    public volatile bool IsBusy;
+
+    /// <summary>是否阻塞在 ask_user_question 工具（等待用户回复）。</summary>
+    public bool IsWaitingUser => CurrentToolName == "ask_user_question";
+
+    /// <summary>是否阻塞在 agent 工具（等待子代理完成）。</summary>
+    public bool IsWaitingSubagent => CurrentToolName == "agent";
+
     /// <summary>当前主循环轮次（只读，供冻结快照）。</summary>
     public int CurrentRound => _currentRound;
 
@@ -406,6 +415,7 @@ public partial class Agent
         CancellationToken cancellationToken = default)
     {
         _chatStartedAt = DateTime.UtcNow;
+        IsBusy = true; // 思考中判定：UI 动态状态栏轮询读
 
         // 运行轨迹（对标 OpenClaw trajectory）：记录每轮 LLM 与每个工具调用的过程性元数据
         var trajectory = Trajectory.Create(LlmClient.EffectiveModel);
@@ -428,6 +438,7 @@ public partial class Agent
             // 无论正常完成/异常/取消，都落 run_end 汇总（累计轮次与 token）
             trajectory?.End();
             _trajectory = null;
+            IsBusy = false;
         }
     }
 

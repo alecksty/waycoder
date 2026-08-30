@@ -57,12 +57,19 @@ public partial class ProviderModelsPage : ContentPage
 
     private void Reload()
     {
-        var current = Config.Instance.Model;
-        var small = Config.Instance.SmallModel;
+        var cfg = Config.Instance;
+        var current = cfg.Model;
+        var small = cfg.SmallModel;
+        // 当前大/小模型的实际供应商：优先 cfg.Provider / cfg.SmallProvider（ApplyModelChoice 写入），
+        // 空则 Find 反推兜底。同 id 跨供应商（deepseek-v4-pro 分属 DeepSeek/AIHubMix）靠它区分勾选。
+        var bigProvider = ConnectionConfig.ResolveActiveProviderId(cfg);
+        var smallProvider = !string.IsNullOrWhiteSpace(cfg.SmallProvider)
+            ? cfg.SmallProvider.Trim().ToLowerInvariant()
+            : ModelCatalog.Find(small)?.ProviderId ?? "custom";
         var rows = ModelCatalog.ByProvider(_pid)
             .OrderBy(m => m.DisplayName)
             .Select(m => new ModelRow(
-                Marker(m.Id, current, small), m.DisplayName, m.Id,
+                Marker(_pid, m.Id, current, small, bigProvider, smallProvider), m.DisplayName, m.Id,
                 $"{FmtCtx(m.ContextWindow)} 上下文 · ${m.InputPrice:F2}/{m.OutputPrice:F2} MTok",
                 m.InputPrice == 0 && m.OutputPrice == 0))
             .ToList();
@@ -93,11 +100,16 @@ public partial class ProviderModelsPage : ContentPage
 
     private static string FmtCtx(int n) => n >= 1_000_000 ? $"{n / 1_000_000.0:F1}M" : n >= 1000 ? $"{n / 1000}k" : n.ToString();
 
-    /// <summary>两个选中勾：大✓ 小✓ 分开显示（大小模型可能是同一个，不能靠图标合并区分）。</summary>
-    private static string Marker(string id, string current, string small)
+    /// <summary>两个选中勾：大✓ 小✓ 分开显示（大小模型可能是同一个，不能靠图标合并区分）。
+    /// 只在「该行供应商 == 当前大小模型实际供应商」时打勾——同 id 跨供应商（deepseek-v4-pro
+    /// 分属 DeepSeek/AIHubMix）不会误勾，每个供应商只勾属于自己的那条。</summary>
+    private static string Marker(string pid, string id, string current, string small,
+        string bigProvider, string smallProvider)
     {
-        var big = string.Equals(id, current, StringComparison.OrdinalIgnoreCase) ? "大✓" : "";
-        var sm = string.Equals(id, small, StringComparison.OrdinalIgnoreCase) ? "小✓" : "";
+        var big = string.Equals(bigProvider, pid, StringComparison.OrdinalIgnoreCase)
+                  && string.Equals(id, current, StringComparison.OrdinalIgnoreCase) ? "大✓" : "";
+        var sm = string.Equals(smallProvider, pid, StringComparison.OrdinalIgnoreCase)
+                 && string.Equals(id, small, StringComparison.OrdinalIgnoreCase) ? "小✓" : "";
         return (big, sm) switch
         {
             ("", "") => "",
