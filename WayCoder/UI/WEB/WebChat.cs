@@ -55,6 +55,10 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         /// <summary>换模型暂停期标志（StartLock 保护）：置位时 TryStartNextPending 跳过启动新任务，
         /// 消除「旧批次 finally 启动排队指令的新 ChatAsync」与「Reconfigure 换模型」的并发竞态。</summary>
         public bool Quiescing;
+        /// <summary>最近一次广播的状态 key（去重：仅状态变化才发 status SSE，防每 token 刷屏）。</summary>
+        public string LastStatus = "";
+        /// <summary>本轮任务完成时间戳（完成瞬态显示用，TickCount64）。</summary>
+        public long CompleteAtTicks;
     }
 
     /// <summary>SSE 客户端（写失败 = 断开）。</summary>
@@ -90,6 +94,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         // 订阅上下文压缩事件：经 AsyncLocal 当前槽位把「压缩中」进度广播给对应页面
         ContextManager.CompressProgress += OnCompressProgress;
         ContextManager.CompressFinished += OnCompressFinished;
+        // 订阅权限等待事件：动态状态栏显示「等待确认中」
+        PermissionManager.PermissionPromptStarted += OnPermissionStarted;
+        PermissionManager.PermissionPromptResolved += OnPermissionResolved;
     }
 
     public void Stop()
@@ -99,17 +106,59 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             Interrupt(i);
         ContextManager.CompressProgress -= OnCompressProgress;
         ContextManager.CompressFinished -= OnCompressFinished;
+        PermissionManager.PermissionPromptStarted -= OnPermissionStarted;
+        PermissionManager.PermissionPromptResolved -= OnPermissionResolved;
         UxHelper.WebInteraction = null;
         _server.Stop();
     }
 
-    /// <summary>压缩进度（压缩线程内同步触发）：按当前槽位广播 compress 事件给对应页面。</summary>
+    /// <summary>任务完成瞬态窗口（毫秒）：done 后短暂显示「任务完成 ✓」再回落。</summary>
+    private const long CompleteWindowMs = 2500;
+
+    /// <summary>压缩进度（压缩线程内同步触发）：按当前槽位广播 compress 事件给对应页面 + 状态栏。</summary>
     private void OnCompressProgress(int layer, string label, double percent)
-        => BroadcastTo(_currentSlot.Value, "compress", SerializeCompress(layer, label, percent, done: false));
+    {
+        var slotIdx = _currentSlot.Value;
+        BroadcastTo(slotIdx, "compress", SerializeCompress(layer, label, percent, done: false));
+        BroadcastStatus(slotIdx); // 压缩中 → 动态状态栏
+    }
 
     /// <summary>压缩结束（无论是否实际压缩）：广播 done 事件，前端据此隐藏指示条。</summary>
     private void OnCompressFinished()
-        => BroadcastTo(_currentSlot.Value, "compress", SerializeCompress(0, "", 0, done: true));
+    {
+        var slotIdx = _currentSlot.Value;
+        BroadcastTo(slotIdx, "compress", SerializeCompress(0, "", 0, done: true));
+        BroadcastStatus(slotIdx); // 压缩结束回落
+    }
+
+    private void OnPermissionStarted(string toolName) => BroadcastStatus(_currentSlot.Value);   // 等待确认中
+    private void OnPermissionResolved(string toolName) => BroadcastStatus(_currentSlot.Value);  // 回落
+
+    /// <summary>广播 Agent 状态到指定槽位页面（去重：仅状态变化才发 status SSE，防每 token 刷屏）。
+    /// explicitToolName 用于 onTool 回调（工具名已确定，不等 CurrentToolName 轮询）。</summary>
+    private void BroadcastStatus(int slotIdx, string? explicitToolName = null)
+    {
+        if (slotIdx < 0 || slotIdx >= _slots.Length) return;
+        var slot = _slots[slotIdx];
+        var a = slot.Agent;
+        var tool = explicitToolName ?? a?.CurrentToolName;
+        var view = AgentStatusResolver.Resolve(new AgentStatusInput(
+            Busy: slot.IsBusy,
+            ToolName: tool,
+            Compressing: ContextManager.IsCompressing,
+            WaitingPermission: PermissionManager.PendingPermissionTool != null,
+            WaitingUser: tool == "ask_user_question",
+            WaitingSubagent: tool == "agent",
+            Mode: a?.WorkMode ?? WorkMode.Build,
+            RecentComplete: slot.CompleteAtTicks != 0 &&
+                            Environment.TickCount64 - slot.CompleteAtTicks < CompleteWindowMs));
+        var key = AgentStatusResolver.StatusKey(view.Status);
+        if (key != slot.LastStatus)
+        {
+            slot.LastStatus = key;
+            BroadcastTo(slotIdx, "status", SerializeStatus(view));
+        }
+    }
 
     // ═══════════════════════════════════════════════════════════
     //  路由
@@ -242,6 +291,22 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             {
                 lock (webSlot.StartLock) webSlot.Quiescing = false;
             }
+        }
+
+        // 切换工作模式（行为轴 Build/Plan/Chat，槽位实例级）：改绑定槽位 Agent 实例 + 同步全局镜像。
+        // 工具约束 / 模式提示词读取的是 agent.WorkMode，改属性即时生效（无需重建工具集）。
+        if (req.Method == "POST" && req.Path == "/mode")
+        {
+            var body = Json.Parse(req.Body);
+            var action = body?["action"]?.AsString() ?? "";
+            var modeStr = body?["mode"]?.AsString() ?? "";
+            var newMode = action == "set" && Enum.TryParse<WorkMode>(modeStr, true, out var parsed)
+                ? parsed : WorkModeManager.CycleNext(); // set 无效或 action=cycle → 循环切换
+            var agent = EnsureSlot(slot);
+            agent.WorkMode = newMode;
+            WorkModeManager.CurrentMode = newMode; // 全局镜像（与 TUI 状态栏等一致）
+            BroadcastStateForAll();
+            return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("mode", newMode.ToString().ToLowerInvariant()).ToJson());
         }
 
         // 保存模型配置（仅持久化默认模型，不中断当前会话、不重配 Agent）
@@ -773,7 +838,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                     var info = ConnectionConfig.ResolveActiveModel(cfg); // 精确匹配当前供应商，防同名模型误配 baseUrl/key
                     var providerId = ConnectionConfig.ResolveActiveProviderId(cfg);
                     var key = ApiKeyStore.Get(providerId) ?? cfg.ApiKey;
-                    var baseUrl = ResolveBaseUrl(info, providerId, cfg.BaseUrl);
+                    // key 绑定的 baseURL 优先（key 与其调用地址一致）
+                    var baseUrl = ApiKeyStore.GetBaseUrl(providerId) ?? ResolveBaseUrl(info, providerId, cfg.BaseUrl);
                     var llm = new LLM(cfg.Model, key, baseUrl, cfg.MaxTokens, cfg.Temperature)
                     {
                         SmallModel = cfg.SmallModel,
@@ -873,6 +939,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             slot.Cts = roundCts;
             slot.IsBusy = true;
         }
+        BroadcastStatus(slotIdx); // 开始执行 → 思考中
         var token = roundCts.Token;
         slot.RunningTask = Task.Run(async () =>
         {
@@ -882,10 +949,19 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             {
                 var final = await agent.ChatAsync(
                     userInput,
-                    onToken: t => BroadcastTo(slotIdx, "token", JsonStr(t)),
-                    onTool: (name, brief) => BroadcastTo(slotIdx, "tool", JsonTool(name, brief)),
+                    onToken: t =>
+                    {
+                        BroadcastStatus(slotIdx); // 思考中（LastStatus 去重，非每 token 刷）
+                        BroadcastTo(slotIdx, "token", JsonStr(t));
+                    },
+                    onTool: (name, brief) =>
+                    {
+                        BroadcastStatus(slotIdx, name); // 工具/等待用户/等待子代理
+                        BroadcastTo(slotIdx, "tool", JsonTool(name, brief));
+                    },
                     onToolOutput: o => BroadcastTo(slotIdx, "tool_output", JsonStr(o)),
                     cancellationToken: token);
+                slot.CompleteAtTicks = Environment.TickCount64; // 完成瞬态时间戳
                 BroadcastTo(slotIdx, "done", JsonStr(final));
             }
             catch (OperationCanceledException)
@@ -911,6 +987,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 }
                 slot.RunningTask = null;
                 _currentSlot.Value = 0;
+                BroadcastStatus(slotIdx); // 回落：done→完成瞬态 / 中断·失败→空闲
                 // 批次完成：取队列中的下一条指令继续执行（输入排队机制）
                 TryStartNextPending(slotIdx);
             }

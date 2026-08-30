@@ -43,7 +43,8 @@ public sealed class AgentService
             var info = ConnectionConfig.ResolveActiveModel(cfg); // 精确匹配当前供应商，防同名模型误配 baseUrl/key
             var providerId = ResolveProviderId(cfg);
             var key = ApiKeyStore.Get(providerId) ?? cfg.ApiKey;
-            var baseUrl = ResolveBaseUrl(info, providerId, cfg.BaseUrl);
+            // key 绑定的 baseURL 优先（key 与其调用地址一致，防同名供应商多网关间 key 发错地址）
+            var baseUrl = ApiKeyStore.GetBaseUrl(providerId) ?? ResolveBaseUrl(info, providerId, cfg.BaseUrl);
 
             var llm = new LLM(cfg.Model, key, baseUrl, cfg.MaxTokens, cfg.Temperature)
             {

@@ -8,8 +8,9 @@ namespace WayCoder;
 /// </summary>
 public static class ApiKeyStore
 {
-    /// <summary>单个 key 条目：API key + 可选有效期（null/永久 = 不限期）。</summary>
-    public sealed record KeyEntry(string ApiKey, string? Expiry);
+    /// <summary>单个 key 条目：API key + 可选有效期（null/永久 = 不限期）+ 该 key 调用的 baseURL
+    /// （key 与其请求地址绑定，防同名供应商/网关间 key 混用）。</summary>
+    public sealed record KeyEntry(string ApiKey, string? Expiry, string? BaseUrl = null);
 
     private static readonly object _lock = new();
     private static Dictionary<string, KeyEntry>? _keys;
@@ -24,6 +25,14 @@ public static class ApiKeyStore
     {
         var keys = Load();
         return keys.TryGetValue(providerId.ToLowerInvariant(), out var entry) ? entry.ApiKey : null;
+    }
+
+    /// <summary>获取指定服务商 key 关联的 baseURL（该 key 应发往的地址；未存返回 null）。
+    /// key 与地址绑定：同名供应商多网关时保证 key 发到正确地址。</summary>
+    public static string? GetBaseUrl(string providerId)
+    {
+        var keys = Load();
+        return keys.TryGetValue(providerId.ToLowerInvariant(), out var entry) ? entry.BaseUrl : null;
     }
 
     /// <summary>获取指定服务商的 API key 有效期（null = 永久）。</summary>
@@ -51,8 +60,9 @@ public static class ApiKeyStore
     }
 
     /// <summary>存储指定服务商的 API Key。返回是否保存成功（失败已记日志，调用方可提示用户）。
-    /// 环境变量引用（$VAR）视为非法输入拒绝存储——防导入流程把环境变量当真实 key 误存。</summary>
-    public static bool Set(string providerId, string apiKey, string? expiry = null)
+    /// 环境变量引用（$VAR）视为非法输入拒绝存储——防导入流程把环境变量当真实 key 误存。
+    /// baseUrl 记录该 key 调用的地址（key 与地址绑定，供同名供应商多网关区分）。</summary>
+    public static bool Set(string providerId, string apiKey, string? expiry = null, string? baseUrl = null)
     {
         lock (_lock)
         {
@@ -65,7 +75,8 @@ public static class ApiKeyStore
             else if (IsEnvVarRef(apiKey))
                 return false; // 环境变量引用不是真实 key（$VAR），拒绝存储，防导入误判
             else
-                keys[pid] = new KeyEntry(apiKey.Trim(), NormalizeExpiry(expiry));
+                keys[pid] = new KeyEntry(apiKey.Trim(), NormalizeExpiry(expiry),
+                    string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl.Trim());
             return Save(keys);
         }
     }
@@ -450,7 +461,8 @@ public static class ApiKeyStore
                             var pid = item["provider"]?.AsString();
                             var key = item["apikey"]?.AsString() ?? item["key"]?.AsString();
                             if (!string.IsNullOrWhiteSpace(pid) && !string.IsNullOrWhiteSpace(key))
-                                result[pid.ToLowerInvariant()] = new KeyEntry(key, NormalizeExpiry(item["expiry"]?.AsString()));
+                                result[pid.ToLowerInvariant()] = new KeyEntry(key, NormalizeExpiry(item["expiry"]?.AsString()),
+                                    item["base_url"]?.AsString());
                         }
                     }
                     else if (root is { Kind: JKind.Object } obj)
@@ -498,6 +510,8 @@ public static class ApiKeyStore
                 var item = JNode.Object().Set("provider", pid).Set("apikey", entry.ApiKey);
                 if (!string.IsNullOrWhiteSpace(entry.Expiry))
                     item.Set("expiry", entry.Expiry);
+                if (!string.IsNullOrWhiteSpace(entry.BaseUrl))
+                    item.Set("base_url", entry.BaseUrl); // key 关联的调用地址
                 arr.Add(item);
             }
 

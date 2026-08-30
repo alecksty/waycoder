@@ -29,8 +29,6 @@
                         ToolTip.Tip="打开内置代码编辑器" Click="EditorButton_Click" Margin="0,0,8,0" />
                 <Button Grid.Column="5" x:Name="SettingsButton" Content="⚙ 设置"
                         ToolTip.Tip="设置" Click="Settings_Click" Margin="0,0,8,0" />
-                <Button Grid.Column="6" x:Name="StopButton" Content="⏹ 停止"
-                        IsEnabled="False" Click="Stop_Click" />
             </Grid>
         </Border>
 
@@ -61,14 +59,26 @@
             </Border>
 
             <!-- 中栏 -->
-            <Grid Grid.Column="1" RowDefinitions="*,Auto">
+            <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto">
                 <ScrollViewer x:Name="ChatScroll" VerticalScrollBarVisibility="Auto"
                               Background="{DynamicResource WindowBgBrush}" Padding="16,12">
                     <StackPanel x:Name="MessagesHost" Spacing="10" />
                 </ScrollViewer>
 
+                <!-- Agent 动态状态栏（聊天与输入框之间）：空闲隐藏，活动显示状态 + Braille 等待动画 -->
+                <Border Grid.Row="1" x:Name="AgentStatusBar" IsVisible="False"
+                        Background="{DynamicResource PanelBgBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,1" Padding="16,4">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock x:Name="AgentStatusSpin" Text="⠋" FontSize="12"
+                                   Foreground="{DynamicResource AccentBrush}" />
+                        <TextBlock x:Name="AgentStatusText" Text="就绪" FontSize="12"
+                                   Foreground="{DynamicResource DimTextBrush}" />
+                    </StackPanel>
+                </Border>
+
                 <!-- Composer 输入卡（对齐 Web #composer） -->
-                <Border Grid.Row="1" x:Name="ComposerHost" Padding="16,10"
+                <Border Grid.Row="2" x:Name="ComposerHost" Padding="16,10"
                         Background="{DynamicResource PanelBgBrush}"
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
                     <Border CornerRadius="22" MaxWidth="840"

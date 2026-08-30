@@ -237,6 +237,17 @@ public static partial class ModelCatalog
         return true;
     }
 
+    /// <summary>清空服务商注册表（providers.json 重写为空）。供「清空模型列表」（ClearAll）调用——
+    /// 模型与供应商一起清，方便重新导入时重建数据（不留旧供应商注册干扰新导入的去重/名称判断）。</summary>
+    public static void ClearProviders()
+    {
+        lock (_lock)
+        {
+            Providers.Clear();
+            SaveProvidersJson();
+        }
+    }
+
     /// <summary>改供应商显示名（保留其他字段，providers.json 落盘）。</summary>
     public static void RenameProvider(string providerId, string displayName)
     {

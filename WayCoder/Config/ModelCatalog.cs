@@ -344,6 +344,7 @@ public static partial class ModelCatalog
             try { File.WriteAllText(BuiltInClearedPath, "1"); } catch { }
             _all = null;
             _custom = null;
+            ClearProviders(); // 模型列表清空时一并清空 providers.json，方便重新导入重建数据
         }
         return n;
     }

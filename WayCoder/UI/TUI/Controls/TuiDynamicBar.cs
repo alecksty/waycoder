@@ -6,27 +6,6 @@ using WayCoder.UI.TUI.Base;
 namespace WayCoder.UI.Tui.Controls;
 
 /// <summary>
-/// Agent 动态状态（对标 Claude Code SpinnerMode）。
-/// </summary>
-public enum AgentStatus
-{
-    /// <summary>空闲 — 灰色 spinner + 就绪</summary>
-    Idle,
-    /// <summary>思考中 — 黄色 spinner + 模型名</summary>
-    Thinking,
-    /// <summary>工具执行 — 黄色 spinner + 工具详情</summary>
-    ToolRunning,
-    /// <summary>上下文压缩 — 黄色 spinner + 进度条</summary>
-    Compressing,
-    /// <summary>等待权限 — 黄色 spinner + 等待确认</summary>
-    WaitingPerm,
-    /// <summary>计划模式 — 黄色 spinner（只读分析，不执行写操作）</summary>
-    Planning,
-    /// <summary>错误 — 红色 spinner</summary>
-    Error,
-}
-
-/// <summary>
 /// 实时动态栏 —— 对标 Claude Code SpinnerWithVerb。
 /// 位于聊天列表和输入区之间，始终可见，显示模型状态、当前任务、压缩进度。
 ///
@@ -39,7 +18,7 @@ public class TuiDynamicBar : TuiDisplayControl
     // 动画帧（对标 Claude Code ·✢✳✶✻✽ ping-pong 循环）
     // ═══════════════════════════════════════════════════════════
 
-    private static readonly string[] Frames = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"];
+    private static readonly string[] Frames = AgentStatusResolver.SpinnerFrames; // 跨端统一 Braille 帧集
 
     /// <summary>动画帧间隔（毫秒）。每帧由 ChatScreen 按此节流标脏，250ms 一帧 ≈ 4 FPS ——
     /// 够看出在转，又不至于逐帧整条重绘造成卡顿。</summary>
@@ -48,12 +27,15 @@ public class TuiDynamicBar : TuiDisplayControl
     /// <summary>按 Agent 状态取 spinner 前景色（DirectWrite 直写与 OnRender 共用）。</summary>
     private static int SpinnerFg(AgentStatus st) => st switch
     {
-        // 动画图标统一用黄色（用户要求橙/黄），错误仍红
+        // 动画图标统一用黄色（用户要求橙/黄），完成绿、错误红
         AgentStatus.Thinking => AnsiColors.Yellow,
         AgentStatus.ToolRunning => AnsiColors.Yellow,
         AgentStatus.Compressing => AnsiColors.Yellow,
-        AgentStatus.WaitingPerm => AnsiColors.Yellow,
+        AgentStatus.WaitingPermission => AnsiColors.Yellow,
+        AgentStatus.WaitingUser => AnsiColors.Yellow,
+        AgentStatus.WaitingSubagent => AnsiColors.Yellow,
         AgentStatus.Planning => AnsiColors.Yellow,
+        AgentStatus.Complete => AnsiColors.Green,
         AgentStatus.Error => AnsiColors.Red,
         _ => AnsiColors.BrightBlack,
     };
@@ -189,14 +171,17 @@ public class TuiDynamicBar : TuiDisplayControl
         {
             leftDisplay = Status switch
             {
-                AgentStatus.Idle => "就绪",
+                AgentStatus.Idle => "空闲",
                 AgentStatus.Thinking => "思考中...",
                 AgentStatus.ToolRunning => "工具执行",
                 AgentStatus.Compressing => "压缩中",
                 AgentStatus.Planning => "计划模式 🧠",
-                AgentStatus.WaitingPerm => "等待确认",
+                AgentStatus.WaitingPermission => "等待确认",
+                AgentStatus.WaitingUser => "等待用户回复",
+                AgentStatus.WaitingSubagent => "等待子代理",
+                AgentStatus.Complete => "任务完成 ✓",
                 AgentStatus.Error => "错误",
-                _ => "就绪",
+                _ => "空闲",
             };
         }
 

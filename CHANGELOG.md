@@ -1,5 +1,31 @@
 # 更新日志
 
+## v0.96.33 (2026-08-30) — 四端动态状态栏 + 忙时消息排队统一 + Web 模型选中按供应商精确定位
+
+- **四端统一动态状态栏**（TUI/Web/GUI/MAUI）：Agent 运行时状态实时显示 + Braille 等待动画
+  - 新增共享状态模型 `WayCoder/UI/Shared/AgentStatusBar.cs`（三端共同编译）：`AgentStatus` 枚举 + `AgentStatusResolver.Resolve` 纯函数解析器 + 统一 10 帧 Braille 字符集
+  - 状态覆盖：思考中… / 使用工具中 {工具}… / 压缩上下文中… / 等待确认中… / 等待用户回复中… / 等待子代理完成中… / 任务完成 ✓（瞬态 2.5s）/ 空闲（隐藏）/ 计划模式 🧠 / 错误
+  - **Agent 最小信号补充**：新增 `Agent.IsBusy`（思考中判定）；「等待用户 / 等待子代理」自动从 `CurrentToolName`（`ask_user_question` / `agent`）推断，零侵入；`PermissionManager.PendingPermissionTool` 可轮询权限等待
+  - **TUI**：修「思考中」死分支（原 `AgentBusy` 从未置 true，思考中实际不可达）；优先级链统一换 `AgentStatusResolver`；补等待用户/子代理/完成三态
+  - **MAUI**：私有 `AgentUiState` 换共享 `AgentStatus`；`onTool` 按工具名分派等待用户/子代理；`finally` 置「任务完成 ✓」瞬态回落
+  - **Web**：后端新增 `status` SSE 事件（`WebSlot.LastStatus` 去重防刷屏）+ 前端消息区与输入框之间状态栏（空闲隐藏、完成 2.5s 回落）
+  - **GUI**：中栏 Grid 插状态行（聊天与输入框之间）+ 100ms 定时器 Braille 动画；补订阅压缩/权限事件（此前未订阅）
+- **四端忙时消息排队统一**：Agent 忙时发消息进队列，空闲自动取下一个执行；**忙时消息绝不吞**
+  - **Web 修忙时吞消息**（根因）：前端 `send()` 在 `isBusy` 时直接 return，忙时回车消息静默丢失——改为回车忙时照常发送（后端 `PendingInputs` 排队），发送按钮忙时=停止（⏹）
+  - **单按钮语义统一**（Web/GUI/手机端 1 个按钮）：空闲=发送，忙时=停止；**回车 / 键盘发送**忙时进队列
+  - **GUI**：移除独立 StopButton；排队消息立即上屏+「⏳ 排队中…」标记（`_pendingInputs` 改存消息气泡引用，执行时复用更新「发送中」）；上限常量 `MaxPendingInput`→`MaxPendingSubmissions`；修「槽位切换放回队尾无触发点」卡死（`SwitchSlot` 触发消费）
+  - **MAUI**：移除独立 StopBtn；SendBtn 忙时=停止；Editor 换 Entry（`ReturnType=Send` + `Completed`）实现虚拟键盘「发送」忙时排队
+  - 排队消息立即上屏+「⏳ 排队中…」，轮到执行改「📤 发送中…」，队列满丢最旧标「❌ 已丢弃」
+- **Web 模型选择按 (providerId, modelId) 精确定位**：同 id 跨供应商（minimax 多网关）不误勾
+  - 大/小勾、选中高亮、`confirmModel`/设 key/清 key/保存模型全部改 `findModel(id, providerId)` 精确查找（原 `modelMap[selectedModelId]` 同 id 取最后一条会应用错供应商）
+  - `saveKey` 暂选应用补传 `providerId`（原只发裸 modelId 会选错网关）
+- **Web 输入栏调整**：加宽至 960px 一行放下；去图标 + 精简文案（大:/小:/省钱/权限/模式）；权限选项中文化（询问/自动/智能/畅通）；工作模式下拉（建造/计划/聊天）；模型栏显示 `(服务商)模型`（同 id 跨供应商一眼分清）；槽位悬停 title 带服务商
+- **Web 补工作模式切换**：新增 `POST /mode`（改绑定槽位 `Agent.WorkMode` + 同步全局镜像）；`SerializeState` 槽位项输出 `workMode`/`providerId`
+- **移动端 ProviderModelsPage 选中勾按供应商精确匹配**：`Marker` 加当前大小模型实际供应商判断（同 id 跨供应商不误勾）
+- **API Key 与 baseUrl 绑定**：`ApiKeyStore.KeyEntry` 增加 `BaseUrl` 字段——key 与其调用地址绑定，同名供应商/网关间 key 不混用（Web 请求取 key 绑定的 baseUrl 优先）
+- **ModelCatalog.ClearAll 一并清空 providers.json**（`ClearProviders`）：清空后重新导入时供应商注册表不留旧数据干扰
+- **自测**：4805 全过（新增 13 个 `AgentStatusResolver` 纯函数断言：状态映射/优先级/StatusKey/帧集）；三端编译 0 警告 0 错误
+
 ## v0.96.32 (2026-08-30) — iOS 版首次跑通模拟器 + 手机端模型列表编辑模式
 
 - **iOS 版首次编译 + 模拟器运行验证**：Xcode 26.6 + iOS 26.5 模拟器（iPhone 17 Pro），`dotnet build -f net10.0-ios -t:Run` 构建部署成功、app 正常启动渲染（WayCoder 双平台 Android/iOS 均验证通过）。编辑器 icon_* 图标资源缺失为非致命 warning（`IIOImageSource` 找不到 `Library/icon_*`，待后续补资源）
