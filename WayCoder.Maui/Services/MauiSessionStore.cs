@@ -19,7 +19,8 @@ public static class MauiSessionStore
     public static bool Exists() => File.Exists(StorePath);
 
     /// <summary>保存对话正文（仅 User/Assistant，跳过思考/工具消息）。
-    /// 防无限增长：只存最近 <see cref="Config.MaxChatMessages"/> 条 + 文件超 <see cref="Global.MaxMauiSessionBytes"/> 截尾重写。</summary>
+    /// 防无限增长：只存最近 <see cref="Config.MaxChatMessages"/> 条；文件超 <see cref="Global.MaxMauiSessionBytes"/>
+    /// 按**完整消息**从最旧丢弃（截断落在消息边界，不会切半长度前缀流导致恢复乱码）。</summary>
     public static void Save(IEnumerable<ChatMessage> messages)
     {
         try
@@ -29,20 +30,32 @@ public static class MauiSessionStore
             if (max > 0 && list.Count > max)
                 list.RemoveRange(0, list.Count - max); // 只存最近 N 条，防会话文件无限涨
 
-            var sb = new StringBuilder();
-            foreach (var m in list)
+            // 字节上限：逆序（最新在前）逐条凑预算，截断保证完整消息边界
+            var keep = new List<ChatMessage>();
+            long used = 0;
+            long budget = Global.MaxMauiSessionBytes;
+            bool capped = false;
+            for (int i = list.Count - 1; i >= 0; i--)
             {
+                var m = list[i];
                 if (m.Role != ChatRole.User && m.Role != ChatRole.Assistant) continue;
                 if (string.IsNullOrEmpty(m.RawText)) continue;
+                long len = m.RawText.Length + 12; // 每条约 12 字节格式开销
+                if (budget > 0 && used + len > budget) { capped = true; break; } // 超限：丢弃更旧的完整消息
+                keep.Add(m);
+                used += len;
+            }
+            keep.Reverse(); // 转回正序
+
+            var sb = new StringBuilder();
+            if (capped)
+                sb.Append("… 会话过长，已截断（仅保留最近内容）…\n");
+            foreach (var m in keep)
+            {
                 sb.Append('R').Append((int)m.Role).Append('\n');
                 AppendField(sb, m.RawText);
             }
-
-            var text = sb.ToString();
-            if (Global.MaxMauiSessionBytes > 0 && text.Length > Global.MaxMauiSessionBytes)
-                text = "… 会话过长，已截断（仅保留最近内容）…\n"
-                    + ContextManager.TruncateTailByRunes(text, (int)Global.MaxMauiSessionBytes);
-            File.WriteAllText(StorePath, text);
+            File.WriteAllText(StorePath, sb.ToString());
         }
         catch { /* 落盘失败静默：不影响聊天 */ }
     }

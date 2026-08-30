@@ -53,6 +53,7 @@ function addMsg(role, text) {
     el.textContent = text;
   }
   messages.appendChild(el);
+  pruneMessagesDom(); // 消息元素条数上限：丢最旧 DOM 节点（防长会话 DOM 只增不减）
   scroll();
   return el;
 }
@@ -1119,7 +1120,7 @@ function send(fromButton) {
       .then(res => {
         setBusy(false);
         if (res && res.ok) addMsg('cmd', '📄 已引用 `' + path + '`（' + ((res.content || '').split('\n').length) + ' 行）');
-        else addMsg('cmd', '❌ ' + ((res && res.content) || '读取失败'));
+        else addMsg('cmd', '❌ ' + ((res && (res.error || res.content)) || '读取失败')); // 优先展示后端 error 细节（如路径越界）
       })
       .catch(() => { addMsg('cmd', '❌ 文件读取失败'); setBusy(false); });
     return;
@@ -1319,12 +1320,35 @@ function markupToHtml(text) {
 // 单条消息内容上限（与 C# Global.MaxSingleMessageChars 一致）：超限保留尾部窗口 + 截断标记，
 // 防超长回复/工具输出无限撑大 DOM（对齐 TUI CapMessageContent 语义）。
 const MAX_MSG_CHARS = 50000;
+// 按完整码元取尾部窗口（不能 .slice(-N)——按 UTF-16 码元切会在 emoji/扩展 B 汉字代理对中间切半 → U+FFFD）
+function tailCodePoints(str, max) {
+  if (str.length <= max) return str;
+  var out = '', used = 0;
+  for (var i = str.length - 1; i >= 0 && used < max; i--) {
+    var code = str.charCodeAt(i);
+    var isLow = code >= 0xDC00 && code <= 0xDFFF; // 低代理 = 代理对后半
+    var start = isLow ? i - 1 : i;
+    if (start < 0) break;
+    var n = isLow ? 2 : 1;
+    if (used + n > max) break; // 放不下整个码元则停止（不切半）
+    out = str.slice(start, i + 1) + out;
+    used += n;
+    i = start; // for 的 i-- 后继续向前
+  }
+  return out;
+}
 function appendCapped(el, s) {
   s = String(s == null ? '' : s);
   if (!el) return;
   var cur = el.textContent;
   if (cur.length + s.length <= MAX_MSG_CHARS) { el.textContent += s; return; }
-  el.textContent = '… 已截断（显示最近内容，旧内容滚动省略）…\n' + (cur + s).slice(-MAX_MSG_CHARS);
+  el.textContent = '… 已截断（显示最近内容，旧内容滚动省略）…\n' + tailCodePoints(cur + s, MAX_MSG_CHARS);
+}
+// 消息元素条数上限（对齐 TUI/MAUI 的 MaxChatMessages 裁剪，防长会话 DOM 节点只增不减）
+const MAX_DOM_MSGS = 300;
+function pruneMessagesDom() {
+  while (messages.children.length > MAX_DOM_MSGS)
+    messages.removeChild(messages.firstChild);
 }
 // 推理内容按 «dim»…«/» 标记以淡色块显示（颜色变淡，不进正文 Markdown）
 function handleToken(s) {

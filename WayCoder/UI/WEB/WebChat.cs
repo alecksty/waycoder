@@ -52,6 +52,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         public readonly object AgentLock = new();
         /// <summary>待处理指令队列：Agent 忙碌时输入入队，当前批次完成后自动取下一个执行（输入排队机制）。</summary>
         public readonly System.Collections.Concurrent.ConcurrentQueue<string> PendingInputs = new();
+        /// <summary>换模型暂停期标志（StartLock 保护）：置位时 TryStartNextPending 跳过启动新任务，
+        /// 消除「旧批次 finally 启动排队指令的新 ChatAsync」与「Reconfigure 换模型」的并发竞态。</summary>
+        public bool Quiescing;
     }
 
     /// <summary>SSE 客户端（写失败 = 断开）。</summary>
@@ -61,8 +64,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         public int SlotIndex = -1;
         public StreamWriter Writer = null!;
         public readonly TaskCompletionSource Closed = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        /// <summary>串行化对该客户端 StreamWriter 的写（Broadcast 与连接建立时的初始回放可能并发）。</summary>
-        public readonly object WriteLock = new();
+        /// <summary>异步写串行门：广播（fire-and-forget 异步写）与连接建立初始回放、断开释放并发，
+        /// SemaphoreSlim FIFO 保证同一客户端写序不乱且不阻塞调用线程（原 object 锁只串行了同步 Write）。</summary>
+        public readonly SemaphoreSlim WriteGate = new(1, 1);
     }
 
     public WebChatServer(Agent agent, int port)
@@ -218,13 +222,26 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var apiKey = body?["apiKey"]?.AsString();
             if (string.IsNullOrWhiteSpace(modelId))
                 return HttpResponse.JsonBody(Err("缺少 modelId"));
-            Interrupt(slot);
-            await WaitForSlotIdleAsync(_slots[slot]); // 等退场 ChatAsync 收尾，避免与 Reconfigure 竞态
-            var agent = EnsureSlot(slot);
-            var error = ApplyModel(agent, modelId, apiKey, providerId, baseUrl);
-            if (error != null) return HttpResponse.JsonBody(Err(error));
-            BroadcastStateForAll();
-            return HttpResponse.JsonBody(Ok());
+            var webSlot = _slots[slot];
+            lock (webSlot.StartLock)
+            {
+                webSlot.Quiescing = true; // 先暂停排队启动（阻止旧批次 finally 启动新任务与 Reconfigure 并发）
+                while (webSlot.PendingInputs.TryDequeue(out _)) { } // 清空排队（旧指令按旧模型排队已无意义）
+            }
+            try
+            {
+                Interrupt(slot);
+                await WaitForSlotIdleAsync(webSlot); // 等退场 ChatAsync 收尾，避免与 Reconfigure 竞态
+                var agent = EnsureSlot(slot);
+                var error = ApplyModel(agent, modelId, apiKey, providerId, baseUrl);
+                if (error != null) return HttpResponse.JsonBody(Err(error));
+                BroadcastStateForAll();
+                return HttpResponse.JsonBody(Ok());
+            }
+            finally
+            {
+                lock (webSlot.StartLock) webSlot.Quiescing = false;
+            }
         }
 
         // 保存模型配置（仅持久化默认模型，不中断当前会话、不重配 Agent）
@@ -343,16 +360,29 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 if (name is "list" or "ls" or "-l")
                     return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true)
                         .Set("output", WebModelListText()).ToJson());
-                Interrupt(slot);
-                await WaitForSlotIdleAsync(_slots[slot]); // 等退场 ChatAsync 收尾再 Reconfigure
-                var matches = ModelCatalog.Search(name);
-                if (matches.Length == 0)
+                var webSlot = _slots[slot];
+                lock (webSlot.StartLock)
+                {
+                    webSlot.Quiescing = true; // 先暂停排队启动，防 finally 启动新任务与 Reconfigure 并发
+                    while (webSlot.PendingInputs.TryDequeue(out _)) { }
+                }
+                try
+                {
+                    Interrupt(slot);
+                    await WaitForSlotIdleAsync(webSlot); // 等退场 ChatAsync 收尾再 Reconfigure
+                    var matches = ModelCatalog.Search(name);
+                    if (matches.Length == 0)
+                        return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true)
+                            .Set("output", $"❌ 未知模型「{name}」").ToJson());
+                    var err = ApplyModel(EnsureSlot(slot), matches[0].Id, null);
+                    BroadcastStateForAll();
                     return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true)
-                        .Set("output", $"❌ 未知模型「{name}」").ToJson());
-                var err = ApplyModel(EnsureSlot(slot), matches[0].Id, null);
-                BroadcastStateForAll();
-                return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true)
-                    .Set("output", err == null ? $"✅ 已切换到 **{matches[0].DisplayName}**" : $"❌ {err}").ToJson());
+                        .Set("output", err == null ? $"✅ 已切换到 **{matches[0].DisplayName}**" : $"❌ {err}").ToJson());
+                }
+                finally
+                {
+                    lock (webSlot.StartLock) webSlot.Quiescing = false;
+                }
             }
 
             var (handled, output) = HandleCommand(trimmed, _slots[slot].Agent, slot);
@@ -884,13 +914,18 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         });
     }
 
-    /// <summary>Agent 批次完成后，若该槽位有待处理指令则取下一个自动执行（排队机制）。</summary>
+    /// <summary>Agent 批次完成后，若该槽位有待处理指令则取下一个自动执行（排队机制）。
+    /// 换模型暂停期（Quiescing）跳过启动，防新任务与 Reconfigure 并发。</summary>
     private void TryStartNextPending(int slotIdx)
     {
         if (slotIdx < 0 || slotIdx >= _slots.Length) return;
         var slot = _slots[slotIdx];
-        if (slot.PendingInputs.TryDequeue(out var next))
-            StartSlotTask(slotIdx, next);
+        lock (slot.StartLock)
+        {
+            if (slot.Quiescing) return; // 换模型暂停：等 Reconfigure 完成后再恢复排队消费
+            if (slot.PendingInputs.TryDequeue(out var next))
+                StartSlotTask(slotIdx, next);
+        }
     }
 
     /// <summary>等待槽位的后台 Agent 任务收尾（换模型/存 key 前调用，避免与退场的 ChatAsync 竞态读写 LLM 配置）。</summary>
@@ -1056,15 +1091,13 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     private async Task HandleSseAsync(HttpRequest req, StreamWriter writer)
     {
         var clientId = ParseClientQuery(req.Query);
-        // 先查满再 ResolveSlot：满员提前 return 会跳过 finally，导致 _clientSlot 绑定永久泄漏
+        // 先查满再 ResolveSlot：满员提前 return 不写 _clientSlot（ResolveSlot 在下方才调用），
+        // 无新绑定需回滚——删除此处的 _clientSlot.Remove（它误删的是更早 POST /chat 建立的合法绑定，
+        // 导致客户端重连后任务输出路由错槽）。
         lock (_lock)
         {
             if (SseClientsFull(_clients.Count))
             {
-                // 满员拒绝前回滚刚分配的槽位绑定：ResolveSlot 已对新 clientId 写入 _clientSlot，
-                // 此 return 跳过 finally 清理，若不回滚会幽灵占用槽位（反复刷新后串扰槽位 0）。
-                if (clientId != null && !_clients.Any(c => c.ClientId == clientId))
-                    _clientSlot.Remove(clientId);
                 try { writer.Write(HttpServer.SseEvent("failed", "\"连接数已达上限\"")); } catch { }
                 return; // 拒绝超出上限的 SSE 连接（writer 由调用方 WriteSseAsync 的 using 释放）
             }
@@ -1077,12 +1110,14 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         }
         try
         {
-            // 连接即回放历史 + 状态，前端初始化渲染（与 Broadcast 共用写锁，避免与并发广播交错）
-            lock (client.WriteLock)
+            // 连接即回放历史 + 状态，前端初始化渲染（与 Broadcast 共用写门，避免与并发异步写交错）
+            await client.WriteGate.WaitAsync();
+            try
             {
                 writer.Write(HttpServer.SseEvent("history", HistoryOf(slot)));
                 writer.Write(HttpServer.SseEvent("state", SerializeState(slot, AgentView(), SlotBusyFlags())));
             }
+            finally { client.WriteGate.Release(); }
             // 同时监听「写失败（Closed）」与「底层流 EOF（客户端主动断开）」：
             // 服务端从不读 SSE 流，若只等 Closed.Task，客户端关标签页后若无后续广播，
             // 连接会永久阻塞在 Closed.Task 上，泄漏 Task/StreamWriter/TcpClient 与连接槽位。
@@ -1110,8 +1145,10 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                     }
                 });
             }
-            // 与 Broadcast 的写共用锁，避免对已释放 writer 的并发写
-            lock (client.WriteLock) { try { writer.Dispose(); } catch { } }
+            // 等异步写排空后释放 writer（WriteGate 保证无在途写），避免对已释放流的并发写
+            try { await client.WriteGate.WaitAsync(TimeSpan.FromSeconds(5)); } catch { }
+            try { writer.Dispose(); } catch { }
+            client.WriteGate.Release();
         }
     }
 
@@ -1156,29 +1193,35 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
     private static void WriteClient(SseClient c, string sse)
     {
-        // 已剔除（慢客户端超时）则跳过，避免后续每个 token 事件都再阻塞 5 秒
+        // 已剔除（慢客户端超时）则跳过；fire-and-forget 异步写——绝不阻塞 Agent 线程
+        // （原同步 Wait 在客户端缓冲满（后台标签页暂停读 SSE）时每次 token 卡 5s/客户端，
+        // 多个慢客户端串行可让 Web 端「死机」）。写序由 WriteGate FIFO 保证，超时剔除逻辑不变。
         if (c.Closed.Task.IsCompleted) return;
-        // 每客户端串行写：防止流式回调与 HandleRequest 并发广播时帧交错损坏
-        lock (c.WriteLock)
+        _ = WriteAsync(c, sse);
+    }
+
+    private static async Task WriteAsync(SseClient c, string sse)
+    {
+        await c.WriteGate.WaitAsync();
+        try
         {
             if (c.Closed.Task.IsCompleted) return;
             try
             {
-                // 带超时写：客户端停止读 SSE（后台标签页/暂停）时同步 Write 会永久阻塞
-                // 拖死整个 Agent 循环——用 WriteAsync + 超时，超时即剔除该客户端
+                // 带超时写：客户端停止读 SSE 时 WriteAsync 不完成 → 超时即剔除（后续广播跳过）
                 var writeTask = c.Writer.WriteAsync(sse);
-                if (!writeTask.Wait(TimeSpan.FromSeconds(5)))
+                if (await Task.WhenAny(writeTask, Task.Delay(5000)) != writeTask)
                 {
                     c.Closed.TrySetResult();
                     // 观察被放弃的写任务：writer 随后被 HandleSseAsync finally 释放时会抛
                     // ObjectDisposedException，若不观察则成为未观察异常
-                    _ = writeTask.ContinueWith(t => { try { _ = t.Exception; } catch { } },
-                        TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+                    try { await writeTask; } catch { }
                     return;
                 }
             }
             catch { c.Closed.TrySetResult(); }
         }
+        finally { c.WriteGate.Release(); }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -1246,6 +1289,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         if (idx < 0 || idx >= SlotCount) return false;
         lock (_lock)
         {
+            // 绑定总数上限：超过 MaxClientSlotEntries 拒绝新 clientId（与 ResolveSlot 一致，防字典无限增长）
+            if (!_clientSlot.ContainsKey(clientId) && _clientSlot.Count >= Global.MaxClientSlotEntries)
+                return false;
             // 拒绝绑定到已被其他客户端占用的槽位（每页面一个槽位、互不干扰）；
             // 两个页面都切到同一槽位会让 BroadcastTo 同时发给两者，互相看到对方对话。
             foreach (var kv in _clientSlot)

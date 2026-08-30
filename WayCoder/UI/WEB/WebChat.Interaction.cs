@@ -236,9 +236,27 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return ext;
     }
 
+    /// <summary>清理过期的上传临时文件：图片消费后（BuildImageMessage 读 base64）不再需要，
+    /// 音频转录后即删，但异常/中途退出可能残留——每次上传顺带清掉 10 分钟前的 upload-*（生命周期秒级）。
+    /// 只清本 UploadDir，绝不误删用户本地图片。</summary>
+    private static void CleanupOldUploads()
+    {
+        try
+        {
+            if (!Directory.Exists(UploadDir)) return;
+            var cutoff = DateTime.UtcNow.AddMinutes(-10);
+            foreach (var f in Directory.GetFiles(UploadDir, "upload-*"))
+            {
+                try { if (File.GetLastWriteTimeUtc(f) < cutoff) File.Delete(f); } catch { }
+            }
+        }
+        catch { /* 清理失败静默 */ }
+    }
+
     /// <summary>处理 POST /upload：落盘 + 图片入 vision 队列 / 音频转录。</summary>
     private async Task<HttpResponse> HandleUpload(HttpRequest req)
     {
+        CleanupOldUploads(); // 每次上传清理过期临时文件，防磁盘无限累积
         var kind = ParseUploadKind(req.Query);
         if (kind == null)
             return HttpResponse.JsonBody(Err("缺少或非法 kind 参数（须为 image 或 audio）"));

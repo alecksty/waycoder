@@ -235,7 +235,14 @@ public static partial class ModelCatalog
             var path = ProviderFile(info.ProviderId, local);
             var models = ReadFile(path);
             var key = ModelKey(info.ProviderId, info.Id);
-            models[key] = models.TryGetValue(key, out var existing) ? MergeModel(existing, info) : info;
+            // 单条护栏：净新增超上限拒绝（防循环单条调用绕过 AddCustomRange 上限），不写入、返回错误描述
+            if (Global.MaxImportedModels > 0)
+            {
+                var existing = LoadCustom();
+                if (!existing.ContainsKey(key) && existing.Count >= Global.MaxImportedModels)
+                    return $"❌ 模型库已达上限 {Global.MaxImportedModels:N0}，请先删除部分模型再添加";
+            }
+            models[key] = models.TryGetValue(key, out var existing2) ? MergeModel(existing2, info) : info;
             SaveCustom(models, path);
             Invalidate();
             return path;
@@ -249,14 +256,18 @@ public static partial class ModelCatalog
         if (list.Count == 0) return 0;
         lock (_lock)
         {
-            // 导入数量护栏：总库超 MaxImportedModels 拒绝该批（一次 models.dev 导入 7000+ 无护栏会刷爆字典/文件）
+            // 导入数量护栏：按「净新增 key 数」判超限——更新已有 key 不计入（避免已有 9990 条时
+            // 导入 20 条纯更新被误拒），一次 models.dev 导入 7000+ 仍被挡。
             if (Global.MaxImportedModels > 0)
             {
                 var existing = LoadCustom();
-                if (existing.Count + list.Count > Global.MaxImportedModels)
+                var newKeys = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var m in list) newKeys.Add(ModelKey(m.ProviderId, m.Id));
+                int newCount = newKeys.Count(k => !existing.ContainsKey(k));
+                if (existing.Count + newCount > Global.MaxImportedModels)
                 {
                     ErrorLog.Warning("ModelCatalog",
-                        $"导入被拒绝：模型总库将超过上限 {Global.MaxImportedModels:N0}（现有 {existing.Count:N0} + 本次 {list.Count:N0}）。请清理旧模型或分批导入。");
+                        $"导入被拒绝：模型总库将超过上限 {Global.MaxImportedModels:N0}（现有 {existing.Count:N0} + 净新增 {newCount:N0}）。请清理旧模型或分批导入。");
                     return 0;
                 }
             }

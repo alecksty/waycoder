@@ -57,17 +57,21 @@ public partial class ChatPage : ContentPage
     /// <summary>统一消息入口：Add 后裁剪，防消息列表无限增长（镜像 TUI PruneChatHistory）。</summary>
     private void AddMessage(ChatMessage m)
     {
-        AddMessage(m);
+        Messages.Add(m);
         PruneMessages();
     }
 
-    /// <summary>消息列表条数/token 上限：超 MaxChatMessages 或累计估算 token 超 MaxChatTokens 丢最旧。</summary>
+    /// <summary>消息列表条数/token 上限：超 MaxChatMessages 或累计估算 token 超 MaxChatTokens 丢最旧。
+    /// 条数裁剪每次执行（防列表无限）；token 裁剪是 rune 级全量遍历，降频到每 8 次 Add 一次，
+    /// 避免流式高频 Add（工具消息/气泡）时每次 O(n) 重算卡 UI。</summary>
+    private int _pruneCounter;
     private void PruneMessages()
     {
         int max = Config.Instance.MaxChatMessages;
         if (max > 0)
             while (Messages.Count > max) Messages.RemoveAt(0);
 
+        if (++_pruneCounter % 8 != 0) return;
         int maxTokens = Config.Instance.MaxChatTokens;
         if (maxTokens > 0)
         {
@@ -401,8 +405,13 @@ public partial class ChatPage : ContentPage
         {
             // 忙 → 排队：消息立即可见并标「排队中」，agent 忙完自动取下一条。输入永不卡死。
             // 队列防无限增长：满则丢最旧（对齐 Global.MaxPendingSubmissions）。
+            // 被丢消息已上屏且带「排队中…」，改标记为「已丢弃」，避免永久残留误导用户并污染会话存档。
             while (_sendQueue.Count >= Global.MaxPendingSubmissions)
-                _sendQueue.Dequeue();
+            {
+                var dropped = _sendQueue.Dequeue();
+                if (dropped.Msg != null && !string.IsNullOrEmpty(dropped.Msg.RawText))
+                    dropped.Msg.RawText = dropped.Msg.RawText.Replace("⏳ 排队中…", "❌ 已丢弃（排队已满）");
+            }
             var msg = new ChatMessage { Role = ChatRole.User, RawText = text + "\n⏳ 排队中…" };
             _sendQueue.Enqueue(new QueuedItem(text, msg));
             AddMessage(msg);
@@ -413,10 +422,18 @@ public partial class ChatPage : ContentPage
         await ProcessQueueAsync(text, firstUserMsg: null);
     }
 
-    /// <summary>停止当前一轮（独立停止按钮，发送按钮改为始终发送/排队）。</summary>
+    /// <summary>停止当前一轮 + 清空排队（用户点停止 = 全部停，不只是当前轮）。
+    /// 否则队列下一条在 RunOneMessageAsync 取消返回后仍会被 ProcessQueueAsync 取走执行，
+    /// 用户以为全停、实际排队消息继续跑。</summary>
     private void OnStopClicked(object? sender, EventArgs e)
     {
         _cts?.Cancel();
+        while (_sendQueue.Count > 0)
+        {
+            var dropped = _sendQueue.Dequeue();
+            if (dropped.Msg != null && !string.IsNullOrEmpty(dropped.Msg.RawText))
+                dropped.Msg.RawText = dropped.Msg.RawText.Replace("⏳ 排队中…", "❌ 已停止（不再执行）");
+        }
     }
 
     /// <summary>串行处理发送队列：发完一条取下一条，直到队列空。firstUserMsg 为 null 表示首条需新建用户气泡。</summary>

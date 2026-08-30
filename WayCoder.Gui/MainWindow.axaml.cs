@@ -885,13 +885,19 @@ public partial class MainWindow : Window
         if (_cts[slot] != null)
         {
             // 排队：不打断当前任务 —— 指令入队，当前批次完成后由 finally 取下一个自动执行。
-            // 队列防无限增长：满则丢最旧保最新（与 Web/TUI 同语义）。
+            // 队列防无限增长：满则丢最旧保最新（与 Web/TUI 同语义），丢弃时提示用户避免静默吞消息。
+            bool dropped = false;
             while (_pendingInputs[slot].Count >= Global.MaxPendingInput)
+            {
                 _pendingInputs[slot].TryDequeue(out _);
+                dropped = true;
+            }
             _pendingInputs[slot].Enqueue(input);
             InputBox.Text = "";
             _drafts[slot] = "";
-            AppendSystem(slot, "⏳ Agent 忙碌中 — 指令已排队，当前批次完成后自动执行");
+            AppendSystem(slot, dropped
+                ? "⚠️ 排队已满，丢弃最旧指令"
+                : "⏳ Agent 忙碌中 — 指令已排队，当前批次完成后自动执行");
             return;
         }
         InputBox.Text = "";
@@ -951,6 +957,13 @@ public partial class MainWindow : Window
     {
         if (_pendingInputs[slot].TryDequeue(out var next))
         {
+            // 槽位切换保护：用户已切走该槽位时，不把 A 槽的排队消息塞进当前活跃槽位的输入框发出
+            // （否则会作为 B 槽消息发送）——放回队尾，等切回该槽位时再处理。
+            if (_activeSlot != slot)
+            {
+                _pendingInputs[slot].Enqueue(next);
+                return;
+            }
             InputBox.Text = next;
             _ = SendAsync(); // fire-and-forget：继续处理下一条（SendAsync 内部判断 busy）
         }
@@ -985,8 +998,9 @@ public partial class MainWindow : Window
     private void AppendToolOutput(int slot, string output)
     {
         FinalizeStreaming(slot);
+        // 保头保尾（对齐 TUI Snip 语义）：编译错误/异常堆栈通常在尾部，只留头会把关键诊断切掉
         var truncated = output.Length > 2000
-            ? ContextManager.TruncateByRunes(output, 2000) + "\n…（截断）"
+            ? ContextManager.TruncateByRunes(output, 1000) + "\n…（截断，关键信息见尾）…\n" + ContextManager.TruncateTailByRunes(output, 1000)
             : output;
         var msg = new ChatMessage(ChatRole.ToolOutput);
         msg.Text.Append(truncated);

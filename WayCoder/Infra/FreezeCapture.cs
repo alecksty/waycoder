@@ -204,13 +204,23 @@ public static class FreezeCapture
         {
             var path = Path.Combine(LogDir,
                 $"freeze_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+            // 现场文本先组装（读 Agent/上下文状态，快），落盘与清理异步执行：
+            // 原同步 File.WriteAllText + CleanupOldDumps 在心跳线程上，慢盘/大日志目录会拖住心跳
+            // （冻结时心跳是唯一存活信号，被拖停 spinner 看起来更死）。
             var text = BuildDumpText(reason, lastActivity, staleMs);
-            File.WriteAllText(path, text, new UTF8Encoding(false)); // 同步强制落盘
-            CleanupOldDumps();
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    File.WriteAllText(path, text, new UTF8Encoding(false));
+                    CleanupOldDumps();
+                }
+                catch { try { ErrorLog.Error("UI.Freeze", "现场落盘失败"); } catch { } }
+            });
 
             if (captureNativeStack)
             {
-                // native 栈异步追加，绝不同步阻塞核心 dump
+                // native 栈追加进同一异步落盘链（等待主 dump 完成后追加）
                 _ = Task.Run(async () =>
                 {
                     try
@@ -226,7 +236,7 @@ public static class FreezeCapture
         }
         catch
         {
-            try { ErrorLog.Error("UI.Freeze", "现场落盘失败"); } catch { }
+            try { ErrorLog.Error("UI.Freeze", "现场组装失败"); } catch { }
             return "";
         }
         finally
