@@ -225,6 +225,7 @@ public class ConnectionCommand : SlashCommand
         }
         screen.AddSystemMsg($"✅ {msg}" +
             (string.IsNullOrEmpty(key) ? "\n  ⚠ 该服务商尚未存 key，请求可能失败（/provider apikey set <pid> <key> 保存）" : ""));
+        screen.RefreshModelStatus(); // /connect 切换后刷新动态栏/模型栏（此前漏刷新 → 显示旧模型）
     }
 
     // ════════════════════════════════════════════════════════════
@@ -337,6 +338,7 @@ public class ConnectionCommand : SlashCommand
 
         screen.AddSystemMsg($"✅ {message}" +
             (string.IsNullOrEmpty(key) ? "\n  ⚠ 该服务商尚未存 key，请求可能失败（/provider apikey set <pid> <key> 保存）" : ""));
+        screen.RefreshModelStatus(); // /connect use 切换后刷新动态栏/模型栏（此前漏刷新 → 显示旧模型）
     }
 
     // ════════════════════════════════════════════════════════════

@@ -44,6 +44,7 @@ public class TuiManager : IDisposable
     private Thread? _animTicker;
     private CancellationTokenSource? _animCts;
     private long _lastRenderTicks; // 主渲染循环最近一次 Render 时间戳（心跳据此判断主循环是否还活着）
+    private string _lastModelSnapshot = ""; // 上次心跳采样的 active connect 模型快照（5s 同步比较用）
 
     // ── 主循环冻结看门狗 ──
     // 主循环每完成一个阶段更新 UiLoopTick + 标记当前阶段；看门狗（心跳线程）发现 UiLoopTick
@@ -122,6 +123,16 @@ public class TuiManager : IDisposable
                             FreezeCapture.SetCpuPercent(cpu);
                             if (cpu > 70 && FreezeCapture.Enabled)
                                 FreezeCapture.DumpNow($"CPU 高占用 {cpu:F0}%", UiLoopActivity, 0);
+
+                            // 模型显示 5s 兜底同步：切换路径（/connect/Ctrl+Shift+M 等）可能漏刷新，
+                            // 心跳比较 active connect 快照，变了才刷新动态栏/模型栏（防每 5s 全屏闪烁）。
+                            var snap = $"{Config.Instance.Provider}|{Config.Instance.Model}|{Config.Instance.SmallProvider}|{Config.Instance.SmallModel}";
+                            if (snap != _lastModelSnapshot)
+                            {
+                                _lastModelSnapshot = snap;
+                                if (ActiveScreen is UI.Tui.Screens.ChatScreen cs)
+                                    cs.RefreshModelStatus(); // 只标脏不碰控件树，后台线程安全
+                            }
                         }
 
                         // 定时 dump（用户需求：每分钟一次）——死机前最近一次快照即现场。

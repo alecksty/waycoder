@@ -129,8 +129,9 @@ public partial class Program
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"大模型: {ConnectionConfig.FormatModel(_config.Provider, _config.Model)} · 小模型: {ConnectionConfig.FormatModel(_config.SmallProvider, _config.SmallModel)}  ·  /help 帮助", Centered = true });
         // 快捷键表不再注入首条对话（太占地方），需要时 /help 弹出面板
         // 状态栏左侧写模型名，不写品牌名 —— 品牌在顶栏标题和上面的欢迎横幅里已经有了，
-        // 这里再来一遍就是第三遍；而且 /model 切换后本来就会把这里改成模型名，启动态跟着一致
-        slot0.StatusLeft = _config.Model;
+        // 这里再来一遍就是第三遍；而且 /model 切换后本来就会把这里改成模型名，启动态跟着一致。
+        // 格式统一 (provider)model：与模型栏同源（active connect），避免两栏显示不一致。
+        slot0.StatusLeft = ConnectionConfig.FormatModel(_config.Provider, _config.Model);
         slot0.HasWelcome = true;
         _llm!.SmallModel = _config.SmallModel;
 
@@ -628,6 +629,7 @@ public partial class Program
         }
         screen.AddSystemMsg($"✅ {msg}（{(idx + 1) % connects.Count + 1}/{connects.Count}，Ctrl+Shift+M 下一个）" +
             (string.IsNullOrEmpty(key) ? "\n  ⚠ 该服务商尚未存 key（/provider apikey set <pid> <key>）" : ""));
+        screen.RefreshModelStatus(); // 切换连接后刷新动态栏/模型栏显示（此前漏刷新 → 显示旧模型）
     }
 
     /// <summary>启动时检测上次自动保存的会话 + 崩溃恢复标记。</summary>
@@ -1378,8 +1380,8 @@ public partial class Program
                 var remaining = modelStack.Skip(attempt + 1)
                     .Select(n => ConnectionConfig.FindConnect(n)?.ModelId ?? n).ToList();
                 var chainHint = remaining.Count > 0 ? $"（剩余: {string.Join(" → ", remaining)}）" : "";
-                Route(cs => { cs.StatusLeft = model; cs.AddSystemMsg($"🔄 自动回退到: {fmt}{chainHint}"); cs.StartAgentMsg(); },
-                      s => { s.StatusLeft = model; s.BufferedAddMsg("system", $"🔄 自动回退到: {fmt}{chainHint}"); s.BufferedStartStream(); });
+                Route(cs => { cs.StatusLeft = fmt; cs.AddSystemMsg($"🔄 自动回退到: {fmt}{chainHint}"); cs.StartAgentMsg(); },
+                      s => { s.StatusLeft = fmt; s.BufferedAddMsg("system", $"🔄 自动回退到: {fmt}{chainHint}"); s.BufferedStartStream(); });
             }
 
             try

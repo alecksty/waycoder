@@ -346,8 +346,11 @@ public class LLM
     /// <summary>是否已输出「思考过长截断」提示（一次性，避免每片都刷提示）。</summary>
     private bool _reasoningTruncated;
 
-    /// <summary>推理内容显示上限（字符）。约 100 行 × 40 字符；超过后显示截断提示，后续思考不再显示。</summary>
-    public const int MaxReasoningDisplayChars = 4000;
+    /// <summary>
+    /// 推理内容显示上限（字符）。reasoning 完整流式到显示层（TUI ChatScreen 做尾部滚动窗口），
+    /// 本上限仅作为一次性/管道模式打印的防失控保险（与单条消息上限一致，50k）。
+    /// </summary>
+    public const int MaxReasoningDisplayChars = 50_000;
 
     /// <summary>
     /// 粗略的美元成本估算。模型不在定价表中时返回 null。
@@ -702,7 +705,7 @@ public class LLM
                         else if (!_reasoningTruncated)
                         {
                             _reasoningTruncated = true;
-                            onToken?.Invoke($"\n«orange3»… 思考内容过长已截断（保留前 {MaxReasoningDisplayChars} 字符）«/»");
+                            onToken?.Invoke($"\n«orange3»… 思考内容过长，显示窗口受限«/»");
                         }
                         _reasoningBuffer.Append(th);
                     }
@@ -829,7 +832,7 @@ public class LLM
                 else if (!_reasoningTruncated)
                 {
                     _reasoningTruncated = true;
-                    onToken?.Invoke($"\n«orange3»… 思考内容过长已截断（保留前 {MaxReasoningDisplayChars} 字符）«/»");
+                    onToken?.Invoke($"\n«orange3»… 思考内容过长，显示窗口受限«/»");
                 }
                 _reasoningBuffer.Append(rtext);
             }

@@ -127,17 +127,15 @@ public class AgentSlot
         PruneBuffered();
     }
 
-    /// <summary>单条缓冲消息截断：超 <see cref="Global.MaxSingleMessageChars"/> 丢中间保留头尾 + 标记。</summary>
+    /// <summary>单条缓冲消息截断：超 <see cref="Global.MaxSingleMessageChars"/> 保留尾部窗口 + 滚动标记，
+    /// 每次追加滚动更新（旧内容挤出，最新内容可见）。</summary>
     private static string CapSingleMessage(string cur, string delta)
     {
         int max = Global.MaxSingleMessageChars;
         if (max <= 0 || cur.Length + delta.Length <= max) return cur + delta;
         var combined = cur + delta;
-        if (combined.Contains("… 已截断（单条消息过长）")) return combined; // 已标记，丢弃后续
-        var headLen = max * 40 / 100;
-        var tailLen = max * 40 / 100;
-        return ContextManager.TruncateKeepHeadTail(combined, headLen, tailLen,
-            $"\n\n… 已截断（单条消息过长，共 {combined.Length} 字符）…\n\n");
+        var tail = ContextManager.TruncateTailByRunes(combined, max);
+        return $"… 已截断（显示最近内容，旧内容滚动省略）…\n{tail}";
     }
 
     /// <summary>非活跃槽位缓冲裁剪：超过 <see cref="Config.MaxChatMessages"/> 丢最旧消息，
