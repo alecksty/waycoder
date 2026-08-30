@@ -268,6 +268,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var apiKey = body?["apiKey"]?.AsString() ?? "";
             if (string.IsNullOrWhiteSpace(providerId))
                 return HttpResponse.JsonBody(Err("缺少 providerId"));
+            // 合法性校验：环境变量引用（$VAR / %VAR%）与非法字符一律拒绝
+            if (ApiKeyStore.IsEnvVarRef(apiKey) || !ApiKeyStore.IsValidApiKey(apiKey))
+                return HttpResponse.JsonBody(Err("Key 含非法字符或环境变量引用（只允许英文字母数字 + - _ . ,）"));
             SetProviderKey(providerId, apiKey);
             BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());

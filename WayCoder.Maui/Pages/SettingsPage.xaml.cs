@@ -186,6 +186,12 @@ public partial class SettingsPage : ContentPage
             var pid = Config.Instance.Provider;
             if (!string.IsNullOrEmpty(key))
             {
+                // 环境变量引用（$VAR / ${VAR}）不是真实 key，跳过导入（防把环境变量当 key 误存）
+                if (ApiKeyStore.IsEnvVarRef(key))
+                {
+                    await DisplayAlertAsync("已跳过", "检测到环境变量引用（$VAR），不是真实 Key，未导入。请填入真实 API Key。", "确定");
+                    return;
+                }
                 ApiKeyStore.Set(pid, key);
                 UpdateKeyStatus(pid);
                 applied = true;
@@ -312,7 +318,14 @@ public partial class SettingsPage : ContentPage
             var (ok, message) = await TestKeyCoreAsync(opt.Id, model?.Id ?? "", baseUrlEntry.Text, key);
             if (ok)
             {
-                ApiKeyStore.Set(opt.Id, key);   // 有效立即保存
+                // 有效立即保存：环境变量引用（$VAR）测试会失败，这里双保险跳过
+                if (ApiKeyStore.IsEnvVarRef(key))
+                {
+                    await DisplayAlertAsync("已跳过", "检测到环境变量引用（$VAR），不是真实 Key，未保存。", "确定");
+                    keyEntry.Text = "";
+                    return;
+                }
+                ApiKeyStore.Set(opt.Id, key);
                 statusRefresher(opt.Id);        // 刷新状态标签
                 keyEntry.Text = "";
                 await DisplayAlertAsync("✅ Key 有效", $"服务商 {opt.DisplayName} 的 API Key 验证通过，已自动保存。", "确定");
@@ -371,10 +384,15 @@ public partial class SettingsPage : ContentPage
             return;
         }
 
-        // 1) API Key（非空才写；为空保留原 Key）
+        // 1) API Key（非空才写；为空保留原 Key）——合法性校验：只允许字母数字 + `+-_.` 逗号，拒绝环境变量引用
         var key = KeyEntry.Text?.Trim();
         if (!string.IsNullOrEmpty(key))
-            ApiKeyStore.Set(opt.Id, key);
+        {
+            if (ApiKeyStore.IsEnvVarRef(key) || !ApiKeyStore.IsValidApiKey(key))
+                await DisplayAlertAsync("Key 不合法", $"只允许英文字母数字 + - _ . ,（{opt.DisplayName} 的 Key 未保存，不要填环境变量引用 $VAR / %VAR%）", "确定");
+            else
+                ApiKeyStore.Set(opt.Id, key);
+        }
         UpdateKeyStatus(opt.Id);   // 保存后立即刷新「已保存」状态（此前不刷新显示旧 key）
 
         // 2) 服务商 + 模型 + BaseUrl 统一入口（自动持久化 + 从环境变量导 key）
@@ -387,7 +405,12 @@ public partial class SettingsPage : ContentPage
         {
             var skey = SmallKeyEntry.Text?.Trim();
             if (!string.IsNullOrEmpty(skey))
-                ApiKeyStore.Set(sopt.Id, skey);
+            {
+                if (ApiKeyStore.IsEnvVarRef(skey) || !ApiKeyStore.IsValidApiKey(skey))
+                    await DisplayAlertAsync("Key 不合法", $"只允许英文字母数字 + - _ . ,（{sopt.DisplayName} 的小模型 Key 未保存）", "确定");
+                else
+                    ApiKeyStore.Set(sopt.Id, skey);
+            }
             UpdateSmallKeyStatus(sopt.Id);   // 同样立即刷新
             var sbaseUrl = string.IsNullOrWhiteSpace(SmallBaseUrlEntry.Text) ? null : SmallBaseUrlEntry.Text.Trim();
             ConnectionConfig.ApplyModelChoice(sopt.Id, smodel.Id, isLarge: false, out _, sbaseUrl);

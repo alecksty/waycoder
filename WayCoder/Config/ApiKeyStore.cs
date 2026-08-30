@@ -33,7 +33,25 @@ public static class ApiKeyStore
         return keys.TryGetValue(providerId.ToLowerInvariant(), out var entry) ? entry.Expiry : null;
     }
 
-    /// <summary>存储指定服务商的 API Key。返回是否保存成功（失败已记日志，调用方可提示用户）。</summary>
+    /// <summary>
+    /// 校验 API Key 合法字符：只允许英文字母数字 + `+-_.` 逗号，且非空。
+    /// 环境变量引用（$VAR / ${VAR}）含 `$` 不在白名单 → 判非法（防把环境变量当 key 误存）。
+    /// 用于手动输入 Key 的即时校验；导入路径宽松（真实 key 可能含 `=` 等，仅防环境变量引用）。
+    /// </summary>
+    public static bool IsValidApiKey(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return false;
+        foreach (var c in key.Trim())
+        {
+            var ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+                || c is '+' or '-' or '_' or '.' or ',';
+            if (!ok) return false;
+        }
+        return true;
+    }
+
+    /// <summary>存储指定服务商的 API Key。返回是否保存成功（失败已记日志，调用方可提示用户）。
+    /// 环境变量引用（$VAR）视为非法输入拒绝存储——防导入流程把环境变量当真实 key 误存。</summary>
     public static bool Set(string providerId, string apiKey, string? expiry = null)
     {
         lock (_lock)
@@ -44,6 +62,8 @@ public static class ApiKeyStore
             var pid = providerId.ToLowerInvariant();
             if (string.IsNullOrWhiteSpace(apiKey))
                 keys.Remove(pid);
+            else if (IsEnvVarRef(apiKey))
+                return false; // 环境变量引用不是真实 key（$VAR），拒绝存储，防导入误判
             else
                 keys[pid] = new KeyEntry(apiKey.Trim(), NormalizeExpiry(expiry));
             return Save(keys);
@@ -274,11 +294,12 @@ public static class ApiKeyStore
     /// 从其他软件已知配置文件导入 API Key（Claude Code / Codex / OpenCode / Cursor）+ 环境变量。
     /// 全部容错：某文件缺失/解析失败只跳过该项。返回已导入的 (供应商ID, 来源) 列表。
     /// </summary>
-    /// <summary>环境变量引用形式的伪 key（$VAR / ${VAR}）——非真实字面 key，从配置文件导入来源时应跳过。</summary>
+    /// <summary>环境变量引用形式的伪 key（Unix `$VAR` / `${VAR}`、Windows `%VAR%`）——非真实字面 key，
+    /// 从配置文件导入来源时应跳过；`$` 与 `%` 均不在合法 Key 字符集内，一律视为非法值。</summary>
     internal static bool IsEnvVarRef(string raw)
     {
         var s = raw.TrimStart();
-        return s.StartsWith('$') || s.StartsWith("${");
+        return s.StartsWith('$') || s.StartsWith("${") || s.StartsWith('%');
     }
 
     public static List<(string ProviderId, string Source)> ImportFromKnownSources()
