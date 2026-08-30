@@ -246,6 +246,27 @@ public partial class ChatScreen : TuiScreen
         if (DynamicBar == null) return;
         DynamicBar.Width = TW;
         DynamicBar.ContextPercent = _contextPercent; // 常驻上下文占用%
+        // 常驻 CPU 占用%：从 CpuMonitor 读取最新采样值（心跳线程 5s 采样，此处每帧取最新）
+        DynamicBar.CpuPercent = CpuMonitor.LastPercent;
+
+        // 实时 token 消耗/花费/上下文：每帧从 Agent.LlmClient/Context 读取（getter-only 廉价计算）。
+        // 流式/工具执行时 token 随 LLM 累计实时变化，本处每帧取最新 → 动态栏 250ms 节流显示。
+        var llm = ProgramContext.Agent?.LlmClient;
+        var ctx = ProgramContext.Agent?.Context;
+        if (llm != null)
+        {
+            DynamicBar.TokenDisplay = $"🔤大{FormatNum(llm.LargeTotalTokens)} 小{FormatNum(llm.SmallTotalTokens)}";
+            DynamicBar.CostDisplay = llm.EstimatedCost.HasValue
+                ? $"¥{llm.EstimatedCost.Value * 7.25:F2}" : null;
+            // 上下文占比改用真实 LastPromptTokens/MaxTokens（比估算值准）
+            if (ctx != null && ctx.MaxTokens > 0)
+                DynamicBar.ContextPercent = ctx.LastPromptTokens * 100.0 / ctx.MaxTokens;
+        }
+        else
+        {
+            DynamicBar.TokenDisplay = null;
+            DynamicBar.CostDisplay = null;
+        }
 
         // 动画节流：活跃态每 FrameMs（500ms）标一次脏让 spinner 转起来。
         // 动画常驻标脏（spinner 每 FrameMs 转，不依赖 IsActive —— 空闲也显示旋转动画）
@@ -829,20 +850,44 @@ public partial class ChatScreen : TuiScreen
     }
 
     /// <summary>
-    /// 聊天显示裁剪：超过 <see cref="Config.MaxChatMessages"/> 自动丢弃最旧消息。
-    /// 只裁显示层（ChatMessages/ChatList），Agent 的 Messages 与会话文件不受影响——
-    /// 恢复会话时按 Agent 消息重建显示。避免万级消息下列表布局/渲染越来越慢。
+    /// 聊天显示裁剪：超过 <see cref="Config.MaxChatMessages"/>（条数）或
+    /// <see cref="Config.MaxChatTokens"/>（总 token，按单条 MarkdownContent 估算累计）
+    /// 自动丢弃最旧消息。只裁显示层（ChatMessages/ChatList），Agent 的 Messages 与会话文件
+    /// 不受影响——恢复会话时按 Agent 消息重建显示。避免万级消息/超大单条导致列表布局与渲染越来越慢
+    /// （170K tokens 大上下文下渲染卡死的根因之一）。
     /// </summary>
     private void PruneChatHistory()
     {
         int max = Config.Instance.MaxChatMessages;
-        if (max <= 0) return;
-        int excess = ChatList.ItemCount - max;
-        if (excess <= 0) return;
-        for (int i = 0; i < excess; i++)
+        int maxTokens = Config.Instance.MaxChatTokens;
+        if (max <= 0 && maxTokens <= 0) return;
+
+        // 条数超限：丢最旧
+        int excess = max > 0 ? ChatList.ItemCount - max : 0;
+        while (excess > 0 && ChatList.ItemCount > 0)
         {
-            if (ChatList.ItemCount > 0) ChatList.RemoveItem(0);
+            ChatList.RemoveItem(0);
             if (ChatMessages.Count > 0) ChatMessages.RemoveAt(0);
+            excess--;
+        }
+
+        // 总 token 超限：从最旧开始丢，直到低于上限。
+        // 每次新增消息后调用，累计估算 O(n) 可接受；n 被条数上限钳制不会爆炸。
+        if (maxTokens > 0)
+        {
+            while (ChatList.ItemCount > 0)
+            {
+                long total = 0;
+                for (int i = 0; i < ChatList.ItemCount; i++)
+                {
+                    if (ChatList.GetItem(i) is TuiListItem it)
+                        total += ContextManager.EstimateText(it.MarkdownContent);
+                    if (total > maxTokens) break; // 已超，无需继续累计
+                }
+                if (total <= maxTokens) break; // 未超限，结束
+                ChatList.RemoveItem(0);
+                if (ChatMessages.Count > 0) ChatMessages.RemoveAt(0);
+            }
         }
 
         // 裁剪后滚动偏移可能越界（最旧项被删），钳制到有效范围
@@ -979,9 +1024,25 @@ public partial class ChatScreen : TuiScreen
             if (ChatMessages.Count == 0) return;
             var last = ChatMessages[^1];
             if (!last.Streaming) return;
-            last.Content += delta;
+            last.Content = CapMessageContent(last.Content, delta); // 单条上限防撑爆
             AppendToLast(delta);
         }
+    }
+
+    /// <summary>单条流式消息内容截断：超过 <see cref="Global.MaxSingleMessageChars"/> 丢弃中间保留头尾 + 标记，
+    /// 防止一条超长回复/工具输出把 Content 与渲染无限撑爆。</summary>
+    private static string CapMessageContent(string cur, string delta)
+    {
+        int max = Global.MaxSingleMessageChars;
+        if (max <= 0 || cur.Length + delta.Length <= max) return cur + delta;
+        // 已超限：保留头尾 + 截断标记（后续追加直接丢弃，只保留标记）
+        var combined = cur + delta;
+        if (combined.Contains("… 已截断（单条消息过长）"))
+            return combined; // 已标记过，直接丢弃后续（避免每次截断重算）
+        var headLen = max * 40 / 100;
+        var tailLen = max * 40 / 100;
+        return ContextManager.TruncateKeepHeadTail(combined, headLen, tailLen,
+            $"\n\n… 已截断（单条消息过长，共 {combined.Length} 字符）…\n\n");
     }
 
     /// <summary>确保有活跃的流式 Agent 消息（如没有则创建一个）。线程安全。</summary>
@@ -1155,6 +1216,17 @@ public partial class ChatScreen : TuiScreen
     /// <summary>待提交消息队列（Enter 键 → Program.cs 异步处理）</summary>
     public readonly ConcurrentQueue<string> PendingSubmissions = new();
 
+    /// <summary>待提交排队上限：Agent 长任务期间用户持续输入会无限累积，超限丢最旧防撑爆。</summary>
+    
+
+    /// <summary>入队一条待提交消息（带上限：超 <see cref="Global.MaxPendingSubmissions"/> 丢最旧）。</summary>
+    public void EnqueueSubmission(string input)
+    {
+        while (PendingSubmissions.Count >= Global.MaxPendingSubmissions)
+            PendingSubmissions.TryDequeue(out _);
+        PendingSubmissions.Enqueue(input);
+    }
+
     /// <summary>输入历史（↑↓ 浏览）</summary>
     internal readonly List<string> InputHistory = [];
 
@@ -1190,7 +1262,7 @@ public partial class ChatScreen : TuiScreen
         var win = TuiDialog.Confirm("退出 WayCoder", "确定要退出道码吗？", confirmed =>
         {
             if (confirmed)
-                PendingSubmissions.Enqueue(AnsiTty.SgrReset); // 特殊标记：退出请求
+                EnqueueSubmission(AnsiTty.SgrReset); // 特殊标记：退出请求
         });
         ShowWindow(win);
     }

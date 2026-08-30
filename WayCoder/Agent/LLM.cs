@@ -340,6 +340,14 @@ public class LLM
     private bool _reasoningShown;
     /// <summary>推理内容缓冲区（旁路保存，不进入对话历史，供调试恢复）</summary>
     private readonly StringBuilder _reasoningBuffer = new();
+    /// <summary>已显示（推送给 onToken）的推理字符数。超 <see cref="MaxReasoningDisplayChars"/> 后停止显示，
+    /// 防止无限制思考把聊天列表撑爆（_reasoningBuffer 仍完整累积，保统计/调试）。</summary>
+    private int _reasoningShownChars;
+    /// <summary>是否已输出「思考过长截断」提示（一次性，避免每片都刷提示）。</summary>
+    private bool _reasoningTruncated;
+
+    /// <summary>推理内容显示上限（字符）。约 100 行 × 40 字符；超过后显示截断提示，后续思考不再显示。</summary>
+    public const int MaxReasoningDisplayChars = 4000;
 
     /// <summary>
     /// 粗略的美元成本估算。模型不在定价表中时返回 null。
@@ -446,6 +454,8 @@ public class LLM
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         _reasoningShown = false; // 每次请求重置推理标记
+        _reasoningShownChars = 0;
+        _reasoningTruncated = false;
         _reasoningBuffer.Clear();
 
         // 超时由 CallWithRetryAsync 内部逐次加长管理，外部仅传取消令牌
@@ -686,7 +696,15 @@ public class LLM
                     else if (dtype == "thinking_delta" && delta?["thinking"]?.AsString() is { } th && th.Length > 0)
                     {
                         if (!_reasoningShown) { _reasoningShown = true; onToken?.Invoke("\n«dim»"); }
-                        onToken?.Invoke(th); _reasoningBuffer.Append(th);
+                        _reasoningShownChars += th.Length;
+                        if (_reasoningShownChars <= MaxReasoningDisplayChars)
+                            onToken?.Invoke(th);
+                        else if (!_reasoningTruncated)
+                        {
+                            _reasoningTruncated = true;
+                            onToken?.Invoke($"\n«orange3»… 思考内容过长已截断（保留前 {MaxReasoningDisplayChars} 字符）«/»");
+                        }
+                        _reasoningBuffer.Append(th);
                     }
                     else if (dtype == "input_json_delta" && delta?["partial_json"]?.AsString() is { } pj)
                     {
@@ -794,6 +812,8 @@ public class LLM
             // reasoning / reasoning_content：显示给用户（暗色），但不存入 contentParts
             // DeepSeek 用 reasoning_content，Ollama/qwen 用 reasoning
             // 显示 = 让用户看到思考过程  不存 = 不污染对话历史
+            // 限制显示：思考内容超过阈值后停止推送给 onToken（避免无限制思考把聊天列表撑爆），
+            // 但 _reasoningBuffer 仍完整累积（保 ReasoningTokens 统计 / 调试日志）。
             else if (TryGetReasoningText(delta, out var rtext))
             {
                 if (!_reasoningShown)
@@ -801,7 +821,16 @@ public class LLM
                     _reasoningShown = true;
                     onToken?.Invoke("\n«dim»");
                 }
-                onToken?.Invoke(rtext);
+                _reasoningShownChars += rtext.Length;
+                if (_reasoningShownChars <= MaxReasoningDisplayChars)
+                {
+                    onToken?.Invoke(rtext);
+                }
+                else if (!_reasoningTruncated)
+                {
+                    _reasoningTruncated = true;
+                    onToken?.Invoke($"\n«orange3»… 思考内容过长已截断（保留前 {MaxReasoningDisplayChars} 字符）«/»");
+                }
                 _reasoningBuffer.Append(rtext);
             }
 

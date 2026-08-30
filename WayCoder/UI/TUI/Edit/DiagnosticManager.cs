@@ -407,7 +407,7 @@ public static class DiagnosticManager
             var msgStart = m.Index + m.Length;
             var msgEnd = i + 1 < matches.Count ? matches[i + 1].Index : output.Length;
             var msg = output[msgStart..msgEnd].Trim();
-            if (msg.StartsWith("^--")) msg = "语法错误";
+            if (msg.StartsWith("^--", StringComparison.Ordinal)) msg = "语法错误";
 
             diagnostics.Add(new Diagnostic(line, 0, Severity.Warning, msg.Trim(), "SC"));
         }

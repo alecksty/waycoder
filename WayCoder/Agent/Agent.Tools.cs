@@ -120,12 +120,25 @@ public partial class Agent
 
             // 可取消工具：中断（Web 停止按钮 / Ctrl+C）时能真正杀掉子进程（如 bash）。
             // bash 走流式路径（有 onToolOutput 时）；其余可取消工具统一走 ICancellableTool。
-            var result = tool is BashTool bashTool && onToolOutput != null
-                ? await bashTool.ExecuteStreamingAsync(tc.Arguments,
-                    async line => { onToolOutput(line); await Task.CompletedTask; }, cancellationToken)
-                : tool is ICancellableTool cancellable
-                    ? await cancellable.ExecuteAsync(tc.Arguments, cancellationToken)
-                    : await tool.ExecuteAsync(tc.Arguments);
+            // 置位当前工具：冻结采集（FreezeCapture）从后台线程读，覆盖单/多/子智能体路径；
+            // 工具真正开始跑才置位（权限拒绝/模式检查等前置返回不污染状态）。
+            CurrentToolName = tc.Name;
+            CurrentToolBrief = FormatBrief(tc.Arguments, 80);
+            string result;
+            try
+            {
+                result = tool is BashTool bashTool && onToolOutput != null
+                    ? await bashTool.ExecuteStreamingAsync(tc.Arguments,
+                        async line => { onToolOutput(line); await Task.CompletedTask; }, cancellationToken)
+                    : tool is ICancellableTool cancellable
+                        ? await cancellable.ExecuteAsync(tc.Arguments, cancellationToken)
+                        : await tool.ExecuteAsync(tc.Arguments);
+            }
+            finally
+            {
+                CurrentToolName = "";
+                CurrentToolBrief = "";
+            }
 
             // 追踪修改的文件（用于自动 commit 精准暂存 + FileTracker 哈希更新）
             if (tc.Name is "write_file" or "edit_file" or "notebook_edit")
@@ -133,9 +146,15 @@ public partial class Agent
                 if (tc.Arguments.TryGetValue("file_path", out var fp) && fp is string path && !string.IsNullOrWhiteSpace(path))
                 {
                     lock (_modifiedFiles)
+                    {
+                        if (_modifiedFiles.Count >= Global.MaxTrackedFiles) _modifiedFiles.Clear(); // 防无限累积
                         _modifiedFiles.Add(path);
+                    }
                     lock (_allSessionFiles)
+                    {
+                        if (_allSessionFiles.Count >= Global.MaxTrackedFiles) _allSessionFiles.Clear(); // 防无限累积
                         _allSessionFiles.Add(path);
+                    }
                     // 更新 FileTracker 哈希，防止下次编辑时误报 stale
                     FileTracker.RecordWrite(path);
                     // 修完必验证：本轮改过源码文件 → 收尾前若未验证则强制验一次

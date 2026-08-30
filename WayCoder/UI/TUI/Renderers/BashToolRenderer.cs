@@ -41,7 +41,7 @@ public class BashToolRenderer : IToolRenderer
         result = result.Replace("[stderr]", $"{AnsiTty.FgBg(37, 41)}[stderr]{AnsiTty.SgrReset}");
 
         // 错误前缀着色
-        if (result.StartsWith("错误：") || result.StartsWith("⚠ 已阻止"))
+        if (result.StartsWith("错误：", StringComparison.Ordinal) || result.StartsWith("⚠ 已阻止", StringComparison.Ordinal))
         {
             result = AnsiTty.ErrorBlock(result);
         }

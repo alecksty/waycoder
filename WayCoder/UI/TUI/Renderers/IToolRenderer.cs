@@ -50,7 +50,7 @@ public static class ToolRendererFactory
     public static IToolRenderer Get(string toolName)
     {
         // 去掉 mcp_ 前缀后匹配
-        if (toolName.StartsWith("mcp_") && toolName.Count(c => c == '_') >= 2)
+        if (toolName.StartsWith("mcp_", StringComparison.Ordinal) && toolName.Count(c => c == '_') >= 2)
         {
             var lastUnderscore = toolName.LastIndexOf('_');
             var baseName = toolName[(lastUnderscore + 1)..];

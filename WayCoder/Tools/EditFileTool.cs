@@ -39,7 +39,7 @@ public class EditFileTool : ITool
     /// 跟踪本次会话中修改的文件，供 /diff 使用。
     /// 静态集合，跨所有工具实例共享。线程安全（10 槽位并行写 / 主线程读）。
     /// </summary>
-    public static readonly ThreadSafeStringSet ChangedFiles = new();
+    public static readonly ThreadSafeStringSet ChangedFiles = new() { MaxCount = Global.MaxTrackedFiles };
 
     /// <summary>文件变更行数统计（绝对路径 → 新增/删除行数），供 Web 面板「修改文件」显示 +N/-M。</summary>
     public static readonly ConcurrentDictionary<string, (int Added, int Deleted)> ChangedFileStats = new();

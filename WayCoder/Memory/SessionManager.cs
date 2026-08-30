@@ -43,6 +43,7 @@ public static class SessionManager
     {
         var dir = SessionsDirFor(slot);
         Directory.CreateDirectory(dir);
+        PruneOldSessions(dir); // 保留最近 200 个会话 / 删 30 天前，防磁盘无限累积
 
         sessionId = NormalizeSessionId(sessionId);
 
@@ -274,6 +275,28 @@ public static class SessionManager
             throw new ArgumentException("无效的会话 ID");
 
         return path;
+    }
+
+    /// <summary>清理旧会话文件：保留最近 200 个 / 删 30 天前，防磁盘无限累积。</summary>
+    private static void PruneOldSessions(string dir)
+    {
+        try
+        {
+            if (!Directory.Exists(dir)) return;
+            var files = Directory.GetFiles(dir, "*.json")
+                .OrderByDescending(f => File.GetLastWriteTimeUtc(f)).ToList();
+            var cutoff = DateTime.UtcNow.AddDays(-Global.SessionRetentionDays);
+            for (int i = 0; i < files.Count; i++)
+            {
+                try
+                {
+                    if (i >= Global.MaxSessionsKeep || File.GetLastWriteTimeUtc(files[i]) < cutoff)
+                        File.Delete(files[i]);
+                }
+                catch { /* 单个文件删除失败忽略 */ }
+            }
+        }
+        catch { /* 清理失败不影响会话 */ }
     }
 }
 

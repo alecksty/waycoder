@@ -270,7 +270,7 @@ public class BashTool : ITool, ICancellableTool
                     outStr += $"\n[退出码：{proc.ExitCode}]";
 
                 // 保留头尾以保留最有用的信息
-                var maxChars = Config.Instance.BashOutputMaxChars;
+                var maxChars = Global.BashOutputMaxChars;
                 if (maxChars > 0 && outStr.Length > maxChars)
                 {
                     var headLen = maxChars * 40 / 100;
@@ -315,6 +315,10 @@ public class BashTool : ITool, ICancellableTool
         Process proc, string command, string cwd, int timeout, Func<string, Task> onLine, CancellationToken cancellationToken = default)
     {
         var outBuilder = new System.Text.StringBuilder();
+        // 流式期间增量截断：长输出命令（tail -f/构建日志）执行期间就控制内存，
+        // 不等到进程结束才截断（否则长命令会在执行期间无限撑爆内存）。
+        var streamMaxChars = Global.BashOutputMaxChars;
+        var streamTruncated = false;
 
         // 同时逐行读取 stdout 和 stderr
         async Task ReadStream(StreamReader reader, string prefix)
@@ -329,6 +333,18 @@ public class BashTool : ITool, ICancellableTool
                 lock (outBuilder)
                 {
                     outBuilder.AppendLine(output);
+                    // 增量截断：超限丢中间保留头尾 + 截断标记，防止流式期间无界累积
+                    if (streamMaxChars > 0 && outBuilder.Length > streamMaxChars)
+                    {
+                        var headLen = streamMaxChars * 40 / 100;
+                        var tailLen = streamMaxChars * 40 / 100;
+                        var cur = outBuilder.ToString();
+                        outBuilder.Clear();
+                        outBuilder.Append(ContextManager.TruncateKeepHeadTail(
+                            cur, headLen, tailLen,
+                            $"\n\n... 已截断（共 {cur.Length} 字符）...\n\n"));
+                        streamTruncated = true;
+                    }
                 }
                 try { await onLine(output); } catch { /* 回调异常不影响执行 */ }
             }
@@ -358,7 +374,8 @@ public class BashTool : ITool, ICancellableTool
                        $"Shell ID: {bgId}\n" +
                        $"命令: {command}\n" +
                        $"使用 job_output 工具读取输出（参数 shell_id={bgId}）\n" +
-                       $"使用 job_kill 工具终止任务（参数 shell_id={bgId}）";
+                       $"使用 job_kill 工具终止任务（参数 shell_id={bgId}）" +
+                       (streamTruncated ? "\n⚠ 输出过长，已截断保留头尾" : "");
             }
 
             // 给流读取一个收尾窗口（守护子进程继承管道会让读永不 EOF，加超时防挂起）
@@ -371,7 +388,7 @@ public class BashTool : ITool, ICancellableTool
             if (proc.ExitCode != 0)
                 outStream += $"\n[退出码：{proc.ExitCode}]";
 
-            var maxStreamChars = Config.Instance.BashOutputMaxChars;
+            var maxStreamChars = Global.BashOutputMaxChars;
             if (maxStreamChars > 0 && outStream.Length > maxStreamChars)
             {
                 var headLen = maxStreamChars * 40 / 100;

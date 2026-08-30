@@ -126,6 +126,7 @@ public static class SlashCommandRegistry
         Register(new Commands.PermitCommand());
         Register(new Commands.TokensCommand());
         Register(new Commands.StatsCommand());
+        Register(new Commands.DiagCommand());
         Register(new Commands.CompactCommand());
 
         // P1 — 会话/上下文

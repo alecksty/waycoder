@@ -195,6 +195,9 @@ public class Config
     public bool QuietMode { get; set; }
     /// <summary>聊天区显示消息上限：超过后自动丢弃最旧消息（Agent 会话仍在、会话文件持久化，仅裁剪显示层保持流畅）</summary>
     public int MaxChatMessages { get; set; } = 1000;
+    /// <summary>聊天区显示消息总 token 上限：超过后自动丢弃最旧消息（按单条估算 token 累计）。
+    /// 防止单条工具输出巨大时，即使条数未超限，显示层总内容仍过大导致渲染卡死。</summary>
+    public int MaxChatTokens { get; set; } = 200_000;
     /// <summary>聊天代码块预览行数上限：超过后保留头尾、中间折叠省略</summary>
     public int MaxCodePreviewLines { get; set; } = 500;
     public bool DesktopNotifications { get; set; } = false;

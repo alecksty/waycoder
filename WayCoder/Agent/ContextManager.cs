@@ -234,6 +234,15 @@ public class ContextManager
 
         try
         {
+            // count 硬门：token 估算不到阈值但消息条数已过多（如 LLM 每轮只回极短消息）时
+            // 也强制触发裁剪，防止 _messages 条数无限增长。300 条 ≈ 远低于 MaxRounds×2 的最坏情况。
+            if (messages.Count > Global.MaxAgentMessagesHard)
+            {
+                SnipToolOutputs(messages, EffectiveSnipChars());
+                compressed = true;
+                current = EstimateCalibratedTokens(messages);
+            }
+
             // 第 1 层：裁剪冗长的工具输出
             if (current > _snipAt)
             {
@@ -335,6 +344,13 @@ public class ContextManager
     /// </summary>
     public int EstimateCalibratedTokens(List<JNode> messages) =>
         EstimateTokens(messages) + Math.Max(0, _overheadTokens);
+
+    /// <summary>对单段文本做 CJK 感知 token 估算（显示层消息裁剪等复用）。</summary>
+    public static int EstimateText(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return 0;
+        return EstimateTokensText(text);
+    }
 
     /// <summary>对单段文本做 CJK 感知 token 估算。</summary>
     private static int EstimateTokensText(string text)

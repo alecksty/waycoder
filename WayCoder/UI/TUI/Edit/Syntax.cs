@@ -96,7 +96,7 @@ public class Syntax
         if (text.Contains("namespace ")) return CSharp(); // C# 专属关键词
         if (text.Contains("using System")) return CSharp();
         if (text.Contains("public class ") || text.Contains("public static ")) return CSharp();
-        if (text.StartsWith("import ") || text.StartsWith("from ")) return Python();
+        if (text.StartsWith("import ", StringComparison.Ordinal) || text.StartsWith("from ", StringComparison.Ordinal)) return Python();
         if (text.Contains("def ") && text.Contains("import ")) return Python();
         if (text.Contains("func ") && text.Contains("package ")) return Go();
         if (text.Contains("SELECT ") && text.Contains(" FROM ")) return Sql();

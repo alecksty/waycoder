@@ -55,17 +55,28 @@ public abstract class TuiScreen : TuiBase
     /// </summary>
     public bool IsUiThread => Environment.CurrentManagedThreadId == _uiThreadId;
 
+    /// <summary>后台→UI 投递队列上限：渲染慢时流式 token 持续投递会积压无上限，超限丢最旧防内存撑爆。</summary>
+    
+
     /// <summary>
     /// 投递 UI 操作：UI 线程调用直接执行（无延迟），后台线程调用入队（UI 线程 PumpUIQueue 消费）。
     /// 这样所有 TuiScreen 子类的 UI 方法都能安全地从任意线程调用，控件树只被 UI 线程触碰。
+    /// 队列超 <see cref="Global.MaxUiQueue"/> 时丢最旧（多为流式 token，影响小；保护权限回调等关键投递）。
     /// </summary>
     public void PostToUI(Action action)
     {
         if (action == null) return;
         if (Environment.CurrentManagedThreadId == _uiThreadId)
+        {
             action();
-        else
-            _uiQueue.Enqueue(action);
+            return;
+        }
+        // 超限丢最旧：渲染慢时流式投递积压，防内存无限增长
+        while (_uiQueue.Count >= Global.MaxUiQueue)
+        {
+            _uiQueue.TryDequeue(out _);
+        }
+        _uiQueue.Enqueue(action);
     }
 
     /// <summary>消费并执行 UI 操作队列（仅 UI 线程调用：REPL 主循环 / RunAgentWithRenderLoop / RenderWait）。</summary>

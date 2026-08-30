@@ -296,11 +296,11 @@ public partial class Program
         while (running && !_exitRequested)
         {
             screen.CurrentSessionId = _currentSessionIds[_activeSlot]; // 侧边栏会话区标记「当前」
-            TuiManager.UiLoopActivity = "PumpUIQueue"; // 冻结看门狗标记：主循环卡在哪个阶段
+            TuiManager.SetActivity("PumpUIQueue"); // 冻结看门狗标记 + 黑匣子打点
             screen.PumpUIQueue(); // 消费后台投递的 UI 操作（Agent 流式 / 权限回调等）
-            TuiManager.UiLoopActivity = "Render";
+            TuiManager.SetActivity("Render");
             mgr.Render();
-            TuiManager.UiLoopActivity = "PendingSubmissions";
+            TuiManager.SetActivity("PendingSubmissions");
 
             // 处理 ChatScreen 提交的消息（Enter 键 → async LLM 调用）。
             // 输入排队机制：Agent 忙碌时不打断 —— 普通对话留在队列（TryPeek 不取走），
@@ -341,10 +341,10 @@ public partial class Program
                 await ProcessUserInput(watchPrompt, screen);
             }
 
-            TuiManager.UiLoopActivity = "ReadInput";
+            TuiManager.SetActivity("ReadInput");
             var ev = inputMgr.ReadInput(50);
             Volatile.Write(ref TuiManager.UiLoopTick, Environment.TickCount64); // 主循环心跳：完成一轮输入轮询
-            TuiManager.UiLoopActivity = "KeyDispatch";
+            TuiManager.SetActivity("KeyDispatch");
 
             // Resize — 通知全控件树重新布局 + 全屏刷新
             if (ev.Type == InputType.Resize)
@@ -664,7 +664,13 @@ public partial class Program
         try
         {
             var dir = Directory.GetCurrentDirectory();
-            _watchMode = new WatchMode(dir, prompt => { _pendingWatchPrompts.Enqueue(prompt); });
+            _watchMode = new WatchMode(dir, prompt =>
+            {
+                // 带上限：突发大量文件变更（构建/工具输出）可积压，超 20 丢最旧防撑爆
+                while (_pendingWatchPrompts.Count >= Global.MaxWatchPrompts)
+                    _pendingWatchPrompts.TryDequeue(out _);
+                _pendingWatchPrompts.Enqueue(prompt);
+            });
             _watchMode.Start();
         }
         catch (Exception ex)
@@ -851,9 +857,9 @@ public partial class Program
         var inputMgr = TuiManager.Instance.Input; // 共享 InputManager：统一 paste/CSI/鼠标解析
         while (!agentTask.IsCompleted)
         {
-            TuiManager.UiLoopActivity = "AgentLoop.PumpUIQueue"; // 冻结看门狗标记
+            TuiManager.SetActivity("AgentLoop.PumpUIQueue"); // 冻结看门狗标记 + 黑匣子打点
             screen_?.PumpUIQueue(); // 消费后台投递的 UI 操作（Agent 流式回调）
-            TuiManager.UiLoopActivity = "AgentLoop.Render";
+            TuiManager.SetActivity("AgentLoop.Render");
             try { mgr.Render(); }
             catch (Exception ex)
             {
@@ -933,9 +939,9 @@ public partial class Program
         var inputMgr = TuiManager.Instance.Input;
         while (!task.IsCompleted)
         {
-            TuiManager.UiLoopActivity = "CmdLoop.PumpUIQueue"; // 冻结看门狗标记
+            TuiManager.SetActivity("CmdLoop.PumpUIQueue"); // 冻结看门狗标记 + 黑匣子打点
             screen.PumpUIQueue();
-            TuiManager.UiLoopActivity = "CmdLoop.Render";
+            TuiManager.SetActivity("CmdLoop.Render");
             mgr.Render();
             var ev = inputMgr.ReadInput(30);
             if (ev.Type == InputType.Timeout) continue;
@@ -1233,7 +1239,8 @@ public partial class Program
         if (slot.IsBusy)
         {
             // 排队：不打断当前任务 —— 指令入队，等 Agent 当前批次完成后由主循环取指令自动执行
-            screen.PendingSubmissions.Enqueue(userInput);
+            // 带上限（超 50 丢最旧），防长任务期间用户持续输入无限累积
+            screen.EnqueueSubmission(userInput);
             screen.AddSystemMsg("⏳ Agent 忙碌中 — 指令已排队，当前批次完成后自动执行");
             return;
         }

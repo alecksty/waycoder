@@ -22,7 +22,7 @@ public class AgentToolRenderer : IToolRenderer
         var result = rawOutput;
 
         // [子智能体已完成 · 深度 N] → 蓝色粗体
-        if (result.StartsWith("[子智能体已完成"))
+        if (result.StartsWith("[子智能体已完成", StringComparison.Ordinal))
         {
             var endBracket = result.IndexOf(']');
             if (endBracket >= 0)
@@ -34,7 +34,7 @@ public class AgentToolRenderer : IToolRenderer
         }
 
         // [并行子智能体完成 · N 个任务] → 蓝色粗体
-        if (result.StartsWith("[并行子智能体完成"))
+        if (result.StartsWith("[并行子智能体完成", StringComparison.Ordinal))
         {
             var endBracket = result.IndexOf(']');
             if (endBracket >= 0)
@@ -46,7 +46,7 @@ public class AgentToolRenderer : IToolRenderer
         }
 
         // 错误着色
-        if (result.StartsWith("子智能体错误") || result.StartsWith("并行子智能体错误"))
+        if (result.StartsWith("子智能体错误", StringComparison.Ordinal) || result.StartsWith("并行子智能体错误", StringComparison.Ordinal))
         {
             result = AnsiTty.ErrorBlock(result);
         }

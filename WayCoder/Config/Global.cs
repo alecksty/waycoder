@@ -37,7 +37,7 @@ public static class Global
     /// <summary>应用全称</summary>
     public const string AppFullName = "WayCoder 道码·通用编程智能体";
     /// <summary>版本号</summary>
-    public const string Version = "v0.96.27";
+    public const string Version = "v0.96.28";
     /// <summary>应用名 + 版本号</summary>
     public static string AppNameVersion => $"{AppName} {Version} ({AppNameCN})";
 
@@ -62,6 +62,80 @@ public static class Global
     // ── 配置目录 ──
     /// <summary>当前配置目录名</summary>
     public const string ConfigDirName = ".waycoder";
+
+    // ════════════════════════════════════════════════════════════════════
+    // 资源占用上限（全部编译期常量，防内存/显示/磁盘被无限增长撑爆）
+    // 数值由用户统一在此调整；各功能在运行时引用这些常量做截断/裁剪/清理。
+    // ════════════════════════════════════════════════════════════════════
+
+    // ── 工具输出 / 后台任务 ──
+    /// <summary>Bash 命令流式输出滚动上限（字符）：执行期间超限丢中间保留头尾，防长输出命令撑爆内存。</summary>
+    public const int BashOutputMaxChars = 50_000;
+
+    /// <summary>后台任务单任务输出滚动上限（字符）：构建/服务类长任务输出超限保留头尾。</summary>
+    public const int MaxBgOutputChars = 50_000;
+
+    /// <summary>已完成后台任务保留个数：超出自动清除最旧，防长期会话内存无限增长。</summary>
+    public const int MaxCompletedTasks = 50;
+
+    // ── 消息 / 显示 ──
+    /// <summary>单条流式消息内容上限（字符）：一条超长回复/工具输出超过后截断附标记，防 Content 与渲染撑爆。</summary>
+    public const int MaxSingleMessageChars = 50_000;
+
+    /// <summary>Agent 消息列表硬上限（条）：token 估算不到阈值但条数过多（LLM 反复回极短消息）时强制压缩。</summary>
+    public const int MaxAgentMessagesHard = 300;
+
+    // ── 队列 / 排队 ──
+    /// <summary>后台→UI 投递队列上限：渲染慢时流式 token 持续投递会积压，超限丢最旧防内存撑爆。</summary>
+    public const int MaxUiQueue = 2000;
+
+    /// <summary>待提交消息排队上限：Agent 长任务期间用户持续输入会无限累积，超限丢最旧。</summary>
+    public const int MaxPendingSubmissions = 50;
+
+    /// <summary>跨槽位待投递消息上限：从不激活的槽位会无限累积，超限丢最旧。</summary>
+    public const int MaxPendingSlotMessages = 100;
+
+    /// <summary>Watch 模式待处理提示队列上限：突发大量文件变更可积压，超限丢最旧。</summary>
+    public const int MaxWatchPrompts = 20;
+
+    // ── 文件集合 ──
+    /// <summary>会话内文件追踪集合上限（修改/全会话文件）：超限清空重建，防长期会话无限累积。</summary>
+    public const int MaxTrackedFiles = 2000;
+
+    /// <summary>grep/ls 搜索结果上限：超大目录/海量匹配时截断，防结果列表无限增长。</summary>
+    public const int MaxGrepResults = 5000;
+
+    // ── 磁盘保留策略（日志 / 轨迹 / 会话 / 审计 / 版本） ──
+    /// <summary>错误日志单文件上限（字节）：超限滚动到 error_YYYYMMDD_N.log。</summary>
+    public const long MaxLogFileBytes = 10 * 1024 * 1024;
+
+    /// <summary>错误日志保留天数：启动清理 N 天前的 error_*.log。</summary>
+    public const int LogRetentionDays = 30;
+
+    /// <summary>DebugLog 会话日志保留天数：Enable 时清理 N 天前的 session_*.log。</summary>
+    public const int DebugLogRetentionDays = 7;
+
+    /// <summary>子智能体审计日志单文件上限（字节）：超限滚动到 subagents_N.log。</summary>
+    public const long AuditLogFileBytes = 10 * 1024 * 1024;
+
+    /// <summary>运行轨迹保留个数：每次 run 一个文件，超限删最旧。</summary>
+    public const int MaxTrajectoryKeep = 100;
+
+    /// <summary>运行轨迹保留天数：删 N 天前的轨迹文件。</summary>
+    public const int TrajectoryRetentionDays = 30;
+
+    /// <summary>会话文件保留个数：保存时超限删最旧。</summary>
+    public const int MaxSessionsKeep = 200;
+
+    /// <summary>会话文件保留天数：删 N 天前的会话文件。</summary>
+    public const int SessionRetentionDays = 30;
+
+    /// <summary>文件版本每文件上限：超限滚动删最旧。</summary>
+    public const int FileVersionMaxPerFile = 20;
+
+    /// <summary>文件版本全局总量上限：跨文件删最旧，防「改了很多文件」时磁盘膨胀。</summary>
+    public const int FileVersionMaxTotal = 200;
+
 
     /// <summary>测试/嵌入式场景可覆写的用户主目录；默认取系统用户目录。</summary>
     public static string? HomeOverride { get; set; }

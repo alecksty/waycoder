@@ -21,7 +21,7 @@ public class EditToolRenderer : IToolRenderer
         if (string.IsNullOrEmpty(rawOutput)) return rawOutput;
 
         // 错误情况直接返回
-        if (rawOutput.StartsWith("错误：") || rawOutput.StartsWith("❌"))
+        if (rawOutput.StartsWith("错误：", StringComparison.Ordinal) || rawOutput.StartsWith("❌", StringComparison.Ordinal))
             return AnsiTty.ErrorBlock(rawOutput);
 
         // 取消编辑
@@ -47,7 +47,7 @@ public class EditToolRenderer : IToolRenderer
                 continue;
             }
 
-            if (!inDiff && line.StartsWith("--- "))
+            if (!inDiff && line.StartsWith("--- ", StringComparison.Ordinal))
             {
                 inDiff = true;
                 sb.Append(AnsiTty.SgrDim);
@@ -59,25 +59,25 @@ public class EditToolRenderer : IToolRenderer
 
             if (inDiff)
             {
-                if (line.StartsWith("+++ "))
+                if (line.StartsWith("+++ ", StringComparison.Ordinal))
                 {
                     sb.Append(AnsiTty.SgrDim);
                     sb.Append(line);
                     sb.Append(AnsiTty.SgrReset);
                 }
-                else if (line.StartsWith("@@"))
+                else if (line.StartsWith("@@", StringComparison.Ordinal))
                 {
                     sb.Append(AnsiTty.Fg(36)); // 青色 hunk 头
                     sb.Append(line);
                     sb.Append(AnsiTty.SgrReset);
                 }
-                else if (line.StartsWith("-"))
+                else if (line.StartsWith("-", StringComparison.Ordinal))
                 {
                     sb.Append(AnsiTty.Fg(91)); // 亮红前景删除（去背景，避免刺眼）
                     sb.Append(line);
                     sb.Append(AnsiTty.SgrReset);
                 }
-                else if (line.StartsWith("+"))
+                else if (line.StartsWith("+", StringComparison.Ordinal))
                 {
                     sb.Append(AnsiTty.Fg(92)); // 亮绿前景新增（去背景，避免刺眼）
                     sb.Append(line);

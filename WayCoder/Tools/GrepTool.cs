@@ -144,7 +144,7 @@ public class GrepTool : ITool
             foreach (var file in Directory.GetFiles(dir, searchPattern))
             {
                 results.Add(file);
-                if (results.Count >= 5000) return;
+                if (results.Count >= Global.MaxGrepResults) return;
             }
         }
         catch

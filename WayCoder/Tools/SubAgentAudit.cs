@@ -81,6 +81,20 @@ public static class SubAgentAudit
                 var dir = Path.Combine(Directory.GetCurrentDirectory(), ".waycoder", "audit");
                 Directory.CreateDirectory(dir);
                 var path = Path.Combine(dir, "subagents.log");
+                // 单文件 10MB 上限：超限滚动到 subagents_N.log，防磁盘无限累积
+                try
+                {
+                    var fi = new FileInfo(path);
+                    if (fi.Exists && fi.Length > Global.AuditLogFileBytes)
+                    {
+                        int n = 1;
+                        string rolled;
+                        do { rolled = Path.Combine(dir, $"subagents_{n}.log"); n++; }
+                        while (File.Exists(rolled));
+                        path = rolled;
+                    }
+                }
+                catch { /* 大小检查失败忽略 */ }
                 var sb = new StringBuilder();
                 sb.AppendLine("============================================================");
                 sb.AppendLine($"[{e.At:yyyy-MM-dd HH:mm:ss}] 深度 {e.Depth} · 耗时 {e.DurationMs}ms");

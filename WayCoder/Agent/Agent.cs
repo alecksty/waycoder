@@ -123,6 +123,22 @@ public partial class Agent
     /// </summary>
     public string AgentId { get; set; } = "main";
 
+    // ── 死机现场快照用状态（FreezeCapture 从后台线程安全读取） ──
+    /// <summary>当前正在执行的工具名（volatile：Agent 后台线程写，冻结采集读）。空=无。</summary>
+    public volatile string CurrentToolName = "";
+
+    /// <summary>当前工具参数摘要（截断 80 码点）。</summary>
+    public volatile string CurrentToolBrief = "";
+
+    /// <summary>当前主循环轮次（只读，供冻结快照）。</summary>
+    public int CurrentRound => _currentRound;
+
+    /// <summary>消息数（冻结路径用 TryEnter，见 Program.LiveStateProvider）。</summary>
+    public int MessageCount { get { lock (MessagesLock) return _messages.Count; } }
+
+    /// <summary>本轮对话开始时间（UTC，供 WorkReporter/快照耗时）。</summary>
+    public DateTime ChatStartedAtUtc => _chatStartedAt;
+
     /// <summary>
     /// 工作模式变化回调（由 Program.cs 在绑定槽位时接线，携带槽位索引）。
     /// Agent 内部切换模式（如计划审批门批准后自动切回建造模式）时调用，

@@ -27,6 +27,7 @@ public static class DebugLog
             var root = baseDir ?? Directory.GetCurrentDirectory();
             _logDir = Path.Combine(root, "logs");
             Directory.CreateDirectory(_logDir);
+            CleanupOldSessionLogs(); // 清理 7 天前的 session_*.log，防磁盘无限累积
 
             var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             _sessionFile = Path.Combine(_logDir, $"session_{timestamp}.log");
@@ -208,5 +209,25 @@ public static class DebugLog
             File.AppendAllText(_sessionFile, content, System.Text.Encoding.UTF8);
         }
         catch { /* 日志写入失败不阻塞主流程 */ }
+    }
+
+    /// <summary>清理 7 天前的 session_*.log，防磁盘无限累积。</summary>
+    private static void CleanupOldSessionLogs()
+    {
+        try
+        {
+            if (_logDir == null || !Directory.Exists(_logDir)) return;
+            var cutoff = DateTime.UtcNow.AddDays(-Global.DebugLogRetentionDays);
+            foreach (var f in Directory.GetFiles(_logDir, "session_*.log"))
+            {
+                try
+                {
+                    if (File.GetLastWriteTimeUtc(f) < cutoff)
+                        File.Delete(f);
+                }
+                catch { /* 单个文件删除失败忽略 */ }
+            }
+        }
+        catch { /* 清理失败不影响日志 */ }
     }
 }

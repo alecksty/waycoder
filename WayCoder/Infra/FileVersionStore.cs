@@ -13,8 +13,6 @@ namespace WayCoder;
 /// </summary>
 public static class FileVersionStore
 {
-    const int MaxPerFile = 20;
-    const int MaxTotal = 200;
 
     static string StoreDir => Global.WriteConfigPath(Directory.GetCurrentDirectory(), "file-versions");
     static string IndexPath => Path.Combine(StoreDir, "index.json");
@@ -114,10 +112,30 @@ public static class FileVersionStore
             Index[full] = existing;
 
             // 保留：每文件上限，滚动删最旧
-            while (existing.Count > MaxPerFile)
+            while (existing.Count > Global.FileVersionMaxPerFile)
             {
                 DeleteVersionFile(full, existing[0]);
                 existing.RemoveAt(0);
+            }
+
+            // 全局总量上限（MaxTotal）：超限跨文件删最旧版本，防「改了很多文件」时磁盘无限膨胀
+            while (TotalVersions > Global.FileVersionMaxTotal)
+            {
+                // 找到版本号最小（最旧）的文件版本删除
+                string? oldestFile = null; string? oldestVer = null;
+                foreach (var (p, vers) in Index)
+                {
+                    if (vers.Count == 0) continue;
+                    if (oldestVer == null || string.CompareOrdinal(vers[0], oldestVer) < 0)
+                    {
+                        oldestFile = p; oldestVer = vers[0];
+                    }
+                }
+                if (oldestFile == null || oldestVer == null) break;
+                DeleteVersionFile(oldestFile, oldestVer);
+                var lst = Index[oldestFile];
+                lst.Remove(oldestVer);
+                if (lst.Count == 0) Index.Remove(oldestFile);
             }
             _dirty = true;
             SaveIndex();

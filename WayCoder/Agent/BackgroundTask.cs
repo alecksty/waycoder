@@ -13,8 +13,6 @@ public static class BackgroundTaskManager
     private static readonly ConcurrentDictionary<int, BgTask> _tasks = new();
     private static int _nextId = 1;
 
-    /// <summary>完成态任务保留上限，超出后自动清除最旧的已完成任务，防止长期会话内存无限增长。</summary>
-    private const int MaxCompletedRetention = 50;
 
     public record BgTask(int Id, string Command, DateTime StartedAt)
     {
@@ -35,8 +33,25 @@ public static class BackgroundTaskManager
             set { lock (_outputLock) _output = value; }
         }
 
-        /// <summary>追加输出文本（线程安全，避免并发 += 丢失更新）。</summary>
-        public void AppendOutput(string text) { lock (_outputLock) _output += text; }
+        /// <summary>
+        /// 追加输出文本（线程安全，避免并发 += 丢失更新）。
+        /// 超 <see cref="Global.MaxBgOutputChars"/> 时滚动保留头尾 + 截断标记，防长任务输出无限撑爆内存。
+        /// </summary>
+        public void AppendOutput(string text)
+        {
+            lock (_outputLock)
+            {
+                _output += text;
+                if (_output.Length > Global.MaxBgOutputChars)
+                {
+                    var headLen = Global.MaxBgOutputChars * 40 / 100;
+                    var tailLen = Global.MaxBgOutputChars * 40 / 100;
+                    var cur = _output;
+                    _output = ContextManager.TruncateKeepHeadTail(cur, headLen, tailLen,
+                        $"\n\n... 已截断（共 {cur.Length} 字符）...\n\n");
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -296,7 +311,7 @@ public static class BackgroundTaskManager
     }
 
     /// <summary>
-    /// 清理超额的已完成任务（保留最近 MaxCompletedRetention 个），
+    /// 清理超额的已完成任务（保留最近 Global.MaxCompletedTasks 个），
     /// 避免长期会话中 /jobs 列表与进程输出字符串无界增长。
     /// </summary>
     private static void PruneCompleted()
@@ -306,8 +321,8 @@ public static class BackgroundTaskManager
             .OrderBy(kv => kv.Key)
             .Select(kv => kv.Key)
             .ToList();
-        if (completed.Count <= MaxCompletedRetention) return;
-        foreach (var id in completed.Take(completed.Count - MaxCompletedRetention))
+        if (completed.Count <= Global.MaxCompletedTasks) return;
+        foreach (var id in completed.Take(completed.Count - Global.MaxCompletedTasks))
             _tasks.TryRemove(id, out _);
     }
 }
