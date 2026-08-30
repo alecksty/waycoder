@@ -79,7 +79,7 @@ public static class MarkdownBlocks
                     TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(0, 4, 0, 2),
                 };
-                tb.Inlines.Add(new Run(line[lvl..].Trim()) { Foreground = new SolidColorBrush(Text) });
+                tb.Inlines!.Add(new Run(line[lvl..].Trim()) { Foreground = new SolidColorBrush(Text) });
                 result.Add(tb);
                 i++;
                 continue;
@@ -143,13 +143,13 @@ public static class MarkdownBlocks
         for (int k = 0; k < lines.Count; k++)
         {
             var l = lines[k];
-            if (k > 0) tb.Inlines.Add(new LineBreak());
+            if (k > 0) tb.Inlines!.Add(new LineBreak());
 
             if (IsListLine(l))
             {
                 int prefix = ListPrefixLen(l);
                 var bullet = l[..prefix];
-                tb.Inlines.Add(new Run("  " + bullet + " ") { Foreground = new SolidColorBrush(Dim) });
+                tb.Inlines!.Add(new Run("  " + bullet + " ") { Foreground = new SolidColorBrush(Dim) });
                 AddInlines(tb, MarkdownInlines.RenderInline(l[prefix..], Text, Dim));
             }
             else
@@ -170,8 +170,8 @@ public static class MarkdownBlocks
         };
         for (int k = 0; k < lines.Count; k++)
         {
-            if (k > 0) tb.Inlines.Add(new LineBreak());
-            tb.Inlines.Add(new Run("│ ") { Foreground = new SolidColorBrush(Accent) });
+            if (k > 0) tb.Inlines!.Add(new LineBreak());
+            tb.Inlines!.Add(new Run("│ ") { Foreground = new SolidColorBrush(Accent) });
             AddInlines(tb, MarkdownInlines.RenderInline(lines[k], Text, Dim));
         }
         return tb;
@@ -189,7 +189,7 @@ public static class MarkdownBlocks
             TextAlignment = TextAlignment.Left,
         };
         var inlines = SimpleHighlight.Highlight(text);
-        foreach (var inl in inlines) tb.Inlines.Add(inl);
+        foreach (var inl in inlines) tb.Inlines!.Add(inl);
 
         var border = new Border
         {
@@ -286,6 +286,6 @@ public static class MarkdownBlocks
 
     private static void AddInlines(SelectableTextBlock tb, List<Inline> inlines)
     {
-        foreach (var inl in inlines) tb.Inlines.Add(inl);
+        foreach (var inl in inlines) tb.Inlines!.Add(inl);
     }
 }

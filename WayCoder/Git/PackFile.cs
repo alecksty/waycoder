@@ -453,7 +453,7 @@ public static class PackFileReader
             while ((c & 0x80) != 0)
             {
                 c = pack[pos++];
-                off = ((off + 1) << 7) | (c & 0x7F);
+                off = ((off + 1) << 7) | (uint)(c & 0x7F); // CS0675：c&0x7F 是 int，显式转无符号避免符号扩展
             }
             baseOffset = offset - off;
         }
