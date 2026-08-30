@@ -40,7 +40,7 @@ public sealed class AgentService
             if (_agent != null) return _agent;
 
             var cfg = Config.Instance;
-            var info = ModelCatalog.Find(cfg.Model);
+            var info = ConnectionConfig.ResolveActiveModel(cfg); // 精确匹配当前供应商，防同名模型误配 baseUrl/key
             var providerId = ResolveProviderId(cfg);
             var key = ApiKeyStore.Get(providerId) ?? cfg.ApiKey;
             var baseUrl = ResolveBaseUrl(info, providerId, cfg.BaseUrl);
@@ -123,10 +123,7 @@ public sealed class AgentService
 
     /// <summary>解析当前生效服务商 ID（模型目录推断 > 全局配置），key/模型共用。</summary>
     private static string ResolveProviderId(Config cfg)
-    {
-        var info = ModelCatalog.Find(cfg.Model);
-        return info?.ProviderId ?? cfg.Provider;
-    }
+        => ConnectionConfig.ResolveActiveProviderId(cfg); // 优先 cfg.Provider，避免同名模型 Find 反推错供应商
 
     /// <summary>发起一轮对话。onToken/onTool/onToolOutput 回调保证在 UI 线程执行。</summary>
     public async Task<string> ChatAsync(

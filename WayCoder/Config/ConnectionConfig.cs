@@ -259,6 +259,33 @@ public static class ConnectionConfig
     }
 
     /// <summary>
+    /// 解析当前生效模型（含真实供应商）：优先按 cfg.Provider + cfg.Model 精确匹配，
+    /// 仅 cfg.Provider 为空时回退 <see cref="ModelCatalog.Find(string)"/>。
+    /// 修复跨供应商同名模型（如 deepseek-v4-pro 属 deepseek/opencode-zen 多网关）时
+    /// `Find(id)` 反推成官方供应商 → key/baseUrl 错配、要求填另一供应商 key。
+    /// </summary>
+    public static ModelCatalog.ModelInfo? ResolveActiveModel(Config cfg)
+    {
+        if (!string.IsNullOrWhiteSpace(cfg.Provider))
+        {
+            var exact = ModelCatalog.All.FirstOrDefault(m =>
+                string.Equals(m.Id, cfg.Model, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(m.ProviderId, cfg.Provider, StringComparison.OrdinalIgnoreCase));
+            if (exact != null) return exact;
+        }
+        return ModelCatalog.Find(cfg.Model);
+    }
+
+    /// <summary>当前生效供应商：优先 cfg.Provider（ApplyModelChoice 已设为所选模型的实际供应商），
+    /// 空则用 Find 反推兜底。</summary>
+    public static string ResolveActiveProviderId(Config cfg)
+    {
+        if (!string.IsNullOrWhiteSpace(cfg.Provider))
+            return cfg.Provider.Trim().ToLowerInvariant();
+        return ModelCatalog.Find(cfg.Model)?.ProviderId ?? "custom";
+    }
+
+    /// <summary>
     /// 「每次切换模型 = 切换 connect」统一入口：按 (providerId, modelId) 找（或自动注册）一个 connect，
     /// 设为当前激活连接的大/小 connect，同步扁平 Config 并持久化。
     /// 供 ModelPicker / ModelCli / WebChat / Program 共用。

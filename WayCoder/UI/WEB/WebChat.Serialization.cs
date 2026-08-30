@@ -74,8 +74,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     public static string SerializeState(int activeSlot, Agent?[] slots, bool[]? busy = null)
     {
         var cfg = Config.Instance;
-        var info = ModelCatalog.Find(cfg.Model);
-        var providerId = info?.ProviderId ?? cfg.Provider;
+        var providerId = ConnectionConfig.ResolveActiveProviderId(cfg); // 优先 cfg.Provider，防同名模型反推错供应商
         var hasKey = !string.IsNullOrEmpty(ApiKeyStore.Get(providerId))
                      || !string.IsNullOrEmpty(cfg.ApiKey)
                      || providerId is "local" or "custom";
@@ -94,7 +93,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         var currentConn = ConnectionConfig.CurrentByConfig();
         var bigConnect = currentConn != null ? ConnectionConfig.FindConnect(currentConn.BigConnect) : null;
         var smallConnect = currentConn != null ? ConnectionConfig.FindConnect(currentConn.SmallConnect) : null;
-        var smallProviderId = ModelCatalog.Find(cfg.SmallModel)?.ProviderId ?? cfg.SmallProvider;
+        var smallProviderId = !string.IsNullOrWhiteSpace(cfg.SmallProvider)
+            ? cfg.SmallProvider.Trim().ToLowerInvariant() // 优先 cfg.SmallProvider，防同名小模型反推错供应商
+            : ModelCatalog.Find(cfg.SmallModel)?.ProviderId ?? "custom";
 
         return JNode.Object()
             .Set("activeSlot", activeSlot)
