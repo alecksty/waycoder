@@ -245,6 +245,19 @@ public static class ErrorLog
                     string rolled;
                     do { rolled = Path.Combine(_logDir, $"error_{today}_{n}.log"); n++; }
                     while (File.Exists(rolled));
+                    // 单日滚动文件数量上限：超限删最旧，防病态运行时一天生成上百个 10MB 文件（30 天兜底之外的一层）
+                    if (n > Global.MaxRolledLogFiles)
+                    {
+                        try
+                        {
+                            var old = Path.Combine(_logDir, $"error_{today}_1.log");
+                            if (File.Exists(old)) File.Delete(old);
+                        }
+                        catch { /* 删除失败忽略 */ }
+                        n = 1;
+                        do { rolled = Path.Combine(_logDir, $"error_{today}_{n}.log"); n++; }
+                        while (File.Exists(rolled));
+                    }
                     _currentLogFile = rolled;
                 }
             }

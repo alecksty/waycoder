@@ -1223,6 +1223,11 @@ public partial class ChatScreen : TuiScreen
             len++;
         }
 
+        // 防切半 UTF-16 代理对：若 len 恰好停在代理对高/低位之间，回退到完整码元边界（emoji/扩展 B 汉字）
+        if (len > 0 && len < first.Length
+            && char.IsHighSurrogate(first[len - 1]) && char.IsLowSurrogate(first[len]))
+            len--;
+
         return first[..len];
     }
 

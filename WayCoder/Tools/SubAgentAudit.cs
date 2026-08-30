@@ -92,6 +92,7 @@ public static class SubAgentAudit
                         do { rolled = Path.Combine(dir, $"subagents_{n}.log"); n++; }
                         while (File.Exists(rolled));
                         path = rolled;
+                        CleanupOldAudit(dir); // 滚动时顺带清理 N 天前的旧滚动文件（对齐 ErrorLog.LogRetentionDays）
                     }
                 }
                 catch { /* 大小检查失败忽略 */ }
@@ -108,5 +109,19 @@ public static class SubAgentAudit
                 // 审计写入失败绝不影响子智能体主流程（磁盘满/只读目录等）
             }
         }
+    }
+
+    /// <summary>滚动时清理 N 天前的 subagents_*.log（对齐 ErrorLog.LogRetentionDays），防滚动文件无限累积。</summary>
+    private static void CleanupOldAudit(string dir)
+    {
+        try
+        {
+            var cutoff = DateTime.UtcNow.AddDays(-Global.LogRetentionDays);
+            foreach (var f in Directory.GetFiles(dir, "subagents_*.log"))
+            {
+                try { if (File.GetLastWriteTimeUtc(f) < cutoff) File.Delete(f); } catch { }
+            }
+        }
+        catch { /* 清理失败静默 */ }
     }
 }

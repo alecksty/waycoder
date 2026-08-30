@@ -68,14 +68,21 @@ public static class AudioRecorder
         return Task.FromResult(path);
     }
 
-    /// <summary>清理最旧录音文件：保留最近 <see cref="Global.MaxAudioRecordings"/> 个 rec-*.m4a（文件名按 TickCount64 单调递增，ordinal 排序≈创建顺序）。</summary>
+    /// <summary>清理最旧录音文件：保留最近 <see cref="Global.MaxAudioRecordings"/> 个 rec-*.m4a。
+    /// 按文件最后写入时间排序（不能用文件名 ordinal——跨位数边界如 99999→100000 时 "rec-100000" 字典序
+    /// 反而靠前、会被当最旧误删刚录完的新文件；且 Android 重启后 TickCount64 归零，新文件数字最小）。
+    /// 用真实写入时间：刚录完的文件时间最新、排最后，永不误删。</summary>
     private static void CleanupOldRecordings()
     {
         try
         {
             var dir = MauiBootstrap.WorkspaceDir;
             if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return;
-            var recs = Directory.GetFiles(dir, "rec-*.m4a").OrderBy(f => f, StringComparer.Ordinal).ToList();
+            var recs = Directory.GetFiles(dir, "rec-*.m4a")
+                .Select(p => (Path: p, Time: File.GetLastWriteTimeUtc(p)))
+                .OrderBy(t => t.Time)
+                .Select(t => t.Path)
+                .ToList();
             while (recs.Count > Global.MaxAudioRecordings)
             {
                 File.Delete(recs[0]);

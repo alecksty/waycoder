@@ -37,7 +37,7 @@ public static class Global
     /// <summary>应用全称</summary>
     public const string AppFullName = "WayCoder 道码·通用编程智能体";
     /// <summary>版本号</summary>
-    public const string Version = "v0.96.30";
+    public const string Version = "v0.96.31";
     /// <summary>应用名 + 版本号</summary>
     public static string AppNameVersion => $"{AppName} {Version} ({AppNameCN})";
 
@@ -105,9 +105,15 @@ public static class Global
     /// <summary>grep/ls 搜索结果上限：超大目录/海量匹配时截断，防结果列表无限增长。</summary>
     public const int MaxGrepResults = 5000;
 
+    /// <summary>grep 匹配行结果上限（条）：达到即截断返回，防宽松正则在超大仓库物化百万条匹配串先爆内存。</summary>
+    public const int MaxGrepResultLines = 200;
+
     // ── 磁盘保留策略（日志 / 轨迹 / 会话 / 审计 / 版本） ──
     /// <summary>错误日志单文件上限（字节）：超限滚动到 error_YYYYMMDD_N.log。</summary>
     public const long MaxLogFileBytes = 10 * 1024 * 1024;
+
+    /// <summary>错误日志单日滚动文件数量上限：超限删最旧（病态 FirstChanceException 时防一天生成上百个 10MB 文件）。</summary>
+    public const int MaxRolledLogFiles = 10;
 
     /// <summary>错误日志保留天数：启动清理 N 天前的 error_*.log。</summary>
     public const int LogRetentionDays = 30;
@@ -157,6 +163,9 @@ public static class Global
 
     /// <summary>MAUI 录音文件保留个数：超出删最旧，防 workspace 磁盘无限涨。</summary>
     public const int MaxAudioRecordings = 20;
+
+    /// <summary>默认截图目录保留个数：screenshot 工具默认落盘 ~/.waycoder/screenshots/，超出删最旧，防磁盘无限累积。</summary>
+    public const int MaxScreenshotsKeep = 20;
 
 
     /// <summary>测试/嵌入式场景可覆写的用户主目录；默认取系统用户目录。</summary>

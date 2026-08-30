@@ -349,6 +349,19 @@ public class LLM
     /// <summary>是否已输出「思考过长截断」提示（一次性，避免每片都刷提示）。</summary>
     private bool _reasoningTruncated;
 
+    /// <summary>追加推理文本到缓冲：正常思考完整累积（保 ReasoningTokens 统计），
+    /// 仅当异常超长（&gt; 显示上限 2 倍）滚动保留尾部窗口，防单响应数 MB 推理撑爆内存。</summary>
+    private void AppendReasoning(string text)
+    {
+        _reasoningBuffer.Append(text);
+        if (_reasoningBuffer.Length > MaxReasoningDisplayChars * 2)
+        {
+            var trimmed = ContextManager.TruncateTailByRunes(_reasoningBuffer.ToString(), MaxReasoningDisplayChars);
+            _reasoningBuffer.Clear();
+            _reasoningBuffer.Append("… 思考过长，前段已省略 …\n").Append(trimmed);
+        }
+    }
+
     /// <summary>
     /// 推理内容显示上限（字符）。reasoning 完整流式到显示层（TUI ChatScreen 做尾部滚动窗口），
     /// 本上限仅作为一次性/管道模式打印的防失控保险（与单条消息上限一致，50k）。
@@ -710,7 +723,7 @@ public class LLM
                             _reasoningTruncated = true;
                             onToken?.Invoke($"\n«orange3»… 思考内容过长，显示窗口受限«/»");
                         }
-                        _reasoningBuffer.Append(th);
+                        AppendReasoning(th);
                     }
                     else if (dtype == "input_json_delta" && delta?["partial_json"]?.AsString() is { } pj)
                     {
@@ -754,7 +767,7 @@ public class LLM
                     else if (p["thought"]?.AsString() is { } th && th.Length > 0)
                     {
                         if (!_reasoningShown) { _reasoningShown = true; onToken?.Invoke("\n«dim»"); }
-                        onToken?.Invoke(th); _reasoningBuffer.Append(th);
+                        onToken?.Invoke(th); AppendReasoning(th);
                     }
                     else if (p["functionCall"] is { } fc)
                     {
@@ -837,7 +850,7 @@ public class LLM
                     _reasoningTruncated = true;
                     onToken?.Invoke($"\n«orange3»… 思考内容过长，显示窗口受限«/»");
                 }
-                _reasoningBuffer.Append(rtext);
+                AppendReasoning(rtext);
             }
 
             // 跨分片累积工具调用

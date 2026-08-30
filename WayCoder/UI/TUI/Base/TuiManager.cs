@@ -87,8 +87,17 @@ public class TuiManager : IDisposable
                         // 否则主循环持续被堵时光标会停在任意 spinner 位置「到处乱跑」。
                         if (Environment.TickCount64 - Volatile.Read(ref _lastRenderTicks) > 150)
                         {
-                            TuiDynamicBar.RenderAllDirect(); // RenderDirect 内部门控活跃屏+无浮层，安全
-                            ActiveScreen?.EmitCursor();      // 恢复光标到输入框（与主循环 line 272/311 一致）
+                            // 渲染中途（主循环持 _renderLock 正在 Render）试锁失败 → 跳过本轮直写，
+                            // 避免按上一帧坐标写屏/移光标；卡死在非渲染阶段不持锁，仍能拿到锁转动画。
+                            if (Monitor.TryEnter(_renderLock))
+                            {
+                                try
+                                {
+                                    TuiDynamicBar.RenderAllDirect(); // RenderDirect 内部门控活跃屏+无浮层，安全
+                                    ActiveScreen?.EmitCursor();      // 恢复光标到输入框（与主循环一致）
+                                }
+                                finally { Monitor.Exit(_renderLock); }
+                            }
                         }
 
                         // 冻结看门狗：主循环 UiLoopTick 停滞 >3s → 记一条错误（一次性/冻结段），
@@ -275,11 +284,14 @@ public class TuiManager : IDisposable
     public void Render()
     {
         if (!IsActive) return;
-        Volatile.Write(ref _lastRenderTicks, Environment.TickCount64); // 心跳据此判断主循环还活着
         // 渲染互斥：主循环 / RunAgentWithRenderLoop / 对话框 RenderWait 可能跨线程调 Render，
         // 串行化避免双线程并发遍历控件树 + 写终端（帧交错花屏）
         lock (_renderLock)
         {
+            // 渲染轮开始打点（原在 lock 外：单次长渲染 >150ms 时心跳会误判主循环死亡，
+            // 按上一帧旧坐标直写 spinner/移光标 → 瞬时花屏）。移进 lock 内 + 心跳写前 TryEnter，
+            // 渲染中途心跳拿不到锁自动跳过，卡死在非渲染阶段（ReadKey 被抢/忙循环）仍能转动画。
+            Volatile.Write(ref _lastRenderTicks, Environment.TickCount64);
             if (!IsDirty && !_needsFullRefresh)
             {
                 // 无脏变化也刷新直接写屏的动画控件（不依赖 Dirty 标志）

@@ -1,5 +1,39 @@
 # 更新日志
 
+## v0.96.31 (2026-08-30) — 全系统隐患审查修复（3 个并行代理扫描 + P0 崩溃 + 20 处隐患）
+
+- **审查方式**：3 个并行审查代理分别扫描「并发/稳定性」「资源/无限增长遗漏」「正确性/安全」，逐端核查出 40+ 项发现，去重后按严重度 P0-P3 修复
+- **P0 崩溃（v0.96.30 引入）**：`ChatPage.AddMessage` 无限自递归 → StackOverflow——`replace_all` 替换 `Messages.Add(` 时把方法体自己的 `Messages.Add(m)` 也替换成了 `AddMessage(m)`，任何消息添加即崩（MAUI 聊天全挂）。已改回 + 验证无其他误伤
+- **P1 数据丢失/内存爆/卡死**：
+  - `AudioRecorder` 按路径 ordinal 排序删录音 → 跨位数边界/Android 重启后把**刚录完的新文件**当最旧删除（转录必失败）→ 改按文件写入时间排序
+  - `WebChat.WriteClient` 同步 `Wait(5s)` 卡 Agent 线程——浏览器后台标签页暂停读 SSE 时每次 token 卡 5s/客户端、多慢客户端串行「死机」→ 改 fire-and-forget 异步写（`WriteGate` SemaphoreSlim 串行 + 超时剔除），HandleSseAsync 初始回放/释放同步改用 WriteGate
+  - `GrepTool` 结果上限核验：硬编码 200 实为**总匹配上限**（非误报），提为 `Global.MaxGrepResultLines` 常量
+  - `ModelCatalog` 批量护栏按「导入条数」误算净新增（9990 条导入 20 条纯更新被误拒）→ 改按净新增 key 计；单条 `AddCustom` 绕过护栏 → 补上限检查
+  - MAUI `_sendQueue` 丢最旧后 UI 残留「排队中…」永不纠正 → 被丢消息改标「已丢弃」
+  - `MauiSessionStore` 2MB 截尾切半长度前缀流 → 恢复乱码 → 改按**完整消息**从最旧丢弃
+- **P2 并发/一致性（10 项）**：
+  - `WebChat` 换模型与排队重启竞态：新增 `WebSlot.Quiescing` 暂停标志——先置位+清空排队，再 Interrupt/Reconfigure，`TryStartNextPending` 见暂停跳过启动，消除 Reconfigure 与在途 ChatAsync 并发
+  - `TuiManager` 心跳：`_lastRenderTicks` 打点移入 `_renderLock` 内 + 心跳直写前 `TryEnter`，杜绝长渲染中途按旧坐标写屏
+  - `FreezeCapture` 同步落盘阻塞心跳（冻结时唯一活信号被慢盘拖住）→ 落盘/清理改异步 Task.Run
+  - `TodoTool` 无锁读改写（GUI 2s 定时器 + 多槽位 Agent 并发）→ `_fileLock` 串行 + 原子写（.tmp + move）
+  - `ScreenshotTool` 默认截图目录无限累积 → `Global.MaxScreenshotsKeep`(20) 删最旧
+  - Web `/upload` 图片临时文件消费后不删（音频转录即删、图片漏了）→ `CleanupOldUploads` 每次上传清 10 分钟前 upload-*
+  - GUI `AppendToolOutput` 只留头 2000 丢尾部错误 → 保头保尾（对齐 TUI Snip）
+  - GUI 队列满丢弃静默吞消息 → 补「⚠️ 排队已满」提示（MAUI 已在 P1 补）
+  - MAUI `PruneMessages` 每次 Add 全量 rune 估算卡 UI → token 裁剪降频到每 8 次
+  - `SubAgentAudit` 滚动文件无保留上限 → 滚动时清 N 天前 subagents_*.log
+- **P3 低危（10 项）**：
+  - Rune 截断防切半代理对：`Syntax.cs` `[..4000]` → `TruncateByRunes`、`GetCommonPrefix` 停在代理对中间回退码元边界、app.js `slice(-N)` → `tailCodePoints` 按完整码元取尾
+  - Web 满员回滚误删合法绑定（ResolveSlot 尚未调用却 Remove 旧绑定）→ 删除回滚；`BindClientSlot` 补 `MaxClientSlotEntries` 上限
+  - Web 前端 `#messages` DOM 只增不减 → `pruneMessagesDom` 丢最旧（300 条）
+  - `LLM._reasoningBuffer` 单响应完整累积 → 超显示上限 2 倍才滚动保留尾部（正常思考统计保留）
+  - GUI 槽位切换时 A 槽排队消息污染 B 槽输入框 → `TrySendNextPending` 非活跃槽放回队尾
+  - MAUI「停止」只停当前轮、排队继续跑 → 停止时清空队列标「已停止」
+  - `ErrorLog` 单日滚动文件无数量上限 → `MaxRolledLogFiles`(10) 超限删最旧
+  - `/fileref` 前端丢后端 error 细节 → 优先展示 `res.error`
+- **已核查排除（非隐患）**：GrepTool 200 实为总匹配上限、CpuMonitor 锁安全、WebChat 锁序无死锁、AgentSlot.Sync 无锁环、渲染原子性、全部 Global 常量真生效、AsyncLocal 无泄漏、XSS/路径穿越防线
+- **自测**：4792 全过；`dotnet build -c Release` / `WayCoder.Gui` / `WayCoder.Maui -f net10.0-android` 三端 0 错误
+
 ## v0.96.30 (2026-08-30) — 所有端防无限增长补齐（Web/GUI/MAUI）+ MAUI 编译断链修复
 
 - **逐端核查结论**：此前 v0.96.28/29 的 21+ 个 Global 上限中，12 个核心限制（上下文 >300 条硬门、Bash 流式、后台任务、文件集合、日志/轨迹/会话/版本保留等）对 CLI/TUI/Web/GUI/MAUI **全部共享生效**；但 6 个 TUI 专属限制的同型结构在 Web/GUI/MAUI **完全裸奔**。本次按「复用 Global 常量 + 平移 TUI 已验证的 `CapMessageContent`（保留尾部窗口+标记）与 `PruneChatHistory`（按条数/token 丢最旧）模式」逐端补齐

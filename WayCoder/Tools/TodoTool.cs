@@ -61,6 +61,9 @@ public class TodoTool : ITool
     private static string StorePath => Path.Combine(
         CwdContext.Current.Value ?? Directory.GetCurrentDirectory(), ".waycoder", "todos.json"); // cd 后基于被跟踪工作目录，而非进程启动目录
 
+    /// <summary>todos.json 读改写串行锁：多槽位 Agent 与 GUI 2s 定时器 / MAUI 状态栏并发读写时防撕裂/丢更新。</summary>
+    private static readonly object _fileLock = new();
+
     // ── 公共访问（兼容旧代码：SelfTest、ChatScreen 侧栏、TodoCommand）──
 
     /// <summary>任务条目的公共视图（用于 TUI 侧栏和外部查询）。</summary>
@@ -344,63 +347,72 @@ public class TodoTool : ITool
 
     private static List<TodoEntry> LoadTodos()
     {
-        try
+        lock (_fileLock)
         {
-            var path = StorePath;
-            if (!File.Exists(path)) return [];
-
-            var json = File.ReadAllText(path);
-            var node = Json.Parse(json);
-            if (node is { Kind: JKind.Array } arr)
+            try
             {
-                return arr.Items.Select(n => new TodoEntry
+                var path = StorePath;
+                if (!File.Exists(path)) return [];
+
+                var json = File.ReadAllText(path);
+                var node = Json.Parse(json);
+                if (node is { Kind: JKind.Array } arr)
                 {
-                    Id = n["id"]?.AsString() ?? "",
-                    Title = n["title"]?.AsString() ?? "",
-                    Description = n["description"]?.AsString() ?? "",
-                    Status = n["status"]?.AsString() ?? "pending",
-                    DependsOn = n["depends_on"]?.Items
-                        .Select(d => d.AsString() ?? "").Where(s => s != "").ToList() ?? [],
-                    CreatedAt = DateTime.TryParse(n["created_at"]?.AsString(), out var dt)
-                        ? dt : DateTime.UtcNow,
-                }).ToList();
+                    return arr.Items.Select(n => new TodoEntry
+                    {
+                        Id = n["id"]?.AsString() ?? "",
+                        Title = n["title"]?.AsString() ?? "",
+                        Description = n["description"]?.AsString() ?? "",
+                        Status = n["status"]?.AsString() ?? "pending",
+                        DependsOn = n["depends_on"]?.Items
+                            .Select(d => d.AsString() ?? "").Where(s => s != "").ToList() ?? [],
+                        CreatedAt = DateTime.TryParse(n["created_at"]?.AsString(), out var dt)
+                            ? dt : DateTime.UtcNow,
+                    }).ToList();
+                }
             }
+            catch (Exception ex)
+            {
+                DebugLog.Log("todo", $"加载 todos.json 失败: {ex.Message}");
+            }
+            return [];
         }
-        catch (Exception ex)
-        {
-            DebugLog.Log("todo", $"加载 todos.json 失败: {ex.Message}");
-        }
-        return [];
     }
 
     private static void SaveTodos(List<TodoEntry> todos)
     {
-        try
+        lock (_fileLock)
         {
-            var dir = Path.GetDirectoryName(StorePath)!;
-            Directory.CreateDirectory(dir);
-
-            var arr = JNode.Array();
-            foreach (var t in todos)
+            try
             {
-                var dependsOn = JNode.Array();
-                foreach (var d in t.DependsOn)
-                    dependsOn.Add(d);
+                var dir = Path.GetDirectoryName(StorePath)!;
+                Directory.CreateDirectory(dir);
 
-                arr.Add(JNode.Object()
-                    .Set("id", t.Id)
-                    .Set("title", t.Title)
-                    .Set("description", t.Description)
-                    .Set("status", t.Status)
-                    .Set("depends_on", dependsOn)
-                    .Set("created_at", t.CreatedAt.ToString("O")));
+                var arr = JNode.Array();
+                foreach (var t in todos)
+                {
+                    var dependsOn = JNode.Array();
+                    foreach (var d in t.DependsOn)
+                        dependsOn.Add(d);
+
+                    arr.Add(JNode.Object()
+                        .Set("id", t.Id)
+                        .Set("title", t.Title)
+                        .Set("description", t.Description)
+                        .Set("status", t.Status)
+                        .Set("depends_on", dependsOn)
+                        .Set("created_at", t.CreatedAt.ToString("O")));
+                }
+
+                // 原子写：先写临时文件再 move 覆盖，避免读方读到半写文件（GUI 2s 定时器 / 多槽位 Agent 并发读）
+                var tmp = StorePath + ".tmp";
+                File.WriteAllText(tmp, arr.ToJson());
+                File.Move(tmp, StorePath, overwrite: true);
             }
-
-            File.WriteAllText(StorePath, arr.ToJson());
-        }
-        catch (Exception ex)
-        {
-            DebugLog.Log("todo", $"保存 todos.json 失败: {ex.Message}");
+            catch (Exception ex)
+            {
+                DebugLog.Log("todo", $"保存 todos.json 失败: {ex.Message}");
+            }
         }
     }
 

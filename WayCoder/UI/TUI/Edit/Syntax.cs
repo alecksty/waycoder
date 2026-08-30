@@ -1,3 +1,5 @@
+using WayCoder;
+
 namespace WayCoder.UI.Tui.Edit;
 
 /// <summary>
@@ -90,7 +92,7 @@ public class Syntax
     public static Syntax? Detect(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
-        if (text.Length > 4000) text = text[..4000]; // 只扫前 4K 特征，防大文本拖慢
+        if (text.Length > 4000) text = ContextManager.TruncateByRunes(text, 4000); // 只扫前 4K 特征，防大文本拖慢（按 Rune 防切半代理对）
 
         // 强特征（出现即基本可认定是代码）
         if (text.Contains("namespace ")) return CSharp(); // C# 专属关键词

@@ -103,9 +103,9 @@ public class GrepTool : ITool
                     if (regex.IsMatch(lines[i]))
                     {
                         matches.Add($"{fp}:{i + 1}: {lines[i].TrimEnd('\r')}");
-                        if (matches.Count >= 200)
+                        if (matches.Count >= Global.MaxGrepResultLines)
                         {
-                            matches.Add("...（已达到 200 条匹配上限）");
+                            matches.Add($"...（已达到 {Global.MaxGrepResultLines} 条匹配上限）");
                             return string.Join("\n", matches);
                         }
                     }

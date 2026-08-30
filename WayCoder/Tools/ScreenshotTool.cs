@@ -125,13 +125,14 @@ public class ScreenshotTool : ITool
 
             // 确定保存路径
             var savePath = arguments.GetValueOrDefault("save_path")?.ToString();
+            string? defaultDir = null; // 非 null = 落默认目录（需清理保留上限）
             if (string.IsNullOrWhiteSpace(savePath))
             {
-                var dir = Path.Combine(
+                defaultDir = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                     ".waycoder", "screenshots");
-                Directory.CreateDirectory(dir);
-                savePath = Path.Combine(dir, $"shot_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+                Directory.CreateDirectory(defaultDir);
+                savePath = Path.Combine(defaultDir, $"shot_{DateTime.Now:yyyyMMdd_HHmmss}.png");
             }
             else
             {
@@ -142,6 +143,9 @@ public class ScreenshotTool : ITool
 
             var (ok, err) = TryCapture(full, x, y, w, h, savePath);
             if (!ok) return err;
+
+            // 默认截图目录保留上限：超出删最旧（仿 FreezeCapture.CleanupOldDumps），用户指定路径不清理
+            if (defaultDir != null) CleanupOldScreenshots(defaultDir);
 
             var fi = new FileInfo(savePath);
             var (wpx, hpx) = ReadPngDimensions(savePath);
@@ -274,6 +278,25 @@ public class ScreenshotTool : ITool
     }
 
     /// <summary>读取 PNG 宽高（IHDR 块内 big-endian，无需第三方库）</summary>
+    /// <summary>默认截图目录保留上限：超 <see cref="Global.MaxScreenshotsKeep"/> 删最旧（按写入时间），防磁盘无限累积。</summary>
+    internal static void CleanupOldScreenshots(string dir)
+    {
+        try
+        {
+            var files = Directory.GetFiles(dir, "shot_*.png")
+                .Select(p => (Path: p, Time: File.GetLastWriteTimeUtc(p)))
+                .OrderBy(t => t.Time)
+                .Select(t => t.Path)
+                .ToList();
+            while (files.Count > Global.MaxScreenshotsKeep)
+            {
+                File.Delete(files[0]);
+                files.RemoveAt(0);
+            }
+        }
+        catch { /* 清理失败静默 */ }
+    }
+
     internal static (int Width, int Height) ReadPngDimensions(string path)
     {
         try
