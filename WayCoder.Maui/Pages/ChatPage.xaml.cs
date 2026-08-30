@@ -281,7 +281,7 @@ public partial class ChatPage : ContentPage
     private static string FormatK(int n) => n >= 1000 ? $"{n / 1000.0:F1}k" : n.ToString();
 
     /// <summary>点模型条 → 打开模型选择页（TUI ModelPicker 移植：分组+搜索+大/小切换）。</summary>
-    private async void OnModelBarTapped(object? sender, TappedEventArgs e)
+    private async void OnModelBarTapped(object? sender, TappedEventArgs? e)
         => await Shell.Current.GoToAsync("modelpicker");
 
     /// <summary>右上角菜单：会话/任务/模型/模式/权限等缺失功能集中入口。</summary>
@@ -799,7 +799,7 @@ public partial class ChatPage : ContentPage
         {
             FileResult? photo = capture
                 ? await MediaPicker.Default.CapturePhotoAsync()
-                : await MediaPicker.Default.PickPhotoAsync();
+                : (await MediaPicker.Default.PickPhotosAsync()).FirstOrDefault(); // CS0618：PickPhotoAsync 过时，换多选版取第一张
             if (photo == null) return;
 
             // 保存到沙箱 workspace

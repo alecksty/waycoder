@@ -289,14 +289,14 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
 
         if (toolName == "bash" && message.StartsWith("命令: "))
         {
-            tb.Inlines.Add(new Run("命令: ") { Foreground = new SolidColorBrush(Color.Parse("#3fb950")) });
-            tb.Inlines.Add(new Run(message[4..]) { Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")), FontFamily = mono });
+            tb.Inlines!.Add(new Run("命令: ") { Foreground = new SolidColorBrush(Color.Parse("#3fb950")) });
+            tb.Inlines!.Add(new Run(message[4..]) { Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")), FontFamily = mono });
             return tb;
         }
         if ((toolName == "write_file" || toolName == "edit_file" || toolName == "read_file") && message.StartsWith("文件: "))
         {
-            tb.Inlines.Add(new Run("文件: ") { Foreground = new SolidColorBrush(Color.Parse("#58a6ff")) });
-            tb.Inlines.Add(new Run(message[4..]) { Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")), FontFamily = mono });
+            tb.Inlines!.Add(new Run("文件: ") { Foreground = new SolidColorBrush(Color.Parse("#58a6ff")) });
+            tb.Inlines!.Add(new Run(message[4..]) { Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")), FontFamily = mono });
             return tb;
         }
         tb.Text = message;

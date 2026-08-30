@@ -19,6 +19,12 @@
 		<!-- 主工程源码含 TerminalRawMode 的 [LibraryImport] P/Invoke，源生成要求 unsafe -->
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
+		<!-- 编译共享桌面源码时的噪音告警消除（非代码缺陷）：
+		     CS1570/CS1587 —— 共享源码 XML 注释含 < >（如 List<T>、1.5x→）在 MAUI 文档解析下报格式错（主工程不开文档生成不报）；
+		     CA1416/CA1422 —— Android 目标下 Console 等桌面 API 平台不可用（移动端不执行这些路径）；
+		     CA2255 —— ModuleInitializer 仅限应用代码规则（共享 DrawCommands 静态注册）。 -->
+		<NoWarn>$(NoWarn);CS1570;CS1587;CS1591;CA1416;CA1422;CA2255</NoWarn>
+
 		<!-- Android 工具链路径：本机（macOS）用 `dotnet build -t:InstallAndroidDependencies` 装到
 		     ~/Library/Android/{sdk,jdk}。三重守卫保证跨平台安全：
 		       1. IsOSPlatform('OSX') —— 该路径仅 macOS host 上评估，Windows/Linux 完全不进；

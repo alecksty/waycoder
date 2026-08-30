@@ -16,6 +16,10 @@
   - `ApiKeyStore.Set` 拒绝环境变量引用存储——**修复导入误判**（SettingsPage 从 Claude Code/OpenCode 配置文件导入时把 `$VAR` 当真实 Key 存入，已改为跳过并提示）
   - 手动输入点全加即时校验：手机「设Key」、设置页大/小模型 Key 输入框与保存、`--model key` CLI、Web `/key`——非法字符/环境变量引用拒绝并提示合法字符集
 - **导入供应商 ID 规范化**：新增 `ModelCatalog.NormalizeProviderId`——去掉 `api-` 前缀和 `-ai`/`-com` 后缀（`api-openai-ai.com` → `openai`），保证名称/图标/去重判断正确。应用到 `ResolveProviderId`（在线/多源导入统一解析）、手机手动导入供应商、配置文件导入；影响名称判断的 host 派生 id 同步修正（`api.neuralreseller.com` → `neuralreseller`）
+- **编译警告清零（三端 0 警告）**：
+  - 主工程：`PackFile` CS0675 位运算符号扩展（`| (uint)(c & 0x7F)`）
+  - GUI：9 个 CS8602 空引用——Avalonia `TextBlock.Inlines` 属性 nullable，`tb.Inlines!.Add` 统一断言
+  - MAUI：真实修复 3 处——`TappedEventArgs?`（null 传入）、`PickPhotoAsync` → `PickPhotosAsync().FirstOrDefault()`（CS0618 过时）、`custom.DefaultBaseUrl!`（CS8620 nullable 元组）；其余 128 个为共享桌面源码的注释/平台噪音（CS1570/CS1587 XML 注释格式、CA1416/CA1422 Android Console API、CA2255 ModuleInitializer）→ MAUI csproj `NoWarn` 消除（主工程/GUI 不报，仅 MAUI 编译共享代码时解析）
 - **自测**：`dotnet build WayCoder.Maui -f net10.0-android` 0 错误；Android 模拟器部署运行验证（编辑模式按钮→弹菜单→编辑菜单实测通过）；4793 全过（新增供应商 ID 规范化断言）
 
 ## v0.96.31 (2026-08-30) — 全系统隐患审查修复（3 个并行代理扫描 + P0 崩溃 + 20 处隐患）

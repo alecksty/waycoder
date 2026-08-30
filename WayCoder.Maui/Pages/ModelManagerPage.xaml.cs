@@ -127,7 +127,7 @@ public partial class ModelManagerPage : ContentPage
         foreach (var custom in ModelCatalog.ListCustom().Where(m => !string.IsNullOrEmpty(m.DefaultBaseUrl)))
         {
             if (providers.All(x => x.Id != custom.ProviderId))
-                providers.Add((custom.ProviderId, custom.DefaultBaseUrl));
+                providers.Add((custom.ProviderId, custom.DefaultBaseUrl!)); // Where 已滤非空，! 告知编译器
         }
 
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
