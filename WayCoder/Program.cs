@@ -285,6 +285,52 @@ public partial class Program
             yoloMode = true;
 
         _config = Config.FromEnv();
+
+        // ── 死机现场采集：注入当前状态快照提供者（FreezeCapture 从心跳线程/看门狗读取） ──
+        // 冻结时主线程可能正持锁 → 锁获取一律 Monitor.TryEnter + 短超时，失败标「⚠ 主线程持锁」。
+        FreezeCapture.LiveStateProvider = () =>
+        {
+            var s = new FreezeCapture.LiveState();
+            try
+            {
+                s.ActiveSlot = _activeSlot;
+                var agent = _agent;
+                if (agent != null)
+                {
+                    s.ActiveAgentId = agent.AgentId;
+                    s.WorkMode = agent.WorkMode.ToString();
+                    s.Model = agent.LlmClient.EffectiveModel;
+                    s.SmallModel = agent.LlmClient.SmallModel;
+                    s.Round = agent.CurrentRound;
+                    s.CurrentTool = agent.CurrentToolName;
+                    s.CurrentToolBrief = agent.CurrentToolBrief;
+                    s.TotalRequests = agent.LlmClient.TotalRequests;
+                    s.TotalPromptTokens = agent.LlmClient.TotalPromptTokens;
+                    s.TotalCompletionTokens = agent.LlmClient.TotalCompletionTokens;
+                    s.TaskCost = agent.LlmClient.TaskCost ?? 0;
+                    s.LastLatencyMs = agent.LlmClient.LastLatencyMs;
+                    s.MaxTokens = agent.Context.MaxTokens;
+                    s.LastPromptTokens = agent.Context.LastPromptTokens;
+                    s.IsCompressing = ContextManager.IsCompressing;
+
+                    // 消息数：TryEnter 防主线程持锁卡死采集线程
+                    if (Monitor.TryEnter(agent.MessagesLock, 50))
+                    {
+                        try { s.MessageCount = agent.MessageCount; }
+                        finally { Monitor.Exit(agent.MessagesLock); }
+                    }
+                }
+                for (int i = 0; i < _slots.Length; i++)
+                {
+                    if (_slots[i] == null) continue;
+                    s.SlotBusy[i] = _slots[i].IsBusy;
+                    s.SlotAgentIds[i] = _slots[i].Agent?.AgentId ?? "";
+                }
+            }
+            catch { /* 采集路径绝不抛，缺字段就用默认值 */ }
+            return s;
+        };
+
         if (MarkupChatOverride) _config.MarkupUi = true; // --tui-chat 强制走标记版界面
         // 加载主题配色：theme.json 记住的 preset 优先，回退 .env ThemePreset（首次启动无 theme.json）
         ThemeConfig.ApplyPreset(ThemeConfig.Instance.PresetKey ?? _config.ThemePreset);

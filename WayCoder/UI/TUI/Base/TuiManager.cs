@@ -53,6 +53,18 @@ public class TuiManager : IDisposable
     public static long UiLoopTick; // 用 Volatile.Read/Write 访问（volatile 不支持 long）
     private bool _freezeLogged;
 
+    /// <summary>
+    /// 统一更新主循环阶段标记：设 UiLoopActivity + 刷新心跳 tick + 阶段条入黑匣子。
+    /// 各渲染循环（REPL 主循环 / RunAgentWithRenderLoop / RunWithUiLoop）都走这里，
+    /// 顺带修复「子循环只设 UiLoopActivity 不更新 UiLoopTick → /loop 长任务误报冻结」的 bug。
+    /// </summary>
+    public static void SetActivity(string stage)
+    {
+        UiLoopActivity = stage;
+        Volatile.Write(ref UiLoopTick, Environment.TickCount64);
+        FreezeCapture.RecordPhase(stage);
+    }
+
     private void StartAnimTicker()
     {
         if (_animTicker != null) return;
@@ -60,6 +72,7 @@ public class TuiManager : IDisposable
         var cts = _animCts;
         _animTicker = new Thread(() =>
         {
+            int tickerCount = 0;
             while (!cts.IsCancellationRequested)
             {
                 try
@@ -69,11 +82,17 @@ public class TuiManager : IDisposable
                         // 主循环活跃（最近 150ms 内 Render 过）：它已在 30ms 循环里直写 spinner + EmitCursor
                         // 恢复光标，心跳不插嘴（避免双写 + 光标跳回 spinner 格）。仅当主循环被堵
                         // （Render 不再被调用）心跳才接管直写 —— 这正是「卡死后动画还要转」的关键。
+                        // 注意：直写用 CursorPos 移动了光标，必须补 EmitCursor 恢复到输入框，
+                        // 否则主循环持续被堵时光标会停在任意 spinner 位置「到处乱跑」。
                         if (Environment.TickCount64 - Volatile.Read(ref _lastRenderTicks) > 150)
+                        {
                             TuiDynamicBar.RenderAllDirect(); // RenderDirect 内部门控活跃屏+无浮层，安全
+                            ActiveScreen?.EmitCursor();      // 恢复光标到输入框（与主循环 line 272/311 一致）
+                        }
 
                         // 冻结看门狗：主循环 UiLoopTick 停滞 >3s → 记一条错误（一次性/冻结段），
-                        // 附最后活动阶段。恢复（tick 前进）后复位，下次再冻再记。
+                        // 附最后活动阶段，并同步强制落盘完整现场（黑匣子尾部 + Agent 状态 + native 栈）。
+                        // 恢复（tick 前进）后复位，下次再冻再记。
                         // 门控 UiLoopActivity != "idle"：测试/无主循环场景不更新 tick，不算冻结。
                         long stale = UiLoopActivity != "idle" ? Environment.TickCount64 - Volatile.Read(ref UiLoopTick) : 0;
                         if (stale > 3000)
@@ -81,14 +100,32 @@ public class TuiManager : IDisposable
                             if (!_freezeLogged)
                             {
                                 _freezeLogged = true;
+                                var dumpPath = FreezeCapture.Trigger(UiLoopActivity, stale);
                                 ErrorLog.Error("UI.Freeze",
-                                    $"主循环冻结 {stale}ms，最后活动: {UiLoopActivity} —— 请将本行+上下日志发给开发者定位死机阶段");
+                                    $"主循环冻结 {stale}ms，最后活动: {UiLoopActivity} —— 现场已落盘: {dumpPath}");
                             }
                         }
                         else
                         {
                             _freezeLogged = false;
                         }
+
+                        // 死机黑匣子丰富条（~1 条/s：8 × 120ms）——记录 Agent/上下文状态进环。
+                        if (++tickerCount % 8 == 0)
+                            FreezeCapture.RecordRichSnapshot();
+
+                        // CPU 采样（~5s 一次：42 × 120ms）+ 更新共享值（动态栏显示/dump）。
+                        // 超 70% 且开启 --debug-dump 时输出资源占用（DumpNow 自带节流/防重入）。
+                        if (tickerCount % 42 == 0)
+                        {
+                            var cpu = CpuMonitor.Sample();
+                            FreezeCapture.SetCpuPercent(cpu);
+                            if (cpu > 70 && FreezeCapture.Enabled)
+                                FreezeCapture.DumpNow($"CPU 高占用 {cpu:F0}%", UiLoopActivity, 0);
+                        }
+
+                        // 定时 dump（用户需求：每分钟一次）——死机前最近一次快照即现场。
+                        FreezeCapture.PeriodicDumpTick(UiLoopActivity);
                     }
                     // 注：TuiAnimatedText.RenderDirect 无活跃屏/浮层门控，不可从心跳线程调（会写旧位置）
                 }

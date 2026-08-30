@@ -127,7 +127,7 @@ public static class MarkdownParser
             }
 
             // 代码块 ```lang\n...\n```
-            if (line.TrimStart().StartsWith("```"))
+            if (line.TrimStart().StartsWith("```", StringComparison.Ordinal))
             {
                 // 围栏由连续反引号组成（可 3 个以上——AI 在内容含 ``` 时常用 4 个），
                 // 语言标签从围栏结束后取，避免把多余反引号带进标签（旧 bug：````js → lang="`js"）
@@ -139,7 +139,7 @@ public static class MarkdownParser
                 i++;
                 while (i < lines.Length)
                 {
-                    if (lines[i].TrimStart().StartsWith("```")) { i++; break; }
+                    if (lines[i].TrimStart().StartsWith("```", StringComparison.Ordinal)) { i++; break; }
                     sb.AppendLine(lines[i]);
                     i++;
                 }
@@ -214,9 +214,9 @@ public static class MarkdownParser
                 // 任务清单 - [ ] / - [x]
                 bool? checkedBox = null;
                 var text = itemText.Trim();
-                if (text.StartsWith("[ ]") || text.StartsWith("[x]") || text.StartsWith("[X]"))
+                if (text.StartsWith("[ ]", StringComparison.Ordinal) || text.StartsWith("[x]", StringComparison.Ordinal) || text.StartsWith("[X]", StringComparison.Ordinal))
                 {
-                    checkedBox = text.StartsWith("[x]") || text.StartsWith("[X]");
+                    checkedBox = text.StartsWith("[x]", StringComparison.Ordinal) || text.StartsWith("[X]", StringComparison.Ordinal);
                     text = text[3..].TrimStart();
                 }
 
@@ -235,7 +235,7 @@ public static class MarkdownParser
             {
                 var paraSb = new System.Text.StringBuilder();
                 while (i < lines.Length && !string.IsNullOrWhiteSpace(lines[i])
-                    && !lines[i].TrimStart().StartsWith("```")
+                    && !lines[i].TrimStart().StartsWith("```", StringComparison.Ordinal)
                     && !lines[i].TrimStart().StartsWith('|')
                     && !lines[i].TrimStart().StartsWith('#')
                     && !lines[i].TrimStart().StartsWith('>')
@@ -637,7 +637,7 @@ public static class MarkdownParser
         ordered = false; orderNum = 0; text = "";
 
         // 无序列表 - 或 *
-        if ((line.StartsWith("- ") || line.StartsWith("* ")) && line.Length > 2)
+        if ((line.StartsWith("- ", StringComparison.Ordinal) || line.StartsWith("* ", StringComparison.Ordinal)) && line.Length > 2)
         {
             text = line[2..];
             return true;

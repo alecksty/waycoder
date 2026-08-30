@@ -127,6 +127,15 @@ public class TuiDynamicBar : TuiDisplayControl
     /// <summary>上下文占用百分比（null=不显示，常驻右段，绿→黄→红）</summary>
     public double? ContextPercent { get; set; }
 
+    /// <summary>CPU 占用百分比（null=不显示，常驻右段 ContextPercent 之后，绿→黄→红）</summary>
+    public double? CpuPercent { get; set; }
+
+    /// <summary>token 消耗显示串（如 "大:12K 小:3K"，null/空=不显示，常驻右段）</summary>
+    public string? TokenDisplay;
+
+    /// <summary>花费显示（如 "¥0.42"，null/空=不显示，常驻右段）</summary>
+    public string? CostDisplay;
+
     /// <summary>是否处于任务活跃状态（显示 spinner）</summary>
     public bool IsActive => Status != AgentStatus.Idle;
 
@@ -253,13 +262,43 @@ public class TuiDynamicBar : TuiDisplayControl
         else
         {
             // 常驻上下文占用%（空闲/思考/工具态均显示，绿→黄→红）
-            if (ContextPercent.HasValue)
+            // 右段空间有限（约 1/3 宽）：信息多时靠后的项（🔤/¥）丢最靠前的（📦 已省略，
+            // 上下文 token 量用 📊 占比表达，不重复）。宽度保护防溢出到分隔线。
+            int rightEnd = absX + Width - 1; // 右段可用终点
+            bool HasRoom(int extra) => col + extra <= rightEnd;
+
+            if (ContextPercent.HasValue && HasRoom(7))
             {
                 var pct = ContextPercent.Value;
                 var ctxFg = pct switch { < 30 => AnsiColors.Green, < 70 => AnsiColors.Yellow, _ => AnsiColors.Red };
-                var ctxStr = $"📊 {pct,3:F0}%";
+                var ctxStr = $"📊{pct,3:F0}%"; // 紧凑：去空格
                 rb.Write(absY, col, ctxStr, fg: ctxFg, bg: AnsiColors.BgBlack);
                 col += AnsiHelper.DisplayWidth(ctxStr) + 1;
+            }
+            // CPU 占用%（⚡ 前缀区分；阈值 <50 绿 <70 黄 ≥70 红）
+            if (CpuPercent.HasValue && HasRoom(6))
+            {
+                var cp = CpuPercent.Value;
+                var fg = cp switch { < 50 => AnsiColors.Green, < 70 => AnsiColors.Yellow, _ => AnsiColors.Red };
+                var s = $"⚡{cp,3:F0}%"; // 紧凑：去空格
+                rb.Write(absY, col, s, fg: fg, bg: AnsiColors.BgBlack);
+                col += AnsiHelper.DisplayWidth(s) + 1;
+            }
+            // token 消耗（🔤）：剩余宽度不足时截断
+            if (!string.IsNullOrEmpty(TokenDisplay) && col < rightEnd)
+            {
+                var td = TokenDisplay;
+                int avail = rightEnd - col;
+                if (AnsiHelper.DisplayWidth(td) > avail)
+                    td = AnsiHelper.TruncateByWidth(td, avail);
+                rb.Write(absY, col, td, fg: AnsiColors.Grey, bg: AnsiColors.BgBlack);
+                col += AnsiHelper.DisplayWidth(td) + 1;
+            }
+            // 花费（¥）
+            if (!string.IsNullOrEmpty(CostDisplay) && HasRoom(7))
+            {
+                rb.Write(absY, col, CostDisplay, fg: AnsiColors.Yellow, bg: AnsiColors.BgBlack);
+                col += AnsiHelper.DisplayWidth(CostDisplay) + 1;
             }
             // 模型/模式信息统一由输入区下方模型栏显示，动态栏不放（重复）。
         }

@@ -811,7 +811,7 @@ public partial class ChatScreen : TuiScreen
             TuiInputHistory.Add("chat", input);
             HistoryIdx = -1;
             SetInput("");
-            PendingSubmissions.Enqueue(input);
+            EnqueueSubmission(input);
             return true;
         }
 

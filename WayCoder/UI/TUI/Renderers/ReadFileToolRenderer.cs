@@ -18,7 +18,7 @@ public class ReadFileToolRenderer : IToolRenderer
     {
         if (string.IsNullOrEmpty(rawOutput)) return rawOutput;
 
-        if (rawOutput.StartsWith("错误："))
+        if (rawOutput.StartsWith("错误：", StringComparison.Ordinal))
             return AnsiTty.ErrorBlock(rawOutput);
 
         return rawOutput;
@@ -40,7 +40,7 @@ public class GlobGrepToolRenderer : IToolRenderer
     public string FormatOutput(string rawOutput)
     {
         if (string.IsNullOrEmpty(rawOutput)) return rawOutput;
-        if (rawOutput.StartsWith("错误："))
+        if (rawOutput.StartsWith("错误：", StringComparison.Ordinal))
             return AnsiTty.ErrorBlock(rawOutput);
         return rawOutput;
     }

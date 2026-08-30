@@ -567,7 +567,7 @@ public class EditorScreen : TuiScreen
         }
 
         // 提取名称（去掉图标前缀）
-        var name = text.StartsWith("📁") ? text[3..] : text.StartsWith("◀ 📄") ? text[5..] : text.StartsWith("📄") ? text[3..] : text;
+        var name = text.StartsWith("📁", StringComparison.Ordinal) ? text[3..] : text.StartsWith("◀ 📄", StringComparison.Ordinal) ? text[5..] : text.StartsWith("📄", StringComparison.Ordinal) ? text[3..] : text;
         name = name.Trim();
 
         var fullPath = Path.Combine(_browseDir, name);

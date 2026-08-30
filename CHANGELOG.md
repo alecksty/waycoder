@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.96.28 (2026-08-30) — 死机现场自动采集 + CPU/动态栏实时监控 + 全部无限增长点限制
+
+- **死机现场自动采集（`--debug-dump` 开关）**：新增 `FreezeCapture` 三合一自诊断——① 阶段环形缓冲（黑匣子）：主循环每阶段转换打点入环（~100 条/s，4096 容量 ≈ 40s 历史），看门狗每秒记一条 Agent/上下文「丰富条」；② 每分钟定时 dump：心跳线程把黑匣子 + 当前状态同步写入 `logs/freeze_*.txt`（用户需求：死机前最近一次快照即现场）；③ 冻结时同步强制 dump：看门狗检测主循环冻结 >3s → 同步落盘完整现场（黑匣子尾部 + 槽位/Agent/token/上下文 + macOS `sample` 抓 native 栈异步追加）。`File.WriteAllText` 同步强制落盘（不依赖 ErrorLog 5s 缓冲，进程被强杀不丢）；`Monitor.TryEnter` 防主线程持锁卡死采集线程；保留最新 20 个 dump 自动清理。**默认关闭**，`waycoder --debug-dump` 显式开启（排查死机时用，平时零开销）
+- **CPU 占用检测**：新增 `CpuMonitor`（缓存 `Process.GetCurrentProcess()` + `TotalProcessorTime` 差值算占用%，AOT 安全跨平台），心跳线程每 5s 采样；动态栏右侧显示 `⚡CPU%`（绿/黄/红三色）；超 70% 且开启 `--debug-dump` 时输出资源占用 dump；CPU 值进 FreezeCapture LiveState 供冻结现场分析
+- **动态栏实时监控扩展**：右侧常驻显示「上下文占比 `📊` + CPU `⚡` + token 消耗 `🔤大X 小Y` + 花费 `¥`」，每帧从 `Agent.LlmClient`/`ContextManager` 读实时值（getter-only 廉价计算，流式/工具执行时 token 数实时变化）；上下文占比改用真实 `LastPromptTokens/MaxTokens`（比估算值准）；右段宽度保护（窄终端丢最靠后的信息）
+- **大模型思考内容显示截断**：reasoning（`reasoning_content`/`thinking_delta`）超 `MaxReasoningDisplayChars`（4000 字符 ≈ 100 行）停止显示并提示「思考内容过长已截断」，防止无限制思考把聊天列表撑爆；`_reasoningBuffer` 仍完整累积（保 ReasoningTokens 统计/调试日志）
+- **TUI 光标错位修复**：心跳线程 `RenderAllDirect()` 直写 spinner 用 `CursorPos` 移动光标但漏恢复——主循环被堵 >150ms 时心跳接管直写后光标停在任意 spinner 位置「到处乱跑」；补 `ActiveScreen?.EmitCursor()` 恢复到输入框（与主渲染循环一致）
+- **全部无限增长点限制（集中到 `Global` 编译期常量，用户统一调整）**：全面排查并修复 16+ 处字符串/列表/磁盘无限增长——
+  - **内存/显示层**：BashTool 流式 `outBuilder` 执行期间增量截断（原结束才截断，长命令执行期撑爆）；后台任务 `BgTask.AppendOutput` 滚动保留头尾；单条流式消息 `Content += delta` 加 `MaxSingleMessageChars` 截断+标记（ChatScreen/TuiListItem/AgentSlot）；AgentSlot 非活跃槽位缓冲加条数裁剪；`TuiScreen._uiQueue` 超 `MaxUiQueue` 丢最旧；`PendingSubmissions`/跨槽位 `PendingMessages`/Watch 提示队列加排队上限；`ChangedFiles`/`_allSessionFiles`/`_modifiedFiles` 文件集合超限清空；Agent 消息条数硬门（>300 强制压缩）
+  - **磁盘层**：Trajectory 旧轨迹文件保留 100 个/删 30 天；ErrorLog 单文件 10MB 滚动 + 启动清理 30 天前；DebugLog 会话日志保留 7 天；SubAgentAudit 单文件 10MB 滚动；SessionManager 保留 200 个会话/删 30 天；FileVersionStore 补上 `MaxTotal` 全局总量淘汰（原只每文件限制）
+- **`--tui -p` 提示词投递槽位 0 走全屏 REPL**：`--tui` 显式且带 `-p` 时提示词加入 `_pendingSlotQueues[0]` 强制走 `RunReplAsync`（复用槽位自动投递机制），而非 RunOnceAsync 一次性 spinner 模式——便于观察任务完成阶段的 TUI 渲染/死机；`--json` 组合保持 RunOnceJsonAsync
+- **自测**：4791 全过（新增 6 项：无限增长限制、CPU 检测、单条消息截断等）；`dotnet build -c Release` 0 错误
+
 ## v0.96.27 (2026-08-29) — TUI 窗口树重构：子窗口永远在父之上 + 关窗刷新替代快照回填
 
 - **窗口树结构**：`TuiWindow` 新增 `Children`/`Parent`/`Screen`/同级 ZOrder 计数，`TuiScreen.Windows` 收窄为根窗口列表——子窗口挂在父窗口下，永远渲染在父之上；一个窗口可弹多个子窗口，Z-order 仅在同级子窗口之间有意义；`TuiWindow.AddChildWindow` 显式弹子窗

@@ -51,6 +51,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new BatchKeepArg());
         CliArgRegistry.Register(new ConfigArg());
         CliArgRegistry.Register(new DebugArg());
+        CliArgRegistry.Register(new DebugDumpArg());
         CliArgRegistry.Register(new HelpArg());
         CliArgRegistry.Register(new MaxTurnsArg());
         CliArgRegistry.Register(new AutoCommitArg());

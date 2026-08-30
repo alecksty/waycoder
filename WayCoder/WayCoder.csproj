@@ -65,6 +65,10 @@
     <None Remove="Hello/**/*" />
     <Compile Remove="Hello.Tests/**/*.cs" />
     <None Remove="Hello.Tests/**/*" />
+    <!-- demo 是独立 .NET 10 console 项目（自带 .csproj），误置于本源码树内，
+         其 obj/bin 生成的 AssemblyInfo.cs 会被主项目编译通配卷入（CS0579），排除 -->
+    <Compile Remove="demo/**/*.cs" />
+    <None Remove="demo/**/*" />
   </ItemGroup>
 
   <ItemGroup>

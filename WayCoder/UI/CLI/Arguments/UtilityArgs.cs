@@ -89,6 +89,17 @@ public class DebugArg : CliArg
 }
 
 /// <summary>
+/// --debug-dump：开启死机现场自动采集（阶段黑匣子 + 每分钟定时 dump + 冻结时强制 dump 到 logs/freeze_*.txt）。
+/// 默认关闭；显式开启才采集，排查死机时用，平时无需关心也无需事后关闭。
+/// </summary>
+public class DebugDumpArg : CliArg
+{
+    public override string Description => "开启死机现场自动采集（黑匣子 + 定时/冻结 dump 到 logs/freeze_*.txt，排查死机用）";
+    public DebugDumpArg() : base("debug-dump", "--debug-dump") { }
+    public override int? OnMatch(List<string> values) { FreezeCapture.Enable(); return null; }
+}
+
+/// <summary>
 /// --config 命令行配置（对标 /config 斜杠命令），无需进界面即可读写所有设置项。
 ///   --config                      → 列出全部
 ///   --config list                 → 同列出

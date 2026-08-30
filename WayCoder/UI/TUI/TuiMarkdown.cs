@@ -66,9 +66,11 @@ public static class TuiMarkdown
                 if (isDiff)
                 {
                     // diff 行红绿背景（+++/--- 文件头行除外），源码 token 前景仍按语法着色
+                    // 注意：全部用 Ordinal 比较——string.StartsWith(默认) 走 culture-aware ICU 排序，
+                    // 在 170K tokens 大上下文下逐行调用会反复创建/销毁 ICU 排序器 → 渲染卡死。
                     int bg = 0;
-                    if (rawLine.StartsWith('+') && !rawLine.StartsWith("+++")) bg = AnsiTty.RgbCode(0, 45, 0);
-                    else if (rawLine.StartsWith('-') && !rawLine.StartsWith("---")) bg = AnsiTty.RgbCode(45, 0, 0);
+                    if (rawLine.StartsWith('+') && !rawLine.StartsWith("+++", StringComparison.Ordinal)) bg = AnsiTty.RgbCode(0, 45, 0);
+                    else if (rawLine.StartsWith('-') && !rawLine.StartsWith("---", StringComparison.Ordinal)) bg = AnsiTty.RgbCode(45, 0, 0);
                     if (codeSyntax != null && !string.IsNullOrEmpty(rawLine))
                     {
                         var segments = new List<(string, int, int)>();
@@ -198,7 +200,7 @@ public static class TuiMarkdown
         {
             var firstNonEmpty = codeLines.FirstOrDefault(l => l.Trim().Length > 0)?.TrimStart();
             isDiff = firstNonEmpty is not null && (firstNonEmpty.StartsWith("diff --git", StringComparison.OrdinalIgnoreCase)
-                || firstNonEmpty.StartsWith("+++") || firstNonEmpty.StartsWith("---") || firstNonEmpty.StartsWith("@@"));
+                || firstNonEmpty.StartsWith("+++", StringComparison.Ordinal) || firstNonEmpty.StartsWith("---", StringComparison.Ordinal) || firstNonEmpty.StartsWith("@@", StringComparison.Ordinal));
         }
         int lineNum = 1;
         foreach (var rawLine in renderLines)
@@ -225,8 +227,9 @@ public static class TuiMarkdown
                 if (isDiff)
                 {
                     // + 行黑带绿（rgb 0,45,0）、- 行黑带红（rgb 45,0,0）；+++ / --- 文件头行除外
-                    if (rawLine.StartsWith('+') && !rawLine.StartsWith("+++")) bg = AnsiTty.RgbCode(0, 45, 0);
-                    else if (rawLine.StartsWith('-') && !rawLine.StartsWith("---")) bg = AnsiTty.RgbCode(45, 0, 0);
+                    // Ordinal 比较防 ICU 排序器反复分配（大上下文渲染卡死根因）
+                    if (rawLine.StartsWith('+') && !rawLine.StartsWith("+++", StringComparison.Ordinal)) bg = AnsiTty.RgbCode(0, 45, 0);
+                    else if (rawLine.StartsWith('-') && !rawLine.StartsWith("---", StringComparison.Ordinal)) bg = AnsiTty.RgbCode(45, 0, 0);
                 }
                 foreach (var (text, color) in tokens)
                 {
