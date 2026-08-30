@@ -303,6 +303,10 @@ public class LLM
     /// <summary>当前任务的输出 token 数（从快照点至今）</summary>
     public int TaskCompletionTokens => TotalCompletionTokens - _taskStartCompletionTokens;
 
+    /// <summary>最近一次请求的 HTTP 错误原因（服务端错误体 / 状态码详情 / 超时网络错误）。
+    /// 出错时保存具体原因，供 UI 在「请求失败」的同时输出错误消息定位问题。</summary>
+    public string? HttpErrorMessage { get; set; }
+
     /// <summary>
     /// 当前任务的花费估算（美元）。
     /// 模型不在定价表中时返回 null。
@@ -659,8 +663,10 @@ public class LLM
         {
             string errBody = "";
             try { errBody = await response.Content.ReadAsStringAsync(cancellationToken); } catch { }
-            ErrorLog.LlmError(Model, Endpoint, $"HTTP {(int)response.StatusCode}: {ContextManager.TruncateByRunes(errBody, 300)}");
-            throw new HttpRequestException($"LLM 请求失败 HTTP {(int)response.StatusCode}");
+            // 保存服务端错误原因，供 UI 在「请求失败」时同时输出错误消息
+            HttpErrorMessage = ContextManager.TruncateByRunes(errBody, 300);
+            ErrorLog.LlmError(Model, Endpoint, $"HTTP {(int)response.StatusCode}: {HttpErrorMessage}");
+            throw new HttpRequestException($"LLM 请求失败 HTTP {(int)response.StatusCode}: {HttpErrorMessage}");
         }
 
         var contentParts = new List<string>();
@@ -1079,10 +1085,9 @@ public class LLM
                 // 内部超时（非外部取消）——下一次自动加长时间
                 if (attempt == effectiveMaxRetries - 1)
                 {
-                    ErrorLog.LlmError(Model, Endpoint,
-                        $"请求超时（{attempt + 1}/{effectiveMaxRetries} 次尝试，最终超时 {thisTimeoutSec:F0}s）");
-                    throw new HttpRequestException(
-                        $"请求超时（{attempt + 1}/{effectiveMaxRetries} 次尝试，最终超时 {thisTimeoutSec:F0}s）");
+                    HttpErrorMessage = $"请求超时（{attempt + 1}/{effectiveMaxRetries} 次尝试，最终超时 {thisTimeoutSec:F0}s）";
+                    ErrorLog.LlmError(Model, Endpoint, HttpErrorMessage);
+                    throw new HttpRequestException(HttpErrorMessage);
                 }
                 var nextTimeout = baseTimeoutSec * GetTimeoutMultiplier(attempt + 1);
                 ErrorLog.Warning("LLM",
@@ -1094,8 +1099,9 @@ public class LLM
                 // 中文错误本地化：把 OS 级英文网络错误（Connection refused 等）转中文
                 if (attempt == effectiveMaxRetries - 1)
                 {
-                    ErrorLog.LlmError(Model, Endpoint, $"网络错误：{ex.Message}");
-                    throw new HttpRequestException(LocalizeError(ex.Message), ex);
+                    HttpErrorMessage = LocalizeError(ex.Message);
+                    ErrorLog.LlmError(Model, Endpoint, $"网络错误：{HttpErrorMessage}");
+                    throw new HttpRequestException(HttpErrorMessage, ex);
                 }
                 ErrorLog.Warning("LLM", $"网络错误，重试 {attempt + 1}/{effectiveMaxRetries}: {LocalizeError(ex.Message)}");
                 await Task.Delay((int)Math.Pow(2, attempt) * RetryBackoffMs, cancellationToken);
