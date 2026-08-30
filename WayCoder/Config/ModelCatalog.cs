@@ -1000,13 +1000,29 @@ public static partial class ModelCatalog
     /// （deepseek/openai…）；否则按 host 派生稳定 id（同 host 必得同 id，跨来源也能合并）；
     /// 地址为空/不可解析才回退来源 pid。这是「请求打到哪，就归哪个服务商」的唯一入口。
     /// </summary>
+    /// <summary>规范化供应商 ID：去掉 `api-` 前缀和 `-ai` / `-com` 后缀（导入数据常见格式
+    /// api-openai-ai.com → openai）。只影响导入解析（影响名称/图标/去重的判断），不改变已注册的规范 ID。
+    /// api- 前缀来自 host 的 api.deepseek.com 子域、-ai 后缀来自 api-siliconflow-ai 这类服务商 slug、
+    /// -com 后缀来自 .com 域（对名称判断无用）。</summary>
+    public static string NormalizeProviderId(string? pid)
+    {
+        var s = NormalizeId(pid ?? "");
+        if (s.StartsWith("api-", StringComparison.Ordinal))
+            s = s["api-".Length..];
+        if (s.EndsWith("-ai", StringComparison.Ordinal))
+            s = s[..^"-ai".Length];
+        if (s.EndsWith("-com", StringComparison.Ordinal))
+            s = s[..^"-com".Length];
+        return string.IsNullOrEmpty(s) ? "import" : s;
+    }
+
     public static string ResolveProviderId(string? baseUrl, string? fallbackPid)
     {
         var known = InferProviderFromBaseUrl(baseUrl);
         if (known != null) return known;
         var host = ExtractHost(baseUrl);
-        if (host.Length > 0) return NormalizeId(host);
-        return NormalizeId(fallbackPid ?? "import");
+        if (host.Length > 0) return NormalizeProviderId(host);
+        return NormalizeProviderId(fallbackPid ?? "import");
     }
 
     /// <summary>从 base_url 提取规范化 host（小写、去 www.、去端口）：api.deepseek.com → api.deepseek.com。</summary>

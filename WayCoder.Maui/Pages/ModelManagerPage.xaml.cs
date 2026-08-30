@@ -153,6 +153,8 @@ public partial class ModelManagerPage : ContentPage
         if (string.IsNullOrWhiteSpace(name)) return;
         var id = await DisplayPromptAsync("导入供应商", "供应商 ID（小写英文，如 siliconflow）", accept: "下一步", maxLength: 30);
         if (string.IsNullOrWhiteSpace(id)) return;
+        // 规范化 ID：去掉 api- 前缀 / -ai 后缀（api-siliconflow-ai → siliconflow），保证名称/去重判断正确
+        id = ModelCatalog.NormalizeProviderId(id);
         var baseUrl = await DisplayPromptAsync("导入供应商", "接口地址 BaseUrl（OpenAI 兼容，如 https://api.siliconflow.cn/v1）", accept: "下一步", maxLength: 200);
         if (string.IsNullOrWhiteSpace(baseUrl)) return;
         var key = await DisplayPromptAsync("导入供应商", "API Key（可留空稍后在设置填写）", accept: "完成", maxLength: 200);
@@ -269,7 +271,7 @@ public partial class ModelManagerPage : ContentPage
             var key = Regex.Match(content, "(?i)\"(api_key|apiKey|ANTHROPIC_API_KEY|OPENAI_API_KEY)\"\\s*[:=]\\s*\"([^\"]+)\"").Groups[2].Value;
             var baseUrl = Regex.Match(content, "(?i)\"(base_url|baseUrl|api_base)\"\\s*[:=]\\s*\"([^\"]+)\"").Groups[2].Value;
 
-            var providerId = sourceName.ToLowerInvariant().Replace(" ", "");
+            var providerId = ModelCatalog.NormalizeProviderId(sourceName); // 规范化（去 api-/-ai），保证名称判断正确
             var providerName = sourceName;
             var imported = 0;
             foreach (var mid in modelIds.Take(10))
