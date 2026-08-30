@@ -130,6 +130,10 @@ public class TodoTool : ITool
         if (todos.Any(t => t.Id == id))
             return $"错误：任务 ID '{id}' 已存在。请使用 update 操作修改现有任务。";
 
+        // 条数上限：todo 无限加会让 todos.json 无限涨（对齐 Global.MaxTodos）
+        if (todos.Count >= Global.MaxTodos)
+            return $"错误：任务已达上限（{Global.MaxTodos} 条），请先 clear 或 delete 一些任务。";
+
         var desc = args.GetValueOrDefault("description")?.ToString() ?? "";
 
         // 解析依赖

@@ -37,7 +37,7 @@ public static class Global
     /// <summary>应用全称</summary>
     public const string AppFullName = "WayCoder 道码·通用编程智能体";
     /// <summary>版本号</summary>
-    public const string Version = "v0.96.29";
+    public const string Version = "v0.96.30";
     /// <summary>应用名 + 版本号</summary>
     public static string AppNameVersion => $"{AppName} {Version} ({AppNameCN})";
 
@@ -135,6 +135,28 @@ public static class Global
 
     /// <summary>文件版本全局总量上限：跨文件删最旧，防「改了很多文件」时磁盘膨胀。</summary>
     public const int FileVersionMaxTotal = 200;
+
+    // ── 各端输入队列 / 数据聚合护栏 ──
+    /// <summary>待提交输入队列上限（Web/GUI）：Agent 忙时用户连续输入会无限累积，超限丢最旧。</summary>
+    public const int MaxPendingInput = 100;
+
+    /// <summary>Web 非 SSE 客户端槽位绑定上限：只 POST /chat 不建 SSE 连接的 clientId 会永久占用字典与槽位，超限不再绑定新 id。</summary>
+    public const int MaxClientSlotEntries = 64;
+
+    /// <summary>LLM 待注入图片每 agentId 上限（张）：连续加图不发消息会累积 base64 内存，超限丢最旧。</summary>
+    public const int MaxQueuedImages = 8;
+
+    /// <summary>TodoTool 条数上限：todo 无限加会让 todos.json 无限涨，超限提示先清理。</summary>
+    public const int MaxTodos = 500;
+
+    /// <summary>模型目录在线导入数量护栏（总库）：一次导入 7000+ 无护栏会刷爆，超限拒绝该批。</summary>
+    public const int MaxImportedModels = 10_000;
+
+    /// <summary>MAUI 会话文件大小上限（字节）：maui_session.txt 超限截尾重写，保尾部窗口。</summary>
+    public const long MaxMauiSessionBytes = 2 * 1024 * 1024;
+
+    /// <summary>MAUI 录音文件保留个数：超出删最旧，防 workspace 磁盘无限涨。</summary>
+    public const int MaxAudioRecordings = 20;
 
 
     /// <summary>测试/嵌入式场景可覆写的用户主目录；默认取系统用户目录。</summary>

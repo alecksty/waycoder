@@ -884,7 +884,10 @@ public partial class MainWindow : Window
         if (string.IsNullOrEmpty(input)) return;
         if (_cts[slot] != null)
         {
-            // 排队：不打断当前任务 —— 指令入队，当前批次完成后由 finally 取下一个自动执行
+            // 排队：不打断当前任务 —— 指令入队，当前批次完成后由 finally 取下一个自动执行。
+            // 队列防无限增长：满则丢最旧保最新（与 Web/TUI 同语义）。
+            while (_pendingInputs[slot].Count >= Global.MaxPendingInput)
+                _pendingInputs[slot].TryDequeue(out _);
             _pendingInputs[slot].Enqueue(input);
             InputBox.Text = "";
             _drafts[slot] = "";
@@ -1021,9 +1024,20 @@ public partial class MainWindow : Window
         if (string.IsNullOrEmpty(clean)) return;
 
         var msg = _inReasoning[slot] ? EnsureReasoning(slot) : EnsureAssistant(slot);
-        msg.Text.Append(clean);
+        AppendCapped(msg.Text, clean);
         if (slot != _activeSlot) return; // 非活跃槽位只累积，不渲染
         RequestRender(msg);
+    }
+
+    /// <summary>单条消息内容上限：超限保留尾部窗口 + 截断标记（镜像 TUI CapMessageContent，防超长回复撑爆 StringBuilder/渲染）。</summary>
+    private static void AppendCapped(StringBuilder sb, string delta)
+    {
+        int max = Global.MaxSingleMessageChars;
+        if (max <= 0 || sb.Length + delta.Length <= max) { sb.Append(delta); return; }
+        var combined = sb.ToString() + delta;
+        var tail = ContextManager.TruncateTailByRunes(combined, max);
+        sb.Clear();
+        sb.Append("… 已截断（显示最近内容，旧内容滚动省略）…\n").Append(tail);
     }
 
     /// <summary>取当前流式中的推理气泡（没有则新建）。</summary>
@@ -1057,9 +1071,24 @@ public partial class MainWindow : Window
     private void AddMessage(int slot, ChatMessage msg)
     {
         _messages[slot].Add(msg);
+        PruneMessages(slot);
         if (slot != _activeSlot) return;
         msg.View = new MessageBubble(msg);
         MessagesHost.Children.Add(msg.View);
         Dispatcher.UIThread.Post(() => ChatScroll.ScrollToEnd(), DispatcherPriority.Background);
+    }
+
+    /// <summary>单槽消息条数上限：超 MaxChatMessages 丢最旧（对齐 TUI PruneBuffered），
+    /// 同步从 UI 容器移除对应气泡，防长期会话内存/渲染无限增长。</summary>
+    private void PruneMessages(int slot)
+    {
+        var list = _messages[slot];
+        bool active = slot == _activeSlot;
+        while (list.Count > Config.Instance.MaxChatMessages)
+        {
+            list.RemoveAt(0);
+            if (active && MessagesHost.Children.Count > 0)
+                MessagesHost.Children.RemoveAt(0);
+        }
     }
 }

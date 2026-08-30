@@ -1,4 +1,5 @@
 using System.Text;
+using WayCoder;
 using WayCoder.Maui.Models;
 
 namespace WayCoder.Maui.Services;
@@ -17,20 +18,31 @@ public static class MauiSessionStore
 
     public static bool Exists() => File.Exists(StorePath);
 
-    /// <summary>保存对话正文（仅 User/Assistant，跳过思考/工具消息）。</summary>
+    /// <summary>保存对话正文（仅 User/Assistant，跳过思考/工具消息）。
+    /// 防无限增长：只存最近 <see cref="Config.MaxChatMessages"/> 条 + 文件超 <see cref="Global.MaxMauiSessionBytes"/> 截尾重写。</summary>
     public static void Save(IEnumerable<ChatMessage> messages)
     {
         try
         {
+            var list = messages.ToList();
+            int max = Config.Instance.MaxChatMessages;
+            if (max > 0 && list.Count > max)
+                list.RemoveRange(0, list.Count - max); // 只存最近 N 条，防会话文件无限涨
+
             var sb = new StringBuilder();
-            foreach (var m in messages)
+            foreach (var m in list)
             {
                 if (m.Role != ChatRole.User && m.Role != ChatRole.Assistant) continue;
                 if (string.IsNullOrEmpty(m.RawText)) continue;
                 sb.Append('R').Append((int)m.Role).Append('\n');
                 AppendField(sb, m.RawText);
             }
-            File.WriteAllText(StorePath, sb.ToString());
+
+            var text = sb.ToString();
+            if (Global.MaxMauiSessionBytes > 0 && text.Length > Global.MaxMauiSessionBytes)
+                text = "… 会话过长，已截断（仅保留最近内容）…\n"
+                    + ContextManager.TruncateTailByRunes(text, (int)Global.MaxMauiSessionBytes);
+            File.WriteAllText(StorePath, text);
         }
         catch { /* 落盘失败静默：不影响聊天 */ }
     }

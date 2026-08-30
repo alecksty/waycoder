@@ -164,13 +164,16 @@ public class LLM
     private static readonly Dictionary<string, List<string>> PendingImages = [];
     private static readonly object _pendingImagesLock = new();
 
-    /// <summary>将图片加入指定 Agent 的待发送队列（线程安全）。</summary>
+    /// <summary>将图片加入指定 Agent 的待发送队列（线程安全）。
+    /// 防无限增长：单 agentId 队列满 <see cref="Global.MaxQueuedImages"/> 丢最旧（保最新）。</summary>
     public static void QueueImage(string agentId, string path)
     {
         lock (_pendingImagesLock)
         {
             if (!PendingImages.TryGetValue(agentId, out var list))
                 PendingImages[agentId] = list = [];
+            if (list.Count >= Global.MaxQueuedImages)
+                list.RemoveAt(0);
             list.Add(path);
         }
     }
