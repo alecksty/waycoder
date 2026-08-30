@@ -770,8 +770,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 if (slot.Agent == null)
                 {
                     var cfg = Config.Instance;
-                    var info = ModelCatalog.Find(cfg.Model);
-                    var providerId = info?.ProviderId ?? cfg.Provider;
+                    var info = ConnectionConfig.ResolveActiveModel(cfg); // 精确匹配当前供应商，防同名模型误配 baseUrl/key
+                    var providerId = ConnectionConfig.ResolveActiveProviderId(cfg);
                     var key = ApiKeyStore.Get(providerId) ?? cfg.ApiKey;
                     var baseUrl = ResolveBaseUrl(info, providerId, cfg.BaseUrl);
                     var llm = new LLM(cfg.Model, key, baseUrl, cfg.MaxTokens, cfg.Temperature)
