@@ -6,11 +6,12 @@
     Title="模型列表">
 
     <Grid RowDefinitions="Auto,*">
-        <!-- 顶部：当前模型指示说明 + 右上角大小模型切换（选大→点模型设大模型，选小→设小模型） -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="12,4">
-            <Label x:Name="HintLabel" FontSize="11" VerticalOptions="Center"
+        <!-- 顶部：模式切换按钮（编辑/选择）+ 当前模型指示说明 + 右上角大小模型切换（选大→点模型设大模型，选小→设小模型） -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Padding="12,4">
+            <Button x:Name="ModeBtn" Text="选择模式" FontSize="12" Padding="10,2" Clicked="OnModeClicked" />
+            <Label x:Name="HintLabel" Grid.Column="1" FontSize="11" VerticalOptions="Center" Margin="8,0,0,0"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-            <HorizontalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+            <HorizontalStackLayout Grid.Column="2" Spacing="4" VerticalOptions="Center">
                 <Button x:Name="BigBtn" Text="大" FontSize="12" Padding="12,2" Clicked="OnToggleSizeClicked" />
                 <Button x:Name="SmallBtn" Text="小" FontSize="12" Padding="12,2" Clicked="OnToggleSizeClicked" />
             </HorizontalStackLayout>

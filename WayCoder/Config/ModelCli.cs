@@ -470,11 +470,16 @@ public static class ModelCli
         return sb.ToString();
     }
 
-    /// <summary>保存指定供应商的 API key（可选有效期：永久 / 截止日期）</summary>
+    /// <summary>保存指定供应商的 API key（可选有效期：永久 / 截止日期）。
+    /// 合法性校验：只允许英文字母数字 + `+-_.` 逗号；环境变量引用（$VAR）拒绝。</summary>
     public static string SetKey(string providerId, string key, string? expiry = null)
     {
         if (string.IsNullOrWhiteSpace(providerId) || string.IsNullOrWhiteSpace(key))
             return "用法: --model key <供应商> <key> [有效期]";
+        if (ApiKeyStore.IsEnvVarRef(key))
+            return $"❌ {key} 是环境变量引用，不是真实 Key，已拒绝保存。请填真实 API Key。";
+        if (!ApiKeyStore.IsValidApiKey(key))
+            return $"❌ Key 含非法字符（只允许英文字母数字 + - _ . ,）：{ApiKeyStore.Masked(key)}";
         ApiKeyStore.Set(providerId, key, expiry);
         return $"已保存 {providerId} 的 API key：{ApiKeyStore.Masked(providerId)}（有效期: {ApiKeyStore.ExpiryText(expiry)}）";
     }

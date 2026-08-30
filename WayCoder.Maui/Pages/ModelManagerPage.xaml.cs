@@ -296,7 +296,18 @@ public partial class ModelManagerPage : ContentPage
     {
         var key = await DisplayPromptAsync("设Key", $"输入 {providerId} 的 API Key", accept: "保存", cancel: "取消", maxLength: 512);
         if (string.IsNullOrWhiteSpace(key)) return;
-        ApiKeyStore.Set(providerId, key.Trim());
+        // 合法性校验：只允许英文字母数字 + `+-_.` 逗号；环境变量引用（$VAR）会判非法
+        if (!ApiKeyStore.IsValidApiKey(key))
+        {
+            await DisplayAlertAsync("Key 不合法",
+                "只允许英文字母数字 + - _ . ,（不要填环境变量引用 $VAR）", "确定");
+            return;
+        }
+        if (!ApiKeyStore.Set(providerId, key.Trim()))
+        {
+            await DisplayAlertAsync("保存失败", "Key 保存失败（请检查字符）", "确定");
+            return;
+        }
         Populate();
         await DisplayAlertAsync("已保存", $"已保存 {providerId} 的 API Key", "确定");
     }
