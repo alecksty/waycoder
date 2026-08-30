@@ -1316,6 +1316,16 @@ function markupToHtml(text) {
   flush();
   return out;
 }
+// 单条消息内容上限（与 C# Global.MaxSingleMessageChars 一致）：超限保留尾部窗口 + 截断标记，
+// 防超长回复/工具输出无限撑大 DOM（对齐 TUI CapMessageContent 语义）。
+const MAX_MSG_CHARS = 50000;
+function appendCapped(el, s) {
+  s = String(s == null ? '' : s);
+  if (!el) return;
+  var cur = el.textContent;
+  if (cur.length + s.length <= MAX_MSG_CHARS) { el.textContent += s; return; }
+  el.textContent = '… 已截断（显示最近内容，旧内容滚动省略）…\n' + (cur + s).slice(-MAX_MSG_CHARS);
+}
 // 推理内容按 «dim»…«/» 标记以淡色块显示（颜色变淡，不进正文 Markdown）
 function handleToken(s) {
   s = String(s == null ? '' : s);
@@ -1323,13 +1333,13 @@ function handleToken(s) {
     if (s.indexOf('«dim»') >= 0 && !reasoningEl) reasoningEl = addReasoning();
     const rest = s.split('«dim»').join('').split('«/»').join('');
     if (s.indexOf('«/»') >= 0) endReasoning();
-    if (rest.trim()) (reasoningEl || ensureAssistantStream()).textContent += rest;
+    if (rest.trim()) appendCapped(reasoningEl || ensureAssistantStream(), rest);
     scroll();
     return;
   }
   endToolOutput();
-  if (reasoningEl) reasoningEl.textContent += s;
-  else ensureAssistantStream().textContent += s;
+  if (reasoningEl) appendCapped(reasoningEl, s);
+  else appendCapped(ensureAssistantStream(), s);
   scroll();
 }
 
@@ -1575,7 +1585,7 @@ const es = new EventSource('/events?client=' + clientId);
 es.onerror = () => { /* 断线自动重连：服务端重放 history+state，isBusy 由 state 处理器按槽位 busy 复位 */ };
 es.addEventListener('token', e => { setBusy(true); handleToken(JSON.parse(e.data)); });
 es.addEventListener('tool', e => { setBusy(true); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); const d = JSON.parse(e.data); addTool(d.name, d.args); });
-es.addEventListener('tool_output', e => { ensureToolOutput().textContent += JSON.parse(e.data); scroll(); });
+es.addEventListener('tool_output', e => { appendCapped(ensureToolOutput(), JSON.parse(e.data)); scroll(); });
 es.addEventListener('done', () => { setBusy(false); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); fetchPanel(); });
 es.addEventListener('interrupted', () => { setBusy(false); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); addMsg('system', '⚠ 已中断'); fetchPanel(); });
 es.addEventListener('failed', e => { setBusy(false); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); addMsg('system', '✘ ' + JSON.parse(e.data)); fetchPanel(); });

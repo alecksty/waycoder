@@ -249,6 +249,17 @@ public static partial class ModelCatalog
         if (list.Count == 0) return 0;
         lock (_lock)
         {
+            // 导入数量护栏：总库超 MaxImportedModels 拒绝该批（一次 models.dev 导入 7000+ 无护栏会刷爆字典/文件）
+            if (Global.MaxImportedModels > 0)
+            {
+                var existing = LoadCustom();
+                if (existing.Count + list.Count > Global.MaxImportedModels)
+                {
+                    ErrorLog.Warning("ModelCatalog",
+                        $"导入被拒绝：模型总库将超过上限 {Global.MaxImportedModels:N0}（现有 {existing.Count:N0} + 本次 {list.Count:N0}）。请清理旧模型或分批导入。");
+                    return 0;
+                }
+            }
             foreach (var g in list.GroupBy(m => ProviderFile(m.ProviderId, local)))
             {
                 var models = ReadFile(g.Key);

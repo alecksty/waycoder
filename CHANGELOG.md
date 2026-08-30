@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.96.30 (2026-08-30) — 所有端防无限增长补齐（Web/GUI/MAUI）+ MAUI 编译断链修复
+
+- **逐端核查结论**：此前 v0.96.28/29 的 21+ 个 Global 上限中，12 个核心限制（上下文 >300 条硬门、Bash 流式、后台任务、文件集合、日志/轨迹/会话/版本保留等）对 CLI/TUI/Web/GUI/MAUI **全部共享生效**；但 6 个 TUI 专属限制的同型结构在 Web/GUI/MAUI **完全裸奔**。本次按「复用 Global 常量 + 平移 TUI 已验证的 `CapMessageContent`（保留尾部窗口+标记）与 `PruneChatHistory`（按条数/token 丢最旧）模式」逐端补齐
+- **新增 Global 编译期常量（7 个）**：`MaxPendingInput`(100，Web/GUI 输入队列)、`MaxClientSlotEntries`(64，Web 非 SSE 客户端槽位绑定)、`MaxQueuedImages`(8，LLM 待注入图片/agentId)、`MaxTodos`(500)、`MaxImportedModels`(10000，模型库导入护栏)、`MaxMauiSessionBytes`(2MB)、`MaxAudioRecordings`(20)
+- **Web 端**：`WebSlot.PendingInputs` 入队判满丢最旧（`MaxPendingInput=100` 定义了从未真正生效，脚本持续 POST /chat 可灌满）；`ResolveSlot` 绑定上限 64——只 POST /chat 不建 SSE 连接的 clientId 原本永久占用字典+槽位（10 槽会被占光）；浏览器 `app.js` 单条消息 `textContent +=` 加 50k 尾部窗口截断（`appendCapped`，对齐 TUI `CapMessageContent`）
+- **GUI 端**：`AppendToken` 的 `StringBuilder.Append` 加 50k 截断；`_messages[slot]` 只 Add 不裁剪（与 Agent 压缩脱钩，千轮会话内存线性涨 + 渲染 O(n²)）→ 按 `MaxChatMessages` 丢最旧并同步移除气泡；`_pendingInputs` 加 100 上限；`EditFileTool.ChangedFileStats`（ConcurrentDictionary 只写不删）随 `ChangedFiles` 超限淘汰同步清空（共享，所有端生效）
+- **MAUI 端**：`Messages`（ObservableCollection）只 Clear 不裁剪 → 封装统一 `AddMessage` + `PruneMessages`（按 `MaxChatMessages` 条数 + `ContextManager.EstimateText` 累计 token 双裁剪）；`contentSb`/`reasoningSb` 流式追加加 50k 截断；`ToolDetail +=` 加 50k 上限停止追加；`_sendQueue` 加 50 上限；`MauiSessionStore` 只存最近 N 条 + 文件超 2MB 截尾重写；`AudioRecorder` 录音完成后清理最旧 `rec-*.m4a`（保留 20，防 workspace 磁盘无限涨）
+- **共享护栏**：`LLM.QueueImage` 每 agentId 上限 8 张（连续加图不发消息累积 base64 内存）；`TodoTool.Create` 满 500 拒绝；`ModelCatalog.AddCustomRange` 总库超 10000 拒绝该批（一次 models.dev 导入 7000+ 无护栏）
+- **修复**：`WayCoder/demo/`（未跟踪演示目录）的 `obj/**` 被 GUI/MAUI 的 `../WayCoder/**/*.cs` glob 误包含导致 AssemblyInfo 重复 → 两 csproj Exclude `demo/**`；MAUI 编译断链（v0.96.28/29 遗留，`DiagCommand` 引用 `TuiManager.UiLoopActivity`、`ConnectionCommand` 引用 `ChatScreen.RefreshModelStatus` 在 MAUI stub 缺失）→ `CoreStubs` 补两个 no-op 桩
+- **自测**：4791 全过；`dotnet build -c Release` / `WayCoder.Gui` / `WayCoder.Maui -f net10.0-android` 三端均 0 错误
+
 ## v0.96.29 (2026-08-30) — 思考内容滚动显示 + 模型显示统一同步
 
 - **思考内容滚动显示（保留最后 100 行）**：单条消息截断从「保留头尾」改为「保留尾部窗口 + 滚动标记」——超 `MaxSingleMessageChars` 后每次追加滚动更新，旧内容被挤出、**始终显示最新内容**（思考/工具输出滚动可见），而非只显示最先的 100 行；涉及 `ChatScreen.CapMessageContent`、`TuiListItem.AppendContent`、`AgentSlot.CapSingleMessage`。LLM 层 `MaxReasoningDisplayChars` 提到 50k（与单条上限一致），让 reasoning 完整流式到显示层由尾部窗口接管；截断提示改「思考内容过长，显示窗口受限」

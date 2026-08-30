@@ -335,6 +335,9 @@ namespace WayCoder.UI.TUI.Base
         public TuiScreen? ActiveScreen { get; private set; }
         public bool IsActive { get; private set; }
 
+        /// <summary>主循环阶段标记桩：MAUI 无终端渲染主循环，恒 idle（DiagCommand /diag 引用，编译兼容）。</summary>
+        public static volatile string UiLoopActivity = "idle";
+
         /// <summary>推入屏幕占位：移动端无终端屏幕栈，no-op（真实跳转原生页面由 ChatPage 桥接 EditorScreen/SettingsScreen）。</summary>
         public void PushScreen(TuiScreen screen) { }
     }
@@ -405,6 +408,9 @@ namespace WayCoder.UI.Tui.Screens
         public WayCoder.UI.Tui.Controls.TuiStatusBar StatusBar { get; } = new();
 
         public void AddSystemMsg(string content) => OnAddSystemMsg?.Invoke(content);
+
+        /// <summary>模型显示刷新桩：MAUI 真实刷新走 ChatPage.RefreshModelBar（ConnectionCommand 切换后调用，编译兼容）。</summary>
+        public void RefreshModelStatus() { }
 
         public void AddMessage(string content, string role = "assistant", bool? centered = null, int indent = 0)
             => OnAddMessage?.Invoke(content, role, centered, indent);

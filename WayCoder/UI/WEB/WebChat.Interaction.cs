@@ -331,7 +331,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     public static bool SseClientsFull(int count) => count >= MaxSseClients;
 
     /// <summary>待处理输入队列是否已满（纯逻辑，便于自测）。</summary>
-    public static bool InputQueueFull(int count) => count >= MaxPendingInput;
+    public static bool InputQueueFull(int count) => count >= Global.MaxPendingInput;
 
     /// <summary>HTML 实体转义（防 XSS）：工具名/参数注入 innerHTML 前转义 &lt; &gt; &amp; " '。</summary>
     public static string HtmlEscape(string s)

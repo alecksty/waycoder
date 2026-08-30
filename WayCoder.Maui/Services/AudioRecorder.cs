@@ -1,3 +1,5 @@
+using WayCoder;
+
 namespace WayCoder.Maui.Services;
 
 /// <summary>
@@ -50,19 +52,37 @@ public static class AudioRecorder
     public static Task<string?> StopAsync()
     {
         IsRecording = false;
+        string? path = null;
 #if ANDROID
         if (_recorder == null) return Task.FromResult<string?>(null);
         try { _recorder.Stop(); } catch { /* 录制时长过短可能抛异常，忽略 */ }
         try { _recorder.Release(); } catch { }
         _recorder = null;
-        return Task.FromResult(_outputPath);
+        path = _outputPath;
 #elif IOS
         _recorder?.Stop();
         _recorder = null;
-        return Task.FromResult(_outputPath);
-#else
-        return Task.FromResult<string?>(null);
+        path = _outputPath;
 #endif
+        CleanupOldRecordings(); // 防 workspace 磁盘无限涨
+        return Task.FromResult(path);
+    }
+
+    /// <summary>清理最旧录音文件：保留最近 <see cref="Global.MaxAudioRecordings"/> 个 rec-*.m4a（文件名按 TickCount64 单调递增，ordinal 排序≈创建顺序）。</summary>
+    private static void CleanupOldRecordings()
+    {
+        try
+        {
+            var dir = MauiBootstrap.WorkspaceDir;
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return;
+            var recs = Directory.GetFiles(dir, "rec-*.m4a").OrderBy(f => f, StringComparer.Ordinal).ToList();
+            while (recs.Count > Global.MaxAudioRecordings)
+            {
+                File.Delete(recs[0]);
+                recs.RemoveAt(0);
+            }
+        }
+        catch { /* 清理失败静默 */ }
     }
 
 #if ANDROID

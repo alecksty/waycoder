@@ -54,6 +54,45 @@ public partial class ChatPage : ContentPage
     private readonly Queue<QueuedItem> _sendQueue = new();
     private sealed record QueuedItem(string Text, ChatMessage Msg);
 
+    /// <summary>统一消息入口：Add 后裁剪，防消息列表无限增长（镜像 TUI PruneChatHistory）。</summary>
+    private void AddMessage(ChatMessage m)
+    {
+        AddMessage(m);
+        PruneMessages();
+    }
+
+    /// <summary>消息列表条数/token 上限：超 MaxChatMessages 或累计估算 token 超 MaxChatTokens 丢最旧。</summary>
+    private void PruneMessages()
+    {
+        int max = Config.Instance.MaxChatMessages;
+        if (max > 0)
+            while (Messages.Count > max) Messages.RemoveAt(0);
+
+        int maxTokens = Config.Instance.MaxChatTokens;
+        if (maxTokens > 0)
+        {
+            int est = 0;
+            foreach (var m in Messages) est += ContextManager.EstimateText(m.RawText ?? "");
+            while (est > maxTokens && Messages.Count > 1)
+            {
+                est -= ContextManager.EstimateText(Messages[0].RawText ?? "");
+                Messages.RemoveAt(0);
+            }
+        }
+    }
+
+    /// <summary>单条消息内容上限：超限保留尾部窗口 + 截断标记（镜像 TUI CapMessageContent，
+    /// 防超长回复/思考内容撑爆 RawText 与富文本渲染）。</summary>
+    private static void AppendCapped(StringBuilder sb, string delta)
+    {
+        int max = Global.MaxSingleMessageChars;
+        if (max <= 0 || sb.Length + delta.Length <= max) { sb.Append(delta); return; }
+        var combined = sb.ToString() + delta;
+        var tail = ContextManager.TruncateTailByRunes(combined, max);
+        sb.Clear();
+        sb.Append("… 已截断（显示最近内容，旧内容滚动省略）…\n").Append(tail);
+    }
+
     // ── 输入框上方动态状态栏：多状态（空闲/思考/执行工具/等待确认）+ Braille 旋转动画 ──
     private IDispatcherTimer? _statusTimer;
     private int _spinnerFrame;
@@ -101,9 +140,9 @@ public partial class ChatPage : ContentPage
         base.OnAppearing();
         // 注入斜杠命令输出桥：命令执行时把 system/消息 泵回本页消息列表（统一灰色小字）。
         ChatScreen.OnAddSystemMsg = content =>
-            MainThread.BeginInvokeOnMainThread(() => Messages.Add(new ChatMessage { Role = ChatRole.Tool, RawText = content }));
+            MainThread.BeginInvokeOnMainThread(() => AddMessage(new ChatMessage { Role = ChatRole.Tool, RawText = content }));
         ChatScreen.OnAddMessage = (content, role, centered, indent) =>
-            MainThread.BeginInvokeOnMainThread(() => Messages.Add(new ChatMessage { Role = ChatRole.Tool, RawText = content }));
+            MainThread.BeginInvokeOnMainThread(() => AddMessage(new ChatMessage { Role = ChatRole.Tool, RawText = content }));
         ChatScreen.OnClearChat = () =>
             MainThread.BeginInvokeOnMainThread(Messages.Clear);
         RefreshModelBar();
@@ -141,7 +180,7 @@ public partial class ChatPage : ContentPage
                 m.IsDark = isDark;
                 if (m.Role == ChatRole.Assistant && !string.IsNullOrEmpty(m.RawText))
                     m.Formatted = MarkupToFormattedString.Convert(m.RawText, isDark);
-                Messages.Add(m);
+                AddMessage(m);
             }
             ScrollToEnd();
         }
@@ -294,7 +333,7 @@ public partial class ChatPage : ContentPage
                 m.IsDark = isDark;
                 if (m.Role == ChatRole.Assistant && !string.IsNullOrEmpty(m.RawText))
                     m.Formatted = MarkupToFormattedString.Convert(m.RawText, isDark);
-                Messages.Add(m);
+                AddMessage(m);
             }
             MauiSessionStore.Save(Messages); // 重新落盘
             ScrollToEnd();
@@ -331,7 +370,7 @@ public partial class ChatPage : ContentPage
             if (cmd != null)
             {
                 InputBox.Text = "";
-                Messages.Add(new ChatMessage { Role = ChatRole.User, RawText = text });
+                AddMessage(new ChatMessage { Role = ChatRole.User, RawText = text });
                 try
                 {
                     // 依赖 ProgramContext.Agent/LLM/Config 的命令（/tokens /model /mode /compact 等）
@@ -342,7 +381,7 @@ public partial class ChatPage : ContentPage
                 catch (Exception ex)
                 {
                     ErrorLog.Error("Chat", $"命令 {cmd.Name} 执行异常", ex);
-                    Messages.Add(new ChatMessage { Role = ChatRole.Tool, RawText = $"⚠️ {ex.Message}" });
+                    AddMessage(new ChatMessage { Role = ChatRole.Tool, RawText = $"⚠️ {ex.Message}" });
                 }
                 ScrollToEnd();
                 return;
@@ -361,9 +400,12 @@ public partial class ChatPage : ContentPage
         if (_agent.IsRunning)
         {
             // 忙 → 排队：消息立即可见并标「排队中」，agent 忙完自动取下一条。输入永不卡死。
+            // 队列防无限增长：满则丢最旧（对齐 Global.MaxPendingSubmissions）。
+            while (_sendQueue.Count >= Global.MaxPendingSubmissions)
+                _sendQueue.Dequeue();
             var msg = new ChatMessage { Role = ChatRole.User, RawText = text + "\n⏳ 排队中…" };
             _sendQueue.Enqueue(new QueuedItem(text, msg));
-            Messages.Add(msg);
+            AddMessage(msg);
             ScrollToEnd();
             return;
         }
@@ -387,7 +429,7 @@ public partial class ChatPage : ContentPage
             if (userMsg == null)
             {
                 userMsg = new ChatMessage { Role = ChatRole.User, RawText = text };
-                Messages.Add(userMsg);
+                AddMessage(userMsg);
                 ScrollToEnd(); // 发送后立即滚到底，保证刚发的消息可见
             }
             else
@@ -409,7 +451,7 @@ public partial class ChatPage : ContentPage
     private async Task RunOneMessageAsync(string text)
     {
         var aiMsg = new ChatMessage { Role = ChatRole.Assistant, IsStreaming = true };
-        Messages.Add(aiMsg);
+        AddMessage(aiMsg);
 
         var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
         // 思考过程与正文分离：reasoning 用 «dim»…«/» 包裹（LLM 层发独立边界 token），
@@ -445,7 +487,7 @@ public partial class ChatPage : ContentPage
                         }
                         else
                         {
-                            reasoningSb.Append(token);
+                            AppendCapped(reasoningSb, token);
                             // 思考内容节流：Reasoning setter 每 token 触发绑定重渲染，长思考流会卡死主线程
                             if (ShouldRecomputeReasoning(reasoningSb.Length))
                                 aiMsg.Reasoning = reasoningSb.ToString();
@@ -462,7 +504,7 @@ public partial class ChatPage : ContentPage
                         }
                         else
                         {
-                            contentSb.Append(token);
+                            AppendCapped(contentSb, token);
                             if (ShouldRecomputeFormatted(contentSb.Length))
                                 aiMsg.Formatted = MarkupToFormattedString.Convert(contentSb.ToString(), isDark);
                             FollowStreamScroll();   // 流式跟随：正文滚动
@@ -481,12 +523,16 @@ public partial class ChatPage : ContentPage
                         ToolFilePath = ExtractFilePath(summary),
                         IsDark = isDark,
                     };
-                    Messages.Add(_currentToolMsg);
+                    AddMessage(_currentToolMsg);
                 },
                 output =>
                 {
                     if (_currentToolMsg == null) return;
-                    _currentToolMsg.ToolDetail += output;
+                    // 工具详情防无限增长：超上限停止追加并加标记（对齐 Global.MaxSingleMessageChars）。
+                    if (_currentToolMsg.ToolDetail.Length < Global.MaxSingleMessageChars)
+                        _currentToolMsg.ToolDetail += output;
+                    else if (!_currentToolMsg.ToolDetail.EndsWith("… 已截断…", StringComparison.Ordinal))
+                        _currentToolMsg.ToolDetail += "\n… 已截断（工具输出过长，停止追加）…";
                     _currentToolMsg.HasToolDetail = true;
                     RefreshStatusBar(); // 工具输出阶段统计变化
                 },
@@ -497,7 +543,7 @@ public partial class ChatPage : ContentPage
         {
             // 落盘完整堆栈，便于 adb run-as 读 logs/error_*.log 定位（移动端 logcat 不打 .NET 异常）
             ErrorLog.Error("Chat", "对话异常", ex);
-            Messages.Add(new ChatMessage { Role = ChatRole.Tool, RawText = $"⚠️ {ex.Message}" });
+            AddMessage(new ChatMessage { Role = ChatRole.Tool, RawText = $"⚠️ {ex.Message}" });
         }
         finally
         {
@@ -523,7 +569,7 @@ public partial class ChatPage : ContentPage
                 {
                     var cost = llm.TaskCost;
                     var summary = $"⏱ {sw.Elapsed.TotalSeconds:F1}s · 🪙 {llm.TaskPromptTokens:N0} prompt + {llm.TaskCompletionTokens:N0} completion · 💰 ${cost?.ToString("F4") ?? "-"}";
-                    Messages.Add(new ChatMessage { Role = ChatRole.Tool, RawText = summary });
+                    AddMessage(new ChatMessage { Role = ChatRole.Tool, RawText = summary });
                 }
             }
 

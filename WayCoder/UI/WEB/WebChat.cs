@@ -19,8 +19,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     /// <summary>SSE 长连接上限（防连接/线程耗尽）。</summary>
     public const int MaxSseClients = 16;
 
-    /// <summary>待处理输入队列上限（防内存耗尽，超出返回 429）。</summary>
-    public const int MaxPendingInput = 100;
+    /// <summary>待处理输入队列上限（防内存耗尽，统一引用 Global）。</summary>
+    public const int MaxPendingInput = Global.MaxPendingInput;
 
     private readonly HttpServer _server;
     private readonly WebSlot[] _slots = new WebSlot[SlotCount];
@@ -815,7 +815,13 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         {
             if (slot.IsBusy)
             {
-                // 排队：不打断当前任务 —— 指令入队，当前批次完成后由 TryStartNextPending 自动取下一个执行
+                // 排队：不打断当前任务 —— 指令入队，当前批次完成后由 TryStartNextPending 自动取下一个执行。
+                // 队列防无限增长：满则丢最旧保最新（与 TUI MaxPendingSubmissions 同语义）。
+                if (InputQueueFull(slot.PendingInputs.Count))
+                {
+                    slot.PendingInputs.TryDequeue(out _);
+                    BroadcastTo(slotIdx, "system", JsonStr("⚠️ 排队已满，丢弃最旧指令"));
+                }
                 slot.PendingInputs.Enqueue(userInput);
                 BroadcastTo(slotIdx, "system", JsonStr("⏳ Agent 忙碌中 — 指令已排队，当前批次完成后自动执行"));
                 return;
@@ -1216,6 +1222,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         lock (_lock)
         {
             if (_clientSlot.TryGetValue(clientId, out var idx)) return idx;
+            // 防无限增长：只 POST /chat 不建 SSE 连接的 clientId 会永久占用字典（且占槽位）。
+            // 绑定总数达上限后不再写入新 clientId，按无 clientId 处理（固定槽 0，不占字典）。
+            if (_clientSlot.Count >= Global.MaxClientSlotEntries) return 0;
             // 分配空闲槽位：跳过已被其他客户端绑定、或已建 Agent / 忙碌的槽位，全满则回退 0。
             // 不能只看 Agent/IsBusy——新客户端分配后不会立刻建 Agent，否则多个页面会被分到同一个槽位互相干扰。
             var occupied = new bool[SlotCount];

@@ -50,6 +50,10 @@ public class EditFileTool : ITool
     /// </summary>
     public static void RecordChange(string path, string? oldContent, string newContent)
     {
+        // ChangedFiles 超 MaxCount 时 Add 会清空重建；检测到将重置则同步清空统计字典，
+        // 防 ChangedFileStats「只写不删」永久残留（面板只显示本会话，清空影响可接受）。
+        if (ChangedFiles.MaxCount > 0 && ChangedFiles.Count >= ChangedFiles.MaxCount)
+            ChangedFileStats.Clear();
         ChangedFiles.Add(path);
         int added = 0, deleted = 0;
         try
