@@ -163,7 +163,8 @@ public class TuiListItem : TuiVBox
     };
 
     /// <summary>
-    /// 更新 Markdown 内容（用于流式追加）。超 <see cref="Global.MaxSingleMessageChars"/> 丢弃中间保留头尾 + 标记，
+    /// 更新 Markdown 内容（用于流式追加）。超 <see cref="Global.MaxSingleMessageChars"/> 保留尾部窗口 + 滚动标记，
+    /// 每次追加滚动更新（旧内容被挤出，始终显示最新内容——思考/工具输出滚动可见），
     /// 防止一条超长流式消息把渲染项（MarkdownContent/Body.Content）与解析结果无限撑爆。
     /// </summary>
     public void AppendContent(string delta)
@@ -172,12 +173,8 @@ public class TuiListItem : TuiVBox
         if (max > 0 && MarkdownContent.Length + delta.Length > max)
         {
             var combined = MarkdownContent + delta;
-            if (combined.Contains("… 已截断（单条消息过长）"))
-                return; // 已标记过，后续丢弃
-            var headLen = max * 40 / 100;
-            var tailLen = max * 40 / 100;
-            var capped = ContextManager.TruncateKeepHeadTail(combined, headLen, tailLen,
-                $"\n\n… 已截断（单条消息过长，共 {combined.Length} 字符）…\n\n");
+            var tail = ContextManager.TruncateTailByRunes(combined, max);
+            var capped = $"… 已截断（显示最近内容，旧内容滚动省略）…\n{tail}";
             MarkdownContent = capped;
             Body.Content = capped;
         }

@@ -466,6 +466,17 @@ public partial class ChatScreen : TuiScreen
         }
     }
 
+    /// <summary>
+    /// 统一刷新模型显示（动态栏 StatusLeft + 模型栏）：从 active connect（Config.Instance）派生当前
+    /// 大模型/小模型，格式统一 (provider)model。供所有切换路径调用 + 心跳线程 5s 兜底同步。
+    /// 只标脏（MarkDirty）不碰控件树，后台线程可安全调用；下一帧 SyncDynamicBar/SyncModelInfo 自愈。
+    /// </summary>
+    public void RefreshModelStatus()
+    {
+        StatusLeft = ConnectionConfig.FormatModel(Config.Instance.Provider, Config.Instance.Model);
+        MarkDirty();
+    }
+
     /// <summary>等待权限的工具名（非 null = 正在等待）</summary>
     private string? _pendingPermissionTool;
 
@@ -1029,20 +1040,17 @@ public partial class ChatScreen : TuiScreen
         }
     }
 
-    /// <summary>单条流式消息内容截断：超过 <see cref="Global.MaxSingleMessageChars"/> 丢弃中间保留头尾 + 标记，
-    /// 防止一条超长回复/工具输出把 Content 与渲染无限撑爆。</summary>
+    /// <summary>单条流式消息内容截断：超过 <see cref="Global.MaxSingleMessageChars"/> 保留尾部窗口 + 滚动标记，
+    /// 每次追加滚动更新（旧内容被挤出，始终显示最新内容——思考/工具输出滚动可见），
+    /// 防止一条超长回复/思考把 Content 与渲染无限撑爆。</summary>
     private static string CapMessageContent(string cur, string delta)
     {
         int max = Global.MaxSingleMessageChars;
         if (max <= 0 || cur.Length + delta.Length <= max) return cur + delta;
-        // 已超限：保留头尾 + 截断标记（后续追加直接丢弃，只保留标记）
+        // 保留尾部窗口（最后 max 字符）+ 标记：旧的被挤出，最新内容可见（滚动效果）
         var combined = cur + delta;
-        if (combined.Contains("… 已截断（单条消息过长）"))
-            return combined; // 已标记过，直接丢弃后续（避免每次截断重算）
-        var headLen = max * 40 / 100;
-        var tailLen = max * 40 / 100;
-        return ContextManager.TruncateKeepHeadTail(combined, headLen, tailLen,
-            $"\n\n… 已截断（单条消息过长，共 {combined.Length} 字符）…\n\n");
+        var tail = ContextManager.TruncateTailByRunes(combined, max);
+        return $"… 已截断（显示最近内容，旧内容滚动省略）…\n{tail}";
     }
 
     /// <summary>确保有活跃的流式 Agent 消息（如没有则创建一个）。线程安全。</summary>

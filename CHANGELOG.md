@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.96.29 (2026-08-30) — 思考内容滚动显示 + 模型显示统一同步
+
+- **思考内容滚动显示（保留最后 100 行）**：单条消息截断从「保留头尾」改为「保留尾部窗口 + 滚动标记」——超 `MaxSingleMessageChars` 后每次追加滚动更新，旧内容被挤出、**始终显示最新内容**（思考/工具输出滚动可见），而非只显示最先的 100 行；涉及 `ChatScreen.CapMessageContent`、`TuiListItem.AppendContent`、`AgentSlot.CapSingleMessage`。LLM 层 `MaxReasoningDisplayChars` 提到 50k（与单条上限一致），让 reasoning 完整流式到显示层由尾部窗口接管；截断提示改「思考内容过长，显示窗口受限」
+- **模型显示统一同步（active Connect 唯一事实源）**：
+  - 动态栏 `StatusLeft` 从裸 model 改为 `(provider)model`（`ConnectionConfig.FormatModel`），与模型栏格式统一——启动/回退/Ctrl+M/会话切换各处对齐
+  - 新增 `ChatScreen.RefreshModelStatus()` 统一刷新入口；修复 `/connect`（ApplySpec）、`/connect use`（UseConnection）、`Ctrl+Shift+M`（CycleConnect）切换后**漏刷新动态栏**（此前只 `AddSystemMsg` 标脏 → 显示旧模型）的问题
+  - 心跳线程 5s 兜底同步：比较 active connect 快照（Provider|Model|SmallProvider|SmallModel），变了才刷新（防每 5s 全屏闪烁），即使某切换路径漏调用也能自动纠正
+- **自测**：4791 全过；`dotnet build -c Release` 0 错误
+
 ## v0.96.28 (2026-08-30) — 死机现场自动采集 + CPU/动态栏实时监控 + 全部无限增长点限制
 
 - **死机现场自动采集（`--debug-dump` 开关）**：新增 `FreezeCapture` 三合一自诊断——① 阶段环形缓冲（黑匣子）：主循环每阶段转换打点入环（~100 条/s，4096 容量 ≈ 40s 历史），看门狗每秒记一条 Agent/上下文「丰富条」；② 每分钟定时 dump：心跳线程把黑匣子 + 当前状态同步写入 `logs/freeze_*.txt`（用户需求：死机前最近一次快照即现场）；③ 冻结时同步强制 dump：看门狗检测主循环冻结 >3s → 同步落盘完整现场（黑匣子尾部 + 槽位/Agent/token/上下文 + macOS `sample` 抓 native 栈异步追加）。`File.WriteAllText` 同步强制落盘（不依赖 ErrorLog 5s 缓冲，进程被强杀不丢）；`Monitor.TryEnter` 防主线程持锁卡死采集线程；保留最新 20 个 dump 自动清理。**默认关闭**，`waycoder --debug-dump` 显式开启（排查死机时用，平时零开销）

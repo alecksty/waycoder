@@ -728,7 +728,7 @@ deepseek 性价比最高。"
                 }
             }
 
-            screen.StatusLeft = _config.Model;
+            screen.RefreshModelStatus(); // 统一 (provider)model 格式 + 标脏刷新
             TuiManager.RequestFullRefresh();
         }
     }
@@ -763,7 +763,7 @@ deepseek 性价比最高。"
                             else if (role == "assistant") screen.AddMessage(content, "assistant");
                             else if (role == "tool") screen.AddMessage(content, "tool", indent: 1);
                         }
-                        screen.StatusLeft = $"{model}";
+                        screen.StatusLeft = ConnectionConfig.FormatModel(Config.Instance.Provider, model);
                         screen.AddSystemMsg($"📂 已切换到会话: {result.SessionId}");
                     }
                 }
