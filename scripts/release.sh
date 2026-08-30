@@ -38,7 +38,9 @@ ok()  { printf '\033[32m%s\033[0m\n' "$*"; }
 warn(){ printf '\033[33m%s\033[0m\n' "$*"; }
 
 # GNU/BSD 兼容的 sed 原地编辑（GNU 用 -i，BSD 需 -i '' 空后缀；Git Bash 是 GNU，-i '' 会被误当脚本）
-sedi() { if [[ "$(uname -s)" == "Darwin" ]]; then sed -i '' "$@"; else sed -i "$@"; fi; }
+# macOS BSD sed 处理 UTF-8 中文注释（winget locale.zh-CN.yaml）时报「illegal byte sequence」——
+# 用 LC_ALL=C 按字节处理（模式/替换均为 ASCII 版本号，中文字节原样保留不破坏）。
+sedi() { if [[ "$(uname -s)" == "Darwin" ]]; then LC_ALL=C sed -i '' "$@"; else sed -i "$@"; fi; }
 
 # ── SHA256 计算（sha256sum → shasum → powershell 兜底）──
 sha256() {
