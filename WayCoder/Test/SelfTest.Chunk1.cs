@@ -795,10 +795,16 @@ public static partial class SelfTest
             Check("provider id: opencode 按路径分 Go/Zen",
                 ModelCatalog.ResolveProviderId("https://opencode.ai/zen/go/v1", "x") == "opencode-go"
                 && ModelCatalog.ResolveProviderId("https://opencode.ai/zen/v1", "x") == "opencode-zen");
-            Check("provider id: 未知 host 派生稳定 id",
-                ModelCatalog.ResolveProviderId("https://api.neuralreseller.com/v1", "r1") == "api-neuralreseller-com");
+            Check("provider id: 未知 host 派生稳定 id（去 api- 前缀 + -com 后缀）",
+                ModelCatalog.ResolveProviderId("https://api.neuralreseller.com/v1", "r1") == "neuralreseller");
             Check("provider id: 同 host 同 id（跨来源去重）",
                 ModelCatalog.ResolveProviderId("https://api.neuralreseller.com/v1", "r1") == ModelCatalog.ResolveProviderId("https://api.neuralreseller.com/v1", "r2"));
+            Check("provider id: 去 api- 前缀 + -ai/-com 后缀",
+                ModelCatalog.NormalizeProviderId("api-openai-ai") == "openai"
+                && ModelCatalog.NormalizeProviderId("api-siliconflow") == "siliconflow"
+                && ModelCatalog.NormalizeProviderId("deepseek-ai") == "deepseek"
+                && ModelCatalog.NormalizeProviderId("api-neuralreseller-com") == "neuralreseller"
+                && ModelCatalog.NormalizeProviderId("myai") == "myai");
             Check("provider id: 无地址回退来源 pid",
                 ModelCatalog.ResolveProviderId(null, "myai") == "myai"
                 && ModelCatalog.ResolveProviderId("", "My AI Co") == "my-ai-co");
@@ -815,7 +821,7 @@ public static partial class SelfTest
                 }
                 """);
             Check("models.dev 未知 host 归一为同一 provider id",
-                devCustom.Count == 2 && devCustom.All(m => m.ProviderId == "api-neuralreseller-com"));
+                devCustom.Count == 2 && devCustom.All(m => m.ProviderId == "neuralreseller"));
             Check("models.dev 同 id 同地址合并（有价覆盖无价）",
                 devCustom.Select(m => m.Id).Distinct().Count() == 1);
 
