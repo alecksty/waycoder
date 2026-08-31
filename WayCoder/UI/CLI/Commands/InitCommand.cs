@@ -38,6 +38,11 @@ public class InitCommand : SlashCommand
             }
         }
 
+#if ANDROID || IOS
+        // MAUI 无 Program.RunWithUiLoop / ChatScreen.StartAgentMsg 等桌面 API：LLM 生成仅桌面端可用，移动端用静态模板
+        WriteFallback(info, fileName, target, screen, "MAUI 用静态模板");
+        return;
+#else
         // LLM 可用性 → 降级（含自测模式 / 未配置模型）
         var llm = ProgramContext.LLM ?? ProgramContext.Agent?.LlmClient;
         if (!ProjectInitAnalyzer.ShouldUseLlm(llm))
@@ -75,6 +80,7 @@ public class InitCommand : SlashCommand
             ErrorLog.Error("init", $"LLM /init 失败: {ex.Message}", ex);
             WriteFallback(info, fileName, target, screen, "LLM 调用失败");
         }
+#endif
     }
 
     /// <summary>收集上下文 → 单次 LLM 调用 → 清理围栏，返回生成内容。</summary>

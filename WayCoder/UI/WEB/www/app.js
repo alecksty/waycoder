@@ -49,13 +49,17 @@ const statusBar = document.getElementById('agent-status-bar');
 const statusTextEl = document.getElementById('agent-status-text');
 const statusSpinEl = document.getElementById('agent-status-spin');
 let statusActive = false, statusSpinI = 0;
+let queuedBubbles = []; // 排队中消息的气泡元素（后端 queued_started 时清除「排队中」标记）
+let statusHideTimer = null; // complete 2.5s 回落 timer（新状态到达时取消旧 timer，防竞态隐藏）
 function setStatus(d) {
+  // 任何新状态到达都取消旧的 complete 回落 timer（否则任务开始 2.5s 内被旧 timer 隐藏状态栏）
+  if (statusHideTimer) { clearTimeout(statusHideTimer); statusHideTimer = null; }
   const key = (d && d.status) || 'idle';
   statusTextEl.textContent = (d && d.text) || '空闲';
   statusActive = key !== 'idle'; // 空闲隐藏整条
   statusBar.classList.toggle('show', statusActive);
   // 任务完成瞬态：2.5s 后回落空闲（隐藏）
-  if (key === 'complete') setTimeout(() => setStatus({ status: 'idle', text: '' }), 2500);
+  if (key === 'complete') statusHideTimer = setTimeout(() => setStatus({ status: 'idle', text: '' }), 2500);
 }
 setInterval(() => {
   if (!statusActive) return;
@@ -1278,7 +1282,9 @@ function send(fromButton) {
   // 纯 UI 斜杠命令（操作 DOM，不进入聊天流）
   if (handleUiCommand(text)) return;
 
-  addMsg('user', isBusy ? text + '\n⏳ 排队中…' : text);
+  const bubble = addMsg('user', isBusy ? text + '\n⏳ 排队中…' : text);
+  // 忙时排队：记录该气泡，后端 queued_started 事件时清除「排队中」标记
+  if (isBusy) queuedBubbles.push(bubble);
 
   // !Shell 指令 → 直接执行并显示输出（对标 Claude Code `!`）
   if (text.startsWith('!') && text.length > 1) {
@@ -1823,6 +1829,11 @@ es.addEventListener('system', e => { addMsg('system', JSON.parse(e.data)); });
 es.addEventListener('ask', e => showAsk(JSON.parse(e.data)));
 es.addEventListener('compress', e => showCompress(JSON.parse(e.data)));
 es.addEventListener('status', e => setStatus(JSON.parse(e.data))); // 动态状态栏（思考/工具/压缩/等待/完成）
+es.addEventListener('queued_started', () => {
+  // 排队消息开始执行：清除该消息的「⏳ 排队中…」标记（防永久残留）
+  const el = queuedBubbles.shift();
+  if (el && el.textContent) el.textContent = el.textContent.replace('\n⏳ 排队中…', '');
+});
 
 // ── 初始化 ──
 updateSendState(); // 空输入禁用发送按钮

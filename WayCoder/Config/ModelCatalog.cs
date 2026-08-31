@@ -355,6 +355,14 @@ public static partial class ModelCatalog
         lock (_lock)
         {
             try { if (File.Exists(BuiltInClearedPath)) File.Delete(BuiltInClearedPath); } catch { }
+            // ClearAll 清空过服务商注册表（内存 + providers.json）：恢复内置时重建，
+            // 否则当前进程内 Providers 字典为空，供应商解析/名称/去重降级（需重启才恢复）
+            if (Providers.Count == 0)
+            {
+                Providers.Clear();
+                foreach (var (k, v) in BuiltinProviders) Providers[k] = v;
+                LoadOrCreateProvidersJson();
+            }
             _all = null;
         }
     }
