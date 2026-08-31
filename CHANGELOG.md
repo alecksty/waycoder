@@ -1,5 +1,10 @@
 # 更新日志
 
+## v0.96.39 (2026-08-31) — 文档更新（apt 仓库上线 + 安装说明）
+
+- **apt 仓库文档更新**：`packaging/apt/RELEASE.md` 重写为 apt 仓库已上线 GitHub Pages（v0.96.36 amd64/arm64，`apt install waycoder` 可用）——旧文档停留在「Gitee Pages 待上线」已过时；`docs/安装与升级.md` apt 段改为可用的安装命令（含二进制 keyring 注意）
+- **自测**：4836 全过
+
 ## v0.96.38 (2026-08-31) — Tiny 模式工具精简（小窗口模型最小工具集）
 
 - **Tiny 模式工具精简**：`--tiny` 只保留最小工具集（`read_file / write_file / edit_file / bash / glob / grep / ls / tree / todo / ask_user_question`），系统提示词工具定义从 ~10K 精简到 ~3.3K tokens，16K 小窗口可用空间翻倍（`Agent.Tools.cs` 新增 `TinyCoreTools` + `FilterTools` 裁剪）
