@@ -11,14 +11,14 @@
                items="{InDesign '🔑,DeepSeek,✔,3,未扫描,https://api.deepseek.com|⚠️,OpenAI,无,9,未扫描,https://api.openai.com|🌿,Local,-,-,本地,http://localhost:11434'}" />
     <Label id="slotBar" height="1" fg="black" align="center" />
     <HBox align="center" spacing="1">
-      <Button id="btnSetKey" text="设Key" flex="1" />
-      <Button id="btnClrKey" text="清Key" flex="1" />
-      <Button id="btnTest" text="测试" flex="1" />
-      <Button id="btnAdd" text="添加" flex="1" />
-      <Button id="btnRename" text="改名" flex="1" />
-      <Button id="btnUrl" text="改地址" flex="1" />
-      <Button id="btnDel" text="删除" flex="1" />
-      <Button id="btnDone" text="✓ 完成" flex="1" />
+      <Button id="btnSetKey" text="设Key(K)" shortcut="k" flex="1" />
+      <Button id="btnClrKey" text="清Key(X)" shortcut="x" flex="1" />
+      <Button id="btnTest" text="测试(T)" shortcut="t" flex="1" />
+      <Button id="btnAdd" text="添加(A)" shortcut="a" flex="1" />
+      <Button id="btnRename" text="改名(R)" shortcut="r" flex="1" />
+      <Button id="btnUrl" text="改地址(U)" shortcut="u" flex="1" />
+      <Button id="btnDel" text="删除(D)" shortcut="d" flex="1" />
+      <Button id="btnDone" text="✓ 完成(Q)" shortcut="q" flex="1" />
     </HBox>
     <Space height="1" />
     <Label id="help" height="1" fg="black" align="center" />

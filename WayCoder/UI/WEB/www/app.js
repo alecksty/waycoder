@@ -386,13 +386,14 @@ function formatContext(ctx) {
   return Math.round(ctx / 1000) + 'K';
 }
 function formatPrice(m) {
-  const p = m.inputPrice;
-  if (!p || p <= 0) return 'Free';
-  const fmt = v => v < 0.01 ? '<$0.01' : '$' + v.toFixed(2);
-  const s = fmt(p);
-  // 有闲时价且与忙时不同 → 显示「忙$xx 闲$yy」
-  if (m.inputPriceOffpeak && m.inputPriceOffpeak > 0 && m.inputPriceOffpeak !== p) return s + '·闲' + fmt(m.inputPriceOffpeak);
-  return s;
+  const fmt = v => (!v || v <= 0) ? 'Free' : (v < 0.01 ? '<$0.01' : '$' + v.toFixed(2));
+  const inS = fmt(m.inputPrice);
+  const outS = fmt(m.outputPrice);
+  // 多重价格：输入/输出，有闲时价且与忙时不同 → 附「闲」闲时输入/输出
+  const hasOff = m.inputPriceOffpeak && m.outputPriceOffpeak
+    && (m.inputPriceOffpeak !== m.inputPrice || m.outputPriceOffpeak !== m.outputPrice);
+  const s = inS + '/' + outS;
+  return hasOff ? s + ' 闲' + fmt(m.inputPriceOffpeak) + '/' + fmt(m.outputPriceOffpeak) : s;
 }
 function openModelModal(mode) {
   pendingMode = mode;
@@ -519,6 +520,107 @@ document.getElementById('model-confirm').onclick = confirmModel;
 // 点击遮罩（卡片外）关闭模型弹窗
 document.getElementById('model-modal').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModelModal();
+});
+
+// ── 服务商管理对话框（对标 TUI ProviderPicker：列表 / 设Key / 清Key / 测试 / 添加 / 改名 / 改地址 / 删除）──
+let selectedProvId = '';
+const providerModal = document.getElementById('provider-modal');
+const providerStatus = document.getElementById('provider-status');
+function openProviderModal() {
+  selectedProvId = '';
+  providerStatus.textContent = '';
+  renderProviders();
+  providerModal.classList.add('open');
+}
+function closeProviderModal() { providerModal.classList.remove('open'); }
+async function renderProviders() {
+  const list = document.getElementById('provider-list');
+  let prov = [];
+  try { prov = await fetch('/provider').then(r => r.json()); }
+  catch { providerStatus.textContent = '❌ 加载失败'; return; }
+  list.innerHTML = '';
+  if (!prov || prov.length === 0) { list.innerHTML = '<div class="empty">暂无供应商</div>'; return; }
+  prov.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'provider-item' + (p.providerId === selectedProvId ? ' selected' : '');
+    const icon = p.isLocal ? '🌿' : (p.hasKey ? '🔑' : '⚠️');
+    const keyTxt = p.isLocal ? '-' : (p.hasKey ? '✔' : '无');
+    const conn = scanMap[p.providerId] ? statusText(scanMap[p.providerId]) : '未测';
+    const mk = document.createElement('span'); mk.className = 'key'; mk.textContent = icon;
+    const nm = document.createElement('span'); nm.className = 'name'; nm.textContent = p.name + '（' + p.providerId + '）'; nm.title = p.providerId;
+    const kk = document.createElement('span'); kk.className = 'prov'; kk.textContent = keyTxt;
+    const mc = document.createElement('span'); mc.className = 'ctx'; mc.textContent = p.modelCount < 0 ? '-' : p.modelCount;
+    const cn = document.createElement('span'); cn.className = 'status'; cn.textContent = conn;
+    const ad = document.createElement('span'); ad.className = 'addr'; ad.textContent = p.baseUrl || '(未设地址)'; ad.title = p.baseUrl;
+    [mk, nm, kk, mc, cn, ad].forEach(c => item.appendChild(c));
+    item.onclick = () => { selectedProvId = p.providerId; renderProviders(); };
+    list.appendChild(item);
+  });
+}
+function providerPost(url, body, okMsg) {
+  fetch(url, { method: 'POST', body: JSON.stringify(body) })
+    .then(r => r.json())
+    .then(res => {
+      providerStatus.textContent = res && res.ok ? ('✅ ' + (okMsg || '完成')) : ('❌ ' + ((res && res.error) || '操作失败'));
+      if (res && res.ok) { renderProviders(); fetchModels(); } // 供应商/Key 变更 → 同步刷新模型弹窗
+    })
+    .catch(() => { providerStatus.textContent = '❌ 网络错误'; });
+}
+document.getElementById('provider-btn').onclick = openProviderModal;
+document.getElementById('provider-close').onclick = closeProviderModal;
+document.getElementById('provider-done').onclick = closeProviderModal;
+document.getElementById('provider-test-btn').onclick = () => {
+  providerStatus.textContent = '📡 测试全部供应商连通性…';
+  fetch('/provider/test', { method: 'POST' })
+    .then(r => r.json())
+    .then(res => {
+      const results = res && res.results ? res.results : [];
+      scanMap = {};
+      results.forEach(p => { scanMap[p.providerId] = p.status; });
+      providerStatus.textContent = '✅ 测试完成：可达 ' + results.filter(p => p.ok).length + '/' + results.length;
+      renderProviders();
+    })
+    .catch(() => { providerStatus.textContent = '❌ 测试失败'; });
+};
+document.getElementById('provider-add-btn').onclick = () => {
+  const input = window.prompt('➕ 添加供应商\n格式：供应商ID|显示名|BaseUrl（可空）');
+  if (!input || !input.trim()) return;
+  const parts = input.split('|');
+  const id = (parts[0] || '').trim();
+  if (!id) { providerStatus.textContent = '❌ 供应商 ID 不能为空'; return; }
+  providerPost('/provider/add', { id, name: (parts[1] || '').trim() || id, baseUrl: (parts[2] || '').trim() }, '已添加供应商');
+};
+document.getElementById('provider-set-key-btn').onclick = () => {
+  if (!selectedProvId) { providerStatus.textContent = '⚠ 请先选中一个供应商'; return; }
+  const key = window.prompt('🔑 设置 ' + selectedProvId + ' 的 API Key（留空=清除）');
+  if (key === null) return;
+  providerPost('/provider/key', { providerId: selectedProvId, apiKey: key.trim() }, '已保存 Key');
+};
+document.getElementById('provider-clear-key-btn').onclick = () => {
+  if (!selectedProvId) { providerStatus.textContent = '⚠ 请先选中一个供应商'; return; }
+  if (!window.confirm('清除 ' + selectedProvId + ' 的 API Key？')) return;
+  providerPost('/provider/key/remove', { providerId: selectedProvId }, '已清除 Key');
+};
+document.getElementById('provider-rename-btn').onclick = () => {
+  if (!selectedProvId) { providerStatus.textContent = '⚠ 请先选中一个供应商'; return; }
+  const name = window.prompt('✏️ 改名 ' + selectedProvId + '：新显示名');
+  if (!name || !name.trim()) return;
+  providerPost('/provider/rename', { providerId: selectedProvId, name: name.trim() }, '已改名');
+};
+document.getElementById('provider-url-btn').onclick = () => {
+  if (!selectedProvId) { providerStatus.textContent = '⚠ 请先选中一个供应商'; return; }
+  const url = window.prompt('🌐 改地址 ' + selectedProvId + '：Base URL');
+  if (url === null) return;
+  providerPost('/provider/url', { providerId: selectedProvId, baseUrl: url.trim() }, '已更新地址');
+};
+document.getElementById('provider-del-btn').onclick = () => {
+  if (!selectedProvId) { providerStatus.textContent = '⚠ 请先选中一个供应商'; return; }
+  if (!window.confirm('删除供应商 ' + selectedProvId + '？删除后不可恢复。')) return;
+  providerPost('/provider/delete', { providerId: selectedProvId }, '已删除供应商');
+};
+// 点击遮罩（卡片外）关闭服务商弹窗
+providerModal.addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeProviderModal();
 });
 
 // ── 扫描（测试各服务商端点连通性）──
@@ -1005,6 +1107,10 @@ function handleUiCommand(text) {
     openModelModal('large');
     return true;
   }
+  if (lower === '/provider' || lower === '/p') {
+    openProviderModal();
+    return true;
+  }
   if (lower === '/test ansi' || lower === '/test tty') {
     addShellOutput(ANSI_SAMPLE);
     return true;
@@ -1018,6 +1124,7 @@ const SLASH_COMMANDS = [
   ['/perm', '沙箱边界（off/project/network-off/hard）'],
   ['/permit', '权限模式（ack/auto/smart/yolo）'],
   ['/model', '打开模型选择'],
+  ['/provider', '服务商管理（Key/改名/改地址/删除/测试）'],
   ['/theme', '切换明暗主题'],
   ['/settings', '打开设置'],
   ['/reset', '清空当前会话'],

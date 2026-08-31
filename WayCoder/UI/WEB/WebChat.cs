@@ -206,6 +206,88 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 .Set("results", Json.Parse(SerializeScan(probes)) ?? JNode.Array())
                 .ToJson());
         }
+
+        // ── 供应商（provider）管理：列表 / 添加 / 改名 / 改地址 / 删除 / 设Key / 清Key / 测试连通 ──
+        if (req.Method == "GET" && req.Path == "/provider")
+            return HttpResponse.JsonBody(SerializeProviders());
+        if (req.Method == "POST" && req.Path == "/provider/add")
+        {
+            var body = Json.Parse(req.Body);
+            var id = (body?["id"]?.AsString() ?? "").Trim();
+            var name = (body?["name"]?.AsString() ?? "").Trim();
+            var url = (body?["baseUrl"]?.AsString() ?? "").Trim();
+            if (string.IsNullOrEmpty(id)) return HttpResponse.JsonBody(Err("缺少供应商 ID"));
+            if (!ModelCatalog.RegisterProvider(id, string.IsNullOrEmpty(name) ? id : name, url))
+            {
+                var owner = ModelCatalog.FindProviderByBaseUrl(url);
+                return HttpResponse.JsonBody(Err($"地址已被服务商「{owner}」占用（同地址 = 同供应商，不允许重复）"));
+            }
+            BroadcastStateForAll();
+            return HttpResponse.JsonBody(Ok());
+        }
+        if (req.Method == "POST" && req.Path == "/provider/rename")
+        {
+            var body = Json.Parse(req.Body);
+            var pid = (body?["providerId"]?.AsString() ?? "").Trim();
+            var name = (body?["name"]?.AsString() ?? "").Trim();
+            if (string.IsNullOrEmpty(pid) || string.IsNullOrEmpty(name)) return HttpResponse.JsonBody(Err("缺少 providerId 或 name"));
+            ModelCatalog.RenameProvider(pid, name);
+            BroadcastStateForAll();
+            return HttpResponse.JsonBody(Ok());
+        }
+        if (req.Method == "POST" && req.Path == "/provider/url")
+        {
+            var body = Json.Parse(req.Body);
+            var pid = (body?["providerId"]?.AsString() ?? "").Trim();
+            var url = (body?["baseUrl"]?.AsString() ?? "").Trim();
+            if (string.IsNullOrEmpty(pid)) return HttpResponse.JsonBody(Err("缺少 providerId"));
+            if (!ModelCatalog.UpdateProviderUrl(pid, url))
+            {
+                var owner = ModelCatalog.FindProviderByBaseUrl(url);
+                return HttpResponse.JsonBody(Err($"新地址已被服务商「{owner}」占用（同地址 = 同供应商，不允许重复）"));
+            }
+            BroadcastStateForAll();
+            return HttpResponse.JsonBody(Ok());
+        }
+        if (req.Method == "POST" && req.Path == "/provider/delete")
+        {
+            var body = Json.Parse(req.Body);
+            var pid = (body?["providerId"]?.AsString() ?? "").Trim();
+            if (string.IsNullOrEmpty(pid)) return HttpResponse.JsonBody(Err("缺少 providerId"));
+            ModelCatalog.RemoveProvider(pid);
+            ApiKeyStore.Remove(pid); // 删除供应商连带清 key
+            BroadcastStateForAll();
+            return HttpResponse.JsonBody(Ok());
+        }
+        if (req.Method == "POST" && req.Path == "/provider/key")
+        {
+            var body = Json.Parse(req.Body);
+            var pid = (body?["providerId"]?.AsString() ?? "").Trim();
+            var apiKey = (body?["apiKey"]?.AsString() ?? "").Trim();
+            if (string.IsNullOrEmpty(pid)) return HttpResponse.JsonBody(Err("缺少 providerId"));
+            if (!ApiKeyStore.IsValidApiKey(apiKey)) return HttpResponse.JsonBody(Err("Key 含非法字符或环境变量引用（只允许英文字母数字 + - _ . ,）"));
+            SetProviderKey(pid, apiKey);
+            BroadcastStateForAll();
+            return HttpResponse.JsonBody(Ok());
+        }
+        if (req.Method == "POST" && req.Path == "/provider/key/remove")
+        {
+            var body = Json.Parse(req.Body);
+            var pid = (body?["providerId"]?.AsString() ?? "").Trim();
+            if (string.IsNullOrEmpty(pid)) return HttpResponse.JsonBody(Err("缺少 providerId"));
+            ApiKeyStore.Remove(pid);
+            BroadcastStateForAll();
+            return HttpResponse.JsonBody(Ok());
+        }
+        if (req.Method == "POST" && req.Path == "/provider/test")
+        {
+            var probes = ModelCli.TestList();
+            return HttpResponse.JsonBody(JNode.Object()
+                .Set("ok", true)
+                .Set("results", Json.Parse(SerializeScan(probes)) ?? JNode.Array())
+                .ToJson());
+        }
+
         if (req.Method == "POST" && req.Path == "/models/import")
             return ImportExternalModels(req.Body);
         if (req.Method == "POST" && req.Path == "/models/import-opencode")

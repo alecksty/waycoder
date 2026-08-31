@@ -97,17 +97,15 @@ public static class ProviderPicker
 
         // ── 动作 ──
 
-        void PromptSetKey()
+        void PromptSetKey(ProviderRow? r)
         {
-            var r = Selected();
             if (r == null || r.IsLocal) { Say("⚠ 请选一个非本地供应商"); return; }
             TuiDialog.InputLine($"🔑 设置 {r.Name} 的 API Key", "粘贴 Key（留空取消）", "",
                 text => { if (!string.IsNullOrWhiteSpace(text)) { ApiKeyStore.Set(r.Id, text.Trim()); Rebuild(); Say($"✅ 已保存 {r.Name} 的 Key"); } });
         }
 
-        void PromptClearKey()
+        void PromptClearKey(ProviderRow? r)
         {
-            var r = Selected();
             if (r == null || r.IsLocal) { Say("⚠ 请选一个非本地供应商"); return; }
             ApiKeyStore.Remove(r.Id);
             Rebuild();
@@ -155,9 +153,8 @@ public static class ProviderPicker
                 });
         }
 
-        void PromptRename()
+        void PromptRename(ProviderRow? r)
         {
-            var r = Selected();
             if (r == null) { Say("⚠ 请先选中一个供应商"); return; }
             TuiDialog.InputLine($"✏️ 改名 {r.Name}", "新显示名", r.Name,
                 text =>
@@ -170,9 +167,8 @@ public static class ProviderPicker
                 });
         }
 
-        void PromptEditUrl()
+        void PromptEditUrl(ProviderRow? r)
         {
-            var r = Selected();
             if (r == null) { Say("⚠ 请先选中一个供应商"); return; }
             TuiDialog.InputLine($"🌐 修改 {r.Name} 的地址", "Base URL", r.BaseUrl,
                 text =>
@@ -190,9 +186,8 @@ public static class ProviderPicker
                 });
         }
 
-        void PromptDelete()
+        void PromptDelete(ProviderRow? r)
         {
-            var r = Selected();
             if (r == null) { Say("⚠ 请先选中一个供应商"); return; }
             var confirmWin = TuiDialog.Confirm("🗑 删除供应商", $"删除 {r.Name}（{r.Id}）？删除后不可恢复", ok =>
             {
@@ -203,19 +198,46 @@ public static class ProviderPicker
             screen?.MarkDirty();
         }
 
-        // 接线
-        Wire(res, "btnSetKey", PromptSetKey);
-        Wire(res, "btnClrKey", PromptClearKey);
+        /// <summary>Enter 选中行 → 弹供应商操作菜单（设Key/清Key/改名/改地址/删除，对标移动端供应商卡片菜单）。</summary>
+        void PromptActionMenu(ProviderRow r)
+        {
+            var items = new List<string> { "🔑 设Key", "🗑 清Key", "✏️ 改名", "🌐 改地址", "🗑 删除" };
+            var selectWin = TuiDialog.Select($"供应商操作 · {r.Name}（{r.Id}）", items, idx =>
+            {
+                switch (idx)
+                {
+                    case 0: PromptSetKey(r); break;
+                    case 1: PromptClearKey(r); break;
+                    case 2: PromptRename(r); break;
+                    case 3: PromptEditUrl(r); break;
+                    case 4: PromptDelete(r); break;
+                }
+            });
+            screen?.ShowWindow(selectWin);
+            screen?.MarkDirty();
+        }
+
+        // Enter 选中行 → 弹操作菜单（对标移动端供应商卡片菜单）
+        table.OnSelect = idx =>
+        {
+            var r = idx >= 0 && idx < rows.Count ? rows[idx] : null;
+            if (r != null) PromptActionMenu(r);
+        };
+
+        // 接线（按钮传当前选中行；K/X/T/A/R/U/D/Q 快捷键由 .tui shortcut 属性触发）
+        Wire(res, "btnSetKey", () => PromptSetKey(Selected()));
+        Wire(res, "btnClrKey", () => PromptClearKey(Selected()));
         Wire(res, "btnTest", TriggerTest);
         Wire(res, "btnAdd", PromptAdd);
-        Wire(res, "btnRename", PromptRename);
-        Wire(res, "btnUrl", PromptEditUrl);
-        Wire(res, "btnDel", PromptDelete);
+        Wire(res, "btnRename", () => PromptRename(Selected()));
+        Wire(res, "btnUrl", () => PromptEditUrl(Selected()));
+        Wire(res, "btnDel", () => PromptDelete(Selected()));
         Wire(res, "btnDone", close);
 
         // 初始
         Rebuild();
-        Say("↑↓选择  Enter选中项  按钮: 设Key/清Key/测试/添加/改名/改地址/删除", "供应商由 providers.json 管理，改动即落盘");
+        Say("↑↓选择 Enter操作菜单  K设Key X清Key T测试 A添加 R改名 U改地址 D删除 Q完成",
+            "供应商由 providers.json 管理，改动即落盘");
         return win;
     }
 }

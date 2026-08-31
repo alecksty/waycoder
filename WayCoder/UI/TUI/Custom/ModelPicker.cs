@@ -27,7 +27,9 @@ namespace WayCoder.UI.TUI.Custom;
 public static class ModelPicker
 {
     public record ModelEntry(string Id, string DisplayName, string Provider,
-        string ProviderId, bool HasApiKey, int ContextWindow, double InputPrice, string? BaseUrl = null);
+        string ProviderId, bool HasApiKey, int ContextWindow,
+        double InputPrice, double OutputPrice, double InputPriceOffpeak, double OutputPriceOffpeak,
+        string? BaseUrl = null);
     public record Result(string ModelId, bool IsLarge, int TargetSlot,
         bool NeedsApiKey = false, string? ProviderId = null, string? BaseUrl = null);
 
@@ -37,10 +39,10 @@ public static class ModelPicker
     /// </summary>
     public enum ScanStatus { Unknown, Connected, NoKey, BadKey, Overdue, NoEndpoint, Unreachable }
 
-    private const int MinW = 62, MinH = 16;
+    private const int MinW = 74, MinH = 16;
 
     // 单元格内右对齐用的宽度（列宽本身在 modelpicker.tui 的 columns 里声明）
-    private const int ctxW = 6, priceW = 6;
+    private const int ctxW = 6, priceW = 18;
 
     /// <summary>
     /// 显示模型选择对话框。
@@ -230,7 +232,7 @@ public static class ModelPicker
                             m.Provider,
                             StatusCell(m),
                             FmtCtx(m.ContextWindow).PadLeft(ctxW),
-                            FmtPrice(m.InputPrice).PadLeft(priceW),
+                            ModelPrice.Format(m.InputPrice, m.OutputPrice, m.InputPriceOffpeak, m.OutputPriceOffpeak).PadLeft(priceW),
                             isL ? "✓" : " ",
                             isS ? "✓" : " ");
                         rowModels.Add(m);
@@ -923,7 +925,9 @@ public static class ModelPicker
             // 地址不同 = 不同服务商：同 id 不同 baseUrl 都保留（不再按 id 去重）
             if (!seen.Add(ModelCatalog.ModelKey(info.ProviderId, info.Id))) continue;
             var hasKey = ModelHasKey(info.ProviderId, info.Id);
-            list.Add(new(info.Id, info.DisplayName, info.Provider, info.ProviderId, hasKey, info.ContextWindow, info.InputPrice, info.DefaultBaseUrl));
+            list.Add(new(info.Id, info.DisplayName, info.Provider, info.ProviderId, hasKey, info.ContextWindow,
+                info.InputPrice, info.OutputPrice, info.InputPriceOffpeak, info.OutputPriceOffpeak,
+                info.DefaultBaseUrl));
         }
         // 回退链 connect 也加入列表（按 connect 名解析真实 provider，不再硬编码 custom）。
         // 防抛：渲染路径不触发 connect 迁移/解析异常（否则导入/清空后刷新会白屏崩掉）
@@ -938,7 +942,7 @@ public static class ModelPicker
                 var hasKey = !string.IsNullOrEmpty(prov?.ApiKey) || connect.ProviderId is "local" or "custom";
                 if (seen.Add(connect.ModelId))
                     list.Add(new(connect.ModelId, $"{pname} · {connect.Name}", pname, connect.ProviderId,
-                        hasKey, 128_000, 0, prov?.BaseUrl));
+                        hasKey, 128_000, 0, 0, 0, 0, prov?.BaseUrl));
             }
         }
         catch { /* connect 数据异常不阻断模型列表渲染 */ }
@@ -968,11 +972,6 @@ public static class ModelPicker
     {
         <= 0 => "   -", >= 1_000_000 => $"{t / 1_000_000.0:0.#}M".PadLeft(4),
         _ => $"{t / 1_000}K".PadLeft(4),
-    };
-
-    private static string FmtPrice(double p) => p switch
-    {
-        <= 0 => "Free", < 0.01 => "<$0.01", _ => $"${p:F2}",
     };
 
     /// <summary>槽位状态条文本（▶ 目标、* 已配置、· 当前槽位）。</summary>

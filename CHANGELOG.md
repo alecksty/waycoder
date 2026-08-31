@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.96.34 (2026-08-31) — 四端 Provider 管理对话框补齐（Web/GUI 新增）+ 多重价格显示 + TUI ProviderPicker 修复
+
+- **Web 补服务商管理对话框**（此前无独立 provider 管理）：
+  - 后端新增 `/provider/*` 路由组（`GET /provider` 列表 / add / rename / url / delete / key / key/remove / test），复用 `ModelCatalog.Providers` CRUD + `ApiKeyStore` + `ModelCli.TestList`
+  - 前端模型弹窗加「🗂 服务商」按钮 + `/provider` 斜杠命令打开服务商弹窗：列出供应商（图标/key 状态/模型数/连通态/地址）+ 设Key/清Key/测试/添加/改名/改地址/删除
+- **GUI 补服务商管理对话框**（此前只有模型级设/清 key）：新增 `ProviderWindow`（全代码构建，仿 ModelWindow）+ `/provider` 斜杠命令入口；列出全部供应商 + 设Key/清Key/测试连通/添加/改名/改地址/删除
+- **多重价格统一显示（四端）**：新增共享 `ModelPrice.Format`（`UI/Shared/`，纯函数）——输入价/输出价 + 闲时价（`$1.2/$4.5` 或 `忙$1.2/$4.5 闲$0.9/$3.0`），免费显示 Free
+  - TUI ModelPicker：价格列改用共享格式（此前只显示输入价），对话框加宽（价格列 6→18，MinW 62→74）
+  - Web `formatPrice`：补输出价 + 闲时价（此前只显示输入 + 闲时输入）
+  - GUI ModelWindow：价格列改用共享格式（此前只显示输入价）
+  - MAUI ProviderModelsPage / ModelPickerPage：价格子标题改用共享格式（此前只显示输入/输出，无闲时）
+- **TUI ProviderPicker 修复「有按钮无功能」**：8 个按钮补 `shortcut` 快捷键（K/X/T/A/R/U/D/Q，此前无快捷键，表格占焦点时键盘无法触发）；补「Enter 选中行弹操作菜单」（设Key/清Key/改名/改地址/删除）
+- **自测**：4821 全过（新增 ModelPrice 6 断言、providerpicker 按钮快捷键 8 断言、SerializeProviders 2 断言）；三端编译 0 警告 0 错误
+
 ## v0.96.33 (2026-08-30) — 四端动态状态栏 + 忙时消息排队统一 + Web 模型选中按供应商精确定位
 
 - **四端统一动态状态栏**（TUI/Web/GUI/MAUI）：Agent 运行时状态实时显示 + Braille 等待动画

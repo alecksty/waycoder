@@ -13,6 +13,38 @@ public static partial class SelfTest
         TestTuiSpace(Section, Check, Fail);
         TestTextAreaSyntax(Section, Check, Fail);
         TestWindowButtonEnter(Section, Check, Fail);
+        TestProviderPickerButtons(Section, Check, Fail);
+    }
+
+    // ── ProviderPicker 按钮快捷键：按钮可键盘触发（修复「有按钮无功能」）──
+    private static void TestProviderPickerButtons(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        Section("[ProviderPicker 按钮快捷键]");
+        try
+        {
+            var res = WayCoder.UI.TUI.TuiMarkup.LoadResource("dialogs/providerpicker.tui");
+            var expected = new (string id, ConsoleKey key, string text)[]
+            {
+                ("btnSetKey", ConsoleKey.K, "设Key(K)"),
+                ("btnClrKey", ConsoleKey.X, "清Key(X)"),
+                ("btnTest", ConsoleKey.T, "测试(T)"),
+                ("btnAdd", ConsoleKey.A, "添加(A)"),
+                ("btnRename", ConsoleKey.R, "改名(R)"),
+                ("btnUrl", ConsoleKey.U, "改地址(U)"),
+                ("btnDel", ConsoleKey.D, "删除(D)"),
+                ("btnDone", ConsoleKey.Q, "✓ 完成(Q)"),
+            };
+            foreach (var (id, key, text) in expected)
+            {
+                var btn = res.Find<WayCoder.UI.Tui.Controls.TuiButton>(id);
+                Check($"providerpicker: {id} 存在且快捷键 {key}", btn != null && btn.ShortcutKey == key);
+            }
+        }
+        catch (Exception ex)
+        {
+            Check("providerpicker: 资源加载无异常", false);
+            Fail($"providerpicker 资源加载异常: {ex.Message}");
+        }
     }
 
     // ── 窗口：焦点按钮按 Enter 直接触发按钮，不被窗口级 Enter 快捷键抢走 ──
