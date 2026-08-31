@@ -110,6 +110,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         sb.AppendLine("| /tokens | Token 统计 |");
         sb.AppendLine("| /stats | 会话统计 |");
         sb.AppendLine("| /recent | 本次修改的文件 |");
+        sb.AppendLine("| /review | 代码审查（git diff + 多维度分析） |");
         sb.AppendLine("| /mcp | MCP 服务器状态 |");
         sb.AppendLine("| /todo | 任务列表 |");
         sb.AppendLine("| /interrupt | 中断当前任务 |");

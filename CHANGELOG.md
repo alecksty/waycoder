@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.96.35 (2026-08-31) — 四端补充 /review 代码审查指令
+
+- **新增 `/review` 代码审查命令（四端）**：审查修改过的代码，多维度分析（正确性/安全性/性能/可维护性/测试覆盖），结果流式显示
+  - 主工程：新增 `ReviewCommand`（`/review`、别名 `/审查`/`/rv`），复用 `ReviewMode.BuildReviewPrompt`（git diff + 未跟踪文件预览）；作为普通消息投递 Agent 后台执行（`ChatScreen.EnqueueSubmission`，忙时排队），注册到 `SlashCommandRegistry`
+  - Web：`/command` 路由层特判 `/review`（生成审查 prompt 投递 `StartSlotTask`）+ `/help` 帮助文本
+  - GUI：`TryHandleCommand` 加 `/review`（生成 prompt 走 `SendAsync` 发送）+ `/help` 文本
+  - MAUI：`ChatScreen` stub 加 `EnqueueSubmission` 桥接（`OnEnqueueSubmission` → ChatPage 发送）；`ReviewCommand` 条件编译——MAUI 无 git（`GitRunner`/`ReviewMode` 被排除）用修改文件列表的简化审查
+- **自测**：4822 全过（新增 `/review` 注册断言）；三端编译 0 警告 0 错误
+
 ## v0.96.34 (2026-08-31) — 四端 Provider 管理对话框补齐（Web/GUI 新增）+ 多重价格显示 + TUI ProviderPicker 修复
 
 - **Web 补服务商管理对话框**（此前无独立 provider 管理）：

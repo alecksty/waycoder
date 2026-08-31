@@ -409,6 +409,10 @@ namespace WayCoder.UI.Tui.Screens
 
         public void AddSystemMsg(string content) => OnAddSystemMsg?.Invoke(content);
 
+        /// <summary>投递一条待发送消息（ReviewCommand 等命令把审查 prompt 投递为普通消息）。MAUI 桥接 ChatPage 发送。</summary>
+        public static Action<string>? OnEnqueueSubmission;
+        public void EnqueueSubmission(string input) => OnEnqueueSubmission?.Invoke(input);
+
         /// <summary>模型显示刷新桩：MAUI 真实刷新走 ChatPage.RefreshModelBar（ConnectionCommand 切换后调用，编译兼容）。</summary>
         public void RefreshModelStatus() { }
 

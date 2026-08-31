@@ -1132,6 +1132,7 @@ const SLASH_COMMANDS = [
   ['/tokens', 'Token 统计'],
   ['/stats', '会话统计'],
   ['/recent', '本次修改的文件'],
+  ['/review', '代码审查（git diff + 多维度分析）'],
   ['/mcp', 'MCP 服务器状态'],
   ['/todo', '任务列表'],
   ['/interrupt', '中断当前任务'],
