@@ -68,7 +68,6 @@ public partial class MainWindow : Window
                 $"[{level switch { "success" => "✓", "warn" => "⚠", "error" => "✘", _ => "ℹ" }} {title}] {msg}"));
         InitModels();
         InitModelBar();
-        InitPromptBar(); // promptbar：输入框上方常用命令提示（点击填入）
         InitSlots();
         SwitchSlot(0);
         RefreshSessions();
@@ -163,25 +162,6 @@ public partial class MainWindow : Window
 
         foreach (var v in new[] { "Ask", "Auto", "SmartAuto", "YOLO" }) PermCombo.Items.Add(v);
         PermCombo.SelectedIndex = (int)PermissionManager.CurrentMode;
-    }
-
-    /// <summary>promptbar：输入框上方常用命令提示（点击填入输入框，光标跟末尾）。</summary>
-    private void InitPromptBar()
-    {
-        foreach (var (name, desc) in WayCoder.UI.Shared.CommandBar.Favorites)
-        {
-            var chip = MakeButton(name, "#2a2f3a", () =>
-            {
-                InputBox.Text = name + " ";
-                InputBox.CaretIndex = InputBox.Text.Length;
-                InputBox.Focus();
-            });
-            chip.FontSize = 10.5;
-            chip.Padding = new Thickness(8, 2);
-            chip.Margin = new Thickness(0, 0, 4, 0);
-            ToolTip.SetTip(chip, desc);
-            PromptBar.Children.Add(chip);
-        }
     }
 
     // ── 槽位 ──
@@ -803,6 +783,35 @@ public partial class MainWindow : Window
             if (text[i] == '\n')
                 lines++;
         InputBox.Height = Math.Clamp(lines * 24, 56, 220);
+        UpdateSlashSuggest(); // 输入 / 时显示命令建议列表
+    }
+
+    /// <summary>输入 / 前缀 → 显示常用命令建议列表（输入 /xx 过滤；对齐 Web suggest-box）。</summary>
+    private void UpdateSlashSuggest()
+    {
+        var text = InputBox.Text ?? "";
+        if (text.StartsWith('/') && text.Length > 1)
+        {
+            var q = text[1..].Trim().ToLowerInvariant();
+            var items = WayCoder.UI.Shared.CommandBar.Favorites
+                .Where(f => string.IsNullOrEmpty(q) || f.Name.Contains('/' + q, StringComparison.OrdinalIgnoreCase))
+                .Select(f => f.Name)
+                .ToList();
+            SlashSuggest.ItemsSource = items;
+            SlashSuggest.IsVisible = items.Count > 0;
+        }
+        else SlashSuggest.IsVisible = false;
+    }
+
+    private void SlashSuggest_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (SlashSuggest.SelectedItem is string cmd && !string.IsNullOrEmpty(cmd))
+        {
+            InputBox.Text = cmd + " ";
+            InputBox.CaretIndex = InputBox.Text.Length;
+            InputBox.Focus();
+            SlashSuggest.IsVisible = false;
+        }
     }
 
 

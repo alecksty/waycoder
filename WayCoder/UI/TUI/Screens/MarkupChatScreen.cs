@@ -40,8 +40,6 @@ public class MarkupChatScreen : ChatScreen
             InputBotBorder = _markup.Find<TuiSeparator>("inputBotBorder") ?? throw Missing("inputBotBorder");
             ModelInfoRow = _markup.Find<TuiSmartLabel>("modelInfoRow"); // 可空：动态栏放得下模型信息时整行隐藏
             _shortcutRow = _markup.Find<TuiSmartLabel>("shortcutRow"); // 模式栏下方快捷键行
-            _promptRow = _markup.Find<TuiSmartLabel>("promptRow"); // promptbar：常用命令提示（内容由 CommandBar 填充）
-            if (_promptRow != null) _promptRow.Text = BuildPromptBarText();
             SuggestPanel = _markup.Find<TuiVBox>("suggestPanel") ?? throw Missing("suggestPanel");
             SidePanel = _markup.Find<TuiSidePanel>("sidePanel") ?? throw Missing("sidePanel");
 

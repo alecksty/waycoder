@@ -139,33 +139,35 @@ public partial class ChatPage : ContentPage
     {
         InitializeComponent();
         BindingContext = this;
-        BuildPromptBar(); // promptbar：输入框上方常用命令提示（点击填入）
     }
 
-    /// <summary>promptbar：输入框上方常用命令提示（点击填入输入框，光标跟末尾）。</summary>
-    private void BuildPromptBar()
+    /// <summary>输入 / 前缀 → 显示常用命令建议列表（输入 /xx 过滤；对齐 Web suggest-box）。</summary>
+    private void InputBox_TextChanged(object? sender, TextChangedEventArgs e)
     {
-        var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
-        foreach (var (name, desc) in WayCoder.UI.Shared.CommandBar.Favorites)
+        var text = InputBox.Text ?? "";
+        if (text.StartsWith('/') && text.Length > 1)
         {
-            var chip = new Border
-            {
-                BackgroundColor = isDark ? Color.FromArgb("#1F1F2E") : Color.FromArgb("#E8E8ED"),
-                Padding = new Thickness(8, 2),
-                StrokeThickness = 0,
-                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 10 },
-            };
-            var lbl = new Label { Text = name, FontSize = 11, TextColor = isDark ? Color.FromArgb("#8b93a7") : Color.FromArgb("#5a6472") };
-            chip.Content = lbl;
-            var tap = new TapGestureRecognizer();
-            tap.Tapped += (_, _) =>
-            {
-                InputBox.Text = name + " ";
-                InputBox.CursorPosition = InputBox.Text.Length;
-                InputBox.Focus();
-            };
-            chip.GestureRecognizers.Add(tap);
-            PromptBar.Children.Add(chip);
+            var q = text[1..].Trim().ToLowerInvariant();
+            var items = WayCoder.UI.Shared.CommandBar.Favorites
+                .Where(f => string.IsNullOrEmpty(q) || f.Name.Contains('/' + q, StringComparison.OrdinalIgnoreCase))
+                .Select(f => f.Name)
+                .ToList();
+            SlashSuggest.ItemsSource = items;
+            SlashSuggest.SelectedItem = null; // 防 ItemsSource 重设误触发 SelectionChanged
+            SlashSuggest.IsVisible = items.Count > 0;
+        }
+        else SlashSuggest.IsVisible = false;
+    }
+
+    private async void SlashSuggest_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (e.CurrentSelection.FirstOrDefault() is string cmd && !string.IsNullOrEmpty(cmd))
+        {
+            InputBox.Text = cmd + " ";
+            InputBox.CursorPosition = InputBox.Text.Length;
+            InputBox.Focus();
+            SlashSuggest.SelectedItem = null;
+            SlashSuggest.IsVisible = false;
         }
     }
 
