@@ -7,6 +7,7 @@
     <!-- 共享源码依赖隐式 using；WPF 临时工程不提供，改由 GlobalUsings.cs 显式补全（避免 CS0103） -->
     <ImplicitUsings>disable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>WayCoder.Preview</RootNamespace>
     <AssemblyName>waycoder-preview</AssemblyName>
   </PropertyGroup>
@@ -23,6 +24,8 @@
     <Compile Include="../WayCoder/UI/Shared/**/*.cs" />
     <Compile Include="../WayCoder/UI/TUI/Base/**/*.cs" />
     <Compile Include="../WayCoder/UI/TUI/Controls/**/*.cs" Exclude="../WayCoder/UI/TUI/Controls/TuiRichEditor.cs" />
+    <!-- TuiTextArea 引用 Syntax（粘贴代码自动检测语言高亮），Syntax.cs 自包含（仅 BCL），单独引入 -->
+    <Compile Include="../WayCoder/UI/TUI/Edit/Syntax.cs" />
     <Compile Include="../WayCoder/UI/TUI/Screens/SlotState.cs" />
     <Compile Include="../WayCoder/UI/TUI/TuiMarkup.cs" />
     <Compile Include="../WayCoder/UI/TUI/TuiMarkupPaths.cs" />
