@@ -1,5 +1,23 @@
 Package: waycoder
 Architecture: arm64
+Version: 0.96.36
+Priority: optional
+Section: devel
+Maintainer: Aleckstygit <aleckstygit@outlook.com>
+Installed-Size: 82688
+Filename: pool/main/w/waycoder/waycoder_0.96.36_arm64.deb
+Size: 25110670
+MD5sum: 2a08dd1825f22190f827bb85bf593fbc
+SHA1: ed17426eb87b787985a5998ac5c58ad4482cf94b
+SHA256: 7c2aa0d5898be7bcf6877df6ae8e1801e706d82fa5963b96742ab91b09db24ab
+SHA512: f0779b3bbdef66b14a2abadc68e04a1b19aa0903f109e500ca676dd30f36e855b6c19feff4d308aed8a9cb912b3f725662da4ae620f34045c202a3009c8e0181
+Homepage: https://gitee.com/aleckstygit/my-coder
+Description: 中文版易用编程智能体（C# .NET NativeAOT 单文件 CLI 编程 Agent）
+ WayCoder（道码）是一个中文版易用编程智能体，AOT 编译为单文件，
+ 41 个工具 + 多 Agent 工作区 + 权限系统 + Watch 模式。
+
+Package: waycoder
+Architecture: arm64
 Version: 0.96.7
 Priority: optional
 Section: devel

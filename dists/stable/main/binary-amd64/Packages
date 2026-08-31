@@ -1,5 +1,23 @@
 Package: waycoder
 Architecture: amd64
+Version: 0.96.36
+Priority: optional
+Section: devel
+Maintainer: Aleckstygit <aleckstygit@outlook.com>
+Installed-Size: 14876
+Filename: pool/main/w/waycoder/waycoder_0.96.36_amd64.deb
+Size: 5816382
+MD5sum: fad904018a9cc596afcebb74ee540b3a
+SHA1: ff4674639371d875031b9808480945b7240c95f7
+SHA256: 072bf09601e5fcca5101f1651650813a82cfdfdc1d0dbed0578faabbe0e909be
+SHA512: 973aeb662bd407737fcd3c5a944efb8e2b3ead0fc5789ed9cb630003d0216cf2d5907f243768083aeaa2933921eac326c35f3d605ba4190c587923908de70538
+Homepage: https://gitee.com/aleckstygit/my-coder
+Description: 中文版易用编程智能体（C# .NET NativeAOT 单文件 CLI 编程 Agent）
+ WayCoder（道码）是一个中文版易用编程智能体，AOT 编译为单文件，
+ 41 个工具 + 多 Agent 工作区 + 权限系统 + Watch 模式。
+
+Package: waycoder
+Architecture: amd64
 Version: 0.96.7
 Priority: optional
 Section: devel
@@ -11,24 +29,6 @@ MD5sum: 829004d7dfc6c6db323f7850995fbdc6
 SHA1: 75eb5228d548c2e3505f21ac6894359b2938cb8c
 SHA256: 4d3596d7fbb49221bf2e82801f91410e35ee8efab0ae04c7469fe4285c0831cb
 SHA512: 025a83b0939ee8f6e955de889df52402bbc69e1fdf5ddc90e017bd0206641e63b897c37917ca9e4bf22d0f8f74ffae587f4c0bbc1a7403aa0c8745ca627d4c86
-Homepage: https://gitee.com/aleckstygit/my-coder
-Description: 中文版易用编程智能体（C# .NET NativeAOT 单文件 CLI 编程 Agent）
- WayCoder（道码）是一个中文版易用编程智能体，AOT 编译为单文件，
- 41 个工具 + 多 Agent 工作区 + 权限系统 + Watch 模式。
-
-Package: waycoder
-Architecture: arm64
-Version: 0.96.7
-Priority: optional
-Section: devel
-Maintainer: Aleckstygit <aleckstygit@outlook.com>
-Installed-Size: 81940
-Filename: pool/main/w/waycoder/waycoder_0.96.7_arm64.deb
-Size: 24853400
-MD5sum: ae48d915b3247c4893e11ea3420c27a5
-SHA1: e72a03d70dc699fb2f89fe8cebd605fa9c619a8c
-SHA256: 8111fc10e8e251f6767a14b658f386037dcbc486844b4fdf4de9d513fe848295
-SHA512: c7f49c9bf1b7f6aae4d93a5f2b56cff65cf5f68caddef54a08d24a0d91796b54e00212157d62386cf54e5b743e6edf22a25fa0d764c69ad8ea3b9bc870e5f5f5
 Homepage: https://gitee.com/aleckstygit/my-coder
 Description: 中文版易用编程智能体（C# .NET NativeAOT 单文件 CLI 编程 Agent）
  WayCoder（道码）是一个中文版易用编程智能体，AOT 编译为单文件，
