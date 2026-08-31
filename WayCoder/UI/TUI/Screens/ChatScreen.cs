@@ -169,7 +169,9 @@ public partial class ChatScreen : TuiScreen
 
     /// <summary>任务完成瞬态窗口（毫秒）：本轮 ChatAsync 返回后短暂显示「任务完成 ✓」再回落。</summary>
     private const long CompleteWindowMs = 2500;
-    private long _completeAtTicks;
+    // 完成瞬态时间戳 per-slot：ChatScreen 单实例共享多槽位，必须按槽位记录，
+    // 否则槽位 A 完成瞬态可能显示在空闲槽位 B（_completeAtTicks 单字段串扰）。
+    private readonly long[] _completeAtTicks = new long[10];
 
     /// <summary>
     /// 初始化聊天屏幕
@@ -320,8 +322,9 @@ public partial class ChatScreen : TuiScreen
             WaitingUser: tool == "ask_user_question",
             WaitingSubagent: tool == "agent",
             Mode: WorkModeManager.CurrentMode,
-            RecentComplete: _completeAtTicks != 0 &&
-                            Environment.TickCount64 - _completeAtTicks < CompleteWindowMs));
+            RecentComplete: ActiveSlotIndex >= 0 && ActiveSlotIndex < _completeAtTicks.Length
+                            && _completeAtTicks[ActiveSlotIndex] != 0
+                            && Environment.TickCount64 - _completeAtTicks[ActiveSlotIndex] < CompleteWindowMs));
         DynamicBar.Status = view.Status;
         DynamicBar.LeftText = view.Text;
         // 工具执行时中段显示参数摘要，其余状态显示解析器 Detail（如压缩工具名）
@@ -330,8 +333,13 @@ public partial class ChatScreen : TuiScreen
             : WithQueue(view.Detail ?? "");
     }
 
-    /// <summary>本轮 Agent 任务完成（ChatAsync 返回）：打时间戳，动态栏短暂显示「任务完成 ✓」。</summary>
-    public void OnAgentCompleted() => _completeAtTicks = Environment.TickCount64;
+    /// <summary>本轮 Agent 任务完成（ChatAsync 返回）：按槽位打时间戳，动态栏短暂显示「任务完成 ✓」。
+    /// ChatScreen 单实例共享多槽位，必须带槽位索引避免串扰。</summary>
+    public void OnAgentCompleted(int slotIndex)
+    {
+        if (slotIndex >= 0 && slotIndex < _completeAtTicks.Length)
+            _completeAtTicks[slotIndex] = Environment.TickCount64;
+    }
 
     /// <summary>
     /// 同步模型/模式信息行（输入区下方、状态栏上方）：权限/工作模式/经济模式/大模型/小模型，`·` 分隔。

@@ -75,8 +75,14 @@ public static class ApiKeyStore
             else if (IsEnvVarRef(apiKey))
                 return false; // 环境变量引用不是真实 key（$VAR），拒绝存储，防导入误判
             else
-                keys[pid] = new KeyEntry(apiKey.Trim(), NormalizeExpiry(expiry),
-                    string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl.Trim());
+            {
+                // baseUrl 未显式传时，自动从服务商注册表推断该供应商地址——保证 key 与网关绑定生效
+                // （否则各调用方漏传 → GetBaseUrl 恒 null，防同名供应商/网关间 key 混用的保护失效）
+                var effBaseUrl = string.IsNullOrWhiteSpace(baseUrl)
+                    ? (ModelCatalog.Providers.TryGetValue(pid, out var p) ? p.DefaultBaseUrl : null)
+                    : baseUrl.Trim();
+                keys[pid] = new KeyEntry(apiKey.Trim(), NormalizeExpiry(expiry), effBaseUrl);
+            }
             return Save(keys);
         }
     }

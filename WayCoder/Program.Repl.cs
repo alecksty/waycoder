@@ -920,6 +920,7 @@ public partial class Program
             }
         }
         await agentTask; // 传播异常
+        screen_!.OnAgentCompleted(_activeSlot); // 任务完成瞬态（/loop /plan 路径，带活跃槽位）
         }
         finally { InAgentRenderLoop = false; }
     }
@@ -1401,7 +1402,7 @@ public partial class Program
                         s => s.BufferedAppendToLast(line + "\n")),
                     cancellationToken: ct);
 
-                Route(cs => { cs.Running = false; cs.FinishAgentMsg(); cs.OnAgentCompleted(); },
+                Route(cs => { cs.Running = false; cs.FinishAgentMsg(); cs.OnAgentCompleted(slotIdx); },
                       s => s.BufferedFinishStream());
                 completed = true;
                 break; // 成功

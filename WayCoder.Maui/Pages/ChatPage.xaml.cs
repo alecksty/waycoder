@@ -270,7 +270,9 @@ public partial class ChatPage : ContentPage
         _spinnerFrame = (_spinnerFrame + 1) % AgentStatusResolver.SpinnerFrames.Length;
         AgentStatusIcon.Text = AgentStatusResolver.SpinnerFrames[_spinnerFrame];
         var view = AgentStatusResolver.Resolve(new AgentStatusInput(
-            Busy: _uiState != AgentStatus.Idle,
+            // Busy = Agent 实际在运行（完成态 IsRunning=false → 解析器走 RecentComplete 分支显示「任务完成 ✓」，
+            // 而非被 Busy 分支短路成工具/思考）
+            Busy: _agent.IsRunning,
             ToolName: _toolName,
             Compressing: _uiState == AgentStatus.Compressing,
             WaitingPermission: _uiState == AgentStatus.WaitingPermission,
@@ -517,6 +519,7 @@ public partial class ChatPage : ContentPage
             }
 
             await RunOneMessageAsync(text);
+            userMsg.RawText = text; // 任务完成：还原为纯文本（去掉「📤 发送中…」标记，防残留到会话历史）
 
             if (_sendQueue.Count == 0) break;
             var next = _sendQueue.Dequeue();
@@ -556,6 +559,7 @@ public partial class ChatPage : ContentPage
                     if (token.StartsWith("🔄 [", StringComparison.Ordinal))
                         return;
                     _uiState = AgentStatus.Thinking;
+                    _toolName = ""; // 工具结束回到思考：清工具名（否则思考中残留上次工具）
                     if (inReasoning)
                     {
                         if (token == "«/»" || token == "«/»\n")

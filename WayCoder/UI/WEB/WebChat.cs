@@ -382,8 +382,15 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var body = Json.Parse(req.Body);
             var action = body?["action"]?.AsString() ?? "";
             var modeStr = body?["mode"]?.AsString() ?? "";
-            var newMode = action == "set" && Enum.TryParse<WorkMode>(modeStr, true, out var parsed)
-                ? parsed : WorkModeManager.CycleNext(); // set 无效或 action=cycle → 循环切换
+            // set 解析失败 → 直接报错不改模式（绝不回退 CycleNext，否则 malformed set 会意外循环切换）
+            WorkMode newMode;
+            if (action == "set")
+            {
+                if (!Enum.TryParse<WorkMode>(modeStr, true, out var parsed))
+                    return HttpResponse.JsonBody(Err($"未知工作模式「{modeStr}」（build/plan/chat）"));
+                newMode = parsed;
+            }
+            else newMode = WorkModeManager.CycleNext(); // action=cycle 或未指定 → 循环切换
             var agent = EnsureSlot(slot);
             agent.WorkMode = newMode;
             WorkModeManager.CurrentMode = newMode; // 全局镜像（与 TUI 状态栏等一致）
@@ -1095,7 +1102,11 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         {
             if (slot.Quiescing) return; // 换模型暂停：等 Reconfigure 完成后再恢复排队消费
             if (slot.PendingInputs.TryDequeue(out var next))
+            {
+                // 排队消息开始执行：通知前端清除该消息的「⏳ 排队中…」标记
+                BroadcastTo(slotIdx, "queued_started", "null");
                 StartSlotTask(slotIdx, next);
+            }
         }
     }
 
