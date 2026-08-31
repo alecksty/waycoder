@@ -1,66 +1,78 @@
-# apt 发布（v0.96.8）
+# apt 发布
 
 WayCoder 的 Linux 二进制通过 Debian `.deb` 包 + apt 仓库分发。
 
-## 现状（v0.96.8）
+## 现状（v0.96.36 起）
 
-`.deb` 已打包并上传 release：
+**apt 仓库已上线 GitHub Pages**，`apt-get install waycoder` 可用：
 
-| 包 | 架构 | 位置 |
-|----|------|------|
-| `waycoder_0.96.8_amd64.deb` | amd64 | GitHub + Gitee release |
-| `waycoder_0.96.8_arm64.deb` | arm64 | 待构建（需 arm64 环境） |
+- 仓库 URL：`https://alecksty.github.io/waycoder/`（`alecksty/waycoder` 仓库的 Pages，源指向 gh-pages 分支）
+- 内容：v0.96.36 amd64 + arm64（`pool/main/w/waycoder/`）
+- 签名：GPG `E7481814D92CD89A`（空口令，自动签名），`gpg --verify` Good
+- 结构：`dists/stable/{Release,InRelease,Release.gpg}` + `main/binary-{amd64,arm64}/Packages(.gz)` + `pool/` + `waycoder.gpg`
 
-> 免仓库直接安装（立即可用）：
-> `wget https://github.com/alecksty/waycoder/releases/download/v0.96.8/waycoder_0.96.8_amd64.deb && sudo dpkg -i waycoder_0.96.8_amd64.deb`
-> 国内可用 Gitee：`wget https://gitee.com/aleckstygit/way-coder/releases/download/v0.96.8/waycoder_0.96.8_amd64.deb`
+用户安装（见 `docs/安装与升级.md`）：
 
-**apt 仓库已重建并签名验证**（`apt-ftparchive` 手搓，无需 reprepro/sudo，见下方「一键构建脚本」）：
+```bash
+sudo mkdir -p /etc/apt/keyrings
+sudo curl -fsSL https://alecksty.github.io/waycoder/waycoder.gpg -o /etc/apt/keyrings/waycoder.gpg
+echo "deb [signed-by=/etc/apt/keyrings/waycoder.gpg] https://alecksty.github.io/waycoder stable main" \
+  | sudo tee /etc/apt/sources.list.d/waycoder.list
+sudo apt update && sudo apt install waycoder
+```
 
-- 签名 GPG 密钥：`E7481814D92CD89A`（空口令，供自动签名）
-- 结构：`dists/stable/{Release,InRelease,Release.gpg}` + `main/binary-{amd64,arm64}/Packages(.gz)` + `pool/main/w/waycoder/*.deb` + `waycoder.gpg`
-- 内容：v0.96.7 双架构 + **v0.96.8 amd64**（已入 pool，`gpg --verify` Good）
-- 部署文件已推 Gitee 分支 **`apt-pages`**（`610f945`，仅供 Gitee Pages 部署，不参与 hasee/mac/master 代码分支）
+## 发布新版本流程
 
-> **⚠️ 部署状态（2026-08 更新）**：**Gitee Pages 服务已停服/下架**（仓库「服务」菜单已无入口，`https://aleckstygit.gitee.io/way-coder/` 404）。因此 **apt 仓库暂无法线上托管**，当前以**免仓库 deb 直链**为准（上方命令，Gitee 直链已验证 HTTP 200 可下载）。
->
-> 完整 apt 仓库（`apt-get install waycoder`）待托管点就绪后再启用：候选为 **GitHub Pages**（需 github.com 可达）或自建服务器。apt-pages 分支内容（dists/pool/waycoder.gpg）已就绪且签名 Good，届时推分支 + 托管即可。
+```bash
+# 1. 打包 .deb（WSL 有 dpkg-deb）
+./scripts/package.sh linux-x64 linux-arm64
+./packaging/apt/build-deb.sh dist/linux-x64/waycoder <VER> amd64
+./packaging/apt/build-deb.sh dist/linux-arm64/waycoder <VER> arm64
 
-## 一键构建 apt 仓库（Linux/WSL，无需 root）
+# 2. 在 WSL 持久路径重建仓库（/tmp 会被清）
+#    git worktree add ~/aptw gh-pages → pool 拷入新 deb → 重建 Packages/Release → 签名
+#    具体步骤见下方「一键构建仓库」+ 记忆 release-v09636-wsl-linux-aot
+
+# 3. 推 gh-pages 分支（--force，部署分支）→ GitHub Pages 自动更新（.nojekyll 已加，免重建）
+# 4. 切 Pages 源后若未重建：向 gh-pages 推提交触发
+```
+
+## 一键构建仓库（Linux/WSL，无需 root）
 
 ```bash
 # 前提：gpg + apt-ftparchive（Ubuntu WSL 自带）
-# 1) 生成签名密钥（一次性）
-gpg --batch --pinentry-mode loopback --passphrase '' \
-    --quick-generate-key "Aleckstygit (WayCoder apt repo) <aleckstygit@outlook.com>" rsa2048 sign 0
+# 1) 签名密钥（已存在，无需重复生成）：
+#    gpg --batch --pinentry-mode loopback --passphrase '' \
+#        --quick-generate-key "Aleckstygit (WayCoder apt repo) <aleckstygit@outlook.com>" rsa2048 sign 0
 
 # 2) 打包 .deb
-cd WayCoder && ./scripts/package.sh linux-x64 linux-arm64
-./packaging/apt/build-deb.sh dist/linux-x64/waycoder 0.96.7 amd64
-./packaging/apt/build-deb.sh dist/linux-arm64/waycoder 0.96.7 arm64
+./scripts/package.sh linux-x64 linux-arm64
+./packaging/apt/build-deb.sh dist/linux-x64/waycoder <VER> amd64
+./packaging/apt/build-deb.sh dist/linux-arm64/waycoder <VER> arm64
 
-# 3) 构建仓库（dists + pool + 签名）→ 把 dists/ pool/ waycoder.gpg 提交到 apt-pages 分支
-#    核心命令：apt-ftparchive packages → Release → gpg --detach-sign / --clearsign
+# 3) 重建仓库（关键命令，避免踩坑）：
+#    - apt-ftparchive generate 的 BinDirectory 同目录多块后者覆盖、且 Arch 只标注不过滤
+#      → 必须用 apt-ftparchive packages pool/ 出全量 + awk 按 Architecture 拆两个 Packages
+#    - apt-ftparchive release -c apt-ftparchive.conf dists/stable > Release
+#    - 签名（--yes 覆盖旧文件，空口令）：
+#      gpg --batch --pinentry-mode loopback --passphrase '' --default-key E7481814D92CD89A \
+#          --clearsign -o InRelease Release
+#      gpg --batch --pinentry-mode loopback --passphrase '' --default-key E7481814D92CD89A \
+#          -abs -o Release.gpg Release
+#    - waycoder.gpg 必须是二进制 keyring（gpg --dearmor），ASCII 装甲会报 NO_PUBKEY
+
+# 4) 部署：把 dists/ pool/ waycoder.gpg 提交推 alecksty/waycoder 的 gh-pages 分支（--force）
 ```
 
-完整脚本逻辑见仓库 `apt-pages` 分支产物（`dists/`、`pool/`、`waycoder.gpg`），重新生成时用 `apt-ftparchive` 而非 reprepro（免 sudo）。
+## 历史
 
-## 历史（v0.71.4）
-
-| 包 | sha256 |
-|----|--------|
-| `waycoder_0.71.4_amd64.deb` | `671af5ded18a3a04910fa4abbff5ec91ddf6a9459f692c92f2f2cf530923d7d7` |
-| `waycoder_0.71.4_arm64.deb` | `672f94bad2ac76d728a389835fe7e3825b726619636cb4c85b59ae36d7f6ca62` |
-
-> 下载：`https://gitee.com/aleckstygit/my-coder/releases/download/v0.71.4/waycoder_0.71.4_amd64.deb`
-
-## 前提
-
-- **Linux 环境**（Debian/Ubuntu/WSL，含 `dpkg-deb`；reprepro 可选，`apt-ftparchive` 亦可）
-- **GPG 密钥**（仓库签名）
-- **静态托管**（Gitee Pages 或 GitHub Pages，托管 `dists/` + `pool/`）
+| 版本 | 状态 |
+|------|------|
+| v0.96.36 | apt 仓库上线 GitHub Pages（amd64+arm64）|
+| v0.96.7 / v0.96.8 | 曾推 Gitee `apt-pages` 分支等 Gitee Pages——Gitee Pages 2026 停服，路线废弃 |
 
 ## 备注
 
-- **无签名仓库**（不推荐生产）：sources.list 用 `deb [trusted=yes] https://<host>/ stable main`
-- `.deb` 打包脚本见 `build-deb.sh`；未来版本：`./scripts/package.sh linux-x64 linux-arm64` → `build-deb.sh` 出 deb → 重跑仓库构建 → 更新 `apt-pages` 分支
+- **Gitee Pages 已停服**（2026），apt 仓库走 GitHub Pages；国内需能访问 github.com
+- `waycoder.gpg` 必须是二进制 keyring（`gpg --dearmor`），apt `signed-by=` 不认 ASCII 装甲
+- 无签名仓库（不推荐）：sources.list 用 `deb [trusted=yes] https://<host>/ stable main`
