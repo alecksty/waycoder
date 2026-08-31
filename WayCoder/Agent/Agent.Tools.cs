@@ -394,6 +394,10 @@ public partial class Agent
     internal static readonly HashSet<string> ExtremeCoreTools = new(StringComparer.OrdinalIgnoreCase)
     { "read_file", "write_file", "edit_file", "bash", "web_search", "fetch", "ask_user_question" };
 
+    /// <summary>Tiny 核心工具（小窗口模型最小集：读改写 + 执行 + 查找 + 跟踪 + 提问）——用户指定：read/write/edit/bash 等最少工具</summary>
+    internal static readonly HashSet<string> TinyCoreTools = new(StringComparer.OrdinalIgnoreCase)
+    { "read_file", "write_file", "edit_file", "bash", "glob", "grep", "ls", "tree", "todo", "ask_user_question" };
+
     /// <summary>
     /// 按省钱模式档位精简工具（去重复）。Off 返回原集不动。
     /// </summary>
@@ -464,6 +468,9 @@ public partial class Agent
             // 无白名单：省钱模式按档位去重复精简（关=全量，开=去重，开的越大越精简）
             result = TrimToolsForEconomy(result, config.EconomyMode);
         }
+        // Tiny 模式：只保留最小工具集（16K 小窗口省出上下文给对话/工具输出），用户指定 read/write/edit/bash 等
+        if (config.TinyMode)
+            result = result.Where(t => TinyCoreTools.Contains(t.Name)).ToList();
         if (disabledAll is { Count: > 0 })
             result = result.Where(t => !disabledAll.Contains(t.Name.ToLowerInvariant())).ToList();
 
