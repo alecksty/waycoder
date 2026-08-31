@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.96.37 (2026-08-31) — LLM 驱动 /init + system 消息 markdown 渲染
+
+- **LLM 驱动 /init（对标 Crush / Claude Code）**：不再生成带空占位符的静态模板，改为程序化收集代码库上下文（项目检测 / 常用命令 / 仓库地图 / 已有规则 / README / Git 状态）→ 单次 LLM 调用生成真实、非显然、渐进披露的 `AGENT.md`（`/init claude` 生成 CLAUDE.md）；无 LLM 或调用失败自动降级静态模板
+  - 新增 `Infra/ProjectInitAnalyzer.cs`（上下文收集 + 提示词模板 + 降级决策，纯逻辑可自测）
+  - 内容标准：只写非显然知识（坑 / 隐式约定 / 意外标志）、绝不虚构、命令准确、架构基于仓库地图、合并已有规则、不输出占位符
+  - 流式推屏（`RunWithUiLoop` + `PostToUI`）+ 180s 超时兜底；修复 `ProgramContext.LLM` 全局未挂载（顺带激活 /tokens /stats）
+- **system 消息 markdown 渲染修复**：`/model list` 等命令输出含 `**bold**` / `` `code` `` 却当纯文本显示——`ChatScreen` 不再强制 system 消息纯文本（tool / banner 保持原样），连续 system/tool 消息合并续接逻辑保留
+- **winget manifest 0.96.36 入库**（GitHub release URL 方案，验证全过）
+- **自测**：4836 全过（新增 init-llm 16 断言 + system markdown 2 断言）；三端编译 0 警告 0 错误
+
 ## v0.96.36 (2026-08-31) — 四端 promptbar（输入框上方常用命令提示栏）
 
 - **四端统一 promptbar**：输入框上方常驻显示精选常用命令（`/help /model /provider /review /reset /tokens /session /perm /mcp /theme`），提示可输入的命令；Web/GUI/MAUI 点击命令直接填入输入框（光标跟末尾）

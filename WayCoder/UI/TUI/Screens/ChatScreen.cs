@@ -830,9 +830,12 @@ public partial class ChatScreen : TuiScreen
     public void AddMessage(string content, string role = "assistant", bool? centered = null, int indent = 0)
     {
         bool continuation = false;
-        bool plainText = role is "system" or "tool" or "banner";
+        // system 消息含 markdown（ModelCommand 的 **bold**/`code` 等）→ 走 markdown 渲染；
+        // tool（工具原始输出，反引号/星号是数据）与 banner（彩虹横幅）保持纯文本
+        bool plainText = role is "tool" or "banner";
         bool align = centered ?? false;
-        if (plainText && role != "banner")
+        // system/tool 连续同角色消息合并续接（system 改 markdown 后不再满足 plainText，显式列角色）
+        if (role is "system" or "tool")
         {
             var last = ChatList.GetItem(ChatList.ItemCount - 1) as TuiListItem;
             if (last != null && last.Role == role)

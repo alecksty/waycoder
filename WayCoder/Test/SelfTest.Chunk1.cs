@@ -89,6 +89,8 @@ public static partial class SelfTest
         TestApiFormat(Check);
         // /init 项目初始化测试（生成 AGENT.md + 命令检测）
         TestProjectInit(Check);
+        // /init LLM 分析器纯逻辑测试（上下文收集/提示词/清理/降级决策）
+        TestProjectInitAnalyzer(Check);
         // 多槽位后台并行执行测试（槽位缓冲输出 + 运行状态）
         TestMultiSlotParallel(Check);
         // 实例级工作模式测试（Agent.WorkMode 与全局解耦 + 回调）

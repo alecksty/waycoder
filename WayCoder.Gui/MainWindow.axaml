@@ -38,10 +38,14 @@
             <!-- 左栏 -->
             <Border Grid.Column="0" x:Name="LeftPanel"
                     Background="{DynamicResource PanelBgBrush}"
-                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,1,0">
                 <StackPanel>
-                    <TextBlock Text="🗂 槽位" FontSize="12" FontWeight="Bold"
-                               Foreground="{DynamicResource DimTextBrush}" Margin="14,12,14,6" />
+                    <TextBlock Text="🗂 槽位"
+                               FontSize="12"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource DimTextBrush}"
+                               Margin="14,12,14,6" />
                     <StackPanel x:Name="SlotPanel" Orientation="Horizontal"
                                 Spacing="4" Margin="12,0,12,6" />
                     <Grid ColumnDefinitions="*,Auto" Margin="12,4,12,8">
@@ -51,9 +55,12 @@
                                 FontSize="11" Padding="8,4" Margin="6,0,0,0"
                                 ToolTip.Tip="清空所有会话记录" Click="ClearSessions_Click" />
                     </Grid>
-                    <TextBlock Text="📜 历史会话" FontSize="12" FontWeight="Bold"
+                    <TextBlock Text="📜 历史会话"
+                               FontSize="12"
+                               FontWeight="Bold"
                                Foreground="{DynamicResource DimTextBrush}" Margin="14,0,14,6" />
-                    <ScrollViewer x:Name="SessionListHost" VerticalScrollBarVisibility="Auto"
+                    <ScrollViewer x:Name="SessionListHost"
+                                  VerticalScrollBarVisibility="Auto"
                                   Margin="8,0,8,8" />
                 </StackPanel>
             </Border>

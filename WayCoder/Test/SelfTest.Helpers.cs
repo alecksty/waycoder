@@ -1091,6 +1091,59 @@ public static partial class SelfTest
         }
     }
 
+    /// <summary>/init LLM 分析器（ProjectInitAnalyzer 纯逻辑：上下文收集/提示词/清理/降级决策）测试</summary>
+    private static void TestProjectInitAnalyzer(Action<string, bool> Check)
+    {
+        // ── ShouldUseLlm 降级决策 ──
+        Check("init-llm: 无 LLM 走降级", !ProjectInitAnalyzer.ShouldUseLlm(null));
+        Check("init-llm: 有 LLM 用 LLM", ProjectInitAnalyzer.ShouldUseLlm(new LLM("x", "k")));
+
+        // ── CleanFenced 围栏剥离 ──
+        Check("init-llm: 剥 markdown 围栏", ProjectInitAnalyzer.CleanFenced("```markdown\n# X\n```") == "# X");
+        Check("init-llm: 无围栏原样", ProjectInitAnalyzer.CleanFenced("plain text") == "plain text");
+        Check("init-llm: 空串返回空", ProjectInitAnalyzer.CleanFenced("") == "");
+
+        // ── 上下文收集（临时目录夹具）──
+        string? tmp = null;
+        try
+        {
+            tmp = Directory.CreateTempSubdirectory("waycoder-init-llm").FullName;
+            File.WriteAllText(Path.Combine(tmp, "App.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"/>");
+            File.WriteAllText(Path.Combine(tmp, "Program.cs"), "class Program { static void Main() { } }\n");
+            File.WriteAllText(Path.Combine(tmp, ".cursorrules"), "禁止使用反射。\n");
+            File.WriteAllText(Path.Combine(tmp, "README.md"), "# 示例项目\n构建说明。\n");
+            File.WriteAllText(Path.Combine(tmp, "AGENT.md"), "# AGENT.md\n已有内容。\n");
+            // 超长规则文件（放 .waycoder/ 下才会被 CollectExistingRules 收集 → 验证 Rune 截断）
+            Directory.CreateDirectory(Path.Combine(tmp, ".waycoder"));
+            File.WriteAllText(Path.Combine(tmp, ".waycoder", "longrule.md"), new string('x', 5000));
+
+            var info = new ProjectInfo { ProjectRoot = tmp };
+            var ctx = ProjectInitAnalyzer.CollectInitContext(info, "AGENT.md");
+            Check("init-llm: ExistingRules 含 .cursorrules", ctx.ExistingRules.Contains(".cursorrules") && ctx.ExistingRules.Contains("反射"));
+            Check("init-llm: 超长规则截断带标记", ctx.ExistingRules.Contains("longrule") && ctx.ExistingRules.Contains("... (已截断)"));
+            Check("init-llm: ReadmeHead 含 README 头部", ctx.ReadmeHead.Contains("示例项目"));
+            Check("init-llm: ExistingTarget 含已有 AGENT.md", ctx.ExistingTarget.Contains("已有内容"));
+            Check("init-llm: Commands 含 dotnet build", ctx.Commands.Contains("dotnet build"));
+            Check("init-llm: RepoMap 非空", !string.IsNullOrEmpty(ctx.RepoMap));
+
+            // ── BuildPrompt 占位符替换 ──
+            var prompt = ProjectInitAnalyzer.BuildPrompt("CLAUDE.md", ctx);
+            Check("init-llm: 提示词含文件头", prompt.Contains("# CLAUDE.md"));
+            Check("init-llm: 提示词含上下文区块", prompt.Contains("仓库地图") && prompt.Contains("项目检测"));
+            Check("init-llm: 无未替换占位符", !prompt.Contains("{REPO_MAP}") && !prompt.Contains("{FILE_NAME}") && !prompt.Contains("{PROJECT_INFO}"));
+
+            // ── FallbackContent 降级产物回归 ──
+            var fb = ProjectInitAnalyzer.FallbackContent(info, "AGENT.md");
+            Check("init-llm: 降级含 AGENT.md 标题", fb.Contains("# AGENT.md"));
+            Check("init-llm: 降级含项目概述", fb.Contains("## 项目概述"));
+        }
+        catch { }
+        finally
+        {
+            if (tmp != null) { try { Directory.Delete(tmp, true); } catch { } }
+        }
+    }
+
     private static void TestMultiSlotParallel(Action<string, bool> Check)
     {
         // ── 槽位运行状态（多槽位后台并行执行的核心状态）──
