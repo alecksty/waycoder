@@ -178,6 +178,11 @@ public static partial class SelfTest
         var plainRaw = UI.Tui.TuiMarkdown.RenderMessage("cmd `x` **y**", "tool", 40, plainText: true)
             .SelectMany(l => l).Aggregate("", (a, s) => a + s.Text);
         Check("纯文本: 反引号/星号原样保留", plainRaw.Contains("`x`") && plainRaw.Contains("**y**"));
+        // system 消息（/model list 等）走 markdown 渲染（ChatScreen.AddMessage 不再强制 system 纯文本）
+        var mdSys = UI.Tui.TuiMarkdown.RenderMessage("cmd `x` **y**", "system", 40, plainText: false)
+            .SelectMany(l => l).Aggregate("", (a, s) => a + s.Text);
+        Check("markdown: system 消息渲染反引号为代码", !mdSys.Contains('`') && mdSys.Contains("x"));
+        Check("markdown: system 消息渲染加粗", !mdSys.Contains('*') && mdSys.Contains("y"));
 
         // 代码块语法高亮：C# 代码块应产出多色 token（关键字青 36 ≠ 字符串绿 32 ≠ 数字黄 33）
         var cbSegs = UI.Tui.TuiMarkdown.RenderMessage(

@@ -470,6 +470,7 @@ public partial class Program
             maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
         _agent.AgentId = "F1"; // 主 Agent = 槽位 1，供文件锁跨槽位冲突检测
         ProgramContext.Agent = _agent;
+        ProgramContext.LLM = _llm; // 修复全局 LLM 未挂载的遗漏（/tokens /stats /init 等命令取用）
         _slots[0] = new AgentSlot { Agent = _agent }; // 槽位 0 持有主 Agent
 
         // 主/一次性 Agent 沿用全局工作模式（--permit tiny/chat → Chat 等）；非 Build 时刷新工具集与提示词
