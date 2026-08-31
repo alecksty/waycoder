@@ -112,6 +112,11 @@ select optgroup { background:var(--panel); color:var(--text); }
   box-shadow:0 0 0 3px rgba(79,140,255,.16), 0 6px 22px rgba(0,0,0,.22); }
 #input { display:block; width:100%; resize:none; background:transparent; border:none; outline:none;
   color:var(--text); font:inherit; line-height:1.6; padding:4px 8px; min-height:56px; max-height:220px; }
+
+/* promptbar：输入框上方常用命令提示（点击填入输入框） */
+#promptbar { display:flex; gap:6px; flex-wrap:wrap; padding:2px 10px 4px; }
+#promptbar .pb-chip { font-size:11px; color:var(--dim); background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:1px 8px; cursor:pointer; white-space:nowrap; }
+#promptbar .pb-chip:hover { color:var(--accent); border-color:var(--accent); }
 #input::placeholder { color:var(--dim); opacity:.85; }
 .composer-bar { display:flex; align-items:center; gap:8px; padding:4px 4px 0; }
 .composer-tools { display:flex; gap:2px; }

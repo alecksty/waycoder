@@ -1138,6 +1138,27 @@ const SLASH_COMMANDS = [
   ['/interrupt', '中断当前任务'],
   ['/test', '渲染测试（markdown/table/markup/ansi）'],
 ];
+
+// ── promptbar：输入框上方常用命令提示（点击填入输入框，光标跟在后面）──
+const PROMPTBAR = [
+  ['/help', '帮助'], ['/model', '选模型'], ['/provider', '服务商'], ['/review', '代码审查'],
+  ['/reset', '清空会话'], ['/tokens', 'Token'], ['/session', '会话管理'],
+  ['/perm', '权限'], ['/mcp', 'MCP'], ['/theme', '主题'],
+];
+function renderPromptbar() {
+  const bar = document.getElementById('promptbar');
+  if (!bar) return;
+  bar.innerHTML = '';
+  PROMPTBAR.forEach(([cmd, desc]) => {
+    const c = document.createElement('span');
+    c.className = 'pb-chip';
+    c.textContent = cmd;
+    c.title = desc;
+    c.onclick = () => { input.value = cmd + ' '; input.focus(); autoResizeInput(); updateSendState(); };
+    bar.appendChild(c);
+  });
+}
+renderPromptbar();
 let suggestItems = [];   // [{label, desc, icon, fill}]
 let suggestActive = -1;
 

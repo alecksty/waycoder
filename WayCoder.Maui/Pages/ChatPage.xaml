@@ -230,14 +230,18 @@
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="20" />
                 </Border.StrokeShape>
-                <Entry
-                    x:Name="InputBox"
-                    Placeholder="问点什么…"
-                    MaxLength="8000"
-                    Margin="12,0"
-                    VerticalOptions="Center"
-                    ReturnType="Send"
-                    Completed="OnEditorCompleted" />
+                <VerticalStackLayout>
+                    <!-- promptbar：输入框上方常用命令提示（点击填入输入框） -->
+                    <HorizontalStackLayout x:Name="PromptBar" Spacing="4" Margin="8,6,8,0" />
+                    <Entry
+                        x:Name="InputBox"
+                        Placeholder="问点什么…"
+                        MaxLength="8000"
+                        Margin="12,0"
+                        VerticalOptions="Center"
+                        ReturnType="Send"
+                        Completed="OnEditorCompleted" />
+                </VerticalStackLayout>
             </Border>
             <Button
                 x:Name="SendBtn"
