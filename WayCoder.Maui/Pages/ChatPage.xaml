@@ -231,8 +231,21 @@
                     <RoundRectangle CornerRadius="20" />
                 </Border.StrokeShape>
                 <VerticalStackLayout>
-                    <!-- promptbar：输入框上方常用命令提示（点击填入输入框） -->
-                    <HorizontalStackLayout x:Name="PromptBar" Spacing="4" Margin="8,6,8,0" />
+                    <!-- / 前缀命令建议列表（输入 / 时显示，点击填入） -->
+                    <CollectionView x:Name="SlashSuggest" IsVisible="False" HeightRequest="160" Margin="4,4,4,0"
+                                    SelectionChanged="SlashSuggest_SelectionChanged">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}"
+                                        Padding="10,6" StrokeThickness="0" Margin="0,0,0,2">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="8" />
+                                    </Border.StrokeShape>
+                                    <Label Text="{Binding .}" FontSize="12" />
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
                     <Entry
                         x:Name="InputBox"
                         Placeholder="问点什么…"
@@ -240,7 +253,8 @@
                         Margin="12,0"
                         VerticalOptions="Center"
                         ReturnType="Send"
-                        Completed="OnEditorCompleted" />
+                        Completed="OnEditorCompleted"
+                        TextChanged="InputBox_TextChanged" />
                 </VerticalStackLayout>
             </Border>
             <Button

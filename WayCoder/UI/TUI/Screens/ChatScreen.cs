@@ -62,9 +62,6 @@ public partial class ChatScreen : TuiScreen
     /// <summary>模式栏下方快捷键提示行（只显示 Shift+Tab/Ctrl+P/E/X 切换快捷键），可见性跟随 ModelInfoRow。</summary>
     protected TuiSmartLabel? _shortcutRow;
 
-    /// <summary>promptbar：输入框上方常用命令提示行（常驻）。</summary>
-    protected TuiSmartLabel? _promptRow;
-
     /// <summary>建议下拉面板</summary>
     public TuiVBox SuggestPanel { get; protected set; } = null!;
 
@@ -587,20 +584,6 @@ public partial class ChatScreen : TuiScreen
         return saved;
     }
 
-    /// <summary>promptbar 提示文本：精选常用命令（CommandBar.Favorites），«dim» 整体暗淡。</summary>
-    protected static string BuildPromptBarText()
-    {
-        var sb = new System.Text.StringBuilder("«dim»");
-        var cmds = CommandBar.Favorites;
-        for (int i = 0; i < cmds.Length; i++)
-        {
-            if (i > 0) sb.Append(" · ");
-            sb.Append(cmds[i].Name);
-        }
-        sb.Append("«/»");
-        return sb.ToString();
-    }
-
     /// <summary>计算动态布局尺寸（Render / OnResize 共用）。</summary>
     protected void ComputeLayout(out int panelW, out int inputH, out int promptH, out int progressH, out int chatH)
     {
@@ -613,8 +596,8 @@ public partial class ChatScreen : TuiScreen
         int modelRows = ModelInfoRow is { Visible: true }
             ? 1 + (_shortcutRow?.Visible == true ? 1 : 0) + (_modelInfoSpacer != null ? 1 : 0)
             : 0;
-        chatH = Math.Max(1, TH - 1 - promptH - 1 - 1 - 1 - 1 - inputH - 1 - progressH - 1
-                            - modelRows); // TH - title - prompt - spacer(1) - dynamicBar(1) - promptRow(1) - topBorder - input - botBorder - progress - [模式栏/快捷键/空行] - status
+        chatH = Math.Max(1, TH - 1 - promptH - 1 - 1 - 1 - inputH - 1 - progressH - 1
+                            - modelRows); // TH - title - prompt - spacer(1) - dynamicBar(1) - topBorder - input - botBorder - progress - [模式栏/快捷键/空行] - status
     }
 
     /// <summary>应用动态尺寸到各子视图（Render / OnResize 共用）。</summary>
@@ -734,17 +717,6 @@ public partial class ChatScreen : TuiScreen
         };
         DynamicBar.RegisterDirectWrite(this); // spinner 直写终端（不依赖 dirty 整条重绘，按所属屏幕门控）
         RootView.Add(DynamicBar);
-
-        // ── promptbar：输入框上方常用命令提示（常驻）──
-        _promptRow = new TuiSmartLabel
-        {
-            Width = TW,
-            Height = 1,
-            Fg = AnsiColors.White,
-            TextAlign = EHAlign.Center,
-            Text = BuildPromptBarText(),
-        };
-        RootView.Add(_promptRow);
 
         // ── 输入区上分隔线 ──
         InputTopBorder = new TuiSeparator

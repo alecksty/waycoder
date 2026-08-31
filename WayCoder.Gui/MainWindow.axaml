@@ -33,7 +33,7 @@
         </Border>
 
         <!-- 三栏：左（槽位+会话）/ 中（聊天+composer）/ 右（面板） -->
-        <Grid Grid.Row="1" ColumnDefinitions="236,*,300">
+        <Grid Grid.Row="1" ColumnDefinitions="250,*,300">
 
             <!-- 左栏 -->
             <Border Grid.Column="0" x:Name="LeftPanel"
@@ -46,11 +46,19 @@
                                FontWeight="Bold"
                                Foreground="{DynamicResource DimTextBrush}"
                                Margin="14,12,14,6" />
-                    <StackPanel x:Name="SlotPanel" Orientation="Horizontal"
-                                Spacing="4" Margin="12,0,12,6" />
+                    
+                    <StackPanel x:Name="SlotPanel" 
+                                Orientation="Horizontal"
+                                Spacing="4" 
+                                Margin="12,0,12,6" />
+                    
                     <Grid ColumnDefinitions="*,Auto" Margin="12,4,12,8">
-                        <Button x:Name="NewSessionBtn" Content="＋ 新建会话" FontSize="11"
-                                Padding="8,4" Click="NewSession_Click" />
+                        <Button 
+                            x:Name="NewSessionBtn" 
+                            Content="＋ 新建会话" FontSize="11"
+                            
+                            Padding="8,4" 
+                            Click="NewSession_Click" />
                         <Button Grid.Column="1" x:Name="ClearSessionsBtn" Content="🗑"
                                 FontSize="11" Padding="8,4" Margin="6,0,0,0"
                                 ToolTip.Tip="清空所有会话记录" Click="ClearSessions_Click" />
@@ -93,8 +101,10 @@
                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             Padding="12,8">
                         <StackPanel>
-                            <!-- promptbar：输入框上方常用命令提示（点击填入输入框） -->
-                            <WrapPanel x:Name="PromptBar" Margin="2,0,2,4" Orientation="Horizontal" />
+                            <!-- / 前缀命令建议列表（输入 / 时显示，点击填入） -->
+                            <ListBox x:Name="SlashSuggest" MaxHeight="150" IsVisible="False"
+                                     Margin="0,0,0,4" FontSize="12"
+                                     SelectionChanged="SlashSuggest_SelectionChanged" />
                             <TextBox x:Name="InputBox" Background="Transparent" BorderThickness="0"
                                      MinHeight="56" MaxHeight="220" AcceptsReturn="True"
                                      TextWrapping="Wrap" FontSize="13"

@@ -79,7 +79,7 @@ public static partial class SelfTest
             Check("chat.tui Screen 根", main.Screen != null);
             Check("chat.tui RootView 非空", main.Screen?.RootView != null);
             int childCount = main.Screen?.RootView?.Children.Count ?? 0;
-            Check("chat.tui RootView 子节点=13", childCount == 13); // shortcutRow + promptRow（常用命令提示行）
+            Check("chat.tui RootView 子节点=12", childCount == 12); // 模式栏下 shortcutRow（快捷键行）
 
             Check("chat.tui titleBar", main.Find<TuiTitleBar>("titleBar") != null);
             Check("chat.tui chatList", main.Find<TuiListView>("chatList") != null);
