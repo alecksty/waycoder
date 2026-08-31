@@ -151,6 +151,13 @@ public partial class ChatPage : ContentPage
             MainThread.BeginInvokeOnMainThread(() => AddMessage(new ChatMessage { Role = ChatRole.Tool, RawText = content }));
         ChatScreen.OnClearChat = () =>
             MainThread.BeginInvokeOnMainThread(Messages.Clear);
+        // ReviewCommand 等命令把审查 prompt 投递为普通消息 → 桥接发送（走排队）
+        ChatScreen.OnEnqueueSubmission = text =>
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                InputBox.Text = text;
+                await SendOrQueueAsync();
+            });
         RefreshModelBar();
         StartStatusTimer();
         PermissionManager.PermissionPromptStarted += OnPermissionStarted;

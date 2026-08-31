@@ -49,8 +49,8 @@
 		<ApplicationId>com.companyname.waycoder.maui</ApplicationId>
 
 		<!-- Versions -->
-		<ApplicationDisplayVersion>0.96.34</ApplicationDisplayVersion>
-		<ApplicationVersion>34</ApplicationVersion>
+		<ApplicationDisplayVersion>0.96.35</ApplicationDisplayVersion>
+		<ApplicationVersion>35</ApplicationVersion>
 
 		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
 		<WindowsPackageType>None</WindowsPackageType>

@@ -502,6 +502,15 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true).Set("output", "⏹ 已请求中断").ToJson());
             }
 
+            // /review — 代码审查：生成审查 prompt 投递为普通消息（后台 Agent 执行审查，结果流式显示）
+            if (cmdLower is "/review" or "/审查")
+            {
+                var prompt = ReviewMode.BuildReviewPrompt();
+                StartSlotTask(slot, prompt);
+                return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("handled", true)
+                    .Set("output", "🔍 开始代码审查（git diff + 正确性/安全/性能/可维护性/测试覆盖）… 结果流式显示").ToJson());
+            }
+
             // 换模型副作用（需访问实例 Interrupt + EnsureSlot）
             if (cmdLower == "/model" && spaceIdx >= 0)
             {

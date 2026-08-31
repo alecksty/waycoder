@@ -160,6 +160,7 @@ public static partial class SelfTest
         Check("SlashCommandRegistry 非空", SlashCommandRegistry.Commands.Count > 0);
         Check("SlashCommandRegistry 含 /help", SlashCommandRegistry.Commands.Any(c => c.Name == "/help"));
         Check("SlashCommandRegistry 含 /model", SlashCommandRegistry.Commands.Any(c => c.Name == "/model"));
+        Check("SlashCommandRegistry 含 /review", SlashCommandRegistry.Commands.Any(c => c.Name == "/review"));
         Check("SlashCommandRegistry 覆盖原硬编码 14 条", SlashCommandRegistry.Commands.Count >= 14);
         // /diff 拆分：/diff + /d 归 DiffCommand（diff 预览），/recent 只留文件列表
         var (diffCmd, _) = SlashCommandRegistry.Match("/diff");

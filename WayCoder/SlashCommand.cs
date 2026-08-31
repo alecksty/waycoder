@@ -144,6 +144,7 @@ public static class SlashCommandRegistry
         Register(new Commands.DiffCommand());
         Register(new Commands.TodoCommand());
         Register(new Commands.LintCommand());
+        Register(new Commands.ReviewCommand());
 
         // 跨槽位消息
         Register(new Commands.SendCommand());

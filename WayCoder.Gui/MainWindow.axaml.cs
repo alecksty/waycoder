@@ -538,6 +538,7 @@ public partial class MainWindow : Window
                     /help      帮助
                     /model     选择模型
                     /provider  服务商管理（Key/改名/改地址/删除/测试）
+                    /review    代码审查（git diff + 多维度分析）
                     /settings  打开设置
                     /theme     切换深/浅主题
                     /reset     清空当前会话
@@ -554,6 +555,12 @@ public partial class MainWindow : Window
 
             case "provider":
                 new ProviderWindow(this).ShowDialog(this);
+                return true;
+
+            case "review" or "审查":
+                // 代码审查：生成审查 prompt 作为普通消息投递（后台 Agent 执行，结果流式显示）
+                InputBox.Text = ReviewMode.BuildReviewPrompt();
+                _ = SendAsync();
                 return true;
 
             case "settings":
