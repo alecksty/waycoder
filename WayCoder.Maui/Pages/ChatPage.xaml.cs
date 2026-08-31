@@ -139,6 +139,34 @@ public partial class ChatPage : ContentPage
     {
         InitializeComponent();
         BindingContext = this;
+        BuildPromptBar(); // promptbar：输入框上方常用命令提示（点击填入）
+    }
+
+    /// <summary>promptbar：输入框上方常用命令提示（点击填入输入框，光标跟末尾）。</summary>
+    private void BuildPromptBar()
+    {
+        var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
+        foreach (var (name, desc) in WayCoder.UI.Shared.CommandBar.Favorites)
+        {
+            var chip = new Border
+            {
+                BackgroundColor = isDark ? Color.FromArgb("#1F1F2E") : Color.FromArgb("#E8E8ED"),
+                Padding = new Thickness(8, 2),
+                StrokeThickness = 0,
+                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 10 },
+            };
+            var lbl = new Label { Text = name, FontSize = 11, TextColor = isDark ? Color.FromArgb("#8b93a7") : Color.FromArgb("#5a6472") };
+            chip.Content = lbl;
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += (_, _) =>
+            {
+                InputBox.Text = name + " ";
+                InputBox.CursorPosition = InputBox.Text.Length;
+                InputBox.Focus();
+            };
+            chip.GestureRecognizers.Add(tap);
+            PromptBar.Children.Add(chip);
+        }
     }
 
     protected override void OnAppearing()

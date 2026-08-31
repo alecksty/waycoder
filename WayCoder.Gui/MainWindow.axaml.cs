@@ -57,6 +57,7 @@ public partial class MainWindow : Window
             AppendSystem(_activeSlot, $"[{level switch { "success" => "✓", "warn" => "⚠", "error" => "✘", _ => "ℹ" }} {title}] {msg}"));
         InitModels();
         InitModelBar();
+        InitPromptBar(); // promptbar：输入框上方常用命令提示（点击填入）
         InitSlots();
         SwitchSlot(0);
         RefreshSessions();
@@ -148,6 +149,25 @@ public partial class MainWindow : Window
 
         foreach (var v in new[] { "Ask", "Auto", "SmartAuto", "YOLO" }) PermCombo.Items.Add(v);
         PermCombo.SelectedIndex = (int)PermissionManager.CurrentMode;
+    }
+
+    /// <summary>promptbar：输入框上方常用命令提示（点击填入输入框，光标跟末尾）。</summary>
+    private void InitPromptBar()
+    {
+        foreach (var (name, desc) in WayCoder.UI.Shared.CommandBar.Favorites)
+        {
+            var chip = MakeButton(name, "#2a2f3a", () =>
+            {
+                InputBox.Text = name + " ";
+                InputBox.CaretIndex = InputBox.Text.Length;
+                InputBox.Focus();
+            });
+            chip.FontSize = 10.5;
+            chip.Padding = new Thickness(8, 2);
+            chip.Margin = new Thickness(0, 0, 4, 0);
+            ToolTip.SetTip(chip, desc);
+            PromptBar.Children.Add(chip);
+        }
     }
 
     // ── 槽位 ──

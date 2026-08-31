@@ -3424,6 +3424,13 @@ public static partial class SelfTest
         Check("SerializeProviders: 含 deepseek 供应商", provJson.Contains("deepseek"));
         Check("SerializeProviders: 含 providerId/name/hasKey", provJson.Contains("providerId") && provJson.Contains("name") && provJson.Contains("hasKey"));
 
+        // ── CommandBar（promptbar 精选常用命令）──
+        var favNames = WayCoder.UI.Shared.CommandBar.Favorites.Select(f => f.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Check("CommandBar: 含 /help /model /provider /review /reset",
+            favNames.Contains("/help") && favNames.Contains("/model") && favNames.Contains("/provider")
+            && favNames.Contains("/review") && favNames.Contains("/reset"));
+        Check("CommandBar: 精选 ≤ 12 条（一行放得下）", WayCoder.UI.Shared.CommandBar.Favorites.Length <= 12);
+
         // ── 6c. HasKeyFor / SerializeScan / TestList（模型 key 检测 + 连通性扫描）──
         Check("HasKeyFor: local 无需 key", WayCoder.ApiKeyStore.HasKeyFor("local", "qwen2.5-coder:latest"));
         Check("HasKeyFor: custom 无需 key", WayCoder.ApiKeyStore.HasKeyFor("custom", "my-custom-model"));

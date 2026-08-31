@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.96.36 (2026-08-31) — 四端 promptbar（输入框上方常用命令提示栏）
+
+- **四端统一 promptbar**：输入框上方常驻显示精选常用命令（`/help /model /provider /review /reset /tokens /session /perm /mcp /theme`），提示可输入的命令；Web/GUI/MAUI 点击命令直接填入输入框（光标跟末尾）
+  - 新增共享 `CommandBar.Favorites`（`UI/Shared/`，TUI/MAUI/GUI 共用）；Web 前端维护同款数组
+  - TUI：`ChatScreen` 输入区上方新增常驻提示行（`_promptRow`，`«dim»` 暗淡样式，代码版 + chat.tui 标记版同步，`ComputeLayout` 高度计入）
+  - Web：`#composer` 内 input 上方加 `#promptbar` chip 行（点击填入输入框）
+  - GUI：`ComposerHost` InputBox 上方加 `PromptBar` WrapPanel chips（点击填入）
+  - MAUI：输入栏 Entry 上方加 `PromptBar` chip 行（点击填入）
+- **自测**：4824 全过（新增 CommandBar 2 断言 + chat.tui 子节点数更新）；三端编译 0 警告 0 错误
+
 ## v0.96.35 (2026-08-31) — 四端补充 /review 代码审查指令
 
 - **新增 `/review` 代码审查命令（四端）**：审查修改过的代码，多维度分析（正确性/安全性/性能/可维护性/测试覆盖），结果流式显示

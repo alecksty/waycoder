@@ -48,6 +48,9 @@
     <!-- 动态栏（始终可见，Agent 状态/工具/压缩进度） -->
     <DynamicBar id="dynamicBar" height="1" />
 
+    <!-- promptbar：输入框上方常用命令提示（常驻），内容由 code-behind 从 CommandBar 填充 -->
+    <SmartLabel id="promptRow" height="1" fg="white" align="center" />
+
     <!-- 输入区上下分隔线（细线 ─ 更精致） -->
     <Separator id="inputTopBorder" height="1" lineChar="─" />
     <TextArea id="inputArea" height="3" focused="true"
