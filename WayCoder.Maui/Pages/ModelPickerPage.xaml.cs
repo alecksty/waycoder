@@ -43,7 +43,7 @@ public partial class ModelPickerPage : ContentPage
                 || m.ProviderId.ToLowerInvariant().Contains(query))
             .OrderBy(m => m.DisplayName)
             .Select(m => new ModelEntry(m.Id, m.DisplayName, m.ProviderId,
-                $"{FmtCtx(m.ContextWindow)} 上下文 · ${m.InputPrice:F2}/{m.OutputPrice:F2} MTok",
+                $"{FmtCtx(m.ContextWindow)} 上下文 · {WayCoder.UI.Shared.ModelPrice.Format(m.InputPrice, m.OutputPrice, m.InputPriceOffpeak, m.OutputPriceOffpeak)} MTok",
                 m.InputPrice == 0 && m.OutputPrice == 0))
             .ToList();
 

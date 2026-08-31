@@ -10,7 +10,7 @@
      交互原则：功能一律做成按钮，Tab 切焦点 + 空格/Enter 执行，不抢字母键 ——
      否则以 s/i/o/k/a 或数字开头的过滤词首字符会被快捷键吞掉。 -->
 <Dialog title="选择模型" border="solid" borderColor="warning"
-        width="78" minWidth="62" minHeight="16" height="22" gradient="warning">
+        width="92" minWidth="74" minHeight="16" height="22" gradient="warning">
   <VBox>
     <HBox spacing="1">
       <Label text="搜索:" width="6" fg="black" />
@@ -21,7 +21,7 @@
     <!-- flex="1"：表格吃掉剩余高度，下面四行（槽位/两行按钮/帮助）由 VBox 保底留出。
          stretch="true"：列宽按下面声明的比例放大铺满控件宽，否则固定列宽在宽窗口里全挤左边 -->
     <TableList id="table" height="11" flex="1" showHeader="true" stretch="true"
-               columns="🔑:3,模型:24,厂商:11,状态:6,窗口:6,价格:6,大:2,小:2"
+               columns="🔑:3,模型:24,厂商:11,状态:6,窗口:6,价格:18,大:2,小:2"
                items="{InDesign '🔑,✔连通,deepseek-v4-pro,深言科技,128k,¥20,✓,✓|🔑,无key,deepseek-v4-flash,深言科技,64k,¥1,✓,✓|🔑,欠费,gpt-5.4-pro,OpenAI,200k,¥180,✓,✓|🔑,✖不通,qwen-max,阿里云,128k,¥40,✓,✓|🔑,✔连通,glm-4.5,智谱AI,128k,¥10,✓,✓'}" />
     <Label id="slotBar" height="1" fg="black" align="center" />
     <!-- 按钮文本 code-behind 会改（btnMode 在大/小模型间切），flex="1" 让整行等宽铺满：

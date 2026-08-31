@@ -152,10 +152,37 @@
         <button class="btn" id="model-set-key-btn" title="为当前选中的模型设置 API Key">🔑 设置 key</button>
         <button class="btn" id="model-clear-key-btn" title="清除当前选中模型的 API Key">🗑 清除 key</button>
         <button class="btn" id="model-clear-all-btn" title="清空全部模型（内置+自定义），可清空后重新导入">🧹 清空</button>
+        <button class="btn" id="provider-btn" title="管理服务商（设置 Key / 改名 / 改地址 / 删除 / 测试连通）">🗂 服务商</button>
         <span class="spacer"></span>
         <button class="btn ghost" id="model-cancel">取消</button>
         <button class="btn" id="model-save-btn" title="保存选中的模型为默认配置（不中断当前任务）">💾 保存</button>
         <button class="btn" id="model-confirm">切换模型</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 服务商管理（对标 TUI ProviderPicker / 移动端供应商管理） -->
+  <div class="modal" id="provider-modal">
+    <div class="modal-card">
+      <div class="model-title">
+        <h2>🗂 服务商管理</h2>
+        <button class="btn ghost" id="provider-close" title="关闭">×</button>
+      </div>
+      <div class="provider-head">
+        <span>🔑</span><span>服务商</span><span>Key</span><span>模型</span><span>状态</span><span>地址</span>
+      </div>
+      <div id="provider-list"></div>
+      <div id="provider-status"></div>
+      <div class="model-foot">
+        <button class="btn" id="provider-test-btn" title="测试全部供应商连通性">📡 测试</button>
+        <button class="btn" id="provider-add-btn" title="添加供应商（格式：ID|名称|地址）">➕ 添加</button>
+        <button class="btn" id="provider-set-key-btn" title="为选中的供应商设置 API Key">🔑 设Key</button>
+        <button class="btn" id="provider-clear-key-btn" title="清除选中供应商的 API Key">🗑 清Key</button>
+        <button class="btn" id="provider-rename-btn" title="改名选中供应商">✏️ 改名</button>
+        <button class="btn" id="provider-url-btn" title="改地址选中供应商">🌐 改地址</button>
+        <button class="btn" id="provider-del-btn" title="删除选中供应商">🗑 删除</button>
+        <span class="spacer"></span>
+        <button class="btn" id="provider-done">✓ 完成</button>
       </div>
     </div>
   </div>

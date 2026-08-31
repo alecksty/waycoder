@@ -70,7 +70,7 @@ public partial class ProviderModelsPage : ContentPage
             .OrderBy(m => m.DisplayName)
             .Select(m => new ModelRow(
                 Marker(_pid, m.Id, current, small, bigProvider, smallProvider), m.DisplayName, m.Id,
-                $"{FmtCtx(m.ContextWindow)} 上下文 · ${m.InputPrice:F2}/{m.OutputPrice:F2} MTok",
+                $"{FmtCtx(m.ContextWindow)} 上下文 · {WayCoder.UI.Shared.ModelPrice.Format(m.InputPrice, m.OutputPrice, m.InputPriceOffpeak, m.OutputPriceOffpeak)} MTok",
                 m.InputPrice == 0 && m.OutputPrice == 0))
             .ToList();
         ModelList.ItemsSource = rows;

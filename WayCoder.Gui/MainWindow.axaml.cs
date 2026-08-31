@@ -537,6 +537,7 @@ public partial class MainWindow : Window
                     GUI 斜杠命令：
                     /help      帮助
                     /model     选择模型
+                    /provider  服务商管理（Key/改名/改地址/删除/测试）
                     /settings  打开设置
                     /theme     切换深/浅主题
                     /reset     清空当前会话
@@ -549,6 +550,10 @@ public partial class MainWindow : Window
 
             case "model":
                 new ModelWindow(this).ShowDialog(this);
+                return true;
+
+            case "provider":
+                new ProviderWindow(this).ShowDialog(this);
                 return true;
 
             case "settings":

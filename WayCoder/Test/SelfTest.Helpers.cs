@@ -3405,6 +3405,25 @@ public static partial class SelfTest
             Check("SpinnerFrames: 10 帧统一", WayCoder.UI.Shared.AgentStatusResolver.SpinnerFrames.Length == 10);
         }
 
+        // ── 6c3. ModelPrice 多重价格统一格式化（四端动态价格显示）──
+        Check("ModelPrice: 免费 → Free",
+            WayCoder.UI.Shared.ModelPrice.Format(0, 0) == "Free");
+        Check("ModelPrice: 输入/输出",
+            WayCoder.UI.Shared.ModelPrice.Format(1.2, 4.5) == "$1.20/$4.50");
+        Check("ModelPrice: 有闲时 → 附闲",
+            WayCoder.UI.Shared.ModelPrice.Format(1.2, 4.5, 0.9, 3.0) == "$1.20/$4.50 闲$0.90/$3.00");
+        Check("ModelPrice: 闲时与忙时相同 → 不附闲",
+            WayCoder.UI.Shared.ModelPrice.Format(1.2, 4.5, 1.2, 4.5) == "$1.20/$4.50");
+        Check("ModelPrice: 输出免费 → $in/Free",
+            WayCoder.UI.Shared.ModelPrice.Format(1.2, 0) == "$1.20/Free");
+        Check("ModelPrice: 微小价 → <$0.01",
+            WayCoder.UI.Shared.ModelPrice.Format(0.005, 0.01) == "<$0.01/$0.01");
+
+        // ── SerializeProviders（Web /provider 供应商列表）──
+        var provJson = WayCoder.UI.Web.WebChatServer.SerializeProviders();
+        Check("SerializeProviders: 含 deepseek 供应商", provJson.Contains("deepseek"));
+        Check("SerializeProviders: 含 providerId/name/hasKey", provJson.Contains("providerId") && provJson.Contains("name") && provJson.Contains("hasKey"));
+
         // ── 6c. HasKeyFor / SerializeScan / TestList（模型 key 检测 + 连通性扫描）──
         Check("HasKeyFor: local 无需 key", WayCoder.ApiKeyStore.HasKeyFor("local", "qwen2.5-coder:latest"));
         Check("HasKeyFor: custom 无需 key", WayCoder.ApiKeyStore.HasKeyFor("custom", "my-custom-model"));

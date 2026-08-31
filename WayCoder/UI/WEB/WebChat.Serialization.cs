@@ -41,6 +41,25 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return arr.ToJson();
     }
 
+    /// <summary>序列化供应商注册表（providers.json）：供 /provider 列出全部供应商（含 key 状态/模型数）。</summary>
+    public static string SerializeProviders()
+    {
+        var arr = JNode.Array();
+        foreach (var (pid, p) in ModelCatalog.Providers
+                     .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            var isLocal = pid is "local" or "custom";
+            arr.Add(JNode.Object()
+                .Set("providerId", pid)
+                .Set("name", p.DisplayName)
+                .Set("baseUrl", p.DefaultBaseUrl ?? "")
+                .Set("hasKey", isLocal || ApiKeyStore.Has(pid))
+                .Set("isLocal", isLocal)
+                .Set("modelCount", isLocal ? -1 : ModelCatalog.ByProvider(pid).Length));
+        }
+        return arr.ToJson();
+    }
+
     /// <summary>序列化连通性探测结果列表（供 /models/scan 返回）。</summary>
     public static string SerializeScan(List<ModelCli.EndpointProbe> probes)
     {

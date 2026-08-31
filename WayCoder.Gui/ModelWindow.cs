@@ -213,7 +213,7 @@ public sealed class ModelWindow : Window
         Grid.SetColumn(ctxTb, 4);
         grid.Children.Add(ctxTb);
 
-        var priceTb = new TextBlock { Text = Panels.FormatPrice(m.InputPrice), FontSize = 11.5, HorizontalAlignment = HorizontalAlignment.Right };
+        var priceTb = new TextBlock { Text = WayCoder.UI.Shared.ModelPrice.Format(m.InputPrice, m.OutputPrice, m.InputPriceOffpeak, m.OutputPriceOffpeak), FontSize = 11.5, HorizontalAlignment = HorizontalAlignment.Right };
         Grid.SetColumn(priceTb, 5);
         grid.Children.Add(priceTb);
 
