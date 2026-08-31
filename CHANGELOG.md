@@ -1,5 +1,10 @@
 # 更新日志
 
+## v0.96.38 (2026-08-31) — Tiny 模式工具精简（小窗口模型最小工具集）
+
+- **Tiny 模式工具精简**：`--tiny` 只保留最小工具集（`read_file / write_file / edit_file / bash / glob / grep / ls / tree / todo / ask_user_question`），系统提示词工具定义从 ~10K 精简到 ~3.3K tokens，16K 小窗口可用空间翻倍（`Agent.Tools.cs` 新增 `TinyCoreTools` + `FilterTools` 裁剪）
+- **自测**：4836 全过
+
 ## v0.96.37 (2026-08-31) — LLM 驱动 /init + system 消息 markdown 渲染
 
 - **LLM 驱动 /init（对标 Crush / Claude Code）**：不再生成带空占位符的静态模板，改为程序化收集代码库上下文（项目检测 / 常用命令 / 仓库地图 / 已有规则 / README / Git 状态）→ 单次 LLM 调用生成真实、非显然、渐进披露的 `AGENT.md`（`/init claude` 生成 CLAUDE.md）；无 LLM 或调用失败自动降级静态模板
