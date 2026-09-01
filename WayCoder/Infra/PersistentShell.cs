@@ -61,7 +61,7 @@ public sealed class PersistentShell : IDisposable
                 return $"{output}\n[错误：命令在 {timeoutSec} 秒后超时，会话已终止]";
             }
 
-            var result = output;
+            var result = WayCoder.Infra.ProcEncoding.StripBom(output); // 去 chcp 65001 可能的 UTF-8 BOM
             if (exitCode != 0)
                 result += $"\n[退出码：{exitCode}]";
 

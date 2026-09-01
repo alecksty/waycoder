@@ -618,7 +618,7 @@ public static class TuiChatInput
         {
             var cmd = OperatingSystem.IsMacOS() ? "pbpaste"
                 : OperatingSystem.IsLinux() ? "xclip -o 2>/dev/null || xsel -b 2>/dev/null"
-                : OperatingSystem.IsWindows() ? "powershell -Command Get-Clipboard"
+                : OperatingSystem.IsWindows() ? "powershell -NoProfile -Command \"[Console]::OutputEncoding=[Text.Encoding]::UTF8; Get-Clipboard\""
                 : null;
             if (cmd == null) return null;
             var psi = new System.Diagnostics.ProcessStartInfo
@@ -630,6 +630,8 @@ public static class TuiChatInput
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            if (OperatingSystem.IsWindows())
+                psi.StandardOutputEncoding = System.Text.Encoding.UTF8; // 剪贴板可能是中文，强制 UTF-8 解码
             using var p = System.Diagnostics.Process.Start(psi);
             if (p == null) return null;
             // UI 线程：同步 ReadToEnd 无超时会永久卡死（剪贴板工具被锁）；且守护子进程继承管道会让读永不 EOF。

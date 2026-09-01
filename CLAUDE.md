@@ -227,6 +227,7 @@ WayCoder 的模式参考 Claude Code / OpenAI Codex / Crush / Aider 划分为**�
 - **DynamicBar 动画无定时器**：Braille 帧基于 `DateTime.UtcNow` 计算（不依赖定时器），ChatScreen 30ms 渲染循环确保动画流畅
 - **Snip 阈值 4000 字符**：裁剪工具输出时保留首尾各 2000 字符 + 错误行（编译错误、异常堆栈），确保 Agent 能看到关键诊断信息
 - **字符串截断必须按码点（Rune）**：禁止用 `[..N]`/`[^N..]` 任意索引切片或逐 `char` 遍历截断——emoji/CJK 扩展 B 是 UTF-16 代理对（2 个 `char`），会切半产生 U+FFFD。统一走 `ContextManager.TruncateByRunes`（截头）/`TruncateTailByRunes`（截尾）/`AnsiString.TruncateByWidth`（按显示宽度）或 `text.EnumerateRunes()`；空格等 BMP 字符定位的 `[..lastSpace]` 切片天然安全，无需改
+- **Windows 进程输出编码**：cmd.exe 对**重定向管道**始终写系统 OEM 代码页字节（中文系统 GBK），`chcp 65001` 只改控制台代码页**不改管道字节**（实测）——「强制 UTF-8」对 cmd 不可行。正确做法是 `ProcEncoding.Apply(psi)` 按 `GetOemCP` 解码（所有 cmd 启动点必须调用）；剪贴板走 PowerShell 可显式 `[Console]::OutputEncoding=UTF8` 强制。新建任何启动 cmd/bash 子进程的代码都要调 `ProcEncoding.Apply`
 
 ## Android 项目强制编码约束
 

@@ -105,6 +105,7 @@ public static partial class SelfTest
         var mgr = TuiManager.Instance;
         var mScreen = new MarkupChatScreen();
         string frame = "";
+        int chatListW = 0;
         bool entered = false;
         try
         {
@@ -114,6 +115,7 @@ public static partial class SelfTest
             {
                 if (!mgr.IsActive) { mgr.Enter(); entered = true; }
                 mgr.PushScreen(mScreen);
+                chatListW = mScreen.ChatList.Width; // Activate 应已应用动态尺寸（横幅居中前提）
                 mScreen.SyncTheme();
                 mScreen.RefreshTheme();
                 mgr.Render();
@@ -130,6 +132,8 @@ public static partial class SelfTest
         {
             if (entered) { try { mgr.Exit(); } catch { } }
         }
+        // Activate 末尾 ApplyDynamicSizes 后 ChatList.Width 应=屏幕宽（默认无侧栏），否则欢迎横幅按错误宽度居中
+        Check("Activate 后 ChatList.Width 就绪=TW", chatListW > 0 && chatListW == mScreen.TW);
 
         // ── 模型信息行（输入区下方，Render 每帧同步；动态栏不放模型）──
         // 静音窗口内只取数据（渲染帧不污染输出），断言挪到恢复后统一做，避免 Check 输出被抑制

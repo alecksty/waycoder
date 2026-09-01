@@ -135,7 +135,7 @@ public static class BackgroundTaskManager
 
             await WaitAndCollectAsync(task, timeoutSec,
                 async () => { outStr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? ""; errStr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? ""; },
-                () => outStr + "\n" + errStr);
+                () => WayCoder.Infra.ProcEncoding.StripBom(outStr) + "\n" + WayCoder.Infra.ProcEncoding.StripBom(errStr));
         }
         catch (Exception ex)
         {

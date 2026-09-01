@@ -5,16 +5,13 @@ using System.Text;
 namespace WayCoder.Infra;
 
 /// <summary>
-/// 进程输出解码编码设置 —— 修复 Windows 中文系统下 cmd.exe 输出 GBK/OEM 字节、
-/// 而 StreamReader 默认按 UTF-8 解码导致的乱码。
+/// 进程输出解码编码设置 —— Windows 按系统 OEM 代码页正确解码 cmd.exe 输出。
 ///
-/// 根因：Windows 控制台程序（cmd.exe/其子进程）输出到管道的字节流是系统 OEM 代码页编码
-/// （中文系统为 936/GBK），而非 UTF-8。.NET 的 Process.StandardOutput/StandardError 默认
-/// StreamReader 编码跟随 Console.OutputEncoding（本程序在 Main 里被强制设为 UTF-8），
-/// 于是 GBK 字节被误当 UTF-8 解码 → 中文/特殊字符显示成乱码（如「涓�瓒�」）。
-///
-/// 解决：为 <see cref="ProcessStartInfo"/> 统一设置 StandardOutput/ErrorEncoding 为 OEM 代码页编码，
-/// 让 StreamReader 按正确编码解码字节流。Unix（/bin/bash）输出本就是 UTF-8，无需改动。
+/// 背景：Windows 中文系统 cmd.exe/其子进程输出到管道的字节流是系统 OEM 代码页编码（936/GBK），
+/// 直接按 UTF-8 解码会乱码（如「涓�瓒�」）。**实测 `chcp 65001` 只改控制台代码页、不改重定向管道的
+/// 输出字节**（cmd 内建 echo/dir 等对管道始终写 OEM 代码页）——所以「强制 UTF-8」不可行，
+/// 正确做法是 <see cref="Apply"/> 按系统 OEM 代码页解码，得到与 UTF-8 语义一致的正确 Unicode。
+/// Unix（/bin/bash）输出本就是 UTF-8，无需改动。
 /// </summary>
 public static partial class ProcEncoding
 {
@@ -30,6 +27,8 @@ public static partial class ProcEncoding
     private static Encoding? GetOemEncoding()
     {
         if (!OperatingSystem.IsWindows()) return null;
+        // GBK/GB18030 等代码页编码不在 .NET Core 内置，需先注册 CodePagesEncodingProvider
+        try { Encoding.RegisterProvider(CodePagesEncodingProvider.Instance); } catch { }
         // GetOEMCP 可能返回 0（极少见）：回退到 GBK，仍失败则宽松 UTF-8（至少保证可读不崩）
         try
         {
@@ -39,21 +38,18 @@ public static partial class ProcEncoding
         }
         catch
         {
-            try
-            {
-                Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-                return Encoding.GetEncoding(936);
-            }
-            catch
-            {
-                return Encoding.UTF8;
-            }
+            try { return Encoding.GetEncoding(936); }
+            catch { return Encoding.UTF8; }
         }
     }
 
+    /// <summary>去除输出开头的 UTF-8 BOM（若某些命令/program 输出带 BOM）。</summary>
+    public static string StripBom(string output)
+        => output.Length > 0 && output[0] == '﻿' ? output[1..] : output;
+
     /// <summary>
-    /// 为跨平台进程设置输出解码编码：Windows 用 OEM 代码页（正确解码 cmd.exe 输出），Unix 用 UTF-8（保持默认）。
-    /// 仅在重定向 stdout/stderr 时有效；在构造 ProcessStartInfo 之后、Process.Start 之前调用。
+    /// 为跨平台进程设置输出解码编码：Windows 用系统 OEM 代码页（正确解码 cmd.exe 的 GBK/GB18030 字节），
+    /// Unix 保持默认 UTF-8。在构造 ProcessStartInfo 之后、Process.Start 之前调用。
     /// </summary>
     public static void Apply(ProcessStartInfo psi)
     {

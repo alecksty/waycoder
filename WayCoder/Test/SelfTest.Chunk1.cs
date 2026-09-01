@@ -644,6 +644,10 @@ public static partial class SelfTest
         Check("TailLines 空串安全", Program.TailLines("", 500) == "");
         Check("TailLines CRLF 归一", Program.TailLines("a\r\nb\r\nc", 1).StartsWith("c\n…"));
 
+        // ! 命令中文输出强制 UTF-8（Windows chcp 65001 防 GBK 乱码）：端到端验证
+        var zhOut = new BashTool().ExecuteUserShellAsync("echo 你好世界").Result;
+        Check("! 命令中文输出无乱码", zhOut.Contains("你好世界"));
+
         // cwd 跟踪
         try
         {

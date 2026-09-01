@@ -1,6 +1,6 @@
 # 更新日志
 
-## v0.96.40 (2026-09-01) — config.json 权威源 + TUI `!cmd` shell 直通 + 输入框前缀变色
+## v0.96.40 (2026-09-01) — config.json 权威源 + TUI `!cmd` 直通/中文乱码/输入框增强 + TUI 卡死修复
 
 - **配置加载重构**：`~/.waycoder/config.json` 成为**唯一权威源**，默认不再从环境变量（含 `.env`）读取配置——消除 shell 里残留 `WAYCODER_MODEL` / `WAYCODER_API_KEY` 等对已配置行为的意外干扰（`Config.CreateInstance` 改为按「config.json 是否存在」分支）
   - **普通启动**：仅加载 config.json + api_keys.json，环境变量（含 `.env` 文件）完全不读取；API Key 只从 api_keys.json 解析
@@ -8,11 +8,15 @@
   - 删除 config.json 即回到首次启动状态（可重新导入环境变量）；删除 `MigrateToConfigJsonIfNeeded`，逻辑折叠进首次启动分支
   - 运行时开关（`WAYCODER_WEB_PORT` / `WAYCODER_TRAJECTORY` / 代理变量等）仍读真实 OS 环境变量，不受影响；`GITEE_TOKEN` 等若只存在 `.env` 里则普通启动不再加载（需移到系统环境变量）
 - **TUI `!cmd` shell 直通**：输入 `!命令` 直接在操作系统 shell 执行（Windows=`cmd.exe`，macOS/Linux=`/bin/bash`），**输出加到聊天内容持久显示**（tool 角色纯文本防 markdown 误渲染，过长截取最后 500 行 `TailLines`）；裸 `!` 保留弹提示；新增 `BashTool.ExecuteUserShellAsync` —— 跳过 Agent 黑名单（curl/npm/sudo/apt 不再拦），仅保留绝对红线（不可逆系统破坏），红色边框即危险提示（`ProcessUserInput` 由 `== "!"` 改 `StartsWith("!")` 分发，`RunShellOnceAsync` → `RunShellCommandAsync` 支持命令参数）
+  - **`!cmd` 后台执行（防 TUI 卡死）**：主循环冻结看门狗曾反复报「PendingSubmissions 冻结 ~3s」= `!cmd` 内联 `await` 子进程阻塞整个 REPL 主循环（慢命令期间屏幕冻结、输入/Ctrl+C 无响应）；改为 `Task.Run` 后台执行 + `PostToUI` 投递结果，先投「⏳ 执行」提示再追加输出——慢命令期间循环保持响应（spinner 仍转、可继续输入/打断）
   - **红线按平台分列**：`DangerousPatterns` / `RedLinePatterns` 同时含 bash 语法（`rm -rf /`、fork 炸弹、`dd`/`mkfs`/`chmod 777 /`）与 **Windows cmd 语法**（`del /s`、`rd /s`、`format c:`、`reg delete`）——两平台命令列表不同，各自拦截，防 `!` 直通在 Windows 上绕过红线
 - **`!cmd` 执行后黑屏修复**：退出 TUI 执行命令再 `Enter()` 重进备用屏后 `Render()` 读到残留的 `_needsFullRefresh=false` 走「无脏」路径不重绘 → 黑屏；`TuiManager.Enter()` 现在强制 `_needsFullRefresh=true` + `IsDirty=true`，重进即全刷新重绘（裸 `!` / Plan 模式重进同样受益）
 - **TUI 输入框前缀变色**：输入以 `/`、`!`、`@`、`#` 开头的消息时，输入区上下两条横线变色——`!`=红（危险 shell）、`/`=青（斜杠命令）、`@`=品红（提及）、`#`=灰（注释）、其余=默认分隔线色（`ChatScreen.InputBorderColorFor` 纯逻辑 + `SyncInputBorderColor` 每帧同步，.tui 标记版同生效）
 - **TUI 输入框自动换行 + 动态高度**：`TuiTextArea.MaxColumnWidth` 设为终端宽——超宽内容自动折行成多逻辑行；输入区高度动态 1~5 视觉行（`inputH = Clamp(Lines.Count, 1, 5)`），超过 5 行向上滚动（`EnsureCursorVisible` 每帧钳制滚动）；新增 `MaxLength` 上限（聊天输入 32K 字符，键入/粘贴/赋值 Rune 安全截断，`TruncateRunes` 防代理对切半）
-- **自测**：4860 全过
+- **Windows 中文输出乱码修复**：实测 `chcp 65001` 只改控制台代码页、**不改重定向管道字节**——cmd 内建 echo/dir 对管道始终写 OEM 代码页（中文系统 GBK），「强制 UTF-8」不可行；正确做法是 `ProcEncoding.Apply` 按系统 OEM 代码页解码（GBK→Unicode），`!cmd`/agent bash/后台任务/持久 shell/测试输出/剪贴板全部覆盖（TestTool/ClipboardHelper 补上原本缺失的 OEM 解码）；`StripBom` 去 BOM；剪贴板 PowerShell 显式 `[Console]::OutputEncoding=UTF8` 强制 UTF-8（PS 可强制，cmd 不可）
+- **启动横幅居中修复**：`ChatScreen.Activate()` 末尾立即 `ComputeLayout+ApplyDynamicSizes`——否则 `RestoreTo` 回放欢迎消息时 `ChatList.Width` 还是 chat.tui 初始布局值（含可见侧栏的 `TW-30`），横幅按错误宽度居中、宽度不足被钳到左对齐，开侧边栏触发重排后才居中；现在启动即正确居中（`.tui` 标记版默认界面）
+- **TUI 用户/系统消息去彩色**：用户消息与系统消息正文/角色标签/图标统一固定**亮辉白**（`AnsiColors.BrightWhite`）——告别默认主题的绿用户+黄系统（太花）；助手消息保持青色、工具输出保持暗淡；显式 `«color»` 标记（如 API Key 黄色警告）作为重点提示保留
+- **自测**：4860 全过（新增 `!cmd` 中文无乱码端到端断言 + Activate 后 ChatList.Width 就绪断言）
 
 ## v0.96.39 (2026-08-31) — 文档更新（apt 仓库上线 + 安装说明）
 
