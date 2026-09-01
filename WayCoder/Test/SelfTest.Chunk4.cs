@@ -370,6 +370,31 @@ public static partial class SelfTest
         // env 无 key 时按模型供应商从全局 JSON 回退（多服务商一键切换）
         Check("模型→供应商解析 deepseek", ModelCatalog.Find("deepseek-v4-flash")?.ProviderId == "deepseek");
         Check("模型→供应商解析 openai", ModelCatalog.Find("gpt-5.5")?.ProviderId == "openai");
+        Check("供应商显示名 aihubmix → AIHubMix", ModelCatalog.ProviderDisplayName("aihubmix") == "AIHubMix");
+        Check("供应商显示名 opencode-go → OpenCode Go", ModelCatalog.ProviderDisplayName("opencode-go") == "OpenCode Go");
+        Check("供应商显示名未注册回退 id", ModelCatalog.ProviderDisplayName("nonexistent") == "nonexistent");
+        Check("供应商显示名大小写不敏感", ModelCatalog.ProviderDisplayName("AIHubMix") == "AIHubMix");
+        Check("供应商显示名 Trim", ModelCatalog.ProviderDisplayName("  aihubmix  ") == "AIHubMix");
+        Check("供应商显示名空值回退空串", ModelCatalog.ProviderDisplayName(null) == "");
+
+        // 同 id 多服务商归属：deepseek-v4-flash 内置分属 DeepSeek 官方 / AIHubMix 网关，必须按 (id, baseUrl) 精确定位
+        Check("模型按网关精确定位 aihubmix",
+            ModelCatalog.Find("deepseek-v4-flash", "https://api.inferera.com/v1")?.ProviderId == "aihubmix");
+        Check("模型按网关精确定位官方",
+            ModelCatalog.Find("deepseek-v4-flash", "https://api.deepseek.com")?.ProviderId == "deepseek");
+        {
+            var oldModel = Config.Instance.Model; var oldBase = Config.Instance.BaseUrl; var oldProv = Config.Instance.Provider;
+            try
+            {
+                Config.Instance.Model = "deepseek-v4-flash";
+                Config.Instance.BaseUrl = "https://api.inferera.com/v1";
+                Config.Instance.Provider = "aihubmix";
+                var slot = new AgentSlotConfig.SlotConfig { UseGlobal = true };
+                // 选了 AIHubMix 网关的 deepseek-v4-flash，槽位服务商应解析为 aihubmix（而非内置官方 deepseek）
+                Check("槽位服务商按网关归属 aihubmix", AgentSlotConfig.ResolveLargeProvider(slot, 0) == "aihubmix");
+            }
+            finally { Config.Instance.Model = oldModel; Config.Instance.BaseUrl = oldBase; Config.Instance.Provider = oldProv; }
+        }
         Check("ApiKeyStore.ForModel 未知模型返回 null", ApiKeyStore.ForModel("no-such-model-xyz") == null);
         Check("Config 含 SmallProvider 设置项", ConfigCli.Get("SmallProvider").Contains("SmallProvider"));
 

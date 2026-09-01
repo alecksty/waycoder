@@ -377,8 +377,9 @@ function renderModelBar(state) {
 }
 
 // 模型标签：`(服务商)模型` —— 同 id 跨供应商（minimax 多网关）标明当前所属服务商
+// 用 m.provider（注册显示名，如 AIHubMix）而非 providerId 小写 id，与 TUI/GUI 模型栏一致
 function formatModelLabel(m) {
-  return m ? ('(' + (m.providerId || '?') + ')' + m.id) : '选择';
+  return m ? ('(' + (m.provider || m.providerId || '?') + ')' + m.id) : '选择';
 }
 document.getElementById('big-model-btn').onclick = () => openModelModal('large');
 document.getElementById('small-model-btn').onclick = () => openModelModal('small');
@@ -439,7 +440,9 @@ function renderModelList(filter) {
     const gn = document.createElement('div');
     gn.className = 'gname';
     const st = scanMap[pid];
-    gn.textContent = pid + (st ? ' ' + statusText(st) : '');
+    // 组头用注册显示名（与 TUI ModelPicker 分组头一致），模型行有 m.provider 显示名
+    const pname = byProvider[pid][0] ? (byProvider[pid][0].provider || pid) : pid;
+    gn.textContent = pname + (st ? ' ' + statusText(st) : '');
     g.appendChild(gn);
     byProvider[pid].forEach(m => {
       const item = document.createElement('div');

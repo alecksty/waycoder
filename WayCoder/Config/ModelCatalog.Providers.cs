@@ -248,6 +248,22 @@ public static partial class ModelCatalog
         }
     }
 
+    /// <summary>providerId → 注册显示名（providers.json name）；未注册回退 id 本身。
+    /// 供模型栏 `(provider)model`、分组头展示 —— 与 ModelPicker 厂商列保持一致的显示名。
+    /// 例：aihubmix → AIHubMix；opencode-go → OpenCode Go；deepseek → DeepSeek。
+    /// 大小写不敏感：先精确匹配，再忽略大小写遍历兜底（providers.json 手写混合大小写 key / 调用方传混合大小写 id 也能命中）。</summary>
+    public static string ProviderDisplayName(string? providerId)
+    {
+        if (string.IsNullOrWhiteSpace(providerId)) return "";
+        var pid = providerId.Trim();
+        if (Providers.TryGetValue(pid, out var p) && !string.IsNullOrWhiteSpace(p.DisplayName))
+            return p.DisplayName;
+        foreach (var (k, v) in Providers)
+            if (string.Equals(k, pid, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(v.DisplayName))
+                return v.DisplayName;
+        return pid;
+    }
+
     /// <summary>改供应商显示名（保留其他字段，providers.json 落盘）。</summary>
     public static void RenameProvider(string providerId, string displayName)
     {
