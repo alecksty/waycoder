@@ -66,6 +66,7 @@ public static class ClipboardHelper
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            ProcEncoding.Apply(psi); // 强制 UTF-8 解码，防中文乱码
             using var proc = Process.Start(psi);
             if (proc == null) return null;
             try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF

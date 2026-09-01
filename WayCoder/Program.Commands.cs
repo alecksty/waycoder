@@ -829,8 +829,10 @@ deepseek 性价比最高。"
     /// `!` shell 直通执行：裸 `!` 弹提示输入命令，`!cmd` 直接执行 cmd。
     /// 走 ExecuteUserShellAsync（跳过 Agent 黑名单，仅留绝对红线——红色边框即危险提示）。
     /// 输出**加到聊天内容**（tool 角色纯文本，防 markdown 误渲染），过长截取最后 500 行。
+    /// **后台执行**：不阻塞 REPL 主循环 —— 慢命令（git/npm/build）不再冻结 TUI（主循环冻结看门狗
+    /// 曾反复报 PendingSubmissions 冻结 ~3s = `!cmd` 内联 await 子进程所致）。
     /// </summary>
-    private static async Task RunShellCommandAsync(string? command, ChatScreen screen)
+    private static void RunShellCommandAsync(string? command, ChatScreen screen)
     {
         var cmd = command;
         if (string.IsNullOrWhiteSpace(cmd))
@@ -843,16 +845,24 @@ deepseek 性价比最高。"
             if (string.IsNullOrWhiteSpace(cmd)) return;
         }
 
-        try
+        var capturedCmd = cmd;
+        var capturedScreen = screen;
+        _ = Task.Run(async () =>
         {
-            var result = await new Tools.BashTool().ExecuteUserShellAsync(cmd);
-            screen.AddMessage($"$ {cmd}\n{TailLines(result, 500)}", "tool");
-        }
-        catch (Exception ex)
-        {
-            ErrorLog.Error("Program.ShellCmd", $"Shell 命令执行异常: {ex.Message}", ex);
-            screen.AddSystemMsg($"⚠ Shell 错误: {ex.Message}");
-        }
+            try
+            {
+                // 先投递「执行中」提示：慢命令也有即时反馈（输出完成后追加结果）
+                capturedScreen.PostToUI(() => capturedScreen.AddSystemMsg($"⏳ 执行: $ {capturedCmd}"));
+                var result = await new Tools.BashTool().ExecuteUserShellAsync(capturedCmd);
+                capturedScreen.PostToUI(() =>
+                    capturedScreen.AddMessage($"$ {capturedCmd}\n{TailLines(result, 500)}", "tool"));
+            }
+            catch (Exception ex)
+            {
+                ErrorLog.Error("Program.ShellCmd", $"Shell 命令执行异常: {ex.Message}", ex);
+                capturedScreen.PostToUI(() => capturedScreen.AddSystemMsg($"⚠ Shell 错误: {ex.Message}"));
+            }
+        });
     }
 
     /// <summary>保留字符串**最后** maxLines 行（超出丢头部；少则原样）。纯逻辑便于自测。</summary>

@@ -141,23 +141,23 @@ public class TuiListItem : TuiVBox
         _ => role
     };
 
-    /// <summary>角色文字色</summary>
+    /// <summary>角色文字色（用户/系统固定亮辉白，去彩色避免太花）</summary>
     private static int RoleColor(string role) => role switch
     {
-        "user" => TuiTheme.Current.ChatUserFg,
+        "user" => WayCoder.UI.Shared.AnsiColors.BrightWhite,
         "assistant" => TuiTheme.Current.ChatAssistantFg,
         "agent" => TuiTheme.Current.ChatAssistantFg,
-        "system" => TuiTheme.Current.ChatSystemFg,
+        "system" => WayCoder.UI.Shared.AnsiColors.BrightWhite,
         _ => TuiTheme.Current.ControlFg
     };
 
-    /// <summary>角色图标色</summary>
+    /// <summary>角色图标色（用户/系统固定亮辉白）</summary>
     private static int IconColor(string role) => role switch
     {
-        "user" => TuiTheme.Current.IconUserFg,
+        "user" => WayCoder.UI.Shared.AnsiColors.BrightWhite,
         "assistant" => TuiTheme.Current.IconAssistantFg,
         "agent" => TuiTheme.Current.IconAssistantFg,
-        "system" => TuiTheme.Current.IconSystemFg,
+        "system" => WayCoder.UI.Shared.AnsiColors.BrightWhite,
         "tool" => TuiTheme.Current.IconToolFg,
         _ => TuiTheme.Current.ControlFg
     };

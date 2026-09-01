@@ -185,6 +185,12 @@ public partial class ChatScreen : TuiScreen
         base.Activate();
         BuildLayout();
 
+        // 立即应用动态尺寸（ChatList 宽度按 SidePanelVisible 取 TW 或 TW-panelW），
+        // 否则 RestoreTo 回放欢迎消息时 ChatList.Width 还是 chat.tui 初始布局值（含可见侧栏的 TW-30），
+        // 横幅等居中项按错误宽度构建 → 宽度不足被钳到左对齐；开侧边栏触发重排后才居中。
+        ComputeLayout(out var pW, out var iH, out var prH, out _, out var cH);
+        ApplyDynamicSizes(pW, iH, prH, cH);
+
         // 订阅上下文压缩进度事件（用于显示进度条）
         ContextManager.CompressProgress += OnCompressProgress;
         // 订阅压缩预告/完成事件（弹 Toast：预告「将丢 N 条」+ 回看「N→M 条」）

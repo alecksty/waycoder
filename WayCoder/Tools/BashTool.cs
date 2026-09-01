@@ -304,6 +304,7 @@ public class BashTool : ITool, ICancellableTool
                 if (changeWarning != null)
                     outStr += "\n\n" + changeWarning;
 
+                outStr = WayCoder.Infra.ProcEncoding.StripBom(outStr); // 去 chcp 65001 可能的 UTF-8 BOM
                 return string.IsNullOrWhiteSpace(outStr) ? "（无输出）" : outStr.Trim();
             }
             finally

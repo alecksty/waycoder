@@ -62,6 +62,7 @@ public class TestTool : ITool
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        WayCoder.Infra.ProcEncoding.Apply(psi); // 强制 UTF-8 解码，防中文乱码
 
         try
         {
