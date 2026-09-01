@@ -825,33 +825,43 @@ deepseek 性价比最高。"
         return spaceIdx > 0 ? choice[..spaceIdx] : choice;
     }
 
-    private static async Task<string> RunShellOnceAsync()
+    /// <summary>
+    /// `!` shell 直通执行：裸 `!` 弹提示输入命令，`!cmd` 直接执行 cmd。
+    /// 走 ExecuteUserShellAsync（跳过 Agent 黑名单，仅留绝对红线——红色边框即危险提示）。
+    /// 输出**加到聊天内容**（tool 角色纯文本，防 markdown 误渲染），过长截取最后 500 行。
+    /// </summary>
+    private static async Task RunShellCommandAsync(string? command, ChatScreen screen)
     {
-        var needRestore = TuiManager.Instance.IsActive;
-        if (needRestore) TuiManager.Instance.Exit();
-        try
+        var cmd = command;
+        if (string.IsNullOrWhiteSpace(cmd))
         {
-        var cmd = UxHelper.Ask("! 命令");
-        if (string.IsNullOrWhiteSpace(cmd)) return "";
+            // 裸 !：控制台提示输入命令（Ask 需先退出 TUI）
+            var needRestore = TuiManager.Instance.IsActive;
+            if (needRestore) TuiManager.Instance.Exit();
+            try { cmd = UxHelper.Ask("! 命令"); }
+            finally { if (needRestore) { TuiManager.Instance.Enter(); TuiManager.Instance.Render(); } }
+            if (string.IsNullOrWhiteSpace(cmd)) return;
+        }
 
         try
         {
-            var result = await new Tools.BashTool().ExecuteAsync(
-                new Dictionary<string, object?> { ["command"] = cmd });
-            Console.WriteLine(result);
+            var result = await new Tools.BashTool().ExecuteUserShellAsync(cmd);
+            screen.AddMessage($"$ {cmd}\n{TailLines(result, 500)}", "tool");
         }
         catch (Exception ex)
         {
             ErrorLog.Error("Program.ShellCmd", $"Shell 命令执行异常: {ex.Message}", ex);
-            UxHelper.Error("Shell 错误", ex.Message);
+            screen.AddSystemMsg($"⚠ Shell 错误: {ex.Message}");
         }
+    }
 
-        return ""; // 不回传给 Agent
-        }
-        finally
-        {
-            if (needRestore) { TuiManager.Instance.Enter(); TuiManager.Instance.Render(); }
-        }
+    /// <summary>保留字符串**最后** maxLines 行（超出丢头部；少则原样）。纯逻辑便于自测。</summary>
+    internal static string TailLines(string s, int maxLines)
+    {
+        if (string.IsNullOrEmpty(s) || maxLines <= 0) return s ?? "";
+        var lines = s.Replace("\r\n", "\n").Split('\n');
+        if (lines.Length <= maxLines) return s;
+        return string.Join('\n', lines.TakeLast(maxLines)) + $"\n…（共 {lines.Length} 行，仅显示最后 {maxLines} 行）";
     }
 
     private static async Task PlanModeAsync()

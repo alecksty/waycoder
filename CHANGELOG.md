@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.96.40 (2026-09-01) — config.json 权威源 + TUI `!cmd` shell 直通 + 输入框前缀变色
+
+- **配置加载重构**：`~/.waycoder/config.json` 成为**唯一权威源**，默认不再从环境变量（含 `.env`）读取配置——消除 shell 里残留 `WAYCODER_MODEL` / `WAYCODER_API_KEY` 等对已配置行为的意外干扰（`Config.CreateInstance` 改为按「config.json 是否存在」分支）
+  - **普通启动**：仅加载 config.json + api_keys.json，环境变量（含 `.env` 文件）完全不读取；API Key 只从 api_keys.json 解析
+  - **首次启动**（无 config.json）：从 `.env` + 环境变量读取并**导入固化到 config.json**；API Key 经 `ApiKeyStore.ImportFromEnvironment` 导入 api_keys.json（只补空不覆盖，通用 `WAYCODER_API_KEY` 导入当前服务商条目）；已有 `.env` 精简为 5 项引导配置，全新安装不凭空创建
+  - 删除 config.json 即回到首次启动状态（可重新导入环境变量）；删除 `MigrateToConfigJsonIfNeeded`，逻辑折叠进首次启动分支
+  - 运行时开关（`WAYCODER_WEB_PORT` / `WAYCODER_TRAJECTORY` / 代理变量等）仍读真实 OS 环境变量，不受影响；`GITEE_TOKEN` 等若只存在 `.env` 里则普通启动不再加载（需移到系统环境变量）
+- **TUI `!cmd` shell 直通**：输入 `!命令` 直接在操作系统 shell 执行（Windows=`cmd.exe`，macOS/Linux=`/bin/bash`），**输出加到聊天内容持久显示**（tool 角色纯文本防 markdown 误渲染，过长截取最后 500 行 `TailLines`）；裸 `!` 保留弹提示；新增 `BashTool.ExecuteUserShellAsync` —— 跳过 Agent 黑名单（curl/npm/sudo/apt 不再拦），仅保留绝对红线（不可逆系统破坏），红色边框即危险提示（`ProcessUserInput` 由 `== "!"` 改 `StartsWith("!")` 分发，`RunShellOnceAsync` → `RunShellCommandAsync` 支持命令参数）
+  - **红线按平台分列**：`DangerousPatterns` / `RedLinePatterns` 同时含 bash 语法（`rm -rf /`、fork 炸弹、`dd`/`mkfs`/`chmod 777 /`）与 **Windows cmd 语法**（`del /s`、`rd /s`、`format c:`、`reg delete`）——两平台命令列表不同，各自拦截，防 `!` 直通在 Windows 上绕过红线
+- **`!cmd` 执行后黑屏修复**：退出 TUI 执行命令再 `Enter()` 重进备用屏后 `Render()` 读到残留的 `_needsFullRefresh=false` 走「无脏」路径不重绘 → 黑屏；`TuiManager.Enter()` 现在强制 `_needsFullRefresh=true` + `IsDirty=true`，重进即全刷新重绘（裸 `!` / Plan 模式重进同样受益）
+- **TUI 输入框前缀变色**：输入以 `/`、`!`、`@`、`#` 开头的消息时，输入区上下两条横线变色——`!`=红（危险 shell）、`/`=青（斜杠命令）、`@`=品红（提及）、`#`=灰（注释）、其余=默认分隔线色（`ChatScreen.InputBorderColorFor` 纯逻辑 + `SyncInputBorderColor` 每帧同步，.tui 标记版同生效）
+- **TUI 输入框自动换行 + 动态高度**：`TuiTextArea.MaxColumnWidth` 设为终端宽——超宽内容自动折行成多逻辑行；输入区高度动态 1~5 视觉行（`inputH = Clamp(Lines.Count, 1, 5)`），超过 5 行向上滚动（`EnsureCursorVisible` 每帧钳制滚动）；新增 `MaxLength` 上限（聊天输入 32K 字符，键入/粘贴/赋值 Rune 安全截断，`TruncateRunes` 防代理对切半）
+- **自测**：4860 全过
+
 ## v0.96.39 (2026-08-31) — 文档更新（apt 仓库上线 + 安装说明）
 
 - **apt 仓库文档更新**：`packaging/apt/RELEASE.md` 重写为 apt 仓库已上线 GitHub Pages（v0.96.36 amd64/arm64，`apt install waycoder` 可用）——旧文档停留在「Gitee Pages 待上线」已过时；`docs/安装与升级.md` apt 段改为可用的安装命令（含二进制 keyring 注意）

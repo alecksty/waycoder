@@ -195,6 +195,10 @@ public class TuiManager : IDisposable
         if (MouseEnabled) { if (Tty.IsAppleTerminal) Tty.EnableMouseBasic(); else Tty.EnableMouse(); }
         (TW, TH) = (Tty.Cols, Tty.Rows);
         IsActive = true;
+        // 进入备用屏后强制全刷新：否则 Render 读到上次残留的 _needsFullRefresh=false 走「无脏」路径
+        // 直接 return 不重绘 → 黑屏（如 `!cmd` 退出再进入 TUI 后画面不刷新）
+        IsDirty = true;
+        _needsFullRefresh = true;
         StartAnimTicker(); // 独立动画心跳：主循环被堵时 spinner 仍转
     }
 
