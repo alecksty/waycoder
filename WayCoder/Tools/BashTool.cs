@@ -45,17 +45,29 @@ public class BashTool : ITool, ICancellableTool
         (new(@":\(\)\s*\{.*:\|:.*\}"), "fork 炸弹"),
         (new(@"\bcurl\b.*\|\s*(sudo\s+)?(ba)?sh\b"), "curl 管道到 shell"),
         (new(@"\bwget\b.*\|\s*(sudo\s+)?(ba)?sh\b"), "wget 管道到 shell"),
+        // Windows cmd 语法（cmd.exe 与 bash 命令列表不同，按平台分别拦）
+        (new(@"\b(?:del|erase)\b.*?/s\b", RegexOptions.IgnoreCase), "Windows 递归删除（del /s）"),
+        (new(@"\b(?:rd|rmdir)\b.*?/s\b", RegexOptions.IgnoreCase), "Windows 递归删除目录（rd /s）"),
+        (new(@"\bformat\s+[a-zA-Z]:", RegexOptions.IgnoreCase), "Windows 格式化磁盘"),
+        (new(@"\breg\s+delete\b", RegexOptions.IgnoreCase), "Windows 注册表删除"),
     ];
 
-    // 绝对红线：即使 YOLO 模式也拦截（不可逆系统级破坏，防止误操作毁机）
+    // 绝对红线：即使 YOLO 模式/用户 ! 直通也拦截（不可逆系统级破坏，防止误操作毁机）。
+    // 同时含 bash（Linux/macOS）与 cmd.exe（Windows）两种语法——两平台命令列表不同。
     private static readonly (Regex Pattern, string Reason)[] RedLinePatterns =
     [
+        // bash（Linux / macOS）
         (new(@"\brm\s+(-\w*)?-r\w*\s+(/|~|\$HOME)"), "对家目录/根目录的递归删除"),
         (new(@":\(\)\s*\{.*:\|:.*\}"), "fork 炸弹"),
         (new(@"\bdd\s+.*of=/dev/"), "原始磁盘写入"),
         (new(@">\s*/dev/sd[a-z]"), "覆盖块设备"),
         (new(@"\bmkfs\b"), "格式化文件系统"),
         (new(@"\bchmod\s+(-R\s+)?777\s+/"), "对根目录 chmod 777"),
+        // cmd.exe（Windows）
+        (new(@"\b(?:del|erase)\b.*?/s\b", RegexOptions.IgnoreCase), "Windows 递归删除（del /s）"),
+        (new(@"\b(?:rd|rmdir)\b.*?/s\b", RegexOptions.IgnoreCase), "Windows 递归删除目录（rd /s）"),
+        (new(@"\bformat\s+[a-zA-Z]:", RegexOptions.IgnoreCase), "Windows 格式化磁盘"),
+        (new(@"\breg\s+delete\b", RegexOptions.IgnoreCase), "Windows 注册表删除"),
     ];
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
@@ -109,7 +121,15 @@ public class BashTool : ITool, ICancellableTool
         return await Execute(command, timeout, onLine, cancellationToken: cancellationToken);
     }
 
-    private async Task<string> Execute(string command, int timeout, Func<string, Task>? onLine = null, string? sessionId = null, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// 用户 `!` 命令直通执行：跳过 BashGuard 黑名单（curl/npm/sudo/apt 等不再拦截），
+    /// 仅保留绝对红线（rm -rf /、fork 炸弹、dd 写盘、mkfs 等不可逆系统破坏）。
+    /// 红色边框即危险提示；Windows=cmd.exe / macOS/Linux=/bin/bash。
+    /// </summary>
+    public Task<string> ExecuteUserShellAsync(string command, int timeoutSec = 120)
+        => Execute(command, timeoutSec, userShellEscape: true);
+
+    private async Task<string> Execute(string command, int timeout, Func<string, Task>? onLine = null, string? sessionId = null, CancellationToken cancellationToken = default, bool userShellEscape = false)
     {
         // 沙箱网络关（独立于权限模式，yolo 下也生效；localhost 例外）
         var netBlock = SandboxManager.CheckNetworkCommand(command);
@@ -118,7 +138,8 @@ public class BashTool : ITool, ICancellableTool
 
         // YOLO 模式（畅通/上帝模式）：跳过 BashGuard 黑名单与普通危险检查，全部放行；
         // 仅保留绝对红线（rm -rf /、fork 炸弹、dd 写磁盘、mkfs 等不可逆系统破坏）
-        var yolo = PermissionManager.CurrentMode == PermissionManager.Mode.Yolo;
+        // 用户 ! 直通命令同样按 yolo 级别放行（红色边框已提示危险）
+        var yolo = userShellEscape || PermissionManager.CurrentMode == PermissionManager.Mode.Yolo;
 
         // BashGuard 命令黑名单检查（对标 crush 三层防护；yolo 跳过）
         if (!yolo)

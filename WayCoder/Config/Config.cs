@@ -76,12 +76,14 @@ public enum EconomyPriority
 
 /// <summary>
 /// 配置 - 单例模式，所有模块通过 Config.Instance 统一读取。
-/// config.json 是权威源（优先级 config.json > .env/环境变量）。
+/// config.json 是唯一权威源；默认不使用环境变量（含 .env 文件）。
+/// 仅首次启动（无 config.json）时从 .env + 环境变量读取并导入固化到 config.json，
+/// 此后环境变量不再被引用。删除 config.json 即回到首次启动状态（可重新导入环境变量）。
 ///
 /// 新增配置项只需在 _schema 列表中加一行，SettingSchema/FromEnv/SaveToEnvFile 全部自动推导。
 /// 环境变量只保留引导级（约 14 个：服务商/模型/密钥/经济/鼠标/预算/工具白黑名单/Whisper），
 /// 其余属性 EnvVar 置 null = 仅走 config.json（对齐竞品：环境变量越少越好）。
-/// API Key 不保存到 .env 文件（密钥独立管理，走 api_keys.json）。
+/// API Key 不保存到 config.json / .env 文件（密钥独立管理，走 api_keys.json；首次启动从环境变量导入）。
 /// </summary>
 public class Config
 {
@@ -101,46 +103,73 @@ public class Config
 
     private static Config CreateInstance()
     {
-        LoadDotEnv();
         var cfg = new Config();
+        var configExists = File.Exists(ConfigJsonPath);
+        string? providerKey = null;
 
-        // Schema 驱动的批量加载
-        foreach (var p in _schema)
+        if (configExists)
         {
-            var val = Env(p.EnvVar, p.OldEnvVar);
-            if (!string.IsNullOrEmpty(val))
+            // 默认路径：config.json 是唯一权威源 —— 不读 .env、不读环境变量
+            //（环境变量仅在首次启动导入过，之后不再被引用）。
+            cfg.LoadConfigJson();
+
+            // API Key 只从 api_keys.json 解析（环境变量 key 首次启动时已导入 api_keys.json）
+            providerKey = ApiKeyStore.Get(cfg.Provider) ?? ApiKeyStore.ForModel(cfg.Model);
+            if (!string.IsNullOrWhiteSpace(providerKey))
+                cfg.ApiKey = providerKey;
+            // BaseUrl 已由 LoadConfigJson 载入，无环境变量兜底
+        }
+        else
+        {
+            // 首次启动（无 config.json）：从 .env + 环境变量读取，并把结果导入固化到配置文件。
+            LoadDotEnv();
+            foreach (var p in _schema)
             {
-                try { p.Setter(cfg, val); }
-                catch { /* 非法值（如 WAYCODER_MAX_TOKENS=abc）忽略，保留默认值，避免启动崩溃 */ }
+                var val = Env(p.EnvVar, p.OldEnvVar);
+                if (!string.IsNullOrEmpty(val))
+                {
+                    try { p.Setter(cfg, val); }
+                    catch { /* 非法值（如 WAYCODER_MAX_TOKENS=abc）忽略，保留默认值，避免启动崩溃 */ }
+                }
             }
-        }
 
-        // config.json 优先：覆盖 .env / 环境变量注入的值（优先级 config.json > .env > 环境变量）
-        cfg.LoadConfigJson();
+            // 环境变量 API Key → api_keys.json（只补空不覆盖）：
+            // 供应商专属变量（DEEPSEEK_API_KEY 等）由 ImportFromEnvironment 处理；
+            // 通用 WAYCODER_API_KEY（schema 已写入 cfg.ApiKey）导入到当前服务商条目。
+            ApiKeyStore.ImportFromEnvironment();
+            if (string.IsNullOrEmpty(ApiKeyStore.Get(cfg.Provider))
+                && !string.IsNullOrWhiteSpace(cfg.ApiKey)
+                && ApiKeyStore.IsValidApiKey(cfg.ApiKey))
+            {
+                ApiKeyStore.Set(cfg.Provider, cfg.ApiKey);
+            }
 
-        // 特殊处理：ApiKey 解析 —— 一个服务商一个 key，key 跟服务商走（不跟模型走）。
-        // 优先级：全局 JSON（按当前服务商）> .env WAYCODER_API_KEY > 各家 API_KEY 环境变量。
-        var providerKey = ApiKeyStore.Get(cfg.Provider) ?? ApiKeyStore.ForModel(cfg.Model);
-        if (!string.IsNullOrWhiteSpace(providerKey))
-        {
-            cfg.ApiKey = providerKey;
-        }
-        else if (string.IsNullOrEmpty(cfg.ApiKey))
-        {
-            // json 为空时才用环境变量 key（默认优先 api_keys.json，env 只补空不覆盖）
-            cfg.ApiKey = ApiKeyStore.EnvKey(cfg.Provider)
-                ?? Environment.GetEnvironmentVariable("API_KEY")
-                ?? "";
-        }
+            // ApiKey 解析：api_keys.json（刚导入）优先，其余环境变量兜底（仅首次）
+            providerKey = ApiKeyStore.Get(cfg.Provider) ?? ApiKeyStore.ForModel(cfg.Model);
+            if (!string.IsNullOrWhiteSpace(providerKey))
+            {
+                cfg.ApiKey = providerKey;
+            }
+            else if (string.IsNullOrEmpty(cfg.ApiKey))
+            {
+                // json 为空时才用环境变量 key（默认优先 api_keys.json，env 只补空不覆盖）
+                cfg.ApiKey = ApiKeyStore.EnvKey(cfg.Provider)
+                    ?? Environment.GetEnvironmentVariable("API_KEY")
+                    ?? "";
+            }
 
-        // 特殊处理：BaseUrl 多路回退
-        if (string.IsNullOrEmpty(cfg.BaseUrl))
-        {
-            cfg.BaseUrl = Environment.GetEnvironmentVariable("OPENAI_BASE_URL");
-        }
+            // BaseUrl 环境变量兜底（仅首次）
+            if (string.IsNullOrEmpty(cfg.BaseUrl))
+            {
+                cfg.BaseUrl = Environment.GetEnvironmentVariable("OPENAI_BASE_URL");
+            }
 
-        // 首次启动迁移：config.json 不存在但 .env 存在 → 生成 config.json 并精简 .env
-        cfg.MigrateToConfigJsonIfNeeded();
+            // 导入：把当前值固化为 config.json（此后 config.json 为权威源，环境变量不再被读取）。
+            // 首次启动固定生成 config.json（即使无环境变量），锁定「config.json 存在」状态。
+            cfg.SaveToConfigJson();
+            // 已有 .env 才精简为 5 项引导配置；全新安装不凭空创建 .env
+            if (FindEnvFile() != null) cfg.SaveMinimalDotEnv();
+        }
 
         // 每次启动：全局 config.json 有更新则同步一份到项目本地，防止意外损坏
         cfg.SyncConfigJsonToLocal();
@@ -154,7 +183,7 @@ public class Config
     /// <summary>重新加载配置（读取最新的环境变量和 .env 文件）</summary>
     public static void Reload() => _instance = new Lazy<Config>(CreateInstance);
 
-    /// <summary>从环境变量加载配置（兼容旧调用，返回单例）</summary>
+    /// <summary>加载配置（兼容旧调用，返回单例；config.json 为权威源，环境变量仅首次启动导入）</summary>
     public static Config FromEnv() => Instance;
     // ════════════════════════════════════════════════════════════
     // 属性声明（保持原有类型和默认值，全项目兼容）
@@ -1111,7 +1140,8 @@ public class Config
         {
             // 全部配置 → 全局 config.json（secret 密钥除外，独立管理走 api_keys.json）
             SaveToConfigJson();
-            // .env 只保留 5 个基本引导配置（服务商/地址/API_KEY/经济模式/是否使用鼠标）
+            // .env 只保留 5 个基本引导配置（服务商/地址/API_KEY/经济模式/是否使用鼠标）。
+            // 普通启动不再读取 .env —— 它是 config.json 被删除后首次启动的恢复引导源。
             SaveMinimalDotEnv();
         }
     }
@@ -1120,8 +1150,8 @@ public class Config
     private static string ConfigJsonPath => Global.GlobalConfigPath("config.json");
 
     /// <summary>
-    /// 读取全局 config.json 覆盖当前值（优先级 config.json &gt; .env &gt; 环境变量）。
-    /// secret（API Key）不存 config.json，仍走 api_keys.json / .env / 环境变量。
+    /// 读取全局 config.json 覆盖当前值（config.json 唯一权威源；环境变量仅首次启动导入）。
+    /// secret（API Key）不存 config.json，仍走 api_keys.json（首次启动导入的环境变量 key）。
     /// </summary>
     private void LoadConfigJson()
     {
@@ -1228,23 +1258,6 @@ public class Config
     /// <summary>.env 精简后只保留的 5 个基本引导配置（服务商/地址/API_KEY/经济模式/是否使用鼠标）</summary>
     private static readonly string[] BasicDotEnvKeys =
         ["WAYCODER_PROVIDER", "WAYCODER_BASE_URL", "WAYCODER_API_KEY", "WAYCODER_ECONOMY", "WAYCODER_MOUSE"];
-
-    /// <summary>
-    /// 首次启动迁移：config.json 不存在但存在 .env 时，用当前已解析值（含 .env）生成 config.json，
-    /// 并把 .env 精简为 5 项基本配置。此后 config.json 成为权威源，.env 仅作无 config.json 时的兜底。
-    /// </summary>
-    private void MigrateToConfigJsonIfNeeded()
-    {
-        try
-        {
-            if (File.Exists(ConfigJsonPath)) return;
-            if (FindEnvFile() == null) return; // 无 .env 不生成（全新安装保持纯净）
-
-            SaveToConfigJson();
-            SaveMinimalDotEnv();
-        }
-        catch { /* 迁移失败不阻塞启动 */ }
-    }
 
     /// <summary>
     /// 每次启动：全局 ~/.waycoder/config.json 若与项目本地副本内容不同，复制一份到

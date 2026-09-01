@@ -588,7 +588,7 @@ public partial class ChatScreen : TuiScreen
     protected void ComputeLayout(out int panelW, out int inputH, out int promptH, out int progressH, out int chatH)
     {
         panelW = SidePanelVisible ? Math.Min(30, TW / 3) : 0;
-        // 输入区高度 = 行数（默认 1 行，Ctrl+Enter 换行增高，删除键减行，最大 5 行超出滚动）
+        // 输入区高度 = 视觉行数（默认 1 行；Ctrl+Enter 或超宽自动折行增高，最大 5 行，超出向上滚动）
         inputH = Math.Clamp(InputArea.Lines.Count, 1, 5);
         promptH = PromptBar.Visible ? PromptBar.Height : 0;
         progressH = (ProgressPercent.HasValue && ContextManager.IsCompressing) ? 1 : 0;
@@ -605,6 +605,8 @@ public partial class ChatScreen : TuiScreen
     {
         InputArea.Width = TW;
         InputArea.Height = inputH;
+        // 自动折行到终端宽：超宽内容折成多逻辑行（行数=视觉行，驱动 inputH 动态增高；超 5 行滚动）
+        InputArea.MaxColumnWidth = TW;
         // 提示栏只做聊天列表一样宽：侧栏可见时收窄到 TW-panelW，不覆盖侧栏 →
         // 收起提示栏只需重绘聊天区，不用刷新聊天区以外的区域（避免侧栏残留/额外重绘）。
         PromptBar.Width = panelW > 0 ? TW - panelW : TW;
@@ -740,6 +742,8 @@ public partial class ChatScreen : TuiScreen
             Focused = true,
             Placeholder = "输入消息… (Enter 发送, Ctrl+Enter 换行)",
             ShowLineNumbers = false,
+            // 输入上限 32K 字符；MaxColumnWidth（自动折行宽度）由 ApplyDynamicSizes 按终端宽设置
+            MaxLength = 32 * 1024,
             OnSubmit = text =>
             {
                 if (!string.IsNullOrWhiteSpace(text))
@@ -1203,9 +1207,37 @@ public partial class ChatScreen : TuiScreen
         _suggestPrevH = spH;
         _suggestPrevVisible = spVisible;
 
+        // ── 输入框上下横线随前缀变色（/ 命令 青 · ! shell 红 · @ 品红 · # 灰）──
+        SyncInputBorderColor();
+
         // VBox/HBox 自动处理 Y 坐标
         RootView.Layout();
         base.Render(sb);
+    }
+
+    /// <summary>
+    /// 输入框上下横线颜色：`!` 前缀=红（危险 shell）、`/`=青（斜杠命令）、`@`=品红（提及）、`#`=灰（注释），
+    /// 其余=主题默认分隔线色。纯逻辑便于自测。
+    /// </summary>
+    public static int InputBorderColorFor(string text)
+    {
+        var first = text.TrimStart().FirstOrDefault();
+        return first switch
+        {
+            '!' => AnsiColors.Red,        // 危险 shell 指令
+            '/' => AnsiColors.Cyan,       // 斜杠命令
+            '@' => AnsiColors.Magenta,    // 提及
+            '#' => AnsiColors.Grey,       // 注释
+            _ => TuiTheme.Current.SeparatorFg,
+        };
+    }
+
+    /// <summary>每帧同步输入框上下横线颜色（随输入前缀变色；每帧整屏重绘，直接设 LineColor 即生效）。</summary>
+    private void SyncInputBorderColor()
+    {
+        var color = InputBorderColorFor(InputArea.Text);
+        InputTopBorder.LineColor = color;
+        InputBotBorder.LineColor = color;
     }
 
     // ── 输入 ──

@@ -619,6 +619,31 @@ public static partial class SelfTest
 
         Check("bash 允许安全 rm", BashTool.CheckDangerous("rm -f notes.log") == null);
 
+        // 用户 ! 命令直通（跳过黑名单，仅留绝对红线）
+        Check("! 命令跳过黑名单（sudo 不再拦）",
+            !new BashTool().ExecuteUserShellAsync("sudo --version").Result.Contains("已阻止"));
+        Check("! 命令仍拦绝对红线 rm -rf /",
+            new BashTool().ExecuteUserShellAsync("rm -rf /").Result.Contains("已阻止"));
+        // Windows cmd 红线（文本模式匹配，跨平台不真执行）：cmd 命令列表与 bash 不同
+        Check("! 拦 Windows del /s 递归删除",
+            new BashTool().ExecuteUserShellAsync("del /s /q c:\\*").Result.Contains("已阻止"));
+        Check("! 拦 Windows rd /s 删目录树",
+            new BashTool().ExecuteUserShellAsync("rd /s /q c:\\").Result.Contains("已阻止"));
+        Check("! 拦 Windows format c:",
+            new BashTool().ExecuteUserShellAsync("format c:").Result.Contains("已阻止"));
+        Check("! 拦 Windows reg delete",
+            new BashTool().ExecuteUserShellAsync("reg delete HKCU\\Software /f").Result.Contains("已阻止"));
+        // 平台红线不误伤正常命令
+        Check("Windows 红线不拦普通 del file.txt",
+            !new BashTool().ExecuteUserShellAsync("del notes.txt").Result.Contains("已阻止"));
+
+        // ! 命令输出取尾（TailLines：保留最后 N 行，过长丢头部 + 截断标记）
+        Check("TailLines 少行原样", Program.TailLines("a\nb", 5) == "a\nb");
+        Check("TailLines 超行取尾", Program.TailLines("1\n2\n3\n4\n5", 2) == "4\n5\n…（共 5 行，仅显示最后 2 行）");
+        Check("TailLines 超行带截断标记", Program.TailLines("1\n2\n3", 1).Contains("仅显示最后 1 行"));
+        Check("TailLines 空串安全", Program.TailLines("", 500) == "");
+        Check("TailLines CRLF 归一", Program.TailLines("a\r\nb\r\nc", 1).StartsWith("c\n…"));
+
         // cwd 跟踪
         try
         {

@@ -1164,9 +1164,10 @@ public partial class Program
             return;
         }
 
-        if (userInput == "!")
+        // ! 前缀 = shell 直通：!cmd 直接执行，裸 ! 弹提示输入命令；输出加到聊天
+        if (userInput.StartsWith("!"))
         {
-            await RunShellOnceAsync();
+            await RunShellCommandAsync(userInput.Length > 1 ? userInput[1..].Trim() : null, screen);
             return;
         }
 

@@ -28,6 +28,10 @@ public class TuiTextArea : TuiEditBase
         get => string.Join("\n", Lines);
         set
         {
+            if (MaxLength > 0 && value.Length > MaxLength)
+                value = TruncateRunes(value, MaxLength);
+            // 注意：Text setter 不自动折行（MaxColumnWidth 折行走键入/粘贴路径 WrapCurrentLine/ApplyColumnWrap，
+            // 保持既有契约——Chunk7 断言「设 Text 不折行」）
             Lines = string.IsNullOrEmpty(value)
                 ? [""]
                 : [.. value.Replace("\r\n", "\n").Split('\n')];
@@ -90,6 +94,35 @@ public class TuiTextArea : TuiEditBase
 
     /// <summary>文字自动换行列宽（0 = 不限）。超出此列宽自动折行，可视区 Width 可小于此值以实现水平滚动。</summary>
     public int MaxColumnWidth { get; set; } = 0;
+
+    /// <summary>内容最大字符数（0 = 不限）。超限的键入/粘贴/赋值自动截断（聊天输入框 32K）。</summary>
+    public int MaxLength { get; set; } = 0;
+
+    /// <summary>当前全部文本总字符数（含换行符，按 UTF-16 单位计）。</summary>
+    public int TotalLength
+    {
+        get
+        {
+            var sum = 0;
+            foreach (var l in Lines) sum += l.Length;
+            return sum + Math.Max(0, Lines.Count - 1);
+        }
+    }
+
+    /// <summary>按码点安全截断到最多 max 个 UTF-16 单位（禁止 char 切片切半代理对，见 CLAUDE.md 约束）。</summary>
+    static string TruncateRunes(string s, int max)
+    {
+        if (s.Length <= max) return s;
+        var sb = new System.Text.StringBuilder(max);
+        int units = 0;
+        foreach (var rune in s.EnumerateRunes())
+        {
+            if (units + rune.Utf16SequenceLength > max) break;
+            sb.Append(rune);
+            units += rune.Utf16SequenceLength;
+        }
+        return sb.ToString();
+    }
 
     /// <summary>是否启用代码语法高亮（粘贴/输入代码时按内容自动检测语言并多色渲染）。</summary>
     public bool SyntaxHighlight { get; set; }
@@ -596,6 +629,8 @@ public class TuiTextArea : TuiEditBase
 
     protected override void InsertChar(char ch)
     {
+        // 已达最大字符数上限则忽略该字符（聊天输入框 32K）
+        if (MaxLength > 0 && TotalLength >= MaxLength) return;
         var line = SafeLine(CursorRow);
         int pos = Math.Min(CursorCol, line.Length);
         Lines[CursorRow] = line[..pos] + ch + line[pos..];
@@ -610,6 +645,12 @@ public class TuiTextArea : TuiEditBase
     public void InsertText(string text)
     {
         if (string.IsNullOrEmpty(text)) return;
+        if (MaxLength > 0)
+        {
+            int room = MaxLength - TotalLength;
+            if (room <= 0) return;
+            if (text.Length > room) text = TruncateRunes(text, room);
+        }
         ClearSelection();
         var processed = ApplyColumnWrap(text);
         int startRow = CursorRow, startCol = CursorCol;

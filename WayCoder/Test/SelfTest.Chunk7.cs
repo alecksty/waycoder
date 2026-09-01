@@ -1475,6 +1475,23 @@ public static partial class SelfTest
         tp.Paste("A\nB");
         tp.UndoAction();
         Check("TuiTextArea 多行粘贴撤销恢复原文本", tp.Text == "Line one content here");
+
+        // MaxLength 上限（聊天输入框 32K）
+        var ml = new TuiTextArea { MaxLength = 10, Focused = true };
+        ml.Text = "hello";
+        foreach (var c in "abcdefghij") ml.OnKey(new ConsoleKeyInfo(c, ConsoleKey.None, false, false, false));
+        Check("MaxLength 键入达上限后忽略", ml.TotalLength == 10);
+        var ml2 = new TuiTextArea { MaxLength = 8 };
+        ml2.InsertText("abcdefghijklmnop");
+        Check("MaxLength 粘贴截断", ml2.Text == "abcdefgh");
+        var ml3 = new TuiTextArea { MaxLength = 5 };
+        ml3.Text = "abcdefghij";
+        Check("MaxLength 赋值截断", ml3.Text == "abcde");
+
+        // 自动折行：超宽键入折成多逻辑行（驱动输入框动态高度 1~5）
+        var wrap = new TuiTextArea { MaxColumnWidth = 10, Focused = true };
+        foreach (var c in "012345678901234567890123456789") wrap.OnKey(new ConsoleKeyInfo(c, ConsoleKey.None, false, false, false));
+        Check("自动折行 30 字符/宽10 → 3 行", wrap.Lines.Count == 3);
         Console.WriteLine();
 
         // ================================================================

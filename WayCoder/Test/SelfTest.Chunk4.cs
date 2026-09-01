@@ -271,6 +271,15 @@ public static partial class SelfTest
         var input = "／help";
         input = input.Replace('／', '/').Replace('！', '!').Replace('＃', '#');
         Check("全角／→半角/", input == "/help");
+
+        // 输入框横线前缀变色：! 红（危险 shell）/ / 青（命令）/ @ 品红 / # 灰 / 其余默认
+        Check("边框色: ! = 红", UI.Tui.Screens.ChatScreen.InputBorderColorFor("!ls") == UI.Shared.AnsiColors.Red);
+        Check("边框色: / = 青", UI.Tui.Screens.ChatScreen.InputBorderColorFor("/help") == UI.Shared.AnsiColors.Cyan);
+        Check("边框色: @ = 品红", UI.Tui.Screens.ChatScreen.InputBorderColorFor("@agent") == UI.Shared.AnsiColors.Magenta);
+        Check("边框色: # = 灰", UI.Tui.Screens.ChatScreen.InputBorderColorFor("#comment") == UI.Shared.AnsiColors.Grey);
+        Check("边框色: 普通文本 = 默认", UI.Tui.Screens.ChatScreen.InputBorderColorFor("hello") == UI.Tui.TuiTheme.Current.SeparatorFg);
+        Check("边框色: 空输入 = 默认", UI.Tui.Screens.ChatScreen.InputBorderColorFor("") == UI.Tui.TuiTheme.Current.SeparatorFg);
+        Check("边框色: 前导空格仍识别", UI.Tui.Screens.ChatScreen.InputBorderColorFor("  !ls") == UI.Shared.AnsiColors.Red);
         Console.WriteLine();
 
         // ---- 设置界面 Schema ----

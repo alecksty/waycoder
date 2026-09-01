@@ -162,7 +162,7 @@ WayCoder/
 - **MCP 资源/提示词**：`resources/list` + `resources/read` 注册为 `mcp__<server>__resources` 读取工具（省略 `uri` 列出、传 `uri` 读取）；`prompts/list` + `prompts/get` 每个模板注册为 `mcp__<server>__prompt__<name>` 工具（参数从模板 `arguments` 数组生成 inputSchema）；发现响应统一从 JSON-RPC `result` 字段读取（修复此前顶层读取导致工具发现为空的 bug）
 - **双模型架构**：大模型做复杂任务，小模型做压缩/摘要，自动分工省钱
 - **模型回退链**：一串 connect 名（`/connect chain <c1> <c2> ...` 设置），回退时 model+key+baseUrl 一起换（可跨服务商）；**开关默认关**（`FallbackEnabled` / `/connect chain on|off`）——关 = 只用当前模型失败即停，开 = 按链自动回退且消息明确去向 + 剩余链；真实运行时回退在 `Program.Repl`（`BuildFallbackChain`），`FallbackLLM` 供库调用
-- **配置架构**：全局 `~/.waycoder/config.json` 保存全部配置（Key 格式，优先级 config.json > .env > 环境变量）；**环境变量只保留引导级约 14 个**（服务商/模型/密钥/经济/鼠标/预算上限/工具白黑名单/Whisper 三项），其余配置项 EnvVar 置 null = 仅走 config.json（对齐竞品 Claude Code/Codex 的少量环境变量）；.env 仅 5 项基本引导配置（服务商/地址/API_KEY/经济模式/鼠标）；首次启动无 config.json 时自动从 .env 迁移生成并精简 .env；每次启动 config.json 有更新则同步一份到项目 `.waycoder/config.json` 本地备份（先验证文件正常才备份）
+- **配置架构**：全局 `~/.waycoder/config.json` 保存全部配置（Key 格式），**config.json 为唯一权威源，默认不使用环境变量**（含 .env 文件）；仅首次启动（无 config.json）时从 .env + 环境变量读取并**导入固化到 config.json**（此后环境变量不再被引用；删除 config.json 即回到首次启动状态）；**环境变量只保留引导级约 14 个**（服务商/模型/密钥/经济/鼠标/预算上限/工具白黑名单/Whisper 三项），其余配置项 EnvVar 置 null = 仅走 config.json（对齐竞品 Claude Code/Codex 的少量环境变量）；.env 仅 5 项基本引导配置（服务商/地址/API_KEY/经济模式/鼠标，作为删除 config.json 后的恢复引导源，普通启动不再读取）；API Key 走全局 `api_keys.json`（首次启动从环境变量 `ImportFromEnvironment` 导入，只补空不覆盖）；每次启动 config.json 有更新则同步一份到项目 `.waycoder/config.json` 本地备份（先验证文件正常才备份）
 - **模型唯一性按 (id, baseUrl)**：地址不同 = 不同服务商——同 id 不同网关地址的模型都保留显示（如 deepseek-v4-pro 分属内置 DeepSeek 与 OpenCode Go/Zen）；选择模型时保存所选模型的 `DefaultBaseUrl` + `ProviderId` 到槽位/配置（请求走对应网关）；`Find(id)` 内置官方优先兜底、`Find(id, baseUrl)` 精确匹配；gemini 内置地址走 `/v1beta/openai` OpenAI 兼容端点（LLM 端点拼接对 `/openai` 结尾去 `/v1` 前缀）
 - **连接层三层模型（connect / provider / connection）**：`ConnectionConfig`（`~/.waycoder/connections.json` 分类存储 connects / connections / fallbackChain）——connect = {providerId, modelId} 命名条目（大/小模型各一个），provider = {name, baseUrl, apikey} 逻辑一体（name+base_url 在 providers.json、apikey 在 api_keys.json），connection = 大 connect 名 + 小 connect 名（切换连接大/小一起切，可不同服务商）。**「每次切换模型 = 切换 connect」**：`ApplyModelChoice`/`SetActiveConnect` 是统一入口，ModelPicker/ModelCli/Web/GUI/CLI 全部路由到它；`/connect <spec>` 双分隔符解析（connect名 / providerId.modelId / providerId/modelId / baseUrl:model / 裸模型名，`TryParseSpec` 纯逻辑可测）；`Ctrl+Shift+M` 循环切换；旧配置自动迁移；`WithModelOverrideAsync` 按小 connect 的 provider 重配 endpoint（跨服务商大小模型）；模型栏 `(provider)model` 且显示实际生效模型（回退标 `(回退)`）
 - **文件锁**：FileLockManager 防止多 Agent 并发修改冲突，30s 超时自动释放；`Agent.AgentId`（F1-F10）+ `ExecuteToolAsync` 注入 `_agent_id` 到工具参数，跨槽位冲突按槽位归属检测（WriteFile/EditFile 读 `_agent_id` 报「文件被锁定」提醒，而非同源续期）
@@ -179,11 +179,12 @@ WayCoder/
 - **按钮组 + 独立滚动条**：`TuiButtonGroup` 水平/垂直布局 + Tab 导航 + 字母快捷键（对标 Crush button.go）；`TuiScrollbar` 拖拽滑块 + 鼠标滚轮 + 自动隐藏（对标 Crush scrollbar.go）
 - **文件选择 + 命令面板**：`FilePicker.Show()` 目录浏览 + 文件搜索（对标 Crush filepicker）；`CommandPalette.Show()` 分类分组 + 模糊搜索 + 快捷键显示
 - **行内权限确认**：`InlinePermission` 控件在聊天流中嵌入黄色交互确认块，Y/N/A/D 快捷键，参数着色（bash绿/path青），展开折叠详情（对标 Crush inline permission）
-- **多行输入 + 历史**：`TuiDialog.Input()` 升级为 TuiTextArea 多行，`TuiInputHistory` 按字段名 50 条历史 + AOT 安全文本持久化
+- **多行输入 + 历史**：`TuiDialog.Input()` 升级为 TuiTextArea 多行，`TuiInputHistory` 按字段名 50 条历史 + AOT 安全文本持久化；聊天输入框 `MaxColumnWidth=终端宽` 超宽自动折行、高度动态 1~5 视觉行超 5 行上滚、`MaxLength=32K` 上限（Rune 安全截断 `TuiTextArea.TruncateRunes`）
 - **粘贴确认**：ChatScreen 和 TuiChatInput 粘贴超长(>500字符)或多行(>3行)时弹出确认
 - **结构化记忆**：`.corecoder/memory/*.md` frontmatter 多文件 + MEMORY.md 索引，`memory` 工具与系统提示词注入均走结构化格式，首次使用自动从旧 memory.md 迁移
 - **Diff 预览**：`/config DiffPreview true` 开启，write_file/edit_file 写前逐 hunk 确认（Y/N/A/Q），非交互模式（管道/重定向/测试）自动跳过
 - **Bash 安全防护**：`BashGuard` 三层拦截（命令名 + 参数 + 安全白名单），70+ 禁止命令，47 安全只读命令免确认
+- **`!` shell 直通**：TUI 输入 `!命令` 在操作系统 shell 执行（Win=cmd / 非 Win=bash），**输出加到聊天**（tool 纯文本，截取最后 500 行 `Program.TailLines`），裸 `!` 弹提示；`BashTool.ExecuteUserShellAsync` 跳过 Agent 黑名单（用户主动、红框警示）仅留绝对红线；输入框上下横线按前缀变色（`!`红 `/`青 `@`品红 `#`灰）——`ChatScreen.InputBorderColorFor` 纯逻辑
 - **文件追踪 + Stale-Read 保护**：`FileTracker` SHA256 哈希记录 + 外部变更检测 + LRU 淘汰 + Agent 主循环注入变更警告（对标 Crush），防止 Agent 基于过期文件内容做决策
 - **自动续写**：检测"口述代码"（content >300 字符 + 代码标记）→ 追问使其写文件；首轮只分析不动手 → 追问执行
 - **自动摘要**：Crush 风格上下文预算检查 → 触发小模型压缩 → 注入继续提示 → 重置计数器
