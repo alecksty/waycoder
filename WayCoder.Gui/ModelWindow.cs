@@ -164,7 +164,7 @@ public sealed class ModelWindow : Window
             // 组头
             var gname = new TextBlock
             {
-                Text = group.Key,
+                Text = ModelCatalog.ProviderDisplayName(group.Key),
                 FontSize = 11,
                 FontWeight = FontWeight.Bold,
                 Margin = new Thickness(4, 8, 4, 2),

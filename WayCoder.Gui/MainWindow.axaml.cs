@@ -149,9 +149,9 @@ public partial class MainWindow : Window
     private void UpdateHeader()
     {
         var cfg = Config.Instance;
-        ModelButton.Content = $"🧠 {ConnectionConfig.FormatModel(cfg.Provider, cfg.Model)}";
-        BigModelBtn.Content = $"🤖 {ConnectionConfig.FormatModel(cfg.Provider, cfg.Model)}";
-        SmallModelBtn.Content = $"🔧 {ConnectionConfig.FormatModel(cfg.SmallProvider, cfg.SmallModel)}";
+        ModelButton.Content = $"🧠 {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.Provider), cfg.Model)}";
+        BigModelBtn.Content = $"🤖 {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.Provider), cfg.Model)}";
+        SmallModelBtn.Content = $"🔧 {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.SmallProvider), cfg.SmallModel)}";
     }
 
     /// <summary>初始化 composer 工具栏：省钱模式 + 交互权限模式下拉。</summary>

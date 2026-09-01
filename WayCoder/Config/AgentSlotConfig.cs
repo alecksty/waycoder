@@ -111,7 +111,10 @@ public static class AgentSlotConfig
 
     /// <summary>
     /// 根据槽位配置解析出实际的 Base URL。
-    /// 优先级：SlotConfig.BaseUrl > 模型目录默认 Url > 全局 Config.BaseUrl
+    /// 优先级：SlotConfig.BaseUrl > 与全局网关匹配的模型条目 Url > 模型目录默认 Url > 全局 Config.BaseUrl。
+    /// 同 id 多服务商（deepseek-v4-flash 分属 DeepSeek 官方 / AIHubMix 网关）时，网关地址决定归属——
+    /// Find(id) 内置官方优先会误返官方地址（用户经 ModelPicker 选了 AIHubMix，网关却解析成 deepseek.com），
+    /// 所以先按全局配置网关精确匹配目录条目，匹配不到才回退模型目录默认。
     /// </summary>
     public static string? ResolveBaseUrl(SlotConfig slot, string? largeModelId)
     {
@@ -119,6 +122,15 @@ public static class AgentSlotConfig
             return slot.BaseUrl;
         if (largeModelId != null)
         {
+            var cfgBase = Config.Instance.BaseUrl;
+            if (!string.IsNullOrWhiteSpace(cfgBase))
+            {
+                var norm = cfgBase.Trim().TrimEnd('/');
+                var match = ModelCatalog.All.FirstOrDefault(m => m.Id == largeModelId
+                    && !string.IsNullOrEmpty(m.DefaultBaseUrl)
+                    && string.Equals(m.DefaultBaseUrl.Trim().TrimEnd('/'), norm, StringComparison.OrdinalIgnoreCase));
+                if (match != null) return match.DefaultBaseUrl;
+            }
             var info = ModelCatalog.Find(largeModelId);
             // 两层架构：provider 承载唯一地址（地址不同=不同服务商），模型用所属 provider 的地址连接
             if (info != null
@@ -194,10 +206,14 @@ public static class AgentSlotConfig
             var c = ConnectionConfig.FindConnect(connName);
             if (c != null) return c.ProviderId;
         }
-        // 按解析出的模型查目录
+        // 按「实际生效模型 + 网关」精确定位服务商：同 id 多服务商（deepseek-v4-flash 分属 DeepSeek 官方/AIHubMix）
+        // 时 Find(model) 内置官方优先会误报（选了 AIHubMix 却解析成 deepseek），必须用 baseUrl 区分。
         var model = isLarge ? ResolveLargeModel(slot, slotIndex) : ResolveSmallModel(slot, slotIndex);
-        var info = ModelCatalog.Find(model);
+        var baseUrl = ResolveBaseUrl(slot, model);
+        var info = ModelCatalog.Find(model, baseUrl);
         if (info != null) return info.ProviderId;
+        var inferred = ModelCatalog.InferProviderFromBaseUrl(baseUrl);
+        if (inferred != null) return inferred;
         return isLarge ? Config.Instance.Provider : Config.Instance.SmallProvider;
     }
 

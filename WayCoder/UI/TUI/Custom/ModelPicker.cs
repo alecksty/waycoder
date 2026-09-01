@@ -219,7 +219,8 @@ public static class ModelPicker
                 int ri = 0;
                 foreach (var group in filtered.GroupBy(m => m.ProviderId).OrderBy(g => g.Key))
                 {
-                    table.AddGroupHeader(group.Key + GroupStatusMark(group.Key, group.Any(m => m.HasApiKey)));
+                    table.AddGroupHeader(ModelCatalog.ProviderDisplayName(group.Key)
+                        + GroupStatusMark(group.Key, group.Any(m => m.HasApiKey)));
                     rowModels.Add(null);
                     ri++;
                     foreach (var m in group.OrderBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
@@ -940,7 +941,7 @@ public static class ModelPicker
                 var prov = ConnectionConfig.ResolveProvider(connect.ProviderId);
                 var pname = prov?.Name ?? connect.ProviderId;
                 var hasKey = !string.IsNullOrEmpty(prov?.ApiKey) || connect.ProviderId is "local" or "custom";
-                if (seen.Add(connect.ModelId))
+                if (seen.Add(ModelCatalog.ModelKey(connect.ProviderId, connect.ModelId)))
                     list.Add(new(connect.ModelId, $"{pname} · {connect.Name}", pname, connect.ProviderId,
                         hasKey, 128_000, 0, 0, 0, 0, prov?.BaseUrl));
             }

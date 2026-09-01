@@ -763,7 +763,7 @@ deepseek 性价比最高。"
                             else if (role == "assistant") screen.AddMessage(content, "assistant");
                             else if (role == "tool") screen.AddMessage(content, "tool", indent: 1);
                         }
-                        screen.StatusLeft = ConnectionConfig.FormatModel(Config.Instance.Provider, model);
+                        screen.StatusLeft = ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.Provider), model);
                         screen.AddSystemMsg($"📂 已切换到会话: {result.SessionId}");
                     }
                 }

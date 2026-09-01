@@ -126,12 +126,12 @@ public partial class Program
         slot0.ChatMessages.Add(new ChatMsg { Role = "banner", Content = logo, Centered = true });
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"{Global.AppFullName} · {Global.Version}", Centered = true });
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = "深圳市探索智能科技有限公司", Centered = true });
-        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"大模型: {ConnectionConfig.FormatModel(_config.Provider, _config.Model)} · 小模型: {ConnectionConfig.FormatModel(_config.SmallProvider, _config.SmallModel)}  ·  /help 帮助", Centered = true });
+        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"大模型: {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(_config.Provider), _config.Model)} · 小模型: {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(_config.SmallProvider), _config.SmallModel)}  ·  /help 帮助", Centered = true });
         // 快捷键表不再注入首条对话（太占地方），需要时 /help 弹出面板
         // 状态栏左侧写模型名，不写品牌名 —— 品牌在顶栏标题和上面的欢迎横幅里已经有了，
         // 这里再来一遍就是第三遍；而且 /model 切换后本来就会把这里改成模型名，启动态跟着一致。
         // 格式统一 (provider)model：与模型栏同源（active connect），避免两栏显示不一致。
-        slot0.StatusLeft = ConnectionConfig.FormatModel(_config.Provider, _config.Model);
+        slot0.StatusLeft = ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(_config.Provider), _config.Model);
         slot0.HasWelcome = true;
         _llm!.SmallModel = _config.SmallModel;
 
@@ -1378,7 +1378,7 @@ public partial class Program
                 llm.Model = model;
                 agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(model, Config.Instance.MaxContextTokens));
                 // 明确告知当前回退到哪个模型 + 剩余链，避免「退到哪里不清楚」
-                var fmt = ConnectionConfig.FormatModel(connect?.ProviderId ?? Config.Instance.Provider, model);
+                var fmt = ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(connect?.ProviderId ?? Config.Instance.Provider), model);
                 var remaining = modelStack.Skip(attempt + 1)
                     .Select(n => ConnectionConfig.FindConnect(n)?.ModelId ?? n).ToList();
                 var chainHint = remaining.Count > 0 ? $"（剩余: {string.Join(" → ", remaining)}）" : "";

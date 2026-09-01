@@ -392,10 +392,10 @@ public partial class ChatScreen : TuiScreen
         var largeProv = isLargeFallback
             ? ModelCatalog.InferProviderFromBaseUrl(liveLlm?.BaseUrl) ?? AgentSlotConfig.ResolveLargeProvider(slotCfg, ActiveSlotIndex)
             : AgentSlotConfig.ResolveLargeProvider(slotCfg, ActiveSlotIndex);
-        string large = ConnectionConfig.FormatModel(largeProv, largeModel)
+        string large = ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(largeProv), largeModel)
                        + (isLargeFallback ? "«dim»(回退)«/»" : "");
         string small = ConnectionConfig.FormatModel(
-            AgentSlotConfig.ResolveSmallProvider(slotCfg, ActiveSlotIndex),
+            ModelCatalog.ProviderDisplayName(AgentSlotConfig.ResolveSmallProvider(slotCfg, ActiveSlotIndex)),
             AgentSlotConfig.ResolveSmallModel(slotCfg, ActiveSlotIndex));
         string modeStr = WorkModeManager.Format(WorkModeManager.CurrentMode);
         string economyStr = Config.Instance.EconomyMode switch
@@ -465,7 +465,7 @@ public partial class ChatScreen : TuiScreen
     /// </summary>
     public void RefreshModelStatus()
     {
-        StatusLeft = ConnectionConfig.FormatModel(Config.Instance.Provider, Config.Instance.Model);
+        StatusLeft = ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.Provider), Config.Instance.Model);
         MarkDirty();
     }
 

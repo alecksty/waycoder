@@ -173,7 +173,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
                 };
 
                 // hunk 内容（+ 绿 / - 红 / 空格普通）
-                var content = new StackPanel { Spacing = 1, Margin = new Avalonia.Thickness(12, 0, 0, 0) };
+                var content = new StackPanel { Spacing = 1, Margin = new Thickness(12, 0, 0, 0) };
                 var head = new TextBlock
                 {
                     Text = h.Header,
