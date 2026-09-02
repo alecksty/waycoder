@@ -288,6 +288,28 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 .ToJson());
         }
 
+        // 模型归并：别名 providerId → 同 base_url 的已注册供应商（dryRun 只预览不落盘）
+        if (req.Method == "POST" && req.Path == "/provider/reconcile")
+        {
+            var body = Json.Parse(req.Body);
+            var dryRun = body?["dryRun"]?.Kind == JKind.Bool && body!["dryRun"]!.AsBool();
+            var rep = ModelCatalog.ReconcileModels(dryRun);
+            if (!dryRun && (rep.Moved > 0 || rep.DeletedFiles.Count > 0)) BroadcastStateForAll();
+            return HttpResponse.JsonBody(JNode.Object()
+                .Set("ok", true)
+                .Set("dryRun", rep.DryRun)
+                .Set("moved", rep.Moved)
+                .Set("duplicateSkip", rep.DuplicateSkip)
+                .Set("alreadyCanonical", rep.AlreadyCanonical)
+                .Set("noUrl", rep.NoUrl)
+                .Set("unresolved", rep.Unresolved)
+                .Set("backups", StringArray(rep.Backups.ToList()))
+                .Set("deletedFiles", StringArray(rep.DeletedFiles.ToList()))
+                .Set("failedFiles", StringArray(rep.FailedFiles.ToList()))
+                .Set("changes", SerializeReconcileChanges(rep.Changes))
+                .ToJson());
+        }
+
         if (req.Method == "POST" && req.Path == "/models/import")
             return ImportExternalModels(req.Body);
         if (req.Method == "POST" && req.Path == "/models/import-opencode")
@@ -1254,7 +1276,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
 
     /// <summary>从 opencode 在线 /models 端点导入模型列表（OpenAI 兼容格式）。
     /// body.mode = "go"（zen/go/v1，订阅制）默认 / "zen"（zen/v1，按量付费）——两个服务商地址不同。</summary>
-    private static async Task<HttpResponse> ImportOpenCodeOnline(string? body)
+    private async Task<HttpResponse> ImportOpenCodeOnline(string? body)
     {
         try
         {
@@ -1264,8 +1286,13 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             if (bodyObj != null && bodyObj["mode"] is { } modeNode) name = modeNode.AsString()?.Trim();
             var src = ModelCli.OnlineSources.FirstOrDefault(s =>
                 s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ?? ModelCli.OnlineSources[0];
-            // 后台线程执行（models.dev 等大源 4.4MB/7000 模型，同步会阻塞请求线程）
-            var report = await Task.Run(() => ModelCli.ImportOnline(src));
+            var slot = _currentSlot.Value; // 先捕获（Task.Run 后台线程沿用 AsyncLocal，但显式捕获更稳）
+            // 后台线程执行（models.dev 等大源 4.4MB/7000 模型，同步会阻塞请求线程）；
+            // 进度经 SSE「import-progress」实时广播给发起页面（拉取→解析→写入→完成，防「卡死感」）
+            var report = await Task.Run(() => ModelCli.ImportOnline(src, msg =>
+            {
+                try { BroadcastTo(slot, "import-progress", msg); } catch { /* 客户端断开忽略 */ }
+            }));
             return HttpResponse.JsonBody(JNode.Object().Set("ok", true).Set("modelReport", report).ToJson());
         }
         catch (Exception ex)

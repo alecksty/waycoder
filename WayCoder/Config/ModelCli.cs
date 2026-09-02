@@ -752,6 +752,9 @@ public static class ModelCli
             if (ok || detail.Contains("401") || detail.Contains("403"))
                 ModelCatalog.RegisterProvider(g.Key, first.Provider, first.DefaultBaseUrl!);
         }
+        // 导入自愈：AddCustomRange 落盘早于注册，同批同地址多来源名可能产生未注册别名（addrExists 跳过注册）
+        // —— 归并把别名模型挂到刚注册的同地址供应商。幂等：无别名时零写零备份，不影响正常导入。
+        ModelCatalog.ReconcileModels(false);
     }
 
     /// <summary>服务商管理 CLI（--provider list/add/rm/clean，管理 providers.json 数据库）。</summary>
@@ -837,8 +840,17 @@ public static class ModelCli
                     Console.WriteLine(CleanText());
                     return 0;
                 }
+                case "reconcile":
+                {
+                    // 默认预览（安全）：CLI 贪婪参数会吞掉 --dry-run（-- 开头被当独立旗标），
+                    // 故 CLI 显式 apply/run/force 才执行真归并，其余一律 dry-run。
+                    var a = values.Skip(1).Select(v => v.ToLowerInvariant()).ToList();
+                    var apply = a.Any(v => v is "apply" or "run" or "force");
+                    Console.WriteLine(ReconcileText(!apply));
+                    return 0;
+                }
                 default:
-                    Console.WriteLine($"未知子命令「{cmd}」。用法: --provider list|add <id> <名称> <base-url>|rm <id>|select <id>|key <id> <key>|test|import [source]|clean");
+                    Console.WriteLine($"未知子命令「{cmd}」。用法: --provider list|add <id> <名称> <base-url>|rm <id>|select <id>|key <id> <key>|test|import [source]|clean|reconcile [apply]");
                     return 1;
             }
         }
@@ -868,6 +880,33 @@ public static class ModelCli
                 if (ModelCatalog.RemoveCustomByProvider(id) > 0) removed++;
             }
             return removed > 0 ? $"🗑 已清理 {removed} 个无效服务商（保留 API key，模型已删）" : "没有无效服务商";
+        }
+
+        /// <summary>模型归并报告文本：别名 providerId → 同 base_url 的注册供应商。dryRun 只预览不落盘。</summary>
+        public static string ReconcileText(bool dryRun)
+        {
+            var rep = ModelCatalog.ReconcileModels(dryRun);
+            var sb = new StringBuilder();
+            sb.AppendLine(dryRun
+                ? $"🔍 模型归并预览（未写盘，实际归并请去掉 --dry-run）：{rep.Moved} 移动 / {rep.DuplicateSkip} 重复跳过 / {rep.AlreadyCanonical} 已正确 / {rep.NoUrl} 无URL / {rep.Unresolved} 无归属"
+                : $"✅ 模型归并完成（已备份）：{rep.Moved} 移动 / {rep.DuplicateSkip} 重复跳过 / {rep.AlreadyCanonical} 已正确 / {rep.NoUrl} 无URL / {rep.Unresolved} 无归属");
+            if (rep.Backups.Count > 0)
+                sb.AppendLine($"  💾 备份 {rep.Backups.Count} 个文件（{Path.GetFileName(rep.Backups[0])} …）");
+            if (rep.DeletedFiles.Count > 0)
+                sb.AppendLine($"  🗑 删除 {rep.DeletedFiles.Count} 个空别名文件");
+            if (rep.FailedFiles.Count > 0)
+                sb.AppendLine($"  ❌ 写入失败 {rep.FailedFiles.Count} 个文件：{string.Join("、", rep.FailedFiles.Select(Path.GetFileName))}");
+            if (dryRun && rep.Changes != null)
+            {
+                var shown = rep.Changes.Where(c => c.Action is "moved" or "duplicate-skip").Take(20).ToList();
+                foreach (var c in shown)
+                    sb.AppendLine($"  · {c.SourceProviderId}/{c.ModelId} → {c.TargetProviderId}（{c.Action}）");
+                if (shown.Count < rep.Changes.Count(c => c.Action is "moved" or "duplicate-skip"))
+                    sb.AppendLine($"  · … 其余省略");
+            }
+            if (rep.Unresolved > 0)
+                sb.AppendLine($"  ℹ️ {rep.Unresolved} 个模型地址无注册归属（未动）：可 --provider add 注册该地址，或改模型 baseUrl 后重跑");
+            return sb.ToString().TrimEnd();
         }
     }
 

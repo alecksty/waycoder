@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-using System.Text;
 using WayCoder.Tools;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
@@ -22,7 +20,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     public static string SerializeModels()
     {
         var arr = JNode.Array();
-        foreach (var m in ModelCatalog.All.OrderBy(x => x.ProviderId).ThenBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
+        foreach (var m in ModelCatalog.All.OrderBy(x => x.ProviderId, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
         {
             arr.Add(JNode.Object()
                 .Set("id", m.Id)
@@ -88,6 +86,20 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         if (!string.IsNullOrEmpty(ApiKeyStore.Get(providerId))) return true;
         if (!string.IsNullOrEmpty(Config.Instance.ApiKey)) return true;
         return false;
+    }
+
+    /// <summary>归并变更序列化：[{sourceProviderId, targetProviderId, modelId, action}]。</summary>
+    public static JNode SerializeReconcileChanges(IReadOnlyList<ModelCatalog.ReconcileChange>? changes)
+    {
+        var arr = JNode.Array();
+        if (changes != null)
+            foreach (var c in changes)
+                arr.Add(JNode.Object()
+                    .Set("sourceProviderId", c.SourceProviderId)
+                    .Set("targetProviderId", c.TargetProviderId)
+                    .Set("modelId", c.ModelId)
+                    .Set("action", c.Action));
+        return arr;
     }
 
     /// <summary>序列化当前会话状态（活跃槽位、各槽位模型/是否有历史/是否忙碌、当前模型/供应商、是否有 key）。</summary>

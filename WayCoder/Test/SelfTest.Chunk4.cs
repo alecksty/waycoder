@@ -719,6 +719,99 @@ public static partial class SelfTest
             if (leftover2 == "[]") File.Delete(ModelCatalog.LocalModelsPath);
         }
 
+        // ---- 模型库归并（别名 providerId → 同 base_url 已注册供应商）----
+        Section("[模型库归并]");
+        var reconBase = ModelCatalog.GlobalProviderDir;
+        var uA = "https://api.wc-recon-a.example/v1";
+        var uB = "https://api.wc-recon-b.example/v1";
+        var uC = "https://api.wc-recon-c.example/v1";
+        var uUnk = "https://api.wc-unk.example/v1";
+        // 别名模型在「URL 未注册时」先写入（模拟导入早于注册 / 导入来源别名），后注册 canonical → 归并移动
+        ModelCatalog.AddCustom(new ModelCatalog.ModelInfo("__recon_m1__", "M1", "Alias", "wc-alias", "*", "Imported", 0, 0, 0, uA, "alias"), local: false);
+        Check("归并前模型在别名供应商下", ModelCatalog.Find("__recon_m1__")?.ProviderId == "wc-alias");
+        ModelCatalog.RegisterProvider("wcpro", "ReconPro", uA);
+        var rep = ModelCatalog.ReconcileModels(false);
+        Check("归并 moved", rep.Moved >= 1);
+        Check("归并后归属 wcpro", ModelCatalog.Find("__recon_m1__")?.ProviderId == "wcpro");
+        Check("归并后别名文件删除", !File.Exists(Path.Combine(reconBase, "wc-alias.json")));
+        Check("归并备份生成", Directory.GetFiles(reconBase, "wc-alias.json.*.bak").Length > 0);
+
+        // 重复跳过：canonical 已有同 id → 保留现有（orig-version）、移除别名源
+        ModelCatalog.AddCustom(new ModelCatalog.ModelInfo("__recon_dup__", "Dup", "Alias", "wc-alias2", "*", "Imported", 0, 0, 0, uB, "alias-version"), local: false);
+        ModelCatalog.AddCustom(new ModelCatalog.ModelInfo("__recon_dup__", "Dup", "Canon", "wcpro2", "*", "Imported", 0, 0, 0, uB, "orig-version"), local: false);
+        ModelCatalog.RegisterProvider("wcpro2", "ReconPro2", uB);
+        var repDup = ModelCatalog.ReconcileModels(false);
+        var dupLeft = ModelCatalog.All.Where(m => m.Id == "__recon_dup__" && m.ProviderId == "wcpro2").ToList();
+        Check("归并重复跳过计数", repDup.DuplicateSkip >= 1);
+        Check("归并重复保留现有(orig)", dupLeft.Count == 1 && dupLeft[0].Description == "orig-version");
+        Check("归并重复别名源移除", !File.Exists(Path.Combine(reconBase, "wc-alias2.json")));
+
+        // 幂等：再跑无变化
+        var repIdem = ModelCatalog.ReconcileModels(false);
+        Check("归并幂等", repIdem.Moved == 0);
+
+        // 无归属：URL 无注册供应商 → 原样保留
+        ModelCatalog.AddCustom(new ModelCatalog.ModelInfo("__recon_unk__", "Unk", "Unknown", "wc-unk", "*", "Imported", 0, 0, 0, uUnk, "u"), local: false);
+        var repUnk = ModelCatalog.ReconcileModels(false);
+        Check("归并无归属原样", ModelCatalog.Find("__recon_unk__")?.ProviderId == "wc-unk" && repUnk.Unresolved >= 1);
+
+        // 无 URL → 原样保留
+        ModelCatalog.AddCustom(new ModelCatalog.ModelInfo("__recon_nourl__", "NoUrl", "NoUrl", "wc-nourl", "*", "Imported", 0, 0, 0, null, "n"), local: false);
+        var repNoUrl = ModelCatalog.ReconcileModels(false);
+        Check("归并无 URL 原样", ModelCatalog.Find("__recon_nourl__")?.ProviderId == "wc-nourl" && repNoUrl.NoUrl >= 1);
+
+        // dry-run：预览计数但不落盘
+        ModelCatalog.AddCustom(new ModelCatalog.ModelInfo("__recon_dry__", "Dry", "Alias", "wc-alias3", "*", "Imported", 0, 0, 0, uC, "d"), local: false);
+        ModelCatalog.RegisterProvider("wcpro3", "ReconPro3", uC);
+        var dryBakCount = Directory.GetFiles(reconBase, "*.bak").Length;
+        var repDry = ModelCatalog.ReconcileModels(true);
+        Check("归并 dry-run 计数", repDry.Moved >= 1 && repDry.DryRun);
+        Check("归并 dry-run 不落盘", File.Exists(Path.Combine(reconBase, "wc-alias3.json")) && ModelCatalog.Find("__recon_dry__")?.ProviderId == "wc-alias3");
+        Check("归并 dry-run 无备份", Directory.GetFiles(reconBase, "*.bak").Length == dryBakCount);
+
+        // 防复发：AddCustomRange 把别名模型归一化到注册归属者，不建别名文件
+        ModelCatalog.ReconcileModels(false); // 先把 dry 的别名归并掉，回到干净态
+        ModelCatalog.AddCustomRange([new ModelCatalog.ModelInfo("__recon_ar__", "AR", "Alias", "wc-alias4", "*", "Imported", 0, 0, 0, uC, "a")], local: false);
+        Check("防复发: AddCustomRange 归一化", ModelCatalog.Find("__recon_ar__")?.ProviderId == "wcpro3");
+        Check("防复发: 不建别名文件", !File.Exists(Path.Combine(reconBase, "wc-alias4.json")));
+
+        // 字段归一化回归（wafer.ai → wafer-ai 型）：存储 providerId 规范化后==目标，应改写字段而非误删
+        // （历史 bug：ModelKey 归一化使 takenKeys 含自身 key → 被判 duplicate-skip 直接删，无 canonical 副本）
+        var uD = "https://api.wc-recon-d.example/v1";
+        ModelCatalog.AddCustom(new ModelCatalog.ModelInfo("__recon_fld__", "Fld", "Wafer AI", "wafer.ai", "*", "Imported", 0, 0, 0, uD, "f"), local: false);
+        ModelCatalog.RegisterProvider("wafer-ai", "Wafer", uD);
+        var repFld = ModelCatalog.ReconcileModels(false);
+        Check("归并字段归一化: 归属改写为 wafer-ai", ModelCatalog.Find("__recon_fld__")?.ProviderId == "wafer-ai");
+        Check("归并字段归一化: 不误删模型", ModelCatalog.Find("__recon_fld__") != null);
+        Check("归并字段归一化: 原地文件保留", File.Exists(Path.Combine(reconBase, "wafer-ai.json")));
+
+        // 清理测试数据（不污染真实注册表/模型库）
+        ModelCatalog.RemoveCustom("__recon_m1__");
+        ModelCatalog.RemoveCustom("__recon_dup__");
+        ModelCatalog.RemoveCustom("__recon_unk__");
+        ModelCatalog.RemoveCustom("__recon_nourl__");
+        ModelCatalog.RemoveCustom("__recon_dry__");
+        ModelCatalog.RemoveCustom("__recon_ar__");
+        ModelCatalog.RemoveCustom("__recon_fld__");
+        ModelCatalog.RemoveProvider("wcpro");
+        ModelCatalog.RemoveProvider("wcpro2");
+        ModelCatalog.RemoveProvider("wcpro3");
+        ModelCatalog.RemoveProvider("wafer-ai");
+        foreach (var bak in Directory.GetFiles(reconBase, "wc-alias*.bak")) { try { File.Delete(bak); } catch { } }
+        foreach (var bak in Directory.GetFiles(reconBase, "wafer-ai.json.*.bak")) { try { File.Delete(bak); } catch { } }
+        Console.WriteLine();
+
+        // 清理测试数据（不污染真实注册表/模型库）
+        ModelCatalog.RemoveCustom("__recon_m1__");
+        ModelCatalog.RemoveCustom("__recon_dup__");
+        ModelCatalog.RemoveCustom("__recon_unk__");
+        ModelCatalog.RemoveCustom("__recon_nourl__");
+        ModelCatalog.RemoveCustom("__recon_dry__");
+        ModelCatalog.RemoveCustom("__recon_ar__");
+        ModelCatalog.RemoveProvider("wcpro");
+        ModelCatalog.RemoveProvider("wcpro2");
+        ModelCatalog.RemoveProvider("wcpro3");
+        foreach (var bak in Directory.GetFiles(reconBase, "wc-alias*.bak")) { try { File.Delete(bak); } catch { } }
         Console.WriteLine();
 
         // ---- 会话管理 ----

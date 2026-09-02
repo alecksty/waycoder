@@ -1,8 +1,4 @@
-﻿using WayCoder.Tools;
-using WayCoder.UI.Tui;
-using WayCoder.UI.TUI.Base;
-
-namespace WayCoder.UI.Cli.Arguments;
+﻿namespace WayCoder.UI.Cli.Arguments;
 
 // ═══════════════════════════════════════════════════════════════
 // 模型参数
@@ -375,6 +371,7 @@ public class ProviderArg : CliArg
         ("test", "连通性测试"),
         ("import [source]", "导入外部模型库"),
         ("clean", "清理无效服务商（探测失败的）"),
+        ("reconcile [apply]", "把模型归并到同地址的已注册服务商（默认预览；apply/run 才执行，先备份）"),
     ];
     public ProviderArg() : base("provider", "--provider") { }
     public override int? OnMatch(List<string> values) => ModelCli.ProviderCli.Run(values);

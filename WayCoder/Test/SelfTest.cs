@@ -133,6 +133,7 @@ public static partial class SelfTest
         ["[Git]"] = "git",         ["[Git "] = "git",         ["[Git PR]"] = "git",     ["[Git 大"] = "git",
         // config
         ["[配置]"] = "config",     ["[设置 Schema]"] = "config",["[配置读写]"] = "config",["[SaveToEnvFile]"] = "config",
+        ["[模型库归并]"] = "config",
         // memory
         ["[记忆]"] = "memory",     ["[记忆自动注入]"] = "memory",["[语义记忆]"] = "memory",
         // agent
