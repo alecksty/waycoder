@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.96.42 (2026-09-02) — 模型归并迁移（修复 0 模型供应商）+ 导入多源/进度 + 模型对话框优化
+
+- **模型归并迁移（修复 0 模型供应商）**：新增 `ModelCatalog.ReconcileModels` —— 把自定义模型从「别名 providerId」按 **base_url 归并到已注册供应商**（如 `bailian` 0→73、`qiniucloud` 0→81、`wafer-ai` 0→3、`fireworks` 0→17）。别名来源 = 多源导入按来源声明名/URL host 推导的 id 与注册表脱节
+  - **安全**：备份先行（`.bak` 时间戳）+ 先写目标后删源（防崩溃丢模型）+ 幂等可重跑；**字段归一化**（`wafer.ai`→`wafer-ai`）改写存储字段而非误删；**真别名**仅当已存在 canonical 条目才重复跳过（移除别名源，别名 id 彻底消失）；空别名文件自动删除
+  - **导入防复发**：`AddCustom`/`AddCustomRange` 持久化边界 `NormalizeToRegisteredOwner`（按注册表 base_url 归一化 providerId）+ `RegisterImportProviders` 导入自愈——正常导入不再产生 0 模型供应商
+  - **命令面**：`/provider reconcile [--dry-run]`（TUI）、`--provider reconcile`（**默认预览**，`apply`/`run` 才执行，防误操作）、Web `POST /provider/reconcile`（dryRun 参数）
+  - **实测**：用户数据 0 模型供应商 **35 → 8**（剩余为真正无模型的本地/内置供应商）；归并 5 移动 / 3133 重复合并 / 零数据丢失；~500 个 `.bak` 备份可回滚
+- **导入多源统一（所有端）**：Web 在线导入**修复**（`app.js` 重复 onclick handler 覆盖导致只剩 opencode）→ 恢复 **10 源多选框**（本地 9 源原有多选）；TUI `/model import`、`/provider import` 支持 `online [源名...]`（空格/逗号多源）/ `allonline`；CLI `--model import online <源>`；GUI/MAUI 原已多源
+- **在线导入进度显示（所有端）**：后端 `ImportOnline` 4 段 onProgress（🔍 拉取→🔄 解析→写入→✅ 完成）——**Web** 经 SSE `import-progress` 实时广播到发起页（`model-scan-status` 实时更新）、**GUI** 经 Dispatcher 实时上屏、**TUI/CLI** 原本已逐步显示——告别「导入看着像卡死」
+- **模型对话框**：Web 模型选择框加宽 **880→1000px** + 价格列 **90→140px** + **去【取消】按钮**（标题 × / 点遮罩仍可关）；GUI 模型列表**组内按模型 ID 排序**（对齐 Web/TUI「供应商 ID 分组 + 模型 ID 排序」）
+- **自测**：4890 全过（新增「模型库归并」18 项断言：迁移/重复跳过/幂等/无归属/无URL/dry-run/防复发/字段归一化回归）；三端编译 0 警告 0 错误
+
 ## v0.96.41 (2026-09-02) — 服务商名称显示五端统一 + Web 模型框加宽/连接切换修复
 
 - **服务商名称显示统一（TUI/GUI/Web/MAUI/CLI 五端）**：新增 `ModelCatalog.ProviderDisplayName`（大小写不敏感，providers.json 注册显示名优先），模型栏/分组头/厂商列统一显示注册显示名（`(AIHubMix)deepseek-v4-flash` 而非 `(aihubmix)…`），`/provider rename` 后各端刷新即时生效
