@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.96.45 (2026-09-03) — 大文件拆分 + 提取重复代码（纯重构，行为不变）
+
+本版为纯内部重构：拆分超 1300 行的大文件、把散落的重复样板收拢到公共工具类，无用户可见功能变化。自测 4898 全过，三端编译 0 警告 0 错误。
+
+- **大文件 partial 拆分**：
+  - `Config/Config.cs`（1388→412 行）拆出 `Config.Schema.cs`（schema 定义表+查询）、`Config.Storage.cs`（config.json/.env 存储）、`Config.Env.cs`（环境变量辅助）
+  - `Config/ModelCatalog.cs`（1471→397 行）拆出 `ModelCatalog.BuiltIn.cs`（内置目录）、`ModelCatalog.Query.cs`（查询解析）、`ModelCatalog.Import.cs`（多格式导入）
+  - `Config/ModelCli.cs`（1320→366 行）拆出 `ModelCli.Free.cs`/`Keys.cs`/`Test.cs`/`Import.cs`
+- **提取重复代码（批1 零语义工具收拢）**：`Global.cs` 新增 `WriteAllTextAtomic`（原子写）/`EnsureDir`/`TodayStamp`/`NowStamp`/`LogStamp`/`CleanupOldFiles`/`EnforceMaxFiles`；`TextEncoding.IsBinaryContent`；`ChatScreen.ConfirmPaste`。替换散落样板：原子写 9 处、建目录 30 处、时间戳 7 处、retention 清理 6 处
+- **提取重复代码（批2 统一助手）**：`ProviderDisplayName` 内联 15 处（含删 MAUI 本地辅助）、新增 `BaseUrlOf` 统一 4 处、`NormalizeBaseUrl` 改 public 统一 12 处、`FormatCtx` 复用、`ModelPicker.StatusText(ScanStatus)` 提取
+- **提取重复代码（批3）**：`Agent.ApplyRuntimeModel` 提取——CLI/Web 5 端「重配模型三连」收敛
+- **GUI 按钮图标/文案微调**：编辑器/设置/新建会话/清空按钮 emoji 化 + Style 主题资源文件
+
 ## v0.96.44 (2026-09-02) — GUI 主窗口重排（头部按钮统一主题化 + 布局重构）
 
 - **GUI 主窗口头部重排**：主题/模型/编辑器/设置按钮统一改用主题动态资源着色（`TextBrush`/`BorderBrush`，切主题即时一致），跨行格式化；**隐藏主窗口「模型选择」按钮**（`IsVisible=False`）
