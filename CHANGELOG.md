@@ -1,5 +1,12 @@
 # 更新日志
 
+## v0.96.44 (2026-09-02) — GUI 主窗口重排（头部按钮统一主题化 + 布局重构）
+
+- **GUI 主窗口头部重排**：主题/模型/编辑器/设置按钮统一改用主题动态资源着色（`TextBrush`/`BorderBrush`，切主题即时一致），跨行格式化；**隐藏主窗口「模型选择」按钮**（`IsVisible=False`）
+- **侧栏/会话区/状态栏/输入区 XAML 重构**：布局标签统一缩进与换行风格
+- **`.cs` 清理**：槽位切换/会话保存等 for 循环统一补花括号 + `var` 声明
+- GUI 编译 0 警告 0 错误
+
 ## v0.96.43 (2026-09-02) — models.dev 导入修复（官方供应商不被内置跳过 + api=None 回退官方端点）
 
 - **models.dev 导入不再按内置 id 跳过**：此前 `ImportOnline` 跳过所有「内置 id 同名」模型——models.dev 的 deepseek 官方模型（`deepseek-v4-pro`/`deepseek-v4-flash`/`deepseek-v4-flash-vision-exp`）全被跳过，官方供应商在导入结果里缺失（只剩网关托管的 deepseek 模型）；openrouter 等网关托管的同名 deepseek 模型也被误跳

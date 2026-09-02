@@ -175,10 +175,14 @@ public partial class MainWindow : Window
 
         _activeSlot = slot;
         InputBox.Text = _drafts[slot] ?? ""; // 恢复目标槽位草稿
-        for (int i = 0; i < SlotCount; i++)
+
+        for (var i = 0; i < SlotCount; i++)
+        {
             _slotButtons[i].Background = i == slot
                 ? new SolidColorBrush(Color.Parse("#4f8cff"))
                 : new SolidColorBrush(Color.Parse("#1d2230"));
+        }
+
         RebuildMessages(slot);
         SlotLabel.Text = $"槽位 F{slot + 1}";
         UpdateSendButtonState(slot); // 单按钮：空闲=发送(↑)，忙=停止(⏹)，始终可点
@@ -293,7 +297,7 @@ public partial class MainWindow : Window
 
     private void SaveAllSessions()
     {
-        for (int i = 0; i < SlotCount; i++)
+        for (var i = 0; i < SlotCount; i++)
         {
             var agent = _agents[i];
             if (agent == null) continue;
