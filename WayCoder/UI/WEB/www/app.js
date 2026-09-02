@@ -522,7 +522,6 @@ function confirmModel() {
 function closeModelModal() { selectedModelId = ''; selectedProviderId = ''; pendingMode = ''; document.getElementById('model-modal').classList.remove('open'); }
 document.getElementById('model-search').oninput = e => renderModelList(e.target.value);
 document.getElementById('model-close').onclick = closeModelModal;
-document.getElementById('model-cancel').onclick = closeModelModal;
 document.getElementById('model-confirm').onclick = confirmModel;
 // 点击遮罩（卡片外）关闭模型弹窗
 document.getElementById('model-modal').addEventListener('click', e => {
@@ -767,16 +766,6 @@ document.getElementById('model-clear-all-btn').onclick = () => {
   }).catch(() => { status.textContent = '清空失败'; });
 };
 
-// ── 在线导入（拉取 opencode 在线 /models 列表）──
-document.getElementById('model-opencode-btn').onclick = () => {
-  const status = document.getElementById('model-scan-status');
-  status.textContent = '在线导入中…';
-  fetch('/models/import-opencode', { method: 'POST' }).then(r => r.json()).then(res => {
-    status.textContent = '';
-    alert('在线导入：' + (res.modelReport || res.error || '完成'));
-    fetchModels();
-  }).catch(() => { status.textContent = '在线导入失败'; });
-};
 
 // ── 设置 / 清除 key（对当前选中的模型所属供应商）──
 document.getElementById('model-set-key-btn').onclick = () => {
@@ -1815,6 +1804,10 @@ es.addEventListener('system', e => { addMsg('system', JSON.parse(e.data)); });
 es.addEventListener('ask', e => showAsk(JSON.parse(e.data)));
 es.addEventListener('compress', e => showCompress(JSON.parse(e.data)));
 es.addEventListener('status', e => setStatus(JSON.parse(e.data))); // 动态状态栏（思考/工具/压缩/等待/完成）
+es.addEventListener('import-progress', e => { // 在线导入进度（拉取→解析→写入→完成）实时显示，防「卡死感」
+  const el = document.getElementById('model-scan-status');
+  if (el) el.textContent = e.data;
+});
 es.addEventListener('queued_started', () => {
   // 排队消息开始执行：清除该消息的「⏳ 排队中…」标记（防永久残留）
   const el = queuedBubbles.shift();
