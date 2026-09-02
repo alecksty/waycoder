@@ -230,20 +230,20 @@ public sealed class ProviderWindow : Window
     private async void SetKey()
     {
         if (!RequireSelected()) return;
-        var key = await PromptAsync($"🔑 设置 {_selectedPid} 的 API Key", "粘贴 Key（留空 = 清除）", "");
+        var key = await PromptAsync($"🔑 设置 {ModelCatalog.ProviderDisplayName(_selectedPid)} 的 API Key", "粘贴 Key（留空 = 清除）", "");
         if (key == null) return;
         if (string.IsNullOrWhiteSpace(key)) ApiKeyStore.Remove(_selectedPid);
         else ApiKeyStore.Set(_selectedPid, key.Trim());
-        _status.Text = $"✅ 已保存 {_selectedPid} 的 Key";
+        _status.Text = $"✅ 已保存 {ModelCatalog.ProviderDisplayName(_selectedPid)} 的 Key";
         RenderList();
     }
 
     private async void ClearKey()
     {
         if (!RequireSelected()) return;
-        if (!await ConfirmAsync("🗑 清Key", $"清除 {_selectedPid} 的 API Key？")) return;
+        if (!await ConfirmAsync("🗑 清Key", $"清除 {ModelCatalog.ProviderDisplayName(_selectedPid)} 的 API Key？")) return;
         ApiKeyStore.Remove(_selectedPid);
-        _status.Text = $"🗑 已清除 {_selectedPid} 的 Key";
+        _status.Text = $"🗑 已清除 {ModelCatalog.ProviderDisplayName(_selectedPid)} 的 Key";
         RenderList();
     }
 
@@ -251,7 +251,7 @@ public sealed class ProviderWindow : Window
     {
         if (!RequireSelected()) return;
         var cur = ModelCatalog.Providers.TryGetValue(_selectedPid, out var p) ? p.DisplayName : _selectedPid;
-        var name = await PromptAsync($"✏️ 改名 {_selectedPid}", "新显示名", cur);
+        var name = await PromptAsync($"✏️ 改名 {ModelCatalog.ProviderDisplayName(_selectedPid)}", "新显示名", cur);
         if (name == null || string.IsNullOrWhiteSpace(name)) return;
         ModelCatalog.RenameProvider(_selectedPid, name.Trim());
         _status.Text = $"✅ 已改名 → {name.Trim()}";
@@ -262,7 +262,7 @@ public sealed class ProviderWindow : Window
     {
         if (!RequireSelected()) return;
         var cur = ModelCatalog.Providers.TryGetValue(_selectedPid, out var p) ? p.DefaultBaseUrl ?? "" : "";
-        var url = await PromptAsync($"🌐 改地址 {_selectedPid}", "Base URL", cur);
+        var url = await PromptAsync($"🌐 改地址 {ModelCatalog.ProviderDisplayName(_selectedPid)}", "Base URL", cur);
         if (url == null) return;
         if (!ModelCatalog.UpdateProviderUrl(_selectedPid, url.Trim()))
         {
@@ -276,10 +276,10 @@ public sealed class ProviderWindow : Window
     private async void Delete()
     {
         if (!RequireSelected()) return;
-        if (!await ConfirmAsync("🗑 删除供应商", $"删除 {_selectedPid}？删除后不可恢复（连带清除 Key）。")) return;
+        if (!await ConfirmAsync("🗑 删除供应商", $"删除 {ModelCatalog.ProviderDisplayName(_selectedPid)}？删除后不可恢复（连带清除 Key）。")) return;
         ModelCatalog.RemoveProvider(_selectedPid);
         ApiKeyStore.Remove(_selectedPid);
-        _status.Text = $"🗑 已删除供应商 {_selectedPid}";
+        _status.Text = $"🗑 已删除供应商 {ModelCatalog.ProviderDisplayName(_selectedPid)}";
         _selectedPid = "";
         RenderList();
     }

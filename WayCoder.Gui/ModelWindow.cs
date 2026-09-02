@@ -205,7 +205,7 @@ public sealed class ModelWindow : Window
         Grid.SetColumn(nameTb, 2);
         grid.Children.Add(nameTb);
 
-        var provTb = new TextBlock { Text = m.Provider, FontSize = 11.5, TextTrimming = TextTrimming.CharacterEllipsis };
+        var provTb = new TextBlock { Text = ModelCatalog.ProviderDisplayName(m.ProviderId), FontSize = 11.5, TextTrimming = TextTrimming.CharacterEllipsis };
         Grid.SetColumn(provTb, 3);
         grid.Children.Add(provTb);
 
@@ -303,7 +303,7 @@ public sealed class ModelWindow : Window
         var panel = new StackPanel { Margin = new Thickness(20), Spacing = 12 };
         panel.Children.Add(new TextBlock
         {
-            Text = $"为 {m.ProviderId} 设置 API Key（保存后该供应商所有模型可用）：",
+            Text = $"为 {ModelCatalog.ProviderDisplayName(m.ProviderId)} 设置 API Key（保存后该供应商所有模型可用）：",
             TextWrapping = TextWrapping.Wrap,
             Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")),
         });

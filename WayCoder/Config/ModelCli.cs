@@ -14,8 +14,8 @@ public static class ModelCli
     {
         var cfg = Config.Instance;
         var sb = new StringBuilder();
-        sb.AppendLine($"当前大模型：{ConnectionConfig.FormatModel(cfg.Provider, cfg.Model)}");
-        sb.AppendLine($"当前小模型：{ConnectionConfig.FormatModel(cfg.SmallProvider, cfg.SmallModel)}");
+        sb.AppendLine($"当前大模型：{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.Provider), cfg.Model)}");
+        sb.AppendLine($"当前小模型：{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.SmallProvider), cfg.SmallModel)}");
         var bigProv = ConnectionConfig.ResolveProvider(cfg.Provider);
         sb.AppendLine($"BaseUrl：{cfg.BaseUrl ?? bigProv?.BaseUrl ?? "?"}");
         var active = ConnectionConfig.CurrentByConfig();
@@ -55,7 +55,7 @@ public static class ModelCli
             nameWidth = Math.Max(nameWidth, ModelCatalog.ShortDisplayName(m.Id).Length);
         nameWidth = Math.Max(nameWidth + 2, 20);
 
-        foreach (var g in models.GroupBy(m => m.Provider))
+        foreach (var g in models.GroupBy(m => ModelCatalog.ProviderDisplayName(m.ProviderId)))
         {
             sb.AppendLine();
             sb.AppendLine($"【{g.Key}】");
@@ -326,7 +326,7 @@ public static class ModelCli
             if (string.IsNullOrEmpty(key))
             {
                 skip++;
-                sb.AppendLine($"  ⏭ {ModelCatalog.ShortDisplayName(m.Id)}（{m.ProviderId}）无 key");
+                sb.AppendLine($"  ⏭ {ModelCatalog.ShortDisplayName(m.Id)}（{ModelCatalog.ProviderDisplayName(m.ProviderId)}）无 key");
                 continue;
             }
             // 实时进度（stderr）：让用户知道正在扫哪个 provider 第几个
@@ -340,9 +340,9 @@ public static class ModelCli
                 // 增量持久化：每扫到可用立即写 free.json——28 个模型逐个探测可能较久，
                 // 中途 Ctrl+C / 超时也能用已扫到的可用项（下次 /free 直接读缓存）
                 SaveFreeJson(okList);
-                sb.AppendLine($"  ✅ {ModelCatalog.ShortDisplayName(m.Id)}（{m.ProviderId}）{detail}");
+                sb.AppendLine($"  ✅ {ModelCatalog.ShortDisplayName(m.Id)}（{ModelCatalog.ProviderDisplayName(m.ProviderId)}）{detail}");
             }
-            else { fail++; sb.AppendLine($"  ❌ {ModelCatalog.ShortDisplayName(m.Id)}（{m.ProviderId}）{detail}"); }
+            else { fail++; sb.AppendLine($"  ❌ {ModelCatalog.ShortDisplayName(m.Id)}（{ModelCatalog.ProviderDisplayName(m.ProviderId)}）{detail}"); }
         }
         if (okList.Count > 0) SaveFreeJson(okList); // 最终全量（幂等）
         sb.AppendLine($"\n汇总：可用 {ok}　失败 {fail}　跳过(无key) {skip}");
@@ -415,7 +415,7 @@ public static class ModelCli
         if (info == null)
         {
             ConnectionConfig.ApplyModelChoice(Config.Instance.Provider, modelId.Trim(), isLarge: true, out _);
-            return $"已切换至 **{ConnectionConfig.FormatModel(Config.Instance.Provider, modelId.Trim())}** 模型（目录外模型，已写入 .env）。若非 OpenAI 兼容端点请另行 --config set BaseUrl <url>";
+            return $"已切换至 **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.Provider), modelId.Trim())}** 模型（目录外模型，已写入 .env）。若非 OpenAI 兼容端点请另行 --config set BaseUrl <url>";
         }
 
         ConnectionConfig.ApplyModelChoice(info.ProviderId, info.Id, isLarge: true, out _, info.DefaultBaseUrl);
@@ -426,7 +426,7 @@ public static class ModelCli
             ? $"\n  该供应商需 API key：--model key {info.ProviderId} <key>"
             : "";
 
-        return $"已切换至 **{ConnectionConfig.FormatModel(info.ProviderId, info.Id)}** 模型（{info.DisplayName}）并写入 .env" +
+        return $"已切换至 **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(info.ProviderId), info.Id)}** 模型并写入 .env" +
             (info.DefaultBaseUrl != null ? $"\n  BaseUrl 已自动设为 {info.DefaultBaseUrl}" : "") + keyHint;
     }
 
@@ -438,12 +438,12 @@ public static class ModelCli
         if (info == null)
         {
             ConnectionConfig.ApplyModelChoice(Config.Instance.SmallProvider, modelId.Trim(), isLarge: false, out _);
-            return $"已切换至 **{ConnectionConfig.FormatModel(Config.Instance.SmallProvider, modelId.Trim())}** 小模型（目录外模型，已写入 .env）";
+            return $"已切换至 **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.SmallProvider), modelId.Trim())}** 小模型（目录外模型，已写入 .env）";
         }
 
         ConnectionConfig.ApplyModelChoice(info.ProviderId, info.Id, isLarge: false, out _);
 
-        return $"已切换至 **{ConnectionConfig.FormatModel(info.ProviderId, info.Id)}** 小模型（{info.DisplayName}）并写入 .env";
+        return $"已切换至 **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(info.ProviderId), info.Id)}** 小模型并写入 .env";
     }
 
     /// <summary>列出已保存的 API keys（打码 + 有效期）</summary>

@@ -48,7 +48,7 @@ public class FreeCommand : SlashCommand
             // 切换前记住当前模型（/free restore 可恢复；未记录才记，不覆盖已记住的）
             ModelCli.RememberCurrentModel();
             ConnectionConfig.ApplyModelChoice(c.ProviderId, c.ModelId, isLarge: true, out var msg, c.BaseUrl);
-            screen.AddSystemMsg($"✅ 已切换免费模型 #{n}：{ModelCatalog.ShortDisplayName(c.ModelId)}（{c.ProviderId}）\n  /free restore 还原收费模型");
+            screen.AddSystemMsg($"✅ 已切换免费模型 #{n}：{ModelCatalog.ShortDisplayName(c.ModelId)}（{ModelCatalog.ProviderDisplayName(c.ProviderId)}）\n  /free restore 还原收费模型");
             return Task.CompletedTask;
         }
 
@@ -56,7 +56,7 @@ public class FreeCommand : SlashCommand
         if (arg.Length > 0)
             screen.AddSystemMsg($"⚠️ 未知参数「{args}」。用法：/free 弹框 · /free N 直接切换 · /free restore 还原收费");
         screen.ShowWindow(TuiDialog.Select($"💰 免费模型（{available.Count} 个 · 缓存）", available
-            .Select(c => $"{ModelCatalog.ShortDisplayName(c.ModelId)}  （{c.ProviderId}）")
+            .Select(c => $"{ModelCatalog.ShortDisplayName(c.ModelId)}  （{ModelCatalog.ProviderDisplayName(c.ProviderId)}）")
             .ToList(), idx =>
         {
             if (idx >= 0 && idx < available.Count)

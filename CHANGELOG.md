@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.96.41 (2026-09-02) — 服务商名称显示五端统一 + Web 模型框加宽/连接切换修复
+
+- **服务商名称显示统一（TUI/GUI/Web/MAUI/CLI 五端）**：新增 `ModelCatalog.ProviderDisplayName`（大小写不敏感，providers.json 注册显示名优先），模型栏/分组头/厂商列统一显示注册显示名（`(AIHubMix)deepseek-v4-flash` 而非 `(aihubmix)…`），`/provider rename` 后各端刷新即时生效
+  - **模型归属修复（同 id 多服务商）**：`ResolveBaseUrl`/`ResolveSlotProvider` 按「实际生效模型 + 网关 (id, baseUrl)」精确定位服务商——选 AIHubMix 网关的 `deepseek-v4-flash`/`coding-glm-5.1-free` 不再误显示/误配 DeepSeek 官方；`ResolveBaseUrl` 全局场景返回实时 providers.json 注册表地址（覆盖优先），槽位 connect 场景走 connect 指定网关
+  - **ModelPicker 回退链去重键修正**：connect 行去重改用 `ModelKey(providerId, modelId)`，消除回退链模型重复显示
+  - **`Find(id, baseUrl)` 尾斜杠规范化**：与 `ResolveBaseUrl` 对齐，带尾斜杠的网关也能正确归属
+  - **TUI/GUI/Web 模型栏、启动横幅/状态栏/回退提示全部转显示名**（此前遗漏 `Program.Repl` 直写 StatusLeft、切会话路径等）
+- **Web 端**：
+  - **模型选择框加宽**：440px→880px（8 列信息不截断），厂商/价格列放大（对标服务商弹窗 880px）
+  - **切换连接修复**：`ApplyModel`/`/settings`/`/model/save` 切换模型时 baseUrl 未显式传则用 provider 注册表地址（此前 `Find(modelId)` 内置官方优先会把选 AIHubMix 的模型误切到官方网关——「显示切了、连接没切」）；`/settings` 小模型切换补重配 `agent.LlmClient.SmallModel`
+  - **`/model list`、`/free` 表格供应商列**、Key 弹窗/槽位 tooltip/服务商管理弹窗操作文案改显示名（新增 `provNameById` 前端 map）
+- **GUI/MAUI 显示统一**：GUI 模型列表厂商列（快照→实时显示名）、Key 弹窗、ProviderWindow 操作文案；MAUI 首页模型标签补服务商、聊天模型栏 `(provider)model`、vision 提示、导入/保存提示
+- **CLI 显示统一**：`--model`/`/provider`/`/connect` 当前模型概览、切换确认消息、模型列表分组头、free 扫描括号全部显示名（`ModelCli`/`ProviderCommand`/`ConnectionCommand`/`ModelArgs`/`ConnectionConfig`/`FreeCommand`）
+- **自测**：4879 全过（新增显示名大小写/Trim/归属/网关注册表地址断言）；三端编译 0 警告 0 错误
+
 ## v0.96.40 (2026-09-01) — config.json 权威源 + TUI `!cmd` 直通/中文乱码/输入框增强 + TUI 卡死修复
 
 - **配置加载重构**：`~/.waycoder/config.json` 成为**唯一权威源**，默认不再从环境变量（含 `.env`）读取配置——消除 shell 里残留 `WAYCODER_MODEL` / `WAYCODER_API_KEY` 等对已配置行为的意外干扰（`Config.CreateInstance` 改为按「config.json 是否存在」分支）

@@ -926,7 +926,10 @@ public static class ModelPicker
             // 地址不同 = 不同服务商：同 id 不同 baseUrl 都保留（不再按 id 去重）
             if (!seen.Add(ModelCatalog.ModelKey(info.ProviderId, info.Id))) continue;
             var hasKey = ModelHasKey(info.ProviderId, info.Id);
-            list.Add(new(info.Id, info.DisplayName, info.Provider, info.ProviderId, hasKey, info.ContextWindow,
+            // 厂商列用实时注册表显示名（ProviderDisplayName），而非静态快照 Provider——
+            // /provider rename 后重绘立即反映新名（快照字段不随 RenameProvider 更新）
+            list.Add(new(info.Id, info.DisplayName,
+                ModelCatalog.ProviderDisplayName(info.ProviderId), info.ProviderId, hasKey, info.ContextWindow,
                 info.InputPrice, info.OutputPrice, info.InputPriceOffpeak, info.OutputPriceOffpeak,
                 info.DefaultBaseUrl));
         }

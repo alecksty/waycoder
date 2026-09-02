@@ -104,8 +104,8 @@ public class ProviderCommand : SlashCommand
         var cfg = Config.Instance;
         var sb = new StringBuilder();
         sb.AppendLine("**服务商（Provider）**");
-        sb.AppendLine($"  大模型：{ConnectionConfig.FormatModel(cfg.Provider, cfg.Model)}");
-        sb.AppendLine($"  小模型：{ConnectionConfig.FormatModel(cfg.SmallProvider, cfg.SmallModel)}");
+        sb.AppendLine($"  大模型：{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.Provider), cfg.Model)}");
+        sb.AppendLine($"  小模型：{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.SmallProvider), cfg.SmallModel)}");
         sb.AppendLine();
         sb.AppendLine("`/provider list` 全部　`/provider select <id>` 切换　`/provider apikey` 管 key　`/provider test` 测连通");
         screen.AddSystemMsg(sb.ToString());
@@ -127,7 +127,7 @@ public class ProviderCommand : SlashCommand
             var keyMark = hasKey ? "🔑" : "— ";   // 统一占 2 列显示宽度（🔑 2 列，— 补空格），避免有/无 key 行错位
             var current = pid.Equals(Config.Instance.Provider, StringComparison.OrdinalIgnoreCase) ? " ← 当前" : "";
 
-            sb.AppendLine($"  {keyMark} `{pid,-14}` {firstModel.Provider,-12} {g.Count(),3} 模型  {(string.IsNullOrEmpty(baseUrl) ? "" : baseUrl)}{current}");
+            sb.AppendLine($"  {keyMark} `{pid,-14}` {ModelCatalog.ProviderDisplayName(pid),-12} {g.Count(),3} 模型  {(string.IsNullOrEmpty(baseUrl) ? "" : baseUrl)}{current}");
         }
 
         sb.AppendLine("\n`/provider select <id>` 切换　`/provider add <id> <名称> <url>` 新增　`/provider apikey set <pid> <key>` 存 key");
@@ -204,7 +204,7 @@ public class ProviderCommand : SlashCommand
         ModelCatalog.Providers.TryGetValue(models[0].ProviderId, out var prov);
         var hasKey = ApiKeyStore.Has(pid2);
         var sb = new StringBuilder();
-        sb.AppendLine($"**{models[0].Provider}**（`{pid2}`）— {models.Length} 个模型 {(hasKey ? "🔑 已存 key" : "⚠ 未存 key")}");
+        sb.AppendLine($"**{ModelCatalog.ProviderDisplayName(pid2)}**（`{pid2}`）— {models.Length} 个模型 {(hasKey ? "🔑 已存 key" : "⚠ 未存 key")}");
         foreach (var m in models)
         {
             var ctx = m.ContextWindow > 0

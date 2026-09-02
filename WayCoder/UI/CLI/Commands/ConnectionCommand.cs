@@ -118,12 +118,12 @@ public class ConnectionCommand : SlashCommand
             var big = ConnectionConfig.FindConnect(current.BigConnect);
             var small = ConnectionConfig.FindConnect(current.SmallConnect);
             sb.AppendLine($"  当前连接：`{current.Name}`");
-            sb.AppendLine($"    大 = {ConnectionConfig.FormatModel(big?.ProviderId ?? "", big?.ModelId ?? "")}（connect `{current.BigConnect}`）");
-            sb.AppendLine($"    小 = {ConnectionConfig.FormatModel(small?.ProviderId ?? "", small?.ModelId ?? "")}（connect `{current.SmallConnect}`）");
+            sb.AppendLine($"    大 = {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(big?.ProviderId), big?.ModelId ?? "")}（connect `{current.BigConnect}`）");
+            sb.AppendLine($"    小 = {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(small?.ProviderId), small?.ModelId ?? "")}（connect `{current.SmallConnect}`）");
         }
         else
         {
-            sb.AppendLine($"  当前未匹配到已保存连接（大={ConnectionConfig.FormatModel(cfg.Provider, cfg.Model)} · 小={ConnectionConfig.FormatModel(cfg.SmallProvider, cfg.SmallModel)}）" +
+            sb.AppendLine($"  当前未匹配到已保存连接（大={ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.Provider), cfg.Model)} · 小={ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.SmallProvider), cfg.SmallModel)}）" +
                 (string.IsNullOrEmpty(active) ? "" : $"（标记激活：`{active}`）"));
         }
         var chain = ConnectionConfig.FallbackChain;
@@ -448,7 +448,7 @@ public class ConnectionCommand : SlashCommand
         {
             var c = ConnectionConfig.FindConnect(name);
             if (c != null)
-                sb.AppendLine($"  `{c.Name}` = {ConnectionConfig.FormatModel(c.ProviderId, c.ModelId)}");
+                sb.AppendLine($"  `{c.Name}` = {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(c.ProviderId), c.ModelId)}");
         }
         sb.AppendLine("\n`/connect conn add <name> <大> <小>` 组合成命名连接　`/connect chain <c1> <c2> ...` 设回退链");
         screen.AddSystemMsg(sb.ToString());

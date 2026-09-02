@@ -255,8 +255,8 @@ public class ConnectArg : CliArg
             var cfg = Config.Instance;
             var cur = ConnectionConfig.CurrentByConfig();
             Console.WriteLine(cur != null
-                ? $"当前连接：`{cur.Name}`\n  大 = {ConnectionConfig.FormatModel(ConnectionConfig.FindConnect(cur.BigConnect)?.ProviderId ?? "", ConnectionConfig.FindConnect(cur.BigConnect)?.ModelId ?? "")}\n  小 = {ConnectionConfig.FormatModel(ConnectionConfig.FindConnect(cur.SmallConnect)?.ProviderId ?? "", ConnectionConfig.FindConnect(cur.SmallConnect)?.ModelId ?? "")}"
-                : $"当前：大={ConnectionConfig.FormatModel(cfg.Provider, cfg.Model)} · 小={ConnectionConfig.FormatModel(cfg.SmallProvider, cfg.SmallModel)}");
+                ? $"当前连接：`{cur.Name}`\n  大 = {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(ConnectionConfig.FindConnect(cur.BigConnect)?.ProviderId), ConnectionConfig.FindConnect(cur.BigConnect)?.ModelId ?? "")}\n  小 = {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(ConnectionConfig.FindConnect(cur.SmallConnect)?.ProviderId), ConnectionConfig.FindConnect(cur.SmallConnect)?.ModelId ?? "")}"
+                : $"当前：大={ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.Provider), cfg.Model)} · 小={ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.SmallProvider), cfg.SmallModel)}");
             return 0;
         }
 
@@ -328,7 +328,7 @@ public class ConnectArg : CliArg
             {
                 ConnectionConfig.FindOrCreateConnect(Config.Instance.Provider, Config.Instance.Model);
                 ConnectionConfig.FindOrCreateConnect(Config.Instance.SmallProvider, Config.Instance.SmallModel);
-                Console.WriteLine($"✅ 已登记大/小模型为 connect：{ConnectionConfig.FormatModel(Config.Instance.Provider, Config.Instance.Model)} / {ConnectionConfig.FormatModel(Config.Instance.SmallProvider, Config.Instance.SmallModel)}");
+                Console.WriteLine($"✅ 已登记大/小模型为 connect：{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.Provider), Config.Instance.Model)} / {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.SmallProvider), Config.Instance.SmallModel)}");
                 return 0;
             }
             case "use":

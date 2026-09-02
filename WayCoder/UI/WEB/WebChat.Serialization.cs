@@ -22,12 +22,13 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     public static string SerializeModels()
     {
         var arr = JNode.Array();
-        foreach (var m in ModelCatalog.All.OrderBy(x => x.Provider).ThenBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
+        foreach (var m in ModelCatalog.All.OrderBy(x => x.ProviderId).ThenBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
         {
             arr.Add(JNode.Object()
                 .Set("id", m.Id)
                 .Set("name", m.DisplayName)
-                .Set("provider", m.Provider)
+                // provider 用实时注册表显示名（/provider rename 后立即生效；静态快照字段不随 rename 更新）
+                .Set("provider", ModelCatalog.ProviderDisplayName(m.ProviderId))
                 .Set("providerId", m.ProviderId)
                 .Set("category", m.Category)
                 .Set("context", m.ContextWindow)
@@ -106,6 +107,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 .Set("slot", i)
                 .Set("model", a?.LlmClient.EffectiveModel ?? "")
                 .Set("providerId", a != null ? SlotProvider(a) : "")
+                .Set("providerName", a != null ? ModelCatalog.ProviderDisplayName(SlotProvider(a)) : "")
                 .Set("workMode", a?.WorkMode.ToString().ToLowerInvariant() ?? "")
                 .Set("hasHistory", a != null && HasHistory(a))
                 .Set("busy", busy != null && i < busy.Length && busy[i]));

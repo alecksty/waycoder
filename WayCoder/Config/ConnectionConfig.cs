@@ -253,7 +253,7 @@ public static class ConnectionConfig
         cfg.SaveToEnvFile();
 
         lock (_lock) { _active = c.Name; Save(); }
-        message = $"已切换至 连接「{c.Name}」：大={FormatModel(big.ProviderId, big.ModelId)} · 小={FormatModel(small.ProviderId, small.ModelId)}" +
+        message = $"已切换至 连接「{c.Name}」：大={FormatModel(ModelCatalog.ProviderDisplayName(big.ProviderId), big.ModelId)} · 小={FormatModel(ModelCatalog.ProviderDisplayName(small.ProviderId), small.ModelId)}" +
             (string.IsNullOrEmpty(cfg.BaseUrl) ? "" : $" / {cfg.BaseUrl}");
         return c;
     }
@@ -502,7 +502,7 @@ public static class ConnectionConfig
         cfg.SaveToConfigJson();
         cfg.SaveToEnvFile();
 
-        message = $"已切换至 {FormatModel(conn.ProviderId, conn.ModelId)} 模型";
+        message = $"已切换至 {FormatModel(ModelCatalog.ProviderDisplayName(conn.ProviderId), conn.ModelId)} 模型";
         return true;
     }
 

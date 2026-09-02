@@ -111,27 +111,62 @@ public static class AgentSlotConfig
 
     /// <summary>
     /// 根据槽位配置解析出实际的 Base URL。
-    /// 优先级：SlotConfig.BaseUrl > 与全局网关匹配的模型条目 Url > 模型目录默认 Url > 全局 Config.BaseUrl。
+    /// 优先级：SlotConfig.BaseUrl > 槽位 connect 的 provider 注册表地址 > 与全局网关匹配的模型条目注册表地址
+    ///          > 模型目录默认地址 > 全局 Config.BaseUrl。
     /// 同 id 多服务商（deepseek-v4-flash 分属 DeepSeek 官方 / AIHubMix 网关）时，网关地址决定归属——
     /// Find(id) 内置官方优先会误返官方地址（用户经 ModelPicker 选了 AIHubMix，网关却解析成 deepseek.com），
-    /// 所以先按全局配置网关精确匹配目录条目，匹配不到才回退模型目录默认。
+    /// 所以全局场景先按配置网关精确匹配目录条目；返回始终取「实时 providers.json 注册表地址」而非静态模型快照，
+    /// 否则用户覆盖 base_url（如国内镜像）会被快照里的官方地址盖掉。
     /// </summary>
-    public static string? ResolveBaseUrl(SlotConfig slot, string? largeModelId)
+    public static string? ResolveBaseUrl(SlotConfig slot, string? modelId)
     {
         if (!string.IsNullOrWhiteSpace(slot.BaseUrl))
             return slot.BaseUrl;
-        if (largeModelId != null)
+        // 槽位显式 connect：请求走 connect 指定的网关（实时注册表地址，含 providers.json 覆盖）。
+        // 按 modelId 匹配 BigConnect/SmallConnect（防同名模型跨服务商用错 connect），匹配不到回退 BigConnect。
+        if (!slot.UseGlobal)
+        {
+            string? connName = null;
+            foreach (var name in new[] { slot.BigConnect, slot.SmallConnect })
+            {
+                if (string.IsNullOrWhiteSpace(name)) continue;
+                var c = ConnectionConfig.FindConnect(name);
+                if (c == null) continue;
+                if (string.IsNullOrEmpty(modelId) || string.Equals(c.ModelId, modelId, StringComparison.OrdinalIgnoreCase))
+                { connName = name; break; }
+            }
+            connName ??= slot.BigConnect;
+            if (!string.IsNullOrWhiteSpace(connName))
+            {
+                var c = ConnectionConfig.FindConnect(connName);
+                if (c != null)
+                {
+                    var prov = ConnectionConfig.ResolveProvider(c.ProviderId);
+                    if (prov != null && !string.IsNullOrEmpty(prov.BaseUrl)) return prov.BaseUrl;
+                }
+            }
+        }
+        // 全局场景：按全局配置网关精确匹配目录条目 → 返回实时注册表地址
+        if (slot.UseGlobal && !string.IsNullOrEmpty(modelId))
         {
             var cfgBase = Config.Instance.BaseUrl;
             if (!string.IsNullOrWhiteSpace(cfgBase))
             {
                 var norm = cfgBase.Trim().TrimEnd('/');
-                var match = ModelCatalog.All.FirstOrDefault(m => m.Id == largeModelId
+                var match = ModelCatalog.All.FirstOrDefault(m => m.Id == modelId
                     && !string.IsNullOrEmpty(m.DefaultBaseUrl)
                     && string.Equals(m.DefaultBaseUrl.Trim().TrimEnd('/'), norm, StringComparison.OrdinalIgnoreCase));
-                if (match != null) return match.DefaultBaseUrl;
+                if (match != null)
+                {
+                    var reg = ModelCatalog.Providers.TryGetValue(match.ProviderId, out var rp) ? rp.DefaultBaseUrl : null;
+                    return !string.IsNullOrEmpty(reg) ? reg : match.DefaultBaseUrl;
+                }
             }
-            var info = ModelCatalog.Find(largeModelId);
+        }
+        // 模型目录默认（provider 注册表优先）
+        if (!string.IsNullOrEmpty(modelId))
+        {
+            var info = ModelCatalog.Find(modelId);
             // 两层架构：provider 承载唯一地址（地址不同=不同服务商），模型用所属 provider 的地址连接
             if (info != null
                 && ModelCatalog.Providers.TryGetValue(info.ProviderId, out var p)
