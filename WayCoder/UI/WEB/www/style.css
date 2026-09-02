@@ -246,8 +246,8 @@ select optgroup { background:var(--panel); color:var(--text); }
 .model-item .prov { font-size:12px; color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* 模型选择弹窗（🔑 模型 厂商 状态 窗口 价格 大 小）——8 列信息需更宽，默认 modal-card 440px 太窄厂商/模型名被省略号截断 */
-#model-modal .modal-card { width:min(96vw, 880px); max-width:96vw; }
-#model-modal .model-head, #model-modal .model-item { grid-template-columns:28px 1fr 130px 58px 58px 90px 36px 36px; }
+#model-modal .modal-card { width:min(96vw, 1000px); max-width:96vw; }
+#model-modal .model-head, #model-modal .model-item { grid-template-columns:28px 1fr 130px 58px 58px 140px 36px 36px; }
 
 /* 服务商管理弹窗（🔑 服务商 Key 模型 状态 地址）——6 列信息需更宽，默认 modal-card 440px 太窄名称被省略号截断 */
 #provider-modal .modal-card { width:min(96vw, 880px); max-width:96vw; display:flex; flex-direction:column; overflow:hidden; }

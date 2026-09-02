@@ -174,7 +174,8 @@ public sealed class ModelWindow : Window
                 gname.Text += gs == ModelPicker.ScanStatus.Connected ? "  ✅" : "  ❌";
             _listHost.Children.Add(gname);
 
-            foreach (var m in group)
+            // 组内按模型 ID 排序（对齐 Web/TUI：供应商ID 分组 + 模型ID 排序）
+            foreach (var m in group.OrderBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
                 _listHost.Children.Add(BuildRow(m, cfg));
         }
 
@@ -480,7 +481,12 @@ public sealed class ModelWindow : Window
                 {
                     var src = ModelCli.OnlineSources.FirstOrDefault(s => s.Name == name);
                     if (src != null)
-                        sb.AppendLine(ModelCli.ImportOnline(src));
+                    {
+                        // 进度实时上屏（拉取→解析→写入→完成），防「卡死感」；跨线程回 UI 线程更新 _status
+                        var r = ModelCli.ImportOnline(src, msg =>
+                            Dispatcher.UIThread.Post(() => _status.Text = msg));
+                        sb.AppendLine(r);
+                    }
                 }
             });
             Dispatcher.UIThread.Post(() =>
