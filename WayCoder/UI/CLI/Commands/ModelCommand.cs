@@ -39,9 +39,7 @@ public class ModelCommand : SlashCommand
             && ModelCatalog.Providers.TryGetValue(info.ProviderId, out var mp)
             && !string.IsNullOrEmpty(mp.DefaultBaseUrl)
             ? mp.DefaultBaseUrl : (info?.DefaultBaseUrl ?? cfg.BaseUrl);
-        agent.LlmClient.Reconfigure(key, baseUrl);
-        agent.LlmClient.Model = modelId;
-        agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(modelId, cfg.MaxContextTokens));
+        agent.ApplyRuntimeModel(modelId, key, baseUrl);
     }
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
