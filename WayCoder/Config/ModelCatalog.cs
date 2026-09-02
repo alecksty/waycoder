@@ -1154,6 +1154,11 @@ public static partial class ModelCatalog
             if (prov == null || prov.Kind != JKind.Object) continue;
             var provName = prov.GetString("name") ?? pid;
             var baseUrl = prov.GetString("api");
+            // models.dev 部分官方供应商无 api 字段（api=None，如 openai/anthropic）：回退内置/已注册供应商的官方端点，
+            // 否则这些官方模型以空 baseUrl 导入（不可用、且 RegisterImportProviders 不注册其供应商）
+            if (string.IsNullOrWhiteSpace(baseUrl)
+                && Providers.TryGetValue(pid, out var regProv) && !string.IsNullOrWhiteSpace(regProv.DefaultBaseUrl))
+                baseUrl = regProv.DefaultBaseUrl;
             var models = prov.Get("models");
             if (models == null || models.Kind != JKind.Object) continue;
 
