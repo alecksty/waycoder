@@ -160,6 +160,10 @@ let slotsBusy = [];             // 槽位索引 → 是否后台忙碌（来自�
 function renderSlots(state) {
   currentSlot = state.activeSlot;
   slotsBusy = (state.slots || []).map(s => !!s.busy);
+  // 当前工作目录显示在输入栏下方
+  const cwd = state.cwd || '';
+  const cwdEl = document.getElementById('cwd-text');
+  if (cwdEl) cwdEl.textContent = cwd;
   // 工作模式是槽位实例级：显示本页面绑定槽位的模式（state.slots[activeSlot].workMode）
   applyWorkMode((state.slots && state.slots[state.activeSlot]) ? state.slots[state.activeSlot].workMode : '');
   document.getElementById('agent-label').textContent = '智能体' + (state.activeSlot + 1);
