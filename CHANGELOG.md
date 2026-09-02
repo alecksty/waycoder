@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.96.43 (2026-09-02) — models.dev 导入修复（官方供应商不被内置跳过 + api=None 回退官方端点）
+
+- **models.dev 导入不再按内置 id 跳过**：此前 `ImportOnline` 跳过所有「内置 id 同名」模型——models.dev 的 deepseek 官方模型（`deepseek-v4-pro`/`deepseek-v4-flash`/`deepseek-v4-flash-vision-exp`）全被跳过，官方供应商在导入结果里缺失（只剩网关托管的 deepseek 模型）；openrouter 等网关托管的同名 deepseek 模型也被误跳
+  - 现在在线导入数据**刷新内置**（同 id + 同 baseUrl 由 `AddCustomRange`/`All` 合并覆盖为 models.dev 数据，价格/上下文取官方最新）；网关托管同名模型（不同 baseUrl = 不同服务商）正常导入到对应网关
+  - 仅跳过**无端点模型**（baseUrl 空 = 无法使用，`RegisterImportProviders` 也不会注册）
+- **models.dev `api=None` 回退官方端点**：部分官方供应商在 models.dev 无 `api` 字段（openai/anthropic 等），`ImportModelsDev` 回退内置/已注册供应商的官方端点（anthropic → `api.anthropic.com`），不再以空 baseUrl 导入不可用模型
+- **实测**：重新导入 models.dev 后 deepseek 供应商显示 3 个官方模型（`baseUrl=api.deepseek.com`，ctx=1M）；anthropic 14 模型带官方端点；openrouter/nano-gpt 等网关模型正常；归并幂等 0 移动；自测 105 通过
+
 ## v0.96.42 (2026-09-02) — 模型归并迁移（修复 0 模型供应商）+ 导入多源/进度 + 模型对话框优化
 
 - **模型归并迁移（修复 0 模型供应商）**：新增 `ModelCatalog.ReconcileModels` —— 把自定义模型从「别名 providerId」按 **base_url 归并到已注册供应商**（如 `bailian` 0→73、`qiniucloud` 0→81、`wafer-ai` 0→3、`fireworks` 0→17）。别名来源 = 多源导入按来源声明名/URL host 推导的 id 与注册表脱节

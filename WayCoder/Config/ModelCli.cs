@@ -700,14 +700,16 @@ public static class ModelCli
         if (list.Count == 0)
             return $"在线导入（{src.Name}）未返回可识别的模型";
         onProgress?.Invoke($"🔄 解析完成 {list.Count} 个模型，写入模型库…");
-        var builtInIds = new HashSet<string>(ModelCatalog.BuiltIn.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
-        var toAdd = list.Where(m => !builtInIds.Contains(m.Id)).ToList();
+        // 不再按内置 id 跳过：models.dev 等数据刷新内置（同 id+同 baseUrl 由 AddCustomRange/All 覆盖，
+        // 网关托管同名模型 baseUrl 不同 = 不同服务商，正常追加）；仅跳过无端点模型（baseUrl 空 = 无法使用，
+        // RegisterImportProviders 也不会注册其供应商）
+        var toAdd = list.Where(m => !string.IsNullOrWhiteSpace(m.DefaultBaseUrl)).ToList();
         ModelCatalog.AddCustomRange(toAdd);
         RegisterImportProviders(toAdd);
         var providerCount = toAdd.Select(m => m.ProviderId).Distinct().Count();
         onProgress?.Invoke($"✅ 完成：{providerCount} 个供应商 / {toAdd.Count} 个模型");
         return $"✅ 在线导入（{src.Name}）{providerCount} 个供应商 / {toAdd.Count} 个模型" +
-            (list.Count - toAdd.Count > 0 ? $"，跳过 {list.Count - toAdd.Count} 内置" : "") +
+            (list.Count - toAdd.Count > 0 ? $"，跳过 {list.Count - toAdd.Count} 个无端点模型" : "") +
             (string.IsNullOrEmpty(key) ? "（未配置 API Key，导入的模型需设 key 后使用）" : "") +
             "：\n  " + string.Join("\n  ", toAdd.Select(m => m.Id));
     }
