@@ -185,9 +185,7 @@ public class ProviderCommand : SlashCommand
         var agent = ProgramContext.Agent;
         if (agent != null)
         {
-            agent.LlmClient.Reconfigure(key, Config.Instance.BaseUrl);
-            agent.LlmClient.Model = Config.Instance.Model;
-            agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(Config.Instance.Model, Config.Instance.MaxContextTokens));
+            agent.ApplyRuntimeModel(Config.Instance.Model, key, Config.Instance.BaseUrl);
         }
         screen.AddSystemMsg($"✅ {msg}" +
             (string.IsNullOrEmpty(key) ? "\n  ⚠ 该服务商尚未存 key，请求可能失败（/provider apikey set <pid> <key>）" : ""));

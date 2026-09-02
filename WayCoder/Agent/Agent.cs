@@ -268,6 +268,15 @@ public partial class Agent
     /// <param name="maxTokens">新的窗口上限（token）。</param>
     public void UpdateContextWindow(int maxTokens) => Context.UpdateMaxTokens(maxTokens);
 
+    /// <summary>运行时应用模型选择：重配 LLM（key/baseUrl/Model）+ 同步上下文窗口。
+    /// CLI/TUI/GUI/Web/MAUI 各端「切换模型」的公共收尾——每端的 key/baseUrl 解析差异留在调用方。</summary>
+    public void ApplyRuntimeModel(string modelId, string apiKey, string? baseUrl)
+    {
+        LlmClient.Reconfigure(apiKey, baseUrl);
+        LlmClient.Model = modelId;
+        UpdateContextWindow(ModelCatalog.ResolveContextWindow(modelId, Config.Instance.MaxContextTokens));
+    }
+
     /// <summary>
     /// 构建完整消息列表（包含系统提示词 + 模式提示）。
     /// 发送前自动修复孤立的工具调用/结果配对（对标 Crush filterOrphanedToolResults + syntheticToolResultsForOrphanedCalls）。

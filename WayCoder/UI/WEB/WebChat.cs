@@ -1182,7 +1182,6 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             key = ApiKeyStore.Get(effProviderId) ?? Config.Instance.ApiKey;
         }
 
-        var cfg = Config.Instance;
         // baseUrl 未显式传 → 用 effProviderId 的注册表地址（含 providers.json 覆盖），而非 info.DefaultBaseUrl——
         // info 来自 Find(modelId, baseUrl)，baseUrl 为空时 Find 内置官方优先，选 baseUrl 为空的模型
         // （如 AIHubMix 网关下的 deepseek-v4-flash）会误取官方网关地址，导致「显示切了、实际连接打错网关」
@@ -1192,9 +1191,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         // 「切换模型 = 切换 connect」：统一入口同步扁平字段 + 持久化
         ConnectionConfig.ApplyModelChoice(effProviderId, modelId, isLarge: true, out _, effBaseUrl);
 
-        agent.LlmClient.Reconfigure(key, effBaseUrl);
-        agent.LlmClient.Model = modelId;
-        agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(modelId, cfg.MaxContextTokens));
+        agent.ApplyRuntimeModel(modelId, key, effBaseUrl);
         return null;
     }
 

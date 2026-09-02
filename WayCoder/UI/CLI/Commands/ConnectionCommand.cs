@@ -218,10 +218,8 @@ public class ConnectionCommand : SlashCommand
         var agent = ProgramContext.Agent;
         if (agent != null)
         {
-            agent.LlmClient.Reconfigure(key, baseUrl);
-            agent.LlmClient.Model = cfg.Model;
+            agent.ApplyRuntimeModel(cfg.Model, key, baseUrl);
             agent.LlmClient.SmallModel = cfg.SmallModel;
-            agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(cfg.Model, cfg.MaxContextTokens));
         }
         screen.AddSystemMsg($"✅ {msg}" +
             (string.IsNullOrEmpty(key) ? "\n  ⚠ 该服务商尚未存 key，请求可能失败（/provider apikey set <pid> <key> 保存）" : ""));
@@ -325,10 +323,8 @@ public class ConnectionCommand : SlashCommand
         var agent = ProgramContext.Agent;
         if (agent != null)
         {
-            agent.LlmClient.Reconfigure(key, baseUrl);
-            agent.LlmClient.Model = cfg.Model;
+            agent.ApplyRuntimeModel(cfg.Model, key, baseUrl);
             agent.LlmClient.SmallModel = cfg.SmallModel;
-            agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(cfg.Model, cfg.MaxContextTokens));
         }
         if (ProgramContext.LLM != null)
         {
