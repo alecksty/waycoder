@@ -45,7 +45,7 @@
                 <Button
                     Grid.Column="4"
                     x:Name="EditorButton"
-                    Content="✏ 编辑器"
+                    Content="🖊️编辑器"
                     Foreground="{DynamicResource TextBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     ToolTip.Tip="打开内置代码编辑器"
@@ -55,7 +55,7 @@
                 <Button
                     Grid.Column="5"
                     x:Name="SettingsButton"
-                    Content="⚙ 设置"
+                    Content="⚙️设置"
                     Foreground="{DynamicResource TextBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     ToolTip.Tip="设置"
@@ -87,7 +87,7 @@
                     <Grid ColumnDefinitions="*,Auto" Margin="12,4,12,8">
                         <Button
                             x:Name="NewSessionBtn"
-                            Content="＋ 新建会话"
+                            Content="📄 新建会话"
                             FontSize="11"
                             Padding="8,4"
                             Foreground="{DynamicResource TextBrush}"
@@ -95,7 +95,7 @@
                             ToolTip.Tip="新建会话"
                             Click="NewSession_Click" />
 
-                        <Button Grid.Column="1" x:Name="ClearSessionsBtn" Content="🗑"
+                        <Button Grid.Column="1" x:Name="ClearSessionsBtn" Content="🗑 清空"
                                 Foreground="{DynamicResource TextBrush}"
                                 BorderBrush="{DynamicResource BorderBrush}"
                                 FontSize="11" Padding="8,4" Margin="6,0,0,0"

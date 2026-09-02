@@ -42,4 +42,9 @@
              Exclude="../WayCoder/Program*.cs;../WayCoder/SlashCommand.cs;../WayCoder/Test/**/*.cs;../WayCoder/UI/CLI/**/*.cs;../WayCoder/Plugins/**/*.cs;../WayCoder/Properties/**/*.cs;../WayCoder/bin/**/*.cs;../WayCoder/obj/**/*.cs;../WayCoder/WayEngine/**/*.cs;../WayCoder/game/**/*.cs;../WayCoder/games/**/*.cs;../WayCoder/lottery/**/*.cs;../WayCoder/subs/**/*.cs;../WayCoder/works/**/*.cs;../WayCoder/SnakeGame/**/*.cs;../WayCoder/demo/**/*.cs;../WayCoder/UI/WEB/WebAssets.Generated.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Style\Colors\" />
+    <Folder Include="Style\Language\" />
+  </ItemGroup>
+
 </Project>

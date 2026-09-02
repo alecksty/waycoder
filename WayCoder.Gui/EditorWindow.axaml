@@ -12,7 +12,7 @@
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,8">
                 <Button x:Name="SaveBtn" Content="💾 保存 (Ctrl+S)" Click="Save_Click" />
                 <Button x:Name="OpenBtn" Content="📂 打开…" Click="Open_Click" />
-                <Button x:Name="NewBtn" Content="＋ 新建" Click="New_Click" />
+                <Button x:Name="NewBtn" Content="📄 新建" Click="New_Click" />
                 <Button x:Name="FindBtn" Content="🔍 查找" Click="Find_Click" />
                 <TextBlock x:Name="PathLabel" VerticalAlignment="Center" FontSize="12"
                            Foreground="{DynamicResource AccentBrush}"
