@@ -554,12 +554,13 @@ async function renderProviders() {
     item.className = 'provider-item' + (p.providerId === selectedProvId ? ' selected' : '');
     const icon = p.isLocal ? '🌿' : (p.hasKey ? '🔑' : '⚠️');
     const keyTxt = p.isLocal ? '-' : (p.hasKey ? '✔' : '无');
-    const conn = scanMap[p.providerId] ? statusText(scanMap[p.providerId]) : '未测';
+    const st = scanMap[p.providerId];
+    const conn = st ? statusText(st) : '未测';
     const mk = document.createElement('span'); mk.className = 'key'; mk.textContent = icon;
     const nm = document.createElement('span'); nm.className = 'name'; nm.textContent = p.name + '（' + p.providerId + '）'; nm.title = p.providerId;
     const kk = document.createElement('span'); kk.className = 'prov'; kk.textContent = keyTxt;
     const mc = document.createElement('span'); mc.className = 'ctx'; mc.textContent = p.modelCount < 0 ? '-' : p.modelCount;
-    const cn = document.createElement('span'); cn.className = 'status'; cn.textContent = conn;
+    const cn = document.createElement('span'); cn.className = 'status' + (st === 'connected' || st === 'ok' ? ' reachable' : ''); cn.textContent = conn;
     const ad = document.createElement('span'); ad.className = 'addr'; ad.textContent = p.baseUrl || '(未设地址)'; ad.title = p.baseUrl;
     [mk, nm, kk, mc, cn, ad].forEach(c => item.appendChild(c));
     item.onclick = () => { selectedProvId = p.providerId; renderProviders(); };
