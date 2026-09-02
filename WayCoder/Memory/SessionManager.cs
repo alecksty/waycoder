@@ -29,8 +29,7 @@ public static class SessionManager
     /// <summary>原子写会话文件：先写临时文件再同卷替换，避免进程崩溃/断电留下半截损坏的会话 JSON。</summary>
     private static void AtomicWrite(string path, string content)
     {
-        var dir = Path.GetDirectoryName(path);
-        if (dir != null) Directory.CreateDirectory(dir);
+        Global.EnsureDir(path);
         var tmp = path + ".tmp";
         File.WriteAllText(tmp, content);
         File.Move(tmp, path, overwrite: true); // 同卷原子替换
@@ -50,7 +49,7 @@ public static class SessionManager
         var data = JNode.Object()
             .Set("id", sessionId)
             .Set("model", model)
-            .Set("saved_at", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            .Set("saved_at", Global.LogStamp());
 
         var msgArr = JNode.Array();
         foreach (var m in messages) msgArr.Add(m);
@@ -161,7 +160,7 @@ public static class SessionManager
             if (data != null)
             {
                 data.Set("id", newIdNormalized);
-                data.Set("saved_at", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                data.Set("saved_at", Global.LogStamp());
             }
             AtomicWrite(newPath, data?.ToJson(true) ?? json);
 
@@ -280,23 +279,8 @@ public static class SessionManager
     /// <summary>清理旧会话文件：保留最近 200 个 / 删 30 天前，防磁盘无限累积。</summary>
     private static void PruneOldSessions(string dir)
     {
-        try
-        {
-            if (!Directory.Exists(dir)) return;
-            var files = Directory.GetFiles(dir, "*.json")
-                .OrderByDescending(f => File.GetLastWriteTimeUtc(f)).ToList();
-            var cutoff = DateTime.UtcNow.AddDays(-Global.SessionRetentionDays);
-            for (int i = 0; i < files.Count; i++)
-            {
-                try
-                {
-                    if (i >= Global.MaxSessionsKeep || File.GetLastWriteTimeUtc(files[i]) < cutoff)
-                        File.Delete(files[i]);
-                }
-                catch { /* 单个文件删除失败忽略 */ }
-            }
-        }
-        catch { /* 清理失败不影响会话 */ }
+        Global.EnforceMaxFiles(dir, "*.json", Global.MaxSessionsKeep);
+        Global.CleanupOldFiles(dir, "*.json", Global.SessionRetentionDays);
     }
 }
 

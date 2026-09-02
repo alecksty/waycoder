@@ -250,7 +250,7 @@ public sealed class ProviderWindow : Window
     private async void Rename()
     {
         if (!RequireSelected()) return;
-        var cur = ModelCatalog.Providers.TryGetValue(_selectedPid, out var p) ? p.DisplayName : _selectedPid;
+        var cur = ModelCatalog.ProviderDisplayName(_selectedPid);
         var name = await PromptAsync($"✏️ 改名 {ModelCatalog.ProviderDisplayName(_selectedPid)}", "新显示名", cur);
         if (name == null || string.IsNullOrWhiteSpace(name)) return;
         ModelCatalog.RenameProvider(_selectedPid, name.Trim());
@@ -261,7 +261,7 @@ public sealed class ProviderWindow : Window
     private async void EditUrl()
     {
         if (!RequireSelected()) return;
-        var cur = ModelCatalog.Providers.TryGetValue(_selectedPid, out var p) ? p.DefaultBaseUrl ?? "" : "";
+        var cur = ModelCatalog.BaseUrlOf(_selectedPid);
         var url = await PromptAsync($"🌐 改地址 {ModelCatalog.ProviderDisplayName(_selectedPid)}", "Base URL", cur);
         if (url == null) return;
         if (!ModelCatalog.UpdateProviderUrl(_selectedPid, url.Trim()))

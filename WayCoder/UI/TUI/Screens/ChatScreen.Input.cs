@@ -36,21 +36,7 @@ public partial class ChatScreen : TuiScreen
 
             // 粘贴确认：超长(>500字符)或多行(>3行)时弹出确认
             var lines = text.Replace("\r\n", "\n").Split('\n');
-            if (text.Length > 500 || lines.Length > 3)
-            {
-                var preview = text.Length > 200 ? ContextManager.TruncateByRunes(text, 200) + "..." : text;
-                using var evt = new ManualResetEventSlim(false);
-                bool confirmed = false;
-                ShowWindow(TuiDialog.Confirm("粘贴确认",
-                    $"将粘贴 {lines.Length} 行 / {text.Length} 字符:\n{preview}",
-                    result =>
-                    {
-                        confirmed = result;
-                        evt.Set();
-                    }));
-                RenderWait(evt);
-                if (!confirmed) return;
-            }
+            if (!ConfirmPaste(text, lines)) return;
 
             InputArea.InsertText(text);
             MarkDirty();
@@ -86,24 +72,28 @@ public partial class ChatScreen : TuiScreen
         var lines = normalized.Split('\n');
 
         // 粘贴确认：超长(>500字符)或多行(>3行)时弹出确认
-        if (text.Length > 500 || lines.Length > 3)
-        {
-            var preview = text.Length > 200 ? ContextManager.TruncateByRunes(text, 200) + "..." : text;
-            using var evt = new ManualResetEventSlim(false);
-            bool confirmed = false;
-            ShowWindow(TuiDialog.Confirm("粘贴确认",
-                $"将粘贴 {lines.Length} 行 / {text.Length} 字符:\n{preview}",
-                result =>
-                {
-                    confirmed = result;
-                    evt.Set();
-                }));
-            RenderWait(evt);
-            if (!confirmed) return;
-        }
+        if (!ConfirmPaste(text, lines)) return;
 
         InputArea.InsertText(normalized);
         MarkDirty();
+    }
+
+    /// <summary>粘贴确认：超长(>500字符)或多行(>3行)弹确认框，返回是否放行（false=取消）。PasteAsync 与 HandleBracketedPaste 共用。</summary>
+    private bool ConfirmPaste(string text, string[] lines)
+    {
+        if (text.Length <= 500 && lines.Length <= 3) return true;
+        var preview = text.Length > 200 ? ContextManager.TruncateByRunes(text, 200) + "..." : text;
+        using var evt = new ManualResetEventSlim(false);
+        bool confirmed = false;
+        ShowWindow(TuiDialog.Confirm("粘贴确认",
+            $"将粘贴 {lines.Length} 行 / {text.Length} 字符:\n{preview}",
+            result =>
+            {
+                confirmed = result;
+                evt.Set();
+            }));
+        RenderWait(evt);
+        return confirmed;
     }
 
     // ── 输入操作 ──

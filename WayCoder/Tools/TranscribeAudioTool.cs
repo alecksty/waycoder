@@ -52,7 +52,7 @@ public class TranscribeAudioTool : ITool
         if (string.IsNullOrWhiteSpace(apiKey))
             return "错误：未配置 API Key。请设置 WAYCODER_WHISPER_API_KEY 或 WAYCODER_API_KEY 后重试。";
 
-        var baseUrl = (Config.Instance.WhisperBaseUrl ?? "https://api.openai.com").TrimEnd('/');
+        var baseUrl = ModelCatalog.NormalizeBaseUrl(Config.Instance.WhisperBaseUrl ?? "https://api.openai.com");
         var endpoint = $"{baseUrl}/v1/audio/transcriptions";
         var model = string.IsNullOrWhiteSpace(Config.Instance.WhisperModel)
             ? "whisper-1" : Config.Instance.WhisperModel;

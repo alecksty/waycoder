@@ -832,7 +832,7 @@ public static class ImportHelper
                         var data = JNode.Object()
                             .Set("id", sessionId)
                             .Set("model", "claude")
-                            .Set("saved_at", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                            .Set("saved_at", Global.LogStamp());
                         var msgArr = JNode.Array();
                         foreach (var m in messages) msgArr.Add(m);
                         data.Set("messages", msgArr);

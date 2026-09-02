@@ -911,9 +911,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     {
         var full = SafeResolveWithinRoot(root, relPath);
         if (full == null) return null;
-        var dir = Path.GetDirectoryName(full);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
+        Global.EnsureDir(full);
         if (string.IsNullOrEmpty(encoding)) Global.WriteAllTextPreserveBom(full, content);
         else TextEncoding.WriteFile(full, content, TextEncoding.GetByName(encoding));
         return full;

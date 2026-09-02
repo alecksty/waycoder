@@ -70,8 +70,7 @@ public class WriteFileTool : ITool
 
         try
         {
-            var dir = Path.GetDirectoryName(path);
-            if (dir != null) Directory.CreateDirectory(dir);
+            Global.EnsureDir(path);
 
             string? oldContent = null;
             string? diffMarkup = null; // YOLO 自动放行时把 diff 渲染进工具输出（声明在 try 级，else 块外也要引用）

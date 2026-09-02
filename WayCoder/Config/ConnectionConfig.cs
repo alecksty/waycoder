@@ -446,10 +446,10 @@ public static class ConnectionConfig
     /// <summary>按 base_url 反查已注册服务商；找不到返回 "custom"。</summary>
     private static string InferProviderFromBaseUrl(string baseUrl)
     {
-        var b = (baseUrl ?? "").Trim().TrimEnd('/');
+        var b = ModelCatalog.NormalizeBaseUrl(baseUrl);
         foreach (var (key, val) in ModelCatalog.Providers)
             if (!string.IsNullOrEmpty(val.DefaultBaseUrl)
-                && string.Equals(val.DefaultBaseUrl.Trim().TrimEnd('/'), b, StringComparison.OrdinalIgnoreCase))
+                && string.Equals(ModelCatalog.NormalizeBaseUrl(val.DefaultBaseUrl), b, StringComparison.OrdinalIgnoreCase))
                 return key;
         return "custom";
     }
@@ -780,8 +780,7 @@ public static class ConnectionConfig
     {
         try
         {
-            var dir = Path.GetDirectoryName(FilePath);
-            if (dir != null) Directory.CreateDirectory(dir);
+            Global.EnsureDir(FilePath);
 
             var connectsArr = JNode.Array();
             foreach (var c in _connects!)
@@ -807,9 +806,7 @@ public static class ConnectionConfig
                 .Set("connections", connsArr)
                 .Set("fallbackChain", fbArr);
 
-            var tmp = FilePath + ".tmp";
-            File.WriteAllText(tmp, Json.Serialize(root, indent: true));
-            File.Move(tmp, FilePath, overwrite: true); // 同卷原子替换
+            Global.WriteAllTextAtomic(FilePath, Json.Serialize(root, indent: true)); // 同卷原子替换
         }
         catch { /* 写失败不崩溃 */ }
     }

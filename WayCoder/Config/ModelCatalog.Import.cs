@@ -146,8 +146,7 @@ public static partial class ModelCatalog
             {
                 "opencode-go" => "OpenCode Go",
                 "opencode-zen" => "OpenCode Zen",
-                _ => ModelCatalog.Providers.TryGetValue(pid, out var prov) && !string.IsNullOrWhiteSpace(prov.DisplayName)
-                    ? prov.DisplayName : pid,
+                _ => ModelCatalog.ProviderDisplayName(pid),
             };
             // OpenRouter 等模型 id 带厂商前缀（openai/gpt-5.4-mini）：显示用去前缀短名，调用仍用完整 id（路由需要）
             var displayName = id.Contains('/') ? id[(id.IndexOf('/') + 1)..] : id;

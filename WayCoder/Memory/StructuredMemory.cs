@@ -212,7 +212,7 @@ public static class StructuredMemory
         if (curFull.Length > 0 && File.Exists(curFull)
             && !string.Equals(curFull, targetFull, StringComparison.Ordinal))
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(targetFull)!);
+            Global.EnsureDir(targetFull);
             File.Move(curFull, targetFull, overwrite: true);
         }
         entry.FilePath = targetPath;

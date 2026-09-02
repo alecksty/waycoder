@@ -69,9 +69,7 @@ public class MvTool : ITool
                 return $"⚠ 源与目标相同: {srcPath}";
 
             // 确保目标目录存在
-            var destDir = Path.GetDirectoryName(destPath);
-            if (destDir != null && !Directory.Exists(destDir))
-                Directory.CreateDirectory(destDir);
+            Global.EnsureDir(destPath);
 
             // 目标已存在
             if (File.Exists(destPath) || Directory.Exists(destPath))

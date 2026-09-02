@@ -294,7 +294,7 @@ public class ReadFileTool : ITool
         try { raw = File.ReadAllBytes(path); }
         catch { return $"错误：无法读取 {filePath}"; }
 
-        if (IsBinaryContent(raw))
+        if (TextEncoding.IsBinaryContent(raw))
             return $"错误：{filePath} 是二进制文件（检测到 NUL 字节），read_file 只能读取文本文件";
 
         try { _ = new UTF8Encoding(false, true).GetString(raw); }
@@ -331,15 +331,6 @@ public class ReadFileTool : ITool
             result += "\n" + diag;
 
         return result;
-    }
-
-    /// <summary>检测二进制内容：前 8KB 含 NUL 字节即判定为二进制。</summary>
-    private static bool IsBinaryContent(byte[] raw)
-    {
-        var n = Math.Min(raw.Length, 8192);
-        for (int i = 0; i < n; i++)
-            if (raw[i] == 0) return true;
-        return false;
     }
 
     private static string FormatAsTextFile(string[] chunk, int start, int total)
@@ -431,7 +422,7 @@ public class ReadFileTool : ITool
         try { raw = File.ReadAllBytes(path); }
         catch { return $"错误：无法读取 {path}"; }
 
-        if (IsBinaryContent(raw))
+        if (TextEncoding.IsBinaryContent(raw))
             return $"错误：{path} 是二进制文件";
 
         FileTracker.RecordRead(path);
@@ -465,7 +456,7 @@ public class ReadFileTool : ITool
         try { raw = File.ReadAllBytes(path); }
         catch { return $"错误：无法读取 {path}"; }
 
-        if (IsBinaryContent(raw))
+        if (TextEncoding.IsBinaryContent(raw))
             return $"错误：{path} 是二进制文件";
 
         FileTracker.RecordRead(path);

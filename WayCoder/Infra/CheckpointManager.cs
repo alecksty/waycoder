@@ -207,8 +207,7 @@ public static class CheckpointManager
                 if (relPath.StartsWith("..") || Path.IsPathRooted(relPath))
                     relPath = Path.GetFileName(srcPath); // 文件在 cwd 外：退化到仅文件名，防 Combine 逃逸
                 var destPath = Path.Combine(backupDir, relPath);
-                var destDir = Path.GetDirectoryName(destPath);
-                if (destDir != null) Directory.CreateDirectory(destDir);
+                Global.EnsureDir(destPath);
                 File.Copy(srcPath, destPath, overwrite: true);
                 backedUp++;
             }
@@ -353,8 +352,7 @@ public static class CheckpointManager
 
                     if (File.Exists(backupPath))
                     {
-                        var destDir = Path.GetDirectoryName(destPath);
-                        if (destDir != null) Directory.CreateDirectory(destDir);
+                        Global.EnsureDir(destPath);
                         File.Copy(backupPath, destPath, overwrite: true);
                         restored++;
                     }

@@ -248,11 +248,11 @@ public static partial class ModelCli
             .GroupBy(m => m.ProviderId))
         {
             var first = g.First();
-            var baseUrl = (first.DefaultBaseUrl ?? "").Trim().TrimEnd('/');
+            var baseUrl = ModelCatalog.NormalizeBaseUrl(first.DefaultBaseUrl);
             if (baseUrl.Length == 0) continue;
             // 服务商按地址去重：该地址已注册（不管 providerId）→ 跳过，避免同地址重复服务商
             bool addrExists = ModelCatalog.Providers.Values.Any(p =>
-                string.Equals((p.DefaultBaseUrl ?? "").Trim().TrimEnd('/'), baseUrl, StringComparison.OrdinalIgnoreCase));
+                string.Equals(ModelCatalog.NormalizeBaseUrl(p.DefaultBaseUrl), baseUrl, StringComparison.OrdinalIgnoreCase));
             if (addrExists) continue;
             var key = ApiKeyStore.Get(g.Key);
             var (ok, detail) = ProbeEndpoint(first.DefaultBaseUrl, key);

@@ -141,8 +141,7 @@ public static partial class ModelCatalog
             }
             sb.AppendLine("  }");
             sb.AppendLine("}");
-            var dir = Path.GetDirectoryName(ProvidersJsonPath);
-            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            Global.EnsureDir(ProvidersJsonPath);
             File.WriteAllText(ProvidersJsonPath, sb.ToString());
         }
         catch { }
@@ -166,7 +165,7 @@ public static partial class ModelCatalog
     }
 
     /// <summary>规范化 base_url 用于地址唯一性比较：去首尾空白 + 去尾部斜杠（大小写不敏感比较）。</summary>
-    internal static string NormalizeBaseUrl(string? url)
+    public static string NormalizeBaseUrl(string? url)
     {
         if (string.IsNullOrWhiteSpace(url)) return "";
         return url.Trim().TrimEnd('/');
@@ -402,6 +401,20 @@ public static partial class ModelCatalog
             if (string.Equals(k, pid, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(v.DisplayName))
                 return v.DisplayName;
         return pid;
+    }
+
+    /// <summary>providerId → 注册表默认地址（providers.json base_url）；未注册/无地址返回空串。
+    /// 与 ProviderDisplayName 对称，供各处「改地址初值/解析端点」统一取注册表地址，不再各自内联 TryGetValue。</summary>
+    public static string BaseUrlOf(string? providerId)
+    {
+        if (string.IsNullOrWhiteSpace(providerId)) return "";
+        var pid = providerId.Trim();
+        if (Providers.TryGetValue(pid, out var p) && !string.IsNullOrWhiteSpace(p.DefaultBaseUrl))
+            return p.DefaultBaseUrl;
+        foreach (var (k, v) in Providers)
+            if (string.Equals(k, pid, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(v.DefaultBaseUrl))
+                return v.DefaultBaseUrl;
+        return "";
     }
 
     /// <summary>改供应商显示名（保留其他字段，providers.json 落盘）。</summary>

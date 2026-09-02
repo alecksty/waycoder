@@ -60,7 +60,7 @@ public static class ErrorLog
             Directory.CreateDirectory(_logDir);
             CleanupOldLogs(); // 启动清理 N 天前的日志，防磁盘无限累积
 
-            _currentDate = DateTime.Now.ToString("yyyyMMdd");
+            _currentDate = Global.TodayStamp();
 
             // 启动定时刷盘
             _flushTimer = new Timer(_ => Flush(), null,
@@ -131,21 +131,8 @@ public static class ErrorLog
     /// <summary>清理 N 天前的 error_*.log（含滚动文件 error_YYYYMMDD_N.log），防磁盘无限累积。</summary>
     private static void CleanupOldLogs()
     {
-        try
-        {
-            if (_logDir == null || !Directory.Exists(_logDir)) return;
-            var cutoff = DateTime.UtcNow.AddDays(-Global.LogRetentionDays);
-            foreach (var f in Directory.GetFiles(_logDir, "error_*.log"))
-            {
-                try
-                {
-                    if (File.GetLastWriteTimeUtc(f) < cutoff)
-                        File.Delete(f);
-                }
-                catch { /* 单个文件删除失败忽略 */ }
-            }
-        }
-        catch { /* 清理失败不影响日志 */ }
+        if (_logDir == null) return;
+        Global.CleanupOldFiles(_logDir, "error_*.log", Global.LogRetentionDays);
     }
 
     // ================================================================
@@ -228,7 +215,7 @@ public static class ErrorLog
         lock (_appendLock)
         {
             // 检测日期变更 → 轮转
-            var today = DateTime.Now.ToString("yyyyMMdd");
+            var today = Global.TodayStamp();
             if (today != _currentDate || _currentLogFile == null)
             {
                 _currentDate = today;
