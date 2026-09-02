@@ -1,5 +1,4 @@
 ﻿using System.Text;
-using WayCoder.Infra;
 
 namespace WayCoder;
 
@@ -226,12 +225,23 @@ public static partial class ModelCatalog
         }
     }
 
+    /// <summary>持久化边界归一化：若模型 baseUrl 已属于某注册供应商且当前 ProviderId 不一致，
+    /// 重写为注册归属者（防导入别名复发——同地址 = 同供应商，模型归属应跟随地址）。无匹配/一致则原样。</summary>
+    private static ModelInfo NormalizeToRegisteredOwner(ModelInfo m)
+    {
+        var owner = FindProviderByBaseUrl(m.DefaultBaseUrl);
+        if (owner != null && !owner.Equals(m.ProviderId, StringComparison.OrdinalIgnoreCase))
+            return m with { ProviderId = owner };
+        return m;
+    }
+
     /// <summary>新增/更新自定义模型，返回写入的文件路径。local=true 写本地，否则写全局。
     /// 文件读-改-写持统一锁（_lock），防 Web 并发导入/删除 read-modify-write 竞争丢模型。</summary>
     public static string AddCustom(ModelInfo info, bool local = false)
     {
         lock (_lock)
         {
+            info = NormalizeToRegisteredOwner(info);
             var path = ProviderFile(info.ProviderId, local);
             var models = ReadFile(path);
             var key = ModelKey(info.ProviderId, info.Id);
@@ -256,6 +266,8 @@ public static partial class ModelCatalog
         if (list.Count == 0) return 0;
         lock (_lock)
         {
+            // 持久化边界归一化：别名模型重写为注册归属者（防复发），在护栏与分组写盘前执行
+            list = list.Select(NormalizeToRegisteredOwner).ToList();
             // 导入数量护栏：按「净新增 key 数」判超限——更新已有 key 不计入（避免已有 9990 条时
             // 导入 20 条纯更新被误拒），一次 models.dev 导入 7000+ 仍被挡。
             if (Global.MaxImportedModels > 0)

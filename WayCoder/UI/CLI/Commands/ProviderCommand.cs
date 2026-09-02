@@ -18,13 +18,14 @@ namespace WayCoder.UI.Cli.Commands;
 ///   /provider apikey rm &lt;pid&gt;       → 删除某服务商的 key
 ///   /provider test                   → 连通性测试（探测各端点 /models）
 ///   /provider import [all|opencode|openclaw|crush|&lt;文件路径&gt;] → 导入外部模型库
+///   /provider reconcile [--dry-run]  → 把模型归并到同地址的已注册服务商（先备份）
 /// </summary>
 public class ProviderCommand : SlashCommand
 {
     public override string Name => "/provider";
     public override string[] Aliases => ["/p", "/prov"];
     public override string Description => "Provider management — providers {name, baseUrl, apikey}: list/add/rm/select/test/import";
-    public override string? Usage => "/provider [list | add <id> <name> <url> | rm <id> | select <id> | <id> | show <id> | apikey [set <pid> <key> | rm <pid>] | test | import [source]]";
+    public override string? Usage => "/provider [list | add <id> <name> <url> | rm <id> | select <id> | <id> | show <id> | apikey [set <pid> <key> | rm <pid>] | test | import [source] | reconcile [--dry-run]]";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {
@@ -85,6 +86,12 @@ public class ProviderCommand : SlashCommand
                 break;
             case "import":
                 ImportProviders(screen, rest);
+                break;
+            case "reconcile":
+                var dry = rest.Contains("--dry-run", StringComparison.OrdinalIgnoreCase)
+                       || rest.Contains("dry-run", StringComparison.OrdinalIgnoreCase)
+                       || rest.Contains("preview", StringComparison.OrdinalIgnoreCase);
+                screen.AddSystemMsg(ModelCli.ProviderCli.ReconcileText(dry));
                 break;
             default:
                 // /provider <id> → 同 select：切换当前服务商
@@ -277,10 +284,20 @@ public class ProviderCommand : SlashCommand
 
     static void ImportProviders(ChatScreen screen, string source)
     {
-        // 复用 ModelCli.Import：source 为空→auto，all/opencode/openclaw/crush→指定来源，否则视为文件路径
-        var result = string.IsNullOrWhiteSpace(source) || source.Equals("all", StringComparison.OrdinalIgnoreCase)
-            ? ModelCli.Import(null)
-            : ModelCli.Import(source);
+        // 在线多源：`/provider import online [源名...]` / `/provider import allonline` = 全部在线源
+        var s = source.Trim();
+        if (s.StartsWith("online", StringComparison.OrdinalIgnoreCase)
+            || s.Equals("allonline", StringComparison.OrdinalIgnoreCase))
+        {
+            var names = s.Replace(',', ' ').Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Skip(1).ToArray();
+            screen.AddSystemMsg(ModelCli.ImportOnlineAll(names, msg => screen.AddSystemMsg(msg)));
+            return;
+        }
+        // 本地多源：source 为空→auto，all/opencode/openclaw/crush→指定来源，逗号分隔多源；否则视为文件路径
+        var result = string.IsNullOrWhiteSpace(s) || s.Equals("all", StringComparison.OrdinalIgnoreCase)
+            ? ModelCli.Import(null, msg => screen.AddSystemMsg(msg))
+            : ModelCli.Import(source, msg => screen.AddSystemMsg(msg));
         screen.AddSystemMsg(result);
     }
 }

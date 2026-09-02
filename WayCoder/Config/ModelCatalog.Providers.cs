@@ -1,5 +1,4 @@
 using System.Text;
-using WayCoder.Infra;
 
 namespace WayCoder;
 
@@ -223,6 +222,147 @@ public static partial class ModelCatalog
             foreach (var drop in survivors.Keys) Providers.Remove(drop);
             SaveProvidersJson();
             return survivors.Count;
+        }
+    }
+
+    /// <summary>归并引擎里一条模型的处理记录。</summary>
+    public sealed record ReconcileChange(
+        string SourceProviderId, string TargetProviderId, string ModelId,
+        string Action, // moved | duplicate-skip | already-canonical | no-url | unresolved
+        string? SourceFile);
+
+    /// <summary>归并报告：计数 + 备份/删除/失败文件 + 逐条变更（dry-run 时 Backups/Deleted/Failed 为空）。</summary>
+    public sealed record ReconcileReport(
+        bool DryRun,
+        int Moved, int DuplicateSkip, int AlreadyCanonical, int NoUrl, int Unresolved,
+        IReadOnlyList<string> Backups, IReadOnlyList<string> DeletedFiles, IReadOnlyList<string> FailedFiles,
+        IReadOnlyList<ReconcileChange>? Changes);
+
+    /// <summary>
+    /// 模型归并：把自定义模型从「别名 providerId」迁移到拥有同 base_url 的已注册供应商名下。
+    /// 别名来源 = 导入时按来源声明名/URL host 推导的 id 与注册表脱节（如 api-qnaigc-com → qiniucloud）。
+    /// 规则：空/无 URL → no-url（不动）；URL 无注册归属 → unresolved（不动）；已 canonical → 计数；目标 key 已占 →
+    /// duplicate-skip（保留现有、仍移除别名源条目）；否则 moved（写目标桶 + 删源桶）。
+    /// 备份先行、先写目标后删源、原子写 + 幂等可重跑。dryRun 只统计不落盘。
+    /// </summary>
+    public static ReconcileReport ReconcileModels(bool dryRun = false)
+    {
+        lock (_lock)
+        {
+            Invalidate();
+            var existing = LoadCustom(); // 触发 legacy 迁移，拿合并快照（按归一化 key）做 canonical 判定
+            var changes = new List<ReconcileChange>();
+            var moves = new List<(string SourceFile, bool Local, string SourceKey, ModelInfo Model, string Target, bool AddToTarget)>();
+            int moved = 0, dup = 0, canonical = 0, noUrl = 0, unresolved = 0;
+
+            foreach (var file in EnumerateModelFiles())
+            {
+                var local = IsLocalModelFile(file);
+                foreach (var (key, m) in ReadFile(file))
+                {
+                    if (string.IsNullOrWhiteSpace(m.DefaultBaseUrl))
+                    {
+                        noUrl++;
+                        changes.Add(new ReconcileChange(m.ProviderId, "", m.Id, "no-url", file));
+                        continue;
+                    }
+                    var target = FindProviderByBaseUrl(m.DefaultBaseUrl);
+                    if (target == null)
+                    {
+                        unresolved++;
+                        changes.Add(new ReconcileChange(m.ProviderId, "", m.Id, "unresolved", file));
+                        continue;
+                    }
+                    if (target.Equals(m.ProviderId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        canonical++;
+                        changes.Add(new ReconcileChange(m.ProviderId, target, m.Id, "already-canonical", file));
+                        continue;
+                    }
+                    // 字段归一化：存储 providerId 规范化后 == 目标（如 wafer.ai → wafer-ai，ModelKey 归一化后同 key）
+                    // —— 这本质就是 canonical 条目，只是存储字段格式不对，必迁移改写字段，不存在「重复跳过」。
+                    if (NormalizeId(m.ProviderId) == NormalizeId(target))
+                    {
+                        moved++;
+                        changes.Add(new ReconcileChange(m.ProviderId, target, m.Id, "moved", file));
+                        moves.Add((file, local, key, m, target, true));
+                        continue;
+                    }
+                    // 真正别名（如 pass-wafer-ai → wafer-ai）：仅当已存在真实 canonical 条目才 duplicate-skip——
+                    // 判定用 existing 里该 key 的存储 providerId（规范化后==目标），防误把「别名自身」当 canonical。
+                    var newKey = ModelKey(target, m.Id);
+                    var hasCanonical = existing.TryGetValue(newKey, out var em)
+                        && NormalizeId(em.ProviderId) == NormalizeId(target);
+                    if (hasCanonical)
+                    {
+                        dup++;
+                        changes.Add(new ReconcileChange(m.ProviderId, target, m.Id, "duplicate-skip", file));
+                        moves.Add((file, local, key, m, target, false)); // 仍移除源条目，让别名 providerId 消失
+                        continue;
+                    }
+                    moved++;
+                    changes.Add(new ReconcileChange(m.ProviderId, target, m.Id, "moved", file));
+                    moves.Add((file, local, key, m, target, true));
+                }
+            }
+
+            if (dryRun || moves.Count == 0)
+                return new ReconcileReport(dryRun, moved, dup, canonical, noUrl, unresolved,
+                    Array.Empty<string>(), Array.Empty<string>(), Array.Empty<string>(), changes);
+
+            // 备份受影响文件（源 ∪ 目标且存在），首个写入前完成
+            var backups = new List<string>();
+            var affected = moves.Select(mv => mv.SourceFile)
+                .Concat(moves.Select(mv => ProviderFile(mv.Target, mv.Local)))
+                .Where(File.Exists).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            foreach (var f in affected)
+                if (BackupFile(f) is { } bak) backups.Add(bak);
+
+            // 分组计划
+            var additions = new Dictionary<string, List<ModelInfo>>(StringComparer.OrdinalIgnoreCase);
+            var removals = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var mv in moves)
+            {
+                var tf = ProviderFile(mv.Target, mv.Local);
+                // 源==目标：原地改写存储 providerId（归一化 key 不变），只写不删，防自删后丢模型
+                var inPlace = string.Equals(tf, mv.SourceFile, StringComparison.OrdinalIgnoreCase);
+                if (mv.AddToTarget || inPlace)
+                {
+                    if (!additions.TryGetValue(tf, out var al)) additions[tf] = al = new List<ModelInfo>();
+                    al.Add(mv.Model with { ProviderId = mv.Target });
+                }
+                if (!inPlace)
+                {
+                    if (!removals.TryGetValue(mv.SourceFile, out var rl)) removals[mv.SourceFile] = rl = new List<string>();
+                    rl.Add(mv.SourceKey);
+                }
+            }
+
+            var failed = new List<string>();
+            var deleted = new List<string>();
+
+            // Pass 1：先写目标桶（canonical 副本先于别名删除存在，防崩溃丢模型）
+            foreach (var (target, list) in additions)
+            {
+                var models = ReadFile(target);
+                foreach (var m in list) models[ModelKey(m.ProviderId, m.Id)] = m;
+                if (!SaveCustom(models, target)) failed.Add(target);
+            }
+            // Pass 2：从源桶移除；空文件删除
+            foreach (var (src, keys) in removals)
+            {
+                var models = ReadFile(src);
+                foreach (var k in keys) models.Remove(k);
+                if (models.Count == 0)
+                {
+                    TryDeleteFile(src);
+                    if (File.Exists(src)) failed.Add(src); else deleted.Add(src);
+                }
+                else if (!SaveCustom(models, src)) failed.Add(src);
+            }
+
+            Invalidate();
+            return new ReconcileReport(false, moved, dup, canonical, noUrl, unresolved, backups, deleted, failed, changes);
         }
     }
 
