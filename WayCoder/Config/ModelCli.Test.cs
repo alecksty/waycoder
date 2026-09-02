@@ -105,8 +105,7 @@ public static partial class ModelCli
         {
             var baseUrl = ResolveProviderBaseUrl(pid);
             var models = ModelCatalog.ByProvider(pid).Select(m => m.Id).ToArray();
-            var display = ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DisplayName)
-                ? p.DisplayName : pid;
+            var display = ModelCatalog.ProviderDisplayName(pid);
             targets.Add(new ProbeTarget(pid, display, baseUrl, key, models, IsLocal: false));
         }
 
@@ -172,8 +171,7 @@ public static partial class ModelCli
         {
             var baseUrl = ResolveProviderBaseUrl(pid);
             var models = ModelCatalog.ByProvider(pid).Select(m => m.Id).ToArray();
-            var display = ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DisplayName)
-                ? p.DisplayName : pid;
+            var display = ModelCatalog.ProviderDisplayName(pid);
             targets.Add(new ProbeTarget(pid, display, baseUrl, key, models, IsLocal: false));
         }
 
@@ -217,8 +215,7 @@ public static partial class ModelCli
         foreach (var (pid, key) in keys)
         {
             var baseUrl = ResolveProviderBaseUrl(pid);
-            var display = ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DisplayName)
-                ? p.DisplayName : pid;
+            var display = ModelCatalog.ProviderDisplayName(pid);
 
             // 无端点：供应商不存在或未配置 base_url（写错地址/拼错供应商）→ 删模型，key 保留
             if (string.IsNullOrWhiteSpace(baseUrl))

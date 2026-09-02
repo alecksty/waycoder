@@ -75,11 +75,8 @@ public static partial class ModelCli
                     .Set("baseUrl", JNode.From(c.BaseUrl ?? "")));
             var root = JNode.Object().Set("free", arr);
             var path = FreeJsonPath;
-            var dir = Path.GetDirectoryName(path);
-            if (dir != null) Directory.CreateDirectory(dir);
-            var tmp = path + ".tmp";
-            File.WriteAllText(tmp, Json.Serialize(root, indent: true));
-            File.Move(tmp, path, overwrite: true); // 原子替换
+            Global.EnsureDir(path);
+            Global.WriteAllTextAtomic(path, Json.Serialize(root, indent: true)); // 原子替换
         }
         catch { /* 写失败不阻塞 */ }
     }

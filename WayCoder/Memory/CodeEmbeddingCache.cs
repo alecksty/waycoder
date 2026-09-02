@@ -49,8 +49,7 @@ public static class CodeEmbeddingCache
         if (!_dirty) return;
         try
         {
-            var dir = Path.GetDirectoryName(StorePath);
-            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            Global.EnsureDir(StorePath);
             var arr = JNode.Array();
             foreach (var kv in Cache)
             {

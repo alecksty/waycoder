@@ -347,12 +347,9 @@ public static class FileTracker
             }
 
             var path = StorePath;
-            var dir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            Global.EnsureDir(path);
 
-            var tmp = path + ".tmp";
-            File.WriteAllText(tmp, arr.ToJson());
-            File.Move(tmp, path, overwrite: true);
+            Global.WriteAllTextAtomic(path, arr.ToJson());
         }
         catch
         {

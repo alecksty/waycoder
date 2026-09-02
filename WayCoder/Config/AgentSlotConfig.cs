@@ -152,10 +152,10 @@ public static class AgentSlotConfig
             var cfgBase = Config.Instance.BaseUrl;
             if (!string.IsNullOrWhiteSpace(cfgBase))
             {
-                var norm = cfgBase.Trim().TrimEnd('/');
+                var norm = ModelCatalog.NormalizeBaseUrl(cfgBase);
                 var match = ModelCatalog.All.FirstOrDefault(m => m.Id == modelId
                     && !string.IsNullOrEmpty(m.DefaultBaseUrl)
-                    && string.Equals(m.DefaultBaseUrl.Trim().TrimEnd('/'), norm, StringComparison.OrdinalIgnoreCase));
+                    && string.Equals(ModelCatalog.NormalizeBaseUrl(m.DefaultBaseUrl), norm, StringComparison.OrdinalIgnoreCase));
                 if (match != null)
                 {
                     var reg = ModelCatalog.Providers.TryGetValue(match.ProviderId, out var rp) ? rp.DefaultBaseUrl : null;
@@ -350,8 +350,7 @@ public static class AgentSlotConfig
     {
         try
         {
-            var dir = Path.GetDirectoryName(FilePath);
-            if (dir != null) Directory.CreateDirectory(dir);
+            Global.EnsureDir(FilePath);
 
             _slots = slots;
             var arr = JNode.Array();

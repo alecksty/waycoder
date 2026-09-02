@@ -120,9 +120,7 @@ public class EditorCore
     /// <summary>同步保存（写文件）</summary>
     public void Save()
     {
-        var dir = Path.GetDirectoryName(FilePath);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
+        Global.EnsureDir(FilePath);
 
         var content = string.Join(_newLine, Lines.Select(sb => sb.ToString()));
         TextEncoding.WriteFile(FilePath, content, FileEncoding); // 按探测到的编码写回（保真 GB18030/BOM）

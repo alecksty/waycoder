@@ -68,9 +68,7 @@ public static partial class ModelCli
                         ? $"忙${m.InputPrice}/{m.OutputPrice} 闲${m.InputPriceOffpeak}/{m.OutputPriceOffpeak}"
                         : $"${m.InputPrice}/{m.OutputPrice}")
                     : "?";
-                var ctx = m.ContextWindow > 0
-                    ? m.ContextWindow >= 1_000_000 ? $"{m.ContextWindow / 1_000_000}M" : $"{m.ContextWindow / 1000}K"
-                    : "?";
+                var ctx = FormatCtx(m.ContextWindow);
                 var mark = m.Id == current ? "  ← 当前" : "";
                 // 显示用短名（去 openrouter 类路由前缀），切换/调用仍用完整 id
                 sb.AppendLine($"  {ModelCatalog.ShortDisplayName(m.Id).PadRight(nameWidth)} {ctx,-5}ctx  {price,-30}  [{m.Category}]{mark}");
@@ -267,8 +265,7 @@ public static partial class ModelCli
         // 不指定服务商 → 当前 provider（Config.Provider）；否则规范化指定 id
         var pid = ModelCatalog.NormalizeId(string.IsNullOrWhiteSpace(providerId) ? Config.Instance.Provider : providerId);
         if (pid.Length == 0) pid = "custom";
-        var display = ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DisplayName)
-            ? p.DisplayName : pid;
+        var display = ModelCatalog.ProviderDisplayName(pid);
         // 未指定 baseUrl → 用服务商默认地址
         var effBaseUrl = string.IsNullOrWhiteSpace(baseUrl)
             ? (ModelCatalog.Providers.TryGetValue(pid, out var pp) && !string.IsNullOrEmpty(pp.DefaultBaseUrl) ? pp.DefaultBaseUrl : null)
@@ -329,7 +326,7 @@ public static partial class ModelCli
             return (false, "无端点（未配置 base_url）");
         try
         {
-            var b = baseUrl.Trim().TrimEnd('/');
+            var b = ModelCatalog.NormalizeBaseUrl(baseUrl);
             var urls = new List<string> { b + "/models" };
             if (!b.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
                 urls.Add(b + "/v1/models");

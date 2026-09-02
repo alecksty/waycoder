@@ -29,7 +29,7 @@ public static class DebugLog
             Directory.CreateDirectory(_logDir);
             CleanupOldSessionLogs(); // 清理 7 天前的 session_*.log，防磁盘无限累积
 
-            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var timestamp = Global.NowStamp();
             _sessionFile = Path.Combine(_logDir, $"session_{timestamp}.log");
 
             _roundCount = 0;
@@ -214,20 +214,7 @@ public static class DebugLog
     /// <summary>清理 7 天前的 session_*.log，防磁盘无限累积。</summary>
     private static void CleanupOldSessionLogs()
     {
-        try
-        {
-            if (_logDir == null || !Directory.Exists(_logDir)) return;
-            var cutoff = DateTime.UtcNow.AddDays(-Global.DebugLogRetentionDays);
-            foreach (var f in Directory.GetFiles(_logDir, "session_*.log"))
-            {
-                try
-                {
-                    if (File.GetLastWriteTimeUtc(f) < cutoff)
-                        File.Delete(f);
-                }
-                catch { /* 单个文件删除失败忽略 */ }
-            }
-        }
-        catch { /* 清理失败不影响日志 */ }
+        if (_logDir == null) return;
+        Global.CleanupOldFiles(_logDir, "session_*.log", Global.DebugLogRetentionDays);
     }
 }

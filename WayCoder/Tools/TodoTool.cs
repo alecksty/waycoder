@@ -385,8 +385,7 @@ public class TodoTool : ITool
         {
             try
             {
-                var dir = Path.GetDirectoryName(StorePath)!;
-                Directory.CreateDirectory(dir);
+                Global.EnsureDir(StorePath);
 
                 var arr = JNode.Array();
                 foreach (var t in todos)
@@ -405,9 +404,7 @@ public class TodoTool : ITool
                 }
 
                 // 原子写：先写临时文件再 move 覆盖，避免读方读到半写文件（GUI 2s 定时器 / 多槽位 Agent 并发读）
-                var tmp = StorePath + ".tmp";
-                File.WriteAllText(tmp, arr.ToJson());
-                File.Move(tmp, StorePath, overwrite: true);
+                Global.WriteAllTextAtomic(StorePath, arr.ToJson());
             }
             catch (Exception ex)
             {

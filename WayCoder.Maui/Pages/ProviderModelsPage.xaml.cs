@@ -24,7 +24,7 @@ public partial class ProviderModelsPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-        var disp = ModelCatalog.Providers.TryGetValue(_pid, out var p) ? p.DisplayName : _pid;
+        var disp = ModelCatalog.ProviderDisplayName(_pid);
         Title = $"{disp} · 模型";
         UpdateModeButton();
         RefreshSizeButtons();
@@ -180,7 +180,7 @@ public partial class ProviderModelsPage : ContentPage
     /// <summary>改供应商默认地址（UpdateProviderUrl 作用到该供应商全部模型）。</summary>
     private async Task EditBaseUrl()
     {
-        var cur = ModelCatalog.Providers.TryGetValue(_pid, out var p) ? p.DefaultBaseUrl : "";
+        var cur = ModelCatalog.BaseUrlOf(_pid);
         var url = await DisplayPromptAsync("改地址", $"base_url（{_pid}）", initialValue: cur);
         if (string.IsNullOrWhiteSpace(url)) return;
         ModelCatalog.UpdateProviderUrl(_pid, url.Trim());

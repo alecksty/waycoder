@@ -114,14 +114,6 @@ public static class SubAgentAudit
     /// <summary>滚动时清理 N 天前的 subagents_*.log（对齐 ErrorLog.LogRetentionDays），防滚动文件无限累积。</summary>
     private static void CleanupOldAudit(string dir)
     {
-        try
-        {
-            var cutoff = DateTime.UtcNow.AddDays(-Global.LogRetentionDays);
-            foreach (var f in Directory.GetFiles(dir, "subagents_*.log"))
-            {
-                try { if (File.GetLastWriteTimeUtc(f) < cutoff) File.Delete(f); } catch { }
-            }
-        }
-        catch { /* 清理失败静默 */ }
+        Global.CleanupOldFiles(dir, "subagents_*.log", Global.LogRetentionDays);
     }
 }

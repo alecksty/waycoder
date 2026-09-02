@@ -61,9 +61,7 @@ public static class FileVersionStore
                 foreach (var v in kv.Value) vArr.Add(v);
                 arr.Add(JNode.Object().Set("path", kv.Key).Set("versions", vArr));
             }
-            var tmp = IndexPath + ".tmp";
-            File.WriteAllText(tmp, JNode.Object().Set("files", arr).ToJson());
-            File.Move(tmp, IndexPath, overwrite: true);
+            Global.WriteAllTextAtomic(IndexPath, JNode.Object().Set("files", arr).ToJson());
             _dirty = false;
         }
         catch { }
@@ -103,9 +101,7 @@ public static class FileVersionStore
             var verDir = VersionDir(full);
             if (!Directory.Exists(verDir)) Directory.CreateDirectory(verDir);
             var verPath = Path.Combine(verDir, ver);
-            var tmp = verPath + ".tmp";
-            File.WriteAllText(tmp, content);
-            File.Move(tmp, verPath, overwrite: true);
+            Global.WriteAllTextAtomic(verPath, content);
 
             existing ??= [];
             existing.Add(ver);

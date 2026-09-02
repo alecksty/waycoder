@@ -218,8 +218,7 @@ public class StructTodoTool : ITool
 
     private static void SaveTodos(List<TodoItem> todos)
     {
-        var dir = Path.GetDirectoryName(StorePath)!;
-        Directory.CreateDirectory(dir);
+        Global.EnsureDir(StorePath);
         var arr = JNode.Array();
         foreach (var t in todos)
         {

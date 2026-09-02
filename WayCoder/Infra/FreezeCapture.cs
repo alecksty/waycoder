@@ -378,15 +378,6 @@ public static class FreezeCapture
     /// <summary>保留最新 20 个 freeze_*.txt，旧的删除（best-effort，放后台）。</summary>
     private static void CleanupOldDumps()
     {
-        try
-        {
-            var files = Directory.GetFiles(LogDir, "freeze_*.txt")
-                .OrderByDescending(f => f).ToList();
-            foreach (var f in files.Skip(20))
-            {
-                try { File.Delete(f); } catch { }
-            }
-        }
-        catch { }
+        Global.EnforceMaxFiles(LogDir, "freeze_*.txt", 20);
     }
 }

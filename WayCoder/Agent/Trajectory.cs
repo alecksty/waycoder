@@ -83,23 +83,8 @@ public sealed class Trajectory
     /// <summary>清理旧轨迹文件：保留最近 100 个 run、删除 30 天前的文件，防磁盘无限累积。</summary>
     private static void PruneOldTrajectories(string dir)
     {
-        try
-        {
-            var files = Directory.GetFiles(dir, "*.jsonl")
-                .OrderByDescending(f => File.GetLastWriteTimeUtc(f)).ToList();
-            var cutoff = DateTime.UtcNow.AddDays(-Global.TrajectoryRetentionDays);
-            for (int i = 0; i < files.Count; i++)
-            {
-                var f = files[i];
-                try
-                {
-                    if (i >= Global.MaxTrajectoryKeep || File.GetLastWriteTimeUtc(f) < cutoff)
-                        File.Delete(f);
-                }
-                catch { /* 单个文件删除失败忽略 */ }
-            }
-        }
-        catch { /* 清理失败不影响轨迹 */ }
+        Global.EnforceMaxFiles(dir, "*.jsonl", Global.MaxTrajectoryKeep);
+        Global.CleanupOldFiles(dir, "*.jsonl", Global.TrajectoryRetentionDays);
     }
 
     /// <summary>记录一轮 LLM 交互（token 消耗 + 输出形态）。内部累计总轮次与总 token。</summary>

@@ -507,8 +507,7 @@ public static class ApiKeyStore
     {
         try
         {
-            var dir = Path.GetDirectoryName(FilePath);
-            if (dir != null) Directory.CreateDirectory(dir);
+            Global.EnsureDir(FilePath);
 
             var arr = JNode.Array();
             foreach (var (pid, entry) in keys)
@@ -523,9 +522,7 @@ public static class ApiKeyStore
 
             // 原子写：先落临时文件再 rename 覆盖，避免中途崩溃留下半截 JSON（下次启动解析失败丢全部 key）。
             var json = arr.ToJson(true);
-            var tmp = FilePath + ".tmp";
-            File.WriteAllText(tmp, json);
-            File.Move(tmp, FilePath, overwrite: true);
+            Global.WriteAllTextAtomic(FilePath, json);
 
             _keys = keys;
             return true;

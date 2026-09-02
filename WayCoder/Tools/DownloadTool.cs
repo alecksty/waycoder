@@ -63,9 +63,7 @@ public class DownloadTool : ITool, ICancellableTool
         if (lockErr != null) return lockErr;
 
         // 确保目标目录存在
-        var dir = Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
+        Global.EnsureDir(filePath);
 
         try
         {

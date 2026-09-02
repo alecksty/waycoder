@@ -992,8 +992,7 @@ public static class GitCore
             var blob = ReadObject(gitDir, entry.Sha);
             if (blob == null) continue;
             var full = Path.Combine(repoRoot, rel.Replace('/', Path.DirectorySeparatorChar));
-            var dir = Path.GetDirectoryName(full);
-            if (dir != null) Directory.CreateDirectory(dir);
+            Global.EnsureDir(full);
             File.WriteAllBytes(full, blob.Value.Content);
             written++;
             if (written % 20 == 0 || written == total)

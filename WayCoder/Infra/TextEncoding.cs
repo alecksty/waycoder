@@ -20,6 +20,15 @@ public static class TextEncoding
     private static readonly byte[] Utf16LeBom = { 0xFF, 0xFE };
     private static readonly byte[] Utf16BeBom = { 0xFE, 0xFF };
 
+    /// <summary>检测二进制内容：前 8KB 含 NUL 字节即判定为二进制（read_file/转码共用）。</summary>
+    public static bool IsBinaryContent(byte[] raw)
+    {
+        var n = Math.Min(raw.Length, 8192);
+        for (int i = 0; i < n; i++)
+            if (raw[i] == 0) return true;
+        return false;
+    }
+
     private static Encoding? _gb18030;
 
     /// <summary>GB18030 编码（GBK/GB2312 超集），惰性注册 CodePages provider。</summary>

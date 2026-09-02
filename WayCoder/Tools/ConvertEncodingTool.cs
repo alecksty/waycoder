@@ -91,7 +91,7 @@ public class ConvertEncodingTool : ITool
             try { bytes = File.ReadAllBytes(srcPath); }
             catch { return $"错误：无法读取 {filePath}"; }
 
-            if (IsBinaryContent(bytes))
+            if (TextEncoding.IsBinaryContent(bytes))
                 return $"错误：{filePath} 是二进制文件（检测到 NUL 字节），convert_encoding 只能转换文本文件";
 
             FileTracker.RecordRead(srcPath);
@@ -116,8 +116,7 @@ public class ConvertEncodingTool : ITool
             var dstEnc = TextEncoding.ResolveEncoding(to);
             var toName = string.IsNullOrWhiteSpace(to) ? "utf-8" : to.Trim();
 
-            var dir = Path.GetDirectoryName(dstPath);
-            if (dir != null) Directory.CreateDirectory(dir);
+            Global.EnsureDir(dstPath);
             // 用 WriteAllText（内部 StreamWriter）写回：编码自带 BOM 则写 BOM（UTF-8-BOM/UTF-16/UTF-32），
             // 无 BOM 编码（UTF-8/GBK/Big5 等）不写 BOM。直接 GetBytes + WriteAllBytes 会丢 BOM。
             File.WriteAllText(dstPath, text, dstEnc);
@@ -138,12 +137,4 @@ public class ConvertEncodingTool : ITool
         }
     }
 
-    /// <summary>检测二进制内容：前 8KB 含 NUL 字节即判定为二进制。</summary>
-    private static bool IsBinaryContent(byte[] raw)
-    {
-        var n = Math.Min(raw.Length, 8192);
-        for (int i = 0; i < n; i++)
-            if (raw[i] == 0) return true;
-        return false;
-    }
 }

@@ -35,7 +35,7 @@ public class ExportTool : ITool
 
         try
         {
-            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var timestamp = Global.NowStamp();
             var content = format switch
             {
                 "json" => ExportJson(),

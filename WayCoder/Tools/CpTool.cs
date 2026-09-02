@@ -65,9 +65,7 @@ public class CpTool : ITool
             }
 
             // 确保目标目录存在
-            var destDir = Path.GetDirectoryName(destPath);
-            if (destDir != null && !Directory.Exists(destDir))
-                Directory.CreateDirectory(destDir);
+            Global.EnsureDir(destPath);
 
             if (File.Exists(srcPath))
             {

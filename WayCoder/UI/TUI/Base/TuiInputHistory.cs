@@ -60,8 +60,7 @@ public static class TuiInputHistory
         if (string.IsNullOrEmpty(_persistPath)) return;
         try
         {
-            var dir = Path.GetDirectoryName(_persistPath);
-            if (dir != null && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            Global.EnsureDir(_persistPath);
             var lines = new List<string>();
             foreach (var kv in _store)
                 foreach (var v in kv.Value)

@@ -154,8 +154,9 @@ public sealed class AgentService
     /// <summary>baseUrl 解析（复刻 Web 版 ResolveBaseUrl：provider 注册表地址 > model 默认地址 > 全局配置）。</summary>
     private static string? ResolveBaseUrl(ModelCatalog.ModelInfo? info, string providerId, string? globalBaseUrl)
     {
-        if (ModelCatalog.Providers.TryGetValue(providerId, out var p) && !string.IsNullOrEmpty(p.DefaultBaseUrl))
-            return p.DefaultBaseUrl;
+        var regUrl = ModelCatalog.BaseUrlOf(providerId);
+        if (!string.IsNullOrEmpty(regUrl))
+            return regUrl;
         if (info?.DefaultBaseUrl != null) return info.DefaultBaseUrl;
         return globalBaseUrl;
     }

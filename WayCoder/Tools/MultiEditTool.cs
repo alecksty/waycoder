@@ -192,9 +192,7 @@ public class MultiEditTool : ITool
         }
 
         // 创建父目录
-        var dir = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
+        Global.EnsureDir(path);
 
         Global.WriteAllTextPreserveBom(path, content);
         EditFileTool.RecordChange(path, null, content);

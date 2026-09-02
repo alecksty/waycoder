@@ -39,6 +39,17 @@ public static class ModelPicker
     /// </summary>
     public enum ScanStatus { Unknown, Connected, NoKey, BadKey, Overdue, NoEndpoint, Unreachable }
 
+    /// <summary>ScanStatus → 中文状态文本（行状态列/GUI 状态列共用的唯一映射；本地/无key 特判由调用方先做）。</summary>
+    public static string StatusText(ScanStatus s) => s switch
+    {
+        ScanStatus.Connected => "✔连通",
+        ScanStatus.BadKey => "✖key",
+        ScanStatus.Overdue => "欠费",
+        ScanStatus.NoEndpoint => "无端点",
+        ScanStatus.Unreachable => "✖不通",
+        _ => "未测",
+    };
+
     private const int MinW = 74, MinH = 16;
 
     // 单元格内右对齐用的宽度（列宽本身在 modelpicker.tui 的 columns 里声明）
@@ -124,15 +135,7 @@ public static class ModelPicker
             if (m.ProviderId is "local" or "custom") // 无需 key，只有扫描能判断连通
                 return ScannedStatus(m.ProviderId) == ScanStatus.Connected ? "✔本地" : "本地";
             if (!m.HasApiKey) return "无key";
-            return ScannedStatus(m.ProviderId) switch
-            {
-                ScanStatus.Connected => "✔连通",
-                ScanStatus.BadKey => "✖key",
-                ScanStatus.Overdue => "欠费",
-                ScanStatus.NoEndpoint => "无端点",
-                ScanStatus.Unreachable => "✖不通",
-                _ => "未测",
-            };
+            return StatusText(ScannedStatus(m.ProviderId));
         }
 
         /// <summary>组头尾缀：供应商级聚合状态（该组任一模型有 key 才算有 key）。</summary>

@@ -152,14 +152,11 @@ public static partial class ModelCatalog
     {
         try
         {
-            var dir = Path.GetDirectoryName(path);
-            if (dir != null) Directory.CreateDirectory(dir);
+            Global.EnsureDir(path);
             var arr = JNode.Array();
             foreach (var m in models.Values.OrderBy(m => m.Id, StringComparer.OrdinalIgnoreCase))
                 arr.Add(ToJson(m));
-            var tmp = path + ".tmp";
-            File.WriteAllText(tmp, arr.ToJson(indent: true));
-            File.Move(tmp, path, overwrite: true); // 同卷原子替换
+            Global.WriteAllTextAtomic(path, arr.ToJson(indent: true)); // 同卷原子替换
             return true;
         }
         catch { return false; } // 写入失败不崩溃，由调用方决定是否保留现场

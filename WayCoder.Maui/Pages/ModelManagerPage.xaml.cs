@@ -36,7 +36,7 @@ public partial class ModelManagerPage : ContentPage
 
         foreach (var g in byProvider)
         {
-            var display = ModelCatalog.Providers.TryGetValue(g.Key, out var p) ? p.DisplayName : g.Key;
+            var display = ModelCatalog.ProviderDisplayName(g.Key);
             var baseUrl = g.FirstOrDefault()?.DefaultBaseUrl ?? ModelCatalog.Providers.GetValueOrDefault(g.Key)?.DefaultBaseUrl;
             var conn = _connectivity.GetValueOrDefault(g.Key);
 
@@ -219,7 +219,7 @@ public partial class ModelManagerPage : ContentPage
 
         try
         {
-            var providerName = ModelCatalog.Providers.TryGetValue(providerId, out var p) ? p.DisplayName : providerId;
+            var providerName = ModelCatalog.ProviderDisplayName(providerId);
             var baseUrl = ModelCatalog.Providers.GetValueOrDefault(providerId)?.DefaultBaseUrl
                 ?? ModelCatalog.All.FirstOrDefault(m => m.ProviderId == providerId)?.DefaultBaseUrl;
             var ctx = int.TryParse(context, out var c) ? c : 131_072;
@@ -316,7 +316,7 @@ public partial class ModelManagerPage : ContentPage
 
     private async Task RenameProviderAsync(string providerId)
     {
-        var name = ModelCatalog.Providers.TryGetValue(providerId, out var p) ? p.DisplayName : providerId;
+        var name = ModelCatalog.ProviderDisplayName(providerId);
         var newName = await DisplayPromptAsync("改名", $"输入 {providerId} 的新显示名", accept: "保存", cancel: "取消",
             initialValue: name, maxLength: 40);
         if (string.IsNullOrWhiteSpace(newName)) return;
@@ -326,7 +326,7 @@ public partial class ModelManagerPage : ContentPage
 
     private async Task EditProviderUrlAsync(string providerId)
     {
-        var url = ModelCatalog.Providers.TryGetValue(providerId, out var p) ? p.DefaultBaseUrl : "";
+        var url = ModelCatalog.BaseUrlOf(providerId);
         var newUrl = await DisplayPromptAsync("改地址", $"输入 {providerId} 的 Base URL", accept: "保存", cancel: "取消",
             initialValue: url, maxLength: 200);
         if (newUrl == null) return;
@@ -341,7 +341,7 @@ public partial class ModelManagerPage : ContentPage
 
     private async Task DeleteProviderAsync(string providerId)
     {
-        var name = ModelCatalog.Providers.TryGetValue(providerId, out var p) ? p.DisplayName : providerId;
+        var name = ModelCatalog.ProviderDisplayName(providerId);
         var confirmed = await DisplayAlertAsync("删除供应商", $"确定删除 {name}（{providerId}）？此操作不可恢复。", "删除", "取消");
         if (!confirmed) return;
         ModelCatalog.RemoveProvider(providerId);

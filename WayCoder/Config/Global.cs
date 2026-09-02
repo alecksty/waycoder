@@ -29,6 +29,64 @@ public static class Global
         catch { return false; }
     }
 
+    // ── 文件 IO 通用助手（收敛各处的原子写/建目录/时间戳/清理样板）──
+    /// <summary>原子写文本文件：先写 .tmp 再 File.Move 替换，防崩溃/磁盘满留下半截文件覆盖全量数据（无 BOM UTF-8）。</summary>
+    public static void WriteAllTextAtomic(string path, string content)
+    {
+        var tmp = path + ".tmp";
+        File.WriteAllText(tmp, content, Utf8NoBom);
+        File.Move(tmp, path, overwrite: true);
+    }
+
+    /// <summary>确保文件所在目录存在（Directory.CreateDirectory 幂等）。空/无父目录直接返回。</summary>
+    public static void EnsureDir(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return;
+        try
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+        }
+        catch { /* 建目录失败不崩溃，由后续写文件报错 */ }
+    }
+
+    /// <summary>今天日期戳 yyyyMMdd（日志文件名）。</summary>
+    public static string TodayStamp() => DateTime.Now.ToString("yyyyMMdd");
+    /// <summary>当前时间戳 yyyyMMdd_HHmmss（快照/备份文件名）。</summary>
+    public static string NowStamp() => DateTime.Now.ToString("yyyyMMdd_HHmmss");
+    /// <summary>可读日志时间戳 yyyy-MM-dd HH:mm:ss。</summary>
+    public static string LogStamp() => DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+    /// <summary>清理目录下按 LastWriteTimeUtc 超过保留天数的文件，返回删除数。</summary>
+    public static int CleanupOldFiles(string dir, string pattern, int retentionDays)
+    {
+        if (!Directory.Exists(dir)) return 0;
+        var cutoff = DateTime.UtcNow.AddDays(-retentionDays);
+        var n = 0;
+        try
+        {
+            foreach (var f in Directory.GetFiles(dir, pattern))
+                if (File.GetLastWriteTimeUtc(f) < cutoff) { try { File.Delete(f); n++; } catch { } }
+        }
+        catch { }
+        return n;
+    }
+
+    /// <summary>目录下匹配文件数超过上限时删除最旧的多余文件，返回删除数。</summary>
+    public static int EnforceMaxFiles(string dir, string pattern, int maxKeep)
+    {
+        if (!Directory.Exists(dir) || maxKeep <= 0) return 0;
+        try
+        {
+            var files = Directory.GetFiles(dir, pattern)
+                .OrderBy(f => File.GetLastWriteTimeUtc(f)).ToList();
+            var excess = files.Count - maxKeep;
+            for (int i = 0; i < excess; i++) { try { File.Delete(files[i]); } catch { } }
+            return Math.Max(0, excess);
+        }
+        catch { return 0; }
+    }
+
     // ── 应用 ──
     /// <summary>应用品牌名（英文）</summary>
     public const string AppName = "WayCoder";

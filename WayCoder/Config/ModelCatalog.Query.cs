@@ -18,13 +18,13 @@ public static partial class ModelCatalog
     public static ModelInfo? Find(string id, string? baseUrl)
     {
         if (string.IsNullOrWhiteSpace(baseUrl)) return Find(id);
-        var url = baseUrl.Trim().TrimEnd('/');
+        var url = ModelCatalog.NormalizeBaseUrl(baseUrl);
         var custom = LoadCustom();
         var c = custom.Values.FirstOrDefault(m => m.Id == id
-            && string.Equals(m.DefaultBaseUrl?.Trim().TrimEnd('/') ?? "", url, StringComparison.OrdinalIgnoreCase));
+            && string.Equals(ModelCatalog.NormalizeBaseUrl(m.DefaultBaseUrl), url, StringComparison.OrdinalIgnoreCase));
         if (c != null) return c;
         return BuiltIn.FirstOrDefault(m => m.Id == id
-            && string.Equals(m.DefaultBaseUrl?.Trim().TrimEnd('/') ?? "", url, StringComparison.OrdinalIgnoreCase));
+            && string.Equals(ModelCatalog.NormalizeBaseUrl(m.DefaultBaseUrl), url, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -236,7 +236,7 @@ public static partial class ModelCatalog
         try
         {
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
-            var baseUri = baseUrl.TrimEnd('/');
+            var baseUri = ModelCatalog.NormalizeBaseUrl(baseUrl);
             var json = $"{{\"name\":\"{modelId}\"}}";
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
             using var resp = client.PostAsync($"{baseUri}/api/show", content).GetAwaiter().GetResult();

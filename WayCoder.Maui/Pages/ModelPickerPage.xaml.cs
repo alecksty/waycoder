@@ -48,14 +48,11 @@ public partial class ModelPickerPage : ContentPage
             .ToList();
 
         ModelList.ItemsSource = models
-            .GroupBy(m => ProviderName(m.ProviderId))
+            .GroupBy(m => ModelCatalog.ProviderDisplayName(m.ProviderId))
             .OrderBy(g => g.Key)
             .Select(g => new ModelGroup(g.Key, g.ToList()))
             .ToList();
     }
-
-    private static string ProviderName(string pid)
-        => ModelCatalog.Providers.TryGetValue(pid, out var p) ? p.DisplayName : pid;
 
     private static string FmtCtx(int n) => n >= 1_000_000 ? $"{n / 1_000_000.0:F1}M" : n >= 1000 ? $"{n / 1000}k" : n.ToString();
 

@@ -137,7 +137,7 @@ public class ScreenshotTool : ITool
             else
             {
                 var fullPath = Path.GetFullPath(savePath, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
-                Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+                Global.EnsureDir(fullPath);
                 savePath = fullPath;
             }
 
@@ -281,20 +281,7 @@ public class ScreenshotTool : ITool
     /// <summary>默认截图目录保留上限：超 <see cref="Global.MaxScreenshotsKeep"/> 删最旧（按写入时间），防磁盘无限累积。</summary>
     internal static void CleanupOldScreenshots(string dir)
     {
-        try
-        {
-            var files = Directory.GetFiles(dir, "shot_*.png")
-                .Select(p => (Path: p, Time: File.GetLastWriteTimeUtc(p)))
-                .OrderBy(t => t.Time)
-                .Select(t => t.Path)
-                .ToList();
-            while (files.Count > Global.MaxScreenshotsKeep)
-            {
-                File.Delete(files[0]);
-                files.RemoveAt(0);
-            }
-        }
-        catch { /* 清理失败静默 */ }
+        Global.EnforceMaxFiles(dir, "shot_*.png", Global.MaxScreenshotsKeep);
     }
 
     internal static (int Width, int Height) ReadPngDimensions(string path)

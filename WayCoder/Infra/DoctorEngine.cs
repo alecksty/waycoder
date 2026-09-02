@@ -730,8 +730,7 @@ public static class DoctorEngine
     {
         try
         {
-            var dir = Path.GetDirectoryName(path);
-            if (dir != null) Directory.CreateDirectory(dir);
+            Global.EnsureDir(path);
             File.WriteAllText(path, content);
             return true;
         }

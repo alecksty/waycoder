@@ -46,7 +46,7 @@ public partial class SettingsPage : ContentPage
         var current = cfg.Provider.ToLowerInvariant();
         if (providers.All(p => p.Id != current))
         {
-            var disp = ModelCatalog.Providers.TryGetValue(current, out var p) ? p.DisplayName : current;
+            var disp = ModelCatalog.ProviderDisplayName(current);
             providers.Insert(0, new ProviderOption(current, disp));
         }
 
@@ -66,7 +66,7 @@ public partial class SettingsPage : ContentPage
         var smallCurrent = string.IsNullOrEmpty(cfg.SmallProvider) ? current : cfg.SmallProvider.ToLowerInvariant();
         if (providers.All(p => p.Id != smallCurrent))
         {
-            var disp = ModelCatalog.Providers.TryGetValue(smallCurrent, out var sp) ? sp.DisplayName : smallCurrent;
+            var disp = ModelCatalog.ProviderDisplayName(smallCurrent);
             providers.Insert(0, new ProviderOption(smallCurrent, disp));
         }
         SmallProviderPicker.ItemsSource = providers;
@@ -151,7 +151,7 @@ public partial class SettingsPage : ContentPage
     private void ApplyModel(string providerId, string modelId)
     {
         ConnectionConfig.ApplyModelChoice(providerId, modelId, isLarge: true, out _);
-        var disp = ModelCatalog.Providers.TryGetValue(providerId, out var p) ? p.DisplayName : providerId;
+        var disp = ModelCatalog.ProviderDisplayName(providerId);
         ProviderPicker.SelectedItem = new ProviderOption(providerId, disp);
         ReloadModels(providerId, modelId);
         UpdateKeyStatus(providerId);

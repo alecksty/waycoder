@@ -62,8 +62,7 @@ public partial class Config
             try
             {
                 var path = ConfigJsonPath;
-                var dir = Path.GetDirectoryName(path);
-                if (dir != null) Directory.CreateDirectory(dir);
+                Global.EnsureDir(path);
 
                 var obj = JNode.Object();
                 foreach (var p in _schema)
@@ -84,9 +83,7 @@ public partial class Config
                     obj.Set("freePrevBaseUrl", JNode.From(FreePrevBaseUrl ?? ""));
                 }
 
-                var tmp = path + ".tmp";
-                File.WriteAllText(tmp, Json.Serialize(obj, indent: true));
-                File.Move(tmp, path, overwrite: true); // 同卷原子替换
+                Global.WriteAllTextAtomic(path, Json.Serialize(obj, indent: true)); // 同卷原子替换
             }
             catch { /* 保存失败不崩溃（磁盘满/权限） */ }
         }
@@ -99,8 +96,7 @@ public partial class Config
     private void SaveMinimalDotEnv()
     {
         var envPath = FindEnvFile() ?? Global.GlobalConfigPath(".env");
-        var dir = Path.GetDirectoryName(envPath);
-        if (dir != null) Directory.CreateDirectory(dir);
+        Global.EnsureDir(envPath);
         var lines = File.Exists(envPath) ? File.ReadAllLines(envPath).ToList() : [];
 
         // 移除所有 WAYCODER_* 行（稍后只重写 5 项），保留注释与非 WAYCODER_* 键（token 等）
@@ -148,8 +144,7 @@ public partial class Config
             if (root is not { Kind: JKind.Object }) return;
 
             var local = Global.WriteConfigPath(Directory.GetCurrentDirectory(), "config.json");
-            var dir = Path.GetDirectoryName(local);
-            if (dir != null) Directory.CreateDirectory(dir);
+            Global.EnsureDir(local);
 
             if (File.Exists(local) && File.ReadAllText(local) == File.ReadAllText(global))
                 return; // 无更新，跳过

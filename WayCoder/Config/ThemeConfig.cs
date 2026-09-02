@@ -184,8 +184,7 @@ public class ThemeConfig
     {
         try
         {
-            var dir = Path.GetDirectoryName(ThemePath)!;
-            Directory.CreateDirectory(dir);
+            Global.EnsureDir(ThemePath);
             var presetJson = PresetKey == null ? "null" : $"\"{PresetKey}\"";
             var json = $@"{{
   ""preset"": {presetJson},
