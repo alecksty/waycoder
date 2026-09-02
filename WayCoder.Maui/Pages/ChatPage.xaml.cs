@@ -309,7 +309,7 @@ public partial class ChatPage : ContentPage
     /// <summary>顶部状态区行 1：当前生效模型（点击可切换）。行 2 统计见 <see cref="RefreshStatusBar"/>。</summary>
     private void RefreshModelBar()
     {
-        ModelBar.Text = $"🧠 {Config.Instance.Model}";
+        ModelBar.Text = $"🧠 {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.Provider), Config.Instance.Model)}";
         RefreshStatusBar();
     }
 
@@ -886,18 +886,19 @@ public partial class ChatPage : ContentPage
 
             // vision 门控（与 ViewImageTool 一致：用全局配置；MVP 单槽位即全局模型）
             var model = Config.Instance.Model;
+            var modelLabel = ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.Provider), model);
             var baseUrl = Config.Instance.BaseUrl;
             if (!ModelCatalog.ResolveSupportsVision(model, baseUrl))
             {
                 await DisplayAlertAsync("不支持看图",
-                    $"当前模型 {model} 不支持图片输入（vision）。请切换到 gpt-4o / gpt-5 / claude / gemini 等 vision 模型。",
+                    $"当前模型 {modelLabel} 不支持图片输入（vision）。请切换到 gpt-4o / gpt-5 / claude / gemini 等 vision 模型。",
                     "知道了");
                 return;
             }
 
             // 入队（与 Agent 主循环 DrainImages(AgentId="maui-slot-0") 对齐）
             LLM.QueueImage("maui-slot-0", full);
-            await DisplayAlertAsync("图片已添加", $"已将图片加入下一轮请求，发送消息后 {model} 会看到它。", "知道了");
+            await DisplayAlertAsync("图片已添加", $"已将图片加入下一轮请求，发送消息后 {modelLabel} 会看到它。", "知道了");
         }
         catch (Exception ex)
         {

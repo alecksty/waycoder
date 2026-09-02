@@ -408,7 +408,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var info = string.IsNullOrWhiteSpace(baseUrl) ? ModelCatalog.Find(modelId) : ModelCatalog.Find(modelId, baseUrl);
             if (info == null) return HttpResponse.JsonBody(Err($"未知模型「{modelId}」"));
             var effProviderId = !string.IsNullOrWhiteSpace(providerId) ? providerId : info.ProviderId;
-            var effBaseUrl = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl : info.DefaultBaseUrl;
+            // baseUrl 未显式传 → 用 provider 注册表地址（Find 内置官方优先会取错网关，与 ApplyModel /settings 同理）
+            var effBaseUrl = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl
+                : ConnectionConfig.ResolveBaseUrl(effProviderId) ?? info.DefaultBaseUrl;
             ConnectionConfig.ApplyModelChoice(effProviderId, modelId, isLarge: true, out _, effBaseUrl);
             BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
@@ -450,8 +452,22 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                 var info = string.IsNullOrWhiteSpace(baseUrl) ? ModelCatalog.Find(value) : ModelCatalog.Find(value, baseUrl);
                 var effProviderId = !string.IsNullOrWhiteSpace(providerId)
                     ? providerId : (info?.ProviderId ?? Config.Instance.Provider);
-                ConnectionConfig.ApplyModelChoice(effProviderId, value, isLarge, out _,
-                    string.IsNullOrWhiteSpace(baseUrl) ? info?.DefaultBaseUrl : baseUrl);
+                // baseUrl 未显式传 → 用 provider 注册表地址（Find 内置官方优先会取错网关，与 ApplyModel 同理）
+                var effBaseUrl = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl
+                    : ConnectionConfig.ResolveBaseUrl(effProviderId) ?? info?.DefaultBaseUrl;
+                ConnectionConfig.ApplyModelChoice(effProviderId, value, isLarge, out _, effBaseUrl);
+                // 运行时重配当前槽位 Agent（与 /model 大模型切换一致，避免「显示切了、实际模型没换」）
+                try
+                {
+                    var agent = EnsureSlot(slot);
+                    if (isLarge)
+                    {
+                        agent.LlmClient.Model = value;
+                        agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(value, Config.Instance.MaxContextTokens));
+                    }
+                    else agent.LlmClient.SmallModel = value;
+                }
+                catch { /* 槽位未就绪忽略，配置已持久化 */ }
                 Config.Instance.SaveToEnvFile();
                 BroadcastStateForAll();
                 return HttpResponse.JsonBody(Ok());
@@ -1147,7 +1163,11 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         }
 
         var cfg = Config.Instance;
-        var effBaseUrl = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl : info.DefaultBaseUrl;
+        // baseUrl 未显式传 → 用 effProviderId 的注册表地址（含 providers.json 覆盖），而非 info.DefaultBaseUrl——
+        // info 来自 Find(modelId, baseUrl)，baseUrl 为空时 Find 内置官方优先，选 baseUrl 为空的模型
+        // （如 AIHubMix 网关下的 deepseek-v4-flash）会误取官方网关地址，导致「显示切了、实际连接打错网关」
+        var effBaseUrl = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl
+            : ConnectionConfig.ResolveBaseUrl(effProviderId) ?? info?.DefaultBaseUrl;
 
         // 「切换模型 = 切换 connect」：统一入口同步扁平字段 + 持久化
         ConnectionConfig.ApplyModelChoice(effProviderId, modelId, isLarge: true, out _, effBaseUrl);

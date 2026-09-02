@@ -22,10 +22,11 @@ public partial class MainPage : ContentPage
         VersionLabel.Text = $"版本 {Global.Version}";
 
         var cfg = Config.Instance;
-        ModelLabel.Text = cfg.Model;
+        // 模型 + 服务商显示名（同 id 跨服务商可区分，与 TUI/ChatPage 模型栏格式一致）
+        ModelLabel.Text = ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.Provider), cfg.Model);
         // Key 按服务商存于 ApiKeyStore，不能用 Config.ApiKey 判断（同 ChatPage 修复）
         KeyLabel.Text = AgentService.HasUsableKey()
-            ? $"已配置 Key · 服务商 {cfg.Provider}"
+            ? $"已配置 Key · 服务商 {ModelCatalog.ProviderDisplayName(cfg.Provider)}"
             : "尚未配置 API Key，先去「设置」填写";
     }
 

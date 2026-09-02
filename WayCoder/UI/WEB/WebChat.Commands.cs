@@ -159,7 +159,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         sb.AppendLine("| 模型 | 供应商 | 上下文 |");
         sb.AppendLine("|---|---|---|");
         foreach (var m in ModelCatalog.All)
-            sb.AppendLine($"| {m.DisplayName} | {m.ProviderId} | {WebFormatContext(m.ContextWindow)} |");
+            sb.AppendLine($"| {m.DisplayName} | {ModelCatalog.ProviderDisplayName(m.ProviderId)} | {WebFormatContext(m.ContextWindow)} |");
         return sb.ToString();
     }
 
@@ -177,7 +177,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         sb.AppendLine("| 模型 | 供应商 |");
         sb.AppendLine("|---|---|");
         foreach (var c in available)
-            sb.AppendLine($"| `{ModelCatalog.ShortDisplayName(c.ModelId)}` | {c.ProviderId} |");
+            sb.AppendLine($"| `{ModelCatalog.ShortDisplayName(c.ModelId)}` | {ModelCatalog.ProviderDisplayName(c.ProviderId)} |");
         sb.AppendLine();
         sb.AppendLine("用 `/model <名称>` 切换；`/free-restore` 恢复之前模型；重新扫描跑 `--model free`");
         return sb.ToString();

@@ -225,7 +225,7 @@ public partial class ModelManagerPage : ContentPage
             var ctx = int.TryParse(context, out var c) ? c : 131_072;
             ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
                 modelId, display, providerName, providerId, "C", "Custom", ctx, 0, 0, baseUrl, $"自定义导入 {display}"));
-            await DisplayAlertAsync("已导入", $"模型「{display}」已加入供应商 {providerId}。", "确定");
+            await DisplayAlertAsync("已导入", $"模型「{display}」已加入供应商 {ModelCatalog.ProviderDisplayName(providerId)}。", "确定");
             Populate();
         }
         catch (Exception ex) { await DisplayAlertAsync("导入失败", ex.Message, "关闭"); }
@@ -311,7 +311,7 @@ public partial class ModelManagerPage : ContentPage
             return;
         }
         Populate();
-        await DisplayAlertAsync("已保存", $"已保存 {providerId} 的 API Key", "确定");
+        await DisplayAlertAsync("已保存", $"已保存 {ModelCatalog.ProviderDisplayName(providerId)} 的 API Key", "确定");
     }
 
     private async Task RenameProviderAsync(string providerId)

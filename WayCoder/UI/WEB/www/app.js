@@ -169,7 +169,7 @@ function renderSlots(state) {
     const b = document.createElement('div');
     b.className = 'slot' + (i === state.activeSlot ? ' active' : '') + (s.hasHistory ? ' has' : '');
     b.textContent = 'F' + (i + 1);
-    b.title = s.model ? ('F' + (i + 1) + ' · (' + (s.providerId || '?') + ')' + s.model) : ('F' + (i + 1) + ' · 空');
+    b.title = s.model ? ('F' + (i + 1) + ' · (' + (s.providerName || s.providerId || '?') + ')' + s.model) : ('F' + (i + 1) + ' · 空');
     b.onclick = () => switchSlot(i);
     slotsEl.appendChild(b);
   }
@@ -494,7 +494,7 @@ function chooseModel(m) {
     pendingModelId = isSmall ? '' : m.id;
     pendingSmallModelId = isSmall ? m.id : '';
     currentProvider = m.providerId;
-    document.getElementById('key-hint').textContent = '为 ' + m.providerId + ' 输入 API Key（保存后切换到' + (isSmall ? '小模型' : '大模型') + ' ' + m.name + '）。';
+    document.getElementById('key-hint').textContent = '为 ' + (m.provider || m.providerId) + ' 输入 API Key（保存后切换到' + (isSmall ? '小模型' : '大模型') + ' ' + m.name + '）。';
     document.getElementById('key-input').value = '';
     document.getElementById('model-modal').classList.remove('open');
     keyModal.classList.add('open');
@@ -531,6 +531,7 @@ document.getElementById('model-modal').addEventListener('click', e => {
 
 // ── 服务商管理对话框（对标 TUI ProviderPicker：列表 / 设Key / 清Key / 测试 / 添加 / 改名 / 改地址 / 删除）──
 let selectedProvId = '';
+const provNameById = {};   // providerId → 注册显示名（renderProviders 时填充，操作弹窗文案用它显示可读名称）
 const providerModal = document.getElementById('provider-modal');
 const providerStatus = document.getElementById('provider-status');
 function openProviderModal() {
@@ -548,6 +549,7 @@ async function renderProviders() {
   list.innerHTML = '';
   if (!prov || prov.length === 0) { list.innerHTML = '<div class="empty">暂无供应商</div>'; return; }
   prov.forEach(p => {
+    provNameById[p.providerId] = p.name; // 供操作弹窗显示可读名称
     const item = document.createElement('div');
     item.className = 'provider-item' + (p.providerId === selectedProvId ? ' selected' : '');
     const icon = p.isLocal ? '🌿' : (p.hasKey ? '🔑' : '⚠️');
@@ -599,30 +601,30 @@ document.getElementById('provider-add-btn').onclick = () => {
 };
 document.getElementById('provider-set-key-btn').onclick = () => {
   if (!selectedProvId) { providerStatus.textContent = '⚠ 请先选中一个供应商'; return; }
-  const key = window.prompt('🔑 设置 ' + selectedProvId + ' 的 API Key（留空=清除）');
+  const key = window.prompt('🔑 设置 ' + (provNameById[selectedProvId] || selectedProvId) + ' 的 API Key（留空=清除）');
   if (key === null) return;
   providerPost('/provider/key', { providerId: selectedProvId, apiKey: key.trim() }, '已保存 Key');
 };
 document.getElementById('provider-clear-key-btn').onclick = () => {
   if (!selectedProvId) { providerStatus.textContent = '⚠ 请先选中一个供应商'; return; }
-  if (!window.confirm('清除 ' + selectedProvId + ' 的 API Key？')) return;
+  if (!window.confirm('清除 ' + (provNameById[selectedProvId] || selectedProvId) + ' 的 API Key？')) return;
   providerPost('/provider/key/remove', { providerId: selectedProvId }, '已清除 Key');
 };
 document.getElementById('provider-rename-btn').onclick = () => {
   if (!selectedProvId) { providerStatus.textContent = '⚠ 请先选中一个供应商'; return; }
-  const name = window.prompt('✏️ 改名 ' + selectedProvId + '：新显示名');
+  const name = window.prompt('✏️ 改名 ' + (provNameById[selectedProvId] || selectedProvId) + '：新显示名');
   if (!name || !name.trim()) return;
   providerPost('/provider/rename', { providerId: selectedProvId, name: name.trim() }, '已改名');
 };
 document.getElementById('provider-url-btn').onclick = () => {
   if (!selectedProvId) { providerStatus.textContent = '⚠ 请先选中一个供应商'; return; }
-  const url = window.prompt('🌐 改地址 ' + selectedProvId + '：Base URL');
+  const url = window.prompt('🌐 改地址 ' + (provNameById[selectedProvId] || selectedProvId) + '：Base URL');
   if (url === null) return;
   providerPost('/provider/url', { providerId: selectedProvId, baseUrl: url.trim() }, '已更新地址');
 };
 document.getElementById('provider-del-btn').onclick = () => {
   if (!selectedProvId) { providerStatus.textContent = '⚠ 请先选中一个供应商'; return; }
-  if (!window.confirm('删除供应商 ' + selectedProvId + '？删除后不可恢复。')) return;
+  if (!window.confirm('删除供应商 ' + (provNameById[selectedProvId] || selectedProvId) + '？删除后不可恢复。')) return;
   providerPost('/provider/delete', { providerId: selectedProvId }, '已删除供应商');
 };
 // 点击遮罩（卡片外）关闭服务商弹窗
@@ -783,7 +785,7 @@ document.getElementById('model-set-key-btn').onclick = () => {
   if (m.providerId === 'local' || m.providerId === 'custom') { status.textContent = '本地模型无需 API Key'; return; }
   pendingModelId = ''; pendingSmallModelId = '';
   currentProvider = m.providerId;
-  document.getElementById('key-hint').textContent = '为 ' + m.providerId + ' 设置 API Key（保存后该供应商所有模型可用）。';
+  document.getElementById('key-hint').textContent = '为 ' + (m.provider || m.providerId) + ' 设置 API Key（保存后该供应商所有模型可用）。';
   document.getElementById('key-input').value = '';
   keyModal.classList.add('open');
 };
@@ -793,7 +795,7 @@ document.getElementById('model-clear-key-btn').onclick = () => {
   if (!m) { status.textContent = '请先选择一个模型'; return; }
   if (m.providerId === 'local' || m.providerId === 'custom') { status.textContent = '本地模型无需 API Key'; return; }
   fetch('/key', { method: 'POST', body: JSON.stringify({ providerId: m.providerId, apiKey: '' }) })
-    .then(() => { status.textContent = '已清除 ' + m.providerId + ' 的 Key'; fetchModels(); })
+    .then(() => { status.textContent = '已清除 ' + (m.provider || m.providerId) + ' 的 Key'; fetchModels(); })
     .catch(() => { status.textContent = '清除失败'; });
 };
 

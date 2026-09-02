@@ -382,6 +382,11 @@ public static partial class SelfTest
             ModelCatalog.Find("deepseek-v4-flash", "https://api.inferera.com/v1")?.ProviderId == "aihubmix");
         Check("模型按网关精确定位官方",
             ModelCatalog.Find("deepseek-v4-flash", "https://api.deepseek.com")?.ProviderId == "deepseek");
+        Check("模型按网关精确定位（尾斜杠规范化）",
+            ModelCatalog.Find("deepseek-v4-flash", "https://api.inferera.com/v1/")?.ProviderId == "aihubmix");
+        // Web 端 ApplyModel 网关推导：baseUrl 空时用 provider 注册表地址（Find 内置官方优先会取错网关）
+        Check("provider 注册表地址 aihubmix", ConnectionConfig.ResolveBaseUrl("aihubmix") == "https://api.inferera.com/v1");
+        Check("provider 注册表地址 deepseek", ConnectionConfig.ResolveBaseUrl("deepseek") == "https://api.deepseek.com");
         {
             var oldModel = Config.Instance.Model; var oldBase = Config.Instance.BaseUrl; var oldProv = Config.Instance.Provider;
             try

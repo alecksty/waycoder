@@ -514,17 +514,19 @@ public static partial class ModelCatalog
         return custom.Values.FirstOrDefault(m => m.Id == id);
     }
 
-    /// <summary>按 id + baseUrl 精确查模型（地址不同 = 不同服务商）。baseUrl 为空回退 <see cref="Find(string)"/>。</summary>
+    /// <summary>按 id + baseUrl 精确查模型（地址不同 = 不同服务商）。baseUrl 为空回退 <see cref="Find(string)"/>。
+    /// baseUrl 与目录条目均做尾斜杠规范化比较——槽位/配置里的网关可能带尾斜杠，与 ResolveBaseUrl 的 TrimEnd('/') 对齐，
+    /// 否则带尾斜杠的网关匹配不到（归属退化为 Find(id) 内置官方优先）。</summary>
     public static ModelInfo? Find(string id, string? baseUrl)
     {
         if (string.IsNullOrWhiteSpace(baseUrl)) return Find(id);
-        var url = baseUrl.Trim();
+        var url = baseUrl.Trim().TrimEnd('/');
         var custom = LoadCustom();
         var c = custom.Values.FirstOrDefault(m => m.Id == id
-            && string.Equals(m.DefaultBaseUrl ?? "", url, StringComparison.OrdinalIgnoreCase));
+            && string.Equals(m.DefaultBaseUrl?.Trim().TrimEnd('/') ?? "", url, StringComparison.OrdinalIgnoreCase));
         if (c != null) return c;
         return BuiltIn.FirstOrDefault(m => m.Id == id
-            && string.Equals(m.DefaultBaseUrl ?? "", url, StringComparison.OrdinalIgnoreCase));
+            && string.Equals(m.DefaultBaseUrl?.Trim().TrimEnd('/') ?? "", url, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
