@@ -151,6 +151,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             .Set("smallConnect", smallConnect?.Name ?? "")
             .Set("smallConnectProvider", smallConnect?.ProviderId ?? "")
             .Set("permMode", PermissionManager.CurrentMode.ToString().ToLowerInvariant())
+            .Set("cwd", Environment.CurrentDirectory) // 当前工作目录（web 输入栏下方显示）
             .Set("slots", slotArr)
             .ToJson();
     }

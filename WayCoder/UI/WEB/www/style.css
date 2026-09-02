@@ -105,6 +105,10 @@ select optgroup { background:var(--panel); color:var(--text); }
 /* ── 输入区（Composer，对标主流 AI 聊天页）── */
 #input-dock { transform:translateY(-1.5cm); }
 #input-bar { position:relative; padding:2px 20px 0; }
+/* 📁 当前工作目录（输入栏下方） */
+#cwd-bar { max-width:960px; margin:4px auto 0; padding:0 6px; font-size:12px; color:var(--muted,#999);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
+#cwd-bar .cwd-icon { margin-right:4px; }
 #composer { position:relative; max-width:960px; margin:3px auto 0; background:var(--panel2);
   border:1px solid var(--border); border-radius:22px; padding:8px 10px 6px;
   box-shadow:0 2px 14px rgba(0,0,0,.14); transition:border-color .2s, box-shadow .2s; }
