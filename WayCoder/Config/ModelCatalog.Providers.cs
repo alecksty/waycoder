@@ -192,6 +192,25 @@ public static partial class ModelCatalog
         return null;
     }
 
+    /// <summary>推导 (model, baseUrl) 对应的 provider id——会话保存/恢复时取 API key 与网关一致性的依据。
+    /// 优先级：① 目录内 model+baseUrl 精确匹配（同 id 多网关按地址区分）② baseUrl 反查注册表占用者
+    /// （provider 地址 override / 非目录 DefaultBaseUrl 的自定义网关命中）③ 目录内该 model 的内置/默认 provider。
+    /// 无法判定返回 null（调用方回退全局 Config）。修复「保存会话直接回退全局 Config.Provider」把
+    /// 跨槽位最后选择的 provider 误存给本会话的缺陷（review5）。</summary>
+    public static string? ResolveProviderForModel(string? model, string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(model))
+            return string.IsNullOrWhiteSpace(baseUrl) ? null : FindProviderByBaseUrl(baseUrl);
+        if (!string.IsNullOrWhiteSpace(baseUrl))
+        {
+            var exact = Find(model, baseUrl);
+            if (exact != null) return exact.ProviderId;
+            var owner = FindProviderByBaseUrl(baseUrl);
+            if (owner != null) return owner;
+        }
+        return Find(model)?.ProviderId;
+    }
+
     /// <summary>同地址占用提示（register/改地址失败的共用消息；改地址场景调用方自行加「新」前缀）。</summary>
     public static string DuplicateUrlMessage(string? owner)
         => $"地址已被「{owner}」占用（同地址 = 同供应商，不允许重复）";

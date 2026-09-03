@@ -3740,6 +3740,40 @@ public static partial class SelfTest
             SessionManager.DeleteSession("_auto", 2);
         }
 
+        // ── 2d. 会话网关元数据 + 空 model 遗留兼容（修复 code-review 项）──
+        var gwId = SessionManager.SaveSession(
+            new List<JNode> { JNode.Object().Set("role", "user").Set("content", "网关会话") },
+            "test-model", "gw-session", -1, "deepseek", "https://api.deepseek.com");
+        try
+        {
+            var gwRec = SessionManager.LoadSessionDetailed("gw-session");
+            Check("SessionMeta: provider 元数据落盘", gwRec?.Provider == "deepseek");
+            Check("SessionMeta: base_url 元数据落盘", gwRec?.BaseUrl == "https://api.deepseek.com");
+        }
+        finally { SessionManager.DeleteSession("gw-session"); }
+
+        // 空 model 遗留会话（旧格式 "model":""）不应被判 null——消息必须可恢复，Model 字段为空由调用方跳过赋值
+        var emptyModelId = SessionManager.SaveSession(
+            new List<JNode> { JNode.Object().Set("role", "user").Set("content", "空模型会话") },
+            "", "emptymodel-session");
+        try
+        {
+            var emptyLoaded = SessionManager.LoadSession("emptymodel-session");
+            Check("SessionMeta: 空 model 遗留会话仍加载消息", emptyLoaded is { Messages.Count: 1 });
+            Check("SessionMeta: 空 model 回读为空串", emptyLoaded is { Model.Length: 0 });
+        }
+        finally { SessionManager.DeleteSession("emptymodel-session"); }
+
+        // provider 推导（ResolveProviderForModel：目录精确匹配 / 无地址用模型默认 / 无法判定 null）
+        var dm = ModelCatalog.Find("deepseek-v4-flash");
+        if (dm != null)
+        {
+            Check("SessionMeta: provider 精确匹配(地址)", ModelCatalog.ResolveProviderForModel(dm.Id, dm.DefaultBaseUrl) == dm.ProviderId);
+            Check("SessionMeta: provider 无地址用模型默认", ModelCatalog.ResolveProviderForModel(dm.Id, null) == dm.ProviderId);
+        }
+        Check("SessionMeta: provider 无法判定返回 null",
+            ModelCatalog.ResolveProviderForModel("nonexistent-model-xyz", "https://nonexistent.invalid") == null);
+
         // ── 3. LspTool.ActiveSessions 访问器（空态不抛异常）──
         var lspSessions = LspTool.ActiveSessions;
         Check("WebPanel: LspTool.ActiveSessions 返回列表", lspSessions != null);
