@@ -145,9 +145,10 @@ public partial class ModelManagerPage : ContentPage
         try
         {
             // 注册到 providers.json（/provider 列表可见）+ 占位模型（供应商卡片列表可见）
-            if (!ModelCatalog.RegisterProvider(id, name, baseUrl))
+            var err = ModelCatalog.RegisterProviderResult(id, name, baseUrl);
+            if (err != null)
             {
-                await DisplayAlertAsync("导入失败", ModelCatalog.DuplicateUrlMessage(ModelCatalog.FindProviderByBaseUrl(baseUrl)), "关闭");
+                await DisplayAlertAsync("导入失败", err, "关闭");
                 return;
             }
             ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
@@ -312,9 +313,10 @@ public partial class ModelManagerPage : ContentPage
         var newUrl = await DisplayPromptAsync("改地址", $"输入 {providerId} 的 Base URL", accept: "保存", cancel: "取消",
             initialValue: url, maxLength: 200);
         if (newUrl == null) return;
-        if (!ModelCatalog.UpdateProviderUrl(providerId, newUrl.Trim()))
+        var urlErr = ModelCatalog.UpdateProviderUrlResult(providerId, newUrl.Trim());
+        if (urlErr != null)
         {
-            await DisplayAlertAsync("改地址失败", "新" + ModelCatalog.DuplicateUrlMessage(ModelCatalog.FindProviderByBaseUrl(newUrl.Trim())), "关闭");
+            await DisplayAlertAsync("改地址失败", "新" + urlErr, "关闭");
             return;
         }
         Populate();

@@ -148,21 +148,31 @@ public static partial class ModelCatalog
     }
 
     /// <summary>
+    /// 注册/更新服务商并返回结果：null=成功；非 null=失败文案（= DuplicateUrlMessage(占用者)，
+    /// 不含 ❌/新 等端上容器前缀——端上自行加）。收敛各处「RegisterProvider 失败后
+    /// 反查 FindProviderByBaseUrl 拼 DuplicateUrlMessage」的三行样板（TUI/Web/GUI/CLI/MAUI）。
+    /// 失败原因与 <see cref="RegisterProvider"/> 一致：id 空 / 地址空 / 地址已被其它供应商占用。
+    /// </summary>
+    public static string? RegisterProviderResult(string providerId, string displayName, string baseUrl)
+    {
+        providerId = NormalizeId(providerId);
+        if (string.IsNullOrWhiteSpace(providerId) || string.IsNullOrWhiteSpace(baseUrl))
+            return DuplicateUrlMessage(FindProviderByBaseUrl(baseUrl));
+        var owner = FindProviderByBaseUrl(baseUrl);
+        if (owner != null && !owner.Equals(providerId, StringComparison.OrdinalIgnoreCase))
+            return DuplicateUrlMessage(owner); // 地址已被其它供应商占用
+        Providers[providerId] = new ProviderInfo(displayName, baseUrl);
+        SaveProvidersJson();
+        return null;
+    }
+
+    /// <summary>
     /// 注册/更新服务商到 providers.json（导入的服务商地址确认可用后调用）。id 规范化（全小写、去特殊符号）。
     /// 地址唯一性：base_url 已被其它供应商占用 → 拒绝注册（同地址 = 同供应商，不允许重复），返回 false。
     /// 同一 id 重复注册 = 更新（新地址未被占用则放行）。
     /// </summary>
     public static bool RegisterProvider(string providerId, string displayName, string baseUrl)
-    {
-        providerId = NormalizeId(providerId);
-        if (string.IsNullOrWhiteSpace(providerId) || string.IsNullOrWhiteSpace(baseUrl)) return false;
-        var owner = FindProviderByBaseUrl(baseUrl);
-        if (owner != null && !owner.Equals(providerId, StringComparison.OrdinalIgnoreCase))
-            return false; // 地址已被其它供应商占用
-        Providers[providerId] = new ProviderInfo(displayName, baseUrl);
-        SaveProvidersJson();
-        return true;
-    }
+        => RegisterProviderResult(providerId, displayName, baseUrl) == null;
 
     /// <summary>规范化 base_url 用于地址唯一性比较：去首尾空白 + 去尾部斜杠（大小写不敏感比较）。</summary>
     public static string NormalizeBaseUrl(string? url)
@@ -443,16 +453,22 @@ public static partial class ModelCatalog
         }
     }
 
+    /// <summary>改供应商 Base URL 并返回结果：null=成功；非 null=失败文案（= DuplicateUrlMessage(占用者)，
+    /// 不含「新」等端上容器前缀——端上自行加；改地址场景调用方自行加「新」前缀）。</summary>
+    public static string? UpdateProviderUrlResult(string providerId, string baseUrl)
+    {
+        if (!Providers.TryGetValue(providerId, out var p))
+            return DuplicateUrlMessage(FindProviderByBaseUrl(baseUrl)); // 未注册；调用点以选中行进入，实际不可达
+        var owner = FindProviderByBaseUrl(baseUrl);
+        if (owner != null && !owner.Equals(providerId, StringComparison.OrdinalIgnoreCase))
+            return DuplicateUrlMessage(owner); // 新地址已被其它供应商占用
+        Providers[providerId] = p with { DefaultBaseUrl = baseUrl ?? "" };
+        SaveProvidersJson();
+        return null;
+    }
+
     /// <summary>改供应商 Base URL（保留其他字段，providers.json 落盘）。
     /// 新地址已被其它供应商占用 → 拒绝修改（同地址 = 同供应商），返回 false。</summary>
     public static bool UpdateProviderUrl(string providerId, string baseUrl)
-    {
-        if (!Providers.TryGetValue(providerId, out var p)) return false;
-        var owner = FindProviderByBaseUrl(baseUrl);
-        if (owner != null && !owner.Equals(providerId, StringComparison.OrdinalIgnoreCase))
-            return false; // 新地址已被其它供应商占用
-        Providers[providerId] = p with { DefaultBaseUrl = baseUrl ?? "" };
-        SaveProvidersJson();
-        return true;
-    }
+        => UpdateProviderUrlResult(providerId, baseUrl) == null;
 }

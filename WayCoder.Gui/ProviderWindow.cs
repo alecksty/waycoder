@@ -211,9 +211,10 @@ public sealed class ProviderWindow : Window
         if (string.IsNullOrEmpty(id)) { _status.Text = "❌ 供应商 ID 不能为空"; return; }
         var name = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1].Trim() : id;
         var url = parts.Length > 2 ? parts[2].Trim() : "";
-        if (!ModelCatalog.RegisterProvider(id, name, url))
+        var err = ModelCatalog.RegisterProviderResult(id, name, url);
+        if (err != null)
         {
-            _status.Text = "❌ " + ModelCatalog.DuplicateUrlMessage(ModelCatalog.FindProviderByBaseUrl(url));
+            _status.Text = "❌ " + err;
             return;
         }
         _status.Text = $"✅ 已添加供应商 {name}";
@@ -257,9 +258,10 @@ public sealed class ProviderWindow : Window
         var cur = ModelCatalog.BaseUrlOf(_selectedPid);
         var url = await PromptAsync($"🌐 改地址 {ModelCatalog.ProviderDisplayName(_selectedPid)}", "Base URL", cur);
         if (url == null) return;
-        if (!ModelCatalog.UpdateProviderUrl(_selectedPid, url.Trim()))
+        var urlErr = ModelCatalog.UpdateProviderUrlResult(_selectedPid, url.Trim());
+        if (urlErr != null)
         {
-            _status.Text = "❌ 新" + ModelCatalog.DuplicateUrlMessage(ModelCatalog.FindProviderByBaseUrl(url.Trim()));
+            _status.Text = "❌ 新" + urlErr;
             return;
         }
         _status.Text = $"✅ 已更新地址";

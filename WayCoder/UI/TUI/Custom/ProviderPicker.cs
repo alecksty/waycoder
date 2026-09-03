@@ -141,10 +141,11 @@ public static class ProviderPicker
                     if (string.IsNullOrWhiteSpace(id)) { Say("❌ 供应商 ID 不能为空"); return; }
                     var name = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1].Trim() : id;
                     var url = parts.Length > 2 && !string.IsNullOrWhiteSpace(parts[2]) ? parts[2].Trim() : "";
-                    if (!ModelCatalog.RegisterProvider(id, name, url))
+                    var err = ModelCatalog.RegisterProviderResult(id, name, url);
+                    if (err != null)
                     {
                         Rebuild();
-                        Say("❌ " + ModelCatalog.DuplicateUrlMessage(ModelCatalog.FindProviderByBaseUrl(url)));
+                        Say("❌ " + err);
                         return;
                     }
                     Rebuild();
@@ -173,10 +174,11 @@ public static class ProviderPicker
                 text =>
                 {
                     var url = text?.Trim() ?? "";
-                    if (!ModelCatalog.UpdateProviderUrl(r.Id, url))
+                    var err = ModelCatalog.UpdateProviderUrlResult(r.Id, url);
+                    if (err != null)
                     {
                         Rebuild();
-                        Say("❌ 新" + ModelCatalog.DuplicateUrlMessage(ModelCatalog.FindProviderByBaseUrl(url)));
+                        Say("❌ 新" + err);
                         return;
                     }
                     Rebuild();
