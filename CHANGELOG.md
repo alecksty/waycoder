@@ -1,5 +1,12 @@
 # 更新日志
 
+## v0.96.50 (2026-09-03) — 模型切换网关收敛（对齐 Web：优先 provider 注册表地址）
+
+`ApplyModel` 改经 `ConnectionConfig.ResolveBaseUrl(effProviderId) ?? info.DefaultBaseUrl` 解析网关（与 `WebChat` 一致）——此前 GUI 用模型目录 `DefaultBaseUrl` 覆盖，导致走代理/中转网关的用户选中模型后被静默打回官方端点（密钥对不上 → 鉴权失败/发错服务器）。GUI 编译 0 警告 0 错误。
+
+- **`ApplyModel` 网关优先级**：provider 注册表地址（用户经「供应商→改地址」自定义的代理网关）优先，provider 未注册时回退模型目录默认地址；不再用目录默认地址覆盖自定义网关
+- 与 Web 端 `WebChat` 的 `ResolveBaseUrl` 判定统一，两侧行为一致
+
 ## v0.96.49 (2026-09-03) — 二次代码审查修复（GUI 状态/路由 bug 7 项）
 
 第二轮代码审查（针对 v0.96.48 增量）挖出的 GUI 运行时/状态 bug，修复 7 项：槽位排队重入、推理标记复位、`«»` 中间格式色号补齐、`/perm` 下拉同步、模型切换头部刷新、转录落槽、经济模式下拉越界。GUI 编译 0 警告 0 错误。

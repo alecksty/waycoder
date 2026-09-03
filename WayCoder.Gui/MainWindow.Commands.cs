@@ -160,7 +160,9 @@ public partial class MainWindow
                 : ModelCatalog.Find(modelId, baseUrl);
             if (info == null) return;
             var effProviderId = !string.IsNullOrWhiteSpace(providerId) ? providerId : info.ProviderId;
-            var effBaseUrl = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl : info.DefaultBaseUrl;
+            // 与 Web 端一致：优先 provider 注册表地址（用户经 ProviderWindow 改地址后的自定义网关），
+            // 兼容 provider 未注册时回退模型目录默认地址；不再用目录 DefaultBaseUrl 覆盖自定义网关（此前走代理网关的用户会被打回官方端点）。
+            var effBaseUrl = ConnectionConfig.ResolveBaseUrl(effProviderId) ?? info.DefaultBaseUrl;
             ConnectionConfig.ApplyModelChoice(effProviderId, modelId, true, out _, effBaseUrl);
             var key = ApiKeyStore.Get(effProviderId) ?? cfg.ApiKey;
             var agent = EnsureSlot(_activeSlot);
