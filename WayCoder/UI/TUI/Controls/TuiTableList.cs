@@ -11,7 +11,7 @@ namespace WayCoder.UI.Tui.Controls;
 /// 补齐「多列对齐且可交互」这一缺口，供 ModelPicker / FilePicker 等多列选择场景复用。
 /// 纯数据模型 + AnsiHelper，AOT 安全（无反射）。
 /// </summary>
-public class TuiTableList : TuiControl
+public class TuiTableList : TuiListControl
 {
     /// <summary>列定义（标题 + 固定列宽，CJK 按 2 列计）</summary>
     public sealed class Column
@@ -25,11 +25,11 @@ public class TuiTableList : TuiControl
     private readonly List<string[]> _rows = [];
     private readonly List<bool> _isGroup = [];
 
-    /// <summary>当前选中行索引</summary>
-    public int SelectedIndex { get; set; }
-
-    /// <summary>数据区滚动偏移（行数，0=顶部）</summary>
-    public int ScrollOffset { get; set; }
+    // SelectedIndex/ScrollOffset 继承自 TuiListControl；可见行/可选项/选中移动由虚实现提供
+    protected override int ItemCount => _rows.Count;
+    protected override int VisibleRows => VisibleDataRows;
+    protected override bool IsSelectable(int index) => !IsGroupRow(index);
+    protected override void OnSelectionMoved(int index) => OnSelectionChanged?.Invoke(index);
 
     /// <summary>是否渲染列头（列头 + 分隔线占顶部 2 行）</summary>
     public bool ShowHeader { get; set; } = true;
@@ -210,35 +210,12 @@ public class TuiTableList : TuiControl
         return true;
     }
 
-    // ── 滚动 ──
+    // ── 滚动与选择导航 ──
+    // EnsureSelectedVisible 由 TuiListControl 提供（ItemCount/VisibleRows/IsSelectable 覆写）；
+    // SelectNext/Prev 收敛到基类 MoveDown/Up（内部跳过组头 + 触发 OnSelectionChanged）
 
-    /// <summary>调整 ScrollOffset，保证选中行落在可见数据区。</summary>
-    public void EnsureSelectedVisible()
-        => ScrollOffset = TuiScrollMath.EnsureVisible(SelectedIndex, ScrollOffset, _rows.Count, VisibleDataRows);
-
-    // ── 选择导航 ──
-
-    public void SelectNext()
-    {
-        int next = SelectedIndex + 1;
-        while (next < _rows.Count && IsGroupRow(next)) next++;
-        if (next < _rows.Count)
-        {
-            SelectedIndex = next;
-            OnSelectionChanged?.Invoke(SelectedIndex);
-        }
-    }
-
-    public void SelectPrev()
-    {
-        int prev = SelectedIndex - 1;
-        while (prev >= 0 && IsGroupRow(prev)) prev--;
-        if (prev >= 0)
-        {
-            SelectedIndex = prev;
-            OnSelectionChanged?.Invoke(SelectedIndex);
-        }
-    }
+    public void SelectNext() => MoveDown();
+    public void SelectPrev() => MoveUp();
 
     /// <summary>激活选中行（触发 OnSelect）</summary>
     public void ActivateSelected() => OnSelect?.Invoke(SelectedIndex);
