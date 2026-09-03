@@ -217,8 +217,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var name = (body?["name"]?.AsString() ?? "").Trim();
             var url = (body?["baseUrl"]?.AsString() ?? "").Trim();
             if (string.IsNullOrEmpty(id)) return HttpResponse.JsonBody(Err("缺少供应商 ID"));
-            if (!ModelCatalog.RegisterProvider(id, string.IsNullOrEmpty(name) ? id : name, url))
-                return HttpResponse.JsonBody(Err(ModelCatalog.DuplicateUrlMessage(ModelCatalog.FindProviderByBaseUrl(url))));
+            var addErr = ModelCatalog.RegisterProviderResult(id, string.IsNullOrEmpty(name) ? id : name, url);
+            if (addErr != null)
+                return HttpResponse.JsonBody(Err(addErr));
             BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
         }
@@ -238,8 +239,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var pid = (body?["providerId"]?.AsString() ?? "").Trim();
             var url = (body?["baseUrl"]?.AsString() ?? "").Trim();
             if (string.IsNullOrEmpty(pid)) return HttpResponse.JsonBody(Err("缺少 providerId"));
-            if (!ModelCatalog.UpdateProviderUrl(pid, url))
-                return HttpResponse.JsonBody(Err("新" + ModelCatalog.DuplicateUrlMessage(ModelCatalog.FindProviderByBaseUrl(url))));
+            var urlErr = ModelCatalog.UpdateProviderUrlResult(pid, url);
+            if (urlErr != null)
+                return HttpResponse.JsonBody(Err("新" + urlErr));
             BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
         }
