@@ -18,9 +18,11 @@ public static class MarkdownInlines
         "yellow" or "orange" or "orange3" => GuiColors.ColorOf("SyntaxYellow"),
         "cyan" => GuiColors.ColorOf("SyntaxCyan"),
         "blue" => GuiColors.ColorOf("SyntaxBlue"),
-        "magenta" => GuiColors.ColorOf("SyntaxMagenta"),
+        "magenta" or "purple" => GuiColors.ColorOf("SyntaxMagenta"),
         "white" => GuiColors.ColorOf("SyntaxPlain"),
-        "grey" => GuiColors.ColorOf("SyntaxDim"),
+        // 补齐共享契约色（MarkdownRenderer: black/purple/gray/bright）：否则 «gray»/«black»/«purple» 判无效 → 字面泄漏
+        "black" => GuiColors.ColorOf("SyntaxPlain"),
+        "grey" or "gray" => GuiColors.ColorOf("SyntaxDim"),
         _ => null,
     };
 

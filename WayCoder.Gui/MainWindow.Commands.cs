@@ -124,9 +124,9 @@ public partial class MainWindow
                     }
 
                     PermissionManager.SetMode(parts[1]);
-                    var idx = Array.FindIndex(new[] { "Ask", "Auto", "Smart", "YOLO" },
-                        m => m.Equals(parts[1], StringComparison.OrdinalIgnoreCase));
-                    if (idx >= 0) PermCombo.SelectedIndex = idx;
+                    // 下拉 0..3 与枚举同序（Ask/Auto/SmartAuto/Yolo）；按当前模式回填，
+                    // 兼容 smart/smart-auto/smartauto/god/yolo 等别名（数组按字面匹配 smartauto 会漏）。
+                    PermCombo.SelectedIndex = (int)PermissionManager.CurrentMode;
                     AppendSystem(_activeSlot, $"[交互模式已切换: {parts[1]}]");
                 }
                 catch (Exception ex)
@@ -151,7 +151,6 @@ public partial class MainWindow
     /// <summary>切换当前槽位模型（模型弹窗复用此逻辑）。</summary>
     internal void ApplyModel(string modelId, string? providerId = null, string? baseUrl = null)
     {
-        UpdateHeader();
         try
         {
             var cfg = Config.Instance;
@@ -168,6 +167,7 @@ public partial class MainWindow
             agent.LlmClient.Reconfigure(key, cfg.BaseUrl);
             agent.LlmClient.Model = modelId;
             agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(modelId, cfg.MaxContextTokens));
+            UpdateHeader(); // 必须在 ApplyModelChoice 改完 cfg.Model/Provider 之后再读，否则头部仍显示旧模型
         }
         catch (Exception ex)
         {

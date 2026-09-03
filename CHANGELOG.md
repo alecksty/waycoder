@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.96.49 (2026-09-03) — 二次代码审查修复（GUI 状态/路由 bug 7 项）
+
+第二轮代码审查（针对 v0.96.48 增量）挖出的 GUI 运行时/状态 bug，修复 7 项：槽位排队重入、推理标记复位、`«»` 中间格式色号补齐、`/perm` 下拉同步、模型切换头部刷新、转录落槽、经济模式下拉越界。GUI 编译 0 警告 0 错误。
+
+- **槽位排队重入**：`TrySendNextPending` 顶部加 `if (_cts[slot] != null) return;` —— 切回忙碌槽不再重复执行，修「⏳ 排队中」气泡永久孤儿 + 队列顺序错乱
+- **推理标记复位**：`SendAsync finally` 里 `_inReasoning[slot] = false;` —— 中途停止未收到 `«/»` 时，下条回复不再误入推理气泡
+- **`«»` 中间格式契约补齐**：GUI `MarkupColor` 补共享契约色 `purple`/`gray`/`black`（对齐 `MarkdownRenderer`：purple→35、gray→90）—— 修 `«gray»`/`«black»`/`«purple»` 字面泄漏给用户
+- **`/perm` 下拉同步**：改按 `(int)PermissionManager.CurrentMode` 回填（下拉 0..3 与枚举同序）—— 修 `/perm smartauto` 等别名改模式后下拉不更新（旧数组按字面匹配 `smartauto` 会漏）
+- **模型切换头部刷新**：`ApplyModel` 的 `UpdateHeader()` 移到 `ApplyModelChoice` 之后 —— 修切模型后顶栏仍显示旧模型
+- **转录落错槽**：`HandleUpload` 捕获 `slot = _activeSlot`、await 后不再读全局 —— 修转录秒级耗时期间切槽把结果写进错误会话
+- **经济模式下拉越界**：补第 4 项「极致」—— 修 `EconomyMode.Extreme` 时 3 项下拉越界、不显示实际模式
+
 ## v0.96.48 (2026-09-03) — GUI 重构 + 配色体系 + 代码审查修复 10 项
 
 GUI 端大改：配色真源收敛到 `App.axaml` ThemeDictionaries（深/浅各一套，切主题经 `RequestedThemeVariant`），代码取色统一走 `GuiColors` 桥；主窗口拆 4 个 partial；设置/供应商/模型窗口转 axaml；新增 `UiKit` 共享控件库。代码审查发现的 10 项 GUI 回归全部修复。GUI 编译 0 警告 0 错误（Debug/Release/发布全过）。
