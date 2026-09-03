@@ -320,8 +320,17 @@ public static partial class ModelCli
         return m != null ? EffectiveBaseUrl(m) : null;
     }
 
-    /// <summary>探测一个 OpenAI 兼容端点：GET {base}/models（401/403=密钥无效，404/405 时回退 /v1/models）</summary>
+    /// <summary>探测一个 OpenAI 兼容端点：GET {base}/models（401/403=密钥无效，404/405 时回退 /v1/models）。
+    /// 同步薄壳，委托 <see cref="ProbeEndpointAsync"/>（单一实现，双向收敛）。</summary>
     internal static (bool Ok, string Detail) ProbeEndpoint(string? baseUrl, string? apiKey)
+        => ProbeEndpointAsync(baseUrl, apiKey).GetAwaiter().GetResult();
+
+    /// <summary>
+    /// 异步探测一个 OpenAI 兼容端点：GET {base}/models（401/403=密钥无效，404/405 时回退 /v1/models）。
+    /// 单 URL 4s 超时（与同步版一致），支持外部取消；内部 await 全部 ConfigureAwait(false)，
+    /// 供 MAUI/Web 等 UI 层直接调用，不阻塞/死锁调用线程。
+    /// </summary>
+    public static async Task<(bool Ok, string Detail)> ProbeEndpointAsync(string? baseUrl, string? apiKey, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(baseUrl))
             return (false, "无端点（未配置 base_url）");
@@ -335,13 +344,15 @@ public static partial class ModelCli
             var gotHttpResponse = false;
             foreach (var url in urls)
             {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(TimeSpan.FromSeconds(4));
                 try
                 {
-                    using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(4) };
+                    using var client = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
                     using var req = new HttpRequestMessage(HttpMethod.Get, url);
                     if (!string.IsNullOrWhiteSpace(apiKey))
                         req.Headers.TryAddWithoutValidation("Authorization", "Bearer " + apiKey);
-                    using var resp = client.SendAsync(req).GetAwaiter().GetResult();
+                    using var resp = await client.SendAsync(req, cts.Token).ConfigureAwait(false);
                     gotHttpResponse = true;
                     var code = (int)resp.StatusCode;
                     if (code >= 200 && code < 300) return (true, $"已连接（{code}）");
@@ -349,14 +360,42 @@ public static partial class ModelCli
                     if (code is 404 or 405) continue;  // 该路径不存在，试 /v1/models
                     return (false, $"HTTP {code}");
                 }
-                catch { break; } // 网络层失败（超时/拒绝）：同一主机第二个 URL 结果相同，直接放弃，
+                catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; } // 调用方取消：上抛
+                catch { break; } // 超时/网络层失败：同一主机第二个 URL 结果相同，直接放弃，
                                  // 避免不可达端点每个 URL 各耗满 4s（两 URL 共 8s）拖慢 --model test / /models/scan
             }
             return gotHttpResponse
                 ? (false, "端点可达但无 /models 接口（可能非 OpenAI 兼容端点）")
                 : (false, "无法连接（超时/拒绝）");
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; } // 调用方取消：外层不吞，上抛
         catch { return (false, "无法连接"); }
+    }
+
+    /// <summary>
+    /// 收集「连通性扫描」的目标供应商：注册表非 local/custom 条目 + 补充注册表缺的、
+    /// 有默认地址的自定义模型供应商（自定义模型隐式创建的供应商）。Url 允许 null/空
+    /// （调用方自行按空地址处理：无默认地址 / 不可达）。供 MAUI 供应商扫描页复用，消除两处重复样板。
+    /// </summary>
+    public static List<(string Id, string Name, string? Url)> ResolveScanTargets()
+    {
+        var list = new List<(string Id, string Name, string? Url)>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in ModelCatalog.Providers)
+        {
+            if (kv.Key is "local" or "custom") continue;
+            if (!seen.Add(kv.Key)) continue;
+            var url = kv.Value.DefaultBaseUrl;
+            list.Add((kv.Key, kv.Value.DisplayName, string.IsNullOrEmpty(url) ? null : url));
+        }
+        // 自定义模型隐式创建、注册表缺的供应商：有默认地址才列入（无地址不可探测，交由调用方按空处理）
+        foreach (var m in ModelCatalog.ListCustom())
+        {
+            if (string.IsNullOrEmpty(m.DefaultBaseUrl)) continue;
+            if (!seen.Add(m.ProviderId)) continue;
+            list.Add((m.ProviderId, ModelCatalog.ProviderDisplayName(m.ProviderId), m.DefaultBaseUrl));
+        }
+        return list;
     }
 
     // 上下文整数 → 文本统一走 Global.FormatContext（- / 128K / 1.1M）；此处 0 值随全局显示「-」
