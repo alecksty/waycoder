@@ -231,16 +231,9 @@ public static class TuiMenu
             var visH = _state.VisibleCount;
             var items = _state.Items;
 
-            // 确保选中项可见
+            // 确保选中项可见（SelectedIndex<0 = 尚无选中，不滚动）
             if (_state.SelectedIndex >= 0)
-            {
-                if (_state.SelectedIndex < _state.ScrollOffset)
-                    _state.ScrollOffset = _state.SelectedIndex;
-                if (_state.SelectedIndex >= _state.ScrollOffset + visH)
-                    _state.ScrollOffset = _state.SelectedIndex - visH + 1;
-                _state.ScrollOffset = Math.Clamp(_state.ScrollOffset, 0,
-                    Math.Max(0, items.Count - visH));
-            }
+                _state.ScrollOffset = TuiScrollMath.EnsureVisible(_state.SelectedIndex, _state.ScrollOffset, items.Count, visH);
 
             for (int i = 0; i < visH; i++)
             {
@@ -286,10 +279,8 @@ public static class TuiMenu
             // 滚动指示器
             if (items.Count > visH)
             {
-                var barH = Math.Max(1, visH * visH / Math.Max(1, items.Count));
-                var maxScroll = Math.Max(0, items.Count - visH);
-                var barPos = maxScroll > 0 ? visH * _state.ScrollOffset / maxScroll : 0;
-                barPos = Math.Clamp(barPos, 0, visH - barH);
+                var (barH, barPos) = TuiScrollMath.Bar(items.Count, visH, _state.ScrollOffset);
+                var maxScroll = Math.Max(0, items.Count - visH); // 供下方滚动百分比
 
                 for (int i = 0; i < visH; i++)
                 {
