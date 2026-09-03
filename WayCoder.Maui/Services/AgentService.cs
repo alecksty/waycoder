@@ -44,7 +44,7 @@ public sealed class AgentService
             var providerId = ResolveProviderId(cfg);
             var key = ApiKeyStore.Get(providerId) ?? cfg.ApiKey;
             // key 绑定的 baseURL 优先（key 与其调用地址一致，防同名供应商多网关间 key 发错地址）
-            var baseUrl = ApiKeyStore.GetBaseUrl(providerId) ?? ResolveBaseUrl(info, providerId, cfg.BaseUrl);
+            var baseUrl = ApiKeyStore.GetBaseUrl(providerId) ?? ModelCatalog.ResolveBaseUrl(info, providerId, cfg.BaseUrl);
 
             var llm = new LLM(cfg.Model, key, baseUrl, cfg.MaxTokens, cfg.Temperature)
             {
@@ -149,15 +149,5 @@ public sealed class AgentService
         {
             IsRunning = false;
         }
-    }
-
-    /// <summary>baseUrl 解析（复刻 Web 版 ResolveBaseUrl：provider 注册表地址 > model 默认地址 > 全局配置）。</summary>
-    private static string? ResolveBaseUrl(ModelCatalog.ModelInfo? info, string providerId, string? globalBaseUrl)
-    {
-        var regUrl = ModelCatalog.BaseUrlOf(providerId);
-        if (!string.IsNullOrEmpty(regUrl))
-            return regUrl;
-        if (info?.DefaultBaseUrl != null) return info.DefaultBaseUrl;
-        return globalBaseUrl;
     }
 }

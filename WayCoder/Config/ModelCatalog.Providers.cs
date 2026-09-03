@@ -420,6 +420,18 @@ public static partial class ModelCatalog
         return "";
     }
 
+    /// <summary>解析某模型最终连接地址：provider 注册表默认地址 &gt; model 目录默认地址 &gt; 全局 baseUrl（三个可空输入）。
+    /// 收敛 Web / MAUI 各自内联复刻的 ResolveBaseUrl——注册表查询复用 <see cref="BaseUrlOf"/>（providers.json 实时覆盖 + 大小写不敏感），
+    /// 无注册地址时取模型目录默认（非 null 即返回，含空串），最后回退全局；三者皆无返回 null。</summary>
+    public static string? ResolveBaseUrl(ModelInfo? info, string? providerId, string? globalBaseUrl)
+    {
+        var regUrl = BaseUrlOf(providerId);
+        if (!string.IsNullOrEmpty(regUrl))
+            return regUrl;
+        if (info?.DefaultBaseUrl != null) return info.DefaultBaseUrl;
+        return globalBaseUrl;
+    }
+
     /// <summary>改供应商显示名（保留其他字段，providers.json 落盘）。</summary>
     public static void RenameProvider(string providerId, string displayName)
     {

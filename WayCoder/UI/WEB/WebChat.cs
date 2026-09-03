@@ -967,7 +967,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                     var providerId = ConnectionConfig.ResolveActiveProviderId(cfg);
                     var key = ApiKeyStore.Get(providerId) ?? cfg.ApiKey;
                     // key 绑定的 baseURL 优先（key 与其调用地址一致）
-                    var baseUrl = ApiKeyStore.GetBaseUrl(providerId) ?? ResolveBaseUrl(info, providerId, cfg.BaseUrl);
+                    var baseUrl = ApiKeyStore.GetBaseUrl(providerId) ?? ModelCatalog.ResolveBaseUrl(info, providerId, cfg.BaseUrl);
                     var llm = new LLM(cfg.Model, key, baseUrl, cfg.MaxTokens, cfg.Temperature)
                     {
                         SmallModel = cfg.SmallModel,
@@ -1207,7 +1207,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var cur = ModelCatalog.Find(agent.LlmClient.Model);
             if (cur != null && cur.ProviderId == providerId)
             {
-                var baseUrl = ResolveBaseUrl(cur, providerId, Config.Instance.BaseUrl);
+                var baseUrl = ModelCatalog.ResolveBaseUrl(cur, providerId, Config.Instance.BaseUrl);
                 agent.LlmClient.Reconfigure(apiKey.Trim(), baseUrl);
             }
         }
@@ -1288,18 +1288,6 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         {
             return HttpResponse.JsonBody(Err($"在线导入失败：{ex.Message}"));
         }
-    }
-
-    /// <summary>
-    /// BaseUrl 优先级（两层架构：provider 承载唯一地址）：provider 唯一地址 &gt; 模型目录 Url &gt; 全局 Config.BaseUrl。
-    /// 地址不同 = 不同服务商，模型用所属 provider 的地址连接。
-    /// </summary>
-    private static string? ResolveBaseUrl(ModelCatalog.ModelInfo? info, string providerId, string? globalBaseUrl)
-    {
-        if (ModelCatalog.Providers.TryGetValue(providerId, out var p) && !string.IsNullOrEmpty(p.DefaultBaseUrl))
-            return p.DefaultBaseUrl;
-        if (info?.DefaultBaseUrl != null) return info.DefaultBaseUrl;
-        return globalBaseUrl;
     }
 
     // ═══════════════════════════════════════════════════════════
