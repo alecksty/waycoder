@@ -35,7 +35,14 @@ public partial class MainWindow
 
             try
             {
-                SessionManager.SaveSession(msgs, agent.LlmClient.Model, SlotSessionId(i), i);
+                var model = agent.LlmClient.Model;
+                var baseUrl = agent.LlmClient.BaseUrl;
+                // 推导 provider：模型+网关精确匹配；未命中回退全局配置（自定义模型不在目录的兜底）。
+                // 连同 baseUrl 一起存，供 LoadSessionById 恢复时重配 endpoint（防 model id 发错网关）。
+                var provider = string.IsNullOrWhiteSpace(baseUrl)
+                    ? Config.Instance.Provider
+                    : (ModelCatalog.Find(model, baseUrl)?.ProviderId ?? Config.Instance.Provider);
+                SessionManager.SaveSession(msgs, model, SlotSessionId(i), i, provider, baseUrl);
             }
             catch
             {
@@ -153,11 +160,20 @@ public partial class MainWindow
         var agent = EnsureSlot(_activeSlot);
         try
         {
-            var loaded = SessionManager.LoadSession(id, _activeSlot);
+            var loaded = SessionManager.LoadSessionDetailed(id, _activeSlot);
             if (loaded == null) return;
-            agent.ReplaceMessages(loaded.Value.Messages);
-            if (!string.IsNullOrEmpty(loaded.Value.Model))
-                agent.LlmClient.Model = loaded.Value.Model;
+            agent.ReplaceMessages(loaded.Messages);
+            if (!string.IsNullOrEmpty(loaded.Model))
+                agent.LlmClient.Model = loaded.Model!;
+            // 恢复会话保存时的网关 + 对应 key：model id 不能配错 endpoint（否则发错服务器/鉴权失败）。
+            // 旧会话缺 provider/base_url → 跳过，保持当前网关（回退兼容）。
+            if (!string.IsNullOrWhiteSpace(loaded.BaseUrl))
+            {
+                var key = !string.IsNullOrWhiteSpace(loaded.Provider)
+                    ? (ApiKeyStore.Get(loaded.Provider) ?? agent.LlmClient.ApiKey)
+                    : agent.LlmClient.ApiKey;
+                agent.LlmClient.Reconfigure(key, loaded.BaseUrl);
+            }
             RebuildChatFromAgent(_activeSlot, agent);
             UpdateHeader();
             AppendSystem(_activeSlot, $"[已加载会话 {id}]");
