@@ -331,13 +331,11 @@ public static class TuiMenu
                     SetSelection(items.Count - 1);
                     return true;
                 case ConsoleKey.PageUp:
-                    _state.ScrollOffset = Math.Max(0, _state.ScrollOffset - _state.VisibleCount);
+                    _state.ScrollOffset = TuiScrollMath.PageMove(_state.ScrollOffset, _state.VisibleCount, items.Count, -1);
                     MoveSelection(-_state.VisibleCount);
                     return true;
                 case ConsoleKey.PageDown:
-                    _state.ScrollOffset = Math.Min(
-                        Math.Max(0, items.Count - _state.VisibleCount),
-                        _state.ScrollOffset + _state.VisibleCount);
+                    _state.ScrollOffset = TuiScrollMath.PageMove(_state.ScrollOffset, _state.VisibleCount, items.Count, 1);
                     MoveSelection(_state.VisibleCount);
                     return true;
                 case ConsoleKey.Enter:

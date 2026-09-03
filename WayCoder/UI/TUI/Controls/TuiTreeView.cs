@@ -82,13 +82,32 @@ public class TuiTreeNode
 ///   Home  — 跳到第一个节点
 ///   End   — 跳到最后一个可见节点
 /// </summary>
-public class TuiTreeView : TuiControl
+public class TuiTreeView : TuiListControl
 {
     /// <summary>根节点列表</summary>
     public List<TuiTreeNode> RootNodes { get; set; } = [];
 
-    /// <summary>当前选中节点</summary>
-    public TuiTreeNode? SelectedNode { get; set; }
+    /// <summary>
+    /// 当前选中节点 —— 由基类 <see cref="TuiListControl.SelectedIndex"/> 派生（真源是可见扁平列表索引）。
+    /// get：索引越界/空表 → null（= 无选中，与旧 SelectedNode==null 语义等价）；
+    /// set：null → 清空选中；节点 → 重建扁平列表定位其索引（-1 = 折叠不可见，视为暂空选中）。
+    /// </summary>
+    public TuiTreeNode? SelectedNode
+    {
+        get => SelectedIndex >= 0 && SelectedIndex < _flatList.Count ? _flatList[SelectedIndex] : null;
+        set
+        {
+            if (value == null)
+            {
+                SelectedIndex = -1;
+                return;
+            }
+
+            // 定位节点在当前可见扁平列表中的索引（数据此刻即真源，重建保证新鲜）
+            BuildFlatList();
+            SelectedIndex = _flatList.IndexOf(value);
+        }
+    }
 
     /// <summary>缩进宽度（每级）</summary>
     public int IndentWidth { get; set; } = 2;
@@ -119,17 +138,31 @@ public class TuiTreeView : TuiControl
     /// <summary>每个节点在展开列表中的深度</summary>
     private readonly Dictionary<TuiTreeNode, int> _depthCache = new();
 
-    /// <summary>滚动偏移（可见列表中的索引）</summary>
-    private int _scrollOffset;
+    // SelectedIndex / ScrollOffset 继承自 TuiListControl（选中索引真源 + 滚动偏移）；
+    // SelectedNode 由 SelectedIndex 派生（见上）。初始无选中 = -1。
 
     public TuiTreeView()
     {
         Width = 40;
         Height = 10;
         Focused = true;
+        SelectedIndex = -1; // 无选中（与 SelectedNode==null 语义一致）
         SelFg = TuiTheme.Current.ListSelFg;
         SelBg = TuiTheme.Current.TreeViewSelBg;
         LineColor = TuiTheme.Current.ControlDisabledFg;
+    }
+
+    // ── 基类骨架 ──
+
+    /// <summary>可见扁平节点总数（OnRender/OnKey/OnMouse 前均已 BuildFlatList）。</summary>
+    protected override int ItemCount => _flatList.Count;
+
+    /// <summary>选中移动到新行：MarkDirty + 触发节点级 OnSelectionChanged。</summary>
+    protected override void OnSelectionMoved(int index)
+    {
+        MarkDirty();
+        if (index >= 0 && index < _flatList.Count)
+            OnSelectionChanged?.Invoke(_flatList[index]);
     }
 
     // ── 渲染 ──
@@ -141,13 +174,9 @@ public class TuiTreeView : TuiControl
 
         // 空树也要往下走：底色面板照铺（提前 return 会留下一块没画的洞）
 
-        // 确保选中节点可见（节点不在扁平列表时不动）
-        if (SelectedNode != null)
-        {
-            int selIdx = _flatList.IndexOf(SelectedNode);
-            if (selIdx >= 0)
-                _scrollOffset = TuiScrollMath.EnsureVisible(selIdx, _scrollOffset, _flatList.Count, Height);
-        }
+        // 确保选中节点可见（无选中 / 选中节点折叠不可见时不动）
+        if (SelectedIndex >= 0)
+            EnsureSelectedVisible();
 
         int visH = Height;
 
@@ -169,14 +198,14 @@ public class TuiTreeView : TuiControl
 
         for (int i = 0; i < visH; i++)
         {
-            int flatIdx = _scrollOffset + i;
+            int flatIdx = ScrollOffset + i;
             if (flatIdx >= _flatList.Count) break;
 
             int row = absY + i;
             if (row < ClipTop || row >= ClipBottom) continue;
 
             var node = _flatList[flatIdx];
-            bool sel = node == SelectedNode;
+            bool sel = flatIdx == SelectedIndex;
             int depth = _depthCache.GetValueOrDefault(node, 0);
 
             int fg = !IsEnabled ? (DisabledFg > 0 ? DisabledFg : TuiTheme.Current.ControlDisabledFg)
@@ -302,14 +331,14 @@ public class TuiTreeView : TuiControl
         if (ev.MouseScrollUp)
         {
             BuildFlatList();
-            _scrollOffset = Math.Max(0, _scrollOffset - 3);
+            ScrollOffset = Math.Max(0, ScrollOffset - 3);
             MarkDirty();
             return true;
         }
         if (ev.MouseScrollDown)
         {
             BuildFlatList();
-            _scrollOffset = Math.Min(Math.Max(0, _flatList.Count - Height), _scrollOffset + 3);
+            ScrollOffset = Math.Min(Math.Max(0, _flatList.Count - Height), ScrollOffset + 3);
             MarkDirty();
             return true;
         }
@@ -317,7 +346,7 @@ public class TuiTreeView : TuiControl
 
         // 点击行 → 扁平列表索引（BuildFlatList 保证一行一节点，见 OnRender）
         BuildFlatList();
-        int flatIdx = _scrollOffset + relY;
+        int flatIdx = ScrollOffset + relY;
         if (flatIdx < 0 || flatIdx >= _flatList.Count) return false;
 
         var node = _flatList[flatIdx];
@@ -348,16 +377,16 @@ public class TuiTreeView : TuiControl
                 MoveDown();
                 return true;
             case ConsoleKey.Home:
-                if (_flatList.Count > 0) SelectNode(_flatList[0]);
+                MoveHome();
                 return true;
             case ConsoleKey.End:
-                if (_flatList.Count > 0) SelectNode(_flatList[^1]);
+                MoveEnd();
                 return true;
             case ConsoleKey.PageUp:
-                PageMove(-Math.Max(1, Height));
+                MovePage(-1);
                 return true;
             case ConsoleKey.PageDown:
-                PageMove(Math.Max(1, Height));
+                MovePage(1);
                 return true;
             case ConsoleKey.RightArrow:
                 if (SelectedNode != null)
@@ -390,35 +419,22 @@ public class TuiTreeView : TuiControl
     }
 
     // ── 导航方法 ──
+    // 树每行均可选（无组头/分隔线），移动/页跳/首尾跳全部由 TuiListControl 基类骨架完成
+    // （MoveTo 钳制 + IsSelectable 恒 true + OnSelectionMoved 触发回调）。此处只补扁平列表重建
+    // 与 public 可见性。
 
-    public void MoveUp()
+    /// <summary>上移选中节点（public 包装：先重建扁平列表保证索引新鲜，再走基类导航）。</summary>
+    public new bool MoveUp()
     {
         BuildFlatList();
-        if (_flatList.Count == 0) return;
-        int idx = SelectedNode != null ? _flatList.IndexOf(SelectedNode) : -1;
-        int newIdx = Math.Max(0, idx - 1);
-        if (newIdx < _flatList.Count)
-            SelectNode(_flatList[newIdx]);
+        return base.MoveUp();
     }
 
-    public void MoveDown()
+    /// <summary>下移选中节点（public 包装：先重建扁平列表保证索引新鲜，再走基类导航）。</summary>
+    public new bool MoveDown()
     {
         BuildFlatList();
-        if (_flatList.Count == 0) return;
-        int idx = SelectedNode != null ? _flatList.IndexOf(SelectedNode) : -1;
-        int newIdx = Math.Min(_flatList.Count - 1, idx + 1);
-        if (newIdx >= 0)
-            SelectNode(_flatList[newIdx]);
-    }
-
-    /// <summary>按页（delta 为行数，正向下翻/负向上翻）移动选中节点</summary>
-    private void PageMove(int delta)
-    {
-        BuildFlatList();
-        if (_flatList.Count == 0) return;
-        int idx = SelectedNode != null ? _flatList.IndexOf(SelectedNode) : 0;
-        int newIdx = Math.Clamp(idx + delta, 0, _flatList.Count - 1);
-        SelectNode(_flatList[newIdx]);
+        return base.MoveDown();
     }
 
     public void ExpandNode(TuiTreeNode node)
@@ -426,8 +442,7 @@ public class TuiTreeView : TuiControl
         if (!node.IsLeaf)
         {
             node.IsExpanded = true;
-            SelectedNode = node;
-            BuildFlatList(); // 子节点现在可见
+            SelectedNode = node; // SelectedNode setter 重建扁平列表（子节点现在可见）+ 定位索引
             MarkDirty();
         }
     }
@@ -435,8 +450,7 @@ public class TuiTreeView : TuiControl
     public void CollapseNode(TuiTreeNode node)
     {
         node.IsExpanded = false;
-        SelectedNode = node;
-        BuildFlatList();
+        SelectedNode = node; // setter 重建扁平列表（子节点已隐藏）+ 定位索引
         MarkDirty();
     }
 
