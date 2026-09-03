@@ -207,22 +207,16 @@ public partial class SettingsPage : ContentPage
         catch (Exception ex) { await DisplayAlertAsync("导入失败", ex.Message, "关闭"); }
     }
 
-    /// <summary>扫描全部服务商连接可达性（HTTP GET 默认地址，3s 超时）。</summary>
+    /// <summary>扫描全部服务商连接可达性（探测 /models 接口，单点 4s 超时；委托核心 ModelCli）。</summary>
     private async void OnScanConnectionsClicked(object? sender, EventArgs e)
     {
-        var providers = ModelCatalog.Providers
-            .Where(kv => kv.Key is not ("local" or "custom"))
-            .Select(kv => (Id: kv.Key, Name: kv.Value.DisplayName, Url: kv.Value.DefaultBaseUrl))
-            .ToList();
+        var providers = ModelCli.ResolveScanTargets();
 
         var results = new List<string>();
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
         foreach (var p in providers)
         {
             if (string.IsNullOrEmpty(p.Url)) { results.Add($"{p.Name}（{p.Id}）· 无默认地址"); continue; }
-            var ok = false;
-            try { using var _ = await http.GetAsync(p.Url); ok = true; }
-            catch { ok = false; }
+            var (ok, _) = await ModelCli.ProbeEndpointAsync(p.Url, ApiKeyStore.Get(p.Id));
             results.Add($"{p.Name}（{p.Id}）· {(ok ? "✅ 可达" : "❌ 不可达")}");
         }
         await DisplayActionSheetAsync($"连接扫描（{providers.Count}）", "关闭", null, results.ToArray());

@@ -1,4 +1,3 @@
-using System.Net.Http;
 using System.Text.RegularExpressions;
 using WayCoder;
 
@@ -114,31 +113,15 @@ public partial class ModelManagerPage : ContentPage
             ProviderList.Add(new Label { Text = "暂无供应商", FontSize = 13, TextColor = Color.FromArgb("#888888") });
     }
 
-    /// <summary>扫描全部供应商连通性（HTTP GET 默认地址，3s 超时）。</summary>
+    /// <summary>扫描全部供应商连通性（探测 /models 接口，单点 4s 超时；委托核心 ModelCli）。</summary>
     private async void OnScanClicked(object? sender, EventArgs e)
     {
         ScanBtn.IsEnabled = false;
         ScanBtn.Text = "扫描中…";
-        var providers = ModelCatalog.Providers
-            .Where(kv => kv.Key is not ("local" or "custom"))
-            .Select(kv => (Id: kv.Key, Url: kv.Value.DefaultBaseUrl))
-            .ToList();
-        // 自定义供应商地址取自定义模型的 DefaultBaseUrl
-        foreach (var custom in ModelCatalog.ListCustom().Where(m => !string.IsNullOrEmpty(m.DefaultBaseUrl)))
+        foreach (var p in ModelCli.ResolveScanTargets())
         {
-            if (providers.All(x => x.Id != custom.ProviderId))
-                providers.Add((custom.ProviderId, custom.DefaultBaseUrl!)); // Where 已滤非空，! 告知编译器
-        }
-
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
-        foreach (var p in providers)
-        {
-            var ok = false;
-            if (!string.IsNullOrEmpty(p.Url))
-            {
-                try { using var _ = await http.GetAsync(p.Url); ok = true; }
-                catch { ok = false; }
-            }
+            // 探测 /models（比 GET 首页更准确：首页可达 ≠ 接口可用）；Url 为空 → 不可达
+            var (ok, _) = await ModelCli.ProbeEndpointAsync(p.Url, ApiKeyStore.Get(p.Id));
             _connectivity[p.Id] = ok;
         }
         ScanBtn.IsEnabled = true;
