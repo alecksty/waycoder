@@ -35,8 +35,10 @@ public static class SessionManager
 
     /// <summary>
     /// 将对话保存到磁盘。返回会话 ID。
+    /// providerId/baseUrl 为可选——用于会话恢复时重配 endpoint（GUI 显式加载会话）；旧会话缺字段 → 回退当前网关。
     /// </summary>
-    public static string SaveSession(List<JNode> messages, string model, string? sessionId = null, int slot = -1)
+    public static string SaveSession(List<JNode> messages, string model, string? sessionId = null, int slot = -1,
+        string? providerId = null, string? baseUrl = null)
     {
         var dir = SessionsDirFor(slot);
         Directory.CreateDirectory(dir);
@@ -48,6 +50,8 @@ public static class SessionManager
             .Set("id", sessionId)
             .Set("model", model)
             .Set("saved_at", Global.LogStamp());
+        if (!string.IsNullOrWhiteSpace(providerId)) data.Set("provider", providerId);
+        if (!string.IsNullOrWhiteSpace(baseUrl)) data.Set("base_url", baseUrl);
 
         var msgArr = JNode.Array();
         foreach (var m in messages) msgArr.Add(m);
@@ -64,6 +68,17 @@ public static class SessionManager
     /// 槽位隔离模式（slot&gt;=0）只读该槽位目录，不回退旧目录。
     /// </summary>
     public static (List<JNode> Messages, string Model)? LoadSession(string sessionId, int slot = -1)
+    {
+        var r = LoadSessionDetailed(sessionId, slot);
+        if (r == null || string.IsNullOrEmpty(r.Model)) return null;
+        return (r.Messages, r.Model!);
+    }
+
+    /// <summary>
+    /// 加载会话并附带 provider/base_url 元数据（GUI 显式加载会话时用于重配 endpoint）。
+    /// 向后兼容：旧格式缺 provider/base_url 字段 → 对应值为 null，调用方回退当前网关。
+    /// </summary>
+    public static SessionRecord? LoadSessionDetailed(string sessionId, int slot = -1)
     {
         var dir = SessionsDirFor(slot);
         var path = BuildSessionPath(dir, sessionId);
@@ -84,10 +99,13 @@ public static class SessionManager
         {
             var json = File.ReadAllText(path);
             var data = Json.Parse(json);
-            if (data?["messages"] is { Kind: JKind.Array } arr && data["model"]?.AsString() is { } model)
+            if (data?["messages"] is { Kind: JKind.Array } arr)
             {
-                var messages = arr.Items.ToList();
-                return (messages, model);
+                return new SessionRecord(
+                    arr.Items.ToList(),
+                    data["model"]?.AsString(),
+                    data["provider"]?.AsString(),
+                    data["base_url"]?.AsString());
             }
         }
         catch
@@ -286,3 +304,8 @@ public static class SessionManager
 /// 会话摘要信息。
 /// </summary>
 public record SessionInfo(string Id, string Model, string SavedAt, string Preview, int MessageCount = 0);
+
+/// <summary>
+/// 会话记录（含可选 provider/base_url，供 GUI 恢复会话时重配 endpoint）。缺字段 → null，回退当前网关。
+/// </summary>
+public sealed record SessionRecord(List<JNode> Messages, string? Model, string? Provider, string? BaseUrl);

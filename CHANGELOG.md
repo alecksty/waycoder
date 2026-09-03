@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.96.51 (2026-09-03) — 会话恢复携带网关（provider/base_url，向后兼容）
+
+会话记录新增可选 `provider`/`base_url`；GUI 显式加载会话时按保存时的网关重配 LLM endpoint——修「model id 配错网关」导致发错服务器/鉴权失败。自测 4891 全过，主项目 + GUI 编译 0 警告 0 错误。
+
+- `SessionManager.SaveSession` 追加可选 `providerId`/`baseUrl`，JSON 写 `provider`/`base_url` 字段（旧会话缺字段 → 回退当前网关，向后兼容）
+- 新增 `SessionRecord` + `LoadSessionDetailed`（`LoadSession` 签名不变，主项目/自测零改动，仍返回 `(messages, model)` 元组）
+- GUI `SaveAllSessions` 存 model+baseUrl+provider（provider 从「模型+网关」推导，未命中回退全局配置）；`LoadSessionById` 恢复时 `Reconfigure(key, baseUrl)` 重配 endpoint
+- 自测：4891 全过 / 0 失败（会话 Save/Load 用例含在内）
+
 ## v0.96.50 (2026-09-03) — 模型切换网关收敛（对齐 Web：优先 provider 注册表地址）
 
 `ApplyModel` 改经 `ConnectionConfig.ResolveBaseUrl(effProviderId) ?? info.DefaultBaseUrl` 解析网关（与 `WebChat` 一致）——此前 GUI 用模型目录 `DefaultBaseUrl` 覆盖，导致走代理/中转网关的用户选中模型后被静默打回官方端点（密钥对不上 → 鉴权失败/发错服务器）。GUI 编译 0 警告 0 错误。
