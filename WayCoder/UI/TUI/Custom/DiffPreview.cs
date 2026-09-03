@@ -311,9 +311,7 @@ public static class DiffPreview
                     { currentLine = i; break; }
             }
 
-            if (currentLine < _scrollOffset) _scrollOffset = currentLine;
-            if (currentLine >= _scrollOffset + contentH) _scrollOffset = currentLine - contentH + 1;
-            _scrollOffset = Math.Clamp(_scrollOffset, 0, Math.Max(0, total - contentH));
+            _scrollOffset = TuiScrollMath.EnsureVisible(currentLine, _scrollOffset, total, contentH);
         }
 
         public override bool OnKey(ConsoleKeyInfo key)
@@ -403,9 +401,7 @@ public static class DiffPreview
             // 右侧滚动条（▉ 滑块 + │ 轨道），提示内容可滚动、定位当前位置
             if (showBar)
             {
-                int barH = Math.Max(1, Height * Height / total);
-                int barPos = Height * _scrollOffset / Math.Max(1, total - Height);
-                barPos = Math.Clamp(barPos, 0, Height - barH);
+                var (barH, barPos) = TuiScrollMath.Bar(total, Height, _scrollOffset);
                 for (int i = 0; i < Height; i++)
                 {
                     var ch = (i >= barPos && i < barPos + barH) ? "█" : "│";

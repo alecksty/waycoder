@@ -141,18 +141,12 @@ public class TuiTreeView : TuiControl
 
         // 空树也要往下走：底色面板照铺（提前 return 会留下一块没画的洞）
 
-        // 确保选中节点可见
+        // 确保选中节点可见（节点不在扁平列表时不动）
         if (SelectedNode != null)
         {
             int selIdx = _flatList.IndexOf(SelectedNode);
             if (selIdx >= 0)
-            {
-                if (selIdx < _scrollOffset)
-                    _scrollOffset = selIdx;
-                else if (selIdx >= _scrollOffset + Height)
-                    _scrollOffset = selIdx - Height + 1;
-                _scrollOffset = Math.Clamp(_scrollOffset, 0, Math.Max(0, _flatList.Count - Height));
-            }
+                _scrollOffset = TuiScrollMath.EnsureVisible(selIdx, _scrollOffset, _flatList.Count, Height);
         }
 
         int visH = Height;

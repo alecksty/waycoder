@@ -79,9 +79,7 @@ public class TuiList : TuiControl
         if (totalItems == 0 || visRows <= 0) return;
 
         // 确保选中项可见
-        if (SelectedIndex < ScrollOffset) ScrollOffset = SelectedIndex;
-        if (SelectedIndex >= ScrollOffset + visRows) ScrollOffset = SelectedIndex - visRows + 1;
-        ScrollOffset = Math.Clamp(ScrollOffset, 0, Math.Max(0, totalItems - visRows));
+        ScrollOffset = TuiScrollMath.EnsureVisible(SelectedIndex, ScrollOffset, totalItems, visRows);
 
         var rb = new Terminal.RenderBuffer();
         for (int i = 0; i < visRows; i++)
@@ -111,9 +109,7 @@ public class TuiList : TuiControl
         // 滚动条
         if (totalItems > visRows)
         {
-            int barH = Math.Max(1, visRows * visRows / totalItems);
-            int barPos = visRows * ScrollOffset / Math.Max(1, totalItems - visRows);
-            barPos = Math.Clamp(barPos, 0, visRows - barH);
+            var (barH, barPos) = TuiScrollMath.Bar(totalItems, visRows, ScrollOffset);
             for (int i = 0; i < visRows; i++)
             {
                 int row = absY + i;

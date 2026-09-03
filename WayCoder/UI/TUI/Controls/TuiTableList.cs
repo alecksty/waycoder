@@ -214,16 +214,7 @@ public class TuiTableList : TuiControl
 
     /// <summary>调整 ScrollOffset，保证选中行落在可见数据区。</summary>
     public void EnsureSelectedVisible()
-    {
-        int vis = VisibleDataRows;
-        int total = _rows.Count;
-        if (vis <= 0 || total == 0) return;
-
-        int idx = Math.Clamp(SelectedIndex, 0, total - 1);
-        if (idx < ScrollOffset) ScrollOffset = idx;
-        if (idx >= ScrollOffset + vis) ScrollOffset = idx - vis + 1;
-        ScrollOffset = Math.Clamp(ScrollOffset, 0, Math.Max(0, total - vis));
-    }
+        => ScrollOffset = TuiScrollMath.EnsureVisible(SelectedIndex, ScrollOffset, _rows.Count, VisibleDataRows);
 
     // ── 选择导航 ──
 
@@ -309,9 +300,7 @@ public class TuiTableList : TuiControl
         // 内联滚动条
         if (total > vis && vis > 0)
         {
-            int barH = Math.Max(1, vis * vis / total);
-            int maxOff = Math.Max(1, total - vis);
-            int barPos = Math.Clamp(vis * ScrollOffset / maxOff, 0, vis - barH);
+            var (barH, barPos) = TuiScrollMath.Bar(total, vis, ScrollOffset);
             for (int i = 0; i < vis; i++)
             {
                 var ch = (i >= barPos && i < barPos + barH) ? "█" : "│";
