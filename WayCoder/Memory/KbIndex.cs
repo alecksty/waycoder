@@ -981,9 +981,7 @@ public static class KbIndex
                 .Set("weight", i.Weight));
         }
         var root = JNode.Object().Set("items", arr);
-        var tmp = StatePath + ".tmp";
-        File.WriteAllText(tmp, root.ToJson(indent: true));
-        File.Move(tmp, StatePath, overwrite: true);
+        Global.WriteAllTextAtomic(StatePath, root.ToJson(indent: true));
     }
 
     /// <summary>

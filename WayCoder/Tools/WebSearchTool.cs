@@ -163,8 +163,8 @@ public class WebSearchTool : ITool, ICancellableTool
             if (results.Count >= maxResults) break;
 
             var url = HttpUtility.HtmlDecode(m.Groups[1].Value.Trim());
-            var title = StripHtml(m.Groups[2].Value.Trim());
-            var snippet = StripHtml(m.Groups[3].Value.Trim());
+            var title = HtmlText.StripHtml(m.Groups[2].Value.Trim(), stripNoise: false);
+            var snippet = HtmlText.StripHtml(m.Groups[3].Value.Trim(), stripNoise: false);
 
             if (!string.IsNullOrWhiteSpace(title) && !string.IsNullOrWhiteSpace(url))
             {
@@ -189,7 +189,7 @@ public class WebSearchTool : ITool, ICancellableTool
             {
                 if (results.Count >= maxResults) break;
                 var url = m.Groups[1].Value.Trim();
-                var title = StripHtml(m.Groups[2].Value.Trim());
+                var title = HtmlText.StripHtml(m.Groups[2].Value.Trim(), stripNoise: false);
                 if (!string.IsNullOrWhiteSpace(title) && !url.Contains("duckduckgo.com"))
                 {
                     results.Add(new SearchResult
@@ -222,8 +222,8 @@ public class WebSearchTool : ITool, ICancellableTool
             if (results.Count >= maxResults) break;
 
             var url = HttpUtility.HtmlDecode(m.Groups[1].Value.Trim());
-            var title = HttpUtility.HtmlDecode(StripHtml(m.Groups[2].Value.Trim()));
-            var snippet = HttpUtility.HtmlDecode(StripHtml(m.Groups[3].Value.Trim()));
+            var title = HttpUtility.HtmlDecode(HtmlText.StripHtml(m.Groups[2].Value.Trim(), stripNoise: false));
+            var snippet = HttpUtility.HtmlDecode(HtmlText.StripHtml(m.Groups[3].Value.Trim(), stripNoise: false));
 
             if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(url)) continue;
             if (url.Contains("bing.com") || url.Contains("microsoft.com/bing")) continue;
@@ -232,14 +232,6 @@ public class WebSearchTool : ITool, ICancellableTool
         }
 
         return results;
-    }
-
-    private static string StripHtml(string input)
-    {
-        if (string.IsNullOrEmpty(input)) return "";
-        var result = Regex.Replace(input, @"<[^>]+>", "");
-        result = Regex.Replace(result, @"\s+", " ");
-        return result.Trim();
     }
 
     internal class SearchResult

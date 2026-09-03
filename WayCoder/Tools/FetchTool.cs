@@ -118,7 +118,7 @@ public class FetchTool : ITool, ICancellableTool
                 return $"错误：不支持的内容类型 '{contentType}'（仅支持 HTML/纯文本/JSON）";
 
             var html = await response.Content.ReadAsStringAsync(cancellationToken);
-            var text = format == "markdown" ? ConvertToMarkdown(html) : StripHtml(html);
+            var text = format == "markdown" ? ConvertToMarkdown(html) : HtmlText.StripHtml(html);
 
             // 压缩空白（合并连续空行）
             text = Regex.Replace(text, @"\n{4,}", "\n\n\n");
@@ -219,37 +219,6 @@ public class FetchTool : ITool, ICancellableTool
     // ========================================================================
     // HTML 净化
     // ========================================================================
-
-    /// <summary>
-    /// 去除 HTML 标签和噪音元素，提取纯文本。
-    /// </summary>
-    private static string StripHtml(string html)
-    {
-        if (string.IsNullOrEmpty(html)) return "";
-
-        // 1. 移除噪音元素（脚本、样式、导航等）
-        foreach (var elem in NoisyElements)
-        {
-            html = Regex.Replace(html, $@"<{elem}[^>]*>.*?</{elem}>", "",
-                RegexOptions.Singleline | RegexOptions.IgnoreCase);
-        }
-
-        // 2. 将块级元素替换为换行
-        html = Regex.Replace(html, @"</?(div|p|h[1-6]|li|tr|br|hr|section|article)[^>]*/?>", "\n",
-            RegexOptions.IgnoreCase);
-
-        // 3. 移除所有 HTML 标签
-        html = Regex.Replace(html, @"<[^>]+>", " ");
-
-        // 4. 解码 HTML 实体
-        html = System.Net.WebUtility.HtmlDecode(html);
-
-        // 5. 清理空白
-        html = Regex.Replace(html, @"\n\s*\n\s*\n", "\n\n");
-        html = Regex.Replace(html, @"[ \t]+", " ");
-
-        return html.Trim();
-    }
 
     /// <summary>
     /// HTML → Markdown 简化转换（对标 crush 的 html-to-markdown）。

@@ -315,7 +315,7 @@ public static partial class ModelCatalog
                 .Concat(moves.Select(mv => ProviderFile(mv.Target, mv.Local)))
                 .Where(File.Exists).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             foreach (var f in affected)
-                if (BackupFile(f) is { } bak) backups.Add(bak);
+                if (Global.BackupFile(f) is { } bak) backups.Add(bak);
 
             // 分组计划
             var additions = new Dictionary<string, List<ModelInfo>>(StringComparer.OrdinalIgnoreCase);

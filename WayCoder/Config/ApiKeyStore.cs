@@ -340,7 +340,7 @@ public static class ApiKeyStore
         // 2. Claude Code ~/.claude/settings.json 的 env.{*_API_KEY|*_AUTH_TOKEN}
         try
         {
-            var claudeSettings = Path.Combine(home, ".claude", "settings.json");
+            var claudeSettings = Path.Combine(ImportHelper.ClaudeHome, "settings.json");
             if (File.Exists(claudeSettings))
             {
                 var env = Json.Parse(File.ReadAllText(claudeSettings))?["env"];
@@ -414,7 +414,7 @@ public static class ApiKeyStore
             foreach (var path in new[]
             {
                 Path.Combine(home, ".local", "share", "opencode", "auth.json"),
-                Path.Combine(home, ".config", "opencode", "auth.json"),
+                Path.Combine(ImportHelper.OpenCodeHome, "auth.json"),
             })
             {
                 if (!File.Exists(path)) continue;

@@ -538,17 +538,11 @@ public static class LegacyOffice
         return result.Length > 0 ? result : "(RTF 无文本内容)";
     }
 
-    /// <summary>剥离 HTML 标签，提取纯文本。</summary>
+    /// <summary>剥离 HTML 标签，提取纯文本（委托 <see cref="HtmlText.StripHtml"/>，仅追加 Rune 安全截断）。</summary>
     public static string StripHtml(string html, int maxChars = DefaultMaxChars)
     {
         if (string.IsNullOrEmpty(html)) return "(空 HTML)";
-        var t = Regex.Replace(html, @"<script[^>]*>.*?</script>", "", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-        t = Regex.Replace(t, @"<style[^>]*>.*?</style>", "", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-        t = Regex.Replace(t, @"<[^>]+>", " ");
-        t = System.Net.WebUtility.HtmlDecode(t);
-        t = Regex.Replace(t, @"[ \t]+", " ");
-        t = Regex.Replace(t, @"(\r?\n[ \t]*){3,}", "\n\n");
-        return Truncate(t.Trim(), maxChars);
+        return Truncate(HtmlText.StripHtml(html, stripNoise: true), maxChars);
     }
 
     // ════════════════════════════════════════════════════════════
