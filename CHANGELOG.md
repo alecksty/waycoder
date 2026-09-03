@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.96.46 (2026-09-03) — Tui 列表/滚动控件去重（纯函数 + 公共基类，行为不变）
+
+纯 UI 内部重构：收敛 Tui 列表/滚动控件重复的滚动数学与选中/导航样板，无用户可见功能变化。自测 4898 全过，编译 0 警告 0 错误。
+
+- **`TuiScrollMath` 纯函数提取**：新增 `UI/TUI/Base/TuiScrollMath.cs`（`EnsureVisible` 两段式可见钳制 / `Bar` 滚动条滑块几何 / `PageMove` 页滚动），统一 5 个控件（TuiList/TuiTableList/TuiMenu/TuiTreeView/DiffPreview）各自内联的同一公式
+- **`TuiListControl` 数据列表基类**：新增 `UI/TUI/Base/TuiListControl.cs`——选中/滚动状态 + `ItemCount`/`VisibleRows`/`IsSelectable` 虚钩子 + `EnsureSelectedVisible` + `MoveUp/Down/Home/End/Page` 键盘导航
+  - **TuiList** 完整接入（删重复字段 + 5 导航键收敛，−46 行）
+  - **TuiTableList** 接入（组头跳过经 `IsSelectable` 覆写、SelectNext/Prev 收敛到基类；Home/End/Page 因回调时机差异保留子类，−34 行）
+- **保留（结构差异大，不强行接入基类）**：TuiTreeView（树节点↔index 映射 + 展开折叠）、TuiMenu（分隔线环绕 + 数字快捷键 + TuiView 继承线）
+
 ## v0.96.45 (2026-09-03) — 大文件拆分 + 提取重复代码（纯重构，行为不变）
 
 本版为纯内部重构：拆分超 1300 行的大文件、把散落的重复样板收拢到公共工具类，无用户可见功能变化。自测 4898 全过，三端编译 0 警告 0 错误。
