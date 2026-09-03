@@ -294,8 +294,7 @@ public static partial class ModelCli
                     if (values.Count < 4) { Console.WriteLine("用法: --provider add <id> <名称> <base-url>"); return 1; }
                     var added = ModelCatalog.RegisterProvider(values[1], values[2], values[3]);
                     if (added) { Console.WriteLine($"✅ 已添加服务商 {values[1]} → {values[3]}"); return 0; }
-                    var owner = ModelCatalog.FindProviderByBaseUrl(values[3]);
-                    Console.WriteLine($"❌ 添加失败：该地址已被服务商「{owner}」占用（同地址 = 同供应商，不允许重复）");
+                    Console.WriteLine("❌ 添加失败：该" + ModelCatalog.DuplicateUrlMessage(ModelCatalog.FindProviderByBaseUrl(values[3])));
                     return 1;
                 }
                 case "rm":

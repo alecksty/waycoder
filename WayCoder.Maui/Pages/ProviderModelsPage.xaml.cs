@@ -70,7 +70,7 @@ public partial class ProviderModelsPage : ContentPage
             .OrderBy(m => m.DisplayName)
             .Select(m => new ModelRow(
                 Marker(_pid, m.Id, current, small, bigProvider, smallProvider), m.DisplayName, m.Id,
-                $"{FmtCtx(m.ContextWindow)} 上下文 · {WayCoder.UI.Shared.ModelPrice.Format(m.InputPrice, m.OutputPrice, m.InputPriceOffpeak, m.OutputPriceOffpeak)} MTok",
+                $"{Global.FormatContext(m.ContextWindow)} 上下文 · {WayCoder.UI.Shared.ModelPrice.Format(m.InputPrice, m.OutputPrice, m.InputPriceOffpeak, m.OutputPriceOffpeak)} MTok",
                 m.InputPrice == 0 && m.OutputPrice == 0))
             .ToList();
         ModelList.ItemsSource = rows;
@@ -97,8 +97,6 @@ public partial class ProviderModelsPage : ContentPage
         BigBtn.BackgroundColor = _isBig ? on : off;
         SmallBtn.BackgroundColor = _isBig ? off : on;
     }
-
-    private static string FmtCtx(int n) => n >= 1_000_000 ? $"{n / 1_000_000.0:F1}M" : n >= 1000 ? $"{n / 1000}k" : n.ToString();
 
     /// <summary>两个选中勾：大✓ 小✓ 分开显示（大小模型可能是同一个，不能靠图标合并区分）。
     /// 只在「该行供应商 == 当前大小模型实际供应商」时打勾——同 id 跨供应商（deepseek-v4-pro

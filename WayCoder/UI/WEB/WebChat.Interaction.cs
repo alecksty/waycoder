@@ -316,12 +316,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             .Set("name", fileName).Set("size", bytes.Length).Set("text", text).ToJson());
     }
 
-    /// <summary>转录结果是否为错误文本（成功返回任意转录内容，不含这些前缀）。纯逻辑便于自测。</summary>
-    public static bool IsTranscribeError(string text)
-        => text.StartsWith("错误", StringComparison.Ordinal)
-        || text.StartsWith("转录失败", StringComparison.Ordinal)
-        || text.StartsWith("转录出错", StringComparison.Ordinal)
-        || text.StartsWith("转录返回空文本", StringComparison.Ordinal);
+    /// <summary>转录结果是否为错误文本（成功返回任意转录内容，不含这些前缀）。纯逻辑便于自测。
+    /// 实现委托 <see cref="TranscribeAudioTool.IsTranscribeError"/>（保持原公开签名，测试/调用方无感）。</summary>
+    public static bool IsTranscribeError(string text) => TranscribeAudioTool.IsTranscribeError(text);
 
     // ═══════════════════════════════════════════════════════════
     //  JSON 辅助

@@ -256,9 +256,7 @@ public class ModelCommand : SlashCommand
             foreach (var m in group)
             {
                 var price = m.InputPrice > 0 ? $"${m.InputPrice}/${m.OutputPrice}" : "?";
-                var ctx = m.ContextWindow > 0
-                    ? m.ContextWindow >= 1_000_000 ? $"{m.ContextWindow / 1_000_000}M" : $"{m.ContextWindow / 1000}K"
-                    : "?";
+                var ctx = Global.FormatContext(m.ContextWindow);
                 var cat = m.Category.Length > 4 ? m.Category[..4] : m.Category;
                 sb.AppendLine($"  `{m.Id}` — {ctx}ctx {price}/MTok [{cat}]");
             }

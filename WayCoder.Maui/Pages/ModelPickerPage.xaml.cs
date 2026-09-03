@@ -43,7 +43,7 @@ public partial class ModelPickerPage : ContentPage
                 || m.ProviderId.ToLowerInvariant().Contains(query))
             .OrderBy(m => m.DisplayName)
             .Select(m => new ModelEntry(m.Id, m.DisplayName, m.ProviderId,
-                $"{FmtCtx(m.ContextWindow)} 上下文 · {WayCoder.UI.Shared.ModelPrice.Format(m.InputPrice, m.OutputPrice, m.InputPriceOffpeak, m.OutputPriceOffpeak)} MTok",
+                $"{Global.FormatContext(m.ContextWindow)} 上下文 · {WayCoder.UI.Shared.ModelPrice.Format(m.InputPrice, m.OutputPrice, m.InputPriceOffpeak, m.OutputPriceOffpeak)} MTok",
                 m.InputPrice == 0 && m.OutputPrice == 0))
             .ToList();
 
@@ -53,8 +53,6 @@ public partial class ModelPickerPage : ContentPage
             .Select(g => new ModelGroup(g.Key, g.ToList()))
             .ToList();
     }
-
-    private static string FmtCtx(int n) => n >= 1_000_000 ? $"{n / 1_000_000.0:F1}M" : n >= 1000 ? $"{n / 1000}k" : n.ToString();
 
     /// <summary>选中模型 → 应用到大/小槽位（连接层统一入口）→ 返回。</summary>
     private async void OnModelSelected(object? sender, SelectionChangedEventArgs e)

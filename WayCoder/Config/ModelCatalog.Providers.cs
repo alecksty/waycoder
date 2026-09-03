@@ -182,8 +182,11 @@ public static partial class ModelCatalog
         return null;
     }
 
-    /// <summary>
-    /// 供应商去重修复（同地址 = 同供应商）：把共享同一 base_url 的重复供应商合并为一个——
+    /// <summary>同地址占用提示（register/改地址失败的共用消息；改地址场景调用方自行加「新」前缀）。</summary>
+    public static string DuplicateUrlMessage(string? owner)
+        => $"地址已被「{owner}」占用（同地址 = 同供应商，不允许重复）";
+
+    /// <summary>供应商去重修复（同地址 = 同供应商）：把共享同一 base_url 的重复供应商合并为一个——
     /// 其自定义模型归并到保留供应商，从注册表移除重复项并落盘。返回合并对数。
     /// 保留规则：内置供应商优先，其次 id 字典序靠前者胜出。
     /// </summary>

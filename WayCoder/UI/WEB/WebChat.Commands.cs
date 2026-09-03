@@ -148,9 +148,6 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return $"沙箱边界已切换: **{SandboxManager.Level}**（边界独立于权限）";
     }
 
-    private static string WebFormatContext(int ctx)
-        => ctx >= 1024 ? $"{Math.Round(ctx / 1024.0)}k" : ctx.ToString();
-
     private static string WebModelListText()
     {
         var sb = new StringBuilder();
@@ -159,7 +156,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         sb.AppendLine("| 模型 | 供应商 | 上下文 |");
         sb.AppendLine("|---|---|---|");
         foreach (var m in ModelCatalog.All)
-            sb.AppendLine($"| {m.DisplayName} | {ModelCatalog.ProviderDisplayName(m.ProviderId)} | {WebFormatContext(m.ContextWindow)} |");
+            sb.AppendLine($"| {m.DisplayName} | {ModelCatalog.ProviderDisplayName(m.ProviderId)} | {Global.FormatContext(m.ContextWindow)} |");
         return sb.ToString();
     }
 

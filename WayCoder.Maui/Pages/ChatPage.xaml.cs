@@ -847,10 +847,7 @@ public partial class ChatPage : ContentPage
                 .ExecuteAsync(new Dictionary<string, object?> { ["path"] = audioPath });
             AddBtn.IsEnabled = true;
 
-            if (text.StartsWith("错误", StringComparison.Ordinal)
-                || text.StartsWith("转录失败", StringComparison.Ordinal)
-                || text.StartsWith("转录出错", StringComparison.Ordinal)
-                || text.StartsWith("转录返回空文本", StringComparison.Ordinal))
+            if (TranscribeAudioTool.IsTranscribeError(text))
             {
                 await DisplayAlertAsync("转录失败", text, "关闭");
                 return;

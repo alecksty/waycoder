@@ -975,11 +975,8 @@ public static class ModelPicker
     // 格式化
     // ═══════════════════════════════════════════════════
 
-    private static string FmtCtx(int t) => t switch
-    {
-        <= 0 => "   -", >= 1_000_000 => $"{t / 1_000_000.0:0.#}M".PadLeft(4),
-        _ => $"{t / 1_000}K".PadLeft(4),
-    };
+    // 上下文整数 → 文本统一走 Global.FormatContext（- / 128K / 1.1M），此处只保留本端右对齐补宽布局
+    private static string FmtCtx(int t) => Global.FormatContext(t).PadLeft(4);
 
     /// <summary>槽位状态条文本（▶ 目标、* 已配置、· 当前槽位）。</summary>
     private static string SlotBarText(int targetSlot, int currentSlot)

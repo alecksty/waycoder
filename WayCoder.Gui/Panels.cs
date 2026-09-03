@@ -91,12 +91,8 @@ internal static class Panels
 
     // ── 数据格式化（对齐 Web formatContext/formatPrice）──
 
-    public static string FormatCtx(long ctx)
-    {
-        if (ctx <= 0) return "-";
-        if (ctx >= 1_000_000) return Math.Round(ctx / 100_000.0) / 10 + "M";
-        return Math.Round(ctx / 1000.0) + "K";
-    }
+    /// <summary>上下文整数 → 文本统一走核心 Global.FormatContext（- / 128K / 1.1M）。</summary>
+    public static string FormatCtx(long ctx) => Global.FormatContext(ctx);
 
     public static string FormatPrice(double price)
     {

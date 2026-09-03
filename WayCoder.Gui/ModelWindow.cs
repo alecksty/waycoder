@@ -254,15 +254,8 @@ public sealed class ModelWindow : Window
             return _scanResult.TryGetValue(m.ProviderId, out var ls) && ls == ModelPicker.ScanStatus.Connected ? "✔本地" : "本地";
         if (!ApiKeyStore.HasKeyFor(m.ProviderId, m.Id)) return "无key";
         if (!_scanResult.TryGetValue(m.ProviderId, out var st)) return "未测";
-        return st switch
-        {
-            ModelPicker.ScanStatus.Connected => "✔连通",
-            ModelPicker.ScanStatus.BadKey => "✖key",
-            ModelPicker.ScanStatus.Overdue => "欠费",
-            ModelPicker.ScanStatus.NoEndpoint => "无端点",
-            ModelPicker.ScanStatus.Unreachable => "✖不通",
-            _ => "未测",
-        };
+        // ScanStatus → 中文映射收敛到核心 ModelPicker.StatusText（本地/无key/未测特判保留在上方）
+        return ModelPicker.StatusText(st);
     }
 
     // ── 操作 ──

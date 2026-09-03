@@ -101,6 +101,18 @@ public static class Global
         catch { return 0; }
     }
 
+    // ── 显示格式化 ──
+    /// <summary>上下文窗口整数 → 简短文本（- / 128K / 1.1M），四端模型表共用的唯一格式。
+    /// 规则：≤0 → "-"；≥1_000_000 → 一位小数 M（去尾零，如 1.0M→"1M"、1.05M→"1.1M"）；
+    /// ≥1000 → 整数 K；其余 → 原样。小数用 InvariantCulture（固定 "." 小数点，不随地区变 ","）。</summary>
+    public static string FormatContext(long ctx) => ctx switch
+    {
+        <= 0 => "-",
+        >= 1_000_000 => (ctx / 1_000_000.0).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "M",
+        >= 1000 => (ctx / 1000).ToString(System.Globalization.CultureInfo.InvariantCulture) + "K",
+        _ => ctx.ToString(System.Globalization.CultureInfo.InvariantCulture),
+    };
+
     // ── 应用 ──
     /// <summary>应用品牌名（英文）</summary>
     public const string AppName = "WayCoder";
