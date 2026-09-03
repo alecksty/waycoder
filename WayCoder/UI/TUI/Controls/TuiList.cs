@@ -6,14 +6,14 @@ using Terminal = WayCoder.UI.Shared.Terminal;
 namespace WayCoder.UI.Tui.Controls;
 
 /// <summary>可滚动列表选单 —— 单选/多选，键盘 + 鼠标。</summary>
-public class TuiList : TuiControl
+public class TuiList : TuiListControl
 {
     public List<string> Items { get; set; } = [];
-    public int SelectedIndex { get; set; }
     public HashSet<int> CheckedIndices { get; set; } = [];
     public bool MultiSelect { get; set; }
-    public int ScrollOffset { get; set; }
     public Action<int>? OnSelect { get; set; }
+
+    protected override int ItemCount => Items.Count;
 
     public TuiList()
     {
@@ -126,58 +126,12 @@ public class TuiList : TuiControl
         if (!IsEnabled) return false;
         switch (key.Key)
         {
-            case ConsoleKey.UpArrow:
-                if (SelectedIndex > 0)
-                {
-                    SelectedIndex--;
-                    MarkDirty();
-                }
-
-                return true;
-            case ConsoleKey.DownArrow:
-                if (SelectedIndex < Items.Count - 1)
-                {
-                    SelectedIndex++;
-                    MarkDirty();
-                }
-
-                return true;
-            case ConsoleKey.Home:
-                if (SelectedIndex != 0)
-                {
-                    SelectedIndex = 0;
-                    MarkDirty();
-                }
-
-                return true;
-            case ConsoleKey.End:
-                if (SelectedIndex != Items.Count - 1)
-                {
-                    SelectedIndex = Items.Count - 1;
-                    MarkDirty();
-                }
-
-                return true;
-            case ConsoleKey.PageUp:
-            {
-                var next = Math.Max(0, SelectedIndex - Math.Max(1, Height));
-                if (next != SelectedIndex)
-                {
-                    SelectedIndex = next;
-                    MarkDirty();
-                }
-            }
-                return true;
-            case ConsoleKey.PageDown:
-            {
-                var next = Math.Min(Items.Count - 1, SelectedIndex + Math.Max(1, Height));
-                if (next != SelectedIndex)
-                {
-                    SelectedIndex = next;
-                    MarkDirty();
-                }
-            }
-                return true;
+            case ConsoleKey.UpArrow: MoveUp(); return true;
+            case ConsoleKey.DownArrow: MoveDown(); return true;
+            case ConsoleKey.Home: MoveHome(); return true;
+            case ConsoleKey.End: MoveEnd(); return true;
+            case ConsoleKey.PageUp: MovePage(-1); return true;
+            case ConsoleKey.PageDown: MovePage(1); return true;
             case ConsoleKey.Spacebar:
                 if (MultiSelect)
                 {
