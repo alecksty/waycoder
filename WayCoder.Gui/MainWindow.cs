@@ -205,7 +205,7 @@ public partial class MainWindow : Window
     {
         EconomyCombo.Items.Clear();
         PermCombo.Items.Clear();
-        foreach (var v in new[] { "关", "自动", "开" })
+        foreach (var v in new[] { "关", "自动", "开", "极致" })
             EconomyCombo.Items.Add(v);
         EconomyCombo.SelectedIndex = (int)Config.Instance.EconomyMode;
 

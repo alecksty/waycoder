@@ -81,18 +81,21 @@ public partial class MainWindow
     /// </summary>
     private async void HandleUpload(string path)
     {
+        // 捕获发起槽位：转录是 await（可能耗时数秒），期间切槽会改 _activeSlot，
+        // 若再读 _activeSlot 会把转录结果写进切换后的槽位（污染错误会话）。
+        var slot = _activeSlot;
         var ext = Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
-        var agent = _agents[_activeSlot];
+        var agent = _agents[slot];
         if (agent == null) return;
 
         if (IsImageExt(ext))
         {
             LLM.QueueImage(agent.AgentId, path);
-            AppendSystem(_activeSlot, $"[图片已附加: {Path.GetFileName(path)}]");
+            AppendSystem(slot, $"[图片已附加: {Path.GetFileName(path)}]");
         }
         else if (IsAudioExt(ext))
         {
-            AppendSystem(_activeSlot, $"[转录音频中: {Path.GetFileName(path)}]");
+            AppendSystem(slot, $"[转录音频中: {Path.GetFileName(path)}]");
             try
             {
                 var text = await Task.Run(() =>
@@ -100,18 +103,18 @@ public partial class MainWindow
                             new Dictionary<string, object?> { ["path"] = path })
                         .GetAwaiter().GetResult());
                 if (!string.IsNullOrEmpty(text))
-                    AppendUser(_activeSlot, text);
+                    AppendUser(slot, text);
                 else
-                    AppendSystem(_activeSlot, "[转录无结果]");
+                    AppendSystem(slot, "[转录无结果]");
             }
             catch (Exception ex)
             {
-                AppendSystem(_activeSlot, $"[转录失败] {ex.Message}");
+                AppendSystem(slot, $"[转录失败] {ex.Message}");
             }
         }
         else
         {
-            AppendSystem(_activeSlot, $"[不支持的格式: .{ext}（图片或音频）]");
+            AppendSystem(slot, $"[不支持的格式: .{ext}（图片或音频）]");
         }
     }
 
@@ -283,6 +286,7 @@ public partial class MainWindow
         finally
         {
             FinalizeStreaming(slot); // 流式结束定稿
+            _inReasoning[slot] = false; // 复位推理标记：中途停止未收到 «/» 时，下条回复才不会误入推理气泡
             if (firstUserMsg != null)
             {
                 // 任务完成：还原排队消息为纯文本（去掉「📤 发送中…」标记，防残留到 UI 与会话历史）
@@ -304,6 +308,9 @@ public partial class MainWindow
     /// <summary>当前批次完成后，若该槽位有待处理指令则取下一个自动执行（输入排队机制）。</summary>
     private void TrySendNextPending(int slot)
     {
+        // 槽位仍忙碌（如切回时任务未完成）→ 不重入。否则 SendAsync 会走排队路径，
+        // 把队首项再包一层气泡 + 新 PendingItem，导致原气泡永远「排队中」且顺序错乱。
+        if (_cts[slot] != null) return;
         if (_pendingInputs[slot].TryDequeue(out var next))
         {
             // 槽位切换保护：用户已切走该槽位时，不把 A 槽的排队消息塞进当前活跃槽位的输入框发出
