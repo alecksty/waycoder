@@ -428,9 +428,9 @@ public static partial class ModelCli
 
         var (path, name) = src switch
         {
-            "opencode" => (Path.Combine(home, ".config", "opencode", "opencode.json"), "OpenCode"),
+            "opencode" => (Path.Combine(ImportHelper.OpenCodeHome, "opencode.json"), "OpenCode"),
             "openclaw" => (Path.Combine(home, ".openclaw", "openclaw.json"), "OpenClaw"),
-            "claude" => (Path.Combine(home, ".claude", "settings.json"), "Claude Code"),
+            "claude" => (Path.Combine(ImportHelper.ClaudeHome, "settings.json"), "Claude Code"),
             "codex" => (Path.Combine(home, ".codex", "config.toml"), "Codex"),
             _ => ("", ""),
         };
@@ -440,7 +440,7 @@ public static partial class ModelCli
             // OpenCode 兼容 .jsonc
             if (src == "opencode")
             {
-                var jsonc = Path.Combine(home, ".config", "opencode", "opencode.jsonc");
+                var jsonc = Path.Combine(ImportHelper.OpenCodeHome, "opencode.jsonc");
                 if (File.Exists(jsonc)) path = jsonc;
                 else return [];
             }

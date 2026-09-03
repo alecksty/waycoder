@@ -30,9 +30,7 @@ public static class SessionManager
     private static void AtomicWrite(string path, string content)
     {
         Global.EnsureDir(path);
-        var tmp = path + ".tmp";
-        File.WriteAllText(tmp, content);
-        File.Move(tmp, path, overwrite: true); // 同卷原子替换
+        Global.WriteAllTextAtomic(path, content); // 同卷原子替换
     }
 
     /// <summary>

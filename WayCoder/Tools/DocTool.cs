@@ -157,7 +157,7 @@ public class DocTool : ITool
                 return $"错误：不支持的内容类型 '{contentType}'";
 
             var html = await response.Content.ReadAsStringAsync();
-            var text = StripHtml(html);
+            var text = HtmlText.StripHtml(html);
 
             if (text.Length > 6000)
                 text = ContextManager.TruncateByRunes(text, 6000) + $"\n\n... (已截断，原始共 {text.Length} 字符)";
@@ -300,7 +300,7 @@ public class DocTool : ITool
                 return (source, null);
 
             var html = await response.Content.ReadAsStringAsync();
-            var text = StripHtml(html);
+            var text = HtmlText.StripHtml(html);
 
             if (text.Length > 4000)
                 text = ContextManager.TruncateByRunes(text, 4000) + "\n\n... (已截断)";
@@ -324,7 +324,7 @@ public class DocTool : ITool
             response.EnsureSuccessStatusCode();
 
             var html = await response.Content.ReadAsStringAsync();
-            var text = StripHtml(html);
+            var text = HtmlText.StripHtml(html);
 
             // 提取搜索结果片段
             var snippets = new List<string>();
@@ -355,28 +355,6 @@ public class DocTool : ITool
         {
             return $"### 搜索: {query}\n支持直接指定 URL: action='fetch' url='https://docs.example.com/...'";
         }
-    }
-
-    // ================================================================
-    // HTML 清理
-    // ================================================================
-
-    private static string StripHtml(string html)
-    {
-        if (string.IsNullOrEmpty(html)) return "";
-
-        html = Regex.Replace(html, @"<script[^>]*>.*?</script>", "", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-        html = Regex.Replace(html, @"<style[^>]*>.*?</style>", "", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-        html = Regex.Replace(html, @"<nav[^>]*>.*?</nav>", "", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-        html = Regex.Replace(html, @"<footer[^>]*>.*?</footer>", "", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-        html = Regex.Replace(html, @"<header[^>]*>.*?</header>", "", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-        html = Regex.Replace(html, @"<[^>]+>", " ");
-        html = System.Net.WebUtility.HtmlDecode(html);
-        html = Regex.Replace(html, @"[ \t]+", " ");
-        html = Regex.Replace(html, @"\n\s*\n", "\n\n");
-        html = Regex.Replace(html, @"^\s+$", "", RegexOptions.Multiline);
-
-        return html.Trim();
     }
 
     private static string GetDomain(string url)

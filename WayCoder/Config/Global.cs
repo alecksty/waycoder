@@ -38,6 +38,20 @@ public static class Global
         File.Move(tmp, path, overwrite: true);
     }
 
+    /// <summary>写前备份文件：复制为 path.{yyyyMMddHHmmssfff}.bak（重名冲突回退 .{Guid:N}.bak），失败返回 null。
+    /// 收敛 DoctorEngine / ModelCatalog 的两份同逻辑 BackupFile。</summary>
+    public static string? BackupFile(string path)
+    {
+        try
+        {
+            var bak = path + "." + DateTime.Now.ToString("yyyyMMddHHmmssfff") + ".bak";
+            if (File.Exists(bak)) bak = path + "." + Guid.NewGuid().ToString("N") + ".bak";
+            File.Copy(path, bak, overwrite: false);
+            return bak;
+        }
+        catch { return null; }
+    }
+
     /// <summary>确保文件所在目录存在（Directory.CreateDirectory 幂等）。空/无父目录直接返回。</summary>
     public static void EnsureDir(string? path)
     {

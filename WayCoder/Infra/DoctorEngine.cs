@@ -200,7 +200,7 @@ public static class DoctorEngine
 
         if (fix)
         {
-            var backup = BackupFile(path);
+            var backup = Global.BackupFile(path);
             if (backup == null)
             {
                 AddError(issues, "config.json", $"损坏且备份失败: {error}", AutoFixable: true);
@@ -230,7 +230,7 @@ public static class DoctorEngine
 
         if (!TryParseJson(path, out var root, out var error) || root?.Kind != JKind.Array)
         {
-            if (fix && BackupFile(path) != null)
+            if (fix && Global.BackupFile(path) != null)
             {
                 AddError(issues, "api_keys.json", $"已备份损坏文件，需手动恢复；未自动覆盖密钥数据（{error}）");
             }
@@ -737,22 +737,6 @@ public static class DoctorEngine
         catch
         {
             return false;
-        }
-    }
-
-    private static string? BackupFile(string path)
-    {
-        try
-        {
-            var backup = $"{path}.{DateTime.Now:yyyyMMddHHmmssfff}.bak";
-            if (File.Exists(backup))
-                backup = $"{path}.{Guid.NewGuid():N}.bak";
-            File.Copy(path, backup, overwrite: false);
-            return backup;
-        }
-        catch
-        {
-            return null;
         }
     }
 

@@ -57,9 +57,7 @@ public static class CodeEmbeddingCache
                 foreach (var f in kv.Value) vec.Add(JNode.Num(f));
                 arr.Add(JNode.Object().Set("key", kv.Key).Set("vec", vec));
             }
-            var tmp = StorePath + ".tmp";
-            File.WriteAllText(tmp, JNode.Object().Set("embeddings", arr).ToJson());
-            File.Move(tmp, StorePath, overwrite: true);
+            Global.WriteAllTextAtomic(StorePath, JNode.Object().Set("embeddings", arr).ToJson());
             _dirty = false;
         }
         catch { }

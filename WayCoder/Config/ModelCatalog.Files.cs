@@ -167,20 +167,6 @@ public static partial class ModelCatalog
         try { if (File.Exists(path)) File.Delete(path); } catch { }
     }
 
-    /// <summary>写前备份数据文件：复制为 path.{yyyyMMddHHmmssfff}.bak（重名冲突回退 .{Guid:N}.bak）。
-    /// 仿 Infra/DoctorEngine.BackupFile 命名惯例；失败返回 null（调用方决定是否继续）。</summary>
-    private static string? BackupFile(string path)
-    {
-        try
-        {
-            var bak = path + "." + DateTime.Now.ToString("yyyyMMddHHmmssfff") + ".bak";
-            if (File.Exists(bak)) bak = path + "." + Guid.NewGuid().ToString("N") + ".bak";
-            File.Copy(path, bak, overwrite: false);
-            return bak;
-        }
-        catch { return null; }
-    }
-
     /// <summary>判断文件是否落在本地（cwd/.waycoder）作用域 —— 决定归并迁移写到 global 还是 local 桶。</summary>
     private static bool IsLocalModelFile(string path) =>
         path.StartsWith(LocalProviderDir, StringComparison.OrdinalIgnoreCase)
