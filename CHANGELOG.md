@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.96.52 (2026-09-03) — 会话恢复网关 6 项修复（code-review 补丁）
+
+修复 v0.96.51「会话恢复携带网关」的 6 项 code-review 发现，会话恢复/保存的网关一致性逻辑集中到核心。自测 4905 全过（+7 回归），主项目 + GUI 编译 0 警告 0 错误。
+
+- **恢复模型后同步上下文窗口**：`LoadSessionById` 设模型后调 `UpdateContextWindow`——跨窗口模型加载会话后压缩阈值不再按旧模型预算（对齐 ApplyModel/ApplyRuntimeModel），防超窗对话直接 400
+- **恢复网关写回 Config 镜像**：加载会话同步 `Config.Model/Provider/BaseUrl`（仅内存不落盘）+ 刷新头部——头部/模型对话框读 Config，防用户信头部确认后 ApplyModel 重新解析官方端点丢弃恢复的网关
+- **保存集中化**：新增 `Agent.SaveSession`——GUI/TUI/Web/CLI 六处保存统一走它写 `model/provider/base_url` 元数据；TUI 退出/崩溃/手动 `/session save` 不再用无参调用覆写剥掉 GUI 存的网关（此前四端共享会话文件、TUI 退出即破坏 GUI 的恢复元数据）
+- **provider 推导修正**：新增 `ModelCatalog.ResolveProviderForModel`（目录 model+baseUrl 精确匹配 > baseUrl 注册表反查 > 模型默认），替代「保存回退全局 `Config.Provider`」——修复跨槽位最后选择的 provider 误存给本会话
+- **恢复核对 key 绑定网关**：`ApiKeyStore.GetBaseUrl(provider)` 优先（key 与其地址一致）——provider 中途换网关后，旧网关 + 新 key → 401；绑定为空才用会话保存网关
+- **空 model 遗留会话兼容**：`LoadSession` 空/缺 model 仍返回消息（Model=""，调用方 `IsNullOrEmpty` 跳过模型赋值）——修复旧格式会话被整体判 null 导致对话静默丢失的回归（Program.resume / `/session load` 已加 guard）
+- **回归测试 +7**：会话元数据落盘 / 空 model 兼容 / provider 推导（精确匹配、模型默认、无法判定 null）
+
 ## v0.96.51 (2026-09-03) — 会话恢复携带网关（provider/base_url，向后兼容）
 
 会话记录新增可选 `provider`/`base_url`；GUI 显式加载会话时按保存时的网关重配 LLM endpoint——修「model id 配错网关」导致发错服务器/鉴权失败。自测 4891 全过，主项目 + GUI 编译 0 警告 0 错误。
