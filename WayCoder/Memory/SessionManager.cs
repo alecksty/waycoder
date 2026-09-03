@@ -66,12 +66,14 @@ public static class SessionManager
     /// <summary>
     /// 加载已保存的会话。返回 (messages, model) 或 null。
     /// 槽位隔离模式（slot&gt;=0）只读该槽位目录，不回退旧目录。
+    /// model 缺失/为空（旧格式遗留）仍返回消息，Model 字段为 ""——调用方按 IsNullOrEmpty 跳过模型赋值
+    /// （修复旧版空 model 会话被整体判 null 导致对话「丢失」的回归）。
     /// </summary>
     public static (List<JNode> Messages, string Model)? LoadSession(string sessionId, int slot = -1)
     {
         var r = LoadSessionDetailed(sessionId, slot);
-        if (r == null || string.IsNullOrEmpty(r.Model)) return null;
-        return (r.Messages, r.Model!);
+        if (r == null) return null;
+        return (r.Messages, r.Model ?? "");
     }
 
     /// <summary>

@@ -190,7 +190,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         {
             case "save":
                 if (agent == null) return "⚠ 无活跃槽位";
-                var id = SessionManager.SaveSession(agent.SnapshotMessages(), agent.LlmClient.Model, null, slot);
+                // provider/base_url 元数据经 Agent.SaveSession 集中推导（恢复时重配网关）
+                var id = agent.SaveSession(null, slot);
                 return $"💾 会话已保存: **{id}**";
 
             case "load":

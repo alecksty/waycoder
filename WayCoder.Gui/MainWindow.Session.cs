@@ -35,14 +35,10 @@ public partial class MainWindow
 
             try
             {
-                var model = agent.LlmClient.Model;
-                var baseUrl = agent.LlmClient.BaseUrl;
-                // 推导 provider：模型+网关精确匹配；未命中回退全局配置（自定义模型不在目录的兜底）。
-                // 连同 baseUrl 一起存，供 LoadSessionById 恢复时重配 endpoint（防 model id 发错网关）。
-                var provider = string.IsNullOrWhiteSpace(baseUrl)
-                    ? Config.Instance.Provider
-                    : (ModelCatalog.Find(model, baseUrl)?.ProviderId ?? Config.Instance.Provider);
-                SessionManager.SaveSession(msgs, model, SlotSessionId(i), i, provider, baseUrl);
+                // provider/base_url 元数据由 Agent.SaveSession 统一推导
+                // （ModelCatalog.ResolveProviderForModel：精确匹配 > 注册表反查 > 模型默认），
+                // 供 LoadSessionById 恢复时重配 endpoint（防 model id 发错网关）。
+                agent.SaveSession(SlotSessionId(i), i);
             }
             catch
             {
@@ -163,17 +159,36 @@ public partial class MainWindow
             var loaded = SessionManager.LoadSessionDetailed(id, _activeSlot);
             if (loaded == null) return;
             agent.ReplaceMessages(loaded.Messages);
+            var effBaseUrl = loaded.BaseUrl;
             if (!string.IsNullOrEmpty(loaded.Model))
+            {
                 agent.LlmClient.Model = loaded.Model!;
+                // 模型切换必须同步上下文窗口：跨窗口模型加载会话后压缩阈值按旧窗口预算，
+                // 对话超过新模型窗口仍不压缩 → API 400 context-length（对齐 ApplyModel/ApplyRuntimeModel）。
+                agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(loaded.Model!, Config.Instance.MaxContextTokens));
+            }
             // 恢复会话保存时的网关 + 对应 key：model id 不能配错 endpoint（否则发错服务器/鉴权失败）。
             // 旧会话缺 provider/base_url → 跳过，保持当前网关（回退兼容）。
-            if (!string.IsNullOrWhiteSpace(loaded.BaseUrl))
+            if (!string.IsNullOrWhiteSpace(effBaseUrl))
             {
-                var key = !string.IsNullOrWhiteSpace(loaded.Provider)
-                    ? (ApiKeyStore.Get(loaded.Provider) ?? agent.LlmClient.ApiKey)
-                    : agent.LlmClient.ApiKey;
-                agent.LlmClient.Reconfigure(key, loaded.BaseUrl);
+                var key = agent.LlmClient.ApiKey;
+                if (!string.IsNullOrWhiteSpace(loaded.Provider))
+                {
+                    key = ApiKeyStore.Get(loaded.Provider) ?? agent.LlmClient.ApiKey;
+                    // key 绑定专属网关时跟随绑定：key 与地址必须一致——provider 中途换网关/密钥后，
+                    // 旧网关 + 新 key 必 401。绑定为空 = key 对 provider 默认地址有效，用会话保存的网关。
+                    var bound = ApiKeyStore.GetBaseUrl(loaded.Provider);
+                    if (!string.IsNullOrWhiteSpace(bound)) effBaseUrl = bound;
+                }
+                agent.LlmClient.Reconfigure(key, effBaseUrl);
             }
+            // 会话恢复同步 Config 镜像（头部/模型对话框都读 Config）：让恢复的模型+网关成为当前默认，
+            // 避免头部仍显示旧默认造成误导、以及用户信头部在对话框点确认后 ApplyModel 重新解析官方端点丢弃刚恢复的网关。
+            // 仅改内存不落盘——加载会话不应改写用户持久化配置；后续用户显式切换模型属正常操作。
+            var cfg = Config.Instance;
+            if (!string.IsNullOrEmpty(loaded.Model)) cfg.Model = loaded.Model!;
+            if (!string.IsNullOrWhiteSpace(loaded.Provider)) cfg.Provider = loaded.Provider;
+            if (!string.IsNullOrWhiteSpace(effBaseUrl)) cfg.BaseUrl = effBaseUrl;
             RebuildChatFromAgent(_activeSlot, agent);
             UpdateHeader();
             AppendSystem(_activeSlot, $"[已加载会话 {id}]");

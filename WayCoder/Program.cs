@@ -556,7 +556,7 @@ public partial class Program
             if (loaded != null)
             {
                 _agent.ReplaceMessages(loaded.Value.Messages);
-                if (model == null)
+                if (model == null && !string.IsNullOrEmpty(loaded.Value.Model))
                 {
                     _llm.Model = loaded.Value.Model;
                     _config.Model = loaded.Value.Model;

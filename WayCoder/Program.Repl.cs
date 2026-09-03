@@ -720,7 +720,7 @@ public partial class Program
                 var hasUser = slotMsgs.Any(m =>
                     m["role"]?.AsString() == "user");
                 if (!hasUser) continue;
-                SessionManager.SaveSession(slotMsgs, _config.Model, "_auto", i);
+                slot?.Agent?.SaveSession("_auto", i); // provider/base_url 元数据经 Agent.SaveSession 集中推导
                 saved++;
             }
             if (saved > 0)
@@ -774,7 +774,7 @@ public partial class Program
                 if (slotMsgs == null || slotMsgs.Count == 0) continue;
                 var hasUser = slotMsgs.Any(m => m["role"]?.AsString() == "user");
                 if (!hasUser) continue;
-                try { SessionManager.SaveSession(slotMsgs, _config.Model, "_auto", i); } catch { }
+                try { slot?.Agent?.SaveSession("_auto", i); } catch { } // 元数据经 Agent.SaveSession 集中推导
             }
             // 写入崩溃标记文件
             var crashFile = Path.Combine(Global.GlobalConfigPath("sessions"), ".crash_recovery");
@@ -796,7 +796,7 @@ public partial class Program
                 var slot = _slots[i];
                 var slotMsgs = slot?.Agent?.SnapshotMessages();
                 if (slotMsgs == null || slotMsgs.Count == 0) continue;
-                try { SessionManager.SaveSession(slotMsgs, _config.Model, "_auto", i); } catch { }
+                try { slot?.Agent?.SaveSession("_auto", i); } catch { } // 元数据经 Agent.SaveSession 集中推导
             }
         }
         catch { }

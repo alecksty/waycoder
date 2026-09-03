@@ -278,6 +278,20 @@ public partial class Agent
     }
 
     /// <summary>
+    /// 保存本 Agent 会话（含 model/provider/base_url 元数据，供恢复时重配 endpoint 防 model id 发错网关）。
+    /// 集中 GUI/TUI/Web 的保存样板：provider 由 <see cref="ModelCatalog.ResolveProviderForModel"/> 从 (model, baseUrl)
+    /// 推导（精确匹配 &gt; 注册表反查 &gt; 模型默认），避免各端回退全局 Config 造成跨槽位 provider 误存；
+    /// 空会话/无用户消息等过滤守卫由调用方决定（Web 手动保存允许空）。
+    /// </summary>
+    public string SaveSession(string? sessionId = null, int slot = -1)
+    {
+        var model = LlmClient.Model;
+        var baseUrl = LlmClient.BaseUrl;
+        var provider = ModelCatalog.ResolveProviderForModel(model, baseUrl);
+        return SessionManager.SaveSession(SnapshotMessages(), model, sessionId, slot, provider, baseUrl);
+    }
+
+    /// <summary>
     /// 构建完整消息列表（包含系统提示词 + 模式提示）。
     /// 发送前自动修复孤立的工具调用/结果配对（对标 Crush filterOrphanedToolResults + syntheticToolResultsForOrphanedCalls）。
     /// </summary>
