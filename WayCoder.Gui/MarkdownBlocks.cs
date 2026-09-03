@@ -15,17 +15,10 @@ public static class MarkdownBlocks
 {
     private static readonly FontFamily Mono = new("Menlo,Consolas,monospace");
 
-    /// <summary>从主题资源取色（TextBrush/DimTextBrush/AccentBrush），支持深浅主题切换；缺失回退固定色。</summary>
-    private static Color ThemeColor(string key, string fallbackHex)
-    {
-        if (Application.Current?.Resources.TryGetResource(key, null, out var v) == true
-            && v is SolidColorBrush sb)
-            return sb.Color;
-        return Color.Parse(fallbackHex);
-    }
-    private static Color Text => ThemeColor("TextBrush", "#e6e8ee");
-    private static Color Dim => ThemeColor("DimTextBrush", "#8b93a7");
-    private static Color Accent => ThemeColor("AccentBrush", "#4f8cff");
+    /// <summary>从主题取色（深/浅随 RequestedThemeVariant 切换）。</summary>
+    private static Color Text => GuiColors.TextColor;
+    private static Color Dim => GuiColors.DimColor;
+    private static Color Accent => GuiColors.AccentColor;
 
     /// <summary>把 markdown 构建为 block 控件列表（供气泡 Render 重建）。</summary>
     public static List<Control> Build(string markdown)
@@ -91,7 +84,7 @@ public static class MarkdownBlocks
                 result.Add(new Border
                 {
                     Height = 1,
-                    Background = new SolidColorBrush(Color.Parse("#262b3a")),
+                    Background = new SolidColorBrush(GuiColors.BorderColor),
                     Margin = new Thickness(0, 6),
                 });
                 i++;
@@ -194,7 +187,7 @@ public static class MarkdownBlocks
         var border = new Border
         {
             Child = tb,
-            Background = new SolidColorBrush(Color.Parse("#161b22")),
+            Background = new SolidColorBrush(GuiColors.CodeBlockBgColor),
             CornerRadius = new CornerRadius(10),
             Padding = new Thickness(12, 8),
             Margin = new Thickness(0, 4, 0, 4),
@@ -256,7 +249,7 @@ public static class MarkdownBlocks
         return new Border
         {
             Child = grid,
-            BorderBrush = new SolidColorBrush(Color.Parse("#262b3a")),
+            BorderBrush = new SolidColorBrush(GuiColors.BorderColor),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(2),

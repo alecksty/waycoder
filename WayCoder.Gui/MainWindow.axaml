@@ -1,45 +1,56 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:system="clr-namespace:System;assembly=System.Runtime"
         x:Class="WayCoder.UI.Gui.MainWindow"
         Title="WayCoder（道码）"
-        Width="1180" Height="720"
+        Width="1180"
+        Height="720"
         Background="{DynamicResource WindowBgBrush}">
+
+    <Window.Resources>
+        <system:Double x:Key="TextFontSize">12.0 </system:Double>
+    </Window.Resources>
+
     <Grid RowDefinitions="Auto,*">
 
         <!-- 顶栏（跨三栏，对齐 Web <header>） -->
-        <Border Grid.Row="0" Background="{DynamicResource PanelBgBrush}"
-                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto" Margin="14,9">
+        <Border
+            Grid.Row="0"
+            Background="{DynamicResource PanelBgBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="0,0,0,1">
+
+            <Grid
+                ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto"
+                Margin="14,9">
                 <!-- 标志：🤖 道码 WayCoder（Coder 品牌蓝高亮） -->
-                <TextBlock x:Name="HeaderLabel"
-                           FontSize="15" FontWeight="Bold"
-                           Foreground="{DynamicResource TextBrush}"
-                           VerticalAlignment="Center">
+                <TextBlock
+                    x:Name="HeaderLabel"
+                    FontSize="15"
+                    FontWeight="Bold"
+                    Foreground="{DynamicResource TextBrush}"
+                    VerticalAlignment="Center">
                     <Run Text="🤖 道码 Way" />
                     <Run Text="Coder"
                          Foreground="{DynamicResource AccentBrush}" />
                 </TextBlock>
-                <TextBlock Grid.Column="1" x:Name="SlotLabel"
-                           Text="智能体1" FontSize="13"
-                           Foreground="{DynamicResource DimTextBrush}"
-                           VerticalAlignment="Center" HorizontalAlignment="Center" />
+                <TextBlock
+                    Grid.Column="1"
+                    x:Name="SlotLabel"
+                    Text="智能体1"
+                    FontSize="13"
+                    Foreground="{DynamicResource DimTextBrush}"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center" />
+
                 <Button
                     Grid.Column="2"
-                    x:Name="ThemeButton" Content="🌙"
+                    x:Name="ThemeButton"
+                    Content="🌙"
                     Foreground="{DynamicResource TextBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     ToolTip.Tip="切换主题"
                     Click="Theme_Click"
-                    Margin="0,0,8,0" />
-
-                <Button
-                    Grid.Column="3"
-                    x:Name="ModelButton"
-                    ToolTip.Tip="选择模型"
-                    IsVisible="False"
-                    Foreground="{DynamicResource TextBrush}"
-                    BorderBrush="{DynamicResource BorderBrush}"
-                    Click="ModelButton_Click"
                     Margin="0,0,8,0" />
 
                 <Button
@@ -68,42 +79,60 @@
         <Grid Grid.Row="1" ColumnDefinitions="250,*,300">
 
             <!-- 左栏 -->
-            <Border Grid.Column="0" x:Name="LeftPanel"
-                    Background="{DynamicResource PanelBgBrush}"
-                    BorderBrush="{DynamicResource BorderBrush}"
-                    BorderThickness="0,0,1,0">
+            <Border
+                Grid.Column="0"
+                x:Name="LeftPanel"
+                Background="{DynamicResource PanelBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,1,0">
+
                 <StackPanel>
-                    <TextBlock Text="🗂 槽位"
-                               FontSize="12"
-                               FontWeight="Bold"
-                               Foreground="{DynamicResource DimTextBrush}"
-                               Margin="14,12,14,6" />
+                    <TextBlock
+                        Text="🗂 槽位"
+                        FontSize="{DynamicResource TextFontSize}"
+                        FontWeight="Bold"
+                        Foreground="{DynamicResource DimTextBrush}"
+                        Margin="10" />
 
-                    <StackPanel x:Name="SlotPanel"
-                                Orientation="Horizontal"
-                                Spacing="4"
-                                Margin="12,0,12,6" />
-
+                    <StackPanel
+                        x:Name="SlotPanel"
+                        Orientation="Vertical">
+                        <StackPanel
+                            x:Name="SlotPanelH1"
+                            Orientation="Horizontal"
+                            Spacing="1"
+                            Margin="0" />
+                        <StackPanel
+                            x:Name="SlotPanelH2"
+                            Orientation="Horizontal"
+                            Spacing="1"
+                            Margin="0" />
+                    </StackPanel>
+                    
                     <Grid ColumnDefinitions="*,Auto" Margin="12,4,12,8">
                         <Button
                             x:Name="NewSessionBtn"
                             Content="📄 新建会话"
-                            FontSize="11"
+                            FontSize="{DynamicResource TextFontSize}"
                             Padding="8,4"
                             Foreground="{DynamicResource TextBrush}"
                             BorderBrush="{DynamicResource BorderBrush}"
                             ToolTip.Tip="新建会话"
                             Click="NewSession_Click" />
 
-                        <Button Grid.Column="1" x:Name="ClearSessionsBtn" Content="🗑 清空"
+                        <Button Grid.Column="1"
+                                x:Name="ClearSessionsBtn"
+                                Content="🗑 清空"
                                 Foreground="{DynamicResource TextBrush}"
                                 BorderBrush="{DynamicResource BorderBrush}"
-                                FontSize="11" Padding="8,4" Margin="6,0,0,0"
+                                FontSize="{DynamicResource TextFontSize}"
+                                Padding="8,4"
+                                Margin="6,0,0,0"
                                 ToolTip.Tip="清空所有会话记录" Click="ClearSessions_Click" />
                     </Grid>
                     <TextBlock
                         Text="📜 历史会话"
-                        FontSize="12"
+                        FontSize="{DynamicResource TextFontSize}"
                         FontWeight="Bold"
                         Foreground="{DynamicResource DimTextBrush}"
                         Margin="14,0,14,6" />
@@ -121,7 +150,7 @@
                     VerticalScrollBarVisibility="Auto"
                     Background="{DynamicResource WindowBgBrush}"
                     Padding="16,12">
-                    <StackPanel x:Name="MessagesHost" Spacing="10" />
+                    <StackPanel x:Name="MessagesHost" Spacing="10" HorizontalAlignment="Stretch" />
                 </ScrollViewer>
 
                 <!-- Agent 动态状态栏（聊天与输入框之间）：空闲隐藏，活动显示状态 + Braille 等待动画 -->
@@ -163,7 +192,7 @@
                                 MaxHeight="150"
                                 IsVisible="False"
                                 Margin="0,0,0,4"
-                                FontSize="12"
+                                FontSize="{DynamicResource TextFontSize}"
                                 SelectionChanged="SlashSuggest_SelectionChanged" />
 
                             <!-- 输入框 -->
@@ -175,7 +204,7 @@
                                 MaxHeight="240"
                                 AcceptsReturn="True"
                                 TextWrapping="Wrap"
-                                FontSize="13"
+                                FontSize="{DynamicResource TextFontSize}"
                                 PlaceholderForeground="Gray"
                                 Foreground="{DynamicResource TextBrush}"
                                 PlaceholderText="输入消息…（Ctrl+Enter 发送）"
@@ -214,7 +243,7 @@
                                         BorderBrush="{DynamicResource BorderBrush}"
                                         ToolTip.Tip="选择大模型（复杂任务）"
                                         Click="BigModel_Click"
-                                        FontSize="11"
+                                        FontSize="{DynamicResource TextFontSize}"
                                         Margin="5"
                                         CornerRadius="5" />
 
@@ -225,14 +254,14 @@
                                         BorderBrush="{DynamicResource BorderBrush}"
                                         Content="小"
                                         ToolTip.Tip="选择小模型（简单 / 压缩）" Click="SmallModel_Click"
-                                        FontSize="11"
+                                        FontSize="{DynamicResource TextFontSize}"
                                         Margin="5"
                                         CornerRadius="5" />
 
                                     <TextBlock
                                         Grid.Column="2"
                                         Text="经济"
-                                        FontSize="11"
+                                        FontSize="{DynamicResource TextFontSize}"
                                         Margin="5"
                                         Foreground="{DynamicResource DimTextBrush}"
                                         VerticalAlignment="Center" />
@@ -244,14 +273,16 @@
                                         BorderBrush="{DynamicResource BorderBrush}"
                                         BorderThickness="0.5"
                                         CornerRadius="5"
-                                        FontSize="10"
+                                        FontSize="{DynamicResource TextFontSize}"
                                         Margin="5"
+                                        Padding="0"
+                                        HorizontalContentAlignment="Center"
                                         SelectionChanged="Economy_SelectionChanged" />
 
                                     <TextBlock
                                         Grid.Column="4"
                                         Text="权限"
-                                        FontSize="11"
+                                        FontSize="{DynamicResource TextFontSize}"
                                         Margin="5"
                                         VerticalAlignment="Center"
                                         Foreground="{DynamicResource DimTextBrush}" />
@@ -259,12 +290,14 @@
                                     <ComboBox
                                         x:Name="PermCombo"
                                         Grid.Column="5"
-                                        FontSize="11"
+                                        FontSize="{DynamicResource TextFontSize}"
                                         Margin="5"
+                                        Padding="0"
                                         Foreground="{DynamicResource TextBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="0.5"
+                                        BorderThickness="1"
                                         CornerRadius="5"
+                                        HorizontalContentAlignment="Center"
                                         SelectionChanged="Perm_SelectionChanged" />
                                 </Grid>
 
@@ -288,11 +321,15 @@
             </Grid>
 
             <!-- 右栏 -->
-            <Border Grid.Column="2" x:Name="RightPanel"
-                    Background="{DynamicResource PanelBgBrush}"
-                    BorderBrush="{DynamicResource BorderBrush}"
-                    BorderThickness="1,0,0,0">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,4">
+            <Border
+                Grid.Column="2"
+                x:Name="RightPanel"
+                Background="{DynamicResource PanelBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1,0,0,0">
+                <ScrollViewer
+                    VerticalScrollBarVisibility="Auto"
+                    Padding="0,4">
                     <StackPanel x:Name="RightCards" />
                 </ScrollViewer>
             </Border>

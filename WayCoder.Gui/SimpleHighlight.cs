@@ -23,13 +23,13 @@ public static class SimpleHighlight
         "override", "virtual", "abstract", "record", "init", "required", "global", "partial",
     };
 
-    // Web tok 配色
-    private static readonly Color Kw = Color.Parse("#ff7b72");
-    private static readonly Color Str = Color.Parse("#a5d6ff");
-    private static readonly Color Num = Color.Parse("#79c0ff");
-    private static readonly Color Fn = Color.Parse("#d2a8ff");
-    private static readonly Color Com = Color.Parse("#7d8590");
-    private static readonly Color Plain = Color.Parse("#c9d1d9");
+    // Web tok 配色（随深浅主题切换，读 GuiColors）
+    private static Color Kw => GuiColors.ColorOf("SyntaxRed");
+    private static Color Str => GuiColors.ColorOf("SyntaxStr");
+    private static Color Num => GuiColors.ColorOf("SyntaxNum");
+    private static Color Fn => GuiColors.ColorOf("SyntaxFn");
+    private static Color Com => GuiColors.ColorOf("SyntaxCom");
+    private static Color Plain => GuiColors.ColorOf("SyntaxPlain");
 
     /// <summary>把源码文本分词为着色 Inline 列表。</summary>
     public static List<Inline> Highlight(string code)

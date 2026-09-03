@@ -12,37 +12,28 @@ namespace WayCoder.UI.Gui;
 /// </summary>
 public static class SyntaxBrushMap
 {
-    private static readonly Dictionary<int, IBrush> Fg = new()
-    {
-        [36] = new SolidColorBrush(Color.Parse("#39c5cf")), // cyan
-        [32] = new SolidColorBrush(Color.Parse("#3fb950")), // green
-        [33] = new SolidColorBrush(Color.Parse("#d29922")), // yellow
-        [35] = new SolidColorBrush(Color.Parse("#bc8cff")), // magenta
-        [34] = new SolidColorBrush(Color.Parse("#58a6ff")), // blue
-        [31] = new SolidColorBrush(Color.Parse("#ff7b72")), // red
-        [2]  = new SolidColorBrush(Color.Parse("#6e7681")), // dim → 灰
-    };
-
     /// <summary>错误行背景（41）。</summary>
-    public static readonly IBrush ErrorBg = new SolidColorBrush(Color.Parse("#6e2222"));
+    public static IBrush ErrorBg => GuiColors.DiagErrorBg;
 
     /// <summary>警告行背景（103）。</summary>
-    public static readonly IBrush WarningBg = new SolidColorBrush(Color.Parse("#6e5c2e"));
+    public static IBrush WarningBg => GuiColors.DiagWarnBg;
 
-    /// <summary>把 ANSI int 映射为前景画刷；0/未知回退默认文本画刷。</summary>
-    public static IBrush ForFg(int ansi, IBrush defaultBrush)
+    /// <summary>把 ANSI int 映射为前景画刷（颜色随深浅主题）；0/未知回退默认文本画刷。</summary>
+    public static IBrush ForFg(int ansi, IBrush defaultBrush) => ansi switch
     {
-        if (ansi == 0) return defaultBrush;
-        if (Fg.TryGetValue(ansi, out var b)) return b;
+        0 => defaultBrush,
+        36 => GuiColors.SyntaxCyan,
+        32 => GuiColors.SyntaxGreen,
+        33 => GuiColors.SyntaxYellow,
+        35 => GuiColors.SyntaxMagenta,
+        34 => GuiColors.SyntaxBlue,
+        31 => GuiColors.SyntaxRed,
+        2 => GuiColors.SyntaxDim,
         // 兜底：TrueColor（0x1000000|rgb）——今日 Syntax.Tokenize 不发，留扩展
-        if ((ansi & 0x1000000) != 0)
-        {
-            var rgb = ansi & 0xFFFFFF;
-            return new SolidColorBrush(Color.FromRgb(
-                (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb));
-        }
-        return defaultBrush;
-    }
+        _ when (ansi & 0x1000000) != 0 => new SolidColorBrush(Color.FromRgb(
+            (byte)((ansi & 0xFFFFFF) >> 16), (byte)((ansi & 0xFF00) >> 8), (byte)(ansi & 0xFF))),
+        _ => defaultBrush,
+    };
 
     /// <summary>把 ANSI int 映射为背景画刷；非背景码返回 null。</summary>
     public static IBrush? ForBg(int ansi)

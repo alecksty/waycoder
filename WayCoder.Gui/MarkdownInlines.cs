@@ -10,16 +10,20 @@ namespace WayCoder.UI.Gui;
 /// </summary>
 public static class MarkdownInlines
 {
-    private static readonly Dictionary<string, Color> MarkupColors = new(StringComparer.OrdinalIgnoreCase)
+    /// <summary>«tag»…«/» 标记色名 → 主题语法色（随深浅主题切换）。未知返回 null。</summary>
+    private static Color? MarkupColor(string name) => name.ToLowerInvariant() switch
     {
-        ["red"] = Color.Parse("#ff7b72"), ["green"] = Color.Parse("#3fb950"),
-        ["yellow"] = Color.Parse("#d29922"), ["cyan"] = Color.Parse("#39c5cf"),
-        ["blue"] = Color.Parse("#58a6ff"), ["magenta"] = Color.Parse("#bc8cff"),
-        ["white"] = Color.Parse("#c9d1d9"), ["orange3"] = Color.Parse("#d29922"),
-        ["orange"] = Color.Parse("#d29922"), ["grey"] = Color.Parse("#6e7681"),
+        "red" => GuiColors.ColorOf("SyntaxRed"),
+        "green" => GuiColors.ColorOf("SyntaxGreen"),
+        "yellow" or "orange" or "orange3" => GuiColors.ColorOf("SyntaxYellow"),
+        "cyan" => GuiColors.ColorOf("SyntaxCyan"),
+        "blue" => GuiColors.ColorOf("SyntaxBlue"),
+        "magenta" => GuiColors.ColorOf("SyntaxMagenta"),
+        "white" => GuiColors.ColorOf("SyntaxPlain"),
+        "grey" => GuiColors.ColorOf("SyntaxDim"),
+        _ => null,
     };
 
-    private static readonly IBrush CodeBg = new SolidColorBrush(Color.Parse("#1d2230"));
     private static readonly FontFamily MonoFont = new("Menlo,Consolas,monospace");
 
     /// <summary>把 markdown 渲染进目标 InlineCollection。</summary>
@@ -46,7 +50,7 @@ public static class MarkdownInlines
                     int prefix = ListPrefixLen(l);
                     var bullet = l[..prefix];
                     var text = l[prefix..];
-                    target.Add(new Run("  " + bullet + " ") { Foreground = new SolidColorBrush(Color.Parse("#8b93a7")) });
+                    target.Add(new Run("  " + bullet + " ") { Foreground = GuiColors.DimText });
                     AddInlines(target, RenderInline(text));
                     target.Add(new LineBreak());
                 }
@@ -72,8 +76,8 @@ public static class MarkdownInlines
                     var code = codeBuf.ToString().TrimEnd('\n');
                     if (code.Length > 0)
                     {
-                        var span = new Span { Background = CodeBg, FontFamily = MonoFont, FontSize = 12.5 };
-                        span.Inlines.Add(new Run(code) { Foreground = new SolidColorBrush(Color.Parse("#c9d1d9")) });
+                        var span = new Span { Background = GuiColors.CodeBg, FontFamily = MonoFont, FontSize = 12.5 };
+                        span.Inlines.Add(new Run(code) { Foreground = GuiColors.CodeText });
                         target.Add(span);
                         target.Add(new LineBreak());
                     }
@@ -104,7 +108,7 @@ public static class MarkdownInlines
                 {
                     FontWeight = FontWeight.Bold,
                     FontSize = lvl == 1 ? 17 : lvl == 2 ? 15 : 14,
-                    Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")),
+                    Foreground = GuiColors.Text,
                 };
                 span.Inlines.Add(new Run(text));
                 target.Add(span);
@@ -116,7 +120,7 @@ public static class MarkdownInlines
             if (line.Trim() is "---" or "***" or "___")
             {
                 FlushParagraph(block); block.Clear();
-                target.Add(new Run("—".PadRight(40, '—')) { Foreground = new SolidColorBrush(Color.Parse("#262b3a")) });
+                target.Add(new Run("—".PadRight(40, '—')) { Foreground = GuiColors.Border });
                 target.Add(new LineBreak());
                 continue;
             }
@@ -132,7 +136,7 @@ public static class MarkdownInlines
             if (line.StartsWith("> "))
             {
                 FlushParagraph(block); block.Clear();
-                target.Add(new Run("│ ") { Foreground = new SolidColorBrush(Color.Parse("#4f8cff")) });
+                target.Add(new Run("│ ") { Foreground = GuiColors.Accent });
                 AddInlines(target, RenderInline(line[2..]));
                 target.Add(new LineBreak());
                 continue;
@@ -144,8 +148,8 @@ public static class MarkdownInlines
         FlushParagraph(block);
         if (inCode && codeBuf.Length > 0)
         {
-            var span = new Span { Background = CodeBg, FontFamily = MonoFont, FontSize = 12.5 };
-            span.Inlines.Add(new Run(codeBuf.ToString().TrimEnd('\n')) { Foreground = new SolidColorBrush(Color.Parse("#c9d1d9")) });
+            var span = new Span { Background = GuiColors.CodeBg, FontFamily = MonoFont, FontSize = 12.5 };
+            span.Inlines.Add(new Run(codeBuf.ToString().TrimEnd('\n')) { Foreground = GuiColors.CodeText });
             target.Add(span);
         }
     }
@@ -175,8 +179,8 @@ public static class MarkdownInlines
         var result = new List<Inline>();
         var buf = new StringBuilder();
         var stack = new Stack<string>(); // 活跃的 «tag» 样式（颜色名/样式名）
-        var dfg = defaultFg ?? Color.Parse("#e6e8ee");
-        var ddim = dimFg ?? Color.Parse("#6e7681");
+        var dfg = defaultFg ?? GuiColors.TextColor;
+        var ddim = dimFg ?? GuiColors.DimColor;
 
         void Flush(bool bold, bool mono)
         {
@@ -210,7 +214,7 @@ public static class MarkdownInlines
                         foreach (var p in tag.Split(' ', StringSplitOptions.RemoveEmptyEntries))
                         {
                             var key = p.Trim();
-                            if (MarkupColors.ContainsKey(key) || key is "bold" or "dim" or "underline" or "italic")
+                            if (MarkupColor(key) != null || key is "bold" or "dim" or "underline" or "italic")
                                 valid.Add(key);
                         }
                         if (valid.Count > 0) stack.Push(string.Join(' ', valid));
@@ -251,7 +255,7 @@ public static class MarkdownInlines
                         var label = text[(i + 1)..close];
                         result.Add(new Run(label)
                         {
-                            Foreground = new SolidColorBrush(Color.Parse("#4f8cff")),
+                            Foreground = GuiColors.Accent,
                             TextDecorations = TextDecorations.Underline,
                         });
                         i = urlEnd + 1;
@@ -283,7 +287,7 @@ public static class MarkdownInlines
                     case "underline": isUnderline = true; break;
                     case "dim": isDim = true; break;
                     default:
-                        if (MarkupColors.TryGetValue(p, out var c)) fg = c;
+                        fg = MarkupColor(p);
                         break;
                 }
             }

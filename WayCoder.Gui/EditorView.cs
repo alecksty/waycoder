@@ -26,9 +26,6 @@ public class EditorView : Control
     private const double Padding = 8;
     private const int GutterWidth = 52;
     private const int TabSize = 4;
-    private static readonly IBrush CaretBrush = new SolidColorBrush(Color.Parse("#4f8cff"));
-    private static readonly IBrush SelectionBrush = new SolidColorBrush(Color.Parse("#33518c"));
-
     private EditorCore? _core;
     private IBrush _bg = Brushes.Transparent;
     private IBrush _text = Brushes.White;
@@ -72,20 +69,14 @@ public class EditorView : Control
         ResolveThemeBrushes();
     }
 
-    /// <summary>从主题资源取画刷（深/浅主题切换后由 EditorWindow 重新调用）。</summary>
+    /// <summary>从主题资源取画刷（深/浅主题切换后由 EditorWindow 重新调用，GuiColors 按当前变体解析）。</summary>
     public void ResolveThemeBrushes()
     {
-        IBrush Theme(string key, string fallback)
-        {
-            if (Application.Current?.Resources.TryGetResource(key, null, out var v) == true
-                && v is IBrush b) return b;
-            return new SolidColorBrush(Color.Parse(fallback));
-        }
-        _bg = Theme("WindowBgBrush", "#0f1117");
-        _text = Theme("TextBrush", "#e6e8ee");
-        _gutter = Theme("DimTextBrush", "#8b93a7");
-        _gutterBg = Theme("PanelBgBrush", "#171a23");
-        _border = Theme("BorderBrush", "#262b3a");
+        _bg = GuiColors.WindowBg;
+        _text = GuiColors.Text;
+        _gutter = GuiColors.DimText;
+        _gutterBg = GuiColors.PanelBg;
+        _border = GuiColors.Border;
         InvalidateVisual();
     }
 
@@ -192,7 +183,7 @@ public class EditorView : Control
         var line = _core!.Lines[lineIdx].ToString();
         var x1 = TextX + TextWidth(line, from);
         var x2 = TextX + TextWidth(line, to);
-        dc.FillRectangle(SelectionBrush, new Rect(x1, y, Math.Max(0, x2 - x1), LineHeight));
+        dc.FillRectangle(GuiColors.Selection, new Rect(x1, y, Math.Max(0, x2 - x1), LineHeight));
     }
 
     private void DrawCaret(DrawingContext dc)
@@ -203,7 +194,7 @@ public class EditorView : Control
 
         var y = Padding + (_core.Cy - Math.Max(0, _core.Scroll)) * LineHeight;
         var x = TextX + TextWidth(_core.Lines[_core.Cy].ToString(), _core.Cx);
-        dc.FillRectangle(CaretBrush, new Rect(x, y, 2, LineHeight));
+        dc.FillRectangle(GuiColors.Caret, new Rect(x, y, 2, LineHeight));
     }
 
     /// <summary>文本起始 x（gutter 后 + 左内边距 - 横向滚动）。</summary>

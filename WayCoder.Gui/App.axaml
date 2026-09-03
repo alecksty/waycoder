@@ -1,7 +1,163 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="WayCoder.UI.Gui.App">
+    <!--
+        配色唯一真源：深/浅两套主题色内联于 ThemeDictionaries（Dark/Light 键）。
+        切换主题 = App.ToggleTheme() 设置 RequestedThemeVariant，各键随当前变体自动解析。
+        .cs 逻辑不再写 Color.Parse("#…")；代码取色一律经 GuiColors（TryGetResource 读当前变体）。
+    -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Dark">
+                    <!-- Core -->
+                    <SolidColorBrush x:Key="WindowBgBrush">#0f1117</SolidColorBrush>
+                    <SolidColorBrush x:Key="PanelBgBrush">#171a23</SolidColorBrush>
+                    <SolidColorBrush x:Key="Panel2BgBrush">#1d2230</SolidColorBrush>
+                    <SolidColorBrush x:Key="BorderBrush">#262b3a</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextBrush">#e6e8ee</SolidColorBrush>
+                    <SolidColorBrush x:Key="DimTextBrush">#8b93a7</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentBrush">#4f8cff</SolidColorBrush>
+                    <SolidColorBrush x:Key="UserBubbleBgBrush">#1f3a5f</SolidColorBrush>
+                    <SolidColorBrush x:Key="ToolBubbleBgBrush">#2a2416</SolidColorBrush>
+                    <SolidColorBrush x:Key="DangerBrush">#3a2a2a</SolidColorBrush>
+                    <SolidColorBrush x:Key="SuccessBrush">#3fb950</SolidColorBrush>
+                    <!-- 按钮 -->
+                    <SolidColorBrush x:Key="ButtonPrimaryBg">#2f6bff</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonSecondaryBg">#5b6472</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonDangerBg">#d73a49</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonText">#ffffff</SolidColorBrush>
+                    <!-- 状态 -->
+                    <SolidColorBrush x:Key="StatusRunning">#4f8cff</SolidColorBrush>
+                    <SolidColorBrush x:Key="StatusSuccess">#3fb950</SolidColorBrush>
+                    <SolidColorBrush x:Key="StatusDanger">#e5534b</SolidColorBrush>
+                    <SolidColorBrush x:Key="StatusWarning">#e8b34b</SolidColorBrush>
+                    <SolidColorBrush x:Key="StatusNeutral">#8b93a7</SolidColorBrush>
+                    <!-- diff / 上下文 -->
+                    <SolidColorBrush x:Key="DiffAdd">#3fb950</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiffDel">#e5534b</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiffNormal">#c9d1d9</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiffHdr">#58a6ff</SolidColorBrush>
+                    <!-- 语法 -->
+                    <SolidColorBrush x:Key="SyntaxPlain">#c9d1d9</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxRed">#ff7b72</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxGreen">#3fb950</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxYellow">#d29922</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxCyan">#39c5cf</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxBlue">#58a6ff</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxMagenta">#bc8cff</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxDim">#6e7681</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxStr">#a5d6ff</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxNum">#79c0ff</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxFn">#d2a8ff</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxCom">#7d8590</SolidColorBrush>
+                    <!-- 代码 -->
+                    <SolidColorBrush x:Key="CodeBg">#1d2230</SolidColorBrush>
+                    <SolidColorBrush x:Key="CodeBlockBg">#161b22</SolidColorBrush>
+                    <SolidColorBrush x:Key="CodeText">#c9d1d9</SolidColorBrush>
+                    <!-- 杂项 -->
+                    <SolidColorBrush x:Key="IdleText">#cccccc</SolidColorBrush>
+                    <!-- 编辑器 -->
+                    <SolidColorBrush x:Key="CaretBrush">#4f8cff</SolidColorBrush>
+                    <SolidColorBrush x:Key="SelectionBrush">#33518c</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiagErrorBg">#6e2222</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiagWarnBg">#6e5c2e</SolidColorBrush>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <!-- Core -->
+                    <SolidColorBrush x:Key="WindowBgBrush">#f5f6f8</SolidColorBrush>
+                    <SolidColorBrush x:Key="PanelBgBrush">#ffffff</SolidColorBrush>
+                    <SolidColorBrush x:Key="Panel2BgBrush">#f0f2f6</SolidColorBrush>
+                    <SolidColorBrush x:Key="BorderBrush">#e2e5ec</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextBrush">#1a1d24</SolidColorBrush>
+                    <SolidColorBrush x:Key="DimTextBrush">#6b7280</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentBrush">#2f6bff</SolidColorBrush>
+                    <SolidColorBrush x:Key="UserBubbleBgBrush">#e3ecff</SolidColorBrush>
+                    <SolidColorBrush x:Key="ToolBubbleBgBrush">#fff4dc</SolidColorBrush>
+                    <SolidColorBrush x:Key="DangerBrush">#ffe2e2</SolidColorBrush>
+                    <SolidColorBrush x:Key="SuccessBrush">#1a7f37</SolidColorBrush>
+                    <!-- 按钮 -->
+                    <SolidColorBrush x:Key="ButtonPrimaryBg">#2563eb</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonSecondaryBg">#4b5563</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonDangerBg">#d73a49</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonText">#ffffff</SolidColorBrush>
+                    <!-- 状态 -->
+                    <SolidColorBrush x:Key="StatusRunning">#0969da</SolidColorBrush>
+                    <SolidColorBrush x:Key="StatusSuccess">#1a7f37</SolidColorBrush>
+                    <SolidColorBrush x:Key="StatusDanger">#cf222e</SolidColorBrush>
+                    <SolidColorBrush x:Key="StatusWarning">#9a6700</SolidColorBrush>
+                    <SolidColorBrush x:Key="StatusNeutral">#6b7280</SolidColorBrush>
+                    <!-- diff / 上下文 -->
+                    <SolidColorBrush x:Key="DiffAdd">#1a7f37</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiffDel">#cf222e</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiffNormal">#24292f</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiffHdr">#0969da</SolidColorBrush>
+                    <!-- 语法 -->
+                    <SolidColorBrush x:Key="SyntaxPlain">#24292f</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxRed">#cf222e</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxGreen">#1a7f37</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxYellow">#9a6700</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxCyan">#0e8a8a</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxBlue">#0969da</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxMagenta">#8250df</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxDim">#6e7781</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxStr">#0a3069</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxNum">#0550ae</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxFn">#8250df</SolidColorBrush>
+                    <SolidColorBrush x:Key="SyntaxCom">#6e7781</SolidColorBrush>
+                    <!-- 代码 -->
+                    <SolidColorBrush x:Key="CodeBg">#f6f8fa</SolidColorBrush>
+                    <SolidColorBrush x:Key="CodeBlockBg">#f6f8fa</SolidColorBrush>
+                    <SolidColorBrush x:Key="CodeText">#24292f</SolidColorBrush>
+                    <!-- 杂项 -->
+                    <SolidColorBrush x:Key="IdleText">#6b7280</SolidColorBrush>
+                    <!-- 编辑器 -->
+                    <SolidColorBrush x:Key="CaretBrush">#0969da</SolidColorBrush>
+                    <SolidColorBrush x:Key="SelectionBrush">#add6ff</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiagErrorBg">#ffebe9</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiagWarnBg">#fff8c5</SolidColorBrush>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
     <Application.Styles>
         <FluentTheme />
+
+        <Style Selector="Button">
+            <Setter Property="Margin" Value="5" />
+            <Setter Property="Padding" Value="5" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+
+        </Style>
+
+        <Style Selector="ComboBox">
+            <Setter Property="Margin" Value="5" />
+            <Setter Property="Padding" Value="3" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource Panel2BgBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <Style Selector="TextBlock">
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <!-- <Setter Property="HorizontalAlignment" Value="Center" /> -->
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+        </Style>
+
     </Application.Styles>
 </Application>

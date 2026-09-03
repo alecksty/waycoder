@@ -23,10 +23,13 @@ public sealed class MessageBubble : Border
     {
         Message = msg;
         Child = _host;
-
+        
+        // this[!ForegroundProperty] = new DynamicResourceExtension("UserBubbleBgBrush");
+        
         switch (msg.Role)
         {
             case ChatRole.User:
+                // 用户消息：右侧
                 HorizontalAlignment = HorizontalAlignment.Right;
                 CornerRadius = new CornerRadius(CornerR, CornerR, 4, CornerR);
                 Padding = new Thickness(12, 8);
@@ -63,7 +66,6 @@ public sealed class MessageBubble : Border
                 CornerRadius = new CornerRadius(CornerR);
                 Padding = new Thickness(6, 2);
                 _host.Opacity = 0.65;
-                MaxWidth = 560;
                 break;
 
             default: // Assistant
@@ -75,8 +77,12 @@ public sealed class MessageBubble : Border
                 BorderThickness = new Thickness(1);
                 break;
         }
+        // 宽度上限：超过按比例折行（对齐旧版 640 全局 / 560 Tool）；随窗口 < 上限时自适应。
+        // 不再强制 Stretch —— 保留 switch 里按角色设置的对齐（用户=右、其余=左、系统=居中），
+        // 否则用户消息会被撑满整行、丢右对齐，且工具/助手消息失去折行上限。
+        MaxWidth = msg.Role == ChatRole.Tool ? 560 : 640;
+        _host.HorizontalAlignment = HorizontalAlignment.Stretch;
 
-        MaxWidth = 640; // 约聊天区 85%（表格需要更宽）
 
         Render(); // 构造即渲染内容（否则非流式消息/会话恢复历史为空白气泡）
     }

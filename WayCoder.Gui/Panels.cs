@@ -47,12 +47,12 @@ internal static class Panels
             : new StackPanel();
 
     /// <summary>状态圆点（8×8）。</summary>
-    public static Border StatusDot(string colorHex) => new()
+    public static Border StatusDot(IBrush brush) => new()
     {
         Width = 8,
         Height = 8,
         CornerRadius = new CornerRadius(4),
-        Background = new SolidColorBrush(Color.Parse(colorHex)),
+        Background = brush,
         VerticalAlignment = VerticalAlignment.Center,
     };
 
@@ -82,10 +82,10 @@ internal static class Panels
     }
 
     /// <summary>指定颜色文本（+n 绿 / -n 红 等）。</summary>
-    public static TextBlock ColoredText(string text, string colorHex, double size = 11.5)
+    public static TextBlock ColoredText(string text, IBrush brush, double size = 11.5)
     {
         var tb = Text(text, size: size);
-        tb.Foreground = new SolidColorBrush(Color.Parse(colorHex));
+        tb.Foreground = brush;
         return tb;
     }
 
@@ -123,13 +123,13 @@ internal static class Panels
         return card;
     }
 
-    private static string StatusColor(string status) => status switch
+    private static IBrush StatusColor(string status) => status switch
     {
-        "in_progress" => "#4f8cff",
-        "completed" => "#3fb950",
-        "cancelled" => "#e5534b",
-        "blocked" => "#e8b34b",
-        _ => "#8b93a7", // pending
+        "in_progress" => GuiColors.StatusRunning,
+        "completed" => GuiColors.StatusSuccess,
+        "cancelled" => GuiColors.StatusDanger,
+        "blocked" => GuiColors.StatusWarning,
+        _ => GuiColors.StatusNeutral, // pending
     };
 
     /// <summary>💰 Token / 费用（当前活跃槽位 LLM 实例级）。</summary>
@@ -171,9 +171,9 @@ internal static class Panels
                 EditFileTool.ChangedFileStats.TryGetValue(f, out var st);
                 var row = Row(Text(Path.GetFileName(f), wrap: true));
                 if (st.Added > 0)
-                    row.Children.Add(ColoredText($"+{st.Added}", "#3fb950"));
+                    row.Children.Add(ColoredText($"+{st.Added}", GuiColors.StatusSuccess));
                 if (st.Deleted > 0)
-                    row.Children.Add(ColoredText($"-{st.Deleted}", "#e5534b"));
+                    row.Children.Add(ColoredText($"-{st.Deleted}", GuiColors.StatusDanger));
                 if (onOpen != null)
                 {
                     // 点击在编辑器中打开该文件（对齐 Web 改动文件面板可点开）
@@ -204,9 +204,9 @@ internal static class Panels
             {
                 var dot = s.Status switch
                 {
-                    McpServerStatus.Connected => StatusDot("#3fb950"),
-                    McpServerStatus.Connecting => StatusDot("#e8b34b"),
-                    _ => StatusDot("#e5534b"),
+                    McpServerStatus.Connected => StatusDot(GuiColors.StatusSuccess),
+                    McpServerStatus.Connecting => StatusDot(GuiColors.StatusWarning),
+                    _ => StatusDot(GuiColors.StatusDanger),
                 };
                 var line = Row(dot, Text(s.Name, wrap: true));
                 if (s.ToolCount > 0)
@@ -235,9 +235,9 @@ internal static class Panels
             }
             foreach (var s in sessions)
             {
-                var dot = s.HasExited ? StatusDot("#e5534b")
-                    : s.Initialized ? StatusDot("#3fb950")
-                    : StatusDot("#e8b34b");
+                var dot = s.HasExited ? StatusDot(GuiColors.StatusDanger)
+                    : s.Initialized ? StatusDot(GuiColors.StatusSuccess)
+                    : StatusDot(GuiColors.StatusWarning);
                 var line = Row(dot, Text(s.Command, wrap: true));
                 content.Children.Add(line);
                 if (!string.IsNullOrEmpty(s.Root))

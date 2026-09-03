@@ -1,0 +1,42 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WayCoder.UI.Gui.ModelWindow"
+        Width="860"
+        Height="600"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource WindowBgBrush}">
+    <DockPanel Margin="16">
+
+        <!-- 底部按钮行（代码填充：左工具栏 + 右操作） -->
+        <StackPanel x:Name="BtnRow"
+                    DockPanel.Dock="Bottom"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    Spacing="0"
+                    Margin="0,10,0,10" />
+
+        <!-- 状态行 -->
+        <TextBlock x:Name="StatusText"
+                   DockPanel.Dock="Bottom"
+                   FontSize="12"
+                   Foreground="{DynamicResource DimTextBrush}"
+                   Margin="0,8,0,0" />
+
+        <!-- 搜索 -->
+        <TextBox x:Name="SearchBox"
+                 DockPanel.Dock="Top"
+                 PlaceholderText="搜索模型名称 / 厂商…"
+                 Margin="0,0,0,8"
+                 TextChanged="Search_TextChanged" />
+
+        <!-- 表头（代码填充 8 列） -->
+        <Grid x:Name="HeaderGrid"
+              DockPanel.Dock="Top"
+              Margin="0,0,0,2" />
+
+        <!-- 模型列表 -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="ListHost" Spacing="2" />
+        </ScrollViewer>
+    </DockPanel>
+</Window>

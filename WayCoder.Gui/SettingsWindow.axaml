@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WayCoder.UI.Gui.SettingsWindow"
+        Title="设置"
+        Width="660"
+        Height="540"
+        Background="{DynamicResource WindowBgBrush}">
+    <DockPanel Margin="16">
+
+        <!-- 底部按钮行 -->
+        <StackPanel DockPanel.Dock="Bottom"
+                    Orientation="Horizontal"
+                    Spacing="10"
+                    HorizontalAlignment="Right"
+                    Margin="0,12,0,0">
+            <Button Content="保存"
+                    Padding="14,6"
+                    Background="{DynamicResource ButtonPrimaryBg}"
+                    Foreground="{DynamicResource ButtonText}"
+                    Click="Save_Click" />
+            <Button Content="取消"
+                    Padding="14,6"
+                    Background="{DynamicResource ButtonSecondaryBg}"
+                    Foreground="{DynamicResource ButtonText}"
+                    Click="Cancel_Click" />
+        </StackPanel>
+
+        <!-- 左：分类列表 + 右：设置项 -->
+        <Grid ColumnDefinitions="Auto,*">
+            <ListBox x:Name="CategoryList"
+                     MinWidth="170"
+                     Foreground="{DynamicResource TextBrush}"
+                     SelectionChanged="Category_SelectionChanged" />
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="DetailHost"
+                            Spacing="12"
+                            Margin="16,0,0,0" />
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+</Window>

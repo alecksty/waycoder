@@ -35,7 +35,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
                 SizeToContent = SizeToContent.Height,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 CanResize = false,
-                Background = new SolidColorBrush(Color.Parse("#171a23")),
+                Background = GuiColors.PanelBg,
             };
 
             var panel = new StackPanel { Margin = new Avalonia.Thickness(20), Spacing = 16 };
@@ -43,15 +43,15 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
             {
                 Text = message,
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")),
+                Foreground = GuiColors.Text,
                 FontSize = 13,
             });
 
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
-            btnRow.Children.Add(MakeButton("允许", "#2f6bff", () => { win.Close(); tcs.TrySetResult(0); }));
+            btnRow.Children.Add(UiKit.MakeButton("允许", ButtonVariant.Primary, () => { win.Close(); tcs.TrySetResult(0); }));
             if (allowAll)
-                btnRow.Children.Add(MakeButton("全部允许", "#1a7f37", () => { win.Close(); tcs.TrySetResult(1); }));
-            btnRow.Children.Add(MakeButton("拒绝", "#d73a49", () => { win.Close(); tcs.TrySetResult(2); }));
+                btnRow.Children.Add(UiKit.MakeButton("全部允许", ButtonVariant.Success, () => { win.Close(); tcs.TrySetResult(1); }));
+            btnRow.Children.Add(UiKit.MakeButton("拒绝", ButtonVariant.Danger, () => { win.Close(); tcs.TrySetResult(2); }));
             panel.Children.Add(btnRow);
 
             win.Content = panel;
@@ -75,15 +75,15 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
                 SizeToContent = SizeToContent.Height,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 CanResize = false,
-                Background = new SolidColorBrush(Color.Parse("#171a23")),
+                Background = GuiColors.PanelBg,
             };
             var panel = new StackPanel { Margin = new Avalonia.Thickness(20), Spacing = 12 };
-            panel.Children.Add(new TextBlock { Text = prompt, TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")) });
+            panel.Children.Add(new TextBlock { Text = prompt, TextWrapping = TextWrapping.Wrap, Foreground = GuiColors.Text });
             var input = new TextBox { Text = defaultValue ?? "", AcceptsReturn = true, MinHeight = 60 };
             panel.Children.Add(input);
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
-            btnRow.Children.Add(MakeButton("确定", "#2f6bff", () => { win.Close(); tcs.TrySetResult(input.Text); }));
-            btnRow.Children.Add(MakeButton("取消", "#5b6472", () => { win.Close(); tcs.TrySetResult(null); }));
+            btnRow.Children.Add(UiKit.MakeButton("确定", ButtonVariant.Primary, () => { win.Close(); tcs.TrySetResult(input.Text); }));
+            btnRow.Children.Add(UiKit.MakeButton("取消", ButtonVariant.Secondary, () => { win.Close(); tcs.TrySetResult(null); }));
             panel.Children.Add(btnRow);
             win.Content = panel;
             win.Closed += (_, _) => tcs.TrySetResult(null);
@@ -116,7 +116,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
                 Width = 820,
                 Height = 620,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Background = new SolidColorBrush(Color.Parse("#171a23")),
+                Background = GuiColors.PanelBg,
             };
             var root = new DockPanel { Margin = new Avalonia.Thickness(16) };
 
@@ -132,10 +132,10 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
                 win.Close();
             }
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Avalonia.Thickness(0, 0, 0, 10) };
-            btnRow.Children.Add(MakeButton("✔ 全部接受", "#1a7f37", () => { accepted.Clear(); for (int i = 0; i < hunks.Count; i++) accepted.Add(i); Finish(); }));
-            btnRow.Children.Add(MakeButton("✘ 全部拒绝", "#d73a49", () => { accepted.Clear(); Finish(); }));
-            btnRow.Children.Add(MakeButton("取消", "#5b6472", () => { win.Close(); tcs.TrySetResult(null); }));
-            btnRow.Children.Add(MakeButton("💾 应用所选", "#2f6bff", Finish));
+            btnRow.Children.Add(UiKit.MakeButton("✔ 全部接受", ButtonVariant.Success, () => { accepted.Clear(); for (int i = 0; i < hunks.Count; i++) accepted.Add(i); Finish(); }));
+            btnRow.Children.Add(UiKit.MakeButton("✘ 全部拒绝", ButtonVariant.Danger, () => { accepted.Clear(); Finish(); }));
+            btnRow.Children.Add(UiKit.MakeButton("取消", ButtonVariant.Secondary, () => { win.Close(); tcs.TrySetResult(null); }));
+            btnRow.Children.Add(UiKit.MakeButton("💾 应用所选", ButtonVariant.Primary, Finish));
             DockPanel.SetDock(btnRow, Dock.Bottom);
             root.Children.Add(btnRow);
 
@@ -144,7 +144,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
             {
                 Text = "勾选要接受的变更（不勾 = 拒绝该 hunk），底部「应用所选」确认",
                 FontSize = 12,
-                Foreground = new SolidColorBrush(Color.Parse("#8b93a7")),
+                Foreground = GuiColors.DimText,
                 Margin = new Avalonia.Thickness(0, 0, 0, 8),
             };
             DockPanel.SetDock(hint, Dock.Top);
@@ -163,7 +163,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
                 {
                     Content = "接受此变更",
                     FontSize = 12,
-                    Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")),
+                    Foreground = GuiColors.Text,
                     IsChecked = false,
                 };
                 checkbox.IsCheckedChanged += (_, _) =>
@@ -180,18 +180,17 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
                     FontFamily = new FontFamily("Menlo,Consolas,monospace"),
                     FontSize = 12,
                     FontWeight = FontWeight.Bold,
-                    Foreground = new SolidColorBrush(Color.Parse("#58a6ff")),
+                    Foreground = GuiColors.DiffHdr,
                 };
                 content.Children.Add(head);
                 foreach (var l in h.Lines)
                 {
-                    var color = l.Kind == '+' ? "#3fb950" : l.Kind == '-' ? "#e5534b" : "#c9d1d9";
                     content.Children.Add(new TextBlock
                     {
                         Text = l.Kind + l.Text,
                         FontFamily = new FontFamily("Menlo,Consolas,monospace"),
                         FontSize = 12,
-                        Foreground = new SolidColorBrush(Color.Parse(color)),
+                        Foreground = GuiColors.DiffFor(l.Kind),
                     });
                 }
 
@@ -201,7 +200,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
                 listHost.Children.Add(new Border
                 {
                     Child = box,
-                    Background = new SolidColorBrush(Color.Parse("#1d2230")),
+                    Background = GuiColors.Panel2Bg,
                     CornerRadius = new CornerRadius(8),
                     Padding = new Avalonia.Thickness(12, 8),
                 });
@@ -228,7 +227,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
                 Width = 480,
                 Height = 440,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Background = new SolidColorBrush(Color.Parse("#171a23")),
+                Background = GuiColors.PanelBg,
             };
             var panel = new StackPanel { Margin = new Avalonia.Thickness(20), Spacing = 12 };
 
@@ -241,7 +240,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
                 {
                     Content = c,
                     IsChecked = false,
-                    Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")),
+                    Foreground = GuiColors.Text,
                 }).ToList();
                 foreach (var c in checks) panel.Children.Add(c);
             }
@@ -252,7 +251,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
             }
 
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
-            btnRow.Children.Add(MakeButton("确定", "#2f6bff", () =>
+            btnRow.Children.Add(UiKit.MakeButton("确定", ButtonVariant.Primary, () =>
             {
                 List<string> picked;
                 if (checks != null)
@@ -262,7 +261,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
                 win.Close();
                 tcs.TrySetResult(picked.Count > 0 ? picked : null);
             }));
-            btnRow.Children.Add(MakeButton("取消", "#5b6472", () => { win.Close(); tcs.TrySetResult(null); }));
+            btnRow.Children.Add(UiKit.MakeButton("取消", ButtonVariant.Secondary, () => { win.Close(); tcs.TrySetResult(null); }));
             panel.Children.Add(btnRow);
             win.Content = panel;
             win.Closed += (_, _) => tcs.TrySetResult(null);
@@ -289,18 +288,18 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
 
         if (toolName == "bash" && message.StartsWith("命令: "))
         {
-            tb.Inlines!.Add(new Run("命令: ") { Foreground = new SolidColorBrush(Color.Parse("#3fb950")) });
-            tb.Inlines!.Add(new Run(message[4..]) { Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")), FontFamily = mono });
+            tb.Inlines!.Add(new Run("命令: ") { Foreground = GuiColors.SyntaxGreen });
+            tb.Inlines!.Add(new Run(message[4..]) { Foreground = GuiColors.Text, FontFamily = mono });
             return tb;
         }
         if ((toolName == "write_file" || toolName == "edit_file" || toolName == "read_file") && message.StartsWith("文件: "))
         {
-            tb.Inlines!.Add(new Run("文件: ") { Foreground = new SolidColorBrush(Color.Parse("#58a6ff")) });
-            tb.Inlines!.Add(new Run(message[4..]) { Foreground = new SolidColorBrush(Color.Parse("#e6e8ee")), FontFamily = mono });
+            tb.Inlines!.Add(new Run("文件: ") { Foreground = GuiColors.SyntaxBlue });
+            tb.Inlines!.Add(new Run(message[4..]) { Foreground = GuiColors.Text, FontFamily = mono });
             return tb;
         }
         tb.Text = message;
-        tb.Foreground = new SolidColorBrush(Color.Parse("#e6e8ee"));
+        tb.Foreground = GuiColors.Text;
         return tb;
     }
 
@@ -312,16 +311,4 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
         return done == task ? await task.ConfigureAwait(false) : fallback;
     }
 
-    private static Button MakeButton(string text, string colorHex, Action onClick)
-    {
-        var btn = new Button
-        {
-            Content = text,
-            Padding = new Avalonia.Thickness(14, 6),
-            Background = new SolidColorBrush(Color.Parse(colorHex)),
-            Foreground = new SolidColorBrush(Colors.White),
-        };
-        btn.Click += (_, _) => onClick();
-        return btn;
-    }
 }
