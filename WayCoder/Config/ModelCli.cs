@@ -302,19 +302,20 @@ public static partial class ModelCli
 
     private static string? EffectiveBaseUrl(ModelCatalog.ModelInfo m)
     {
-        if (ModelCatalog.Providers.TryGetValue(m.ProviderId, out var p) && !string.IsNullOrEmpty(p.DefaultBaseUrl))
-            return p.DefaultBaseUrl;
-        if (!string.IsNullOrWhiteSpace(m.DefaultBaseUrl)) return m.DefaultBaseUrl;
+        // 注册表地址 > model 默认地址（复用核心解析），本地服务兜底 localhost 是探测场景专属增量（MAUI/Web 无）
+        var url = ModelCatalog.ResolveBaseUrl(m, m.ProviderId, null);
+        if (!string.IsNullOrWhiteSpace(url)) return url;
         if (m.ProviderId is "ollama" or "local") return "http://localhost:11434";
         return null;
     }
 
-    /// <summary>解析服务商的 base_url：注册表 > 目录内该服务商模型 > null（无法解析）</summary>
+    /// <summary>解析服务商的 base_url：注册表 > 目录内该服务商模型 > null（无法解析）。
+    /// 注册表查询复用 <see cref="ModelCatalog.BaseUrlOf"/>（providers.json 实时覆盖 + 大小写不敏感），目录模型默认走 <see cref="EffectiveBaseUrl"/>。</summary>
     private static string? ResolveProviderBaseUrl(string providerId)
     {
         var pid = providerId.Trim().ToLowerInvariant();
-        if (ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrEmpty(p.DefaultBaseUrl))
-            return p.DefaultBaseUrl;
+        var reg = ModelCatalog.BaseUrlOf(pid);
+        if (!string.IsNullOrEmpty(reg)) return reg;
         var m = ModelCatalog.All.FirstOrDefault(x => x.ProviderId.Equals(pid, StringComparison.OrdinalIgnoreCase));
         return m != null ? EffectiveBaseUrl(m) : null;
     }
