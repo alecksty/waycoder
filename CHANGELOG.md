@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.96.47 (2026-09-03) — 跨端重复逻辑收敛（批A/B/C：合并到核心，行为不变）
+
+纯内部重构收尾：把散落在四端（CLI/TUI/Web/GUI/MAUI）的重复逻辑收拢到核心类，消除「复刻版」「双扫描」式复制，TuiTreeView 补上 v0.96.46 未完成的基类接入。自测 4898 全过，四端编译 0 警告 0 错误。
+
+- **批A 纯重复收拢**：新增 `Infra/HtmlText.cs`（4 套 StripHtml 归并）；`Global.BackupFile`；原子写 `WriteAllTextAtomic` 再收 3 处；5 处外部工具路径收敛到 `ImportHelper` 常量
+- **批B 跨端文案/格式统一**：GUI StatusText → `ModelPicker.StatusText`；Provider「地址被占用」文案 → `ModelCatalog.DuplicateUrlMessage`（九处统一措辞）；Whisper `IsTranscribeError` 共享到 `TranscribeAudioTool`；上下文窗口显示统一到 `Global.FormatContext`（四端 8 处，InvariantCulture 固定小数点）
+- **批C ResolveBaseUrl 家族**：Web 与 MAUI 各自「复刻」的内联解析收敛为 `ModelCatalog.ResolveBaseUrl`（注册表默认 > 模型目录默认 > 全局），ModelCli 探测薄包装同步（复用 `BaseUrlOf` 子查询）；槽位（`AgentSlotConfig`）与连接（`ConnectionConfig`）两层不同抽象语义保留
+- **批C MAUI 双扫描**：ModelManagerPage 与 SettingsPage 各自的「收集 provider + 3s GET 首页」扫描合并到核心 `ModelCli.ResolveScanTargets` + `ProbeEndpointAsync`（真异步 /models 探测、4s 超时 + 取消、`ConfigureAwait(false)` 供 UI 层），同步 `ProbeEndpoint` 委托异步版；MAUI 扫描从「首页可达」升级为「/models 接口可用」，与 `--model test` 同一判定标准
+- **批C Provider CRUD 样板**：`RegisterProviderResult`/`UpdateProviderUrlResult` 返回失败文案（= `DuplicateUrlMessage` 占用者，不含端上前缀），bool 原方法委托结果方法，消除各处「注册失败后反查 `FindProviderByBaseUrl` 拼文案」的九处三行样板
+- **批C TuiTreeView 基类接入**：v0.96.46 保留的树控件补接 `TuiListControl`——删 `_scrollOffset`/`PageMove`/内联 MoveUp·Down（约 40 行），`SelectedNode ↔ SelectedIndex` 双向桥接保持公开 API（越界/空表/折叠隐藏 → null/-1），Home/End/Page 走基类骨架，渲染选中判定改行索引；TuiMenu PageUp/Down 裸数学收敛 `TuiScrollMath.PageMove`（分隔线环绕语义在 `MoveSelection` 保留，未改 TuiView 继承结构与 MenuState 状态对象）
+- **保留不合并**（抽象层不同或交互形态差异）：槽位/连接层 ResolveBaseUrl、RemoveProvider 各端确认 UI、TuiMenu 的 TuiView 继承线、模型导入的 URL/ID 规范化差异
+
 ## v0.96.46 (2026-09-03) — Tui 列表/滚动控件去重（纯函数 + 公共基类，行为不变）
 
 纯 UI 内部重构：收敛 Tui 列表/滚动控件重复的滚动数学与选中/导航样板，无用户可见功能变化。自测 4898 全过，编译 0 警告 0 错误。
