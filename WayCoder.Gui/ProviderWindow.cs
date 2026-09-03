@@ -171,15 +171,8 @@ public sealed class ProviderWindow : Window
             return _scanResult.TryGetValue(pid, out var ls) && ls == ModelPicker.ScanStatus.Connected ? "✔本地" : "本地";
         if (!ApiKeyStore.Has(pid)) return "无key";
         if (!_scanResult.TryGetValue(pid, out var st)) return "未测";
-        return st switch
-        {
-            ModelPicker.ScanStatus.Connected => "✔连通",
-            ModelPicker.ScanStatus.BadKey => "✖key",
-            ModelPicker.ScanStatus.Overdue => "欠费",
-            ModelPicker.ScanStatus.NoEndpoint => "无端点",
-            ModelPicker.ScanStatus.Unreachable => "✖不通",
-            _ => "未测",
-        };
+        // ScanStatus → 中文映射收敛到核心 ModelPicker.StatusText（本地/无key/未测特判保留在上方）
+        return ModelPicker.StatusText(st);
     }
 
     // ── 操作 ──
@@ -220,7 +213,7 @@ public sealed class ProviderWindow : Window
         var url = parts.Length > 2 ? parts[2].Trim() : "";
         if (!ModelCatalog.RegisterProvider(id, name, url))
         {
-            _status.Text = $"❌ 地址已被「{ModelCatalog.FindProviderByBaseUrl(url)}」占用（同地址 = 同供应商）";
+            _status.Text = "❌ " + ModelCatalog.DuplicateUrlMessage(ModelCatalog.FindProviderByBaseUrl(url));
             return;
         }
         _status.Text = $"✅ 已添加供应商 {name}";
@@ -266,7 +259,7 @@ public sealed class ProviderWindow : Window
         if (url == null) return;
         if (!ModelCatalog.UpdateProviderUrl(_selectedPid, url.Trim()))
         {
-            _status.Text = $"❌ 新地址已被「{ModelCatalog.FindProviderByBaseUrl(url.Trim())}」占用（同地址 = 同供应商）";
+            _status.Text = "❌ 新" + ModelCatalog.DuplicateUrlMessage(ModelCatalog.FindProviderByBaseUrl(url.Trim()));
             return;
         }
         _status.Text = $"✅ 已更新地址";

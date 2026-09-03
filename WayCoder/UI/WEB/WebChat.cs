@@ -218,10 +218,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var url = (body?["baseUrl"]?.AsString() ?? "").Trim();
             if (string.IsNullOrEmpty(id)) return HttpResponse.JsonBody(Err("缺少供应商 ID"));
             if (!ModelCatalog.RegisterProvider(id, string.IsNullOrEmpty(name) ? id : name, url))
-            {
-                var owner = ModelCatalog.FindProviderByBaseUrl(url);
-                return HttpResponse.JsonBody(Err($"地址已被服务商「{owner}」占用（同地址 = 同供应商，不允许重复）"));
-            }
+                return HttpResponse.JsonBody(Err(ModelCatalog.DuplicateUrlMessage(ModelCatalog.FindProviderByBaseUrl(url))));
             BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
         }
@@ -242,10 +239,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             var url = (body?["baseUrl"]?.AsString() ?? "").Trim();
             if (string.IsNullOrEmpty(pid)) return HttpResponse.JsonBody(Err("缺少 providerId"));
             if (!ModelCatalog.UpdateProviderUrl(pid, url))
-            {
-                var owner = ModelCatalog.FindProviderByBaseUrl(url);
-                return HttpResponse.JsonBody(Err($"新地址已被服务商「{owner}」占用（同地址 = 同供应商，不允许重复）"));
-            }
+                return HttpResponse.JsonBody(Err("新" + ModelCatalog.DuplicateUrlMessage(ModelCatalog.FindProviderByBaseUrl(url))));
             BroadcastStateForAll();
             return HttpResponse.JsonBody(Ok());
         }

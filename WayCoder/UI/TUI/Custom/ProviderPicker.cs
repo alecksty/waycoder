@@ -144,8 +144,7 @@ public static class ProviderPicker
                     if (!ModelCatalog.RegisterProvider(id, name, url))
                     {
                         Rebuild();
-                        var owner = ModelCatalog.FindProviderByBaseUrl(url);
-                        Say($"❌ 地址已被「{owner}」占用（同地址 = 同供应商，不允许重复）");
+                        Say("❌ " + ModelCatalog.DuplicateUrlMessage(ModelCatalog.FindProviderByBaseUrl(url)));
                         return;
                     }
                     Rebuild();
@@ -177,8 +176,7 @@ public static class ProviderPicker
                     if (!ModelCatalog.UpdateProviderUrl(r.Id, url))
                     {
                         Rebuild();
-                        var owner = ModelCatalog.FindProviderByBaseUrl(url);
-                        Say($"❌ 新地址已被「{owner}」占用（同地址 = 同供应商，不允许重复）");
+                        Say("❌ 新" + ModelCatalog.DuplicateUrlMessage(ModelCatalog.FindProviderByBaseUrl(url)));
                         return;
                     }
                     Rebuild();

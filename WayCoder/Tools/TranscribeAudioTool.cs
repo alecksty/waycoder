@@ -107,6 +107,14 @@ public class TranscribeAudioTool : ITool
     // 纯逻辑辅助（便于自测）
     // ========================================================================
 
+    /// <summary>转录结果是否为错误文本（成功返回任意转录内容，不含这些前缀）。
+    /// 覆盖 <see cref="ExecuteAsync"/> 的各错误出口前缀。纯逻辑便于自测，Web/移动端共用。</summary>
+    public static bool IsTranscribeError(string text)
+        => text.StartsWith("错误", StringComparison.Ordinal)
+        || text.StartsWith("转录失败", StringComparison.Ordinal)
+        || text.StartsWith("转录出错", StringComparison.Ordinal)
+        || text.StartsWith("转录返回空文本", StringComparison.Ordinal);
+
     /// <summary>校验音频路径，返回绝对路径；非法时返回 null 并在 error 中说明。</summary>
     internal static string? ValidateAudioFile(string path, out string error)
     {

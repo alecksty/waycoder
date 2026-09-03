@@ -212,9 +212,7 @@ public class ProviderCommand : SlashCommand
         sb.AppendLine($"**{ModelCatalog.ProviderDisplayName(pid2)}**（`{pid2}`）— {models.Length} 个模型 {(hasKey ? "🔑 已存 key" : "⚠ 未存 key")}");
         foreach (var m in models)
         {
-            var ctx = m.ContextWindow > 0
-                ? m.ContextWindow >= 1_000_000 ? $"{m.ContextWindow / 1_000_000}M" : $"{m.ContextWindow / 1000}K"
-                : "?";
+            var ctx = Global.FormatContext(m.ContextWindow);
             var price = m.InputPrice > 0 ? $"${m.InputPrice}/{m.OutputPrice}" : "?";
             sb.AppendLine($"  `{m.Id,-28}` {ctx,-5}ctx {price,-13} [{m.Category}]");
         }

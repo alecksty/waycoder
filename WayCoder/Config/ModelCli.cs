@@ -358,6 +358,6 @@ public static partial class ModelCli
         catch { return (false, "无法连接"); }
     }
 
-    private static string FormatCtx(int ctx) =>
-        ctx <= 0 ? "?" : ctx >= 1_000_000 ? $"{ctx / 1_000_000}M" : $"{ctx / 1000}K";
+    // 上下文整数 → 文本统一走 Global.FormatContext（- / 128K / 1.1M）；此处 0 值随全局显示「-」
+    private static string FormatCtx(int ctx) => Global.FormatContext(ctx);
 }
