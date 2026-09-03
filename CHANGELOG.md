@@ -1,5 +1,25 @@
 # 更新日志
 
+## v0.96.48 (2026-09-03) — GUI 重构 + 配色体系 + 代码审查修复 10 项
+
+GUI 端大改：配色真源收敛到 `App.axaml` ThemeDictionaries（深/浅各一套，切主题经 `RequestedThemeVariant`），代码取色统一走 `GuiColors` 桥；主窗口拆 4 个 partial；设置/供应商/模型窗口转 axaml；新增 `UiKit` 共享控件库。代码审查发现的 10 项 GUI 回归全部修复。GUI 编译 0 警告 0 错误（Debug/Release/发布全过）。
+
+- **配色体系重构**：删除 `Style/ResourcesChinese/Black/White.axaml`，颜色真源集中到 `App.axaml` ThemeDictionaries（Dark/Light 键同名）；新增 `GuiColors.cs`（`TryGetResource` 读当前变体 + 缺失深色兜底 + `Invalidate` 清缓存）；`.cs` 逻辑不再写 `Color.Parse("#…")` 字面量，经 `GuiColors` 统一取色
+- **主窗口 partial 拆分**：`MainWindow.cs` 拆出 `MainWindow.Chat.cs`（交互/发送/角色化消息）/`MainWindow.Commands.cs`（斜杠命令/主题/模型/权限）/`MainWindow.Session.cs`（会话）；删旧 `MainWindow.axaml.cs`
+- **窗口转 axaml**：SettingsWindow / ProviderWindow / ModelWindow 由 `.cs` 脚手架改为 `.axaml` + code-behind，ProviderWindow 补确认/改名/改地址对话框
+- **UiKit 共享控件库**：`UiKit.cs` 统一按钮（`ButtonVariant` 变体取色）+ 通用对话框（确认/输入/单选/多选/三选一/`NewDialog`），消除各窗口重复的 `MakeButton`/`new Window{…}` 样板
+- **审查修复 10 项**：
+  1. 权限下拉中文标签→`ComboBoxItem.Tag` 英文标识符，`Perm_SelectionChanged` 只认 `ask/auto/smartauto/yolo`（修 `/perm` 与启动把非 Ask 模式静默重置为 Ask）
+  2. `NewDialog` 默认 height=0 走 `SizeToContent.Height` 按内容自适应（修确认/输入/三选一对话框被压至近零高）
+  3. `PromptPathAsync` 占位符只作灰色提示、文本框留空（修新建/另存为被预填 `src/foo.cs` 静默错存）
+  4. `MessageBubble` 移除强制 Stretch、恢复角色对齐 + MaxWidth（用户右对齐，工具/助手 640/560 折行上限）
+  5. `UiKit.MakeButton` 资源键 `Panel2Bg`→`Panel2BgBrush`、Ghost 用 `Brushes.Transparent`（修按钮背景回退默认灰/实心）
+  6. 新增 `App.ThemeChanged` 事件——编辑器画刷切主题后重解析（修 EditorView 持旧主题快照）
+  7. `Theme_Click` 改为全槽气泡重渲染 + 槽位按钮重洗色（修非活跃槽气泡/10 个槽位按钮留旧主题色）
+  8. `SyntaxBrushMap.ForFg` TrueColor 绿通道 `(ansi & 0xFF00) >> 8`（修绿/红错位）
+  9. 槽位按钮第 10 槽标签改 `F10`（修显示 `F0`）
+  10. 新增 `EditorWindow.OpenFor` 去重复用（修点文件累积 N 个独立编辑器窗口）
+
 ## v0.96.47 (2026-09-03) — 跨端重复逻辑收敛（批A/B/C：合并到核心，行为不变）
 
 纯内部重构收尾：把散落在四端（CLI/TUI/Web/GUI/MAUI）的重复逻辑收拢到核心类，消除「复刻版」「双扫描」式复制，TuiTreeView 补上 v0.96.46 未完成的基类接入。自测 4898 全过，四端编译 0 警告 0 错误。

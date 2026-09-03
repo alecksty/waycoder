@@ -18,6 +18,9 @@ public partial class EditorWindow : Window
 {
     private EditorCore? Core => Editor.Core;
 
+    /// <summary>已打开的编辑器窗口（去重复用：同一文件时不重复累积 N 个顶层窗口）。</summary>
+    private static readonly System.Collections.Generic.HashSet<EditorWindow> OpenWindows = new();
+
     public EditorWindow() : this(null) { }
 
     public EditorWindow(string? path)
@@ -26,8 +29,47 @@ public partial class EditorWindow : Window
         Editor.CoreChanged += OnCoreChanged;
         KeyDown += Window_KeyDown;
         Closing += Window_Closing;
+        Closed += OnClosedInner;
+        App.ThemeChanged += OnThemeChanged; // 主题切换后重解析 EditorView 快照画刷
         OnCoreChanged();
         if (!string.IsNullOrEmpty(path)) OpenPath(path);
+        OpenWindows.Add(this);
+    }
+
+    /// <summary>主题切换：EditorView 的画刷在构造/加载时按主题快照，切主题后必须重新解析（其余控件走 DynamicResource 自动换色）。</summary>
+    private void OnThemeChanged() => Editor.ResolveThemeBrushes();
+
+    private void OnClosedInner(object? sender, EventArgs e)
+    {
+        App.ThemeChanged -= OnThemeChanged;
+        OpenWindows.Remove(this);
+    }
+
+    /// <summary>
+    /// 打开文件：已开同一路径的窗口则重新激活（复用），否则新建并注册。
+    /// 供右侧「修改文件」点击调用——避免反复点击同一文件累积 N 个独立 EditorWindow（各带一套 EditorCore/诊断/渲染）。
+    /// </summary>
+    internal static EditorWindow OpenFor(string? path)
+    {
+        if (!string.IsNullOrEmpty(path))
+        {
+            try
+            {
+                var wanted = System.IO.Path.GetFullPath(path);
+                EditorWindow? existing = null;
+                foreach (var w in OpenWindows)
+                {
+                    if (w.Core?.FilePath is { } fp &&
+                        string.Equals(System.IO.Path.GetFullPath(fp), wanted, StringComparison.OrdinalIgnoreCase))
+                    { existing = w; break; }
+                }
+                if (existing != null) { existing.Activate(); return existing; }
+            }
+            catch { /* 路径异常走新建，不阻断打开 */ }
+        }
+        var win = new EditorWindow(path);
+        win.Show();
+        return win;
     }
 
     private void OnCoreChanged() => UpdateStatus();
@@ -63,41 +105,7 @@ public partial class EditorWindow : Window
 
     /// <summary>简易三选对话框：0=主按钮 1=次按钮 -1=取消。</summary>
     private Task<int> ShowMessageBox(string title, string message, string primary, string secondary, string cancel)
-    {
-        var tcs = new TaskCompletionSource<int>();
-        Window win = null!;
-        var b1 = new Button { Content = primary };
-        var b2 = new Button { Content = secondary };
-        var b3 = new Button { Content = cancel };
-        b1.Click += (_, _) => { tcs.TrySetResult(0); win.Close(); };
-        b2.Click += (_, _) => { tcs.TrySetResult(1); win.Close(); };
-        b3.Click += (_, _) => { tcs.TrySetResult(-1); win.Close(); };
-        win = new Window
-        {
-            Title = title,
-            Width = 380,
-            Height = 170,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Content = new StackPanel
-            {
-                Margin = new Avalonia.Thickness(16),
-                Spacing = 12,
-                Children =
-                {
-                    new TextBlock { Text = message, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
-                    new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal,
-                        Spacing = 8,
-                        HorizontalAlignment = HorizontalAlignment.Right,
-                        Children = { b1, b2, b3 },
-                    },
-                },
-            },
-        };
-        win.ShowDialog(this);
-        return tcs.Task;
-    }
+        => UiKit.ShowMessageBox(this, title, message, primary, secondary, cancel);
 
     // ════════════════════════ 打开 / 新建 / 保存 ════════════════════════
 
@@ -149,43 +157,9 @@ public partial class EditorWindow : Window
         await Dispatcher.UIThread.InvokeAsync(UpdateStatus);
     }
 
-    /// <summary>弹出路径输入对话框，返回输入；取消返回 null。</summary>
+    /// <summary>弹出路径输入对话框，返回输入；取消返回 null。placeholder 仅作灰色提示，文本框留空（避免占位符被当成预填值提交）。</summary>
     private Task<string?> PromptPathAsync(string hint, string placeholder)
-    {
-        var tcs = new TaskCompletionSource<string?>();
-        Window win = null!;
-        var input = new TextBox { PlaceholderText = placeholder, FontSize = 13 };
-        var ok = new Button { Content = "确定" };
-        var cancel = new Button { Content = "取消" };
-        ok.Click += (_, _) => { tcs.TrySetResult(input.Text ?? ""); win.Close(); };
-        cancel.Click += (_, _) => { tcs.TrySetResult(null); win.Close(); };
-        win = new Window
-        {
-            Title = hint,
-            Width = 420,
-            Height = 160,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Content = new StackPanel
-            {
-                Margin = new Avalonia.Thickness(16),
-                Spacing = 12,
-                Children =
-                {
-                    new TextBlock { Text = hint, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
-                    input,
-                    new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal,
-                        Spacing = 8,
-                        HorizontalAlignment = HorizontalAlignment.Right,
-                        Children = { ok, cancel },
-                    },
-                },
-            },
-        };
-        win.ShowDialog(this);
-        return tcs.Task;
-    }
+        => UiKit.ShowPrompt(this, hint, hint, "", placeholder);
 
     // ════════════════════════ 查找 ════════════════════════
 

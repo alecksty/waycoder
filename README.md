@@ -1,6 +1,6 @@
 <div align="center">
 
-![alt text](image.png)
+![alt text](image/app.png)
 
 # WayCoder（道码）
 
@@ -34,6 +34,19 @@ WayCoder（道码）是一个中文版多智能体经济型编程智能体。把
 ## 先跑一次
 
 ```bash
+
+# TUI版
+WayCoder
+
+# 网页版
+WayCoder --web
+
+# CLI版
+WayCoder --cli
+
+# GUI版
+WayCoder --GUI
+
 # Watch 模式 (监听 AI! 注释自动触发 Agent)
 WayCoder --watch
 
@@ -45,8 +58,11 @@ WayCoder --tiny 8k
 WayCoder --economy          # 开：精简提示词 + 更早压缩 + 输出上限
 WayCoder --economy auto     # 自动：按任务复杂度动态调节阈值（简单省、复杂保质量）
 WayCoder --economy extreme  # 极致：最小提示词（265 字符）+ 核心 7 工具（read/write/edit/bash/web_search/fetch/ask），每轮 token 省 90%
+
 WayCoder --permit tiny      # 纯聊天工作模式（Chat）：无任何工具 + 无系统提示词，每轮 token≈0
+
 WayCoder --mode plan         # 只读规划模式（Plan）：只读白名单工具 + 精简计划提示词，产出计划待审批
+
 WayCoder --mode chat         # 纯聊天工作模式（Chat）：等价 --permit tiny，--mode 显式时覆盖
 # 省钱模式工具精简（仅 Build 档，关=全量，开=去重复，开的越大越精简）：
 #   Off=46 → Auto=34（去 bash 可替代）→ On=29（再搜索编辑冗余）→ Extreme=7（核心集）→ 纯聊天 Chat=0
@@ -81,7 +97,7 @@ WayCoder --batch-repo https://x/r1 --batch-repo https://x/r2 --batch-task "修�
 WayCoder --json -p "修复一个 bug"
 
 # 浏览器 Web UI（三栏：会话记录 + 聊天 + 信息面板；Markdown 渲染 + 权限模式切换）
-WayCoder --web          # 默认端口 8123
+WayCoder --web          # 默认端口 9527
 WayCoder --web 9000     # 指定端口
 
 # 运行自测（4106 项）
