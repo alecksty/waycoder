@@ -22,7 +22,7 @@ public class ModelCommand : SlashCommand
 {
     public override string Name => "/model";
     public override string[] Aliases => ["/m"];
-    public override string Description => "Model management — model catalog + large/small selection (switch = switch connect)";
+    public override string Description => "模型管理：模型目录 + 大/小模型选择（切换 = 切换 connect）";
     public override string? Usage => "/model [<id> | select <id> | small <id> | list [filter] | add <id> [pid] [baseUrl] | rm <id> | test | import [source] | slot <N> <large|small> <id> | uniform <id>]";
 
     /// <summary>把选中模型应用到当前 Agent 运行时（重配 LlmClient）。</summary>

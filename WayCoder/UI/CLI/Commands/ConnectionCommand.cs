@@ -24,7 +24,7 @@ public class ConnectionCommand : SlashCommand
 {
     public override string Name => "/connect";
     public override string[] Aliases => ["/conn", "/connection"];
-    public override string Description => "Connect management — connect registry + named connection + fallback chain + switch";
+    public override string Description => "连接管理：连接注册表 + 命名连接 + 回退链 + 切换";
     public override string? Usage => "/connect [<id> | select <id> | list | add <name> <pid> <model> | rm <name> | test | import | use <connName> | conn add <name> <big> <small> | chain <c1> <c2> ...]";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
