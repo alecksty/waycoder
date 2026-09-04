@@ -14,6 +14,7 @@
 - **providerId 生成去前端网关前缀**：`ModelCatalog.NormalizeProviderId` / `ExtractHost` 生成服务商 id 时剥 `api-` / `api-inference.` / `inference.` / `ai.` / `ai-` / `www.` / `www-` 前端前缀（`ai.deepseek.com`→`deepseek`、`www-openai.com`→`openai`、`api-inference.deepseek.com`→`deepseek`、`inference.siliconflow.com`→`siliconflow`）——同一网关的子域/`www`/`api-inference` 变体归并成同一服务商 id，避免自定义中转被拆成多个 id
 - **表格缩行「花屏」修复**：`TuiTableList.OnRender` 写数据行后补齐表格 Height 区域内的剩余空行（用列表底色覆盖）——修「模型对话框『清空全部模型』后花屏」：总行数 < Height 时前帧旧行内容残留在未重绘区域（TuiView 渲染子控件不先清区域），缩行/清空目录即残留
 - **侧栏 LSP 区改为活动才显示**：不再一直列静态 `SupportedServers` 服务列表，改读 `LspTool.ActiveSessions`（运行中会话）——无活动显示「(无活动会话)」占位（对齐 Web 面板「无活动会话」），有活动列出命令/状态/根目录；侧栏指纹同步改用 ActiveSessions.Count，随活动变化即时刷新
+- **模型栏供应商显示：匹配不到就显示 `(?)`**：新增 `ModelCatalog.ResolveConfidentProvider(modelId, baseUrl)`——只在目录按 id+baseUrl 精确命中、或 baseUrl 可反推出已知服务商时返回；两者皆不中返回 null，模型栏 / 动态栏显示 `(?)model`，不回退 `Config.Provider` 乱猜。修「模型栏显示 `(DeepSeek)mimo-v2.5`」（DeepSeek 无此模型）：自定义网关模型被误报成别的服务商
 - **回归测试 +5**：`SelfTest.Chunk4`「模型栏」2 项（自定义网关全局模型 ResolveBaseUrl 用全局网关 / ResolveLargeProvider 回落全局 provider）+ `SelfTest.Chunk8`「输入失焦兜底」3 项 +「RenderWait 守卫」2 项
 
 ## v0.96.53 (2026-09-04) — 模型提问永不拦截（沟通≠权限）+ bash shellBlock 全链路修复（code-review 6 项）

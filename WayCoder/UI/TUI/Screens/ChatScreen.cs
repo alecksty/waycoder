@@ -389,14 +389,19 @@ public partial class ChatScreen : TuiScreen
         var isLargeFallback = liveLlm != null && !string.IsNullOrWhiteSpace(liveLlm.Model)
                                               && !string.Equals(liveLlm.Model, cfgLargeModel, StringComparison.OrdinalIgnoreCase);
         var largeModel = isLargeFallback ? liveLlm!.Model : cfgLargeModel;
-        var largeProv = isLargeFallback
-            ? ModelCatalog.InferProviderFromBaseUrl(liveLlm?.BaseUrl) ?? AgentSlotConfig.ResolveLargeProvider(slotCfg, ActiveSlotIndex)
-            : AgentSlotConfig.ResolveLargeProvider(slotCfg, ActiveSlotIndex);
-        string large = ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(largeProv), largeModel)
-                       + (isLargeFallback ? "«dim»(回退)«/»" : "");
+        // 只信「模型+网关」能精确匹配到的 provider；匹配不到显示 (?)model，而非回落 Config.Provider 乱猜
+        // （自定义网关模型 mimo-v2.5@ambient.xyz 会被误报成别的服务商，如 DeepSeek）。
+        var largeProv = ModelCatalog.ResolveConfidentProvider(
+            largeModel, isLargeFallback ? liveLlm?.BaseUrl : AgentSlotConfig.ResolveBaseUrl(slotCfg, cfgLargeModel));
+        string large = ConnectionConfig.FormatModel(
+            largeProv != null ? ModelCatalog.ProviderDisplayName(largeProv) : "?",
+            largeModel) + (isLargeFallback ? "«dim»(回退)«/»" : "");
+        var smallModel = AgentSlotConfig.ResolveSmallModel(slotCfg, ActiveSlotIndex);
+        var smallProv = ModelCatalog.ResolveConfidentProvider(
+            smallModel, AgentSlotConfig.ResolveBaseUrl(slotCfg, smallModel));
         string small = ConnectionConfig.FormatModel(
-            ModelCatalog.ProviderDisplayName(AgentSlotConfig.ResolveSmallProvider(slotCfg, ActiveSlotIndex)),
-            AgentSlotConfig.ResolveSmallModel(slotCfg, ActiveSlotIndex));
+            smallProv != null ? ModelCatalog.ProviderDisplayName(smallProv) : "?",
+            smallModel);
         string modeStr = WorkModeManager.Format(WorkModeManager.CurrentMode);
         string economyStr = Config.Instance.EconomyMode switch
         {
@@ -465,7 +470,10 @@ public partial class ChatScreen : TuiScreen
     /// </summary>
     public void RefreshModelStatus()
     {
-        StatusLeft = ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.Provider), Config.Instance.Model);
+        var prov = ModelCatalog.ResolveConfidentProvider(Config.Instance.Model, Config.Instance.BaseUrl);
+        StatusLeft = ConnectionConfig.FormatModel(
+            prov != null ? ModelCatalog.ProviderDisplayName(prov) : "?",
+            Config.Instance.Model);
         MarkDirty();
     }
 

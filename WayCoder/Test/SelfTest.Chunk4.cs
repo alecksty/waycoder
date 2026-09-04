@@ -438,6 +438,11 @@ public static partial class SelfTest
             }
             finally { Config.Instance.Model = oldModel; Config.Instance.BaseUrl = oldBase; Config.Instance.Provider = oldProv; }
         }
+        // 模型栏 provider 只信「模型+网关」精确匹配；匹配不到 → null（显示 (?)model），不回退 Config.Provider 乱猜
+        Check("模型栏: 已知模型+网关精确命中", ModelCatalog.ResolveConfidentProvider("deepseek-v4-flash", "https://api.deepseek.com") == "deepseek");
+        Check("模型栏: 同 id 多服务商用网关区分", ModelCatalog.ResolveConfidentProvider("deepseek-v4-flash", "https://api.inferera.com/v1") == "aihubmix");
+        Check("模型栏: 未知网关模型→null(显示 ?)", ModelCatalog.ResolveConfidentProvider("mimo-v2.5", "https://api.ambient.xyz/v1") == null);
+        Check("模型栏: 空模型→null", ModelCatalog.ResolveConfidentProvider(null, "https://x") == null);
         Check("ApiKeyStore.ForModel 未知模型返回 null", ApiKeyStore.ForModel("no-such-model-xyz") == null);
         Check("Config 含 SmallProvider 设置项", ConfigCli.Get("SmallProvider").Contains("SmallProvider"));
 
