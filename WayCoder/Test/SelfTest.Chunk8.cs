@@ -1918,6 +1918,23 @@ public static partial class SelfTest
             Check("输入失焦兜底: 打字后焦点交还输入框", focusScr.InputArea.Focused);
             Check("输入失焦兜底: 字符成功录入(不被 !Focused 吞掉)", focusScr.InputArea.Text == "a");
         }
+
+        // ── 防「已关闭窗口 + evt 未置位 → RenderWait(timeout=0) 卡死主循环」──
+        // .tui 对话框（ProviderPicker 等）若未 RegisterShortcut(Esc) 置位 evt，ESC 关窗后 RenderWait
+        // 会因 evt 永不置位而永久等待，主循环被堵在对话框里 → 「消息进列表但命令没执行」。
+        // 修：RenderWait 发现窗口已关闭（win.Screen==null）即返回。
+        {
+            var scr = new ChatScreen();
+            scr.Activate();
+            var win = TuiDialog.Confirm("guard", "y?", _ => { });
+            scr.ShowWindow(win);            // win.Screen = scr
+            Check("RenderWait 守卫: 窗口已挂上", win.Screen == scr);
+            scr.CloseWindow(win);            // win.Screen = null（模拟 ESC 关窗但 evt 未置位）
+            using var evt = new ManualResetEventSlim(false);
+            long t0 = Environment.TickCount64;
+            UxHelper.RenderWait(scr, evt, 0, win);
+            Check("RenderWait 守卫: 已关闭窗口立即返回(不卡死)", Environment.TickCount64 - t0 < 2000);
+        }
         Console.WriteLine();
 
         // ================================================================

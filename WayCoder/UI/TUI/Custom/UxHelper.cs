@@ -434,6 +434,12 @@ public static class UxHelper
         var start = Environment.TickCount64;
         while (!evt.IsSet)
         {
+            // 窗口已被关闭（ESC / OnClosed 关窗但未置位 evt）→ 不再等待，立即返回。
+            // 防 RenderWait(timeoutMs=0) 依赖 evt 永久卡死调用方：`.tui` 对话框（ProviderPicker 等）若
+            // 未像 ModelPicker 那样 RegisterShortcut(Esc) 置位 evt，ESC 关窗后主循环会被永远堵在 RenderWait
+            // → 「消息进列表但命令没执行」。
+            if (win != null && win.Screen == null) break;
+
             // 单帧 try/catch：渲染/读键一帧异常不逃逸（否则 evt 永不置位 → 对话框永久卡死），
             // 下一帧照常重绘，窗口栈不残留。
             try
