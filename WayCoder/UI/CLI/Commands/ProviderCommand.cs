@@ -24,7 +24,7 @@ public class ProviderCommand : SlashCommand
 {
     public override string Name => "/provider";
     public override string[] Aliases => ["/p", "/prov"];
-    public override string Description => "Provider management — providers {name, baseUrl, apikey}: list/add/rm/select/test/import";
+    public override string Description => "服务商管理：{名称, 地址, 密钥} — list/add/rm/select/test/import";
     public override string? Usage => "/provider [list | add <id> <name> <url> | rm <id> | select <id> | <id> | show <id> | apikey [set <pid> <key> | rm <pid>] | test | import [source] | reconcile [--dry-run]]";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
