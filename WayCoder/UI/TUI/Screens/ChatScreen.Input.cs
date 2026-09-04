@@ -266,7 +266,7 @@ public partial class ChatScreen : TuiScreen
           .Append(GitBranch).Append('|')
           .Append(ModifiedFiles.Count).Append('|')
           .Append(McpManager.Servers.Count).Append(':').Append(McpManager.DiscoveredTools.Count).Append('|')
-          .Append(LspTool.SupportedServers.Count).Append('|');
+          .Append(LspTool.ActiveSessions.Count).Append('|');
         foreach (var s in McpManager.Servers) sb.Append((int)s.Status).Append(s.ToolCount).Append(',');
         sb.Append('|');
         foreach (var t in TodoTool.Items) sb.Append(t.Id).Append(t.Status.Length > 0 ? t.Status[0] : '?').Append(',');
@@ -371,13 +371,20 @@ public partial class ChatScreen : TuiScreen
             Lines = mcpLines,
         });
 
-        // ── LSP 区 ──
+        // ── LSP 区（仅活动会话时展示，无活动显示占位——不再一直列静态支持的服务列表）──
+        var lspSessions = LspTool.ActiveSessions;
         var lspLines = new List<string>();
-        foreach (var kv in LspTool.SupportedServers)
-            lspLines.Add($"  📦 {kv.Key}: {kv.Value.Command}");
+        if (lspSessions.Count == 0)
+            lspLines.Add("  (无活动会话)");
+        else
+            foreach (var s in lspSessions)
+            {
+                var status = s.HasExited ? "✖已退出" : s.Initialized ? "✔已连接" : "⏳连接中";
+                lspLines.Add($"  📦 {s.Command} {status} · {s.Root}");
+            }
         sections.Add(new PanelSection
         {
-            Title = $"🔍 LSP ({LspTool.SupportedServers.Count})",
+            Title = $"🔍 LSP ({lspSessions.Count})",
             Lines = lspLines,
         });
 
